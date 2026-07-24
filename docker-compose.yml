@@ -1,0 +1,43 @@
+# ============================================
+# Artist Commission Platform - Docker Compose
+# 一键启动: docker compose up -d
+# ============================================
+
+services:
+  # Web 应用（前端 + 后端）
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: commission-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data          # SQLite 数据库持久化
+      - ./uploads:/app/uploads    # 上传文件持久化
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/app/data/commission.db
+
+  # Caddy 反向代理（自动 HTTPS + 泛解析）
+  caddy:
+    image: caddy:2-alpine
+    container_name: commission-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:

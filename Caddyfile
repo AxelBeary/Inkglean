@@ -1,0 +1,21 @@
+# ============================================
+# Caddy 配置 - 泛解析反向代理
+# 修改 {$DOMAIN} 为你的实际域名
+# ============================================
+
+{
+	# 如果使用 Cloudflare DNS 验证（推荐，支持泛域名证书）
+	# 取消下面注释并安装 caddy-dns/cloudflare 插件
+	# acme_dns cloudflare {$CLOUDFLARE_API_TOKEN}
+}
+
+# 泛解析：所有子域名 → 同一个后端
+# alice.artgroup.com, bob.artgroup.com 都走这里
+*.{$DOMAIN} {
+	reverse_proxy web:3000
+}
+
+# 主域名本身（管理后台入口）
+{$DOMAIN} {
+	reverse_proxy web:3000
+}
