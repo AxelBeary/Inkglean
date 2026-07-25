@@ -1,5 +1,6 @@
 import * as artistService from './artist.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
+import { clamp } from '../../shared/validate.js'
 
 // ============================================
 // 画师路由 - 公开主页 + 后台管理
@@ -43,6 +44,7 @@ export default async function artistRoutes(fastify) {
       weiboUrl: artist.weibo_url,
       bilibiliUrl: artist.bilibili_url,
       notifyEnabled: !!artist.notify_enabled,
+      contactQq: artist.contact_qq || artist.qq_number,
       tiers,
       artworks,
       rules: rules?.content || ''
@@ -67,11 +69,17 @@ export default async function artistRoutes(fastify) {
 
   /**
    * PUT /api/artist/profile
-   * 更新画师资料（昵称、简介、状态、外链等）
+   * 更新画师资料（昵称、简介、状态、外链、身份码等）
    */
   fastify.put('/api/artist/profile', { preHandler: requireAuth }, async (request, reply) => {
     try {
-      const updated = artistService.updateArtist(request.artist.id, request.body || {})
+      const body = request.body || {}
+      // 截断所有字符串字段
+      const sanitized = {}
+      for (const [k, v] of Object.entries(body)) {
+        sanitized[k] = typeof v === 'string' ? clamp(v, k === 'artist_code' ? 'artistCode' : k) : v
+      }
+      const updated = artistService.updateArtist(request.artist.id, sanitized)
       return updated
     } catch (err) {
       return reply.code(400).send({ error: err.message })
@@ -91,12 +99,22 @@ export default async function artistRoutes(fastify) {
   })
 
   fastify.put('/api/artist/tiers/:id', { preHandler: requireAuth }, async (request, reply) => {
-    const tier = artistService.updateTier(request.params.id, request.body || {})
-    if (!tier) return reply.code(404).send({ error: '档位不存在' })
-    return tier
+    // 归属校验：只能改自己的档位
+    const tier = artistService.getTierById(request.params.id)
+    if (!tier || tier.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '档位不存在' })
+    }
+    const updated = artistService.updateTier(request.params.id, request.body || {})
+    if (!updated) return reply.code(404).send({ error: '档位不存在' })
+    return updated
   })
 
-  fastify.delete('/api/artist/tiers/:id', { preHandler: requireAuth }, async (request) => {
+  fastify.delete('/api/artist/tiers/:id', { preHandler: requireAuth }, async (request, reply) => {
+    // 归属校验
+    const tier = artistService.getTierById(request.params.id)
+    if (!tier || tier.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '档位不存在' })
+    }
     artistService.deleteTier(request.params.id)
     return { success: true }
   })
@@ -113,7 +131,12 @@ export default async function artistRoutes(fastify) {
     return artistService.createArtwork(request.artist.id, { imagePath, title })
   })
 
-  fastify.delete('/api/artist/artworks/:id', { preHandler: requireAuth }, async (request) => {
+  fastify.delete('/api/artist/artworks/:id', { preHandler: requireAuth }, async (request, reply) => {
+    // 归属校验
+    const artwork = artistService.getArtworkById(request.params.id)
+    if (!artwork || artwork.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '作品不存在' })
+    }
     artistService.deleteArtwork(request.params.id)
     return { success: true }
   })
@@ -127,6 +150,6 @@ export default async function artistRoutes(fastify) {
   fastify.put('/api/artist/rules', { preHandler: requireAuth }, async (request, reply) => {
     const { content } = request.body || {}
     if (content == null) return reply.code(400).send({ error: '内容为必填项' })
-    return artistService.updateRules(request.artist.id, content)
+    return artistService.updateRules(request.artist.id, clamp(content, 'rules'))
   })
 }

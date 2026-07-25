@@ -44,7 +44,7 @@
           <el-button v-if="order.status === 'confirmed'" type="warning" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
           <el-button v-if="['wip','revision'].includes(order.status)" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
           <el-button v-if="['wip','revision'].includes(order.status)" type="success" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
-          <el-button v-if="order.status === 'done'" type="success" @click="showDeliver = true">{{ $t('orderDetail.uploadDeliver') }}</el-button>
+          <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           <el-button v-if="!['delivered','cancelled'].includes(order.status)" type="danger" plain @click="changeStatus('cancelled')">{{ $t('orderDetail.cancelOrder') }}</el-button>
         </div>
       </el-card>
@@ -187,6 +187,12 @@ function openFile(filePath) {
 
 function handleDeliverFile(file) {
   deliverFile.value = file.raw
+}
+
+// 打开交付弹窗时重置文件选择
+function openDeliverDialog() {
+  deliverFile.value = null
+  showDeliver.value = true
 }
 
 async function submitDeliver() {

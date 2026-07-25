@@ -35,6 +35,7 @@ export function cleanDb() {
 
 /**
  * 快速创建一个测试画师，返回完整行
+ * 自动生成 artist_code（子域名大写）
  */
 export function seedArtist(overrides = {}) {
   const defaults = {
@@ -44,11 +45,12 @@ export function seedArtist(overrides = {}) {
     status: 'open'
   }
   const data = { ...defaults, ...overrides }
+  const artistCode = data.artist_code || data.subdomain.toUpperCase()
 
   const result = db.prepare(`
-    INSERT INTO artists (qq_number, name, subdomain, status)
-    VALUES (?, ?, ?, ?)
-  `).run(data.qq_number, data.name, data.subdomain, data.status)
+    INSERT INTO artists (qq_number, name, subdomain, artist_code, status)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(data.qq_number, data.name, data.subdomain, artistCode, data.status)
 
   // 初始化须知
   db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)')
@@ -62,7 +64,7 @@ export function seedArtist(overrides = {}) {
  */
 export function seedOrder(artistId, overrides = {}) {
   const defaults = {
-    order_no: `A${String(Math.floor(Math.random() * 900) + 100)}`,
+    order_no: `TEST-${String(Math.floor(Math.random() * 900) + 100)}`,
     client_qq: '99999',
     priority: 'medium',
     status: 'pending',

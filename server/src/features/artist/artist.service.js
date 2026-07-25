@@ -1,4 +1,5 @@
 import db from '../../db/connection.js'
+import { isValidArtistCode } from '../../shared/validate.js'
 
 // ============================================
 // 画师服务
@@ -20,16 +21,28 @@ export function getAllArtists() {
   return db.prepare('SELECT * FROM artists ORDER BY created_at ASC').all()
 }
 
-export function createArtist({ qqNumber, name, subdomain, bio }) {
+export function createArtist({ qqNumber, name, subdomain, bio, artistCode }) {
   // 校验子域名格式
   if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
     throw new Error('子域名只能包含小写字母、数字和连字符，2-20个字符')
   }
 
+  // 身份码：默认用子域名大写，可自定义
+  const code = (artistCode || subdomain.toUpperCase()).toUpperCase()
+  if (!isValidArtistCode(code)) {
+    throw new Error('身份码只能包含大写字母和数字，2-10个字符')
+  }
+
+  // 检查身份码唯一性
+  const existing = db.prepare('SELECT id FROM artists WHERE artist_code = ?').get(code)
+  if (existing) {
+    throw new Error(`身份码「${code}」已被使用，请换一个`)
+  }
+
   const result = db.prepare(`
-    INSERT INTO artists (qq_number, name, subdomain, bio)
-    VALUES (?, ?, ?, ?)
-  `).run(qqNumber, name, subdomain, bio || null)
+    INSERT INTO artists (qq_number, name, subdomain, artist_code, bio)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(qqNumber, name, subdomain, code, bio || null)
 
   // 初始化空的约稿须知
   db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)')
@@ -39,14 +52,28 @@ export function createArtist({ qqNumber, name, subdomain, bio }) {
 }
 
 export function updateArtist(id, fields) {
-  const allowed = ['name', 'avatar', 'bio', 'status', 'weibo_url', 'bilibili_url', 'notify_enabled']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'weibo_url', 'bilibili_url', 'notify_enabled', 'artist_code', 'contact_qq']
   const updates = []
   const values = []
 
   for (const [key, value] of Object.entries(fields)) {
     if (allowed.includes(key)) {
-      updates.push(`${key} = ?`)
-      values.push(value)
+      // 身份码需要额外校验
+      if (key === 'artist_code') {
+        const code = String(value || '').toUpperCase()
+        if (!isValidArtistCode(code)) {
+          throw new Error('身份码只能包含大写字母和数字，2-10个字符')
+        }
+        const existing = db.prepare('SELECT id FROM artists WHERE artist_code = ? AND id != ?').get(code, id)
+        if (existing) {
+          throw new Error(`身份码「${code}」已被使用，请换一个`)
+        }
+        updates.push('artist_code = ?')
+        values.push(code)
+      } else {
+        updates.push(`${key} = ?`)
+        values.push(value)
+      }
     }
   }
 
@@ -69,6 +96,10 @@ export function getTiers(artistId) {
   return db.prepare('SELECT * FROM price_tiers WHERE artist_id = ? ORDER BY sort_order ASC').all(artistId)
 }
 
+export function getTierById(tierId) {
+  return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(tierId)
+}
+
 export function createTier(artistId, { name, price, description, exampleImage, workDays }) {
   const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM price_tiers WHERE artist_id = ?').get(artistId)
   const sortOrder = (maxOrder?.m ?? 0) + 1
@@ -82,13 +113,16 @@ export function createTier(artistId, { name, price, description, exampleImage, w
 }
 
 export function updateTier(tierId, fields) {
+  // 同时接受 camelCase 和 snake_case（前端统一用 camelCase）
+  const keyMap = { workDays: 'work_days', exampleImage: 'example_image' }
   const allowed = ['name', 'price', 'description', 'example_image', 'work_days', 'sort_order']
   const updates = []
   const values = []
 
   for (const [key, value] of Object.entries(fields)) {
-    if (allowed.includes(key)) {
-      updates.push(`${key} = ?`)
+    const dbKey = keyMap[key] || key
+    if (allowed.includes(dbKey)) {
+      updates.push(`${dbKey} = ?`)
       values.push(value)
     }
   }
@@ -109,6 +143,10 @@ export function deleteTier(tierId) {
 
 export function getArtworks(artistId) {
   return db.prepare('SELECT * FROM artworks WHERE artist_id = ? ORDER BY sort_order ASC').all(artistId)
+}
+
+export function getArtworkById(artworkId) {
+  return db.prepare('SELECT * FROM artworks WHERE id = ?').get(artworkId)
 }
 
 export function createArtwork(artistId, { imagePath, title }) {

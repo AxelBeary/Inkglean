@@ -1,42 +1,47 @@
 import db from '../../db/connection.js'
+import crypto from 'crypto'
 import { getArtistByQq } from '../artist/artist.service.js'
-import { randomInt, createHmac, timingSafeEqual } from 'crypto'
 
 // ============================================
-// 认证服务 - QQ 6位登录码 + HMAC 签名会话
+// 认证服务 - 登录码生成与验证
 // ============================================
 
-const CODE_TTL = parseInt(process.env.LOGIN_CODE_TTL || '300', 10)
-const MAX_ATTEMPTS = parseInt(process.env.LOGIN_CODE_MAX_ATTEMPTS || '3', 10)
-const SESSION_TTL = 7 * 24 * 60 * 60 * 1000 // 7天
-
-// 会话签名密钥（生产环境必须通过环境变量设置）
-const SECRET = process.env.SESSION_SECRET || 'change-me-in-production-' + Date.now()
+const isDev = process.env.NODE_ENV !== 'production'
 
 /**
- * 生成登录码（密码学安全随机数）
+ * 生成6位登录码，有效期5分钟
+ * 开发模式：输出到控制台（不依赖QQ Bot）
  */
 export function generateLoginCode(qqNumber) {
   const artist = getArtistByQq(qqNumber)
-  if (!artist) throw new Error('该QQ号未绑定画师账号，请联系管理员')
+  if (!artist) throw new Error('该QQ号未注册为画师')
 
+  // 清除旧码
   db.prepare('DELETE FROM login_codes WHERE artist_id = ?').run(artist.id)
 
-  const code = String(randomInt(100000, 1000000))
-  const expiresAt = new Date(Date.now() + CODE_TTL * 1000).toISOString()
+  const code = String(crypto.randomInt(100000, 999999))
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
 
   db.prepare('INSERT INTO login_codes (artist_id, code, expires_at) VALUES (?, ?, ?)')
     .run(artist.id, code, expiresAt)
+
+  // 开发模式：直接输出到控制台
+  if (isDev) {
+    console.log(`\n🔑 [DEV] 画师「${artist.name}」(QQ: ${qqNumber}) 的登录码: ${code}\n`)
+  }
+
+  // TODO Phase 2: 接入 QQ Bot (NapCat/OneBot) 发送登录码
+  // await sendQqMessage(qqNumber, `你的登录码是: ${code}，5分钟内有效。`)
 
   return { code, artist }
 }
 
 /**
- * 验证登录码
+ * 验证登录码（最多5次尝试）
  */
-export function verifyLoginCode(qqNumber, inputCode) {
+export function verifyLoginCode(qqNumber, code) {
   const artist = getArtistByQq(qqNumber)
-  if (!artist) return { valid: false, error: '该QQ号未绑定画师账号' }
+  if (!artist) return { valid: false, error: '该QQ号未注册为画师' }
 
   const record = db.prepare(
     'SELECT * FROM login_codes WHERE artist_id = ? ORDER BY created_at DESC LIMIT 1'
@@ -44,58 +49,56 @@ export function verifyLoginCode(qqNumber, inputCode) {
 
   if (!record) return { valid: false, error: '请先获取登录码' }
 
+  // 过期检查
   if (new Date(record.expires_at) < new Date()) {
     db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
     return { valid: false, error: '登录码已过期，请重新获取' }
   }
 
-  if (record.attempts >= MAX_ATTEMPTS) {
+  // 尝试次数检查
+  if (record.attempts >= 5) {
     db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
-    return { valid: false, error: '尝试次数过多，请15分钟后重新获取' }
+    return { valid: false, error: '尝试次数过多，请重新获取登录码' }
   }
 
-  if (record.code !== inputCode) {
+  // 验证
+  if (record.code !== code) {
     db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
-    const remaining = MAX_ATTEMPTS - record.attempts - 1
-    return { valid: false, error: `登录码错误，还剩 ${remaining} 次机会` }
+    return { valid: false, error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
   }
 
+  // 验证成功，删除码
   db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
   return { valid: true, artist }
 }
 
 /**
- * 生成 HMAC 签名的会话 Token
- * 格式: base64url(artistId:timestamp:hmac)
- * 无法伪造——不知道 SECRET 就算不出有效签名
+ * 创建会话 Token（HMAC签名，无状态）
  */
 export function createSession(artistId) {
-  const payload = `${artistId}:${Date.now()}`
-  const sig = createHmac('sha256', SECRET).update(payload).digest('base64url')
-  return Buffer.from(`${payload}:${sig}`).toString('base64url')
+  const secret = process.env.SESSION_SECRET || 'dev-secret-change-in-production'
+  const payload = Buffer.from(JSON.stringify({ id: artistId, t: Date.now() })).toString('base64url')
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${sig}`
 }
 
 /**
- * 验证并解析会话 Token（timing-safe 比较防时序攻击）
+ * 验证会话 Token
  */
-export function parseSession(token) {
+export function verifySession(token) {
+  if (!token) return null
+  const [payload, sig] = token.split('.')
+  if (!payload || !sig) return null
+
+  const secret = process.env.SESSION_SECRET || 'dev-secret-change-in-production'
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  if (sig !== expected) return null
+
   try {
-    const decoded = Buffer.from(token, 'base64url').toString()
-    const parts = decoded.split(':')
-    if (parts.length !== 3) return null
-
-    const [artistId, timestamp, sig] = parts
-    const payload = `${artistId}:${timestamp}`
-    const expected = createHmac('sha256', SECRET).update(payload).digest('base64url')
-
-    // timing-safe 比较
-    const sigBuf = Buffer.from(sig)
-    const expBuf = Buffer.from(expected)
-    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null
-
-    if (Date.now() - parseInt(timestamp) > SESSION_TTL) return null
-
-    return { artistId: parseInt(artistId) }
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
+    // 7天过期
+    if (Date.now() - data.t > 7 * 24 * 60 * 60 * 1000) return null
+    return data
   } catch {
     return null
   }

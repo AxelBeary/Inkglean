@@ -80,8 +80,12 @@ export const artistApi = {
 // ─── 客户端订单 ───
 export const orderApi = {
   create: (data) => api.post('/orders', data),
-  track: (orderNo) => api.get(`/orders/track/${orderNo}`),
-  delivery: (orderNo) => api.get(`/orders/delivery/${orderNo}`)
+  track: (orderNo, qq) => api.get(`/orders/track/${orderNo}`, { params: { qq } }),
+  delivery: (orderNo, qq) => api.get(`/orders/delivery/${orderNo}`, { params: { qq } }),
+  /** 凭 QQ 号查询在某画师处的所有订单（"不知道订单号"场景） */
+  myOrders: (subdomain, qq) => api.get('/orders/my', { params: { subdomain, qq } }),
+  /** 凭 QQ 号检查是否有订单（不记得订单号场景），返回联系信息 */
+  lookup: (subdomain, qq) => api.get('/orders/lookup', { params: { subdomain, qq } })
 }
 
 // ─── 上传 ───

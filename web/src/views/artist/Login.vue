@@ -41,7 +41,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useArtistStore } from '../../stores/artist.js'
-import { artistApi } from '../../api/index.js'
+import { authApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemeToggle from '../../components/ThemeToggle.vue'
@@ -64,8 +64,8 @@ async function getCode() {
   }
   sending.value = true
   try {
-    const res = await artistApi.requestLoginCode(qqNumber.value.trim())
-    devCode.value = res.devCode || ''
+    const res = await authApi.sendCode(qqNumber.value.trim())
+    devCode.value = res._dev_code || ''
     step.value = 2
   } catch (err) {
     ElMessage.error(err.message)

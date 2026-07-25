@@ -39,6 +39,9 @@
             <template #append>{{ $t('admin.domainSuffix') }}</template>
           </el-input>
         </el-form-item>
+        <el-form-item :label="$t('admin.codeLabel')">
+          <el-input v-model="form.artistCode" :placeholder="$t('admin.codePlaceholder')" maxlength="10" />
+        </el-form-item>
         <el-form-item :label="$t('admin.bioLabel')">
           <el-input v-model="form.bio" type="textarea" :rows="2" />
         </el-form-item>
@@ -63,7 +66,7 @@ const loading = ref(true)
 const dialogVisible = ref(false)
 const saving = ref(false)
 
-const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '' })
+const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
 
 async function addArtist() {
   if (!form.qqNumber || !form.name || !form.subdomain) {
@@ -75,11 +78,12 @@ async function addArtist() {
       qqNumber: form.qqNumber,
       name: form.name,
       subdomain: form.subdomain.toLowerCase(),
-      bio: form.bio
+      bio: form.bio,
+      artistCode: form.artistCode || undefined
     })
     ElMessage.success(t('admin.added'))
     dialogVisible.value = false
-    Object.assign(form, { qqNumber: '', name: '', subdomain: '', bio: '' })
+    Object.assign(form, { qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
     await loadArtists()
   } catch (err) {
     ElMessage.error(err.message)

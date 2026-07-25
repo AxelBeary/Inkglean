@@ -2,7 +2,7 @@ import db from './connection.js'
 import { fileURLToPath } from 'url'
 
 // ============================================
-// 数据库初始化 - 创建所有表
+// 数据库初始化 - 创建所有表 + 增量迁移
 // ============================================
 
 export const schema = `
@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS artists (
   qq_number TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   subdomain TEXT UNIQUE NOT NULL,
+  artist_code TEXT UNIQUE,
   avatar TEXT,
   bio TEXT,
   status TEXT DEFAULT 'open' CHECK(status IN ('open', 'full', 'break')),
@@ -119,6 +120,12 @@ CREATE TABLE IF NOT EXISTS login_codes (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
+-- 平台配置表
+CREATE TABLE IF NOT EXISTS platform_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 -- 索引优化
 CREATE INDEX IF NOT EXISTS idx_orders_artist_status ON orders(artist_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_queue ON orders(artist_id, queue_position);
@@ -126,10 +133,23 @@ CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
 `
 
 /**
- * 在给定数据库实例上执行建表
+ * 在给定数据库实例上执行建表 + 增量迁移
  */
 export function initDatabase(database) {
   database.exec(schema)
+
+  // ─── 迁移：artists 表增加 artist_code 列（兼容旧库） ───
+  const columns = database.prepare('PRAGMA table_info(artists)').all()
+  if (!columns.some(c => c.name === 'artist_code')) {
+    database.exec('ALTER TABLE artists ADD COLUMN artist_code TEXT UNIQUE')
+    // 回填：用子域名大写作为默认身份码
+    database.exec("UPDATE artists SET artist_code = UPPER(subdomain) WHERE artist_code IS NULL")
+  }
+
+  // ─── 迁移：artists 表增加 contact_qq 列（客户可见的联系QQ） ───
+  if (!columns.some(c => c.name === 'contact_qq')) {
+    database.exec('ALTER TABLE artists ADD COLUMN contact_qq TEXT')
+  }
 }
 
 // CLI 直接执行时自动建表（import 时不触发副作用）

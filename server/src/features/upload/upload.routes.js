@@ -10,7 +10,15 @@ import { nanoid } from 'nanoid'
 // UPLOAD_DIR 优先由 app.js 通过插件选项传入，保证与静态服务路径一致
 // ============================================
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+
+// 白名单：只允许图片扩展名（防 .html/.svg XSS）
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
 const RECOMMENDED_TYPES = ['image/webp', 'image/jpeg', 'image/png']
+
+function isAllowedFile(fileName) {
+  const ext = extname(fileName).toLowerCase()
+  return ALLOWED_EXTENSIONS.includes(ext)
+}
 
 function checkFileType(mimeType, fileName) {
   const ext = extname(fileName).toLowerCase()
@@ -28,9 +36,6 @@ function checkFileType(mimeType, fileName) {
 
 /**
  * 保存上传文件，截断时自动清理残留
- * @param {object} data - multipart file data
- * @param {string} subDir - 子目录（如 'images/1'）
- * @param {string} uploadDir - 上传根目录（由插件传入）
  */
 async function saveUpload(data, subDir, uploadDir) {
   const ext = extname(data.filename) || '.png'
@@ -68,6 +73,11 @@ export default async function uploadRoutes(fastify, opts) {
     const data = await request.file()
     if (!data) return reply.code(400).send({ error: '未收到文件' })
 
+    // 白名单校验
+    if (!isAllowedFile(data.filename)) {
+      return reply.code(400).send({ error: '仅支持 JPG / PNG / WebP / GIF 格式的图片' })
+    }
+
     const result = await saveUpload(data, join('images', String(request.artist.id)), UPLOAD_DIR)
     if (!result) return reply.code(400).send({ error: '文件大小超过10MB限制' })
 
@@ -84,11 +94,15 @@ export default async function uploadRoutes(fastify, opts) {
   })
 
   /**
-   * POST /api/upload/reference — 参考图（备用接口，客户下单用）
+   * POST /api/upload/reference — 参考图（客户下单用，公开）
    */
   fastify.post('/api/upload/reference', async (request, reply) => {
     const data = await request.file()
     if (!data) return reply.code(400).send({ error: '未收到文件' })
+
+    if (!isAllowedFile(data.filename)) {
+      return reply.code(400).send({ error: '仅支持 JPG / PNG / WebP / GIF 格式的图片' })
+    }
 
     const result = await saveUpload(data, 'references', UPLOAD_DIR)
     if (!result) return reply.code(400).send({ error: '文件大小超过10MB限制' })
@@ -106,11 +120,18 @@ export default async function uploadRoutes(fastify, opts) {
   })
 
   /**
-   * POST /api/upload/deliverable — 交付文件（需登录）
+   * POST /api/upload/deliverable — 交付文件（需登录，允许更多格式）
    */
   fastify.post('/api/upload/deliverable', { preHandler: requireAuth }, async (request, reply) => {
     const data = await request.file()
     if (!data) return reply.code(400).send({ error: '未收到文件' })
+
+    // 交付文件允许图片和 PSD/AI 等设计文件，但禁止 .html/.js/.svg
+    const ext = extname(data.filename).toLowerCase()
+    const BLOCKED = ['.html', '.htm', '.js', '.svg', '.php', '.exe', '.sh', '.bat']
+    if (BLOCKED.includes(ext)) {
+      return reply.code(400).send({ error: '不允许上传此类型的文件' })
+    }
 
     const result = await saveUpload(data, join('deliverables', String(request.artist.id)), UPLOAD_DIR)
     if (!result) return reply.code(400).send({ error: '文件大小超过限制' })

@@ -44,6 +44,8 @@
       </div>
 
       <el-empty v-if="!loading && artists.length === 0" :description="$t('landing.noArtists')" />
+
+      <Disclaimer />
     </main>
 
     <footer class="landing-footer">
@@ -59,6 +61,7 @@ import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemeToggle from '../../components/ThemeToggle.vue'
+import Disclaimer from '../../components/Disclaimer.vue'
 
 const { t } = useI18n()
 const router = useRouter()

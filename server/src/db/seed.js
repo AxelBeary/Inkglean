@@ -7,14 +7,15 @@ import db from './connection.js'
 const seed = () => {
   console.log('🌱 开始插入种子数据...')
 
-  // 插入测试画师
+  // 插入测试画师（含身份码）
   const artistStmt = db.prepare(`
-    INSERT OR IGNORE INTO artists (qq_number, name, subdomain, bio, status)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
 
-  artistStmt.run('10001', 'Alice', 'alice', '擅长日系头像和半身像', 'open')
-  artistStmt.run('10002', 'Bob', 'bob', '专注全身插画和场景', 'full')
+  artistStmt.run('10000', 'Admin', 'admin', 'ADMIN', '平台管理员', 'open', '10000')
+  artistStmt.run('10001', 'Alice', 'alice', 'ALICE', '擅长日系头像和半身像', 'open', '10001')
+  artistStmt.run('10002', 'Bob', 'bob', 'BOB', '专注全身插画和场景', 'full', '10002')
 
   const alice = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('alice')
   const bob = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('bob')
@@ -48,6 +49,12 @@ const seed = () => {
   <li>商用需额外授权，请联系画师</li>
 </ul>
   `.trim())
+
+  // 插入平台配置
+  const configStmt = db.prepare(`
+    INSERT OR IGNORE INTO platform_config (key, value) VALUES (?, ?)
+  `)
+  configStmt.run('admin_qq', '10000')
 
   console.log('✅ 种子数据插入完成')
 }

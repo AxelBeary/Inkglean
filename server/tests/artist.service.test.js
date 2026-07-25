@@ -7,8 +7,8 @@ describe('画师服务 (Artist Service)', () => {
     cleanDb()
   })
 
-  // TC-R-01: 创建画师 — 正常
-  it('TC-R-01: 创建画师并自动初始化须知', () => {
+  // TC-R-01: 创建画师 — 正常（含身份码自动生成）
+  it('TC-R-01: 创建画师并自动初始化须知和身份码', () => {
     const artist = artistService.createArtist({
       qqNumber: '111',
       name: '测试',
@@ -17,10 +17,32 @@ describe('画师服务 (Artist Service)', () => {
 
     expect(artist.name).toBe('测试')
     expect(artist.subdomain).toBe('test')
+    expect(artist.artist_code).toBe('TEST') // 默认子域名大写
 
     const rules = artistService.getRules(artist.id)
     expect(rules).not.toBeNull()
     expect(rules.content).toBe('')
+  })
+
+  // TC-R-01b: 创建画师 — 自定义身份码
+  it('TC-R-01b: 自定义身份码', () => {
+    const artist = artistService.createArtist({
+      qqNumber: '111',
+      name: '测试',
+      subdomain: 'test',
+      artistCode: 'QY'
+    })
+
+    expect(artist.artist_code).toBe('QY')
+  })
+
+  // TC-R-01c: 创建画师 — 身份码重复
+  it('TC-R-01c: 身份码重复抛出错误', () => {
+    artistService.createArtist({ qqNumber: '111', name: 'A', subdomain: 'aaa', artistCode: 'QY' })
+
+    expect(() => {
+      artistService.createArtist({ qqNumber: '222', name: 'B', subdomain: 'bbb', artistCode: 'QY' })
+    }).toThrow('已被使用')
   })
 
   // TC-R-02: 创建画师 — 子域名格式非法
@@ -39,6 +61,14 @@ describe('画师服务 (Artist Service)', () => {
     expect(updated.hack).toBeUndefined()
   })
 
+  // TC-R-03b: 更新画师 — 修改身份码
+  it('TC-R-03b: 更新身份码', () => {
+    const artist = artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+    const updated = artistService.updateArtist(artist.id, { artist_code: 'NEWCODE' })
+
+    expect(updated.artist_code).toBe('NEWCODE')
+  })
+
   // TC-R-04: 价格档位 CRUD
   it('TC-R-04: 档位创建、读取、更新、删除', () => {
     const artist = artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
@@ -53,9 +83,10 @@ describe('画师服务 (Artist Service)', () => {
     const tiers = artistService.getTiers(artist.id)
     expect(tiers).toHaveLength(1)
 
-    // 更新
-    const updated = artistService.updateTier(tier.id, { price: 80 })
+    // 更新（camelCase 和 snake_case 都支持）
+    const updated = artistService.updateTier(tier.id, { price: 80, workDays: 5 })
     expect(updated.price).toBe(80)
+    expect(updated.work_days).toBe(5)
 
     // 删除
     artistService.deleteTier(tier.id)

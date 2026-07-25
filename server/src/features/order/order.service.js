@@ -5,20 +5,41 @@ import db from '../../db/connection.js'
 // ============================================
 
 /**
- * 生成订单号：画师子域名首字母大写 + 3位序号
+ * 订单状态机：定义每个状态允许转换到的下一个状态
  */
-export function generateOrderNo(artistSubdomain) {
-  const prefix = artistSubdomain.charAt(0).toUpperCase()
+const STATUS_TRANSITIONS = {
+  pending:   ['confirmed', 'cancelled'],
+  confirmed: ['wip', 'cancelled'],
+  wip:       ['revision', 'done', 'cancelled'],
+  revision:  ['wip', 'done', 'cancelled'],
+  done:      ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: []
+}
+
+/**
+ * 生成订单号：画师身份码 + 动态位数序号
+ * 序号 ≤999 时补零到3位；>999 时自然增长（1000、1001…）
+ * 查询范围限定为该画师，避免跨画师碰撞
+ */
+export function generateOrderNo(artistId, artistCode) {
   const last = db.prepare(
-    "SELECT order_no FROM orders WHERE order_no LIKE ? ORDER BY id DESC LIMIT 1"
-  ).get(`${prefix}%`)
+    "SELECT order_no FROM orders WHERE artist_id = ? ORDER BY id DESC LIMIT 1"
+  ).get(artistId)
 
   let seq = 1
   if (last) {
-    const num = parseInt(last.order_no.slice(1), 10)
-    if (!isNaN(num)) seq = num + 1
+    // 订单号格式: CODE-SEQ（如 ALICE-001、QY-1024）
+    const dashIdx = last.order_no.lastIndexOf('-')
+    if (dashIdx !== -1) {
+      const num = parseInt(last.order_no.slice(dashIdx + 1), 10)
+      if (!isNaN(num)) seq = num + 1
+    }
   }
-  return `${prefix}${String(seq).padStart(3, '0')}`
+
+  // 动态位数：≤999 补零到3位，>999 自然宽度
+  const seqStr = seq <= 999 ? String(seq).padStart(3, '0') : String(seq)
+  return `${artistCode}-${seqStr}`
 }
 
 /**
@@ -28,7 +49,8 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
   const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId)
   if (!artist) throw new Error('画师不存在')
 
-  const orderNo = generateOrderNo(artist.subdomain)
+  const code = artist.artist_code || artist.subdomain.toUpperCase()
+  const orderNo = generateOrderNo(artistId, code)
 
   const maxPos = db.prepare(
     "SELECT MAX(queue_position) as max_pos FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
@@ -89,7 +111,7 @@ export function getArtistQueue(artistId) {
 }
 
 /**
- * 更新订单状态
+ * 更新订单状态（带状态机校验）
  */
 export function updateOrderStatus(orderId, newStatus) {
   const validStatuses = ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
@@ -97,6 +119,12 @@ export function updateOrderStatus(orderId, newStatus) {
 
   const order = getOrder(orderId)
   if (!order) throw new Error('订单不存在')
+
+  // 状态机校验：只允许合法转换
+  const allowed = STATUS_TRANSITIONS[order.status]
+  if (!allowed || !allowed.includes(newStatus)) {
+    throw new Error(`不能从「${order.status}」转为「${newStatus}」`)
+  }
 
   db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(newStatus, orderId)
@@ -235,11 +263,14 @@ export function addDeliverable(orderId, filePath, fileName, fileSize) {
 }
 
 /**
- * 获取客户在某画师处的排队位置
+ * 客户查询排队位置（需同时提供订单号和QQ号验证身份）
  */
-export function getClientQueuePosition(orderNo) {
+export function getClientQueuePosition(orderNo, clientQq) {
   const order = getOrderByNo(orderNo)
   if (!order) return null
+
+  // QQ 号不匹配 → 视为不存在（防枚举）
+  if (order.client_qq !== clientQq) return null
 
   if (['delivered', 'cancelled'].includes(order.status)) {
     return { order, position: null, total: null }
@@ -249,4 +280,37 @@ export function getClientQueuePosition(orderNo) {
   const position = queue.findIndex(o => o.id === order.id) + 1
 
   return { order, position, total: queue.length }
+}
+
+/**
+ * 客户凭 QQ 号查询在某画师处的所有订单（"不知道订单号"场景）
+ */
+export function getClientOrdersByQq(artistId, clientQq) {
+  return db.prepare(`
+    SELECT o.order_no, o.status, o.created_at, o.updated_at,
+           t.name as tier_name
+    FROM orders o
+    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    WHERE o.artist_id = ? AND o.client_qq = ?
+    ORDER BY o.id DESC
+    LIMIT 20
+  `).all(artistId, clientQq)
+}
+
+/**
+ * 检查客户QQ在某画师处是否有订单
+ */
+export function hasClientOrders(artistId, clientQq) {
+  const row = db.prepare(
+    'SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND client_qq = ?'
+  ).get(artistId, clientQq)
+  return row.c > 0
+}
+
+/**
+ * 读取平台配置
+ */
+export function getPlatformConfig(key) {
+  const row = db.prepare('SELECT value FROM platform_config WHERE key = ?').get(key)
+  return row?.value || null
 }

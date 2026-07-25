@@ -10,7 +10,6 @@ export default async function adminRoutes(fastify) {
 
   /**
    * GET /api/admin/artists
-   * 获取所有画师列表
    */
   fastify.get('/api/admin/artists', { preHandler: requireAdmin }, async () => {
     return artistService.getAllArtists()
@@ -18,17 +17,17 @@ export default async function adminRoutes(fastify) {
 
   /**
    * POST /api/admin/artists
-   * 添加新画师
+   * 添加新画师（可指定身份码）
    */
   fastify.post('/api/admin/artists', { preHandler: requireAdmin }, async (request, reply) => {
-    const { qqNumber, name, subdomain, bio } = request.body || {}
+    const { qqNumber, name, subdomain, bio, artistCode } = request.body || {}
 
     if (!qqNumber || !name || !subdomain) {
       return reply.code(400).send({ error: 'QQ号、昵称和子域名为必填项' })
     }
 
     try {
-      const artist = artistService.createArtist({ qqNumber, name, subdomain, bio })
+      const artist = artistService.createArtist({ qqNumber, name, subdomain, bio, artistCode })
       return artist
     } catch (err) {
       return reply.code(400).send({ error: err.message })
@@ -37,7 +36,6 @@ export default async function adminRoutes(fastify) {
 
   /**
    * DELETE /api/admin/artists/:id
-   * 移除画师（级联删除所有数据）
    */
   fastify.delete('/api/admin/artists/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const artist = artistService.getArtistById(request.params.id)
@@ -49,7 +47,6 @@ export default async function adminRoutes(fastify) {
 
   /**
    * GET /api/admin/stats
-   * 系统全局统计
    */
   fastify.get('/api/admin/stats', { preHandler: requireAdmin }, async () => {
     return adminService.getGlobalStats()

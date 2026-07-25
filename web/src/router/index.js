@@ -31,7 +31,7 @@ const routes = [
     meta: { title: '查询进度' }
   },
   {
-    path: '/delivery/:orderNo',
+    path: '/artist/:subdomain/delivery/:orderNo',
     name: 'ClientDelivery',
     component: () => import('../views/client/DeliveryPage.vue'),
     meta: { title: '下载作品' }

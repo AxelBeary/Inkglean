@@ -2,6 +2,7 @@ import * as orderService from './order.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain } from '../artist/artist.service.js'
 import { clamp, isValidQq } from '../../shared/validate.js'
+import { rateLimit } from '../../shared/middleware/rate-limit.js'
 
 // ============================================
 // 订单路由 - 下单、查询、管理、交付
@@ -9,13 +10,17 @@ import { clamp, isValidQq } from '../../shared/validate.js'
 
 export default async function orderRoutes(fastify) {
 
-  // ─── 客户端接口（公开） ───
+  // ─── 客户端接口（公开 + 限流） ───
 
   /**
    * POST /api/orders
-   * 客户自助下单
+   * 客户自助下单（限流：同IP 10次/10分钟）
    */
   fastify.post('/api/orders', async (request, reply) => {
+    if (!rateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)) {
+      return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
+    }
+
     const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules } = request.body || {}
 
     if (!subdomain) return reply.code(400).send({ error: '缺少画师信息' })
@@ -50,11 +55,18 @@ export default async function orderRoutes(fastify) {
 
   /**
    * GET /api/orders/track/:orderNo
-   * 客户凭订单号查询进度
+   * 客户凭订单号 + QQ号查询进度（限流：同IP 20次/5分钟）
    */
   fastify.get('/api/orders/track/:orderNo', async (request, reply) => {
-    const result = orderService.getClientQueuePosition(request.params.orderNo)
-    if (!result) return reply.code(404).send({ error: '订单不存在' })
+    if (!rateLimit(`track:${request.ip}`, 20, 5 * 60_000)) {
+      return reply.code(429).send({ error: '查询过于频繁，请稍后再试' })
+    }
+
+    const { qq } = request.query || {}
+    if (!qq) return reply.code(400).send({ error: '请同时提供你的QQ号以验证身份' })
+
+    const result = orderService.getClientQueuePosition(request.params.orderNo, qq)
+    if (!result) return reply.code(404).send({ error: '订单不存在或QQ号不匹配' })
 
     const { order, position, total } = result
 
@@ -77,12 +89,77 @@ export default async function orderRoutes(fastify) {
   })
 
   /**
+   * GET /api/orders/my
+   * 客户凭 QQ号 + 画师子域名 查询自己的所有订单（"不知道订单号"场景）
+   * 限流：同IP 10次/5分钟
+   */
+  fastify.get('/api/orders/my', async (request, reply) => {
+    if (!rateLimit(`my-orders:${request.ip}`, 10, 5 * 60_000)) {
+      return reply.code(429).send({ error: '查询过于频繁，请稍后再试' })
+    }
+
+    const { subdomain, qq } = request.query || {}
+    if (!subdomain || !qq) return reply.code(400).send({ error: '缺少参数' })
+    if (!isValidQq(qq)) return reply.code(400).send({ error: 'QQ号格式不正确' })
+
+    const artist = getArtistBySubdomain(subdomain)
+    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+
+    const orders = orderService.getClientOrdersByQq(artist.id, qq)
+    return orders.map(o => ({
+      orderNo: o.order_no,
+      status: o.status,
+      tierName: o.tier_name,
+      createdAt: o.created_at
+    }))
+  })
+
+  /**
+   * GET /api/orders/lookup
+   * 客户凭 QQ号 查询在某画师处是否有订单（不记得订单号场景）
+   * 限流：同IP 10次/5分钟
+   */
+  fastify.get('/api/orders/lookup', async (request, reply) => {
+    if (!rateLimit(`lookup:${request.ip}`, 10, 5 * 60_000)) {
+      return reply.code(429).send({ error: '查询过于频繁，请稍后再试' })
+    }
+
+    const { subdomain, qq } = request.query || {}
+    if (!subdomain || !qq) return reply.code(400).send({ error: '缺少参数' })
+    if (!isValidQq(qq)) return reply.code(400).send({ error: 'QQ号格式不正确' })
+
+    const artist = getArtistBySubdomain(subdomain)
+    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+
+    const hasOrders = orderService.hasClientOrders(artist.id, qq)
+    if (!hasOrders) {
+      return { hasOrders: false }
+    }
+
+    return {
+      hasOrders: true,
+      contactQq: artist.contact_qq || artist.qq_number,
+      adminQq: orderService.getPlatformConfig('admin_qq'),
+      artistName: artist.name
+    }
+  })
+
+  /**
    * GET /api/orders/delivery/:orderNo
-   * 交付文件下载页数据
+   * 交付文件下载页数据（需 QQ 验证）
    */
   fastify.get('/api/orders/delivery/:orderNo', async (request, reply) => {
+    if (!rateLimit(`delivery:${request.ip}`, 20, 5 * 60_000)) {
+      return reply.code(429).send({ error: '查询过于频繁，请稍后再试' })
+    }
+
+    const { qq } = request.query || {}
+    if (!qq) return reply.code(400).send({ error: '请同时提供你的QQ号以验证身份' })
+
     const order = orderService.getOrderByNo(request.params.orderNo)
-    if (!order) return reply.code(404).send({ error: '订单不存在' })
+    if (!order || order.client_qq !== qq) {
+      return reply.code(404).send({ error: '订单不存在或QQ号不匹配' })
+    }
 
     return {
       orderNo: order.order_no,
@@ -101,7 +178,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * GET /api/artist/orders
-   * 获取画师的订单列表（支持状态筛选）
    */
   fastify.get('/api/artist/orders', { preHandler: requireAuth }, async (request) => {
     const { status } = request.query || {}
@@ -110,7 +186,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * GET /api/artist/queue
-   * 获取排期队列（拖拽看板用）
    */
   fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request) => {
     return orderService.getArtistQueue(request.artist.id)
@@ -118,7 +193,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * GET /api/artist/orders/:id
-   * 获取订单详情
    */
   fastify.get('/api/artist/orders/:id', { preHandler: requireAuth }, async (request, reply) => {
     const order = orderService.getOrder(request.params.id)
@@ -130,7 +204,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/manual
-   * 画师手动录入订单
    */
   fastify.post('/api/artist/orders/manual', { preHandler: requireAuth }, async (request, reply) => {
     const { tierId, clientQq, clientName, description, priority } = request.body || {}
@@ -156,7 +229,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * PUT /api/artist/orders/:id/status
-   * 更新订单状态
    */
   fastify.put('/api/artist/orders/:id/status', { preHandler: requireAuth }, async (request, reply) => {
     const order = orderService.getOrder(request.params.id)
@@ -176,7 +248,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * PUT /api/artist/orders/:id/priority
-   * 更新订单优先级
    */
   fastify.put('/api/artist/orders/:id/priority', { preHandler: requireAuth }, async (request, reply) => {
     const order = orderService.getOrder(request.params.id)
@@ -194,8 +265,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * PUT /api/artist/queue/reorder
-   * 拖拽排序
-   * body: { draggedOrderId, targetPosition }
    */
   fastify.put('/api/artist/queue/reorder', { preHandler: requireAuth }, async (request, reply) => {
     const { draggedOrderId, targetPosition } = request.body || {}
@@ -213,7 +282,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/:id/notes
-   * 添加订单备注
    */
   fastify.post('/api/artist/orders/:id/notes', { preHandler: requireAuth }, async (request, reply) => {
     const order = orderService.getOrder(request.params.id)
@@ -229,7 +297,6 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/:id/deliver
-   * 上传交付文件（MVP：接收文件路径，Phase 2 做真正的文件上传）
    */
   fastify.post('/api/artist/orders/:id/deliver', { preHandler: requireAuth }, async (request, reply) => {
     const order = orderService.getOrder(request.params.id)
@@ -242,15 +309,18 @@ export default async function orderRoutes(fastify) {
 
     orderService.addDeliverable(order.id, filePath, fileName, fileSize)
 
-    // 自动将状态改为已交付
-    orderService.updateOrderStatus(order.id, 'delivered')
+    // 自动将状态改为已交付（需从 done 状态）
+    try {
+      orderService.updateOrderStatus(order.id, 'delivered')
+    } catch {
+      // 如果状态不允许直接交付（如还在 wip），仅添加文件不改状态
+    }
 
     return orderService.getOrder(order.id)
   })
 
   /**
    * GET /api/artist/stats
-   * 仪表盘统计数据
    */
   fastify.get('/api/artist/stats', { preHandler: requireAuth }, async (request) => {
     return orderService.getArtistStats(request.artist.id)

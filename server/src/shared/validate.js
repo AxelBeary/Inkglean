@@ -6,11 +6,13 @@ const LIMITS = {
   qq: 15,
   name: 50,
   subdomain: 20,
+  artistCode: 10,
   description: 2000,
   note: 1000,
   bio: 500,
   rules: 10000,
-  url: 500
+  url: 500,
+  contactQq: 15
 }
 
 /**
@@ -28,4 +30,12 @@ export function clamp(value, type) {
  */
 export function isValidQq(qq) {
   return /^\d{5,15}$/.test(String(qq || ''))
+}
+
+/**
+ * 校验画师身份码格式（2-10位大写字母/数字）
+ * 用于订单号前缀，如 ALICE、QY、ART01
+ */
+export function isValidArtistCode(code) {
+  return /^[A-Z0-9]{2,10}$/.test(String(code || ''))
 }

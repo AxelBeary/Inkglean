@@ -1,38 +1,51 @@
 <template>
   <div class="track-page">
-    <div class="track-container">
+    <div class="track-container" v-loading="loading">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('track.backHome')" :content="$t('track.title')" />
 
-      <!-- 查询输入 -->
-      <el-card style="margin-top: 16px">
-        <div class="search-bar">
-          <el-input v-model="orderNo" :placeholder="$t('track.inputPlaceholder')" size="large"
-            @keyup.enter="search" clearable />
-          <el-button type="primary" size="large" @click="search" :loading="searching">
-            {{ $t('track.search') }}
-          </el-button>
-        </div>
+      <!-- 查询表单 -->
+      <el-card style="margin-top: 16px" v-if="!order">
+        <el-form @submit.prevent="search" label-position="top">
+          <el-form-item :label="$t('track.qqLabel')">
+            <el-input v-model="qq" :placeholder="$t('track.qqPlaceholder')" clearable
+              @keyup.enter="search" />
+          </el-form-item>
+          <el-form-item :label="$t('track.orderNoLabel')">
+            <el-input v-model="orderNo" :placeholder="$t('track.inputPlaceholder')" clearable
+              @keyup.enter="search" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="search" :loading="searching" style="width: 100%">
+              {{ $t('track.search') }}
+            </el-button>
+          </el-form-item>
+        </el-form>
       </el-card>
 
       <!-- 查询结果 -->
       <el-card style="margin-top: 16px" v-if="order">
+        <template #header>
+          <div class="result-header">
+            <span>{{ $t('track.orderNo') }}: {{ order.orderNo }}</span>
+            <el-tag :type="statusType(order.status)">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
+          </div>
+        </template>
+
         <el-descriptions :column="1" border>
-          <el-descriptions-item :label="$t('track.orderNo')">{{ order.orderNo }}</el-descriptions-item>
           <el-descriptions-item :label="$t('track.artist')">{{ order.artistName }}</el-descriptions-item>
           <el-descriptions-item :label="$t('track.type')">{{ order.tierName || $t('common.custom') }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('track.status')">
-            <el-tag :type="statusType(order.status)" size="small">
-              {{ $t(`common.orderStatus.${order.status}`) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item :label="$t('track.position')" v-if="order.position">
-            {{ $t('track.positionText', { pos: order.position, total: order.total }) }}
-          </el-descriptions-item>
           <el-descriptions-item :label="$t('track.orderTime')">{{ formatDate(order.createdAt) }}</el-descriptions-item>
         </el-descriptions>
 
-        <!-- 进度步骤 -->
-        <el-steps :active="stepActive" finish-status="success" simple style="margin-top: 24px">
+        <!-- 排队位置 -->
+        <div class="position-info" v-if="order.position">
+          <el-alert type="info" :closable="false" show-icon>
+            {{ $t('track.positionText', { pos: order.position, total: order.total }) }}
+          </el-alert>
+        </div>
+
+        <!-- 状态步骤 -->
+        <el-steps :active="stepActive" finish-status="success" simple style="margin-top: 20px">
           <el-step :title="$t('track.stepSubmitted')" />
           <el-step :title="$t('track.stepConfirmed')" />
           <el-step :title="$t('track.stepWip')" />
@@ -41,25 +54,54 @@
         </el-steps>
 
         <!-- 交付文件 -->
-        <div v-if="order.deliverables?.length" style="margin-top: 24px">
+        <div class="deliverables" v-if="order.deliverables?.length">
           <h4>{{ $t('track.deliverables') }}</h4>
           <div v-for="d in order.deliverables" :key="d.id" class="file-item">
             <span>📄 {{ d.fileName }}</span>
-            <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
+            <el-button size="small" type="primary" @click="downloadFile(d.url)">{{ $t('common.download') }}</el-button>
           </div>
         </div>
+
+        <el-button style="margin-top: 16px" @click="resetSearch">{{ $t('track.otherOrder') }}</el-button>
       </el-card>
 
-      <!-- 查询其他 -->
-      <div style="text-align: center; margin-top: 16px" v-if="order">
-        <el-button text @click="resetSearch">{{ $t('track.otherOrder') }}</el-button>
-      </div>
+      <!-- 不记得订单号 → 联系引导弹窗 -->
+      <el-dialog v-model="showContact" :title="$t('track.contactTitle')" width="400px">
+        <p class="contact-desc">{{ $t('track.contactDesc') }}</p>
+        <div class="contact-list">
+          <div class="contact-item" v-if="contactInfo.artistName">
+            <span class="contact-label">{{ $t('track.contactArtist') }}（{{ contactInfo.artistName }}）</span>
+            <div class="contact-value">
+              <code>{{ contactInfo.contactQq }}</code>
+              <el-button size="small" @click="copyText(contactInfo.contactQq)">{{ $t('track.copyQq') }}</el-button>
+            </div>
+          </div>
+          <div class="contact-item" v-if="contactInfo.adminQq">
+            <span class="contact-label">{{ $t('track.contactAdmin') }}</span>
+            <div class="contact-value">
+              <code>{{ contactInfo.adminQq }}</code>
+              <el-button size="small" @click="copyText(contactInfo.adminQq)">{{ $t('track.copyQq') }}</el-button>
+            </div>
+          </div>
+        </div>
+      </el-dialog>
+
+      <!-- 该QQ无订单 → 3秒不可关闭弹窗 -->
+      <el-dialog v-model="showNoOrders" :title="$t('track.noOrdersTitle')" width="360px"
+        :close-on-click-modal="false" :close-on-press-escape="false" :show-close="noOrdersCountdown <= 0">
+        <p>{{ $t('track.noOrdersDesc') }}</p>
+        <template #footer>
+          <el-button :disabled="noOrdersCountdown > 0" @click="showNoOrders = false">
+            {{ noOrdersCountdown > 0 ? $t('track.noOrdersCountdown', { n: noOrdersCountdown }) : $t('common.confirm') }}
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { orderApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -70,8 +112,19 @@ const route = useRoute()
 const subdomain = route.params.subdomain
 
 const orderNo = ref('')
+const qq = ref('')
 const order = ref(null)
+const loading = ref(false)
 const searching = ref(false)
+
+// 联系引导弹窗
+const showContact = ref(false)
+const contactInfo = ref({ contactQq: '', adminQq: '', artistName: '' })
+
+// 无订单弹窗（3秒倒计时）
+const showNoOrders = ref(false)
+const noOrdersCountdown = ref(0)
+let countdownTimer = null
 
 const statusType = (s) => ({
   pending: 'info', confirmed: 'primary', wip: 'warning',
@@ -89,14 +142,55 @@ function formatDate(str) {
   return new Date(str).toLocaleString(loc)
 }
 
+function downloadFile(url) {
+  window.open(url, '_blank')
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success(t('track.copied'))
+  } catch {
+    ElMessage.warning(text)
+  }
+}
+
+function startNoOrdersCountdown() {
+  noOrdersCountdown.value = 3
+  showNoOrders.value = true
+  clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    noOrdersCountdown.value--
+    if (noOrdersCountdown.value <= 0) clearInterval(countdownTimer)
+  }, 1000)
+}
+
 async function search() {
-  if (!orderNo.value.trim()) {
-    ElMessage.warning(t('track.enterOrderNo'))
+  if (!qq.value.trim()) return ElMessage.warning(t('track.enterQq'))
+
+  // 有订单号 → 直接精确查询
+  if (orderNo.value.trim()) {
+    searching.value = true
+    try {
+      order.value = await orderApi.track(orderNo.value.trim(), qq.value.trim())
+    } catch (err) {
+      ElMessage.error(err.message)
+    } finally {
+      searching.value = false
+    }
     return
   }
+
+  // 无订单号 → 检查该QQ是否有订单
   searching.value = true
   try {
-    order.value = await orderApi.track(orderNo.value.trim())
+    const result = await orderApi.lookup(subdomain, qq.value.trim())
+    if (!result.hasOrders) {
+      startNoOrdersCountdown()
+    } else {
+      contactInfo.value = result
+      showContact.value = true
+    }
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -107,17 +201,18 @@ async function search() {
 function resetSearch() {
   order.value = null
   orderNo.value = ''
+  qq.value = ''
 }
 
-function openFile(url) {
-  window.open(url, '_blank')
-}
-
+// 支持从下单成功页跳转过来时自动填充订单号
 onMounted(() => {
   if (route.query.no) {
     orderNo.value = route.query.no
-    search()
   }
+})
+
+onUnmounted(() => {
+  clearInterval(countdownTimer)
 })
 </script>
 
@@ -129,10 +224,21 @@ onMounted(() => {
   transition: background 0.3s;
 }
 .track-container { max-width: 600px; margin: 0 auto; }
-.search-bar { display: flex; gap: 12px; }
-.search-bar .el-input { flex: 1; }
-.file-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--border-color);
+.result-header { display: flex; justify-content: space-between; align-items: center; }
+.position-info { margin-top: 16px; }
+.deliverables { margin-top: 20px; }
+.deliverables h4 { margin-bottom: 8px; color: var(--text-primary); }
+.file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+.contact-desc { color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+.contact-list { display: flex; flex-direction: column; gap: 12px; }
+.contact-item {
+  padding: 12px; border-radius: 8px;
+  background: var(--el-fill-color-light);
+}
+.contact-label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+.contact-value { display: flex; align-items: center; gap: 8px; }
+.contact-value code {
+  font-size: 16px; font-weight: 600; color: var(--text-primary);
+  letter-spacing: 1px;
 }
 </style>

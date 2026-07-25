@@ -16,6 +16,10 @@ export default {
     confirmDeleteTitle: '确认删除', uploadFailed: '上传失败',
     footer: 'Powered by 画师约稿平台'
   },
+  disclaimer: {
+    title: '平台职责说明',
+    text: '本平台仅协助验证身份与连接双方，所有后续沟通、支付与交付均在外进行。平台不提供托管、仲裁服务，请自行承担风险。'
+  },
   menu: {
     logo: '🎨 约稿后台', dashboard: '📊 仪表盘', queue: '📋 排期看板', orders: '📦 订单管理',
     manualOrder: '✍ 手动录单', tiers: '💰 价格管理', artworks: '🖼 作品管理',
@@ -47,11 +51,16 @@ export default {
     loadFailed: '加载画师信息失败'
   },
   track: {
-    backHome: '返回主页', title: '查询进度', inputPlaceholder: '输入订单号，如 A001', search: '查询',
-    orderNo: '订单号', artist: '画师', type: '类型', status: '状态', position: '排队位置',
+    backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
+    orderNo: '订单号', orderNoLabel: '订单号', qqLabel: '你的QQ号', qqPlaceholder: '下单时填写的QQ号',
+    artist: '画师', type: '类型', status: '状态', position: '排队位置',
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
     stepSubmitted: '已提交', stepConfirmed: '已确认', stepWip: '制作中', stepDone: '已完成', stepDelivered: '已交付',
-    deliverables: '📦 交付文件', otherOrder: '查询其他订单', enterOrderNo: '请输入订单号'
+    deliverables: '📦 交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
+    contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
+    contactArtist: '画师QQ', contactAdmin: '管理员QQ', copyQq: '复制', copied: '已复制',
+    noOrdersTitle: '未找到订单', noOrdersDesc: '该QQ号在本画师处没有订单记录，请核对QQ号是否正确。',
+    noOrdersCountdown: '{n} 秒后可关闭'
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
@@ -125,8 +134,12 @@ export default {
   },
   settings: {
     title: '⚙ 主页设置', nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
+    codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
+    codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
     statusLabel: '主页状态', statusOpen: '✅ 可约稿', statusFull: '⏳ 已排满', statusBreak: '💤 休息中',
     weiboLabel: '微博链接（可选）', bilibiliLabel: 'B站链接（可选）',
+    contactQqLabel: '联系QQ（客户可见）', contactQqPlaceholder: '留空则默认使用登录QQ',
+    contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
     save: '保存设置', saved: '设置已保存'
   },
@@ -139,6 +152,7 @@ export default {
     addTitle: '添加画师', qqLabel: 'QQ号', qqPlaceholder: '画师的QQ号（用于登录）',
     nameLabel: '昵称', namePlaceholder: '展示给客户的名字',
     subdomainLabel: '子域名', subdomainPlaceholder: '如 alice（小写字母/数字/连字符）',
+    codeLabel: '身份码（可选）', codePlaceholder: '如 ALICE（默认用子域名大写）',
     bioLabel: '简介（可选）', domainSuffix: '.主域名',
     requiredFields: 'QQ号、昵称和子域名为必填项', added: '画师已添加',
     confirmRemove: '确定移除画师「{name}」？该画师的所有订单、作品数据将被永久删除！',

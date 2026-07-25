@@ -8,6 +8,11 @@
           <el-input v-model="form.name" />
         </el-form-item>
 
+        <el-form-item :label="$t('settings.codeLabel')">
+          <el-input v-model="form.artist_code" :placeholder="$t('settings.codePlaceholder')" maxlength="10" />
+          <div class="form-hint">{{ $t('settings.codeHint') }}</div>
+        </el-form-item>
+
         <el-form-item :label="$t('settings.bioLabel')">
           <el-input v-model="form.bio" type="textarea" :rows="3" :placeholder="$t('settings.bioPlaceholder')" />
         </el-form-item>
@@ -26,6 +31,11 @@
 
         <el-form-item :label="$t('settings.bilibiliLabel')">
           <el-input v-model="form.bilibili_url" placeholder="https://space.bilibili.com/xxx" />
+        </el-form-item>
+
+        <el-form-item :label="$t('settings.contactQqLabel')">
+          <el-input v-model="form.contact_qq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
+          <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
         </el-form-item>
 
         <el-form-item :label="$t('settings.notifyLabel')">
@@ -58,7 +68,9 @@ const form = reactive({
   status: 'open',
   weibo_url: '',
   bilibili_url: '',
-  notify_enabled: 1
+  contact_qq: '',
+  notify_enabled: 1,
+  artist_code: ''
 })
 
 async function save() {
@@ -70,7 +82,9 @@ async function save() {
       status: form.status,
       weibo_url: form.weibo_url,
       bilibili_url: form.bilibili_url,
-      notify_enabled: form.notify_enabled
+      contact_qq: form.contact_qq,
+      notify_enabled: form.notify_enabled,
+      artist_code: form.artist_code
     })
     ElMessage.success(t('settings.saved'))
   } catch (err) {
@@ -89,7 +103,9 @@ onMounted(async () => {
       status: profile.status,
       weibo_url: profile.weibo_url || '',
       bilibili_url: profile.bilibili_url || '',
-      notify_enabled: profile.notify_enabled
+      contact_qq: profile.contact_qq || '',
+      notify_enabled: profile.notify_enabled,
+      artist_code: profile.artist_code || ''
     })
   } catch (err) {
     ElMessage.error(err.message)
@@ -98,3 +114,7 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.form-hint { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+</style>

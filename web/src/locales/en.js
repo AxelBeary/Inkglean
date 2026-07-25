@@ -16,6 +16,10 @@ export default {
     confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed',
     footer: 'Powered by Artist Commission Platform'
   },
+  disclaimer: {
+    title: 'Platform notice',
+    text: 'This platform only verifies identities and connects both parties. All subsequent communication, payment and delivery happen externally. The platform provides no escrow or arbitration — please assume your own risk.'
+  },
   menu: {
     logo: '🎨 Studio', dashboard: '📊 Dashboard', queue: '📋 Queue Board', orders: '📦 Orders',
     manualOrder: '✍ Manual Entry', tiers: '💰 Pricing', artworks: '🖼 Portfolio',
@@ -47,11 +51,16 @@ export default {
     loadFailed: 'Failed to load artist info'
   },
   track: {
-    backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Enter order number, e.g. A001', search: 'Search',
-    orderNo: 'Order No.', artist: 'Artist', type: 'Type', status: 'Status', position: 'Queue position',
+    backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',
+    orderNo: 'Order No.', orderNoLabel: 'Order number', qqLabel: 'Your QQ number', qqPlaceholder: 'The QQ you used when ordering',
+    artist: 'Artist', type: 'Type', status: 'Status', position: 'Queue position',
     positionText: '#{pos} of {total}', orderTime: 'Order time',
     stepSubmitted: 'Submitted', stepConfirmed: 'Confirmed', stepWip: 'In progress', stepDone: 'Done', stepDelivered: 'Delivered',
-    deliverables: '📦 Delivered files', otherOrder: 'Track another order', enterOrderNo: 'Please enter an order number'
+    deliverables: '📦 Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
+    contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
+    contactArtist: 'Artist QQ', contactAdmin: 'Admin QQ', copyQq: 'Copy', copied: 'Copied',
+    noOrdersTitle: 'No orders found', noOrdersDesc: 'This QQ number has no orders with this artist. Please double-check the number.',
+    noOrdersCountdown: 'Closes in {n}s'
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
@@ -125,8 +134,12 @@ export default {
   },
   settings: {
     title: '⚙ Page Settings', nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
+    codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
+    codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
     statusLabel: 'Page status', statusOpen: '✅ Open', statusFull: '⏳ Full', statusBreak: '💤 On break',
     weiboLabel: 'Weibo link (optional)', bilibiliLabel: 'Bilibili link (optional)',
+    contactQqLabel: 'Contact QQ (visible to clients)', contactQqPlaceholder: 'Leave blank to use your login QQ',
+    contactQqHint: 'Clients who forgot their order number will see this QQ to contact you',
     notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
     save: 'Save settings', saved: 'Settings saved'
   },
@@ -139,6 +152,7 @@ export default {
     addTitle: 'Add artist', qqLabel: 'QQ No.', qqPlaceholder: "Artist's QQ number (used for login)",
     nameLabel: 'Name', namePlaceholder: 'Name shown to clients',
     subdomainLabel: 'Subdomain', subdomainPlaceholder: 'e.g. alice (lowercase letters/digits/hyphens)',
+    codeLabel: 'Artist code (optional)', codePlaceholder: 'e.g. ALICE (defaults to subdomain uppercase)',
     bioLabel: 'Bio (optional)', domainSuffix: '.domain',
     requiredFields: 'QQ number, name and subdomain are required', added: 'Artist added',
     confirmRemove: 'Remove artist "{name}"? All of their orders and artwork data will be permanently deleted!',

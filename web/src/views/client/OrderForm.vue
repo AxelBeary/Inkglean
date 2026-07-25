@@ -41,18 +41,23 @@
           </el-form-item>
 
           <!-- QQ通知 -->
-          <el-form-item v-if="artist.notify_enabled">
+          <el-form-item v-if="artist.notifyEnabled">
             <el-checkbox v-model="form.notifyEnabled">{{ $t('orderForm.notifyLabel') }}</el-checkbox>
           </el-form-item>
 
-          <!-- 须知确认 -->
+          <!-- 须知确认（消毒后渲染） -->
           <el-form-item v-if="rulesContent" prop="agreed">
             <el-card shadow="never" class="rules-preview">
-              <div v-html="rulesContent" class="rules-html"></div>
+              <div v-html="sanitizedRules" class="rules-html"></div>
             </el-card>
             <el-checkbox v-model="form.agreed" style="margin-top: 8px">
               {{ $t('orderForm.agreeLabel') }}
             </el-checkbox>
+          </el-form-item>
+
+          <!-- 平台职责声明 -->
+          <el-form-item>
+            <Disclaimer />
           </el-form-item>
 
           <el-form-item>
@@ -79,12 +84,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi, orderApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { sanitizeHtml } from '../../utils/sanitize.js'
+import Disclaimer from '../../components/Disclaimer.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -100,6 +107,9 @@ const showSuccess = ref(false)
 const resultNo = ref('')
 const refFileList = ref([])
 const uploadedRefs = ref([])
+
+// XSS 防护：须知内容消毒后渲染
+const sanitizedRules = computed(() => sanitizeHtml(rulesContent.value))
 
 const form = reactive({
   tierId: null,
@@ -133,7 +143,7 @@ async function handleRefUpload({ file }) {
     ElMessage.info(t('orderForm.typeWarning'))
   }
   try {
-    const uploaded = await uploadApi.image(file)
+    const uploaded = await uploadApi.reference(file)
     uploadedRefs.value.push(uploaded.filePath)
   } catch (err) {
     ElMessage.error(err.message || t('common.uploadFailed'))

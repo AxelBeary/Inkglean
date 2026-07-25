@@ -1,27 +1,10 @@
 import { generateLoginCode, verifyLoginCode, createSession } from './auth.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
+import { rateLimit } from '../../shared/middleware/rate-limit.js'
 
 // ============================================
 // 认证路由 - 登录码获取与验证
 // ============================================
-
-// 简易内存速率限制（per-IP，MVP 够用）
-const rateBuckets = new Map()
-function rateLimit(key, maxHits, windowMs) {
-  const now = Date.now()
-  const bucket = rateBuckets.get(key) || { hits: 0, resetAt: now + windowMs }
-  if (now > bucket.resetAt) { bucket.hits = 0; bucket.resetAt = now + windowMs }
-  bucket.hits++
-  rateBuckets.set(key, bucket)
-  return bucket.hits <= maxHits
-}
-
-// 定期清理过期桶（unref 避免阻止进程退出 / 测试挂起）
-const _cleanup = setInterval(() => {
-  const now = Date.now()
-  for (const [k, v] of rateBuckets) if (now > v.resetAt) rateBuckets.delete(k)
-}, 60_000)
-_cleanup.unref()
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -43,7 +26,11 @@ export default async function authRoutes(fastify) {
     try {
       const { code, artist } = generateLoginCode(qqNumber)
 
-      // TODO Phase 2: 通过 QQ Bot 发送登录码，删除 _dev_code
+      // 开发模式：输出登录码到控制台 + 返回给前端
+      if (isDev) {
+        fastify.log.info(`🔑 [DEV] 画师 ${artist.name}(${qqNumber}) 登录码: ${code}`)
+      }
+
       return {
         message: `登录码已发送至QQ ${qqNumber}`,
         ...(isDev ? { _dev_code: code } : {}),

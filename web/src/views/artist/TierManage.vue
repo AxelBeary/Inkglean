@@ -114,8 +114,8 @@ async function save() {
   try {
     if (editingId.value) {
       await artistApi.updateTier(editingId.value, {
-        name: form.name, price: form.price, work_days: form.workDays,
-        description: form.description, example_image: form.exampleImage || null
+        name: form.name, price: form.price, workDays: form.workDays,
+        description: form.description, exampleImage: form.exampleImage || null
       })
     } else {
       await artistApi.createTier({

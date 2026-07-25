@@ -17,10 +17,10 @@
           </el-tag>
         </div>
         <div class="social-links" v-if="artist.weiboUrl || artist.bilibiliUrl">
-          <a v-if="artist.weiboUrl" :href="artist.weiboUrl" target="_blank" class="social-link">
+          <a v-if="artist.weiboUrl" :href="artist.weiboUrl" target="_blank" rel="noopener noreferrer" class="social-link">
             {{ $t('artistHome.weibo') }}
           </a>
-          <a v-if="artist.bilibiliUrl" :href="artist.bilibiliUrl" target="_blank" class="social-link">
+          <a v-if="artist.bilibiliUrl" :href="artist.bilibiliUrl" target="_blank" rel="noopener noreferrer" class="social-link">
             {{ $t('artistHome.bilibili') }}
           </a>
         </div>
@@ -62,24 +62,28 @@
         </div>
       </section>
 
-      <!-- 约稿须知 -->
+      <!-- 约稿须知（消毒后渲染） -->
       <section class="section" v-if="rules">
         <h2 class="section-title">{{ $t('artistHome.rules') }}</h2>
         <el-card shadow="never" class="rules-card">
-          <div v-html="rules"></div>
+          <div v-html="sanitizedRules"></div>
         </el-card>
       </section>
+
+      <Disclaimer />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemeToggle from '../../components/ThemeToggle.vue'
+import Disclaimer from '../../components/Disclaimer.vue'
+import { sanitizeHtml } from '../../utils/sanitize.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -90,6 +94,9 @@ const tiers = ref([])
 const artworks = ref([])
 const rules = ref('')
 const loading = ref(true)
+
+// XSS 防护：消毒后的须知 HTML
+const sanitizedRules = computed(() => sanitizeHtml(rules.value))
 
 const statusType = (s) => ({ open: 'success', full: 'warning', break: 'danger' }[s] || 'info')
 const statusText = (s) => t(`artistHome.status${s.charAt(0).toUpperCase() + s.slice(1)}`)

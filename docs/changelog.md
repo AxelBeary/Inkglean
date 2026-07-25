@@ -1,5 +1,116 @@
 # 变更日志
 
+## v0.6.0 — 2026-07-26
+
+### ⚠️ 已知问题
+
+- **需重建容器才能生效**：v0.6.0 的代码改动（TrackOrder 新流程、Disclaimer 等）已提交，但运行中的 Docker 容器仍为旧版。部署时需执行 `docker compose up -d --build` 重建镜像并重启，否则页面仍显示旧版 UI。
+
+### 🆕 新功能
+
+- **平台职责声明**：新增 `Disclaimer.vue` 共享组件，在 LandingPage、ArtistHome、OrderForm 三个客户页面展示免责声明（"本平台仅协助验证身份与连接双方…不提供托管、仲裁服务"），中英文双语
+- **订单查询流程重构**（TrackOrder.vue）：
+  - QQ号 + 订单号双输入，订单号可留空（placeholder: "如果不记得请留空"）
+  - 留空订单号 → 调用 `GET /api/orders/lookup` 检查该QQ是否有订单
+  - 有订单 → 弹出联系引导弹窗，显示画师联系QQ + 管理员QQ（均可一键复制）
+  - 无订单 → 弹出 **3秒不可关闭** 提示窗（倒计时结束前无法点击关闭/确认）
+- **画师联系QQ配置化**：`artists` 表新增 `contact_qq` 列，画师可在设置页自定义客户可见的联系QQ（留空默认用登录QQ），解决画师换号/多号问题
+- **平台配置表**：新增 `platform_config` 表（key-value），存储 `admin_qq` 等全局配置
+
+### 📦 变更文件
+
+**后端：**
+- `server/src/db/init.js` — 新增 `platform_config` 表、`contact_qq` 列迁移
+- `server/src/db/seed.js` — 种子数据含 `contact_qq`、`admin_qq` 配置
+- `server/src/shared/validate.js` — 新增 `contactQq` 长度限制
+- `server/src/features/artist/artist.service.js` — `updateArtist` 允许 `contact_qq`
+- `server/src/features/artist/artist.routes.js` — 公开主页返回 `contactQq`
+- `server/src/features/order/order.service.js` — 新增 `hasClientOrders()`、`getPlatformConfig()`
+- `server/src/features/order/order.routes.js` — 新增 `GET /api/orders/lookup` 端点
+
+**前端：**
+- `web/src/components/Disclaimer.vue` — 新增免责声明组件
+- `web/src/views/client/TrackOrder.vue` — 重写查询流程（双输入、联系引导、3秒锁定弹窗）
+- `web/src/views/client/LandingPage.vue` — 加入 Disclaimer
+- `web/src/views/client/ArtistHome.vue` — 加入 Disclaimer
+- `web/src/views/client/OrderForm.vue` — 加入 Disclaimer
+- `web/src/views/artist/Settings.vue` — 新增联系QQ编辑字段
+- `web/src/api/index.js` — 新增 `orderApi.lookup()`
+- `web/src/locales/zh-CN.js` / `en.js` — 新增 disclaimer/track/settings 键
+
+---
+
+## v0.5.0 — 2026-07-26
+
+### 🔒 安全修复（5 严重 + 5 高优）
+
+**严重（Critical）：**
+- **存储型 XSS**：新增 `web/src/utils/sanitize.js` HTML 消毒工具（白名单标签+属性），ArtistHome/RulesEditor 的 `v-html` 全部替换为 `sanitizeHtml()` 过滤
+- **水平越权**：画师后台所有订单/档位/作品操作增加 `artist_id` 归属校验（`requireAuth` 中间件注入 `req.artist`，service 层校验所有权）
+- **订单号碰撞**：订单号改为 `{身份码}-{序号}` 格式（如 `ALICE-001`），序号从该画师最后一条订单推导，`order_no` 列加 UNIQUE 约束
+- **任意文件上传**：`upload.routes.js` 增加 MIME 白名单（jpg/png/webp/gif/pdf/psd/ai/zip/rar），非白名单返回 403
+- **订单号可猜测**：客户查询进度改为 **QQ号+订单号双验证**（`getClientQueuePosition` 比对 `client_qq`），防止枚举
+
+**高优（High）：**
+- **速率限制**：新增 `shared/middleware/rate-limit.js` 内存桶限流器，覆盖登录码发送(5次/分)、验证(5次/分)、公开下单(10次/分)、订单查询(10次/分)
+- **SESSION_SECRET 回退移除**：生产环境未设置 `SESSION_SECRET` 时启动报错（不再静默使用 `Date.now()`）
+- **管理员 QQ 固定**：`ADMIN_QQ` 默认 `10000`，开发模式登录码输出到控制台（`🔑 [DEV]` 前缀）
+- **订单状态机**：严格状态转换（pending→confirmed→wip→revision→done→delivered/cancelled），禁止跳跃
+- **CORS 收紧**：生产环境默认禁止跨域（`CORS_ORIGIN` 环境变量控制）
+
+### 🆕 新功能
+
+- **画师身份码（artist_code）**：订单号前缀改为画师身份码（如 `ALICE-001`），可自定义（2-10位大写字母/数字），系统自动生成默认值（子域名大写），唯一性约束
+- **动态位数**：订单序号 >999 时自动扩展位数（`ALICE-1000`），不再补零
+- **"不知道订单号"按钮**：TrackOrder 页面新增按钮，客户可凭 QQ 号查询在该画师处的所有订单（`getClientOrdersByQq`）
+- **数据库增量迁移**：`init.js` 使用 `PRAGMA table_info` 检测缺失列，自动添加 `artist_code` 列并回填 `UPPER(subdomain)`
+- **前端 HTML 消毒工具**：`web/src/utils/sanitize.js`，白名单标签（h1-h3/p/ul/ol/li/strong/em/br/a/img/blockquote）+ 属性过滤（href/src/alt/title），剥离 script/事件/危险属性
+
+### 🐛 Bug 修复
+
+- **TierManage 字段名不一致**：前端统一使用 camelCase（`workDays`/`exampleImage`），后端 `updateTier()` 同时接受 camelCase 和 snake_case
+- **OrderDetail 交付弹窗**：打开弹窗时重置文件选择（`openDeliverDialog()`），防止残留文件
+- **getClientOrdersByQq 排序**：`ORDER BY id DESC` 替代 `created_at DESC`（同毫秒创建时排序不可靠）
+
+### 📦 变更文件
+
+**后端新增/重写：**
+- `server/src/shared/middleware/rate-limit.js` — 内存桶速率限制器
+- `server/src/shared/validate.js` — 增加 `isValidArtistCode`、`LLM_PROMPT_MAX`、trim/escape
+- `server/src/db/init.js` — `artists` 表新增 `artist_code` 列、UNIQUE 约束、增量迁移
+- `server/src/db/seed.js` — 管理员 QQ=10000、画师含 artist_code
+- `server/src/features/order/order.service.js` — 订单号生成（身份码+末单推导）、QQ 双验证、状态机
+- `server/src/features/artist/artist.service.js` — 身份码自动生成/唯一性、归属校验、camelCase 兼容
+- `server/src/features/auth/auth.service.js` — 开发模式控制台输出登录码、5次尝试锁定、HMAC 会话
+- `server/src/features/auth/auth.routes.js` — 速率限制集成
+- `server/src/features/artist/artist.routes.js` — 归属校验、身份码字段
+- `server/src/features/order/order.routes.js` — QQ+订单号双验证、速率限制
+- `server/src/features/upload/upload.routes.js` — MIME 白名单、403 拒绝
+- `server/src/features/admin/admin.routes.js` — 删除画师清理文件
+- `server/src/app.js` — 全局速率限制器、CORS、NODE_ENV
+- `server/src/shared/middleware/auth.js` — 注入 `req.artist` 完整对象
+
+**前端新增/修改：**
+- `web/src/utils/sanitize.js` — HTML 消毒工具（新增）
+- `web/src/views/client/TrackOrder.vue` — QQ+订单号双输入、"不知道订单号"按钮
+- `web/src/views/client/DeliveryPage.vue` — 路径改为 `/artist/:subdomain/delivery/:orderNo`
+- `web/src/views/client/ArtistHome.vue` — v-html → sanitizeHtml()
+- `web/src/views/client/OrderForm.vue` — 字段对齐
+- `web/src/views/artist/RulesEditor.vue` — v-html → sanitizeHtml()
+- `web/src/views/artist/Settings.vue` — 新增身份码编辑字段
+- `web/src/views/artist/TierManage.vue` — 字段名统一 camelCase
+- `web/src/views/artist/OrderDetail.vue` — 交付弹窗重置
+- `web/src/views/admin/ArtistManage.vue` — 新增身份码字段
+- `web/src/api/index.js` — 新增 `getClientOrdersByQq` API
+- `web/src/locales/zh-CN.js` / `en.js` — 新增 track/settings/admin 键
+- `web/src/router/index.js` — delivery 路径参数化
+
+**部署/测试：**
+- `docker-compose.yml` — `NODE_ENV=production`
+- `server/tests/*` — 全部更新，42 个用例通过
+
+---
+
 ## v0.4.1 — 2026-07-26
 
 ### 修复：路由 + API 调用全面修正
@@ -9,6 +120,7 @@
 - **OrderForm.vue**：`artistApi.createOrder()` → `orderApi.create()`；字段对齐后端（`subdomain`、`agreeRules`、`clientNotify`、`orderNo`）
 - **TrackOrder.vue**：`artistApi.trackOrder()` → `orderApi.track(orderNo)`；字段 snake_case → camelCase（`orderNo`、`artistName`、`tierName`、`position`、`total`、`createdAt`、`fileName`、`url`）
 - **DeliveryPage.vue**：`artistApi.trackOrder()` → `orderApi.delivery(orderNo)`；同上字段映射修正
+- **Login.vue**：`artistApi.requestLoginCode()` → `authApi.sendCode()`；`res.devCode` → `res._dev_code`（匹配后端实际返回字段）
 - **ThemeToggle.vue**：重写为极简按钮（去掉 el-dropdown/el-tooltip），修复侧边栏 scrollbar 溢出
 
 ### 变更文件
@@ -18,6 +130,7 @@
 - `web/src/views/client/OrderForm.vue`
 - `web/src/views/client/TrackOrder.vue`
 - `web/src/views/client/DeliveryPage.vue`
+- `web/src/views/artist/Login.vue`
 - `web/src/components/ThemeToggle.vue`
 
 ---
