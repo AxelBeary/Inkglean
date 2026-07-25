@@ -36,7 +36,7 @@
               </div>
             </div>
             <div class="item-actions">
-              <el-button size="small" @click="$router.push(`/orders/${element.id}`)">详情</el-button>
+              <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">详情</el-button>
               <el-dropdown trigger="click" @command="(cmd) => quickAction(cmd, element)">
                 <el-button size="small">操作</el-button>
                 <template #dropdown>

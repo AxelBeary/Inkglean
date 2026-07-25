@@ -1,11 +1,14 @@
 {
   "name": "artist-commission-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "画师约稿管理平台 - 后端服务",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:init": "node src/db/init.js",
     "db:seed": "node src/db/seed.js"
   },
@@ -19,6 +22,11 @@
     "nanoid": "^5.0.0"
   },
   "devDependencies": {
-    "pino-pretty": "^13.0.0"
+    "pino-pretty": "^13.0.0",
+    "vitest": "^3.2.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true,
+    "esbuild@0.28.1": true
   }
 }

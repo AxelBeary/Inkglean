@@ -1,13 +1,14 @@
 import Database from 'better-sqlite3'
-import { mkdirSync } from 'fs'
+import { mkdirSync, existsSync } from 'fs'
 import { dirname } from 'path'
-import { fileURLToPath } from 'url'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
 const DB_PATH = process.env.DB_PATH || './data/commission.db'
 
-// 确保数据目录存在
-mkdirSync(dirname(DB_PATH), { recursive: true })
+// 确保数据目录存在（:memory: 模式跳过）
+if (DB_PATH !== ':memory:') {
+  const dir = dirname(DB_PATH)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+}
 
 const db = new Database(DB_PATH)
 

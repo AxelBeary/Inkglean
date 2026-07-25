@@ -2,6 +2,7 @@
   "name": "artist-commission-web",
   "version": "0.1.0",
   "description": "画师约稿管理平台 - 前端",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

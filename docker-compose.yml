@@ -2,7 +2,6 @@
 # Artist Commission Platform - Docker Compose
 # 一键启动: docker compose up -d
 # ============================================
-
 services:
   # Web 应用（前端 + 后端）
   web:
@@ -22,6 +21,12 @@ services:
       - NODE_ENV=development
       - DB_PATH=/app/data/commission.db
       - UPLOAD_DIR=/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Caddy 反向代理（自动 HTTPS + 泛解析）
   caddy:
@@ -37,7 +42,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - web
+      web:
+        condition: service_healthy
 
 volumes:
   caddy_data:

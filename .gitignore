@@ -1,8 +1,30 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+
+# Runtime data (Docker volumes handle persistence)
 data/
 uploads/
+server/data/
+
+# Environment
 .env
+
+# SQLite
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
+
+# Temp / scratch
+temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

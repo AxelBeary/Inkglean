@@ -4,9 +4,12 @@ web/dist
 server/node_modules
 data
 uploads
+server/data
+temp
 .env
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 .git
 docs

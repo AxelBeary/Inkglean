@@ -1,96 +1,13 @@
-import dotenv from 'dotenv'
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
-const __dirname = dirname(fileURLToPath(import.meta.url))
-dotenv.config({ path: resolve(__dirname, '../../.env') })
-import Fastify from 'fastify'
-import fastifyStatic from '@fastify/static'
-import fastifyCors from '@fastify/cors'
-import { join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
-
-// 路由
-import authRoutes from './routes/auth.js'
-import artistRoutes from './routes/artists.js'
-import orderRoutes from './routes/orders.js'
-import uploadRoutes from './routes/upload.js'
-import adminRoutes from './routes/admin.js'
+import 'dotenv/config'
+import { buildApp } from './app.js'
 
 // ============================================
-// 服务器主入口
+// 服务器启动入口
 // ============================================
 
 const PORT = parseInt(process.env.PORT || '3000', 10)
-const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
 
-const isDev = process.env.NODE_ENV !== 'production'
-
-// pino-pretty 是 devDependency，Docker 生产构建不含它，缺失时降级为 JSON 日志
-let loggerConfig = { level: 'info' }
-if (isDev) {
-  try {
-    await import('pino-pretty')
-    loggerConfig = {
-      level: 'info',
-      transport: {
-        target: 'pino-pretty',
-        options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' }
-      }
-    }
-  } catch { /* pino-pretty not installed, use default JSON logger */ }
-}
-
-const app = Fastify({ logger: loggerConfig })
-
-// ─── 全局插件 ───
-
-// CORS（生产环境限制来源，开发环境放开）
-await app.register(fastifyCors, {
-  origin: isDev ? true : process.env.CORS_ORIGIN || false,
-  credentials: true
-})
-
-// 静态文件服务（上传的图片）——确保目录存在，避免首次启动时跳过注册
-if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
-await app.register(fastifyStatic, {
-  root: UPLOAD_DIR,
-  prefix: '/uploads/',
-  decorateReply: false
-})
-
-// 前端构建产物（生产环境）
-const webDist = resolve('../web/dist')
-if (existsSync(webDist)) {
-  await app.register(fastifyStatic, {
-    root: webDist,
-    prefix: '/',
-    wildcard: false // 让 SPA 路由接管
-  })
-
-  // SPA fallback：所有非 API 路由返回 index.html
-  app.setNotFoundHandler((request, reply) => {
-    if (request.url.startsWith('/api/') || request.url.startsWith('/uploads/')) {
-      return reply.code(404).send({ error: 'Not Found' })
-    }
-    return reply.sendFile('index.html', webDist)
-  })
-}
-
-// ─── 注册路由 ───
-
-await app.register(authRoutes)
-await app.register(artistRoutes)
-await app.register(orderRoutes)
-await app.register(uploadRoutes)
-await app.register(adminRoutes)
-
-// ─── 健康检查 ───
-
-app.get('/api/health', async () => {
-  return { status: 'ok', time: new Date().toISOString() }
-})
-
-// ─── 启动 ───
+const app = await buildApp()
 
 try {
   await app.listen({ port: PORT, host: '0.0.0.0' })

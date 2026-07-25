@@ -1,24 +1,32 @@
-FROM node:22-slim
+# ============================================
+# 多阶段构建：减小最终镜像体积
+# ============================================
 
+# ─── Stage 1: 构建前端 ───
+FROM node:22-slim AS frontend-build
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json* ./
+RUN npm install
+COPY web/ ./
+RUN npm run build
+
+# ─── Stage 2: 生产运行 ───
+FROM node:22-slim
 WORKDIR /app
 
-# 安装后端依赖（better-sqlite3 在 Debian/glibc 上有预编译二进制，无需编译工具）
+# 后端依赖（仅 production）
 COPY server/package.json server/package-lock.json* ./server/
 RUN cd server && npm install --omit=dev
 
-# 安装前端依赖并构建
-COPY web/package.json web/package-lock.json* ./web/
-RUN cd web && npm install
-COPY web/ ./web/
-RUN cd web && npm run build
-
-# 复制后端源码
+# 后端源码
 COPY server/ ./server/
 
-# 复制启动脚本
+# 前端构建产物
+COPY --from=frontend-build /app/web/dist ./web/dist
+
+# 启动脚本
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 3000
-
 ENTRYPOINT ["/entrypoint.sh"]

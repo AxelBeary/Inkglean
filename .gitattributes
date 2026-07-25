@@ -11,6 +11,8 @@
 *.sh text eol=lf
 Dockerfile text eol=lf
 Caddyfile text eol=lf
+.gitignore text eol=lf
+.dockerignore text eol=lf
 
 # 明确 CRLF 的文件（Windows 批处理）
 *.bat text eol=crlf

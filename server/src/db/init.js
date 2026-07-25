@@ -1,10 +1,11 @@
 import db from './connection.js'
+import { fileURLToPath } from 'url'
 
 // ============================================
 // 数据库初始化 - 创建所有表
 // ============================================
 
-const schema = `
+export const schema = `
 -- 画师表
 CREATE TABLE IF NOT EXISTS artists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,7 +125,15 @@ CREATE INDEX IF NOT EXISTS idx_orders_queue ON orders(artist_id, queue_position)
 CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
 `
 
-// 执行建表
-db.exec(schema)
+/**
+ * 在给定数据库实例上执行建表
+ */
+export function initDatabase(database) {
+  database.exec(schema)
+}
 
-console.log('✅ 数据库初始化完成')
+// CLI 直接执行时自动建表（import 时不触发副作用）
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  initDatabase(db)
+  console.log('✅ 数据库初始化完成')
+}

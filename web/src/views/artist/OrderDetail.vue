@@ -1,6 +1,6 @@
 <template>
   <ArtistLayout>
-    <el-page-header @back="$router.push('/orders')" title="返回订单列表" :content="`订单 #${order?.order_no}`" />
+    <el-page-header @back="goBack" :title="backTitle" :content="`订单 #${order?.order_no}`" />
 
     <div v-if="order" class="order-detail">
       <!-- 基本信息 -->
@@ -101,17 +101,25 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
 const route = useRoute()
+const router = useRouter()
 const order = ref(null)
 const newNote = ref('')
 const showDeliver = ref(false)
 const deliverFile = ref(null)
+
+// 返回来源页：排期看板进来回排期，订单列表进来回列表，直接访问则默认回列表
+const fromQueue = route.query.from === 'queue'
+const backTitle = fromQueue ? '返回排期看板' : '返回订单列表'
+function goBack() {
+  router.push(fromQueue ? '/queue' : '/orders')
+}
 
 const statusType = (s) => ({
   pending: 'info', confirmed: 'primary', wip: 'warning',

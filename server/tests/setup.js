@@ -1,0 +1,84 @@
+/**
+ * 测试共享设置：内存数据库 + 建表 + 清表工具
+ *
+ * 使用方式：
+ *   import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
+ *
+ * 原理：vitest.config.js 设置 DB_PATH=':memory:'，
+ * 所有 import connection.js 的模块共享同一个内存数据库实例。
+ * 本文件导入 init.js 触发建表。
+ */
+import db from '../src/db/connection.js'
+import { initDatabase } from '../src/db/init.js'
+
+// 显式建表（init.js 不再 import 时自动执行）
+initDatabase(db)
+
+export { db }
+
+/**
+ * 清空所有表（保留结构），按外键依赖顺序删除
+ */
+export function cleanDb() {
+  db.exec(`
+    DELETE FROM login_codes;
+    DELETE FROM deliverables;
+    DELETE FROM order_notes;
+    DELETE FROM order_references;
+    DELETE FROM orders;
+    DELETE FROM commission_rules;
+    DELETE FROM artworks;
+    DELETE FROM price_tiers;
+    DELETE FROM artists;
+  `)
+}
+
+/**
+ * 快速创建一个测试画师，返回完整行
+ */
+export function seedArtist(overrides = {}) {
+  const defaults = {
+    qq_number: '12345',
+    name: '测试画师',
+    subdomain: 'alice',
+    status: 'open'
+  }
+  const data = { ...defaults, ...overrides }
+
+  const result = db.prepare(`
+    INSERT INTO artists (qq_number, name, subdomain, status)
+    VALUES (?, ?, ?, ?)
+  `).run(data.qq_number, data.name, data.subdomain, data.status)
+
+  // 初始化须知
+  db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)')
+    .run(result.lastInsertRowid, '')
+
+  return db.prepare('SELECT * FROM artists WHERE id = ?').get(result.lastInsertRowid)
+}
+
+/**
+ * 快速创建一个测试订单，返回完整行
+ */
+export function seedOrder(artistId, overrides = {}) {
+  const defaults = {
+    order_no: `A${String(Math.floor(Math.random() * 900) + 100)}`,
+    client_qq: '99999',
+    priority: 'medium',
+    status: 'pending',
+    source: 'self',
+    queue_position: 1
+  }
+  const data = { ...defaults, ...overrides }
+
+  const result = db.prepare(`
+    INSERT INTO orders (order_no, artist_id, client_qq, client_name, description, priority, status, source, queue_position)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.order_no, artistId, data.client_qq,
+    data.client_name || null, data.description || null,
+    data.priority, data.status, data.source, data.queue_position
+  )
+
+  return db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid)
+}

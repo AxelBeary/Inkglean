@@ -111,6 +111,14 @@ const routes = [
     name: 'AdminArtists',
     component: () => import('../views/admin/ArtistManage.vue'),
     meta: { title: '画师管理', requiresAdmin: true }
+  },
+
+  // ─── 404 ───
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/client/LandingPage.vue'),
+    meta: { title: '页面不存在' }
   }
 ]
 
