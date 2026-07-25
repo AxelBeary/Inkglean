@@ -27,11 +27,11 @@
 
     <!-- 操作按钮 -->
     <div class="action-bar">
-      <el-button type="primary" size="large" @click="$router.push('/order')"
+      <el-button type="primary" size="large" @click="$router.push(`/order?artist=${subdomain}`)"
         :disabled="artist.status !== 'open'" round>
         🎨 我要约稿
       </el-button>
-      <el-button size="large" @click="$router.push('/track')" round>
+      <el-button size="large" @click="$router.push(`/track?artist=${subdomain}`)" round>
         📋 查询进度
       </el-button>
     </div>
@@ -83,22 +83,23 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 
+const route = useRoute()
 const artist = ref({})
 const loading = ref(true)
 
 // 从子域名或 URL 参数获取画师标识
-// 生产环境通过子域名解析，开发环境用 ?artist=xxx
 function getSubdomain() {
-  const params = new URLSearchParams(window.location.search)
-  if (params.get('artist')) return params.get('artist')
-  // 从子域名提取
+  if (route.query.artist) return route.query.artist
   const host = window.location.hostname
   const parts = host.split('.')
   if (parts.length >= 3) return parts[0]
-  return 'alice' // 开发默认
+  return 'alice'
 }
+
+const subdomain = computed(() => getSubdomain())
 
 const statusType = computed(() => {
   const map = { open: 'success', full: 'warning', break: 'danger' }

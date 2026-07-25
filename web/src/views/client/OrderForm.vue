@@ -1,6 +1,6 @@
 <template>
   <div class="order-form">
-    <el-page-header @back="$router.push('/')" title="返回主页" content="我要约稿" />
+    <el-page-header @back="$router.push(`/home?artist=${subdomain}`)" title="返回主页" content="我要约稿" />
 
     <el-card class="form-card" v-if="!submitted">
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
@@ -28,8 +28,10 @@
         <!-- 参考图上传 -->
         <el-form-item label="参考图（可选，最多5张，每张≤10MB）">
           <el-upload
+            ref="uploadRef"
             :auto-upload="false" :limit="5" list-type="picture-card"
             :on-change="handleFileChange" :on-remove="handleFileRemove"
+            :on-exceed="() => ElMessage.warning('最多上传5张参考图')"
             accept="image/*,.psd,.gif,.bmp,.tiff"
           >
             <el-icon><Plus /></el-icon>
@@ -88,7 +90,7 @@
           <el-button type="primary" @click="$router.push(`/track?no=${resultOrderNo}`)">
             查看进度
           </el-button>
-          <el-button @click="$router.push('/')">返回主页</el-button>
+          <el-button @click="$router.push(`/home?artist=${subdomain}`)">返回主页</el-button>
         </template>
       </el-result>
     </el-card>
@@ -96,11 +98,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import { artistPublicApi, orderApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 
+const route = useRoute()
 const formRef = ref(null)
 const tiers = ref([])
 const rulesContent = ref('')
@@ -110,6 +114,13 @@ const submitted = ref(false)
 const resultOrderNo = ref('')
 const typeWarning = ref('')
 const pendingFiles = ref([])
+
+const subdomain = computed(() => {
+  if (route.query.artist) return route.query.artist
+  const parts = window.location.hostname.split('.')
+  if (parts.length >= 3) return parts[0]
+  return 'alice'
+})
 
 const form = reactive({
   tierId: null,
@@ -125,15 +136,18 @@ const rules = {
   clientQq: [{ required: true, message: '请填写QQ号', trigger: 'blur' }]
 }
 
-function getSubdomain() {
-  const params = new URLSearchParams(window.location.search)
-  if (params.get('artist')) return params.get('artist')
-  const parts = window.location.hostname.split('.')
-  if (parts.length >= 3) return parts[0]
-  return 'alice'
-}
+const uploadRef = ref(null)
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
-function handleFileChange(file) {
+function handleFileChange(file, fileList) {
+  // 大小校验：超过10MB直接拒绝
+  if (file.raw.size > MAX_FILE_SIZE) {
+    ElMessage.error(`文件「${file.name}」超过10MB限制（${(file.raw.size / 1024 / 1024).toFixed(1)}MB），请压缩后重新上传`)
+    // 从列表中移除超限文件
+    const idx = fileList.indexOf(file)
+    if (idx > -1) fileList.splice(idx, 1)
+    return
+  }
   pendingFiles.value.push(file.raw)
   // 格式提示
   const ext = file.name.split('.').pop().toLowerCase()
@@ -154,7 +168,7 @@ async function submitOrder() {
   submitting.value = true
   try {
     const res = await orderApi.create({
-      subdomain: getSubdomain(),
+      subdomain: subdomain.value,
       tierId: form.tierId,
       clientQq: form.clientQq,
       clientName: form.clientName,
@@ -173,7 +187,7 @@ async function submitOrder() {
 
 onMounted(async () => {
   try {
-    const profile = await artistPublicApi.getProfile(getSubdomain())
+    const profile = await artistPublicApi.getProfile(subdomain.value)
     tiers.value = profile.tiers || []
     rulesContent.value = profile.rules || ''
     notifyEnabled.value = profile.notifyEnabled

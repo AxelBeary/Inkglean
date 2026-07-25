@@ -8,6 +8,12 @@ const routes = [
   // ─── 客户端（公开） ───
   {
     path: '/',
+    name: 'Landing',
+    component: () => import('../views/client/LandingPage.vue'),
+    meta: { title: '画师约稿平台' }
+  },
+  {
+    path: '/home',
     name: 'ClientHome',
     component: () => import('../views/client/ArtistHome.vue'),
     meta: { title: '画师主页' }

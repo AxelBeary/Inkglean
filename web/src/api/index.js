@@ -42,6 +42,7 @@ export const authApi = {
 
 // ─── 画师公开主页 ───
 export const artistPublicApi = {
+  getAll: () => api.get('/artists'),
   getProfile: (subdomain) => api.get(`/artists/${subdomain}`)
 }
 

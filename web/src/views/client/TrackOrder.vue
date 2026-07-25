@@ -1,6 +1,6 @@
 <template>
   <div class="track-page">
-    <el-page-header @back="$router.push('/')" title="返回主页" content="查询进度" />
+    <el-page-header @back="$router.push(`/home?artist=${subdomain}`)" title="返回主页" content="查询进度" />
 
     <el-card class="track-card">
       <!-- 输入订单号 -->
@@ -63,6 +63,13 @@ const route = useRoute()
 const orderNo = ref('')
 const orderData = ref(null)
 const loading = ref(false)
+
+const subdomain = computed(() => {
+  if (route.query.artist) return route.query.artist
+  const parts = window.location.hostname.split('.')
+  if (parts.length >= 3) return parts[0]
+  return 'alice'
+})
 
 const statusMap = {
   pending: { text: '⏳ 待确认', type: 'info', step: 0 },
