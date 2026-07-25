@@ -1,0 +1,27 @@
+# 统一换行符：仓库中始终存储 LF，checkout 时按平台处理
+* text=auto
+
+# 明确 LF 的文件
+*.js text eol=lf
+*.json text eol=lf
+*.vue text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.html text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf
+
+# 明确 CRLF 的文件（Windows 批处理）
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制文件不做转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff2 binary
+*.db binary
