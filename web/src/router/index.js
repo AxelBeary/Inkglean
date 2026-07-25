@@ -13,19 +13,19 @@ const routes = [
     meta: { title: '画师约稿平台' }
   },
   {
-    path: '/home',
+    path: '/artist/:subdomain',
     name: 'ClientHome',
     component: () => import('../views/client/ArtistHome.vue'),
     meta: { title: '画师主页' }
   },
   {
-    path: '/order',
+    path: '/artist/:subdomain/order',
     name: 'ClientOrder',
     component: () => import('../views/client/OrderForm.vue'),
     meta: { title: '我要约稿' }
   },
   {
-    path: '/track',
+    path: '/artist/:subdomain/track',
     name: 'ClientTrack',
     component: () => import('../views/client/TrackOrder.vue'),
     meta: { title: '查询进度' }

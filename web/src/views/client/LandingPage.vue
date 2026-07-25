@@ -1,60 +1,81 @@
 <template>
   <div class="landing">
-    <header class="hero">
-      <h1>🎨 画师约稿平台</h1>
-      <p>找到你喜欢的画师，开始约稿</p>
+    <header class="landing-header">
+      <h1>{{ $t('landing.title') }}</h1>
+      <p class="subtitle">{{ $t('landing.subtitle') }}</p>
+      <div class="header-prefs">
+        <ThemeToggle />
+      </div>
     </header>
 
-    <div class="artist-grid" v-loading="loading">
-      <el-card
-        v-for="a in artists" :key="a.id"
-        class="artist-card" shadow="hover"
-        @click="$router.push(`/home?artist=${a.subdomain}`)"
-      >
-        <div class="card-top">
-          <el-avatar :size="64" :src="a.avatar ? `/uploads/${a.avatar}` : undefined">
-            {{ a.name?.charAt(0) }}
-          </el-avatar>
-          <div class="card-info">
-            <h3>{{ a.name }}</h3>
-            <el-tag :type="statusType(a.status)" size="small" effect="dark">
-              {{ statusText(a.status) }}
+    <main class="landing-main">
+      <div class="artist-grid" v-loading="loading">
+        <el-card
+          v-for="artist in artists"
+          :key="artist.id"
+          shadow="hover"
+          class="artist-card"
+          @click="enterArtist(artist)"
+        >
+          <div class="artist-avatar">
+            <el-avatar :size="80" :src="artist.avatar ? `/uploads/${artist.avatar}` : undefined">
+              {{ artist.name?.charAt(0) }}
+            </el-avatar>
+          </div>
+          <h3 class="artist-name">{{ artist.name }}</h3>
+          <p class="artist-bio">{{ artist.bio || $t('landing.noBio') }}</p>
+          <div class="artist-status">
+            <el-tag :type="statusType(artist.status)" effect="dark" size="small">
+              {{ $t(`common.status.${artist.status}`) }}
             </el-tag>
           </div>
-        </div>
-        <p class="bio">{{ a.bio || '这位画师还没有写简介' }}</p>
-        <div class="card-links" v-if="a.weiboUrl || a.bilibiliUrl">
-          <el-button v-if="a.weiboUrl" size="small" text @click.stop="openLink(a.weiboUrl)">微博</el-button>
-          <el-button v-if="a.bilibiliUrl" size="small" text @click.stop="openLink(a.bilibiliUrl)">B站</el-button>
-        </div>
-        <el-button type="primary" class="enter-btn" round>进入主页 →</el-button>
-      </el-card>
-    </div>
+          <div class="artist-links" v-if="artist.weiboUrl || artist.bilibiliUrl">
+            <a v-if="artist.weiboUrl" :href="artist.weiboUrl" target="_blank" @click.stop>
+              {{ $t('landing.weibo') }}
+            </a>
+            <a v-if="artist.bilibiliUrl" :href="artist.bilibiliUrl" target="_blank" @click.stop>
+              {{ $t('landing.bilibili') }}
+            </a>
+          </div>
+          <el-button type="primary" class="enter-btn" @click.stop="enterArtist(artist)">
+            {{ $t('landing.enterHome') }}
+          </el-button>
+        </el-card>
+      </div>
 
-    <el-empty v-if="!loading && artists.length === 0" description="还没有画师入驻" />
+      <el-empty v-if="!loading && artists.length === 0" :description="$t('landing.noArtists')" />
+    </main>
 
-    <footer class="footer">Powered by 画师约稿平台</footer>
+    <footer class="landing-footer">
+      <p>{{ $t('common.footer') }}</p>
+    </footer>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import ThemeToggle from '../../components/ThemeToggle.vue'
 
+const { t } = useI18n()
+const router = useRouter()
 const artists = ref([])
 const loading = ref(true)
 
 const statusType = (s) => ({ open: 'success', full: 'warning', break: 'danger' }[s] || 'info')
-const statusText = (s) => ({ open: '可约稿', full: '已排满', break: '休息中' }[s] || '未知')
 
-function openLink(url) { window.open(url, '_blank') }
+function enterArtist(artist) {
+  router.push(`/artist/${artist.subdomain}`)
+}
 
 onMounted(async () => {
   try {
     artists.value = await artistPublicApi.getAll()
   } catch (err) {
-    ElMessage.error('加载画师列表失败')
+    ElMessage.error(err.message || t('landing.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -62,33 +83,56 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.landing { max-width: 900px; margin: 0 auto; padding-bottom: 40px; }
-
-.hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 48px 20px; text-align: center; color: white;
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+  transition: background 0.3s;
 }
-.hero h1 { font-size: 32px; margin-bottom: 8px; }
-.hero p { opacity: 0.9; font-size: 16px; }
-
+.landing-header {
+  text-align: center;
+  padding: 48px 16px 32px;
+  position: relative;
+}
+.landing-header h1 { font-size: 32px; color: var(--text-primary); }
+.subtitle { color: var(--text-secondary); margin-top: 8px; font-size: 16px; }
+.header-prefs { position: absolute; top: 16px; right: 24px; }
+.landing-main {
+  flex: 1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+  width: 100%;
+}
 .artist-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px; padding: 24px 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
-.artist-card { cursor: pointer; transition: transform 0.2s; }
-.artist-card:hover { transform: translateY(-4px); }
-
-.card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.card-info h3 { margin: 0 0 4px; font-size: 18px; }
-.bio { color: #666; font-size: 14px; line-height: 1.6; min-height: 44px; }
-.card-links { margin: 8px 0; }
-.enter-btn { width: 100%; margin-top: 12px; }
-
-.footer { text-align: center; padding: 24px; color: #999; font-size: 13px; }
-
-@media (max-width: 480px) {
-  .hero { padding: 32px 16px; }
-  .hero h1 { font-size: 24px; }
-  .artist-grid { grid-template-columns: 1fr; padding: 16px 12px; }
+.artist-card {
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+  background: var(--bg-card);
+}
+.artist-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-card-hover); }
+.artist-avatar { margin-bottom: 12px; }
+.artist-name { font-size: 18px; color: var(--text-primary); margin-bottom: 8px; }
+.artist-bio {
+  color: var(--text-secondary); font-size: 13px; line-height: 1.6;
+  margin-bottom: 12px; min-height: 40px;
+}
+.artist-status { margin-bottom: 12px; }
+.artist-links { margin-bottom: 12px; display: flex; gap: 16px; justify-content: center; }
+.artist-links a { color: var(--el-color-primary); text-decoration: none; font-size: 13px; }
+.artist-links a:hover { text-decoration: underline; }
+.enter-btn { width: 100%; }
+.landing-footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border-color);
 }
 </style>

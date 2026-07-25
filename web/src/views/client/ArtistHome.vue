@@ -1,129 +1,108 @@
 <template>
-  <div class="artist-home">
-    <!-- 顶部信息 -->
-    <header class="hero">
-      <div class="hero-inner">
-        <el-avatar :size="80" :src="artist.avatar" class="avatar">
+  <div class="artist-home" v-loading="loading">
+    <div v-if="artist" class="home-container">
+      <!-- 头部 -->
+      <header class="home-header">
+        <div class="header-prefs">
+          <ThemeToggle />
+        </div>
+        <el-avatar :size="100" :src="artist.avatar ? `/uploads/${artist.avatar}` : undefined">
           {{ artist.name?.charAt(0) }}
         </el-avatar>
-        <h1 class="name">{{ artist.name }}</h1>
-        <p class="bio">{{ artist.bio }}</p>
+        <h1 class="artist-name">{{ artist.name }}</h1>
+        <p class="artist-bio">{{ artist.bio }}</p>
         <div class="status-badge">
-          <el-tag :type="statusType" size="large" effect="dark">
-            {{ statusText }}
+          <el-tag :type="statusType(artist.status)" effect="dark" size="large">
+            {{ statusText(artist.status) }}
           </el-tag>
         </div>
-        <!-- 外链按钮 -->
         <div class="social-links" v-if="artist.weiboUrl || artist.bilibiliUrl">
-          <el-button v-if="artist.weiboUrl" @click="openLink(artist.weiboUrl)" round>
-            🔗 我的微博
-          </el-button>
-          <el-button v-if="artist.bilibiliUrl" @click="openLink(artist.bilibiliUrl)" round>
-            📺 我的B站
-          </el-button>
+          <a v-if="artist.weiboUrl" :href="artist.weiboUrl" target="_blank" class="social-link">
+            {{ $t('artistHome.weibo') }}
+          </a>
+          <a v-if="artist.bilibiliUrl" :href="artist.bilibiliUrl" target="_blank" class="social-link">
+            {{ $t('artistHome.bilibili') }}
+          </a>
         </div>
+      </header>
+
+      <!-- 操作按钮 -->
+      <div class="action-bar">
+        <el-button type="primary" size="large" @click="$router.push(`/artist/${subdomain}/order`)"
+          :disabled="artist.status !== 'open'">
+          {{ $t('artistHome.commission') }}
+        </el-button>
+        <el-button size="large" @click="$router.push(`/artist/${subdomain}/track`)">
+          {{ $t('artistHome.track') }}
+        </el-button>
       </div>
-    </header>
 
-    <!-- 操作按钮 -->
-    <div class="action-bar">
-      <el-button type="primary" size="large" @click="$router.push(`/order?artist=${subdomain}`)"
-        :disabled="artist.status !== 'open'" round>
-        🎨 我要约稿
-      </el-button>
-      <el-button size="large" @click="$router.push(`/track?artist=${subdomain}`)" round>
-        📋 查询进度
-      </el-button>
-    </div>
+      <!-- 价格表 -->
+      <section class="section" v-if="tiers.length">
+        <h2 class="section-title">{{ $t('artistHome.priceList') }}</h2>
+        <div class="tier-grid">
+          <el-card v-for="tier in tiers" :key="tier.id" shadow="hover" class="tier-card">
+            <el-image v-if="tier.example_image" :src="`/uploads/${tier.example_image}`"
+              fit="cover" class="tier-img" :preview-src-list="[`/uploads/${tier.example_image}`]" />
+            <h3>{{ tier.name }}</h3>
+            <div class="tier-price">¥{{ tier.price }}</div>
+            <p class="tier-desc">{{ tier.description }}</p>
+            <p class="tier-days" v-if="tier.work_days">{{ $t('artistHome.aboutDays', { n: tier.work_days }) }}</p>
+          </el-card>
+        </div>
+      </section>
 
-    <!-- 价格表 -->
-    <section class="section" v-if="artist.tiers?.length">
-      <h2 class="section-title">💰 价格表</h2>
-      <div class="tier-grid">
-        <el-card v-for="tier in artist.tiers" :key="tier.id" class="tier-card" shadow="hover">
-          <div class="tier-image" v-if="tier.example_image">
-            <el-image :src="`/uploads/${tier.example_image}`" fit="cover" />
-          </div>
-          <h3>{{ tier.name }}</h3>
-          <p class="price">¥{{ tier.price }}</p>
-          <p class="desc">{{ tier.description }}</p>
-          <p class="days" v-if="tier.work_days">⏱ 约 {{ tier.work_days }} 天</p>
+      <!-- 作品展示 -->
+      <section class="section" v-if="artworks.length">
+        <h2 class="section-title">{{ $t('artistHome.artworks') }}</h2>
+        <div class="artwork-grid">
+          <el-image v-for="art in artworks" :key="art.id"
+            :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
+            :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)" />
+        </div>
+      </section>
+
+      <!-- 约稿须知 -->
+      <section class="section" v-if="rules">
+        <h2 class="section-title">{{ $t('artistHome.rules') }}</h2>
+        <el-card shadow="never" class="rules-card">
+          <div v-html="rules"></div>
         </el-card>
-      </div>
-    </section>
-
-    <!-- 作品展示 -->
-    <section class="section" v-if="artist.artworks?.length">
-      <h2 class="section-title">🖼 作品展示</h2>
-      <div class="artwork-grid">
-        <el-image
-          v-for="art in artist.artworks" :key="art.id"
-          :src="`/uploads/${art.image_path}`"
-          :preview-src-list="artworkUrls"
-          fit="cover"
-          class="artwork-item"
-          lazy
-        />
-      </div>
-    </section>
-
-    <!-- 约稿须知 -->
-    <section class="section" v-if="artist.rules">
-      <h2 class="section-title">📜 约稿须知</h2>
-      <el-card class="rules-card">
-        <div v-html="artist.rules" class="rules-content"></div>
-      </el-card>
-    </section>
-
-    <footer class="footer">
-      <p>Powered by 画师约稿平台</p>
-    </footer>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
+import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import ThemeToggle from '../../components/ThemeToggle.vue'
 
+const { t } = useI18n()
 const route = useRoute()
-const artist = ref({})
+const subdomain = route.params.subdomain
+
+const artist = ref(null)
+const tiers = ref([])
+const artworks = ref([])
+const rules = ref('')
 const loading = ref(true)
 
-// 从子域名或 URL 参数获取画师标识
-function getSubdomain() {
-  if (route.query.artist) return route.query.artist
-  const host = window.location.hostname
-  const parts = host.split('.')
-  if (parts.length >= 3) return parts[0]
-  return 'alice'
-}
-
-const subdomain = computed(() => getSubdomain())
-
-const statusType = computed(() => {
-  const map = { open: 'success', full: 'warning', break: 'danger' }
-  return map[artist.value.status] || 'info'
-})
-
-const statusText = computed(() => {
-  const map = { open: '✅ 可约稿', full: '⏳ 已排满', break: '💤 休息中' }
-  return map[artist.value.status] || '未知'
-})
-
-const artworkUrls = computed(() =>
-  (artist.value.artworks || []).map(a => `/uploads/${a.image_path}`)
-)
-
-function openLink(url) {
-  window.open(url, '_blank')
-}
+const statusType = (s) => ({ open: 'success', full: 'warning', break: 'danger' }[s] || 'info')
+const statusText = (s) => t(`artistHome.status${s.charAt(0).toUpperCase() + s.slice(1)}`)
 
 onMounted(async () => {
   try {
-    artist.value = await artistPublicApi.getProfile(getSubdomain())
+    const data = await artistPublicApi.getProfile(subdomain)
+    artist.value = data
+    tiers.value = data.tiers || []
+    artworks.value = data.artworks || []
+    rules.value = data.rules || ''
   } catch (err) {
-    ElMessage.error('画师不存在或加载失败')
+    ElMessage.error(err.message || t('artistHome.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -131,49 +110,51 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.artist-home { max-width: 800px; margin: 0 auto; padding-bottom: 40px; }
-
-.hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px 20px; text-align: center; color: white;
+.artist-home {
+  min-height: 100vh;
+  background: var(--bg-page);
+  transition: background 0.3s;
 }
-.hero .name { font-size: 28px; margin: 12px 0 8px; }
-.hero .bio { opacity: 0.9; font-size: 15px; }
-.status-badge { margin-top: 12px; }
-.social-links { margin-top: 16px; display: flex; gap: 12px; justify-content: center; }
-
+.home-container { max-width: 800px; margin: 0 auto; padding: 16px; }
+.home-header {
+  text-align: center;
+  padding: 40px 16px 24px;
+  position: relative;
+}
+.header-prefs { position: absolute; top: 16px; right: 16px; }
+.artist-name { font-size: 28px; margin-top: 16px; color: var(--text-primary); }
+.artist-bio { color: var(--text-secondary); margin-top: 8px; line-height: 1.6; }
+.status-badge { margin-top: 16px; }
+.social-links { margin-top: 16px; display: flex; gap: 20px; justify-content: center; }
+.social-link {
+  color: var(--el-color-primary); text-decoration: none; font-size: 14px;
+  padding: 6px 16px; border: 1px solid var(--el-color-primary); border-radius: 20px;
+  transition: all 0.2s;
+}
+.social-link:hover { background: var(--el-color-primary); color: #fff; }
 .action-bar {
-  display: flex; gap: 12px; justify-content: center;
-  padding: 20px; margin-top: -20px; position: relative; z-index: 1;
+  display: flex; gap: 16px; justify-content: center;
+  margin: 24px 0 32px;
 }
-
-.section { padding: 0 16px; margin-top: 24px; }
-.section-title { font-size: 20px; margin-bottom: 16px; }
-
+.section { margin-bottom: 32px; }
+.section-title {
+  font-size: 20px; color: var(--text-primary);
+  margin-bottom: 16px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--el-color-primary);
+}
 .tier-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
-.tier-card h3 { margin: 8px 0 4px; }
-.tier-card .price { font-size: 24px; color: #e6a23c; font-weight: bold; }
-.tier-card .desc { color: #666; font-size: 14px; margin: 4px 0; }
-.tier-card .days { color: #999; font-size: 13px; }
-.tier-image { border-radius: 8px; overflow: hidden; height: 140px; }
-.tier-image .el-image { width: 100%; height: 100%; }
-
+.tier-card { text-align: center; background: var(--bg-card); transition: background 0.3s; }
+.tier-img { width: 100%; height: 160px; border-radius: 8px 8px 0 0; margin: -20px -20px 12px; width: calc(100% + 40px); }
+.tier-price { font-size: 24px; font-weight: bold; color: var(--el-color-primary); margin: 8px 0; }
+.tier-desc { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+.tier-days { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
 .artwork-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
 }
-.artwork-item { border-radius: 8px; height: 160px; width: 100%; }
-
-.rules-card { margin-top: 8px; }
-.rules-content { line-height: 1.8; font-size: 15px; }
-
-.footer { text-align: center; padding: 24px; color: #999; font-size: 13px; }
-
-@media (max-width: 480px) {
-  .hero { padding: 24px 16px; }
-  .hero .name { font-size: 22px; }
-  .action-bar { flex-direction: column; align-items: center; }
-  .tier-grid { grid-template-columns: 1fr; }
-}
+.artwork-img { width: 100%; height: 180px; border-radius: 8px; }
+.rules-card { line-height: 1.8; color: var(--text-primary); background: var(--bg-card); }
 </style>

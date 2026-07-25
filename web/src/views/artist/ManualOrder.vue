@@ -1,52 +1,52 @@
 <template>
   <ArtistLayout>
-    <h2>✍ 手动录单</h2>
-    <p class="hint">客户通过QQ联系你后，在这里手动录入订单信息。</p>
+    <h2>{{ $t('manualOrder.title') }}</h2>
+    <p class="hint">{{ $t('manualOrder.hint') }}</p>
 
     <el-card style="margin-top: 16px; max-width: 600px">
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
-        <el-form-item label="客户QQ号" prop="clientQq">
-          <el-input v-model="form.clientQq" placeholder="客户的QQ号" />
+        <el-form-item :label="$t('manualOrder.clientQq')" prop="clientQq">
+          <el-input v-model="form.clientQq" :placeholder="$t('manualOrder.clientQqPlaceholder')" />
         </el-form-item>
 
-        <el-form-item label="客户昵称（可选）">
-          <el-input v-model="form.clientName" placeholder="怎么称呼客户" />
+        <el-form-item :label="$t('manualOrder.clientName')">
+          <el-input v-model="form.clientName" :placeholder="$t('manualOrder.clientNamePlaceholder')" />
         </el-form-item>
 
-        <el-form-item label="档位">
-          <el-select v-model="form.tierId" placeholder="选择档位（可不选）" clearable style="width: 100%">
+        <el-form-item :label="$t('manualOrder.tier')">
+          <el-select v-model="form.tierId" :placeholder="$t('manualOrder.tierPlaceholder')" clearable style="width: 100%">
             <el-option v-for="t in tiers" :key="t.id" :label="`${t.name} - ¥${t.price}`" :value="t.id" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="需求描述">
+        <el-form-item :label="$t('manualOrder.desc')">
           <el-input v-model="form.description" type="textarea" :rows="4"
-            placeholder="从QQ聊天中复制客户的需求描述" maxlength="1000" show-word-limit />
+            :placeholder="$t('manualOrder.descPlaceholder')" maxlength="1000" show-word-limit />
         </el-form-item>
 
-        <el-form-item label="优先级">
+        <el-form-item :label="$t('manualOrder.priority')">
           <el-radio-group v-model="form.priority">
-            <el-radio-button value="high">🔴 高</el-radio-button>
-            <el-radio-button value="medium">🟡 中（默认）</el-radio-button>
-            <el-radio-button value="low">🟢 低</el-radio-button>
+            <el-radio-button value="high">{{ $t('manualOrder.priorityHigh') }}</el-radio-button>
+            <el-radio-button value="medium">{{ $t('manualOrder.priorityMedium') }}</el-radio-button>
+            <el-radio-button value="low">{{ $t('manualOrder.priorityLow') }}</el-radio-button>
           </el-radio-group>
         </el-form-item>
 
         <el-form-item>
           <el-button type="primary" @click="submit" :loading="submitting" style="width: 100%">
-            录入订单
+            {{ $t('manualOrder.submit') }}
           </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <!-- 录入成功 -->
-    <el-dialog v-model="showResult" title="录入成功" width="360px">
-      <el-result icon="success" :title="`订单号: ${resultNo}`">
-        <template #sub-title>已加入排期队列</template>
+    <el-dialog v-model="showResult" :title="$t('manualOrder.resultTitle')" width="360px">
+      <el-result icon="success" :title="$t('manualOrder.orderNo', { no: resultNo })">
+        <template #sub-title>{{ $t('manualOrder.addedToQueue') }}</template>
         <template #extra>
-          <el-button type="primary" @click="$router.push('/queue')">查看排期</el-button>
-          <el-button @click="resetForm">继续录入</el-button>
+          <el-button type="primary" @click="$router.push('/queue')">{{ $t('manualOrder.viewQueue') }}</el-button>
+          <el-button @click="resetForm">{{ $t('manualOrder.continueEntry') }}</el-button>
         </template>
       </el-result>
     </el-dialog>
@@ -57,8 +57,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
+const { t } = useI18n()
 const formRef = ref(null)
 const tiers = ref([])
 const submitting = ref(false)
@@ -74,7 +76,7 @@ const form = reactive({
 })
 
 const rules = {
-  clientQq: [{ required: true, message: '请填写客户QQ号', trigger: 'blur' }]
+  clientQq: [{ required: true, message: () => t('manualOrder.fillClientQq'), trigger: 'blur' }]
 }
 
 async function submit() {
@@ -116,5 +118,5 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.hint { color: #999; font-size: 13px; margin-top: 8px; }
+.hint { color: var(--text-secondary); font-size: 13px; margin-top: 8px; }
 </style>

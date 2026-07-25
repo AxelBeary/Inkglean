@@ -1,40 +1,40 @@
 <template>
   <ArtistLayout>
-    <h2>⚙ 主页设置</h2>
+    <h2>{{ $t('settings.title') }}</h2>
 
     <el-card style="margin-top: 16px; max-width: 600px" v-loading="loading">
       <el-form :model="form" label-position="top" size="large">
-        <el-form-item label="画师昵称">
+        <el-form-item :label="$t('settings.nameLabel')">
           <el-input v-model="form.name" />
         </el-form-item>
 
-        <el-form-item label="个人简介">
-          <el-input v-model="form.bio" type="textarea" :rows="3" placeholder="介绍一下自己" />
+        <el-form-item :label="$t('settings.bioLabel')">
+          <el-input v-model="form.bio" type="textarea" :rows="3" :placeholder="$t('settings.bioPlaceholder')" />
         </el-form-item>
 
-        <el-form-item label="主页状态">
+        <el-form-item :label="$t('settings.statusLabel')">
           <el-radio-group v-model="form.status">
-            <el-radio-button value="open">✅ 可约稿</el-radio-button>
-            <el-radio-button value="full">⏳ 已排满</el-radio-button>
-            <el-radio-button value="break">💤 休息中</el-radio-button>
+            <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
+            <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
+            <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="微博链接（可选）">
+        <el-form-item :label="$t('settings.weiboLabel')">
           <el-input v-model="form.weibo_url" placeholder="https://weibo.com/xxx" />
         </el-form-item>
 
-        <el-form-item label="B站链接（可选）">
+        <el-form-item :label="$t('settings.bilibiliLabel')">
           <el-input v-model="form.bilibili_url" placeholder="https://space.bilibili.com/xxx" />
         </el-form-item>
 
-        <el-form-item label="客户QQ通知">
+        <el-form-item :label="$t('settings.notifyLabel')">
           <el-switch v-model="form.notify_enabled" :active-value="1" :inactive-value="0"
-            active-text="允许客户接收排队/完成通知" />
+            :active-text="$t('settings.notifyText')" />
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="save" :loading="saving">保存设置</el-button>
+          <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -45,8 +45,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
+const { t } = useI18n()
 const loading = ref(true)
 const saving = ref(false)
 
@@ -70,7 +72,7 @@ async function save() {
       bilibili_url: form.bilibili_url,
       notify_enabled: form.notify_enabled
     })
-    ElMessage.success('设置已保存')
+    ElMessage.success(t('settings.saved'))
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

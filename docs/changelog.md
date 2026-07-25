@@ -1,5 +1,61 @@
 # 变更日志
 
+## v0.4.1 — 2026-07-26
+
+### 修复：路由 + API 调用全面修正
+- **路由表重构**：`/home` → `/artist/:subdomain`、`/order` → `/artist/:subdomain/order`、`/track` → `/artist/:subdomain/track`（修复"画师不存在"错误）
+- **ArtistHome.vue**：`artistApi.getArtistBySubdomain()` → `artistPublicApi.getProfile(subdomain)`（一次请求返回 profile+tiers+artworks+rules）
+- **LandingPage.vue**：`artistApi.getArtists()` → `artistPublicApi.getAll()`；script 中 `$t()` → `t()`；字段 `weibo_url` → `weiboUrl`
+- **OrderForm.vue**：`artistApi.createOrder()` → `orderApi.create()`；字段对齐后端（`subdomain`、`agreeRules`、`clientNotify`、`orderNo`）
+- **TrackOrder.vue**：`artistApi.trackOrder()` → `orderApi.track(orderNo)`；字段 snake_case → camelCase（`orderNo`、`artistName`、`tierName`、`position`、`total`、`createdAt`、`fileName`、`url`）
+- **DeliveryPage.vue**：`artistApi.trackOrder()` → `orderApi.delivery(orderNo)`；同上字段映射修正
+- **ThemeToggle.vue**：重写为极简按钮（去掉 el-dropdown/el-tooltip），修复侧边栏 scrollbar 溢出
+
+### 变更文件
+- `web/src/router/index.js`：路由路径参数化
+- `web/src/views/client/ArtistHome.vue`
+- `web/src/views/client/LandingPage.vue`
+- `web/src/views/client/OrderForm.vue`
+- `web/src/views/client/TrackOrder.vue`
+- `web/src/views/client/DeliveryPage.vue`
+- `web/src/components/ThemeToggle.vue`
+
+---
+
+## v0.4.0 — 2026-07-26
+
+### 新增：多语言支持（i18n）
+- **vue-i18n@9** 集成，支持 **简体中文（zh-CN）** 和 **English（en）**
+- 全部 19 个 Vue 视图 + 2 个组件的硬编码文本替换为 `$t()` 调用
+- 语言包：`web/src/locales/zh-CN.js`（~150 条）、`web/src/locales/en.js`
+- 自动检测浏览器语言，手动切换持久化至 `localStorage`（key: `huiyue-locale`）
+- Element Plus 组件库 locale 随应用语言动态切换（`ElConfigProvider`）
+- 日期格式化跟随当前语言（`zh-CN` / `en-US`）
+
+### 新增：亮暗主题切换
+- **CSS 变量体系**：`:root` 定义 8 个语义变量（`--bg-page`、`--bg-card`、`--text-primary` 等），`html.dark` 覆盖暗色值
+- **Element Plus 暗色**：引入 `element-plus/theme-chalk/dark/css-vars.css`，`html.dark` 类名自动激活
+- **Pinia store**（`stores/theme.js`）：检测系统偏好 → 持久化至 `localStorage`（key: `huiyue-theme`）→ `watch` 自动应用
+- **ThemeToggle 组件**：🌙/☀️ 切换 + 🌐 语言下拉，嵌入 ArtistLayout 侧边栏、LandingPage、ArtistHome、Login 四处
+- 所有 scoped 样式中的硬编码颜色替换为 CSS 变量（`#999` → `var(--text-secondary)` 等）
+
+### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `web/src/i18n/index.js` | i18n 实例 + `setLocale()` |
+| `web/src/locales/zh-CN.js` | 中文语言包 |
+| `web/src/locales/en.js` | 英文语言包 |
+| `web/src/stores/theme.js` | 主题 Pinia store |
+| `web/src/components/ThemeToggle.vue` | 主题/语言切换组件 |
+
+### 变更文件
+- `web/src/main.js`：集成 i18n + Element Plus dark CSS
+- `web/src/App.vue`：`ElConfigProvider` 动态 locale + 全局 CSS 变量
+- 全部 19 个 `.vue` 视图文件：`$t()` 替换 + CSS 变量适配
+- `web/package.json`：新增 `vue-i18n@^9` 依赖
+
+---
+
 ## v0.3.0 — 2026-07-26
 
 ### 规范化：消除技术债

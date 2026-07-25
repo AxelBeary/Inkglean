@@ -1,6 +1,6 @@
 <template>
   <ArtistLayout>
-    <h2>🖼 作品管理</h2>
+    <h2>{{ $t('artworks.title') }}</h2>
 
     <!-- 上传区 -->
     <el-card style="margin: 16px 0">
@@ -8,10 +8,10 @@
         drag multiple :auto-upload="true" :http-request="handleUpload"
         accept="image/*" :show-file-list="false"
       >
-        <el-icon style="font-size: 40px; color: #999"><Upload /></el-icon>
-        <p>拖拽图片到此处，或点击上传作品</p>
+        <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
+        <p>{{ $t('artworks.dragUpload') }}</p>
         <template #tip>
-          <p style="color: #999; font-size: 12px">支持 JPG / PNG / WebP，建议尺寸 ≥ 800px</p>
+          <p style="color: var(--text-secondary); font-size: 12px">{{ $t('artworks.tip') }}</p>
         </template>
       </el-upload>
     </el-card>
@@ -22,12 +22,12 @@
         <el-image :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
           :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)" />
         <div class="artwork-actions">
-          <el-button size="small" type="danger" @click="remove(art)">删除</el-button>
+          <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
         </div>
       </div>
     </div>
 
-    <el-empty v-if="!loading && artworks.length === 0" description="还没有作品，上传一些吧" />
+    <el-empty v-if="!loading && artworks.length === 0" :description="$t('artworks.empty')" />
   </ArtistLayout>
 </template>
 
@@ -36,8 +36,10 @@ import { ref, onMounted } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
+const { t } = useI18n()
 const artworks = ref([])
 const loading = ref(true)
 
@@ -45,18 +47,18 @@ async function handleUpload({ file }) {
   try {
     const uploaded = await uploadApi.image(file)
     await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName })
-    ElMessage.success('上传成功')
+    ElMessage.success(t('artworks.uploaded'))
     await loadArtworks()
   } catch (err) {
-    ElMessage.error(err.message || '上传失败')
+    ElMessage.error(err.message || t('common.uploadFailed'))
   }
 }
 
 async function remove(art) {
   try {
-    await ElMessageBox.confirm('确定删除这张作品？', '确认删除', { type: 'warning' })
+    await ElMessageBox.confirm(t('artworks.confirmDelete'), t('common.confirmDeleteTitle'), { type: 'warning' })
     await artistApi.deleteArtwork(art.id)
-    ElMessage.success('已删除')
+    ElMessage.success(t('common.deleted'))
     await loadArtworks()
   } catch { /* cancelled */ }
 }
