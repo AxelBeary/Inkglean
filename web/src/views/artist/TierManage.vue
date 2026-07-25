@@ -5,6 +5,14 @@
     <el-button type="primary" style="margin: 16px 0" @click="openDialog()">+ 添加档位</el-button>
 
     <el-table :data="tiers" v-loading="loading" stripe>
+      <el-table-column label="例图" width="80">
+        <template #default="{ row }">
+          <el-image v-if="row.example_image" :src="`/uploads/${row.example_image}`"
+            fit="cover" style="width: 56px; height: 56px; border-radius: 6px"
+            :preview-src-list="[`/uploads/${row.example_image}`]" />
+          <span v-else style="color: #ccc">—</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="name" label="名称" width="120" />
       <el-table-column prop="price" label="价格" width="100">
         <template #default="{ row }">¥{{ row.price }}</template>
@@ -36,6 +44,17 @@
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="2" placeholder="简要说明这个档位包含什么" />
         </el-form-item>
+        <el-form-item label="例图（可选）">
+          <div class="example-upload">
+            <el-image v-if="form.exampleImage" :src="`/uploads/${form.exampleImage}`"
+              fit="cover" class="example-preview" />
+            <el-upload :auto-upload="true" :http-request="uploadExample" :show-file-list="false"
+              accept="image/*" class="example-uploader">
+              <el-button size="small" :loading="uploading">{{ form.exampleImage ? '更换例图' : '上传例图' }}</el-button>
+            </el-upload>
+            <el-button v-if="form.exampleImage" size="small" type="danger" text @click="form.exampleImage = ''">移除</el-button>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -47,7 +66,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { artistApi } from '../../api/index.js'
+import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
@@ -55,19 +74,36 @@ const tiers = ref([])
 const loading = ref(true)
 const dialogVisible = ref(false)
 const saving = ref(false)
+const uploading = ref(false)
 const editingId = ref(null)
 
-const form = reactive({ name: '', price: 0, workDays: 7, description: '' })
+const form = reactive({ name: '', price: 0, workDays: 7, description: '', exampleImage: '' })
 
 function openDialog(row) {
   if (row) {
     editingId.value = row.id
-    Object.assign(form, { name: row.name, price: row.price, workDays: row.work_days, description: row.description || '' })
+    Object.assign(form, {
+      name: row.name, price: row.price, workDays: row.work_days,
+      description: row.description || '', exampleImage: row.example_image || ''
+    })
   } else {
     editingId.value = null
-    Object.assign(form, { name: '', price: 0, workDays: 7, description: '' })
+    Object.assign(form, { name: '', price: 0, workDays: 7, description: '', exampleImage: '' })
   }
   dialogVisible.value = true
+}
+
+async function uploadExample({ file }) {
+  uploading.value = true
+  try {
+    const uploaded = await uploadApi.image(file)
+    form.exampleImage = uploaded.filePath
+    ElMessage.success('例图已上传，点保存后生效')
+  } catch (err) {
+    ElMessage.error(err.message || '上传失败')
+  } finally {
+    uploading.value = false
+  }
 }
 
 async function save() {
@@ -76,11 +112,13 @@ async function save() {
   try {
     if (editingId.value) {
       await artistApi.updateTier(editingId.value, {
-        name: form.name, price: form.price, work_days: form.workDays, description: form.description
+        name: form.name, price: form.price, work_days: form.workDays,
+        description: form.description, example_image: form.exampleImage || null
       })
     } else {
       await artistApi.createTier({
-        name: form.name, price: form.price, workDays: form.workDays, description: form.description
+        name: form.name, price: form.price, workDays: form.workDays,
+        description: form.description, exampleImage: form.exampleImage || null
       })
     }
     ElMessage.success('保存成功')
@@ -115,3 +153,8 @@ async function loadTiers() {
 
 onMounted(loadTiers)
 </script>
+
+<style scoped>
+.example-upload { display: flex; align-items: center; gap: 12px; }
+.example-preview { width: 80px; height: 80px; border-radius: 8px; border: 1px solid #eee; }
+</style>

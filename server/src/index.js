@@ -1,9 +1,13 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+const __dirname = dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: resolve(__dirname, '../../.env') })
 import Fastify from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
-import { join, resolve } from 'path'
-import { existsSync } from 'fs'
+import { join } from 'path'
+import { existsSync, mkdirSync } from 'fs'
 
 // 路由
 import authRoutes from './routes/auth.js'
@@ -21,17 +25,22 @@ const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
 
 const isDev = process.env.NODE_ENV !== 'production'
 
-const app = Fastify({
-  logger: isDev
-    ? {
-        level: 'info',
-        transport: {
-          target: 'pino-pretty',
-          options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' }
-        }
+// pino-pretty 是 devDependency，Docker 生产构建不含它，缺失时降级为 JSON 日志
+let loggerConfig = { level: 'info' }
+if (isDev) {
+  try {
+    await import('pino-pretty')
+    loggerConfig = {
+      level: 'info',
+      transport: {
+        target: 'pino-pretty',
+        options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' }
       }
-    : { level: 'info' }
-})
+    }
+  } catch { /* pino-pretty not installed, use default JSON logger */ }
+}
+
+const app = Fastify({ logger: loggerConfig })
 
 // ─── 全局插件 ───
 
@@ -41,14 +50,13 @@ await app.register(fastifyCors, {
   credentials: true
 })
 
-// 静态文件服务（上传的图片）
-if (existsSync(UPLOAD_DIR)) {
-  await app.register(fastifyStatic, {
-    root: UPLOAD_DIR,
-    prefix: '/uploads/',
-    decorateReply: false
-  })
-}
+// 静态文件服务（上传的图片）——确保目录存在，避免首次启动时跳过注册
+if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
+await app.register(fastifyStatic, {
+  root: UPLOAD_DIR,
+  prefix: '/uploads/',
+  decorateReply: false
+})
 
 // 前端构建产物（生产环境）
 const webDist = resolve('../web/dist')
@@ -56,7 +64,6 @@ if (existsSync(webDist)) {
   await app.register(fastifyStatic, {
     root: webDist,
     prefix: '/',
-    decorateReply: false,
     wildcard: false // 让 SPA 路由接管
   })
 

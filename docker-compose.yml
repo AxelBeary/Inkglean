@@ -19,8 +19,9 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - DB_PATH=/app/data/commission.db
+      - UPLOAD_DIR=/app/uploads
 
   # Caddy 反向代理（自动 HTTPS + 泛解析）
   caddy:
