@@ -13,13 +13,12 @@
  */
 export function formatDateTime(str, options) {
   if (!str) return ''
-  // SQLite CURRENT_TIMESTAMP 格式: 'YYYY-MM-DD HH:MM:SS'（无时区标记）
-  // 追加 'Z' 让 JS 正确识别为 UTC
   const normalized = str.includes('T') ? str : str.replace(' ', 'T') + 'Z'
   const date = new Date(normalized)
   if (isNaN(date.getTime())) return str
 
-  return date.toLocaleString('zh-CN', {
+  // R2-3: 使用浏览器默认 locale，不再硬编码 zh-CN
+  return date.toLocaleString(undefined, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

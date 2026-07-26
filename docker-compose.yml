@@ -21,8 +21,8 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=development
-      - AUTH_DEV_MODE=true        # P0-5: 开发模式返回 _dev_code（生产设为 false）
+      - NODE_ENV=production
+      - AUTH_DEV_MODE=false       # 生产环境必须关闭开发模式
       - DB_PATH=/app/data/commission.db
       - UPLOAD_DIR=/app/uploads
     healthcheck:

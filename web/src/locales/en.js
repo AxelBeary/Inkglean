@@ -81,7 +81,7 @@ export default {
   },
   queue: {
     title: '📋 Queue Board',
-    hint: 'Drag cards to reorder. A dragged order takes the priority of its target position; the rest shift down automatically.',
+    hint: 'Drag cards to reorder. Order is saved immediately. Priority is a label only and does not affect sorting.',
     confirm: '✅ Confirm', startWip: '🎨 Start work', done: '✔ Complete', deliver: '📦 Deliver', cancel: '❌ Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
     confirmCancel: 'Cancel order #{no}?', confirmCancelTitle: 'Confirm cancellation', statusUpdated: 'Status updated'

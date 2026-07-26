@@ -1,5 +1,41 @@
 # 变更日志
 
+## v0.6.3 — 2026-07-27
+
+### 🔒 第二次审计修复（补充报告全部 27 项）
+
+**🔥 致命回归（1 项）：**
+- **N0-1 收入统计**：回滚 `localtime` 修复 → 改用 `completed_at` + `price_snapshot`（新增列+迁移v3）
+
+**🟠 严重问题（3 项）：**
+- **N1-1 跨优先级拖拽**：`getArtistQueue` 去掉优先级排序，拖拽即绝对顺序（方案A）
+- **N1-2 transfer 爆破**：加 `rateLimit('transfer:'+newQq)`，隐藏原始错误，先验画师再验码
+- **R0-1 参考图被吞**：schema 补 `references` 字段，`createOrder` 事务内落库
+
+**🚑 必修修复（5 项）：**
+- **R0-2 部署配置**：`docker-compose.yml` NODE_ENV→production, AUTH_DEV_MODE→false
+- **R1-1 测试损坏**：TC-O-07 适配新 `reorderQueue` 语义
+- **R1-2 timingSafeEqual**：加 6位数字长度守卫+try/catch，auth/verify 加 schema
+- **R1-3 管理员自举**：UNIQUE 冲突退让（fallback subdomain）+ try/catch
+- **R1-4 transfer 事务化**：`db.transaction()` 包裹
+
+**📋 中等改进（6 项）：**
+- **R2-1** `.env.example` 创建，SESSION_SECRET 留空
+- **R2-3** `datetime.js` 改用 `undefined` locale（跟随浏览器）
+- **R2-5** `deliverOrder` 返回 `statusChanged`
+- **R2-6** schema 补全（auth/send-code）
+- **R2-7** 交付文件白名单（22 种）+ nosniff + Content-Disposition
+- **P0-3** trustProxy 收紧（仅 127.0.0.1，可配置 TRUST_PROXY）
+
+**🧹 技术债：**
+- 版本号统一为 0.6.3（server + web package.json）
+- N2-1/N2-2 文案同步/时区标注
+
+### 变更统计
+- 15 个文件，~120 行新增 / ~30 行删除
+
+---
+
 ## v0.6.2 — 2026-07-27
 
 ### 🔒 审计修复（32 项全部完成）

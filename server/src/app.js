@@ -11,9 +11,12 @@ import db from './db/connection.js'
 // ============================================
 
 export async function buildApp(opts = {}) {
+  // P0-3: trustProxy 收紧 — 仅信任 Caddy 反向代理（本地回环）
+  const trustProxyEnv = process.env.TRUST_PROXY
+  const trustProxy = trustProxyEnv === 'false' ? false : (trustProxyEnv || '127.0.0.1')
   const app = Fastify({
     logger: opts.logger ?? true,
-    trustProxy: true
+    trustProxy
   })
 
   // ─── 数据库初始化 ───
@@ -32,7 +35,12 @@ export async function buildApp(opts = {}) {
   await app.register(fastifyStatic, {
     root: UPLOAD_DIR,
     prefix: '/uploads/',
-    decorateReply: false
+    decorateReply: false,
+    setHeaders: (reply) => {
+      // R2-7: 安全头 — 禁止 MIME 嗅探 + 强制下载
+      reply.header('X-Content-Type-Options', 'nosniff')
+      reply.header('Content-Disposition', 'attachment')
+    }
   })
 
   // ─── 注册功能路由 ───

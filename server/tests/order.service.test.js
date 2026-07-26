@@ -98,17 +98,23 @@ describe('订单服务 (Order Service)', () => {
     expect(queue[1].queue_position).toBe(2)
   })
 
-  // TC-O-07: 拖拽排序 — 优先级继承
-  it('TC-O-07: 拖拽到 high 区域继承优先级', () => {
-    orderService.createOrder({ artistId: artist.id, clientQq: '111', priority: 'high' })
-    const med1 = orderService.createOrder({ artistId: artist.id, clientQq: '222', priority: 'medium' })
-    orderService.createOrder({ artistId: artist.id, clientQq: '333', priority: 'medium' })
+  // TC-O-07: 拖拽排序 — 按传入顺序排列（N1-1: 新语义，拖拽即绝对顺序）
+  it('TC-O-07: reorderQueue 按传入顺序重新排列队列', () => {
+    const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111', priority: 'high' })
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222', priority: 'medium' })
+    const o3 = orderService.createOrder({ artistId: artist.id, clientQq: '333', priority: 'low' })
 
-    // 将 med1 拖到位置 0（high 区域）
-    orderService.reorderQueueByDrag(artist.id, med1.id, 0)
+    // 倒序拖拽：[o3, o2, o1]
+    orderService.reorderQueue(artist.id, [o3.id, o2.id, o1.id])
 
-    const updated = orderService.getOrder(med1.id)
-    expect(updated.priority).toBe('high')
+    const queue = orderService.getArtistQueue(artist.id)
+    expect(queue).toHaveLength(3)
+    expect(queue[0].id).toBe(o3.id)
+    expect(queue[1].id).toBe(o2.id)
+    expect(queue[2].id).toBe(o1.id)
+    // 优先级不应被拖拽改变
+    expect(queue[0].priority).toBe('low')
+    expect(queue[2].priority).toBe('high')
   })
 
   // TC-O-08: 更新优先级 — 非法值

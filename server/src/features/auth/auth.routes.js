@@ -11,8 +11,20 @@ export default async function authRoutes(fastify) {
   /**
    * POST /api/auth/send-code
    * 发送登录码（限流：同IP 5次/5分钟）
+   * R2-6: 加 JSON Schema 验证
    */
-  fastify.post('/api/auth/send-code', async (request, reply) => {
+  fastify.post('/api/auth/send-code', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['qqNumber'],
+        properties: {
+          qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     const ip = request.ip
     if (!rateLimit(`send-code:${ip}`, 5, 5 * 60_000)) {
       return reply.code(429).send({ error: '请求过于频繁，请稍后再试' })
@@ -42,8 +54,21 @@ export default async function authRoutes(fastify) {
   /**
    * POST /api/auth/verify
    * 验证登录码（限流：同IP 10次/5分钟）
+   * R1-2: 加 JSON Schema 验证，防止非6位数字字符触发 timingSafeEqual 崩溃
    */
-  fastify.post('/api/auth/verify', async (request, reply) => {
+  fastify.post('/api/auth/verify', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['qqNumber', 'code'],
+        properties: {
+          qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
+          code: { type: 'string', minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     const ip = request.ip
     if (!rateLimit(`verify:${ip}`, 10, 5 * 60_000)) {
       return reply.code(429).send({ error: '尝试次数过多，请稍后再试' })

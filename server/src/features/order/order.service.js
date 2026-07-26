@@ -46,7 +46,7 @@ export function generateOrderNo(artistId, artistCode) {
  * 创建订单（客户自助 或 画师手动录入）
  * P1-7: 事务包裹，防止订单号竞态
  */
-export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify }) {
+export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references }) {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId)
     if (!artist) throw new Error('画师不存在')
@@ -64,7 +64,25 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
     `).run(orderNo, artistId, tierId || null, clientQq, clientName || null, description || null, priority || 'medium', source || 'self', clientNotify ? 1 : 0, queuePosition)
 
-    return getOrder(result.lastInsertRowid)
+    const orderId = result.lastInsertRowid
+
+    // R0-1: 参考图在事务内落库
+    if (Array.isArray(references) && references.length > 0) {
+      const insertRef = db.prepare('INSERT INTO order_references (order_id, file_path) VALUES (?, ?)')
+      for (const ref of references.slice(0, 5)) {
+        insertRef.run(orderId, ref)
+      }
+    }
+
+    // N0-1: 创建订单时快照价格
+    if (tierId) {
+      const tier = db.prepare('SELECT price FROM price_tiers WHERE id = ?').get(tierId)
+      if (tier) {
+        db.prepare('UPDATE orders SET price_snapshot = ? WHERE id = ?').run(tier.price, orderId)
+      }
+    }
+
+    return getOrder(orderId)
   })()
 }
 
@@ -99,7 +117,8 @@ export function getOrderByNo(orderNo) {
 }
 
 /**
- * 获取画师的活跃队列（按优先级 + 位置排序）
+ * 获取画师的活跃队列（按 queue_position 排序）
+ * N1-1: 拖拽即绝对顺序，priority 退化为纯展示标签
  */
 export function getArtistQueue(artistId) {
   return db.prepare(`
@@ -107,9 +126,7 @@ export function getArtistQueue(artistId) {
     FROM orders o
     LEFT JOIN price_tiers t ON o.tier_id = t.id
     WHERE o.artist_id = ? AND o.status NOT IN ('delivered', 'cancelled')
-    ORDER BY
-      CASE o.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
-      o.queue_position ASC
+    ORDER BY o.queue_position ASC
   `).all(artistId)
 }
 
@@ -131,6 +148,12 @@ export function updateOrderStatus(orderId, newStatus) {
 
   db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(newStatus, orderId)
+
+  // N0-1: 进入 done/delivered 时记录成交时间
+  if (['done', 'delivered'].includes(newStatus)) {
+    db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
+      .run(orderId)
+  }
 
   if (['delivered', 'cancelled'].includes(newStatus)) {
     compactQueue(order.artist_id)
@@ -178,9 +201,7 @@ function compactQueue(artistId) {
   const queue = db.prepare(`
     SELECT id FROM orders
     WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')
-    ORDER BY
-      CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
-      queue_position ASC
+    ORDER BY queue_position ASC
   `).all(artistId)
 
   const updatePos = db.prepare('UPDATE orders SET queue_position = ? WHERE id = ?')
@@ -191,6 +212,7 @@ function compactQueue(artistId) {
 
 /**
  * 更新订单优先级
+ * N1-1: 优先级仅作展示标签，不重排队列
  */
 export function updatePriority(orderId, priority) {
   const valid = ['high', 'medium', 'low']
@@ -202,7 +224,6 @@ export function updatePriority(orderId, priority) {
   db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(priority, orderId)
 
-  compactQueue(order.artist_id)
   return getOrder(orderId)
 }
 
@@ -244,12 +265,12 @@ export function getArtistStats(artistId) {
   const activeCount = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
   ).get(artistId).c
-  // P2-2: 收入统计 — 使用本地时区的月初（SQLite date('now') 是 UTC，改用 datetime('now','localtime')）
+  // N0-1: 收入统计 — 使用 completed_at + price_snapshot（精确到已成交订单的实际时间和价格）
   const monthRevenue = db.prepare(`
-    SELECT COALESCE(SUM(t.price), 0) as total
-    FROM orders o LEFT JOIN price_tiers t ON o.tier_id = t.id
+    SELECT COALESCE(SUM(o.price_snapshot), 0) as total
+    FROM orders o
     WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
-      AND o.updated_at >= datetime('now', 'localtime', 'start of month')
+      AND o.completed_at >= date('now', 'start of month')
   `).get(artistId).total
   const totalCompleted = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status IN ('done', 'delivered')"

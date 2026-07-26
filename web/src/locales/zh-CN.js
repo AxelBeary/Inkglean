@@ -81,7 +81,7 @@ export default {
   },
   queue: {
     title: '📋 排期看板',
-    hint: '拖拽卡片调整顺序。拖到某个位置后，该订单会获得目标位置的优先级，其余订单自动顺延。',
+    hint: '拖拽卡片调整顺序，顺序立即保存。优先级仅作标记，不影响排列顺序。',
     confirm: '✅ 确认', startWip: '🎨 开始制作', done: '✔ 完成', deliver: '📦 交付', cancel: '❌ 取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
     confirmCancel: '确定取消订单 #{no}？', confirmCancelTitle: '确认取消', statusUpdated: '状态已更新'

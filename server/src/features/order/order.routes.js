@@ -30,7 +30,8 @@ export default async function orderRoutes(fastify) {
           description: { type: ['string', 'null'], maxLength: 2000 },
           priority: { type: 'string', enum: ['high', 'medium', 'low'] },
           clientNotify: { type: 'boolean' },
-          agreeRules: { type: 'boolean', const: true }
+          agreeRules: { type: 'boolean', const: true },
+          references: { type: 'array', items: { type: 'string' }, maxItems: 5 }
         },
         additionalProperties: false
       }
@@ -40,7 +41,7 @@ export default async function orderRoutes(fastify) {
       return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
     }
 
-    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules } = request.body || {}
+    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references } = request.body || {}
 
     if (!subdomain) return reply.code(400).send({ error: '缺少画师信息' })
     if (!clientQq) return reply.code(400).send({ error: '请填写你的QQ号' })
@@ -60,7 +61,8 @@ export default async function orderRoutes(fastify) {
         description: clamp(description, 'description'),
         priority: priority || 'medium',
         source: 'self',
-        clientNotify: clientNotify || false
+        clientNotify: clientNotify || false,
+        references: references || []
       })
 
       return {
@@ -428,7 +430,7 @@ export default async function orderRoutes(fastify) {
 
     try {
       const result = orderService.deliverOrder(order.id, filePath, fileName, fileSize)
-      return result.order
+      return { ...result.order, statusChanged: result.statusChanged }
     } catch (err) {
       return reply.code(400).send({ error: err.message })
     }

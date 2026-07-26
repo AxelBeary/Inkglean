@@ -165,6 +165,25 @@ const MIGRATIONS = [
         database.exec('ALTER TABLE artists ADD COLUMN contact_qq TEXT')
       }
     }
+  },
+  {
+    version: 3,
+    name: 'add_completed_at_and_price_snapshot',
+    up(database) {
+      const orderCols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!orderCols.some(c => c.name === 'completed_at')) {
+        database.exec('ALTER TABLE orders ADD COLUMN completed_at DATETIME')
+      }
+      if (!orderCols.some(c => c.name === 'price_snapshot')) {
+        database.exec('ALTER TABLE orders ADD COLUMN price_snapshot REAL')
+      }
+      // 回填已有的 done/delivered 订单的 completed_at
+      database.exec("UPDATE orders SET completed_at = updated_at WHERE status IN ('done', 'delivered') AND completed_at IS NULL")
+      // 回填已有的 price_snapshot
+      database.exec(`UPDATE orders SET price_snapshot = (
+        SELECT t.price FROM price_tiers t WHERE t.id = orders.tier_id
+      ) WHERE price_snapshot IS NULL AND tier_id IS NOT NULL`)
+    }
   }
 ]
 
@@ -202,13 +221,32 @@ export function initDatabase(database) {
     // 确保管理员画师账号存在
     const existing = database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(adminQq)
     if (!existing) {
-      database.prepare(`
-        INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
-        VALUES (?, 'Admin', 'admin', 'ADMIN', '平台管理员', 'open', ?)
-      `).run(adminQq, adminQq)
-      const admin = database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(adminQq)
-      database.prepare('INSERT OR IGNORE INTO commission_rules (artist_id, content) VALUES (?, ?)').run(admin.id, '')
-      console.log(`✅ 管理员账号已自动创建 (QQ: ${adminQq})`)
+      try {
+        // R1-3: 检查 subdomain 和 artist_code 是否冲突
+        const conflict = database.prepare(
+          'SELECT id FROM artists WHERE subdomain = ? OR artist_code = ?'
+        ).get('admin', 'ADMIN')
+        if (conflict) {
+          // 用 QQ 号做子域名兜底
+          const fallbackSubdomain = `admin${adminQq.slice(-4)}`
+          const fallbackCode = `AD${adminQq.slice(-4)}`
+          database.prepare(`
+            INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
+            VALUES (?, 'Admin', ?, ?, '平台管理员', 'open', ?)
+          `).run(adminQq, fallbackSubdomain, fallbackCode, adminQq)
+          console.log(`✅ 管理员账号已创建 (QQ: ${adminQq}, subdomain: ${fallbackSubdomain})`)
+        } else {
+          database.prepare(`
+            INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
+            VALUES (?, 'Admin', 'admin', 'ADMIN', '平台管理员', 'open', ?)
+          `).run(adminQq, adminQq)
+        }
+        const admin = database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(adminQq)
+        database.prepare('INSERT OR IGNORE INTO commission_rules (artist_id, content) VALUES (?, ?)').run(admin.id, '')
+        console.log(`✅ 管理员账号已自动创建 (QQ: ${adminQq})`)
+      } catch (err) {
+        console.error(`⚠️ 管理员账号创建失败: ${err.message}`)
+      }
     }
   }
 }

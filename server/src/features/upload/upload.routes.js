@@ -133,11 +133,17 @@ export default async function uploadRoutes(fastify, opts) {
     const data = await request.file()
     if (!data) return reply.code(400).send({ error: '未收到文件' })
 
-    // 交付文件允许图片和 PSD/AI 等设计文件，但禁止 .html/.js/.svg
-    const ext = extname(data.filename).toLowerCase()
-    const BLOCKED = ['.html', '.htm', '.js', '.svg', '.php', '.exe', '.sh', '.bat']
-    if (BLOCKED.includes(ext)) {
-      return reply.code(400).send({ error: '不允许上传此类型的文件' })
+    // 交付文件：仅允许常见设计/文档格式（白名单）
+    const ALLOWED_DELIVERABLES = [
+      '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp',
+      '.psd', '.ai', '.svg', '.tiff', '.pdf',
+      '.zip', '.rar', '.7z',
+      '.mp4', '.mov',
+      '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+      '.txt', '.md'
+    ]
+    if (!ALLOWED_DELIVERABLES.includes(ext)) {
+      return reply.code(400).send({ error: '不支持此文件格式，允许的格式: 图片/设计源文件/文档/压缩包' })
     }
 
     const result = await saveUpload(data, join('deliverables', String(request.artist.id)), UPLOAD_DIR)

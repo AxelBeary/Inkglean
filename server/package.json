@@ -1,6 +1,6 @@
 {
   "name": "artist-commission-server",
-  "version": "0.2.0",
+  "version": "0.6.3",
   "description": "画师约稿管理平台 - 后端服务",
   "license": "MIT",
   "type": "module",
