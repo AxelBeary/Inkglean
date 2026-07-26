@@ -68,7 +68,9 @@ const router = useRouter()
 const artists = ref([])
 const loading = ref(true)
 
-const statusType = (s) => ({ open: 'success', full: 'warning', break: 'danger' }[s] || 'info')
+import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+
+const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 
 function enterArtist(artist) {
   router.push(`/artist/${artist.subdomain}`)

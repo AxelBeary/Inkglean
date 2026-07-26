@@ -98,7 +98,9 @@ const loading = ref(true)
 // XSS 防护：消毒后的须知 HTML
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
 
-const statusType = (s) => ({ open: 'success', full: 'warning', break: 'danger' }[s] || 'info')
+import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+
+const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 const statusText = (s) => t(`artistHome.status${s.charAt(0).toUpperCase() + s.slice(1)}`)
 
 onMounted(async () => {

@@ -20,6 +20,15 @@ export default {
     title: 'Platform notice',
     text: 'This platform only verifies identities and connects both parties. All subsequent communication, payment and delivery happen externally. The platform provides no escrow or arbitration — please assume your own risk.'
   },
+  pageTitle: {
+    home: 'Artist Commission Platform',
+    artistHome: 'Artist Home',
+    order: 'Commission',
+    track: 'Track Order',
+    delivery: 'Download',
+    login: 'Artist Login',
+    notFound: 'Page Not Found'
+  },
   menu: {
     logo: '🎨 Studio', dashboard: '📊 Dashboard', queue: '📋 Queue Board', orders: '📦 Orders',
     manualOrder: '✍ Manual Entry', tiers: '💰 Pricing', artworks: '🖼 Portfolio',

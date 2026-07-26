@@ -55,21 +55,23 @@ export async function buildApp(opts = {}) {
 
   // ─── 前端 SPA 静态文件 + fallback ───
   const WEB_DIST = resolve(process.env.WEB_DIST || join(import.meta.dirname, '../../web/dist'))
-  if (existsSync(WEB_DIST)) {
+  const hasWebDist = existsSync(WEB_DIST)
+
+  if (hasWebDist) {
     await app.register(fastifyStatic, {
       root: WEB_DIST,
       prefix: '/',
-      wildcard: false  // 不用通配，由 setNotFoundHandler 兜底
-    })
-
-    // P2-3: SPA fallback 仅限 GET 请求（阻止 POST/PUT 等返回 HTML）
-    app.setNotFoundHandler((request, reply) => {
-      if (request.method !== 'GET' || request.url.startsWith('/api/') || request.url.startsWith('/uploads/')) {
-        return reply.code(404).send({ error: 'Not found' })
-      }
-      return reply.sendFile('index.html')
+      wildcard: false
     })
   }
+
+  // P2-E: 404 处理器无条件注册 — API 路径始终返回 JSON
+  app.setNotFoundHandler((request, reply) => {
+    if (request.url.startsWith('/api/') || request.url.startsWith('/uploads/') || request.method !== 'GET' || !hasWebDist) {
+      return reply.code(404).send({ error: 'Not found' })
+    }
+    return reply.sendFile('index.html')
+  })
 
   return app
 }

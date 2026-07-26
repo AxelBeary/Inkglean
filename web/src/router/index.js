@@ -1,136 +1,50 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import i18n from '../i18n/index.js'
 
 // ============================================
 // 路由配置
+// P2-C: meta.titleKey 使用 i18n key，不再硬编码中文
 // ============================================
 
 const routes = [
   // ─── 客户端（公开） ───
-  {
-    path: '/',
-    name: 'Landing',
-    component: () => import('../views/client/LandingPage.vue'),
-    meta: { title: '画师约稿平台' }
-  },
-  {
-    path: '/artist/:subdomain',
-    name: 'ClientHome',
-    component: () => import('../views/client/ArtistHome.vue'),
-    meta: { title: '画师主页' }
-  },
-  {
-    path: '/artist/:subdomain/order',
-    name: 'ClientOrder',
-    component: () => import('../views/client/OrderForm.vue'),
-    meta: { title: '我要约稿' }
-  },
-  {
-    path: '/artist/:subdomain/track',
-    name: 'ClientTrack',
-    component: () => import('../views/client/TrackOrder.vue'),
-    meta: { title: '查询进度' }
-  },
-  {
-    path: '/artist/:subdomain/delivery/:orderNo',
-    name: 'ClientDelivery',
-    component: () => import('../views/client/DeliveryPage.vue'),
-    meta: { title: '下载作品' }
-  },
+  { path: '/', name: 'Landing', component: () => import('../views/client/LandingPage.vue'), meta: { titleKey: 'pageTitle.home' } },
+  { path: '/artist/:subdomain', name: 'ClientHome', component: () => import('../views/client/ArtistHome.vue'), meta: { titleKey: 'pageTitle.artistHome' } },
+  { path: '/artist/:subdomain/order', name: 'ClientOrder', component: () => import('../views/client/OrderForm.vue'), meta: { titleKey: 'pageTitle.order' } },
+  { path: '/artist/:subdomain/track', name: 'ClientTrack', component: () => import('../views/client/TrackOrder.vue'), meta: { titleKey: 'pageTitle.track' } },
+  { path: '/artist/:subdomain/delivery/:orderNo', name: 'ClientDelivery', component: () => import('../views/client/DeliveryPage.vue'), meta: { titleKey: 'pageTitle.delivery' } },
 
   // ─── 画师后台 ───
-  {
-    path: '/login',
-    name: 'ArtistLogin',
-    component: () => import('../views/artist/Login.vue'),
-    meta: { title: '画师登录' }
-  },
-  {
-    path: '/dashboard',
-    name: 'ArtistDashboard',
-    component: () => import('../views/artist/Dashboard.vue'),
-    meta: { title: '仪表盘', requiresAuth: true }
-  },
-  {
-    path: '/queue',
-    name: 'ArtistQueue',
-    component: () => import('../views/artist/QueueBoard.vue'),
-    meta: { title: '排期看板', requiresAuth: true }
-  },
-  {
-    path: '/orders',
-    name: 'ArtistOrders',
-    component: () => import('../views/artist/OrderList.vue'),
-    meta: { title: '订单管理', requiresAuth: true }
-  },
-  {
-    path: '/orders/:id',
-    name: 'ArtistOrderDetail',
-    component: () => import('../views/artist/OrderDetail.vue'),
-    meta: { title: '订单详情', requiresAuth: true }
-  },
-  {
-    path: '/manual-order',
-    name: 'ArtistManualOrder',
-    component: () => import('../views/artist/ManualOrder.vue'),
-    meta: { title: '手动录单', requiresAuth: true }
-  },
-  {
-    path: '/settings',
-    name: 'ArtistSettings',
-    component: () => import('../views/artist/Settings.vue'),
-    meta: { title: '主页设置', requiresAuth: true }
-  },
-  {
-    path: '/tiers',
-    name: 'ArtistTiers',
-    component: () => import('../views/artist/TierManage.vue'),
-    meta: { title: '价格管理', requiresAuth: true }
-  },
-  {
-    path: '/artworks',
-    name: 'ArtistArtworks',
-    component: () => import('../views/artist/ArtworkManage.vue'),
-    meta: { title: '作品管理', requiresAuth: true }
-  },
-  {
-    path: '/rules',
-    name: 'ArtistRules',
-    component: () => import('../views/artist/RulesEditor.vue'),
-    meta: { title: '须知编辑', requiresAuth: true }
-  },
+  { path: '/login', name: 'ArtistLogin', component: () => import('../views/artist/Login.vue'), meta: { titleKey: 'pageTitle.login' } },
+  { path: '/dashboard', name: 'ArtistDashboard', component: () => import('../views/artist/Dashboard.vue'), meta: { titleKey: 'menu.dashboard', requiresAuth: true } },
+  { path: '/queue', name: 'ArtistQueue', component: () => import('../views/artist/QueueBoard.vue'), meta: { titleKey: 'menu.queue', requiresAuth: true } },
+  { path: '/orders', name: 'ArtistOrders', component: () => import('../views/artist/OrderList.vue'), meta: { titleKey: 'menu.orders', requiresAuth: true } },
+  { path: '/orders/:id', name: 'ArtistOrderDetail', component: () => import('../views/artist/OrderDetail.vue'), meta: { titleKey: 'common.detail', requiresAuth: true } },
+  { path: '/manual-order', name: 'ArtistManualOrder', component: () => import('../views/artist/ManualOrder.vue'), meta: { titleKey: 'menu.manualOrder', requiresAuth: true } },
+  { path: '/settings', name: 'ArtistSettings', component: () => import('../views/artist/Settings.vue'), meta: { titleKey: 'menu.settings', requiresAuth: true } },
+  { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
+  { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
+  { path: '/rules', name: 'ArtistRules', component: () => import('../views/artist/RulesEditor.vue'), meta: { titleKey: 'menu.rules', requiresAuth: true } },
 
   // ─── 管理员后台 ───
-  {
-    path: '/admin',
-    name: 'AdminDashboard',
-    component: () => import('../views/admin/AdminDashboard.vue'),
-    meta: { title: '管理员后台', requiresAdmin: true }
-  },
-  {
-    path: '/admin/artists',
-    name: 'AdminArtists',
-    component: () => import('../views/admin/ArtistManage.vue'),
-    meta: { title: '画师管理', requiresAdmin: true }
-  },
+  { path: '/admin', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { titleKey: 'admin.panelTitle', requiresAdmin: true } },
+  { path: '/admin/artists', name: 'AdminArtists', component: () => import('../views/admin/ArtistManage.vue'), meta: { titleKey: 'admin.manageArtists', requiresAdmin: true } },
 
   // ─── 404 ───
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: () => import('../views/client/LandingPage.vue'),
-    meta: { title: '页面不存在' }
-  }
+  { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/client/LandingPage.vue'), meta: { titleKey: 'pageTitle.notFound' } }
 ]
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes
-})
+const router = createRouter({ history: createWebHistory(), routes })
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  // 设置页面标题
-  document.title = to.meta.title ? `${to.meta.title} - 画师约稿` : '画师约稿平台'
+  // P2-C: 页面标题通过 i18n key 动态渲染
+  const titleKey = to.meta.titleKey
+  if (titleKey) {
+    document.title = `${i18n.global.t(titleKey)} - ${i18n.global.t('landing.title')}`
+  } else {
+    document.title = i18n.global.t('landing.title')
+  }
 
   // 检查认证
   if (to.meta.requiresAuth || to.meta.requiresAdmin) {
@@ -140,12 +54,9 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // P1-5: 管理员路由额外校验 isAdmin
   if (to.meta.requiresAdmin) {
-    const isAdmin = localStorage.getItem('artist_is_admin') === '1'
-    if (!isAdmin) {
-      return next({ name: 'ArtistDashboard' })
-    }
+    const isAdmin = localStorage.getItem('is_admin') === 'true'
+    if (!isAdmin) return next({ name: 'ArtistDashboard' })
   }
 
   next()

@@ -127,10 +127,9 @@ const showNoOrders = ref(false)
 const noOrdersCountdown = ref(0)
 let countdownTimer = null
 
-const statusType = (s) => ({
-  pending: 'info', confirmed: 'primary', wip: 'warning',
-  revision: 'warning', done: 'success', delivered: 'success', cancelled: 'danger'
-}[s] || 'info')
+import { ORDER_STATUS_TYPE } from '../../constants/order.js'
+
+const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
 const stepActive = computed(() => {
   const map = { pending: 0, confirmed: 1, wip: 2, revision: 2, done: 3, delivered: 4, cancelled: -1 }

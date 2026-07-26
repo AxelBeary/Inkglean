@@ -20,6 +20,15 @@ export default {
     title: '平台职责说明',
     text: '本平台仅协助验证身份与连接双方，所有后续沟通、支付与交付均在外进行。平台不提供托管、仲裁服务，请自行承担风险。'
   },
+  pageTitle: {
+    home: '画师约稿平台',
+    artistHome: '画师主页',
+    order: '我要约稿',
+    track: '查询进度',
+    delivery: '下载作品',
+    login: '画师登录',
+    notFound: '页面不存在'
+  },
   menu: {
     logo: '🎨 约稿后台', dashboard: '📊 仪表盘', queue: '📋 排期看板', orders: '📦 订单管理',
     manualOrder: '✍ 手动录单', tiers: '💰 价格管理', artworks: '🖼 作品管理',

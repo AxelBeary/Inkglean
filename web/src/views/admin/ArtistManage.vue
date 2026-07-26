@@ -147,7 +147,9 @@ const saving = ref(false)
 
 const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
 
-const statusType = (s) => ({ open: 'success', full: 'warning', break: 'danger' }[s] || 'info')
+import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+
+const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 
 // 订单弹窗
 const ordersVisible = ref(false)

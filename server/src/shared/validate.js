@@ -16,13 +16,22 @@ const LIMITS = {
 }
 
 /**
+ * P1-B: 按 code point 截断字符串（避免 emoji/中文 surrogate pair 被切半）
+ */
+function countCodePoints(str) {
+  return [...str].length
+}
+
+/**
  * 截断字符串到安全长度，返回清理后的值
  */
 export function clamp(value, type) {
   if (value == null) return null
   const str = String(value)
   const max = LIMITS[type] || 500
-  return str.length > max ? str.slice(0, max) : str
+  if (countCodePoints(str) <= max) return str
+  // 按 code point 截断，不会在 surrogate pair 中间切开
+  return [...str].slice(0, max).join('')
 }
 
 /**

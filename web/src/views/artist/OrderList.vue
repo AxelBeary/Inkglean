@@ -65,11 +65,11 @@ const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
 
-const priorityType = (p) => ({ high: 'danger', medium: 'warning', low: 'success' }[p] || 'info')
-const statusType = (s) => ({
-  pending: 'info', confirmed: 'primary', wip: 'warning',
-  revision: 'warning', done: 'success', delivered: 'success', cancelled: 'danger'
-}[s] || 'info')
+import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
+
+// (本地别名保持模板兼容)
+const priorityType = (p) => PRIORITY_TYPE[p] || 'info'
+const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
 function formatDate(str) {
   return formatDateTimeShort(str)

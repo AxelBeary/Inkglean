@@ -70,6 +70,17 @@ export function updateArtist(id, fields) {
         }
         updates.push('artist_code = ?')
         values.push(code)
+      } else if (key === 'status') {
+        // P1-D: 白名单校验 — 非法值提前拒绝，避免 SQLite CHECK 抛原始错误
+        if (!['open', 'full', 'break'].includes(String(value))) {
+          throw new Error('无效的主页状态，可选值: open / full / break')
+        }
+        updates.push('status = ?')
+        values.push(value)
+      } else if (key === 'notify_enabled') {
+        // P1-D: 强制转整数，防止字符串被 SQLite 类型亲和性吞掉
+        updates.push('notify_enabled = ?')
+        values.push(value ? 1 : 0)
       } else if (key === 'weibo_url' || key === 'bilibili_url') {
         // P0-7: 外链协议校验 — 仅允许 http/https
         if (value && !/^https?:\/\//i.test(String(value))) {

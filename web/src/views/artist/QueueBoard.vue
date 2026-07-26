@@ -71,11 +71,10 @@ const { t } = useI18n()
 const queue = ref([])
 const loading = ref(true)
 
-const priorityType = (p) => ({ high: 'danger', medium: 'warning', low: 'success' }[p] || 'info')
-const statusType = (s) => ({
-  pending: 'info', confirmed: 'primary', wip: 'warning',
-  revision: 'warning', done: 'success', delivered: 'success', cancelled: 'danger'
-}[s] || 'info')
+import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
+
+const priorityType = (p) => PRIORITY_TYPE[p] || 'info'
+const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
 async function loadQueue() {
   loading.value = true

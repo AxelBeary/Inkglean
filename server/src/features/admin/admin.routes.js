@@ -97,7 +97,7 @@ export default async function adminRoutes(fastify) {
    * 更换管理员账号（需要连续两次 QQ 短码验证）
    * 1. 验证当前管理员的登录码（证明你是管理员）
    * 2. 验证新管理员的登录码（证明对方接受）
-   * N1-2: 按目标 QQ 限流 + 隐藏原始错误 + 先校验画师再验码
+   * P1-F: 前置检查 + 整体事务化，任意一步失败全部回滚（码也不消耗）
    */
   fastify.post('/api/admin/transfer', { preHandler: requireAdmin }, async (request, reply) => {
     const { newQq, currentCode, newCode } = request.body || {}
@@ -110,34 +110,33 @@ export default async function adminRoutes(fastify) {
       return reply.code(400).send({ error: '新管理员不能与当前管理员相同' })
     }
 
-    // N1-2: 按目标 QQ 限流（3次/15分钟）
+    // P1-F: 限流 + 画师存在性 + 不等于自己 —— 全部无副作用，放在验码前
     if (!rateLimit(`transfer:${newQq}`, 3, 15 * 60_000)) {
       return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
     }
 
-    // N1-2: 先确认新管理员是已注册画师，再验码（防止对不存在的账号产生副作用）
     const newArtist = artistService.getArtistByQq(String(newQq))
     if (!newArtist) {
       return reply.code(404).send({ error: '该QQ号未注册为画师，请先添加画师' })
     }
 
-    // 第一次验证：当前管理员身份
-    const currentResult = verifyLoginCode(currentAdminQq, String(currentCode))
-    if (!currentResult.valid) {
-      return reply.code(401).send({ error: '当前管理员验证失败，请确认登录码' })
+    // P1-F: 两次验码 + 更新配置整体包进事务
+    //   任意一步失败 → 事务回滚 → 码不消耗、配置不变
+    try {
+      db.transaction(() => {
+        const currentResult = verifyLoginCode(currentAdminQq, String(currentCode))
+        if (!currentResult.valid) {
+          throw new Error(`当前管理员验证失败：${currentResult.error}`)
+        }
+        const newResult = verifyLoginCode(String(newQq), String(newCode))
+        if (!newResult.valid) {
+          throw new Error(`新管理员验证失败：${newResult.error}`)
+        }
+        db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(String(newQq))
+      })()
+    } catch (err) {
+      return reply.code(401).send({ error: '验证失败，请确认登录码' })
     }
-
-    // 第二次验证：新管理员身份
-    const newResult = verifyLoginCode(String(newQq), String(newCode))
-    if (!newResult.valid) {
-      return reply.code(401).send({ error: '新管理员验证失败，请确认QQ号与登录码' })
-    }
-
-    // 更新平台配置（运行时生效，无需重启）
-    // R1-4: 事务化，防止验证通过后写入失败导致状态不一致
-    db.transaction(() => {
-      db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(String(newQq))
-    })()
 
     return { success: true, newAdminName: newArtist.name, newAdminQq: String(newQq) }
   })
