@@ -216,4 +216,34 @@ describe('订单服务 (Order Service)', () => {
     expect(orders).toHaveLength(2)
     expect(orders[0].order_no).toBe('ALICE-002') // 最新的在前
   })
+
+  // TC-O-16: v0.6.3 - 创建订单时快照价格
+  it('TC-O-16: createOrder 快照 price_snapshot', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, 'headshot', 150)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, 'headshot')
+
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    expect(order.price_snapshot).toBe(150)
+    // 快照不应随后续改价变化
+    db.prepare('UPDATE price_tiers SET price=999 WHERE id=?').run(tier.id)
+    const reloaded = orderService.getOrder(order.id)
+    expect(reloaded.price_snapshot).toBe(150)
+    expect(reloaded.tier_price).toBe(999) // tier_price 是实时 JOIN 的价格
+  })
+
+  // TC-O-17: v0.6.3 - done/delivered 写入 completed_at
+  it('TC-O-17: 进入 done 时记录 completed_at', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(order.completed_at).toBeNull()
+
+    orderService.updateOrderStatus(order.id, 'confirmed')
+    orderService.updateOrderStatus(order.id, 'wip')
+    const afterWip = orderService.getOrder(order.id)
+    expect(afterWip.completed_at).toBeNull()
+
+    orderService.updateOrderStatus(order.id, 'done')
+    const afterDone = orderService.getOrder(order.id)
+    expect(afterDone.completed_at).not.toBeNull()
+    expect(afterDone.completed_at).toBeTruthy()
+  })
 })
