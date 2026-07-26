@@ -58,10 +58,9 @@
 import { ref, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
-import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import { formatDateTimeShort } from '../../utils/datetime.js'
 
-const { locale } = useI18n()
 const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
@@ -73,9 +72,7 @@ const statusType = (s) => ({
 }[s] || 'info')
 
 function formatDate(str) {
-  if (!str) return ''
-  const loc = locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'
-  return new Date(str).toLocaleString(loc, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return formatDateTimeShort(str)
 }
 
 async function loadOrders() {

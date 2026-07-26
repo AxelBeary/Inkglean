@@ -156,6 +156,16 @@ export default {
     bioLabel: 'Bio (optional)', domainSuffix: '.domain',
     requiredFields: 'QQ number, name and subdomain are required', added: 'Artist added',
     confirmRemove: 'Remove artist "{name}"? All of their orders and artwork data will be permanently deleted!',
-    confirmRemoveTitle: '⚠️ Dangerous action', confirmRemoveBtn: 'Confirm removal'
+    confirmRemoveTitle: '⚠️ Dangerous action', confirmRemoveBtn: 'Confirm removal',
+    artistOrders: '📦 Order history', noOrders: 'No orders yet', statusUpdated: 'Status updated',
+    transferAdmin: '🔑 Transfer admin', transferTitle: 'Transfer admin account',
+    transferStep1Title: 'Verify current admin', transferStep2Title: 'Verify new admin',
+    currentAdminQq: 'Current admin QQ', newAdminQq: 'New admin QQ',
+    newAdminQqPlaceholder: 'Enter new admin QQ (must be a registered artist)',
+    sendCode: 'Send code', codeSent: 'Code sent', enterCode: 'Enter 6-digit code',
+    nextStep: 'Next', confirmTransfer: 'Confirm transfer',
+    transferSuccess: 'Admin transferred to {name}', adminTag: 'Admin',
+    orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
+    orderColType: 'Type', orderColTime: 'Order time'
   }
 }

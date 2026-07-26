@@ -83,7 +83,7 @@ async function login() {
   try {
     await store.login(qqNumber.value.trim(), code.value.trim())
     ElMessage.success(t('login.loginSuccess'))
-    router.push('/dashboard')
+    router.push(store.isAdmin ? '/admin' : '/dashboard')
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

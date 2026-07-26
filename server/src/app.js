@@ -20,8 +20,10 @@ export async function buildApp(opts = {}) {
   initDatabase(db)
 
   // ─── 全局插件 ───
+  // P1-6: CORS 收紧 — 生产环境设置 CORS_ORIGIN=https://yourdomain.com
+  const corsOrigin = process.env.CORS_ORIGIN
   await app.register(fastifyCors, {
-    origin: true,
+    origin: corsOrigin ? corsOrigin.split(',') : true,
     credentials: true
   })
 
@@ -52,9 +54,9 @@ export async function buildApp(opts = {}) {
       wildcard: false  // 不用通配，由 setNotFoundHandler 兜底
     })
 
-    // SPA fallback：非 /api、非 /uploads 路由全部返回 index.html
+    // P2-3: SPA fallback 仅限 GET 请求（阻止 POST/PUT 等返回 HTML）
     app.setNotFoundHandler((request, reply) => {
-      if (request.url.startsWith('/api/') || request.url.startsWith('/uploads/')) {
+      if (request.method !== 'GET' || request.url.startsWith('/api/') || request.url.startsWith('/uploads/')) {
         return reply.code(404).send({ error: 'Not found' })
       }
       return reply.sendFile('index.html')

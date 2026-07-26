@@ -70,6 +70,13 @@ export function updateArtist(id, fields) {
         }
         updates.push('artist_code = ?')
         values.push(code)
+      } else if (key === 'weibo_url' || key === 'bilibili_url') {
+        // P0-7: 外链协议校验 — 仅允许 http/https
+        if (value && !/^https?:\/\//i.test(String(value))) {
+          throw new Error('链接必须以 http:// 或 https:// 开头')
+        }
+        updates.push(`${key} = ?`)
+        values.push(value)
       } else {
         updates.push(`${key} = ?`)
         values.push(value)

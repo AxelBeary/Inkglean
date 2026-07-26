@@ -87,13 +87,18 @@
 
     <!-- 交付弹窗 -->
     <el-dialog v-model="showDeliver" :title="$t('orderDetail.deliverTitle')" width="400px">
-      <el-upload drag :auto-upload="false" :limit="1" :on-change="handleDeliverFile">
+      <el-upload drag :auto-upload="false" :limit="1" :file-list="deliverFileList"
+        :on-change="handleDeliverFile" :on-remove="handleDeliverRemove"
+        accept=".jpg,.jpeg,.png,.webp,.gif,.zip,.rar,.7z,.psd">
         <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
         <p>{{ $t('orderDetail.dragUpload') }}</p>
+        <template #tip>
+          <div class="el-upload__tip">支持图片及压缩包，单文件不超过 50MB</div>
+        </template>
       </el-upload>
       <template #footer>
         <el-button @click="showDeliver = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitDeliver" :disabled="!deliverFile">{{ $t('orderDetail.confirmDeliver') }}</el-button>
+        <el-button type="primary" @click="submitDeliver" :disabled="!deliverFile" :loading="delivering">{{ $t('orderDetail.confirmDeliver') }}</el-button>
       </template>
     </el-dialog>
   </ArtistLayout>
@@ -107,14 +112,21 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import { formatDateTime } from '../../utils/datetime.js'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const order = ref(null)
 const newNote = ref('')
 const showDeliver = ref(false)
 const deliverFile = ref(null)
+const deliverFileList = ref([])
+const delivering = ref(false)
+
+// P2-12: 交付文件前端校验
+const DELIVER_MAX_SIZE = 50 * 1024 * 1024 // 50MB
+const DELIVER_ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.zip', '.rar', '.7z', '.psd']
 
 // 返回来源页：排期看板进来回排期，订单列表进来回列表，直接访问则默认回列表
 const fromQueue = route.query.from === 'queue'
@@ -134,9 +146,7 @@ const stepActive = computed(() => {
 })
 
 function formatDate(str) {
-  if (!str) return ''
-  const loc = locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'
-  return new Date(str).toLocaleString(loc)
+  return formatDateTime(str)
 }
 
 async function loadOrder() {
@@ -186,17 +196,33 @@ function openFile(filePath) {
 }
 
 function handleDeliverFile(file) {
+  // P2-12: 前端校验文件类型和大小
+  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+  if (!DELIVER_ALLOWED_EXT.includes(ext)) {
+    ElMessage.error('不支持的文件格式，请上传图片或压缩包')
+    return
+  }
+  if (file.size > DELIVER_MAX_SIZE) {
+    ElMessage.error('文件过大（最大 50MB）')
+    return
+  }
   deliverFile.value = file.raw
+}
+
+function handleDeliverRemove() {
+  deliverFile.value = null
 }
 
 // 打开交付弹窗时重置文件选择
 function openDeliverDialog() {
   deliverFile.value = null
+  deliverFileList.value = []
   showDeliver.value = true
 }
 
 async function submitDeliver() {
   if (!deliverFile.value) return
+  delivering.value = true
   try {
     const uploaded = await uploadApi.deliverable(deliverFile.value)
     order.value = await artistApi.deliver(route.params.id, {
@@ -205,9 +231,12 @@ async function submitDeliver() {
     })
     showDeliver.value = false
     deliverFile.value = null
+    deliverFileList.value = []
     ElMessage.success(t('orderDetail.deliverSuccess'))
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    delivering.value = false
   }
 }
 

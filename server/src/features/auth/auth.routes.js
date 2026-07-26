@@ -1,12 +1,10 @@
-import { generateLoginCode, verifyLoginCode, createSession } from './auth.service.js'
-import { requireAuth } from '../../shared/middleware/auth.js'
+import { generateLoginCode, verifyLoginCode, createSession, isDevAuth } from './auth.service.js'
+import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 
 // ============================================
 // 认证路由 - 登录码获取与验证
 // ============================================
-
-const isDev = process.env.NODE_ENV !== 'production'
 
 export default async function authRoutes(fastify) {
 
@@ -26,14 +24,14 @@ export default async function authRoutes(fastify) {
     try {
       const { code, artist } = generateLoginCode(qqNumber)
 
-      // 开发模式：输出登录码到控制台 + 返回给前端
-      if (isDev) {
+      // P0-5: 仅 AUTH_DEV_MODE=*** 返回登录码
+      if (isDevAuth) {
         fastify.log.info(`🔑 [DEV] 画师 ${artist.name}(${qqNumber}) 登录码: ${code}`)
       }
 
       return {
         message: `登录码已发送至QQ ${qqNumber}`,
-        ...(isDev ? { _dev_code: code } : {}),
+        ...(isDevAuth ? { _dev_code: code } : {}),
         artistName: artist.name
       }
     } catch (err) {
@@ -58,9 +56,11 @@ export default async function authRoutes(fastify) {
     if (!result.valid) return reply.code(401).send({ error: result.error })
 
     const token = createSession(result.artist.id)
+    const isAdmin = result.artist.qq_number === getAdminQq()
 
     return {
       token,
+      isAdmin,
       artist: {
         id: result.artist.id,
         name: result.artist.name,

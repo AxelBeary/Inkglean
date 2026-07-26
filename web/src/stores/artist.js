@@ -10,7 +10,8 @@ export const useArtistStore = defineStore('artist', {
     token: localStorage.getItem('artist_token') || null,
     profile: null,
     stats: null,
-    loading: false
+    loading: false,
+    isAdmin: localStorage.getItem('artist_is_admin') === '1'
   }),
 
   getters: {
@@ -24,7 +25,9 @@ export const useArtistStore = defineStore('artist', {
     async login(qqNumber, code) {
       const res = await authApi.verify(qqNumber, code)
       this.token = res.token
+      this.isAdmin = !!res.isAdmin
       localStorage.setItem('artist_token', res.token)
+      localStorage.setItem('artist_is_admin', res.isAdmin ? '1' : '0')
       this.profile = res.artist
       return res
     },
@@ -55,7 +58,9 @@ export const useArtistStore = defineStore('artist', {
       this.token = null
       this.profile = null
       this.stats = null
+      this.isAdmin = false
       localStorage.removeItem('artist_token')
+      localStorage.removeItem('artist_is_admin')
     }
   }
 })

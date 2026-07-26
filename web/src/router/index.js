@@ -140,6 +140,14 @@ router.beforeEach((to, from, next) => {
     }
   }
 
+  // P1-5: 管理员路由额外校验 isAdmin
+  if (to.meta.requiresAdmin) {
+    const isAdmin = localStorage.getItem('artist_is_admin') === '1'
+    if (!isAdmin) {
+      return next({ name: 'ArtistDashboard' })
+    }
+  }
+
   next()
 })
 

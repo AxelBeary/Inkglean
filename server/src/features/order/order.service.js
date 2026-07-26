@@ -44,25 +44,28 @@ export function generateOrderNo(artistId, artistCode) {
 
 /**
  * 创建订单（客户自助 或 画师手动录入）
+ * P1-7: 事务包裹，防止订单号竞态
  */
 export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify }) {
-  const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId)
-  if (!artist) throw new Error('画师不存在')
+  return db.transaction(() => {
+    const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId)
+    if (!artist) throw new Error('画师不存在')
 
-  const code = artist.artist_code || artist.subdomain.toUpperCase()
-  const orderNo = generateOrderNo(artistId, code)
+    const code = artist.artist_code || artist.subdomain.toUpperCase()
+    const orderNo = generateOrderNo(artistId, code)
 
-  const maxPos = db.prepare(
-    "SELECT MAX(queue_position) as max_pos FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
-  ).get(artistId)
-  const queuePosition = (maxPos?.max_pos ?? 0) + 1
+    const maxPos = db.prepare(
+      "SELECT MAX(queue_position) as max_pos FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
+    ).get(artistId)
+    const queuePosition = (maxPos?.max_pos ?? 0) + 1
 
-  const result = db.prepare(`
-    INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-  `).run(orderNo, artistId, tierId || null, clientQq, clientName || null, description || null, priority || 'medium', source || 'self', clientNotify ? 1 : 0, queuePosition)
+    const result = db.prepare(`
+      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+    `).run(orderNo, artistId, tierId || null, clientQq, clientName || null, description || null, priority || 'medium', source || 'self', clientNotify ? 1 : 0, queuePosition)
 
-  return getOrder(result.lastInsertRowid)
+    return getOrder(result.lastInsertRowid)
+  })()
 }
 
 /**
@@ -130,49 +133,48 @@ export function updateOrderStatus(orderId, newStatus) {
     .run(newStatus, orderId)
 
   if (['delivered', 'cancelled'].includes(newStatus)) {
-    reorderQueue(order.artist_id)
+    compactQueue(order.artist_id)
   }
 
   return getOrder(orderId)
 }
 
 /**
- * 拖拽排序
- * 规则：被拖动的订单获得目标位置的优先级，同优先级的其他订单顺延（不交换）
+ * P1-2: 拖拽排序（重写）
+ * 前端传入完整的排序后 ID 数组，后端按序分配 queue_position
+ * 拖拽不改变优先级，只改变同优先级内的位置
  */
-export function reorderQueueByDrag(artistId, draggedOrderId, targetPosition) {
-  const dragged = db.prepare('SELECT * FROM orders WHERE id = ? AND artist_id = ?').get(draggedOrderId, artistId)
-  if (!dragged) throw new Error('订单不存在')
+export function reorderQueue(artistId, orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    throw new Error('排序列表不能为空')
+  }
 
-  const queue = getArtistQueue(artistId)
-  const targetOrder = queue[targetPosition]
-  const newPriority = targetOrder ? targetOrder.priority : dragged.priority
-
-  // 更新被拖动订单的优先级
-  db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(newPriority, draggedOrderId)
-
-  // 重排：按优先级分组，被拖项插入到目标位置（而非组首）
-  const updatedQueue = db.prepare(`
+  // 校验所有 ID 属于该画师且为活跃订单
+  const activeOrders = db.prepare(`
     SELECT id FROM orders
     WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')
-    ORDER BY
-      CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
-      CASE WHEN id = ? THEN ? ELSE queue_position END ASC
-  `).all(artistId, draggedOrderId, targetPosition + 1)
+  `).all(artistId).map(r => r.id)
 
-  const updatePos = db.prepare('UPDATE orders SET queue_position = ? WHERE id = ?')
+  const idSet = new Set(activeOrders)
+  for (const id of orderedIds) {
+    if (!idSet.has(id)) throw new Error(`订单 ${id} 不属于当前队列`)
+  }
+  if (orderedIds.length !== activeOrders.length) {
+    throw new Error('排序列表长度与队列不一致')
+  }
+
+  const updatePos = db.prepare('UPDATE orders SET queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
   db.transaction(() => {
-    updatedQueue.forEach((row, index) => updatePos.run(index + 1, row.id))
+    orderedIds.forEach((id, index) => updatePos.run(index + 1, id))
   })()
 
   return getArtistQueue(artistId)
 }
 
 /**
- * 重排队列位置（删除/交付后调用）
+ * 重排队列位置（删除/交付后调用）— 内部函数
  */
-function reorderQueue(artistId) {
+function compactQueue(artistId) {
   const queue = db.prepare(`
     SELECT id FROM orders
     WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')
@@ -200,7 +202,7 @@ export function updatePriority(orderId, priority) {
   db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(priority, orderId)
 
-  reorderQueue(order.artist_id)
+  compactQueue(order.artist_id)
   return getOrder(orderId)
 }
 
@@ -242,11 +244,12 @@ export function getArtistStats(artistId) {
   const activeCount = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
   ).get(artistId).c
+  // P2-2: 收入统计 — 使用本地时区的月初（SQLite date('now') 是 UTC，改用 datetime('now','localtime')）
   const monthRevenue = db.prepare(`
     SELECT COALESCE(SUM(t.price), 0) as total
     FROM orders o LEFT JOIN price_tiers t ON o.tier_id = t.id
     WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
-      AND o.updated_at >= date('now', 'start of month')
+      AND o.updated_at >= datetime('now', 'localtime', 'start of month')
   `).get(artistId).total
   const totalCompleted = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status IN ('done', 'delivered')"
@@ -260,6 +263,37 @@ export function getArtistStats(artistId) {
 export function addDeliverable(orderId, filePath, fileName, fileSize) {
   db.prepare('INSERT INTO deliverables (order_id, file_path, original_name, file_size) VALUES (?, ?, ?, ?)')
     .run(orderId, filePath, fileName || '交付文件', fileSize || 0)
+}
+
+/**
+ * P1-3: 交付订单（事务化）
+ * 添加交付文件 + 尝试将状态改为 delivered（仅 done 状态可交付）
+ * 事务保证：文件插入和状态变更要么同时成功，要么同时回滚
+ */
+export function deliverOrder(orderId, filePath, fileName, fileSize) {
+  return db.transaction(() => {
+    addDeliverable(orderId, filePath, fileName, fileSize)
+
+    const order = getOrder(orderId)
+    let statusChanged = false
+    // 仅 done 状态可自动转为 delivered
+    if (order.status === 'done') {
+      db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run('delivered', orderId)
+      compactQueue(order.artist_id)
+      statusChanged = true
+    }
+
+    return { order: getOrder(orderId), statusChanged }
+  })()
+}
+
+/**
+ * P1-1: 添加订单参考图
+ */
+export function addReference(orderId, filePath, fileName, fileSize) {
+  db.prepare('INSERT INTO order_references (order_id, file_path, original_name, file_size) VALUES (?, ?, ?, ?)')
+    .run(orderId, filePath, fileName || '参考图', fileSize || 0)
 }
 
 /**

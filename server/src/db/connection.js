@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import Database from 'better-sqlite3'
 import { mkdirSync, existsSync } from 'fs'
 import { dirname } from 'path'

@@ -15,9 +15,16 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
 const RECOMMENDED_TYPES = ['image/webp', 'image/jpeg', 'image/png']
 
+// P1-4: MIME 类型白名单（双重校验，防扩展名伪造）
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
 function isAllowedFile(fileName) {
   const ext = extname(fileName).toLowerCase()
   return ALLOWED_EXTENSIONS.includes(ext)
+}
+
+function isAllowedMime(mimeType) {
+  return ALLOWED_MIME_TYPES.includes(mimeType)
 }
 
 function checkFileType(mimeType, fileName) {
@@ -73,8 +80,8 @@ export default async function uploadRoutes(fastify, opts) {
     const data = await request.file()
     if (!data) return reply.code(400).send({ error: '未收到文件' })
 
-    // 白名单校验
-    if (!isAllowedFile(data.filename)) {
+    // 白名单校验（扩展名 + MIME 双重检查）
+    if (!isAllowedFile(data.filename) || !isAllowedMime(data.mimetype)) {
       return reply.code(400).send({ error: '仅支持 JPG / PNG / WebP / GIF 格式的图片' })
     }
 
@@ -100,7 +107,7 @@ export default async function uploadRoutes(fastify, opts) {
     const data = await request.file()
     if (!data) return reply.code(400).send({ error: '未收到文件' })
 
-    if (!isAllowedFile(data.filename)) {
+    if (!isAllowedFile(data.filename) || !isAllowedMime(data.mimetype)) {
       return reply.code(400).send({ error: '仅支持 JPG / PNG / WebP / GIF 格式的图片' })
     }
 

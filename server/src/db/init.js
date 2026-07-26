@@ -2,7 +2,7 @@ import db from './connection.js'
 import { fileURLToPath } from 'url'
 
 // ============================================
-// 数据库初始化 - 创建所有表 + 增量迁移
+// 数据库初始化 - 创建所有表 + 版本化迁移
 // ============================================
 
 export const schema = `
@@ -126,6 +126,13 @@ CREATE TABLE IF NOT EXISTS platform_config (
   value TEXT NOT NULL
 );
 
+-- P2-5: 版本化迁移跟踪表
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 索引优化
 CREATE INDEX IF NOT EXISTS idx_orders_artist_status ON orders(artist_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_queue ON orders(artist_id, queue_position);
@@ -133,31 +140,77 @@ CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
 `
 
 /**
- * 在给定数据库实例上执行建表 + 增量迁移
+ * P2-5: 版本化迁移列表
+ * 每个迁移有唯一 version 号，按顺序执行，已执行的自动跳过
+ */
+const MIGRATIONS = [
+  {
+    version: 1,
+    name: 'add_artist_code_column',
+    up(database) {
+      const columns = database.prepare('PRAGMA table_info(artists)').all()
+      if (!columns.some(c => c.name === 'artist_code')) {
+        database.exec('ALTER TABLE artists ADD COLUMN artist_code TEXT')
+        database.exec("UPDATE artists SET artist_code = UPPER(subdomain) WHERE artist_code IS NULL")
+        database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_artists_code ON artists(artist_code)')
+      }
+    }
+  },
+  {
+    version: 2,
+    name: 'add_contact_qq_column',
+    up(database) {
+      const columns = database.prepare('PRAGMA table_info(artists)').all()
+      if (!columns.some(c => c.name === 'contact_qq')) {
+        database.exec('ALTER TABLE artists ADD COLUMN contact_qq TEXT')
+      }
+    }
+  }
+]
+
+/**
+ * 在给定数据库实例上执行建表 + 版本化迁移
  */
 export function initDatabase(database) {
   database.exec(schema)
 
-  // ─── 迁移：artists 表增加 artist_code 列（兼容旧库） ───
-  // 注意：SQLite ALTER TABLE ADD COLUMN 不支持 UNIQUE 约束，需单独建索引
-  const columns = database.prepare('PRAGMA table_info(artists)').all()
-  if (!columns.some(c => c.name === 'artist_code')) {
-    database.exec('ALTER TABLE artists ADD COLUMN artist_code TEXT')
-    // 回填：用子域名大写作为默认身份码
-    database.exec("UPDATE artists SET artist_code = UPPER(subdomain) WHERE artist_code IS NULL")
-    // 单独创建唯一索引
-    database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_artists_code ON artists(artist_code)')
-  }
-
-  // ─── 迁移：artists 表增加 contact_qq 列（客户可见的联系QQ） ───
-  if (!columns.some(c => c.name === 'contact_qq')) {
-    database.exec('ALTER TABLE artists ADD COLUMN contact_qq TEXT')
+  // ─── P2-5: 版本化迁移 ───
+  const applied = new Set(
+    database.prepare('SELECT version FROM schema_migrations').all().map(r => r.version)
+  )
+  for (const migration of MIGRATIONS) {
+    if (applied.has(migration.version)) continue
+    migration.up(database)
+    database.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
+      .run(migration.version, migration.name)
+    console.log(`📦 迁移 v${migration.version}: ${migration.name} 已应用`)
   }
 
   // ─── 确保平台配置有默认值 ───
   database.exec(`
     INSERT OR IGNORE INTO platform_config (key, value) VALUES ('admin_qq', '')
   `)
+
+  // ─── P0-6: 管理员自举 — 首次部署自动创建管理员账号 ───
+  const adminQq = process.env.ADMIN_QQ
+  if (adminQq) {
+    // 仅当 admin_qq 为空时写入（不覆盖运行时更换的值）
+    database.prepare(
+      "UPDATE platform_config SET value = ? WHERE key = 'admin_qq' AND (value = '' OR value IS NULL)"
+    ).run(adminQq)
+
+    // 确保管理员画师账号存在
+    const existing = database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(adminQq)
+    if (!existing) {
+      database.prepare(`
+        INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
+        VALUES (?, 'Admin', 'admin', 'ADMIN', '平台管理员', 'open', ?)
+      `).run(adminQq, adminQq)
+      const admin = database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(adminQq)
+      database.prepare('INSERT OR IGNORE INTO commission_rules (artist_id, content) VALUES (?, ?)').run(admin.id, '')
+      console.log(`✅ 管理员账号已自动创建 (QQ: ${adminQq})`)
+    }
+  }
 }
 
 // CLI 直接执行时自动建表（import 时不触发副作用）

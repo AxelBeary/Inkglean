@@ -6,7 +6,28 @@ import { getArtistByQq } from '../artist/artist.service.js'
 // 认证服务 - 登录码生成与验证
 // ============================================
 
-const isDev = process.env.NODE_ENV !== 'production'
+/**
+ * P0-1: 签名密钥 — 生产环境必须设置 SESSION_SECRET，否则启动即崩溃
+ */
+function getSecret() {
+  const secret = process.env.SESSION_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SESSION_SECRET 环境变量未设置，生产环境禁止使用默认密钥')
+    }
+    console.warn('⚠️  SESSION_SECRET 未设置，使用开发默认值（仅限开发环境）')
+    return 'dev-secret-change-in-production'
+  }
+  return secret
+}
+
+// 启动时立即校验（fail-fast）
+const SECRET = getSecret()
+
+/**
+ * P0-5: 开发模式 — 显式 AUTH_DEV_MODE=*** 开启（不再依赖 NODE_ENV 推断）
+ */
+export const isDevAuth = process.env.AUTH_DEV_MODE === 'true'
 
 /**
  * 生成6位登录码，有效期5分钟
@@ -19,20 +40,18 @@ export function generateLoginCode(qqNumber) {
   // 清除旧码
   db.prepare('DELETE FROM login_codes WHERE artist_id = ?').run(artist.id)
 
-  const code = String(crypto.randomInt(100000, 999999))
+  // P0-4d: randomInt 上界开区间修正（100000-999999）
+  const code = String(crypto.randomInt(100000, 1000000))
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
 
   db.prepare('INSERT INTO login_codes (artist_id, code, expires_at) VALUES (?, ?, ?)')
     .run(artist.id, code, expiresAt)
 
-  // 开发模式：直接输出到控制台
-  if (isDev) {
+  if (isDevAuth) {
     console.log(`\n🔑 [DEV] 画师「${artist.name}」(QQ: ${qqNumber}) 的登录码: ${code}\n`)
   }
 
   // TODO Phase 2: 接入 QQ Bot (NapCat/OneBot) 发送登录码
-  // await sendQqMessage(qqNumber, `你的登录码是: ${code}，5分钟内有效。`)
-
   return { code, artist }
 }
 
@@ -61,8 +80,10 @@ export function verifyLoginCode(qqNumber, code) {
     return { valid: false, error: '尝试次数过多，请重新获取登录码' }
   }
 
-  // 验证
-  if (record.code !== code) {
+  // P0-4c: 时间安全比较，防止计时攻击
+  const codeMatch = record.code.length === code.length &&
+    crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(code))
+  if (!codeMatch) {
     db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
     return { valid: false, error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
   }
@@ -76,9 +97,8 @@ export function verifyLoginCode(qqNumber, code) {
  * 创建会话 Token（HMAC签名，无状态）
  */
 export function createSession(artistId) {
-  const secret = process.env.SESSION_SECRET || 'dev-secret-change-in-production'
   const payload = Buffer.from(JSON.stringify({ id: artistId, t: Date.now() })).toString('base64url')
-  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
   return `${payload}.${sig}`
 }
 
@@ -90,8 +110,7 @@ export function verifySession(token) {
   const [payload, sig] = token.split('.')
   if (!payload || !sig) return null
 
-  const secret = process.env.SESSION_SECRET || 'dev-secret-change-in-production'
-  const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  const expected = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
   if (sig !== expected) return null
 
   try {

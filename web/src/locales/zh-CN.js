@@ -156,6 +156,16 @@ export default {
     bioLabel: '简介（可选）', domainSuffix: '.主域名',
     requiredFields: 'QQ号、昵称和子域名为必填项', added: '画师已添加',
     confirmRemove: '确定移除画师「{name}」？该画师的所有订单、作品数据将被永久删除！',
-    confirmRemoveTitle: '⚠️ 危险操作', confirmRemoveBtn: '确定移除'
+    confirmRemoveTitle: '⚠️ 危险操作', confirmRemoveBtn: '确定移除',
+    artistOrders: '📦 订单记录', noOrders: '暂无订单', statusUpdated: '状态已更新',
+    transferAdmin: '🔑 更换管理员', transferTitle: '更换管理员账号',
+    transferStep1Title: '验证当前管理员', transferStep2Title: '验证新管理员',
+    currentAdminQq: '当前管理员QQ', newAdminQq: '新管理员QQ',
+    newAdminQqPlaceholder: '输入新管理员的QQ号（必须是已注册画师）',
+    sendCode: '发送验证码', codeSent: '验证码已发送', enterCode: '输入6位验证码',
+    nextStep: '下一步', confirmTransfer: '确认更换',
+    transferSuccess: '管理员已更换为 {name}', adminTag: '管理员',
+    orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
+    orderColType: '类型', orderColTime: '下单时间'
   }
 }

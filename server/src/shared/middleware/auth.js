@@ -1,18 +1,28 @@
 import { verifySession } from '../../features/auth/auth.service.js'
 import { getArtistById } from '../../features/artist/artist.service.js'
+import db from '../../db/connection.js'
 
 // ============================================
 // 认证中间件
 // ============================================
 
 /**
- * 管理员 QQ 号（环境变量配置，默认 10000）
+ * 管理员 QQ 号（环境变量仅用于首次引导，运行时从 platform_config 读取）
+ * P2-6: 不再 export，仅内部使用
  */
-const ADMIN_QQ = process.env.ADMIN_QQ || '10000'
+const ADMIN_QQ = process.env.ADMIN_QQ || ''
+
+/**
+ * 获取当前管理员 QQ（优先读数据库，支持运行时更换）
+ */
+export function getAdminQq() {
+  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get()
+  return row?.value || ADMIN_QQ
+}
 
 /**
  * requireAuth - 画师登录校验
- * 从 Authorization: Bearer <token> 提取并验证会话
+ * 从 Authorization: Bearer *** 提取并验证会话
  */
 export async function requireAuth(request, reply) {
   const authHeader = request.headers.authorization
@@ -36,7 +46,7 @@ export async function requireAuth(request, reply) {
 
 /**
  * requireAdmin - 管理员权限校验
- * 管理员通过 QQ 号识别（默认 10000）
+ * 管理员通过 QQ 号识别（从数据库读取，支持运行时更换）
  */
 export async function requireAdmin(request, reply) {
   const authHeader = request.headers.authorization
@@ -55,8 +65,8 @@ export async function requireAdmin(request, reply) {
     return reply.code(401).send({ error: '账号不存在' })
   }
 
-  // 管理员判定：QQ 号匹配
-  if (artist.qq_number !== ADMIN_QQ) {
+  // 管理员判定：QQ 号匹配（从数据库读取，支持运行时更换）
+  if (artist.qq_number !== getAdminQq()) {
     return reply.code(403).send({ error: '需要管理员权限' })
   }
 

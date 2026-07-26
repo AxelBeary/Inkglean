@@ -1,5 +1,5 @@
 import * as artistService from './artist.service.js'
-import { requireAuth } from '../../shared/middleware/auth.js'
+import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 
 // ============================================
@@ -12,14 +12,16 @@ export default async function artistRoutes(fastify) {
 
   /**
    * GET /api/artists
-   * 获取所有画师公开信息（首页列表）
+   * 获取所有画师公开信息（首页列表，排除管理员账号）
    */
   fastify.get('/api/artists', async () => {
-    return artistService.getAllArtists().map(a => ({
-      id: a.id, name: a.name, subdomain: a.subdomain,
-      avatar: a.avatar, bio: a.bio, status: a.status,
-      weiboUrl: a.weibo_url, bilibiliUrl: a.bilibili_url
-    }))
+    return artistService.getAllArtists()
+      .filter(a => a.qq_number !== getAdminQq())
+      .map(a => ({
+        id: a.id, name: a.name, subdomain: a.subdomain,
+        avatar: a.avatar, bio: a.bio, status: a.status,
+        weiboUrl: a.weibo_url, bilibiliUrl: a.bilibili_url
+      }))
   })
 
   /**
@@ -28,7 +30,7 @@ export default async function artistRoutes(fastify) {
    */
   fastify.get('/api/artists/:subdomain', async (request, reply) => {
     const artist = artistService.getArtistBySubdomain(request.params.subdomain)
-    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+    if (!artist || artist.qq_number === getAdminQq()) return reply.code(404).send({ error: '画师不存在' })
 
     const tiers = artistService.getTiers(artist.id)
     const artworks = artistService.getArtworks(artist.id)
@@ -74,10 +76,11 @@ export default async function artistRoutes(fastify) {
   fastify.put('/api/artist/profile', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const body = request.body || {}
-      // 截断所有字符串字段
+      // P2-8: 截断所有字符串字段（修正 key 映射）
+      const CLAMP_MAP = { artist_code: 'artistCode', weibo_url: 'url', bilibili_url: 'url', contact_qq: 'contactQq' }
       const sanitized = {}
       for (const [k, v] of Object.entries(body)) {
-        sanitized[k] = typeof v === 'string' ? clamp(v, k === 'artist_code' ? 'artistCode' : k) : v
+        sanitized[k] = typeof v === 'string' ? clamp(v, CLAMP_MAP[k] || k) : v
       }
       const updated = artistService.updateArtist(request.artist.id, sanitized)
       return updated

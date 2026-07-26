@@ -15,8 +15,27 @@ export default async function orderRoutes(fastify) {
   /**
    * POST /api/orders
    * 客户自助下单（限流：同IP 10次/10分钟）
+   * P1-8: JSON Schema 输入校验
    */
-  fastify.post('/api/orders', async (request, reply) => {
+  fastify.post('/api/orders', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['subdomain', 'clientQq', 'agreeRules'],
+        properties: {
+          subdomain: { type: 'string', minLength: 1, maxLength: 50 },
+          tierId: { type: ['integer', 'null'] },
+          clientQq: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
+          clientName: { type: ['string', 'null'], maxLength: 50 },
+          description: { type: ['string', 'null'], maxLength: 2000 },
+          priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+          clientNotify: { type: 'boolean' },
+          agreeRules: { type: 'boolean', const: true }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     if (!rateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)) {
       return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
     }
@@ -64,6 +83,8 @@ export default async function orderRoutes(fastify) {
 
     const { qq } = request.query || {}
     if (!qq) return reply.code(400).send({ error: '请同时提供你的QQ号以验证身份' })
+    // P2-10: QQ 格式校验
+    if (!isValidQq(qq)) return reply.code(400).send({ error: 'QQ号格式不正确（5-15位数字）' })
 
     const result = orderService.getClientQueuePosition(request.params.orderNo, qq)
     if (!result) return reply.code(404).send({ error: '订单不存在或QQ号不匹配' })
@@ -155,6 +176,8 @@ export default async function orderRoutes(fastify) {
 
     const { qq } = request.query || {}
     if (!qq) return reply.code(400).send({ error: '请同时提供你的QQ号以验证身份' })
+    // P2-10: QQ 格式校验
+    if (!isValidQq(qq)) return reply.code(400).send({ error: 'QQ号格式不正确（5-15位数字）' })
 
     const order = orderService.getOrderByNo(request.params.orderNo)
     if (!order || order.client_qq !== qq) {
@@ -195,7 +218,9 @@ export default async function orderRoutes(fastify) {
    * GET /api/artist/orders/:id
    */
   fastify.get('/api/artist/orders/:id', { preHandler: requireAuth }, async (request, reply) => {
-    const order = orderService.getOrder(request.params.id)
+    const id = parseInt(request.params.id, 10)
+    if (isNaN(id)) return reply.code(400).send({ error: '无效的订单ID' })
+    const order = orderService.getOrder(id)
     if (!order || order.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '订单不存在' })
     }
@@ -204,8 +229,25 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/manual
+   * P1-8: JSON Schema 输入校验
    */
-  fastify.post('/api/artist/orders/manual', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/artist/orders/manual', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['clientQq'],
+        properties: {
+          tierId: { type: ['integer', 'null'] },
+          clientQq: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
+          clientName: { type: ['string', 'null'], maxLength: 50 },
+          description: { type: ['string', 'null'], maxLength: 2000 },
+          priority: { type: 'string', enum: ['high', 'medium', 'low'] }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     const { tierId, clientQq, clientName, description, priority } = request.body || {}
 
     if (!clientQq) return reply.code(400).send({ error: '请填写客户QQ号' })
@@ -229,9 +271,24 @@ export default async function orderRoutes(fastify) {
 
   /**
    * PUT /api/artist/orders/:id/status
+   * P1-8: JSON Schema 输入校验
    */
-  fastify.put('/api/artist/orders/:id/status', { preHandler: requireAuth }, async (request, reply) => {
-    const order = orderService.getOrder(request.params.id)
+  fastify.put('/api/artist/orders/:id/status', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['status'],
+        properties: {
+          status: { type: 'string', enum: ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled'] }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    if (isNaN(id)) return reply.code(400).send({ error: '无效的订单ID' })
+    const order = orderService.getOrder(id)
     if (!order || order.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '订单不存在' })
     }
@@ -248,9 +305,24 @@ export default async function orderRoutes(fastify) {
 
   /**
    * PUT /api/artist/orders/:id/priority
+   * P1-8: JSON Schema 输入校验
    */
-  fastify.put('/api/artist/orders/:id/priority', { preHandler: requireAuth }, async (request, reply) => {
-    const order = orderService.getOrder(request.params.id)
+  fastify.put('/api/artist/orders/:id/priority', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['priority'],
+        properties: {
+          priority: { type: 'string', enum: ['high', 'medium', 'low'] }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    if (isNaN(id)) return reply.code(400).send({ error: '无效的订单ID' })
+    const order = orderService.getOrder(id)
     if (!order || order.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '订单不存在' })
     }
@@ -265,16 +337,30 @@ export default async function orderRoutes(fastify) {
 
   /**
    * PUT /api/artist/queue/reorder
+   * P1-2: 接收完整排序后的 ID 数组
+   * P1-8: JSON Schema 输入校验
    */
-  fastify.put('/api/artist/queue/reorder', { preHandler: requireAuth }, async (request, reply) => {
-    const { draggedOrderId, targetPosition } = request.body || {}
+  fastify.put('/api/artist/queue/reorder', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['orderedIds'],
+        properties: {
+          orderedIds: { type: 'array', items: { type: 'integer' }, minItems: 1, maxItems: 200 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const { orderedIds } = request.body || {}
 
-    if (draggedOrderId == null || targetPosition == null) {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
       return reply.code(400).send({ error: '缺少排序参数' })
     }
 
     try {
-      return orderService.reorderQueueByDrag(request.artist.id, draggedOrderId, targetPosition)
+      return orderService.reorderQueue(request.artist.id, orderedIds)
     } catch (err) {
       return reply.code(400).send({ error: err.message })
     }
@@ -282,9 +368,24 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/:id/notes
+   * P1-8: JSON Schema 输入校验
    */
-  fastify.post('/api/artist/orders/:id/notes', { preHandler: requireAuth }, async (request, reply) => {
-    const order = orderService.getOrder(request.params.id)
+  fastify.post('/api/artist/orders/:id/notes', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['content'],
+        properties: {
+          content: { type: 'string', minLength: 1, maxLength: 1000 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    if (isNaN(id)) return reply.code(400).send({ error: '无效的订单ID' })
+    const order = orderService.getOrder(id)
     if (!order || order.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '订单不存在' })
     }
@@ -297,9 +398,27 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/:id/deliver
+   * P1-3: 事务化交付
+   * P1-8: JSON Schema 输入校验
    */
-  fastify.post('/api/artist/orders/:id/deliver', { preHandler: requireAuth }, async (request, reply) => {
-    const order = orderService.getOrder(request.params.id)
+  fastify.post('/api/artist/orders/:id/deliver', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['filePath'],
+        properties: {
+          filePath: { type: 'string', minLength: 1, maxLength: 500 },
+          fileName: { type: ['string', 'null'], maxLength: 255 },
+          fileSize: { type: ['integer', 'null'], minimum: 0 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    if (isNaN(id)) return reply.code(400).send({ error: '无效的订单ID' })
+    const order = orderService.getOrder(id)
     if (!order || order.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '订单不存在' })
     }
@@ -307,15 +426,45 @@ export default async function orderRoutes(fastify) {
     const { filePath, fileName, fileSize } = request.body || {}
     if (!filePath) return reply.code(400).send({ error: '缺少文件路径' })
 
-    orderService.addDeliverable(order.id, filePath, fileName, fileSize)
-
-    // 自动将状态改为已交付（需从 done 状态）
     try {
-      orderService.updateOrderStatus(order.id, 'delivered')
-    } catch {
-      // 如果状态不允许直接交付（如还在 wip），仅添加文件不改状态
+      const result = orderService.deliverOrder(order.id, filePath, fileName, fileSize)
+      return result.order
+    } catch (err) {
+      return reply.code(400).send({ error: err.message })
+    }
+  })
+
+  /**
+   * POST /api/artist/orders/:id/references
+   * P1-1: 添加参考图
+   * P1-8: JSON Schema 输入校验
+   */
+  fastify.post('/api/artist/orders/:id/references', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['filePath'],
+        properties: {
+          filePath: { type: 'string', minLength: 1, maxLength: 500 },
+          fileName: { type: ['string', 'null'], maxLength: 255 },
+          fileSize: { type: ['integer', 'null'], minimum: 0 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    if (isNaN(id)) return reply.code(400).send({ error: '无效的订单ID' })
+    const order = orderService.getOrder(id)
+    if (!order || order.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '订单不存在' })
     }
 
+    const { filePath, fileName, fileSize } = request.body || {}
+    if (!filePath) return reply.code(400).send({ error: '缺少文件路径' })
+
+    orderService.addReference(order.id, filePath, fileName, fileSize)
     return orderService.getOrder(order.id)
   })
 

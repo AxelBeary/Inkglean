@@ -89,18 +89,16 @@ async function loadQueue() {
 }
 
 /**
- * 拖拽结束 - 核心逻辑
- * 被拖动的订单获得目标位置的优先级，其余顺延（不是交换）
+ * P1-2: 拖拽结束 — 发送完整排序后的 ID 数组
+ * vuedraggable 已就地移动数组，直接把新顺序的 ID 列表发给后端
  */
 async function onDragEnd(evt) {
   const { oldIndex, newIndex } = evt
   if (oldIndex === newIndex) return
 
-  const draggedOrder = queue.value[newIndex] // vuedraggable 已经移动了数组
-
   try {
-    // 调用后端重排接口
-    const newQueue = await artistApi.reorderQueue(draggedOrder.id, newIndex)
+    const orderedIds = queue.value.map(item => item.id)
+    const newQueue = await artistApi.reorderQueue(orderedIds)
     queue.value = newQueue
     ElMessage.success(t('queue.orderUpdated'))
   } catch (err) {

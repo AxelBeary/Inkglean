@@ -106,8 +106,9 @@ import { useRoute } from 'vue-router'
 import { orderApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { formatDateTime } from '../../utils/datetime.js'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const subdomain = route.params.subdomain
 
@@ -137,9 +138,7 @@ const stepActive = computed(() => {
 })
 
 function formatDate(str) {
-  if (!str) return ''
-  const loc = locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'
-  return new Date(str).toLocaleString(loc)
+  return formatDateTime(str)
 }
 
 function downloadFile(url) {

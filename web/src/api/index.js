@@ -69,10 +69,11 @@ export const artistApi = {
   createManualOrder: (data) => api.post('/artist/orders/manual', data),
   updateStatus: (id, status) => api.put(`/artist/orders/${id}/status`, { status }),
   updatePriority: (id, priority) => api.put(`/artist/orders/${id}/priority`, { priority }),
-  reorderQueue: (draggedOrderId, targetPosition) =>
-    api.put('/artist/queue/reorder', { draggedOrderId, targetPosition }),
+  reorderQueue: (orderedIds) =>
+    api.put('/artist/queue/reorder', { orderedIds }),
   addNote: (id, content) => api.post(`/artist/orders/${id}/notes`, { content }),
   deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data),
+  addReference: (id, data) => api.post(`/artist/orders/${id}/references`, data),
   // 统计
   getStats: () => api.get('/artist/stats')
 }
@@ -112,5 +113,8 @@ export const adminApi = {
   getArtists: () => api.get('/admin/artists'),
   createArtist: (data) => api.post('/admin/artists', data),
   deleteArtist: (id) => api.delete(`/admin/artists/${id}`),
-  getStats: () => api.get('/admin/stats')
+  getStats: () => api.get('/admin/stats'),
+  getArtistOrders: (id) => api.get(`/admin/artists/${id}/orders`),
+  updateArtistStatus: (id, status) => api.put(`/admin/artists/${id}/status`, { status }),
+  transferAdmin: (data) => api.post('/admin/transfer', data)
 }
