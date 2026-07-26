@@ -21,18 +21,18 @@
 ## TC-O: 订单服务 (Order Service)
 
 ### TC-O-01: 创建订单 — 正常流程
-- **前置**: 数据库有画师 `alice`（subdomain='alice', status='open'）
+- **前置**: 数据库有画师 `alice`（subdomain='alice', artist_code='ALICE', status='open'）
 - **操作**: `createOrder({ artistId, clientQq: '123456', source: 'self' })`
 - **断言**:
-  - 返回订单 `order_no` 格式为 `A001`（首字母大写 + 3位序号）
+  - 返回订单 `order_no` 格式为 `ALICE-001`（身份码 + 3位序号）
   - `status` = `'pending'`
   - `queue_position` = 1
   - `source` = `'self'`
 
 ### TC-O-02: 创建订单 — 序号递增
-- **前置**: 画师 `alice` 已有订单 A001
+- **前置**: 画师 `alice` 已有订单 ALICE-001
 - **操作**: 再创建一个订单
-- **断言**: `order_no` = `'A002'`
+- **断言**: `order_no` = `'ALICE-002'`
 
 ### TC-O-03: 创建订单 — 画师不存在
 - **操作**: `createOrder({ artistId: 999, ... })`
@@ -52,10 +52,10 @@
 - **操作**: 将位置 1 的订单改为 `delivered`
 - **断言**: 剩余 2 个订单 `queue_position` 重排为 1,2
 
-### TC-O-07: 拖拽排序 — 优先级继承
-- **前置**: 队列中有 high(位置1) 和 medium(位置2,3) 订单
-- **操作**: 将 medium 订单拖到位置 0（high 区域）
-- **断言**: 被拖动订单 `priority` 变为 `'high'`
+### TC-O-07: 拖拽排序 — 完整数组重排
+- **前置**: 队列中有 3 个订单（ID: 1,2,3）
+- **操作**: `reorderQueue([3,1,2])`（发送完整有序 ID 数组）
+- **断言**: 订单 3 的 `queue_position` = 0，订单 1 = 1，订单 2 = 2
 
 ### TC-O-08: 更新优先级 — 非法值
 - **操作**: `updatePriority(id, 'urgent')`
@@ -63,7 +63,7 @@
 
 ### TC-O-09: 客户查询排队位置
 - **前置**: 画师有 3 个活跃订单
-- **操作**: `getClientQueuePosition('A002')`
+- **操作**: `getClientQueuePosition('ALICE-002')`
 - **断言**: `position` = 2, `total` = 3
 
 ### TC-O-10: 客户查询 — 已交付订单

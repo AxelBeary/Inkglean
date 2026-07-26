@@ -1,5 +1,57 @@
 # 变更日志
 
+## v0.6.2 — 2026-07-27
+
+### 🔒 审计修复（32 项全部完成）
+
+**P0 严重（6 项）：**
+- **登录码时序攻击**：验证改用 `crypto.timingSafeEqual`（P0-4c）
+- **存储型 XSS**：DOMPurify 替换自研消毒器（P0-2）
+- **外链协议注入**：weibo_url/bilibili_url 增加 `https?://` 协议校验（P0-7）
+- **SESSION_SECRET 静默回退**：未设置时启动报错（P0-1）
+- **AUTH_DEV_MODE 显式开关**：不再依赖 NODE_ENV 判断是否返回 `_dev_code`（P0-5）
+- **管理员自举**：`initDatabase()` 自动创建管理员账号（P0-6）
+
+**P1 高优（11 项）：**
+- **参考图关联订单**：上传时写入 `order_references` 表（P1-1）
+- **拖拽排序重写**：前端发送完整 `orderedIds` 数组，后端按序分配 `queue_position`（P1-2）
+- **交付事务化**：`addDeliverable()` 包装在 `db.transaction()` 中（P1-3）
+- **上传 MIME 白名单**：扩展名 + MIME 双重校验（P1-4）
+- **路由守卫 isAdmin**：前端管理员路由检查 `localStorage` 标记（P1-5）
+- **CORS 收紧**：生产环境由 `CORS_ORIGIN` 控制（P1-6）
+- **订单创建事务**：`createOrder()` 包装在 `db.transaction()` 中防竞态（P1-7）
+- **JSON Schema 校验**：8 个写入路由增加 Fastify JSON Schema（P1-8）
+- **端口 expose**：容器仅 `expose: ["3000"]`，不映射宿主机（P1-9）
+- **Caddy DOMAIN**：补充环境变量配置（P1-10）
+- **子域名文档**：更新为参数化路由说明（P1-11）
+
+**P2 中优（13 项）：**
+- **时区修复**：SQLite UTC 存储 + 前端 `datetime.js` 本地化显示（P2-1）
+- **收入统计**：SQL 改用 `datetime('now','localtime')` 计算月初（P2-2）
+- **SPA fallback**：限制仅 GET 请求返回 index.html（P2-3）
+- **健康检查**：加 `.catch()` 防未捕获异常（P2-4）
+- **版本化迁移**：新增 `schema_migrations` 表 + `MIGRATIONS` 数组（P2-5）
+- **死配置清理**：`ADMIN_QQ` 不再 export，仅内部引导用（P2-6）
+- **dotenv 全局加载**：`connection.js` 顶部 `import 'dotenv/config'`（P2-7）
+- **clamp 映射修复**：`weibo_url`/`bilibili_url` key 改为 `'url'`（P2-8）
+- **路由 parseInt**：6 个路由增加 `parseInt` + `isNaN` 校验（P2-9）
+- **track QQ 校验**：`getClientQueuePosition`/`getOrderByNo` 增加 `isValidQq`（P2-10）
+- **favicon**：新增 SVG favicon（P2-11）
+- **交付前端检查**：50MB 限制 + 扩展名白名单 + `file-list` 绑定（P2-12/P2-13）
+
+**P3 低优：**
+- 死代码检查（无未使用导入）
+- 文档同步更新（开发自参考 #25-#30、维护说明书安全章节、切换指南、画师说明书）
+
+### 新增文件
+- `web/src/utils/datetime.js` — 时区工具（formatDateTime / formatDateTimeShort）
+- `web/public/favicon.svg` — SVG favicon
+
+### 变更统计
+- 32 个文件，+886 / -248 行
+
+---
+
 ## v0.6.1 — 2026-07-26
 
 ### 🔧 部署修复（启动阻塞 + SPA 服务）

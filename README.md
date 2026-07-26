@@ -21,7 +21,7 @@
 | 后端 | Fastify 5 + better-sqlite3（Feature-based 架构） |
 | 部署 | Docker Compose（多阶段构建）+ Caddy（自动 HTTPS + healthcheck） |
 | 认证 | HMAC-SHA256 签名会话 + 登录码 |
-| 测试 | Vitest（32 个用例，内存数据库） |
+| 测试 | Vitest（42 个用例，内存数据库） |
 
 ## 🚀 快速开始
 
@@ -35,7 +35,9 @@ cp .env.example .env
 # 2. 一键启动（多阶段构建，自动编译前端）
 docker compose up -d
 
-# 3. 访问 http://localhost:3000
+# 3. 访问（容器端口仅 expose，不映射宿主机）
+#    开发调试：docker compose exec web curl localhost:3000/api/health
+#    生产访问：通过 Caddy 反向代理（80/443）
 ```
 
 ### 方式二：本地开发
@@ -55,7 +57,7 @@ npm run dev        # 启动 Vite 开发服务器 (http://localhost:5173)
 
 # 测试
 cd server
-npm test           # 运行全部 32 个测试用例
+npm test           # 运行全部 42 个测试用例
 ```
 
 ## 📁 项目结构
@@ -79,7 +81,7 @@ npm test           # 运行全部 32 个测试用例
 │       ├── api/                # API 封装（统一入口）
 │       ├── router/             # 路由配置（含 404 catch-all）
 │       └── stores/             # Pinia 状态管理
-├── docs/                       # 文档（四份说明书 + changelog）
+├── docs/                       # 文档（六份：使用说明、维护、开发自参考、切换指南、TDD规格、changelog）
 ├── docker-compose.yml          # web（healthcheck）+ caddy
 ├── Dockerfile                  # 多阶段构建
 ├── Caddyfile                   # 泛解析 + 自动 HTTPS
@@ -93,6 +95,7 @@ npm test           # 运行全部 32 个测试用例
 - [维护说明书](docs/维护说明书.md) — 部署、备份、运维手册
 - [开发自参考](docs/开发自参考.md) — 架构设计、API 参考、已知问题
 - [开发→生产切换指南](docs/开发→生产切换指南.md) — 开发模式切生产的完整检查清单
+- [TDD 规格文档](docs/tdd-spec-v0.1.md) — 测试用例定义（TC-O/A/R/V）
 - [变更日志](docs/changelog.md) — 版本历史
 
 ## 🔒 安全说明
