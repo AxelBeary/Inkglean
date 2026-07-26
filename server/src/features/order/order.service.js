@@ -312,5 +312,5 @@ export function hasClientOrders(artistId, clientQq) {
  */
 export function getPlatformConfig(key) {
   const row = db.prepare('SELECT value FROM platform_config WHERE key = ?').get(key)
-  return row?.value || null
+  return row?.value ?? null
 }

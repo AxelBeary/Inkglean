@@ -1,5 +1,22 @@
 # 变更日志
 
+## v0.6.1 — 2026-07-26
+
+### 🔧 部署修复（启动阻塞 + SPA 服务）
+
+- **SQLite 迁移崩溃**：`ALTER TABLE ADD COLUMN ... UNIQUE` 不被 SQLite 支持 → 改为先加列再 `CREATE UNIQUE INDEX`
+- **SPA 静态文件缺失**：`app.js` 未 serve `web/dist/` → 新增 `fastifyStatic(web/dist)` + `setNotFoundHandler` fallback 到 `index.html`
+- **`/uploads/` 404 被 SPA fallback 截获**：fallback 排除 `/api/` 和 `/uploads/` 前缀
+- **`getPlatformConfig` 空字符串变 null**：`||` → `??`（空字符串是合法配置值）
+- **`platform_config` 默认值**：`initDatabase()` 中 `INSERT OR IGNORE` 确保 `admin_qq` 键存在
+
+### 变更文件
+- `server/src/app.js` — SPA 静态文件服务 + fallback
+- `server/src/db/init.js` — 迁移修复 + 平台配置默认值
+- `server/src/features/order/order.service.js` — `??` 修复
+
+---
+
 ## v0.6.0 — 2026-07-26
 
 ### ⚠️ 已知问题

@@ -139,17 +139,25 @@ export function initDatabase(database) {
   database.exec(schema)
 
   // ─── 迁移：artists 表增加 artist_code 列（兼容旧库） ───
+  // 注意：SQLite ALTER TABLE ADD COLUMN 不支持 UNIQUE 约束，需单独建索引
   const columns = database.prepare('PRAGMA table_info(artists)').all()
   if (!columns.some(c => c.name === 'artist_code')) {
-    database.exec('ALTER TABLE artists ADD COLUMN artist_code TEXT UNIQUE')
+    database.exec('ALTER TABLE artists ADD COLUMN artist_code TEXT')
     // 回填：用子域名大写作为默认身份码
     database.exec("UPDATE artists SET artist_code = UPPER(subdomain) WHERE artist_code IS NULL")
+    // 单独创建唯一索引
+    database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_artists_code ON artists(artist_code)')
   }
 
   // ─── 迁移：artists 表增加 contact_qq 列（客户可见的联系QQ） ───
   if (!columns.some(c => c.name === 'contact_qq')) {
     database.exec('ALTER TABLE artists ADD COLUMN contact_qq TEXT')
   }
+
+  // ─── 确保平台配置有默认值 ───
+  database.exec(`
+    INSERT OR IGNORE INTO platform_config (key, value) VALUES ('admin_qq', '')
+  `)
 }
 
 // CLI 直接执行时自动建表（import 时不触发副作用）

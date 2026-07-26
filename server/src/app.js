@@ -1,7 +1,8 @@
 import Fastify from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
-import { resolve } from 'path'
+import { resolve, join } from 'path'
+import { existsSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 
@@ -41,6 +42,24 @@ export async function buildApp(opts = {}) {
 
   // ─── 健康检查 ───
   app.get('/api/health', async () => ({ status: 'ok', time: new Date().toISOString() }))
+
+  // ─── 前端 SPA 静态文件 + fallback ───
+  const WEB_DIST = resolve(process.env.WEB_DIST || join(import.meta.dirname, '../../web/dist'))
+  if (existsSync(WEB_DIST)) {
+    await app.register(fastifyStatic, {
+      root: WEB_DIST,
+      prefix: '/',
+      wildcard: false  // 不用通配，由 setNotFoundHandler 兜底
+    })
+
+    // SPA fallback：非 /api、非 /uploads 路由全部返回 index.html
+    app.setNotFoundHandler((request, reply) => {
+      if (request.url.startsWith('/api/') || request.url.startsWith('/uploads/')) {
+        return reply.code(404).send({ error: 'Not found' })
+      }
+      return reply.sendFile('index.html')
+    })
+  }
 
   return app
 }
