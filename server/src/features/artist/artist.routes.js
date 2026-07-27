@@ -213,4 +213,97 @@ export default async function artistRoutes(fastify) {
     const greetingService = await import('./greeting.service.js')
     return greetingService.drawGreeting(request.artist.id, request.artist.name)
   })
+
+  // ─── 流程与比例 ───
+
+  const workflowService = await import('./workflow.service.js')
+
+  /** GET /api/artist/workflow — 流程节点列表 */
+  fastify.get('/api/artist/workflow', { preHandler: requireAuth }, async (request) => {
+    return { stages: workflowService.getWorkflow(request.artist.id) }
+  })
+
+  /** POST /api/artist/workflow — 添加节点 */
+  fastify.post('/api/artist/workflow', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object', required: ['name'], additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          description: { type: 'string', maxLength: 200 }
+        }
+      }
+    }
+  }, async (request) => {
+    return workflowService.addStage(request.artist.id, request.body)
+  })
+
+  /** PUT /api/artist/workflow/:id — 改名/改描述/切换收款 */
+  fastify.put('/api/artist/workflow/:id', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          description: { type: 'string', maxLength: 200 },
+          takesPayment: { type: 'boolean' }
+        }
+      }
+    }
+  }, async (request) => {
+    return workflowService.updateStage(request.artist.id, parseInt(request.params.id), request.body)
+  })
+
+  /** DELETE /api/artist/workflow/:id — 删除节点 */
+  fastify.delete('/api/artist/workflow/:id', { preHandler: requireAuth }, async (request) => {
+    return workflowService.deleteStage(request.artist.id, parseInt(request.params.id))
+  })
+
+  /** PUT /api/artist/workflow/reorder — 拖拽排序 */
+  fastify.put('/api/artist/workflow/reorder', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object', required: ['orderedIds'], additionalProperties: false,
+        properties: { orderedIds: { type: 'array', items: { type: 'integer' }, minItems: 1, maxItems: 50 } }
+      }
+    }
+  }, async (request) => {
+    return { stages: workflowService.reorderStages(request.artist.id, request.body.orderedIds) }
+  })
+
+  /** PUT /api/artist/workflow/payment — 批量保存比例 */
+  fastify.put('/api/artist/workflow/payment', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object', required: ['nodes'], additionalProperties: false,
+        properties: {
+          nodes: {
+            type: 'array', maxItems: 20,
+            items: {
+              type: 'object', required: ['id', 'basisPoints'], additionalProperties: false,
+              properties: {
+                id: { type: 'integer' },
+                basisPoints: { type: 'integer', minimum: 500, maximum: 9500 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request) => {
+    return { stages: workflowService.savePayment(request.artist.id, request.body.nodes) }
+  })
+
+  // ─── 公开：流程 + 收款计划 ───
+
+  /** GET /api/artists/:subdomain/workflow — 客户端可见 */
+  fastify.get('/api/artists/:subdomain/workflow', async (request, reply) => {
+    const artist = artistService.getArtistBySubdomain(request.params.subdomain)
+    if (!artist || artist.qq_number === getAdminQq()) return reply.code(404).send({ error: '画师不存在' })
+    return { stages: workflowService.getWorkflow(artist.id) }
+  })
 }

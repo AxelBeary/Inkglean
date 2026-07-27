@@ -1,0 +1,205 @@
+<template>
+  <el-drawer v-model="visible" :title="`${artist?.name || ''} — ${$t('admin.artistDetail')}`" size="560px" destroy-on-close>
+    <el-tabs v-model="tab" v-if="artist">
+      <!-- 基本资料 -->
+      <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
+        <el-form label-position="top" size="default" v-loading="profileLoading">
+          <el-form-item :label="$t('settings.nameLabel')">
+            <el-input v-model="profile.name" />
+          </el-form-item>
+          <el-form-item :label="$t('settings.codeLabel')">
+            <el-input v-model="profile.artist_code" maxlength="10" />
+          </el-form-item>
+          <el-form-item :label="$t('settings.bioLabel')">
+            <el-input v-model="profile.bio" type="textarea" :rows="3" />
+          </el-form-item>
+          <el-form-item :label="$t('settings.statusLabel')">
+            <el-radio-group v-model="profile.status">
+              <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
+              <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
+              <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item :label="$t('settings.contactQqLabel')">
+            <el-input v-model="profile.contact_qq" maxlength="15" />
+          </el-form-item>
+          <el-button type="primary" @click="saveProfile" :loading="saving">{{ $t('settings.save') }}</el-button>
+        </el-form>
+      </el-tab-pane>
+
+      <!-- 价格档位 -->
+      <el-tab-pane :label="$t('menu.tiers')" name="tiers" lazy>
+        <div v-loading="tiersLoading">
+          <div v-for="t in tiers" :key="t.id" class="tier-row">
+            <span class="tier-name">{{ t.name }}</span>
+            <span class="tier-price text-gold">¥{{ t.price }}</span>
+            <el-button text size="small" type="danger" @click="removeTier(t.id)">✕</el-button>
+          </div>
+          <el-empty v-if="!tiersLoading && tiers.length === 0" :image-size="40" />
+          <div class="add-row">
+            <el-input v-model="newTier.name" :placeholder="$t('admin.tierName')" size="small" style="width: 120px" />
+            <el-input-number v-model="newTier.price" :min="0" :step="10" size="small" style="width: 120px" />
+            <el-button size="small" @click="addTier" :disabled="!newTier.name.trim()">＋</el-button>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- 作品管理 -->
+      <el-tab-pane :label="$t('menu.artworks')" name="artworks" lazy>
+        <div v-loading="artworksLoading" class="artwork-grid">
+          <div v-for="a in artworks" :key="a.id" class="artwork-item">
+            <el-image :src="`/uploads/${a.image_path}`" fit="cover" class="artwork-img"
+              :preview-src-list="artworkUrls" :initial-index="artworks.indexOf(a)" />
+            <el-button text size="small" type="danger" @click="removeArtwork(a.id)">✕</el-button>
+          </div>
+        </div>
+        <el-empty v-if="!artworksLoading && artworks.length === 0" :image-size="40" />
+        <p class="hint">{{ $t('admin.artworkHint') }}</p>
+      </el-tab-pane>
+
+      <!-- 流程与比例 -->
+      <el-tab-pane :label="$t('settings.tabWorkflow')" name="workflow" lazy>
+        <WorkflowPaymentEditor :artist-id="artist.id" mode="admin" />
+      </el-tab-pane>
+
+      <!-- 问候语（专属库） -->
+      <el-tab-pane :label="$t('admin.greetingTab')" name="greetings" lazy>
+        <GreetingTable :artist-id="artist.id" :preview-name="artist.name" />
+      </el-tab-pane>
+
+      <!-- 约稿须知 -->
+      <el-tab-pane :label="$t('menu.rules')" name="rules" lazy>
+        <el-input v-model="rulesContent" type="textarea" :rows="10" v-loading="rulesLoading" />
+        <el-button type="primary" size="small" style="margin-top: 8px" @click="saveRules" :loading="savingRules">
+          {{ $t('settings.save') }}
+        </el-button>
+      </el-tab-pane>
+    </el-tabs>
+  </el-drawer>
+</template>
+
+<script setup>
+import { ref, watch, computed } from 'vue'
+import { adminApi } from '../../api/index.js'
+import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
+import GreetingTable from '../../components/admin/GreetingTable.vue'
+
+const { t } = useI18n()
+const visible = defineModel({ type: Boolean, default: false })
+const props = defineProps({ artist: { type: Object, default: null } })
+
+const tab = ref('profile')
+const saving = ref(false)
+
+// 资料
+const profileLoading = ref(false)
+const profile = ref({})
+// 档位
+const tiersLoading = ref(false)
+const tiers = ref([])
+const newTier = ref({ name: '', price: 0 })
+// 作品
+const artworksLoading = ref(false)
+const artworks = ref([])
+const artworkUrls = computed(() => artworks.value.map(a => `/uploads/${a.image_path}`))
+// 须知
+const rulesLoading = ref(false)
+const rulesContent = ref('')
+const savingRules = ref(false)
+
+watch(() => props.artist, async (a) => {
+  if (!a) return
+  tab.value = 'profile'
+  // 加载资料
+  profileLoading.value = true
+  try {
+    const p = await adminApi.getArtistProfile(a.id)
+    profile.value = { name: p.name, bio: p.bio || '', status: p.status, artist_code: p.artist_code || '', contact_qq: p.contact_qq || '' }
+  } catch (err) { ElMessage.error(err.message) }
+  finally { profileLoading.value = false }
+  // 预加载档位
+  loadTiers()
+}, { immediate: true })
+
+watch(tab, (tabName) => {
+  if (tabName === 'tiers') loadTiers()
+  if (tabName === 'artworks') loadArtworks()
+  if (tabName === 'rules') loadRules()
+})
+
+async function loadTiers() {
+  if (!props.artist) return
+  tiersLoading.value = true
+  try { tiers.value = await adminApi.getArtistTiers(props.artist.id) }
+  catch (err) { ElMessage.error(err.message) }
+  finally { tiersLoading.value = false }
+}
+
+async function loadArtworks() {
+  if (!props.artist) return
+  artworksLoading.value = true
+  try { artworks.value = await adminApi.getArtistArtworks(props.artist.id) }
+  catch (err) { ElMessage.error(err.message) }
+  finally { artworksLoading.value = false }
+}
+
+async function loadRules() {
+  if (!props.artist) return
+  rulesLoading.value = true
+  try {
+    const r = await adminApi.getArtistRules(props.artist.id)
+    rulesContent.value = r?.content || ''
+  } catch (err) { ElMessage.error(err.message) }
+  finally { rulesLoading.value = false }
+}
+
+async function saveProfile() {
+  saving.value = true
+  try {
+    await adminApi.updateArtistProfile(props.artist.id, profile.value)
+    ElMessage.success(t('settings.saved'))
+  } catch (err) { ElMessage.error(err.message) }
+  finally { saving.value = false }
+}
+
+async function addTier() {
+  try {
+    await adminApi.createArtistTier(props.artist.id, { name: newTier.value.name.trim(), price: newTier.value.price })
+    newTier.value = { name: '', price: 0 }
+    await loadTiers()
+  } catch (err) { ElMessage.error(err.message) }
+}
+
+async function removeTier(tid) {
+  try { await adminApi.deleteArtistTier(props.artist.id, tid); await loadTiers() }
+  catch (err) { ElMessage.error(err.message) }
+}
+
+async function removeArtwork(aid) {
+  try { await adminApi.deleteArtistArtwork(props.artist.id, aid); await loadArtworks() }
+  catch (err) { ElMessage.error(err.message) }
+}
+
+async function saveRules() {
+  savingRules.value = true
+  try {
+    await adminApi.updateArtistRules(props.artist.id, rulesContent.value)
+    ElMessage.success(t('settings.saved'))
+  } catch (err) { ElMessage.error(err.message) }
+  finally { savingRules.value = false }
+}
+</script>
+
+<style scoped>
+.tier-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-color); }
+.tier-name { font-weight: 600; }
+.tier-price { margin-left: auto; font-weight: 700; }
+.add-row { display: flex; gap: 8px; margin-top: 12px; }
+.artwork-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.artwork-item { position: relative; }
+.artwork-img { width: 100%; height: 120px; border-radius: 6px; }
+.artwork-item .el-button { position: absolute; top: 4px; right: 4px; }
+.hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+</style>

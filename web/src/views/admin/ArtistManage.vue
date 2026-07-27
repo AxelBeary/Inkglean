@@ -29,8 +29,9 @@
           </el-select>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="200" fixed="right">
+      <el-table-column :label="$t('common.actions')" width="260" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
           <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
           <el-button size="small" type="danger" @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
         </template>
@@ -130,6 +131,8 @@
         </el-button>
       </template>
     </el-dialog>
+    <!-- 画师详情抽屉 -->
+    <ArtistDetailDrawer v-model="detailVisible" :artist="detailArtist" />
   </div>
 </template>
 
@@ -138,6 +141,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { adminApi, authApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
 
 const { t } = useI18n()
 const artists = ref([])
@@ -146,6 +150,14 @@ const dialogVisible = ref(false)
 const saving = ref(false)
 
 const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
+
+// 画师详情抽屉
+const detailVisible = ref(false)
+const detailArtist = ref(null)
+function openDetail(row) {
+  detailArtist.value = row
+  detailVisible.value = true
+}
 
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 

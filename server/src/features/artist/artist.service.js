@@ -22,7 +22,7 @@ export function getAllArtists() {
   return db.prepare('SELECT * FROM artists WHERE deleted_at IS NULL ORDER BY created_at ASC').all()
 }
 
-export function createArtist({ qqNumber, name, subdomain, bio, artistCode }) {
+export async function createArtist({ qqNumber, name, subdomain, bio, artistCode }) {
   // 校验子域名格式
   if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
     throw new Error('子域名只能包含小写字母、数字和连字符，2-20个字符')
@@ -48,6 +48,10 @@ export function createArtist({ qqNumber, name, subdomain, bio, artistCode }) {
   // 初始化空的约稿须知
   db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)')
     .run(result.lastInsertRowid, '')
+
+  // 初始化流程与比例（从默认模板复制）
+  const { seedArtistStages } = await import('./workflow.service.js')
+  seedArtistStages(result.lastInsertRowid)
 
   return getArtistById(result.lastInsertRowid)
 }

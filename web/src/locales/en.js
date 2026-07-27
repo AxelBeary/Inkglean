@@ -41,12 +41,13 @@ export default {
   },
   artistHome: {
     weibo: '🔗 My Weibo', bilibili: '📺 My Bilibili', commission: '🎨 Commission me', track: '📋 Track order',
-    priceList: '💰 Price list', artworks: '🖼 Portfolio', rules: '📜 Commission guidelines',
+    priceList: '💰 Price list', artworks: '🖼 Portfolio', rules: '📜 Commission guidelines', workflow: '📐 Workflow & Payment',
     aboutDays: '⏱ ~{n} days', loadFailed: 'Artist not found or failed to load',
     statusOpen: '✅ Open for commissions', statusFull: '⏳ Fully booked', statusBreak: '💤 On break'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
+    workflowLabel: 'Workflow',
     descLabel: 'Description', descPlaceholder: 'Describe what you want: character features, pose, style, background, etc.',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
     qqLabel: 'Your QQ number', qqPlaceholder: 'The artist will contact you via QQ',
@@ -148,15 +149,24 @@ export default {
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
   settings: {
-    title: '⚙ Page Settings', nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
+    title: 'Page Settings', tabProfile: 'Profile', tabWorkflow: 'Workflow & Payment',
+    nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
-    statusLabel: 'Page status', statusOpen: '✅ Open', statusFull: '⏳ Full', statusBreak: '💤 On break',
+    statusLabel: 'Page status', statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     weiboLabel: 'Weibo link (optional)', bilibiliLabel: 'Bilibili link (optional)',
     contactQqLabel: 'Contact QQ (visible to clients)', contactQqPlaceholder: 'Leave blank to use your login QQ',
     contactQqHint: 'Clients who forgot their order number will see this QQ to contact you',
     notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
     save: 'Save settings', saved: 'Settings saved'
+  },
+  workflow: {
+    stageList: 'Workflow Stages', paymentBar: 'Payment Split', overview: 'Full Workflow',
+    addPlaceholder: 'New stage name, e.g. "Detailing"', final: 'Final', auto: 'Auto',
+    deleteHint: 'Delete this stage?', deletePayHint: 'This stage\'s payment % will merge into the final payment. Delete?',
+    savePayment: 'Save Split', unsaved: 'Unsaved payment changes',
+    saved: 'Payment split saved', detached: 'Payment node removed, % merged into final',
+    dragHandle: 'Drag to adjust ratio', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate'
   },
   admin: {
     backToAdmin: 'Back to dashboard', panelTitle: 'Admin panel',
@@ -185,6 +195,13 @@ export default {
     greetingManage: 'Greeting Manager', greetingPlaceholder: 'Enter greeting, use {name} for artist name',
     greetingPreview: 'Preview', greetingEmpty: 'Please enter greeting text',
     greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
-    slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night'
+    slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
+    defaultWorkflow: 'Default Workflow Template', defaultWorkflowHint: 'Changes only affect newly registered artists. Existing artists are not affected.',
+    resetTemplate: 'Reset to factory default', resetConfirm: 'Restore factory default template? Your custom template will be overwritten.', resetDone: 'Factory default restored',
+    manage: 'Manage', artistDetail: 'Artist Detail', tierName: 'Tier name',
+    artworkHint: 'Artwork images must be uploaded via the artist dashboard. Here you can only view and delete.',
+    greetingTab: 'Greetings',
+    greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',
+    greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.'
   }
 }

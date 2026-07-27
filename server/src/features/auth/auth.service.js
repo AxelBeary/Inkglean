@@ -130,9 +130,10 @@ export function verifySession(token) {
   const [payload, sig] = token.split('.')
   if (!payload || !sig) return null
 
-  const expected = crypto.createHmac('sha256', SECRET).update(payload).digest()
-  const actual = Buffer.from(sig, 'base64url')
-  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null
+  const expectedSig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
+  const expectedBuf = Buffer.from(expectedSig)
+  const actualBuf = Buffer.from(sig)
+  if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) return null
 
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString())

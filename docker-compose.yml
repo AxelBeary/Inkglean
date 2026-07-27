@@ -11,6 +11,9 @@ services:
     container_name: commission-web
     restart: unless-stopped
     # 生产环境：仅 expose 给 Caddy 反向代理，不映射到宿主机
+    # 开发调试：临时开放端口映射（上线时删除 ports，保留 expose）
+    ports:
+      - "3000:3000"
     expose:
       - "3000"
     volumes:

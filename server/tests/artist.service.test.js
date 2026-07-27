@@ -8,8 +8,8 @@ describe('画师服务 (Artist Service)', () => {
   })
 
   // TC-R-01: 创建画师 — 正常（含身份码自动生成）
-  it('TC-R-01: 创建画师并自动初始化须知和身份码', () => {
-    const artist = artistService.createArtist({
+  it('TC-R-01: 创建画师并自动初始化须知和身份码', async () => {
+    const artist = await artistService.createArtist({
       qqNumber: '111',
       name: '测试',
       subdomain: 'test'
@@ -25,8 +25,8 @@ describe('画师服务 (Artist Service)', () => {
   })
 
   // TC-R-01b: 创建画师 — 自定义身份码
-  it('TC-R-01b: 自定义身份码', () => {
-    const artist = artistService.createArtist({
+  it('TC-R-01b: 自定义身份码', async () => {
+    const artist = await artistService.createArtist({
       qqNumber: '111',
       name: '测试',
       subdomain: 'test',
@@ -37,24 +37,24 @@ describe('画师服务 (Artist Service)', () => {
   })
 
   // TC-R-01c: 创建画师 — 身份码重复
-  it('TC-R-01c: 身份码重复抛出错误', () => {
-    artistService.createArtist({ qqNumber: '111', name: 'A', subdomain: 'aaa', artistCode: 'QY' })
+  it('TC-R-01c: 身份码重复抛出错误', async () => {
+    await artistService.createArtist({ qqNumber: '111', name: 'A', subdomain: 'aaa', artistCode: 'QY' })
 
-    expect(() => {
+    await expect(
       artistService.createArtist({ qqNumber: '222', name: 'B', subdomain: 'bbb', artistCode: 'QY' })
-    }).toThrow('已被使用')
+    ).rejects.toThrow('已被使用')
   })
 
   // TC-R-02: 创建画师 — 子域名格式非法
-  it('TC-R-02: 非法子域名抛出错误', () => {
-    expect(() => {
+  it('TC-R-02: 非法子域名抛出错误', async () => {
+    await expect(
       artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'AB CD!' })
-    }).toThrow('子域名只能包含')
+    ).rejects.toThrow('子域名只能包含')
   })
 
   // TC-R-03: 更新画师 — 白名单字段
-  it('TC-R-03: 只更新白名单字段，忽略非法字段', () => {
-    const artist = artistService.createArtist({ qqNumber: '111', name: '旧名', subdomain: 'test' })
+  it('TC-R-03: 只更新白名单字段，忽略非法字段', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '旧名', subdomain: 'test' })
     const updated = artistService.updateArtist(artist.id, { name: '新名', hack: 'x' })
 
     expect(updated.name).toBe('新名')
@@ -62,16 +62,16 @@ describe('画师服务 (Artist Service)', () => {
   })
 
   // TC-R-03b: 更新画师 — 修改身份码
-  it('TC-R-03b: 更新身份码', () => {
-    const artist = artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+  it('TC-R-03b: 更新身份码', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
     const updated = artistService.updateArtist(artist.id, { artist_code: 'NEWCODE' })
 
     expect(updated.artist_code).toBe('NEWCODE')
   })
 
   // TC-R-04: 价格档位 CRUD
-  it('TC-R-04: 档位创建、读取、更新、删除', () => {
-    const artist = artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+  it('TC-R-04: 档位创建、读取、更新、删除', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
 
     // 创建
     const tier = artistService.createTier(artist.id, { name: '头像', price: 50 })
@@ -94,8 +94,8 @@ describe('画师服务 (Artist Service)', () => {
   })
 
   // TC-R-05: 作品 CRUD
-  it('TC-R-05: 作品创建、读取、删除', () => {
-    const artist = artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+  it('TC-R-05: 作品创建、读取、删除', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
 
     const a1 = artistService.createArtwork(artist.id, { imagePath: 'img/1.png', title: '作品1' })
     const a2 = artistService.createArtwork(artist.id, { imagePath: 'img/2.png', title: '作品2' })

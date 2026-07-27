@@ -271,4 +271,269 @@ export default async function adminRoutes(fastify) {
     greetingService.deleteGreeting(parseInt(request.params.gid))
     return { success: true }
   })
+
+  // ─── 流程与比例管理 ───
+
+  const workflowService = await import('../artist/workflow.service.js')
+
+  /** GET /api/admin/default-workflow — 默认模板 */
+  fastify.get('/api/admin/default-workflow', { preHandler: requireAdmin }, async () => {
+    return workflowService.getDefaultTemplate()
+  })
+
+  /** PUT /api/admin/default-workflow — 更新默认模板 */
+  fastify.put('/api/admin/default-workflow', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object', required: ['nodes'], additionalProperties: false,
+        properties: {
+          nodes: {
+            type: 'array', minItems: 1, maxItems: 30,
+            items: {
+              type: 'object', required: ['name'], additionalProperties: false,
+              properties: {
+                name: { type: 'string', minLength: 1, maxLength: 50 },
+                description: { type: 'string', maxLength: 200 },
+                takesPayment: { type: 'boolean' },
+                basisPoints: { type: 'integer', minimum: 500, maximum: 10000 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request) => {
+    return workflowService.updateDefaultTemplate(request.body.nodes)
+  })
+
+  /** POST /api/admin/default-workflow/reset — 重置出厂模板 */
+  fastify.post('/api/admin/default-workflow/reset', { preHandler: requireAdmin }, async () => {
+    return workflowService.resetDefaultTemplate()
+  })
+
+  /** GET /api/admin/artists/:id/workflow — 查看画师流程 */
+  fastify.get('/api/admin/artists/:id/workflow', { preHandler: requireAdmin }, async (request) => {
+    return { stages: workflowService.getWorkflow(parseInt(request.params.id)) }
+  })
+
+  /** POST /api/admin/artists/:id/workflow — 为画师添加节点 */
+  fastify.post('/api/admin/artists/:id/workflow', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object', required: ['name'], additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          description: { type: 'string', maxLength: 200 }
+        }
+      }
+    }
+  }, async (request) => {
+    return workflowService.addStage(parseInt(request.params.id), request.body)
+  })
+
+  /** PUT /api/admin/artists/:id/workflow/:sid — 编辑画师节点 */
+  fastify.put('/api/admin/artists/:id/workflow/:sid', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          description: { type: 'string', maxLength: 200 },
+          takesPayment: { type: 'boolean' }
+        }
+      }
+    }
+  }, async (request) => {
+    return workflowService.updateStage(parseInt(request.params.id), parseInt(request.params.sid), request.body)
+  })
+
+  /** DELETE /api/admin/artists/:id/workflow/:sid — 删除画师节点 */
+  fastify.delete('/api/admin/artists/:id/workflow/:sid', { preHandler: requireAdmin }, async (request) => {
+    return workflowService.deleteStage(parseInt(request.params.id), parseInt(request.params.sid))
+  })
+
+  /** PUT /api/admin/artists/:id/workflow/reorder — 画师节点排序 */
+  fastify.put('/api/admin/artists/:id/workflow/reorder', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object', required: ['orderedIds'], additionalProperties: false,
+        properties: { orderedIds: { type: 'array', items: { type: 'integer' }, minItems: 1, maxItems: 50 } }
+      }
+    }
+  }, async (request) => {
+    return { stages: workflowService.reorderStages(parseInt(request.params.id), request.body.orderedIds) }
+  })
+
+  /** PUT /api/admin/artists/:id/workflow/payment — 画师比例保存 */
+  fastify.put('/api/admin/artists/:id/workflow/payment', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object', required: ['nodes'], additionalProperties: false,
+        properties: {
+          nodes: {
+            type: 'array', maxItems: 20,
+            items: {
+              type: 'object', required: ['id', 'basisPoints'], additionalProperties: false,
+              properties: {
+                id: { type: 'integer' },
+                basisPoints: { type: 'integer', minimum: 500, maximum: 9500 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request) => {
+    return { stages: workflowService.savePayment(parseInt(request.params.id), request.body.nodes) }
+  })
+
+  // ─── 画师全设置代理（管理员编辑任意画师） ───
+
+  // P2-7: 统一 params schema
+  const intId = { params: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] } }
+  const intIdTid = { params: { type: 'object', properties: { id: { type: 'integer' }, tid: { type: 'integer' } }, required: ['id', 'tid'] } }
+  const intIdAid = { params: { type: 'object', properties: { id: { type: 'integer' }, aid: { type: 'integer' } }, required: ['id', 'aid'] } }
+
+  /** GET /api/admin/artists/:id/profile — 画师资料 */
+  fastify.get('/api/admin/artists/:id/profile', { preHandler: requireAdmin, schema: intId }, async (request, reply) => {
+    const a = artistService.getArtistById(request.params.id)
+    if (!a) return reply.code(404).send({ error: '画师不存在' })
+    return a
+  })
+
+  /** PUT /api/admin/artists/:id/profile — 更新画师资料（P1-2: 字段白名单） */
+  fastify.put('/api/admin/artists/:id/profile', {
+    preHandler: requireAdmin,
+    schema: {
+      ...intId,
+      body: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          bio: { type: 'string', maxLength: 500 },
+          status: { type: 'string', enum: ['open', 'full', 'break'] },
+          artist_code: { type: 'string', maxLength: 10 },
+          contact_qq: { type: 'string', maxLength: 15 },
+          weibo_url: { type: 'string', maxLength: 300 },
+          bilibili_url: { type: 'string', maxLength: 300 },
+          notify_enabled: { type: 'boolean' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const a = artistService.getArtistById(request.params.id)
+    if (!a) return reply.code(404).send({ error: '画师不存在' })
+    return artistService.updateArtist(a.id, request.body)
+  })
+
+  /** GET /api/admin/artists/:id/tiers — 档位列表 */
+  fastify.get('/api/admin/artists/:id/tiers', { preHandler: requireAdmin, schema: intId }, async (request) => {
+    return artistService.getTiers(request.params.id)
+  })
+
+  /** POST /api/admin/artists/:id/tiers — 创建档位（P1-3: schema） */
+  fastify.post('/api/admin/artists/:id/tiers', {
+    preHandler: requireAdmin,
+    schema: {
+      ...intId,
+      body: {
+        type: 'object', required: ['name', 'price'], additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          price: { type: 'number', minimum: 0 },
+          description: { type: 'string', maxLength: 500 },
+          work_days: { type: 'integer', minimum: 0 },
+          example_image: { type: 'string', maxLength: 300 }
+        }
+      }
+    }
+  }, async (request) => {
+    return artistService.createTier(request.params.id, request.body)
+  })
+
+  /** PUT /api/admin/artists/:id/tiers/:tid — 更新档位（P1-3 + P1-4） */
+  fastify.put('/api/admin/artists/:id/tiers/:tid', {
+    preHandler: requireAdmin,
+    schema: {
+      ...intIdTid,
+      body: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          price: { type: 'number', minimum: 0 },
+          description: { type: 'string', maxLength: 500 },
+          work_days: { type: 'integer', minimum: 0 },
+          example_image: { type: 'string', maxLength: 300 },
+          sort_order: { type: 'integer' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    // P1-4: 校验归属
+    const tiers = artistService.getTiers(request.params.id)
+    if (!tiers.some(t => t.id === request.params.tid)) return reply.code(404).send({ error: '档位不属于该画师' })
+    return artistService.updateTier(request.params.tid, request.body)
+  })
+
+  /** DELETE /api/admin/artists/:id/tiers/:tid — 删除档位（P1-4） */
+  fastify.delete('/api/admin/artists/:id/tiers/:tid', { preHandler: requireAdmin, schema: intIdTid }, async (request, reply) => {
+    const tiers = artistService.getTiers(request.params.id)
+    if (!tiers.some(t => t.id === request.params.tid)) return reply.code(404).send({ error: '档位不属于该画师' })
+    artistService.deleteTier(request.params.tid)
+    return { success: true }
+  })
+
+  /** GET /api/admin/artists/:id/artworks — 作品列表 */
+  fastify.get('/api/admin/artists/:id/artworks', { preHandler: requireAdmin, schema: intId }, async (request) => {
+    return artistService.getArtworks(request.params.id)
+  })
+
+  /** POST /api/admin/artists/:id/artworks — 添加作品（P1-3） */
+  fastify.post('/api/admin/artists/:id/artworks', {
+    preHandler: requireAdmin,
+    schema: {
+      ...intId,
+      body: {
+        type: 'object', required: ['image_path'], additionalProperties: false,
+        properties: {
+          image_path: { type: 'string', minLength: 1, maxLength: 300 },
+          title: { type: 'string', maxLength: 100 }
+        }
+      }
+    }
+  }, async (request) => {
+    return artistService.createArtwork(request.params.id, request.body)
+  })
+
+  /** DELETE /api/admin/artists/:id/artworks/:aid — 删除作品（P1-4） */
+  fastify.delete('/api/admin/artists/:id/artworks/:aid', { preHandler: requireAdmin, schema: intIdAid }, async (request, reply) => {
+    const artworks = artistService.getArtworks(request.params.id)
+    if (!artworks.some(a => a.id === request.params.aid)) return reply.code(404).send({ error: '作品不属于该画师' })
+    artistService.deleteArtwork(request.params.aid)
+    return { success: true }
+  })
+
+  /** GET /api/admin/artists/:id/rules — 须知 */
+  fastify.get('/api/admin/artists/:id/rules', { preHandler: requireAdmin, schema: intId }, async (request) => {
+    return artistService.getRules(request.params.id)
+  })
+
+  /** PUT /api/admin/artists/:id/rules — 更新须知 */
+  fastify.put('/api/admin/artists/:id/rules', {
+    preHandler: requireAdmin,
+    schema: {
+      ...intId,
+      body: {
+        type: 'object', required: ['content'], additionalProperties: false,
+        properties: { content: { type: 'string', maxLength: 10000 } }
+      }
+    }
+  }, async (request) => {
+    return artistService.updateRules(request.params.id, request.body.content)
+  })
 }

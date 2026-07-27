@@ -59,7 +59,8 @@ export const authApi = {
 // ─── 画师公开主页 ───
 export const artistPublicApi = {
   getAll: () => api.get('/artists'),
-  getProfile: (subdomain) => api.get(`/artists/${subdomain}`)
+  getProfile: (subdomain) => api.get(`/artists/${subdomain}`),
+  getWorkflow: (subdomain) => api.get(`/artists/${subdomain}/workflow`)
 }
 
 // ─── 画师后台 ───
@@ -93,7 +94,14 @@ export const artistApi = {
   // 统计
   getStats: () => api.get('/artist/stats'),
   // 问候语
-  getGreeting: () => api.get('/artist/greeting')
+  getGreeting: () => api.get('/artist/greeting'),
+  // 流程与比例
+  getWorkflow: () => api.get('/artist/workflow'),
+  addStage: (data) => api.post('/artist/workflow', data),
+  updateStage: (id, data) => api.put(`/artist/workflow/${id}`, data),
+  deleteStage: (id) => api.delete(`/artist/workflow/${id}`),
+  reorderStages: (orderedIds) => api.put('/artist/workflow/reorder', { orderedIds }),
+  savePayment: (nodes) => api.put('/artist/workflow/payment', { nodes })
 }
 
 // ─── 客户端订单 ───
@@ -144,5 +152,28 @@ export const adminApi = {
   getArtistGreetings: (artistId) => api.get(`/admin/artists/${artistId}/greetings`),
   createArtistGreeting: (artistId, data) => api.post(`/admin/artists/${artistId}/greetings`, data),
   updateArtistGreeting: (artistId, gid, data) => api.put(`/admin/artists/${artistId}/greetings/${gid}`, data),
-  deleteArtistGreeting: (artistId, gid) => api.delete(`/admin/artists/${artistId}/greetings/${gid}`)
+  deleteArtistGreeting: (artistId, gid) => api.delete(`/admin/artists/${artistId}/greetings/${gid}`),
+  // 流程与比例 — 默认模板
+  getDefaultWorkflow: () => api.get('/admin/default-workflow'),
+  updateDefaultWorkflow: (nodes) => api.put('/admin/default-workflow', { nodes }),
+  resetDefaultWorkflow: () => api.post('/admin/default-workflow/reset'),
+  // 流程与比例 — 画师
+  getArtistWorkflow: (artistId) => api.get(`/admin/artists/${artistId}/workflow`),
+  adminAddStage: (artistId, data) => api.post(`/admin/artists/${artistId}/workflow`, data),
+  adminUpdateStage: (artistId, sid, data) => api.put(`/admin/artists/${artistId}/workflow/${sid}`, data),
+  adminDeleteStage: (artistId, sid) => api.delete(`/admin/artists/${artistId}/workflow/${sid}`),
+  adminReorderStages: (artistId, orderedIds) => api.put(`/admin/artists/${artistId}/workflow/reorder`, { orderedIds }),
+  adminSavePayment: (artistId, nodes) => api.put(`/admin/artists/${artistId}/workflow/payment`, { nodes }),
+  // 画师全设置代理
+  getArtistProfile: (id) => api.get(`/admin/artists/${id}/profile`),
+  updateArtistProfile: (id, data) => api.put(`/admin/artists/${id}/profile`, data),
+  getArtistTiers: (id) => api.get(`/admin/artists/${id}/tiers`),
+  createArtistTier: (id, data) => api.post(`/admin/artists/${id}/tiers`, data),
+  updateArtistTier: (id, tid, data) => api.put(`/admin/artists/${id}/tiers/${tid}`, data),
+  deleteArtistTier: (id, tid) => api.delete(`/admin/artists/${id}/tiers/${tid}`),
+  getArtistArtworks: (id) => api.get(`/admin/artists/${id}/artworks`),
+  createArtistArtwork: (id, data) => api.post(`/admin/artists/${id}/artworks`, data),
+  deleteArtistArtwork: (id, aid) => api.delete(`/admin/artists/${id}/artworks/${aid}`),
+  getArtistRules: (id) => api.get(`/admin/artists/${id}/rules`),
+  updateArtistRules: (id, content) => api.put(`/admin/artists/${id}/rules`, { content })
 }

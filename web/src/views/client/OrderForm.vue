@@ -12,6 +12,11 @@
             </el-select>
           </el-form-item>
 
+          <!-- 流程与收款预览 -->
+          <el-form-item v-if="workflowStages.length" :label="$t('orderForm.workflowLabel')">
+            <WorkflowOverviewStrip :stages="workflowStages" />
+          </el-form-item>
+
           <!-- 需求描述 -->
           <el-form-item :label="$t('orderForm.descLabel')" prop="description">
             <el-input v-model="form.description" type="textarea" :rows="5"
@@ -92,6 +97,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import Disclaimer from '../../components/Disclaimer.vue'
+import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -107,6 +113,7 @@ const showSuccess = ref(false)
 const resultNo = ref('')
 const refFileList = ref([])
 const uploadedRefs = ref([])
+const workflowStages = ref([])
 // uid → filePath 映射，用于删除时精确匹配
 const refUidMap = ref(new Map())
 
@@ -194,6 +201,10 @@ onMounted(async () => {
     artist.value = data
     tiers.value = data.tiers || []
     rulesContent.value = data.rules || ''
+    // 加载流程（静默失败不阻塞下单）
+    artistPublicApi.getWorkflow(subdomain)
+      .then(res => { workflowStages.value = res.stages || [] })
+      .catch(() => {})
   } catch (err) {
     ElMessage.error(err.message || t('orderForm.loadFailed'))
   } finally {

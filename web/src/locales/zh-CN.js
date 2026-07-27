@@ -41,12 +41,13 @@ export default {
   },
   artistHome: {
     weibo: '🔗 我的微博', bilibili: '📺 我的B站', commission: '🎨 我要约稿', track: '📋 查询进度',
-    priceList: '💰 价格表', artworks: '🖼 作品展示', rules: '📜 约稿须知',
+    priceList: '💰 价格表', artworks: '🖼 作品展示', rules: '📜 约稿须知', workflow: '📐 约稿流程与收款',
     aboutDays: '⏱ 约 {n} 天', loadFailed: '画师不存在或加载失败',
     statusOpen: '✅ 可约稿', statusFull: '⏳ 已排满', statusBreak: '💤 休息中'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
+    workflowLabel: '约稿流程',
     descLabel: '需求描述', descPlaceholder: '描述你想要的画面：角色特征、姿势、风格、背景等',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
     qqLabel: '你的QQ号', qqPlaceholder: '画师会通过QQ联系你',
@@ -148,15 +149,24 @@ export default {
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
   settings: {
-    title: '⚙ 主页设置', nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
+    title: '主页设置', tabProfile: '基本资料', tabWorkflow: '流程与比例',
+    nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
-    statusLabel: '主页状态', statusOpen: '✅ 可约稿', statusFull: '⏳ 已排满', statusBreak: '💤 休息中',
+    statusLabel: '主页状态', statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     weiboLabel: '微博链接（可选）', bilibiliLabel: 'B站链接（可选）',
     contactQqLabel: '联系QQ（客户可见）', contactQqPlaceholder: '留空则默认使用登录QQ',
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
     save: '保存设置', saved: '设置已保存'
+  },
+  workflow: {
+    stageList: '流程节点', paymentBar: '收款比例', overview: '流程全览',
+    addPlaceholder: '新节点名称，如「细化确认」', final: '尾款', auto: '自动',
+    deleteHint: '确定删除此节点？', deletePayHint: '此节点收款比例将并入尾款，确定删除？',
+    savePayment: '保存比例', unsaved: '有未保存的比例变更',
+    saved: '比例已保存', detached: '已移除该收款节点，比例已并入尾款',
+    dragHandle: '拖拽调整比例', minPercent: '比例不能低于 5%', finalTooLow: '尾款比例不足，无法分配'
   },
   admin: {
     backToAdmin: '返回后台', panelTitle: '管理员面板',
@@ -185,6 +195,13 @@ export default {
     greetingManage: '问候语管理', greetingPlaceholder: '输入问候语，用 {name} 代替画师名',
     greetingPreview: '预览', greetingEmpty: '请输入问候语内容',
     greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
-    slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜'
+    slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
+    defaultWorkflow: '默认流程模板', defaultWorkflowHint: '修改后仅影响新注册画师，已有画师不受影响。',
+    resetTemplate: '重置为出厂默认', resetConfirm: '确定恢复出厂默认模板？当前自定义模板将被覆盖。', resetDone: '已恢复出厂默认',
+    manage: '管理', artistDetail: '画师详情', tierName: '档位名称',
+    artworkHint: '作品图片需通过画师后台上传，此处仅支持查看和删除。',
+    greetingTab: '问候语',
+    greetingGlobalHint: '通用库条目对所有画师生效，与画师专属库混合抽取。',
+    greetingArtistHint: '专属库条目仅对该画师生效，与通用库混合抽取。'
   }
 }

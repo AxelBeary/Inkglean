@@ -1,5 +1,65 @@
 # 变更日志
 
+## v0.8.0 — 2026-07-28
+
+### 🎨 五色主题系统
+- **ThemePicker 组件**：底色三选（跟随系统/亮色/暗色）+ 主色五选（#34dbcb ~ #3445db），替换旧版 ThemeToggle
+- **theme.css**：语义 CSS 变量 + `data-accent="1~5"` 属性选择器 + Element Plus 覆写
+- **霞鹜文楷字体**：woff2 分包加载（`web/src/assets/fonts/wencai/`），全局应用
+- **Pinia theme store**：`base(auto/light/dark)` + `accent(1-5)` + `matchMedia` 系统偏好检测 + localStorage 持久化
+
+### 💬 问候系统
+- **greeting_templates 表**（迁移 v6）：`artist_id` NULL=通用库，非 NULL=画师专属库
+- **greeting.service.js**：按时段（morning/afternoon/evening/night/any）加权随机抽取，`{name}` 占位符替换
+- **画师后台**：`GET /api/artist/greeting` 抽取问候语
+- **管理员后台**：通用库 CRUD（`/api/admin/greetings`）+ 画师专属库 CRUD（`/api/admin/artists/:id/greetings`）
+- **GreetingTable.vue**：通用/专属复用的问候语表格组件
+- **GreetingManage.vue**：管理员问候语管理页
+
+### 📐 流程与比例
+- **artist_workflow_stages 表**（迁移 v5）：单表设计，`takes_payment` + `basis_points`（基点，10000=100%）
+- **default_workflow_template 表**（迁移 v5）：管理员可编辑的出厂模板，新画师自动复制
+- **order_payment_installments 表**（迁移 v5）：订单分期收款记录（预留）
+- **workflow.service.js**：4 条不变式（I1 至少1个收款节点 / I2 尾款自动计算 / I3 最低5% / I4 最多20期），每次写入事务内强制校验
+- **画师后台 API**：`/api/artist/workflow` CRUD + reorder + payment
+- **客户端 API**：`GET /api/artists/:subdomain/workflow` 流程预览
+- **管理员 API**：`/api/admin/default-workflow` 模板管理 + `/api/admin/artists/:id/workflow` 画师流程代理
+- **WorkflowPaymentEditor.vue**：流程节点编辑 + Q弹拖拽比例条
+- **PaymentBar.vue**：比例条可视化（拖拽调节，尾款自动计算）
+- **StageListView.vue**：流程节点列表（vuedraggable 拖拽排序）
+- **WorkflowOverviewStrip.vue**：流程预览条（客户端主页/下单页 + 后台复用）
+- **DefaultWorkflowEditor.vue**：管理员默认流程模板编辑页
+
+### 👤 管理员画师详情抽屉
+- **ArtistDetailDrawer.vue**：6 Tab 抽屉（资料/档位/作品/须知/流程/问候语），管理员无需切换页面即可编辑任意画师的全部设置
+- **管理员代理路由**：`/api/admin/artists/:id/profile|tiers|artworks|rules|orders|status`，复用 `artist.service.js` 业务逻辑
+- **ArtistManage.vue**：画师列表行点击打开详情抽屉
+
+### 🖥 客户页流程展示
+- **ArtistHome.vue**：主页新增流程预览条（WorkflowOverviewStrip）
+- **OrderForm.vue**：下单页展示流程 + 收款计划预览
+
+### 🗄 数据库迁移
+- **v5**（workflow_stages_and_default_template）：创建 `artist_workflow_stages` + `default_workflow_template` + `order_payment_installments` 三表，种子默认模板（7节点），存量画师自动补种子
+- **v6**（greeting_templates）：创建 `greeting_templates` 表，种子 8 条通用问候语
+- **v7**（add_deleted_at_column）：`artists` 表新增 `deleted_at` 列（软删除）
+
+### 新增文件
+- `server/src/features/artist/workflow.service.js` — 流程与比例服务（不变式校验 + 默认模板）
+- `web/src/components/admin/GreetingTable.vue` — 问候语表格组件
+- `web/src/components/artist/WorkflowPaymentEditor.vue` — 流程节点编辑器
+- `web/src/components/artist/PaymentBar.vue` — Q弹比例条
+- `web/src/components/artist/StageListView.vue` — 流程节点列表
+- `web/src/components/shared/WorkflowOverviewStrip.vue` — 流程预览条
+- `web/src/views/admin/ArtistDetailDrawer.vue` — 画师详情抽屉（6 Tab）
+- `web/src/views/admin/DefaultWorkflowEditor.vue` — 默认流程模板编辑
+- `server/tests/workflow.service.test.js` — 流程服务测试（19 个用例）
+
+### 变更统计
+- 测试：63/63 通过 | 构建：vite build 成功
+
+---
+
 ## v0.7.1 — 2026-07-28
 
 ### 🔒 第二轮审计修复（23 项全量关闭）

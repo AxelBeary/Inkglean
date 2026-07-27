@@ -53,6 +53,12 @@
         </div>
       </section>
 
+      <!-- 约稿流程与收款 -->
+      <section class="section" v-if="workflowStages.length">
+        <h2 class="section-title">{{ $t('artistHome.workflow') }}</h2>
+        <WorkflowOverviewStrip :stages="workflowStages" vertical />
+      </section>
+
       <!-- 作品展示 -->
       <section class="section" v-if="artworks.length">
         <h2 class="section-title">{{ $t('artistHome.artworks') }}</h2>
@@ -86,6 +92,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
 import Disclaimer from '../../components/Disclaimer.vue'
+import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 
 const { t } = useI18n()
@@ -96,6 +103,7 @@ const artist = ref(null)
 const tiers = ref([])
 const artworks = ref([])
 const rules = ref('')
+const workflowStages = ref([])
 const loading = ref(true)
 
 // XSS 防护：消毒后的须知 HTML
@@ -113,6 +121,10 @@ onMounted(async () => {
     tiers.value = data.tiers || []
     artworks.value = data.artworks || []
     rules.value = data.rules || ''
+    // 加载流程（静默失败不阻塞主页）
+    artistPublicApi.getWorkflow(subdomain)
+      .then(res => { workflowStages.value = res.stages || [] })
+      .catch(() => {})
   } catch (err) {
     ElMessage.error(err.message || t('artistHome.loadFailed'))
   } finally {
