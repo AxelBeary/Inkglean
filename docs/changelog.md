@@ -1,5 +1,67 @@
 # 变更日志
 
+## v0.7.1 — 2026-07-28
+
+### 🔒 第二轮审计修复（23 项全量关闭）
+
+**P0 安全止血（8 项）：**
+- **签名 URL**：`/uploads/` 不再全公开，新增 `file-sign.js` HMAC 签名 + 15 分钟有效期，仅 `images/` 保留公开
+- **软删除 token 失效**：`requireAuth`/`requireAdmin` 检查 `deleted_at`，已停用画师立即拒绝
+- **token_version 激活**：`deleteArtist` 递增 `token_version`，管理员可强制吊销全部会话
+- **索引修复**：`idx_artists_code` 改为 DROP+CREATE UNIQUE，老库升级不再静默跳过
+- **tierId 归属校验**：`createOrder` 查档位加 `AND artist_id = ?`
+- **filePath 前缀校验**：交付/参考图路径必须匹配 `deliverables/{artistId}/` 或 `references/`，拒绝 `..`
+- **artworks Schema**：`POST /api/artist/artworks` 增加 JSON Schema（imagePath 必填 + 前缀校验）
+- **错误处理器**：500 级别不再透传 `error.message`，改为固定文案 + 服务端日志
+
+**P1 功能正确性（11 项）：**
+- **订单号前缀碰撞**：`generateOrderNo` 改为按 `LIKE '${code}-%'` 查最大序号
+- **pageSize 下界**：`Math.max(1, ...)` 封住负数（order + admin 两处）
+- **401 路由名**：拦截器 `router.push({ name: 'ArtistLogin' })`，抽常量 `ROUTE_LOGIN`
+- **TZ 时区**：docker-compose 加 `TZ=Asia/Shanghai`，vitest 固定 UTC
+- **子域名 Phase 2 标注**：Caddyfile/README/开发自参考/维护说明书四处统一为路径访问 + Phase 2 规划
+- **Dashboard 状态回滚**：影子变量 `lastKnownStatus` 记录上次成功值
+- **图片预览 initial-index**：4 处 `el-image` 补 `:initial-index="idx"`
+- **timingSafeEqual 统一**：`verifySession` 改用 `crypto.timingSafeEqual`
+- **deliverOrder 状态前置**：仅 `wip/revision/done` 允许上传交付文件
+- **updateOrderStatus 事务**：`db.transaction()` 包裹状态+completed_at+compactQueue
+- **Settings 空值保护**：`artist_code` 空串跳过校验，`name` 增加非空校验
+
+**P2 工程化（8 项）：**
+- **用户枚举防护**：send-code 统一返回"若已注册则已发送"，verify 未注册返回 401 无区分信息
+- **GC 内联**：`gcUploads` 改为 import 函数主进程内执行，启动时立即跑一次
+- **进程退出加固**：`uncaughtException` 先 `db.close()` 再退出（500ms 超时 unref）
+- **优雅停机超时**：`Promise.race([app.close(), timeout(10s)])`
+- **CORS 注释修正**：`.env.example` 注释与实现对齐
+- **禁止缩放移除**：`index.html` 删除 `maximum-scale=1.0, user-scalable=no`
+- **安全响应头**：`X-Content-Type-Options`/`X-Frame-Options`/`X-XSS-Protection`/`HSTS`
+- **SEO meta**：`index.html` 补 description + og:title
+
+**技术债（6 项）：**
+- **preHandler 抽取**：6 处重复归属校验 → `requireOwnOrder` 公共 preHandler
+- **死代码清理**：删除 `STATUS_STEP`、`isValidQq` 未用导入、`allowScripts` 字段
+- **补索引**：`idx_artists_qq ON artists(qq_number)`
+- **errorHandler + accept 白名单 + 分页 UI**：全局错误兜底、OrderDetail accept 扩展、OrderList 分页组件
+- **审计注释清理**：57 处 `(P0|P1|P2|S|TC)-\d+` 注释替换为领域描述（安全/可靠性/输入校验等）
+- **`.gitignore` 创建**：排除 node_modules/dist/uploads/.env/*.db/.hermes/
+
+### 新增文件
+- `server/src/shared/file-sign.js` — HMAC 签名 URL 工具
+- `server/src/features/artist/greeting.service.js` — 问候语抽取 + CRUD
+- `web/src/components/ThemePicker.vue` — 主题选择器（底色三选 + 主色五选）
+- `web/src/styles/theme.css` — 语义变量 + 5 色 data-accent + EP 覆写
+- `web/src/assets/fonts/wencai/` — 霞鹜文楷 woff2 分包
+- `web/src/assets/logo.webp` — 平台 Logo
+- `web/src/views/admin/GreetingManage.vue` — 管理员问候语管理
+- `web/src/constants/order.js` — 订单状态/优先级常量
+- `.gitignore` — 版本控制排除规则
+
+### 变更统计
+- 53 个文件，+2663 / -334 行
+- 测试：44/44 通过 | ad-hoc：36/36 通过 | 构建：vite build 成功
+
+---
+
 ## v0.7.0 — 2026-07-27
 
 ### 🔒 第三次审计修复（P1×9 + P2×14 + P3×40+）
