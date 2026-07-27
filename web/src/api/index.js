@@ -4,9 +4,11 @@ import axios from 'axios'
 // API 请求封装
 // ============================================
 
+const API_TIMEOUT_MS = 15000
+
 const api = axios.create({
   baseURL: '/api',
-  timeout: 15000
+  timeout: API_TIMEOUT_MS
 })
 
 // 请求拦截器：自动附加 Token
@@ -21,11 +23,25 @@ api.interceptors.request.use(config => {
 // 响应拦截器：统一错误处理
 api.interceptors.response.use(
   res => res.data,
-  err => {
+  async err => {
     const msg = err.response?.data?.error || '网络错误，请稍后重试'
-    // 401 时清除本地 Token
+    // 401 时清除所有本地认证状态并跳转登录页
     if (err.response?.status === 401) {
       localStorage.removeItem('artist_token')
+      localStorage.removeItem('artist_is_admin')
+      // 动态导入避免循环依赖（store/router 依赖本模块）
+      try {
+        const { useArtistStore } = await import('../stores/artist.js')
+        const { default: router } = await import('../router/index.js')
+        const store = useArtistStore()
+        store.$reset()
+        if (router.currentRoute.value.name !== 'Login') {
+          router.push({ name: 'Login' })
+        }
+      } catch {
+        // 兜底：硬跳转
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(new Error(msg))
   }

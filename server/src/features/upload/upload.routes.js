@@ -20,15 +20,18 @@ const RECOMMENDED_TYPES = ['image/webp', 'image/jpeg', 'image/png']
 // MIME 类型白名单（双重校验，防扩展名伪造）
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
-// 交付文件白名单
+// 交付文件白名单（不含 .svg — SVG 可内嵌脚本，同源存储会导致 XSS）
 const DELIVER_ALLOWED = [
   '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp',
-  '.psd', '.ai', '.svg', '.tiff', '.pdf',
+  '.psd', '.ai', '.tiff', '.pdf',
   '.zip', '.rar', '.7z',
   '.mp4', '.mov',
   '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
   '.txt', '.md'
 ]
+
+// 交付文件 MIME 黑名单（拒绝可执行/可渲染脚本的类型）
+const DELIVER_BLOCKED_MIME = ['image/svg+xml', 'text/html', 'application/xhtml+xml']
 
 /**
  * P0-B: 安全扩展名提取 — basename 剥路径成分 + 正则限字符集
@@ -202,6 +205,11 @@ export default async function uploadRoutes(fastify, opts) {
     // P2-A: 交付文件限额 50MB，覆盖全局 10MB
     const data = await request.file({ limits: { fileSize: DELIVER_MAX_SIZE } })
     if (!data) return reply.code(400).send({ error: '未收到文件' })
+
+    // MIME 黑名单校验（拒绝 SVG/HTML 等可执行脚本类型）
+    if (DELIVER_BLOCKED_MIME.includes(data.mimetype)) {
+      return reply.code(400).send({ error: '不支持此文件格式（SVG/HTML 不允许上传）' })
+    }
 
     try {
       const result = await saveDeliverable(data, join('deliverables', String(request.artist.id)), UPLOAD_DIR)

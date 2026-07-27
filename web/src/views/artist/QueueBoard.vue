@@ -14,7 +14,7 @@
       >
         <template #item="{ element, index }">
           <div class="queue-item" :class="`priority-${element.priority}`">
-            <div class="drag-handle">⠿</div>
+            <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
             <div class="item-body">
               <div class="item-header">
                 <span class="order-no">#{{ element.order_no }}</span>
@@ -44,7 +44,7 @@
                     <el-dropdown-item command="confirmed" v-if="element.status === 'pending'">{{ $t('queue.confirm') }}</el-dropdown-item>
                     <el-dropdown-item command="wip" v-if="element.status === 'confirmed'">{{ $t('queue.startWip') }}</el-dropdown-item>
                     <el-dropdown-item command="done" v-if="['wip','revision'].includes(element.status)">{{ $t('queue.done') }}</el-dropdown-item>
-                    <el-dropdown-item command="delivered">{{ $t('queue.deliver') }}</el-dropdown-item>
+                    <el-dropdown-item command="delivered" v-if="element.status === 'done'">{{ $t('queue.deliver') }}</el-dropdown-item>
                     <el-dropdown-item command="cancelled" divided>{{ $t('queue.cancel') }}</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>

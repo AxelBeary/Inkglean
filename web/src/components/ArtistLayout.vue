@@ -4,7 +4,7 @@
       <!-- 侧边栏 -->
       <el-aside width="220px" class="sidebar">
         <div class="logo">
-          <span class="logo-icon">🎨</span>
+          <span class="logo-icon" aria-hidden="true">🎨</span>
           <span class="logo-text">{{ $t('menu.logo') }}</span>
         </div>
         <el-menu

@@ -21,8 +21,12 @@ export function rateLimit(key, maxHits, windowMs) {
 }
 
 // 定期清理过期桶（unref 避免阻止进程退出 / 测试挂起）
+// 桶数量上限：防止突发大量不同 key 导致内存膨胀
+const MAX_BUCKETS = 100_000
 const _cleanup = setInterval(() => {
   const now = Date.now()
   for (const [k, v] of buckets) if (now > v.resetAt) buckets.delete(k)
+  // 超限保护：超出上限时清空（极端情况，正常不会触发）
+  if (buckets.size > MAX_BUCKETS) buckets.clear()
 }, 60_000)
 _cleanup.unref()

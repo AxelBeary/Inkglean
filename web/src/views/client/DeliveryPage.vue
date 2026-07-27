@@ -66,7 +66,7 @@ function formatSize(bytes) {
 }
 
 function download(url) {
-  window.open(url, '_blank')
+  window.open(url, '_blank', 'noopener')
 }
 
 async function verify() {

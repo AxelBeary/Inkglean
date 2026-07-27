@@ -6,19 +6,20 @@ import { isValidArtistCode } from '../../shared/validate.js'
 // ============================================
 
 export function getArtistBySubdomain(subdomain) {
-  return db.prepare('SELECT * FROM artists WHERE subdomain = ?').get(subdomain)
+  return db.prepare('SELECT * FROM artists WHERE subdomain = ? AND deleted_at IS NULL').get(subdomain)
 }
 
 export function getArtistByQq(qqNumber) {
-  return db.prepare('SELECT * FROM artists WHERE qq_number = ?').get(qqNumber)
+  return db.prepare('SELECT * FROM artists WHERE qq_number = ? AND deleted_at IS NULL').get(qqNumber)
 }
 
 export function getArtistById(id) {
+  // 不过滤 deleted_at — 认证中间件需要找到已删除画师以拒绝其 token
   return db.prepare('SELECT * FROM artists WHERE id = ?').get(id)
 }
 
 export function getAllArtists() {
-  return db.prepare('SELECT * FROM artists ORDER BY created_at ASC').all()
+  return db.prepare('SELECT * FROM artists WHERE deleted_at IS NULL ORDER BY created_at ASC').all()
 }
 
 export function createArtist({ qqNumber, name, subdomain, bio, artistCode }) {
@@ -103,7 +104,8 @@ export function updateArtist(id, fields) {
 }
 
 export function deleteArtist(id) {
-  db.prepare('DELETE FROM artists WHERE id = ?').run(id)
+  // 软删除：标记 deleted_at，保留历史数据可恢复
+  db.prepare('UPDATE artists SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(id)
 }
 
 // ============================================

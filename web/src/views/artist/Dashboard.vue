@@ -59,10 +59,12 @@ const stats = ref(null)
 const currentStatus = ref('open')
 
 async function updateStatus(val) {
+  const prev = currentStatus.value
   try {
     await artistApi.updateProfile({ status: val })
     ElMessage.success(t('dashboard.statusUpdated'))
   } catch (err) {
+    currentStatus.value = prev // 回滚 UI 状态
     ElMessage.error(err.message)
   }
 }

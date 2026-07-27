@@ -15,7 +15,11 @@
           :key="artist.id"
           shadow="hover"
           class="artist-card"
+          tabindex="0"
+          role="button"
+          :aria-label="artist.name"
           @click="enterArtist(artist)"
+          @keyup.enter="enterArtist(artist)"
         >
           <div class="artist-avatar">
             <el-avatar :size="80" :src="artist.avatar ? `/uploads/${artist.avatar}` : undefined">
@@ -30,10 +34,10 @@
             </el-tag>
           </div>
           <div class="artist-links" v-if="artist.weiboUrl || artist.bilibiliUrl">
-            <a v-if="artist.weiboUrl" :href="artist.weiboUrl" target="_blank" @click.stop>
+            <a v-if="artist.weiboUrl" :href="artist.weiboUrl" target="_blank" rel="noopener noreferrer" @click.stop>
               {{ $t('landing.weibo') }}
             </a>
-            <a v-if="artist.bilibiliUrl" :href="artist.bilibiliUrl" target="_blank" @click.stop>
+            <a v-if="artist.bilibiliUrl" :href="artist.bilibiliUrl" target="_blank" rel="noopener noreferrer" @click.stop>
               {{ $t('landing.bilibili') }}
             </a>
           </div>

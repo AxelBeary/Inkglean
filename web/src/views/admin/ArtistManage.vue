@@ -190,11 +190,11 @@ async function addArtist() {
   saving.value = true
   try {
     await adminApi.createArtist({
-      qqNumber: form.qqNumber,
-      name: form.name,
-      subdomain: form.subdomain.toLowerCase(),
-      bio: form.bio,
-      artistCode: form.artistCode || undefined
+      qqNumber: form.qqNumber.trim(),
+      name: form.name.trim(),
+      subdomain: form.subdomain.trim().toLowerCase(),
+      bio: form.bio.trim(),
+      artistCode: form.artistCode.trim() || undefined
     })
     ElMessage.success(t('admin.added'))
     dialogVisible.value = false
@@ -234,7 +234,8 @@ async function viewOrders(row) {
   ordersVisible.value = true
   ordersLoading.value = true
   try {
-    orders.value = await adminApi.getArtistOrders(row.id)
+    const res = await adminApi.getArtistOrders(row.id)
+    orders.value = res.items ?? res
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

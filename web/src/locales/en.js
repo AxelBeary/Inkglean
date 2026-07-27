@@ -93,7 +93,8 @@ export default {
     hint: 'Drag cards to reorder. Order is saved immediately. Priority is a label only and does not affect sorting.',
     confirm: '✅ Confirm', startWip: '🎨 Start work', done: '✔ Complete', deliver: '📦 Deliver', cancel: '❌ Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
-    confirmCancel: 'Cancel order #{no}?', confirmCancelTitle: 'Confirm cancellation', statusUpdated: 'Status updated'
+    confirmCancel: 'Cancel order #{no}?', confirmCancelTitle: 'Confirm cancellation', statusUpdated: 'Status updated',
+    dragHint: 'Drag to reorder'
   },
   orderList: {
     title: '📦 Order Management', all: 'All',
@@ -109,7 +110,10 @@ export default {
     references: 'Reference images', notes: 'Notes', noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', cancelConfirm: 'Cancel this order?', confirmTitle: 'Confirm',
-    statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!'
+    statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
+    uploadTip: 'Images and archives supported, max 50MB per file',
+    invalidFileType: 'Unsupported file type. Please upload an image or archive',
+    fileTooLarge: 'File too large (max 50MB)', referenceImage: 'Reference image'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -134,7 +138,7 @@ export default {
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',
     tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet — upload some!',
-    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?'
+    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',

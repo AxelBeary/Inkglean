@@ -27,7 +27,7 @@ function countCodePoints(str) {
  */
 export function clamp(value, type) {
   if (value == null) return null
-  const str = String(value)
+  const str = String(value).trim()
   const max = LIMITS[type] || 500
   if (countCodePoints(str) <= max) return str
   // 按 code point 截断，不会在 surrogate pair 中间切开

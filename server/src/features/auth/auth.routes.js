@@ -80,7 +80,7 @@ export default async function authRoutes(fastify) {
     const result = verifyLoginCode(qqNumber, code)
     if (!result.valid) return reply.code(401).send({ error: result.error })
 
-    const token = createSession(result.artist.id)
+    const token = createSession(result.artist.id, result.artist.token_version)
     const isAdmin = result.artist.qq_number === getAdminQq()
 
     return {
@@ -97,8 +97,10 @@ export default async function authRoutes(fastify) {
 
   /**
    * GET /api/auth/me
+   * 返回当前画师信息 + isAdmin 标记（前端刷新时以此为准）
    */
   fastify.get('/api/auth/me', { preHandler: requireAuth }, async (request) => {
-    return request.artist
+    const isAdmin = request.artist.qq_number === getAdminQq()
+    return { ...request.artist, isAdmin }
   })
 }

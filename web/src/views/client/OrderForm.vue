@@ -26,7 +26,7 @@
               :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('orderForm.refExceed'))"
               :on-remove="handleRefRemove"
             >
-              <el-icon><Plus /></el-icon>
+              <el-icon aria-label="上传参考图"><Plus /></el-icon>
             </el-upload>
           </el-form-item>
 
@@ -107,6 +107,8 @@ const showSuccess = ref(false)
 const resultNo = ref('')
 const refFileList = ref([])
 const uploadedRefs = ref([])
+// uid → filePath 映射，用于删除时精确匹配
+const refUidMap = ref(new Map())
 
 // XSS 防护：须知内容消毒后渲染
 const sanitizedRules = computed(() => sanitizeHtml(rulesContent.value))
@@ -145,14 +147,20 @@ async function handleRefUpload({ file }) {
   try {
     const uploaded = await uploadApi.reference(file)
     uploadedRefs.value.push(uploaded.filePath)
+    refUidMap.value.set(file.uid, uploaded.filePath)
   } catch (err) {
     ElMessage.error(err.message || t('common.uploadFailed'))
+    throw err // 让 el-upload 标记该文件为 error 状态
   }
 }
 
 function handleRefRemove(file) {
-  const idx = refFileList.value.indexOf(file)
-  if (idx > -1) uploadedRefs.value.splice(idx, 1)
+  const filePath = refUidMap.value.get(file.uid)
+  if (filePath) {
+    const idx = uploadedRefs.value.indexOf(filePath)
+    if (idx > -1) uploadedRefs.value.splice(idx, 1)
+    refUidMap.value.delete(file.uid)
+  }
 }
 
 async function submit() {
@@ -164,9 +172,9 @@ async function submit() {
     const order = await orderApi.create({
       subdomain,
       tierId: form.tierId,
-      description: form.description,
-      clientQq: form.clientQq,
-      clientName: form.clientName,
+      description: form.description.trim(),
+      clientQq: form.clientQq.trim(),
+      clientName: form.clientName.trim(),
       clientNotify: form.notifyEnabled,
       agreeRules: form.agreed,
       references: uploadedRefs.value

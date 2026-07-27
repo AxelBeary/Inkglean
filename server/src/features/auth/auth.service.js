@@ -6,6 +6,12 @@ import { getArtistByQq } from '../artist/artist.service.js'
 // 认证服务 - 登录码生成与验证
 // ============================================
 
+const CODE_MIN = 100000
+const CODE_MAX = 1000000
+const CODE_TTL_MS = 5 * 60 * 1000
+const MAX_ATTEMPTS = 5
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
 /**
  * P0-1: 签名密钥 — 生产环境必须设置 SESSION_SECRET，否则启动即崩溃
  */
@@ -41,8 +47,8 @@ export function generateLoginCode(qqNumber) {
   db.prepare('DELETE FROM login_codes WHERE artist_id = ?').run(artist.id)
 
   // P0-4d: randomInt 上界开区间修正（100000-999999）
-  const code = String(crypto.randomInt(100000, 1000000))
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
+  const code = String(crypto.randomInt(CODE_MIN, CODE_MAX))
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
   db.prepare('INSERT INTO login_codes (artist_id, code, expires_at) VALUES (?, ?, ?)')
     .run(artist.id, code, expiresAt)
@@ -75,7 +81,7 @@ export function verifyLoginCode(qqNumber, code) {
   }
 
   // 尝试次数检查
-  if (record.attempts >= 5) {
+  if (record.attempts >= MAX_ATTEMPTS) {
     db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
     return { valid: false, error: '尝试次数过多，请重新获取登录码' }
   }
@@ -105,15 +111,17 @@ export function verifyLoginCode(qqNumber, code) {
 
 /**
  * 创建会话 Token（HMAC签名，无状态）
+ * payload 中包含 token_version，用于服务端主动使旧 token 失效
  */
-export function createSession(artistId) {
-  const payload = Buffer.from(JSON.stringify({ id: artistId, t: Date.now() })).toString('base64url')
+export function createSession(artistId, tokenVersion) {
+  const payload = Buffer.from(JSON.stringify({ id: artistId, t: Date.now(), v: tokenVersion || 1 })).toString('base64url')
   const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
   return `${payload}.${sig}`
 }
 
 /**
  * 验证会话 Token
+ * 返回 payload（含 id, t, v）或 null
  */
 export function verifySession(token) {
   if (!token) return null
@@ -126,7 +134,7 @@ export function verifySession(token) {
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
     // 7天过期
-    if (Date.now() - data.t > 7 * 24 * 60 * 60 * 1000) return null
+        if (Date.now() - data.t > SESSION_TTL_MS) return null
     return data
   } catch {
     return null

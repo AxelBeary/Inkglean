@@ -141,7 +141,7 @@ function formatDate(str) {
 }
 
 function downloadFile(url) {
-  window.open(url, '_blank')
+  window.open(url, '_blank', 'noopener')
 }
 
 async function copyText(text) {

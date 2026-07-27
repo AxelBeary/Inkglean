@@ -9,6 +9,7 @@
         <template #default="{ row }">
           <el-image v-if="row.example_image" :src="`/uploads/${row.example_image}`"
             fit="cover" style="width: 56px; height: 56px; border-radius: 6px"
+            :alt="row.name"
             :preview-src-list="[`/uploads/${row.example_image}`]" />
           <span v-else style="color: var(--text-muted)">—</span>
         </template>

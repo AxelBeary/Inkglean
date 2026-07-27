@@ -78,7 +78,8 @@ function formatDate(str) {
 async function loadOrders() {
   loading.value = true
   try {
-    orders.value = await artistApi.getOrders(filter.value || undefined)
+    const res = await artistApi.getOrders(filter.value || undefined)
+    orders.value = res.items ?? res
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

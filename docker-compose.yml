@@ -10,11 +10,9 @@ services:
       dockerfile: Dockerfile
     container_name: commission-web
     restart: unless-stopped
-    # ⚠️ P1-9: 生产环境请改为 expose 并删除 ports，由 Caddy 反向代理
-    # expose:
-    #   - "3000"
-    ports:
-      - "3000:3000"
+    # 生产环境：仅 expose 给 Caddy 反向代理，不映射到宿主机
+    expose:
+      - "3000"
     volumes:
       - ./data:/app/data          # SQLite 数据库持久化
       - ./uploads:/app/uploads    # 上传文件持久化
@@ -25,8 +23,8 @@ services:
       - AUTH_DEV_MODE=false       # 生产环境必须关闭开发模式
       - DB_PATH=/app/data/commission.db
       - UPLOAD_DIR=/app/uploads
+      - TRUST_PROXY=true          # Caddy 为唯一入口，信任所有代理来源
     healthcheck:
-      # P2-4: 加 .catch() 防止网络错误时健康检查误判为健康
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
@@ -47,7 +45,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     env_file:
-      - .env              # P1-10: 提供 DOMAIN 变量给 Caddyfile
+      - .env              # 提供 DOMAIN 变量给 Caddyfile
     depends_on:
       web:
         condition: service_healthy

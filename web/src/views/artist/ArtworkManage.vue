@@ -20,6 +20,7 @@
     <div class="artwork-grid" v-loading="loading">
       <div v-for="art in artworks" :key="art.id" class="artwork-item">
         <el-image :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
+          :alt="art.title || $t('artworks.image')"
           :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)" />
         <div class="artwork-actions">
           <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
@@ -86,8 +87,9 @@ onMounted(loadArtworks)
 .artwork-img { width: 100%; height: 180px; display: block; }
 .artwork-actions {
   position: absolute; bottom: 0; left: 0; right: 0;
-  background: rgba(0,0,0,0.5); padding: 8px; text-align: center;
+  background: var(--overlay-bg, rgba(0,0,0,0.5)); padding: 8px; text-align: center;
   opacity: 0; transition: opacity 0.2s;
 }
-.artwork-item:hover .artwork-actions { opacity: 1; }
+.artwork-item:hover .artwork-actions,
+.artwork-item:focus-within .artwork-actions { opacity: 1; }
 </style>

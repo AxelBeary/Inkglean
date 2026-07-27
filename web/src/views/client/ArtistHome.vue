@@ -43,7 +43,8 @@
         <div class="tier-grid">
           <el-card v-for="tier in tiers" :key="tier.id" shadow="hover" class="tier-card">
             <el-image v-if="tier.example_image" :src="`/uploads/${tier.example_image}`"
-              fit="cover" class="tier-img" :preview-src-list="[`/uploads/${tier.example_image}`]" />
+              fit="cover" class="tier-img" :alt="tier.name"
+              :preview-src-list="[`/uploads/${tier.example_image}`]" />
             <h3>{{ tier.name }}</h3>
             <div class="tier-price">¥{{ tier.price }}</div>
             <p class="tier-desc">{{ tier.description }}</p>
@@ -58,6 +59,7 @@
         <div class="artwork-grid">
           <el-image v-for="art in artworks" :key="art.id"
             :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
+            :alt="art.title || $t('artistHome.artworks')"
             :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)" />
         </div>
       </section>
@@ -140,7 +142,7 @@ onMounted(async () => {
   padding: 6px 16px; border: 1px solid var(--el-color-primary); border-radius: 20px;
   transition: all 0.2s;
 }
-.social-link:hover { background: var(--el-color-primary); color: #fff; }
+.social-link:hover { background: var(--el-color-primary); color: var(--el-color-white, #fff); }
 .action-bar {
   display: flex; gap: 16px; justify-content: center;
   margin: 24px 0 32px;

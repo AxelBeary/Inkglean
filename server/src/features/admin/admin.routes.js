@@ -4,6 +4,7 @@ import * as adminService from './admin.service.js'
 import * as orderService from '../order/order.service.js'
 import { verifyLoginCode } from '../auth/auth.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
+import { clamp, isValidQq } from '../../shared/validate.js'
 import db from '../../db/connection.js'
 
 // ============================================
@@ -28,15 +29,39 @@ export default async function adminRoutes(fastify) {
    * POST /api/admin/artists
    * 添加新画师（可指定身份码）
    */
-  fastify.post('/api/admin/artists', { preHandler: requireAdmin }, async (request, reply) => {
+  fastify.post('/api/admin/artists', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['qqNumber', 'name', 'subdomain'],
+        properties: {
+          qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          subdomain: { type: 'string', minLength: 2, maxLength: 20, pattern: '^[a-z0-9-]+$' },
+          bio: { type: ['string', 'null'], maxLength: 500 },
+          artistCode: { type: ['string', 'null'], maxLength: 10 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     const { qqNumber, name, subdomain, bio, artistCode } = request.body || {}
 
-    if (!qqNumber || !name || !subdomain) {
-      return reply.code(400).send({ error: 'QQ号、昵称和子域名为必填项' })
+    // 子域名保留词黑名单（防止与系统路径冲突）
+    const RESERVED = ['admin', 'api', 'www', 'uploads', 'static', 'login', 'assets', 'dashboard', 'app']
+    if (RESERVED.includes(subdomain)) {
+      return reply.code(400).send({ error: `子域名「${subdomain}」为系统保留词，请换一个` })
     }
 
     try {
-      const artist = artistService.createArtist({ qqNumber, name, subdomain, bio, artistCode })
+      const artist = artistService.createArtist({
+        qqNumber,
+        name: clamp(name, 'name'),
+        subdomain,
+        bio: clamp(bio, 'bio'),
+        artistCode
+      })
       return artist
     } catch (err) {
       return reply.code(400).send({ error: err.message })
@@ -61,12 +86,16 @@ export default async function adminRoutes(fastify) {
 
   /**
    * GET /api/admin/artists/:id/orders
-   * 查看指定画师的订单列表
+   * 查看指定画师的订单列表（支持分页）
    */
   fastify.get('/api/admin/artists/:id/orders', { preHandler: requireAdmin }, async (request, reply) => {
     const artist = artistService.getArtistById(request.params.id)
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
-    return orderService.getArtistOrders(artist.id)
+    const { page, pageSize } = request.query || {}
+    return orderService.getArtistOrders(artist.id, undefined, {
+      page: parseInt(page) || 1,
+      pageSize: Math.min(parseInt(pageSize) || 50, 200)
+    })
   })
 
   /**

@@ -42,7 +42,7 @@
         <div class="status-actions">
           <el-button v-if="order.status === 'pending'" type="primary" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
           <el-button v-if="order.status === 'confirmed'" type="warning" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
-          <el-button v-if="['wip','revision'].includes(order.status)" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
+          <el-button v-if="order.status === 'wip'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
           <el-button v-if="['wip','revision'].includes(order.status)" type="success" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
           <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           <el-button v-if="!['delivered','cancelled'].includes(order.status)" type="danger" plain @click="changeStatus('cancelled')">{{ $t('orderDetail.cancelOrder') }}</el-button>
@@ -55,6 +55,7 @@
         <div class="ref-grid">
           <el-image v-for="ref in order.references" :key="ref.id"
             :src="`/uploads/${ref.file_path}`" fit="cover" class="ref-img"
+            :alt="$t('orderDetail.referenceImage')"
             :preview-src-list="order.references.map(r => `/uploads/${r.file_path}`)" />
         </div>
       </el-card>
@@ -93,7 +94,7 @@
         <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
         <p>{{ $t('orderDetail.dragUpload') }}</p>
         <template #tip>
-          <div class="el-upload__tip">支持图片及压缩包，单文件不超过 50MB</div>
+          <div class="el-upload__tip">{{ $t('orderDetail.uploadTip') }}</div>
         </template>
       </el-upload>
       <template #footer>
@@ -191,18 +192,18 @@ async function addNote() {
 }
 
 function openFile(filePath) {
-  window.open(`/uploads/${filePath}`, '_blank')
+  window.open(`/uploads/${filePath}`, '_blank', 'noopener')
 }
 
 function handleDeliverFile(file) {
   // P2-12: 前端校验文件类型和大小
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
   if (!DELIVER_ALLOWED_EXT.includes(ext)) {
-    ElMessage.error('不支持的文件格式，请上传图片或压缩包')
+    ElMessage.error(t('orderDetail.invalidFileType'))
     return
   }
   if (file.size > DELIVER_MAX_SIZE) {
-    ElMessage.error('文件过大（最大 50MB）')
+    ElMessage.error(t('orderDetail.fileTooLarge'))
     return
   }
   deliverFile.value = file.raw

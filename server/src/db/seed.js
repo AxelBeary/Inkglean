@@ -1,13 +1,17 @@
 import db from './connection.js'
+import { initDatabase } from './init.js'
 
 // ============================================
 // 种子数据 - 用于开发测试
 // ============================================
 
 const seed = () => {
+  // 确保表结构存在（seed 可独立运行，无需先手动 db:init）
+  initDatabase(db)
+
   console.log('🌱 开始插入种子数据...')
 
-  // 插入测试画师（含身份码）
+  // 插入测试画师（含身份码）— 不创建 admin，管理员由 initDatabase 自举逻辑处理
   const artistStmt = db.prepare(`
     INSERT OR IGNORE INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -16,7 +20,6 @@ const seed = () => {
   artistStmt.run('10000', 'System', 'system', 'SYS', '系统保留', 'open', '10000')
   artistStmt.run('10001', 'Alice', 'alice', 'ALICE', '擅长日系头像和半身像', 'open', '10001')
   artistStmt.run('10002', 'Bob', 'bob', 'BOB', '专注全身插画和场景', 'full', '10002')
-  artistStmt.run('10003', 'Admin', 'admin', 'ADMIN', '平台管理员', 'open', '10003')
 
   const alice = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('alice')
   const bob = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('bob')

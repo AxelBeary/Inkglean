@@ -174,11 +174,11 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(o1.id, 'confirmed')
 
     const all = orderService.getArtistOrders(artist.id)
-    expect(all).toHaveLength(2)
+    expect(all.items).toHaveLength(2)
 
     const confirmed = orderService.getArtistOrders(artist.id, 'confirmed')
-    expect(confirmed).toHaveLength(1)
-    expect(confirmed[0].id).toBe(o1.id)
+    expect(confirmed.items).toHaveLength(1)
+    expect(confirmed.items[0].id).toBe(o1.id)
   })
 
   // TC-O-13: 统计数据

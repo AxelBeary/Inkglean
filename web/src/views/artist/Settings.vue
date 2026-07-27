@@ -77,14 +77,14 @@ async function save() {
   saving.value = true
   try {
     await artistApi.updateProfile({
-      name: form.name,
-      bio: form.bio,
+      name: form.name.trim(),
+      bio: form.bio.trim(),
       status: form.status,
-      weibo_url: form.weibo_url,
-      bilibili_url: form.bilibili_url,
-      contact_qq: form.contact_qq,
+      weibo_url: form.weibo_url.trim(),
+      bilibili_url: form.bilibili_url.trim(),
+      contact_qq: form.contact_qq.trim(),
       notify_enabled: form.notify_enabled,
-      artist_code: form.artist_code
+      artist_code: form.artist_code.trim()
     })
     ElMessage.success(t('settings.saved'))
   } catch (err) {

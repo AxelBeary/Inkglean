@@ -1,6 +1,6 @@
 import * as orderService from './order.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
-import { getArtistBySubdomain } from '../artist/artist.service.js'
+import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
 import { clamp, isValidQq } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 
@@ -30,7 +30,7 @@ export default async function orderRoutes(fastify) {
           description: { type: ['string', 'null'], maxLength: 2000 },
           priority: { type: 'string', enum: ['high', 'medium', 'low'] },
           clientNotify: { type: 'boolean' },
-          agreeRules: { type: 'boolean', const: true },
+          agreeRules: { type: 'boolean' },
           references: { type: 'array', items: { type: 'string' }, maxItems: 5 }
         },
         additionalProperties: false
@@ -46,11 +46,16 @@ export default async function orderRoutes(fastify) {
     if (!subdomain) return reply.code(400).send({ error: '缺少画师信息' })
     if (!clientQq) return reply.code(400).send({ error: '请填写你的QQ号' })
     if (!isValidQq(clientQq)) return reply.code(400).send({ error: 'QQ号格式不正确（5-15位数字）' })
-    if (!agreeRules) return reply.code(400).send({ error: '请先阅读并同意约稿须知' })
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
     if (artist.status !== 'open') return reply.code(400).send({ error: '该画师当前不接受新约稿' })
+
+    // 仅当画师设置了非空须知时，才要求客户勾选同意
+    const rules = getRules(artist.id)
+    if (rules?.content && !agreeRules) {
+      return reply.code(400).send({ error: '请先阅读并同意约稿须知' })
+    }
 
     try {
       const order = orderService.createOrder({
@@ -205,8 +210,11 @@ export default async function orderRoutes(fastify) {
    * GET /api/artist/orders
    */
   fastify.get('/api/artist/orders', { preHandler: requireAuth }, async (request) => {
-    const { status } = request.query || {}
-    return orderService.getArtistOrders(request.artist.id, status)
+    const { status, page, pageSize } = request.query || {}
+    return orderService.getArtistOrders(request.artist.id, status, {
+      page: parseInt(page) || 1,
+      pageSize: Math.min(parseInt(pageSize) || 50, 200)
+    })
   })
 
   /**

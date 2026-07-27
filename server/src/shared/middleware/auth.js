@@ -41,6 +41,11 @@ export async function requireAuth(request, reply) {
     return reply.code(401).send({ error: '画师账号不存在' })
   }
 
+  // token_version 校验：服务端可主动使旧 token 失效（权限变更、登出等）
+  if (artist.token_version && session.v !== artist.token_version) {
+    return reply.code(401).send({ error: '登录状态已失效，请重新登录' })
+  }
+
   request.artist = artist
 }
 
@@ -63,6 +68,11 @@ export async function requireAdmin(request, reply) {
   const artist = getArtistById(session.id)
   if (!artist) {
     return reply.code(401).send({ error: '账号不存在' })
+  }
+
+  // token_version 校验
+  if (artist.token_version && session.v !== artist.token_version) {
+    return reply.code(401).send({ error: '登录状态已失效，请重新登录' })
   }
 
   // 管理员判定：QQ 号匹配（从数据库读取，支持运行时更换）

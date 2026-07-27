@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 // ============================================
 
 export const schema = `
--- 画师表
+-- 画师表（含所有迁移后的完整结构）
 CREATE TABLE IF NOT EXISTS artists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   qq_number TEXT UNIQUE NOT NULL,
@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS artists (
   avatar TEXT,
   bio TEXT,
   status TEXT DEFAULT 'open' CHECK(status IN ('open', 'full', 'break')),
+  contact_qq TEXT,
+  token_version INTEGER DEFAULT 1,
+  deleted_at DATETIME,
   weibo_url TEXT,
   bilibili_url TEXT,
   notify_enabled INTEGER DEFAULT 1,
@@ -55,7 +58,7 @@ CREATE TABLE IF NOT EXISTS commission_rules (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
--- 订单表
+-- 订单表（含所有迁移后的完整结构）
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_no TEXT UNIQUE NOT NULL,
@@ -71,6 +74,8 @@ CREATE TABLE IF NOT EXISTS orders (
   source TEXT DEFAULT 'self' CHECK(source IN ('self', 'manual')),
   client_notify INTEGER DEFAULT 0,
   queue_position INTEGER,
+  completed_at DATETIME,
+  price_snapshot REAL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -126,7 +131,7 @@ CREATE TABLE IF NOT EXISTS platform_config (
   value TEXT NOT NULL
 );
 
--- P2-5: 版本化迁移跟踪表
+-- 版本化迁移跟踪表
 CREATE TABLE IF NOT EXISTS schema_migrations (
   version INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
@@ -137,6 +142,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 CREATE INDEX IF NOT EXISTS idx_orders_artist_status ON orders(artist_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_queue ON orders(artist_id, queue_position);
 CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_artists_code ON artists(artist_code);
 `
 
 /**
@@ -183,6 +189,16 @@ const MIGRATIONS = [
       database.exec(`UPDATE orders SET price_snapshot = (
         SELECT t.price FROM price_tiers t WHERE t.id = orders.tier_id
       ) WHERE price_snapshot IS NULL AND tier_id IS NOT NULL`)
+    }
+  },
+  {
+    version: 4,
+    name: 'add_token_version',
+    up(database) {
+      const cols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!cols.some(c => c.name === 'token_version')) {
+        database.exec('ALTER TABLE artists ADD COLUMN token_version INTEGER DEFAULT 1')
+      }
     }
   }
 ]

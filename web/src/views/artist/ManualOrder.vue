@@ -86,10 +86,10 @@ async function submit() {
   submitting.value = true
   try {
     const order = await artistApi.createManualOrder({
-      clientQq: form.clientQq,
-      clientName: form.clientName,
+      clientQq: form.clientQq.trim(),
+      clientName: form.clientName.trim(),
       tierId: form.tierId,
-      description: form.description,
+      description: form.description.trim(),
       priority: form.priority
     })
     resultNo.value = order.order_no

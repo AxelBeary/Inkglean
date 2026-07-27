@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import i18n from '../i18n/index.js'
+import { useArtistStore } from '../stores/artist.js'
 
 // ============================================
 // 路由配置
@@ -55,8 +56,9 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.meta.requiresAdmin) {
-    const isAdmin = localStorage.getItem('is_admin') === 'true'
-    if (!isAdmin) return next({ name: 'ArtistDashboard' })
+    // 从 Pinia store 读取（单一数据源），避免 localStorage key 不一致
+    const artistStore = useArtistStore()
+    if (!artistStore.isAdmin) return next({ name: 'ArtistDashboard' })
   }
 
   next()

@@ -37,8 +37,10 @@ export function generateOrderNo(artistId, artistCode) {
     }
   }
 
+  const SEQ_PAD_THRESHOLD = 999
+
   // 动态位数：≤999 补零到3位，>999 自然宽度
-  const seqStr = seq <= 999 ? String(seq).padStart(3, '0') : String(seq)
+  const seqStr = seq <= SEQ_PAD_THRESHOLD ? String(seq).padStart(3, '0') : String(seq)
   return `${artistCode}-${seqStr}`
 }
 
@@ -185,6 +187,10 @@ export function reorderQueue(artistId, orderedIds) {
   if (orderedIds.length !== activeOrders.length) {
     throw new Error('排序列表长度与队列不一致')
   }
+  // 校验无重复 ID
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    throw new Error('排序列表存在重复订单')
+  }
 
   const updatePos = db.prepare('UPDATE orders SET queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
   db.transaction(() => {
@@ -237,22 +243,31 @@ export function addNote(orderId, content, createdBy = 'artist') {
 }
 
 /**
- * 获取画师的订单列表（支持状态筛选）
+ * 获取画师的订单列表（支持状态筛选 + 分页）
  */
-export function getArtistOrders(artistId, status) {
-  let query = `
+export function getArtistOrders(artistId, status, { page = 1, pageSize = 50 } = {}) {
+  let where = 'WHERE o.artist_id = ?'
+  const params = [artistId]
+  if (status) {
+    where += ' AND o.status = ?'
+    params.push(status)
+  }
+
+  const total = db.prepare(`
+    SELECT COUNT(*) as c FROM orders o ${where}
+  `).get(...params).c
+
+  const offset = (Math.max(1, page) - 1) * pageSize
+  const items = db.prepare(`
     SELECT o.*, t.name as tier_name, t.price as tier_price
     FROM orders o
     LEFT JOIN price_tiers t ON o.tier_id = t.id
-    WHERE o.artist_id = ?
-  `
-  const params = [artistId]
-  if (status) {
-    query += ' AND o.status = ?'
-    params.push(status)
-  }
-  query += ' ORDER BY o.created_at DESC'
-  return db.prepare(query).all(...params)
+    ${where}
+    ORDER BY o.created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, pageSize, offset)
+
+  return { items, total, page, pageSize }
 }
 
 /**
@@ -265,13 +280,17 @@ export function getArtistStats(artistId) {
   const activeCount = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
   ).get(artistId).c
-  // N0-1: 收入统计 — 使用 completed_at + price_snapshot（精确到已成交订单的实际时间和价格）
+  // 收入统计 — 使用 completed_at + price_snapshot
+  // 时区修正：在应用层计算本地时区的月初 UTC 时间戳，避免 UTC+8 用户月初订单被算入上月
+  const now = new Date()
+  const localMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthStartUTC = localMonthStart.toISOString().slice(0, 19).replace('T', ' ')
   const monthRevenue = db.prepare(`
     SELECT COALESCE(SUM(o.price_snapshot), 0) as total
     FROM orders o
     WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
-      AND o.completed_at >= date('now', 'start of month')
-  `).get(artistId).total
+      AND o.completed_at >= ?
+  `).get(artistId, monthStartUTC).total
   const totalCompleted = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status IN ('done', 'delivered')"
   ).get(artistId).c

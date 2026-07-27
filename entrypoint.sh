@@ -1,6 +1,3 @@
 #!/bin/sh
-# 初始化数据库（如果不存在）
-node /app/server/src/db/init.js
-
-# 启动服务
+# 启动服务（initDatabase 已在 app.js 中自动执行，无需重复调用）
 exec node /app/server/src/index.js

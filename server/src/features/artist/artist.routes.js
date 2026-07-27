@@ -95,13 +95,43 @@ export default async function artistRoutes(fastify) {
     return artistService.getTiers(request.artist.id)
   })
 
-  fastify.post('/api/artist/tiers', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/artist/tiers', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name', 'price'],
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          price: { type: 'number', minimum: 0, maximum: 1000000 },
+          description: { type: ['string', 'null'], maxLength: 500 },
+          exampleImage: { type: ['string', 'null'], maxLength: 500 },
+          workDays: { type: ['integer', 'null'], minimum: 0, maximum: 365 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     const { name, price, description, exampleImage, workDays } = request.body || {}
-    if (!name || price == null) return reply.code(400).send({ error: '名称和价格为必填项' })
     return artistService.createTier(request.artist.id, { name, price, description, exampleImage, workDays })
   })
 
-  fastify.put('/api/artist/tiers/:id', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.put('/api/artist/tiers/:id', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          price: { type: 'number', minimum: 0, maximum: 1000000 },
+          description: { type: ['string', 'null'], maxLength: 500 },
+          exampleImage: { type: ['string', 'null'], maxLength: 500 },
+          workDays: { type: ['integer', 'null'], minimum: 0, maximum: 365 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     // 归属校验：只能改自己的档位
     const tier = artistService.getTierById(request.params.id)
     if (!tier || tier.artist_id !== request.artist.id) {

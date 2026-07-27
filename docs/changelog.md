@@ -1,5 +1,72 @@
 # 变更日志
 
+## v0.7.0 — 2026-07-27
+
+### 🔒 第三次审计修复（P1×9 + P2×14 + P3×40+）
+
+**P1 高优（9 项）：**
+- **trustProxy 可配置**：支持 `TRUST_PROXY` 环境变量，默认信任 Docker 内网段
+- **上传 MIME 安全**：移除 `.svg`，增加 MIME 黑名单（SVG/HTML/JS/ZIP 炸弹）
+- **队列重排校验**：`reorderQueue` 增加重复/缺失 ID 校验
+- **价格档位 Schema**：POST/PUT tiers 增加 JSON Schema 校验
+- **画师创建校验**：QQ 格式、subdomain 截断、保留词黑名单
+- **CORS 收紧**：生产环境仅 `CORS_ORIGIN` 设置时注册
+- **Token 版本失效**：`token_version` 列 + JWT payload 比对，管理员可强制 token 失效
+- **401 全面清理**：清除所有 localStorage key + 重置 Pinia store + 跳转登录
+- **`/api/auth/me` 增强**：返回 `isAdmin` 标记
+
+**P2 中优（14 项）：**
+- **icons-vue 依赖**：加入 `package.json` dependencies
+- **参考图删除精确匹配**：uid→filePath Map
+- **状态机 UI 一致**：QueueBoard 交付按钮 `v-if="done"`；OrderDetail 修改按钮仅 `wip`
+- **月收入时区修正**：本地时区月初 UTC 时间戳
+- **迁移 v4**：`token_version` 列 + schema 同步
+- **seed 修复**：先调 `initDatabase()`，不再重复创建 admin
+- **entrypoint 精简**：移除手动 `init.js` 调用
+- **busy_timeout**：SQLite 加 `busy_timeout = 5000`
+- **孤儿文件回收**：app.js 内 setInterval 每 24h 自动清理
+- **画师软删除**：`deleted_at` 字段，公开查询自动过滤
+- **登录码清理**：每小时定时清理过期码
+- **限流桶上限**：`MAX_BUCKETS = 100_000` 防内存膨胀
+- **订单分页**：service 层 LIMIT/OFFSET + 路由传参 + 前端适配
+- **分页回归修复**：OrderList.vue / ArtistManage.vue 适配 `{items}` 格式
+
+**P3 低优（40+ 项）：**
+
+*安全：*
+- `window.open` 全部加 `noopener`（3 处）
+- `target="_blank"` 链接补 `rel="noopener noreferrer"`（LandingPage 2 处）
+- 服务端 `clamp()` 统一 `.trim()` 防空白注入
+
+*无障碍：*
+- 6 处 `el-image` 补 `:alt` 属性
+- LandingPage 画师卡片加 `tabindex`/`role="button"`/`@keyup.enter`
+- ThemeToggle 按钮补 `aria-label`
+- Logo emoji 加 `aria-hidden="true"`
+- 拖拽手柄加 `title` + `aria-hidden`
+- 上传按钮加 `aria-label`
+- ArtworkManage 删除按钮加 `:focus-within` 可见性
+
+*功能缺陷：*
+- 上传静默失败 → catch 后 re-throw，el-upload 正确标记错误
+- 状态更新失败 → 回滚 `currentStatus`
+- AdminDashboard 加 `v-loading` + `loading` ref
+
+*i18n：*
+- OrderDetail 3 处硬编码中文 → `$t()` 调用
+- 补全 zh-CN/en 共 8 个新键
+
+*代码质量：*
+- 魔法数字提取为命名常量（`CODE_MIN/MAX`、`CODE_TTL_MS`、`MAX_ATTEMPTS`、`SESSION_TTL_MS`、`SEQ_PAD_THRESHOLD`、`API_TIMEOUT_MS`）
+- 前端 4 个表单组件提交前 `.trim()`
+- 硬编码颜色 → CSS 变量（`--overlay-bg`、`--el-color-white`）
+
+### 变更统计
+- 41 个文件，~350 行新增 / ~80 行删除
+- 测试：44/44 通过 | 构建：vite build 成功
+
+---
+
 ## v0.6.3 — 2026-07-27
 
 ### 🔒 第二次审计修复（补充报告全部 27 项）

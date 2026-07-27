@@ -93,7 +93,8 @@ export default {
     hint: '拖拽卡片调整顺序，顺序立即保存。优先级仅作标记，不影响排列顺序。',
     confirm: '✅ 确认', startWip: '🎨 开始制作', done: '✔ 完成', deliver: '📦 交付', cancel: '❌ 取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
-    confirmCancel: '确定取消订单 #{no}？', confirmCancelTitle: '确认取消', statusUpdated: '状态已更新'
+    confirmCancel: '确定取消订单 #{no}？', confirmCancelTitle: '确认取消', statusUpdated: '状态已更新',
+    dragHint: '拖拽排序'
   },
   orderList: {
     title: '📦 订单管理', all: '全部',
@@ -109,7 +110,10 @@ export default {
     references: '参考图', notes: '备注记录', noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', cancelConfirm: '确定取消此订单？', confirmTitle: '确认',
-    statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！'
+    statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
+    uploadTip: '支持图片及压缩包，单文件不超过 50MB',
+    invalidFileType: '不支持的文件格式，请上传图片或压缩包',
+    fileTooLarge: '文件过大（最大 50MB）', referenceImage: '参考图'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
@@ -134,7 +138,7 @@ export default {
   artworks: {
     title: '🖼 作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
     tip: '支持 JPG / PNG / WebP，建议尺寸 ≥ 800px', empty: '还没有作品，上传一些吧',
-    uploaded: '上传成功', confirmDelete: '确定删除这张作品？'
+    uploaded: '上传成功', confirmDelete: '确定删除这张作品？', image: '作品图片'
   },
   rules: {
     title: '📜 须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',

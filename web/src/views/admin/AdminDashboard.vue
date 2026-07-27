@@ -15,7 +15,7 @@
           <el-button type="primary" size="small" @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
         </div>
       </template>
-      <el-table :data="artists" stripe>
+      <el-table :data="artists" v-loading="loading" stripe>
         <el-table-column prop="name" :label="$t('admin.colName')" />
         <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" />
         <el-table-column prop="qq_number" :label="$t('admin.colQq')" />
@@ -38,6 +38,7 @@ import { ElMessage } from 'element-plus'
 
 const stats = ref(null)
 const artists = ref([])
+const loading = ref(true)
 
 onMounted(async () => {
   try {
@@ -47,6 +48,8 @@ onMounted(async () => {
     ])
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    loading.value = false
   }
 })
 </script>
