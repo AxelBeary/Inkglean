@@ -3,10 +3,11 @@ import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import { resolve, join, relative } from 'path'
-import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync } from 'fs'
+import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync, createReadStream } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
+import { ERROR_MESSAGES } from './shared/errors.js'
 
 // ============================================
 // 应用工厂 - 构建 Fastify 实例
@@ -120,7 +121,12 @@ export async function buildApp(opts = {}) {
   // ─── 安全响应头（轻量替代 helmet）───
   app.addHook('onRequest', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff')
-    reply.header('X-Frame-Options', 'DENY')
+    // 嵌入页面需要能被 iframe 加载，其余页面禁止
+    if (_request.url.startsWith('/embed')) {
+      reply.header('Content-Security-Policy', "frame-ancestors *")
+    } else {
+      reply.header('X-Frame-Options', 'DENY')
+    }
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   })
@@ -178,32 +184,49 @@ export async function buildApp(opts = {}) {
       request.log.error({ err: error, url: request.url }, '未处理的服务端错误')
       return reply.status(500).send({ code: 'INTERNAL', error: '服务器内部错误' })
     }
-    // 4xx 业务错误：返回结构化错误码
+    // 4xx 业务错误：返回结构化错误码 + 中文友好消息
+    const code = error.code || 'UNKNOWN'
     reply.status(status).send({
-      code: error.code || 'UNKNOWN',
-      error: error.message || '请求错误',
+      code,
+      error: ERROR_MESSAGES[code] || error.message || '请求错误',
       detail: error.detail || undefined
     })
   })
 
-  // ─── 前端 SPA 静态文件 + fallback ───
+  // ─── 前端 SPA 静态文件 + fallback（手动路由，不依赖 @fastify/static wildcard）───
   const WEB_DIST = resolve(process.env.WEB_DIST || join(import.meta.dirname, '../../web/dist'))
   const hasWebDist = existsSync(WEB_DIST)
 
   if (hasWebDist) {
-    await app.register(fastifyStatic, {
-      root: WEB_DIST,
-      prefix: '/',
-      wildcard: false
+    const MIME = {
+      '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8', '.json': 'application/json',
+      '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
+      '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf', '.map': 'application/json'
+    }
+    // 通配路由：提供 dist/ 下真实文件，不存在则 SPA fallback
+    // Fastify 路由优先级：静态路由 > 参数路由 > 通配路由，不会抢占 /api/* 和 /uploads/*
+    app.get('/*', (request, reply) => {
+      const urlPath = request.url.split('?')[0]
+      if (urlPath.startsWith('/api/') || urlPath.startsWith('/uploads/')) {
+        return reply.code(404).send({ error: 'Not found' })
+      }
+      const filePath = resolve(WEB_DIST, '.' + urlPath)
+      if (filePath.startsWith(WEB_DIST) && existsSync(filePath) && statSync(filePath).isFile()) {
+        const ext = filePath.slice(filePath.lastIndexOf('.'))
+        reply.header('Content-Type', MIME[ext] || 'application/octet-stream')
+        return reply.send(createReadStream(filePath))
+      }
+      reply.header('Content-Type', 'text/html; charset=utf-8')
+      return reply.send(createReadStream(resolve(WEB_DIST, 'index.html')))
     })
   }
 
-  // P2-E: 404 处理器无条件注册 — API 路径始终返回 JSON
+  // 非 GET 请求的 404 兜底
   app.setNotFoundHandler((request, reply) => {
-    if (request.url.startsWith('/api/') || request.url.startsWith('/uploads/') || request.method !== 'GET' || !hasWebDist) {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-    return reply.sendFile('index.html')
+    return reply.code(404).send({ error: 'Not found' })
   })
 
   return app

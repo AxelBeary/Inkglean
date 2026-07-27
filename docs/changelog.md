@@ -1,5 +1,35 @@
 # 变更日志
 
+## v0.9.0 — 2026-07-28
+
+### 🎨 主页模板系统
+- **模板注册表**：`ArtistHome.vue` 改为模板路由，根据 `template_id` 动态懒加载对应组件
+- **3 套模板**：经典（`ArtistHomeDefault.vue`）/ 深色画廊（`ArtistHomeDarkGallery.vue`）/ 单页SaaS（`ArtistHomeSinglePage.vue`）
+- **迁移 v8**：`artists` 表新增 `template_id TEXT DEFAULT 'default'` + `custom_page_path TEXT` 字段
+- **画师后台**：Settings 页新增「主页模板」Tab，可预览模板并一键切换
+- **i18n**：新增 `templates` 命名空间（zh-CN + en，各 10 条键）
+
+### 🔌 嵌入脚本（绕过平台，画师用自己的站）
+- **`web/public/embed.js`**：~~2KB 原生 JS 嵌入脚本，画师在自己的网站上粘贴 `<script src data-artist>` 即可启用
+- **`/embed.html`**：Vite 多入口构建，独立于主 SPA 的简约下单页（`EmbedOrderPage.vue`）
+- **安全头适配**：`/embed` 路径使用 `CSP frame-ancestors *` 替代 `X-Frame-Options: DENY`，允许任意站点嵌入
+- **Settings 集成**：Settings 页新增「嵌入脚本」Tab，一键复制代码 + 预览效果
+- **i18n**：新增 `embed` 命名空间（zh-CN + en）
+
+### 🔧 Bug 修复
+- **静态文件服务重写**：`app.js` 从 `@fastify/static` wildcard 模式改为手动 `app.get('/*')` + `createReadStream`，修复 wildcard:false 导致所有 JS/CSS 返回 index.html 的白屏问题
+- **画师主页模板白屏**：`ArtistHome.vue` 的 `shallowRef` 手写懒加载返回 ref 对象而非组件，`<component :is>` 无法解包 → 改为 Vue 官方 `defineAsyncComponent()`（25 行→8 行）
+- **端口冲突**：本地 node 进程占用 3000 端口时 Docker 映射被静默跳过，需先杀进程再启动容器
+
+### 新增文件
+- `web/src/views/client/templates/ArtistHomeDefault.vue` — 经典模板（从原 ArtistHome.vue 提取）
+- `web/src/views/client/templates/ArtistHomeDarkGallery.vue` — 深色画廊模板
+- `web/src/views/client/templates/ArtistHomeSinglePage.vue` — 单页SaaS模板
+- `web/public/embed.js` — 嵌入脚本（画师粘贴到自己的网站）
+- `web/embed.html` — 嵌入页 Vite 入口
+- `web/src/embed/main.js` — 嵌入页 Vue 入口
+- `web/src/embed/EmbedOrderPage.vue` — 嵌入页下单组件
+
 ## v0.8.0 — 2026-07-28
 
 ### 🎨 五色主题系统

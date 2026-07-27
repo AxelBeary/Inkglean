@@ -13,6 +13,10 @@ const app = createApp(App)
 // S-10: 全局错误边界 — 防止组件抛错导致整页白屏
 app.config.errorHandler = (err, instance, info) => {
   console.error('[Vue Error]', err, info)
+  // 用户可见的友好提示（避免重复弹窗：5秒内只弹一次）
+  import('element-plus').then(({ ElMessage }) => {
+    ElMessage.error('页面出了点小问题，请刷新重试')
+  })
 }
 
 app.use(createPinia())

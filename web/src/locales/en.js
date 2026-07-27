@@ -217,7 +217,7 @@ export default {
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
   settings: {
-    title: 'Page Settings', tabProfile: 'Profile', tabWorkflow: 'Workflow & Payment',
+    title: 'Page Settings', tabProfile: 'Profile', tabTemplate: 'Page Template', tabWorkflow: 'Workflow & Payment',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
@@ -227,6 +227,27 @@ export default {
     contactQqHint: 'Clients who forgot their order number will see this QQ to contact you',
     notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
     save: 'Save settings', saved: 'Settings saved'
+  },
+  templates: {
+    tab: 'Page Template',
+    hint: 'Choose how your public page looks. All templates share the same artwork and pricing data.',
+    label: 'Current template',
+    default: 'Classic',
+    defaultDesc: 'Light background, card-based grid layout, clearly organized sections',
+    darkGallery: 'Dark Gallery',
+    darkGalleryDesc: 'Dark full-screen background, large images — ideal for visually striking art',
+    singlePage: 'Single Page SaaS',
+    singlePageDesc: 'Minimal single-page layout with bold typography — ideal for a brand-driven look',
+    saved: 'Template updated'
+  },
+  embed: {
+    tab: 'Embed Script',
+    hint: 'If you already have your own website (Carrd / Framer / custom HTML), you can embed a snippet to let clients commission you directly from your site.',
+    step1: '1. Copy this code:',
+    step2: '2. Paste it where you want the "Commission me" button to appear on your site. Clicking it opens an order form.',
+    copyBtn: '📋 Copy code',
+    copied: 'Copied',
+    copyFailed: 'Copy failed — please select and copy manually'
   },
   workflow: {
     stageList: 'Workflow Stages', paymentBar: 'Payment Split', overview: 'Full Workflow',

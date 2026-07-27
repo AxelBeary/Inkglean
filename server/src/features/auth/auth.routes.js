@@ -2,10 +2,16 @@ import { generateLoginCode, verifyLoginCode, createSession, isDevAuth } from './
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
+import { AppError, E } from '../../shared/errors.js'
 
 // ============================================
 // 认证路由 - 登录码获取与验证
 // ============================================
+
+/** 限流守卫：不通过则抛 429 */
+function guardRateLimit(key, max, windowMs) {
+  if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
+}
 
 export default async function authRoutes(fastify) {
 
@@ -25,30 +31,22 @@ export default async function authRoutes(fastify) {
         additionalProperties: false
       }
     }
-  }, async (request, reply) => {
-    const ip = request.ip
-    if (!rateLimit(`send-code:${ip}`, 5, 5 * 60_000)) {
-      return reply.code(429).send({ error: '请求过于频繁，请稍后再试' })
+  }, async (request) => {
+    guardRateLimit(`send-code:${request.ip}`, 5, 5 * 60_000)
+
+    const { qqNumber } = request.body
+
+    const { code, artist } = generateLoginCode(qqNumber)
+
+    // 安全：无论是否注册，统一响应（防枚举）
+    if (isDevAuth && artist) {
+      fastify.log.info(`🔑 [DEV] 画师 ${artist.name}(${qqNumber}) 登录码: ${code}`)
     }
 
-    const { qqNumber } = request.body || {}
-    if (!qqNumber) return reply.code(400).send({ error: '请输入QQ号' })
-
-    try {
-      const { code, artist } = generateLoginCode(qqNumber)
-
-      // 安全：无论是否注册，统一响应（防枚举）
-      if (isDevAuth && artist) {
-        fastify.log.info(`🔑 [DEV] 画师 ${artist.name}(${qqNumber}) 登录码: ${code}`)
-      }
-
-      return {
-        message: `若该QQ已注册，登录码已发送`,
-        ...(isDevAuth && code ? { _dev_code: code } : {}),
-        ...(artist ? { artistName: artist.name } : {})
-      }
-    } catch (err) {
-      return reply.code(400).send({ error: err.message })
+    return {
+      message: `若该QQ已注册，登录码已发送`,
+      ...(isDevAuth && code ? { _dev_code: code } : {}),
+      ...(artist ? { artistName: artist.name } : {})
     }
   })
 
@@ -70,16 +68,15 @@ export default async function authRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    const ip = request.ip
-    if (!rateLimit(`verify:${ip}`, 10, 5 * 60_000)) {
-      return reply.code(429).send({ error: '尝试次数过多，请稍后再试' })
-    }
+    guardRateLimit(`verify:${request.ip}`, 10, 5 * 60_000)
 
-    const { qqNumber, code } = request.body || {}
-    if (!qqNumber || !code) return reply.code(400).send({ error: '请输入QQ号和登录码' })
+    const { qqNumber, code } = request.body
 
     const result = verifyLoginCode(qqNumber, code)
-    if (!result.valid) return reply.code(401).send({ error: result.error })
+    if (!result.valid) {
+      // 保留服务层的具体错误区分（过期/次数过多/不正确）
+      throw new AppError(result.code || E.CODE_INVALID, 401, result.error)
+    }
 
     const token = createSession(result.artist.id, result.artist.token_version)
     const isAdmin = result.artist.qq_number === getAdminQq()

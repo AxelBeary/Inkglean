@@ -58,7 +58,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 }
 
 export function updateArtist(id, fields) {
-  const allowed = ['name', 'avatar', 'bio', 'status', 'weibo_url', 'bilibili_url', 'notify_enabled', 'artist_code', 'contact_qq']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'weibo_url', 'bilibili_url', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id']
   const updates = []
   const values = []
 

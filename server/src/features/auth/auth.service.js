@@ -68,31 +68,31 @@ export function generateLoginCode(qqNumber) {
  */
 export function verifyLoginCode(qqNumber, code) {
   const artist = getArtistByQq(qqNumber)
-  if (!artist) return { valid: false, error: '登录码错误或已过期' }
+  if (!artist) return { valid: false, code: 'CODE_INVALID', error: '登录码错误或已过期' }
 
   const record = db.prepare(
     'SELECT * FROM login_codes WHERE artist_id = ? ORDER BY created_at DESC LIMIT 1'
   ).get(artist.id)
 
-  if (!record) return { valid: false, error: '请先获取登录码' }
+  if (!record) return { valid: false, code: 'CODE_INVALID', error: '请先获取登录码' }
 
   // 过期检查
   if (new Date(record.expires_at) < new Date()) {
     db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
-    return { valid: false, error: '登录码已过期，请重新获取' }
+    return { valid: false, code: 'CODE_EXPIRED', error: '登录码已过期，请重新获取' }
   }
 
   // 尝试次数检查
   if (record.attempts >= MAX_ATTEMPTS) {
     db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
-    return { valid: false, error: '尝试次数过多，请重新获取登录码' }
+    return { valid: false, code: 'CODE_TOO_MANY_ATTEMPTS', error: '尝试次数过多，请重新获取登录码' }
   }
 
   // 安全：时间安全比较，防止计时攻击
     // R1-2: 先检查字符长度（6位数字），避免全角/多字节字符触发 timingSafeEqual 崩溃
     if (code.length !== 6 || record.code.length !== 6) {
       db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
-      return { valid: false, error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
+      return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
     }
     let codeMatch
     try {
@@ -103,7 +103,7 @@ export function verifyLoginCode(qqNumber, code) {
     }
     if (!codeMatch) {
       db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
-      return { valid: false, error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
+      return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
     }
 
   // 验证成功，删除码

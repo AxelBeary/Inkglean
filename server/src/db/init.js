@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS artists (
   weibo_url TEXT,
   bilibili_url TEXT,
   notify_enabled INTEGER DEFAULT 1,
+  template_id TEXT DEFAULT 'default',
+  custom_page_path TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -334,6 +336,19 @@ const MIGRATIONS = [
       const cols = database.prepare('PRAGMA table_info(artists)').all()
       if (!cols.some(c => c.name === 'deleted_at')) {
         database.exec('ALTER TABLE artists ADD COLUMN deleted_at DATETIME')
+      }
+    }
+  },
+  {
+    version: 8,
+    name: 'add_template_id_and_page_config',
+    up(database) {
+      const cols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!cols.some(c => c.name === 'template_id')) {
+        database.exec("ALTER TABLE artists ADD COLUMN template_id TEXT DEFAULT 'default'")
+      }
+      if (!cols.some(c => c.name === 'custom_page_path')) {
+        database.exec("ALTER TABLE artists ADD COLUMN custom_page_path TEXT")
       }
     }
   }

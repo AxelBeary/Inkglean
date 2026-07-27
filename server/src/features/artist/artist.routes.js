@@ -43,6 +43,7 @@ export default async function artistRoutes(fastify) {
       avatar: artist.avatar,
       bio: artist.bio,
       status: artist.status,
+      templateId: artist.template_id || 'default',
       weiboUrl: artist.weibo_url,
       bilibiliUrl: artist.bilibili_url,
       notifyEnabled: !!artist.notify_enabled,

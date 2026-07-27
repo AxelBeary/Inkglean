@@ -217,7 +217,7 @@ export default {
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
   settings: {
-    title: '主页设置', tabProfile: '基本资料', tabWorkflow: '流程与比例',
+    title: '主页设置', tabProfile: '基本资料', tabTemplate: '主页模板', tabWorkflow: '流程与比例',
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
@@ -227,6 +227,27 @@ export default {
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
     save: '保存设置', saved: '设置已保存'
+  },
+  templates: {
+    tab: '主页模板',
+    hint: '选择客户看到的画师主页样式。所有模板共享同一套作品/价格数据。',
+    label: '当前模板',
+    default: '经典',
+    defaultDesc: '浅色背景，卡片式网格布局，信息分区清晰',
+    darkGallery: '深色画廊',
+    darkGalleryDesc: '深色全屏背景，作品大图，适合视觉冲击力强的画师',
+    singlePage: '单页SaaS',
+    singlePageDesc: '极简单页，大字号排版，适合想走品牌风格路线的画师',
+    saved: '模板已更新'
+  },
+  embed: {
+    tab: '嵌入脚本',
+    hint: '如果你已经有自己的个人网站（Carrd / Framer / 自建站等），可以在你的网站里插入一段代码，让客户直接通过你的网站下单。',
+    step1: '1. 复制以下代码：',
+    step2: '2. 将代码粘贴到你网站中想要显示「我要约稿」按钮的位置。客户点击按钮后会弹出下单表单。',
+    copyBtn: '📋 复制代码',
+    copied: '已复制',
+    copyFailed: '复制失败，请手动选择并复制'
   },
   workflow: {
     stageList: '流程节点', paymentBar: '收款比例', overview: '流程全览',
