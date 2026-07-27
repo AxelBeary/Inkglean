@@ -1,5 +1,6 @@
 import { generateLoginCode, verifyLoginCode, createSession, isDevAuth } from './auth.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
+import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 
 // ============================================
@@ -36,15 +37,15 @@ export default async function authRoutes(fastify) {
     try {
       const { code, artist } = generateLoginCode(qqNumber)
 
-      // P0-5: 仅 AUTH_DEV_MODE=*** 返回登录码
-      if (isDevAuth) {
+      // 安全：无论是否注册，统一响应（防枚举）
+      if (isDevAuth && artist) {
         fastify.log.info(`🔑 [DEV] 画师 ${artist.name}(${qqNumber}) 登录码: ${code}`)
       }
 
       return {
-        message: `登录码已发送至QQ ${qqNumber}`,
-        ...(isDevAuth ? { _dev_code: code } : {}),
-        artistName: artist.name
+        message: `若该QQ已注册，登录码已发送`,
+        ...(isDevAuth && code ? { _dev_code: code } : {}),
+        ...(artist ? { artistName: artist.name } : {})
       }
     } catch (err) {
       return reply.code(400).send({ error: err.message })
@@ -102,5 +103,14 @@ export default async function authRoutes(fastify) {
   fastify.get('/api/auth/me', { preHandler: requireAuth }, async (request) => {
     const isAdmin = request.artist.qq_number === getAdminQq()
     return { ...request.artist, isAdmin }
+  })
+
+  /**
+   * POST /api/auth/logout
+   * 真正的登出 — 递增 token_version 使当前 token 及所有旧 token 失效
+   */
+  fastify.post('/api/auth/logout', { preHandler: requireAuth }, async (request) => {
+    bumpTokenVersion(request.artist.id)
+    return { message: '已登出' }
   })
 }

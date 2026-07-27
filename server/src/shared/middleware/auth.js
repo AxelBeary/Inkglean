@@ -8,7 +8,7 @@ import db from '../../db/connection.js'
 
 /**
  * 管理员 QQ 号（环境变量仅用于首次引导，运行时从 platform_config 读取）
- * P2-6: 不再 export，仅内部使用
+ * 不再 export，仅内部使用
  */
 const ADMIN_QQ = process.env.ADMIN_QQ || ''
 
@@ -41,6 +41,11 @@ export async function requireAuth(request, reply) {
     return reply.code(401).send({ error: '画师账号不存在' })
   }
 
+  // 安全：软删除画师的 token 立即失效
+  if (artist.deleted_at) {
+    return reply.code(401).send({ error: '账号已被停用' })
+  }
+
   // token_version 校验：服务端可主动使旧 token 失效（权限变更、登出等）
   if (artist.token_version && session.v !== artist.token_version) {
     return reply.code(401).send({ error: '登录状态已失效，请重新登录' })
@@ -68,6 +73,11 @@ export async function requireAdmin(request, reply) {
   const artist = getArtistById(session.id)
   if (!artist) {
     return reply.code(401).send({ error: '账号不存在' })
+  }
+
+  // 安全：软删除画师的 token 立即失效
+  if (artist.deleted_at) {
+    return reply.code(401).send({ error: '账号已被停用' })
   }
 
   // token_version 校验

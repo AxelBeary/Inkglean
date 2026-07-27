@@ -11,7 +11,8 @@ export default defineConfig({
     env: {
       DB_PATH: ':memory:',
       SESSION_SECRET: 'test-secret-key-for-vitest',
-      NODE_ENV: 'test'
+      NODE_ENV: 'test',
+      TZ: 'Asia/Shanghai' // P1-4: 与生产容器时区一致
     }
   }
 })

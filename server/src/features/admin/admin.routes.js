@@ -4,7 +4,7 @@ import * as adminService from './admin.service.js'
 import * as orderService from '../order/order.service.js'
 import { verifyLoginCode } from '../auth/auth.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
-import { clamp, isValidQq } from '../../shared/validate.js'
+import { clamp } from '../../shared/validate.js'
 import db from '../../db/connection.js'
 
 // ============================================
@@ -93,8 +93,8 @@ export default async function adminRoutes(fastify) {
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
     const { page, pageSize } = request.query || {}
     return orderService.getArtistOrders(artist.id, undefined, {
-      page: parseInt(page) || 1,
-      pageSize: Math.min(parseInt(pageSize) || 50, 200)
+      page: Math.max(1, parseInt(page, 10) || 1),
+      pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200))
     })
   })
 
@@ -168,5 +168,107 @@ export default async function adminRoutes(fastify) {
     }
 
     return { success: true, newAdminName: newArtist.name, newAdminQq: String(newQq) }
+  })
+
+  // ─── 问候语管理 ───
+
+  const greetingService = await import('../artist/greeting.service.js')
+
+  /** GET /api/admin/greetings — 通用库列表 */
+  fastify.get('/api/admin/greetings', { preHandler: requireAdmin }, async (request) => {
+    return greetingService.getGlobalGreetings(request.query.slot)
+  })
+
+  /** POST /api/admin/greetings — 添加通用模板 */
+  fastify.post('/api/admin/greetings', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['text'],
+        additionalProperties: false,
+        properties: {
+          text: { type: 'string', minLength: 1, maxLength: 200 },
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] }
+        }
+      }
+    }
+  }, async (request) => {
+    return greetingService.createGlobalGreeting(request.body)
+  })
+
+  /** PUT /api/admin/greetings/:id — 编辑通用模板 */
+  fastify.put('/api/admin/greetings/:id', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          text: { type: 'string', minLength: 1, maxLength: 200 },
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] },
+          isEnabled: { type: 'boolean' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const result = greetingService.updateGreeting(parseInt(request.params.id), request.body)
+    if (!result) return reply.code(404).send({ error: '模板不存在' })
+    return result
+  })
+
+  /** DELETE /api/admin/greetings/:id — 删除通用模板 */
+  fastify.delete('/api/admin/greetings/:id', { preHandler: requireAdmin }, async (request) => {
+    greetingService.deleteGreeting(parseInt(request.params.id))
+    return { success: true }
+  })
+
+  /** GET /api/admin/artists/:id/greetings — 画师专属库 */
+  fastify.get('/api/admin/artists/:id/greetings', { preHandler: requireAdmin }, async (request) => {
+    return greetingService.getArtistGreetings(parseInt(request.params.id))
+  })
+
+  /** POST /api/admin/artists/:id/greetings — 为画师添加专属模板 */
+  fastify.post('/api/admin/artists/:id/greetings', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['text'],
+        additionalProperties: false,
+        properties: {
+          text: { type: 'string', minLength: 1, maxLength: 200 },
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] }
+        }
+      }
+    }
+  }, async (request) => {
+    return greetingService.createArtistGreeting(parseInt(request.params.id), request.body)
+  })
+
+  /** PUT /api/admin/artists/:id/greetings/:gid — 编辑专属模板 */
+  fastify.put('/api/admin/artists/:id/greetings/:gid', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          text: { type: 'string', minLength: 1, maxLength: 200 },
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] },
+          isEnabled: { type: 'boolean' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const result = greetingService.updateGreeting(parseInt(request.params.gid), request.body)
+    if (!result) return reply.code(404).send({ error: '模板不存在' })
+    return result
+  })
+
+  /** DELETE /api/admin/artists/:id/greetings/:gid — 删除专属模板 */
+  fastify.delete('/api/admin/artists/:id/greetings/:gid', { preHandler: requireAdmin }, async (request) => {
+    greetingService.deleteGreeting(parseInt(request.params.gid))
+    return { success: true }
   })
 }

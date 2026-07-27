@@ -1,5 +1,5 @@
 export default {
-  pref: { toLight: 'Switch to light mode', toDark: 'Switch to dark mode' },
+  pref: { toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark' },
   common: {
     status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', unknown: 'Unknown' },
     statusShort: { open: 'Open', full: 'Full', break: 'Break' },
@@ -30,9 +30,9 @@ export default {
     notFound: 'Page Not Found'
   },
   menu: {
-    logo: '🎨 Studio', dashboard: '📊 Dashboard', queue: '📋 Queue Board', orders: '📦 Orders',
-    manualOrder: '✍ Manual Entry', tiers: '💰 Pricing', artworks: '🖼 Portfolio',
-    rules: '📜 Guidelines', settings: '⚙ Page Settings', logout: '🚪 Log out'
+    logo: 'HuiYue', dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
+    manualOrder: 'Manual Entry', tiers: 'Pricing', artworks: 'Portfolio',
+    rules: 'Guidelines', settings: 'Page Settings', logout: 'Log out'
   },
   landing: {
     title: '🎨 Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
@@ -82,11 +82,13 @@ export default {
     devCode: 'Dev mode login code: {code}', enterQq: 'Please enter your QQ number', enterCode: 'Please enter the login code', loginSuccess: 'Logged in!'
   },
   dashboard: {
-    title: '📊 Dashboard', pendingNew: 'New pending', activeOrders: 'Active orders',
+    title: 'Dashboard', pendingNew: 'New pending', activeOrders: 'Active orders',
     monthRevenue: 'Revenue this month', totalCompleted: 'Total completed', quickActions: 'Quick actions',
-    queueBoard: '📋 Queue Board', manualOrder: '✍ Manual Entry', allOrders: '📦 All Orders', settings: '⚙ Settings',
+    queueBoard: 'Queue Board', manualOrder: 'Manual Entry', allOrders: 'All Orders', settings: 'Settings',
     currentStatus: 'Current page status', statusUpdated: 'Status updated',
-    statusOpen: '✅ Open', statusFull: '⏳ Full', statusBreak: '💤 On break'
+    statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
+    anotherOne: 'Another',
+    slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night'
   },
   queue: {
     title: '📋 Queue Board',
@@ -179,6 +181,10 @@ export default {
     nextStep: 'Next', confirmTransfer: 'Confirm transfer',
     transferSuccess: 'Admin transferred to {name}', adminTag: 'Admin',
     orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
-    orderColType: 'Type', orderColTime: 'Order time'
+    orderColType: 'Type', orderColTime: 'Order time',
+    greetingManage: 'Greeting Manager', greetingPlaceholder: 'Enter greeting, use {name} for artist name',
+    greetingPreview: 'Preview', greetingEmpty: 'Please enter greeting text',
+    greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
+    slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night'
   }
 }

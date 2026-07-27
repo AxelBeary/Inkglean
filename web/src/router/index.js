@@ -30,6 +30,7 @@ const routes = [
   // ─── 管理员后台 ───
   { path: '/admin', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { titleKey: 'admin.panelTitle', requiresAdmin: true } },
   { path: '/admin/artists', name: 'AdminArtists', component: () => import('../views/admin/ArtistManage.vue'), meta: { titleKey: 'admin.manageArtists', requiresAdmin: true } },
+  { path: '/admin/greetings', name: 'AdminGreetings', component: () => import('../views/admin/GreetingManage.vue'), meta: { titleKey: 'admin.greetingManage', requiresAdmin: true } },
 
   // ─── 404 ───
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/client/LandingPage.vue'), meta: { titleKey: 'pageTitle.notFound' } }

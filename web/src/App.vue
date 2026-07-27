@@ -16,40 +16,33 @@ const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
 </script>
 
 <style>
+@import './styles/theme.css';
+
 /* ===== 全局基础样式 ===== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-:root {
-  --bg-page: #f5f5f5;
-  --bg-card: #ffffff;
-  --bg-hover: rgba(0, 0, 0, 0.06);
-  --text-primary: #333333;
-  --text-secondary: #999999;
-  --text-muted: #cccccc;
-  --border-color: #eeeeee;
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-
-html.dark {
-  --bg-page: #141414;
-  --bg-card: #1d1e1f;
-  --bg-hover: rgba(255, 255, 255, 0.08);
-  --text-primary: #e5eaf3;
-  --text-secondary: #a3a6ad;
-  --text-muted: #6c6e72;
-  --border-color: #414243;
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-body);
   background: var(--bg-page);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   transition: background 0.3s, color 0.3s;
+}
+
+/* 展示字体工具类 */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* 等宽数字（金额/统计） */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 金箔金额 */
+.text-gold {
+  color: var(--color-gold);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 移动端适配 */

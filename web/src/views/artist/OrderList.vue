@@ -4,7 +4,7 @@
 
     <!-- 筛选 -->
     <div class="filter-bar">
-      <el-radio-group v-model="filter" @change="loadOrders" size="default">
+      <el-radio-group v-model="filter" @change="onFilterChange" size="default">
         <el-radio-button value="">{{ $t('orderList.all') }}</el-radio-button>
         <el-radio-button value="pending">{{ $t('common.orderStatus.pending') }}</el-radio-button>
         <el-radio-button value="confirmed">{{ $t('common.orderStatus.confirmed') }}</el-radio-button>
@@ -51,6 +51,19 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- S-10: 分页 -->
+    <div style="display: flex; justify-content: flex-end; margin-top: 16px">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        @current-change="loadOrders"
+        @size-change="loadOrders"
+      />
+    </div>
   </ArtistLayout>
 </template>
 
@@ -64,6 +77,9 @@ import { formatDateTimeShort } from '../../utils/datetime.js'
 const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
+const page = ref(1)
+const pageSize = ref(50)
+const total = ref(0)
 
 import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
 
@@ -75,11 +91,17 @@ function formatDate(str) {
   return formatDateTimeShort(str)
 }
 
+function onFilterChange() {
+  page.value = 1
+  loadOrders()
+}
+
 async function loadOrders() {
   loading.value = true
   try {
-    const res = await artistApi.getOrders(filter.value || undefined)
+    const res = await artistApi.getOrders(filter.value || undefined, { page: page.value, pageSize: pageSize.value })
     orders.value = res.items ?? res
+    total.value = res.total ?? orders.value.length
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

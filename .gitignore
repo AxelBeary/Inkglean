@@ -2,29 +2,35 @@
 node_modules/
 
 # Build output
-dist/
+web/dist/
+server/dist/
 
-# Runtime data (Docker volumes handle persistence)
-data/
-uploads/
-server/data/
-
-# Environment
-.env
-
-# SQLite
+# Database
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
 
-# Temp / scratch
-temp/
+# Uploads (runtime data)
+uploads/
+server/uploads/
 
-# OS
-.DS_Store
-Thumbs.db
+# Environment
+.env
+.env.local
+.env.*.local
 
-# IDE
+# IDE / OS
 .vscode/
 .idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Hermes Agent workspace
+.hermes/
+
+# Logs
+*.log
+npm-debug.log*

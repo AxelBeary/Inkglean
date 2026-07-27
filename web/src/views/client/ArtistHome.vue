@@ -4,7 +4,7 @@
       <!-- 头部 -->
       <header class="home-header">
         <div class="header-prefs">
-          <ThemeToggle />
+          <ThemePicker />
         </div>
         <el-avatar :size="100" :src="artist.avatar ? `/uploads/${artist.avatar}` : undefined">
           {{ artist.name?.charAt(0) }}
@@ -57,10 +57,11 @@
       <section class="section" v-if="artworks.length">
         <h2 class="section-title">{{ $t('artistHome.artworks') }}</h2>
         <div class="artwork-grid">
-          <el-image v-for="art in artworks" :key="art.id"
+          <el-image v-for="(art, index) in artworks" :key="art.id"
             :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
             :alt="art.title || $t('artistHome.artworks')"
-            :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)" />
+            :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)"
+            :initial-index="index" />
         </div>
       </section>
 
@@ -83,7 +84,7 @@ import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import ThemeToggle from '../../components/ThemeToggle.vue'
+import ThemePicker from '../../components/ThemePicker.vue'
 import Disclaimer from '../../components/Disclaimer.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 

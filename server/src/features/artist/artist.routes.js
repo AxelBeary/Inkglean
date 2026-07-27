@@ -76,7 +76,7 @@ export default async function artistRoutes(fastify) {
   fastify.put('/api/artist/profile', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const body = request.body || {}
-      // P2-8: 截断所有字符串字段（修正 key 映射）
+      // 输入校验：截断所有字符串字段（修正 key 映射）
       const CLAMP_MAP = { artist_code: 'artistCode', weibo_url: 'url', bilibili_url: 'url', contact_qq: 'contactQq' }
       const sanitized = {}
       for (const [k, v] of Object.entries(body)) {
@@ -158,9 +158,26 @@ export default async function artistRoutes(fastify) {
     return artistService.getArtworks(request.artist.id)
   })
 
-  fastify.post('/api/artist/artworks', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/artist/artworks', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['imagePath'],
+        properties: {
+          imagePath: { type: 'string', minLength: 1, maxLength: 500 },
+          title: { type: ['string', 'null'], maxLength: 100 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     const { imagePath, title } = request.body || {}
     if (!imagePath) return reply.code(400).send({ error: '图片路径为必填项' })
+    // 安全：路径归属校验 — 只允许自己图片目录下的文件，拒绝路径穿越
+    if (imagePath.includes('..') || !imagePath.startsWith(`images/${request.artist.id}/`)) {
+      return reply.code(400).send({ error: '非法图片路径' })
+    }
     return artistService.createArtwork(request.artist.id, { imagePath, title })
   })
 
@@ -184,5 +201,16 @@ export default async function artistRoutes(fastify) {
     const { content } = request.body || {}
     if (content == null) return reply.code(400).send({ error: '内容为必填项' })
     return artistService.updateRules(request.artist.id, clamp(content, 'rules'))
+  })
+
+  // ─── 问候语 ───
+
+  /**
+   * GET /api/artist/greeting
+   * 为当前画师抽取一条问候语（按时段随机）
+   */
+  fastify.get('/api/artist/greeting', { preHandler: requireAuth }, async (request) => {
+    const greetingService = await import('./greeting.service.js')
+    return greetingService.drawGreeting(request.artist.id, request.artist.name)
   })
 }

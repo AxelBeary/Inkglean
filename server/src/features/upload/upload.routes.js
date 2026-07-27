@@ -5,6 +5,7 @@ import { pipeline } from 'stream/promises'
 import { createWriteStream } from 'fs'
 import { nanoid } from 'nanoid'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
+import { signedUrl } from '../../shared/file-sign.js'
 
 // ============================================
 // 文件上传路由
@@ -182,7 +183,7 @@ export default async function uploadRoutes(fastify, opts) {
 
       return {
         filePath: result.filePath,
-        url: `/uploads/${result.filePath}`,
+        url: signedUrl(result.filePath),
         originalName: data.filename,
         mimeType: data.mimetype,
         size: result.size,
@@ -217,7 +218,7 @@ export default async function uploadRoutes(fastify, opts) {
 
       return {
         filePath: result.filePath,
-        url: `/uploads/${result.filePath}`,
+        url: signedUrl(result.filePath),
         originalName: data.filename,
         mimeType: data.mimetype,
         size: result.size

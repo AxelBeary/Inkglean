@@ -61,7 +61,9 @@ export function updateArtist(id, fields) {
     if (allowed.includes(key)) {
       // 身份码需要额外校验
       if (key === 'artist_code') {
-        const code = String(value || '').toUpperCase()
+        const code = String(value || '').toUpperCase().trim()
+        // 输入校验：空值跳过（允许只改昵称不动身份码）
+        if (!code) continue
         if (!isValidArtistCode(code)) {
           throw new Error('身份码只能包含大写字母和数字，2-10个字符')
         }
@@ -83,13 +85,17 @@ export function updateArtist(id, fields) {
         updates.push('notify_enabled = ?')
         values.push(value ? 1 : 0)
       } else if (key === 'weibo_url' || key === 'bilibili_url') {
-        // P0-7: 外链协议校验 — 仅允许 http/https
+        // 安全：外链协议校验 — 仅允许 http/https
         if (value && !/^https?:\/\//i.test(String(value))) {
           throw new Error('链接必须以 http:// 或 https:// 开头')
         }
         updates.push(`${key} = ?`)
         values.push(value)
       } else {
+        // 输入校验：name 空值保护
+        if (key === 'name' && !String(value || '').trim()) {
+          throw new Error('昵称不能为空')
+        }
         updates.push(`${key} = ?`)
         values.push(value)
       }
@@ -105,7 +111,20 @@ export function updateArtist(id, fields) {
 
 export function deleteArtist(id) {
   // 软删除：标记 deleted_at，保留历史数据可恢复
-  db.prepare('UPDATE artists SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(id)
+  // 安全：同时递增 token_version，使已删除画师的所有现有 token 立即失效
+  db.prepare(
+    'UPDATE artists SET deleted_at = CURRENT_TIMESTAMP, token_version = COALESCE(token_version, 1) + 1 WHERE id = ?'
+  ).run(id)
+}
+
+/**
+ * 递增 token_version，使该画师所有已签发的 token 失效
+ * 用于：登出、权限变更、管理员强制下线
+ */
+export function bumpTokenVersion(artistId) {
+  db.prepare(
+    'UPDATE artists SET token_version = COALESCE(token_version, 1) + 1 WHERE id = ?'
+  ).run(artistId)
 }
 
 // ============================================

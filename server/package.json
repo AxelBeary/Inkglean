@@ -24,9 +24,5 @@
   "devDependencies": {
     "pino-pretty": "^13.0.0",
     "vitest": "^3.2.0"
-  },
-  "allowScripts": {
-    "better-sqlite3@11.10.0": true,
-    "esbuild@0.28.1": true
   }
 }

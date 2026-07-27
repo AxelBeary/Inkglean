@@ -13,6 +13,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center">
           <span>{{ $t('admin.artistList') }}</span>
           <el-button type="primary" size="small" @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
+          <el-button size="small" @click="$router.push('/admin/greetings')">{{ $t('admin.greetingManage') }}</el-button>
         </div>
       </template>
       <el-table :data="artists" v-loading="loading" stripe>

@@ -20,16 +20,15 @@ const STATUS_TRANSITIONS = {
 /**
  * 生成订单号：画师身份码 + 动态位数序号
  * 序号 ≤999 时补零到3位；>999 时自然增长（1000、1001…）
- * 查询范围限定为该画师，避免跨画师碰撞
+ * 按前缀查最大序号（跨画师），防止改码后订单号碰撞
  */
 export function generateOrderNo(artistId, artistCode) {
   const last = db.prepare(
-    "SELECT order_no FROM orders WHERE artist_id = ? ORDER BY id DESC LIMIT 1"
-  ).get(artistId)
+    "SELECT order_no FROM orders WHERE order_no LIKE ? ORDER BY id DESC LIMIT 1"
+  ).get(`${artistCode}-%`)
 
   let seq = 1
   if (last) {
-    // 订单号格式: CODE-SEQ（如 ALICE-001、QY-1024）
     const dashIdx = last.order_no.lastIndexOf('-')
     if (dashIdx !== -1) {
       const num = parseInt(last.order_no.slice(dashIdx + 1), 10)
@@ -38,15 +37,13 @@ export function generateOrderNo(artistId, artistCode) {
   }
 
   const SEQ_PAD_THRESHOLD = 999
-
-  // 动态位数：≤999 补零到3位，>999 自然宽度
   const seqStr = seq <= SEQ_PAD_THRESHOLD ? String(seq).padStart(3, '0') : String(seq)
   return `${artistCode}-${seqStr}`
 }
 
 /**
  * 创建订单（客户自助 或 画师手动录入）
- * P1-7: 事务包裹，防止订单号竞态
+ * 事务包裹，防止订单号竞态
  */
 export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references }) {
   return db.transaction(() => {
@@ -77,11 +74,13 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     }
 
     // N0-1: 创建订单时快照价格
+    // 安全：tierId 必须属于该画师，防止跨画师污染价格快照
     if (tierId) {
-      const tier = db.prepare('SELECT price FROM price_tiers WHERE id = ?').get(tierId)
-      if (tier) {
-        db.prepare('UPDATE orders SET price_snapshot = ? WHERE id = ?').run(tier.price, orderId)
+      const tier = db.prepare('SELECT price FROM price_tiers WHERE id = ? AND artist_id = ?').get(tierId, artistId)
+      if (!tier) {
+        throw new Error('价格档位不存在或不属于该画师')
       }
+      db.prepare('UPDATE orders SET price_snapshot = ? WHERE id = ?').run(tier.price, orderId)
     }
 
     return getOrder(orderId)
@@ -134,6 +133,7 @@ export function getArtistQueue(artistId) {
 
 /**
  * 更新订单状态（带状态机校验）
+ * 事务包裹，防止中途崩溃留下不一致状态
  */
 export function updateOrderStatus(orderId, newStatus) {
   const validStatuses = ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
@@ -142,30 +142,30 @@ export function updateOrderStatus(orderId, newStatus) {
   const order = getOrder(orderId)
   if (!order) throw new Error('订单不存在')
 
-  // 状态机校验：只允许合法转换
   const allowed = STATUS_TRANSITIONS[order.status]
   if (!allowed || !allowed.includes(newStatus)) {
     throw new Error(`不能从「${order.status}」转为「${newStatus}」`)
   }
 
-  db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(newStatus, orderId)
+  return db.transaction(() => {
+    db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(newStatus, orderId)
 
-  // N0-1: 进入 done/delivered 时记录成交时间
-  if (['done', 'delivered'].includes(newStatus)) {
-    db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
-      .run(orderId)
-  }
+    if (['done', 'delivered'].includes(newStatus)) {
+      db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
+        .run(orderId)
+    }
 
-  if (['delivered', 'cancelled'].includes(newStatus)) {
-    compactQueue(order.artist_id)
-  }
+    if (['delivered', 'cancelled'].includes(newStatus)) {
+      compactQueue(order.artist_id)
+    }
 
-  return getOrder(orderId)
+    return getOrder(orderId)
+  })()
 }
 
 /**
- * P1-2: 拖拽排序（重写）
+ * 拖拽排序（重写）
  * 前端传入完整的排序后 ID 数组，后端按序分配 queue_position
  * 拖拽不改变优先级，只改变同优先级内的位置
  */
@@ -306,17 +306,20 @@ export function addDeliverable(orderId, filePath, fileName, fileSize) {
 }
 
 /**
- * P1-3: 交付订单（事务化）
- * 添加交付文件 + 尝试将状态改为 delivered（仅 done 状态可交付）
- * 事务保证：文件插入和状态变更要么同时成功，要么同时回滚
+ * 交付订单（事务化）
+ * 仅 wip/revision/done 状态允许上传交付文件
  */
 export function deliverOrder(orderId, filePath, fileName, fileSize) {
   return db.transaction(() => {
+    const order = getOrder(orderId)
+    if (!order) throw new Error('订单不存在')
+    if (!['wip', 'revision', 'done'].includes(order.status)) {
+      throw new Error(`当前状态「${order.status}」不能上传交付文件`)
+    }
+
     addDeliverable(orderId, filePath, fileName, fileSize)
 
-    const order = getOrder(orderId)
     let statusChanged = false
-    // 仅 done 状态可自动转为 delivered
     if (order.status === 'done') {
       db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run('delivered', orderId)
@@ -329,7 +332,7 @@ export function deliverOrder(orderId, filePath, fileName, fileSize) {
 }
 
 /**
- * P1-1: 添加订单参考图
+ * 添加订单参考图
  */
 export function addReference(orderId, filePath, fileName, fileSize) {
   db.prepare('INSERT INTO order_references (order_id, file_path, original_name, file_size) VALUES (?, ?, ?, ?)')

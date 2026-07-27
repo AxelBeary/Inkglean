@@ -137,16 +137,26 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   name TEXT NOT NULL,
   applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
--- 索引优化
-CREATE INDEX IF NOT EXISTS idx_orders_artist_status ON orders(artist_id, status);
-CREATE INDEX IF NOT EXISTS idx_orders_queue ON orders(artist_id, queue_position);
-CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
-CREATE INDEX IF NOT EXISTS idx_artists_code ON artists(artist_code);
 `
 
 /**
- * P2-5: 版本化迁移列表
+ * 索引单独存放 — 在迁移之后执行，避免老库升级时因列不存在而崩溃
+ */
+export const schemaIndexes = `
+CREATE INDEX IF NOT EXISTS idx_orders_artist_status ON orders(artist_id, status);
+CREATE INDEX IF NOT EXISTS idx_orders_queue ON orders(artist_id, queue_position);
+CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_orders_client_qq ON orders(client_qq);
+CREATE INDEX IF NOT EXISTS idx_order_references_order ON order_references(order_id);
+CREATE INDEX IF NOT EXISTS idx_deliverables_order ON deliverables(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_notes_order ON order_notes(order_id);
+CREATE INDEX IF NOT EXISTS idx_artworks_artist ON artworks(artist_id);
+CREATE INDEX IF NOT EXISTS idx_price_tiers_artist ON price_tiers(artist_id);
+CREATE INDEX IF NOT EXISTS idx_artists_qq ON artists(qq_number);
+`
+
+/**
+ * 版本化迁移列表
  * 每个迁移有唯一 version 号，按顺序执行，已执行的自动跳过
  */
 const MIGRATIONS = [
@@ -158,8 +168,10 @@ const MIGRATIONS = [
       if (!columns.some(c => c.name === 'artist_code')) {
         database.exec('ALTER TABLE artists ADD COLUMN artist_code TEXT')
         database.exec("UPDATE artists SET artist_code = UPPER(subdomain) WHERE artist_code IS NULL")
-        database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_artists_code ON artists(artist_code)')
       }
+      // 数据完整性：先删除可能被 schema 旧版创建的同名非唯一索引，再建唯一索引
+      database.exec('DROP INDEX IF EXISTS idx_artists_code')
+      database.exec('CREATE UNIQUE INDEX IF NOT EXISTS uniq_artists_code ON artists(artist_code)')
     }
   },
   {
@@ -200,6 +212,53 @@ const MIGRATIONS = [
         database.exec('ALTER TABLE artists ADD COLUMN token_version INTEGER DEFAULT 1')
       }
     }
+  },
+  {
+    version: 6,
+    name: 'greeting_templates',
+    up(database) {
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS greeting_templates (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          artist_id  INTEGER,
+          text       TEXT NOT NULL,
+          time_slot  TEXT NOT NULL DEFAULT 'any'
+                     CHECK(time_slot IN ('morning','afternoon','evening','night','any')),
+          is_enabled INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+        )
+      `)
+      database.exec('CREATE INDEX IF NOT EXISTS idx_greeting_artist ON greeting_templates(artist_id, time_slot)')
+      // 种子：通用库（artist_id = NULL）
+      const count = database.prepare('SELECT COUNT(*) AS c FROM greeting_templates').get().c
+      if (count === 0) {
+        const insert = database.prepare(
+          'INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, ?, ?)'
+        )
+        const seeds = [
+          ['早上好，{name}，新的一天从一张好画开始', 'morning'],
+          ['早呀{name}，今天的灵感准备好了吗', 'morning'],
+          ['午安，{name}，别忘了吃午饭', 'afternoon'],
+          ['记得多喝水，{name}', 'afternoon'],
+          ['{name}，画画别忘了活动手腕', 'any'],
+          ['晚上好，{name}，今天辛苦了', 'evening'],
+          ['夜深了，{name}，早点休息', 'night'],
+          ['{name}，熬夜伤身，画可以明天再画', 'night'],
+        ]
+        for (const [text, slot] of seeds) insert.run(text, slot)
+      }
+    }
+  },
+  {
+    version: 7,
+    name: 'add_deleted_at_column',
+    up(database) {
+      const cols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!cols.some(c => c.name === 'deleted_at')) {
+        database.exec('ALTER TABLE artists ADD COLUMN deleted_at DATETIME')
+      }
+    }
   }
 ]
 
@@ -209,7 +268,7 @@ const MIGRATIONS = [
 export function initDatabase(database) {
   database.exec(schema)
 
-  // ─── P2-5: 版本化迁移 ───
+  // ─── 版本化迁移 ───
   const applied = new Set(
     database.prepare('SELECT version FROM schema_migrations').all().map(r => r.version)
   )
@@ -221,12 +280,15 @@ export function initDatabase(database) {
     console.log(`📦 迁移 v${migration.version}: ${migration.name} 已应用`)
   }
 
+  // 可靠性：索引在迁移之后执行 — 老库升级时列可能由迁移添加，提前建索引会崩溃
+  database.exec(schemaIndexes)
+
   // ─── 确保平台配置有默认值 ───
   database.exec(`
     INSERT OR IGNORE INTO platform_config (key, value) VALUES ('admin_qq', '')
   `)
 
-  // ─── P0-6: 管理员自举 — 首次部署自动创建管理员账号 ───
+  // ─── 管理员自举 — 首次部署自动创建管理员账号 ───
   const adminQq = process.env.ADMIN_QQ
   if (adminQq) {
     // 仅当 admin_qq 为空时写入（不覆盖运行时更换的值）

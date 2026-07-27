@@ -27,12 +27,3 @@ export const ARTIST_STATUS_TYPE = {
   full: 'warning',
   break: 'danger'
 }
-
-/** 订单状态流转步骤激活标记 */
-export const STATUS_STEP = {
-  submitted: { key: 'stepSubmitted', active: s => true },
-  confirmed: { key: 'stepConfirmed', active: s => s !== 'pending' },
-  wip: { key: 'stepWip', active: s => !['pending', 'confirmed'].includes(s) },
-  done: { key: 'stepDone', active: s => ['done', 'delivered'].includes(s) },
-  delivered: { key: 'stepDelivered', active: s => s === 'delivered' }
-}

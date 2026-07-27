@@ -4,7 +4,7 @@
       <h1>{{ $t('landing.title') }}</h1>
       <p class="subtitle">{{ $t('landing.subtitle') }}</p>
       <div class="header-prefs">
-        <ThemeToggle />
+        <ThemePicker />
       </div>
     </header>
 
@@ -64,7 +64,7 @@ import { useRouter } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import ThemeToggle from '../../components/ThemeToggle.vue'
+import ThemePicker from '../../components/ThemePicker.vue'
 import Disclaimer from '../../components/Disclaimer.vue'
 
 const { t } = useI18n()

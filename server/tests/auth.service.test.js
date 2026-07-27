@@ -19,11 +19,11 @@ describe('认证服务 (Auth Service)', () => {
     expect(a.id).toBe(artist.id)
   })
 
-  // TC-A-02: 生成登录码 — QQ 未绑定
-  it('TC-A-02: 未绑定QQ抛出错误', () => {
-    expect(() => {
-      authService.generateLoginCode('99999')
-    }).toThrow('该QQ号未注册为画师')
+  // TC-A-02: 生成登录码 — QQ 未绑定（P2-3: 防用户枚举，静默返回不抛错）
+  it('TC-A-02: 未绑定QQ静默返回（不抛错）', () => {
+    const result = authService.generateLoginCode('99999')
+    expect(result.code).toBeNull()
+    expect(result.artist).toBeNull()
   })
 
   // TC-A-03: 验证登录码 — 正确

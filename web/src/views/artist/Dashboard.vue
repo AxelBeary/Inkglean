@@ -1,7 +1,19 @@
 <template>
   <div class="dashboard">
     <ArtistLayout>
-      <h2>{{ $t('dashboard.title') }}</h2>
+      <!-- 问候区 -->
+      <div class="greeting-area">
+        <div class="greeting-main">
+          <span class="greeting-icon">{{ slotIcon }}</span>
+          <Transition name="greeting-fade" mode="out-in">
+            <h2 class="greeting-text font-display" :key="greeting.text">{{ greeting.text }}</h2>
+          </Transition>
+          <el-button text size="small" class="greeting-refresh" @click="fetchGreeting" :loading="greetingLoading">
+            ↻ {{ $t('dashboard.anotherOne') }}
+          </el-button>
+        </div>
+        <div class="greeting-date">{{ dateLine }}</div>
+      </div>
 
       <!-- 统计卡片 -->
       <div class="stat-grid">
@@ -14,7 +26,7 @@
           <div class="stat-label">{{ $t('dashboard.activeOrders') }}</div>
         </el-card>
         <el-card shadow="hover" class="stat-card">
-          <div class="stat-num">¥{{ stats?.monthRevenue ?? '-' }}</div>
+          <div class="stat-num text-gold">¥{{ stats?.monthRevenue ?? '-' }}</div>
           <div class="stat-label">{{ $t('dashboard.monthRevenue') }}</div>
         </el-card>
         <el-card shadow="hover" class="stat-card">
@@ -46,25 +58,53 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useArtistStore } from '../../stores/artist.js'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const store = useArtistStore()
 const stats = ref(null)
 const currentStatus = ref('open')
+const lastKnownStatus = ref('open') // P1-6: 回滚用
+
+// ─── 问候语 ───
+const greeting = ref({ text: '', slot: 'any' })
+const greetingLoading = ref(false)
+
+const SLOT_ICONS = { morning: '☀️', afternoon: '🌤️', evening: '🌆', night: '🌙', any: '🎨' }
+const slotIcon = computed(() => SLOT_ICONS[greeting.value.slot] || '🎨')
+
+const dateLine = computed(() => {
+  const now = new Date()
+  const opts = { month: 'long', day: 'numeric', weekday: 'long' }
+  const dateStr = now.toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', opts)
+  const slotNames = {
+    morning: t('dashboard.slotMorning'), afternoon: t('dashboard.slotAfternoon'),
+    evening: t('dashboard.slotEvening'), night: t('dashboard.slotNight'), any: ''
+  }
+  const slotName = slotNames[greeting.value.slot] || ''
+  return slotName ? `${dateStr} · ${slotName}` : dateStr
+})
+
+async function fetchGreeting() {
+  greetingLoading.value = true
+  try {
+    greeting.value = await artistApi.getGreeting()
+  } catch { /* 静默失败，保留默认 */ }
+  finally { greetingLoading.value = false }
+}
 
 async function updateStatus(val) {
-  const prev = currentStatus.value
   try {
     await artistApi.updateProfile({ status: val })
+    lastKnownStatus.value = val // P1-6: 成功后更新已知状态
     ElMessage.success(t('dashboard.statusUpdated'))
   } catch (err) {
-    currentStatus.value = prev // 回滚 UI 状态
+    currentStatus.value = lastKnownStatus.value // P1-6: 回滚到上次成功状态
     ElMessage.error(err.message)
   }
 }
@@ -72,19 +112,54 @@ async function updateStatus(val) {
 onMounted(async () => {
   await store.fetchProfile()
   currentStatus.value = store.profile?.status || 'open'
-  try {
-    stats.value = await artistApi.getStats()
-  } catch { /* ignore */ }
+  lastKnownStatus.value = currentStatus.value // P1-6: 初始化已知状态
+  fetchGreeting()
+  try { stats.value = await artistApi.getStats() } catch { /* ignore */ }
 })
 </script>
 
 <style scoped>
+/* 问候区 */
+.greeting-area {
+  padding: 20px 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-primary-soft), transparent 70%);
+  margin-bottom: 20px;
+}
+.greeting-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.greeting-icon { font-size: 24px; }
+.greeting-text {
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+.greeting-refresh { color: var(--text-secondary); font-size: 12px; }
+.greeting-date {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* 问候语切换动画 */
+.greeting-fade-enter-active { transition: opacity 0.2s, transform 0.2s; }
+.greeting-fade-leave-active { transition: opacity 0.15s; }
+.greeting-fade-enter-from { opacity: 0; transform: translateY(6px); }
+.greeting-fade-leave-to { opacity: 0; }
+
+/* 统计 */
 .stat-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px; margin-top: 16px;
+  gap: 12px;
 }
-.stat-card { text-align: center; background: var(--bg-card); transition: background 0.3s; }
-.stat-num { font-size: 28px; font-weight: bold; color: var(--el-color-primary); }
+.stat-card { text-align: center; background: var(--bg-card); transition: background 0.3s, transform 0.18s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-num { font-size: 28px; font-weight: bold; color: var(--color-primary); font-variant-numeric: tabular-nums; }
 .stat-label { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
 .quick-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 </style>

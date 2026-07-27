@@ -1,5 +1,5 @@
 # ============================================
-# Caddy 配置 - 泛解析反向代理
+# Caddy 配置 - 反向代理
 # 修改 {$DOMAIN} 为你的实际域名
 # ============================================
 
@@ -9,13 +9,18 @@
 	# acme_dns cloudflare {$CLOUDFLARE_API_TOKEN}
 }
 
-# 泛解析：所有子域名 → 同一个后端
-# alice.artgroup.com, bob.artgroup.com 都走这里
-*.{$DOMAIN} {
-	reverse_proxy web:3000
-}
-
-# 主域名本身（管理后台入口）
+# 主域名（当前唯一入口）
+# 画师主页通过路径访问：{$DOMAIN}/artist/:subdomain
 {$DOMAIN} {
 	reverse_proxy web:3000
 }
+
+# ─── Phase 2（未启用）：泛子域名 ───
+# 启用后画师可通过 alice.{$DOMAIN} 直接访问主页
+# 前置条件：
+#   1. 泛解析 DNS（*.{$DOMAIN} → 服务器 IP）
+#   2. 启用上方 acme_dns 配置（泛域名证书需 DNS-01 验证）
+#   3. 前端增加 hostname → subdomain 路由映射
+# *.{$DOMAIN} {
+# 	reverse_proxy web:3000
+# }

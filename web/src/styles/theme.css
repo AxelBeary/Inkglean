@@ -1,0 +1,113 @@
+/* ============================================
+   绘约后台主题 — 五色 + 亮暗
+   ============================================ */
+
+/* ===== 语义变量 ===== */
+:root {
+  /* 底色 */
+  --bg-page: #f5f5f5;
+  --bg-card: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-inset: #f0f0f0;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+
+  /* 文字 */
+  --text-primary: #303133;
+  --text-secondary: #909399;
+  --text-muted: #c0c4cc;
+
+  /* 线条 */
+  --border-color: #e4e7ed;
+  --border-color-strong: #dcdfe6;
+
+  /* 主色（默认 #34dbcb，由 data-accent 覆写） */
+  --color-primary: #34dbcb;
+  --color-primary-hover: #2ec4b6;
+  --color-primary-soft: rgba(52, 219, 203, 0.10);
+
+  /* 功能色（固定，不跟随主色） */
+  --color-danger: #f56c6c;
+  --color-warning: #e6a23c;
+  --color-success: #67c23a;
+  --color-info: #909399;
+  --color-gold: #b08d1e;
+
+  /* 阴影 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* 字体 */
+  --font-display: 'LXGW WenKai', 'KaiTi', 'STKaiti', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+/* ===== 暗色模式 ===== */
+html.dark {
+  --bg-page: #141414;
+  --bg-card: #1d1e1f;
+  --bg-elevated: #262727;
+  --bg-inset: #0d0d0d;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+
+  --text-primary: #e5eaf3;
+  --text-secondary: #a3a6ad;
+  --text-muted: #6c6e72;
+
+  --border-color: #414243;
+  --border-color-strong: #4c4d4f;
+
+  --color-danger: #f89898;
+  --color-warning: #eebe77;
+  --color-success: #95d475;
+  --color-info: #a3a6ad;
+  --color-gold: #d9b44a;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== 主色覆写（5 色 × 2 模式） ===== */
+
+/* 亮色 */
+html[data-accent="1"] { --color-primary: #34dbcb; --color-primary-hover: #2ec4b6; --color-primary-soft: rgba(52, 219, 203, 0.10); }
+html[data-accent="2"] { --color-primary: #34c2db; --color-primary-hover: #2eaec4; --color-primary-soft: rgba(52, 194, 219, 0.10); }
+html[data-accent="3"] { --color-primary: #3498db; --color-primary-hover: #2e88c4; --color-primary-soft: rgba(52, 152, 219, 0.10); }
+html[data-accent="4"] { --color-primary: #346edb; --color-primary-hover: #2e62c4; --color-primary-soft: rgba(52, 110, 219, 0.10); }
+html[data-accent="5"] { --color-primary: #3445db; --color-primary-hover: #2e3ec4; --color-primary-soft: rgba(52, 69, 219, 0.10); }
+
+/* 暗色（提亮） */
+html.dark[data-accent="1"] { --color-primary: #4de8d9; --color-primary-hover: #63ece0; --color-primary-soft: rgba(77, 232, 217, 0.12); }
+html.dark[data-accent="2"] { --color-primary: #4dd0e8; --color-primary-hover: #63d8ec; --color-primary-soft: rgba(77, 208, 232, 0.12); }
+html.dark[data-accent="3"] { --color-primary: #4da8e8; --color-primary-hover: #63b4ec; --color-primary-soft: rgba(77, 168, 232, 0.12); }
+html.dark[data-accent="4"] { --color-primary: #4d82e8; --color-primary-hover: #6392ec; --color-primary-soft: rgba(77, 130, 232, 0.12); }
+html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #636eec; --color-primary-soft: rgba(77, 92, 232, 0.12); }
+
+/* ===== Element Plus 覆写 ===== */
+:root {
+  --el-color-primary: var(--color-primary);
+  --el-color-primary-light-3: color-mix(in srgb, var(--color-primary) 70%, var(--bg-page));
+  --el-color-primary-light-5: color-mix(in srgb, var(--color-primary) 50%, var(--bg-page));
+  --el-color-primary-light-7: color-mix(in srgb, var(--color-primary) 30%, var(--bg-page));
+  --el-color-primary-light-8: color-mix(in srgb, var(--color-primary) 20%, var(--bg-page));
+  --el-color-primary-light-9: color-mix(in srgb, var(--color-primary) 10%, var(--bg-page));
+  --el-color-primary-dark-2: color-mix(in srgb, var(--color-primary) 80%, var(--text-primary));
+
+  --el-color-success: var(--color-success);
+  --el-color-warning: var(--color-warning);
+  --el-color-danger: var(--color-danger);
+  --el-color-info: var(--color-info);
+
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+
+  --el-bg-color: var(--bg-card);
+  --el-bg-color-overlay: var(--bg-elevated);
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-secondary);
+  --el-border-color: var(--border-color);
+  --el-border-color-light: var(--border-color);
+  --el-fill-color-light: var(--bg-inset);
+}

@@ -1,5 +1,5 @@
 export default {
-  pref: { toLight: '切换到亮色模式', toDark: '切换到暗色模式' },
+  pref: { toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗' },
   common: {
     status: { open: '可约稿', full: '已排满', break: '休息中', unknown: '未知' },
     statusShort: { open: '可约', full: '排满', break: '休息' },
@@ -30,9 +30,9 @@ export default {
     notFound: '页面不存在'
   },
   menu: {
-    logo: '🎨 约稿后台', dashboard: '📊 仪表盘', queue: '📋 排期看板', orders: '📦 订单管理',
-    manualOrder: '✍ 手动录单', tiers: '💰 价格管理', artworks: '🖼 作品管理',
-    rules: '📜 须知编辑', settings: '⚙ 主页设置', logout: '🚪 退出登录'
+    logo: '绘约', dashboard: '仪表盘', queue: '排期看板', orders: '订单管理',
+    manualOrder: '手动录单', tiers: '价格管理', artworks: '作品管理',
+    rules: '须知编辑', settings: '主页设置', logout: '退出登录'
   },
   landing: {
     title: '🎨 画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
@@ -82,11 +82,13 @@ export default {
     devCode: '开发模式登录码: {code}', enterQq: '请输入QQ号', enterCode: '请输入登录码', loginSuccess: '登录成功！'
   },
   dashboard: {
-    title: '📊 仪表盘', pendingNew: '待处理新单', activeOrders: '进行中订单',
+    title: '仪表盘', pendingNew: '待处理新单', activeOrders: '进行中订单',
     monthRevenue: '本月收入', totalCompleted: '累计完成', quickActions: '快捷操作',
-    queueBoard: '📋 排期看板', manualOrder: '✍ 手动录单', allOrders: '📦 全部订单', settings: '⚙ 主页设置',
+    queueBoard: '排期看板', manualOrder: '手动录单', allOrders: '全部订单', settings: '主页设置',
     currentStatus: '当前主页状态', statusUpdated: '状态已更新',
-    statusOpen: '✅ 可约稿', statusFull: '⏳ 已排满', statusBreak: '💤 休息中'
+    statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
+    anotherOne: '换一句',
+    slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜'
   },
   queue: {
     title: '📋 排期看板',
@@ -179,6 +181,10 @@ export default {
     nextStep: '下一步', confirmTransfer: '确认更换',
     transferSuccess: '管理员已更换为 {name}', adminTag: '管理员',
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
-    orderColType: '类型', orderColTime: '下单时间'
+    orderColType: '类型', orderColTime: '下单时间',
+    greetingManage: '问候语管理', greetingPlaceholder: '输入问候语，用 {name} 代替画师名',
+    greetingPreview: '预览', greetingEmpty: '请输入问候语内容',
+    greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
+    slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜'
   }
 }

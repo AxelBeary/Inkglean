@@ -13,7 +13,7 @@ const MAX_ATTEMPTS = 5
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 /**
- * P0-1: 签名密钥 — 生产环境必须设置 SESSION_SECRET，否则启动即崩溃
+ * 签名密钥 — 生产环境必须设置 SESSION_SECRET，否则启动即崩溃
  */
 function getSecret() {
   const secret = process.env.SESSION_SECRET
@@ -31,22 +31,23 @@ function getSecret() {
 const SECRET = getSecret()
 
 /**
- * P0-5: 开发模式 — 显式 AUTH_DEV_MODE=*** 开启（不再依赖 NODE_ENV 推断）
+ * 开发模式 — 显式 AUTH_DEV_MODE=*** 开启（不再依赖 NODE_ENV 推断）
  */
 export const isDevAuth = process.env.AUTH_DEV_MODE === 'true'
 
 /**
  * 生成6位登录码，有效期5分钟
- * 开发模式：输出到控制台（不依赖QQ Bot）
+ * 无论 QQ 是否注册，统一返回相同响应，防止用户枚举
  */
 export function generateLoginCode(qqNumber) {
   const artist = getArtistByQq(qqNumber)
-  if (!artist) throw new Error('该QQ号未注册为画师')
+  if (!artist) {
+    // 不抛错，静默返回 — 调用方统一响应"若已注册则码已发送"
+    return { code: null, artist: null }
+  }
 
-  // 清除旧码
   db.prepare('DELETE FROM login_codes WHERE artist_id = ?').run(artist.id)
 
-  // P0-4d: randomInt 上界开区间修正（100000-999999）
   const code = String(crypto.randomInt(CODE_MIN, CODE_MAX))
     const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
@@ -63,10 +64,11 @@ export function generateLoginCode(qqNumber) {
 
 /**
  * 验证登录码（最多5次尝试）
+ * 未注册 QQ 返回通用错误，不暴露注册状态
  */
 export function verifyLoginCode(qqNumber, code) {
   const artist = getArtistByQq(qqNumber)
-  if (!artist) return { valid: false, error: '该QQ号未注册为画师' }
+  if (!artist) return { valid: false, error: '登录码错误或已过期' }
 
   const record = db.prepare(
     'SELECT * FROM login_codes WHERE artist_id = ? ORDER BY created_at DESC LIMIT 1'
@@ -86,7 +88,7 @@ export function verifyLoginCode(qqNumber, code) {
     return { valid: false, error: '尝试次数过多，请重新获取登录码' }
   }
 
-  // P0-4c: 时间安全比较，防止计时攻击
+  // 安全：时间安全比较，防止计时攻击
     // R1-2: 先检查字符长度（6位数字），避免全角/多字节字符触发 timingSafeEqual 崩溃
     if (code.length !== 6 || record.code.length !== 6) {
       db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
@@ -121,20 +123,20 @@ export function createSession(artistId, tokenVersion) {
 
 /**
  * 验证会话 Token
- * 返回 payload（含 id, t, v）或 null
+ * 使用 timingSafeEqual 防止时序攻击
  */
 export function verifySession(token) {
   if (!token) return null
   const [payload, sig] = token.split('.')
   if (!payload || !sig) return null
 
-  const expected = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
-  if (sig !== expected) return null
+  const expected = crypto.createHmac('sha256', SECRET).update(payload).digest()
+  const actual = Buffer.from(sig, 'base64url')
+  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null
 
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
-    // 7天过期
-        if (Date.now() - data.t > SESSION_TTL_MS) return null
+    if (Date.now() - data.t > SESSION_TTL_MS) return null
     return data
   } catch {
     return null

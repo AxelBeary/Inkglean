@@ -35,8 +35,8 @@ api.interceptors.response.use(
         const { default: router } = await import('../router/index.js')
         const store = useArtistStore()
         store.$reset()
-        if (router.currentRoute.value.name !== 'Login') {
-          router.push({ name: 'Login' })
+        if (router.currentRoute.value.name !== 'ArtistLogin') {
+          router.push({ name: 'ArtistLogin' })
         }
       } catch {
         // 兜底：硬跳转
@@ -79,7 +79,7 @@ export const artistApi = {
   getRules: () => api.get('/artist/rules'),
   updateRules: (content) => api.put('/artist/rules', { content }),
   // 订单
-  getOrders: (status) => api.get('/artist/orders', { params: { status } }),
+  getOrders: (status, { page, pageSize } = {}) => api.get('/artist/orders', { params: { status, page, pageSize } }),
   getQueue: () => api.get('/artist/queue'),
   getOrder: (id) => api.get(`/artist/orders/${id}`),
   createManualOrder: (data) => api.post('/artist/orders/manual', data),
@@ -91,7 +91,9 @@ export const artistApi = {
   deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data),
   addReference: (id, data) => api.post(`/artist/orders/${id}/references`, data),
   // 统计
-  getStats: () => api.get('/artist/stats')
+  getStats: () => api.get('/artist/stats'),
+  // 问候语
+  getGreeting: () => api.get('/artist/greeting')
 }
 
 // ─── 客户端订单 ───
@@ -132,5 +134,15 @@ export const adminApi = {
   getStats: () => api.get('/admin/stats'),
   getArtistOrders: (id) => api.get(`/admin/artists/${id}/orders`),
   updateArtistStatus: (id, status) => api.put(`/admin/artists/${id}/status`, { status }),
-  transferAdmin: (data) => api.post('/admin/transfer', data)
+  transferAdmin: (data) => api.post('/admin/transfer', data),
+  // 问候语 — 通用库
+  getGreetings: (slot) => api.get('/admin/greetings', { params: { slot } }),
+  createGreeting: (data) => api.post('/admin/greetings', data),
+  updateGreeting: (id, data) => api.put(`/admin/greetings/${id}`, data),
+  deleteGreeting: (id) => api.delete(`/admin/greetings/${id}`),
+  // 问候语 — 画师专属库
+  getArtistGreetings: (artistId) => api.get(`/admin/artists/${artistId}/greetings`),
+  createArtistGreeting: (artistId, data) => api.post(`/admin/artists/${artistId}/greetings`, data),
+  updateArtistGreeting: (artistId, gid, data) => api.put(`/admin/artists/${artistId}/greetings/${gid}`, data),
+  deleteArtistGreeting: (artistId, gid) => api.delete(`/admin/artists/${artistId}/greetings/${gid}`)
 }
