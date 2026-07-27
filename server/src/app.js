@@ -158,21 +158,25 @@ export async function buildApp(opts = {}) {
   // ─── 健康检查 ───
   app.get('/api/health', async () => ({ status: 'ok', time: new Date().toISOString() }))
 
-  // ─── 全局错误处理：将 Schema 校验失败转为中文友好提示 ───
+  // ─── 全局错误处理：结构化错误码 + 中文友好提示 ───
   app.setErrorHandler((error, request, reply) => {
     if (error.validation) {
       // Fastify JSON Schema 校验失败
       const field = error.validation[0]?.instancePath?.replace(/^\//, '') || '参数'
-      return reply.code(400).send({ error: `请求参数格式不正确（${field}）` })
+      return reply.code(400).send({ code: 'VALIDATION', error: `请求参数格式不正确（${field}）` })
     }
     const status = error.statusCode || 500
     // 安全：500 级别错误不透传 message（可能泄露表名/列名/路径），仅记日志
     if (status >= 500) {
       request.log.error({ err: error, url: request.url }, '未处理的服务端错误')
-      return reply.status(500).send({ error: '服务器内部错误' })
+      return reply.status(500).send({ code: 'INTERNAL', error: '服务器内部错误' })
     }
-    // 4xx 业务错误可透传
-    reply.status(status).send({ error: error.message || '请求错误' })
+    // 4xx 业务错误：返回结构化错误码
+    reply.status(status).send({
+      code: error.code || 'UNKNOWN',
+      error: error.message || '请求错误',
+      detail: error.detail || undefined
+    })
   })
 
   // ─── 前端 SPA 静态文件 + fallback ───

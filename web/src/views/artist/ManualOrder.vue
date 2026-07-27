@@ -20,8 +20,10 @@
         </el-form-item>
 
         <el-form-item :label="$t('manualOrder.desc')">
-          <el-input v-model="form.description" type="textarea" :rows="4"
-            :placeholder="$t('manualOrder.descPlaceholder')" maxlength="2000" show-word-limit />
+          <el-input
+            v-model="form.description" type="textarea" :rows="4"
+            :placeholder="$t('manualOrder.descPlaceholder')" maxlength="2000" show-word-limit
+          />
         </el-form-item>
 
         <el-form-item :label="$t('manualOrder.priority')">

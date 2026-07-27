@@ -1,4 +1,5 @@
 import db from '../../db/connection.js'
+import { AppError, E } from '../../shared/errors.js'
 
 // ============================================
 // 订单服务 - 核心业务逻辑
@@ -48,7 +49,7 @@ export function generateOrderNo(artistId, artistCode) {
 export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references }) {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId)
-    if (!artist) throw new Error('画师不存在')
+    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
 
     const code = artist.artist_code || artist.subdomain.toUpperCase()
     const orderNo = generateOrderNo(artistId, code)
@@ -78,7 +79,7 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     if (tierId) {
       const tier = db.prepare('SELECT price FROM price_tiers WHERE id = ? AND artist_id = ?').get(tierId, artistId)
       if (!tier) {
-        throw new Error('价格档位不存在或不属于该画师')
+        throw new AppError(E.TIER_NOT_FOUND)
       }
       db.prepare('UPDATE orders SET price_snapshot = ? WHERE id = ?').run(tier.price, orderId)
     }
@@ -137,14 +138,14 @@ export function getArtistQueue(artistId) {
  */
 export function updateOrderStatus(orderId, newStatus) {
   const validStatuses = ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
-  if (!validStatuses.includes(newStatus)) throw new Error(`无效状态: ${newStatus}`)
+  if (!validStatuses.includes(newStatus)) throw new AppError(E.ORDER_INVALID_STATUS, 400, { status: newStatus })
 
   const order = getOrder(orderId)
-  if (!order) throw new Error('订单不存在')
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
   const allowed = STATUS_TRANSITIONS[order.status]
   if (!allowed || !allowed.includes(newStatus)) {
-    throw new Error(`不能从「${order.status}」转为「${newStatus}」`)
+    throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: newStatus })
   }
 
   return db.transaction(() => {
@@ -171,7 +172,7 @@ export function updateOrderStatus(orderId, newStatus) {
  */
 export function reorderQueue(artistId, orderedIds) {
   if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    throw new Error('排序列表不能为空')
+    throw new AppError(E.QUEUE_EMPTY)
   }
 
   // 校验所有 ID 属于该画师且为活跃订单
@@ -182,14 +183,14 @@ export function reorderQueue(artistId, orderedIds) {
 
   const idSet = new Set(activeOrders)
   for (const id of orderedIds) {
-    if (!idSet.has(id)) throw new Error(`订单 ${id} 不属于当前队列`)
+    if (!idSet.has(id)) throw new AppError(E.QUEUE_NOT_OWNED, 400, { id })
   }
   if (orderedIds.length !== activeOrders.length) {
-    throw new Error('排序列表长度与队列不一致')
+    throw new AppError(E.QUEUE_LENGTH)
   }
   // 校验无重复 ID
   if (new Set(orderedIds).size !== orderedIds.length) {
-    throw new Error('排序列表存在重复订单')
+    throw new AppError(E.QUEUE_DUPLICATE)
   }
 
   const updatePos = db.prepare('UPDATE orders SET queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
@@ -222,10 +223,10 @@ function compactQueue(artistId) {
  */
 export function updatePriority(orderId, priority) {
   const valid = ['high', 'medium', 'low']
-  if (!valid.includes(priority)) throw new Error(`无效优先级: ${priority}`)
+  if (!valid.includes(priority)) throw new AppError(E.INVALID_PRIORITY, 400, { priority })
 
   const order = getOrder(orderId)
-  if (!order) throw new Error('订单不存在')
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
   db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(priority, orderId)
@@ -312,9 +313,9 @@ export function addDeliverable(orderId, filePath, fileName, fileSize) {
 export function deliverOrder(orderId, filePath, fileName, fileSize) {
   return db.transaction(() => {
     const order = getOrder(orderId)
-    if (!order) throw new Error('订单不存在')
+    if (!order) throw new AppError(E.ORDER_NOT_FOUND)
     if (!['wip', 'revision', 'done'].includes(order.status)) {
-      throw new Error(`当前状态「${order.status}」不能上传交付文件`)
+      throw new AppError(E.DELIVER_WRONG_STATUS, 400, { status: order.status })
     }
 
     addDeliverable(orderId, filePath, fileName, fileSize)

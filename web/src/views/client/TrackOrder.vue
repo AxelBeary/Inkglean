@@ -7,12 +7,16 @@
       <el-card style="margin-top: 16px" v-if="!order">
         <el-form @submit.prevent="search" label-position="top">
           <el-form-item :label="$t('track.qqLabel')">
-            <el-input v-model="qq" :placeholder="$t('track.qqPlaceholder')" clearable
-              @keyup.enter="search" />
+            <el-input
+              v-model="qq" :placeholder="$t('track.qqPlaceholder')" clearable
+              @keyup.enter="search"
+            />
           </el-form-item>
           <el-form-item :label="$t('track.orderNoLabel')">
-            <el-input v-model="orderNo" :placeholder="$t('track.inputPlaceholder')" clearable
-              @keyup.enter="search" />
+            <el-input
+              v-model="orderNo" :placeholder="$t('track.inputPlaceholder')" clearable
+              @keyup.enter="search"
+            />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="search" :loading="searching" style="width: 100%">
@@ -87,8 +91,10 @@
       </el-dialog>
 
       <!-- 该QQ无订单 → 3秒不可关闭弹窗 -->
-      <el-dialog v-model="showNoOrders" :title="$t('track.noOrdersTitle')" width="360px"
-        :close-on-click-modal="false" :close-on-press-escape="false" :show-close="noOrdersCountdown <= 0">
+      <el-dialog
+        v-model="showNoOrders" :title="$t('track.noOrdersTitle')" width="360px"
+        :close-on-click-modal="false" :close-on-press-escape="false" :show-close="noOrdersCountdown <= 0"
+      >
         <p>{{ $t('track.noOrdersDesc') }}</p>
         <template #footer>
           <el-button :disabled="noOrdersCountdown > 0" @click="showNoOrders = false">

@@ -3,17 +3,21 @@
     <!-- 主色圆点 → 弹出颜料盒 -->
     <el-popover placement="top" :width="220" trigger="click">
       <template #reference>
-        <button class="accent-dot" :style="{ background: currentColor }"
-          :title="t('pref.theme')" :aria-label="t('pref.theme')"></button>
+        <button
+          class="accent-dot" :style="{ background: currentColor }"
+          :title="t('pref.theme')" :aria-label="t('pref.theme')"
+        ></button>
       </template>
 
       <div class="picker-body">
         <!-- 底色 -->
         <div class="picker-label">{{ t('pref.base') }}</div>
         <div class="picker-row">
-          <button v-for="opt in baseOptions" :key="opt.value"
+          <button
+            v-for="opt in baseOptions" :key="opt.value"
             class="picker-btn" :class="{ active: themeStore.base === opt.value }"
-            @click="themeStore.setBase(opt.value)">
+            @click="themeStore.setBase(opt.value)"
+          >
             {{ t(opt.label) }}
           </button>
         </div>
@@ -21,10 +25,12 @@
         <!-- 主色 -->
         <div class="picker-label">{{ t('pref.accent') }}</div>
         <div class="picker-row">
-          <button v-for="a in accents" :key="a.id"
+          <button
+            v-for="a in accents" :key="a.id"
             class="accent-swatch" :class="{ active: themeStore.accent === a.id }"
             :style="{ background: a.color }"
-            :title="a.name" @click="themeStore.setAccent(a.id)">
+            :title="a.name" @click="themeStore.setAccent(a.id)"
+          >
             <span v-if="themeStore.accent === a.id" class="swatch-check">✓</span>
           </button>
         </div>
@@ -32,9 +38,11 @@
     </el-popover>
 
     <!-- 语言切换 -->
-    <button class="lang-btn" @click="toggleLang"
+    <button
+      class="lang-btn" @click="toggleLang"
       :title="locale === 'zh-CN' ? 'English' : '中文'"
-      :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'">
+      :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+    >
       {{ locale === 'zh-CN' ? 'EN' : '中' }}
     </button>
   </div>

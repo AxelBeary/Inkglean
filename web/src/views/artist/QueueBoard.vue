@@ -12,7 +12,7 @@
         @end="onDragEnd"
         class="queue-list"
       >
-        <template #item="{ element, index }">
+        <template #item="{ element }">
           <div class="queue-item" :class="`priority-${element.priority}`">
             <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
             <div class="item-body">

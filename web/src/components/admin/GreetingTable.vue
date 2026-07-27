@@ -7,13 +7,17 @@
 
     <!-- 添加行 -->
     <div class="add-row">
-      <el-input v-model="newText" :placeholder="$t('admin.greetingPlaceholder')" size="small"
-        @keyup.enter="addGreeting" style="flex: 1; min-width: 160px" />
+      <el-input
+        v-model="newText" :placeholder="$t('admin.greetingPlaceholder')" size="small"
+        @keyup.enter="addGreeting" style="flex: 1; min-width: 160px"
+      />
       <el-select v-model="newSlot" size="small" style="width: 100px">
         <el-option v-for="s in slots" :key="s.value" :value="s.value" :label="s.label" />
       </el-select>
-      <el-button type="primary" size="small" @click="addGreeting" :loading="saving"
-        :disabled="!newText.trim()">
+      <el-button
+        type="primary" size="small" @click="addGreeting" :loading="saving"
+        :disabled="!newText.trim()"
+      >
         ＋ {{ $t('common.add') }}
       </el-button>
     </div>
@@ -37,8 +41,10 @@
       </el-table-column>
       <el-table-column :label="$t('admin.greetingColEnabled')" width="70">
         <template #default="{ row }">
-          <el-switch v-model="row.is_enabled" :active-value="1" :inactive-value="0" size="small"
-            @change="(val) => toggleEnabled(row, val)" />
+          <el-switch
+            v-model="row.is_enabled" :active-value="1" :inactive-value="0" size="small"
+            @change="(val) => toggleEnabled(row, val)"
+          />
         </template>
       </el-table-column>
       <el-table-column :label="$t('common.actions')" width="70" fixed="right">

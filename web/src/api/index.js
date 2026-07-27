@@ -20,11 +20,33 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// 响应拦截器：统一错误处理
+// 响应拦截器：统一错误处理 + i18n 翻译
 api.interceptors.response.use(
   res => res.data,
   async err => {
-    const msg = err.response?.data?.error || '网络错误，请稍后重试'
+    const data = err.response?.data
+    const code = data?.code
+    let msg = data?.error || '网络错误，请稍后重试'
+
+    // 尝试用 i18n 翻译错误码
+    if (code) {
+      try {
+        const { i18n } = await import('../i18n/index.js')
+        const t = i18n.global.t
+        const key = `errors.${code}`
+        const translated = t(key)
+        // 如果翻译成功（不是返回 key 本身），使用翻译后的消息
+        if (translated !== key) {
+          msg = translated
+          // 如果有 detail，附加上下文
+          if (data.detail?.name) msg = `${data.detail.name}：${msg}`
+          if (data.detail?.code) msg = `${msg}（${data.detail.code}）`
+        }
+      } catch {
+        // i18n 加载失败，使用原始消息
+      }
+    }
+
     // 401 时清除所有本地认证状态并跳转登录页
     if (err.response?.status === 401) {
       localStorage.removeItem('artist_token')

@@ -1,4 +1,72 @@
 export default {
+  errors: {
+    // Auth
+    NOT_LOGGED_IN: 'Not logged in',
+    SESSION_EXPIRED: 'Session expired, please log in again',
+    ACCOUNT_NOT_FOUND: 'Artist account not found',
+    ACCOUNT_DISABLED: 'Account has been disabled',
+    TOKEN_REVOKED: 'Session invalidated, please log in again',
+    ADMIN_REQUIRED: 'Admin privileges required',
+    CODE_INVALID: 'Invalid login code',
+    CODE_EXPIRED: 'Login code expired',
+    CODE_TOO_MANY_ATTEMPTS: 'Too many attempts, please request a new code',
+    QQ_NOT_REGISTERED: 'This QQ number is not registered as an artist',
+
+    // Artist
+    ARTIST_NOT_FOUND: 'Artist not found',
+    NAME_EMPTY: 'Name cannot be empty',
+    CODE_FORMAT: 'Artist code must be 2-10 uppercase letters/digits',
+    CODE_TAKEN: 'Artist code already taken',
+    INVALID_STATUS: 'Invalid homepage status',
+    INVALID_URL: 'URL must start with http:// or https://',
+    SUBDOMAIN_FORMAT: 'Subdomain must be 2-20 lowercase letters/digits/hyphens',
+
+    // Workflow
+    STAGE_NOT_FOUND: 'Stage not found',
+    STAGE_NAME_EMPTY: 'Stage name cannot be empty',
+    FINAL_CANNOT_DISABLE: 'Cannot disable payment on final stage',
+    FINAL_CANNOT_DELETE: 'Cannot delete final payment stage',
+    FINAL_READONLY: 'Cannot modify final payment ratio directly',
+    MAX_INSTALLMENTS: 'Maximum 20 installments',
+    FINAL_TOO_LOW: 'Final payment ratio too low to add new payment stage',
+    MIN_STAGES: 'At least 1 stage required',
+    REORDER_LENGTH: 'Reorder array length mismatch',
+    REORDER_INVALID: 'Reorder array contains invalid stage',
+    REORDER_DUPLICATE: 'Reorder array has duplicates',
+    NO_FINAL: 'No final payment stage',
+    NOT_PAYMENT_STAGE: 'Not a payment stage',
+    BP_TOO_LOW: 'Ratio cannot be below 5%',
+    BP_TOO_HIGH: 'Ratio too high, final payment must be at least 5%',
+    NO_PAYMENT_NODE: 'At least 1 payment stage required',
+    SUM_NOT_100: 'Ratios must sum to 100%',
+
+    // Order
+    ORDER_NOT_FOUND: 'Order not found',
+    ORDER_INVALID_STATUS: 'Invalid status',
+    INVALID_TRANSITION: 'Invalid status transition',
+    DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
+    TIER_NOT_FOUND: 'Price tier not found or does not belong to this artist',
+    ILLEGAL_PATH: 'Illegal path',
+    MISSING_FILE: 'Missing file path',
+    QUEUE_EMPTY: 'Reorder list cannot be empty',
+    QUEUE_NOT_OWNED: 'Order does not belong to current queue',
+    QUEUE_LENGTH: 'Reorder list length mismatch',
+    QUEUE_DUPLICATE: 'Reorder list has duplicate orders',
+    INVALID_PRIORITY: 'Invalid priority',
+
+    // Upload
+    ILLEGAL_FILE_TYPE: 'Illegal file type',
+    UNSUPPORTED_FORMAT: 'Unsupported file format',
+
+    // Admin
+    ADMIN_VERIFY_FAILED: 'Admin verification failed',
+
+    // General
+    NOT_FOUND: 'Resource not found',
+    VALIDATION: 'Invalid request parameters',
+    INTERNAL: 'Internal server error',
+    UNKNOWN: 'Request error'
+  },
   pref: { toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark' },
   common: {
     status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', unknown: 'Unknown' },

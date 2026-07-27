@@ -19,10 +19,12 @@
     <!-- 作品网格 -->
     <div class="artwork-grid" v-loading="loading">
       <div v-for="(art, index) in artworks" :key="art.id" class="artwork-item">
-        <el-image :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
+        <el-image
+          :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
           :alt="art.title || $t('artworks.image')"
           :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)"
-          :initial-index="index" />
+          :initial-index="index"
+        />
         <div class="artwork-actions">
           <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
         </div>

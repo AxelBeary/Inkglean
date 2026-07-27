@@ -82,6 +82,13 @@
 - **开关对齐**：StageListView 收款区固定 110px + 操作区固定 64px，比例徽章始终占位
 - **节点说明可编辑**：灰色说明文字可点击编辑，回车/失焦保存（updateStage description）
 
+### 🏗️ 工程化（v0.8.0 后期）
+- **ESLint + Prettier**：server/web 双端 flat config，CI 集成 lint 检查
+- **GitHub Actions CI**：server（npm ci + eslint + test）+ web（npm ci + eslint + build）
+- **错误码化**：`AppError` 类 + `E` 常量枚举（~50 个错误码），后端所有 `throw new Error` 转换，前端 i18n 翻译层
+- **路由层测试**：新增 `routes.test.js`（11 个用例），覆盖鉴权 401/越权 403/限流 429/业务错误码
+- **测试总数**：74/74 通过（原 63 + 新增 11）
+
 ---
 
 ## v0.7.1 — 2026-07-28

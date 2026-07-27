@@ -28,8 +28,10 @@
 
       <!-- 操作按钮 -->
       <div class="action-bar">
-        <el-button type="primary" size="large" @click="$router.push(`/artist/${subdomain}/order`)"
-          :disabled="artist.status !== 'open'">
+        <el-button
+          type="primary" size="large" @click="$router.push(`/artist/${subdomain}/order`)"
+          :disabled="artist.status !== 'open'"
+        >
           {{ $t('artistHome.commission') }}
         </el-button>
         <el-button size="large" @click="$router.push(`/artist/${subdomain}/track`)">
@@ -42,9 +44,11 @@
         <h2 class="section-title">{{ $t('artistHome.priceList') }}</h2>
         <div class="tier-grid">
           <el-card v-for="tier in tiers" :key="tier.id" shadow="hover" class="tier-card">
-            <el-image v-if="tier.example_image" :src="`/uploads/${tier.example_image}`"
+            <el-image
+              v-if="tier.example_image" :src="`/uploads/${tier.example_image}`"
               fit="cover" class="tier-img" :alt="tier.name"
-              :preview-src-list="[`/uploads/${tier.example_image}`]" />
+              :preview-src-list="[`/uploads/${tier.example_image}`]"
+            />
             <h3>{{ tier.name }}</h3>
             <div class="tier-price">¥{{ tier.price }}</div>
             <p class="tier-desc">{{ tier.description }}</p>
@@ -63,11 +67,13 @@
       <section class="section" v-if="artworks.length">
         <h2 class="section-title">{{ $t('artistHome.artworks') }}</h2>
         <div class="artwork-grid">
-          <el-image v-for="(art, index) in artworks" :key="art.id"
+          <el-image
+            v-for="(art, index) in artworks" :key="art.id"
             :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
             :alt="art.title || $t('artistHome.artworks')"
             :preview-src-list="artworks.map(a => `/uploads/${a.image_path}`)"
-            :initial-index="index" />
+            :initial-index="index"
+          />
         </div>
       </section>
 

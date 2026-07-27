@@ -19,8 +19,10 @@
 
           <!-- 需求描述 -->
           <el-form-item :label="$t('orderForm.descLabel')" prop="description">
-            <el-input v-model="form.description" type="textarea" :rows="5"
-              :placeholder="$t('orderForm.descPlaceholder')" maxlength="2000" show-word-limit />
+            <el-input
+              v-model="form.description" type="textarea" :rows="5"
+              :placeholder="$t('orderForm.descPlaceholder')" maxlength="2000" show-word-limit
+            />
           </el-form-item>
 
           <!-- 参考图上传 -->

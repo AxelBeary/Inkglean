@@ -49,7 +49,7 @@ describe('流程与比例服务 (Workflow Service)', () => {
   it('TC-W-03: 删除尾款节点抛出错误', () => {
     const stages = seed(artist.id)
     const final = stages.find(s => s.isFinal)
-    expect(() => wf.deleteStage(artist.id, final.id)).toThrow('尾款')
+    expect(() => wf.deleteStage(artist.id, final.id)).toThrow('FINAL_CANNOT_DELETE')
   })
 
   // TC-W-04: 删除收款节点，比例并入尾款
@@ -118,7 +118,7 @@ describe('流程与比例服务 (Workflow Service)', () => {
     wf.addStage(artist.id, { name: '第21个' })
     const stages = wf.getWorkflow(artist.id)
     const nonPay = stages.find(s => s.name === '第21个')
-    expect(() => wf.updateStage(artist.id, nonPay.id, { takesPayment: true })).toThrow('20')
+    expect(() => wf.updateStage(artist.id, nonPay.id, { takesPayment: true })).toThrow('MAX_INSTALLMENTS')
   })
 
   // TC-W-09: 关闭收款（非尾款）
@@ -138,7 +138,7 @@ describe('流程与比例服务 (Workflow Service)', () => {
   it('TC-W-10: 关闭尾款收款抛出错误', () => {
     const stages = seed(artist.id)
     const final = stages.find(s => s.isFinal)
-    expect(() => wf.updateStage(artist.id, final.id, { takesPayment: false })).toThrow('尾款')
+    expect(() => wf.updateStage(artist.id, final.id, { takesPayment: false })).toThrow('FINAL_CANNOT_DISABLE')
   })
 
   // TC-W-11: 批量保存比例，尾款重算
@@ -156,7 +156,7 @@ describe('流程与比例服务 (Workflow Service)', () => {
   it('TC-W-12: 比例低于 5% 拒绝', () => {
     const stages = seed(artist.id)
     const pay = stages.find(s => s.takesPayment && !s.isFinal)
-    expect(() => wf.savePayment(artist.id, [{ id: pay.id, basisPoints: 400 }])).toThrow('5%')
+    expect(() => wf.savePayment(artist.id, [{ id: pay.id, basisPoints: 400 }])).toThrow('BP_TOO_LOW')
   })
 
   // TC-W-13: reorder 使收款节点成为最后收款节点

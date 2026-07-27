@@ -1,11 +1,15 @@
 <template>
   <div class="pref-group">
-    <button class="theme-btn" @click="themeStore.toggle()" :title="isDark ? t('pref.toLight') : t('pref.toDark')"
-      :aria-label="isDark ? t('pref.toLight') : t('pref.toDark')">
+    <button
+      class="theme-btn" @click="themeStore.toggle()" :title="isDark ? t('pref.toLight') : t('pref.toDark')"
+      :aria-label="isDark ? t('pref.toLight') : t('pref.toDark')"
+    >
       {{ isDark ? '☀️' : '🌙' }}
     </button>
-    <button class="lang-btn" @click="toggleLang" :title="locale === 'zh-CN' ? 'English' : '中文'"
-      :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'">
+    <button
+      class="lang-btn" @click="toggleLang" :title="locale === 'zh-CN' ? 'English' : '中文'"
+      :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+    >
       {{ locale === 'zh-CN' ? 'EN' : '中' }}
     </button>
   </div>

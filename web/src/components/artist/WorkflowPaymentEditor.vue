@@ -5,10 +5,12 @@
       <h4 class="section-title">{{ $t('workflow.stageList') }}</h4>
       <el-button text size="small" @click="showHelp = true">{{ $t('workflow.helpBtn') }}</el-button>
     </div>
-    <StageListView :stages="stages" :readonly="mode === 'template'"
+    <StageListView
+      :stages="stages" :readonly="mode === 'template'"
       @reorder="onReorder" @add="onAdd" @rename="onRename"
       @update-desc="onUpdateDesc"
-      @toggle-pay="onTogglePay" @delete="onDelete" />
+      @toggle-pay="onTogglePay" @delete="onDelete"
+    />
 
     <!-- 比例条 -->
     <h4 class="section-title" style="margin-top: 20px">{{ $t('workflow.paymentBar') }}</h4>

@@ -48,8 +48,10 @@
       <el-tab-pane :label="$t('menu.artworks')" name="artworks" lazy>
         <div v-loading="artworksLoading" class="artwork-grid">
           <div v-for="a in artworks" :key="a.id" class="artwork-item">
-            <el-image :src="`/uploads/${a.image_path}`" fit="cover" class="artwork-img"
-              :preview-src-list="artworkUrls" :initial-index="artworks.indexOf(a)" />
+            <el-image
+              :src="`/uploads/${a.image_path}`" fit="cover" class="artwork-img"
+              :preview-src-list="artworkUrls" :initial-index="artworks.indexOf(a)"
+            />
             <el-button text size="small" type="danger" @click="removeArtwork(a.id)">✕</el-button>
           </div>
         </div>

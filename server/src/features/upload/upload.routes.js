@@ -6,6 +6,7 @@ import { createWriteStream } from 'fs'
 import { nanoid } from 'nanoid'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
+import { AppError, E } from '../../shared/errors.js'
 
 // ============================================
 // 文件上传路由
@@ -62,7 +63,7 @@ function checkFileType(mimeType, fileName) {
  */
 async function saveUpload(data, subDir, uploadDir) {
   const ext = safeExt(data.filename, ALLOWED_EXTENSIONS)
-  if (!ext) throw new Error('非法文件类型')
+  if (!ext) throw new AppError(E.ILLEGAL_FILE_TYPE)
   const fileName = `${nanoid(12)}${ext}`
   const fullPath = join(uploadDir, subDir)
 
@@ -74,7 +75,7 @@ async function saveUpload(data, subDir, uploadDir) {
 
   // P0-B: 纵深防御 — 最终绝对路径必须在 uploadDir 子树内
   if (!absPath.startsWith(resolvedRoot + sep)) {
-    throw new Error('非法路径')
+    throw new AppError(E.ILLEGAL_PATH)
   }
 
   await pipeline(data.file, createWriteStream(absPath))
@@ -93,7 +94,7 @@ async function saveUpload(data, subDir, uploadDir) {
  */
 async function saveDeliverable(data, subDir, uploadDir) {
   const ext = safeExt(data.filename, DELIVER_ALLOWED)
-  if (!ext) throw new Error('不支持此文件格式，允许的格式: 图片/设计源文件/文档/压缩包')
+  if (!ext) throw new AppError(E.UNSUPPORTED_FORMAT)
   const fileName = `${nanoid(12)}${ext}`
   const fullPath = join(uploadDir, subDir)
 
@@ -103,7 +104,7 @@ async function saveDeliverable(data, subDir, uploadDir) {
   const absPath = resolve(join(uploadDir, filePath))
 
   if (!absPath.startsWith(resolve(uploadDir) + sep)) {
-    throw new Error('非法路径')
+    throw new AppError(E.ILLEGAL_PATH)
   }
 
   await pipeline(data.file, createWriteStream(absPath))

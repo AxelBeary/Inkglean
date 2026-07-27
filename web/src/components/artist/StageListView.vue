@@ -7,17 +7,23 @@
 
           <!-- 名称（点击内联编辑） -->
           <span v-if="editingId !== s.id" class="stage-name" @click="startEdit(s)">{{ s.name }}</span>
-          <el-input v-else v-model="editName" size="small" class="name-input"
-            @keyup.enter="commitEdit(s)" @blur="commitEdit(s)" ref="editInput" />
+          <el-input
+            v-else v-model="editName" size="small" class="name-input"
+            @keyup.enter="commitEdit(s)" @blur="commitEdit(s)" ref="editInput"
+          />
 
           <!-- 说明（点击编辑，始终占位保证对齐） -->
-          <span v-if="descEditId !== s.id" class="stage-desc" :class="{ empty: !s.description && !readonly }"
-            @click="!readonly && startDescEdit(s)">
+          <span
+            v-if="descEditId !== s.id" class="stage-desc" :class="{ empty: !s.description && !readonly }"
+            @click="!readonly && startDescEdit(s)"
+          >
             {{ s.description || (readonly ? '' : $t('workflow.descPlaceholder')) }}
           </span>
-          <el-input v-else v-model="descEditVal" size="small" class="desc-input"
+          <el-input
+            v-else v-model="descEditVal" size="small" class="desc-input"
             :placeholder="$t('workflow.descPlaceholder')"
-            @keyup.enter="commitDescEdit(s)" @blur="commitDescEdit(s)" ref="descInput" />
+            @keyup.enter="commitDescEdit(s)" @blur="commitDescEdit(s)" ref="descInput"
+          />
 
           <!-- 收款区（固定宽度，右对齐） -->
           <div class="stage-pay">
@@ -25,16 +31,20 @@
               {{ s.isFinal ? $t('workflow.auto') : (s.basisPoints / 100).toFixed(1).replace(/\.0$/, '') + '%' }}
             </span>
             <span v-else class="pay-badge ghost">—</span>
-            <el-switch v-model="s.takesPayment" size="small"
+            <el-switch
+              v-model="s.takesPayment" size="small"
               :disabled="s.isFinal || readonly"
-              @change="(val) => onTogglePay(s, val)" />
+              @change="(val) => onTogglePay(s, val)"
+            />
           </div>
 
           <!-- 操作区（固定宽度） -->
           <div class="stage-actions">
-            <el-popconfirm v-if="!s.isFinal && !readonly"
+            <el-popconfirm
+              v-if="!s.isFinal && !readonly"
               :title="s.takesPayment ? $t('workflow.deletePayHint', { pct: (s.basisPoints / 100).toFixed(1).replace(/\.0$/, '') }) : $t('workflow.deleteHint')"
-              @confirm="$emit('delete', s.id)">
+              @confirm="$emit('delete', s.id)"
+            >
               <template #reference>
                 <el-button text size="small" type="danger" class="del-btn">✕</el-button>
               </template>
@@ -47,8 +57,10 @@
 
     <!-- 添加 -->
     <div v-if="!readonly" class="add-row">
-      <el-input v-model="newName" :placeholder="$t('workflow.addPlaceholder')" size="small"
-        style="max-width: 200px" @keyup.enter="addStage" />
+      <el-input
+        v-model="newName" :placeholder="$t('workflow.addPlaceholder')" size="small"
+        style="max-width: 200px" @keyup.enter="addStage"
+      />
       <el-button size="small" @click="addStage" :disabled="!newName.trim()">＋ {{ $t('common.add') }}</el-button>
     </div>
   </div>

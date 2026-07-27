@@ -7,10 +7,12 @@
     <el-table :data="tiers" v-loading="loading" stripe>
       <el-table-column :label="$t('tiers.colExample')" width="80">
         <template #default="{ row }">
-          <el-image v-if="row.example_image" :src="`/uploads/${row.example_image}`"
+          <el-image
+            v-if="row.example_image" :src="`/uploads/${row.example_image}`"
             fit="cover" style="width: 56px; height: 56px; border-radius: 6px"
             :alt="row.name"
-            :preview-src-list="[`/uploads/${row.example_image}`]" />
+            :preview-src-list="[`/uploads/${row.example_image}`]"
+          />
           <span v-else style="color: var(--text-muted)">—</span>
         </template>
       </el-table-column>
@@ -47,10 +49,14 @@
         </el-form-item>
         <el-form-item :label="$t('tiers.exampleLabel')">
           <div class="example-upload">
-            <el-image v-if="form.exampleImage" :src="`/uploads/${form.exampleImage}`"
-              fit="cover" class="example-preview" />
-            <el-upload :auto-upload="true" :http-request="uploadExample" :show-file-list="false"
-              accept="image/*" class="example-uploader">
+            <el-image
+              v-if="form.exampleImage" :src="`/uploads/${form.exampleImage}`"
+              fit="cover" class="example-preview"
+            />
+            <el-upload
+              :auto-upload="true" :http-request="uploadExample" :show-file-list="false"
+              accept="image/*" class="example-uploader"
+            >
               <el-button size="small" :loading="uploading">{{ form.exampleImage ? $t('tiers.changeExample') : $t('tiers.uploadExample') }}</el-button>
             </el-upload>
             <el-button v-if="form.exampleImage" size="small" type="danger" text @click="form.exampleImage = ''">{{ $t('tiers.removeExample') }}</el-button>

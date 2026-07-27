@@ -94,7 +94,7 @@ export function verifyLoginCode(qqNumber, code) {
       db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
       return { valid: false, error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
     }
-    let codeMatch = false
+    let codeMatch
     try {
       codeMatch = crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(code))
     } catch {

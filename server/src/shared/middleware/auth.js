@@ -27,28 +27,28 @@ export function getAdminQq() {
 export async function requireAuth(request, reply) {
   const authHeader = request.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
-    return reply.code(401).send({ error: '未登录' })
+    return reply.code(401).send({ code: 'NOT_LOGGED_IN', error: '未登录' })
   }
 
   const token = authHeader.slice(7)
   const session = verifySession(token)
   if (!session) {
-    return reply.code(401).send({ error: '登录已过期，请重新登录' })
+    return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
   }
 
   const artist = getArtistById(session.id)
   if (!artist) {
-    return reply.code(401).send({ error: '画师账号不存在' })
+    return reply.code(401).send({ code: 'ACCOUNT_NOT_FOUND', error: '画师账号不存在' })
   }
 
   // 安全：软删除画师的 token 立即失效
   if (artist.deleted_at) {
-    return reply.code(401).send({ error: '账号已被停用' })
+    return reply.code(401).send({ code: 'ACCOUNT_DISABLED', error: '账号已被停用' })
   }
 
   // token_version 校验：服务端可主动使旧 token 失效（权限变更、登出等）
   if (artist.token_version && session.v !== artist.token_version) {
-    return reply.code(401).send({ error: '登录状态已失效，请重新登录' })
+    return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
   }
 
   request.artist = artist
@@ -61,33 +61,33 @@ export async function requireAuth(request, reply) {
 export async function requireAdmin(request, reply) {
   const authHeader = request.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
-    return reply.code(401).send({ error: '未登录' })
+    return reply.code(401).send({ code: 'NOT_LOGGED_IN', error: '未登录' })
   }
 
   const token = authHeader.slice(7)
   const session = verifySession(token)
   if (!session) {
-    return reply.code(401).send({ error: '登录已过期，请重新登录' })
+    return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
   }
 
   const artist = getArtistById(session.id)
   if (!artist) {
-    return reply.code(401).send({ error: '账号不存在' })
+    return reply.code(401).send({ code: 'ACCOUNT_NOT_FOUND', error: '账号不存在' })
   }
 
   // 安全：软删除画师的 token 立即失效
   if (artist.deleted_at) {
-    return reply.code(401).send({ error: '账号已被停用' })
+    return reply.code(401).send({ code: 'ACCOUNT_DISABLED', error: '账号已被停用' })
   }
 
   // token_version 校验
   if (artist.token_version && session.v !== artist.token_version) {
-    return reply.code(401).send({ error: '登录状态已失效，请重新登录' })
+    return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
   }
 
   // 管理员判定：QQ 号匹配（从数据库读取，支持运行时更换）
   if (artist.qq_number !== getAdminQq()) {
-    return reply.code(403).send({ error: '需要管理员权限' })
+    return reply.code(403).send({ code: 'ADMIN_REQUIRED', error: '需要管理员权限' })
   }
 
   request.artist = artist

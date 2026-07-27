@@ -35,8 +35,10 @@
               <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
             </el-form-item>
             <el-form-item :label="$t('settings.notifyLabel')">
-              <el-switch v-model="form.notify_enabled" :active-value="1" :inactive-value="0"
-                :active-text="$t('settings.notifyText')" />
+              <el-switch
+                v-model="form.notify_enabled" :active-value="1" :inactive-value="0"
+                :active-text="$t('settings.notifyText')"
+              />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>

@@ -1,21 +1,27 @@
 <template>
   <div class="payment-bar">
     <div class="bar-track" ref="trackRef">
-      <div v-for="(seg, i) in segments" :key="seg.id"
+      <div
+        v-for="(seg, i) in segments" :key="seg.id"
         class="bar-seg" :class="{ final: seg.isFinal, elastic: seg.id === elasticId, detach: seg.id === detachId }"
-        :style="{ width: seg.width + '%' }">
+        :style="{ width: seg.width + '%' }"
+      >
         <span class="seg-label">{{ seg.name }}</span>
         <span class="seg-pct" @click="!seg.isFinal && startInput(seg)">
           <template v-if="inputId !== seg.id">{{ seg.pct }}%</template>
-          <el-input-number v-else v-model="inputVal" :min="5" :max="95" :step="1" size="small"
-            style="width: 90px" @keyup.enter="commitInput(seg)" @blur="commitInput(seg)" />
+          <el-input-number
+            v-else v-model="inputVal" :min="5" :max="95" :step="1" size="small"
+            style="width: 90px" @keyup.enter="commitInput(seg)" @blur="commitInput(seg)"
+          />
         </span>
         <span v-if="seg.isFinal" class="final-badge">{{ $t('workflow.final') }}</span>
         <!-- 手柄 -->
-        <div v-if="i < segments.length - 1" class="bar-handle"
+        <div
+          v-if="i < segments.length - 1" class="bar-handle"
           @pointerdown="onPointerDown($event, i)"
           tabindex="0" @keydown="onKeydown($event, i)"
-          :aria-label="$t('workflow.dragHandle')"></div>
+          :aria-label="$t('workflow.dragHandle')"
+        ></div>
       </div>
     </div>
     <div class="bar-ruler"><span>0%</span><span>100%</span></div>

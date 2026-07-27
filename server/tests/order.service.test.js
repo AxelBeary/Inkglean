@@ -48,7 +48,7 @@ describe('订单服务 (Order Service)', () => {
   it('TC-O-03: 画师不存在时抛出错误', () => {
     expect(() => {
       orderService.createOrder({ artistId: 999, clientQq: '123456' })
-    }).toThrow('画师不存在')
+    }).toThrow('ARTIST_NOT_FOUND')
   })
 
   // TC-O-04: 订单状态流转 — 合法路径
@@ -68,7 +68,7 @@ describe('订单服务 (Order Service)', () => {
 
     expect(() => {
       orderService.updateOrderStatus(order.id, 'invalid_status')
-    }).toThrow('无效状态')
+    }).toThrow('ORDER_INVALID_STATUS')
   })
 
   // TC-O-05b: 状态机 — 不允许跳跃转换
@@ -77,7 +77,7 @@ describe('订单服务 (Order Service)', () => {
 
     expect(() => {
       orderService.updateOrderStatus(order.id, 'delivered')
-    }).toThrow('不能从')
+    }).toThrow('INVALID_TRANSITION')
   })
 
   // TC-O-06: 交付/取消后队列重排
@@ -123,7 +123,7 @@ describe('订单服务 (Order Service)', () => {
 
     expect(() => {
       orderService.updatePriority(order.id, 'urgent')
-    }).toThrow('无效优先级')
+    }).toThrow('INVALID_PRIORITY')
   })
 
   // TC-O-09: 客户查询排队位置（需 QQ 验证）

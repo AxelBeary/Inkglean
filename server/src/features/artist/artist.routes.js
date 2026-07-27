@@ -85,7 +85,7 @@ export default async function artistRoutes(fastify) {
       const updated = artistService.updateArtist(request.artist.id, sanitized)
       return updated
     } catch (err) {
-      return reply.code(400).send({ error: err.message })
+      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
     }
   })
 

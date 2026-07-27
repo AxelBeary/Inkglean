@@ -53,11 +53,13 @@
       <el-card style="margin-top: 16px" v-if="order.references?.length">
         <template #header>{{ $t('orderDetail.references') }}</template>
         <div class="ref-grid">
-          <el-image v-for="(ref, index) in order.references" :key="ref.id"
+          <el-image
+            v-for="(ref, index) in order.references" :key="ref.id"
             :src="`/uploads/${ref.file_path}`" fit="cover" class="ref-img"
             :alt="$t('orderDetail.referenceImage')"
             :preview-src-list="order.references.map(r => `/uploads/${r.file_path}`)"
-            :initial-index="index" />
+            :initial-index="index"
+          />
         </div>
       </el-card>
 
@@ -89,9 +91,11 @@
 
     <!-- 交付弹窗 -->
     <el-dialog v-model="showDeliver" :title="$t('orderDetail.deliverTitle')" width="400px">
-      <el-upload drag :auto-upload="false" :limit="1" :file-list="deliverFileList"
+      <el-upload
+        drag :auto-upload="false" :limit="1" :file-list="deliverFileList"
         :on-change="handleDeliverFile" :on-remove="handleDeliverRemove"
-        accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.psd,.ai,.tiff,.pdf,.zip,.rar,.7z,.mp4,.mov,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md">
+        accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.psd,.ai,.tiff,.pdf,.zip,.rar,.7z,.mp4,.mov,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+      >
         <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
         <p>{{ $t('orderDetail.dragUpload') }}</p>
         <template #tip>

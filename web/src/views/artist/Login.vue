@@ -14,8 +14,10 @@
 
       <!-- 步骤1：输入QQ -->
       <div v-if="step === 1">
-        <el-input v-model="qqNumber" :placeholder="$t('login.qqPlaceholder')" size="large"
-          @keyup.enter="getCode" style="margin-bottom: 16px" />
+        <el-input
+          v-model="qqNumber" :placeholder="$t('login.qqPlaceholder')" size="large"
+          @keyup.enter="getCode" style="margin-bottom: 16px"
+        />
         <el-button type="primary" size="large" style="width: 100%" @click="getCode" :loading="sending">
           {{ $t('login.getCode') }}
         </el-button>
@@ -24,8 +26,10 @@
       <!-- 步骤2：输入验证码 -->
       <div v-else>
         <p class="code-sent">{{ $t('login.codeSent', { qq: qqNumber }) }}</p>
-        <el-input v-model="code" :placeholder="$t('login.codePlaceholder')" size="large"
-          maxlength="6" @keyup.enter="login" style="margin-bottom: 16px" />
+        <el-input
+          v-model="code" :placeholder="$t('login.codePlaceholder')" size="large"
+          maxlength="6" @keyup.enter="login" style="margin-bottom: 16px"
+        />
         <el-button type="primary" size="large" style="width: 100%" @click="login" :loading="logging">
           {{ $t('login.login') }}
         </el-button>

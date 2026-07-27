@@ -1,4 +1,72 @@
 export default {
+  errors: {
+    // 认证
+    NOT_LOGGED_IN: '未登录',
+    SESSION_EXPIRED: '登录已过期，请重新登录',
+    ACCOUNT_NOT_FOUND: '画师账号不存在',
+    ACCOUNT_DISABLED: '账号已被停用',
+    TOKEN_REVOKED: '登录状态已失效，请重新登录',
+    ADMIN_REQUIRED: '需要管理员权限',
+    CODE_INVALID: '登录码错误',
+    CODE_EXPIRED: '登录码已过期',
+    CODE_TOO_MANY_ATTEMPTS: '尝试次数过多，请重新获取登录码',
+    QQ_NOT_REGISTERED: '该 QQ 号未注册为画师',
+
+    // 画师
+    ARTIST_NOT_FOUND: '画师不存在',
+    NAME_EMPTY: '昵称不能为空',
+    CODE_FORMAT: '身份码只能包含大写字母和数字，2-10个字符',
+    CODE_TAKEN: '身份码已被使用，请换一个',
+    INVALID_STATUS: '无效的主页状态',
+    INVALID_URL: '链接必须以 http:// 或 https:// 开头',
+    SUBDOMAIN_FORMAT: '子域名只能包含小写字母、数字和连字符，2-20个字符',
+
+    // 流程
+    STAGE_NOT_FOUND: '节点不存在',
+    STAGE_NAME_EMPTY: '节点名称不能为空',
+    FINAL_CANNOT_DISABLE: '尾款节点的收款不可关闭',
+    FINAL_CANNOT_DELETE: '尾款节点不可删除',
+    FINAL_READONLY: '不能直接修改尾款比例',
+    MAX_INSTALLMENTS: '最多 20 期',
+    FINAL_TOO_LOW: '尾款比例不足，无法开启新收款节点',
+    MIN_STAGES: '至少保留 1 个流程节点',
+    REORDER_LENGTH: '排序数组长度不匹配',
+    REORDER_INVALID: '排序数组包含无效节点',
+    REORDER_DUPLICATE: '排序数组有重复',
+    NO_FINAL: '无尾款节点',
+    NOT_PAYMENT_STAGE: '不是收款节点',
+    BP_TOO_LOW: '比例不能低于 5%',
+    BP_TOO_HIGH: '比例过高，尾款不能低于 5%',
+    NO_PAYMENT_NODE: '至少需要保留 1 个收款节点',
+    SUM_NOT_100: '比例总和必须等于 100%',
+
+    // 订单
+    ORDER_NOT_FOUND: '订单不存在',
+    ORDER_INVALID_STATUS: '无效状态',
+    INVALID_TRANSITION: '不能进行此状态转换',
+    DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
+    TIER_NOT_FOUND: '价格档位不存在或不属于该画师',
+    ILLEGAL_PATH: '非法路径',
+    MISSING_FILE: '缺少文件路径',
+    QUEUE_EMPTY: '排序列表不能为空',
+    QUEUE_NOT_OWNED: '订单不属于当前队列',
+    QUEUE_LENGTH: '排序列表长度与队列不一致',
+    QUEUE_DUPLICATE: '排序列表存在重复订单',
+    INVALID_PRIORITY: '无效优先级',
+
+    // 上传
+    ILLEGAL_FILE_TYPE: '非法文件类型',
+    UNSUPPORTED_FORMAT: '不支持此文件格式',
+
+    // 管理员
+    ADMIN_VERIFY_FAILED: '管理员验证失败',
+
+    // 通用
+    NOT_FOUND: '资源不存在',
+    VALIDATION: '请求参数格式不正确',
+    INTERNAL: '服务器内部错误',
+    UNKNOWN: '请求错误'
+  },
   pref: { toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗' },
   common: {
     status: { open: '可约稿', full: '已排满', break: '休息中', unknown: '未知' },

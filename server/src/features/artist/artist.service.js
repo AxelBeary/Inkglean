@@ -1,4 +1,5 @@
 import db from '../../db/connection.js'
+import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
 
 // ============================================
@@ -25,19 +26,19 @@ export function getAllArtists() {
 export async function createArtist({ qqNumber, name, subdomain, bio, artistCode }) {
   // 校验子域名格式
   if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
-    throw new Error('子域名只能包含小写字母、数字和连字符，2-20个字符')
+    throw new AppError(E.SUBDOMAIN_FORMAT)
   }
 
   // 身份码：默认用子域名大写，可自定义
   const code = (artistCode || subdomain.toUpperCase()).toUpperCase()
   if (!isValidArtistCode(code)) {
-    throw new Error('身份码只能包含大写字母和数字，2-10个字符')
+    throw new AppError(E.CODE_FORMAT)
   }
 
   // 检查身份码唯一性
   const existing = db.prepare('SELECT id FROM artists WHERE artist_code = ?').get(code)
   if (existing) {
-    throw new Error(`身份码「${code}」已被使用，请换一个`)
+    throw new AppError(E.CODE_TAKEN, 400, { code })
   }
 
   const result = db.prepare(`
@@ -69,18 +70,18 @@ export function updateArtist(id, fields) {
         // 输入校验：空值跳过（允许只改昵称不动身份码）
         if (!code) continue
         if (!isValidArtistCode(code)) {
-          throw new Error('身份码只能包含大写字母和数字，2-10个字符')
+          throw new AppError(E.CODE_FORMAT)
         }
         const existing = db.prepare('SELECT id FROM artists WHERE artist_code = ? AND id != ?').get(code, id)
         if (existing) {
-          throw new Error(`身份码「${code}」已被使用，请换一个`)
+          throw new AppError(E.CODE_TAKEN, 400, { code })
         }
         updates.push('artist_code = ?')
         values.push(code)
       } else if (key === 'status') {
         // P1-D: 白名单校验 — 非法值提前拒绝，避免 SQLite CHECK 抛原始错误
         if (!['open', 'full', 'break'].includes(String(value))) {
-          throw new Error('无效的主页状态，可选值: open / full / break')
+          throw new AppError(E.INVALID_STATUS)
         }
         updates.push('status = ?')
         values.push(value)
@@ -91,14 +92,14 @@ export function updateArtist(id, fields) {
       } else if (key === 'weibo_url' || key === 'bilibili_url') {
         // 安全：外链协议校验 — 仅允许 http/https
         if (value && !/^https?:\/\//i.test(String(value))) {
-          throw new Error('链接必须以 http:// 或 https:// 开头')
+          throw new AppError(E.INVALID_URL)
         }
         updates.push(`${key} = ?`)
         values.push(value)
       } else {
         // 输入校验：name 空值保护
         if (key === 'name' && !String(value || '').trim()) {
-          throw new Error('昵称不能为空')
+          throw new AppError(E.NAME_EMPTY)
         }
         updates.push(`${key} = ?`)
         values.push(value)

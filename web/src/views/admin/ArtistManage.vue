@@ -21,8 +21,10 @@
       <el-table-column prop="bio" :label="$t('admin.colBio')" />
       <el-table-column :label="$t('admin.colStatus')" width="130">
         <template #default="{ row }">
-          <el-select v-model="row.status" size="small" style="width: 100px"
-            @change="(val) => changeStatus(row, val)" :disabled="row.isAdmin">
+          <el-select
+            v-model="row.status" size="small" style="width: 100px"
+            @change="(val) => changeStatus(row, val)" :disabled="row.isAdmin"
+          >
             <el-option value="open" :label="$t('common.statusShort.open')" />
             <el-option value="full" :label="$t('common.statusShort.full')" />
             <el-option value="break" :label="$t('common.statusShort.break')" />

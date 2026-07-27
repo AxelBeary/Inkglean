@@ -42,14 +42,14 @@ describe('画师服务 (Artist Service)', () => {
 
     await expect(
       artistService.createArtist({ qqNumber: '222', name: 'B', subdomain: 'bbb', artistCode: 'QY' })
-    ).rejects.toThrow('已被使用')
+    ).rejects.toThrow('CODE_TAKEN')
   })
 
   // TC-R-02: 创建画师 — 子域名格式非法
   it('TC-R-02: 非法子域名抛出错误', async () => {
     await expect(
       artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'AB CD!' })
-    ).rejects.toThrow('子域名只能包含')
+    ).rejects.toThrow('SUBDOMAIN_FORMAT')
   })
 
   // TC-R-03: 更新画师 — 白名单字段

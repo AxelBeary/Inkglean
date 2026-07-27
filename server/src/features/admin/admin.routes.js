@@ -6,6 +6,7 @@ import { verifyLoginCode } from '../auth/auth.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { clamp } from '../../shared/validate.js'
 import db from '../../db/connection.js'
+import { AppError, E } from '../../shared/errors.js'
 
 // ============================================
 // 管理员路由 - 多画师管理
@@ -155,11 +156,11 @@ export default async function adminRoutes(fastify) {
       db.transaction(() => {
         const currentResult = verifyLoginCode(currentAdminQq, String(currentCode))
         if (!currentResult.valid) {
-          throw new Error(`当前管理员验证失败：${currentResult.error}`)
+          throw new AppError(E.ADMIN_VERIFY_FAILED, 400, { which: 'current', reason: currentResult.error })
         }
         const newResult = verifyLoginCode(String(newQq), String(newCode))
         if (!newResult.valid) {
-          throw new Error(`新管理员验证失败：${newResult.error}`)
+          throw new AppError(E.ADMIN_VERIFY_FAILED, 400, { which: 'new', reason: newResult.error })
         }
         db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(String(newQq))
       })()
