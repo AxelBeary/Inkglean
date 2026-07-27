@@ -14,6 +14,7 @@
     "db:seed": "node src/db/seed.js"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^10.0.0",
     "@fastify/multipart": "^9.0.0",
     "@fastify/static": "^8.0.0",

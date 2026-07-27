@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
+import fastifyCookie from '@fastify/cookie'
 import { resolve, join, relative } from 'path'
 import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync } from 'fs'
 import { initDatabase } from './db/init.js'
@@ -97,6 +98,12 @@ export async function buildApp(opts = {}) {
   _gcTimer.unref()
 
   // ─── 全局插件 ───
+  // Cookie 支持（httpOnly token 存储）
+  await app.register(fastifyCookie, {
+    secret: process.env.COOKIE_SECRET || process.env.SESSION_SECRET || 'dev-cookie-secret-change-in-production',
+    parseOptions: {}
+  })
+
   // CORS：生产环境必须设置 CORS_ORIGIN，否则默认 same-origin（不注册 CORS 插件）
   const corsOrigin = process.env.CORS_ORIGIN
   if (corsOrigin) {

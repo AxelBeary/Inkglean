@@ -3,11 +3,12 @@ import { authApi, artistApi } from '../api/index.js'
 
 // ============================================
 // 画师状态管理
+// token 存 httpOnly cookie（JS 不可读），localStorage 只保留非敏感标记
 // ============================================
 
 export const useArtistStore = defineStore('artist', {
   state: () => ({
-    token: localStorage.getItem('artist_token') || null,
+    loggedIn: localStorage.getItem('artist_logged_in') === '1',
     profile: null,
     stats: null,
     loading: false,
@@ -15,7 +16,7 @@ export const useArtistStore = defineStore('artist', {
   }),
 
   getters: {
-    isLoggedIn: (state) => !!state.token,
+    isLoggedIn: (state) => state.loggedIn,
     artistName: (state) => state.profile?.name || '画师',
     subdomain: (state) => state.profile?.subdomain || ''
   },
@@ -24,9 +25,10 @@ export const useArtistStore = defineStore('artist', {
     // 登录
     async login(qqNumber, code) {
       const res = await authApi.verify(qqNumber, code)
-      this.token = res.token
+      // token 已由后端设为 httpOnly cookie，前端只记录非敏感标记
+      this.loggedIn = true
       this.isAdmin = !!res.isAdmin
-      localStorage.setItem('artist_token', res.token)
+      localStorage.setItem('artist_logged_in', '1')
       localStorage.setItem('artist_is_admin', res.isAdmin ? '1' : '0')
       this.profile = res.artist
       return res
@@ -34,7 +36,7 @@ export const useArtistStore = defineStore('artist', {
 
     // 获取当前画师信息
     async fetchProfile() {
-      if (!this.token) return
+      if (!this.loggedIn) return
       this.loading = true
       try {
         this.profile = await artistApi.getProfile()
@@ -49,17 +51,18 @@ export const useArtistStore = defineStore('artist', {
 
     // 获取统计数据
     async fetchStats() {
-      if (!this.token) return
+      if (!this.loggedIn) return
       this.stats = await artistApi.getStats()
     },
 
     // 登出
-    logout() {
-      this.token = null
+    async logout() {
+      try { await authApi.logout() } catch { /* 静默 */ }
+      this.loggedIn = false
       this.profile = null
       this.stats = null
       this.isAdmin = false
-      localStorage.removeItem('artist_token')
+      localStorage.removeItem('artist_logged_in')
       localStorage.removeItem('artist_is_admin')
     }
   }

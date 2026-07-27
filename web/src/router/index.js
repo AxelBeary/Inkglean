@@ -49,10 +49,10 @@ router.beforeEach((to, from, next) => {
     document.title = i18n.global.t('landing.title')
   }
 
-  // 检查认证
+  // 检查认证（token 在 httpOnly cookie 中，JS 不可读；用非敏感标记判断）
   if (to.meta.requiresAuth || to.meta.requiresAdmin) {
-    const token = localStorage.getItem('artist_token')
-    if (!token) {
+    const loggedIn = localStorage.getItem('artist_logged_in') === '1'
+    if (!loggedIn) {
       return next({ name: 'ArtistLogin', query: { redirect: to.fullPath } })
     }
   }

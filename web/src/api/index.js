@@ -8,16 +8,8 @@ const API_TIMEOUT_MS = 15000
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: API_TIMEOUT_MS
-})
-
-// 请求拦截器：自动附加 Token
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('artist_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+  timeout: API_TIMEOUT_MS,
+  withCredentials: true // 发送 httpOnly cookie
 })
 
 // 响应拦截器：统一错误处理 + i18n 翻译
@@ -47,9 +39,9 @@ api.interceptors.response.use(
       }
     }
 
-    // 401 时清除所有本地认证状态并跳转登录页
+    // 401 时清除本地认证状态并跳转登录页
     if (err.response?.status === 401) {
-      localStorage.removeItem('artist_token')
+      localStorage.removeItem('artist_logged_in')
       localStorage.removeItem('artist_is_admin')
       // 动态导入避免循环依赖（store/router 依赖本模块）
       try {

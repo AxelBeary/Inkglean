@@ -88,6 +88,7 @@
 - **错误码化**：`AppError` 类 + `E` 常量枚举（~50 个错误码），后端所有 `throw new Error` 转换，前端 i18n 翻译层
 - **路由层测试**：新增 `routes.test.js`（11 个用例），覆盖鉴权 401/越权 403/限流 429/业务错误码
 - **测试总数**：74/74 通过（原 63 + 新增 11）
+- **httpOnly Cookie 认证**：token 从 localStorage 迁移到 httpOnly cookie（`@fastify/cookie`），JS 不可读，防 XSS 窃取；前端 `withCredentials: true`，路由守卫改用非敏感 `artist_logged_in` 标记
 
 ---
 

@@ -84,8 +84,16 @@ export default async function authRoutes(fastify) {
     const token = createSession(result.artist.id, result.artist.token_version)
     const isAdmin = result.artist.qq_number === getAdminQq()
 
+    // 安全：token 存 httpOnly cookie（JS 不可读，防 XSS 窃取）
+    reply.setCookie('artist_token', token, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 // 7 天
+    })
+
     return {
-      token,
       isAdmin,
       artist: {
         id: result.artist.id,
@@ -109,8 +117,9 @@ export default async function authRoutes(fastify) {
    * POST /api/auth/logout
    * 真正的登出 — 递增 token_version 使当前 token 及所有旧 token 失效
    */
-  fastify.post('/api/auth/logout', { preHandler: requireAuth }, async (request) => {
+  fastify.post('/api/auth/logout', { preHandler: requireAuth }, async (request, reply) => {
     bumpTokenVersion(request.artist.id)
+    reply.clearCookie('artist_token', { path: '/' })
     return { message: '已登出' }
   })
 }

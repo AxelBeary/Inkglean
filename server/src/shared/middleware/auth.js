@@ -6,31 +6,36 @@ import db from '../../db/connection.js'
 // 认证中间件
 // ============================================
 
-/**
- * 管理员 QQ 号（环境变量仅用于首次引导，运行时从 platform_config 读取）
- * 不再 export，仅内部使用
- */
 const ADMIN_QQ = process.env.ADMIN_QQ || ''
 
-/**
- * 获取当前管理员 QQ（优先读数据库，支持运行时更换）
- */
 export function getAdminQq() {
   const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get()
   return row?.value || ADMIN_QQ
 }
 
 /**
+ * 提取 token：httpOnly cookie 优先，Authorization: Bearer *** 兜底
+ * cookie 是主路径（防 XSS），Bearer 保留给 API 测试和向后兼容
+ */
+function extractToken(request) {
+  // 优先从 httpOnly cookie 读取（JS 不可访问，防 XSS 窃取）
+  const cookieToken = request.cookies?.artist_token
+  if (cookieToken) return cookieToken
+  // 兜底：Authorization header（测试 / 旧客户端兼容）
+  const authHeader = request.headers.authorization
+  if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7)
+  return null
+}
+
+/**
  * requireAuth - 画师登录校验
- * 从 Authorization: Bearer *** 提取并验证会话
  */
 export async function requireAuth(request, reply) {
-  const authHeader = request.headers.authorization
-  if (!authHeader?.startsWith('Bearer ')) {
+  const token = extractToken(request)
+  if (!token) {
     return reply.code(401).send({ code: 'NOT_LOGGED_IN', error: '未登录' })
   }
 
-  const token = authHeader.slice(7)
   const session = verifySession(token)
   if (!session) {
     return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
@@ -41,12 +46,10 @@ export async function requireAuth(request, reply) {
     return reply.code(401).send({ code: 'ACCOUNT_NOT_FOUND', error: '画师账号不存在' })
   }
 
-  // 安全：软删除画师的 token 立即失效
   if (artist.deleted_at) {
     return reply.code(401).send({ code: 'ACCOUNT_DISABLED', error: '账号已被停用' })
   }
 
-  // token_version 校验：服务端可主动使旧 token 失效（权限变更、登出等）
   if (artist.token_version && session.v !== artist.token_version) {
     return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
   }
@@ -56,15 +59,13 @@ export async function requireAuth(request, reply) {
 
 /**
  * requireAdmin - 管理员权限校验
- * 管理员通过 QQ 号识别（从数据库读取，支持运行时更换）
  */
 export async function requireAdmin(request, reply) {
-  const authHeader = request.headers.authorization
-  if (!authHeader?.startsWith('Bearer ')) {
+  const token = extractToken(request)
+  if (!token) {
     return reply.code(401).send({ code: 'NOT_LOGGED_IN', error: '未登录' })
   }
 
-  const token = authHeader.slice(7)
   const session = verifySession(token)
   if (!session) {
     return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
@@ -75,17 +76,14 @@ export async function requireAdmin(request, reply) {
     return reply.code(401).send({ code: 'ACCOUNT_NOT_FOUND', error: '账号不存在' })
   }
 
-  // 安全：软删除画师的 token 立即失效
   if (artist.deleted_at) {
     return reply.code(401).send({ code: 'ACCOUNT_DISABLED', error: '账号已被停用' })
   }
 
-  // token_version 校验
   if (artist.token_version && session.v !== artist.token_version) {
     return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
   }
 
-  // 管理员判定：QQ 号匹配（从数据库读取，支持运行时更换）
   if (artist.qq_number !== getAdminQq()) {
     return reply.code(403).send({ code: 'ADMIN_REQUIRED', error: '需要管理员权限' })
   }
