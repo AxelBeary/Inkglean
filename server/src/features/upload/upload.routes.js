@@ -86,7 +86,8 @@ async function saveUpload(data, subDir, uploadDir) {
   }
 
   const size = statSync(absPath).size
-  return { filePath, absPath, size }
+  // Windows 兼容：统一返回正斜杠路径（前端/校验均用 / 分隔）
+  return { filePath: filePath.split(sep).join('/'), absPath, size }
 }
 
 /**
@@ -115,7 +116,8 @@ async function saveDeliverable(data, subDir, uploadDir) {
   }
 
   const size = statSync(absPath).size
-  return { filePath, absPath, size }
+  // Windows 兼容：统一返回正斜杠路径（前端/校验均用 / 分隔）
+  return { filePath: filePath.split(sep).join('/'), absPath, size }
 }
 
 export default async function uploadRoutes(fastify, opts) {
