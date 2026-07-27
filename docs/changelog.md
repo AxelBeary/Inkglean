@@ -58,6 +58,30 @@
 ### 变更统计
 - 测试：63/63 通过 | 构建：vite build 成功
 
+### 🔧 Bug 修复（16 项）
+- **P0-1**：`WorkflowPaymentEditor.vue` 缺少 `computed` import → 流程编辑器白屏
+- **P1-1**：模板更新允许 bp=0 收款节点 → 加 MIN_BP 校验
+- **P1-2**：admin profile 路由无 schema → 字段白名单（additionalProperties: false）
+- **P1-3**：tiers/artworks 路由无 schema → 加 body 校验
+- **P1-4**：资源操作不校验归属 → 加 ownership check（tiers/artworks）
+- **P1-5**：管理员自举不创建 workflow stages → 补种子
+- **P1-6**：迁移无事务保护 → `database.transaction()` 包装
+- **P1-7**：template 模式 isFinal 始终 false → 前端计算最后收款节点
+- **P1-8**：savePayment 失败不阻断后续操作 → 返回 bool + 调用方检查
+- **P1-9**：updateStage 事务外取 stage → 移入事务内（TOCTOU）
+- **P2-1~7**：SNAP=100、弹回 Math.max 保护、输入无效值提示、模板只读 UI、import 合并、变量遮蔽、params schema integer
+
+### 🛠 交互修缮（4 项）
+- **500→400**：workflow.service.js 所有业务错误改用 `BizError`（statusCode=400），Fastify 正确返回中文提示
+- **右拖吞并**：PaymentBar 支持向右拖拽吞并节点（关闭收款），尾款不可被吞并，隐含尾款保护
+- **尾款视觉**：去掉灰色斜纹 + 🔒 锁图标，改为纯色金底 + 小字"尾款"徽章
+- **恢复默认**：新增 `POST /api/artist/workflow/reset` + 画师端"恢复默认模板"按钮（ElMessageBox 确认）
+
+### ✨ UI 打磨（3 项）
+- **使用说明弹窗**：流程节点标题旁"使用说明"按钮，7 条结构化说明（$tm 数组渲染）
+- **开关对齐**：StageListView 收款区固定 110px + 操作区固定 64px，比例徽章始终占位
+- **节点说明可编辑**：灰色说明文字可点击编辑，回车/失焦保存（updateStage description）
+
 ---
 
 ## v0.7.1 — 2026-07-28

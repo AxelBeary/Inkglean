@@ -101,7 +101,8 @@ export const artistApi = {
   updateStage: (id, data) => api.put(`/artist/workflow/${id}`, data),
   deleteStage: (id) => api.delete(`/artist/workflow/${id}`),
   reorderStages: (orderedIds) => api.put('/artist/workflow/reorder', { orderedIds }),
-  savePayment: (nodes) => api.put('/artist/workflow/payment', { nodes })
+  savePayment: (nodes) => api.put('/artist/workflow/payment', { nodes }),
+  resetWorkflow: () => api.post('/artist/workflow/reset')
 }
 
 // ─── 客户端订单 ───

@@ -1,25 +1,23 @@
 <template>
   <div class="payment-bar">
-    <!-- 比例条 -->
     <div class="bar-track" ref="trackRef">
       <div v-for="(seg, i) in segments" :key="seg.id"
         class="bar-seg" :class="{ final: seg.isFinal, elastic: seg.id === elasticId, detach: seg.id === detachId }"
         :style="{ width: seg.width + '%' }">
         <span class="seg-label">{{ seg.name }}</span>
-        <span class="seg-pct" @click="startInput(seg)" v-if="!seg.isFinal">
+        <span class="seg-pct" @click="!seg.isFinal && startInput(seg)">
           <template v-if="inputId !== seg.id">{{ seg.pct }}%</template>
-          <el-input-number v-else v-model="inputVal" :min="5" :max="95" :step="0.5" size="small"
+          <el-input-number v-else v-model="inputVal" :min="5" :max="95" :step="1" size="small"
             style="width: 90px" @keyup.enter="commitInput(seg)" @blur="commitInput(seg)" />
         </span>
-        <span class="seg-pct" v-else>{{ seg.pct }}% 🔒</span>
-        <!-- 手柄（非尾款段右侧） -->
+        <span v-if="seg.isFinal" class="final-badge">{{ $t('workflow.final') }}</span>
+        <!-- 手柄 -->
         <div v-if="i < segments.length - 1" class="bar-handle"
           @pointerdown="onPointerDown($event, i)"
           tabindex="0" @keydown="onKeydown($event, i)"
           :aria-label="$t('workflow.dragHandle')"></div>
       </div>
     </div>
-    <!-- 标尺 -->
     <div class="bar-ruler"><span>0%</span><span>100%</span></div>
   </div>
 </template>
@@ -34,8 +32,9 @@ const props = defineProps({ stages: { type: Array, default: () => [] } })
 const emit = defineEmits(['change', 'detach'])
 
 const MIN_BP = 500
+const TOTAL_BP = 10000
 const SNAP = 100
-const ELASTIC_THRESHOLD = 150 // 脱离阈值（基点）
+const ELASTIC_THRESHOLD = 150
 
 const trackRef = ref(null)
 const elasticId = ref(null)
@@ -43,7 +42,6 @@ const detachId = ref(null)
 const inputId = ref(null)
 const inputVal = ref(0)
 
-// 本地可拖拽状态（基点数组）
 const localBp = ref({})
 watch(() => props.stages, (stages) => {
   const map = {}
@@ -83,7 +81,7 @@ function onPointerDown(e, idx) {
 function onPointerMove(e) {
   if (dragIdx < 0) return
   const dx = e.clientX - startX
-  let deltaBp = Math.round((dx / trackW) * 10000 / SNAP) * SNAP
+  const deltaBp = Math.round((dx / trackW) * TOTAL_BP / SNAP) * SNAP
 
   const segs = segments.value
   const leftId = segs[dragIdx].id
@@ -93,20 +91,40 @@ function onPointerMove(e) {
   let newLeft = startLeftBp + deltaBp
   let newRight = startRightBp - deltaBp
 
-  // 弹性区检测（左侧段）
+  // 保护：隐含尾款不能低于 MIN_BP
+  const final = payStages.value.find(s => s.isFinal)
+  if (final && final.id !== leftId && final.id !== rightId) {
+    const otherSum = payStages.value
+      .filter(s => !s.isFinal && s.id !== leftId && s.id !== rightId)
+      .reduce((sum, s) => sum + (localBp.value[s.id] ?? s.basisPoints), 0)
+    const maxPair = TOTAL_BP - otherSum - MIN_BP
+    if (newLeft + newRight > maxPair) {
+      if (deltaBp > 0) newLeft = maxPair - newRight
+      else newRight = maxPair - newLeft
+    }
+  }
+
+  // 左拖：弹性 / 脱离
   if (newLeft < MIN_BP) {
     elasticId.value = leftId
-    if (newLeft < ELASTIC_THRESHOLD) { detachId.value = leftId } else { detachId.value = null }
-    // 弹性视觉：clamp 到最小，但记录意图
+    detachId.value = newLeft < ELASTIC_THRESHOLD ? leftId : null
     newLeft = Math.max(0, newLeft)
     newRight = startLeftBp + startRightBp - newLeft
-  } else {
+  }
+  // 右拖：吞并右侧节点（尾款不可吞并）
+  else if (newRight < ELASTIC_THRESHOLD && !rightIsFinal) {
+    elasticId.value = rightId
+    detachId.value = rightId
+    newRight = Math.max(0, newRight)
+    newLeft = startLeftBp + startRightBp - newRight
+  }
+  else {
     elasticId.value = null
     detachId.value = null
   }
 
-  // 右侧段边界（尾款不低于 5%）
-  if (newRight < MIN_BP) {
+  // 尾款硬底线
+  if (newRight < MIN_BP && rightIsFinal) {
     newRight = MIN_BP
     newLeft = startLeftBp + startRightBp - newRight
     elasticId.value = null
@@ -119,18 +137,20 @@ function onPointerMove(e) {
 
 function onPointerUp(e) {
   e.target.removeEventListener('pointermove', onPointerMove)
-  const segs = segments.value
-  const leftId = segs[dragIdx]?.id
 
-  if (detachId.value && leftId) {
-    // 脱离：移除该收款节点
-    emit('detach', leftId)
-  } else if (elasticId.value && leftId) {
-    // 弹回 5%（P2-2: 保护右侧不低于 MIN_BP）
+  if (detachId.value) {
+    // 脱离 / 吞并：关闭该节点收款
+    emit('detach', detachId.value)
+  } else if (elasticId.value) {
+    // Q弹回弹到 5%
+    const segs = segments.value
+    const leftId = segs[dragIdx]?.id
     const rightId = segs[dragIdx + 1]?.id
+    const id = elasticId.value
+    const otherId = id === leftId ? rightId : leftId
     const total = (localBp.value[leftId] || 0) + (localBp.value[rightId] || 0)
-    localBp.value[leftId] = MIN_BP
-    localBp.value[rightId] = Math.max(MIN_BP, total - MIN_BP)
+    localBp.value[id] = MIN_BP
+    localBp.value[otherId] = Math.max(MIN_BP, total - MIN_BP)
     emitChange()
   } else {
     emitChange()
@@ -150,7 +170,7 @@ function emitChange() {
 
 // ─── 键盘 ───
 function onKeydown(e, idx) {
-  const step = e.shiftKey ? 500 : 50
+  const step = e.shiftKey ? 500 : 100
   const segs = segments.value
   const leftId = segs[idx].id
   const rightId = segs[idx + 1].id
@@ -185,7 +205,6 @@ function commitInput(seg) {
     inputId.value = null
     return
   }
-  // 差值由尾款吸收
   const final = payStages.value.find(s => s.isFinal)
   const oldBp = localBp.value[seg.id] || seg.bp
   const diff = newBp - oldBp
@@ -215,14 +234,13 @@ function commitInput(seg) {
   border-right: 1px solid var(--border-color);
 }
 .bar-seg:last-child { border-right: none; }
-.bar-seg.final {
-  background: repeating-linear-gradient(45deg, transparent, transparent 4px, var(--color-gold-soft, rgba(176,141,30,0.08)) 4px, var(--color-gold-soft, rgba(176,141,30,0.08)) 8px);
-}
+.bar-seg.final { background: var(--color-gold-soft, rgba(176, 141, 30, 0.12)); }
 .bar-seg.elastic { opacity: 0.5; }
 .bar-seg.detach { opacity: 0.3; border: 2px dashed var(--color-danger); }
 .seg-label { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .seg-pct { font-size: 13px; font-weight: 700; color: var(--color-primary); font-variant-numeric: tabular-nums; cursor: pointer; }
-.bar-seg.final .seg-pct { color: var(--color-gold); cursor: default; }
+.bar-seg.final .seg-pct { color: var(--color-gold, #b08d1e); }
+.final-badge { font-size: 9px; color: var(--color-gold, #b08d1e); opacity: 0.8; line-height: 1; margin-top: 1px; }
 .bar-handle {
   position: absolute; right: -4px; top: 0; bottom: 0; width: 8px;
   cursor: col-resize; z-index: 2; background: transparent;

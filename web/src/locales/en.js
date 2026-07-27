@@ -166,7 +166,19 @@ export default {
     deleteHint: 'Delete this stage?', deletePayHint: 'This stage\'s payment % will merge into the final payment. Delete?',
     savePayment: 'Save Split', unsaved: 'Unsaved payment changes',
     saved: 'Payment split saved', detached: 'Payment node removed, % merged into final',
-    dragHandle: 'Drag to adjust ratio', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate'
+    dragHandle: 'Drag to adjust ratio', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate',
+    reset: 'Reset to Default', resetConfirm: 'Reset to default template? All custom stages and payment splits will be overwritten. This cannot be undone.', resetDone: 'Reset to default template',
+    descPlaceholder: 'Click to add a note',
+    helpBtn: 'How it works', helpTitle: 'Workflow & Payment Guide',
+    helpLines: [
+      'Each stage is a step in your commission process; clients see progress in order.',
+      'Toggle the switch on a stage to collect payment there; the ratio bar splits it live.',
+      'The last payment stage is the "final payment" — its ratio is auto-calculated and locked.',
+      'Drag the handle between two segments to rebalance them; drag a segment all the way left to remove its payment.',
+      'Drag the ⠿ handle to reorder stages; the final-payment tag follows the last paying stage automatically.',
+      'Click a stage name to rename it; click the grey note text to add a description.',
+      'All ratios always sum to 100%, and no stage can go below 5%.'
+    ]
   },
   admin: {
     backToAdmin: 'Back to dashboard', panelTitle: 'Admin panel',

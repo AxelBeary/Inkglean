@@ -298,6 +298,11 @@ export default async function artistRoutes(fastify) {
     return { stages: workflowService.savePayment(request.artist.id, request.body.nodes) }
   })
 
+  /** POST /api/artist/workflow/reset — 恢复默认模板 */
+  fastify.post('/api/artist/workflow/reset', { preHandler: requireAuth }, async (request) => {
+    return { stages: workflowService.resetArtistStages(request.artist.id) }
+  })
+
   // ─── 公开：流程 + 收款计划 ───
 
   /** GET /api/artists/:subdomain/workflow — 客户端可见 */

@@ -1,9 +1,13 @@
 <template>
   <div class="workflow-editor" v-loading="loading">
     <!-- 流程列表 -->
-    <h4 class="section-title">{{ $t('workflow.stageList') }}</h4>
+    <div class="list-header">
+      <h4 class="section-title">{{ $t('workflow.stageList') }}</h4>
+      <el-button text size="small" @click="showHelp = true">{{ $t('workflow.helpBtn') }}</el-button>
+    </div>
     <StageListView :stages="stages" :readonly="mode === 'template'"
       @reorder="onReorder" @add="onAdd" @rename="onRename"
+      @update-desc="onUpdateDesc"
       @toggle-pay="onTogglePay" @delete="onDelete" />
 
     <!-- 比例条 -->
@@ -21,6 +25,18 @@
     <!-- 流程全览 -->
     <h4 class="section-title" style="margin-top: 20px">{{ $t('workflow.overview') }}</h4>
     <WorkflowOverviewStrip :stages="stages" />
+
+    <!-- 恢复默认（仅画师端） -->
+    <div v-if="mode === 'artist'" class="reset-row">
+      <el-button size="small" type="danger" plain @click="onReset">{{ $t('workflow.reset') }}</el-button>
+    </div>
+
+    <!-- 使用说明弹窗 -->
+    <el-dialog v-model="showHelp" :title="$t('workflow.helpTitle')" width="480px">
+      <ul class="help-body">
+        <li v-for="(line, i) in $tm('workflow.helpLines')" :key="i">{{ line }}</li>
+      </ul>
+    </el-dialog>
   </div>
 </template>
 
@@ -45,6 +61,7 @@ const loading = ref(false)
 const saving = ref(false)
 const stages = ref([])
 const dirtyNodes = ref([])
+const showHelp = ref(false)
 
 // API 分发：画师端 / 管理员端 / 默认模板
 const api = computed(() => {
@@ -119,6 +136,13 @@ async function onRename(id, name) {
   } catch (err) { ElMessage.error(err.message) }
 }
 
+async function onUpdateDesc(id, description) {
+  try {
+    await api.value.update(id, { description })
+    await load()
+  } catch (err) { ElMessage.error(err.message) }
+}
+
 async function onTogglePay(id, val) {
   // R22: 有未保存比例时先自动保存
   if (dirtyNodes.value.length > 0 && !await savePayment()) return
@@ -170,6 +194,24 @@ function beforeUnload(e) {
   if (dirtyNodes.value.length > 0) { e.preventDefault(); e.returnValue = '' }
 }
 
+async function onReset() {
+  try {
+    await ElMessageBox.confirm(t('workflow.resetConfirm'), t('workflow.reset'), {
+      confirmButtonText: t('workflow.reset'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    })
+  } catch { return }
+  loading.value = true
+  try {
+    const res = await artistApi.resetWorkflow()
+    stages.value = res.stages || res
+    dirtyNodes.value = []
+    ElMessage.success(t('workflow.resetDone'))
+  } catch (err) { ElMessage.error(err.message) }
+  finally { loading.value = false }
+}
+
 onMounted(() => {
   load()
   window.addEventListener('beforeunload', beforeUnload)
@@ -187,4 +229,9 @@ defineExpose({ load })
 }
 .save-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .dirty-hint { font-size: 12px; color: var(--color-warning); }
+.reset-row { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border-color); }
+.list-header { display: flex; align-items: center; justify-content: space-between; }
+.list-header .section-title { margin: 0; }
+.help-body { line-height: 1.9; font-size: 14px; color: var(--text-primary); margin: 0; padding-left: 20px; }
+.help-body li { margin-bottom: 6px; }
 </style>
