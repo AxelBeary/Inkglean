@@ -47,16 +47,16 @@
               <!-- R20: 焦点图（显示模式由工具栏全局设置控制，不再按订单 focus_image_mode） -->
               <div v-if="element.focus_image_path && focusDisplay === 'small'" class="focus-small">
                 <el-image
-                  :src="`/uploads/${element.focus_image_path}`" fit="cover" class="focus-small-img"
+                  :src="element.focusImageUrl" fit="cover" class="focus-small-img"
                   :alt="$t('orderDetail.referenceImage')"
-                  :preview-src-list="[`/uploads/${element.focus_image_path}`]"
+                  :preview-src-list="[element.focusImageUrl]"
                 />
               </div>
               <div v-if="element.focus_image_path && focusDisplay === 'large'" class="focus-large">
                 <el-image
-                  :src="`/uploads/${element.focus_image_path}`" fit="cover" class="focus-large-img"
+                  :src="element.focusImageUrl" fit="cover" class="focus-large-img"
                   :alt="$t('orderDetail.referenceImage')"
-                  :preview-src-list="[`/uploads/${element.focus_image_path}`]"
+                  :preview-src-list="[element.focusImageUrl]"
                 />
               </div>
             </div>

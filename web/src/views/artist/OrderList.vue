@@ -22,11 +22,11 @@
         <template #default="{ row }">
           <el-image
             v-if="row.focus_image_path"
-            :src="`/uploads/${row.focus_image_path}`"
+            :src="row.focusImageUrl"
             fit="cover"
             class="order-thumb"
             :alt="$t('orderDetail.referenceImage')"
-            :preview-src-list="[`/uploads/${row.focus_image_path}`]"
+            :preview-src-list="[row.focusImageUrl]"
             preview-teleported
           />
           <span v-else class="no-thumb">—</span>

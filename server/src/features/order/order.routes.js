@@ -11,6 +11,17 @@ import { AppError, E } from '../../shared/errors.js'
 // 订单路由 - 下单、查询、管理、交付
 // ============================================
 
+/** 为订单的 references + deliverables 补签名 URL（H-1 修复抽取，多路由共用） */
+function signOrderUrls(order) {
+  if (order.references) {
+    order.references = order.references.map(r => ({ ...r, url: signedUrl(r.file_path) }))
+  }
+  if (order.deliverables) {
+    order.deliverables = order.deliverables.map(d => ({ ...d, url: signedUrl(d.file_path) }))
+  }
+  return order
+}
+
 /** 限流守卫：不通过则抛 429 */
 function guardRateLimit(key, max, windowMs) {
   if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
@@ -244,33 +255,43 @@ export default async function orderRoutes(fastify) {
    */
   fastify.get('/api/artist/orders', { preHandler: requireAuth }, async (request) => {
     const { status, page, pageSize } = request.query || {}
-    return orderService.getArtistOrders(request.artist.id, status, {
+    const result = orderService.getArtistOrders(request.artist.id, status, {
       page: Math.max(1, parseInt(page, 10) || 1),
       pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200))
     })
+    // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
+    if (result.orders) {
+      result.orders = result.orders.map(order => {
+        if (order.focus_image_path) {
+          return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
+        }
+        return order
+      })
+    }
+    return result
   })
 
   /**
    * GET /api/artist/queue
    */
   fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request) => {
-    return orderService.getArtistQueue(request.artist.id)
+    const queue = orderService.getArtistQueue(request.artist.id)
+    // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
+    return queue.map(order => {
+      if (order.focus_image_path) {
+        return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
+      }
+      return order
+    })
   })
 
   /**
    * GET /api/artist/orders/:id
    */
   fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request) => {
-    const order = request.order
-    // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
-    if (order.references) {
-      order.references = order.references.map(r => ({ ...r, url: signedUrl(r.file_path) }))
-    }
-    if (order.deliverables) {
-      order.deliverables = order.deliverables.map(d => ({ ...d, url: signedUrl(d.file_path) }))
-    }
-    return order
-  })
+   // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
+   return signOrderUrls(request.order)
+ })
 
   /**
    * POST /api/artist/orders/manual
@@ -502,7 +523,9 @@ export default async function orderRoutes(fastify) {
     }
   }, async (request) => {
     const { imagePath, mode } = request.body
-    return orderService.setFocusImage(request.order.id, imagePath, mode)
+    const order = orderService.setFocusImage(request.order.id, imagePath, mode)
+    // Bug fix: setFocusImage 返回的订单需要签名 URL（与 GET orders/:id 一致）
+    return signOrderUrls(order)
   })
 
   /**
