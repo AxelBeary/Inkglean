@@ -14,6 +14,7 @@
           <p style="color: var(--text-secondary); font-size: 12px">{{ $t('artworks.tip') }}</p>
         </template>
       </el-upload>
+      <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
     </el-card>
 
     <!-- 作品网格 -->
@@ -36,14 +37,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import { usePasteUpload } from '../../composables/usePasteUpload.js'
 
 const { t } = useI18n()
+
+// ─── 粘贴上传（作品） ───
+const { pasteError } = usePasteUpload({
+  onFiles: handlePasteArtworkFiles,
+  maxCount: 5,
+  maxSizeMB: 10
+})
+watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 const artworks = ref([])
 const loading = ref(true)
 
@@ -78,6 +88,15 @@ async function loadArtworks() {
   }
 }
 
+async function handlePasteArtworkFiles(files) {
+  for (const file of files) {
+    const uploaded = await uploadApi.image(file)
+    await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName || file.name })
+  }
+  ElMessage.success(t('artworks.uploaded'))
+  await loadArtworks()
+}
+
 onMounted(loadArtworks)
 </script>
 
@@ -95,4 +114,5 @@ onMounted(loadArtworks)
 }
 .artwork-item:hover .artwork-actions,
 .artwork-item:focus-within .artwork-actions { opacity: 1; }
+.paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center; }
 </style>

@@ -50,7 +50,8 @@ usePalette(paletteId)
 const TEMPLATES = {
   'classic': defineAsyncComponent(() => import('./templates/ArtistHomeClassic.vue')),
   'gallery': defineAsyncComponent(() => import('./templates/ArtistHomeGallery.vue')),
-  'folio':   defineAsyncComponent(() => import('./templates/ArtistHomeFolio.vue'))
+  'folio':   defineAsyncComponent(() => import('./templates/ArtistHomeFolio.vue')),
+  'atelier': defineAsyncComponent(() => import('./templates/ArtistHomeAtelier.vue'))
 }
 const LEGACY_TEMPLATE_MAP = {
   'default': 'classic',

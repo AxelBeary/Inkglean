@@ -88,6 +88,12 @@ export default {
     title: '平台职责说明',
     text: '本平台仅协助验证身份与连接双方，所有后续沟通、支付与交付均在外进行。平台不提供托管、仲裁服务，请自行承担风险。'
   },
+  upload: {
+    pasteHint: '支持 Ctrl+V 粘贴图片',
+    pasteNotImage: '仅支持粘贴图片',
+    pasteTooMany: '最多粘贴 {max} 张图片',
+    pasteTooBig: '文件「{name}」超过 {max}MB 限制（{size}MB），请压缩后重试'
+  },
   pageTitle: {
     home: '画师约稿平台',
     artistHome: '画师主页',
@@ -237,6 +243,8 @@ export default {
     tab: '主页模板',
     hint: '选择客户看到的画师主页样式。布局决定页面结构，配色决定气质底色，所有模板共享同一套作品/价格数据。',
     label: '页面布局',
+    atelier: '画册工作室',
+    atelierDesc: '纸感暖调，宋体标题，笔触下划线，安静的手作气质',
     classic: '经典工作室',
     classicDesc: '代表作横幅开场，桌面双栏，约稿按钮吸顶常驻',
     gallery: '美术馆画廊',

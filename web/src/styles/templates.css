@@ -57,3 +57,12 @@
   line-height: 1.8;
   color: var(--pal-text);
 }
+
+/* ===== 画册风模板（atelier）共享样式 ===== */
+/* 结构色跟随 --pal-* 配色系统；装饰色（赭橙/苔绿）在模板 scoped 样式中定义 */
+.tpl-atelier-card {
+  background: var(--pal-bg-alt);
+  border: 1px solid var(--pal-border);
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}

@@ -111,6 +111,7 @@
             >
               <el-icon aria-label="上传参考图"><Plus /></el-icon>
             </el-upload>
+            <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
           </el-form-item>
 
           <!-- QQ号 -->
@@ -178,6 +179,7 @@ import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import Disclaimer from '../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
+import { usePasteUpload } from '../../composables/usePasteUpload.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -345,6 +347,32 @@ function handleRefRemove(file) {
   }
 }
 
+// ─── 粘贴上传（参考图） ───
+const { pasteError } = usePasteUpload({
+  onFiles: handlePasteRefFiles,
+  maxCount: 5,
+  maxSizeMB: 10
+})
+watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
+
+async function handlePasteRefFiles(files) {
+  for (const file of files) {
+    if (refFileList.value.length >= 5) {
+      ElMessage.warning(t('orderForm.refExceed'))
+      return
+    }
+    const ext = (file.name || '').split('.').pop().toLowerCase()
+    if (ext && !['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+      ElMessage.info(t('orderForm.typeWarning'))
+    }
+    const uploaded = await uploadApi.reference(file)
+    uploadedRefs.value.push(uploaded.filePath)
+    const uid = `paste-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    refUidMap.value.set(uid, uploaded.filePath)
+    refFileList.value.push({ name: file.name || 'pasted-image.png', url: `/uploads/${uploaded.filePath}`, uid, status: 'success' })
+  }
+}
+
 // ─── 提交 ───
 async function submit() {
   const valid = await formRef.value.validate().catch(() => false)
@@ -417,6 +445,7 @@ onMounted(async () => {
   transition: background 0.3s;
 }
 .form-container { max-width: 600px; margin: 0 auto; }
+.paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .rules-preview { max-height: 200px; overflow-y: auto; }
 .rules-html { line-height: 1.8; color: var(--text-primary); }
 
