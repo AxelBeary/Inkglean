@@ -389,4 +389,21 @@ describe('订单服务 (Order Service)', () => {
     const { initDatabase } = await import('../src/db/init.js')
     expect(() => initDatabase(db)).not.toThrow()
   })
+
+  // ─── v0.11 R11: track 接口扩展 ───
+
+  // TC-O-24: getClientQueuePosition 返回的订单含 artist_id（供 track 查流程）
+  it('TC-O-24: getClientQueuePosition 返回 artist_id 用于查流程', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const result = orderService.getClientQueuePosition(order.order_no, '111')
+    expect(result).not.toBeNull()
+    expect(result.order.artist_id).toBe(artist.id)
+  })
+
+  // TC-O-25: current_stage_id 字段不存在时返回 undefined（路由层 ?? null）
+  it('TC-O-25: 订单无 current_stage_id 字段（迁移 v12 前）', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    // 迁移 v12 前 orders 表无此列，getOrder 返回的对象不含该字段
+    expect(order.current_stage_id).toBeUndefined()
+  })
 })

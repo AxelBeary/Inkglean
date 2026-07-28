@@ -1,6 +1,7 @@
 import * as orderService from './order.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
+import { getWorkflow } from '../artist/workflow.service.js'
 import { clamp, isValidQq } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
@@ -132,6 +133,9 @@ export default async function orderRoutes(fastify) {
 
     const { order, position, total } = result
 
+    // R11: 流程阶段列表 + 当前阶段（需迁移 v12 后才有真实值）
+    const workflowStages = getWorkflow(order.artist_id)
+
     // 只返回客户需要看到的信息
     return {
       orderNo: order.order_no,
@@ -140,6 +144,8 @@ export default async function orderRoutes(fastify) {
       artistName: order.artist_name,
       position,
       total,
+      workflowStages,
+      currentStageId: order.current_stage_id ?? null,
       deliverables: order.deliverables.map(d => ({
         id: d.id,
         fileName: d.original_name,
