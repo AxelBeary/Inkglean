@@ -1,5 +1,61 @@
 # 变更日志
 
+## v0.11 — 2026-07-29
+
+### ✨ 功能
+
+- **R1 流程展示整合**：流程展示整合至价格板块，新增修改次数告示（`revision_note`）
+- **R2 报价快照与最终价格**：报价快照字符串（`quote_snapshot`）+ 最终价格手动设置（`final_price_cents`）+ 改价自动备注
+- **R3 快速录单补全**：参考图上传、价格计算器联动、QQ 通知开关
+- **R4 订单焦点图**：三态开关（off / small / large），排期看板显示焦点图
+- **R5 全平台粘贴上传**：`usePasteUpload` composable，3 处接入
+- **R6 新主页模板 atelier**：第 4 个主页模板「画册工作室」，思源宋体/黑体，纸感暖调
+- **R7 每日一句交互优化**：改为整块点击换一句（删除独立按钮）
+- **R8 仪表盘默认板块自定义**（后端就绪）：跳转式默认板块，后端存储字段已加（迁移 v11），前端尚未实现
+- **R9 主页设置清理**：移除重复的「流程与比例」tab
+
+### 🗄 迁移 v11
+
+- `orders` 表 +4 字段：`quote_snapshot` / `final_price_cents` / `focus_image_path` / `focus_image_mode`
+- `artists` 表 +2 字段：`dashboard_default_panel` / `revision_note`
+
+### 🔒 安全修复
+
+**P0 批次：**
+- C-1 签名编码绕过修复
+- C-2 `setErrorHandler` 位置修正
+- C-3 references 零校验修复
+- H-2 `authApi.logout` 修复
+- M-1 avatar 路径校验
+
+**P1 批次：**
+- H-1 画师端签名 URL 修复
+- H-3 admin artworks camelCase 修复
+- H-4 `createTier` 兼容修复
+- H-5 画师存在性校验
+- H-6 问候语归属校验
+- M-2 bio diff 快照
+- M-3 seed 工作流修复
+- M-4 `admin_qq` REPLACE 修复
+- M-5 `.env.example` 补充 `COOKIE_SECRET`
+- M-6 file-sign fail-fast
+
+**P0 止血：**
+- P0-3 转让防爆破计数回滚
+- P0-4 登录码清理时间格式统一
+- P0-5 嵌入脚本白屏修复（i18n + API payload）
+
+**基础设施：**
+- `@fastify/static` 8→10 升级 + `setHeaders` API 适配
+- `TRUST_PROXY` 收紧为 Docker 内网段
+- ports 3000 默认开放（开发环境）
+
+### 🧪 测试
+
+- 103 → 118 用例
+
+---
+
 ## v0.10.1 — 2026-07-28
 
 ### 🧹 ESLint 全量清零（合并 fix/eslint 分支）
