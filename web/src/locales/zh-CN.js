@@ -150,7 +150,13 @@ export default {
     contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
     contactArtist: '画师QQ', contactAdmin: '管理员QQ', copyQq: '复制', copied: '已复制',
     noOrdersTitle: '未找到订单', noOrdersDesc: '该QQ号在本画师处没有订单记录，请核对QQ号是否正确。',
-    noOrdersCountdown: '{n} 秒后可关闭'
+    noOrdersCountdown: '{n} 秒后可关闭',
+    timeline: {
+      title: '制作进度',
+      current: '进行中',
+      notStarted: '订单已提交，等待画师确认后进入制作流程',
+      orderedAt: '下单时间：'
+    }
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
