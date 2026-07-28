@@ -49,17 +49,39 @@
         </div>
       </el-card>
 
-      <!-- 参考图 -->
-      <el-card style="margin-top: 16px" v-if="order.references?.length">
+      <!-- 参考图 + 焦点图设置（R4） -->
+      <el-card style="margin-top: 16px">
         <template #header>{{ $t('orderDetail.references') }}</template>
-        <div class="ref-grid">
-          <el-image
-            v-for="(reference, index) in order.references" :key="reference.id"
-            :src="reference.url" fit="cover" class="ref-img"
-            :alt="$t('orderDetail.referenceImage')"
-            :preview-src-list="order.references.map(r => r.url)"
-            :initial-index="index"
-          />
+        <template v-if="order.references?.length">
+          <div class="ref-grid">
+            <div
+              v-for="(reference, index) in order.references" :key="reference.id"
+              class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
+            >
+              <el-image
+                :src="reference.url" fit="cover" class="ref-img"
+                :alt="$t('orderDetail.referenceImage')"
+                :preview-src-list="order.references.map(r => r.url)"
+                :initial-index="index"
+              />
+              <el-button
+                size="small" class="ref-focus-btn"
+                :type="order.focus_image_path === reference.file_path ? 'primary' : 'default'"
+                @click="selectFocusImage(reference)"
+              >
+                {{ order.focus_image_path === reference.file_path ? $t('orderDetail.focusSelected') : $t('orderDetail.setFocus') }}
+              </el-button>
+            </div>
+          </div>
+        </template>
+        <p v-else class="no-refs">{{ $t('orderDetail.noReferences') }}</p>
+        <div class="focus-mode-row">
+          <span class="focus-mode-label">{{ $t('orderDetail.focusMode') }}</span>
+          <el-radio-group v-model="focusMode" size="small" :disabled="!order.references?.length" @change="changeFocusMode">
+            <el-radio-button value="off">{{ $t('orderDetail.focusOff') }}</el-radio-button>
+            <el-radio-button value="small">{{ $t('orderDetail.focusSmall') }}</el-radio-button>
+            <el-radio-button value="large">{{ $t('orderDetail.focusLarge') }}</el-radio-button>
+          </el-radio-group>
         </div>
       </el-card>
 
@@ -124,6 +146,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const order = ref(null)
+const focusMode = ref('off')
 const newNote = ref('')
 const showDeliver = ref(false)
 const deliverFile = ref(null)
@@ -157,8 +180,41 @@ function formatDate(str) {
 async function loadOrder() {
   try {
     order.value = await artistApi.getOrder(route.params.id)
+    focusMode.value = order.value?.focus_image_mode || 'off'
   } catch (err) {
     ElMessage.error(err.message)
+  }
+}
+
+// ─── R4: 焦点图 ───
+async function selectFocusImage(reference) {
+  try {
+    // 当前为"关"时选择焦点图，默认切到"小"
+    const mode = focusMode.value === 'off' ? 'small' : focusMode.value
+    order.value = await artistApi.setFocusImage(route.params.id, { imagePath: reference.file_path, mode })
+    focusMode.value = order.value.focus_image_mode
+    ElMessage.success(t('orderDetail.focusUpdated'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+async function changeFocusMode(mode) {
+  if (mode !== 'off' && !order.value?.focus_image_path) {
+    ElMessage.warning(t('orderDetail.focusSelectFirst'))
+    focusMode.value = 'off'
+    return
+  }
+  try {
+    order.value = await artistApi.setFocusImage(route.params.id, {
+      imagePath: mode === 'off' ? null : order.value.focus_image_path,
+      mode
+    })
+    focusMode.value = order.value.focus_image_mode
+    ElMessage.success(t('orderDetail.focusUpdated'))
+  } catch (err) {
+    ElMessage.error(err.message)
+    focusMode.value = order.value?.focus_image_mode || 'off'
   }
 }
 
@@ -253,7 +309,13 @@ onMounted(loadOrder)
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .status-actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
 .ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.ref-item { display: flex; flex-direction: column; gap: 4px; }
+.ref-item--focus .ref-img { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .ref-img { height: 120px; width: 100%; border-radius: 6px; }
+.ref-focus-btn { width: 100%; }
+.no-refs { color: var(--text-secondary); font-size: 13px; margin: 0; }
+.focus-mode-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+.focus-mode-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
 .notes { max-height: 200px; overflow-y: auto; margin-bottom: 12px; }
 .note-item { padding: 8px 0; border-bottom: 1px solid var(--border-color); }
 .note-time { color: var(--text-secondary); font-size: 12px; margin-right: 8px; }

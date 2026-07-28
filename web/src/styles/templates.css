@@ -58,6 +58,41 @@
   color: var(--pal-text);
 }
 
+/* ===== R1: 流程整合进价格板块 ===== */
+.tpl-workflow-inline {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px dashed var(--pal-border);
+}
+.tpl-workflow-inline-label {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--pal-text-dim);
+  margin-bottom: 12px;
+}
+.tpl-revision-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pal-text);
+}
+.tpl-revision-note-icon { flex-shrink: 0; }
+.tpl-revision-note-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pal-text-dim);
+  margin-bottom: 2px;
+}
+
 /* ===== 画册风模板（atelier）共享样式 ===== */
 /* 结构色跟随 --pal-* 配色系统；装饰色（赭橙/苔绿）在模板 scoped 样式中定义 */
 .tpl-atelier-card {

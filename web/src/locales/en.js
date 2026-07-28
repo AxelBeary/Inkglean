@@ -122,7 +122,8 @@ export default {
     heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',
     startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
-    weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili'
+    weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili',
+    revisionNote: 'Revision policy'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
@@ -195,7 +196,10 @@ export default {
     statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
     uploadTip: 'Images and archives supported, max 50MB per file',
     invalidFileType: 'Unsupported file type. Please upload an image or archive',
-    fileTooLarge: 'File too large (max 50MB)', referenceImage: 'Reference image'
+    fileTooLarge: 'File too large (max 50MB)', referenceImage: 'Reference image',
+    noReferences: 'No reference images', setFocus: 'Set as focus', focusSelected: '✓ Focus',
+    focusMode: 'Queue board display', focusOff: 'Off', focusSmall: 'Small', focusLarge: 'Large',
+    focusUpdated: 'Focus image updated', focusSelectFirst: 'Select a reference image as focus first'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',

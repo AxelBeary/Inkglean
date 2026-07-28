@@ -40,18 +40,27 @@
 
       <!-- 右栏：滚动内容 -->
       <main class="classic-main">
-        <section class="classic-section tpl-reveal" v-if="tiers.length">
-          <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
-          <TplTierGrid :tiers="tiers" featured>
-            <template #addons="{ tier }">
-              <slot name="addons" :tier="tier"></slot>
-            </template>
-          </TplTierGrid>
-        </section>
-
-        <section class="classic-section tpl-reveal" v-if="workflowStages.length">
-          <p class="tpl-section-label classic-label">{{ $t('artistHome.workflow') }}</p>
-          <WorkflowOverviewStrip :stages="workflowStages" vertical />
+        <section class="classic-section tpl-reveal" v-if="tiers.length || workflowStages.length">
+          <template v-if="tiers.length">
+            <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
+            <TplTierGrid :tiers="tiers" featured>
+              <template #addons="{ tier }">
+                <slot name="addons" :tier="tier"></slot>
+              </template>
+            </TplTierGrid>
+          </template>
+          <!-- R1: 流程整合进价格板块，不再独立成区 -->
+          <div v-if="workflowStages.length" class="tpl-workflow-inline">
+            <p class="tpl-workflow-inline-label">{{ $t('artistHome.workflow') }}</p>
+            <WorkflowOverviewStrip :stages="workflowStages" vertical />
+          </div>
+          <div v-if="artist.revisionNote" class="tpl-revision-note">
+            <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
+            <span>
+              <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
+              {{ artist.revisionNote }}
+            </span>
+          </div>
         </section>
 
         <section class="classic-section tpl-reveal" v-if="artworks.length">
