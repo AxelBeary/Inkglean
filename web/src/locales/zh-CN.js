@@ -175,7 +175,8 @@ export default {
     currentStatus: '当前主页状态', statusUpdated: '状态已更新',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     anotherOne: '换一句',
-    slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜'
+    slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
+    defaultPanel: '默认面板', panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理'
   },
   queue: {
     title: '📋 排期看板',
@@ -247,6 +248,7 @@ export default {
     contactQqLabel: '联系QQ（客户可见）', contactQqPlaceholder: '留空则默认使用登录QQ',
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
+    defaultPanelLabel: '仪表盘默认面板', defaultPanelHint: '进入仪表盘时显示的快捷入口',
     save: '保存设置', saved: '设置已保存'
   },
   templates: {

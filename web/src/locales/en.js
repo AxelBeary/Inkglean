@@ -175,7 +175,8 @@ export default {
     currentStatus: 'Current page status', statusUpdated: 'Status updated',
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     anotherOne: 'Another',
-    slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night'
+    slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
+    defaultPanel: 'Default panel', panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing'
   },
   queue: {
     title: '📋 Queue Board',
@@ -247,6 +248,7 @@ export default {
     contactQqLabel: 'Contact QQ (visible to clients)', contactQqPlaceholder: 'Leave blank to use your login QQ',
     contactQqHint: 'Clients who forgot their order number will see this QQ to contact you',
     notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
+    defaultPanelLabel: 'Dashboard default panel', defaultPanelHint: 'Shortcut shown when entering the dashboard',
     save: 'Save settings', saved: 'Settings saved'
   },
   templates: {

@@ -40,6 +40,16 @@
                 :active-text="$t('settings.notifyText')"
               />
             </el-form-item>
+            <!-- R8: 默认面板 -->
+            <el-form-item :label="$t('settings.defaultPanelLabel')">
+              <el-select v-model="form.dashboard_default_panel" style="width: 200px">
+                <el-option value="queue" :label="$t('dashboard.panelQueue')" />
+                <el-option value="orders" :label="$t('dashboard.panelOrders')" />
+                <el-option value="manual" :label="$t('dashboard.panelManual')" />
+                <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
+              </el-select>
+              <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
             </el-form-item>
@@ -133,7 +143,8 @@ const form = reactive({
   weibo_url: '', bilibili_url: '', contact_qq: '',
   notify_enabled: 1, artist_code: '',
   template_id: 'classic',
-  palette_id: 'paper'
+  palette_id: 'paper',
+  dashboard_default_panel: 'queue'
 })
 
 const templates = computed(() => [
@@ -176,7 +187,8 @@ async function save() {
         name: form.name.trim(), bio: form.bio.trim(), status: form.status,
         weibo_url: form.weibo_url.trim(), bilibili_url: form.bilibili_url.trim(),
         contact_qq: form.contact_qq.trim(), notify_enabled: form.notify_enabled,
-        artist_code: form.artist_code.trim()
+        artist_code: form.artist_code.trim(),
+        dashboard_default_panel: form.dashboard_default_panel
       })
     }
     ElMessage.success(t('settings.saved'))
@@ -197,6 +209,7 @@ onMounted(async () => {
       artist_code: profile.artist_code || '',
       template_id: LEGACY[rawTpl] || rawTpl,
       palette_id: profile.palette_id || 'paper',
+      dashboard_default_panel: profile.dashboard_default_panel || 'queue',
       subdomain: profile.subdomain || ''
     })
   } catch (err) { ElMessage.error(err.message) }
