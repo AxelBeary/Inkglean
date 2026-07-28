@@ -25,6 +25,14 @@
         <template #item="{ element }">
           <div class="queue-item" :class="`priority-${element.priority}`">
             <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
+            <!-- UI-2: 大图模式 — 左图右文布局，与"小"模式形成 48→160 梯度 -->
+            <div v-if="element.focus_image_path && focusDisplay === 'large'" class="focus-large">
+              <el-image
+                :src="element.focusImageUrl" fit="cover" class="focus-large-img"
+                :alt="$t('orderDetail.referenceImage')"
+                :preview-src-list="[element.focusImageUrl]"
+              />
+            </div>
             <div class="item-body">
               <div class="item-header">
                 <span class="order-no">#{{ element.order_no }}</span>
@@ -44,17 +52,10 @@
               <div class="item-desc" v-if="element.description">
                 {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
               </div>
-              <!-- R20: 焦点图（显示模式由工具栏全局设置控制，不再按订单 focus_image_mode） -->
+              <!-- R20: 焦点图小模式（48px 缩略图，保持在文字下方） -->
               <div v-if="element.focus_image_path && focusDisplay === 'small'" class="focus-small">
                 <el-image
                   :src="element.focusImageUrl" fit="cover" class="focus-small-img"
-                  :alt="$t('orderDetail.referenceImage')"
-                  :preview-src-list="[element.focusImageUrl]"
-                />
-              </div>
-              <div v-if="element.focus_image_path && focusDisplay === 'large'" class="focus-large">
-                <el-image
-                  :src="element.focusImageUrl" fit="cover" class="focus-large-img"
                   :alt="$t('orderDetail.referenceImage')"
                   :preview-src-list="[element.focusImageUrl]"
                 />
@@ -186,8 +187,9 @@ onMounted(loadQueue)
 .item-desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 .focus-small { margin-top: 8px; }
 .focus-small-img { width: 48px; height: 48px; border-radius: 6px; display: block; }
-.focus-large { margin-top: 8px; }
-.focus-large-img { width: 100%; max-height: 200px; border-radius: 8px; display: block; }
+/* UI-2: 大图模式固定 160×120，左图右文，与小模式 48px 形成梯度 */
+.focus-large { flex-shrink: 0; }
+.focus-large-img { width: 160px; height: 120px; border-radius: 8px; display: block; }
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 @media (max-width: 600px) {
