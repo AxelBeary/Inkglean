@@ -6,6 +6,41 @@ import { calculatePrice } from '../pricing/pricing.service.js'
 // 订单服务 - 核心业务逻辑
 // ============================================
 
+// ─── 报价快照字符串生成（v0.11 R2） ───
+
+/** 金额格式化：整数不带小数，非整数保留两位 */
+function formatYuan(amount) {
+  return Number.isInteger(amount) ? `¥${amount}` : `¥${amount.toFixed(2)}`
+}
+
+/**
+ * 从价格计算结果生成报价快照字符串
+ * 格式："档位名 ¥X + 增项A×n ¥Y，倍率×z → 总价 ¥T"
+ * 无计算结果时返回 null（手动录单无价格场景）
+ */
+function buildQuoteSnapshot(priceCalc) {
+  if (!priceCalc || !priceCalc.breakdown || priceCalc.breakdown.length === 0) return null
+
+  const parts = []
+  const multipliers = []
+
+  for (const item of priceCalc.breakdown) {
+    if (item.type === 'tier' || item.type === 'addon') {
+      parts.push(`${item.name} ${formatYuan(item.amount)}`)
+    } else if (item.type === 'usage' || item.type === 'rush') {
+      multipliers.push(item.name) // 已含 "×倍率" 格式
+    }
+  }
+
+  let snapshot = parts.join(' + ')
+  if (multipliers.length > 0) {
+    snapshot += `，${multipliers.join('，')}`
+  }
+  snapshot += ` → 总价 ${formatYuan(priceCalc.totalPrice)}`
+
+  return snapshot
+}
+
 /**
  * 订单状态机：定义每个状态允许转换到的下一个状态
  */
@@ -74,9 +109,12 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       totalPriceCents = priceCalc.totalPriceCents
     }
 
+    // ─── 报价快照字符串（v0.11 R2） ───
+    const quoteSnapshot = buildQuoteSnapshot(priceCalc)
+
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       orderNo, artistId, tierId || null, clientQq, clientName || null,
       description || null, priority || 'medium', source || 'self',
@@ -84,7 +122,8 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       priceCalc ? priceCalc.basePrice : null,
       totalPriceCents,
       usageMultiplierId || null,
-      rushMultiplierId || null
+      rushMultiplierId || null,
+      quoteSnapshot
     )
 
     const orderId = result.lastInsertRowid
@@ -314,21 +353,33 @@ export function getArtistStats(artistId) {
   const activeCount = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
   ).get(artistId).c
-  // 收入统计 — 使用 completed_at + price_snapshot
+  // 收入统计 — 使用 completed_at + final_price_cents（回退 total_price_cents，再回退 price_snapshot）
   // 时区修正：在应用层计算本地时区的月初 UTC 时间戳，避免 UTC+8 用户月初订单被算入上月
   const now = new Date()
   const localMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const monthStartUTC = localMonthStart.toISOString().slice(0, 19).replace('T', ' ')
   const monthRevenue = db.prepare(`
-    SELECT COALESCE(SUM(o.price_snapshot), 0) as total
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
+        WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
+        ELSE COALESCE(o.price_snapshot, 0) * 100
+      END
+    ), 0) as total_cents
     FROM orders o
     WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
       AND o.completed_at >= ?
-  `).get(artistId, monthStartUTC).total
+  `).get(artistId, monthStartUTC).total_cents
   const totalCompleted = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status IN ('done', 'delivered')"
   ).get(artistId).c
-  return { pendingCount, activeCount, monthRevenue, totalCompleted }
+  return {
+    pendingCount,
+    activeCount,
+    monthRevenue: monthRevenue / 100,   // 元（REAL），兼容现有 Dashboard.vue
+    monthRevenueCents: monthRevenue,    // 分（INTEGER），R8 仪表盘重构时切换
+    totalCompleted
+  }
 }
 
 /**
@@ -424,4 +475,95 @@ export function hasClientOrders(artistId, clientQq) {
 export function getPlatformConfig(key) {
   const row = db.prepare('SELECT value FROM platform_config WHERE key = ?').get(key)
   return row?.value ?? null
+}
+
+// ─── v0.11 R2: 最终价格修改 ───
+
+/**
+ * 修改订单最终价格
+ * 校验：正整数（分），上限 99999999（999999.99 元）
+ * 改价时自动追加订单备注 "最终价格从 ¥A 改为 ¥B"
+ */
+export function updateFinalPrice(orderId, finalPriceCents, quoteSnapshot) {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  // 校验：正整数，1 ~ 99999999
+  if (!Number.isInteger(finalPriceCents) || finalPriceCents < 1 || finalPriceCents > 99999999) {
+    throw new AppError(E.INVALID_PRICE, 400, { value: finalPriceCents })
+  }
+
+  return db.transaction(() => {
+    // 计算旧价格（用于备注）
+    const oldCents = order.final_price_cents ?? order.total_price_cents ?? (order.price_snapshot != null ? Math.round(order.price_snapshot * 100) : null)
+
+    db.prepare('UPDATE orders SET final_price_cents = ?, quote_snapshot = COALESCE(?, quote_snapshot), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(finalPriceCents, quoteSnapshot ?? null, orderId)
+
+    // 自动追加备注
+    const oldStr = oldCents != null ? `¥${(oldCents / 100).toFixed(2)}` : '未定价'
+    const newStr = `¥${(finalPriceCents / 100).toFixed(2)}`
+    db.prepare('INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, ?)')
+      .run(orderId, `最终价格从 ${oldStr} 改为 ${newStr}`, 'system')
+
+    return getOrder(orderId)
+  })()
+}
+
+// ─── v0.11 R4: 焦点图 ───
+
+const VALID_FOCUS_MODES = ['off', 'small', 'large']
+
+/**
+ * 设置订单焦点图
+ * 焦点图路径必须是该订单已有参考图之一（校验归属）
+ * mode 为 'off' 时清空焦点图
+ */
+export function setFocusImage(orderId, imagePath, mode) {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  if (!VALID_FOCUS_MODES.includes(mode)) {
+    throw new AppError(E.INVALID_FOCUS_MODE, 400, { mode })
+  }
+
+  if (mode === 'off') {
+    db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(orderId)
+    return getOrder(orderId)
+  }
+
+  // 校验参考图归属
+  if (!imagePath) throw new AppError(E.FOCUS_IMAGE_NOT_FOUND)
+  const ref = db.prepare('SELECT id FROM order_references WHERE order_id = ? AND file_path = ?').get(orderId, imagePath)
+  if (!ref) throw new AppError(E.FOCUS_IMAGE_NOT_OWNED, 400, { path: imagePath })
+
+  db.prepare('UPDATE orders SET focus_image_path = ?, focus_image_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(imagePath, mode, orderId)
+
+  return getOrder(orderId)
+}
+
+/**
+ * 删除订单参考图
+ * 删除时检查并清理焦点图字段
+ */
+export function removeReference(orderId, referenceId) {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  const ref = db.prepare('SELECT * FROM order_references WHERE id = ? AND order_id = ?').get(referenceId, orderId)
+  if (!ref) throw new AppError(E.FOCUS_IMAGE_NOT_FOUND, 404)
+
+  return db.transaction(() => {
+    db.prepare('DELETE FROM order_references WHERE id = ?').run(referenceId)
+
+    // 如果删除的是焦点图，清理焦点图字段
+    if (order.focus_image_path === ref.file_path) {
+      db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .run(orderId)
+    }
+
+    return getOrder(orderId)
+  })()
 }

@@ -442,4 +442,64 @@ export default async function orderRoutes(fastify) {
   fastify.get('/api/artist/stats', { preHandler: requireAuth }, async (request) => {
     return orderService.getArtistStats(request.artist.id)
   })
+
+  // ─── v0.11 R2: 最终价格修改 ───
+
+  /**
+   * PUT /api/artist/orders/:id/price
+   * 修改最终价格 + 报价字符串
+   */
+  fastify.put('/api/artist/orders/:id/price', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['finalPriceCents'],
+        properties: {
+          finalPriceCents: { type: 'integer', minimum: 1, maximum: 99999999 },
+          quoteSnapshot: { type: ['string', 'null'], maxLength: 500 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    const { finalPriceCents, quoteSnapshot } = request.body
+    return orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot)
+  })
+
+  // ─── v0.11 R4: 焦点图 ───
+
+  /**
+   * PUT /api/artist/orders/:id/focus-image
+   * 设置焦点图路径 + 模式（off/small/large）
+   */
+  fastify.put('/api/artist/orders/:id/focus-image', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['mode'],
+        properties: {
+          imagePath: { type: ['string', 'null'], maxLength: 500 },
+          mode: { type: 'string', enum: ['off', 'small', 'large'] }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    const { imagePath, mode } = request.body
+    return orderService.setFocusImage(request.order.id, imagePath, mode)
+  })
+
+  /**
+   * DELETE /api/artist/orders/:id/references/:refId
+   * 删除参考图（自动清理焦点图）
+   */
+  fastify.delete('/api/artist/orders/:id/references/:refId', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request) => {
+    const refId = parseInt(request.params.refId, 10)
+    if (isNaN(refId)) throw new AppError(E.ORDER_INVALID_ID)
+    return orderService.removeReference(request.order.id, refId)
+  })
 }
