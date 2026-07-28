@@ -23,7 +23,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - AUTH_DEV_MODE=false       # 生产环境必须关闭开发模式
+      # AUTH_DEV_MODE 由 .env 控制（开发=true / 生产=false 或删除）
+      # 不在此处硬编码，否则 .env 的值会被覆盖
       - DB_PATH=/app/data/commission.db
       - UPLOAD_DIR=/app/uploads
       - TRUST_PROXY=true          # Caddy 为唯一入口，信任所有代理来源
