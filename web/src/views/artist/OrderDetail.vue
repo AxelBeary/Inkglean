@@ -17,11 +17,12 @@
           <el-descriptions-item :label="$t('orderDetail.colQq')">{{ order.client_qq }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colName')">{{ order.client_name || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colPriority')">
-            <el-select v-model="order.priority" @change="changePriority" size="small" style="width: 100px">
-              <el-option value="high" :label="$t('common.priority.high')" />
-              <el-option value="medium" :label="$t('common.priority.medium')" />
-              <el-option value="low" :label="$t('common.priority.low')" />
-            </el-select>
+            <!-- R17: 优先级分段按钮（红/黄/绿，点击即保存） -->
+            <el-radio-group v-model="order.priority" size="small" class="priority-group" @change="changePriority">
+              <el-radio-button value="high" class="prio-high">{{ $t('common.priority.high') }}</el-radio-button>
+              <el-radio-button value="medium" class="prio-medium">{{ $t('common.priority.medium') }}</el-radio-button>
+              <el-radio-button value="low" class="prio-low">{{ $t('common.priority.low') }}</el-radio-button>
+            </el-radio-group>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colSource')">{{ order.source === 'self' ? $t('common.source.clientSelf') : $t('common.source.manualEntry') }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
@@ -84,14 +85,8 @@
           </div>
         </template>
         <p v-else class="no-refs">{{ $t('orderDetail.noReferences') }}</p>
-        <div class="focus-mode-row">
-          <span class="focus-mode-label">{{ $t('orderDetail.focusMode') }}</span>
-          <el-radio-group v-model="focusMode" size="small" :disabled="!order.references?.length" @change="changeFocusMode">
-            <el-radio-button value="off">{{ $t('orderDetail.focusOff') }}</el-radio-button>
-            <el-radio-button value="small">{{ $t('orderDetail.focusSmall') }}</el-radio-button>
-            <el-radio-button value="large">{{ $t('orderDetail.focusLarge') }}</el-radio-button>
-          </el-radio-group>
-        </div>
+        <!-- R20: 显示模式已移至排期看板工具栏，此处只保留"选哪张当焦点" -->
+        <p class="focus-hint">{{ $t('orderDetail.focusHint') }}</p>
       </el-card>
 
       <!-- 备注 -->
@@ -155,7 +150,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const order = ref(null)
-const focusMode = ref('off')
+const prevPriority = ref(null)
 const newNote = ref('')
 const showDeliver = ref(false)
 const deliverFile = ref(null)
@@ -189,41 +184,32 @@ function formatDate(str) {
 async function loadOrder() {
   try {
     order.value = await artistApi.getOrder(route.params.id)
-    focusMode.value = order.value?.focus_image_mode || 'off'
+    prevPriority.value = order.value?.priority || 'medium'
   } catch (err) {
     ElMessage.error(err.message)
   }
 }
 
-// ─── R4: 焦点图 ───
+// ─── R4/R20: 焦点图（只负责选图，显示模式由看板全局控制） ───
 async function selectFocusImage(reference) {
   try {
-    // 当前为"关"时选择焦点图，默认切到"小"
-    const mode = focusMode.value === 'off' ? 'small' : focusMode.value
-    order.value = await artistApi.setFocusImage(route.params.id, { imagePath: reference.file_path, mode })
-    focusMode.value = order.value.focus_image_mode
+    // mode 仅为满足后端 schema；实际显示尺寸由看板 queue_focus_display 决定
+    order.value = await artistApi.setFocusImage(route.params.id, { imagePath: reference.file_path, mode: 'small' })
     ElMessage.success(t('orderDetail.focusUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
   }
 }
 
-async function changeFocusMode(mode) {
-  if (mode !== 'off' && !order.value?.focus_image_path) {
-    ElMessage.warning(t('orderDetail.focusSelectFirst'))
-    focusMode.value = 'off'
-    return
-  }
+// ─── R17: 优先级（点击即保存，失败回滚） ───
+async function changePriority(priority) {
   try {
-    order.value = await artistApi.setFocusImage(route.params.id, {
-      imagePath: mode === 'off' ? null : order.value.focus_image_path,
-      mode
-    })
-    focusMode.value = order.value.focus_image_mode
-    ElMessage.success(t('orderDetail.focusUpdated'))
+    await artistApi.updatePriority(route.params.id, priority)
+    prevPriority.value = priority
+    ElMessage.success(t('orderDetail.priorityUpdated'))
   } catch (err) {
+    order.value.priority = prevPriority.value
     ElMessage.error(err.message)
-    focusMode.value = order.value?.focus_image_mode || 'off'
   }
 }
 
@@ -236,15 +222,6 @@ async function changeStatus(status) {
   try {
     order.value = await artistApi.updateStatus(route.params.id, status)
     ElMessage.success(t('orderDetail.statusUpdated'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  }
-}
-
-async function changePriority(priority) {
-  try {
-    await artistApi.updatePriority(route.params.id, priority)
-    ElMessage.success(t('orderDetail.priorityUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
   }
@@ -347,8 +324,11 @@ onMounted(loadOrder)
 .ref-img-wrap:hover .ref-delete-btn { opacity: 1; }
 .ref-focus-btn { width: 100%; }
 .no-refs { color: var(--text-secondary); font-size: 13px; margin: 0; }
-.focus-mode-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); }
-.focus-mode-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+.focus-hint { font-size: 12px; color: var(--text-secondary); margin: 12px 0 0; }
+/* R17: 优先级分段按钮配色（选中态由 Element Plus 内部 is-checked 控制） */
+.priority-group :deep(.prio-high.is-checked .el-radio-button__inner) { background: var(--el-color-danger); border-color: var(--el-color-danger); box-shadow: -1px 0 0 0 var(--el-color-danger); }
+.priority-group :deep(.prio-medium.is-checked .el-radio-button__inner) { background: var(--el-color-warning); border-color: var(--el-color-warning); box-shadow: -1px 0 0 0 var(--el-color-warning); }
+.priority-group :deep(.prio-low.is-checked .el-radio-button__inner) { background: var(--el-color-success); border-color: var(--el-color-success); box-shadow: -1px 0 0 0 var(--el-color-success); }
 .notes { max-height: 200px; overflow-y: auto; margin-bottom: 12px; }
 .note-item { padding: 8px 0; border-bottom: 1px solid var(--border-color); }
 .note-time { color: var(--text-secondary); font-size: 12px; margin-right: 8px; }

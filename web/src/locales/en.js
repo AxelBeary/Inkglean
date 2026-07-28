@@ -130,6 +130,7 @@ export default {
     workflowLabel: 'Workflow',
     descLabel: 'Description', descPlaceholder: 'Describe what you want: character features, pose, style, background, etc.',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
+    pricingDetail: 'Price details',
     qqLabel: 'Your QQ number', qqPlaceholder: 'The artist will contact you via QQ',
     nameLabel: 'Nickname (optional)', namePlaceholder: 'What should we call you',
     notifyLabel: '📩 Notify me on QQ when my turn comes', agreeLabel: '✋ I have read and agree to the guidelines above',
@@ -184,12 +185,14 @@ export default {
     confirm: '✅ Confirm', startWip: '🎨 Start work', done: '✔ Complete', deliver: '📦 Deliver', cancel: '❌ Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
     confirmCancel: 'Cancel order #{no}?', confirmCancelTitle: 'Confirm cancellation', statusUpdated: 'Status updated',
-    dragHint: 'Drag to reorder'
+    dragHint: 'Drag to reorder',
+    focusDisplay: 'Focus image', focusOff: 'Off', focusSmall: 'Small', focusLarge: 'Large'
   },
   orderList: {
     title: '📦 Order Management', all: 'All',
     colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
-    colPriority: 'Priority', colStatus: 'Status', colSource: 'Source', colTime: 'Order time', colActions: 'Actions'
+    colPriority: 'Priority', colStatus: 'Status', colSource: 'Source', colTime: 'Order time', colActions: 'Actions',
+    colImage: 'Image'
   },
   orderDetail: {
     backToQueue: 'Back to queue', backToList: 'Back to orders', orderNo: 'Order #',
@@ -207,7 +210,8 @@ export default {
     noReferences: 'No reference images', setFocus: 'Set as focus', focusSelected: '✓ Focus',
     focusMode: 'Queue board display', focusOff: 'Off', focusSmall: 'Small', focusLarge: 'Large',
     focusUpdated: 'Focus image updated', focusSelectFirst: 'Select a reference image as focus first',
-    deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted'
+    deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted',
+    focusHint: 'Display size is set globally in the queue board toolbar'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',

@@ -17,6 +17,21 @@
 
     <!-- 订单列表 -->
     <el-table :data="orders" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
+      <!-- R16: 缩略图列（焦点图优先，无则 —） -->
+      <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
+        <template #default="{ row }">
+          <el-image
+            v-if="row.focus_image_path"
+            :src="`/uploads/${row.focus_image_path}`"
+            fit="cover"
+            class="order-thumb"
+            :alt="$t('orderDetail.referenceImage')"
+            :preview-src-list="[`/uploads/${row.focus_image_path}`]"
+            preview-teleported
+          />
+          <span v-else class="no-thumb">—</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="order_no" :label="$t('orderList.colOrderNo')" width="100" />
       <el-table-column prop="tier_name" :label="$t('orderList.colType')" width="100">
         <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
@@ -114,4 +129,10 @@ onMounted(loadOrders)
 
 <style scoped>
 .filter-bar { overflow-x: auto; }
+/* R16: 缩略图 */
+.order-thumb { width: 40px; height: 40px; border-radius: 6px; display: block; cursor: zoom-in; }
+.no-thumb { color: var(--text-muted); }
+@media (max-width: 600px) {
+  .order-thumb { width: 32px; height: 32px; }
+}
 </style>

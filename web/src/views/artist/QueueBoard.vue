@@ -3,6 +3,16 @@
     <h2>{{ $t('queue.title') }}</h2>
     <p class="hint">{{ $t('queue.hint') }}</p>
 
+    <!-- R20: 焦点图显示模式（全局设置，存 localStorage） -->
+    <div class="queue-toolbar">
+      <span class="toolbar-label">{{ $t('queue.focusDisplay') }}</span>
+      <el-radio-group v-model="focusDisplay" size="small" @change="saveFocusDisplay">
+        <el-radio-button value="off">{{ $t('queue.focusOff') }}</el-radio-button>
+        <el-radio-button value="small">{{ $t('queue.focusSmall') }}</el-radio-button>
+        <el-radio-button value="large">{{ $t('queue.focusLarge') }}</el-radio-button>
+      </el-radio-group>
+    </div>
+
     <div class="queue-container" v-loading="loading">
       <draggable
         v-model="queue"
@@ -34,15 +44,15 @@
               <div class="item-desc" v-if="element.description">
                 {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
               </div>
-              <!-- R4: 焦点图（small=48px 缩略图，large=卡片宽度预览） -->
-              <div v-if="element.focus_image_path && element.focus_image_mode === 'small'" class="focus-small">
+              <!-- R20: 焦点图（显示模式由工具栏全局设置控制，不再按订单 focus_image_mode） -->
+              <div v-if="element.focus_image_path && focusDisplay === 'small'" class="focus-small">
                 <el-image
                   :src="`/uploads/${element.focus_image_path}`" fit="cover" class="focus-small-img"
                   :alt="$t('orderDetail.referenceImage')"
                   :preview-src-list="[`/uploads/${element.focus_image_path}`]"
                 />
               </div>
-              <div v-if="element.focus_image_path && element.focus_image_mode === 'large'" class="focus-large">
+              <div v-if="element.focus_image_path && focusDisplay === 'large'" class="focus-large">
                 <el-image
                   :src="`/uploads/${element.focus_image_path}`" fit="cover" class="focus-large-img"
                   :alt="$t('orderDetail.referenceImage')"
@@ -85,6 +95,13 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 const { t } = useI18n()
 const queue = ref([])
 const loading = ref(true)
+
+// ─── R20: 焦点图显示模式（全局设置） ───
+const FOCUS_DISPLAY_KEY = 'queue_focus_display'
+const focusDisplay = ref(localStorage.getItem(FOCUS_DISPLAY_KEY) || 'small')
+function saveFocusDisplay(val) {
+  localStorage.setItem(FOCUS_DISPLAY_KEY, val)
+}
 
 import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
 
@@ -143,6 +160,8 @@ onMounted(loadQueue)
 
 <style scoped>
 .hint { color: var(--text-secondary); font-size: 13px; margin: 8px 0 16px; }
+.queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.toolbar-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
 .queue-list { display: flex; flex-direction: column; gap: 8px; }
 
 .queue-item {
