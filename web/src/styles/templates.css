@@ -93,6 +93,17 @@
   margin-bottom: 2px;
 }
 
+/* ===== R11: 时间线当前阶段脉冲动画 ===== */
+@keyframes tl-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--el-color-primary) 40%, transparent); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* 尊重系统"减少动态效果"偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .tl-node.current .tl-dot { animation: none; }
+}
+
 /* ===== 画册风模板（atelier）共享样式 ===== */
 /* 结构色跟随 --pal-* 配色系统；装饰色（赭橙/苔绿）在模板 scoped 样式中定义 */
 .tpl-atelier-card {

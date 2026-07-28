@@ -150,7 +150,13 @@ export default {
     contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
     contactArtist: 'Artist QQ', contactAdmin: 'Admin QQ', copyQq: 'Copy', copied: 'Copied',
     noOrdersTitle: 'No orders found', noOrdersDesc: 'This QQ number has no orders with this artist. Please double-check the number.',
-    noOrdersCountdown: 'Closes in {n}s'
+    noOrdersCountdown: 'Closes in {n}s',
+    timeline: {
+      title: 'Production progress',
+      current: 'In progress',
+      notStarted: 'Order submitted — production starts once the artist confirms',
+      orderedAt: 'Ordered: '
+    }
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',

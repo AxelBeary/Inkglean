@@ -1,5 +1,6 @@
 <template>
   <div class="order-form-page">
+    <div class="page-prefs"><ThemeToggle /></div>
     <div class="form-container" v-loading="loading">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('orderForm.backHome')" :content="$t('orderForm.title')" />
 
@@ -186,6 +187,7 @@ import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import Disclaimer from '../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
+import ThemeToggle from '../../components/ThemeToggle.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 
 const { t } = useI18n()
@@ -450,7 +452,9 @@ onMounted(async () => {
   background: var(--bg-page);
   padding: 16px;
   transition: background 0.3s;
+  position: relative;
 }
+.page-prefs { position: absolute; top: 16px; right: 16px; z-index: 10; }
 .form-container { max-width: 600px; margin: 0 auto; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .rules-preview { max-height: 200px; overflow-y: auto; }

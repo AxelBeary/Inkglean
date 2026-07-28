@@ -1,5 +1,6 @@
 <template>
   <div class="track-page">
+    <div class="page-prefs"><ThemeToggle /></div>
     <div class="track-container" v-loading="loading">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('track.backHome')" :content="$t('track.title')" />
 
@@ -48,7 +49,7 @@
           </el-alert>
         </div>
 
-        <!-- 状态步骤 -->
+        <!-- 状态步骤（基于订单状态，始终可用） -->
         <el-steps :active="stepActive" finish-status="success" simple style="margin-top: 20px">
           <el-step :title="$t('track.stepSubmitted')" />
           <el-step :title="$t('track.stepConfirmed')" />
@@ -56,6 +57,14 @@
           <el-step :title="$t('track.stepDone')" />
           <el-step :title="$t('track.stepDelivered')" />
         </el-steps>
+
+        <!-- R11: 流程进度时间线（基于画师自定义流程节点） -->
+        <div class="timeline-block" v-if="order.workflowStages?.length">
+          <h4 class="timeline-title">{{ $t('track.timeline.title') }}</h4>
+          <OrderTimeline :stages="order.workflowStages" :current-stage-id="order.currentStageId" />
+          <p class="timeline-hint" v-if="order.currentStageId == null">{{ $t('track.timeline.notStarted') }}</p>
+          <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDate(order.createdAt) }}</p>
+        </div>
 
         <!-- 交付文件 -->
         <div class="deliverables" v-if="order.deliverables?.length">
@@ -113,6 +122,8 @@ import { orderApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
+import ThemeToggle from '../../components/ThemeToggle.vue'
+import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -226,10 +237,15 @@ onUnmounted(() => {
   background: var(--bg-page);
   padding: 16px;
   transition: background 0.3s;
+  position: relative;
 }
+.page-prefs { position: absolute; top: 16px; right: 16px; z-index: 10; }
 .track-container { max-width: 600px; margin: 0 auto; }
 .result-header { display: flex; justify-content: space-between; align-items: center; }
 .position-info { margin-top: 16px; }
+.timeline-block { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.timeline-title { margin-bottom: 12px; color: var(--text-primary); font-size: 14px; }
+.timeline-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
 .deliverables { margin-top: 20px; }
 .deliverables h4 { margin-bottom: 8px; color: var(--text-primary); }
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
