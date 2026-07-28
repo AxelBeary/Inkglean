@@ -295,7 +295,7 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/manual
-   * JSON Schema 输入校验
+   * R3: 补全参考图/增项/倍率/QQ通知，信息完整度不低于自助下单
    */
   fastify.post('/api/artist/orders/manual', {
     preHandler: requireAuth,
@@ -308,13 +308,39 @@ export default async function orderRoutes(fastify) {
           clientQq: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
           clientName: { type: ['string', 'null'], maxLength: 50 },
           description: { type: ['string', 'null'], maxLength: 2000 },
-          priority: { type: 'string', enum: ['high', 'medium', 'low'] }
+          priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+          clientNotify: { type: 'boolean' },
+          references: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+          addons: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['addonId'],
+              properties: {
+                addonId: { type: 'integer' },
+                quantity: { type: 'integer', minimum: 1, maximum: 99 }
+              },
+              additionalProperties: false
+            },
+            maxItems: 20
+          },
+          usageMultiplierId: { type: ['integer', 'null'] },
+          rushMultiplierId: { type: ['integer', 'null'] }
         },
         additionalProperties: false
       }
     }
   }, async (request) => {
-    const { tierId, clientQq, clientName, description, priority } = request.body
+    const { tierId, clientQq, clientName, description, priority, clientNotify, references, addons, usageMultiplierId, rushMultiplierId } = request.body
+
+    // C-3 安全：参考图路径校验（与自助下单一致）
+    if (references) {
+      for (const ref of references) {
+        if (ref.includes('..') || !ref.startsWith('references/')) {
+          throw new AppError(E.ILLEGAL_PATH)
+        }
+      }
+    }
 
     return orderService.createOrder({
       artistId: request.artist.id,
@@ -324,7 +350,11 @@ export default async function orderRoutes(fastify) {
       description: clamp(description, 'description'),
       priority: priority || 'medium',
       source: 'manual',
-      clientNotify: false
+      clientNotify: clientNotify || false,
+      references: references || [],
+      addons: addons || [],
+      usageMultiplierId: usageMultiplierId || null,
+      rushMultiplierId: rushMultiplierId || null
     })
   })
 

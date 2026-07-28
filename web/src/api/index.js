@@ -113,6 +113,7 @@ export const artistApi = {
   deleteReference: (id, refId) => api.delete(`/artist/orders/${id}/references/${refId}`),
   // R4: 焦点图（off/small/large）
   setFocusImage: (id, data) => api.put(`/artist/orders/${id}/focus-image`, data),
+  updatePrice: (id, data) => api.put(`/artist/orders/${id}/price`, data),
   // 统计
   getStats: () => api.get('/artist/stats'),
   // 问候语

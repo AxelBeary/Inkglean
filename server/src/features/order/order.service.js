@@ -113,8 +113,8 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     const quoteSnapshot = buildQuoteSnapshot(priceCalc)
 
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot, final_price_cents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       orderNo, artistId, tierId || null, clientQq, clientName || null,
       description || null, priority || 'medium', source || 'self',
@@ -123,7 +123,8 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       totalPriceCents,
       usageMultiplierId || null,
       rushMultiplierId || null,
-      quoteSnapshot
+      quoteSnapshot,
+      totalPriceCents // R3: 有价格计算时，最终价格初始 = 计算器总价
     )
 
     const orderId = result.lastInsertRowid
