@@ -1,5 +1,26 @@
 # 变更日志
 
+## v0.10.1 — 2026-07-28
+
+### 🧹 ESLint 全量清零（合并 fix/eslint 分支）
+
+- 合并社区贡献的 `fix/eslint` 分支，修复全部 ESLint 错误与警告
+- **双端 `npx eslint .` 均为 0 errors, 0 warnings**
+- 冲突解决：3 个旧模板文件已在 v0.10.0 重命名重写，删除分支过时修改；OrderForm 保留价格计算器的 `@change` + 循环变量重命名
+- 主要修复类型：
+  - `vite.config.js` 改用 ESM 标准 `__dirname` 写法
+  - 循环变量遮蔽（`t`→`tier`、`ref`→`reference`）
+  - 未使用导入/参数清理（双端 + 测试文件）
+  - Vue 选项顺序规范（`mounted` 前移）
+  - `v-html` 逐行 `eslint-disable`（内容均经 `sanitizeHtml()`/DOMPurify 消毒，精确抑制优于全局关闭）
+
+### ⚠️ 遗留事项（非本次范围）
+
+- GitHub Actions 的 `actions/checkout@v4`/`setup-node@v4` Node 20 弃用警告（可升级 `@v5`）
+- `vue-i18n@9` 已停止维护，建议评估迁移 v11
+
+---
+
 ## v0.10.0 — 2026-07-28
 
 ### 🎨 模板系统重构：布局 × 配色
