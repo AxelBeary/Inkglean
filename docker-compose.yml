@@ -11,9 +11,9 @@ services:
     container_name: commission-web
     restart: unless-stopped
     # 生产环境：仅 expose 给 Caddy 反向代理，不映射到宿主机
-    # 开发调试：临时开放端口映射（上线时删除 ports，保留 expose）
-    ports:
-      - "3000:3000"
+    # 开发调试：取消下面两行注释即可临时开放（上线时重新注释）
+    # ports:
+    #   - "3000:3000"
     expose:
       - "3000"
     volumes:
@@ -27,7 +27,7 @@ services:
       # 不在此处硬编码，否则 .env 的值会被覆盖
       - DB_PATH=/app/data/commission.db
       - UPLOAD_DIR=/app/uploads
-      - TRUST_PROXY=true          # Caddy 为唯一入口，信任所有代理来源
+      - TRUST_PROXY=172.16.0.0/12,10.0.0.0/8,192.168.0.0/16  # 仅信任 Docker 内网段，防 X-Forwarded-For 伪造
       - TZ=Asia/Shanghai          # P1-4: 容器时区，确保 CURRENT_TIMESTAMP 为北京时间
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
