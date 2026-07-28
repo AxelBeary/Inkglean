@@ -10,10 +10,11 @@ services:
       dockerfile: Dockerfile
     container_name: commission-web
     restart: unless-stopped
-    # 生产环境：仅 expose 给 Caddy 反向代理，不映射到宿主机
-    # 开发调试：取消下面两行注释即可临时开放（上线时重新注释）
-    # ports:
-    #   - "3000:3000"
+    # 开发环境：端口映射到宿主机，方便本地浏览器直接访问
+    # 生产部署：注释掉 ports 两行，仅保留 expose（走 Caddy 反向代理）
+    # 详见 docs/开发→生产切换指南.md
+    ports:
+      - "3000:3000"
     expose:
       - "3000"
     volumes:
