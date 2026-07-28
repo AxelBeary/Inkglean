@@ -7,7 +7,7 @@
  * 删除超过 24h 未被引用的孤儿文件。
  * 建议通过 cron 每天执行一次。
  */
-import { resolve, join, relative, dirname } from 'path'
+import { resolve, join, relative } from 'path'
 import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync } from 'fs'
 import Database from 'better-sqlite3'
 import 'dotenv/config'

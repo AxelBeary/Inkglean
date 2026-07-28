@@ -8,7 +8,7 @@
 <script setup>
 import { useArtistData } from '../../composables/useArtistData.js'
 
-const props = defineProps({
+defineProps({
   status: { type: String, default: 'open' }
 })
 

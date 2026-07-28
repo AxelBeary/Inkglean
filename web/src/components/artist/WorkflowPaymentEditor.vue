@@ -43,7 +43,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { artistApi, adminApi } from '../../api/index.js'
@@ -79,7 +79,7 @@ const api = computed(() => {
         if (payNodes.length > 0) payNodes[payNodes.length - 1].isFinal = true
         return { stages: list }
       }),
-      add: (d) => Promise.reject(new Error('模板不支持添加')),
+      add: (_d) => Promise.reject(new Error('模板不支持添加')),
       update: () => Promise.reject(new Error('模板不支持编辑')),
       del: () => Promise.reject(new Error('模板不支持删除')),
       reorder: () => Promise.reject(new Error('模板不支持排序')),

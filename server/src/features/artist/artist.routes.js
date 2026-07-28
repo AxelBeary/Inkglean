@@ -113,7 +113,7 @@ export default async function artistRoutes(fastify) {
         additionalProperties: false
       }
     }
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { name, price, description, exampleImage, workDays } = request.body || {}
     return artistService.createTier(request.artist.id, { name, price, description, exampleImage, workDays })
   })

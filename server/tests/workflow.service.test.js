@@ -36,7 +36,7 @@ describe('流程与比例服务 (Workflow Service)', () => {
   // TC-W-02: 添加节点插入到倒数第二位
   it('TC-W-02: 添加节点插入到尾款之前', () => {
     seed(artist.id)
-    const added = wf.addStage(artist.id, { name: '细化确认' })
+    wf.addStage(artist.id, { name: '细化确认' })
     const stages = wf.getWorkflow(artist.id)
     expect(stages).toHaveLength(8)
     // 细化确认应在交付之前

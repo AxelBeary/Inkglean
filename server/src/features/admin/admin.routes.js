@@ -164,7 +164,7 @@ export default async function adminRoutes(fastify) {
         }
         db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(String(newQq))
       })()
-    } catch (err) {
+    } catch {
       return reply.code(401).send({ error: '验证失败，请确认登录码' })
     }
 

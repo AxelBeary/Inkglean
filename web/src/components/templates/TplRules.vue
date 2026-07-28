@@ -1,6 +1,7 @@
 <template>
   <section class="tpl-rules" v-if="rules">
     <p class="tpl-section-label tpl-rules-label">{{ $t('artistHome.rules') }}</p>
+    <!-- eslint-disable-next-line vue/no-v-html -->
     <div class="tpl-rules-body tpl-body-text" v-html="sanitizedRules"></div>
   </section>
 </template>

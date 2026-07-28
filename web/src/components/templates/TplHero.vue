@@ -10,8 +10,10 @@
       <h1 class="tpl-hero-name tpl-hero-name--banner">{{ artist.name }}</h1>
       <p class="tpl-hero-bio" v-if="artist.bio">{{ artist.bio }}</p>
       <div class="tpl-hero-actions">
-        <button class="tpl-btn tpl-btn--primary" :disabled="artist.status !== 'open'"
-          @click="$router.push(`/artist/${subdomain}/order`)">
+        <button
+          class="tpl-btn tpl-btn--primary" :disabled="artist.status !== 'open'"
+          @click="$router.push(`/artist/${subdomain}/order`)"
+        >
           {{ $t('artistHome.commission') }}
         </button>
         <button class="tpl-btn tpl-btn--ghost" @click="$router.push(`/artist/${subdomain}/track`)">
@@ -30,8 +32,10 @@
       <p class="tpl-hero-bio tpl-hero-bio--plaque" v-if="artist.bio">{{ artist.bio }}</p>
       <TplStatusBadge :status="artist.status" />
       <div class="tpl-hero-actions tpl-hero-actions--plaque">
-        <button class="tpl-btn tpl-btn--primary" :disabled="artist.status !== 'open'"
-          @click="$router.push(`/artist/${subdomain}/order`)">
+        <button
+          class="tpl-btn tpl-btn--primary" :disabled="artist.status !== 'open'"
+          @click="$router.push(`/artist/${subdomain}/order`)"
+        >
           {{ $t('artistHome.commission') }}
         </button>
         <button class="tpl-btn tpl-btn--ghost" @click="$router.push(`/artist/${subdomain}/track`)">
@@ -48,8 +52,10 @@
       <h1 class="tpl-hero-name tpl-hero-name--split">{{ artist.name }}</h1>
       <p class="tpl-hero-bio" v-if="artist.bio">{{ artist.bio }}</p>
       <div class="tpl-hero-actions">
-        <button class="tpl-btn tpl-btn--primary" :disabled="artist.status !== 'open'"
-          @click="$router.push(`/artist/${subdomain}/order`)">
+        <button
+          class="tpl-btn tpl-btn--primary" :disabled="artist.status !== 'open'"
+          @click="$router.push(`/artist/${subdomain}/order`)"
+        >
           {{ $t('artistHome.startCommission') }}
         </button>
         <button class="tpl-btn tpl-btn--ghost" @click="$router.push(`/artist/${subdomain}/track`)">

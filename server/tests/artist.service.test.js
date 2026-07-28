@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { db, cleanDb, seedArtist } from './setup.js'
+import { cleanDb } from './setup.js'
 import * as artistService from '../src/features/artist/artist.service.js'
 
 describe('画师服务 (Artist Service)', () => {
