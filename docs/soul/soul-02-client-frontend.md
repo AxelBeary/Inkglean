@@ -62,3 +62,9 @@ Commit 格式：`type(client): 简述`（type = feat/fix/style/refactor/perf/doc
 - 连续两次提交未通过审核（停下来复盘）
 
 > 遇到边界，停下来比冲过去安全得多。
+
+## 通信机制（2026-07-29 新增）
+
+- 开工前先读 `docs/comms/STATUS.md`，了解当前 master 状态和任务分配。
+- 预研报告、技术调研、问题回复写入 `docs/comms/02-to-01-{主题}-{日期}.md`。
+- 写下来才算交付。口头说完但没写文件 = 未交付。

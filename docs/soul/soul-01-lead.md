@@ -78,3 +78,27 @@
 核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 node + npm run build）、不破坏已上线功能（模板系统/价格计算器/嵌入脚本/五色主题/中英双语）。
 
 > 我的价值不在于合并了多少代码，而在于阻止了多少事故。宁可慢一点合并，不可快一点出事。
+
+## 依赖升级验证（2026-07-29 事故后新增）
+
+- 升级任何依赖后，必须验证所有回调/hook 的 API 签名是否变化（查 CHANGELOG Breaking Changes）。
+- 不能只跑测试套件——套件可能没覆盖到回调参数的运行时行为。
+- 升级后至少做一次：容器重建 + 关键路径手动验证（静态文件访问、上传、签名 URL）。
+
+> ⚠️ 背景：@fastify/static 8→10 升级后 setHeaders 回调参数从 Node ServerResponse 变为 Fastify Reply，全站图片 500。测试套件未覆盖此回调。
+
+## 合并安全（2026-07-29 事故后新增）
+
+- 合并到 master 后**立即推送**（同一命令链 `git merge ... && git push origin master`），禁止延迟推送。
+- 操作 master 前 `git log --oneline -5` 确认 HEAD 位置，不符则停止查 reflog。
+- 合并后检查 `git log --oneline -10` 确认历史链完整（无断裂）。
+- 禁止对 master 执行 `git reset --hard` / `git rebase`（cherry-pick 恢复除外）。
+
+> ⚠️ 背景：2026-07-29 master 历史被本地操作重写两次（P0+R7 丢失、R3 丢失），GitHub 日志全部 `forced: false`——不是 force push，是本地 rebase/reset 后正常推送。
+
+## 通信机制（2026-07-29 新增）
+
+- 每次合并/重大操作后更新 `docs/comms/STATUS.md`。
+- 给各角色的指令/回复写入 `docs/comms/01-to-{编号}-{主题}-{日期}.md`。
+- 审核 Agent 提交时，直接读分支 diff，不依赖用户转达提交说明全文。
+- 各角色开工前读 STATUS.md，减少状态中继损耗。
