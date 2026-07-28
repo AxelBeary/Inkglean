@@ -30,10 +30,10 @@
       <!-- 价格档位 -->
       <el-tab-pane :label="$t('menu.tiers')" name="tiers" lazy>
         <div v-loading="tiersLoading">
-          <div v-for="t in tiers" :key="t.id" class="tier-row">
-            <span class="tier-name">{{ t.name }}</span>
-            <span class="tier-price text-gold">¥{{ t.price }}</span>
-            <el-button text size="small" type="danger" @click="removeTier(t.id)">✕</el-button>
+          <div v-for="tier in tiers" :key="tier.id" class="tier-row">
+            <span class="tier-name">{{ tier.name }}</span>
+            <span class="tier-price text-gold">¥{{ tier.price }}</span>
+            <el-button text size="small" type="danger" @click="removeTier(tier.id)">✕</el-button>
           </div>
           <el-empty v-if="!tiersLoading && tiers.length === 0" :image-size="40" />
           <div class="add-row">

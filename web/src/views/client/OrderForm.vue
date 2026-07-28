@@ -8,7 +8,7 @@
           <!-- 档位选择 -->
           <el-form-item :label="$t('orderForm.tierLabel')" prop="tierId">
             <el-select v-model="form.tierId" :placeholder="$t('orderForm.tierPlaceholder')" style="width: 100%">
-              <el-option v-for="t in tiers" :key="t.id" :label="`${t.name} - ¥${t.price}`" :value="t.id" />
+              <el-option v-for="tier in tiers" :key="tier.id" :label="`${tier.name} - ¥${tier.price}`" :value="tier.id" />
             </el-select>
           </el-form-item>
 
@@ -55,6 +55,7 @@
           <!-- 须知确认（消毒后渲染） -->
           <el-form-item v-if="rulesContent" prop="agreed">
             <el-card shadow="never" class="rules-preview">
+              <!-- eslint-disable-next-line vue/no-v-html -->
               <div v-html="sanitizedRules" class="rules-html"></div>
             </el-card>
             <el-checkbox v-model="form.agreed" style="margin-top: 8px">

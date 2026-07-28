@@ -11,6 +11,7 @@
       <div class="preview" v-if="content">
         <h4 style="margin: 16px 0 8px; color: var(--text-secondary)">{{ $t('rules.preview') }}</h4>
         <el-card shadow="never" class="preview-card">
+          <!-- eslint-disable-next-line vue/no-v-html -->
           <div v-html="sanitizedPreview"></div>
         </el-card>
       </div>

@@ -54,8 +54,8 @@
         <template #header>{{ $t('orderDetail.references') }}</template>
         <div class="ref-grid">
           <el-image
-            v-for="(ref, index) in order.references" :key="ref.id"
-            :src="`/uploads/${ref.file_path}`" fit="cover" class="ref-img"
+            v-for="(reference, index) in order.references" :key="reference.id"
+            :src="`/uploads/${reference.file_path}`" fit="cover" class="ref-img"
             :alt="$t('orderDetail.referenceImage')"
             :preview-src-list="order.references.map(r => `/uploads/${r.file_path}`)"
             :initial-index="index"

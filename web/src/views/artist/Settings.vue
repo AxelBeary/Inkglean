@@ -125,7 +125,7 @@ const templates = computed(() => [
 ])
 
 const embedCode = computed(() =>
-  `<script src="/embed.js" data-artist="${form.subdomain || 'your-subdomain'}"><\/script>`
+  '<script src="/embed.js" data-artist="' + (form.subdomain || 'your-subdomain') + '"></' + 'script>'
 )
 
 async function copyEmbedCode() {

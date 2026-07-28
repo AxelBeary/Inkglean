@@ -15,7 +15,7 @@
 
         <el-form-item :label="$t('manualOrder.tier')">
           <el-select v-model="form.tierId" :placeholder="$t('manualOrder.tierPlaceholder')" clearable style="width: 100%">
-            <el-option v-for="t in tiers" :key="t.id" :label="`${t.name} - ¥${t.price}`" :value="t.id" />
+            <el-option v-for="tier in tiers" :key="tier.id" :label="`${tier.name} - ¥${tier.price}`" :value="tier.id" />
           </el-select>
         </el-form-item>
 
