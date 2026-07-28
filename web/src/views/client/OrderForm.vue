@@ -88,9 +88,16 @@
             </div>
           </div>
 
-          <!-- 流程与收款预览 -->
-          <el-form-item v-if="workflowStages.length" :label="$t('orderForm.workflowLabel')">
-            <WorkflowOverviewStrip :stages="workflowStages" />
+          <!-- 流程与收款预览（R1: 保持原位，增加修改说明告示） -->
+          <el-form-item v-if="workflowStages.length || artist?.revisionNote" :label="$t('orderForm.workflowLabel')">
+            <WorkflowOverviewStrip v-if="workflowStages.length" :stages="workflowStages" />
+            <div v-if="artist?.revisionNote" class="tpl-revision-note">
+              <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
+              <span>
+                <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
+                {{ artist.revisionNote }}
+              </span>
+            </div>
           </el-form-item>
 
           <!-- 需求描述 -->

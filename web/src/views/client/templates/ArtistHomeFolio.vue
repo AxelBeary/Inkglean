@@ -38,23 +38,28 @@
       </div>
     </section>
 
-    <!-- 价格 -->
-    <section id="pricing" class="folio-section folio-section--alt tpl-reveal" v-if="tiers.length">
+    <!-- 价格 + 流程（R1 整合） -->
+    <section id="pricing" class="folio-section folio-section--alt tpl-reveal" v-if="tiers.length || workflowStages.length">
       <div class="folio-inner">
-        <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
-        <TplTierGrid :tiers="tiers">
-          <template #addons="{ tier }">
-            <slot name="addons" :tier="tier"></slot>
-          </template>
-        </TplTierGrid>
-      </div>
-    </section>
-
-    <!-- 流程 -->
-    <section id="workflow" class="folio-section tpl-reveal" v-if="workflowStages.length">
-      <div class="folio-inner">
-        <h2 class="folio-title">{{ $t('artistHome.howItWorks') }}</h2>
-        <WorkflowOverviewStrip :stages="workflowStages" vertical />
+        <template v-if="tiers.length">
+          <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
+          <TplTierGrid :tiers="tiers">
+            <template #addons="{ tier }">
+              <slot name="addons" :tier="tier"></slot>
+            </template>
+          </TplTierGrid>
+        </template>
+        <div v-if="workflowStages.length" class="tpl-workflow-inline">
+          <p class="tpl-workflow-inline-label">{{ $t('artistHome.workflow') }}</p>
+          <WorkflowOverviewStrip :stages="workflowStages" vertical />
+        </div>
+        <div v-if="artist.revisionNote" class="tpl-revision-note">
+          <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
+          <span>
+            <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
+            {{ artist.revisionNote }}
+          </span>
+        </div>
       </div>
     </section>
 
@@ -121,8 +126,7 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
 
 const navItems = computed(() => [
   { id: 'gallery', label: t('artistHome.navWork') },
-  { id: 'pricing', label: t('artistHome.navPricing') },
-  { id: 'workflow', label: t('artistHome.navProcess') }
+  { id: 'pricing', label: t('artistHome.navPricing') }
 ])
 
 function scrollTo(id) {

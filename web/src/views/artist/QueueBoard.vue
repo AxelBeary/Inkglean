@@ -34,6 +34,21 @@
               <div class="item-desc" v-if="element.description">
                 {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
               </div>
+              <!-- R4: 焦点图（small=48px 缩略图，large=卡片宽度预览） -->
+              <div v-if="element.focus_image_path && element.focus_image_mode === 'small'" class="focus-small">
+                <el-image
+                  :src="`/uploads/${element.focus_image_path}`" fit="cover" class="focus-small-img"
+                  :alt="$t('orderDetail.referenceImage')"
+                  :preview-src-list="[`/uploads/${element.focus_image_path}`]"
+                />
+              </div>
+              <div v-if="element.focus_image_path && element.focus_image_mode === 'large'" class="focus-large">
+                <el-image
+                  :src="`/uploads/${element.focus_image_path}`" fit="cover" class="focus-large-img"
+                  :alt="$t('orderDetail.referenceImage')"
+                  :preview-src-list="[`/uploads/${element.focus_image_path}`]"
+                />
+              </div>
             </div>
             <div class="item-actions">
               <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
@@ -150,6 +165,10 @@ onMounted(loadQueue)
 .order-no { font-weight: bold; font-size: 15px; color: var(--text-primary); }
 .item-info { color: var(--text-secondary); font-size: 13px; margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
 .item-desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+.focus-small { margin-top: 8px; }
+.focus-small-img { width: 48px; height: 48px; border-radius: 6px; display: block; }
+.focus-large { margin-top: 8px; }
+.focus-large-img { width: 100%; max-height: 200px; border-radius: 8px; display: block; }
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 @media (max-width: 600px) {

@@ -122,7 +122,8 @@ export default {
     heroOpen: '接受约稿中', heroFull: '目前已排满', heroBreak: '休息中',
     startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
     ctaSubtitle: '期待与你一起创作出好作品。',
-    weiboPlain: '微博', bilibiliPlain: 'B站'
+    weiboPlain: '微博', bilibiliPlain: 'B站',
+    revisionNote: '修改说明'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
@@ -195,7 +196,10 @@ export default {
     statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
     uploadTip: '支持图片及压缩包，单文件不超过 50MB',
     invalidFileType: '不支持的文件格式，请上传图片或压缩包',
-    fileTooLarge: '文件过大（最大 50MB）', referenceImage: '参考图'
+    fileTooLarge: '文件过大（最大 50MB）', referenceImage: '参考图',
+    noReferences: '暂无参考图', setFocus: '设为焦点图', focusSelected: '✓ 焦点图',
+    focusMode: '排期看板显示', focusOff: '关', focusSmall: '小', focusLarge: '大',
+    focusUpdated: '焦点图已更新', focusSelectFirst: '请先选择一张参考图作为焦点图'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',

@@ -9,23 +9,28 @@
       <TplGallery :artworks="artworks" layout="editorial" />
     </section>
 
-    <!-- 价格档位 -->
-    <section class="atelier-section atelier-section--alt tpl-reveal" v-if="tiers.length">
+    <!-- 价格档位 + 流程（R1 整合） -->
+    <section class="atelier-section atelier-section--alt tpl-reveal" v-if="tiers.length || workflowStages.length">
       <div class="atelier-inner">
-        <p class="tpl-section-label atelier-label">{{ $t('artistHome.priceList') }}</p>
-        <TplTierGrid :tiers="tiers">
-          <template #addons="{ tier }">
-            <slot name="addons" :tier="tier"></slot>
-          </template>
-        </TplTierGrid>
-      </div>
-    </section>
-
-    <!-- 约稿流程 -->
-    <section class="atelier-section tpl-reveal" v-if="workflowStages.length">
-      <div class="atelier-inner">
-        <p class="tpl-section-label atelier-label">{{ $t('artistHome.workflow') }}</p>
-        <WorkflowOverviewStrip :stages="workflowStages" vertical />
+        <template v-if="tiers.length">
+          <p class="tpl-section-label atelier-label">{{ $t('artistHome.priceList') }}</p>
+          <TplTierGrid :tiers="tiers">
+            <template #addons="{ tier }">
+              <slot name="addons" :tier="tier"></slot>
+            </template>
+          </TplTierGrid>
+        </template>
+        <div v-if="workflowStages.length" class="tpl-workflow-inline">
+          <p class="tpl-workflow-inline-label">{{ $t('artistHome.workflow') }}</p>
+          <WorkflowOverviewStrip :stages="workflowStages" vertical />
+        </div>
+        <div v-if="artist.revisionNote" class="tpl-revision-note">
+          <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
+          <span>
+            <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
+            {{ artist.revisionNote }}
+          </span>
+        </div>
       </div>
     </section>
 
