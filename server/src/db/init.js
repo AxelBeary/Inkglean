@@ -1,5 +1,6 @@
 import db from './connection.js'
 import { fileURLToPath } from 'url'
+import { copyFileSync, existsSync } from 'fs'
 
 // ============================================
 // 数据库初始化 - 创建所有表 + 版本化迁移
@@ -25,6 +26,8 @@ CREATE TABLE IF NOT EXISTS artists (
   template_id TEXT DEFAULT 'default',
   palette_id TEXT DEFAULT 'paper',
   custom_page_path TEXT,
+  dashboard_default_panel TEXT,
+  revision_note TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -79,6 +82,13 @@ CREATE TABLE IF NOT EXISTS orders (
   queue_position INTEGER,
   completed_at DATETIME,
   price_snapshot REAL,
+  total_price_cents INTEGER,
+  usage_multiplier_id INTEGER,
+  rush_multiplier_id INTEGER,
+  quote_snapshot TEXT,
+  final_price_cents INTEGER,
+  focus_image_path TEXT,
+  focus_image_mode TEXT DEFAULT 'off',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -444,6 +454,46 @@ const MIGRATIONS = [
       const cols = database.prepare('PRAGMA table_info(artists)').all()
       if (!cols.some(c => c.name === 'palette_id')) {
         database.exec("ALTER TABLE artists ADD COLUMN palette_id TEXT DEFAULT 'paper'")
+      }
+    }
+  },
+  {
+    version: 11,
+    name: 'order_quote_focus_and_artist_prefs',
+    up(database) {
+      // ─── 迁移前自动备份（仅文件数据库） ───
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v11`)
+          console.log(`📦 迁移 v11: 已备份 ${dbPath} → ${dbPath}.bak.v11`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v11: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+
+      // ─── orders 表新增 4 字段 ───
+      const orderCols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!orderCols.some(c => c.name === 'quote_snapshot')) {
+        database.exec('ALTER TABLE orders ADD COLUMN quote_snapshot TEXT')
+      }
+      if (!orderCols.some(c => c.name === 'final_price_cents')) {
+        database.exec('ALTER TABLE orders ADD COLUMN final_price_cents INTEGER')
+      }
+      if (!orderCols.some(c => c.name === 'focus_image_path')) {
+        database.exec('ALTER TABLE orders ADD COLUMN focus_image_path TEXT')
+      }
+      if (!orderCols.some(c => c.name === 'focus_image_mode')) {
+        database.exec("ALTER TABLE orders ADD COLUMN focus_image_mode TEXT DEFAULT 'off'")
+      }
+
+      // ─── artists 表新增 2 字段 ───
+      const artistCols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!artistCols.some(c => c.name === 'dashboard_default_panel')) {
+        database.exec('ALTER TABLE artists ADD COLUMN dashboard_default_panel TEXT')
+      }
+      if (!artistCols.some(c => c.name === 'revision_note')) {
+        database.exec('ALTER TABLE artists ADD COLUMN revision_note TEXT')
       }
     }
   }

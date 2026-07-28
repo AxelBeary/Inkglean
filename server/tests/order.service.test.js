@@ -246,4 +246,147 @@ describe('订单服务 (Order Service)', () => {
     expect(afterDone.completed_at).not.toBeNull()
     expect(afterDone.completed_at).toBeTruthy()
   })
+
+  // ─── v0.11 新增用例 ───
+
+  // TC-O-18: 报价快照字符串生成
+  it('TC-O-18: createOrder 生成 quote_snapshot 字符串', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '头像', 200)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '头像')
+
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    expect(order.quote_snapshot).toContain('头像')
+    expect(order.quote_snapshot).toContain('¥200')
+    expect(order.quote_snapshot).toContain('→ 总价')
+  })
+
+  // TC-O-18b: 手动录单无价格时 quote_snapshot 为空
+  it('TC-O-18b: 无 tierId 时 quote_snapshot 为 null', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111', source: 'manual' })
+    expect(order.quote_snapshot).toBeNull()
+  })
+
+  // TC-O-19: 修改最终价格 + 自动备注
+  it('TC-O-19: updateFinalPrice 改价并追加备注', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '全身', 500)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '全身')
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+
+    const updated = orderService.updateFinalPrice(order.id, 60000, '全身 ¥500 → 总价 ¥600')
+    expect(updated.final_price_cents).toBe(60000)
+    expect(updated.quote_snapshot).toBe('全身 ¥500 → 总价 ¥600')
+
+    // 自动备注
+    const note = updated.notes.find(n => n.created_by === 'system')
+    expect(note).toBeTruthy()
+    expect(note.content).toContain('最终价格从')
+    expect(note.content).toContain('¥600.00')
+  })
+
+  // TC-O-19b: 最终价格校验 — 拒绝非法值
+  it('TC-O-19b: updateFinalPrice 拒绝零/负数/超限', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    expect(() => orderService.updateFinalPrice(order.id, 0)).toThrow('INVALID_PRICE')
+    expect(() => orderService.updateFinalPrice(order.id, -100)).toThrow('INVALID_PRICE')
+    expect(() => orderService.updateFinalPrice(order.id, 100000000)).toThrow('INVALID_PRICE')
+    expect(() => orderService.updateFinalPrice(order.id, 99.5)).toThrow('INVALID_PRICE')
+  })
+
+  // TC-O-20: 焦点图设置与关闭
+  it('TC-O-20: setFocusImage 设置/关闭焦点图', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addReference(order.id, 'references/1/ref1.png', 'ref1.png', 1024)
+
+    // 设置焦点图
+    const withFocus = orderService.setFocusImage(order.id, 'references/1/ref1.png', 'large')
+    expect(withFocus.focus_image_path).toBe('references/1/ref1.png')
+    expect(withFocus.focus_image_mode).toBe('large')
+
+    // 关闭焦点图
+    const cleared = orderService.setFocusImage(order.id, null, 'off')
+    expect(cleared.focus_image_path).toBeNull()
+    expect(cleared.focus_image_mode).toBe('off')
+  })
+
+  // TC-O-20b: 焦点图路径必须属于该订单
+  it('TC-O-20b: setFocusImage 拒绝非本订单参考图', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    expect(() => {
+      orderService.setFocusImage(order.id, 'references/1/not-exist.png', 'small')
+    }).toThrow('FOCUS_IMAGE_NOT_OWNED')
+  })
+
+  // TC-O-20c: 无效焦点图模式
+  it('TC-O-20c: setFocusImage 拒绝无效 mode', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    expect(() => {
+      orderService.setFocusImage(order.id, 'x.png', 'huge')
+    }).toThrow('INVALID_FOCUS_MODE')
+  })
+
+  // TC-O-21: 删除参考图时清理焦点图
+  it('TC-O-21: removeReference 删除焦点图参考图时清理字段', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addReference(order.id, 'references/1/focus.png', 'focus.png', 2048)
+    orderService.addReference(order.id, 'references/1/other.png', 'other.png', 1024)
+
+    // 设为焦点图
+    orderService.setFocusImage(order.id, 'references/1/focus.png', 'small')
+
+    // 找到参考图 ID
+    const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
+    const focusRef = refs.find(r => r.file_path === 'references/1/focus.png')
+
+    // 删除焦点图参考图
+    const afterDelete = orderService.removeReference(order.id, focusRef.id)
+    expect(afterDelete.references).toHaveLength(1)
+    expect(afterDelete.focus_image_path).toBeNull()
+    expect(afterDelete.focus_image_mode).toBe('off')
+  })
+
+  // TC-O-21b: 删除非焦点图参考图不影响焦点图
+  it('TC-O-21b: removeReference 删除非焦点图不清理焦点字段', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addReference(order.id, 'references/1/focus.png', 'focus.png', 2048)
+    orderService.addReference(order.id, 'references/1/other.png', 'other.png', 1024)
+
+    orderService.setFocusImage(order.id, 'references/1/focus.png', 'large')
+
+    const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
+    const otherRef = refs.find(r => r.file_path === 'references/1/other.png')
+
+    const afterDelete = orderService.removeReference(order.id, otherRef.id)
+    expect(afterDelete.references).toHaveLength(1)
+    expect(afterDelete.focus_image_path).toBe('references/1/focus.png')
+    expect(afterDelete.focus_image_mode).toBe('large')
+  })
+
+  // TC-O-22: 收入统计使用 final_price_cents
+  it('TC-O-22: getArtistStats 收入优先使用 final_price_cents', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '测试', 300)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '测试')
+
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    // 改最终价格为 800 元 = 80000 分
+    orderService.updateFinalPrice(order.id, 80000)
+
+    // 走到 done
+    orderService.updateOrderStatus(order.id, 'confirmed')
+    orderService.updateOrderStatus(order.id, 'wip')
+    orderService.updateOrderStatus(order.id, 'done')
+
+    const stats = orderService.getArtistStats(artist.id)
+    expect(stats.monthRevenueCents).toBe(80000)
+    expect(stats.monthRevenue).toBe(800)
+  })
+
+  // TC-O-23: 迁移幂等 — 重复执行不报错
+  it('TC-O-23: 迁移 v11 幂等（列已存在时跳过）', async () => {
+    // 内存数据库已在 setup 中建表（含 v11 列），再次调用 initDatabase 不应报错
+    const { initDatabase } = await import('../src/db/init.js')
+    expect(() => initDatabase(db)).not.toThrow()
+  })
 })

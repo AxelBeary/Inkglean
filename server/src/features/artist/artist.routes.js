@@ -49,6 +49,7 @@ export default async function artistRoutes(fastify) {
       bilibiliUrl: artist.bilibili_url,
       notifyEnabled: !!artist.notify_enabled,
       contactQq: artist.contact_qq || artist.qq_number,
+      revisionNote: artist.revision_note || null,
       tiers,
       artworks,
       rules: rules?.content || ''
