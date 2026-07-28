@@ -88,6 +88,12 @@ export default {
     title: 'Platform notice',
     text: 'This platform only verifies identities and connects both parties. All subsequent communication, payment and delivery happen externally. The platform provides no escrow or arbitration — please assume your own risk.'
   },
+  upload: {
+    pasteHint: 'Paste images with Ctrl+V',
+    pasteNotImage: 'Only image files can be pasted',
+    pasteTooMany: 'You can paste up to {max} images at a time',
+    pasteTooBig: 'File "{name}" exceeds the {max}MB limit ({size}MB), please compress and try again'
+  },
   pageTitle: {
     home: 'Artist Commission Platform',
     artistHome: 'Artist Home',
@@ -237,6 +243,8 @@ export default {
     tab: 'Page Template',
     hint: 'Choose how your public page looks. Layout sets the structure, palette sets the mood — all share the same artwork and pricing data.',
     label: 'Page layout',
+    atelier: 'Atelier',
+    atelierDesc: 'Warm paper tones, serif headings, brush-stroke underlines — a quiet, handcrafted feel',
     classic: 'Classic Studio',
     classicDesc: 'Signature-work banner opening, two-column desktop layout, sticky commission button',
     gallery: 'Gallery',

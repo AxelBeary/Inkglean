@@ -83,6 +83,7 @@
             </el-upload>
             <el-button v-if="tierForm.exampleImage" size="small" type="danger" text @click="tierForm.exampleImage = ''">移除</el-button>
           </div>
+          <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -94,9 +95,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import AddonManager from '../../components/artist/AddonManager.vue'
 import MultiplierManager from '../../components/artist/MultiplierManager.vue'
@@ -131,6 +133,28 @@ async function uploadExample({ file }) {
   uploading.value = true
   try {
     const uploaded = await uploadApi.image(file)
+    tierForm.exampleImage = uploaded.filePath
+    ElMessage.success('已上传')
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    uploading.value = false
+  }
+}
+
+// ─── 粘贴上传（例图，仅弹窗打开时响应） ───
+const { pasteError } = usePasteUpload({
+  onFiles: handlePasteExampleFile,
+  maxCount: 1,
+  maxSizeMB: 10,
+  enabled: tierDialogVisible
+})
+watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
+
+async function handlePasteExampleFile(files) {
+  uploading.value = true
+  try {
+    const uploaded = await uploadApi.image(files[0])
     tierForm.exampleImage = uploaded.filePath
     ElMessage.success('已上传')
   } catch (err) {
@@ -190,4 +214,5 @@ onMounted(loadTiers)
 <style scoped>
 .example-upload { display: flex; align-items: center; gap: 12px; }
 .example-preview { width: 80px; height: 80px; border-radius: 8px; border: 1px solid var(--border-color); }
+.paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 </style>

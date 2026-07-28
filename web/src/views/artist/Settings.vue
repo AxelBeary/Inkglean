@@ -145,6 +145,7 @@ const form = reactive({
 })
 
 const templates = computed(() => [
+  { id: 'atelier', name: t('templates.atelier'), desc: t('templates.atelierDesc'), preview: '📖 🖌' },
   { id: 'classic', name: t('templates.classic'), desc: t('templates.classicDesc'), preview: '🖼 ☀️' },
   { id: 'gallery', name: t('templates.gallery'), desc: t('templates.galleryDesc'), preview: '🏛 🌙' },
   { id: 'folio',   name: t('templates.folio'),   desc: t('templates.folioDesc'),   preview: '📄 ✨' }
