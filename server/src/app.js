@@ -154,10 +154,9 @@ export async function buildApp(opts = {}) {
     decorateReply: false,
     setHeaders: (res) => {
       // 安全头 — 禁止 MIME 嗅探 + 强制下载
-      // 注意：@fastify/static 的 setHeaders 回调参数是原生 Node http.ServerResponse，
-      // 不是 Fastify reply，必须用 setHeader() 而非 header()
-      res.setHeader('X-Content-Type-Options', 'nosniff')
-      res.setHeader('Content-Disposition', 'attachment')
+      // @fastify/static v10: setHeaders 回调参数是 Fastify Reply 对象，用 .header()
+      res.header('X-Content-Type-Options', 'nosniff')
+      res.header('Content-Disposition', 'attachment')
     }
   })
 
