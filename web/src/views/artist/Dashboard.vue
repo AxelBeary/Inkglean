@@ -1,16 +1,13 @@
 <template>
   <div class="dashboard">
     <ArtistLayout>
-      <!-- 问候区 -->
-      <div class="greeting-area">
+      <!-- 问候区：整块可点击换一句（R7） -->
+      <div class="greeting-area" role="button" tabindex="0" :title="$t('dashboard.anotherOne')" @click="fetchGreeting" @keydown.enter="fetchGreeting" @keydown.space.prevent="fetchGreeting">
         <div class="greeting-main">
           <span class="greeting-icon">{{ slotIcon }}</span>
           <Transition name="greeting-fade" mode="out-in">
             <h2 class="greeting-text font-display" :key="greeting.text">{{ greeting.text }}</h2>
           </Transition>
-          <el-button text size="small" class="greeting-refresh" @click="fetchGreeting" :loading="greetingLoading">
-            ↻ {{ $t('dashboard.anotherOne') }}
-          </el-button>
         </div>
         <div class="greeting-date">{{ dateLine }}</div>
       </div>
@@ -91,6 +88,8 @@ const dateLine = computed(() => {
 })
 
 async function fetchGreeting() {
+  // R7 防连击：请求进行中忽略重复点击，避免动画堆积
+  if (greetingLoading.value) return
   greetingLoading.value = true
   try {
     greeting.value = await artistApi.getGreeting()
@@ -119,13 +118,19 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 问候区 */
+/* 问候区：整块可点击（R7） */
 .greeting-area {
   padding: 20px 24px;
   border-radius: 12px;
   background: linear-gradient(135deg, var(--color-primary-soft), transparent 70%);
   margin-bottom: 20px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent; /* 移动端点击无高亮块 */
+  transition: filter 0.18s;
 }
+.greeting-area:hover { filter: brightness(1.04); }
+.greeting-area:active { filter: brightness(0.97); }
 .greeting-main {
   display: flex;
   align-items: center;
@@ -139,7 +144,6 @@ onMounted(async () => {
   color: var(--text-primary);
   margin: 0;
 }
-.greeting-refresh { color: var(--text-secondary); font-size: 12px; }
 .greeting-date {
   margin-top: 6px;
   font-size: 12px;
