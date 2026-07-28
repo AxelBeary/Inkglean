@@ -67,7 +67,9 @@ export default api
 export const authApi = {
   sendCode: (qqNumber) => api.post('/auth/send-code', { qqNumber }),
   verify: (qqNumber, code) => api.post('/auth/verify', { qqNumber, code }),
-  me: () => api.get('/auth/me')
+  me: () => api.get('/auth/me'),
+  // H-2 修复：补全登出接口，清除 httpOnly cookie
+  logout: () => api.post('/auth/logout')
 }
 
 // ─── 画师公开主页 ───

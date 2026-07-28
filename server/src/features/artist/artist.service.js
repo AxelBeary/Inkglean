@@ -101,6 +101,13 @@ export function updateArtist(id, fields) {
         const palette = String(value || 'paper')
         updates.push('palette_id = ?')
         values.push(['paper', 'ink', 'dusk', 'moss'].includes(palette) ? palette : 'paper')
+      } else if (key === 'avatar') {
+        // M-1 修复：头像路径校验 — 必须在 images/ 目录下，拒绝路径穿越
+        if (value && (String(value).includes('..') || !String(value).startsWith('images/'))) {
+          throw new AppError(E.ILLEGAL_PATH)
+        }
+        updates.push('avatar = ?')
+        values.push(value)
       } else {
         // 输入校验：name 空值保护
         if (key === 'name' && !String(value || '').trim()) {

@@ -161,18 +161,9 @@ export async function buildApp(opts = {}) {
     }
   })
 
-  // ─── 注册功能路由 ───
-  await app.register(import('./features/auth/auth.routes.js'))
-  await app.register(import('./features/artist/artist.routes.js'))
-  await app.register(import('./features/order/order.routes.js'))
-  await app.register(import('./features/upload/upload.routes.js'), { uploadDir: UPLOAD_DIR })
-  await app.register(import('./features/admin/admin.routes.js'))
-  await app.register(import('./features/pricing/pricing.routes.js'))
-
-  // ─── 健康检查 ───
-  app.get('/api/health', async () => ({ status: 'ok', time: new Date().toISOString() }))
-
   // ─── 全局错误处理：结构化错误码 + 中文友好提示 ───
+  // C-2 修复：必须在所有 app.register() 之前设置
+  // Fastify 插件封装机制下，子作用域只继承注册时已存在的 error handler
   app.setErrorHandler((error, request, reply) => {
     if (error.validation) {
       // Fastify JSON Schema 校验失败
@@ -193,6 +184,17 @@ export async function buildApp(opts = {}) {
       detail: error.detail || undefined
     })
   })
+
+  // ─── 注册功能路由 ───
+  await app.register(import('./features/auth/auth.routes.js'))
+  await app.register(import('./features/artist/artist.routes.js'))
+  await app.register(import('./features/order/order.routes.js'))
+  await app.register(import('./features/upload/upload.routes.js'), { uploadDir: UPLOAD_DIR })
+  await app.register(import('./features/admin/admin.routes.js'))
+  await app.register(import('./features/pricing/pricing.routes.js'))
+
+  // ─── 健康检查 ───
+  app.get('/api/health', async () => ({ status: 'ok', time: new Date().toISOString() }))
 
   // ─── 前端 SPA 静态文件 + fallback（手动路由，不依赖 @fastify/static wildcard）───
   const WEB_DIST = resolve(process.env.WEB_DIST || join(import.meta.dirname, '../../web/dist'))

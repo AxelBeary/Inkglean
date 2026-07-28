@@ -85,6 +85,15 @@ export default async function orderRoutes(fastify) {
     const rules = getRules(artist.id)
     if (rules?.content && !agreeRules) throw new AppError(E.RULES_NOT_AGREED)
 
+    // C-3 修复：参考图路径校验 — 必须在 references/ 目录下，拒绝路径穿越
+    if (references) {
+      for (const ref of references) {
+        if (ref.includes('..') || !ref.startsWith('references/')) {
+          throw new AppError(E.ILLEGAL_PATH)
+        }
+      }
+    }
+
     const order = orderService.createOrder({
       artistId: artist.id,
       tierId,
