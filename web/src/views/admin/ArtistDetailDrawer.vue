@@ -98,6 +98,7 @@ const saving = ref(false)
 // 资料
 const profileLoading = ref(false)
 const profile = ref({})
+const originalProfile = ref({}) // M-2: 记录初始值，只发送有变化的字段
 // 档位
 const tiersLoading = ref(false)
 const tiers = ref([])
@@ -119,6 +120,7 @@ watch(() => props.artist, async (a) => {
   try {
     const p = await adminApi.getArtistProfile(a.id)
     profile.value = { name: p.name, bio: p.bio || '', status: p.status, artist_code: p.artist_code || '', contact_qq: p.contact_qq || '' }
+    originalProfile.value = { ...profile.value } // M-2: 快照初始值
   } catch (err) { ElMessage.error(err.message) }
   finally { profileLoading.value = false }
   // 预加载档位
@@ -160,7 +162,19 @@ async function loadRules() {
 async function saveProfile() {
   saving.value = true
   try {
-    await adminApi.updateArtistProfile(props.artist.id, profile.value)
+    // M-2 修复：只发送有变化的字段，避免未修改的 bio 被空字符串覆盖
+    const changed = {}
+    for (const key of Object.keys(profile.value)) {
+      if (profile.value[key] !== originalProfile.value[key]) {
+        changed[key] = profile.value[key]
+      }
+    }
+    if (Object.keys(changed).length === 0) {
+      ElMessage.info(t('settings.noChanges') || '没有修改')
+      return
+    }
+    await adminApi.updateArtistProfile(props.artist.id, changed)
+    originalProfile.value = { ...profile.value } // 保存成功后更新快照
     ElMessage.success(t('settings.saved'))
   } catch (err) { ElMessage.error(err.message) }
   finally { saving.value = false }

@@ -55,9 +55,9 @@
         <div class="ref-grid">
           <el-image
             v-for="(reference, index) in order.references" :key="reference.id"
-            :src="`/uploads/${reference.file_path}`" fit="cover" class="ref-img"
+            :src="reference.url" fit="cover" class="ref-img"
             :alt="$t('orderDetail.referenceImage')"
-            :preview-src-list="order.references.map(r => `/uploads/${r.file_path}`)"
+            :preview-src-list="order.references.map(r => r.url)"
             :initial-index="index"
           />
         </div>
@@ -84,7 +84,7 @@
         <template #header>{{ $t('orderDetail.deliverFiles') }}</template>
         <div v-for="d in order.deliverables" :key="d.id" class="file-item">
           <span>📄 {{ d.original_name }}</span>
-          <el-button size="small" @click="openFile(d.file_path)">{{ $t('common.download') }}</el-button>
+          <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
         </div>
       </el-card>
     </div>
@@ -196,8 +196,9 @@ async function addNote() {
   }
 }
 
-function openFile(filePath) {
-  window.open(`/uploads/${filePath}`, '_blank', 'noopener')
+function openFile(url) {
+  // H-1 修复：使用后端返回的签名 URL（references/deliverables 非公开目录）
+  window.open(url, '_blank', 'noopener')
 }
 
 function handleDeliverFile(file) {

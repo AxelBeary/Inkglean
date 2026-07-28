@@ -231,7 +231,7 @@ export default async function adminRoutes(fastify) {
 
   /** POST /api/admin/artists/:id/greetings — 为画师添加专属模板 */
   fastify.post('/api/admin/artists/:id/greetings', {
-    preHandler: requireAdmin,
+    preHandler: [requireAdmin, requireExistingArtist],
     schema: {
       body: {
         type: 'object',
@@ -262,14 +262,28 @@ export default async function adminRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    const result = greetingService.updateGreeting(parseInt(request.params.gid), request.body)
+    // H-6 修复：校验问候语归属 — 必须属于该画师
+    const gid = parseInt(request.params.gid)
+    const artistId = parseInt(request.params.id)
+    const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid)
+    if (!existing || existing.artist_id !== artistId) {
+      return reply.code(404).send({ error: '模板不存在或不属于该画师' })
+    }
+    const result = greetingService.updateGreeting(gid, request.body)
     if (!result) return reply.code(404).send({ error: '模板不存在' })
     return result
   })
 
   /** DELETE /api/admin/artists/:id/greetings/:gid — 删除专属模板 */
-  fastify.delete('/api/admin/artists/:id/greetings/:gid', { preHandler: requireAdmin }, async (request) => {
-    greetingService.deleteGreeting(parseInt(request.params.gid))
+  fastify.delete('/api/admin/artists/:id/greetings/:gid', { preHandler: requireAdmin }, async (request, reply) => {
+    // H-6 修复：校验问候语归属 — 必须属于该画师
+    const gid = parseInt(request.params.gid)
+    const artistId = parseInt(request.params.id)
+    const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid)
+    if (!existing || existing.artist_id !== artistId) {
+      return reply.code(404).send({ error: '模板不存在或不属于该画师' })
+    }
+    greetingService.deleteGreeting(gid)
     return { success: true }
   })
 
@@ -320,7 +334,7 @@ export default async function adminRoutes(fastify) {
 
   /** POST /api/admin/artists/:id/workflow — 为画师添加节点 */
   fastify.post('/api/admin/artists/:id/workflow', {
-    preHandler: requireAdmin,
+    preHandler: [requireAdmin, requireExistingArtist],
     schema: {
       body: {
         type: 'object', required: ['name'], additionalProperties: false,
@@ -395,6 +409,13 @@ export default async function adminRoutes(fastify) {
 
   // ─── 画师全设置代理（管理员编辑任意画师） ───
 
+  // H-5 修复：画师存在性校验 preHandler（4 个 POST 路由共用）
+  async function requireExistingArtist(request, reply) {
+    const a = artistService.getArtistById(request.params.id)
+    if (!a || a.deleted_at) return reply.code(404).send({ error: '画师不存在' })
+    request.targetArtist = a
+  }
+
   // P2-7: 统一 params schema
   const intId = { params: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] } }
   const intIdTid = { params: { type: 'object', properties: { id: { type: 'integer' }, tid: { type: 'integer' } }, required: ['id', 'tid'] } }
@@ -439,7 +460,7 @@ export default async function adminRoutes(fastify) {
 
   /** POST /api/admin/artists/:id/tiers — 创建档位（P1-3: schema） */
   fastify.post('/api/admin/artists/:id/tiers', {
-    preHandler: requireAdmin,
+    preHandler: [requireAdmin, requireExistingArtist],
     schema: {
       ...intId,
       body: {
@@ -496,19 +517,24 @@ export default async function adminRoutes(fastify) {
 
   /** POST /api/admin/artists/:id/artworks — 添加作品（P1-3） */
   fastify.post('/api/admin/artists/:id/artworks', {
-    preHandler: requireAdmin,
+    preHandler: [requireAdmin, requireExistingArtist],
     schema: {
       ...intId,
       body: {
-        type: 'object', required: ['image_path'], additionalProperties: false,
+        type: 'object', required: ['imagePath'], additionalProperties: false,
         properties: {
-          image_path: { type: 'string', minLength: 1, maxLength: 300 },
+          imagePath: { type: 'string', minLength: 1, maxLength: 300 },
           title: { type: 'string', maxLength: 100 }
         }
       }
     }
   }, async (request) => {
-    return artistService.createArtwork(request.params.id, request.body)
+    // H-3 修复：路径归属校验（对齐画师端 POST /api/artist/artworks）
+    const { imagePath, title } = request.body
+    if (imagePath.includes('..') || !imagePath.startsWith(`images/${request.params.id}/`)) {
+      throw new AppError(E.ILLEGAL_PATH)
+    }
+    return artistService.createArtwork(request.params.id, { imagePath, title })
   })
 
   /** DELETE /api/admin/artists/:id/artworks/:aid — 删除作品（P1-4） */

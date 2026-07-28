@@ -255,7 +255,15 @@ export default async function orderRoutes(fastify) {
    * GET /api/artist/orders/:id
    */
   fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request) => {
-    return request.order
+    const order = request.order
+    // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
+    if (order.references) {
+      order.references = order.references.map(r => ({ ...r, url: signedUrl(r.file_path) }))
+    }
+    if (order.deliverables) {
+      order.deliverables = order.deliverables.map(d => ({ ...d, url: signedUrl(d.file_path) }))
+    }
+    return order
   })
 
   /**

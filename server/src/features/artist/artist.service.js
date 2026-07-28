@@ -156,7 +156,13 @@ export function getTierById(tierId) {
   return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(tierId)
 }
 
-export function createTier(artistId, { name, price, description, exampleImage, workDays }) {
+export function createTier(artistId, fields) {
+  // H-4 修复：同时接受 camelCase 和 snake_case（对齐 updateTier 的 keyMap 策略）
+  const name = fields.name
+  const price = fields.price
+  const description = fields.description
+  const exampleImage = fields.exampleImage ?? fields.example_image
+  const workDays = fields.workDays ?? fields.work_days
   const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM price_tiers WHERE artist_id = ?').get(artistId)
   const sortOrder = (maxOrder?.m ?? 0) + 1
 

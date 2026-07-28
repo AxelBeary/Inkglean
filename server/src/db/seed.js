@@ -5,7 +5,7 @@ import { initDatabase } from './init.js'
 // 种子数据 - 用于开发测试
 // ============================================
 
-const seed = () => {
+const seed = async () => {
   // 确保表结构存在（seed 可独立运行，无需先手动 db:init）
   initDatabase(db)
 
@@ -54,11 +54,15 @@ const seed = () => {
 </ul>
   `.trim())
 
-  // 插入平台配置
-  const configStmt = db.prepare(`
-    INSERT OR IGNORE INTO platform_config (key, value) VALUES (?, ?)
-  `)
-  configStmt.run('admin_qq', '10003')
+  // M-3 修复：为种子画师初始化工作流（从默认模板复制）
+  const { seedArtistStages } = await import('../features/artist/workflow.service.js')
+  for (const a of [alice, bob]) {
+    const wfCount = db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(a.id).c
+    if (wfCount === 0) seedArtistStages(a.id)
+  }
+
+  // M-4 修复：用 REPLACE 确保 seed 的 admin_qq 生效（init.js 的 INSERT OR IGNORE 会先插入空值）
+  db.prepare("INSERT OR REPLACE INTO platform_config (key, value) VALUES ('admin_qq', '10003')").run()
 
   console.log('✅ 种子数据插入完成')
 }
