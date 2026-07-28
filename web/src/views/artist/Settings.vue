@@ -112,13 +112,6 @@
           <img class="embed-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='60'%3E%3Crect width='240' height='60' fill='%231a1a1a' rx='8'/%3E%3Ctext x='16' y='28' fill='white' font-size='13' font-family='sans-serif'%3E%E2%9C%A8 Commission Me%3C/text%3E%3Ctext x='16' y='46' fill='%23999' font-size='11' font-family='sans-serif'%3E%E2%86%97 Order on HuiYue%3C/text%3E%3C/svg%3E" alt="Embed preview" />
         </el-card>
       </el-tab-pane>
-
-      <!-- 流程与比例 -->
-      <el-tab-pane :label="$t('settings.tabWorkflow')" name="workflow" lazy>
-        <el-card style="max-width: 700px">
-          <WorkflowPaymentEditor />
-        </el-card>
-      </el-tab-pane>
     </el-tabs>
   </ArtistLayout>
 </template>
@@ -129,7 +122,6 @@ import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
-import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 
 const { t } = useI18n()
 const activeTab = ref('profile')
