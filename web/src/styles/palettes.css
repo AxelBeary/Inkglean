@@ -1,0 +1,96 @@
+/* ============================================
+   绘约主页配色系统（Palette）
+   画师选择气质底色，每种配色有亮/暗两套。
+   亮暗由访客偏好（html.dark）决定，配色由画师数据（html[data-palette]）决定。
+   主色（--color-primary）独立于配色，由访客五色系统控制。
+   ============================================ */
+
+/* ===== 默认配色：paper（纸）===== */
+:root {
+  --pal-bg: #faf8f5;
+  --pal-bg-alt: #f3efe9;
+  --pal-surface: #ffffff;
+  --pal-text: #2b2622;
+  --pal-text-dim: #8a8177;
+  --pal-border: #e7ded2;
+}
+html.dark {
+  --pal-bg: #1c1a17;
+  --pal-bg-alt: #232019;
+  --pal-surface: #2a2620;
+  --pal-text: #e9e2d8;
+  --pal-text-dim: #9b9184;
+  --pal-border: #3b352c;
+}
+
+/* ===== paper（纸）：暖白宣纸，墨字，安静 ===== */
+html[data-palette='paper'] {
+  --pal-bg: #faf8f5;
+  --pal-bg-alt: #f3efe9;
+  --pal-surface: #ffffff;
+  --pal-text: #2b2622;
+  --pal-text-dim: #8a8177;
+  --pal-border: #e7ded2;
+}
+html.dark[data-palette='paper'] {
+  --pal-bg: #1c1a17;
+  --pal-bg-alt: #232019;
+  --pal-surface: #2a2620;
+  --pal-text: #e9e2d8;
+  --pal-text-dim: #9b9184;
+  --pal-border: #3b352c;
+}
+
+/* ===== ink（墨）：画廊深炭，层灰，克制 ===== */
+html[data-palette='ink'] {
+  --pal-bg: #f4f4f2;
+  --pal-bg-alt: #eaeae7;
+  --pal-surface: #ffffff;
+  --pal-text: #1a1a1a;
+  --pal-text-dim: #8c8c8c;
+  --pal-border: #dcdcdc;
+}
+html.dark[data-palette='ink'] {
+  --pal-bg: #0e0e0e;
+  --pal-bg-alt: #161616;
+  --pal-surface: #1d1d1d;
+  --pal-text: #e6e6e6;
+  --pal-text-dim: #8a8a8a;
+  --pal-border: #2c2c2c;
+}
+
+/* ===== dusk（暮）：蓝灰暮色，冷静 ===== */
+html[data-palette='dusk'] {
+  --pal-bg: #eef1f6;
+  --pal-bg-alt: #e4e9f1;
+  --pal-surface: #ffffff;
+  --pal-text: #232b3a;
+  --pal-text-dim: #7d8798;
+  --pal-border: #d5dce8;
+}
+html.dark[data-palette='dusk'] {
+  --pal-bg: #121a26;
+  --pal-bg-alt: #182231;
+  --pal-surface: #1e2a3c;
+  --pal-text: #dfe6f0;
+  --pal-text-dim: #8b96a8;
+  --pal-border: #2c3a50;
+}
+
+/* ===== moss（苔）：深绿自然，温润 ===== */
+html[data-palette='moss'] {
+  --pal-bg: #f0f4ee;
+  --pal-bg-alt: #e6ede2;
+  --pal-surface: #ffffff;
+  --pal-text: #24301f;
+  --pal-text-dim: #7e8a74;
+  --pal-border: #d8e2d0;
+}
+html.dark[data-palette='moss'] {
+  --pal-bg: #131c13;
+  --pal-bg-alt: #1a251a;
+  --pal-surface: #212e21;
+  --pal-text: #dfe8d8;
+  --pal-text-dim: #8fa084;
+  --pal-border: #2e3d2c;
+}

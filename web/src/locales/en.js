@@ -111,7 +111,12 @@ export default {
     weibo: '🔗 My Weibo', bilibili: '📺 My Bilibili', commission: '🎨 Commission me', track: '📋 Track order',
     priceList: '💰 Price list', artworks: '🖼 Portfolio', rules: '📜 Commission guidelines', workflow: '📐 Workflow & Payment',
     aboutDays: '⏱ ~{n} days', loadFailed: 'Artist not found or failed to load',
-    statusOpen: '✅ Open for commissions', statusFull: '⏳ Fully booked', statusBreak: '💤 On break'
+    statusOpen: '✅ Open for commissions', statusFull: '⏳ Fully booked', statusBreak: '💤 On break',
+    about: 'About', navPricing: 'Pricing', navProcess: 'Process', navWork: 'Work',
+    heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',
+    startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
+    ctaSubtitle: "Ready to work together? Let's create something amazing.",
+    weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
@@ -230,14 +235,20 @@ export default {
   },
   templates: {
     tab: 'Page Template',
-    hint: 'Choose how your public page looks. All templates share the same artwork and pricing data.',
-    label: 'Current template',
-    default: 'Classic',
-    defaultDesc: 'Light background, card-based grid layout, clearly organized sections',
-    darkGallery: 'Dark Gallery',
-    darkGalleryDesc: 'Dark full-screen background, large images — ideal for visually striking art',
-    singlePage: 'Single Page SaaS',
-    singlePageDesc: 'Minimal single-page layout with bold typography — ideal for a brand-driven look',
+    hint: 'Choose how your public page looks. Layout sets the structure, palette sets the mood — all share the same artwork and pricing data.',
+    label: 'Page layout',
+    classic: 'Classic Studio',
+    classicDesc: 'Signature-work banner opening, two-column desktop layout, sticky commission button',
+    gallery: 'Gallery',
+    galleryDesc: 'Full-screen artwork opening, plaque-style name, editorial large-small gallery',
+    folio: 'Single Page',
+    folioDesc: 'Split-screen opening, scroll-tracking nav — ideal for a brand-driven look',
+    palette: 'Page palette',
+    paletteHint: 'The palette sets the mood of your page colors (light/dark adapts to each visitor). Accent color still follows the visitor\'s five-color choice.',
+    palettePaper: 'Paper', palettePaperDesc: 'Warm white, ink text, calm',
+    paletteInk: 'Ink', paletteInkDesc: 'Gallery charcoal, layered grey, restrained',
+    paletteDusk: 'Dusk', paletteDuskDesc: 'Blue-grey twilight, cool',
+    paletteMoss: 'Moss', paletteMossDesc: 'Deep green, natural, warm',
     saved: 'Template updated'
   },
   embed: {

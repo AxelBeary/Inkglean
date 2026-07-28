@@ -74,7 +74,10 @@ export const authApi = {
 export const artistPublicApi = {
   getAll: () => api.get('/artists'),
   getProfile: (subdomain) => api.get(`/artists/${subdomain}`),
-  getWorkflow: (subdomain) => api.get(`/artists/${subdomain}/workflow`)
+  getWorkflow: (subdomain) => api.get(`/artists/${subdomain}/workflow`),
+  // 价格计算器
+  getPricing: (subdomain) => api.get(`/public/pricing/${subdomain}`),
+  calculatePrice: (data) => api.post('/public/calculate-price', data)
 }
 
 // ─── 画师后台 ───
@@ -116,7 +119,19 @@ export const artistApi = {
   deleteStage: (id) => api.delete(`/artist/workflow/${id}`),
   reorderStages: (orderedIds) => api.put('/artist/workflow/reorder', { orderedIds }),
   savePayment: (nodes) => api.put('/artist/workflow/payment', { nodes }),
-  resetWorkflow: () => api.post('/artist/workflow/reset')
+  resetWorkflow: () => api.post('/artist/workflow/reset'),
+  // 增项
+  getAddons: () => api.get('/artist/addons'),
+  createAddon: (data) => api.post('/artist/addons', data),
+  updateAddon: (id, data) => api.put(`/artist/addons/${id}`, data),
+  deleteAddon: (id) => api.delete(`/artist/addons/${id}`),
+  reorderAddons: (orderedIds) => api.put('/artist/addons/reorder', { orderedIds }),
+  updateAddonTiers: (id, tierIds) => api.put(`/artist/addons/${id}/tiers`, { tierIds }),
+  // 倍率
+  getMultipliers: () => api.get('/artist/multipliers'),
+  createMultiplier: (data) => api.post('/artist/multipliers', data),
+  updateMultiplier: (id, data) => api.put(`/artist/multipliers/${id}`, data),
+  deleteMultiplier: (id) => api.delete(`/artist/multipliers/${id}`)
 }
 
 // ─── 客户端订单 ───

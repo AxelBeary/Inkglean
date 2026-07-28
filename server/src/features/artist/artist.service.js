@@ -58,7 +58,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 }
 
 export function updateArtist(id, fields) {
-  const allowed = ['name', 'avatar', 'bio', 'status', 'weibo_url', 'bilibili_url', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'weibo_url', 'bilibili_url', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id']
   const updates = []
   const values = []
 
@@ -96,6 +96,11 @@ export function updateArtist(id, fields) {
         }
         updates.push(`${key} = ?`)
         values.push(value)
+      } else if (key === 'palette_id') {
+        // 配色白名单校验 — 非法值回退到默认，避免脏数据
+        const palette = String(value || 'paper')
+        updates.push('palette_id = ?')
+        values.push(['paper', 'ink', 'dusk', 'moss'].includes(palette) ? palette : 'paper')
       } else {
         // 输入校验：name 空值保护
         if (key === 'name' && !String(value || '').trim()) {

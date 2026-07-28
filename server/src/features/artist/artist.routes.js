@@ -44,6 +44,7 @@ export default async function artistRoutes(fastify) {
       bio: artist.bio,
       status: artist.status,
       templateId: artist.template_id || 'default',
+      paletteId: artist.palette_id || 'paper',
       weiboUrl: artist.weibo_url,
       bilibiliUrl: artist.bilibili_url,
       notifyEnabled: !!artist.notify_enabled,

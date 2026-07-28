@@ -111,7 +111,12 @@ export default {
     weibo: '🔗 我的微博', bilibili: '📺 我的B站', commission: '🎨 我要约稿', track: '📋 查询进度',
     priceList: '💰 价格表', artworks: '🖼 作品展示', rules: '📜 约稿须知', workflow: '📐 约稿流程与收款',
     aboutDays: '⏱ 约 {n} 天', loadFailed: '画师不存在或加载失败',
-    statusOpen: '✅ 可约稿', statusFull: '⏳ 已排满', statusBreak: '💤 休息中'
+    statusOpen: '✅ 可约稿', statusFull: '⏳ 已排满', statusBreak: '💤 休息中',
+    about: '关于', navPricing: '价格', navProcess: '流程', navWork: '作品',
+    heroOpen: '接受约稿中', heroFull: '目前已排满', heroBreak: '休息中',
+    startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
+    ctaSubtitle: '期待与你一起创作出好作品。',
+    weiboPlain: '微博', bilibiliPlain: 'B站'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
@@ -230,14 +235,20 @@ export default {
   },
   templates: {
     tab: '主页模板',
-    hint: '选择客户看到的画师主页样式。所有模板共享同一套作品/价格数据。',
-    label: '当前模板',
-    default: '经典',
-    defaultDesc: '浅色背景，卡片式网格布局，信息分区清晰',
-    darkGallery: '深色画廊',
-    darkGalleryDesc: '深色全屏背景，作品大图，适合视觉冲击力强的画师',
-    singlePage: '单页SaaS',
-    singlePageDesc: '极简单页，大字号排版，适合想走品牌风格路线的画师',
+    hint: '选择客户看到的画师主页样式。布局决定页面结构，配色决定气质底色，所有模板共享同一套作品/价格数据。',
+    label: '页面布局',
+    classic: '经典工作室',
+    classicDesc: '代表作横幅开场，桌面双栏，约稿按钮吸顶常驻',
+    gallery: '美术馆画廊',
+    galleryDesc: '全屏画作开场，展签式名字，大小交错画廊',
+    folio: '单页落地页',
+    folioDesc: '左文右图分屏开场，滚动侦测导航，适合品牌风格',
+    palette: '页面配色',
+    paletteHint: '配色决定页面的气质底色（亮暗由访客偏好自动适配），主色仍跟随访客的五色选择。',
+    palettePaper: '纸', palettePaperDesc: '暖白宣纸，墨字，安静',
+    paletteInk: '墨', paletteInkDesc: '画廊深炭，层灰，克制',
+    paletteDusk: '暮', paletteDuskDesc: '蓝灰暮色，冷静',
+    paletteMoss: '苔', paletteMossDesc: '深绿自然，温润',
     saved: '模板已更新'
   },
   embed: {

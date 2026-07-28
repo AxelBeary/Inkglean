@@ -52,7 +52,22 @@ export default async function orderRoutes(fastify) {
           priority: { type: 'string', enum: ['high', 'medium', 'low'] },
           clientNotify: { type: 'boolean' },
           agreeRules: { type: 'boolean' },
-          references: { type: 'array', items: { type: 'string' }, maxItems: 5 }
+          references: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+          addons: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['addonId'],
+              properties: {
+                addonId: { type: 'integer' },
+                quantity: { type: 'integer', minimum: 1, maximum: 99 }
+              },
+              additionalProperties: false
+            },
+            maxItems: 20
+          },
+          usageMultiplierId: { type: ['integer', 'null'] },
+          rushMultiplierId: { type: ['integer', 'null'] }
         },
         additionalProperties: false
       }
@@ -60,7 +75,7 @@ export default async function orderRoutes(fastify) {
   }, async (request) => {
     guardRateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)
 
-    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references } = request.body
+    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, addons, usageMultiplierId, rushMultiplierId } = request.body
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
@@ -79,11 +94,15 @@ export default async function orderRoutes(fastify) {
       priority: priority || 'medium',
       source: 'self',
       clientNotify: clientNotify || false,
-      references: references || []
+      references: references || [],
+      addons: addons || [],
+      usageMultiplierId: usageMultiplierId || null,
+      rushMultiplierId: rushMultiplierId || null
     })
 
     return {
       orderNo: order.order_no,
+      totalPriceCents: order.total_price_cents,
       message: '下单成功！请添加画师QQ沟通细节。'
     }
   })

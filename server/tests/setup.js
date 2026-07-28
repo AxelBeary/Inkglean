@@ -25,7 +25,11 @@ export function cleanDb() {
     DELETE FROM deliverables;
     DELETE FROM order_notes;
     DELETE FROM order_references;
+    DELETE FROM order_price_breakdown;
     DELETE FROM orders;
+    DELETE FROM addon_tiers;
+    DELETE FROM price_addons;
+    DELETE FROM price_multipliers;
     DELETE FROM commission_rules;
     DELETE FROM artworks;
     DELETE FROM price_tiers;

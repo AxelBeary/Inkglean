@@ -1,5 +1,58 @@
 # 变更日志
 
+## v0.10.0 — 2026-07-28
+
+### 🎨 模板系统重构：布局 × 配色
+
+- **核心模型变更**：模板从「3 个独立页面」重构为「布局 × 配色」两个正交维度
+  - **布局**（3 种，结构真正不同）：`classic` 经典工作室 / `gallery` 美术馆画廊 / `folio` 单页落地页
+  - **配色**（4 种，每种亮暗两套）：`paper` 纸 / `ink` 墨 / `dusk` 暮 / `moss` 苔
+  - 3 × 4 = 12 种主页风格；主色（五色系统）独立于配色，由访客控制
+- **旧值映射兼容**：`default→classic`、`dark-gallery→gallery`、`single-page→folio`，老数据不炸
+
+### 🏗 分层架构（防 Bug 核心）
+
+- **数据适配层** `composables/useArtistData.js`：模板不直接碰 props 字段名，统一 `imgUrl()` / `statusText()` / `socialLinks` / `heroArtwork`；后端改字段只改这一处
+- **配色 composable** `composables/usePalette.js`：设置/清理 `html[data-palette]`，离开主页自动清理
+- **滚动渐入** `composables/useScrollReveal.js`：IntersectionObserver + MutationObserver（兼容异步组件晚到的节点）
+- **吸底 CTA** `composables/useStickyCta.js`：监听 Hero 哨兵，watch 元素就绪（兼容 defineAsyncComponent）
+- **6 个共享组件** `components/templates/`：TplHero（3 variant）/ TplTierGrid（addons 插槽）/ TplGallery（3 layout）/ TplRules / TplStickyCta / TplStatusBadge
+
+### 🌈 配色系统
+
+- **迁移 v10**：`artists` 表新增 `palette_id TEXT DEFAULT 'paper'`
+- **`styles/palettes.css`**：4 配色 × 亮暗 `--pal-*` 变量
+- **`styles/templates.css`**：滚动渐入 keyframes + 排版工具类
+- **后端**：`artist.service.js` 白名单 + 校验；`artist.routes.js` 公开主页返回 `paletteId`
+- **Settings**：主页模板 Tab 新增配色选择器（4 色板，亮暗预览）
+
+### 🔧 i18n 修复
+
+- 修复 SinglePage/DarkGallery 模板硬编码英文（约 15 处）→ 全部走 `$t()`
+- 修复 2 个不存在的键引用（`artistHome.about` / `startCommission`）
+- 中英语言包对齐至 515 键
+
+### 三个布局重设计
+
+| 布局 | 开场 | 特征 |
+|------|------|------|
+| `classic` | 代表作横幅 + 名字叠画 | 桌面双栏，左栏吸顶信息卡 + 约稿按钮常驻 |
+| `gallery` | 全屏画作 + 角落展签 | 大小交错 editorial 画廊，悬停放大，吸底约稿条 |
+| `folio` | 左文右图分屏 | 滚动侦测导航高亮，移动端汉堡菜单，吸底约稿条 |
+
+### 文件变更
+
+- 新增：`web/src/composables/`（4 个）、`web/src/components/templates/`（6 个）、`web/src/styles/palettes.css`、`web/src/styles/templates.css`
+- 重命名：`ArtistHomeDefault.vue→ArtistHomeClassic.vue`、`ArtistHomeDarkGallery.vue→ArtistHomeGallery.vue`、`ArtistHomeSinglePage.vue→ArtistHomeFolio.vue`
+- 修改：`ArtistHome.vue`（配色 + 注册表映射）、`Settings.vue`（配色选择器）、`main.js`（引入新 CSS）、`init.js`（迁移 v10）、`artist.service.js` / `artist.routes.js`（paletteId）
+
+### 验证
+
+- 后端测试：103/103 通过 | 前端构建：通过
+- ad-hoc：i18n 对齐 515=515、13 新键完整、模板无硬编码英文、9/9 运行时检查通过（迁移 v10 + paletteId API + 3 模板 chunk + palettes.css 打包）
+
+---
+
 ## v0.9.0 — 2026-07-28
 
 ### 🎨 主页模板系统

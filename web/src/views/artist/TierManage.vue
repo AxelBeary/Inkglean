@@ -1,71 +1,93 @@
 <template>
   <ArtistLayout>
-    <h2>{{ $t('tiers.title') }}</h2>
+    <h2 class="font-display">价格管理</h2>
 
-    <el-button type="primary" style="margin: 16px 0" @click="openDialog()">{{ $t('tiers.addTier') }}</el-button>
+    <el-tabs v-model="activeTab" style="margin-top: 16px">
+      <!-- 档位 -->
+      <el-tab-pane label="档位" name="tiers">
+        <el-button type="primary" size="small" style="margin-bottom: 12px" @click="openTierDialog()">＋ 新建档位</el-button>
+        <el-table :data="tiers" v-loading="loadingTiers" stripe>
+          <el-table-column label="示例" width="80">
+            <template #default="{ row }">
+              <el-image
+                v-if="row.example_image" :src="`/uploads/${row.example_image}`"
+                fit="cover" style="width: 56px; height: 56px; border-radius: 6px"
+                :alt="row.name" :preview-src-list="[`/uploads/${row.example_image}`]"
+              />
+              <span v-else style="color: var(--text-muted)">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="名称" width="120" />
+          <el-table-column prop="price" label="价格" width="100">
+            <template #default="{ row }">¥{{ row.price }}</template>
+          </el-table-column>
+          <el-table-column prop="work_days" label="工期" width="100">
+            <template #default="{ row }">{{ row.work_days ? `${row.work_days}天` : '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="description" label="说明" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" @click="openTierDialog(row)">编辑</el-button>
+              <el-popconfirm :title="`确定删除「${row.name}」？`" @confirm="removeTier(row)">
+                <template #reference>
+                  <el-button size="small" type="danger">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
 
-    <el-table :data="tiers" v-loading="loading" stripe>
-      <el-table-column :label="$t('tiers.colExample')" width="80">
-        <template #default="{ row }">
-          <el-image
-            v-if="row.example_image" :src="`/uploads/${row.example_image}`"
-            fit="cover" style="width: 56px; height: 56px; border-radius: 6px"
-            :alt="row.name"
-            :preview-src-list="[`/uploads/${row.example_image}`]"
-          />
-          <span v-else style="color: var(--text-muted)">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="name" :label="$t('tiers.colName')" width="120" />
-      <el-table-column prop="price" :label="$t('tiers.colPrice')" width="100">
-        <template #default="{ row }">¥{{ row.price }}</template>
-      </el-table-column>
-      <el-table-column prop="work_days" :label="$t('tiers.colDays')" width="100">
-        <template #default="{ row }">{{ row.work_days ? $t('tiers.daysUnit', { n: row.work_days }) : '-' }}</template>
-      </el-table-column>
-      <el-table-column prop="description" :label="$t('tiers.colDesc')" />
-      <el-table-column :label="$t('common.actions')" width="150" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="openDialog(row)">{{ $t('common.edit') }}</el-button>
-          <el-button size="small" type="danger" @click="remove(row)">{{ $t('common.delete') }}</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+      <!-- 增项 -->
+      <el-tab-pane label="增项" name="addons" lazy>
+        <AddonManager />
+      </el-tab-pane>
 
-    <!-- 编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editingId ? $t('tiers.editTitle') : $t('tiers.addTitle')" width="450px">
-      <el-form :model="form" label-position="top">
-        <el-form-item :label="$t('tiers.nameLabel')" required>
-          <el-input v-model="form.name" :placeholder="$t('tiers.namePlaceholder')" />
+      <!-- 倍率 -->
+      <el-tab-pane label="倍率" name="multipliers" lazy>
+        <MultiplierManager />
+      </el-tab-pane>
+
+      <!-- 流程与比例 -->
+      <el-tab-pane label="流程与比例" name="workflow" lazy>
+        <WorkflowPaymentEditor />
+      </el-tab-pane>
+    </el-tabs>
+
+    <!-- 档位编辑弹窗 -->
+    <el-dialog v-model="tierDialogVisible" :title="editingTierId ? '编辑档位' : '新建档位'" width="450px">
+      <el-form :model="tierForm" label-position="top">
+        <el-form-item label="名称" required>
+          <el-input v-model="tierForm.name" placeholder="如：全身像、Q版立绘" />
         </el-form-item>
-        <el-form-item :label="$t('tiers.priceLabel')" required>
-          <el-input-number v-model="form.price" :min="0" :step="10" style="width: 100%" />
+        <el-form-item label="价格（元）" required>
+          <el-input-number v-model="tierForm.price" :min="0" :step="10" style="width: 100%" />
         </el-form-item>
-        <el-form-item :label="$t('tiers.daysLabel')">
-          <el-input-number v-model="form.workDays" :min="1" :max="90" style="width: 100%" />
+        <el-form-item label="工期（天）">
+          <el-input-number v-model="tierForm.workDays" :min="1" :max="90" style="width: 100%" />
         </el-form-item>
-        <el-form-item :label="$t('tiers.descLabel')">
-          <el-input v-model="form.description" type="textarea" :rows="2" :placeholder="$t('tiers.descPlaceholder')" />
+        <el-form-item label="说明">
+          <el-input v-model="tierForm.description" type="textarea" :rows="2" placeholder="客户可见的描述" />
         </el-form-item>
-        <el-form-item :label="$t('tiers.exampleLabel')">
+        <el-form-item label="示例图">
           <div class="example-upload">
             <el-image
-              v-if="form.exampleImage" :src="`/uploads/${form.exampleImage}`"
+              v-if="tierForm.exampleImage" :src="`/uploads/${tierForm.exampleImage}`"
               fit="cover" class="example-preview"
             />
             <el-upload
               :auto-upload="true" :http-request="uploadExample" :show-file-list="false"
-              accept="image/*" class="example-uploader"
+              accept="image/*"
             >
-              <el-button size="small" :loading="uploading">{{ form.exampleImage ? $t('tiers.changeExample') : $t('tiers.uploadExample') }}</el-button>
+              <el-button size="small" :loading="uploading">{{ tierForm.exampleImage ? '更换' : '上传' }}</el-button>
             </el-upload>
-            <el-button v-if="form.exampleImage" size="small" type="danger" text @click="form.exampleImage = ''">{{ $t('tiers.removeExample') }}</el-button>
+            <el-button v-if="tierForm.exampleImage" size="small" type="danger" text @click="tierForm.exampleImage = ''">移除</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="save" :loading="saving">{{ $t('common.save') }}</el-button>
+        <el-button @click="tierDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveTier" :loading="savingTier">保存</el-button>
       </template>
     </el-dialog>
   </ArtistLayout>
@@ -74,89 +96,91 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import AddonManager from '../../components/artist/AddonManager.vue'
+import MultiplierManager from '../../components/artist/MultiplierManager.vue'
+import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 
-const { t } = useI18n()
+const activeTab = ref('tiers')
+
+// ─── 档位 ───
 const tiers = ref([])
-const loading = ref(true)
-const dialogVisible = ref(false)
-const saving = ref(false)
+const loadingTiers = ref(true)
+const tierDialogVisible = ref(false)
+const savingTier = ref(false)
 const uploading = ref(false)
-const editingId = ref(null)
+const editingTierId = ref(null)
+const tierForm = reactive({ name: '', price: 0, workDays: 7, description: '', exampleImage: '' })
 
-const form = reactive({ name: '', price: 0, workDays: 7, description: '', exampleImage: '' })
-
-function openDialog(row) {
+function openTierDialog(row) {
   if (row) {
-    editingId.value = row.id
-    Object.assign(form, {
+    editingTierId.value = row.id
+    Object.assign(tierForm, {
       name: row.name, price: row.price, workDays: row.work_days,
       description: row.description || '', exampleImage: row.example_image || ''
     })
   } else {
-    editingId.value = null
-    Object.assign(form, { name: '', price: 0, workDays: 7, description: '', exampleImage: '' })
+    editingTierId.value = null
+    Object.assign(tierForm, { name: '', price: 0, workDays: 7, description: '', exampleImage: '' })
   }
-  dialogVisible.value = true
+  tierDialogVisible.value = true
 }
 
 async function uploadExample({ file }) {
   uploading.value = true
   try {
     const uploaded = await uploadApi.image(file)
-    form.exampleImage = uploaded.filePath
-    ElMessage.success(t('tiers.exampleUploaded'))
+    tierForm.exampleImage = uploaded.filePath
+    ElMessage.success('已上传')
   } catch (err) {
-    ElMessage.error(err.message || t('common.uploadFailed'))
+    ElMessage.error(err.message)
   } finally {
     uploading.value = false
   }
 }
 
-async function save() {
-  if (!form.name) return ElMessage.warning(t('tiers.fillName'))
-  saving.value = true
+async function saveTier() {
+  if (!tierForm.name.trim()) return ElMessage.warning('请输入名称')
+  savingTier.value = true
   try {
-    if (editingId.value) {
-      await artistApi.updateTier(editingId.value, {
-        name: form.name, price: form.price, workDays: form.workDays,
-        description: form.description, exampleImage: form.exampleImage || null
-      })
-    } else {
-      await artistApi.createTier({
-        name: form.name, price: form.price, workDays: form.workDays,
-        description: form.description, exampleImage: form.exampleImage || null
-      })
+    const payload = {
+      name: tierForm.name, price: tierForm.price, workDays: tierForm.workDays,
+      description: tierForm.description, exampleImage: tierForm.exampleImage || null
     }
-    ElMessage.success(t('common.saved'))
-    dialogVisible.value = false
+    if (editingTierId.value) {
+      await artistApi.updateTier(editingTierId.value, payload)
+    } else {
+      await artistApi.createTier(payload)
+    }
+    ElMessage.success('已保存')
+    tierDialogVisible.value = false
     await loadTiers()
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
-    saving.value = false
+    savingTier.value = false
   }
 }
 
-async function remove(row) {
+async function removeTier(row) {
   try {
-    await ElMessageBox.confirm(t('tiers.confirmDelete', { name: row.name }), t('common.confirmDeleteTitle'), { type: 'warning' })
     await artistApi.deleteTier(row.id)
-    ElMessage.success(t('common.deleted'))
+    ElMessage.success('已删除')
     await loadTiers()
-  } catch { /* cancelled */ }
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
 }
 
 async function loadTiers() {
-  loading.value = true
+  loadingTiers.value = true
   try {
     tiers.value = await artistApi.getTiers()
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
-    loading.value = false
+    loadingTiers.value = false
   }
 }
 

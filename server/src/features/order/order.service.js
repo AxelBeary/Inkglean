@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { calculatePrice } from '../pricing/pricing.service.js'
 
 // ============================================
 // 订单服务 - 核心业务逻辑
@@ -45,8 +46,9 @@ export function generateOrderNo(artistId, artistCode) {
 /**
  * 创建订单（客户自助 或 画师手动录入）
  * 事务包裹，防止订单号竞态
+ * 支持价格计算器：addons + 倍率 → breakdown + 分期
  */
-export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references }) {
+export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, addons, usageMultiplierId, rushMultiplierId }) {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -59,10 +61,31 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     ).get(artistId)
     const queuePosition = (maxPos?.max_pos ?? 0) + 1
 
+    // ─── 价格计算（有 tierId 时） ───
+    let totalPriceCents = null
+    let priceCalc = null
+    if (tierId) {
+      priceCalc = calculatePrice(artistId, {
+        tierId,
+        addons: addons || [],
+        usageMultiplierId: usageMultiplierId || null,
+        rushMultiplierId: rushMultiplierId || null
+      })
+      totalPriceCents = priceCalc.totalPriceCents
+    }
+
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-    `).run(orderNo, artistId, tierId || null, clientQq, clientName || null, description || null, priority || 'medium', source || 'self', clientNotify ? 1 : 0, queuePosition)
+      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      orderNo, artistId, tierId || null, clientQq, clientName || null,
+      description || null, priority || 'medium', source || 'self',
+      clientNotify ? 1 : 0, queuePosition,
+      priceCalc ? priceCalc.basePrice : null,
+      totalPriceCents,
+      usageMultiplierId || null,
+      rushMultiplierId || null
+    )
 
     const orderId = result.lastInsertRowid
 
@@ -74,14 +97,24 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       }
     }
 
-    // N0-1: 创建订单时快照价格
-    // 安全：tierId 必须属于该画师，防止跨画师污染价格快照
-    if (tierId) {
-      const tier = db.prepare('SELECT price FROM price_tiers WHERE id = ? AND artist_id = ?').get(tierId, artistId)
-      if (!tier) {
-        throw new AppError(E.TIER_NOT_FOUND)
-      }
-      db.prepare('UPDATE orders SET price_snapshot = ? WHERE id = ?').run(tier.price, orderId)
+    // ─── 价格明细快照 ───
+    if (priceCalc && priceCalc.breakdown.length > 0) {
+      const insertBd = db.prepare(
+        'INSERT INTO order_price_breakdown (order_id, item_type, item_name, amount_cents, multiplier, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
+      priceCalc.breakdown.forEach((item, i) => {
+        insertBd.run(orderId, item.type, item.name, Math.round(item.amount * 100), item.multiplier, item.quantity, i)
+      })
+    }
+
+    // ─── 生成分期计划 ───
+    if (priceCalc && priceCalc.installments.length > 0) {
+      const insertInst = db.prepare(
+        'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
+      )
+      priceCalc.installments.forEach((inst, i) => {
+        insertInst.run(orderId, inst.label, inst.basisPoints, Math.round(inst.amount * 100), i)
+      })
     }
 
     return getOrder(orderId)

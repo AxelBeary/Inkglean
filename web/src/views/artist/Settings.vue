@@ -70,6 +70,31 @@
               </div>
             </div>
           </div>
+
+          <p class="template-label" style="margin-top: 24px">{{ $t('templates.palette') }}</p>
+          <p class="form-hint" style="margin-bottom: 12px">{{ $t('templates.paletteHint') }}</p>
+          <div class="palette-grid">
+            <div
+              v-for="pal in palettes"
+              :key="pal.id"
+              class="palette-card"
+              :class="{ active: form.palette_id === pal.id }"
+              @click="form.palette_id = pal.id"
+              tabindex="0"
+              role="button"
+              @keyup.enter="form.palette_id = pal.id"
+            >
+              <div class="palette-swatch">
+                <span class="swatch-light" :style="{ background: pal.light }"></span>
+                <span class="swatch-dark" :style="{ background: pal.dark }"></span>
+              </div>
+              <div class="template-info">
+                <div class="template-name">{{ pal.name }}</div>
+                <div class="template-desc">{{ pal.desc }}</div>
+              </div>
+            </div>
+          </div>
+
           <el-button type="primary" @click="save" :loading="saving" style="margin-top: 20px">{{ $t('settings.save') }}</el-button>
         </el-card>
       </el-tab-pane>
@@ -115,13 +140,21 @@ const form = reactive({
   name: '', bio: '', status: 'open',
   weibo_url: '', bilibili_url: '', contact_qq: '',
   notify_enabled: 1, artist_code: '',
-  template_id: 'default'
+  template_id: 'classic',
+  palette_id: 'paper'
 })
 
 const templates = computed(() => [
-  { id: 'default',       name: t('templates.default'),       desc: t('templates.defaultDesc'),       preview: '📋 ☀️' },
-  { id: 'dark-gallery',  name: t('templates.darkGallery'),   desc: t('templates.darkGalleryDesc'),   preview: '🖼 🌙' },
-  { id: 'single-page',   name: t('templates.singlePage'),    desc: t('templates.singlePageDesc'),    preview: '📄 ✨' }
+  { id: 'classic', name: t('templates.classic'), desc: t('templates.classicDesc'), preview: '🖼 ☀️' },
+  { id: 'gallery', name: t('templates.gallery'), desc: t('templates.galleryDesc'), preview: '🏛 🌙' },
+  { id: 'folio',   name: t('templates.folio'),   desc: t('templates.folioDesc'),   preview: '📄 ✨' }
+])
+
+const palettes = computed(() => [
+  { id: 'paper', name: t('templates.palettePaper'), desc: t('templates.palettePaperDesc'), light: '#faf8f5', dark: '#1c1a17' },
+  { id: 'ink',   name: t('templates.paletteInk'),   desc: t('templates.paletteInkDesc'),   light: '#f4f4f2', dark: '#0e0e0e' },
+  { id: 'dusk',  name: t('templates.paletteDusk'),  desc: t('templates.paletteDuskDesc'),  light: '#eef1f6', dark: '#121a26' },
+  { id: 'moss',  name: t('templates.paletteMoss'),  desc: t('templates.paletteMossDesc'),  light: '#f0f4ee', dark: '#131c13' }
 ])
 
 const embedCode = computed(() =>
@@ -140,9 +173,9 @@ async function copyEmbedCode() {
 async function save() {
   saving.value = true
   try {
-    // P1-D: 只提交 template_id，其他字段由 profile tab 的 save 提交
+    // P1-D: 只提交 template_id + palette_id，其他字段由 profile tab 的 save 提交
     if (activeTab.value === 'template') {
-      await artistApi.updateProfile({ template_id: form.template_id })
+      await artistApi.updateProfile({ template_id: form.template_id, palette_id: form.palette_id })
     } else if (activeTab.value === 'embed') {
       // 嵌入脚本 tab 没有需要保存的设置
     } else {
@@ -161,12 +194,16 @@ async function save() {
 onMounted(async () => {
   try {
     const profile = await artistApi.getProfile()
+    // 旧模板 ID 映射到新布局 ID，确保选择器正确高亮
+    const LEGACY = { 'default': 'classic', 'dark-gallery': 'gallery', 'single-page': 'folio' }
+    const rawTpl = profile.template_id || 'classic'
     Object.assign(form, {
       name: profile.name, bio: profile.bio || '', status: profile.status,
       weibo_url: profile.weibo_url || '', bilibili_url: profile.bilibili_url || '',
       contact_qq: profile.contact_qq || '', notify_enabled: profile.notify_enabled,
       artist_code: profile.artist_code || '',
-      template_id: profile.template_id || 'default',
+      template_id: LEGACY[rawTpl] || rawTpl,
+      palette_id: profile.palette_id || 'paper',
       subdomain: profile.subdomain || ''
     })
   } catch (err) { ElMessage.error(err.message) }
@@ -192,6 +229,16 @@ onMounted(async () => {
 .template-info { padding: 12px; }
 .template-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
 .template-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+
+.palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+.palette-card {
+  cursor: pointer; border: 2px solid var(--border-color); border-radius: 8px;
+  overflow: hidden; transition: all 0.2s; background: var(--bg-card);
+}
+.palette-card:hover { border-color: var(--el-color-primary-light-5); }
+.palette-card.active { border-color: var(--el-color-primary); box-shadow: 0 0 0 1px var(--el-color-primary); }
+.palette-swatch { height: 56px; display: flex; }
+.swatch-light, .swatch-dark { flex: 1; }
 
 .embed-code-box {
   background: var(--bg-inset); border: 1px solid var(--border-color);
