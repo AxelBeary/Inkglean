@@ -1,87 +1,133 @@
 <template>
   <div class="artist-layout">
     <el-container style="min-height: 100vh">
-      <!-- 侧边栏 -->
-      <el-aside width="220px" class="sidebar">
-        <!-- Logo -->
+      <!-- 侧边栏（R21: 可折叠，移动端隐藏） -->
+      <el-aside v-show="!isMobile" :width="asideWidth" class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
+        <!-- Logo + 折叠按钮 -->
         <div class="logo">
           <img :src="logoUrl" alt="绘约" class="logo-img" />
-          <span class="logo-text font-display">{{ $t('menu.logo') }}</span>
+          <span v-show="!collapsed" class="logo-text font-display">{{ $t('menu.logo') }}</span>
+          <button
+            class="collapse-btn"
+            :title="collapsed ? $t('menu.expand') : $t('menu.collapse')"
+            :aria-label="collapsed ? $t('menu.expand') : $t('menu.collapse')"
+            @click="toggleCollapse"
+          >
+            <el-icon><Expand v-if="collapsed" /><Fold v-else /></el-icon>
+          </button>
         </div>
 
-        <!-- 菜单 -->
-        <el-menu :default-active="activeMenu" router class="sidebar-menu">
-          <el-menu-item index="/dashboard">
-            <el-icon><Odometer /></el-icon>
-            <span>{{ $t('menu.dashboard') }}</span>
-          </el-menu-item>
-          <el-menu-item index="/queue">
-            <el-icon><List /></el-icon>
-            <span>{{ $t('menu.queue') }}</span>
-          </el-menu-item>
-          <el-menu-item index="/orders">
-            <el-icon><Box /></el-icon>
-            <span>{{ $t('menu.orders') }}</span>
-          </el-menu-item>
-          <el-menu-item index="/manual-order">
-            <el-icon><EditPen /></el-icon>
-            <span>{{ $t('menu.manualOrder') }}</span>
-          </el-menu-item>
-          <el-menu-item index="/tiers">
-            <el-icon><Money /></el-icon>
-            <span>{{ $t('menu.tiers') }}</span>
-          </el-menu-item>
-          <el-menu-item index="/artworks">
-            <el-icon><Picture /></el-icon>
-            <span>{{ $t('menu.artworks') }}</span>
-          </el-menu-item>
-          <el-menu-item index="/rules">
-            <el-icon><Document /></el-icon>
-            <span>{{ $t('menu.rules') }}</span>
-          </el-menu-item>
-          <el-menu-item index="/settings">
-            <el-icon><Setting /></el-icon>
-            <span>{{ $t('menu.settings') }}</span>
+        <!-- 菜单（R21: collapse 模式图标化，悬停 tooltip 显示文字） -->
+        <el-menu :default-active="activeMenu" :collapse="collapsed" router class="sidebar-menu">
+          <el-menu-item v-for="item in MENU_ITEMS" :key="item.index" :index="item.index">
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ $t(item.labelKey) }}</span>
           </el-menu-item>
         </el-menu>
 
         <!-- 底部：身份区 + 偏好 -->
         <div class="sidebar-footer">
-          <div class="identity">
-            <div class="avatar" :style="{ background: accentColor }">
-              {{ avatarChar }}
+          <!-- 展开态：完整身份区 -->
+          <template v-if="!collapsed">
+            <div class="identity">
+              <div class="avatar" :style="{ background: accentColor }">
+                {{ avatarChar }}
+              </div>
+              <div class="identity-info">
+                <span class="identity-name">{{ store.artistName }}</span>
+                <span class="identity-status">
+                  <i class="status-dot" :class="statusClass"></i>
+                  {{ $t(`common.statusShort.${store.profile?.status || 'open'}`) }}
+                </span>
+              </div>
             </div>
-            <div class="identity-info">
-              <span class="identity-name">{{ store.artistName }}</span>
-              <span class="identity-status">
-                <i class="status-dot" :class="statusClass"></i>
-                {{ $t(`common.statusShort.${store.profile?.status || 'open'}`) }}
-              </span>
+            <div class="footer-actions">
+              <ThemePicker />
+              <el-button text size="small" @click="logout" class="logout-btn">
+                {{ $t('menu.logout') }}
+              </el-button>
             </div>
-          </div>
-          <div class="footer-actions">
-            <ThemePicker />
-            <el-button text size="small" @click="logout" class="logout-btn">
-              {{ $t('menu.logout') }}
-            </el-button>
-          </div>
+          </template>
+          <!-- R21 折叠态：头像图标化，状态/登出收入 tooltip -->
+          <template v-else>
+            <el-tooltip placement="right" effect="light" :hide-after="200">
+              <template #content>
+                <div class="identity-tooltip">
+                  <strong class="identity-tooltip-name">{{ store.artistName }}</strong>
+                  <span class="identity-status">
+                    <i class="status-dot" :class="statusClass"></i>
+                    {{ $t(`common.statusShort.${store.profile?.status || 'open'}`) }}
+                  </span>
+                  <el-button text size="small" type="danger" @click="logout">
+                    {{ $t('menu.logout') }}
+                  </el-button>
+                </div>
+              </template>
+              <div class="avatar avatar--mini" :style="{ background: accentColor }">
+                {{ avatarChar }}
+              </div>
+            </el-tooltip>
+          </template>
         </div>
       </el-aside>
 
       <!-- 主内容区 -->
       <el-main class="main-content">
+        <!-- R21: 移动端汉堡按钮（≤600px 侧边栏隐藏后唤出抽屉） -->
+        <button
+          v-if="isMobile"
+          class="mobile-menu-btn"
+          :aria-label="$t('menu.openMenu')"
+          @click="drawerVisible = true"
+        >
+          <el-icon :size="20"><Operation /></el-icon>
+        </button>
         <slot />
       </el-main>
     </el-container>
+
+    <!-- R21: 移动端抽屉导航 -->
+    <el-drawer v-model="drawerVisible" direction="ltr" size="260px" :show-close="false" class="mobile-drawer">
+      <template #header>
+        <div class="drawer-header">
+          <img :src="logoUrl" alt="绘约" class="logo-img" />
+          <span class="logo-text font-display">{{ $t('menu.logo') }}</span>
+        </div>
+      </template>
+      <el-menu :default-active="activeMenu" router class="drawer-menu" @select="drawerVisible = false">
+        <el-menu-item v-for="item in MENU_ITEMS" :key="item.index" :index="item.index">
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>{{ $t(item.labelKey) }}</span>
+        </el-menu-item>
+      </el-menu>
+      <div class="drawer-footer">
+        <div class="identity">
+          <div class="avatar" :style="{ background: accentColor }">{{ avatarChar }}</div>
+          <div class="identity-info">
+            <span class="identity-name">{{ store.artistName }}</span>
+            <span class="identity-status">
+              <i class="status-dot" :class="statusClass"></i>
+              {{ $t(`common.statusShort.${store.profile?.status || 'open'}`) }}
+            </span>
+          </div>
+        </div>
+        <div class="footer-actions">
+          <ThemePicker />
+          <el-button text size="small" @click="logout" class="logout-btn">
+            {{ $t('menu.logout') }}
+          </el-button>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
-import { Odometer, List, Box, EditPen, Money, Picture, Document, Setting } from '@element-plus/icons-vue'
+import { Odometer, List, Box, EditPen, Money, Picture, Document, Setting, Expand, Fold, Operation } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -92,6 +138,55 @@ const themeStore = useThemeStore()
 
 const activeMenu = computed(() => route.path)
 
+// ─── R21: 菜单项注册表（侧边栏与抽屉共用） ───
+const MENU_ITEMS = [
+  { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard' },
+  { index: '/queue', icon: List, labelKey: 'menu.queue' },
+  { index: '/orders', icon: Box, labelKey: 'menu.orders' },
+  { index: '/manual-order', icon: EditPen, labelKey: 'menu.manualOrder' },
+  { index: '/tiers', icon: Money, labelKey: 'menu.tiers' },
+  { index: '/artworks', icon: Picture, labelKey: 'menu.artworks' },
+  { index: '/rules', icon: Document, labelKey: 'menu.rules' },
+  { index: '/settings', icon: Setting, labelKey: 'menu.settings' }
+]
+
+// ─── R21: 折叠状态管理 ───
+const SIDEBAR_KEY = 'sidebar_collapsed'
+/** 用户手动折叠偏好（localStorage 持久化，桌面默认展开） */
+const userCollapsed = ref(localStorage.getItem(SIDEBAR_KEY) === '1')
+/** ≤900px 窄屏（自动收起为图标窄条） */
+const isNarrow = ref(window.matchMedia('(max-width: 900px)').matches)
+/** ≤600px 移动端（侧边栏完全隐藏，汉堡按钮 + 抽屉） */
+const isMobile = ref(window.matchMedia('(max-width: 600px)').matches)
+const drawerVisible = ref(false)
+
+const mqNarrow = window.matchMedia('(max-width: 900px)')
+const mqMobile = window.matchMedia('(max-width: 600px)')
+function onNarrowChange(e) { isNarrow.value = e.matches }
+function onMobileChange(e) { isMobile.value = e.matches }
+
+onMounted(() => {
+  mqNarrow.addEventListener('change', onNarrowChange)
+  mqMobile.addEventListener('change', onMobileChange)
+})
+onUnmounted(() => {
+  mqNarrow.removeEventListener('change', onNarrowChange)
+  mqMobile.removeEventListener('change', onMobileChange)
+})
+
+// 窗口变宽时自动关闭抽屉
+watch(isMobile, (mobile) => { if (!mobile) drawerVisible.value = false })
+
+/** 实际折叠状态：窄屏强制折叠，否则尊重用户偏好 */
+const collapsed = computed(() => isNarrow.value || userCollapsed.value)
+const asideWidth = computed(() => collapsed.value ? '64px' : '220px')
+
+function toggleCollapse() {
+  userCollapsed.value = !userCollapsed.value
+  localStorage.setItem(SIDEBAR_KEY, userCollapsed.value ? '1' : '0')
+}
+
+// ─── 原有逻辑 ───
 const ACCENT_COLORS = { '1': '#34dbcb', '2': '#34c2db', '3': '#3498db', '4': '#346edb', '5': '#3445db' }
 const accentColor = computed(() => ACCENT_COLORS[themeStore.accent] || '#34dbcb')
 
@@ -114,7 +209,8 @@ function logout() {
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  transition: background 0.3s, border-color 0.3s;
+  overflow: hidden;
+  transition: width 0.2s ease, background 0.3s, border-color 0.3s;
 }
 
 /* Logo */
@@ -124,18 +220,37 @@ function logout() {
   align-items: center;
   gap: 10px;
 }
+.sidebar--collapsed .logo {
+  flex-direction: column;
+  padding: 16px 8px;
+  gap: 8px;
+}
 .logo-img {
   width: 36px; height: 36px;
   border-radius: 50%;
   object-fit: cover;
   box-shadow: 0 0 0 1px var(--border-color);
+  flex-shrink: 0;
 }
 .logo-text {
   font-size: 18px;
   font-weight: 400;
   color: var(--text-primary);
   letter-spacing: 0.1em;
+  white-space: nowrap;
 }
+/* R21: 折叠按钮 */
+.collapse-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border: none; border-radius: 6px;
+  background: transparent; color: var(--text-secondary);
+  cursor: pointer; flex-shrink: 0;
+  margin-left: auto;
+  transition: background 0.15s, color 0.15s;
+}
+.collapse-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sidebar--collapsed .collapse-btn { margin-left: 0; }
 
 /* 菜单 */
 .sidebar-menu {
@@ -145,6 +260,8 @@ function logout() {
   --el-menu-active-color: var(--color-primary);
   --el-menu-hover-bg-color: var(--bg-hover);
 }
+/* 展开态撑满 220px；折叠态 el-menu 原生 64px */
+.sidebar-menu:not(.el-menu--collapse) { width: 220px; }
 .sidebar-menu .el-menu-item {
   height: 44px;
   line-height: 44px;
@@ -176,6 +293,11 @@ function logout() {
   flex-direction: column;
   gap: 10px;
 }
+/* R21: 折叠态底部居中 */
+.sidebar--collapsed .sidebar-footer {
+  align-items: center;
+  padding: 12px 8px;
+}
 .identity {
   display: flex;
   align-items: center;
@@ -190,6 +312,14 @@ function logout() {
   font-weight: 700;
   flex-shrink: 0;
 }
+/* R21: 折叠态头像（可悬停查看身份） */
+.avatar--mini { cursor: pointer; transition: transform 0.15s; }
+.avatar--mini:hover { transform: scale(1.1); }
+.identity-tooltip {
+  display: flex; flex-direction: column;
+  align-items: flex-start; gap: 6px;
+}
+.identity-tooltip-name { font-size: 13px; }
 .identity-info {
   display: flex;
   flex-direction: column;
@@ -231,5 +361,46 @@ function logout() {
   background: var(--bg-page);
   padding: 24px;
   transition: background 0.3s;
+}
+
+/* R21: 移动端汉堡按钮 */
+.mobile-menu-btn {
+  position: fixed;
+  top: 12px; left: 12px;
+  z-index: 100;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.15s, background 0.3s;
+}
+.mobile-menu-btn:hover { box-shadow: var(--shadow-card-hover); }
+@media (max-width: 600px) {
+  .main-content { padding-top: 64px; }
+}
+
+/* R21: 移动端抽屉 */
+.mobile-drawer :deep(.el-drawer__body) {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.drawer-header { display: flex; align-items: center; gap: 10px; }
+.drawer-menu {
+  border-right: none;
+  flex: 1;
+  --el-menu-active-color: var(--color-primary);
+  --el-menu-hover-bg-color: var(--bg-hover);
+}
+.drawer-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 </style>

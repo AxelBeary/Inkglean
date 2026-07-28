@@ -106,7 +106,8 @@ export default {
   menu: {
     logo: 'HuiYue', dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
     manualOrder: 'Manual Entry', tiers: 'Pricing', artworks: 'Portfolio',
-    rules: 'Guidelines', settings: 'Page Settings', logout: 'Log out'
+    rules: 'Guidelines', settings: 'Page Settings', logout: 'Log out',
+    collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu'
   },
   landing: {
     title: '🎨 Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',

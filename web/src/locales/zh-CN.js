@@ -106,7 +106,8 @@ export default {
   menu: {
     logo: '绘约', dashboard: '仪表盘', queue: '排期看板', orders: '订单管理',
     manualOrder: '手动录单', tiers: '价格管理', artworks: '作品管理',
-    rules: '须知编辑', settings: '主页设置', logout: '退出登录'
+    rules: '须知编辑', settings: '主页设置', logout: '退出登录',
+    collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单'
   },
   landing: {
     title: '🎨 画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
