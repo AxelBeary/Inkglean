@@ -13,81 +13,99 @@
             </el-select>
           </el-form-item>
 
-          <!-- 增项选择（选完档位后出现） -->
-          <el-form-item v-if="form.tierId && availableAddons.length > 0" label="可选增项">
-            <div class="addon-groups">
-              <div v-for="group in addonGroups" :key="group.category" class="addon-group">
-                <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
-                  <span>{{ group.icon }} {{ group.label }}</span>
-                  <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
-                </div>
-                <div v-show="!group.collapsed" class="addon-items">
-                  <div v-for="a in group.items" :key="a.id" class="addon-item">
-                    <div class="addon-item-info">
-                      <span class="addon-item-name">{{ a.name }}</span>
-                      <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
-                      <span v-if="a.description" class="addon-item-desc">{{ a.description }}</span>
+          <!-- R14: 紧凑计价摘要（选完档位后先显示基础价，详细计价渐进展开） -->
+          <div v-if="form.tierId && selectedTier" class="pricing-summary">
+            <span class="pricing-summary-name">{{ selectedTier.name }}</span>
+            <span class="pricing-summary-price">¥{{ selectedTier.price }}</span>
+            <button
+              v-if="hasPricingExtras"
+              type="button"
+              class="pricing-expand-btn"
+              @click="pricingExpanded = !pricingExpanded"
+            >
+              {{ $t('orderForm.pricingDetail') }} {{ pricingExpanded ? '▾' : '▸' }}
+            </button>
+          </div>
+
+          <!-- 增项选择（R14: 展开后才显示） -->
+          <Transition name="pricing-expand">
+            <div v-if="pricingExpanded && form.tierId">
+              <el-form-item v-if="availableAddons.length > 0" label="可选增项">
+                <div class="addon-groups">
+                  <div v-for="group in addonGroups" :key="group.category" class="addon-group">
+                    <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
+                      <span>{{ group.icon }} {{ group.label }}</span>
+                      <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
                     </div>
-                    <!-- 数量模式 -->
-                    <el-input-number
-                      v-if="a.select_mode === 'quantity'"
-                      v-model="addonSelections[a.id]"
-                      :min="0" :max="a.max_qty" size="small" style="width: 110px"
-                    />
-                    <!-- 开关模式 -->
-                    <el-switch
-                      v-else-if="a.select_mode === 'toggle'"
-                      v-model="addonToggles[a.id]" size="small"
-                    />
-                    <!-- 面议模式 -->
-                    <el-tag v-else size="small" type="warning">面议</el-tag>
+                    <div v-show="!group.collapsed" class="addon-items">
+                      <div v-for="a in group.items" :key="a.id" class="addon-item">
+                        <div class="addon-item-info">
+                          <span class="addon-item-name">{{ a.name }}</span>
+                          <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
+                          <span v-if="a.description" class="addon-item-desc">{{ a.description }}</span>
+                        </div>
+                        <!-- 数量模式 -->
+                        <el-input-number
+                          v-if="a.select_mode === 'quantity'"
+                          v-model="addonSelections[a.id]"
+                          :min="0" :max="a.max_qty" size="small" style="width: 110px"
+                        />
+                        <!-- 开关模式 -->
+                        <el-switch
+                          v-else-if="a.select_mode === 'toggle'"
+                          v-model="addonToggles[a.id]" size="small"
+                        />
+                        <!-- 面议模式 -->
+                        <el-tag v-else size="small" type="warning">面议</el-tag>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </el-form-item>
+              </el-form-item>
 
-          <!-- 倍率选择 -->
-          <el-form-item v-if="form.tierId && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" label="用途与加急">
-            <div class="multiplier-section">
-              <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-                <span class="multiplier-label">用途：</span>
-                <el-radio-group v-model="form.usageMultiplierId" size="small">
-                  <el-radio-button :value="null">个人</el-radio-button>
-                  <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
-                    {{ m.name }} ×{{ m.multiplier }}
-                  </el-radio-button>
-                </el-radio-group>
-              </div>
-              <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-                <span class="multiplier-label">加急：</span>
-                <el-radio-group v-model="form.rushMultiplierId" size="small">
-                  <el-radio-button :value="null">不加急</el-radio-button>
-                  <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
-                    {{ m.name }} ×{{ m.multiplier }}
-                  </el-radio-button>
-                </el-radio-group>
-              </div>
-            </div>
-          </el-form-item>
+              <!-- 倍率选择 -->
+              <el-form-item v-if="usageMultipliers.length > 0 || rushMultipliers.length > 0" label="用途与加急">
+                <div class="multiplier-section">
+                  <div v-if="usageMultipliers.length > 0" class="multiplier-row">
+                    <span class="multiplier-label">用途：</span>
+                    <el-radio-group v-model="form.usageMultiplierId" size="small">
+                      <el-radio-button :value="null">个人</el-radio-button>
+                      <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
+                        {{ m.name }} ×{{ m.multiplier }}
+                      </el-radio-button>
+                    </el-radio-group>
+                  </div>
+                  <div v-if="rushMultipliers.length > 0" class="multiplier-row">
+                    <span class="multiplier-label">加急：</span>
+                    <el-radio-group v-model="form.rushMultiplierId" size="small">
+                      <el-radio-button :value="null">不加急</el-radio-button>
+                      <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
+                        {{ m.name }} ×{{ m.multiplier }}
+                      </el-radio-button>
+                    </el-radio-group>
+                  </div>
+                </div>
+              </el-form-item>
 
-          <!-- 实时价格预览 -->
-          <div v-if="form.tierId && pricePreview" class="price-preview">
-            <div class="price-line" v-for="item in pricePreview.breakdown" :key="item.name">
-              <span>{{ item.name }}</span>
-              <span class="price-amount">¥{{ item.amount.toFixed(2) }}</span>
+              <!-- 实时价格预览（R14: 展开后才显示） -->
+              <div v-if="form.tierId && pricePreview" class="price-preview">
+                <div class="price-line" v-for="item in pricePreview.breakdown" :key="item.name">
+                  <span>{{ item.name }}</span>
+                  <span class="price-amount">¥{{ item.amount.toFixed(2) }}</span>
+                </div>
+                <div class="price-divider"></div>
+                <div class="price-line total">
+                  <span>总价</span>
+                  <span class="price-amount">¥{{ pricePreview.totalPrice.toFixed(2) }}</span>
+                </div>
+                <div v-if="pricePreview.installments.length > 1" class="installment-row">
+                  <span v-for="inst in pricePreview.installments" :key="inst.label" class="installment-chip">
+                    {{ inst.label }} ¥{{ inst.amount.toFixed(2) }}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div class="price-divider"></div>
-            <div class="price-line total">
-              <span>总价</span>
-              <span class="price-amount">¥{{ pricePreview.totalPrice.toFixed(2) }}</span>
-            </div>
-            <div v-if="pricePreview.installments.length > 1" class="installment-row">
-              <span v-for="inst in pricePreview.installments" :key="inst.label" class="installment-chip">
-                {{ inst.label }} ¥{{ inst.amount.toFixed(2) }}
-              </span>
-            </div>
-          </div>
+          </Transition>
 
           <!-- 流程与收款预览（R1: 保持原位，增加修改说明告示） -->
           <el-form-item v-if="workflowStages.length || artist?.revisionNote" :label="$t('orderForm.workflowLabel')">
@@ -212,6 +230,14 @@ const pricingData = ref(null) // { tiers, multipliers, installments }
 const addonSelections = reactive({}) // addonId → quantity
 const addonToggles = reactive({})    // addonId → boolean
 const pricePreview = ref(null)
+const pricingExpanded = ref(false)   // R14: 详细计价展开状态
+
+// R14: 当前选中档位（摘要行用）
+const selectedTier = computed(() => tiers.value.find(t => t.id === form.tierId) || null)
+// R14: 有增项或倍率时才显示"详细计价"入口
+const hasPricingExtras = computed(() =>
+  availableAddons.value.length > 0 || usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0
+)
 
 const sanitizedRules = computed(() => sanitizeHtml(rulesContent.value))
 
@@ -285,6 +311,7 @@ function onTierChange() {
   form.usageMultiplierId = null
   form.rushMultiplierId = null
   pricePreview.value = null
+  pricingExpanded.value = false // R14: 切换档位重置展开状态
 }
 
 // ─── 实时价格计算（防抖） ───
@@ -457,6 +484,24 @@ onMounted(async () => {
 .page-prefs { position: absolute; top: 16px; right: 16px; z-index: 10; }
 .form-container { max-width: 600px; margin: 0 auto; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+/* R14: 紧凑计价摘要 + 渐进展开 */
+.pricing-summary {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; margin-bottom: 12px;
+  background: var(--bg-inset); border: 1px solid var(--border-color); border-radius: 8px;
+}
+.pricing-summary-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.pricing-summary-price { font-size: 16px; font-weight: 700; color: var(--el-color-primary); }
+.pricing-expand-btn {
+  margin-left: auto; padding: 4px 10px;
+  background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.pricing-expand-btn:hover { color: var(--el-color-primary); border-color: var(--el-color-primary); }
+.pricing-expand-enter-active, .pricing-expand-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.pricing-expand-enter-from, .pricing-expand-leave-to { opacity: 0; transform: translateY(-8px); }
 .rules-preview { max-height: 200px; overflow-y: auto; }
 .rules-html { line-height: 1.8; color: var(--text-primary); }
 

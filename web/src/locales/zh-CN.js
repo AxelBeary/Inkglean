@@ -130,6 +130,7 @@ export default {
     workflowLabel: '约稿流程',
     descLabel: '需求描述', descPlaceholder: '描述你想要的画面：角色特征、姿势、风格、背景等',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
+    pricingDetail: '详细计价',
     qqLabel: '你的QQ号', qqPlaceholder: '画师会通过QQ联系你',
     nameLabel: '昵称（可选）', namePlaceholder: '怎么称呼你',
     notifyLabel: '📩 排到我的时候通过QQ通知我', agreeLabel: '✋ 我已阅读并同意以上约稿须知',
@@ -184,12 +185,14 @@ export default {
     confirm: '✅ 确认', startWip: '🎨 开始制作', done: '✔ 完成', deliver: '📦 交付', cancel: '❌ 取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
     confirmCancel: '确定取消订单 #{no}？', confirmCancelTitle: '确认取消', statusUpdated: '状态已更新',
-    dragHint: '拖拽排序'
+    dragHint: '拖拽排序',
+    focusDisplay: '焦点图显示', focusOff: '关', focusSmall: '小', focusLarge: '大'
   },
   orderList: {
     title: '📦 订单管理', all: '全部',
     colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
-    colPriority: '优先级', colStatus: '状态', colSource: '来源', colTime: '下单时间', colActions: '操作'
+    colPriority: '优先级', colStatus: '状态', colSource: '来源', colTime: '下单时间', colActions: '操作',
+    colImage: '图片'
   },
   orderDetail: {
     backToQueue: '返回排期看板', backToList: '返回订单列表', orderNo: '订单 #',
@@ -207,7 +210,8 @@ export default {
     noReferences: '暂无参考图', setFocus: '设为焦点图', focusSelected: '✓ 焦点图',
     focusMode: '排期看板显示', focusOff: '关', focusSmall: '小', focusLarge: '大',
     focusUpdated: '焦点图已更新', focusSelectFirst: '请先选择一张参考图作为焦点图',
-    deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除'
+    deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
+    focusHint: '显示尺寸在排期看板工具栏统一设置'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
