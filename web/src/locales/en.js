@@ -206,7 +206,8 @@ export default {
     fileTooLarge: 'File too large (max 50MB)', referenceImage: 'Reference image',
     noReferences: 'No reference images', setFocus: 'Set as focus', focusSelected: '✓ Focus',
     focusMode: 'Queue board display', focusOff: 'Off', focusSmall: 'Small', focusLarge: 'Large',
-    focusUpdated: 'Focus image updated', focusSelectFirst: 'Select a reference image as focus first'
+    focusUpdated: 'Focus image updated', focusSelectFirst: 'Select a reference image as focus first',
+    deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',

@@ -58,12 +58,21 @@
               v-for="(reference, index) in order.references" :key="reference.id"
               class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
             >
-              <el-image
-                :src="reference.url" fit="cover" class="ref-img"
-                :alt="$t('orderDetail.referenceImage')"
-                :preview-src-list="order.references.map(r => r.url)"
-                :initial-index="index"
-              />
+              <div class="ref-img-wrap">
+                <el-image
+                  :src="reference.url" fit="cover" class="ref-img"
+                  :alt="$t('orderDetail.referenceImage')"
+                  :preview-src-list="order.references.map(r => r.url)"
+                  :initial-index="index"
+                />
+                <el-button
+                  class="ref-delete-btn" type="danger" size="small" circle
+                  :title="$t('orderDetail.deleteRef')"
+                  @click="deleteReference(reference)"
+                >
+                  ✕
+                </el-button>
+              </div>
               <el-button
                 size="small" class="ref-focus-btn"
                 :type="order.focus_image_path === reference.file_path ? 'primary' : 'default'"
@@ -257,6 +266,24 @@ function openFile(url) {
   window.open(url, '_blank', 'noopener')
 }
 
+// UI-1: 删除参考图（悬停显示，确认后删除，焦点图由后端自动清理）
+async function deleteReference(reference) {
+  try {
+    await ElMessageBox.confirm(
+      t('orderDetail.deleteRefConfirm'),
+      t('orderDetail.confirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  try {
+    await artistApi.deleteReference(route.params.id, reference.id)
+    await loadOrder()
+    ElMessage.success(t('orderDetail.deleteRefSuccess'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
 function handleDeliverFile(file) {
   // P2-12: 前端校验文件类型和大小
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
@@ -311,7 +338,13 @@ onMounted(loadOrder)
 .ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 .ref-item { display: flex; flex-direction: column; gap: 4px; }
 .ref-item--focus .ref-img { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
-.ref-img { height: 120px; width: 100%; border-radius: 6px; }
+.ref-img-wrap { position: relative; }
+.ref-img { height: 120px; width: 100%; border-radius: 6px; display: block; }
+.ref-delete-btn {
+  position: absolute; top: 4px; right: 4px;
+  opacity: 0; transition: opacity 0.15s;
+}
+.ref-img-wrap:hover .ref-delete-btn { opacity: 1; }
 .ref-focus-btn { width: 100%; }
 .no-refs { color: var(--text-secondary); font-size: 13px; margin: 0; }
 .focus-mode-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); }

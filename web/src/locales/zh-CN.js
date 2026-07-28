@@ -206,7 +206,8 @@ export default {
     fileTooLarge: '文件过大（最大 50MB）', referenceImage: '参考图',
     noReferences: '暂无参考图', setFocus: '设为焦点图', focusSelected: '✓ 焦点图',
     focusMode: '排期看板显示', focusOff: '关', focusSmall: '小', focusLarge: '大',
-    focusUpdated: '焦点图已更新', focusSelectFirst: '请先选择一张参考图作为焦点图'
+    focusUpdated: '焦点图已更新', focusSelectFirst: '请先选择一张参考图作为焦点图',
+    deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
