@@ -12,6 +12,13 @@
         <div class="greeting-date">{{ dateLine }}</div>
       </div>
 
+      <!-- R8: 默认面板快捷入口 -->
+      <div class="default-panel-card" @click="$router.push(panelRoute)">
+        <span class="panel-icon">{{ panelIcon }}</span>
+        <span class="panel-text">{{ $t('dashboard.defaultPanel') }}：{{ $t(panelLabelKey) }}</span>
+        <span class="panel-arrow">→</span>
+      </div>
+
       <!-- 统计卡片 -->
       <div class="stat-grid">
         <el-card shadow="hover" class="stat-card">
@@ -67,6 +74,18 @@ const store = useArtistStore()
 const stats = ref(null)
 const currentStatus = ref('open')
 const lastKnownStatus = ref('open') // P1-6: 回滚用
+
+// ─── R8: 默认面板 ───
+const PANEL_MAP = {
+  queue:  { route: '/queue',        icon: '📋', labelKey: 'dashboard.panelQueue' },
+  orders: { route: '/orders',       icon: '📦', labelKey: 'dashboard.panelOrders' },
+  manual: { route: '/manual-order', icon: '✍️', labelKey: 'dashboard.panelManual' },
+  tiers:  { route: '/tiers',        icon: '💰', labelKey: 'dashboard.panelTiers' }
+}
+const defaultPanel = computed(() => store.profile?.dashboard_default_panel || 'queue')
+const panelRoute = computed(() => (PANEL_MAP[defaultPanel.value] || PANEL_MAP.queue).route)
+const panelIcon = computed(() => (PANEL_MAP[defaultPanel.value] || PANEL_MAP.queue).icon)
+const panelLabelKey = computed(() => (PANEL_MAP[defaultPanel.value] || PANEL_MAP.queue).labelKey)
 
 // ─── 问候语 ───
 const greeting = ref({ text: '', slot: 'any' })
@@ -166,4 +185,19 @@ onMounted(async () => {
 .stat-num { font-size: 28px; font-weight: bold; color: var(--color-primary); font-variant-numeric: tabular-nums; }
 .stat-label { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
 .quick-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* R8: 默认面板快捷入口 */
+.default-panel-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px; margin-bottom: 20px;
+  border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-card); cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  user-select: none;
+}
+.default-panel-card:hover { border-color: var(--el-color-primary-light-5); transform: translateY(-1px); }
+.default-panel-card:active { transform: translateY(0); }
+.panel-icon { font-size: 20px; }
+.panel-text { flex: 1; font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.panel-arrow { color: var(--text-muted); font-size: 16px; }
 </style>
