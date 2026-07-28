@@ -64,12 +64,12 @@ describe('认证服务 (Auth Service)', () => {
     expect(result.error).toContain('尝试次数过多')
   })
 
-  // TC-A-06: 验证登录码 — 过期
+  // TC-A-06: 验证登录码 — 过期（P0-4: expires_at 为 Unix 毫秒整数）
   it('TC-A-06: 过期登录码验证失败', () => {
     authService.generateLoginCode('12345')
 
-    // 手动将过期时间改为过去
-    db.prepare("UPDATE login_codes SET expires_at = datetime('now', '-1 hour')").run()
+    // 手动将过期时间改为 1 小时前（Unix 毫秒）
+    db.prepare("UPDATE login_codes SET expires_at = ?").run(Date.now() - 3600000)
 
     const result = authService.verifyLoginCode('12345', '123456')
     expect(result.valid).toBe(false)
@@ -112,5 +112,41 @@ describe('认证服务 (Auth Service)', () => {
     expect(authService.verifySession(null)).toBeNull()
     expect(authService.verifySession('')).toBeNull()
     expect(authService.verifySession('invalid')).toBeNull()
+  })
+
+  // TC-A-11 (P0-3): 失败尝试的 attempts 不被回滚 — 连续输错后计数累加直至锁定
+  it('TC-A-11: 连续输错码 attempts 累加，第6次锁定', () => {
+    authService.generateLoginCode('12345')
+
+    // 连续 5 次错误尝试
+    for (let i = 1; i <= 5; i++) {
+      const r = authService.verifyLoginCode('12345', `00000${i}`)
+      expect(r.valid).toBe(false)
+    }
+
+    // 确认 attempts 已累加到 5（查库验证，非推断）
+    const record = db.prepare('SELECT attempts FROM login_codes WHERE artist_id = ?').get(artist.id)
+    expect(record.attempts).toBe(5)
+
+    // 第 6 次应被锁定（即使码正确也不行）
+    const locked = authService.verifyLoginCode('12345', '000006')
+    expect(locked.valid).toBe(false)
+    expect(locked.error).toContain('尝试次数过多')
+  })
+
+  // TC-A-12 (P0-4): 过期码可被清理 SQL 删除（整数格式）
+  it('TC-A-12: 过期码被清理（Unix 毫秒整数格式）', () => {
+    authService.generateLoginCode('12345')
+
+    // 将 expires_at 设为 1 秒前（已过期）
+    db.prepare("UPDATE login_codes SET expires_at = ?").run(Date.now() - 1000)
+
+    // 执行与 app.js cleanupCodes 相同的清理 SQL
+    const result = db.prepare("DELETE FROM login_codes WHERE expires_at < ?").run(Date.now())
+    expect(result.changes).toBe(1)
+
+    // 确认记录已删除
+    const remaining = db.prepare('SELECT COUNT(*) AS c FROM login_codes').get()
+    expect(remaining.c).toBe(0)
   })
 })

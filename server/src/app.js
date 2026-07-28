@@ -34,7 +34,8 @@ export async function buildApp(opts = {}) {
   // ─── 定时清理过期登录码 ───
   const cleanupCodes = () => {
     try {
-      const result = db.prepare("DELETE FROM login_codes WHERE expires_at < datetime('now')").run()
+      // P0-4 修复：expires_at 为 Unix 毫秒整数，用参数化比较替代 datetime('now')
+      const result = db.prepare("DELETE FROM login_codes WHERE expires_at < ?").run(Date.now())
       if (result.changes > 0) app.log.info(`清理了 ${result.changes} 条过期登录码`)
     } catch { /* 静默失败，不影响服务 */ }
   }

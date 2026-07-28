@@ -49,7 +49,8 @@ export function generateLoginCode(qqNumber) {
   db.prepare('DELETE FROM login_codes WHERE artist_id = ?').run(artist.id)
 
   const code = String(crypto.randomInt(CODE_MIN, CODE_MAX))
-    const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
+  // P0-4 修复：expires_at 统一为 Unix 毫秒整数，消除字符串字典序比较歧义
+  const expiresAt = Date.now() + CODE_TTL_MS
 
   db.prepare('INSERT INTO login_codes (artist_id, code, expires_at) VALUES (?, ?, ?)')
     .run(artist.id, code, expiresAt)
@@ -76,8 +77,8 @@ export function verifyLoginCode(qqNumber, code) {
 
   if (!record) return { valid: false, code: 'CODE_INVALID', error: '请先获取登录码' }
 
-  // 过期检查
-  if (new Date(record.expires_at) < new Date()) {
+  // P0-4 修复：整数比较，与存储格式一致
+  if (record.expires_at < Date.now()) {
     db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
     return { valid: false, code: 'CODE_EXPIRED', error: '登录码已过期，请重新获取' }
   }

@@ -150,23 +150,20 @@ export default async function adminRoutes(fastify) {
       return reply.code(404).send({ error: '该QQ号未注册为画师，请先添加画师' })
     }
 
-    // P1-F: 两次验码 + 更新配置整体包进事务
-    //   任意一步失败 → 事务回滚 → 码不消耗、配置不变
-    try {
-      db.transaction(() => {
-        const currentResult = verifyLoginCode(currentAdminQq, String(currentCode))
-        if (!currentResult.valid) {
-          throw new AppError(E.ADMIN_VERIFY_FAILED, 400, { which: 'current', reason: currentResult.error })
-        }
-        const newResult = verifyLoginCode(String(newQq), String(newCode))
-        if (!newResult.valid) {
-          throw new AppError(E.ADMIN_VERIFY_FAILED, 400, { which: 'new', reason: newResult.error })
-        }
-        db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(String(newQq))
-      })()
-    } catch {
+    // P0-3 修复：验码移出事务 — attempts+1 不被回滚，防爆破计数正常累加
+    // 事务只做配置更新（原子性），验码的副作用（attempts 递增、过期码删除）在事务外生效
+    const currentResult = verifyLoginCode(currentAdminQq, String(currentCode))
+    if (!currentResult.valid) {
       return reply.code(401).send({ error: '验证失败，请确认登录码' })
     }
+    const newResult = verifyLoginCode(String(newQq), String(newCode))
+    if (!newResult.valid) {
+      return reply.code(401).send({ error: '验证失败，请确认登录码' })
+    }
+    // 两次验码均通过，原子更新配置
+    db.transaction(() => {
+      db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(String(newQq))
+    })()
 
     return { success: true, newAdminName: newArtist.name, newAdminQq: String(newQq) }
   })
