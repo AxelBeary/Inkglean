@@ -3,7 +3,7 @@ import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import { resolve, join, relative } from 'path'
-import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync, createReadStream } from 'fs'
+import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync, createReadStream, mkdirSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
@@ -134,6 +134,8 @@ export async function buildApp(opts = {}) {
 
   // ─── 静态文件服务（上传目录） ───
   const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
+  // ENV-1 修复：确保上传目录存在（全新部署时不存在，首次上传会失败）
+  mkdirSync(UPLOAD_DIR, { recursive: true })
 
   // 安全：签名校验 — references/ 和 deliverables/ 需要有效签名才能访问
   // images/ 保持公开（画师作品集/头像/档位示例图）
