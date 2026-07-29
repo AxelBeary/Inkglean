@@ -3,12 +3,11 @@
     <h2>{{ $t('queue.title') }}</h2>
     <p class="hint">{{ $t('queue.hint') }}</p>
 
-    <!-- R20: 焦点图显示模式（全局设置，存 localStorage） -->
+    <!-- R20: 焦点图显示模式（全局设置，存 localStorage；仅 无/大 两态） -->
     <div class="queue-toolbar">
       <span class="toolbar-label">{{ $t('queue.focusDisplay') }}</span>
       <el-radio-group v-model="focusDisplay" size="small" @change="saveFocusDisplay">
         <el-radio-button value="off">{{ $t('queue.focusOff') }}</el-radio-button>
-        <el-radio-button value="small">{{ $t('queue.focusSmall') }}</el-radio-button>
         <el-radio-button value="large">{{ $t('queue.focusLarge') }}</el-radio-button>
       </el-radio-group>
     </div>
@@ -30,14 +29,28 @@
             @pointerup="(e) => onCardPointerUp(e, element)"
           >
             <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
-            <!-- UI-2: 大图模式 — 左图右文布局，与"小"模式形成 48→160 梯度 -->
-            <div v-if="element.focus_image_path && focusDisplay === 'large'" class="focus-large">
+            <!-- 焦点图区域：大图模式显示焦点图，无焦点图时显示空态上传入口 -->
+            <div v-if="focusDisplay === 'large'" class="focus-area">
               <el-image
+                v-if="element.focus_image_path"
                 :src="element.focusImageUrl" fit="cover" class="focus-large-img"
                 :alt="$t('orderDetail.referenceImage')"
                 :preview-src-list="[element.focusImageUrl]"
                 @error="refreshNow"
               />
+              <!-- 空态上传：点击选文件 / 拖拽图片放入，上传后直接设为焦点图 -->
+              <div
+                v-else
+                class="focus-empty"
+                :class="{ 'focus-empty--active': focusDragId === element.id }"
+                @click="triggerFocusUpload(element)"
+                @dragover.prevent="focusDragId = element.id"
+                @dragleave="onFocusDragLeave($event, element)"
+                @drop.prevent="handleFocusDrop($event, element)"
+              >
+                <el-icon :size="20"><Plus /></el-icon>
+                <span class="focus-empty-text">{{ $t('queue.uploadFocus') }}</span>
+              </div>
             </div>
             <div class="item-body">
               <div class="item-header">
@@ -61,15 +74,6 @@
               </div>
               <div class="item-desc" v-if="element.description">
                 {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
-              </div>
-              <!-- R20: 焦点图小模式（48px 缩略图，保持在文字下方） -->
-              <div v-if="element.focus_image_path && focusDisplay === 'small'" class="focus-small">
-                <el-image
-                  :src="element.focusImageUrl" fit="cover" class="focus-small-img"
-                  :alt="$t('orderDetail.referenceImage')"
-                  :preview-src-list="[element.focusImageUrl]"
-                  @error="refreshNow"
-                />
               </div>
             </div>
             <div class="item-actions">
@@ -128,6 +132,12 @@
 
       <el-empty v-if="!loading && queue.length === 0" :description="$t('queue.empty')" />
     </div>
+
+    <!-- 焦点图空态上传：隐藏文件选择器（点击占位按钮触发） -->
+    <input
+      ref="focusInputEl" type="file" accept="image/*" hidden
+      @change="handleFocusFileSelect"
+    />
   </ArtistLayout>
 </template>
 
@@ -135,8 +145,9 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
-import { artistApi } from '../../api/index.js'
+import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
@@ -146,9 +157,12 @@ const router = useRouter()
 const queue = ref([])
 const loading = ref(true)
 
-// ─── R20: 焦点图显示模式（全局设置） ───
+// ─── R20: 焦点图显示模式（全局设置；仅 无/大 两态，旧值 small 映射为 large） ───
 const FOCUS_DISPLAY_KEY = 'queue_focus_display'
-const focusDisplay = ref(localStorage.getItem(FOCUS_DISPLAY_KEY) || 'small')
+const focusDisplay = ref(
+  localStorage.getItem(FOCUS_DISPLAY_KEY) === 'small' ? 'large'
+    : (localStorage.getItem(FOCUS_DISPLAY_KEY) || 'large')
+)
 function saveFocusDisplay(val) {
   localStorage.setItem(FOCUS_DISPLAY_KEY, val)
 }
@@ -240,6 +254,57 @@ async function quickAction(command, order) {
   }
 }
 
+// ─── 焦点图空态上传（点击选文件 / 拖拽图片，上传后直接设为焦点图） ───
+// 本页不开粘贴上传：多个上传目标，全局粘贴无法路由（用户明确指示）
+const focusInputEl = ref(null)
+const focusDragId = ref(null) // 正在拖拽进入的订单 ID（高亮用）
+let focusUploadTarget = null  // 当前点击上传的订单
+
+function triggerFocusUpload(order) {
+  focusUploadTarget = order
+  focusInputEl.value?.click()
+}
+
+async function handleFocusFileSelect(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file || !focusUploadTarget) return
+  await uploadAndSetFocus(file, focusUploadTarget)
+  focusUploadTarget = null
+}
+
+/** 防 dragleave 闪烁：子元素间移动时 relatedTarget 仍在占位区内，忽略 */
+function onFocusDragLeave(e, order) {
+  if (e.currentTarget.contains(e.relatedTarget)) return
+  if (focusDragId.value === order.id) focusDragId.value = null
+}
+
+async function handleFocusDrop(event, order) {
+  focusDragId.value = null
+  const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
+  if (file) await uploadAndSetFocus(file, order)
+}
+
+/** 上传图片 → 设为该订单焦点图（复用 reference 上传 + setFocusImage 接口） */
+async function uploadAndSetFocus(file, order) {
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error(t('orderDetail.galleryNotImage'))
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error(t('orderDetail.galleryTooBig'))
+    return
+  }
+  try {
+    const uploaded = await uploadApi.reference(file)
+    await artistApi.setFocusImage(order.id, { imagePath: uploaded.filePath, mode: 'large' })
+    ElMessage.success(t('orderDetail.focusUpdated'))
+    await loadQueue()
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
 // ─── R30e: 滑块确认取消（拖到底触发，防误触） ───
 const cancellingId = ref(null)
 const slideProgress = ref(0)
@@ -284,7 +349,7 @@ async function onSlideEnd(e, order) {
 let swipeStart = null
 function onCardPointerDown(e) {
   if (e.pointerType !== 'touch') return
-  if (e.target.closest('button, .drag-handle, .slide-cancel, .el-dropdown, .el-image')) return
+  if (e.target.closest('button, .drag-handle, .slide-cancel, .el-dropdown, .el-image, .focus-empty')) return
   swipeStart = { x: e.clientX, y: e.clientY }
 }
 function onCardPointerUp(e, order) {
@@ -322,10 +387,10 @@ onMounted(() => {
 .queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .toolbar-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
 
-/* R30a: 宽屏多列 — auto-fill 利用横向空间，窄屏自动回退单列 */
+/* 一行一条（用户决策：排期看板必须保持一行一条；宽屏空间由卡片内部横向展开消化） */
 .queue-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -351,11 +416,23 @@ onMounted(() => {
 .stage-tag { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-info { color: var(--text-secondary); font-size: 13px; margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
 .item-desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
-.focus-small { margin-top: 8px; }
-.focus-small-img { width: 48px; height: 48px; border-radius: 6px; display: block; }
-/* UI-2: 大图模式固定 160×120，左图右文，与小模式 48px 形成梯度 */
-.focus-large { flex-shrink: 0; }
+/* 焦点图区域：大图 160×120，左图右文 */
+.focus-area { flex-shrink: 0; }
 .focus-large-img { width: 160px; height: 120px; border-radius: 8px; display: block; }
+/* 焦点图空态上传占位（虚线边框 + 图标 + 文字，hover/拖拽高亮） */
+.focus-empty {
+  width: 160px; height: 120px;
+  border: 2px dashed var(--border-color); border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; cursor: pointer; color: var(--text-secondary);
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.focus-empty:hover, .focus-empty--active {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+}
+.focus-empty-text { font-size: 12px; }
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
 
 /* R30e: 滑块确认（整行，拖到底触发取消） */
@@ -403,7 +480,6 @@ onMounted(() => {
 .slide-cancel-thumb:active { cursor: grabbing; }
 
 @media (max-width: 600px) {
-  .queue-list { grid-template-columns: 1fr; }
   .item-actions { width: 100%; justify-content: flex-end; margin-left: 0; }
 }
 </style>

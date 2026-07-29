@@ -191,7 +191,8 @@ export default {
     slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
     dragHint: 'Drag to reorder',
-    focusDisplay: 'Focus image', focusOff: 'Off', focusSmall: 'Small', focusLarge: 'Large'
+    focusDisplay: 'Focus image', focusOff: 'Off', focusLarge: 'Large',
+    uploadFocus: 'Upload focus image'
   },
   orderList: {
     title: '📦 Order Management', all: 'All',

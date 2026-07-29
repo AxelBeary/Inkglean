@@ -191,7 +191,8 @@ export default {
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
     dragHint: '拖拽排序',
-    focusDisplay: '焦点图显示', focusOff: '关', focusSmall: '小', focusLarge: '大'
+    focusDisplay: '焦点图显示', focusOff: '关', focusLarge: '大',
+    uploadFocus: '上传焦点图'
   },
   orderList: {
     title: '📦 订单管理', all: '全部',
