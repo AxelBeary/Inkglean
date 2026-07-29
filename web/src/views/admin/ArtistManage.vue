@@ -80,7 +80,9 @@
             <el-tag :type="statusType(row.status)" size="small">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" :label="$t('admin.orderColTime')" />
+        <el-table-column prop="created_at" :label="$t('admin.orderColTime')">
+          <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+        </el-table-column>
       </el-table>
       <el-empty v-if="!ordersLoading && orders.length === 0" :description="$t('admin.noOrders')" :image-size="60" />
     </el-dialog>
@@ -162,6 +164,7 @@ function openDetail(row) {
 }
 
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+import { formatDateTime } from '../../utils/datetime.js'
 
 const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 
