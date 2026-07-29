@@ -129,6 +129,15 @@
         </el-radio-group>
       </el-form-item>
 
+      <!-- R51: 截稿日（可选，创建后写入） -->
+      <el-form-item :label="$t('manualOrder.deadline')">
+        <el-date-picker
+          v-model="form.deadline" type="date" value-format="YYYY-MM-DD"
+          :placeholder="$t('manualOrder.deadlinePlaceholder')"
+          clearable style="width: 200px"
+        />
+      </el-form-item>
+
       <!-- QQ通知开关 -->
       <el-form-item>
         <el-checkbox v-model="form.clientNotify">{{ $t('manualOrder.clientNotify') }}</el-checkbox>
@@ -190,6 +199,7 @@ const form = reactive({
   tierId: null,
   description: '',
   priority: 'medium',
+  deadline: null,
   clientNotify: false,
   usageMultiplierId: null,
   rushMultiplierId: null
@@ -385,6 +395,11 @@ async function submit() {
       }
     }
 
+    // R51: 截稿日（手动录单接口不支持 deadline 字段，创建后单独写入）
+    if (order.id && form.deadline) {
+      await artistApi.updateDeadline(order.id, form.deadline)
+    }
+
     resultNo.value = order.order_no
     showResult.value = true
     // R42a: 通知父组件（订单列表）刷新
@@ -403,6 +418,7 @@ function resetForm() {
   form.tierId = null
   form.description = ''
   form.priority = 'medium'
+  form.deadline = null
   form.clientNotify = false
   form.usageMultiplierId = null
   form.rushMultiplierId = null

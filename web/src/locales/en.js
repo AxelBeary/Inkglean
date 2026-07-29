@@ -63,6 +63,9 @@ export default {
     // Accent color (v0.15 R49)
     INVALID_ACCENT_COLOR: 'Invalid accent color',
 
+    // Deadline (v0.15 R51)
+    INVALID_DEADLINE: 'Invalid deadline format (must be ISO 8601)',
+
     // Upload
     ILLEGAL_FILE_TYPE: 'Illegal file type',
     UNSUPPORTED_FORMAT: 'Unsupported file format',
@@ -190,7 +193,13 @@ export default {
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     anotherOne: 'Another',
     slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
-    defaultPanel: 'Default panel', panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing'
+    defaultPanel: 'Default panel', panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
+    // R52: today stats
+    todayNewOrders: 'New orders today', todayRevenue: 'Revenue today',
+    // R51: deadlines + today's todos
+    deadlineCard: '⏰ Due soon', noDeadlines: 'No deadlines coming up 🎉',
+    todoCard: "📌 Today's todos", noTodos: 'Nothing pending — enjoy your tea ☕',
+    daysLeft: '{n}d left', dueToday: 'Due today'
   },
   queue: {
     title: '📋 Queue Board',
@@ -251,7 +260,9 @@ export default {
     activityTitle: 'Order status', timelineTitle: 'Activity timeline',
     tlTypeSystem: 'Status change', tlTypeNote: 'Note', tlTypeImage: 'Note with image',
     // R46: note deletion
-    deleteNote: 'Delete note', deleteNoteConfirm: 'Delete this note? This cannot be undone.', deleteNoteSuccess: 'Note deleted'
+    deleteNote: 'Delete note', deleteNoteConfirm: 'Delete this note? This cannot be undone.', deleteNoteSuccess: 'Note deleted',
+    // R51: deadline
+    colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -267,7 +278,9 @@ export default {
     clientNotify: 'Allow client to receive QQ queue notifications',
     catExpression: 'Expressions', catOutfit: 'Outfits', catBackground: 'Backgrounds', catWeapon: 'Weapons', catOther: 'Other',
     submit: 'Record order', resultTitle: 'Recorded', orderNo: 'Order No: {no}', addedToQueue: 'Added to the queue',
-    viewQueue: 'View queue', continueEntry: 'Enter another', fillClientQq: "Please enter the client's QQ number"
+    viewQueue: 'View queue', continueEntry: 'Enter another', fillClientQq: "Please enter the client's QQ number",
+    // R51: deadline
+    deadline: 'Deadline (optional)', deadlinePlaceholder: 'Pick a deadline'
   },
   tiers: {
     title: '💰 Pricing', addTier: '+ Add tier',

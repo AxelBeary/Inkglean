@@ -125,6 +125,9 @@ export const artistApi = {
   trackOn: (id) => api.put(`/artist/orders/${id}/track-on`),
   // 统计
   getStats: () => api.get('/artist/stats'),
+  // R51: 截稿日
+  getUpcomingDeadlines: () => api.get('/artist/orders/upcoming-deadlines'),
+  updateDeadline: (id, deadline) => api.put(`/artist/orders/${id}/deadline`, { deadline }),
   // 问候语
   getGreeting: () => api.get('/artist/greeting'),
   // 流程与比例

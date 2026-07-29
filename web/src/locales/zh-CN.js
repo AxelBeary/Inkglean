@@ -63,6 +63,9 @@ export default {
     // 强调色（v0.15 R49）
     INVALID_ACCENT_COLOR: '无效的强调色',
 
+    // 截稿日（v0.15 R51）
+    INVALID_DEADLINE: '截稿日格式无效（须为 ISO 8601）',
+
     // 上传
     ILLEGAL_FILE_TYPE: '非法文件类型',
     UNSUPPORTED_FORMAT: '不支持此文件格式',
@@ -190,7 +193,13 @@ export default {
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     anotherOne: '换一句',
     slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
-    defaultPanel: '默认面板', panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理'
+    defaultPanel: '默认面板', panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
+    // R52: 今日统计
+    todayNewOrders: '今日新增订单', todayRevenue: '今日收入',
+    // R51: 截稿日 + 今日待办
+    deadlineCard: '⏰ 即将到期', noDeadlines: '近期无截稿 🎉',
+    todoCard: '📌 今日待办', noTodos: '暂无待办，喝杯茶吧 ☕',
+    daysLeft: '剩 {n} 天', dueToday: '今天截稿'
   },
   queue: {
     title: '📋 排期看板',
@@ -251,7 +260,9 @@ export default {
     activityTitle: '订单状态', timelineTitle: '活动时间线',
     tlTypeSystem: '状态变更', tlTypeNote: '备注', tlTypeImage: '带图备注',
     // R46: 备注删除
-    deleteNote: '删除备注', deleteNoteConfirm: '确定删除这条备注？删除后不可恢复。', deleteNoteSuccess: '备注已删除'
+    deleteNote: '删除备注', deleteNoteConfirm: '确定删除这条备注？删除后不可恢复。', deleteNoteSuccess: '备注已删除',
+    // R51: 截稿日
+    colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
@@ -267,7 +278,9 @@ export default {
     clientNotify: '允许客户接收QQ排队提醒',
     catExpression: '表情差分', catOutfit: '服装替换', catBackground: '背景场景', catWeapon: '武器道具', catOther: '其他',
     submit: '录入订单', resultTitle: '录入成功', orderNo: '订单号: {no}', addedToQueue: '已加入排期队列',
-    viewQueue: '查看排期', continueEntry: '继续录入', fillClientQq: '请填写客户QQ号'
+    viewQueue: '查看排期', continueEntry: '继续录入', fillClientQq: '请填写客户QQ号',
+    // R51: 截稿日
+    deadline: '截稿日（可选）', deadlinePlaceholder: '选择截稿日'
   },
   tiers: {
     title: '💰 价格管理', addTier: '+ 添加档位',

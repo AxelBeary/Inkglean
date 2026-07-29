@@ -26,6 +26,15 @@
           </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colSource')">{{ order.source === 'self' ? $t('common.source.clientSelf') : $t('common.source.manualEntry') }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
+          <!-- R51: 截稿日（date-picker，可清除，即时保存） -->
+          <el-descriptions-item :label="$t('orderDetail.colDeadline')">
+            <el-date-picker
+              v-model="deadlinePicker" type="date" value-format="YYYY-MM-DD"
+              :placeholder="$t('orderDetail.deadlinePlaceholder')"
+              clearable size="small" style="width: 160px"
+              @change="changeDeadline"
+            />
+          </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
         </el-descriptions>
       </el-card>
@@ -559,6 +568,18 @@ async function changePriority(priority) {
     ElMessage.success(t('orderDetail.priorityUpdated'))
   } catch (err) {
     order.value.priority = prevPriority.value
+    ElMessage.error(err.message)
+  }
+}
+
+// ─── R51: 截稿日（date-picker 即时保存，null = 清除） ───
+const deadlinePicker = computed(() => order.value?.deadline ? order.value.deadline.slice(0, 10) : null)
+
+async function changeDeadline(val) {
+  try {
+    order.value = await artistApi.updateDeadline(route.params.id, val || null)
+    ElMessage.success(t('orderDetail.deadlineUpdated'))
+  } catch (err) {
     ElMessage.error(err.message)
   }
 }
