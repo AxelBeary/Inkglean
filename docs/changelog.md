@@ -1,5 +1,36 @@
 # 变更日志
 
+## v0.12 — 2026-07-30
+
+### ✨ 功能
+
+- **R15 外链列表**：画师自定义链接（最多 6 条，8 种图标），替代写死的微博/B站字段。旧列冻结只读，后端回退兼容老画师
+- **R18 订单图库**：参考图区块升级为图库（拖拽/点击/Ctrl+V 上传），来源角标（客户/画师），点击图片设焦点，合计上限 20 张，客户查询页只返回客户图
+- **R19 备注附图**：订单备注支持可选附 1 张图（notes/{artistId}/ 目录，签名 URL），备注流缩略图 + 大图查看
+- **R21 侧边栏折叠**：画师端侧边栏手动折叠/窄屏自动/移动端抽屉/localStorage 记忆
+
+### 🗄 迁移 v12
+
+- `artists` 表 +1 字段：`custom_links`（TEXT，JSON 数组）
+- `order_references` 表 +1 字段：`source`（TEXT DEFAULT 'client'）
+- `order_notes` 表 +1 字段：`image_path`（TEXT）
+
+### 🔒 安全修复
+
+- **P0-3 转让防爆破**：POST /api/admin/transfer 增加 IP 维度限流 + JSON Schema 校验
+- **P0-4 时间格式**：login_codes.expires_at 列类型 DATETIME→INTEGER（与代码一致）
+- **P0-5 嵌入脚本**：CSP frame-ancestors 从 * 收紧为 'self' + 完整指令集，页面标注未开放
+
+### 🐛 修复
+
+- **UI-3**：订单列表焦点图签名未执行（result.orders→result.items 键名修正）
+
+### 📊 测试
+
+- 118 → 145（+27），7 文件全部通过
+
+---
+
 ## v0.11 — 2026-07-29
 
 ### ✨ 功能
