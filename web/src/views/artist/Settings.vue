@@ -112,12 +112,16 @@
       <!-- 嵌入脚本 -->
       <el-tab-pane :label="$t('embed.tab')" name="embed" lazy>
         <el-card style="max-width: 700px" v-loading="loading">
+          <!-- P0-5: 嵌入功能暂未开放（frame-ancestors 已收紧为 'self'，外部 iframe 不可用） -->
+          <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px">
+            嵌入功能暂未开放，敬请期待
+          </el-alert>
           <p class="form-hint" style="margin-bottom: 16px">{{ $t('embed.hint') }}</p>
           <p class="form-hint" style="margin-bottom: 16px">{{ $t('embed.step1') }}</p>
-          <div class="embed-code-box" @click="copyEmbedCode">
+          <div class="embed-code-box">
             <code>{{ embedCode }}</code>
           </div>
-          <el-button size="small" @click="copyEmbedCode" style="margin-bottom: 20px">{{ $t('embed.copyBtn') }}</el-button>
+          <el-button size="small" disabled @click="copyEmbedCode" style="margin-bottom: 20px">{{ $t('embed.copyBtn') }}</el-button>
           <p class="form-hint">{{ $t('embed.step2') }}</p>
           <img class="embed-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='60'%3E%3Crect width='240' height='60' fill='%231a1a1a' rx='8'/%3E%3Ctext x='16' y='28' fill='white' font-size='13' font-family='sans-serif'%3E%E2%9C%A8 Commission Me%3C/text%3E%3Ctext x='16' y='46' fill='%23999' font-size='11' font-family='sans-serif'%3E%E2%86%97 Order on HuiYue%3C/text%3E%3C/svg%3E" alt="Embed preview" />
         </el-card>
