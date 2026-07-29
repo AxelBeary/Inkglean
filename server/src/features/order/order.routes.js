@@ -476,6 +476,18 @@ export default async function orderRoutes(fastify) {
   })
 
   /**
+   * DELETE /api/artist/orders/:id/notes/:noteId
+   * R46: 删除备注（系统备注拒绝，带图备注由 GC 清理）
+   */
+  fastify.delete('/api/artist/orders/:id/notes/:noteId', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request) => {
+    const noteId = parseInt(request.params.noteId, 10)
+    if (isNaN(noteId)) throw new AppError(E.ORDER_INVALID_ID)
+    return signOrderUrls(orderService.deleteNote(request.order.id, noteId))
+  })
+
+  /**
    * POST /api/artist/orders/:id/deliver
    * 事务化交付
    * JSON Schema 输入校验

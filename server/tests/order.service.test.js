@@ -714,4 +714,97 @@ describe('订单服务 (Order Service)', () => {
 
     expect(() => orderService.enableTracking(order.id)).toThrow('NO_WORKFLOW_TEMPLATE')
   })
+
+  // ─── v0.15 R46: 备注删除 ───
+
+  // TC-O-43: 正常删除画师备注
+  it('TC-O-43: deleteNote 删除画师备注', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addNote(order.id, '要删的备注', 'artist')
+    const withNote = orderService.getOrder(order.id)
+    expect(withNote.notes).toHaveLength(1)
+
+    const noteId = withNote.notes[0].id
+    const afterDelete = orderService.deleteNote(order.id, noteId)
+    expect(afterDelete.notes).toHaveLength(0)
+  })
+
+  // TC-O-44: 系统备注拒绝删除
+  it('TC-O-44: deleteNote 拒绝删除系统备注', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    // 系统备注（状态变更、改价等场景写入）
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, '系统记录', 'system')").run(order.id)
+    const withNote = orderService.getOrder(order.id)
+    const noteId = withNote.notes[0].id
+
+    expect(() => orderService.deleteNote(order.id, noteId)).toThrow('SYSTEM_NOTE_PROTECTED')
+  })
+
+  // TC-O-45: 备注不存在 → NOTE_NOT_FOUND
+  it('TC-O-45: deleteNote 备注不存在抛 NOTE_NOT_FOUND', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(() => orderService.deleteNote(order.id, 99999)).toThrow('NOTE_NOT_FOUND')
+  })
+
+  // TC-O-46: 带图备注删除（记录删除，图片由 GC 孤儿回收清理）
+  it('TC-O-46: deleteNote 删除带图备注', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addNote(order.id, '带图备注', 'artist', 'notes/1/img.png')
+    const withNote = orderService.getOrder(order.id)
+    expect(withNote.notes[0].image_path).toBe('notes/1/img.png')
+
+    const noteId = withNote.notes[0].id
+    const afterDelete = orderService.deleteNote(order.id, noteId)
+    expect(afterDelete.notes).toHaveLength(0)
+    // 图片文件由 gcUploads 孤儿回收机制自动清理（app.js:60 已收集 order_notes.image_path）
+  })
+
+  // ─── v0.15 R52: 今日统计 ───
+
+  // TC-O-47: 今日新增订单金额
+  it('TC-O-47: getArtistStats 返回 todayNewOrderCents', () => {
+    // 创建有价格的订单
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '头像', 200)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '头像')
+    orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+
+    const stats = orderService.getArtistStats(artist.id)
+    // 200 元 = 20000 分
+    expect(stats.todayNewOrderCents).toBe(20000)
+  })
+
+  // TC-O-48: 今日收入（completed_at 在今天）
+  it('TC-O-48: getArtistStats 返回 todayRevenueCents', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '全身', 500)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '全身')
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+
+    // 走到 done（completed_at = 当前时间 = 今天）
+    orderService.updateOrderStatus(order.id, 'confirmed')
+    orderService.updateOrderStatus(order.id, 'wip')
+    orderService.updateOrderStatus(order.id, 'done')
+
+    const stats = orderService.getArtistStats(artist.id)
+    expect(stats.todayRevenueCents).toBe(50000)
+  })
+
+  // TC-O-49: 无数据时返回 0
+  it('TC-O-49: 无订单时今日统计为 0', () => {
+    const stats = orderService.getArtistStats(artist.id)
+    expect(stats.todayNewOrderCents).toBe(0)
+    expect(stats.todayRevenueCents).toBe(0)
+  })
+
+  // TC-O-50: 昨天的订单不计入今日统计
+  it('TC-O-50: 昨天创建的订单不计入 todayNewOrderCents', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '测试', 100)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '测试')
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+
+    // 手动把 created_at 改为昨天
+    db.prepare("UPDATE orders SET created_at = datetime('now', '-1 day') WHERE id = ?").run(order.id)
+
+    const stats = orderService.getArtistStats(artist.id)
+    expect(stats.todayNewOrderCents).toBe(0)
+  })
 })

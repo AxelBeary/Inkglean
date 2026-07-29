@@ -573,4 +573,69 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.statusCode).toBe(401)
     })
   })
+  // ─── v0.15 R46: 备注删除路由 ───
+
+  describe('备注删除 (R46 DELETE notes)', () => {
+    it('TC-RT-18: 正常删除备注返回 200', async () => {
+      const artist = seedArtist({ qq_number: '77810', subdomain: 'note-del' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, '画师备注', 'artist')").run(order.id)
+      const note = db.prepare('SELECT id FROM order_notes WHERE order_id = ?').get(order.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${order.id}/notes/${note.id}`,
+        headers: { Authorization: `${'Bearer '}${token}` }
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().notes).toHaveLength(0)
+    })
+
+    it('TC-RT-18b: 删除系统备注返回 403', async () => {
+      const artist = seedArtist({ qq_number: '77811', subdomain: 'note-sys' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, '系统记录', 'system')").run(order.id)
+      const note = db.prepare('SELECT id FROM order_notes WHERE order_id = ?').get(order.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${order.id}/notes/${note.id}`,
+        headers: { Authorization: `${'Bearer '}${token}` }
+      })
+      expect(res.statusCode).toBe(403)
+      expect(res.json().code).toBe('SYSTEM_NOTE_PROTECTED')
+    })
+
+    it('TC-RT-18c: 非本画师订单返回 404', async () => {
+      const artistA = seedArtist({ qq_number: '77812', subdomain: 'note-a' })
+      const artistB = seedArtist({ qq_number: '77813', subdomain: 'note-b' })
+      const tokenA = createSession(artistA.id, artistA.token_version)
+      const orderB = seedOrder(artistB.id)
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, 'B的备注', 'artist')").run(orderB.id)
+      const note = db.prepare('SELECT id FROM order_notes WHERE order_id = ?').get(orderB.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${orderB.id}/notes/${note.id}`,
+        headers: { Authorization: `${'Bearer '}${tokenA}` }
+      })
+      expect(res.statusCode).toBe(404)
+    })
+
+    it('TC-RT-18d: 删除不存在的备注返回 404', async () => {
+      const artist = seedArtist({ qq_number: '77814', subdomain: 'note-404' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${order.id}/notes/99999`,
+        headers: { Authorization: `${'Bearer '}${token}` }
+      })
+      expect(res.statusCode).toBe(404)
+      expect(res.json().code).toBe('NOTE_NOT_FOUND')
+    })
+  })
 })
