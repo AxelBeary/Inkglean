@@ -81,6 +81,17 @@
           {{ $t('artistHome.startCommission') }}
         </button>
         <div class="folio-cta-meta">
+          <!-- R34: 外链（胶囊横排，呼应 CTA 圆角语言） -->
+          <div class="folio-links" v-if="socialLinks.length">
+            <a
+              v-for="link in socialLinks" :key="link.key"
+              :href="link.url" target="_blank" rel="noopener noreferrer"
+              class="folio-link"
+            >
+              <span class="folio-link-badge" aria-hidden="true">{{ link.badge }}</span>
+              {{ link.label }}
+            </a>
+          </div>
           <ThemePicker />
           <Disclaimer />
         </div>
@@ -113,7 +124,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-useArtistData(props)
+const { socialLinks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)
@@ -320,6 +331,52 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+}
+
+/* R34: 外链（胶囊横排，呼应 CTA 999px 圆角语言） */
+.folio-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.folio-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border: 1px solid var(--pal-border);
+  border-radius: 999px;
+  color: var(--pal-text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.2s;
+}
+.folio-link:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  transform: translateY(-2px);
+}
+.folio-link-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--pal-bg-alt, var(--color-primary-soft));
+  border: 1px solid var(--pal-border);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--pal-text);
+  transition: border-color 0.2s, background 0.2s;
+}
+.folio-link:hover .folio-link-badge {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 /* ===== 移动端：汉堡菜单 ===== */
