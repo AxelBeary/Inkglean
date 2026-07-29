@@ -406,4 +406,120 @@ describe('订单服务 (Order Service)', () => {
     // 迁移 v12 前 orders 表无此列，getOrder 返回的对象不含该字段
     expect(order.current_stage_id).toBeUndefined()
   })
+
+  // ─── v0.12 新增用例 ───
+
+  // TC-O-26: addReference 显式传 source（画师图 'artist'，客户图 'client'）
+  it('TC-O-26: addReference 显式传 source 值', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    // 客户图（默认 source='client'）
+    orderService.addReference(order.id, 'references/1/client.png', 'client.png', 1024)
+    // 画师图（显式 source='artist'）
+    orderService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
+
+    const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ? ORDER BY id').all(order.id)
+    expect(refs[0].source).toBe('client')
+    expect(refs[1].source).toBe('artist')
+  })
+
+  // TC-O-26b: createOrder 的参考图 source='client'（显式传值，不依赖 DEFAULT）
+  it('TC-O-26b: createOrder 参考图 source 为 client', () => {
+    const order = orderService.createOrder({
+      artistId: artist.id,
+      clientQq: '111',
+      references: ['references/1/a.png', 'references/1/b.png']
+    })
+
+    const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
+    expect(refs).toHaveLength(2)
+    for (const r of refs) {
+      expect(r.source).toBe('client')
+    }
+  })
+
+  // TC-O-27: 参考图 20 张总量限制
+  it('TC-O-27: addReference 超 20 张拒绝', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    // 插入 20 张
+    for (let i = 0; i < 20; i++) {
+      orderService.addReference(order.id, `references/1/img${i}.png`, `img${i}.png`, 100)
+    }
+
+    // 第 21 张被拒绝
+    expect(() => {
+      orderService.addReference(order.id, 'references/1/overflow.png', 'overflow.png', 100)
+    }).toThrow('REFERENCES_LIMIT')
+  })
+
+  // TC-O-28: getOrder clientOnly 过滤
+  it('TC-O-28: getOrder clientOnly 只返回客户图', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addReference(order.id, 'references/1/client.png', 'client.png', 1024, 'client')
+    orderService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
+
+    // 画师端：看全部
+    const full = orderService.getOrder(order.id)
+    expect(full.references).toHaveLength(2)
+
+    // 客户端：只看 client
+    const clientView = orderService.getOrder(order.id, { clientOnly: true })
+    expect(clientView.references).toHaveLength(1)
+    expect(clientView.references[0].source).toBe('client')
+  })
+
+  // TC-O-28b: getClientQueuePosition 使用 clientOnly
+  it('TC-O-28b: 客户查询排队位置只看客户图', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addReference(order.id, 'references/1/client.png', 'client.png', 1024, 'client')
+    orderService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
+
+    const result = orderService.getClientQueuePosition(order.order_no, '111')
+    expect(result.order.references).toHaveLength(1)
+    expect(result.order.references[0].source).toBe('client')
+  })
+
+  // TC-O-29: addNote 带 imagePath
+  it('TC-O-29: addNote 支持可选附图', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    // 纯文字备注
+    const noImage = orderService.addNote(order.id, '纯文字', 'artist')
+    expect(noImage.notes[0].image_path).toBeNull()
+
+    // 带图备注
+    const withImage = orderService.addNote(order.id, '带图', 'artist', 'notes/1/abc.png')
+    const noteWithImg = withImage.notes.find(n => n.content === '带图')
+    expect(noteWithImg.image_path).toBe('notes/1/abc.png')
+  })
+
+  // TC-O-30: 迁移 v12 幂等
+  it('TC-O-30: 迁移 v12 幂等（列已存在时跳过）', async () => {
+    const { initDatabase } = await import('../src/db/init.js')
+    // 内存数据库已在 setup 中建表（含 v12 列），再次调用不应报错
+    expect(() => initDatabase(db)).not.toThrow()
+  })
+
+  // TC-O-30b: 迁移 v12 列存在性验证
+  it('TC-O-30b: 迁移 v12 三列均已存在', () => {
+    const artistCols = db.prepare('PRAGMA table_info(artists)').all()
+    expect(artistCols.some(c => c.name === 'custom_links')).toBe(true)
+
+    const refCols = db.prepare('PRAGMA table_info(order_references)').all()
+    expect(refCols.some(c => c.name === 'source')).toBe(true)
+
+    const noteCols = db.prepare('PRAGMA table_info(order_notes)').all()
+    expect(noteCols.some(c => c.name === 'image_path')).toBe(true)
+  })
+
+  // TC-O-30c: source DEFAULT 'client' — 存量行读出 'client' 而非 NULL
+  it('TC-O-30c: source 列默认值为 client', () => {
+    // 直接 SQL 插入不指定 source（模拟存量行）
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    db.prepare('INSERT INTO order_references (order_id, file_path) VALUES (?, ?)').run(order.id, 'references/1/legacy.png')
+
+    const ref = db.prepare('SELECT * FROM order_references WHERE order_id = ? AND file_path = ?').get(order.id, 'references/1/legacy.png')
+    expect(ref.source).toBe('client')
+  })
 })

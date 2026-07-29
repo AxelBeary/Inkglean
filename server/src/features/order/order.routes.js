@@ -11,13 +11,19 @@ import { AppError, E } from '../../shared/errors.js'
 // 订单路由 - 下单、查询、管理、交付
 // ============================================
 
-/** 为订单的 references + deliverables 补签名 URL（H-1 修复抽取，多路由共用） */
+/** 为订单的 references + deliverables + notes 补签名 URL（H-1 修复抽取，多路由共用） */
 function signOrderUrls(order) {
   if (order.references) {
     order.references = order.references.map(r => ({ ...r, url: signedUrl(r.file_path) }))
   }
   if (order.deliverables) {
     order.deliverables = order.deliverables.map(d => ({ ...d, url: signedUrl(d.file_path) }))
+  }
+  // R19: 备注附图签名 — 漏做 = 前端拿裸路径 → 403（焦点图 Bug 翻版）
+  if (order.notes) {
+    order.notes = order.notes.map(n =>
+      n.image_path ? { ...n, imageUrl: signedUrl(n.image_path) } : n
+    )
   }
   return order
 }
@@ -421,6 +427,7 @@ export default async function orderRoutes(fastify) {
 
   /**
    * POST /api/artist/orders/:id/notes
+   * R19: 支持可选附图 imagePath（notes/{artistId}/ 目录）
    * JSON Schema 输入校验
    */
   fastify.post('/api/artist/orders/:id/notes', {
@@ -430,13 +437,23 @@ export default async function orderRoutes(fastify) {
         type: 'object',
         required: ['content'],
         properties: {
-          content: { type: 'string', minLength: 1, maxLength: 1000 }
+          content: { type: 'string', minLength: 1, maxLength: 1000 },
+          imagePath: { type: ['string', 'null'], maxLength: 500 }
         },
         additionalProperties: false
       }
     }
   }, async (request) => {
-    return orderService.addNote(request.order.id, clamp(request.body.content, 'note'), 'artist')
+    const { content, imagePath } = request.body
+
+    // R19: 路径归属校验 — 只允许 notes/{artistId}/ 目录，拒绝路径穿越
+    if (imagePath) {
+      if (imagePath.includes('..') || !imagePath.startsWith(`notes/${request.artist.id}/`)) {
+        throw new AppError(E.NOTE_IMAGE_PATH_INVALID)
+      }
+    }
+
+    return signOrderUrls(orderService.addNote(request.order.id, clamp(content, 'note'), 'artist', imagePath || null))
   })
 
   /**
@@ -467,7 +484,8 @@ export default async function orderRoutes(fastify) {
     }
 
     const result = orderService.deliverOrder(request.order.id, filePath, fileName, fileSize)
-    return { ...result.order, statusChanged: result.statusChanged }
+    // R19: 交付返回的订单含 notes，需签名
+    return { ...signOrderUrls(result.order), statusChanged: result.statusChanged }
   })
 
   /**
@@ -497,8 +515,9 @@ export default async function orderRoutes(fastify) {
       throw new AppError(E.ILLEGAL_PATH)
     }
 
-    orderService.addReference(request.order.id, filePath, fileName, fileSize)
-    return orderService.getOrder(request.order.id)
+    // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
+    orderService.addReference(request.order.id, filePath, fileName, fileSize, 'artist')
+    return signOrderUrls(orderService.getOrder(request.order.id))
   })
 
   /**
@@ -529,7 +548,8 @@ export default async function orderRoutes(fastify) {
     }
   }, async (request) => {
     const { finalPriceCents, quoteSnapshot } = request.body
-    return orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot)
+    // R19: 改价返回的订单含 notes，需签名（与 GET orders/:id 一致）
+    return signOrderUrls(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot))
   })
 
   // ─── v0.11 R4: 焦点图 ───

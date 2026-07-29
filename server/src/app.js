@@ -56,6 +56,8 @@ export async function buildApp(opts = {}) {
       collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
       collect(db.prepare('SELECT file_path FROM deliverables').all(), 'file_path')
       collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')
+      // R19: 备注附图 — 不收集 = 在用备注附图被 GC 误删（数据丢失）
+      collect(db.prepare('SELECT image_path FROM order_notes').all(), 'image_path')
 
       const MIN_AGE_MS = 24 * 60 * 60 * 1000
       const now = Date.now()

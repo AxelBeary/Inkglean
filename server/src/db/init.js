@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS artists (
   custom_page_path TEXT,
   dashboard_default_panel TEXT,
   revision_note TEXT,
+  custom_links TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -103,6 +104,7 @@ CREATE TABLE IF NOT EXISTS order_references (
   original_name TEXT,
   file_size INTEGER,
   mime_type TEXT,
+  source TEXT DEFAULT 'client',
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
@@ -112,6 +114,7 @@ CREATE TABLE IF NOT EXISTS order_notes (
   order_id INTEGER NOT NULL,
   content TEXT NOT NULL,
   created_by TEXT DEFAULT 'artist',
+  image_path TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
@@ -494,6 +497,40 @@ const MIGRATIONS = [
       }
       if (!artistCols.some(c => c.name === 'revision_note')) {
         database.exec('ALTER TABLE artists ADD COLUMN revision_note TEXT')
+      }
+    }
+  },
+  {
+    version: 12,
+    name: 'order_gallery_links_note_image',
+    up(database) {
+      // ─── 迁移前自动备份（仅文件数据库） ───
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v12`)
+          console.log(`📦 迁移 v12: 已备份 ${dbPath} → ${dbPath}.bak.v12`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v12: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+
+      // R15: artists.custom_links（JSON TEXT 列）
+      const artistCols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!artistCols.some(c => c.name === 'custom_links')) {
+        database.exec('ALTER TABLE artists ADD COLUMN custom_links TEXT')
+      }
+
+      // R18: order_references.source（DEFAULT 'client' 兼容存量）
+      const refCols = database.prepare('PRAGMA table_info(order_references)').all()
+      if (!refCols.some(c => c.name === 'source')) {
+        database.exec("ALTER TABLE order_references ADD COLUMN source TEXT DEFAULT 'client'")
+      }
+
+      // R19: order_notes.image_path
+      const noteCols = database.prepare('PRAGMA table_info(order_notes)').all()
+      if (!noteCols.some(c => c.name === 'image_path')) {
+        database.exec('ALTER TABLE order_notes ADD COLUMN image_path TEXT')
       }
     }
   }

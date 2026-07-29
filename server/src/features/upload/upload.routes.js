@@ -230,4 +230,38 @@ export default async function uploadRoutes(fastify, opts) {
       return reply.code(400).send({ error: err.message })
     }
   })
+
+  /**
+   * POST /api/upload/note-image — 备注附图（R19，需登录）
+   * 存入 notes/{artistId}/ 目录，签名 URL 返回
+   * 白名单：图片格式（同 references，JPG/PNG/WebP/GIF，10MB）
+   */
+  fastify.post('/api/upload/note-image', { preHandler: requireAuth }, async (request, reply) => {
+    if (!rateLimit(`upload-note:${request.ip}`, 20, 10 * 60_000)) {
+      return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
+    }
+
+    const data = await request.file()
+    if (!data) return reply.code(400).send({ error: '未收到文件' })
+
+    if (safeExt(data.filename, ALLOWED_EXTENSIONS) === null || !ALLOWED_MIME_TYPES.includes(data.mimetype)) {
+      return reply.code(400).send({ error: '仅支持 JPG / PNG / WebP / GIF 格式的图片' })
+    }
+
+    try {
+      // R19: 用 artistId 分目录（上传时备注尚未创建，无 orderId 可用）
+      const result = await saveUpload(data, join('notes', String(request.artist.id)), UPLOAD_DIR)
+      if (!result) return reply.code(400).send({ error: '文件大小超过10MB限制' })
+
+      return {
+        filePath: result.filePath,
+        url: signedUrl(result.filePath),
+        originalName: data.filename,
+        mimeType: data.mimetype,
+        size: result.size
+      }
+    } catch (err) {
+      return reply.code(400).send({ error: err.message })
+    }
+  })
 }
