@@ -30,6 +30,13 @@
 - **流程状态机**：订单接入画师自定义工作流（推进/打回/关闭跟踪），客户 track 页显示节点名 + 进度（v0.13）
 - **签名刷新**：useSignatureRefresh composable（10 分钟轮询 + @error 兜底），长停留页面不再 403（v0.13）
 - **hidden 状态**：画师可隐藏公开主页（第四态），客户看到友好提示页（v0.13）
+- **状态区重构**：订单详情页状态区方案B重构，信息层级更清晰（v0.14）
+- **手动录单合并**：手动录单流程合并简化（v0.14）
+- **须知编辑合并**：约稿须知编辑入口合并（v0.14）
+- **焦点/放大互换**：图库焦点图与放大查看操作互换，更符合直觉（v0.14）
+- **图库闪烁修复**：修复图库操作时的视觉闪烁（v0.14）
+- **多选删除**：图库支持多选批量删除（v0.14）
+- **备注拖拽**：订单备注支持拖拽排序（v0.14）
 
 ## 🛠️ 技术栈
 
@@ -39,7 +46,7 @@
 | 后端 | Fastify 5 + better-sqlite3（Feature-based 架构） |
 | 部署 | Docker Compose（多阶段构建）+ Caddy（自动 HTTPS + healthcheck） |
 | 认证 | HMAC-SHA256 签名会话 + httpOnly cookie + 登录码 |
-| 测试 | Vitest（165 个用例，含路由层/价格计算器/报价焦点图/流程状态机测试，内存数据库） |
+| 测试 | Vitest（172 个用例，含路由层/价格计算器/报价焦点图/流程状态机测试，内存数据库） |
 | 工程化 | ESLint + Prettier + GitHub Actions CI |
 
 ## 🚀 快速开始
@@ -49,7 +56,7 @@
 ```bash
 # 1. 复制环境配置
 cp .env.example .env
-# 编辑 .env，修改 SESSION_SECRET、SIGN_SECRET、COOKIE_SECRET 和 ADMIN_QQ
+# 编辑 .env，修改 SESSION_SECRET、COOKIE_SECRET 和 ADMIN_QQ
 
 # 2. 一键启动（多阶段构建，自动编译前端）
 docker compose up -d
@@ -76,7 +83,7 @@ npm run dev        # 启动 Vite 开发服务器 (http://localhost:5173)
 
 # 测试
 cd server
-npm test           # 运行全部 165 个测试用例
+npm test           # 运行全部 172 个测试用例
 
 # Lint
 cd server && npm run lint
@@ -96,6 +103,7 @@ cd web && npm run lint
 │       │   ├── artist/         # 画师（service + routes + workflow.service）
 │       │   ├── order/          # 订单（service + routes）
 │       │   ├── upload/         # 上传（routes）
+│       │   ├── pricing/        # 价格计算（service + routes）
 │       │   └── admin/          # 管理（service + routes）
 │       ├── shared/             # 跨 feature 共用（errors, validate, middleware, file-sign）
 │       └── db/                 # 数据库连接/建表/迁移/种子
@@ -125,7 +133,7 @@ cd web && npm run lint
 - [维护说明书](docs/维护说明书.md) — 部署、备份、运维手册
 - [开发自参考](docs/开发自参考.md) — 架构设计、API 参考、已知注意事项（60 条）
 - [开发→生产切换指南](docs/开发→生产切换指南.md) — 开发模式切生产的完整检查清单
-- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.13）
+- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.14）
 - [主题规格](docs/theme-spec.md) — 五色主题 + 文楷字体设计规格
 - [流程与比例计划](docs/plan-workflow-payment.md) — 流程收款系统设计文档
 - [TDD 规格文档](docs/tdd-spec-v0.1.md) — 测试用例定义（TC-O/A/R/V/W/RT）
@@ -145,7 +153,7 @@ cd web && npm run lint
 - 交付文件/参考图通过 HMAC 签名 URL 访问（15 分钟有效）
 - 后端统一结构化错误码（~50 个），500 错误不透传内部信息
 - 全局安全响应头（nosniff / DENY / strict-origin / Permissions-Policy）
-- 生产环境务必修改 `SESSION_SECRET`、`SIGN_SECRET`、`COOKIE_SECRET`（见 `.env.example`）
+- 生产环境务必修改 `SESSION_SECRET`、`COOKIE_SECRET`（见 `.env.example`）
 
 ## 📄 License
 
