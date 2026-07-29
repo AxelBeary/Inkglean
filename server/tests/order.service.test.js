@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import * as orderService from '../src/features/order/order.service.js'
+import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 
 describe('订单服务 (Order Service)', () => {
   let artist
@@ -400,11 +401,11 @@ describe('订单服务 (Order Service)', () => {
     expect(result.order.artist_id).toBe(artist.id)
   })
 
-  // TC-O-25: current_stage_id 字段不存在时返回 undefined（路由层 ?? null）
-  it('TC-O-25: 订单无 current_stage_id 字段（迁移 v12 前）', () => {
+  // TC-O-25: current_stage_id 字段存在但无工作流时为 null
+  it('TC-O-25: 无工作流时 current_stage_id 为 null', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    // 迁移 v12 前 orders 表无此列，getOrder 返回的对象不含该字段
-    expect(order.current_stage_id).toBeUndefined()
+    // seedArtist 不创建工作流节点，所以 current_stage_id 为 null
+    expect(order.current_stage_id).toBeNull()
   })
 
   // ─── v0.12 新增用例 ───
@@ -537,5 +538,139 @@ describe('订单服务 (Order Service)', () => {
     const cols = db.prepare('PRAGMA table_info(login_codes)').all()
     const expiresCol = cols.find(c => c.name === 'expires_at')
     expect(expiresCol.type.toUpperCase()).toBe('INTEGER')
+  })
+
+  // ─── v0.13 R30d: 流程状态机 ───
+
+  // TC-O-32: 新订单自动接入工作流
+  it('TC-O-32: createOrder 自动设 current_stage_id 为第一节点', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(order.current_stage_id).not.toBeNull()
+
+    const firstStage = db.prepare(
+      'SELECT id FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC LIMIT 1'
+    ).get(artist.id)
+    expect(order.current_stage_id).toBe(firstStage.id)
+    expect(order.status).toBe('pending')
+  })
+
+  // TC-O-33: advanceStage 推进 + 状态映射
+  it('TC-O-33: advanceStage 推进节点并映射状态', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const stages = db.prepare(
+      'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+    ).all(artist.id)
+
+    // 推进到第 2 个节点（排期确认，收款节点）→ confirmed
+    const advanced = orderService.advanceStage(order.id, stages[1].id)
+    expect(advanced.current_stage_id).toBe(stages[1].id)
+    expect(advanced.status).toBe('confirmed')
+
+    // 推进到第 3 个节点（草稿确认）→ wip
+    const advanced2 = orderService.advanceStage(order.id, stages[2].id)
+    expect(advanced2.status).toBe('wip')
+
+    // 推进到最后一个节点（交付）→ done
+    const last = stages[stages.length - 1]
+    const advanced3 = orderService.advanceStage(order.id, last.id)
+    expect(advanced3.status).toBe('done')
+    expect(advanced3.completed_at).not.toBeNull()
+  })
+
+  // TC-O-34: advanceStage 不能后退
+  it('TC-O-34: advanceStage 拒绝后退', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const stages = db.prepare(
+      'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+    ).all(artist.id)
+
+    // 先推进到第 3 个
+    orderService.advanceStage(order.id, stages[2].id)
+
+    // 尝试回到第 1 个 → 拒绝
+    expect(() => {
+      orderService.advanceStage(order.id, stages[0].id)
+    }).toThrow('INVALID_TRANSITION')
+  })
+
+  // TC-O-35: rollbackStage 打回 + revision + 系统备注
+  it('TC-O-35: rollbackStage 打回并记录备注', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const stages = db.prepare(
+      'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+    ).all(artist.id)
+
+    // 推进到第 4 个（线稿确认）
+    orderService.advanceStage(order.id, stages[3].id)
+
+    // 打回到第 2 个（排期确认）
+    const rolledBack = orderService.rollbackStage(order.id, stages[1].id)
+    expect(rolledBack.current_stage_id).toBe(stages[1].id)
+    expect(rolledBack.status).toBe('revision')
+
+    // 系统备注
+    const note = rolledBack.notes.find(n => n.created_by === 'system' && n.content.includes('↩'))
+    expect(note).toBeTruthy()
+    expect(note.content).toContain('打回')
+  })
+
+  // TC-O-36: rollbackStage 不能前进
+  it('TC-O-36: rollbackStage 拒绝前进方向', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const stages = db.prepare(
+      'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+    ).all(artist.id)
+
+    // 当前在第 1 个，尝试"打回"到第 3 个 → 拒绝
+    expect(() => {
+      orderService.rollbackStage(order.id, stages[2].id)
+    }).toThrow('INVALID_TRANSITION')
+  })
+
+  // TC-O-37: advanceStage(null) 关闭流程跟踪
+  it('TC-O-37: advanceStage(null) 关闭流程回退旧模式', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(order.current_stage_id).not.toBeNull()
+
+    const disabled = orderService.advanceStage(order.id, null)
+    expect(disabled.current_stage_id).toBeNull()
+  })
+
+  // TC-O-38: getStageInfo 返回进度
+  it('TC-O-38: getStageInfo 返回节点名和进度', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const info = orderService.getStageInfo(order)
+
+    expect(info.currentStageName).toBe('定稿')
+    expect(info.stageProgress.current).toBe(1)
+    expect(info.stageProgress.total).toBe(7)
+  })
+
+  // TC-O-38b: getStageInfo 无流程时返回 null
+  it('TC-O-38b: getStageInfo 无 current_stage_id 返回 null', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.advanceStage(order.id, null) // 关闭
+    const fresh = orderService.getOrder(order.id)
+    expect(orderService.getStageInfo(fresh)).toBeNull()
+  })
+
+  // TC-O-39: 迁移 v14 幂等
+  it('TC-O-39: 迁移 v14 幂等（current_stage_id 已存在时跳过）', async () => {
+    const { initDatabase } = await import('../src/db/init.js')
+    expect(() => initDatabase(db)).not.toThrow()
+  })
+
+  // TC-O-39b: orders.current_stage_id 列存在
+  it('TC-O-39b: orders 表含 current_stage_id 列', () => {
+    const cols = db.prepare('PRAGMA table_info(orders)').all()
+    expect(cols.some(c => c.name === 'current_stage_id')).toBe(true)
   })
 })
