@@ -20,7 +20,8 @@ export default async function artistRoutes(fastify) {
       .map(a => ({
         id: a.id, name: a.name, subdomain: a.subdomain,
         avatar: a.avatar, bio: a.bio, status: a.status,
-        weiboUrl: a.weibo_url, bilibiliUrl: a.bilibili_url
+        weiboUrl: a.weibo_url, bilibiliUrl: a.bilibili_url,
+        customLinks: artistService.getCustomLinks(a)
       }))
   })
 
@@ -47,6 +48,7 @@ export default async function artistRoutes(fastify) {
       paletteId: artist.palette_id || 'paper',
       weiboUrl: artist.weibo_url,
       bilibiliUrl: artist.bilibili_url,
+      customLinks: artistService.getCustomLinks(artist),
       notifyEnabled: !!artist.notify_enabled,
       contactQq: artist.contact_qq || artist.qq_number,
       revisionNote: artist.revision_note || null,
@@ -75,15 +77,62 @@ export default async function artistRoutes(fastify) {
   /**
    * PUT /api/artist/profile
    * 更新画师资料（昵称、简介、状态、外链、身份码等）
+   * R15: 新增 customLinks JSON Schema 校验 + 旧列冻结
    */
-  fastify.put('/api/artist/profile', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.put('/api/artist/profile', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          avatar: { type: ['string', 'null'], maxLength: 500 },
+          bio: { type: ['string', 'null'], maxLength: 500 },
+          status: { type: 'string', enum: ['open', 'full', 'break'] },
+          customLinks: {
+            type: 'array',
+            maxItems: 6,
+            items: {
+              type: 'object',
+              required: ['name', 'url'],
+              properties: {
+                name: { type: 'string', minLength: 1, maxLength: 20 },
+                url: { type: 'string', minLength: 1, maxLength: 500, pattern: '^https?://' },
+                icon: { type: 'string', enum: ['weibo', 'bilibili', 'pixiv', 'x', 'xiaohongshu', 'lofter', 'douyin', 'link'] }
+              },
+              additionalProperties: false
+            }
+          },
+          notifyEnabled: { type: 'boolean' },
+          artistCode: { type: 'string', maxLength: 10 },
+          contactQq: { type: ['string', 'null'], maxLength: 15 },
+          templateId: { type: 'string', maxLength: 50 },
+          paletteId: { type: 'string', enum: ['paper', 'ink', 'dusk', 'moss'] },
+          revisionNote: { type: ['string', 'null'], maxLength: 500 },
+          dashboardDefaultPanel: { type: ['string', 'null'], maxLength: 50 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
     try {
       const body = request.body || {}
-      // 输入校验：截断所有字符串字段（修正 key 映射）
-      const CLAMP_MAP = { artist_code: 'artistCode', weibo_url: 'url', bilibili_url: 'url', contact_qq: 'contactQq' }
+      // camelCase → snake_case 映射（前端统一用 camelCase）
+      const keyMap = {
+        customLinks: 'custom_links',
+        notifyEnabled: 'notify_enabled',
+        artistCode: 'artist_code',
+        contactQq: 'contact_qq',
+        templateId: 'template_id',
+        paletteId: 'palette_id',
+        revisionNote: 'revision_note',
+        dashboardDefaultPanel: 'dashboard_default_panel'
+      }
+      const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}
       for (const [k, v] of Object.entries(body)) {
-        sanitized[k] = typeof v === 'string' ? clamp(v, CLAMP_MAP[k] || k) : v
+        const dbKey = keyMap[k] || k
+        sanitized[dbKey] = typeof v === 'string' ? clamp(v, CLAMP_MAP[dbKey] || dbKey) : v
       }
       const updated = artistService.updateArtist(request.artist.id, sanitized)
       return updated

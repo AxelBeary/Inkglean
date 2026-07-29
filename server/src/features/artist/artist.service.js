@@ -58,7 +58,8 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 }
 
 export function updateArtist(id, fields) {
-  const allowed = ['name', 'avatar', 'bio', 'status', 'weibo_url', 'bilibili_url', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel']
+  // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel']
   const updates = []
   const values = []
 
@@ -89,13 +90,19 @@ export function updateArtist(id, fields) {
         // P1-D: 强制转整数，防止字符串被 SQLite 类型亲和性吞掉
         updates.push('notify_enabled = ?')
         values.push(value ? 1 : 0)
-      } else if (key === 'weibo_url' || key === 'bilibili_url') {
-        // 安全：外链协议校验 — 仅允许 http/https
-        if (value && !/^https?:\/\//i.test(String(value))) {
-          throw new AppError(E.INVALID_URL)
+      } else if (key === 'custom_links') {
+        // R15: 外链列表 — JSON 数组存储，service 层做业务校验（数量 ≤6 + url 协议）
+        const links = Array.isArray(value) ? value : []
+        if (links.length > 6) {
+          throw new AppError(E.LINKS_TOO_MANY)
         }
-        updates.push(`${key} = ?`)
-        values.push(value)
+        for (const link of links) {
+          if (link.url && !/^https?:\/\//i.test(String(link.url))) {
+            throw new AppError(E.LINK_URL_INVALID)
+          }
+        }
+        updates.push('custom_links = ?')
+        values.push(JSON.stringify(links))
       } else if (key === 'palette_id') {
         // 配色白名单校验 — 非法值回退到默认，避免脏数据
         const palette = String(value || 'paper')
@@ -237,4 +244,33 @@ export function updateRules(artistId, content) {
   db.prepare('UPDATE commission_rules SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE artist_id = ?')
     .run(content, artistId)
   return getRules(artistId)
+}
+
+// ============================================
+// R15: 外链列表（custom_links）
+// ============================================
+
+/**
+ * 读取画师外链列表（后端拼好，前端无脑读）
+ * 优先读 custom_links 列；为 NULL 时回退旧列 weibo_url/bilibili_url
+ * custom_links 已设置（哪怕空数组）→ 以新列为准，不回退
+ */
+export function getCustomLinks(artist) {
+  if (artist.custom_links != null) {
+    try {
+      const parsed = JSON.parse(artist.custom_links)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  // 回退旧列（老画师 custom_links=NULL 场景）
+  const links = []
+  if (artist.weibo_url) {
+    links.push({ name: '微博', url: artist.weibo_url, icon: 'weibo' })
+  }
+  if (artist.bilibili_url) {
+    links.push({ name: 'Bilibili', url: artist.bilibili_url, icon: 'bilibili' })
+  }
+  return links
 }
