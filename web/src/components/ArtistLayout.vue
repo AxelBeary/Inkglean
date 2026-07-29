@@ -127,7 +127,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
-import { Odometer, List, Box, EditPen, Money, Picture, Document, Setting, Expand, Fold, Operation } from '@element-plus/icons-vue'
+import { Odometer, List, Box, EditPen, Money, Picture, Document, Setting, Expand, Fold, Operation, Management } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -139,7 +139,7 @@ const themeStore = useThemeStore()
 const activeMenu = computed(() => route.path)
 
 // ─── R21: 菜单项注册表（侧边栏与抽屉共用） ───
-const MENU_ITEMS = [
+const BASE_MENU_ITEMS = [
   { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard' },
   { index: '/queue', icon: List, labelKey: 'menu.queue' },
   { index: '/orders', icon: Box, labelKey: 'menu.orders' },
@@ -149,6 +149,13 @@ const MENU_ITEMS = [
   { index: '/rules', icon: Document, labelKey: 'menu.rules' },
   { index: '/settings', icon: Setting, labelKey: 'menu.settings' }
 ]
+// UI-7: 管理员追加"管理后台"入口
+const MENU_ITEMS = computed(() => {
+  if (store.isAdmin) {
+    return [...BASE_MENU_ITEMS, { index: '/admin', icon: Management, labelKey: 'menu.admin' }]
+  }
+  return BASE_MENU_ITEMS
+})
 
 // ─── R21: 折叠状态管理 ───
 const SIDEBAR_KEY = 'sidebar_collapsed'
