@@ -422,7 +422,14 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
-    return orderService.reorderQueue(request.artist.id, request.body.orderedIds)
+    // P1-A 修复：重排返回值补焦点图签名（同 GET /api/artist/queue 逻辑）
+    const queue = orderService.reorderQueue(request.artist.id, request.body.orderedIds)
+    return queue.map(order => {
+      if (order.focus_image_path) {
+        return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
+      }
+      return order
+    })
   })
 
   /**
