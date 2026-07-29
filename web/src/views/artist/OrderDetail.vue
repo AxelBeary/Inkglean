@@ -131,15 +131,15 @@
             v-for="(reference, index) in order.references" :key="reference.id"
             class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
           >
-            <div class="ref-img-wrap" @click="selectFocusImage(reference)">
+            <div class="ref-img-wrap" @click="openGalleryViewer(index)">
               <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="refreshNow" />
               <!-- R18: 来源角标（客户/画师） -->
               <span class="ref-source-badge" :class="`ref-source-badge--${reference.source || 'client'}`">
                 {{ reference.source === 'artist' ? $t('orderDetail.sourceArtist') : $t('orderDetail.sourceClient') }}
               </span>
-              <!-- 悬停操作：预览 + 删除 -->
+              <!-- R44: 悬停操作组——✓设焦点（C56 手机端常驻）+ 删除；🔍已移除（单击图片即预览） -->
               <span class="ref-hover-actions">
-                <el-button size="small" circle :title="$t('orderDetail.galleryPreview')" @click.stop="openGalleryViewer(index)">🔍</el-button>
+                <el-button size="small" circle :title="$t('orderDetail.setFocus')" @click.stop="selectFocusImage(reference)">✓</el-button>
                 <el-button size="small" circle type="danger" :title="$t('orderDetail.deleteRef')" @click.stop="deleteReference(reference)">✕</el-button>
               </span>
               <!-- 焦点指示 -->
@@ -507,7 +507,7 @@ const { pasteError } = usePasteUpload({
   maxSizeMB: 10
 })
 
-// R18: 点击图片 = 设为焦点（替代独立"设为焦点"按钮）
+// R44: 设焦点改由 ✓ 小钩按钮触发（单击图片 = 放大预览）
 async function selectFocusImage(reference) {
   try {
     // mode 仅为满足后端 schema；实际显示尺寸由看板 queue_focus_display 决定
@@ -813,13 +813,17 @@ onMounted(() => {
   justify-content: center;
   pointer-events: none;
 }
-/* 悬停操作组（预览 + 删除） */
+/* 悬停操作组（✓设焦点 + 删除） */
 .ref-hover-actions {
   position: absolute; top: 4px; right: 4px;
   display: flex; gap: 4px;
   opacity: 0; transition: opacity 0.15s;
 }
 .ref-img-wrap:hover .ref-hover-actions { opacity: 1; }
+/* R44/C56: 触屏无悬停，✓ 设焦点按钮常驻 */
+@media (hover: none) {
+  .ref-hover-actions { opacity: 1; }
+}
 /* R18: 上传磁贴 */
 .ref-upload-tile {
   height: 120px;
