@@ -213,7 +213,15 @@ const delivering = ref(false)
 
 // P2-12: 交付文件前端校验
 const DELIVER_MAX_SIZE = 50 * 1024 * 1024 // 50MB
-const DELIVER_ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.zip', '.rar', '.7z', '.psd']
+// S-10 修复：对齐后端 upload.routes.js DELIVER_ALLOWED（23 种）
+const DELIVER_ALLOWED_EXT = [
+  '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp',
+  '.psd', '.ai', '.tiff', '.pdf',
+  '.zip', '.rar', '.7z',
+  '.mp4', '.mov',
+  '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.txt', '.md'
+]
 
 // 返回来源页：排期看板进来回排期，订单列表进来回列表，直接访问则默认回列表
 const fromQueue = route.query.from === 'queue'
