@@ -213,6 +213,7 @@ export default {
     deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
     focusHint: '显示尺寸在排期看板工具栏统一设置',
     gallery: '订单图库', galleryUpload: '上传图片', galleryUploadSuccess: '图片已添加',
+    galleryPreview: '预览大图',
     galleryHint: '点击图片设为焦点图 · 支持拖拽 / 点击 / Ctrl+V 上传 · 客户图 + 画师图合计最多 20 张',
     galleryNotImage: '仅支持图片文件', galleryTooBig: '图片超过 10MB 限制',
     uploading: '上传中...', sourceClient: '客户', sourceArtist: '画师',

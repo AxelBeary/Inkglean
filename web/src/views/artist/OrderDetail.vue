@@ -64,24 +64,16 @@
             class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
           >
             <div class="ref-img-wrap" @click="selectFocusImage(reference)">
-              <el-image
-                :src="reference.url" fit="cover" class="ref-img"
-                :alt="$t('orderDetail.referenceImage')"
-                :preview-src-list="order.references.map(r => r.url)"
-                :initial-index="index"
-                @click.stop
-              />
+              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" />
               <!-- R18: 来源角标（客户/画师） -->
               <span class="ref-source-badge" :class="`ref-source-badge--${reference.source || 'client'}`">
                 {{ reference.source === 'artist' ? $t('orderDetail.sourceArtist') : $t('orderDetail.sourceClient') }}
               </span>
-              <el-button
-                class="ref-delete-btn" type="danger" size="small" circle
-                :title="$t('orderDetail.deleteRef')"
-                @click.stop="deleteReference(reference)"
-              >
-                ✕
-              </el-button>
+              <!-- 悬停操作：预览 + 删除 -->
+              <span class="ref-hover-actions">
+                <el-button size="small" circle :title="$t('orderDetail.galleryPreview')" @click.stop="openGalleryViewer(index)">🔍</el-button>
+                <el-button size="small" circle type="danger" :title="$t('orderDetail.deleteRef')" @click.stop="deleteReference(reference)">✕</el-button>
+              </span>
               <!-- 焦点指示 -->
               <span v-if="order.focus_image_path === reference.file_path" class="ref-focus-indicator">✓</span>
             </div>
@@ -178,6 +170,14 @@
       </template>
     </el-dialog>
 
+    <!-- R18: 图库大图预览（悬停放大镜打开，支持左右切换） -->
+    <el-image-viewer
+      v-if="galleryViewerVisible"
+      :url-list="order.references?.map(r => r.url) || []"
+      :initial-index="galleryViewerIndex"
+      @close="galleryViewerVisible = false"
+    />
+
     <!-- R19: 备注附图大图查看 -->
     <el-image-viewer
       v-if="noteImageViewerUrl"
@@ -246,6 +246,13 @@ async function loadOrder() {
 const galleryInputEl = ref(null)
 const galleryUploading = ref(false)
 const isGalleryDragOver = ref(false)
+const galleryViewerVisible = ref(false)
+const galleryViewerIndex = ref(0)
+
+function openGalleryViewer(index) {
+  galleryViewerIndex.value = index
+  galleryViewerVisible.value = true
+}
 
 /** 图片文件前端校验（格式 + 10MB） */
 function validateImageFile(file) {
@@ -525,11 +532,13 @@ onMounted(loadOrder)
   justify-content: center;
   pointer-events: none;
 }
-.ref-delete-btn {
+/* 悬停操作组（预览 + 删除） */
+.ref-hover-actions {
   position: absolute; top: 4px; right: 4px;
+  display: flex; gap: 4px;
   opacity: 0; transition: opacity 0.15s;
 }
-.ref-img-wrap:hover .ref-delete-btn { opacity: 1; }
+.ref-img-wrap:hover .ref-hover-actions { opacity: 1; }
 /* R18: 上传磁贴 */
 .ref-upload-tile {
   height: 120px;

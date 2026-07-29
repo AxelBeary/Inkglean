@@ -213,6 +213,7 @@ export default {
     deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted',
     focusHint: 'Display size is set globally in the queue board toolbar',
     gallery: 'Order gallery', galleryUpload: 'Upload', galleryUploadSuccess: 'Image added',
+    galleryPreview: 'Preview',
     galleryHint: 'Click an image to set it as focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
     galleryNotImage: 'Only image files are supported', galleryTooBig: 'Image exceeds the 10MB limit',
     uploading: 'Uploading...', sourceClient: 'Client', sourceArtist: 'Artist',
