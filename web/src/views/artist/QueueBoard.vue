@@ -297,6 +297,8 @@ async function uploadAndSetFocus(file, order) {
   }
   try {
     const uploaded = await uploadApi.reference(file)
+    // 必须先关联到订单（写入 order_references），否则 setFocusImage 校验归属失败
+    await artistApi.addReference(order.id, { filePath: uploaded.filePath })
     await artistApi.setFocusImage(order.id, { imagePath: uploaded.filePath, mode: 'large' })
     ElMessage.success(t('orderDetail.focusUpdated'))
     await loadQueue()
