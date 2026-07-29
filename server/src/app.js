@@ -135,7 +135,7 @@ export async function buildApp(opts = {}) {
       reply.header('X-Frame-Options', 'DENY')
       // 五号审计补充：非 /embed 路由也加 CSP（主站安全头）
       reply.header('Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+        "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: blob:; connect-src 'self'; font-src 'self'"
       )
     }
