@@ -107,7 +107,7 @@ export const artistApi = {
   updatePriority: (id, priority) => api.put(`/artist/orders/${id}/priority`, { priority }),
   reorderQueue: (orderedIds) =>
     api.put('/artist/queue/reorder', { orderedIds }),
-  addNote: (id, content) => api.post(`/artist/orders/${id}/notes`, { content }),
+  addNote: (id, data) => api.post(`/artist/orders/${id}/notes`, data),
   deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data),
   addReference: (id, data) => api.post(`/artist/orders/${id}/references`, data),
   deleteReference: (id, refId) => api.delete(`/artist/orders/${id}/references/${refId}`),
@@ -167,6 +167,12 @@ export const uploadApi = {
     const fd = new FormData()
     fd.append('file', file)
     return api.post('/upload/deliverable', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+  // R19: 备注附图（需登录，notes/{artistId}/ 目录，签名 URL 返回）
+  noteImage: (file) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api.post('/upload/note-image', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
   }
 }
 

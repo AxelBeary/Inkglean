@@ -22,6 +22,7 @@
               rel="noopener noreferrer"
               class="classic-side-link"
             >
+              <span class="classic-link-badge" aria-hidden="true">{{ link.badge }}</span>
               {{ link.label }}
             </a>
           </div>
@@ -159,10 +160,34 @@ useScrollReveal(rootEl)
   padding: 6px 0;
   border-radius: 8px;
   transition: color 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .classic-side-link:hover {
   color: var(--color-primary);
   background: var(--color-primary-soft);
+}
+/* R15: 外链图标文字徽标 */
+.classic-link-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--pal-bg-alt, var(--color-primary-soft));
+  border: 1px solid var(--pal-border);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--pal-text);
+  transition: background 0.2s, border-color 0.2s;
+}
+.classic-side-link:hover .classic-link-badge {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
 }
 .classic-cta {
   width: 100%;
