@@ -196,7 +196,13 @@
           </div>
           <el-empty v-if="!order.notes?.length" :description="$t('orderDetail.noNotes')" :image-size="60" />
         </div>
-        <div class="note-input">
+        <div
+          class="note-input"
+          :class="{ 'note-input--drag-over': isNoteDragOver }"
+          @dragover.prevent="isNoteDragOver = true"
+          @dragleave="isNoteDragOver = false"
+          @drop.prevent="handleNoteDrop"
+        >
           <el-input v-model="newNote" :placeholder="$t('orderDetail.notePlaceholder')" @keyup.enter="addNote" />
           <!-- R19: 附图按钮（上传/粘贴 1 张） -->
           <el-button @click="triggerNoteImageUpload" :disabled="!!pendingNoteImage">
@@ -570,6 +576,14 @@ const pendingNoteImage = ref(null) // { filePath, url }
 const noteSubmitting = ref(false)
 const noteImageViewerUrl = ref(null)
 
+// ─── R41/C55: 备注附图拖拽上传（粘贴已由 usePasteUpload 焦点路由支持） ───
+const isNoteDragOver = ref(false)
+async function handleNoteDrop(event) {
+  isNoteDragOver.value = false
+  const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
+  if (file) await uploadNoteImage(file) // 单张，与粘贴行为一致
+}
+
 function triggerNoteImageUpload() {
   noteImageInputEl.value?.click()
 }
@@ -887,7 +901,9 @@ onMounted(() => {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .note-thumb:hover { transform: scale(1.05); box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.1)); }
-.note-input { display: flex; gap: 8px; }
+.note-input { display: flex; gap: 8px; border-radius: 6px; transition: outline 0.15s; }
+/* R41: 拖拽进入高亮 */
+.note-input--drag-over { outline: 2px dashed var(--el-color-primary); outline-offset: 4px; }
 .note-input .el-input { flex: 1; }
 .note-pending {
   display: flex;
