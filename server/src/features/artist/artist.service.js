@@ -81,7 +81,7 @@ export function updateArtist(id, fields) {
         values.push(code)
       } else if (key === 'status') {
         // P1-D: 白名单校验 — 非法值提前拒绝，避免 SQLite CHECK 抛原始错误
-        if (!['open', 'full', 'break'].includes(String(value))) {
+        if (!['open', 'full', 'break', 'hidden'].includes(String(value))) {
           throw new AppError(E.INVALID_STATUS)
         }
         updates.push('status = ?')

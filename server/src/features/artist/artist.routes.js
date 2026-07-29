@@ -33,6 +33,11 @@ export default async function artistRoutes(fastify) {
     const artist = artistService.getArtistBySubdomain(request.params.subdomain)
     if (!artist || artist.qq_number === getAdminQq()) return reply.code(404).send({ error: '画师不存在' })
 
+    // UI-8: hidden 状态 — 只返回最小信息，不暴露 bio/pricing/artworks/rules
+    if (artist.status === 'hidden') {
+      return { id: artist.id, name: artist.name, subdomain: artist.subdomain, status: 'hidden' }
+    }
+
     const tiers = artistService.getTiers(artist.id)
     const artworks = artistService.getArtworks(artist.id)
     const rules = artistService.getRules(artist.id)
@@ -88,7 +93,7 @@ export default async function artistRoutes(fastify) {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           avatar: { type: ['string', 'null'], maxLength: 500 },
           bio: { type: ['string', 'null'], maxLength: 500 },
-          status: { type: 'string', enum: ['open', 'full', 'break'] },
+          status: { type: 'string', enum: ['open', 'full', 'break', 'hidden'] },
           customLinks: {
             type: 'array',
             maxItems: 6,
