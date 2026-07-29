@@ -212,7 +212,12 @@ export default {
     focusMode: '排期看板显示', focusOff: '关', focusSmall: '小', focusLarge: '大',
     focusUpdated: '焦点图已更新', focusSelectFirst: '请先选择一张参考图作为焦点图',
     deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
-    focusHint: '显示尺寸在排期看板工具栏统一设置'
+    focusHint: '显示尺寸在排期看板工具栏统一设置',
+    gallery: '订单图库', galleryUpload: '上传图片', galleryUploadSuccess: '图片已添加',
+    galleryHint: '点击图片设为焦点图 · 支持拖拽 / 点击 / Ctrl+V 上传 · 客户图 + 画师图合计最多 20 张',
+    galleryNotImage: '仅支持图片文件', galleryTooBig: '图片超过 10MB 限制',
+    uploading: '上传中...', sourceClient: '客户', sourceArtist: '画师',
+    noteImage: '备注附图', noteImageSingle: '备注仅支持 1 张附图，已使用第一张'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
