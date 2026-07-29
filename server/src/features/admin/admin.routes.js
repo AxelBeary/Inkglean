@@ -129,11 +129,22 @@ export default async function adminRoutes(fastify) {
    * 2. 验证新管理员的登录码（证明对方接受）
    * P1-F: 前置检查 + 整体事务化，任意一步失败全部回滚（码也不消耗）
    */
-  fastify.post('/api/admin/transfer', { preHandler: requireAdmin }, async (request, reply) => {
-    const { newQq, currentCode, newCode } = request.body || {}
-    if (!newQq || !currentCode || !newCode) {
-      return reply.code(400).send({ error: '缺少必要参数' })
+  fastify.post('/api/admin/transfer', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['newQq', 'currentCode', 'newCode'],
+        additionalProperties: false,
+        properties: {
+          newQq: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
+          currentCode: { type: 'string', minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' },
+          newCode: { type: 'string', minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }
+        }
+      }
     }
+  }, async (request, reply) => {
+    const { newQq, currentCode, newCode } = request.body
 
     const currentAdminQq = getAdminQq()
     if (String(newQq) === currentAdminQq) {
@@ -141,6 +152,10 @@ export default async function adminRoutes(fastify) {
     }
 
     // P1-F: 限流 + 画师存在性 + 不等于自己 —— 全部无副作用，放在验码前
+    // P0-3 修复：增加 IP 维度限流，防止攻击者轮换 newQq 绕过单目标限流
+    if (!rateLimit(`transfer-ip:${request.ip}`, 5, 15 * 60_000)) {
+      return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
+    }
     if (!rateLimit(`transfer:${newQq}`, 3, 15 * 60_000)) {
       return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
     }
