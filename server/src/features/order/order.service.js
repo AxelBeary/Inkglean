@@ -457,31 +457,35 @@ export function getArtistStats(artistId) {
   const dayStartUTC = localDayStart.toISOString().slice(0, 19).replace('T', ' ')
 
   // 今日新增订单金额：created_at >= 今日零点，金额回退链与月收入一致
-  const todayNewOrderCents = db.prepare(`
+  const todayNewOrderRow = db.prepare(`
     SELECT COALESCE(SUM(
       CASE
         WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
         WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
         ELSE COALESCE(o.price_snapshot, 0) * 100
       END
-    ), 0) as total_cents
+    ), 0) as total_cents, COUNT(*) as cnt
     FROM orders o
     WHERE o.artist_id = ? AND o.created_at >= ?
-  `).get(artistId, dayStartUTC).total_cents
+  `).get(artistId, dayStartUTC)
+  const todayNewOrderCents = todayNewOrderRow.total_cents
+  const todayNewOrderCount = todayNewOrderRow.cnt
 
   // 今日收入：completed_at >= 今日零点 且 status IN ('done','delivered')
-  const todayRevenueCents = db.prepare(`
+  const todayRevenueRow = db.prepare(`
     SELECT COALESCE(SUM(
       CASE
         WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
         WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
         ELSE COALESCE(o.price_snapshot, 0) * 100
       END
-    ), 0) as total_cents
+    ), 0) as total_cents, COUNT(*) as cnt
     FROM orders o
     WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
       AND o.completed_at >= ?
-  `).get(artistId, dayStartUTC).total_cents
+  `).get(artistId, dayStartUTC)
+  const todayRevenueCents = todayRevenueRow.total_cents
+  const todayRevenueCount = todayRevenueRow.cnt
 
   // R51: 今日待办 — 今天截稿 + status='pending' + status='revision'（C62 已拍板）
   const dayEndUTC = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString().slice(0, 19).replace('T', ' ')
@@ -502,7 +506,9 @@ export function getArtistStats(artistId) {
     monthRevenueCents: monthRevenue,    // 分（INTEGER），R8 仪表盘重构时切换
     totalCompleted,
     todayNewOrderCents,                 // R52: 今日新增订单金额（分）
+    todayNewOrderCount,                 // R52: 今日新增订单数
     todayRevenueCents,                  // R52: 今日收入金额（分）
+    todayRevenueCount,                  // R52: 今日完成订单数
     todayTodoCount                      // R51: 今日待办数
   }
 }
