@@ -589,4 +589,47 @@ export default async function orderRoutes(fastify) {
     if (isNaN(refId)) throw new AppError(E.ORDER_INVALID_ID)
     return orderService.removeReference(request.order.id, refId)
   })
+
+  // ─── R33: 签名 URL 批量刷新 ───
+
+  /**
+   * POST /api/artist/refresh-signatures
+   * 批量刷新签名 URL（前端定时轮询，防 15min 过期 403）
+   * 限流：同画师 20次/5分钟
+   */
+  fastify.post('/api/artist/refresh-signatures', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['paths'],
+        properties: {
+          paths: {
+            type: 'array',
+            items: { type: 'string', minLength: 1, maxLength: 500 },
+            minItems: 1,
+            maxItems: 50
+          }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    guardRateLimit(`refresh-sig:${request.artist.id}`, 20, 5 * 60_000)
+
+    const { paths } = request.body
+    const artistId = String(request.artist.id)
+
+    // 安全：路径归属校验 — 只允许本画师有权访问的目录
+    const allowedPrefixes = ['references/', `deliverables/${artistId}/`, `notes/${artistId}/`]
+    const urls = {}
+    for (const p of paths) {
+      if (p.includes('..') || !allowedPrefixes.some(prefix => p.startsWith(prefix))) {
+        throw new AppError(E.ILLEGAL_PATH)
+      }
+      urls[p] = signedUrl(p)
+    }
+
+    return { urls }
+  })
 }
