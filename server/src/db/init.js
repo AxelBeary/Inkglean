@@ -131,11 +131,12 @@ CREATE TABLE IF NOT EXISTS deliverables (
 );
 
 -- 登录码表（临时）
+-- P0-4 修复：expires_at 实际存储 Unix 毫秒整数（auth.service.js），列类型从 DATETIME 改为 INTEGER 保持一致
 CREATE TABLE IF NOT EXISTS login_codes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   artist_id INTEGER NOT NULL,
   code TEXT NOT NULL,
-  expires_at DATETIME NOT NULL,
+  expires_at INTEGER NOT NULL,
   attempts INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
