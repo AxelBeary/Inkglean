@@ -11,7 +11,7 @@
               <el-input v-model="form.name" />
             </el-form-item>
             <el-form-item :label="$t('settings.codeLabel')">
-              <el-input v-model="form.artist_code" :placeholder="$t('settings.codePlaceholder')" maxlength="10" />
+              <el-input v-model="form.artistCode" :placeholder="$t('settings.codePlaceholder')" maxlength="10" />
               <div class="form-hint">{{ $t('settings.codeHint') }}</div>
             </el-form-item>
             <el-form-item :label="$t('settings.bioLabel')">
@@ -24,25 +24,42 @@
                 <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
               </el-radio-group>
             </el-form-item>
-            <el-form-item :label="$t('settings.weiboLabel')">
-              <el-input v-model="form.weibo_url" placeholder="https://weibo.com/xxx" />
+
+            <!-- R15: 外链列表编辑器（替代旧微博/B站输入框） -->
+            <el-form-item :label="$t('settings.linksLabel')">
+              <div class="link-editor">
+                <div v-for="(link, index) in form.customLinks" :key="index" class="link-row">
+                  <el-select v-model="link.icon" class="link-icon-select">
+                    <el-option v-for="opt in LINK_ICONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+                  </el-select>
+                  <el-input v-model="link.name" :placeholder="$t('settings.linkName')" maxlength="20" class="link-name-input" />
+                  <el-input v-model="link.url" placeholder="https://" class="link-url-input" />
+                  <div class="link-actions">
+                    <el-button text size="small" :disabled="index === 0" @click="moveLink(index, -1)">↑</el-button>
+                    <el-button text size="small" :disabled="index === form.customLinks.length - 1" @click="moveLink(index, 1)">↓</el-button>
+                    <el-button text size="small" type="danger" @click="removeLink(index)">✕</el-button>
+                  </div>
+                </div>
+                <el-button size="small" @click="addLink" :disabled="form.customLinks.length >= 6">
+                  + {{ $t('settings.addLink') }}
+                </el-button>
+                <div class="form-hint">{{ $t('settings.linksHint') }}</div>
+              </div>
             </el-form-item>
-            <el-form-item :label="$t('settings.bilibiliLabel')">
-              <el-input v-model="form.bilibili_url" placeholder="https://space.bilibili.com/xxx" />
-            </el-form-item>
+
             <el-form-item :label="$t('settings.contactQqLabel')">
-              <el-input v-model="form.contact_qq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
+              <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
               <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
             </el-form-item>
             <el-form-item :label="$t('settings.notifyLabel')">
               <el-switch
-                v-model="form.notify_enabled" :active-value="1" :inactive-value="0"
+                v-model="form.notifyEnabled"
                 :active-text="$t('settings.notifyText')"
               />
             </el-form-item>
             <!-- R8: 默认面板 -->
             <el-form-item :label="$t('settings.defaultPanelLabel')">
-              <el-select v-model="form.dashboard_default_panel" style="width: 200px">
+              <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
                 <el-option value="queue" :label="$t('dashboard.panelQueue')" />
                 <el-option value="orders" :label="$t('dashboard.panelOrders')" />
                 <el-option value="manual" :label="$t('dashboard.panelManual')" />
@@ -67,11 +84,11 @@
               v-for="tpl in templates"
               :key="tpl.id"
               class="template-card"
-              :class="{ active: form.template_id === tpl.id }"
-              @click="form.template_id = tpl.id"
+              :class="{ active: form.templateId === tpl.id }"
+              @click="form.templateId = tpl.id"
               tabindex="0"
               role="button"
-              @keyup.enter="form.template_id = tpl.id"
+              @keyup.enter="form.templateId = tpl.id"
             >
               <div class="template-preview">{{ tpl.preview }}</div>
               <div class="template-info">
@@ -88,11 +105,11 @@
               v-for="pal in palettes"
               :key="pal.id"
               class="palette-card"
-              :class="{ active: form.palette_id === pal.id }"
-              @click="form.palette_id = pal.id"
+              :class="{ active: form.paletteId === pal.id }"
+              @click="form.paletteId = pal.id"
               tabindex="0"
               role="button"
-              @keyup.enter="form.palette_id = pal.id"
+              @keyup.enter="form.paletteId = pal.id"
             >
               <div class="palette-swatch">
                 <span class="swatch-light" :style="{ background: pal.light }"></span>
@@ -138,14 +155,43 @@ const activeTab = ref('profile')
 const loading = ref(true)
 const saving = ref(false)
 
+// R15: 外链图标枚举（一号拍板：纯文字标签 + Element Plus Link 图标兜底）
+const LINK_ICONS = [
+  { value: 'weibo', label: '微 微博' },
+  { value: 'bilibili', label: 'B Bilibili' },
+  { value: 'pixiv', label: 'P Pixiv' },
+  { value: 'x', label: 'X' },
+  { value: 'xiaohongshu', label: '红 小红书' },
+  { value: 'lofter', label: 'L Lofter' },
+  { value: 'douyin', label: '抖 抖音' },
+  { value: 'link', label: '🔗 通用链接' }
+]
+
 const form = reactive({
   name: '', bio: '', status: 'open',
-  weibo_url: '', bilibili_url: '', contact_qq: '',
-  notify_enabled: 1, artist_code: '',
-  template_id: 'classic',
-  palette_id: 'paper',
-  dashboard_default_panel: 'queue'
+  customLinks: [],
+  contactQq: '',
+  notifyEnabled: true,
+  artistCode: '',
+  templateId: 'classic',
+  paletteId: 'paper',
+  dashboardDefaultPanel: 'queue'
 })
+
+// R15: 链接编辑器操作
+function addLink() {
+  if (form.customLinks.length >= 6) return
+  form.customLinks.push({ name: '', url: '', icon: 'link' })
+}
+function removeLink(index) {
+  form.customLinks.splice(index, 1)
+}
+function moveLink(index, direction) {
+  const target = index + direction
+  if (target < 0 || target >= form.customLinks.length) return
+  const [item] = form.customLinks.splice(index, 1)
+  form.customLinks.splice(target, 0, item)
+}
 
 const templates = computed(() => [
   { id: 'atelier', name: t('templates.atelier'), desc: t('templates.atelierDesc'), preview: '📖 🖌' },
@@ -177,18 +223,24 @@ async function copyEmbedCode() {
 async function save() {
   saving.value = true
   try {
-    // P1-D: 只提交 template_id + palette_id，其他字段由 profile tab 的 save 提交
+    // P1-D: 只提交 templateId + paletteId，其他字段由 profile tab 的 save 提交
     if (activeTab.value === 'template') {
-      await artistApi.updateProfile({ template_id: form.template_id, palette_id: form.palette_id })
+      await artistApi.updateProfile({ templateId: form.templateId, paletteId: form.paletteId })
     } else if (activeTab.value === 'embed') {
       // 嵌入脚本 tab 没有需要保存的设置
     } else {
+      // R15: camelCase + customLinks 数组（PUT /api/artist/profile 已改 additionalProperties:false）
       await artistApi.updateProfile({
-        name: form.name.trim(), bio: form.bio.trim(), status: form.status,
-        weibo_url: form.weibo_url.trim(), bilibili_url: form.bilibili_url.trim(),
-        contact_qq: form.contact_qq.trim(), notify_enabled: form.notify_enabled,
-        artist_code: form.artist_code.trim(),
-        dashboard_default_panel: form.dashboard_default_panel
+        name: form.name.trim(),
+        bio: form.bio.trim(),
+        status: form.status,
+        customLinks: form.customLinks
+          .filter(l => l.name.trim() && l.url.trim())
+          .map(l => ({ name: l.name.trim(), url: l.url.trim(), icon: l.icon || 'link' })),
+        contactQq: form.contactQq.trim(),
+        notifyEnabled: form.notifyEnabled,
+        artistCode: form.artistCode.trim(),
+        dashboardDefaultPanel: form.dashboardDefaultPanel
       })
     }
     ElMessage.success(t('settings.saved'))
@@ -202,14 +254,24 @@ onMounted(async () => {
     // 旧模板 ID 映射到新布局 ID，确保选择器正确高亮
     const LEGACY = { 'default': 'classic', 'dark-gallery': 'gallery', 'single-page': 'folio' }
     const rawTpl = profile.template_id || 'classic'
+
+    // R15: 解析 custom_links JSON（GET profile 返回原始 DB 行，custom_links 是 JSON 字符串或 null）
+    let customLinks = []
+    if (profile.custom_links) {
+      try { customLinks = JSON.parse(profile.custom_links) } catch { customLinks = [] }
+    }
+
     Object.assign(form, {
-      name: profile.name, bio: profile.bio || '', status: profile.status,
-      weibo_url: profile.weibo_url || '', bilibili_url: profile.bilibili_url || '',
-      contact_qq: profile.contact_qq || '', notify_enabled: profile.notify_enabled,
-      artist_code: profile.artist_code || '',
-      template_id: LEGACY[rawTpl] || rawTpl,
-      palette_id: profile.palette_id || 'paper',
-      dashboard_default_panel: profile.dashboard_default_panel || 'queue',
+      name: profile.name,
+      bio: profile.bio || '',
+      status: profile.status,
+      customLinks,
+      contactQq: profile.contact_qq || '',
+      notifyEnabled: !!profile.notify_enabled,
+      artistCode: profile.artist_code || '',
+      templateId: LEGACY[rawTpl] || rawTpl,
+      paletteId: profile.palette_id || 'paper',
+      dashboardDefaultPanel: profile.dashboard_default_panel || 'queue',
       subdomain: profile.subdomain || ''
     })
   } catch (err) { ElMessage.error(err.message) }
@@ -219,6 +281,23 @@ onMounted(async () => {
 
 <style scoped>
 .form-hint { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+
+/* R15: 外链列表编辑器 */
+.link-editor { width: 100%; }
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.link-icon-select { width: 110px; flex-shrink: 0; }
+.link-name-input { width: 120px; flex-shrink: 0; }
+.link-url-input { flex: 1; }
+.link-actions {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+}
 
 .template-label { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
 .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }

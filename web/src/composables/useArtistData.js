@@ -9,6 +9,21 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ARTIST_STATUS_TYPE } from '../constants/order.js'
 
+/**
+ * R15: 外链图标徽标映射
+ * 一号拍板：纯文字标签 + Element Plus Link 图标兜底，不自造 SVG 图标库
+ */
+const LINK_ICON_BADGE = {
+  weibo: '微',
+  bilibili: 'B',
+  pixiv: 'P',
+  x: 'X',
+  xiaohongshu: '红',
+  lofter: 'L',
+  douyin: '抖',
+  link: '🔗'
+}
+
 export function useArtistData(props) {
   const { t } = useI18n()
 
@@ -27,16 +42,20 @@ export function useArtistData(props) {
   /** 状态 → Element Plus tag type */
   const statusType = (status) => ARTIST_STATUS_TYPE[status] || 'info'
 
-  /** 过滤空值后的社交链接列表 */
+  /**
+   * R15: 外链列表（读后端拼好的 customLinks 数组）
+   * 后端已处理旧列回退（custom_links=NULL → 拼 weibo_url/bilibili_url），前端不碰旧字段
+   * 每项: { name, url, icon } → 追加 badge 文字徽标
+   */
   const socialLinks = computed(() => {
-    const links = []
-    if (artist.value.weiboUrl) {
-      links.push({ key: 'weibo', url: artist.value.weiboUrl, label: t('artistHome.weiboPlain') })
-    }
-    if (artist.value.bilibiliUrl) {
-      links.push({ key: 'bilibili', url: artist.value.bilibiliUrl, label: t('artistHome.bilibiliPlain') })
-    }
-    return links
+    const links = artist.value.customLinks
+    if (!Array.isArray(links) || links.length === 0) return []
+    return links.map((item, i) => ({
+      key: `${item.icon || 'link'}-${i}`,
+      url: item.url,
+      label: item.name,
+      badge: LINK_ICON_BADGE[item.icon] || LINK_ICON_BADGE.link
+    }))
   })
 
   /** 开场代表作（第一张作品），无作品时为 null */
