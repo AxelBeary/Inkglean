@@ -1,5 +1,7 @@
 <template>
   <div class="artist-home" v-loading="loading">
+    <!-- R50: 预览模式横幅（有预览参数时显示，客户拿到链接也只看到公开数据） -->
+    <div v-if="isPreview" class="preview-banner">🔍 {{ $t('artistHome.previewBanner') }}</div>
     <!-- UI-8: hidden 状态 — 友好提示页，不渲染模板 -->
     <div v-if="artist?.status === 'hidden'" class="hidden-state">
       <p class="hidden-icon">🙈</p>
@@ -24,7 +26,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -45,10 +47,43 @@ const pricing = ref(null)
 const loading = ref(true)
 
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
-const paletteId = computed(() => artist.value?.paletteId || 'paper')
+
+// ─── R50: 预览参数（_tpl/_pal/_accent 只覆盖渲染层，不碰数据层；单点分支，不扩散到模板内部） ───
+const previewTpl = computed(() => route.query._tpl || null)
+const previewPal = computed(() => route.query._pal || null)
+const previewAccent = computed(() => route.query._accent || null)
+const isPreview = computed(() => !!(previewTpl.value || previewPal.value || previewAccent.value))
+
+const paletteId = computed(() => previewPal.value || artist.value?.paletteId || 'paper')
 
 // 配色系统：根据画师 paletteId 设置 html[data-palette]，卸载时清理
 usePalette(paletteId)
+
+// ─── R49: 强调色覆盖（画师设置优先于访客 ThemePicker；离开主页时恢复访客选择） ───
+// 5 色与 theme.css data-accent="1"~"5" 一一对应（含暗色提亮变体，免费获得暗色适配）
+const ACCENT_INDEX = { '#34dbcb': '1', '#34c2db': '2', '#3498db': '3', '#346edb': '4', '#3445db': '5' }
+const accentOverride = computed(() => {
+  const raw = previewAccent.value || artist.value?.accentColor
+  return raw ? (ACCENT_INDEX[String(raw).toLowerCase()] || null) : null
+})
+let savedAccent = null
+let accentApplied = false
+watch(accentOverride, (idx) => {
+  if (idx) {
+    if (!accentApplied) { savedAccent = document.documentElement.dataset.accent || null; accentApplied = true }
+    document.documentElement.dataset.accent = idx
+  } else if (accentApplied) {
+    if (savedAccent) document.documentElement.dataset.accent = savedAccent
+    else delete document.documentElement.dataset.accent
+    accentApplied = false
+  }
+}, { immediate: true })
+onUnmounted(() => {
+  if (accentApplied) {
+    if (savedAccent) document.documentElement.dataset.accent = savedAccent
+    else delete document.documentElement.dataset.accent
+  }
+})
 
 // ─── 模板注册表（defineAsyncComponent 自动处理懒加载）───
 // 布局 ID：classic / gallery / folio；旧值 default / dark-gallery / single-page 做映射兼容
@@ -65,7 +100,7 @@ const LEGACY_TEMPLATE_MAP = {
 }
 
 const templateComponent = computed(() => {
-  const raw = artist.value?.templateId || 'classic'
+  const raw = previewTpl.value || artist.value?.templateId || 'classic'
   const id = LEGACY_TEMPLATE_MAP[raw] || raw
   return TEMPLATES[id] || TEMPLATES.classic
 })
@@ -108,4 +143,12 @@ onMounted(async () => {
   min-height: 60vh; color: var(--text-secondary); font-size: 16px; gap: 12px;
 }
 .hidden-icon { font-size: 48px; margin: 0; }
+/* R50: 预览模式横幅 */
+.preview-banner {
+  position: sticky; top: 0; z-index: 200;
+  padding: 10px 16px; text-align: center;
+  background: var(--el-color-warning-light-3); color: #333;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
 </style>

@@ -60,6 +60,9 @@ export default {
     NOTE_NOT_FOUND: '备注不存在',
     SYSTEM_NOTE_PROTECTED: '系统备注不可删除',
 
+    // 强调色（v0.15 R49）
+    INVALID_ACCENT_COLOR: '无效的强调色',
+
     // 上传
     ILLEGAL_FILE_TYPE: '非法文件类型',
     UNSUPPORTED_FORMAT: '不支持此文件格式',
@@ -130,7 +133,9 @@ export default {
     startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
     ctaSubtitle: '期待与你一起创作出好作品。',
     weiboPlain: '微博', bilibiliPlain: 'B站',
-    revisionNote: '修改说明'
+    revisionNote: '修改说明',
+    // R50: 预览模式
+    previewBanner: '预览模式 — 修改尚未保存'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
@@ -272,7 +277,11 @@ export default {
     descLabel: '描述', descPlaceholder: '简要说明这个档位包含什么', exampleLabel: '例图（可选）',
     changeExample: '更换例图', uploadExample: '上传例图', removeExample: '移除',
     exampleUploaded: '例图已上传，点保存后生效', fillName: '请填写名称',
-    confirmDelete: '确定删除档位「{name}」？', daysUnit: '{n}天'
+    confirmDelete: '确定删除档位「{name}」？', daysUnit: '{n}天',
+    // R55: 示例图拖拽直传
+    dropToUpload: '拖入上传', notImage: '仅支持图片文件', tooBig: '图片超过 10MB 限制',
+    overwriteTitle: '覆盖示例图', overwriteConfirm: '已有示例图，覆盖后旧图不可恢复。确定覆盖？',
+    exampleUpdated: '示例图已更新'
   },
   artworks: {
     title: '🖼 作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
@@ -303,7 +312,15 @@ export default {
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
     defaultPanelLabel: '仪表盘默认面板', defaultPanelHint: '进入仪表盘时显示的快捷入口',
-    save: '保存设置', saved: '设置已保存'
+    save: '保存设置', saved: '设置已保存',
+    // R48: 头像上传
+    avatarLabel: '头像', avatarHint: '点击上传或更换（JPG/PNG/WebP，≤10MB）',
+    avatarUpdated: '头像已更新', avatarNotImage: '仅支持图片文件', avatarTooBig: '图片超过 10MB 限制',
+    // R49: 强调色
+    accentLabel: '强调色', accentHint: '客户主页的按钮/链接/高亮颜色，与访客自选主色独立',
+    accentClear: '默认', accentDarkHint: '暗色模式自动提亮，无需额外调整',
+    // R50: 预览
+    previewBtn: '预览主页'
   },
   templates: {
     tab: '主页模板',

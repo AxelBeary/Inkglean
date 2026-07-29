@@ -9,12 +9,25 @@
         <el-table :data="tiers" v-loading="loadingTiers" stripe>
           <el-table-column label="示例" width="80">
             <template #default="{ row }">
-              <el-image
-                v-if="row.example_image" :src="`/uploads/${row.example_image}`"
-                fit="cover" style="width: 56px; height: 56px; border-radius: 6px"
-                :alt="row.name" :preview-src-list="[`/uploads/${row.example_image}`]"
-              />
-              <span v-else style="color: var(--text-muted)">—</span>
+              <!-- R55: 示例图拖拽/点击直传（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 行为不同） -->
+              <div
+                class="tier-img-wrap"
+                :class="{ 'tier-img-wrap--active': tierDragId === row.id }"
+                @click="triggerTierImgUpload(row)"
+                @dragover.prevent="tierDragId = row.id"
+                @dragleave="onTierImgDragLeave($event, row)"
+                @drop.prevent="handleTierImgDrop($event, row)"
+              >
+                <el-image
+                  v-if="row.example_image" :src="`/uploads/${row.example_image}`"
+                  fit="cover" class="tier-img"
+                  :alt="row.name"
+                />
+                <span v-else class="tier-img-empty">+</span>
+                <div v-if="tierDragId === row.id" class="tier-img-overlay">
+                  <span>{{ $t('tiers.dropToUpload') }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
           <el-table-column prop="name" label="名称" width="120" />
@@ -91,19 +104,24 @@
         <el-button type="primary" @click="saveTier" :loading="savingTier">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- R55: 示例图直传隐藏文件选择器 -->
+    <input ref="tierImgInputEl" type="file" accept="image/*" hidden @change="handleTierImgSelect" />
   </ArtistLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import AddonManager from '../../components/artist/AddonManager.vue'
 import MultiplierManager from '../../components/artist/MultiplierManager.vue'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 
+const { t } = useI18n()
 const activeTab = ref('tiers')
 
 // ─── 档位 ───
@@ -209,10 +227,96 @@ async function loadTiers() {
 }
 
 onMounted(loadTiers)
+
+// ─── R55: 示例图拖拽/点击直传（列表级，不打开弹窗） ───
+const tierImgInputEl = ref(null)
+const tierDragId = ref(null)
+let tierImgTarget = null
+
+function triggerTierImgUpload(row) {
+  tierImgTarget = row
+  tierImgInputEl.value?.click()
+}
+
+async function handleTierImgSelect(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file || !tierImgTarget) return
+  await uploadTierExample(file, tierImgTarget)
+  tierImgTarget = null
+}
+
+/** 防 dragleave 闪烁：子元素间移动时 relatedTarget 仍在容器内，忽略 */
+function onTierImgDragLeave(e, row) {
+  if (e.currentTarget.contains(e.relatedTarget)) return
+  if (tierDragId.value === row.id) tierDragId.value = null
+}
+
+async function handleTierImgDrop(event, row) {
+  tierDragId.value = null
+  const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
+  if (!file) {
+    if (event.dataTransfer.files.length) ElMessage.error(t('tiers.notImage'))
+    return
+  }
+  await uploadTierExample(file, row)
+}
+
+/** 上传示例图（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 看板焦点图行为不同） */
+async function uploadTierExample(file, row) {
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error(t('tiers.notImage'))
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error(t('tiers.tooBig'))
+    return
+  }
+  if (row.example_image) {
+    try {
+      await ElMessageBox.confirm(
+        t('tiers.overwriteConfirm'),
+        t('tiers.overwriteTitle'),
+        { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+      )
+    } catch { return }
+  }
+  try {
+    const uploaded = await uploadApi.image(file)
+    await artistApi.updateTier(row.id, { exampleImage: uploaded.filePath })
+    ElMessage.success(t('tiers.exampleUpdated'))
+    await loadTiers()
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
 </script>
 
 <style scoped>
 .example-upload { display: flex; align-items: center; gap: 12px; }
 .example-preview { width: 80px; height: 80px; border-radius: 8px; border: 1px solid var(--border-color); }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+/* ─── R55: 示例图拖拽/点击直传 ─── */
+.tier-img-wrap {
+  position: relative; width: 56px; height: 56px;
+  border-radius: 6px; overflow: hidden; cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.tier-img-wrap:hover { box-shadow: 0 0 0 2px var(--el-color-primary-light-5); }
+.tier-img-wrap--active { box-shadow: 0 0 0 2px var(--el-color-primary); }
+.tier-img { width: 56px; height: 56px; display: block; }
+.tier-img-empty {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  border: 2px dashed var(--border-color); border-radius: 6px;
+  color: var(--text-muted); font-size: 20px;
+}
+.tier-img-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55); color: #fff;
+  font-size: 10px; font-weight: 600;
+  pointer-events: none;
+}
 </style>

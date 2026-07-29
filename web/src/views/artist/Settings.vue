@@ -7,6 +7,16 @@
       <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
         <el-card style="max-width: 600px" v-loading="loading">
           <el-form :model="form" label-position="top" size="large">
+            <!-- R48: 头像上传（即时保存，不等 Save 按钮） -->
+            <el-form-item :label="$t('settings.avatarLabel')">
+              <div class="avatar-upload" @click="triggerAvatarUpload">
+                <el-avatar :size="72" :src="avatarPreviewUrl" class="avatar-preview">
+                  {{ form.name?.charAt(0) || '?' }}
+                </el-avatar>
+                <span class="avatar-upload-hint">{{ $t('settings.avatarHint') }}</span>
+              </div>
+              <input ref="avatarInputEl" type="file" accept="image/*" hidden @change="handleAvatarSelect" />
+            </el-form-item>
             <el-form-item :label="$t('settings.nameLabel')">
               <el-input v-model="form.name" />
             </el-form-item>
@@ -122,7 +132,33 @@
             </div>
           </div>
 
-          <el-button type="primary" @click="save" :loading="saving" style="margin-top: 20px">{{ $t('settings.save') }}</el-button>
+          <!-- R49: 强调色选择器（5 色预设 + 清除，后端白名单校验） -->
+          <p class="template-label" style="margin-top: 24px">{{ $t('settings.accentLabel') }}</p>
+          <p class="form-hint" style="margin-bottom: 12px">{{ $t('settings.accentHint') }}</p>
+          <div class="accent-picker">
+            <button
+              v-for="a in ACCENT_PRESETS" :key="a.color"
+              class="accent-swatch-btn" :class="{ active: form.accentColor === a.color }"
+              :style="{ background: a.color }"
+              :title="a.name"
+              @click="form.accentColor = a.color"
+            >
+              <span v-if="form.accentColor === a.color" class="swatch-check">✓</span>
+            </button>
+            <button
+              class="accent-clear-btn" :class="{ active: !form.accentColor }"
+              @click="form.accentColor = null"
+            >
+              {{ $t('settings.accentClear') }}
+            </button>
+          </div>
+          <p class="form-hint" style="margin-top: 8px">{{ $t('settings.accentDarkHint') }}</p>
+
+          <!-- R50: 预览按钮（新窗口打开，参数覆盖渲染层） -->
+          <div class="template-actions">
+            <el-button @click="openPreview" :disabled="!form.subdomain">{{ $t('settings.previewBtn') }}</el-button>
+            <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+          </div>
         </el-card>
       </el-tab-pane>
 
@@ -171,7 +207,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { artistApi } from '../../api/index.js'
+import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
@@ -238,8 +274,59 @@ const form = reactive({
   artistCode: '',
   templateId: 'classic',
   paletteId: 'paper',
+  accentColor: null,
+  avatar: '',
   dashboardDefaultPanel: 'queue'
 })
+
+// ─── R49: 强调色预设（5 色与 ThemePicker 一致，后端白名单校验） ───
+const ACCENT_PRESETS = [
+  { color: '#34dbcb', name: '青' },
+  { color: '#34c2db', name: '碧' },
+  { color: '#3498db', name: '蓝' },
+  { color: '#346edb', name: '靛' },
+  { color: '#3445db', name: '紫' }
+]
+
+// ─── R48: 头像上传（即时保存，uploadApi.image → PUT profile avatar） ───
+const avatarInputEl = ref(null)
+const avatarPreviewUrl = computed(() => form.avatar ? `/uploads/${form.avatar}` : undefined)
+
+function triggerAvatarUpload() {
+  avatarInputEl.value?.click()
+}
+
+async function handleAvatarSelect(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error(t('settings.avatarNotImage'))
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error(t('settings.avatarTooBig'))
+    return
+  }
+  try {
+    const uploaded = await uploadApi.image(file)
+    await artistApi.updateProfile({ avatar: uploaded.filePath })
+    form.avatar = uploaded.filePath
+    ElMessage.success(t('settings.avatarUpdated'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+// ─── R50: 预览主页（新窗口，参数覆盖渲染层，不碰数据层） ───
+function openPreview() {
+  const params = new URLSearchParams({
+    _tpl: form.templateId,
+    _pal: form.paletteId
+  })
+  if (form.accentColor) params.set('_accent', form.accentColor)
+  window.open(`/artist/${form.subdomain}?${params.toString()}`, '_blank', 'noopener')
+}
 
 // R15: 链接编辑器操作
 function addLink() {
@@ -286,9 +373,9 @@ async function copyEmbedCode() {
 async function save() {
   saving.value = true
   try {
-    // P1-D: 只提交 templateId + paletteId，其他字段由 profile tab 的 save 提交
+    // P1-D: 只提交 templateId + paletteId + accentColor，其他字段由 profile tab 的 save 提交
     if (activeTab.value === 'template') {
-      await artistApi.updateProfile({ templateId: form.templateId, paletteId: form.paletteId })
+      await artistApi.updateProfile({ templateId: form.templateId, paletteId: form.paletteId, accentColor: form.accentColor })
     } else if (activeTab.value === 'embed') {
       // 嵌入脚本 tab 没有需要保存的设置
     } else {
@@ -334,6 +421,8 @@ onMounted(async () => {
       artistCode: profile.artist_code || '',
       templateId: LEGACY[rawTpl] || rawTpl,
       paletteId: profile.palette_id || 'paper',
+      accentColor: profile.accent_color || null,
+      avatar: profile.avatar || '',
       dashboardDefaultPanel: profile.dashboard_default_panel || 'queue',
       subdomain: profile.subdomain || ''
     })
@@ -400,4 +489,35 @@ onMounted(async () => {
 .embed-code-box:hover { background: var(--bg-hover); }
 .embed-code-box code { color: var(--text-primary); white-space: nowrap; }
 .embed-preview { margin-top: 8px; max-width: 240px; border-radius: 6px; }
+
+/* ─── R48: 头像上传 ─── */
+.avatar-upload {
+  display: flex; align-items: center; gap: 16px;
+  cursor: pointer; user-select: none;
+}
+.avatar-preview { transition: transform 0.15s, box-shadow 0.15s; }
+.avatar-upload:hover .avatar-preview { transform: scale(1.05); box-shadow: 0 0 0 3px var(--el-color-primary-light-5); }
+.avatar-upload-hint { font-size: 12px; color: var(--text-secondary); }
+
+/* ─── R49: 强调色选择器 ─── */
+.accent-picker { display: flex; align-items: center; gap: 10px; }
+.accent-swatch-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.accent-swatch-btn:hover { transform: scale(1.15); }
+.accent-swatch-btn.active { border-color: var(--text-primary); }
+.swatch-check { color: #fff; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.accent-clear-btn {
+  padding: 6px 14px; border: 1px solid var(--border-color); border-radius: 999px;
+  background: transparent; cursor: pointer; font-size: 12px; color: var(--text-secondary);
+  transition: border-color 0.15s, color 0.15s;
+}
+.accent-clear-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.accent-clear-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
+
+/* ─── R50: 模板 tab 操作行 ─── */
+.template-actions { display: flex; gap: 12px; margin-top: 20px; }
 </style>

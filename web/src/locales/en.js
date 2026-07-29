@@ -60,6 +60,9 @@ export default {
     NOTE_NOT_FOUND: 'Note not found',
     SYSTEM_NOTE_PROTECTED: 'System notes cannot be deleted',
 
+    // Accent color (v0.15 R49)
+    INVALID_ACCENT_COLOR: 'Invalid accent color',
+
     // Upload
     ILLEGAL_FILE_TYPE: 'Illegal file type',
     UNSUPPORTED_FORMAT: 'Unsupported file format',
@@ -130,7 +133,9 @@ export default {
     startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
     weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili',
-    revisionNote: 'Revision policy'
+    revisionNote: 'Revision policy',
+    // R50: preview mode
+    previewBanner: 'Preview mode — changes not yet saved'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
@@ -272,7 +277,11 @@ export default {
     descLabel: 'Description', descPlaceholder: 'Briefly describe what this tier includes', exampleLabel: 'Example image (optional)',
     changeExample: 'Change image', uploadExample: 'Upload image', removeExample: 'Remove',
     exampleUploaded: 'Image uploaded — click Save to apply', fillName: 'Please enter a name',
-    confirmDelete: 'Delete tier "{name}"?', daysUnit: '{n} days'
+    confirmDelete: 'Delete tier "{name}"?', daysUnit: '{n} days',
+    // R55: example image drag-and-drop
+    dropToUpload: 'Drop to upload', notImage: 'Only image files are supported', tooBig: 'Image exceeds the 10MB limit',
+    overwriteTitle: 'Replace example image', overwriteConfirm: 'This tier already has an example image. The old image cannot be recovered after replacement. Continue?',
+    exampleUpdated: 'Example image updated'
   },
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',
@@ -303,7 +312,15 @@ export default {
     contactQqHint: 'Clients who forgot their order number will see this QQ to contact you',
     notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
     defaultPanelLabel: 'Dashboard default panel', defaultPanelHint: 'Shortcut shown when entering the dashboard',
-    save: 'Save settings', saved: 'Settings saved'
+    save: 'Save settings', saved: 'Settings saved',
+    // R48: avatar upload
+    avatarLabel: 'Avatar', avatarHint: 'Click to upload or change (JPG/PNG/WebP, ≤10MB)',
+    avatarUpdated: 'Avatar updated', avatarNotImage: 'Only image files are supported', avatarTooBig: 'Image exceeds the 10MB limit',
+    // R49: accent color
+    accentLabel: 'Accent color', accentHint: 'Button/link/highlight color on your public page, independent of visitor accent choice',
+    accentClear: 'Default', accentDarkHint: 'Dark mode auto-brightens, no manual adjustment needed',
+    // R50: preview
+    previewBtn: 'Preview page'
   },
   templates: {
     tab: 'Page Template',
