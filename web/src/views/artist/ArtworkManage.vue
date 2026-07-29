@@ -56,13 +56,13 @@
     <div v-if="manageMode" class="batch-bar">
       <span class="batch-count">{{ $t('artworks.selected', { n: selectedIds.size }) }}</span>
       <el-button size="small" @click="toggleManageMode">{{ $t('common.cancel') }}</el-button>
-      <el-button size="small" type="danger" :disabled="selectedIds.size === 0" @click="startBatchDelete">
+      <el-button size="small" type="danger" :disabled="selectedIds.size === 0" :loading="batchDeleting" @click="startBatchDelete">
         {{ $t('common.delete') }}
       </el-button>
     </div>
 
     <!-- R45/C59: 批量删除 ≥3 条用滑块确认 -->
-    <el-dialog v-model="slideDialogVisible" :title="$t('artworks.batchDeleteTitle')" width="400px">
+    <el-dialog v-model="slideDialogVisible" :title="$t('artworks.batchDeleteTitle')" width="400px" @closed="slideProgress = 0">
       <p class="batch-slide-hint">{{ $t('artworks.batchDeleteConfirm', { n: selectedIds.size }) }}</p>
       <div class="slide-confirm">
         <div class="slide-confirm-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
@@ -137,6 +137,7 @@ async function startBatchDelete() {
 }
 
 const slideDialogVisible = ref(false)
+const batchDeleting = ref(false)
 const {
   progress: slideProgress,
   onStart: onSlideStart,
@@ -151,23 +152,28 @@ const {
 
 /** 逐条删除（无批量接口），完成后退出多选模式并刷新 */
 async function doBatchDelete() {
+  batchDeleting.value = true
   const ids = [...selectedIds.value]
   let failed = 0
-  for (const id of ids) {
-    try {
-      await artistApi.deleteArtwork(id)
-    } catch {
-      failed++
+  try {
+    for (const id of ids) {
+      try {
+        await artistApi.deleteArtwork(id)
+      } catch {
+        failed++
+      }
     }
+    if (failed === 0) {
+      ElMessage.success(t('artworks.batchDeleted', { n: ids.length }))
+    } else {
+      ElMessage.warning(t('artworks.batchPartial', { ok: ids.length - failed, failed }))
+    }
+    manageMode.value = false
+    selectedIds.value = new Set()
+    await loadArtworks()
+  } finally {
+    batchDeleting.value = false
   }
-  if (failed === 0) {
-    ElMessage.success(t('artworks.batchDeleted', { n: ids.length }))
-  } else {
-    ElMessage.warning(t('artworks.batchPartial', { ok: ids.length - failed, failed }))
-  }
-  manageMode.value = false
-  selectedIds.value = new Set()
-  await loadArtworks()
 }
 
 async function handleUpload({ file }) {

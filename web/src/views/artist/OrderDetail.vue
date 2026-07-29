@@ -200,7 +200,7 @@
           class="note-input"
           :class="{ 'note-input--drag-over': isNoteDragOver }"
           @dragover.prevent="isNoteDragOver = true"
-          @dragleave="isNoteDragOver = false"
+          @dragleave="onNoteDragLeave"
           @drop.prevent="handleNoteDrop"
         >
           <el-input v-model="newNote" :placeholder="$t('orderDetail.notePlaceholder')" @keyup.enter="addNote" />
@@ -578,6 +578,11 @@ const noteImageViewerUrl = ref(null)
 
 // ─── R41/C55: 备注附图拖拽上传（粘贴已由 usePasteUpload 焦点路由支持） ───
 const isNoteDragOver = ref(false)
+/** 防 dragleave 闪烁：子元素间移动时 relatedTarget 仍在容器内，忽略 */
+function onNoteDragLeave(e) {
+  if (e.currentTarget.contains(e.relatedTarget)) return
+  isNoteDragOver.value = false
+}
 async function handleNoteDrop(event) {
   isNoteDragOver.value = false
   const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))

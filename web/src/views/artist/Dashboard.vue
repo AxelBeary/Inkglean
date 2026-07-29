@@ -43,7 +43,7 @@
       <h3 style="margin: 24px 0 12px">{{ $t('dashboard.quickActions') }}</h3>
       <div class="quick-actions">
         <el-button type="primary" @click="$router.push('/queue')">{{ $t('dashboard.queueBoard') }}</el-button>
-        <el-button type="success" @click="$router.push('/manual-order')">{{ $t('dashboard.manualOrder') }}</el-button>
+        <el-button type="success" @click="$router.push('/orders?action=manual')">{{ $t('dashboard.manualOrder') }}</el-button>
         <el-button @click="$router.push('/orders')">{{ $t('dashboard.allOrders') }}</el-button>
         <el-button @click="$router.push('/settings')">{{ $t('dashboard.settings') }}</el-button>
       </div>
@@ -79,7 +79,7 @@ const lastKnownStatus = ref('open') // P1-6: 回滚用
 const PANEL_MAP = {
   queue:  { route: '/queue',        icon: '📋', labelKey: 'dashboard.panelQueue' },
   orders: { route: '/orders',       icon: '📦', labelKey: 'dashboard.panelOrders' },
-  manual: { route: '/manual-order', icon: '✍️', labelKey: 'dashboard.panelManual' },
+  manual: { route: '/orders?action=manual', icon: '✍️', labelKey: 'dashboard.panelManual' },
   tiers:  { route: '/tiers',        icon: '💰', labelKey: 'dashboard.panelTiers' }
 }
 const defaultPanel = computed(() => store.profile?.dashboard_default_panel || 'queue')

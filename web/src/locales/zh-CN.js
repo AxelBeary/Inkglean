@@ -223,7 +223,6 @@ export default {
     stageOffConfirm: '关闭后此订单不再跟随工作流程，回到固定状态流转。确定关闭？',
     stageOffDone: '已关闭流程跟踪',
     gallery: '订单图库', galleryUpload: '上传图片', galleryUploadSuccess: '图片已添加',
-    galleryPreview: '预览大图',
     setFocus: '设为焦点图',
     galleryHint: '点击图片放大预览 · 点 ✓ 设为焦点图 · 支持拖拽 / 点击 / Ctrl+V 上传 · 客户图 + 画师图合计最多 20 张',
     galleryNotImage: '仅支持图片文件', galleryTooBig: '图片超过 10MB 限制',

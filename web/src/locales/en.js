@@ -223,7 +223,6 @@ export default {
     stageOffConfirm: 'This order will stop following your workflow and fall back to fixed statuses. Continue?',
     stageOffDone: 'Stage tracking turned off',
     gallery: 'Order gallery', galleryUpload: 'Upload', galleryUploadSuccess: 'Image added',
-    galleryPreview: 'Preview',
     setFocus: 'Set as focus image',
     galleryHint: 'Click an image to preview · Click ✓ to set focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
     galleryNotImage: 'Only image files are supported', galleryTooBig: 'Image exceeds the 10MB limit',
