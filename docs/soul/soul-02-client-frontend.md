@@ -68,3 +68,5 @@ Commit 格式：`type(client): 简述`（type = feat/fix/style/refactor/perf/doc
 - 开工前先读 `docs/comms/STATUS.md`，了解当前 master 状态和任务分配。
 - 预研报告、技术调研、问题回复写入 `docs/comms/02-to-01-{主题}-{日期}.md`。
 - 写下来才算交付。口头说完但没写文件 = 未交付。
+- **代码必须在 git 里**：报告"完成"之前，代码必须已写入 worktree 并 commit。未进 git 的代码不算完成——会话关闭即丢失。一号审核只读 git diff，不读聊天转达。
+- **实际操作人不是中继**：禁止让实际操作人复制粘贴交接内容。所有交接写 comms 文件，操作人只需说"去 docs/comms/ 读"。违反此条等同未交付。
