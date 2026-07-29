@@ -26,6 +26,8 @@ export default {
     STAGE_NAME_EMPTY: 'Stage name cannot be empty',
     FINAL_CANNOT_DISABLE: 'Cannot disable payment on final stage',
     FINAL_CANNOT_DELETE: 'Cannot delete final payment stage',
+    TRACK_ALREADY_ON: 'Workflow tracking is already enabled for this order',
+    NO_WORKFLOW_TEMPLATE: 'Please create a workflow template first (at least 1 stage)',
     FINAL_READONLY: 'Cannot modify final payment ratio directly',
     MAX_INSTALLMENTS: 'Maximum 20 installments',
     FINAL_TOO_LOW: 'Final payment ratio too low to add new payment stage',
@@ -221,11 +223,18 @@ export default {
     stageOffConfirm: 'This order will stop following your workflow and fall back to fixed statuses. Continue?',
     stageOffDone: 'Stage tracking turned off',
     gallery: 'Order gallery', galleryUpload: 'Upload', galleryUploadSuccess: 'Image added',
-    galleryPreview: 'Preview',
-    galleryHint: 'Click an image to set it as focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
+    setFocus: 'Set as focus image',
+    galleryHint: 'Click an image to preview · Click ✓ to set focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
     galleryNotImage: 'Only image files are supported', galleryTooBig: 'Image exceeds the 10MB limit',
     uploading: 'Uploading...', sourceClient: 'Client', sourceArtist: 'Artist',
-    noteImage: 'Note attachment', noteImageSingle: 'Notes support only 1 attachment. The first image was used.'
+    noteImage: 'Note attachment', noteImageSingle: 'Notes support only 1 attachment. The first image was used.',
+    // R39: status area rework (plan B)
+    statusTitle: 'Order status', lastActivity: 'Last activity: {time}',
+    noteCount: '{n} notes', refCount: '{n} references',
+    enableTrackingHint: 'Enable workflow tracking for fine-grained progress management',
+    enableTracking: 'Enable', trackingEnabled: 'Workflow tracking enabled',
+    slideToCancel: 'Slide to cancel order',
+    completedAt: 'Completed {time}'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -256,7 +265,13 @@ export default {
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',
     tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet — upload some!',
-    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image'
+    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image',
+    // R45: multi-select delete
+    manage: 'Manage', manageDone: 'Done',
+    selected: '{n} selected',
+    batchDeleteTitle: 'Batch delete', batchDeleteConfirm: 'Delete {n} selected artworks? This cannot be undone.',
+    batchDeleted: '{n} artworks deleted', batchPartial: 'Delete finished: {ok} succeeded, {failed} failed',
+    slideToDelete: 'Slide to confirm deletion'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
@@ -265,6 +280,7 @@ export default {
   },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabTemplate: 'Page Template', tabWorkflow: 'Workflow & Payment',
+    tabRules: 'Rules',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',

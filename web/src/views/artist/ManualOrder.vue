@@ -1,148 +1,146 @@
 <template>
-  <ArtistLayout>
-    <h2>{{ $t('manualOrder.title') }}</h2>
+  <!-- R42a: 手动录单表单（原独立页面，现作为组件嵌入订单管理抽屉；/manual-order 已重定向到 /orders?action=manual） -->
+  <div class="manual-order-form">
     <p class="hint">{{ $t('manualOrder.hint') }}</p>
 
-    <el-card style="margin-top: 16px; max-width: 640px">
-      <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
-        <!-- 客户QQ -->
-        <el-form-item :label="$t('manualOrder.clientQq')" prop="clientQq">
-          <el-input v-model="form.clientQq" :placeholder="$t('manualOrder.clientQqPlaceholder')" />
-        </el-form-item>
+    <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
+      <!-- 客户QQ -->
+      <el-form-item :label="$t('manualOrder.clientQq')" prop="clientQq">
+        <el-input v-model="form.clientQq" :placeholder="$t('manualOrder.clientQqPlaceholder')" />
+      </el-form-item>
 
-        <!-- 客户昵称 -->
-        <el-form-item :label="$t('manualOrder.clientName')">
-          <el-input v-model="form.clientName" :placeholder="$t('manualOrder.clientNamePlaceholder')" />
-        </el-form-item>
+      <!-- 客户昵称 -->
+      <el-form-item :label="$t('manualOrder.clientName')">
+        <el-input v-model="form.clientName" :placeholder="$t('manualOrder.clientNamePlaceholder')" />
+      </el-form-item>
 
-        <!-- 档位选择 -->
-        <el-form-item :label="$t('manualOrder.tier')">
-          <el-select v-model="form.tierId" :placeholder="$t('manualOrder.tierPlaceholder')" clearable style="width: 100%" @change="onTierChange">
-            <el-option v-for="tier in tiers" :key="tier.id" :label="`${tier.name} - ¥${tier.price}`" :value="tier.id" />
-          </el-select>
-        </el-form-item>
+      <!-- 档位选择 -->
+      <el-form-item :label="$t('manualOrder.tier')">
+        <el-select v-model="form.tierId" :placeholder="$t('manualOrder.tierPlaceholder')" clearable style="width: 100%" @change="onTierChange">
+          <el-option v-for="tier in tiers" :key="tier.id" :label="`${tier.name} - ¥${tier.price}`" :value="tier.id" />
+        </el-select>
+      </el-form-item>
 
-        <!-- 增项选择（选完档位后出现） -->
-        <el-form-item v-if="form.tierId && availableAddons.length > 0" :label="$t('manualOrder.addons')">
-          <div class="addon-groups">
-            <div v-for="group in addonGroups" :key="group.category" class="addon-group">
-              <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
-                <span>{{ group.icon }} {{ group.label }}</span>
-                <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
-              </div>
-              <div v-show="!group.collapsed" class="addon-items">
-                <div v-for="a in group.items" :key="a.id" class="addon-item">
-                  <div class="addon-item-info">
-                    <span class="addon-item-name">{{ a.name }}</span>
-                    <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
-                    <span v-if="a.description" class="addon-item-desc">{{ a.description }}</span>
-                  </div>
-                  <el-input-number
-                    v-if="a.select_mode === 'quantity'"
-                    v-model="addonSelections[a.id]"
-                    :min="0" :max="a.max_qty" size="small" style="width: 110px"
-                  />
-                  <el-switch
-                    v-else-if="a.select_mode === 'toggle'"
-                    v-model="addonToggles[a.id]" size="small"
-                  />
-                  <el-tag v-else size="small" type="warning">{{ $t('manualOrder.inquiry') }}</el-tag>
+      <!-- 增项选择（选完档位后出现） -->
+      <el-form-item v-if="form.tierId && availableAddons.length > 0" :label="$t('manualOrder.addons')">
+        <div class="addon-groups">
+          <div v-for="group in addonGroups" :key="group.category" class="addon-group">
+            <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
+              <span>{{ group.icon }} {{ group.label }}</span>
+              <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
+            </div>
+            <div v-show="!group.collapsed" class="addon-items">
+              <div v-for="a in group.items" :key="a.id" class="addon-item">
+                <div class="addon-item-info">
+                  <span class="addon-item-name">{{ a.name }}</span>
+                  <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
+                  <span v-if="a.description" class="addon-item-desc">{{ a.description }}</span>
                 </div>
+                <el-input-number
+                  v-if="a.select_mode === 'quantity'"
+                  v-model="addonSelections[a.id]"
+                  :min="0" :max="a.max_qty" size="small" style="width: 110px"
+                />
+                <el-switch
+                  v-else-if="a.select_mode === 'toggle'"
+                  v-model="addonToggles[a.id]" size="small"
+                />
+                <el-tag v-else size="small" type="warning">{{ $t('manualOrder.inquiry') }}</el-tag>
               </div>
             </div>
-          </div>
-        </el-form-item>
-
-        <!-- 倍率选择 -->
-        <el-form-item v-if="form.tierId && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" :label="$t('manualOrder.multipliers')">
-          <div class="multiplier-section">
-            <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-              <span class="multiplier-label">{{ $t('manualOrder.usage') }}：</span>
-              <el-radio-group v-model="form.usageMultiplierId" size="small">
-                <el-radio-button :value="null">{{ $t('manualOrder.personal') }}</el-radio-button>
-                <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
-                  {{ m.name }} ×{{ m.multiplier }}
-                </el-radio-button>
-              </el-radio-group>
-            </div>
-            <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-              <span class="multiplier-label">{{ $t('manualOrder.rush') }}：</span>
-              <el-radio-group v-model="form.rushMultiplierId" size="small">
-                <el-radio-button :value="null">{{ $t('manualOrder.noRush') }}</el-radio-button>
-                <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
-                  {{ m.name }} ×{{ m.multiplier }}
-                </el-radio-button>
-              </el-radio-group>
-            </div>
-          </div>
-        </el-form-item>
-
-        <!-- 实时价格预览 -->
-        <div v-if="form.tierId && pricePreview" class="price-preview">
-          <div class="price-line" v-for="item in pricePreview.breakdown" :key="item.name">
-            <span>{{ item.name }}</span>
-            <span class="price-amount">¥{{ item.amount.toFixed(2) }}</span>
-          </div>
-          <div class="price-divider"></div>
-          <div class="price-line total">
-            <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">¥{{ pricePreview.totalPrice.toFixed(2) }}</span>
           </div>
         </div>
+      </el-form-item>
 
-        <!-- 最终价格（可手动修改） -->
-        <el-form-item v-if="form.tierId" :label="$t('manualOrder.finalPrice')">
-          <el-input-number
-            v-model="finalPriceYuan"
-            :min="0" :max="999999.99" :precision="2" :step="10"
-            style="width: 200px"
-          />
-          <span class="final-price-hint">{{ $t('manualOrder.finalPriceHint') }}</span>
-        </el-form-item>
+      <!-- 倍率选择 -->
+      <el-form-item v-if="form.tierId && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" :label="$t('manualOrder.multipliers')">
+        <div class="multiplier-section">
+          <div v-if="usageMultipliers.length > 0" class="multiplier-row">
+            <span class="multiplier-label">{{ $t('manualOrder.usage') }}：</span>
+            <el-radio-group v-model="form.usageMultiplierId" size="small">
+              <el-radio-button :value="null">{{ $t('manualOrder.personal') }}</el-radio-button>
+              <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
+                {{ m.name }} ×{{ m.multiplier }}
+              </el-radio-button>
+            </el-radio-group>
+          </div>
+          <div v-if="rushMultipliers.length > 0" class="multiplier-row">
+            <span class="multiplier-label">{{ $t('manualOrder.rush') }}：</span>
+            <el-radio-group v-model="form.rushMultiplierId" size="small">
+              <el-radio-button :value="null">{{ $t('manualOrder.noRush') }}</el-radio-button>
+              <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
+                {{ m.name }} ×{{ m.multiplier }}
+              </el-radio-button>
+            </el-radio-group>
+          </div>
+        </div>
+      </el-form-item>
 
-        <!-- 需求描述 -->
-        <el-form-item :label="$t('manualOrder.desc')">
-          <el-input
-            v-model="form.description" type="textarea" :rows="4"
-            :placeholder="$t('manualOrder.descPlaceholder')" maxlength="2000" show-word-limit
-          />
-        </el-form-item>
+      <!-- 实时价格预览 -->
+      <div v-if="form.tierId && pricePreview" class="price-preview">
+        <div class="price-line" v-for="item in pricePreview.breakdown" :key="item.name">
+          <span>{{ item.name }}</span>
+          <span class="price-amount">¥{{ item.amount.toFixed(2) }}</span>
+        </div>
+        <div class="price-divider"></div>
+        <div class="price-line total">
+          <span>{{ $t('manualOrder.totalPrice') }}</span>
+          <span class="price-amount">¥{{ pricePreview.totalPrice.toFixed(2) }}</span>
+        </div>
+      </div>
 
-        <!-- 参考图上传 -->
-        <el-form-item :label="$t('manualOrder.references')">
-          <el-upload
-            :auto-upload="true" :http-request="handleRefUpload"
-            accept="image/*" list-type="picture-card" :limit="5"
-            :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
-            :on-remove="handleRefRemove"
-          >
-            <el-icon aria-label="上传参考图"><Plus /></el-icon>
-          </el-upload>
-          <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
-        </el-form-item>
+      <!-- UI-5 修复：最终价格始终可见（不选档位时画师直接手填价格） -->
+      <el-form-item :label="$t('manualOrder.finalPrice')">
+        <el-input-number
+          v-model="finalPriceYuan"
+          :min="0" :max="999999.99" :precision="2" :step="10"
+          style="width: 200px"
+        />
+        <span class="final-price-hint">{{ $t('manualOrder.finalPriceHint') }}</span>
+      </el-form-item>
 
-        <!-- 优先级 -->
-        <el-form-item :label="$t('manualOrder.priority')">
-          <el-radio-group v-model="form.priority">
-            <el-radio-button value="high">{{ $t('manualOrder.priorityHigh') }}</el-radio-button>
-            <el-radio-button value="medium">{{ $t('manualOrder.priorityMedium') }}</el-radio-button>
-            <el-radio-button value="low">{{ $t('manualOrder.priorityLow') }}</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
+      <!-- 需求描述 -->
+      <el-form-item :label="$t('manualOrder.desc')">
+        <el-input
+          v-model="form.description" type="textarea" :rows="4"
+          :placeholder="$t('manualOrder.descPlaceholder')" maxlength="2000" show-word-limit
+        />
+      </el-form-item>
 
-        <!-- QQ通知开关 -->
-        <el-form-item>
-          <el-checkbox v-model="form.clientNotify">{{ $t('manualOrder.clientNotify') }}</el-checkbox>
-        </el-form-item>
+      <!-- 参考图上传 -->
+      <el-form-item :label="$t('manualOrder.references')">
+        <el-upload
+          :auto-upload="true" :http-request="handleRefUpload"
+          accept="image/*" list-type="picture-card" :limit="5"
+          :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
+          :on-remove="handleRefRemove"
+        >
+          <el-icon aria-label="上传参考图"><Plus /></el-icon>
+        </el-upload>
+        <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
+      </el-form-item>
 
-        <el-form-item>
-          <el-button type="primary" @click="submit" :loading="submitting" style="width: 100%">
-            {{ $t('manualOrder.submit') }}
-            <template v-if="pricePreview"> — ¥{{ displayPrice }}</template>
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+      <!-- 优先级 -->
+      <el-form-item :label="$t('manualOrder.priority')">
+        <el-radio-group v-model="form.priority">
+          <el-radio-button value="high">{{ $t('manualOrder.priorityHigh') }}</el-radio-button>
+          <el-radio-button value="medium">{{ $t('manualOrder.priorityMedium') }}</el-radio-button>
+          <el-radio-button value="low">{{ $t('manualOrder.priorityLow') }}</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+
+      <!-- QQ通知开关 -->
+      <el-form-item>
+        <el-checkbox v-model="form.clientNotify">{{ $t('manualOrder.clientNotify') }}</el-checkbox>
+      </el-form-item>
+
+      <el-form-item>
+        <el-button type="primary" @click="submit" :loading="submitting" style="width: 100%">
+          {{ $t('manualOrder.submit') }}
+          <template v-if="displayPrice"> — ¥{{ displayPrice }}</template>
+        </el-button>
+      </el-form-item>
+    </el-form>
 
     <!-- 录入成功 -->
     <el-dialog v-model="showResult" :title="$t('manualOrder.resultTitle')" width="360px">
@@ -154,7 +152,7 @@
         </template>
       </el-result>
     </el-dialog>
-  </ArtistLayout>
+  </div>
 </template>
 
 <script setup>
@@ -163,8 +161,10 @@ import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
+
+// R42a: 作为组件嵌入订单管理抽屉，录入成功后通知父组件刷新列表
+const emit = defineEmits(['created'])
 
 const { t } = useI18n()
 const formRef = ref(null)
@@ -373,11 +373,11 @@ async function submit() {
       rushMultiplierId: form.rushMultiplierId
     })
 
-    // R3: 如果画师手动修改了最终价格（与计算价不同），调 R2 接口更新
-    if (order.id && finalPriceYuan.value != null && pricePreview.value) {
-      const calcCents = pricePreview.value.totalPriceCents
+    // R3 + UI-5 修复：有手动价格且与计算价不同（或无档位/无计算价）时，调 R2 接口写入
+    if (order.id && finalPriceYuan.value != null) {
+      const calcCents = pricePreview.value?.totalPriceCents ?? null
       const manualCents = Math.round(finalPriceYuan.value * 100)
-      if (manualCents !== calcCents && manualCents > 0) {
+      if (manualCents > 0 && manualCents !== calcCents) {
         await artistApi.updatePrice(order.id, {
           finalPriceCents: manualCents,
           quoteSnapshot: order.quote_snapshot || null
@@ -387,6 +387,8 @@ async function submit() {
 
     resultNo.value = order.order_no
     showResult.value = true
+    // R42a: 通知父组件（订单列表）刷新
+    emit('created', order.order_no)
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -428,7 +430,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.hint { color: var(--text-secondary); font-size: 13px; margin-top: 8px; }
+.hint { color: var(--text-secondary); font-size: 13px; margin-top: 0; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .final-price-hint { font-size: 12px; color: var(--text-secondary); margin-left: 8px; }
 

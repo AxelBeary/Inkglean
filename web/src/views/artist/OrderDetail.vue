@@ -30,44 +30,91 @@
         </el-descriptions>
       </el-card>
 
-      <!-- 状态操作 -->
+      <!-- R39 方案B：状态卡（只读展示）——有工作流以进度条为主（C52），无工作流固定状态兜底（C53） -->
       <el-card style="margin-top: 16px">
-        <template #header>{{ $t('orderDetail.statusFlow') }}</template>
-        <el-steps :active="stepActive" finish-status="success" simple>
-          <el-step :title="$t('common.orderStatus.pending')" />
-          <el-step :title="$t('common.orderStatus.confirmed')" />
-          <el-step :title="$t('common.orderStatus.wip')" />
-          <el-step :title="$t('common.orderStatus.done')" />
-          <el-step :title="$t('common.orderStatus.delivered')" />
-        </el-steps>
-        <div class="status-actions">
-          <el-button v-if="order.status === 'pending'" type="primary" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
-          <el-button v-if="order.status === 'confirmed'" type="warning" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
-          <el-button v-if="order.status === 'wip'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
-          <el-button v-if="['wip','revision'].includes(order.status)" type="success" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
-          <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
-          <el-button v-if="!['delivered','cancelled'].includes(order.status)" type="danger" plain @click="changeStatus('cancelled')">{{ $t('orderDetail.cancelOrder') }}</el-button>
-        </div>
-      </el-card>
-
-      <!-- R30d: 流程进度（仅接入工作流的订单显示；老订单走上方固定状态流） -->
-      <el-card v-if="order.currentStageId != null" style="margin-top: 16px">
         <template #header>
           <div class="card-header">
-            <span>{{ $t('orderDetail.workflowTitle') }}</span>
-            <el-button text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
+            <span>{{ $t('orderDetail.statusTitle') }}</span>
+            <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
+            <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
           </div>
         </template>
-        <OrderTimeline :stages="workflowStages" :current-stage-id="order.currentStageId" />
-        <p class="stage-progress-text">
-          {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
-          <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
-        </p>
-        <div class="stage-actions">
-          <el-button v-if="canAdvanceStage" type="primary" @click="advanceStage">
-            {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
-          </el-button>
-          <el-button v-if="canBackStage" type="warning" plain @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+
+        <!-- 终态：只读横幅，无操作 -->
+        <div v-if="isTerminal" class="status-banner" :class="`status-banner--${order.status}`">
+          <span class="status-banner-icon">{{ order.status === 'delivered' ? '✅' : '❌' }}</span>
+          <span class="status-banner-text">
+            {{ $t(`common.orderStatus.${order.status}`) }}
+            <template v-if="order.status === 'delivered' && order.completed_at"> · {{ $t('orderDetail.completedAt', { time: formatDate(order.completed_at) }) }}</template>
+          </span>
+        </div>
+
+        <!-- 有工作流：工作流进度条为唯一状态展示（C52：固定状态条隐藏） -->
+        <template v-else-if="hasWorkflow">
+          <OrderTimeline :stages="workflowStages" :current-stage-id="order.currentStageId" />
+          <p class="stage-progress-text">
+            {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
+            <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
+          </p>
+          <p class="status-last-active">{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</p>
+        </template>
+
+        <!-- 无工作流：固定状态兜底 + 上下文信息 + 启用跟踪引导（C53） -->
+        <template v-else>
+          <div class="status-fallback">
+            <el-tag :type="statusType(order.status)" size="large">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
+            <div class="status-context">
+              <span>{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</span>
+              <span>{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
+              <span>{{ $t('orderDetail.refCount', { n: order.references?.length || 0 }) }}</span>
+            </div>
+          </div>
+          <div class="track-on-hint">
+            <span class="track-on-hint-text">💡 {{ $t('orderDetail.enableTrackingHint') }}</span>
+            <el-button size="small" type="primary" plain :loading="trackOnLoading" @click="enableTracking">{{ $t('orderDetail.enableTracking') }}</el-button>
+          </div>
+        </template>
+      </el-card>
+
+      <!-- R39 方案B：操作条（固定位置——不随状态区内容跳动，画师永远知道按钮在哪） -->
+      <el-card v-if="!isTerminal" class="action-bar-card" style="margin-top: 12px">
+        <!-- 取消订单：滑块确认行（R30e，C59 高代价操作用滑块） -->
+        <div v-if="slideCancelActive" class="slide-confirm-row">
+          <div class="slide-confirm">
+            <div class="slide-confirm-fill" :style="{ width: `calc(${slideCancelProgress} * 100%)` }"></div>
+            <span class="slide-confirm-label">{{ $t('orderDetail.slideToCancel') }}</span>
+            <div
+              class="slide-confirm-thumb"
+              :style="{ left: `calc(2px + ${slideCancelProgress} * (100% - 40px))` }"
+              @pointerdown="onSlideStart"
+              @pointermove="onSlideMove"
+              @pointerup="onSlideEnd"
+            >
+              →
+            </div>
+          </div>
+          <el-button text size="small" @click="closeSlideCancel">✕</el-button>
+        </div>
+
+        <!-- 常规操作按钮 -->
+        <div v-else class="action-bar">
+          <!-- 有工作流：推进 / 打回 -->
+          <template v-if="hasWorkflow">
+            <el-button v-if="canAdvanceStage" type="primary" @click="advanceStage">
+              {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
+            </el-button>
+            <el-button v-if="canBackStage" type="warning" plain @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+          </template>
+          <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛） -->
+          <template v-else>
+            <el-button v-if="order.status === 'pending'" type="primary" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
+            <el-button v-if="order.status === 'confirmed'" type="warning" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
+            <el-button v-if="order.status === 'wip'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
+            <el-button v-if="['wip','revision'].includes(order.status)" type="success" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
+            <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
+          </template>
+          <!-- 取消订单：固定在右侧 -->
+          <el-button type="danger" plain class="action-cancel" @click="openSlideCancel">{{ $t('orderDetail.cancelOrder') }}</el-button>
         </div>
       </el-card>
 
@@ -84,15 +131,20 @@
             v-for="(reference, index) in order.references" :key="reference.id"
             class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
           >
-            <div class="ref-img-wrap" @click="selectFocusImage(reference)">
-              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="refreshNow" />
+            <div class="ref-img-wrap" @click="openGalleryViewer(index)">
+              <!-- R43: placeholder 骨架屏防首屏白闪 -->
+              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="refreshNow">
+                <template #placeholder>
+                  <div class="ref-img-skeleton"></div>
+                </template>
+              </el-image>
               <!-- R18: 来源角标（客户/画师） -->
               <span class="ref-source-badge" :class="`ref-source-badge--${reference.source || 'client'}`">
                 {{ reference.source === 'artist' ? $t('orderDetail.sourceArtist') : $t('orderDetail.sourceClient') }}
               </span>
-              <!-- 悬停操作：预览 + 删除 -->
+              <!-- R44: 悬停操作组——✓设焦点（C56 手机端常驻）+ 删除；🔍已移除（单击图片即预览） -->
               <span class="ref-hover-actions">
-                <el-button size="small" circle :title="$t('orderDetail.galleryPreview')" @click.stop="openGalleryViewer(index)">🔍</el-button>
+                <el-button size="small" circle :title="$t('orderDetail.setFocus')" @click.stop="selectFocusImage(reference)">✓</el-button>
                 <el-button size="small" circle type="danger" :title="$t('orderDetail.deleteRef')" @click.stop="deleteReference(reference)">✕</el-button>
               </span>
               <!-- 焦点指示 -->
@@ -144,7 +196,13 @@
           </div>
           <el-empty v-if="!order.notes?.length" :description="$t('orderDetail.noNotes')" :image-size="60" />
         </div>
-        <div class="note-input">
+        <div
+          class="note-input"
+          :class="{ 'note-input--drag-over': isNoteDragOver }"
+          @dragover.prevent="isNoteDragOver = true"
+          @dragleave="onNoteDragLeave"
+          @drop.prevent="handleNoteDrop"
+        >
           <el-input v-model="newNote" :placeholder="$t('orderDetail.notePlaceholder')" @keyup.enter="addNote" />
           <!-- R19: 附图按钮（上传/粘贴 1 张） -->
           <el-button @click="triggerNoteImageUpload" :disabled="!!pendingNoteImage">
@@ -220,6 +278,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
+import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { formatDateTime } from '../../utils/datetime.js'
 
 const { t } = useI18n()
@@ -256,10 +315,11 @@ import { ORDER_STATUS_TYPE } from '../../constants/order.js'
 
 const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
-const stepActive = computed(() => {
-  const map = { pending: 0, confirmed: 1, wip: 2, revision: 2, done: 3, delivered: 4, cancelled: -1 }
-  return map[order.value?.status] ?? 0
-})
+// ─── R39 方案B：状态区派生状态 ───
+/** 订单是否接入工作流（进度条为唯一状态展示的依据，C52） */
+const hasWorkflow = computed(() => order.value?.currentStageId != null)
+/** 终态（已交付/已取消）：状态卡只读，操作条隐藏 */
+const isTerminal = computed(() => ['delivered', 'cancelled'].includes(order.value?.status))
 
 function formatDate(str) {
   return formatDateTime(str)
@@ -348,6 +408,20 @@ async function turnOffStageTracking() {
     ElMessage.success(t('orderDetail.stageOffDone'))
   } catch (err) {
     ElMessage.error(err.message)
+  }
+}
+
+// ─── R39/C53：老订单启用流程跟踪（后端 track-on：设第一节点，status 保持不变） ───
+const trackOnLoading = ref(false)
+async function enableTracking() {
+  trackOnLoading.value = true
+  try {
+    order.value = await artistApi.trackOn(route.params.id)
+    ElMessage.success(t('orderDetail.trackingEnabled'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    trackOnLoading.value = false
   }
 }
 
@@ -444,7 +518,7 @@ const { pasteError } = usePasteUpload({
   maxSizeMB: 10
 })
 
-// R18: 点击图片 = 设为焦点（替代独立"设为焦点"按钮）
+// R44: 设焦点改由 ✓ 小钩按钮触发（单击图片 = 放大预览）
 async function selectFocusImage(reference) {
   try {
     // mode 仅为满足后端 schema；实际显示尺寸由看板 queue_focus_display 决定
@@ -468,11 +542,6 @@ async function changePriority(priority) {
 }
 
 async function changeStatus(status) {
-  if (status === 'cancelled') {
-    try {
-      await ElMessageBox.confirm(t('orderDetail.cancelConfirm'), t('orderDetail.confirmTitle'), { type: 'warning' })
-    } catch { return }
-  }
   try {
     order.value = await artistApi.updateStatus(route.params.id, status)
     ElMessage.success(t('orderDetail.statusUpdated'))
@@ -481,11 +550,44 @@ async function changeStatus(status) {
   }
 }
 
+// ─── R39：取消订单滑块确认（R30e 交互，C59 高代价操作用滑块） ───
+const {
+  active: slideCancelActive,
+  progress: slideCancelProgress,
+  open: openSlideCancel,
+  close: closeSlideCancel,
+  onStart: onSlideStart,
+  onMove: onSlideMove,
+  onEnd: onSlideEnd
+} = useSlideConfirm({
+  onConfirm: async () => {
+    try {
+      order.value = await artistApi.updateStatus(route.params.id, 'cancelled')
+      ElMessage.success(t('orderDetail.statusUpdated'))
+    } catch (err) {
+      ElMessage.error(err.message)
+    }
+  }
+})
+
 // ─── R19: 备注附图 ───
 const noteImageInputEl = ref(null)
 const pendingNoteImage = ref(null) // { filePath, url }
 const noteSubmitting = ref(false)
 const noteImageViewerUrl = ref(null)
+
+// ─── R41/C55: 备注附图拖拽上传（粘贴已由 usePasteUpload 焦点路由支持） ───
+const isNoteDragOver = ref(false)
+/** 防 dragleave 闪烁：子元素间移动时 relatedTarget 仍在容器内，忽略 */
+function onNoteDragLeave(e) {
+  if (e.currentTarget.contains(e.relatedTarget)) return
+  isNoteDragOver.value = false
+}
+async function handleNoteDrop(event) {
+  isNoteDragOver.value = false
+  const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
+  if (file) await uploadNoteImage(file) // 单张，与粘贴行为一致
+}
 
 function triggerNoteImageUpload() {
   noteImageInputEl.value?.click()
@@ -627,12 +729,69 @@ onMounted(() => {
 
 <style scoped>
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.status-actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ─── R39 方案B：状态区 ─── */
+/* 终态只读横幅 */
+.status-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-radius: 8px; font-size: 15px; font-weight: 600;
+}
+.status-banner--delivered { background: var(--el-color-success-light-9); color: var(--el-color-success); }
+.status-banner--cancelled { background: var(--el-color-info-light-9); color: var(--el-color-info); }
+.status-banner-icon { font-size: 18px; }
+.status-banner-text { color: var(--text-primary); }
+/* 最后活动时间 */
+.status-last-active { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; }
+/* 无工作流兜底：状态标签 + 上下文信息 */
+.status-fallback { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.status-context { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); }
+/* C53：启用流程跟踪引导 */
+.track-on-hint {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding: 10px 14px;
+  background: var(--el-color-primary-light-9); border: 1px dashed var(--el-color-primary-light-5);
+  border-radius: 8px;
+}
+.track-on-hint-text { font-size: 13px; color: var(--text-secondary); }
+
+/* ─── R39 方案B：操作条（固定位置） ─── */
+.action-bar-card :deep(.el-card__body) { padding: 12px 16px; }
+.action-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.action-cancel { margin-left: auto; }
+
+/* 滑块确认（与 QueueBoard R30e 视觉一致） */
+.slide-confirm-row { display: flex; align-items: center; gap: 8px; }
+.slide-confirm {
+  position: relative; flex: 1; height: 40px;
+  border-radius: 999px; overflow: hidden; user-select: none;
+  background: var(--el-color-danger-light-9);
+  border: 1px solid var(--el-color-danger-light-5);
+}
+.slide-confirm-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--el-color-danger-light-7);
+  transition: width 0.05s linear;
+}
+.slide-confirm-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; color: var(--el-color-danger);
+  pointer-events: none;
+}
+.slide-confirm-thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--el-color-danger); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+  cursor: grab; touch-action: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.slide-confirm-thumb:active { cursor: grabbing; }
 
 /* ─── R30d: 流程进度 ─── */
 .stage-progress-text { font-size: 13px; color: var(--text-secondary); margin: 12px 0 0; }
 .stage-revision-mark { color: var(--el-color-warning); font-weight: 600; margin-left: 8px; }
-.stage-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ─── R18: 订单图库 ─── */
 .gallery-count { font-size: 13px; color: var(--text-secondary); }
@@ -647,7 +806,17 @@ onMounted(() => {
   transition: transform 0.15s;
 }
 .ref-img-wrap:hover { transform: scale(1.02); }
-.ref-img { height: 120px; width: 100%; border-radius: 6px; display: block; }
+.ref-img { height: 120px; width: 100%; border-radius: 6px; display: block; background: var(--bg-secondary, #f0f0f0); }
+/* R43: 加载骨架屏（防首屏多图白闪） */
+.ref-img-skeleton {
+  width: 100%; height: 100%;
+  background: var(--bg-secondary, #f0f0f0);
+  animation: ref-skeleton-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ref-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
 /* R18: 来源角标 */
 .ref-source-badge {
   position: absolute;
@@ -678,13 +847,17 @@ onMounted(() => {
   justify-content: center;
   pointer-events: none;
 }
-/* 悬停操作组（预览 + 删除） */
+/* 悬停操作组（✓设焦点 + 删除） */
 .ref-hover-actions {
   position: absolute; top: 4px; right: 4px;
   display: flex; gap: 4px;
   opacity: 0; transition: opacity 0.15s;
 }
 .ref-img-wrap:hover .ref-hover-actions { opacity: 1; }
+/* R44/C56: 触屏无悬停，✓ 设焦点按钮常驻 */
+@media (hover: none) {
+  .ref-hover-actions { opacity: 1; }
+}
 /* R18: 上传磁贴 */
 .ref-upload-tile {
   height: 120px;
@@ -733,7 +906,9 @@ onMounted(() => {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .note-thumb:hover { transform: scale(1.05); box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.1)); }
-.note-input { display: flex; gap: 8px; }
+.note-input { display: flex; gap: 8px; border-radius: 6px; transition: outline 0.15s; }
+/* R41: 拖拽进入高亮 */
+.note-input--drag-over { outline: 2px dashed var(--el-color-primary); outline-offset: 4px; }
 .note-input .el-input { flex: 1; }
 .note-pending {
   display: flex;
