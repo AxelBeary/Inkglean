@@ -132,7 +132,12 @@
             class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
           >
             <div class="ref-img-wrap" @click="openGalleryViewer(index)">
-              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="refreshNow" />
+              <!-- R43: placeholder 骨架屏防首屏白闪 -->
+              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="refreshNow">
+                <template #placeholder>
+                  <div class="ref-img-skeleton"></div>
+                </template>
+              </el-image>
               <!-- R18: 来源角标（客户/画师） -->
               <span class="ref-source-badge" :class="`ref-source-badge--${reference.source || 'client'}`">
                 {{ reference.source === 'artist' ? $t('orderDetail.sourceArtist') : $t('orderDetail.sourceClient') }}
@@ -782,7 +787,17 @@ onMounted(() => {
   transition: transform 0.15s;
 }
 .ref-img-wrap:hover { transform: scale(1.02); }
-.ref-img { height: 120px; width: 100%; border-radius: 6px; display: block; }
+.ref-img { height: 120px; width: 100%; border-radius: 6px; display: block; background: var(--bg-secondary, #f0f0f0); }
+/* R43: 加载骨架屏（防首屏多图白闪） */
+.ref-img-skeleton {
+  width: 100%; height: 100%;
+  background: var(--bg-secondary, #f0f0f0);
+  animation: ref-skeleton-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ref-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
 /* R18: 来源角标 */
 .ref-source-badge {
   position: absolute;
