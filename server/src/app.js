@@ -124,9 +124,13 @@ export async function buildApp(opts = {}) {
   // ─── 安全响应头（轻量替代 helmet）───
   app.addHook('onRequest', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff')
-    // 嵌入页面需要能被 iframe 加载，其余页面禁止
+    // P0-5 修复：嵌入页面收紧 CSP — frame-ancestors 从 * 改为 'self'，补完整指令
+    // 未来画师自定义域名嵌入需配合白名单机制（P1-5 子域名方案落地后）
     if (_request.url.startsWith('/embed')) {
-      reply.header('Content-Security-Policy', "frame-ancestors *")
+      reply.header('Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data:; frame-ancestors 'self'; connect-src 'self'"
+      )
     } else {
       reply.header('X-Frame-Options', 'DENY')
     }
