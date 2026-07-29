@@ -41,6 +41,17 @@
 
     <!-- 页脚 -->
     <footer class="gallery-footer">
+      <!-- R34: 外链（展签式横排） -->
+      <div class="gallery-links" v-if="socialLinks.length">
+        <a
+          v-for="link in socialLinks" :key="link.key"
+          :href="link.url" target="_blank" rel="noopener noreferrer"
+          class="gallery-link"
+        >
+          <span class="gallery-link-badge" aria-hidden="true">{{ link.badge }}</span>
+          {{ link.label }}
+        </a>
+      </div>
       <ThemePicker />
       <Disclaimer />
     </footer>
@@ -69,7 +80,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-useArtistData(props)
+const { socialLinks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)
@@ -110,6 +121,48 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
   align-items: center;
   gap: 16px;
 }
+
+/* R34: 外链（展签式横排 — 直角边框，大写字距） */
+.gallery-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.gallery-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  border: 1px solid var(--pal-border);
+  color: var(--pal-text-dim);
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.gallery-link:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.gallery-link-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--pal-border);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--pal-text);
+  transition: border-color 0.2s;
+}
+.gallery-link:hover .gallery-link-badge { border-color: var(--color-primary); }
 
 @media (max-width: 768px) {
   .gallery-section {

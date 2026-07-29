@@ -41,6 +41,17 @@
 
     <!-- 页脚 -->
     <footer class="atelier-footer">
+      <!-- R34: 外链（画册式横排，笔触下划线） -->
+      <div class="atelier-links" v-if="socialLinks.length">
+        <a
+          v-for="link in socialLinks" :key="link.key"
+          :href="link.url" target="_blank" rel="noopener noreferrer"
+          class="atelier-link"
+        >
+          <span class="atelier-link-badge" aria-hidden="true">{{ link.badge }}</span>
+          {{ link.label }}
+        </a>
+      </div>
       <ThemePicker />
       <Disclaimer />
     </footer>
@@ -69,7 +80,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-useArtistData(props)
+const { socialLinks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)
@@ -153,6 +164,61 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
   flex-direction: column;
   align-items: center;
   gap: 16px;
+}
+
+/* R34: 外链（画册式横排 — 笔触下划线，徽标微旋转） */
+.atelier-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.atelier-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: var(--pal-text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  position: relative;
+  transition: color 0.2s;
+}
+.atelier-link::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--atelier-accent), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.atelier-link:hover { color: var(--pal-text); }
+.atelier-link:hover::after { opacity: 0.7; }
+.atelier-link-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--pal-border);
+  background: var(--pal-bg-alt, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--pal-text);
+  transform: rotate(-3deg);
+  transition: transform 0.2s, border-color 0.2s;
+}
+.atelier-link:hover .atelier-link-badge {
+  transform: rotate(0deg);
+  border-color: var(--atelier-accent);
 }
 
 @media (max-width: 768px) {
