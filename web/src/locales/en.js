@@ -56,6 +56,10 @@ export default {
     QUEUE_DUPLICATE: 'Reorder list has duplicate orders',
     INVALID_PRIORITY: 'Invalid priority',
 
+    // Note deletion (v0.15 R46)
+    NOTE_NOT_FOUND: 'Note not found',
+    SYSTEM_NOTE_PROTECTED: 'System notes cannot be deleted',
+
     // Upload
     ILLEGAL_FILE_TYPE: 'Illegal file type',
     UNSUPPORTED_FORMAT: 'Unsupported file format',
@@ -192,7 +196,9 @@ export default {
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
     dragHint: 'Drag to reorder',
     focusDisplay: 'Focus image', focusOff: 'Off', focusLarge: 'Large',
-    uploadFocus: 'Upload focus image'
+    uploadFocus: 'Upload focus image',
+    // R53: focus image replacement
+    dropToReplace: 'Drop to replace focus image'
   },
   orderList: {
     title: '📦 Order Management', all: 'All',
@@ -235,7 +241,12 @@ export default {
     enableTrackingHint: 'Enable workflow tracking for fine-grained progress management',
     enableTracking: 'Enable', trackingEnabled: 'Workflow tracking enabled',
     slideToCancel: 'Slide to cancel order',
-    completedAt: 'Completed {time}'
+    completedAt: 'Completed {time}',
+    // R40: activity timeline
+    activityTitle: 'Order status', timelineTitle: 'Activity timeline',
+    tlTypeSystem: 'Status change', tlTypeNote: 'Note', tlTypeImage: 'Note with image',
+    // R46: note deletion
+    deleteNote: 'Delete note', deleteNoteConfirm: 'Delete this note? This cannot be undone.', deleteNoteSuccess: 'Note deleted'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',

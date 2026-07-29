@@ -30,11 +30,11 @@
         </el-descriptions>
       </el-card>
 
-      <!-- R39 方案B：状态卡（只读展示）——有工作流以进度条为主（C52），无工作流固定状态兜底（C53） -->
+      <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
       <el-card style="margin-top: 16px">
         <template #header>
           <div class="card-header">
-            <span>{{ $t('orderDetail.statusTitle') }}</span>
+            <span>{{ $t('orderDetail.activityTitle') }}</span>
             <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
             <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
           </div>
@@ -175,27 +175,49 @@
         <p class="focus-hint">{{ $t('orderDetail.galleryHint') }}</p>
       </el-card>
 
-      <!-- R19: 备注（支持附图） -->
+      <!-- R40: 活动时间线（系统备注 + 画师备注按 created_at 混排，方案A 纯前端；R46 悬停删除） -->
       <el-card style="margin-top: 16px">
-        <template #header>{{ $t('orderDetail.notes') }}</template>
-        <div class="notes">
-          <div v-for="note in order.notes" :key="note.id" class="note-item">
-            <div class="note-head">
-              <span class="note-time">{{ formatDate(note.created_at) }}</span>
-            </div>
-            <span class="note-content">{{ note.content }}</span>
-            <!-- R19: 带图备注显示缩略图，点击看大图 -->
-            <img
-              v-if="note.imageUrl"
-              :src="note.imageUrl"
-              class="note-thumb"
-              :alt="$t('orderDetail.noteImage')"
-              @click="openNoteImage(note.imageUrl)"
-              @error="refreshNow"
-            />
+        <template #header>
+          <div class="card-header">
+            <span>{{ $t('orderDetail.timelineTitle') }}</span>
+            <span class="timeline-count">{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
           </div>
-          <el-empty v-if="!order.notes?.length" :description="$t('orderDetail.noNotes')" :image-size="60" />
-        </div>
+        </template>
+        <el-timeline v-if="order.notes?.length" class="activity-timeline">
+          <el-timeline-item
+            v-for="note in order.notes" :key="note.id"
+            :type="note.created_by === 'system' ? 'info' : (note.image_path ? 'success' : 'primary')"
+            :hollow="note.created_by === 'system'"
+            :timestamp="formatDate(note.created_at)" placement="top"
+          >
+            <div class="tl-item" :class="{ 'tl-item--system': note.created_by === 'system' }">
+              <div class="tl-head">
+                <span class="tl-type">{{ note.created_by === 'system' ? '🔄' : (note.image_path ? '🖼' : '📝') }} {{ note.created_by === 'system' ? $t('orderDetail.tlTypeSystem') : (note.image_path ? $t('orderDetail.tlTypeImage') : $t('orderDetail.tlTypeNote')) }}</span>
+                <!-- R46: 画师备注悬停显示删除（系统备注不显示；触屏常驻，与参考图交互一致 C56） -->
+                <el-button
+                  v-if="note.created_by !== 'system'"
+                  class="tl-delete" size="small" circle type="danger"
+                  :title="$t('orderDetail.deleteNote')"
+                  @click="deleteNote(note)"
+                >
+                  ✕
+                </el-button>
+              </div>
+              <div class="tl-content">{{ note.content }}</div>
+              <!-- R19: 带图备注显示缩略图，点击看大图 -->
+              <img
+                v-if="note.imageUrl"
+                :src="note.imageUrl"
+                class="note-thumb"
+                :alt="$t('orderDetail.noteImage')"
+                @click="openNoteImage(note.imageUrl)"
+                @error="refreshNow"
+              />
+            </div>
+          </el-timeline-item>
+        </el-timeline>
+        <el-empty v-else :description="$t('orderDetail.noNotes')" :image-size="60" />
+        <!-- 添加备注输入框（R40：移到时间线底部） -->
         <div
           class="note-input"
           :class="{ 'note-input--drag-over': isNoteDragOver }"
@@ -633,6 +655,24 @@ function openNoteImage(url) {
   noteImageViewerUrl.value = url
 }
 
+// R46: 删除备注（C59 方案C：单条用 ElMessageBox.confirm；系统备注后端 403 拒绝，前端不显示按钮）
+async function deleteNote(note) {
+  try {
+    await ElMessageBox.confirm(
+      t('orderDetail.deleteNoteConfirm'),
+      t('orderDetail.confirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  try {
+    // 后端返回删除后的完整订单（含新签名 URL），直接替换保证状态一致
+    order.value = await artistApi.deleteNote(route.params.id, note.id)
+    ElMessage.success(t('orderDetail.deleteNoteSuccess'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
 function openFile(url) {
   // H-1 修复：使用后端返回的签名 URL（references/deliverables 非公开目录）
   window.open(url, '_blank', 'noopener')
@@ -888,12 +928,20 @@ onMounted(() => {
 .priority-group :deep(.prio-medium.is-checked .el-radio-button__inner) { background: var(--el-color-warning); border-color: var(--el-color-warning); box-shadow: -1px 0 0 0 var(--el-color-warning); }
 .priority-group :deep(.prio-low.is-checked .el-radio-button__inner) { background: var(--el-color-success); border-color: var(--el-color-success); box-shadow: -1px 0 0 0 var(--el-color-success); }
 
-/* ─── R19: 备注附图 ─── */
-.notes { max-height: 300px; overflow-y: auto; margin-bottom: 12px; }
-.note-item { padding: 8px 0; border-bottom: 1px solid var(--border-color); }
-.note-head { margin-bottom: 2px; }
-.note-time { color: var(--text-secondary); font-size: 12px; margin-right: 8px; }
-.note-content { font-size: 14px; }
+/* ─── R40: 活动时间线 ─── */
+.timeline-count { font-size: 13px; color: var(--text-secondary); }
+.activity-timeline { padding-top: 4px; }
+.tl-item { position: relative; }
+.tl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tl-type { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.tl-item--system .tl-content { color: var(--text-secondary); font-size: 13px; }
+.tl-content { font-size: 14px; color: var(--text-primary); line-height: 1.6; word-break: break-word; }
+/* R46: 删除按钮悬停显示（触屏常驻，与参考图 .ref-hover-actions 交互一致 C56） */
+.tl-delete { opacity: 0; transition: opacity 0.15s; margin-left: auto; }
+.tl-item:hover .tl-delete { opacity: 1; }
+@media (hover: none) {
+  .tl-delete { opacity: 1; }
+}
 .note-thumb {
   display: block;
   margin-top: 6px;

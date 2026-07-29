@@ -56,6 +56,10 @@ export default {
     QUEUE_DUPLICATE: '排序列表存在重复订单',
     INVALID_PRIORITY: '无效优先级',
 
+    // 备注删除（v0.15 R46）
+    NOTE_NOT_FOUND: '备注不存在',
+    SYSTEM_NOTE_PROTECTED: '系统备注不可删除',
+
     // 上传
     ILLEGAL_FILE_TYPE: '非法文件类型',
     UNSUPPORTED_FORMAT: '不支持此文件格式',
@@ -192,7 +196,9 @@ export default {
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
     dragHint: '拖拽排序',
     focusDisplay: '焦点图显示', focusOff: '关', focusLarge: '大',
-    uploadFocus: '上传焦点图'
+    uploadFocus: '上传焦点图',
+    // R53: 焦点图替换
+    dropToReplace: '拖入替换焦点图'
   },
   orderList: {
     title: '📦 订单管理', all: '全部',
@@ -235,7 +241,12 @@ export default {
     enableTrackingHint: '启用流程跟踪，获得更细粒度的进度管理',
     enableTracking: '启用', trackingEnabled: '已启用流程跟踪',
     slideToCancel: '滑动到底部取消订单',
-    completedAt: '完成于 {time}'
+    completedAt: '完成于 {time}',
+    // R40: 活动时间线
+    activityTitle: '订单状态', timelineTitle: '活动时间线',
+    tlTypeSystem: '状态变更', tlTypeNote: '备注', tlTypeImage: '带图备注',
+    // R46: 备注删除
+    deleteNote: '删除备注', deleteNoteConfirm: '确定删除这条备注？删除后不可恢复。', deleteNoteSuccess: '备注已删除'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',

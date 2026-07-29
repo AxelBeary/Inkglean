@@ -108,6 +108,8 @@ export const artistApi = {
   reorderQueue: (orderedIds) =>
     api.put('/artist/queue/reorder', { orderedIds }),
   addNote: (id, data) => api.post(`/artist/orders/${id}/notes`, data),
+  // R46: 备注删除（系统备注后端拒绝 403，带图备注由 GC 清理）
+  deleteNote: (id, noteId) => api.delete(`/artist/orders/${id}/notes/${noteId}`),
   deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data),
   addReference: (id, data) => api.post(`/artist/orders/${id}/references`, data),
   deleteReference: (id, refId) => api.delete(`/artist/orders/${id}/references/${refId}`),

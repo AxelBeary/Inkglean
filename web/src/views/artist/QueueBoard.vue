@@ -31,13 +31,26 @@
             <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
             <!-- 焦点图区域：大图模式显示焦点图，无焦点图时显示空态上传入口 -->
             <div v-if="focusDisplay === 'large'" class="focus-area">
-              <el-image
+              <!-- R53: 已有焦点图 — 点击选文件 / 拖拽图片替换（复用 uploadAndSetFocus；
+                   移除 preview-src-list 避免 el-image 内置预览吞掉点击，R18 同款陷阱） -->
+              <div
                 v-if="element.focus_image_path"
-                :src="element.focusImageUrl" fit="cover" class="focus-large-img"
-                :alt="$t('orderDetail.referenceImage')"
-                :preview-src-list="[element.focusImageUrl]"
-                @error="refreshNow"
-              />
+                class="focus-img-wrap"
+                :class="{ 'focus-img-wrap--active': focusDragId === element.id }"
+                @click="triggerFocusUpload(element)"
+                @dragover.prevent="focusDragId = element.id"
+                @dragleave="onFocusDragLeave($event, element)"
+                @drop.prevent="handleFocusDrop($event, element)"
+              >
+                <el-image
+                  :src="element.focusImageUrl" fit="cover" class="focus-large-img"
+                  :alt="$t('orderDetail.referenceImage')"
+                  @error="refreshNow"
+                />
+                <div v-if="focusDragId === element.id" class="focus-replace-overlay">
+                  <span>{{ $t('queue.dropToReplace') }}</span>
+                </div>
+              </div>
               <!-- 空态上传：点击选文件 / 拖拽图片放入，上传后直接设为焦点图 -->
               <div
                 v-else
@@ -351,7 +364,7 @@ async function onSlideEnd(e, order) {
 let swipeStart = null
 function onCardPointerDown(e) {
   if (e.pointerType !== 'touch') return
-  if (e.target.closest('button, .drag-handle, .slide-cancel, .el-dropdown, .el-image, .focus-empty')) return
+  if (e.target.closest('button, .drag-handle, .slide-cancel, .el-dropdown, .el-image, .focus-empty, .focus-img-wrap')) return
   swipeStart = { x: e.clientX, y: e.clientY }
 }
 function onCardPointerUp(e, order) {
@@ -421,6 +434,21 @@ onMounted(() => {
 /* 焦点图区域：大图 160×120，左图右文 */
 .focus-area { flex-shrink: 0; }
 .focus-large-img { width: 160px; height: 120px; border-radius: 8px; display: block; }
+/* R53: 已有焦点图替换（点击选文件 / 拖拽替换，不需要确认弹窗——旧图保留在图库） */
+.focus-img-wrap {
+  position: relative; width: 160px; height: 120px;
+  border-radius: 8px; overflow: hidden; cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.focus-img-wrap:hover { box-shadow: 0 0 0 2px var(--el-color-primary-light-5); }
+.focus-replace-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55); color: #fff;
+  font-size: 13px; font-weight: 600;
+  pointer-events: none;
+}
+.focus-img-wrap--active { box-shadow: 0 0 0 2px var(--el-color-primary); }
 /* 焦点图空态上传占位（虚线边框 + 图标 + 文字，hover/拖拽高亮） */
 .focus-empty {
   width: 160px; height: 120px;
