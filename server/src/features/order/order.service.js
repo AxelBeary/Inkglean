@@ -700,6 +700,35 @@ export function rollbackStage(orderId, stageId) {
 }
 
 /**
+ * 启用流程跟踪（v0.14）
+ * 对无工作流订单设 current_stage_id = 画师工作流第一节点，status 保持不变
+ * 为什么不能复用 advanceStage：advanceStage 对无跟踪订单会把 status 重置为 pending（状态倒退）
+ */
+export function enableTracking(orderId) {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  // 已有跟踪 → 409
+  if (order.current_stage_id !== null) {
+    throw new AppError(E.TRACK_ALREADY_ON, 409)
+  }
+
+  // 画师无工作流模板 → 400
+  const firstStage = db.prepare(
+    'SELECT id FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC LIMIT 1'
+  ).get(order.artist_id)
+  if (!firstStage) {
+    throw new AppError(E.NO_WORKFLOW_TEMPLATE)
+  }
+
+  // 只设 current_stage_id，不动 status
+  db.prepare('UPDATE orders SET current_stage_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(firstStage.id, orderId)
+
+  return getOrder(orderId)
+}
+
+/**
  * 获取订单的流程进度信息（供路由层拼装响应）
  */
 export function getStageInfo(order) {

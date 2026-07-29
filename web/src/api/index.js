@@ -120,6 +120,7 @@ export const artistApi = {
   advanceStage: (id, stageId) => api.put(`/artist/orders/${id}/stage`, { stageId }),
   stageBack: (id, stageId) => api.put(`/artist/orders/${id}/stage-back`, { stageId }),
   stageOff: (id) => api.put(`/artist/orders/${id}/stage`, { stageId: null }),
+  trackOn: (id) => api.put(`/artist/orders/${id}/track-on`),
   // 统计
   getStats: () => api.get('/artist/stats'),
   // 问候语

@@ -673,4 +673,45 @@ describe('订单服务 (Order Service)', () => {
     const cols = db.prepare('PRAGMA table_info(orders)').all()
     expect(cols.some(c => c.name === 'current_stage_id')).toBe(true)
   })
+
+  // ─── v0.14: 启用流程跟踪 ───
+
+  // TC-O-40: enableTracking 正常启用（先建订单后建工作流，模拟历史订单）
+  it('TC-O-40: enableTracking 设第一节点且 status 不变', () => {
+    // 先建订单（无工作流 → current_stage_id=null）
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(order.current_stage_id).toBeNull()
+
+    // 手动改 status 为 wip，验证 enableTracking 不动 status
+    db.prepare("UPDATE orders SET status = 'wip' WHERE id = ?").run(order.id)
+
+    // 后建工作流
+    seedArtistStages(artist.id)
+
+    const tracked = orderService.enableTracking(order.id)
+    const firstStage = db.prepare(
+      'SELECT id FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC LIMIT 1'
+    ).get(artist.id)
+
+    expect(tracked.current_stage_id).toBe(firstStage.id)
+    expect(tracked.status).toBe('wip') // status 保持不变
+  })
+
+  // TC-O-41: enableTracking 已有跟踪 → 409
+  it('TC-O-41: enableTracking 已有跟踪抛 TRACK_ALREADY_ON', () => {
+    seedArtistStages(artist.id)
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    // createOrder 自动接入工作流，current_stage_id 非 null
+    expect(order.current_stage_id).not.toBeNull()
+
+    expect(() => orderService.enableTracking(order.id)).toThrow('TRACK_ALREADY_ON')
+  })
+
+  // TC-O-42: enableTracking 无工作流模板 → 400
+  it('TC-O-42: enableTracking 无工作流抛 NO_WORKFLOW_TEMPLATE', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(order.current_stage_id).toBeNull()
+
+    expect(() => orderService.enableTracking(order.id)).toThrow('NO_WORKFLOW_TEMPLATE')
+  })
 })

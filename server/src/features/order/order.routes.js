@@ -678,6 +678,19 @@ export default async function orderRoutes(fastify) {
   })
 
   /**
+   * PUT /api/artist/orders/:id/track-on
+   * v0.14: 对无工作流订单启用流程跟踪（设第一节点，status 不变）
+   */
+  fastify.put('/api/artist/orders/:id/track-on', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request) => {
+    const order = orderService.enableTracking(request.order.id)
+    const stageInfo = orderService.getStageInfo(order)
+    if (stageInfo) Object.assign(order, stageInfo)
+    return signOrderUrls(order)
+  })
+
+  /**
    * PUT /api/artist/orders/:id/stage-back
    * 回退流程节点（打回修改），状态→revision + 系统备注
    */

@@ -508,4 +508,69 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.json().status).toBe('hidden')
     })
   })
+
+  // ─── v0.14: 启用流程跟踪 ───
+
+  describe('启用流程跟踪 (track-on)', () => {
+    it('TC-RT-17: 正常启用返回 200 + stageInfo', async () => {
+      const artist = seedArtist({ qq_number: '77801', subdomain: 'track-test' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id) // current_stage_id=null
+      seedArtistStages(artist.id)
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/api/artist/orders/${order.id}/track-on`,
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.currentStageId).not.toBeNull()
+      expect(body.currentStageName).toBe('定稿')
+      expect(body.stageProgress).toEqual({ current: 1, total: 7 })
+      expect(body.status).toBe('pending') // seedOrder 默认 pending，不变
+    })
+
+    it('TC-RT-17b: 已有跟踪返回 409', async () => {
+      const artist = seedArtist({ qq_number: '77802', subdomain: 'track-409' })
+      const token = createSession(artist.id, artist.token_version)
+      seedArtistStages(artist.id)
+      const order = seedOrder(artist.id)
+      // 手动设 current_stage_id 模拟已有跟踪
+      const firstStage = db.prepare(
+        'SELECT id FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC LIMIT 1'
+      ).get(artist.id)
+      db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(firstStage.id, order.id)
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/api/artist/orders/${order.id}/track-on`,
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      expect(res.statusCode).toBe(409)
+      expect(res.json().code).toBe('TRACK_ALREADY_ON')
+    })
+
+    it('TC-RT-17c: 无工作流模板返回 400', async () => {
+      const artist = seedArtist({ qq_number: '77803', subdomain: 'track-400' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id) // 无工作流
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/api/artist/orders/${order.id}/track-on`,
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('NO_WORKFLOW_TEMPLATE')
+    })
+
+    it('TC-RT-17d: 无 token 返回 401', async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/orders/1/track-on'
+      })
+      expect(res.statusCode).toBe(401)
+    })
+  })
 })
