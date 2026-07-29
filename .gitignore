@@ -35,3 +35,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 server/data/
+
+# Runtime data
+data/
