@@ -50,6 +50,27 @@
         </div>
       </el-card>
 
+      <!-- R30d: 流程进度（仅接入工作流的订单显示；老订单走上方固定状态流） -->
+      <el-card v-if="order.currentStageId != null" style="margin-top: 16px">
+        <template #header>
+          <div class="card-header">
+            <span>{{ $t('orderDetail.workflowTitle') }}</span>
+            <el-button text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
+          </div>
+        </template>
+        <OrderTimeline :stages="workflowStages" :current-stage-id="order.currentStageId" />
+        <p class="stage-progress-text">
+          {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
+          <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
+        </p>
+        <div class="stage-actions">
+          <el-button v-if="canAdvanceStage" type="primary" @click="advanceStage">
+            {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
+          </el-button>
+          <el-button v-if="canBackStage" type="warning" plain @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+        </div>
+      </el-card>
+
       <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点） -->
       <el-card style="margin-top: 16px">
         <template #header>
@@ -196,6 +217,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Plus, Picture } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { formatDateTime } from '../../utils/datetime.js'
@@ -249,6 +271,92 @@ async function loadOrder() {
     prevPriority.value = order.value?.priority || 'medium'
   } catch (err) {
     ElMessage.error(err.message)
+  }
+}
+
+// ─── R30d: 流程状态机（进度条 + 推进/打回 + 关闭跟踪） ───
+const workflowStages = ref([])
+
+/** 当前节点在排序后列表中的索引（-1 = 未接入/节点已删） */
+const currentStageIdx = computed(() =>
+  workflowStages.value.findIndex(s => s.id === order.value?.currentStageId)
+)
+
+/** 进度 { current, total }（后端未返回时前端兜底计算） */
+const stageProgress = computed(() =>
+  order.value?.stageProgress || { current: currentStageIdx.value + 1, total: workflowStages.value.length }
+)
+
+/** 下一节点（用于推进按钮文案） */
+const nextStage = computed(() =>
+  currentStageIdx.value !== -1 ? workflowStages.value[currentStageIdx.value + 1] : null
+)
+const nextStageName = computed(() => nextStage.value?.name || '')
+
+/** 可推进：有 stage、非终态、存在下一节点 */
+const canAdvanceStage = computed(() =>
+  order.value?.currentStageId != null
+  && !['delivered', 'cancelled'].includes(order.value?.status)
+  && !!nextStage.value
+)
+
+/** 可打回：有 stage、非终态、存在上一节点 */
+const canBackStage = computed(() =>
+  order.value?.currentStageId != null
+  && !['delivered', 'cancelled'].includes(order.value?.status)
+  && currentStageIdx.value > 0
+)
+
+async function advanceStage() {
+  if (!nextStage.value) return
+  try {
+    order.value = await artistApi.advanceStage(route.params.id, nextStage.value.id)
+    ElMessage.success(t('orderDetail.stageUpdated'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+async function backStage() {
+  const prev = workflowStages.value[currentStageIdx.value - 1]
+  if (!prev) return
+  try {
+    await ElMessageBox.confirm(
+      t('orderDetail.stageBackConfirm', { name: prev.name }),
+      t('orderDetail.confirmTitle'),
+      { type: 'warning' }
+    )
+  } catch { return }
+  try {
+    order.value = await artistApi.stageBack(route.params.id, prev.id)
+    ElMessage.success(t('orderDetail.stageUpdated'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+async function turnOffStageTracking() {
+  try {
+    await ElMessageBox.confirm(
+      t('orderDetail.stageOffConfirm'),
+      t('orderDetail.confirmTitle'),
+      { type: 'warning' }
+    )
+  } catch { return }
+  try {
+    order.value = await artistApi.stageOff(route.params.id)
+    ElMessage.success(t('orderDetail.stageOffDone'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+async function loadWorkflowStages() {
+  try {
+    const res = await artistApi.getWorkflow()
+    workflowStages.value = res.stages || []
+  } catch {
+    // 静默失败：无工作流时流程卡片不显示（currentStageId 为 null）
   }
 }
 
@@ -511,12 +619,20 @@ const { refreshNow } = useSignatureRefresh({
   }
 })
 
-onMounted(loadOrder)
+onMounted(() => {
+  loadOrder()
+  loadWorkflowStages() // R30d: 流程进度条需要节点列表
+})
 </script>
 
 <style scoped>
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .status-actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ─── R30d: 流程进度 ─── */
+.stage-progress-text { font-size: 13px; color: var(--text-secondary); margin: 12px 0 0; }
+.stage-revision-mark { color: var(--el-color-warning); font-weight: 600; margin-left: 8px; }
+.stage-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ─── R18: 订单图库 ─── */
 .gallery-count { font-size: 13px; color: var(--text-secondary); }

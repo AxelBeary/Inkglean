@@ -156,6 +156,7 @@ export default {
     timeline: {
       title: '制作进度',
       current: '进行中',
+      revision: '画师打回修改中，进度已回退',
       notStarted: '订单已提交，等待画师确认后进入制作流程',
       orderedAt: '下单时间：'
     }
@@ -186,6 +187,7 @@ export default {
     confirm: '✅ 确认', startWip: '🎨 开始制作', done: '✔ 完成', deliver: '📦 交付', cancel: '❌ 取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
+    advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
     dragHint: '拖拽排序',
     focusDisplay: '焦点图显示', focusOff: '关', focusSmall: '小', focusLarge: '大'
   },
@@ -212,6 +214,12 @@ export default {
     focusUpdated: '焦点图已更新',
     deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
     focusHint: '显示尺寸在排期看板工具栏统一设置',
+    workflowTitle: '📈 流程进度', stageOff: '关闭流程跟踪',
+    stageProgress: '进度 {current}/{total}', stageRevision: '已打回修改',
+    advanceTo: '推进到：', stageBack: '↩ 打回上一节点', stageUpdated: '流程已更新',
+    stageBackConfirm: '确定打回到「{name}」？订单状态将标记为修改中。',
+    stageOffConfirm: '关闭后此订单不再跟随工作流程，回到固定状态流转。确定关闭？',
+    stageOffDone: '已关闭流程跟踪',
     gallery: '订单图库', galleryUpload: '上传图片', galleryUploadSuccess: '图片已添加',
     galleryPreview: '预览大图',
     galleryHint: '点击图片设为焦点图 · 支持拖拽 / 点击 / Ctrl+V 上传 · 客户图 + 画师图合计最多 20 张',

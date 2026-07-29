@@ -62,6 +62,8 @@
         <div class="timeline-block" v-if="order.workflowStages?.length">
           <h4 class="timeline-title">{{ $t('track.timeline.title') }}</h4>
           <OrderTimeline :stages="order.workflowStages" :current-stage-id="order.currentStageId" />
+          <!-- R30d: 打回时显示 ↩ 提示（客户可见） -->
+          <p class="timeline-hint timeline-revision" v-if="order.status === 'revision'">↩ {{ $t('track.timeline.revision') }}</p>
           <p class="timeline-hint" v-if="order.currentStageId == null">{{ $t('track.timeline.notStarted') }}</p>
           <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDate(order.createdAt) }}</p>
         </div>
@@ -246,6 +248,8 @@ onUnmounted(() => {
 .timeline-block { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); }
 .timeline-title { margin-bottom: 12px; color: var(--text-primary); font-size: 14px; }
 .timeline-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+/* R30d: 打回提示（↩ 警示色） */
+.timeline-revision { color: var(--el-color-warning); font-weight: 600; }
 .deliverables { margin-top: 20px; }
 .deliverables h4 { margin-bottom: 8px; color: var(--text-primary); }
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); }

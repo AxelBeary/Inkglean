@@ -48,6 +48,10 @@
                 <el-tag :type="statusType(element.status)" size="small">
                   {{ $t(`common.orderStatus.${element.status}`) }}
                 </el-tag>
+                <!-- R30d: 当前流程节点名（打回时带 ↩ 标记） -->
+                <el-tag v-if="element.currentStageId != null" type="info" size="small" effect="plain" class="stage-tag">
+                  {{ element.status === 'revision' ? '↩ ' : '' }}{{ element.currentStageName }}
+                </el-tag>
               </div>
               <div class="item-info">
                 <span>{{ element.tier_name || $t('common.custom') }}</span>
@@ -69,9 +73,17 @@
               </div>
             </div>
             <div class="item-actions">
-              <!-- R30b: 下一步主操作外露（按状态显示，不藏下拉） -->
+              <!-- R30d: 接入流程的订单 → "推进到下一节点"（替代固定状态按钮） -->
               <el-button
-                v-if="nextAction(element.status)"
+                v-if="element.currentStageId != null && canAdvance(element)"
+                size="small" type="primary"
+                @click="advanceOrderStage(element)"
+              >
+                {{ $t('queue.advanceStage') }}
+              </el-button>
+              <!-- R30b: 未接入流程的订单 → 固定状态主操作外露 -->
+              <el-button
+                v-else-if="nextAction(element.status)"
                 size="small"
                 :type="nextAction(element.status).type"
                 @click="quickAction(nextAction(element.status).command, element)"
@@ -155,6 +167,31 @@ const NEXT_ACTION = {
   done: { command: 'delivered', labelKey: 'queue.deliver', type: 'success' }
 }
 const nextAction = (status) => NEXT_ACTION[status] || null
+
+// ─── R30d: 流程状态机（看板推进） ───
+const workflowStages = ref([])
+
+/** 订单是否可推进（有 stage、非终态、非最后节点） */
+function canAdvance(order) {
+  if (order.currentStageId == null) return false
+  if (['delivered', 'cancelled'].includes(order.status)) return false
+  const idx = workflowStages.value.findIndex(s => s.id === order.currentStageId)
+  return idx !== -1 && idx < workflowStages.value.length - 1
+}
+
+/** 推进到下一节点（stageId = 当前节点的下一个） */
+async function advanceOrderStage(order) {
+  const idx = workflowStages.value.findIndex(s => s.id === order.currentStageId)
+  const next = workflowStages.value[idx + 1]
+  if (!next) return
+  try {
+    await artistApi.advanceStage(order.id, next.id)
+    ElMessage.success(t('queue.stageAdvanced'))
+    await loadQueue()
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
 
 async function loadQueue() {
   loading.value = true
@@ -271,7 +308,13 @@ const { refreshNow } = useSignatureRefresh({
   }
 })
 
-onMounted(loadQueue)
+onMounted(() => {
+  loadQueue()
+  // R30d: 加载工作流节点（看板推进需要知道"下一节点"）
+  artistApi.getWorkflow()
+    .then(res => { workflowStages.value = res.stages || [] })
+    .catch(() => {})
+})
 </script>
 
 <style scoped>
@@ -304,6 +347,8 @@ onMounted(loadQueue)
 .item-body { flex: 1; min-width: 0; }
 .item-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .order-no { font-weight: bold; font-size: 15px; color: var(--text-primary); }
+/* R30d: 流程节点标签 */
+.stage-tag { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-info { color: var(--text-secondary); font-size: 13px; margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
 .item-desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 .focus-small { margin-top: 8px; }
