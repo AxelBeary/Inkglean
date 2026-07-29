@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS orders (
   final_price_cents INTEGER,
   focus_image_path TEXT,
   focus_image_mode TEXT DEFAULT 'off',
+  current_stage_id INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -566,6 +567,17 @@ const MIGRATIONS = [
       database.exec('DROP TABLE login_codes')
       database.exec('ALTER TABLE login_codes_new RENAME TO login_codes')
       database.exec('CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at)')
+    }
+  },
+  {
+    version: 14,
+    name: 'orders_current_stage_id',
+    up(database) {
+      // R30d: 订单接入自定义工作流 — 新增 current_stage_id 列
+      const cols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!cols.some(c => c.name === 'current_stage_id')) {
+        database.exec('ALTER TABLE orders ADD COLUMN current_stage_id INTEGER')
+      }
     }
   }
 ]

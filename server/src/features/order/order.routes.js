@@ -153,6 +153,9 @@ export default async function orderRoutes(fastify) {
     // R11: 流程阶段列表 + 当前阶段（需迁移 v12 后才有真实值）
     const workflowStages = getWorkflow(order.artist_id)
 
+    // R30d: 客户只显示当前节点名（不显示进度数字）
+    const stageInfo = orderService.getStageInfo(order)
+
     // 只返回客户需要看到的信息
     return {
       orderNo: order.order_no,
@@ -163,6 +166,7 @@ export default async function orderRoutes(fastify) {
       total,
       workflowStages,
       currentStageId: order.current_stage_id ?? null,
+      currentStageName: stageInfo?.currentStageName ?? null,
       deliverables: order.deliverables.map(d => ({
         id: d.id,
         fileName: d.original_name,
@@ -296,8 +300,12 @@ export default async function orderRoutes(fastify) {
    */
   fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request) => {
    // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
-   return signOrderUrls(request.order)
- })
+   const order = signOrderUrls(request.order)
+   // R30d: 附加流程进度信息
+   const stageInfo = orderService.getStageInfo(order)
+   if (stageInfo) Object.assign(order, stageInfo)
+   return order
+})
 
   /**
    * POST /api/artist/orders/manual
@@ -381,6 +389,10 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
+    // R30d: 有 current_stage_id 的订单必须走 stage 接口（cancelled 除外）
+    if (request.order.current_stage_id && request.body.status !== 'cancelled') {
+      throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
+    }
     return orderService.updateOrderStatus(request.order.id, request.body.status)
   })
 
@@ -631,5 +643,53 @@ export default async function orderRoutes(fastify) {
     }
 
     return { urls }
+  })
+
+  // ─── R30d: 流程状态机 ───
+
+  /**
+   * PUT /api/artist/orders/:id/stage
+   * 推进流程节点（只能前进）；stageId=null 关闭流程跟踪
+   */
+  fastify.put('/api/artist/orders/:id/stage', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['stageId'],
+        properties: {
+          stageId: { type: ['integer', 'null'] }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    const order = orderService.advanceStage(request.order.id, request.body.stageId)
+    const stageInfo = orderService.getStageInfo(order)
+    if (stageInfo) Object.assign(order, stageInfo)
+    return signOrderUrls(order)
+  })
+
+  /**
+   * PUT /api/artist/orders/:id/stage-back
+   * 回退流程节点（打回修改），状态→revision + 系统备注
+   */
+  fastify.put('/api/artist/orders/:id/stage-back', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['stageId'],
+        properties: {
+          stageId: { type: 'integer' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    const order = orderService.rollbackStage(request.order.id, request.body.stageId)
+    const stageInfo = orderService.getStageInfo(order)
+    if (stageInfo) Object.assign(order, stageInfo)
+    return signOrderUrls(order)
   })
 }
