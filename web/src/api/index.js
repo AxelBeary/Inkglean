@@ -119,7 +119,7 @@ export const artistApi = {
   // R30d: 流程状态机（推进/打回/关闭跟踪；stageId 为目标节点 ID，SPEC-002 必填）
   advanceStage: (id, stageId) => api.put(`/artist/orders/${id}/stage`, { stageId }),
   stageBack: (id, stageId) => api.put(`/artist/orders/${id}/stage-back`, { stageId }),
-  stageOff: (id) => api.put(`/artist/orders/${id}/stage-off`),
+  stageOff: (id) => api.put(`/artist/orders/${id}/stage`, { stageId: null }),
   // 统计
   getStats: () => api.get('/artist/stats'),
   // 问候语
