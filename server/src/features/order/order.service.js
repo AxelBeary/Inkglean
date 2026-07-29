@@ -129,9 +129,9 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
 
     const orderId = result.lastInsertRowid
 
-    // R0-1: 参考图在事务内落库
+    // R0-1: 参考图在事务内落库（R18: 显式传 source='client'，不依赖 DEFAULT）
     if (Array.isArray(references) && references.length > 0) {
-      const insertRef = db.prepare('INSERT INTO order_references (order_id, file_path) VALUES (?, ?)')
+      const insertRef = db.prepare("INSERT INTO order_references (order_id, file_path, source) VALUES (?, ?, 'client')")
       for (const ref of references.slice(0, 5)) {
         insertRef.run(orderId, ref)
       }
@@ -163,8 +163,9 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
 
 /**
  * 获取单个订单（含关联数据）
+ * R18: clientOnly=true 时 references 只返回 source='client'（客户查询页不泄露画师图）
  */
-export function getOrder(orderId) {
+export function getOrder(orderId, { clientOnly = false } = {}) {
   const order = db.prepare(`
     SELECT o.*, a.name as artist_name, a.subdomain as artist_subdomain, t.name as tier_name, t.price as tier_price
     FROM orders o
@@ -175,7 +176,11 @@ export function getOrder(orderId) {
 
   if (!order) return null
 
-  order.references = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(orderId)
+  if (clientOnly) {
+    order.references = db.prepare("SELECT * FROM order_references WHERE order_id = ? AND source = 'client'").all(orderId)
+  } else {
+    order.references = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(orderId)
+  }
   order.notes = db.prepare('SELECT * FROM order_notes WHERE order_id = ? ORDER BY created_at ASC').all(orderId)
   order.deliverables = db.prepare('SELECT * FROM deliverables WHERE order_id = ?').all(orderId)
 
@@ -184,11 +189,12 @@ export function getOrder(orderId) {
 
 /**
  * 根据订单号查询
+ * R18: clientOnly 透传给 getOrder（客户查询页只看客户图）
  */
-export function getOrderByNo(orderNo) {
+export function getOrderByNo(orderNo, { clientOnly = false } = {}) {
   const row = db.prepare('SELECT id FROM orders WHERE order_no = ?').get(orderNo)
   if (!row) return null
-  return getOrder(row.id)
+  return getOrder(row.id, { clientOnly })
 }
 
 /**
@@ -309,10 +315,11 @@ export function updatePriority(orderId, priority) {
 
 /**
  * 添加订单备注
+ * R19: 支持可选附图 imagePath（notes/{artistId}/ 目录）
  */
-export function addNote(orderId, content, createdBy = 'artist') {
-  db.prepare('INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, ?)')
-    .run(orderId, content, createdBy)
+export function addNote(orderId, content, createdBy = 'artist', imagePath = null) {
+  db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
+    .run(orderId, content, createdBy, imagePath)
   return getOrder(orderId)
 }
 
@@ -419,17 +426,25 @@ export function deliverOrder(orderId, filePath, fileName, fileSize) {
 
 /**
  * 添加订单参考图
+ * R18: source 区分来源（'client'/'artist'），20 张总量校验
+ * ⚠️ 务必显式传 source 值，不要依赖 DEFAULT（显式传 NULL 会写成 null）
  */
-export function addReference(orderId, filePath, fileName, fileSize) {
-  db.prepare('INSERT INTO order_references (order_id, file_path, original_name, file_size) VALUES (?, ?, ?, ?)')
-    .run(orderId, filePath, fileName || '参考图', fileSize || 0)
+export function addReference(orderId, filePath, fileName, fileSize, source = 'client') {
+  // R18: 订单生命周期总量限制 20 张
+  const count = db.prepare('SELECT COUNT(*) AS c FROM order_references WHERE order_id = ?').get(orderId).c
+  if (count >= 20) {
+    throw new AppError(E.REFERENCES_LIMIT)
+  }
+  db.prepare('INSERT INTO order_references (order_id, file_path, original_name, file_size, source) VALUES (?, ?, ?, ?, ?)')
+    .run(orderId, filePath, fileName || '参考图', fileSize || 0, source)
 }
 
 /**
  * 客户查询排队位置（需同时提供订单号和QQ号验证身份）
+ * R18: clientOnly=true，客户只看自己上传的参考图
  */
 export function getClientQueuePosition(orderNo, clientQq) {
-  const order = getOrderByNo(orderNo)
+  const order = getOrderByNo(orderNo, { clientOnly: true })
   if (!order) return null
 
   // QQ 号不匹配 → 视为不存在（防枚举）
