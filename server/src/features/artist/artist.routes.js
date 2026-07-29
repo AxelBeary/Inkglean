@@ -57,6 +57,7 @@ export default async function artistRoutes(fastify) {
       notifyEnabled: !!artist.notify_enabled,
       contactQq: artist.contact_qq || artist.qq_number,
       revisionNote: artist.revision_note || null,
+      accentColor: artist.accent_color || null,
       tiers,
       artworks,
       rules: rules?.content || ''
@@ -114,7 +115,8 @@ export default async function artistRoutes(fastify) {
           templateId: { type: 'string', maxLength: 50 },
           paletteId: { type: 'string', enum: ['paper', 'ink', 'dusk', 'moss'] },
           revisionNote: { type: ['string', 'null'], maxLength: 500 },
-          dashboardDefaultPanel: { type: ['string', 'null'], maxLength: 50 }
+          dashboardDefaultPanel: { type: ['string', 'null'], maxLength: 50 },
+          accentColor: { type: ['string', 'null'], maxLength: 20 }
         },
         additionalProperties: false
       }
@@ -131,7 +133,8 @@ export default async function artistRoutes(fastify) {
         templateId: 'template_id',
         paletteId: 'palette_id',
         revisionNote: 'revision_note',
-        dashboardDefaultPanel: 'dashboard_default_panel'
+        dashboardDefaultPanel: 'dashboard_default_panel',
+        accentColor: 'accent_color'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}

@@ -807,4 +807,89 @@ describe('订单服务 (Order Service)', () => {
     const stats = orderService.getArtistStats(artist.id)
     expect(stats.todayNewOrderCents).toBe(0)
   })
+
+  // ─── v0.15 R51: 截稿日 ───
+
+  // TC-O-51: 迁移 v15 幂等
+  it('TC-O-51: 迁移 v15 幂等（accent_color + deadline 已存在时跳过）', async () => {
+    const { initDatabase } = await import('../src/db/init.js')
+    expect(() => initDatabase(db)).not.toThrow()
+  })
+
+  // TC-O-51b: 迁移 v15 列存在性
+  it('TC-O-51b: artists.accent_color + orders.deadline 列存在', () => {
+    const artistCols = db.prepare('PRAGMA table_info(artists)').all()
+    expect(artistCols.some(c => c.name === 'accent_color')).toBe(true)
+
+    const orderCols = db.prepare('PRAGMA table_info(orders)').all()
+    expect(orderCols.some(c => c.name === 'deadline')).toBe(true)
+  })
+
+  // TC-O-52: updateDeadline 设置截稿日
+  it('TC-O-52: updateDeadline 设置和清除截稿日', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(order.deadline).toBeNull()
+
+    // 设置（ISO 8601 输入 → SQLite 格式存储）
+    const withDeadline = orderService.updateDeadline(order.id, '2026-08-15T00:00:00.000Z')
+    expect(withDeadline.deadline).toBe('2026-08-15 00:00:00')
+
+    // 清除
+    const cleared = orderService.updateDeadline(order.id, null)
+    expect(cleared.deadline).toBeNull()
+  })
+
+  // TC-O-53: updateDeadline 拒绝非法格式
+  it('TC-O-53: updateDeadline 拒绝非法日期', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(() => orderService.updateDeadline(order.id, 'not-a-date')).toThrow('INVALID_DEADLINE')
+  })
+
+  // TC-O-54: getUpcomingDeadlines 返回 7 天内到期订单
+  it('TC-O-54: getUpcomingDeadlines 返回即将到期订单', () => {
+    const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
+    const o3 = orderService.createOrder({ artistId: artist.id, clientQq: '333' })
+
+    // o1: 3 天后到期（应出现）
+    const d3 = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+    orderService.updateDeadline(o1.id, d3)
+
+    // o2: 10 天后到期（超出 7 天，不出现）
+    const d10 = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+    orderService.updateDeadline(o2.id, d10)
+
+    // o3: 已取消（不出现）
+    const d1 = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString()
+    orderService.updateDeadline(o3.id, d1)
+    orderService.updateOrderStatus(o3.id, 'cancelled')
+
+    const upcoming = orderService.getUpcomingDeadlines(artist.id)
+    expect(upcoming).toHaveLength(1)
+    expect(upcoming[0].id).toBe(o1.id)
+    expect(upcoming[0].order_no).toBe(o1.order_no)
+  })
+
+  // TC-O-55: todayTodoCount 统计
+  it('TC-O-55: getArtistStats 返回 todayTodoCount', () => {
+    // pending 订单（应计入）
+    orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    // wip 订单（不计入，除非今天截稿）
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
+    orderService.updateOrderStatus(o2.id, 'confirmed')
+    orderService.updateOrderStatus(o2.id, 'wip')
+
+    // wip + 今天截稿（应计入）
+    const o3 = orderService.createOrder({ artistId: artist.id, clientQq: '333' })
+    orderService.updateOrderStatus(o3.id, 'confirmed')
+    orderService.updateOrderStatus(o3.id, 'wip')
+    const today = new Date()
+    today.setHours(12, 0, 0, 0)
+    orderService.updateDeadline(o3.id, today.toISOString())
+
+    const stats = orderService.getArtistStats(artist.id)
+    // pending(1) + wip今天截稿(1) = 2
+    expect(stats.todayTodoCount).toBe(2)
+  })
 })
