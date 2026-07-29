@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { db, cleanDb, seedArtist } from './setup.js'
+import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 import { buildApp } from '../src/app.js'
@@ -149,7 +149,7 @@ describe('路由层测试 (Route Integration)', () => {
         method: 'PUT',
         url: '/api/artist/profile',
         headers: { Authorization: `Bearer ${tokenB}` },
-        payload: { artist_code: 'QY' }
+        payload: { artistCode: 'QY' }
       })
       expect(res.statusCode).toBe(400)
       expect(res.json().code).toBe('CODE_TAKEN')
@@ -190,6 +190,204 @@ describe('路由层测试 (Route Integration)', () => {
         }
       })
       expect(res.statusCode).toBe(404)
+    })
+  })
+
+  // ─── v0.12 R15: 外链列表 ───
+
+  describe('外链列表 (R15)', () => {
+    it('TC-RT-12: PUT profile 带 customLinks 写入成功', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: {
+          customLinks: [
+            { name: 'Pixiv', url: 'https://pixiv.net/users/1', icon: 'pixiv' }
+          ]
+        }
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      const parsed = JSON.parse(body.custom_links)
+      expect(parsed).toHaveLength(1)
+      expect(parsed[0].name).toBe('Pixiv')
+    })
+
+    it('TC-RT-12b: PUT profile customLinks 非法 url 被 Schema 拒绝', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: {
+          customLinks: [
+            { name: '恶意', url: 'javascript:alert(1)', icon: 'link' }
+          ]
+        }
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('TC-RT-12c: PUT profile 忽略 weibo_url 写入（旧列冻结，Schema 静默剥离）', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { weibo_url: 'https://weibo.com/hack' }
+      })
+      // Fastify removeAdditional:true → weibo_url 被静默剥离，请求成功但字段未写入
+      expect(res.statusCode).toBe(200)
+      expect(res.json().weibo_url).toBeNull()
+    })
+
+    it('TC-RT-12d: GET 主页返回 customLinks（老画师回退旧列）', async () => {
+      // 用独立 QQ 号避免与 TC-RT-06 设置的 admin_qq='12345' 冲突
+      const artist = seedArtist({ qq_number: '88888', subdomain: 'linktest' })
+      db.prepare('UPDATE artists SET weibo_url = ? WHERE id = ?').run('https://weibo.com/old', artist.id)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/artists/linktest'
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.customLinks).toHaveLength(1)
+      expect(body.customLinks[0].icon).toBe('weibo')
+    })
+  })
+
+  // ─── v0.12 R18: 订单图库 ───
+
+  describe('订单图库 (R18)', () => {
+    it('TC-RT-13: 画师加图 source=artist', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/references`,
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { filePath: 'references/1/test.png', fileName: 'test.png', fileSize: 1024 }
+      })
+      expect(res.statusCode).toBe(200)
+
+      // 验证 source='artist'
+      const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
+      expect(refs).toHaveLength(1)
+      expect(refs[0].source).toBe('artist')
+    })
+
+    it('TC-RT-13b: 画师加图返回签名 URL', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/references`,
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { filePath: 'references/1/test.png' }
+      })
+      const body = res.json()
+      expect(body.references[0].url).toContain('/uploads/references/1/test.png?sig=')
+    })
+  })
+
+  // ─── v0.12 R19: 备注附图 ───
+
+  describe('备注附图 (R19)', () => {
+    it('TC-RT-14: 带图备注返回签名 imageUrl', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/notes`,
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { content: '带图备注', imagePath: `notes/${artist.id}/abc.png` }
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      const note = body.notes.find(n => n.content === '带图备注')
+      expect(note.imageUrl).toContain(`/uploads/notes/${artist.id}/abc.png?sig=`)
+    })
+
+    it('TC-RT-14b: 纯文字备注无 imageUrl', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/notes`,
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { content: '纯文字' }
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      const note = body.notes.find(n => n.content === '纯文字')
+      expect(note.imageUrl).toBeUndefined()
+    })
+
+    it('TC-RT-14c: 备注附图路径穿越被拒绝', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/notes`,
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { content: '恶意', imagePath: '../etc/passwd' }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('NOTE_IMAGE_PATH_INVALID')
+    })
+
+    it('TC-RT-14d: 备注附图路径非本画师目录被拒绝', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/notes`,
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { content: '越权', imagePath: 'notes/999/hack.png' }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('NOTE_IMAGE_PATH_INVALID')
+    })
+
+    it('TC-RT-14e: GET 订单详情 notes 带签名', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      // 先创建带图备注
+      db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
+        .run(order.id, '已有图', 'artist', `notes/${artist.id}/existing.png`)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/artist/orders/${order.id}`,
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      const note = body.notes.find(n => n.content === '已有图')
+      expect(note.imageUrl).toContain(`/uploads/notes/${artist.id}/existing.png?sig=`)
     })
   })
 })
