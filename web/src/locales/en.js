@@ -154,7 +154,10 @@ export default {
     selectTier: 'Please select a tier', fillQq: 'Please enter your QQ number',
     fileTooBig: 'File "{name}" exceeds the 10MB limit ({size}MB). Please compress and re-upload',
     typeWarning: 'Converting to JPG or WebP is recommended for better previews, but the current format can still be uploaded.',
-    loadFailed: 'Failed to load artist info'
+    loadFailed: 'Failed to load artist info',
+    // R57: draft recovery
+    draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
+    draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored'
   },
   track: {
     backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',

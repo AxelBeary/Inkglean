@@ -972,6 +972,8 @@ onMounted(() => {
   border-radius: 6px;
   cursor: zoom-in;
   border: 1px solid var(--border-color);
+  /* UI-9: loading background color (consistent with the library's .ref-img, prevents white flash) */
+  background: var(--bg-secondary, #f0f0f0);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .note-thumb:hover { transform: scale(1.05); box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.1)); }

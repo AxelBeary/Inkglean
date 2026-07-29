@@ -199,10 +199,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi, orderApi, uploadApi } from '../../api/index.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
@@ -265,6 +265,77 @@ const rules = {
     },
     trigger: 'change'
   }]
+}
+
+// ─── R57: Form loss prevention (beforeunload intercept + sessionStorage draft) ───
+const DRAFT_KEY = `orderForm_draft_${subdomain}`
+
+/** Whether the form has content (any field non-empty) — determines beforeunload intercept and draft saving */
+const hasDraftContent = computed(() =>
+  form.tierId != null
+  || !!form.description.trim()
+  || !!form.clientQq.trim()
+  || !!form.clientName.trim()
+  || Object.values(addonSelections).some(v => v > 0)
+  || Object.values(addonToggles).some(Boolean)
+)
+
+function saveDraft() {
+  if (!hasDraftContent.value) {
+    sessionStorage.removeItem(DRAFT_KEY)
+    return
+  }
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+      form: {
+        tierId: form.tierId,
+        description: form.description,
+        clientQq: form.clientQq,
+        clientName: form.clientName,
+        notifyEnabled: form.notifyEnabled,
+        usageMultiplierId: form.usageMultiplierId,
+        rushMultiplierId: form.rushMultiplierId
+      },
+      addonSelections: { ...addonSelections },
+      addonToggles: { ...addonToggles }
+    }))
+  } catch { /* Ignore when sessionStorage is unavailable (private mode, etc.) */ }
+}
+
+let draftTimer = null
+function scheduleDraftSave() {
+  if (draftTimer) clearTimeout(draftTimer)
+  draftTimer = setTimeout(saveDraft, 500)
+}
+
+watch(
+  [() => form.tierId, () => form.description, () => form.clientQq, () => form.clientName,
+    () => form.notifyEnabled, () => form.usageMultiplierId, () => form.rushMultiplierId],
+  scheduleDraftSave
+)
+watch(addonSelections, scheduleDraftSave, { deep: true })
+watch(addonToggles, scheduleDraftSave, { deep: true })
+
+/** Restore draft (called after tiers are loaded; if the tier has been deleted by the artist, that field is automatically discarded) */
+function restoreDraft(draft) {
+  const f = draft.form || {}
+  const tierValid = f.tierId != null && tiers.value.some(tier => tier.id === f.tierId)
+  form.tierId = tierValid ? f.tierId : null
+  form.description = f.description || ''
+  form.clientQq = f.clientQq || ''
+  form.clientName = f.clientName || ''
+  form.notifyEnabled = f.notifyEnabled !== false
+  form.usageMultiplierId = tierValid ? (f.usageMultiplierId ?? null) : null
+  form.rushMultiplierId = tierValid ? (f.rushMultiplierId ?? null) : null
+  if (tierValid && draft.addonSelections) Object.assign(addonSelections, draft.addonSelections)
+  if (tierValid && draft.addonToggles) Object.assign(addonToggles, draft.addonToggles)
+}
+
+/** beforeunload: intercept when the form has content (browser-native confirmation dialog) */
+function onBeforeUnload(e) {
+  if (!hasDraftContent.value) return
+  e.preventDefault()
+  e.returnValue = ''
 }
 
 // ─── 增项分组（按 category 折叠） ───
@@ -446,6 +517,9 @@ async function submit() {
     })
     resultNo.value = order.orderNo
     showSuccess.value = true
+    // R57: 提交成功清除草稿 + 解除离开拦截
+    sessionStorage.removeItem(DRAFT_KEY)
+    window.removeEventListener('beforeunload', onBeforeUnload)
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -455,6 +529,8 @@ async function submit() {
 
 // ─── 初始化 ───
 onMounted(async () => {
+  // R57: 表单有内容时拦截页面关闭/刷新
+  window.addEventListener('beforeunload', onBeforeUnload)
   try {
     const data = await artistPublicApi.getProfile(subdomain)
     artist.value = data
@@ -468,11 +544,40 @@ onMounted(async () => {
     artistPublicApi.getPricing(subdomain)
       .then(res => { pricingData.value = res })
       .catch(() => {})
+
+    // R57: 草稿恢复（tiers 加载后校验档位有效性）
+    let draft = null
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY)
+      if (raw) draft = JSON.parse(raw)
+    } catch { /* 损坏的草稿直接丢弃 */ }
+    if (draft) {
+      try {
+        await ElMessageBox.confirm(
+          t('orderForm.draftFound'),
+          t('orderForm.draftTitle'),
+          {
+            confirmButtonText: t('orderForm.draftRestore'),
+            cancelButtonText: t('orderForm.draftDiscard'),
+            type: 'info'
+          }
+        )
+        restoreDraft(draft)
+        ElMessage.success(t('orderForm.draftRestored'))
+      } catch {
+        sessionStorage.removeItem(DRAFT_KEY)
+      }
+    }
   } catch (err) {
     ElMessage.error(err.message || t('orderForm.loadFailed'))
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', onBeforeUnload)
+  if (draftTimer) clearTimeout(draftTimer)
 })
 </script>
 

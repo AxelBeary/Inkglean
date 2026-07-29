@@ -154,7 +154,10 @@ export default {
     selectTier: '请选择档位', fillQq: '请填写QQ号',
     fileTooBig: '文件「{name}」超过10MB限制（{size}MB），请压缩后重新上传',
     typeWarning: '建议转换为 JPG 或 WebP 格式以获得更好的预览体验，但当前格式也可以正常上传。',
-    loadFailed: '加载画师信息失败'
+    loadFailed: '加载画师信息失败',
+    // R57: 草稿恢复
+    draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
+    draftRestore: '恢复', draftDiscard: '丢弃', draftRestored: '草稿已恢复'
   },
   track: {
     backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
