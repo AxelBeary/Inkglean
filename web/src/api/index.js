@@ -116,6 +116,10 @@ export const artistApi = {
   updatePrice: (id, data) => api.put(`/artist/orders/${id}/price`, data),
   // R33: 签名 URL 批量刷新（防 15min 过期 403）
   refreshSignatures: (paths) => api.post('/artist/refresh-signatures', { paths }),
+  // R30d: 流程状态机（推进/打回/关闭跟踪；stageId 为目标节点 ID，SPEC-002 必填）
+  advanceStage: (id, stageId) => api.put(`/artist/orders/${id}/stage`, { stageId }),
+  stageBack: (id, stageId) => api.put(`/artist/orders/${id}/stage-back`, { stageId }),
+  stageOff: (id) => api.put(`/artist/orders/${id}/stage-off`),
   // 统计
   getStats: () => api.get('/artist/stats'),
   // 问候语

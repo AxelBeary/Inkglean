@@ -156,6 +156,7 @@ export default {
     timeline: {
       title: 'Production progress',
       current: 'In progress',
+      revision: 'Sent back by the artist for revision — progress rolled back',
       notStarted: 'Order submitted — production starts once the artist confirms',
       orderedAt: 'Ordered: '
     }
@@ -186,6 +187,7 @@ export default {
     confirm: '✅ Confirm', startWip: '🎨 Start work', done: '✔ Complete', deliver: '📦 Deliver', cancel: '❌ Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
     slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
+    advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
     dragHint: 'Drag to reorder',
     focusDisplay: 'Focus image', focusOff: 'Off', focusSmall: 'Small', focusLarge: 'Large'
   },
@@ -212,6 +214,12 @@ export default {
     focusUpdated: 'Focus image updated',
     deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted',
     focusHint: 'Display size is set globally in the queue board toolbar',
+    workflowTitle: '📈 Workflow progress', stageOff: 'Turn off stage tracking',
+    stageProgress: 'Progress {current}/{total}', stageRevision: 'Sent back for revision',
+    advanceTo: 'Advance to: ', stageBack: '↩ Send back', stageUpdated: 'Workflow updated',
+    stageBackConfirm: 'Send back to "{name}"? The order will be marked as in revision.',
+    stageOffConfirm: 'This order will stop following your workflow and fall back to fixed statuses. Continue?',
+    stageOffDone: 'Stage tracking turned off',
     gallery: 'Order gallery', galleryUpload: 'Upload', galleryUploadSuccess: 'Image added',
     galleryPreview: 'Preview',
     galleryHint: 'Click an image to set it as focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
