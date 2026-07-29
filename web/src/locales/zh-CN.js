@@ -185,7 +185,7 @@ export default {
     hint: '拖拽卡片调整顺序，顺序立即保存。优先级仅作标记，不影响排列顺序。',
     confirm: '✅ 确认', startWip: '🎨 开始制作', done: '✔ 完成', deliver: '📦 交付', cancel: '❌ 取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
-    confirmCancel: '确定取消订单 #{no}？', confirmCancelTitle: '确认取消', statusUpdated: '状态已更新',
+    slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
     dragHint: '拖拽排序',
     focusDisplay: '焦点图显示', focusOff: '关', focusSmall: '小', focusLarge: '大'
   },

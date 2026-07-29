@@ -23,7 +23,12 @@
         class="queue-list"
       >
         <template #item="{ element }">
-          <div class="queue-item" :class="`priority-${element.priority}`">
+          <div
+            class="queue-item"
+            :class="`priority-${element.priority}`"
+            @pointerdown="onCardPointerDown"
+            @pointerup="(e) => onCardPointerUp(e, element)"
+          >
             <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
             <!-- UI-2: 大图模式 — 左图右文布局，与"小"模式形成 48→160 梯度 -->
             <div v-if="element.focus_image_path && focusDisplay === 'large'" class="focus-large">
@@ -62,6 +67,15 @@
               </div>
             </div>
             <div class="item-actions">
+              <!-- R30b: 下一步主操作外露（按状态显示，不藏下拉） -->
+              <el-button
+                v-if="nextAction(element.status)"
+                size="small"
+                :type="nextAction(element.status).type"
+                @click="quickAction(nextAction(element.status).command, element)"
+              >
+                {{ $t(nextAction(element.status).labelKey) }}
+              </el-button>
               <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
               <el-dropdown trigger="click" @command="(cmd) => quickAction(cmd, element)">
                 <el-button size="small">{{ $t('common.actions') }}</el-button>
@@ -76,6 +90,24 @@
                 </template>
               </el-dropdown>
             </div>
+
+            <!-- R30e: 取消订单滑块确认（替代普通弹窗，防误触） -->
+            <div v-if="cancellingId === element.id" class="slide-cancel-row">
+              <div class="slide-cancel">
+                <div class="slide-cancel-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
+                <span class="slide-cancel-label">{{ $t('queue.slideToCancel') }}</span>
+                <div
+                  class="slide-cancel-thumb"
+                  :style="{ left: `calc(2px + ${slideProgress} * (100% - 40px))` }"
+                  @pointerdown="onSlideStart"
+                  @pointermove="onSlideMove"
+                  @pointerup="(e) => onSlideEnd(e, element)"
+                >
+                  →
+                </div>
+              </div>
+              <el-button text size="small" @click="closeSlideCancel">✕</el-button>
+            </div>
           </div>
         </template>
       </draggable>
@@ -87,13 +119,15 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { artistApi } from '../../api/index.js'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
 const { t } = useI18n()
+const router = useRouter()
 const queue = ref([])
 const loading = ref(true)
 
@@ -108,6 +142,16 @@ import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
 
 const priorityType = (p) => PRIORITY_TYPE[p] || 'info'
 const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
+
+// ─── R30b: 下一步主操作映射（外露按钮用） ───
+const NEXT_ACTION = {
+  pending: { command: 'confirmed', labelKey: 'queue.confirm', type: 'primary' },
+  confirmed: { command: 'wip', labelKey: 'queue.startWip', type: 'warning' },
+  wip: { command: 'done', labelKey: 'queue.done', type: 'success' },
+  revision: { command: 'done', labelKey: 'queue.done', type: 'success' },
+  done: { command: 'delivered', labelKey: 'queue.deliver', type: 'success' }
+}
+const nextAction = (status) => NEXT_ACTION[status] || null
 
 async function loadQueue() {
   loading.value = true
@@ -141,10 +185,10 @@ async function onDragEnd(evt) {
 }
 
 async function quickAction(command, order) {
+  // R30e: 取消不走弹窗，打开滑块确认
   if (command === 'cancelled') {
-    try {
-      await ElMessageBox.confirm(t('queue.confirmCancel', { no: order.order_no }), t('queue.confirmCancelTitle'), { type: 'warning' })
-    } catch { return }
+    openSlideCancel(order)
+    return
   }
 
   try {
@@ -156,6 +200,64 @@ async function quickAction(command, order) {
   }
 }
 
+// ─── R30e: 滑块确认取消（拖到底触发，防误触） ───
+const cancellingId = ref(null)
+const slideProgress = ref(0)
+let slideRect = null
+
+function openSlideCancel(order) {
+  cancellingId.value = order.id
+  slideProgress.value = 0
+}
+function closeSlideCancel() {
+  cancellingId.value = null
+  slideProgress.value = 0
+}
+function onSlideStart(e) {
+  const track = e.currentTarget.closest('.slide-cancel')
+  slideRect = track.getBoundingClientRect()
+  e.currentTarget.setPointerCapture(e.pointerId)
+}
+function onSlideMove(e) {
+  if (!slideRect) return
+  const x = e.clientX - slideRect.left - 20
+  slideProgress.value = Math.max(0, Math.min(1, x / (slideRect.width - 40)))
+}
+async function onSlideEnd(e, order) {
+  if (!slideRect) return
+  slideRect = null
+  if (slideProgress.value >= 0.9) {
+    closeSlideCancel()
+    try {
+      await artistApi.updateStatus(order.id, 'cancelled')
+      ElMessage.success(t('queue.statusUpdated'))
+      await loadQueue()
+    } catch (err) {
+      ElMessage.error(err.message)
+    }
+  } else {
+    slideProgress.value = 0
+  }
+}
+
+// ─── R30c: 手机端左滑进详情（触屏专属，C43 桌面不做等效） ───
+let swipeStart = null
+function onCardPointerDown(e) {
+  if (e.pointerType !== 'touch') return
+  if (e.target.closest('button, .drag-handle, .slide-cancel, .el-dropdown, .el-image')) return
+  swipeStart = { x: e.clientX, y: e.clientY }
+}
+function onCardPointerUp(e, order) {
+  if (!swipeStart) return
+  const dx = e.clientX - swipeStart.x
+  const dy = e.clientY - swipeStart.y
+  swipeStart = null
+  // 左滑 ≥60px 且水平方向主导 → 进详情
+  if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    router.push(`/orders/${order.id}?from=queue`)
+  }
+}
+
 onMounted(loadQueue)
 </script>
 
@@ -163,10 +265,16 @@ onMounted(loadQueue)
 .hint { color: var(--text-secondary); font-size: 13px; margin: 8px 0 16px; }
 .queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .toolbar-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
-.queue-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* R30a: 宽屏多列 — auto-fill 利用横向空间，窄屏自动回退单列 */
+.queue-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 8px;
+}
 
 .queue-item {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   background: var(--bg-card); border-radius: 8px; padding: 12px 16px;
   border-left: 4px solid var(--border-color); box-shadow: var(--shadow-card);
   cursor: default; transition: box-shadow 0.2s, background 0.3s;
@@ -190,10 +298,54 @@ onMounted(loadQueue)
 /* UI-2: 大图模式固定 160×120，左图右文，与小模式 48px 形成梯度 */
 .focus-large { flex-shrink: 0; }
 .focus-large-img { width: 160px; height: 120px; border-radius: 8px; display: block; }
-.item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.item-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
+
+/* R30e: 滑块确认（整行，拖到底触发取消） */
+.slide-cancel-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.slide-cancel {
+  position: relative;
+  flex: 1;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--el-color-danger-light-9);
+  border: 1px solid var(--el-color-danger-light-5);
+  overflow: hidden;
+  user-select: none;
+}
+.slide-cancel-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--el-color-danger-light-7);
+  transition: width 0.05s linear;
+}
+.slide-cancel-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600;
+  color: var(--el-color-danger);
+  pointer-events: none;
+}
+.slide-cancel-thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--el-color-danger);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.slide-cancel-thumb:active { cursor: grabbing; }
 
 @media (max-width: 600px) {
-  .queue-item { flex-wrap: wrap; }
-  .item-actions { width: 100%; justify-content: flex-end; }
+  .queue-list { grid-template-columns: 1fr; }
+  .item-actions { width: 100%; justify-content: flex-end; margin-left: 0; }
 }
 </style>

@@ -185,7 +185,7 @@ export default {
     hint: 'Drag cards to reorder. Order is saved immediately. Priority is a label only and does not affect sorting.',
     confirm: '✅ Confirm', startWip: '🎨 Start work', done: '✔ Complete', deliver: '📦 Deliver', cancel: '❌ Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
-    confirmCancel: 'Cancel order #{no}?', confirmCancelTitle: 'Confirm cancellation', statusUpdated: 'Status updated',
+    slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
     dragHint: 'Drag to reorder',
     focusDisplay: 'Focus image', focusOff: 'Off', focusSmall: 'Small', focusLarge: 'Large'
   },
