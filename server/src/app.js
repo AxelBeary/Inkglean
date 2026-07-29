@@ -133,6 +133,11 @@ export async function buildApp(opts = {}) {
       )
     } else {
       reply.header('X-Frame-Options', 'DENY')
+      // 五号审计补充：非 /embed 路由也加 CSP（主站安全头）
+      reply.header('Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: blob:; connect-src 'self'; font-src 'self'"
+      )
     }
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')

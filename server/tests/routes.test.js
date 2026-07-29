@@ -638,4 +638,71 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.json().code).toBe('NOTE_NOT_FOUND')
     })
   })
+  // ─── 补充：note-image 上传测试（五号审计） ───
+
+  describe('备注附图上传 (note-image)', () => {
+    /** 构造 multipart/form-data 请求体 */
+    function multipartBody(filename, contentType, content) {
+      const boundary = '----TestBoundary' + Date.now()
+      const parts = [
+        '--' + boundary,
+        'Content-Disposition: form-data; name="file"; filename="' + filename + '"',
+        'Content-Type: ' + contentType,
+        '',
+        content,
+        '--' + boundary + '--'
+      ]
+      return {
+        boundary,
+        body: parts.join('\r\n')
+      }
+    }
+
+    it('TC-RT-19: note-image 正常上传返回签名 URL', async () => {
+      const artist = seedArtist({ qq_number: '77820', subdomain: 'note-img' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const { boundary, body } = multipartBody('test.png', 'image/png', 'fake-png-data')
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/upload/note-image',
+        headers: {
+          Authorization: `${'Bearer '}${token}`,
+          'content-type': 'multipart/form-data; boundary=' + boundary
+        },
+        payload: body
+      })
+      expect(res.statusCode).toBe(200)
+      const json = res.json()
+      expect(json.filePath).toContain('notes/' + artist.id + '/')
+      expect(json.url).toContain('/uploads/notes/' + artist.id + '/')
+      expect(json.url).toContain('?sig=')
+      expect(json.mimeType).toBe('image/png')
+    })
+
+    it('TC-RT-19b: note-image 拒绝非图片格式', async () => {
+      const artist = seedArtist({ qq_number: '77821', subdomain: 'note-bad' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const { boundary, body } = multipartBody('evil.html', 'text/html', '<script>alert(1)</script>')
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/upload/note-image',
+        headers: {
+          Authorization: `${'Bearer '}${token}`,
+          'content-type': 'multipart/form-data; boundary=' + boundary
+        },
+        payload: body
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('TC-RT-19c: note-image 无 token 返回 401', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/upload/note-image'
+      })
+      expect(res.statusCode).toBe(401)
+    })
+  })
 })
