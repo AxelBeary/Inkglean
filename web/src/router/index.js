@@ -26,7 +26,8 @@ const routes = [
   { path: '/settings', name: 'ArtistSettings', component: () => import('../views/artist/Settings.vue'), meta: { titleKey: 'menu.settings', requiresAuth: true } },
   { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
   { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
-  { path: '/rules', name: 'ArtistRules', component: () => import('../views/artist/RulesEditor.vue'), meta: { titleKey: 'menu.rules', requiresAuth: true } },
+  // R42b: 须知编辑合并进设置页（旧链接重定向，不 404）
+  { path: '/rules', redirect: '/settings?tab=rules' },
 
   // ─── 管理员后台 ───
   { path: '/admin', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { titleKey: 'admin.panelTitle', requiresAdmin: true } },

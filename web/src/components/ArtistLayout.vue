@@ -127,7 +127,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
-import { Odometer, List, Box, Money, Picture, Document, Setting, Expand, Fold, Operation, Management } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -146,7 +146,7 @@ const BASE_MENU_ITEMS = [
   // R42a: 手动录单合并进订单管理，菜单项移除
   { index: '/tiers', icon: Money, labelKey: 'menu.tiers' },
   { index: '/artworks', icon: Picture, labelKey: 'menu.artworks' },
-  { index: '/rules', icon: Document, labelKey: 'menu.rules' },
+  // R42b: 须知编辑合并进设置页，菜单项移除
   { index: '/settings', icon: Setting, labelKey: 'menu.settings' }
 ]
 // UI-7: 管理员追加"管理后台"入口

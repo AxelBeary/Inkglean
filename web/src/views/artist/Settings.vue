@@ -126,6 +126,27 @@
         </el-card>
       </el-tab-pane>
 
+      <!-- R42b: 须知编辑（原 /rules 独立页面合并至此） -->
+      <el-tab-pane :label="$t('settings.tabRules')" name="rules" lazy>
+        <el-card style="max-width: 700px" v-loading="rulesLoading">
+          <p class="form-hint" style="margin-bottom: 16px">{{ $t('rules.hint') }}</p>
+          <el-input
+            v-model="rulesContent" type="textarea" :rows="16"
+            :placeholder="$t('rules.placeholder')"
+          />
+          <div class="preview" v-if="rulesContent">
+            <h4 style="margin: 16px 0 8px; color: var(--text-secondary)">{{ $t('rules.preview') }}</h4>
+            <el-card shadow="never" class="preview-card">
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <div v-html="sanitizedRulesPreview"></div>
+            </el-card>
+          </div>
+          <el-button type="primary" style="margin-top: 16px" @click="saveRules" :loading="rulesSaving">
+            {{ $t('rules.save') }}
+          </el-button>
+        </el-card>
+      </el-tab-pane>
+
       <!-- 嵌入脚本 -->
       <el-tab-pane :label="$t('embed.tab')" name="embed" lazy>
         <el-card style="max-width: 700px" v-loading="loading">
@@ -148,16 +169,54 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import { sanitizeHtml } from '../../utils/sanitize.js'
 
 const { t } = useI18n()
-const activeTab = ref('profile')
+const route = useRoute()
+// R42b: /rules 重定向到 /settings?tab=rules 时直达须知 tab
+const activeTab = ref(route.query.tab === 'rules' ? 'rules' : 'profile')
 const loading = ref(true)
 const saving = ref(false)
+
+// ─── R42b: 须知编辑（原 RulesEditor.vue 逻辑迁入） ───
+const rulesContent = ref('')
+const rulesSaving = ref(false)
+const rulesLoading = ref(false)
+let rulesLoaded = false
+
+// XSS 防护：预览也消毒
+const sanitizedRulesPreview = computed(() => sanitizeHtml(rulesContent.value))
+
+async function loadRules() {
+  if (rulesLoaded) return
+  rulesLoading.value = true
+  try {
+    const rules = await artistApi.getRules()
+    rulesContent.value = rules?.content || ''
+    rulesLoaded = true
+  } catch { /* ignore */ } finally { rulesLoading.value = false }
+}
+
+async function saveRules() {
+  rulesSaving.value = true
+  try {
+    await artistApi.updateRules(rulesContent.value)
+    ElMessage.success(t('rules.saved'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    rulesSaving.value = false
+  }
+}
+
+// 首次切到须知 tab 时加载内容（懒加载）
+watch(activeTab, (tab) => { if (tab === 'rules') loadRules() }, { immediate: true })
 
 // R15: 外链图标枚举（一号拍板：纯文字标签 + Element Plus Link 图标兜底）
 const LINK_ICONS = [
@@ -285,6 +344,9 @@ onMounted(async () => {
 
 <style scoped>
 .form-hint { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+
+/* R42b: 须知预览（原 RulesEditor.vue 样式迁入） */
+.preview-card { line-height: 1.8; color: var(--text-primary); }
 
 /* R15: 外链列表编辑器 */
 .link-editor { width: 100%; }
