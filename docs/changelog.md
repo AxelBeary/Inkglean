@@ -1,5 +1,40 @@
 # 变更日志
 
+## v0.13 — 2026-07-30
+
+### ✨ 功能
+
+- **R30d 流程状态机**：订单接入自定义工作流（推进/打回/关闭跟踪），客户 track 页显示节点名 + ↩ 打回标记，看板"推进到下一节点"按钮
+- **R33 签名刷新**：useSignatureRefresh composable（10 分钟轮询 + @error 兜底），OrderDetail/QueueBoard 接入，长停留页面不再 403
+- **R34 三模板外链**：Gallery（展签式）/ Folio（胶囊）/ Atelier（笔触下划线）补齐外链展示
+- **R30a/b/c/e 看板增强**：宽屏多列布局、下一步按钮外露、手机左滑进详情、取消滑块确认
+- **UI-8 hidden 状态**：画师可隐藏公开主页（第四态），客户看到友好提示页
+- **UI-7 管理员导航**：ArtistLayout 侧边栏对管理员追加"管理后台"入口
+
+### 🗄 迁移
+
+- **v13**：login_codes 表重建（expires_at DATETIME→INTEGER，幂等）
+- **v14**：orders 表 +1 字段 `current_stage_id`（R30d 流程状态机）
+
+### 🔒 安全修复
+
+- **P1-A**：队列重排返回值补焦点图签名（拖拽后不再 403）
+- **P1-C**：inquiry 增项改为 toggle 显式勾选（不再无条件加入）
+- **P2-B**：定价器 addon_tiers 查询加 WHERE 过滤（消除全表扫描）
+- **S-10**：交付文件前端白名单对齐后端 23 种
+- **CVE**：Dockerfile 构建阶段升级 npm 工具链（消除 tar/brace-expansion 等已知漏洞）
+- **P1-5 关闭**：Caddyfile 删泛域名预留，统一路径访问（C48 方案 B）
+
+### 🚫 关闭（不做）
+
+- **R37 SRI/CSRF**：CSRF 已有 SameSite=Lax（auth.routes.js:88），SRI 不适用（自托管无 CDN）
+
+### 📊 测试
+
+- 151 → 165（+14），7 文件全部通过
+
+---
+
 ## v0.12 — 2026-07-30
 
 ### ✨ 功能
