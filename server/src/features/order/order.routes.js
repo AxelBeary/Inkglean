@@ -296,6 +296,15 @@ export default async function orderRoutes(fastify) {
   })
 
   /**
+   * GET /api/artist/orders/upcoming-deadlines
+   * R51: 即将到期订单列表（deadline 在未来 7 天内 + 非终态，按 deadline 升序）
+   * 注意：必须在 /api/artist/orders/:id 之前注册，避免被 :id 吞掉
+   */
+  fastify.get('/api/artist/orders/upcoming-deadlines', { preHandler: requireAuth }, async (request) => {
+    return orderService.getUpcomingDeadlines(request.artist.id)
+  })
+
+  /**
    * GET /api/artist/orders/:id
    */
   fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request) => {
@@ -417,6 +426,26 @@ export default async function orderRoutes(fastify) {
   })
 
   /**
+   * PUT /api/artist/orders/:id/deadline
+   * R51: 设置/修改/清除截稿日
+   */
+  fastify.put('/api/artist/orders/:id/deadline', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['deadline'],
+        properties: {
+          deadline: { type: ['string', 'null'], maxLength: 50 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    return orderService.updateDeadline(request.order.id, request.body.deadline)
+  })
+
+  /**
    * PUT /api/artist/queue/reorder
    * 接收完整排序后的 ID 数组
    * JSON Schema 输入校验
@@ -473,6 +502,18 @@ export default async function orderRoutes(fastify) {
     }
 
     return signOrderUrls(orderService.addNote(request.order.id, clamp(content, 'note'), 'artist', imagePath || null))
+  })
+
+  /**
+   * DELETE /api/artist/orders/:id/notes/:noteId
+   * R46: 删除备注（系统备注拒绝，带图备注由 GC 清理）
+   */
+  fastify.delete('/api/artist/orders/:id/notes/:noteId', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request) => {
+    const noteId = parseInt(request.params.noteId, 10)
+    if (isNaN(noteId)) throw new AppError(E.ORDER_INVALID_ID)
+    return signOrderUrls(orderService.deleteNote(request.order.id, noteId))
   })
 
   /**

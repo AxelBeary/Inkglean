@@ -573,4 +573,136 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.statusCode).toBe(401)
     })
   })
+  // ─── v0.15 R46: 备注删除路由 ───
+
+  describe('备注删除 (R46 DELETE notes)', () => {
+    it('TC-RT-18: 正常删除备注返回 200', async () => {
+      const artist = seedArtist({ qq_number: '77810', subdomain: 'note-del' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, '画师备注', 'artist')").run(order.id)
+      const note = db.prepare('SELECT id FROM order_notes WHERE order_id = ?').get(order.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${order.id}/notes/${note.id}`,
+        headers: { Authorization: `${'Bearer '}${token}` }
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().notes).toHaveLength(0)
+    })
+
+    it('TC-RT-18b: 删除系统备注返回 403', async () => {
+      const artist = seedArtist({ qq_number: '77811', subdomain: 'note-sys' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, '系统记录', 'system')").run(order.id)
+      const note = db.prepare('SELECT id FROM order_notes WHERE order_id = ?').get(order.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${order.id}/notes/${note.id}`,
+        headers: { Authorization: `${'Bearer '}${token}` }
+      })
+      expect(res.statusCode).toBe(403)
+      expect(res.json().code).toBe('SYSTEM_NOTE_PROTECTED')
+    })
+
+    it('TC-RT-18c: 非本画师订单返回 404', async () => {
+      const artistA = seedArtist({ qq_number: '77812', subdomain: 'note-a' })
+      const artistB = seedArtist({ qq_number: '77813', subdomain: 'note-b' })
+      const tokenA = createSession(artistA.id, artistA.token_version)
+      const orderB = seedOrder(artistB.id)
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, 'B的备注', 'artist')").run(orderB.id)
+      const note = db.prepare('SELECT id FROM order_notes WHERE order_id = ?').get(orderB.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${orderB.id}/notes/${note.id}`,
+        headers: { Authorization: `${'Bearer '}${tokenA}` }
+      })
+      expect(res.statusCode).toBe(404)
+    })
+
+    it('TC-RT-18d: 删除不存在的备注返回 404', async () => {
+      const artist = seedArtist({ qq_number: '77814', subdomain: 'note-404' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/artist/orders/${order.id}/notes/99999`,
+        headers: { Authorization: `${'Bearer '}${token}` }
+      })
+      expect(res.statusCode).toBe(404)
+      expect(res.json().code).toBe('NOTE_NOT_FOUND')
+    })
+  })
+  // ─── 补充：note-image 上传测试（五号审计） ───
+
+  describe('备注附图上传 (note-image)', () => {
+    /** 构造 multipart/form-data 请求体 */
+    function multipartBody(filename, contentType, content) {
+      const boundary = '----TestBoundary' + Date.now()
+      const parts = [
+        '--' + boundary,
+        'Content-Disposition: form-data; name="file"; filename="' + filename + '"',
+        'Content-Type: ' + contentType,
+        '',
+        content,
+        '--' + boundary + '--'
+      ]
+      return {
+        boundary,
+        body: parts.join('\r\n')
+      }
+    }
+
+    it('TC-RT-19: note-image 正常上传返回签名 URL', async () => {
+      const artist = seedArtist({ qq_number: '77820', subdomain: 'note-img' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const { boundary, body } = multipartBody('test.png', 'image/png', 'fake-png-data')
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/upload/note-image',
+        headers: {
+          Authorization: `${'Bearer '}${token}`,
+          'content-type': 'multipart/form-data; boundary=' + boundary
+        },
+        payload: body
+      })
+      expect(res.statusCode).toBe(200)
+      const json = res.json()
+      expect(json.filePath).toContain('notes/' + artist.id + '/')
+      expect(json.url).toContain('/uploads/notes/' + artist.id + '/')
+      expect(json.url).toContain('?sig=')
+      expect(json.mimeType).toBe('image/png')
+    })
+
+    it('TC-RT-19b: note-image 拒绝非图片格式', async () => {
+      const artist = seedArtist({ qq_number: '77821', subdomain: 'note-bad' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const { boundary, body } = multipartBody('evil.html', 'text/html', '<script>alert(1)</script>')
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/upload/note-image',
+        headers: {
+          Authorization: `${'Bearer '}${token}`,
+          'content-type': 'multipart/form-data; boundary=' + boundary
+        },
+        payload: body
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('TC-RT-19c: note-image 无 token 返回 401', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/upload/note-image'
+      })
+      expect(res.statusCode).toBe(401)
+    })
+  })
 })

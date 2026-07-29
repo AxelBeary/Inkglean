@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS artists (
   dashboard_default_panel TEXT,
   revision_note TEXT,
   custom_links TEXT,
+  accent_color TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -91,6 +92,7 @@ CREATE TABLE IF NOT EXISTS orders (
   focus_image_path TEXT,
   focus_image_mode TEXT DEFAULT 'off',
   current_stage_id INTEGER,
+  deadline DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -167,6 +169,7 @@ CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_orders_client_qq ON orders(client_qq);
 CREATE INDEX IF NOT EXISTS idx_order_references_order ON order_references(order_id);
 CREATE INDEX IF NOT EXISTS idx_deliverables_order ON deliverables(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_deadline ON orders(artist_id, deadline);
 CREATE INDEX IF NOT EXISTS idx_order_notes_order ON order_notes(order_id);
 CREATE INDEX IF NOT EXISTS idx_artworks_artist ON artworks(artist_id);
 CREATE INDEX IF NOT EXISTS idx_price_tiers_artist ON price_tiers(artist_id);
@@ -577,6 +580,22 @@ const MIGRATIONS = [
       const cols = database.prepare('PRAGMA table_info(orders)').all()
       if (!cols.some(c => c.name === 'current_stage_id')) {
         database.exec('ALTER TABLE orders ADD COLUMN current_stage_id INTEGER')
+      }
+    }
+  },
+  {
+    version: 15,
+    name: 'accent_color_and_deadline',
+    up(database) {
+      // R49: 画师强调色（5 色白名单 + null，service 层校验）
+      const artistCols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!artistCols.some(c => c.name === 'accent_color')) {
+        database.exec('ALTER TABLE artists ADD COLUMN accent_color TEXT DEFAULT NULL')
+      }
+      // R51: 订单截稿日
+      const orderCols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!orderCols.some(c => c.name === 'deadline')) {
+        database.exec('ALTER TABLE orders ADD COLUMN deadline DATETIME DEFAULT NULL')
       }
     }
   }

@@ -714,4 +714,182 @@ describe('订单服务 (Order Service)', () => {
 
     expect(() => orderService.enableTracking(order.id)).toThrow('NO_WORKFLOW_TEMPLATE')
   })
+
+  // ─── v0.15 R46: 备注删除 ───
+
+  // TC-O-43: 正常删除画师备注
+  it('TC-O-43: deleteNote 删除画师备注', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addNote(order.id, '要删的备注', 'artist')
+    const withNote = orderService.getOrder(order.id)
+    expect(withNote.notes).toHaveLength(1)
+
+    const noteId = withNote.notes[0].id
+    const afterDelete = orderService.deleteNote(order.id, noteId)
+    expect(afterDelete.notes).toHaveLength(0)
+  })
+
+  // TC-O-44: 系统备注拒绝删除
+  it('TC-O-44: deleteNote 拒绝删除系统备注', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    // 系统备注（状态变更、改价等场景写入）
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, '系统记录', 'system')").run(order.id)
+    const withNote = orderService.getOrder(order.id)
+    const noteId = withNote.notes[0].id
+
+    expect(() => orderService.deleteNote(order.id, noteId)).toThrow('SYSTEM_NOTE_PROTECTED')
+  })
+
+  // TC-O-45: 备注不存在 → NOTE_NOT_FOUND
+  it('TC-O-45: deleteNote 备注不存在抛 NOTE_NOT_FOUND', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(() => orderService.deleteNote(order.id, 99999)).toThrow('NOTE_NOT_FOUND')
+  })
+
+  // TC-O-46: 带图备注删除（记录删除，图片由 GC 孤儿回收清理）
+  it('TC-O-46: deleteNote 删除带图备注', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addNote(order.id, '带图备注', 'artist', 'notes/1/img.png')
+    const withNote = orderService.getOrder(order.id)
+    expect(withNote.notes[0].image_path).toBe('notes/1/img.png')
+
+    const noteId = withNote.notes[0].id
+    const afterDelete = orderService.deleteNote(order.id, noteId)
+    expect(afterDelete.notes).toHaveLength(0)
+    // 图片文件由 gcUploads 孤儿回收机制自动清理（app.js:60 已收集 order_notes.image_path）
+  })
+
+  // ─── v0.15 R52: 今日统计 ───
+
+  // TC-O-47: 今日新增订单金额
+  it('TC-O-47: getArtistStats 返回 todayNewOrderCents', () => {
+    // 创建有价格的订单
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '头像', 200)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '头像')
+    orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+
+    const stats = orderService.getArtistStats(artist.id)
+    // 200 元 = 20000 分
+    expect(stats.todayNewOrderCents).toBe(20000)
+  })
+
+  // TC-O-48: 今日收入（completed_at 在今天）
+  it('TC-O-48: getArtistStats 返回 todayRevenueCents', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '全身', 500)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '全身')
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+
+    // 走到 done（completed_at = 当前时间 = 今天）
+    orderService.updateOrderStatus(order.id, 'confirmed')
+    orderService.updateOrderStatus(order.id, 'wip')
+    orderService.updateOrderStatus(order.id, 'done')
+
+    const stats = orderService.getArtistStats(artist.id)
+    expect(stats.todayRevenueCents).toBe(50000)
+  })
+
+  // TC-O-49: 无数据时返回 0
+  it('TC-O-49: 无订单时今日统计为 0', () => {
+    const stats = orderService.getArtistStats(artist.id)
+    expect(stats.todayNewOrderCents).toBe(0)
+    expect(stats.todayRevenueCents).toBe(0)
+  })
+
+  // TC-O-50: 昨天的订单不计入今日统计
+  it('TC-O-50: 昨天创建的订单不计入 todayNewOrderCents', () => {
+    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '测试', 100)").run(artist.id)
+    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '测试')
+    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+
+    // 手动把 created_at 改为昨天
+    db.prepare("UPDATE orders SET created_at = datetime('now', '-1 day') WHERE id = ?").run(order.id)
+
+    const stats = orderService.getArtistStats(artist.id)
+    expect(stats.todayNewOrderCents).toBe(0)
+  })
+
+  // ─── v0.15 R51: 截稿日 ───
+
+  // TC-O-51: 迁移 v15 幂等
+  it('TC-O-51: 迁移 v15 幂等（accent_color + deadline 已存在时跳过）', async () => {
+    const { initDatabase } = await import('../src/db/init.js')
+    expect(() => initDatabase(db)).not.toThrow()
+  })
+
+  // TC-O-51b: 迁移 v15 列存在性
+  it('TC-O-51b: artists.accent_color + orders.deadline 列存在', () => {
+    const artistCols = db.prepare('PRAGMA table_info(artists)').all()
+    expect(artistCols.some(c => c.name === 'accent_color')).toBe(true)
+
+    const orderCols = db.prepare('PRAGMA table_info(orders)').all()
+    expect(orderCols.some(c => c.name === 'deadline')).toBe(true)
+  })
+
+  // TC-O-52: updateDeadline 设置截稿日
+  it('TC-O-52: updateDeadline 设置和清除截稿日', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(order.deadline).toBeNull()
+
+    // 设置（ISO 8601 输入 → SQLite 格式存储）
+    const withDeadline = orderService.updateDeadline(order.id, '2026-08-15T00:00:00.000Z')
+    expect(withDeadline.deadline).toBe('2026-08-15 00:00:00')
+
+    // 清除
+    const cleared = orderService.updateDeadline(order.id, null)
+    expect(cleared.deadline).toBeNull()
+  })
+
+  // TC-O-53: updateDeadline 拒绝非法格式
+  it('TC-O-53: updateDeadline 拒绝非法日期', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    expect(() => orderService.updateDeadline(order.id, 'not-a-date')).toThrow('INVALID_DEADLINE')
+  })
+
+  // TC-O-54: getUpcomingDeadlines 返回 7 天内到期订单
+  it('TC-O-54: getUpcomingDeadlines 返回即将到期订单', () => {
+    const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
+    const o3 = orderService.createOrder({ artistId: artist.id, clientQq: '333' })
+
+    // o1: 3 天后到期（应出现）
+    const d3 = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+    orderService.updateDeadline(o1.id, d3)
+
+    // o2: 10 天后到期（超出 7 天，不出现）
+    const d10 = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+    orderService.updateDeadline(o2.id, d10)
+
+    // o3: 已取消（不出现）
+    const d1 = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString()
+    orderService.updateDeadline(o3.id, d1)
+    orderService.updateOrderStatus(o3.id, 'cancelled')
+
+    const upcoming = orderService.getUpcomingDeadlines(artist.id)
+    expect(upcoming).toHaveLength(1)
+    expect(upcoming[0].id).toBe(o1.id)
+    expect(upcoming[0].order_no).toBe(o1.order_no)
+  })
+
+  // TC-O-55: todayTodoCount 统计
+  it('TC-O-55: getArtistStats 返回 todayTodoCount', () => {
+    // pending 订单（应计入）
+    orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+
+    // wip 订单（不计入，除非今天截稿）
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
+    orderService.updateOrderStatus(o2.id, 'confirmed')
+    orderService.updateOrderStatus(o2.id, 'wip')
+
+    // wip + 今天截稿（应计入）
+    const o3 = orderService.createOrder({ artistId: artist.id, clientQq: '333' })
+    orderService.updateOrderStatus(o3.id, 'confirmed')
+    orderService.updateOrderStatus(o3.id, 'wip')
+    const today = new Date()
+    today.setHours(12, 0, 0, 0)
+    orderService.updateDeadline(o3.id, today.toISOString())
+
+    const stats = orderService.getArtistStats(artist.id)
+    // pending(1) + wip今天截稿(1) = 2
+    expect(stats.todayTodoCount).toBe(2)
+  })
 })

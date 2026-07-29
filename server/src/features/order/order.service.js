@@ -322,12 +322,73 @@ export function updatePriority(orderId, priority) {
 }
 
 /**
+ * 更新订单截稿日（v0.15 R51）
+ * deadline: ISO 8601 字符串 或 null（清除）
+ */
+export function updateDeadline(orderId, deadline) {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  let normalized = null
+  if (deadline !== null) {
+    // 校验 ISO 8601 格式
+    const d = new Date(deadline)
+    if (isNaN(d.getTime())) {
+      throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
+    }
+    // 统一存储为 SQLite 格式（YYYY-MM-DD HH:MM:SS UTC），与 SQL 比较格式一致
+    normalized = d.toISOString().slice(0, 19).replace('T', ' ')
+  }
+
+  db.prepare('UPDATE orders SET deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(normalized, orderId)
+
+  return getOrder(orderId)
+}
+
+/**
+ * 获取即将到期的订单列表（v0.15 R51）
+ * deadline 在未来 7 天内 + 状态非终态，按 deadline 升序
+ */
+export function getUpcomingDeadlines(artistId) {
+  const now = new Date()
+  const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const nowUTC = now.toISOString().slice(0, 19).replace('T', ' ')
+  const laterUTC = sevenDaysLater.toISOString().slice(0, 19).replace('T', ' ')
+
+  return db.prepare(`
+    SELECT o.id, o.order_no, o.client_name, o.deadline, o.status
+    FROM orders o
+    WHERE o.artist_id = ?
+      AND o.deadline IS NOT NULL
+      AND o.deadline >= ?
+      AND o.deadline <= ?
+      AND o.status NOT IN ('delivered', 'cancelled')
+    ORDER BY o.deadline ASC
+  `).all(artistId, nowUTC, laterUTC)
+}
+
+/**
  * 添加订单备注
  * R19: 支持可选附图 imagePath（notes/{artistId}/ 目录）
  */
 export function addNote(orderId, content, createdBy = 'artist', imagePath = null) {
   db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
     .run(orderId, content, createdBy, imagePath)
+  return getOrder(orderId)
+}
+
+/**
+ * 删除订单备注（v0.15 R46）
+ * 系统备注（created_by='system'）不可删除
+ * 带图备注删除后，图片由 GC 孤儿回收机制自动清理（app.js gcUploads 已收集 order_notes.image_path）
+ */
+export function deleteNote(orderId, noteId) {
+  const note = db.prepare('SELECT * FROM order_notes WHERE id = ? AND order_id = ?').get(noteId, orderId)
+  if (!note) throw new AppError(E.NOTE_NOT_FOUND, 404)
+  if (note.created_by === 'system') throw new AppError(E.SYSTEM_NOTE_PROTECTED, 403)
+
+  db.prepare('DELETE FROM order_notes WHERE id = ?').run(noteId)
   return getOrder(orderId)
 }
 
@@ -361,6 +422,7 @@ export function getArtistOrders(artistId, status, { page = 1, pageSize = 50 } = 
 
 /**
  * 仪表盘统计数据
+ * R52: 新增 todayNewOrderCents（今日新增订单金额）+ todayRevenueCents（今日收入）
  */
 export function getArtistStats(artistId) {
   const pendingCount = db.prepare(
@@ -389,12 +451,59 @@ export function getArtistStats(artistId) {
   const totalCompleted = db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status IN ('done', 'delivered')"
   ).get(artistId).c
+
+  // R52: 今日统计 — 时区处理与月收入一致（本地零点 → UTC 时间戳）
+  const localDayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const dayStartUTC = localDayStart.toISOString().slice(0, 19).replace('T', ' ')
+
+  // 今日新增订单金额：created_at >= 今日零点，金额回退链与月收入一致
+  const todayNewOrderCents = db.prepare(`
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
+        WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
+        ELSE COALESCE(o.price_snapshot, 0) * 100
+      END
+    ), 0) as total_cents
+    FROM orders o
+    WHERE o.artist_id = ? AND o.created_at >= ?
+  `).get(artistId, dayStartUTC).total_cents
+
+  // 今日收入：completed_at >= 今日零点 且 status IN ('done','delivered')
+  const todayRevenueCents = db.prepare(`
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
+        WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
+        ELSE COALESCE(o.price_snapshot, 0) * 100
+      END
+    ), 0) as total_cents
+    FROM orders o
+    WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
+      AND o.completed_at >= ?
+  `).get(artistId, dayStartUTC).total_cents
+
+  // R51: 今日待办 — 今天截稿 + status='pending' + status='revision'（C62 已拍板）
+  const dayEndUTC = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString().slice(0, 19).replace('T', ' ')
+  const todayTodoCount = db.prepare(`
+    SELECT COUNT(*) as c FROM orders
+    WHERE artist_id = ?
+      AND status NOT IN ('delivered', 'cancelled')
+      AND (
+        status IN ('pending', 'revision')
+        OR (deadline IS NOT NULL AND deadline >= ? AND deadline < ?)
+      )
+  `).get(artistId, dayStartUTC, dayEndUTC).c
+
   return {
     pendingCount,
     activeCount,
     monthRevenue: monthRevenue / 100,   // 元（REAL），兼容现有 Dashboard.vue
     monthRevenueCents: monthRevenue,    // 分（INTEGER），R8 仪表盘重构时切换
-    totalCompleted
+    totalCompleted,
+    todayNewOrderCents,                 // R52: 今日新增订单金额（分）
+    todayRevenueCents,                  // R52: 今日收入金额（分）
+    todayTodoCount                      // R51: 今日待办数
   }
 }
 

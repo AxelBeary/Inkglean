@@ -59,7 +59,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id, fields) {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color']
   const updates = []
   const values = []
 
@@ -108,6 +108,15 @@ export function updateArtist(id, fields) {
         const palette = String(value || 'paper')
         updates.push('palette_id = ?')
         values.push(['paper', 'ink', 'dusk', 'moss'].includes(palette) ? palette : 'paper')
+      } else if (key === 'accent_color') {
+        // R49: 强调色白名单校验 — 仅允许 5 色预设 + null（清除）
+        // 色值来源：web/src/styles/theme.css data-accent 1-5 的 --color-primary
+        const ACCENT_COLORS = ['#34dbcb', '#34c2db', '#3498db', '#346edb', '#3445db']
+        if (value !== null && !ACCENT_COLORS.includes(String(value).toLowerCase())) {
+          throw new AppError(E.INVALID_ACCENT_COLOR, 400, { value })
+        }
+        updates.push('accent_color = ?')
+        values.push(value ? String(value).toLowerCase() : null)
       } else if (key === 'avatar') {
         // M-1 修复：头像路径校验 — 必须在 images/ 目录下，拒绝路径穿越
         if (value && (String(value).includes('..') || !String(value).startsWith('images/'))) {
