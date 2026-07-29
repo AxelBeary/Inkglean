@@ -79,7 +79,7 @@
 
 ## 项目上下文
 
-技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest / ESLint + CI。迁移 v1–v14。模板系统 4 布局 × 4 配色。
+技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest / ESLint + CI。迁移 v1–v15。模板系统 4 布局 × 4 配色。
 
 核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 node + npm run build）、不破坏已上线功能（模板系统/价格计算器/嵌入脚本/五色主题/中英双语）。
 
