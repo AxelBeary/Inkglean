@@ -266,7 +266,13 @@ export default {
   artworks: {
     title: '🖼 作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
     tip: '支持 JPG / PNG / WebP，建议尺寸 ≥ 800px', empty: '还没有作品，上传一些吧',
-    uploaded: '上传成功', confirmDelete: '确定删除这张作品？', image: '作品图片'
+    uploaded: '上传成功', confirmDelete: '确定删除这张作品？', image: '作品图片',
+    // R45: 多选删除
+    manage: '管理', manageDone: '完成',
+    selected: '已选 {n} 项',
+    batchDeleteTitle: '批量删除', batchDeleteConfirm: '确定删除选中的 {n} 张作品？删除后不可恢复。',
+    batchDeleted: '已删除 {n} 张作品', batchPartial: '删除完成：成功 {ok} 张，失败 {failed} 张',
+    slideToDelete: '滑动到底部确认删除'
   },
   rules: {
     title: '📜 须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',

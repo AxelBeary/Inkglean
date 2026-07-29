@@ -266,7 +266,13 @@ export default {
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',
     tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet — upload some!',
-    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image'
+    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image',
+    // R45: multi-select delete
+    manage: 'Manage', manageDone: 'Done',
+    selected: '{n} selected',
+    batchDeleteTitle: 'Batch delete', batchDeleteConfirm: 'Delete {n} selected artworks? This cannot be undone.',
+    batchDeleted: '{n} artworks deleted', batchPartial: 'Delete finished: {ok} succeeded, {failed} failed',
+    slideToDelete: 'Slide to confirm deletion'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
