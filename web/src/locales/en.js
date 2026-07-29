@@ -26,6 +26,8 @@ export default {
     STAGE_NAME_EMPTY: 'Stage name cannot be empty',
     FINAL_CANNOT_DISABLE: 'Cannot disable payment on final stage',
     FINAL_CANNOT_DELETE: 'Cannot delete final payment stage',
+    TRACK_ALREADY_ON: 'Workflow tracking is already enabled for this order',
+    NO_WORKFLOW_TEMPLATE: 'Please create a workflow template first (at least 1 stage)',
     FINAL_READONLY: 'Cannot modify final payment ratio directly',
     MAX_INSTALLMENTS: 'Maximum 20 installments',
     FINAL_TOO_LOW: 'Final payment ratio too low to add new payment stage',
@@ -225,7 +227,14 @@ export default {
     galleryHint: 'Click an image to set it as focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
     galleryNotImage: 'Only image files are supported', galleryTooBig: 'Image exceeds the 10MB limit',
     uploading: 'Uploading...', sourceClient: 'Client', sourceArtist: 'Artist',
-    noteImage: 'Note attachment', noteImageSingle: 'Notes support only 1 attachment. The first image was used.'
+    noteImage: 'Note attachment', noteImageSingle: 'Notes support only 1 attachment. The first image was used.',
+    // R39: status area rework (plan B)
+    statusTitle: 'Order status', lastActivity: 'Last activity: {time}',
+    noteCount: '{n} notes', refCount: '{n} references',
+    enableTrackingHint: 'Enable workflow tracking for fine-grained progress management',
+    enableTracking: 'Enable', trackingEnabled: 'Workflow tracking enabled',
+    slideToCancel: 'Slide to cancel order',
+    completedAt: 'Completed {time}'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',

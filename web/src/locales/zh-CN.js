@@ -26,6 +26,8 @@ export default {
     STAGE_NAME_EMPTY: '节点名称不能为空',
     FINAL_CANNOT_DISABLE: '尾款节点的收款不可关闭',
     FINAL_CANNOT_DELETE: '尾款节点不可删除',
+    TRACK_ALREADY_ON: '该订单已启用流程跟踪',
+    NO_WORKFLOW_TEMPLATE: '请先创建工作流模板（至少 1 个节点）',
     FINAL_READONLY: '不能直接修改尾款比例',
     MAX_INSTALLMENTS: '最多 20 期',
     FINAL_TOO_LOW: '尾款比例不足，无法开启新收款节点',
@@ -225,7 +227,14 @@ export default {
     galleryHint: '点击图片设为焦点图 · 支持拖拽 / 点击 / Ctrl+V 上传 · 客户图 + 画师图合计最多 20 张',
     galleryNotImage: '仅支持图片文件', galleryTooBig: '图片超过 10MB 限制',
     uploading: '上传中...', sourceClient: '客户', sourceArtist: '画师',
-    noteImage: '备注附图', noteImageSingle: '备注仅支持 1 张附图，已使用第一张'
+    noteImage: '备注附图', noteImageSingle: '备注仅支持 1 张附图，已使用第一张',
+    // R39: 状态区重构（方案B）
+    statusTitle: '订单状态', lastActivity: '最后活动：{time}',
+    noteCount: '备注 {n} 条', refCount: '参考图 {n} 张',
+    enableTrackingHint: '启用流程跟踪，获得更细粒度的进度管理',
+    enableTracking: '启用', trackingEnabled: '已启用流程跟踪',
+    slideToCancel: '滑动到底部取消订单',
+    completedAt: '完成于 {time}'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
