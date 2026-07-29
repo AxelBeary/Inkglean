@@ -117,7 +117,7 @@ export default {
   artistHome: {
     weibo: '🔗 My Weibo', bilibili: '📺 My Bilibili', commission: '🎨 Commission me', track: '📋 Track order',
     priceList: '💰 Price list', artworks: '🖼 Portfolio', rules: '📜 Commission guidelines', workflow: '📐 Workflow & Payment',
-    aboutDays: '⏱ ~{n} days', loadFailed: 'Artist not found or failed to load',
+    aboutDays: '⏱ ~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
     statusOpen: '✅ Open for commissions', statusFull: '⏳ Fully booked', statusBreak: '💤 On break',
     about: 'About', navPricing: 'Pricing', navProcess: 'Process', navWork: 'Work',
     heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',

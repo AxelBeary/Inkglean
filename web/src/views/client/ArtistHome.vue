@@ -1,7 +1,12 @@
 <template>
   <div class="artist-home" v-loading="loading">
+    <!-- UI-8: hidden 状态 — 友好提示页，不渲染模板 -->
+    <div v-if="artist?.status === 'hidden'" class="hidden-state">
+      <p class="hidden-icon">🙈</p>
+      <p>{{ $t('artistHome.hidden') }}</p>
+    </div>
     <component
-      v-if="artist"
+      v-else-if="artist"
       :is="templateComponent"
       :artist="artist"
       :tiers="tiers"
@@ -97,4 +102,10 @@ onMounted(async () => {
   display: flex; align-items: center; justify-content: center;
   min-height: 50vh; color: var(--text-secondary); font-size: 16px;
 }
+/* UI-8: hidden 状态提示 */
+.hidden-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; color: var(--text-secondary); font-size: 16px; gap: 12px;
+}
+.hidden-icon { font-size: 48px; margin: 0; }
 </style>
