@@ -447,4 +447,65 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.statusCode).toBe(401)
     })
   })
+
+  // ─── UI-8: hidden 状态 ───
+
+  describe('hidden 状态 (UI-8)', () => {
+    it('TC-RT-16: hidden 画师主页只返回最小信息', async () => {
+      // 用独立 QQ 号避免与 TC-RT-06 设置的 admin_qq='12345' 冲突
+      const artist = seedArtist({ qq_number: '77777', subdomain: 'hidden-test' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+
+      const res = await app.inject({ method: 'GET', url: '/api/artists/hidden-test' })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.status).toBe('hidden')
+      expect(body.name).toBe('测试画师')
+      expect(body.bio).toBeUndefined()
+      expect(body.tiers).toBeUndefined()
+      expect(body.artworks).toBeUndefined()
+      expect(body.rules).toBeUndefined()
+    })
+
+    it('TC-RT-16b: hidden 画师拒绝客户下单', async () => {
+      const artist = seedArtist({ qq_number: '77778', subdomain: 'hidden-order' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/orders',
+        payload: { subdomain: 'hidden-order', clientQq: '123456', agreeRules: true }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('ARTIST_NOT_OPEN')
+    })
+
+    it('TC-RT-16c: 画师本人可设置 hidden 状态', async () => {
+      const artist = seedArtist({ qq_number: '77779', subdomain: 'hidden-set' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { status: 'hidden' }
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().status).toBe('hidden')
+    })
+
+    it('TC-RT-16d: hidden 画师后台接口不受影响', async () => {
+      const artist = seedArtist({ qq_number: '77780', subdomain: 'hidden-admin' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().status).toBe('hidden')
+    })
+  })
 })

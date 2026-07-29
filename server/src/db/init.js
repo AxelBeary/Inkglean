@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS artists (
   artist_code TEXT UNIQUE,
   avatar TEXT,
   bio TEXT,
-  status TEXT DEFAULT 'open' CHECK(status IN ('open', 'full', 'break')),
+  status TEXT DEFAULT 'open' CHECK(status IN ('open', 'full', 'break', 'hidden')),
   contact_qq TEXT,
   token_version INTEGER DEFAULT 1,
   deleted_at DATETIME,
