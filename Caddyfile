@@ -3,24 +3,9 @@
 # 修改 {$DOMAIN} 为你的实际域名
 # ============================================
 
-{
-	# 如果使用 Cloudflare DNS 验证（推荐，支持泛域名证书）
-	# 取消下面注释并安装 caddy-dns/cloudflare 插件
-	# acme_dns cloudflare {$CLOUDFLARE_API_TOKEN}
-}
-
-# 主域名（当前唯一入口）
+# 主域名（唯一入口）
 # 画师主页通过路径访问：{$DOMAIN}/artist/:subdomain
+# C48 决策：放弃子域名方案，统一路径访问。未来需要时 Caddy rewrite 转发，不做进应用层。
 {$DOMAIN} {
 	reverse_proxy web:3000
 }
-
-# ─── Phase 2（未启用）：泛子域名 ───
-# 启用后画师可通过 alice.{$DOMAIN} 直接访问主页
-# 前置条件：
-#   1. 泛解析 DNS（*.{$DOMAIN} → 服务器 IP）
-#   2. 启用上方 acme_dns 配置（泛域名证书需 DNS-01 验证）
-#   3. 前端增加 hostname → subdomain 路由映射
-# *.{$DOMAIN} {
-# 	reverse_proxy web:3000
-# }
