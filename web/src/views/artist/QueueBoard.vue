@@ -36,6 +36,7 @@
                 :src="element.focusImageUrl" fit="cover" class="focus-large-img"
                 :alt="$t('orderDetail.referenceImage')"
                 :preview-src-list="[element.focusImageUrl]"
+                @error="refreshNow"
               />
             </div>
             <div class="item-body">
@@ -63,6 +64,7 @@
                   :src="element.focusImageUrl" fit="cover" class="focus-small-img"
                   :alt="$t('orderDetail.referenceImage')"
                   :preview-src-list="[element.focusImageUrl]"
+                  @error="refreshNow"
                 />
               </div>
             </div>
@@ -125,6 +127,7 @@ import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -257,6 +260,16 @@ function onCardPointerUp(e, order) {
     router.push(`/orders/${order.id}?from=queue`)
   }
 }
+
+// ─── R33: 签名 URL 定时刷新（焦点图 15min 过期防 403） ───
+const { refreshNow } = useSignatureRefresh({
+  collect: () => queue.value.filter(o => o.focus_image_path).map(o => o.focus_image_path),
+  apply: (urlMap) => {
+    queue.value.forEach(o => {
+      if (o.focus_image_path && urlMap[o.focus_image_path]) o.focusImageUrl = urlMap[o.focus_image_path]
+    })
+  }
+})
 
 onMounted(loadQueue)
 </script>

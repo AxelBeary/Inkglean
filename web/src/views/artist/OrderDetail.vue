@@ -64,7 +64,7 @@
             class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
           >
             <div class="ref-img-wrap" @click="selectFocusImage(reference)">
-              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" />
+              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="refreshNow" />
               <!-- R18: 来源角标（客户/画师） -->
               <span class="ref-source-badge" :class="`ref-source-badge--${reference.source || 'client'}`">
                 {{ reference.source === 'artist' ? $t('orderDetail.sourceArtist') : $t('orderDetail.sourceClient') }}
@@ -118,6 +118,7 @@
               class="note-thumb"
               :alt="$t('orderDetail.noteImage')"
               @click="openNoteImage(note.imageUrl)"
+              @error="refreshNow"
             />
           </div>
           <el-empty v-if="!order.notes?.length" :description="$t('orderDetail.noNotes')" :image-size="60" />
@@ -196,6 +197,7 @@ import { Upload, Plus, Picture } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
+import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { formatDateTime } from '../../utils/datetime.js'
 
 const { t } = useI18n()
@@ -480,6 +482,26 @@ async function submitDeliver() {
     delivering.value = false
   }
 }
+
+// ─── R33: 签名 URL 定时刷新（10 分钟轮询 + el-image @error 兜底） ───
+const { refreshNow } = useSignatureRefresh({
+  collect: () => {
+    const o = order.value
+    if (!o) return []
+    return [
+      ...(o.references || []).map(r => r.file_path),
+      ...(o.notes || []).filter(n => n.image_path).map(n => n.image_path),
+      ...(o.deliverables || []).map(d => d.file_path)
+    ].filter(Boolean)
+  },
+  apply: (urlMap) => {
+    const o = order.value
+    if (!o) return
+    o.references?.forEach(r => { if (urlMap[r.file_path]) r.url = urlMap[r.file_path] })
+    o.notes?.forEach(n => { if (n.image_path && urlMap[n.image_path]) n.imageUrl = urlMap[n.image_path] })
+    o.deliverables?.forEach(d => { if (urlMap[d.file_path]) d.url = urlMap[d.file_path] })
+  }
+})
 
 onMounted(loadOrder)
 </script>

@@ -114,6 +114,8 @@ export const artistApi = {
   // R4: 焦点图（off/small/large）
   setFocusImage: (id, data) => api.put(`/artist/orders/${id}/focus-image`, data),
   updatePrice: (id, data) => api.put(`/artist/orders/${id}/price`, data),
+  // R33: 签名 URL 批量刷新（防 15min 过期 403）
+  refreshSignatures: (paths) => api.post('/artist/refresh-signatures', { paths }),
   // 统计
   getStats: () => api.get('/artist/stats'),
   // 问候语
