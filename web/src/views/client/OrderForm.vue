@@ -55,8 +55,11 @@
                           v-else-if="a.select_mode === 'toggle'"
                           v-model="addonToggles[a.id]" size="small"
                         />
-                        <!-- 面议模式 -->
-                        <el-tag v-else size="small" type="warning">面议</el-tag>
+                        <!-- 面议模式（P1-C 修复：改为 toggle，需用户显式勾选） -->
+                        <el-switch
+                          v-else-if="a.select_mode === 'inquiry'"
+                          v-model="addonToggles[a.id]" size="small"
+                        />
                       </div>
                     </div>
                   </div>
@@ -330,7 +333,7 @@ async function doCalc() {
       addons.push({ addonId: a.id, quantity: addonSelections[a.id] })
     } else if (a.select_mode === 'toggle' && addonToggles[a.id]) {
       addons.push({ addonId: a.id, quantity: 1 })
-    } else if (a.select_mode === 'inquiry') {
+    } else if (a.select_mode === 'inquiry' && addonToggles[a.id]) {
       addons.push({ addonId: a.id, quantity: 1 })
     }
   }
@@ -423,7 +426,7 @@ async function submit() {
         addons.push({ addonId: a.id, quantity: addonSelections[a.id] })
       } else if (a.select_mode === 'toggle' && addonToggles[a.id]) {
         addons.push({ addonId: a.id, quantity: 1 })
-      } else if (a.select_mode === 'inquiry') {
+      } else if (a.select_mode === 'inquiry' && addonToggles[a.id]) {
         addons.push({ addonId: a.id, quantity: 1 })
       }
     }
