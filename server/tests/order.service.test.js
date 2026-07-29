@@ -522,4 +522,20 @@ describe('订单服务 (Order Service)', () => {
     const ref = db.prepare('SELECT * FROM order_references WHERE order_id = ? AND file_path = ?').get(order.id, 'references/1/legacy.png')
     expect(ref.source).toBe('client')
   })
+
+  // ─── v0.13 新增用例 ───
+
+  // TC-O-31: 迁移 v13 幂等（login_codes 列类型已为 INTEGER 时跳过）
+  it('TC-O-31: 迁移 v13 幂等（列类型已对齐时跳过）', async () => {
+    const { initDatabase } = await import('../src/db/init.js')
+    // 内存数据库已在 setup 中建表（schema 声明 expires_at INTEGER），再次调用不应报错
+    expect(() => initDatabase(db)).not.toThrow()
+  })
+
+  // TC-O-31b: login_codes.expires_at 列类型为 INTEGER
+  it('TC-O-31b: login_codes.expires_at 列类型为 INTEGER', () => {
+    const cols = db.prepare('PRAGMA table_info(login_codes)').all()
+    const expiresCol = cols.find(c => c.name === 'expires_at')
+    expect(expiresCol.type.toUpperCase()).toBe('INTEGER')
+  })
 })

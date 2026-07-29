@@ -390,4 +390,61 @@ describe('路由层测试 (Route Integration)', () => {
       expect(note.imageUrl).toContain(`/uploads/notes/${artist.id}/existing.png?sig=`)
     })
   })
+
+  // ─── v0.13 R33: 签名刷新 ───
+
+  describe('签名刷新 (R33)', () => {
+    it('TC-RT-15: 批量刷新签名 URL 成功', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artist/refresh-signatures',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { paths: ['references/1/a.png', `notes/${artist.id}/b.png`] }
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.urls['references/1/a.png']).toContain('/uploads/references/1/a.png?sig=')
+      expect(body.urls[`notes/${artist.id}/b.png`]).toContain(`/uploads/notes/${artist.id}/b.png?sig=`)
+    })
+
+    it('TC-RT-15b: 路径穿越被拒绝', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artist/refresh-signatures',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { paths: ['../etc/passwd'] }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('ILLEGAL_PATH')
+    })
+
+    it('TC-RT-15c: 非本画师目录被拒绝', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artist/refresh-signatures',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { paths: ['notes/999/hack.png'] }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('ILLEGAL_PATH')
+    })
+
+    it('TC-RT-15d: 无 token 返回 401', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artist/refresh-signatures',
+        payload: { paths: ['references/1/a.png'] }
+      })
+      expect(res.statusCode).toBe(401)
+    })
+  })
 })
