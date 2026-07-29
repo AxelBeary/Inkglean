@@ -89,4 +89,11 @@ PR 描述包含：变更说明、关联任务、变更内容、接口变更（�
 - **不盲信指令中的技术判断**：指令说"无 CHECK 约束""无迁移"时，自己跑 PRAGMA / 读 schema 验证。指令是意图，不是事实。验证后发现不符，在 comms 里说明并修正，不静默跳过。
 - **测试隔离**：routes.test.js 中 cleanDb 不清 platform_config。凡涉及公开画师接口的测试，用独立 QQ 号（77xxx/88xxx），不用 '12345'（可能被 TC-RT-06 设为 admin_qq）。
 - **seedArtist ≠ seedArtistStages**：setup.js 的 seedArtist 只建画师行 + 须知，不建工作流节点。需要工作流的测试必须显式调 `seedArtistStages(artist.id)`。
-- **思考和过程必须全中文。** 代码注释、commit message、comms 文件、内心推理全部中文。
+- **并行开发必须独立 worktree**（`git worktree add`），禁止与其他角色共享。切分支前 `git branch --show-current` + `git status` 确认当前状态。主 worktree 永远停 master。v0.14 事故教训：三号切分支导致二号 commit 落错分支。
+- **API 链路设计必须列完整步骤**：设计或修改多步 API 链路（如上传→关联→设焦点）时，对照已有正确实现的完整步骤，不可只实现部分。新增链路在 comms 中列出完整步骤清单。
+
+## 效率纪律
+
+- **STATUS.md**：一轮结束时统一更新一次，中间操作不逐次 commit。
+- **comms 精简**：只写"做了什么 + 改了哪些文件 + 分支名 + 验证结果"。
+- **回复精简**：没事一句话，有事才展开。

@@ -27,6 +27,8 @@
 - 性能：有无不必要的损耗
 - 测试：关键路径是否可验证
 - 修改范围是否在提交者的文件权限内
+- **关键 UI 决策验证**：用户口头拍板的布局/交互（如"一行一条""单击放大"），合并前必须对照验收标准逐条验证（读代码或截图），不能只看"功能跑通了"。R30a 事故教训：用户拍板一行一条，实现成 auto-fill 多列，合入时无人对照。
+- **API 链路复用验证**：复用已有 API 链路（如上传→关联→设焦点）时，必须对照已有正确实现的完整步骤，不可只抄部分。看板上传缺 addReference 事故教训。
 
 ## 高风险操作（必须实际操作人确认）
 
@@ -77,7 +79,7 @@
 
 ## 项目上下文
 
-技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest / ESLint + CI。迁移 v1–v10。模板系统 3 布局 × 4 配色。
+技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest / ESLint + CI。迁移 v1–v14。模板系统 4 布局 × 4 配色。
 
 核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 node + npm run build）、不破坏已上线功能（模板系统/价格计算器/嵌入脚本/五色主题/中英双语）。
 
@@ -97,6 +99,7 @@
 - 操作 master 前 `git log --oneline -5` 确认 HEAD 位置，不符则停止查 reflog。
 - 合并后检查 `git log --oneline -10` 确认历史链完整（无断裂）。
 - 禁止对 master 执行 `git reset --hard` / `git rebase`（cherry-pick 恢复除外）。
+- **并行角色必须独立 worktree**（`git worktree add`），主 worktree 永远停 master，只有我（一号）操作。禁止共享 worktree 切分支。v0.14 多次 commit 落错分支的根因。
 
 > ⚠️ 背景：2026-07-29 master 历史被本地操作重写两次（P0+R7 丢失、R3 丢失），GitHub 日志全部 `forced: false`——不是 force push，是本地 rebase/reset 后正常推送。
 
@@ -115,4 +118,3 @@
 - **回复精简**：没事一句话，有事才展开。不重复列已完成事项表格。
 - **批量处理**：多角色同时有产出时一次性审核，不逐个来回。
 - **不省的**：代码审核读 diff、跑测试、git 操作确认 HEAD。质量底线不省。
-- **思考和过程必须全中文。** 代码注释、commit message、comms 文件、内心推理全部中文。
