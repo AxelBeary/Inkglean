@@ -212,7 +212,7 @@ export default {
     colPriority: '优先级', colSource: '来源', colTime: '下单时间', colDesc: '需求描述',
     statusFlow: '状态流转', confirmOrder: '✅ 确认接单', startWip: '🎨 开始制作',
     needRevision: '✏️ 需要修改', markDone: '✔ 标记完成', uploadDeliver: '📦 上传交付', cancelOrder: '❌ 取消订单',
-    references: '参考图', notes: '备注记录', noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
+    references: '参考图', noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', cancelConfirm: '确定取消此订单？', confirmTitle: '确认',
     statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
@@ -236,7 +236,7 @@ export default {
     uploading: '上传中...', sourceClient: '客户', sourceArtist: '画师',
     noteImage: '备注附图', noteImageSingle: '备注仅支持 1 张附图，已使用第一张',
     // R39: 状态区重构（方案B）
-    statusTitle: '订单状态', lastActivity: '最后活动：{time}',
+    lastActivity: '最后活动：{time}',
     noteCount: '备注 {n} 条', refCount: '参考图 {n} 张',
     enableTrackingHint: '启用流程跟踪，获得更细粒度的进度管理',
     enableTracking: '启用', trackingEnabled: '已启用流程跟踪',

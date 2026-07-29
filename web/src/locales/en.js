@@ -212,7 +212,7 @@ export default {
     colPriority: 'Priority', colSource: 'Source', colTime: 'Order time', colDesc: 'Description',
     statusFlow: 'Status flow', confirmOrder: '✅ Accept order', startWip: '🎨 Start work',
     needRevision: '✏️ Needs revision', markDone: '✔ Mark done', uploadDeliver: '📦 Upload delivery', cancelOrder: '❌ Cancel order',
-    references: 'Reference images', notes: 'Notes', noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
+    references: 'Reference images', noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', cancelConfirm: 'Cancel this order?', confirmTitle: 'Confirm',
     statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
@@ -236,7 +236,7 @@ export default {
     uploading: 'Uploading...', sourceClient: 'Client', sourceArtist: 'Artist',
     noteImage: 'Note attachment', noteImageSingle: 'Notes support only 1 attachment. The first image was used.',
     // R39: status area rework (plan B)
-    statusTitle: 'Order status', lastActivity: 'Last activity: {time}',
+    lastActivity: 'Last activity: {time}',
     noteCount: '{n} notes', refCount: '{n} references',
     enableTrackingHint: 'Enable workflow tracking for fine-grained progress management',
     enableTracking: 'Enable', trackingEnabled: 'Workflow tracking enabled',
