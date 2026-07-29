@@ -266,8 +266,8 @@ export default async function orderRoutes(fastify) {
       pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200))
     })
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
-    if (result.orders) {
-      result.orders = result.orders.map(order => {
+    if (result.items) {
+      result.items = result.items.map(order => {
         if (order.focus_image_path) {
           return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
         }
