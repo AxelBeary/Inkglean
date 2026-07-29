@@ -127,7 +127,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
-import { Odometer, List, Box, EditPen, Money, Picture, Document, Setting, Expand, Fold, Operation, Management } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Document, Setting, Expand, Fold, Operation, Management } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -143,7 +143,7 @@ const BASE_MENU_ITEMS = [
   { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard' },
   { index: '/queue', icon: List, labelKey: 'menu.queue' },
   { index: '/orders', icon: Box, labelKey: 'menu.orders' },
-  { index: '/manual-order', icon: EditPen, labelKey: 'menu.manualOrder' },
+  // R42a: 手动录单合并进订单管理，菜单项移除
   { index: '/tiers', icon: Money, labelKey: 'menu.tiers' },
   { index: '/artworks', icon: Picture, labelKey: 'menu.artworks' },
   { index: '/rules', icon: Document, labelKey: 'menu.rules' },

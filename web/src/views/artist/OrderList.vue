@@ -2,6 +2,11 @@
   <ArtistLayout>
     <h2>{{ $t('orderList.title') }}</h2>
 
+    <!-- R42a: 工具栏（手动录单入口，原独立页面合并至此） -->
+    <div class="order-toolbar">
+      <el-button type="primary" @click="manualDrawerVisible = true">{{ $t('manualOrder.title') }}</el-button>
+    </div>
+
     <!-- 筛选 -->
     <div class="filter-bar">
       <el-radio-group v-model="filter" @change="onFilterChange" size="default">
@@ -79,22 +84,42 @@
         @size-change="loadOrders"
       />
     </div>
+
+    <!-- R42a: 手动录单抽屉（原 /manual-order 独立页面合并至此） -->
+    <el-drawer
+      v-model="manualDrawerVisible"
+      :title="$t('manualOrder.title')"
+      size="560px"
+      direction="rtl"
+    >
+      <ManualOrderForm v-if="manualDrawerVisible" @created="onManualCreated" />
+    </el-drawer>
   </ArtistLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import ManualOrderForm from './ManualOrder.vue'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 
+const route = useRoute()
 const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
 const page = ref(1)
 const pageSize = ref(50)
 const total = ref(0)
+
+// R42a: 手动录单抽屉（/manual-order 重定向带 ?action=manual 时自动打开）
+const manualDrawerVisible = ref(false)
+function onManualCreated() {
+  // 录入成功后刷新列表（抽屉内表单由 v-if 控制，关闭即重置）
+  loadOrders()
+}
 
 import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
 
@@ -124,10 +149,16 @@ async function loadOrders() {
   }
 }
 
-onMounted(loadOrders)
+onMounted(() => {
+  loadOrders()
+  // R42a: /manual-order 重定向到 /orders?action=manual 时自动打开录单抽屉
+  if (route.query.action === 'manual') manualDrawerVisible.value = true
+})
 </script>
 
 <style scoped>
+/* R42a: 工具栏 */
+.order-toolbar { margin: 12px 0; }
 .filter-bar { overflow-x: auto; }
 /* R16: 缩略图 */
 .order-thumb { width: 40px; height: 40px; border-radius: 6px; display: block; cursor: zoom-in; }
