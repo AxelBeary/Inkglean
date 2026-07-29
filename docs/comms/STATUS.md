@@ -9,7 +9,7 @@
 - **HEAD**：`a486198`（merge: 二号 v0.14 前端批次），与 origin 同步
 - **测试**：172/172 通过（7 文件）
 - **构建**：通过（3.83s）
-- **容器**：待重建（v0.14 前端变更需 rebuild）
+- **容器**：commission-web healthy + commission-caddy running（v0.14 已重建）
 
 ---
 ## v0.14 已合入内容
