@@ -10,9 +10,19 @@
  */
 import db from '../src/db/connection.js'
 import { initDatabase } from '../src/db/init.js'
+import { rmSync } from 'fs'
+import { afterAll } from 'vitest'
 
 // 显式建表（init.js 不再 import 时自动执行）
 initDatabase(db)
+
+// 事故修复：测试结束后清理临时上传目录（vitest.config.js 中 UPLOAD_DIR 指向 os.tmpdir() 子目录）
+afterAll(() => {
+  const uploadDir = process.env.UPLOAD_DIR
+  if (uploadDir && uploadDir.includes('commission-test-uploads')) {
+    try { rmSync(uploadDir, { recursive: true, force: true }) } catch { /* 静默 */ }
+  }
+})
 
 export { db }
 
