@@ -1,4 +1,8 @@
 import * as orderService from './order.service.js'
+import * as orderStatsService from './order-stats.service.js'
+import * as orderQueueService from './order-queue.service.js'
+import * as orderGalleryService from './order-gallery.service.js'
+import * as orderWorkflowService from './order-workflow.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
@@ -154,7 +158,7 @@ export default async function orderRoutes(fastify) {
     const workflowStages = getWorkflow(order.artist_id)
 
     // R30d: 客户只显示当前节点名（不显示进度数字）
-    const stageInfo = orderService.getStageInfo(order)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
 
     // 只返回客户需要看到的信息
     return {
@@ -285,7 +289,7 @@ export default async function orderRoutes(fastify) {
    * GET /api/artist/queue
    */
   fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request) => {
-    const queue = orderService.getArtistQueue(request.artist.id)
+    const queue = orderQueueService.getArtistQueue(request.artist.id)
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
     return queue.map(order => {
       if (order.focus_image_path) {
@@ -301,7 +305,7 @@ export default async function orderRoutes(fastify) {
    * 注意：必须在 /api/artist/orders/:id 之前注册，避免被 :id 吞掉
    */
   fastify.get('/api/artist/orders/upcoming-deadlines', { preHandler: requireAuth }, async (request) => {
-    return orderService.getUpcomingDeadlines(request.artist.id)
+    return orderStatsService.getUpcomingDeadlines(request.artist.id)
   })
 
   /**
@@ -311,7 +315,7 @@ export default async function orderRoutes(fastify) {
    // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
    const order = signOrderUrls(request.order)
    // R30d: 附加流程进度信息
-   const stageInfo = orderService.getStageInfo(order)
+   const stageInfo = orderWorkflowService.getStageInfo(order)
    if (stageInfo) Object.assign(order, stageInfo)
    return order
 })
@@ -422,7 +426,7 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
-    return orderService.updatePriority(request.order.id, request.body.priority)
+    return orderQueueService.updatePriority(request.order.id, request.body.priority)
   })
 
   /**
@@ -464,7 +468,7 @@ export default async function orderRoutes(fastify) {
     }
   }, async (request) => {
     // P1-A 修复：重排返回值补焦点图签名（同 GET /api/artist/queue 逻辑）
-    const queue = orderService.reorderQueue(request.artist.id, request.body.orderedIds)
+    const queue = orderQueueService.reorderQueue(request.artist.id, request.body.orderedIds)
     return queue.map(order => {
       if (order.focus_image_path) {
         return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
@@ -543,7 +547,7 @@ export default async function orderRoutes(fastify) {
       throw new AppError(E.ILLEGAL_PATH)
     }
 
-    const result = orderService.deliverOrder(request.order.id, filePath, fileName, fileSize)
+    const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName, fileSize)
     // R19: 交付返回的订单含 notes，需签名
     return { ...signOrderUrls(result.order), statusChanged: result.statusChanged }
   })
@@ -576,7 +580,7 @@ export default async function orderRoutes(fastify) {
     }
 
     // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
-    orderService.addReference(request.order.id, filePath, fileName, fileSize, 'artist')
+    orderGalleryService.addReference(request.order.id, filePath, fileName, fileSize, 'artist')
     return signOrderUrls(orderService.getOrder(request.order.id))
   })
 
@@ -584,7 +588,7 @@ export default async function orderRoutes(fastify) {
    * GET /api/artist/stats
    */
   fastify.get('/api/artist/stats', { preHandler: requireAuth }, async (request) => {
-    return orderService.getArtistStats(request.artist.id)
+    return orderStatsService.getArtistStats(request.artist.id)
   })
 
   // ─── v0.11 R2: 最终价格修改 ───
@@ -633,7 +637,7 @@ export default async function orderRoutes(fastify) {
     }
   }, async (request) => {
     const { imagePath, mode } = request.body
-    const order = orderService.setFocusImage(request.order.id, imagePath, mode)
+    const order = orderGalleryService.setFocusImage(request.order.id, imagePath, mode)
     // Bug fix: setFocusImage 返回的订单需要签名 URL（与 GET orders/:id 一致）
     return signOrderUrls(order)
   })
@@ -647,7 +651,7 @@ export default async function orderRoutes(fastify) {
   }, async (request) => {
     const refId = parseInt(request.params.refId, 10)
     if (isNaN(refId)) throw new AppError(E.ORDER_INVALID_ID)
-    return orderService.removeReference(request.order.id, refId)
+    return orderGalleryService.removeReference(request.order.id, refId)
   })
 
   // ─── R33: 签名 URL 批量刷新 ───
@@ -712,8 +716,8 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
-    const order = orderService.advanceStage(request.order.id, request.body.stageId)
-    const stageInfo = orderService.getStageInfo(order)
+    const order = orderWorkflowService.advanceStage(request.order.id, request.body.stageId)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
     if (stageInfo) Object.assign(order, stageInfo)
     return signOrderUrls(order)
   })
@@ -725,8 +729,8 @@ export default async function orderRoutes(fastify) {
   fastify.put('/api/artist/orders/:id/track-on', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request) => {
-    const order = orderService.enableTracking(request.order.id)
-    const stageInfo = orderService.getStageInfo(order)
+    const order = orderWorkflowService.enableTracking(request.order.id)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
     if (stageInfo) Object.assign(order, stageInfo)
     return signOrderUrls(order)
   })
@@ -748,8 +752,8 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
-    const order = orderService.rollbackStage(request.order.id, request.body.stageId)
-    const stageInfo = orderService.getStageInfo(order)
+    const order = orderWorkflowService.rollbackStage(request.order.id, request.body.stageId)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
     if (stageInfo) Object.assign(order, stageInfo)
     return signOrderUrls(order)
   })

@@ -1,9 +1,9 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { calculatePrice } from '../pricing/pricing.service.js'
-import { PRICE_FALLBACK_SQL, resolvePriceCents } from '../../utils/price.js'
-import { ACTIVE_ORDER_SQL, COMPLETED_ORDER_SQL } from '../../utils/order-status.js'
-import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite } from '../../utils/date.js'
+import { resolvePriceCents } from '../../utils/price.js'
+import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
+import { toSqliteDate } from '../../utils/date.js'
 
 // ============================================
 // 订单服务 - 核心业务逻辑
@@ -209,20 +209,6 @@ export function getOrderByNo(orderNo, { clientOnly = false } = {}) {
 }
 
 /**
- * 获取画师的活跃队列（按 queue_position 排序）
- * N1-1: 拖拽即绝对顺序，priority 退化为纯展示标签
- */
-export function getArtistQueue(artistId) {
-  return db.prepare(`
-    SELECT o.*, t.name as tier_name, t.price as tier_price
-    FROM orders o
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
-    WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL}
-    ORDER BY o.queue_position ASC
-  `).all(artistId)
-}
-
-/**
  * 更新订单状态（带状态机校验）
  * 事务包裹，防止中途崩溃留下不一致状态
  */
@@ -256,45 +242,10 @@ export function updateOrderStatus(orderId, newStatus) {
 }
 
 /**
- * 拖拽排序（重写）
- * 前端传入完整的排序后 ID 数组，后端按序分配 queue_position
- * 拖拽不改变优先级，只改变同优先级内的位置
+ * 重排队列位置（删除/交付后调用）
+ * 导出供 order-gallery.service.js 的 deliverOrder 使用
  */
-export function reorderQueue(artistId, orderedIds) {
-  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    throw new AppError(E.QUEUE_EMPTY)
-  }
-
-  // 校验所有 ID 属于该画师且为活跃订单
-  const activeOrders = db.prepare(`
-    SELECT id FROM orders
-    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
-  `).all(artistId).map(r => r.id)
-
-  const idSet = new Set(activeOrders)
-  for (const id of orderedIds) {
-    if (!idSet.has(id)) throw new AppError(E.QUEUE_NOT_OWNED, 400, { id })
-  }
-  if (orderedIds.length !== activeOrders.length) {
-    throw new AppError(E.QUEUE_LENGTH)
-  }
-  // 校验无重复 ID
-  if (new Set(orderedIds).size !== orderedIds.length) {
-    throw new AppError(E.QUEUE_DUPLICATE)
-  }
-
-  const updatePos = db.prepare('UPDATE orders SET queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-  db.transaction(() => {
-    orderedIds.forEach((id, index) => updatePos.run(index + 1, id))
-  })()
-
-  return getArtistQueue(artistId)
-}
-
-/**
- * 重排队列位置（删除/交付后调用）— 内部函数
- */
-function compactQueue(artistId) {
+export function compactQueue(artistId) {
   const queue = db.prepare(`
     SELECT id FROM orders
     WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
@@ -305,23 +256,6 @@ function compactQueue(artistId) {
   db.transaction(() => {
     queue.forEach((row, index) => updatePos.run(index + 1, row.id))
   })()
-}
-
-/**
- * 更新订单优先级
- * N1-1: 优先级仅作展示标签，不重排队列
- */
-export function updatePriority(orderId, priority) {
-  const valid = ['high', 'medium', 'low']
-  if (!valid.includes(priority)) throw new AppError(E.INVALID_PRIORITY, 400, { priority })
-
-  const order = getOrder(orderId)
-  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-
-  db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(priority, orderId)
-
-  return getOrder(orderId)
 }
 
 /**
@@ -347,28 +281,6 @@ export function updateDeadline(orderId, deadline) {
     .run(normalized, orderId)
 
   return getOrder(orderId)
-}
-
-/**
- * 获取即将到期的订单列表（v0.15 R51）
- * deadline 在未来 7 天内 + 状态非终态，按 deadline 升序
- */
-export function getUpcomingDeadlines(artistId) {
-  const now = new Date()
-  const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-  const nowUTC = toSqliteDate(now)
-  const laterUTC = toSqliteDate(sevenDaysLater)
-
-  return db.prepare(`
-    SELECT o.id, o.order_no, o.client_name, o.deadline, o.status
-    FROM orders o
-    WHERE o.artist_id = ?
-      AND o.deadline IS NOT NULL
-      AND o.deadline >= ?
-      AND o.deadline <= ?
-      AND o.${ACTIVE_ORDER_SQL}
-    ORDER BY o.deadline ASC
-  `).all(artistId, nowUTC, laterUTC)
 }
 
 /**
@@ -424,139 +336,6 @@ export function getArtistOrders(artistId, status, { page = 1, pageSize = 50 } = 
 }
 
 /**
- * 仪表盘统计数据
- * R52: 新增 todayNewOrderCents（今日新增订单金额）+ todayRevenueCents（今日收入）
- */
-export function getArtistStats(artistId) {
-  const pendingCount = db.prepare(
-    "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status = 'pending'"
-  ).get(artistId).c
-  const activeCount = db.prepare(
-    `SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}`
-  ).get(artistId).c
-  // 收入统计 — 使用 completed_at + final_price_cents（回退 total_price_cents，再回退 price_snapshot）
-  // 时区修正：在应用层计算本地时区的月初 UTC 时间戳，避免 UTC+8 用户月初订单被算入上月
-  const now = new Date()
-  const monthStartUTC = localMonthStartSqlite(now)
-  const monthRevenue = db.prepare(`
-    SELECT COALESCE(SUM(
-      ${PRICE_FALLBACK_SQL}
-    ), 0) as total_cents
-    FROM orders o
-    WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
-      AND o.completed_at >= ?
-  `).get(artistId, monthStartUTC).total_cents
-  const totalCompleted = db.prepare(
-    `SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND ${COMPLETED_ORDER_SQL}`
-  ).get(artistId).c
-
-  // R52: 今日统计 — 时区处理与月收入一致（本地零点 → UTC 时间戳）
-  const dayStartUTC = localDayStartSqlite(now)
-
-  // 今日新增订单金额：created_at >= 今日零点，金额回退链与月收入一致
-  const todayNewOrderRow = db.prepare(`
-    SELECT COALESCE(SUM(
-      ${PRICE_FALLBACK_SQL}
-    ), 0) as total_cents, COUNT(*) as cnt
-    FROM orders o
-    WHERE o.artist_id = ? AND o.created_at >= ?
-  `).get(artistId, dayStartUTC)
-  const todayNewOrderCents = todayNewOrderRow.total_cents
-  const todayNewOrderCount = todayNewOrderRow.cnt
-
-  // 今日收入：completed_at >= 今日零点 且 status IN ('done','delivered')
-  const todayRevenueRow = db.prepare(`
-    SELECT COALESCE(SUM(
-      ${PRICE_FALLBACK_SQL}
-    ), 0) as total_cents, COUNT(*) as cnt
-    FROM orders o
-    WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
-      AND o.completed_at >= ?
-  `).get(artistId, dayStartUTC)
-  const todayRevenueCents = todayRevenueRow.total_cents
-  const todayRevenueCount = todayRevenueRow.cnt
-
-  // R51: 今日待办 — 今天截稿 + status='pending' + status='revision'（C62 已拍板）
-  const dayEndUTC = localDayEndSqlite(now)
-  const todayTodoCount = db.prepare(`
-    SELECT COUNT(*) as c FROM orders
-    WHERE artist_id = ?
-      AND ${ACTIVE_ORDER_SQL}
-      AND (
-        status IN ('pending', 'revision')
-        OR (deadline IS NOT NULL AND deadline >= ? AND deadline < ?)
-      )
-  `).get(artistId, dayStartUTC, dayEndUTC).c
-
-  return {
-    pendingCount,
-    activeCount,
-    monthRevenue: monthRevenue / 100,   // 元（REAL），兼容现有 Dashboard.vue
-    monthRevenueCents: monthRevenue,    // 分（INTEGER），R8 仪表盘重构时切换
-    totalCompleted,
-    todayNewOrderCents,                 // R52: 今日新增订单金额（分）
-    todayNewOrderCount,                 // R52: 今日新增订单数
-    todayRevenueCents,                  // R52: 今日收入金额（分）
-    todayRevenueCount,                  // R52: 今日完成订单数
-    todayTodoCount                      // R51: 今日待办数
-  }
-}
-
-/**
- * 添加交付文件
- */
-export function addDeliverable(orderId, filePath, fileName, fileSize) {
-  db.prepare('INSERT INTO deliverables (order_id, file_path, original_name, file_size) VALUES (?, ?, ?, ?)')
-    .run(orderId, filePath, fileName || '交付文件', fileSize || 0)
-}
-
-/**
- * 交付订单（事务化）
- * 仅 wip/revision/done 状态允许上传交付文件
- */
-export function deliverOrder(orderId, filePath, fileName, fileSize) {
-  return db.transaction(() => {
-    const order = getOrder(orderId)
-    if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-    if (!['wip', 'revision', 'done'].includes(order.status)) {
-      throw new AppError(E.DELIVER_WRONG_STATUS, 400, { status: order.status })
-    }
-
-    addDeliverable(orderId, filePath, fileName, fileSize)
-
-    let statusChanged = false
-    if (order.status === 'done') {
-      db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('delivered', orderId)
-      compactQueue(order.artist_id)
-      statusChanged = true
-    }
-
-    return { order: getOrder(orderId), statusChanged }
-  })()
-}
-
-/**
- * 添加订单参考图
- * R18: source 区分来源（'client'/'artist'），20 张总量校验
- * ⚠️ 务必显式传 source 值，不要依赖 DEFAULT（显式传 NULL 会写成 null）
- */
-export function addReference(orderId, filePath, fileName, fileSize, source = 'client') {
-  // BUG-3: 同图去重 — 同 order_id + file_path 不允许重复加入
-  const dup = db.prepare('SELECT 1 FROM order_references WHERE order_id = ? AND file_path = ?').get(orderId, filePath)
-  if (dup) {
-    throw new AppError(E.REFERENCE_DUPLICATE, 409)
-  }
-  // R18: 订单生命周期总量限制 20 张
-  const count = db.prepare('SELECT COUNT(*) AS c FROM order_references WHERE order_id = ?').get(orderId).c
-  if (count >= 20) {
-    throw new AppError(E.REFERENCES_LIMIT)
-  }
-  db.prepare('INSERT INTO order_references (order_id, file_path, original_name, file_size, source) VALUES (?, ?, ?, ?, ?)')
-    .run(orderId, filePath, fileName || '参考图', fileSize || 0, source)
-}
-
-/**
  * 客户查询排队位置（需同时提供订单号和QQ号验证身份）
  * R18: clientOnly=true，客户只看自己上传的参考图
  */
@@ -571,7 +350,12 @@ export function getClientQueuePosition(orderNo, clientQq) {
     return { order, position: null, total: null }
   }
 
-  const queue = getArtistQueue(order.artist_id)
+  // 内联活跃队列查询（避免循环引用 order-queue.service.js）
+  const queue = db.prepare(`
+    SELECT id FROM orders
+    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
+    ORDER BY queue_position ASC
+  `).all(order.artist_id)
   const position = queue.findIndex(o => o.id === order.id) + 1
 
   return { order, position, total: queue.length }
@@ -641,217 +425,4 @@ export function updateFinalPrice(orderId, finalPriceCents, quoteSnapshot) {
 
     return getOrder(orderId)
   })()
-}
-
-// ─── v0.11 R4: 焦点图 ───
-
-const VALID_FOCUS_MODES = ['off', 'small', 'large']
-
-/**
- * 设置订单焦点图
- * 焦点图路径必须是该订单已有参考图之一（校验归属）
- * mode 为 'off' 时清空焦点图
- */
-export function setFocusImage(orderId, imagePath, mode) {
-  const order = getOrder(orderId)
-  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-
-  if (!VALID_FOCUS_MODES.includes(mode)) {
-    throw new AppError(E.INVALID_FOCUS_MODE, 400, { mode })
-  }
-
-  if (mode === 'off') {
-    db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .run(orderId)
-    return getOrder(orderId)
-  }
-
-  // 校验参考图归属
-  if (!imagePath) throw new AppError(E.FOCUS_IMAGE_NOT_FOUND)
-  const ref = db.prepare('SELECT id FROM order_references WHERE order_id = ? AND file_path = ?').get(orderId, imagePath)
-  if (!ref) throw new AppError(E.FOCUS_IMAGE_NOT_OWNED, 400, { path: imagePath })
-
-  db.prepare('UPDATE orders SET focus_image_path = ?, focus_image_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(imagePath, mode, orderId)
-
-  return getOrder(orderId)
-}
-
-/**
- * 删除订单参考图
- * 删除时检查并清理焦点图字段
- */
-export function removeReference(orderId, referenceId) {
-  const order = getOrder(orderId)
-  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-
-  const ref = db.prepare('SELECT * FROM order_references WHERE id = ? AND order_id = ?').get(referenceId, orderId)
-  if (!ref) throw new AppError(E.FOCUS_IMAGE_NOT_FOUND, 404)
-
-  return db.transaction(() => {
-    db.prepare('DELETE FROM order_references WHERE id = ?').run(referenceId)
-
-    // 如果删除的是焦点图，清理焦点图字段
-    if (order.focus_image_path === ref.file_path) {
-      db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-        .run(orderId)
-    }
-
-    return getOrder(orderId)
-  })()
-}
-
-// ─── R30d: 流程状态机 ───
-
-/**
- * 根据节点位置映射订单状态
- * 规则（SPEC-002 用户确认）：
- *   第 1 个节点 → pending
- *   第 2 个节点且为收款节点 → confirmed
- *   中间节点 → wip
- *   最后一个节点 → done
- */
-function mapStageToStatus(stages, stageId) {
-  const idx = stages.findIndex(s => s.id === stageId)
-  if (idx === -1) return 'wip'
-  if (idx === 0) return 'pending'
-  if (idx === stages.length - 1) return 'done'
-  if (idx === 1 && stages[idx].takes_payment) return 'confirmed'
-  return 'wip'
-}
-
-/**
- * 推进流程节点（只能前进）
- * stageId=null 时关闭流程跟踪（回退旧模式）
- */
-export function advanceStage(orderId, stageId) {
-  const order = getOrder(orderId)
-  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-
-  // 关闭流程跟踪
-  if (stageId === null) {
-    db.prepare('UPDATE orders SET current_stage_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(orderId)
-    return getOrder(orderId)
-  }
-
-  // 校验目标节点属于该画师
-  const stages = db.prepare(
-    'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
-  ).all(order.artist_id)
-  const targetIdx = stages.findIndex(s => s.id === stageId)
-  if (targetIdx === -1) throw new AppError(E.STAGE_NOT_FOUND)
-
-  // 校验只能前进（当前节点在目标之前）
-  if (order.current_stage_id !== null) {
-    const currentIdx = stages.findIndex(s => s.id === order.current_stage_id)
-    if (currentIdx >= targetIdx) {
-      throw new AppError(E.INVALID_TRANSITION, 400, { from: stages[currentIdx]?.name, to: stages[targetIdx].name })
-    }
-  }
-
-  // 不允许从终态推进
-  if (['delivered', 'cancelled'].includes(order.status)) {
-    throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: stages[targetIdx].name })
-  }
-
-  const newStatus = mapStageToStatus(stages, stageId)
-  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(stageId, newStatus, orderId)
-
-  if (newStatus === 'done') {
-    db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
-      .run(orderId)
-  }
-
-  return getOrder(orderId)
-}
-
-/**
- * 回退流程节点（打回修改）
- * 状态映射为 revision，记录系统备注
- */
-export function rollbackStage(orderId, stageId) {
-  const order = getOrder(orderId)
-  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-
-  if (order.current_stage_id === null) {
-    throw new AppError(E.INVALID_TRANSITION, 400, { from: '无流程', to: '回退' })
-  }
-
-  const stages = db.prepare(
-    'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
-  ).all(order.artist_id)
-  const targetIdx = stages.findIndex(s => s.id === stageId)
-  const currentIdx = stages.findIndex(s => s.id === order.current_stage_id)
-
-  if (targetIdx === -1) throw new AppError(E.STAGE_NOT_FOUND)
-  if (targetIdx >= currentIdx) {
-    throw new AppError(E.INVALID_TRANSITION, 400, { from: stages[currentIdx]?.name, to: stages[targetIdx].name })
-  }
-
-  // 不允许从终态回退
-  if (['delivered', 'cancelled'].includes(order.status)) {
-    throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: stages[targetIdx].name })
-  }
-
-  const fromName = stages[currentIdx]?.name || '未知'
-  const toName = stages[targetIdx].name
-
-  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(stageId, 'revision', orderId)
-
-  // 系统备注（用户确认：客户有知情权）
-  db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
-    .run(orderId, `↩ 从「${fromName}」打回到「${toName}」`)
-
-  return getOrder(orderId)
-}
-
-/**
- * 启用流程跟踪（v0.14）
- * 对无工作流订单设 current_stage_id = 画师工作流第一节点，status 保持不变
- * 为什么不能复用 advanceStage：advanceStage 对无跟踪订单会把 status 重置为 pending（状态倒退）
- */
-export function enableTracking(orderId) {
-  const order = getOrder(orderId)
-  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-
-  // 已有跟踪 → 409
-  if (order.current_stage_id !== null) {
-    throw new AppError(E.TRACK_ALREADY_ON, 409)
-  }
-
-  // 画师无工作流模板 → 400
-  const firstStage = db.prepare(
-    'SELECT id FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC LIMIT 1'
-  ).get(order.artist_id)
-  if (!firstStage) {
-    throw new AppError(E.NO_WORKFLOW_TEMPLATE)
-  }
-
-  // 只设 current_stage_id，不动 status
-  db.prepare('UPDATE orders SET current_stage_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(firstStage.id, orderId)
-
-  return getOrder(orderId)
-}
-
-/**
- * 获取订单的流程进度信息（供路由层拼装响应）
- */
-export function getStageInfo(order) {
-  if (!order.current_stage_id) return null
-
-  const stages = db.prepare(
-    'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
-  ).all(order.artist_id)
-  const currentIdx = stages.findIndex(s => s.id === order.current_stage_id)
-  if (currentIdx === -1) return null
-
-  return {
-    currentStageId: order.current_stage_id,
-    currentStageName: stages[currentIdx].name,
-    stageProgress: { current: currentIdx + 1, total: stages.length }
-  }
 }
