@@ -59,7 +59,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id, fields) {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id']
   const updates = []
   const values = []
 
@@ -117,6 +117,15 @@ export function updateArtist(id, fields) {
         }
         updates.push('accent_color = ?')
         values.push(value ? String(value).toLowerCase() : null)
+      } else if (key === 'order_template_id') {
+        // R58-7: 下单页模板白名单校验 — 当前仅 'default'，后续扩展时在此数组追加
+        const ORDER_TEMPLATES = ['default']
+        const tpl = String(value || 'default')
+        if (!ORDER_TEMPLATES.includes(tpl)) {
+          throw new AppError(E.INVALID_ORDER_TEMPLATE, 400, { value: tpl })
+        }
+        updates.push('order_template_id = ?')
+        values.push(tpl)
       } else if (key === 'avatar') {
         // M-1 修复：头像路径校验 — 必须在 images/ 目录下，拒绝路径穿越
         if (value && (String(value).includes('..') || !String(value).startsWith('images/'))) {

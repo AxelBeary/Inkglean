@@ -228,4 +228,27 @@ describe('画师服务 (Artist Service)', () => {
       expect(updated.accent_color).toBe(c)
     }
   })
+
+  // ─── v0.16 R58-7: 下单页模板 ───
+
+  // TC-R-09: 迁移 v16 — 新画师默认 order_template_id = 'default'
+  it('TC-R-09: 新画师 order_template_id 默认值为 default', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+    expect(artist.order_template_id).toBe('default')
+  })
+
+  // TC-R-09b: updateArtist 设置合法模板
+  it('TC-R-09b: updateArtist 设置 order_template_id = default', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+    const updated = artistService.updateArtist(artist.id, { order_template_id: 'default' })
+    expect(updated.order_template_id).toBe('default')
+  })
+
+  // TC-R-09c: updateArtist 拒绝非法模板
+  it('TC-R-09c: updateArtist 拒绝非法 order_template_id', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+    expect(() => {
+      artistService.updateArtist(artist.id, { order_template_id: 'hacked' })
+    }).toThrow('INVALID_ORDER_TEMPLATE')
+  })
 })
