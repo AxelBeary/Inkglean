@@ -356,7 +356,7 @@ export default async function artistRoutes(fastify) {
     return workflowService.addStage(request.artist.id, request.body)
   })
 
-  /** PUT /api/artist/workflow/:id — 改名/改描述/切换收款 */
+  /** PUT /api/artist/workflow/:id — 改名/改描述/切换收款/改话术 */
   fastify.put('/api/artist/workflow/:id', {
     preHandler: requireAuth,
     schema: {
@@ -365,7 +365,8 @@ export default async function artistRoutes(fastify) {
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           description: { type: 'string', maxLength: 200 },
-          takesPayment: { type: 'boolean' }
+          takesPayment: { type: 'boolean' },
+          speechTemplate: { type: ['string', 'null'], maxLength: 500 }
         }
       }
     }
