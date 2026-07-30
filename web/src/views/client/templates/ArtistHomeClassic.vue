@@ -26,6 +26,20 @@
               {{ link.label }}
             </a>
           </div>
+          <!-- R58-8: 平台链接（与外链共用侧栏链接区，无链接时不显示） -->
+          <div class="classic-side-links" v-if="platformLinks.length">
+            <a
+              v-for="link in platformLinks"
+              :key="link.key"
+              :href="link.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="classic-side-link"
+            >
+              <span class="classic-link-badge" aria-hidden="true">{{ link.badge }}</span>
+              {{ link.label }}
+            </a>
+          </div>
           <button
             class="classic-cta"
             :disabled="artist.status !== 'open'"
@@ -97,7 +111,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-const { imgUrl, socialLinks } = useArtistData(props)
+const { imgUrl, socialLinks, platformLinks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

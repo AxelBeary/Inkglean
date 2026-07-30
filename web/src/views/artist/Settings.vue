@@ -57,6 +57,49 @@
               </div>
             </el-form-item>
 
+            <!-- R58-8: 平台链接（自动识别 + 手动选择，客户主页展示） -->
+            <el-form-item :label="$t('settings.platformLabel')">
+              <div class="link-editor">
+                <div v-for="(pl, index) in form.platformUrls" :key="index" class="link-row">
+                  <el-select v-model="pl.platform" class="platform-select">
+                    <el-option value="" :label="$t('settings.platformAuto')" />
+                    <el-option v-for="opt in PLATFORM_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+                  </el-select>
+                  <el-input v-model="pl.url" placeholder="https://" class="link-url-input" />
+                  <el-button text size="small" type="danger" @click="removePlatformLink(index)">✕</el-button>
+                </div>
+                <el-button size="small" @click="addPlatformLink" :disabled="form.platformUrls.length >= 10">
+                  + {{ $t('settings.addLink') }}
+                </el-button>
+                <div class="form-hint">{{ $t('settings.platformHint') }}</div>
+              </div>
+            </el-form-item>
+
+            <!-- R58-8: 灵感标签（客户下单页展示，点击注入描述框） -->
+            <el-form-item :label="$t('settings.inspireLabel')">
+              <div class="tag-editor">
+                <div class="tag-list">
+                  <el-tag
+                    v-for="(tag, index) in form.inspirationTags"
+                    :key="tag + index"
+                    closable
+                    @close="removeTag(index)"
+                  >
+                    {{ tag }}
+                  </el-tag>
+                </div>
+                <el-input
+                  v-model="newTag"
+                  class="tag-input"
+                  :placeholder="$t('settings.inspireInputPlaceholder')"
+                  maxlength="30"
+                  show-word-limit
+                  @keyup.enter="addTag"
+                />
+                <div class="form-hint">{{ $t('settings.inspireHint') }}</div>
+              </div>
+            </el-form-item>
+
             <el-form-item :label="$t('settings.contactQqLabel')">
               <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
               <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
@@ -266,9 +309,21 @@ const LINK_ICONS = [
   { value: 'link', label: '🔗 通用链接' }
 ]
 
+// R58-8: 平台链接手动选择枚举（与后端 KNOWN_PLATFORMS 一致，不含 other——other 由"自动识别"兜底）
+const PLATFORM_OPTIONS = [
+  { value: 'pixiv', label: 'Pixiv' },
+  { value: 'x', label: 'X (Twitter)' },
+  { value: 'weibo', label: '微博' },
+  { value: 'lofter', label: 'Lofter' },
+  { value: 'bilibili', label: 'Bilibili' },
+  { value: 'xiaohongshu', label: '小红书' }
+]
+
 const form = reactive({
   name: '', bio: '', status: 'open',
   customLinks: [],
+  platformUrls: [],
+  inspirationTags: [],
   contactQq: '',
   notifyEnabled: true,
   artistCode: '',
@@ -343,6 +398,39 @@ function moveLink(index, direction) {
   form.customLinks.splice(target, 0, item)
 }
 
+// ─── R58-8: 平台链接操作 ───
+function addPlatformLink() {
+  if (form.platformUrls.length >= 10) return
+  form.platformUrls.push({ url: '', platform: '' })
+}
+function removePlatformLink(index) {
+  form.platformUrls.splice(index, 1)
+}
+
+// ─── R58-8: 灵感标签操作 ───
+const newTag = ref('')
+function addTag() {
+  const tag = newTag.value.trim()
+  if (!tag) return
+  if (tag.length > 30) {
+    ElMessage.warning(t('settings.inspireTagTooLong'))
+    return
+  }
+  if (form.inspirationTags.length >= 20) {
+    ElMessage.warning(t('settings.inspireTagLimit'))
+    return
+  }
+  if (form.inspirationTags.includes(tag)) {
+    ElMessage.warning(t('settings.inspireTagDuplicate'))
+    return
+  }
+  form.inspirationTags.push(tag)
+  newTag.value = ''
+}
+function removeTag(index) {
+  form.inspirationTags.splice(index, 1)
+}
+
 const templates = computed(() => [
   { id: 'atelier', name: t('templates.atelier'), desc: t('templates.atelierDesc'), preview: '📖 🖌' },
   { id: 'classic', name: t('templates.classic'), desc: t('templates.classicDesc'), preview: '🖼 ☀️' },
@@ -380,6 +468,7 @@ async function save() {
       // 嵌入脚本 tab 没有需要保存的设置
     } else {
       // R15: camelCase + customLinks 数组（PUT /api/artist/profile 已改 additionalProperties:false）
+      // R58-8: platformUrls + inspirationTags（留空行/空标签不提交，platform 为空时省略让后端自动识别）
       await artistApi.updateProfile({
         name: form.name.trim(),
         bio: form.bio.trim(),
@@ -387,6 +476,14 @@ async function save() {
         customLinks: form.customLinks
           .filter(l => l.name.trim() && l.url.trim())
           .map(l => ({ name: l.name.trim(), url: l.url.trim(), icon: l.icon || 'link' })),
+        platformUrls: form.platformUrls
+          .filter(p => p.url.trim())
+          .map(p => {
+            const item = { url: p.url.trim() }
+            if (p.platform) item.platform = p.platform
+            return item
+          }),
+        inspirationTags: form.inspirationTags.map(tag => tag.trim()).filter(Boolean),
         contactQq: form.contactQq.trim(),
         notifyEnabled: form.notifyEnabled,
         artistCode: form.artistCode.trim(),
@@ -411,11 +508,34 @@ onMounted(async () => {
       try { customLinks = JSON.parse(profile.custom_links) } catch { customLinks = [] }
     }
 
+    // R58-8: 解析 platform_urls / inspiration_tags JSON（同为原始 DB 行字段）
+    // platform 有值时回显到下拉框，无值时显示"自动识别"
+    let platformUrls = []
+    if (profile.platform_urls) {
+      try {
+        const parsed = JSON.parse(profile.platform_urls)
+        if (Array.isArray(parsed)) {
+          platformUrls = parsed
+            .map(item => typeof item === 'string' ? { url: item, platform: '' } : { url: item.url || '', platform: item.platform || '' })
+            .filter(item => item.url)
+        }
+      } catch { platformUrls = [] }
+    }
+    let inspirationTags = []
+    if (profile.inspiration_tags) {
+      try {
+        const parsed = JSON.parse(profile.inspiration_tags)
+        if (Array.isArray(parsed)) inspirationTags = parsed.filter(tag => typeof tag === 'string' && tag)
+      } catch { inspirationTags = [] }
+    }
+
     Object.assign(form, {
       name: profile.name,
       bio: profile.bio || '',
       status: profile.status,
       customLinks,
+      platformUrls,
+      inspirationTags,
       contactQq: profile.contact_qq || '',
       notifyEnabled: !!profile.notify_enabled,
       artistCode: profile.artist_code || '',
@@ -520,4 +640,10 @@ onMounted(async () => {
 
 /* ─── R50: 模板 tab 操作行 ─── */
 .template-actions { display: flex; gap: 12px; margin-top: 20px; }
+
+/* ─── R58-8: 平台链接 + 灵感标签 ─── */
+.platform-select { width: 130px; flex-shrink: 0; }
+.tag-editor { width: 100%; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.tag-input { max-width: 300px; }
 </style>

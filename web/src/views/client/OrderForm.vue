@@ -148,8 +148,8 @@
               <div v-show="step === 2">
                 <h3 class="step-title">{{ $t('orderForm.step2Title') }}</h3>
 
-                <!-- R58-4: 灵感标签快捷注入 -->
-                <div class="inspire-block">
+                <!-- R58-4: 灵感标签快捷注入（R58-8: 改为画师自定义标签，未设置时不显示） -->
+                <div v-if="inspireTags.length" class="inspire-block">
                   <span class="inspire-hint">{{ $t('orderForm.inspireHint') }}</span>
                   <div class="inspire-tags">
                     <button v-for="tag in inspireTags" :key="tag" type="button" class="inspire-tag" @click="appendTag(tag)">{{ tag }}</button>
@@ -378,8 +378,8 @@ function selectTier(id) {
 /** 摘要卡/小票展示价：优先后端计价结果，未计价时回退档位基础价 */
 const displayPrice = computed(() => pricePreview.value?.totalPrice ?? selectedTier.value?.price ?? 0)
 
-// ─── R58-4: 灵感标签快捷注入（硬编码默认标签，后续三号加字段后画师可自定义） ───
-const inspireTags = ['角色设计', '原创角色', '同人二创', '情侣头像', '透明背景', 'Live2D 拆分']
+// ─── R58-4: 灵感标签快捷注入（R58-8: 从 API 读取画师自定义标签，未设置时不显示，不 fallback 硬编码） ───
+const inspireTags = computed(() => artist.value?.inspirationTags || [])
 function appendTag(tag) {
   const sep = form.description && !/[，。、\s]$/.test(form.description) ? '，' : ''
   form.description = `${form.description}${sep}${tag}`.slice(0, 2000)

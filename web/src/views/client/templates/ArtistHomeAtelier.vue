@@ -52,6 +52,17 @@
           {{ link.label }}
         </a>
       </div>
+      <!-- R58-8: 平台链接（画册式横排，与外链共用视觉语言） -->
+      <div class="atelier-links" v-if="platformLinks.length">
+        <a
+          v-for="link in platformLinks" :key="link.key"
+          :href="link.url" target="_blank" rel="noopener noreferrer"
+          class="atelier-link"
+        >
+          <span class="atelier-link-badge" aria-hidden="true">{{ link.badge }}</span>
+          {{ link.label }}
+        </a>
+      </div>
       <Disclaimer />
     </footer>
 
@@ -82,7 +93,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-const { socialLinks } = useArtistData(props)
+const { socialLinks, platformLinks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)
