@@ -61,6 +61,12 @@ export default async function artistRoutes(fastify) {
       orderTemplateId: artist.order_template_id || 'default',
       platformUrls: artistService.getPlatformUrls(artist),
       inspirationTags: artistService.getInspirationTags(artist),
+      // SPEC-004: 名额与缓冲信息
+      batchLimit: artist.batch_limit ?? null,
+      bufferLimit: artist.buffer_limit ?? 0,
+      formalCount: artistService.getZoneCounts(artist.id).formal,
+      bufferCount: artistService.getZoneCounts(artist.id).buffer,
+      slotDisplay: artistService.computeSlotDisplay(artist),
       tiers,
       artworks,
       rules: rules?.content || ''
@@ -138,7 +144,13 @@ export default async function artistRoutes(fastify) {
             type: 'array',
             maxItems: 20,
             items: { type: 'string', minLength: 1, maxLength: 30 }
-          }
+          },
+          batchLimit: { type: ['integer', 'null'], minimum: 0, maximum: 999 },
+          bufferLimit: { type: 'integer', minimum: 0, maximum: 999 },
+          autoPromote: { type: 'boolean' },
+          hideQueuePosition: { type: 'boolean' },
+          hidePromoteNotify: { type: 'boolean' },
+          bufferShortForm: { type: 'boolean' }
         },
         additionalProperties: false
       }
@@ -159,7 +171,13 @@ export default async function artistRoutes(fastify) {
         accentColor: 'accent_color',
         orderTemplateId: 'order_template_id',
         platformUrls: 'platform_urls',
-        inspirationTags: 'inspiration_tags'
+        inspirationTags: 'inspiration_tags',
+        batchLimit: 'batch_limit',
+        bufferLimit: 'buffer_limit',
+        autoPromote: 'auto_promote',
+        hideQueuePosition: 'hide_queue_position',
+        hidePromoteNotify: 'hide_promote_notify',
+        bufferShortForm: 'buffer_short_form'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}
@@ -167,7 +185,21 @@ export default async function artistRoutes(fastify) {
         const dbKey = keyMap[k] || k
         sanitized[dbKey] = typeof v === 'string' ? clamp(v, CLAMP_MAP[dbKey] || dbKey) : v
       }
+      // SPEC-004: N+M ≥ 1 校验（batchLimit 为 null 时跳过）
+      if ('batch_limit' in sanitized && sanitized.batch_limit !== null) {
+        const current = artistService.getArtistById(request.artist.id)
+        const N = sanitized.batch_limit
+        const M = ('buffer_limit' in sanitized) ? sanitized.buffer_limit : (current?.buffer_limit ?? 0)
+        if (N + M < 1) {
+          return reply.code(400).send({ code: 'INVALID_BATCH_LIMIT', error: '名额设置无效（正式位+缓冲位至少为1）' })
+        }
+      }
       const updated = artistService.updateArtist(request.artist.id, sanitized)
+      // SPEC-004: 画师调大 N 后触发自动递补
+      if ('batch_limit' in sanitized && sanitized.batch_limit != null) {
+        const { tryAutoPromote } = await import('../order/order.service.js')
+        tryAutoPromote(request.artist.id)
+      }
       return updated
     } catch (err) {
       return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })

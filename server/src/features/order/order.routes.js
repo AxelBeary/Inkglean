@@ -10,6 +10,7 @@ import { clamp, isValidQq } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
+import db from '../../db/connection.js'
 
 // ============================================
 // 订单路由 - 下单、查询、管理、交付
@@ -183,6 +184,20 @@ export default async function orderRoutes(fastify) {
       })),
       finalPriceCents: order.final_price_cents ?? null,
       installments: orderService.getOrderInstallments(order.id),
+      // SPEC-004: 排队分区信息
+      queueZone: order.queue_zone || 'formal',
+      queueDisplay: (() => {
+        if (order.queue_zone !== 'buffer') return null
+        const artist = db.prepare('SELECT hide_queue_position FROM artists WHERE id = ?').get(order.artist_id)
+        if (artist?.hide_queue_position) return '排队中'
+        // 计算缓冲区位次
+        const bufferQueue = db.prepare(`
+          SELECT id FROM orders WHERE artist_id = ? AND queue_zone = 'buffer' AND status NOT IN ('delivered', 'cancelled')
+          ORDER BY queue_position ASC
+        `).all(order.artist_id)
+        const pos = bufferQueue.findIndex(o => o.id === order.id) + 1
+        return pos > 0 ? `排队中（第 ${pos} 位）` : '排队中'
+      })(),
       createdAt: order.created_at,
       updatedAt: order.updated_at
     }
@@ -294,8 +309,27 @@ export default async function orderRoutes(fastify) {
 
   /**
    * GET /api/artist/queue
+   * SPEC-004: zone=buffer 返回缓冲区列表
    */
   fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request) => {
+    const { zone } = request.query || {}
+    if (zone === 'buffer') {
+      // 缓冲区列表
+      const bufferOrders = db.prepare(`
+        SELECT o.*, t.name as tier_name, t.price as tier_price
+        FROM orders o
+        LEFT JOIN price_tiers t ON o.tier_id = t.id
+        WHERE o.artist_id = ? AND o.queue_zone = 'buffer' AND o.status NOT IN ('delivered', 'cancelled')
+        ORDER BY o.queue_position ASC
+      `).all(request.artist.id)
+      return bufferOrders.map(order => {
+        if (order.focus_image_path) {
+          return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
+        }
+        return order
+      })
+    }
+    // 默认：正式区
     const queue = orderQueueService.getArtistQueue(request.artist.id)
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
     return queue.map(order => {
@@ -800,5 +834,17 @@ export default async function orderRoutes(fastify) {
     const itemId = parseInt(request.params.itemId, 10)
     if (isNaN(itemId)) throw new AppError(E.ORDER_INVALID_ID)
     return signOrderUrls(orderService.deleteExtraItem(request.order.id, itemId))
+  })
+
+  // ─── SPEC-004: 名额与缓冲 ───
+
+  /**
+   * POST /api/artist/orders/:id/promote
+   * 递补：buffer → formal（排到正式队列末尾 + 生成付款节点）
+   */
+  fastify.post('/api/artist/orders/:id/promote', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request) => {
+    return signOrderUrls(orderService.promoteOrder(request.order.id))
   })
 }
