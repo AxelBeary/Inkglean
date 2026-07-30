@@ -300,7 +300,7 @@ export function useOrderForm(subdomain, formRef) {
       uploadedRefs.value.push(uploaded.filePath)
       const uid = `paste-${Date.now()}-${Math.random().toString(36).slice(2)}`
       refUidMap.value.set(uid, uploaded.filePath)
-      refFileList.value.push({ name: file.name || 'pasted-image.png', url: `/uploads/${uploaded.filePath}`, uid, status: 'success' })
+      refFileList.value.push({ name: file.name || 'pasted-image.png', url: uploaded.url, uid, status: 'success' })
     }
   }
 

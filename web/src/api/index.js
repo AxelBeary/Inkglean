@@ -40,7 +40,9 @@ api.interceptors.response.use(
     }
 
     // 401 时清除本地认证状态并跳转登录页
-    if (err.response?.status === 401) {
+    // P1-3 修复：登录相关错误码（CODE_INVALID/CODE_EXPIRED 等）不触发登出，只提示
+    const LOGIN_CODES = ['CODE_INVALID', 'CODE_EXPIRED', 'CODE_TOO_MANY_ATTEMPTS', 'QQ_NOT_REGISTERED', 'MISSING_CREDENTIALS']
+    if (err.response?.status === 401 && !LOGIN_CODES.includes(code)) {
       localStorage.removeItem('artist_logged_in')
       localStorage.removeItem('artist_is_admin')
       // 动态导入避免循环依赖（store/router 依赖本模块）

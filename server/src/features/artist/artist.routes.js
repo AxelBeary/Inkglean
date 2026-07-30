@@ -16,7 +16,7 @@ export default async function artistRoutes(fastify) {
    */
   fastify.get('/api/artists', async () => {
     return artistService.getAllArtists()
-      .filter(a => a.qq_number !== getAdminQq())
+      .filter(a => a.qq_number !== getAdminQq() && a.status !== 'hidden')
       .map(a => ({
         id: a.id, name: a.name, subdomain: a.subdomain,
         avatar: a.avatar, bio: a.bio, status: a.status,
@@ -426,7 +426,7 @@ export default async function artistRoutes(fastify) {
   /** GET /api/artists/:subdomain/workflow — 客户端可见 */
   fastify.get('/api/artists/:subdomain/workflow', async (request, reply) => {
     const artist = artistService.getArtistBySubdomain(request.params.subdomain)
-    if (!artist || artist.qq_number === getAdminQq()) return reply.code(404).send({ error: '画师不存在' })
+    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }
   })
 
