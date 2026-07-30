@@ -1,14 +1,14 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-07-30（v0.16 第一层合并完成）
+> 最后更新：2026-07-30（v0.16 第一层全部合入）
 > 维护者：一号（主理人）
 
 ---
 ## master 状态
 
-- **HEAD**：`5ce2438`（三号技术债 + 五号覆盖率合入），与 origin 同步
+- **HEAD**：`973d62a`（二号前端批次1合入），与 origin 同步
 - **测试**：241/257 通过（9 文件）——16 条为预存失败（hidden 状态 CHECK 约束 + FK 约束），非本轮引入
-- **构建**：通过
+- **构建**：通过（Vite build 9.57s）
 - **迁移**：v15 已应用（accent_color + deadline）
 - **容器**：commission-web healthy + commission-caddy running
 
@@ -19,13 +19,7 @@
 |----|------|
 | 三号技术债 | 价格回退链→`utils/price.js` / 活跃过滤→`utils/order-status.js` / ISO日期→`utils/date.js`，order.service + admin.service 统一引用 |
 | 五号覆盖率 | upload 32%→89%（29 条）/ greeting 31%→100%（31 条），共 +60 条测试 |
-
----
-## v0.16 进行中
-
-| 项 | 内容 | 状态 |
-|----|------|------|
-| 二号批次1 | 工艺CSS升级（缓动/按钮三态/clamp/minmax/reduced-motion）+ R54 档位卡片 | 🔵 进行中 |
+| 二号批次1 | 工艺CSS升级（--ease-bounce 全局变量/按钮三态/clamp 流式字号/minmax 防溢出/reduced-motion 兜底）+ R54 档位页表格→卡片 |
 
 ---
 ## v0.16 待排期（等用户拍板）
@@ -44,7 +38,7 @@
 
 | 角色 | 当前任务 | 状态 |
 |------|----------|------|
-| 二号 | 工艺CSS升级 + R54档位卡片（`feat/v016-frontend-batch1`，wt02） | 🔵 进行中 |
+| 二号 | 已合入，待派新任务 | ⚪ 空闲 |
 | 三号 | 已合入，待派新任务 | ⚪ 空闲 |
 | 四号 | 已合入，待派新任务 | ⚪ 空闲 |
 | 五号 | 已合入，待派新任务 | ⚪ 空闲 |
@@ -60,8 +54,8 @@
 
 | 分支 | 状态 |
 |------|------|
-| master | 当前，5ce2438 |
-| feat/v016-frontend-batch1 | 二号 worktree wt02，进行中 |
+| master | 当前，973d62a |
+| feat/v016-frontend-batch1 | 已合入，可删 |
 | fix/v016-tech-debt | 已合入，可删 |
 | test/v016-coverage | 已合入，可删 |
 | fix/bug-env1-uploads-dir | ENV-1 已关闭，可删 |
