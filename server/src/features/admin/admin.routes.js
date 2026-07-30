@@ -122,6 +122,19 @@ export default async function adminRoutes(fastify) {
     return adminService.getGlobalStats()
   })
 
+  // ─── 回收站管理（事故修复：孤儿文件可恢复） ───
+
+  /** GET /api/admin/recycle-bin — 列出回收站内容 */
+  fastify.get('/api/admin/recycle-bin', { preHandler: requireAdmin }, async () => {
+    return { items: adminService.listRecycleBin() }
+  })
+
+  /** DELETE /api/admin/recycle-bin — 清空回收站（不可恢复） */
+  fastify.delete('/api/admin/recycle-bin', { preHandler: requireAdmin }, async () => {
+    const count = adminService.emptyRecycleBin()
+    return { success: true, deleted: count }
+  })
+
   /**
    * POST /api/admin/transfer
    * 更换管理员账号（需要连续两次 QQ 短码验证）

@@ -3,7 +3,7 @@ import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import { resolve, join, relative } from 'path'
-import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync, createReadStream, mkdirSync } from 'fs'
+import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
@@ -44,10 +44,19 @@ export async function buildApp(opts = {}) {
   _codeCleanup.unref()
 
   // ─── 孤儿文件回收（内联执行 + 启动时立即跑一次）───
+  // 事故修复：删除→移入回收站（.recycle-bin/YYYY-MM-DD/），画师表空时跳过
+  const RECYCLE_BIN = '.recycle-bin'
   const gcUploads = () => {
     try {
       const UPLOAD_ROOT = resolve(process.env.UPLOAD_DIR || './uploads')
       if (!existsSync(UPLOAD_ROOT)) return
+
+      // 安全检查：画师表为空 = 数据库异常（测试/损坏），跳过回收
+      const artistCount = db.prepare('SELECT COUNT(*) as c FROM artists').get().c
+      if (artistCount === 0) {
+        app.log.warn('孤儿回收跳过：画师表为空（数据库可能异常）')
+        return
+      }
 
       const refs = new Set()
       const collect = (rows, field) => { for (const r of rows) if (r[field]) refs.add(r[field]) }
@@ -61,11 +70,13 @@ export async function buildApp(opts = {}) {
 
       const MIN_AGE_MS = 24 * 60 * 60 * 1000
       const now = Date.now()
-      let deleted = 0, freed = 0
+      let recycled = 0, freed = 0
 
       const walk = (dir) => {
         const files = []
         for (const e of readdirSync(dir, { withFileTypes: true })) {
+          // 跳过回收站目录，不参与 GC 扫描
+          if (e.name === RECYCLE_BIN) continue
           const full = join(dir, e.name)
           if (e.isDirectory()) files.push(...walk(full))
           else files.push(full)
@@ -73,17 +84,27 @@ export async function buildApp(opts = {}) {
         return files
       }
 
+      // 回收站日期子目录：.recycle-bin/YYYY-MM-DD/
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const recycleBinDay = join(UPLOAD_ROOT, RECYCLE_BIN, dateStr)
+
       for (const absPath of walk(UPLOAD_ROOT)) {
         const rel = relative(UPLOAD_ROOT, absPath).replace(/\\/g, '/')
         if (refs.has(rel)) continue
         if (now - statSync(absPath).mtimeMs < MIN_AGE_MS) continue
         const size = statSync(absPath).size
-        try { unlinkSync(absPath); freed += size; deleted++ } catch { /* ignore */ }
+        try {
+          // 移入回收站，保留原始相对路径结构
+          const dest = join(recycleBinDay, rel)
+          mkdirSync(join(dest, '..'), { recursive: true })
+          renameSync(absPath, dest)
+          freed += size; recycled++
+        } catch { /* ignore */ }
       }
 
       const removeEmptyDirs = (dir) => {
         for (const e of readdirSync(dir, { withFileTypes: true })) {
-          if (e.isDirectory()) {
+          if (e.isDirectory() && e.name !== RECYCLE_BIN) {
             const full = join(dir, e.name)
             removeEmptyDirs(full)
             try { rmdirSync(full) } catch { /* not empty */ }
@@ -92,7 +113,7 @@ export async function buildApp(opts = {}) {
       }
       removeEmptyDirs(UPLOAD_ROOT)
 
-      if (deleted > 0) app.log.info(`孤儿文件回收: 删除 ${deleted} 个，释放 ${(freed / 1024 / 1024).toFixed(1)} MB`)
+      if (recycled > 0) app.log.info(`孤儿文件回收: 移入回收站 ${recycled} 个，释放 ${(freed / 1024 / 1024).toFixed(1)} MB`)
     } catch (err) {
       app.log.warn(`孤儿文件回收失败: ${err.message}`)
     }
