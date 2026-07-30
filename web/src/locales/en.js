@@ -157,7 +157,9 @@ export default {
     loadFailed: 'Failed to load artist info',
     // R57: draft recovery
     draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
-    draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored'
+    draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored',
+    // R58-6: QQ jump + copy
+    artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied'
   },
   track: {
     backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',
@@ -265,7 +267,9 @@ export default {
     // R46: note deletion
     deleteNote: 'Delete note', deleteNoteConfirm: 'Delete this note? This cannot be undone.', deleteNoteSuccess: 'Note deleted',
     // R51: deadline
-    colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated'
+    colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated',
+    // R58-6: QQ jump + copy
+    jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',

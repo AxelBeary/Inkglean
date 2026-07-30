@@ -14,7 +14,14 @@
         <el-descriptions :column="2" border>
           <el-descriptions-item :label="$t('orderDetail.colOrderNo')">{{ order.order_no }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colType')">{{ order.tier_name || $t('common.custom') }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colQq')">{{ order.client_qq }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('orderDetail.colQq')">
+            <span class="client-qq-row">
+              <span>{{ order.client_qq }}</span>
+              <!-- R58-6: 客户 QQ 跳转 + 复制 -->
+              <el-button size="small" text type="primary" @click="jumpToQq(order.client_qq)">{{ $t('orderDetail.jumpQq') }}</el-button>
+              <el-button size="small" text @click="copyQq(order.client_qq)">{{ $t('orderDetail.copyQq') }}</el-button>
+            </span>
+          </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colName')">{{ order.client_name || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colPriority')">
             <!-- R17: 优先级分段按钮（红/黄/绿，点击即保存） -->
@@ -345,6 +352,19 @@ function goBack() {
 import { ORDER_STATUS_TYPE } from '../../constants/order.js'
 
 const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
+
+// ─── R58-6: 客户 QQ 跳转 + 复制 ───
+function jumpToQq(qq) {
+  window.open(`tencent://message/?uin=${encodeURIComponent(qq)}`, '_self')
+}
+async function copyQq(qq) {
+  try {
+    await navigator.clipboard.writeText(qq)
+    ElMessage.success(t('orderDetail.qqCopied'))
+  } catch {
+    ElMessage.warning(qq) // 剪贴板不可用时直接展示 QQ 号供手动复制
+  }
+}
 
 // ─── R39 方案B：状态区派生状态 ───
 /** 订单是否接入工作流（进度条为唯一状态展示的依据，C52） */
@@ -994,4 +1014,8 @@ onMounted(() => {
 .note-pending-img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
 
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+
+/* R58-6: 客户 QQ 跳转 + 复制 */
+.client-qq-row { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.client-qq-row .el-button { padding: 2px 6px; height: auto; }
 </style>

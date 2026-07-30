@@ -157,7 +157,9 @@ export default {
     loadFailed: '加载画师信息失败',
     // R57: 草稿恢复
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
-    draftRestore: '恢复', draftDiscard: '丢弃', draftRestored: '草稿已恢复'
+    draftRestore: '恢复', draftDiscard: '丢弃', draftRestored: '草稿已恢复',
+    // R58-6: QQ 跳转 + 复制
+    artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制'
   },
   track: {
     backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
@@ -265,7 +267,9 @@ export default {
     // R46: 备注删除
     deleteNote: '删除备注', deleteNoteConfirm: '确定删除这条备注？删除后不可恢复。', deleteNoteSuccess: '备注已删除',
     // R51: 截稿日
-    colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新'
+    colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新',
+    // R58-6: QQ 跳转 + 复制
+    jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',

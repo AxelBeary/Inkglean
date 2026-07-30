@@ -189,6 +189,15 @@
       <el-result icon="success" :title="$t('orderForm.orderNoIs') + resultNo">
         <template #sub-title>{{ $t('orderForm.addQqHint') }}</template>
         <template #extra>
+          <!-- R58-6: 画师 QQ 跳转 + 复制 -->
+          <div v-if="artist?.contactQq" class="success-qq">
+            <span class="success-qq-label">{{ $t('orderForm.artistQqLabel') }}</span>
+            <code class="success-qq-no">{{ artist.contactQq }}</code>
+            <div class="success-qq-actions">
+              <el-button type="primary" @click="jumpToQq(artist.contactQq)">{{ $t('orderForm.jumpQq') }}</el-button>
+              <el-button @click="copyQq(artist.contactQq)">{{ $t('orderForm.copyQq') }}</el-button>
+            </div>
+          </div>
           <el-button type="primary" @click="$router.push(`/artist/${subdomain}/track?no=${resultNo}`)">
             {{ $t('orderForm.viewProgress') }}
           </el-button>
@@ -203,11 +212,13 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import Disclaimer from '../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
 import ThemeToggle from '../../components/ThemeToggle.vue'
 import { useOrderForm } from '../../composables/useOrderForm.js'
 
+const { t } = useI18n()
 const route = useRoute()
 const subdomain = route.params.subdomain
 const formRef = ref(null)
@@ -223,6 +234,19 @@ const {
   usageMultipliers, rushMultipliers, formatAddonPrice, onTierChange,
   sanitizedRules
 } = useOrderForm(subdomain, formRef)
+
+// ─── R58-6: QQ 跳转 + 复制（提交成功后联系画师） ───
+function jumpToQq(qq) {
+  window.open(`tencent://message/?uin=${encodeURIComponent(qq)}`, '_self')
+}
+async function copyQq(qq) {
+  try {
+    await navigator.clipboard.writeText(qq)
+    ElMessage.success(t('orderForm.qqCopied'))
+  } catch {
+    ElMessage.warning(qq) // 剪贴板不可用时直接展示 QQ 号供手动复制
+  }
+}
 </script>
 
 <style scoped>
@@ -299,4 +323,18 @@ const {
   background: var(--el-color-primary-light-9); color: var(--el-color-primary);
   font-weight: 500;
 }
+
+/* R58-6: 成功弹窗画师 QQ 区 */
+.success-qq {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin-bottom: 16px;
+}
+.success-qq-label { font-size: 13px; color: var(--text-secondary); }
+.success-qq-no {
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+  background: var(--bg-inset); border: 1px solid var(--border-color);
+  border-radius: 8px; padding: 6px 16px;
+  font-variant-numeric: tabular-nums;
+}
+.success-qq-actions { display: flex; gap: 8px; }
 </style>
