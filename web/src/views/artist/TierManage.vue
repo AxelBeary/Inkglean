@@ -6,49 +6,50 @@
       <!-- 档位 -->
       <el-tab-pane label="档位" name="tiers">
         <el-button type="primary" size="small" style="margin-bottom: 12px" @click="openTierDialog()">＋ 新建档位</el-button>
-        <el-table :data="tiers" v-loading="loadingTiers" stripe>
-          <el-table-column label="示例" width="80">
-            <template #default="{ row }">
-              <!-- R55: 示例图拖拽/点击直传（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 行为不同） -->
-              <div
-                class="tier-img-wrap"
-                :class="{ 'tier-img-wrap--active': tierDragId === row.id }"
-                @click="triggerTierImgUpload(row)"
-                @dragover.prevent="tierDragId = row.id"
-                @dragleave="onTierImgDragLeave($event, row)"
-                @drop.prevent="handleTierImgDrop($event, row)"
-              >
-                <el-image
-                  v-if="row.example_image" :src="`/uploads/${row.example_image}`"
-                  fit="cover" class="tier-img"
-                  :alt="row.name"
-                />
-                <span v-else class="tier-img-empty">+</span>
-                <div v-if="tierDragId === row.id" class="tier-img-overlay">
-                  <span>{{ $t('tiers.dropToUpload') }}</span>
-                </div>
+        <!-- R54: 档位表格→卡片布局（保留 R55 示例图拖拽/点击直传） -->
+        <div v-loading="loadingTiers" class="tier-card-grid">
+          <div v-for="row in tiers" :key="row.id" class="tier-card">
+            <!-- R55: 示例图拖拽/点击直传（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 行为不同） -->
+            <div
+              class="tier-card-img"
+              :class="{ 'tier-card-img--active': tierDragId === row.id }"
+              @click="triggerTierImgUpload(row)"
+              @dragover.prevent="tierDragId = row.id"
+              @dragleave="onTierImgDragLeave($event, row)"
+              @drop.prevent="handleTierImgDrop($event, row)"
+            >
+              <el-image
+                v-if="row.example_image" :src="`/uploads/${row.example_image}`"
+                fit="cover" class="tier-card-photo"
+                :alt="row.name"
+              />
+              <div v-else class="tier-card-img-empty">
+                <span class="tier-card-img-plus">+</span>
+                <span class="tier-card-img-hint">{{ $t('tiers.uploadExample') }}</span>
               </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="name" label="名称" width="120" />
-          <el-table-column prop="price" label="价格" width="100">
-            <template #default="{ row }">¥{{ row.price }}</template>
-          </el-table-column>
-          <el-table-column prop="work_days" label="工期" width="100">
-            <template #default="{ row }">{{ row.work_days ? `${row.work_days}天` : '-' }}</template>
-          </el-table-column>
-          <el-table-column prop="description" label="说明" />
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" @click="openTierDialog(row)">编辑</el-button>
-              <el-popconfirm :title="`确定删除「${row.name}」？`" @confirm="removeTier(row)">
+              <div v-if="tierDragId === row.id" class="tier-card-img-overlay">
+                <span>{{ $t('tiers.dropToUpload') }}</span>
+              </div>
+            </div>
+            <div class="tier-card-body">
+              <div class="tier-card-head">
+                <h3 class="tier-card-name">{{ row.name }}</h3>
+                <div class="tier-card-price">¥{{ row.price }}</div>
+              </div>
+              <p v-if="row.description" class="tier-card-desc">{{ row.description }}</p>
+              <p class="tier-card-days">{{ row.work_days ? $t('tiers.daysUnit', { n: row.work_days }) : '—' }}</p>
+            </div>
+            <div class="tier-card-actions">
+              <el-button size="small" @click="openTierDialog(row)">{{ $t('common.edit') }}</el-button>
+              <el-popconfirm :title="$t('tiers.confirmDelete', { name: row.name })" @confirm="removeTier(row)">
                 <template #reference>
-                  <el-button size="small" type="danger">删除</el-button>
+                  <el-button size="small" type="danger">{{ $t('common.delete') }}</el-button>
                 </template>
               </el-popconfirm>
-            </template>
-          </el-table-column>
-        </el-table>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="!loadingTiers && tiers.length === 0" :description="$t('tiers.empty')" />
       </el-tab-pane>
 
       <!-- 增项 -->
@@ -297,26 +298,79 @@ async function uploadTierExample(file, row) {
 .example-preview { width: 80px; height: 80px; border-radius: 8px; border: 1px solid var(--border-color); }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
-/* ─── R55: 示例图拖拽/点击直传 ─── */
-.tier-img-wrap {
-  position: relative; width: 56px; height: 56px;
-  border-radius: 6px; overflow: hidden; cursor: pointer;
-  transition: box-shadow 0.15s;
+/* ─── R54: 档位卡片布局 ─── */
+.tier-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  min-height: 120px;
 }
-.tier-img-wrap:hover { box-shadow: 0 0 0 2px var(--el-color-primary-light-5); }
-.tier-img-wrap--active { box-shadow: 0 0 0 2px var(--el-color-primary); }
-.tier-img { width: 56px; height: 56px; display: block; }
-.tier-img-empty {
-  display: flex; align-items: center; justify-content: center;
-  width: 100%; height: 100%;
-  border: 2px dashed var(--border-color); border-radius: 6px;
-  color: var(--text-muted); font-size: 20px;
+.tier-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s var(--ease-bounce), box-shadow 0.3s var(--ease-bounce);
 }
-.tier-img-overlay {
+.tier-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+}
+/* R55: 示例图区域（拖拽/点击直传） */
+.tier-card-img {
+  position: relative;
+  height: 160px;
+  cursor: pointer;
+  background: var(--bg-inset);
+}
+.tier-card-img--active { box-shadow: inset 0 0 0 2px var(--el-color-primary); }
+.tier-card-photo { width: 100%; height: 160px; display: block; }
+.tier-card-img-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; height: 100%;
+  border-bottom: 1px dashed var(--border-color);
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+.tier-card-img:hover .tier-card-img-empty { color: var(--el-color-primary); }
+.tier-card-img-plus { font-size: 28px; line-height: 1; }
+.tier-card-img-hint { font-size: 12px; }
+.tier-card-img-overlay {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.55); color: #fff;
-  font-size: 10px; font-weight: 600;
+  font-size: 13px; font-weight: 600;
   pointer-events: none;
+}
+/* 卡片信息区 */
+.tier-card-body { padding: 14px 16px 8px; flex: 1; }
+.tier-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tier-card-name {
+  font-size: 16px; font-weight: 600;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tier-card-price {
+  font-size: 20px; font-weight: 700;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.tier-card-desc {
+  font-size: 13px; line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 8px 0 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tier-card-days { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; }
+.tier-card-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border-color);
 }
 </style>
