@@ -36,6 +36,7 @@
           :alt="art.title || $t('artworks.image')"
           :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
           :initial-index="index"
+          preview-teleported
         />
         <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
         <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">

@@ -12,6 +12,7 @@
         :alt="art.title || $t('artistHome.artworks')"
         :preview-src-list="previewList"
         :initial-index="index"
+        preview-teleported
         lazy
       />
       <p class="tpl-gallery-caption" v-if="art.title">{{ art.title }}</p>
