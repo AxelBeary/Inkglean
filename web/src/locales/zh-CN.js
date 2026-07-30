@@ -159,7 +159,18 @@ export default {
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
     draftRestore: '恢复', draftDiscard: '丢弃', draftRestored: '草稿已恢复',
     // R58-6: QQ 跳转 + 复制
-    artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制'
+    artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制',
+    // R58-2: 分步引导
+    step1: '选档位', step2: '写需求', step3: '联系方式',
+    step1Title: '选择约稿档位', step2Title: '描述你的需求', step3Title: '留下联系方式',
+    nextStep: '下一步', prevStep: '上一步',
+    summaryTitle: '约稿摘要', summaryNoTier: '选好档位后这里会显示价格',
+    // R58-3: 小票二次确认
+    receiptSub: '· 约稿确认单 ·', receiptTotal: '合计', receiptConfirm: '确认下单', submitting: '提交中…',
+    // R58-4: 灵感标签
+    inspireHint: '✨ 没想好怎么写？点选灵感标签快速填入：',
+    // R58-5: 复制约稿信息
+    copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：'
   },
   track: {
     backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
