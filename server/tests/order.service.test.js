@@ -3,6 +3,7 @@ import { db, cleanDb, seedArtist } from './setup.js'
 import * as orderService from '../src/features/order/order.service.js'
 import * as orderStatsService from '../src/features/order/order-stats.service.js'
 import * as orderQueueService from '../src/features/order/order-queue.service.js'
+import * as orderGalleryService from '../src/features/order/order-gallery.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 
 describe('订单服务 (Order Service)', () => {
@@ -202,7 +203,7 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-14: 添加交付文件
   it('TC-O-14: addDeliverable 写入交付记录', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addDeliverable(order.id, 'deliverables/1/test.png', 'test.png', 1024)
+    orderGalleryService.addDeliverable(order.id, 'deliverables/1/test.png', 'test.png', 1024)
 
     const updated = orderService.getOrder(order.id)
     expect(updated.deliverables).toHaveLength(1)
@@ -299,15 +300,15 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-20: 焦点图设置与关闭
   it('TC-O-20: setFocusImage 设置/关闭焦点图', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addReference(order.id, 'references/1/ref1.png', 'ref1.png', 1024)
+    orderGalleryService.addReference(order.id, 'references/1/ref1.png', 'ref1.png', 1024)
 
     // 设置焦点图
-    const withFocus = orderService.setFocusImage(order.id, 'references/1/ref1.png', 'large')
+    const withFocus = orderGalleryService.setFocusImage(order.id, 'references/1/ref1.png', 'large')
     expect(withFocus.focus_image_path).toBe('references/1/ref1.png')
     expect(withFocus.focus_image_mode).toBe('large')
 
     // 关闭焦点图
-    const cleared = orderService.setFocusImage(order.id, null, 'off')
+    const cleared = orderGalleryService.setFocusImage(order.id, null, 'off')
     expect(cleared.focus_image_path).toBeNull()
     expect(cleared.focus_image_mode).toBe('off')
   })
@@ -317,7 +318,7 @@ describe('订单服务 (Order Service)', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
 
     expect(() => {
-      orderService.setFocusImage(order.id, 'references/1/not-exist.png', 'small')
+      orderGalleryService.setFocusImage(order.id, 'references/1/not-exist.png', 'small')
     }).toThrow('FOCUS_IMAGE_NOT_OWNED')
   })
 
@@ -326,25 +327,25 @@ describe('订单服务 (Order Service)', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
 
     expect(() => {
-      orderService.setFocusImage(order.id, 'x.png', 'huge')
+      orderGalleryService.setFocusImage(order.id, 'x.png', 'huge')
     }).toThrow('INVALID_FOCUS_MODE')
   })
 
   // TC-O-21: 删除参考图时清理焦点图
   it('TC-O-21: removeReference 删除焦点图参考图时清理字段', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addReference(order.id, 'references/1/focus.png', 'focus.png', 2048)
-    orderService.addReference(order.id, 'references/1/other.png', 'other.png', 1024)
+    orderGalleryService.addReference(order.id, 'references/1/focus.png', 'focus.png', 2048)
+    orderGalleryService.addReference(order.id, 'references/1/other.png', 'other.png', 1024)
 
     // 设为焦点图
-    orderService.setFocusImage(order.id, 'references/1/focus.png', 'small')
+    orderGalleryService.setFocusImage(order.id, 'references/1/focus.png', 'small')
 
     // 找到参考图 ID
     const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
     const focusRef = refs.find(r => r.file_path === 'references/1/focus.png')
 
     // 删除焦点图参考图
-    const afterDelete = orderService.removeReference(order.id, focusRef.id)
+    const afterDelete = orderGalleryService.removeReference(order.id, focusRef.id)
     expect(afterDelete.references).toHaveLength(1)
     expect(afterDelete.focus_image_path).toBeNull()
     expect(afterDelete.focus_image_mode).toBe('off')
@@ -353,15 +354,15 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-21b: 删除非焦点图参考图不影响焦点图
   it('TC-O-21b: removeReference 删除非焦点图不清理焦点字段', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addReference(order.id, 'references/1/focus.png', 'focus.png', 2048)
-    orderService.addReference(order.id, 'references/1/other.png', 'other.png', 1024)
+    orderGalleryService.addReference(order.id, 'references/1/focus.png', 'focus.png', 2048)
+    orderGalleryService.addReference(order.id, 'references/1/other.png', 'other.png', 1024)
 
-    orderService.setFocusImage(order.id, 'references/1/focus.png', 'large')
+    orderGalleryService.setFocusImage(order.id, 'references/1/focus.png', 'large')
 
     const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
     const otherRef = refs.find(r => r.file_path === 'references/1/other.png')
 
-    const afterDelete = orderService.removeReference(order.id, otherRef.id)
+    const afterDelete = orderGalleryService.removeReference(order.id, otherRef.id)
     expect(afterDelete.references).toHaveLength(1)
     expect(afterDelete.focus_image_path).toBe('references/1/focus.png')
     expect(afterDelete.focus_image_mode).toBe('large')
@@ -417,9 +418,9 @@ describe('订单服务 (Order Service)', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
 
     // 客户图（默认 source='client'）
-    orderService.addReference(order.id, 'references/1/client.png', 'client.png', 1024)
+    orderGalleryService.addReference(order.id, 'references/1/client.png', 'client.png', 1024)
     // 画师图（显式 source='artist'）
-    orderService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
+    orderGalleryService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
 
     const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ? ORDER BY id').all(order.id)
     expect(refs[0].source).toBe('client')
@@ -447,20 +448,20 @@ describe('订单服务 (Order Service)', () => {
 
     // 插入 20 张
     for (let i = 0; i < 20; i++) {
-      orderService.addReference(order.id, `references/1/img${i}.png`, `img${i}.png`, 100)
+      orderGalleryService.addReference(order.id, `references/1/img${i}.png`, `img${i}.png`, 100)
     }
 
     // 第 21 张被拒绝
     expect(() => {
-      orderService.addReference(order.id, 'references/1/overflow.png', 'overflow.png', 100)
+      orderGalleryService.addReference(order.id, 'references/1/overflow.png', 'overflow.png', 100)
     }).toThrow('REFERENCES_LIMIT')
   })
 
   // TC-O-28: getOrder clientOnly 过滤
   it('TC-O-28: getOrder clientOnly 只返回客户图', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addReference(order.id, 'references/1/client.png', 'client.png', 1024, 'client')
-    orderService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
+    orderGalleryService.addReference(order.id, 'references/1/client.png', 'client.png', 1024, 'client')
+    orderGalleryService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
 
     // 画师端：看全部
     const full = orderService.getOrder(order.id)
@@ -475,8 +476,8 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-28b: getClientQueuePosition 使用 clientOnly
   it('TC-O-28b: 客户查询排队位置只看客户图', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addReference(order.id, 'references/1/client.png', 'client.png', 1024, 'client')
-    orderService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
+    orderGalleryService.addReference(order.id, 'references/1/client.png', 'client.png', 1024, 'client')
+    orderGalleryService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
 
     const result = orderService.getClientQueuePosition(order.order_no, '111')
     expect(result.order.references).toHaveLength(1)
@@ -900,10 +901,10 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-35: 同图重复加入被拒绝（409）
   it('TC-O-35: addReference 同 order_id + file_path 去重', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addReference(order.id, 'references/1/dup.png', 'dup.png', 1024)
+    orderGalleryService.addReference(order.id, 'references/1/dup.png', 'dup.png', 1024)
 
     expect(() => {
-      orderService.addReference(order.id, 'references/1/dup.png', 'dup.png', 1024)
+      orderGalleryService.addReference(order.id, 'references/1/dup.png', 'dup.png', 1024)
     }).toThrow('REFERENCE_DUPLICATE')
 
     // 确认只有一条
@@ -914,8 +915,8 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-35b: 不同 file_path 不受去重影响
   it('TC-O-35b: addReference 不同路径正常插入', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.addReference(order.id, 'references/1/a.png', 'a.png', 100)
-    orderService.addReference(order.id, 'references/1/b.png', 'b.png', 200)
+    orderGalleryService.addReference(order.id, 'references/1/a.png', 'a.png', 100)
+    orderGalleryService.addReference(order.id, 'references/1/b.png', 'b.png', 200)
 
     const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
     expect(refs).toHaveLength(2)

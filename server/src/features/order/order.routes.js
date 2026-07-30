@@ -1,6 +1,7 @@
 import * as orderService from './order.service.js'
 import * as orderStatsService from './order-stats.service.js'
 import * as orderQueueService from './order-queue.service.js'
+import * as orderGalleryService from './order-gallery.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
@@ -545,7 +546,7 @@ export default async function orderRoutes(fastify) {
       throw new AppError(E.ILLEGAL_PATH)
     }
 
-    const result = orderService.deliverOrder(request.order.id, filePath, fileName, fileSize)
+    const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName, fileSize)
     // R19: 交付返回的订单含 notes，需签名
     return { ...signOrderUrls(result.order), statusChanged: result.statusChanged }
   })
@@ -578,7 +579,7 @@ export default async function orderRoutes(fastify) {
     }
 
     // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
-    orderService.addReference(request.order.id, filePath, fileName, fileSize, 'artist')
+    orderGalleryService.addReference(request.order.id, filePath, fileName, fileSize, 'artist')
     return signOrderUrls(orderService.getOrder(request.order.id))
   })
 
@@ -635,7 +636,7 @@ export default async function orderRoutes(fastify) {
     }
   }, async (request) => {
     const { imagePath, mode } = request.body
-    const order = orderService.setFocusImage(request.order.id, imagePath, mode)
+    const order = orderGalleryService.setFocusImage(request.order.id, imagePath, mode)
     // Bug fix: setFocusImage 返回的订单需要签名 URL（与 GET orders/:id 一致）
     return signOrderUrls(order)
   })
@@ -649,7 +650,7 @@ export default async function orderRoutes(fastify) {
   }, async (request) => {
     const refId = parseInt(request.params.refId, 10)
     if (isNaN(refId)) throw new AppError(E.ORDER_INVALID_ID)
-    return orderService.removeReference(request.order.id, refId)
+    return orderGalleryService.removeReference(request.order.id, refId)
   })
 
   // ─── R33: 签名 URL 批量刷新 ───
