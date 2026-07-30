@@ -1,6 +1,7 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
+import { identifyPlatform, KNOWN_PLATFORMS, parsePlatformUrls } from '../../utils/platform.js'
 
 // ============================================
 // 画师服务
@@ -59,7 +60,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id, fields) {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags']
   const updates = []
   const values = []
 
@@ -126,6 +127,36 @@ export function updateArtist(id, fields) {
         }
         updates.push('order_template_id = ?')
         values.push(tpl)
+      } else if (key === 'platform_urls') {
+        // R58-8: 平台链接 — JSON 数组 [{url, platform?}]，service 层做业务校验
+        const links = Array.isArray(value) ? value : []
+        if (links.length > 10) {
+          throw new AppError(E.PLATFORM_URLS_TOO_MANY)
+        }
+        const normalized = []
+        for (const link of links) {
+          const url = String(link.url || '').trim()
+          if (!url) continue
+          if (!/^https?:\/\//i.test(url)) {
+            throw new AppError(E.PLATFORM_URL_INVALID)
+          }
+          // 自动识别 + 手动选择后备：有合法 platform 用手动值，否则自动识别
+          const platform = (link.platform && KNOWN_PLATFORMS.includes(link.platform))
+            ? link.platform
+            : identifyPlatform(url)
+          normalized.push({ url, platform })
+        }
+        updates.push('platform_urls = ?')
+        values.push(JSON.stringify(normalized))
+      } else if (key === 'inspiration_tags') {
+        // 灵感标签自定义 — JSON 字符串数组，去重 + 去空 + 截断
+        const tags = Array.isArray(value) ? value : []
+        if (tags.length > 20) {
+          throw new AppError(E.TAGS_TOO_MANY)
+        }
+        const cleaned = [...new Set(tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 20)
+        updates.push('inspiration_tags = ?')
+        values.push(JSON.stringify(cleaned))
       } else if (key === 'avatar') {
         // M-1 修复：头像路径校验 — 必须在 images/ 目录下，拒绝路径穿越
         if (value && (String(value).includes('..') || !String(value).startsWith('images/'))) {
@@ -291,4 +322,36 @@ export function getCustomLinks(artist) {
     links.push({ name: 'Bilibili', url: artist.bilibili_url, icon: 'bilibili' })
   }
   return links
+}
+
+// ============================================
+// R58-8: 平台链接（platform_urls）
+// ============================================
+
+/**
+ * 读取画师平台链接列表（含识别后的平台名 + 原始 URL）
+ * @param {object} artist - 画师行
+ * @returns {Array<{url: string, platform: string, label: string}>}
+ */
+export function getPlatformUrls(artist) {
+  return parsePlatformUrls(artist.platform_urls)
+}
+
+// ============================================
+// 灵感标签（inspiration_tags）
+// ============================================
+
+/**
+ * 读取画师自定义灵感标签
+ * @param {object} artist - 画师行
+ * @returns {string[]}
+ */
+export function getInspirationTags(artist) {
+  if (!artist.inspiration_tags) return []
+  try {
+    const parsed = JSON.parse(artist.inspiration_tags)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }

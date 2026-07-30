@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS artists (
   revision_note TEXT,
   custom_links TEXT,
   accent_color TEXT,
+  platform_urls TEXT,
+  inspiration_tags TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -607,6 +609,21 @@ const MIGRATIONS = [
       const cols = database.prepare('PRAGMA table_info(artists)').all()
       if (!cols.some(c => c.name === 'order_template_id')) {
         database.exec("ALTER TABLE artists ADD COLUMN order_template_id TEXT DEFAULT 'default'")
+      }
+    }
+  },
+  {
+    version: 17,
+    name: 'platform_urls_and_inspiration_tags',
+    up(database) {
+      // R58-8: 画师平台链接（JSON 数组 [{url, platform}]）
+      // 灵感标签自定义（JSON 数组 [string]）
+      const cols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!cols.some(c => c.name === 'platform_urls')) {
+        database.exec('ALTER TABLE artists ADD COLUMN platform_urls TEXT DEFAULT NULL')
+      }
+      if (!cols.some(c => c.name === 'inspiration_tags')) {
+        database.exec('ALTER TABLE artists ADD COLUMN inspiration_tags TEXT DEFAULT NULL')
       }
     }
   }

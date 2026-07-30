@@ -59,6 +59,8 @@ export default async function artistRoutes(fastify) {
       revisionNote: artist.revision_note || null,
       accentColor: artist.accent_color || null,
       orderTemplateId: artist.order_template_id || 'default',
+      platformUrls: artistService.getPlatformUrls(artist),
+      inspirationTags: artistService.getInspirationTags(artist),
       tiers,
       artworks,
       rules: rules?.content || ''
@@ -118,7 +120,25 @@ export default async function artistRoutes(fastify) {
           revisionNote: { type: ['string', 'null'], maxLength: 500 },
           dashboardDefaultPanel: { type: ['string', 'null'], maxLength: 50 },
           accentColor: { type: ['string', 'null'], maxLength: 20 },
-          orderTemplateId: { type: 'string', maxLength: 50 }
+          orderTemplateId: { type: 'string', maxLength: 50 },
+          platformUrls: {
+            type: 'array',
+            maxItems: 10,
+            items: {
+              type: 'object',
+              required: ['url'],
+              properties: {
+                url: { type: 'string', minLength: 1, maxLength: 500, pattern: '^https?://' },
+                platform: { type: 'string', enum: ['pixiv', 'x', 'weibo', 'lofter', 'bilibili', 'xiaohongshu', 'other'] }
+              },
+              additionalProperties: false
+            }
+          },
+          inspirationTags: {
+            type: 'array',
+            maxItems: 20,
+            items: { type: 'string', minLength: 1, maxLength: 30 }
+          }
         },
         additionalProperties: false
       }
@@ -137,7 +157,9 @@ export default async function artistRoutes(fastify) {
         revisionNote: 'revision_note',
         dashboardDefaultPanel: 'dashboard_default_panel',
         accentColor: 'accent_color',
-        orderTemplateId: 'order_template_id'
+        orderTemplateId: 'order_template_id',
+        platformUrls: 'platform_urls',
+        inspirationTags: 'inspiration_tags'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}
