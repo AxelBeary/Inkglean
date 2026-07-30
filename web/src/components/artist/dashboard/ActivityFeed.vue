@@ -28,7 +28,7 @@
         <span class="activity-dot"></span>
         <div class="activity-body">
           <span class="activity-desc">{{ item.description }}</span>
-          <span class="activity-meta">#{{ item.orderNo }} · {{ relativeTime(item.createdAt) }}</span>
+          <span class="activity-meta">#{{ item.orderNo }} · {{ fmtRelativeTime(item.createdAt) }}</span>
         </div>
       </div>
     </div>
@@ -39,43 +39,22 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../../api/index.js'
+import { normalizeActivity, relativeTime } from '../../../utils/dashboard-normalize.js'
 
 const { t, locale } = useI18n()
 const state = ref('loading') // loading | ok | error
 const items = ref([])
 
-/** 相对时间（前端计算，验收 4.6） */
-function relativeTime(isoStr) {
-  if (!isoStr) return ''
-  const diffMs = Date.now() - new Date(isoStr).getTime()
-  const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return t('dashboard.timeJustNow')
-  if (mins < 60) return t('dashboard.timeMinutesAgo', { n: mins })
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return t('dashboard.timeHoursAgo', { n: hours })
-  const days = Math.floor(hours / 24)
-  if (days < 30) return t('dashboard.timeDaysAgo', { n: days })
-  // 超过 30 天显示日期
-  return new Date(isoStr).toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US')
-}
-
-/** 归一化后端返回（已对齐三号 dashboard.service.js：content 字段） */
-function normalize(raw) {
-  const list = raw?.items || raw?.activities || raw || []
-  items.value = (Array.isArray(list) ? list : []).slice(0, 10).map(a => ({
-    id: a.id,
-    orderId: a.orderId ?? a.order_id ?? null,
-    orderNo: a.orderNo ?? a.order_no ?? '',
-    description: a.content ?? a.description ?? a.text ?? a.event ?? '',
-    createdAt: a.createdAt ?? a.created_at ?? null
-  }))
+/** 相对时间包装（传入 i18n 上下文） */
+function fmtRelativeTime(isoStr) {
+  return relativeTime(isoStr, t, locale.value)
 }
 
 async function load() {
   state.value = 'loading'
   try {
     const res = await artistApi.getDashboardActivity()
-    normalize(res)
+    items.value = normalizeActivity(res)
     state.value = 'ok'
   } catch {
     state.value = 'error'
