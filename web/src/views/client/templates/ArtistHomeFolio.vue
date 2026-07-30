@@ -92,6 +92,17 @@
               {{ link.label }}
             </a>
           </div>
+          <!-- R58-8: 平台链接（胶囊横排，与外链共用视觉语言） -->
+          <div class="folio-links" v-if="platformLinks.length">
+            <a
+              v-for="link in platformLinks" :key="link.key"
+              :href="link.url" target="_blank" rel="noopener noreferrer"
+              class="folio-link"
+            >
+              <span class="folio-link-badge" aria-hidden="true">{{ link.badge }}</span>
+              {{ link.label }}
+            </a>
+          </div>
           <Disclaimer />
         </div>
       </div>
@@ -126,7 +137,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const { socialLinks } = useArtistData(props)
+const { socialLinks, platformLinks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

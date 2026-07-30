@@ -24,6 +24,20 @@ const LINK_ICON_BADGE = {
   link: '🔗'
 }
 
+/**
+ * R58-8: 平台链接徽标映射（后端识别的 platform → 文字徽标）
+ * 与 LINK_ICON_BADGE 共用视觉语言，other 用通用链接徽标
+ */
+const PLATFORM_BADGE = {
+  pixiv: 'P',
+  x: 'X',
+  weibo: '微',
+  lofter: 'L',
+  bilibili: 'B',
+  xiaohongshu: '红',
+  other: '🔗'
+}
+
 export function useArtistData(props) {
   const { t } = useI18n()
 
@@ -58,6 +72,22 @@ export function useArtistData(props) {
     }))
   })
 
+  /**
+   * R58-8: 平台链接列表（读后端拼好的 platformUrls 数组）
+   * 后端已处理旧格式兼容（纯字符串数组 → 重新识别平台），前端不碰原始 JSON
+   * 每项: { url, platform, label } → 追加 badge 文字徽标
+   */
+  const platformLinks = computed(() => {
+    const links = artist.value.platformUrls
+    if (!Array.isArray(links) || links.length === 0) return []
+    return links.map((item, i) => ({
+      key: `platform-${item.platform || 'other'}-${i}`,
+      url: item.url,
+      label: item.label || item.platform || 'other',
+      badge: PLATFORM_BADGE[item.platform] || PLATFORM_BADGE.other
+    }))
+  })
+
   /** 开场代表作（第一张作品），无作品时为 null */
   const heroArtwork = computed(() => artworks.value[0] || null)
 
@@ -73,6 +103,7 @@ export function useArtistData(props) {
     statusText,
     statusType,
     socialLinks,
+    platformLinks,
     heroArtwork,
     previewList
   }

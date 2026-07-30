@@ -349,6 +349,12 @@ export default {
     statusLabel: '主页状态', statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     linksLabel: '外链（客户主页展示）', linkName: '名称', addLink: '添加链接',
     linksHint: '最多 6 条，保存后客户主页立即生效。留空的行不会保存。',
+    // R58-8: 平台链接 + 灵感标签
+    platformLabel: '平台链接（客户主页展示）', platformAuto: '自动识别',
+    platformHint: '最多 10 条，保存后客户主页立即生效。留空的行不会保存。平台默认自动识别，也可手动指定。',
+    inspireLabel: '灵感标签（客户下单页展示）', inspireInputPlaceholder: '输入标签后回车添加',
+    inspireHint: '最多 20 个，每个 ≤30 字。客户点击标签可快捷填入需求描述。未设置时客户下单页不显示此区域。',
+    inspireTagTooLong: '标签不能超过 30 个字符', inspireTagLimit: '最多 20 个标签', inspireTagDuplicate: '标签已存在',
     contactQqLabel: '联系QQ（客户可见）', contactQqPlaceholder: '留空则默认使用登录QQ',
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',

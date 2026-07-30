@@ -349,6 +349,12 @@ export default {
     statusLabel: 'Page status', statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     linksLabel: 'Links (shown on public page)', linkName: 'Name', addLink: 'Add link',
     linksHint: 'Up to 6 links. Changes appear on your public page immediately after saving. Empty rows are not saved.',
+    // R58-8: Platform links + inspiration tags
+    platformLabel: 'Platform links (shown on public page)', platformAuto: 'Auto-detect',
+    platformHint: 'Up to 10 links. Changes appear on your public page immediately after saving. Empty rows are not saved. Platform is auto-detected by default, or can be set manually.',
+    inspireLabel: 'Inspiration tags (shown on order page)', inspireInputPlaceholder: 'Type a tag and press Enter',
+    inspireHint: 'Up to 20 tags, each ≤30 characters. Clients can click a tag to quickly fill in their request description. Hidden on the order page when not set.',
+    inspireTagTooLong: 'Tag cannot exceed 30 characters', inspireTagLimit: 'Up to 20 tags', inspireTagDuplicate: 'Tag already exists',
     contactQqLabel: 'Contact QQ (visible to clients)', contactQqPlaceholder: 'Leave blank to use your login QQ',
     contactQqHint: 'Clients who forgot their order number will see this QQ to contact you',
     notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
