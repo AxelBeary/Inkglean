@@ -542,6 +542,11 @@ export function deliverOrder(orderId, filePath, fileName, fileSize) {
  * ⚠️ 务必显式传 source 值，不要依赖 DEFAULT（显式传 NULL 会写成 null）
  */
 export function addReference(orderId, filePath, fileName, fileSize, source = 'client') {
+  // BUG-3: 同图去重 — 同 order_id + file_path 不允许重复加入
+  const dup = db.prepare('SELECT 1 FROM order_references WHERE order_id = ? AND file_path = ?').get(orderId, filePath)
+  if (dup) {
+    throw new AppError(E.REFERENCE_DUPLICATE, 409)
+  }
   // R18: 订单生命周期总量限制 20 张
   const count = db.prepare('SELECT COUNT(*) AS c FROM order_references WHERE order_id = ?').get(orderId).c
   if (count >= 20) {

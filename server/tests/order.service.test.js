@@ -892,4 +892,30 @@ describe('订单服务 (Order Service)', () => {
     // pending(1) + wip今天截稿(1) = 2
     expect(stats.todayTodoCount).toBe(2)
   })
+
+  // ─── v0.16 BUG-3: 图库去重 ───
+
+  // TC-O-35: 同图重复加入被拒绝（409）
+  it('TC-O-35: addReference 同 order_id + file_path 去重', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addReference(order.id, 'references/1/dup.png', 'dup.png', 1024)
+
+    expect(() => {
+      orderService.addReference(order.id, 'references/1/dup.png', 'dup.png', 1024)
+    }).toThrow('REFERENCE_DUPLICATE')
+
+    // 确认只有一条
+    const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
+    expect(refs).toHaveLength(1)
+  })
+
+  // TC-O-35b: 不同 file_path 不受去重影响
+  it('TC-O-35b: addReference 不同路径正常插入', () => {
+    const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.addReference(order.id, 'references/1/a.png', 'a.png', 100)
+    orderService.addReference(order.id, 'references/1/b.png', 'b.png', 200)
+
+    const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
+    expect(refs).toHaveLength(2)
+  })
 })
