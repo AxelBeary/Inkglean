@@ -100,6 +100,47 @@
               </div>
             </el-form-item>
 
+            <!-- SPEC-004: 名额与缓冲（正式位 N + 缓冲位 M + 4 开关） -->
+            <el-form-item :label="$t('settings.slotLabel')">
+              <div class="slot-config">
+                <div class="slot-row">
+                  <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
+                  <el-input-number
+                    v-model="form.batchLimit" :min="0" :max="999"
+                    :disabled="!form.batchLimitEnabled"
+                    controls-position="right" class="slot-input"
+                  />
+                  <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
+                </div>
+                <div class="form-hint">{{ $t('settings.slotHint') }}</div>
+              </div>
+            </el-form-item>
+            <el-form-item :label="$t('settings.bufferLabel')">
+              <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
+              <div class="form-hint">{{ $t('settings.bufferHint') }}</div>
+            </el-form-item>
+            <el-form-item :label="$t('settings.bufferSwitchLabel')">
+              <div class="switch-grid">
+                <div class="switch-row">
+                  <el-switch v-model="form.autoPromote" />
+                  <span>{{ $t('settings.autoPromote') }}</span>
+                </div>
+                <div class="switch-row">
+                  <el-switch v-model="form.hideQueuePosition" />
+                  <span>{{ $t('settings.hideQueuePosition') }}</span>
+                </div>
+                <div class="switch-row">
+                  <el-switch v-model="form.hidePromoteNotify" />
+                  <span>{{ $t('settings.hidePromoteNotify') }}</span>
+                </div>
+                <div class="switch-row">
+                  <el-switch v-model="form.bufferShortForm" />
+                  <span>{{ $t('settings.bufferShortForm') }}</span>
+                </div>
+              </div>
+              <div class="form-hint">{{ $t('settings.bufferSwitchHint') }}</div>
+            </el-form-item>
+
             <el-form-item :label="$t('settings.contactQqLabel')">
               <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
               <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
@@ -324,6 +365,13 @@ const form = reactive({
   customLinks: [],
   platformUrls: [],
   inspirationTags: [],
+  batchLimitEnabled: false,
+  batchLimit: 0,
+  bufferLimit: 0,
+  autoPromote: false,
+  hideQueuePosition: false,
+  hidePromoteNotify: false,
+  bufferShortForm: false,
   contactQq: '',
   notifyEnabled: true,
   artistCode: '',
@@ -469,6 +517,11 @@ async function save() {
     } else {
       // R15: camelCase + customLinks 数组（PUT /api/artist/profile 已改 additionalProperties:false）
       // R58-8: platformUrls + inspirationTags（留空行/空标签不提交，platform 为空时省略让后端自动识别）
+      // SPEC-004: N+M ≥ 1 前端提示（后端同校验，前端先拦避免无效请求）
+      if (form.batchLimitEnabled && form.batchLimit + form.bufferLimit < 1) {
+        ElMessage.warning(t('settings.slotMinError'))
+        return
+      }
       await artistApi.updateProfile({
         name: form.name.trim(),
         bio: form.bio.trim(),
@@ -484,6 +537,13 @@ async function save() {
             return item
           }),
         inspirationTags: form.inspirationTags.map(tag => tag.trim()).filter(Boolean),
+        // SPEC-004: 名额与缓冲（batchLimitEnabled 关闭时传 null = 不限制）
+        batchLimit: form.batchLimitEnabled ? form.batchLimit : null,
+        bufferLimit: form.bufferLimit,
+        autoPromote: form.autoPromote,
+        hideQueuePosition: form.hideQueuePosition,
+        hidePromoteNotify: form.hidePromoteNotify,
+        bufferShortForm: form.bufferShortForm,
         contactQq: form.contactQq.trim(),
         notifyEnabled: form.notifyEnabled,
         artistCode: form.artistCode.trim(),
@@ -536,6 +596,13 @@ onMounted(async () => {
       customLinks,
       platformUrls,
       inspirationTags,
+      batchLimitEnabled: profile.batch_limit != null,
+      batchLimit: profile.batch_limit ?? 0,
+      bufferLimit: profile.buffer_limit ?? 0,
+      autoPromote: !!profile.auto_promote,
+      hideQueuePosition: !!profile.hide_queue_position,
+      hidePromoteNotify: !!profile.hide_promote_notify,
+      bufferShortForm: !!profile.buffer_short_form,
       contactQq: profile.contact_qq || '',
       notifyEnabled: !!profile.notify_enabled,
       artistCode: profile.artist_code || '',
@@ -646,4 +713,12 @@ onMounted(async () => {
 .tag-editor { width: 100%; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .tag-input { max-width: 300px; }
+
+/* ─── SPEC-004: 名额与缓冲 ─── */
+.slot-config { width: 100%; }
+.slot-row { display: flex; align-items: center; gap: 12px; }
+.slot-input { width: 130px; }
+.slot-unit { font-size: 13px; color: var(--text-secondary); }
+.switch-grid { display: flex; flex-direction: column; gap: 10px; }
+.switch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); }
 </style>

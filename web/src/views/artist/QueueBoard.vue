@@ -146,6 +146,56 @@
       <el-empty v-if="!loading && queue.length === 0" :description="$t('queue.empty')" />
     </div>
 
+    <!-- SPEC-004: 缓冲区（候补订单，递补后移入正式区） -->
+    <template v-if="bufferQueue.length || bufferLoading">
+      <h3 class="buffer-title">{{ $t('queue.bufferTitle') }}</h3>
+      <p class="buffer-hint">{{ $t('queue.bufferHint') }}</p>
+      <div class="queue-container" v-loading="bufferLoading">
+        <div class="queue-list">
+          <div
+            v-for="element in bufferQueue" :key="element.id"
+            class="queue-item buffer-item"
+            :class="`priority-${element.priority}`"
+          >
+            <!-- 焦点图（同正式区卡片风格，只读展示） -->
+            <div v-if="focusDisplay === 'large'" class="focus-area">
+              <el-image
+                v-if="element.focus_image_path"
+                :src="element.focusImageUrl" fit="cover" class="focus-large-img"
+                :alt="$t('orderDetail.referenceImage')"
+                @error="() => refreshNow(element.focus_image_path)"
+              />
+              <div v-else class="focus-empty focus-empty--static">
+                <el-icon :size="20"><Plus /></el-icon>
+              </div>
+            </div>
+            <div class="item-body">
+              <div class="item-header">
+                <span class="order-no">#{{ element.order_no }}</span>
+                <el-tag type="warning" size="small" effect="dark">{{ $t('queue.bufferTag') }}</el-tag>
+                <el-tag :type="statusType(element.status)" size="small">
+                  {{ $t(`common.orderStatus.${element.status}`) }}
+                </el-tag>
+              </div>
+              <div class="item-info">
+                <span>{{ element.tier_name || $t('common.custom') }}</span>
+                <span>·</span>
+                <span>QQ: {{ element.client_qq }}</span>
+                <span v-if="element.client_name">· {{ element.client_name }}</span>
+              </div>
+            </div>
+            <div class="item-actions">
+              <el-button size="small" type="primary" @click="promoteOrder(element)" :loading="promotingId === element.id">
+                {{ $t('queue.promote') }}
+              </el-button>
+              <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="!bufferLoading && bufferQueue.length === 0" :description="$t('queue.bufferEmpty')" />
+      </div>
+    </template>
+
     <!-- 焦点图空态上传：隐藏文件选择器（点击占位按钮触发） -->
     <input
       ref="focusInputEl" type="file" accept="image/*" hidden
@@ -383,18 +433,49 @@ function onCardPointerUp(e, order) {
   }
 }
 
-// ─── R33: 签名 URL 定时刷新（焦点图 15min 过期防 403） ───
+// ─── SPEC-004: 缓冲区（候补订单列表 + 手动递补） ───
+const bufferQueue = ref([])
+const bufferLoading = ref(false)
+const promotingId = ref(null)
+
+// ─── R33: 签名 URL 定时刷新（焦点图 15min 过期防 403；正式区+缓冲区统一收集） ───
 const { refreshNow } = useSignatureRefresh({
-  collect: () => queue.value.filter(o => o.focus_image_path).map(o => o.focus_image_path),
+  collect: () => [...queue.value, ...bufferQueue.value].filter(o => o.focus_image_path).map(o => o.focus_image_path),
   apply: (urlMap) => {
-    queue.value.forEach(o => {
+    for (const o of [...queue.value, ...bufferQueue.value]) {
       if (o.focus_image_path && urlMap[o.focus_image_path]) o.focusImageUrl = urlMap[o.focus_image_path]
-    })
+    }
   }
 })
 
+async function loadBufferQueue() {
+  bufferLoading.value = true
+  try {
+    bufferQueue.value = await artistApi.getQueue('buffer')
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    bufferLoading.value = false
+  }
+}
+
+/** 递补：buffer → formal（成功后刷新两个列表） */
+async function promoteOrder(order) {
+  promotingId.value = order.id
+  try {
+    await artistApi.promoteOrder(order.id)
+    ElMessage.success(t('queue.promoted'))
+    await Promise.all([loadQueue(), loadBufferQueue()])
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    promotingId.value = null
+  }
+}
+
 onMounted(() => {
   loadQueue()
+  loadBufferQueue()
   // R30d: 加载工作流节点（看板推进需要知道"下一节点"）
   artistApi.getWorkflow()
     .then(res => { workflowStages.value = res.stages || [] })
@@ -518,4 +599,10 @@ onMounted(() => {
 @media (max-width: 600px) {
   .item-actions { width: 100%; justify-content: flex-end; margin-left: 0; }
 }
+
+/* ─── SPEC-004: 缓冲区 ─── */
+.buffer-title { margin: 28px 0 4px; color: var(--text-primary); font-size: 16px; }
+.buffer-hint { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); }
+.buffer-item { border-left: 3px solid var(--el-color-warning); }
+.focus-empty--static { cursor: default; }
 </style>

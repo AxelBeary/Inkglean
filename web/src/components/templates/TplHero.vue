@@ -6,7 +6,7 @@
       <div class="tpl-hero-shade"></div>
     </div>
     <div class="tpl-hero-banner-content">
-      <TplStatusBadge :status="artist.status" class="tpl-hero-banner-status" />
+      <TplStatusBadge :status="artist.status" :slot-display="artist.slotDisplay" class="tpl-hero-banner-status" />
       <h1 class="tpl-hero-name tpl-hero-name--banner">{{ artist.name }}</h1>
       <p class="tpl-hero-bio" v-if="artist.bio">{{ artist.bio }}</p>
       <div class="tpl-hero-actions">
@@ -30,7 +30,7 @@
     <div class="tpl-hero-plaque">
       <h1 class="tpl-hero-name tpl-hero-name--plaque">{{ artist.name }}</h1>
       <p class="tpl-hero-bio tpl-hero-bio--plaque" v-if="artist.bio">{{ artist.bio }}</p>
-      <TplStatusBadge :status="artist.status" />
+      <TplStatusBadge :status="artist.status" :slot-display="artist.slotDisplay" />
       <div class="tpl-hero-actions tpl-hero-actions--plaque">
         <button
           class="tpl-btn tpl-btn--primary" :disabled="artist.status !== 'open'"
@@ -48,7 +48,7 @@
   <!-- split：左文右图分屏（folio） -->
   <header v-else class="tpl-hero tpl-hero--split" ref="sentinelEl">
     <div class="tpl-hero-split-text">
-      <TplStatusBadge :status="artist.status" />
+      <TplStatusBadge :status="artist.status" :slot-display="artist.slotDisplay" />
       <h1 class="tpl-hero-name tpl-hero-name--split">{{ artist.name }}</h1>
       <p class="tpl-hero-bio" v-if="artist.bio">{{ artist.bio }}</p>
       <div class="tpl-hero-actions">

@@ -12,7 +12,7 @@
             {{ artist.name?.charAt(0) }}
           </el-avatar>
           <h2 class="classic-side-name">{{ artist.name }}</h2>
-          <TplStatusBadge :status="artist.status" />
+          <TplStatusBadge :status="artist.status" :slot-display="artist.slotDisplay" />
           <div class="classic-side-links" v-if="socialLinks.length">
             <a
               v-for="link in socialLinks"

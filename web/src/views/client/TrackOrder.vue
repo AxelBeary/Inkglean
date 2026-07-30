@@ -49,6 +49,13 @@
           </el-alert>
         </div>
 
+        <!-- SPEC-004: 缓冲订单排队位置（正式订单 queueDisplay 为 null，不显示） -->
+        <div class="position-info" v-if="order.queueDisplay">
+          <el-alert type="warning" :closable="false" show-icon>
+            {{ order.queueDisplay }}
+          </el-alert>
+        </div>
+
         <!-- 状态步骤（基于订单状态，始终可用） -->
         <el-steps :active="stepActive" finish-status="success" simple style="margin-top: 20px">
           <el-step :title="$t('track.stepSubmitted')" />

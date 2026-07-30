@@ -100,7 +100,7 @@ export const artistApi = {
   updateRules: (content) => api.put('/artist/rules', { content }),
   // 订单
   getOrders: (status, { page, pageSize } = {}) => api.get('/artist/orders', { params: { status, page, pageSize } }),
-  getQueue: () => api.get('/artist/queue'),
+  getQueue: (zone) => api.get('/artist/queue', zone ? { params: { zone } } : undefined),
   getOrder: (id) => api.get(`/artist/orders/${id}`),
   createManualOrder: (data) => api.post('/artist/orders/manual', data),
   updateStatus: (id, status) => api.put(`/artist/orders/${id}/status`, { status }),
@@ -113,6 +113,8 @@ export const artistApi = {
   // SPEC-003: 附加工作项（添加/删除后返回完整订单，final_price_cents 已重算）
   addExtraItem: (id, data) => api.post(`/artist/orders/${id}/extra-items`, data),
   deleteExtraItem: (id, itemId) => api.delete(`/artist/orders/${id}/extra-items/${itemId}`),
+  // SPEC-004: 递补（buffer → formal，返回完整订单）
+  promoteOrder: (id) => api.post(`/artist/orders/${id}/promote`),
   deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data),
   addReference: (id, data) => api.post(`/artist/orders/${id}/references`, data),
   deleteReference: (id, refId) => api.delete(`/artist/orders/${id}/references/${refId}`),
