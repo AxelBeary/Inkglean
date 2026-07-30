@@ -38,7 +38,7 @@
 
 | 角色 | 当前任务 | 状态 |
 |------|----------|------|
-| 二号 | 回收站UI（等三号后端合入后开工） | 🟡 待命 |
+| 二号 | R58 第一批：composable 抽取 + QQ 跳转复制（`feat/v016-r58-order-page`，wt02） | 🔵 进行中 |
 | 三号 | 测试隔离+孤儿回收→回收站（`fix/v016-test-isolation`，wt03） | 🔴 紧急进行中 |
 | 四号 | 完成 | ⚪ 空闲 |
 | 五号 | 完成 | ⚪ 空闲 |
@@ -54,9 +54,9 @@
 
 | 分支 | 状态 |
 |------|------|
-| master | 当前，b58558d |
+| master | 当前，d2a4e5d |
 | fix/v016-test-isolation | 三号 worktree wt03，紧急修复中 |
-| feat/v016-recycle-bin-ui | 二号，待三号合入后切 |
+| feat/v016-r58-order-page | 二号 worktree wt02，R58 第一批 |
 
 ---
 ## 重要规则提醒
