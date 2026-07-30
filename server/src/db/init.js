@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS artists (
   accent_color TEXT,
   platform_urls TEXT,
   inspiration_tags TEXT,
+  order_template_id TEXT DEFAULT 'default',
   batch_limit INTEGER DEFAULT NULL,
   buffer_limit INTEGER DEFAULT 0,
   auto_promote INTEGER DEFAULT 0,
@@ -150,6 +151,109 @@ CREATE TABLE IF NOT EXISTS order_extra_items (
   description TEXT,
   price_cents INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+-- 画师工作流节点表（v5 + v20 speech_template）
+CREATE TABLE IF NOT EXISTS artist_workflow_stages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  takes_payment INTEGER NOT NULL DEFAULT 0,
+  basis_points INTEGER,
+  speech_template TEXT DEFAULT '{客户名}，你的订单已{节点名}。',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+);
+
+-- 默认工作流模板表（v5）
+CREATE TABLE IF NOT EXISTS default_workflow_template (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  takes_payment INTEGER NOT NULL DEFAULT 0,
+  basis_points INTEGER
+);
+
+-- 订单付款分期表（v5）
+CREATE TABLE IF NOT EXISTS order_payment_installments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  label TEXT NOT NULL,
+  basis_points INTEGER NOT NULL,
+  amount_cents INTEGER,
+  status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','overdue')),
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  requested_at DATETIME,
+  paid_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+-- 问候语模板表（v6）
+CREATE TABLE IF NOT EXISTS greeting_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER,
+  text TEXT NOT NULL,
+  time_slot TEXT NOT NULL DEFAULT 'any' CHECK(time_slot IN ('morning','afternoon','evening','night','any')),
+  is_enabled INTEGER NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+);
+
+-- 价格增项表（v9）
+CREATE TABLE IF NOT EXISTS price_addons (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL,
+  category TEXT NOT NULL CHECK(category IN ('expression','outfit','background','weapon','other')),
+  name TEXT NOT NULL,
+  price_type TEXT NOT NULL DEFAULT 'fixed' CHECK(price_type IN ('fixed','percent')),
+  price_value REAL NOT NULL,
+  select_mode TEXT NOT NULL DEFAULT 'quantity' CHECK(select_mode IN ('quantity','toggle','inquiry')),
+  max_qty INTEGER DEFAULT 5,
+  description TEXT,
+  sort_order INTEGER DEFAULT 0,
+  enabled INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+);
+
+-- 增项-档位关联表（v9）
+CREATE TABLE IF NOT EXISTS addon_tiers (
+  addon_id INTEGER NOT NULL,
+  tier_id INTEGER NOT NULL,
+  PRIMARY KEY (addon_id, tier_id),
+  FOREIGN KEY (addon_id) REFERENCES price_addons(id) ON DELETE CASCADE,
+  FOREIGN KEY (tier_id) REFERENCES price_tiers(id) ON DELETE CASCADE
+);
+
+-- 价格倍率表（v9）
+CREATE TABLE IF NOT EXISTS price_multipliers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL,
+  type TEXT NOT NULL CHECK(type IN ('usage','rush')),
+  name TEXT NOT NULL,
+  multiplier REAL NOT NULL DEFAULT 1.0,
+  description TEXT,
+  sort_order INTEGER DEFAULT 0,
+  enabled INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+);
+
+-- 订单价格明细快照表（v9）
+CREATE TABLE IF NOT EXISTS order_price_breakdown (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  item_type TEXT NOT NULL CHECK(item_type IN ('tier','addon','usage','rush')),
+  item_name TEXT NOT NULL,
+  amount_cents INTEGER NOT NULL,
+  multiplier REAL DEFAULT 1.0,
+  quantity INTEGER DEFAULT 1,
+  sort_order INTEGER DEFAULT 0,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
