@@ -38,3 +38,6 @@ server/data/
 
 # Runtime data
 data/
+
+# 临时参考素材（用户设计参考，不入版本库）
+temp/
