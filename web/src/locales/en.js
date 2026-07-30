@@ -159,7 +159,18 @@ export default {
     draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
     draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored',
     // R58-6: QQ jump + copy
-    artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied'
+    artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied',
+    // R58-2: step-by-step guide
+    step1: 'Tier', step2: 'Details', step3: 'Contact',
+    step1Title: 'Pick a tier', step2Title: 'Describe your request', step3Title: 'Contact details',
+    nextStep: 'Next', prevStep: 'Back',
+    summaryTitle: 'SUMMARY', summaryNoTier: 'Pick a tier to see the price here',
+    // R58-3: receipt confirmation
+    receiptSub: '· COMMISSION SLIP ·', receiptTotal: 'Total', receiptConfirm: 'Confirm order', submitting: 'Submitting…',
+    // R58-4: inspiration tags
+    inspireHint: '✨ Not sure what to write? Tap a tag to fill it in:',
+    // R58-5: copy order summary
+    copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: '
   },
   track: {
     backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',
@@ -427,6 +438,13 @@ export default {
     artworkHint: 'Artwork images must be uploaded via the artist dashboard. Here you can only view and delete.',
     greetingTab: 'Greetings',
     greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',
-    greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.'
+    greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.',
+    // Recycle bin (incident fix: orphaned files are recoverable)
+    recycleBin: {
+      title: '🗑 Recycle Bin', empty: 'Empty bin',
+      colFile: 'File', colPath: 'Original path', colSize: 'Size', colMovedAt: 'Moved at',
+      emptyTitle: 'Empty recycle bin', emptyConfirm: 'Files in the recycle bin will be permanently deleted and cannot be recovered. Empty it?',
+      emptied: '{n} files permanently deleted', emptyHint: 'Recycle bin is empty'
+    }
   }
 }

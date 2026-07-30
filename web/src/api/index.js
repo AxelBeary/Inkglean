@@ -229,5 +229,8 @@ export const adminApi = {
   createArtistArtwork: (id, data) => api.post(`/admin/artists/${id}/artworks`, data),
   deleteArtistArtwork: (id, aid) => api.delete(`/admin/artists/${id}/artworks/${aid}`),
   getArtistRules: (id) => api.get(`/admin/artists/${id}/rules`),
-  updateArtistRules: (id, content) => api.put(`/admin/artists/${id}/rules`, { content })
+  updateArtistRules: (id, content) => api.put(`/admin/artists/${id}/rules`, { content }),
+  // 回收站（事故修复：孤儿文件可恢复）
+  getRecycleBin: () => api.get('/admin/recycle-bin'),
+  emptyRecycleBin: () => api.delete('/admin/recycle-bin')
 }

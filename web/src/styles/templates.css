@@ -112,3 +112,87 @@
   border-radius: 4px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
+
+/* ===== R58-3: 小票风格二次确认弹窗 =====
+   el-dialog teleport 到 body，样式必须全局定义。
+   锯齿边：conic-gradient 45° 斜纹条带，上下各一条。 */
+.receipt-dialog .el-dialog {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+.receipt-dialog .el-dialog__header,
+.receipt-dialog .el-dialog__body { padding: 0; }
+.receipt {
+  background: #fdfbf5;
+  color: #3a3a3a;
+  padding: 28px 24px 22px;
+  font-family: 'Courier New', Courier, monospace;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.receipt::before,
+.receipt::after {
+  content: '';
+  display: block;
+  height: 10px;
+  margin: 0 -24px;
+  background: repeating-conic-gradient(#fdfbf5 0% 25%, transparent 0% 50%) 0 0 / 14px 14px;
+}
+.receipt::before { margin-top: -28px; margin-bottom: 18px; }
+.receipt::after { margin-bottom: -22px; margin-top: 18px; }
+.receipt-head {
+  text-align: center;
+  font-size: 18px; font-weight: 700;
+  letter-spacing: 3px;
+}
+.receipt-sub {
+  text-align: center;
+  font-size: 11px; letter-spacing: 2px;
+  color: #8a8a8a;
+  margin-top: 4px;
+}
+.receipt-dashed {
+  border-top: 1px dashed #b8b8b0;
+  margin: 12px 0;
+}
+.receipt-row {
+  display: flex; justify-content: space-between;
+  font-size: 13px; padding: 3px 0;
+}
+.receipt-total {
+  display: flex; justify-content: space-between;
+  font-size: 16px; font-weight: 700;
+}
+.receipt-installments {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.receipt-inst {
+  font-size: 11px;
+  border: 1px dashed #b8b8b0;
+  padding: 2px 8px;
+}
+.receipt-barcode {
+  height: 34px;
+  margin: 14px auto 4px;
+  width: 70%;
+  background: repeating-linear-gradient(90deg, #3a3a3a 0 2px, transparent 2px 5px, #3a3a3a 5px 6px, transparent 6px 9px);
+}
+.receipt-actions {
+  display: flex; gap: 10px;
+  margin-top: 14px;
+}
+.receipt-btn {
+  flex: 1;
+  padding: 10px 0;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #b8b8b0;
+  background: transparent; color: #3a3a3a;
+  transition: transform 0.25s var(--ease-bounce, ease), background 0.2s, box-shadow 0.25s var(--ease-bounce, ease);
+}
+.receipt-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); }
+.receipt-btn:active:not(:disabled) { transform: translateY(0) scale(0.97); }
+.receipt-btn--primary { background: #3a3a3a; color: #fdfbf5; border-color: #3a3a3a; }
+.receipt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
