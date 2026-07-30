@@ -719,6 +719,29 @@ const MIGRATIONS = [
       }
       database.exec('CREATE INDEX IF NOT EXISTS idx_orders_queue_zone ON orders(artist_id, queue_zone)')
     }
+  },
+  {
+    version: 20,
+    name: 'stage_speech_template',
+    up(database) {
+      // plan-node-speech: 节点话术模板
+      // 迁移前自动备份
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v20`)
+          console.log(`📦 迁移 v20: 已备份 ${dbPath} → ${dbPath}.bak.v20`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v20: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+      const cols = database.prepare('PRAGMA table_info(artist_workflow_stages)').all()
+      if (!cols.some(c => c.name === 'speech_template')) {
+        database.exec("ALTER TABLE artist_workflow_stages ADD COLUMN speech_template TEXT DEFAULT '{客户名}，你的订单已{节点名}。'")
+      }
+      // 存量回填（ALTER TABLE ADD COLUMN DEFAULT 存量行读出为默认值，但实际存储 NULL；显式回填确保一致）
+      database.exec("UPDATE artist_workflow_stages SET speech_template = '{客户名}，你的订单已{节点名}。' WHERE speech_template IS NULL")
+    }
   }
 ]
 
@@ -787,8 +810,8 @@ export function initDatabase(database) {
         const wfCount = database.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(admin.id)
         if (wfCount.c === 0) {
           const tpl = database.prepare('SELECT * FROM default_workflow_template ORDER BY sort_order ASC').all()
-          const ins = database.prepare('INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points) VALUES (?, ?, ?, ?, ?, ?)')
-          for (const t of tpl) ins.run(admin.id, t.name, t.description || null, t.sort_order, t.takes_payment ? 1 : 0, t.basis_points)
+          const ins = database.prepare('INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points, speech_template) VALUES (?, ?, ?, ?, ?, ?, ?)')
+          for (const t of tpl) ins.run(admin.id, t.name, t.description || null, t.sort_order, t.takes_payment ? 1 : 0, t.basis_points, '{客户名}，你的订单已{节点名}。')
         }
         console.log(`✅ 管理员账号已自动创建 (QQ: ${adminQq})`)
       } catch (err) {

@@ -358,6 +358,9 @@ export default async function orderRoutes(fastify) {
    // R30d: 附加流程进度信息
    const stageInfo = orderWorkflowService.getStageInfo(order)
    if (stageInfo) Object.assign(order, stageInfo)
+   // plan-node-speech: 话术 + 客户沟通数据
+   const speechInfo = orderWorkflowService.getSpeechInfo(order)
+   Object.assign(order, speechInfo)
    return order
 })
 
