@@ -8,7 +8,7 @@
     <StageListView
       :stages="stages" :readonly="mode === 'template'"
       @reorder="onReorder" @add="onAdd" @rename="onRename"
-      @update-desc="onUpdateDesc"
+      @update-desc="onUpdateDesc" @update-speech="onUpdateSpeech"
       @toggle-pay="onTogglePay" @delete="onDelete"
     />
 
@@ -72,7 +72,8 @@ const api = computed(() => {
       get: () => adminApi.getDefaultWorkflow().then(r => {
         const list = (r || []).map(x => ({
           id: x.id, name: x.name, description: x.description, sortOrder: x.sort_order,
-          takesPayment: !!x.takes_payment, basisPoints: x.basis_points, isFinal: false
+          takesPayment: !!x.takes_payment, basisPoints: x.basis_points, isFinal: false,
+          speechTemplate: x.speech_template ?? ''
         }))
         // P1-7: 计算 isFinal（最后一个收款节点）
         const payNodes = list.filter(s => s.takesPayment)
@@ -143,6 +144,15 @@ async function onUpdateDesc(id, description) {
     await api.value.update(id, { description })
     await load()
   } catch (err) { ElMessage.error(err.message) }
+}
+
+// plan-node-speech：保存节点话术（PUT 时附带 speechTemplate 字段）
+async function onUpdateSpeech(id, speechTemplate) {
+  try {
+    await api.value.update(id, { speechTemplate })
+    await load()
+    ElMessage.success(t('workflow.speechSaved'))
+  } catch (err) { ElMessage.error(err.message); await load() }
 }
 
 async function onTogglePay(id, val) {

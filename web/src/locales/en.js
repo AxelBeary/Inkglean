@@ -301,7 +301,12 @@ export default {
     // R51: deadline
     colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated',
     // R58-6: QQ jump + copy
-    jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied'
+    jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
+    // plan-node-speech: client communication block
+    commTitle: 'Client Communication', commQq: 'QQ:',
+    commPriceSummary: 'Price: total {total} / paid {paid} / due {unpaid}',
+    commCopyBtn: 'Copy text & open QQ', commCopied: 'Speech copied — opening QQ',
+    commNoQq: 'No client QQ set', commNoStage: 'Order not on a workflow stage — no speech yet', commNoSpeech: 'No speech for the current stage'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -431,6 +436,9 @@ export default {
     dragHandle: 'Drag to adjust ratio', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate',
     reset: 'Reset to Default', resetConfirm: 'Reset to default template? All custom stages and payment splits will be overwritten. This cannot be undone.', resetDone: 'Reset to default template',
     descPlaceholder: 'Click to add a note',
+    // plan-node-speech: node speech ({客户名} etc. are backend variable tokens — kept in Chinese in both locales)
+    speechLabel: 'Speech', speechPlaceholder: '{客户名}，你的订单已{节点名}。',
+    speechSave: 'Save speech', speechSaved: 'Speech saved', speechVarHint: 'Click to insert variable',
     helpBtn: 'How it works', helpTitle: 'Workflow & Payment Guide',
     helpLines: [
       'Each stage is a step in your commission process; clients see progress in order.',
