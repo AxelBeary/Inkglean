@@ -92,11 +92,13 @@
               {{ link.label }}
             </a>
           </div>
-          <ThemePicker />
           <Disclaimer />
         </div>
       </div>
     </section>
+
+    <!-- R25: ThemePicker 右下角固定悬浮（用户决策 C37） -->
+    <div class="theme-fab" :class="{ 'theme-fab--above-cta': ctaVisible }"><ThemePicker /></div>
 
     <!-- 吸底约稿条 -->
     <TplStickyCta :visible="ctaVisible" :artist="artist" :subdomain="subdomain" />
@@ -378,6 +380,24 @@ onUnmounted(() => {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
 }
+
+/* R25: ThemePicker 右下角固定悬浮（用户决策 C37） */
+.theme-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 95;
+  padding: 10px 12px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.2s, bottom 0.3s;
+}
+.theme-fab:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+.theme-fab--above-cta { bottom: 72px; }
 
 /* ===== 移动端：汉堡菜单 ===== */
 @media (max-width: 768px) {

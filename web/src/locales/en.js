@@ -172,6 +172,14 @@ export default {
     // R58-5: copy order summary
     copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: '
   },
+  // R24: validation popup
+  order: {
+    validation: {
+      title: 'Please complete the following first',
+      confirm: 'Got it',
+      agreeRequired: 'Please tick "I have read and agree to the guidelines above"'
+    }
+  },
   track: {
     backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',
     orderNo: 'Order No.', orderNoLabel: 'Order number', qqLabel: 'Your QQ number', qqPlaceholder: 'The QQ you used when ordering',

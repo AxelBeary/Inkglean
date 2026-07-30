@@ -45,7 +45,7 @@
                 <el-image
                   :src="element.focusImageUrl" fit="cover" class="focus-large-img"
                   :alt="$t('orderDetail.referenceImage')"
-                  @error="refreshNow"
+                  @error="() => refreshNow(element.focus_image_path)"
                 />
                 <div v-if="focusDragId === element.id" class="focus-replace-overlay">
                   <span>{{ $t('queue.dropToReplace') }}</span>
