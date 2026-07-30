@@ -117,10 +117,10 @@ function onPointerMove(e) {
     newLeft = Math.max(0, newLeft)
     newRight = startLeftBp + startRightBp - newLeft
   }
-  // 右拖：吞并右侧节点（尾款不可吞并）
-  else if (newRight < ELASTIC_THRESHOLD && !rightIsFinal) {
+  // 右拖：弹性 / 脱离（与左拖对称：MIN_BP 进弹性区，ELASTIC_THRESHOLD 才脱离）
+  else if (newRight < MIN_BP && !rightIsFinal) {
     elasticId.value = rightId
-    detachId.value = rightId
+    detachId.value = newRight < ELASTIC_THRESHOLD ? rightId : null
     newRight = Math.max(0, newRight)
     newLeft = startLeftBp + startRightBp - newRight
   }
