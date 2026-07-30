@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import * as orderService from '../src/features/order/order.service.js'
+import * as orderStatsService from '../src/features/order/order-stats.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 
 describe('订单服务 (Order Service)', () => {
@@ -191,7 +192,7 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(o1.id, 'done')
     orderService.updateOrderStatus(o1.id, 'delivered')
 
-    const stats = orderService.getArtistStats(artist.id)
+    const stats = orderStatsService.getArtistStats(artist.id)
     expect(stats.pendingCount).toBe(1)
     expect(stats.activeCount).toBe(1)
     expect(stats.totalCompleted).toBe(1)
@@ -379,7 +380,7 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(order.id, 'wip')
     orderService.updateOrderStatus(order.id, 'done')
 
-    const stats = orderService.getArtistStats(artist.id)
+    const stats = orderStatsService.getArtistStats(artist.id)
     expect(stats.monthRevenueCents).toBe(80000)
     expect(stats.monthRevenue).toBe(800)
   })
@@ -768,7 +769,7 @@ describe('订单服务 (Order Service)', () => {
     const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '头像')
     orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
 
-    const stats = orderService.getArtistStats(artist.id)
+    const stats = orderStatsService.getArtistStats(artist.id)
     // 200 元 = 20000 分
     expect(stats.todayNewOrderCents).toBe(20000)
   })
@@ -784,13 +785,13 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(order.id, 'wip')
     orderService.updateOrderStatus(order.id, 'done')
 
-    const stats = orderService.getArtistStats(artist.id)
+    const stats = orderStatsService.getArtistStats(artist.id)
     expect(stats.todayRevenueCents).toBe(50000)
   })
 
   // TC-O-49: 无数据时返回 0
   it('TC-O-49: 无订单时今日统计为 0', () => {
-    const stats = orderService.getArtistStats(artist.id)
+    const stats = orderStatsService.getArtistStats(artist.id)
     expect(stats.todayNewOrderCents).toBe(0)
     expect(stats.todayRevenueCents).toBe(0)
   })
@@ -804,7 +805,7 @@ describe('订单服务 (Order Service)', () => {
     // 手动把 created_at 改为昨天
     db.prepare("UPDATE orders SET created_at = datetime('now', '-1 day') WHERE id = ?").run(order.id)
 
-    const stats = orderService.getArtistStats(artist.id)
+    const stats = orderStatsService.getArtistStats(artist.id)
     expect(stats.todayNewOrderCents).toBe(0)
   })
 
@@ -864,7 +865,7 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateDeadline(o3.id, d1)
     orderService.updateOrderStatus(o3.id, 'cancelled')
 
-    const upcoming = orderService.getUpcomingDeadlines(artist.id)
+    const upcoming = orderStatsService.getUpcomingDeadlines(artist.id)
     expect(upcoming).toHaveLength(1)
     expect(upcoming[0].id).toBe(o1.id)
     expect(upcoming[0].order_no).toBe(o1.order_no)
@@ -888,7 +889,7 @@ describe('订单服务 (Order Service)', () => {
     today.setHours(12, 0, 0, 0)
     orderService.updateDeadline(o3.id, today.toISOString())
 
-    const stats = orderService.getArtistStats(artist.id)
+    const stats = orderStatsService.getArtistStats(artist.id)
     // pending(1) + wip今天截稿(1) = 2
     expect(stats.todayTodoCount).toBe(2)
   })

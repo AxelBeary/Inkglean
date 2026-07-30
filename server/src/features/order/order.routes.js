@@ -1,4 +1,5 @@
 import * as orderService from './order.service.js'
+import * as orderStatsService from './order-stats.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
@@ -301,7 +302,7 @@ export default async function orderRoutes(fastify) {
    * 注意：必须在 /api/artist/orders/:id 之前注册，避免被 :id 吞掉
    */
   fastify.get('/api/artist/orders/upcoming-deadlines', { preHandler: requireAuth }, async (request) => {
-    return orderService.getUpcomingDeadlines(request.artist.id)
+    return orderStatsService.getUpcomingDeadlines(request.artist.id)
   })
 
   /**
@@ -584,7 +585,7 @@ export default async function orderRoutes(fastify) {
    * GET /api/artist/stats
    */
   fastify.get('/api/artist/stats', { preHandler: requireAuth }, async (request) => {
-    return orderService.getArtistStats(request.artist.id)
+    return orderStatsService.getArtistStats(request.artist.id)
   })
 
   // ─── v0.11 R2: 最终价格修改 ───
