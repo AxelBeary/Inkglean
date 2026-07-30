@@ -94,6 +94,24 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     const code = artist.artist_code || artist.subdomain.toUpperCase()
     const orderNo = generateOrderNo(artistId, code)
 
+    // ─── SPEC-004: 名额分区 ───
+    let queueZone = 'formal'
+    if (artist.batch_limit != null) {
+      const formalCount = db.prepare(`
+        SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered', 'cancelled')
+      `).get(artistId).c
+      const bufferCount = db.prepare(`
+        SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND queue_zone = 'buffer' AND status NOT IN ('delivered', 'cancelled')
+      `).get(artistId).c
+      if (formalCount < artist.batch_limit) {
+        queueZone = 'formal'
+      } else if (bufferCount < (artist.buffer_limit ?? 0)) {
+        queueZone = 'buffer'
+      } else {
+        throw new AppError(E.BATCH_FULL)
+      }
+    }
+
     const maxPos = db.prepare(
       `SELECT MAX(queue_position) as max_pos FROM orders WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}`
     ).get(artistId)
@@ -116,8 +134,8 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     const quoteSnapshot = buildQuoteSnapshot(priceCalc)
 
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot, final_price_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot, final_price_cents, queue_zone)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       orderNo, artistId, tierId || null, clientQq, clientName || null,
       description || null, priority || 'medium', source || 'self',
@@ -127,7 +145,8 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       usageMultiplierId || null,
       rushMultiplierId || null,
       quoteSnapshot,
-      totalPriceCents // R3: 有价格计算时，最终价格初始 = 计算器总价
+      totalPriceCents, // R3: 有价格计算时，最终价格初始 = 计算器总价
+      queueZone
     )
 
     const orderId = result.lastInsertRowid
@@ -158,8 +177,8 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       })
     }
 
-    // ─── 生成分期计划 ───
-    if (priceCalc && priceCalc.installments.length > 0) {
+    // ─── 生成分期计划（SPEC-004: 缓冲订单不生成付款节点） ───
+    if (queueZone === 'formal' && priceCalc && priceCalc.installments.length > 0) {
       const insertInst = db.prepare(
         'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
       )
@@ -237,6 +256,8 @@ export function updateOrderStatus(orderId, newStatus) {
 
     if (['delivered', 'cancelled'].includes(newStatus)) {
       compactQueue(order.artist_id)
+      // SPEC-004: 正式区释放名额后尝试自动递补
+      tryAutoPromote(order.artist_id)
     }
 
     return getOrder(orderId)
@@ -565,4 +586,89 @@ export function deleteExtraItem(orderId, itemId) {
 
     return getOrder(orderId)
   })()
+}
+
+// ─── SPEC-004: 名额与缓冲系统 ───
+
+/**
+ * 为订单生成付款节点（递补时按报价快照生成）
+ * 从工作流模板的收款节点生成
+ */
+function generateInstallmentsForOrder(orderId) {
+  // 已有节点则跳过（幂等）
+  const existing = db.prepare('SELECT COUNT(*) as c FROM order_payment_installments WHERE order_id = ?').get(orderId).c
+  if (existing > 0) return
+
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId)
+  if (!order || !order.total_price_cents) return
+
+  const stages = db.prepare(
+    'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+  ).all(order.artist_id)
+  const paymentStages = stages.filter(s => s.takes_payment && s.basis_points)
+  if (paymentStages.length === 0) return
+
+  const insertInst = db.prepare(
+    'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
+  )
+  paymentStages.forEach((stage, i) => {
+    const amountCents = Math.round(order.total_price_cents * stage.basis_points / 10000)
+    insertInst.run(orderId, stage.name, stage.basis_points, amountCents, i)
+  })
+}
+
+/**
+ * 递补订单：buffer → formal
+ * 排到正式队列末尾 + 生成付款节点 + 系统备注
+ */
+export function promoteOrder(orderId) {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+  if (order.queue_zone !== 'buffer') throw new AppError(E.NOT_BUFFER_ORDER)
+  if (['delivered', 'cancelled'].includes(order.status)) throw new AppError(E.ORDER_FINAL_STATE)
+
+  return db.transaction(() => {
+    // 正式队列末尾
+    const maxPos = db.prepare(
+      `SELECT MAX(queue_position) as m FROM orders WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered', 'cancelled')`
+    ).get(order.artist_id)
+    const newPos = (maxPos?.m ?? 0) + 1
+
+    db.prepare("UPDATE orders SET queue_zone = 'formal', queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(newPos, orderId)
+
+    // 递补后生成付款节点（按下单时报价快照）
+    generateInstallmentsForOrder(orderId)
+
+    // 系统备注
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+      .run(orderId, '📋 从缓冲区递补到正式排期')
+
+    return getOrder(orderId)
+  })()
+}
+
+/**
+ * 自动递补（auto_promote=1 时，正式区空位后触发）
+ * 从缓冲区取最早一单递补，循环直到正式区满或缓冲区空
+ */
+export function tryAutoPromote(artistId) {
+  const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId)
+  if (!artist || !artist.auto_promote || artist.batch_limit == null) return
+
+  const N = artist.batch_limit
+  for (;;) {
+    const formalCount = db.prepare(`
+      SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered', 'cancelled')
+    `).get(artistId).c
+    if (formalCount >= N) break
+
+    const next = db.prepare(`
+      SELECT id FROM orders WHERE artist_id = ? AND queue_zone = 'buffer' AND status NOT IN ('delivered', 'cancelled')
+      ORDER BY queue_position ASC LIMIT 1
+    `).get(artistId)
+    if (!next) break
+
+    promoteOrder(next.id)
+  }
 }

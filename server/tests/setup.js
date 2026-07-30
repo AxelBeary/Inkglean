@@ -87,17 +87,19 @@ export function seedOrder(artistId, overrides = {}) {
     priority: 'medium',
     status: 'pending',
     source: 'self',
-    queue_position: 1
+    queue_position: 1,
+    queue_zone: 'formal'
   }
   const data = { ...defaults, ...overrides }
 
   const result = db.prepare(`
-    INSERT INTO orders (order_no, artist_id, client_qq, client_name, description, priority, status, source, queue_position)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO orders (order_no, artist_id, client_qq, client_name, description, priority, status, source, queue_position, queue_zone)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.order_no, artistId, data.client_qq,
     data.client_name || null, data.description || null,
-    data.priority, data.status, data.source, data.queue_position
+    data.priority, data.status, data.source, data.queue_position,
+    data.queue_zone
   )
 
   return db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid)

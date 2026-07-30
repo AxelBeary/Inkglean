@@ -60,7 +60,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id, fields) {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form']
   const updates = []
   const values = []
 
@@ -157,6 +157,25 @@ export function updateArtist(id, fields) {
         const cleaned = [...new Set(tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 20)
         updates.push('inspiration_tags = ?')
         values.push(JSON.stringify(cleaned))
+      } else if (key === 'batch_limit') {
+        // SPEC-004: 正式位 N — null=不限制，0=申请制，>0=限额
+        if (value !== null && (!Number.isInteger(value) || value < 0 || value > 999)) {
+          throw new AppError(E.INVALID_BATCH_LIMIT, 400, { value })
+        }
+        updates.push('batch_limit = ?')
+        values.push(value === null ? null : value)
+      } else if (key === 'buffer_limit') {
+        // SPEC-004: 缓冲位 M — 0~999
+        const bl = Number.isInteger(value) ? value : 0
+        if (bl < 0 || bl > 999) {
+          throw new AppError(E.INVALID_BATCH_LIMIT, 400, { value })
+        }
+        updates.push('buffer_limit = ?')
+        values.push(bl)
+      } else if (['auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form'].includes(key)) {
+        // SPEC-004: 布尔开关 — 强制转整数
+        updates.push(`${key} = ?`)
+        values.push(value ? 1 : 0)
       } else if (key === 'avatar') {
         // M-1 修复：头像路径校验 — 必须在 images/ 目录下，拒绝路径穿越
         if (value && (String(value).includes('..') || !String(value).startsWith('images/'))) {
@@ -354,4 +373,50 @@ export function getInspirationTags(artist) {
   } catch {
     return []
   }
+}
+
+// ============================================
+// SPEC-004: 名额与缓冲系统
+// ============================================
+
+/**
+ * 获取画师正式区/缓冲区在途订单数
+ */
+export function getZoneCounts(artistId) {
+  const formal = db.prepare(`
+    SELECT COUNT(*) as c FROM orders
+    WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered', 'cancelled')
+  `).get(artistId).c
+  const buffer = db.prepare(`
+    SELECT COUNT(*) as c FROM orders
+    WHERE artist_id = ? AND queue_zone = 'buffer' AND status NOT IN ('delivered', 'cancelled')
+  `).get(artistId).c
+  return { formal, buffer }
+}
+
+/**
+ * 计算客户主页名额显示文案（SPEC-004 §3）
+ * batch_limit=NULL → null（不启用名额系统，不显示）
+ */
+export function computeSlotDisplay(artist) {
+  if (artist.batch_limit == null) return null
+
+  const N = artist.batch_limit
+  const M = artist.buffer_limit ?? 0
+  const { formal, buffer } = getZoneCounts(artist.id)
+
+  if (artist.status === 'break') return '休息中'
+  if (artist.status === 'hidden') return null
+
+  if (artist.status === 'full') {
+    return formal > 0 ? '已接满' : '暂停接单'
+  }
+
+  // status = open
+  if (formal < N) {
+    const remaining = N - formal
+    return `开放中 · 剩 ${remaining} 席`
+  }
+  if (buffer < M) return '可候补'
+  return '已接满'
 }
