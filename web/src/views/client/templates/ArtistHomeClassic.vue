@@ -113,7 +113,7 @@ useScrollReveal(rootEl)
 
 .classic-body {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 40px;
   max-width: 1080px;
   margin: 0 auto;

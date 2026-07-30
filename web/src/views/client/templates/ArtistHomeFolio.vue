@@ -275,7 +275,7 @@ onUnmounted(() => {
 }
 .folio-title {
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: clamp(26px, 4vw, 32px);
   font-weight: 700;
   letter-spacing: -0.5px;
   text-align: center;
@@ -295,7 +295,7 @@ onUnmounted(() => {
 }
 .folio-cta-title {
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: clamp(30px, 5vw, 40px);
   font-weight: 700;
   letter-spacing: -1px;
   color: var(--pal-text);

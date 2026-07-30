@@ -218,7 +218,7 @@ defineExpose({ sentinelEl })
 }
 .tpl-hero-name--plaque {
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: clamp(30px, 5vw, 40px);
   font-weight: 700;
   color: var(--pal-text);
   margin: 0 0 8px;
@@ -234,7 +234,7 @@ defineExpose({ sentinelEl })
 /* ===== split（folio）===== */
 .tpl-hero--split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 48px;
   align-items: center;
   min-height: 82vh;
@@ -310,7 +310,7 @@ defineExpose({ sentinelEl })
     max-width: none;
   }
   .tpl-hero-name--plaque {
-    font-size: 30px;
+    font-size: clamp(24px, 6vw, 30px);
   }
 }
 </style>

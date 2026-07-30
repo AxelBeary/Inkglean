@@ -297,7 +297,9 @@ export default {
     // R55: example image drag-and-drop
     dropToUpload: 'Drop to upload', notImage: 'Only image files are supported', tooBig: 'Image exceeds the 10MB limit',
     overwriteTitle: 'Replace example image', overwriteConfirm: 'This tier already has an example image. The old image cannot be recovered after replacement. Continue?',
-    exampleUpdated: 'Example image updated'
+    exampleUpdated: 'Example image updated',
+    // R54: card layout empty state
+    empty: 'No tiers yet'
   },
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',

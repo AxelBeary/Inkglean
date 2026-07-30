@@ -104,7 +104,7 @@ onMounted(async () => {
   padding: 48px 16px 32px;
   position: relative;
 }
-.landing-header h1 { font-size: 32px; color: var(--text-primary); }
+.landing-header h1 { font-size: clamp(26px, 4vw, 32px); color: var(--text-primary); }
 .subtitle { color: var(--text-secondary); margin-top: 8px; font-size: 16px; }
 .header-prefs { position: absolute; top: 16px; right: 24px; }
 .landing-main {
