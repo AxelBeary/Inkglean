@@ -2,6 +2,7 @@ import * as orderService from './order.service.js'
 import * as orderStatsService from './order-stats.service.js'
 import * as orderQueueService from './order-queue.service.js'
 import * as orderGalleryService from './order-gallery.service.js'
+import * as orderWorkflowService from './order-workflow.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
@@ -157,7 +158,7 @@ export default async function orderRoutes(fastify) {
     const workflowStages = getWorkflow(order.artist_id)
 
     // R30d: 客户只显示当前节点名（不显示进度数字）
-    const stageInfo = orderService.getStageInfo(order)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
 
     // 只返回客户需要看到的信息
     return {
@@ -314,7 +315,7 @@ export default async function orderRoutes(fastify) {
    // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
    const order = signOrderUrls(request.order)
    // R30d: 附加流程进度信息
-   const stageInfo = orderService.getStageInfo(order)
+   const stageInfo = orderWorkflowService.getStageInfo(order)
    if (stageInfo) Object.assign(order, stageInfo)
    return order
 })
@@ -715,8 +716,8 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
-    const order = orderService.advanceStage(request.order.id, request.body.stageId)
-    const stageInfo = orderService.getStageInfo(order)
+    const order = orderWorkflowService.advanceStage(request.order.id, request.body.stageId)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
     if (stageInfo) Object.assign(order, stageInfo)
     return signOrderUrls(order)
   })
@@ -728,8 +729,8 @@ export default async function orderRoutes(fastify) {
   fastify.put('/api/artist/orders/:id/track-on', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request) => {
-    const order = orderService.enableTracking(request.order.id)
-    const stageInfo = orderService.getStageInfo(order)
+    const order = orderWorkflowService.enableTracking(request.order.id)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
     if (stageInfo) Object.assign(order, stageInfo)
     return signOrderUrls(order)
   })
@@ -751,8 +752,8 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
-    const order = orderService.rollbackStage(request.order.id, request.body.stageId)
-    const stageInfo = orderService.getStageInfo(order)
+    const order = orderWorkflowService.rollbackStage(request.order.id, request.body.stageId)
+    const stageInfo = orderWorkflowService.getStageInfo(order)
     if (stageInfo) Object.assign(order, stageInfo)
     return signOrderUrls(order)
   })

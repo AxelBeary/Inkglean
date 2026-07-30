@@ -4,6 +4,7 @@ import * as orderService from '../src/features/order/order.service.js'
 import * as orderStatsService from '../src/features/order/order-stats.service.js'
 import * as orderQueueService from '../src/features/order/order-queue.service.js'
 import * as orderGalleryService from '../src/features/order/order-gallery.service.js'
+import * as orderWorkflowService from '../src/features/order/order-workflow.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 
 describe('订单服务 (Order Service)', () => {
@@ -567,17 +568,17 @@ describe('订单服务 (Order Service)', () => {
     ).all(artist.id)
 
     // 推进到第 2 个节点（排期确认，收款节点）→ confirmed
-    const advanced = orderService.advanceStage(order.id, stages[1].id)
+    const advanced = orderWorkflowService.advanceStage(order.id, stages[1].id)
     expect(advanced.current_stage_id).toBe(stages[1].id)
     expect(advanced.status).toBe('confirmed')
 
     // 推进到第 3 个节点（草稿确认）→ wip
-    const advanced2 = orderService.advanceStage(order.id, stages[2].id)
+    const advanced2 = orderWorkflowService.advanceStage(order.id, stages[2].id)
     expect(advanced2.status).toBe('wip')
 
     // 推进到最后一个节点（交付）→ done
     const last = stages[stages.length - 1]
-    const advanced3 = orderService.advanceStage(order.id, last.id)
+    const advanced3 = orderWorkflowService.advanceStage(order.id, last.id)
     expect(advanced3.status).toBe('done')
     expect(advanced3.completed_at).not.toBeNull()
   })
@@ -591,11 +592,11 @@ describe('订单服务 (Order Service)', () => {
     ).all(artist.id)
 
     // 先推进到第 3 个
-    orderService.advanceStage(order.id, stages[2].id)
+    orderWorkflowService.advanceStage(order.id, stages[2].id)
 
     // 尝试回到第 1 个 → 拒绝
     expect(() => {
-      orderService.advanceStage(order.id, stages[0].id)
+      orderWorkflowService.advanceStage(order.id, stages[0].id)
     }).toThrow('INVALID_TRANSITION')
   })
 
@@ -608,10 +609,10 @@ describe('订单服务 (Order Service)', () => {
     ).all(artist.id)
 
     // 推进到第 4 个（线稿确认）
-    orderService.advanceStage(order.id, stages[3].id)
+    orderWorkflowService.advanceStage(order.id, stages[3].id)
 
     // 打回到第 2 个（排期确认）
-    const rolledBack = orderService.rollbackStage(order.id, stages[1].id)
+    const rolledBack = orderWorkflowService.rollbackStage(order.id, stages[1].id)
     expect(rolledBack.current_stage_id).toBe(stages[1].id)
     expect(rolledBack.status).toBe('revision')
 
@@ -631,7 +632,7 @@ describe('订单服务 (Order Service)', () => {
 
     // 当前在第 1 个，尝试"打回"到第 3 个 → 拒绝
     expect(() => {
-      orderService.rollbackStage(order.id, stages[2].id)
+      orderWorkflowService.rollbackStage(order.id, stages[2].id)
     }).toThrow('INVALID_TRANSITION')
   })
 
@@ -641,7 +642,7 @@ describe('订单服务 (Order Service)', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
     expect(order.current_stage_id).not.toBeNull()
 
-    const disabled = orderService.advanceStage(order.id, null)
+    const disabled = orderWorkflowService.advanceStage(order.id, null)
     expect(disabled.current_stage_id).toBeNull()
   })
 
@@ -649,7 +650,7 @@ describe('订单服务 (Order Service)', () => {
   it('TC-O-38: getStageInfo 返回节点名和进度', () => {
     seedArtistStages(artist.id)
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    const info = orderService.getStageInfo(order)
+    const info = orderWorkflowService.getStageInfo(order)
 
     expect(info.currentStageName).toBe('定稿')
     expect(info.stageProgress.current).toBe(1)
@@ -660,9 +661,9 @@ describe('订单服务 (Order Service)', () => {
   it('TC-O-38b: getStageInfo 无 current_stage_id 返回 null', () => {
     seedArtistStages(artist.id)
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.advanceStage(order.id, null) // 关闭
+    orderWorkflowService.advanceStage(order.id, null) // 关闭
     const fresh = orderService.getOrder(order.id)
-    expect(orderService.getStageInfo(fresh)).toBeNull()
+    expect(orderWorkflowService.getStageInfo(fresh)).toBeNull()
   })
 
   // TC-O-39: 迁移 v14 幂等
@@ -691,7 +692,7 @@ describe('订单服务 (Order Service)', () => {
     // 后建工作流
     seedArtistStages(artist.id)
 
-    const tracked = orderService.enableTracking(order.id)
+    const tracked = orderWorkflowService.enableTracking(order.id)
     const firstStage = db.prepare(
       'SELECT id FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC LIMIT 1'
     ).get(artist.id)
@@ -707,7 +708,7 @@ describe('订单服务 (Order Service)', () => {
     // createOrder 自动接入工作流，current_stage_id 非 null
     expect(order.current_stage_id).not.toBeNull()
 
-    expect(() => orderService.enableTracking(order.id)).toThrow('TRACK_ALREADY_ON')
+    expect(() => orderWorkflowService.enableTracking(order.id)).toThrow('TRACK_ALREADY_ON')
   })
 
   // TC-O-42: enableTracking 无工作流模板 → 400
@@ -715,7 +716,7 @@ describe('订单服务 (Order Service)', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
     expect(order.current_stage_id).toBeNull()
 
-    expect(() => orderService.enableTracking(order.id)).toThrow('NO_WORKFLOW_TEMPLATE')
+    expect(() => orderWorkflowService.enableTracking(order.id)).toThrow('NO_WORKFLOW_TEMPLATE')
   })
 
   // ─── v0.15 R46: 备注删除 ───
