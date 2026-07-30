@@ -59,14 +59,14 @@ function relativeTime(isoStr) {
   return new Date(isoStr).toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US')
 }
 
-/** 归一化后端返回（字段名按验收标准推断，兼容多种命名） */
+/** 归一化后端返回（已对齐三号 dashboard.service.js：content 字段） */
 function normalize(raw) {
   const list = raw?.items || raw?.activities || raw || []
   items.value = (Array.isArray(list) ? list : []).slice(0, 10).map(a => ({
     id: a.id,
     orderId: a.orderId ?? a.order_id ?? null,
     orderNo: a.orderNo ?? a.order_no ?? '',
-    description: a.description ?? a.text ?? a.event ?? '',
+    description: a.content ?? a.description ?? a.text ?? a.event ?? '',
     createdAt: a.createdAt ?? a.created_at ?? null
   }))
 }
