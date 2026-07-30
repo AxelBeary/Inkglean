@@ -30,7 +30,8 @@
           <!-- 展开态：完整身份区 -->
           <template v-if="!collapsed">
             <div class="identity">
-              <div class="avatar" :style="{ background: accentColor }">
+              <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar--img" alt="" />
+              <div v-else class="avatar" :style="{ background: accentColor }">
                 {{ avatarChar }}
               </div>
               <div class="identity-info">
@@ -63,7 +64,8 @@
                   </el-button>
                 </div>
               </template>
-              <div class="avatar avatar--mini" :style="{ background: accentColor }">
+              <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar--img avatar--mini" alt="" />
+              <div v-else class="avatar avatar--mini" :style="{ background: accentColor }">
                 {{ avatarChar }}
               </div>
             </el-tooltip>
@@ -102,7 +104,8 @@
       </el-menu>
       <div class="drawer-footer">
         <div class="identity">
-          <div class="avatar" :style="{ background: accentColor }">{{ avatarChar }}</div>
+          <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar--img" alt="" />
+          <div v-else class="avatar" :style="{ background: accentColor }">{{ avatarChar }}</div>
           <div class="identity-info">
             <span class="identity-name">{{ store.artistName }}</span>
             <span class="identity-status">
@@ -198,6 +201,8 @@ const ACCENT_COLORS = { '1': '#34dbcb', '2': '#34c2db', '3': '#3498db', '4': '#3
 const accentColor = computed(() => ACCENT_COLORS[themeStore.accent] || '#34dbcb')
 
 const avatarChar = computed(() => (store.artistName || '?')[0].toUpperCase())
+/** 画师上传头像优先显示，未设置时回退文字头像 */
+const avatarUrl = computed(() => store.profile?.avatar ? `/uploads/${store.profile.avatar}` : '')
 
 const statusClass = computed(() => {
   const s = store.profile?.status || 'open'
@@ -322,6 +327,7 @@ function logout() {
 /* R21: 折叠态头像（可悬停查看身份） */
 .avatar--mini { cursor: pointer; transition: transform 0.15s; }
 .avatar--mini:hover { transform: scale(1.1); }
+.avatar--img { object-fit: cover; }
 .identity-tooltip {
   display: flex; flex-direction: column;
   align-items: flex-start; gap: 6px;
