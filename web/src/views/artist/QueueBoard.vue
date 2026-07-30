@@ -295,7 +295,12 @@ function onFocusDragLeave(e, order) {
 async function handleFocusDrop(event, order) {
   focusDragId.value = null
   const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
-  if (file) await uploadAndSetFocus(file, order)
+  if (file) {
+    await uploadAndSetFocus(file, order)
+  } else if (event.dataTransfer.files.length > 0) {
+    // BUG-2 补充：拖入非图片时提示，不再静默丢弃
+    ElMessage.error(t('orderDetail.galleryNotImage'))
+  }
 }
 
 /** 上传图片 → 设为该订单焦点图（复用 reference 上传 + setFocusImage 接口） */
@@ -433,11 +438,12 @@ onMounted(() => {
 .item-desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 /* 焦点图区域：大图 160×120，左图右文 */
 .focus-area { flex-shrink: 0; }
-.focus-large-img { width: 160px; height: 120px; border-radius: 8px; display: block; }
+.focus-large-img { width: 160px; height: 120px; border-radius: 8px; display: block; background: var(--bg-card); }
 /* R53: 已有焦点图替换（点击选文件 / 拖拽替换，不需要确认弹窗——旧图保留在图库） */
 .focus-img-wrap {
   position: relative; width: 160px; height: 120px;
   border-radius: 8px; overflow: hidden; cursor: pointer;
+  background: var(--bg-card);
   transition: box-shadow 0.15s;
 }
 .focus-img-wrap:hover { box-shadow: 0 0 0 2px var(--el-color-primary-light-5); }
