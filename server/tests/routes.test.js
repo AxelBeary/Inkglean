@@ -507,6 +507,35 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.statusCode).toBe(200)
       expect(res.json().status).toBe('hidden')
     })
+
+    // P1-1 审计修复：hidden 画师不出现在公开接口
+    it('TC-RT-16e: hidden 画师不出现在 /api/artists 列表', async () => {
+      seedArtist({ qq_number: '77781', subdomain: 'hidden-list' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE qq_number = '77781'").run()
+      seedArtist({ qq_number: '77782', subdomain: 'visible-list' })
+
+      const res = await app.inject({ method: 'GET', url: '/api/artists' })
+      expect(res.statusCode).toBe(200)
+      const list = res.json()
+      expect(list.some(a => a.subdomain === 'hidden-list')).toBe(false)
+      expect(list.some(a => a.subdomain === 'visible-list')).toBe(true)
+    })
+
+    it('TC-RT-16f: hidden 画师公开流程返回 404', async () => {
+      const artist = seedArtist({ qq_number: '77783', subdomain: 'hidden-wf' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+
+      const res = await app.inject({ method: 'GET', url: '/api/artists/hidden-wf/workflow' })
+      expect(res.statusCode).toBe(404)
+    })
+
+    it('TC-RT-16g: hidden 画师公开报价返回 404', async () => {
+      const artist = seedArtist({ qq_number: '77784', subdomain: 'hidden-price' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+
+      const res = await app.inject({ method: 'GET', url: '/api/public/pricing/hidden-price' })
+      expect(res.statusCode).toBe(404)
+    })
   })
 
   // ─── v0.14: 启用流程跟踪 ───
