@@ -135,6 +135,17 @@ CREATE TABLE IF NOT EXISTS deliverables (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
+-- 订单附加工作项表（SPEC-003）
+CREATE TABLE IF NOT EXISTS order_extra_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  price_cents INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
 -- 登录码表（临时）
 -- P0-4 修复：expires_at 实际存储 Unix 毫秒整数（auth.service.js），列类型从 DATETIME 改为 INTEGER 保持一致
 CREATE TABLE IF NOT EXISTS login_codes (
@@ -176,6 +187,7 @@ CREATE INDEX IF NOT EXISTS idx_order_notes_order ON order_notes(order_id);
 CREATE INDEX IF NOT EXISTS idx_artworks_artist ON artworks(artist_id);
 CREATE INDEX IF NOT EXISTS idx_price_tiers_artist ON price_tiers(artist_id);
 CREATE INDEX IF NOT EXISTS idx_artists_qq ON artists(qq_number);
+CREATE INDEX IF NOT EXISTS idx_extra_items_order ON order_extra_items(order_id);
 `
 
 /**
@@ -625,6 +637,36 @@ const MIGRATIONS = [
       if (!cols.some(c => c.name === 'inspiration_tags')) {
         database.exec('ALTER TABLE artists ADD COLUMN inspiration_tags TEXT DEFAULT NULL')
       }
+    }
+  },
+  {
+    version: 18,
+    name: 'order_extra_items',
+    up(database) {
+      // SPEC-003: 订单附加工作项（下单后追加需求）
+      // 迁移前自动备份（恢复 v11/v12 模式，五号审计建议）
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v18`)
+          console.log(`📦 迁移 v18: 已备份 ${dbPath} → ${dbPath}.bak.v18`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v18: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+      // 纯新表，无 ALTER TABLE，无存量数据影响
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS order_extra_items (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id     INTEGER NOT NULL,
+          name         TEXT    NOT NULL,
+          description  TEXT,
+          price_cents  INTEGER NOT NULL DEFAULT 0,
+          created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+        )
+      `)
+      database.exec('CREATE INDEX IF NOT EXISTS idx_extra_items_order ON order_extra_items(order_id)')
     }
   }
 ]

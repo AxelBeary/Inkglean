@@ -176,6 +176,13 @@ export default async function orderRoutes(fastify) {
         fileName: d.original_name,
         url: signedUrl(d.file_path)
       })),
+      // SPEC-003 §5.5: 客户可见附加项（仅 name + priceCents）+ 最终价格 + 付款节点
+      extraItems: (order.extraItems || []).map(item => ({
+        name: item.name,
+        priceCents: item.price_cents
+      })),
+      finalPriceCents: order.final_price_cents ?? null,
+      installments: orderService.getOrderInstallments(order.id),
       createdAt: order.created_at,
       updatedAt: order.updated_at
     }
@@ -756,5 +763,42 @@ export default async function orderRoutes(fastify) {
     const stageInfo = orderWorkflowService.getStageInfo(order)
     if (stageInfo) Object.assign(order, stageInfo)
     return signOrderUrls(order)
+  })
+
+  // ─── SPEC-003: 附加工作项 ───
+
+  /**
+   * POST /api/artist/orders/:id/extra-items
+   * 添加附加工作项（终态拒绝 + 上限 20）
+   */
+  fastify.post('/api/artist/orders/:id/extra-items', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 100 },
+          description: { type: ['string', 'null'], maxLength: 500 },
+          priceCents: { type: 'integer', minimum: 0, maximum: 99999999 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    const { name, description, priceCents } = request.body
+    return signOrderUrls(orderService.addExtraItem(request.order.id, { name, description, priceCents }))
+  })
+
+  /**
+   * DELETE /api/artist/orders/:id/extra-items/:itemId
+   * 删除附加工作项（归属校验）
+   */
+  fastify.delete('/api/artist/orders/:id/extra-items/:itemId', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request) => {
+    const itemId = parseInt(request.params.itemId, 10)
+    if (isNaN(itemId)) throw new AppError(E.ORDER_INVALID_ID)
+    return signOrderUrls(orderService.deleteExtraItem(request.order.id, itemId))
   })
 }

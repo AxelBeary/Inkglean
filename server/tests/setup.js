@@ -36,6 +36,8 @@ export function cleanDb() {
     DELETE FROM order_notes;
     DELETE FROM order_references;
     DELETE FROM order_price_breakdown;
+    DELETE FROM order_extra_items;
+    DELETE FROM order_payment_installments;
     DELETE FROM orders;
     DELETE FROM addon_tiers;
     DELETE FROM price_addons;
@@ -43,6 +45,8 @@ export function cleanDb() {
     DELETE FROM commission_rules;
     DELETE FROM artworks;
     DELETE FROM price_tiers;
+    DELETE FROM artist_workflow_stages;
+    DELETE FROM greeting_templates;
     DELETE FROM artists;
   `)
 }

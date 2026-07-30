@@ -194,6 +194,8 @@ export function getOrder(orderId, { clientOnly = false } = {}) {
   }
   order.notes = db.prepare('SELECT * FROM order_notes WHERE order_id = ? ORDER BY created_at ASC').all(orderId)
   order.deliverables = db.prepare('SELECT * FROM deliverables WHERE order_id = ?').all(orderId)
+  // SPEC-003: 附加工作项
+  order.extraItems = db.prepare('SELECT * FROM order_extra_items WHERE order_id = ? ORDER BY created_at ASC').all(orderId)
 
   return order
 }
@@ -422,6 +424,144 @@ export function updateFinalPrice(orderId, finalPriceCents, quoteSnapshot) {
     const newStr = `¥${(finalPriceCents / 100).toFixed(2)}`
     db.prepare('INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, ?)')
       .run(orderId, `最终价格从 ${oldStr} 改为 ${newStr}`, 'system')
+
+    return getOrder(orderId)
+  })()
+}
+
+// ─── SPEC-003: 附加工作项 ───
+
+/**
+ * 获取订单付款节点（客户进度页用）
+ * 返回：[{name, amountCents, paid}]
+ */
+export function getOrderInstallments(orderId) {
+  return db.prepare(
+    'SELECT label as name, amount_cents as amountCents, status FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+  ).all(orderId).map(i => ({ name: i.name, amountCents: i.amountCents, paid: i.status === 'paid' }))
+}
+
+/**
+ * 重算订单最终价格
+ * final_price_cents = total_price_cents + Σ(extra_items.price_cents)
+ * 无 total_price_cents 时从 0 起算
+ */
+function recalcFinalPrice(orderId) {
+  const order = db.prepare('SELECT total_price_cents FROM orders WHERE id = ?').get(orderId)
+  const base = order?.total_price_cents ?? 0
+  const sum = db.prepare('SELECT COALESCE(SUM(price_cents), 0) as s FROM order_extra_items WHERE order_id = ?').get(orderId).s
+  const finalCents = base + sum
+  db.prepare('UPDATE orders SET final_price_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(finalCents, orderId)
+  return finalCents
+}
+
+/**
+ * 附加项金额变动计入最后一个未付节点（SPEC-003 §3.5）
+ * deltaCents: 正数=增加，负数=减少
+ * 所有节点已付 → 不影响节点，返回 'all_paid'
+ * 无节点 → 不影响，返回 'no_installments'
+ */
+function adjustInstallments(orderId, deltaCents) {
+  if (deltaCents === 0) return 'zero_delta'
+
+  const installments = db.prepare(
+    'SELECT * FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+  ).all(orderId)
+
+  if (installments.length === 0) return 'no_installments'
+
+  // 找最后一个未付节点
+  const unpaid = installments.filter(i => i.status !== 'paid')
+  if (unpaid.length === 0) return 'all_paid'
+
+  const lastUnpaid = unpaid[unpaid.length - 1]
+  const newAmount = (lastUnpaid.amount_cents || 0) + deltaCents
+  // 金额不能为负（极端情况：删除附加项超过节点金额）→ 兜底 0
+  db.prepare('UPDATE order_payment_installments SET amount_cents = ? WHERE id = ?')
+    .run(Math.max(0, newAmount), lastUnpaid.id)
+
+  return 'adjusted'
+}
+
+/**
+ * 金额格式化（分 → 元字符串，用于系统备注）
+ */
+function formatCents(cents) {
+  return `¥${(cents / 100).toFixed(2)}`
+}
+
+/**
+ * 添加附加工作项
+ * 校验：终态拒绝 + 数量上限 20
+ * 事务：插入 → 重算 final_price → 调整节点 → 系统备注
+ */
+export function addExtraItem(orderId, { name, description, priceCents }) {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  // 终态拒绝
+  if (['delivered', 'cancelled'].includes(order.status)) {
+    throw new AppError(E.ORDER_FINAL_STATE)
+  }
+
+  // 数量上限
+  const count = db.prepare('SELECT COUNT(*) as c FROM order_extra_items WHERE order_id = ?').get(orderId).c
+  if (count >= 20) {
+    throw new AppError(E.EXTRA_ITEM_LIMIT)
+  }
+
+  const cents = priceCents ?? 0
+
+  return db.transaction(() => {
+    db.prepare('INSERT INTO order_extra_items (order_id, name, description, price_cents) VALUES (?, ?, ?, ?)')
+      .run(orderId, name, description || null, cents)
+
+    // 重算最终价格
+    recalcFinalPrice(orderId)
+
+    // 调整付款节点
+    const result = adjustInstallments(orderId, cents)
+
+    // 系统备注
+    const priceStr = cents > 0 ? `+${formatCents(cents)}` : '（不计费）'
+    let noteContent = `📎 附加工作项「${name}」${priceStr}`
+    if (result === 'all_paid') {
+      noteContent += '（已付清订单追加，线下结算）'
+    }
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+      .run(orderId, noteContent)
+
+    return getOrder(orderId)
+  })()
+}
+
+/**
+ * 删除附加工作项
+ * 校验：归属（item.order_id === orderId）
+ * 事务：删除 → 重算 final_price → 调整节点 → 系统备注
+ */
+export function deleteExtraItem(orderId, itemId) {
+  const item = db.prepare('SELECT * FROM order_extra_items WHERE id = ? AND order_id = ?').get(itemId, orderId)
+  if (!item) throw new AppError(E.NOT_FOUND, 404)
+
+  return db.transaction(() => {
+    db.prepare('DELETE FROM order_extra_items WHERE id = ?').run(itemId)
+
+    // 重算最终价格
+    recalcFinalPrice(orderId)
+
+    // 调整付款节点（负向）
+    const result = adjustInstallments(orderId, -item.price_cents)
+
+    // 系统备注
+    const priceStr = item.price_cents > 0 ? `-${formatCents(item.price_cents)}` : '（不计费）'
+    let noteContent = `📎 移除附加工作项「${item.name}」${priceStr}`
+    if (result === 'all_paid') {
+      noteContent += '（已付清订单移除，线下结算）'
+    }
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+      .run(orderId, noteContent)
 
     return getOrder(orderId)
   })()
