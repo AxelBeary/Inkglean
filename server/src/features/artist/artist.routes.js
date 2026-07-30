@@ -429,4 +429,8 @@ export default async function artistRoutes(fastify) {
     if (!artist || artist.qq_number === getAdminQq()) return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }
   })
+
+  // ─── 仪表盘（v0.18 第二批） ───
+  const dashboardRoutes = await import('./dashboard.routes.js')
+  await fastify.register(dashboardRoutes)
 }
