@@ -301,7 +301,12 @@ export default {
     // R51: 截稿日
     colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新',
     // R58-6: QQ 跳转 + 复制
-    jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制'
+    jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
+    // plan-node-speech：客户沟通小块
+    commTitle: '客户沟通', commQq: 'QQ:',
+    commPriceSummary: '价格小结：总价{total} / 已付{paid} / 待付{unpaid}',
+    commCopyBtn: '复制文案并唤起QQ', commCopied: '已复制节点文案，正在唤起QQ',
+    commNoQq: '未设置客户QQ', commNoStage: '该订单未接入流程节点，暂无话术', commNoSpeech: '当前节点暂无话术'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
@@ -431,6 +436,9 @@ export default {
     dragHandle: '拖拽调整比例', minPercent: '比例不能低于 5%', finalTooLow: '尾款比例不足，无法分配',
     reset: '恢复默认模板', resetConfirm: '确定恢复默认模板？你当前的所有自定义节点和比例将被覆盖，此操作无法撤销。', resetDone: '已恢复默认模板',
     descPlaceholder: '点击添加说明',
+    // plan-node-speech：节点话术（{客户名}等为后端变量契约，中英文界面均保持中文原文）
+    speechLabel: '话术', speechPlaceholder: '{客户名}，你的订单已{节点名}。',
+    speechSave: '保存话术', speechSaved: '话术已保存', speechVarHint: '点击插入变量',
     helpBtn: '使用说明', helpTitle: '流程与比例使用说明',
     helpLines: [
       '每个节点代表约稿的一个阶段，客户会按顺序看到你的进度。',

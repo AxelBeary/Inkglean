@@ -297,6 +297,35 @@
         <p v-if="order.extraItems?.length" class="extra-auto-hint">💡 {{ $t('orderDetail.extraAutoHint') }}</p>
       </el-card>
 
+      <!-- plan-node-speech：客户沟通（QQ + 价格小结 + 话术预览 + 复制唤起QQ） -->
+      <el-card style="margin-top: 16px">
+        <template #header>
+          <div class="card-header">
+            <span>💬 {{ $t('orderDetail.commTitle') }}</span>
+          </div>
+        </template>
+        <div class="comm-body">
+          <div class="comm-row">
+            <span class="comm-label">{{ $t('orderDetail.commQq') }}</span>
+            <span class="comm-value">{{ order.client_qq || '—' }}</span>
+          </div>
+          <div class="comm-row">
+            <span class="comm-label">{{ $t('orderDetail.commPriceSummary', { total: commTotal, paid: commPaid, unpaid: commUnpaid }) }}</span>
+          </div>
+          <div class="comm-speech">
+            <span class="comm-speech-text">{{ commSpeechText }}</span>
+          </div>
+          <el-button
+            type="primary" class="comm-copy-btn"
+            :disabled="!order.client_qq || !order.speechText"
+            :loading="commCopying"
+            @click="copySpeechAndOpenQq"
+          >
+            {{ !order.client_qq ? $t('orderDetail.commNoQq') : $t('orderDetail.commCopyBtn') }}
+          </el-button>
+        </div>
+      </el-card>
+
       <!-- 交付文件 -->
       <el-card style="margin-top: 16px" v-if="order.deliverables?.length">
         <template #header>{{ $t('orderDetail.deliverFiles') }}</template>
@@ -844,6 +873,69 @@ async function deleteReference(reference) {
   }
 }
 
+// ─── plan-node-speech：客户沟通小块 ───
+const commCopying = ref(false)
+
+/** 价格小结（后端返回优先；缺失时从 installments 本地计算兜底） */
+const commTotal = computed(() => {
+  const o = order.value
+  if (!o) return '—'
+  if (o.totalPriceCents != null) return `¥${formatCents(o.totalPriceCents)}`
+  if (o.final_price_cents != null) return `¥${formatCents(o.final_price_cents)}`
+  return '—'
+})
+const commPaid = computed(() => {
+  const o = order.value
+  if (!o) return '—'
+  if (o.paidCents != null) return `¥${formatCents(o.paidCents)}`
+  // 兜底：从 installments 累加已付
+  if (o.installments?.length) {
+    const sum = o.installments.filter(i => i.paid).reduce((acc, i) => acc + (i.amountCents || 0), 0)
+    return `¥${formatCents(sum)}`
+  }
+  return '—'
+})
+const commUnpaid = computed(() => {
+  const o = order.value
+  if (!o) return '—'
+  if (o.unpaidCents != null) return `¥${formatCents(o.unpaidCents)}`
+  // 兜底：总价 - 已付
+  const total = o.totalPriceCents ?? o.final_price_cents
+  if (total != null && o.installments?.length) {
+    const paid = o.installments.filter(i => i.paid).reduce((acc, i) => acc + (i.amountCents || 0), 0)
+    return `¥${formatCents(total - paid)}`
+  }
+  return '—'
+})
+
+/** 话术预览（后端已替换变量；无当前节点话术时提示） */
+const commSpeechText = computed(() => {
+  const o = order.value
+  if (!o) return ''
+  if (o.speechText) return o.speechText
+  if (o.currentStageId == null) return t('orderDetail.commNoStage')
+  return t('orderDetail.commNoSpeech')
+})
+
+/** 复制话术 + 1 秒后唤起 QQ */
+async function copySpeechAndOpenQq() {
+  const o = order.value
+  if (!o?.client_qq || !o?.speechText) return
+  commCopying.value = true
+  try {
+    await navigator.clipboard.writeText(o.speechText)
+    ElMessage.success(t('orderDetail.commCopied'))
+    setTimeout(() => {
+      window.open(`tencent://message/?uin=${encodeURIComponent(o.client_qq)}`, '_self')
+    }, 1000)
+  } catch {
+    // 剪贴板不可用时降级：展示话术文本供手动复制
+    ElMessage.warning(o.speechText)
+  } finally {
+    commCopying.value = false
+  }
+}
+
 function handleDeliverFile(file) {
   // P2-12: 前端校验文件类型和大小
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
@@ -1150,4 +1242,21 @@ onMounted(() => {
 .extra-total { font-size: 13px; color: var(--text-secondary); }
 .extra-total strong { color: var(--text-primary); }
 .extra-auto-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+
+/* ─── plan-node-speech：客户沟通 ─── */
+.comm-body { display: flex; flex-direction: column; gap: 10px; }
+.comm-row { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.comm-label { color: var(--text-secondary); flex-shrink: 0; }
+.comm-value { color: var(--text-primary); font-weight: 600; }
+.comm-speech {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
+  border-left: 3px solid var(--el-color-primary);
+}
+.comm-speech-text {
+  font-size: 14px; line-height: 1.7; color: var(--text-primary);
+  white-space: pre-wrap; word-break: break-word;
+}
+.comm-copy-btn { align-self: flex-start; }
 </style>

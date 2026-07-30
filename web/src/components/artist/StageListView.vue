@@ -2,54 +2,84 @@
   <div class="stage-list">
     <draggable v-model="localStages" item-key="id" handle=".drag-handle" @end="onDragEnd">
       <template #item="{ element: s }">
-        <div class="stage-row" :class="{ 'is-final': s.isFinal }">
-          <span v-if="!readonly" class="drag-handle" title="拖拽排序">⠿</span>
+        <div class="stage-item">
+          <div class="stage-row" :class="{ 'is-final': s.isFinal }">
+            <span v-if="!readonly" class="drag-handle" title="拖拽排序">⠿</span>
 
-          <!-- 名称（点击内联编辑） -->
-          <span v-if="editingId !== s.id" class="stage-name" @click="startEdit(s)">{{ s.name }}</span>
-          <el-input
-            v-else v-model="editName" size="small" class="name-input"
-            @keyup.enter="commitEdit(s)" @blur="commitEdit(s)" ref="editInput"
-          />
-
-          <!-- 说明（点击编辑，始终占位保证对齐） -->
-          <span
-            v-if="descEditId !== s.id" class="stage-desc" :class="{ empty: !s.description && !readonly }"
-            @click="!readonly && startDescEdit(s)"
-          >
-            {{ s.description || (readonly ? '' : $t('workflow.descPlaceholder')) }}
-          </span>
-          <el-input
-            v-else v-model="descEditVal" size="small" class="desc-input"
-            :placeholder="$t('workflow.descPlaceholder')"
-            @keyup.enter="commitDescEdit(s)" @blur="commitDescEdit(s)" ref="descInput"
-          />
-
-          <!-- 收款区（固定宽度，右对齐） -->
-          <div class="stage-pay">
-            <span v-if="s.takesPayment" class="pay-badge" :class="{ auto: s.isFinal }">
-              {{ s.isFinal ? $t('workflow.auto') : (s.basisPoints / 100).toFixed(1).replace(/\.0$/, '') + '%' }}
-            </span>
-            <span v-else class="pay-badge ghost">—</span>
-            <el-switch
-              v-model="s.takesPayment" size="small"
-              :disabled="s.isFinal || readonly"
-              @change="(val) => onTogglePay(s, val)"
+            <!-- 名称（点击内联编辑） -->
+            <span v-if="editingId !== s.id" class="stage-name" @click="startEdit(s)">{{ s.name }}</span>
+            <el-input
+              v-else v-model="editName" size="small" class="name-input"
+              @keyup.enter="commitEdit(s)" @blur="commitEdit(s)" ref="editInput"
             />
+
+            <!-- 说明（点击编辑，始终占位保证对齐） -->
+            <span
+              v-if="descEditId !== s.id" class="stage-desc" :class="{ empty: !s.description && !readonly }"
+              @click="!readonly && startDescEdit(s)"
+            >
+              {{ s.description || (readonly ? '' : $t('workflow.descPlaceholder')) }}
+            </span>
+            <el-input
+              v-else v-model="descEditVal" size="small" class="desc-input"
+              :placeholder="$t('workflow.descPlaceholder')"
+              @keyup.enter="commitDescEdit(s)" @blur="commitDescEdit(s)" ref="descInput"
+            />
+
+            <!-- 收款区（固定宽度，右对齐） -->
+            <div class="stage-pay">
+              <span v-if="s.takesPayment" class="pay-badge" :class="{ auto: s.isFinal }">
+                {{ s.isFinal ? $t('workflow.auto') : (s.basisPoints / 100).toFixed(1).replace(/\.0$/, '') + '%' }}
+              </span>
+              <span v-else class="pay-badge ghost">—</span>
+              <el-switch
+                v-model="s.takesPayment" size="small"
+                :disabled="s.isFinal || readonly"
+                @change="(val) => onTogglePay(s, val)"
+              />
+            </div>
+
+            <!-- 操作区（固定宽度） -->
+            <div class="stage-actions">
+              <el-popconfirm
+                v-if="!s.isFinal && !readonly"
+                :title="s.takesPayment ? $t('workflow.deletePayHint', { pct: (s.basisPoints / 100).toFixed(1).replace(/\.0$/, '') }) : $t('workflow.deleteHint')"
+                @confirm="$emit('delete', s.id)"
+              >
+                <template #reference>
+                  <el-button text size="small" type="danger" class="del-btn">✕</el-button>
+                </template>
+              </el-popconfirm>
+              <el-tag v-else-if="s.isFinal" size="small" type="warning" effect="plain">{{ $t('workflow.final') }}</el-tag>
+            </div>
           </div>
 
-          <!-- 操作区（固定宽度） -->
-          <div class="stage-actions">
-            <el-popconfirm
-              v-if="!s.isFinal && !readonly"
-              :title="s.takesPayment ? $t('workflow.deletePayHint', { pct: (s.basisPoints / 100).toFixed(1).replace(/\.0$/, '') }) : $t('workflow.deleteHint')"
-              @confirm="$emit('delete', s.id)"
-            >
-              <template #reference>
-                <el-button text size="small" type="danger" class="del-btn">✕</el-button>
-              </template>
-            </el-popconfirm>
-            <el-tag v-else-if="s.isFinal" size="small" type="warning" effect="plain">{{ $t('workflow.final') }}</el-tag>
+          <!-- plan-node-speech：话术编辑区（变量标签 + 输入框 + 保存） -->
+          <div v-if="!readonly" class="stage-speech">
+            <div class="speech-vars">
+              <span class="speech-vars-label">💬 {{ $t('workflow.speechLabel') }}</span>
+              <button
+                v-for="v in SPEECH_VARS" :key="v" type="button" class="speech-var"
+                :title="$t('workflow.speechVarHint')"
+                @click="insertSpeechVar(s, v)"
+              >
+                {{ v }}
+              </button>
+            </div>
+            <div class="speech-editor">
+              <el-input
+                v-model="s.speechTemplate" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }"
+                :placeholder="$t('workflow.speechPlaceholder')" maxlength="500" show-word-limit
+                :ref="(el) => setSpeechRef(s.id, el)"
+                @input="speechDirtyId = s.id"
+              />
+              <el-button
+                v-if="speechDirtyId === s.id" size="small" type="primary" class="speech-save"
+                @click="commitSpeech(s)"
+              >
+                {{ $t('workflow.speechSave') }}
+              </el-button>
+            </div>
           </div>
         </div>
       </template>
@@ -71,10 +101,47 @@ import { ref, watch, nextTick } from 'vue'
 import draggable from 'vuedraggable'
 
 const props = defineProps({ stages: { type: Array, default: () => [] }, readonly: { type: Boolean, default: false } })
-const emit = defineEmits(['reorder', 'add', 'rename', 'updateDesc', 'togglePay', 'delete'])
+const emit = defineEmits(['reorder', 'add', 'rename', 'updateDesc', 'togglePay', 'delete', 'updateSpeech'])
 
 const localStages = ref([...props.stages])
 watch(() => props.stages, (v) => { localStages.value = [...v] }, { deep: true })
+
+// ─── plan-node-speech：话术编辑 ───
+/** 变量标签列表（后端契约，中英文界面均保持中文原文） */
+const SPEECH_VARS = ['{客户名}', '{客户QQ}', '{订单号}', '{档位名}', '{节点名}', '{截稿日}', '{总价}', '{已付}', '{待付}']
+const speechDirtyId = ref(null)
+const speechRefs = new Map()
+
+function setSpeechRef(id, el) {
+  if (el) speechRefs.set(id, el)
+  else speechRefs.delete(id)
+}
+
+/** 点击变量标签 → 插入光标位置（无焦点则追加到末尾） */
+function insertSpeechVar(s, varText) {
+  const el = speechRefs.get(s.id)
+  const textarea = el?.textarea ?? el?.$el?.querySelector('textarea')
+  if (textarea) {
+    const start = textarea.selectionStart ?? (s.speechTemplate || '').length
+    const end = textarea.selectionEnd ?? start
+    const val = s.speechTemplate || ''
+    s.speechTemplate = val.slice(0, start) + varText + val.slice(end)
+    nextTick(() => {
+      textarea.focus()
+      const pos = start + varText.length
+      textarea.setSelectionRange(pos, pos)
+    })
+  } else {
+    s.speechTemplate = (s.speechTemplate || '') + varText
+  }
+  speechDirtyId.value = s.id
+}
+
+/** 保存话术（仅 dirty 时触发） */
+function commitSpeech(s) {
+  emit('updateSpeech', s.id, (s.speechTemplate || '').trim())
+  speechDirtyId.value = null
+}
 
 const newName = ref('')
 const editingId = ref(null)
@@ -164,4 +231,25 @@ function onTogglePay(s, val) {
 .del-btn { opacity: 0.4; }
 .stage-row:hover .del-btn { opacity: 1; }
 .add-row { display: flex; gap: 8px; margin-top: 8px; }
+
+/* ─── plan-node-speech：话术编辑区 ─── */
+.stage-speech {
+  margin: 4px 0 0 32px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-secondary, rgba(0,0,0,0.025));
+}
+.speech-vars { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
+.speech-vars-label { font-size: 12px; color: var(--text-secondary); margin-right: 4px; }
+.speech-var {
+  font-size: 11px; padding: 1px 6px; border-radius: 4px;
+  background: var(--color-primary-soft, rgba(52,150,219,0.08));
+  color: var(--color-primary); border: 1px solid transparent;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  line-height: 1.6;
+}
+.speech-var:hover { border-color: var(--color-primary); background: rgba(52,150,219,0.14); }
+.speech-editor { display: flex; gap: 8px; align-items: flex-start; }
+.speech-editor .el-textarea { flex: 1; }
+.speech-save { flex-shrink: 0; margin-top: 2px; }
 </style>
