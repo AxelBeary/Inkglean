@@ -187,6 +187,8 @@ export default {
     positionText: '#{pos} of {total}', orderTime: 'Order time',
     stepSubmitted: 'Submitted', stepConfirmed: 'Confirmed', stepWip: 'In progress', stepDone: 'Done', stepDelivered: 'Delivered',
     deliverables: '📦 Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
+    // SPEC-003: price & payments
+    priceTitle: '💰 Price breakdown', finalPrice: 'Final price', installmentsTitle: 'Payment schedule', paid: 'Paid', unpaid: 'Unpaid',
     contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
     contactArtist: 'Artist QQ', contactAdmin: 'Admin QQ', copyQq: 'Copy', copied: 'Copied',
     noOrdersTitle: 'No orders found', noOrdersDesc: 'This QQ number has no orders with this artist. Please double-check the number.',
@@ -285,6 +287,13 @@ export default {
     tlTypeSystem: 'Status change', tlTypeNote: 'Note', tlTypeImage: 'Note with image',
     // R46: note deletion
     deleteNote: 'Delete note', deleteNoteConfirm: 'Delete this note? This cannot be undone.', deleteNoteSuccess: 'Note deleted',
+    // SPEC-003: extra work items
+    extraItemsTitle: 'Extra work items', extraEmpty: 'No extra items yet', extraAdd: 'Add extra item',
+    extraDialogTitle: 'Add extra work item', extraNameLabel: 'Name', extraNamePlaceholder: 'e.g. background detail, rush fee',
+    extraDescLabel: 'Description (optional)', extraDescPlaceholder: 'Additional notes', extraPriceLabel: 'Amount (yuan)',
+    extraAdded: 'Extra item added', extraDeleted: 'Extra item deleted', extraDelete: 'Delete extra item',
+    extraDeleteConfirm: 'Delete extra item "{name}"? The final price will be recalculated.',
+    extraTotal: 'Final price', extraAutoHint: 'Final price = base price + extras, calculated automatically',
     // R51: deadline
     colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated',
     // R58-6: QQ jump + copy

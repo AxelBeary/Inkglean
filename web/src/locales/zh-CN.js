@@ -187,6 +187,8 @@ export default {
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
     stepSubmitted: '已提交', stepConfirmed: '已确认', stepWip: '制作中', stepDone: '已完成', stepDelivered: '已交付',
     deliverables: '📦 交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
+    // SPEC-003: 价格与付款
+    priceTitle: '💰 价格明细', finalPrice: '最终价格', installmentsTitle: '付款节点', paid: '已付', unpaid: '未付',
     contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
     contactArtist: '画师QQ', contactAdmin: '管理员QQ', copyQq: '复制', copied: '已复制',
     noOrdersTitle: '未找到订单', noOrdersDesc: '该QQ号在本画师处没有订单记录，请核对QQ号是否正确。',
@@ -285,6 +287,13 @@ export default {
     tlTypeSystem: '状态变更', tlTypeNote: '备注', tlTypeImage: '带图备注',
     // R46: 备注删除
     deleteNote: '删除备注', deleteNoteConfirm: '确定删除这条备注？删除后不可恢复。', deleteNoteSuccess: '备注已删除',
+    // SPEC-003: 附加工作项
+    extraItemsTitle: '附加工作项', extraEmpty: '暂无附加项', extraAdd: '添加附加项',
+    extraDialogTitle: '添加附加工作项', extraNameLabel: '名称', extraNamePlaceholder: '如：背景细化、加急费',
+    extraDescLabel: '说明（可选）', extraDescPlaceholder: '补充说明', extraPriceLabel: '金额（元）',
+    extraAdded: '附加项已添加', extraDeleted: '附加项已删除', extraDelete: '删除附加项',
+    extraDeleteConfirm: '确定删除附加项「{name}」？删除后最终价格将自动重算。',
+    extraTotal: '最终价格', extraAutoHint: '最终价格 = 基础价格 + 附加项合计，由系统自动计算',
     // R51: 截稿日
     colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新',
     // R58-6: QQ 跳转 + 复制

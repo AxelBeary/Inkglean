@@ -68,6 +68,34 @@
           <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDate(order.createdAt) }}</p>
         </div>
 
+        <!-- SPEC-003 §5.5: 价格与付款（客户视角：附加项仅 name+金额，不显示 description/id/created_at） -->
+        <div class="price-block" v-if="order.finalPriceCents != null || order.extraItems?.length || order.installments?.length">
+          <h4 class="price-title">{{ $t('track.priceTitle') }}</h4>
+          <!-- 附加项明细 -->
+          <div v-if="order.extraItems?.length" class="extra-lines">
+            <div v-for="(item, index) in order.extraItems" :key="index" class="extra-line">
+              <span class="extra-line-name">+ {{ item.name }}</span>
+              <span class="extra-line-price">¥{{ formatCents(item.priceCents) }}</span>
+            </div>
+          </div>
+          <!-- 最终价格 -->
+          <div v-if="order.finalPriceCents != null" class="final-price-row">
+            <span>{{ $t('track.finalPrice') }}</span>
+            <strong>¥{{ formatCents(order.finalPriceCents) }}</strong>
+          </div>
+          <!-- 付款节点 -->
+          <div v-if="order.installments?.length" class="installment-block">
+            <h4 class="installment-title">{{ $t('track.installmentsTitle') }}</h4>
+            <div v-for="(inst, index) in order.installments" :key="index" class="installment-row">
+              <span class="installment-name">{{ inst.name }}</span>
+              <span class="installment-amount">¥{{ formatCents(inst.amountCents) }}</span>
+              <el-tag :type="inst.paid ? 'success' : 'info'" size="small">
+                {{ inst.paid ? $t('track.paid') : $t('track.unpaid') }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+
         <!-- 交付文件 -->
         <div class="deliverables" v-if="order.deliverables?.length">
           <h4>{{ $t('track.deliverables') }}</h4>
@@ -157,6 +185,11 @@ const stepActive = computed(() => {
 
 function formatDate(str) {
   return formatDateTime(str)
+}
+
+/** 金额分 → 元（后端返分，前端 /100） */
+function formatCents(cents) {
+  return ((cents || 0) / 100).toFixed(2)
 }
 
 function downloadFile(url) {
@@ -265,4 +298,27 @@ onUnmounted(() => {
   font-size: 16px; font-weight: 600; color: var(--text-primary);
   letter-spacing: 1px;
 }
+
+/* ─── SPEC-003: 价格与付款 ─── */
+.price-block { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.price-title { margin-bottom: 12px; color: var(--text-primary); font-size: 14px; }
+.extra-lines { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.extra-line { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.extra-line-name { color: var(--text-secondary); }
+.extra-line-price { color: var(--text-primary); }
+.final-price-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-top: 1px dashed var(--border-color);
+  font-size: 14px; color: var(--text-primary);
+}
+.final-price-row strong { font-size: 18px; }
+.installment-block { margin-top: 16px; }
+.installment-title { margin-bottom: 8px; color: var(--text-primary); font-size: 14px; }
+.installment-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+.installment-name { color: var(--text-primary); }
+.installment-amount { color: var(--text-secondary); }
 </style>
