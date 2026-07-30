@@ -427,6 +427,13 @@ export default {
     artworkHint: 'Artwork images must be uploaded via the artist dashboard. Here you can only view and delete.',
     greetingTab: 'Greetings',
     greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',
-    greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.'
+    greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.',
+    // Recycle bin (incident fix: orphaned files are recoverable)
+    recycleBin: {
+      title: '🗑 Recycle Bin', empty: 'Empty bin',
+      colFile: 'File', colPath: 'Original path', colSize: 'Size', colMovedAt: 'Moved at',
+      emptyTitle: 'Empty recycle bin', emptyConfirm: 'Files in the recycle bin will be permanently deleted and cannot be recovered. Empty it?',
+      emptied: '{n} files permanently deleted', emptyHint: 'Recycle bin is empty'
+    }
   }
 }

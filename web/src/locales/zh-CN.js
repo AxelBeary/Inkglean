@@ -427,6 +427,13 @@ export default {
     artworkHint: '作品图片需通过画师后台上传，此处仅支持查看和删除。',
     greetingTab: '问候语',
     greetingGlobalHint: '通用库条目对所有画师生效，与画师专属库混合抽取。',
-    greetingArtistHint: '专属库条目仅对该画师生效，与通用库混合抽取。'
+    greetingArtistHint: '专属库条目仅对该画师生效，与通用库混合抽取。',
+    // 回收站（事故修复：孤儿文件可恢复）
+    recycleBin: {
+      title: '🗑 回收站', empty: '清空回收站',
+      colFile: '文件名', colPath: '原始路径', colSize: '大小', colMovedAt: '移入时间',
+      emptyTitle: '清空回收站', emptyConfirm: '回收站中的文件将被永久删除，不可恢复。确定清空？',
+      emptied: '已清空，删除 {n} 个文件', emptyHint: '回收站是空的'
+    }
   }
 }
