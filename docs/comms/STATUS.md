@@ -1,12 +1,12 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-07-31（R58 第一批合入）
+> 最后更新：2026-07-31（三号紧急修复合入，派第二轮）
 > 维护者：一号（主理人）
 
 ---
 ## master 状态
 
-- **HEAD**：`10c2537`（R58-1 composable 抽取 + R58-6 QQ 跳转复制），与 origin 同步
+- **HEAD**：`e2e14c7`（测试隔离+孤儿回收→回收站），与 origin 同步
 - **测试**：241/257 通过（9 文件）——16 条为预存失败（hidden 状态 CHECK 约束 + FK 约束），非本轮引入
 - **构建**：通过（Vite build 9.57s）
 - **迁移**：v15 已应用（accent_color + deadline）
@@ -20,6 +20,9 @@
 | 三号技术债 | 价格回退链→`utils/price.js` / 活跃过滤→`utils/order-status.js` / ISO日期→`utils/date.js`，order.service + admin.service 统一引用 |
 | 五号覆盖率 | upload 32%→89%（29 条）/ greeting 31%→100%（31 条），共 +60 条测试 |
 | 二号批次1 | 工艺CSS升级（--ease-bounce 全局变量/按钮三态/clamp 流式字号/minmax 防溢出/reduced-motion 兜底）+ R54 档位页表格→卡片 |
+| 二号R58-1 | useOrderForm composable 抽取（415 行），OrderForm.vue 纯布局化 |
+| 二号R58-6 | QQ 跳转+复制（客户侧成功弹窗 + 画师侧订单详情） |
+| 三号紧急修复 | 测试隔离（UPLOAD_DIR→tmpdir）+ 孤儿回收→回收站（安全检查+rename+admin 接口） |
 
 ---
 ## v0.16 待排期（等用户拍板）
@@ -38,10 +41,10 @@
 
 | 角色 | 当前任务 | 状态 |
 |------|----------|------|
-| 二号 | R58 第一批已合入，待派第二批（R58-2 分步布局） | ⚪ 空闲 |
-| 三号 | 测试隔离+孤儿回收→回收站（`fix/v016-test-isolation`，wt03） | 🔴 紧急进行中 |
+| 二号 | 回收站 UI + R58-2 分步引导布局 | 🔵 待派 |
+| 三号 | R58-7 order_template_id 迁移+API | 🔵 待派 |
 | 四号 | 完成 | ⚪ 空闲 |
-| 五号 | 完成 | ⚪ 空闲 |
+| 五号 | Bug 排查中 | 🟡 进行中 |
 
 ---
 ## 待用户确认
@@ -54,8 +57,7 @@
 
 | 分支 | 状态 |
 |------|------|
-| master | 当前，10c2537 |
-| fix/v016-test-isolation | 三号 worktree wt03，紧急修复中 |
+| master | 当前，e2e14c7 |
 
 ---
 ## 重要规则提醒
