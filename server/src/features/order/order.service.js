@@ -1,6 +1,9 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { calculatePrice } from '../pricing/pricing.service.js'
+import { PRICE_FALLBACK_SQL, resolvePriceCents } from '../../utils/price.js'
+import { ACTIVE_ORDER_SQL, COMPLETED_ORDER_SQL } from '../../utils/order-status.js'
+import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite } from '../../utils/date.js'
 
 // ============================================
 // 订单服务 - 核心业务逻辑
@@ -92,7 +95,7 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     const orderNo = generateOrderNo(artistId, code)
 
     const maxPos = db.prepare(
-      "SELECT MAX(queue_position) as max_pos FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
+      `SELECT MAX(queue_position) as max_pos FROM orders WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}`
     ).get(artistId)
     const queuePosition = (maxPos?.max_pos ?? 0) + 1
 
@@ -214,7 +217,7 @@ export function getArtistQueue(artistId) {
     SELECT o.*, t.name as tier_name, t.price as tier_price
     FROM orders o
     LEFT JOIN price_tiers t ON o.tier_id = t.id
-    WHERE o.artist_id = ? AND o.status NOT IN ('delivered', 'cancelled')
+    WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL}
     ORDER BY o.queue_position ASC
   `).all(artistId)
 }
@@ -265,7 +268,7 @@ export function reorderQueue(artistId, orderedIds) {
   // 校验所有 ID 属于该画师且为活跃订单
   const activeOrders = db.prepare(`
     SELECT id FROM orders
-    WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')
+    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
   `).all(artistId).map(r => r.id)
 
   const idSet = new Set(activeOrders)
@@ -294,7 +297,7 @@ export function reorderQueue(artistId, orderedIds) {
 function compactQueue(artistId) {
   const queue = db.prepare(`
     SELECT id FROM orders
-    WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')
+    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
     ORDER BY queue_position ASC
   `).all(artistId)
 
@@ -337,7 +340,7 @@ export function updateDeadline(orderId, deadline) {
       throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
     }
     // 统一存储为 SQLite 格式（YYYY-MM-DD HH:MM:SS UTC），与 SQL 比较格式一致
-    normalized = d.toISOString().slice(0, 19).replace('T', ' ')
+    normalized = toSqliteDate(d)
   }
 
   db.prepare('UPDATE orders SET deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
@@ -353,8 +356,8 @@ export function updateDeadline(orderId, deadline) {
 export function getUpcomingDeadlines(artistId) {
   const now = new Date()
   const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-  const nowUTC = now.toISOString().slice(0, 19).replace('T', ' ')
-  const laterUTC = sevenDaysLater.toISOString().slice(0, 19).replace('T', ' ')
+  const nowUTC = toSqliteDate(now)
+  const laterUTC = toSqliteDate(sevenDaysLater)
 
   return db.prepare(`
     SELECT o.id, o.order_no, o.client_name, o.deadline, o.status
@@ -363,7 +366,7 @@ export function getUpcomingDeadlines(artistId) {
       AND o.deadline IS NOT NULL
       AND o.deadline >= ?
       AND o.deadline <= ?
-      AND o.status NOT IN ('delivered', 'cancelled')
+      AND o.${ACTIVE_ORDER_SQL}
     ORDER BY o.deadline ASC
   `).all(artistId, nowUTC, laterUTC)
 }
@@ -429,41 +432,31 @@ export function getArtistStats(artistId) {
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status = 'pending'"
   ).get(artistId).c
   const activeCount = db.prepare(
-    "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
+    `SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}`
   ).get(artistId).c
   // 收入统计 — 使用 completed_at + final_price_cents（回退 total_price_cents，再回退 price_snapshot）
   // 时区修正：在应用层计算本地时区的月初 UTC 时间戳，避免 UTC+8 用户月初订单被算入上月
   const now = new Date()
-  const localMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthStartUTC = localMonthStart.toISOString().slice(0, 19).replace('T', ' ')
+  const monthStartUTC = localMonthStartSqlite(now)
   const monthRevenue = db.prepare(`
     SELECT COALESCE(SUM(
-      CASE
-        WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
-        WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
-        ELSE COALESCE(o.price_snapshot, 0) * 100
-      END
+      ${PRICE_FALLBACK_SQL}
     ), 0) as total_cents
     FROM orders o
-    WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
+    WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
       AND o.completed_at >= ?
   `).get(artistId, monthStartUTC).total_cents
   const totalCompleted = db.prepare(
-    "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status IN ('done', 'delivered')"
+    `SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND ${COMPLETED_ORDER_SQL}`
   ).get(artistId).c
 
   // R52: 今日统计 — 时区处理与月收入一致（本地零点 → UTC 时间戳）
-  const localDayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const dayStartUTC = localDayStart.toISOString().slice(0, 19).replace('T', ' ')
+  const dayStartUTC = localDayStartSqlite(now)
 
   // 今日新增订单金额：created_at >= 今日零点，金额回退链与月收入一致
   const todayNewOrderRow = db.prepare(`
     SELECT COALESCE(SUM(
-      CASE
-        WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
-        WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
-        ELSE COALESCE(o.price_snapshot, 0) * 100
-      END
+      ${PRICE_FALLBACK_SQL}
     ), 0) as total_cents, COUNT(*) as cnt
     FROM orders o
     WHERE o.artist_id = ? AND o.created_at >= ?
@@ -474,25 +467,21 @@ export function getArtistStats(artistId) {
   // 今日收入：completed_at >= 今日零点 且 status IN ('done','delivered')
   const todayRevenueRow = db.prepare(`
     SELECT COALESCE(SUM(
-      CASE
-        WHEN o.final_price_cents IS NOT NULL THEN o.final_price_cents
-        WHEN o.total_price_cents IS NOT NULL THEN o.total_price_cents
-        ELSE COALESCE(o.price_snapshot, 0) * 100
-      END
+      ${PRICE_FALLBACK_SQL}
     ), 0) as total_cents, COUNT(*) as cnt
     FROM orders o
-    WHERE o.artist_id = ? AND o.status IN ('done', 'delivered')
+    WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
       AND o.completed_at >= ?
   `).get(artistId, dayStartUTC)
   const todayRevenueCents = todayRevenueRow.total_cents
   const todayRevenueCount = todayRevenueRow.cnt
 
   // R51: 今日待办 — 今天截稿 + status='pending' + status='revision'（C62 已拍板）
-  const dayEndUTC = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString().slice(0, 19).replace('T', ' ')
+  const dayEndUTC = localDayEndSqlite(now)
   const todayTodoCount = db.prepare(`
     SELECT COUNT(*) as c FROM orders
     WHERE artist_id = ?
-      AND status NOT IN ('delivered', 'cancelled')
+      AND ${ACTIVE_ORDER_SQL}
       AND (
         status IN ('pending', 'revision')
         OR (deadline IS NOT NULL AND deadline >= ? AND deadline < ?)
@@ -634,7 +623,7 @@ export function updateFinalPrice(orderId, finalPriceCents, quoteSnapshot) {
 
   return db.transaction(() => {
     // 计算旧价格（用于备注）
-    const oldCents = order.final_price_cents ?? order.total_price_cents ?? (order.price_snapshot != null ? Math.round(order.price_snapshot * 100) : null)
+    const oldCents = resolvePriceCents(order)
 
     db.prepare('UPDATE orders SET final_price_cents = ?, quote_snapshot = COALESCE(?, quote_snapshot), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(finalPriceCents, quoteSnapshot ?? null, orderId)
