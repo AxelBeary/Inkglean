@@ -10,8 +10,8 @@
         <span class="seg-pct" @click="!seg.isFinal && startInput(seg)">
           <template v-if="inputId !== seg.id">{{ seg.pct }}%</template>
           <el-input-number
-            v-else v-model="inputVal" :min="5" :max="95" :step="1" size="small"
-            style="width: 90px" @keyup.enter="commitInput(seg)" @blur="commitInput(seg)"
+            v-else ref="inputRef" v-model="inputVal" :min="5" :max="95" :step="1" size="small"
+            style="width: 90px" @click.stop @keyup.enter="commitInput(seg)" @blur="commitInput(seg)"
           />
         </span>
         <span v-if="seg.isFinal" class="final-badge">{{ $t('workflow.final') }}</span>
@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 
@@ -47,6 +47,7 @@ const elasticId = ref(null)
 const detachId = ref(null)
 const inputId = ref(null)
 const inputVal = ref(0)
+const inputRef = ref(null)
 
 const localBp = ref({})
 watch(() => props.stages, (stages) => {
@@ -201,6 +202,11 @@ function onKeydown(e, idx) {
 function startInput(seg) {
   inputId.value = seg.id
   inputVal.value = seg.bp / 100
+  nextTick(() => {
+    // 自动聚焦并全选，用户可直接输入覆盖
+    const inputEl = inputRef.value?.$el?.querySelector('input')
+    if (inputEl) { inputEl.focus(); inputEl.select() }
+  })
 }
 
 function commitInput(seg) {
