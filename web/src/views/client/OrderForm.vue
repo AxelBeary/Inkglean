@@ -339,7 +339,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import Disclaimer from '../../components/Disclaimer.vue'
@@ -386,9 +386,30 @@ function appendTag(tag) {
 }
 
 // ─── R58-3: 小票二次确认（校验通过才弹小票，确认后走 composable 提交流程） ───
+// R24: 校验失败时弹窗列出所有未通过项，关闭后滚动到第一个未通过字段
 async function openReceipt() {
-  const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
+  try {
+    await formRef.value.validate()
+  } catch (invalidFields) {
+    if (invalidFields && typeof invalidFields === 'object') {
+      const items = Object.values(invalidFields)
+        .flat()
+        .map(err => err.message)
+        .filter(Boolean)
+      if (items.length) {
+        // 内容全部来自 i18n 翻译文案，无用户输入，无 XSS 风险
+        const html = items.map(msg => `<p style="margin:4px 0">• ${msg}</p>`).join('')
+        await ElMessageBox.alert(html, t('order.validation.title'), {
+          confirmButtonText: t('order.validation.confirm'),
+          dangerouslyUseHTMLString: true
+        }).catch(() => {})
+      }
+      // 弹窗关闭后滚动到第一个未通过字段
+      const firstField = Object.keys(invalidFields)[0]
+      if (firstField) formRef.value.scrollToField(firstField)
+    }
+    return
+  }
   receiptVisible.value = true
 }
 async function confirmSubmit() {

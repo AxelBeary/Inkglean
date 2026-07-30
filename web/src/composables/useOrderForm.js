@@ -65,7 +65,8 @@ export function useOrderForm(subdomain, formRef) {
     clientQq: [{ required: true, message: () => t('orderForm.fillQq'), trigger: 'blur' }],
     agreed: [{
       validator: (rule, value, callback) => {
-        if (rulesContent.value && !value) callback(new Error(t('orderForm.agreeLabel')))
+        // R24：错误文案走 order.validation 命名空间（弹窗与行内提示一致）
+        if (rulesContent.value && !value) callback(new Error(t('order.validation.agreeRequired')))
         else callback()
       },
       trigger: 'change'

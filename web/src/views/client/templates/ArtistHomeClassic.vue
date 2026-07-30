@@ -33,9 +33,6 @@
           >
             {{ $t('artistHome.commission') }}
           </button>
-          <div class="classic-side-theme">
-            <ThemePicker />
-          </div>
         </div>
       </aside>
 
@@ -76,6 +73,9 @@
         <Disclaimer class="classic-disclaimer" />
       </main>
     </div>
+
+    <!-- R25: ThemePicker 右下角固定悬浮（用户决策 C37） -->
+    <div class="theme-fab"><ThemePicker /></div>
   </div>
 </template>
 
@@ -209,10 +209,6 @@ useScrollReveal(rootEl)
   opacity: 0.35;
   cursor: not-allowed;
 }
-.classic-side-theme {
-  margin-top: 4px;
-}
-
 /* ===== 右栏内容 ===== */
 .classic-section {
   margin-bottom: 56px;
@@ -222,6 +218,23 @@ useScrollReveal(rootEl)
 }
 .classic-disclaimer {
   margin-top: 24px;
+}
+
+/* R25: ThemePicker 右下角固定悬浮（用户决策 C37） */
+.theme-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 95;
+  padding: 10px 12px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.2s;
+}
+.theme-fab:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 /* ===== 移动端：单栏，信息卡置顶 ===== */

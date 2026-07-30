@@ -172,6 +172,14 @@ export default {
     // R58-5: 复制约稿信息
     copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：'
   },
+  // R24: 校验失败弹窗
+  order: {
+    validation: {
+      title: '请先完成以下项目',
+      confirm: '知道了',
+      agreeRequired: '请勾选「我已阅读并同意以上约稿须知」'
+    }
+  },
   track: {
     backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
     orderNo: '订单号', orderNoLabel: '订单号', qqLabel: '你的QQ号', qqPlaceholder: '下单时填写的QQ号',

@@ -52,9 +52,11 @@
           {{ link.label }}
         </a>
       </div>
-      <ThemePicker />
       <Disclaimer />
     </footer>
+
+    <!-- R25: ThemePicker 右下角固定悬浮（用户决策 C37） -->
+    <div class="theme-fab" :class="{ 'theme-fab--above-cta': ctaVisible }"><ThemePicker /></div>
 
     <!-- 吸底约稿条（滚过开场后浮现） -->
     <TplStickyCta :visible="ctaVisible" :artist="artist" :subdomain="subdomain" />
@@ -163,6 +165,24 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
   transition: border-color 0.2s;
 }
 .gallery-link:hover .gallery-link-badge { border-color: var(--color-primary); }
+
+/* R25: ThemePicker 右下角固定悬浮（用户决策 C37） */
+.theme-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 95;
+  padding: 10px 12px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.2s, bottom 0.3s;
+}
+.theme-fab:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+.theme-fab--above-cta { bottom: 72px; }
 
 @media (max-width: 768px) {
   .gallery-section {
