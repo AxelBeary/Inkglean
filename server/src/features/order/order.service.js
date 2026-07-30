@@ -209,20 +209,6 @@ export function getOrderByNo(orderNo, { clientOnly = false } = {}) {
 }
 
 /**
- * 获取画师的活跃队列（按 queue_position 排序）
- * N1-1: 拖拽即绝对顺序，priority 退化为纯展示标签
- */
-export function getArtistQueue(artistId) {
-  return db.prepare(`
-    SELECT o.*, t.name as tier_name, t.price as tier_price
-    FROM orders o
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
-    WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL}
-    ORDER BY o.queue_position ASC
-  `).all(artistId)
-}
-
-/**
  * 更新订单状态（带状态机校验）
  * 事务包裹，防止中途崩溃留下不一致状态
  */
@@ -256,45 +242,10 @@ export function updateOrderStatus(orderId, newStatus) {
 }
 
 /**
- * 拖拽排序（重写）
- * 前端传入完整的排序后 ID 数组，后端按序分配 queue_position
- * 拖拽不改变优先级，只改变同优先级内的位置
+ * 重排队列位置（删除/交付后调用）
+ * 导出供 order-gallery.service.js 的 deliverOrder 使用
  */
-export function reorderQueue(artistId, orderedIds) {
-  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    throw new AppError(E.QUEUE_EMPTY)
-  }
-
-  // 校验所有 ID 属于该画师且为活跃订单
-  const activeOrders = db.prepare(`
-    SELECT id FROM orders
-    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
-  `).all(artistId).map(r => r.id)
-
-  const idSet = new Set(activeOrders)
-  for (const id of orderedIds) {
-    if (!idSet.has(id)) throw new AppError(E.QUEUE_NOT_OWNED, 400, { id })
-  }
-  if (orderedIds.length !== activeOrders.length) {
-    throw new AppError(E.QUEUE_LENGTH)
-  }
-  // 校验无重复 ID
-  if (new Set(orderedIds).size !== orderedIds.length) {
-    throw new AppError(E.QUEUE_DUPLICATE)
-  }
-
-  const updatePos = db.prepare('UPDATE orders SET queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-  db.transaction(() => {
-    orderedIds.forEach((id, index) => updatePos.run(index + 1, id))
-  })()
-
-  return getArtistQueue(artistId)
-}
-
-/**
- * 重排队列位置（删除/交付后调用）— 内部函数
- */
-function compactQueue(artistId) {
+export function compactQueue(artistId) {
   const queue = db.prepare(`
     SELECT id FROM orders
     WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
@@ -305,23 +256,6 @@ function compactQueue(artistId) {
   db.transaction(() => {
     queue.forEach((row, index) => updatePos.run(index + 1, row.id))
   })()
-}
-
-/**
- * 更新订单优先级
- * N1-1: 优先级仅作展示标签，不重排队列
- */
-export function updatePriority(orderId, priority) {
-  const valid = ['high', 'medium', 'low']
-  if (!valid.includes(priority)) throw new AppError(E.INVALID_PRIORITY, 400, { priority })
-
-  const order = getOrder(orderId)
-  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-
-  db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(priority, orderId)
-
-  return getOrder(orderId)
 }
 
 /**
@@ -470,7 +404,12 @@ export function getClientQueuePosition(orderNo, clientQq) {
     return { order, position: null, total: null }
   }
 
-  const queue = getArtistQueue(order.artist_id)
+  // 内联活跃队列查询（避免循环引用 order-queue.service.js）
+  const queue = db.prepare(`
+    SELECT id FROM orders
+    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
+    ORDER BY queue_position ASC
+  `).all(order.artist_id)
   const position = queue.findIndex(o => o.id === order.id) + 1
 
   return { order, position, total: queue.length }

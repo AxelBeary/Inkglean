@@ -1,5 +1,6 @@
 import * as orderService from './order.service.js'
 import * as orderStatsService from './order-stats.service.js'
+import * as orderQueueService from './order-queue.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
@@ -286,7 +287,7 @@ export default async function orderRoutes(fastify) {
    * GET /api/artist/queue
    */
   fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request) => {
-    const queue = orderService.getArtistQueue(request.artist.id)
+    const queue = orderQueueService.getArtistQueue(request.artist.id)
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
     return queue.map(order => {
       if (order.focus_image_path) {
@@ -423,7 +424,7 @@ export default async function orderRoutes(fastify) {
       }
     }
   }, async (request) => {
-    return orderService.updatePriority(request.order.id, request.body.priority)
+    return orderQueueService.updatePriority(request.order.id, request.body.priority)
   })
 
   /**
@@ -465,7 +466,7 @@ export default async function orderRoutes(fastify) {
     }
   }, async (request) => {
     // P1-A 修复：重排返回值补焦点图签名（同 GET /api/artist/queue 逻辑）
-    const queue = orderService.reorderQueue(request.artist.id, request.body.orderedIds)
+    const queue = orderQueueService.reorderQueue(request.artist.id, request.body.orderedIds)
     return queue.map(order => {
       if (order.focus_image_path) {
         return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }

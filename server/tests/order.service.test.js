@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import * as orderService from '../src/features/order/order.service.js'
 import * as orderStatsService from '../src/features/order/order-stats.service.js'
+import * as orderQueueService from '../src/features/order/order-queue.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 
 describe('订单服务 (Order Service)', () => {
@@ -94,7 +95,7 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(o1.id, 'done')
     orderService.updateOrderStatus(o1.id, 'delivered')
 
-    const queue = orderService.getArtistQueue(artist.id)
+    const queue = orderQueueService.getArtistQueue(artist.id)
     expect(queue).toHaveLength(2)
     expect(queue[0].queue_position).toBe(1)
     expect(queue[1].queue_position).toBe(2)
@@ -107,9 +108,9 @@ describe('订单服务 (Order Service)', () => {
     const o3 = orderService.createOrder({ artistId: artist.id, clientQq: '333', priority: 'low' })
 
     // 倒序拖拽：[o3, o2, o1]
-    orderService.reorderQueue(artist.id, [o3.id, o2.id, o1.id])
+    orderQueueService.reorderQueue(artist.id, [o3.id, o2.id, o1.id])
 
-    const queue = orderService.getArtistQueue(artist.id)
+    const queue = orderQueueService.getArtistQueue(artist.id)
     expect(queue).toHaveLength(3)
     expect(queue[0].id).toBe(o3.id)
     expect(queue[1].id).toBe(o2.id)
@@ -124,7 +125,7 @@ describe('订单服务 (Order Service)', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '123456' })
 
     expect(() => {
-      orderService.updatePriority(order.id, 'urgent')
+      orderQueueService.updatePriority(order.id, 'urgent')
     }).toThrow('INVALID_PRIORITY')
   })
 
