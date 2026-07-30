@@ -130,6 +130,10 @@ export const artistApi = {
   trackOn: (id) => api.put(`/artist/orders/${id}/track-on`),
   // 统计
   getStats: () => api.get('/artist/stats'),
+  // v0.18 仪表盘（收入统计/待办合并列表/最近活动流）
+  getDashboardRevenue: (period) => api.get('/artist/dashboard/revenue', { params: { period } }),
+  getDashboardTodo: () => api.get('/artist/dashboard/todo'),
+  getDashboardActivity: () => api.get('/artist/dashboard/activity'),
   // R51: 截稿日
   getUpcomingDeadlines: () => api.get('/artist/orders/upcoming-deadlines'),
   updateDeadline: (id, deadline) => api.put(`/artist/orders/${id}/deadline`, { deadline }),

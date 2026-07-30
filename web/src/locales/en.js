@@ -225,7 +225,18 @@ export default {
     // R51: deadlines + today's todos
     deadlineCard: '⏰ Due soon', noDeadlines: 'No deadlines coming up 🎉',
     todoCard: "📌 Today's todos", noTodos: 'Nothing pending — enjoy your tea ☕',
-    daysLeft: '{n}d left', dueToday: 'Due today'
+    daysLeft: '{n}d left', dueToday: 'Due today',
+    // v0.18 dashboard rebuild
+    revenueTitle: '📊 Revenue', periodMonth: 'Month', periodQuarter: 'Quarter', periodYear: 'Year',
+    revenueOrderCount: '{n} completed', revenueVs: 'vs {label}', revenueError: 'Failed to load revenue data',
+    retry: 'Retry',
+    todoTitle: "📌 What's next", todoError: 'Failed to load todo list', todoEmpty: 'Nothing pending — take a break 🎨',
+    tag_overdue: 'Overdue', tag_dueToday: 'Due today', tag_pending: 'New', tag_revision: 'Revision', tag_inProgress: 'In progress',
+    activityTitle: '🕐 Recent activity', activityError: 'Failed to load activity', activityEmpty: 'No recent activity',
+    timeJustNow: 'just now', timeMinutesAgo: '{n}m ago', timeHoursAgo: '{n}h ago', timeDaysAgo: '{n}d ago',
+    slotTitle: '🎯 Slot overview', slotFormal: 'Formal {used}/{total}', slotBuffer: 'Buffer {used}/{total}',
+    slotNext: 'Next in buffer: {name} (QQ: {qq})',
+    artworks: 'Gallery', tiers: 'Tiers'
   },
   queue: {
     title: '📋 Queue Board',

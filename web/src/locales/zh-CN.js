@@ -225,7 +225,18 @@ export default {
     // R51: 截稿日 + 今日待办
     deadlineCard: '⏰ 即将到期', noDeadlines: '近期无截稿 🎉',
     todoCard: '📌 今日待办', noTodos: '暂无待办，喝杯茶吧 ☕',
-    daysLeft: '剩 {n} 天', dueToday: '今天截稿'
+    daysLeft: '剩 {n} 天', dueToday: '今天截稿',
+    // v0.18 仪表盘重构
+    revenueTitle: '📊 收入统计', periodMonth: '月', periodQuarter: '季', periodYear: '年',
+    revenueOrderCount: '{n} 单完成', revenueVs: 'vs {label}', revenueError: '收入数据加载失败',
+    retry: '重试',
+    todoTitle: '📌 现在要干什么', todoError: '待办列表加载失败', todoEmpty: '当前没有待办，休息一下 🎨',
+    tag_overdue: '逾期', tag_dueToday: '截稿', tag_pending: '新单', tag_revision: '修改', tag_inProgress: '进行中',
+    activityTitle: '🕐 最近活动', activityError: '活动记录加载失败', activityEmpty: '暂无最近活动',
+    timeJustNow: '刚刚', timeMinutesAgo: '{n} 分钟前', timeHoursAgo: '{n} 小时前', timeDaysAgo: '{n} 天前',
+    slotTitle: '🎯 名额概览', slotFormal: '正式 {used}/{total}', slotBuffer: '缓冲 {used}/{total}',
+    slotNext: '下一位候补：{name}（QQ: {qq}）',
+    artworks: '图库管理', tiers: '档位管理'
   },
   queue: {
     title: '📋 排期看板',
