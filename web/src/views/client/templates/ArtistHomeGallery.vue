@@ -6,7 +6,7 @@
     <!-- 作品画廊：大小交错 editorial -->
     <section class="gallery-section tpl-reveal" v-if="artworks.length">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="artworks" layout="editorial" />
+      <TplGallery :artworks="artworks" />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->

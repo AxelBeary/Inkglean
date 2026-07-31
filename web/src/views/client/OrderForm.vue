@@ -164,8 +164,14 @@
                   />
                 </el-form-item>
 
-                <!-- 参考图上传 -->
-                <el-form-item :label="$t('orderForm.refLabel')">
+                <!-- 参考图上传（P1-4: tooltip 显示详细说明） -->
+                <el-form-item>
+                  <template #label>
+                    <span>{{ $t('orderForm.refLabel') }}</span>
+                    <el-tooltip :content="$t('orderForm.refTip')" placement="top">
+                      <el-icon class="ref-tip-icon"><InfoFilled /></el-icon>
+                    </el-tooltip>
+                  </template>
                   <el-upload
                     :auto-upload="true" :http-request="handleRefUpload"
                     accept="image/*" list-type="picture-card" :limit="5"
@@ -340,7 +346,7 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import Disclaimer from '../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
@@ -460,6 +466,15 @@ async function copyQq(qq) {
 /* R58-2: 加宽容器容纳 主区 + 摘要卡 双栏 */
 .form-container { max-width: 920px; margin: 0 auto; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+/* P1-4: 参考图说明 tooltip 图标 */
+.ref-tip-icon {
+  margin-left: 4px;
+  color: var(--text-secondary);
+  cursor: help;
+  vertical-align: middle;
+  transition: color 0.2s;
+}
+.ref-tip-icon:hover { color: var(--color-primary); }
 
 /* ─── R58-2: 步骤指示器 ─── */
 .step-indicator {

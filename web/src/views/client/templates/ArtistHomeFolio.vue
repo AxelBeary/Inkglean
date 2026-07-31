@@ -34,7 +34,7 @@
     <section id="gallery" class="folio-section tpl-reveal" v-if="artworks.length">
       <div class="folio-inner">
         <h2 class="folio-title">{{ $t('artistHome.artworks') }}</h2>
-        <TplGallery :artworks="artworks" layout="masonry" />
+        <TplGallery :artworks="artworks" />
       </div>
     </section>
 
