@@ -19,8 +19,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        embed: resolve(__dirname, 'embed.html')
+        main: resolve(__dirname, 'index.html')
       }
     }
   }
