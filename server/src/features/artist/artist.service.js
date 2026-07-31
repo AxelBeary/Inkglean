@@ -42,6 +42,16 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
     throw new AppError(E.CODE_TAKEN, 400, { code })
   }
 
+  // P1-6: 检查 qq_number 和 subdomain 唯一性（避免 UNIQUE 约束 500）
+  const existingQq = db.prepare('SELECT id FROM artists WHERE qq_number = ?').get(qqNumber)
+  if (existingQq) {
+    throw new AppError(E.QQ_TAKEN, 400, { qqNumber })
+  }
+  const existingSub = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get(subdomain)
+  if (existingSub) {
+    throw new AppError(E.SUBDOMAIN_TAKEN, 400, { subdomain })
+  }
+
   const result = db.prepare(`
     INSERT INTO artists (qq_number, name, subdomain, artist_code, bio)
     VALUES (?, ?, ?, ?, ?)

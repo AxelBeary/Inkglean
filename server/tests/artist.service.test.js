@@ -251,4 +251,25 @@ describe('画师服务 (Artist Service)', () => {
       artistService.updateArtist(artist.id, { order_template_id: 'hacked' })
     }).toThrow('INVALID_ORDER_TEMPLATE')
   })
+
+  // ─── P1-6: 重复 qq/subdomain 注册 ───
+
+  // TC-R-10: 重复 qq_number 注册抛出 QQ_TAKEN
+  it('TC-R-10: 重复 qq_number 注册抛出 QQ_TAKEN', async () => {
+    await artistService.createArtist({ qqNumber: '77001', name: 'A', subdomain: 'aaa' })
+
+    await expect(
+      artistService.createArtist({ qqNumber: '77001', name: 'B', subdomain: 'bbb' })
+    ).rejects.toThrow('QQ_TAKEN')
+  })
+
+  // TC-R-10b: 重复 subdomain 注册抛出 SUBDOMAIN_TAKEN
+  it('TC-R-10b: 重复 subdomain 注册抛出 SUBDOMAIN_TAKEN', async () => {
+    await artistService.createArtist({ qqNumber: '77002', name: 'A', subdomain: 'dupsub' })
+
+    // 指定不同 artistCode，跳过 CODE_TAKEN 检查，命中 subdomain 唯一性
+    await expect(
+      artistService.createArtist({ qqNumber: '77003', name: 'B', subdomain: 'dupsub', artistCode: 'OTHER' })
+    ).rejects.toThrow('SUBDOMAIN_TAKEN')
+  })
 })
