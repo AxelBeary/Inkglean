@@ -68,9 +68,18 @@
         <!-- R11: 流程进度时间线（基于画师自定义流程节点） -->
         <div class="timeline-block" v-if="order.workflowStages?.length">
           <h4 class="timeline-title">{{ $t('track.timeline.title') }}</h4>
+          <!-- S2: 进度条（节点名 X/Y） -->
+          <div class="stage-progress" v-if="stageProgress">
+            <span class="stage-progress-label">
+              {{ $t('track.timeline.progress', { name: stageProgress.name, current: stageProgress.current, total: stageProgress.total }) }}
+            </span>
+            <el-progress :percentage="stageProgress.pct" :stroke-width="10" />
+          </div>
           <OrderTimeline :stages="order.workflowStages" :current-stage-id="order.currentStageId" />
-          <!-- R30d: 打回时显示 ↩ 提示（客户可见） -->
-          <p class="timeline-hint timeline-revision" v-if="order.status === 'revision'">↩ {{ $t('track.timeline.revision') }}</p>
+          <!-- R30d/S2: 打回时显示回退到的节点名（不显示 "revision"） -->
+          <p class="timeline-hint timeline-revision" v-if="order.status === 'revision'">
+            ↩ {{ $t('track.timeline.revisionAt', { name: stageProgress?.name || order.currentStageName || '' }) }}
+          </p>
           <p class="timeline-hint" v-if="order.currentStageId == null">{{ $t('track.timeline.notStarted') }}</p>
           <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDate(order.createdAt) }}</p>
         </div>
@@ -190,6 +199,22 @@ const stepActive = computed(() => {
   return map[order.value?.status] ?? 0
 })
 
+// S2: 流程进度（前端由 workflowStages + currentStageId 计算，不依赖后端新增字段）
+const stageProgress = computed(() => {
+  const stages = order.value?.workflowStages || []
+  const curId = order.value?.currentStageId
+  if (!stages.length || curId == null) return null
+  const sorted = [...stages].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  const idx = sorted.findIndex(s => s.id === curId)
+  if (idx === -1) return null
+  return {
+    name: sorted[idx].name,
+    current: idx + 1,
+    total: sorted.length,
+    pct: Math.round(((idx + 1) / sorted.length) * 100)
+  }
+})
+
 function formatDate(str) {
   return formatDateTime(str)
 }
@@ -287,6 +312,9 @@ onUnmounted(() => {
 .position-info { margin-top: 16px; }
 .timeline-block { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); }
 .timeline-title { margin-bottom: 12px; color: var(--text-primary); font-size: 14px; }
+/* S2: 进度条（节点名 X/Y） */
+.stage-progress { margin-bottom: 16px; }
+.stage-progress-label { display: block; font-size: 13px; font-weight: 600; color: var(--el-color-primary); margin-bottom: 6px; }
 .timeline-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
 /* R30d: 打回提示（↩ 警示色） */
 .timeline-revision { color: var(--el-color-warning); font-weight: 600; }

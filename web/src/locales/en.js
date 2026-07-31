@@ -113,6 +113,7 @@ export default {
     track: 'Track Order',
     delivery: 'Download',
     login: 'Artist Login',
+    healthCheck: 'System Health',
     notFound: 'Page Not Found'
   },
   menu: {
@@ -197,10 +198,25 @@ export default {
     timeline: {
       title: 'Production progress',
       current: 'In progress',
+      progress: '{name} {current}/{total}',
       revision: 'Sent back by the artist for revision — progress rolled back',
+      revisionAt: 'Rolled back to “{name}”',
       notStarted: 'Order submitted — production starts once the artist confirms',
       orderedAt: 'Ordered: '
     }
+  },
+  // F4: guestbook (client-facing message wall, shared component TplGuestbook)
+  guestbook: {
+    title: 'Guestbook',
+    empty: 'No messages yet — say something 💬',
+    nickname: 'Nickname', nicknamePlaceholder: 'What should we call you',
+    content: 'Message', contentPlaceholder: 'Say something to the artist…',
+    submit: 'Post',
+    pendingHint: 'Submitted — visible once the artist approves',
+    rateLimited: 'Posting too fast — please wait a moment',
+    artistTag: 'Artist',
+    loadMore: 'Load more',
+    noMore: 'No more messages'
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
@@ -221,6 +237,12 @@ export default {
     anotherOne: 'Another',
     slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     defaultPanel: 'Default panel', panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
+    // F4: guestbook moderation
+    guestbookTitle: '💬 Guestbook moderation', guestbookEmpty: 'No messages',
+    guestbookPending: 'Pending', guestbookApproved: 'Approved', guestbookRejected: 'Rejected',
+    guestbookApprove: 'Approve', guestbookReject: 'Reject', guestbookReply: 'Reply',
+    guestbookReplyPlaceholder: 'Reply to this visitor (≤500 chars)', guestbookReplySave: 'Save reply',
+    guestbookApprovedMsg: 'Message approved', guestbookRejectedMsg: 'Message rejected', guestbookRepliedMsg: 'Reply saved',
     // R52: today stats
     todayNewOrders: 'New orders today', todayRevenue: 'Revenue today',
     // R51: deadlines + today's todos
@@ -507,6 +529,20 @@ export default {
       colFile: 'File', colPath: 'Original path', colSize: 'Size', colMovedAt: 'Moved at',
       emptyTitle: 'Empty recycle bin', emptyConfirm: 'Files in the recycle bin will be permanently deleted and cannot be recovered. Empty it?',
       emptied: '{n} files permanently deleted', emptyHint: 'Recycle bin is empty'
+    },
+    // F4: guestbook management (cross-artist)
+    guestbook: {
+      title: '💬 Guestbook management', empty: 'No messages',
+      colArtist: 'Artist', colNickname: 'Nickname', colContent: 'Content', colStatus: 'Status', colTime: 'Time',
+      delete: 'Force delete', deleteConfirm: 'Delete this message? It will no longer appear on the client page.', deleted: 'Message deleted'
+    },
+    // HC: system health check
+    health: {
+      title: '🩺 System Health', start: 'Run checks', checking: 'Checking…',
+      download: 'Download diagnostic report', refresh: 'Results are not persisted after refresh',
+      diskNote: 'for reference only', expandDetail: 'Details',
+      statusOk: 'OK', statusWarn: 'Warning', statusFail: 'Failed',
+      emptyHint: 'Click “Run checks” to execute the 8 system checks'
     }
   }
 }

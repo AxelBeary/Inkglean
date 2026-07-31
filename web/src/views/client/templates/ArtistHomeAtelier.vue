@@ -42,6 +42,12 @@
       <TplRules :rules="rules" :sanitized-rules="sanitizedRules" />
     </section>
 
+    <!-- F4: 留言板 -->
+    <section class="atelier-section tpl-reveal">
+      <p class="tpl-section-label atelier-label">{{ $t('guestbook.title') }}</p>
+      <TplGuestbook :subdomain="subdomain" class="atelier-guestbook" />
+    </section>
+
     <!-- 页脚 -->
     <footer class="atelier-footer">
       <!-- R34: 外链（画册式横排，笔触下划线） -->
@@ -85,6 +91,7 @@ import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
+import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
@@ -197,6 +204,125 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
 .atelier-section--alt {
   background: var(--pal-bg-alt);
   border-top: 2px solid var(--atelier-accent-2);
+}
+
+/* F4: 留言板 — atelier：纸面留言条（宋体、米色卡片、微旋转，手账感） */
+.atelier-guestbook { max-width: 600px; margin: 0 auto; }
+.atelier-guestbook :deep(.gb-form) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+.atelier-guestbook :deep(.gb-input),
+.atelier-guestbook :deep(.gb-textarea) {
+  padding: 12px 14px;
+  border: 1px solid var(--pal-border);
+  background: var(--pal-surface);
+  color: var(--pal-text);
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 14px;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+.atelier-guestbook :deep(.gb-input:focus),
+.atelier-guestbook :deep(.gb-textarea:focus) {
+  outline: none;
+  border-color: var(--atelier-accent);
+}
+.atelier-guestbook :deep(.gb-submit) {
+  align-self: flex-start;
+  padding: 10px 30px;
+  border: 1px solid var(--atelier-accent);
+  background: transparent;
+  color: var(--atelier-accent);
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s;
+}
+.atelier-guestbook :deep(.gb-submit:hover:not(:disabled)) { background: var(--atelier-accent); color: var(--pal-bg); }
+.atelier-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
+.atelier-guestbook :deep(.gb-pending-hint) { margin: 0; font-size: 13px; color: var(--atelier-accent); }
+.atelier-guestbook :deep(.gb-item) {
+  padding: 18px 20px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  border-top: 3px solid var(--atelier-accent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--pal-text) 10%, transparent);
+  margin-bottom: 16px;
+  transform: rotate(-0.4deg);
+  transition: transform 0.25s ease;
+}
+.atelier-guestbook :deep(.gb-item:nth-child(even)) { transform: rotate(0.4deg); }
+.atelier-guestbook :deep(.gb-item:hover) { transform: rotate(0deg); }
+.atelier-guestbook :deep(.gb-item-head) {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.atelier-guestbook :deep(.gb-nickname) {
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--pal-text);
+}
+.atelier-guestbook :deep(.gb-time) { font-size: 11px; color: var(--pal-text-dim); }
+.atelier-guestbook :deep(.gb-content) {
+  margin: 0;
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--pal-text);
+  word-break: break-word;
+}
+.atelier-guestbook :deep(.gb-reply) {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--atelier-accent) 8%, transparent);
+  border-left: 2px solid var(--atelier-accent);
+}
+.atelier-guestbook :deep(.gb-reply-tag) {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--atelier-accent);
+  margin-bottom: 4px;
+}
+.atelier-guestbook :deep(.gb-reply-content) {
+  margin: 0;
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--pal-text);
+}
+.atelier-guestbook :deep(.gb-empty) {
+  color: var(--pal-text-dim);
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 14px;
+  text-align: center;
+  padding: 28px 0;
+}
+.atelier-guestbook :deep(.gb-load-more) {
+  display: block;
+  margin: 8px auto 0;
+  padding: 8px 26px;
+  border: 1px solid var(--pal-border);
+  background: transparent;
+  color: var(--pal-text-dim);
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.atelier-guestbook :deep(.gb-load-more:hover:not(:disabled)) { border-color: var(--atelier-accent); color: var(--atelier-accent); }
+.atelier-guestbook :deep(.gb-no-more) {
+  text-align: center;
+  font-size: 12px;
+  color: var(--pal-text-dim);
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  margin-top: 8px;
 }
 
 /* 页脚 */

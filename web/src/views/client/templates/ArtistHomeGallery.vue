@@ -42,6 +42,12 @@
       <TplRules :rules="rules" :sanitized-rules="sanitizedRules" />
     </section>
 
+    <!-- F4: 留言板 -->
+    <section class="gallery-section tpl-reveal">
+      <p class="tpl-section-label gallery-label">{{ $t('guestbook.title') }}</p>
+      <TplGuestbook :subdomain="subdomain" class="gallery-guestbook" />
+    </section>
+
     <!-- 页脚 -->
     <footer class="gallery-footer">
       <!-- R34: 外链（展签式横排） -->
@@ -85,6 +91,7 @@ import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
+import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
@@ -153,6 +160,91 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
   text-align: center;
   margin-bottom: 48px;
 }
+
+/* F4: 留言板 — gallery：展签式（无圆角、细线分隔、字距，美术馆感） */
+.gallery-guestbook { max-width: 640px; margin: 0 auto; }
+.gallery-guestbook :deep(.gb-form) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.gallery-guestbook :deep(.gb-input),
+.gallery-guestbook :deep(.gb-textarea) {
+  padding: 12px 0;
+  border: none;
+  border-bottom: 1px solid var(--pal-border);
+  background: transparent;
+  color: var(--pal-text);
+  font-size: 14px;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  resize: vertical;
+  transition: border-color 0.25s;
+}
+.gallery-guestbook :deep(.gb-input:focus),
+.gallery-guestbook :deep(.gb-textarea:focus) {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+.gallery-guestbook :deep(.gb-submit) {
+  align-self: flex-start;
+  padding: 10px 32px;
+  border: 1px solid var(--pal-text);
+  background: transparent;
+  color: var(--pal-text);
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s;
+}
+.gallery-guestbook :deep(.gb-submit:hover:not(:disabled)) { background: var(--pal-text); color: var(--pal-bg); }
+.gallery-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
+.gallery-guestbook :deep(.gb-pending-hint) { margin: 0; font-size: 12px; letter-spacing: 0.05em; color: var(--color-primary); }
+.gallery-guestbook :deep(.gb-item) {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--pal-border);
+}
+.gallery-guestbook :deep(.gb-item-head) {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.gallery-guestbook :deep(.gb-nickname) { font-weight: 600; font-size: 14px; letter-spacing: 0.05em; color: var(--pal-text); }
+.gallery-guestbook :deep(.gb-time) { font-size: 11px; letter-spacing: 0.08em; color: var(--pal-text-dim); }
+.gallery-guestbook :deep(.gb-content) { margin: 0; font-size: 14px; line-height: 1.8; color: var(--pal-text-dim); word-break: break-word; }
+.gallery-guestbook :deep(.gb-reply) {
+  margin-top: 14px;
+  padding-left: 16px;
+  border-left: 2px solid var(--color-primary);
+}
+.gallery-guestbook :deep(.gb-reply-tag) {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+.gallery-guestbook :deep(.gb-reply-content) { margin: 0; font-size: 13px; line-height: 1.7; color: var(--pal-text); }
+.gallery-guestbook :deep(.gb-empty) { color: var(--pal-text-dim); font-size: 13px; letter-spacing: 0.05em; text-align: center; padding: 32px 0; }
+.gallery-guestbook :deep(.gb-load-more) {
+  display: block;
+  margin: 20px auto 0;
+  padding: 8px 28px;
+  border: 1px solid var(--pal-border);
+  background: transparent;
+  color: var(--pal-text-dim);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s;
+}
+.gallery-guestbook :deep(.gb-load-more:hover:not(:disabled)) { border-color: var(--pal-text); color: var(--pal-text); }
+.gallery-guestbook :deep(.gb-no-more) { text-align: center; font-size: 11px; letter-spacing: 0.1em; color: var(--pal-text-dim); margin-top: 16px; }
 
 .gallery-footer {
   padding: 48px 24px 96px;
