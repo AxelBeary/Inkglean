@@ -32,17 +32,69 @@
         <div class="area area-activity">
           <ActivityFeed />
         </div>
+
+        <!-- F4: 留言审核（右栏 row 5） -->
+        <div class="area area-guestbook">
+          <el-card v-loading="guestbookLoading">
+            <template #header>
+              <div class="gb-mod-header">
+                <span>{{ $t('dashboard.guestbookTitle') }}</span>
+                <el-tag v-if="pendingCount > 0" type="warning" size="small">{{ pendingCount }}</el-tag>
+              </div>
+            </template>
+            <div v-if="guestbookMessages.length" class="gb-mod-list">
+              <div
+                v-for="m in guestbookMessages" :key="m.id"
+                class="gb-mod-item" :class="{ 'gb-mod-item--pending': m.status === 'pending' }"
+              >
+                <div class="gb-mod-head">
+                  <span class="gb-mod-nick">{{ m.nickname }}</span>
+                  <el-tag size="small" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[m.status]">
+                    {{ $t(`dashboard.guestbook${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`) }}
+                  </el-tag>
+                </div>
+                <p class="gb-mod-content">{{ m.content }}</p>
+                <p class="gb-mod-time">{{ formatDateTime(m.created_at) }}</p>
+                <!-- 已有回复：展示 -->
+                <div class="gb-mod-reply" v-if="m.artist_reply">
+                  <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReply') }}：</span>{{ m.artist_reply }}
+                </div>
+                <!-- 操作区：pending 可通过/拒绝；所有未删除的可回复 -->
+                <div class="gb-mod-actions" v-if="m.status === 'pending'">
+                  <el-button size="small" type="primary" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>
+                  <el-button size="small" @click="rejectMsg(m)">{{ $t('dashboard.guestbookReject') }}</el-button>
+                </div>
+                <div class="gb-mod-reply-box">
+                  <el-input
+                    v-model="replyDrafts[m.id]"
+                    type="textarea" :rows="2" maxlength="500"
+                    :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
+                  />
+                  <el-button
+                    size="small" style="margin-top: 6px"
+                    :disabled="!(replyDrafts[m.id] || '').trim()"
+                    @click="replyMsg(m)"
+                  >
+                    {{ $t('dashboard.guestbookReplySave') }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
+            <el-empty v-else :description="$t('dashboard.guestbookEmpty')" :image-size="60" />
+          </el-card>
+        </div>
       </div>
     </ArtistLayout>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useArtistStore } from '../../stores/artist.js'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { formatDateTime } from '../../utils/datetime.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import GreetingHero from '../../components/artist/dashboard/GreetingHero.vue'
 import RevenueChart from '../../components/artist/dashboard/RevenueChart.vue'
@@ -77,7 +129,53 @@ onMounted(async () => {
   lastKnownStatus.value = currentStatus.value // P1-6: 初始化已知状态
   // 统计卡片 + 今日统计行（独立失败，不阻塞其他模块）
   try { stats.value = await artistApi.getStats() } catch { /* ignore */ }
+  // F4: 留言审核（独立失败，不阻塞其他模块）
+  loadGuestbook()
 })
+
+// ─── F4: 留言审核 ───
+const guestbookMessages = ref([])
+const guestbookLoading = ref(true)
+const replyDrafts = reactive({})
+
+const pendingCount = computed(() => guestbookMessages.value.filter(m => m.status === 'pending').length)
+
+async function loadGuestbook() {
+  guestbookLoading.value = true
+  try {
+    const msgs = await artistApi.getMessages()
+    // 管理员已删除的留言不进入画师审核列表
+    guestbookMessages.value = (msgs || []).filter(m => !m.deleted_by_admin)
+  } catch { /* ignore */ }
+  finally { guestbookLoading.value = false }
+}
+
+async function approveMsg(m) {
+  try {
+    const updated = await artistApi.approveMessage(m.id)
+    Object.assign(m, updated)
+    ElMessage.success(t('dashboard.guestbookApprovedMsg'))
+  } catch (err) { ElMessage.error(err.message) }
+}
+
+async function rejectMsg(m) {
+  try {
+    await artistApi.rejectMessage(m.id)
+    m.status = 'rejected'
+    ElMessage.success(t('dashboard.guestbookRejectedMsg'))
+  } catch (err) { ElMessage.error(err.message) }
+}
+
+async function replyMsg(m) {
+  const reply = (replyDrafts[m.id] || '').trim()
+  if (!reply) return
+  try {
+    const updated = await artistApi.replyMessage(m.id, reply)
+    Object.assign(m, updated)
+    replyDrafts[m.id] = ''
+    ElMessage.success(t('dashboard.guestbookRepliedMsg'))
+  } catch (err) { ElMessage.error(err.message) }
+}
 </script>
 
 <style scoped>
@@ -107,5 +205,34 @@ onMounted(async () => {
   .area-quick    { grid-column: 2; grid-row: 2; }
   .area-status   { grid-column: 2; grid-row: 3; }
   .area-activity { grid-column: 2; grid-row: 4; }
+  .area-guestbook { grid-column: 2; grid-row: 5; }
 }
+
+/* ─── F4: 留言审核区 ─── */
+.gb-mod-header { display: flex; align-items: center; gap: 8px; }
+.gb-mod-list { display: flex; flex-direction: column; gap: 12px; max-height: 480px; overflow-y: auto; }
+.gb-mod-item {
+  padding: 12px;
+  border: 1px solid var(--border-color, #e4e7ed);
+  border-radius: 8px;
+}
+/* pending 醒目黄底 */
+.gb-mod-item--pending {
+  background: var(--el-color-warning-light-9, #fdf6ec);
+  border-color: var(--el-color-warning-light-5, #f5dab1);
+}
+.gb-mod-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.gb-mod-nick { font-weight: 700; font-size: 14px; }
+.gb-mod-content { margin: 0 0 4px; font-size: 13px; line-height: 1.6; word-break: break-word; }
+.gb-mod-time { margin: 0 0 8px; font-size: 11px; color: var(--text-secondary); }
+.gb-mod-reply {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--el-color-primary-light-9, #ecf5ff);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.gb-mod-reply-label { font-weight: 700; color: var(--el-color-primary); }
+.gb-mod-actions { margin-bottom: 8px; }
 </style>

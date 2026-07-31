@@ -15,6 +15,7 @@
           <el-button type="primary" size="small" @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
           <el-button size="small" @click="$router.push('/admin/greetings')">{{ $t('admin.greetingManage') }}</el-button>
           <el-button size="small" @click="$router.push('/admin/default-workflow')">{{ $t('admin.defaultWorkflow') }}</el-button>
+          <el-button size="small" @click="$router.push('/admin/health')">{{ $t('admin.health.title') }}</el-button>
         </div>
       </template>
       <el-table :data="artists" v-loading="loading" stripe>
@@ -56,6 +57,34 @@
         </el-table-column>
       </el-table>
       <el-empty v-else :description="$t('admin.recycleBin.emptyHint')" />
+    </el-card>
+
+    <!-- F4: 留言管理（跨画师，强制删除） -->
+    <el-card style="margin-top: 24px">
+      <template #header>
+        <span>{{ $t('admin.guestbook.title') }}</span>
+      </template>
+      <el-table v-if="msgLoading || adminMessages.length" :data="adminMessages" v-loading="msgLoading" stripe>
+        <el-table-column :label="$t('admin.guestbook.colArtist')" width="120">
+          <template #default="{ row }">{{ row.artist_name || `#${row.artist_id}` }}</template>
+        </el-table-column>
+        <el-table-column prop="nickname" :label="$t('admin.guestbook.colNickname')" width="120" />
+        <el-table-column prop="content" :label="$t('admin.guestbook.colContent')" min-width="200" show-overflow-tooltip />
+        <el-table-column :label="$t('admin.guestbook.colStatus')" width="90">
+          <template #default="{ row }">
+            <el-tag size="small" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('admin.guestbook.colTime')" width="170">
+          <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+        </el-table-column>
+        <el-table-column width="110">
+          <template #default="{ row }">
+            <el-button size="small" type="danger" @click="handleDeleteMessage(row)">{{ $t('admin.guestbook.delete') }}</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-else :description="$t('admin.guestbook.empty')" />
     </el-card>
   </div>
 </template>
@@ -103,6 +132,27 @@ async function handleEmptyRecycleBin() {
   }
 }
 
+// ─── F4: 留言管理（跨画师） ───
+const adminMessages = ref([])
+const msgLoading = ref(true)
+
+async function handleDeleteMessage(row) {
+  try {
+    await ElMessageBox.confirm(
+      t('admin.guestbook.deleteConfirm'),
+      t('admin.guestbook.title'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  try {
+    await adminApi.deleteMessage(row.id)
+    ElMessage.success(t('admin.guestbook.deleted'))
+    adminMessages.value = adminMessages.value.filter(m => m.id !== row.id)
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
 onMounted(async () => {
   try {
     const [s, a, rb] = await Promise.all([
@@ -119,6 +169,11 @@ onMounted(async () => {
     loading.value = false
     recycleLoading.value = false
   }
+  // F4: 留言列表（独立失败，不阻塞其他模块）
+  try {
+    adminMessages.value = (await adminApi.getMessages()) || []
+  } catch { /* 后端 GET /api/admin/messages 待三号补齐 */ }
+  finally { msgLoading.value = false }
 })
 </script>
 

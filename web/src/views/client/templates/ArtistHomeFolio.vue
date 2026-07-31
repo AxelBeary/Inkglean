@@ -71,6 +71,14 @@
       <TplRules :rules="rules" :sanitized-rules="sanitizedRules" />
     </section>
 
+    <!-- F4: 留言板 -->
+    <section id="guestbook" class="folio-section tpl-reveal">
+      <div class="folio-inner">
+        <h2 class="folio-title">{{ $t('guestbook.title') }}</h2>
+        <TplGuestbook :subdomain="subdomain" class="folio-guestbook" />
+      </div>
+    </section>
+
     <!-- CTA 区 -->
     <section class="folio-cta">
       <div class="folio-cta-inner">
@@ -128,6 +136,7 @@ import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
+import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
@@ -317,6 +326,89 @@ onUnmounted(() => {
   color: var(--pal-text);
   margin: 0 0 48px;
 }
+
+/* F4: 留言板 — folio：内联文字块（极简编辑感，无边框，留白分隔） */
+.folio-guestbook { max-width: 560px; }
+.folio-guestbook :deep(.gb-form) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.folio-guestbook :deep(.gb-input),
+.folio-guestbook :deep(.gb-textarea) {
+  padding: 12px 16px;
+  border: 1px solid var(--pal-border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--pal-text);
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+.folio-guestbook :deep(.gb-input:focus),
+.folio-guestbook :deep(.gb-textarea:focus) {
+  outline: none;
+  border-color: var(--pal-text);
+}
+.folio-guestbook :deep(.gb-submit) {
+  align-self: flex-start;
+  padding: 12px 36px;
+  border: none;
+  border-radius: 2px;
+  background: var(--pal-text);
+  color: var(--pal-bg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.folio-guestbook :deep(.gb-submit:hover:not(:disabled)) { opacity: 0.85; }
+.folio-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
+.folio-guestbook :deep(.gb-pending-hint) { margin: 0; font-size: 13px; color: var(--pal-text-dim); font-style: italic; }
+.folio-guestbook :deep(.gb-item) { padding: 24px 0; border-top: 1px solid var(--pal-border); }
+.folio-guestbook :deep(.gb-item:first-child) { border-top: none; padding-top: 0; }
+.folio-guestbook :deep(.gb-item-head) {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.folio-guestbook :deep(.gb-nickname) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--pal-text);
+}
+.folio-guestbook :deep(.gb-time) { font-size: 12px; color: var(--pal-text-dim); }
+.folio-guestbook :deep(.gb-content) { margin: 0; font-size: 15px; line-height: 1.8; color: var(--pal-text-dim); word-break: break-word; }
+.folio-guestbook :deep(.gb-reply) { margin-top: 14px; padding-left: 18px; border-left: 2px solid var(--pal-border); }
+.folio-guestbook :deep(.gb-reply-tag) {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--pal-text-dim);
+  margin-bottom: 4px;
+}
+.folio-guestbook :deep(.gb-reply-content) { margin: 0; font-size: 14px; line-height: 1.7; color: var(--pal-text); font-style: italic; }
+.folio-guestbook :deep(.gb-empty) { color: var(--pal-text-dim); font-size: 15px; font-style: italic; padding: 24px 0; }
+.folio-guestbook :deep(.gb-load-more) {
+  display: block;
+  margin: 12px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--pal-text-dim);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.folio-guestbook :deep(.gb-load-more:hover:not(:disabled)) { color: var(--pal-text); }
+.folio-guestbook :deep(.gb-no-more) { font-size: 12px; color: var(--pal-text-dim); margin-top: 12px; }
 
 /* ===== CTA 区 ===== */
 .folio-cta {

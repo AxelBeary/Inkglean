@@ -113,6 +113,7 @@ export default {
     track: '查询进度',
     delivery: '下载作品',
     login: '画师登录',
+    healthCheck: '系统自检',
     notFound: '页面不存在'
   },
   menu: {
@@ -197,10 +198,25 @@ export default {
     timeline: {
       title: '制作进度',
       current: '进行中',
+      progress: '{name} {current}/{total}',
       revision: '画师打回修改中，进度已回退',
+      revisionAt: '已回退到「{name}」',
       notStarted: '订单已提交，等待画师确认后进入制作流程',
       orderedAt: '下单时间：'
     }
+  },
+  // F4: 留言板（客户端留言墙，共享组件 TplGuestbook）
+  guestbook: {
+    title: '留言板',
+    empty: '还没有留言，来说点什么吧 💬',
+    nickname: '昵称', nicknamePlaceholder: '怎么称呼你',
+    content: '留言内容', contentPlaceholder: '想对画师说的话…',
+    submit: '留言',
+    pendingHint: '已提交，等待画师审核后可见',
+    rateLimited: '留言太频繁了，请稍后再试',
+    artistTag: '画师',
+    loadMore: '加载更多',
+    noMore: '没有更多了'
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
@@ -221,6 +237,12 @@ export default {
     anotherOne: '换一句',
     slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     defaultPanel: '默认面板', panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
+    // F4: 留言审核
+    guestbookTitle: '💬 留言审核', guestbookEmpty: '暂无留言',
+    guestbookPending: '待审核', guestbookApproved: '已通过', guestbookRejected: '已拒绝',
+    guestbookApprove: '通过', guestbookReject: '拒绝', guestbookReply: '回复',
+    guestbookReplyPlaceholder: '回复这位访客（≤500字）', guestbookReplySave: '保存回复',
+    guestbookApprovedMsg: '留言已通过', guestbookRejectedMsg: '留言已拒绝', guestbookRepliedMsg: '回复已保存',
     // R52: 今日统计
     todayNewOrders: '今日新增订单', todayRevenue: '今日收入',
     // R51: 截稿日 + 今日待办
@@ -507,6 +529,20 @@ export default {
       colFile: '文件名', colPath: '原始路径', colSize: '大小', colMovedAt: '移入时间',
       emptyTitle: '清空回收站', emptyConfirm: '回收站中的文件将被永久删除，不可恢复。确定清空？',
       emptied: '已清空，删除 {n} 个文件', emptyHint: '回收站是空的'
+    },
+    // F4: 留言管理（跨画师）
+    guestbook: {
+      title: '💬 留言管理', empty: '暂无留言',
+      colArtist: '画师', colNickname: '昵称', colContent: '内容', colStatus: '状态', colTime: '时间',
+      delete: '强制删除', deleteConfirm: '确定删除这条留言？删除后客户主页将不再显示。', deleted: '留言已删除'
+    },
+    // HC: 系统自检
+    health: {
+      title: '🩺 系统自检', start: '开始检查', checking: '检查中…',
+      download: '下载诊断包', refresh: '刷新后结果不保留',
+      diskNote: '仅供参考', expandDetail: '详情',
+      statusOk: '正常', statusWarn: '警告', statusFail: '异常',
+      emptyHint: '点击「开始检查」运行 8 项系统检查'
     }
   }
 }

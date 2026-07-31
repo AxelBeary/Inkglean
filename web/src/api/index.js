@@ -84,7 +84,10 @@ export const artistPublicApi = {
   calculatePrice: (data) => api.post('/public/calculate-price', data),
   // F1: 作品点赞（匿名公开）
   likeArtwork: (id) => api.post(`/public/artworks/${id}/like`),
-  unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`)
+  unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`),
+  // F4: 留言板（公开）
+  getMessages: (subdomain, page = 1, pageSize = 20) => api.get(`/public/artist/${subdomain}/messages`, { params: { page, pageSize } }),
+  postMessage: (subdomain, data) => api.post(`/public/artist/${subdomain}/messages`, data)
 }
 
 // ─── 画师后台 ───
@@ -102,6 +105,11 @@ export const artistApi = {
   deleteArtwork: (id) => api.delete(`/artist/artworks/${id}`),
   // 须知
   getRules: () => api.get('/artist/rules'),
+  // F4: 留言审核
+  getMessages: () => api.get('/artist/messages'),
+  approveMessage: (id) => api.put(`/artist/messages/${id}/approve`),
+  rejectMessage: (id) => api.put(`/artist/messages/${id}/reject`),
+  replyMessage: (id, reply) => api.put(`/artist/messages/${id}/reply`, { reply }),
   updateRules: (content) => api.put('/artist/rules', { content }),
   // 订单
   getOrders: (status, { page, pageSize } = {}) => api.get('/artist/orders', { params: { status, page, pageSize } }),
@@ -246,5 +254,10 @@ export const adminApi = {
   updateArtistRules: (id, content) => api.put(`/admin/artists/${id}/rules`, { content }),
   // 回收站（事故修复：孤儿文件可恢复）
   getRecycleBin: () => api.get('/admin/recycle-bin'),
-  emptyRecycleBin: () => api.delete('/admin/recycle-bin')
+  emptyRecycleBin: () => api.delete('/admin/recycle-bin'),
+  // F4: 留言管理（跨画师）
+  getMessages: () => api.get('/admin/messages'),
+  deleteMessage: (id) => api.delete(`/admin/messages/${id}`),
+  // HC: 系统自检
+  getHealth: () => api.get('/admin/health')
 }
