@@ -38,13 +38,13 @@ const DELIVER_BLOCKED_MIME = ['image/svg+xml', 'text/html', 'application/xhtml+x
 /**
  * P0-B: 安全扩展名提取 — basename 剥路径成分 + 正则限字符集
  */
-function safeExt(filename, allowList) {
+function safeExt(filename: string | undefined, allowList: string[]): string | null {
   const ext = extname(basename(String(filename || ''))).toLowerCase()
   if (!/^\.[a-z0-9]{1,8}$/.test(ext)) return null
   return allowList.includes(ext) ? ext : null
 }
 
-function checkFileType(mimeType, fileName) {
+function checkFileType(mimeType: string, fileName: string): { recommended: boolean; message: string | null } {
   const ext = extname(fileName).toLowerCase()
   const isRecommended = RECOMMENDED_TYPES.includes(mimeType) ||
     ['.webp', '.jpg', '.jpeg', '.png'].includes(ext)
@@ -57,11 +57,25 @@ function checkFileType(mimeType, fileName) {
   return { recommended: true, message: null }
 }
 
+/** multipart 文件数据（@fastify/multipart 返回） */
+interface MultipartFile {
+  filename: string
+  mimetype: string
+  file: NodeJS.ReadableStream & { truncated?: boolean }
+}
+
+/** 保存结果 */
+interface SaveResult {
+  filePath: string
+  absPath: string
+  size: number
+}
+
 /**
  * 保存上传文件，截断时自动清理残留
  * P0-B: 路径穿越纵深防御 — 最终路径必须在 uploadDir 内
  */
-async function saveUpload(data, subDir, uploadDir) {
+async function saveUpload(data: MultipartFile, subDir: string, uploadDir: string): Promise<SaveResult | null> {
   const ext = safeExt(data.filename, ALLOWED_EXTENSIONS)
   if (!ext) throw new AppError(E.ILLEGAL_FILE_TYPE)
   const fileName = `${nanoid(12)}${ext}`
@@ -93,7 +107,7 @@ async function saveUpload(data, subDir, uploadDir) {
 /**
  * 交付文件专用保存（允许更多格式）
  */
-async function saveDeliverable(data, subDir, uploadDir) {
+async function saveDeliverable(data: MultipartFile, subDir: string, uploadDir: string): Promise<SaveResult | null> {
   const ext = safeExt(data.filename, DELIVER_ALLOWED)
   if (!ext) throw new AppError(E.UNSUPPORTED_FORMAT)
   const fileName = `${nanoid(12)}${ext}`
@@ -120,7 +134,7 @@ async function saveDeliverable(data, subDir, uploadDir) {
   return { filePath: filePath.split(sep).join('/'), absPath, size }
 }
 
-export default async function uploadRoutes(fastify, opts) {
+export default async function uploadRoutes(fastify: any, opts: any) {
   const UPLOAD_DIR = opts.uploadDir || resolve(process.env.UPLOAD_DIR || './uploads')
 
   await fastify.register(import('@fastify/multipart'), {
@@ -131,7 +145,7 @@ export default async function uploadRoutes(fastify, opts) {
    * POST /api/upload/image — 作品图/档位示例图（需登录）
    * P0-B: 加限流（20次/10分钟）
    */
-  fastify.post('/api/upload/image', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/upload/image', { preHandler: requireAuth }, async (request: any, reply: any) => {
     if (!rateLimit(`upload-img:${request.ip}`, 20, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -157,7 +171,7 @@ export default async function uploadRoutes(fastify, opts) {
         size: result.size,
         typeWarning: typeCheck.recommended ? null : typeCheck.message
       }
-    } catch (err) {
+    } catch (err: any) {
       return reply.code(400).send({ error: err.message })
     }
   })
@@ -166,7 +180,7 @@ export default async function uploadRoutes(fastify, opts) {
    * POST /api/upload/reference — 参考图（客户下单用，公开）
    * P0-B: 加限流（10次/10分钟，公开接口需更严格）
    */
-  fastify.post('/api/upload/reference', async (request, reply) => {
+  fastify.post('/api/upload/reference', async (request: any, reply: any) => {
     if (!rateLimit(`upload-ref:${request.ip}`, 10, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -192,7 +206,7 @@ export default async function uploadRoutes(fastify, opts) {
         size: result.size,
         typeWarning: typeCheck.recommended ? null : typeCheck.message
       }
-    } catch (err) {
+    } catch (err: any) {
       return reply.code(400).send({ error: err.message })
     }
   })
@@ -201,7 +215,7 @@ export default async function uploadRoutes(fastify, opts) {
    * POST /api/upload/deliverable — 交付文件（需登录，允许更多格式）
    * P0-B: 加限流（20次/10分钟）
    */
-  fastify.post('/api/upload/deliverable', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/upload/deliverable', { preHandler: requireAuth }, async (request: any, reply: any) => {
     if (!rateLimit(`upload-deliver:${request.ip}`, 20, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -226,7 +240,7 @@ export default async function uploadRoutes(fastify, opts) {
         mimeType: data.mimetype,
         size: result.size
       }
-    } catch (err) {
+    } catch (err: any) {
       return reply.code(400).send({ error: err.message })
     }
   })
@@ -236,7 +250,7 @@ export default async function uploadRoutes(fastify, opts) {
    * 存入 notes/{artistId}/ 目录，签名 URL 返回
    * 白名单：图片格式（同 references，JPG/PNG/WebP/GIF，10MB）
    */
-  fastify.post('/api/upload/note-image', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/upload/note-image', { preHandler: requireAuth }, async (request: any, reply: any) => {
     if (!rateLimit(`upload-note:${request.ip}`, 20, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -260,7 +274,7 @@ export default async function uploadRoutes(fastify, opts) {
         mimeType: data.mimetype,
         size: result.size
       }
-    } catch (err) {
+    } catch (err: any) {
       return reply.code(400).send({ error: err.message })
     }
   })

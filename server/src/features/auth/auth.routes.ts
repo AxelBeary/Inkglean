@@ -3,17 +3,18 @@ import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
+import type { FastifyInstance } from 'fastify'
 
 // ============================================
 // 认证路由 - 登录码获取与验证
 // ============================================
 
 /** 限流守卫：不通过则抛 429 */
-function guardRateLimit(key, max, windowMs) {
+function guardRateLimit(key: string, max: number, windowMs: number): void {
   if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
 }
 
-export default async function authRoutes(fastify) {
+export default async function authRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/auth/send-code
@@ -34,7 +35,7 @@ export default async function authRoutes(fastify) {
   }, async (request) => {
     guardRateLimit(`send-code:${request.ip}`, 5, 5 * 60_000)
 
-    const { qqNumber } = request.body
+    const { qqNumber } = request.body as { qqNumber: string }
 
     const { code, artist } = generateLoginCode(qqNumber)
 
@@ -70,7 +71,7 @@ export default async function authRoutes(fastify) {
   }, async (request, reply) => {
     guardRateLimit(`verify:${request.ip}`, 10, 5 * 60_000)
 
-    const { qqNumber, code } = request.body
+    const { qqNumber, code } = request.body as { qqNumber: string; code: string }
 
     const result = verifyLoginCode(qqNumber, code)
     if (!result.valid) {

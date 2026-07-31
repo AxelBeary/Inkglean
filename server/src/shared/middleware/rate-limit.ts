@@ -4,7 +4,7 @@
 // P2-1: 固定窗口→滑动日志，消除边界突发
 // ============================================
 
-const buckets = new Map()
+const buckets = new Map<string, number[]>()
 
 /**
  * @param {string} key - 限流键（如 `send-code:1.2.3.4`）
@@ -12,7 +12,7 @@ const buckets = new Map()
  * @param {number} windowMs - 窗口时长（毫秒）
  * @returns {boolean} true=放行 false=限流
  */
-export function rateLimit(key, maxHits, windowMs) {
+export function rateLimit(key: string, maxHits: number, windowMs: number): boolean {
   const now = Date.now()
   const cutoff = now - windowMs
 
