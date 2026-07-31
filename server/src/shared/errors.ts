@@ -1,0 +1,333 @@
+/**
+ * 统一业务错误类
+ * code: 机器可读错误码（前端用于 i18n 翻译）
+ * statusCode: HTTP 状态码（默认 400）
+ * detail: 可选的上下文信息（如字段名、限制值）
+ */
+export class AppError extends Error {
+  code: string
+  statusCode: number
+  detail: unknown
+
+  constructor(code: string, statusCode: number = 400, detail: unknown = null) {
+    super(code)
+    this.code = code
+    this.statusCode = statusCode
+    this.detail = detail
+  }
+}
+
+// ─── 错误码常量 ───
+export const E = {
+  // 认证
+  NOT_LOGGED_IN: 'NOT_LOGGED_IN',
+  SESSION_EXPIRED: 'SESSION_EXPIRED',
+  ACCOUNT_NOT_FOUND: 'ACCOUNT_NOT_FOUND',
+  ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
+  TOKEN_REVOKED: 'TOKEN_REVOKED',
+  ADMIN_REQUIRED: 'ADMIN_REQUIRED',
+  CODE_INVALID: 'CODE_INVALID',
+  CODE_EXPIRED: 'CODE_EXPIRED',
+  CODE_TOO_MANY_ATTEMPTS: 'CODE_TOO_MANY_ATTEMPTS',
+  QQ_NOT_REGISTERED: 'QQ_NOT_REGISTERED',
+
+  // 画师
+  ARTIST_NOT_FOUND: 'ARTIST_NOT_FOUND',
+  NAME_EMPTY: 'NAME_EMPTY',
+  CODE_FORMAT: 'CODE_FORMAT',
+  CODE_TAKEN: 'CODE_TAKEN',
+  QQ_TAKEN: 'QQ_TAKEN',
+  SUBDOMAIN_TAKEN: 'SUBDOMAIN_TAKEN',
+  INVALID_STATUS: 'INVALID_STATUS',
+  INVALID_URL: 'INVALID_URL',
+
+  // 流程
+  STAGE_NOT_FOUND: 'STAGE_NOT_FOUND',
+  STAGE_NAME_EMPTY: 'STAGE_NAME_EMPTY',
+  FINAL_CANNOT_DISABLE: 'FINAL_CANNOT_DISABLE',
+  FINAL_CANNOT_DELETE: 'FINAL_CANNOT_DELETE',
+  FINAL_READONLY: 'FINAL_READONLY',
+  MAX_INSTALLMENTS: 'MAX_INSTALLMENTS',
+  FINAL_TOO_LOW: 'FINAL_TOO_LOW',
+  MIN_STAGES: 'MIN_STAGES',
+  REORDER_LENGTH: 'REORDER_LENGTH',
+  REORDER_INVALID: 'REORDER_INVALID',
+  REORDER_DUPLICATE: 'REORDER_DUPLICATE',
+  NO_FINAL: 'NO_FINAL',
+  NOT_PAYMENT_STAGE: 'NOT_PAYMENT_STAGE',
+  BP_TOO_LOW: 'BP_TOO_LOW',
+  BP_TOO_HIGH: 'BP_TOO_HIGH',
+  NO_PAYMENT_NODE: 'NO_PAYMENT_NODE',
+  SUM_NOT_100: 'SUM_NOT_100',
+
+  // 订单
+  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  INVALID_TRANSITION: 'INVALID_TRANSITION',
+  DELIVER_WRONG_STATUS: 'DELIVER_WRONG_STATUS',
+  TIER_NOT_FOUND: 'TIER_NOT_FOUND',
+  ILLEGAL_PATH: 'ILLEGAL_PATH',
+  MISSING_FILE: 'MISSING_FILE',
+
+  // 通用
+  NOT_FOUND: 'NOT_FOUND',
+  VALIDATION: 'VALIDATION',
+  RATE_LIMITED: 'RATE_LIMITED',
+  MISSING_PARAMS: 'MISSING_PARAMS',
+
+  // 输入校验
+  QQ_REQUIRED: 'QQ_REQUIRED',
+  QQ_FORMAT: 'QQ_FORMAT',
+  MISSING_CREDENTIALS: 'MISSING_CREDENTIALS',
+
+  // 订单输入
+  ARTIST_NOT_OPEN: 'ARTIST_NOT_OPEN',
+  RULES_NOT_AGREED: 'RULES_NOT_AGREED',
+  STATUS_REQUIRED: 'STATUS_REQUIRED',
+  NOTE_EMPTY: 'NOTE_EMPTY',
+  ORDER_INVALID_ID: 'ORDER_INVALID_ID',
+
+  // 画师扩展
+  SUBDOMAIN_FORMAT: 'SUBDOMAIN_FORMAT',
+
+  // 订单扩展
+  ORDER_INVALID_STATUS: 'ORDER_INVALID_STATUS',
+  QUEUE_EMPTY: 'QUEUE_EMPTY',
+  QUEUE_NOT_OWNED: 'QUEUE_NOT_OWNED',
+  QUEUE_LENGTH: 'QUEUE_LENGTH',
+  QUEUE_DUPLICATE: 'QUEUE_DUPLICATE',
+  INVALID_PRIORITY: 'INVALID_PRIORITY',
+
+  // 上传
+  ILLEGAL_FILE_TYPE: 'ILLEGAL_FILE_TYPE',
+  UNSUPPORTED_FORMAT: 'UNSUPPORTED_FORMAT',
+
+  // 管理员
+  ADMIN_VERIFY_FAILED: 'ADMIN_VERIFY_FAILED',
+
+  // 增项
+  ADDON_NOT_FOUND: 'ADDON_NOT_FOUND',
+  ADDON_NAME_EMPTY: 'ADDON_NAME_EMPTY',
+  ADDON_INVALID_PRICE: 'ADDON_INVALID_PRICE',
+  ADDON_INVALID_MODE: 'ADDON_INVALID_MODE',
+  ADDON_MAX_QTY: 'ADDON_MAX_QTY',
+  ADDON_NOT_FOR_TIER: 'ADDON_NOT_FOR_TIER',
+
+  // 倍率
+  MULTIPLIER_NOT_FOUND: 'MULTIPLIER_NOT_FOUND',
+  MULTIPLIER_INVALID: 'MULTIPLIER_INVALID',
+
+  // 计算
+  PRICING_TIER_REQUIRED: 'PRICING_TIER_REQUIRED',
+  PRICING_CALC_FAILED: 'PRICING_CALC_FAILED',
+
+  // 价格（v0.11）
+  INVALID_PRICE: 'INVALID_PRICE',
+
+  // 焦点图（v0.11）
+  FOCUS_IMAGE_NOT_FOUND: 'FOCUS_IMAGE_NOT_FOUND',
+  FOCUS_IMAGE_NOT_OWNED: 'FOCUS_IMAGE_NOT_OWNED',
+  INVALID_FOCUS_MODE: 'INVALID_FOCUS_MODE',
+
+  // 外链（v0.12 R15）
+  LINKS_TOO_MANY: 'LINKS_TOO_MANY',
+  LINK_URL_INVALID: 'LINK_URL_INVALID',
+
+  // 图库（v0.12 R18）
+  REFERENCES_LIMIT: 'REFERENCES_LIMIT',
+  REFERENCE_DUPLICATE: 'REFERENCE_DUPLICATE',
+
+  // 备注附图（v0.12 R19）
+  NOTE_IMAGE_PATH_INVALID: 'NOTE_IMAGE_PATH_INVALID',
+
+  // 流程跟踪（v0.14）
+  TRACK_ALREADY_ON: 'TRACK_ALREADY_ON',
+  NO_WORKFLOW_TEMPLATE: 'NO_WORKFLOW_TEMPLATE',
+
+  // 备注删除（v0.15 R46）
+  NOTE_NOT_FOUND: 'NOTE_NOT_FOUND',
+  SYSTEM_NOTE_PROTECTED: 'SYSTEM_NOTE_PROTECTED',
+
+  // 强调色（v0.15 R49）
+  INVALID_ACCENT_COLOR: 'INVALID_ACCENT_COLOR',
+
+  // 截稿日（v0.15 R51）
+  INVALID_DEADLINE: 'INVALID_DEADLINE',
+
+  // 下单页模板（v0.16 R58-7）
+  INVALID_ORDER_TEMPLATE: 'INVALID_ORDER_TEMPLATE',
+
+  // 平台链接（v0.17 R58-8）
+  PLATFORM_URLS_TOO_MANY: 'PLATFORM_URLS_TOO_MANY',
+  PLATFORM_URL_INVALID: 'PLATFORM_URL_INVALID',
+
+  // 灵感标签（v0.17）
+  TAGS_TOO_MANY: 'TAGS_TOO_MANY',
+
+  // 附加工作项（v0.17 SPEC-003）
+  EXTRA_ITEM_LIMIT: 'EXTRA_ITEM_LIMIT',
+  ORDER_FINAL_STATE: 'ORDER_FINAL_STATE',
+
+  // 名额与缓冲（v0.17 SPEC-004）
+  BATCH_FULL: 'BATCH_FULL',
+  INVALID_BATCH_LIMIT: 'INVALID_BATCH_LIMIT',
+  NOT_BUFFER_ORDER: 'NOT_BUFFER_ORDER',
+
+  // 流程（v0.19 P1-5）
+  STAGE_IN_USE: 'STAGE_IN_USE'
+} as const
+
+// ─── 错误码 → 中文用户友好消息 ───
+// 全局错误处理器优先查此表，未命中则回退到 error.message
+export const ERROR_MESSAGES: Record<string, string> = {
+  // 认证
+  NOT_LOGGED_IN: '请先登录',
+  SESSION_EXPIRED: '登录已过期，请重新登录',
+  ACCOUNT_NOT_FOUND: '账号不存在',
+  ACCOUNT_DISABLED: '账号已被禁用',
+  TOKEN_REVOKED: '登录已失效，请重新登录',
+  ADMIN_REQUIRED: '需要管理员权限',
+  CODE_INVALID: '登录码不正确',
+  CODE_EXPIRED: '登录码已过期，请重新获取',
+  CODE_TOO_MANY_ATTEMPTS: '尝试次数过多，请稍后再试',
+  QQ_NOT_REGISTERED: '该QQ号尚未注册',
+
+  // 画师
+  ARTIST_NOT_FOUND: '画师不存在',
+  NAME_EMPTY: '名称不能为空',
+  CODE_FORMAT: '身份码格式不正确（仅限字母和数字）',
+  CODE_TAKEN: '该身份码已被使用',
+  QQ_TAKEN: '该QQ号已被注册',
+  SUBDOMAIN_TAKEN: '该子域名已被使用',
+  INVALID_STATUS: '无效的状态值',
+  INVALID_URL: '链接格式不正确',
+  SUBDOMAIN_FORMAT: '子域名格式不正确',
+
+  // 流程
+  STAGE_NOT_FOUND: '流程节点不存在',
+  STAGE_NAME_EMPTY: '节点名称不能为空',
+  FINAL_CANNOT_DISABLE: '交付节点不能禁用',
+  FINAL_CANNOT_DELETE: '交付节点不能删除',
+  FINAL_READONLY: '交付节点不可修改',
+  MAX_INSTALLMENTS: '分期数已达上限',
+  FINAL_TOO_LOW: '尾款比例过低',
+  MIN_STAGES: '流程节点数不能少于最低要求',
+  REORDER_LENGTH: '排序列表长度不匹配',
+  REORDER_INVALID: '排序列表包含无效节点',
+  REORDER_DUPLICATE: '排序列表存在重复',
+  NO_FINAL: '缺少交付节点',
+  NOT_PAYMENT_STAGE: '该节点不是收款节点',
+  BP_TOO_LOW: '比例过低',
+  BP_TOO_HIGH: '比例过高',
+  NO_PAYMENT_NODE: '没有收款节点',
+  SUM_NOT_100: '各期比例之和必须为100%',
+
+  // 订单
+  ORDER_NOT_FOUND: '订单不存在',
+  INVALID_TRANSITION: '不允许的状态变更',
+  DELIVER_WRONG_STATUS: '当前状态不允许交付',
+  TIER_NOT_FOUND: '价格档位不存在',
+  ORDER_INVALID_STATUS: '无效的订单状态',
+  QUEUE_EMPTY: '排序列表不能为空',
+  QUEUE_NOT_OWNED: '队列中包含不属于你的订单',
+  QUEUE_LENGTH: '排序列表长度与实际队列不匹配',
+  QUEUE_DUPLICATE: '排序列表存在重复订单',
+  INVALID_PRIORITY: '无效的优先级',
+  ORDER_INVALID_ID: '无效的订单ID',
+
+  // 上传
+  ILLEGAL_FILE_TYPE: '不支持的文件类型',
+  UNSUPPORTED_FORMAT: '不支持的文件格式',
+  ILLEGAL_PATH: '非法的文件路径',
+  MISSING_FILE: '缺少文件',
+
+  // 通用
+  NOT_FOUND: '资源不存在',
+  VALIDATION: '请求参数格式不正确',
+  RATE_LIMITED: '操作过于频繁，请稍后再试',
+  MISSING_PARAMS: '缺少必要参数',
+
+  // 输入校验
+  QQ_REQUIRED: '请填写QQ号',
+  QQ_FORMAT: 'QQ号格式不正确（5-15位数字）',
+  MISSING_CREDENTIALS: '请输入QQ号和登录码',
+
+  // 订单输入
+  ARTIST_NOT_OPEN: '该画师当前不接受新约稿',
+  RULES_NOT_AGREED: '请先阅读并同意约稿须知',
+  STATUS_REQUIRED: '请指定状态',
+  NOTE_EMPTY: '备注内容不能为空',
+
+  // 管理员
+  ADMIN_VERIFY_FAILED: '管理员验证失败',
+
+  // 增项
+  ADDON_NOT_FOUND: '增项不存在',
+  ADDON_NAME_EMPTY: '增项名称不能为空',
+  ADDON_INVALID_PRICE: '增项价格无效',
+  ADDON_INVALID_MODE: '无效的选择模式',
+  ADDON_MAX_QTY: '超出最大数量限制',
+  ADDON_NOT_FOR_TIER: '该增项不适用于所选档位',
+
+  // 倍率
+  MULTIPLIER_NOT_FOUND: '倍率项不存在',
+  MULTIPLIER_INVALID: '倍率值无效（须大于等于1.0）',
+
+  // 计算
+  PRICING_TIER_REQUIRED: '请先选择基础档位',
+  PRICING_CALC_FAILED: '价格计算失败',
+
+  // 价格（v0.11）
+  INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
+
+  // 焦点图（v0.11）
+  FOCUS_IMAGE_NOT_FOUND: '参考图不存在',
+  FOCUS_IMAGE_NOT_OWNED: '该参考图不属于此订单',
+  INVALID_FOCUS_MODE: '无效的焦点图模式（可选：off/small/large）',
+
+  // 外链（v0.12 R15）
+  LINKS_TOO_MANY: '外链数量不能超过6条',
+  LINK_URL_INVALID: '外链地址格式不正确（须以 http:// 或 https:// 开头）',
+
+  // 图库（v0.12 R18）
+  REFERENCES_LIMIT: '参考图总数不能超过20张',
+  REFERENCE_DUPLICATE: '该图片已在图库中',
+
+  // 备注附图（v0.12 R19）
+  NOTE_IMAGE_PATH_INVALID: '备注附图路径不合法',
+
+  // 流程跟踪（v0.14）
+  TRACK_ALREADY_ON: '该订单已启用流程跟踪',
+  NO_WORKFLOW_TEMPLATE: '请先创建工作流模板（至少 1 个节点）',
+
+  // 备注删除（v0.15 R46）
+  NOTE_NOT_FOUND: '备注不存在',
+  SYSTEM_NOTE_PROTECTED: '系统备注不可删除',
+
+  // 强调色（v0.15 R49）
+  INVALID_ACCENT_COLOR: '无效的强调色（仅允许预设色值）',
+
+  // 截稿日（v0.15 R51）
+  INVALID_DEADLINE: '截稿日格式无效（须为 ISO 8601）',
+
+  // 下单页模板（v0.16 R58-7）
+  INVALID_ORDER_TEMPLATE: '无效的下单页模板',
+
+  // 平台链接（v0.17 R58-8）
+  PLATFORM_URLS_TOO_MANY: '平台链接数量不能超过10条',
+  PLATFORM_URL_INVALID: '平台链接格式不正确（须以 http:// 或 https:// 开头）',
+
+  // 灵感标签（v0.17）
+  TAGS_TOO_MANY: '灵感标签数量不能超过20个',
+
+  // 附加工作项（v0.17 SPEC-003）
+  EXTRA_ITEM_LIMIT: '附加工作项数量不能超过20条',
+  ORDER_FINAL_STATE: '已交付或已取消的订单不能添加附加项',
+
+  // 名额与缓冲（v0.17 SPEC-004）
+  BATCH_FULL: '该画师已接满，暂时无法下单',
+  INVALID_BATCH_LIMIT: '名额设置无效（正式位+缓冲位至少为1）',
+  NOT_BUFFER_ORDER: '该订单不在缓冲区',
+
+  // 流程（v0.19 P1-5）
+  STAGE_IN_USE: '该节点下有进行中的订单，请先完成或转移后再删除'
+}
