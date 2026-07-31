@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
+import { ElLoading } from 'element-plus'
 import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import './assets/fonts/wencai/font.css'
@@ -25,6 +25,8 @@ app.config.errorHandler = (err, instance, info) => {
 app.use(createPinia())
 app.use(router)
 app.use(i18n)
-app.use(ElementPlus)
+// v0.20: EP 按需引入 — el-* 组件由 unplugin-vue-components 自动注册（见 vite.config.js）
+// v-loading 是指令不是组件，需手动全局注册
+app.directive('loading', ElLoading.directive)
 
 app.mount('#app')
