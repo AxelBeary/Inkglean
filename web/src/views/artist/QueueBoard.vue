@@ -479,7 +479,7 @@ onMounted(() => {
   // R30d: 加载工作流节点（看板推进需要知道"下一节点"）
   artistApi.getWorkflow()
     .then(res => { workflowStages.value = res.stages || [] })
-    .catch(() => {})
+    .catch(err => console.warn('[QueueBoard] 加载工作流节点失败:', err.message))
 })
 </script>
 
