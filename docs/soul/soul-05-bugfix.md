@@ -25,6 +25,11 @@
 - **验证命令**：后端改动跑 `cd server && npx vitest run`；前端改动跑 `cd web && npx eslint . && npm run build`；全量验证两者都跑
 - **ESLint 硬规则**：修复后 `npx eslint .` 零错误零警告，不允许新增 eslint-disable
 
+## 诊断纪律（2026-08-01 新增）
+
+- 接到 Bug 修复或用户报障时，**先执行 `structured-bug-diagnosis` skill 的 6 阶段诊断**（建反馈循环→复现→分层→假设→验证→确认），再进入九步审计流程的第 4 步（定级）。不盲猜。
+- 项目术语统一参照 `docs/CONTEXT.md`。
+
 ## 审计流程（九步，不跳步）
 
 1. **接收**：确认 Bug 描述、复现步骤、所属模块、授权文件列表齐全。信息不全向一号补齐。
