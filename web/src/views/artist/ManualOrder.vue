@@ -252,7 +252,7 @@ const rushMultipliers = computed(() =>
 /** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价 */
 const displayPrice = computed(() => {
   if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return finalPriceYuan.value.toFixed(2)
-  if (pricePreview.value) return pricePreview.value.totalPrice.toFixed(2)
+  if (pricePreview.value) return (pricePreview.value.totalPrice ?? 0).toFixed(2)
   return ''
 })
 

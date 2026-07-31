@@ -98,9 +98,9 @@
               >
                 {{ $t('queue.advanceStage') }}
               </el-button>
-              <!-- R30b: 未接入流程的订单 → 固定状态主操作外露 -->
+              <!-- R30b: 未接入流程的订单 → 固定状态主操作外露（Bug 4: 工作流订单不穿透到此按钮） -->
               <el-button
-                v-else-if="nextAction(element.status)"
+                v-else-if="element.currentStageId == null && nextAction(element.status)"
                 size="small"
                 :type="nextAction(element.status).type"
                 @click="quickAction(nextAction(element.status).command, element)"
