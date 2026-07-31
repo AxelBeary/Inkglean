@@ -50,10 +50,14 @@
 | 层 | 技术 | 备注 |
 |----|------|------|
 | 后端 | Fastify 5 + better-sqlite3 | 单体，非微服务 |
+| 后端运行时 | tsx（v0.21） | 支持 .ts/.js 混存，零配置 |
 | 前端 | Vue 3 + Element Plus | SPA |
+| 前端 i18n | vue-i18n@11 | v0.20 从 v9 升级 |
+| 类型系统 | TypeScript（渐进迁移中） | v0.21 起，pricing + shared/ 已迁移 |
 | 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL |
 | 部署 | Docker Compose + Caddy | 容器化 |
-| 测试 | Vitest（后端）| 前端暂无测试基础设施 |
+| 测试 | Vitest（后端 469 + 前端 87）+ Playwright E2E（5 条路径） | |
+| 监控 | Sentry（后端已接入，前端待接入） | sentry.io 免费版 |
 
 ## 使用规则
 

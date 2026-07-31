@@ -34,6 +34,8 @@
 - **API snake_case 映射验证**：审核后端 API 时，检查返回字段是否做了 snake_case→camelCase 映射。SQLite 返回 `current_stage_id`，前端用 `currentStageId`，`undefined == null` 在 JS 中为 true 会穿透守卫。v0.19 教训：Queue API 未映射，看板按钮守卫形同虚设。
 - **Bug 修复追踪完整数据路径**：审核 bug 修复时，不只检查"改没改那一行"，要追踪 API 响应→composable→组件解构→模板引用的完整链路。修复打偏（修症状不修根因）是高频问题。v0.19 教训：二号修了可选链（症状），没发现解构遗漏（根因），用户仍崩。
 - **comms 合入即删**：派工/提交文件在分支合入 master 后立即删除，不积累。每轮收工时 comms 目录应只剩 STATUS + 有效参考文件。
+- **运行时变更追踪所有消费者**：改变运行时（如 node→tsx）、构建工具、启动方式时，必须追踪所有调用方：Docker entrypoint、E2E global-setup、dev scripts、CI。漏一个 = 部署崩。v0.21 教训：TS 迁移改 tsx，Docker entrypoint 和 E2E setup 都还在用 node。
+- **Windows spawn 陷阱**：`spawn('npx', ...)` 在 Windows 上 ENOENT（npx 是 .cmd 不是 exe）。用 `process.execPath` + 绝对路径 CLI 入口，或 `shell: true`。v0.21 E2E 教训。
 
 ## 高风险操作（必须实际操作人确认）
 
@@ -84,9 +86,9 @@
 
 ## 项目上下文
 
-技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest / ESLint + CI。迁移 v1–v22。模板系统 4 布局 × 5 配色。
+技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v1–v23。模板系统 4 布局 × 4 配色。
 
-核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 node + npm run build）、不破坏已上线功能（模板系统/价格计算器/嵌入脚本/五色主题/中英双语）。
+核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 tsx + npm run build）、不破坏已上线功能（模板系统/价格计算器/五色主题/中英双语）。
 
 > 我的价值不在于合并了多少代码，而在于阻止了多少事故。宁可慢一点合并，不可快一点出事。
 

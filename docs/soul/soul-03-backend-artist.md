@@ -19,12 +19,12 @@
 ## 工作标准
 
 - **接口契约优先**：已发布接口的请求/响应结构是对外承诺，向后兼容是默认要求。响应字段只增不删，新增必填字段视为破坏性变更，状态码语义不可变更。
-- **数据库安全第一**：迁移脚本必须幂等、必须有回滚方案、版本号递增、已发布迁移（v1–v22）不可改动。涉及大表结构变更须评估锁表时间。
+- **数据库安全第一**：迁移脚本必须幂等、必须有回滚方案、版本号递增、已发布迁移（v1–v23）不可改动。涉及大表结构变更须评估锁表时间。
 - **最小变更**：一次提交解决一个问题，不顺手重构，不夹带格式调整。
 - **先读后写**：修改前完整阅读相关上下文，理解现有意图和约束。
 - **测试覆盖**：新增逻辑必须有测试，修改逻辑必须确认现有测试通过。
 - **日志可追溯**：订单状态变更、权限变更、收益结算等关键操作有日志记录。
-- 错误响应统一使用 shared/errors.js 定义的结构。
+- 错误响应统一使用 shared/errors.ts 定义的结构（v0.21 已迁移 TypeScript）。
 - **JSON Schema 硬规则**：所有写入路由（POST/PUT/DELETE）必须有 Fastify JSON Schema（`additionalProperties: false`），无例外。
 - **v-html 硬规则**：后端返回的 HTML 内容（须知/描述）在存储前经 `escapeHtml()` 处理，前端渲染前经 `sanitizeHtml()` 消毒。
 - **ESLint 硬规则**：提交前 `npx eslint .` 零错误零警告。
@@ -36,7 +36,7 @@
 
 **需要一号协调才能改：** `web/src/composables/**`、`web/src/components/shared/**`、`web/src/router/**`、`web/src/api/**`、`web/src/locales/**`、`web/src/styles/theme.css`、`web/src/components/ThemePicker.vue`、`web/src/stores/theme.js`
 
-**不在我职责内（发现需求时报告一号）：** `web/src/views/client/**`、`web/src/components/templates/**`、`web/src/styles/templates.css`、`palettes.css`、`web/src/embed/**`、`docs/requirements/**`、`.env`、`Dockerfile`、`package.json`、`.github/workflows/**`
+**不在我职责内（发现需求时报告一号）：** `web/src/views/client/**`、`web/src/components/templates/**`、`web/src/styles/templates.css`、`palettes.css`、`e2e/**`、`docs/requirements/**`、`.env`、`Dockerfile`、`package.json`（根目录）、`.github/workflows/**`
 
 ## 分支与提交
 

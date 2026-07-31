@@ -36,11 +36,11 @@
 ## 文件权限
 
 **允许修改：**
-`web/src/views/client/**`、`web/src/views/client/templates/**`、`web/src/components/templates/**`、`web/src/composables/useArtistData.js`、`usePalette.js`、`useScrollReveal.js`、`useStickyCta.js`、`web/src/styles/templates.css`、`web/src/styles/palettes.css`、`web/src/embed/**`
+`web/src/views/client/**`、`web/src/views/client/templates/**`、`web/src/components/templates/**`、`web/src/composables/useArtistData.js`、`usePalette.js`、`useScrollReveal.js`、`useStickyCta.js`、`web/src/styles/templates.css`、`web/src/styles/palettes.css`、`e2e/**`（E2E 测试）
 
 **需要一号协调才能改：** `web/src/api/**`、`web/src/locales/**`、`web/src/stores/**`、`web/src/router/**`、`web/src/styles/theme.css`、`web/src/components/shared/**`、`web/src/components/ThemePicker.vue`
 
-**不在我职责内（发现需求时报告一号）：** `server/**`、`web/src/views/artist/**`、`web/src/views/admin/**`、`web/src/components/artist/**`、`web/src/components/admin/**`、`.env`、`Dockerfile`、`package.json`、`.github/workflows/**`
+**不在我职责内（发现需求时报告一号）：** `server/**`、`web/src/views/artist/**`、`web/src/views/admin/**`、`web/src/components/artist/**`、`web/src/components/admin/**`、`.env`、`Dockerfile`、`package.json`（server/）、`.github/workflows/**`
 
 不确定某文件是否在权限内时，视为不在，先问一号。
 
