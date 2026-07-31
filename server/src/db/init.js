@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS artists (
   hide_queue_position INTEGER DEFAULT 0,
   hide_promote_notify INTEGER DEFAULT 0,
   buffer_short_form INTEGER DEFAULT 0,
+  announcement TEXT DEFAULT NULL,
+  announcement_expires_at DATETIME DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -62,6 +64,7 @@ CREATE TABLE IF NOT EXISTS artworks (
   image_path TEXT NOT NULL,
   title TEXT,
   sort_order INTEGER DEFAULT 0,
+  like_count INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
@@ -845,6 +848,37 @@ const MIGRATIONS = [
       }
       // 存量回填（ALTER TABLE ADD COLUMN DEFAULT 存量行读出为默认值，但实际存储 NULL；显式回填确保一致）
       database.exec("UPDATE artist_workflow_stages SET speech_template = '{客户名}，你的订单已{节点名}。' WHERE speech_template IS NULL")
+    }
+  },
+  {
+    version: 21,
+    name: 'announcement_and_like_count',
+    up(database) {
+      // F3: 画师小公告（announcement + 过期时间）
+      // F1: 作品点赞计数
+      // 迁移前自动备份
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v21`)
+          console.log(`📦 迁移 v21: 已备份 ${dbPath} → ${dbPath}.bak.v21`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v21: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+      // artists: announcement + announcement_expires_at
+      const artistCols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!artistCols.some(c => c.name === 'announcement')) {
+        database.exec('ALTER TABLE artists ADD COLUMN announcement TEXT DEFAULT NULL')
+      }
+      if (!artistCols.some(c => c.name === 'announcement_expires_at')) {
+        database.exec('ALTER TABLE artists ADD COLUMN announcement_expires_at DATETIME DEFAULT NULL')
+      }
+      // artworks: like_count
+      const artworkCols = database.prepare('PRAGMA table_info(artworks)').all()
+      if (!artworkCols.some(c => c.name === 'like_count')) {
+        database.exec('ALTER TABLE artworks ADD COLUMN like_count INTEGER DEFAULT 0')
+      }
     }
   }
 ]

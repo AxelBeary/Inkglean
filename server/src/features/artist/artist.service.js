@@ -70,7 +70,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id, fields) {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at']
   const updates = []
   const values = []
 
@@ -429,4 +429,49 @@ export function computeSlotDisplay(artist) {
   }
   if (buffer < M) return '可候补'
   return '已接满'
+}
+
+// ============================================
+// F3: 小公告
+// ============================================
+
+/**
+ * 读取画师公告（过期则返回 null）
+ * @param {object} artist - 画师行
+ * @returns {{ text: string, expiresAt: string|null }|null}
+ */
+export function getAnnouncement(artist) {
+  if (!artist.announcement) return null
+  if (artist.announcement_expires_at) {
+    const expires = new Date(artist.announcement_expires_at)
+    if (expires.getTime() <= Date.now()) return null
+  }
+  return {
+    text: artist.announcement,
+    expiresAt: artist.announcement_expires_at || null
+  }
+}
+
+// ============================================
+// F1: 作品点赞
+// ============================================
+
+const LIKE_MAX = 99999
+
+/** 点赞 +1（上限保护） */
+export function likeArtwork(artworkId) {
+  const artwork = getArtworkById(artworkId)
+  if (!artwork) return null
+  const newCount = Math.min((artwork.like_count || 0) + 1, LIKE_MAX)
+  db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
+  return getArtworkById(artworkId)
+}
+
+/** 取消点赞 -1（不低于 0） */
+export function unlikeArtwork(artworkId) {
+  const artwork = getArtworkById(artworkId)
+  if (!artwork) return null
+  const newCount = Math.max((artwork.like_count || 0) - 1, 0)
+  db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
+  return getArtworkById(artworkId)
 }

@@ -67,6 +67,7 @@ export default async function artistRoutes(fastify) {
       formalCount: artistService.getZoneCounts(artist.id).formal,
       bufferCount: artistService.getZoneCounts(artist.id).buffer,
       slotDisplay: artistService.computeSlotDisplay(artist),
+      announcement: artistService.getAnnouncement(artist),
       tiers,
       artworks,
       rules: rules?.content || ''
@@ -150,7 +151,9 @@ export default async function artistRoutes(fastify) {
           autoPromote: { type: 'boolean' },
           hideQueuePosition: { type: 'boolean' },
           hidePromoteNotify: { type: 'boolean' },
-          bufferShortForm: { type: 'boolean' }
+          bufferShortForm: { type: 'boolean' },
+          announcement: { type: ['string', 'null'], maxLength: 500 },
+          announcementExpiresAt: { type: ['string', 'null'], maxLength: 30 }
         },
         additionalProperties: false
       }
@@ -177,7 +180,8 @@ export default async function artistRoutes(fastify) {
         autoPromote: 'auto_promote',
         hideQueuePosition: 'hide_queue_position',
         hidePromoteNotify: 'hide_promote_notify',
-        bufferShortForm: 'buffer_short_form'
+        bufferShortForm: 'buffer_short_form',
+        announcementExpiresAt: 'announcement_expires_at'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}
@@ -428,6 +432,22 @@ export default async function artistRoutes(fastify) {
     const artist = artistService.getArtistBySubdomain(request.params.subdomain)
     if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }
+  })
+
+  // ─── F1: 作品点赞（公开，匿名） ───
+
+  /** POST /api/public/artworks/:id/like — 点赞 +1 */
+  fastify.post('/api/public/artworks/:id/like', async (request, reply) => {
+    const artwork = artistService.likeArtwork(parseInt(request.params.id))
+    if (!artwork) return reply.code(404).send({ error: '作品不存在' })
+    return { likeCount: artwork.like_count }
+  })
+
+  /** DELETE /api/public/artworks/:id/like — 取消点赞 -1 */
+  fastify.delete('/api/public/artworks/:id/like', async (request, reply) => {
+    const artwork = artistService.unlikeArtwork(parseInt(request.params.id))
+    if (!artwork) return reply.code(404).send({ error: '作品不存在' })
+    return { likeCount: artwork.like_count }
   })
 
   // ─── 仪表盘（v0.18 第二批） ───
