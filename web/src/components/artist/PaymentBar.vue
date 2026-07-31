@@ -4,7 +4,7 @@
       <div
         v-for="(seg, i) in segments" :key="seg.id"
         class="bar-seg" :class="{ final: seg.isFinal, elastic: seg.id === elasticId, detach: seg.id === detachId }"
-        :style="{ width: seg.width + '%' }"
+        :style="{ width: seg.width + '%', '--seg-hue': seg.hue }"
       >
         <span class="seg-label">{{ seg.name }}</span>
         <span class="seg-pct" @click="!seg.isFinal && startInput(seg)">
@@ -21,10 +21,14 @@
           @pointerdown="onPointerDown($event, i)"
           tabindex="0" @keydown="onKeydown($event, i)"
           :aria-label="$t('workflow.dragHandle')"
-        ></div>
+        >
+          <span class="grip"></span>
+        </div>
       </div>
     </div>
-    <div class="bar-ruler"><span>0%</span><span>100%</span></div>
+    <div class="bar-ruler">
+      <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+    </div>
   </div>
 </template>
 
@@ -59,12 +63,13 @@ watch(() => props.stages, (stages) => {
 const payStages = computed(() => props.stages.filter(s => s.takesPayment))
 
 const segments = computed(() => {
-  return payStages.value.map(s => {
+  return payStages.value.map((s, i) => {
     const bp = localBp.value[s.id] ?? s.basisPoints
     return {
       id: s.id, name: s.name, isFinal: s.isFinal,
       bp, pct: (bp / 100).toFixed(1).replace(/\.0$/, ''),
-      width: bp / 100
+      width: bp / 100,
+      hue: s.isFinal ? 45 : (200 + i * 40) % 360
     }
   })
 })
@@ -236,27 +241,58 @@ function commitInput(seg) {
 <style scoped>
 .payment-bar { user-select: none; }
 .bar-track {
-  display: flex; height: 48px; border-radius: 8px; overflow: hidden;
+  display: flex; height: 64px; border-radius: 10px; overflow: visible;
   border: 1px solid var(--border-color); position: relative;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 .bar-seg {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
   position: relative; min-width: 0; overflow: hidden;
-  background: var(--color-primary-soft); transition: width 0.1s, opacity 0.2s;
+  background: hsl(var(--seg-hue, 210) 55% 94%);
+  transition: width 0.15s ease, opacity 0.2s, background 0.3s;
   border-right: 1px solid var(--border-color);
 }
-.bar-seg:last-child { border-right: none; }
-.bar-seg.final { background: var(--color-gold-soft, rgba(176, 141, 30, 0.12)); }
-.bar-seg.elastic { opacity: 0.5; }
-.bar-seg.detach { opacity: 0.3; border: 2px dashed var(--color-danger); }
-.seg-label { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.seg-pct { font-size: 13px; font-weight: 700; color: var(--color-primary); font-variant-numeric: tabular-nums; cursor: pointer; }
-.bar-seg.final .seg-pct { color: var(--color-gold, #b08d1e); }
-.final-badge { font-size: 9px; color: var(--color-gold, #b08d1e); opacity: 0.8; line-height: 1; margin-top: 1px; }
-.bar-handle {
-  position: absolute; right: -4px; top: 0; bottom: 0; width: 8px;
-  cursor: col-resize; z-index: 2; background: transparent;
+.bar-seg:first-child { border-radius: 9px 0 0 9px; }
+.bar-seg:last-child { border-right: none; border-radius: 0 9px 9px 0; }
+.bar-seg:only-child { border-radius: 9px; }
+.bar-seg.final { background: hsl(45 60% 92%); }
+.bar-seg.elastic { opacity: 0.55; }
+.bar-seg.detach { opacity: 0.3; outline: 2px dashed var(--color-danger); outline-offset: -2px; }
+.seg-label {
+  font-size: 12px; color: var(--text-secondary); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 90%;
+  line-height: 1.2;
 }
-.bar-handle:hover, .bar-handle:focus { background: var(--color-primary); opacity: 0.3; border-radius: 2px; }
-.bar-ruler { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.seg-pct {
+  font-size: 15px; font-weight: 700;
+  color: hsl(var(--seg-hue, 210) 50% 38%);
+  font-variant-numeric: tabular-nums; cursor: pointer;
+  line-height: 1.2;
+}
+.bar-seg.final .seg-pct { color: hsl(45 55% 35%); }
+.final-badge {
+  font-size: 10px; color: hsl(45 55% 42%); opacity: 0.85;
+  line-height: 1; letter-spacing: 0.5px;
+}
+.bar-handle {
+  position: absolute; right: -6px; top: 4px; bottom: 4px; width: 12px;
+  cursor: col-resize; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; transition: background 0.15s;
+}
+.bar-handle .grip {
+  width: 3px; height: 20px; border-radius: 2px;
+  background: var(--border-color); transition: background 0.15s, height 0.15s;
+}
+.bar-handle:hover, .bar-handle:focus {
+  background: hsl(var(--seg-hue, 210) 50% 50% / 0.15);
+}
+.bar-handle:hover .grip, .bar-handle:focus .grip {
+  background: hsl(var(--seg-hue, 210) 50% 45%); height: 28px;
+}
+.bar-ruler {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--text-muted); margin-top: 4px; padding: 0 2px;
+}
 </style>
