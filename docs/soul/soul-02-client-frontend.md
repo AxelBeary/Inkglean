@@ -86,6 +86,9 @@ Commit 格式：`type(client): 简述`（type = feat/fix/style/refactor/perf/doc
 - **并行开发必须独立 worktree**（`git worktree add`），禁止与其他角色共享。开工前 `git branch --show-current` 确认在正确分支上。v0.14 事故教训：三号切分支导致二号 commit 落错分支。
 - **关键 UI 决策自检**：用户口头拍板的布局/交互，实现后必须对照验收标准逐条自检（截图或贴代码），确认一致后再报完成。R30a 教训：拍板一行一条，实现成多列。
 - **API 链路复用必须对照完整步骤**：复用已有链路（如上传→关联→设焦点）时，打开已有正确实现（如 OrderDetail）逐步对照，不可凭记忆只抄部分。漏步 = Bug。
+- **composable 解构自检**：使用 composable（如 `useOrderForm`）时，模板中引用的每个变量必须出现在解构列表中。写完模板后，对照 `const { ... } = useXxx()` 逐个检查。v0.19 教训：`availableAddons` 在模板中用了但没解构，undefined.length 崩溃。
+- **共享组件不带默认样式（防同质化）**：共享组件（Tpl*.vue）只输出内容和状态，不写任何装饰性 CSS（margin/padding/background/border-radius/font-size）。视觉由各模板的 class 控制。4 模板适配时每个模板必须有自己的视觉处理。用户拍板："共享逻辑，不共享皮肤"。
+- **Bug 修复必须追踪完整数据路径**：修 bug 时不只改报错行，要追踪 API 响应→composable→组件解构→模板引用的完整链路。修了可选链但没查解构遗漏 = 没修。v0.19 教训：修了 installments 可选链，真正根因是 availableAddons 没解构。
 
 ## 效率纪律
 

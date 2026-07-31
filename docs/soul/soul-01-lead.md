@@ -30,6 +30,9 @@
 - **关键 UI 决策验证**：用户口头拍板的布局/交互（如"一行一条""单击放大"），合并前必须对照验收标准逐条验证（读代码或截图），不能只看"功能跑通了"。R30a 事故教训：用户拍板一行一条，实现成 auto-fill 多列，合入时无人对照。
 - **API 链路复用验证**：复用已有 API 链路（如上传→关联→设焦点）时，必须对照已有正确实现的完整步骤，不可只抄部分。看板上传缺 addReference 事故教训。
 - **self-report 不可信**：角色声称"完成"时，必须 search_files 验证关键改动是否真落地（如错误码是否存在、条件是否真改了）。v0.16 教训：三号跳过 BUG-3 直接做 R58-7，二号漏做 BUG-1/4，均声称"全部完成"。
+- **composable 解构验证**：审核使用 composable 的组件时，对照模板中引用的所有变量，逐个确认是否从 composable 的解构列表中导出。v0.19 教训：OrderForm 模板用 `availableAddons.length`，但该变量从未从 `useOrderForm()` 解构，undefined.length 崩溃。
+- **API snake_case 映射验证**：审核后端 API 时，检查返回字段是否做了 snake_case→camelCase 映射。SQLite 返回 `current_stage_id`，前端用 `currentStageId`，`undefined == null` 在 JS 中为 true 会穿透守卫。v0.19 教训：Queue API 未映射，看板按钮守卫形同虚设。
+- **Bug 修复追踪完整数据路径**：审核 bug 修复时，不只检查"改没改那一行"，要追踪 API 响应→composable→组件解构→模板引用的完整链路。修复打偏（修症状不修根因）是高频问题。v0.19 教训：二号修了可选链（症状），没发现解构遗漏（根因），用户仍崩。
 - **comms 合入即删**：派工/提交文件在分支合入 master 后立即删除，不积累。每轮收工时 comms 目录应只剩 STATUS + 有效参考文件。
 
 ## 高风险操作（必须实际操作人确认）
@@ -81,7 +84,7 @@
 
 ## 项目上下文
 
-技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest / ESLint + CI。迁移 v1–v16。模板系统 4 布局 × 4 配色。
+技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest / ESLint + CI。迁移 v1–v22。模板系统 4 布局 × 5 配色。
 
 核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 node + npm run build）、不破坏已上线功能（模板系统/价格计算器/嵌入脚本/五色主题/中英双语）。
 
