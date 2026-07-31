@@ -323,20 +323,23 @@ export default async function orderRoutes(fastify) {
         ORDER BY o.queue_position ASC
       `).all(request.artist.id)
       return bufferOrders.map(order => {
+        const mapped = { ...order, currentStageId: order.current_stage_id ?? null }
         if (order.focus_image_path) {
-          return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
+          mapped.focusImageUrl = signedUrl(order.focus_image_path)
         }
-        return order
+        return mapped
       })
     }
     // 默认：正式区
     const queue = orderQueueService.getArtistQueue(request.artist.id)
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
+    // Bug 4 fix: 映射 current_stage_id → currentStageId（前端用 camelCase）
     return queue.map(order => {
+      const mapped = { ...order, currentStageId: order.current_stage_id ?? null }
       if (order.focus_image_path) {
-        return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
+        mapped.focusImageUrl = signedUrl(order.focus_image_path)
       }
-      return order
+      return mapped
     })
   })
 

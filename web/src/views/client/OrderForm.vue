@@ -365,7 +365,7 @@ const {
   submitting, showSuccess, resultNo, submit,
   refFileList, handleRefUpload, handleRefRemove,
   addonSelections, addonToggles, pricePreview, pricingExpanded,
-  selectedTier, hasPricingExtras, addonGroups,
+  selectedTier, hasPricingExtras, availableAddons, addonGroups,
   usageMultipliers, rushMultipliers, formatAddonPrice, onTierChange,
   sanitizedRules
 } = useOrderForm(subdomain, formRef)
