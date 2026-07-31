@@ -143,7 +143,7 @@ cd web && npm run lint
 │       ├── locales/            # i18n 语言包（zh-CN / en）
 │       └── i18n/               # i18n 初始化
 ├── .github/workflows/ci.yml   # GitHub Actions CI（lint + test + build）
-├── docs/                       # 文档（含 soul 角色定义、协作规则、提交模板）
+├── docs/                       # 文档（含 soul 角色定义、specs、changelog）
 ├── docker-compose.yml          # web（healthcheck）+ caddy
 ├── Dockerfile                  # 多阶段构建
 ├── Caddyfile                   # 路径访问 + 自动 HTTPS
@@ -164,7 +164,7 @@ cd web && npm run lint
 - [待修复问题清单](docs/待修复问题清单.md) — 审计问题追踪（v0.13 批次已关闭，UI-5/UI-6 开放）
 - [模板重构规划](docs/archive/plan-template-refactor.md) — 布局×配色模板系统设计文档（已归档）
 - [价格计算器规划](docs/archive/plan-price-calculator.md) — 增项/倍率/分期计算设计文档（已归档）
-- [协作规则](docs/协作规则.md) — 多角色 Agent 协作开发规范
+- [协作规则](docs/archive/协作规则.md) — 多角色 Agent 协作开发规范（已归档，日常以 soul/ 为准）
 - [Soul 角色定义](docs/soul/) — 五个角色的职责、权限、停止机制
 
 ## 🔒 安全说明
