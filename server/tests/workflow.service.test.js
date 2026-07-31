@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { db, cleanDb, seedArtist } from './setup.js'
+import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import * as wf from '../src/features/artist/workflow.service.js'
 
 /** 快速给画师种入默认 7 节点 */
@@ -249,5 +249,27 @@ describe('流程与比例服务 (Workflow Service)', () => {
     // 尾款后面应该还有节点
     expect(finalIdx).toBeLessThan(after.length - 1)
     expect(final.isFinal).toBe(true)
+  })
+
+  // ─── P1-5: 删除有活跃订单引用的节点 ───
+
+  it('TC-W-P15a: 有活跃订单的节点拒绝删除', () => {
+    const stages = seed(artist.id)
+    // 创建一个订单引用第 3 个节点（草稿确认），状态 wip（活跃）
+    const order = seedOrder(artist.id, { status: 'wip' })
+    db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(stages[2].id, order.id)
+
+    expect(() => wf.deleteStage(artist.id, stages[2].id)).toThrow('STAGE_IN_USE')
+  })
+
+  it('TC-W-P15b: 无活跃订单的节点正常删除', () => {
+    const stages = seed(artist.id)
+    // 创建一个终态订单引用第 3 个节点（delivered 不阻止删除）
+    const order = seedOrder(artist.id, { status: 'delivered' })
+    db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(stages[2].id, order.id)
+
+    const result = wf.deleteStage(artist.id, stages[2].id)
+    expect(result.success).toBe(true)
+    expect(wf.getWorkflow(artist.id)).toHaveLength(6)
   })
 })

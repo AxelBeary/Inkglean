@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { buildApp } from './app.js'
+import db from './db/connection.js'
 
 // ============================================
 // 服务器启动入口
@@ -13,6 +14,8 @@ const app = await buildApp()
 // 可靠性：未捕获异常 — 记录后强制退出（防止僵尸状态）
 process.on('uncaughtException', (err) => {
   app.log.fatal(err, '未捕获异常，进程即将退出')
+  // P2-7: 退出前关闭数据库连接
+  try { db.close() } catch { /* 静默：db 可能已关闭 */ }
   // 给日志刷盘留 500ms，然后强退
   setTimeout(() => process.exit(1), 500).unref()
 })
