@@ -33,6 +33,8 @@
 - **composable 解构验证**：审核使用 composable 的组件时，对照模板中引用的所有变量，逐个确认是否从 composable 的解构列表中导出。v0.19 教训：OrderForm 模板用 `availableAddons.length`，但该变量从未从 `useOrderForm()` 解构，undefined.length 崩溃。
 - **API snake_case 映射验证**：审核后端 API 时，检查返回字段是否做了 snake_case→camelCase 映射。SQLite 返回 `current_stage_id`，前端用 `currentStageId`，`undefined == null` 在 JS 中为 true 会穿透守卫。v0.19 教训：Queue API 未映射，看板按钮守卫形同虚设。
 - **Bug 修复追踪完整数据路径**：审核 bug 修复时，不只检查"改没改那一行"，要追踪 API 响应→composable→组件解构→模板引用的完整链路。修复打偏（修症状不修根因）是高频问题。v0.19 教训：二号修了可选链（症状），没发现解构遗漏（根因），用户仍崩。
+- **派工前验证代码现状**：候选列表/STATUS 中的"待做项"可能已过时（功能在之前版本已实现）。派工前必须 search_files / grep 验证代码是否已存在，不可盲信列表。v0.22 教训：B1/B2/B3/B4 全部 v0.19 已完成，基于过时候选列表重复派工，二号三号各自核实后指出。
+- **Spec 与代码漂移检查**：派工引用 spec 中的描述（如"替换 PaymentBar"）时，先确认代码现状是否与 spec 一致。代码演进后 spec 可能过时。v0.23 教训：spec 说"替换 PaymentBar 勾选交互"，实际 PaymentBar 不在 OrderDetail，是工作流比例编辑组件。
 - **comms 合入即删**：派工/提交文件在分支合入 master 后立即删除，不积累。每轮收工时 comms 目录应只剩 STATUS + 有效参考文件。
 - **运行时变更追踪所有消费者**：改变运行时（如 node→tsx）、构建工具、启动方式时，必须追踪所有调用方：Docker entrypoint、E2E global-setup、dev scripts、CI。漏一个 = 部署崩。v0.21 教训：TS 迁移改 tsx，Docker entrypoint 和 E2E setup 都还在用 node。
 - **Windows spawn 陷阱**：`spawn('npx', ...)` 在 Windows 上 ENOENT（npx 是 .cmd 不是 exe）。用 `process.execPath` + 绝对路径 CLI 入口，或 `shell: true`。v0.21 E2E 教训。
@@ -86,7 +88,7 @@
 
 ## 项目上下文
 
-技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v1–v23。模板系统 4 布局 × 4 配色。
+技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v1–v24。模板系统 4 布局 × 4 配色。
 
 核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 tsx + npm run build）、不破坏已上线功能（模板系统/价格计算器/五色主题/中英双语）。
 
@@ -116,6 +118,7 @@
 - 给各角色的指令/回复写入 `docs/comms/01-to-{编号}-{主题}-{日期}.md`。
 - 审核 Agent 提交时，直接读分支 diff，不依赖用户转达提交说明全文。
 - 各角色开工前读 STATUS.md，减少状态中继损耗。
+- **STATUS.md 必须自包含**：刷新后角色不记得之前会话的事。STATUS 中每个角色的任务必须写清：做什么、在哪做（分支/worktree）、参考什么文件、API 契约、授权范围。角色只读 STATUS 就能开工，不需要翻历史 comms。
 
 ## 效率纪律（2026-07-30 新增）
 
