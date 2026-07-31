@@ -31,7 +31,7 @@ services:
       - TRUST_PROXY=172.16.0.0/12,10.0.0.0/8,192.168.0.0/16  # 仅信任 Docker 内网段，防 X-Forwarded-For 伪造
       - TZ=Asia/Shanghai          # P1-4: 容器时区，确保 CURRENT_TIMESTAMP 为北京时间
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
