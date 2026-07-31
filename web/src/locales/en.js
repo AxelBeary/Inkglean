@@ -413,6 +413,9 @@ export default {
     slotHint: 'Off = unlimited orders; 0 = application-based (clients can apply but do not occupy a slot); N>0 = limited orders. When enabled, formal + buffer total must be ≥ 1.',
     slotMinError: 'When slot limit is enabled, formal + buffer total must be ≥ 1',
     bufferLabel: 'Buffer slots (M)', bufferHint: 'When formal slots are full, new orders enter the buffer as waitlist. Promoted orders move to the formal queue.',
+    // S5: monthly quota
+    quotaLabel: 'Monthly quota', quotaEnable: 'Enable monthly quota', quotaUnit: 'orders/mo',
+    quotaHint: 'Limit new orders per month (by creation date; cancelled orders excluded). Off = unlimited. Independent of slot system — when both are enabled, hitting either limit shows as full.',
     bufferSwitchLabel: 'Buffer settings',
     autoPromote: 'Auto-promote (when a formal slot opens, automatically move the earliest buffer order in)',
     hideQueuePosition: 'Hide queue position from clients (only show "In queue")',

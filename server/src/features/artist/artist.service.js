@@ -70,7 +70,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id, fields) {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota']
   const updates = []
   const values = []
 
@@ -405,30 +405,57 @@ export function getZoneCounts(artistId) {
 }
 
 /**
- * 计算客户主页名额显示文案（SPEC-004 §3）
- * batch_limit=NULL → null（不启用名额系统，不显示）
+ * S5: 获取画师本月已用额度（本月创建的未取消订单数）
+ * @returns {{ used: number, quota: number|null, remaining: number|null }}
+ */
+export function getMonthlyUsage(artistId, monthlyQuota) {
+  if (monthlyQuota == null) return { used: 0, quota: null, remaining: null }
+  // SQLite CURRENT_TIMESTAMP 存 UTC，月初计算必须用 UTC 对齐
+  const now = new Date()
+  const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01 00:00:00`
+  const used = db.prepare(`
+    SELECT COUNT(*) as c FROM orders
+    WHERE artist_id = ? AND status != 'cancelled' AND created_at >= ?
+  `).get(artistId, monthStart).c
+  return { used, quota: monthlyQuota, remaining: Math.max(0, monthlyQuota - used) }
+}
+
+/**
+ * 计算客户主页名额显示文案（SPEC-004 §3 + S5 额度池）
+ * batch_limit=NULL 且 monthly_quota=NULL → null（不启用名额/额度系统）
  */
 export function computeSlotDisplay(artist) {
-  if (artist.batch_limit == null) return null
-
-  const N = artist.batch_limit
-  const M = artist.buffer_limit ?? 0
-  const { formal, buffer } = getZoneCounts(artist.id)
+  const hasBatchLimit = artist.batch_limit != null
+  const hasQuota = artist.monthly_quota != null
+  if (!hasBatchLimit && !hasQuota) return null
 
   if (artist.status === 'break') return '休息中'
   if (artist.status === 'hidden') return null
 
   if (artist.status === 'full') {
+    const { formal } = getZoneCounts(artist.id)
     return formal > 0 ? '已接满' : '暂停接单'
   }
 
+  // S5: 月度额度检查（优先于名额——额度耗尽即约满，无论名额剩余）
+  const quota = hasQuota ? getMonthlyUsage(artist.id, artist.monthly_quota) : null
+  if (quota && quota.remaining <= 0) return '本月已约满'
+
   // status = open
-  if (formal < N) {
-    const remaining = N - formal
-    return `开放中 · 剩 ${remaining} 席`
+  if (hasBatchLimit) {
+    const N = artist.batch_limit
+    const M = artist.buffer_limit ?? 0
+    const { formal, buffer } = getZoneCounts(artist.id)
+    if (formal < N) {
+      const remaining = N - formal
+      return `开放中 · 剩 ${remaining} 席`
+    }
+    if (buffer < M) return '可候补'
+    return '已接满'
   }
-  if (buffer < M) return '可候补'
-  return '已接满'
+
+  // 仅额度池（无名额限制）
+  return `开放中 · 本月剩 ${quota.remaining} 单`
 }
 
 // ============================================

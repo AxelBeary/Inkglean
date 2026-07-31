@@ -119,6 +119,21 @@
               <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
               <div class="form-hint">{{ $t('settings.bufferHint') }}</div>
             </el-form-item>
+            <!-- S5: 月度额度池 -->
+            <el-form-item :label="$t('settings.quotaLabel')">
+              <div class="slot-config">
+                <div class="slot-row">
+                  <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
+                  <el-input-number
+                    v-model="form.monthlyQuota" :min="0" :max="999"
+                    :disabled="!form.quotaEnabled"
+                    controls-position="right" class="slot-input"
+                  />
+                  <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
+                </div>
+                <div class="form-hint">{{ $t('settings.quotaHint') }}</div>
+              </div>
+            </el-form-item>
             <el-form-item :label="$t('settings.bufferSwitchLabel')">
               <div class="switch-grid">
                 <div class="switch-row">
@@ -386,6 +401,8 @@ const form = reactive({
   batchLimitEnabled: false,
   batchLimit: 0,
   bufferLimit: 0,
+  quotaEnabled: false,
+  monthlyQuota: 0,
   autoPromote: false,
   hideQueuePosition: false,
   hidePromoteNotify: false,
@@ -561,6 +578,8 @@ async function save() {
         // SPEC-004: 名额与缓冲（batchLimitEnabled 关闭时传 null = 不限制）
         batchLimit: form.batchLimitEnabled ? form.batchLimit : null,
         bufferLimit: form.bufferLimit,
+        // S5: 月度额度（quotaEnabled 关闭时传 null = 不限制）
+        monthlyQuota: form.quotaEnabled ? form.monthlyQuota : null,
         autoPromote: form.autoPromote,
         hideQueuePosition: form.hideQueuePosition,
         hidePromoteNotify: form.hidePromoteNotify,
@@ -623,6 +642,8 @@ onMounted(async () => {
       batchLimitEnabled: profile.batch_limit != null,
       batchLimit: profile.batch_limit ?? 0,
       bufferLimit: profile.buffer_limit ?? 0,
+      quotaEnabled: profile.monthly_quota != null,
+      monthlyQuota: profile.monthly_quota ?? 0,
       autoPromote: !!profile.auto_promote,
       hideQueuePosition: !!profile.hide_queue_position,
       hidePromoteNotify: !!profile.hide_promote_notify,

@@ -67,6 +67,9 @@ export default async function artistRoutes(fastify) {
       formalCount: artistService.getZoneCounts(artist.id).formal,
       bufferCount: artistService.getZoneCounts(artist.id).buffer,
       slotDisplay: artistService.computeSlotDisplay(artist),
+      // S5: 月度额度池
+      monthlyQuota: artist.monthly_quota ?? null,
+      quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null,
       announcement: artistService.getAnnouncement(artist),
       tiers,
       artworks,
@@ -153,7 +156,8 @@ export default async function artistRoutes(fastify) {
           hidePromoteNotify: { type: 'boolean' },
           bufferShortForm: { type: 'boolean' },
           announcement: { type: ['string', 'null'], maxLength: 500 },
-          announcementExpiresAt: { type: ['string', 'null'], maxLength: 30 }
+          announcementExpiresAt: { type: ['string', 'null'], maxLength: 30 },
+          monthlyQuota: { type: ['integer', 'null'], minimum: 0, maximum: 999 }
         },
         additionalProperties: false
       }
@@ -181,7 +185,8 @@ export default async function artistRoutes(fastify) {
         hideQueuePosition: 'hide_queue_position',
         hidePromoteNotify: 'hide_promote_notify',
         bufferShortForm: 'buffer_short_form',
-        announcementExpiresAt: 'announcement_expires_at'
+        announcementExpiresAt: 'announcement_expires_at',
+        monthlyQuota: 'monthly_quota'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}

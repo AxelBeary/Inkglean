@@ -413,6 +413,9 @@ export default {
     slotHint: '关闭 = 不限制接单数；0 = 申请制（客户可提交申请但不直接占位）；N>0 = 限额接单。启用后正式位 + 缓冲位总数须 ≥ 1。',
     slotMinError: '启用名额限制时，正式位 + 缓冲位总数须 ≥ 1',
     bufferLabel: '缓冲名额（M）', bufferHint: '正式位满后，新订单进入缓冲区候补。递补后移入正式队列。',
+    // S5: 月度额度池
+    quotaLabel: '月度额度', quotaEnable: '启用月度额度', quotaUnit: '单/月',
+    quotaHint: '限制每月可接新订单数（按创建时间计，已取消不计）。关闭 = 不限制。与名额系统独立，两者同时启用时任一达到上限即约满。',
     bufferSwitchLabel: '缓冲区设置',
     autoPromote: '自动递补（正式位空出时自动将缓冲区最早订单移入）',
     hideQueuePosition: '对客户隐藏排队位置（只显示"排队中"）',

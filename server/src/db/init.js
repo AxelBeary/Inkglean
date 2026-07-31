@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS artists (
   buffer_short_form INTEGER DEFAULT 0,
   announcement TEXT DEFAULT NULL,
   announcement_expires_at DATETIME DEFAULT NULL,
+  monthly_quota INTEGER DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -926,6 +927,26 @@ export const MIGRATIONS = [
         )
       `)
       database.exec('CREATE INDEX IF NOT EXISTS idx_guestbook_artist ON guestbook_messages(artist_id, status)')
+    }
+  },
+  {
+    version: 23,
+    name: 'artist_monthly_quota',
+    up(database) {
+      // S5: 月度额度池（NULL=不限）
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v23`)
+          console.log(`📦 迁移 v23: 已备份 ${dbPath} → ${dbPath}.bak.v23`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v23: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+      const cols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!cols.some(c => c.name === 'monthly_quota')) {
+        database.exec('ALTER TABLE artists ADD COLUMN monthly_quota INTEGER DEFAULT NULL')
+      }
     }
   }
 ]
