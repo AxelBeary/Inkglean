@@ -8,6 +8,9 @@ WORKDIR /app/web
 COPY web/package.json web/package-lock.json* ./
 RUN npm install
 COPY web/ ./
+# v0.21: 前端 Sentry DSN（构建时注入，留空=禁用）
+ARG VITE_SENTRY_DSN=
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 RUN npm run build
 
 # ─── Stage 2: 生产运行 ───
