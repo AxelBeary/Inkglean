@@ -27,7 +27,7 @@ describe('管理员路由 (Admin Routes)', () => {
 
   it('TC-AR-01: 管理员获取画师列表含 isAdmin 标记', async () => {
     const admin = setAdmin('10001')
-    const other = seedArtist({ qq_number: '20002', subdomain: 'other' })
+    seedArtist({ qq_number: '20002', subdomain: 'other' })
 
     const res = await app.inject({
       method: 'GET',
@@ -188,7 +188,7 @@ describe('管理员路由 (Admin Routes)', () => {
 
   it('TC-AR-11: transfer 成功 — 两码验证通过', async () => {
     const admin = setAdmin('10001')
-    const newAdmin = seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
+    seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
 
     // 为两人各生成登录码
     const { code: code1 } = generateLoginCode('10001')

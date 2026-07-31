@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
+import { cleanDb, seedArtist, seedOrder } from './setup.js'
 import { mkdirSync, writeFileSync, existsSync, rmSync } from 'fs'
 import { join, resolve } from 'path'
 import * as adminService from '../src/features/admin/admin.service.js'
