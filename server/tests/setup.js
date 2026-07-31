@@ -47,6 +47,7 @@ export function cleanDb() {
     DELETE FROM price_tiers;
     DELETE FROM artist_workflow_stages;
     DELETE FROM greeting_templates;
+    DELETE FROM guestbook_messages;
     DELETE FROM artists;
   `)
 }

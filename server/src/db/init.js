@@ -284,6 +284,20 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   name TEXT NOT NULL,
   applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 留言板表（v22）
+CREATE TABLE IF NOT EXISTS guestbook_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL,
+  nickname TEXT NOT NULL,
+  content TEXT NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+  artist_reply TEXT DEFAULT NULL,
+  replied_at DATETIME DEFAULT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted_by_admin INTEGER DEFAULT 0,
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+);
 `
 
 /**
@@ -303,6 +317,7 @@ CREATE INDEX IF NOT EXISTS idx_price_tiers_artist ON price_tiers(artist_id);
 CREATE INDEX IF NOT EXISTS idx_artists_qq ON artists(qq_number);
 CREATE INDEX IF NOT EXISTS idx_extra_items_order ON order_extra_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_queue_zone ON orders(artist_id, queue_zone);
+CREATE INDEX IF NOT EXISTS idx_guestbook_artist ON guestbook_messages(artist_id, status);
 `
 
 /**
@@ -879,6 +894,38 @@ const MIGRATIONS = [
       if (!artworkCols.some(c => c.name === 'like_count')) {
         database.exec('ALTER TABLE artworks ADD COLUMN like_count INTEGER DEFAULT 0')
       }
+    }
+  },
+  {
+    version: 22,
+    name: 'guestbook_messages',
+    up(database) {
+      // F4: 留言板
+      // 迁移前自动备份
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v22`)
+          console.log(`📦 迁移 v22: 已备份 ${dbPath} → ${dbPath}.bak.v22`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v22: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS guestbook_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          artist_id INTEGER NOT NULL,
+          nickname TEXT NOT NULL,
+          content TEXT NOT NULL,
+          status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+          artist_reply TEXT DEFAULT NULL,
+          replied_at DATETIME DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          deleted_by_admin INTEGER DEFAULT 0,
+          FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+        )
+      `)
+      database.exec('CREATE INDEX IF NOT EXISTS idx_guestbook_artist ON guestbook_messages(artist_id, status)')
     }
   }
 ]
