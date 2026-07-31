@@ -57,7 +57,8 @@ export default async function globalSetup() {
     execSync('npm install', { cwd: resolve(ROOT, 'server'), stdio: 'inherit', timeout: 120_000 })
   }
   console.log('🌱 E2E: 初始化测试数据库...')
-  execSync('npx tsx src/db/seed.js', {
+  const tsxCli = resolve(ROOT, 'server/node_modules/tsx/dist/cli.mjs')
+  execSync(`"${process.execPath}" "${tsxCli}" src/db/seed.js`, {
     cwd: resolve(ROOT, 'server'),
     env: { ...process.env, DB_PATH: TEST_DB, ADMIN_QQ: '10003' },
     stdio: 'pipe',
@@ -66,7 +67,7 @@ export default async function globalSetup() {
 
   // 4. 启动服务器
   console.log(`🚀 E2E: 启动服务器 (port ${PORT})...`)
-  const server = spawn('npx', ['tsx', 'src/index.js'], {
+  const server = spawn(process.execPath, [tsxCli, 'src/index.js'], {
     cwd: resolve(ROOT, 'server'),
     env: {
       ...process.env,
