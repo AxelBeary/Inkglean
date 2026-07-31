@@ -9,10 +9,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   // v0.20: EP 按需引入 — el-* 组件自动解析注册，JS 从全量 1.29MB 降至按需
-  // importStyle: false：样式仍走全量 CSS 引入（main.js），避免重复
+  // v0.22 A4: importStyle 'css' — el-* 组件样式随注册自动注入，去掉全量 index.css（470kB→按需）
+  // base.css（:root 变量）经 JS API 组件的 css.mjs 依赖链自动引入，位于 theme.css 之前
   plugins: [
     vue(),
-    Components({ resolvers: [ElementPlusResolver({ importStyle: false })], dts: false })
+    Components({ resolvers: [ElementPlusResolver({ importStyle: 'css' })], dts: false })
   ],
   server: {
     port: 5173,
