@@ -239,7 +239,7 @@ function commitInput(seg) {
 </script>
 
 <style scoped>
-.payment-bar { user-select: none; }
+.payment-bar { user-select: none; --seg-light: 94%; }
 .bar-track {
   display: flex; height: 64px; border-radius: 10px; overflow: visible;
   border: 1px solid var(--border-color); position: relative;
@@ -249,14 +249,14 @@ function commitInput(seg) {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px;
   position: relative; min-width: 0; overflow: hidden;
-  background: hsl(var(--seg-hue, 210) 55% 94%);
+  background: hsl(var(--seg-hue, 210) 55% var(--seg-light));
   transition: width 0.15s ease, opacity 0.2s, background 0.3s;
   border-right: 1px solid var(--border-color);
 }
 .bar-seg:first-child { border-radius: 9px 0 0 9px; }
 .bar-seg:last-child { border-right: none; border-radius: 0 9px 9px 0; }
 .bar-seg:only-child { border-radius: 9px; }
-.bar-seg.final { background: hsl(45 60% 92%); }
+.bar-seg.final { background: hsl(45 60% calc(var(--seg-light) - 2%)); }
 .bar-seg.elastic { opacity: 0.55; }
 .bar-seg.detach { opacity: 0.3; outline: 2px dashed var(--color-danger); outline-offset: -2px; }
 .seg-label {
@@ -266,13 +266,13 @@ function commitInput(seg) {
 }
 .seg-pct {
   font-size: 15px; font-weight: 700;
-  color: hsl(var(--seg-hue, 210) 50% 38%);
+  color: hsl(var(--seg-hue, 210) 50% var(--seg-text-light, 38%));
   font-variant-numeric: tabular-nums; cursor: pointer;
   line-height: 1.2;
 }
-.bar-seg.final .seg-pct { color: hsl(45 55% 35%); }
+.bar-seg.final .seg-pct { color: hsl(45 55% var(--seg-text-light, 35%)); }
 .final-badge {
-  font-size: 10px; color: hsl(45 55% 42%); opacity: 0.85;
+  font-size: 10px; color: hsl(45 55% var(--seg-text-light, 42%)); opacity: 0.85;
   line-height: 1; letter-spacing: 0.5px;
 }
 .bar-handle {
@@ -294,5 +294,17 @@ function commitInput(seg) {
 .bar-ruler {
   display: flex; justify-content: space-between;
   font-size: 10px; color: var(--text-muted); margin-top: 4px; padding: 0 2px;
+}
+
+/* ===== 暗色适配（A5）=====
+   浅色 94% 亮度段底在暗色下刺眼 → 段底压暗至 22%，文字提亮至 72%。
+   色相/饱和度不变，保持分段辨识色。 */
+html.dark .payment-bar { --seg-light: 22%; --seg-text-light: 72%; }
+html.dark .bar-track { box-shadow: none; }
+html.dark .bar-handle:hover, html.dark .bar-handle:focus {
+  background: hsl(var(--seg-hue, 210) 50% 60% / 0.2);
+}
+html.dark .bar-handle:hover .grip, html.dark .bar-handle:focus .grip {
+  background: hsl(var(--seg-hue, 210) 50% 65%);
 }
 </style>
