@@ -1,6 +1,7 @@
 // ============================================
-// 共享速率限制器（per-IP，内存桶）
+// 共享速率限制器（per-IP，滑动日志）
 // 所有公开接口统一使用，防止撞库/刷接口
+// P2-1: 固定窗口→滑动日志，消除边界突发
 // ============================================
 
 const buckets = new Map()
@@ -13,11 +14,27 @@ const buckets = new Map()
  */
 export function rateLimit(key, maxHits, windowMs) {
   const now = Date.now()
-  const bucket = buckets.get(key) || { hits: 0, resetAt: now + windowMs }
-  if (now > bucket.resetAt) { bucket.hits = 0; bucket.resetAt = now + windowMs }
-  bucket.hits++
-  buckets.set(key, bucket)
-  return bucket.hits <= maxHits
+  const cutoff = now - windowMs
+
+  // 取或初始化时间戳数组
+  let timestamps = buckets.get(key)
+  if (!timestamps) {
+    timestamps = []
+    buckets.set(key, timestamps)
+  }
+
+  // 清除窗口外的旧记录
+  while (timestamps.length > 0 && timestamps[0] <= cutoff) {
+    timestamps.shift()
+  }
+
+  // 判断是否超限
+  if (timestamps.length >= maxHits) {
+    return false
+  }
+
+  timestamps.push(now)
+  return true
 }
 
 // 定期清理过期桶（unref 避免阻止进程退出 / 测试挂起）
@@ -25,7 +42,14 @@ export function rateLimit(key, maxHits, windowMs) {
 const MAX_BUCKETS = 100_000
 const _cleanup = setInterval(() => {
   const now = Date.now()
-  for (const [k, v] of buckets) if (now > v.resetAt) buckets.delete(k)
+  for (const [k, timestamps] of buckets) {
+    // 清除过期时间戳
+    while (timestamps.length > 0 && timestamps[0] <= now - 60_000) {
+      timestamps.shift()
+    }
+    // 空桶删除
+    if (timestamps.length === 0) buckets.delete(k)
+  }
   // 超限保护：超出上限时清空（极端情况，正常不会触发）
   if (buckets.size > MAX_BUCKETS) buckets.clear()
 }, 60_000)
