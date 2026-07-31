@@ -5,10 +5,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
+    "dev": "tsx --watch src/index.js",
+    "start": "tsx src/index.js",
     "test": "vitest run",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "db:init": "node src/db/init.js",
     "db:seed": "node src/db/seed.js"
@@ -26,9 +27,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/better-sqlite3": "^7.6.13",
     "eslint": "^10.8.0",
     "globals": "^17.8.0",
     "pino-pretty": "^13.0.0",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.0"
   }
 }

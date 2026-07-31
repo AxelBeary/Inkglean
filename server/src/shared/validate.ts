@@ -2,7 +2,7 @@
 // 输入校验工具（跨 feature 共用）
 // ============================================
 
-const LIMITS = {
+const LIMITS: Record<string, number> = {
   qq: 15,
   name: 50,
   subdomain: 20,
@@ -18,14 +18,14 @@ const LIMITS = {
 /**
  * P1-B: 按 code point 截断字符串（避免 emoji/中文 surrogate pair 被切半）
  */
-function countCodePoints(str) {
+function countCodePoints(str: string): number {
   return [...str].length
 }
 
 /**
  * 截断字符串到安全长度，返回清理后的值
  */
-export function clamp(value, type) {
+export function clamp(value: unknown, type: string): string | null {
   if (value == null) return null
   const str = String(value).trim()
   const max = LIMITS[type] || 500
@@ -37,7 +37,7 @@ export function clamp(value, type) {
 /**
  * 校验 QQ 号格式（5-15位数字）
  */
-export function isValidQq(qq) {
+export function isValidQq(qq: unknown): boolean {
   return /^\d{5,15}$/.test(String(qq || ''))
 }
 
@@ -45,6 +45,6 @@ export function isValidQq(qq) {
  * 校验画师身份码格式（2-10位大写字母/数字）
  * 用于订单号前缀，如 ALICE、QY、ART01
  */
-export function isValidArtistCode(code) {
+export function isValidArtistCode(code: unknown): boolean {
   return /^[A-Z0-9]{2,10}$/.test(String(code || ''))
 }
