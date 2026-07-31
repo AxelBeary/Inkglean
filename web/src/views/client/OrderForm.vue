@@ -462,8 +462,20 @@ async function copyQq(qq) {
   transition: background 0.3s;
   position: relative;
 }
-/* Bug 3: ThemeToggle 跟随页面头部布局（内容区右对齐，不再 absolute 到页面右上角） */
-.page-prefs { max-width: 920px; margin: 0 auto 8px; display: flex; justify-content: flex-end; }
+/* Bug 3 重做（v0.20）：ThemeToggle 改为右下角固定悬浮，与主页 ThemePicker FAB 定位一致（R25/C37 模式） */
+.page-prefs {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 95;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.2s;
+}
+.page-prefs:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); }
 /* R58-2: 加宽容器容纳 主区 + 摘要卡 双栏 */
 .form-container { max-width: 920px; margin: 0 auto; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
