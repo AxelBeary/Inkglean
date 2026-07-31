@@ -1,6 +1,8 @@
 import { verifySession } from '../../features/auth/auth.service.js'
 import { getArtistById } from '../../features/artist/artist.service.js'
 import db from '../../db/connection.js'
+import type { FastifyRequest, FastifyReply } from 'fastify'
+import type { Artist } from '../../types/entities.js'
 
 // ============================================
 // 认证中间件
@@ -8,8 +10,8 @@ import db from '../../db/connection.js'
 
 const ADMIN_QQ = process.env.ADMIN_QQ || ''
 
-export function getAdminQq() {
-  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get()
+export function getAdminQq(): string {
+  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
   return row?.value || ADMIN_QQ
 }
 
@@ -17,7 +19,7 @@ export function getAdminQq() {
  * 提取 token：httpOnly cookie 优先，Authorization: Bearer *** 兜底
  * cookie 是主路径（防 XSS），Bearer 保留给 API 测试和向后兼容
  */
-function extractToken(request) {
+function extractToken(request: FastifyRequest): string | null {
   // 优先从 httpOnly cookie 读取（JS 不可访问，防 XSS 窃取）
   const cookieToken = request.cookies?.artist_token
   if (cookieToken) return cookieToken
@@ -30,7 +32,7 @@ function extractToken(request) {
 /**
  * requireAuth - 画师登录校验
  */
-export async function requireAuth(request, reply) {
+export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   const token = extractToken(request)
   if (!token) {
     return reply.code(401).send({ code: 'NOT_LOGGED_IN', error: '未登录' })
@@ -41,7 +43,7 @@ export async function requireAuth(request, reply) {
     return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
   }
 
-  const artist = getArtistById(session.id)
+  const artist = getArtistById(session.id) as Artist | undefined
   if (!artist) {
     return reply.code(401).send({ code: 'ACCOUNT_NOT_FOUND', error: '画师账号不存在' })
   }
@@ -60,7 +62,7 @@ export async function requireAuth(request, reply) {
 /**
  * requireAdmin - 管理员权限校验
  */
-export async function requireAdmin(request, reply) {
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   const token = extractToken(request)
   if (!token) {
     return reply.code(401).send({ code: 'NOT_LOGGED_IN', error: '未登录' })
@@ -71,7 +73,7 @@ export async function requireAdmin(request, reply) {
     return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
   }
 
-  const artist = getArtistById(session.id)
+  const artist = getArtistById(session.id) as Artist | undefined
   if (!artist) {
     return reply.code(401).send({ code: 'ACCOUNT_NOT_FOUND', error: '账号不存在' })
   }

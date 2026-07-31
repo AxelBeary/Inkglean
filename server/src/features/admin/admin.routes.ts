@@ -290,7 +290,7 @@ export default async function adminRoutes(fastify) {
     // H-6 修复：校验问候语归属 — 必须属于该画师
     const gid = parseInt(request.params.gid)
     const artistId = parseInt(request.params.id)
-    const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid)
+    const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid) as { id: number; artist_id: number } | undefined
     if (!existing || existing.artist_id !== artistId) {
       return reply.code(404).send({ error: '模板不存在或不属于该画师' })
     }
@@ -304,7 +304,7 @@ export default async function adminRoutes(fastify) {
     // H-6 修复：校验问候语归属 — 必须属于该画师
     const gid = parseInt(request.params.gid)
     const artistId = parseInt(request.params.id)
-    const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid)
+    const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid) as { id: number; artist_id: number } | undefined
     if (!existing || existing.artist_id !== artistId) {
       return reply.code(404).send({ error: '模板不存在或不属于该画师' })
     }

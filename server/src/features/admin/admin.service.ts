@@ -10,12 +10,12 @@ import { existsSync, readdirSync, statSync, rmSync } from 'fs'
 /**
  * 系统全局统计数据
  */
-export function getGlobalStats() {
-  const artistCount = db.prepare('SELECT COUNT(*) as c FROM artists').get().c
-  const orderCount = db.prepare('SELECT COUNT(*) as c FROM orders').get().c
-  const activeOrders = db.prepare(
+export function getGlobalStats(): { artistCount: number; orderCount: number; activeOrders: number } {
+  const artistCount = (db.prepare('SELECT COUNT(*) as c FROM artists').get() as { c: number }).c
+  const orderCount = (db.prepare('SELECT COUNT(*) as c FROM orders').get() as { c: number }).c
+  const activeOrders = (db.prepare(
     `SELECT COUNT(*) as c FROM orders WHERE ${ACTIVE_ORDER_SQL}`
-  ).get().c
+  ).get() as { c: number }).c
 
   return { artistCount, orderCount, activeOrders }
 }
@@ -26,21 +26,28 @@ export function getGlobalStats() {
 
 const RECYCLE_BIN = '.recycle-bin'
 
-function getRecycleBinRoot() {
+function getRecycleBinRoot(): string {
   const uploadRoot = resolve(process.env.UPLOAD_DIR || './uploads')
   return join(uploadRoot, RECYCLE_BIN)
+}
+
+interface RecycleBinItem {
+  fileName: string
+  originalPath: string
+  size: number
+  movedAt: string
 }
 
 /**
  * 列出回收站内容
  * 返回：[{ fileName, originalPath, size, movedAt }]
  */
-export function listRecycleBin() {
+export function listRecycleBin(): RecycleBinItem[] {
   const binRoot = getRecycleBinRoot()
   if (!existsSync(binRoot)) return []
 
-  const items = []
-  const walk = (dir) => {
+  const items: RecycleBinItem[] = []
+  const walk = (dir: string): void => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, e.name)
       if (e.isDirectory()) { walk(full); continue }
@@ -65,7 +72,7 @@ export function listRecycleBin() {
  * 清空回收站（真正删除所有文件）
  * 返回删除的文件数
  */
-export function emptyRecycleBin() {
+export function emptyRecycleBin(): number {
   const binRoot = getRecycleBinRoot()
   if (!existsSync(binRoot)) return 0
 

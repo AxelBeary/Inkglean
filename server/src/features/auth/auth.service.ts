@@ -1,6 +1,7 @@
 import db from '../../db/connection.js'
 import crypto from 'crypto'
 import { getArtistByQq } from '../artist/artist.service.js'
+import type { Artist } from '../../types/entities.js'
 
 // ============================================
 // 认证服务 - 登录码生成与验证
@@ -15,7 +16,7 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 /**
  * 签名密钥 — 生产环境必须设置 SESSION_SECRET，否则启动即崩溃
  */
-function getSecret() {
+function getSecret(): string {
   const secret = process.env.SESSION_SECRET
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
@@ -39,8 +40,8 @@ export const isDevAuth = process.env.AUTH_DEV_MODE === 'true'
  * 生成6位登录码，有效期5分钟
  * 无论 QQ 是否注册，统一返回相同响应，防止用户枚举
  */
-export function generateLoginCode(qqNumber) {
-  const artist = getArtistByQq(qqNumber)
+export function generateLoginCode(qqNumber: string) {
+  const artist = getArtistByQq(qqNumber) as Artist | undefined
   if (!artist) {
     // 不抛错，静默返回 — 调用方统一响应"若已注册则码已发送"
     return { code: null, artist: null }
@@ -63,17 +64,26 @@ export function generateLoginCode(qqNumber) {
   return { code, artist }
 }
 
+/** 登录码记录行 */
+interface LoginCodeRecord {
+  id: number
+  artist_id: number
+  code: string
+  expires_at: number
+  attempts: number
+}
+
 /**
  * 验证登录码（最多5次尝试）
  * 未注册 QQ 返回通用错误，不暴露注册状态
  */
-export function verifyLoginCode(qqNumber, code) {
-  const artist = getArtistByQq(qqNumber)
+export function verifyLoginCode(qqNumber: string, code: string) {
+  const artist = getArtistByQq(qqNumber) as Artist | undefined
   if (!artist) return { valid: false, code: 'CODE_INVALID', error: '登录码错误或已过期' }
 
   const record = db.prepare(
     'SELECT * FROM login_codes WHERE artist_id = ? ORDER BY created_at DESC LIMIT 1'
-  ).get(artist.id)
+  ).get(artist.id) as LoginCodeRecord | undefined
 
   if (!record) return { valid: false, code: 'CODE_INVALID', error: '请先获取登录码' }
 
@@ -95,7 +105,7 @@ export function verifyLoginCode(qqNumber, code) {
       db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
       return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
     }
-    let codeMatch
+    let codeMatch: boolean
     try {
       codeMatch = crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(code))
     } catch {
@@ -116,17 +126,24 @@ export function verifyLoginCode(qqNumber, code) {
  * 创建会话 Token（HMAC签名，无状态）
  * payload 中包含 token_version，用于服务端主动使旧 token 失效
  */
-export function createSession(artistId, tokenVersion) {
+export function createSession(artistId: number, tokenVersion: number): string {
   const payload = Buffer.from(JSON.stringify({ id: artistId, t: Date.now(), v: tokenVersion || 1 })).toString('base64url')
   const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
   return `${payload}.${sig}`
+}
+
+/** 会话 payload */
+interface SessionPayload {
+  id: number
+  t: number
+  v: number
 }
 
 /**
  * 验证会话 Token
  * 使用 timingSafeEqual 防止时序攻击
  */
-export function verifySession(token) {
+export function verifySession(token: string): SessionPayload | null {
   if (!token) return null
   const [payload, sig] = token.split('.')
   if (!payload || !sig) return null
@@ -137,7 +154,7 @@ export function verifySession(token) {
   if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) return null
 
   try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString()) as SessionPayload
     if (Date.now() - data.t > SESSION_TTL_MS) return null
     return data
   } catch {

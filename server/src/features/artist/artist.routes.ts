@@ -197,8 +197,8 @@ export default async function artistRoutes(fastify) {
       // SPEC-004: N+M ≥ 1 校验（batchLimit 为 null 时跳过）
       if ('batch_limit' in sanitized && sanitized.batch_limit !== null) {
         const current = artistService.getArtistById(request.artist.id)
-        const N = sanitized.batch_limit
-        const M = ('buffer_limit' in sanitized) ? sanitized.buffer_limit : (current?.buffer_limit ?? 0)
+        const N = sanitized.batch_limit as number
+        const M = (('buffer_limit' in sanitized) ? sanitized.buffer_limit : (current?.buffer_limit ?? 0)) as number
         if (N + M < 1) {
           return reply.code(400).send({ code: 'INVALID_BATCH_LIMIT', error: '名额设置无效（正式位+缓冲位至少为1）' })
         }
