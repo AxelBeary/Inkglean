@@ -121,18 +121,18 @@
 
                     <!-- 实时价格预览（R14: 展开后才显示） -->
                     <div v-if="form.tierId && pricePreview" class="price-preview">
-                      <div class="price-line" v-for="item in pricePreview.breakdown" :key="item.name">
+                      <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
                         <span>{{ item.name }}</span>
-                        <span class="price-amount">¥{{ item.amount.toFixed(2) }}</span>
+                        <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
                       </div>
                       <div class="price-divider"></div>
                       <div class="price-line total">
                         <span>总价</span>
-                        <span class="price-amount">¥{{ pricePreview.totalPrice.toFixed(2) }}</span>
+                        <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
                       </div>
                       <div v-if="pricePreview.installments.length > 1" class="installment-row">
                         <span v-for="inst in pricePreview.installments" :key="inst.label" class="installment-chip">
-                          {{ inst.label }} ¥{{ inst.amount.toFixed(2) }}
+                          {{ inst.label }} ¥{{ (inst.amount ?? 0).toFixed(2) }}
                         </span>
                       </div>
                     </div>
@@ -234,7 +234,7 @@
                   <el-button @click="step = 2">{{ $t('orderForm.prevStep') }}</el-button>
                   <el-button type="primary" @click="openReceipt">
                     {{ $t('orderForm.submit') }}
-                    <template v-if="pricePreview"> — ¥{{ pricePreview.totalPrice.toFixed(2) }}</template>
+                    <template v-if="pricePreview"> — ¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</template>
                   </el-button>
                 </div>
               </div>
@@ -247,9 +247,9 @@
             <template v-if="selectedTier">
               <div class="summary-tier">{{ selectedTier.name }}</div>
               <div v-if="pricePreview" class="summary-lines">
-                <div v-for="item in pricePreview.breakdown" :key="item.name" class="summary-line">
+                <div v-for="item in (pricePreview.breakdown || [])" :key="item.name" class="summary-line">
                   <span>{{ item.name }}</span>
-                  <span class="summary-amt">¥{{ item.amount.toFixed(2) }}</span>
+                  <span class="summary-amt">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
                 </div>
                 <div class="summary-divider"></div>
               </div>
@@ -259,7 +259,7 @@
               </div>
               <div v-if="pricePreview?.installments?.length > 1" class="summary-installments">
                 <span v-for="inst in pricePreview.installments" :key="inst.label" class="summary-inst">
-                  {{ inst.label }} ¥{{ inst.amount.toFixed(2) }}
+                  {{ inst.label }} ¥{{ (inst.amount ?? 0).toFixed(2) }}
                 </span>
               </div>
             </template>
@@ -284,9 +284,9 @@
           <span>{{ selectedTier?.name }}</span>
         </div>
         <template v-if="pricePreview">
-          <div v-for="item in pricePreview.breakdown" :key="item.name" class="receipt-row">
+          <div v-for="item in (pricePreview.breakdown || [])" :key="item.name" class="receipt-row">
             <span>{{ item.name }}</span>
-            <span>¥{{ item.amount.toFixed(2) }}</span>
+            <span>¥{{ (item.amount ?? 0).toFixed(2) }}</span>
           </div>
         </template>
         <div class="receipt-dashed"></div>
@@ -296,7 +296,7 @@
         </div>
         <div v-if="pricePreview?.installments?.length > 1" class="receipt-installments">
           <span v-for="inst in pricePreview.installments" :key="inst.label" class="receipt-inst">
-            {{ inst.label }} ¥{{ inst.amount.toFixed(2) }}
+            {{ inst.label }} ¥{{ (inst.amount ?? 0).toFixed(2) }}
           </span>
         </div>
         <div class="receipt-barcode" aria-hidden="true"></div>
@@ -422,7 +422,7 @@ async function copyOrderSummary() {
   const lines = [
     `${t('orderForm.summaryOrderNo')}${resultNo.value}`,
     `${t('orderForm.tierLabel')}: ${selectedTier.value?.name || ''}`,
-    ...(pricePreview.value?.breakdown || []).map(i => `${i.name}: ¥${i.amount.toFixed(2)}`),
+    ...(pricePreview.value?.breakdown || []).map(i => `${i.name}: ¥${(i.amount ?? 0).toFixed(2)}`),
     `${t('orderForm.receiptTotal')}: ¥${displayPrice.value.toFixed(2)}`
   ]
   const text = lines.join('\n')
