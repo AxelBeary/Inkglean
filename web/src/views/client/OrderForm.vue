@@ -130,7 +130,7 @@
                         <span>总价</span>
                         <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
                       </div>
-                      <div v-if="pricePreview.installments.length > 1" class="installment-row">
+                      <div v-if="pricePreview?.installments?.length > 1" class="installment-row">
                         <span v-for="inst in pricePreview.installments" :key="inst.label" class="installment-chip">
                           {{ inst.label }} ¥{{ (inst.amount ?? 0).toFixed(2) }}
                         </span>
@@ -462,7 +462,8 @@ async function copyQq(qq) {
   transition: background 0.3s;
   position: relative;
 }
-.page-prefs { position: absolute; top: 16px; right: 16px; z-index: 10; }
+/* Bug 3: ThemeToggle 跟随页面头部布局（内容区右对齐，不再 absolute 到页面右上角） */
+.page-prefs { max-width: 920px; margin: 0 auto 8px; display: flex; justify-content: flex-end; }
 /* R58-2: 加宽容器容纳 主区 + 摘要卡 双栏 */
 .form-container { max-width: 920px; margin: 0 auto; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }

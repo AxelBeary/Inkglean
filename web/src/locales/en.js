@@ -475,7 +475,8 @@ export default {
     reset: 'Reset to Default', resetConfirm: 'Reset to default template? All custom stages and payment splits will be overwritten. This cannot be undone.', resetDone: 'Reset to default template',
     descPlaceholder: 'Click to add a note',
     // plan-node-speech: node speech ({客户名} etc. are backend variable tokens — kept in Chinese in both locales)
-    speechLabel: 'Speech', speechPlaceholder: '{客户名}，你的订单已{节点名}。',
+    // Bug 1: braces are parsed as ICU placeholders by vue-i18n (Chinese is not a valid identifier → crash); escape with {'{'} literals
+    speechLabel: 'Speech', speechPlaceholder: "{'{'}客户名{'}'}，你的订单已{'{'}节点名{'}'}。",
     speechSave: 'Save speech', speechSaved: 'Speech saved', speechVarHint: 'Click to insert variable',
     helpBtn: 'How it works', helpTitle: 'Workflow & Payment Guide',
     helpLines: [

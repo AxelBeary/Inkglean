@@ -475,7 +475,8 @@ export default {
     reset: '恢复默认模板', resetConfirm: '确定恢复默认模板？你当前的所有自定义节点和比例将被覆盖，此操作无法撤销。', resetDone: '已恢复默认模板',
     descPlaceholder: '点击添加说明',
     // plan-node-speech：节点话术（{客户名}等为后端变量契约，中英文界面均保持中文原文）
-    speechLabel: '话术', speechPlaceholder: '{客户名}，你的订单已{节点名}。',
+    // Bug 1: 花括号会被 vue-i18n 当 ICU 占位符解析（中文非合法标识符→崩溃），用 {'{'} 字面量转义
+    speechLabel: '话术', speechPlaceholder: "{'{'}客户名{'}'}，你的订单已{'{'}节点名{'}'}。",
     speechSave: '保存话术', speechSaved: '话术已保存', speechVarHint: '点击插入变量',
     helpBtn: '使用说明', helpTitle: '流程与比例使用说明',
     helpLines: [
