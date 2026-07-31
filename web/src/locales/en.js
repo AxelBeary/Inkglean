@@ -125,7 +125,8 @@ export default {
   landing: {
     title: '🎨 Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
     noBio: 'This artist has not written a bio yet', weibo: 'Weibo', bilibili: 'Bilibili',
-    enterHome: 'Visit page →', noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list'
+    enterHome: 'Visit page →', noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
+    notFoundHint: 'The page you visited does not exist — we took you back to the home page'
   },
   artistHome: {
     weibo: '🔗 My Weibo', bilibili: '📺 My Bilibili', commission: '🎨 Commission me', track: '📋 Track order',

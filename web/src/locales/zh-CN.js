@@ -125,7 +125,8 @@ export default {
   landing: {
     title: '🎨 画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
     noBio: '这位画师还没有写简介', weibo: '微博', bilibili: 'B站',
-    enterHome: '进入主页 →', noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败'
+    enterHome: '进入主页 →', noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
+    notFoundHint: '你访问的页面不存在，已为你返回首页'
   },
   artistHome: {
     weibo: '🔗 我的微博', bilibili: '📺 我的B站', commission: '🎨 我要约稿', track: '📋 查询进度',

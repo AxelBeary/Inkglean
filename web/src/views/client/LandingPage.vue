@@ -9,6 +9,11 @@
     </header>
 
     <main class="landing-main">
+      <!-- P2-11（v0.20）：404 catch-all 渲染首页时显示提示条，让用户知道发生了什么 -->
+      <div v-if="isNotFound" class="not-found-banner" role="alert">
+        <span class="not-found-code">404</span>
+        {{ $t('landing.notFoundHint') }}
+      </div>
       <div class="artist-grid" v-loading="loading">
         <el-card
           v-for="artist in artists"
@@ -59,8 +64,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -69,8 +74,11 @@ import Disclaimer from '../../components/Disclaimer.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const artists = ref([])
 const loading = ref(true)
+// P2-11（v0.20）：404 catch-all 复用首页渲染，仅当路由名为 NotFound 时显示提示条
+const isNotFound = computed(() => route.name === 'NotFound')
 
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 
@@ -113,6 +121,26 @@ onMounted(async () => {
   margin: 0 auto;
   padding: 0 16px 48px;
   width: 100%;
+}
+/* P2-11（v0.20）：404 提示条 */
+.not-found-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--el-color-warning, #e6a23c);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.not-found-code {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--el-color-warning, #e6a23c);
+  font-variant-numeric: tabular-nums;
 }
 .artist-grid {
   display: grid;
