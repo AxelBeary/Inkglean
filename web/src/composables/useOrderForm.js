@@ -184,6 +184,18 @@ export function useOrderForm(subdomain, formRef) {
   watch(addonSelections, scheduleCalc, { deep: true })
   watch(addonToggles, scheduleCalc, { deep: true })
 
+  // 增项默认值初始化：el-input-number 的 v-model 不接受 undefined，
+  // 展开详细计价前须确保所有增项键已存在（quantity → 0，toggle/inquiry → false）
+  watch(availableAddons, (addons) => {
+    for (const a of addons) {
+      if (a.select_mode === 'quantity') {
+        if (addonSelections[a.id] === undefined) addonSelections[a.id] = 0
+      } else if (addonToggles[a.id] === undefined) {
+        addonToggles[a.id] = false
+      }
+    }
+  }, { immediate: true })
+
   // ─── R57: 表单防丢失（beforeunload 拦截 + sessionStorage 草稿） ───
   const DRAFT_KEY = `orderForm_draft_${subdomain}`
 

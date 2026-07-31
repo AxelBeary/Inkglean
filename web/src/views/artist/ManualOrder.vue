@@ -78,14 +78,14 @@
 
       <!-- 实时价格预览 -->
       <div v-if="form.tierId && pricePreview" class="price-preview">
-        <div class="price-line" v-for="item in pricePreview.breakdown" :key="item.name">
+        <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
           <span>{{ item.name }}</span>
-          <span class="price-amount">¥{{ item.amount.toFixed(2) }}</span>
+          <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
         </div>
         <div class="price-divider"></div>
         <div class="price-line total">
           <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">¥{{ pricePreview.totalPrice.toFixed(2) }}</span>
+          <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
         </div>
       </div>
 
@@ -312,6 +312,17 @@ function buildAddonList() {
 watch([() => form.tierId, () => form.usageMultiplierId, () => form.rushMultiplierId], scheduleCalc)
 watch(addonSelections, scheduleCalc, { deep: true })
 watch(addonToggles, scheduleCalc, { deep: true })
+
+// 增项默认值初始化：el-input-number 的 v-model 不接受 undefined
+watch(availableAddons, (addons) => {
+  for (const a of addons) {
+    if (a.select_mode === 'quantity') {
+      if (addonSelections[a.id] === undefined) addonSelections[a.id] = 0
+    } else if (addonToggles[a.id] === undefined) {
+      addonToggles[a.id] = false
+    }
+  }
+}, { immediate: true })
 
 // ─── 参考图上传 ───
 async function handleRefUpload({ file }) {
