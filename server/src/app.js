@@ -2,8 +2,9 @@ import Fastify from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
+import * as Sentry from '@sentry/node'
 import { resolve, join, relative } from 'path'
-import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync } from 'fs'
+import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
@@ -195,6 +196,24 @@ export async function buildApp(opts = {}) {
     }
   })
 
+  // ─── Sentry 错误监控（S-AC3: DSN 空/不设 = 完全禁用，零网络请求）───
+  const sentryDsn = process.env.SENTRY_DSN_BACKEND
+  if (sentryDsn && process.env.NODE_ENV !== 'development') {
+    let release = 'unknown'
+    try {
+      const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '../package.json'), 'utf8'))
+      release = pkg.version || release
+    } catch { /* 读不到版本号不影响启动 */ }
+    Sentry.init({
+      dsn: sentryDsn,
+      release,
+      environment: process.env.NODE_ENV || 'production',
+      sendDefaultPii: false, // S-AC6: 不上传用户 IP
+      tracesSampleRate: 0 // 不做性能追踪，只捕获错误
+    })
+    app.log.info(`Sentry 已启用（release=${release}）`)
+  }
+
   // ─── 全局错误处理：结构化错误码 + 中文友好提示 ───
   // C-2 修复：必须在所有 app.register() 之前设置
   // Fastify 插件封装机制下，子作用域只继承注册时已存在的 error handler
@@ -208,6 +227,7 @@ export async function buildApp(opts = {}) {
     // 安全：500 级别错误不透传 message（可能泄露表名/列名/路径），仅记日志
     if (status >= 500) {
       request.log.error({ err: error, url: request.url }, '未处理的服务端错误')
+      Sentry.captureException(error) // S2: 上报 Sentry（未 init 时为 no-op）
       return reply.status(500).send({ code: 'INTERNAL', error: '服务器内部错误' })
     }
     // 4xx 业务错误：返回结构化错误码 + 中文友好消息
