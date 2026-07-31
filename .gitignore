@@ -41,3 +41,8 @@ data/
 
 # 临时参考素材（用户设计参考，不入版本库）
 temp/
+
+# Playwright E2E（v0.21）
+test-results/
+playwright-report/
+playwright/.cache/
