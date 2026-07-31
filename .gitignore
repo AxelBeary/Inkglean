@@ -46,3 +46,7 @@ temp/
 test-results/
 playwright-report/
 playwright/.cache/
+e2e/test.db*
+e2e/test-uploads/
+e2e/.server-pid
+e2e/.tokens.json
