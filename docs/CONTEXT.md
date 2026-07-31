@@ -23,6 +23,9 @@
 | 倍率 | multiplier | 价格调整系数，分用途倍率（usageMultiplier）和加急倍率（rushMultiplier） |
 | 详细计价 | pricing breakdown | 基础价格 × 各倍率 = 最终价格的展开明细 |
 | 计价预览 | pricePreview | 客户选档后实时显示的预估价格（未提交） |
+| 已付额度池 | paid_total_cents | v0.23 B7：订单已收款总额（冗余字段，由 order_payments 流水事务维护） |
+| 收款流水 | order_payments | 每笔收款/退款记录（正数=收款，负数=撤销/退款），永不 DELETE |
+| 分期三态 | installment status | paid（完全覆盖）/ partial（部分覆盖）/ pending（未覆盖），由 paid_total_cents 推算 |
 
 ## 订单生命周期
 
@@ -53,11 +56,11 @@
 | 后端运行时 | tsx（v0.21） | 支持 .ts/.js 混存，零配置 |
 | 前端 | Vue 3 + Element Plus | SPA |
 | 前端 i18n | vue-i18n@11 | v0.20 从 v9 升级 |
-| 类型系统 | TypeScript（渐进迁移中） | v0.21 起，pricing + shared/ 已迁移 |
+| 类型系统 | TypeScript（渐进迁移中） | v0.21 起，v0.22 完成 features/ + utils/ + middleware/ 全部 TS；剩余 app.js/index.js/db/ 入口 |
 | 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL |
 | 部署 | Docker Compose + Caddy | 容器化 |
-| 测试 | Vitest（后端 469 + 前端 87）+ Playwright E2E（5 条路径） | |
-| 监控 | Sentry（后端已接入，前端待接入） | sentry.io 免费版 |
+| 测试 | Vitest（后端 482 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
+| 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则
 
