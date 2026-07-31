@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS orders (
   current_stage_id INTEGER,
   deadline DATETIME,
   queue_zone TEXT DEFAULT 'formal',
+  paid_total_cents INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -194,6 +195,17 @@ CREATE TABLE IF NOT EXISTS order_payment_installments (
   requested_at DATETIME,
   paid_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+-- 收款流水表（v24 额度池）
+CREATE TABLE IF NOT EXISTS order_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  amount_cents INTEGER NOT NULL,
+  note TEXT DEFAULT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_by TEXT DEFAULT 'artist',
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
@@ -319,6 +331,7 @@ CREATE INDEX IF NOT EXISTS idx_artists_qq ON artists(qq_number);
 CREATE INDEX IF NOT EXISTS idx_extra_items_order ON order_extra_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_queue_zone ON orders(artist_id, queue_zone);
 CREATE INDEX IF NOT EXISTS idx_guestbook_artist ON guestbook_messages(artist_id, status);
+CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id);
 `
 
 /**
@@ -947,6 +960,48 @@ export const MIGRATIONS = [
       if (!cols.some(c => c.name === 'monthly_quota')) {
         database.exec('ALTER TABLE artists ADD COLUMN monthly_quota INTEGER DEFAULT NULL')
       }
+    }
+  },
+  {
+    version: 24,
+    name: 'quota_pool_paid_total',
+    up(database) {
+      // B7: 额度池 — orders.paid_total_cents + order_payments 表 + 存量换算
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, `${dbPath}.bak.v24`)
+          console.log(`📦 迁移 v24: 已备份 ${dbPath} → ${dbPath}.bak.v24`)
+        } catch (err) {
+          console.warn(`⚠️ 迁移 v24: 备份失败（${err.message}），继续执行迁移`)
+        }
+      }
+      // 1. orders 加 paid_total_cents
+      const cols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!cols.some(c => c.name === 'paid_total_cents')) {
+        database.exec('ALTER TABLE orders ADD COLUMN paid_total_cents INTEGER DEFAULT 0')
+      }
+      // 2. 存量换算：已付分期 SUM → paid_total_cents
+      database.exec(`
+        UPDATE orders SET paid_total_cents = (
+          SELECT COALESCE(SUM(amount_cents), 0)
+          FROM order_payment_installments
+          WHERE order_id = orders.id AND status = 'paid'
+        )
+      `)
+      // 3. 收款流水表
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS order_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          amount_cents INTEGER NOT NULL,
+          note TEXT DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT DEFAULT 'artist',
+          FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+        )
+      `)
+      database.exec('CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id)')
     }
   }
 ]

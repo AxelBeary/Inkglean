@@ -99,8 +99,9 @@ describe('话术变量替换 (replaceSpeechVars)', () => {
     order.final_price_cents = 50000
     order.current_stage_id = stage.id
     order.deadline = '2026-08-05 00:00:00'
+    order.paid_total_cents = 15000 // B7: 话术改读 paid_total_cents
 
-    // 插入分期（已付 15000）
+    // 插入分期（仅作应收参考，status 不再影响话术）
     db.prepare(
       "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '定金', 3000, 15000, 'paid', 0)"
     ).run(order.id)
@@ -145,6 +146,7 @@ describe('话术变量替换 (replaceSpeechVars)', () => {
     const order = seedOrder(artist.id)
     order.final_price_cents = 12345
     order.current_stage_id = null
+    order.paid_total_cents = 3704 // B7: 话术改读 paid_total_cents
 
     db.prepare(
       "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '定金', 3000, 3704, 'paid', 0)"
@@ -173,6 +175,7 @@ describe('客户沟通数据 (getSpeechInfo)', () => {
     order.final_price_cents = 100000
     order.current_stage_id = stages[3].id // 线稿确认
     order.tier_name = '全身像'
+    order.paid_total_cents = 30000 // B7: 话术改读 paid_total_cents
 
     db.prepare(
       "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '定金', 3000, 30000, 'paid', 0)"

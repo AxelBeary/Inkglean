@@ -84,6 +84,7 @@ export interface Order {
   queue_zone: 'formal' | 'buffer'
   current_stage_id: number | null
   deadline: string | null
+  paid_total_cents: number
   created_at: string
   updated_at: string
 }

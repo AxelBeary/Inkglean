@@ -185,11 +185,8 @@ function formatCentsYuan(cents: number | null): string {
 export function replaceSpeechVars(template: string | null, order: any, stageName: string | null): string {
   if (!template) return ''
 
-  // 已付金额（paid 分期合计）
-  const paidRow = db.prepare(
-    "SELECT COALESCE(SUM(amount_cents), 0) as s FROM order_payment_installments WHERE order_id = ? AND status = 'paid'"
-  ).get(order.id) as { s: number } | undefined
-  const paidCents = paidRow?.s ?? 0
+  // B7: 已付金额改读 paid_total_cents（修复 T3 BUG：旧实现 SUM status='paid' 永远返回 0）
+  const paidCents = order.paid_total_cents ?? 0
 
   const totalCents = order.final_price_cents ?? order.total_price_cents ?? null
   const unpaidCents = totalCents != null ? Math.max(0, totalCents - paidCents) : null
@@ -228,11 +225,8 @@ interface SpeechInfoResult {
  * 无 current_stage_id 时 speechText 为 null
  */
 export function getSpeechInfo(order: any): SpeechInfoResult {
-  // 已付金额
-  const paidRow = db.prepare(
-    "SELECT COALESCE(SUM(amount_cents), 0) as s FROM order_payment_installments WHERE order_id = ? AND status = 'paid'"
-  ).get(order.id) as { s: number } | undefined
-  const paidCents = paidRow?.s ?? 0
+  // B7: 已付金额改读 paid_total_cents
+  const paidCents = order.paid_total_cents ?? 0
 
   const totalCents = order.final_price_cents ?? order.total_price_cents ?? null
   const unpaidCents = totalCents != null ? Math.max(0, totalCents - paidCents) : null

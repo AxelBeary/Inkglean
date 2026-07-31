@@ -183,6 +183,7 @@ export default async function orderRoutes(fastify: any) {
         priceCents: item.price_cents
       })),
       finalPriceCents: order.final_price_cents ?? null,
+      paidTotalCents: order.paid_total_cents ?? 0,
       installments: orderService.getOrderInstallments(order.id),
       // SPEC-004: 排队分区信息
       queueZone: order.queue_zone || 'formal',
@@ -356,16 +357,23 @@ export default async function orderRoutes(fastify: any) {
    * GET /api/artist/orders/:id
    */
   fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request: any) => {
-   // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
-   const order = signOrderUrls(request.order)
-   // R30d: 附加流程进度信息
-   const stageInfo = orderWorkflowService.getStageInfo(order)
-   if (stageInfo) Object.assign(order, stageInfo)
-   // plan-node-speech: 话术 + 客户沟通数据
-   const speechInfo = orderWorkflowService.getSpeechInfo(order)
-   Object.assign(order, speechInfo)
-   return order
-})
+    // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
+    const order = signOrderUrls(request.order)
+    // R30d: 附加流程进度信息
+    const stageInfo = orderWorkflowService.getStageInfo(order)
+    if (stageInfo) Object.assign(order, stageInfo)
+    // plan-node-speech: 话术 + 客户沟通数据
+    const speechInfo = orderWorkflowService.getSpeechInfo(order)
+    Object.assign(order, speechInfo)
+    // B7: 额度池 — 已付/待收 + 分期推算状态
+    const finalCents = order.final_price_cents ?? order.total_price_cents ?? null
+    Object.assign(order, {
+      paidTotalCents: order.paid_total_cents ?? 0,
+      remainingCents: finalCents != null ? Math.max(0, finalCents - (order.paid_total_cents ?? 0)) : null,
+      installments: orderService.getOrderInstallments(order.id)
+    })
+    return order
+  })
 
   /**
    * POST /api/artist/orders/manual
@@ -840,6 +848,46 @@ export default async function orderRoutes(fastify: any) {
     const itemId = parseInt(request.params.itemId, 10)
     if (isNaN(itemId)) throw new AppError(E.ORDER_INVALID_ID)
     return signOrderUrls(orderService.deleteExtraItem(request.order.id, itemId))
+  })
+
+  // ─── B7: 额度池收款 ───
+
+  /**
+   * POST /api/artist/orders/:id/payments
+   * 记录收款（正数）或撤销/退款（负数）
+   */
+  fastify.post('/api/artist/orders/:id/payments', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['amountCents'],
+        properties: {
+          amountCents: { type: 'integer', minimum: -99999999, maximum: 99999999 },
+          note: { type: ['string', 'null'], maxLength: 200 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any) => {
+    const { amountCents, note } = request.body as any
+    const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist' })
+    const order = orderService.getOrder(request.order.id)
+    return {
+      payment,
+      paidTotalCents: order?.paid_total_cents ?? 0,
+      finalPriceCents: order?.final_price_cents ?? order?.total_price_cents ?? null
+    }
+  })
+
+  /**
+   * GET /api/artist/orders/:id/payments
+   * 收款流水列表
+   */
+  fastify.get('/api/artist/orders/:id/payments', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request: any) => {
+    return { payments: orderService.getPayments(request.order.id) }
   })
 
   // ─── SPEC-004: 名额与缓冲 ───
