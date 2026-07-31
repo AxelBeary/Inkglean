@@ -1,0 +1,46 @@
+name: E2E
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 根依赖（@playwright/test）
+      - name: Install root dependencies
+        run: npm ci
+
+      # 预装 web/server 依赖（global-setup 也会装，这里预装利用 CI 缓存加速）
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      # Playwright 浏览器 + 系统依赖
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      # global-setup 自动：构建前端 → 种子 DB → 启服 → 预登录
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
