@@ -161,6 +161,24 @@
               </el-select>
               <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
             </el-form-item>
+            <!-- F3: 主页公告（客户主页首屏展示，可选过期时间） -->
+            <el-form-item :label="$t('settings.announcementLabel')">
+              <el-input
+                v-model="form.announcement" type="textarea" :rows="3"
+                :placeholder="$t('settings.announcementPlaceholder')"
+                maxlength="500" show-word-limit
+              />
+              <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
+              <el-date-picker
+                v-model="form.announcementExpiresAt"
+                type="date"
+                value-format="YYYY-MM-DD"
+                :placeholder="$t('settings.announcementExpiresLabel')"
+                clearable
+                style="margin-top: 8px; width: 220px"
+              />
+              <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
             </el-form-item>
@@ -379,7 +397,10 @@ const form = reactive({
   paletteId: 'paper',
   accentColor: null,
   avatar: '',
-  dashboardDefaultPanel: 'queue'
+  dashboardDefaultPanel: 'queue',
+  // F3: 主页公告（announcement 文本 + 可选过期日期）
+  announcement: '',
+  announcementExpiresAt: null
 })
 
 // ─── R49: 强调色预设（5 色与 ThemePicker 一致，后端白名单校验） ───
@@ -547,7 +568,10 @@ async function save() {
         contactQq: form.contactQq.trim(),
         notifyEnabled: form.notifyEnabled,
         artistCode: form.artistCode.trim(),
-        dashboardDefaultPanel: form.dashboardDefaultPanel
+        dashboardDefaultPanel: form.dashboardDefaultPanel,
+        // F3: 公告（空文本 → null 清除；过期日期空 → null 长期显示）
+        announcement: form.announcement.trim() || null,
+        announcementExpiresAt: form.announcementExpiresAt || null
       })
     }
     ElMessage.success(t('settings.saved'))
@@ -611,7 +635,10 @@ onMounted(async () => {
       accentColor: profile.accent_color || null,
       avatar: profile.avatar || '',
       dashboardDefaultPanel: profile.dashboard_default_panel || 'queue',
-      subdomain: profile.subdomain || ''
+      subdomain: profile.subdomain || '',
+      // F3: 公告回显（announcement_expires_at 为 DATETIME 字符串，取日期部分）
+      announcement: profile.announcement || '',
+      announcementExpiresAt: profile.announcement_expires_at ? String(profile.announcement_expires_at).slice(0, 10) : null
     })
   } catch (err) { ElMessage.error(err.message) }
   finally { loading.value = false }

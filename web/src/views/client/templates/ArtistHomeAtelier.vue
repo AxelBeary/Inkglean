@@ -1,12 +1,15 @@
 <template>
   <div v-if="artist" class="atelier" ref="rootEl">
-    <!-- 开场：画册封面感 -->
-    <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="fullscreen" ref="heroRef" />
+    <!-- Opening: art-book-cover vibe (F3: announcement as a sticky-note card in the bottom-right, avoiding the plaque in the bottom-left) -->
+    <div class="atelier-hero-wrap">
+      <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="fullscreen" ref="heroRef" />
+      <TplAnnouncement :artist="artist" class="atelier-announcement" />
+    </div>
 
     <!-- 作品画廊：画册式大留白 -->
     <section class="atelier-section tpl-reveal" v-if="artworks.length">
       <p class="tpl-section-label atelier-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="artworks" />
+      <TplGallery :artworks="artworks" :subdomain="subdomain" />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
@@ -81,6 +84,7 @@ import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
+import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
@@ -126,6 +130,34 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
   opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
+
+/* F3: Hero wrapper (relative container for the announcement overlay) */
+.atelier-hero-wrap { position: relative; z-index: 1; }
+/* F3: Announcement — sticky-note paper feel + slight rotation (bottom-right, avoiding the plaque in the bottom-left) */
+.atelier-announcement {
+  position: absolute;
+  right: 40px;
+  bottom: 40px;
+  z-index: 2;
+  max-width: 280px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 18px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  border-top: 3px solid var(--atelier-accent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--pal-text) 18%, transparent);
+  transform: rotate(-1deg);
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--pal-text);
+  transition: transform 0.25s ease;
+}
+.atelier-announcement:hover { transform: rotate(0deg); }
+.atelier-announcement :deep(.tpl-announcement-icon) { flex-shrink: 0; }
+.atelier-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 
 .atelier-section {
   position: relative;

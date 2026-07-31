@@ -401,6 +401,9 @@ export default {
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
     defaultPanelLabel: '仪表盘默认面板', defaultPanelHint: '进入仪表盘时显示的快捷入口',
+    announcementLabel: '主页公告', announcementPlaceholder: '如：本周休息，下周一恢复接单',
+    announcementHint: '显示在客户主页首屏，最多 500 字。留空则不显示。',
+    announcementExpiresLabel: '自动隐藏日期（可选）', announcementExpiresHint: '到期后公告自动消失，不设置则长期显示',
     save: '保存设置', saved: '设置已保存',
     // R48: 头像上传
     avatarLabel: '头像', avatarHint: '点击上传或更换（JPG/PNG/WebP，≤10MB）',
