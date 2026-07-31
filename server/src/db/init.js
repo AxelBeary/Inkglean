@@ -324,7 +324,7 @@ CREATE INDEX IF NOT EXISTS idx_guestbook_artist ON guestbook_messages(artist_id,
  * 版本化迁移列表
  * 每个迁移有唯一 version 号，按顺序执行，已执行的自动跳过
  */
-const MIGRATIONS = [
+export const MIGRATIONS = [
   {
     version: 1,
     name: 'add_artist_code_column',
