@@ -12,6 +12,8 @@
             {{ artist.name?.charAt(0) }}
           </el-avatar>
           <h2 class="classic-side-name">{{ artist.name }}</h2>
+          <!-- F3: Announcement (T3: below avatar/name, above status badge) -->
+          <TplAnnouncement :artist="artist" class="classic-announcement" />
           <TplStatusBadge :status="artist.status" :slot-display="artist.slotDisplay" />
           <div class="classic-side-links" v-if="socialLinks.length">
             <a
@@ -77,7 +79,7 @@
 
         <section class="classic-section tpl-reveal" v-if="artworks.length">
           <p class="tpl-section-label classic-label">{{ $t('artistHome.artworks') }}</p>
-          <TplGallery :artworks="artworks" />
+          <TplGallery :artworks="artworks" :subdomain="subdomain" />
         </section>
 
         <section class="classic-section tpl-reveal" v-if="rules">
@@ -101,6 +103,7 @@ import TplHero from '../../../components/templates/TplHero.vue'
 import TplStatusBadge from '../../../components/templates/TplStatusBadge.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
+import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import ThemePicker from '../../../components/ThemePicker.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
@@ -161,6 +164,23 @@ useScrollReveal(rootEl)
   color: var(--pal-text);
   margin: 0;
 }
+/* F3: Announcement — border-left emphasis line + background color */
+.classic-announcement {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--pal-text);
+  text-align: left;
+}
+.classic-announcement :deep(.tpl-announcement-icon) { flex-shrink: 0; }
+.classic-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 .classic-side-links {
   display: flex;
   flex-direction: column;

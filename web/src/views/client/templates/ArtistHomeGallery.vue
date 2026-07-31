@@ -1,12 +1,15 @@
 <template>
   <div v-if="artist" class="gallery" ref="rootEl">
-    <!-- 开场：全屏画作 + 角落展签 -->
-    <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="fullscreen" ref="heroRef" />
+    <!-- Opening: fullscreen artwork + corner plaque (F3: announcement floats at top-left, avoiding the plaque at bottom-left) -->
+    <div class="gallery-hero-wrap">
+      <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="fullscreen" ref="heroRef" />
+      <TplAnnouncement :artist="artist" class="gallery-announcement" />
+    </div>
 
     <!-- 作品画廊：大小交错 editorial -->
     <section class="gallery-section tpl-reveal" v-if="artworks.length">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="artworks" />
+      <TplGallery :artworks="artworks" :subdomain="subdomain" />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
@@ -81,6 +84,7 @@ import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
+import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
@@ -110,6 +114,30 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
   background: var(--pal-bg);
   transition: background 0.3s;
 }
+
+/* F3: Hero wrapper (relative container for announcement overlay) */
+.gallery-hero-wrap { position: relative; }
+/* F3: Announcement — semi-transparent base + plaque-style typography (top-left, avoiding the plaque at bottom-left) */
+.gallery-announcement {
+  position: absolute;
+  top: 32px;
+  left: 32px;
+  z-index: 2;
+  max-width: 320px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 18px;
+  background: color-mix(in srgb, var(--pal-bg) 78%, transparent);
+  backdrop-filter: blur(10px);
+  border-left: 2px solid var(--color-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: var(--pal-text);
+}
+.gallery-announcement :deep(.tpl-announcement-icon) { flex-shrink: 0; }
+.gallery-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 
 .gallery-section {
   padding: 88px 24px;

@@ -81,7 +81,10 @@ export const artistPublicApi = {
   getWorkflow: (subdomain) => api.get(`/artists/${subdomain}/workflow`),
   // 价格计算器
   getPricing: (subdomain) => api.get(`/public/pricing/${subdomain}`),
-  calculatePrice: (data) => api.post('/public/calculate-price', data)
+  calculatePrice: (data) => api.post('/public/calculate-price', data),
+  // F1: 作品点赞（匿名公开）
+  likeArtwork: (id) => api.post(`/public/artworks/${id}/like`),
+  unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`)
 }
 
 // ─── 画师后台 ───

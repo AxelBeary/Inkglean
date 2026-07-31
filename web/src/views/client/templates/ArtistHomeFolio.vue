@@ -27,14 +27,17 @@
       </div>
     </nav>
 
-    <!-- 开场：左文右图分屏 -->
-    <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="split" ref="heroRef" />
+    <!-- Opening: split screen with text on left and image on right (F3: announcement inlined in the left column, after the bio) -->
+    <div class="folio-hero-wrap">
+      <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="split" ref="heroRef" />
+      <TplAnnouncement :artist="artist" class="folio-announcement" />
+    </div>
 
     <!-- 作品（瀑布流） -->
     <section id="gallery" class="folio-section tpl-reveal" v-if="artworks.length">
       <div class="folio-inner">
         <h2 class="folio-title">{{ $t('artistHome.artworks') }}</h2>
-        <TplGallery :artworks="artworks" />
+        <TplGallery :artworks="artworks" :subdomain="subdomain" />
       </div>
     </section>
 
@@ -124,6 +127,7 @@ import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
+import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
@@ -194,6 +198,24 @@ onUnmounted(() => {
   background: var(--pal-bg);
   transition: background 0.3s;
 }
+
+/* F3: Hero wrapper — 公告内联于分屏左栏（左文字区底部，简介/按钮之下，首屏可见） */
+.folio-hero-wrap { position: relative; }
+.folio-announcement {
+  position: absolute;
+  /* TplHero--split: max-width 1100px + padding 32px，等宽双栏 + gap 48px → 左栏 x 起点与宽度 */
+  bottom: 20px;
+  left: max(32px, calc(50% - 518px));
+  width: min(420px, calc(50% - 80px));
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--pal-text-dim);
+}
+.folio-announcement :deep(.tpl-announcement-icon) { flex-shrink: 0; }
+.folio-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 
 /* ===== 固定导航 ===== */
 .folio-nav {
@@ -449,6 +471,13 @@ onUnmounted(() => {
   }
   .folio-title {
     font-size: 26px;
+  }
+  /* F3: 移动端单栏，公告转内联（absolute 会与内容重叠） */
+  .folio-announcement {
+    position: static;
+    width: auto;
+    margin: 0 20px;
+    padding: 10px 0 0;
   }
 }
 </style>

@@ -15,21 +15,45 @@
         preview-teleported
         lazy
       />
-      <p class="tpl-gallery-caption" v-if="art.title">{{ art.title }}</p>
+      <div class="tpl-gallery-meta">
+        <p class="tpl-gallery-caption" v-if="art.title">{{ art.title }}</p>
+        <!-- F1: 点赞（颜色/大小由模板 class 覆盖） -->
+        <ArtworkLikeButton
+          class="tpl-gallery-like"
+          :artwork-id="art.id"
+          :initial-count="art.like_count || 0"
+          :liked="isLiked(art.id)"
+          :subdomain="subdomain"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { useArtistData } from '../../composables/useArtistData.js'
+import ArtworkLikeButton from '../shared/ArtworkLikeButton.vue'
 
 const props = defineProps({
   artworks: { type: Array, default: () => [] },
   /** grid: 等高网格 | editorial: 大小交错 | masonry: 瀑布流（v0.19 默认） */
-  layout: { type: String, default: 'masonry' }
+  layout: { type: String, default: 'masonry' },
+  /** F1: 点赞 localStorage 按画师隔离（huiyue_liked_${subdomain}） */
+  subdomain: { type: String, default: '' }
 })
 
 const { imgUrl, previewList } = useArtistData(props)
+
+// F1: 初始已赞集合（localStorage，按画师隔离）
+function readLikedIds() {
+  try {
+    const raw = localStorage.getItem(`huiyue_liked_${props.subdomain}`)
+    const ids = raw ? JSON.parse(raw) : []
+    return Array.isArray(ids) ? new Set(ids) : new Set()
+  } catch { return new Set() }
+}
+const likedIds = readLikedIds()
+function isLiked(id) { return likedIds.has(id) }
 </script>
 
 <style scoped>
@@ -91,12 +115,29 @@ const { imgUrl, previewList } = useArtistData(props)
 }
 
 /* ===== 通用 ===== */
-.tpl-gallery-caption {
+.tpl-gallery-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 12px 0 0;
+}
+.tpl-gallery-caption {
+  margin: 0;
   font-size: 13px;
   color: var(--pal-text-dim);
+  flex: 1;
+  min-width: 0;
 }
-.tpl-gallery--masonry .tpl-gallery-caption {
+/* F1: 点赞按钮基线（颜色/大小由模板 class 覆盖） */
+.tpl-gallery-like {
+  font-size: 14px;
+  color: var(--pal-text-dim);
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+.tpl-gallery-like:hover { color: var(--color-primary); }
+.tpl-gallery--masonry .tpl-gallery-meta {
   padding: 12px 16px;
   margin: 0;
 }
