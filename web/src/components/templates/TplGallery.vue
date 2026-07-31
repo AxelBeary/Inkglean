@@ -25,8 +25,8 @@ import { useArtistData } from '../../composables/useArtistData.js'
 
 const props = defineProps({
   artworks: { type: Array, default: () => [] },
-  /** grid: 等高网格 | editorial: 大小交错 | masonry: 瀑布流 */
-  layout: { type: String, default: 'grid' }
+  /** grid: 等高网格 | editorial: 大小交错 | masonry: 瀑布流（v0.19 默认） */
+  layout: { type: String, default: 'masonry' }
 })
 
 const { imgUrl, previewList } = useArtistData(props)

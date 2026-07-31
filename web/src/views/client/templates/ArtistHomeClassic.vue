@@ -77,7 +77,7 @@
 
         <section class="classic-section tpl-reveal" v-if="artworks.length">
           <p class="tpl-section-label classic-label">{{ $t('artistHome.artworks') }}</p>
-          <TplGallery :artworks="artworks" layout="grid" />
+          <TplGallery :artworks="artworks" />
         </section>
 
         <section class="classic-section tpl-reveal" v-if="rules">

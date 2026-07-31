@@ -107,8 +107,14 @@
         />
       </el-form-item>
 
-      <!-- 参考图上传 -->
-      <el-form-item :label="$t('manualOrder.references')">
+      <!-- 参考图上传（P1-4: tooltip 显示详细说明） -->
+      <el-form-item>
+        <template #label>
+          <span>{{ $t('manualOrder.references') }}</span>
+          <el-tooltip :content="$t('manualOrder.refTip')" placement="top">
+            <el-icon class="ref-tip-icon"><InfoFilled /></el-icon>
+          </el-tooltip>
+        </template>
         <el-upload
           :auto-upload="true" :http-request="handleRefUpload"
           accept="image/*" list-type="picture-card" :limit="5"
@@ -168,7 +174,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 
@@ -460,6 +466,15 @@ onMounted(async () => {
 .hint { color: var(--text-secondary); font-size: 13px; margin-top: 0; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .final-price-hint { font-size: 12px; color: var(--text-secondary); margin-left: 8px; }
+/* P1-4: 参考图说明 tooltip 图标 */
+.ref-tip-icon {
+  margin-left: 4px;
+  color: var(--text-secondary);
+  cursor: help;
+  vertical-align: middle;
+  transition: color 0.2s;
+}
+.ref-tip-icon:hover { color: var(--el-color-primary); }
 
 /* 增项分组（与 OrderForm 一致） */
 .addon-groups { width: 100%; }
