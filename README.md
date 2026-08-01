@@ -80,6 +80,13 @@
 - **统计卡可点击**：仪表盘统计卡点击跳转对应订单筛选列表（v0.24）
 - **留言管理页面**：画师端独立留言管理页（筛选/回复/通过/拒绝），侧边栏入口 + 角标（v0.24）
 - **快捷按钮自定义**：仪表盘快捷按钮候选池 + 勾选自定义（3~9 个），命名与侧边栏统一（v0.24）
+- **封面图指定+轮播**：作品管理星标封面图（多张共存），客户主页 4 模板 el-carousel 轮播（v0.25）
+- **多模板随机**：画师开启后客户每次访问随机展示不同模板风格，后端开关 + 前端 UI（v0.25 后端，v0.27 前端）
+- **日历时间条视图**：排期看板第三 tab（时间条），缩放 + 今天参考线 + 移动端翻月手势（v0.25）
+- **档位拖拽排序**：档位管理页 vuedraggable 拖拽排序，客户主页按新顺序展示（v0.26）
+- **开工日**：订单新增开工日字段，订单详情 date-picker + 截稿日自动填充建议，时间条带子起点改为开工日（v0.26）
+- **开稿管理独立页**：名额/月度额度/队列行为四开关独立为 `/slots` 页面，侧边栏入口（v0.26）
+- **手动录单重设计**（REQ-015）：全屏双栏独立页（`/orders/new`），左栏"客户说了什么"+ 右栏"我怎么安排"，QQ 历史订单自动查询（v0.27）
 
 ## 🛠️ 技术栈
 
@@ -89,7 +96,7 @@
 | 后端 | Fastify 5 + better-sqlite3（Feature-based 架构） |
 | 部署 | Docker Compose（多阶段构建）+ Caddy（自动 HTTPS + healthcheck） |
 | 认证 | HMAC-SHA256 签名会话 + httpOnly cookie + 登录码 |
-| 测试 | Vitest（后端 489 + 前端 87 = 576 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
+| 测试 | Vitest（后端 545 + 前端 87 = 632 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
 | 类型系统 | TypeScript（渐进迁移，features/ + utils/ + middleware/ 全部 TS） |
 | 运行时 | tsx（后端 .ts/.js 混存，零配置） |
 | 监控 | Sentry（后端 + 前端，DSN 环境变量开关） |
@@ -129,7 +136,7 @@ npm run dev        # 启动 Vite 开发服务器 (http://localhost:5173)
 
 # 测试
 cd server
-npm test           # 运行全部 489 个后端测试用例
+npm test           # 运行全部 545 个后端测试用例
 
 # Lint
 cd server && npm run lint
@@ -179,7 +186,7 @@ cd web && npm run lint
 - [维护说明书](docs/维护说明书.md) — 部署、备份、运维手册
 - [开发自参考](docs/开发自参考.md) — 架构设计、API 参考、已知注意事项（60 条）
 - [开发→生产切换指南](docs/开发→生产切换指南.md) — 开发模式切生产的完整检查清单
-- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.24）
+- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.27）
 - [主题规格](docs/archive/theme-spec.md) — 五色主题 + 文楷字体设计规格（已归档）
 - [流程与比例计划](docs/archive/plan-workflow-payment.md) — 流程收款系统设计文档（已归档）
 - [TDD 规格文档](docs/archive/tdd-spec-v0.1.md) — 测试用例定义（TC-O/A/R/V/W/RT）（已归档）
