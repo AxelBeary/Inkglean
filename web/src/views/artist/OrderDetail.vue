@@ -789,7 +789,8 @@ async function changeDeadline(val) {
 
 // ─── v0.26 B: 开工日（date-picker 即时保存 + 自动填截稿日） ───
 const startDatePicker = ref(null)
-watch(() => order.value?.startDate, (val) => {
+// 兼容 PUT 返回 snake_case（start_date）和 GET 返回 camelCase（startDate）
+watch(() => order.value?.startDate ?? order.value?.start_date ?? null, (val) => {
   startDatePicker.value = val || null
 })
 
