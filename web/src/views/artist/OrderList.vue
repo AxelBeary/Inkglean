@@ -21,7 +21,7 @@
     </div>
 
     <!-- 订单列表 -->
-    <el-table :data="orders" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
+    <el-table :data="displayedOrders" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
       <!-- R16: 缩略图列（焦点图优先，无则 —） -->
       <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
         <template #default="{ row }">
@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -110,6 +110,15 @@ const route = useRoute()
 const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
+// #2: 复合筛选（active=非终态 / completed=done+delivered，客户端过滤）
+const compositeFilter = ref('')
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'wip', 'revision', 'done']
+const COMPLETED_STATUSES = ['done', 'delivered']
+const displayedOrders = computed(() => {
+  if (compositeFilter.value === 'active') return orders.value.filter(o => ACTIVE_STATUSES.includes(o.status))
+  if (compositeFilter.value === 'completed') return orders.value.filter(o => COMPLETED_STATUSES.includes(o.status))
+  return orders.value
+})
 const page = ref(1)
 const pageSize = ref(50)
 const total = ref(0)
@@ -133,6 +142,7 @@ function formatDate(str) {
 
 function onFilterChange() {
   page.value = 1
+  compositeFilter.value = '' // 手动切筛选时清除复合过滤
   loadOrders()
 }
 
@@ -150,6 +160,15 @@ async function loadOrders() {
 }
 
 onMounted(() => {
+  // #2: 统计卡跳转带 ?status= 时初始化筛选
+  const q = route.query.status
+  if (q && typeof q === 'string') {
+    if (['pending', 'confirmed', 'wip', 'done', 'delivered', 'cancelled'].includes(q)) {
+      filter.value = q
+    } else if (q === 'active' || q === 'completed') {
+      compositeFilter.value = q // 复合值走客户端过滤，不设 filter（加载全量）
+    }
+  }
   loadOrders()
   // R42a: /manual-order 重定向到 /orders?action=manual 时自动打开录单抽屉
   if (route.query.action === 'manual') manualDrawerVisible.value = true

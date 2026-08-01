@@ -27,7 +27,7 @@ defineProps({
 
 const router = useRouter()
 
-/** #2: 跳转订单列表并带状态筛选（OrderList 需读 query.status 初始化 filter） */
+/** #2: 跳转订单列表并带状态筛选（OrderList 读 query.status 初始化 filter） */
 function goOrders(status) {
   router.push({ path: '/orders', query: { status } })
 }
