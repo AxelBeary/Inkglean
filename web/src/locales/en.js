@@ -391,12 +391,15 @@ export default {
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
+    leftTitle: 'What the client said', rightTitle: 'How to record',
     clientQq: 'Client QQ', clientQqPlaceholder: "Client's QQ number",
     clientName: 'Client nickname (optional)', clientNamePlaceholder: 'What to call the client',
     tier: 'Tier', tierPlaceholder: 'Select a tier (optional)',
+    noTiers: 'No tiers yet — add some in Pricing first', tierDays: '{n} days',
     addons: 'Add-ons', multipliers: 'Usage & Rush',
     usage: 'Usage', rush: 'Rush', personal: 'Personal', noRush: 'No rush', inquiry: 'Inquiry',
     totalPrice: 'Total', finalPrice: 'Final price (CNY)', finalPriceHint: 'Editable; leave blank to use calculated price',
+    priceDetail: 'Details',
     desc: 'Description', descPlaceholder: "Paste the client's request from the QQ chat",
     references: 'Reference images', refExceed: 'Max 5 reference images', fileTooBig: '{name} too large ({size}MB), max 10MB',
     refTip: 'You can add more references to the order gallery after creation. Gallery total limit: 20 images.',
@@ -406,7 +409,9 @@ export default {
     submit: 'Record order', resultTitle: 'Recorded', orderNo: 'Order No: {no}', addedToQueue: 'Added to the queue',
     viewQueue: 'View queue', continueEntry: 'Enter another', fillClientQq: "Please enter the client's QQ number",
     // R51: deadline
-    deadline: 'Deadline (optional)', deadlinePlaceholder: 'Pick a deadline'
+    deadline: 'Deadline (optional)', deadlinePlaceholder: 'Pick a deadline',
+    // REQ-015: QQ history panel
+    historyTitle: "This client's order history", newClient: '🎉 New client — no previous orders'
   },
   tiers: {
     title: '💰 Pricing', addTier: '+ Add tier',
