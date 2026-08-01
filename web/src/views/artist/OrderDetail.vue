@@ -476,7 +476,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -770,11 +770,12 @@ async function changePriority(priority) {
 }
 
 // ─── R51: 截稿日（date-picker 即时保存，null = 清除） ───
-// 可写 computed：v-model 需要 setter（日历点选时写入），实际保存走 changeDeadline，
-// API 返回后 order 更新 → getter 自动重算
-const deadlinePicker = computed({
-  get: () => order.value?.deadline ? order.value.deadline.slice(0, 10) : null,
-  set: () => { /* no-op：保存由 @change 触发，order 更新后 getter 重算 */ }
+// 本地 ref + watcher 同步：v-model 需要真实 setter——日历点选时 EP 发出 update:modelValue，
+// setter 必须写入，否则 props.modelValue 不变 → @change 永不触发 → API 不调用（画师反馈的 Bug）。
+// 实际保存走 changeDeadline；API 返回后 order 更新 → watcher 同步回 ref。
+const deadlinePicker = ref(null)
+watch(() => order.value?.deadline, (val) => {
+  deadlinePicker.value = val ? val.slice(0, 10) : null
 })
 
 async function changeDeadline(val) {
@@ -787,9 +788,10 @@ async function changeDeadline(val) {
 }
 
 // ─── v0.26 B: 开工日（date-picker 即时保存 + 自动填截稿日） ───
-const startDatePicker = computed({
-  get: () => order.value?.startDate || null,
-  set: () => { /* no-op：保存由 @change 触发 */ }
+const startDatePicker = ref(null)
+// 兼容 PUT 返回 snake_case（start_date）和 GET 返回 camelCase（startDate）
+watch(() => order.value?.startDate ?? order.value?.start_date ?? null, (val) => {
+  startDatePicker.value = val || null
 })
 
 async function changeStartDate(val) {
