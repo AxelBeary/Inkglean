@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { db, cleanDb, seedArtist } from './setup.js'
+import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { createSession, generateLoginCode } from '../src/features/auth/auth.service.js'
+import * as orderService from '../src/features/order/order.service.js'
 import { buildApp } from '../src/app.js'
 
 /** 设置管理员：写 platform_config + 返回管理员画师行 */
@@ -277,5 +278,75 @@ describe('管理员路由 (Admin Routes)', () => {
 
     expect(res.statusCode).toBe(404)
     expect(res.json().error).toContain('未注册')
+  })
+
+  // ─── 订单列表付款字段（B7 补字段） ───
+
+  it('TC-AR-16: 订单列表含 paidTotalCents / finalPriceCents / installments', async () => {
+    const admin = setAdmin('10001')
+    const order = seedOrder(admin.id)
+    // seedOrder 不写价格列，手动补
+    db.prepare('UPDATE orders SET total_price_cents = 50000, final_price_cents = 50000 WHERE id = ?').run(order.id)
+
+    // 插入分期节点 + 记录收款
+    db.prepare('INSERT INTO order_payment_installments (order_id, label, amount_cents, basis_points, sort_order) VALUES (?, ?, ?, ?, ?)')
+      .run(order.id, '定金', 20000, 4000, 1)
+    db.prepare('INSERT INTO order_payment_installments (order_id, label, amount_cents, basis_points, sort_order) VALUES (?, ?, ?, ?, ?)')
+      .run(order.id, '尾款', 30000, 6000, 2)
+    orderService.addPayment(order.id, { amountCents: 20000, note: '定金到账' })
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/admin/artists/${admin.id}/orders`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    const { items } = res.json()
+    expect(items).toHaveLength(1)
+
+    const o = items[0]
+    // camelCase 字段
+    expect(o.paidTotalCents).toBe(20000)
+    expect(o.finalPriceCents).toBe(50000)
+    // 三态分期
+    expect(o.installments).toHaveLength(2)
+    expect(o.installments[0]).toMatchObject({ name: '定金', amountCents: 20000, status: 'paid', paidCents: 20000 })
+    expect(o.installments[1]).toMatchObject({ name: '尾款', amountCents: 30000, status: 'pending', paidCents: 0 })
+  })
+
+  it('TC-AR-17: 无付款订单返回零值 + 空分期', async () => {
+    const admin = setAdmin('10001')
+    const order = seedOrder(admin.id)
+    db.prepare('UPDATE orders SET total_price_cents = 30000, final_price_cents = 30000 WHERE id = ?').run(order.id)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/admin/artists/${admin.id}/orders`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    const o = res.json().items[0]
+    expect(o.paidTotalCents).toBe(0)
+    expect(o.finalPriceCents).toBe(30000)
+    expect(o.installments).toEqual([])
+  })
+
+  it('TC-AR-18: 无价格订单（手动录入）finalPriceCents 为 0', async () => {
+    const admin = setAdmin('10001')
+    seedOrder(admin.id) // 无 total_price_cents / final_price_cents
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/admin/artists/${admin.id}/orders`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    const o = res.json().items[0]
+    expect(o.paidTotalCents).toBe(0)
+    expect(o.finalPriceCents).toBe(0)
+    expect(o.installments).toEqual([])
   })
 })
