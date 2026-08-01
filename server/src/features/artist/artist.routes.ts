@@ -37,8 +37,8 @@ export default async function artistRoutes(fastify) {
     if (artist.status === 'hidden') {
       return { id: artist.id, name: artist.name, subdomain: artist.subdomain, status: 'hidden' }
     }
-
-    const tiers = artistService.getTiers(artist.id)
+    // v0.24 #10: 过滤 hidden 档位（showcase 保留，前端渲染灰色"暂不接单"）
+    const tiers = artistService.getTiers(artist.id).filter((t: any) => t.visibility !== 'hidden')
     const artworks = artistService.getArtworks(artist.id)
     const rules = artistService.getRules(artist.id)
 
@@ -268,14 +268,42 @@ export default async function artistRoutes(fastify) {
     return updated
   })
 
+  /**
+   * DELETE /api/artist/tiers/:id
+   * 删除档位
+   */
   fastify.delete('/api/artist/tiers/:id', { preHandler: requireAuth }, async (request, reply) => {
-    // 归属校验
-    const tier = artistService.getTierById(request.params.id)
+    const tier = artistService.getTierById(parseInt(request.params.id, 10))
     if (!tier || tier.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '档位不存在' })
     }
-    artistService.deleteTier(request.params.id)
+    artistService.deleteTier(parseInt(request.params.id, 10))
     return { success: true }
+  })
+
+  /**
+   * PUT /api/artist/tiers/:id/visibility
+   * v0.24 #10: 档位三态切换（visible/showcase/hidden）
+   */
+  fastify.put('/api/artist/tiers/:id/visibility', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['visibility'],
+        properties: {
+          visibility: { type: 'string', enum: ['visible', 'showcase', 'hidden'] }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const tierId = parseInt(request.params.id, 10)
+    const tier = artistService.getTierById(tierId)
+    if (!tier || tier.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '档位不存在' })
+    }
+    return artistService.updateTier(tierId, { visibility: (request.body as any).visibility })
   })
 
   // ─── 作品管理 ───
