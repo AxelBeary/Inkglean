@@ -2,6 +2,7 @@ import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
 import { identifyPlatform, KNOWN_PLATFORMS, parsePlatformUrls } from '../../utils/platform.js'
+import { localMonthStartSqlite } from '../../utils/date.js'
 import type { Artist, Tier } from '../../types/entities.js'
 
 // ============================================
@@ -94,7 +95,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id: number, fields: Record<string, unknown>): Artist | undefined {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions']
   const updates: string[] = []
   const values: unknown[] = []
 
@@ -434,9 +435,8 @@ export function getZoneCounts(artistId: number): { formal: number; buffer: numbe
  */
 export function getMonthlyUsage(artistId: number, monthlyQuota: number | null): { used: number; quota: number | null; remaining: number | null } {
   if (monthlyQuota == null) return { used: 0, quota: null, remaining: null }
-  // SQLite CURRENT_TIMESTAMP 存 UTC，月初计算必须用 UTC 对齐
-  const now = new Date()
-  const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01 00:00:00`
+  // #16 修复：用本地时区月初（复用 date.ts 的 localMonthStartSqlite），避免 UTC+8 月初 08:00 才重置
+  const monthStart = localMonthStartSqlite()
   const used = (db.prepare(`
     SELECT COUNT(*) as c FROM orders
     WHERE artist_id = ? AND status != 'cancelled' AND created_at >= ?
