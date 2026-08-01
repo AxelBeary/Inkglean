@@ -1,5 +1,17 @@
 <template>
   <div class="stage-list">
+    <!-- #8: 话术变量公共区（只显示一次，点击插入当前聚焦的话术编辑框） -->
+    <div v-if="!readonly" class="speech-vars-common">
+      <span class="speech-vars-label">💬 {{ $t('workflow.speechVarCommon') }}</span>
+      <button
+        v-for="v in SPEECH_VARS" :key="v" type="button" class="speech-var"
+        :title="$t('workflow.speechVarHint')"
+        @click="insertSpeechVarToFocused(v)"
+      >
+        {{ v }}
+      </button>
+      <span v-if="!focusedSpeechId" class="speech-vars-hint">{{ $t('workflow.speechVarNoFocus') }}</span>
+    </div>
     <draggable v-model="localStages" item-key="id" handle=".drag-handle" @end="onDragEnd">
       <template #item="{ element: s }">
         <div class="stage-item">
@@ -54,24 +66,23 @@
             </div>
           </div>
 
-          <!-- plan-node-speech：话术编辑区（变量标签 + 输入框 + 保存） -->
-          <div v-if="!readonly" class="stage-speech">
-            <div class="speech-vars">
-              <span class="speech-vars-label">💬 {{ $t('workflow.speechLabel') }}</span>
-              <button
-                v-for="v in SPEECH_VARS" :key="v" type="button" class="speech-var"
-                :title="$t('workflow.speechVarHint')"
-                @click="insertSpeechVar(s, v)"
-              >
-                {{ v }}
-              </button>
+          <!-- #8: 话术编辑区（节点≥3 默认折叠，显示节点名+前20字预览；变量按钮已移到顶部公共区） -->
+          <div v-if="!readonly" class="stage-speech" :class="{ 'stage-speech--collapsed': isSpeechCollapsed(s) }">
+            <div class="speech-head" @click="toggleSpeech(s.id)">
+              <span class="speech-toggle">{{ isSpeechCollapsed(s) ? '▸' : '▾' }}</span>
+              <span class="speech-head-label">{{ $t('workflow.speechLabel') }}</span>
+              <span v-if="isSpeechCollapsed(s) && s.speechTemplate" class="speech-preview">
+                {{ speechPreview(s.speechTemplate) }}
+              </span>
+              <span v-else-if="isSpeechCollapsed(s)" class="speech-preview speech-preview--empty">{{ $t('workflow.speechEmpty') }}</span>
             </div>
-            <div class="speech-editor">
+            <div v-show="!isSpeechCollapsed(s)" class="speech-editor">
               <el-input
                 v-model="s.speechTemplate" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }"
                 :placeholder="$t('workflow.speechPlaceholder')" maxlength="500" show-word-limit
                 :ref="(el) => setSpeechRef(s.id, el)"
                 @input="speechDirtyId = s.id"
+                @focus="focusedSpeechId = s.id"
               />
               <el-button
                 v-if="speechDirtyId === s.id" size="small" type="primary" class="speech-save"
@@ -97,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import draggable from 'vuedraggable'
 
 const props = defineProps({ stages: { type: Array, default: () => [] }, readonly: { type: Boolean, default: false } })
@@ -112,9 +123,44 @@ const SPEECH_VARS = ['{客户名}', '{客户QQ}', '{订单号}', '{档位名}', 
 const speechDirtyId = ref(null)
 const speechRefs = new Map()
 
+// ─── #8: 折叠 + 焦点跟踪 ───
+/** 当前聚焦的话术编辑框所属节点 ID（变量公共区插入目标） */
+const focusedSpeechId = ref(null)
+/** 用户手动展开的节点 ID 集合（节点≥3 时默认折叠，展开后记住） */
+const expandedIds = ref(new Set())
+
+/** 节点≥3 时话术区默认折叠（REQ-013 #8 验收 2） */
+const speechDefaultCollapsed = computed(() => localStages.value.length >= 3)
+
+function isSpeechCollapsed(s) {
+  if (!speechDefaultCollapsed.value) return false
+  if (expandedIds.value.has(s.id)) return false
+  if (speechDirtyId.value === s.id) return false // 编辑中不折叠
+  return true
+}
+function toggleSpeech(id) {
+  const next = new Set(expandedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedIds.value = next
+}
+
+/** 折叠态预览：前 20 字（REQ-013 #8 验收 2） */
+function speechPreview(text) {
+  const t = (text || '').trim()
+  return t.length > 20 ? t.slice(0, 20) + '…' : t
+}
+
 function setSpeechRef(id, el) {
   if (el) speechRefs.set(id, el)
   else speechRefs.delete(id)
+}
+
+/** #8: 顶部公共区点击变量 → 插入当前聚焦的编辑框（无焦点时提示，不盲插） */
+function insertSpeechVarToFocused(varText) {
+  if (!focusedSpeechId.value) return
+  const s = localStages.value.find(st => st.id === focusedSpeechId.value)
+  if (s) insertSpeechVar(s, varText)
 }
 
 /** 点击变量标签 → 插入光标位置（无焦点则追加到末尾） */
@@ -233,12 +279,39 @@ function onTogglePay(s, val) {
 .add-row { display: flex; gap: 8px; margin-top: 8px; }
 
 /* ─── plan-node-speech：话术编辑区 ─── */
+/* #8: 变量公共区（顶部，只显示一次） */
+.speech-vars-common {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  margin-bottom: 10px; padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-primary-soft, rgba(52,150,219,0.06));
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+.speech-vars-hint { font-size: 11px; color: var(--text-muted); font-style: italic; margin-left: 4px; }
+
 .stage-speech {
   margin: 4px 0 0 32px;
   padding: 8px 10px;
   border-radius: 6px;
   background: var(--bg-secondary, rgba(0,0,0,0.025));
+  transition: background 0.15s;
 }
+/* #8: 折叠态更紧凑 */
+.stage-speech--collapsed { padding: 4px 10px; }
+/* #8: 折叠头（可点击展开/收起） */
+.speech-head {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none;
+  padding: 2px 0;
+}
+.speech-toggle { font-size: 10px; color: var(--text-muted); width: 12px; flex-shrink: 0; }
+.speech-head-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+.speech-preview {
+  font-size: 12px; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
+}
+.speech-preview--empty { font-style: italic; opacity: 0.6; }
 .speech-vars { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
 .speech-vars-label { font-size: 12px; color: var(--text-secondary); margin-right: 4px; }
 .speech-var {

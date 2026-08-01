@@ -299,7 +299,14 @@ export default {
     focusDisplay: '焦点图显示', focusOff: '关', focusLarge: '大',
     uploadFocus: '上传焦点图',
     // R53: 焦点图替换
-    dropToReplace: '拖入替换焦点图'
+    dropToReplace: '拖入替换焦点图',
+    // SPEC-005: 月历视图
+    viewBoard: '看板', viewCalendar: '月历',
+    calPrev: '上个月', calNext: '下个月', calToday: '今天',
+    calTitle: '{y}年{m}月',
+    calMon: '一', calTue: '二', calWed: '三', calThu: '四', calFri: '五', calSat: '六', calSun: '日',
+    calNoDeadline: '未设截稿',
+    calLegendFormal: '正式订单', calLegendBuffer: '缓冲位', calLegendNoDeadline: '未设截稿', calLegendOverdue: '已逾期', calLegendDone: '已完成'
   },
   orderList: {
     title: '📦 订单管理', all: '全部',
@@ -519,6 +526,9 @@ export default {
     // Bug 1: 花括号会被 vue-i18n 当 ICU 占位符解析（中文非合法标识符→崩溃），用 {'{'} 字面量转义
     speechLabel: '话术', speechPlaceholder: "{'{'}客户名{'}'}，你的订单已{'{'}节点名{'}'}。",
     speechSave: '保存话术', speechSaved: '话术已保存', speechVarHint: '点击插入变量',
+    // #8: 话术界面改进（变量公共区 + 折叠预览）
+    speechVarCommon: '话术变量（点下方编辑框后再点变量插入）', speechVarNoFocus: '先点击某个节点的话术编辑框',
+    speechEmpty: '暂无话术',
     helpBtn: '使用说明', helpTitle: '流程与比例使用说明',
     helpLines: [
       '每个节点代表约稿的一个阶段，客户会按顺序看到你的进度。',
