@@ -355,15 +355,34 @@
                   <span class="tl-row-no">#{{ row.order.order_no }}</span>
                   <span class="tl-row-name">{{ bandLabel(row.order) }}</span>
                 </div>
-                <el-tooltip :content="bandTooltip(row.order)" placement="top" :show-after="300">
+                <el-tooltip :content="bandTooltip(row.order)" placement="top" :show-after="300" :disabled="tlDrag != null">
                   <div
                     class="tl-bar"
-                    :class="bandClass(row.order)"
+                    :class="[bandClass(row.order), { 'tl-bar--dragging': tlDrag && tlDrag.orderId === row.order.id }]"
                     :data-order-id="row.order.id"
-                    :style="{ left: row.left + 'px', width: Math.max(row.width, 8) + 'px' }"
+                    :style="tlBarStyle(row)"
                     @click="goOrder(row.order)"
                   >
                     <span class="tl-bar-text">{{ bandLabel(row.order) }}</span>
+                    <!-- v0.28: 拖拽 handle（左端改开工日 / 右端改截稿日；终态订单与被窗口裁剪的端点不显示） -->
+                    <div
+                      v-if="tlCanDragStart(row)"
+                      class="tl-handle tl-handle--start"
+                      @pointerdown="onTlHandleDown($event, row, 'start')"
+                      @pointermove="onTlHandleMove"
+                      @pointerup="onTlHandleUp"
+                      @pointercancel="onTlHandleCancel"
+                      @click.stop
+                    ></div>
+                    <div
+                      v-if="tlCanDragEnd(row)"
+                      class="tl-handle tl-handle--end"
+                      @pointerdown="onTlHandleDown($event, row, 'deadline')"
+                      @pointermove="onTlHandleMove"
+                      @pointerup="onTlHandleUp"
+                      @pointercancel="onTlHandleCancel"
+                      @click.stop
+                    ></div>
                   </div>
                 </el-tooltip>
               </div>
@@ -380,6 +399,17 @@
           <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--overdue"></i>{{ $t('queue.calLegendOverdue') }}</span>
           <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--done"></i>{{ $t('queue.calLegendDone') }}</span>
         </div>
+
+        <!-- v0.28: 拖拽浮动日期标签（Teleport 到 body，避免祖先 transform 破坏 fixed 定位） -->
+        <Teleport to="body">
+          <div
+            v-if="tlDrag"
+            class="tl-drag-label"
+            :style="{ left: tlDrag.pointerX + 'px', top: tlDrag.pointerY + 'px' }"
+          >
+            {{ tlDragLabelText }}
+          </div>
+        </Teleport>
       </div>
     </template>
     <!-- ═══ 时间条视图结束 ═══ -->
@@ -632,10 +662,12 @@ const tlRows = computed(() => {
   const winEnd = new Date(winStart.getFullYear(), winStart.getMonth(), winStart.getDate() + tlDays.value - 1)
   return calOrders.value
     .map(order => {
-      const start = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
-      if (!start) return null
-      let end = parseDate(order.deadline)
-      if (!end) end = winEnd // 未设截稿：画满到可见窗口末端
+      const rawStart = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
+      if (!rawStart) return null
+      const start = startOfDay(rawStart)
+      const rawEnd = parseDate(order.deadline)
+      const noDeadline = !rawEnd
+      const end = rawEnd ? startOfDay(rawEnd) : winEnd // 未设截稿：画满到可见窗口末端
       if (end < winStart || start > winEnd) return null // 与窗口无交集
       // 裁剪到窗口
       const clipStart = start < winStart ? winStart : start
@@ -643,7 +675,13 @@ const tlRows = computed(() => {
       return {
         order,
         left: tlX(clipStart),
-        width: (Math.round((startOfDay(clipEnd).getTime() - startOfDay(clipStart).getTime()) / 86_400_000) + 1) * tlDayWidth.value - 4
+        width: (Math.round((clipEnd.getTime() - clipStart.getTime()) / 86_400_000) + 1) * tlDayWidth.value - 4,
+        // v0.28 拖拽用：真实起止日（startOfDay 归一）+ 是否被窗口裁剪
+        startDate: start,
+        endDate: end,
+        noDeadline,
+        startClipped: start < winStart,
+        endClipped: end > winEnd
       }
     })
     .filter(Boolean)
@@ -666,6 +704,121 @@ watch(viewMode, (mode) => {
     el.scrollLeft = Math.max(0, x - el.clientWidth / 3)
   })
 })
+
+// ─── v0.28: 时间条拖拽（原生 Pointer Events：右端改截稿日 / 左端改开工日，吸附到天） ───
+const TL_TERMINAL_STATUSES = ['done', 'delivered', 'cancelled']
+
+/**
+ * 拖拽状态（null = 未在拖拽）
+ * { orderId, edge('start'|'deadline'), startDate, endDate, noDeadline,
+ *   startX, dayDelta, pointerX, pointerY }
+ */
+const tlDrag = ref(null)
+
+/** 终态订单不可拖；被窗口裁剪的端点不可拖（拖了等于把日期设成窗口边界，误导） */
+function tlCanDragStart(row) {
+  return !TL_TERMINAL_STATUSES.includes(row.order.status) && !row.startClipped
+}
+function tlCanDragEnd(row) {
+  return !TL_TERMINAL_STATUSES.includes(row.order.status) && !row.endClipped
+}
+
+/** 横条样式：拖拽中按 dayDelta 覆盖 left/width，其余走 tlRows 计算值 */
+function tlBarStyle(row) {
+  const d = tlDrag.value
+  if (!d || d.orderId !== row.order.id) {
+    return { left: row.left + 'px', width: Math.max(row.width, 8) + 'px' }
+  }
+  const dw = d.dayDelta * tlDayWidth.value
+  const minW = tlDayWidth.value - 4 // 最短 1 天
+  if (d.edge === 'deadline') {
+    return { left: row.left + 'px', width: Math.max(row.width + dw, minW) + 'px' }
+  }
+  return { left: row.left + dw + 'px', width: Math.max(row.width - dw, minW) + 'px' }
+}
+
+/** 浮动标签文字：目标日期 M/D */
+const tlDragLabelText = computed(() => {
+  const d = tlDrag.value
+  if (!d) return ''
+  const base = d.edge === 'deadline' ? d.endDate : d.startDate
+  const target = new Date(base.getTime() + d.dayDelta * 86_400_000)
+  const dStr = `${target.getMonth() + 1}/${target.getDate()}`
+  return d.edge === 'deadline' ? t('queue.tlDragDeadline', { d: dStr }) : t('queue.tlDragStart', { d: dStr })
+})
+
+function onTlHandleDown(e, row, edge) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  e.stopPropagation()
+  e.currentTarget.setPointerCapture(e.pointerId)
+  tlDrag.value = {
+    orderId: row.order.id,
+    edge,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    noDeadline: row.noDeadline,
+    startX: e.clientX,
+    dayDelta: 0,
+    pointerX: e.clientX,
+    pointerY: e.clientY
+  }
+}
+
+function onTlHandleMove(e) {
+  const d = tlDrag.value
+  if (!d) return
+  let delta = Math.round((e.clientX - d.startX) / tlDayWidth.value)
+  const spanDays = Math.round((d.endDate.getTime() - d.startDate.getTime()) / 86_400_000)
+  // 吸附约束：截稿日 ≥ 开工日；开工日 ≤ 截稿日（未设截稿时开工日右移不受限）
+  if (d.edge === 'deadline') delta = Math.max(delta, -spanDays)
+  else if (!d.noDeadline) delta = Math.min(delta, spanDays)
+  d.dayDelta = delta
+  d.pointerX = e.clientX
+  d.pointerY = e.clientY
+}
+
+async function onTlHandleUp() {
+  const d = tlDrag.value
+  if (!d) return
+  tlDrag.value = null
+  if (d.dayDelta === 0) return // 没移动过，不发请求
+
+  const base = d.edge === 'deadline' ? d.endDate : d.startDate
+  const target = new Date(base.getTime() + d.dayDelta * 86_400_000)
+  const dateStr = dateKey(target)
+
+  // 兜底校验（正常在 move 阶段被吸附约束拦住，此处防御）
+  if (d.edge === 'deadline' && target < d.startDate) {
+    ElMessage.warning(t('queue.tlDragDeadlineBeforeStart'))
+    return
+  }
+  if (d.edge === 'start' && !d.noDeadline && target > d.endDate) {
+    ElMessage.warning(t('queue.tlDragStartAfterDeadline'))
+    return
+  }
+
+  try {
+    if (d.edge === 'deadline') {
+      await artistApi.updateDeadline(d.orderId, dateStr)
+    } else {
+      await artistApi.updateStartDate(d.orderId, dateStr)
+    }
+    // 局部更新源订单（calOrders 是展开副本，必须改 queue/bufferQueue 本体才能触发重算）
+    const src = queue.value.find(o => o.id === d.orderId) || bufferQueue.value.find(o => o.id === d.orderId)
+    if (src) {
+      if (d.edge === 'deadline') src.deadline = dateStr
+      else src.startDate = dateStr
+    }
+    ElMessage.success(t('queue.tlDragSaved'))
+  } catch (err) {
+    ElMessage.error(err.message)
+    await Promise.all([loadQueue(), loadBufferQueue()]) // 回滚
+  }
+}
+
+function onTlHandleCancel() {
+  tlDrag.value = null
+}
 
 import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
 
@@ -1263,9 +1416,51 @@ onMounted(() => {
   overflow: hidden; text-overflow: ellipsis;
 }
 
+/* ─── v0.28: 时间条拖拽 handle + 浮动日期标签 ─── */
+.tl-handle {
+  position: absolute; top: 0; bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none; /* 移动端：阻止浏览器接管滚动手势，拖拽优先 */
+  z-index: 1;
+}
+.tl-handle--start { left: 0; }
+.tl-handle--end { right: 0; }
+/* hover / 拖拽中显示竖线指示可拖 */
+.tl-handle::after {
+  content: '';
+  position: absolute; top: 3px; bottom: 3px;
+  width: 2px; border-radius: 1px;
+  background: rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tl-handle--start::after { left: 3px; }
+.tl-handle--end::after { right: 3px; }
+.tl-handle:hover::after { opacity: 1; }
+.tl-bar--dragging { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6); }
+.tl-bar--dragging .tl-handle::after { opacity: 1; }
+
+/* 拖拽浮动日期标签（Teleport 到 body，fixed 跟随指针） */
+.tl-drag-label {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: var(--el-color-primary);
+  color: #fff;
+  font-size: 12px; font-weight: 600;
+  line-height: 1;
+  padding: 5px 9px; border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 768px) {
   .tl-row-label { width: 100px; min-width: 100px; }
   .tl-row-name { font-size: 11px; }
   .tl-tick-label { font-size: 9px; }
+  .tl-handle { width: 24px; } /* 触摸热区扩大 */
 }
 </style>

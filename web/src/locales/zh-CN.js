@@ -313,7 +313,12 @@ export default {
     calLegendFormal: '正式订单', calLegendBuffer: '缓冲位', calLegendNoDeadline: '未设截稿', calLegendOverdue: '已逾期', calLegendDone: '已完成',
     // v0.25 D: 时间条视图
     tlZoom2w: '两周', tlZoom1m: '一个月', tlZoom2m: '两个月',
-    tlEmpty: '可见时间范围内没有订单'
+    tlEmpty: '可见时间范围内没有订单',
+    // v0.28: 时间条拖拽
+    tlDragDeadline: '截稿 {d}', tlDragStart: '开工 {d}',
+    tlDragSaved: '日期已更新',
+    tlDragDeadlineBeforeStart: '截稿日不能早于开工日',
+    tlDragStartAfterDeadline: '开工日不能晚于截稿日'
   },
   orderList: {
     title: '📦 订单管理', all: '全部',

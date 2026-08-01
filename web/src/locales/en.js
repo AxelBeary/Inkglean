@@ -313,7 +313,12 @@ export default {
     calLegendFormal: 'Formal order', calLegendBuffer: 'Buffer', calLegendNoDeadline: 'No deadline', calLegendOverdue: 'Overdue', calLegendDone: 'Done',
     // v0.25 D: Timeline view
     tlZoom2w: '2 weeks', tlZoom1m: '1 month', tlZoom2m: '2 months',
-    tlEmpty: 'No orders in the visible time range'
+    tlEmpty: 'No orders in the visible time range',
+    // v0.28: Timeline drag
+    tlDragDeadline: 'Deadline {d}', tlDragStart: 'Start {d}',
+    tlDragSaved: 'Date updated',
+    tlDragDeadlineBeforeStart: 'Deadline cannot be earlier than start date',
+    tlDragStartAfterDeadline: 'Start date cannot be later than deadline'
   },
   orderList: {
     title: '📦 Order Management', all: 'All',
