@@ -159,7 +159,9 @@ export default async function artistRoutes(fastify) {
           bufferShortForm: { type: 'boolean' },
           announcement: { type: ['string', 'null'], maxLength: 500 },
           announcementExpiresAt: { type: ['string', 'null'], maxLength: 30 },
-          monthlyQuota: { type: ['integer', 'null'], minimum: 0, maximum: 999 }
+          monthlyQuota: { type: ['integer', 'null'], minimum: 0, maximum: 999 },
+          // v0.25 C: 快捷按钮（DB 持久化，数组→JSON 字符串存储）
+          quickActions: { type: ['array', 'null'], maxItems: 9, items: { type: 'string', maxLength: 30 } }
         },
         additionalProperties: false
       }
@@ -188,7 +190,8 @@ export default async function artistRoutes(fastify) {
         hidePromoteNotify: 'hide_promote_notify',
         bufferShortForm: 'buffer_short_form',
         announcementExpiresAt: 'announcement_expires_at',
-        monthlyQuota: 'monthly_quota'
+        monthlyQuota: 'monthly_quota',
+        quickActions: 'quick_actions'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}

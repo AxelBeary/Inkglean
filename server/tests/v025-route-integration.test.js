@@ -185,7 +185,7 @@ describe('v0.25 路由层集成测试', () => {
   // ─── B3-4: 快捷按钮路由层 ───
 
   describe('B3-4: 快捷按钮路由 (PUT/GET profile quickActions)', () => {
-    it('TC-ROUTE-11: PUT profile 含 quickActions → 200 但字段被 schema 静默剥离', async () => {
+    it('TC-ROUTE-11: PUT profile 含 quickActions → 200 + DB 持久化', async () => {
       const artist = seedArtist()
       const token = createSession(artist.id, artist.token_version)
 
@@ -195,11 +195,9 @@ describe('v0.25 路由层集成测试', () => {
         headers: { Authorization: `Bearer ${token}` },
         payload: { quickActions: ['order', 'queue'] }
       })
-      // 发现：Fastify additionalProperties:false 静默剥离未知字段（非 400 拒绝）
-      // quickActions 被丢弃，updateArtist 收到空对象，返回 200 但未持久化
       expect(res.statusCode).toBe(200)
       const fresh = db.prepare('SELECT quick_actions FROM artists WHERE id = ?').get(artist.id)
-      expect(fresh.quick_actions).toBeNull()
+      expect(fresh.quick_actions).toBe(JSON.stringify(['order', 'queue']))
     })
 
     it('TC-ROUTE-12: GET profile 返回 quick_actions 字段（DB 直设后可读）', async () => {

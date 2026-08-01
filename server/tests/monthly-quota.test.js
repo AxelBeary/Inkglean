@@ -137,11 +137,11 @@ describe('S5 额度池 (Monthly Quota)', () => {
     expect(artist.quick_actions).toBeNull()
   })
 
-  it('TC-S5-17: updateArtist 可设置 quick_actions（JSON 字符串）', () => {
+  it('TC-S5-17: updateArtist 可设置 quick_actions（字符串键数组）', () => {
     const artist = seedArtist()
-    const actions = JSON.stringify([{ label: '查看排队', action: 'queue' }, { label: '约稿须知', action: 'rules' }])
-    const updated = artistService.updateArtist(artist.id, { quick_actions: actions })
-    expect(updated.quick_actions).toBe(actions)
+    // 前端实际格式：字符串键数组（Settings.vue 发送 quickActions: ['queue', 'rules']）
+    const updated = artistService.updateArtist(artist.id, { quick_actions: ['queue', 'rules'] })
+    expect(updated.quick_actions).toBe(JSON.stringify(['queue', 'rules']))
     // 读回验证
     const fresh = artistService.getArtistById(artist.id)
     expect(JSON.parse(fresh.quick_actions)).toHaveLength(2)

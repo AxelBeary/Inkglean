@@ -208,6 +208,19 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
         }
         updates.push('buffer_limit = ?')
         values.push(bl)
+      } else if (key === 'quick_actions') {
+        // v0.25 C: 快捷按钮 — JSON 字符串数组存储（null=清除）
+        if (value === null) {
+          updates.push('quick_actions = ?')
+          values.push(null)
+        } else {
+          // 兼容两种输入：数组（路由层）或 JSON 字符串（旧调用方）
+          let arr = value
+          if (typeof arr === 'string') { try { arr = JSON.parse(arr) } catch { arr = [] } }
+          const keys = Array.isArray(arr) ? arr.map((k: unknown) => typeof k === 'string' ? k.trim() : JSON.stringify(k)).filter(Boolean).slice(0, 9) : []
+          updates.push('quick_actions = ?')
+          values.push(JSON.stringify(keys))
+        }
       } else if (['auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form'].includes(key)) {
         // SPEC-004: 布尔开关 — 强制转整数
         updates.push(`${key} = ?`)
