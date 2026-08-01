@@ -33,6 +33,17 @@
       <TplAnnouncement :artist="artist" class="folio-announcement" />
     </div>
 
+    <!-- v0.25 A: 封面精选（有封面时显示，作品集编辑式：全宽 + 序号标注 + 细线分隔） -->
+    <section v-if="coverArtworks.length" class="folio-covers tpl-reveal">
+      <div class="folio-covers-head">
+        <h2 class="folio-title">{{ $t('artistHome.covers') }}</h2>
+        <span class="folio-covers-count">{{ coverArtworks.length }}</span>
+      </div>
+      <div class="folio-cover-frame">
+        <TplCoverShowcase :covers="coverArtworks" :interval="4500" class="folio-cover-show" />
+      </div>
+    </section>
+
     <!-- 作品（瀑布流） -->
     <section id="gallery" class="folio-section tpl-reveal" v-if="artworks.length">
       <div class="folio-inner">
@@ -134,6 +145,7 @@ import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
+import TplCoverShowcase from '../../../components/templates/TplCoverShowcase.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
@@ -150,7 +162,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const { socialLinks, platformLinks } = useArtistData(props)
+const { socialLinks, platformLinks, coverArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)
@@ -210,6 +222,64 @@ onUnmounted(() => {
 
 /* F3: Hero wrapper — 公告内联于分屏左栏（左文字区底部，简介/按钮之下，首屏可见） */
 .folio-hero-wrap { position: relative; }
+
+/* v0.25 A: 封面精选 — folio：作品集编辑式，全宽薄边框 + 序号标注 + 锐利箭头 */
+.folio-covers {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 96px 32px 0;
+}
+.folio-covers-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--pal-border);
+  padding-bottom: 16px;
+}
+.folio-covers-count {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0.1em;
+}
+.folio-cover-frame {
+  border: 1px solid var(--pal-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.folio-cover-show {
+  height: 460px;
+}
+.folio-cover-show :deep(.el-carousel__arrow) {
+  background: transparent;
+  border: 1px solid var(--pal-border);
+  border-radius: 2px;
+  color: var(--pal-text);
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.folio-cover-show :deep(.el-carousel__arrow:hover) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.folio-cover-show :deep(.el-carousel__indicators--outside) { margin-top: 16px; }
+.folio-cover-show :deep(.el-carousel__indicator--horizontal .el-carousel__button) {
+  background: var(--pal-border);
+  border-radius: 0;
+  height: 3px;
+  width: 28px;
+  transition: background 0.25s, width 0.25s;
+}
+.folio-cover-show :deep(.el-carousel__indicator--horizontal.is-active .el-carousel__button) {
+  background: var(--color-primary);
+  width: 40px;
+}
+@media (max-width: 768px) {
+  .folio-covers { padding: 56px 16px 0; }
+  .folio-cover-show { height: 260px; }
+}
 .folio-announcement {
   position: absolute;
   /* TplHero--split: max-width 1100px + padding 32px，等宽双栏 + gap 48px → 左栏 x 起点与宽度 */

@@ -3,11 +3,12 @@
     <h2>{{ $t('queue.title') }}</h2>
     <p class="hint">{{ $t('queue.hint') }}</p>
 
-    <!-- SPEC-005: 视图切换（列表 / 月历），默认视图存 localStorage -->
+    <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
     <div class="view-switch">
       <el-radio-group v-model="viewMode" size="default" @change="saveViewMode">
         <el-radio-button value="board">📋 {{ $t('queue.viewBoard') }}</el-radio-button>
         <el-radio-button value="calendar">📅 {{ $t('queue.viewCalendar') }}</el-radio-button>
+        <el-radio-button value="timeline">📊 {{ $t('queue.viewTimeline') }}</el-radio-button>
       </el-radio-group>
     </div>
 
@@ -254,8 +255,12 @@
     <!-- ═══ 列表视图结束 ═══ -->
 
     <!-- ═══ SPEC-005: 月历视图 ═══ -->
-    <template v-else>
-      <div class="cal" v-loading="loading || bufferLoading">
+    <template v-else-if="viewMode === 'calendar'">
+      <div
+        class="cal" v-loading="loading || bufferLoading"
+        @touchstart.passive="onCalTouchStart"
+        @touchend.passive="onCalTouchEnd"
+      >
         <!-- 翻月头 -->
         <div class="cal-head">
           <el-button text @click="changeMonth(-1)" :aria-label="$t('queue.calPrev')">←</el-button>
@@ -313,6 +318,72 @@
     </template>
     <!-- ═══ 月历视图结束 ═══ -->
 
+    <!-- ═══ v0.25 D: 时间条视图（SPEC-005 §3） ═══ -->
+    <template v-else-if="viewMode === 'timeline'">
+      <div class="tl" v-loading="loading || bufferLoading">
+        <!-- 工具栏：缩放 + 回到今天 -->
+        <div class="tl-toolbar">
+          <el-radio-group v-model="tlZoom" size="small" @change="saveTlZoom">
+            <el-radio-button value="2w">{{ $t('queue.tlZoom2w') }}</el-radio-button>
+            <el-radio-button value="1m">{{ $t('queue.tlZoom1m') }}</el-radio-button>
+            <el-radio-button value="2m">{{ $t('queue.tlZoom2m') }}</el-radio-button>
+          </el-radio-group>
+          <el-button v-if="!tlIsTodayVisible" text size="small" @click="tlGoToday">{{ $t('queue.calToday') }}</el-button>
+        </div>
+
+        <div class="tl-scroll" ref="tlScrollEl">
+          <div class="tl-canvas" :style="{ width: tlCanvasWidth + 'px' }">
+            <!-- 日期刻度头 -->
+            <div class="tl-axis" :style="{ width: tlCanvasWidth + 'px' }">
+              <div
+                v-for="tick in tlTicks" :key="tick.key"
+                class="tl-tick"
+                :class="{ 'tl-tick--weekend': tick.weekend, 'tl-tick--today': tick.isToday }"
+                :style="{ left: tick.x + 'px', width: tlDayWidth + 'px' }"
+              >
+                <span class="tl-tick-label">{{ tick.label }}</span>
+              </div>
+            </div>
+
+            <!-- 今天竖向参考线 -->
+            <div v-if="tlTodayX != null" class="tl-today-line" :style="{ left: tlTodayX + 'px' }"></div>
+
+            <!-- 订单横条列表 -->
+            <div class="tl-rows">
+              <div v-for="row in tlRows" :key="row.order.id" class="tl-row">
+                <div class="tl-row-label" :title="bandLabel(row.order)">
+                  <span class="tl-row-no">#{{ row.order.order_no }}</span>
+                  <span class="tl-row-name">{{ bandLabel(row.order) }}</span>
+                </div>
+                <el-tooltip :content="bandTooltip(row.order)" placement="top" :show-after="300">
+                  <div
+                    class="tl-bar"
+                    :class="bandClass(row.order)"
+                    :data-order-id="row.order.id"
+                    :style="{ left: row.left + 'px', width: Math.max(row.width, 8) + 'px' }"
+                    @click="goOrder(row.order)"
+                  >
+                    <span class="tl-bar-text">{{ bandLabel(row.order) }}</span>
+                  </div>
+                </el-tooltip>
+              </div>
+              <el-empty v-if="!loading && !bufferLoading && tlRows.length === 0" :description="$t('queue.tlEmpty')" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 图例（与月历共用） -->
+        <div class="cal-legend">
+          <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--formal"></i>{{ $t('queue.calLegendFormal') }}</span>
+          <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--buffer"></i>{{ $t('queue.calLegendBuffer') }}</span>
+          <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--nodeadline"></i>{{ $t('queue.calLegendNoDeadline') }}</span>
+          <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--overdue"></i>{{ $t('queue.calLegendOverdue') }}</span>
+          <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--done"></i>{{ $t('queue.calLegendDone') }}</span>
+        </div>
+      </div>
+    </template>
+    <!-- ═══ 时间条视图结束 ═══ -->
+
     <!-- 焦点图空态上传：隐藏文件选择器（点击占位按钮触发） -->
     <input
       ref="focusInputEl" type="file" accept="image/*" hidden
@@ -322,7 +393,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { artistApi, uploadApi } from '../../api/index.js'
@@ -351,7 +422,10 @@ function saveFocusDisplay(val) {
 
 // ─── SPEC-005: 视图切换（列表 / 月历）+ 默认视图（localStorage，复用"默认面板"模式） ───
 const VIEW_MODE_KEY = 'queue_view_mode'
-const viewMode = ref(localStorage.getItem(VIEW_MODE_KEY) === 'calendar' ? 'calendar' : 'board')
+const VALID_VIEW_MODES = ['board', 'calendar', 'timeline']
+const viewMode = ref(
+  VALID_VIEW_MODES.includes(localStorage.getItem(VIEW_MODE_KEY)) ? localStorage.getItem(VIEW_MODE_KEY) : 'board'
+)
 function saveViewMode(val) {
   localStorage.setItem(VIEW_MODE_KEY, val)
 }
@@ -376,6 +450,17 @@ function changeMonth(delta) {
 }
 function goToday() {
   calCursor.value = startOfMonth(new Date())
+}
+
+// ─── v0.25 E: 移动端翻月手势（水平滑动 > 50px 触发，参考 TplTierGrid 实现） ───
+let calTouchStartX = 0
+function onCalTouchStart(e) {
+  calTouchStartX = e.touches[0].clientX
+}
+function onCalTouchEnd(e) {
+  const deltaX = e.changedTouches[0].clientX - calTouchStartX
+  if (Math.abs(deltaX) < 50) return
+  changeMonth(deltaX < 0 ? 1 : -1)
 }
 
 /** 日期 → 'YYYY-MM-DD' 键（本地时区） */
@@ -486,6 +571,101 @@ function bandTooltip(order) {
 function goOrder(order) {
   router.push(`/orders/${order.id}?from=queue`)
 }
+
+// ─── v0.25 D: 时间条视图（SPEC-005 §3，共享 calOrders 数据源） ───
+const TL_ZOOM_KEY = 'queue_tl_zoom'
+const TL_ZOOMS = { '2w': { days: 14, dayWidth: 48 }, '1m': { days: 30, dayWidth: 32 }, '2m': { days: 60, dayWidth: 18 } }
+const tlZoom = ref(TL_ZOOMS[localStorage.getItem(TL_ZOOM_KEY)] ? localStorage.getItem(TL_ZOOM_KEY) : '2w')
+function saveTlZoom(val) { localStorage.setItem(TL_ZOOM_KEY, val) }
+
+/** 可见窗口中心日期（默认今天，"回到今天"重置） */
+const tlCenter = ref(startOfDay(new Date()))
+function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()) }
+
+const tlDayWidth = computed(() => TL_ZOOMS[tlZoom.value].dayWidth)
+const tlDays = computed(() => TL_ZOOMS[tlZoom.value].days)
+/** 可见窗口起点（中心 - 天数/2） */
+const tlRangeStart = computed(() => {
+  const c = tlCenter.value
+  return new Date(c.getFullYear(), c.getMonth(), c.getDate() - Math.floor(tlDays.value / 2))
+})
+const tlCanvasWidth = computed(() => tlDays.value * tlDayWidth.value)
+
+/** 日期 → 画布 x 坐标（可为负/超出，由裁剪逻辑处理） */
+function tlX(date) {
+  const ms = startOfDay(date).getTime() - tlRangeStart.value.getTime()
+  return Math.round(ms / 86_400_000) * tlDayWidth.value
+}
+
+/** 日期刻度数组 */
+const tlTicks = computed(() => {
+  const ticks = []
+  const todayKey = dateKey(new Date())
+  const start = tlRangeStart.value
+  for (let i = 0; i < tlDays.value; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+    ticks.push({
+      key: dateKey(d),
+      x: i * tlDayWidth.value,
+      // 缩放较宽时显示 M/D，紧凑时仅显示日
+      label: tlDayWidth.value >= 32 ? `${d.getMonth() + 1}/${d.getDate()}` : String(d.getDate()),
+      weekend: d.getDay() === 0 || d.getDay() === 6,
+      isToday: dateKey(d) === todayKey
+    })
+  }
+  return ticks
+})
+
+/** 今天参考线 x（不在可见窗口内 → null） */
+const tlTodayX = computed(() => {
+  const today = startOfDay(new Date())
+  if (today < tlRangeStart.value) return null
+  const x = tlX(today)
+  return x > tlCanvasWidth.value ? null : x + Math.floor(tlDayWidth.value / 2)
+})
+const tlIsTodayVisible = computed(() => tlTodayX.value != null)
+function tlGoToday() { tlCenter.value = startOfDay(new Date()) }
+
+/** 时间条行：按确认日排序，横条裁剪到可见窗口；未设截稿 → 画满到窗口末端 */
+const tlRows = computed(() => {
+  const winStart = tlRangeStart.value
+  const winEnd = new Date(winStart.getFullYear(), winStart.getMonth(), winStart.getDate() + tlDays.value - 1)
+  return calOrders.value
+    .map(order => {
+      const start = parseDate(order.created_at) || parseDate(order.confirmed_at)
+      if (!start) return null
+      let end = parseDate(order.deadline)
+      if (!end) end = winEnd // 未设截稿：画满到可见窗口末端
+      if (end < winStart || start > winEnd) return null // 与窗口无交集
+      // 裁剪到窗口
+      const clipStart = start < winStart ? winStart : start
+      const clipEnd = end > winEnd ? winEnd : end
+      return {
+        order,
+        left: tlX(clipStart),
+        width: (Math.round((startOfDay(clipEnd).getTime() - startOfDay(clipStart).getTime()) / 86_400_000) + 1) * tlDayWidth.value - 4
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const sa = parseDate(a.order.created_at) || parseDate(a.order.confirmed_at)
+      const sb = parseDate(b.order.created_at) || parseDate(b.order.confirmed_at)
+      return (sa?.getTime() || 0) - (sb?.getTime() || 0)
+    })
+})
+
+/** 切到时间条视图时，滚动到今天附近 */
+const tlScrollEl = ref(null)
+watch(viewMode, (mode) => {
+  if (mode !== 'timeline') return
+  nextTick(() => {
+    const el = tlScrollEl.value
+    if (!el) return
+    const today = startOfDay(new Date())
+    const x = tlX(today)
+    el.scrollLeft = Math.max(0, x - el.clientWidth / 3)
+  })
+})
 
 import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
 
@@ -1011,5 +1191,81 @@ onMounted(() => {
   .cal-day-num { font-size: 10px; }
   .cal-band { padding: 1px 3px; font-size: 9px; }
   .cal-head-title { font-size: 15px; min-width: 90px; }
+}
+
+/* ─── v0.25 D: 时间条视图 ─── */
+.tl { min-height: 300px; }
+.tl-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.tl-scroll {
+  overflow-x: auto; overflow-y: visible;
+  border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-card);
+  -webkit-overflow-scrolling: touch;
+}
+.tl-canvas { position: relative; min-width: 100%; }
+.tl-axis {
+  position: relative; height: 32px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-inset, #f9f9f9);
+}
+.tl-tick {
+  position: absolute; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent);
+}
+.tl-tick--weekend { background: color-mix(in srgb, var(--bg-secondary, #f5f5f5) 50%, transparent); }
+.tl-tick--today { background: color-mix(in srgb, var(--el-color-primary) 10%, transparent); }
+.tl-tick-label {
+  font-size: 10px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.tl-tick--today .tl-tick-label { color: var(--el-color-primary); font-weight: 700; }
+
+.tl-today-line {
+  position: absolute; top: 32px; bottom: 0;
+  width: 2px; background: var(--el-color-primary);
+  z-index: 2; pointer-events: none;
+}
+
+.tl-rows { position: relative; padding: 8px 0; }
+.tl-row {
+  display: flex; align-items: center;
+  height: 36px; position: relative;
+}
+.tl-row-label {
+  position: sticky; left: 0; z-index: 3;
+  width: 140px; min-width: 140px; flex-shrink: 0;
+  padding: 0 8px;
+  display: flex; align-items: center; gap: 4px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+.tl-row-no { font-size: 11px; font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
+.tl-row-name {
+  font-size: 12px; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tl-bar {
+  position: absolute; top: 6px; height: 24px;
+  border-radius: 4px; cursor: pointer;
+  display: flex; align-items: center;
+  padding: 0 6px; overflow: hidden;
+  transition: filter 0.15s;
+}
+.tl-bar:hover { filter: brightness(1.1); }
+.tl-bar-text {
+  font-size: 11px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .tl-row-label { width: 100px; min-width: 100px; }
+  .tl-row-name { font-size: 11px; }
+  .tl-tick-label { font-size: 9px; }
 }
 </style>

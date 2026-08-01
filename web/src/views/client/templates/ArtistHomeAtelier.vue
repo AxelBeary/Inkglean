@@ -6,6 +6,14 @@
       <TplAnnouncement :artist="artist" class="atelier-announcement" />
     </div>
 
+    <!-- v0.25 A: 封面精选（有封面时显示，画册式：大留白 + 拍立得微旋转 + 手写感标注） -->
+    <section v-if="coverArtworks.length" class="atelier-covers tpl-reveal">
+      <p class="tpl-section-label atelier-label">{{ $t('artistHome.covers') }}</p>
+      <div class="atelier-cover-polaroid">
+        <TplCoverShowcase :covers="coverArtworks" :interval="3500" class="atelier-cover-show" />
+      </div>
+    </section>
+
     <!-- 作品画廊：画册式大留白 -->
     <section class="atelier-section tpl-reveal" v-if="artworks.length">
       <p class="tpl-section-label atelier-label">{{ $t('artistHome.artworks') }}</p>
@@ -89,6 +97,7 @@ import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
+import TplCoverShowcase from '../../../components/templates/TplCoverShowcase.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
@@ -104,7 +113,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-const { socialLinks, platformLinks } = useArtistData(props)
+const { socialLinks, platformLinks, coverArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)
@@ -140,6 +149,60 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
 
 /* F3: Hero wrapper (relative container for the announcement overlay) */
 .atelier-hero-wrap { position: relative; z-index: 1; }
+
+/* v0.25 A: 封面精选 — atelier：画册式拍立得，白边厚衬 + 微旋转 + 深阴影，手作温度 */
+.atelier-covers {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 80px 24px 0;
+}
+.atelier-cover-polaroid {
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  padding: 14px 14px 20px;
+  transform: rotate(-0.8deg);
+  box-shadow: 0 20px 48px color-mix(in srgb, var(--pal-text) 18%, transparent);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s;
+}
+.atelier-cover-polaroid:hover {
+  transform: rotate(0deg) translateY(-4px);
+  box-shadow: 0 28px 64px color-mix(in srgb, var(--pal-text) 24%, transparent);
+}
+.atelier-cover-show {
+  height: 400px;
+  overflow: hidden;
+}
+.atelier-cover-show :deep(.el-carousel__arrow) {
+  background: color-mix(in srgb, var(--pal-surface) 80%, transparent);
+  color: var(--pal-text);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.atelier-cover-show :deep(.el-carousel__arrow:hover) {
+  background: var(--color-primary);
+  color: var(--pal-bg);
+  transform: scale(1.1);
+}
+.atelier-cover-show :deep(.el-carousel__indicators--outside) { margin-top: 14px; }
+.atelier-cover-show :deep(.el-carousel__indicator--horizontal .el-carousel__button) {
+  background: var(--pal-text-dim);
+  opacity: 0.3;
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  transition: opacity 0.2s, background 0.2s, transform 0.2s;
+}
+.atelier-cover-show :deep(.el-carousel__indicator--horizontal.is-active .el-carousel__button) {
+  background: var(--color-primary);
+  opacity: 1;
+  transform: scale(1.3);
+}
+@media (max-width: 768px) {
+  .atelier-covers { padding: 56px 16px 0; }
+  .atelier-cover-show { height: 240px; }
+  .atelier-cover-polaroid { transform: none; }
+}
 /* F3: Announcement — sticky-note paper feel + slight rotation (bottom-right, avoiding the plaque in the bottom-left) */
 .atelier-announcement {
   position: absolute;

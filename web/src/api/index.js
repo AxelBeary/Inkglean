@@ -105,6 +105,9 @@ export const artistApi = {
   getArtworks: () => api.get('/artist/artworks'),
   createArtwork: (data) => api.post('/artist/artworks', data),
   deleteArtwork: (id) => api.delete(`/artist/artworks/${id}`),
+  // v0.25 A: 封面图（设为封面 / 取消封面；GET artworks 与公开主页返回 is_cover 字段）
+  setArtworkCover: (id) => api.put(`/artist/artworks/${id}/cover`),
+  unsetArtworkCover: (id) => api.delete(`/artist/artworks/${id}/cover`),
   // 须知
   getRules: () => api.get('/artist/rules'),
   // F4: 留言审核

@@ -144,7 +144,9 @@ export default {
     // #9: 档位展示柜
     tierSelectBtn: '选择此档位', tierShowcase: '暂不接单', tierShowcaseBtn: '暂不接单',
     // R50: 预览模式
-    previewBanner: '预览模式 — 修改尚未保存'
+    previewBanner: '预览模式 — 修改尚未保存',
+    // v0.25 A: 封面精选
+    covers: '✨ 封面精选'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
@@ -301,12 +303,15 @@ export default {
     // R53: 焦点图替换
     dropToReplace: '拖入替换焦点图',
     // SPEC-005: 月历视图
-    viewBoard: '看板', viewCalendar: '月历',
+    viewBoard: '看板', viewCalendar: '月历', viewTimeline: '时间条',
     calPrev: '上个月', calNext: '下个月', calToday: '今天',
     calTitle: '{y}年{m}月',
     calMon: '一', calTue: '二', calWed: '三', calThu: '四', calFri: '五', calSat: '六', calSun: '日',
     calNoDeadline: '未设截稿',
-    calLegendFormal: '正式订单', calLegendBuffer: '缓冲位', calLegendNoDeadline: '未设截稿', calLegendOverdue: '已逾期', calLegendDone: '已完成'
+    calLegendFormal: '正式订单', calLegendBuffer: '缓冲位', calLegendNoDeadline: '未设截稿', calLegendOverdue: '已逾期', calLegendDone: '已完成',
+    // v0.25 D: 时间条视图
+    tlZoom2w: '两周', tlZoom1m: '一个月', tlZoom2m: '两个月',
+    tlEmpty: '可见时间范围内没有订单'
   },
   orderList: {
     title: '📦 订单管理', all: '全部',
@@ -441,6 +446,7 @@ export default {
     quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮（3-9 个）',
     quickHint: '勾选后点保存生效，仪表盘快捷区将按此显示。',
     quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存', quickLimitError: '请选择 3-9 个快捷按钮',
+    quickLocalFallback: '已保存到本地（服务端暂不可用，下次打开自动同步）',
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
@@ -481,6 +487,12 @@ export default {
     // R49: 强调色
     accentLabel: '强调色', accentHint: '客户主页的按钮/链接/高亮颜色，与访客自选主色独立',
     accentClear: '默认', accentDarkHint: '暗色模式自动提亮，无需额外调整',
+    // v0.25 A: 封面管理
+    coverTitle: '封面图（主页顶部轮播）',
+    coverHint: '点击星标将作品设为主页封面，可设多张（自动轮播）。再点一次取消。',
+    coverSet: '设为封面', coverUnset: '取消封面',
+    coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
+    coverEmpty: '暂无作品，上传作品后可设置封面',
     // R50: 预览
     previewBtn: '预览主页'
   },

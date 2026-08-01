@@ -208,7 +208,7 @@
               <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
             </el-form-item>
 
-            <!-- #3: 快捷按钮配置（localStorage MVP，独立保存） -->
+            <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
             <el-divider>{{ $t('settings.quickTitle') }}</el-divider>
             <el-form-item :label="$t('settings.quickLabel')">
               <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
@@ -222,7 +222,7 @@
                 </el-checkbox>
               </el-checkbox-group>
               <div class="form-hint">{{ $t('settings.quickHint') }}</div>
-              <el-button size="small" type="primary" style="margin-top: 8px" @click="saveQuickActions">
+              <el-button size="small" type="primary" style="margin-top: 8px" @click="saveQuickActions" :loading="quickSaving">
                 {{ $t('settings.quickSave') }}
               </el-button>
             </el-form-item>
@@ -300,6 +300,29 @@
           </div>
           <p class="form-hint" style="margin-top: 8px">{{ $t('settings.accentDarkHint') }}</p>
 
+          <!-- v0.25 A: 封面图管理（星标切换，多张轮播） -->
+          <p class="template-label" style="margin-top: 24px">{{ $t('settings.coverTitle') }}</p>
+          <p class="form-hint" style="margin-bottom: 12px">{{ $t('settings.coverHint') }}</p>
+          <div v-if="coverArtworks.length" class="cover-grid" v-loading="coverLoading">
+            <div
+              v-for="art in coverArtworks" :key="art.id"
+              class="cover-item"
+              :class="{ 'cover-item--active': art.is_cover }"
+            >
+              <el-image :src="`/uploads/${art.image_path}`" fit="cover" class="cover-thumb" :alt="art.title || ''" />
+              <button
+                class="cover-star"
+                :class="{ 'cover-star--on': art.is_cover }"
+                :disabled="coverBusyId === art.id"
+                :title="art.is_cover ? $t('settings.coverUnset') : $t('settings.coverSet')"
+                @click="toggleCover(art)"
+              >
+                {{ art.is_cover ? '★' : '☆' }}
+              </button>
+            </div>
+          </div>
+          <p v-else class="form-hint">{{ $t('settings.coverEmpty') }}</p>
+
           <!-- R50: 预览按钮（新窗口打开，参数覆盖渲染层） -->
           <div class="template-actions">
             <el-button @click="openPreview" :disabled="!form.subdomain">{{ $t('settings.previewBtn') }}</el-button>
@@ -340,7 +363,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
-import { QUICK_ACTION_POOL, QUICK_ACTIONS_KEY, readQuickActionsConfig } from '../../components/artist/dashboard/QuickActions.vue'
+import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickActionsConfig, parseQuickActions } from '../../components/artist/dashboard/QuickActions.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -385,15 +408,27 @@ async function saveRules() {
 // 首次切到须知 tab 时加载内容（懒加载）
 watch(activeTab, (tab) => { if (tab === 'rules') loadRules() }, { immediate: true })
 
-// ─── #3: 快捷按钮配置（localStorage MVP，独立于 profile 保存） ───
+// ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存） ───
 const quickSelected = ref(readQuickActionsConfig())
-function saveQuickActions() {
+const quickSaving = ref(false)
+async function saveQuickActions() {
   if (quickSelected.value.length < 3 || quickSelected.value.length > 9) {
     ElMessage.warning(t('settings.quickLimitError'))
     return
   }
-  localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
-  ElMessage.success(t('settings.quickSaved'))
+  quickSaving.value = true
+  try {
+    await artistApi.updateProfile({ quickActions: quickSelected.value })
+    // DB 写入成功，同步 localStorage 缓存（离线/降级时回退用）
+    localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
+    ElMessage.success(t('settings.quickSaved'))
+  } catch {
+    // DB 写入失败（后端可能尚未支持该字段）：回退 localStorage，用户配置不丢
+    localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
+    ElMessage.warning(t('settings.quickLocalFallback'))
+  } finally {
+    quickSaving.value = false
+  }
 }
 
 // R15: 外链图标枚举（一号拍板：纯文字标签 + Element Plus Link 图标兜底）
@@ -493,6 +528,44 @@ function openPreview() {
   if (form.accentColor) params.set('_accent', form.accentColor)
   window.open(`/artist/${form.subdomain}?${params.toString()}`, '_blank', 'noopener')
 }
+
+// ─── v0.25 A: 封面图管理（星标切换，切到模板 tab 时懒加载作品列表） ───
+const coverArtworks = ref([])
+const coverLoading = ref(false)
+const coverBusyId = ref(null)
+let coverLoaded = false
+
+async function loadCoverArtworks() {
+  if (coverLoaded) return
+  coverLoading.value = true
+  try {
+    const list = await artistApi.getArtworks()
+    coverArtworks.value = Array.isArray(list) ? list : []
+    coverLoaded = true
+  } catch { /* 加载失败静默，区域显示空态 */ } finally { coverLoading.value = false }
+}
+
+async function toggleCover(art) {
+  coverBusyId.value = art.id
+  try {
+    if (art.is_cover) {
+      await artistApi.unsetArtworkCover(art.id)
+      art.is_cover = 0
+      ElMessage.success(t('settings.coverUnsetSuccess'))
+    } else {
+      await artistApi.setArtworkCover(art.id)
+      art.is_cover = 1
+      ElMessage.success(t('settings.coverSetSuccess'))
+    }
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    coverBusyId.value = null
+  }
+}
+
+// 切到模板 tab 时加载封面管理数据（懒加载，与须知 tab 同模式）
+watch(activeTab, (tab) => { if (tab === 'template') loadCoverArtworks() }, { immediate: true })
 
 // R15: 链接编辑器操作
 function addLink() {
@@ -671,6 +744,22 @@ onMounted(async () => {
       announcement: profile.announcement || '',
       announcementExpiresAt: profile.announcement_expires_at ? String(profile.announcement_expires_at).slice(0, 10) : null
     })
+
+    // v0.25: 快捷按钮从 DB 初始化（DB 有值→用 DB；DB 无值但 localStorage 有→一次性迁移到 DB）
+    const dbQuick = parseQuickActions(profile.quick_actions)
+    if (dbQuick) {
+      quickSelected.value = dbQuick
+      // 同步 localStorage 缓存
+      localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(dbQuick))
+    } else {
+      const localKeys = readQuickActionsConfig()
+      quickSelected.value = localKeys
+      // localStorage 有非默认值 → 尝试迁移到 DB（静默，失败不阻塞）
+      const isDefault = JSON.stringify(localKeys) === JSON.stringify([...QUICK_ACTIONS_DEFAULT])
+      if (!isDefault) {
+        artistApi.updateProfile({ quickActions: localKeys }).catch(() => { /* 迁移失败静默，下次再试 */ })
+      }
+    }
   } catch (err) { ElMessage.error(err.message) }
   finally { loading.value = false }
 })
@@ -755,6 +844,41 @@ onMounted(async () => {
 
 /* ─── R50: 模板 tab 操作行 ─── */
 .template-actions { display: flex; gap: 12px; margin-top: 20px; }
+
+/* ─── v0.25 A: 封面图管理（星标切换网格） ─── */
+.cover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+.cover-item {
+  position: relative;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cover-item--active {
+  border-color: var(--el-color-warning);
+  box-shadow: 0 0 0 1px var(--el-color-warning);
+}
+.cover-thumb { width: 100%; height: 96px; display: block; }
+.cover-star {
+  position: absolute; top: 6px; right: 6px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: color-mix(in srgb, var(--bg-card) 75%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--text-secondary);
+  font-size: 18px; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s, transform 0.15s, background 0.15s;
+}
+.cover-star:hover { transform: scale(1.15); }
+.cover-star:disabled { cursor: wait; opacity: 0.6; }
+.cover-star--on { color: var(--el-color-warning); }
 
 /* ─── R58-8: 平台链接 + 灵感标签 ─── */
 .platform-select { width: 130px; flex-shrink: 0; }
