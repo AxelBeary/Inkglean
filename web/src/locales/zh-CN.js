@@ -432,7 +432,11 @@ export default {
     overwriteTitle: '覆盖示例图', overwriteConfirm: '已有示例图，覆盖后旧图不可恢复。确定覆盖？',
     exampleUpdated: '示例图已更新',
     // R54: 卡片布局空状态
-    empty: '还没有档位'
+    empty: '还没有档位',
+    // v0.28 T3: Tab 标签 + 操作文案 i18n 化
+    tabTiers: '档位', tabAddons: '增项', tabMultipliers: '倍率', tabWorkflow: '流程与比例',
+    newTier: '＋ 新建档位', cancel: '取消', save: '保存',
+    uploaded: '已上传', saved: '已保存', deleted: '已删除'
   },
   artworks: {
     title: '🖼 作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',

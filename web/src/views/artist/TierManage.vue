@@ -1,11 +1,11 @@
 <template>
   <ArtistLayout>
-    <h2 class="font-display">价格管理</h2>
+    <h2 class="font-display">{{ $t('tiers.title') }}</h2>
 
     <el-tabs v-model="activeTab" style="margin-top: 16px">
       <!-- 档位 -->
-      <el-tab-pane label="档位" name="tiers">
-        <el-button type="primary" size="small" style="margin-bottom: 12px" @click="openTierDialog()">＋ 新建档位</el-button>
+      <el-tab-pane :label="$t('tiers.tabTiers')" name="tiers">
+        <el-button type="primary" size="small" style="margin-bottom: 12px" @click="openTierDialog()">{{ $t('tiers.newTier') }}</el-button>
         <!-- R54: 档位表格→卡片布局（保留 R55 示例图拖拽/点击直传） -->
         <!-- v0.26 A: vuedraggable 卡片排序（handle 避免与示例图拖拽上传冲突） -->
         <div v-loading="loadingTiers">
@@ -79,37 +79,37 @@
       </el-tab-pane>
 
       <!-- 增项 -->
-      <el-tab-pane label="增项" name="addons" lazy>
+      <el-tab-pane :label="$t('tiers.tabAddons')" name="addons" lazy>
         <AddonManager />
       </el-tab-pane>
 
       <!-- 倍率 -->
-      <el-tab-pane label="倍率" name="multipliers" lazy>
+      <el-tab-pane :label="$t('tiers.tabMultipliers')" name="multipliers" lazy>
         <MultiplierManager />
       </el-tab-pane>
 
       <!-- 流程与比例 -->
-      <el-tab-pane label="流程与比例" name="workflow" lazy>
+      <el-tab-pane :label="$t('tiers.tabWorkflow')" name="workflow" lazy>
         <WorkflowPaymentEditor />
       </el-tab-pane>
     </el-tabs>
 
     <!-- 档位编辑弹窗 -->
-    <el-dialog v-model="tierDialogVisible" :title="editingTierId ? '编辑档位' : '新建档位'" width="450px">
+    <el-dialog v-model="tierDialogVisible" :title="editingTierId ? $t('tiers.editTitle') : $t('tiers.addTitle')" width="450px">
       <el-form :model="tierForm" label-position="top">
-        <el-form-item label="名称" required>
-          <el-input v-model="tierForm.name" placeholder="如：全身像、Q版立绘" />
+        <el-form-item :label="$t('tiers.nameLabel')" required>
+          <el-input v-model="tierForm.name" :placeholder="$t('tiers.namePlaceholder')" />
         </el-form-item>
-        <el-form-item label="价格（元）" required>
+        <el-form-item :label="$t('tiers.priceLabel')" required>
           <el-input-number v-model="tierForm.price" :min="0" :step="10" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="工期（天）">
+        <el-form-item :label="$t('tiers.daysLabel')">
           <el-input-number v-model="tierForm.workDays" :min="1" :max="90" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="说明">
-          <el-input v-model="tierForm.description" type="textarea" :rows="2" placeholder="客户可见的描述" />
+        <el-form-item :label="$t('tiers.descLabel')">
+          <el-input v-model="tierForm.description" type="textarea" :rows="2" :placeholder="$t('tiers.descPlaceholder')" />
         </el-form-item>
-        <el-form-item label="示例图">
+        <el-form-item :label="$t('tiers.exampleLabel')">
           <div class="example-upload">
             <el-image
               v-if="tierForm.exampleImage" :src="`/uploads/${tierForm.exampleImage}`"
@@ -119,16 +119,16 @@
               :auto-upload="true" :http-request="uploadExample" :show-file-list="false"
               accept="image/*"
             >
-              <el-button size="small" :loading="uploading">{{ tierForm.exampleImage ? '更换' : '上传' }}</el-button>
+              <el-button size="small" :loading="uploading">{{ tierForm.exampleImage ? $t('tiers.changeExample') : $t('tiers.uploadExample') }}</el-button>
             </el-upload>
-            <el-button v-if="tierForm.exampleImage" size="small" type="danger" text @click="tierForm.exampleImage = ''">移除</el-button>
+            <el-button v-if="tierForm.exampleImage" size="small" type="danger" text @click="tierForm.exampleImage = ''">{{ $t('tiers.removeExample') }}</el-button>
           </div>
           <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="tierDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveTier" :loading="savingTier">保存</el-button>
+        <el-button @click="tierDialogVisible = false">{{ $t('tiers.cancel') }}</el-button>
+        <el-button type="primary" @click="saveTier" :loading="savingTier">{{ $t('tiers.save') }}</el-button>
       </template>
     </el-dialog>
 
@@ -180,7 +180,7 @@ async function uploadExample({ file }) {
   try {
     const uploaded = await uploadApi.image(file)
     tierForm.exampleImage = uploaded.filePath
-    ElMessage.success('已上传')
+    ElMessage.success(t('tiers.uploaded'))
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -202,7 +202,7 @@ async function handlePasteExampleFile(files) {
   try {
     const uploaded = await uploadApi.image(files[0])
     tierForm.exampleImage = uploaded.filePath
-    ElMessage.success('已上传')
+    ElMessage.success(t('tiers.uploaded'))
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -211,7 +211,7 @@ async function handlePasteExampleFile(files) {
 }
 
 async function saveTier() {
-  if (!tierForm.name.trim()) return ElMessage.warning('请输入名称')
+  if (!tierForm.name.trim()) return ElMessage.warning(t('tiers.fillName'))
   savingTier.value = true
   try {
     const payload = {
@@ -223,7 +223,7 @@ async function saveTier() {
     } else {
       await artistApi.createTier(payload)
     }
-    ElMessage.success('已保存')
+    ElMessage.success(t('tiers.saved'))
     tierDialogVisible.value = false
     await loadTiers()
   } catch (err) {
@@ -236,7 +236,7 @@ async function saveTier() {
 async function removeTier(row) {
   try {
     await artistApi.deleteTier(row.id)
-    ElMessage.success('已删除')
+    ElMessage.success(t('tiers.deleted'))
     await loadTiers()
   } catch (err) {
     ElMessage.error(err.message)

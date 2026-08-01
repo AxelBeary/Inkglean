@@ -432,7 +432,11 @@ export default {
     overwriteTitle: 'Replace example image', overwriteConfirm: 'This tier already has an example image. The old image cannot be recovered after replacement. Continue?',
     exampleUpdated: 'Example image updated',
     // R54: card layout empty state
-    empty: 'No tiers yet'
+    empty: 'No tiers yet',
+    // v0.28 T3: tab labels + action text i18n
+    tabTiers: 'Tiers', tabAddons: 'Add-ons', tabMultipliers: 'Multipliers', tabWorkflow: 'Workflow & Payment',
+    newTier: '+ New tier', cancel: 'Cancel', save: 'Save',
+    uploaded: 'Uploaded', saved: 'Saved', deleted: 'Deleted'
   },
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',
