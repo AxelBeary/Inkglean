@@ -18,60 +18,60 @@
             @end="onTierDragEnd"
           >
             <template #item="{ element: row }">
-          <div class="tier-card" :class="{ 'tier-card--hidden': row.visibility === 'hidden' }">
-            <!-- v0.26 A: 拖拽手柄 -->
-            <div class="tier-drag-handle" :title="$t('tiers.dragHint')">⠿</div>
-            <!-- R55: 示例图拖拽/点击直传（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 行为不同） -->
-            <div
-              class="tier-card-img"
-              :class="{ 'tier-card-img--active': tierDragId === row.id }"
-              @click="triggerTierImgUpload(row)"
-              @dragover.prevent="tierDragId = row.id"
-              @dragleave="onTierImgDragLeave($event, row)"
-              @drop.prevent="handleTierImgDrop($event, row)"
-            >
-              <el-image
-                v-if="row.example_image" :src="`/uploads/${row.example_image}`"
-                fit="cover" class="tier-card-photo"
-                :alt="row.name"
-              />
-              <div v-else class="tier-card-img-empty">
-                <span class="tier-card-img-plus">+</span>
-                <span class="tier-card-img-hint">{{ $t('tiers.uploadExample') }}</span>
+              <div class="tier-card" :class="{ 'tier-card--hidden': row.visibility === 'hidden' }">
+                <!-- v0.26 A: 拖拽手柄 -->
+                <div class="tier-drag-handle" :title="$t('tiers.dragHint')">⠿</div>
+                <!-- R55: 示例图拖拽/点击直传（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 行为不同） -->
+                <div
+                  class="tier-card-img"
+                  :class="{ 'tier-card-img--active': tierDragId === row.id }"
+                  @click="triggerTierImgUpload(row)"
+                  @dragover.prevent="tierDragId = row.id"
+                  @dragleave="onTierImgDragLeave($event, row)"
+                  @drop.prevent="handleTierImgDrop($event, row)"
+                >
+                  <el-image
+                    v-if="row.example_image" :src="`/uploads/${row.example_image}`"
+                    fit="cover" class="tier-card-photo"
+                    :alt="row.name"
+                  />
+                  <div v-else class="tier-card-img-empty">
+                    <span class="tier-card-img-plus">+</span>
+                    <span class="tier-card-img-hint">{{ $t('tiers.uploadExample') }}</span>
+                  </div>
+                  <div v-if="tierDragId === row.id" class="tier-card-img-overlay">
+                    <span>{{ $t('tiers.dropToUpload') }}</span>
+                  </div>
+                </div>
+                <div class="tier-card-body">
+                  <div class="tier-card-head">
+                    <h3 class="tier-card-name">{{ row.name }}</h3>
+                    <div class="tier-card-price">¥{{ row.price }}</div>
+                  </div>
+                  <p v-if="row.description" class="tier-card-desc">{{ row.description }}</p>
+                  <p class="tier-card-days">{{ row.work_days ? $t('tiers.daysUnit', { n: row.work_days }) : '—' }}</p>
+                </div>
+                <!-- #10: 三态切换（开/只展示/不展示） -->
+                <div class="tier-card-visibility">
+                  <el-radio-group
+                    :model-value="row.visibility || 'visible'"
+                    size="small"
+                    @change="(val) => changeVisibility(row, val)"
+                  >
+                    <el-radio-button value="visible">{{ $t('tiers.visVisible') }}</el-radio-button>
+                    <el-radio-button value="showcase">{{ $t('tiers.visShowcase') }}</el-radio-button>
+                    <el-radio-button value="hidden">{{ $t('tiers.visHidden') }}</el-radio-button>
+                  </el-radio-group>
+                </div>
+                <div class="tier-card-actions">
+                  <el-button size="small" @click="openTierDialog(row)">{{ $t('common.edit') }}</el-button>
+                  <el-popconfirm :title="$t('tiers.confirmDelete', { name: row.name })" @confirm="removeTier(row)">
+                    <template #reference>
+                      <el-button size="small" type="danger">{{ $t('common.delete') }}</el-button>
+                    </template>
+                  </el-popconfirm>
+                </div>
               </div>
-              <div v-if="tierDragId === row.id" class="tier-card-img-overlay">
-                <span>{{ $t('tiers.dropToUpload') }}</span>
-              </div>
-            </div>
-            <div class="tier-card-body">
-              <div class="tier-card-head">
-                <h3 class="tier-card-name">{{ row.name }}</h3>
-                <div class="tier-card-price">¥{{ row.price }}</div>
-              </div>
-              <p v-if="row.description" class="tier-card-desc">{{ row.description }}</p>
-              <p class="tier-card-days">{{ row.work_days ? $t('tiers.daysUnit', { n: row.work_days }) : '—' }}</p>
-            </div>
-            <!-- #10: 三态切换（开/只展示/不展示） -->
-            <div class="tier-card-visibility">
-              <el-radio-group
-                :model-value="row.visibility || 'visible'"
-                size="small"
-                @change="(val) => changeVisibility(row, val)"
-              >
-                <el-radio-button value="visible">{{ $t('tiers.visVisible') }}</el-radio-button>
-                <el-radio-button value="showcase">{{ $t('tiers.visShowcase') }}</el-radio-button>
-                <el-radio-button value="hidden">{{ $t('tiers.visHidden') }}</el-radio-button>
-              </el-radio-group>
-            </div>
-            <div class="tier-card-actions">
-              <el-button size="small" @click="openTierDialog(row)">{{ $t('common.edit') }}</el-button>
-              <el-popconfirm :title="$t('tiers.confirmDelete', { name: row.name })" @confirm="removeTier(row)">
-                <template #reference>
-                  <el-button size="small" type="danger">{{ $t('common.delete') }}</el-button>
-                </template>
-              </el-popconfirm>
-            </div>
-          </div>
             </template>
           </draggable>
         </div>
