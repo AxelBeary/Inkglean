@@ -17,6 +17,7 @@ interface Artwork {
   title: string | null
   sort_order: number
   like_count: number
+  is_cover: number
 }
 
 /** 约稿须知（entities.ts 未定义，内联） */
@@ -314,7 +315,8 @@ export function deleteTier(tierId: number): void {
 // ============================================
 
 export function getArtworks(artistId: number): Artwork[] {
-  return db.prepare('SELECT * FROM artworks WHERE artist_id = ? ORDER BY sort_order ASC').all(artistId) as Artwork[]
+  // v0.25 #5: 封面排第一，其余按 sort_order 排序（无封面时行为不变）
+  return db.prepare('SELECT * FROM artworks WHERE artist_id = ? ORDER BY is_cover DESC, sort_order ASC').all(artistId) as Artwork[]
 }
 
 export function getArtworkById(artworkId: number): Artwork | undefined {
@@ -333,6 +335,30 @@ export function createArtwork(artistId: number, { imagePath, title }: { imagePat
 
 export function deleteArtwork(artworkId: number): void {
   db.prepare('DELETE FROM artworks WHERE id = ?').run(artworkId)
+}
+
+// ============================================
+// v0.25 #5: 封面图
+// ============================================
+
+/**
+ * 设为封面（事务内：同画师其他作品自动取消 is_cover）
+ * 一个画师最多 1 个封面
+ */
+export function setCover(artistId: number, artworkId: number): Artwork | undefined {
+  return db.transaction(() => {
+    // 先取消同画师所有封面
+    db.prepare('UPDATE artworks SET is_cover = 0 WHERE artist_id = ?').run(artistId)
+    // 设新封面
+    db.prepare('UPDATE artworks SET is_cover = 1 WHERE id = ? AND artist_id = ?').run(artworkId, artistId)
+    return getArtworkById(artworkId)
+  })()
+}
+
+/** 取消封面 */
+export function clearCover(artistId: number, artworkId: number): Artwork | undefined {
+  db.prepare('UPDATE artworks SET is_cover = 0 WHERE id = ? AND artist_id = ?').run(artworkId, artistId)
+  return getArtworkById(artworkId)
 }
 
 // ============================================

@@ -347,6 +347,33 @@ export default async function artistRoutes(fastify) {
     return { success: true }
   })
 
+  // ─── v0.25 #5: 封面图 ───
+
+  /** PUT /api/artist/artworks/:id/cover — 设为封面（同画师其他作品自动取消） */
+  fastify.put('/api/artist/artworks/:id/cover', {
+    preHandler: requireAuth,
+    schema: {
+      body: { type: 'object', properties: {}, additionalProperties: false }
+    }
+  }, async (request, reply) => {
+    const artworkId = parseInt(request.params.id, 10)
+    const artwork = artistService.getArtworkById(artworkId)
+    if (!artwork || artwork.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '作品不存在' })
+    }
+    return artistService.setCover(request.artist.id, artworkId)
+  })
+
+  /** DELETE /api/artist/artworks/:id/cover — 取消封面 */
+  fastify.delete('/api/artist/artworks/:id/cover', { preHandler: requireAuth }, async (request, reply) => {
+    const artworkId = parseInt(request.params.id, 10)
+    const artwork = artistService.getArtworkById(artworkId)
+    if (!artwork || artwork.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '作品不存在' })
+    }
+    return artistService.clearCover(request.artist.id, artworkId)
+  })
+
   // ─── 约稿须知 ───
 
   fastify.get('/api/artist/rules', { preHandler: requireAuth }, async (request) => {
@@ -395,7 +422,7 @@ export default async function artistRoutes(fastify) {
     return workflowService.addStage(request.artist.id, request.body)
   })
 
-  /** PUT /api/artist/workflow/:id — 改名/改描述/切换收款/改话术 */
+  /** PUT /api/artist/workflow/:id — 改名/改描述/切换收款/改话术/改随机开关 */
   fastify.put('/api/artist/workflow/:id', {
     preHandler: requireAuth,
     schema: {
@@ -405,7 +432,8 @@ export default async function artistRoutes(fastify) {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           description: { type: 'string', maxLength: 200 },
           takesPayment: { type: 'boolean' },
-          speechTemplate: { type: ['string', 'null'], maxLength: 500 }
+          speechTemplate: { type: ['string', 'null'], maxLength: 500 },
+          randomTemplate: { type: 'boolean' }
         }
       }
     }
