@@ -93,10 +93,18 @@ export default async function adminRoutes(fastify) {
     const artist = artistService.getArtistById(request.params.id)
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
     const { page, pageSize } = request.query || {}
-    return orderService.getArtistOrders(artist.id, undefined, {
+    const result = orderService.getArtistOrders(artist.id, undefined, {
       page: Math.max(1, parseInt(page, 10) || 1),
       pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200))
     })
+    // B7: 补充 camelCase 付款字段 + 分期三态（管理端行展开用）
+    result.items = result.items.map((o: any) => ({
+      ...o,
+      paidTotalCents: o.paid_total_cents ?? 0,
+      finalPriceCents: o.final_price_cents ?? 0,
+      installments: orderService.getOrderInstallments(o.id)
+    }))
+    return result
   })
 
   /**
