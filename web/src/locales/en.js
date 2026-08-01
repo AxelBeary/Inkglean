@@ -320,7 +320,7 @@ export default {
     colImage: 'Image'
   },
   orderDetail: {
-    backToQueue: 'Back to queue', backToList: 'Back to orders', orderNo: 'Order #',
+    backToQueue: 'Back to queue', backToDashboard: 'Back to dashboard', backToList: 'Back to orders', orderNo: 'Order #',
     orderInfo: 'Order info', colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
     colPriority: 'Priority', colSource: 'Source', colTime: 'Order time', colDesc: 'Description',
     statusFlow: 'Status flow', confirmOrder: '✅ Accept order', startWip: '🎨 Start work',

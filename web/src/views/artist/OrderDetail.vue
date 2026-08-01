@@ -504,11 +504,17 @@ const DELIVER_ALLOWED_EXT = [
   '.txt', '.md'
 ]
 
-// 返回来源页：排期看板进来回排期，订单列表进来回列表，直接访问则默认回列表
-const fromQueue = route.query.from === 'queue'
-const backTitle = computed(() => fromQueue ? t('orderDetail.backToQueue') : t('orderDetail.backToList'))
+// 返回来源页：排期看板进来回排期，仪表盘进来回仪表盘，订单列表进来回列表，直接访问则默认回列表
+const fromSource = route.query.from // 'queue' | 'dashboard' | undefined
+const backTitle = computed(() => {
+  if (fromSource === 'queue') return t('orderDetail.backToQueue')
+  if (fromSource === 'dashboard') return t('orderDetail.backToDashboard')
+  return t('orderDetail.backToList')
+})
 function goBack() {
-  router.push(fromQueue ? '/queue' : '/orders')
+  if (fromSource === 'queue') router.push('/queue')
+  else if (fromSource === 'dashboard') router.push('/dashboard')
+  else router.push('/orders')
 }
 
 import { ORDER_STATUS_TYPE } from '../../constants/order.js'
@@ -755,7 +761,12 @@ async function changePriority(priority) {
 }
 
 // ─── R51: 截稿日（date-picker 即时保存，null = 清除） ───
-const deadlinePicker = computed(() => order.value?.deadline ? order.value.deadline.slice(0, 10) : null)
+// 可写 computed：v-model 需要 setter（日历点选时写入），实际保存走 changeDeadline，
+// API 返回后 order 更新 → getter 自动重算
+const deadlinePicker = computed({
+  get: () => order.value?.deadline ? order.value.deadline.slice(0, 10) : null,
+  set: () => { /* no-op：保存由 @change 触发，order 更新后 getter 重算 */ }
+})
 
 async function changeDeadline(val) {
   try {

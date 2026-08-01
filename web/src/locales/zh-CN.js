@@ -320,7 +320,7 @@ export default {
     colImage: '图片'
   },
   orderDetail: {
-    backToQueue: '返回排期看板', backToList: '返回订单列表', orderNo: '订单 #',
+    backToQueue: '返回排期看板', backToDashboard: '返回仪表盘', backToList: '返回订单列表', orderNo: '订单 #',
     orderInfo: '订单信息', colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
     colPriority: '优先级', colSource: '来源', colTime: '下单时间', colDesc: '需求描述',
     statusFlow: '状态流转', confirmOrder: '✅ 确认接单', startWip: '🎨 开始制作',
