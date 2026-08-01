@@ -96,7 +96,7 @@
 | 后端 | Fastify 5 + better-sqlite3（Feature-based 架构） |
 | 部署 | Docker Compose（多阶段构建）+ Caddy（自动 HTTPS + healthcheck） |
 | 认证 | HMAC-SHA256 签名会话 + httpOnly cookie + 登录码 |
-| 测试 | Vitest（后端 545 + 前端 87 = 632 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
+| 测试 | Vitest（后端 567 + 前端 87 = 654 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
 | 类型系统 | TypeScript（渐进迁移，features/ + utils/ + middleware/ 全部 TS） |
 | 运行时 | tsx（后端 .ts/.js 混存，零配置） |
 | 监控 | Sentry（后端 + 前端，DSN 环境变量开关） |
@@ -136,7 +136,7 @@ npm run dev        # 启动 Vite 开发服务器 (http://localhost:5173)
 
 # 测试
 cd server
-npm test           # 运行全部 545 个后端测试用例
+npm test           # 运行全部 567 个后端测试用例
 
 # Lint
 cd server && npm run lint
