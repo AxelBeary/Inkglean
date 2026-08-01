@@ -264,6 +264,8 @@ export default {
     timeJustNow: 'just now', timeMinutesAgo: '{n}m ago', timeHoursAgo: '{n}h ago', timeDaysAgo: '{n}d ago',
     slotTitle: '🎯 Slot overview', slotFormal: 'Formal {used}/{total}', slotBuffer: 'Buffer {used}/{total}',
     slotNext: 'Next in buffer: {name} (QQ: {qq})',
+    // #4: slot overview revamp
+    slotCombined: '{used}/{total} filled', slotNotEnabled: 'Slot limit is off — set it up →', slotDisplayFallback: '—',
     artworks: 'Gallery', tiers: 'Tiers'
   },
   queue: {
@@ -415,7 +417,7 @@ export default {
   },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabTemplate: 'Page Template', tabWorkflow: 'Workflow & Payment',
-    tabRules: 'Rules',
+    tabRules: 'Rules', tabCommission: 'Commission Settings',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',

@@ -264,6 +264,8 @@ export default {
     timeJustNow: '刚刚', timeMinutesAgo: '{n} 分钟前', timeHoursAgo: '{n} 小时前', timeDaysAgo: '{n} 天前',
     slotTitle: '🎯 名额概览', slotFormal: '正式 {used}/{total}', slotBuffer: '缓冲 {used}/{total}',
     slotNext: '下一位候补：{name}（QQ: {qq}）',
+    // #4: 名额概览改版
+    slotCombined: '已接 {used}/{total}', slotNotEnabled: '未开启名额限制，去设置 →', slotDisplayFallback: '—',
     artworks: '图库管理', tiers: '档位管理'
   },
   queue: {
@@ -415,7 +417,7 @@ export default {
   },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabTemplate: '主页模板', tabWorkflow: '流程与比例',
-    tabRules: '须知编辑',
+    tabRules: '须知编辑', tabCommission: '接稿设置',
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',

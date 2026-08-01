@@ -100,6 +100,55 @@
               </div>
             </el-form-item>
 
+            <el-form-item :label="$t('settings.contactQqLabel')">
+              <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
+              <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
+            </el-form-item>
+            <el-form-item :label="$t('settings.notifyLabel')">
+              <el-switch
+                v-model="form.notifyEnabled"
+                :active-text="$t('settings.notifyText')"
+              />
+            </el-form-item>
+            <!-- R8: 默认面板 -->
+            <el-form-item :label="$t('settings.defaultPanelLabel')">
+              <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
+                <el-option value="queue" :label="$t('dashboard.panelQueue')" />
+                <el-option value="orders" :label="$t('dashboard.panelOrders')" />
+                <el-option value="manual" :label="$t('dashboard.panelManual')" />
+                <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
+              </el-select>
+              <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
+            </el-form-item>
+            <!-- F3: 主页公告（客户主页首屏展示，可选过期时间） -->
+            <el-form-item :label="$t('settings.announcementLabel')">
+              <el-input
+                v-model="form.announcement" type="textarea" :rows="3"
+                :placeholder="$t('settings.announcementPlaceholder')"
+                maxlength="500" show-word-limit
+              />
+              <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
+              <el-date-picker
+                v-model="form.announcementExpiresAt"
+                type="date"
+                value-format="YYYY-MM-DD"
+                :placeholder="$t('settings.announcementExpiresLabel')"
+                clearable
+                style="margin-top: 8px; width: 220px"
+              />
+              <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+      </el-tab-pane>
+
+      <!-- #4: 接稿设置（名额/缓冲/额度/缓冲开关，从基本资料挪入） -->
+      <el-tab-pane :label="$t('settings.tabCommission')" name="commission">
+        <el-card style="max-width: 600px" v-loading="loading">
+          <el-form :model="form" label-position="top" size="large">
             <!-- SPEC-004: 名额与缓冲（正式位 N + 缓冲位 M + 4 开关） -->
             <el-form-item :label="$t('settings.slotLabel')">
               <div class="slot-config">
@@ -154,45 +203,6 @@
                 </div>
               </div>
               <div class="form-hint">{{ $t('settings.bufferSwitchHint') }}</div>
-            </el-form-item>
-
-            <el-form-item :label="$t('settings.contactQqLabel')">
-              <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
-              <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
-            </el-form-item>
-            <el-form-item :label="$t('settings.notifyLabel')">
-              <el-switch
-                v-model="form.notifyEnabled"
-                :active-text="$t('settings.notifyText')"
-              />
-            </el-form-item>
-            <!-- R8: 默认面板 -->
-            <el-form-item :label="$t('settings.defaultPanelLabel')">
-              <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
-                <el-option value="queue" :label="$t('dashboard.panelQueue')" />
-                <el-option value="orders" :label="$t('dashboard.panelOrders')" />
-                <el-option value="manual" :label="$t('dashboard.panelManual')" />
-                <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
-              </el-select>
-              <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
-            </el-form-item>
-            <!-- F3: 主页公告（客户主页首屏展示，可选过期时间） -->
-            <el-form-item :label="$t('settings.announcementLabel')">
-              <el-input
-                v-model="form.announcement" type="textarea" :rows="3"
-                :placeholder="$t('settings.announcementPlaceholder')"
-                maxlength="500" show-word-limit
-              />
-              <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
-              <el-date-picker
-                v-model="form.announcementExpiresAt"
-                type="date"
-                value-format="YYYY-MM-DD"
-                :placeholder="$t('settings.announcementExpiresLabel')"
-                clearable
-                style="margin-top: 8px; width: 220px"
-              />
-              <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
@@ -333,7 +343,9 @@ import { sanitizeHtml } from '../../utils/sanitize.js'
 const { t } = useI18n()
 const route = useRoute()
 // R42b: /rules 重定向到 /settings?tab=rules 时直达须知 tab
-const activeTab = ref(route.query.tab === 'rules' ? 'rules' : 'profile')
+// #4: 支持 ?tab=commission 直达接稿设置（名额概览卡点击跳转）
+const VALID_TABS = ['profile', 'commission', 'template', 'rules', 'embed']
+const activeTab = ref(VALID_TABS.includes(route.query.tab) ? route.query.tab : 'profile')
 const loading = ref(true)
 const saving = ref(false)
 
