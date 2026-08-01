@@ -98,6 +98,14 @@
               >
                 {{ $t('queue.advanceStage') }}
               </el-button>
+              <!-- REQ-013 #7: 工作流订单到达最后节点(done) → "去交付"跳转详情页（交付需上传文件） -->
+              <el-button
+                v-else-if="element.currentStageId != null && element.status === 'done'"
+                size="small" type="success"
+                @click="$router.push(`/orders/${element.id}?from=queue`)"
+              >
+                {{ $t('queue.goDeliver') }}
+              </el-button>
               <!-- R30b: 未接入流程的订单 → 固定状态主操作外露（Bug 4: 工作流订单不穿透到此按钮） -->
               <el-button
                 v-else-if="element.currentStageId == null && nextAction(element.status)"
@@ -193,6 +201,40 @@
           </div>
         </div>
         <el-empty v-if="!bufferLoading && bufferQueue.length === 0" :description="$t('queue.bufferEmpty')" />
+      </div>
+    </template>
+
+    <!-- REQ-013 #7: 完成区（最近 7 天已交付订单，灰色沉底，不可拖拽） -->
+    <template v-if="completedQueue.length || completedLoading">
+      <h3 class="completed-title">{{ $t('queue.completedTitle') }}</h3>
+      <p class="completed-hint">{{ $t('queue.completedHint') }}</p>
+      <div class="queue-container" v-loading="completedLoading">
+        <div class="queue-list">
+          <div
+            v-for="element in completedQueue" :key="element.id"
+            class="queue-item completed-item"
+          >
+            <div class="item-body">
+              <div class="item-header">
+                <span class="order-no">#{{ element.order_no }}</span>
+                <el-tag type="success" size="small">{{ $t('common.orderStatus.delivered') }}</el-tag>
+                <el-tag v-if="element.currentStageId != null" type="info" size="small" effect="plain" class="stage-tag">
+                  {{ element.currentStageName }}
+                </el-tag>
+              </div>
+              <div class="item-info">
+                <span>{{ element.tier_name || $t('common.custom') }}</span>
+                <span>·</span>
+                <span>QQ: {{ element.client_qq }}</span>
+                <span v-if="element.client_name">· {{ element.client_name }}</span>
+              </div>
+            </div>
+            <div class="item-actions">
+              <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="!completedLoading && completedQueue.length === 0" :description="$t('queue.completedEmpty')" />
       </div>
     </template>
 
@@ -438,11 +480,15 @@ const bufferQueue = ref([])
 const bufferLoading = ref(false)
 const promotingId = ref(null)
 
-// ─── R33: 签名 URL 定时刷新（焦点图 15min 过期防 403；正式区+缓冲区统一收集） ───
+// ─── REQ-013 #7: 完成区（最近 7 天已交付订单，沉底灰色展示） ───
+const completedQueue = ref([])
+const completedLoading = ref(false)
+
+// ─── R33: 签名 URL 定时刷新（焦点图 15min 过期防 403；正式区+缓冲区+完成区统一收集） ───
 const { refreshNow } = useSignatureRefresh({
-  collect: () => [...queue.value, ...bufferQueue.value].filter(o => o.focus_image_path).map(o => o.focus_image_path),
+  collect: () => [...queue.value, ...bufferQueue.value, ...completedQueue.value].filter(o => o.focus_image_path).map(o => o.focus_image_path),
   apply: (urlMap) => {
-    for (const o of [...queue.value, ...bufferQueue.value]) {
+    for (const o of [...queue.value, ...bufferQueue.value, ...completedQueue.value]) {
       if (o.focus_image_path && urlMap[o.focus_image_path]) o.focusImageUrl = urlMap[o.focus_image_path]
     }
   }
@@ -456,6 +502,18 @@ async function loadBufferQueue() {
     ElMessage.error(err.message)
   } finally {
     bufferLoading.value = false
+  }
+}
+
+/** REQ-013 #7: 加载完成区（最近 7 天已交付订单） */
+async function loadCompletedQueue() {
+  completedLoading.value = true
+  try {
+    completedQueue.value = await artistApi.getQueue('completed')
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    completedLoading.value = false
   }
 }
 
@@ -476,6 +534,7 @@ async function promoteOrder(order) {
 onMounted(() => {
   loadQueue()
   loadBufferQueue()
+  loadCompletedQueue()
   // R30d: 加载工作流节点（看板推进需要知道"下一节点"）
   artistApi.getWorkflow()
     .then(res => { workflowStages.value = res.stages || [] })
@@ -605,4 +664,14 @@ onMounted(() => {
 .buffer-hint { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); }
 .buffer-item { border-left: 3px solid var(--el-color-warning); }
 .focus-empty--static { cursor: default; }
+
+/* ─── REQ-013 #7: 完成区（灰色沉底，不可拖拽） ─── */
+.completed-title { margin: 28px 0 4px; color: var(--text-secondary); font-size: 16px; }
+.completed-hint { margin: 0 0 12px; font-size: 12px; color: var(--text-muted); }
+.completed-item {
+  opacity: 0.5;
+  border-left: 3px solid var(--el-color-success-light-5);
+  cursor: default;
+}
+.completed-item:hover { box-shadow: var(--shadow-card); }
 </style>

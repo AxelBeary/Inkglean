@@ -275,6 +275,10 @@ export default {
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
+    // REQ-013 #7: workflow done order delivery entry + completed zone
+    goDeliver: '📦 Deliver',
+    completedTitle: '✅ Recently delivered', completedHint: 'Delivered orders stay here for 7 days then hide automatically',
+    completedEmpty: 'No recently delivered orders',
     dragHint: 'Drag to reorder',
     focusDisplay: 'Focus image', focusOff: 'Off', focusLarge: 'Large',
     uploadFocus: 'Upload focus image',

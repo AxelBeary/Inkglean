@@ -922,4 +922,58 @@ describe('订单服务 (Order Service)', () => {
     const refs = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(order.id)
     expect(refs).toHaveLength(2)
   })
+
+  // ─── REQ-013 #7: 完成区（getCompletedQueue） ───
+
+  // TC-O-36: delivered 订单出现在完成区
+  it('TC-O-36: getCompletedQueue 返回近期 delivered 订单', () => {
+    const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.updateOrderStatus(o1.id, 'confirmed')
+    orderService.updateOrderStatus(o1.id, 'wip')
+    orderService.updateOrderStatus(o1.id, 'done')
+    orderService.updateOrderStatus(o1.id, 'delivered')
+
+    const completed = orderQueueService.getCompletedQueue(artist.id)
+    expect(completed).toHaveLength(1)
+    expect(completed[0].id).toBe(o1.id)
+    expect(completed[0].status).toBe('delivered')
+  })
+
+  // TC-O-36b: 超过 N 天的 delivered 订单不出现
+  it('TC-O-36b: getCompletedQueue 过滤超期订单', () => {
+    const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.updateOrderStatus(o1.id, 'confirmed')
+    orderService.updateOrderStatus(o1.id, 'wip')
+    orderService.updateOrderStatus(o1.id, 'done')
+    orderService.updateOrderStatus(o1.id, 'delivered')
+
+    // 手动把 updated_at 改到 8 天前
+    db.prepare("UPDATE orders SET updated_at = datetime('now', '-8 days') WHERE id = ?").run(o1.id)
+
+    const completed = orderQueueService.getCompletedQueue(artist.id, 7)
+    expect(completed).toHaveLength(0)
+  })
+
+  // TC-O-36c: 非 delivered 状态不出现
+  it('TC-O-36c: getCompletedQueue 不含非 delivered 订单', () => {
+    orderService.createOrder({ artistId: artist.id, clientQq: '111' }) // pending
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
+    orderService.updateOrderStatus(o2.id, 'confirmed') // confirmed
+
+    const completed = orderQueueService.getCompletedQueue(artist.id)
+    expect(completed).toHaveLength(0)
+  })
+
+  // TC-O-36d: 其他画师的 delivered 订单不出现
+  it('TC-O-36d: getCompletedQueue 隔离画师', () => {
+    const other = seedArtist({ qq_number: '22222', subdomain: 'bob' })
+    const o1 = orderService.createOrder({ artistId: other.id, clientQq: '111' })
+    orderService.updateOrderStatus(o1.id, 'confirmed')
+    orderService.updateOrderStatus(o1.id, 'wip')
+    orderService.updateOrderStatus(o1.id, 'done')
+    orderService.updateOrderStatus(o1.id, 'delivered')
+
+    const completed = orderQueueService.getCompletedQueue(artist.id)
+    expect(completed).toHaveLength(0)
+  })
 })

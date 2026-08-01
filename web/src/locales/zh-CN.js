@@ -275,6 +275,10 @@ export default {
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
+    // REQ-013 #7: 工作流 done 订单交付入口 + 完成区
+    goDeliver: '📦 去交付',
+    completedTitle: '✅ 近期已交付', completedHint: '已交付订单在此保留 7 天后自动隐藏',
+    completedEmpty: '近期无已交付订单',
     dragHint: '拖拽排序',
     focusDisplay: '焦点图显示', focusOff: '关', focusLarge: '大',
     uploadFocus: '上传焦点图',
