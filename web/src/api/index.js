@@ -134,6 +134,9 @@ export const artistApi = {
   // R4: 焦点图（off/small/large）
   setFocusImage: (id, data) => api.put(`/artist/orders/${id}/focus-image`, data),
   updatePrice: (id, data) => api.put(`/artist/orders/${id}/price`, data),
+  // B7: 额度池收款（记录/流水/撤销=负数记录）
+  getPayments: (id) => api.get(`/artist/orders/${id}/payments`),
+  addPayment: (id, data) => api.post(`/artist/orders/${id}/payments`, data),
   // R33: 签名 URL 批量刷新（防 15min 过期 403）
   refreshSignatures: (paths) => api.post('/artist/refresh-signatures', { paths }),
   // R30d: 流程状态机（推进/打回/关闭跟踪；stageId 为目标节点 ID，SPEC-002 必填）

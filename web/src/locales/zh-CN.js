@@ -192,6 +192,8 @@ export default {
     deliverables: '📦 交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
     // SPEC-003: 价格与付款
     priceTitle: '💰 价格明细', finalPrice: '最终价格', installmentsTitle: '付款节点', paid: '已付', unpaid: '未付',
+    // B7: 额度池付款进度
+    payPaid: '已付', payNext: '下期应付', payRemaining: '待付', payTotal: '总额',
     contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
     contactArtist: '画师QQ', contactAdmin: '管理员QQ', copyQq: '复制', copied: '已复制',
     noOrdersTitle: '未找到订单', noOrdersDesc: '该QQ号在本画师处没有订单记录，请核对QQ号是否正确。',
@@ -341,7 +343,16 @@ export default {
     commTitle: '客户沟通', commQq: 'QQ:',
     commPriceSummary: '价格小结：总价{total} / 已付{paid} / 待付{unpaid}',
     commCopyBtn: '复制文案并唤起QQ', commCopied: '已复制节点文案，正在唤起QQ',
-    commNoQq: '未设置客户QQ', commNoStage: '该订单未接入流程节点，暂无话术', commNoSpeech: '当前节点暂无话术'
+    commNoQq: '未设置客户QQ', commNoStage: '该订单未接入流程节点，暂无话术', commNoSpeech: '当前节点暂无话术',
+    // B7: 额度池收款区
+    payTitle: '收款记录', payAddBtn: '+ 记录收款',
+    payPaid: '已收', payFinal: '应收', payRemaining: '待收',
+    payFlowTitle: '收款流水', payRevoke: '撤销', payEmpty: '暂无收款记录',
+    payRefTitle: '应收参考（工作流节点）',
+    payRefPaid: '已收', payRefPartial: '部分 {amount}', payRefPending: '待收',
+    payDialogTitle: '记录收款', payAmountLabel: '收款金额（元）', payAmountPlaceholder: '输入金额',
+    payNoteLabel: '备注（可选）', payNotePlaceholder: '如：微信转账、定金',
+    paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
@@ -508,6 +519,9 @@ export default {
     confirmRemove: '确定移除画师「{name}」？该画师的所有订单、作品数据将被永久删除！',
     confirmRemoveTitle: '⚠️ 危险操作', confirmRemoveBtn: '确定移除',
     artistOrders: '📦 订单记录', noOrders: '暂无订单', statusUpdated: '状态已更新',
+    // B7: 订单行展开——收款摘要
+    payPaid: '已收', payFinal: '应收', payRemaining: '待收',
+    payRefPaid: '已收', payRefPartial: '部分', payRefPending: '待收', payNoData: '暂无付款信息',
     transferAdmin: '🔑 更换管理员', transferTitle: '更换管理员账号',
     transferStep1Title: '验证当前管理员', transferStep2Title: '验证新管理员',
     currentAdminQq: '当前管理员QQ', newAdminQq: '新管理员QQ',
