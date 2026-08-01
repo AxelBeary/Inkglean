@@ -1,5 +1,96 @@
 # 变更日志
 
+## v0.24 — 2026-08-02
+
+### ✨ 功能
+
+- **档位展示柜**（REQ-013 #9）：档位区从固定高度裁切卡片改为"菜单 + 大图切换"展示柜模式，图片完整显示不裁切，移动端左右滑动切换，4 模板统一生效
+- **档位三态**（REQ-013 #10）：档位可见性三态（开 / 只展示 / 不展示），迁移 v25 + API 过滤 + 下单校验，替代"删除即消失"
+- **接稿设置独立标签页**（REQ-013 #4）：设置页新增"接稿设置"tab（名额/额度/缓冲整体挪入），名额概览改人话文案（复用 slotDisplay）+ 合并进度条 + 整卡跳转接稿设置
+- **手动录单侧边栏入口**（REQ-013 #6）：侧边栏新增手动录单常驻菜单项
+- **统计卡可点击**（REQ-013 #2）：仪表盘三张统计卡点击跳转订单列表对应筛选
+- **留言管理页面**（REQ-013 #1）：画师端独立留言管理页（状态筛选/回复/通过/拒绝），侧边栏入口 + 未处理角标
+- **快捷按钮自定义**（REQ-013 #3）：候选按钮池 + 勾选自定义（3~9 个），命名与侧边栏统一
+
+### 🐛 修复
+
+- **P0 审计修复**（3 项）：reset 禁止活跃订单 + 价格加减法 + 看板队列过滤 + 标签 UI（508 测试全绿）
+- **看板完成订单驻留**（REQ-013 #7）：工作流 done 订单交付入口 + 完成区沉底 + 7 天过期隐藏
+
+### 📊 测试
+
+- 后端 489 + 前端 87 + E2E 5 = 581 个用例
+
+---
+
+## v0.23 — 2026-08-01
+
+### ✨ 功能
+
+- **额度池**（B7）：订单收款流水表 order_payments + 已收总额冗余字段 paid_total_cents（迁移 v24），收款/撤销 API，分期三态推算（paid/partial/pending）
+- **额度池前端**：画师端收款区（记录/撤销弹窗 + 进度条 + 流水列表），客户端 track 进度条（已付/下期/待付/总额），管理端订单行展开收款流水
+
+### 🐛 修复
+
+- 话术变量替换 BUG 修复
+- 删除 adjustInstallments 遗留接口
+- admin 订单列表补 paidTotalCents/finalPriceCents/installments 字段
+
+### 📊 测试
+
+- 后端 482 个用例全绿
+
+---
+
+## v0.22 — 2026-08-01
+
+### ✨ 功能
+
+- **TypeScript 迁移完成**（A3）：features/ + utils/ + middleware/ 全部 JS→TS（29 文件），tsc --noEmit 零错误
+- **Playwright E2E**（A2）：5 条核心路径端到端测试，接入 GitHub Actions CI（chromium + global-setup 自动构建）
+- **Sentry 前端**（A1）：前端 SDK 接入，DSN 环境变量开关 + errorHandler 上报
+- **EP CSS 按需引入**（A4）：删全量 index.css + JS API 组件手动补样式，gzip 93→46kB（-47kB）
+
+### 🐛 修复
+
+- PaymentBar 暗色适配（A5）：段底/文字亮度改 CSS 变量 + html.dark 覆写
+
+### 📊 测试
+
+- 后端 469 + 前端 87 + E2E 5 = 561 个用例
+
+---
+
+## v0.21 — 2026-07-31
+
+### ✨ 功能
+
+- **TypeScript 渐进迁移启动**：tsconfig + types/entities + pricing/shared 迁移 .ts + tsx 运行时（零配置 .ts/.js 混存）+ typecheck 脚本
+- **Sentry 后端**：错误监控接入，DSN 环境变量开关
+- **Playwright E2E 框架**：独立 DB + 预登录 token + zh-CN 强制，5 条核心路径 12.9s 全绿
+
+### 🔧 工程化
+
+- Dockerfile + compose 支持前端 Sentry DSN 构建时注入（ARG VITE_SENTRY_DSN）
+- tsx 移 dependencies + entrypoint 改 tsx（Docker 部署适配 TS 迁移）
+
+---
+
+## v0.20 — 2026-07-31
+
+### ✨ 功能
+
+- **vue-i18n v11 升级**：前端国际化框架从 v9 升级到 v11（零 breaking change）
+- **流程比例美化**：PaymentBar 色相区分 / grip 拖拽手柄 / 标尺刻度 / 圆角重做
+- **主题切换 FAB**：亮暗/中英切换按钮从右上角 absolute 重做为右下角固定 FAB
+- **EP 按需引入**：Element Plus 从全量引入改为按需引入
+
+### 🐛 修复
+
+- QueueBoard getWorkflow 静默失败改为 console.warn 输出
+
+---
+
 ## v0.19 — 2026-08-01
 
 ### ✨ 功能

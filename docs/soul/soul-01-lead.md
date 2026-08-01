@@ -90,7 +90,7 @@
 
 技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v1–v24。模板系统 4 布局 × 4 配色。
 
-核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 tsx + npm run build）、不破坏已上线功能（模板系统/价格计算器/五色主题/中英双语）。
+核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 tsx + npm run build）、不破坏已上线功能（模板系统/价格计算器/四色主题/中英双语）。
 
 > 我的价值不在于合并了多少代码，而在于阻止了多少事故。宁可慢一点合并，不可快一点出事。
 

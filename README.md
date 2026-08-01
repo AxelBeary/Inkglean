@@ -61,6 +61,21 @@
 - **点赞**：客户主页作品心形点赞（匿名/可取消/同浏览器去重），微动画 + 计数（v0.19）
 - **留言板**：画师主页留言墙（先审后显，画师审核 + 管理员兜底），画师可回复，3 端（v0.19）
 - **系统自检**：管理后台按需触发 8 项检查（数据库/迁移/上传/磁盘/完整性/备份/JWT/Node），列表+折叠详情 + 诊断包下载（v0.19）
+- **vue-i18n v11 升级**：前端国际化框架从 v9 升级到 v11（v0.20）
+- **流程比例美化**：PaymentBar 色相区分/grip/标尺/圆角重做（v0.20）
+- **主题切换 FAB**：亮暗/中英切换按钮重做为右下角固定 FAB（v0.20）
+- **EP 按需引入**：Element Plus 从全量引入改为按需引入，减小打包体积（v0.20）
+- **TypeScript 渐进迁移**：后端 features/ + utils/ + middleware/ 全部迁移至 TS，tsx 运行时零配置（v0.21 起，v0.22 完成）
+- **Playwright E2E**：5 条核心路径端到端测试，已接入 GitHub Actions CI（v0.22）
+- **Sentry 监控**：后端 + 前端错误监控接入（v0.22）
+- **额度池**：订单收款流水（order_payments）+ 已收总额冗余字段 + 分期三态推算（paid/partial/pending）（v0.23）
+- **档位展示柜**：档位区从裁切卡片改为菜单+大图切换（不裁切），移动端滑动切换（v0.24）
+- **档位三态**：档位可见性三态（开/只展示/不展示），替代删除即消失（v0.24）
+- **接稿设置**：设置页新增独立"接稿设置"标签页（名额/额度/缓冲），名额概览改人话文案（v0.24）
+- **手动录单入口**：侧边栏新增手动录单常驻入口（v0.24）
+- **统计卡可点击**：仪表盘统计卡点击跳转对应订单筛选列表（v0.24）
+- **留言管理页面**：画师端独立留言管理页（筛选/回复/通过/拒绝），侧边栏入口 + 角标（v0.24）
+- **快捷按钮自定义**：仪表盘快捷按钮候选池 + 勾选自定义（3~9 个），命名与侧边栏统一（v0.24）
 
 ## 🛠️ 技术栈
 
@@ -70,7 +85,10 @@
 | 后端 | Fastify 5 + better-sqlite3（Feature-based 架构） |
 | 部署 | Docker Compose（多阶段构建）+ Caddy（自动 HTTPS + healthcheck） |
 | 认证 | HMAC-SHA256 签名会话 + httpOnly cookie + 登录码 |
-| 测试 | Vitest（后端 445 + 前端 87 = 532 个用例，含路由层/价格计算器/报价焦点图/流程状态机/备注删除/截稿日/强调色/仪表盘/节点话术/名额缓冲/留言板/系统自检测试，内存数据库） |
+| 测试 | Vitest（后端 489 + 前端 87 = 576 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
+| 类型系统 | TypeScript（渐进迁移，features/ + utils/ + middleware/ 全部 TS） |
+| 运行时 | tsx（后端 .ts/.js 混存，零配置） |
+| 监控 | Sentry（后端 + 前端，DSN 环境变量开关） |
 | 工程化 | ESLint + Prettier + GitHub Actions CI |
 
 ## 🚀 快速开始
@@ -107,7 +125,7 @@ npm run dev        # 启动 Vite 开发服务器 (http://localhost:5173)
 
 # 测试
 cd server
-npm test           # 运行全部 445 个后端测试用例
+npm test           # 运行全部 489 个后端测试用例
 
 # Lint
 cd server && npm run lint
@@ -157,11 +175,11 @@ cd web && npm run lint
 - [维护说明书](docs/维护说明书.md) — 部署、备份、运维手册
 - [开发自参考](docs/开发自参考.md) — 架构设计、API 参考、已知注意事项（60 条）
 - [开发→生产切换指南](docs/开发→生产切换指南.md) — 开发模式切生产的完整检查清单
-- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.19）
+- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.24）
 - [主题规格](docs/archive/theme-spec.md) — 五色主题 + 文楷字体设计规格（已归档）
 - [流程与比例计划](docs/archive/plan-workflow-payment.md) — 流程收款系统设计文档（已归档）
 - [TDD 规格文档](docs/archive/tdd-spec-v0.1.md) — 测试用例定义（TC-O/A/R/V/W/RT）（已归档）
-- [待修复问题清单](docs/待修复问题清单.md) — 审计问题追踪（v0.13 批次已关闭，UI-5/UI-6 开放）
+- [待修复问题清单](docs/待修复问题清单.md) — 问题追踪（P0 ✅ 已修 / P1 🔵 修复中 / PERF-1 🔵 修复中）
 - [模板重构规划](docs/archive/plan-template-refactor.md) — 布局×配色模板系统设计文档（已归档）
 - [价格计算器规划](docs/archive/plan-price-calculator.md) — 增项/倍率/分期计算设计文档（已归档）
 - [协作规则](docs/archive/协作规则.md) — 多角色 Agent 协作开发规范（已归档，日常以 soul/ 为准）

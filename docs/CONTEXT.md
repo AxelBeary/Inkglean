@@ -59,7 +59,7 @@
 | 类型系统 | TypeScript（渐进迁移中） | v0.21 起，v0.22 完成 features/ + utils/ + middleware/ 全部 TS；剩余 app.js/index.js/db/ 入口 |
 | 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL |
 | 部署 | Docker Compose + Caddy | 容器化 |
-| 测试 | Vitest（后端 482 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
+| 测试 | Vitest（后端 489 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则
