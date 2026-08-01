@@ -104,8 +104,8 @@
                 >
                   <span v-if="form.tierId === tier.id" class="tier-card-check">✓</span>
                   <img
-                    v-if="tier.example_image_path"
-                    :src="`/uploads/${tier.example_image_path}`"
+                    v-if="tier.example_image"
+                    :src="`/uploads/${tier.example_image}`"
                     class="tier-card-img" alt=""
                   />
                   <div class="tier-card-body">
