@@ -1,12 +1,47 @@
+<script>
+// #3: 快捷按钮候选池常量（命名导出，供 Settings.vue 配置区共用）
+/** localStorage 键（MVP：后续三号补 DB 字段后切换存储） */
+export const QUICK_ACTIONS_KEY = 'huiyue_quick_actions'
+
+/** 候选池（~10 个，命名与侧边栏 menu.* 完全一致） */
+export const QUICK_ACTION_POOL = [
+  { key: 'dashboard', icon: '📊', labelKey: 'menu.dashboard', route: '/dashboard' },
+  { key: 'queue', icon: '📋', labelKey: 'menu.queue', route: '/queue' },
+  { key: 'manual', icon: '✍️', labelKey: 'menu.manualOrder', route: '/orders?action=manual' },
+  { key: 'orders', icon: '📦', labelKey: 'menu.orders', route: '/orders' },
+  { key: 'guestbook', icon: '💬', labelKey: 'menu.guestbook', route: '/guestbook' },
+  { key: 'tiers', icon: '💰', labelKey: 'menu.tiers', route: '/tiers' },
+  { key: 'artworks', icon: '🖼️', labelKey: 'menu.artworks', route: '/artworks' },
+  { key: 'settings', icon: '⚙️', labelKey: 'menu.settings', route: '/settings' },
+  { key: 'preview', icon: '👁️', labelKey: 'menu.preview', route: null }
+]
+
+/** 默认 6 个（与改版前一致） */
+export const QUICK_ACTIONS_DEFAULT = ['queue', 'manual', 'orders', 'artworks', 'tiers', 'settings']
+
+/** 读取 localStorage 配置（无效/缺失 → 默认副本） */
+export function readQuickActionsConfig() {
+  try {
+    const raw = localStorage.getItem(QUICK_ACTIONS_KEY)
+    if (!raw) return [...QUICK_ACTIONS_DEFAULT]
+    const keys = JSON.parse(raw)
+    if (!Array.isArray(keys) || keys.length === 0) return [...QUICK_ACTIONS_DEFAULT]
+    // 过滤非法 key，保持候选池顺序
+    const valid = QUICK_ACTION_POOL.filter(a => keys.includes(a.key)).map(a => a.key)
+    return valid.length ? valid : [...QUICK_ACTIONS_DEFAULT]
+  } catch { return [...QUICK_ACTIONS_DEFAULT] }
+}
+</script>
+
 <template>
-  <!-- 快捷操作区：6 卡片固定 2×3 网格（C50/C52 不可自定义） -->
+  <!-- #3: 快捷操作区（可自定义：候选池 + localStorage 配置，3 列网格自适应行数） -->
   <div class="quick-grid">
     <div
-      v-for="action in actions" :key="action.route"
+      v-for="action in activeActions" :key="action.key"
       class="quick-card" role="button" tabindex="0"
-      @click="$router.push(action.route)"
-      @keydown.enter="$router.push(action.route)"
-      @keydown.space.prevent="$router.push(action.route)"
+      @click="go(action)"
+      @keydown.enter="go(action)"
+      @keydown.space.prevent="go(action)"
     >
       <span class="quick-icon">{{ action.icon }}</span>
       <span class="quick-name">{{ $t(action.labelKey) }}</span>
@@ -15,15 +50,27 @@
 </template>
 
 <script setup>
-/** 固定操作项（验收 §3.3；图库管理实际路由为 /artworks——验收标准中 /gallery 不存在） */
-const actions = [
-  { icon: '📋', labelKey: 'dashboard.queueBoard', route: '/queue' },
-  { icon: '✍️', labelKey: 'dashboard.manualOrder', route: '/orders?action=manual' },
-  { icon: '📦', labelKey: 'dashboard.allOrders', route: '/orders' },
-  { icon: '🖼️', labelKey: 'dashboard.artworks', route: '/artworks' },
-  { icon: '💰', labelKey: 'dashboard.tiers', route: '/tiers' },
-  { icon: '⚙️', labelKey: 'dashboard.settings', route: '/settings' }
-]
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useArtistStore } from '../../../stores/artist.js'
+
+const router = useRouter()
+const store = useArtistStore()
+
+const activeActions = computed(() =>
+  readQuickActionsConfig()
+    .map(k => QUICK_ACTION_POOL.find(a => a.key === k))
+    .filter(Boolean)
+)
+
+function go(action) {
+  // 主页预览：动态拼接 subdomain（新窗口，与 Settings 预览行为一致）
+  if (action.key === 'preview') {
+    if (store.subdomain) window.open(`/artist/${store.subdomain}`, '_blank', 'noopener')
+    return
+  }
+  router.push(action.route)
+}
 </script>
 
 <style scoped>

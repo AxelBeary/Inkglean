@@ -119,6 +119,8 @@ export default {
   menu: {
     logo: 'HuiYue', dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
     manualOrder: 'Manual Entry', tiers: 'Pricing', artworks: 'Portfolio',
+    guestbook: 'Guestbook',
+    preview: 'Preview Page',
     rules: 'Guidelines', settings: 'Page Settings', admin: 'Admin', logout: 'Log out',
     collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu'
   },
@@ -222,6 +224,14 @@ export default {
     artistTag: 'Artist',
     loadMore: 'Load more',
     noMore: 'No more messages'
+  },
+  // #1: artist-side guestbook management page
+  guestbookManage: {
+    title: '💬 Guestbook Management',
+    all: 'All',
+    replyLabel: 'Artist reply',
+    editReply: 'Edit reply',
+    rejectConfirm: 'Reject this message? It will no longer appear on your public page.'
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
@@ -420,6 +430,10 @@ export default {
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabTemplate: 'Page Template', tabWorkflow: 'Workflow & Payment',
     tabRules: 'Rules', tabCommission: 'Commission Settings',
+    // #3: quick actions config
+    quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons (3-9)',
+    quickHint: 'Check the buttons you want, then save. The dashboard quick area will follow.',
+    quickSave: 'Save quick actions', quickSaved: 'Quick actions saved', quickLimitError: 'Please select 3-9 quick actions',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
