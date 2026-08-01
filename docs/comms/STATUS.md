@@ -32,7 +32,7 @@
 | 二号 | v0.24-A 前端（**三号后端已合入，开工**） | `feat/v024-frontend` / `../artist-commission-fe` | `01-to-02-v024-frontend-20260801.md` |
 | 三号 | ✅ v0.24-A 后端已合入，空闲待命 | — | — |
 | 四号 | ✅ REQ-013 整理完毕，空闲待命 | — | — |
-| 五号 | ✅ 空闲待命 | — | — |
+| 五号 | P0 三项修复（reset 禁止 + 价格加减法 + 看板标签） | `fix/p0-audit-fixes` / `../artist-commission-p0` | `01-to-05-p0-fixes-20260802.md` |
 
 ---
 ## REQ-013 画师反馈处理进度
@@ -58,6 +58,7 @@
 | master | 主 worktree（一号专用） | 当前 `91de230` |
 | feat/v024-tier-visibility | `../artist-commission-v024`（待三号建） | 三号 #10 后端 |
 | feat/v024-frontend | `../artist-commission-fe`（待二号切） | 二号 v0.24-A 前端 |
+| fix/p0-audit-fixes | `../artist-commission-p0`（待五号建） | 五号 P0 修复 |
 
 ---
 ## 已知遗留（非阻塞）
