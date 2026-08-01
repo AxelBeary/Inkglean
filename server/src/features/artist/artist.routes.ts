@@ -90,7 +90,8 @@ export default async function artistRoutes(fastify) {
       ...artist,
       tiers: artistService.getTiers(artist.id),
       artworks: artistService.getArtworks(artist.id),
-      rules: artistService.getRules(artist.id)
+      rules: artistService.getRules(artist.id),
+      slotDisplay: artistService.computeSlotDisplay(artist)
     }
   })
 
