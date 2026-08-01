@@ -33,8 +33,8 @@ describe('封面图 (Cover Artwork)', () => {
     expect(row.is_cover).toBe(1)
   })
 
-  // TC-CV-02: 设新封面 — 旧封面自动取消
-  it('TC-CV-02: 设新封面时同画师其他作品自动取消', () => {
+  // TC-CV-02: 多张封面共存（用户原声：多张来回滚动）
+  it('TC-CV-02: 设多张封面时共存，不互相取消', () => {
     const a1 = addArtwork('作品1')
     const a2 = addArtwork('作品2')
     const a3 = addArtwork('作品3')
@@ -42,10 +42,10 @@ describe('封面图 (Cover Artwork)', () => {
     artistService.setCover(artist.id, a1.id)
     artistService.setCover(artist.id, a2.id)
 
-    // a1 应被取消
+    // a1 仍是封面（多张共存）
     const r1 = db.prepare('SELECT is_cover FROM artworks WHERE id = ?').get(a1.id)
-    expect(r1.is_cover).toBe(0)
-    // a2 是封面
+    expect(r1.is_cover).toBe(1)
+    // a2 也是封面
     const r2 = db.prepare('SELECT is_cover FROM artworks WHERE id = ?').get(a2.id)
     expect(r2.is_cover).toBe(1)
     // a3 从未设过

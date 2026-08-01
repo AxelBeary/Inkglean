@@ -355,17 +355,12 @@ export function deleteArtwork(artworkId: number): void {
 // ============================================
 
 /**
- * 设为封面（事务内：同画师其他作品自动取消 is_cover）
- * 一个画师最多 1 个封面
+ * 设为封面（多张共存，用户原声 REQ-013 #5："多张来回滚动"）
+ * 不取消其他封面——画师可设多张，客户端自动轮播
  */
 export function setCover(artistId: number, artworkId: number): Artwork | undefined {
-  return db.transaction(() => {
-    // 先取消同画师所有封面
-    db.prepare('UPDATE artworks SET is_cover = 0 WHERE artist_id = ?').run(artistId)
-    // 设新封面
-    db.prepare('UPDATE artworks SET is_cover = 1 WHERE id = ? AND artist_id = ?').run(artworkId, artistId)
-    return getArtworkById(artworkId)
-  })()
+  db.prepare('UPDATE artworks SET is_cover = 1 WHERE id = ? AND artist_id = ?').run(artworkId, artistId)
+  return getArtworkById(artworkId)
 }
 
 /** 取消封面 */
