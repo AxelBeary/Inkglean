@@ -272,4 +272,29 @@ describe('流程与比例服务 (Workflow Service)', () => {
     expect(result.success).toBe(true)
     expect(wf.getWorkflow(artist.id)).toHaveLength(6)
   })
+
+  // ─── P0-1: resetArtistStages 有活跃订单时禁止重置 ───
+
+  it('TC-W-P01: 有活跃订单时 reset 被拒绝（STAGES_RESET_BLOCKED）', () => {
+    seed(artist.id)
+    // 创建一个非终态订单
+    seedOrder(artist.id, { status: 'wip' })
+
+    expect(() => wf.resetArtistStages(artist.id)).toThrow('STAGES_RESET_BLOCKED')
+  })
+
+  it('TC-W-P01b: 仅有终态订单时 reset 正常', () => {
+    seed(artist.id)
+    seedOrder(artist.id, { status: 'delivered' })
+    seedOrder(artist.id, { status: 'cancelled' })
+
+    const result = wf.resetArtistStages(artist.id)
+    expect(result.length).toBeGreaterThan(0)
+  })
+
+  it('TC-W-P01c: 无订单时 reset 正常', () => {
+    seed(artist.id)
+    const result = wf.resetArtistStages(artist.id)
+    expect(result.length).toBeGreaterThan(0)
+  })
 })

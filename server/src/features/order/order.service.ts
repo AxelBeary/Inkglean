@@ -506,18 +506,17 @@ export function computeInstallmentStatuses(
 }
 
 /**
- * 重算订单最终价格
- * final_price_cents = total_price_cents + Σ(extra_items.price_cents)
- * 无 total_price_cents 时从 0 起算
+ * 加减法调整订单最终价格（P0-2: 替代 recalcFinalPrice 重算）
+ * 在当前 final_price_cents 基础上加减 delta，不从头重算
+ * 手动改价不会被后续增项操作覆盖
  */
-function recalcFinalPrice(orderId: number): number {
-  const order = db.prepare('SELECT total_price_cents FROM orders WHERE id = ?').get(orderId) as { total_price_cents: number | null } | undefined
-  const base = order?.total_price_cents ?? 0
-  const sum = (db.prepare('SELECT COALESCE(SUM(price_cents), 0) as s FROM order_extra_items WHERE order_id = ?').get(orderId) as { s: number }).s
-  const finalCents = base + sum
+function adjustFinalPrice(orderId: number, deltaCents: number): number {
+  const order = db.prepare('SELECT final_price_cents, total_price_cents FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null } | undefined
+  const currentFinal = order?.final_price_cents ?? order?.total_price_cents ?? 0
+  const newFinal = currentFinal + deltaCents
   db.prepare('UPDATE orders SET final_price_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(finalCents, orderId)
-  return finalCents
+    .run(newFinal, orderId)
+  return newFinal
 }
 
 /**
@@ -558,24 +557,24 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
   const cents = priceCents ?? 0
 
   return db.transaction(() => {
-    db.prepare('INSERT INTO order_extra_items (order_id, name, description, price_cents) VALUES (?, ?, ?, ?)')
-      .run(orderId, name, description || null, cents)
+      db.prepare('INSERT INTO order_extra_items (order_id, name, description, price_cents) VALUES (?, ?, ?, ?)')
+        .run(orderId, name, description || null, cents)
 
-    // 重算最终价格
-    const finalCents = recalcFinalPrice(orderId)
+      // P0-2: 加减法调整最终价格（不重算，保护手动改价）
+      const finalCents = adjustFinalPrice(orderId, cents)
 
-    // 系统备注
-    const priceStr = cents > 0 ? `+${formatCents(cents)}` : '（不计费）'
-    let noteContent = `📎 附加工作项「${name}」${priceStr}`
-    const paidTotal = order.paid_total_cents ?? 0
-    if (paidTotal >= finalCents) {
-      noteContent += '（已付清订单追加，线下结算）'
-    }
-    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
-      .run(orderId, noteContent)
+      // 系统备注
+      const priceStr = cents > 0 ? `+${formatCents(cents)}` : '（不计费）'
+      let noteContent = `📎 附加工作项「${name}」${priceStr}`
+      const paidTotal = order.paid_total_cents ?? 0
+      if (paidTotal >= finalCents) {
+        noteContent += '（已付清订单追加，线下结算）'
+      }
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+        .run(orderId, noteContent)
 
-    return getOrder(orderId)
-  })()
+      return getOrder(orderId)
+    })()
 }
 
 /** 附加工作项行 */
@@ -598,24 +597,24 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
   if (!item) throw new AppError(E.NOT_FOUND, 404)
 
   return db.transaction(() => {
-    db.prepare('DELETE FROM order_extra_items WHERE id = ?').run(itemId)
+      db.prepare('DELETE FROM order_extra_items WHERE id = ?').run(itemId)
 
-    // 重算最终价格
-    const finalCents = recalcFinalPrice(orderId)
+      // P0-2: 加减法调整最终价格（不重算，保护手动改价）
+      const finalCents = adjustFinalPrice(orderId, -item.price_cents)
 
-    // 系统备注
-    const priceStr = item.price_cents > 0 ? `-${formatCents(item.price_cents)}` : '（不计费）'
-    let noteContent = `📎 移除附加工作项「${item.name}」${priceStr}`
-    const order = getOrder(orderId)
-    const paidTotal = order?.paid_total_cents ?? 0
-    if (paidTotal >= finalCents) {
-      noteContent += '（已付清订单移除，线下结算）'
-    }
-    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
-      .run(orderId, noteContent)
+      // 系统备注
+      const priceStr = item.price_cents > 0 ? `-${formatCents(item.price_cents)}` : '（不计费）'
+      let noteContent = `📎 移除附加工作项「${item.name}」${priceStr}`
+      const order = getOrder(orderId)
+      const paidTotal = order?.paid_total_cents ?? 0
+      if (paidTotal >= finalCents) {
+        noteContent += '（已付清订单移除，线下结算）'
+      }
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+        .run(orderId, noteContent)
 
-    return getOrder(orderId)
-  })()
+      return getOrder(orderId)
+    })()
 }
 
 // ─── SPEC-004: 名额与缓冲系统 ───

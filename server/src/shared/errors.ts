@@ -173,7 +173,10 @@ export const E = {
   NOT_BUFFER_ORDER: 'NOT_BUFFER_ORDER',
 
   // 流程（v0.19 P1-5）
-  STAGE_IN_USE: 'STAGE_IN_USE',
+    STAGE_IN_USE: 'STAGE_IN_USE',
+
+    // 流程重置（v0.24 P0-1）
+    STAGES_RESET_BLOCKED: 'STAGES_RESET_BLOCKED',
 
   // 档位三态（v0.24 #10）
   TIER_NOT_AVAILABLE: 'TIER_NOT_AVAILABLE'
@@ -332,7 +335,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   NOT_BUFFER_ORDER: '该订单不在缓冲区',
 
   // 流程（v0.19 P1-5）
-  STAGE_IN_USE: '该节点下有进行中的订单，请先完成或转移后再删除',
+    STAGE_IN_USE: '该节点下有进行中的订单，请先完成或转移后再删除',
+
+    // 流程重置（v0.24 P0-1）
+    STAGES_RESET_BLOCKED: '有 {count} 个进行中订单，请先完成或关闭流程跟踪后再重置工作流',
 
   // 档位三态（v0.24 #10）
   TIER_NOT_AVAILABLE: '该档位暂不接受下单'

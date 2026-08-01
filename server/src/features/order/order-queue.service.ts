@@ -17,7 +17,7 @@ export function getArtistQueue(artistId: number): any[] {
     SELECT o.*, t.name as tier_name, t.price as tier_price
     FROM orders o
     LEFT JOIN price_tiers t ON o.tier_id = t.id
-    WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL}
+    WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL} AND o.queue_zone = 'formal'
     ORDER BY o.queue_position ASC
   `).all(artistId) as any[]
 }
@@ -32,11 +32,11 @@ export function reorderQueue(artistId: number, orderedIds: number[]): any[] {
     throw new AppError(E.QUEUE_EMPTY)
   }
 
-  // 校验所有 ID 属于该画师且为活跃订单
-  const activeOrders = (db.prepare(`
-    SELECT id FROM orders
-    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
-  `).all(artistId) as Array<{ id: number }>).map(r => r.id)
+  // 校验所有 ID 属于该画师且为正式区活跃订单
+    const activeOrders = (db.prepare(`
+      SELECT id FROM orders
+      WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL} AND queue_zone = 'formal'
+    `).all(artistId) as Array<{ id: number }>).map(r => r.id)
 
   const idSet = new Set(activeOrders)
   for (const id of orderedIds) {

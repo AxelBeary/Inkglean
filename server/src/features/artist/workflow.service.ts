@@ -338,6 +338,14 @@ export function copyTemplateToArtist(artistId: number): void {
 
 /** 重置画师流程为默认模板（画师主动操作） */
 export function resetArtistStages(artistId: number): StageCamel[] {
+  // P0-1: 有活跃订单时禁止重置（防止 current_stage_id 悬挂引用）
+  const activeCount = (db.prepare(
+    "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status NOT IN ('delivered', 'cancelled')"
+  ).get(artistId) as { c: number }).c
+  if (activeCount > 0) {
+    throw new AppError(E.STAGES_RESET_BLOCKED, 400, { count: activeCount })
+  }
+
   return db.transaction(() => {
     db.prepare('DELETE FROM artist_workflow_stages WHERE artist_id = ?').run(artistId)
     const tpl = getDefaultTemplate()
