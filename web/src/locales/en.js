@@ -560,6 +560,8 @@ export default {
     speechVarCommon: 'Speech variables (click a speech box below, then click a variable to insert)',
     speechVarNoFocus: 'Click a speech editor first',
     speechEmpty: 'No speech yet',
+    // v0.27: random template toggle
+    randomTemplate: 'Random', randomTemplateHint: 'Available with multiple speech lines — picks one at random when sending',
     helpBtn: 'How it works', helpTitle: 'Workflow & Payment Guide',
     helpLines: [
       'Each stage is a step in your commission process; clients see progress in order.',

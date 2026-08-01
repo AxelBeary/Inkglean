@@ -558,6 +558,8 @@ export default {
     // #8: 话术界面改进（变量公共区 + 折叠预览）
     speechVarCommon: '话术变量（点下方编辑框后再点变量插入）', speechVarNoFocus: '先点击某个节点的话术编辑框',
     speechEmpty: '暂无话术',
+    // v0.27: 多模板随机开关
+    randomTemplate: '随机', randomTemplateHint: '多条话术时可开启，发送时随机选一条',
     helpBtn: '使用说明', helpTitle: '流程与比例使用说明',
     helpLines: [
       '每个节点代表约稿的一个阶段，客户会按顺序看到你的进度。',
