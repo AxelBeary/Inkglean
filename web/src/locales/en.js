@@ -122,7 +122,9 @@ export default {
     guestbook: 'Guestbook', slots: 'Slot Settings',
     preview: 'Preview Page',
     rules: 'Guidelines', settings: 'Page Settings', admin: 'Admin', logout: 'Log out',
-    collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu'
+    collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu',
+    // REQ-016 C: sidebar group titles
+    groupWork: 'Work', groupBiz: 'Business', groupFront: 'Storefront'
   },
   landing: {
     title: '🎨 Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
@@ -449,8 +451,8 @@ export default {
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
   settings: {
-    title: 'Page Settings', tabProfile: 'Profile', tabTemplate: 'Page Template', tabWorkflow: 'Workflow & Payment',
-    tabRules: 'Rules', tabCommission: 'Commission Settings',
+    title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
+    tabPrefs: 'Preferences', tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',
     // #3: quick actions config
     quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons (3-9)',
     quickHint: 'Check the buttons you want, then save. The dashboard quick area will follow.',
@@ -508,12 +510,11 @@ export default {
   // v0.26 C: Slot management page
   slots: {
     title: '📋 Slot Settings',
-    goDashboard: 'Go to Dashboard to switch →',
+    statusSection: 'Commission Status',
     slotSection: 'Slot Limits',
     quotaSection: 'Monthly Quota',
     queueSection: 'Queue Behavior',
     totalHint: 'Formal {n} + Buffer {m} = {sum} total slots',
-    movedHint: 'Slot, quota, and queue settings have moved to the Slot Settings page →',
     statusOpen: 'Currently accepting commissions',
     statusFull: 'Full — not accepting new orders',
     statusBreak: 'On break — not accepting orders',

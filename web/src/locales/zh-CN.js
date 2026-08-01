@@ -122,7 +122,9 @@ export default {
     guestbook: '留言管理', slots: '开稿管理',
     preview: '主页预览',
     rules: '须知编辑', settings: '主页设置', admin: '管理后台', logout: '退出登录',
-    collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单'
+    collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单',
+    // REQ-016 C: 侧边栏分组标题
+    groupWork: '工作', groupBiz: '经营', groupFront: '门面'
   },
   landing: {
     title: '🎨 画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
@@ -449,8 +451,8 @@ export default {
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
   settings: {
-    title: '主页设置', tabProfile: '基本资料', tabTemplate: '主页模板', tabWorkflow: '流程与比例',
-    tabRules: '须知编辑', tabCommission: '接稿设置',
+    title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
+    tabPrefs: '偏好', tabRules: '须知编辑', tabWorkflow: '流程与比例',
     quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮（3-9 个）',
     quickHint: '勾选后点保存生效，仪表盘快捷区将按此显示。',
     quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存', quickLimitError: '请选择 3-9 个快捷按钮',
@@ -507,12 +509,11 @@ export default {
   // v0.26 C: 开稿管理独立页
   slots: {
     title: '📋 开稿管理',
-    goDashboard: '去仪表盘切换 →',
+    statusSection: '接稿状态',
     slotSection: '名额设置',
     quotaSection: '月度额度',
     queueSection: '队列行为',
     totalHint: '正式 {n} + 缓冲 {m} = 合计 {sum} 席',
-    movedHint: '名额、额度、队列行为设置已移至「开稿管理」页面 →',
     statusOpen: '当前正在接受约稿',
     statusFull: '已接满，暂停接单',
     statusBreak: '休息中，暂不接单',

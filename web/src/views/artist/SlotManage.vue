@@ -3,12 +3,16 @@
     <h2 class="font-display">{{ $t('slots.title') }}</h2>
 
     <div v-loading="loading" class="slot-manage">
-      <!-- 当前状态只读卡片 -->
+      <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与仪表盘 StatusSwitch 同逻辑） -->
       <el-card class="slot-card" shadow="never">
+        <template #header><span>{{ $t('slots.statusSection') }}</span></template>
         <div class="status-row">
-          <el-tag :type="statusType" size="large">{{ $t(`common.statusShort.${profile?.status || 'open'}`) }}</el-tag>
+          <el-radio-group v-model="currentStatus" @change="updateStatus" size="large">
+            <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
+            <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
+            <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
+          </el-radio-group>
           <span class="status-desc">{{ statusDesc }}</span>
-          <router-link to="/dashboard" class="status-link">{{ $t('slots.goDashboard') }}</router-link>
         </div>
       </el-card>
 
@@ -103,6 +107,21 @@ const { t } = useI18n()
 const loading = ref(true)
 const saving = ref(false)
 const profile = ref(null)
+// REQ-016 B: 接稿状态即时切换（与仪表盘 StatusSwitch 同逻辑）
+const currentStatus = ref('open')
+const lastKnownStatus = ref('open')
+
+async function updateStatus(val) {
+  try {
+    await artistApi.updateProfile({ status: val })
+    lastKnownStatus.value = val
+    currentStatus.value = val
+    ElMessage.success(t('dashboard.statusUpdated'))
+  } catch (err) {
+    currentStatus.value = lastKnownStatus.value
+    ElMessage.error(err.message)
+  }
+}
 
 const form = reactive({
   batchLimitEnabled: false,
@@ -116,16 +135,8 @@ const form = reactive({
   bufferShortForm: false
 })
 
-const statusType = computed(() => {
-  const s = profile.value?.status
-  if (s === 'open') return 'success'
-  if (s === 'full') return 'warning'
-  if (s === 'break') return 'info'
-  return 'danger'
-})
-
 const statusDesc = computed(() => {
-  const s = profile.value?.status
+  const s = currentStatus.value
   if (s === 'open') return t('slots.statusOpen')
   if (s === 'full') return t('slots.statusFull')
   if (s === 'break') return t('slots.statusBreak')
@@ -161,6 +172,9 @@ onMounted(async () => {
   try {
     const p = await artistApi.getProfile()
     profile.value = p
+    // REQ-016 B: 初始化接稿状态
+    currentStatus.value = p.status || 'open'
+    lastKnownStatus.value = currentStatus.value
     Object.assign(form, {
       batchLimitEnabled: p.batch_limit != null,
       batchLimit: p.batch_limit ?? 0,
@@ -185,8 +199,6 @@ onMounted(async () => {
 .slot-card { border-radius: 12px; }
 .status-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .status-desc { color: var(--text-secondary); font-size: 14px; }
-.status-link { color: var(--el-color-primary); font-size: 13px; text-decoration: none; margin-left: auto; }
-.status-link:hover { text-decoration: underline; }
 .slot-config { display: flex; flex-direction: column; gap: 8px; }
 .slot-row { display: flex; align-items: center; gap: 12px; }
 .slot-input { width: 120px; }

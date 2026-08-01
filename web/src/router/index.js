@@ -32,7 +32,8 @@ const routes = [
   // v0.26 C: 开稿管理独立页（名额/额度/队列行为，从设置页移出）
   { path: '/slots', name: 'ArtistSlots', component: () => import('../views/artist/SlotManage.vue'), meta: { titleKey: 'menu.slots', requiresAuth: true } },
   // R42b: 须知编辑合并进设置页（旧链接重定向，不 404）
-  { path: '/rules', redirect: '/settings?tab=rules' },
+  // REQ-016 A: 须知并入「主页展示」tab（showcase）
+  { path: '/rules', redirect: '/settings?tab=showcase' },
 
   // ─── 管理员后台 ───
   { path: '/admin', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { titleKey: 'admin.panelTitle', requiresAdmin: true } },

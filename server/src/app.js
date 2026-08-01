@@ -3,7 +3,7 @@ import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import * as Sentry from '@sentry/node'
-import { resolve, join, relative } from 'path'
+import { resolve, join, relative, sep } from 'path'
 import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
@@ -265,7 +265,8 @@ export async function buildApp(opts = {}) {
       }
       const filePath = resolve(WEB_DIST, '.' + urlPath)
       // P2-#22: 路径穿越防护加分隔符（防 /app/web/dist2/secret 前缀匹配）
-      if ((filePath === WEB_DIST || filePath.startsWith(WEB_DIST + '/')) && existsSync(filePath) && statSync(filePath).isFile()) {
+      // v0.28 D: Windows 下 resolve() 产生反斜杠，用 path.sep 兼容（五号发现：本地 E2E 全挂）
+      if ((filePath === WEB_DIST || filePath.startsWith(WEB_DIST + sep)) && existsSync(filePath) && statSync(filePath).isFile()) {
         const ext = filePath.slice(filePath.lastIndexOf('.'))
         reply.header('Content-Type', MIME[ext] || 'application/octet-stream')
         return reply.send(createReadStream(filePath))

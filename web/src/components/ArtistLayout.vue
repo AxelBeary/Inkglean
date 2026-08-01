@@ -19,13 +19,17 @@
 
         <!-- 菜单（R21: collapse 模式图标化，悬停 tooltip 显示文字） -->
         <el-menu :default-active="activeMenu" :collapse="collapsed" router class="sidebar-menu">
-          <el-menu-item v-for="item in MENU_ITEMS" :key="item.index" :index="item.index">
-            <!-- #1: 角标（待审核留言数）包裹图标，折叠态同样可见 -->
-            <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="menu-badge">
-              <el-icon><component :is="item.icon" /></el-icon>
-            </el-badge>
-            <span>{{ $t(item.labelKey) }}</span>
-          </el-menu-item>
+          <!-- REQ-016 C: 菜单分组（工作/经营/门面），折叠态 group 标题自动隐藏 -->
+          <el-menu-item-group v-for="group in menuGroups" :key="group.labelKey">
+            <template #title><span class="menu-group-title">{{ $t(group.labelKey) }}</span></template>
+            <el-menu-item v-for="item in group.items" :key="item.index" :index="item.index">
+              <!-- #1: 角标（待审核留言数）包裹图标，折叠态同样可见 -->
+              <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="menu-badge">
+                <el-icon><component :is="item.icon" /></el-icon>
+              </el-badge>
+              <span>{{ $t(item.labelKey) }}</span>
+            </el-menu-item>
+          </el-menu-item-group>
         </el-menu>
 
         <!-- 底部：身份区 + 偏好 -->
@@ -100,10 +104,14 @@
         </div>
       </template>
       <el-menu :default-active="activeMenu" router class="drawer-menu" @select="drawerVisible = false">
-        <el-menu-item v-for="item in MENU_ITEMS" :key="item.index" :index="item.index">
-          <el-icon><component :is="item.icon" /></el-icon>
-          <span>{{ $t(item.labelKey) }}</span>
-        </el-menu-item>
+        <!-- REQ-016 C: 抽屉与侧边栏同分组 -->
+        <el-menu-item-group v-for="group in menuGroups" :key="group.labelKey">
+          <template #title><span class="menu-group-title">{{ $t(group.labelKey) }}</span></template>
+          <el-menu-item v-for="item in group.items" :key="item.index" :index="item.index">
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ $t(item.labelKey) }}</span>
+          </el-menu-item>
+        </el-menu-item-group>
       </el-menu>
       <div class="drawer-footer">
         <div class="identity">
@@ -134,7 +142,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, DocumentAdd, ChatLineSquare, Tickets } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -146,32 +154,40 @@ const themeStore = useThemeStore()
 const activeMenu = computed(() => route.path)
 
 // ─── R21: 菜单项注册表（侧边栏与抽屉共用） ───
+// REQ-016 C: 手动录单移出菜单（订单管理页已有按钮），菜单分三组：工作/经营/门面
 const BASE_MENU_ITEMS = [
-  { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard' },
-  { index: '/queue', icon: List, labelKey: 'menu.queue' },
+  { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard', group: 'work' },
+  { index: '/queue', icon: List, labelKey: 'menu.queue', group: 'work' },
+  { index: '/orders', icon: Box, labelKey: 'menu.orders', group: 'work' },
   // v0.26 C: 开稿管理（排期看板后面）
-  { index: '/slots', icon: Tickets, labelKey: 'menu.slots' },
-  { index: '/orders', icon: Box, labelKey: 'menu.orders' },
-  // REQ-015: 手动录单独立页面入口
-  { index: '/orders/new', icon: DocumentAdd, labelKey: 'menu.manualOrder' },
-  { index: '/tiers', icon: Money, labelKey: 'menu.tiers' },
-  { index: '/artworks', icon: Picture, labelKey: 'menu.artworks' },
+  { index: '/slots', icon: Tickets, labelKey: 'menu.slots', group: 'biz' },
+  { index: '/tiers', icon: Money, labelKey: 'menu.tiers', group: 'biz' },
+  { index: '/artworks', icon: Picture, labelKey: 'menu.artworks', group: 'biz' },
   // #1: 留言管理（作品管理下方，待审核角标）
-  { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true },
+  { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true, group: 'biz' },
   // R42b: 须知编辑合并进设置页，菜单项移除
-  { index: '/settings', icon: Setting, labelKey: 'menu.settings' }
+  { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' }
 ]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
 // UI-7: 管理员追加"管理后台"入口
-const MENU_ITEMS = computed(() => {
+// REQ-016 C: 菜单分组渲染（工作/经营/门面），管理员后台追加到门面组
+const MENU_GROUPS = [
+  { key: 'work', labelKey: 'menu.groupWork' },
+  { key: 'biz', labelKey: 'menu.groupBiz' },
+  { key: 'front', labelKey: 'menu.groupFront' }
+]
+const menuGroups = computed(() => {
   const items = BASE_MENU_ITEMS.map(item =>
     item.hasBadge ? { ...item, badge: pendingMsgCount.value } : item
   )
   if (store.isAdmin) {
-    items.push({ index: '/admin', icon: Management, labelKey: 'menu.admin' })
+    items.push({ index: '/admin', icon: Management, labelKey: 'menu.admin', group: 'front' })
   }
-  return items
+  return MENU_GROUPS.map(g => ({
+    ...g,
+    items: items.filter(item => item.group === g.key)
+  }))
 })
 
 // ─── R21: 折叠状态管理 ───
@@ -291,6 +307,14 @@ function logout() {
   background: transparent;
   --el-menu-active-color: var(--color-primary);
   --el-menu-hover-bg-color: var(--bg-hover);
+}
+/* REQ-016 C: 菜单分组标题 */
+.menu-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #999);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 /* 展开态撑满 220px；折叠态 el-menu 原生 64px */
 .sidebar-menu:not(.el-menu--collapse) { width: 220px; }

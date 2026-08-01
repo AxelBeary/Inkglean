@@ -27,15 +27,41 @@
             <el-form-item :label="$t('settings.bioLabel')">
               <el-input v-model="form.bio" type="textarea" :rows="3" :placeholder="$t('settings.bioPlaceholder')" />
             </el-form-item>
-            <el-form-item :label="$t('settings.statusLabel')">
-              <el-radio-group v-model="form.status">
-                <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
-                <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
-                <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
-              </el-radio-group>
+            <el-form-item :label="$t('settings.contactQqLabel')">
+              <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
+              <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+      </el-tab-pane>
+
+      <!-- REQ-016 A: 主页展示（客户看到什么：公告/外链/平台链接/灵感标签/须知） -->
+      <el-tab-pane :label="$t('settings.tabShowcase')" name="showcase" lazy>
+        <el-card style="max-width: 700px" v-loading="loading">
+          <el-form :model="form" label-position="top" size="large">
+            <!-- F3: 主页公告（客户主页首屏展示，可选过期时间） -->
+            <el-form-item :label="$t('settings.announcementLabel')">
+              <el-input
+                v-model="form.announcement" type="textarea" :rows="3"
+                :placeholder="$t('settings.announcementPlaceholder')"
+                maxlength="500" show-word-limit
+              />
+              <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
+              <el-date-picker
+                v-model="form.announcementExpiresAt"
+                type="date"
+                value-format="YYYY-MM-DD"
+                :placeholder="$t('settings.announcementExpiresLabel')"
+                clearable
+                style="margin-top: 8px; width: 220px"
+              />
+              <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
             </el-form-item>
 
-            <!-- R15: 外链列表编辑器（替代旧微博/B站输入框） -->
+            <!-- R15: 外链列表编辑器 -->
             <el-form-item :label="$t('settings.linksLabel')">
               <div class="link-editor">
                 <div v-for="(link, index) in form.customLinks" :key="index" class="link-row">
@@ -100,10 +126,37 @@
               </div>
             </el-form-item>
 
-            <el-form-item :label="$t('settings.contactQqLabel')">
-              <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
-              <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
+            <el-form-item>
+              <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
             </el-form-item>
+          </el-form>
+        </el-card>
+
+        <!-- R42b: 须知编辑（并入主页展示，独立卡片 + 独立保存） -->
+        <el-card style="max-width: 700px; margin-top: 16px" v-loading="rulesLoading">
+          <template #header><span>{{ $t('settings.tabRules') }}</span></template>
+          <p class="form-hint" style="margin-bottom: 16px">{{ $t('rules.hint') }}</p>
+          <el-input
+            v-model="rulesContent" type="textarea" :rows="16"
+            :placeholder="$t('rules.placeholder')"
+          />
+          <div class="preview" v-if="rulesContent">
+            <h4 style="margin: 16px 0 8px; color: var(--text-secondary)">{{ $t('rules.preview') }}</h4>
+            <el-card shadow="never" class="preview-card">
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <div v-html="sanitizedRulesPreview"></div>
+            </el-card>
+          </div>
+          <el-button type="primary" style="margin-top: 16px" @click="saveRules" :loading="rulesSaving">
+            {{ $t('rules.save') }}
+          </el-button>
+        </el-card>
+      </el-tab-pane>
+
+      <!-- REQ-016 A: 偏好（系统怎么用：通知开关/默认面板/快捷按钮） -->
+      <el-tab-pane :label="$t('settings.tabPrefs')" name="prefs" lazy>
+        <el-card style="max-width: 600px" v-loading="loading">
+          <el-form :model="form" label-position="top" size="large">
             <el-form-item :label="$t('settings.notifyLabel')">
               <el-switch
                 v-model="form.notifyEnabled"
@@ -120,41 +173,16 @@
               </el-select>
               <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
             </el-form-item>
-            <!-- F3: 主页公告（客户主页首屏展示，可选过期时间） -->
-            <el-form-item :label="$t('settings.announcementLabel')">
-              <el-input
-                v-model="form.announcement" type="textarea" :rows="3"
-                :placeholder="$t('settings.announcementPlaceholder')"
-                maxlength="500" show-word-limit
-              />
-              <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
-              <el-date-picker
-                v-model="form.announcementExpiresAt"
-                type="date"
-                value-format="YYYY-MM-DD"
-                :placeholder="$t('settings.announcementExpiresLabel')"
-                clearable
-                style="margin-top: 8px; width: 220px"
-              />
-              <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
-            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
             </el-form-item>
           </el-form>
         </el-card>
-      </el-tab-pane>
 
-      <!-- #4: 接稿设置（v0.26 C: 名额/额度/队列行为已移至开稿管理页，此处仅保留快捷按钮） -->
-      <el-tab-pane :label="$t('settings.tabCommission')" name="commission">
-        <el-card style="max-width: 600px" v-loading="loading">
-          <el-form :model="form" label-position="top" size="large">
-            <!-- v0.26 C: 名额/额度/队列行为已移至开稿管理页 -->
-            <el-alert type="info" :closable="false" style="margin-bottom: 16px">
-              <router-link to="/slots">{{ $t('slots.movedHint') }}</router-link>
-            </el-alert>
-
-            <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
+        <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
+        <el-card style="max-width: 600px; margin-top: 16px" v-loading="loading">
+          <template #header><span>{{ $t('settings.quickTitle') }}</span></template>
+          <el-form label-position="top" size="large">
             <el-form-item :label="$t('settings.quickLabel')">
               <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
                 <el-checkbox
@@ -175,8 +203,8 @@
         </el-card>
       </el-tab-pane>
 
-      <!-- 主页模板 -->
-      <el-tab-pane :label="$t('templates.tab')" name="template" lazy>
+      <!-- 模板与风格 -->
+      <el-tab-pane :label="$t('settings.tabTemplate')" name="template" lazy>
         <el-card style="max-width: 700px" v-loading="loading">
           <p class="form-hint" style="margin-bottom: 20px">{{ $t('templates.hint') }}</p>
           <p class="template-label">{{ $t('templates.label') }}</p>
@@ -275,27 +303,6 @@
           </div>
         </el-card>
       </el-tab-pane>
-
-      <!-- R42b: 须知编辑（原 /rules 独立页面合并至此） -->
-      <el-tab-pane :label="$t('settings.tabRules')" name="rules" lazy>
-        <el-card style="max-width: 700px" v-loading="rulesLoading">
-          <p class="form-hint" style="margin-bottom: 16px">{{ $t('rules.hint') }}</p>
-          <el-input
-            v-model="rulesContent" type="textarea" :rows="16"
-            :placeholder="$t('rules.placeholder')"
-          />
-          <div class="preview" v-if="rulesContent">
-            <h4 style="margin: 16px 0 8px; color: var(--text-secondary)">{{ $t('rules.preview') }}</h4>
-            <el-card shadow="never" class="preview-card">
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <div v-html="sanitizedRulesPreview"></div>
-            </el-card>
-          </div>
-          <el-button type="primary" style="margin-top: 16px" @click="saveRules" :loading="rulesSaving">
-            {{ $t('rules.save') }}
-          </el-button>
-        </el-card>
-      </el-tab-pane>
     </el-tabs>
   </ArtistLayout>
 </template>
@@ -312,10 +319,15 @@ import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickA
 
 const { t } = useI18n()
 const route = useRoute()
-// R42b: /rules 重定向到 /settings?tab=rules 时直达须知 tab
-// #4: 支持 ?tab=commission 直达接稿设置（名额概览卡点击跳转）
-const VALID_TABS = ['profile', 'commission', 'template', 'rules']
-const activeTab = ref(VALID_TABS.includes(route.query.tab) ? route.query.tab : 'profile')
+// REQ-016 A: 4 Tab 重划（基本资料/主页展示/模板与风格/偏好）
+// 旧 tab 名兼容映射：rules→showcase（须知并入主页展示）、commission→prefs（接稿设置空壳删除，快捷按钮归偏好）
+const VALID_TABS = ['profile', 'showcase', 'template', 'prefs']
+const TAB_ALIASES = { rules: 'showcase', commission: 'prefs' }
+const rawTab = route.query.tab
+const activeTab = ref(
+  VALID_TABS.includes(rawTab) ? rawTab
+    : TAB_ALIASES[rawTab] || 'profile'
+)
 const loading = ref(true)
 const saving = ref(false)
 
@@ -350,8 +362,8 @@ async function saveRules() {
   }
 }
 
-// 首次切到须知 tab 时加载内容（懒加载）
-watch(activeTab, (tab) => { if (tab === 'rules') loadRules() }, { immediate: true })
+// 首次切到主页展示 tab 时加载须知内容（懒加载，须知并入主页展示）
+watch(activeTab, (tab) => { if (tab === 'showcase') loadRules() }, { immediate: true })
 
 // ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存） ───
 const quickSelected = ref(readQuickActionsConfig())
@@ -399,19 +411,10 @@ const PLATFORM_OPTIONS = [
 ]
 
 const form = reactive({
-  name: '', bio: '', status: 'open',
+  name: '', bio: '',
   customLinks: [],
   platformUrls: [],
   inspirationTags: [],
-  batchLimitEnabled: false,
-  batchLimit: 0,
-  bufferLimit: 0,
-  quotaEnabled: false,
-  monthlyQuota: 0,
-  autoPromote: false,
-  hideQueuePosition: false,
-  hidePromoteNotify: false,
-  bufferShortForm: false,
   contactQq: '',
   notifyEnabled: true,
   artistCode: '',
@@ -577,21 +580,12 @@ const palettes = computed(() => [
 async function save() {
   saving.value = true
   try {
-    // P1-D: 只提交 templateId + paletteId + accentColor，其他字段由 profile tab 的 save 提交
+    // REQ-016 A: 按当前 tab 拆分提交（后端 PUT /api/artist/profile 为部分更新语义）
     if (activeTab.value === 'template') {
       await artistApi.updateProfile({ templateId: form.templateId, paletteId: form.paletteId, accentColor: form.accentColor })
-    } else {
-      // R15: camelCase + customLinks 数组（PUT /api/artist/profile 已改 additionalProperties:false）
-      // R58-8: platformUrls + inspirationTags（留空行/空标签不提交，platform 为空时省略让后端自动识别）
-      // SPEC-004: N+M ≥ 1 前端提示（后端同校验，前端先拦避免无效请求）
-      if (form.batchLimitEnabled && form.batchLimit + form.bufferLimit < 1) {
-        ElMessage.warning(t('settings.slotMinError'))
-        return
-      }
+    } else if (activeTab.value === 'showcase') {
+      // 主页展示：公告/外链/平台链接/灵感标签（须知走独立 saveRules）
       await artistApi.updateProfile({
-        name: form.name.trim(),
-        bio: form.bio.trim(),
-        status: form.status,
         customLinks: form.customLinks
           .filter(l => l.name.trim() && l.url.trim())
           .map(l => ({ name: l.name.trim(), url: l.url.trim(), icon: l.icon || 'link' })),
@@ -603,22 +597,23 @@ async function save() {
             return item
           }),
         inspirationTags: form.inspirationTags.map(tag => tag.trim()).filter(Boolean),
-        // SPEC-004: 名额与缓冲（batchLimitEnabled 关闭时传 null = 不限制）
-        batchLimit: form.batchLimitEnabled ? form.batchLimit : null,
-        bufferLimit: form.bufferLimit,
-        // S5: 月度额度（quotaEnabled 关闭时传 null = 不限制）
-        monthlyQuota: form.quotaEnabled ? form.monthlyQuota : null,
-        autoPromote: form.autoPromote,
-        hideQueuePosition: form.hideQueuePosition,
-        hidePromoteNotify: form.hidePromoteNotify,
-        bufferShortForm: form.bufferShortForm,
-        contactQq: form.contactQq.trim(),
-        notifyEnabled: form.notifyEnabled,
-        artistCode: form.artistCode.trim(),
-        dashboardDefaultPanel: form.dashboardDefaultPanel,
         // F3: 公告（空文本 → null 清除；过期日期空 → null 长期显示）
         announcement: form.announcement.trim() || null,
         announcementExpiresAt: form.announcementExpiresAt || null
+      })
+    } else if (activeTab.value === 'prefs') {
+      // 偏好：通知开关/默认面板（快捷按钮走独立 saveQuickActions）
+      await artistApi.updateProfile({
+        notifyEnabled: form.notifyEnabled,
+        dashboardDefaultPanel: form.dashboardDefaultPanel
+      })
+    } else {
+      // 基本资料：头像/昵称/编码/简介/联系QQ（头像走即时上传）
+      await artistApi.updateProfile({
+        name: form.name.trim(),
+        bio: form.bio.trim(),
+        artistCode: form.artistCode.trim(),
+        contactQq: form.contactQq.trim()
       })
     }
     ElMessage.success(t('settings.saved'))
@@ -663,19 +658,9 @@ onMounted(async () => {
     Object.assign(form, {
       name: profile.name,
       bio: profile.bio || '',
-      status: profile.status,
       customLinks,
       platformUrls,
       inspirationTags,
-      batchLimitEnabled: profile.batch_limit != null,
-      batchLimit: profile.batch_limit ?? 0,
-      bufferLimit: profile.buffer_limit ?? 0,
-      quotaEnabled: profile.monthly_quota != null,
-      monthlyQuota: profile.monthly_quota ?? 0,
-      autoPromote: !!profile.auto_promote,
-      hideQueuePosition: !!profile.hide_queue_position,
-      hidePromoteNotify: !!profile.hide_promote_notify,
-      bufferShortForm: !!profile.buffer_short_form,
       contactQq: profile.contact_qq || '',
       notifyEnabled: !!profile.notify_enabled,
       artistCode: profile.artist_code || '',
