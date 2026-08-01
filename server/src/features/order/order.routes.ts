@@ -313,36 +313,47 @@ export default async function orderRoutes(fastify: any) {
    * SPEC-004: zone=buffer 返回缓冲区列表
    */
   fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request: any) => {
-    const { zone } = (request.query || {}) as any
-    if (zone === 'buffer') {
-      // 缓冲区列表
-      const bufferOrders = db.prepare(`
-        SELECT o.*, t.name as tier_name, t.price as tier_price
-        FROM orders o
-        LEFT JOIN price_tiers t ON o.tier_id = t.id
-        WHERE o.artist_id = ? AND o.queue_zone = 'buffer' AND o.status NOT IN ('delivered', 'cancelled')
-        ORDER BY o.queue_position ASC
-      `).all(request.artist.id) as any[]
-      return bufferOrders.map((order: any) => {
+      const { zone } = (request.query || {}) as any
+      if (zone === 'buffer') {
+        // 缓冲区列表
+        const bufferOrders = db.prepare(`
+          SELECT o.*, t.name as tier_name, t.price as tier_price
+          FROM orders o
+          LEFT JOIN price_tiers t ON o.tier_id = t.id
+          WHERE o.artist_id = ? AND o.queue_zone = 'buffer' AND o.status NOT IN ('delivered', 'cancelled')
+          ORDER BY o.queue_position ASC
+        `).all(request.artist.id) as any[]
+        return bufferOrders.map((order: any) => {
+          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null }
+          if (order.focus_image_path) {
+            mapped.focusImageUrl = signedUrl(order.focus_image_path)
+          }
+          return mapped
+        })
+      }
+      // REQ-013 #7: 完成区（最近 7 天已交付订单，沉底灰色展示）
+      if (zone === 'completed') {
+        const completed = orderQueueService.getCompletedQueue(request.artist.id)
+        return completed.map((order: any) => {
+          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null }
+          if (order.focus_image_path) {
+            mapped.focusImageUrl = signedUrl(order.focus_image_path)
+          }
+          return mapped
+        })
+      }
+      // 默认：正式区
+      const queue = orderQueueService.getArtistQueue(request.artist.id)
+      // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
+      // Bug 4 fix: 映射 current_stage_id → currentStageId（前端用 camelCase）
+      return queue.map((order: any) => {
         const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null }
         if (order.focus_image_path) {
           mapped.focusImageUrl = signedUrl(order.focus_image_path)
         }
         return mapped
       })
-    }
-    // 默认：正式区
-    const queue = orderQueueService.getArtistQueue(request.artist.id)
-    // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
-    // Bug 4 fix: 映射 current_stage_id → currentStageId（前端用 camelCase）
-    return queue.map((order: any) => {
-      const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null }
-      if (order.focus_image_path) {
-        mapped.focusImageUrl = signedUrl(order.focus_image_path)
-      }
-      return mapped
     })
-  })
 
   /**
    * GET /api/artist/orders/upcoming-deadlines
