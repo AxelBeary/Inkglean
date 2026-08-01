@@ -20,8 +20,8 @@
 
 | 角色 | 任务 | 分支/Worktree | 派工文件 |
 |------|------|---------------|----------|
-| 二号 | B7 额度池前端（画师端收款区 + 客户端 track + 管理端流水） | `feat/v023-frontend` / `../artist-commission-fe` | `01-to-02-v023-b7-go-20260801.md` |
-| 三号 | 空闲待命（可选：容器重建 / admin-messages 补齐） | — | — |
+| 二号 | B7 额度池前端 | — | ✅ 已合入，空闲待命 |
+| 三号 | admin orders 端点补 paidTotalCents/installments 字段 | `fix/admin-orders-payments` / `../artist-commission-fix-admin` | `01-to-03-admin-orders-payments-20260801.md` |
 | 四号 | REQ-013 整理：#4 仪表盘/主页设置规划 + #9 图片裁切（和用户交流）+ #1/2/3/5/6/8/10 需求整理 | — | `01-to-04-req013-sort-20260801.md` |
 | 五号 | REQ-013 #7 看板完成订单修复（交付入口 + 完成区沉底 + 过期隐藏） | `fix/req013-kanban-completed` / `../artist-commission-fix013` | `01-to-05-req013-7-kanban-20260801.md` |
 
@@ -47,7 +47,7 @@
 | # | 项 | 负责 | 状态 |
 |---|---|---|---|
 | B7 后端 | 额度池（迁移 v24 + 收款 API + 三态推算 + 话术 BUG 修复 + 删 adjustInstallments） | 三号 | ✅ 已合入 master |
-| B7 前端 | 画师端收款区 + 客户端 track + 管理端流水 | 二号 | 🔵 开工中 |
+| B7 前端 | 画师端收款区 + 客户端 track + 管理端流水 | 二号 | ✅ 已合入 master（`86b544a`） |
 | B4 留言板 | 前端 + 后端 | — | ✅ v0.19 已完成（核实确认，无增量） |
 
 ---
