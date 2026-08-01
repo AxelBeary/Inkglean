@@ -299,7 +299,14 @@ export default {
     focusDisplay: 'Focus image', focusOff: 'Off', focusLarge: 'Large',
     uploadFocus: 'Upload focus image',
     // R53: focus image replacement
-    dropToReplace: 'Drop to replace focus image'
+    dropToReplace: 'Drop to replace focus image',
+    // SPEC-005: calendar view
+    viewBoard: 'Board', viewCalendar: 'Calendar',
+    calPrev: 'Previous month', calNext: 'Next month', calToday: 'Today',
+    calTitle: '{y}-{m}',
+    calMon: 'Mon', calTue: 'Tue', calWed: 'Wed', calThu: 'Thu', calFri: 'Fri', calSat: 'Sat', calSun: 'Sun',
+    calNoDeadline: 'No deadline',
+    calLegendFormal: 'Formal order', calLegendBuffer: 'Buffer', calLegendNoDeadline: 'No deadline', calLegendOverdue: 'Overdue', calLegendDone: 'Done'
   },
   orderList: {
     title: '📦 Order Management', all: 'All',
@@ -519,6 +526,10 @@ export default {
     // Bug 1: braces are parsed as ICU placeholders by vue-i18n (Chinese is not a valid identifier → crash); escape with {'{'} literals
     speechLabel: 'Speech', speechPlaceholder: "{'{'}客户名{'}'}，你的订单已{'{'}节点名{'}'}。",
     speechSave: 'Save speech', speechSaved: 'Speech saved', speechVarHint: 'Click to insert variable',
+    // #8: speech UI improvements (shared variable bar + collapsible preview)
+    speechVarCommon: 'Speech variables (click a speech box below, then click a variable to insert)',
+    speechVarNoFocus: 'Click a speech editor first',
+    speechEmpty: 'No speech yet',
     helpBtn: 'How it works', helpTitle: 'Workflow & Payment Guide',
     helpLines: [
       'Each stage is a step in your commission process; clients see progress in order.',
