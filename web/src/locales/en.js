@@ -192,6 +192,8 @@ export default {
     deliverables: '📦 Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
     // SPEC-003: price & payments
     priceTitle: '💰 Price breakdown', finalPrice: 'Final price', installmentsTitle: 'Payment schedule', paid: 'Paid', unpaid: 'Unpaid',
+    // B7: quota-pool payment progress
+    payPaid: 'Paid', payNext: 'Next Due', payRemaining: 'Outstanding', payTotal: 'Total',
     contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
     contactArtist: 'Artist QQ', contactAdmin: 'Admin QQ', copyQq: 'Copy', copied: 'Copied',
     noOrdersTitle: 'No orders found', noOrdersDesc: 'This QQ number has no orders with this artist. Please double-check the number.',
@@ -341,7 +343,16 @@ export default {
     commTitle: 'Client Communication', commQq: 'QQ:',
     commPriceSummary: 'Price: total {total} / paid {paid} / due {unpaid}',
     commCopyBtn: 'Copy text & open QQ', commCopied: 'Speech copied — opening QQ',
-    commNoQq: 'No client QQ set', commNoStage: 'Order not on a workflow stage — no speech yet', commNoSpeech: 'No speech for the current stage'
+    commNoQq: 'No client QQ set', commNoStage: 'Order not on a workflow stage — no speech yet', commNoSpeech: 'No speech for the current stage',
+    // B7: 额度池收款区
+    payTitle: 'Payment Records', payAddBtn: '+ Record Payment',
+    payPaid: 'Received', payFinal: 'Total Due', payRemaining: 'Outstanding',
+    payFlowTitle: 'Payment History', payRevoke: 'Revoke', payEmpty: 'No payment records yet',
+    payRefTitle: 'Due Reference (Workflow Stages)',
+    payRefPaid: 'Paid', payRefPartial: 'Partial {amount}', payRefPending: 'Pending',
+    payDialogTitle: 'Record Payment', payAmountLabel: 'Amount (¥)', payAmountPlaceholder: 'Enter amount',
+    payNoteLabel: 'Note (optional)', payNotePlaceholder: 'e.g. WeChat transfer, deposit',
+    paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -508,6 +519,9 @@ export default {
     confirmRemove: 'Remove artist "{name}"? All of their orders and artwork data will be permanently deleted!',
     confirmRemoveTitle: '⚠️ Dangerous action', confirmRemoveBtn: 'Confirm removal',
     artistOrders: '📦 Order history', noOrders: 'No orders yet', statusUpdated: 'Status updated',
+    // B7: order expand row — payment summary
+    payPaid: 'Received', payFinal: 'Total Due', payRemaining: 'Outstanding',
+    payRefPaid: 'Paid', payRefPartial: 'Partial', payRefPending: 'Pending', payNoData: 'No payment info',
     transferAdmin: '🔑 Transfer admin', transferTitle: 'Transfer admin account',
     transferStep1Title: 'Verify current admin', transferStep2Title: 'Verify new admin',
     currentAdminQq: 'Current admin QQ', newAdminQq: 'New admin QQ',

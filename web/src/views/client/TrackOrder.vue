@@ -99,16 +99,15 @@
             <span>{{ $t('track.finalPrice') }}</span>
             <strong>¥{{ formatCents(order.finalPriceCents) }}</strong>
           </div>
-          <!-- 付款节点 -->
-          <div v-if="order.installments?.length" class="installment-block">
-            <h4 class="installment-title">{{ $t('track.installmentsTitle') }}</h4>
-            <div v-for="(inst, index) in order.installments" :key="index" class="installment-row">
-              <span class="installment-name">{{ inst.name }}</span>
-              <span class="installment-amount">¥{{ formatCents(inst.amountCents) }}</span>
-              <el-tag :type="inst.paid ? 'success' : 'info'" size="small">
-                {{ inst.paid ? $t('track.paid') : $t('track.unpaid') }}
-              </el-tag>
+          <!-- B7: 付款进度（额度池模型：进度条 + 四项数据，不显示画师内部节点名） -->
+          <div v-if="order.finalPriceCents != null" class="pay-progress">
+            <div class="pay-progress-nums">
+              <span>{{ $t('track.payPaid') }} <strong>¥{{ formatCents(order.paidTotalCents || 0) }}</strong></span>
+              <span>{{ $t('track.payNext') }} <strong>¥{{ formatCents(trackNextDueCents) }}</strong></span>
+              <span>{{ $t('track.payRemaining') }} <strong>¥{{ formatCents(trackRemainingCents) }}</strong></span>
+              <span>{{ $t('track.payTotal') }} <strong>¥{{ formatCents(order.finalPriceCents) }}</strong></span>
             </div>
+            <el-progress :percentage="trackPayPercent" :stroke-width="10" :color="trackPayPercent >= 100 ? '#67c23a' : '#409eff'" style="margin-top: 8px" />
           </div>
         </div>
 
@@ -213,6 +212,28 @@ const stageProgress = computed(() => {
     total: sorted.length,
     pct: Math.round(((idx + 1) / sorted.length) * 100)
   }
+})
+
+// B7: 额度池——客户端付款进度（四项数据 + 进度条）
+const trackRemainingCents = computed(() =>
+  Math.max(0, (order.value?.finalPriceCents || 0) - (order.value?.paidTotalCents || 0))
+)
+const trackPayPercent = computed(() => {
+  const total = order.value?.finalPriceCents || 0
+  if (total <= 0) return 0
+  return Math.min(100, Math.round((order.value?.paidTotalCents || 0) / total * 100))
+})
+/** 下期应付：下一个未覆盖分期节点的金额（partial 时显示剩余） */
+const trackNextDueCents = computed(() => {
+  const insts = order.value?.installments
+  if (!insts?.length) return trackRemainingCents.value
+  let covered = order.value?.paidTotalCents || 0
+  for (const inst of insts) {
+    const amt = inst.amountCents || inst.amount_cents || 0
+    if (covered >= amt) { covered -= amt; continue }
+    return amt - covered // partial 或 pending：返回剩余
+  }
+  return 0 // 全部覆盖
 })
 
 function formatDate(str) {
@@ -360,13 +381,11 @@ onUnmounted(() => {
   font-size: 14px; color: var(--text-primary);
 }
 .final-price-row strong { font-size: 18px; }
-.installment-block { margin-top: 16px; }
-.installment-title { margin-bottom: 8px; color: var(--text-primary); font-size: 14px; }
-.installment-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--border-color);
-  font-size: 13px;
+/* B7: 付款进度（额度池） */
+.pay-progress { margin-top: 16px; }
+.pay-progress-nums {
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  font-size: 13px; color: var(--text-secondary);
 }
-.installment-name { color: var(--text-primary); }
-.installment-amount { color: var(--text-secondary); }
+.pay-progress-nums strong { color: var(--text-primary); font-size: 15px; }
 </style>

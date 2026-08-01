@@ -310,7 +310,7 @@
             <span class="comm-value">{{ order.client_qq || '—' }}</span>
           </div>
           <div class="comm-row">
-            <span class="comm-label">{{ $t('orderDetail.commPriceSummary', { total: commTotal, paid: commPaid, unpaid: commUnpaid }) }}</span>
+            <span class="comm-label">{{ $t('orderDetail.commPriceSummary', { total: `¥${formatCents(poolFinalCents)}`, paid: `¥${formatCents(poolPaidCents)}`, unpaid: `¥${formatCents(poolRemainingCents)}` }) }}</span>
           </div>
           <div class="comm-speech">
             <span class="comm-speech-text">{{ commSpeechText }}</span>
@@ -323,6 +323,60 @@
           >
             {{ !order.client_qq ? $t('orderDetail.commNoQq') : $t('orderDetail.commCopyBtn') }}
           </el-button>
+        </div>
+      </el-card>
+
+      <!-- B7: 额度池收款记录 -->
+      <el-card style="margin-top: 16px">
+        <template #header>
+          <div class="card-header">
+            <span>💰 {{ $t('orderDetail.payTitle') }}</span>
+            <el-button type="primary" size="small" @click="payDialogVisible = true">{{ $t('orderDetail.payAddBtn') }}</el-button>
+          </div>
+        </template>
+        <div v-loading="paymentsLoading">
+          <!-- 已收 / 应收 / 待收 + 进度条 -->
+          <div class="pool-summary">
+            <div class="pool-nums">
+              <span>{{ $t('orderDetail.payPaid') }} <strong>¥{{ formatCents(poolPaidCents) }}</strong></span>
+              <span>/ {{ $t('orderDetail.payFinal') }} <strong>¥{{ formatCents(poolFinalCents) }}</strong></span>
+              <span class="pool-remaining">{{ $t('orderDetail.payRemaining') }} <strong>¥{{ formatCents(poolRemainingCents) }}</strong></span>
+            </div>
+            <el-progress :percentage="poolPercent" :stroke-width="12" :color="poolPercent >= 100 ? '#67c23a' : '#409eff'" style="margin-top: 8px" />
+          </div>
+
+          <!-- 收款流水 -->
+          <div class="pool-flow" v-if="payments.length">
+            <h4 class="pool-flow-title">{{ $t('orderDetail.payFlowTitle') }}</h4>
+            <div v-for="p in payments" :key="p.id" class="pool-flow-row">
+              <span class="pool-flow-date">{{ formatDate(p.created_at) }}</span>
+              <span class="pool-flow-amount" :class="p.amount_cents < 0 ? 'is-negative' : 'is-positive'">
+                {{ p.amount_cents < 0 ? '-' : '+' }}¥{{ formatCents(Math.abs(p.amount_cents)) }}
+              </span>
+              <span class="pool-flow-note">{{ p.note || '' }}</span>
+              <el-button
+                v-if="p.amount_cents > 0"
+                text size="small" type="danger"
+                @click="handleRevokePayment(p)"
+              >
+                {{ $t('orderDetail.payRevoke') }}
+              </el-button>
+            </div>
+          </div>
+          <el-empty v-else-if="!paymentsLoading" :description="$t('orderDetail.payEmpty')" :image-size="48" />
+
+          <!-- 应收参考（工作流节点三态） -->
+          <div class="pool-ref" v-if="installmentRefs.length">
+            <h4 class="pool-ref-title">{{ $t('orderDetail.payRefTitle') }}</h4>
+            <div v-for="(inst, idx) in installmentRefs" :key="idx" class="pool-ref-row">
+              <span class="pool-ref-icon">{{ inst._status === 'paid' ? '✓' : inst._status === 'partial' ? '◐' : '○' }}</span>
+              <span class="pool-ref-name">{{ inst.name }}</span>
+              <span class="pool-ref-amount">¥{{ formatCents(inst.amountCents || inst.amount_cents || 0) }}</span>
+              <el-tag v-if="inst._status === 'paid'" type="success" size="small">{{ $t('orderDetail.payRefPaid') }}</el-tag>
+              <el-tag v-else-if="inst._status === 'partial'" type="warning" size="small">{{ $t('orderDetail.payRefPartial', { amount: `¥${formatCents(inst._paidCents)}` }) }}</el-tag>
+              <el-tag v-else type="info" size="small">{{ $t('orderDetail.payRefPending') }}</el-tag>
+            </div>
+          </div>
         </div>
       </el-card>
 
@@ -352,6 +406,27 @@
       <template #footer>
         <el-button @click="showDeliver = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="submitDeliver" :disabled="!deliverFile" :loading="delivering">{{ $t('orderDetail.confirmDeliver') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- B7: 记录收款弹窗 -->
+    <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
+      <el-form label-position="top">
+        <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
+          <el-input-number
+            v-model="payForm.amountYuan"
+            :min="0.01" :max="999999.99" :precision="2" :step="50"
+            controls-position="right" style="width: 100%"
+            :placeholder="$t('orderDetail.payAmountPlaceholder')"
+          />
+        </el-form-item>
+        <el-form-item :label="$t('orderDetail.payNoteLabel')">
+          <el-input v-model="payForm.note" :placeholder="$t('orderDetail.payNotePlaceholder')" maxlength="100" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="payDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitPayment" :disabled="!payForm.amountYuan || payForm.amountYuan <= 0" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 
@@ -403,6 +478,7 @@ import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
+import { useOrderPayments } from '../../composables/useOrderPayments.js'
 import { formatDateTime } from '../../utils/datetime.js'
 
 const { t } = useI18n()
@@ -719,6 +795,76 @@ const {
   }
 })
 
+// ─── B7: 额度池收款区 ───
+const {
+  payments, loading: paymentsLoading, submitting: paymentSubmitting,
+  loadPayments, addPayment, revokePayment
+} = useOrderPayments()
+
+/** 收款弹窗 */
+const payDialogVisible = ref(false)
+const payForm = ref({ amountYuan: null, note: '' })
+
+/** 已收 / 应收 / 待收（后端字段优先，兜底用流水净额） */
+const poolPaidCents = computed(() => order.value?.paidTotalCents ?? 0)
+const poolFinalCents = computed(() => order.value?.finalPriceCents ?? order.value?.totalPriceCents ?? 0)
+const poolRemainingCents = computed(() => Math.max(0, poolFinalCents.value - poolPaidCents.value))
+const poolPercent = computed(() =>
+  poolFinalCents.value > 0 ? Math.min(100, Math.round(poolPaidCents.value / poolFinalCents.value * 100)) : 0
+)
+
+/** 应收参考（installments 三态推算） */
+const installmentRefs = computed(() => {
+  const insts = order.value?.installments
+  if (!insts?.length) return []
+  let covered = poolPaidCents.value
+  return insts.map(inst => {
+    const amt = inst.amountCents || inst.amount_cents || 0
+    if (covered >= amt) {
+      covered -= amt
+      return { ...inst, _status: 'paid' }
+    } else if (covered > 0) {
+      const partial = covered
+      covered = 0
+      return { ...inst, _status: 'partial', _paidCents: partial }
+    }
+    return { ...inst, _status: 'pending' }
+  })
+})
+
+/** 提交收款 */
+async function submitPayment() {
+  const cents = Math.round((payForm.value.amountYuan || 0) * 100)
+  if (cents <= 0) return
+  try {
+    await addPayment(route.params.id, { amountCents: cents, note: payForm.value.note || undefined })
+    ElMessage.success(t('orderDetail.paySuccess'))
+    payDialogVisible.value = false
+    payForm.value = { amountYuan: null, note: '' }
+    await Promise.all([loadOrder(), loadPayments(route.params.id)])
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+/** 撤销收款（二次确认） */
+async function handleRevokePayment(payment) {
+  try {
+    await ElMessageBox.confirm(
+      t('orderDetail.payRevokeConfirm', { amount: `¥${formatCents(payment.amount_cents)}` }),
+      t('orderDetail.confirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  try {
+    await revokePayment(route.params.id, payment)
+    ElMessage.success(t('orderDetail.payRevokeSuccess'))
+    await Promise.all([loadOrder(), loadPayments(route.params.id)])
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
 // ─── R19: 备注附图 ───
 const noteImageInputEl = ref(null)
 const pendingNoteImage = ref(null) // { filePath, url }
@@ -876,38 +1022,6 @@ async function deleteReference(reference) {
 // ─── plan-node-speech：客户沟通小块 ───
 const commCopying = ref(false)
 
-/** 价格小结（后端返回优先；缺失时从 installments 本地计算兜底） */
-const commTotal = computed(() => {
-  const o = order.value
-  if (!o) return '—'
-  if (o.totalPriceCents != null) return `¥${formatCents(o.totalPriceCents)}`
-  if (o.final_price_cents != null) return `¥${formatCents(o.final_price_cents)}`
-  return '—'
-})
-const commPaid = computed(() => {
-  const o = order.value
-  if (!o) return '—'
-  if (o.paidCents != null) return `¥${formatCents(o.paidCents)}`
-  // 兜底：从 installments 累加已付
-  if (o.installments?.length) {
-    const sum = o.installments.filter(i => i.paid).reduce((acc, i) => acc + (i.amountCents || 0), 0)
-    return `¥${formatCents(sum)}`
-  }
-  return '—'
-})
-const commUnpaid = computed(() => {
-  const o = order.value
-  if (!o) return '—'
-  if (o.unpaidCents != null) return `¥${formatCents(o.unpaidCents)}`
-  // 兜底：总价 - 已付
-  const total = o.totalPriceCents ?? o.final_price_cents
-  if (total != null && o.installments?.length) {
-    const paid = o.installments.filter(i => i.paid).reduce((acc, i) => acc + (i.amountCents || 0), 0)
-    return `¥${formatCents(total - paid)}`
-  }
-  return '—'
-})
-
 /** 话术预览（后端已替换变量；无当前节点话术时提示） */
 const commSpeechText = computed(() => {
   const o = order.value
@@ -1004,6 +1118,7 @@ const { refreshNow } = useSignatureRefresh({
 onMounted(() => {
   loadOrder()
   loadWorkflowStages() // R30d: 流程进度条需要节点列表
+  loadPayments(route.params.id) // B7: 额度池收款流水
 })
 </script>
 
@@ -1259,4 +1374,27 @@ onMounted(() => {
   white-space: pre-wrap; word-break: break-word;
 }
 .comm-copy-btn { align-self: flex-start; }
+
+/* ─── B7: 额度池收款区 ─── */
+.pool-summary { margin-bottom: 16px; }
+.pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: 14px; color: var(--text-secondary); flex-wrap: wrap; }
+.pool-nums strong { color: var(--text-primary); font-size: 16px; }
+.pool-remaining { margin-left: auto; }
+.pool-flow { margin-top: 12px; }
+.pool-flow-title, .pool-ref-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0 0 8px; }
+.pool-flow-row {
+  display: flex; align-items: center; gap: 10px; padding: 6px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter); font-size: 13px;
+}
+.pool-flow-row:last-child { border-bottom: none; }
+.pool-flow-date { color: var(--text-secondary); flex-shrink: 0; width: 80px; }
+.pool-flow-amount { font-weight: 600; flex-shrink: 0; min-width: 80px; }
+.pool-flow-amount.is-positive { color: var(--el-color-success); }
+.pool-flow-amount.is-negative { color: var(--el-color-danger); }
+.pool-flow-note { flex: 1; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pool-ref { margin-top: 16px; }
+.pool-ref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+.pool-ref-icon { width: 18px; text-align: center; flex-shrink: 0; }
+.pool-ref-name { flex: 1; color: var(--text-primary); }
+.pool-ref-amount { color: var(--text-secondary); flex-shrink: 0; }
 </style>

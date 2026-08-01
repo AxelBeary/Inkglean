@@ -69,7 +69,31 @@
 
     <!-- 订单记录弹窗 -->
     <el-dialog v-model="ordersVisible" :title="`${ordersArtist?.name} - ${$t('admin.artistOrders')}`" width="700px">
-      <el-table :data="orders" v-loading="ordersLoading" stripe max-height="400">
+      <el-table :data="orders" v-loading="ordersLoading" stripe max-height="400" row-key="id">
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <div class="order-expand-pay">
+              <!-- B7: 付款进度摘要 -->
+              <div class="expand-pay-summary" v-if="row.final_price_cents != null || row.finalPriceCents != null">
+                <span>{{ $t('admin.payPaid') }} <strong>¥{{ formatCents(row.paidTotalCents ?? row.paid_total_cents ?? 0) }}</strong></span>
+                <span>/ {{ $t('admin.payFinal') }} <strong>¥{{ formatCents(row.finalPriceCents ?? row.final_price_cents ?? 0) }}</strong></span>
+                <span>{{ $t('admin.payRemaining') }} <strong>¥{{ formatCents(Math.max(0, (row.finalPriceCents ?? row.final_price_cents ?? 0) - (row.paidTotalCents ?? row.paid_total_cents ?? 0))) }}</strong></span>
+              </div>
+              <!-- 分期三态参考 -->
+              <div class="expand-pay-insts" v-if="row.installments?.length">
+                <div v-for="(inst, idx) in row.installments" :key="idx" class="expand-inst-row">
+                  <span>{{ inst.status === 'paid' ? '✓' : inst.status === 'partial' ? '◐' : '○' }}</span>
+                  <span>{{ inst.name }}</span>
+                  <span>¥{{ formatCents(inst.amountCents || inst.amount_cents || 0) }}</span>
+                  <el-tag :type="inst.status === 'paid' ? 'success' : inst.status === 'partial' ? 'warning' : 'info'" size="small">
+                    {{ inst.status === 'paid' ? $t('admin.payRefPaid') : inst.status === 'partial' ? $t('admin.payRefPartial') : $t('admin.payRefPending') }}
+                  </el-tag>
+                </div>
+              </div>
+              <p v-else class="expand-no-data">{{ $t('admin.payNoData') }}</p>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="order_no" :label="$t('admin.orderColNo')" width="120" />
         <el-table-column prop="client_qq" :label="$t('admin.orderColQq')" width="120" />
         <el-table-column prop="tier_name" :label="$t('admin.orderColType')" width="100">
@@ -167,6 +191,11 @@ import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 import { formatDateTime } from '../../utils/datetime.js'
 
 const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
+
+/** 金额分 → 元（B7 行展开始用） */
+function formatCents(cents) {
+  return ((cents || 0) / 100).toFixed(2)
+}
 
 // 订单弹窗
 const ordersVisible = ref(false)
@@ -321,4 +350,10 @@ onMounted(loadArtists)
 
 <style scoped>
 .admin-page { max-width: 900px; margin: 0 auto; padding: 16px; }
+/* B7: 订单行展开——收款摘要 */
+.order-expand-pay { padding: 8px 16px; }
+.expand-pay-summary { display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; flex-wrap: wrap; }
+.expand-pay-summary strong { color: var(--text-primary); }
+.expand-inst-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
+.expand-no-data { font-size: 12px; color: var(--text-secondary); margin: 4px 0; }
 </style>
