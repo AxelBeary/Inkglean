@@ -1,6 +1,7 @@
 import * as artistService from './artist.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
+import { rateLimit } from '../../shared/middleware/rate-limit.js'
 
 // ============================================
 // 画师路由 - 公开主页 + 后台管理
@@ -469,19 +470,25 @@ export default async function artistRoutes(fastify) {
 
   // ─── F1: 作品点赞（公开，匿名） ───
 
-  /** POST /api/public/artworks/:id/like — 点赞 +1 */
-  fastify.post('/api/public/artworks/:id/like', async (request, reply) => {
-    const artwork = artistService.likeArtwork(parseInt(request.params.id))
-    if (!artwork) return reply.code(404).send({ error: '作品不存在' })
-    return { likeCount: artwork.like_count }
-  })
+  /** POST /api/public/artworks/:id/like — 点赞 +1（P1-5: IP 限流 5次/分钟/作品） */
+    fastify.post('/api/public/artworks/:id/like', async (request, reply) => {
+      if (!rateLimit(`like:${request.ip}:${request.params.id}`, 5, 60_000)) {
+        return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
+      }
+      const artwork = artistService.likeArtwork(parseInt(request.params.id))
+      if (!artwork) return reply.code(404).send({ error: '作品不存在' })
+      return { likeCount: artwork.like_count }
+    })
 
-  /** DELETE /api/public/artworks/:id/like — 取消点赞 -1 */
-  fastify.delete('/api/public/artworks/:id/like', async (request, reply) => {
-    const artwork = artistService.unlikeArtwork(parseInt(request.params.id))
-    if (!artwork) return reply.code(404).send({ error: '作品不存在' })
-    return { likeCount: artwork.like_count }
-  })
+    /** DELETE /api/public/artworks/:id/like — 取消点赞 -1（P1-5: IP 限流 5次/分钟/作品） */
+    fastify.delete('/api/public/artworks/:id/like', async (request, reply) => {
+      if (!rateLimit(`unlike:${request.ip}:${request.params.id}`, 5, 60_000)) {
+        return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
+      }
+      const artwork = artistService.unlikeArtwork(parseInt(request.params.id))
+      if (!artwork) return reply.code(404).send({ error: '作品不存在' })
+      return { likeCount: artwork.like_count }
+    })
 
   // ─── 仪表盘（v0.18 第二批） ───
   const dashboardRoutes = await import('./dashboard.routes.js')

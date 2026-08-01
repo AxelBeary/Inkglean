@@ -45,10 +45,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     return {
-      message: `若该QQ已注册，登录码已发送`,
-      ...(isDevAuth && code ? { _dev_code: code } : {}),
-      ...(artist ? { artistName: artist.name } : {})
-    }
+          message: `若该QQ已注册，登录码已发送`,
+          ...(isDevAuth && code ? { _dev_code: code } : {})
+        }
   })
 
   /**
