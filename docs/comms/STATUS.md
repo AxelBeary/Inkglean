@@ -1,12 +1,12 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-01 收工
+> 最后更新：2026-08-01 派工
 > 维护者：一号（主理人）
 
 ---
 ## master 状态
 
-- **HEAD**：`89377f6`，与 origin 同步
+- **HEAD**：`10c5d0d`，与 origin 同步
 - **后端测试**：482/482 通过（28 文件）
 - **前端测试**：87/87 通过（5 文件）
 - **E2E 测试**：5/5 通过（Playwright，已接入 GitHub Actions CI）
@@ -16,87 +16,48 @@
 - **类型检查**：`npx tsc --noEmit` 零错误（features/ + utils/ + middleware/ 全部 TS）
 
 ---
+## 今日工作分配
+
+| 角色 | 任务 | 分支/Worktree | 派工文件 |
+|------|------|---------------|----------|
+| 二号 | B7 额度池前端（画师端收款区 + 客户端 track + 管理端流水） | `feat/v023-frontend` / `../artist-commission-fe` | `01-to-02-v023-b7-go-20260801.md` |
+| 三号 | 空闲待命（可选：容器重建 / admin-messages 补齐） | — | — |
+| 四号 | REQ-013 整理：#4 仪表盘/主页设置规划 + #9 图片裁切（和用户交流）+ #1/2/3/5/6/8/10 需求整理 | — | `01-to-04-req013-sort-20260801.md` |
+| 五号 | REQ-013 #7 看板完成订单修复（交付入口 + 完成区沉底 + 过期隐藏） | `fix/req013-kanban-completed` / `../artist-commission-fix013` | `01-to-05-req013-7-kanban-20260801.md` |
+
+---
+## REQ-013 画师反馈处理进度
+
+| # | 反馈 | 状态 | 处理人 |
+|---|------|------|--------|
+| 1 | 留言全放主页 | 待四号整理 | 四号 |
+| 2 | 待处理不能点 | 待四号整理 | 四号 |
+| 3 | 按钮自定义 | 待四号整理 | 四号 |
+| 4 | 稿位数字/仪表盘/主页设置 | 待四号规划（用户特别交代） | 四号 |
+| 5 | 封面图指定+轮播 | 待四号整理 | 四号 |
+| 6 | 手动录单按钮 | 待四号整理 | 四号 |
+| 7 | 看板完成订单驻留 | **已派工五号**（根因：工作流订单无交付入口） | 五号 |
+| 8 | 话术界面+多模板随机 | 待四号整理 | 四号 |
+| 9 | 图片裁切 | 待四号和用户交流确认方案 | 四号 |
+| 10 | 档位三态 | 待四号整理 | 四号 |
+
+---
 ## v0.23 进度
 
 | # | 项 | 负责 | 状态 |
 |---|---|---|---|
 | B7 后端 | 额度池（迁移 v24 + 收款 API + 三态推算 + 话术 BUG 修复 + 删 adjustInstallments） | 三号 | ✅ 已合入 master |
-| B7 前端 | 画师端收款区 + 客户端 track + 管理端流水 | 二号 | 🔵 **明天开工**（见下方派工） |
+| B7 前端 | 画师端收款区 + 客户端 track + 管理端流水 | 二号 | 🔵 开工中 |
 | B4 留言板 | 前端 + 后端 | — | ✅ v0.19 已完成（核实确认，无增量） |
 
 ---
-## 明天开工指南（各角色必读）
-
-### 二号：B7 额度池前端
-
-> **分支**：`feat/v023-frontend`
-> **Worktree**：`D:\Hermes Agent CN Desktop\workspace\artist-commission-fe`（已 rebase 到 master）
-> **派工文件**：`docs/comms/01-to-02-v023-b7-go-20260801.md`（含完整 API 契约）
-> **Spec 参考**：`docs/specs/plan-v023-quota-pool.md` §4（前端交互设计）
-
-**任务**（按顺序）：
-
-| 波 | 工作 | 预估 |
-|----|------|------|
-| 2 | 画师端收款区重做：OrderDetail.vue 价格小结区（L879-905）→ 额度池模型（已收/应收/待收 + 进度条 + 流水列表 + 记录/撤销弹窗 + 应收参考区）。新建 useOrderPayments composable + api 方法 + i18n | 3h |
-| 3a | 客户端 track 页：TrackOrder.vue 分期列表（L103-107）→ 进度条 + 四项数据（已付/下期应付/待付/总额），不显示画师内部节点名 | 1h |
-| 3b | 管理端收款流水：ArtistManage.vue 订单列表弹窗内加行展开或 drawer（你定），只读展示 | 1h |
-
-**关键提醒**（预读发现，已确认）：
-1. **PaymentBar 保留不动**——它是工作流比例编辑组件（WorkflowPaymentEditor 消费），与订单收款无关。B7 是 OrderDetail 新增收款记录区
-2. OrderDetail L879-905 价格小结区 → 替换为额度池模型
-3. TrackOrder L103-107 分期列表 → 改为四项数据 + 进度条
-4. 管理端无订单详情页 → 在订单列表弹窗内加行展开或 drawer
-
-**后端 API 契约**（已合入 master）：
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /api/artist/orders/:id/payments | body: `{ amountCents: integer, note?: string }` → `{ payment, paidTotalCents, finalPriceCents }` |
-| GET | /api/artist/orders/:id/payments | → `{ payments: [...] }` |
-| GET | /api/artist/orders/:id | 响应含 `paidTotalCents` / `remainingCents` / `installments`（三态 + paidCents） |
-| GET | /api/orders/track/:orderNo | 响应含 `paidTotalCents` |
-
-**授权文件范围**：
-- `web/src/views/artist/OrderDetail.vue`
-- `web/src/views/track/TrackOrder.vue`
-- `web/src/views/admin/ArtistManage.vue`
-- `web/src/composables/useOrderPayments.js`（新建）
-- `web/src/api/index.js`
-- `web/src/i18n/`
-- `web/test/`
-
-完成后写 comms `02-to-01-v023-b7-frontend-{日期}.md`，申请审核。
-
----
-
-### 三号：空闲，可选任务
-
-v0.23 后端全部完成。可选：
-1. **容器重建**（迁移 v24 需在容器中执行）——需一号协调
-2. **GET /api/admin/messages 补齐**（v0.19 遗留，管理端前端静默降级）——小活，~30min
-3. 待命
-
----
-
-### 四号：空闲，可选任务
-
-可选：REQ-012 日历视图 spec 草案（用户已拍板"做"，未展开）。参考 `docs/requirements/REQ-012-画师工具需求反馈.md`。
-
----
-
-### 五号：空闲，可选任务
-
-可选：全量审计（测试覆盖率 / EP CSS 边角页面视觉走查 / CI workflow 验证）。
-
----
-
 ## 分支状态
 
 | 分支 | Worktree | 状态 |
 |------|----------|------|
-| master | 主 worktree（一号专用） | 当前 `89377f6` |
-| feat/v023-frontend | `../artist-commission-fe` | 二号（已 rebase，明天开工） |
+| master | 主 worktree（一号专用） | 当前 `10c5d0d` |
+| feat/v023-frontend | `../artist-commission-fe` | 二号 B7 前端 |
+| fix/req013-kanban-completed | `../artist-commission-fix013`（待五号建） | 五号 #7 修复 |
 
 ---
 ## 已知遗留（非阻塞）
@@ -108,21 +69,6 @@ v0.23 后端全部完成。可选：
 | 3 | P2-2 Redis 限流 | 低 | 生产前处理 |
 | 4 | 安全债 4 项 | 低 | 已知，非紧急 |
 | 5 | A4 边角页面视觉回归 | 低 | HealthCheck/TierManage 未验证 |
-
----
-## ⚠️ REQ-013 画师反馈（2026-08-01 临下班收到，明天必处理）
-
-文件：`docs/requirements/REQ-013-画师反馈批次-20260801.md`（10 条）
-
-**优先排查（疑似 Bug）**：
-- #7 看板完成订单：老的完成不显示，新的完成却驻留 → **五号排查**
-- #9 设置图片在约稿页被乱截（竖→横、长→方）→ **五号排查**
-
-**状态询问（小活）**：
-- #4 稿位数字（slotDisplay）画师问怎么还没上线 → **一号/二号核实 3 模板渲染是否缺失**
-
-**待四号整理（需求/UX）**：
-- #1 留言全放主页、#2 待处理不能点、#3 按钮自定义、#5 封面图指定+轮播、#6 手动录单按钮、#8 话术界面+多模板随机、#10 档位三态
 
 ---
 ## 重要规则提醒
