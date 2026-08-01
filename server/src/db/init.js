@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS artworks (
   title TEXT,
   sort_order INTEGER DEFAULT 0,
   like_count INTEGER DEFAULT 0,
+  is_cover INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
@@ -169,6 +170,7 @@ CREATE TABLE IF NOT EXISTS artist_workflow_stages (
   takes_payment INTEGER NOT NULL DEFAULT 0,
   basis_points INTEGER,
   speech_template TEXT DEFAULT '{客户名}，你的订单已{节点名}。',
+  random_template INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
@@ -1023,6 +1025,28 @@ export const MIGRATIONS = [
       const cols = database.prepare('PRAGMA table_info(artists)').all()
       if (!cols.some(c => c.name === 'quick_actions')) {
         database.exec('ALTER TABLE artists ADD COLUMN quick_actions TEXT DEFAULT NULL')
+      }
+    }
+  },
+  {
+    version: 27,
+    name: 'artwork_is_cover',
+    up(database) {
+      // v0.25 #5: 封面图指定（一个画师最多 1 个封面）
+      const cols = database.prepare('PRAGMA table_info(artworks)').all()
+      if (!cols.some(c => c.name === 'is_cover')) {
+        database.exec('ALTER TABLE artworks ADD COLUMN is_cover INTEGER DEFAULT 0')
+      }
+    }
+  },
+  {
+    version: 28,
+    name: 'stage_random_template',
+    up(database) {
+      // v0.25 #8: 多模板随机（节点话术随机选择开关）
+      const cols = database.prepare('PRAGMA table_info(artist_workflow_stages)').all()
+      if (!cols.some(c => c.name === 'random_template')) {
+        database.exec('ALTER TABLE artist_workflow_stages ADD COLUMN random_template INTEGER DEFAULT 0')
       }
     }
   }

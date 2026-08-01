@@ -178,6 +178,9 @@ export const E = {
     // 流程重置（v0.24 P0-1）
     STAGES_RESET_BLOCKED: 'STAGES_RESET_BLOCKED',
 
+  // 作品
+  ARTWORK_NOT_FOUND: 'ARTWORK_NOT_FOUND',
+
   // 档位三态（v0.24 #10）
   TIER_NOT_AVAILABLE: 'TIER_NOT_AVAILABLE'
 } as const
@@ -339,6 +342,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
     // 流程重置（v0.24 P0-1）
     STAGES_RESET_BLOCKED: '有 {count} 个进行中订单，请先完成或关闭流程跟踪后再重置工作流',
+
+  // 作品（v0.25 #5）
+  ARTWORK_NOT_FOUND: '作品不存在',
 
   // 档位三态（v0.24 #10）
   TIER_NOT_AVAILABLE: '该档位暂不接受下单'

@@ -244,12 +244,24 @@ export function getSpeechInfo(order: any): SpeechInfoResult {
   }
 
   const stage = db.prepare(
-    'SELECT name, speech_template FROM artist_workflow_stages WHERE id = ?'
-  ).get(order.current_stage_id) as { name: string; speech_template: string | null } | undefined
+    'SELECT name, speech_template, random_template FROM artist_workflow_stages WHERE id = ?'
+  ).get(order.current_stage_id) as { name: string; speech_template: string | null; random_template: number } | undefined
   if (!stage) {
     return { ...base, speechText: null }
   }
 
-  const speechText = replaceSpeechVars(stage.speech_template, order, stage.name)
+  // v0.25 #8: 多模板随机 — speech_template 以 \n 分隔多个模板
+  let chosenTemplate = stage.speech_template
+  if (stage.speech_template) {
+    const templates = stage.speech_template.split('\n').map(t => t.trim()).filter(Boolean)
+    if (templates.length > 1) {
+      // random_template=1 → 随机选；=0 → 始终第一个
+      chosenTemplate = stage.random_template
+        ? templates[Math.floor(Math.random() * templates.length)]
+        : templates[0]
+    }
+  }
+
+  const speechText = replaceSpeechVars(chosenTemplate, order, stage.name)
   return { ...base, speechText }
 }

@@ -42,6 +42,7 @@ interface StageCamel {
   basisPoints: number
   isFinal: boolean
   speechTemplate: string | null
+  randomTemplate: boolean
 }
 
 // ─── 内部工具 ───
@@ -105,7 +106,8 @@ function toCamel(row: WorkflowStage | undefined): StageCamel | null {
     takesPayment: !!row.takes_payment,
     basisPoints: row.basis_points,
     isFinal: final ? final.id === row.id : false,
-    speechTemplate: row.speech_template ?? null
+    speechTemplate: row.speech_template ?? null,
+    randomTemplate: !!row.random_template
   }
 }
 
@@ -116,7 +118,8 @@ function listCamel(artistId: number): StageCamel[] {
     id: s.id, name: s.name, description: s.description,
     sortOrder: s.sort_order, takesPayment: !!s.takes_payment,
     basisPoints: s.basis_points, isFinal: final ? final.id === s.id : false,
-    speechTemplate: s.speech_template ?? null
+    speechTemplate: s.speech_template ?? null,
+    randomTemplate: !!s.random_template
   }))
 }
 
@@ -170,6 +173,11 @@ export function updateStage(artistId: number, stageId: number, fields: Record<st
     if (fields.speechTemplate !== undefined) {
       db.prepare('UPDATE artist_workflow_stages SET speech_template = ? WHERE id = ?')
         .run(fields.speechTemplate || null, stageId)
+    }
+    // v0.25 #8: 多模板随机开关
+    if (fields.randomTemplate !== undefined) {
+      db.prepare('UPDATE artist_workflow_stages SET random_template = ? WHERE id = ?')
+        .run(fields.randomTemplate ? 1 : 0, stageId)
     }
 
     // 切换收款开关
@@ -358,6 +366,27 @@ export function resetArtistStages(artistId: number): StageCamel[] {
     assertInvariants(artistId)
     return listCamel(artistId)
   })()
+}
+
+// ─── 管理员：默认模板 CRUD ───
+
+/**
+ * v0.25 #8: 解析节点话术（支持多模板随机）
+ * speech_template 以 \n 分隔多个模板。
+ * random_template=1 且有多个模板时随机选一个；否则返回第一个。
+ * 返回替换变量后的最终文本。
+ */
+export function resolveSpeechTemplate(stageId: number, vars: Record<string, string>): string {
+  const stage = getStageById(stageId)
+  if (!stage || !stage.speech_template) return ''
+  const templates = stage.speech_template.split('\n').map(t => t.trim()).filter(Boolean)
+  if (templates.length === 0) return ''
+  // random_template=1 且多模板 → 随机；否则第一个
+  const chosen = (stage.random_template && templates.length > 1)
+    ? templates[Math.floor(Math.random() * templates.length)]
+    : templates[0]
+  // 变量替换：{客户名}、{节点名} 等
+  return chosen.replace(/\{([^}]+)\}/g, (_, key) => vars[key] ?? `{${key}}`)
 }
 
 // ─── 管理员：默认模板 CRUD ───

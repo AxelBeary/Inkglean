@@ -54,6 +54,7 @@ export interface Tier {
   example_image: string | null
   work_days: number | null
   sort_order: number
+  visibility: string
 }
 
 /** 订单状态 */
@@ -99,6 +100,7 @@ export interface WorkflowStage {
   takes_payment: number
   basis_points: number
   speech_template: string | null
+  random_template: number
 }
 
 /** 增项 */
