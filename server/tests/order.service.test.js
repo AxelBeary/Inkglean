@@ -976,4 +976,31 @@ describe('订单服务 (Order Service)', () => {
     const completed = orderQueueService.getCompletedQueue(artist.id)
     expect(completed).toHaveLength(0)
   })
+
+  // ─── P0-3a: 正式队列不含缓冲订单 ───
+
+  it('TC-O-37: getArtistQueue 不返回 buffer 订单', () => {
+    const formal = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    // 手动插入一个 buffer 订单
+    db.prepare(`
+      INSERT INTO orders (order_no, artist_id, client_qq, priority, status, source, queue_position, queue_zone)
+      VALUES ('ALICE-BUF', ?, '222', 'medium', 'pending', 'self', 99, 'buffer')
+    `).run(artist.id)
+
+    const queue = orderQueueService.getArtistQueue(artist.id)
+    expect(queue).toHaveLength(1)
+    expect(queue[0].id).toBe(formal.id)
+  })
+
+  it('TC-O-37b: reorderQueue 拒绝 buffer 订单 ID', () => {
+    orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    const bufResult = db.prepare(`
+      INSERT INTO orders (order_no, artist_id, client_qq, priority, status, source, queue_position, queue_zone)
+      VALUES ('ALICE-BUF2', ?, '222', 'medium', 'pending', 'self', 99, 'buffer')
+    `).run(artist.id)
+
+    expect(() => {
+      orderQueueService.reorderQueue(artist.id, [Number(bufResult.lastInsertRowid)])
+    }).toThrow('QUEUE_NOT_OWNED')
+  })
 })

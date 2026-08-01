@@ -280,4 +280,45 @@ describe('SPEC-003 附加工作项 (Extra Items)', () => {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='order_extra_items'").all()
     expect(tables).toHaveLength(1)
   })
+
+  // ─── P0-2: 加减法保护手动改价 ───
+
+  it('TC-EI-P02: 手动改价 → 加增项 → final = 手动价 + 增项（不覆盖）', async () => {
+    const artist = makeArtist()
+    const order = makeOrder(artist.id)
+    db.prepare('UPDATE orders SET total_price_cents = 400000, final_price_cents = 400000 WHERE id = ?').run(order.id)
+
+    const h = authH(artist)
+    // 手动改价到 500000
+    await app.inject({ method: 'PUT', url: `/api/artist/orders/${order.id}/price`, headers: h, payload: { finalPriceCents: 500000 } })
+
+    // 加一个 10000 的增项
+    const res = await app.inject({ method: 'POST', url: `/api/artist/orders/${order.id}/extra-items`, headers: h, payload: { name: '加急', priceCents: 10000 } })
+    const body = JSON.parse(res.body)
+
+    // final 应该是 500000 + 10000 = 510000，不是 400000 + 10000
+    expect(body.final_price_cents).toBe(510000)
+  })
+
+  it('TC-EI-P02b: 手动改价 → 删增项 → final = 手动价 - 增项', async () => {
+    const artist = makeArtist()
+    const order = makeOrder(artist.id)
+    db.prepare('UPDATE orders SET total_price_cents = 400000, final_price_cents = 400000 WHERE id = ?').run(order.id)
+
+    const h = authH(artist)
+    // 先加增项
+    const addRes = await app.inject({ method: 'POST', url: `/api/artist/orders/${order.id}/extra-items`, headers: h, payload: { name: '加急', priceCents: 10000 } })
+    const added = JSON.parse(addRes.body)
+    const itemId = added.extraItems[0].id
+
+    // 手动改价到 500000
+    await app.inject({ method: 'PUT', url: `/api/artist/orders/${order.id}/price`, headers: h, payload: { finalPriceCents: 500000 } })
+
+    // 删除增项
+    const delRes = await app.inject({ method: 'DELETE', url: `/api/artist/orders/${order.id}/extra-items/${itemId}`, headers: h })
+    const body = JSON.parse(delRes.body)
+
+    // final 应该是 500000 - 10000 = 490000
+    expect(body.final_price_cents).toBe(490000)
+  })
 })

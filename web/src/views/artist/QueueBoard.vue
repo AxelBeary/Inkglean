@@ -12,231 +12,234 @@
       </el-radio-group>
     </div>
 
-    <div class="queue-container" v-loading="loading">
-      <draggable
-        v-model="queue"
-        item-key="id"
-        handle=".drag-handle"
-        ghost-class="ghost"
-        @end="onDragEnd"
-        class="queue-list"
-      >
-        <template #item="{ element }">
-          <div
-            class="queue-item"
-            :class="`priority-${element.priority}`"
-            @pointerdown="onCardPointerDown"
-            @pointerup="(e) => onCardPointerUp(e, element)"
+    <!-- P0-3b: 标签切换（正式区 / 缓冲区） -->
+    <el-tabs v-model="activeTab" class="queue-tabs">
+      <el-tab-pane :label="$t('queue.tabFormal')" name="formal">
+        <div class="queue-container" v-loading="loading">
+          <draggable
+            v-model="queue"
+            item-key="id"
+            handle=".drag-handle"
+            ghost-class="ghost"
+            @end="onDragEnd"
+            class="queue-list"
           >
-            <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
-            <!-- 焦点图区域：大图模式显示焦点图，无焦点图时显示空态上传入口 -->
-            <div v-if="focusDisplay === 'large'" class="focus-area">
-              <!-- R53: 已有焦点图 — 点击选文件 / 拖拽图片替换（复用 uploadAndSetFocus；
-                   移除 preview-src-list 避免 el-image 内置预览吞掉点击，R18 同款陷阱） -->
+            <template #item="{ element }">
               <div
-                v-if="element.focus_image_path"
-                class="focus-img-wrap"
-                :class="{ 'focus-img-wrap--active': focusDragId === element.id }"
-                @click="triggerFocusUpload(element)"
-                @dragover.prevent="focusDragId = element.id"
-                @dragleave="onFocusDragLeave($event, element)"
-                @drop.prevent="handleFocusDrop($event, element)"
+                class="queue-item"
+                :class="`priority-${element.priority}`"
+                @pointerdown="onCardPointerDown"
+                @pointerup="(e) => onCardPointerUp(e, element)"
               >
+                <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
+                <!-- 焦点图区域：大图模式显示焦点图，无焦点图时显示空态上传入口 -->
+                <div v-if="focusDisplay === 'large'" class="focus-area">
+                  <!-- R53: 已有焦点图 — 点击选文件 / 拖拽图片替换（复用 uploadAndSetFocus；
+                   移除 preview-src-list 避免 el-image 内置预览吞掉点击，R18 同款陷阱） -->
+                  <div
+                    v-if="element.focus_image_path"
+                    class="focus-img-wrap"
+                    :class="{ 'focus-img-wrap--active': focusDragId === element.id }"
+                    @click="triggerFocusUpload(element)"
+                    @dragover.prevent="focusDragId = element.id"
+                    @dragleave="onFocusDragLeave($event, element)"
+                    @drop.prevent="handleFocusDrop($event, element)"
+                  >
+                    <el-image
+                      :src="element.focusImageUrl" fit="cover" class="focus-large-img"
+                      :alt="$t('orderDetail.referenceImage')"
+                      @error="() => refreshNow(element.focus_image_path)"
+                    />
+                    <div v-if="focusDragId === element.id" class="focus-replace-overlay">
+                      <span>{{ $t('queue.dropToReplace') }}</span>
+                    </div>
+                  </div>
+                  <!-- 空态上传：点击选文件 / 拖拽图片放入，上传后直接设为焦点图 -->
+                  <div
+                    v-else
+                    class="focus-empty"
+                    :class="{ 'focus-empty--active': focusDragId === element.id }"
+                    @click="triggerFocusUpload(element)"
+                    @dragover.prevent="focusDragId = element.id"
+                    @dragleave="onFocusDragLeave($event, element)"
+                    @drop.prevent="handleFocusDrop($event, element)"
+                  >
+                    <el-icon :size="20"><Plus /></el-icon>
+                    <span class="focus-empty-text">{{ $t('queue.uploadFocus') }}</span>
+                  </div>
+                </div>
+                <div class="item-body">
+                  <div class="item-header">
+                    <span class="order-no">#{{ element.order_no }}</span>
+                    <el-tag :type="priorityType(element.priority)" size="small" effect="dark">
+                      {{ $t(`common.priority.${element.priority}`) }}
+                    </el-tag>
+                    <el-tag :type="statusType(element.status)" size="small">
+                      {{ $t(`common.orderStatus.${element.status}`) }}
+                    </el-tag>
+                    <!-- R30d: 当前流程节点名（打回时带 ↩ 标记） -->
+                    <el-tag v-if="element.currentStageId != null" type="info" size="small" effect="plain" class="stage-tag">
+                      {{ element.status === 'revision' ? '↩ ' : '' }}{{ element.currentStageName }}
+                    </el-tag>
+                  </div>
+                  <div class="item-info">
+                    <span>{{ element.tier_name || $t('common.custom') }}</span>
+                    <span>·</span>
+                    <span>QQ: {{ element.client_qq }}</span>
+                    <span v-if="element.client_name">· {{ element.client_name }}</span>
+                  </div>
+                  <div class="item-desc" v-if="element.description">
+                    {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
+                  </div>
+                </div>
+                <div class="item-actions">
+                  <!-- R30d: 接入流程的订单 → "推进到下一节点"（替代固定状态按钮） -->
+                  <el-button
+                    v-if="element.currentStageId != null && canAdvance(element)"
+                    size="small" type="primary"
+                    @click="advanceOrderStage(element)"
+                  >
+                    {{ $t('queue.advanceStage') }}
+                  </el-button>
+                  <!-- REQ-013 #7: 工作流订单到达最后节点(done) → "去交付"跳转详情页（交付需上传文件） -->
+                  <el-button
+                    v-else-if="element.currentStageId != null && element.status === 'done'"
+                    size="small" type="success"
+                    @click="$router.push(`/orders/${element.id}?from=queue`)"
+                  >
+                    {{ $t('queue.goDeliver') }}
+                  </el-button>
+                  <!-- R30b: 未接入流程的订单 → 固定状态主操作外露（Bug 4: 工作流订单不穿透到此按钮） -->
+                  <el-button
+                    v-else-if="element.currentStageId == null && nextAction(element.status)"
+                    size="small"
+                    :type="nextAction(element.status).type"
+                    @click="quickAction(nextAction(element.status).command, element)"
+                  >
+                    {{ $t(nextAction(element.status).labelKey) }}
+                  </el-button>
+                  <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
+                  <el-dropdown trigger="click" @command="(cmd) => quickAction(cmd, element)">
+                    <el-button size="small">{{ $t('common.actions') }}</el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="confirmed" v-if="element.status === 'pending' && element.currentStageId == null">{{ $t('queue.confirm') }}</el-dropdown-item>
+                        <el-dropdown-item command="wip" v-if="element.status === 'confirmed' && element.currentStageId == null">{{ $t('queue.startWip') }}</el-dropdown-item>
+                        <el-dropdown-item command="done" v-if="['wip','revision'].includes(element.status) && element.currentStageId == null">{{ $t('queue.done') }}</el-dropdown-item>
+                        <el-dropdown-item command="delivered" v-if="element.status === 'done' && element.currentStageId == null">{{ $t('queue.deliver') }}</el-dropdown-item>
+                        <el-dropdown-item command="cancelled" divided>{{ $t('queue.cancel') }}</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
+
+                <!-- R30e: 取消订单滑块确认（替代普通弹窗，防误触） -->
+                <div v-if="cancellingId === element.id" class="slide-cancel-row">
+                  <div class="slide-cancel">
+                    <div class="slide-cancel-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
+                    <span class="slide-cancel-label">{{ $t('queue.slideToCancel') }}</span>
+                    <div
+                      class="slide-cancel-thumb"
+                      :style="{ left: `calc(2px + ${slideProgress} * (100% - 40px))` }"
+                      @pointerdown="onSlideStart"
+                      @pointermove="onSlideMove"
+                      @pointerup="(e) => onSlideEnd(e, element)"
+                    >
+                      →
+                    </div>
+                  </div>
+                  <el-button text size="small" @click="closeSlideCancel">✕</el-button>
+                </div>
+              </div>
+            </template>
+          </draggable>
+
+          <el-empty v-if="!loading && queue.length === 0" :description="$t('queue.empty')" />
+        </div>
+
+        <!-- REQ-013 #7: 完成区（留在正式区标签内，不随标签切换） -->
+        <template v-if="completedQueue.length || completedLoading">
+          <h3 class="completed-title">{{ $t('queue.completedTitle') }}</h3>
+          <p class="completed-hint">{{ $t('queue.completedHint') }}</p>
+          <div class="queue-container" v-loading="completedLoading">
+            <div class="queue-list">
+              <div
+                v-for="element in completedQueue" :key="element.id"
+                class="queue-item completed-item"
+              >
+                <div class="item-body">
+                  <div class="item-header">
+                    <span class="order-no">#{{ element.order_no }}</span>
+                    <el-tag type="success" size="small">{{ $t('common.orderStatus.delivered') }}</el-tag>
+                    <el-tag v-if="element.currentStageId != null" type="info" size="small" effect="plain" class="stage-tag">
+                      {{ element.currentStageName }}
+                    </el-tag>
+                  </div>
+                  <div class="item-info">
+                    <span>{{ element.tier_name || $t('common.custom') }}</span>
+                    <span>·</span>
+                    <span>QQ: {{ element.client_qq }}</span>
+                    <span v-if="element.client_name">· {{ element.client_name }}</span>
+                  </div>
+                </div>
+                <div class="item-actions">
+                  <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
+                </div>
+              </div>
+            </div>
+            <el-empty v-if="!completedLoading && completedQueue.length === 0" :description="$t('queue.completedEmpty')" />
+          </div>
+        </template>
+      </el-tab-pane>
+
+      <!-- P0-3b: 缓冲区标签 -->
+      <el-tab-pane :label="$t('queue.tabBuffer')" name="buffer">
+        <p class="buffer-hint">{{ $t('queue.bufferHint') }}</p>
+        <div class="queue-container" v-loading="bufferLoading">
+          <div class="queue-list">
+            <div
+              v-for="element in bufferQueue" :key="element.id"
+              class="queue-item buffer-item"
+              :class="`priority-${element.priority}`"
+            >
+              <div v-if="focusDisplay === 'large'" class="focus-area">
                 <el-image
+                  v-if="element.focus_image_path"
                   :src="element.focusImageUrl" fit="cover" class="focus-large-img"
                   :alt="$t('orderDetail.referenceImage')"
                   @error="() => refreshNow(element.focus_image_path)"
                 />
-                <div v-if="focusDragId === element.id" class="focus-replace-overlay">
-                  <span>{{ $t('queue.dropToReplace') }}</span>
+                <div v-else class="focus-empty focus-empty--static">
+                  <el-icon :size="20"><Plus /></el-icon>
                 </div>
               </div>
-              <!-- 空态上传：点击选文件 / 拖拽图片放入，上传后直接设为焦点图 -->
-              <div
-                v-else
-                class="focus-empty"
-                :class="{ 'focus-empty--active': focusDragId === element.id }"
-                @click="triggerFocusUpload(element)"
-                @dragover.prevent="focusDragId = element.id"
-                @dragleave="onFocusDragLeave($event, element)"
-                @drop.prevent="handleFocusDrop($event, element)"
-              >
-                <el-icon :size="20"><Plus /></el-icon>
-                <span class="focus-empty-text">{{ $t('queue.uploadFocus') }}</span>
-              </div>
-            </div>
-            <div class="item-body">
-              <div class="item-header">
-                <span class="order-no">#{{ element.order_no }}</span>
-                <el-tag :type="priorityType(element.priority)" size="small" effect="dark">
-                  {{ $t(`common.priority.${element.priority}`) }}
-                </el-tag>
-                <el-tag :type="statusType(element.status)" size="small">
-                  {{ $t(`common.orderStatus.${element.status}`) }}
-                </el-tag>
-                <!-- R30d: 当前流程节点名（打回时带 ↩ 标记） -->
-                <el-tag v-if="element.currentStageId != null" type="info" size="small" effect="plain" class="stage-tag">
-                  {{ element.status === 'revision' ? '↩ ' : '' }}{{ element.currentStageName }}
-                </el-tag>
-              </div>
-              <div class="item-info">
-                <span>{{ element.tier_name || $t('common.custom') }}</span>
-                <span>·</span>
-                <span>QQ: {{ element.client_qq }}</span>
-                <span v-if="element.client_name">· {{ element.client_name }}</span>
-              </div>
-              <div class="item-desc" v-if="element.description">
-                {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
-              </div>
-            </div>
-            <div class="item-actions">
-              <!-- R30d: 接入流程的订单 → "推进到下一节点"（替代固定状态按钮） -->
-              <el-button
-                v-if="element.currentStageId != null && canAdvance(element)"
-                size="small" type="primary"
-                @click="advanceOrderStage(element)"
-              >
-                {{ $t('queue.advanceStage') }}
-              </el-button>
-              <!-- REQ-013 #7: 工作流订单到达最后节点(done) → "去交付"跳转详情页（交付需上传文件） -->
-              <el-button
-                v-else-if="element.currentStageId != null && element.status === 'done'"
-                size="small" type="success"
-                @click="$router.push(`/orders/${element.id}?from=queue`)"
-              >
-                {{ $t('queue.goDeliver') }}
-              </el-button>
-              <!-- R30b: 未接入流程的订单 → 固定状态主操作外露（Bug 4: 工作流订单不穿透到此按钮） -->
-              <el-button
-                v-else-if="element.currentStageId == null && nextAction(element.status)"
-                size="small"
-                :type="nextAction(element.status).type"
-                @click="quickAction(nextAction(element.status).command, element)"
-              >
-                {{ $t(nextAction(element.status).labelKey) }}
-              </el-button>
-              <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
-              <el-dropdown trigger="click" @command="(cmd) => quickAction(cmd, element)">
-                <el-button size="small">{{ $t('common.actions') }}</el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="confirmed" v-if="element.status === 'pending' && element.currentStageId == null">{{ $t('queue.confirm') }}</el-dropdown-item>
-                    <el-dropdown-item command="wip" v-if="element.status === 'confirmed' && element.currentStageId == null">{{ $t('queue.startWip') }}</el-dropdown-item>
-                    <el-dropdown-item command="done" v-if="['wip','revision'].includes(element.status) && element.currentStageId == null">{{ $t('queue.done') }}</el-dropdown-item>
-                    <el-dropdown-item command="delivered" v-if="element.status === 'done' && element.currentStageId == null">{{ $t('queue.deliver') }}</el-dropdown-item>
-                    <el-dropdown-item command="cancelled" divided>{{ $t('queue.cancel') }}</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-
-            <!-- R30e: 取消订单滑块确认（替代普通弹窗，防误触） -->
-            <div v-if="cancellingId === element.id" class="slide-cancel-row">
-              <div class="slide-cancel">
-                <div class="slide-cancel-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
-                <span class="slide-cancel-label">{{ $t('queue.slideToCancel') }}</span>
-                <div
-                  class="slide-cancel-thumb"
-                  :style="{ left: `calc(2px + ${slideProgress} * (100% - 40px))` }"
-                  @pointerdown="onSlideStart"
-                  @pointermove="onSlideMove"
-                  @pointerup="(e) => onSlideEnd(e, element)"
-                >
-                  →
+              <div class="item-body">
+                <div class="item-header">
+                  <span class="order-no">#{{ element.order_no }}</span>
+                  <el-tag type="warning" size="small" effect="dark">{{ $t('queue.bufferTag') }}</el-tag>
+                  <el-tag :type="statusType(element.status)" size="small">
+                    {{ $t(`common.orderStatus.${element.status}`) }}
+                  </el-tag>
+                </div>
+                <div class="item-info">
+                  <span>{{ element.tier_name || $t('common.custom') }}</span>
+                  <span>·</span>
+                  <span>QQ: {{ element.client_qq }}</span>
+                  <span v-if="element.client_name">· {{ element.client_name }}</span>
                 </div>
               </div>
-              <el-button text size="small" @click="closeSlideCancel">✕</el-button>
+              <div class="item-actions">
+                <el-button size="small" type="primary" @click="promoteOrder(element)" :loading="promotingId === element.id">
+                  {{ $t('queue.promote') }}
+                </el-button>
+                <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
+              </div>
             </div>
           </div>
-        </template>
-      </draggable>
-
-      <el-empty v-if="!loading && queue.length === 0" :description="$t('queue.empty')" />
-    </div>
-
-    <!-- SPEC-004: 缓冲区（候补订单，递补后移入正式区） -->
-    <template v-if="bufferQueue.length || bufferLoading">
-      <h3 class="buffer-title">{{ $t('queue.bufferTitle') }}</h3>
-      <p class="buffer-hint">{{ $t('queue.bufferHint') }}</p>
-      <div class="queue-container" v-loading="bufferLoading">
-        <div class="queue-list">
-          <div
-            v-for="element in bufferQueue" :key="element.id"
-            class="queue-item buffer-item"
-            :class="`priority-${element.priority}`"
-          >
-            <!-- 焦点图（同正式区卡片风格，只读展示） -->
-            <div v-if="focusDisplay === 'large'" class="focus-area">
-              <el-image
-                v-if="element.focus_image_path"
-                :src="element.focusImageUrl" fit="cover" class="focus-large-img"
-                :alt="$t('orderDetail.referenceImage')"
-                @error="() => refreshNow(element.focus_image_path)"
-              />
-              <div v-else class="focus-empty focus-empty--static">
-                <el-icon :size="20"><Plus /></el-icon>
-              </div>
-            </div>
-            <div class="item-body">
-              <div class="item-header">
-                <span class="order-no">#{{ element.order_no }}</span>
-                <el-tag type="warning" size="small" effect="dark">{{ $t('queue.bufferTag') }}</el-tag>
-                <el-tag :type="statusType(element.status)" size="small">
-                  {{ $t(`common.orderStatus.${element.status}`) }}
-                </el-tag>
-              </div>
-              <div class="item-info">
-                <span>{{ element.tier_name || $t('common.custom') }}</span>
-                <span>·</span>
-                <span>QQ: {{ element.client_qq }}</span>
-                <span v-if="element.client_name">· {{ element.client_name }}</span>
-              </div>
-            </div>
-            <div class="item-actions">
-              <el-button size="small" type="primary" @click="promoteOrder(element)" :loading="promotingId === element.id">
-                {{ $t('queue.promote') }}
-              </el-button>
-              <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
-            </div>
-          </div>
+          <el-empty v-if="!bufferLoading && bufferQueue.length === 0" :description="$t('queue.bufferEmpty')" />
         </div>
-        <el-empty v-if="!bufferLoading && bufferQueue.length === 0" :description="$t('queue.bufferEmpty')" />
-      </div>
-    </template>
-
-    <!-- REQ-013 #7: 完成区（最近 7 天已交付订单，灰色沉底，不可拖拽） -->
-    <template v-if="completedQueue.length || completedLoading">
-      <h3 class="completed-title">{{ $t('queue.completedTitle') }}</h3>
-      <p class="completed-hint">{{ $t('queue.completedHint') }}</p>
-      <div class="queue-container" v-loading="completedLoading">
-        <div class="queue-list">
-          <div
-            v-for="element in completedQueue" :key="element.id"
-            class="queue-item completed-item"
-          >
-            <div class="item-body">
-              <div class="item-header">
-                <span class="order-no">#{{ element.order_no }}</span>
-                <el-tag type="success" size="small">{{ $t('common.orderStatus.delivered') }}</el-tag>
-                <el-tag v-if="element.currentStageId != null" type="info" size="small" effect="plain" class="stage-tag">
-                  {{ element.currentStageName }}
-                </el-tag>
-              </div>
-              <div class="item-info">
-                <span>{{ element.tier_name || $t('common.custom') }}</span>
-                <span>·</span>
-                <span>QQ: {{ element.client_qq }}</span>
-                <span v-if="element.client_name">· {{ element.client_name }}</span>
-              </div>
-            </div>
-            <div class="item-actions">
-              <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
-            </div>
-          </div>
-        </div>
-        <el-empty v-if="!completedLoading && completedQueue.length === 0" :description="$t('queue.completedEmpty')" />
-      </div>
-    </template>
+      </el-tab-pane>
+    </el-tabs>
 
     <!-- 焦点图空态上传：隐藏文件选择器（点击占位按钮触发） -->
     <input
@@ -261,6 +264,8 @@ const { t } = useI18n()
 const router = useRouter()
 const queue = ref([])
 const loading = ref(true)
+// P0-3b: 标签切换（正式区 / 缓冲区）
+const activeTab = ref('formal')
 
 // ─── R20: 焦点图显示模式（全局设置；仅 无/大 两态，旧值 small 映射为 large） ───
 const FOCUS_DISPLAY_KEY = 'queue_focus_display'

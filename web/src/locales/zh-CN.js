@@ -279,6 +279,8 @@ export default {
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
+    // P0-3b: 标签切换
+    tabFormal: '正式区', tabBuffer: '缓冲区',
     // REQ-013 #7: 工作流 done 订单交付入口 + 完成区
     goDeliver: '📦 去交付',
     completedTitle: '✅ 近期已交付', completedHint: '已交付订单在此保留 7 天后自动隐藏',
