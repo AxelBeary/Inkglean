@@ -12,6 +12,7 @@
 | 委托 / 约稿 | commission | 客户向画师发起的一次定制创作请求 | "订单"是委托进入流程后的管理视角 |
 | 订单 | order | 委托被确认后的管理实体，有状态机流转 | 委托强调"请求"，订单强调"管理" |
 | 档位 | tier | 画师预设的服务等级（如"头像档""全身档"），含基础价格 | ≠ 倍率（倍率是价格调整系数） |
+| 档位三态 | tier display status | v0.24：visible（正常展示可下单）/ showcase（仅展示不可下单）/ hidden（完全隐藏） | ≠ 档位本身（三态是展示控制，不是服务等级） |
 | 稿件 / 交付物 | deliverable | 画师提交的创作成果文件 | ≠ 参考图（参考图是客户提供的） |
 | 参考图 | reference | 客户下单时提供的示例/需求图片 | ≠ 稿件 |
 
@@ -46,6 +47,8 @@
 | 嵌入 | embed | 将画师主页以 iframe 形式嵌入外部页面 |
 | 签名 URL | signed URL | 带时效签名的私有文件访问链接（防直链盗用） |
 | 管理后台 | admin panel | 画师/管理员使用的运营管理界面 |
+| 快捷按钮 | quick_actions | v0.24：画师自定义的常用操作入口（DB 字段 + localStorage MVP），管理后台可配置 |
+| 留言 | message / guestbook | v0.24：客户在画师主页的公开留言，画师后台可管理（独立页面 + 侧边栏角标） |
 | 开发模式 | dev mode | 当前阶段，AUTH_DEV_MODE=true，登录页显示验证码，非生产环境 |
 
 ## 技术栈速查
@@ -57,9 +60,9 @@
 | 前端 | Vue 3 + Element Plus | SPA |
 | 前端 i18n | vue-i18n@11 | v0.20 从 v9 升级 |
 | 类型系统 | TypeScript（渐进迁移中） | v0.21 起，v0.22 完成 features/ + utils/ + middleware/ 全部 TS；剩余 app.js/index.js/db/ 入口 |
-| 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL |
+| 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL。迁移当前 v26（quick_actions） |
 | 部署 | Docker Compose + Caddy | 容器化 |
-| 测试 | Vitest（后端 489 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
+| 测试 | Vitest（后端 512 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则
