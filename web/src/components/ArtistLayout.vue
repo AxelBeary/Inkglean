@@ -134,7 +134,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, DocumentAdd, ChatLineSquare } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, DocumentAdd, ChatLineSquare, Tickets } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -149,6 +149,8 @@ const activeMenu = computed(() => route.path)
 const BASE_MENU_ITEMS = [
   { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard' },
   { index: '/queue', icon: List, labelKey: 'menu.queue' },
+  // v0.26 C: 开稿管理（排期看板后面）
+  { index: '/slots', icon: Tickets, labelKey: 'menu.slots' },
   { index: '/orders', icon: Box, labelKey: 'menu.orders' },
   // #6: 手动录单侧边栏入口（订单管理下方，复用 /orders?action=manual 自动开抽屉）
   { index: '/orders?action=manual', icon: DocumentAdd, labelKey: 'menu.manualOrder' },

@@ -323,6 +323,29 @@ export function deleteTier(tierId: number): void {
   db.prepare('DELETE FROM price_tiers WHERE id = ?').run(tierId)
 }
 
+/**
+ * v0.26 A: 档位拖拽排序（事务内逐个 UPDATE sort_order）
+ * ids 按目标顺序排列，所有 id 必须属于该画师
+ */
+export function reorderTiers(artistId: number, ids: number[]): Tier[] {
+  return db.transaction(() => {
+    const existing = getTiers(artistId)
+    const existingIds = new Set(existing.map(t => t.id))
+    // 校验：长度一致 + 全部归属
+    if (ids.length !== existing.length) throw new AppError(E.REORDER_LENGTH)
+    for (const id of ids) {
+      if (!existingIds.has(id)) throw new AppError(E.REORDER_INVALID)
+    }
+    if (new Set(ids).size !== ids.length) throw new AppError(E.REORDER_DUPLICATE)
+    // 逐个写入 sort_order
+    ids.forEach((id, i) => {
+      db.prepare('UPDATE price_tiers SET sort_order = ? WHERE id = ? AND artist_id = ?')
+        .run(i + 1, id, artistId)
+    })
+    return getTiers(artistId)
+  })()
+}
+
 // ============================================
 // 作品
 // ============================================

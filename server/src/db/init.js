@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS orders (
   focus_image_mode TEXT DEFAULT 'off',
   current_stage_id INTEGER,
   deadline DATETIME,
+  start_date TEXT DEFAULT NULL,
   queue_zone TEXT DEFAULT 'formal',
   paid_total_cents INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1047,6 +1048,17 @@ export const MIGRATIONS = [
       const cols = database.prepare('PRAGMA table_info(artist_workflow_stages)').all()
       if (!cols.some(c => c.name === 'random_template')) {
         database.exec('ALTER TABLE artist_workflow_stages ADD COLUMN random_template INTEGER DEFAULT 0')
+      }
+    }
+  },
+  {
+    version: 29,
+    name: 'order_start_date',
+    up(database) {
+      // v0.26 B: 开工日（画师手动设定，用于截稿日自动建议 + 日历带子起点）
+      const cols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!cols.some(c => c.name === 'start_date')) {
+        database.exec('ALTER TABLE orders ADD COLUMN start_date TEXT DEFAULT NULL')
       }
     }
   }

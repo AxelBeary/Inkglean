@@ -482,9 +482,9 @@ const calOrders = computed(() => [
   ...bufferQueue.value.map(o => ({ ...o, _zone: 'buffer' }))
 ])
 
-/** 订单带区间：确认日(created_at) → 截稿日(deadline)；未设截稿 → 画满到可见月末 */
+/** 订单带区间：开工日(start_date)→确认日(created_at) → 截稿日(deadline)；未设截稿 → 画满到可见月末 */
 function bandRange(order) {
-  const start = parseDate(order.created_at) || parseDate(order.confirmed_at)
+  const start = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
   if (!start) return null
   let end = parseDate(order.deadline)
   const noDeadline = !end
@@ -632,7 +632,7 @@ const tlRows = computed(() => {
   const winEnd = new Date(winStart.getFullYear(), winStart.getMonth(), winStart.getDate() + tlDays.value - 1)
   return calOrders.value
     .map(order => {
-      const start = parseDate(order.created_at) || parseDate(order.confirmed_at)
+      const start = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
       if (!start) return null
       let end = parseDate(order.deadline)
       if (!end) end = winEnd // 未设截稿：画满到可见窗口末端
@@ -648,8 +648,8 @@ const tlRows = computed(() => {
     })
     .filter(Boolean)
     .sort((a, b) => {
-      const sa = parseDate(a.order.created_at) || parseDate(a.order.confirmed_at)
-      const sb = parseDate(b.order.created_at) || parseDate(b.order.confirmed_at)
+      const sa = parseDate(a.order.startDate) || parseDate(a.order.created_at) || parseDate(a.order.confirmed_at)
+      const sb = parseDate(b.order.startDate) || parseDate(b.order.created_at) || parseDate(b.order.confirmed_at)
       return (sa?.getTime() || 0) - (sb?.getTime() || 0)
     })
 })

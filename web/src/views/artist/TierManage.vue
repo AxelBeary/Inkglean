@@ -7,8 +7,19 @@
       <el-tab-pane label="档位" name="tiers">
         <el-button type="primary" size="small" style="margin-bottom: 12px" @click="openTierDialog()">＋ 新建档位</el-button>
         <!-- R54: 档位表格→卡片布局（保留 R55 示例图拖拽/点击直传） -->
+        <!-- v0.26 A: vuedraggable 卡片排序（handle 避免与示例图拖拽上传冲突） -->
         <div v-loading="loadingTiers" class="tier-card-grid">
-          <div v-for="row in tiers" :key="row.id" class="tier-card" :class="{ 'tier-card--hidden': row.visibility === 'hidden' }">
+          <draggable
+            v-model="tiers"
+            item-key="id"
+            handle=".tier-drag-handle"
+            ghost-class="ghost"
+            @end="onTierDragEnd"
+          >
+            <template #item="{ element: row }">
+          <div class="tier-card" :class="{ 'tier-card--hidden': row.visibility === 'hidden' }">
+            <!-- v0.26 A: 拖拽手柄 -->
+            <div class="tier-drag-handle" :title="$t('tiers.dragHint')">⠿</div>
             <!-- R55: 示例图拖拽/点击直传（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 行为不同） -->
             <div
               class="tier-card-img"
@@ -60,6 +71,8 @@
               </el-popconfirm>
             </div>
           </div>
+            </template>
+          </draggable>
         </div>
         <el-empty v-if="!loadingTiers && tiers.length === 0" :description="$t('tiers.empty')" />
       </el-tab-pane>
@@ -125,6 +138,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
+import draggable from 'vuedraggable'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -253,6 +267,19 @@ async function loadTiers() {
 
 onMounted(loadTiers)
 
+// ─── v0.26 A: 档位拖拽排序 ───
+async function onTierDragEnd(evt) {
+  const { oldIndex, newIndex } = evt
+  if (oldIndex === newIndex) return
+  try {
+    await artistApi.reorderTiers(tiers.value.map(t => t.id))
+    ElMessage.success(t('tiers.reorderSaved'))
+  } catch (err) {
+    await loadTiers() // 回滚前端顺序
+    ElMessage.error(err.message)
+  }
+}
+
 // ─── R55: 示例图拖拽/点击直传（列表级，不打开弹窗） ───
 const tierImgInputEl = ref(null)
 const tierDragId = ref(null)
@@ -336,8 +363,20 @@ async function uploadTierExample(file, row) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
   transition: transform 0.3s var(--ease-bounce), box-shadow 0.3s var(--ease-bounce);
 }
+/* v0.26 A: 拖拽手柄 */
+.tier-drag-handle {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  cursor: grab; font-size: 18px; color: var(--text-muted);
+  padding: 2px 6px; border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+}
+.tier-drag-handle:hover { color: var(--el-color-primary); background: var(--bg-inset); }
+.tier-drag-handle:active { cursor: grabbing; }
+/* v0.26 A: 拖拽幽灵 */
+.ghost { opacity: 0.4; }
 .tier-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-card-hover);

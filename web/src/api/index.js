@@ -101,6 +101,8 @@ export const artistApi = {
   deleteTier: (id) => api.delete(`/artist/tiers/${id}`),
   // #10: 档位三态切换（visible/showcase/hidden）
   setTierVisibility: (id, visibility) => api.put(`/artist/tiers/${id}/visibility`, { visibility }),
+  // v0.26 A: 档位拖拽排序
+  reorderTiers: (ids) => api.put('/artist/tiers/reorder', { ids }),
   // 作品
   getArtworks: () => api.get('/artist/artworks'),
   createArtwork: (data) => api.post('/artist/artworks', data),
@@ -158,6 +160,8 @@ export const artistApi = {
   // R51: 截稿日
   getUpcomingDeadlines: () => api.get('/artist/orders/upcoming-deadlines'),
   updateDeadline: (id, deadline) => api.put(`/artist/orders/${id}/deadline`, { deadline }),
+  // v0.26 B: 开工日
+  updateStartDate: (id, startDate) => api.put(`/artist/orders/${id}/start-date`, { startDate }),
   // 问候语
   getGreeting: () => api.get('/artist/greeting'),
   // 流程与比例

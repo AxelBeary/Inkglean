@@ -119,7 +119,7 @@ export default {
   menu: {
     logo: 'HuiYue', dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
     manualOrder: 'Manual Entry', tiers: 'Pricing', artworks: 'Portfolio',
-    guestbook: 'Guestbook',
+    guestbook: 'Guestbook', slots: 'Slot Settings',
     preview: 'Preview Page',
     rules: 'Guidelines', settings: 'Page Settings', admin: 'Admin', logout: 'Log out',
     collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu'
@@ -369,6 +369,9 @@ export default {
     extraTotal: 'Final price', extraAutoHint: 'Final price = base price + extras, calculated automatically',
     // R51: deadline
     colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated',
+    // v0.26 B: start date
+    colStartDate: 'Start Date', startDatePlaceholder: 'Pick a start date', startDateUpdated: 'Start date updated',
+    deadlineAutoSet: 'Deadline auto-set based on turnaround days',
     // R58-6: QQ jump + copy
     jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
     // plan-node-speech: client communication block
@@ -407,6 +410,7 @@ export default {
   },
   tiers: {
     title: '💰 Pricing', addTier: '+ Add tier',
+    dragHint: 'Drag to reorder', reorderSaved: 'Order saved',
     colExample: 'Example', colName: 'Name', colPrice: 'Price', colDays: 'Turnaround', colDesc: 'Description',
     editTitle: 'Edit tier', addTitle: 'Add tier', nameLabel: 'Name',
     namePlaceholder: 'e.g. Headshot, Half-body, Full-body', priceLabel: 'Price (CNY)', daysLabel: 'Turnaround (days)',
@@ -495,6 +499,20 @@ export default {
     coverEmpty: 'No artworks yet — upload artworks first to set covers',
     // R50: preview
     previewBtn: 'Preview page'
+  },
+  // v0.26 C: Slot management page
+  slots: {
+    title: '📋 Slot Settings',
+    goDashboard: 'Go to Dashboard to switch →',
+    slotSection: 'Slot Limits',
+    quotaSection: 'Monthly Quota',
+    queueSection: 'Queue Behavior',
+    totalHint: 'Formal {n} + Buffer {m} = {sum} total slots',
+    movedHint: 'Slot, quota, and queue settings have moved to the Slot Settings page →',
+    statusOpen: 'Currently accepting commissions',
+    statusFull: 'Full — not accepting new orders',
+    statusBreak: 'On break — not accepting orders',
+    statusHidden: 'Page is hidden'
   },
   templates: {
     tab: 'Page Template',

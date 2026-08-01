@@ -311,6 +311,26 @@ export default async function artistRoutes(fastify) {
     return artistService.updateTier(tierId, { visibility: (request.body as any).visibility })
   })
 
+  /**
+   * PUT /api/artist/tiers/reorder
+   * v0.26 A: 档位拖拽排序（按数组顺序重写 sort_order）
+   */
+  fastify.put('/api/artist/tiers/reorder', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['ids'],
+        properties: {
+          ids: { type: 'array', items: { type: 'integer' }, minItems: 1, maxItems: 50 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    return artistService.reorderTiers(request.artist.id, (request.body as any).ids)
+  })
+
   // ─── 作品管理 ───
 
   fastify.get('/api/artist/artworks', { preHandler: requireAuth }, async (request) => {

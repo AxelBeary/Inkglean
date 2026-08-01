@@ -145,71 +145,16 @@
         </el-card>
       </el-tab-pane>
 
-      <!-- #4: 接稿设置（名额/缓冲/额度/缓冲开关，从基本资料挪入） -->
+      <!-- #4: 接稿设置（v0.26 C: 名额/额度/队列行为已移至开稿管理页，此处仅保留快捷按钮） -->
       <el-tab-pane :label="$t('settings.tabCommission')" name="commission">
         <el-card style="max-width: 600px" v-loading="loading">
           <el-form :model="form" label-position="top" size="large">
-            <!-- SPEC-004: 名额与缓冲（正式位 N + 缓冲位 M + 4 开关） -->
-            <el-form-item :label="$t('settings.slotLabel')">
-              <div class="slot-config">
-                <div class="slot-row">
-                  <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
-                  <el-input-number
-                    v-model="form.batchLimit" :min="0" :max="999"
-                    :disabled="!form.batchLimitEnabled"
-                    controls-position="right" class="slot-input"
-                  />
-                  <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
-                </div>
-                <div class="form-hint">{{ $t('settings.slotHint') }}</div>
-              </div>
-            </el-form-item>
-            <el-form-item :label="$t('settings.bufferLabel')">
-              <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
-              <div class="form-hint">{{ $t('settings.bufferHint') }}</div>
-            </el-form-item>
-            <!-- S5: 月度额度池 -->
-            <el-form-item :label="$t('settings.quotaLabel')">
-              <div class="slot-config">
-                <div class="slot-row">
-                  <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
-                  <el-input-number
-                    v-model="form.monthlyQuota" :min="0" :max="999"
-                    :disabled="!form.quotaEnabled"
-                    controls-position="right" class="slot-input"
-                  />
-                  <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
-                </div>
-                <div class="form-hint">{{ $t('settings.quotaHint') }}</div>
-              </div>
-            </el-form-item>
-            <el-form-item :label="$t('settings.bufferSwitchLabel')">
-              <div class="switch-grid">
-                <div class="switch-row">
-                  <el-switch v-model="form.autoPromote" />
-                  <span>{{ $t('settings.autoPromote') }}</span>
-                </div>
-                <div class="switch-row">
-                  <el-switch v-model="form.hideQueuePosition" />
-                  <span>{{ $t('settings.hideQueuePosition') }}</span>
-                </div>
-                <div class="switch-row">
-                  <el-switch v-model="form.hidePromoteNotify" />
-                  <span>{{ $t('settings.hidePromoteNotify') }}</span>
-                </div>
-                <div class="switch-row">
-                  <el-switch v-model="form.bufferShortForm" />
-                  <span>{{ $t('settings.bufferShortForm') }}</span>
-                </div>
-              </div>
-              <div class="form-hint">{{ $t('settings.bufferSwitchHint') }}</div>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
-            </el-form-item>
+            <!-- v0.26 C: 名额/额度/队列行为已移至开稿管理页 -->
+            <el-alert type="info" :closable="false" style="margin-bottom: 16px">
+              <router-link to="/slots">{{ $t('slots.movedHint') }}</router-link>
+            </el-alert>
 
             <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
-            <el-divider>{{ $t('settings.quickTitle') }}</el-divider>
             <el-form-item :label="$t('settings.quickLabel')">
               <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
                 <el-checkbox

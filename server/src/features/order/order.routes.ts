@@ -332,7 +332,7 @@ export default async function orderRoutes(fastify: any) {
           ORDER BY o.queue_position ASC
         `).all(request.artist.id) as any[]
         return bufferOrders.map((order: any) => {
-          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null }
+          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
           if (order.focus_image_path) {
             mapped.focusImageUrl = signedUrl(order.focus_image_path)
           }
@@ -343,7 +343,7 @@ export default async function orderRoutes(fastify: any) {
       if (zone === 'completed') {
         const completed = orderQueueService.getCompletedQueue(request.artist.id)
         return completed.map((order: any) => {
-          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null }
+          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
           if (order.focus_image_path) {
             mapped.focusImageUrl = signedUrl(order.focus_image_path)
           }
@@ -355,7 +355,7 @@ export default async function orderRoutes(fastify: any) {
       // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
       // Bug 4 fix: 映射 current_stage_id → currentStageId（前端用 camelCase）
       return queue.map((order: any) => {
-        const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null }
+        const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
         if (order.focus_image_path) {
           mapped.focusImageUrl = signedUrl(order.focus_image_path)
         }
@@ -389,7 +389,9 @@ export default async function orderRoutes(fastify: any) {
     Object.assign(order, {
       paidTotalCents: order.paid_total_cents ?? 0,
       remainingCents: finalCents != null ? Math.max(0, finalCents - (order.paid_total_cents ?? 0)) : null,
-      installments: orderService.getOrderInstallments(order.id)
+      installments: orderService.getOrderInstallments(order.id),
+      // v0.26 B: snake_case → camelCase 映射（对照 currentStageId 模式）
+      startDate: order.start_date ?? null
     })
     return order
   })
@@ -521,6 +523,26 @@ export default async function orderRoutes(fastify: any) {
     }
   }, async (request: any) => {
     return orderService.updateDeadline(request.order.id, (request.body as any).deadline)
+  })
+
+  /**
+   * PUT /api/artist/orders/:id/start-date
+   * v0.26 B: 设置/修改/清除开工日
+   */
+  fastify.put('/api/artist/orders/:id/start-date', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['startDate'],
+        properties: {
+          startDate: { type: ['string', 'null'], maxLength: 10 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any) => {
+    return orderService.updateStartDate(request.order.id, (request.body as any).startDate)
   })
 
   /**
