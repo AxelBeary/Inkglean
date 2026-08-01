@@ -1,6 +1,6 @@
 <template>
   <ArtistLayout>
-    <el-page-header @back="goBack" :title="backTitle" :content="`${$t('orderDetail.orderNo')}${order?.order_no}`" />
+    <el-page-header @back="goBack" :title="backTitle" :content="order ? `${$t('orderDetail.orderNo')}${order.order_no}` : ''" />
 
     <div v-if="order" class="order-detail">
       <!-- 基本信息 -->
