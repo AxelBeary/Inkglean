@@ -1,6 +1,6 @@
 <script>
 // #3: 快捷按钮候选池常量（命名导出，供 Settings.vue 配置区共用）
-/** localStorage 键（MVP：后续三号补 DB 字段后切换存储） */
+/** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
 export const QUICK_ACTIONS_KEY = 'huiyue_quick_actions'
 
 /** 候选池（~10 个，命名与侧边栏 menu.* 完全一致） */
@@ -19,17 +19,19 @@ export const QUICK_ACTION_POOL = [
 /** 默认 6 个（与改版前一致） */
 export const QUICK_ACTIONS_DEFAULT = ['queue', 'manual', 'orders', 'artworks', 'tiers', 'settings']
 
+/** 解析 quickActions 值（DB 返回 JSON 字符串或数组，统一为合法 key 数组） */
+export function parseQuickActions(raw) {
+  try {
+    const keys = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!Array.isArray(keys) || keys.length === 0) return null
+    const valid = QUICK_ACTION_POOL.filter(a => keys.includes(a.key)).map(a => a.key)
+    return valid.length ? valid : null
+  } catch { return null }
+}
+
 /** 读取 localStorage 配置（无效/缺失 → 默认副本） */
 export function readQuickActionsConfig() {
-  try {
-    const raw = localStorage.getItem(QUICK_ACTIONS_KEY)
-    if (!raw) return [...QUICK_ACTIONS_DEFAULT]
-    const keys = JSON.parse(raw)
-    if (!Array.isArray(keys) || keys.length === 0) return [...QUICK_ACTIONS_DEFAULT]
-    // 过滤非法 key，保持候选池顺序
-    const valid = QUICK_ACTION_POOL.filter(a => keys.includes(a.key)).map(a => a.key)
-    return valid.length ? valid : [...QUICK_ACTIONS_DEFAULT]
-  } catch { return [...QUICK_ACTIONS_DEFAULT] }
+  return parseQuickActions(localStorage.getItem(QUICK_ACTIONS_KEY)) || [...QUICK_ACTIONS_DEFAULT]
 }
 </script>
 
@@ -57,11 +59,14 @@ import { useArtistStore } from '../../../stores/artist.js'
 const router = useRouter()
 const store = useArtistStore()
 
-const activeActions = computed(() =>
-  readQuickActionsConfig()
+// v0.25: DB 优先（profile.quick_actions），localStorage 回退，最终兜底默认值
+const activeActions = computed(() => {
+  const dbKeys = parseQuickActions(store.profile?.quick_actions)
+  const keys = dbKeys || readQuickActionsConfig()
+  return keys
     .map(k => QUICK_ACTION_POOL.find(a => a.key === k))
     .filter(Boolean)
-)
+})
 
 function go(action) {
   // 主页预览：动态拼接 subdomain（新窗口，与 Settings 预览行为一致）

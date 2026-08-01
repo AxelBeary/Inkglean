@@ -91,6 +91,9 @@ export function useArtistData(props) {
   /** 开场代表作（第一张作品），无作品时为 null */
   const heroArtwork = computed(() => artworks.value[0] || null)
 
+  /** v0.25 A: 封面作品列表（is_cover=1；后端已将封面排前，此处再过滤兜底；字段缺失时为空数组=不显示封面区，向后兼容） */
+  const coverArtworks = computed(() => artworks.value.filter(a => a.is_cover))
+
   /** 作品预览列表（el-image preview-src-list 用） */
   const previewList = computed(() => artworks.value.map((a) => imgUrl(a.image_path)))
 
@@ -105,6 +108,7 @@ export function useArtistData(props) {
     socialLinks,
     platformLinks,
     heroArtwork,
+    coverArtworks,
     previewList
   }
 }

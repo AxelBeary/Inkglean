@@ -6,6 +6,14 @@
       <TplAnnouncement :artist="artist" class="gallery-announcement" />
     </div>
 
+    <!-- v0.25 A: 封面精选（有封面时显示，美术馆展墙式：直角细线 + 展签标注） -->
+    <section v-if="coverArtworks.length" class="gallery-covers tpl-reveal">
+      <p class="tpl-section-label gallery-label">{{ $t('artistHome.covers') }}</p>
+      <div class="gallery-cover-frame">
+        <TplCoverShowcase :covers="coverArtworks" :interval="5000" class="gallery-cover-show" />
+      </div>
+    </section>
+
     <!-- 作品画廊：大小交错 editorial -->
     <section class="gallery-section tpl-reveal" v-if="artworks.length">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
@@ -89,6 +97,7 @@ import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
+import TplCoverShowcase from '../../../components/templates/TplCoverShowcase.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
@@ -104,7 +113,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-const { socialLinks, platformLinks } = useArtistData(props)
+const { socialLinks, platformLinks, coverArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)
@@ -124,6 +133,50 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
 
 /* F3: Hero wrapper (relative container for announcement overlay) */
 .gallery-hero-wrap { position: relative; }
+
+/* v0.25 A: 封面精选 — gallery：美术馆展墙式，直角细线框 + 展签标注，冷峻克制 */
+.gallery-covers {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 72px 24px 0;
+}
+.gallery-cover-frame {
+  border: 1px solid var(--pal-border);
+  padding: 10px;
+  background: var(--pal-surface);
+}
+.gallery-cover-show {
+  height: 420px;
+  overflow: hidden;
+}
+.gallery-cover-show :deep(.el-carousel__arrow) {
+  background: color-mix(in srgb, var(--pal-bg) 70%, transparent);
+  border: 1px solid var(--pal-border);
+  border-radius: 0;
+  color: var(--pal-text);
+  backdrop-filter: blur(6px);
+  transition: border-color 0.2s, color 0.2s;
+}
+.gallery-cover-show :deep(.el-carousel__arrow:hover) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--pal-bg) 85%, transparent);
+}
+.gallery-cover-show :deep(.el-carousel__indicators--outside) { margin-top: 12px; }
+.gallery-cover-show :deep(.el-carousel__indicator--horizontal .el-carousel__button) {
+  background: var(--pal-border);
+  border-radius: 0;
+  height: 2px;
+  width: 24px;
+  transition: background 0.25s;
+}
+.gallery-cover-show :deep(.el-carousel__indicator--horizontal.is-active .el-carousel__button) {
+  background: var(--color-primary);
+}
+@media (max-width: 768px) {
+  .gallery-covers { padding: 48px 16px 0; }
+  .gallery-cover-show { height: 260px; }
+}
 /* F3: Announcement — semi-transparent base + plaque-style typography (top-left, avoiding the plaque at bottom-left) */
 .gallery-announcement {
   position: absolute;

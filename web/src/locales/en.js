@@ -144,7 +144,9 @@ export default {
     // #9: tier showcase
     tierSelectBtn: 'Choose this tier', tierShowcase: 'Not accepting', tierShowcaseBtn: 'Not accepting orders',
     // R50: preview mode
-    previewBanner: 'Preview mode — changes not yet saved'
+    previewBanner: 'Preview mode — changes not yet saved',
+    // v0.25 A: Cover showcase
+    covers: '✨ Featured Covers'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
@@ -301,12 +303,15 @@ export default {
     // R53: focus image replacement
     dropToReplace: 'Drop to replace focus image',
     // SPEC-005: calendar view
-    viewBoard: 'Board', viewCalendar: 'Calendar',
+    viewBoard: 'Board', viewCalendar: 'Calendar', viewTimeline: 'Timeline',
     calPrev: 'Previous month', calNext: 'Next month', calToday: 'Today',
     calTitle: '{y}-{m}',
     calMon: 'Mon', calTue: 'Tue', calWed: 'Wed', calThu: 'Thu', calFri: 'Fri', calSat: 'Sat', calSun: 'Sun',
     calNoDeadline: 'No deadline',
-    calLegendFormal: 'Formal order', calLegendBuffer: 'Buffer', calLegendNoDeadline: 'No deadline', calLegendOverdue: 'Overdue', calLegendDone: 'Done'
+    calLegendFormal: 'Formal order', calLegendBuffer: 'Buffer', calLegendNoDeadline: 'No deadline', calLegendOverdue: 'Overdue', calLegendDone: 'Done',
+    // v0.25 D: Timeline view
+    tlZoom2w: '2 weeks', tlZoom1m: '1 month', tlZoom2m: '2 months',
+    tlEmpty: 'No orders in the visible time range'
   },
   orderList: {
     title: '📦 Order Management', all: 'All',
@@ -441,6 +446,7 @@ export default {
     quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons (3-9)',
     quickHint: 'Check the buttons you want, then save. The dashboard quick area will follow.',
     quickSave: 'Save quick actions', quickSaved: 'Quick actions saved', quickLimitError: 'Please select 3-9 quick actions',
+    quickLocalFallback: 'Saved locally (server unavailable, will sync on next visit)',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
@@ -481,6 +487,12 @@ export default {
     // R49: accent color
     accentLabel: 'Accent color', accentHint: 'Button/link/highlight color on your public page, independent of visitor accent choice',
     accentClear: 'Default', accentDarkHint: 'Dark mode auto-brightens, no manual adjustment needed',
+    // v0.25 A: Cover management
+    coverTitle: 'Cover images (homepage carousel)',
+    coverHint: 'Click the star to feature an artwork as a homepage cover. Multiple covers rotate automatically. Click again to remove.',
+    coverSet: 'Set as cover', coverUnset: 'Remove cover',
+    coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
+    coverEmpty: 'No artworks yet — upload artworks first to set covers',
     // R50: preview
     previewBtn: 'Preview page'
   },
