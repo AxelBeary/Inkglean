@@ -328,24 +328,6 @@
           </el-button>
         </el-card>
       </el-tab-pane>
-
-      <!-- 嵌入脚本 -->
-      <el-tab-pane :label="$t('embed.tab')" name="embed" lazy>
-        <el-card style="max-width: 700px" v-loading="loading">
-          <!-- P0-5: 嵌入功能暂未开放（frame-ancestors 已收紧为 'self'，外部 iframe 不可用） -->
-          <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px">
-            嵌入功能暂未开放，敬请期待
-          </el-alert>
-          <p class="form-hint" style="margin-bottom: 16px">{{ $t('embed.hint') }}</p>
-          <p class="form-hint" style="margin-bottom: 16px">{{ $t('embed.step1') }}</p>
-          <div class="embed-code-box">
-            <code>{{ embedCode }}</code>
-          </div>
-          <el-button size="small" disabled @click="copyEmbedCode" style="margin-bottom: 20px">{{ $t('embed.copyBtn') }}</el-button>
-          <p class="form-hint">{{ $t('embed.step2') }}</p>
-          <img class="embed-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='60'%3E%3Crect width='240' height='60' fill='%231a1a1a' rx='8'/%3E%3Ctext x='16' y='28' fill='white' font-size='13' font-family='sans-serif'%3E%E2%9C%A8 Commission Me%3C/text%3E%3Ctext x='16' y='46' fill='%23999' font-size='11' font-family='sans-serif'%3E%E2%86%97 Order on HuiYue%3C/text%3E%3C/svg%3E" alt="Embed preview" />
-        </el-card>
-      </el-tab-pane>
     </el-tabs>
   </ArtistLayout>
 </template>
@@ -364,7 +346,7 @@ const { t } = useI18n()
 const route = useRoute()
 // R42b: /rules 重定向到 /settings?tab=rules 时直达须知 tab
 // #4: 支持 ?tab=commission 直达接稿设置（名额概览卡点击跳转）
-const VALID_TABS = ['profile', 'commission', 'template', 'rules', 'embed']
+const VALID_TABS = ['profile', 'commission', 'template', 'rules']
 const activeTab = ref(VALID_TABS.includes(route.query.tab) ? route.query.tab : 'profile')
 const loading = ref(true)
 const saving = ref(false)
@@ -574,27 +556,12 @@ const palettes = computed(() => [
   { id: 'moss',  name: t('templates.paletteMoss'),  desc: t('templates.paletteMossDesc'),  light: '#f0f4ee', dark: '#131c13' }
 ])
 
-const embedCode = computed(() =>
-  '<script src="/embed.js" data-artist="' + (form.subdomain || 'your-subdomain') + '"></' + 'script>'
-)
-
-async function copyEmbedCode() {
-  try {
-    await navigator.clipboard.writeText(embedCode.value)
-    ElMessage.success(t('embed.copied'))
-  } catch {
-    ElMessage.warning(t('embed.copyFailed'))
-  }
-}
-
 async function save() {
   saving.value = true
   try {
     // P1-D: 只提交 templateId + paletteId + accentColor，其他字段由 profile tab 的 save 提交
     if (activeTab.value === 'template') {
       await artistApi.updateProfile({ templateId: form.templateId, paletteId: form.paletteId, accentColor: form.accentColor })
-    } else if (activeTab.value === 'embed') {
-      // 嵌入脚本 tab 没有需要保存的设置
     } else {
       // R15: camelCase + customLinks 数组（PUT /api/artist/profile 已改 additionalProperties:false）
       // R58-8: platformUrls + inspirationTags（留空行/空标签不提交，platform 为空时省略让后端自动识别）
@@ -757,16 +724,6 @@ onMounted(async () => {
 .palette-card.active { border-color: var(--el-color-primary); box-shadow: 0 0 0 1px var(--el-color-primary); }
 .palette-swatch { height: 56px; display: flex; }
 .swatch-light, .swatch-dark { flex: 1; }
-
-.embed-code-box {
-  background: var(--bg-inset); border: 1px solid var(--border-color);
-  border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; cursor: pointer;
-  font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;
-  overflow-x: auto; transition: background 0.2s;
-}
-.embed-code-box:hover { background: var(--bg-hover); }
-.embed-code-box code { color: var(--text-primary); white-space: nowrap; }
-.embed-preview { margin-top: 8px; max-width: 240px; border-radius: 6px; }
 
 /* ─── R48: 头像上传 ─── */
 .avatar-upload {

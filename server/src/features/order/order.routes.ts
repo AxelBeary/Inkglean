@@ -213,12 +213,12 @@ export default async function orderRoutes(fastify: any) {
   })
 
   /**
-   * GET /api/orders/my
-   * 客户凭 QQ号 + 画师子域名 查询自己的所有订单（"不知道订单号"场景）
-   * 限流：同IP 10次/5分钟
-   */
-  fastify.get('/api/orders/my', async (request: any) => {
-    guardRateLimit(`my-orders:${request.ip}`, 10, 5 * 60_000)
+     * GET /api/orders/my
+     * 客户凭 QQ号 + 画师子域名 查询自己的所有订单（"不知道订单号"场景）
+     * P2-#19: 限流收紧为每 IP 每分钟 10 次（防 QQ 枚举）
+     */
+    fastify.get('/api/orders/my', async (request: any) => {
+      guardRateLimit(`my-orders:${request.ip}`, 10, 60_000)
 
     const { subdomain, qq } = (request.query || {}) as any
     if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
@@ -759,14 +759,21 @@ export default async function orderRoutes(fastify: any) {
     const artistId = String(request.artist.id)
 
     // 安全：路径归属校验 — 只允许本画师有权访问的目录
-    const allowedPrefixes = ['references/', `deliverables/${artistId}/`, `notes/${artistId}/`]
-    const urls: Record<string, string> = {}
-    for (const p of paths) {
-      if (p.includes('..') || !allowedPrefixes.some((prefix: string) => p.startsWith(prefix))) {
-        throw new AppError(E.ILLEGAL_PATH)
-      }
-      urls[p] = signedUrl(p)
-    }
+        const allowedPrefixes = ['references/', `deliverables/${artistId}/`, `notes/${artistId}/`]
+        const urls: Record<string, string> = {}
+        for (const p of paths) {
+          if (p.includes('..') || !allowedPrefixes.some((prefix: string) => p.startsWith(prefix))) {
+            throw new AppError(E.ILLEGAL_PATH)
+          }
+          // P2-#20: references/ 路径需校验属于本画师的订单（防跨画师签发）
+          if (p.startsWith('references/')) {
+            const owned = db.prepare(
+              'SELECT 1 FROM order_references r JOIN orders o ON r.order_id = o.id WHERE r.file_path = ? AND o.artist_id = ? LIMIT 1'
+            ).get(p, request.artist.id)
+            if (!owned) throw new AppError(E.ILLEGAL_PATH)
+          }
+          urls[p] = signedUrl(p)
+        }
 
     return { urls }
   })

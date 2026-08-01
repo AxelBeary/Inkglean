@@ -191,27 +191,30 @@ export const orderApi = {
 }
 
 // ─── 上传 ───
+// P2-#14: 上传请求覆盖 timeout（50MB 交付物在慢速网络需 >15s）
+const UPLOAD_TIMEOUT_MS = 120_000
+
 export const uploadApi = {
   image: (file) => {
     const fd = new FormData()
     fd.append('file', file)
-    return api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
   },
   reference: (file) => {
     const fd = new FormData()
     fd.append('file', file)
-    return api.post('/upload/reference', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return api.post('/upload/reference', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
   },
   deliverable: (file) => {
     const fd = new FormData()
     fd.append('file', file)
-    return api.post('/upload/deliverable', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return api.post('/upload/deliverable', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
   },
   // R19: 备注附图（需登录，notes/{artistId}/ 目录，签名 URL 返回）
   noteImage: (file) => {
     const fd = new FormData()
     fd.append('file', file)
-    return api.post('/upload/note-image', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return api.post('/upload/note-image', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
   }
 }
 

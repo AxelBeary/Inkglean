@@ -397,6 +397,10 @@ describe('路由层测试 (Route Integration)', () => {
     it('TC-RT-15: 批量刷新签名 URL 成功', async () => {
       const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
+      // P2-#20: references/ 路径需归属校验，补建订单+参考图记录
+      const order = seedOrder(artist.id)
+      db.prepare('INSERT INTO order_references (order_id, file_path, original_name, file_size, source) VALUES (?, ?, ?, ?, ?)')
+        .run(order.id, 'references/1/a.png', 'a.png', 100, 'artist')
 
       const res = await app.inject({
         method: 'POST',

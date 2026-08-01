@@ -401,26 +401,35 @@ async function submit() {
     })
 
     // R3 + UI-5 修复：有手动价格且与计算价不同（或无档位/无计算价）时，调 R2 接口写入
+    // P2-#13: 后续步骤失败时明确告知"订单已创建"，防重复提交
+    let postCreateFailed = null
     if (order.id && finalPriceYuan.value != null) {
       const calcCents = pricePreview.value?.totalPriceCents ?? null
       const manualCents = Math.round(finalPriceYuan.value * 100)
       if (manualCents > 0 && manualCents !== calcCents) {
-        await artistApi.updatePrice(order.id, {
-          finalPriceCents: manualCents,
-          quoteSnapshot: order.quote_snapshot || null
-        })
+        try {
+          await artistApi.updatePrice(order.id, {
+            finalPriceCents: manualCents,
+            quoteSnapshot: order.quote_snapshot || null
+          })
+        } catch (e) { postCreateFailed = `价格写入失败：${e.message}` }
       }
     }
 
     // R51: 截稿日（手动录单接口不支持 deadline 字段，创建后单独写入）
     if (order.id && form.deadline) {
-      await artistApi.updateDeadline(order.id, form.deadline)
+      try {
+        await artistApi.updateDeadline(order.id, form.deadline)
+      } catch (e) { postCreateFailed = postCreateFailed || `截稿日写入失败：${e.message}` }
     }
 
     resultNo.value = order.order_no
     showResult.value = true
     // R42a: 通知父组件（订单列表）刷新
     emit('created', order.order_no)
+    if (postCreateFailed) {
+      ElMessage.warning(`订单 ${order.order_no} 已创建，但${postCreateFailed}。请在订单详情中补充。`)
+    }
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
