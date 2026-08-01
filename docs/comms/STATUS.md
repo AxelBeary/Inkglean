@@ -29,10 +29,10 @@
 
 | 角色 | 任务 | 分支/Worktree | 派工文件 |
 |------|------|---------------|----------|
-| 二号 | ✅ v0.24-B 已合入，空闲待命 | — | — |
-| 三号 | ✅ v0.24-A 后端已合入，空闲待命 | — | — |
-| 四号 | ✅ REQ-013 整理完毕，空闲待命 | — | — |
-| 五号 | ✅ P0 三项已合入（`e03cabc`），空闲待命 | — | — |
+| 二号 | v0.24-C 留言管理页面 + 按钮自定义 | `feat/v024-c-guestbook` / `../artist-commission-fe` | `01-to-02-v024-c-20260802.md` |
+| 三号 | PERF-1 字体修复 + profile 补 slotDisplay | `fix/perf1-font` / 自建 | `01-to-03-perf1-20260802.md` |
+| 四号 | ✅ 空闲待命（可选：文档维护） | — | — |
+| 五号 | P1 审计修复四项（send-code/health/Q4/like防刷） | `fix/p1-audit-fixes` / `../artist-commission-p1` | `01-to-05-p1-fixes-20260802.md` |
 
 ---
 ## REQ-013 画师反馈处理进度
