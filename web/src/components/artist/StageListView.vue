@@ -84,12 +84,26 @@
                 @input="speechDirtyId = s.id"
                 @focus="focusedSpeechId = s.id"
               />
-              <el-button
-                v-if="speechDirtyId === s.id" size="small" type="primary" class="speech-save"
-                @click="commitSpeech(s)"
-              >
-                {{ $t('workflow.speechSave') }}
-              </el-button>
+              <div class="speech-side">
+                <!-- v0.27: 多模板随机开关（后端 random_template 契约，多条话术时可选随机发送） -->
+                <el-tooltip :content="$t('workflow.randomTemplateHint')" :disabled="hasMultiSpeech(s)">
+                  <span class="random-wrap">
+                    <el-checkbox
+                      v-model="s.randomTemplate"
+                      :disabled="!hasMultiSpeech(s)"
+                      @change="speechDirtyId = s.id"
+                    >
+                      {{ $t('workflow.randomTemplate') }}
+                    </el-checkbox>
+                  </span>
+                </el-tooltip>
+                <el-button
+                  v-if="speechDirtyId === s.id" size="small" type="primary" class="speech-save"
+                  @click="commitSpeech(s)"
+                >
+                  {{ $t('workflow.speechSave') }}
+                </el-button>
+              </div>
             </div>
           </div>
         </div>
@@ -183,9 +197,17 @@ function insertSpeechVar(s, varText) {
   speechDirtyId.value = s.id
 }
 
-/** 保存话术（仅 dirty 时触发） */
+/** 话术是否含多条（换行分隔 ≥2 条非空行）——随机开关仅在多条时有意义 */
+function hasMultiSpeech(s) {
+  return (s.speechTemplate || '').split('\n').filter(l => l.trim()).length >= 2
+}
+
+/** 保存话术（仅 dirty 时触发；附带随机开关状态，v0.27） */
 function commitSpeech(s) {
-  emit('updateSpeech', s.id, (s.speechTemplate || '').trim())
+  emit('updateSpeech', s.id, {
+    speechTemplate: (s.speechTemplate || '').trim(),
+    randomTemplate: !!s.randomTemplate
+  })
   speechDirtyId.value = null
 }
 
@@ -324,5 +346,8 @@ function onTogglePay(s, val) {
 .speech-var:hover { border-color: var(--color-primary); background: rgba(52,150,219,0.14); }
 .speech-editor { display: flex; gap: 8px; align-items: flex-start; }
 .speech-editor .el-textarea { flex: 1; }
-.speech-save { flex-shrink: 0; margin-top: 2px; }
+/* v0.27: 随机开关 + 保存按钮纵向排列 */
+.speech-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; margin-top: 2px; }
+.random-wrap { display: inline-flex; } /* tooltip 需要包裹层承接 disabled checkbox 的悬停事件 */
+.speech-save { flex-shrink: 0; }
 </style>

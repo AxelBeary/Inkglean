@@ -146,10 +146,10 @@ async function onUpdateDesc(id, description) {
   } catch (err) { ElMessage.error(err.message) }
 }
 
-// plan-node-speech：保存节点话术（PUT 时附带 speechTemplate 字段）
-async function onUpdateSpeech(id, speechTemplate) {
+// plan-node-speech：保存节点话术（PUT 时附带 speechTemplate + randomTemplate 字段，v0.27）
+async function onUpdateSpeech(id, { speechTemplate, randomTemplate }) {
   try {
-    await api.value.update(id, { speechTemplate })
+    await api.value.update(id, { speechTemplate, randomTemplate })
     await load()
     ElMessage.success(t('workflow.speechSaved'))
   } catch (err) { ElMessage.error(err.message); await load() }
