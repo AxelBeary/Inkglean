@@ -21,7 +21,7 @@
 | 角色 | 任务 | 分支/Worktree | 派工文件 |
 |------|------|---------------|----------|
 | 二号 | B7 额度池前端 | — | ✅ 已合入，空闲待命 |
-| 三号 | admin orders 端点补 paidTotalCents/installments 字段 | `fix/admin-orders-payments` / `../artist-commission-fix-admin` | `01-to-03-admin-orders-payments-20260801.md` |
+| 三号 | admin orders 补字段 | — | ✅ 已合入（`06d62b1`），空闲待命 |
 | 四号 | REQ-013 整理：#4 仪表盘/主页设置规划 + #9 图片裁切（和用户交流）+ #1/2/3/5/6/8/10 需求整理 | — | `01-to-04-req013-sort-20260801.md` |
 | 五号 | REQ-013 #7 看板修复 | — | ✅ 已合入（`94f5489`），空闲待命 |
 
