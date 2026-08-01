@@ -4,7 +4,7 @@ import * as orderQueueService from './order-queue.service.js'
 import * as orderGalleryService from './order-gallery.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
-import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
+import { getArtistBySubdomain, getRules, getTierById } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
 import { clamp, isValidQq } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -107,6 +107,14 @@ export default async function orderRoutes(fastify: any) {
     // 仅当画师设置了非空须知时，才要求客户勾选同意
     const rules = getRules((artist as any).id)
     if ((rules as any)?.content && !agreeRules) throw new AppError(E.RULES_NOT_AGREED)
+
+    // v0.24 #10: 档位三态校验 — showcase/hidden 不允许下单
+    if (tierId) {
+      const tier = getTierById(tierId)
+      if (tier && tier.visibility !== 'visible') {
+        throw new AppError(E.TIER_NOT_AVAILABLE)
+      }
+    }
 
     // C-3 修复：参考图路径校验 — 必须在 references/ 目录下，拒绝路径穿越
     if (references) {

@@ -286,7 +286,7 @@ export function createTier(artistId: number, fields: Record<string, unknown>): T
 export function updateTier(tierId: number, fields: Record<string, unknown>): Tier | undefined | null {
   // 同时接受 camelCase 和 snake_case（前端统一用 camelCase）
   const keyMap: Record<string, string> = { workDays: 'work_days', exampleImage: 'example_image' }
-  const allowed = ['name', 'price', 'description', 'example_image', 'work_days', 'sort_order']
+  const allowed = ['name', 'price', 'description', 'example_image', 'work_days', 'sort_order', 'visibility']
   const updates: string[] = []
   const values: unknown[] = []
 
