@@ -800,7 +800,11 @@ async function changeStartDate(val) {
     if (val && !order.value.deadline && order.value.tier_work_days) {
       const start = new Date(val + 'T00:00:00')
       start.setDate(start.getDate() + order.value.tier_work_days)
-      const autoDeadline = start.toISOString().slice(0, 10)
+      // 本地日期格式化（toISOString 转 UTC 会 off-by-one，UTC+8 下 08-15→08-14）
+      const y = start.getFullYear()
+      const m = String(start.getMonth() + 1).padStart(2, '0')
+      const d = String(start.getDate()).padStart(2, '0')
+      const autoDeadline = `${y}-${m}-${d}`
       order.value = await artistApi.updateDeadline(route.params.id, autoDeadline)
       ElMessage.success(t('orderDetail.deadlineAutoSet'))
     }

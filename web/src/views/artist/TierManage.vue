@@ -8,12 +8,13 @@
         <el-button type="primary" size="small" style="margin-bottom: 12px" @click="openTierDialog()">＋ 新建档位</el-button>
         <!-- R54: 档位表格→卡片布局（保留 R55 示例图拖拽/点击直传） -->
         <!-- v0.26 A: vuedraggable 卡片排序（handle 避免与示例图拖拽上传冲突） -->
-        <div v-loading="loadingTiers" class="tier-card-grid">
+        <div v-loading="loadingTiers">
           <draggable
             v-model="tiers"
             item-key="id"
             handle=".tier-drag-handle"
             ghost-class="ghost"
+            class="tier-card-grid"
             @end="onTierDragEnd"
           >
             <template #item="{ element: row }">
