@@ -1,6 +1,10 @@
 # 🎨 Brushline-HuiYue（绘约）
 
-画师约稿管理平台 —— 为画师提供一站式约稿接单、排期管理和作品交付工具。零代码开发，请在使用前使用各种手段先检查代码。请勿直接用于生产环境。
+画师约稿管理平台 —— 为画师提供一站式约稿接单、排期管理和作品交付工具。
+
+这是 [AxelBeary（奚怡熊）](https://github.com/AxelBeary) 基于 MIT 协议开源的项目，仓库地址：[Brushline-HuiYue](https://github.com/AxelBeary/Brushline-HuiYue)。
+
+> ⚠️ 零代码开发，请在使用前使用各种手段先检查代码。请勿直接用于生产环境。
 
 ## ✨ 功能特性
 
