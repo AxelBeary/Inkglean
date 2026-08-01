@@ -129,4 +129,47 @@ describe('S5 额度池 (Monthly Quota)', () => {
     const updated = artistService.updateArtist(artist.id, { monthly_quota: null })
     expect(updated.monthly_quota).toBeNull()
   })
+
+  // ─── quick_actions DB 持久化（迁移 v26） ───
+
+  it('TC-S5-16: 迁移 v26 — quick_actions 列存在且默认 NULL', () => {
+    const artist = seedArtist()
+    expect(artist.quick_actions).toBeNull()
+  })
+
+  it('TC-S5-17: updateArtist 可设置 quick_actions（JSON 字符串）', () => {
+    const artist = seedArtist()
+    const actions = JSON.stringify([{ label: '查看排队', action: 'queue' }, { label: '约稿须知', action: 'rules' }])
+    const updated = artistService.updateArtist(artist.id, { quick_actions: actions })
+    expect(updated.quick_actions).toBe(actions)
+    // 读回验证
+    const fresh = artistService.getArtistById(artist.id)
+    expect(JSON.parse(fresh.quick_actions)).toHaveLength(2)
+  })
+
+  it('TC-S5-18: updateArtist 可清除 quick_actions（设 null）', () => {
+    const artist = seedArtist()
+    artistService.updateArtist(artist.id, { quick_actions: '[]' })
+    const updated = artistService.updateArtist(artist.id, { quick_actions: null })
+    expect(updated.quick_actions).toBeNull()
+  })
+
+  // ─── #16 getMonthlyUsage 本地时区月初 ───
+
+  it('TC-S5-19: getMonthlyUsage 使用本地时区月初（非 UTC）', () => {
+    const artist = seedArtist()
+    db.prepare('UPDATE artists SET monthly_quota = 10 WHERE id = ?').run(artist.id)
+
+    // 插入一条"本月"订单（用本地时间计算月初，与修复后的逻辑一致）
+    const now = new Date()
+    const localMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    // 转为 SQLite UTC 格式（与 toSqliteDate 一致）
+    const utcStr = localMonthStart.toISOString().replace('T', ' ').slice(0, 19)
+    seedOrder(artist.id, { status: 'pending' })
+    db.prepare('UPDATE orders SET created_at = ? WHERE artist_id = ?').run(utcStr, artist.id)
+
+    const result = artistService.getMonthlyUsage(artist.id, 10)
+    expect(result.used).toBe(1)
+    expect(result.remaining).toBe(9)
+  })
 })

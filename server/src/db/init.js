@@ -1014,6 +1014,17 @@ export const MIGRATIONS = [
         database.exec("ALTER TABLE price_tiers ADD COLUMN visibility TEXT DEFAULT 'visible'")
       }
     }
+  },
+  {
+    version: 26,
+    name: 'quick_actions',
+    up(database) {
+      // v0.24-C: 快捷按钮 DB 持久化（JSON 数组）
+      const cols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!cols.some(c => c.name === 'quick_actions')) {
+        database.exec('ALTER TABLE artists ADD COLUMN quick_actions TEXT DEFAULT NULL')
+      }
+    }
   }
 ]
 
