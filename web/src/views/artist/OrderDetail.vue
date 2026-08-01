@@ -42,6 +42,15 @@
               @change="changeDeadline"
             />
           </el-descriptions-item>
+          <!-- v0.26 B: 开工日（date-picker，可清除，即时保存 + 自动填截稿日） -->
+          <el-descriptions-item :label="$t('orderDetail.colStartDate')">
+            <el-date-picker
+              v-model="startDatePicker" type="date" value-format="YYYY-MM-DD"
+              :placeholder="$t('orderDetail.startDatePlaceholder')"
+              clearable size="small" style="width: 160px"
+              @change="changeStartDate"
+            />
+          </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
         </el-descriptions>
       </el-card>
@@ -772,6 +781,33 @@ async function changeDeadline(val) {
   try {
     order.value = await artistApi.updateDeadline(route.params.id, val || null)
     ElMessage.success(t('orderDetail.deadlineUpdated'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+// ─── v0.26 B: 开工日（date-picker 即时保存 + 自动填截稿日） ───
+const startDatePicker = computed({
+  get: () => order.value?.startDate || null,
+  set: () => { /* no-op：保存由 @change 触发 */ }
+})
+
+async function changeStartDate(val) {
+  try {
+    order.value = await artistApi.updateStartDate(route.params.id, val || null)
+    ElMessage.success(t('orderDetail.startDateUpdated'))
+    // 自动填截稿日：截稿日为空 + 有开工日 + 档位有工期
+    if (val && !order.value.deadline && order.value.tier_work_days) {
+      const start = new Date(val + 'T00:00:00')
+      start.setDate(start.getDate() + order.value.tier_work_days)
+      // 本地日期格式化（toISOString 转 UTC 会 off-by-one，UTC+8 下 08-15→08-14）
+      const y = start.getFullYear()
+      const m = String(start.getMonth() + 1).padStart(2, '0')
+      const d = String(start.getDate()).padStart(2, '0')
+      const autoDeadline = `${y}-${m}-${d}`
+      order.value = await artistApi.updateDeadline(route.params.id, autoDeadline)
+      ElMessage.success(t('orderDetail.deadlineAutoSet'))
+    }
   } catch (err) {
     ElMessage.error(err.message)
   }

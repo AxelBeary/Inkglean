@@ -214,7 +214,7 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
  */
 export function getOrder(orderId: number, { clientOnly = false }: { clientOnly?: boolean } = {}): any {
   const order = db.prepare(`
-    SELECT o.*, a.name as artist_name, a.subdomain as artist_subdomain, t.name as tier_name, t.price as tier_price
+    SELECT o.*, a.name as artist_name, a.subdomain as artist_subdomain, t.name as tier_name, t.price as tier_price, t.work_days as tier_work_days
     FROM orders o
     JOIN artists a ON o.artist_id = a.id
     LEFT JOIN price_tiers t ON o.tier_id = t.id
@@ -318,6 +318,33 @@ export function updateDeadline(orderId: number, deadline: string | null): any {
   }
 
   db.prepare('UPDATE orders SET deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(normalized, orderId)
+
+  return getOrder(orderId)
+}
+
+/**
+ * v0.26 B: 更新订单开工日
+ * startDate: 'YYYY-MM-DD' 字符串 或 null（清除）
+ */
+export function updateStartDate(orderId: number, startDate: string | null): any {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  let normalized: string | null = null
+  if (startDate !== null) {
+    // 校验日期格式（YYYY-MM-DD）
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+      throw new AppError(E.INVALID_DEADLINE, 400, { value: startDate })
+    }
+    const d = new Date(startDate + 'T00:00:00')
+    if (isNaN(d.getTime())) {
+      throw new AppError(E.INVALID_DEADLINE, 400, { value: startDate })
+    }
+    normalized = startDate
+  }
+
+  db.prepare('UPDATE orders SET start_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(normalized, orderId)
 
   return getOrder(orderId)

@@ -119,7 +119,7 @@ export default {
   menu: {
     logo: '绘约', dashboard: '仪表盘', queue: '排期看板', orders: '订单管理',
     manualOrder: '手动录单', tiers: '价格管理', artworks: '作品管理',
-    guestbook: '留言管理',
+    guestbook: '留言管理', slots: '开稿管理',
     preview: '主页预览',
     rules: '须知编辑', settings: '主页设置', admin: '管理后台', logout: '退出登录',
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单'
@@ -369,6 +369,9 @@ export default {
     extraTotal: '最终价格', extraAutoHint: '最终价格 = 基础价格 + 附加项合计，由系统自动计算',
     // R51: 截稿日
     colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新',
+    // v0.26 B: 开工日
+    colStartDate: '开工日', startDatePlaceholder: '选择开工日', startDateUpdated: '开工日已更新',
+    deadlineAutoSet: '已按工期自动设置截稿日',
     // R58-6: QQ 跳转 + 复制
     jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
     // plan-node-speech：客户沟通小块
@@ -407,6 +410,7 @@ export default {
   },
   tiers: {
     title: '💰 价格管理', addTier: '+ 添加档位',
+    dragHint: '拖拽排序', reorderSaved: '排序已保存',
     colExample: '例图', colName: '名称', colPrice: '价格', colDays: '工期', colDesc: '描述',
     editTitle: '编辑档位', addTitle: '添加档位', nameLabel: '名称',
     namePlaceholder: '如：头像、半身像、全身像', priceLabel: '价格（元）', daysLabel: '工期（天）',
@@ -442,7 +446,6 @@ export default {
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabTemplate: '主页模板', tabWorkflow: '流程与比例',
     tabRules: '须知编辑', tabCommission: '接稿设置',
-    // #3: 快捷按钮配置
     quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮（3-9 个）',
     quickHint: '勾选后点保存生效，仪表盘快捷区将按此显示。',
     quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存', quickLimitError: '请选择 3-9 个快捷按钮',
@@ -495,6 +498,20 @@ export default {
     coverEmpty: '暂无作品，上传作品后可设置封面',
     // R50: 预览
     previewBtn: '预览主页'
+  },
+  // v0.26 C: 开稿管理独立页
+  slots: {
+    title: '📋 开稿管理',
+    goDashboard: '去仪表盘切换 →',
+    slotSection: '名额设置',
+    quotaSection: '月度额度',
+    queueSection: '队列行为',
+    totalHint: '正式 {n} + 缓冲 {m} = 合计 {sum} 席',
+    movedHint: '名额、额度、队列行为设置已移至「开稿管理」页面 →',
+    statusOpen: '当前正在接受约稿',
+    statusFull: '已接满，暂停接单',
+    statusBreak: '休息中，暂不接单',
+    statusHidden: '主页已隐藏'
   },
   templates: {
     tab: '主页模板',
