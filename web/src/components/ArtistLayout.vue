@@ -152,8 +152,8 @@ const BASE_MENU_ITEMS = [
   // v0.26 C: 开稿管理（排期看板后面）
   { index: '/slots', icon: Tickets, labelKey: 'menu.slots' },
   { index: '/orders', icon: Box, labelKey: 'menu.orders' },
-  // #6: 手动录单侧边栏入口（订单管理下方，复用 /orders?action=manual 自动开抽屉）
-  { index: '/orders?action=manual', icon: DocumentAdd, labelKey: 'menu.manualOrder' },
+  // REQ-015: 手动录单独立页面入口
+  { index: '/orders/new', icon: DocumentAdd, labelKey: 'menu.manualOrder' },
   { index: '/tiers', icon: Money, labelKey: 'menu.tiers' },
   { index: '/artworks', icon: Picture, labelKey: 'menu.artworks' },
   // #1: 留言管理（作品管理下方，待审核角标）

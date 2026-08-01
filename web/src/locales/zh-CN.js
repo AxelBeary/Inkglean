@@ -391,12 +391,15 @@ export default {
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
+    leftTitle: '客户说了什么', rightTitle: '怎么录',
     clientQq: '客户QQ号', clientQqPlaceholder: '客户的QQ号',
     clientName: '客户昵称（可选）', clientNamePlaceholder: '怎么称呼客户',
     tier: '档位', tierPlaceholder: '选择档位（可不选）',
+    noTiers: '还没有档位，请先在价格管理中添加', tierDays: '{n}天',
     addons: '可选增项', multipliers: '用途与加急',
     usage: '用途', rush: '加急', personal: '个人', noRush: '不加急', inquiry: '面议',
     totalPrice: '总价', finalPrice: '最终价格（元）', finalPriceHint: '可手动修改，留空则使用计算价',
+    priceDetail: '明细',
     desc: '需求描述', descPlaceholder: '从QQ聊天中复制客户的需求描述',
     references: '参考图', refExceed: '最多上传5张参考图', fileTooBig: '{name} 过大（{size}MB），上限10MB',
     refTip: '录单后仍可在订单图库中补充参考图，订单图库合计上限 20 张。',
@@ -406,7 +409,9 @@ export default {
     submit: '录入订单', resultTitle: '录入成功', orderNo: '订单号: {no}', addedToQueue: '已加入排期队列',
     viewQueue: '查看排期', continueEntry: '继续录入', fillClientQq: '请填写客户QQ号',
     // R51: 截稿日
-    deadline: '截稿日（可选）', deadlinePlaceholder: '选择截稿日'
+    deadline: '截稿日（可选）', deadlinePlaceholder: '选择截稿日',
+    // REQ-015: QQ历史面板
+    historyTitle: '该客户的历史订单', newClient: '🎉 新客户，暂无历史订单'
   },
   tiers: {
     title: '💰 价格管理', addTier: '+ 添加档位',
