@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
-import { access, constants, statfs, readdirSync, statSync } from 'fs'
+import { constants, readdirSync, statSync } from 'fs'
+import { access, statfs } from 'fs/promises'
 import { resolve, join } from 'path'
 
 // ============================================
@@ -57,8 +58,7 @@ function checkMigration(latestVersion: number): HealthCheckResult {
 /** 3. 上传目录：可读写 */
 async function checkUploads(): Promise<HealthCheckResult> {
   try {
-    // 过渡：fs callback API 当 promise 用，as any 保持运行时行为不变
-    await (access as any)(UPLOAD_DIR, constants.R_OK | constants.W_OK)
+    await access(UPLOAD_DIR, constants.R_OK | constants.W_OK)
     return { id: 'uploads', name: '上传目录', status: 'ok', summary: `${UPLOAD_DIR} 可读写`, detail: { path: UPLOAD_DIR } }
   } catch (err) {
     return { id: 'uploads', name: '上传目录', status: 'fail', summary: `${UPLOAD_DIR} 不可访问`, detail: { path: UPLOAD_DIR, error: err.message } }
@@ -68,8 +68,7 @@ async function checkUploads(): Promise<HealthCheckResult> {
 /** 4. 磁盘空间（仅供参考，Docker 内值可能不准） */
 async function checkDisk(): Promise<HealthCheckResult> {
   try {
-    // 过渡：fs.statfs callback API，as any 保持运行时行为不变
-    const stats: any = await (statfs as any)(UPLOAD_DIR)
+    const stats = await statfs(UPLOAD_DIR)
     const totalBytes = stats.blocks * stats.bsize
     const freeBytes = stats.bfree * stats.bsize
     const usedBytes = totalBytes - freeBytes

@@ -81,7 +81,9 @@ export function getRevenue(artistId: number, period: string = 'month') {
     // 按季度内每周聚合（第 1~13 周）
     const quarter = Math.floor(now.getMonth() / 3)
     currentStart = localQuarterStart(year, quarter)
-    const nextQuarterStart = localQuarterStart(year, quarter + 1 > 3 ? 0 : quarter + 1)
+    const nextQuarterStart = quarter + 1 > 3
+      ? localQuarterStart(year + 1, 0)
+      : localQuarterStart(year, quarter + 1)
     prevStart = localQuarterStart(quarter === 0 ? year - 1 : year, quarter === 0 ? 3 : quarter - 1)
     prevEnd = currentStart
 
