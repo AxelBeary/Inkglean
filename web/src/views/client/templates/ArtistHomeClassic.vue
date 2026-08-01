@@ -57,7 +57,7 @@
         <section class="classic-section tpl-reveal" v-if="tiers.length || workflowStages.length">
           <template v-if="tiers.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
-            <TplTierGrid :tiers="tiers" featured>
+            <TplTierGrid :tiers="tiers" featured :subdomain="subdomain">
               <template #addons="{ tier }">
                 <slot name="addons" :tier="tier"></slot>
               </template>

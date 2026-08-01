@@ -46,7 +46,7 @@
       <div class="folio-inner">
         <template v-if="tiers.length">
           <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
-          <TplTierGrid :tiers="tiers">
+          <TplTierGrid :tiers="tiers" :subdomain="subdomain">
             <template #addons="{ tier }">
               <slot name="addons" :tier="tier"></slot>
             </template>

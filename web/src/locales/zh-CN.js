@@ -139,6 +139,8 @@ export default {
     ctaSubtitle: '期待与你一起创作出好作品。',
     weiboPlain: '微博', bilibiliPlain: 'B站',
     revisionNote: '修改说明',
+    // #9: 档位展示柜
+    tierSelectBtn: '选择此档位', tierShowcase: '暂不接单', tierShowcaseBtn: '暂不接单',
     // R50: 预览模式
     previewBanner: '预览模式 — 修改尚未保存'
   },
@@ -386,6 +388,8 @@ export default {
     changeExample: '更换例图', uploadExample: '上传例图', removeExample: '移除',
     exampleUploaded: '例图已上传，点保存后生效', fillName: '请填写名称',
     confirmDelete: '确定删除档位「{name}」？', daysUnit: '{n}天',
+    // #10: 档位三态
+    visVisible: '开', visShowcase: '只展示', visHidden: '不展示',
     // R55: 示例图拖拽直传
     dropToUpload: '拖入上传', notImage: '仅支持图片文件', tooBig: '图片超过 10MB 限制',
     overwriteTitle: '覆盖示例图', overwriteConfirm: '已有示例图，覆盖后旧图不可恢复。确定覆盖？',

@@ -8,7 +8,7 @@
         <el-button type="primary" size="small" style="margin-bottom: 12px" @click="openTierDialog()">＋ 新建档位</el-button>
         <!-- R54: 档位表格→卡片布局（保留 R55 示例图拖拽/点击直传） -->
         <div v-loading="loadingTiers" class="tier-card-grid">
-          <div v-for="row in tiers" :key="row.id" class="tier-card">
+          <div v-for="row in tiers" :key="row.id" class="tier-card" :class="{ 'tier-card--hidden': row.visibility === 'hidden' }">
             <!-- R55: 示例图拖拽/点击直传（无图直传；有图先确认再覆盖——旧图不可恢复，与 R53 行为不同） -->
             <div
               class="tier-card-img"
@@ -38,6 +38,18 @@
               </div>
               <p v-if="row.description" class="tier-card-desc">{{ row.description }}</p>
               <p class="tier-card-days">{{ row.work_days ? $t('tiers.daysUnit', { n: row.work_days }) : '—' }}</p>
+            </div>
+            <!-- #10: 三态切换（开/只展示/不展示） -->
+            <div class="tier-card-visibility">
+              <el-radio-group
+                :model-value="row.visibility || 'visible'"
+                size="small"
+                @change="(val) => changeVisibility(row, val)"
+              >
+                <el-radio-button value="visible">{{ $t('tiers.visVisible') }}</el-radio-button>
+                <el-radio-button value="showcase">{{ $t('tiers.visShowcase') }}</el-radio-button>
+                <el-radio-button value="hidden">{{ $t('tiers.visHidden') }}</el-radio-button>
+              </el-radio-group>
             </div>
             <div class="tier-card-actions">
               <el-button size="small" @click="openTierDialog(row)">{{ $t('common.edit') }}</el-button>
@@ -216,6 +228,18 @@ async function removeTier(row) {
   }
 }
 
+// #10: 三态切换（即时保存，乐观更新）
+async function changeVisibility(row, visibility) {
+  const prev = row.visibility
+  row.visibility = visibility // 乐观更新
+  try {
+    await artistApi.setTierVisibility(row.id, visibility)
+  } catch (err) {
+    row.visibility = prev // 回滚
+    ElMessage.error(err.message)
+  }
+}
+
 async function loadTiers() {
   loadingTiers.value = true
   try {
@@ -368,6 +392,12 @@ async function uploadTierExample(file, row) {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .tier-card-days { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; }
+/* #10: 三态切换区 */
+.tier-card-visibility {
+  display: flex; justify-content: center; padding: 8px 16px 0;
+}
+/* #10: hidden 档位灰色显示 */
+.tier-card--hidden { opacity: 0.5; }
 .tier-card-actions {
   display: flex; justify-content: flex-end; gap: 8px;
   padding: 10px 16px 14px;

@@ -17,7 +17,7 @@
       <div class="atelier-inner">
         <template v-if="tiers.length">
           <p class="tpl-section-label atelier-label">{{ $t('artistHome.priceList') }}</p>
-          <TplTierGrid :tiers="tiers">
+          <TplTierGrid :tiers="tiers" :subdomain="subdomain">
             <template #addons="{ tier }">
               <slot name="addons" :tier="tier"></slot>
             </template>

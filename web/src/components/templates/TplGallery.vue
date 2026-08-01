@@ -65,7 +65,7 @@ function isLiked(id) { return likedIds.has(id) }
 }
 .tpl-gallery--grid .tpl-gallery-img {
   width: 100%;
-  height: 200px;
+  height: auto;
   border-radius: 10px;
   cursor: zoom-in;
 }
