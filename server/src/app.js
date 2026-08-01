@@ -146,21 +146,12 @@ export async function buildApp(opts = {}) {
   // ─── 安全响应头（轻量替代 helmet）───
   app.addHook('onRequest', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff')
-    // P0-5 修复：嵌入页面收紧 CSP — frame-ancestors 从 * 改为 'self'，补完整指令
-    // 未来画师自定义域名嵌入需配合白名单机制（P1-5 子域名方案落地后）
-    if (_request.url.startsWith('/embed')) {
-      reply.header('Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data:; frame-ancestors 'self'; connect-src 'self'"
-      )
-    } else {
-      reply.header('X-Frame-Options', 'DENY')
-      // 五号审计补充：非 /embed 路由也加 CSP（主站安全头）
-      reply.header('Content-Security-Policy',
-        "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: blob:; connect-src 'self'; font-src 'self'"
-      )
-    }
+    // P2-#21: embed 已删除（v0.24 审计），统一 CSP
+    reply.header('X-Frame-Options', 'DENY')
+    reply.header('Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob:; connect-src 'self'; font-src 'self'"
+    )
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   })
@@ -273,7 +264,8 @@ export async function buildApp(opts = {}) {
         return reply.code(404).send({ error: 'Not found' })
       }
       const filePath = resolve(WEB_DIST, '.' + urlPath)
-      if (filePath.startsWith(WEB_DIST) && existsSync(filePath) && statSync(filePath).isFile()) {
+      // P2-#22: 路径穿越防护加分隔符（防 /app/web/dist2/secret 前缀匹配）
+      if ((filePath === WEB_DIST || filePath.startsWith(WEB_DIST + '/')) && existsSync(filePath) && statSync(filePath).isFile()) {
         const ext = filePath.slice(filePath.lastIndexOf('.'))
         reply.header('Content-Type', MIME[ext] || 'application/octet-stream')
         return reply.send(createReadStream(filePath))

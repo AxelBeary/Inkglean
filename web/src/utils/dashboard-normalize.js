@@ -128,7 +128,9 @@ export function normalizeActivity(raw) {
  */
 export function relativeTime(isoStr, t, locale) {
   if (!isoStr) return ''
-  const diffMs = Date.now() - new Date(isoStr).getTime()
+  // P2-#15: SQLite 空格格式补 T，避免浏览器当本地时间解析（时区偏差 8h）
+  const normalized = isoStr.includes('T') ? isoStr : isoStr.replace(' ', 'T')
+  const diffMs = Date.now() - new Date(normalized).getTime()
   const mins = Math.floor(diffMs / 60000)
   if (mins < 1) return t('dashboard.timeJustNow')
   if (mins < 60) return t('dashboard.timeMinutesAgo', { n: mins })

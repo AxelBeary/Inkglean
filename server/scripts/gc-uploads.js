@@ -8,7 +8,7 @@
  * 建议通过 cron 每天执行一次。
  */
 import { resolve, join, relative } from 'path'
-import { existsSync, readdirSync, statSync, unlinkSync, rmdirSync } from 'fs'
+import { existsSync, readdirSync, statSync, renameSync, mkdirSync, rmdirSync } from 'fs'
 import Database from 'better-sqlite3'
 import 'dotenv/config'
 
@@ -43,13 +43,16 @@ collect(db.prepare('SELECT example_image FROM price_tiers').all(), 'example_imag
 collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
 collect(db.prepare('SELECT file_path FROM deliverables').all(), 'file_path')
 collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')
+// P2-#17: 收集备注附图（旧版遗漏，会把在用备注图当孤儿删掉）
+collect(db.prepare('SELECT image_path FROM order_notes WHERE image_path IS NOT NULL').all(), 'image_path')
 
 console.log(`数据库引用文件数: ${refs.size}`)
 
-// 递归扫描 uploads/
+// 递归扫描 uploads/（P2-#17: 跳过 .recycle-bin 目录）
 function walk(dir) {
   const files = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === '.recycle-bin') continue
     const full = join(dir, entry.name)
     if (entry.isDirectory()) {
       files.push(...walk(full))
@@ -80,8 +83,12 @@ for (const absPath of diskFiles) {
     console.log(`[would delete] ${rel} (${(size / 1024).toFixed(1)} KB)`)
   } else {
     try {
-      unlinkSync(absPath)
-      console.log(`[deleted] ${rel} (${(size / 1024).toFixed(1)} KB)`)
+      // P2-#17: 移入回收站（与 app.js gcUploads 一致），不直接永久删除
+      const today = new Date().toISOString().slice(0, 10)
+      const recycleDir = join(UPLOAD_DIR, '.recycle-bin', today)
+      mkdirSync(recycleDir, { recursive: true })
+      renameSync(absPath, join(recycleDir, rel.replace(/\//g, '_')))
+      console.log(`[recycled] ${rel} (${(size / 1024).toFixed(1)} KB)`)
       freed += size
     } catch (err) {
       console.error(`[error] ${rel}: ${err.message}`)

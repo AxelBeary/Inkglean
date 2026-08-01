@@ -100,19 +100,14 @@ export function verifyLoginCode(qqNumber: string, code: string) {
   }
 
   // 安全：时间安全比较，防止计时攻击
-    // R1-2: 先检查字符长度（6位数字），避免全角/多字节字符触发 timingSafeEqual 崩溃
-    if (code.length !== 6 || record.code.length !== 6) {
-      db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
-      return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
-    }
-    let codeMatch: boolean
-    try {
-      codeMatch = crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(code))
-    } catch {
-      // R1-2: 字节长度不匹配时 fallback 到普通比较
-      codeMatch = record.code === code
-    }
-    if (!codeMatch) {
+      // R1-2: 先检查字符长度（6位数字），避免全角/多字节字符触发 timingSafeEqual 崩溃
+      if (code.length !== 6 || record.code.length !== 6) {
+        db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
+        return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
+      }
+      // P2-#18: 长度已保证一致，直接 timingSafeEqual，不降级
+      const codeMatch = crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(code))
+      if (!codeMatch) {
       db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
       return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
     }
