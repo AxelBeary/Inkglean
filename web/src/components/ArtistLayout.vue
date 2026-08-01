@@ -20,7 +20,10 @@
         <!-- 菜单（R21: collapse 模式图标化，悬停 tooltip 显示文字） -->
         <el-menu :default-active="activeMenu" :collapse="collapsed" router class="sidebar-menu">
           <el-menu-item v-for="item in MENU_ITEMS" :key="item.index" :index="item.index">
-            <el-icon><component :is="item.icon" /></el-icon>
+            <!-- #1: 角标（待审核留言数）包裹图标，折叠态同样可见 -->
+            <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="menu-badge">
+              <el-icon><component :is="item.icon" /></el-icon>
+            </el-badge>
             <span>{{ $t(item.labelKey) }}</span>
           </el-menu-item>
         </el-menu>
@@ -130,7 +133,8 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, DocumentAdd } from '@element-plus/icons-vue'
+import { artistApi } from '../api/index.js'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, DocumentAdd, ChatLineSquare } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -150,15 +154,22 @@ const BASE_MENU_ITEMS = [
   { index: '/orders?action=manual', icon: DocumentAdd, labelKey: 'menu.manualOrder' },
   { index: '/tiers', icon: Money, labelKey: 'menu.tiers' },
   { index: '/artworks', icon: Picture, labelKey: 'menu.artworks' },
+  // #1: 留言管理（作品管理下方，待审核角标）
+  { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true },
   // R42b: 须知编辑合并进设置页，菜单项移除
   { index: '/settings', icon: Setting, labelKey: 'menu.settings' }
 ]
+// #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
+const pendingMsgCount = ref(0)
 // UI-7: 管理员追加"管理后台"入口
 const MENU_ITEMS = computed(() => {
+  const items = BASE_MENU_ITEMS.map(item =>
+    item.hasBadge ? { ...item, badge: pendingMsgCount.value } : item
+  )
   if (store.isAdmin) {
-    return [...BASE_MENU_ITEMS, { index: '/admin', icon: Management, labelKey: 'menu.admin' }]
+    items.push({ index: '/admin', icon: Management, labelKey: 'menu.admin' })
   }
-  return BASE_MENU_ITEMS
+  return items
 })
 
 // ─── R21: 折叠状态管理 ───
@@ -179,6 +190,12 @@ function onMobileChange(e) { isMobile.value = e.matches }
 onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
   mqMobile.addEventListener('change', onMobileChange)
+  // #1: 侧边栏待审核留言角标（调一次 messages，失败静默——角标非关键路径）
+  if (store.loggedIn) {
+    artistApi.getMessages()
+      .then(list => { pendingMsgCount.value = (list || []).filter(m => m.status === 'pending').length })
+      .catch(() => {})
+  }
 })
 onUnmounted(() => {
   mqNarrow.removeEventListener('change', onNarrowChange)

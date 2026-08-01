@@ -119,6 +119,8 @@ export default {
   menu: {
     logo: '绘约', dashboard: '仪表盘', queue: '排期看板', orders: '订单管理',
     manualOrder: '手动录单', tiers: '价格管理', artworks: '作品管理',
+    guestbook: '留言管理',
+    preview: '主页预览',
     rules: '须知编辑', settings: '主页设置', admin: '管理后台', logout: '退出登录',
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单'
   },
@@ -222,6 +224,14 @@ export default {
     artistTag: '画师',
     loadMore: '加载更多',
     noMore: '没有更多了'
+  },
+  // #1: 画师端留言管理页面
+  guestbookManage: {
+    title: '💬 留言管理',
+    all: '全部',
+    replyLabel: '画师回复',
+    editReply: '编辑回复',
+    rejectConfirm: '确定拒绝这条留言？拒绝后客户主页将不显示。'
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
@@ -420,6 +430,10 @@ export default {
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabTemplate: '主页模板', tabWorkflow: '流程与比例',
     tabRules: '须知编辑', tabCommission: '接稿设置',
+    // #3: 快捷按钮配置
+    quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮（3-9 个）',
+    quickHint: '勾选后点保存生效，仪表盘快捷区将按此显示。',
+    quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存', quickLimitError: '请选择 3-9 个快捷按钮',
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',

@@ -207,6 +207,25 @@
             <el-form-item>
               <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
             </el-form-item>
+
+            <!-- #3: 快捷按钮配置（localStorage MVP，独立保存） -->
+            <el-divider>{{ $t('settings.quickTitle') }}</el-divider>
+            <el-form-item :label="$t('settings.quickLabel')">
+              <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
+                <el-checkbox
+                  v-for="opt in QUICK_ACTION_POOL"
+                  :key="opt.key"
+                  :value="opt.key"
+                  class="quick-config-item"
+                >
+                  {{ opt.icon }} {{ $t(opt.labelKey) }}
+                </el-checkbox>
+              </el-checkbox-group>
+              <div class="form-hint">{{ $t('settings.quickHint') }}</div>
+              <el-button size="small" type="primary" style="margin-top: 8px" @click="saveQuickActions">
+                {{ $t('settings.quickSave') }}
+              </el-button>
+            </el-form-item>
           </el-form>
         </el-card>
       </el-tab-pane>
@@ -339,6 +358,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
+import { QUICK_ACTION_POOL, QUICK_ACTIONS_KEY, readQuickActionsConfig } from '../../components/artist/dashboard/QuickActions.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -382,6 +402,17 @@ async function saveRules() {
 
 // 首次切到须知 tab 时加载内容（懒加载）
 watch(activeTab, (tab) => { if (tab === 'rules') loadRules() }, { immediate: true })
+
+// ─── #3: 快捷按钮配置（localStorage MVP，独立于 profile 保存） ───
+const quickSelected = ref(readQuickActionsConfig())
+function saveQuickActions() {
+  if (quickSelected.value.length < 3 || quickSelected.value.length > 9) {
+    ElMessage.warning(t('settings.quickLimitError'))
+    return
+  }
+  localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
+  ElMessage.success(t('settings.quickSaved'))
+}
 
 // R15: 外链图标枚举（一号拍板：纯文字标签 + Element Plus Link 图标兜底）
 const LINK_ICONS = [
@@ -781,4 +812,7 @@ onMounted(async () => {
 .slot-unit { font-size: 13px; color: var(--text-secondary); }
 .switch-grid { display: flex; flex-direction: column; gap: 10px; }
 .switch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); }
+/* #3: 快捷按钮配置区 */
+.quick-config { display: flex; flex-direction: column; gap: 8px; }
+.quick-config-item { margin-right: 0; height: auto; }
 </style>
