@@ -60,9 +60,9 @@
 | 前端 | Vue 3 + Element Plus | SPA |
 | 前端 i18n | vue-i18n@11 | v0.20 从 v9 升级 |
 | 类型系统 | TypeScript（渐进迁移中） | v0.21 起，v0.22 完成 features/ + utils/ + middleware/ 全部 TS；剩余 app.js/index.js/db/ 入口 |
-| 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL。迁移当前 v26（quick_actions） |
+| 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL。迁移当前 v29（order_start_date） |
 | 部署 | Docker Compose + Caddy | 容器化 |
-| 测试 | Vitest（后端 512 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
+| 测试 | Vitest（后端 567 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则

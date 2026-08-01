@@ -390,7 +390,9 @@ export default async function adminRoutes(fastify) {
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           description: { type: 'string', maxLength: 200 },
-          takesPayment: { type: 'boolean' }
+          takesPayment: { type: 'boolean' },
+          speechTemplate: { type: ['string', 'null'], maxLength: 500 },
+          randomTemplate: { type: 'boolean' }
         }
       }
     }
