@@ -139,6 +139,8 @@ export default {
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
     weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili',
     revisionNote: 'Revision policy',
+    // #9: tier showcase
+    tierSelectBtn: 'Choose this tier', tierShowcase: 'Not accepting', tierShowcaseBtn: 'Not accepting orders',
     // R50: preview mode
     previewBanner: 'Preview mode — changes not yet saved'
   },
@@ -386,6 +388,8 @@ export default {
     changeExample: 'Change image', uploadExample: 'Upload image', removeExample: 'Remove',
     exampleUploaded: 'Image uploaded — click Save to apply', fillName: 'Please enter a name',
     confirmDelete: 'Delete tier "{name}"?', daysUnit: '{n} days',
+    // #10: tier visibility
+    visVisible: 'Open', visShowcase: 'Showcase', visHidden: 'Hidden',
     // R55: example image drag-and-drop
     dropToUpload: 'Drop to upload', notImage: 'Only image files are supported', tooBig: 'Image exceeds the 10MB limit',
     overwriteTitle: 'Replace example image', overwriteConfirm: 'This tier already has an example image. The old image cannot be recovered after replacement. Continue?',

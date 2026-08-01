@@ -99,6 +99,8 @@ export const artistApi = {
   createTier: (data) => api.post('/artist/tiers', data),
   updateTier: (id, data) => api.put(`/artist/tiers/${id}`, data),
   deleteTier: (id) => api.delete(`/artist/tiers/${id}`),
+  // #10: 档位三态切换（visible/showcase/hidden）
+  setTierVisibility: (id, visibility) => api.put(`/artist/tiers/${id}/visibility`, { visibility }),
   // 作品
   getArtworks: () => api.get('/artist/artworks'),
   createArtwork: (data) => api.post('/artist/artworks', data),
