@@ -465,7 +465,9 @@ export default {
     // REQ-017: cover operations
     coverSet: 'Set as cover', coverUnset: 'Remove cover',
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
-    coverTag: 'Cover'
+    coverTag: 'Cover',
+    // F7: 主图去重
+    mainImages: 'Main images', mainTag: 'Main'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',

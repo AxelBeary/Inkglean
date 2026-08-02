@@ -465,7 +465,9 @@ export default {
     // REQ-017: 封面操作
     coverSet: '设为封面', coverUnset: '取消封面',
     coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
-    coverTag: '封面'
+    coverTag: '封面',
+    // F7: 主图去重
+    mainImages: '主图', mainTag: '主图'
   },
   rules: {
     title: '📜 须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
