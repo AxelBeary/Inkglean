@@ -288,12 +288,13 @@ describe('管理员路由 (Admin Routes)', () => {
     // seedOrder 不写价格列，手动补
     db.prepare('UPDATE orders SET total_price_cents = 50000, final_price_cents = 50000 WHERE id = ?').run(order.id)
 
-    // 插入分期节点 + 记录收款
+    // 插入分期节点 + 记录收款（v0.31 F4: 收款关联到具体节点）
     db.prepare('INSERT INTO order_payment_installments (order_id, label, amount_cents, basis_points, sort_order) VALUES (?, ?, ?, ?, ?)')
       .run(order.id, '定金', 20000, 4000, 1)
     db.prepare('INSERT INTO order_payment_installments (order_id, label, amount_cents, basis_points, sort_order) VALUES (?, ?, ?, ?, ?)')
       .run(order.id, '尾款', 30000, 6000, 2)
-    orderService.addPayment(order.id, { amountCents: 20000, note: '定金到账' })
+    const insts = db.prepare('SELECT id FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order').all(order.id)
+    orderService.addPayment(order.id, { amountCents: 20000, note: '定金到账', installmentId: insts[0].id })
 
     const res = await app.inject({
       method: 'GET',
