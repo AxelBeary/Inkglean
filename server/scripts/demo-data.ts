@@ -245,12 +245,12 @@ function seedDemoOrders(): void {
 
   const ins = db.prepare(`
     INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source,
-      client_notify, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone,
+      client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone,
       current_stage_id, paid_total_cents, start_date, completed_at, created_at, updated_at)
-    VALUES (?, ?, NULL, ?, ?, ?, 'medium', ?, 'self', 0, ?, ?, ?, ?, 'formal', ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, NULL, ?, ?, ?, 'medium', ?, 'self', 0, ?, ?, ?, ?, ?, 'formal', ?, ?, ?, ?, ?, ?)
   `)
 
-  for (const s of seeds) {
+  seeds.forEach((s, idx) => {
     const sizeId = sizeOf(s.styleName, s.sizeName)
     const stageId = stageOf(s.stage)
     const cents = Math.round(s.price * 100)
@@ -262,6 +262,7 @@ function seedDemoOrders(): void {
       : null
     ins.run(
       s.orderNo, id, s.clientQq, s.clientName, s.desc, s.status,
+      idx + 1, // queue_position（生产 createOrder 分配 max+1；队列视图按此排序，NULL 会排最前乱序）
       s.price, cents,
       `[${s.styleName} / ${s.sizeName}] 基础¥${s.price}`,
       cents,
@@ -270,7 +271,7 @@ function seedDemoOrders(): void {
     )
     void sizeId // styleSizeId 在 orders 表无对应列（快照体现在 quote_snapshot），此处仅校验尺寸存在
     console.log(`[orders] ${s.orderNo} ${s.status}（${s.styleName}/${s.sizeName} ¥${s.price}）`)
-  }
+  })
 }
 
 // ─── 主流程 ───
