@@ -2,11 +2,6 @@
   <ArtistLayout>
     <h2>{{ $t('orderList.title') }}</h2>
 
-    <!-- REQ-015: 工具栏（手动录单跳转独立页面） -->
-    <div class="order-toolbar">
-      <el-button type="primary" @click="$router.push('/orders/new')">{{ $t('manualOrder.title') }}</el-button>
-    </div>
-
     <!-- 筛选 -->
     <div class="filter-bar">
       <el-radio-group v-model="filter" @change="onFilterChange" size="default">

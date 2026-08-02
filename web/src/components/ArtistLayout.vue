@@ -142,7 +142,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -159,6 +159,8 @@ const BASE_MENU_ITEMS = [
   { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard', group: 'work' },
   { index: '/queue', icon: List, labelKey: 'menu.queue', group: 'work' },
   { index: '/orders', icon: Box, labelKey: 'menu.orders', group: 'work' },
+  // #8: 录单入口归位（从订单管理页移回侧边栏「工作」分组）
+  { index: '/orders/new', icon: EditPen, labelKey: 'menu.manualOrder', group: 'work' },
   // v0.26 C: 开稿管理（排期看板后面）
   { index: '/slots', icon: Tickets, labelKey: 'menu.slots', group: 'biz' },
   { index: '/tiers', icon: Money, labelKey: 'menu.tiers', group: 'biz' },
