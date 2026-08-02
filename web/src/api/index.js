@@ -195,7 +195,22 @@ export const artistApi = {
   getMultipliers: () => api.get('/artist/multipliers'),
   createMultiplier: (data) => api.post('/artist/multipliers', data),
   updateMultiplier: (id, data) => api.put(`/artist/multipliers/${id}`, data),
-  deleteMultiplier: (id) => api.delete(`/artist/multipliers/${id}`)
+  deleteMultiplier: (id) => api.delete(`/artist/multipliers/${id}`),
+  // v0.32 REQ-023 Phase1: 增项库（addon_templates）
+  getAddonTemplates: () => api.get('/artist/addon-templates'),
+  createAddonTemplate: (data) => api.post('/artist/addon-templates', data),
+  updateAddonTemplate: (id, data) => api.put(`/artist/addon-templates/${id}`, data),
+  deleteAddonTemplate: (id) => api.delete(`/artist/addon-templates/${id}`),
+  // v0.32 REQ-023 Phase1: 画风（art_styles + sizes + addons + overrides）
+  getArtStyles: () => api.get('/artist/art-styles'),
+  createArtStyle: (data) => api.post('/artist/art-styles', data),
+  updateArtStyle: (id, data) => api.put(`/artist/art-styles/${id}`, data),
+  deleteArtStyle: (id) => api.delete(`/artist/art-styles/${id}`),
+  createStyleSize: (styleId, data) => api.post(`/artist/art-styles/${styleId}/sizes`, data),
+  updateStyleSize: (styleId, sizeId, data) => api.put(`/artist/art-styles/${styleId}/sizes/${sizeId}`, data),
+  deleteStyleSize: (styleId, sizeId) => api.delete(`/artist/art-styles/${styleId}/sizes/${sizeId}`),
+  setStyleAddons: (styleId, items) => api.put(`/artist/art-styles/${styleId}/addons`, { items }),
+  setSizeOverrides: (styleId, sizeId, items) => api.put(`/artist/art-styles/${styleId}/sizes/${sizeId}/overrides`, { items })
 }
 
 // ─── 客户端订单 ───

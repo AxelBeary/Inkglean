@@ -509,6 +509,42 @@ export default {
     deleteConfirm: 'Delete code "{code}"?', disable: 'Disable', enable: 'Enable',
     empty: 'No discount codes yet. Click "New Code" to create one.'
   },
+  // v0.32 REQ-023 Phase1: art styles + addon templates
+  styleManage: {
+    tabStyles: 'Art Styles', tabTemplates: 'Addon Library', confirmTitle: 'Confirm',
+    // Addon templates
+    tplName: 'Name', tplControl: 'Control', tplPricing: 'Pricing', tplDefaultPrice: 'Default price', tplActions: 'Actions',
+    tplEmpty: 'No addon templates yet. Click "New Addon" to create one.', tplAdd: '+ New Addon',
+    tplAddTitle: 'New Addon', tplEditTitle: 'Edit Addon',
+    tplNameLabel: 'Name', tplNamePlaceholder: 'e.g. Extra character, Expression set, Background', tplNameRequired: 'Please enter a name',
+    tplControlLabel: 'Control type', tplControlSwitch: 'Switch', tplControlQuantity: 'Quantity', tplControlRadio: 'Radio',
+    tplPricingLabel: 'Pricing mode', tplPricingFixed: 'Fixed', tplPricingPerUnit: 'Price × Qty', tplPricingPerOption: 'Option price',
+    tplPriceLabel: 'Default price (¥)',
+    tplUnitLabel: 'Unit label', tplUnitPlaceholder: 'e.g. person, sheet, item',
+    tplOptionsLabel: 'Options', tplOptionLabel: 'Option name', tplAddOption: '+ Add option',
+    tplOptionsHint: 'Clients pick one option when ordering; each option can have its own price.', tplOptionsRequired: 'Radio type needs at least one valid option',
+    tplSaved: 'Addon saved', tplDeleted: 'Addon deleted', tplDeleteConfirm: 'Delete addon "{name}"? All style references to it will be removed too.',
+    pricePerUnit: '¥{price}/{unit}', unitDefault: 'item',
+    // Art styles
+    styleAdd: '+ New Style (import from addon library)', styleAddTitle: 'New Style', styleEditTitle: 'Edit Style',
+    styleNameLabel: 'Style name', styleNamePlaceholder: 'e.g. Anime, Painterly, Pixel art', styleNameRequired: 'Please enter a style name',
+    styleDescLabel: 'Description (optional)', styleDescPlaceholder: 'What style or scenarios it suits',
+    styleCoverLabel: 'Cover image (optional)', styleCoverUpload: 'Upload cover', styleCoverChange: 'Change cover',
+    styleImportAddons: 'Import all addons from library', styleImportHint: 'When checked, every addon in the library is imported into this style (enabled by default, adjustable per item).',
+    styleSaved: 'Style saved', styleDeleted: 'Style deleted', styleDeleteConfirm: 'Delete style "{name}"? All its sizes, addon configs and overrides will be removed too.',
+    styleActive: 'Active', styleEmpty: 'No styles yet. Click "New Style" to start configuring.',
+    // Sizes
+    sizeTitle: 'Sizes & base prices', sizeName: 'Size', sizePrice: 'Base price', sizeActions: 'Actions',
+    sizeNamePlaceholder: 'e.g. Avatar, Half-body, Full-body', sizeNameRequired: 'Please enter a size name',
+    sizeAdd: 'Add', sizeSaved: 'Size saved', sizeAdded: 'Size added', sizeDeleted: 'Size deleted',
+    sizeDeleteConfirm: 'Delete size "{name}"? Its override configs will be removed too.',
+    // Addons
+    addonTitle: 'Addons (imported from library)', addonEmpty: 'No addons imported yet. Create some in the addon library, then re-import.',
+    addonSave: 'Save addon config', addonSaved: 'Addon config saved',
+    // Size overrides
+    overrideExpand: 'Size overrides ▾', overrideCollapse: 'Collapse ▴',
+    overrideTitle: 'Size overrides for "{name}"', overrideHidden: 'Hide', overrideSaved: 'Override saved'
+  },
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',
     tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet — upload some!',
