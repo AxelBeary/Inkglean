@@ -144,14 +144,19 @@ export async function buildApp(opts = {}) {
   // 生产环境未设置 CORS_ORIGIN → 不注册 CORS → 浏览器默认 same-origin 策略
 
   // ─── 安全响应头（轻量替代 helmet）───
+  // #43a: CSP connect-src 动态拼接 Sentry DSN 域名（未配置则不加）
+  const cspSentryDsn = process.env.SENTRY_DSN
+  let cspConnectSrc = "connect-src 'self'"
+  if (cspSentryDsn) {
+    try { cspConnectSrc += ` ${new URL(cspSentryDsn).origin}` } catch { /* DSN 无效，忽略 */ }
+  }
+  const cspHeader = `default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ${cspConnectSrc}; font-src 'self'`
+
   app.addHook('onRequest', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff')
     // P2-#21: embed 已删除（v0.24 审计），统一 CSP
     reply.header('X-Frame-Options', 'DENY')
-    reply.header('Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: blob:; connect-src 'self'; font-src 'self'"
-    )
+    reply.header('Content-Security-Policy', cspHeader)
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   })
