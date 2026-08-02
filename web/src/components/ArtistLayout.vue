@@ -142,7 +142,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -166,7 +166,9 @@ const BASE_MENU_ITEMS = [
   // #1: 留言管理（作品管理下方，待审核角标）
   { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true, group: 'biz' },
   // R42b: 须知编辑合并进设置页，菜单项移除
-  { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' }
+  { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },
+  // #44: 偏好独立导航（主页对外，偏好对内）
+  { index: '/preferences', icon: Document, labelKey: 'menu.preferences', group: 'front' }
 ]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
