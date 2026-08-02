@@ -194,7 +194,14 @@ export default {
     copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：',
     // v0.31 F3: 折扣码
     discountLabel: '折扣码', discountPlaceholder: '有折扣码？输入试试', discountValidate: '验证',
-    discountEstimate: '预估折扣', discountedTotal: '预估折后总价'
+    discountEstimate: '预估折扣', discountedTotal: '预估折后总价',
+    // v0.32 REQ-023 Phase2: 多画风三步走
+    styleStep: '选画风', sizeStep: '选尺寸', addonStep: '选增项',
+    styleStepTitle: '选择画风', sizeStepTitle: '选择尺寸', addonStepTitle: '增项与加急',
+    addonStepEmpty: '该尺寸下暂无可选增项',
+    addonOptionPrice: '选项价',
+    multiplierLabel: '用途与加急', usageLabel: '用途：', rushLabel: '加急：',
+    personal: '个人', noRush: '不加急'
   },
   // R24: 校验失败弹窗
   order: {
