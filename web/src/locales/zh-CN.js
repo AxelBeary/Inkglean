@@ -509,6 +509,42 @@ export default {
     deleteConfirm: '确定删除折扣码「{code}」？', disable: '停用', enable: '启用',
     empty: '还没有折扣码，点击"新建折扣码"创建'
   },
+  // v0.32 REQ-023 Phase1: 画风管理 + 增项库
+  styleManage: {
+    tabStyles: '画风管理', tabTemplates: '增项库', confirmTitle: '确认',
+    // 增项库
+    tplName: '名称', tplControl: '控件', tplPricing: '计价', tplDefaultPrice: '建议默认价', tplActions: '操作',
+    tplEmpty: '还没有增项模板，点击"新建增项"创建', tplAdd: '+ 新建增项',
+    tplAddTitle: '新建增项', tplEditTitle: '编辑增项',
+    tplNameLabel: '名称', tplNamePlaceholder: '如：加人、加差分、加背景', tplNameRequired: '请输入增项名称',
+    tplControlLabel: '控件类型', tplControlSwitch: '开关', tplControlQuantity: '数量', tplControlRadio: '单选',
+    tplPricingLabel: '计价模式', tplPricingFixed: '固定价', tplPricingPerUnit: '单价×数量', tplPricingPerOption: '选项价',
+    tplPriceLabel: '默认价格（元）',
+    tplUnitLabel: '单位标签', tplUnitPlaceholder: '如：人、张、个',
+    tplOptionsLabel: '选项列表', tplOptionLabel: '选项名', tplAddOption: '+ 添加选项',
+    tplOptionsHint: '客户下单时可从中选择一个选项，各选项可单独定价', tplOptionsRequired: '单选类型至少需要一个有效选项',
+    tplSaved: '增项已保存', tplDeleted: '增项已删除', tplDeleteConfirm: '确定删除增项「{name}」？所有画风中对该增项的引用将一并删除。',
+    pricePerUnit: '¥{price}/{unit}', unitDefault: '个',
+    // 画风
+    styleAdd: '+ 新建画风（从增项库一键导入）', styleAddTitle: '新建画风', styleEditTitle: '编辑画风',
+    styleNameLabel: '画风名称', styleNamePlaceholder: '如：日系、厚涂、像素风', styleNameRequired: '请输入画风名称',
+    styleDescLabel: '描述（可选）', styleDescPlaceholder: '适合什么风格、什么场景',
+    styleCoverLabel: '示例图（可选）', styleCoverUpload: '上传示例图', styleCoverChange: '更换示例图',
+    styleImportAddons: '从增项库一键导入', styleImportHint: '勾选后，增项库中所有增项将自动导入到该画风（默认启用，可逐个调整）',
+    styleSaved: '画风已保存', styleDeleted: '画风已删除', styleDeleteConfirm: '确定删除画风「{name}」？其下所有尺寸、增项配置和覆盖将一并删除。',
+    styleActive: '启用', styleEmpty: '还没有画风，点击"新建画风"开始配置',
+    // 尺寸
+    sizeTitle: '尺寸与基础价', sizeName: '尺寸', sizePrice: '基础价', sizeActions: '操作',
+    sizeNamePlaceholder: '如：头像、半身、全身', sizeNameRequired: '请输入尺寸名称',
+    sizeAdd: '添加', sizeSaved: '尺寸已保存', sizeAdded: '尺寸已添加', sizeDeleted: '尺寸已删除',
+    sizeDeleteConfirm: '确定删除尺寸「{name}」？该尺寸下的覆盖配置将一并删除。',
+    // 增项
+    addonTitle: '增项（从增项库导入）', addonEmpty: '还没有导入增项，可在增项库中创建后重新导入',
+    addonSave: '保存增项配置', addonSaved: '增项配置已保存',
+    // 尺寸覆盖
+    overrideExpand: '尺寸覆盖 ▾', overrideCollapse: '收起 ▴',
+    overrideTitle: '「{name}」尺寸覆盖', overrideHidden: '隐藏', overrideSaved: '覆盖已保存'
+  },
   artworks: {
     title: '🖼 作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
     tip: '支持 JPG / PNG / WebP，建议尺寸 ≥ 800px', empty: '还没有作品，上传一些吧',
