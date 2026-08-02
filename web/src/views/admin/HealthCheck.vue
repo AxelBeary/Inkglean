@@ -82,10 +82,12 @@ function downloadReport() {
 .health-status { margin-right: 8px; }
 .health-name { font-weight: 700; margin-right: 10px; }
 .health-summary { margin-left: 10px; font-size: 13px; color: var(--text-secondary); }
+/* #63: JSON 详情面板跟随暗色主题，不硬编码白底灰字 */
 .health-detail {
   margin: 0;
   padding: 12px;
-  background: var(--fill-color-light, #f5f7fa);
+  background: var(--bg-inset);
+  color: var(--text-primary);
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.6;
