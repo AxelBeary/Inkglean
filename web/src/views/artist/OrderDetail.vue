@@ -38,6 +38,7 @@
             <el-date-picker
               v-model="deadlinePicker" type="date" value-format="YYYY-MM-DD"
               :placeholder="$t('orderDetail.deadlinePlaceholder')"
+              :disabled-date="disableDeadlineDate"
               clearable size="small" style="width: 160px"
               @change="changeDeadline"
             />
@@ -47,6 +48,7 @@
             <el-date-picker
               v-model="startDatePicker" type="date" value-format="YYYY-MM-DD"
               :placeholder="$t('orderDetail.startDatePlaceholder')"
+              :disabled-date="disableStartDateDate"
               clearable size="small" style="width: 160px"
               @change="changeStartDate"
             />
@@ -773,6 +775,20 @@ const deadlinePicker = ref(null)
 watch(() => order.value?.deadline, (val) => {
   deadlinePicker.value = val ? val.slice(0, 10) : null
 })
+
+// REQ-018: 截稿日不可早于开工日（有开工日时灰掉之前的）
+function disableDeadlineDate(d) {
+  if (!startDatePicker.value) return false
+  const start = new Date(startDatePicker.value + 'T00:00:00')
+  return d < start
+}
+
+// REQ-018: 开工日不可晚于截稿日（有截稿日时灰掉之后的）
+function disableStartDateDate(d) {
+  if (!deadlinePicker.value) return false
+  const end = new Date(deadlinePicker.value + 'T00:00:00')
+  return d > end
+}
 
 async function changeDeadline(val) {
   try {

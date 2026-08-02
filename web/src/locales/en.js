@@ -504,6 +504,8 @@ export default {
     announcementLabel: 'Homepage announcement', announcementPlaceholder: 'e.g.: On break this week, back on Monday',
     announcementHint: 'Shown above the fold on your public page (max 500 chars). Leave empty to hide.',
     announcementExpiresLabel: 'Auto-hide date (optional)', announcementExpiresHint: 'The announcement disappears automatically after this date. Leave unset to keep it indefinitely.',
+    // REQ-018: announcement expiry shortcuts
+    shortcut7d: 'Next 7 days', shortcut30d: 'Next 30 days', shortcutMonthEnd: 'End of month',
     save: 'Save settings', saved: 'Settings saved',
     // R48: avatar upload
     avatarLabel: 'Avatar', avatarHint: 'Click to upload or change (JPG/PNG/WebP, ≤10MB)',

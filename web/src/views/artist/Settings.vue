@@ -55,6 +55,8 @@
                 type="date"
                 value-format="YYYY-MM-DD"
                 :placeholder="$t('settings.announcementExpiresLabel')"
+                :disabled-date="(d) => d < new Date()"
+                :shortcuts="announcementShortcuts"
                 clearable
                 style="margin-top: 8px; width: 220px"
               />
@@ -356,6 +358,13 @@ const form = reactive({
   announcement: '',
   announcementExpiresAt: null
 })
+
+// ─── REQ-018: 公告过期日快捷预设 ───
+const announcementShortcuts = [
+  { text: t('settings.shortcut7d'), value: () => { const d = new Date(); d.setDate(d.getDate() + 7); return d } },
+  { text: t('settings.shortcut30d'), value: () => { const d = new Date(); d.setDate(d.getDate() + 30); return d } },
+  { text: t('settings.shortcutMonthEnd'), value: () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0) } }
+]
 
 // ─── R49: 强调色预设（5 色与 ThemePicker 一致，后端白名单校验） ───
 const ACCENT_PRESETS = [

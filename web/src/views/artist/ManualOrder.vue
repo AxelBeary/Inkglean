@@ -62,6 +62,7 @@
               <el-date-picker
                 v-model="form.deadline" type="date" value-format="YYYY-MM-DD"
                 :placeholder="$t('manualOrder.deadlinePlaceholder')"
+                :disabled-date="(d) => d < new Date()"
                 clearable style="width: 200px"
               />
             </el-form-item>
