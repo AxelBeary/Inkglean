@@ -10,6 +10,7 @@ export interface GuestbookMessage {
   artist_id: number
   nickname: string
   content: string
+  language: string
   status: string
   artist_reply: string | null
   replied_at: string | null
@@ -21,23 +22,29 @@ export function getMessageById(id: number): GuestbookMessage | undefined {
   return db.prepare('SELECT * FROM guestbook_messages WHERE id = ?').get(id) as GuestbookMessage | undefined
 }
 
-/** 客户提交留言（默认 pending） */
-export function createMessage(artistId: number, nickname: string, content: string): GuestbookMessage | undefined {
+/** 客户提交留言（默认 pending，v0.31: 后端写入 language） */
+export function createMessage(artistId: number, nickname: string, content: string, language: string = 'zh-CN'): GuestbookMessage | undefined {
   const result = db.prepare(
-    'INSERT INTO guestbook_messages (artist_id, nickname, content) VALUES (?, ?, ?)'
-  ).run(artistId, nickname, content)
+    'INSERT INTO guestbook_messages (artist_id, nickname, content, language) VALUES (?, ?, ?, ?)'
+  ).run(artistId, nickname, content, language)
   return getMessageById(result.lastInsertRowid as number)
 }
 
-/** 公开查询：仅 approved 且未被管理员删除，按 created_at DESC 分页 */
-export function getPublicMessages(artistId: number, page: number = 1, pageSize: number = 20): { messages: GuestbookMessage[]; total: number; page: number; pageSize: number } {
+/** 公开查询：仅 approved 且未被管理员删除，按 created_at DESC 分页；v0.31: 可选 language 过滤 */
+export function getPublicMessages(artistId: number, page: number = 1, pageSize: number = 20, language?: string): { messages: GuestbookMessage[]; total: number; page: number; pageSize: number } {
   const offset = (page - 1) * pageSize
+  let where = "WHERE artist_id = ? AND status = 'approved' AND deleted_by_admin = 0"
+  const params: any[] = [artistId]
+  if (language) {
+    where += ' AND language = ?'
+    params.push(language)
+  }
   const messages = db.prepare(
-    "SELECT * FROM guestbook_messages WHERE artist_id = ? AND status = 'approved' AND deleted_by_admin = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?"
-  ).all(artistId, pageSize, offset) as GuestbookMessage[]
+    `SELECT * FROM guestbook_messages ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ).all(...params, pageSize, offset) as GuestbookMessage[]
   const total = (db.prepare(
-    "SELECT COUNT(*) as c FROM guestbook_messages WHERE artist_id = ? AND status = 'approved' AND deleted_by_admin = 0"
-  ).get(artistId) as { c: number }).c
+    `SELECT COUNT(*) as c FROM guestbook_messages ${where}`
+  ).get(...params) as { c: number }).c
   return { messages, total, page, pageSize }
 }
 

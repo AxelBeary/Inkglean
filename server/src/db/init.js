@@ -313,6 +313,7 @@ CREATE TABLE IF NOT EXISTS guestbook_messages (
   artist_id INTEGER NOT NULL,
   nickname TEXT NOT NULL,
   content TEXT NOT NULL,
+  language TEXT DEFAULT 'zh-CN',
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
   artist_reply TEXT DEFAULT NULL,
   replied_at DATETIME DEFAULT NULL,
@@ -1168,6 +1169,17 @@ export const MIGRATIONS = [
       const payCols = database.prepare('PRAGMA table_info(order_payments)').all()
       if (!payCols.some(c => c.name === 'installment_id')) {
         database.exec('ALTER TABLE order_payments ADD COLUMN installment_id INTEGER DEFAULT NULL')
+      }
+    }
+  },
+  {
+    version: 34,
+    name: 'guestbook_language',
+    up(database) {
+      // v0.31 REQ-021 F8 前置：留言记录语言（后端写入，不靠前端检测）
+      const cols = database.prepare('PRAGMA table_info(guestbook_messages)').all()
+      if (!cols.some(c => c.name === 'language')) {
+        database.exec("ALTER TABLE guestbook_messages ADD COLUMN language TEXT DEFAULT 'zh-CN'")
       }
     }
   }
