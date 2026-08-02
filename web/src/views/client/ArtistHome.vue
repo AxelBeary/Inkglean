@@ -12,6 +12,7 @@
       :is="templateComponent"
       :artist="displayArtist"
       :tiers="tiers"
+      :styles="styles"
       :artworks="artworks"
       :rules="rules"
       :workflow-stages="workflowStages"
@@ -43,6 +44,7 @@ const subdomain = route.params.subdomain
 
 const artist = ref(null)
 const tiers = ref([])
+const styles = ref([]) // v0.32 REQ-023 Phase3: 画风列表（GET /public/styles/:subdomain）
 const artworks = ref([])
 const rules = ref('')
 const workflowStages = ref([])
@@ -136,6 +138,10 @@ onMounted(async () => {
     // 加载价格数据（增项+倍率，静默失败不阻塞主页）
     artistPublicApi.getPricing(subdomain)
       .then(res => { pricing.value = res })
+      .catch(() => {})
+    // v0.32 REQ-023 Phase3: 加载画风列表（静默失败走旧模型兜底）
+    artistPublicApi.getPublicStyles(subdomain)
+      .then(res => { styles.value = res || [] })
       .catch(() => {})
   } catch (err) {
     ElMessage.error(err.message || t('artistHome.loadFailed'))
