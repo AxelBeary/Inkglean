@@ -1,6 +1,8 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { calculatePrice } from '../pricing/pricing.service.js'
+import { calculateStylePrice } from '../pricing/style-pricing.service.js'
+import type { StylePriceResult } from '../pricing/style-pricing.service.js'
 import { validateDiscountCode, computeDiscountCents, incrementUsage } from '../pricing/discount.service.js'
 import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
@@ -44,6 +46,30 @@ function buildQuoteSnapshot(priceCalc: PriceResult | null): string | null {
   }
   snapshot += ` → 总价 ${formatYuan(priceCalc.totalPrice)}`
 
+  return snapshot
+}
+
+/**
+ * 画风模式报价快照
+ * 格式："[日系 / 全身] 基础¥600 + 加人×2 ¥400 + 加背景 ¥150 = ¥1150 × 商用2.0 = ¥2300"
+ */
+function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotal: number): string {
+  const parts: string[] = [`基础${formatYuan(sc.basePrice)}`]
+  for (const item of sc.addonItems) {
+    if (item.quantity > 1) {
+      parts.push(`${item.name}×${item.quantity} ${formatYuan(item.amount)}`)
+    } else {
+      parts.push(`${item.name} ${formatYuan(item.amount)}`)
+    }
+  }
+  let snapshot = `[${sc.styleName} / ${sc.sizeName}] ${parts.join(' + ')} = ${formatYuan(sc.subtotal)}`
+  const factors: string[] = []
+  if (sc.usageMultiplier) factors.push(`${sc.usageMultiplier.name}${sc.usageMultiplier.factor}`)
+  if (sc.rushMultiplier) factors.push(`${sc.rushMultiplier.name}${sc.rushMultiplier.factor}`)
+  if (factors.length > 0) {
+    snapshot += ` × ${factors.join(' × ')} = ${formatYuan(sc.multiplierTotal)}`
+  }
+  snapshot += ` → 总价 ${formatYuan(finalTotal)}`
   return snapshot
 }
 
@@ -99,6 +125,8 @@ interface CreateOrderParams {
   usageMultiplierId?: number | null
   rushMultiplierId?: number | null
   discountCode?: string | null
+  styleSizeId?: number | null
+  styleAddons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }>
 }
 
 /**
@@ -107,7 +135,7 @@ interface CreateOrderParams {
  * 支持价格计算器：addons + 倍率 → breakdown + 分期
  * v0.31 F3: 折扣码（先倍率后折扣，REQ-023 已定）
  */
-export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, addons, usageMultiplierId, rushMultiplierId, discountCode }: CreateOrderParams): any {
+export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, addons, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons }: CreateOrderParams): any {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -138,10 +166,24 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     ).get(artistId) as { max_pos: number | null } | undefined
     const queuePosition = (maxPos?.max_pos ?? 0) + 1
 
-    // ─── 价格计算（有 tierId 时） ───
+    // ─── 价格计算（画风模式 或 旧档位模式，互斥） ───
+    if (styleSizeId && tierId) {
+      throw new AppError(E.VALIDATION, 400, { reason: 'styleSizeId 与 tierId 互斥，只能传其一' })
+    }
     let totalPriceCents: number | null = null
     let priceCalc: PriceResult | null = null
-    if (tierId) {
+    let styleCalc: StylePriceResult | null = null
+    if (styleSizeId) {
+      // 画风模式：调 calculateStylePrice（不含折扣，折扣走下面统一逻辑）
+      styleCalc = calculateStylePrice(artistId, {
+        styleSizeId,
+        addons: styleAddons || [],
+        usageMultiplierId: usageMultiplierId || null,
+        rushMultiplierId: rushMultiplierId || null,
+        discountCode: null
+      })
+      totalPriceCents = Math.round(styleCalc.multiplierTotal * 100)
+    } else if (tierId) {
       priceCalc = calculatePrice(artistId, {
         tierId,
         addons: addons || [],
@@ -161,8 +203,10 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       totalPriceCents = totalPriceCents - discountAmountCents
     }
 
-    // ─── 报价快照字符串（v0.11 R2） ───
-    const quoteSnapshot = buildQuoteSnapshot(priceCalc)
+    // ─── 报价快照字符串（v0.11 R2 / v0.32 画风模式） ───
+    const quoteSnapshot = styleCalc
+      ? buildStyleQuoteSnapshot(styleCalc, totalPriceCents != null ? totalPriceCents / 100 : 0)
+      : buildQuoteSnapshot(priceCalc)
 
     const result = db.prepare(`
       INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents)
@@ -171,7 +215,7 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       orderNo, artistId, tierId || null, clientQq, clientName || null,
       description || null, priority || 'medium', source || 'self',
       clientNotify ? 1 : 0, queuePosition,
-      priceCalc ? priceCalc.basePrice : null,
+      styleCalc ? styleCalc.basePrice : (priceCalc ? priceCalc.basePrice : null),
       totalPriceCents,
       usageMultiplierId || null,
       rushMultiplierId || null,
@@ -204,7 +248,25 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     }
 
     // ─── 价格明细快照 ───
-    if (priceCalc && priceCalc.breakdown.length > 0) {
+    if (styleCalc) {
+      // 画风模式：用 'tier'/'addon' 语义兼容（避免改 CHECK 约束）
+      const insertBd = db.prepare(
+        'INSERT INTO order_price_breakdown (order_id, item_type, item_name, amount_cents, multiplier, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
+      let sortIdx = 0
+      insertBd.run(orderId, 'tier', `${styleCalc.styleName} / ${styleCalc.sizeName}`, Math.round(styleCalc.basePrice * 100), 1.0, 1, sortIdx++)
+      for (const item of styleCalc.addonItems) {
+        insertBd.run(orderId, 'addon', item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name, Math.round(item.amount * 100), 1.0, item.quantity, sortIdx++)
+      }
+      if (styleCalc.usageMultiplier) {
+        const umAmount = styleCalc.subtotal * (styleCalc.usageMultiplier.factor - 1) * (styleCalc.rushMultiplier?.factor ?? 1)
+        insertBd.run(orderId, 'usage', `${styleCalc.usageMultiplier.name} ×${styleCalc.usageMultiplier.factor}`, Math.round(umAmount * 100), styleCalc.usageMultiplier.factor, 1, sortIdx++)
+      }
+      if (styleCalc.rushMultiplier) {
+        const rmAmount = styleCalc.subtotal * (styleCalc.usageMultiplier?.factor ?? 1) * (styleCalc.rushMultiplier.factor - 1)
+        insertBd.run(orderId, 'rush', `${styleCalc.rushMultiplier.name} ×${styleCalc.rushMultiplier.factor}`, Math.round(rmAmount * 100), styleCalc.rushMultiplier.factor, 1, sortIdx++)
+      }
+    } else if (priceCalc && priceCalc.breakdown.length > 0) {
       const insertBd = db.prepare(
         'INSERT INTO order_price_breakdown (order_id, item_type, item_name, amount_cents, multiplier, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
@@ -214,13 +276,28 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     }
 
     // ─── 生成分期计划（SPEC-004: 缓冲订单不生成付款节点） ───
-    if (queueZone === 'formal' && priceCalc && priceCalc.installments.length > 0) {
-      const insertInst = db.prepare(
-        'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
-      )
-      priceCalc.installments.forEach((inst, i) => {
-        insertInst.run(orderId, inst.label, inst.basisPoints, Math.round(inst.amount * 100), i)
-      })
+    if (queueZone === 'formal') {
+      if (styleCalc && totalPriceCents != null && totalPriceCents > 0) {
+        // 画风模式：从工作流节点生成分期
+        const stages = db.prepare(
+          'SELECT name, basis_points FROM artist_workflow_stages WHERE artist_id = ? AND takes_payment = 1 ORDER BY sort_order ASC'
+        ).all(artistId) as Array<{ name: string; basis_points: number }>
+        if (stages.length > 0) {
+          const insertInst = db.prepare(
+            'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
+          )
+          stages.forEach((s, i) => {
+            insertInst.run(orderId, s.name, s.basis_points, Math.round(totalPriceCents! * s.basis_points / 10000), i)
+          })
+        }
+      } else if (priceCalc && priceCalc.installments.length > 0) {
+        const insertInst = db.prepare(
+          'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
+        )
+        priceCalc.installments.forEach((inst, i) => {
+          insertInst.run(orderId, inst.label, inst.basisPoints, Math.round(inst.amount * 100), i)
+        })
+      }
     }
 
     return getOrder(orderId)
