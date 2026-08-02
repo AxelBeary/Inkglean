@@ -403,6 +403,8 @@ export default {
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
     payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',
+    // v0.31 F5: 下一节点应收
+    nextDueLabel: '下一节点应收：{name} {amount}',
     // v0.31 五号方案A：改价按钮
     priceEditBtn: '修改价格', priceDialogTitle: '修改最终价格',
     priceNewLabel: '新价格（元）', pricePlaceholder: '输入新的最终价格',

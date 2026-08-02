@@ -103,6 +103,15 @@
         </template>
       </el-card>
 
+      <!-- v0.31 F5: 下一节点应收（显著位置，点击跳转收款区） -->
+      <div v-if="!isTerminal && nextDueInstallment" class="next-due-banner" @click="scrollToPayment">
+        <span class="next-due-icon">💰</span>
+        <span class="next-due-text">
+          {{ $t('orderDetail.nextDueLabel', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
+        </span>
+        <span class="next-due-arrow">→</span>
+      </div>
+
       <!-- R39 方案B：操作条（固定位置——不随状态区内容跳动，画师永远知道按钮在哪） -->
       <el-card v-if="!isTerminal" class="action-bar-card" style="margin-top: 12px">
         <!-- 取消订单：滑块确认行（R30e，C59 高代价操作用滑块） -->
@@ -935,6 +944,16 @@ const poolPercent = computed(() =>
 /** v0.31 F4: 节点收款（后端直接返回 paidCents/amountCents/remainingCents/status） */
 const installmentRefs = computed(() => order.value?.installments || [])
 
+/** v0.31 F5: 下一节点应收（第一个 remainingCents > 0 的节点） */
+const nextDueInstallment = computed(() =>
+  installmentRefs.value.find(inst => inst.remainingCents > 0) || null
+)
+
+/** v0.31 F5: 点击跳转到收款区 */
+function scrollToPayment() {
+  document.querySelector('.pool-ref')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 /** 提交收款 */
 async function submitPayment() {
   const cents = Math.round((payForm.value.amountYuan || 0) * 100)
@@ -1310,6 +1329,19 @@ onMounted(() => {
 .track-on-hint-text { font-size: 13px; color: var(--text-secondary); }
 
 /* ─── R39 方案B：操作条（固定位置） ─── */
+/* ─── v0.31 F5: 下一节点应收提示条 ─── */
+.next-due-banner {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 12px; padding: 12px 16px; border-radius: 8px;
+  background: var(--el-color-warning-light-9);
+  border: 1px solid var(--el-color-warning-light-5);
+  cursor: pointer; transition: background 0.15s;
+}
+.next-due-banner:hover { background: var(--el-color-warning-light-8); }
+.next-due-icon { font-size: 18px; }
+.next-due-text { flex: 1; font-size: 14px; font-weight: 600; color: var(--el-color-warning-dark-2); }
+.next-due-arrow { font-size: 16px; color: var(--el-color-warning); }
+
 .action-bar-card :deep(.el-card__body) { padding: 12px 16px; }
 .action-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .action-cancel { margin-left: auto; }

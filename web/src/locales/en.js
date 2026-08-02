@@ -403,6 +403,8 @@ export default {
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',
+    // v0.31 F5: next due
+    nextDueLabel: 'Next due: {name} {amount}',
     // v0.31: price edit button
     priceEditBtn: 'Edit Price', priceDialogTitle: 'Edit Final Price',
     priceNewLabel: 'New Price (¥)', pricePlaceholder: 'Enter new final price',
