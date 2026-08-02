@@ -83,16 +83,13 @@
       <Disclaimer />
     </footer>
 
-    <!-- R25: ThemePicker 右下角固定悬浮（用户决策 C37） -->
-    <div class="theme-fab" :class="{ 'theme-fab--above-cta': ctaVisible }"><ThemePicker /></div>
-
     <!-- 吸底约稿条 -->
     <TplStickyCta :visible="ctaVisible" :artist="artist" :subdomain="subdomain" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
 import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
@@ -104,7 +101,6 @@ import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
-import ThemePicker from '../../../components/ThemePicker.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
@@ -122,6 +118,10 @@ useScrollReveal(rootEl)
 // 吸底 CTA：监听 Hero 哨兵元素
 const heroSentinel = computed(() => heroRef.value?.sentinelEl?.value)
 const { visible: ctaVisible } = useStickyCta(heroSentinel)
+
+// #55/61: 同步 CTA 避让状态给父级浮窗
+const ctaRaised = inject('ctaRaised')
+watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 </script>
 
 <style scoped>
@@ -454,24 +454,6 @@ const { visible: ctaVisible } = useStickyCta(heroSentinel)
   transform: rotate(0deg);
   border-color: var(--atelier-accent);
 }
-
-/* R25: ThemePicker 右下角固定悬浮（用户决策 C37） */
-.theme-fab {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 95;
-  padding: 10px 12px;
-  background: var(--pal-surface);
-  border: 1px solid var(--pal-border);
-  border-radius: 999px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  transition: box-shadow 0.2s, bottom 0.3s;
-}
-.theme-fab:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-}
-.theme-fab--above-cta { bottom: 72px; }
 
 @media (max-width: 768px) {
   .atelier-section {

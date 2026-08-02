@@ -315,8 +315,7 @@
         </template>
         <div class="comm-body">
           <div class="comm-row">
-            <span class="comm-label">{{ $t('orderDetail.commQq') }}</span>
-            <span class="comm-value">{{ order.client_qq || '—' }}</span>
+            <el-button size="small" :disabled="!order.client_qq" @click="copyQq(order.client_qq)">{{ $t('orderDetail.commCopyContact') }}</el-button>
           </div>
           <div class="comm-row">
             <span class="comm-label">{{ $t('orderDetail.commPriceSummary', { total: `¥${formatCents(poolFinalCents)}`, paid: `¥${formatCents(poolPaidCents)}`, unpaid: `¥${formatCents(poolRemainingCents)}` }) }}</span>
