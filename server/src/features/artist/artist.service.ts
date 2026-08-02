@@ -4,6 +4,8 @@ import { isValidArtistCode } from '../../shared/validate.js'
 import { identifyPlatform, KNOWN_PLATFORMS, parsePlatformUrls } from '../../utils/platform.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
 import type { Artist, Tier } from '../../types/entities.js'
+import sharp from 'sharp'
+import { resolve, join } from 'path'
 
 // ============================================
 // 画师服务
@@ -18,6 +20,8 @@ interface Artwork {
   sort_order: number
   like_count: number
   is_cover: number
+  width: number | null
+  height: number | null
 }
 
 /** 约稿须知（entities.ts 未定义，内联） */
@@ -371,12 +375,25 @@ export function getArtworkById(artworkId: number): Artwork | undefined {
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(artworkId) as Artwork | undefined
 }
 
-export function createArtwork(artistId: number, { imagePath, title }: { imagePath: string; title?: string | null }): Artwork | undefined {
+export async function createArtwork(artistId: number, { imagePath, title }: { imagePath: string; title?: string | null }): Promise<Artwork | undefined> {
   const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM artworks WHERE artist_id = ?').get(artistId) as { m: number | null } | undefined
   const sortOrder = (maxOrder?.m ?? 0) + 1
 
-  const result = db.prepare('INSERT INTO artworks (artist_id, image_path, title, sort_order) VALUES (?, ?, ?, ?)')
-    .run(artistId, imagePath, title || null, sortOrder)
+  // #15: sharp 读取图片宽高（瀑布流零跳动——前端需预知比例）
+  let width: number | null = null
+  let height: number | null = null
+  try {
+    const uploadDir = resolve(process.env.UPLOAD_DIR || './uploads')
+    const absPath = join(uploadDir, imagePath)
+    const meta = await sharp(absPath).metadata()
+    if (meta.width && meta.height) {
+      width = meta.width
+      height = meta.height
+    }
+  } catch { /* 读取失败不阻塞创建，width/height 留 null */ }
+
+  const result = db.prepare('INSERT INTO artworks (artist_id, image_path, title, sort_order, width, height) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(artistId, imagePath, title || null, sortOrder, width, height)
 
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(Number(result.lastInsertRowid)) as Artwork | undefined
 }

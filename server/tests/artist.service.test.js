@@ -97,8 +97,8 @@ describe('画师服务 (Artist Service)', () => {
   it('TC-R-05: 作品创建、读取、删除', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
 
-    const a1 = artistService.createArtwork(artist.id, { imagePath: 'img/1.png', title: '作品1' })
-    const a2 = artistService.createArtwork(artist.id, { imagePath: 'img/2.png', title: '作品2' })
+    const a1 = await artistService.createArtwork(artist.id, { imagePath: 'img/1.png', title: '作品1' })
+    const a2 = await artistService.createArtwork(artist.id, { imagePath: 'img/2.png', title: '作品2' })
 
     expect(a1.sort_order).toBe(1)
     expect(a2.sort_order).toBe(2)

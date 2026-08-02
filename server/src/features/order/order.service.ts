@@ -389,18 +389,26 @@ export function deleteNote(orderId: number, noteId: number): any {
 }
 
 /**
- * 获取画师的订单列表（支持状态筛选 + 分页）
+ * 获取画师的订单列表（支持状态筛选 + 关键字搜索 + 分页）
  */
-export function getArtistOrders(artistId: number, status: string | undefined, { page = 1, pageSize = 50 }: { page?: number; pageSize?: number } = {}): any {
+export function getArtistOrders(artistId: number, status: string | undefined, { page = 1, pageSize = 50, q }: { page?: number; pageSize?: number; q?: string } = {}): any {
   let where = 'WHERE o.artist_id = ?'
   const params: any[] = [artistId]
   if (status) {
     where += ' AND o.status = ?'
     params.push(status)
   }
+  // REQ-020 F1: 关键字搜索（客户昵称、订单号、档位名）
+  if (q && q.trim()) {
+    where += ' AND (o.client_name LIKE ? OR o.order_no LIKE ? OR t.name LIKE ?)'
+    const like = `%${q.trim()}%`
+    params.push(like, like, like)
+  }
 
   const total = (db.prepare(`
-    SELECT COUNT(*) as c FROM orders o ${where}
+    SELECT COUNT(*) as c FROM orders o
+    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    ${where}
   `).get(...params) as { c: number }).c
 
   const offset = (Math.max(1, page) - 1) * pageSize

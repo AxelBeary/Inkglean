@@ -318,6 +318,7 @@ export default {
     tlEmpty: 'No orders in the visible time range',
     // v0.28: Timeline drag
     tlDragDeadline: 'Deadline {d}', tlDragStart: 'Start {d}',
+    tlDragMove: '{s} → {e}',
     tlDragSaved: 'Date updated',
     tlDragDeadlineBeforeStart: 'Deadline cannot be earlier than start date',
     tlDragStartAfterDeadline: 'Start date cannot be later than deadline'
@@ -326,7 +327,9 @@ export default {
     title: '📦 Order Management', all: 'All',
     colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
     colPriority: 'Priority', colStatus: 'Status', colSource: 'Source', colTime: 'Order time', colActions: 'Actions',
-    colImage: 'Image'
+    colImage: 'Image',
+    // REQ-020 F1: order search
+    searchPlaceholder: 'Search name / order no. / tier', noSearchResult: 'No matching orders'
   },
   orderDetail: {
     backToQueue: 'Back to queue', backToDashboard: 'Back to dashboard', backToList: 'Back to orders', orderNo: 'Order #',
@@ -504,6 +507,8 @@ export default {
     announcementLabel: 'Homepage announcement', announcementPlaceholder: 'e.g.: On break this week, back on Monday',
     announcementHint: 'Shown above the fold on your public page (max 500 chars). Leave empty to hide.',
     announcementExpiresLabel: 'Auto-hide date (optional)', announcementExpiresHint: 'The announcement disappears automatically after this date. Leave unset to keep it indefinitely.',
+    // REQ-018: announcement expiry shortcuts
+    shortcut7d: 'Next 7 days', shortcut30d: 'Next 30 days', shortcutMonthEnd: 'End of month',
     save: 'Save settings', saved: 'Settings saved',
     // R48: avatar upload
     avatarLabel: 'Avatar', avatarHint: 'Click to upload or change (JPG/PNG/WebP, ≤10MB)',

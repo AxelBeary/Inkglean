@@ -119,7 +119,7 @@ export const artistApi = {
   replyMessage: (id, reply) => api.put(`/artist/messages/${id}/reply`, { reply }),
   updateRules: (content) => api.put('/artist/rules', { content }),
   // 订单
-  getOrders: (status, { page, pageSize } = {}) => api.get('/artist/orders', { params: { status, page, pageSize } }),
+  getOrders: (status, { page, pageSize, q } = {}) => api.get('/artist/orders', { params: { status, page, pageSize, q } }),
   getQueue: (zone) => api.get('/artist/queue', zone ? { params: { zone } } : undefined),
   getOrder: (id) => api.get(`/artist/orders/${id}`),
   createManualOrder: (data) => api.post('/artist/orders/manual', data),

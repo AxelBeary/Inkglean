@@ -2,6 +2,19 @@
   <ArtistLayout>
     <h2>{{ $t('orderList.title') }}</h2>
 
+    <!-- REQ-020 F1: 订单搜索（客户昵称/订单号/档位名，300ms debounce） -->
+    <div class="search-bar">
+      <el-input
+        v-model="searchQuery"
+        :placeholder="$t('orderList.searchPlaceholder')"
+        clearable
+        prefix-icon="Search"
+        style="max-width: 320px"
+        @input="onSearchInput"
+        @clear="onSearchClear"
+      />
+    </div>
+
     <!-- 筛选 -->
     <div class="filter-bar">
       <el-radio-group v-model="filter" @change="onFilterChange" size="default">
@@ -67,6 +80,9 @@
       </el-table-column>
     </el-table>
 
+    <!-- REQ-020 F1: 搜索无结果提示 -->
+    <el-empty v-if="!loading && orders.length === 0 && searchQuery.trim()" :description="$t('orderList.noSearchResult')" />
+
     <!-- S-10: 分页 -->
     <div style="display: flex; justify-content: flex-end; margin-top: 16px">
       <el-pagination
@@ -83,7 +99,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -94,6 +110,19 @@ const route = useRoute()
 const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
+// REQ-020 F1: 搜索（300ms debounce）
+const searchQuery = ref('')
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { page.value = 1; loadOrders() }, 300)
+}
+function onSearchClear() {
+  clearTimeout(searchTimer)
+  page.value = 1
+  loadOrders()
+}
+onUnmounted(() => clearTimeout(searchTimer))
 // #2: 复合筛选（active=非终态 / completed=done+delivered，客户端过滤）
 const compositeFilter = ref('')
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'wip', 'revision', 'done']
@@ -126,7 +155,8 @@ function onFilterChange() {
 async function loadOrders() {
   loading.value = true
   try {
-    const res = await artistApi.getOrders(filter.value || undefined, { page: page.value, pageSize: pageSize.value })
+    const q = searchQuery.value.trim() || undefined
+    const res = await artistApi.getOrders(filter.value || undefined, { page: page.value, pageSize: pageSize.value, q })
     orders.value = res.items ?? res
     total.value = res.total ?? orders.value.length
   } catch (err) {
@@ -153,6 +183,8 @@ onMounted(() => {
 <style scoped>
 /* R42a: 工具栏 */
 .order-toolbar { margin: 12px 0; }
+/* REQ-020 F1: 搜索栏 */
+.search-bar { margin: 12px 0; }
 .filter-bar { overflow-x: auto; }
 /* R16: 缩略图 */
 .order-thumb { width: 40px; height: 40px; border-radius: 6px; display: block; cursor: zoom-in; }

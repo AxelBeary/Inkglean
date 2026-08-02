@@ -318,6 +318,7 @@ export default {
     tlEmpty: '可见时间范围内没有订单',
     // v0.28: 时间条拖拽
     tlDragDeadline: '截稿 {d}', tlDragStart: '开工 {d}',
+    tlDragMove: '{s} → {e}',
     tlDragSaved: '日期已更新',
     tlDragDeadlineBeforeStart: '截稿日不能早于开工日',
     tlDragStartAfterDeadline: '开工日不能晚于截稿日'
@@ -326,7 +327,9 @@ export default {
     title: '📦 订单管理', all: '全部',
     colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
     colPriority: '优先级', colStatus: '状态', colSource: '来源', colTime: '下单时间', colActions: '操作',
-    colImage: '图片'
+    colImage: '图片',
+    // REQ-020 F1: 订单搜索
+    searchPlaceholder: '搜索昵称 / 订单号 / 档位名', noSearchResult: '无匹配订单'
   },
   orderDetail: {
     backToQueue: '返回排期看板', backToDashboard: '返回仪表盘', backToList: '返回订单列表', orderNo: '订单 #',
@@ -503,6 +506,8 @@ export default {
     announcementLabel: '主页公告', announcementPlaceholder: '如：本周休息，下周一恢复接单',
     announcementHint: '显示在客户主页首屏，最多 500 字。留空则不显示。',
     announcementExpiresLabel: '自动隐藏日期（可选）', announcementExpiresHint: '到期后公告自动消失，不设置则长期显示',
+    // REQ-018: 公告过期日快捷预设
+    shortcut7d: '近 7 天', shortcut30d: '近 30 天', shortcutMonthEnd: '本月底',
     save: '保存设置', saved: '设置已保存',
     // R48: 头像上传
     avatarLabel: '头像', avatarHint: '点击上传或更换（JPG/PNG/WebP，≤10MB）',
