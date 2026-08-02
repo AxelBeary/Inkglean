@@ -422,6 +422,10 @@ export default {
     viewQueue: '查看排期', continueEntry: '继续录入', fillClientQq: '请填写客户QQ号',
     // R51: 截稿日
     deadline: '截稿日（可选）', deadlinePlaceholder: '选择截稿日',
+    // F2: 拖拽上传提示
+    dragHint: '拖拽图片到此处，或点击上传',
+    // F3: 开稿日
+    startDate: '开稿日（可选）', startDatePlaceholder: '选择开稿日',
     // REQ-015: QQ历史面板
     historyTitle: '该客户的历史订单', newClient: '🎉 新客户，暂无历史订单'
   },

@@ -422,6 +422,10 @@ export default {
     viewQueue: 'View queue', continueEntry: 'Enter another', fillClientQq: "Please enter the client's QQ number",
     // R51: deadline
     deadline: 'Deadline (optional)', deadlinePlaceholder: 'Pick a deadline',
+    // F2: drag upload hint
+    dragHint: 'Drag images here, or click to upload',
+    // F3: start date
+    startDate: 'Start date (optional)', startDatePlaceholder: 'Pick a start date',
     // REQ-015: QQ history panel
     historyTitle: "This client's order history", newClient: '🎉 New client — no previous orders'
   },

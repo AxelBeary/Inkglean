@@ -24,13 +24,18 @@
                   <el-icon class="ref-tip-icon"><InfoFilled /></el-icon>
                 </el-tooltip>
               </div>
+              <!-- F2: 拖拽上传（drag + multiple），保留点击上传 -->
               <el-upload
+                drag multiple
                 :auto-upload="true" :http-request="handleRefUpload"
                 accept="image/*" list-type="picture-card" :limit="5"
                 :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
                 :on-remove="handleRefRemove" class="mo-ref-upload"
               >
                 <el-icon :size="24" aria-label="上传参考图"><Plus /></el-icon>
+                <template #tip>
+                  <span class="drag-hint">{{ $t('manualOrder.dragHint') }}</span>
+                </template>
               </el-upload>
               <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
             </div>
@@ -62,6 +67,15 @@
               <el-date-picker
                 v-model="form.deadline" type="date" value-format="YYYY-MM-DD"
                 :placeholder="$t('manualOrder.deadlinePlaceholder')"
+                :disabled-date="(d) => d < new Date()"
+                clearable style="width: 200px"
+              />
+            </el-form-item>
+            <!-- F3: 开稿日（可选，REQ-018 disabled-date 限今天之前不可选） -->
+            <el-form-item :label="$t('manualOrder.startDate')">
+              <el-date-picker
+                v-model="form.startDate" type="date" value-format="YYYY-MM-DD"
+                :placeholder="$t('manualOrder.startDatePlaceholder')"
                 :disabled-date="(d) => d < new Date()"
                 clearable style="width: 200px"
               />
@@ -310,6 +324,7 @@ const form = reactive({
   description: '',
   priority: 'medium',
   deadline: null,
+  startDate: null,
   clientNotify: false,
   usageMultiplierId: null,
   rushMultiplierId: null
@@ -565,6 +580,13 @@ async function submit() {
       } catch (e) { postCreateFailed = postCreateFailed || `截稿日写入失败：${e.message}` }
     }
 
+    // F3: 开稿日（同截稿日，创建后单独写入）
+    if (order.id && form.startDate) {
+      try {
+        await artistApi.updateStartDate(order.id, form.startDate)
+      } catch (e) { postCreateFailed = postCreateFailed || `开稿日写入失败：${e.message}` }
+    }
+
     resultNo.value = order.order_no
     showResult.value = true
     if (postCreateFailed) {
@@ -585,6 +607,7 @@ function resetForm() {
   form.description = ''
   form.priority = 'medium'
   form.deadline = null
+  form.startDate = null
   form.clientNotify = false
   form.usageMultiplierId = null
   form.rushMultiplierId = null
@@ -662,6 +685,8 @@ onMounted(async () => {
   width: 100%; height: 100px;
   border-radius: 8px;
 }
+/* F2: 拖拽提示 */
+.drag-hint { font-size: 12px; color: var(--text-secondary); }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
 
 /* ─── 档位卡片 ─── */
