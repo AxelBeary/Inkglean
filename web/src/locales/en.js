@@ -431,6 +431,8 @@ export default {
     dragHint: 'Drag images here, or click to upload',
     // F3: start date
     startDate: 'Start date (optional)', startDatePlaceholder: 'Pick a start date',
+    // F4: initial stage status
+    initialStatus: 'Initial stage status', initialStatusHint: 'Skip the confirmation step for orders already agreed offline',
     // REQ-015: QQ history panel
     historyTitle: "This client's order history", newClient: '🎉 New client — no previous orders'
   },

@@ -189,6 +189,20 @@
               </div>
             </div>
 
+            <!-- F4: 初始节点状态（线下已谈好的单子可直接跳过确认） -->
+            <div class="mo-field">
+              <div class="mo-field-label">{{ $t('manualOrder.initialStatus') }}</div>
+              <el-radio-group v-model="form.initialStatus" size="small">
+                <el-radio-button
+                  v-for="opt in initialStatusOptions" :key="opt.value"
+                  :value="opt.value" :disabled="opt.disabled"
+                >
+                  {{ $t(`common.orderStatus.${opt.value}`) }}
+                </el-radio-button>
+              </el-radio-group>
+              <p class="initial-status-hint">{{ $t('manualOrder.initialStatusHint') }}</p>
+            </div>
+
             <!-- 价格面板 sticky（≥600px 可见，<600px 由底部价格条替代） -->
             <div class="mo-price-sticky">
               <!-- 实时价格预览 -->
@@ -317,6 +331,9 @@ const qqHistory = ref([])
 const qqHistoryLoading = ref(false)
 const qqHistoryLoaded = ref(false)
 
+// ─── F4: 初始节点状态 ───
+const workflowStages = ref([])
+
 const form = reactive({
   clientQq: '',
   clientName: '',
@@ -325,6 +342,7 @@ const form = reactive({
   priority: 'medium',
   deadline: null,
   startDate: null,
+  initialStatus: 'pending',
   clientNotify: false,
   usageMultiplierId: null,
   rushMultiplierId: null
@@ -387,6 +405,42 @@ const displayPrice = computed(() => {
 
 /** QQ 号格式校验（5-15位纯数字） */
 const qqValid = computed(() => /^\d{5,15}$/.test(form.clientQq.trim()))
+
+// ─── F4: 初始节点状态 ───
+
+/** 复刻后端 mapStageToStatus（order-workflow.service.ts），判断各状态在工作流中的可达性 */
+function mapStageToStatus(stages, idx) {
+  if (idx === 0) return 'pending'
+  if (idx === stages.length - 1) return 'done'
+  if (idx === 1 && stages[idx].takesPayment) return 'confirmed'
+  return 'wip'
+}
+
+/** 找到映射到目标状态的第一个节点（无工作流或不可达时返回 null） */
+function findStageForStatus(status) {
+  for (let i = 0; i < workflowStages.value.length; i++) {
+    if (mapStageToStatus(workflowStages.value, i) === status) {
+      return workflowStages.value[i]
+    }
+  }
+  return null
+}
+
+/** 三个选项：待确认（默认）/ 已确认 / 进行中；有工作流但无对应节点时禁用 */
+const initialStatusOptions = computed(() => {
+  const hasWorkflow = workflowStages.value.length > 0
+  return [
+    { value: 'pending', disabled: false },
+    { value: 'confirmed', disabled: hasWorkflow && !findStageForStatus('confirmed') },
+    { value: 'wip', disabled: hasWorkflow && !findStageForStatus('wip') }
+  ]
+})
+
+/** 工作流变化导致当前选项不可达时，回退到默认值 */
+watch(initialStatusOptions, (opts) => {
+  const current = opts.find(o => o.value === form.initialStatus)
+  if (current?.disabled) form.initialStatus = 'pending'
+})
 
 function formatAddonPrice(a) {
   if (a.select_mode === 'inquiry') return t('manualOrder.inquiry')
@@ -587,6 +641,18 @@ async function submit() {
       } catch (e) { postCreateFailed = postCreateFailed || `开稿日写入失败：${e.message}` }
     }
 
+    // F4: 初始节点状态（非默认时推进到目标节点；R30d 有工作流的订单不能直接改 status）
+    if (order.id && form.initialStatus !== 'pending') {
+      try {
+        if (workflowStages.value.length > 0) {
+          const target = findStageForStatus(form.initialStatus)
+          if (target) await artistApi.advanceStage(order.id, target.id)
+        } else {
+          await artistApi.updateStatus(order.id, form.initialStatus)
+        }
+      } catch (e) { postCreateFailed = postCreateFailed || `初始状态设置失败：${e.message}` }
+    }
+
     resultNo.value = order.order_no
     showResult.value = true
     if (postCreateFailed) {
@@ -608,6 +674,7 @@ function resetForm() {
   form.priority = 'medium'
   form.deadline = null
   form.startDate = null
+  form.initialStatus = 'pending'
   form.clientNotify = false
   form.usageMultiplierId = null
   form.rushMultiplierId = null
@@ -633,6 +700,10 @@ onMounted(async () => {
     // 加载价格数据（增项+倍率）
     artistPublicApi.getPricing(profile.subdomain)
       .then(res => { pricingData.value = res })
+      .catch(() => {})
+    // F4: 加载工作流节点（判断初始状态可达性）
+    artistApi.getWorkflow()
+      .then(res => { workflowStages.value = res.stages || [] })
       .catch(() => {})
   } catch { /* ignore */ }
 })
@@ -791,6 +862,9 @@ onMounted(async () => {
 .multiplier-section { width: 100%; }
 .multiplier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .multiplier-label { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
+
+/* ─── F4: 初始节点状态 ─── */
+.initial-status-hint { font-size: 12px; color: var(--text-secondary); margin: 6px 0 0; }
 
 /* ─── 价格面板 sticky ─── */
 .mo-price-sticky {
