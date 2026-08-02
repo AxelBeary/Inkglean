@@ -358,10 +358,14 @@
                 <el-tooltip :content="bandTooltip(row.order)" placement="top" :show-after="300" :disabled="tlDrag != null">
                   <div
                     class="tl-bar"
-                    :class="[bandClass(row.order), { 'tl-bar--dragging': tlDrag && tlDrag.orderId === row.order.id }]"
+                    :class="[bandClass(row.order), { 'tl-bar--dragging': tlDrag && tlDrag.orderId === row.order.id, 'tl-bar--movable': tlCanDragMove(row) }]"
                     :data-order-id="row.order.id"
                     :style="tlBarStyle(row)"
                     @click="goOrder(row.order)"
+                    @pointerdown="onTlBarDown($event, row)"
+                    @pointermove="onTlHandleMove"
+                    @pointerup="onTlHandleUp"
+                    @pointercancel="onTlHandleCancel"
                   >
                     <span class="tl-bar-text">{{ bandLabel(row.order) }}</span>
                     <!-- v0.28: 拖拽 handle（左端改开工日 / 右端改截稿日；终态订单与被窗口裁剪的端点不显示） -->
@@ -722,6 +726,10 @@ function tlCanDragStart(row) {
 function tlCanDragEnd(row) {
   return !TL_TERMINAL_STATUSES.includes(row.order.status) && !row.endClipped
 }
+/** REQ-019: 整体平移——非终态 + 有截稿日 + 两端未被裁剪 */
+function tlCanDragMove(row) {
+  return !TL_TERMINAL_STATUSES.includes(row.order.status) && !row.noDeadline && !row.startClipped && !row.endClipped
+}
 
 /** 横条样式：拖拽中按 dayDelta 覆盖 left/width，其余走 tlRows 计算值 */
 function tlBarStyle(row) {
@@ -731,6 +739,10 @@ function tlBarStyle(row) {
   }
   const dw = d.dayDelta * tlDayWidth.value
   const minW = tlDayWidth.value - 4 // 最短 1 天
+  // REQ-019: 整体平移——left 偏移，width 不变
+  if (d.edge === 'move') {
+    return { left: row.left + dw + 'px', width: Math.max(row.width, 8) + 'px' }
+  }
   if (d.edge === 'deadline') {
     return { left: row.left + 'px', width: Math.max(row.width + dw, minW) + 'px' }
   }
@@ -741,6 +753,13 @@ function tlBarStyle(row) {
 const tlDragLabelText = computed(() => {
   const d = tlDrag.value
   if (!d) return ''
+  // REQ-019: 整体平移显示两端日期
+  if (d.edge === 'move') {
+    const s = new Date(d.startDate.getTime() + d.dayDelta * 86_400_000)
+    const e = new Date(d.endDate.getTime() + d.dayDelta * 86_400_000)
+    const fmt = (dt) => `${dt.getMonth() + 1}/${dt.getDate()}`
+    return t('queue.tlDragMove', { s: fmt(s), e: fmt(e) })
+  }
   const base = d.edge === 'deadline' ? d.endDate : d.startDate
   const target = new Date(base.getTime() + d.dayDelta * 86_400_000)
   const dStr = `${target.getMonth() + 1}/${target.getDate()}`
@@ -764,6 +783,24 @@ function onTlHandleDown(e, row, edge) {
   }
 }
 
+/** REQ-019: 横条中间区域按下 → 整体平移模式（handle 的 pointerdown 已 stopPropagation，不会冒泡到这里） */
+function onTlBarDown(e, row) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  if (!tlCanDragMove(row)) return
+  e.currentTarget.setPointerCapture(e.pointerId)
+  tlDrag.value = {
+    orderId: row.order.id,
+    edge: 'move',
+    startDate: row.startDate,
+    endDate: row.endDate,
+    noDeadline: row.noDeadline,
+    startX: e.clientX,
+    dayDelta: 0,
+    pointerX: e.clientX,
+    pointerY: e.clientY
+  }
+}
+
 function onTlHandleMove(e) {
   const d = tlDrag.value
   if (!d) return
@@ -771,7 +808,13 @@ function onTlHandleMove(e) {
   const spanDays = Math.round((d.endDate.getTime() - d.startDate.getTime()) / 86_400_000)
   // 吸附约束：截稿日 ≥ 开工日；开工日 ≤ 截稿日（未设截稿时开工日右移不受限）
   if (d.edge === 'deadline') delta = Math.max(delta, -spanDays)
-  else if (!d.noDeadline) delta = Math.min(delta, spanDays)
+  else if (d.edge === 'start' && !d.noDeadline) delta = Math.min(delta, spanDays)
+  // REQ-019: 整体平移——开工日不早于今天（触达边界停止，不弹错误）
+  else if (d.edge === 'move') {
+    const today = startOfDay(new Date())
+    const minDelta = Math.ceil((today.getTime() - d.startDate.getTime()) / 86_400_000)
+    if (minDelta > 0) delta = Math.max(delta, minDelta)
+  }
   d.dayDelta = delta
   d.pointerX = e.clientX
   d.pointerY = e.clientY
@@ -798,16 +841,22 @@ async function onTlHandleUp() {
   }
 
   try {
-    if (d.edge === 'deadline') {
+    if (d.edge === 'move') {
+      // REQ-019: 整体平移——一次性更新开工日+截稿日
+      const newStart = dateKey(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000))
+      const newEnd = dateKey(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000))
+      await artistApi.updateStartDate(d.orderId, newStart)
+      await artistApi.updateDeadline(d.orderId, newEnd)
+      const src = queue.value.find(o => o.id === d.orderId) || bufferQueue.value.find(o => o.id === d.orderId)
+      if (src) { src.startDate = newStart; src.deadline = newEnd }
+    } else if (d.edge === 'deadline') {
       await artistApi.updateDeadline(d.orderId, dateStr)
+      const src = queue.value.find(o => o.id === d.orderId) || bufferQueue.value.find(o => o.id === d.orderId)
+      if (src) src.deadline = dateStr
     } else {
       await artistApi.updateStartDate(d.orderId, dateStr)
-    }
-    // 局部更新源订单（calOrders 是展开副本，必须改 queue/bufferQueue 本体才能触发重算）
-    const src = queue.value.find(o => o.id === d.orderId) || bufferQueue.value.find(o => o.id === d.orderId)
-    if (src) {
-      if (d.edge === 'deadline') src.deadline = dateStr
-      else src.startDate = dateStr
+      const src = queue.value.find(o => o.id === d.orderId) || bufferQueue.value.find(o => o.id === d.orderId)
+      if (src) src.startDate = dateStr
     }
     ElMessage.success(t('queue.tlDragSaved'))
   } catch (err) {
@@ -1440,6 +1489,9 @@ onMounted(() => {
 .tl-handle:hover::after { opacity: 1; }
 .tl-bar--dragging { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6); }
 .tl-bar--dragging .tl-handle::after { opacity: 1; }
+/* REQ-019: 可整体平移的横条——中间区域 grab 光标 */
+.tl-bar--movable { cursor: grab; }
+.tl-bar--movable.tl-bar--dragging { cursor: grabbing; }
 
 /* 拖拽浮动日期标签（Teleport 到 body，fixed 跟随指针） */
 .tl-drag-label {

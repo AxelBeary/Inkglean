@@ -318,6 +318,7 @@ export default {
     tlEmpty: '可见时间范围内没有订单',
     // v0.28: 时间条拖拽
     tlDragDeadline: '截稿 {d}', tlDragStart: '开工 {d}',
+    tlDragMove: '{s} → {e}',
     tlDragSaved: '日期已更新',
     tlDragDeadlineBeforeStart: '截稿日不能早于开工日',
     tlDragStartAfterDeadline: '开工日不能晚于截稿日'

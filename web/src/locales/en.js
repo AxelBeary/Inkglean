@@ -318,6 +318,7 @@ export default {
     tlEmpty: 'No orders in the visible time range',
     // v0.28: Timeline drag
     tlDragDeadline: 'Deadline {d}', tlDragStart: 'Start {d}',
+    tlDragMove: '{s} → {e}',
     tlDragSaved: 'Date updated',
     tlDragDeadlineBeforeStart: 'Deadline cannot be earlier than start date',
     tlDragStartAfterDeadline: 'Start date cannot be later than deadline'
