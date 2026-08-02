@@ -27,6 +27,10 @@
 | 已付额度池 | paid_total_cents | v0.23 B7：订单已收款总额（冗余字段，由 order_payments 流水事务维护） |
 | 收款流水 | order_payments | 每笔收款/退款记录（正数=收款，负数=撤销/退款），永不 DELETE |
 | 分期三态 | installment status | paid（完全覆盖）/ partial（部分覆盖）/ pending（未覆盖），由 paid_total_cents 推算 |
+| 画风 | art_style | v0.32 REQ-023：画师配置的一级服务维度（"日系""厚涂""Q版"），含示例图和描述 |
+| 尺寸 | style_size | v0.32：画风的二级规格（"头像""半身""全身"），各自定价 |
+| 增项模板 | addon_template | v0.32：画师级增项库（加人/加差分等），新建画风时一键导入，控制类型=开关/数量/单选 |
+| 画风模式 | style mode | v0.32：多画风画师下单走"选画风→选尺寸→勾增项"三步；单画风画师自动退化为扁平展示 |
 
 ## 订单生命周期
 
@@ -60,9 +64,9 @@
 | 前端 | Vue 3 + Element Plus | SPA |
 | 前端 i18n | vue-i18n@11 | v0.20 从 v9 升级 |
 | 类型系统 | TypeScript（渐进迁移中） | v0.21 起，v0.22 完成 features/ + utils/ + middleware/ 全部 TS；剩余 app.js/index.js/db/ 入口 |
-| 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL。迁移当前 v29（order_start_date） |
+| 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL。迁移当前 v36（multi_style_model 多画风 5 表） |
 | 部署 | Docker Compose + Caddy | 容器化 |
-| 测试 | Vitest（后端 567 + 前端 87）+ Playwright E2E（5 条路径，已接入 CI） | |
+| 测试 | Vitest（后端 666 + 前端 106）+ Playwright E2E（5 条路径，已接入 CI） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则

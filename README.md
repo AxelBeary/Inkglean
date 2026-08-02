@@ -87,6 +87,7 @@
 - **开工日**：订单新增开工日字段，订单详情 date-picker + 截稿日自动填充建议，时间条带子起点改为开工日（v0.26）
 - **开稿管理独立页**：名额/月度额度/队列行为四开关独立为 `/slots` 页面，侧边栏入口（v0.26）
 - **手动录单重设计**（REQ-015）：全屏双栏独立页（`/orders/new`），左栏"客户说了什么"+ 右栏"我怎么安排"，QQ 历史订单自动查询（v0.27）
+- **多画风模型**（REQ-023）：画师按"画风 → 尺寸 → 增项"三层配置服务（5 张数据表），客户下单三步走（选画风→选尺寸→勾增项），单画风画师自动退化为扁平展示，4 套主页模板适配画风展示柜（v0.32）
 
 ## 🛠️ 技术栈
 
@@ -96,7 +97,7 @@
 | 后端 | Fastify 5 + better-sqlite3（Feature-based 架构） |
 | 部署 | Docker Compose（多阶段构建）+ Caddy（自动 HTTPS + healthcheck） |
 | 认证 | HMAC-SHA256 签名会话 + httpOnly cookie + 登录码 |
-| 测试 | Vitest（后端 567 + 前端 87 = 654 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
+| 测试 | Vitest（后端 666 + 前端 106 = 772 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
 | 类型系统 | TypeScript（渐进迁移，features/ + utils/ + middleware/ 全部 TS） |
 | 运行时 | tsx（后端 .ts/.js 混存，零配置） |
 | 监控 | Sentry（后端 + 前端，DSN 环境变量开关） |
@@ -136,7 +137,7 @@ npm run dev        # 启动 Vite 开发服务器 (http://localhost:5173)
 
 # 测试
 cd server
-npm test           # 运行全部 567 个后端测试用例
+npm test           # 运行全部 666 个后端测试用例
 
 # Lint
 cd server && npm run lint
