@@ -33,7 +33,8 @@ interface AddonLineItem {
   source: 'size_override' | 'style_override' | 'template_default'
 }
 
-interface StylePriceResult {
+export interface StylePriceResult {
+  styleName: string
   sizeName: string
   basePrice: number
   addonItems: AddonLineItem[]
@@ -223,6 +224,7 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
   const totalPrice = Math.round(totalPriceCents) / 100
 
   return {
+    styleName: size.style_name,
     sizeName: size.name,
     basePrice,
     addonItems,
