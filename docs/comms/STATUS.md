@@ -45,7 +45,8 @@
 ---
 ## 各角色状态
 
-全部空闲。
+- **三号**：示例数据制作中（CC0 图片 + 真实化内容）。分支 `chore/v032-demo-data`，worktree `artist-commission-03`，派工 `docs/comms/01-to-03-示例数据制作-0803.md`
+- 其余角色：空闲
 
 ---
 ## 分支状态
@@ -53,6 +54,7 @@
 | 分支 | Worktree | 状态 |
 |------|----------|------|
 | master | 主 worktree（一号专用） | ✅ 干净 |
+| chore/v032-demo-data | artist-commission-03 | 🔵 三号示例数据制作中 |
 
 ---
 ## 下版本排期
