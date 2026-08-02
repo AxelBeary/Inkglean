@@ -45,8 +45,10 @@
 ---
 ## 各角色状态
 
+- **二号**：草稿恢复画风状态修复中。分支 `fix/v032-draft-style-state`，worktree `artist-commission-02`，派工 `docs/comms/01-to-02-草稿恢复画风状态-0803.md`
 - **三号**：示例数据制作中（CC0 图片 + 真实化内容）。分支 `chore/v032-demo-data`，worktree `artist-commission-03`，派工 `docs/comms/01-to-03-示例数据制作-0803.md`
-- 其余角色：空闲
+- **四号**：文档维护已完成（2026-08-03，`66a1155`+`513c90f`）——CONTEXT v36/666/106、README 补多画风、REQ-017~021/023 归档、REQ-022 标部分实施。空闲待命
+- **五号**：空闲（无 bug 反馈，待二号/三号交付后可审）
 
 ---
 ## 分支状态
@@ -55,6 +57,7 @@
 |------|----------|------|
 | master | 主 worktree（一号专用） | ✅ 干净 |
 | chore/v032-demo-data | artist-commission-03 | 🔵 三号示例数据制作中 |
+| fix/v032-draft-style-state | artist-commission-02 | 🔵 二号草稿恢复修复中 |
 
 ---
 ## 下版本排期
