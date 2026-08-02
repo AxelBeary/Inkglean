@@ -90,7 +90,8 @@ export default async function orderRoutes(fastify: any) {
             maxItems: 20
           },
           usageMultiplierId: { type: ['integer', 'null'] },
-          rushMultiplierId: { type: ['integer', 'null'] }
+          rushMultiplierId: { type: ['integer', 'null'] },
+          discountCode: { type: ['string', 'null'], maxLength: 20 }
         },
         additionalProperties: false
       }
@@ -98,7 +99,7 @@ export default async function orderRoutes(fastify: any) {
   }, async (request: any) => {
     guardRateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)
 
-    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, addons, usageMultiplierId, rushMultiplierId } = request.body as any
+    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as any
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
@@ -137,7 +138,8 @@ export default async function orderRoutes(fastify: any) {
       references: references || [],
       addons: addons || [],
       usageMultiplierId: usageMultiplierId || null,
-      rushMultiplierId: rushMultiplierId || null
+      rushMultiplierId: rushMultiplierId || null,
+      discountCode: discountCode || null
     })
 
     return {
@@ -429,13 +431,14 @@ export default async function orderRoutes(fastify: any) {
             maxItems: 20
           },
           usageMultiplierId: { type: ['integer', 'null'] },
-          rushMultiplierId: { type: ['integer', 'null'] }
+          rushMultiplierId: { type: ['integer', 'null'] },
+          discountCode: { type: ['string', 'null'], maxLength: 20 }
         },
         additionalProperties: false
       }
     }
   }, async (request: any) => {
-    const { tierId, clientQq, clientName, description, priority, clientNotify, references, addons, usageMultiplierId, rushMultiplierId } = request.body as any
+    const { tierId, clientQq, clientName, description, priority, clientNotify, references, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as any
 
     // C-3 安全：参考图路径校验（与自助下单一致）
     if (references) {
@@ -458,7 +461,8 @@ export default async function orderRoutes(fastify: any) {
       references: references || [],
       addons: addons || [],
       usageMultiplierId: usageMultiplierId || null,
-      rushMultiplierId: rushMultiplierId || null
+      rushMultiplierId: rushMultiplierId || null,
+      discountCode: discountCode || null
     })
   })
 

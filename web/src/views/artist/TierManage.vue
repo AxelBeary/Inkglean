@@ -92,6 +92,11 @@
       <el-tab-pane :label="$t('tiers.tabWorkflow')" name="workflow" lazy>
         <WorkflowPaymentEditor />
       </el-tab-pane>
+
+      <!-- v0.31 F3: 折扣码 -->
+      <el-tab-pane :label="$t('tiers.tabDiscount')" name="discount" lazy>
+        <DiscountCodeManager />
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 档位编辑弹窗 -->
@@ -148,6 +153,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import AddonManager from '../../components/artist/AddonManager.vue'
 import MultiplierManager from '../../components/artist/MultiplierManager.vue'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
+import DiscountCodeManager from '../../components/artist/DiscountCodeManager.vue'
 
 const { t } = useI18n()
 const activeTab = ref('tiers')

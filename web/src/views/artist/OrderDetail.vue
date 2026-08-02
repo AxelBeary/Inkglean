@@ -471,13 +471,13 @@
             :placeholder="$t('orderDetail.pricePlaceholder')"
           />
         </el-form-item>
-        <el-form-item :label="$t('orderDetail.priceNoteLabel')">
+        <el-form-item :label="$t('orderDetail.priceNoteLabel')" required>
           <el-input v-model="priceForm.note" :placeholder="$t('orderDetail.priceNotePlaceholder')" maxlength="200" show-word-limit />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="priceDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitPriceChange" :disabled="!priceForm.priceYuan || priceForm.priceYuan <= 0" :loading="priceSubmitting">{{ $t('common.confirm') }}</el-button>
+        <el-button type="primary" @click="submitPriceChange" :disabled="!priceForm.priceYuan || priceForm.priceYuan <= 0 || !priceForm.note.trim()" :loading="priceSubmitting">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 

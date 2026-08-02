@@ -112,6 +112,12 @@ export const artistApi = {
   unsetArtworkCover: (id) => api.delete(`/artist/artworks/${id}/cover`),
   // v0.31: 封面排序（多封面轮播顺序）
   reorderCovers: (orderedIds) => api.put('/artist/artworks/cover-order', { orderedIds }),
+  // v0.31 F3: 折扣码管理
+  getDiscountCodes: () => api.get('/artist/discount-codes'),
+  toggleDiscount: (enabled) => api.put('/artist/discount-codes/toggle', { enabled }),
+  createDiscountCode: (data) => api.post('/artist/discount-codes', data),
+  updateDiscountCode: (id, data) => api.put(`/artist/discount-codes/${id}`, data),
+  deleteDiscountCode: (id) => api.delete(`/artist/discount-codes/${id}`),
   // 须知
   getRules: () => api.get('/artist/rules'),
   // F4: 留言审核

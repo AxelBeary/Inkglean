@@ -1,6 +1,7 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { calculatePrice } from '../pricing/pricing.service.js'
+import { validateDiscountCode, computeDiscountCents, incrementUsage } from '../pricing/discount.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import { toSqliteDate } from '../../utils/date.js'
@@ -96,14 +97,16 @@ interface CreateOrderParams {
   addons?: Array<{ addonId: number; quantity?: number }>
   usageMultiplierId?: number | null
   rushMultiplierId?: number | null
+  discountCode?: string | null
 }
 
 /**
  * 创建订单（客户自助 或 画师手动录入）
  * 事务包裹，防止订单号竞态
  * 支持价格计算器：addons + 倍率 → breakdown + 分期
+ * v0.31 F3: 折扣码（先倍率后折扣，REQ-023 已定）
  */
-export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, addons, usageMultiplierId, rushMultiplierId }: CreateOrderParams): any {
+export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, addons, usageMultiplierId, rushMultiplierId, discountCode }: CreateOrderParams): any {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -147,12 +150,22 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       totalPriceCents = priceCalc.totalPriceCents
     }
 
+    // ─── v0.31 F3: 折扣码（先倍率后折扣，REQ-023 已定） ───
+    let discountCodeId: number | null = null
+    let discountAmountCents = 0
+    if (discountCode && totalPriceCents != null && totalPriceCents > 0) {
+      const dc = validateDiscountCode(artistId, discountCode)
+      discountAmountCents = computeDiscountCents(dc, totalPriceCents)
+      discountCodeId = dc.id
+      totalPriceCents = totalPriceCents - discountAmountCents
+    }
+
     // ─── 报价快照字符串（v0.11 R2） ───
     const quoteSnapshot = buildQuoteSnapshot(priceCalc)
 
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot, final_price_cents, queue_zone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       orderNo, artistId, tierId || null, clientQq, clientName || null,
       description || null, priority || 'medium', source || 'self',
@@ -162,11 +175,16 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       usageMultiplierId || null,
       rushMultiplierId || null,
       quoteSnapshot,
-      totalPriceCents, // R3: 有价格计算时，最终价格初始 = 计算器总价
-      queueZone
+      totalPriceCents, // R3: 有价格计算时，最终价格初始 = 计算器总价（已含折扣）
+      queueZone,
+      discountCodeId,
+      discountAmountCents
     )
 
     const orderId = Number(result.lastInsertRowid)
+
+    // v0.31 F3: 折扣码使用次数 +1（事务内，下单失败自动回滚）
+    if (discountCodeId) incrementUsage(discountCodeId)
 
     // R30d: 新订单自动接入工作流（current_stage_id = 画师第一个节点）
     const firstStage = db.prepare(

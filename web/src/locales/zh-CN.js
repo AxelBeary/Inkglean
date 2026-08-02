@@ -403,7 +403,7 @@ export default {
     // v0.31 五号方案A：改价按钮
     priceEditBtn: '修改价格', priceDialogTitle: '修改最终价格',
     priceNewLabel: '新价格（元）', pricePlaceholder: '输入新的最终价格',
-    priceNoteLabel: '改价原因（可选）', priceNotePlaceholder: '如：客户追加需求、协商优惠',
+    priceNoteLabel: '改价原因', priceNotePlaceholder: '如：客户追加需求、协商优惠',
     priceUpdated: '价格已更新'
   },
   manualOrder: {
@@ -454,8 +454,25 @@ export default {
     empty: '还没有档位',
     // v0.28 T3: Tab 标签 + 操作文案 i18n 化
     tabTiers: '档位', tabAddons: '增项', tabMultipliers: '倍率', tabWorkflow: '流程与比例',
+    tabDiscount: '折扣码',
     newTier: '＋ 新建档位', cancel: '取消', save: '保存',
     uploaded: '已上传', saved: '已保存', deleted: '已删除'
+  },
+  // v0.31 F3: 折扣码管理
+  discount: {
+    enableLabel: '折扣码功能', enabledHint: '客户下单时可输入折扣码', disabledHint: '客户端不显示折扣码输入框',
+    enabledMsg: '折扣码功能已开启', disabledMsg: '折扣码功能已关闭',
+    addBtn: '新建折扣码', addTitle: '新建折扣码', editTitle: '编辑折扣码',
+    colCode: '折扣码', colType: '折扣', colUsage: '已用/上限', colExpiry: '有效期', colStatus: '状态',
+    noExpiry: '永久', statusOn: '启用', statusOff: '停用',
+    codeLabel: '折扣码', codePlaceholder: '如 SUMMER20（大写字母+数字）',
+    typeLabel: '折扣类型', typePercent: '百分比', typeFixed: '固定金额',
+    valuePercent: '折扣比例（%）', valueFixed: '减免金额（元）',
+    maxUsesLabel: '使用次数上限', maxUsesPlaceholder: '不限', maxUsesHint: '留空 = 不限次数',
+    expiryLabel: '过期日期', expiryPlaceholder: '留空 = 永久有效',
+    createdMsg: '折扣码已创建', updatedMsg: '折扣码已更新', deletedMsg: '折扣码已删除',
+    deleteConfirm: '确定删除折扣码「{code}」？', disable: '停用', enable: '启用',
+    empty: '还没有折扣码，点击"新建折扣码"创建'
   },
   artworks: {
     title: '🖼 作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
