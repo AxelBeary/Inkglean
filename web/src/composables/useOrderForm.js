@@ -514,38 +514,24 @@ export function useOrderForm(subdomain, formRef) {
     submitting.value = true
     try {
       // v0.32 REQ-023 Phase2: 画风模式 vs 旧模型（tiers）
-      // 画风模式：POST /orders schema 有 additionalProperties:false，暂不传 styleSizeId（三号后续扩展）
-      // 兼容方案：画风/尺寸/增项信息写入 description 前缀，tierId 传 null
-      let description = form.description.trim()
-      let addons = buildSelectedAddons()
-      let tierId = form.tierId
-
-      if (isStyleMode.value && selectedStyle.value && selectedSize.value) {
-        // 构建画风摘要前缀
-        const addonLines = buildStyleAddons().map(sel => {
-          const a = availableStyleAddons.value.find(x => x.id === sel.styleAddonId)
-          if (!a) return ''
-          if (a.control_type === 'quantity') return `${a.name}×${sel.quantity}`
-          if (a.control_type === 'radio') return `${a.name}(${sel.optionLabel})`
-          return a.name
-        }).filter(Boolean)
-        const styleSummary = `[${selectedStyle.value.name} / ${selectedSize.value.name}${addonLines.length ? ' / ' + addonLines.join('、') : ''}]`
-        description = description ? `${styleSummary}\n${description}` : styleSummary
-        // 画风模式不传旧模型 addons 和 tierId
-        addons = []
-        tierId = null
-      }
+      // 后端已扩展 POST /orders 接受 styleSizeId + styleAddons（8b519aa），服务端自动算价
+      const isStyleSubmit = isStyleMode.value && selectedStyle.value && selectedSize.value
 
       const order = await orderApi.create({
         subdomain,
-        tierId,
-        description,
+        tierId: isStyleSubmit ? null : form.tierId,
+        // 画风模式：结构化字段（后端验证+算价+创建）
+        ...(isStyleSubmit ? {
+          styleSizeId: selectedSizeId.value,
+          styleAddons: buildStyleAddons()
+        } : {}),
+        description: form.description.trim(),
         clientQq: form.clientQq.trim(),
         clientName: form.clientName.trim(),
         clientNotify: form.notifyEnabled,
         agreeRules: form.agreed,
         references: uploadedRefs.value,
-        addons,
+        addons: isStyleSubmit ? [] : buildSelectedAddons(), // 画风模式不传旧增项
         usageMultiplierId: form.usageMultiplierId,
         rushMultiplierId: form.rushMultiplierId,
         // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
