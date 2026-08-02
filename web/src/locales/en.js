@@ -615,7 +615,7 @@ export default {
     transferSuccess: 'Admin transferred to {name}', adminTag: 'Admin',
     orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
     orderColType: 'Type', orderColTime: 'Order time',
-    greetingManage: 'Greeting Manager', greetingPlaceholder: 'Enter greeting, use {name} for artist name',
+    greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",
     greetingPreview: 'Preview', greetingEmpty: 'Please enter greeting text',
     greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
     slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
