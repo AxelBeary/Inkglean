@@ -192,7 +192,7 @@
             <!-- F4: 初始节点状态（线下已谈好的单子可直接跳过确认） -->
             <div class="mo-field">
               <div class="mo-field-label">{{ $t('manualOrder.initialStatus') }}</div>
-              <el-radio-group v-model="form.initialStatus" size="small">
+              <el-radio-group v-model="initialStatus" size="small">
                 <el-radio-button
                   v-for="opt in initialStatusOptions" :key="opt.value"
                   :value="opt.value" :disabled="opt.disabled"
@@ -303,6 +303,7 @@ import { ElMessage } from 'element-plus'
 import { Plus, InfoFilled, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
+import { useStageStatus } from '../../composables/useStageStatus.js'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 import { ORDER_STATUS_TYPE } from '../../constants/order.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
@@ -333,6 +334,7 @@ const qqHistoryLoaded = ref(false)
 
 // ─── F4: 初始节点状态 ───
 const workflowStages = ref([])
+const { initialStatus, options: initialStatusOptions, findTarget: findTargetStage } = useStageStatus(workflowStages)
 
 const form = reactive({
   clientQq: '',
@@ -342,7 +344,6 @@ const form = reactive({
   priority: 'medium',
   deadline: null,
   startDate: null,
-  initialStatus: 'pending',
   clientNotify: false,
   usageMultiplierId: null,
   rushMultiplierId: null
@@ -405,42 +406,6 @@ const displayPrice = computed(() => {
 
 /** QQ 号格式校验（5-15位纯数字） */
 const qqValid = computed(() => /^\d{5,15}$/.test(form.clientQq.trim()))
-
-// ─── F4: 初始节点状态 ───
-
-/** 复刻后端 mapStageToStatus（order-workflow.service.ts），判断各状态在工作流中的可达性 */
-function mapStageToStatus(stages, idx) {
-  if (idx === 0) return 'pending'
-  if (idx === stages.length - 1) return 'done'
-  if (idx === 1 && stages[idx].takesPayment) return 'confirmed'
-  return 'wip'
-}
-
-/** 找到映射到目标状态的第一个节点（无工作流或不可达时返回 null） */
-function findStageForStatus(status) {
-  for (let i = 0; i < workflowStages.value.length; i++) {
-    if (mapStageToStatus(workflowStages.value, i) === status) {
-      return workflowStages.value[i]
-    }
-  }
-  return null
-}
-
-/** 三个选项：待确认（默认）/ 已确认 / 进行中；有工作流但无对应节点时禁用 */
-const initialStatusOptions = computed(() => {
-  const hasWorkflow = workflowStages.value.length > 0
-  return [
-    { value: 'pending', disabled: false },
-    { value: 'confirmed', disabled: hasWorkflow && !findStageForStatus('confirmed') },
-    { value: 'wip', disabled: hasWorkflow && !findStageForStatus('wip') }
-  ]
-})
-
-/** 工作流变化导致当前选项不可达时，回退到默认值 */
-watch(initialStatusOptions, (opts) => {
-  const current = opts.find(o => o.value === form.initialStatus)
-  if (current?.disabled) form.initialStatus = 'pending'
-})
 
 function formatAddonPrice(a) {
   if (a.select_mode === 'inquiry') return t('manualOrder.inquiry')
@@ -642,13 +607,13 @@ async function submit() {
     }
 
     // F4: 初始节点状态（非默认时推进到目标节点；R30d 有工作流的订单不能直接改 status）
-    if (order.id && form.initialStatus !== 'pending') {
+    if (order.id && initialStatus.value !== 'pending') {
       try {
         if (workflowStages.value.length > 0) {
-          const target = findStageForStatus(form.initialStatus)
+          const target = findTargetStage()
           if (target) await artistApi.advanceStage(order.id, target.id)
         } else {
-          await artistApi.updateStatus(order.id, form.initialStatus)
+          await artistApi.updateStatus(order.id, initialStatus.value)
         }
       } catch (e) { postCreateFailed = postCreateFailed || `初始状态设置失败：${e.message}` }
     }
@@ -674,7 +639,7 @@ function resetForm() {
   form.priority = 'medium'
   form.deadline = null
   form.startDate = null
-  form.initialStatus = 'pending'
+  initialStatus.value = 'pending'
   form.clientNotify = false
   form.usageMultiplierId = null
   form.rushMultiplierId = null
