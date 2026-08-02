@@ -68,6 +68,8 @@ export default async function artistRoutes(fastify) {
       formalCount: artistService.getZoneCounts(artist.id).formal,
       bufferCount: artistService.getZoneCounts(artist.id).buffer,
       slotDisplay: artistService.computeSlotDisplay(artist),
+      // #54: 额度耗尽时覆盖状态，前端据此显示「已约满」而非「可约稿」
+      effectiveStatus: (artist.status === 'open' && artistService.computeSlotDisplay(artist) === '本月已约满') ? 'full' : artist.status,
       // S5: 月度额度池
       monthlyQuota: artist.monthly_quota ?? null,
       quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null,
@@ -374,10 +376,7 @@ export default async function artistRoutes(fastify) {
 
   /** PUT /api/artist/artworks/:id/cover — 设为封面（同画师其他作品自动取消） */
   fastify.put('/api/artist/artworks/:id/cover', {
-    preHandler: requireAuth,
-    schema: {
-      body: { type: 'object', properties: {}, additionalProperties: false }
-    }
+    preHandler: requireAuth
   }, async (request, reply) => {
     const artworkId = parseInt(request.params.id, 10)
     const artwork = artistService.getArtworkById(artworkId)
