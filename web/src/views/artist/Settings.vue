@@ -186,7 +186,7 @@
             <el-form-item :label="$t('settings.quickLabel')">
               <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
                 <el-checkbox
-                  v-for="opt in QUICK_ACTION_POOL"
+                  v-for="opt in quickPoolOptions"
                   :key="opt.key"
                   :value="opt.key"
                   class="quick-config-item"
@@ -366,6 +366,8 @@ async function saveRules() {
 watch(activeTab, (tab) => { if (tab === 'showcase') loadRules() }, { immediate: true })
 
 // ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存） ───
+// #45: 过滤掉 dashboard（在仪表盘上加去仪表盘的按钮无意义）
+const quickPoolOptions = QUICK_ACTION_POOL.filter(a => a.key !== 'dashboard')
 const quickSelected = ref(readQuickActionsConfig())
 const quickSaving = ref(false)
 async function saveQuickActions() {

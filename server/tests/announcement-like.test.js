@@ -29,11 +29,9 @@ describe('F3 小公告 + F1 点赞 (v0.19 第 1 波)', () => {
 
   it('TC-ANN-03: 公告过期后返回 null', async () => {
     const artist = await artistService.createArtist({ qqNumber: '88003', name: 'C', subdomain: 'ann3' })
-    // 设置已过期的时间
-    artistService.updateArtist(artist.id, {
-      announcement: '已过期公告',
-      announcement_expires_at: '2020-01-01 00:00:00'
-    })
+    // #36 后 updateArtist 拒绝过去日期，直接写 DB 模拟历史数据过期
+    db.prepare('UPDATE artists SET announcement = ?, announcement_expires_at = ? WHERE id = ?')
+      .run('已过期公告', '2020-01-01 00:00:00', artist.id)
     const fresh = artistService.getArtistById(artist.id)
 
     expect(artistService.getAnnouncement(fresh)).toBeNull()

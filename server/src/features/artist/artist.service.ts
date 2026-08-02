@@ -232,6 +232,18 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
         }
         updates.push('avatar = ?')
         values.push(value)
+      } else if (key === 'announcement_expires_at') {
+        // #36: 公告过期日不得早于今天（否则公告立即不可见，等于"倒设"）
+        if (value !== null && value !== '') {
+          const d = new Date(String(value))
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (isNaN(d.getTime()) || d.getTime() < today.getTime()) {
+            throw new AppError(E.INVALID_ANNOUNCEMENT_DATE, 400, { value })
+          }
+        }
+        updates.push('announcement_expires_at = ?')
+        values.push(value || null)
       } else {
         // 输入校验：name 空值保护
         if (key === 'name' && !String(value || '').trim()) {

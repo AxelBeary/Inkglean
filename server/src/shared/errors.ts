@@ -153,6 +153,12 @@ export const E = {
   // 截稿日（v0.15 R51）
   INVALID_DEADLINE: 'INVALID_DEADLINE',
 
+  // 开工日（#35: 交叉校验）
+  INVALID_START_DATE: 'INVALID_START_DATE',
+
+  // 公告过期日（#36: 不得早于今天）
+  INVALID_ANNOUNCEMENT_DATE: 'INVALID_ANNOUNCEMENT_DATE',
+
   // 下单页模板（v0.16 R58-7）
   INVALID_ORDER_TEMPLATE: 'INVALID_ORDER_TEMPLATE',
 
@@ -317,6 +323,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 截稿日（v0.15 R51）
   INVALID_DEADLINE: '截稿日格式无效（须为 ISO 8601）',
+
+  // 开工日（#35: 交叉校验）
+  INVALID_START_DATE: '开工日不能晚于截稿日',
+
+  // 公告过期日（#36: 不得早于今天）
+  INVALID_ANNOUNCEMENT_DATE: '公告过期日不能早于今天',
 
   // 下单页模板（v0.16 R58-7）
   INVALID_ORDER_TEMPLATE: '无效的下单页模板',

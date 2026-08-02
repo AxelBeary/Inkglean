@@ -613,7 +613,7 @@ export default {
     transferSuccess: '管理员已更换为 {name}', adminTag: '管理员',
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
     orderColType: '类型', orderColTime: '下单时间',
-    greetingManage: '问候语管理', greetingPlaceholder: '输入问候语，用 {name} 代替画师名',
+    greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",
     greetingPreview: '预览', greetingEmpty: '请输入问候语内容',
     greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
     slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
