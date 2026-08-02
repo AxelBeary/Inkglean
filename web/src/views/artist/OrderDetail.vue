@@ -279,6 +279,44 @@
         </div>
       </el-card>
 
+      <!-- v0.31 REQ-021 F1: 操作记录（操作日志时间线，分页 + 类型筛选） -->
+      <el-card style="margin-top: 16px">
+        <template #header>
+          <div class="card-header">
+            <span>📋 {{ $t('orderDetail.logTitle') }}</span>
+            <el-select v-model="logTypeFilter" size="small" style="width: 140px" @change="onLogTypeChange">
+              <el-option :label="$t('orderDetail.logTypeAll')" value="" />
+              <el-option v-for="lt in logTypeOptions" :key="lt.value" :label="lt.label" :value="lt.value" />
+            </el-select>
+          </div>
+        </template>
+        <div v-loading="logLoading">
+          <el-timeline v-if="logs.length" class="activity-timeline">
+            <el-timeline-item
+              v-for="log in logs" :key="log.id"
+              :type="logTagType(log.action_type)"
+              :timestamp="formatDate(log.created_at)" placement="top"
+            >
+              <div class="log-item">
+                <div class="log-head">
+                  <el-tag :type="logTagType(log.action_type)" size="small">{{ $t(`orderDetail.logType.${log.action_type}`) }}</el-tag>
+                  <span class="log-actor">{{ logActorName(log.actor) }}</span>
+                </div>
+                <div class="log-detail">{{ formatLogDetail(log) }}</div>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+          <el-empty v-else-if="!logLoading" :description="$t('orderDetail.logEmpty')" :image-size="60" />
+          <div v-if="logTotal > logPageSize" class="log-pagination">
+            <el-pagination
+              :current-page="logPage" :page-size="logPageSize" :total="logTotal"
+              layout="total, prev, pager, next" small
+              @current-change="onLogPageChange"
+            />
+          </div>
+        </div>
+      </el-card>
+
       <!-- SPEC-003: 附加工作项（添加/删除后 final_price_cents 自动重算） -->
       <el-card style="margin-top: 16px">
         <template #header>
@@ -553,6 +591,7 @@ import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useOrderPayments } from '../../composables/useOrderPayments.js'
+import { useActivityLog } from '../../composables/useActivityLog.js'
 import { formatDateTime } from '../../utils/datetime.js'
 
 const { t } = useI18n()
@@ -1294,10 +1333,80 @@ const { refreshNow } = useSignatureRefresh({
   }
 })
 
+// ─── v0.31 REQ-021 F1: 操作记录（操作日志时间线） ───
+const {
+  logs, total: logTotal, page: logPage, pageSize: logPageSize,
+  typeFilter: logTypeFilter, loading: logLoading,
+  loadLogs, onPageChange: onLogPageChange, onTypeChange: onLogTypeChange
+} = useActivityLog(route.params.id)
+
+/** 操作类型 → el-tag / el-timeline-item type 映射 */
+const LOG_TAG_TYPE = {
+  status_change: 'primary',
+  price_change: 'warning',
+  extra_item: 'info',
+  payment: 'success',
+  stage_advance: 'primary',
+  note_update: 'info'
+}
+function logTagType(actionType) {
+  return LOG_TAG_TYPE[actionType] || 'info'
+}
+
+/** 操作类型筛选选项（全部 + 6 种，computed 保证语言切换后标签更新） */
+const logTypeOptions = computed(() =>
+  ['status_change', 'price_change', 'payment', 'stage_advance', 'extra_item', 'note_update']
+    .map(value => ({ value, label: t(`orderDetail.logType.${value}`) }))
+)
+
+/** 操作人展示名 */
+function logActorName(actor) {
+  if (actor === 'system') return t('orderDetail.logActorSystem')
+  if (actor === 'artist') return t('orderDetail.logActorArtist')
+  if (actor === 'client') return t('orderDetail.logActorClient')
+  return actor
+}
+
+/** detail 摘要（按 action_type 格式化，缺字段时安全回退） */
+function formatLogDetail(log) {
+  const d = log.detail || {}
+  switch (log.action_type) {
+    case 'status_change':
+      return d.from && d.to
+        ? t('orderDetail.logDetail.statusChange', { from: t(`common.orderStatus.${d.from}`), to: t(`common.orderStatus.${d.to}`) })
+        : ''
+    case 'price_change':
+      return d.oldCents != null && d.newCents != null
+        ? t('orderDetail.logDetail.priceChange', { from: formatCents(d.oldCents), to: formatCents(d.newCents) }) + (d.reason ? ` · ${d.reason}` : '')
+        : ''
+    case 'extra_item':
+      if (d.action === 'add') return t('orderDetail.logDetail.extraAdd', { name: d.name || '' }) + (d.priceCents ? ` ¥${formatCents(d.priceCents)}` : '')
+      if (d.action === 'delete') return t('orderDetail.logDetail.extraDelete', { name: d.name || '' })
+      return ''
+    case 'payment':
+      return d.amountCents != null
+        ? (d.amountCents < 0
+          ? t('orderDetail.logDetail.paymentRevoke', { amount: formatCents(Math.abs(d.amountCents)) })
+          : t('orderDetail.logDetail.paymentAdd', { amount: formatCents(d.amountCents) })) + (d.note ? ` · ${d.note}` : '')
+        : ''
+    case 'stage_advance':
+      if (d.action === 'advance') return t('orderDetail.logDetail.stageAdvance', { name: d.stageName || '' })
+      if (d.action === 'rollback') return t('orderDetail.logDetail.stageRollback', { from: d.from || '', to: d.to || '' })
+      return ''
+    case 'note_update':
+      if (d.action === 'add') return t('orderDetail.logDetail.noteAdd')
+      if (d.action === 'delete') return t('orderDetail.logDetail.noteDelete')
+      return ''
+    default:
+      return ''
+  }
+}
+
 onMounted(() => {
   loadOrder()
   loadWorkflowStages() // R30d: 流程进度条需要节点列表
   loadPayments(route.params.id) // B7: 额度池收款流水
+  loadLogs() // v0.31 REQ-021 F1: 操作记录
 })
 </script>
 
@@ -1489,6 +1598,12 @@ onMounted(() => {
 @media (hover: none) {
   .tl-delete { opacity: 1; }
 }
+/* ─── v0.31 REQ-021 F1: 操作记录 ─── */
+.log-item { position: relative; }
+.log-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.log-actor { font-size: 12px; color: var(--text-secondary); }
+.log-detail { font-size: 13px; color: var(--text-primary); line-height: 1.6; word-break: break-word; }
+.log-pagination { display: flex; justify-content: center; margin-top: 12px; }
 .note-thumb {
   display: block;
   margin-top: 6px;

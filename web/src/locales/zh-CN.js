@@ -79,7 +79,15 @@ export default {
     NOT_FOUND: '资源不存在',
     VALIDATION: '请求参数格式不正确',
     INTERNAL: '服务器内部错误',
-    UNKNOWN: '请求错误'
+    UNKNOWN: '请求错误',
+
+    // 折扣码（v0.31 F3）
+    DISCOUNT_DISABLED: '该画师未开启折扣码功能',
+    DISCOUNT_CODE_INVALID: '折扣码无效',
+    DISCOUNT_CODE_EXPIRED: '折扣码已过期',
+    DISCOUNT_CODE_EXHAUSTED: '折扣码使用次数已达上限',
+    DISCOUNT_CODE_NOT_FOUND: '折扣码不存在',
+    DISCOUNT_CODE_TAKEN: '该折扣码已被使用'
   },
   pref: { toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗' },
   common: {
@@ -183,7 +191,10 @@ export default {
     // R58-4: 灵感标签
     inspireHint: '✨ 没想好怎么写？点选灵感标签快速填入：',
     // R58-5: 复制约稿信息
-    copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：'
+    copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：',
+    // v0.31 F3: 折扣码
+    discountLabel: '折扣码', discountPlaceholder: '有折扣码？输入试试', discountValidate: '验证',
+    discountEstimate: '预估折扣', discountedTotal: '预估折后总价'
   },
   // R24: 校验失败弹窗
   order: {
@@ -411,7 +422,22 @@ export default {
     priceEditBtn: '修改价格', priceDialogTitle: '修改最终价格',
     priceNewLabel: '新价格（元）', pricePlaceholder: '输入新的最终价格',
     priceNoteLabel: '改价原因', priceNotePlaceholder: '如：客户追加需求、协商优惠',
-    priceUpdated: '价格已更新'
+    priceUpdated: '价格已更新',
+    // v0.31 REQ-021 F1: 操作记录
+    logTitle: '操作记录', logTypeAll: '全部', logEmpty: '暂无操作记录',
+    logActorSystem: '系统', logActorArtist: '画师', logActorClient: '客户',
+    logType: {
+      status_change: '状态变更', price_change: '改价', extra_item: '附加项',
+      payment: '收款', stage_advance: '节点', note_update: '备注'
+    },
+    logDetail: {
+      statusChange: '{from} → {to}',
+      priceChange: '¥{from} → ¥{to}',
+      extraAdd: '添加附加项「{name}」', extraDelete: '删除附加项「{name}」',
+      paymentAdd: '收款 ¥{amount}', paymentRevoke: '撤销收款 ¥{amount}',
+      stageAdvance: '推进到「{name}」', stageRollback: '「{from}」打回「{to}」',
+      noteAdd: '添加备注', noteDelete: '删除备注'
+    }
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',

@@ -82,6 +82,8 @@ export const artistPublicApi = {
   // 价格计算器
   getPricing: (subdomain) => api.get(`/public/pricing/${subdomain}`),
   calculatePrice: (data) => api.post('/public/calculate-price', data),
+  // v0.31 F3: 折扣码验证（公开，限流 20次/5分钟）
+  validateDiscount: (data) => api.post('/public/validate-discount', data),
   // F1: 作品点赞（匿名公开）
   likeArtwork: (id) => api.post(`/public/artworks/${id}/like`),
   unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`),
@@ -152,6 +154,8 @@ export const artistApi = {
   // B7: 额度池收款（记录/流水/撤销=负数记录）
   getPayments: (id) => api.get(`/artist/orders/${id}/payments`),
   addPayment: (id, data) => api.post(`/artist/orders/${id}/payments`, data),
+  // v0.31 REQ-021 F1: 操作日志（分页 + ?type= 筛选）
+  getOrderLogs: (id, { page = 1, pageSize = 50, type } = {}) => api.get(`/artist/orders/${id}/logs`, { params: { page, pageSize, type } }),
   // R33: 签名 URL 批量刷新（防 15min 过期 403）
   refreshSignatures: (paths) => api.post('/artist/refresh-signatures', { paths }),
   // R30d: 流程状态机（推进/打回/关闭跟踪；stageId 为目标节点 ID，SPEC-002 必填）
