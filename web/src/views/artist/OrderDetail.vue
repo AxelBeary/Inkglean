@@ -376,16 +376,29 @@
           </div>
           <el-empty v-else-if="!paymentsLoading" :description="$t('orderDetail.payEmpty')" :image-size="48" />
 
-          <!-- 应收参考（工作流节点三态） -->
+          <!-- v0.31 F4: 节点收款（每节点已收/应收/差额 + 快捷收款） -->
           <div class="pool-ref" v-if="installmentRefs.length">
             <h4 class="pool-ref-title">{{ $t('orderDetail.payRefTitle') }}</h4>
-            <div v-for="(inst, idx) in installmentRefs" :key="idx" class="pool-ref-row">
-              <span class="pool-ref-icon">{{ inst._status === 'paid' ? '✓' : inst._status === 'partial' ? '◐' : '○' }}</span>
+            <div v-for="inst in installmentRefs" :key="inst.id" class="pool-ref-row pool-ref-row--v2">
+              <span class="pool-ref-icon">{{ inst.status === 'paid' ? '✓' : inst.status === 'partial' ? '◐' : '○' }}</span>
               <span class="pool-ref-name">{{ inst.name }}</span>
-              <span class="pool-ref-amount">¥{{ formatCents(inst.amountCents || inst.amount_cents || 0) }}</span>
-              <el-tag v-if="inst._status === 'paid'" type="success" size="small">{{ $t('orderDetail.payRefPaid') }}</el-tag>
-              <el-tag v-else-if="inst._status === 'partial'" type="warning" size="small">{{ $t('orderDetail.payRefPartial', { amount: `¥${formatCents(inst._paidCents)}` }) }}</el-tag>
+              <span class="pool-ref-amounts">
+                <span class="pool-ref-paid">{{ $t('orderDetail.payNodePaid') }} ¥{{ formatCents(inst.paidCents) }}</span>
+                <span class="pool-ref-sep">/</span>
+                <span>{{ $t('orderDetail.payNodeDue') }} ¥{{ formatCents(inst.amountCents) }}</span>
+                <span v-if="inst.remainingCents > 0" class="pool-ref-remain">（{{ $t('orderDetail.payNodeRemain') }} ¥{{ formatCents(inst.remainingCents) }}）</span>
+              </span>
+              <el-tag v-if="inst.status === 'paid'" type="success" size="small">{{ $t('orderDetail.payRefPaid') }}</el-tag>
+              <el-tag v-else-if="inst.status === 'partial'" type="warning" size="small">{{ $t('orderDetail.payRefPartial', { amount: `¥${formatCents(inst.paidCents)}` }) }}</el-tag>
               <el-tag v-else type="info" size="small">{{ $t('orderDetail.payRefPending') }}</el-tag>
+              <!-- 快捷收款（非终态 + 有差额时显示） -->
+              <el-button
+                v-if="!isTerminal && inst.remainingCents > 0"
+                size="small" type="primary" plain
+                @click="openNodePayDialog(inst)"
+              >
+                {{ $t('orderDetail.payNodeCollect') }}
+              </el-button>
             </div>
           </div>
         </div>
@@ -471,13 +484,33 @@
             :placeholder="$t('orderDetail.pricePlaceholder')"
           />
         </el-form-item>
-        <el-form-item :label="$t('orderDetail.priceNoteLabel')">
+        <el-form-item :label="$t('orderDetail.priceNoteLabel')" required>
           <el-input v-model="priceForm.note" :placeholder="$t('orderDetail.priceNotePlaceholder')" maxlength="200" show-word-limit />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="priceDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitPriceChange" :disabled="!priceForm.priceYuan || priceForm.priceYuan <= 0" :loading="priceSubmitting">{{ $t('common.confirm') }}</el-button>
+        <el-button type="primary" @click="submitPriceChange" :disabled="!priceForm.priceYuan || priceForm.priceYuan <= 0 || !priceForm.note.trim()" :loading="priceSubmitting">{{ $t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- v0.31 F4: 节点快捷收款弹窗 -->
+    <el-dialog v-model="nodePayDialogVisible" :title="$t('orderDetail.payNodeTitle', { name: nodePayTarget?.name || '' })" width="380px">
+      <el-form label-position="top">
+        <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
+          <el-input-number
+            v-model="nodePayForm.amountYuan"
+            :min="0.01" :max="999999.99" :precision="2" :step="50"
+            controls-position="right" style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item :label="$t('orderDetail.payNoteLabel')">
+          <el-input v-model="nodePayForm.note" :placeholder="$t('orderDetail.payNotePlaceholder')" maxlength="100" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="nodePayDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitNodePayment" :disabled="!nodePayForm.amountYuan || nodePayForm.amountYuan <= 0" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 
@@ -899,24 +932,8 @@ const poolPercent = computed(() =>
   poolFinalCents.value > 0 ? Math.min(100, Math.round(poolPaidCents.value / poolFinalCents.value * 100)) : 0
 )
 
-/** 应收参考（installments 三态推算） */
-const installmentRefs = computed(() => {
-  const insts = order.value?.installments
-  if (!insts?.length) return []
-  let covered = poolPaidCents.value
-  return insts.map(inst => {
-    const amt = inst.amountCents || inst.amount_cents || 0
-    if (covered >= amt) {
-      covered -= amt
-      return { ...inst, _status: 'paid' }
-    } else if (covered > 0) {
-      const partial = covered
-      covered = 0
-      return { ...inst, _status: 'partial', _paidCents: partial }
-    }
-    return { ...inst, _status: 'pending' }
-  })
-})
+/** v0.31 F4: 节点收款（后端直接返回 paidCents/amountCents/remainingCents/status） */
+const installmentRefs = computed(() => order.value?.installments || [])
 
 /** 提交收款 */
 async function submitPayment() {
@@ -927,6 +944,34 @@ async function submitPayment() {
     ElMessage.success(t('orderDetail.paySuccess'))
     payDialogVisible.value = false
     payForm.value = { amountYuan: null, note: '' }
+    await Promise.all([loadOrder(), loadPayments(route.params.id)])
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
+// ─── v0.31 F4: 节点快捷收款 ───
+const nodePayDialogVisible = ref(false)
+const nodePayTarget = ref(null) // { id, name, remainingCents }
+const nodePayForm = ref({ amountYuan: null, note: '' })
+
+function openNodePayDialog(inst) {
+  nodePayTarget.value = inst
+  nodePayForm.value = { amountYuan: inst.remainingCents > 0 ? inst.remainingCents / 100 : null, note: '' }
+  nodePayDialogVisible.value = true
+}
+
+async function submitNodePayment() {
+  const cents = Math.round((nodePayForm.value.amountYuan || 0) * 100)
+  if (cents <= 0 || !nodePayTarget.value) return
+  try {
+    await addPayment(route.params.id, {
+      amountCents: cents,
+      note: nodePayForm.value.note || `${nodePayTarget.value.name}收款`,
+      installmentId: nodePayTarget.value.id
+    })
+    ElMessage.success(t('orderDetail.paySuccess'))
+    nodePayDialogVisible.value = false
     await Promise.all([loadOrder(), loadPayments(route.params.id)])
   } catch (err) {
     ElMessage.error(err.message)

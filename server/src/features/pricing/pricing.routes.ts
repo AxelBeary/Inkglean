@@ -1,4 +1,5 @@
 import * as pricingService from './pricing.service.js'
+import * as discountService from './discount.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -231,5 +232,113 @@ export default async function pricingRoutes(fastify: any) {
       usageMultiplierId,
       rushMultiplierId
     })
+  })
+
+  // ─── v0.31 F3: 折扣码管理（画师端） ───
+
+  /** GET /api/artist/discount-codes — 折扣码列表 */
+  fastify.get('/api/artist/discount-codes', { preHandler: requireAuth }, async (request: any) => {
+    return {
+      enabled: discountService.getDiscountEnabled(request.artist.id),
+      codes: discountService.getDiscountCodes(request.artist.id)
+    }
+  })
+
+  /** PUT /api/artist/discount-codes/toggle — 开关折扣码功能 */
+  fastify.put('/api/artist/discount-codes/toggle', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['enabled'],
+        properties: {
+          enabled: { type: 'boolean' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any) => {
+    discountService.setDiscountEnabled(request.artist.id, (request.body as any).enabled)
+    return { enabled: (request.body as any).enabled }
+  })
+
+  /** POST /api/artist/discount-codes — 创建折扣码 */
+  fastify.post('/api/artist/discount-codes', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['code', 'discountValue'],
+        properties: {
+          code: { type: 'string', minLength: 2, maxLength: 20 },
+          discountType: { type: 'string', enum: ['percent', 'fixed'], default: 'percent' },
+          discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
+          maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
+          expiresAt: { type: ['string', 'null'], maxLength: 50 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any) => {
+    return discountService.createDiscountCode(request.artist.id, request.body)
+  })
+
+  /** PUT /api/artist/discount-codes/:id — 更新折扣码 */
+  fastify.put('/api/artist/discount-codes/:id', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
+          maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
+          expiresAt: { type: ['string', 'null'], maxLength: 50 },
+          enabled: { type: 'boolean' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any) => {
+    return discountService.updateDiscountCode(request.artist.id, parseInt(request.params.id, 10), request.body)
+  })
+
+  /** DELETE /api/artist/discount-codes/:id — 删除折扣码 */
+  fastify.delete('/api/artist/discount-codes/:id', {
+    preHandler: requireAuth
+  }, async (request: any) => {
+    return discountService.deleteDiscountCode(request.artist.id, parseInt(request.params.id, 10))
+  })
+
+  // ─── 客户端：折扣码验证 ───
+
+  /**
+   * POST /api/public/validate-discount
+   * 客户输入折扣码后实时验证（限流：同IP 20次/5分钟）
+   */
+  fastify.post('/api/public/validate-discount', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['subdomain', 'code'],
+        properties: {
+          subdomain: { type: 'string', minLength: 1, maxLength: 50 },
+          code: { type: 'string', minLength: 1, maxLength: 20 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any) => {
+    guardRateLimit(`discount:${request.ip}`, 20, 5 * 60_000)
+
+    const { subdomain, code } = request.body as any
+    const artist = getArtistBySubdomain(subdomain) as any
+    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+
+    const dc = discountService.validateDiscountCode(artist.id, code)
+    return {
+      valid: true,
+      discountType: dc.discount_type,
+      discountValue: dc.discount_value
+    }
   })
 }

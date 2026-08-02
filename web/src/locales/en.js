@@ -400,10 +400,13 @@ export default {
     payDialogTitle: 'Record Payment', payAmountLabel: 'Amount (¥)', payAmountPlaceholder: 'Enter amount',
     payNoteLabel: 'Note (optional)', payNotePlaceholder: 'e.g. WeChat transfer, deposit',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
+    // v0.31 F4: node payments
+    payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
+    payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',
     // v0.31: price edit button
     priceEditBtn: 'Edit Price', priceDialogTitle: 'Edit Final Price',
     priceNewLabel: 'New Price (¥)', pricePlaceholder: 'Enter new final price',
-    priceNoteLabel: 'Reason (optional)', priceNotePlaceholder: 'e.g. client added requirements, negotiated discount',
+    priceNoteLabel: 'Reason', priceNotePlaceholder: 'e.g. client added requirements, negotiated discount',
     priceUpdated: 'Price updated'
   },
   manualOrder: {
@@ -454,8 +457,25 @@ export default {
     empty: 'No tiers yet',
     // v0.28 T3: tab labels + action text i18n
     tabTiers: 'Tiers', tabAddons: 'Add-ons', tabMultipliers: 'Multipliers', tabWorkflow: 'Workflow & Payment',
+    tabDiscount: 'Discount Codes',
     newTier: '+ New tier', cancel: 'Cancel', save: 'Save',
     uploaded: 'Uploaded', saved: 'Saved', deleted: 'Deleted'
+  },
+  // v0.31 F3: discount code management
+  discount: {
+    enableLabel: 'Discount Codes', enabledHint: 'Clients can enter a code when ordering', disabledHint: 'Code input hidden on client form',
+    enabledMsg: 'Discount codes enabled', disabledMsg: 'Discount codes disabled',
+    addBtn: 'New Code', addTitle: 'New Discount Code', editTitle: 'Edit Discount Code',
+    colCode: 'Code', colType: 'Discount', colUsage: 'Used / Limit', colExpiry: 'Expiry', colStatus: 'Status',
+    noExpiry: 'Never', statusOn: 'Active', statusOff: 'Off',
+    codeLabel: 'Code', codePlaceholder: 'e.g. SUMMER20 (uppercase + digits)',
+    typeLabel: 'Type', typePercent: 'Percentage', typeFixed: 'Fixed amount',
+    valuePercent: 'Discount (%)', valueFixed: 'Amount (¥)',
+    maxUsesLabel: 'Usage limit', maxUsesPlaceholder: 'Unlimited', maxUsesHint: 'Leave empty = unlimited',
+    expiryLabel: 'Expiry date', expiryPlaceholder: 'Leave empty = never expires',
+    createdMsg: 'Code created', updatedMsg: 'Code updated', deletedMsg: 'Code deleted',
+    deleteConfirm: 'Delete code "{code}"?', disable: 'Disable', enable: 'Enable',
+    empty: 'No discount codes yet. Click "New Code" to create one.'
   },
   artworks: {
     title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',

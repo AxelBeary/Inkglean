@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS artists (
   announcement TEXT DEFAULT NULL,
   announcement_expires_at DATETIME DEFAULT NULL,
   monthly_quota INTEGER DEFAULT NULL,
+  discount_enabled INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -111,6 +112,8 @@ CREATE TABLE IF NOT EXISTS orders (
   start_date TEXT DEFAULT NULL,
   queue_zone TEXT DEFAULT 'formal',
   paid_total_cents INTEGER DEFAULT 0,
+  discount_code_id INTEGER DEFAULT NULL,
+  discount_amount_cents INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -194,6 +197,7 @@ CREATE TABLE IF NOT EXISTS order_payment_installments (
   label TEXT NOT NULL,
   basis_points INTEGER NOT NULL,
   amount_cents INTEGER,
+  paid_cents INTEGER DEFAULT 0,
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','overdue')),
   sort_order INTEGER NOT NULL DEFAULT 0,
   requested_at DATETIME,
@@ -206,6 +210,7 @@ CREATE TABLE IF NOT EXISTS order_payment_installments (
 CREATE TABLE IF NOT EXISTS order_payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
+  installment_id INTEGER DEFAULT NULL,
   amount_cents INTEGER NOT NULL,
   note TEXT DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -308,12 +313,29 @@ CREATE TABLE IF NOT EXISTS guestbook_messages (
   artist_id INTEGER NOT NULL,
   nickname TEXT NOT NULL,
   content TEXT NOT NULL,
+  language TEXT DEFAULT 'zh-CN',
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
   artist_reply TEXT DEFAULT NULL,
   replied_at DATETIME DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   deleted_by_admin INTEGER DEFAULT 0,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+);
+
+-- 折扣码表（v32）
+CREATE TABLE IF NOT EXISTS discount_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL,
+  code TEXT NOT NULL,
+  discount_type TEXT NOT NULL DEFAULT 'percent' CHECK(discount_type IN ('percent', 'fixed')),
+  discount_value REAL NOT NULL,
+  max_uses INTEGER DEFAULT NULL,
+  used_count INTEGER DEFAULT 0,
+  expires_at DATETIME DEFAULT NULL,
+  enabled INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
+  UNIQUE(artist_id, code)
 );
 `
 
@@ -1093,6 +1115,72 @@ export const MIGRATIONS = [
           WHERE a2.artist_id = artworks.artist_id AND a2.is_cover = 1 AND a2.id <= artworks.id
         ) WHERE is_cover = 1 AND cover_order = 0
       `)
+    }
+  },
+  {
+    version: 32,
+    name: 'discount_codes',
+    up(database) {
+      // v0.31 F3: 折扣码（画师可开关，默认关；全局码，v0.32 多画风后再扩展）
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS discount_codes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          artist_id INTEGER NOT NULL,
+          code TEXT NOT NULL,
+          discount_type TEXT NOT NULL DEFAULT 'percent' CHECK(discount_type IN ('percent', 'fixed')),
+          discount_value REAL NOT NULL,
+          max_uses INTEGER DEFAULT NULL,
+          used_count INTEGER DEFAULT 0,
+          expires_at DATETIME DEFAULT NULL,
+          enabled INTEGER DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
+          UNIQUE(artist_id, code)
+        )
+      `)
+      database.exec('CREATE INDEX IF NOT EXISTS idx_discount_codes_artist ON discount_codes(artist_id, enabled)')
+
+      // 画师级开关（默认关）
+      const artistCols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!artistCols.some(c => c.name === 'discount_enabled')) {
+        database.exec('ALTER TABLE artists ADD COLUMN discount_enabled INTEGER DEFAULT 0')
+      }
+
+      // 订单记录折扣信息（审计追溯）
+      const orderCols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!orderCols.some(c => c.name === 'discount_code_id')) {
+        database.exec('ALTER TABLE orders ADD COLUMN discount_code_id INTEGER DEFAULT NULL')
+      }
+      if (!orderCols.some(c => c.name === 'discount_amount_cents')) {
+        database.exec('ALTER TABLE orders ADD COLUMN discount_amount_cents INTEGER DEFAULT 0')
+      }
+    }
+  },
+  {
+    version: 33,
+    name: 'installment_paid_cents',
+    up(database) {
+      // v0.31 F4: 节点收款重做——每节点记录实收金额
+      const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all()
+      if (!instCols.some(c => c.name === 'paid_cents')) {
+        database.exec('ALTER TABLE order_payment_installments ADD COLUMN paid_cents INTEGER DEFAULT 0')
+      }
+      // 收款流水关联到具体节点（可选，null = 额度池兜底）
+      const payCols = database.prepare('PRAGMA table_info(order_payments)').all()
+      if (!payCols.some(c => c.name === 'installment_id')) {
+        database.exec('ALTER TABLE order_payments ADD COLUMN installment_id INTEGER DEFAULT NULL')
+      }
+    }
+  },
+  {
+    version: 34,
+    name: 'guestbook_language',
+    up(database) {
+      // v0.31 REQ-021 F8 前置：留言记录语言（后端写入，不靠前端检测）
+      const cols = database.prepare('PRAGMA table_info(guestbook_messages)').all()
+      if (!cols.some(c => c.name === 'language')) {
+        database.exec("ALTER TABLE guestbook_messages ADD COLUMN language TEXT DEFAULT 'zh-CN'")
+      }
     }
   }
 ]

@@ -21,7 +21,8 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
         required: ['nickname', 'content'],
         properties: {
           nickname: { type: 'string', minLength: 1, maxLength: 20 },
-          content: { type: 'string', minLength: 1, maxLength: 200 }
+          content: { type: 'string', minLength: 1, maxLength: 200 },
+          language: { type: 'string', maxLength: 10, default: 'zh-CN' }
         },
         additionalProperties: false
       }
@@ -35,26 +36,28 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') {
       return reply.code(404).send({ error: '画师不存在' })
     }
-    const body = request.body as { nickname: string; content: string }
-    const msg = guestbookService.createMessage(artist.id, body.nickname, body.content)
+    const body = request.body as { nickname: string; content: string; language?: string }
+    const msg = guestbookService.createMessage(artist.id, body.nickname, body.content, body.language || 'zh-CN')
     return reply.code(201).send({ id: msg?.id })
   })
 
-  /** GET /api/public/artist/:subdomain/messages — 已审核留言（分页） */
+  /** GET /api/public/artist/:subdomain/messages — 已审核留言（分页，v0.31: 可选 ?language= 过滤） */
   fastify.get('/api/public/artist/:subdomain/messages', async (request, reply) => {
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
     if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') {
       return reply.code(404).send({ error: '画师不存在' })
     }
-    const query = request.query as { page?: string; pageSize?: string }
+    const query = request.query as { page?: string; pageSize?: string; language?: string }
     const page = Math.max(parseInt(query.page) || 1, 1)
     const pageSize = Math.min(Math.max(parseInt(query.pageSize) || 20, 1), 50)
-    const result = guestbookService.getPublicMessages(artist.id, page, pageSize)
+    const language = query.language && /^[a-zA-Z-]{2,10}$/.test(query.language) ? query.language : undefined
+    const result = guestbookService.getPublicMessages(artist.id, page, pageSize, language)
     return {
       messages: result.messages.map(m => ({
         id: m.id,
         nickname: m.nickname,
         content: m.content,
+        language: m.language,
         artistReply: m.artist_reply,
         repliedAt: m.replied_at,
         createdAt: m.created_at
