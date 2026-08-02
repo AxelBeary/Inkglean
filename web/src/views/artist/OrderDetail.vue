@@ -304,6 +304,10 @@
           <span v-if="order.final_price_cents != null" class="extra-total">
             {{ $t('orderDetail.extraTotal') }} ¥{{ formatCents(order.final_price_cents) }}
           </span>
+          <!-- v0.31 五号方案A：改价按钮（后端 PUT /price 已有，前端首次接通） -->
+          <el-button v-if="!isTerminal" size="small" text type="primary" @click="openPriceDialog">
+            ✏️ {{ $t('orderDetail.priceEditBtn') }}
+          </el-button>
         </div>
         <p v-if="order.extraItems?.length" class="extra-auto-hint">💡 {{ $t('orderDetail.extraAutoHint') }}</p>
       </el-card>
@@ -453,6 +457,27 @@
       <template #footer>
         <el-button @click="extraDialogVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="submitExtraItem" :disabled="!extraForm.name.trim()" :loading="extraSubmitting">{{ $t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- v0.31 五号方案A：改价弹窗（调用已有 PUT /api/artist/orders/:id/price） -->
+    <el-dialog v-model="priceDialogVisible" :title="$t('orderDetail.priceDialogTitle')" width="400px">
+      <el-form label-position="top">
+        <el-form-item :label="$t('orderDetail.priceNewLabel')" required>
+          <el-input-number
+            v-model="priceForm.priceYuan"
+            :min="0.01" :max="999999.99" :precision="2" :step="50"
+            controls-position="right" style="width: 100%"
+            :placeholder="$t('orderDetail.pricePlaceholder')"
+          />
+        </el-form-item>
+        <el-form-item :label="$t('orderDetail.priceNoteLabel')">
+          <el-input v-model="priceForm.note" :placeholder="$t('orderDetail.priceNotePlaceholder')" maxlength="200" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="priceDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitPriceChange" :disabled="!priceForm.priceYuan || priceForm.priceYuan <= 0" :loading="priceSubmitting">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 
@@ -1059,6 +1084,35 @@ async function deleteExtraItem(item) {
     ElMessage.success(t('orderDetail.extraDeleted'))
   } catch (err) {
     ElMessage.error(err.message)
+  }
+}
+
+// ─── v0.31 五号方案A：改价（接通已有 PUT /price API） ───
+const priceDialogVisible = ref(false)
+const priceSubmitting = ref(false)
+const priceForm = ref({ priceYuan: null, note: '' })
+
+function openPriceDialog() {
+  const currentCents = order.value?.final_price_cents ?? order.value?.total_price_cents ?? 0
+  priceForm.value = { priceYuan: currentCents > 0 ? currentCents / 100 : null, note: '' }
+  priceDialogVisible.value = true
+}
+
+async function submitPriceChange() {
+  const cents = Math.round((priceForm.value.priceYuan || 0) * 100)
+  if (cents <= 0) return
+  priceSubmitting.value = true
+  try {
+    order.value = await artistApi.updatePrice(route.params.id, {
+      finalPriceCents: cents,
+      quoteSnapshot: priceForm.value.note.trim() || null
+    })
+    priceDialogVisible.value = false
+    ElMessage.success(t('orderDetail.priceUpdated'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    priceSubmitting.value = false
   }
 }
 
