@@ -194,7 +194,14 @@ export default {
     copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: ',
     // v0.31 F3: discount code
     discountLabel: 'Discount code', discountPlaceholder: 'Have a code?', discountValidate: 'Apply',
-    discountEstimate: 'Est. discount', discountedTotal: 'Est. total after discount'
+    discountEstimate: 'Est. discount', discountedTotal: 'Est. total after discount',
+    // v0.32 REQ-023 Phase2: multi-style three-step flow
+    styleStep: 'Style', sizeStep: 'Size', addonStep: 'Add-ons',
+    styleStepTitle: 'Pick a style', sizeStepTitle: 'Pick a size', addonStepTitle: 'Add-ons & options',
+    addonStepEmpty: 'No add-ons available for this size',
+    addonOptionPrice: 'Option price',
+    multiplierLabel: 'Usage & rush', usageLabel: 'Usage:', rushLabel: 'Rush:',
+    personal: 'Personal', noRush: 'No rush'
   },
   // R24: validation popup
   order: {
