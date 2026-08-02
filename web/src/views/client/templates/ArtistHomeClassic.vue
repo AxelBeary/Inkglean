@@ -54,8 +54,13 @@
 
       <!-- 右栏：滚动内容 -->
       <main class="classic-main">
-        <section class="classic-section tpl-reveal" v-if="tiers.length || workflowStages.length">
-          <template v-if="tiers.length">
+        <section class="classic-section tpl-reveal" v-if="styles.length || tiers.length || workflowStages.length">
+          <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
+          <template v-if="styles.length">
+            <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
+            <TplStyleGrid :styles="styles" :subdomain="subdomain" />
+          </template>
+          <template v-else-if="tiers.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
             <TplTierGrid :tiers="tiers" featured :subdomain="subdomain">
               <template #addons="{ tier }">
@@ -105,6 +110,7 @@ import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import TplHero from '../../../components/templates/TplHero.vue'
 import TplStatusBadge from '../../../components/templates/TplStatusBadge.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
+import TplStyleGrid from '../../../components/templates/TplStyleGrid.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
@@ -113,7 +119,7 @@ import Disclaimer from '../../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({
-  artist: Object, tiers: Array, artworks: Array, rules: String,
+  artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 

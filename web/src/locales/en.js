@@ -158,7 +158,9 @@ export default {
     // R50: preview mode
     previewBanner: 'Preview mode — changes not yet saved',
     // v0.25 A: Cover showcase
-    covers: '✨ Featured Covers'
+    covers: '✨ Featured Covers',
+    // v0.32 REQ-023 Phase3: multi-style price table
+    styleOrderBtn: 'Commission in this style'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',

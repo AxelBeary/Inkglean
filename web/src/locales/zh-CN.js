@@ -158,7 +158,9 @@ export default {
     // R50: 预览模式
     previewBanner: '预览模式 — 修改尚未保存',
     // v0.25 A: 封面精选
-    covers: '✨ 封面精选'
+    covers: '✨ 封面精选',
+    // v0.32 REQ-023 Phase3: 多画风价格表
+    styleOrderBtn: '选择此画风约稿'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',

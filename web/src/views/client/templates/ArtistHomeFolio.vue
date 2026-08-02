@@ -42,9 +42,14 @@
     </section>
 
     <!-- 价格 + 流程（R1 整合） -->
-    <section id="pricing" class="folio-section folio-section--alt tpl-reveal" v-if="tiers.length || workflowStages.length">
+    <section id="pricing" class="folio-section folio-section--alt tpl-reveal" v-if="styles.length || tiers.length || workflowStages.length">
       <div class="folio-inner">
-        <template v-if="tiers.length">
+        <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
+        <template v-if="styles.length">
+          <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
+          <TplStyleGrid :styles="styles" :subdomain="subdomain" />
+        </template>
+        <template v-else-if="tiers.length">
           <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
           <TplTierGrid :tiers="tiers" :subdomain="subdomain">
             <template #addons="{ tier }">
@@ -135,13 +140,14 @@ import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
+import TplStyleGrid from '../../../components/templates/TplStyleGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({
-  artist: Object, tiers: Array, artworks: Array, rules: String,
+  artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
