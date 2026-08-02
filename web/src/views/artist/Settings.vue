@@ -225,28 +225,20 @@
           </div>
           <p class="form-hint" style="margin-top: 8px">{{ $t('settings.accentDarkHint') }}</p>
 
-          <!-- v0.25 A: 封面图管理（星标切换，多张轮播） -->
+          <!-- REQ-017: 封面预览 + 作品管理链接（不搬作品列表，约束 3） -->
           <p class="template-label" style="margin-top: 24px">{{ $t('settings.coverTitle') }}</p>
-          <p class="form-hint" style="margin-bottom: 12px">{{ $t('settings.coverHint') }}</p>
-          <div v-if="coverArtworks.length" class="cover-grid" v-loading="coverLoading">
-            <div
-              v-for="art in coverArtworks" :key="art.id"
-              class="cover-item"
-              :class="{ 'cover-item--active': art.is_cover }"
-            >
-              <el-image :src="`/uploads/${art.image_path}`" fit="cover" class="cover-thumb" :alt="art.title || ''" />
-              <button
-                class="cover-star"
-                :class="{ 'cover-star--on': art.is_cover }"
-                :disabled="coverBusyId === art.id"
-                :title="art.is_cover ? $t('settings.coverUnset') : $t('settings.coverSet')"
-                @click="toggleCover(art)"
-              >
-                {{ art.is_cover ? '★' : '☆' }}
-              </button>
+          <div class="cover-preview-row" v-loading="coverLoading">
+            <el-image
+              v-if="coverPreview"
+              :src="`/uploads/${coverPreview.image_path}`"
+              fit="cover" class="cover-preview-thumb" :alt="coverPreview.title || ''"
+            />
+            <div v-else class="cover-preview-empty">{{ $t('settings.coverEmpty') }}</div>
+            <div class="cover-preview-info">
+              <p class="form-hint">{{ $t('settings.coverHint') }}</p>
+              <router-link to="/artworks" class="cover-manage-link">{{ $t('settings.coverManageLink') }} →</router-link>
             </div>
           </div>
-          <p v-else class="form-hint">{{ $t('settings.coverEmpty') }}</p>
 
           <!-- R50: 预览按钮（新窗口打开，参数覆盖渲染层） -->
           <div class="template-actions">
@@ -415,11 +407,13 @@ function openPreview() {
   window.open(`/artist/${form.subdomain}?${params.toString()}`, '_blank', 'noopener')
 }
 
-// ─── v0.25 A: 封面图管理（星标切换，切到模板 tab 时懒加载作品列表） ───
+// ─── REQ-017: 封面预览（星标操作已移至作品管理页，此处只展示当前封面 + 跳转链接） ───
 const coverArtworks = ref([])
 const coverLoading = ref(false)
-const coverBusyId = ref(null)
 let coverLoaded = false
+
+/** 当前封面（第一张 is_cover=1 的作品），无封面时为 null */
+const coverPreview = computed(() => coverArtworks.value.find(a => a.is_cover) || null)
 
 async function loadCoverArtworks() {
   if (coverLoaded) return
@@ -431,26 +425,7 @@ async function loadCoverArtworks() {
   } catch { /* 加载失败静默，区域显示空态 */ } finally { coverLoading.value = false }
 }
 
-async function toggleCover(art) {
-  coverBusyId.value = art.id
-  try {
-    if (art.is_cover) {
-      await artistApi.unsetArtworkCover(art.id)
-      art.is_cover = 0
-      ElMessage.success(t('settings.coverUnsetSuccess'))
-    } else {
-      await artistApi.setArtworkCover(art.id)
-      art.is_cover = 1
-      ElMessage.success(t('settings.coverSetSuccess'))
-    }
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    coverBusyId.value = null
-  }
-}
-
-// 切到模板 tab 时加载封面管理数据（懒加载，与须知 tab 同模式）
+// 切到模板 tab 时加载封面预览数据（懒加载，与须知 tab 同模式）
 watch(activeTab, (tab) => { if (tab === 'template') loadCoverArtworks() }, { immediate: true })
 
 // R15: 链接编辑器操作
@@ -689,40 +664,25 @@ onMounted(async () => {
 /* ─── R50: 模板 tab 操作行 ─── */
 .template-actions { display: flex; gap: 12px; margin-top: 20px; }
 
-/* ─── v0.25 A: 封面图管理（星标切换网格） ─── */
-.cover-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 12px;
+/* ─── REQ-017: 封面预览 + 作品管理链接 ─── */
+.cover-preview-row { display: flex; align-items: flex-start; gap: 16px; margin-top: 12px; }
+.cover-preview-thumb {
+  width: 120px; height: 90px; flex-shrink: 0;
+  border: 2px solid var(--border-color); border-radius: 10px;
 }
-.cover-item {
-  position: relative;
-  border: 2px solid var(--border-color);
-  border-radius: 10px;
-  overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.cover-item--active {
-  border-color: var(--el-color-warning);
-  box-shadow: 0 0 0 1px var(--el-color-warning);
-}
-.cover-thumb { width: 100%; height: 96px; display: block; }
-.cover-star {
-  position: absolute; top: 6px; right: 6px;
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  border: none;
-  background: color-mix(in srgb, var(--bg-card) 75%, transparent);
-  backdrop-filter: blur(4px);
-  color: var(--text-secondary);
-  font-size: 18px; line-height: 1;
-  cursor: pointer;
+.cover-preview-empty {
+  width: 120px; height: 90px; flex-shrink: 0;
+  border: 2px dashed var(--border-color); border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  transition: color 0.15s, transform 0.15s, background 0.15s;
+  font-size: 12px; color: var(--text-secondary); text-align: center; padding: 8px;
 }
-.cover-star:hover { transform: scale(1.15); }
-.cover-star:disabled { cursor: wait; opacity: 0.6; }
-.cover-star--on { color: var(--el-color-warning); }
+.cover-preview-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cover-preview-info .form-hint { margin: 0; }
+.cover-manage-link {
+  color: var(--el-color-primary); text-decoration: none;
+  font-size: 14px; font-weight: 500; transition: opacity 0.2s;
+}
+.cover-manage-link:hover { opacity: 0.75; text-decoration: underline; }
 
 /* ─── R58-8: 平台链接 + 灵感标签 ─── */
 .platform-select { width: 130px; flex-shrink: 0; }

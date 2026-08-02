@@ -15,9 +15,9 @@
     </section>
 
     <!-- 作品画廊：大小交错 editorial -->
-    <section class="gallery-section tpl-reveal" v-if="artworks.length">
+    <section class="gallery-section tpl-reveal" v-if="galleryArtworks.length">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="artworks" :subdomain="subdomain" />
+      <TplGallery :artworks="galleryArtworks" :subdomain="subdomain" />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
@@ -109,7 +109,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-const { socialLinks, platformLinks, coverArtworks } = useArtistData(props)
+const { socialLinks, platformLinks, coverArtworks, galleryArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

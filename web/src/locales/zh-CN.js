@@ -457,7 +457,11 @@ export default {
     selected: '已选 {n} 项',
     batchDeleteTitle: '批量删除', batchDeleteConfirm: '确定删除选中的 {n} 张作品？删除后不可恢复。',
     batchDeleted: '已删除 {n} 张作品', batchPartial: '删除完成：成功 {ok} 张，失败 {failed} 张',
-    slideToDelete: '滑动到底部确认删除'
+    slideToDelete: '滑动到底部确认删除',
+    // REQ-017: 封面操作
+    coverSet: '设为封面', coverUnset: '取消封面',
+    coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
+    coverTag: '封面'
   },
   rules: {
     title: '📜 须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
