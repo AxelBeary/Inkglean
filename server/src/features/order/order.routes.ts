@@ -92,7 +92,22 @@ export default async function orderRoutes(fastify: any) {
           },
           usageMultiplierId: { type: ['integer', 'null'] },
           rushMultiplierId: { type: ['integer', 'null'] },
-          discountCode: { type: ['string', 'null'], maxLength: 20 }
+          discountCode: { type: ['string', 'null'], maxLength: 20 },
+          styleSizeId: { type: ['integer', 'null'] },
+          styleAddons: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['styleAddonId'],
+              properties: {
+                styleAddonId: { type: 'integer' },
+                quantity: { type: 'integer', minimum: 1, maximum: 99 },
+                optionLabel: { type: 'string', maxLength: 100 }
+              },
+              additionalProperties: false
+            },
+            maxItems: 20
+          }
         },
         additionalProperties: false
       }
@@ -100,7 +115,7 @@ export default async function orderRoutes(fastify: any) {
   }, async (request: any) => {
     guardRateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)
 
-    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as any
+    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, addons, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as any
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
@@ -140,7 +155,9 @@ export default async function orderRoutes(fastify: any) {
       addons: addons || [],
       usageMultiplierId: usageMultiplierId || null,
       rushMultiplierId: rushMultiplierId || null,
-      discountCode: discountCode || null
+      discountCode: discountCode || null,
+      styleSizeId: styleSizeId || null,
+      styleAddons: styleAddons || []
     })
 
     return {
@@ -433,13 +450,28 @@ export default async function orderRoutes(fastify: any) {
           },
           usageMultiplierId: { type: ['integer', 'null'] },
           rushMultiplierId: { type: ['integer', 'null'] },
-          discountCode: { type: ['string', 'null'], maxLength: 20 }
+          discountCode: { type: ['string', 'null'], maxLength: 20 },
+          styleSizeId: { type: ['integer', 'null'] },
+          styleAddons: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['styleAddonId'],
+              properties: {
+                styleAddonId: { type: 'integer' },
+                quantity: { type: 'integer', minimum: 1, maximum: 99 },
+                optionLabel: { type: 'string', maxLength: 100 }
+              },
+              additionalProperties: false
+            },
+            maxItems: 20
+          }
         },
         additionalProperties: false
       }
     }
   }, async (request: any) => {
-    const { tierId, clientQq, clientName, description, priority, clientNotify, references, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as any
+    const { tierId, clientQq, clientName, description, priority, clientNotify, references, addons, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as any
 
     // C-3 安全：参考图路径校验（与自助下单一致）
     if (references) {
@@ -463,7 +495,9 @@ export default async function orderRoutes(fastify: any) {
       addons: addons || [],
       usageMultiplierId: usageMultiplierId || null,
       rushMultiplierId: rushMultiplierId || null,
-      discountCode: discountCode || null
+      discountCode: discountCode || null,
+      styleSizeId: styleSizeId || null,
+      styleAddons: styleAddons || []
     })
   })
 
