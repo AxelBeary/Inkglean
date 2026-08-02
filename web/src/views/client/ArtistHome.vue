@@ -10,7 +10,7 @@
     <component
       v-else-if="artist"
       :is="templateComponent"
-      :artist="artist"
+      :artist="displayArtist"
       :tiers="tiers"
       :artworks="artworks"
       :rules="rules"
@@ -22,17 +22,20 @@
     <div v-else-if="!loading" class="empty-state">
       <p>{{ $t('artistHome.loadFailed') }}</p>
     </div>
+    <!-- #55/61: 客户端统一浮窗（4 模板共用，CTA 避让由模板 inject 同步） -->
+    <ClientFloatingActions v-if="artist && artist.status !== 'hidden'" :raised="ctaRaised" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
+import { ref, computed, provide, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import { usePalette } from '../../composables/usePalette.js'
+import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -48,6 +51,17 @@ const loading = ref(true)
 
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
 
+// #54: effectiveStatus 适配——额度耗尽时后端返回 effectiveStatus='full'，前端覆盖 status
+// 向后兼容：字段缺失时 fallback 原始 status，4 模板零改动
+const displayArtist = computed(() => {
+  const a = artist.value
+  if (!a) return a
+  if (a.effectiveStatus && a.effectiveStatus !== a.status) {
+    return { ...a, status: a.effectiveStatus }
+  }
+  return a
+})
+
 // ─── R50: 预览参数（_tpl/_pal/_accent 只覆盖渲染层，不碰数据层；单点分支，不扩散到模板内部） ───
 const previewTpl = computed(() => route.query._tpl || null)
 const previewPal = computed(() => route.query._pal || null)
@@ -58,6 +72,10 @@ const paletteId = computed(() => previewPal.value || artist.value?.paletteId || 
 
 // 配色系统：根据画师 paletteId 设置 html[data-palette]，卸载时清理
 usePalette(paletteId)
+
+// #55/61: 浮窗 CTA 避让——模板 inject 后同步 ctaVisible
+const ctaRaised = ref(false)
+provide('ctaRaised', ctaRaised)
 
 // ─── R49: 强调色覆盖（画师设置优先于访客 ThemePicker；离开主页时恢复访客选择） ───
 // 5 色与 theme.css data-accent="1"~"5" 一一对应（含暗色提亮变体，免费获得暗色适配）

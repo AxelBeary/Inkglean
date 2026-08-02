@@ -1,6 +1,6 @@
 <template>
   <div class="order-form-page">
-    <div class="page-prefs"><ThemeToggle /></div>
+    <ClientFloatingActions />
     <div class="form-container" v-loading="loading">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('orderForm.backHome')" :content="$t('orderForm.title')" />
 
@@ -350,7 +350,7 @@ import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import Disclaimer from '../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
-import ThemeToggle from '../../components/ThemeToggle.vue'
+import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import { useOrderForm } from '../../composables/useOrderForm.js'
 
 const { t } = useI18n()
@@ -462,20 +462,6 @@ async function copyQq(qq) {
   transition: background 0.3s;
   position: relative;
 }
-/* Bug 3 重做（v0.20）：ThemeToggle 改为右下角固定悬浮，与主页 ThemePicker FAB 定位一致（R25/C37 模式） */
-.page-prefs {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 95;
-  padding: 10px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  transition: box-shadow 0.2s;
-}
-.page-prefs:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); }
 /* R58-2: 加宽容器容纳 主区 + 摘要卡 双栏 */
 .form-container { max-width: 920px; margin: 0 auto; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }

@@ -13,8 +13,14 @@
         :preview-src-list="previewList"
         :initial-index="index"
         preview-teleported
+        hide-on-click-modal
         lazy
-      />
+      >
+        <!-- #50: 加载占位——预留高度防跳动 -->
+        <template #placeholder>
+          <div class="tpl-gallery-skeleton" />
+        </template>
+      </el-image>
       <div class="tpl-gallery-meta">
         <p class="tpl-gallery-caption" v-if="art.title">{{ art.title }}</p>
         <!-- F1: 点赞（颜色/大小由模板 class 覆盖） -->
@@ -115,6 +121,18 @@ function isLiked(id) { return likedIds.has(id) }
 }
 
 /* ===== 通用 ===== */
+/* #50: 加载骨架占位——预留高度防瀑布流跳动 */
+.tpl-gallery-skeleton {
+  width: 100%;
+  min-height: 200px;
+  background: linear-gradient(110deg, var(--pal-surface) 30%, var(--pal-border) 50%, var(--pal-surface) 70%);
+  background-size: 200% 100%;
+  animation: tpl-gallery-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes tpl-gallery-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .tpl-gallery-meta {
   display: flex;
   align-items: center;

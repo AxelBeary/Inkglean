@@ -1,6 +1,6 @@
 <template>
   <div class="track-page">
-    <div class="page-prefs"><ThemeToggle /></div>
+    <ClientFloatingActions />
     <div class="track-container" v-loading="loading">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('track.backHome')" :content="$t('track.title')" />
 
@@ -167,7 +167,7 @@ import { orderApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
-import ThemeToggle from '../../components/ThemeToggle.vue'
+import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 
 const { t } = useI18n()
@@ -327,20 +327,6 @@ onUnmounted(() => {
   transition: background 0.3s;
   position: relative;
 }
-/* Bug 3 重做（v0.20）：ThemeToggle 改为右下角固定悬浮，与主页 ThemePicker FAB 定位一致（R25/C37 模式） */
-.page-prefs {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 95;
-  padding: 10px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  transition: box-shadow 0.2s;
-}
-.page-prefs:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); }
 .track-container { max-width: 600px; margin: 0 auto; }
 .result-header { display: flex; justify-content: space-between; align-items: center; }
 .position-info { margin-top: 16px; }

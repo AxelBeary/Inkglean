@@ -382,7 +382,7 @@ export default {
     // R58-6: QQ jump + copy
     jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
     // plan-node-speech: client communication block
-    commTitle: 'Client Communication', commQq: 'QQ:',
+    commTitle: 'Client Communication', commQq: 'QQ:', commCopyContact: 'Copy contact',
     commPriceSummary: 'Price: total {total} / paid {paid} / due {unpaid}',
     commCopyBtn: 'Copy text & open QQ', commCopied: 'Speech copied — opening QQ',
     commNoQq: 'No client QQ set', commNoStage: 'Order not on a workflow stage — no speech yet', commNoSpeech: 'No speech for the current stage',

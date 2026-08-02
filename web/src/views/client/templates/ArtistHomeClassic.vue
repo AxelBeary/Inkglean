@@ -100,9 +100,6 @@
         <Disclaimer class="classic-disclaimer" />
       </main>
     </div>
-
-    <!-- R25: ThemePicker 右下角固定悬浮（用户决策 C37） -->
-    <div class="theme-fab"><ThemePicker /></div>
   </div>
 </template>
 
@@ -118,7 +115,6 @@ import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
-import ThemePicker from '../../../components/ThemePicker.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
@@ -387,23 +383,6 @@ useScrollReveal(rootEl)
 .classic-guestbook :deep(.gb-no-more) { text-align: center; font-size: 12px; color: var(--pal-text-dim); margin-top: 8px; }
 .classic-disclaimer {
   margin-top: 24px;
-}
-
-/* R25: ThemePicker 右下角固定悬浮（用户决策 C37） */
-.theme-fab {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 95;
-  padding: 10px 12px;
-  background: var(--pal-surface);
-  border: 1px solid var(--pal-border);
-  border-radius: 999px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  transition: box-shadow 0.2s;
-}
-.theme-fab:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 /* ===== 移动端：单栏，信息卡置顶 ===== */

@@ -382,7 +382,7 @@ export default {
     // R58-6: QQ 跳转 + 复制
     jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
     // plan-node-speech：客户沟通小块
-    commTitle: '客户沟通', commQq: 'QQ:',
+    commTitle: '客户沟通', commQq: 'QQ:', commCopyContact: '复制联系方式',
     commPriceSummary: '价格小结：总价{total} / 已付{paid} / 待付{unpaid}',
     commCopyBtn: '复制文案并唤起QQ', commCopied: '已复制节点文案，正在唤起QQ',
     commNoQq: '未设置客户QQ', commNoStage: '该订单未接入流程节点，暂无话术', commNoSpeech: '当前节点暂无话术',
