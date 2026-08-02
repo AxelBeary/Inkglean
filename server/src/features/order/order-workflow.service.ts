@@ -1,6 +1,7 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getOrder } from './order.service.js'
+import { logActivity } from './activity-log.service.js'
 import type { WorkflowStage } from '../../types/entities.js'
 
 // ============================================
@@ -64,6 +65,9 @@ export function advanceStage(orderId: number, stageId: number | null): any {
   db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(stageId, newStatus, orderId)
 
+  // v0.31 REQ-021 F1: 操作日志
+  logActivity(orderId, 'stage_advance', 'artist', { action: 'advance', stageName: stages[targetIdx].name, stageId })
+
   if (newStatus === 'done') {
     db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
       .run(orderId)
@@ -109,6 +113,9 @@ export function rollbackStage(orderId: number, stageId: number): any {
   // 系统备注（用户确认：客户有知情权）
   db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
     .run(orderId, `↩ 从「${fromName}」打回到「${toName}」`)
+
+  // v0.31 REQ-021 F1: 操作日志
+  logActivity(orderId, 'stage_advance', 'artist', { action: 'rollback', from: fromName, to: toName, stageId })
 
   return getOrder(orderId)
 }

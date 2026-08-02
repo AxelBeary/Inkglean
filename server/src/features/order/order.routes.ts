@@ -3,6 +3,7 @@ import * as orderStatsService from './order-stats.service.js'
 import * as orderQueueService from './order-queue.service.js'
 import * as orderGalleryService from './order-gallery.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
+import * as activityLogService from './activity-log.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, getRules, getTierById } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
@@ -943,6 +944,21 @@ export default async function orderRoutes(fastify: any) {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: any) => {
     return { payments: orderService.getPayments(request.order.id) }
+  })
+
+  /**
+   * GET /api/artist/orders/:id/logs
+   * v0.31 REQ-021 F1: 操作日志（分页 + ?type= 筛选）
+   */
+  fastify.get('/api/artist/orders/:id/logs', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request: any) => {
+    const { page, pageSize, type } = (request.query || {}) as any
+    return activityLogService.getOrderLogs(request.order.id, {
+      page: Math.max(1, parseInt(page, 10) || 1),
+      pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200)),
+      type: typeof type === 'string' ? type : undefined
+    })
   })
 
   // ─── SPEC-004: 名额与缓冲 ───
