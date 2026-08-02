@@ -368,7 +368,8 @@ export function reorderTiers(artistId: number, ids: number[]): Tier[] {
 
 export function getArtworks(artistId: number): Artwork[] {
   // v0.25 #5: 封面排第一，其余按 sort_order 排序（无封面时行为不变）
-  return db.prepare('SELECT * FROM artworks WHERE artist_id = ? ORDER BY is_cover DESC, sort_order ASC').all(artistId) as Artwork[]
+  // v0.31: 封面内部按 cover_order 排序（多封面轮播顺序）
+  return db.prepare('SELECT * FROM artworks WHERE artist_id = ? ORDER BY is_cover DESC, cover_order ASC, sort_order ASC').all(artistId) as Artwork[]
 }
 
 export function getArtworkById(artworkId: number): Artwork | undefined {
@@ -409,16 +410,36 @@ export function deleteArtwork(artworkId: number): void {
 /**
  * 设为封面（多张共存，用户原声 REQ-013 #5："多张来回滚动"）
  * 不取消其他封面——画师可设多张，客户端自动轮播
+ * v0.31: 自动分配 cover_order（追加到末尾）
  */
 export function setCover(artistId: number, artworkId: number): Artwork | undefined {
-  db.prepare('UPDATE artworks SET is_cover = 1 WHERE id = ? AND artist_id = ?').run(artworkId, artistId)
+  const maxOrder = db.prepare(
+    'SELECT MAX(cover_order) as m FROM artworks WHERE artist_id = ? AND is_cover = 1'
+  ).get(artistId) as { m: number | null } | undefined
+  const nextOrder = (maxOrder?.m ?? 0) + 1
+  db.prepare('UPDATE artworks SET is_cover = 1, cover_order = ? WHERE id = ? AND artist_id = ?').run(nextOrder, artworkId, artistId)
   return getArtworkById(artworkId)
 }
 
-/** 取消封面 */
+/** 取消封面（v0.31: 同时重置 cover_order） */
 export function clearCover(artistId: number, artworkId: number): Artwork | undefined {
-  db.prepare('UPDATE artworks SET is_cover = 0 WHERE id = ? AND artist_id = ?').run(artworkId, artistId)
+  db.prepare('UPDATE artworks SET is_cover = 0, cover_order = 0 WHERE id = ? AND artist_id = ?').run(artworkId, artistId)
   return getArtworkById(artworkId)
+}
+
+/**
+ * v0.31: 封面排序（接收完整有序 ID 数组，仅含 is_cover=1 的作品）
+ * 校验：所有 ID 必须属于该画师且为封面
+ */
+export function reorderCovers(artistId: number, orderedIds: number[]): Artwork[] {
+  db.transaction(() => {
+    orderedIds.forEach((id, index) => {
+      const art = db.prepare('SELECT * FROM artworks WHERE id = ? AND artist_id = ? AND is_cover = 1').get(id, artistId)
+      if (!art) throw new AppError(E.NOT_FOUND, 404, { id })
+      db.prepare('UPDATE artworks SET cover_order = ? WHERE id = ?').run(index + 1, id)
+    })
+  })()
+  return getArtworks(artistId)
 }
 
 // ============================================

@@ -399,7 +399,12 @@ export default {
     payRefPaid: 'Paid', payRefPartial: 'Partial {amount}', payRefPending: 'Pending',
     payDialogTitle: 'Record Payment', payAmountLabel: 'Amount (¥)', payAmountPlaceholder: 'Enter amount',
     payNoteLabel: 'Note (optional)', payNotePlaceholder: 'e.g. WeChat transfer, deposit',
-    paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked'
+    paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
+    // v0.31: price edit button
+    priceEditBtn: 'Edit Price', priceDialogTitle: 'Edit Final Price',
+    priceNewLabel: 'New Price (¥)', pricePlaceholder: 'Enter new final price',
+    priceNoteLabel: 'Reason (optional)', priceNotePlaceholder: 'e.g. client added requirements, negotiated discount',
+    priceUpdated: 'Price updated'
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -467,7 +472,9 @@ export default {
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
     coverTag: 'Cover',
     // F7: 主图去重
-    mainImages: 'Main images', mainTag: 'Main'
+    mainImages: 'Main images', mainTag: 'Main',
+    // v0.31: multi-cover reorder
+    coverMoveUp: 'Move up', coverMoveDown: 'Move down', coverReordered: 'Cover order updated'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',

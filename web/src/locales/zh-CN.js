@@ -399,7 +399,12 @@ export default {
     payRefPaid: '已收', payRefPartial: '部分 {amount}', payRefPending: '待收',
     payDialogTitle: '记录收款', payAmountLabel: '收款金额（元）', payAmountPlaceholder: '输入金额',
     payNoteLabel: '备注（可选）', payNotePlaceholder: '如：微信转账、定金',
-    paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销'
+    paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
+    // v0.31 五号方案A：改价按钮
+    priceEditBtn: '修改价格', priceDialogTitle: '修改最终价格',
+    priceNewLabel: '新价格（元）', pricePlaceholder: '输入新的最终价格',
+    priceNoteLabel: '改价原因（可选）', priceNotePlaceholder: '如：客户追加需求、协商优惠',
+    priceUpdated: '价格已更新'
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
@@ -467,7 +472,9 @@ export default {
     coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
     coverTag: '封面',
     // F7: 主图去重
-    mainImages: '主图', mainTag: '主图'
+    mainImages: '主图', mainTag: '主图',
+    // v0.31: 多封面排序
+    coverMoveUp: '前移', coverMoveDown: '后移', coverReordered: '封面顺序已更新'
   },
   rules: {
     title: '📜 须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
