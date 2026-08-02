@@ -243,6 +243,7 @@ export async function buildApp(opts = {}) {
   await app.register(import('./features/admin/admin.routes.js'))
   await app.register(import('./features/admin/health.routes.js'))
   await app.register(import('./features/pricing/pricing.routes.js'))
+  await app.register(import('./features/pricing/style.routes.js'))
   await app.register(import('./features/guestbook/guestbook.routes.js'))
 
   // ─── 健康检查 ───
