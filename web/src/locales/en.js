@@ -65,6 +65,8 @@ export default {
 
     // Deadline (v0.15 R51)
     INVALID_DEADLINE: 'Invalid deadline format (must be ISO 8601)',
+    INVALID_START_DATE: 'Start date cannot be later than deadline',
+    INVALID_ANNOUNCEMENT_DATE: 'Announcement expiry cannot be earlier than today',
 
     // Upload
     ILLEGAL_FILE_TYPE: 'Illegal file type',

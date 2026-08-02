@@ -330,6 +330,8 @@ function logout() {
 .sidebar--collapsed :deep(.el-menu-item span) { display: none; }
 /* #47: 折叠态分组标题也隐藏（EP 原生行为可能被自定义样式干扰） */
 .sidebar--collapsed :deep(.el-menu-item-group__title) { display: none; }
+/* #47b: 折叠态图标居中（展开态 margin: 2px 8px 在 64px 宽下偏移） */
+.sidebar--collapsed .sidebar-menu .el-menu-item { margin: 2px 0; justify-content: center; }
 .sidebar-menu .el-menu-item {
   height: 44px;
   line-height: 44px;

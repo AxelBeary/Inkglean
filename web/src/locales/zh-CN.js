@@ -65,6 +65,8 @@ export default {
 
     // 截稿日（v0.15 R51）
     INVALID_DEADLINE: '截稿日格式无效（须为 ISO 8601）',
+    INVALID_START_DATE: '开工日不能晚于截稿日',
+    INVALID_ANNOUNCEMENT_DATE: '公告过期日不能早于今天',
 
     // 上传
     ILLEGAL_FILE_TYPE: '非法文件类型',
