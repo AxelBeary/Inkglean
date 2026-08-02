@@ -525,6 +525,7 @@ export default {
     coverSet: '设为封面', coverUnset: '取消封面',
     coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
     coverEmpty: '暂无作品，上传作品后可设置封面',
+    coverManageLink: '管理封面',
     // R50: 预览
     previewBtn: '预览主页'
   },

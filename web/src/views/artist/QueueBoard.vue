@@ -603,6 +603,7 @@ function bandTooltip(order) {
 }
 
 function goOrder(order) {
+  if (tlDragHappened) return // 拖拽松手不跳转
   router.push(`/orders/${order.id}?from=queue`)
 }
 
@@ -732,6 +733,7 @@ function tlCanDragMove(row) {
 }
 
 /** 横条样式：拖拽中按 dayDelta 覆盖 left/width，其余走 tlRows 计算值 */
+let tlDragHappened = false // 拖拽刚结束，抑制 click 跳转
 function tlBarStyle(row) {
   const d = tlDrag.value
   if (!d || d.orderId !== row.order.id) {
@@ -825,6 +827,8 @@ async function onTlHandleUp() {
   if (!d) return
   tlDrag.value = null
   if (d.dayDelta === 0) return // 没移动过，不发请求
+  tlDragHappened = true // 抑制拖拽松手后的 click 跳转
+  setTimeout(() => { tlDragHappened = false }, 50)
 
   const base = d.edge === 'deadline' ? d.endDate : d.startDate
   const target = new Date(base.getTime() + d.dayDelta * 86_400_000)
@@ -845,8 +849,15 @@ async function onTlHandleUp() {
       // REQ-019: 整体平移——一次性更新开工日+截稿日
       const newStart = dateKey(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000))
       const newEnd = dateKey(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000))
-      await artistApi.updateStartDate(d.orderId, newStart)
-      await artistApi.updateDeadline(d.orderId, newEnd)
+      // 往右拖（延后）：先更新截稿日再更新开工日，避免交叉校验 400（newStart > 旧 deadline）
+      // 往左拖（提前）：先更新开工日再更新截稿日，避免 newEnd < 旧 startDate
+      if (d.dayDelta > 0) {
+        await artistApi.updateDeadline(d.orderId, newEnd)
+        await artistApi.updateStartDate(d.orderId, newStart)
+      } else {
+        await artistApi.updateStartDate(d.orderId, newStart)
+        await artistApi.updateDeadline(d.orderId, newEnd)
+      }
       const src = queue.value.find(o => o.id === d.orderId) || bufferQueue.value.find(o => o.id === d.orderId)
       if (src) { src.startDate = newStart; src.deadline = newEnd }
     } else if (d.edge === 'deadline') {

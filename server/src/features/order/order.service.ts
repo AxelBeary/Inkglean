@@ -398,11 +398,11 @@ export function getArtistOrders(artistId: number, status: string | undefined, { 
     where += ' AND o.status = ?'
     params.push(status)
   }
-  // REQ-020 F1: 关键字搜索（客户昵称、订单号、档位名）
+  // REQ-020 F1: 关键字搜索（客户昵称、QQ号、订单号、档位名）
   if (q && q.trim()) {
-    where += ' AND (o.client_name LIKE ? OR o.order_no LIKE ? OR t.name LIKE ?)'
+    where += ' AND (o.client_name LIKE ? OR o.client_qq LIKE ? OR o.order_no LIKE ? OR t.name LIKE ?)'
     const like = `%${q.trim()}%`
-    params.push(like, like, like)
+    params.push(like, like, like, like)
   }
 
   const total = (db.prepare(`

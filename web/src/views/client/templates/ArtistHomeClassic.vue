@@ -3,11 +3,6 @@
     <!-- 开场：代表作横幅 -->
     <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="banner" ref="heroRef" />
 
-    <!-- v0.25 A: 封面精选（有封面时显示，横幅下方暖色圆角展带） -->
-    <div v-if="coverArtworks.length" class="classic-covers tpl-reveal">
-      <TplCoverShowcase :covers="coverArtworks" class="classic-cover-show" />
-    </div>
-
     <!-- 主体：桌面双栏，移动端单栏 -->
     <div class="classic-body">
       <!-- 左栏：吸顶信息卡（约稿按钮常驻） -->
@@ -108,7 +103,6 @@ import { ref } from 'vue'
 import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import TplHero from '../../../components/templates/TplHero.vue'
-import TplCoverShowcase from '../../../components/templates/TplCoverShowcase.vue'
 import TplStatusBadge from '../../../components/templates/TplStatusBadge.vue'
 import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
@@ -123,7 +117,7 @@ const props = defineProps({
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
 })
 
-const { imgUrl, socialLinks, platformLinks, coverArtworks, galleryArtworks } = useArtistData(props)
+const { imgUrl, socialLinks, platformLinks, galleryArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

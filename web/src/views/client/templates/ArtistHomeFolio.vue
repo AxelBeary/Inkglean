@@ -33,17 +33,6 @@
       <TplAnnouncement :artist="artist" class="folio-announcement" />
     </div>
 
-    <!-- v0.25 A: 封面精选（有封面时显示，作品集编辑式：全宽 + 序号标注 + 细线分隔） -->
-    <section v-if="coverArtworks.length" class="folio-covers tpl-reveal">
-      <div class="folio-covers-head">
-        <h2 class="folio-title">{{ $t('artistHome.covers') }}</h2>
-        <span class="folio-covers-count">{{ coverArtworks.length }}</span>
-      </div>
-      <div class="folio-cover-frame">
-        <TplCoverShowcase :covers="coverArtworks" :interval="4500" class="folio-cover-show" />
-      </div>
-    </section>
-
     <!-- 作品（瀑布流） -->
     <section id="gallery" class="folio-section tpl-reveal" v-if="galleryArtworks.length">
       <div class="folio-inner">
@@ -142,7 +131,6 @@ import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
 import TplHero from '../../../components/templates/TplHero.vue'
-import TplCoverShowcase from '../../../components/templates/TplCoverShowcase.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
@@ -158,7 +146,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const { socialLinks, platformLinks, coverArtworks, galleryArtworks } = useArtistData(props)
+const { socialLinks, platformLinks, galleryArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

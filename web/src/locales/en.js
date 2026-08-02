@@ -526,6 +526,7 @@ export default {
     coverSet: 'Set as cover', coverUnset: 'Remove cover',
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
     coverEmpty: 'No artworks yet — upload artworks first to set covers',
+    coverManageLink: 'Manage covers',
     // R50: preview
     previewBtn: 'Preview page'
   },
