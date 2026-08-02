@@ -385,11 +385,16 @@ export function useOrderForm(subdomain, formRef) {
   /** 表单是否有内容（任一字段非空）——决定 beforeunload 拦截与草稿保存 */
   const hasDraftContent = computed(() =>
     form.tierId != null
+    // v0.33: 画风状态算内容。多画风下"用户主动选了画风"即算；
+    // 单画风自动选中不算（否则刚进页面就拦截离开+弹恢复框，见 restoreDraft 幂等要求）
+    || (isMultiStyle.value && selectedStyleId.value != null)
+    || selectedSizeId.value != null
     || !!form.description.trim()
     || !!form.clientQq.trim()
     || !!form.clientName.trim()
     || Object.values(addonSelections).some(v => v > 0)
     || Object.values(addonToggles).some(Boolean)
+    || Object.values(styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0 || s.optionLabel != null))
   )
 
   function saveDraft() {
@@ -409,7 +414,13 @@ export function useOrderForm(subdomain, formRef) {
           rushMultiplierId: form.rushMultiplierId
         },
         addonSelections: { ...addonSelections },
-        addonToggles: { ...addonToggles }
+        addonToggles: { ...addonToggles },
+        // v0.33: 画风三步走状态（styleId/sizeId/增项勾选），恢复时按 isStyleMode 互斥取用
+        styleState: {
+          styleId: selectedStyleId.value,
+          sizeId: selectedSizeId.value,
+          addonSelections: { ...styleAddonSelections }
+        }
       }))
     } catch { /* Ignore when sessionStorage is unavailable (private mode, etc.) */ }
   }
@@ -427,20 +438,66 @@ export function useOrderForm(subdomain, formRef) {
   )
   watch(addonSelections, scheduleDraftSave, { deep: true })
   watch(addonToggles, scheduleDraftSave, { deep: true })
+  // v0.33: 画风三步走状态变化也要存草稿（刷新后不丢选择）
+  watch(selectedStyleId, scheduleDraftSave)
+  watch(selectedSizeId, scheduleDraftSave)
+  watch(styleAddonSelections, scheduleDraftSave, { deep: true })
 
-  /** 恢复草稿（tiers 加载后调用；档位若已被画师删除则自动丢弃该字段） */
+  /**
+   * 恢复草稿（styles/tiers 加载后调用）
+   * v0.33: 按当前 isStyleMode 互斥恢复——画风模式恢复 styleState，旧模型恢复 tierId，
+   * 不交叉污染（草稿可能同时含两组状态）。画风/尺寸/增项若已被画师删除则逐项丢弃。
+   */
   function restoreDraft(draft) {
     const f = draft.form || {}
-    const tierValid = f.tierId != null && tiers.value.some(tier => tier.id === f.tierId)
-    form.tierId = tierValid ? f.tierId : null
+
+    if (isStyleMode.value) {
+      // ── 画风模式：恢复三步走状态，旧模型字段置空 ──
+      form.tierId = null
+      for (const key of Object.keys(addonSelections)) delete addonSelections[key]
+      for (const key of Object.keys(addonToggles)) delete addonToggles[key]
+
+      const ss = draft.styleState || {}
+      const style = ss.styleId != null ? styles.value.find(s => s.id === ss.styleId) : null
+      if (style) {
+        // 与单画风自动选中相同值时幂等（ref 等值赋值不触发 watcher）
+        selectedStyleId.value = ss.styleId
+        const size = ss.sizeId != null ? (style.sizes || []).find(sz => sz.id === ss.sizeId) : null
+        if (size) {
+          selectedSizeId.value = ss.sizeId
+          // 增项勾选只恢复当前尺寸可用增项中存在的键（其余可能已删/已隐藏）
+          const validIds = new Set((size.addons || []).map(a => a.id))
+          const saved = ss.addonSelections || {}
+          for (const key of Object.keys(saved)) {
+            const id = Number(key)
+            if (validIds.has(id)) {
+              styleAddonSelections[id] = { toggled: false, quantity: 0, optionLabel: null, ...saved[key] }
+            }
+          }
+          // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
+          initStyleAddonDefaults()
+          // v0.33: 倍率是共用字段，画风模式增项步骤也可选——尺寸有效时一并恢复
+          form.usageMultiplierId = f.usageMultiplierId ?? null
+          form.rushMultiplierId = f.rushMultiplierId ?? null
+        }
+      }
+      // 尺寸有效 → 重算价格预览（防抖，多次触发合并为一次）
+      if (selectedSizeId.value) scheduleStyleCalc()
+    } else {
+      // ── 旧模型（tiers）：原逻辑保留，档位被删则丢弃该字段 ──
+      const tierValid = f.tierId != null && tiers.value.some(tier => tier.id === f.tierId)
+      form.tierId = tierValid ? f.tierId : null
+      form.usageMultiplierId = tierValid ? (f.usageMultiplierId ?? null) : null
+      form.rushMultiplierId = tierValid ? (f.rushMultiplierId ?? null) : null
+      if (tierValid && draft.addonSelections) Object.assign(addonSelections, draft.addonSelections)
+      if (tierValid && draft.addonToggles) Object.assign(addonToggles, draft.addonToggles)
+    }
+
+    // ── 文本字段两种模式通用 ──
     form.description = f.description || ''
     form.clientQq = f.clientQq || ''
     form.clientName = f.clientName || ''
     form.notifyEnabled = f.notifyEnabled !== false
-    form.usageMultiplierId = tierValid ? (f.usageMultiplierId ?? null) : null
-    form.rushMultiplierId = tierValid ? (f.rushMultiplierId ?? null) : null
-    if (tierValid && draft.addonSelections) Object.assign(addonSelections, draft.addonSelections)
-    if (tierValid && draft.addonToggles) Object.assign(addonToggles, draft.addonToggles)
   }
 
   /** beforeunload：表单有内容时拦截（浏览器原生确认弹窗） */
@@ -619,6 +676,8 @@ export function useOrderForm(subdomain, formRef) {
     artist, tiers, rulesContent, loading, workflowStages, pricingData,
     // 表单 + 校验
     form, rules,
+    // R57 草稿状态（v0.33: 导出供测试验证画风状态是否算"有内容"）
+    hasDraftContent,
     // 提交状态
     submitting, showSuccess, resultNo, submit,
     // 参考图
