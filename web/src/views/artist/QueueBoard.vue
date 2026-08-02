@@ -1419,7 +1419,7 @@ onMounted(() => {
 /* ─── v0.28: 时间条拖拽 handle + 浮动日期标签 ─── */
 .tl-handle {
   position: absolute; top: 0; bottom: 0;
-  width: 8px;
+  width: 14px;
   cursor: col-resize;
   touch-action: none; /* 移动端：阻止浏览器接管滚动手势，拖拽优先 */
   z-index: 1;
