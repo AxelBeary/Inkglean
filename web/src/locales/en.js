@@ -457,7 +457,11 @@ export default {
     selected: '{n} selected',
     batchDeleteTitle: 'Batch delete', batchDeleteConfirm: 'Delete {n} selected artworks? This cannot be undone.',
     batchDeleted: '{n} artworks deleted', batchPartial: 'Delete finished: {ok} succeeded, {failed} failed',
-    slideToDelete: 'Slide to confirm deletion'
+    slideToDelete: 'Slide to confirm deletion',
+    // REQ-017: cover operations
+    coverSet: 'Set as cover', coverUnset: 'Remove cover',
+    coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
+    coverTag: 'Cover'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',

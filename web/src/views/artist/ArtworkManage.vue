@@ -48,6 +48,20 @@
         <div v-else class="artwork-actions">
           <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
         </div>
+        <!-- REQ-017: 封面星标（常驻右上角，不依赖 hover） -->
+        <button
+          class="artwork-cover-star"
+          :class="{ 'artwork-cover-star--on': art.is_cover }"
+          :disabled="coverBusyId === art.id"
+          :title="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
+          @click="toggleCover(art)"
+        >
+          {{ art.is_cover ? '★' : '☆' }}
+        </button>
+        <!-- REQ-017: 封面标签 + cover_order 序号（多封面时显示顺序） -->
+        <span v-if="art.is_cover" class="artwork-cover-tag">
+          {{ $t('artworks.coverTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
+        </span>
       </div>
     </div>
 
@@ -83,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
@@ -197,6 +211,39 @@ async function remove(art) {
   } catch { /* cancelled */ }
 }
 
+// ─── REQ-017: 封面操作（星标切换，复用 v0.25 API） ───
+const coverBusyId = ref(null)
+
+/** 封面总数（多封面时卡片显示 cover_order 序号） */
+const coverCount = computed(() => artworks.value.filter(a => a.is_cover).length)
+
+/** 作品在封面序列中的序号（按 cover_order 排序，字段缺失 fallback 0 保持后端原序） */
+function coverOrderOf(art) {
+  const covers = artworks.value
+    .filter(a => a.is_cover)
+    .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
+  return covers.findIndex(a => a.id === art.id) + 1
+}
+
+async function toggleCover(art) {
+  coverBusyId.value = art.id
+  try {
+    if (art.is_cover) {
+      await artistApi.unsetArtworkCover(art.id)
+      art.is_cover = 0
+      ElMessage.success(t('artworks.coverUnsetSuccess'))
+    } else {
+      await artistApi.setArtworkCover(art.id)
+      art.is_cover = 1
+      ElMessage.success(t('artworks.coverSetSuccess'))
+    }
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    coverBusyId.value = null
+  }
+}
+
 async function loadArtworks() {
   loading.value = true
   try {
@@ -238,6 +285,27 @@ onMounted(loadArtworks)
 .artwork-item:hover .artwork-actions,
 .artwork-item:focus-within .artwork-actions { opacity: 1; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center; }
+
+/* ─── REQ-017: 封面星标 + 标签 ─── */
+.artwork-cover-star {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 30px; height: 30px; border-radius: 50%; border: none;
+  background: color-mix(in srgb, var(--bg-card) 75%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--text-secondary); font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: color 0.15s, transform 0.15s;
+}
+.artwork-cover-star:hover { transform: scale(1.15); }
+.artwork-cover-star:disabled { cursor: wait; opacity: 0.6; }
+.artwork-cover-star--on { color: var(--el-color-warning); }
+.artwork-cover-tag {
+  position: absolute; top: 6px; left: 6px; z-index: 2;
+  padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--el-color-warning) 85%, transparent);
+  color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  pointer-events: none;
+}
 
 /* ─── R45: 多选模式 ─── */
 .artwork-item--selected { outline: 3px solid var(--el-color-primary); outline-offset: -3px; }

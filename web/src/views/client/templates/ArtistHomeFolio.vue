@@ -45,10 +45,10 @@
     </section>
 
     <!-- 作品（瀑布流） -->
-    <section id="gallery" class="folio-section tpl-reveal" v-if="artworks.length">
+    <section id="gallery" class="folio-section tpl-reveal" v-if="galleryArtworks.length">
       <div class="folio-inner">
         <h2 class="folio-title">{{ $t('artistHome.artworks') }}</h2>
-        <TplGallery :artworks="artworks" :subdomain="subdomain" />
+        <TplGallery :artworks="galleryArtworks" :subdomain="subdomain" />
       </div>
     </section>
 
@@ -158,7 +158,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const { socialLinks, platformLinks, coverArtworks } = useArtistData(props)
+const { socialLinks, platformLinks, coverArtworks, galleryArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

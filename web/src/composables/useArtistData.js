@@ -88,11 +88,23 @@ export function useArtistData(props) {
     }))
   })
 
-  /** 开场代表作（第一张作品），无作品时为 null */
-  const heroArtwork = computed(() => artworks.value[0] || null)
+  /** v0.25 A: 封面作品列表（is_cover=1；字段缺失时为空数组=不显示封面区，向后兼容） */
+  /** REQ-017: 按 cover_order 排序（字段缺失时 fallback 0，保持后端原序） */
+  const coverArtworks = computed(() =>
+    artworks.value
+      .filter(a => a.is_cover)
+      .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
+  )
 
-  /** v0.25 A: 封面作品列表（is_cover=1；后端已将封面排前，此处再过滤兜底；字段缺失时为空数组=不显示封面区，向后兼容） */
-  const coverArtworks = computed(() => artworks.value.filter(a => a.is_cover))
+  /** REQ-017: 开场代表作——显式优先封面，无封面 fallback 第一张作品 */
+  const heroArtwork = computed(() => coverArtworks.value[0] || artworks.value[0] || null)
+
+  /** REQ-017: 瀑布流作品列表——封面不重复展示（用户拍板约束 2）
+   *  兜底：过滤后为空（画师只有一张作品且设了封面）则不去重，避免主页无作品可看 */
+  const galleryArtworks = computed(() => {
+    const filtered = artworks.value.filter(a => !a.is_cover)
+    return filtered.length > 0 ? filtered : artworks.value
+  })
 
   /** 作品预览列表（el-image preview-src-list 用） */
   const previewList = computed(() => artworks.value.map((a) => imgUrl(a.image_path)))
@@ -109,6 +121,7 @@ export function useArtistData(props) {
     platformLinks,
     heroArtwork,
     coverArtworks,
+    galleryArtworks,
     previewList
   }
 }
