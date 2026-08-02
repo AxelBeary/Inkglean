@@ -411,7 +411,22 @@ export default {
     priceEditBtn: '修改价格', priceDialogTitle: '修改最终价格',
     priceNewLabel: '新价格（元）', pricePlaceholder: '输入新的最终价格',
     priceNoteLabel: '改价原因', priceNotePlaceholder: '如：客户追加需求、协商优惠',
-    priceUpdated: '价格已更新'
+    priceUpdated: '价格已更新',
+    // v0.31 REQ-021 F1: 操作记录
+    logTitle: '操作记录', logTypeAll: '全部', logEmpty: '暂无操作记录',
+    logActorSystem: '系统', logActorArtist: '画师', logActorClient: '客户',
+    logType: {
+      status_change: '状态变更', price_change: '改价', extra_item: '附加项',
+      payment: '收款', stage_advance: '节点', note_update: '备注'
+    },
+    logDetail: {
+      statusChange: '{from} → {to}',
+      priceChange: '¥{from} → ¥{to}',
+      extraAdd: '添加附加项「{name}」', extraDelete: '删除附加项「{name}」',
+      paymentAdd: '收款 ¥{amount}', paymentRevoke: '撤销收款 ¥{amount}',
+      stageAdvance: '推进到「{name}」', stageRollback: '「{from}」打回「{to}」',
+      noteAdd: '添加备注', noteDelete: '删除备注'
+    }
   },
   manualOrder: {
     title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',

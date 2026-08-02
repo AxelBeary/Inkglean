@@ -411,7 +411,22 @@ export default {
     priceEditBtn: 'Edit Price', priceDialogTitle: 'Edit Final Price',
     priceNewLabel: 'New Price (¥)', pricePlaceholder: 'Enter new final price',
     priceNoteLabel: 'Reason', priceNotePlaceholder: 'e.g. client added requirements, negotiated discount',
-    priceUpdated: 'Price updated'
+    priceUpdated: 'Price updated',
+    // v0.31 REQ-021 F1: activity log
+    logTitle: 'Activity Log', logTypeAll: 'All', logEmpty: 'No activity yet',
+    logActorSystem: 'System', logActorArtist: 'Artist', logActorClient: 'Client',
+    logType: {
+      status_change: 'Status', price_change: 'Price', extra_item: 'Extra item',
+      payment: 'Payment', stage_advance: 'Stage', note_update: 'Note'
+    },
+    logDetail: {
+      statusChange: '{from} → {to}',
+      priceChange: '¥{from} → ¥{to}',
+      extraAdd: 'Added extra item "{name}"', extraDelete: 'Removed extra item "{name}"',
+      paymentAdd: 'Received ¥{amount}', paymentRevoke: 'Revoked ¥{amount}',
+      stageAdvance: 'Advanced to "{name}"', stageRollback: 'Rolled back from "{from}" to "{to}"',
+      noteAdd: 'Added a note', noteDelete: 'Deleted a note'
+    }
   },
   manualOrder: {
     title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
