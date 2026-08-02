@@ -1,8 +1,6 @@
 <template>
   <div class="admin-page">
-    <el-page-header @back="$router.push('/dashboard')" :title="$t('admin.backToAdmin')" :content="$t('admin.panelTitle')" />
-
-    <div class="stat-grid" style="margin-top: 16px">
+    <div class="stat-grid">
       <el-card shadow="hover"><div class="stat-num">{{ stats?.artistCount ?? '-' }}</div><div class="stat-label">{{ $t('admin.artistCount') }}</div></el-card>
       <el-card shadow="hover"><div class="stat-num">{{ stats?.orderCount ?? '-' }}</div><div class="stat-label">{{ $t('admin.totalOrders') }}</div></el-card>
       <el-card shadow="hover"><div class="stat-num">{{ stats?.activeOrders ?? '-' }}</div><div class="stat-label">{{ $t('admin.activeOrders') }}</div></el-card>
@@ -178,7 +176,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.admin-page { max-width: 900px; margin: 0 auto; padding: 16px; }
+.admin-page { /* 容器由 AdminLayout 提供 */ }
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .stat-num { font-size: 28px; font-weight: bold; color: var(--el-color-primary); text-align: center; }
 .stat-label { color: var(--text-secondary); font-size: 13px; text-align: center; }

@@ -1,7 +1,6 @@
 <template>
   <div class="admin-page">
-    <el-page-header @back="$router.push('/admin')" :title="$t('admin.backToPanel')" :content="$t('admin.greetingManage')" />
-    <el-card style="margin-top: 16px">
+    <el-card>
       <GreetingTable :artist-id="null" />
     </el-card>
   </div>
@@ -12,5 +11,5 @@ import GreetingTable from '../../components/admin/GreetingTable.vue'
 </script>
 
 <style scoped>
-.admin-page { max-width: 900px; margin: 0 auto; padding: 16px; }
+.admin-page { /* 容器由 AdminLayout 提供 */ }
 </style>

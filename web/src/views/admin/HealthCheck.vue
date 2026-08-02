@@ -9,9 +9,7 @@
 -->
 <template>
   <div class="health-page">
-    <el-page-header @back="$router.push('/admin')" :title="$t('admin.backToAdmin')" :content="$t('admin.health.title')" />
-
-    <el-card style="margin-top: 16px">
+    <el-card>
       <div class="health-actions">
         <el-button type="primary" :loading="checking" @click="runChecks">
           {{ checking ? $t('admin.health.checking') : $t('admin.health.start') }}
@@ -75,7 +73,7 @@ function downloadReport() {
 </script>
 
 <style scoped>
-.health-page { max-width: 900px; margin: 0 auto; padding: 16px; }
+.health-page { /* 容器由 AdminLayout 提供 */ }
 .health-actions { display: flex; gap: 12px; }
 .health-note { margin: 10px 0 0; font-size: 12px; color: var(--text-secondary); }
 .health-list { margin-top: 16px; }

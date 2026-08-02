@@ -1,7 +1,6 @@
 <template>
   <div class="admin-page">
-    <el-page-header @back="$router.push('/admin')" :title="$t('admin.backToPanel')" :content="$t('admin.defaultWorkflow')" />
-    <el-alert type="info" :closable="false" style="margin: 16px 0">
+    <el-alert type="info" :closable="false" style="margin-bottom: 16px">
       {{ $t('admin.defaultWorkflowHint') }}
     </el-alert>
     <el-card style="max-width: 700px">
@@ -38,5 +37,5 @@ async function resetTemplate() {
 </script>
 
 <style scoped>
-.admin-page { max-width: 900px; margin: 0 auto; padding: 16px; }
+.admin-page { /* 容器由 AdminLayout 提供 */ }
 </style>
