@@ -76,6 +76,10 @@
                 {{ avatarChar }}
               </div>
             </el-tooltip>
+            <!-- #48: 折叠态主题切换入口（展开态在 footer-actions 中，折叠态需独立补回） -->
+            <div class="collapsed-theme">
+              <ThemePicker />
+            </div>
           </template>
         </div>
       </el-aside>
@@ -322,6 +326,10 @@ function logout() {
 }
 /* 展开态撑满 220px；折叠态 el-menu 原生 64px */
 .sidebar-menu:not(.el-menu--collapse) { width: 220px; }
+/* #47: 折叠态菜单文字完全隐藏，防裁切露出半个字 */
+.sidebar--collapsed :deep(.el-menu-item span) { display: none; }
+/* #47: 折叠态分组标题也隐藏（EP 原生行为可能被自定义样式干扰） */
+.sidebar--collapsed :deep(.el-menu-item-group__title) { display: none; }
 .sidebar-menu .el-menu-item {
   height: 44px;
   line-height: 44px;
@@ -357,6 +365,11 @@ function logout() {
 .sidebar--collapsed .sidebar-footer {
   align-items: center;
   padding: 12px 8px;
+}
+/* #48: 折叠态主题切换垂直排列（64px 宽度内水平放不下） */
+.collapsed-theme :deep(.pref-group) {
+  flex-direction: column;
+  gap: 8px;
 }
 .identity {
   display: flex;
