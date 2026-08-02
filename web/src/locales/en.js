@@ -237,7 +237,9 @@ export default {
     all: 'All',
     replyLabel: 'Artist reply',
     editReply: 'Edit reply',
-    rejectConfirm: 'Reject this message? It will no longer appear on your public page.'
+    rejectConfirm: 'Reject this message? It will no longer appear on your public page.',
+    // F8: language filter
+    languageAll: 'All languages'
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',

@@ -237,7 +237,9 @@ export default {
     all: '全部',
     replyLabel: '画师回复',
     editReply: '编辑回复',
-    rejectConfirm: '确定拒绝这条留言？拒绝后客户主页将不显示。'
+    rejectConfirm: '确定拒绝这条留言？拒绝后客户主页将不显示。',
+    // F8: 语言筛选
+    languageAll: '全部语言'
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
