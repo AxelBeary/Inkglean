@@ -62,6 +62,19 @@
         <span v-if="art.is_cover" class="artwork-cover-tag">
           {{ $t('artworks.coverTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
         </span>
+        <!-- v0.31: 多封面排序按钮（≥2 张封面时显示，调整轮播顺序） -->
+        <div v-if="art.is_cover && coverCount > 1" class="artwork-cover-reorder">
+          <button
+            class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
+            :title="$t('artworks.coverMoveUp')"
+            @click.stop="moveCover(art, -1)"
+          >↑</button>
+          <button
+            class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
+            :title="$t('artworks.coverMoveDown')"
+            @click.stop="moveCover(art, 1)"
+          >↓</button>
+        </div>
       </div>
     </div>
 
@@ -231,16 +244,45 @@ async function toggleCover(art) {
     if (art.is_cover) {
       await artistApi.unsetArtworkCover(art.id)
       art.is_cover = 0
+      art.cover_order = 0
       ElMessage.success(t('artworks.coverUnsetSuccess'))
     } else {
       await artistApi.setArtworkCover(art.id)
       art.is_cover = 1
       ElMessage.success(t('artworks.coverSetSuccess'))
     }
+    await loadArtworks()
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
     coverBusyId.value = null
+  }
+}
+
+// ─── v0.31: 多封面排序（↑↓ 按钮调整轮播顺序） ───
+const coverReordering = ref(false)
+
+async function moveCover(art, direction) {
+  const covers = artworks.value
+    .filter(a => a.is_cover)
+    .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
+  const idx = covers.findIndex(a => a.id === art.id)
+  const swapIdx = idx + direction
+  if (swapIdx < 0 || swapIdx >= covers.length) return
+
+  // 交换位置
+  const orderedIds = covers.map(a => a.id)
+  ;[orderedIds[idx], orderedIds[swapIdx]] = [orderedIds[swapIdx], orderedIds[idx]]
+
+  coverReordering.value = true
+  try {
+    artworks.value = await artistApi.reorderCovers(orderedIds)
+    ElMessage.success(t('artworks.coverReordered'))
+  } catch (err) {
+    ElMessage.error(err.message)
+    await loadArtworks()
+  } finally {
+    coverReordering.value = false
   }
 }
 
@@ -306,6 +348,22 @@ onMounted(loadArtworks)
   color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
   pointer-events: none;
 }
+
+/* ─── v0.31: 多封面排序按钮 ─── */
+.artwork-cover-reorder {
+  position: absolute; bottom: 6px; right: 6px; z-index: 2;
+  display: flex; gap: 2px;
+}
+.cover-reorder-btn {
+  width: 24px; height: 24px; border-radius: 4px; border: none;
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--text-primary); font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.cover-reorder-btn:hover:not(:disabled) { background: var(--el-color-primary-light-8); }
+.cover-reorder-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ─── R45: 多选模式 ─── */
 .artwork-item--selected { outline: 3px solid var(--el-color-primary); outline-offset: -3px; }

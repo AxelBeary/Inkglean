@@ -110,6 +110,8 @@ export const artistApi = {
   // v0.25 A: 封面图（设为封面 / 取消封面；GET artworks 与公开主页返回 is_cover 字段）
   setArtworkCover: (id) => api.put(`/artist/artworks/${id}/cover`),
   unsetArtworkCover: (id) => api.delete(`/artist/artworks/${id}/cover`),
+  // v0.31: 封面排序（多封面轮播顺序）
+  reorderCovers: (orderedIds) => api.put('/artist/artworks/cover-order', { orderedIds }),
   // 须知
   getRules: () => api.get('/artist/rules'),
   // F4: 留言审核

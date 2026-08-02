@@ -396,6 +396,23 @@ export default async function artistRoutes(fastify) {
     return artistService.clearCover(request.artist.id, artworkId)
   })
 
+  /** PUT /api/artist/artworks/cover-order — v0.31: 封面排序（多封面轮播顺序） */
+  fastify.put('/api/artist/artworks/cover-order', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['orderedIds'],
+        properties: {
+          orderedIds: { type: 'array', items: { type: 'integer' }, minItems: 1, maxItems: 50 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    return artistService.reorderCovers(request.artist.id, (request.body as any).orderedIds)
+  })
+
   // ─── 约稿须知 ───
 
   fastify.get('/api/artist/rules', { preHandler: requireAuth }, async (request) => {

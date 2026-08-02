@@ -466,7 +466,9 @@ export default {
     // REQ-017: cover operations
     coverSet: 'Set as cover', coverUnset: 'Remove cover',
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
-    coverTag: 'Cover'
+    coverTag: 'Cover',
+    // v0.31: multi-cover reorder
+    coverMoveUp: 'Move up', coverMoveDown: 'Move down', coverReordered: 'Cover order updated'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
