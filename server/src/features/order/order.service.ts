@@ -2,6 +2,7 @@ import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { calculatePrice } from '../pricing/pricing.service.js'
 import { validateDiscountCode, computeDiscountCents, incrementUsage } from '../pricing/discount.service.js'
+import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import { toSqliteDate } from '../../utils/date.js'
@@ -284,6 +285,9 @@ export function updateOrderStatus(orderId: number, newStatus: string): any {
     db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(newStatus, orderId)
 
+    // v0.31 REQ-021 F1: 操作日志
+    logActivity(orderId, 'status_change', 'artist', { from: order.status, to: newStatus })
+
     if (['done', 'delivered'].includes(newStatus)) {
       db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
         .run(orderId)
@@ -389,6 +393,10 @@ export function updateStartDate(orderId: number, startDate: string | null): any 
 export function addNote(orderId: number, content: string, createdBy: string = 'artist', imagePath: string | null = null): any {
   db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
     .run(orderId, content, createdBy, imagePath)
+  // v0.31 REQ-021 F1: 操作日志（仅画师备注，系统备注不记）
+  if (createdBy !== 'system') {
+    logActivity(orderId, 'note_update', createdBy, { action: 'add', hasImage: !!imagePath })
+  }
   return getOrder(orderId)
 }
 
@@ -403,6 +411,8 @@ export function deleteNote(orderId: number, noteId: number): any {
   if (note.created_by === 'system') throw new AppError(E.SYSTEM_NOTE_PROTECTED, 403)
 
   db.prepare('DELETE FROM order_notes WHERE id = ?').run(noteId)
+  // v0.31 REQ-021 F1: 操作日志
+  logActivity(orderId, 'note_update', 'artist', { action: 'delete', noteId })
   return getOrder(orderId)
 }
 
@@ -527,6 +537,9 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     // v0.31 F4: 改价后节点应收联动
     recalcInstallmentAmounts(orderId)
 
+    // v0.31 REQ-021 F1: 操作日志
+    logActivity(orderId, 'price_change', 'artist', { oldCents, newCents: finalPriceCents, reason: quoteSnapshot || null })
+
     // 自动追加备注
     const oldStr = oldCents != null ? `¥${(oldCents / 100).toFixed(2)}` : '未定价'
     const newStr = `¥${(finalPriceCents / 100).toFixed(2)}`
@@ -641,6 +654,9 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       // v0.31 F4: 加钱后节点应收联动
       recalcInstallmentAmounts(orderId)
 
+      // v0.31 REQ-021 F1: 操作日志
+      logActivity(orderId, 'extra_item', 'artist', { action: 'add', name, priceCents: cents })
+
       // 系统备注
       const priceStr = cents > 0 ? `+${formatCents(cents)}` : '（不计费）'
       let noteContent = `📎 附加工作项「${name}」${priceStr}`
@@ -682,6 +698,9 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
 
       // v0.31 F4: 移除加钱后节点应收联动
       recalcInstallmentAmounts(orderId)
+
+      // v0.31 REQ-021 F1: 操作日志
+      logActivity(orderId, 'extra_item', 'artist', { action: 'delete', name: item.name, priceCents: item.price_cents })
 
       // 系统备注
       const priceStr = item.price_cents > 0 ? `-${formatCents(item.price_cents)}` : '（不计费）'
@@ -843,6 +862,9 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
         db.prepare("UPDATE order_payment_installments SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE id = ?").run(installmentId)
       }
     }
+
+    // v0.31 REQ-021 F1: 操作日志
+    logActivity(orderId, 'payment', createdBy || 'artist', { amountCents, note: note || null, installmentId: installmentId || null })
 
     return db.prepare('SELECT * FROM order_payments WHERE id = ?').get(result.lastInsertRowid) as PaymentRow
   })()
