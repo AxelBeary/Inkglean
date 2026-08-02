@@ -76,6 +76,10 @@
                 {{ avatarChar }}
               </div>
             </el-tooltip>
+            <!-- #48: 折叠态主题切换入口（展开态在 footer-actions 中，折叠态需独立补回） -->
+            <div class="collapsed-theme">
+              <ThemePicker />
+            </div>
           </template>
         </div>
       </el-aside>
@@ -142,7 +146,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen } from '@element-plus/icons-vue'
 import ThemePicker from './ThemePicker.vue'
 import logoUrl from '../assets/logo.webp'
 
@@ -159,6 +163,8 @@ const BASE_MENU_ITEMS = [
   { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard', group: 'work' },
   { index: '/queue', icon: List, labelKey: 'menu.queue', group: 'work' },
   { index: '/orders', icon: Box, labelKey: 'menu.orders', group: 'work' },
+  // #8: 录单入口归位（从订单管理页移回侧边栏「工作」分组）
+  { index: '/orders/new', icon: EditPen, labelKey: 'menu.manualOrder', group: 'work' },
   // v0.26 C: 开稿管理（排期看板后面）
   { index: '/slots', icon: Tickets, labelKey: 'menu.slots', group: 'biz' },
   { index: '/tiers', icon: Money, labelKey: 'menu.tiers', group: 'biz' },
@@ -166,7 +172,9 @@ const BASE_MENU_ITEMS = [
   // #1: 留言管理（作品管理下方，待审核角标）
   { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true, group: 'biz' },
   // R42b: 须知编辑合并进设置页，菜单项移除
-  { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' }
+  { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },
+  // #44: 偏好独立导航（主页对外，偏好对内）
+  { index: '/preferences', icon: Document, labelKey: 'menu.preferences', group: 'front' }
 ]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
@@ -318,6 +326,10 @@ function logout() {
 }
 /* 展开态撑满 220px；折叠态 el-menu 原生 64px */
 .sidebar-menu:not(.el-menu--collapse) { width: 220px; }
+/* #47: 折叠态菜单文字完全隐藏，防裁切露出半个字 */
+.sidebar--collapsed :deep(.el-menu-item span) { display: none; }
+/* #47: 折叠态分组标题也隐藏（EP 原生行为可能被自定义样式干扰） */
+.sidebar--collapsed :deep(.el-menu-item-group__title) { display: none; }
 .sidebar-menu .el-menu-item {
   height: 44px;
   line-height: 44px;
@@ -353,6 +365,11 @@ function logout() {
 .sidebar--collapsed .sidebar-footer {
   align-items: center;
   padding: 12px 8px;
+}
+/* #48: 折叠态主题切换垂直排列（64px 宽度内水平放不下） */
+.collapsed-theme :deep(.pref-group) {
+  flex-direction: column;
+  gap: 8px;
 }
 .identity {
   display: flex;

@@ -121,7 +121,7 @@ export default {
     manualOrder: '手动录单', tiers: '价格管理', artworks: '作品管理',
     guestbook: '留言管理', slots: '开稿管理',
     preview: '主页预览',
-    rules: '须知编辑', settings: '主页设置', admin: '管理后台', logout: '退出登录',
+    rules: '须知编辑', settings: '主页设置', preferences: '偏好设置', admin: '管理后台', logout: '退出登录',
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupFront: '门面'
@@ -459,6 +459,8 @@ export default {
     placeholder: '输入约稿须知内容，支持 HTML 标签如 <h3>、<ul>、<li>、<strong> 等',
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
+  // #44: 偏好设置独立页面（从主页设置拆出）
+  preferences: { title: '偏好设置' },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
     tabPrefs: '偏好', tabRules: '须知编辑', tabWorkflow: '流程与比例',

@@ -25,6 +25,8 @@ const routes = [
   // REQ-015: 旧手动录单链接重定向到新独立页面（不断链）
   { path: '/manual-order', redirect: '/orders/new' },
   { path: '/settings', name: 'ArtistSettings', component: () => import('../views/artist/Settings.vue'), meta: { titleKey: 'menu.settings', requiresAuth: true } },
+  // #44: 偏好独立页面（从主页设置拆出，主页对外/偏好对内）
+  { path: '/preferences', name: 'ArtistPreferences', component: () => import('../views/artist/Preferences.vue'), meta: { titleKey: 'menu.preferences', requiresAuth: true } },
   { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
   { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
   // #1: 留言管理独立页面（v0.24-C）
@@ -35,13 +37,20 @@ const routes = [
   // REQ-016 A: 须知并入「主页展示」tab（showcase）
   { path: '/rules', redirect: '/settings?tab=showcase' },
 
-  // ─── 管理员后台 ───
-  { path: '/admin', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { titleKey: 'admin.panelTitle', requiresAdmin: true } },
-  { path: '/admin/artists', name: 'AdminArtists', component: () => import('../views/admin/ArtistManage.vue'), meta: { titleKey: 'admin.manageArtists', requiresAdmin: true } },
-  { path: '/admin/greetings', name: 'AdminGreetings', component: () => import('../views/admin/GreetingManage.vue'), meta: { titleKey: 'admin.greetingManage', requiresAdmin: true } },
-  { path: '/admin/default-workflow', name: 'AdminDefaultWorkflow', component: () => import('../views/admin/DefaultWorkflowEditor.vue'), meta: { titleKey: 'admin.defaultWorkflow', requiresAdmin: true } },
-  // HC: 系统自检
-  { path: '/admin/health', name: 'AdminHealthCheck', component: () => import('../views/admin/HealthCheck.vue'), meta: { titleKey: 'pageTitle.healthCheck', requiresAdmin: true } },
+  // ─── 管理员后台（#68: 顶部 Tab 导航，嵌套路由） ───
+  {
+    path: '/admin',
+    component: () => import('../components/admin/AdminLayout.vue'),
+    meta: { requiresAdmin: true },
+    children: [
+      { path: '', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { titleKey: 'admin.panelTitle', requiresAdmin: true } },
+      { path: 'artists', name: 'AdminArtists', component: () => import('../views/admin/ArtistManage.vue'), meta: { titleKey: 'admin.manageArtists', requiresAdmin: true } },
+      { path: 'greetings', name: 'AdminGreetings', component: () => import('../views/admin/GreetingManage.vue'), meta: { titleKey: 'admin.greetingManage', requiresAdmin: true } },
+      { path: 'default-workflow', name: 'AdminDefaultWorkflow', component: () => import('../views/admin/DefaultWorkflowEditor.vue'), meta: { titleKey: 'admin.defaultWorkflow', requiresAdmin: true } },
+      // HC: 系统自检
+      { path: 'health', name: 'AdminHealthCheck', component: () => import('../views/admin/HealthCheck.vue'), meta: { titleKey: 'pageTitle.healthCheck', requiresAdmin: true } }
+    ]
+  },
 
   // ─── 404 ───
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/client/LandingPage.vue'), meta: { titleKey: 'pageTitle.notFound' } }

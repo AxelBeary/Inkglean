@@ -1,8 +1,6 @@
 <template>
   <div class="admin-page">
-    <el-page-header @back="$router.push('/admin')" :title="$t('admin.backToPanel')" :content="$t('admin.artistManage')" />
-
-    <div style="display: flex; gap: 12px; margin: 16px 0">
+    <div style="display: flex; gap: 12px; margin-bottom: 16px">
       <el-button type="primary" @click="dialogVisible = true">{{ $t('admin.addArtist') }}</el-button>
       <el-button type="warning" @click="openTransfer">{{ $t('admin.transferAdmin') }}</el-button>
     </div>
@@ -349,7 +347,7 @@ onMounted(loadArtists)
 </script>
 
 <style scoped>
-.admin-page { max-width: 900px; margin: 0 auto; padding: 16px; }
+.admin-page { /* 容器由 AdminLayout 提供 */ }
 /* B7: 订单行展开——收款摘要 */
 .order-expand-pay { padding: 8px 16px; }
 .expand-pay-summary { display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; flex-wrap: wrap; }

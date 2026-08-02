@@ -121,7 +121,7 @@ export default {
     manualOrder: 'Manual Entry', tiers: 'Pricing', artworks: 'Portfolio',
     guestbook: 'Guestbook', slots: 'Slot Settings',
     preview: 'Preview Page',
-    rules: 'Guidelines', settings: 'Page Settings', admin: 'Admin', logout: 'Log out',
+    rules: 'Guidelines', settings: 'Page Settings', preferences: 'Preferences', admin: 'Admin', logout: 'Log out',
     collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupFront: 'Storefront'
@@ -459,6 +459,8 @@ export default {
     placeholder: 'Enter your commission guidelines. HTML tags like <h3>, <ul>, <li>, <strong> are supported',
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
+  // #44: Preferences standalone page (split from Page Settings)
+  preferences: { title: 'Preferences' },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
     tabPrefs: 'Preferences', tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',
