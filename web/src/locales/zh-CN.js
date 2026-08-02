@@ -422,6 +422,10 @@ export default {
     viewQueue: '查看排期', continueEntry: '继续录入', fillClientQq: '请填写客户QQ号',
     // R51: 截稿日
     deadline: '截稿日（可选）', deadlinePlaceholder: '选择截稿日',
+    // F2: 拖拽上传提示
+    dragHint: '拖拽图片到此处，或点击上传',
+    // F3: 开稿日
+    startDate: '开稿日（可选）', startDatePlaceholder: '选择开稿日',
     // REQ-015: QQ历史面板
     historyTitle: '该客户的历史订单', newClient: '🎉 新客户，暂无历史订单'
   },
@@ -461,7 +465,9 @@ export default {
     // REQ-017: 封面操作
     coverSet: '设为封面', coverUnset: '取消封面',
     coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
-    coverTag: '封面'
+    coverTag: '封面',
+    // F7: 主图去重
+    mainImages: '主图', mainTag: '主图'
   },
   rules: {
     title: '📜 须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',

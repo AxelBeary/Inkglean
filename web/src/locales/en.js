@@ -422,6 +422,10 @@ export default {
     viewQueue: 'View queue', continueEntry: 'Enter another', fillClientQq: "Please enter the client's QQ number",
     // R51: deadline
     deadline: 'Deadline (optional)', deadlinePlaceholder: 'Pick a deadline',
+    // F2: drag upload hint
+    dragHint: 'Drag images here, or click to upload',
+    // F3: start date
+    startDate: 'Start date (optional)', startDatePlaceholder: 'Pick a start date',
     // REQ-015: QQ history panel
     historyTitle: "This client's order history", newClient: '🎉 New client — no previous orders'
   },
@@ -461,7 +465,9 @@ export default {
     // REQ-017: cover operations
     coverSet: 'Set as cover', coverUnset: 'Remove cover',
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
-    coverTag: 'Cover'
+    coverTag: 'Cover',
+    // F7: 主图去重
+    mainImages: 'Main images', mainTag: 'Main'
   },
   rules: {
     title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',

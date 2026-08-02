@@ -24,10 +24,43 @@
       <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
     </el-card>
 
-    <!-- 作品网格 -->
+    <!-- F7: 主图区（is_cover=1 单独展示，不在下方网格重复） -->
+    <div v-if="mainArtworks.length > 0" class="main-artwork-section">
+      <h3 class="section-label">{{ $t('artworks.mainImages') }}</h3>
+      <div class="main-artwork-row">
+        <div v-for="art in mainArtworks" :key="art.id" class="main-artwork-card">
+          <el-image
+            :src="`/uploads/${art.image_path}`" fit="cover" class="main-artwork-img"
+            :alt="art.title || $t('artworks.image')"
+            :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
+            :initial-index="artworks.indexOf(art)"
+            preview-teleported
+          />
+          <span class="main-artwork-tag">{{ $t('artworks.mainTag') }}</span>
+          <button
+            class="artwork-cover-star artwork-cover-star--on"
+            :disabled="coverBusyId === art.id"
+            :title="$t('artworks.coverUnset')"
+            @click="toggleCover(art)"
+          >
+            ★
+          </button>
+          <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">
+            <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
+              <span v-if="selectedIds.has(art.id)">✓</span>
+            </span>
+          </div>
+          <div v-else class="artwork-actions">
+            <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 作品网格（F7: 只显示非主图；去重后为空则兜底显示全部） -->
     <div class="artwork-grid" v-loading="loading">
       <div
-        v-for="(art, index) in artworks" :key="art.id"
+        v-for="art in gridArtworks" :key="art.id"
         class="artwork-item"
         :class="{ 'artwork-item--selected': manageMode && selectedIds.has(art.id) }"
       >
@@ -35,7 +68,7 @@
           :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
           :alt="art.title || $t('artworks.image')"
           :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
-          :initial-index="index"
+          :initial-index="artworks.indexOf(art)"
           preview-teleported
         />
         <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
@@ -117,6 +150,19 @@ const { pasteError } = usePasteUpload({
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 const artworks = ref([])
 const loading = ref(true)
+
+// ─── F7: 主图去重（主图单独展示，网格只显示非主图） ───
+/** 主图列表（is_cover=1，按 cover_order 排序） */
+const mainArtworks = computed(() =>
+  artworks.value
+    .filter(a => a.is_cover)
+    .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
+)
+/** 网格作品列表：排除主图；去重后为空则兜底显示全部（只有一张作品且设了主图时） */
+const gridArtworks = computed(() => {
+  const filtered = artworks.value.filter(a => !a.is_cover)
+  return filtered.length > 0 ? filtered : artworks.value
+})
 
 // ─── R45: 多选模式（C58：工具栏"管理"按钮切换） ───
 const manageMode = ref(false)
@@ -270,6 +316,31 @@ onMounted(loadArtworks)
 <style scoped>
 /* R45: 工具栏 */
 .artwork-toolbar { margin: 12px 0; }
+
+/* ─── F7: 主图区（单独展示，不在网格重复） ─── */
+.main-artwork-section { margin: 16px 0 8px; }
+.section-label {
+  font-size: 14px; font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+}
+.main-artwork-row {
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.main-artwork-card {
+  position: relative; border-radius: 8px; overflow: hidden;
+  width: 220px; flex-shrink: 0;
+  border: 2px solid var(--el-color-warning-light-5);
+}
+.main-artwork-img { width: 100%; height: 160px; display: block; }
+.main-artwork-tag {
+  position: absolute; top: 6px; left: 6px; z-index: 2;
+  padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--el-color-warning) 85%, transparent);
+  color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  pointer-events: none;
+}
+.main-artwork-card:hover .artwork-actions { opacity: 1; }
 
 .artwork-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
