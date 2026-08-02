@@ -21,8 +21,8 @@ function getArtist(subdomain: string): { id: number; artist_code: string | null 
   return db.prepare('SELECT id, artist_code FROM artists WHERE subdomain = ? AND deleted_at IS NULL').get(subdomain) as { id: number; artist_code: string | null } | undefined
 }
 
-/** 删除画作行并清理磁盘文件（只删列表内文件，GC 保护） */
-function removeArtworks(artistId: number, pathPattern: string, titlePattern?: string): number {
+/** 删除画作行并清理磁盘文件（只删列表内文件；keepFiles 内的种子文件保留——复跑只删行不删文件，GC 保护） */
+function removeArtworks(artistId: number, pathPattern: string, titlePattern?: string, keepFiles?: ReadonlySet<string>): number {
   const conds = [`artist_id = ?`, `(image_path LIKE ?${titlePattern ? ' OR title LIKE ?' : ''})`]
   const params: unknown[] = titlePattern ? [artistId, pathPattern, titlePattern] : [artistId, pathPattern]
   const rows = db.prepare(`SELECT id, image_path FROM artworks WHERE ${conds.join(' AND ')}`).all(...params) as Array<{ id: number; image_path: string }>
@@ -30,6 +30,8 @@ function removeArtworks(artistId: number, pathPattern: string, titlePattern?: st
   const ids = rows.map(r => r.id)
   db.prepare(`DELETE FROM artworks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids)
   for (const r of rows) {
+    const fileName = r.image_path.slice(r.image_path.lastIndexOf('/') + 1)
+    if (keepFiles?.has(fileName)) continue
     const abs = `${UPLOAD_ROOT}/${r.image_path}`
     if (existsSync(abs)) unlinkSync(abs)
   }
@@ -37,6 +39,11 @@ function removeArtworks(artistId: number, pathPattern: string, titlePattern?: st
 }
 
 interface ArtworkSeed { file: string; title: string; isCover?: boolean }
+
+/** 由种子清单生成文件保护集（复跑时这些文件只删行不删文件） */
+function keepSet(seeds: ArtworkSeed[]): ReadonlySet<string> {
+  return new Set(seeds.map(s => s.file))
+}
 
 function insertArtworks(artistId: number, seeds: ArtworkSeed[]): void {
   const stmt = db.prepare(
@@ -59,19 +66,18 @@ function seedAlice(): void {
   const { id } = alice
   console.log(`[alice] id=${id}`)
 
-  // 1a. 删旧占位作品（"Alice作品N"）与本脚本历史产物（alice-p*.jpg），含磁盘空壳文件
-  const removed = removeArtworks(id, `images/${id}/alice-p%.jpg`, 'Alice作品%')
-  console.log(`[alice] 清理旧作品 ${removed} 行`)
-
-  // 1b. 插入 6 张真实作品
-  insertArtworks(id, [
+  // 1a. 清理 + 1b. 插入 6 张真实作品（keepFiles 保护种子文件，复跑只删行不删文件）
+  const aliceSeeds: ArtworkSeed[] = [
     { file: 'alice-p01.jpg', title: '戴珍珠耳环的少女 · 头像委托', isCover: true },
     { file: 'alice-p02.jpg', title: '芭蕾少女 · 角色插画' },
     { file: 'alice-p03.jpg', title: '浮世绘风 · 和服角色' },
     { file: 'alice-p04.jpg', title: '向日葵 · 暖调头像' },
     { file: 'alice-p05.jpg', title: '歌舞伎风 · 厚涂角色' },
     { file: 'alice-p06.jpg', title: '排练厅 · 场景速写' }
-  ])
+  ]
+  const removed = removeArtworks(id, `images/${id}/alice-p%.jpg`, 'Alice作品%', keepSet(aliceSeeds))
+  console.log(`[alice] 清理旧作品 ${removed} 行`)
+  insertArtworks(id, aliceSeeds)
   console.log('[alice] 插入 6 张真实作品')
 
   // 1c. avatar
@@ -109,17 +115,17 @@ function seedBob(): void {
   const { id } = bob
   console.log(`[bob] id=${id}`)
 
-  const removed = removeArtworks(id, `images/${id}/bob-p%.jpg`, 'Bob作品%')
-  console.log(`[bob] 清理旧作品 ${removed} 行`)
-
-  insertArtworks(id, [
+  const bobSeeds: ArtworkSeed[] = [
     { file: 'bob-p01.jpg', title: '神奈川冲浪 · 场景插画', isCover: true },
     { file: 'bob-p02.jpg', title: '麦田与乌鸦 · 氛围场景' },
     { file: 'bob-p03.jpg', title: '睡莲 · 庭院水景' },
     { file: 'bob-p04.jpg', title: '大桥骤雨 · 雨景' },
     { file: 'bob-p05.jpg', title: '凯风快晴 · 山景' },
     { file: 'bob-p06.jpg', title: '麦田黄昏 · 宽幅构图' }
-  ])
+  ]
+  const removed = removeArtworks(id, `images/${id}/bob-p%.jpg`, 'Bob作品%', keepSet(bobSeeds))
+  console.log(`[bob] 清理旧作品 ${removed} 行`)
+  insertArtworks(id, bobSeeds)
   console.log('[bob] 插入 6 张真实作品')
 
   db.prepare('UPDATE artists SET avatar = ? WHERE id = ?').run(`images/${id}/bob-avatar.jpg`, id)
@@ -182,15 +188,16 @@ function seedCarol(): number {
     throw new Error(`[carol] 图片目录缺失：${tmpDir} 和 ${realDir} 都不存在`)
   }
 
-  // 作品（幂等重建）
-  const removed = removeArtworks(id, `images/${id}/carol-p%.jpg`)
-  if (removed > 0) console.log(`[carol] 清理旧作品 ${removed} 行`)
-  insertArtworks(id, [
+  // 作品（幂等重建，keepFiles 保护种子文件）
+  const carolSeeds: ArtworkSeed[] = [
     { file: 'carol-p01.jpg', title: '星月夜 · 厚涂练习', isCover: true },
     { file: 'carol-p02.jpg', title: '睡莲池 · 色彩练习' },
     { file: 'carol-p03.jpg', title: '船上午宴 · 多人物构图' },
     { file: 'carol-p04.jpg', title: '日出印象 · 光影练习' }
-  ])
+  ]
+  const removed = removeArtworks(id, `images/${id}/carol-p%.jpg`, undefined, keepSet(carolSeeds))
+  if (removed > 0) console.log(`[carol] 清理旧作品 ${removed} 行`)
+  insertArtworks(id, carolSeeds)
   console.log('[carol] 4 张作品已插入')
 
   db.prepare('UPDATE artists SET avatar = ? WHERE id = ?').run(`images/${id}/carol-avatar.jpg`, id)
