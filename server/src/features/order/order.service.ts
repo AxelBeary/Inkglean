@@ -315,6 +315,13 @@ export function updateDeadline(orderId: number, deadline: string | null): any {
     }
     // 统一存储为 SQLite 格式（YYYY-MM-DD HH:MM:SS UTC），与 SQL 比较格式一致
     normalized = toSqliteDate(d)
+    // #35: 交叉校验——截稿日不得早于开工日
+    if (order.start_date) {
+      const startStr = String(order.start_date).slice(0, 10)
+      if (normalized.slice(0, 10) < startStr) {
+        throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
+      }
+    }
   }
 
   db.prepare('UPDATE orders SET deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
@@ -342,6 +349,13 @@ export function updateStartDate(orderId: number, startDate: string | null): any 
       throw new AppError(E.INVALID_DEADLINE, 400, { value: startDate })
     }
     normalized = startDate
+    // #35: 交叉校验——开工日不得晚于截稿日
+    if (order.deadline) {
+      const deadlineStr = String(order.deadline).slice(0, 10)
+      if (normalized > deadlineStr) {
+        throw new AppError(E.INVALID_START_DATE, 400, { value: startDate })
+      }
+    }
   }
 
   db.prepare('UPDATE orders SET start_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
