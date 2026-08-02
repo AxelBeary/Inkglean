@@ -14,7 +14,10 @@ if (DB_PATH !== ':memory:') {
 const db = new Database(DB_PATH)
 
 // 性能优化
-db.pragma('journal_mode = WAL')
+// Docker Desktop Windows 的 bind mount 不支持 WAL 共享内存（-shm），
+// 数据会困在 WAL 文件里，容器停止后丢失。检测 Docker 环境自动降级为 DELETE 模式。
+const isDocker = process.env.DOCKER || process.env.KUBERNETES_SERVICE_HOST || existsSync('/.dockerenv')
+db.pragma(isDocker ? 'journal_mode = DELETE' : 'journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 db.pragma('busy_timeout = 5000')
 
