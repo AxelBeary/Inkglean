@@ -2,7 +2,7 @@
   <ArtistLayout>
     <h2 class="font-display">{{ $t('guestbookManage.title') }}</h2>
 
-    <!-- 状态筛选 -->
+    <!-- 状态筛选 + F8 语言筛选 -->
     <div class="gm-filter">
       <el-radio-group v-model="statusFilter" size="default" @change="onFilterChange">
         <el-radio-button value="">{{ $t('guestbookManage.all') }}</el-radio-button>
@@ -13,6 +13,16 @@
         <el-radio-button value="approved">{{ $t('dashboard.guestbookApproved') }}</el-radio-button>
         <el-radio-button value="rejected">{{ $t('dashboard.guestbookRejected') }}</el-radio-button>
       </el-radio-group>
+      <el-select
+        v-model="languageFilter" size="default" class="gm-language-select"
+        @change="onFilterChange"
+      >
+        <el-option value="" :label="$t('guestbookManage.languageAll')" />
+        <el-option
+          v-for="lang in languageOptions" :key="lang.value"
+          :value="lang.value" :label="lang.label"
+        />
+      </el-select>
     </div>
 
     <!-- 留言列表 -->
@@ -20,6 +30,7 @@
       <div v-for="msg in pagedMessages" :key="msg.id" class="gm-card" :class="`gm-card--${msg.status}`">
         <div class="gm-card-head">
           <span class="gm-nickname">{{ msg.nickname }}</span>
+          <span v-if="msg.language" class="gm-lang-badge">{{ languageLabel(msg.language) }}</span>
           <el-tag :type="statusType(msg.status)" size="small">{{ $t(`dashboard.guestbook${statusLabel(msg.status)}`) }}</el-tag>
           <span class="gm-time">{{ formatDateTime(msg.created_at) }}</span>
         </div>
@@ -89,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -101,6 +112,7 @@ const { t } = useI18n()
 const messages = ref([])
 const loading = ref(true)
 const statusFilter = ref('')
+const languageFilter = ref('')
 const page = ref(1)
 const pageSize = 20
 
@@ -109,16 +121,50 @@ const replyingId = ref(null)
 const replyText = ref('')
 const replySaving = ref(false)
 
+// ─── F8: 语言筛选 ───
+
+/** 语言代码 → 显示标签（语言名用原文显示是惯例；未知语言直接显示代码） */
+const LANGUAGE_LABELS = {
+  'zh-CN': '中文',
+  'en': 'English',
+  'ja': '日本語'
+}
+
+function languageLabel(lang) {
+  return LANGUAGE_LABELS[lang] || lang
+}
+
+/** 动态语言选项（REQ-021 F8：根据实际数据生成，按数量降序） */
+const languageOptions = computed(() => {
+  const counts = {}
+  for (const m of messages.value) {
+    if (m.language) counts[m.language] = (counts[m.language] || 0) + 1
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([lang]) => ({ value: lang, label: languageLabel(lang) }))
+})
+
 /** 后端 GET /api/artist/messages 返回全量数组（无分页参数），前端本地筛选+分页 */
-const filteredMessages = computed(() =>
-  statusFilter.value ? messages.value.filter(m => m.status === statusFilter.value) : messages.value
-)
+const filteredMessages = computed(() => {
+  let list = messages.value
+  if (statusFilter.value) list = list.filter(m => m.status === statusFilter.value)
+  if (languageFilter.value) list = list.filter(m => m.language === languageFilter.value)
+  return list
+})
 const pagedMessages = computed(() =>
   filteredMessages.value.slice((page.value - 1) * pageSize, page.value * pageSize)
 )
 const pendingCount = computed(() => messages.value.filter(m => m.status === 'pending').length)
 
 function onFilterChange() { page.value = 1 }
+
+/** 数据刷新后当前语言筛选值已不存在时自动重置（如该语言留言全部删除） */
+watch(languageOptions, (opts) => {
+  if (languageFilter.value && !opts.some(o => o.value === languageFilter.value)) {
+    languageFilter.value = ''
+  }
+})
 
 const STATUS_TYPE = { pending: 'warning', approved: 'success', rejected: 'info' }
 const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }
@@ -179,8 +225,16 @@ onMounted(load)
 </script>
 
 <style scoped>
-.gm-filter { margin: 16px 0; }
+.gm-filter { margin: 16px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gm-language-select { width: 140px; }
 .gm-badge { margin-left: 6px; }
+.gm-lang-badge {
+  font-size: 11px; font-weight: 600;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  padding: 1px 8px; border-radius: 999px;
+  white-space: nowrap;
+}
 
 .gm-list { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
 .gm-card {
