@@ -47,6 +47,30 @@ export function useOrderForm(subdomain, formRef) {
   const workflowStages = ref([])
   const pricingData = ref(null) // { tiers, multipliers, installments }
 
+  // ─── v0.32 REQ-023 Phase2: 多画风状态 ───
+  /** 公开画风列表（GET /public/styles/:subdomain，只含 is_active=1） */
+  const styles = ref([])
+  /** 画风模式：有画风数据时启用（styles.length > 0） */
+  const isStyleMode = computed(() => styles.value.length > 0)
+  /** 多画风：需要选画风步骤（styles.length > 1）；单画风退化为扁平模型 */
+  const isMultiStyle = computed(() => styles.value.length > 1)
+  /** 选中的画风 ID（单画风时自动选中唯一项） */
+  const selectedStyleId = ref(null)
+  const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
+  /** 选中的尺寸 ID */
+  const selectedSizeId = ref(null)
+  const selectedSize = computed(() => selectedStyle.value?.sizes?.find(sz => sz.id === selectedSizeId.value) || null)
+  /** 当前尺寸下可用增项（后端已过滤 is_hidden） */
+  const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
+  /**
+   * 增项选择状态 { [styleAddonId]: { toggled, quantity, optionLabel } }
+   * switch → toggled; quantity → quantity>0; radio → optionLabel!=null
+   */
+  const styleAddonSelections = reactive({})
+  /** 画风价格预览（calculate-style-price 响应） */
+  const stylePricePreview = ref(null)
+  const stylePricingExpanded = ref(false)
+
   // ─── 表单状态 ───
   const form = reactive({
     tierId: null,
@@ -214,6 +238,8 @@ export function useOrderForm(subdomain, formRef) {
     try {
       const res = await artistPublicApi.validateDiscount({ subdomain, code })
       discountResult.value = { discountType: res.discountType, discountValue: res.discountValue }
+      // v0.32: 画风模式下验证通过后立即重算价格（calculate-style-price 含折扣）
+      if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
     } catch (err) {
       discountResult.value = null
       discountError.value = err.message
@@ -226,6 +252,8 @@ export function useOrderForm(subdomain, formRef) {
   function clearDiscount() {
     discountResult.value = null
     discountError.value = ''
+    // v0.32: 画风模式下折扣码变化需重算价格（calculate-style-price 含折扣）
+    if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
   }
 
   // 输入框内容变化 → 清除旧验证结果（防止码改了但折扣还挂着）
@@ -250,6 +278,106 @@ export function useOrderForm(subdomain, formRef) {
     const total = pricePreview.value?.totalPrice ?? 0
     return Math.max(0, total - discountPreviewYuan.value)
   })
+
+  // ─── v0.32 REQ-023 Phase2: 画风选择 + 计价 + 提交 ───
+
+  /** 选择画风（多画风步骤 1） */
+  function selectStyle(id) {
+    if (selectedStyleId.value === id) return
+    selectedStyleId.value = id
+    // 切换画风时重置尺寸和增项
+    selectedSizeId.value = null
+    for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+    stylePricePreview.value = null
+    stylePricingExpanded.value = false
+  }
+
+  /** 选择尺寸（步骤 2） */
+  function selectSize(id) {
+    if (selectedSizeId.value === id) return
+    selectedSizeId.value = id
+    // 切换尺寸时重置增项选择（不同尺寸可用增项不同）
+    for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+    stylePricePreview.value = null
+    initStyleAddonDefaults()
+    scheduleStyleCalc()
+  }
+
+  /** 初始化增项默认值（el-input-number 不接受 undefined） */
+  function initStyleAddonDefaults() {
+    for (const a of availableStyleAddons.value) {
+      if (!styleAddonSelections[a.id]) {
+        styleAddonSelections[a.id] = { toggled: false, quantity: 0, optionLabel: null }
+      }
+    }
+  }
+
+  /** 构建已选增项列表（计价与提交共用） */
+  function buildStyleAddons() {
+    const addons = []
+    for (const a of availableStyleAddons.value) {
+      const sel = styleAddonSelections[a.id]
+      if (!sel) continue
+      if (a.control_type === 'switch' && sel.toggled) {
+        addons.push({ styleAddonId: a.id })
+      } else if (a.control_type === 'quantity' && sel.quantity > 0) {
+        addons.push({ styleAddonId: a.id, quantity: sel.quantity })
+      } else if (a.control_type === 'radio' && sel.optionLabel) {
+        addons.push({ styleAddonId: a.id, optionLabel: sel.optionLabel })
+      }
+    }
+    return addons
+  }
+
+  /** 画风价格计算（防抖 300ms，全走后端 API） */
+  let styleCalcTimer = null
+  function scheduleStyleCalc() {
+    if (styleCalcTimer) clearTimeout(styleCalcTimer)
+    styleCalcTimer = setTimeout(doStyleCalc, 300)
+  }
+
+  async function doStyleCalc() {
+    if (!selectedSizeId.value) { stylePricePreview.value = null; return }
+    try {
+      stylePricePreview.value = await artistPublicApi.calculateStylePrice({
+        subdomain,
+        styleSizeId: selectedSizeId.value,
+        addons: buildStyleAddons(),
+        usageMultiplierId: form.usageMultiplierId,
+        rushMultiplierId: form.rushMultiplierId,
+        discountCode: form.discountCode.trim() || null
+      })
+    } catch {
+      stylePricePreview.value = null
+    }
+  }
+
+  // 监听增项/倍率/折扣变化 → 触发画风计价
+  watch(styleAddonSelections, scheduleStyleCalc, { deep: true })
+  watch([() => form.usageMultiplierId, () => form.rushMultiplierId], () => {
+    if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
+  })
+
+  /** 解析 radio 选项 JSON（安全回退空数组） */
+  function parseAddonOptions(optionsJson) {
+    if (!optionsJson) return []
+    try {
+      const parsed = JSON.parse(optionsJson)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+
+  /** 画风模式展示价（优先后端计价结果，未计价时回退尺寸基础价） */
+  const styleDisplayPrice = computed(() =>
+    stylePricePreview.value?.totalPrice ?? selectedSize.value?.base_price ?? 0
+  )
+
+  /** 画风模式是否有计价增项（控制"详细计价"展开入口） */
+  const hasStylePricingExtras = computed(() =>
+    availableStyleAddons.value.length > 0 || usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0
+  )
 
   // ─── R57: 表单防丢失（beforeunload 拦截 + sessionStorage 草稿） ───
   const DRAFT_KEY = `orderForm_draft_${subdomain}`
@@ -385,16 +513,39 @@ export function useOrderForm(subdomain, formRef) {
 
     submitting.value = true
     try {
+      // v0.32 REQ-023 Phase2: 画风模式 vs 旧模型（tiers）
+      // 画风模式：POST /orders schema 有 additionalProperties:false，暂不传 styleSizeId（三号后续扩展）
+      // 兼容方案：画风/尺寸/增项信息写入 description 前缀，tierId 传 null
+      let description = form.description.trim()
+      let addons = buildSelectedAddons()
+      let tierId = form.tierId
+
+      if (isStyleMode.value && selectedStyle.value && selectedSize.value) {
+        // 构建画风摘要前缀
+        const addonLines = buildStyleAddons().map(sel => {
+          const a = availableStyleAddons.value.find(x => x.id === sel.styleAddonId)
+          if (!a) return ''
+          if (a.control_type === 'quantity') return `${a.name}×${sel.quantity}`
+          if (a.control_type === 'radio') return `${a.name}(${sel.optionLabel})`
+          return a.name
+        }).filter(Boolean)
+        const styleSummary = `[${selectedStyle.value.name} / ${selectedSize.value.name}${addonLines.length ? ' / ' + addonLines.join('、') : ''}]`
+        description = description ? `${styleSummary}\n${description}` : styleSummary
+        // 画风模式不传旧模型 addons 和 tierId
+        addons = []
+        tierId = null
+      }
+
       const order = await orderApi.create({
         subdomain,
-        tierId: form.tierId,
-        description: form.description.trim(),
+        tierId,
+        description,
         clientQq: form.clientQq.trim(),
         clientName: form.clientName.trim(),
         clientNotify: form.notifyEnabled,
         agreeRules: form.agreed,
         references: uploadedRefs.value,
-        addons: buildSelectedAddons(),
+        addons,
         usageMultiplierId: form.usageMultiplierId,
         rushMultiplierId: form.rushMultiplierId,
         // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
@@ -430,6 +581,16 @@ export function useOrderForm(subdomain, formRef) {
         .then(res => { pricingData.value = res })
         .catch(() => {})
 
+      // v0.32 REQ-023 Phase2: 加载画风列表（await 保证步骤列表渲染前稳定；失败静默走旧模型兜底）
+      try {
+        const styleRes = await artistPublicApi.getPublicStyles(subdomain)
+        styles.value = styleRes || []
+        // 单画风自动选中（退化为扁平模型，跳过选画风步骤）
+        if (styles.value.length === 1) {
+          selectedStyleId.value = styles.value[0].id
+        }
+      } catch { /* 静默失败：走旧模型（tiers） */ }
+
       // R57: 草稿恢复（tiers 加载后校验档位有效性）
       let draft = null
       try {
@@ -464,6 +625,7 @@ export function useOrderForm(subdomain, formRef) {
     window.removeEventListener('beforeunload', onBeforeUnload)
     if (draftTimer) clearTimeout(draftTimer)
     if (calcTimer) clearTimeout(calcTimer)
+    if (styleCalcTimer) clearTimeout(styleCalcTimer)
   })
 
   return {
@@ -483,6 +645,12 @@ export function useOrderForm(subdomain, formRef) {
     sanitizedRules,
     // v0.31 F3: 折扣码
     discountEnabled, discountResult, discountError, discountValidating,
-    validateDiscountCode, discountPreviewYuan, discountedTotalYuan
+    validateDiscountCode, discountPreviewYuan, discountedTotalYuan,
+    // v0.32 REQ-023 Phase2: 多画风
+    styles, isStyleMode, isMultiStyle,
+    selectedStyleId, selectedStyle, selectedSizeId, selectedSize,
+    availableStyleAddons, styleAddonSelections,
+    selectStyle, selectSize, buildStyleAddons, parseAddonOptions,
+    stylePricePreview, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras
   }
 }
