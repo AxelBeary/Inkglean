@@ -1,12 +1,12 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-03 v0.32 收工
+> 最后更新：2026-08-03 v0.32 容器重建验证完成
 > 维护者：一号（主理人）
 
 ---
 ## master 状态
 
-- **HEAD**：`279b4c8`（merge: v0.32 Phase3 四模板适配），与 origin 同步
+- **HEAD**：`755256c`（docs: 归档视觉提案v2），与 origin 同步
 - **后端测试**：666/666 通过（39 文件）
 - **前端测试**：106/106 通过（6 文件）
 - **迁移**：v36（multi_style_model）
@@ -28,9 +28,19 @@
 
 ### 遗留（排下版本）
 
-- 草稿恢复未覆盖画风状态（R57 草稿只存旧模型字段，刷新后画风选择丢失）——二号报告关注项 2
+- 草稿恢复未覆盖画风状态（R57 草稿只存旧模型字段 tierId/description/clientQq 等，刷新后画风选择丢失）——一号已核实代码现状（useOrderForm.js L395-415 saveDraft 无 selectedStyleId/selectedSizeId）
 - 4 模板视觉走查（建议用真实画师数据有/无画风各过一遍，`?_tpl=` 参数切模板）
-- Docker 容器重建验证迁移 v36（生产部署前必做）
+
+### ✅ 已完成（v0.32 收尾验证）
+
+- 容器重建验证迁移 v36：✅ 2026-08-03 重建 Healthy，日志确认 `multi_style_model 已应用` + 自动备份
+- 老数据回填验证：✅ alice 公开接口 `/api/public/styles/alice` 返回"默认"画风，旧档位价格已迁入（头像¥50/半身¥120/全身¥200）
+- 迁移前手动备份：`data/commission.db.bak.pre-v36`
+- 视觉提案 v2 归档入库（`755256c`）
+
+### 技术债（非阻塞）
+
+- 画风 API 全链路 snake_case（cover_image/base_price/sort_order），与项目其他 API camelCase 约定不一致——前后端已自洽（ArtStyleManager/TplStyleGrid/useOrderForm 均用 snake_case），不改，记录在案
 
 ---
 ## 各角色状态
