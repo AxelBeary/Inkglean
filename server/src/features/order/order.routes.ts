@@ -299,10 +299,11 @@ export default async function orderRoutes(fastify: any) {
    * GET /api/artist/orders
    */
   fastify.get('/api/artist/orders', { preHandler: requireAuth }, async (request: any) => {
-    const { status, page, pageSize } = (request.query || {}) as any
+    const { status, page, pageSize, q } = (request.query || {}) as any
     const result = orderService.getArtistOrders(request.artist.id, status, {
       page: Math.max(1, parseInt(page, 10) || 1),
-      pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200))
+      pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200)),
+      q: typeof q === 'string' ? q.slice(0, 100) : undefined
     })
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
     if (result.items) {
