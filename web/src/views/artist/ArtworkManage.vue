@@ -101,12 +101,16 @@
             class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
             :title="$t('artworks.coverMoveUp')"
             @click.stop="moveCover(art, -1)"
-          >↑</button>
+          >
+            ↑
+          </button>
           <button
             class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
             :title="$t('artworks.coverMoveDown')"
             @click.stop="moveCover(art, 1)"
-          >↓</button>
+          >
+            ↓
+          </button>
         </div>
       </div>
     </div>

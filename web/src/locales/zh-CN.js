@@ -434,6 +434,8 @@ export default {
     dragHint: '拖拽图片到此处，或点击上传',
     // F3: 开稿日
     startDate: '开稿日（可选）', startDatePlaceholder: '选择开稿日',
+    // F4: 初始节点状态
+    initialStatus: '初始节点状态', initialStatusHint: '线下已谈好的单子可直接跳过确认环节',
     // REQ-015: QQ历史面板
     historyTitle: '该客户的历史订单', newClient: '🎉 新客户，暂无历史订单'
   },

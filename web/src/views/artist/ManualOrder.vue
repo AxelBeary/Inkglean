@@ -189,6 +189,20 @@
               </div>
             </div>
 
+            <!-- F4: 初始节点状态（线下已谈好的单子可直接跳过确认） -->
+            <div class="mo-field">
+              <div class="mo-field-label">{{ $t('manualOrder.initialStatus') }}</div>
+              <el-radio-group v-model="initialStatus" size="small">
+                <el-radio-button
+                  v-for="opt in initialStatusOptions" :key="opt.value"
+                  :value="opt.value" :disabled="opt.disabled"
+                >
+                  {{ $t(`common.orderStatus.${opt.value}`) }}
+                </el-radio-button>
+              </el-radio-group>
+              <p class="initial-status-hint">{{ $t('manualOrder.initialStatusHint') }}</p>
+            </div>
+
             <!-- 价格面板 sticky（≥600px 可见，<600px 由底部价格条替代） -->
             <div class="mo-price-sticky">
               <!-- 实时价格预览 -->
@@ -289,6 +303,7 @@ import { ElMessage } from 'element-plus'
 import { Plus, InfoFilled, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
+import { useStageStatus } from '../../composables/useStageStatus.js'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 import { ORDER_STATUS_TYPE } from '../../constants/order.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
@@ -316,6 +331,10 @@ const mobileDetailOpen = ref(false)
 const qqHistory = ref([])
 const qqHistoryLoading = ref(false)
 const qqHistoryLoaded = ref(false)
+
+// ─── F4: 初始节点状态 ───
+const workflowStages = ref([])
+const { initialStatus, options: initialStatusOptions, findTarget: findTargetStage } = useStageStatus(workflowStages)
 
 const form = reactive({
   clientQq: '',
@@ -587,6 +606,18 @@ async function submit() {
       } catch (e) { postCreateFailed = postCreateFailed || `开稿日写入失败：${e.message}` }
     }
 
+    // F4: 初始节点状态（非默认时推进到目标节点；R30d 有工作流的订单不能直接改 status）
+    if (order.id && initialStatus.value !== 'pending') {
+      try {
+        if (workflowStages.value.length > 0) {
+          const target = findTargetStage()
+          if (target) await artistApi.advanceStage(order.id, target.id)
+        } else {
+          await artistApi.updateStatus(order.id, initialStatus.value)
+        }
+      } catch (e) { postCreateFailed = postCreateFailed || `初始状态设置失败：${e.message}` }
+    }
+
     resultNo.value = order.order_no
     showResult.value = true
     if (postCreateFailed) {
@@ -608,6 +639,7 @@ function resetForm() {
   form.priority = 'medium'
   form.deadline = null
   form.startDate = null
+  initialStatus.value = 'pending'
   form.clientNotify = false
   form.usageMultiplierId = null
   form.rushMultiplierId = null
@@ -633,6 +665,10 @@ onMounted(async () => {
     // 加载价格数据（增项+倍率）
     artistPublicApi.getPricing(profile.subdomain)
       .then(res => { pricingData.value = res })
+      .catch(() => {})
+    // F4: 加载工作流节点（判断初始状态可达性）
+    artistApi.getWorkflow()
+      .then(res => { workflowStages.value = res.stages || [] })
       .catch(() => {})
   } catch { /* ignore */ }
 })
@@ -791,6 +827,9 @@ onMounted(async () => {
 .multiplier-section { width: 100%; }
 .multiplier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .multiplier-label { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
+
+/* ─── F4: 初始节点状态 ─── */
+.initial-status-hint { font-size: 12px; color: var(--text-secondary); margin: 6px 0 0; }
 
 /* ─── 价格面板 sticky ─── */
 .mo-price-sticky {
