@@ -45,7 +45,7 @@ export function getArtistById(id: number): Artist | undefined {
 }
 
 export function getAllArtists(): Artist[] {
-  return db.prepare('SELECT * FROM artists WHERE deleted_at IS NULL ORDER BY created_at ASC').all() as Artist[]
+  return db.prepare("SELECT * FROM artists WHERE deleted_at IS NULL AND subdomain != 'system' ORDER BY created_at ASC").all() as Artist[]
 }
 
 export async function createArtist({ qqNumber, name, subdomain, bio, artistCode }: {
