@@ -97,6 +97,14 @@
       <el-tab-pane :label="$t('tiers.tabDiscount')" name="discount" lazy>
         <DiscountCodeManager />
       </el-tab-pane>
+      <!-- v0.32 REQ-023 Phase1: 画风管理 -->
+      <el-tab-pane :label="$t('styleManage.tabStyles')" name="artStyles" lazy>
+        <ArtStyleManager />
+      </el-tab-pane>
+      <!-- v0.32 REQ-023 Phase1: 增项库 -->
+      <el-tab-pane :label="$t('styleManage.tabTemplates')" name="addonTemplates" lazy>
+        <AddonTemplateManager />
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 档位编辑弹窗 -->
@@ -154,6 +162,8 @@ import AddonManager from '../../components/artist/AddonManager.vue'
 import MultiplierManager from '../../components/artist/MultiplierManager.vue'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import DiscountCodeManager from '../../components/artist/DiscountCodeManager.vue'
+import ArtStyleManager from '../../components/artist/ArtStyleManager.vue'
+import AddonTemplateManager from '../../components/artist/AddonTemplateManager.vue'
 
 const { t } = useI18n()
 const activeTab = ref('tiers')
