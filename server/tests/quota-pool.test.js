@@ -157,26 +157,26 @@ describe('B7 额度池（v0.23）', () => {
     expect(result).toBe('测试客户，已付¥300，待付¥200')
   })
 
-  // ─── adjustInstallments 已删除 ───
+  // ─── v0.31 F4: 加钱后节点应收联动 ───
 
-  it('TC-ADJ-01: addExtraItem 不再调 adjustInstallments', () => {
+  it('TC-ADJ-01: addExtraItem 后 recalcInstallmentAmounts 按比列重算节点应收', () => {
     const artist = seedArtist({ qq_number: '88107', subdomain: 'adj1' })
     const order = seedOrder(artist.id, {
       status: 'confirmed'
     })
     // seedOrder 不含 total_price_cents 列，手动设置
     db.prepare('UPDATE orders SET total_price_cents = 50000, final_price_cents = 50000 WHERE id = ?').run(order.id)
-    // 手动插入一个 installment
+    // 手动插入一个 installment（30% 比例）
     db.prepare(
       'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
     ).run(order.id, '定金', 3000, 15000, 1)
 
-    // 添加附加项
+    // 添加附加项（+5000 → 总价 55000）
     orderService.addExtraItem(order.id, { name: '加急', priceCents: 5000 })
 
-    // installment 金额不变（不再被 adjustInstallments 修改）
+    // v0.31 F4: 节点应收按 basis_points 比例重算（55000 × 30% = 16500）
     const inst = db.prepare('SELECT amount_cents FROM order_payment_installments WHERE order_id = ?').get(order.id)
-    expect(inst.amount_cents).toBe(15000)
+    expect(inst.amount_cents).toBe(16500)
 
     // final_price_cents 已更新
     const fresh = orderService.getOrder(order.id)
