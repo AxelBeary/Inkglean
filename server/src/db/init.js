@@ -197,6 +197,7 @@ CREATE TABLE IF NOT EXISTS order_payment_installments (
   label TEXT NOT NULL,
   basis_points INTEGER NOT NULL,
   amount_cents INTEGER,
+  paid_cents INTEGER DEFAULT 0,
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','overdue')),
   sort_order INTEGER NOT NULL DEFAULT 0,
   requested_at DATETIME,
@@ -209,6 +210,7 @@ CREATE TABLE IF NOT EXISTS order_payment_installments (
 CREATE TABLE IF NOT EXISTS order_payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
+  installment_id INTEGER DEFAULT NULL,
   amount_cents INTEGER NOT NULL,
   note TEXT DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1150,6 +1152,22 @@ export const MIGRATIONS = [
       }
       if (!orderCols.some(c => c.name === 'discount_amount_cents')) {
         database.exec('ALTER TABLE orders ADD COLUMN discount_amount_cents INTEGER DEFAULT 0')
+      }
+    }
+  },
+  {
+    version: 33,
+    name: 'installment_paid_cents',
+    up(database) {
+      // v0.31 F4: 节点收款重做——每节点记录实收金额
+      const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all()
+      if (!instCols.some(c => c.name === 'paid_cents')) {
+        database.exec('ALTER TABLE order_payment_installments ADD COLUMN paid_cents INTEGER DEFAULT 0')
+      }
+      // 收款流水关联到具体节点（可选，null = 额度池兜底）
+      const payCols = database.prepare('PRAGMA table_info(order_payments)').all()
+      if (!payCols.some(c => c.name === 'installment_id')) {
+        database.exec('ALTER TABLE order_payments ADD COLUMN installment_id INTEGER DEFAULT NULL')
       }
     }
   }

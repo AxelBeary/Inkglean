@@ -400,6 +400,9 @@ export default {
     payDialogTitle: '记录收款', payAmountLabel: '收款金额（元）', payAmountPlaceholder: '输入金额',
     payNoteLabel: '备注（可选）', payNotePlaceholder: '如：微信转账、定金',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
+    // v0.31 F4: 节点收款
+    payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
+    payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',
     // v0.31 五号方案A：改价按钮
     priceEditBtn: '修改价格', priceDialogTitle: '修改最终价格',
     priceNewLabel: '新价格（元）', pricePlaceholder: '输入新的最终价格',

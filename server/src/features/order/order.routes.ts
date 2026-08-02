@@ -917,19 +917,21 @@ export default async function orderRoutes(fastify: any) {
         required: ['amountCents'],
         properties: {
           amountCents: { type: 'integer', minimum: -99999999, maximum: 99999999 },
-          note: { type: ['string', 'null'], maxLength: 200 }
+          note: { type: ['string', 'null'], maxLength: 200 },
+          installmentId: { type: ['integer', 'null'] }
         },
         additionalProperties: false
       }
     }
   }, async (request: any) => {
-    const { amountCents, note } = request.body as any
-    const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist' })
+    const { amountCents, note, installmentId } = request.body as any
+    const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', installmentId: installmentId || null })
     const order = orderService.getOrder(request.order.id)
     return {
       payment,
       paidTotalCents: order?.paid_total_cents ?? 0,
-      finalPriceCents: order?.final_price_cents ?? order?.total_price_cents ?? null
+      finalPriceCents: order?.final_price_cents ?? order?.total_price_cents ?? null,
+      installments: orderService.getOrderInstallments(request.order.id)
     }
   })
 

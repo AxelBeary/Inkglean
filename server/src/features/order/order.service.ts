@@ -524,6 +524,9 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     db.prepare('UPDATE orders SET final_price_cents = ?, quote_snapshot = COALESCE(?, quote_snapshot), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(finalPriceCents, quoteSnapshot ?? null, orderId)
 
+    // v0.31 F4: 改价后节点应收联动
+    recalcInstallmentAmounts(orderId)
+
     // 自动追加备注
     const oldStr = oldCents != null ? `¥${(oldCents / 100).toFixed(2)}` : '未定价'
     const newStr = `¥${(finalPriceCents / 100).toFixed(2)}`
@@ -537,16 +540,21 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
 // ─── SPEC-003: 附加工作项 ───
 
 /**
- * 获取订单付款节点（客户进度页用）
- * B7: 改为 paid_total_cents 推算三态（paid/partial/pending）
+ * 获取订单付款节点（客户进度页 + 画师端节点收款）
+ * v0.31 F4: 返回节点维度 paid_cents / amount_cents / 差额
  */
-export function getOrderInstallments(orderId: number): Array<{ name: string; amountCents: number; status: string; paidCents: number }> {
-  const order = db.prepare('SELECT paid_total_cents FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number } | undefined
-  const paidTotal = order?.paid_total_cents ?? 0
+export function getOrderInstallments(orderId: number): Array<{ id: number; name: string; amountCents: number; paidCents: number; remainingCents: number; status: string }> {
   const rows = db.prepare(
-    'SELECT label as name, amount_cents as amountCents FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
-  ).all(orderId) as Array<{ name: string; amountCents: number }>
-  return computeInstallmentStatuses(rows, paidTotal)
+    'SELECT id, label as name, amount_cents as amountCents, paid_cents as paidCents, status FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+  ).all(orderId) as Array<{ id: number; name: string; amountCents: number; paidCents: number; status: string }>
+  return rows.map(r => ({
+    ...r,
+    amountCents: r.amountCents || 0,
+    paidCents: r.paidCents || 0,
+    remainingCents: Math.max(0, (r.amountCents || 0) - (r.paidCents || 0)),
+    status: (r.paidCents || 0) >= (r.amountCents || 0) && (r.amountCents || 0) > 0 ? 'paid'
+      : (r.paidCents || 0) > 0 ? 'partial' : 'pending'
+  }))
 }
 
 /**
@@ -630,6 +638,9 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       // P0-2: 加减法调整最终价格（不重算，保护手动改价）
       const finalCents = adjustFinalPrice(orderId, cents)
 
+      // v0.31 F4: 加钱后节点应收联动
+      recalcInstallmentAmounts(orderId)
+
       // 系统备注
       const priceStr = cents > 0 ? `+${formatCents(cents)}` : '（不计费）'
       let noteContent = `📎 附加工作项「${name}」${priceStr}`
@@ -668,6 +679,9 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
 
       // P0-2: 加减法调整最终价格（不重算，保护手动改价）
       const finalCents = adjustFinalPrice(orderId, -item.price_cents)
+
+      // v0.31 F4: 移除加钱后节点应收联动
+      recalcInstallmentAmounts(orderId)
 
       // 系统备注
       const priceStr = item.price_cents > 0 ? `-${formatCents(item.price_cents)}` : '（不计费）'
@@ -769,12 +783,13 @@ export function tryAutoPromote(artistId: number): void {
   }
 }
 
-// ─── B7: 额度池收款 ───
+// ─── B7: 额度池收款（v0.31 F4: 节点维度增强） ───
 
 /** 收款流水行 */
 interface PaymentRow {
   id: number
   order_id: number
+  installment_id: number | null
   amount_cents: number
   note: string | null
   created_at: string
@@ -783,10 +798,10 @@ interface PaymentRow {
 
 /**
  * 记录一笔收款（正数）或撤销/退款（负数）
- * 事务原子：INSERT 流水 + UPDATE paid_total_cents
- * 硬约束：paid_total_cents + amount_cents >= 0
+ * 事务原子：INSERT 流水 + UPDATE paid_total_cents + UPDATE 节点 paid_cents
+ * v0.31 F4: 可选 installmentId 关联到具体节点
  */
-export function addPayment(orderId: number, { amountCents, note, createdBy }: { amountCents: number; note?: string | null; createdBy?: string }): PaymentRow {
+export function addPayment(orderId: number, { amountCents, note, createdBy, installmentId }: { amountCents: number; note?: string | null; createdBy?: string; installmentId?: number | null }): PaymentRow {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -804,13 +819,30 @@ export function addPayment(orderId: number, { amountCents, note, createdBy }: { 
     throw new AppError(E.INVALID_PRICE, 400, { value: amountCents, message: '撤销金额不能超过已收金额' })
   }
 
+  // v0.31 F4: 校验节点归属
+  if (installmentId) {
+    const inst = db.prepare('SELECT * FROM order_payment_installments WHERE id = ? AND order_id = ?').get(installmentId, orderId)
+    if (!inst) throw new AppError(E.NOT_FOUND, 404, { installmentId })
+  }
+
   return db.transaction(() => {
     const result = db.prepare(
-      'INSERT INTO order_payments (order_id, amount_cents, note, created_by) VALUES (?, ?, ?, ?)'
-    ).run(orderId, amountCents, note || null, createdBy || 'artist')
+      'INSERT INTO order_payments (order_id, installment_id, amount_cents, note, created_by) VALUES (?, ?, ?, ?, ?)'
+    ).run(orderId, installmentId || null, amountCents, note || null, createdBy || 'artist')
 
     db.prepare('UPDATE orders SET paid_total_cents = paid_total_cents + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(amountCents, orderId)
+
+    // v0.31 F4: 更新节点 paid_cents
+    if (installmentId) {
+      db.prepare('UPDATE order_payment_installments SET paid_cents = paid_cents + ? WHERE id = ?')
+        .run(amountCents, installmentId)
+      // 自动标记已付清
+      const inst = db.prepare('SELECT paid_cents, amount_cents FROM order_payment_installments WHERE id = ?').get(installmentId) as { paid_cents: number; amount_cents: number }
+      if (inst.paid_cents >= inst.amount_cents) {
+        db.prepare("UPDATE order_payment_installments SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE id = ?").run(installmentId)
+      }
+    }
 
     return db.prepare('SELECT * FROM order_payments WHERE id = ?').get(result.lastInsertRowid) as PaymentRow
   })()
@@ -823,4 +855,27 @@ export function getPayments(orderId: number): PaymentRow[] {
   return db.prepare(
     'SELECT * FROM order_payments WHERE order_id = ? ORDER BY created_at ASC'
   ).all(orderId) as PaymentRow[]
+}
+
+/**
+ * v0.31 F4: 总价变更后重算节点应收金额（按 basis_points 比例）
+ * 加钱/改价后调用，保持节点金额之和 = 新总价
+ */
+export function recalcInstallmentAmounts(orderId: number): void {
+  const order = db.prepare('SELECT final_price_cents, total_price_cents FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null } | undefined
+  const totalCents = order?.final_price_cents ?? order?.total_price_cents ?? 0
+  if (totalCents <= 0) return
+
+  const installments = db.prepare(
+    'SELECT id, basis_points FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+  ).all(orderId) as Array<{ id: number; basis_points: number }>
+  if (installments.length === 0) return
+
+  const update = db.prepare('UPDATE order_payment_installments SET amount_cents = ? WHERE id = ?')
+  db.transaction(() => {
+    for (const inst of installments) {
+      const amountCents = Math.round(totalCents * inst.basis_points / 10000)
+      update.run(amountCents, inst.id)
+    }
+  })()
 }

@@ -23,12 +23,12 @@ export function useOrderPayments() {
     }
   }
 
-  /** 记录一笔收款（正数） */
-  async function addPayment(orderId, { amountCents, note }) {
+  /** 记录一笔收款（正数），v0.31 F4: 可关联节点 */
+  async function addPayment(orderId, { amountCents, note, installmentId }) {
     submitting.value = true
     try {
-      const res = await artistApi.addPayment(orderId, { amountCents, note })
-      // 后端返回 { payment, paidTotalCents, finalPriceCents }
+      const res = await artistApi.addPayment(orderId, { amountCents, note, installmentId: installmentId || null })
+      // 后端返回 { payment, paidTotalCents, finalPriceCents, installments }
       return res
     } finally {
       submitting.value = false
