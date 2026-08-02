@@ -82,6 +82,8 @@ export const artistPublicApi = {
   // 价格计算器
   getPricing: (subdomain) => api.get(`/public/pricing/${subdomain}`),
   calculatePrice: (data) => api.post('/public/calculate-price', data),
+  // v0.31 F3: 折扣码验证（公开，限流 20次/5分钟）
+  validateDiscount: (data) => api.post('/public/validate-discount', data),
   // F1: 作品点赞（匿名公开）
   likeArtwork: (id) => api.post(`/public/artworks/${id}/like`),
   unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`),

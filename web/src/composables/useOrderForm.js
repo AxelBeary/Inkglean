@@ -56,7 +56,8 @@ export function useOrderForm(subdomain, formRef) {
     notifyEnabled: true,
     agreed: false,
     usageMultiplierId: null,
-    rushMultiplierId: null
+    rushMultiplierId: null,
+    discountCode: '' // v0.31 F3: 折扣码（验证通过后随订单提交，后端负责真正扣减）
   })
 
   // ─── 校验规则 ───
@@ -101,9 +102,9 @@ export function useOrderForm(subdomain, formRef) {
     return tier?.addons || []
   })
 
-  // R14: 有增项或倍率时才显示"详细计价"入口
+  // R14: 有增项、倍率或折扣码时才显示"详细计价"入口（v0.31 F3: 折扣码输入区在 price-preview 内）
   const hasPricingExtras = computed(() =>
-    availableAddons.value.length > 0 || usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0
+    availableAddons.value.length > 0 || usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0 || discountEnabled.value
   )
 
   // 增项分组（按 category 折叠）
@@ -195,6 +196,60 @@ export function useOrderForm(subdomain, formRef) {
       }
     }
   }, { immediate: true })
+
+  // ─── v0.31 F3: 折扣码（验证 → 预估折扣展示 → 提交时传码，后端真正扣减） ───
+  /** 画师是否开启折扣功能（getPricing 返回 discountEnabled） */
+  const discountEnabled = computed(() => !!pricingData.value?.discountEnabled)
+  /** 验证结果 { discountType: 'percent'|'fixed', discountValue: number } | null */
+  const discountResult = ref(null)
+  const discountError = ref('')
+  const discountValidating = ref(false)
+
+  /** 验证折扣码（公开 API，需 subdomain） */
+  async function validateDiscountCode() {
+    const code = form.discountCode.trim()
+    if (!code) return
+    discountValidating.value = true
+    discountError.value = ''
+    try {
+      const res = await artistPublicApi.validateDiscount({ subdomain, code })
+      discountResult.value = { discountType: res.discountType, discountValue: res.discountValue }
+    } catch (err) {
+      discountResult.value = null
+      discountError.value = err.message
+    } finally {
+      discountValidating.value = false
+    }
+  }
+
+  /** 清除折扣码（修改码/切换档位时调用） */
+  function clearDiscount() {
+    discountResult.value = null
+    discountError.value = ''
+  }
+
+  // 输入框内容变化 → 清除旧验证结果（防止码改了但折扣还挂着）
+  watch(() => form.discountCode, clearDiscount)
+
+  /**
+   * 预估折扣金额（元）。先倍率后折扣（REQ-023 已定）：
+   * pricePreview.totalPrice 已含倍率，折扣在此基础上计算。
+   * 前端仅做展示估算，实际扣减由后端下单时计算。
+   */
+  const discountPreviewYuan = computed(() => {
+    const total = pricePreview.value?.totalPrice
+    if (!discountResult.value || total == null || total <= 0) return 0
+    const { discountType, discountValue } = discountResult.value
+    if (discountType === 'percent') return total * discountValue / 100
+    if (discountType === 'fixed') return Math.min(discountValue, total)
+    return 0
+  })
+
+  /** 折扣后预估总价（元） */
+  const discountedTotalYuan = computed(() => {
+    const total = pricePreview.value?.totalPrice ?? 0
+    return Math.max(0, total - discountPreviewYuan.value)
+  })
 
   // ─── R57: 表单防丢失（beforeunload 拦截 + sessionStorage 草稿） ───
   const DRAFT_KEY = `orderForm_draft_${subdomain}`
@@ -341,7 +396,9 @@ export function useOrderForm(subdomain, formRef) {
         references: uploadedRefs.value,
         addons: buildSelectedAddons(),
         usageMultiplierId: form.usageMultiplierId,
-        rushMultiplierId: form.rushMultiplierId
+        rushMultiplierId: form.rushMultiplierId,
+        // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
+        discountCode: form.discountCode.trim() || null
       })
       resultNo.value = order.orderNo
       showSuccess.value = true
@@ -423,6 +480,9 @@ export function useOrderForm(subdomain, formRef) {
     selectedTier, hasPricingExtras, availableAddons, addonGroups,
     usageMultipliers, rushMultipliers, formatAddonPrice, onTierChange,
     // 须知预览
-    sanitizedRules
+    sanitizedRules,
+    // v0.31 F3: 折扣码
+    discountEnabled, discountResult, discountError, discountValidating,
+    validateDiscountCode, discountPreviewYuan, discountedTotalYuan
   }
 }

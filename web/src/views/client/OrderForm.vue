@@ -126,9 +126,43 @@
                         <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
                       </div>
                       <div class="price-divider"></div>
+                      <!-- v0.31 F3: 折扣码输入行（总价行上方，画师开启折扣功能时才显示） -->
+                      <div v-if="discountEnabled" class="discount-row">
+                        <span class="discount-label">🎟 {{ $t('orderForm.discountLabel') }}</span>
+                        <el-input
+                          v-model="form.discountCode"
+                          :placeholder="$t('orderForm.discountPlaceholder')"
+                          size="small" class="discount-input"
+                          @keyup.enter="validateDiscountCode"
+                        />
+                        <el-button
+                          size="small" type="primary" plain
+                          :loading="discountValidating"
+                          :disabled="!form.discountCode.trim()"
+                          @click="validateDiscountCode"
+                        >
+                          {{ $t('orderForm.discountValidate') }}
+                        </el-button>
+                        <!-- 验证通过后显示折扣信息（如 -10% 或 -¥20） -->
+                        <span v-if="discountResult" class="discount-ok">
+                          ✓ {{ discountResult.discountType === 'percent' ? `-${discountResult.discountValue}%` : `-¥${discountResult.discountValue}` }}
+                        </span>
+                      </div>
+                      <!-- 验证失败提示（错误码已由 axios 拦截器 i18n 翻译） -->
+                      <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
                       <div class="price-line total">
                         <span>总价</span>
                         <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
+                      </div>
+                      <!-- v0.31 F3: 折扣行（红色负数，总价行下方；先倍率后折扣，前端仅估算） -->
+                      <div v-if="discountResult && discountPreviewYuan > 0" class="price-line discount">
+                        <span>{{ $t('orderForm.discountEstimate') }}</span>
+                        <span class="price-amount discount-amount">-¥{{ discountPreviewYuan.toFixed(2) }}</span>
+                      </div>
+                      <!-- v0.31 F3: 预估总价（折扣后） -->
+                      <div v-if="discountResult && discountPreviewYuan > 0" class="price-line discounted-total">
+                        <span>{{ $t('orderForm.discountedTotal') }}</span>
+                        <span class="price-amount">¥{{ discountedTotalYuan.toFixed(2) }}</span>
                       </div>
                       <div v-if="pricePreview?.installments?.length > 1" class="installment-row">
                         <span v-for="inst in pricePreview.installments" :key="inst.label" class="installment-chip">
@@ -367,7 +401,10 @@ const {
   addonSelections, addonToggles, pricePreview, pricingExpanded,
   selectedTier, hasPricingExtras, availableAddons, addonGroups,
   usageMultipliers, rushMultipliers, formatAddonPrice, onTierChange,
-  sanitizedRules
+  sanitizedRules,
+  // v0.31 F3: 折扣码
+  discountEnabled, discountResult, discountError, discountValidating,
+  validateDiscountCode, discountPreviewYuan, discountedTotalYuan
 } = useOrderForm(subdomain, formRef)
 
 // ─── R58-2: 分步引导 ───
@@ -677,6 +714,14 @@ async function copyQq(qq) {
 }
 .price-line { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; color: var(--text-secondary); }
 .price-line.total { font-size: 16px; font-weight: 700; color: var(--text-primary); padding-top: 8px; }
+/* v0.31 F3: 折扣码输入行 + 折扣行 */
+.discount-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; flex-wrap: wrap; }
+.discount-label { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
+.discount-input { width: 140px; }
+.discount-ok { font-size: 13px; font-weight: 600; color: var(--el-color-success); }
+.discount-error { font-size: 12px; color: var(--el-color-danger); margin: 2px 0 0; }
+.price-line.discount .discount-amount { color: var(--el-color-danger); font-weight: 600; }
+.price-line.discounted-total { font-size: 15px; font-weight: 700; color: var(--el-color-danger); }
 .price-amount { font-variant-numeric: tabular-nums; }
 .price-divider { border-top: 1px dashed var(--border-color); margin: 6px 0; }
 .installment-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }

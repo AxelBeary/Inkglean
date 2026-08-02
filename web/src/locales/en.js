@@ -79,7 +79,15 @@ export default {
     NOT_FOUND: 'Resource not found',
     VALIDATION: 'Invalid request parameters',
     INTERNAL: 'Internal server error',
-    UNKNOWN: 'Request error'
+    UNKNOWN: 'Request error',
+
+    // Discount codes (v0.31 F3)
+    DISCOUNT_DISABLED: 'This artist has not enabled discount codes',
+    DISCOUNT_CODE_INVALID: 'Invalid discount code',
+    DISCOUNT_CODE_EXPIRED: 'This discount code has expired',
+    DISCOUNT_CODE_EXHAUSTED: 'This discount code has reached its usage limit',
+    DISCOUNT_CODE_NOT_FOUND: 'Discount code not found',
+    DISCOUNT_CODE_TAKEN: 'Discount code already taken'
   },
   pref: { toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark' },
   common: {
@@ -183,7 +191,10 @@ export default {
     // R58-4: inspiration tags
     inspireHint: '✨ Not sure what to write? Tap a tag to fill it in:',
     // R58-5: copy order summary
-    copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: '
+    copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: ',
+    // v0.31 F3: discount code
+    discountLabel: 'Discount code', discountPlaceholder: 'Have a code?', discountValidate: 'Apply',
+    discountEstimate: 'Est. discount', discountedTotal: 'Est. total after discount'
   },
   // R24: validation popup
   order: {
