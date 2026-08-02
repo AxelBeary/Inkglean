@@ -1,4 +1,5 @@
 import * as styleService from './style.service.js'
+import * as stylePricingService from './style-pricing.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -278,5 +279,56 @@ export default async function styleRoutes(fastify: any) {
     if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicStyles(artist.id)
+  })
+
+  /**
+   * POST /api/public/calculate-style-price
+   * 多画风价格计算（基于 style_size_id + 增项 + 倍率 + 折扣码）
+   * 限流：同IP 30次/5分钟
+   */
+  fastify.post('/api/public/calculate-style-price', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['subdomain', 'styleSizeId'],
+        properties: {
+          subdomain: { type: 'string', minLength: 1, maxLength: 50 },
+          styleSizeId: { type: 'integer' },
+          addons: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['styleAddonId'],
+              properties: {
+                styleAddonId: { type: 'integer' },
+                quantity: { type: 'integer', minimum: 1, maximum: 99 },
+                optionLabel: { type: 'string', maxLength: 100 }
+              },
+              additionalProperties: false
+            },
+            maxItems: 20
+          },
+          usageMultiplierId: { type: ['integer', 'null'] },
+          rushMultiplierId: { type: ['integer', 'null'] },
+          discountCode: { type: ['string', 'null'], maxLength: 20 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any) => {
+    guardRateLimit('calc-style:' + request.ip, 30, 5 * 60_000)
+
+    const { subdomain, styleSizeId, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as any
+
+    const artist = getArtistBySubdomain(subdomain) as any
+    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+
+    return stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId,
+      addons: addons || [],
+      usageMultiplierId,
+      rushMultiplierId,
+      discountCode
+    })
   })
 }
