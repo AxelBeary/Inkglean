@@ -1003,4 +1003,75 @@ describe('订单服务 (Order Service)', () => {
       orderQueueService.reorderQueue(artist.id, [Number(bufResult.lastInsertRowid)])
     }).toThrow('QUEUE_NOT_OWNED')
   })
+
+  // ─── generateInstallmentsForOrder（导出后供 demo-data 复用） ───
+
+  /** 直插一条正式区带报价订单（模拟 demo-data 绕过 createOrder 的场景） */
+  function seedDirectOrder(overrides = {}) {
+    // 注意：total_price_cents 允许显式传 null（测无报价分支），故用 in 判断而非 ??
+    const totalCents = 'total_price_cents' in overrides ? overrides.total_price_cents : 20000
+    const r = db.prepare(`
+      INSERT INTO orders (order_no, artist_id, client_qq, priority, status, source, queue_position, queue_zone, total_price_cents, final_price_cents)
+      VALUES (?, ?, '99887', 'medium', 'pending', 'self', 1, ?, ?, ?)
+    `).run(
+      overrides.order_no ?? `ALICE-DIR-${Math.floor(Math.random() * 100000)}`,
+      artist.id,
+      overrides.queue_zone ?? 'formal',
+      totalCents,
+      overrides.final_price_cents ?? totalCents
+    )
+    return Number(r.lastInsertRowid)
+  }
+
+  function instsOf(orderId) {
+    return db.prepare('SELECT * FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC').all(orderId)
+  }
+
+  it('TC-O-38: 正式区订单按收款节点生成分期（默认模板 3000+7000）', () => {
+    seedArtistStages(artist.id)
+    const orderId = seedDirectOrder({ total_price_cents: 20000 })
+
+    orderService.generateInstallmentsForOrder(orderId)
+
+    const insts = instsOf(orderId)
+    expect(insts).toHaveLength(2)
+    // 排期确认 30% → 6000；交付 70% → 14000
+    expect(insts[0].label).toBe('排期确认')
+    expect(insts[0].basis_points).toBe(3000)
+    expect(insts[0].amount_cents).toBe(6000)
+    expect(insts[1].label).toBe('交付')
+    expect(insts[1].basis_points).toBe(7000)
+    expect(insts[1].amount_cents).toBe(14000)
+    // 合计与总价一致
+    expect(insts.reduce((s, i) => s + i.amount_cents, 0)).toBe(20000)
+  })
+
+  it('TC-O-38b: 幂等——已有分期节点不重复插入', () => {
+    seedArtistStages(artist.id)
+    const orderId = seedDirectOrder()
+
+    orderService.generateInstallmentsForOrder(orderId)
+    const first = instsOf(orderId).length
+    orderService.generateInstallmentsForOrder(orderId)
+
+    expect(instsOf(orderId)).toHaveLength(first)
+  })
+
+  it('TC-O-38c: 缓冲订单不生成（queue_zone 守卫，对齐 createOrder 条件）', () => {
+    seedArtistStages(artist.id)
+    const orderId = seedDirectOrder({ queue_zone: 'buffer' })
+
+    orderService.generateInstallmentsForOrder(orderId)
+
+    expect(instsOf(orderId)).toHaveLength(0)
+  })
+
+  it('TC-O-38d: 无报价订单不生成', () => {
+    seedArtistStages(artist.id)
+    const orderId = seedDirectOrder({ total_price_cents: null })
+
+    orderService.generateInstallmentsForOrder(orderId)
+
+    expect(instsOf(orderId)).toHaveLength(0)
+  })
 })
