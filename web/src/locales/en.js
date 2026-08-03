@@ -688,8 +688,12 @@ export default {
     sizeDescLabel: 'Description (optional)', sizeDescPlaceholder: 'What this size includes / suits',
     sizeDaysLabel: 'Turnaround (days, optional)',
     sizeImageCol: 'Image', sizeDescCol: 'Description', sizeDaysCol: 'Turnaround',
-    sizeFromArtworkTag: 'Portfolio', sizeAddBtn: '+ Add size',
-    sizePickTitle: 'Pick from portfolio', sizePickHint: 'Click an artwork to use it as the size image', sizePickEmpty: 'No artworks yet — upload some in Portfolio first'
+    sizeFromArtworkTag: 'Portfolio', sizeAddBtn: '+ Add size', sizeEmpty: 'No sizes yet',
+    sizePickTitle: 'Pick from portfolio', sizePickHint: 'Click an artwork to use it as the size image', sizePickEmpty: 'No artworks yet — upload some in Portfolio first',
+    // v0.35 fix A4: import addons into an existing style
+    addonImportBtn: '+ Import addons', addonImportTitle: 'Import from addon library',
+    addonImportEmpty: 'No new addons to import (all library addons are already in this style)',
+    addonImportConfirm: 'Import selected', addonImported: 'Addons imported'
   },
   artworks: {
     title: 'Portfolio', dragUpload: 'Drag images here, or click to upload',
@@ -708,7 +712,13 @@ export default {
     // F7: 主图去重
     mainImages: 'Main images', mainTag: 'Main',
     // v0.31: multi-cover reorder
-    coverMoveUp: 'Move up', coverMoveDown: 'Move down', coverReordered: 'Cover order updated'
+    coverMoveUp: 'Move up', coverMoveDown: 'Move down', coverReordered: 'Cover order updated',
+    // v0.35 wave 3 (REQ-024 F6): artwork edit (size tags + free description)
+    editTitle: 'Edit artwork', editTitleLabel: 'Title', editDescLabel: 'Free description',
+    editDescPlaceholder: "Whose design, hours spent, techniques used… write freely",
+    editTagsLabel: 'Size tags', editTagsEmptyHint: 'Pick the sizes this artwork belongs to',
+    editTagsHint: 'Multi-select; clients can filter the gallery by size, and tags on the enlarged view preselect the order form',
+    editSaved: 'Artwork saved'
   },
   rules: {
     title: 'Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',

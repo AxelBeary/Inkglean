@@ -13,154 +13,169 @@
       {{ $t('styleManage.styleAdd') }}
     </el-button>
 
-    <div v-if="styles.length" class="style-grid">
-      <el-card v-for="style in styles" :key="style.id" class="style-card" :class="{ 'style-card--locked': isLocked(style) }" shadow="hover">
-        <!-- 卡头：名称 + 默认徽标 + 启用开关 + 操作 -->
-        <template #header>
-          <div class="style-card-header">
-            <span class="style-card-name">
-              {{ style.name }}
-              <!-- F2 验收 6: 只有一个画风时不出现"默认"概念 -->
-              <el-tag v-if="styles.length > 1 && style.id === defaultStyleId" size="small" type="warning" effect="plain">{{ $t('styleManage.styleDefaultTag') }}</el-tag>
-            </span>
-            <div class="style-card-actions">
-              <el-switch
-                :model-value="!!style.is_active" size="small"
-                :disabled="isLocked(style)"
-                :active-text="$t('styleManage.styleActive')"
-                @change="(val) => toggleActive(style, val)"
-              />
-              <el-button text size="small" :disabled="isLocked(style)" @click="openEditStyle(style)">{{ $t('common.edit') }}</el-button>
-              <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteStyle(style)">{{ $t('common.delete') }}</el-button>
-            </div>
-          </div>
-        </template>
-
-        <!-- 锁定提示（F2: 开关关闭时非默认画风灰色不可编辑） -->
-        <div class="style-card-body" :class="{ 'style-card-body--locked': isLocked(style) }">
-          <p v-if="isLocked(style)" class="style-locked-hint">{{ $t('styleManage.styleLocked') }}</p>
-
-          <!-- 描述 + 示例图 -->
-          <p v-if="style.description" class="style-desc">{{ style.description }}</p>
-          <div v-if="style.cover_image" class="style-cover">
-            <el-image :src="`/uploads/${style.cover_image}`" fit="cover" class="style-cover-img" :alt="style.name" />
-          </div>
-
-          <!-- ── 尺寸区（v0.35 波1: 图/描述/天数摘要 + 弹窗编辑） ── -->
-          <div class="style-section">
-            <div class="section-head">
-              <h4 class="section-title">{{ $t('styleManage.sizeTitle') }}</h4>
-              <el-button size="small" :disabled="isLocked(style)" @click="openSizeDialog(style)">{{ $t('styleManage.sizeAddBtn') }}</el-button>
-            </div>
-            <el-table :data="style.sizes" size="small" stripe>
-              <el-table-column :label="$t('styleManage.sizeImageCol')" width="70">
-                <template #default="{ row }">
-                  <el-image
-                    v-if="sizeThumb(row)" :src="`/uploads/${sizeThumb(row)}`"
-                    fit="cover" class="size-thumb"
-                  />
-                  <span v-else class="size-thumb-empty">—</span>
-                  <el-tag v-if="row.image_artwork_id" size="small" effect="plain" class="size-thumb-tag">{{ $t('styleManage.sizeFromArtworkTag') }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column :label="$t('styleManage.sizeName')" min-width="90" prop="name" />
-              <el-table-column :label="$t('styleManage.sizePrice')" width="100">
-                <template #default="{ row }">
-                  <span class="size-price">¥{{ row.base_price }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column :label="$t('styleManage.sizeDescCol')" min-width="120">
-                <template #default="{ row }">
-                  <span class="size-desc-cell">{{ row.description || '—' }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column :label="$t('styleManage.sizeDaysCol')" width="80">
-                <template #default="{ row }">
-                  {{ row.work_days ? $t('tiers.daysUnit', { n: row.work_days }) : '—' }}
-                </template>
-              </el-table-column>
-              <el-table-column :label="$t('styleManage.sizeActions')" width="110" align="right">
-                <template #default="{ row }">
-                  <el-button text size="small" :disabled="isLocked(style)" @click="openSizeDialog(style, row)">{{ $t('common.edit') }}</el-button>
-                  <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteSize(style, row)">{{ $t('common.delete') }}</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-
-          <!-- ── 增项区 ── -->
-          <div class="style-section">
-            <h4 class="section-title">{{ $t('styleManage.addonTitle') }}</h4>
-            <div v-if="style.addons.length" class="style-addon-list">
-              <div v-for="sa in style.addons" :key="sa.id" class="style-addon-row">
-                <el-checkbox
-                  :model-value="!!sa.is_enabled"
+    <!-- v0.35 补漏 A3: 画风卡片拖拽排序（flex class 放 draggable 自身——v0.26 教训） -->
+    <draggable
+      v-if="styles.length"
+      v-model="styles"
+      item-key="id"
+      handle=".style-drag-handle"
+      ghost-class="ghost"
+      class="style-grid"
+      @end="onStyleDragEnd"
+    >
+      <template #item="{ element: style }">
+        <el-card class="style-card" :class="{ 'style-card--locked': isLocked(style) }" shadow="hover">
+          <!-- 卡头：拖拽柄 + 名称 + 默认徽标 + 启用开关 + 操作 -->
+          <template #header>
+            <div class="style-card-header">
+              <span class="style-card-name">
+                <span class="style-drag-handle" :title="$t('tiers.dragHint')">⠿</span>
+                {{ style.name }}
+                <!-- F2 验收 6: 只有一个画风时不出现"默认"概念 -->
+                <el-tag v-if="styles.length > 1 && style.id === defaultStyleId" size="small" type="warning" effect="plain">{{ $t('styleManage.styleDefaultTag') }}</el-tag>
+              </span>
+              <div class="style-card-actions">
+                <el-switch
+                  :model-value="!!style.is_active" size="small"
                   :disabled="isLocked(style)"
-                  @change="(val) => onAddonToggle(style, sa, val)"
-                >
-                  <span class="addon-tpl-name">{{ sa.template_name }}</span>
-                </el-checkbox>
-                <el-tag size="small" :type="controlTagType(sa.template_control_type)">{{ controlLabel(sa.template_control_type) }}</el-tag>
-                <!-- 价格覆盖（placeholder 显示模板默认价） -->
-                <el-input-number
-                  :model-value="sa.price_override ?? undefined"
-                  :placeholder="`¥${sa.template_default_price}`"
-                  :min="0" :max="999999" :step="10" size="small"
-                  style="width: 120px"
-                  :disabled="isLocked(style)"
-                  @change="(val) => onAddonPriceChange(style, sa, val)"
+                  :active-text="$t('styleManage.styleActive')"
+                  @change="(val) => toggleActive(style, val)"
                 />
-                <!-- 尺寸覆盖展开按钮（有尺寸时才显示；REQ-023：不点开不显示） -->
+                <el-button text size="small" :disabled="isLocked(style)" @click="openEditStyle(style)">{{ $t('common.edit') }}</el-button>
+                <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteStyle(style)">{{ $t('common.delete') }}</el-button>
+              </div>
+            </div>
+          </template>
+
+          <!-- 锁定提示（F2: 开关关闭时非默认画风灰色不可编辑） -->
+          <div class="style-card-body" :class="{ 'style-card-body--locked': isLocked(style) }">
+            <p v-if="isLocked(style)" class="style-locked-hint">{{ $t('styleManage.styleLocked') }}</p>
+
+            <!-- 描述 + 示例图 -->
+            <p v-if="style.description" class="style-desc">{{ style.description }}</p>
+            <div v-if="style.cover_image" class="style-cover">
+              <el-image :src="`/uploads/${style.cover_image}`" fit="cover" class="style-cover-img" :alt="style.name" />
+            </div>
+
+            <!-- ── 尺寸区（v0.35 补漏 A3: 行列表 + 拖拽排序） ── -->
+            <div class="style-section">
+              <div class="section-head">
+                <h4 class="section-title">{{ $t('styleManage.sizeTitle') }}</h4>
+                <el-button size="small" :disabled="isLocked(style)" @click="openSizeDialog(style)">{{ $t('styleManage.sizeAddBtn') }}</el-button>
+              </div>
+              <draggable
+                v-model="style.sizes"
+                item-key="id"
+                handle=".size-drag-handle"
+                ghost-class="ghost"
+                class="size-row-list"
+                @end="onSizeDragEnd(style)"
+              >
+                <template #item="{ element: size }">
+                  <div class="size-row">
+                    <span class="size-drag-handle" :title="$t('tiers.dragHint')">⠿</span>
+                    <div class="size-row-thumb">
+                      <el-image v-if="sizeThumb(size)" :src="`/uploads/${sizeThumb(size)}`" fit="cover" class="size-thumb" />
+                      <span v-else class="size-thumb-empty">—</span>
+                      <el-tag v-if="size.image_artwork_id" size="small" effect="plain" class="size-thumb-tag">{{ $t('styleManage.sizeFromArtworkTag') }}</el-tag>
+                    </div>
+                    <div class="size-row-main">
+                      <div class="size-row-head">
+                        <span class="size-row-name">{{ size.name }}</span>
+                        <span class="size-price">¥{{ size.base_price }}</span>
+                      </div>
+                      <p class="size-row-desc">
+                        {{ size.description || '—' }}
+                        <template v-if="size.work_days"> · {{ $t('tiers.daysUnit', { n: size.work_days }) }}</template>
+                      </p>
+                    </div>
+                    <div class="size-row-actions">
+                      <el-button text size="small" :disabled="isLocked(style)" @click="openSizeDialog(style, size)">{{ $t('common.edit') }}</el-button>
+                      <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteSize(style, size)">{{ $t('common.delete') }}</el-button>
+                    </div>
+                  </div>
+                </template>
+              </draggable>
+              <el-empty v-if="!style.sizes.length" :description="$t('styleManage.sizeEmpty')" :image-size="40" />
+            </div>
+
+            <!-- ── 增项区（v0.35 补漏 A4: ＋导入增项入口；A5: 勾选/改价即时保存） ── -->
+            <div class="style-section">
+              <div class="section-head">
+                <h4 class="section-title">{{ $t('styleManage.addonTitle') }}</h4>
                 <el-button
-                  v-if="style.sizes.length"
-                  text size="small" type="primary"
-                  :disabled="isLocked(style)"
-                  @click="toggleOverridePanel(style, sa)"
+                  v-if="unimportedTemplates(style).length"
+                  size="small" :disabled="isLocked(style)"
+                  @click="openImportDialog(style)"
                 >
-                  {{ overrideExpanded[sa.id] ? $t('styleManage.overrideCollapse') : $t('styleManage.overrideExpand') }}
+                  {{ $t('styleManage.addonImportBtn') }}
                 </el-button>
               </div>
-              <el-button size="small" style="margin-top: 8px" :disabled="isLocked(style)" :loading="addonSaving[style.id]" @click="saveStyleAddons(style)">
-                {{ $t('styleManage.addonSave') }}
-              </el-button>
-            </div>
-            <el-empty v-else :description="$t('styleManage.addonEmpty')" :image-size="40" />
-
-            <!-- 尺寸覆盖面板（展开后显示各尺寸的覆盖设置） -->
-            <div v-for="sa in style.addons" :key="`ov-${sa.id}`">
-              <div v-if="overrideExpanded[sa.id]" class="override-panel">
-                <div class="override-panel-title">
-                  {{ $t('styleManage.overrideTitle', { name: sa.template_name }) }}
+              <div v-if="style.addons.length" class="style-addon-list">
+                <div v-for="sa in style.addons" :key="sa.id" class="style-addon-row">
+                  <el-checkbox
+                    :model-value="!!sa.is_enabled"
+                    :disabled="isLocked(style)"
+                    @change="(val) => onAddonToggle(style, sa, val)"
+                  >
+                    <span class="addon-tpl-name">{{ sa.template_name }}</span>
+                  </el-checkbox>
+                  <el-tag size="small" :type="controlTagType(sa.template_control_type)">{{ controlLabel(sa.template_control_type) }}</el-tag>
+                  <!-- 价格覆盖（placeholder 显示模板默认价；change 即时保存，防抖 500ms） -->
+                  <el-input-number
+                    :model-value="sa.price_override ?? undefined"
+                    :placeholder="`¥${sa.template_default_price}`"
+                    :min="0" :max="999999" :step="10" size="small"
+                    style="width: 120px"
+                    :disabled="isLocked(style)"
+                    @change="(val) => onAddonPriceChange(style, sa, val)"
+                  />
+                  <!-- 尺寸覆盖展开按钮（有尺寸时才显示；REQ-023：不点开不显示） -->
+                  <el-button
+                    v-if="style.sizes.length"
+                    text size="small" type="primary"
+                    :disabled="isLocked(style)"
+                    @click="toggleOverridePanel(style, sa)"
+                  >
+                    {{ overrideExpanded[sa.id] ? $t('styleManage.overrideCollapse') : $t('styleManage.overrideExpand') }}
+                  </el-button>
                 </div>
-                <div v-loading="overrideLoading[sa.id]">
-                  <div v-for="size in style.sizes" :key="size.id" class="override-row">
-                    <span class="override-size-name">{{ size.name }}</span>
-                    <el-input-number
-                      :model-value="getOverridePrice(sa.id, size.id)"
-                      :placeholder="`¥${sa.price_override ?? sa.template_default_price}`"
-                      :min="0" :max="999999" :step="10" size="small"
-                      style="width: 120px"
-                      :disabled="isLocked(style)"
-                      @change="(val) => setOverridePrice(sa.id, size.id, val)"
-                    />
-                    <el-checkbox
-                      :model-value="getOverrideHidden(sa.id, size.id)"
-                      :disabled="isLocked(style)"
-                      @change="(val) => setOverrideHidden(sa.id, size.id, val)"
-                    >
-                      {{ $t('styleManage.overrideHidden') }}
-                    </el-checkbox>
-                    <el-button size="small" :disabled="isLocked(style)" :loading="overrideSaving[`${sa.id}-${size.id}`]" @click="saveOverride(style, sa, size)">
-                      {{ $t('common.save') }}
-                    </el-button>
+              </div>
+              <el-empty v-else :description="$t('styleManage.addonEmpty')" :image-size="40" />
+
+              <!-- 尺寸覆盖面板（v0.35 补漏 A5: 改价/隐藏即时保存，无行内保存按钮） -->
+              <div v-for="sa in style.addons" :key="`ov-${sa.id}`">
+                <div v-if="overrideExpanded[sa.id]" class="override-panel">
+                  <div class="override-panel-title">
+                    {{ $t('styleManage.overrideTitle', { name: sa.template_name }) }}
+                  </div>
+                  <div v-loading="overrideLoading[sa.id]">
+                    <div v-for="size in style.sizes" :key="size.id" class="override-row">
+                      <span class="override-size-name">{{ size.name }}</span>
+                      <el-input-number
+                        :model-value="getOverridePrice(sa.id, size.id)"
+                        :placeholder="`¥${sa.price_override ?? sa.template_default_price}`"
+                        :min="0" :max="999999" :step="10" size="small"
+                        style="width: 120px"
+                        :disabled="isLocked(style)"
+                        @change="(val) => onOverridePriceChange(style, sa, size.id, val)"
+                      />
+                      <el-checkbox
+                        :model-value="getOverrideHidden(sa.id, size.id)"
+                        :disabled="isLocked(style)"
+                        @change="(val) => onOverrideHiddenChange(style, sa, size.id, val)"
+                      >
+                        {{ $t('styleManage.overrideHidden') }}
+                      </el-checkbox>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </el-card>
-    </div>
+        </el-card>
+      </template>
+    </draggable>
     <el-empty v-else-if="!loading" :description="$t('styleManage.styleEmpty')" :image-size="80" />
 
     <!-- 新建/编辑画风弹窗 -->
@@ -241,11 +256,34 @@
       </div>
       <el-empty v-else :description="$t('styleManage.sizePickEmpty')" :image-size="60" />
     </el-dialog>
+
+    <!-- v0.35 补漏 A4: 从增项库导入（已有画风追加导入——SPEC-025 动线 5） -->
+    <el-dialog v-model="importDialogVisible" :title="$t('styleManage.addonImportTitle')" width="460px">
+      <div v-if="importCandidates.length" class="import-list">
+        <el-checkbox-group v-model="importSelection">
+          <div v-for="tpl in importCandidates" :key="tpl.id" class="import-row">
+            <el-checkbox :value="tpl.id">
+              <span class="addon-tpl-name">{{ tpl.name }}</span>
+            </el-checkbox>
+            <el-tag size="small" :type="controlTagType(tpl.control_type)">{{ controlLabel(tpl.control_type) }}</el-tag>
+            <span class="import-price">¥{{ tpl.default_price }}</span>
+          </div>
+        </el-checkbox-group>
+      </div>
+      <el-empty v-else :description="$t('styleManage.addonImportEmpty')" :image-size="40" />
+      <template #footer>
+        <el-button @click="importDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!importSelection.length" :loading="importSaving" @click="confirmImportAddons">
+          {{ $t('styleManage.addonImportConfirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import draggable from 'vuedraggable'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -254,6 +292,7 @@ const { t } = useI18n()
 
 const styles = ref([])
 const artworks = ref([]) // 作品集（尺寸图"从作品集挑" + 缩略图解析）
+const addonTemplates = ref([]) // 增项库全量（A4 导入弹窗候选）
 const loading = ref(true)
 
 // ─── v0.35 波1 (F2): 多画风开关 ───
@@ -277,6 +316,40 @@ async function onMultiStyleChange(val) {
     ElMessage.error(err.message)
   } finally {
     switchSaving.value = false
+  }
+}
+
+// ─── v0.35 补漏 A3: 拖拽排序（画风卡片 + 尺寸行双层） ───
+
+/** 画风卡片拖拽结束 — 逐条 PUT sort_order（后端无批量 reorder 端点） */
+async function onStyleDragEnd() {
+  try {
+    for (let i = 0; i < styles.value.length; i++) {
+      if (styles.value[i].sort_order !== i) {
+        await artistApi.updateArtStyle(styles.value[i].id, { sort_order: i })
+        styles.value[i].sort_order = i
+      }
+    }
+    ElMessage.success(t('tiers.reorderSaved'))
+  } catch (err) {
+    ElMessage.error(err.message)
+    await load() // 回滚前端顺序
+  }
+}
+
+/** 尺寸行拖拽结束 — 逐条 PUT sort_order */
+async function onSizeDragEnd(style) {
+  try {
+    for (let i = 0; i < style.sizes.length; i++) {
+      if (style.sizes[i].sort_order !== i) {
+        await artistApi.updateStyleSize(style.id, style.sizes[i].id, { sort_order: i })
+        style.sizes[i].sort_order = i
+      }
+    }
+    ElMessage.success(t('tiers.reorderSaved'))
+  } catch (err) {
+    ElMessage.error(err.message)
+    await load()
   }
 }
 
@@ -574,38 +647,96 @@ function openPickDialog() {
   pickDialogVisible.value = true
 }
 
-// ─── 增项管理（启用/禁用/改价，批量保存） ───
-const addonSaving = ref({}) // { [styleId]: boolean }
+// ─── v0.35 补漏 A4: 从增项库导入（已有画风追加导入） ───
+const importDialogVisible = ref(false)
+const importStyleId = ref(null)
+const importSelection = ref([])
+const importSaving = ref(false)
 
-function onAddonToggle(style, sa, val) {
-  sa.is_enabled = val ? 1 : 0
-}
-function onAddonPriceChange(style, sa, val) {
-  sa.price_override = val ?? null
+/** 该画风尚未导入的增项库模板 */
+function unimportedTemplates(style) {
+  const imported = new Set(style.addons.map(sa => sa.addon_template_id))
+  return addonTemplates.value.filter(tpl => !imported.has(tpl.id))
 }
 
-async function saveStyleAddons(style) {
-  addonSaving.value[style.id] = true
+const importCandidates = computed(() => {
+  const style = styles.value.find(s => s.id === importStyleId.value)
+  return style ? unimportedTemplates(style) : []
+})
+
+function openImportDialog(style) {
+  importStyleId.value = style.id
+  importSelection.value = []
+  importDialogVisible.value = true
+}
+
+/** 确认导入：现有增项原状 + 新导入项（默认启用）整体 PUT（setStyleAddons upsert 语义） */
+async function confirmImportAddons() {
+  const style = styles.value.find(s => s.id === importStyleId.value)
+  if (!style || !importSelection.value.length) return
+  importSaving.value = true
   try {
-    const items = style.addons.map(sa => ({
-      addon_template_id: sa.addon_template_id,
-      is_enabled: !!sa.is_enabled,
-      price_override: sa.price_override ?? null
-    }))
+    const items = [
+      ...style.addons.map(sa => ({
+        addon_template_id: sa.addon_template_id,
+        is_enabled: !!sa.is_enabled,
+        price_override: sa.price_override ?? null
+      })),
+      ...importSelection.value.map(tplId => ({ addon_template_id: tplId, is_enabled: true }))
+    ]
     await artistApi.setStyleAddons(style.id, items)
-    ElMessage.success(t('styleManage.addonSaved'))
+    ElMessage.success(t('styleManage.addonImported'))
+    importDialogVisible.value = false
     await load()
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
-    addonSaving.value[style.id] = false
+    importSaving.value = false
   }
 }
 
-// ─── 尺寸覆盖（按需展开，不点开不显示） ───
+// ─── v0.35 补漏 A5: 增项勾选/改价即时保存（同封面/例图模式，失败回滚） ───
+
+/** 单个增项的即时 PUT（upsert 语义，只发该项） */
+async function putStyleAddon(style, sa) {
+  await artistApi.setStyleAddons(style.id, [{
+    addon_template_id: sa.addon_template_id,
+    is_enabled: !!sa.is_enabled,
+    price_override: sa.price_override ?? null
+  }])
+}
+
+async function onAddonToggle(style, sa, val) {
+  const prev = sa.is_enabled
+  sa.is_enabled = val ? 1 : 0 // 乐观更新
+  try {
+    await putStyleAddon(style, sa)
+  } catch (err) {
+    sa.is_enabled = prev // 回滚
+    ElMessage.error(err.message)
+  }
+}
+
+// 改价防抖：input-number 步进连点时 500ms 合并一次 PUT
+const priceTimers = {}
+
+function onAddonPriceChange(style, sa, val) {
+  sa.price_override = val ?? null // 乐观更新
+  const key = `addon-${style.id}-${sa.id}`
+  clearTimeout(priceTimers[key])
+  priceTimers[key] = setTimeout(async () => {
+    try {
+      await putStyleAddon(style, sa)
+    } catch (err) {
+      ElMessage.error(err.message)
+      await load() // 回滚：拉服务端实际值
+    }
+  }, 500)
+}
+
+// ─── 尺寸覆盖（v0.35 补漏 A5: 改价/隐藏即时保存） ───
 const overrideExpanded = ref({})   // { [styleAddonId]: boolean }
 const overrideLoading = ref({})    // { [styleAddonId]: boolean }
-const overrideSaving = ref({})     // { [`${saId}-${sizeId}`]: boolean }
 /** 覆盖数据：{ [styleAddonId]: { [sizeId]: { price_override, is_hidden } } } */
 const overrideData = ref({})
 
@@ -615,15 +746,51 @@ function getOverridePrice(saId, sizeId) {
 function getOverrideHidden(saId, sizeId) {
   return !!overrideData.value[saId]?.[sizeId]?.is_hidden
 }
-function setOverridePrice(saId, sizeId, val) {
-  if (!overrideData.value[saId]) overrideData.value[saId] = {}
-  if (!overrideData.value[saId][sizeId]) overrideData.value[saId][sizeId] = { price_override: null, is_hidden: false }
-  overrideData.value[saId][sizeId].price_override = val ?? null
+
+/** 单个覆盖项的即时 PUT */
+async function putOverride(style, sa, sizeId) {
+  const data = overrideData.value[sa.id]?.[sizeId] || { price_override: null, is_hidden: false }
+  await artistApi.setSizeOverrides(style.id, sizeId, [{
+    style_addon_id: sa.id,
+    price_override: data.price_override ?? null,
+    is_hidden: !!data.is_hidden
+  }])
 }
-function setOverrideHidden(saId, sizeId, val) {
+
+function ensureOverrideCell(saId, sizeId) {
   if (!overrideData.value[saId]) overrideData.value[saId] = {}
   if (!overrideData.value[saId][sizeId]) overrideData.value[saId][sizeId] = { price_override: null, is_hidden: false }
-  overrideData.value[saId][sizeId].is_hidden = !!val
+  return overrideData.value[saId][sizeId]
+}
+
+/** 覆盖改价（乐观更新 + 防抖 PUT；失败回滚单格） */
+function onOverridePriceChange(style, sa, sizeId, val) {
+  const cell = ensureOverrideCell(sa.id, sizeId)
+  const prev = cell.price_override
+  cell.price_override = val ?? null
+  const key = `ov-${sa.id}-${sizeId}`
+  clearTimeout(priceTimers[key])
+  priceTimers[key] = setTimeout(async () => {
+    try {
+      await putOverride(style, sa, sizeId)
+    } catch (err) {
+      cell.price_override = prev
+      ElMessage.error(err.message)
+    }
+  }, 500)
+}
+
+/** 覆盖隐藏勾选（乐观更新 + 即时 PUT；失败回滚单格） */
+async function onOverrideHiddenChange(style, sa, sizeId, val) {
+  const cell = ensureOverrideCell(sa.id, sizeId)
+  const prev = cell.is_hidden
+  cell.is_hidden = !!val
+  try {
+    await putOverride(style, sa, sizeId)
+  } catch (err) {
+    cell.is_hidden = prev
+    ElMessage.error(err.message)
+  }
 }
 
 /** 展开/收起覆盖面板；展开时加载各尺寸的当前覆盖 */
@@ -653,37 +820,20 @@ async function toggleOverridePanel(style, sa) {
   }
 }
 
-/** 保存单个尺寸的覆盖 */
-async function saveOverride(style, sa, size) {
-  const key = `${sa.id}-${size.id}`
-  overrideSaving.value[key] = true
-  try {
-    const data = overrideData.value[sa.id]?.[size.id] || { price_override: null, is_hidden: false }
-    await artistApi.setSizeOverrides(style.id, size.id, [{
-      style_addon_id: sa.id,
-      price_override: data.price_override ?? null,
-      is_hidden: !!data.is_hidden
-    }])
-    ElMessage.success(t('styleManage.overrideSaved'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    overrideSaving.value[key] = false
-  }
-}
-
 // ─── 初始化 ───
 async function load() {
   loading.value = true
   try {
-    const [styleList, profile, artworkList] = await Promise.all([
+    const [styleList, profile, artworkList, templates] = await Promise.all([
       artistApi.getArtStyles(),
       artistApi.getProfile(),
-      artistApi.getArtworks()
+      artistApi.getArtworks(),
+      artistApi.getAddonTemplates()
     ])
     styles.value = styleList
     multiStyleEnabled.value = !!profile.multi_style_enabled
     artworks.value = artworkList
+    addonTemplates.value = templates
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -705,9 +855,15 @@ onMounted(load)
 .multi-style-hint { font-size: 12px; color: var(--text-secondary); margin: 6px 0 0; line-height: 1.5; }
 
 .style-grid { display: flex; flex-direction: column; gap: 20px; }
+/* A3: 拖拽幽灵 */
+.ghost { opacity: 0.4; }
 .style-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .style-card-name { font-size: 16px; font-weight: 700; font-family: var(--font-display); color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
 .style-card-actions { display: flex; align-items: center; gap: 4px; }
+/* A3: 画风卡片拖拽柄 */
+.style-drag-handle { cursor: grab; font-size: 16px; color: var(--text-muted); padding: 0 2px; }
+.style-drag-handle:hover { color: var(--el-color-primary); }
+.style-drag-handle:active { cursor: grabbing; }
 /* F2: 开关关闭时非默认画风灰色 */
 .style-card--locked { opacity: 0.65; }
 .style-card-body--locked { pointer-events: none; }
@@ -725,11 +881,30 @@ onMounted(load)
 .section-head .section-title { margin: 0; }
 .section-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0 0 10px; }
 .size-price { font-variant-numeric: tabular-nums; color: var(--el-color-primary); font-weight: 600; }
-.size-desc-cell { font-size: 12px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* A3: 尺寸行列表（替代原 el-table，支持拖拽） */
+.size-row-list { display: flex; flex-direction: column; gap: 6px; }
+.size-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px;
+  background: var(--bg-inset); border: 1px solid var(--border-color);
+}
+.size-drag-handle { cursor: grab; font-size: 15px; color: var(--text-muted); flex-shrink: 0; }
+.size-drag-handle:hover { color: var(--el-color-primary); }
+.size-drag-handle:active { cursor: grabbing; }
+.size-row-thumb { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.size-row-main { flex: 1; min-width: 0; }
+.size-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.size-row-name { font-size: 14px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.size-row-desc {
+  font-size: 12px; color: var(--text-secondary); margin: 3px 0 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.size-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
 /* 尺寸缩略图 */
 .size-thumb { width: 44px; height: 34px; border-radius: 6px; border: 1px solid var(--border-color); vertical-align: middle; }
 .size-thumb-empty { color: var(--text-muted); }
-.size-thumb-tag { margin-left: 4px; transform: scale(0.9); }
+.size-thumb-tag { transform: scale(0.9); }
 
 .style-addon-list { display: flex; flex-direction: column; gap: 6px; }
 .style-addon-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0; }
@@ -769,4 +944,9 @@ onMounted(load)
   display: block; font-size: 11px; color: var(--text-secondary);
   padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* A4: 增项导入弹窗 */
+.import-list { max-height: 360px; overflow-y: auto; }
+.import-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.import-price { margin-left: auto; font-size: 13px; color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
 </style>

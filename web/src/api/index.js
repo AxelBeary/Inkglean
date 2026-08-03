@@ -116,6 +116,9 @@ export const artistApi = {
   getArtworks: () => api.get('/artist/artworks'),
   createArtwork: (data) => api.post('/artist/artworks', data),
   deleteArtwork: (id) => api.delete(`/artist/artworks/${id}`),
+  // v0.35 波3 (REQ-024 F6): 作品编辑（标题/自由描述）+ 档位标注（替换语义）
+  updateArtwork: (id, data) => api.put(`/artist/artworks/${id}`, data),
+  setArtworkTags: (id, sizeIds) => api.put(`/artist/artworks/${id}/tags`, { sizeIds }),
   // v0.25 A: 封面图（设为封面 / 取消封面；GET artworks 与公开主页返回 is_cover 字段）
   setArtworkCover: (id) => api.put(`/artist/artworks/${id}/cover`),
   unsetArtworkCover: (id) => api.delete(`/artist/artworks/${id}/cover`),
