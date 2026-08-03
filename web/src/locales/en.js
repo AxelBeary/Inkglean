@@ -813,7 +813,7 @@ export default {
     classic: 'Classic Studio',
     classicDesc: 'Signature-work banner opening, two-column desktop layout, sticky commission button',
     gallery: 'Gallery',
-    galleryDesc: 'Full-screen artwork opening, plaque-style name, editorial large-small gallery',
+    galleryDesc: 'Full-screen artwork opening, plaque-style name, album-style flipping gallery (large current page, shrunken side peeks)',
     folio: 'Single Page',
     folioDesc: 'Split-screen opening, scroll-tracking nav — ideal for a brand-driven look',
     palette: 'Page palette',

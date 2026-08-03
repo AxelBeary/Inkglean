@@ -812,7 +812,7 @@ export default {
     classic: '经典工作室',
     classicDesc: '代表作横幅开场，桌面双栏，约稿按钮吸顶常驻',
     gallery: '美术馆画廊',
-    galleryDesc: '全屏画作开场，展签式名字，大小交错画廊',
+    galleryDesc: '全屏画作开场，展签式名字，画册式翻页画廊（当前页大图居中、相邻页缩小侧露）',
     folio: '单页落地页',
     folioDesc: '左文右图分屏开场，滚动侦测导航，适合品牌风格',
     palette: '页面配色',

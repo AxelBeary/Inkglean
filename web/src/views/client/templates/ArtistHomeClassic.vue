@@ -81,6 +81,7 @@
           </div>
         </section>
 
+        <!-- v0.36: 作品画廊——画册式左右翻页（Classic：端正素雅，细边框装裱 + 文字题注） -->
         <section class="classic-section tpl-reveal" v-if="galleryArtworks.length">
           <p class="tpl-section-label classic-label">{{ $t('artistHome.artworks') }}</p>
           <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" />
@@ -292,6 +293,29 @@ useScrollReveal(rootEl)
 }
 .classic-label {
   margin-bottom: 20px;
+}
+
+/* v0.36: 画册翻页 — classic：端正素雅，细边框装裱 + 居中题注（温暖克制的卡片语言） */
+.classic :deep(.tpl-album-frame) {
+  padding: 12px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--pal-text) 8%, transparent);
+}
+.classic :deep(.tpl-album-meta) {
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+.classic :deep(.tpl-gallery-caption) {
+  flex: 0 1 auto;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--pal-text);
+}
+.classic :deep(.tpl-album-counter) {
+  font-family: var(--font-display);
 }
 /* F4: 留言板 — classic：卡片式（surface 底 + 圆角边框，温暖友好） */
 .classic-guestbook :deep(.gb-form) {
