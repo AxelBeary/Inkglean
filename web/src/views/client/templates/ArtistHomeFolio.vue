@@ -37,7 +37,7 @@
     <section id="gallery" class="folio-section tpl-reveal" v-if="galleryArtworks.length">
       <div class="folio-inner">
         <h2 class="folio-title">{{ $t('artistHome.artworks') }}</h2>
-        <TplGallery :artworks="galleryArtworks" :subdomain="subdomain" />
+        <TplGallery :artworks="galleryArtworks" :styles="styles" :subdomain="subdomain" />
       </div>
     </section>
 
@@ -47,7 +47,7 @@
         <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
         <template v-if="styles.length">
           <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
-          <TplStyleGrid :styles="styles" :subdomain="subdomain" />
+          <TplStyleGrid :styles="styles" :artworks="artworks" :subdomain="subdomain" />
         </template>
         <template v-else-if="tiers.length">
           <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>

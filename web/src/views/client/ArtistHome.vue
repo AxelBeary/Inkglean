@@ -35,6 +35,8 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import { usePalette } from '../../composables/usePalette.js'
+// ⚠️ v0.35 波 2 mock 占位：三号波 1 API 交付后删除此 import + 下方 applyV035MockFields 调用行
+import { applyV035MockFields } from '../../composables/useArtistData.js'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 
 const { t } = useI18n()
@@ -140,7 +142,19 @@ onMounted(async () => {
       .catch(() => {})
     // v0.32 REQ-023 Phase3: 加载画风列表（静默失败走旧模型兜底）
     artistPublicApi.getPublicStyles(subdomain)
-      .then(res => { styles.value = res || [] })
+      .then(res => {
+        // ⚠️ v0.35 波 2 mock 占位：为 sizes 附加图/描述/天数，为画廊作品附加 tags/描述。
+        // 三号波 1 API 交付后删除此包装块，恢复 styles.value = res || []（接口自带新字段）。
+        // 画廊只展示非封面作品（useArtistData.galleryArtworks 去重规则），
+        // mock tags 必须基于同一展示列表分布，否则会出现「档位标签存在但该档位 0 作品」。
+        const raw = artworks.value
+        const shown = raw.filter(a => !a.is_cover)
+        const galleryList = shown.length > 0 ? shown : raw
+        const decorated = applyV035MockFields(res || [], galleryList)
+        const tagById = new Map(decorated.artworks.map(a => [a.id, a]))
+        styles.value = decorated.styles
+        artworks.value = raw.map(a => tagById.get(a.id) || a)
+      })
       .catch(() => {})
   } catch (err) {
     ElMessage.error(err.message || t('artistHome.loadFailed'))

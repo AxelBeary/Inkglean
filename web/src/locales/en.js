@@ -211,7 +211,11 @@ export default {
     addonStepEmpty: 'No add-ons available for this size',
     addonOptionPrice: 'Option price',
     multiplierLabel: 'Usage & rush', usageLabel: 'Usage:', rushLabel: 'Rush:',
-    personal: 'Personal', noRush: 'No rush'
+    personal: 'Personal', noRush: 'No rush',
+    // v0.35 F4: Entry A preselection banner (coming from the showcase with a choice)
+    preselectedBoth: 'Pre-selected from your homepage choice: {style} · {size}',
+    preselectedStyle: 'Style pre-selected: "{style}" — pick a size',
+    preselectChange: 'Change'
   },
   // R24: validation popup
   order: {
@@ -268,6 +272,14 @@ export default {
     rejectConfirm: 'Reject this message? It will no longer appear on your public page.',
     // F8: language filter
     languageAll: 'All languages'
+  },
+  // v0.35 F6: client gallery filter + lightbox tags (shared component TplGallery)
+  gallery: {
+    filterAll: 'All',
+    filterEmpty: 'No artworks tagged with this tier yet',
+    tierTag: 'Tier',
+    prev: 'Previous',
+    next: 'Next'
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
