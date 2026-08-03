@@ -163,7 +163,9 @@ export default async function artistRoutes(fastify) {
           announcementExpiresAt: { type: ['string', 'null'], maxLength: 30 },
           monthlyQuota: { type: ['integer', 'null'], minimum: 0, maximum: 999 },
           // v0.25 C: 快捷按钮（DB 持久化，数组→JSON 字符串存储）
-          quickActions: { type: ['array', 'null'], maxItems: 9, items: { type: 'string', maxLength: 30 } }
+          quickActions: { type: ['array', 'null'], maxItems: 9, items: { type: 'string', maxLength: 30 } },
+          // v0.37 (REQ-024 F2): 多画风开关（关=客户端只见默认画风）
+          multiStyleEnabled: { type: 'boolean' }
         },
         additionalProperties: false
       }
@@ -193,7 +195,8 @@ export default async function artistRoutes(fastify) {
         bufferShortForm: 'buffer_short_form',
         announcementExpiresAt: 'announcement_expires_at',
         monthlyQuota: 'monthly_quota',
-        quickActions: 'quick_actions'
+        quickActions: 'quick_actions',
+        multiStyleEnabled: 'multi_style_enabled'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }
       const sanitized = {}
@@ -336,7 +339,12 @@ export default async function artistRoutes(fastify) {
   // ─── 作品管理 ───
 
   fastify.get('/api/artist/artworks', { preHandler: requireAuth }, async (request) => {
-    return artistService.getArtworks(request.artist.id)
+    // v0.37 (REQ-024 F6): 附带每作品的档位标注 id 列表（后台作品管理编辑回显）
+    const artworks = artistService.getArtworks(request.artist.id)
+    return artworks.map((art) => ({
+      ...art,
+      size_tag_ids: artistService.getArtworkSizeTagIds(art.id)
+    }))
   })
 
   fastify.post('/api/artist/artworks', {
@@ -370,6 +378,55 @@ export default async function artistRoutes(fastify) {
     }
     artistService.deleteArtwork(request.params.id)
     return { success: true }
+  })
+
+  // ─── v0.37 (REQ-024 F6): 作品编辑（标题/自由描述）+ 档位标注 ───
+
+  /** PUT /api/artist/artworks/:id — 编辑作品（title/description，均可选） */
+  fastify.put('/api/artist/artworks/:id', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          title: { type: ['string', 'null'], maxLength: 100 },
+          description: { type: ['string', 'null'], maxLength: 2000 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const artwork = artistService.getArtworkById(request.params.id)
+    if (!artwork || artwork.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '作品不存在' })
+    }
+    return artistService.updateArtwork(artwork.id, request.body || {})
+  })
+
+  /** PUT /api/artist/artworks/:id/tags — 批量设置档位标注（多选替换语义） */
+  fastify.put('/api/artist/artworks/:id/tags', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['sizeIds'],
+        properties: {
+          sizeIds: { type: 'array', items: { type: 'integer' }, maxItems: 50 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const artwork = artistService.getArtworkById(request.params.id)
+    if (!artwork || artwork.artist_id !== request.artist.id) {
+      return reply.code(404).send({ error: '作品不存在' })
+    }
+    try {
+      const sizeIds = artistService.setArtworkSizeTags(request.artist.id, artwork.id, (request.body as any).sizeIds)
+      return { sizeIds }
+    } catch (err: any) {
+      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+    }
   })
 
   // ─── v0.25 #5: 封面图 ───

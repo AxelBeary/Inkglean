@@ -68,6 +68,10 @@ export async function buildApp(opts = {}) {
       collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')
       // R19: 备注附图 — 不收集 = 在用备注附图被 GC 误删（数据丢失）
       collect(db.prepare('SELECT image_path FROM order_notes').all(), 'image_path')
+      // v0.35 波1: 画风封面（v0.36 遗留漏收集，封面图上传 24h 后会被 GC 误删——数据丢失）
+      collect(db.prepare('SELECT cover_image FROM art_styles').all(), 'cover_image')
+      // v0.35 波1: 尺寸独立上传图（F1）
+      collect(db.prepare('SELECT image FROM style_sizes').all(), 'image')
 
       const MIN_AGE_MS = 24 * 60 * 60 * 1000
       const now = Date.now()

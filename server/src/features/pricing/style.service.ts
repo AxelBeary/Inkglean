@@ -276,6 +276,11 @@ export interface StyleSize {
   name: string
   base_price: number
   sort_order: number
+  // v0.37 (REQ-024 F1): 尺寸带图/描述/天数
+  image: string | null
+  image_artwork_id: number | null
+  description: string | null
+  work_days: number | null
 }
 
 /** 获取画风下的尺寸列表 */
@@ -298,6 +303,39 @@ function getStyleSize(artistId: number, styleId: number, sizeId: number): StyleS
 interface CreateStyleSizeInput {
   name: string
   base_price: number
+  image?: string | null
+  image_artwork_id?: number | null
+  description?: string | null
+  work_days?: number | null
+}
+
+/**
+ * 尺寸图片字段校验（v0.37 F1）
+ * - image: 独立上传路径，必须在 images/{artistId}/ 下（防路径穿越）
+ * - image_artwork_id: 从作品集挑，必须属于该画师
+ * 两字段互斥：一个有值时另一个清 null（渲染优先级由前端按 image_artwork_id 判断）
+ */
+function validateSizeImageFields(
+  artistId: number,
+  fields: { image?: string | null; image_artwork_id?: number | null }
+): { image: string | null; image_artwork_id: number | null } {
+  let image: string | null = null
+  let imageArtworkId: number | null = null
+
+  if (fields.image_artwork_id != null) {
+    const artwork = db.prepare(
+      'SELECT id FROM artworks WHERE id = ? AND artist_id = ?'
+    ).get(fields.image_artwork_id, artistId)
+    if (!artwork) throw new AppError(E.ARTWORK_NOT_FOUND, 404)
+    imageArtworkId = fields.image_artwork_id
+  } else if (fields.image != null) {
+    if (fields.image && (String(fields.image).includes('..') || !String(fields.image).startsWith(`images/${artistId}/`))) {
+      throw new AppError(E.ILLEGAL_PATH)
+    }
+    image = fields.image || null
+  }
+
+  return { image, image_artwork_id: imageArtworkId }
 }
 
 /** 添加尺寸 */
@@ -306,13 +344,27 @@ export function createStyleSize(artistId: number, styleId: number, input: Create
   if (!input.name || !input.name.trim()) throw new AppError(E.STYLE_SIZE_NAME_EMPTY)
   if (input.base_price == null || input.base_price < 0) throw new AppError(E.STYLE_SIZE_INVALID_PRICE)
 
+  // v0.37 F1: 图片字段（image_artwork_id 优先于 image）
+  const hasImageInput = input.image !== undefined || input.image_artwork_id !== undefined
+  const img = hasImageInput
+    ? validateSizeImageFields(artistId, {
+        image_artwork_id: input.image_artwork_id ?? undefined,
+        image: input.image ?? undefined
+      })
+    : { image: null, image_artwork_id: null }
+
   const maxOrder = (db.prepare(
     'SELECT MAX(sort_order) AS m FROM style_sizes WHERE art_style_id = ?'
   ).get(styleId) as { m: number | null }).m ?? -1
 
-  const result = db.prepare(
-    'INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, ?, ?, ?)'
-  ).run(styleId, input.name.trim(), input.base_price, maxOrder + 1)
+  const result = db.prepare(`
+    INSERT INTO style_sizes (art_style_id, name, base_price, sort_order, image, image_artwork_id, description, work_days)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    styleId, input.name.trim(), input.base_price, maxOrder + 1,
+    img.image, img.image_artwork_id,
+    input.description || null, input.work_days ?? null
+  )
 
   return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(Number(result.lastInsertRowid)) as StyleSize
 }
@@ -321,6 +373,10 @@ interface UpdateStyleSizeFields {
   name?: string
   base_price?: number
   sort_order?: number
+  image?: string | null
+  image_artwork_id?: number | null
+  description?: string | null
+  work_days?: number | null
 }
 
 /** 更新尺寸 */
@@ -337,6 +393,21 @@ export function updateStyleSize(artistId: number, styleId: number, sizeId: numbe
   }
   if (fields.sort_order !== undefined) {
     db.prepare('UPDATE style_sizes SET sort_order = ? WHERE id = ?').run(fields.sort_order, sizeId)
+  }
+  // v0.37 F1: 图片字段 — 任一传入即整组重算（image_artwork_id 优先，另一个清空）
+  if (fields.image !== undefined || fields.image_artwork_id !== undefined) {
+    const img = validateSizeImageFields(artistId, {
+      image_artwork_id: fields.image_artwork_id ?? undefined,
+      image: fields.image ?? undefined
+    })
+    db.prepare('UPDATE style_sizes SET image = ?, image_artwork_id = ? WHERE id = ?')
+      .run(img.image, img.image_artwork_id, sizeId)
+  }
+  if (fields.description !== undefined) {
+    db.prepare('UPDATE style_sizes SET description = ? WHERE id = ?').run(fields.description || null, sizeId)
+  }
+  if (fields.work_days !== undefined) {
+    db.prepare('UPDATE style_sizes SET work_days = ? WHERE id = ?').run(fields.work_days, sizeId)
   }
 
   return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(sizeId) as StyleSize
@@ -495,6 +566,116 @@ export function setSizeOverrides(artistId: number, styleId: number, sizeId: numb
 
 // ─── 客户端公开配置 ───
 
+// ─── v0.37 (REQ-024 F6): 公开画廊数据（作品档位标注 + 筛选标签） ───
+
+export interface PublicGalleryTag {
+  style_size_id: number
+  size_name: string
+  style_id: number
+  style_name: string
+}
+
+export interface PublicGalleryArtwork {
+  id: number
+  image_path: string
+  title: string | null
+  description: string | null
+  like_count: number
+  is_cover: number
+  width: number | null
+  height: number | null
+  size_tags: PublicGalleryTag[]
+}
+
+export interface PublicGallerySize {
+  id: number
+  name: string
+  style_id: number
+  style_name: string
+  sort_order: number
+}
+
+/**
+ * F6 公开画廊数据 — 作品列表（带档位标注+自由描述）+ 筛选标签尺寸列表
+ *
+ * 可见性规则与 getPublicStyles 一致：multi_style_enabled=0 时只有默认画风
+ * （排序最前的启用画风）的尺寸参与标注展示和筛选标签——关闭画风下挂的标注不对外。
+ * 删掉的尺寸标注被 CASCADE 自动清理（F6 验收 8）。
+ */
+export function getPublicGallery(artistId: number): {
+  artworks: PublicGalleryArtwork[]
+  filterSizes: PublicGallerySize[]
+} {
+  // 1. 可见画风（同 getPublicStyles 的门控逻辑）
+  let styles = db.prepare(
+    'SELECT id, name FROM art_styles WHERE artist_id = ? AND is_active = 1 ORDER BY sort_order ASC'
+  ).all(artistId) as Array<{ id: number; name: string }>
+
+  const artist = db.prepare(
+    'SELECT multi_style_enabled FROM artists WHERE id = ?'
+  ).get(artistId) as { multi_style_enabled: number } | undefined
+  if (artist && !artist.multi_style_enabled) {
+    styles = styles.slice(0, 1)
+  }
+
+  // 2. 可见画风下的尺寸 → 筛选标签 + 标注过滤集
+  const filterSizes: PublicGallerySize[] = []
+  const visibleSizeMap = new Map<number, PublicGalleryTag>()
+  for (const style of styles) {
+    const sizes = db.prepare(
+      'SELECT id, name, sort_order FROM style_sizes WHERE art_style_id = ? ORDER BY sort_order ASC'
+    ).all(style.id) as Array<{ id: number; name: string; sort_order: number }>
+    for (const size of sizes) {
+      filterSizes.push({ id: size.id, name: size.name, style_id: style.id, style_name: style.name, sort_order: size.sort_order })
+      visibleSizeMap.set(size.id, {
+        style_size_id: size.id, size_name: size.name, style_id: style.id, style_name: style.name
+      })
+    }
+  }
+
+  // 3. 作品列表（含标注——只保留可见尺寸内的标注）
+  const rows = db.prepare(`
+    SELECT a.id, a.image_path, a.title, a.description, a.like_count, a.is_cover,
+           a.width, a.height, a.sort_order, a.cover_order
+    FROM artworks a
+    WHERE a.artist_id = ?
+    ORDER BY a.is_cover DESC, a.cover_order ASC, a.sort_order ASC
+  `).all(artistId) as Array<{
+    id: number; image_path: string; title: string | null; description: string | null
+    like_count: number; is_cover: number; width: number | null; height: number | null
+  }>
+
+  const tagStmt = db.prepare(
+    'SELECT style_size_id FROM artwork_size_tags WHERE artwork_id = ?'
+  )
+  const artworks: PublicGalleryArtwork[] = rows.map(row => {
+    const tagRows = tagStmt.all(row.id) as Array<{ style_size_id: number }>
+    const sizeTags = tagRows
+      .map(t => visibleSizeMap.get(t.style_size_id))
+      .filter((t): t is PublicGalleryTag => !!t)
+    return {
+      id: row.id,
+      image_path: row.image_path,
+      title: row.title,
+      description: row.description,
+      like_count: row.like_count,
+      is_cover: row.is_cover,
+      width: row.width,
+      height: row.height,
+      size_tags: sizeTags
+    }
+  })
+
+  return { artworks, filterSizes }
+}
+
+/** 解析作品引用图路径（v0.37 F1：image_artwork_id → artworks.image_path 实时引用） */
+function resolveArtworkImagePath(artworkId: number | null): string | null {
+  if (artworkId == null) return null
+  const row = db.prepare('SELECT image_path FROM artworks WHERE id = ?').get(artworkId) as { image_path: string } | undefined
+  return row?.image_path ?? null
+}
+
 export interface PublicStyleAddon {
   id: number
   addon_template_id: number
@@ -512,6 +693,13 @@ export interface PublicStyleSize {
   name: string
   base_price: number
   sort_order: number
+  // v0.37 (REQ-024 F1): 尺寸带图/描述/天数
+  // 渲染优先级（F1/F3 约定）：image_artwork_id 有值 → 用 artwork_image_path（实时引用），否则用 image
+  image: string | null
+  image_artwork_id: number | null
+  artwork_image_path: string | null
+  description: string | null
+  work_days: number | null
   addons: PublicStyleAddon[]
 }
 
@@ -527,13 +715,23 @@ export interface PublicArtStyle {
 /**
  * 获取画师画风+尺寸+增项完整配置（客户端三步走用）
  * 只返回 is_active=1 的画风
+ * v0.37 (REQ-024 F2): 多画风开关 multi_style_enabled=0 时只返回默认画风
+ *   （默认画风 = 排序最前的启用画风，动态顺延）
  * 增项价格：尺寸覆盖 > 画风覆盖 > 模板默认价
  * 排除 is_hidden=1 的增项
  */
 export function getPublicStyles(artistId: number): PublicArtStyle[] {
-  const styles = db.prepare(
+  let styles = db.prepare(
     'SELECT * FROM art_styles WHERE artist_id = ? AND is_active = 1 ORDER BY sort_order ASC'
   ).all(artistId) as ArtStyle[]
+
+  // v0.37 F2: 多画风开关关闭 → 只返回默认画风（排序最前的启用画风，上面已按 sort_order 排序）
+  const artist = db.prepare(
+    'SELECT multi_style_enabled FROM artists WHERE id = ?'
+  ).get(artistId) as { multi_style_enabled: number } | undefined
+  if (artist && !artist.multi_style_enabled) {
+    styles = styles.slice(0, 1)
+  }
 
   return styles.map(style => {
     const sizes = db.prepare(
@@ -592,6 +790,12 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
         name: size.name,
         base_price: size.base_price,
         sort_order: size.sort_order,
+        // v0.37 F1: 尺寸图（image_artwork_id 有值时解析出作品图路径——实时引用，作品删了字段自动置空）
+        image: size.image,
+        image_artwork_id: size.image_artwork_id,
+        artwork_image_path: resolveArtworkImagePath(size.image_artwork_id),
+        description: size.description,
+        work_days: size.work_days,
         addons
       }
     })

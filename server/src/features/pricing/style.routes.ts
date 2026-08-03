@@ -153,7 +153,12 @@ export default async function styleRoutes(fastify: any) {
         required: ['name', 'base_price'],
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
-          base_price: { type: 'number', minimum: 0, maximum: 999999 }
+          base_price: { type: 'number', minimum: 0, maximum: 999999 },
+          // v0.37 (REQ-024 F1): 尺寸带图/描述/天数（均可选）
+          image: { type: ['string', 'null'], maxLength: 500 },
+          image_artwork_id: { type: ['integer', 'null'] },
+          description: { type: ['string', 'null'], maxLength: 500 },
+          work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 }
         },
         additionalProperties: false
       }
@@ -171,7 +176,12 @@ export default async function styleRoutes(fastify: any) {
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           base_price: { type: 'number', minimum: 0, maximum: 999999 },
-          sort_order: { type: 'integer', minimum: 0, maximum: 999 }
+          sort_order: { type: 'integer', minimum: 0, maximum: 999 },
+          // v0.37 (REQ-024 F1): 尺寸带图/描述/天数（image/image_artwork_id 互斥，传一清一）
+          image: { type: ['string', 'null'], maxLength: 500 },
+          image_artwork_id: { type: ['integer', 'null'] },
+          description: { type: ['string', 'null'], maxLength: 500 },
+          work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 }
         },
         additionalProperties: false
       }
@@ -279,6 +289,20 @@ export default async function styleRoutes(fastify: any) {
     if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicStyles(artist.id)
+  })
+
+  /**
+   * GET /api/public/gallery/:subdomain
+   * v0.37 (REQ-024 F6): 公开画廊数据 — 作品列表（含档位标注 size_tags + 自由描述 description）
+   * + filterSizes 筛选标签（可见画风的尺寸）。二号波 2 画廊筛选/大图标签消费此端点。
+   */
+  fastify.get('/api/public/gallery/:subdomain', async (request: any) => {
+    guardRateLimit(`gallery:${request.ip}`, 30, 5 * 60_000)
+
+    const artist = getArtistBySubdomain(request.params.subdomain) as any
+    if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
+
+    return styleService.getPublicGallery(artist.id)
   })
 
   /**
