@@ -1,7 +1,7 @@
 import * as styleService from './style.service.js'
 import * as stylePricingService from './style-pricing.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
-import { getArtistBySubdomain } from '../artist/artist.service.js'
+import { getArtistBySubdomain, requireVisibleArtist } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 
@@ -344,8 +344,8 @@ export default async function styleRoutes(fastify: any) {
 
     const { subdomain, styleSizeId, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as any
 
-    const artist = getArtistBySubdomain(subdomain) as any
-    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // BUG-3 遗留修复：hidden 画师/管理员账号不允许算价（对齐同文件 GET styles/gallery 的 hidden 过滤）
+    const artist = requireVisibleArtist(subdomain)
 
     return stylePricingService.calculateStylePrice(artist.id, {
       styleSizeId,
