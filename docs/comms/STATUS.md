@@ -1,88 +1,90 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-03 v0.33 收工（全部合入 + 容器已重建，全角色下班）
+> 最后更新：2026-08-03 夜 v0.34 派工（用户体验反馈批次，二号/三号在途）
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
 
 ---
 ## master 状态
 
-- **HEAD**：`28c0764`（STATUS 收口），与 origin 同步
-- **本版本关键 merge**：示例数据 `facaf54`、草稿恢复 `f7e5ecd`
-- **后端测试**：666/666 通过（39 文件）
-- **前端测试**：118/118 通过（6 文件）
-- **迁移**：v36（multi_style_model）
-- **容器**：已重建（含 v0.33 全部代码），Healthy，数据/图片验证完好
+- **HEAD**：`7b27b8c`（v0.34 派工），与 origin 同步
+- **后端测试**：666/666 | **前端测试**：118/118 | **迁移**：v36
+- **容器**：Healthy，跑 v0.33 代码
 
 ---
-## 当前阶段：v0.33 收工，容器跑着新代码，等用户体验
+## 当前阶段：v0.34 反馈批次执行中
 
-### v0.33 合入清单
+用户 2026-08-03 晚体验 v0.33 后一次性报了 7 项反馈（alice 主页截图标注 1-4 + emoji 清理 + 404 + 作品顶位置 + 档位图不对）。一号已逐条核实根因并派工。
 
-| 项 | 内容 | 合入 |
-|----|------|------|
-| 草稿恢复覆盖画风状态 | saveDraft 存 styleState、restoreDraft 按 isStyleMode 互斥恢复 + 有效性校验（v0.32 遗留 #1） | `f7e5ecd` |
-| 示例数据 | CC0 公有领域画作（Wikimedia Commons）真实化 alice/bob + carol 旧模型画师 + 4 跨状态演示订单 | `facaf54` |
-| 四号文档维护 | CONTEXT v36/666/106、README 补多画风、REQ-017~021/023 归档、REQ-022 标部分实施 | `66a1155`+`513c90f` |
-| 审核补记 | 演示订单补 queue_position（`0ccc919`）；三号自查修复复跑误删种子图片（keepFiles 保护集） | 随 `facaf54` |
+### 反馈清单与派工归属
 
-### 示例数据速查（体验用）
+| # | 反馈 | 根因（一号已核实） | 派给 |
+|---|------|------|------|
+| 1 | hero「查询进度」按钮框看不见 | ghost 按钮 border 用 --pal-border，背景图上对比不足 | 二号 任务D |
+| 2 | 价格表封面图「被切掉」（用户澄清：不是变形是裁切） | TplStyleGrid fit=cover + 固定 220px 高；应对齐 TplTierGrid 的 contain 不裁切 | 二号 任务C |
+| 3 | 价格区空间浪费 + 款式不能点 | 尺寸行纯展示无交互 | 二号 任务G（空间）+B（可点） |
+| 4 | 「约稿流程与收款」模块没优化 | WorkflowOverviewStrip 仅 39 行朴素圆点列表 | 二号 任务E |
+| 5 | 全站 emoji 删掉（SVG 无所谓） | 260 处命中 | 二号 locales+客户端；三号 画师/管理后台 |
+| 6 | 404 丑 + 亮暗中英按钮逻辑与主页不一致 | catch-all 直接复用 LandingPage，偏好按钮位置形态与主页浮窗不一致 | 二号 任务A |
+| 7 | 作品展示「顶位置」复发 | demo-data.ts INSERT 缺 width/height 列，TplGallery aspect-ratio 占位失效 | 三号 任务1 |
+| 8 | 「档位图怎么不是我后台设置的」 | **封面上传 UX 陷阱**：uploadCover 只写表单，必须点「确定」才发 PUT；用户传了 3 张图后未点确定（日志无 PUT art-styles），DB 里还是 demo 脚本写死的旧封面。非数据丢失 | 三号 任务2 |
 
-| 画师 | subdomain | 状态 | 特点 |
-|------|-----------|------|------|
-| Alice | alice | 接单中 | **2 画风**（默认 ¥50/120/200 迁移来的 + 厚涂插画 ¥80/180/280），6 张名画作品，4 个演示订单（confirmed/wip×2/done） |
-| Bob | bob | **约满** | 单画风（默认），6 张作品，演示约满状态 |
-| Carol | carol | 接单中 | **旧模型画师（零 art_styles）**，3 档位各带示例图，演示单画风退化路径 |
+### 二号：客户端反馈批次（7 项）
 
-图片许可证：全部公有领域（Wikimedia Commons 古典画作：维米尔/梵高/北斋/莫奈/雷诺阿等），清单在 master 历史 `facaf54` 的交付报告里。
+> **分支**：`fix/v034-client-ui-batch`
+> **Worktree**：`D:\Hermes Agent CN Desktop\workspace\artist-commission-wt-02`
+> **派工文件**：`docs/comms/01-to-02-v034客户端反馈批次-20260803.md`（含每项的代码行号现状）
+> **执行顺序**：B（尺寸可选+预选跳转）→ C（封面不裁切）→ A（404 重做）→ D（ghost 按钮）→ E（流程模块）→ F（emoji）→ G（空间）
 
-### 用户待体验清单（用户刷新后按此逐项验证）
+**关键约束**：
+- 任务 B：goOrder 带 `?styleId=&sizeId=` query；OrderForm/useOrderForm 读 query 预选；**query 预选 > 草稿恢复**
+- 任务 C：对齐 TplTierGrid contain 不裁切
+- 任务 A：新建 NotFound.vue，主题切换复用 ClientFloatingActions 右下角浮窗（与主页一致），删 LandingPage 的 isNotFound
+- 任务 F：locales emoji 全归二号，**不碰画师/管理后台 .vue**（归三号）
 
-1. **客户端 alice**：画风展示柜（2 画风卡片带封面）→ 下单三步走（选画风→选尺寸→勾增项）
-2. **草稿恢复**：三步走选到一半（不填文字也行）→ 刷新页面 → 弹"检测到草稿"→ 恢复 → 画风/尺寸/增项全部回来 + 价格重算
-3. **客户端 carol**：旧模型档位展示（无画风），验证退化路径
-4. **客户端 bob**：约满状态展示
-5. **画师后台 alice**：看板有 4 个演示订单（排期确认/上色确认/草稿确认/交付 各节点）、订单列表、收款状态（50% 定金/全款）
-6. **4 模板视觉走查**：alice/carol 页面加 `?_tpl=` 参数切 Atelier/Classic/Folio/Gallery 看画风柜在 4 模板下的效果
+交付 comms：`02-to-01-v034客户端批次-{日期}.md`
 
-### 遗留（排下版本）
+### 三号：演示数据回填 + 封面上传 UX + 后台 emoji
 
-- 4 模板视觉走查的结论（用户看完 6 后反馈）
-- REQ-022 未实施部分（B 类低优先 F1~F5）、REQ-014 桌面端伴侣应用（未启动）
+> **分支**：`fix/v034-demo-dims-cover-ux`
+> **Worktree**：`D:\Hermes Agent CN Desktop\workspace\artist-commission-wt-03`
+> **派工文件**：`docs/comms/01-to-03-v034后端画师批次-20260803.md`
+> **顺序**：任务1（width/height 回填，用户等体验）→ 任务2（封面上传即时保存）→ 任务3（后台 emoji）
 
-### 技术债（非阻塞）
+**关键事实（任务 2，不用再排查）**：用户 22:14 上传 3 图落盘成功，但日志无 PUT /api/artist/art-styles——uploadCover 只写 styleForm 不发请求，要点「确定」才 saveStyle。修复方向：编辑已有画风时上传成功立即 PUT（同 R48 头像即时保存模式）。
 
-- 画风 API 全链路 snake_case（cover_image/base_price/sort_order），与项目其他 API camelCase 约定不一致——前后端已自洽，不改，记录在案
+交付 comms：`03-to-01-v034后端画师批次-{日期}.md`
+
+### 五号
+
+空闲。待二号/三号交付后跑回归（客户端 4 模板 × 亮暗主题走查截图）。
+
+### 四号
+
+空闲。v0.34 合入后派 changelog 补写。
 
 ---
-## 各角色状态
+## 已知遗留（排后版本）
 
-全部下班（2026-08-03 晚）。二/三/四号本日任务已全部合入，五号空闲。下轮开工前无人有在途任务。
+- 画师后台视觉统一（纸墨颜料盘设计系统，提案 v2 已入库）
+- REQ-022 B 类低优先、REQ-014 桌面端伴侣应用
+- 画风 API snake_case 全链路（前后端自洽，不改，记录在案）
 
 ---
 ## 分支状态
 
 | 分支 | Worktree | 状态 |
 |------|----------|------|
-| master | 主 worktree（一号专用） | ✅ 干净，唯一分支 |
+| master | 主 worktree（一号专用） | ✅ 干净 |
+| fix/v034-client-ui-batch | wt-02 | 二号在途 |
+| fix/v034-demo-dims-cover-ux | wt-03 | 三号在途 |
 
-残留说明：`artist-commission-02` 磁盘目录被 Windows 文件锁占用删不掉（git 记录已清、分支已删），无害残留，重启后手动删即可。comms 目录只剩 STATUS.md + 无在途派工。
-
----
-## 下版本排期
-
-待用户确认方向。候选：
-- **画师后台视觉统一**（纸墨颜料盘设计系统，提案已入库 `docs/画师工作台视觉提案-v2.html`，用户已认可视觉方向）
-- 4 模板视觉走查后的调整
-- 用户新需求 / 真实画师反馈
+残留：`artist-commission-02`、`artist-commission-p0` 磁盘目录为旧 worktree 残留（git 记录已清），无害，重启后可删。
 
 ---
 ## 重要规则提醒
 
-- 合并到 master 后**立即推送**
-- 操作 master 前 `git log --oneline -5` 确认 HEAD
-- 禁止对 master 执行 `git reset --hard` / `git rebase`
-- 禁止 `git add -A`
-- 并行角色必须在独立 worktree
-- Docker 环境 SQLite 必须用 DELETE 模式
-- **幂等脚本的"清理"和"种子"必须显式区分归属，不能共用匹配模式**（v0.33 教训：复跑误删种子图片）
+- 合并到 master 后**立即推送**；操作前 `git log --oneline -5` 确认 HEAD
+- 禁止对 master `git reset --hard` / `git rebase`；禁止 `git add -A`
+- 并行角色必须在独立 worktree；Docker 环境 SQLite 用 DELETE 模式
+- 幂等脚本「清理」与「种子」显式区分归属（v0.33 教训）
