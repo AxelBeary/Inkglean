@@ -7,8 +7,9 @@
 ---
 ## master 状态
 
-- **HEAD**：`46983d8`，与 origin 同步
+- **HEAD**：`9fe02d8`，与 origin 同步
 - **测试**：server 695/695 · web 144/144 · tsc 0 · eslint 0 · build ✓
+- **容器**：v0.36 已重建验证（06:50）——healthy、数据完好（6 画风/11 尺寸/21 作品/4 订单）、旧增项 API 404、新读路径真数据跑通；备份 `data/commission.db.bak-v036-verify`
 - **迁移**：v38（artists CHECK 补 hidden，事务外 12 步重建）
 
 ---
@@ -60,7 +61,7 @@
 - **二号**：v0.36 波 1 前端（时间条四档+撤销）执行中——worktree `-02` 分支 `feat/v036-web-timeline-undo`（子代理重发）
 - **二号-B**：波 2-A 画廊画册翻页执行中——worktree `-w2b` 分支 `feat/v036-gallery-album`（子代理）
 - **三号**：波 1 已合入；现派 errors.ts 死码清理（`01-to-03b-dead-errorcodes-20260805.md`，主 worktree 直提，单文件）
-- **五号**：波 1 已合入，空闲，等波 2 派工
+- **五号**：波 1 已合入；现派演示订单分期节点缺口修复（`01-to-05b-demo-installments-20260805.md`，worktree `-w5b` 分支 `fix/v036-demo-installments`）
 - **四号**：changelog 已合入 + 归档已执行；现派说明书漂移修复（`01-to-04-manual-drift-20260805.md`，主 worktree 直提）
 
 ---
