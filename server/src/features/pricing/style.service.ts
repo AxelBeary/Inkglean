@@ -190,6 +190,10 @@ interface CreateArtStyleInput {
 /** 新建画风（可选从增项库一键导入） */
 export function createArtStyle(artistId: number, input: CreateArtStyleInput): ArtStyleWithDetails {
   if (!input.name || !input.name.trim()) throw new AppError(E.STYLE_NAME_EMPTY)
+  // M1 修复：封面图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
+  if (input.cover_image && (String(input.cover_image).includes('..') || !String(input.cover_image).startsWith('images/'))) {
+    throw new AppError(E.ILLEGAL_PATH)
+  }
 
   const maxOrder = (db.prepare(
     'SELECT MAX(sort_order) AS m FROM art_styles WHERE artist_id = ?'
@@ -248,6 +252,10 @@ export function updateArtStyle(artistId: number, styleId: number, fields: Update
     db.prepare('UPDATE art_styles SET description = ? WHERE id = ?').run(fields.description || null, styleId)
   }
   if (fields.cover_image !== undefined) {
+    // M1 修复：封面图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
+    if (fields.cover_image && (String(fields.cover_image).includes('..') || !String(fields.cover_image).startsWith('images/'))) {
+      throw new AppError(E.ILLEGAL_PATH)
+    }
     db.prepare('UPDATE art_styles SET cover_image = ? WHERE id = ?').run(fields.cover_image || null, styleId)
   }
   if (fields.sort_order !== undefined) {
