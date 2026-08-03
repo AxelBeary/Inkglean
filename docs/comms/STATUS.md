@@ -7,26 +7,24 @@
 ---
 ## master 状态
 
-- **HEAD**：`352eac7`，与 origin 同步
-- **测试**：server 711/711 · web 144/144 · tsc 0 · eslint 0 · build ✓
+- **HEAD**：`46983d8`，与 origin 同步
+- **测试**：server 695/695 · web 144/144 · tsc 0 · eslint 0 · build ✓
 - **迁移**：v38（artists CHECK 补 hidden，事务外 12 步重建）
 
 ---
-## 当前阶段：v0.36 清账版开工（用户 2026-08-04 拍板时间条四档 + 点名要撤销）
+## 当前阶段：v0.36 清账版（波 1 后端已全合入，二号前端执行中）
 
-### v0.35 终验状态
+### v0.36 波 1 合入记录
 
-用户未逐项走完终验清单，但已直接给 v0.36 派活（时间条缩放、撤销），按开工处理。v0.35 功能全部在 master，若用户后续反馈 v0.35 问题，hotfix 插队。
+| 角色 | 内容 | commit | 测试 |
+|------|------|--------|------|
+| 四号 | v0.28~v0.35 changelog 补全 + docs 归档盘点清单（归档动作待发话） | `4a2a582` | — |
+| 五号 | BUG-1 方案 b（getOrderInstallments 读池子推算）+ 死代码清账 5 项 | `17ed7f4` | 705→695（删例对账） |
+| 三号 | 旧增项 API 六端点删除（净删 248 行）+ M1/M2 路径校验四处 + C-4 demo-data 断言 | `46983d8` | 同上 |
+| 二号 | 时间条四档缩放 + 撤销 toast + L0/L1/L3/L5 | 执行中（子代理重发，首轮撞迭代上限未落码） | — |
 
-### v0.36 波 1 派工（已发，等角色开工）
-
-| 角色 | Worktree | 分支 | 派工文件 | 内容 |
-|------|----------|------|----------|------|
-| 二号 | `artist-commission-02` | `feat/v036-web-timeline-undo` | `01-to-02-timeline-zoom-undo-20260804.md` | 时间条缩放改四档（两周/一个月/三个月/半年，含刻度密度适配）+ 拖拽撤销 toast（改开工/改截稿/整条平移三种）+ L0 删旧增项前端封装 + L1/L3/L5 小修 |
-| 三号 | `artist-commission-w3` | `feat/v036-server-cleanup` | `01-to-03-server-cleanup-20260804.md` | 旧增项 API 六端点删除（前端零消费已验证）+ M1/M2 图片路径校验 + M4 demo-data |
-| 五号 | `artist-commission-w5` | `fix/v036-bug1-deadcode` | `01-to-05-bug1-deadcode-20260804.md` | BUG-1 方案 b（getOrderInstallments 池子推算，用户已拍板）+ BUG-5 死代码（一号已逐项验证，TplCoverShowcase 已不存在跳过） |
-
-**合并顺序**：五号（后端读路径）→ 三号（后端删除）→ 二号（前端，含与三号配套的 L0）。每次合并后跑全量测试。
+**四号归档清单要点**：REQ-024 → archive/requirements/；SPEC-025 → archive/specs-done/（未覆盖项先转待修复清单）；feedback-20260802 的 E 类 #56/#13、F 类技术债未入清单——待一号决定是否转入后再归档。
+**五号波 2 建议**：addPayment 节点 paid_cents 旧写路径停写或迁移删列，与 addons 表 drop 同批。
 
 ### v0.36 波 2 候选（波 1 合入后派）
 
@@ -58,8 +56,9 @@
 ---
 ## 各角色状态
 
-- **二号/三号/五号**：v0.36 波 1 已派工（子代理执行中）
-- **四号**：已派工（`01-to-04-changelog-20260804.md`）——v0.28~v0.35 changelog 补全 + docs 归档盘点，worktree `-w4` 分支 `docs/v035-changelog`
+- **二号**：v0.36 波 1 前端（时间条四档+撤销）执行中——worktree `-02` 分支 `feat/v036-web-timeline-undo`（子代理重发）
+- **三号/五号**：波 1 已合入，空闲，等波 2 派工
+- **四号**：changelog 已合入；归档动作等一号发话（REQ-024/SPEC-025 两项）
 
 ---
 ## ⚠️ v38 迁移事故记录（一号自查发现并已修复）
