@@ -93,50 +93,89 @@ describe('B7 额度池（v0.23）', () => {
     expect(payments[2].amount_cents).toBe(-5000)
   })
 
-  // ─── 分期状态推算 ───
+  // ─── v0.36 BUG-1 方案 b: getOrderInstallments 池子推算 ───
 
-  it('TC-INST-01: 三态推算（paid/partial/pending）', () => {
-    const result = orderService.computeInstallmentStatuses(
-      [
-        { name: '定金', amountCents: 10000 },
-        { name: '中期', amountCents: 20000 },
-        { name: '尾款', amountCents: 20000 }
-      ],
-      25000
+  /** 辅助：建订单 + 手动插入节点（金额直设，不走比例重算），返回订单行 */
+  function seedOrderWithInstallments(qq, subdomain, insts, totalCents) {
+    const artist = seedArtist({ qq_number: qq, subdomain })
+    const order = seedOrder(artist.id)
+    db.prepare('UPDATE orders SET total_price_cents = ?, final_price_cents = ? WHERE id = ?')
+      .run(totalCents, totalCents, order.id)
+    const insert = db.prepare(
+      'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
     )
-    expect(result[0]).toEqual({ name: '定金', amountCents: 10000, status: 'paid', paidCents: 10000 })
-    expect(result[1]).toEqual({ name: '中期', amountCents: 20000, status: 'partial', paidCents: 15000 })
-    expect(result[2]).toEqual({ name: '尾款', amountCents: 20000, status: 'pending', paidCents: 0 })
+    insts.forEach(([name, amt], i) => insert.run(order.id, name, 0, amt, i + 1))
+    return order
+  }
+
+  it('TC-INST-01: 全款覆盖全部节点 → 全部 paid', () => {
+    const order = seedOrderWithInstallments('88110', 'inst1',
+      [['定金', 10000], ['中期', 20000], ['尾款', 20000]], 50000)
+
+    orderService.addPayment(order.id, { amountCents: 50000, note: '全款' })
+    const result = orderService.getOrderInstallments(order.id)
+
+    expect(result.map(r => r.status)).toEqual(['paid', 'paid', 'paid'])
+    expect(result.map(r => r.paidCents)).toEqual([10000, 20000, 20000])
+    expect(result.every(r => r.remainingCents === 0)).toBe(true)
   })
 
-  it('TC-INST-02: 全款覆盖', () => {
-    const result = orderService.computeInstallmentStatuses(
-      [
-        { name: '定金', amountCents: 10000 },
-        { name: '尾款', amountCents: 40000 }
-      ],
-      50000
-    )
-    expect(result[0].status).toBe('paid')
-    expect(result[1].status).toBe('paid')
+  it('TC-INST-02: 部分覆盖跨节点——paid/partial/pending 三态 + 返回结构不变', () => {
+    const order = seedOrderWithInstallments('88111', 'inst2',
+      [['定金', 10000], ['中期', 20000], ['尾款', 20000]], 50000)
+
+    orderService.addPayment(order.id, { amountCents: 25000, note: '部分收款' })
+    const result = orderService.getOrderInstallments(order.id)
+
+    expect(result[0]).toMatchObject({ name: '定金', amountCents: 10000, paidCents: 10000, remainingCents: 0, status: 'paid' })
+    expect(result[1]).toMatchObject({ name: '中期', amountCents: 20000, paidCents: 15000, remainingCents: 5000, status: 'partial' })
+    expect(result[2]).toMatchObject({ name: '尾款', amountCents: 20000, paidCents: 0, remainingCents: 20000, status: 'pending' })
+    // 返回结构严格不变：六字段，调用方（order.routes/admin.routes/前端）零改动
+    for (const r of result) {
+      expect(Object.keys(r).sort()).toEqual(['amountCents', 'id', 'name', 'paidCents', 'remainingCents', 'status'])
+      expect(typeof r.id).toBe('number')
+    }
   })
 
-  it('TC-INST-03: 零已付全 pending', () => {
-    const result = orderService.computeInstallmentStatuses(
-      [{ name: '定金', amountCents: 10000 }],
-      0
-    )
-    expect(result[0].status).toBe('pending')
-    expect(result[0].paidCents).toBe(0)
+  it('TC-INST-03: 撤销回冲——负流水后节点状态自动回退', () => {
+    const order = seedOrderWithInstallments('88112', 'inst3',
+      [['定金', 10000], ['中期', 20000], ['尾款', 20000]], 50000)
+
+    orderService.addPayment(order.id, { amountCents: 50000, note: '全款' })
+    expect(orderService.getOrderInstallments(order.id).map(r => r.status)).toEqual(['paid', 'paid', 'paid'])
+
+    // 撤销 30000 → paid_total_cents=20000 → 推算自动回退
+    orderService.addPayment(order.id, { amountCents: -30000, note: '客户退款' })
+    const result = orderService.getOrderInstallments(order.id)
+    expect(result[0]).toMatchObject({ status: 'paid', paidCents: 10000 })
+    expect(result[1]).toMatchObject({ status: 'partial', paidCents: 10000 })
+    expect(result[2]).toMatchObject({ status: 'pending', paidCents: 0 })
   })
 
-  it('TC-INST-04: 多付（paid_total > 总额）', () => {
-    const result = orderService.computeInstallmentStatuses(
-      [{ name: '全款', amountCents: 50000 }],
-      60000
-    )
-    expect(result[0].status).toBe('paid')
-    expect(result[0].paidCents).toBe(50000)
+  it('TC-INST-04: 多付溢出——paidCents 封顶节点金额', () => {
+    const order = seedOrderWithInstallments('88113', 'inst4',
+      [['定金', 10000], ['尾款', 40000]], 50000)
+
+    orderService.addPayment(order.id, { amountCents: 60000, note: '多付' })
+    const result = orderService.getOrderInstallments(order.id)
+
+    expect(result.map(r => r.status)).toEqual(['paid', 'paid'])
+    // 多付的 10000 不摊进节点：paidCents 封顶 amountCents，remainingCents 不为负
+    expect(result.map(r => r.paidCents)).toEqual([10000, 40000])
+    expect(result.every(r => r.remainingCents === 0)).toBe(true)
+  })
+
+  it('TC-INST-05: 单节点订单——partial 到 paid', () => {
+    const order = seedOrderWithInstallments('88114', 'inst5', [['全款', 50000]], 50000)
+
+    orderService.addPayment(order.id, { amountCents: 20000, note: '部分收款' })
+    let result = orderService.getOrderInstallments(order.id)
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ status: 'partial', paidCents: 20000, remainingCents: 30000 })
+
+    orderService.addPayment(order.id, { amountCents: 30000, note: '尾款' })
+    result = orderService.getOrderInstallments(order.id)
+    expect(result[0]).toMatchObject({ status: 'paid', paidCents: 50000, remainingCents: 0 })
   })
 
   // ─── 话术变量修复（T3 BUG） ───
