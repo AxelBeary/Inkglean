@@ -53,7 +53,23 @@
 ---
 ## 各角色状态
 
-全部空闲。二号/三号 v0.34 已合入交付。四号 REQ-024 已审通过待实施。五号空闲。
+- **三号**：v0.35 波 1 在途（迁移 v37 + F1/F2/F5 后端 + 后台合并入口）
+- **二号**：v0.35 波 2 在途（F3/F4/F6 客户端，mock-first 与波 1 并行）
+- **四号**：空闲。REQ-024 已审通过。v0.36 负责 changelog 补写 + docs 归档
+- **五号**：空闲。v0.35 合入后跑回归走查
+
+---
+## 当前阶段：v0.35 执行中（波 1+波 2 并行）
+
+| 波 | 角色 | 分支/worktree | 内容 |
+|----|------|--------------|------|
+| 1 | 三号 | `feat/v035-style-unify-backend` / wt-03 | 迁移 v37（尺寸带图字段+开关+作品标注表）+ 尺寸 CRUD/API + F2 后台合并入口+开关 + F5 旧模型迁移（高风险） |
+| 2 | 二号 | `feat/v035-client-gallery` / wt-02 | F3 点档位切大图 + F4 入口区分预选 + F6 画廊筛选+大图标签（mock-first，API 契约待三号交付替换） |
+| 3 | 三号 | 待波 1 合入后派 | F6 后台 UI：作品管理档位标注多选+自由描述（API 已在波 1 做好） |
+
+**并行契约**：locales 三号只动 styleManage/tiers 命名空间，二号只动 artistHome/orderForm/gallery。F5 迁移高风险，合入前按大型迁移清单逐项审。
+
+v0.34 待体验清单见上一版 STATUS git 历史（容器已重建，8 项：尺寸预选/封面不裁切/流程新视觉/ghost按钮/404/无emoji/封面即时保存/作品不跳动）。
 
 ---
 ## 版本计划（用户 2026-08-03 拍板 + 一号定版本数）
@@ -87,9 +103,11 @@
 
 | 分支 | Worktree | 状态 |
 |------|----------|------|
-| master | 主 worktree（一号专用） | ✅ 干净，唯一分支 |
+| master | 主 worktree（一号专用） | ✅ 干净 |
+| feat/v035-style-unify-backend | wt-03 | 三号波 1 在途 |
+| feat/v035-client-gallery | wt-02 | 二号波 2 在途 |
 
-v0.34 两个 feature 分支已合入并删除（worktree wt-02/wt-03 已移除）。comms 只剩 STATUS.md。
+comms 只剩 STATUS.md + 两份在途派工（01-to-03-v035波1 / 01-to-02-v035波2）。
 
 残留：`artist-commission-02`、`artist-commission-p0` 磁盘目录为旧 worktree 残留（git 记录已清），无害。根目录 `tmp-diag*.cjs` 疑似五号排查产物，保持关注。
 
