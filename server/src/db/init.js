@@ -1545,8 +1545,9 @@ export const MIGRATIONS = [
       const colList = cols.join(', ')
 
       // 用原表 CREATE TABLE 语句重建（只替换 status 的 CHECK 约束）——不手抄列清单，永不漏列
+      // 表名可能带引号（ALTER RENAME 后 sqlite_master 存 "artists"），正则两种都匹配
       const newSql = tableSql.sql
-        .replace(/^CREATE TABLE artists\b/i, 'CREATE TABLE artists_new')
+        .replace(/^CREATE TABLE\s+"?artists"?(\s|\()/i, 'CREATE TABLE artists_new$1')
         .replace(/CHECK\s*\(\s*status\s+IN\s*\([^)]*\)\s*\)/i, "CHECK(status IN ('open', 'full', 'break', 'hidden'))")
       if (newSql === tableSql.sql) {
         console.warn('⚠️ 迁移 v38: 未找到 status CHECK 约束，跳过重建')
