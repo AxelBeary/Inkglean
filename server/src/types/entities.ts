@@ -41,6 +41,7 @@ export interface Artist {
   announcement: string | null
   announcement_expires_at: string | null
   monthly_quota: number | null
+  multi_style_enabled: number
   created_at: string
 }
 

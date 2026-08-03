@@ -20,6 +20,7 @@ interface Artwork {
   sort_order: number
   like_count: number
   is_cover: number
+  description: string | null
   width: number | null
   height: number | null
 }
@@ -122,7 +123,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id: number, fields: Record<string, unknown>): Artist | undefined {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled']
   const updates: string[] = []
   const values: unknown[] = []
 
@@ -247,8 +248,8 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
           updates.push('quick_actions = ?')
           values.push(JSON.stringify(keys))
         }
-      } else if (['auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form'].includes(key)) {
-        // SPEC-004: 布尔开关 — 强制转整数
+      } else if (['auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'multi_style_enabled'].includes(key)) {
+        // SPEC-004: 布尔开关 — 强制转整数（v0.37: 多画风开关同组）
         updates.push(`${key} = ?`)
         values.push(value ? 1 : 0)
       } else if (key === 'avatar') {
@@ -423,6 +424,51 @@ export async function createArtwork(artistId: number, { imagePath, title }: { im
 
 export function deleteArtwork(artworkId: number): void {
   db.prepare('DELETE FROM artworks WHERE id = ?').run(artworkId)
+}
+
+// ============================================
+// v0.37 (REQ-024 F6): 作品编辑 + 档位标注
+// ============================================
+
+/** 更新作品（标题/自由描述）— 归属校验在路由层 */
+export function updateArtwork(artworkId: number, fields: { title?: string | null; description?: string | null }): Artwork | undefined {
+  if (fields.title !== undefined) {
+    db.prepare('UPDATE artworks SET title = ? WHERE id = ?').run(fields.title || null, artworkId)
+  }
+  if (fields.description !== undefined) {
+    db.prepare('UPDATE artworks SET description = ? WHERE id = ?').run(fields.description || null, artworkId)
+  }
+  return getArtworkById(artworkId)
+}
+
+/** 获取作品已标注的尺寸 id 列表 */
+export function getArtworkSizeTagIds(artworkId: number): number[] {
+  const rows = db.prepare(
+    'SELECT style_size_id FROM artwork_size_tags WHERE artwork_id = ? ORDER BY style_size_id ASC'
+  ).all(artworkId) as Array<{ style_size_id: number }>
+  return rows.map(r => r.style_size_id)
+}
+
+/**
+ * 批量设置作品档位标注（多选替换语义）
+ * 校验：每个尺寸必须属于该画师的画风（跨画师标注 → 404）
+ */
+export function setArtworkSizeTags(artistId: number, artworkId: number, sizeIds: number[]): number[] {
+  db.transaction(() => {
+    db.prepare('DELETE FROM artwork_size_tags WHERE artwork_id = ?').run(artworkId)
+    const insert = db.prepare('INSERT INTO artwork_size_tags (artwork_id, style_size_id) VALUES (?, ?)')
+    for (const sizeId of sizeIds) {
+      // 尺寸归属：style_sizes → art_styles.artist_id
+      const own = db.prepare(`
+        SELECT ss.id FROM style_sizes ss
+        JOIN art_styles s ON s.id = ss.art_style_id
+        WHERE ss.id = ? AND s.artist_id = ?
+      `).get(sizeId, artistId)
+      if (!own) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404, { styleSizeId: sizeId })
+      insert.run(artworkId, sizeId)
+    }
+  })()
+  return getArtworkSizeTagIds(artworkId)
 }
 
 // ============================================

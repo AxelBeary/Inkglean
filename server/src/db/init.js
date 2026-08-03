@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS artists (
   announcement_expires_at DATETIME DEFAULT NULL,
   monthly_quota INTEGER DEFAULT NULL,
   discount_enabled INTEGER DEFAULT 0,
+  multi_style_enabled INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS artworks (
   like_count INTEGER DEFAULT 0,
   is_cover INTEGER DEFAULT 0,
   cover_order INTEGER DEFAULT 0,
+  description TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
@@ -379,14 +381,28 @@ CREATE TABLE IF NOT EXISTS art_styles (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
--- 尺寸表（v36，挂在画风下）
+-- 尺寸表（v36，挂在画风下；v37 加图/描述/天数字段）
 CREATE TABLE IF NOT EXISTS style_sizes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   art_style_id INTEGER NOT NULL,
   name TEXT NOT NULL,
   base_price REAL NOT NULL,
   sort_order INTEGER DEFAULT 0,
-  FOREIGN KEY (art_style_id) REFERENCES art_styles(id) ON DELETE CASCADE
+  image TEXT,
+  image_artwork_id INTEGER,
+  description TEXT,
+  work_days INTEGER,
+  FOREIGN KEY (art_style_id) REFERENCES art_styles(id) ON DELETE CASCADE,
+  FOREIGN KEY (image_artwork_id) REFERENCES artworks(id) ON DELETE SET NULL
+);
+
+-- 作品档位标注表（v37，F6：作品 ↔ 尺寸多对多，双向 CASCADE）
+CREATE TABLE IF NOT EXISTS artwork_size_tags (
+  artwork_id INTEGER NOT NULL,
+  style_size_id INTEGER NOT NULL,
+  PRIMARY KEY (artwork_id, style_size_id),
+  FOREIGN KEY (artwork_id) REFERENCES artworks(id) ON DELETE CASCADE,
+  FOREIGN KEY (style_size_id) REFERENCES style_sizes(id) ON DELETE CASCADE
 );
 
 -- 画风增项表（v36，从增项库导入，可改价/禁用）
@@ -439,6 +455,7 @@ CREATE INDEX IF NOT EXISTS idx_art_styles_artist ON art_styles(artist_id, sort_o
 CREATE INDEX IF NOT EXISTS idx_style_sizes_style ON style_sizes(art_style_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_style_addons_style ON style_addons(art_style_id);
 CREATE INDEX IF NOT EXISTS idx_size_addon_overrides_size ON size_addon_overrides(style_size_id);
+CREATE INDEX IF NOT EXISTS idx_artwork_size_tags_size ON artwork_size_tags(style_size_id);
 `
 
 /**
@@ -1432,8 +1449,110 @@ export const MIGRATIONS = [
         }
       }
     }
+  },
+  {
+    version: 37,
+    name: 'style_unify_sizes_artwork_tags_f5',
+    up(database) {
+      // REQ-024 画风档位统一（F1/F2/F5/F6 数据层，一次建全避免二次迁移）
+      // 迁移前自动备份
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, dbPath + '.bak.v37')
+          console.log('📦 迁移 v37: 已备份 ' + dbPath)
+        } catch (err) {
+          console.warn('⚠️ 迁移 v37: 备份失败（' + err.message + '），继续执行迁移')
+        }
+      }
+
+      // ─── 1. style_sizes: 尺寸带图/描述/天数（F1） ───
+      // image: 独立上传路径；image_artwork_id: 从作品集挑（删作品自动置空）
+      const sizeCols = database.prepare('PRAGMA table_info(style_sizes)').all()
+      if (!sizeCols.some(c => c.name === 'image')) {
+        database.exec('ALTER TABLE style_sizes ADD COLUMN image TEXT DEFAULT NULL')
+      }
+      if (!sizeCols.some(c => c.name === 'image_artwork_id')) {
+        database.exec('ALTER TABLE style_sizes ADD COLUMN image_artwork_id INTEGER DEFAULT NULL REFERENCES artworks(id) ON DELETE SET NULL')
+      }
+      if (!sizeCols.some(c => c.name === 'description')) {
+        database.exec('ALTER TABLE style_sizes ADD COLUMN description TEXT DEFAULT NULL')
+      }
+      if (!sizeCols.some(c => c.name === 'work_days')) {
+        database.exec('ALTER TABLE style_sizes ADD COLUMN work_days INTEGER DEFAULT NULL')
+      }
+
+      // ─── 2. artists: 多画风开关（F2，默认关） ───
+      const artistCols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!artistCols.some(c => c.name === 'multi_style_enabled')) {
+        database.exec('ALTER TABLE artists ADD COLUMN multi_style_enabled INTEGER DEFAULT 0')
+      }
+
+      // ─── 3. artworks: 自由描述（F6） ───
+      const artworkCols = database.prepare('PRAGMA table_info(artworks)').all()
+      if (!artworkCols.some(c => c.name === 'description')) {
+        database.exec('ALTER TABLE artworks ADD COLUMN description TEXT DEFAULT NULL')
+      }
+
+      // ─── 4. artwork_size_tags: 作品↔尺寸多对多标注（F6，双向 CASCADE） ───
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS artwork_size_tags (
+          artwork_id INTEGER NOT NULL,
+          style_size_id INTEGER NOT NULL,
+          PRIMARY KEY (artwork_id, style_size_id),
+          FOREIGN KEY (artwork_id) REFERENCES artworks(id) ON DELETE CASCADE,
+          FOREIGN KEY (style_size_id) REFERENCES style_sizes(id) ON DELETE CASCADE
+        )
+      `)
+      database.exec('CREATE INDEX IF NOT EXISTS idx_artwork_size_tags_size ON artwork_size_tags(style_size_id)')
+
+      // ─── 5. F5: 旧模型画师迁移（showcase/hidden 丢弃——用户拍板） ───
+      migrateF5OldModelArtists(database)
+    }
   }
 ]
+
+/**
+ * F5: 旧模型画师迁移 —— art_styles 为零的画师建「默认」画风，visible 档位转尺寸
+ *
+ * 逐画师幂等：已有 art_styles 的画师跳过；重复执行不产生重复数据。
+ * v36 全局守卫（任一画师有 art_styles 即跳过全体）会漏掉后建画师（如生产库 carol），
+ * 此处用逐画师 NOT EXISTS 守卫补齐。
+ * 只搬 visible 档位的 name/price/sort_order；图/描述/天数不搬（画师重写）。
+ * 导出供测试直接调用。
+ */
+export function migrateF5OldModelArtists(database) {
+  const unmigratedArtists = database.prepare(`
+    SELECT id FROM artists
+    WHERE deleted_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM art_styles WHERE art_styles.artist_id = artists.id)
+  `).all()
+
+  if (unmigratedArtists.length === 0) {
+    console.log('📦 迁移 F5: 无旧模型画师，跳过数据迁移')
+    return
+  }
+
+  const insertStyle = database.prepare(
+    "INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)"
+  )
+  const insertSize = database.prepare(
+    'INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, ?, ?, ?)'
+  )
+  for (const artist of unmigratedArtists) {
+    const styleResult = insertStyle.run(artist.id)
+    const styleId = Number(styleResult.lastInsertRowid)
+    const tiers = database.prepare(`
+      SELECT name, price, sort_order FROM price_tiers
+      WHERE artist_id = ? AND (visibility IS NULL OR visibility = 'visible')
+      ORDER BY sort_order ASC
+    `).all(artist.id)
+    for (const tier of tiers) {
+      insertSize.run(styleId, tier.name, tier.price, tier.sort_order ?? 0)
+    }
+    console.log(`📦 迁移 F5: 画师 ${artist.id} 建「默认」画风 + ${tiers.length} 尺寸（showcase/hidden 已丢弃）`)
+  }
+}
 
 /**
  * 在给定数据库实例上执行建表 + 版本化迁移
