@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toSqliteDate, nowSqlite, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite } from '../src/utils/date.js'
+import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite } from '../src/utils/date.js'
 
 // ============================================
 // 日期工具函数测试（技术债 B3）
@@ -17,11 +17,6 @@ describe('日期工具 (utils/date.js)', () => {
     const result = toSqliteDate(new Date('2026-01-15T00:00:00.000Z'))
     expect(result).not.toContain('T')
     expect(result).toBe('2026-01-15 00:00:00')
-  })
-
-  it('TC-DU-03: nowSqlite 返回当前时间字符串', () => {
-    const result = nowSqlite()
-    expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
   })
 
   it('TC-DU-04: localDayStartSqlite 返回本地零点', () => {

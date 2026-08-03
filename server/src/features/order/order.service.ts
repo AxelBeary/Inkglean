@@ -631,42 +631,38 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
 
 /**
  * 获取订单付款节点（客户进度页 + 画师端节点收款）
- * v0.31 F4: 返回节点维度 paid_cents / amount_cents / 差额
+ * v0.36 BUG-1 方案 b: 改读额度池 orders.paid_total_cents，按节点金额顺序推算每期状态，
+ * 不再读 order_payment_installments.paid_cents（旧节点模型残留，写路径暂保留）。
+ * paid: 完全覆盖 | partial: 部分覆盖 | pending: 未覆盖
+ * 撤销回冲自然生效：负流水 → paid_total_cents 减少 → 状态自动回退，无需额外代码
  */
 export function getOrderInstallments(orderId: number): Array<{ id: number; name: string; amountCents: number; paidCents: number; remainingCents: number; status: string }> {
   const rows = db.prepare(
-    'SELECT id, label as name, amount_cents as amountCents, paid_cents as paidCents, status FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
-  ).all(orderId) as Array<{ id: number; name: string; amountCents: number; paidCents: number; status: string }>
-  return rows.map(r => ({
-    ...r,
-    amountCents: r.amountCents || 0,
-    paidCents: r.paidCents || 0,
-    remainingCents: Math.max(0, (r.amountCents || 0) - (r.paidCents || 0)),
-    status: (r.paidCents || 0) >= (r.amountCents || 0) && (r.amountCents || 0) > 0 ? 'paid'
-      : (r.paidCents || 0) > 0 ? 'partial' : 'pending'
-  }))
-}
-
-/**
- * B7: 根据 paid_total_cents 推算每期状态（三态）
- * paid: 完全覆盖 | partial: 部分覆盖 | pending: 未覆盖
- */
-export function computeInstallmentStatuses(
-  installments: Array<{ name: string; amountCents: number }>,
-  paidTotalCents: number
-): Array<{ name: string; amountCents: number; status: string; paidCents: number }> {
-  let covered = paidTotalCents
-  return installments.map(inst => {
-    const amt = inst.amountCents || 0
+    'SELECT id, label as name, amount_cents as amountCents FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+  ).all(orderId) as Array<{ id: number; name: string; amountCents: number }>
+  const orderRow = db.prepare('SELECT paid_total_cents FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null } | undefined
+  let covered = orderRow?.paid_total_cents ?? 0
+  return rows.map(r => {
+    const amt = r.amountCents || 0
+    let paidCents = 0
+    let status = 'pending'
     if (covered >= amt) {
       covered -= amt
-      return { ...inst, status: 'paid', paidCents: amt }
+      paidCents = amt
+      status = 'paid'
     } else if (covered > 0) {
-      const partial = covered
+      paidCents = covered
       covered = 0
-      return { ...inst, status: 'partial', paidCents: partial }
+      status = 'partial'
     }
-    return { ...inst, status: 'pending', paidCents: 0 }
+    return {
+      id: r.id,
+      name: r.name,
+      amountCents: amt,
+      paidCents,
+      remainingCents: Math.max(0, amt - paidCents),
+      status
+    }
   })
 }
 
