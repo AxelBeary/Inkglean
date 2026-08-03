@@ -10,7 +10,6 @@
 -->
 <template>
   <div v-if="artist?.announcement" class="tpl-announcement" role="note">
-    <span class="tpl-announcement-icon" aria-hidden="true">📢</span>
     <span class="tpl-announcement-text">{{ artist.announcement.text }}</span>
   </div>
 </template>

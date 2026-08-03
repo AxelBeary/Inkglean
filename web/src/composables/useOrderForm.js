@@ -29,14 +29,14 @@ import { usePasteUpload } from './usePasteUpload.js'
 
 // 增项分类元信息（图标 + 中文标签，仅 UI 展示用）
 const CATEGORY_META = {
-  expression: { icon: '🎭', label: '表情差分' },
-  outfit: { icon: '👗', label: '服装替换' },
-  background: { icon: '🏞', label: '背景场景' },
-  weapon: { icon: '⚔️', label: '武器道具' },
-  other: { icon: '✨', label: '其他' }
+  expression: { label: '表情差分' },
+  outfit: { label: '服装替换' },
+  background: { label: '背景场景' },
+  weapon: { label: '武器道具' },
+  other: { label: '其他' }
 }
 
-export function useOrderForm(subdomain, formRef) {
+export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const { t } = useI18n()
 
   // ─── 数据加载状态 ───
@@ -70,6 +70,10 @@ export function useOrderForm(subdomain, formRef) {
   /** 画风价格预览（calculate-style-price 响应） */
   const stylePricePreview = ref(null)
   const stylePricingExpanded = ref(false)
+
+  // ─── v0.34 任务B：URL query 预选（主页选画风+尺寸后跳转带入） ───
+  /** query 预选命中记录（restoreDraft 跳过依据 + OrderForm 初始步骤依据） */
+  const queryPreselect = reactive({ styleId: null, sizeId: null })
 
   // ─── 表单状态 ───
   const form = reactive({
@@ -136,7 +140,7 @@ export function useOrderForm(subdomain, formRef) {
     const groups = {}
     for (const a of availableAddons.value) {
       if (!groups[a.category]) {
-        const meta = CATEGORY_META[a.category] || { icon: '📦', label: a.category }
+        const meta = CATEGORY_META[a.category] || { label: a.category }
         groups[a.category] = { category: a.category, ...meta, collapsed: false, items: [] }
       }
       groups[a.category].items.push(a)
@@ -303,6 +307,33 @@ export function useOrderForm(subdomain, formRef) {
     scheduleStyleCalc()
   }
 
+  /**
+   * v0.34 任务B：应用 URL query 预选（?styleId=&sizeId=）
+   * 主页画风展示柜选好画风+尺寸后跳转带入，用户无需重新点选。
+   * 无效/已停用 ID 静默忽略，走正常流程。优先于草稿恢复。
+   */
+  function applyQueryPreselect() {
+    const q = initialQuery || {}
+    const qStyleId = Number(q.styleId)
+    const qSizeId = Number(q.sizeId)
+    // 画风：styleId 有效 → 直接选中（多画风跳过重新点选）
+    if (Number.isInteger(qStyleId) && styles.value.some(s => s.id === qStyleId)) {
+      selectedStyleId.value = qStyleId
+      queryPreselect.styleId = qStyleId
+    }
+    // 尺寸：在当前已选画风（query 选中或单画风自动选中）的 sizes 里有效才预选
+    if (Number.isInteger(qSizeId) && selectedStyleId.value != null) {
+      const style = styles.value.find(s => s.id === selectedStyleId.value)
+      const size = (style?.sizes || []).find(sz => sz.id === qSizeId)
+      if (size) {
+        selectedSizeId.value = qSizeId
+        initStyleAddonDefaults()
+        scheduleStyleCalc()
+        queryPreselect.sizeId = qSizeId
+      }
+    }
+  }
+
   /** 初始化增项默认值（el-input-number 不接受 undefined） */
   function initStyleAddonDefaults() {
     for (const a of availableStyleAddons.value) {
@@ -458,11 +489,15 @@ export function useOrderForm(subdomain, formRef) {
       for (const key of Object.keys(addonToggles)) delete addonToggles[key]
 
       const ss = draft.styleState || {}
-      const style = ss.styleId != null ? styles.value.find(s => s.id === ss.styleId) : null
-      if (style) {
+      // v0.34 任务B：URL query 预选 > 草稿恢复——query 已预选的项不被草稿覆盖
+      if (!queryPreselect.styleId && ss.styleId != null) {
         // 与单画风自动选中相同值时幂等（ref 等值赋值不触发 watcher）
-        selectedStyleId.value = ss.styleId
-        const size = ss.sizeId != null ? (style.sizes || []).find(sz => sz.id === ss.sizeId) : null
+        const style = styles.value.find(s => s.id === ss.styleId)
+        if (style) selectedStyleId.value = ss.styleId
+      }
+      const currentStyle = styles.value.find(s => s.id === selectedStyleId.value)
+      if (!queryPreselect.sizeId) {
+        const size = currentStyle && ss.sizeId != null ? (currentStyle.sizes || []).find(sz => sz.id === ss.sizeId) : null
         if (size) {
           selectedSizeId.value = ss.sizeId
           // 增项勾选只恢复当前尺寸可用增项中存在的键（其余可能已删/已隐藏）
@@ -480,6 +515,10 @@ export function useOrderForm(subdomain, formRef) {
           form.usageMultiplierId = f.usageMultiplierId ?? null
           form.rushMultiplierId = f.rushMultiplierId ?? null
         }
+      } else {
+        // query 已预选尺寸：增项以 query 为准，倍率仍从草稿恢复
+        form.usageMultiplierId = f.usageMultiplierId ?? null
+        form.rushMultiplierId = f.rushMultiplierId ?? null
       }
       // 尺寸有效 → 重算价格预览（防抖，多次触发合并为一次）
       if (selectedSizeId.value) scheduleStyleCalc()
@@ -634,6 +673,9 @@ export function useOrderForm(subdomain, formRef) {
         }
       } catch { /* 静默失败：走旧模型（tiers） */ }
 
+      // v0.34 任务B：URL query 预选（优先于草稿恢复，restoreDraft 里不覆盖已预选的项）
+      applyQueryPreselect()
+
       // R57: 草稿恢复（tiers 加载后校验档位有效性）
       let draft = null
       try {
@@ -696,6 +738,8 @@ export function useOrderForm(subdomain, formRef) {
     selectedStyleId, selectedStyle, selectedSizeId, selectedSize,
     availableStyleAddons, styleAddonSelections,
     selectStyle, selectSize, buildStyleAddons, parseAddonOptions,
-    stylePricePreview, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras
+    stylePricePreview, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras,
+    // v0.34 任务B：URL query 预选命中记录
+    queryPreselect
   }
 }

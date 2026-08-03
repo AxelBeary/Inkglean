@@ -21,7 +21,7 @@ const LINK_ICON_BADGE = {
   xiaohongshu: '红',
   lofter: 'L',
   douyin: '抖',
-  link: '🔗'
+  link: '链'
 }
 
 /**
@@ -35,7 +35,7 @@ const PLATFORM_BADGE = {
   lofter: 'L',
   bilibili: 'B',
   xiaohongshu: '红',
-  other: '🔗'
+  other: '链'
 }
 
 export function useArtistData(props) {

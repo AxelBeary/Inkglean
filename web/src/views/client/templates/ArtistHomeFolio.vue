@@ -62,7 +62,6 @@
           <WorkflowOverviewStrip :stages="workflowStages" vertical />
         </div>
         <div v-if="artist.revisionNote" class="tpl-revision-note">
-          <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
           <span>
             <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
             {{ artist.revisionNote }}
@@ -287,7 +286,6 @@ onUnmounted(() => {
   line-height: 1.6;
   color: var(--pal-text-dim);
 }
-.folio-announcement :deep(.tpl-announcement-icon) { flex-shrink: 0; }
 .folio-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 
 /* ===== 固定导航 ===== */

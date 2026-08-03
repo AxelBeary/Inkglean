@@ -84,7 +84,6 @@
   line-height: 1.6;
   color: var(--pal-text);
 }
-.tpl-revision-note-icon { flex-shrink: 0; }
 .tpl-revision-note-label {
   display: block;
   font-size: 12px;

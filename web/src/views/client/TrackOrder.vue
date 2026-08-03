@@ -115,7 +115,7 @@
         <div class="deliverables" v-if="order.deliverables?.length">
           <h4>{{ $t('track.deliverables') }}</h4>
           <div v-for="d in order.deliverables" :key="d.id" class="file-item">
-            <span>📄 {{ d.fileName }}</span>
+            <span>{{ d.fileName }}</span>
             <el-button size="small" type="primary" @click="downloadFile(d.url)">{{ $t('common.download') }}</el-button>
           </div>
         </div>

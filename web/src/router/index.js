@@ -53,7 +53,8 @@ const routes = [
   },
 
   // ─── 404 ───
-  { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/client/LandingPage.vue'), meta: { titleKey: 'pageTitle.notFound' } }
+  // v0.34 任务A：独立 404 页（不再复用 LandingPage）
+  { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/client/NotFound.vue'), meta: { titleKey: 'pageTitle.notFound' } }
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

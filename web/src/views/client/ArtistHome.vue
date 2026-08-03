@@ -1,10 +1,9 @@
 <template>
   <div class="artist-home" v-loading="loading">
     <!-- R50: 预览模式横幅（有预览参数时显示，客户拿到链接也只看到公开数据） -->
-    <div v-if="isPreview" class="preview-banner">🔍 {{ $t('artistHome.previewBanner') }}</div>
+    <div v-if="isPreview" class="preview-banner">{{ $t('artistHome.previewBanner') }}</div>
     <!-- UI-8: hidden 状态 — 友好提示页，不渲染模板 -->
     <div v-if="artist?.status === 'hidden'" class="hidden-state">
-      <p class="hidden-icon">🙈</p>
       <p>{{ $t('artistHome.hidden') }}</p>
     </div>
     <component
@@ -166,7 +165,6 @@ onMounted(async () => {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 60vh; color: var(--text-secondary); font-size: 16px; gap: 12px;
 }
-.hidden-icon { font-size: 48px; margin: 0; }
 /* R50: 预览模式横幅 */
 .preview-banner {
   position: sticky; top: 0; z-index: 200;
