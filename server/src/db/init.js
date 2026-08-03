@@ -1513,17 +1513,23 @@ export const MIGRATIONS = [
   {
     version: 38,
     name: 'artists_status_check_add_hidden',
+    // ⚠️ 必须事务外执行：PRAGMA foreign_keys 在事务内是 no-op（2026-08-04 事故根因），
+    // 重建 artists 表时 DROP 会触发子表 ON DELETE CASCADE——FK 不真正关闭就会清空全部子表数据
+    noTransaction: true,
     up(database) {
       // BUG-8 第三项（用户拍板补 admin 设 hidden 能力）：
       // 存量 artists 表 CHECK 约束为 ('open','full','break')——v0.13 加 hidden 状态时
       // 应用层白名单已支持，但存量表 CHECK 焊死在建表语句里（ALTER ADD COLUMN 不更新 CHECK），
       // 导致任何写入 status='hidden' 的操作 500（SQLITE_CONSTRAINT_CHECK）。
-      // SQLite 修改 CHECK 只能重建表（官方 12 步 alter 流程）。
+      // SQLite 修改 CHECK 只能重建表（官方 12 步 alter 流程，事务外关 FK）。
       const tableSql = database.prepare(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='artists'"
       ).get()
-      // 幂等守卫：已含 hidden 则跳过（新库建表即带 hidden，也跳过）
-      if (tableSql && tableSql.sql.includes("'hidden'")) return
+      // 幂等守卫：已含 hidden 则跳过（新库建表即带 hidden，也跳过）；清理上次失败残留的临时表
+      if (tableSql && tableSql.sql.includes("'hidden'")) {
+        database.exec('DROP TABLE IF EXISTS artists_new')
+        return
+      }
 
       const dbPath = process.env.DB_PATH || './data/commission.db'
       if (dbPath !== ':memory:' && existsSync(dbPath)) {
@@ -1548,6 +1554,11 @@ export const MIGRATIONS = [
       }
 
       database.pragma('foreign_keys = OFF')
+      // 事故教训双保险：确认 FK 真的关了（事务内 PRAGMA 是 no-op，此处若仍在事务内会返回 ON → 直接中止，绝不 DROP）
+      const fkState = database.pragma('foreign_keys', { simple: true })
+      if (fkState !== 0) {
+        throw new Error('迁移 v38: foreign_keys 未能关闭（值=' + fkState + '），中止重建以防 CASCADE 清空子表')
+      }
       try {
         // 索引定义必须在 DROP 前抓取（DROP TABLE 会连同索引一起删除）；sql IS NULL 的是 UNIQUE 约束自动索引，建表时已包含
         const indexes = database.prepare(
@@ -1560,6 +1571,11 @@ export const MIGRATIONS = [
           database.exec('ALTER TABLE artists_new RENAME TO artists')
           for (const idx of indexes) database.exec(idx.sql)
         })()
+        // 官方 12 步流程要求：FK 关闭期间完成重建后，恢复前验证无悬空外键引用
+        const fkViolations = database.pragma('foreign_key_check')
+        if (fkViolations.length > 0) {
+          throw new Error('迁移 v38: foreign_key_check 发现 ' + fkViolations.length + ' 处悬空引用，中止: ' + JSON.stringify(fkViolations.slice(0, 3)))
+        }
       } finally {
         // 事务失败也必须恢复 FK，否则连接留在 OFF 状态（后续 CASCADE 全部失效）
         database.pragma('foreign_keys = ON')
@@ -1623,11 +1639,20 @@ export function initDatabase(database) {
   )
   for (const migration of MIGRATIONS) {
     if (applied.has(migration.version)) continue
-    database.transaction(() => {
+    if (migration.noTransaction) {
+      // ⚠️ v0.35 事故教训：PRAGMA foreign_keys 在事务内是 no-op。
+      // 重建表类迁移（DROP/RENAME 父表会触发子表 CASCADE）必须事务外执行，
+      // 由迁移自己管理 PRAGMA + 事务（SQLite 官方 12 步 ALTER TABLE 流程）
       migration.up(database)
       database.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
         .run(migration.version, migration.name)
-    })()
+    } else {
+      database.transaction(() => {
+        migration.up(database)
+        database.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
+          .run(migration.version, migration.name)
+      })()
+    }
     console.log(`📦 迁移 v${migration.version}: ${migration.name} 已应用`)
   }
 
