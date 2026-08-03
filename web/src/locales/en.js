@@ -666,7 +666,23 @@ export default {
     addonSave: 'Save addon config', addonSaved: 'Addon config saved',
     // Size overrides
     overrideExpand: 'Size overrides ▾', overrideCollapse: 'Collapse ▴',
-    overrideTitle: 'Size overrides for "{name}"', overrideHidden: 'Hide', overrideSaved: 'Override saved'
+    overrideTitle: 'Size overrides for "{name}"', overrideHidden: 'Hide', overrideSaved: 'Override saved',
+    // v0.35 wave 1 (REQ-024 F2/F1): merged entry + multi-style switch + size edit extension
+    tabStylesAndPricing: 'Styles & Pricing',
+    multiStyle: 'Multi-style',
+    multiStyleHintOff: 'Off: clients only see the default style (first active one); other styles are kept but greyed out',
+    multiStyleHintOn: 'On: all active styles are visible to clients',
+    styleLocked: 'Multi-style switch is off — only the default style is editable',
+    styleDefaultTag: 'Default',
+    sizeAddTitle: 'Add size', sizeEditTitle: 'Edit size',
+    sizeImageLabel: 'Size image (optional)', sizeImageUpload: 'Upload new image', sizeImagePick: 'Pick from portfolio',
+    sizeImageRemove: 'Remove image', sizeImageHint: 'If not set, clients see the style cover as fallback',
+    sizeImageSavedMsg: 'Size image updated', sizeImageUploadHint: 'Size image uploaded — click Save to apply',
+    sizeDescLabel: 'Description (optional)', sizeDescPlaceholder: 'What this size includes / suits',
+    sizeDaysLabel: 'Turnaround (days, optional)',
+    sizeImageCol: 'Image', sizeDescCol: 'Description', sizeDaysCol: 'Turnaround',
+    sizeFromArtworkTag: 'Portfolio', sizeAddBtn: '+ Add size',
+    sizePickTitle: 'Pick from portfolio', sizePickHint: 'Click an artwork to use it as the size image', sizePickEmpty: 'No artworks yet — upload some in Portfolio first'
   },
   artworks: {
     title: 'Portfolio', dragUpload: 'Drag images here, or click to upload',

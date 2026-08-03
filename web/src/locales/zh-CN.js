@@ -666,7 +666,23 @@ export default {
     addonSave: '保存增项配置', addonSaved: '增项配置已保存',
     // 尺寸覆盖
     overrideExpand: '尺寸覆盖 ▾', overrideCollapse: '收起 ▴',
-    overrideTitle: '「{name}」尺寸覆盖', overrideHidden: '隐藏', overrideSaved: '覆盖已保存'
+    overrideTitle: '「{name}」尺寸覆盖', overrideHidden: '隐藏', overrideSaved: '覆盖已保存',
+    // v0.35 波1 (REQ-024 F2/F1): 合并入口 + 多画风开关 + 尺寸编辑扩展
+    tabStylesAndPricing: '画风与价格',
+    multiStyle: '多画风',
+    multiStyleHintOff: '关闭：客户端只显示默认画风（排序最前的启用画风），其他画风保留但灰色不可编辑',
+    multiStyleHintOn: '开启：所有启用的画风对客户可见',
+    styleLocked: '多画风开关已关闭，仅默认画风可编辑',
+    styleDefaultTag: '默认',
+    sizeAddTitle: '添加尺寸', sizeEditTitle: '编辑尺寸',
+    sizeImageLabel: '尺寸图（可选）', sizeImageUpload: '上传新图', sizeImagePick: '从作品集挑选',
+    sizeImageRemove: '移除图片', sizeImageHint: '不设置时，客户端显示画风封面兜底',
+    sizeImageSavedMsg: '尺寸图已更新', sizeImageUploadHint: '尺寸图已上传，点保存后生效',
+    sizeDescLabel: '描述（可选）', sizeDescPlaceholder: '这个尺寸包含什么、适合什么',
+    sizeDaysLabel: '工期（天，可选）',
+    sizeImageCol: '图片', sizeDescCol: '描述', sizeDaysCol: '工期',
+    sizeFromArtworkTag: '作品集', sizeAddBtn: '+ 添加尺寸',
+    sizePickTitle: '从作品集挑选', sizePickHint: '点击选择一张作品作为尺寸图', sizePickEmpty: '还没有作品，请先去作品管理上传'
   },
   artworks: {
     title: '作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
