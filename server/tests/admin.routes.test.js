@@ -159,11 +159,26 @@ describe('管理员路由 (Admin Routes)', () => {
       method: 'PUT',
       url: `/api/admin/artists/${target.id}/status`,
       headers: { Authorization: `Bearer ${adminToken(admin)}` },
-      payload: { status: 'hidden' }
+      payload: { status: 'bogus' }
     })
 
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toContain('无效状态')
+  })
+
+  it('TC-AR-09b: 管理员可设 hidden（BUG-8 第三项，用户拍板）', async () => {
+    const admin = setAdmin('10001')
+    const target = seedArtist({ qq_number: '20003', subdomain: 'hideable' })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${target.id}/status`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { status: 'hidden' }
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('hidden')
   })
 
   // ─── 全局统计 ───

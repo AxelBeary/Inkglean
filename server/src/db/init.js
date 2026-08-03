@@ -1509,6 +1509,63 @@ export const MIGRATIONS = [
       // ─── 5. F5: 旧模型画师迁移（showcase/hidden 丢弃——用户拍板） ───
       migrateF5OldModelArtists(database)
     }
+  },
+  {
+    version: 38,
+    name: 'artists_status_check_add_hidden',
+    up(database) {
+      // BUG-8 第三项（用户拍板补 admin 设 hidden 能力）：
+      // 存量 artists 表 CHECK 约束为 ('open','full','break')——v0.13 加 hidden 状态时
+      // 应用层白名单已支持，但存量表 CHECK 焊死在建表语句里（ALTER ADD COLUMN 不更新 CHECK），
+      // 导致任何写入 status='hidden' 的操作 500（SQLITE_CONSTRAINT_CHECK）。
+      // SQLite 修改 CHECK 只能重建表（官方 12 步 alter 流程）。
+      const tableSql = database.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='artists'"
+      ).get()
+      // 幂等守卫：已含 hidden 则跳过（新库建表即带 hidden，也跳过）
+      if (tableSql && tableSql.sql.includes("'hidden'")) return
+
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, dbPath + '.bak.v38')
+          console.log('📦 迁移 v38: 已备份 ' + dbPath)
+        } catch (err) {
+          console.warn('⚠️ 迁移 v38: 备份失败（' + err.message + '），继续执行迁移')
+        }
+      }
+
+      const cols = database.prepare('PRAGMA table_info(artists)').all().map(c => c.name)
+      const colList = cols.join(', ')
+
+      // 用原表 CREATE TABLE 语句重建（只替换 status 的 CHECK 约束）——不手抄列清单，永不漏列
+      const newSql = tableSql.sql
+        .replace(/^CREATE TABLE artists\b/i, 'CREATE TABLE artists_new')
+        .replace(/CHECK\s*\(\s*status\s+IN\s*\([^)]*\)\s*\)/i, "CHECK(status IN ('open', 'full', 'break', 'hidden'))")
+      if (newSql === tableSql.sql) {
+        console.warn('⚠️ 迁移 v38: 未找到 status CHECK 约束，跳过重建')
+        return
+      }
+
+      database.pragma('foreign_keys = OFF')
+      try {
+        // 索引定义必须在 DROP 前抓取（DROP TABLE 会连同索引一起删除）；sql IS NULL 的是 UNIQUE 约束自动索引，建表时已包含
+        const indexes = database.prepare(
+          "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='artists' AND sql IS NOT NULL"
+        ).all()
+        database.transaction(() => {
+          database.exec(newSql)
+          database.exec(`INSERT INTO artists_new (${colList}) SELECT ${colList} FROM artists`)
+          database.exec('DROP TABLE artists')
+          database.exec('ALTER TABLE artists_new RENAME TO artists')
+          for (const idx of indexes) database.exec(idx.sql)
+        })()
+      } finally {
+        // 事务失败也必须恢复 FK，否则连接留在 OFF 状态（后续 CASCADE 全部失效）
+        database.pragma('foreign_keys = ON')
+      }
+      console.log('📦 迁移 v38: artists CHECK 约束补 hidden（重建表，' + cols.length + ' 列数据已迁移）')
+    }
   }
 ]
 

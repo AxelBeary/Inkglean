@@ -116,7 +116,8 @@ export default async function adminRoutes(fastify) {
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
 
     const { status } = request.body || {}
-    if (!['open', 'full', 'break'].includes(status)) {
+    // BUG-8 第三项（用户拍板）：管理员可将画师设为 hidden（对外隐身）——与 updateArtist 白名单对齐
+    if (!['open', 'full', 'break', 'hidden'].includes(status)) {
       return reply.code(400).send({ error: '无效状态' })
     }
 
