@@ -25,7 +25,9 @@
       <el-collapse v-else-if="checks.length" v-model="expanded" class="health-list">
         <el-collapse-item v-for="c in checks" :key="c.id" :name="c.id">
           <template #title>
-            <span class="health-status" aria-hidden="true">{{ statusIcon(c.status) }}</span>
+            <el-icon class="health-status" :class="`health-status--${c.status}`" aria-hidden="true">
+              <component :is="statusIcon(c.status)" />
+            </el-icon>
             <span class="health-name">{{ c.name }}</span>
             <el-tag size="small" :type="{ ok: 'success', warn: 'warning', fail: 'danger' }[c.status]">
               {{ $t(`admin.health.status${c.status.charAt(0).toUpperCase() + c.status.slice(1)}`) }}
@@ -41,16 +43,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, markRaw } from 'vue'
 import { adminApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+// v0.34 任务3：状态 emoji 改 SVG（保留状态语义色）
+import { CircleCheck, Warning, CircleClose, QuestionFilled } from '@element-plus/icons-vue'
 
 const checks = ref([])
 const checking = ref(false)
 const expanded = ref([])
 
-const STATUS_ICON = { ok: '✅', warn: '⚠️', fail: '❌' }
-function statusIcon(status) { return STATUS_ICON[status] || '❓' }
+const STATUS_ICON = { ok: markRaw(CircleCheck), warn: markRaw(Warning), fail: markRaw(CircleClose) }
+function statusIcon(status) { return STATUS_ICON[status] || QuestionFilled }
 
 async function runChecks() {
   checking.value = true
@@ -77,7 +81,11 @@ function downloadReport() {
 .health-actions { display: flex; gap: 12px; }
 .health-note { margin: 10px 0 0; font-size: 12px; color: var(--text-secondary); }
 .health-list { margin-top: 16px; }
-.health-status { margin-right: 8px; }
+.health-status { margin-right: 8px; font-size: 16px; }
+/* v0.34 任务3：SVG 状态图标沿用 ok/warn/fail 语义色 */
+.health-status--ok { color: var(--el-color-success); }
+.health-status--warn { color: var(--el-color-warning); }
+.health-status--fail { color: var(--el-color-danger); }
 .health-name { font-weight: 700; margin-right: 10px; }
 .health-summary { margin-left: 10px; font-size: 13px; color: var(--text-secondary); }
 /* #63: JSON 详情面板跟随暗色主题，不硬编码白底灰字 */
