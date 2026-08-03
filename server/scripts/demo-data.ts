@@ -251,19 +251,21 @@ function seedDemoOrders(): void {
     status: 'confirmed' | 'wip' | 'done'
     stage: string; clientQq: string; clientName: string
     paidRatio: number; daysAgo: number; desc: string
+    /** 截稿日 = start_date + N 天（五号 0803 诊断：deadline 全 NULL 导致时间条整条平移被禁用；done 终态不补） */
+    deadlineDays?: number
   }
   const seeds: OrderSeed[] = [
-    { orderNo: 'ALICE-001', styleName: '厚涂插画', sizeName: '全身像', price: 280, status: 'confirmed', stage: '排期确认', clientQq: '99001', clientName: '演示客户A', paidRatio: 0.5, daysAgo: 2, desc: '厚涂全身立绘，原创少女角色，背景留白' },
-    { orderNo: 'ALICE-002', styleName: '默认', sizeName: '半身像', price: 120, status: 'wip', stage: '上色确认', clientQq: '99002', clientName: '演示客户B', paidRatio: 0.5, daysAgo: 9, desc: '日系半身头像，暖色调，做社交平台头像' },
-    { orderNo: 'ALICE-003', styleName: '厚涂插画', sizeName: '头像', price: 80, status: 'wip', stage: '草稿确认', clientQq: '99003', clientName: '演示客户C', paidRatio: 0.5, daysAgo: 5, desc: '厚涂头像，侧脸光影，深色系' },
+    { orderNo: 'ALICE-001', styleName: '厚涂插画', sizeName: '全身像', price: 280, status: 'confirmed', stage: '排期确认', clientQq: '99001', clientName: '演示客户A', paidRatio: 0.5, daysAgo: 2, desc: '厚涂全身立绘，原创少女角色，背景留白', deadlineDays: 7 },
+    { orderNo: 'ALICE-002', styleName: '默认', sizeName: '半身像', price: 120, status: 'wip', stage: '上色确认', clientQq: '99002', clientName: '演示客户B', paidRatio: 0.5, daysAgo: 9, desc: '日系半身头像，暖色调，做社交平台头像', deadlineDays: 10 },
+    { orderNo: 'ALICE-003', styleName: '厚涂插画', sizeName: '头像', price: 80, status: 'wip', stage: '草稿确认', clientQq: '99003', clientName: '演示客户C', paidRatio: 0.5, daysAgo: 5, desc: '厚涂头像，侧脸光影，深色系', deadlineDays: 14 },
     { orderNo: 'ALICE-004', styleName: '默认', sizeName: '头像', price: 50, status: 'done', stage: '交付', clientQq: '99004', clientName: '演示客户D', paidRatio: 1, daysAgo: 21, desc: '简约头像，已交付' }
   ]
 
   const ins = db.prepare(`
     INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source,
       client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone,
-      current_stage_id, paid_total_cents, start_date, completed_at, created_at, updated_at)
-    VALUES (?, ?, NULL, ?, ?, ?, 'medium', ?, 'self', 0, ?, ?, ?, ?, ?, 'formal', ?, ?, ?, ?, ?, ?)
+      current_stage_id, paid_total_cents, start_date, deadline, completed_at, created_at, updated_at)
+    VALUES (?, ?, NULL, ?, ?, ?, 'medium', ?, 'self', 0, ?, ?, ?, ?, ?, 'formal', ?, ?, ?, ?, ?, ?, ?)
   `)
 
   seeds.forEach((s, idx) => {
@@ -273,6 +275,13 @@ function seedDemoOrders(): void {
     // 日期在 JS 侧计算（bind 参数不做 SQL 求值）
     const created = new Date(Date.now() - s.daysAgo * 86400_000).toISOString().slice(0, 19).replace('T', ' ')
     const startDate = created.slice(0, 10)
+    // 截稿日：start_date + deadlineDays 天（本地日期计算，避免 toISOString 时区偏移——v0.26 UTC 教训）
+    let deadline: string | null = null
+    if (s.deadlineDays != null) {
+      const d = new Date(created)
+      d.setDate(d.getDate() + s.deadlineDays)
+      deadline = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
     const completedAt = s.status === 'done'
       ? new Date(Date.now() - 86400_000).toISOString().slice(0, 19).replace('T', ' ')
       : null
@@ -283,7 +292,7 @@ function seedDemoOrders(): void {
       `[${s.styleName} / ${s.sizeName}] 基础¥${s.price}`,
       cents,
       stageId, Math.round(cents * s.paidRatio),
-      startDate, completedAt, created, created
+      startDate, deadline, completedAt, created, created
     )
     void sizeId // styleSizeId 在 orders 表无对应列（快照体现在 quote_snapshot），此处仅校验尺寸存在
     console.log(`[orders] ${s.orderNo} ${s.status}（${s.styleName}/${s.sizeName} ¥${s.price}）`)
