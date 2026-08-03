@@ -2,6 +2,7 @@
  * 一次性回填脚本：为存量 artworks 补 width/height
  * 用法：node server/scripts/backfill-artwork-dimensions.js
  * 幂等：只更新 width IS NULL 的行，可重复执行
+ * 注意：不强制 journal_mode——沿用 DB 当前模式（容器内是 DELETE 模式，强制 WAL 会踩坑）
  */
 import Database from 'better-sqlite3'
 import sharp from 'sharp'
@@ -12,7 +13,6 @@ const DB_PATH = process.env.DB_PATH || './data/commission.db'
 const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
 
 const db = new Database(DB_PATH)
-db.pragma('journal_mode = WAL')
 
 const rows = db.prepare('SELECT id, image_path FROM artworks WHERE width IS NULL OR height IS NULL').all()
 console.log(`📐 待回填：${rows.length} 条`)

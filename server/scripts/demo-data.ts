@@ -12,8 +12,20 @@
 import db from '/app/server/src/db/connection.js'
 import { seedArtistStages } from '/app/server/src/features/artist/workflow.service.js'
 import { existsSync, unlinkSync, renameSync } from 'fs'
+import sharp from 'sharp'
 
 const UPLOAD_ROOT = '/app/uploads'
+
+/** 用 sharp 读取图片实际宽高（读失败返回 null，不阻塞插入——但会打警告） */
+async function readDims(absPath: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const meta = await sharp(absPath).metadata()
+    if (meta.width && meta.height) return { width: meta.width, height: meta.height }
+  } catch (err) {
+    console.warn(`[dims] 读取失败：${absPath} — ${(err as Error).message}`)
+  }
+  return null
+}
 
 // ─── 工具 ───
 
@@ -45,13 +57,17 @@ function keepSet(seeds: ArtworkSeed[]): ReadonlySet<string> {
   return new Set(seeds.map(s => s.file))
 }
 
-function insertArtworks(artistId: number, seeds: ArtworkSeed[]): void {
+async function insertArtworks(artistId: number, seeds: ArtworkSeed[]): Promise<void> {
   const stmt = db.prepare(
-    'INSERT INTO artworks (artist_id, image_path, title, sort_order, is_cover) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO artworks (artist_id, image_path, title, sort_order, is_cover, width, height) VALUES (?, ?, ?, ?, ?, ?, ?)'
   )
-  seeds.forEach((s, i) => {
-    stmt.run(artistId, `images/${artistId}/${s.file}`, s.title, i + 1, s.isCover ? 1 : 0)
-  })
+  for (let i = 0; i < seeds.length; i++) {
+    const s = seeds[i]
+    // 用 sharp 读实际尺寸写入（客户端画廊靠 width/height 生成 aspect-ratio 占位，缺失会布局跳动）
+    const dims = await readDims(`${UPLOAD_ROOT}/images/${artistId}/${s.file}`)
+    if (!dims) console.warn(`[artworks] ${s.file} 无尺寸信息，width/height 留 NULL（画廊占位会失效）`)
+    stmt.run(artistId, `images/${artistId}/${s.file}`, s.title, i + 1, s.isCover ? 1 : 0, dims?.width ?? null, dims?.height ?? null)
+  }
 }
 
 function setStyleCover(styleId: number, coverImagePath: string): void {
@@ -60,7 +76,7 @@ function setStyleCover(styleId: number, coverImagePath: string): void {
 
 // ─── 1. alice：多画风演示（日系，接单中） ───
 
-function seedAlice(): void {
+async function seedAlice(): Promise<void> {
   const alice = getArtist('alice')
   if (!alice) throw new Error('画师 alice 不存在')
   const { id } = alice
@@ -77,7 +93,7 @@ function seedAlice(): void {
   ]
   const removed = removeArtworks(id, `images/${id}/alice-p%.jpg`, 'Alice作品%', keepSet(aliceSeeds))
   console.log(`[alice] 清理旧作品 ${removed} 行`)
-  insertArtworks(id, aliceSeeds)
+  await insertArtworks(id, aliceSeeds)
   console.log('[alice] 插入 6 张真实作品')
 
   // 1c. avatar
@@ -109,7 +125,7 @@ function seedAlice(): void {
 
 // ─── 2. bob：单画风，约满 ───
 
-function seedBob(): void {
+async function seedBob(): Promise<void> {
   const bob = getArtist('bob')
   if (!bob) throw new Error('画师 bob 不存在')
   const { id } = bob
@@ -125,7 +141,7 @@ function seedBob(): void {
   ]
   const removed = removeArtworks(id, `images/${id}/bob-p%.jpg`, 'Bob作品%', keepSet(bobSeeds))
   console.log(`[bob] 清理旧作品 ${removed} 行`)
-  insertArtworks(id, bobSeeds)
+  await insertArtworks(id, bobSeeds)
   console.log('[bob] 插入 6 张真实作品')
 
   db.prepare('UPDATE artists SET avatar = ? WHERE id = ?').run(`images/${id}/bob-avatar.jpg`, id)
@@ -137,7 +153,7 @@ function seedBob(): void {
 
 // ─── 3. carol：旧模型画师（单画风退化路径演示） ───
 
-function seedCarol(): number {
+async function seedCarol(): Promise<number> {
   let carol = getArtist('carol')
   if (!carol) {
     const r = db.prepare(`
@@ -197,7 +213,7 @@ function seedCarol(): number {
   ]
   const removed = removeArtworks(id, `images/${id}/carol-p%.jpg`, undefined, keepSet(carolSeeds))
   if (removed > 0) console.log(`[carol] 清理旧作品 ${removed} 行`)
-  insertArtworks(id, carolSeeds)
+  await insertArtworks(id, carolSeeds)
   console.log('[carol] 4 张作品已插入')
 
   db.prepare('UPDATE artists SET avatar = ? WHERE id = ?').run(`images/${id}/carol-avatar.jpg`, id)
@@ -274,11 +290,44 @@ function seedDemoOrders(): void {
   })
 }
 
+// ─── 5. 存量行回填：width/height 为 NULL 的 artworks 用 sharp 补尺寸（幂等，只碰 NULL 行） ───
+
+async function backfillMissingDims(): Promise<void> {
+  const rows = db.prepare('SELECT id, image_path FROM artworks WHERE width IS NULL OR height IS NULL').all() as Array<{ id: number; image_path: string }>
+  if (rows.length === 0) {
+    console.log('[backfill] 无 width/height 缺失行，跳过')
+    return
+  }
+  console.log(`[backfill] 待回填 ${rows.length} 行`)
+  const update = db.prepare('UPDATE artworks SET width = ?, height = ? WHERE id = ?')
+  let ok = 0
+  let fail = 0
+  for (const r of rows) {
+    const dims = await readDims(`${UPLOAD_ROOT}/${r.image_path}`)
+    if (dims) {
+      update.run(dims.width, dims.height, r.id)
+      ok++
+    } else {
+      console.warn(`[backfill] #${r.id} 无尺寸：${r.image_path}`)
+      fail++
+    }
+  }
+  console.log(`[backfill] 完成：成功 ${ok}，失败 ${fail}`)
+}
+
 // ─── 主流程 ───
 
-console.log('=== 示例数据制作开始 ===')
-seedAlice()
-seedBob()
-seedCarol()
-seedDemoOrders()
-console.log('=== 完成 ===')
+async function main(): Promise<void> {
+  console.log('=== 示例数据制作开始 ===')
+  await seedAlice()
+  await seedBob()
+  await seedCarol()
+  seedDemoOrders()
+  await backfillMissingDims()
+  console.log('=== 完成 ===')
+}
+
+main().catch(err => {
+  console.error('=== 失败 ===', err)
+  process.exit(1)
+})
