@@ -81,7 +81,7 @@ describe('开工日 (Start Date, v0.26 B)', () => {
     artist = seedArtist()
   })
 
-  function seedOrder(overrides = {}) {
+  function seedOrder() {
     const result = db.prepare(`
       INSERT INTO orders (order_no, artist_id, client_qq, status, queue_position, queue_zone)
       VALUES (?, ?, '99999', 'pending', 1, 'formal')

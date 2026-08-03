@@ -100,7 +100,7 @@ describe('v0.25 路由层集成测试', () => {
       const artist = seedArtist()
       const token = createSession(artist.id, artist.token_version)
 
-      const m1 = guestbookService.createMessage(artist.id, '用户A', '待审核')
+      guestbookService.createMessage(artist.id, '用户A', '待审核') // 制造一条未审核留言（副作用即目的）
       const m2 = guestbookService.createMessage(artist.id, '用户B', '已通过')
       guestbookService.approveMessage(artist.id, m2.id)
       const m3 = guestbookService.createMessage(artist.id, '用户C', '被拒绝')
