@@ -804,4 +804,65 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.statusCode).toBe(401)
     })
   })
+
+  // ─── 方案 B: 无文件交付（修复工作流订单最后节点交付卡死） ───
+
+  describe('无文件交付 (deliver-no-file)', () => {
+    it('TC-RT-24: done 订单无文件交付成功 → delivered', async () => {
+      const artist = seedArtist({ qq_number: '77830', subdomain: 'nofile-del' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id, { status: 'done' })
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/deliver-no-file`,
+        headers: { Authorization: 'Bearer ' + token }
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().status).toBe('delivered')
+      expect(res.json().statusChanged).toBe(true)
+
+      // 系统备注留痕
+      const note = db.prepare("SELECT content FROM order_notes WHERE order_id = ? AND created_by = 'system'").get(order.id)
+      expect(note.content).toContain('无需交付文件')
+    })
+
+    it('TC-RT-25: pending 订单无文件交付被拒（DELIVER_WRONG_STATUS）', async () => {
+      const artist = seedArtist({ qq_number: '77831', subdomain: 'nofile-pend' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id, { status: 'pending' })
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/deliver-no-file`,
+        headers: { Authorization: 'Bearer ' + token }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('DELIVER_WRONG_STATUS')
+    })
+
+    it('TC-RT-26: 无 token 返回 401', async () => {
+      const artist = seedArtist({ qq_number: '77832', subdomain: 'nofile-auth' })
+      const order = seedOrder(artist.id, { status: 'done' })
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/deliver-no-file`
+      })
+      expect(res.statusCode).toBe(401)
+    })
+
+    it('TC-RT-27: 越权——其他画师不能交付他人订单', async () => {
+      const owner = seedArtist({ qq_number: '77833', subdomain: 'nofile-owner' })
+      const other = seedArtist({ qq_number: '77834', subdomain: 'nofile-other' })
+      const token = createSession(other.id, other.token_version)
+      const order = seedOrder(owner.id, { status: 'done' })
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/artist/orders/${order.id}/deliver-no-file`,
+        headers: { Authorization: 'Bearer ' + token }
+      })
+      expect(res.statusCode).toBe(404)
+    })
+  })
 })

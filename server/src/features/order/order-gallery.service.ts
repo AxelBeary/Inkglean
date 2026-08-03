@@ -1,6 +1,7 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getOrder, compactQueue, tryAutoPromote } from './order.service.js'
+import { logActivity } from './activity-log.service.js'
 
 // ============================================
 // 订单图库服务（从 order.service.js 拆出，v0.16）
@@ -38,6 +39,41 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
       tryAutoPromote(order.artist_id)
       statusChanged = true
     }
+
+    return { order: getOrder(orderId), statusChanged }
+  })()
+}
+
+/**
+ * 无文件交付（方案 B：修复工作流订单最后节点交付卡死）
+ * 画师确认本单无需交付文件时，直接完成交付流程：
+ * 状态守卫同 deliverOrder（wip/revision/done）→ delivered + 队列压缩 + 自动递补
+ * 与 deliverOrder 的差异：不插入交付文件，追加系统备注留痕
+ */
+export function deliverOrderWithoutFile(orderId: number): any {
+  return db.transaction(() => {
+    const order = getOrder(orderId)
+    if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+    if (!['wip', 'revision', 'done'].includes(order.status)) {
+      throw new AppError(E.DELIVER_WRONG_STATUS, 400, { status: order.status })
+    }
+
+    let statusChanged = false
+    if (order.status !== 'delivered') {
+      db.prepare('UPDATE orders SET status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run('delivered', orderId)
+      compactQueue(order.artist_id)
+      // SPEC-004: 交付释放名额后尝试自动递补
+      tryAutoPromote(order.artist_id)
+      statusChanged = true
+    }
+
+    // 系统备注留痕（客户与画师双方可见交付方式）
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+      .run(orderId, '📦 画师确认无需交付文件，订单直接完成交付')
+
+    // v0.31 REQ-021 F1: 操作日志（status_change 类型 + noFile 标记，对齐 updateOrderStatus 日志范式）
+    logActivity(orderId, 'status_change', 'artist', { from: order.status, to: 'delivered', noFile: true })
 
     return { order: getOrder(orderId), statusChanged }
   })()

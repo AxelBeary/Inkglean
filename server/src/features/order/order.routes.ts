@@ -689,6 +689,19 @@ export default async function orderRoutes(fastify: any) {
   })
 
   /**
+   * POST /api/artist/orders/:id/deliver-no-file
+   * 无文件交付（方案 B：修复工作流订单最后节点交付卡死）
+   * 画师确认本单无需交付文件，直接完成交付流程
+   */
+  fastify.post('/api/artist/orders/:id/deliver-no-file', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request: any) => {
+    const result = orderGalleryService.deliverOrderWithoutFile(request.order.id)
+    // R19: 交付返回的订单含 notes，需签名
+    return { ...signOrderUrls(result.order), statusChanged: result.statusChanged }
+  })
+
+  /**
    * POST /api/artist/orders/:id/references
    * 添加参考图
    * JSON Schema 输入校验
