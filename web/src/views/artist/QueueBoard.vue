@@ -434,6 +434,15 @@
       :order-id="deliverOrderId"
       @delivered="onDeliveredFromBoard"
     />
+
+    <!-- v0.36 波1: 时间条拖拽撤销 toast -->
+    <UndoToast
+      :visible="undoToastVisible"
+      :message="undoToastMessage"
+      :label="t('queue.tlUndo')"
+      @undo="onTlUndo"
+      @timeout="undoToastVisible = false"
+    />
   </ArtistLayout>
 </template>
 
@@ -447,6 +456,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
+import UndoToast from '../../components/artist/UndoToast.vue'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 
 const { t, locale } = useI18n()
@@ -812,16 +822,17 @@ const tlDragLabelText = computed(() => {
   return d.edge === 'deadline' ? t('queue.tlDragDeadline', { d: dStr }) : t('queue.tlDragStart', { d: dStr })
 })
 
-function onTlHandleDown(e, row, edge) {
-  if (e.pointerType === 'mouse' && e.button !== 0) return
-  e.stopPropagation()
-  e.currentTarget.setPointerCapture(e.pointerId)
-  tlDrag.value = {
+/** v0.36 波1: 构造拖拽状态——拖拽前记录 oldStartDate/oldDeadline，供撤销恢复 */
+function tlMakeDrag(row, edge, e) {
+  return {
     orderId: row.order.id,
     edge,
     startDate: row.startDate,
     endDate: row.endDate,
     noDeadline: row.noDeadline,
+    // 旧值快照：开工日原本缺失（fallback 显示）时记 null，撤销恢复为 null
+    oldStartDate: row.order.startDate ? dateKey(row.startDate) : null,
+    oldDeadline: row.noDeadline ? null : dateKey(row.endDate),
     startX: e.clientX,
     dayDelta: 0,
     pointerX: e.clientX,
@@ -829,22 +840,19 @@ function onTlHandleDown(e, row, edge) {
   }
 }
 
+function onTlHandleDown(e, row, edge) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  e.stopPropagation()
+  e.currentTarget.setPointerCapture(e.pointerId)
+  tlDrag.value = tlMakeDrag(row, edge, e)
+}
+
 /** REQ-019: 横条中间区域按下 → 整体平移模式（handle 的 pointerdown 已 stopPropagation，不会冒泡到这里） */
 function onTlBarDown(e, row) {
   if (e.pointerType === 'mouse' && e.button !== 0) return
   if (!tlCanDragMove(row)) return
   e.currentTarget.setPointerCapture(e.pointerId)
-  tlDrag.value = {
-    orderId: row.order.id,
-    edge: 'move',
-    startDate: row.startDate,
-    endDate: row.endDate,
-    noDeadline: row.noDeadline,
-    startX: e.clientX,
-    dayDelta: 0,
-    pointerX: e.clientX,
-    pointerY: e.clientY
-  }
+  tlDrag.value = tlMakeDrag(row, 'move', e)
 }
 
 function onTlHandleMove(e) {
@@ -866,6 +874,70 @@ function onTlHandleMove(e) {
   d.dayDelta = delta
   d.pointerX = e.clientX
   d.pointerY = e.clientY
+}
+
+// ─── v0.36 波1: 拖拽成功后的撤销 toast（软撤销，无全局 undo 栈） ───
+const undoToastVisible = ref(false)
+const undoToastMessage = ref('')
+/** 撤销快照：拖拽提交成功后记录订单与新值/旧值；「撤销」点击或超时即失效 */
+let tlUndoState = null
+
+const tlFmtMD = (dt) => `${dt.getMonth() + 1}/${dt.getDate()}`
+
+/** 拖拽成功后弹出撤销 toast（替代原 ElMessage.success） */
+function showTlUndoToast(d) {
+  let msg
+  if (d.edge === 'move') {
+    const s = tlFmtMD(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000))
+    const e = tlFmtMD(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000))
+    msg = t('queue.tlUndoMove', { s, e })
+  } else if (d.edge === 'deadline') {
+    msg = t('queue.tlUndoDeadline', { d: tlFmtMD(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000)) })
+  } else {
+    msg = t('queue.tlUndoStart', { d: tlFmtMD(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000)) })
+  }
+  tlUndoState = {
+    orderId: d.orderId,
+    edge: d.edge,
+    oldStartDate: d.oldStartDate,
+    oldDeadline: d.oldDeadline,
+    newStart: dateKey(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000)),
+    newEnd: dateKey(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000))
+  }
+  undoToastMessage.value = msg
+  undoToastVisible.value = true
+}
+
+/** 点「撤销」：调同样的 API 恢复旧日期（一次性；成功后刷新队列 + 轻提示） */
+async function onTlUndo() {
+  const u = tlUndoState
+  tlUndoState = null
+  undoToastVisible.value = false
+  if (!u) return
+  try {
+    if (u.edge === 'move') {
+      // 两次 PUT 恢复顺序与拖拽时 dayDelta 正负分支对称，避免交叉校验 400：
+      // 旧开工日晚于当前截稿日（拖右的撤销）→ 先恢复截稿日再恢复开工日
+      if (u.oldStartDate > u.newEnd) {
+        await artistApi.updateDeadline(u.orderId, u.oldDeadline)
+        await artistApi.updateStartDate(u.orderId, u.oldStartDate)
+      } else {
+        await artistApi.updateStartDate(u.orderId, u.oldStartDate)
+        await artistApi.updateDeadline(u.orderId, u.oldDeadline)
+      }
+    } else if (u.edge === 'deadline') {
+      // oldDeadline 可能为 null（原本未设截稿，拖拽才设上）→ 恢复即清除
+      await artistApi.updateDeadline(u.orderId, u.oldDeadline)
+    } else {
+      // oldStartDate 可能为 null（原本未设开工日，横条起点是 fallback 显示）
+      await artistApi.updateStartDate(u.orderId, u.oldStartDate)
+    }
+    await Promise.all([loadQueue(), loadBufferQueue()])
+    ElMessage.success(t('queue.tlUndone'))
+  } catch (err) {
+    ElMessage.error(err.message)
+    await Promise.all([loadQueue(), loadBufferQueue()]) // 恢复失败重拉服务端数据，界面与后端一致
+  }
 }
 
 async function onTlHandleUp() {
@@ -915,7 +987,8 @@ async function onTlHandleUp() {
       const src = queue.value.find(o => o.id === d.orderId) || bufferQueue.value.find(o => o.id === d.orderId)
       if (src) src.startDate = dateStr
     }
-    ElMessage.success(t('queue.tlDragSaved'))
+    // v0.36 波1: 成功不再弹 ElMessage.success，改带「撤销」按钮的 toast（API 失败走 catch，不弹）
+    showTlUndoToast(d)
   } catch (err) {
     ElMessage.error(err.message)
     await Promise.all([loadQueue(), loadBufferQueue()]) // 回滚

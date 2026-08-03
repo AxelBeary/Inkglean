@@ -456,13 +456,15 @@ export default {
     calMon: '一', calTue: '二', calWed: '三', calThu: '四', calFri: '五', calSat: '六', calSun: '日',
     calNoDeadline: '未设截稿',
     calLegendFormal: '正式订单', calLegendBuffer: '缓冲位', calLegendNoDeadline: '未设截稿', calLegendOverdue: '已逾期', calLegendDone: '已完成',
-    // v0.25 D: 时间条视图
+    // v0.25 D: 时间条视图（v0.36 波1: 四档缩放 2w/1m/3m/6m，删 2m）
     tlZoom2w: '两周', tlZoom1m: '一个月', tlZoom3m: '三个月', tlZoom6m: '半年',
     tlEmpty: '可见时间范围内没有订单',
     // v0.28: 时间条拖拽
     tlDragDeadline: '截稿 {d}', tlDragStart: '开工 {d}',
     tlDragMove: '{s} → {e}',
-    tlDragSaved: '日期已更新',
+    // v0.36 波1: 拖拽撤销 toast 文案（替代旧 tlDragSaved）
+    tlUndoDeadline: '截稿日已改为 {d}', tlUndoStart: '开工日已改为 {d}',
+    tlUndoMove: '档期已移动 {s} → {e}', tlUndo: '撤销', tlUndone: '已恢复',
     tlDragDeadlineBeforeStart: '截稿日不能早于开工日',
     tlDragStartAfterDeadline: '开工日不能晚于截稿日'
   },
@@ -543,6 +545,8 @@ export default {
     payDialogTitle: '记录收款', payAmountLabel: '收款金额（元）', payAmountPlaceholder: '输入金额',
     payNoteLabel: '备注（可选）', payNotePlaceholder: '如：微信转账、定金',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
+    // L3: 收款金额前端范围前置校验（后端 schema 兜底，此层补 UX）
+    payAmountInvalid: '收款金额须大于 0', payAmountExceed: '收款金额不能超出剩余应付 ¥{amount}',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
     payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',
