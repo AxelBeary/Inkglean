@@ -456,13 +456,15 @@ export default {
     calMon: 'Mon', calTue: 'Tue', calWed: 'Wed', calThu: 'Thu', calFri: 'Fri', calSat: 'Sat', calSun: 'Sun',
     calNoDeadline: 'No deadline',
     calLegendFormal: 'Formal order', calLegendBuffer: 'Buffer', calLegendNoDeadline: 'No deadline', calLegendOverdue: 'Overdue', calLegendDone: 'Done',
-    // v0.25 D: Timeline view
-    tlZoom2w: '2 weeks', tlZoom1m: '1 month', tlZoom2m: '2 months',
+    // v0.25 D: timeline view (v0.36 wave 1: four zoom levels 2w/1m/3m/6m, removed 2m)
+    tlZoom2w: '2 weeks', tlZoom1m: '1 month', tlZoom3m: '3 months', tlZoom6m: '6 months',
     tlEmpty: 'No orders in the visible time range',
-    // v0.28: Timeline drag
+    // v0.28: timeline drag
     tlDragDeadline: 'Deadline {d}', tlDragStart: 'Start {d}',
     tlDragMove: '{s} → {e}',
-    tlDragSaved: 'Date updated',
+    // v0.36 wave 1: drag undo toast copy (replaces old tlDragSaved)
+    tlUndoDeadline: 'Deadline set to {d}', tlUndoStart: 'Start date set to {d}',
+    tlUndoMove: 'Rescheduled {s} → {e}', tlUndo: 'Undo', tlUndone: 'Restored',
     tlDragDeadlineBeforeStart: 'Deadline cannot be earlier than start date',
     tlDragStartAfterDeadline: 'Start date cannot be later than deadline'
   },
@@ -543,6 +545,8 @@ export default {
     payDialogTitle: 'Record Payment', payAmountLabel: 'Amount (¥)', payAmountPlaceholder: 'Enter amount',
     payNoteLabel: 'Note (optional)', payNotePlaceholder: 'e.g. WeChat transfer, deposit',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
+    // L3: frontend amount range pre-validation (backend schema is the safety net; this layer is UX)
+    payAmountInvalid: 'Payment amount must be greater than 0', payAmountExceed: 'Amount cannot exceed the outstanding balance ¥{amount}',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',

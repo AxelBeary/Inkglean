@@ -36,8 +36,9 @@ api.interceptors.response.use(
           if (data.detail?.name) msg = `${data.detail.name}：${msg}`
           if (data.detail?.code) msg = `${msg}（${data.detail.code}）`
         }
-      } catch {
-        // i18n 加载失败，使用原始消息
+      } catch (err) {
+        // L1: i18n 加载失败，使用原始消息（补 console.warn，避免静默吞错）
+        console.warn('[api] i18n error translation failed, using raw message', err)
       }
     }
 
@@ -56,8 +57,9 @@ api.interceptors.response.use(
         if (router.currentRoute.value.name !== 'ArtistLogin') {
           router.push({ name: 'ArtistLogin' })
         }
-      } catch {
-        // 兜底：硬跳转
+      } catch (err) {
+        // L1: 兜底硬跳转（保留原行为，补 console.warn 避免静默吞错）
+        console.warn('[api] 401 soft-redirect failed, falling back to hard redirect', err)
         window.location.href = '/login'
       }
     }
@@ -197,12 +199,8 @@ export const artistApi = {
   savePayment: (nodes) => api.put('/artist/workflow/payment', { nodes }),
   resetWorkflow: () => api.post('/artist/workflow/reset'),
   // 增项
-  getAddons: () => api.get('/artist/addons'),
-  createAddon: (data) => api.post('/artist/addons', data),
-  updateAddon: (id, data) => api.put(`/artist/addons/${id}`, data),
-  deleteAddon: (id) => api.delete(`/artist/addons/${id}`),
-  reorderAddons: (orderedIds) => api.put('/artist/addons/reorder', { orderedIds }),
-  updateAddonTiers: (id, tierIds) => api.put(`/artist/addons/${id}/tiers`, { tierIds }),
+  // L0 (v0.36 波1): 旧增项模型六个封装已删（getAddons/createAddon/updateAddon/deleteAddon/reorderAddons/updateAddonTiers，零调用点；后端端点同步删除）
+  // 新模型增项库见下方 addonTemplate 系列（在用）
   // 倍率
   getMultipliers: () => api.get('/artist/multipliers'),
   createMultiplier: (data) => api.post('/artist/multipliers', data),

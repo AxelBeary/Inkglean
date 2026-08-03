@@ -469,7 +469,7 @@
         <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
           <el-input-number
             v-model="payForm.amountYuan"
-            :min="0.01" :max="999999.99" :precision="2" :step="50"
+            :min="0.01" :max="poolRemainingCents > 0 ? poolRemainingCents / 100 : 999999.99" :precision="2" :step="50"
             controls-position="right" style="width: 100%"
             :placeholder="$t('orderDetail.payAmountPlaceholder')"
           />
@@ -530,7 +530,7 @@
         <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
           <el-input-number
             v-model="nodePayForm.amountYuan"
-            :min="0.01" :max="999999.99" :precision="2" :step="50"
+            :min="0.01" :max="nodePayTarget?.remainingCents > 0 ? nodePayTarget.remainingCents / 100 : 999999.99" :precision="2" :step="50"
             controls-position="right" style="width: 100%"
           />
         </el-form-item>
@@ -966,7 +966,15 @@ function scrollToPayment() {
 /** 提交收款 */
 async function submitPayment() {
   const cents = Math.round((payForm.value.amountYuan || 0) * 100)
-  if (cents <= 0) return
+  // L3: 金额范围前置校验（≤0 或超剩余应付 → 前端报错提示，后端 schema 仅兜底）
+  if (cents <= 0) {
+    ElMessage.warning(t('orderDetail.payAmountInvalid'))
+    return
+  }
+  if (cents > poolRemainingCents.value) {
+    ElMessage.warning(t('orderDetail.payAmountExceed', { amount: formatCents(poolRemainingCents.value) }))
+    return
+  }
   try {
     await addPayment(route.params.id, { amountCents: cents, note: payForm.value.note || undefined })
     ElMessage.success(t('orderDetail.paySuccess'))
@@ -991,7 +999,16 @@ function openNodePayDialog(inst) {
 
 async function submitNodePayment() {
   const cents = Math.round((nodePayForm.value.amountYuan || 0) * 100)
-  if (cents <= 0 || !nodePayTarget.value) return
+  if (!nodePayTarget.value) return
+  // L3: 节点收款同样前置校验（≤0 或超该节点差额 → 报错提示）
+  if (cents <= 0) {
+    ElMessage.warning(t('orderDetail.payAmountInvalid'))
+    return
+  }
+  if (cents > nodePayTarget.value.remainingCents) {
+    ElMessage.warning(t('orderDetail.payAmountExceed', { amount: formatCents(nodePayTarget.value.remainingCents) }))
+    return
+  }
   try {
     await addPayment(route.params.id, {
       amountCents: cents,
