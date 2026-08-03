@@ -606,6 +606,19 @@ describe('路由层测试 (Route Integration)', () => {
       const row = db.prepare('SELECT like_count FROM artworks WHERE id = ?').get(artworkId)
       expect(row.like_count).toBe(5)
     })
+
+    it('TC-RT-28: hidden 画师画风算价返回 404（BUG-3 遗留）', async () => {
+      const artist = seedArtist({ qq_number: '77788', subdomain: 'hidden-style-calc' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/public/calculate-style-price',
+        payload: { subdomain: 'hidden-style-calc', styleSizeId: 1 }
+      })
+      expect(res.statusCode).toBe(404)
+      expect(res.json().code).toBe('ARTIST_NOT_FOUND')
+    })
   })
 
   // ─── v0.14: 启用流程跟踪 ───

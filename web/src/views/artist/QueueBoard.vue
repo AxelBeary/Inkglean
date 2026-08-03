@@ -838,7 +838,9 @@ function onTlHandleMove(e) {
   else if (d.edge === 'move') {
     const today = startOfDay(new Date())
     const minDelta = Math.ceil((today.getTime() - d.startDate.getTime()) / 86_400_000)
-    if (minDelta > 0) delta = Math.max(delta, minDelta)
+    // BUG-6 修复：恒执行钳制（原版 if (minDelta > 0) 只在开工日已在过去时生效，
+    // 开工日在未来时左拖可把开工日拖进过去，错误排期静默持久化）
+    delta = Math.max(delta, minDelta)
   }
   d.dayDelta = delta
   d.pointerX = e.clientX
