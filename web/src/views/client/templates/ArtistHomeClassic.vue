@@ -58,7 +58,7 @@
           <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
           <template v-if="styles.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
-            <TplStyleGrid :styles="styles" :artworks="artworks" :subdomain="subdomain" />
+            <TplStyleGrid :styles="styles" :subdomain="subdomain" />
           </template>
           <template v-else-if="tiers.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
@@ -83,7 +83,7 @@
 
         <section class="classic-section tpl-reveal" v-if="galleryArtworks.length">
           <p class="tpl-section-label classic-label">{{ $t('artistHome.artworks') }}</p>
-          <TplGallery :artworks="galleryArtworks" :styles="styles" :subdomain="subdomain" />
+          <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" />
         </section>
 
         <section class="classic-section tpl-reveal" v-if="rules">
@@ -119,7 +119,8 @@ import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewSt
 
 const props = defineProps({
   artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
-  workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object
+  workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object,
+  gallery: Object // v0.35 联调：画廊端点数据（size_tags/filterSizes）
 })
 
 const { imgUrl, socialLinks, platformLinks, galleryArtworks } = useArtistData(props)

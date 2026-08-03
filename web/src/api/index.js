@@ -89,6 +89,8 @@ export const artistPublicApi = {
   // v0.32 REQ-023 Phase2: 多画风公开配置 + 价格计算
   getPublicStyles: (subdomain) => api.get(`/public/styles/${subdomain}`),
   calculateStylePrice: (data) => api.post('/public/calculate-style-price', data),
+  // v0.35 F6: 画廊专用端点（作品 size_tags/描述 + filterSizes 筛选档位）
+  getPublicGallery: (subdomain) => api.get(`/public/gallery/${subdomain}`),
   // F1: 作品点赞（匿名公开）
   likeArtwork: (id) => api.post(`/public/artworks/${id}/like`),
   unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`),
