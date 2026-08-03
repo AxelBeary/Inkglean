@@ -179,6 +179,26 @@ describe('路由层测试 (Route Integration)', () => {
       expect(delRes.json().code).toBe('FINAL_CANNOT_DELETE')
     })
 
+    it('TC-RT-20: 重置工作流被活跃订单拦截 — 消息已插值 {count}（Bug#reset-count-placeholder）', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      seedArtistStages(artist.id)
+      seedOrder(artist.id, { status: 'wip' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artist/workflow/reset',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      expect(res.statusCode).toBe(400)
+      const body = res.json()
+      expect(body.code).toBe('STAGES_RESET_BLOCKED')
+      // 占位符必须被 detail.count 插值，不允许裸 {count} 直出
+      expect(body.error).not.toContain('{count}')
+      expect(body.error).toContain('1')
+      expect(body.detail).toEqual({ count: 1 })
+    })
+
     it('TC-RT-11: 创建订单 — 画师不存在返回错误', async () => {
       const res = await app.inject({
         method: 'POST',

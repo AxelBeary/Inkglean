@@ -41,6 +41,7 @@ export default {
     BP_TOO_HIGH: 'Ratio too high, final payment must be at least 5%',
     NO_PAYMENT_NODE: 'At least 1 payment stage required',
     SUM_NOT_100: 'Ratios must sum to 100%',
+    STAGES_RESET_BLOCKED: '{count} order(s) are in progress. Complete them or turn off workflow tracking before resetting.',
 
     // Order
     ORDER_NOT_FOUND: 'Order not found',

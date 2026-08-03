@@ -228,9 +228,16 @@ export async function buildApp(opts = {}) {
     }
     // 4xx 业务错误：返回结构化错误码 + 中文友好消息
     const code = error.code || 'UNKNOWN'
+    let message = ERROR_MESSAGES[code] || error.message || '请求错误'
+    // 插值消息模板中的 {key} 占位符（detail 提供值，如 STAGES_RESET_BLOCKED 的 {count}）
+    if (error.detail && typeof error.detail === 'object' && typeof message === 'string') {
+      message = message.replace(/\{([^}]+)\}/g, (raw, key) =>
+        Object.prototype.hasOwnProperty.call(error.detail, key) ? String(error.detail[key]) : raw
+      )
+    }
     reply.status(status).send({
       code,
-      error: ERROR_MESSAGES[code] || error.message || '请求错误',
+      error: message,
       detail: error.detail || undefined
     })
   })

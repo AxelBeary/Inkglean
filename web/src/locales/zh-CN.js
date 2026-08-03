@@ -41,6 +41,7 @@ export default {
     BP_TOO_HIGH: '比例过高，尾款不能低于 5%',
     NO_PAYMENT_NODE: '至少需要保留 1 个收款节点',
     SUM_NOT_100: '比例总和必须等于 100%',
+    STAGES_RESET_BLOCKED: '有 {count} 个进行中订单，请先完成或关闭流程跟踪后再重置工作流',
 
     // 订单
     ORDER_NOT_FOUND: '订单不存在',
