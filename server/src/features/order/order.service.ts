@@ -972,9 +972,19 @@ export function recalcInstallmentAmounts(orderId: number): void {
 
   const update = db.prepare('UPDATE order_payment_installments SET amount_cents = ? WHERE id = ?')
   db.transaction(() => {
-    for (const inst of installments) {
-      const amountCents = Math.round(totalCents * inst.basis_points / 10000)
-      update.run(amountCents, inst.id)
+    // BUG-4 修复：前 N-1 个节点独立四舍五入，末节点 = 按比例总额 − 前 N-1 之和
+    // 吸收舍入尾差，保证节点金额之和恒等于"按比例计算的总额"（原版各自 Math.round 会有 ±1~2 分漂移）
+    // 注意按比例总额而非订单全额：节点比例之和可能不为 100%（如单节点 30%）
+    const totalBp = installments.reduce((sum, i) => sum + i.basis_points, 0)
+    const ratioTotal = Math.round(totalCents * totalBp / 10000)
+    let allocated = 0
+    for (let i = 0; i < installments.length; i++) {
+      const isLast = i === installments.length - 1
+      const amountCents = isLast
+        ? ratioTotal - allocated
+        : Math.round(totalCents * installments[i].basis_points / 10000)
+      allocated += amountCents
+      update.run(amountCents, installments[i].id)
     }
   })()
 }

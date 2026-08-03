@@ -560,6 +560,52 @@ describe('路由层测试 (Route Integration)', () => {
       const res = await app.inject({ method: 'GET', url: '/api/public/pricing/hidden-price' })
       expect(res.statusCode).toBe(404)
     })
+
+    // BUG-3 审计修复：公开算价/折扣码验证/点赞的 hidden 过滤
+
+    it('TC-RT-21: hidden 画师公开算价返回 404（BUG-3）', async () => {
+      const artist = seedArtist({ qq_number: '77785', subdomain: 'hidden-calc' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/public/calculate-price',
+        payload: { subdomain: 'hidden-calc', tierId: 1 }
+      })
+      expect(res.statusCode).toBe(404)
+      expect(res.json().code).toBe('ARTIST_NOT_FOUND')
+    })
+
+    it('TC-RT-22: hidden 画师折扣码验证返回 404（BUG-3）', async () => {
+      const artist = seedArtist({ qq_number: '77786', subdomain: 'hidden-disc' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/public/validate-discount',
+        payload: { subdomain: 'hidden-disc', code: 'TEST10' }
+      })
+      expect(res.statusCode).toBe(404)
+      expect(res.json().code).toBe('ARTIST_NOT_FOUND')
+    })
+
+    it('TC-RT-23: hidden 画师作品点赞/取消返回 404（BUG-3）', async () => {
+      const artist = seedArtist({ qq_number: '77787', subdomain: 'hidden-like' })
+      db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
+      const artworkId = Number(db.prepare(
+        'INSERT INTO artworks (artist_id, image_path, title, sort_order, like_count) VALUES (?, ?, ?, ?, ?)'
+      ).run(artist.id, `images/${artist.id}/hidden-work.png`, '测试作品', 1, 5).lastInsertRowid)
+
+      const likeRes = await app.inject({ method: 'POST', url: `/api/public/artworks/${artworkId}/like` })
+      expect(likeRes.statusCode).toBe(404)
+
+      const unlikeRes = await app.inject({ method: 'DELETE', url: `/api/public/artworks/${artworkId}/like` })
+      expect(unlikeRes.statusCode).toBe(404)
+
+      // 点赞数未被改动
+      const row = db.prepare('SELECT like_count FROM artworks WHERE id = ?').get(artworkId)
+      expect(row.like_count).toBe(5)
+    })
   })
 
   // ─── v0.14: 启用流程跟踪 ───

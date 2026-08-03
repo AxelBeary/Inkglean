@@ -1,7 +1,7 @@
 import * as pricingService from './pricing.service.js'
 import * as discountService from './discount.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
-import { getArtistBySubdomain } from '../artist/artist.service.js'
+import { getArtistBySubdomain, requireVisibleArtist } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 
@@ -223,8 +223,8 @@ export default async function pricingRoutes(fastify: any) {
 
     const { subdomain, tierId, addons, usageMultiplierId, rushMultiplierId } = request.body as any
 
-    const artist = getArtistBySubdomain(subdomain) as any
-    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // BUG-3 修复：hidden 画师/管理员账号不允许算价（对照 GET pricing 范式）
+    const artist = requireVisibleArtist(subdomain)
 
     return pricingService.calculatePrice(artist.id, {
       tierId,
@@ -331,8 +331,8 @@ export default async function pricingRoutes(fastify: any) {
     guardRateLimit(`discount:${request.ip}`, 20, 5 * 60_000)
 
     const { subdomain, code } = request.body as any
-    const artist = getArtistBySubdomain(subdomain) as any
-    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // BUG-3 修复：hidden 画师/管理员账号不允许验证折扣码（对照 GET pricing 范式）
+    const artist = requireVisibleArtist(subdomain)
 
     const dc = discountService.validateDiscountCode(artist.id, code)
     return {

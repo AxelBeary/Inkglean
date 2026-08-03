@@ -88,7 +88,101 @@ export default {
     DISCOUNT_CODE_EXPIRED: 'This discount code has expired',
     DISCOUNT_CODE_EXHAUSTED: 'This discount code has reached its usage limit',
     DISCOUNT_CODE_NOT_FOUND: 'Discount code not found',
-    DISCOUNT_CODE_TAKEN: 'Discount code already taken'
+    DISCOUNT_CODE_TAKEN: 'Discount code already taken',
+
+    // Artist (supplement)
+    QQ_TAKEN: 'This QQ number is already registered',
+    SUBDOMAIN_TAKEN: 'This subdomain is already taken',
+
+    // General (supplement)
+    RATE_LIMITED: 'Too many requests, please try again later',
+    MISSING_PARAMS: 'Missing required parameters',
+
+    // Input validation (supplement)
+    QQ_REQUIRED: 'Please enter your QQ number',
+    QQ_FORMAT: 'Invalid QQ format (5-15 digits)',
+    MISSING_CREDENTIALS: 'Please enter QQ number and login code',
+
+    // Order input (supplement)
+    ARTIST_NOT_OPEN: 'This artist is not accepting new commissions',
+    RULES_NOT_AGREED: 'Please read and agree to the commission rules first',
+    STATUS_REQUIRED: 'Please specify a status',
+    NOTE_EMPTY: 'Note content cannot be empty',
+    ORDER_INVALID_ID: 'Invalid order ID',
+
+    // Addons (supplement)
+    ADDON_NOT_FOUND: 'Addon not found',
+    ADDON_NAME_EMPTY: 'Addon name cannot be empty',
+    ADDON_INVALID_PRICE: 'Invalid addon price',
+    ADDON_INVALID_MODE: 'Invalid selection mode',
+    ADDON_MAX_QTY: 'Maximum quantity exceeded',
+    ADDON_NOT_FOR_TIER: 'This addon does not apply to the selected tier',
+
+    // Multipliers (supplement)
+    MULTIPLIER_NOT_FOUND: 'Multiplier not found',
+    MULTIPLIER_INVALID: 'Invalid multiplier value (must be >= 1.0)',
+
+    // Pricing (supplement)
+    PRICING_TIER_REQUIRED: 'Please select a base tier first',
+    PRICING_CALC_FAILED: 'Price calculation failed',
+    INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 99999999)',
+
+    // Focus image (supplement)
+    FOCUS_IMAGE_NOT_FOUND: 'Reference image not found',
+    FOCUS_IMAGE_NOT_OWNED: 'This reference image does not belong to this order',
+    INVALID_FOCUS_MODE: 'Invalid focus image mode (options: off/small/large)',
+
+    // Custom links (supplement)
+    LINKS_TOO_MANY: 'Cannot have more than 6 custom links',
+    LINK_URL_INVALID: 'Invalid link format (must start with http:// or https://)',
+
+    // Gallery (supplement)
+    REFERENCES_LIMIT: 'Cannot have more than 20 reference images',
+    REFERENCE_DUPLICATE: 'This image is already in the gallery',
+    NOTE_IMAGE_PATH_INVALID: 'Invalid note image path',
+
+    // Order page template (supplement)
+    INVALID_ORDER_TEMPLATE: 'Invalid order page template',
+
+    // Platform links (supplement)
+    PLATFORM_URLS_TOO_MANY: 'Cannot have more than 10 platform links',
+    PLATFORM_URL_INVALID: 'Invalid platform link format (must start with http:// or https://)',
+
+    // Inspiration tags (supplement)
+    TAGS_TOO_MANY: 'Cannot have more than 20 inspiration tags',
+
+    // Extra items (supplement)
+    EXTRA_ITEM_LIMIT: 'Cannot have more than 20 extra items',
+    ORDER_FINAL_STATE: 'Delivered or cancelled orders cannot have extra items added',
+
+    // Slots & buffer (supplement)
+    BATCH_FULL: 'This artist is fully booked and cannot accept new orders',
+    INVALID_BATCH_LIMIT: 'Invalid slot settings (formal + buffer must be at least 1)',
+    NOT_BUFFER_ORDER: 'This order is not in the buffer zone',
+
+    // Workflow (supplement)
+    STAGE_IN_USE: 'This stage has orders in progress. Complete or move them before deleting.',
+
+    // Artworks (supplement)
+    ARTWORK_NOT_FOUND: 'Artwork not found',
+
+    // Tier visibility (supplement)
+    TIER_NOT_AVAILABLE: 'This tier is not available for ordering',
+
+    // Multi-style (supplement, v0.32 REQ-023)
+    STYLE_NOT_FOUND: 'Art style not found',
+    STYLE_NAME_EMPTY: 'Art style name cannot be empty',
+    STYLE_SIZE_NOT_FOUND: 'Size not found',
+    STYLE_SIZE_NAME_EMPTY: 'Size name cannot be empty',
+    STYLE_SIZE_INVALID_PRICE: 'Invalid size price',
+    ADDON_TEMPLATE_NOT_FOUND: 'Addon template not found',
+    ADDON_TEMPLATE_NAME_EMPTY: 'Addon template name cannot be empty',
+    ADDON_TEMPLATE_INVALID_PRICE: 'Invalid addon template price',
+    ADDON_TEMPLATE_INVALID_CONTROL: 'Invalid control type',
+    ADDON_TEMPLATE_INVALID_PRICING: 'Invalid pricing mode',
+    STYLE_ADDON_NOT_FOUND: 'Style addon not found',
+    STYLE_ADDON_DUPLICATE: 'This addon is already imported into this style',
+    SIZE_OVERRIDE_NOT_FOUND: 'Size override not found'
   },
   pref: { toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark' },
   common: {
@@ -603,6 +697,10 @@ export default {
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
     tabPrefs: 'Preferences', tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',
+    // BUG-7: load-failure protection (prevent default/empty values overwriting real settings)
+    loadFailedTitle: 'Failed to load settings', loadFailedDesc: 'The form currently holds default values. Saving now would overwrite your real settings. Retry loading first, then edit and save.',
+    loadFailedHint: 'Settings have not loaded yet. Please retry before saving.',
+    rulesLoadFailed: 'Failed to load rules. Saving is disabled to avoid overwriting existing rules.', retry: 'Retry',
     // #3: quick actions config
     quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons (3-9)',
     quickHint: 'Check the buttons you want, then save. The dashboard quick area will follow.',

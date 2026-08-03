@@ -88,7 +88,101 @@ export default {
     DISCOUNT_CODE_EXPIRED: '折扣码已过期',
     DISCOUNT_CODE_EXHAUSTED: '折扣码使用次数已达上限',
     DISCOUNT_CODE_NOT_FOUND: '折扣码不存在',
-    DISCOUNT_CODE_TAKEN: '该折扣码已被使用'
+    DISCOUNT_CODE_TAKEN: '该折扣码已被使用',
+
+    // 画师（补充）
+    QQ_TAKEN: '该QQ号已被注册',
+    SUBDOMAIN_TAKEN: '该子域名已被使用',
+
+    // 通用（补充）
+    RATE_LIMITED: '操作过于频繁，请稍后再试',
+    MISSING_PARAMS: '缺少必要参数',
+
+    // 输入校验（补充）
+    QQ_REQUIRED: '请填写QQ号',
+    QQ_FORMAT: 'QQ号格式不正确（5-15位数字）',
+    MISSING_CREDENTIALS: '请输入QQ号和登录码',
+
+    // 订单输入（补充）
+    ARTIST_NOT_OPEN: '该画师当前不接受新约稿',
+    RULES_NOT_AGREED: '请先阅读并同意约稿须知',
+    STATUS_REQUIRED: '请指定状态',
+    NOTE_EMPTY: '备注内容不能为空',
+    ORDER_INVALID_ID: '无效的订单ID',
+
+    // 增项（补充）
+    ADDON_NOT_FOUND: '增项不存在',
+    ADDON_NAME_EMPTY: '增项名称不能为空',
+    ADDON_INVALID_PRICE: '增项价格无效',
+    ADDON_INVALID_MODE: '无效的选择模式',
+    ADDON_MAX_QTY: '超出最大数量限制',
+    ADDON_NOT_FOR_TIER: '该增项不适用于所选档位',
+
+    // 倍率（补充）
+    MULTIPLIER_NOT_FOUND: '倍率项不存在',
+    MULTIPLIER_INVALID: '倍率值无效（须大于等于1.0）',
+
+    // 计算（补充）
+    PRICING_TIER_REQUIRED: '请先选择基础档位',
+    PRICING_CALC_FAILED: '价格计算失败',
+    INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
+
+    // 焦点图（补充）
+    FOCUS_IMAGE_NOT_FOUND: '参考图不存在',
+    FOCUS_IMAGE_NOT_OWNED: '该参考图不属于此订单',
+    INVALID_FOCUS_MODE: '无效的焦点图模式（可选：off/small/large）',
+
+    // 外链（补充）
+    LINKS_TOO_MANY: '外链数量不能超过6条',
+    LINK_URL_INVALID: '外链地址格式不正确（须以 http:// 或 https:// 开头）',
+
+    // 图库（补充）
+    REFERENCES_LIMIT: '参考图总数不能超过20张',
+    REFERENCE_DUPLICATE: '该图片已在图库中',
+    NOTE_IMAGE_PATH_INVALID: '备注附图路径不合法',
+
+    // 下单页模板（补充）
+    INVALID_ORDER_TEMPLATE: '无效的下单页模板',
+
+    // 平台链接（补充）
+    PLATFORM_URLS_TOO_MANY: '平台链接数量不能超过10条',
+    PLATFORM_URL_INVALID: '平台链接格式不正确（须以 http:// 或 https:// 开头）',
+
+    // 灵感标签（补充）
+    TAGS_TOO_MANY: '灵感标签数量不能超过20个',
+
+    // 附加工作项（补充）
+    EXTRA_ITEM_LIMIT: '附加工作项数量不能超过20条',
+    ORDER_FINAL_STATE: '已交付或已取消的订单不能添加附加项',
+
+    // 名额与缓冲（补充）
+    BATCH_FULL: '该画师已接满，暂时无法下单',
+    INVALID_BATCH_LIMIT: '名额设置无效（正式位+缓冲位至少为1）',
+    NOT_BUFFER_ORDER: '该订单不在缓冲区',
+
+    // 流程（补充）
+    STAGE_IN_USE: '该节点下有进行中的订单，请先完成或转移后再删除',
+
+    // 作品（补充）
+    ARTWORK_NOT_FOUND: '作品不存在',
+
+    // 档位三态（补充）
+    TIER_NOT_AVAILABLE: '该档位暂不接受下单',
+
+    // 多画风（补充，v0.32 REQ-023）
+    STYLE_NOT_FOUND: '画风不存在',
+    STYLE_NAME_EMPTY: '画风名称不能为空',
+    STYLE_SIZE_NOT_FOUND: '尺寸不存在',
+    STYLE_SIZE_NAME_EMPTY: '尺寸名称不能为空',
+    STYLE_SIZE_INVALID_PRICE: '尺寸价格无效',
+    ADDON_TEMPLATE_NOT_FOUND: '增项模板不存在',
+    ADDON_TEMPLATE_NAME_EMPTY: '增项模板名称不能为空',
+    ADDON_TEMPLATE_INVALID_PRICE: '增项模板价格无效',
+    ADDON_TEMPLATE_INVALID_CONTROL: '无效的控件类型',
+    ADDON_TEMPLATE_INVALID_PRICING: '无效的计价模式',
+    STYLE_ADDON_NOT_FOUND: '画风增项不存在',
+    STYLE_ADDON_DUPLICATE: '该增项已导入此画风',
+    SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在'
   },
   pref: { toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗' },
   common: {
@@ -603,6 +697,10 @@ export default {
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
     tabPrefs: '偏好', tabRules: '须知编辑', tabWorkflow: '流程与比例',
+    // BUG-7: 加载失败保护（防止默认值/空内容覆盖真实配置）
+    loadFailedTitle: '设置加载失败', loadFailedDesc: '表单当前是默认值，保存会覆盖你的真实设置。请重试加载成功后再编辑保存。',
+    loadFailedHint: '设置尚未加载成功，无法保存，请先重试',
+    rulesLoadFailed: '须知内容加载失败，保存已禁用以防止覆盖现有须知', retry: '重试加载',
     quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮（3-9 个）',
     quickHint: '勾选后点保存生效，仪表盘快捷区将按此显示。',
     quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存', quickLimitError: '请选择 3-9 个快捷按钮',

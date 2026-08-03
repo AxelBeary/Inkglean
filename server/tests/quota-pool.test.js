@@ -182,4 +182,48 @@ describe('B7 额度池（v0.23）', () => {
     const fresh = orderService.getOrder(order.id)
     expect(fresh.final_price_cents).toBe(55000)
   })
+
+  // ─── BUG-4: 分期金额舍入尾差归末节点 ───
+
+  it('TC-ADJ-02: recalcInstallmentAmounts 尾差归末节点，节点之和恒等于按比例总额（BUG-4）', () => {
+    const artist = seedArtist({ qq_number: '88108', subdomain: 'adj2' })
+    const order = seedOrder(artist.id, { status: 'confirmed' })
+    db.prepare('UPDATE orders SET total_price_cents = 10000, final_price_cents = 10000 WHERE id = ?').run(order.id)
+    // 三节点各 3333bp（合计 9999bp = 99.99%）——原版各自 Math.round 会产生 ±分漂移
+    const insert = db.prepare(
+      'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
+    )
+    insert.run(order.id, '一期', 3333, 0, 1)
+    insert.run(order.id, '二期', 3333, 0, 2)
+    insert.run(order.id, '尾款', 3333, 0, 3)
+
+    orderService.recalcInstallmentAmounts(order.id)
+
+    const rows = db.prepare(
+      'SELECT amount_cents FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+    ).all(order.id)
+    // 前两个独立四舍五入：10000×3333/10000 = 3333
+    expect(rows[0].amount_cents).toBe(3333)
+    expect(rows[1].amount_cents).toBe(3333)
+    // 末节点 = 按比例总额(round(10000×9999/10000)=9999) − 3333 − 3333 = 3333，吸收尾差
+    expect(rows[2].amount_cents).toBe(3333)
+    // 节点之和恒等于按比例总额，无漂移
+    const sum = rows.reduce((s, r) => s + r.amount_cents, 0)
+    expect(sum).toBe(9999)
+  })
+
+  it('TC-ADJ-03: 单节点重算不受 BUG-4 修复影响（比例≠100% 场景）', () => {
+    const artist = seedArtist({ qq_number: '88109', subdomain: 'adj3' })
+    const order = seedOrder(artist.id, { status: 'confirmed' })
+    db.prepare('UPDATE orders SET total_price_cents = 50000, final_price_cents = 50000 WHERE id = ?').run(order.id)
+    db.prepare(
+      'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
+    ).run(order.id, '定金', 3000, 0, 1)
+
+    orderService.recalcInstallmentAmounts(order.id)
+
+    // 单节点 30%：末节点=按比例总额（50000×30%=15000），不是订单全额
+    const inst = db.prepare('SELECT amount_cents FROM order_payment_installments WHERE order_id = ?').get(order.id)
+    expect(inst.amount_cents).toBe(15000)
+  })
 })
