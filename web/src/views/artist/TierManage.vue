@@ -8,11 +8,6 @@
         <ArtStyleManager />
       </el-tab-pane>
 
-      <!-- 增项 -->
-      <el-tab-pane :label="$t('tiers.tabAddons')" name="addons" lazy>
-        <AddonManager />
-      </el-tab-pane>
-
       <!-- 倍率 -->
       <el-tab-pane :label="$t('tiers.tabMultipliers')" name="multipliers" lazy>
         <MultiplierManager />
@@ -39,7 +34,6 @@
 <script setup>
 import { ref } from 'vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
-import AddonManager from '../../components/artist/AddonManager.vue'
 import MultiplierManager from '../../components/artist/MultiplierManager.vue'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import DiscountCodeManager from '../../components/artist/DiscountCodeManager.vue'

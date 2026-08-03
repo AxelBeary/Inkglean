@@ -51,6 +51,8 @@
             </span>
           </div>
           <div v-else class="artwork-actions">
+            <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
+            <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
             <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
           </div>
         </div>
@@ -79,6 +81,8 @@
         </div>
         <!-- 普通模式：单条删除（悬停显示） -->
         <div v-else class="artwork-actions">
+          <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
+          <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
           <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
         </div>
         <!-- REQ-017: 封面星标（常驻右上角，不依赖 hover） -->
@@ -143,11 +147,39 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- v0.35 波3 (REQ-024 F6): 作品编辑弹窗 — 标题/自由描述/档位标注多选，保存即时 PUT -->
+    <el-dialog v-model="editDialogVisible" :title="$t('artworks.editTitle')" width="520px" destroy-on-close>
+      <el-form :model="editForm" label-position="top">
+        <el-form-item :label="$t('artworks.editTitleLabel')">
+          <el-input v-model="editForm.title" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="$t('artworks.editDescLabel')">
+          <el-input
+            v-model="editForm.description" type="textarea" :rows="4"
+            :placeholder="$t('artworks.editDescPlaceholder')" maxlength="2000" show-word-limit
+          />
+        </el-form-item>
+        <el-form-item :label="$t('artworks.editTagsLabel')">
+          <el-select
+            v-model="editForm.sizeIds" multiple clearable
+            :placeholder="$t('artworks.editTagsEmptyHint')" style="width: 100%"
+          >
+            <el-option v-for="opt in sizeOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+          </el-select>
+          <p class="edit-hint">{{ $t('artworks.editTagsHint') }}</p>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="editSaving" @click="saveArtworkEdit">{{ $t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
   </ArtistLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
@@ -347,6 +379,53 @@ async function loadArtworks() {
   }
 }
 
+// ─── v0.35 波3 (REQ-024 F6): 作品编辑 — 档位标注多选 + 自由描述 ───
+const artStyles = ref([]) // 档位标注选项来源（仅取启用画风，排序沿用后端返回序）
+const editDialogVisible = ref(false)
+const editSaving = ref(false)
+const editingArtworkId = ref(null)
+const editForm = reactive({ title: '', description: '', sizeIds: [] })
+
+/** 档位选项：启用画风×尺寸展平；多画风时「画风 · 尺寸」防歧义（派工要求） */
+const sizeOptions = computed(() => {
+  const multi = artStyles.value.length > 1
+  return artStyles.value.flatMap(style =>
+    (style.sizes || []).map(size => ({
+      value: size.id,
+      label: multi ? `${style.name} · ${size.name}` : size.name
+    }))
+  )
+})
+
+async function openEditDialog(art) {
+  editingArtworkId.value = art.id
+  Object.assign(editForm, {
+    title: art.title || '',
+    description: art.description || '',
+    sizeIds: [...(art.size_tag_ids || [])]
+  })
+  editDialogVisible.value = true
+}
+
+/** 保存：两个 PUT 串行（后端无合并端点）；任一失败提示并刷新回显 */
+async function saveArtworkEdit() {
+  editSaving.value = true
+  try {
+    await artistApi.updateArtwork(editingArtworkId.value, {
+      title: editForm.title.trim() || null,
+      description: editForm.description.trim() || null
+    })
+    await artistApi.setArtworkTags(editingArtworkId.value, editForm.sizeIds)
+    ElMessage.success(t('artworks.editSaved'))
+    editDialogVisible.value = false
+    await loadArtworks()
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    editSaving.value = false
+  }
+}
+
 async function handlePasteArtworkFiles(files) {
   for (const file of files) {
     const uploaded = await uploadApi.image(file)
@@ -356,7 +435,13 @@ async function handlePasteArtworkFiles(files) {
   await loadArtworks()
 }
 
-onMounted(loadArtworks)
+onMounted(async () => {
+  await loadArtworks()
+  // 档位标注选项：加载失败不阻塞页面（编辑弹窗打开时选项为空，不影响其他功能）
+  try {
+    artStyles.value = await artistApi.getArtStyles()
+  } catch { /* 静默 */ }
+})
 </script>
 
 <style scoped>
@@ -402,6 +487,9 @@ onMounted(loadArtworks)
 .artwork-item:hover .artwork-actions,
 .artwork-item:focus-within .artwork-actions { opacity: 1; }
 .paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center; }
+
+/* v0.35 波3: 作品编辑弹窗提示 */
+.edit-hint { font-size: 11px; color: var(--text-secondary); margin: 4px 0 0; line-height: 1.5; }
 
 /* ─── REQ-017: 封面星标 + 标签 ─── */
 .artwork-cover-star {

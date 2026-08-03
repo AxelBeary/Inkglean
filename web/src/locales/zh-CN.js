@@ -681,8 +681,12 @@ export default {
     sizeDescLabel: '描述（可选）', sizeDescPlaceholder: '这个尺寸包含什么、适合什么',
     sizeDaysLabel: '工期（天，可选）',
     sizeImageCol: '图片', sizeDescCol: '描述', sizeDaysCol: '工期',
-    sizeFromArtworkTag: '作品集', sizeAddBtn: '+ 添加尺寸',
-    sizePickTitle: '从作品集挑选', sizePickHint: '点击选择一张作品作为尺寸图', sizePickEmpty: '还没有作品，请先去作品管理上传'
+    sizeFromArtworkTag: '作品集', sizeAddBtn: '+ 添加尺寸', sizeEmpty: '还没有尺寸',
+    sizePickTitle: '从作品集挑选', sizePickHint: '点击选择一张作品作为尺寸图', sizePickEmpty: '还没有作品，请先去作品管理上传',
+    // v0.35 补漏 A4: 已有画风追加导入增项
+    addonImportBtn: '＋ 导入增项', addonImportTitle: '从增项库导入',
+    addonImportEmpty: '增项库中没有新增项可导入（都已导入该画风）',
+    addonImportConfirm: '导入所选', addonImported: '增项已导入'
   },
   artworks: {
     title: '作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
@@ -701,7 +705,13 @@ export default {
     // F7: 主图去重
     mainImages: '主图', mainTag: '主图',
     // v0.31: 多封面排序
-    coverMoveUp: '前移', coverMoveDown: '后移', coverReordered: '封面顺序已更新'
+    coverMoveUp: '前移', coverMoveDown: '后移', coverReordered: '封面顺序已更新',
+    // v0.35 波3 (REQ-024 F6): 作品编辑（档位标注+自由描述）
+    editTitle: '编辑作品', editTitleLabel: '标题', editDescLabel: '自由描述',
+    editDescPlaceholder: '谁的设定、画了多少小时、用了什么技法……自由填写',
+    editTagsLabel: '档位标注', editTagsEmptyHint: '选择该作品所属的尺寸',
+    editTagsHint: '可多选；客户可在画廊按档位筛选，点大图标签可带预选跳下单',
+    editSaved: '作品已保存'
   },
   rules: {
     title: '须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
