@@ -7,7 +7,7 @@
 ---
 ## master 状态
 
-- **HEAD**：`9fe02d8`，与 origin 同步
+- **HEAD**：`409a9ff`，与 origin 同步
 - **测试**：server 695/695 · web 144/144 · tsc 0 · eslint 0 · build ✓
 - **容器**：v0.36 已重建验证（06:50）——healthy、数据完好（6 画风/11 尺寸/21 作品/4 订单）、旧增项 API 404、新读路径真数据跑通；备份 `data/commission.db.bak-v036-verify`
 - **迁移**：v38（artists CHECK 补 hidden，事务外 12 步重建）
@@ -22,7 +22,14 @@
 | 四号 | v0.28~v0.35 changelog 补全 + docs 归档盘点清单（归档动作待发话） | `4a2a582` | — |
 | 五号 | BUG-1 方案 b（getOrderInstallments 读池子推算）+ 死代码清账 5 项 | `17ed7f4` | 705→695（删例对账） |
 | 三号 | 旧增项 API 六端点删除（净删 248 行）+ M1/M2 路径校验四处 + C-4 demo-data 断言 | `46983d8` | 同上 |
-| 二号 | 时间条四档缩放 + 撤销 toast + L0/L1/L3/L5 | 执行中（子代理重发，首轮撞迭代上限未落码） | — |
+| 三号-B | errors.ts 死码清理 3 个（ADDON_NAME_EMPTY/INVALID_PRICE/INVALID_MODE） | `e04f2f5`（流程瑕疵见 01-note） | 695/695 |
+| 二号 | 时间条四档缩放（TL-1 已固化 `f64e793`）+ 撤销 toast（编码中） | 执行中 | — |
+
+### v0.36 波 2-A 合入记录
+
+| 角色 | 内容 | commit | 验证 |
+|------|------|--------|------|
+| 二号-B | 客户画廊画册翻页替换网格 + 四模板区分度（Gallery 大小交错/Classic 题注/Folio 压角/Atelier 纸片） | `409a9ff` | 一号审 diff + 144/144 重跑 + 浏览器实测四模板翻页/键盘/筛选/peek 全过 |
 
 **四号归档清单要点**：REQ-024 → archive/requirements/；SPEC-025 → archive/specs-done/（未覆盖项先转待修复清单）；feedback-20260802 的 E 类 #56/#13、F 类技术债未入清单——待一号决定是否转入后再归档。
 **五号波 2 建议**：addPayment 节点 paid_cents 旧写路径停写或迁移删列，与 addons 表 drop 同批。
@@ -58,11 +65,11 @@
 ---
 ## 各角色状态
 
-- **二号**：v0.36 波 1 前端（时间条四档+撤销）执行中——worktree `-02` 分支 `feat/v036-web-timeline-undo`（子代理重发）
-- **二号-B**：波 2-A 画廊画册翻页执行中——worktree `-w2b` 分支 `feat/v036-gallery-album`（子代理）
-- **三号**：波 1 已合入；现派 errors.ts 死码清理（`01-to-03b-dead-errorcodes-20260805.md`，主 worktree 直提，单文件）
+- **二号**：v0.36 波 1 前端（撤销 toast）执行中——worktree `-02` 分支 `feat/v036-web-timeline-undo`（子代理第三轮，TL-1 已固化）
+- **二号-B**：画廊画册翻页已合入（`409a9ff`），空闲
+- **三号**：波 1 + 死码清理已合入，空闲
 - **五号**：波 1 已合入；现派演示订单分期节点缺口修复（`01-to-05b-demo-installments-20260805.md`，worktree `-w5b` 分支 `fix/v036-demo-installments`）
-- **四号**：changelog 已合入 + 归档已执行；现派说明书漂移修复（`01-to-04-manual-drift-20260805.md`，主 worktree 直提）
+- **四号**：changelog 已合入 + 归档已执行；现做说明书漂移修复（`01-to-04-manual-drift-20260805.md`，主 worktree 直提，进行中）
 
 ---
 ## ⚠️ v38 迁移事故记录（一号自查发现并已修复）
