@@ -58,7 +58,7 @@
           <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
           <template v-if="styles.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
-            <TplStyleGrid :styles="styles" :subdomain="subdomain" />
+            <TplStyleGrid :styles="styles" :artworks="artworks" :subdomain="subdomain" />
           </template>
           <template v-else-if="tiers.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
@@ -83,7 +83,7 @@
 
         <section class="classic-section tpl-reveal" v-if="galleryArtworks.length">
           <p class="tpl-section-label classic-label">{{ $t('artistHome.artworks') }}</p>
-          <TplGallery :artworks="galleryArtworks" :subdomain="subdomain" />
+          <TplGallery :artworks="galleryArtworks" :styles="styles" :subdomain="subdomain" />
         </section>
 
         <section class="classic-section tpl-reveal" v-if="rules">

@@ -75,6 +75,25 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   /** query 预选命中记录（restoreDraft 跳过依据 + OrderForm 初始步骤依据） */
   const queryPreselect = reactive({ styleId: null, sizeId: null })
 
+  /**
+   * v0.35 F4: 预选摘要横幅文案（REQ-024 F4-3：预选择必须可见、可改）。
+   * 入口 A（展示柜带 query）预选命中时显示；用户手动改选后自动隐藏（此时摘要卡已反映实选）。
+   * 返回已翻译文案；空串 = 不显示。
+   */
+  const preselectBannerText = computed(() => {
+    if (!isStyleMode.value) return ''
+    const styleHit = queryPreselect.styleId != null && selectedStyleId.value === queryPreselect.styleId
+    const sizeHit = queryPreselect.sizeId != null && selectedSizeId.value === queryPreselect.sizeId
+    if (styleHit && sizeHit && selectedStyle.value && selectedSize.value) {
+      return t('orderForm.preselectedBoth', { style: selectedStyle.value.name, size: selectedSize.value.name })
+    }
+    // 仅画风预选：多画风才提示（单画风无「选画风」概念，与退化逻辑一致）
+    if (styleHit && isMultiStyle.value && selectedSizeId.value == null && selectedStyle.value) {
+      return t('orderForm.preselectedStyle', { style: selectedStyle.value.name })
+    }
+    return ''
+  })
+
   // ─── 表单状态 ───
   const form = reactive({
     tierId: null,
@@ -740,6 +759,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     selectStyle, selectSize, buildStyleAddons, parseAddonOptions,
     stylePricePreview, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras,
     // v0.34 任务B：URL query 预选命中记录
-    queryPreselect
+    queryPreselect,
+    // v0.35 F4: 预选摘要横幅文案
+    preselectBannerText
   }
 }

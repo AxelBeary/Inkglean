@@ -16,6 +16,19 @@
           </template>
         </div>
 
+        <!-- v0.35 F4: 入口 A 预选摘要横幅——展示柜带选择进来时明确显示已预选内容，可回上一步修改 -->
+        <div v-if="preselectBannerText" class="preselect-banner">
+          <span class="preselect-banner-text">{{ preselectBannerText }}</span>
+          <!-- 多画风回选画风步；单画风回选尺寸步（改选后价格自动重算，横幅随之消失） -->
+          <button
+            type="button"
+            class="preselect-banner-btn"
+            @click="step = isMultiStyle ? 1 : sizeStep"
+          >
+            {{ $t('orderForm.preselectChange') }}
+          </button>
+        </div>
+
         <div class="step-layout">
           <el-card class="step-main">
             <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
@@ -613,7 +626,9 @@ const {
   selectStyle, selectSize, parseAddonOptions,
   stylePricePreview, styleDisplayPrice,
   // v0.34 任务B：URL query 预选命中记录
-  queryPreselect
+  queryPreselect,
+  // v0.35 F4: 预选摘要横幅文案（入口 A 预选可见，可回上一步改）
+  preselectBannerText
 } = useOrderForm(subdomain, formRef, route.query)
 
 // ─── R58-2: 分步引导（v0.32: 动态步骤号） ───
@@ -770,6 +785,38 @@ async function copyQq(qq) {
 .step-indicator {
   display: flex; align-items: center; justify-content: center;
   margin: 24px 0 20px;
+}
+/* ─── v0.35 F4: 入口 A 预选摘要横幅（可见可改） ─── */
+.preselect-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 10px 16px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--border-color, #dcdfe6));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--bg-page, #fff));
+}
+.preselect-banner-text {
+  font-size: 13px;
+  color: var(--text-primary, var(--el-text-color-primary));
+}
+.preselect-banner-btn {
+  padding: 3px 12px;
+  border: 1px solid var(--border-color-strong, #c0c4cc);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.preselect-banner-btn:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 .step-item { display: flex; align-items: center; gap: 8px; }
 .step-dot {

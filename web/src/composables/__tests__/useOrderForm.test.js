@@ -765,6 +765,42 @@ describe('URL query 预选', () => {
     expect(of.selectedStyleId.value).toBe(11)
     expect(of.selectedSizeId.value).toBe(112)
   })
+
+  // ─── v0.35 F4: 预选可见横幅（入口 A 展示柜带选择进来） ───
+
+  it('F4：画风+尺寸齐预选 → 横幅显示已预选两者（可见可改）', async () => {
+    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '11', sizeId: '111' } })
+    expect(of.preselectBannerText.value).toBe('orderForm.preselectedBoth')
+  })
+
+  it('F4：多画风仅预选画风 → 横幅提示选尺寸', async () => {
+    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '12' } })
+    expect(of.preselectBannerText.value).toBe('orderForm.preselectedStyle')
+  })
+
+  it('F4：单画风 + 仅尺寸预选（query 无 styleId）→ 不触发横幅', async () => {
+    const { of } = await createForm({ styles: [MOCK_STYLES[0]], query: { sizeId: '112' } })
+    // 单画风 styleId 缺省但自动选中；queryPreselect.styleId 仅在 query 带 styleId 且命中时记录，
+    // 此处 query 无 styleId → queryPreselect.styleId 为 null → 不触发横幅（价格摘要卡已显示尺寸）
+    expect(of.preselectBannerText.value).toBe('')
+  })
+
+  it('F4：用户改选尺寸后 → 横幅自动消失（预选已被手动选择取代）', async () => {
+    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '11', sizeId: '111' } })
+    expect(of.preselectBannerText.value).toBe('orderForm.preselectedBoth')
+    of.selectSize(112) // 回上一步改选尺寸
+    expect(of.preselectBannerText.value).toBe('')
+  })
+
+  it('F4：入口 B（无 query）→ 无横幅', async () => {
+    const { of } = await createForm({ styles: MOCK_STYLES })
+    expect(of.preselectBannerText.value).toBe('')
+  })
+
+  it('F4：旧模型（无画风）→ 无横幅', async () => {
+    const { of } = await createForm({ styles: [], query: { styleId: '11' } })
+    expect(of.preselectBannerText.value).toBe('')
+  })
 })
 
 // ─── 校验规则 ───

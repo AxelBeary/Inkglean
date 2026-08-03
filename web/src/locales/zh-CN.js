@@ -211,7 +211,11 @@ export default {
     addonStepEmpty: '该尺寸下暂无可选增项',
     addonOptionPrice: '选项价',
     multiplierLabel: '用途与加急', usageLabel: '用途：', rushLabel: '加急：',
-    personal: '个人', noRush: '不加急'
+    personal: '个人', noRush: '不加急',
+    // v0.35 F4: 入口 A 预选可见横幅（展示柜带选择进来）
+    preselectedBoth: '已按主页选择预选：{style} · {size}',
+    preselectedStyle: '已预选画风「{style}」，请选择尺寸',
+    preselectChange: '修改'
   },
   // R24: 校验失败弹窗
   order: {
@@ -268,6 +272,14 @@ export default {
     rejectConfirm: '确定拒绝这条留言？拒绝后客户主页将不显示。',
     // F8: 语言筛选
     languageAll: '全部语言'
+  },
+  // v0.35 F6: 客户端画廊筛选 + 大图标签（共享组件 TplGallery）
+  gallery: {
+    filterAll: '全部',
+    filterEmpty: '该档位下暂时没有作品',
+    tierTag: '档位',
+    prev: '上一张',
+    next: '下一张'
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
