@@ -12,11 +12,6 @@ export function toSqliteDate(date: Date): string {
   return date.toISOString().slice(0, 19).replace('T', ' ')
 }
 
-/** 当前时间 → SQLite 格式 */
-export function nowSqlite(): string {
-  return toSqliteDate(new Date())
-}
-
 /**
  * 本地时区今日零点 → SQLite 格式（UTC 表示）
  * 用于"今日统计"查询，避免 UTC+8 用户零点偏移

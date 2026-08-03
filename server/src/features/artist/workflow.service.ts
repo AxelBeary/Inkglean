@@ -339,11 +339,6 @@ export function seedArtistStages(artistId: number): void {
   }
 }
 
-/** 从默认模板复制到画师（createArtist 调用） */
-export function copyTemplateToArtist(artistId: number): void {
-  seedArtistStages(artistId)
-}
-
 /** 重置画师流程为默认模板（画师主动操作） */
 export function resetArtistStages(artistId: number): StageCamel[] {
   // P0-1: 有活跃订单时禁止重置（防止 current_stage_id 悬挂引用）
@@ -366,27 +361,6 @@ export function resetArtistStages(artistId: number): StageCamel[] {
     assertInvariants(artistId)
     return listCamel(artistId)
   })()
-}
-
-// ─── 管理员：默认模板 CRUD ───
-
-/**
- * v0.25 #8: 解析节点话术（支持多模板随机）
- * speech_template 以 \n 分隔多个模板。
- * random_template=1 且有多个模板时随机选一个；否则返回第一个。
- * 返回替换变量后的最终文本。
- */
-export function resolveSpeechTemplate(stageId: number, vars: Record<string, string>): string {
-  const stage = getStageById(stageId)
-  if (!stage || !stage.speech_template) return ''
-  const templates = stage.speech_template.split('\n').map(t => t.trim()).filter(Boolean)
-  if (templates.length === 0) return ''
-  // random_template=1 且多模板 → 随机；否则第一个
-  const chosen = (stage.random_template && templates.length > 1)
-    ? templates[Math.floor(Math.random() * templates.length)]
-    : templates[0]
-  // 变量替换：{客户名}、{节点名} 等
-  return chosen.replace(/\{([^}]+)\}/g, (_, key) => vars[key] ?? `{${key}}`)
 }
 
 // ─── 管理员：默认模板 CRUD ───
