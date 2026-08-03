@@ -9,7 +9,6 @@
       <!-- 节点圆点 -->
       <div class="tl-dot">
         <span v-if="nodeState(stage.id) === 'done'" class="tl-check">✓</span>
-        <span v-else-if="stage.takesPayment" class="tl-pay" aria-hidden="true">💰</span>
       </div>
 
       <!-- 连接线（最后一个节点不画） -->
@@ -116,9 +115,6 @@ function nodeState(stageId) {
   background: var(--el-color-primary-soft, color-mix(in srgb, var(--el-color-primary) 15%, transparent));
   animation: tl-pulse 1.8s ease-in-out infinite;
 }
-
-/* 收款节点 💰 */
-.tl-pay { font-size: 12px; }
 
 /* 连接线 */
 .tl-line {

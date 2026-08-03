@@ -4,7 +4,7 @@
       class="theme-btn" @click="themeStore.toggle()" :title="isDark ? t('pref.toLight') : t('pref.toDark')"
       :aria-label="isDark ? t('pref.toLight') : t('pref.toDark')"
     >
-      {{ isDark ? '☀️' : '🌙' }}
+      <span class="theme-icon" :class="isDark ? 'theme-icon--sun' : 'theme-icon--moon'" aria-hidden="true"></span>
     </button>
     <button
       class="lang-btn" @click="toggleLang" :title="locale === 'zh-CN' ? 'English' : '中文'"
@@ -41,4 +41,14 @@ function toggleLang() {
 }
 .theme-btn:hover, .lang-btn:hover { background: var(--bg-hover); border-color: var(--el-color-primary); }
 .lang-btn { font-size: 12px; font-weight: 600; }
+/* v0.34 任务F：亮暗主题切换图标改为纯 CSS 图形（太阳=圆+光线，月亮=双圆遮罩） */
+.theme-icon { position: relative; width: 14px; height: 14px; display: inline-block; }
+.theme-icon--sun::before {
+  content: ''; position: absolute; inset: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 -6px 0 -5.4px, 0 6px 0 -5.4px, -6px 0 0 -5.4px, 6px 0 0 -5.4px,
+    -4.2px -4.2px 0 -5.4px, 4.2px -4.2px 0 -5.4px, -4.2px 4.2px 0 -5.4px, 4.2px 4.2px 0 -5.4px;
+}
+.theme-icon--moon { border-radius: 50%; box-shadow: inset -3px 2px 0 0 currentColor; }
 </style>

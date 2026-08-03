@@ -33,7 +33,6 @@
           <WorkflowOverviewStrip :stages="workflowStages" vertical />
         </div>
         <div v-if="artist.revisionNote" class="tpl-revision-note">
-          <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
           <span>
             <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
             {{ artist.revisionNote }}
@@ -193,7 +192,6 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   letter-spacing: 0.02em;
   color: var(--pal-text);
 }
-.gallery-announcement :deep(.tpl-announcement-icon) { flex-shrink: 0; }
 .gallery-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 
 .gallery-section {

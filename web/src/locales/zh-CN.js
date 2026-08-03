@@ -137,16 +137,21 @@ export default {
     groupWork: '工作', groupBiz: '经营', groupFront: '门面'
   },
   landing: {
-    title: '🎨 画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
+    title: '画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
     noBio: '这位画师还没有写简介', weibo: '微博', bilibili: 'B站',
     enterHome: '进入主页 →', noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
-    notFoundHint: '你访问的页面不存在，已为你返回首页'
+  },
+  // v0.34 任务A：独立 404 页
+  notFound: {
+    message: '你访问的页面不存在或已被移动。',
+    backHome: '回平台首页',
+    artistsTitle: '或者，去看看这些画师'
   },
   artistHome: {
-    weibo: '🔗 我的微博', bilibili: '📺 我的B站', commission: '🎨 我要约稿', track: '📋 查询进度',
-    priceList: '💰 价格表', artworks: '🖼 作品展示', rules: '📜 约稿须知', workflow: '📐 约稿流程与收款',
-    aboutDays: '⏱ 约 {n} 天', loadFailed: '画师不存在或加载失败', hidden: '该画师暂未开放主页',
-    statusOpen: '✅ 可约稿', statusFull: '⏳ 已排满', statusBreak: '💤 休息中',
+    weibo: '我的微博', bilibili: '我的B站', commission: '我要约稿', track: '查询进度',
+    priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
+    aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败', hidden: '该画师暂未开放主页',
+    statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     about: '关于', navPricing: '价格', navProcess: '流程', navWork: '作品',
     heroOpen: '接受约稿中', heroFull: '目前已排满', heroBreak: '休息中',
     startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
@@ -158,9 +163,11 @@ export default {
     // R50: 预览模式
     previewBanner: '预览模式 — 修改尚未保存',
     // v0.25 A: 封面精选
-    covers: '✨ 封面精选',
+    covers: '封面精选',
     // v0.32 REQ-023 Phase3: 多画风价格表
-    styleOrderBtn: '选择此画风约稿'
+    styleOrderBtn: '选择此画风约稿',
+    // v0.34 任务B：尺寸选中后下单引导
+    styleSizeHint: '已选 {size} · ¥{price}，点击下方按钮带此选择进入约稿'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
@@ -171,7 +178,7 @@ export default {
     pricingDetail: '详细计价',
     qqLabel: '你的QQ号', qqPlaceholder: '画师会通过QQ联系你',
     nameLabel: '昵称（可选）', namePlaceholder: '怎么称呼你',
-    notifyLabel: '📩 排到我的时候通过QQ通知我', agreeLabel: '✋ 我已阅读并同意以上约稿须知',
+    notifyLabel: '排到我的时候通过QQ通知我', agreeLabel: '我已阅读并同意以上约稿须知',
     submit: '提交约稿', successTitle: '约稿提交成功！', orderNoIs: '你的订单号是：',
     addQqHint: '请添加画师QQ沟通细节，报上你的订单号即可', viewProgress: '查看进度',
     selectTier: '请选择档位', fillQq: '请填写QQ号',
@@ -191,7 +198,7 @@ export default {
     // R58-3: 小票二次确认
     receiptSub: '· 约稿确认单 ·', receiptTotal: '合计', receiptConfirm: '确认下单', submitting: '提交中…',
     // R58-4: 灵感标签
-    inspireHint: '✨ 没想好怎么写？点选灵感标签快速填入：',
+    inspireHint: '没想好怎么写？点选灵感标签快速填入：',
     // R58-5: 复制约稿信息
     copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：',
     // v0.31 F3: 折扣码
@@ -219,9 +226,9 @@ export default {
     artist: '画师', type: '类型', status: '状态', position: '排队位置',
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
     stepSubmitted: '已提交', stepConfirmed: '已确认', stepWip: '制作中', stepDone: '已完成', stepDelivered: '已交付',
-    deliverables: '📦 交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
+    deliverables: '交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
     // SPEC-003: 价格与付款
-    priceTitle: '💰 价格明细', finalPrice: '最终价格', installmentsTitle: '付款节点', paid: '已付', unpaid: '未付',
+    priceTitle: '价格明细', finalPrice: '最终价格', installmentsTitle: '付款节点', paid: '已付', unpaid: '未付',
     // B7: 额度池付款进度
     payPaid: '已付', payNext: '下期应付', payRemaining: '待付', payTotal: '总额',
     contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
@@ -241,7 +248,7 @@ export default {
   // F4: 留言板（客户端留言墙，共享组件 TplGuestbook）
   guestbook: {
     title: '留言板',
-    empty: '还没有留言，来说点什么吧 💬',
+    empty: '还没有留言，来说点什么吧',
     nickname: '昵称', nicknamePlaceholder: '怎么称呼你',
     content: '留言内容', contentPlaceholder: '想对画师说的话…',
     submit: '留言',
@@ -253,7 +260,7 @@ export default {
   },
   // #1: 画师端留言管理页面
   guestbookManage: {
-    title: '💬 留言管理',
+    title: '留言管理',
     all: '全部',
     replyLabel: '画师回复',
     editReply: '编辑回复',
@@ -263,10 +270,10 @@ export default {
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
-    orderInfo: '订单号：{no} | 画师：{artist}', download: '⬇ 下载', noFiles: '暂无交付文件'
+    orderInfo: '订单号：{no} | 画师：{artist}', download: '下载', noFiles: '暂无交付文件'
   },
   login: {
-    title: '🎨 画师登录', subtitle: '输入你的QQ号，登录码将发送到你的QQ',
+    title: '画师登录', subtitle: '输入你的QQ号，登录码将发送到你的QQ',
     qqPlaceholder: '输入你的QQ号', getCode: '获取登录码', codeSent: '登录码已发送至 QQ {qq}',
     codePlaceholder: '输入6位登录码', login: '登录', changeQq: '← 换个QQ号',
     devCode: '开发模式登录码: {code}', enterQq: '请输入QQ号', enterCode: '请输入登录码', loginSuccess: '登录成功！'
@@ -281,7 +288,7 @@ export default {
     slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     defaultPanel: '默认面板', panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
     // F4: 留言审核
-    guestbookTitle: '💬 留言审核', guestbookEmpty: '暂无留言',
+    guestbookTitle: '留言审核', guestbookEmpty: '暂无留言',
     guestbookPending: '待审核', guestbookApproved: '已通过', guestbookRejected: '已拒绝',
     guestbookApprove: '通过', guestbookReject: '拒绝', guestbookReply: '回复',
     guestbookReplyPlaceholder: '回复这位访客（≤500字）', guestbookReplySave: '保存回复',
@@ -289,30 +296,30 @@ export default {
     // R52: 今日统计
     todayNewOrders: '今日新增订单', todayRevenue: '今日收入',
     // R51: 截稿日 + 今日待办
-    deadlineCard: '⏰ 即将到期', noDeadlines: '近期无截稿 🎉',
-    todoCard: '📌 今日待办', noTodos: '暂无待办，喝杯茶吧 ☕',
+    deadlineCard: '即将到期', noDeadlines: '近期无截稿',
+    todoCard: '今日待办', noTodos: '暂无待办，喝杯茶吧',
     daysLeft: '剩 {n} 天', dueToday: '今天截稿',
     // v0.18 仪表盘重构
-    revenueTitle: '📊 收入统计', periodMonth: '月', periodQuarter: '季', periodYear: '年',
+    revenueTitle: '收入统计', periodMonth: '月', periodQuarter: '季', periodYear: '年',
     revenueOrderCount: '{n} 单完成', revenueVs: 'vs {label}', revenueError: '收入数据加载失败',
     retry: '重试',
-    todoTitle: '📌 现在要干什么', todoError: '待办列表加载失败', todoEmpty: '当前没有待办，休息一下 🎨',
+    todoTitle: '现在要干什么', todoError: '待办列表加载失败', todoEmpty: '当前没有待办，休息一下',
     tag_overdue: '逾期', tag_dueToday: '截稿', tag_pending: '新单', tag_revision: '修改', tag_inProgress: '进行中',
-    activityTitle: '🕐 最近活动', activityError: '活动记录加载失败', activityEmpty: '暂无最近活动',
+    activityTitle: '最近活动', activityError: '活动记录加载失败', activityEmpty: '暂无最近活动',
     timeJustNow: '刚刚', timeMinutesAgo: '{n} 分钟前', timeHoursAgo: '{n} 小时前', timeDaysAgo: '{n} 天前',
-    slotTitle: '🎯 名额概览', slotFormal: '正式 {used}/{total}', slotBuffer: '缓冲 {used}/{total}',
+    slotTitle: '名额概览', slotFormal: '正式 {used}/{total}', slotBuffer: '缓冲 {used}/{total}',
     slotNext: '下一位候补：{name}（QQ: {qq}）',
     // #4: 名额概览改版
     slotCombined: '已接 {used}/{total}', slotNotEnabled: '未开启名额限制，去设置 →', slotDisplayFallback: '—',
     artworks: '图库管理', tiers: '档位管理'
   },
   queue: {
-    title: '📋 排期看板',
+    title: '排期看板',
     hint: '拖拽卡片调整顺序，顺序立即保存。优先级仅作标记，不影响排列顺序。',
-    confirm: '✅ 确认', startWip: '🎨 开始制作', done: '✔ 完成', deliver: '📦 交付', cancel: '❌ 取消',
+    confirm: '确认', startWip: '开始制作', done: '✔ 完成', deliver: '交付', cancel: '取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
     // SPEC-004: 缓冲区
-    bufferTitle: '🕐 缓冲区（候补）', bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
+    bufferTitle: '缓冲区（候补）', bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
@@ -320,8 +327,8 @@ export default {
     // P0-3b: 标签切换
     tabFormal: '正式区', tabBuffer: '缓冲区',
     // REQ-013 #7: 工作流 done 订单交付入口 + 完成区
-    goDeliver: '📦 去交付',
-    completedTitle: '✅ 近期已交付', completedHint: '已交付订单在此保留 7 天后自动隐藏',
+    goDeliver: '去交付',
+    completedTitle: '近期已交付', completedHint: '已交付订单在此保留 7 天后自动隐藏',
     completedEmpty: '近期无已交付订单',
     dragHint: '拖拽排序',
     focusDisplay: '焦点图显示', focusOff: '关', focusLarge: '大',
@@ -346,7 +353,7 @@ export default {
     tlDragStartAfterDeadline: '开工日不能晚于截稿日'
   },
   orderList: {
-    title: '📦 订单管理', all: '全部',
+    title: '订单管理', all: '全部',
     colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
     colPriority: '优先级', colStatus: '状态', colSource: '来源', colTime: '下单时间', colActions: '操作',
     colImage: '图片',
@@ -357,8 +364,8 @@ export default {
     backToQueue: '返回排期看板', backToDashboard: '返回仪表盘', backToList: '返回订单列表', orderNo: '订单 #',
     orderInfo: '订单信息', colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
     colPriority: '优先级', colSource: '来源', colTime: '下单时间', colDesc: '需求描述',
-    statusFlow: '状态流转', confirmOrder: '✅ 确认接单', startWip: '🎨 开始制作',
-    needRevision: '✏️ 需要修改', markDone: '✔ 标记完成', uploadDeliver: '📦 上传交付', cancelOrder: '❌ 取消订单',
+    statusFlow: '状态流转', confirmOrder: '确认接单', startWip: '开始制作',
+    needRevision: '需要修改', markDone: '✔ 标记完成', uploadDeliver: '上传交付', cancelOrder: '取消订单',
     references: '参考图', noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', cancelConfirm: '确定取消此订单？', confirmTitle: '确认',
@@ -370,7 +377,7 @@ export default {
     focusUpdated: '焦点图已更新',
     deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
     focusHint: '显示尺寸在排期看板工具栏统一设置',
-    workflowTitle: '📈 流程进度', stageOff: '关闭流程跟踪',
+    workflowTitle: '流程进度', stageOff: '关闭流程跟踪',
     stageProgress: '进度 {current}/{total}', stageRevision: '已打回修改',
     advanceTo: '推进到：', stageBack: '↩ 打回上一节点', stageUpdated: '流程已更新',
     stageBackConfirm: '确定打回到「{name}」？订单状态将标记为修改中。',
@@ -449,7 +456,7 @@ export default {
     }
   },
   manualOrder: {
-    title: '✍ 手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
+    title: '手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
     leftTitle: '客户说了什么', rightTitle: '怎么录',
     clientQq: '客户QQ号', clientQqPlaceholder: '客户的QQ号',
     clientName: '客户昵称（可选）', clientNamePlaceholder: '怎么称呼客户',
@@ -462,7 +469,7 @@ export default {
     desc: '需求描述', descPlaceholder: '从QQ聊天中复制客户的需求描述',
     references: '参考图', refExceed: '最多上传5张参考图', fileTooBig: '{name} 过大（{size}MB），上限10MB',
     refTip: '录单后仍可在订单图库中补充参考图，订单图库合计上限 20 张。',
-    priority: '优先级', priorityHigh: '🔴 高', priorityMedium: '🟡 中（默认）', priorityLow: '🟢 低',
+    priority: '优先级', priorityHigh: '高', priorityMedium: '中（默认）', priorityLow: '低',
     clientNotify: '允许客户接收QQ排队提醒',
     catExpression: '表情差分', catOutfit: '服装替换', catBackground: '背景场景', catWeapon: '武器道具', catOther: '其他',
     submit: '录入订单', resultTitle: '录入成功', orderNo: '订单号: {no}', addedToQueue: '已加入排期队列',
@@ -476,10 +483,10 @@ export default {
     // F4: 初始节点状态
     initialStatus: '初始节点状态', initialStatusHint: '线下已谈好的单子可直接跳过确认环节',
     // REQ-015: QQ历史面板
-    historyTitle: '该客户的历史订单', newClient: '🎉 新客户，暂无历史订单'
+    historyTitle: '该客户的历史订单', newClient: '新客户，暂无历史订单'
   },
   tiers: {
-    title: '💰 价格管理', addTier: '+ 添加档位',
+    title: '价格管理', addTier: '+ 添加档位',
     dragHint: '拖拽排序', reorderSaved: '排序已保存',
     colExample: '例图', colName: '名称', colPrice: '价格', colDays: '工期', colDesc: '描述',
     editTitle: '编辑档位', addTitle: '添加档位', nameLabel: '名称',
@@ -555,7 +562,7 @@ export default {
     overrideTitle: '「{name}」尺寸覆盖', overrideHidden: '隐藏', overrideSaved: '覆盖已保存'
   },
   artworks: {
-    title: '🖼 作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
+    title: '作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
     tip: '支持 JPG / PNG / WebP，建议尺寸 ≥ 800px', empty: '还没有作品，上传一些吧',
     uploaded: '上传成功', confirmDelete: '确定删除这张作品？', image: '作品图片',
     // R45: 多选删除
@@ -574,7 +581,7 @@ export default {
     coverMoveUp: '前移', coverMoveDown: '后移', coverReordered: '封面顺序已更新'
   },
   rules: {
-    title: '📜 须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
+    title: '须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
     placeholder: '输入约稿须知内容，支持 HTML 标签如 <h3>、<ul>、<li>、<strong> 等',
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
@@ -641,7 +648,7 @@ export default {
   },
   // v0.26 C: 开稿管理独立页
   slots: {
-    title: '📋 开稿管理',
+    title: '开稿管理',
     statusSection: '接稿状态',
     slotSection: '名额设置',
     quotaSection: '月度额度',
@@ -677,7 +684,7 @@ export default {
     hint: '如果你已经有自己的个人网站（Carrd / Framer / 自建站等），可以在你的网站里插入一段代码，让客户直接通过你的网站下单。',
     step1: '1. 复制以下代码：',
     step2: '2. 将代码粘贴到你网站中想要显示「我要约稿」按钮的位置。客户点击按钮后会弹出下单表单。',
-    copyBtn: '📋 复制代码',
+    copyBtn: '复制代码',
     copied: '已复制',
     copyFailed: '复制失败，请手动选择并复制'
   },
@@ -723,12 +730,12 @@ export default {
     bioLabel: '简介（可选）', domainSuffix: '.主域名',
     requiredFields: 'QQ号、昵称和子域名为必填项', added: '画师已添加',
     confirmRemove: '确定移除画师「{name}」？该画师的所有订单、作品数据将被永久删除！',
-    confirmRemoveTitle: '⚠️ 危险操作', confirmRemoveBtn: '确定移除',
-    artistOrders: '📦 订单记录', noOrders: '暂无订单', statusUpdated: '状态已更新',
+    confirmRemoveTitle: '危险操作', confirmRemoveBtn: '确定移除',
+    artistOrders: '订单记录', noOrders: '暂无订单', statusUpdated: '状态已更新',
     // B7: 订单行展开——收款摘要
     payPaid: '已收', payFinal: '应收', payRemaining: '待收',
     payRefPaid: '已收', payRefPartial: '部分', payRefPending: '待收', payNoData: '暂无付款信息',
-    transferAdmin: '🔑 更换管理员', transferTitle: '更换管理员账号',
+    transferAdmin: '更换管理员', transferTitle: '更换管理员账号',
     transferStep1Title: '验证当前管理员', transferStep2Title: '验证新管理员',
     currentAdminQq: '当前管理员QQ', newAdminQq: '新管理员QQ',
     newAdminQqPlaceholder: '输入新管理员的QQ号（必须是已注册画师）',
@@ -750,20 +757,20 @@ export default {
     greetingArtistHint: '专属库条目仅对该画师生效，与通用库混合抽取。',
     // 回收站（事故修复：孤儿文件可恢复）
     recycleBin: {
-      title: '🗑 回收站', empty: '清空回收站',
+      title: '回收站', empty: '清空回收站',
       colFile: '文件名', colPath: '原始路径', colSize: '大小', colMovedAt: '移入时间',
       emptyTitle: '清空回收站', emptyConfirm: '回收站中的文件将被永久删除，不可恢复。确定清空？',
       emptied: '已清空，删除 {n} 个文件', emptyHint: '回收站是空的'
     },
     // F4: 留言管理（跨画师）
     guestbook: {
-      title: '💬 留言管理', empty: '暂无留言',
+      title: '留言管理', empty: '暂无留言',
       colArtist: '画师', colNickname: '昵称', colContent: '内容', colStatus: '状态', colTime: '时间',
       delete: '强制删除', deleteConfirm: '确定删除这条留言？删除后客户主页将不再显示。', deleted: '留言已删除'
     },
     // HC: 系统自检
     health: {
-      title: '🩺 系统自检', start: '开始检查', checking: '检查中…',
+      title: '系统自检', start: '开始检查', checking: '检查中…',
       download: '下载诊断包', refresh: '刷新后结果不保留',
       diskNote: '仅供参考', expandDetail: '详情',
       statusOk: '正常', statusWarn: '警告', statusFail: '异常',

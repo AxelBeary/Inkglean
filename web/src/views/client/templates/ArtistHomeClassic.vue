@@ -74,7 +74,6 @@
             <WorkflowOverviewStrip :stages="workflowStages" vertical />
           </div>
           <div v-if="artist.revisionNote" class="tpl-revision-note">
-            <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
             <span>
               <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
               {{ artist.revisionNote }}
@@ -190,12 +189,13 @@ useScrollReveal(rootEl)
   background: var(--pal-surface);
   border: 1px solid var(--pal-border);
   border-radius: 16px;
-  padding: 28px 24px;
+  /* v0.34 任务G：内容少时不撑出大片空白——内边距/间距随内容收紧 */
+  padding: 22px 20px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 .classic-avatar {
   font-size: 28px;
@@ -222,7 +222,6 @@ useScrollReveal(rootEl)
   color: var(--pal-text);
   text-align: left;
 }
-.classic-announcement :deep(.tpl-announcement-icon) { flex-shrink: 0; }
 .classic-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 .classic-side-links {
   display: flex;

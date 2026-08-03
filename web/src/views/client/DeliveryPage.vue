@@ -24,7 +24,7 @@
         <div v-if="delivery.deliverables?.length">
           <div v-for="d in delivery.deliverables" :key="d.id" class="file-item">
             <div class="file-info">
-              <span class="file-name">📄 {{ d.fileName }}</span>
+              <span class="file-name">{{ d.fileName }}</span>
               <span class="file-size" v-if="d.fileSize">{{ formatSize(d.fileSize) }}</span>
             </div>
             <el-button type="primary" size="small" @click="download(d.url)">{{ $t('delivery.download') }}</el-button>

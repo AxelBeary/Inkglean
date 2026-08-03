@@ -137,16 +137,21 @@ export default {
     groupWork: 'Work', groupBiz: 'Business', groupFront: 'Storefront'
   },
   landing: {
-    title: '🎨 Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
+    title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
     noBio: 'This artist has not written a bio yet', weibo: 'Weibo', bilibili: 'Bilibili',
     enterHome: 'Visit page →', noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
-    notFoundHint: 'The page you visited does not exist — we took you back to the home page'
+  },
+  // v0.34 task A: standalone 404 page
+  notFound: {
+    message: "The page you're looking for doesn't exist or has been moved.",
+    backHome: 'Back to home',
+    artistsTitle: 'Or visit one of our artists'
   },
   artistHome: {
-    weibo: '🔗 My Weibo', bilibili: '📺 My Bilibili', commission: '🎨 Commission me', track: '📋 Track order',
-    priceList: '💰 Price list', artworks: '🖼 Portfolio', rules: '📜 Commission guidelines', workflow: '📐 Workflow & Payment',
-    aboutDays: '⏱ ~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
-    statusOpen: '✅ Open for commissions', statusFull: '⏳ Fully booked', statusBreak: '💤 On break',
+    weibo: 'My Weibo', bilibili: 'My Bilibili', commission: 'Commission me', track: 'Track order',
+    priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
+    aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
+    statusOpen: 'Open for commissions', statusFull: 'Fully booked', statusBreak: 'On break',
     about: 'About', navPricing: 'Pricing', navProcess: 'Process', navWork: 'Work',
     heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',
     startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
@@ -158,9 +163,11 @@ export default {
     // R50: preview mode
     previewBanner: 'Preview mode — changes not yet saved',
     // v0.25 A: Cover showcase
-    covers: '✨ Featured Covers',
+    covers: 'Featured Covers',
     // v0.32 REQ-023 Phase3: multi-style price table
-    styleOrderBtn: 'Commission in this style'
+    styleOrderBtn: 'Commission in this style',
+    // v0.34 task B: order hint after size selected
+    styleSizeHint: '{size} selected · ¥{price} — click below to start with this choice'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
@@ -171,7 +178,7 @@ export default {
     pricingDetail: 'Price details',
     qqLabel: 'Your QQ number', qqPlaceholder: 'The artist will contact you via QQ',
     nameLabel: 'Nickname (optional)', namePlaceholder: 'What should we call you',
-    notifyLabel: '📩 Notify me on QQ when my turn comes', agreeLabel: '✋ I have read and agree to the guidelines above',
+    notifyLabel: 'Notify me on QQ when my turn comes', agreeLabel: 'I have read and agree to the guidelines above',
     submit: 'Submit commission', successTitle: 'Commission submitted!', orderNoIs: 'Your order number is: ',
     addQqHint: 'Add the artist on QQ to discuss details — just quote your order number', viewProgress: 'Track progress',
     selectTier: 'Please select a tier', fillQq: 'Please enter your QQ number',
@@ -191,7 +198,7 @@ export default {
     // R58-3: receipt confirmation
     receiptSub: '· COMMISSION SLIP ·', receiptTotal: 'Total', receiptConfirm: 'Confirm order', submitting: 'Submitting…',
     // R58-4: inspiration tags
-    inspireHint: '✨ Not sure what to write? Tap a tag to fill it in:',
+    inspireHint: 'Not sure what to write? Tap a tag to fill it in:',
     // R58-5: copy order summary
     copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: ',
     // v0.31 F3: discount code
@@ -219,9 +226,9 @@ export default {
     artist: 'Artist', type: 'Type', status: 'Status', position: 'Queue position',
     positionText: '#{pos} of {total}', orderTime: 'Order time',
     stepSubmitted: 'Submitted', stepConfirmed: 'Confirmed', stepWip: 'In progress', stepDone: 'Done', stepDelivered: 'Delivered',
-    deliverables: '📦 Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
+    deliverables: 'Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
     // SPEC-003: price & payments
-    priceTitle: '💰 Price breakdown', finalPrice: 'Final price', installmentsTitle: 'Payment schedule', paid: 'Paid', unpaid: 'Unpaid',
+    priceTitle: 'Price breakdown', finalPrice: 'Final price', installmentsTitle: 'Payment schedule', paid: 'Paid', unpaid: 'Unpaid',
     // B7: quota-pool payment progress
     payPaid: 'Paid', payNext: 'Next Due', payRemaining: 'Outstanding', payTotal: 'Total',
     contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
@@ -241,7 +248,7 @@ export default {
   // F4: guestbook (client-facing message wall, shared component TplGuestbook)
   guestbook: {
     title: 'Guestbook',
-    empty: 'No messages yet — say something 💬',
+    empty: 'No messages yet — say something',
     nickname: 'Nickname', nicknamePlaceholder: 'What should we call you',
     content: 'Message', contentPlaceholder: 'Say something to the artist…',
     submit: 'Post',
@@ -253,7 +260,7 @@ export default {
   },
   // #1: artist-side guestbook management page
   guestbookManage: {
-    title: '💬 Guestbook Management',
+    title: 'Guestbook Management',
     all: 'All',
     replyLabel: 'Artist reply',
     editReply: 'Edit reply',
@@ -263,10 +270,10 @@ export default {
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
-    orderInfo: 'Order: {no} | Artist: {artist}', download: '⬇ Download', noFiles: 'No delivered files yet'
+    orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download', noFiles: 'No delivered files yet'
   },
   login: {
-    title: '🎨 Artist login', subtitle: 'Enter your QQ number — a login code will be sent to your QQ',
+    title: 'Artist login', subtitle: 'Enter your QQ number — a login code will be sent to your QQ',
     qqPlaceholder: 'Enter your QQ number', getCode: 'Get login code', codeSent: 'Login code sent to QQ {qq}',
     codePlaceholder: 'Enter the 6-digit code', login: 'Log in', changeQq: '← Use a different QQ',
     devCode: 'Dev mode login code: {code}', enterQq: 'Please enter your QQ number', enterCode: 'Please enter the login code', loginSuccess: 'Logged in!'
@@ -281,7 +288,7 @@ export default {
     slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     defaultPanel: 'Default panel', panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
     // F4: guestbook moderation
-    guestbookTitle: '💬 Guestbook moderation', guestbookEmpty: 'No messages',
+    guestbookTitle: 'Guestbook moderation', guestbookEmpty: 'No messages',
     guestbookPending: 'Pending', guestbookApproved: 'Approved', guestbookRejected: 'Rejected',
     guestbookApprove: 'Approve', guestbookReject: 'Reject', guestbookReply: 'Reply',
     guestbookReplyPlaceholder: 'Reply to this visitor (≤500 chars)', guestbookReplySave: 'Save reply',
@@ -289,30 +296,30 @@ export default {
     // R52: today stats
     todayNewOrders: 'New orders today', todayRevenue: 'Revenue today',
     // R51: deadlines + today's todos
-    deadlineCard: '⏰ Due soon', noDeadlines: 'No deadlines coming up 🎉',
-    todoCard: "📌 Today's todos", noTodos: 'Nothing pending — enjoy your tea ☕',
+    deadlineCard: 'Due soon', noDeadlines: 'No deadlines coming up',
+    todoCard: "Today's todos", noTodos: 'Nothing pending — enjoy your tea',
     daysLeft: '{n}d left', dueToday: 'Due today',
     // v0.18 dashboard rebuild
-    revenueTitle: '📊 Revenue', periodMonth: 'Month', periodQuarter: 'Quarter', periodYear: 'Year',
+    revenueTitle: 'Revenue', periodMonth: 'Month', periodQuarter: 'Quarter', periodYear: 'Year',
     revenueOrderCount: '{n} completed', revenueVs: 'vs {label}', revenueError: 'Failed to load revenue data',
     retry: 'Retry',
-    todoTitle: "📌 What's next", todoError: 'Failed to load todo list', todoEmpty: 'Nothing pending — take a break 🎨',
+    todoTitle: "What's next", todoError: 'Failed to load todo list', todoEmpty: 'Nothing pending — take a break',
     tag_overdue: 'Overdue', tag_dueToday: 'Due today', tag_pending: 'New', tag_revision: 'Revision', tag_inProgress: 'In progress',
-    activityTitle: '🕐 Recent activity', activityError: 'Failed to load activity', activityEmpty: 'No recent activity',
+    activityTitle: 'Recent activity', activityError: 'Failed to load activity', activityEmpty: 'No recent activity',
     timeJustNow: 'just now', timeMinutesAgo: '{n}m ago', timeHoursAgo: '{n}h ago', timeDaysAgo: '{n}d ago',
-    slotTitle: '🎯 Slot overview', slotFormal: 'Formal {used}/{total}', slotBuffer: 'Buffer {used}/{total}',
+    slotTitle: 'Slot overview', slotFormal: 'Formal {used}/{total}', slotBuffer: 'Buffer {used}/{total}',
     slotNext: 'Next in buffer: {name} (QQ: {qq})',
     // #4: slot overview revamp
     slotCombined: '{used}/{total} filled', slotNotEnabled: 'Slot limit is off — set it up →', slotDisplayFallback: '—',
     artworks: 'Gallery', tiers: 'Tiers'
   },
   queue: {
-    title: '📋 Queue Board',
+    title: 'Queue Board',
     hint: 'Drag cards to reorder. Order is saved immediately. Priority is a label only and does not affect sorting.',
-    confirm: '✅ Confirm', startWip: '🎨 Start work', done: '✔ Complete', deliver: '📦 Deliver', cancel: '❌ Cancel',
+    confirm: 'Confirm', startWip: 'Start work', done: '✔ Complete', deliver: 'Deliver', cancel: 'Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
     // SPEC-004: buffer zone
-    bufferTitle: '🕐 Buffer zone (waitlist)', bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
+    bufferTitle: 'Buffer zone (waitlist)', bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
@@ -320,8 +327,8 @@ export default {
     // P0-3b: tab labels
     tabFormal: 'Formal', tabBuffer: 'Buffer',
     // REQ-013 #7: workflow done order delivery entry + completed zone
-    goDeliver: '📦 Deliver',
-    completedTitle: '✅ Recently delivered', completedHint: 'Delivered orders stay here for 7 days then hide automatically',
+    goDeliver: 'Deliver',
+    completedTitle: 'Recently delivered', completedHint: 'Delivered orders stay here for 7 days then hide automatically',
     completedEmpty: 'No recently delivered orders',
     dragHint: 'Drag to reorder',
     focusDisplay: 'Focus image', focusOff: 'Off', focusLarge: 'Large',
@@ -346,7 +353,7 @@ export default {
     tlDragStartAfterDeadline: 'Start date cannot be later than deadline'
   },
   orderList: {
-    title: '📦 Order Management', all: 'All',
+    title: 'Order Management', all: 'All',
     colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
     colPriority: 'Priority', colStatus: 'Status', colSource: 'Source', colTime: 'Order time', colActions: 'Actions',
     colImage: 'Image',
@@ -357,8 +364,8 @@ export default {
     backToQueue: 'Back to queue', backToDashboard: 'Back to dashboard', backToList: 'Back to orders', orderNo: 'Order #',
     orderInfo: 'Order info', colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
     colPriority: 'Priority', colSource: 'Source', colTime: 'Order time', colDesc: 'Description',
-    statusFlow: 'Status flow', confirmOrder: '✅ Accept order', startWip: '🎨 Start work',
-    needRevision: '✏️ Needs revision', markDone: '✔ Mark done', uploadDeliver: '📦 Upload delivery', cancelOrder: '❌ Cancel order',
+    statusFlow: 'Status flow', confirmOrder: 'Accept order', startWip: 'Start work',
+    needRevision: 'Needs revision', markDone: '✔ Mark done', uploadDeliver: 'Upload delivery', cancelOrder: 'Cancel order',
     references: 'Reference images', noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', cancelConfirm: 'Cancel this order?', confirmTitle: 'Confirm',
@@ -370,7 +377,7 @@ export default {
     focusUpdated: 'Focus image updated',
     deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted',
     focusHint: 'Display size is set globally in the queue board toolbar',
-    workflowTitle: '📈 Workflow progress', stageOff: 'Turn off stage tracking',
+    workflowTitle: 'Workflow progress', stageOff: 'Turn off stage tracking',
     stageProgress: 'Progress {current}/{total}', stageRevision: 'Sent back for revision',
     advanceTo: 'Advance to: ', stageBack: '↩ Send back', stageUpdated: 'Workflow updated',
     stageBackConfirm: 'Send back to "{name}"? The order will be marked as in revision.',
@@ -449,7 +456,7 @@ export default {
     }
   },
   manualOrder: {
-    title: '✍ Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
+    title: 'Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
     leftTitle: 'What the client said', rightTitle: 'How to record',
     clientQq: 'Client QQ', clientQqPlaceholder: "Client's QQ number",
     clientName: 'Client nickname (optional)', clientNamePlaceholder: 'What to call the client',
@@ -462,7 +469,7 @@ export default {
     desc: 'Description', descPlaceholder: "Paste the client's request from the QQ chat",
     references: 'Reference images', refExceed: 'Max 5 reference images', fileTooBig: '{name} too large ({size}MB), max 10MB',
     refTip: 'You can add more references to the order gallery after creation. Gallery total limit: 20 images.',
-    priority: 'Priority', priorityHigh: '🔴 High', priorityMedium: '🟡 Medium (default)', priorityLow: '🟢 Low',
+    priority: 'Priority', priorityHigh: 'High', priorityMedium: 'Medium (default)', priorityLow: 'Low',
     clientNotify: 'Allow client to receive QQ queue notifications',
     catExpression: 'Expressions', catOutfit: 'Outfits', catBackground: 'Backgrounds', catWeapon: 'Weapons', catOther: 'Other',
     submit: 'Record order', resultTitle: 'Recorded', orderNo: 'Order No: {no}', addedToQueue: 'Added to the queue',
@@ -476,10 +483,10 @@ export default {
     // F4: initial stage status
     initialStatus: 'Initial stage status', initialStatusHint: 'Skip the confirmation step for orders already agreed offline',
     // REQ-015: QQ history panel
-    historyTitle: "This client's order history", newClient: '🎉 New client — no previous orders'
+    historyTitle: "This client's order history", newClient: 'New client — no previous orders'
   },
   tiers: {
-    title: '💰 Pricing', addTier: '+ Add tier',
+    title: 'Pricing', addTier: '+ Add tier',
     dragHint: 'Drag to reorder', reorderSaved: 'Order saved',
     colExample: 'Example', colName: 'Name', colPrice: 'Price', colDays: 'Turnaround', colDesc: 'Description',
     editTitle: 'Edit tier', addTitle: 'Add tier', nameLabel: 'Name',
@@ -555,7 +562,7 @@ export default {
     overrideTitle: 'Size overrides for "{name}"', overrideHidden: 'Hide', overrideSaved: 'Override saved'
   },
   artworks: {
-    title: '🖼 Portfolio', dragUpload: 'Drag images here, or click to upload',
+    title: 'Portfolio', dragUpload: 'Drag images here, or click to upload',
     tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet — upload some!',
     uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image',
     // R45: multi-select delete
@@ -574,7 +581,7 @@ export default {
     coverMoveUp: 'Move up', coverMoveDown: 'Move down', coverReordered: 'Cover order updated'
   },
   rules: {
-    title: '📜 Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
+    title: 'Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
     placeholder: 'Enter your commission guidelines. HTML tags like <h3>, <ul>, <li>, <strong> are supported',
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
@@ -642,7 +649,7 @@ export default {
   },
   // v0.26 C: Slot management page
   slots: {
-    title: '📋 Slot Settings',
+    title: 'Slot Settings',
     statusSection: 'Commission Status',
     slotSection: 'Slot Limits',
     quotaSection: 'Monthly Quota',
@@ -678,7 +685,7 @@ export default {
     hint: 'If you already have your own website (Carrd / Framer / custom HTML), you can embed a snippet to let clients commission you directly from your site.',
     step1: '1. Copy this code:',
     step2: '2. Paste it where you want the "Commission me" button to appear on your site. Clicking it opens an order form.',
-    copyBtn: '📋 Copy code',
+    copyBtn: 'Copy code',
     copied: 'Copied',
     copyFailed: 'Copy failed — please select and copy manually'
   },
@@ -725,12 +732,12 @@ export default {
     bioLabel: 'Bio (optional)', domainSuffix: '.domain',
     requiredFields: 'QQ number, name and subdomain are required', added: 'Artist added',
     confirmRemove: 'Remove artist "{name}"? All of their orders and artwork data will be permanently deleted!',
-    confirmRemoveTitle: '⚠️ Dangerous action', confirmRemoveBtn: 'Confirm removal',
-    artistOrders: '📦 Order history', noOrders: 'No orders yet', statusUpdated: 'Status updated',
+    confirmRemoveTitle: 'Dangerous action', confirmRemoveBtn: 'Confirm removal',
+    artistOrders: 'Order history', noOrders: 'No orders yet', statusUpdated: 'Status updated',
     // B7: order expand row — payment summary
     payPaid: 'Received', payFinal: 'Total Due', payRemaining: 'Outstanding',
     payRefPaid: 'Paid', payRefPartial: 'Partial', payRefPending: 'Pending', payNoData: 'No payment info',
-    transferAdmin: '🔑 Transfer admin', transferTitle: 'Transfer admin account',
+    transferAdmin: 'Transfer admin', transferTitle: 'Transfer admin account',
     transferStep1Title: 'Verify current admin', transferStep2Title: 'Verify new admin',
     currentAdminQq: 'Current admin QQ', newAdminQq: 'New admin QQ',
     newAdminQqPlaceholder: 'Enter new admin QQ (must be a registered artist)',
@@ -752,20 +759,20 @@ export default {
     greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.',
     // Recycle bin (incident fix: orphaned files are recoverable)
     recycleBin: {
-      title: '🗑 Recycle Bin', empty: 'Empty bin',
+      title: 'Recycle Bin', empty: 'Empty bin',
       colFile: 'File', colPath: 'Original path', colSize: 'Size', colMovedAt: 'Moved at',
       emptyTitle: 'Empty recycle bin', emptyConfirm: 'Files in the recycle bin will be permanently deleted and cannot be recovered. Empty it?',
       emptied: '{n} files permanently deleted', emptyHint: 'Recycle bin is empty'
     },
     // F4: guestbook management (cross-artist)
     guestbook: {
-      title: '💬 Guestbook management', empty: 'No messages',
+      title: 'Guestbook management', empty: 'No messages',
       colArtist: 'Artist', colNickname: 'Nickname', colContent: 'Content', colStatus: 'Status', colTime: 'Time',
       delete: 'Force delete', deleteConfirm: 'Delete this message? It will no longer appear on the client page.', deleted: 'Message deleted'
     },
     // HC: system health check
     health: {
-      title: '🩺 System Health', start: 'Run checks', checking: 'Checking…',
+      title: 'System Health', start: 'Run checks', checking: 'Checking…',
       download: 'Download diagnostic report', refresh: 'Results are not persisted after refresh',
       diskNote: 'for reference only', expandDetail: 'Details',
       statusOk: 'OK', statusWarn: 'Warning', statusFail: 'Failed',
