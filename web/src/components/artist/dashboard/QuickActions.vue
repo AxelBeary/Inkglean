@@ -2,14 +2,14 @@
 // #3: 快捷按钮候选池常量（命名导出，供 Settings.vue 配置区共用）
 // v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
 import { markRaw } from 'vue'
-import { TrendCharts, Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View } from '@element-plus/icons-vue'
+import { Odometer, Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View } from '@element-plus/icons-vue'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
 export const QUICK_ACTIONS_KEY = 'huiyue_quick_actions'
 
 /** 候选池（~10 个，命名与侧边栏 menu.* 完全一致） */
 export const QUICK_ACTION_POOL = [
-  { key: 'dashboard', icon: markRaw(TrendCharts), labelKey: 'menu.dashboard', route: '/dashboard' },
+  { key: 'dashboard', icon: markRaw(Odometer), labelKey: 'menu.dashboard', route: '/dashboard' },
   { key: 'queue', icon: markRaw(Tickets), labelKey: 'menu.queue', route: '/queue' },
   { key: 'manual', icon: markRaw(EditPen), labelKey: 'menu.manualOrder', route: '/orders?action=manual' },
   { key: 'orders', icon: markRaw(Box), labelKey: 'menu.orders', route: '/orders' },
