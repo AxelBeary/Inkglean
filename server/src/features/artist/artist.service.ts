@@ -35,6 +35,28 @@ export function getArtistBySubdomain(subdomain: string): Artist | undefined {
   return db.prepare('SELECT * FROM artists WHERE subdomain = ? AND deleted_at IS NULL').get(subdomain) as Artist | undefined
 }
 
+/**
+ * BUG-3 修复：读取管理员 QQ（platform_config 优先，env 兜底）
+ * 与 middleware/auth.ts getAdminQq 语义一致；本地实现避免 service ↔ middleware 循环依赖
+ */
+function readAdminQq(): string {
+  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
+  return row?.value || process.env.ADMIN_QQ || ''
+}
+
+/**
+ * BUG-3 修复：公开路由可见画师守卫
+ * hidden 画师或管理员账号 → 抛 ARTIST_NOT_FOUND 404（对照 artist.routes.ts:35 范式）
+ * 供 /api/public/* 端点统一使用，防止 hidden 画师未完全隐身
+ */
+export function requireVisibleArtist(subdomain: string): Artist {
+  const artist = getArtistBySubdomain(subdomain)
+  if (!artist || artist.qq_number === readAdminQq() || (artist as Artist).status === 'hidden') {
+    throw new AppError(E.ARTIST_NOT_FOUND, 404)
+  }
+  return artist
+}
+
 export function getArtistByQq(qqNumber: string): Artist | undefined {
   return db.prepare('SELECT * FROM artists WHERE qq_number = ? AND deleted_at IS NULL').get(qqNumber) as Artist | undefined
 }
@@ -616,20 +638,32 @@ export function getAnnouncement(artist: Artist): { text: string; expiresAt: stri
 
 const LIKE_MAX = 99999
 
-/** 点赞 +1（上限保护） */
+/** 点赞 +1（上限保护）。BUG-3 修复：hidden 画师/管理员账号的作品拒绝点赞 */
 export function likeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
-  if (!artwork) return null
+  if (!artwork || !isArtistVisibleById(artwork.artist_id)) return null
   const newCount = Math.min((artwork.like_count || 0) + 1, LIKE_MAX)
   db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
   return getArtworkById(artworkId) ?? null
 }
 
-/** 取消点赞 -1（不低于 0） */
+/** 取消点赞 -1（不低于 0）。BUG-3 修复：hidden 画师/管理员账号的作品拒绝取消点赞 */
 export function unlikeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
-  if (!artwork) return null
+  if (!artwork || !isArtistVisibleById(artwork.artist_id)) return null
   const newCount = Math.max((artwork.like_count || 0) - 1, 0)
   db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
   return getArtworkById(artworkId) ?? null
+}
+
+/**
+ * BUG-3 修复：按 artist_id 判断画师是否对公开端点可见
+ * hidden 状态或管理员账号 → 不可见（对照 requireVisibleArtist 语义）
+ */
+function isArtistVisibleById(artistId: number): boolean {
+  const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
+  if (!artist || artist.deleted_at) return false
+  if (artist.status === 'hidden') return false
+  if (artist.qq_number === readAdminQq()) return false
+  return true
 }

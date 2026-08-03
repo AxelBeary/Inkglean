@@ -2,6 +2,17 @@
   <ArtistLayout>
     <h2 class="font-display">{{ $t('settings.title') }}</h2>
 
+    <!-- BUG-7 修复：profile 加载失败横幅——此时表单是默认值，禁止保存防止覆盖真实配置 -->
+    <el-alert
+      v-if="profileLoadFailed"
+      type="error" :closable="false" show-icon
+      style="margin-top: 16px"
+      :title="$t('settings.loadFailedTitle')"
+    >
+      <div>{{ $t('settings.loadFailedDesc') }}</div>
+      <el-button size="small" type="primary" style="margin-top: 8px" @click="loadProfile">{{ $t('settings.retry') }}</el-button>
+    </el-alert>
+
     <el-tabs v-model="activeTab" style="margin-top: 16px">
       <!-- 基本资料 -->
       <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
@@ -32,7 +43,7 @@
               <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+              <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -129,7 +140,7 @@
             </el-form-item>
 
             <el-form-item>
-              <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+              <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -137,21 +148,28 @@
         <!-- R42b: 须知编辑（并入主页展示，独立卡片 + 独立保存） -->
         <el-card style="max-width: 700px; margin-top: 16px" v-loading="rulesLoading">
           <template #header><span>{{ $t('settings.tabRules') }}</span></template>
-          <p class="form-hint" style="margin-bottom: 16px">{{ $t('rules.hint') }}</p>
-          <el-input
-            v-model="rulesContent" type="textarea" :rows="16"
-            :placeholder="$t('rules.placeholder')"
-          />
-          <div class="preview" v-if="rulesContent">
-            <h4 style="margin: 16px 0 8px; color: var(--text-secondary)">{{ $t('rules.preview') }}</h4>
-            <el-card shadow="never" class="preview-card">
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <div v-html="sanitizedRulesPreview"></div>
-            </el-card>
+          <!-- BUG-7 修复：须知加载失败错误态——禁止保存防止空内容覆盖真实须知 -->
+          <div v-if="rulesLoadFailed" class="rules-load-failed">
+            <el-alert type="error" :closable="false" show-icon :title="$t('settings.rulesLoadFailed')" />
+            <el-button size="small" type="primary" style="margin-top: 8px" @click="loadRules">{{ $t('settings.retry') }}</el-button>
           </div>
-          <el-button type="primary" style="margin-top: 16px" @click="saveRules" :loading="rulesSaving">
-            {{ $t('rules.save') }}
-          </el-button>
+          <template v-else>
+            <p class="form-hint" style="margin-bottom: 16px">{{ $t('rules.hint') }}</p>
+            <el-input
+              v-model="rulesContent" type="textarea" :rows="16"
+              :placeholder="$t('rules.placeholder')"
+            />
+            <div class="preview" v-if="rulesContent">
+              <h4 style="margin: 16px 0 8px; color: var(--text-secondary)">{{ $t('rules.preview') }}</h4>
+              <el-card shadow="never" class="preview-card">
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div v-html="sanitizedRulesPreview"></div>
+              </el-card>
+            </div>
+            <el-button type="primary" style="margin-top: 16px" @click="saveRules" :loading="rulesSaving" :disabled="rulesLoadFailed || !rulesLoaded">
+              {{ $t('rules.save') }}
+            </el-button>
+          </template>
         </el-card>
       </el-tab-pane>
 
@@ -245,7 +263,7 @@
           <!-- R50: 预览按钮（新窗口打开，参数覆盖渲染层） -->
           <div class="template-actions">
             <el-button @click="openPreview" :disabled="!form.subdomain">{{ $t('settings.previewBtn') }}</el-button>
-            <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+            <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
           </div>
         </el-card>
       </el-tab-pane>
@@ -287,22 +305,31 @@ const saving = ref(false)
 const rulesContent = ref('')
 const rulesSaving = ref(false)
 const rulesLoading = ref(false)
-let rulesLoaded = false
+// BUG-7 修复：须知加载失败标记——失败时禁用保存，防止空内容覆盖真实须知
+const rulesLoadFailed = ref(false)
+// BUG-7 修复：改为 ref 以便模板 :disabled 绑定（未加载成功前禁用保存）
+const rulesLoaded = ref(false)
 
 // XSS 防护：预览也消毒
 const sanitizedRulesPreview = computed(() => sanitizeHtml(rulesContent.value))
 
 async function loadRules() {
-  if (rulesLoaded) return
+  if (rulesLoaded.value) return
   rulesLoading.value = true
+  rulesLoadFailed.value = false
   try {
     const rules = await artistApi.getRules()
     rulesContent.value = rules?.content || ''
-    rulesLoaded = true
-  } catch { /* ignore */ } finally { rulesLoading.value = false }
+    rulesLoaded.value = true
+  } catch {
+    // BUG-7: 不再静默吞错——标记失败，禁用保存按钮，显示错误态+重试入口
+    rulesLoadFailed.value = true
+  } finally { rulesLoading.value = false }
 }
 
 async function saveRules() {
+  // BUG-7 修复：须知未加载成功前禁止保存，防止空内容覆盖真实须知
+  if (rulesLoadFailed.value || !rulesLoaded.value) return
   rulesSaving.value = true
   try {
     await artistApi.updateRules(rulesContent.value)
@@ -496,6 +523,11 @@ const palettes = computed(() => [
 ])
 
 async function save() {
+  // BUG-7 修复：profile 未加载成功时表单仍是默认值，禁止保存防止默认值覆盖真实配置
+  if (profileLoadFailed.value) {
+    ElMessage.warning(t('settings.loadFailedHint'))
+    return
+  }
   saving.value = true
   try {
     // REQ-016 A: 按当前 tab 拆分提交（后端 PUT /api/artist/profile 为部分更新语义）
@@ -533,7 +565,12 @@ async function save() {
   finally { saving.value = false }
 }
 
-onMounted(async () => {
+// BUG-7 修复：profile 加载失败标记——失败时表单仍是默认值，必须禁用保存防止默认值覆盖真实配置
+const profileLoadFailed = ref(false)
+
+async function loadProfile() {
+  loading.value = true
+  profileLoadFailed.value = false
   try {
     const profile = await artistApi.getProfile()
     // 旧模板 ID 映射到新布局 ID，确保选择器正确高亮
@@ -584,9 +621,15 @@ onMounted(async () => {
       announcement: profile.announcement || '',
       announcementExpiresAt: profile.announcement_expires_at ? String(profile.announcement_expires_at).slice(0, 10) : null
     })
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) {
+    ElMessage.error(err.message)
+    // BUG-7: 标记失败——此时 form 仍是默认值，保存会覆盖真实配置
+    profileLoadFailed.value = true
+  }
   finally { loading.value = false }
-})
+}
+
+onMounted(loadProfile)
 </script>
 
 <style scoped>

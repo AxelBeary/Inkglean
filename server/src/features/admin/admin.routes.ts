@@ -258,7 +258,8 @@ export default async function adminRoutes(fastify) {
   })
 
   /** GET /api/admin/artists/:id/greetings — 画师专属库 */
-  fastify.get('/api/admin/artists/:id/greetings', { preHandler: requireAdmin }, async (request) => {
+  // BUG-8 修复：补画师存在性校验（与 POST 的 requireExistingArtist 对齐，不存在时 404 而非空列表）
+  fastify.get('/api/admin/artists/:id/greetings', { preHandler: [requireAdmin, requireExistingArtist] }, async (request) => {
     return greetingService.getArtistGreetings(parseInt(request.params.id))
   })
 
@@ -361,7 +362,8 @@ export default async function adminRoutes(fastify) {
   })
 
   /** GET /api/admin/artists/:id/workflow — 查看画师流程 */
-  fastify.get('/api/admin/artists/:id/workflow', { preHandler: requireAdmin }, async (request) => {
+  // BUG-8 修复：补画师存在性校验（不存在时 404 而非空 stages）
+  fastify.get('/api/admin/artists/:id/workflow', { preHandler: [requireAdmin, requireExistingArtist] }, async (request) => {
     return { stages: workflowService.getWorkflow(parseInt(request.params.id)) }
   })
 
@@ -587,7 +589,8 @@ export default async function adminRoutes(fastify) {
 
   /** PUT /api/admin/artists/:id/rules — 更新须知 */
   fastify.put('/api/admin/artists/:id/rules', {
-    preHandler: requireAdmin,
+    // BUG-8 修复：补画师存在性校验（不存在时 404，而非静默 0 行 UPDATE 返回 200 空 body）
+    preHandler: [requireAdmin, requireExistingArtist],
     schema: {
       ...intId,
       body: {
