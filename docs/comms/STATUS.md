@@ -1,29 +1,31 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 凌晨 v0.36 开工
+> 最后更新：2026-08-05 上午 v0.36 波 1 全收口 + 五号-B 合入
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
 
 ---
 ## master 状态
 
-- **HEAD**：`409a9ff`，与 origin 同步
-- **测试**：server 695/695 · web 144/144 · tsc 0 · eslint 0 · build ✓
-- **容器**：v0.36 已重建验证（06:50）——healthy、数据完好（6 画风/11 尺寸/21 作品/4 订单）、旧增项 API 404、新读路径真数据跑通；备份 `data/commission.db.bak-v036-verify`
+- **HEAD**：`64f4af3`，与 origin 同步
+- **测试**：server 699/699 · web 144/144 · tsc 0 · eslint 0 · build ✓（波 1 全合入后 master 双端重跑）
+- **容器**：v0.36 已重建验证——healthy、数据完好、旧增项 API 404、新读路径真数据跑通；备份 `data/commission.db.bak-v036-verify`
 - **迁移**：v38（artists CHECK 补 hidden，事务外 12 步重建）
 
 ---
-## 当前阶段：v0.36 清账版（波 1 后端已全合入，二号前端执行中）
+## 当前阶段：v0.36 波 1 全收口（等用户终验）
 
 ### v0.36 波 1 合入记录
 
 | 角色 | 内容 | commit | 测试 |
 |------|------|--------|------|
-| 四号 | v0.28~v0.35 changelog 补全 + docs 归档盘点清单（归档动作待发话） | `4a2a582` | — |
+| 四号 | v0.28~v0.35 changelog 补全 + docs 归档盘点清单 | `4a2a582` | — |
 | 五号 | BUG-1 方案 b（getOrderInstallments 读池子推算）+ 死代码清账 5 项 | `17ed7f4` | 705→695（删例对账） |
-| 三号 | 旧增项 API 六端点删除（净删 248 行）+ M1/M2 路径校验四处 + C-4 demo-data 断言 | `46983d8` | 同上 |
-| 三号-B | errors.ts 死码清理 3 个（ADDON_NAME_EMPTY/INVALID_PRICE/INVALID_MODE） | `e04f2f5`（流程瑕疵见 01-note） | 695/695 |
-| 二号 | 时间条四档缩放（TL-1 已固化 `f64e793`）+ 撤销 toast（编码中） | 执行中 | — |
+| 三号 | 旧增项 API 六端点删除（净删 248 行）+ M1/M2 路径校验四处 + C-4 demo-data 断言 | `46983d8` | 695 |
+| 三号-B | errors.ts 死码清理 3 个 | `e04f2f5`（流程瑕疵见 01-note） | 695 |
+| 二号 | 时间条四档缩放 + 拖拽撤销 toast + L0/L1/L3 小修（L5 无需改） | `64f4af3`（合入） | web 144/144 + 浏览器实测 deadline 撤销端到端 |
+| 五号-B | 演示订单分期缺口修复（复用 generateInstallmentsForOrder + queue_zone 守卫 + 容器幂等实跑） | `20fbcb2`（合入） | 699/699 |
+| 四号 | 画师使用说明书漂移修复（v0.36 现状） | `168158f`（直提）+ 报告 `3a7feba` | — |
 
 ### v0.36 波 2-A 合入记录
 
@@ -31,32 +33,37 @@
 |------|------|--------|------|
 | 二号-B | 客户画廊画册翻页替换网格 + 四模板区分度（Gallery 大小交错/Classic 题注/Folio 压角/Atelier 纸片） | `409a9ff` | 一号审 diff + 144/144 重跑 + 浏览器实测四模板翻页/键盘/筛选/peek 全过 |
 
-**四号归档清单要点**：REQ-024 → archive/requirements/；SPEC-025 → archive/specs-done/（未覆盖项先转待修复清单）；feedback-20260802 的 E 类 #56/#13、F 类技术债未入清单——待一号决定是否转入后再归档。
-**五号波 2 建议**：addPayment 节点 paid_cents 旧写路径停写或迁移删列，与 addons 表 drop 同批。
+### 用户终验清单（v0.36 波 1）
 
-### v0.36 波 2 候选（波 1 合入后派）
+1. **时间条四档缩放**：排期看板→时间条，radio 两周/一个月/三个月/半年；三个月档仅周一出日号、半年档仅每月 1 号出月份
+2. **时间条拖拽撤销**：拖右端改截稿日/拖左端改开工日/拖中间整体平移 → 弹深色 toast 带「撤销」按钮 → 点撤销恢复旧日期 +「已恢复」提示
+3. **收款金额校验**：订单详情记录收款，输入 ≤0 或超剩余应付 → 前端报错提示
+4. **演示数据**：客户端跟踪页 ALICE 订单现在能看到分期节点明细（进度页三态）
 
-- **已派：画廊画册翻页**（二号-B，worktree `-w2b` 分支 `feat/v036-gallery-album`，派工 `01-to-02b-gallery-album-20260805.md`）——用户拍板：替换网格、模板区分度、Gallery 模板大小交错
-- **已拍板待派（等波 1 二号合入，同文件冲突）**：看板下拉「已交付」统一走 DeliverDialog 交付弹窗（防手滑直接改状态）——用户确认"好的 很重要的改动细节"
-- 手动录单 ManualOrder 接新画风模型（现走旧档位 getPricing/calculatePrice，旧算价 API 保留中，波 2 改 `calculate-style-price` + `styleSizeId` 下单，参考 useOrderForm.js 现成链路）
+### v0.36 波 2 候选（待派）
+
+- **已拍板待派**：看板下拉「已交付」统一走 DeliverDialog 交付弹窗（防手滑）——用户已确认，波 1 二号合入后可派
+- 手动录单 ManualOrder 接新画风模型（旧算价 API 保留中，改 `calculate-style-price` + `styleSizeId`，参考 useOrderForm.js）
 - task-0 剩余小修：OrderDetail picker 保存失败不回滚、备注 Enter 重复提交、状态推进防连点、滑块 pointercancel
-- 画师使用说明书漂移：仍写"档位"旧概念，未反映 v0.32+ 画风/尺寸模型——四号波 2 顺带修
+- createOrder 内联分期段与 generateInstallmentsForOrder 去重（五号-B 遗留 2）
+- 四号归档清单执行：REQ-024 → archive/requirements/、SPEC-025 → archive/specs-done/、feedback-20260802 → archive/requirements/（未决项 7 条已入账待修复清单）
 
 ### 已知遗留
 
 | 项 | 归属 |
 |----|------|
 | addons 表是否 drop | 波 2 评估（历史订单外键） |
-| addPayment 给节点写 paid_cents 的旧写路径 | 五号交付报告建议，波 2 评估 |
+| addPayment 给节点写 paid_cents 的旧写路径 | 五号建议，波 2 评估（与 addons 表同批） |
 | AUTH_DEV_MODE=false + QQ Bot 接入 | 上线前必做清单 |
+| done/delivered 终态订单也生成了分期（五号-B 遗留 3，与 createOrder 条件一致） | 待用户定夺是否排除终态 |
 
 ---
 ## 版本计划（用户拍板）
 
 | 版本 | 内容 | 状态 |
 |------|------|------|
-| v0.35 | REQ-024 画风档位统一 F1-F6 | ✅ 全合入（用户未逐项终验，直接开下版） |
-| v0.36 | 清账版：时间条四档+撤销 + BUG-1 方案 b + 旧增项 API + 死代码 + P2 批 | 🔧 波 1 已派工 |
+| v0.35 | REQ-024 画风档位统一 F1-F6 | ✅ 全合入 |
+| v0.36 | 清账版：时间条四档+撤销 + BUG-1 方案 b + 旧增项 API + 死代码 + 演示分期 + P2 批 | 🔧 波 1 全合入，等终验 |
 | v0.37 | REQ-025 动态节点计价模型（已审核通过备案） | v0.36 后 |
 | v0.38 | 画师后台视觉重设计（纸墨颜料盘，规范 v1 待用户正式定稿） | v0.37 后 |
 
@@ -65,11 +72,13 @@
 ---
 ## 各角色状态
 
-- **二号**：v0.36 波 1 前端（撤销 toast）执行中——worktree `-02` 分支 `feat/v036-web-timeline-undo`（子代理第三轮，TL-1 已固化）
-- **二号-B**：画廊画册翻页已合入（`409a9ff`），空闲
+- **二号**：波 1 已合入，空闲（浏览器实测 deadline 撤销闭环，move/start 走同一 onTlUndo，建议终验顺手拖）
+- **二号-B**：画廊画册翻页已合入，空闲
 - **三号**：波 1 + 死码清理已合入，空闲
-- **五号**：波 1 已合入；现派演示订单分期节点缺口修复（`01-to-05b-demo-installments-20260805.md`，worktree `-w5b` 分支 `fix/v036-demo-installments`）
-- **四号**：changelog 已合入 + 归档已执行；现做说明书漂移修复（`01-to-04-manual-drift-20260805.md`，主 worktree 直提，进行中）
+- **三号-B**：errors.ts 死码已合入（归属事故见 01-note + 03-to-01b 报告），空闲
+- **五号**：波 1 已合入，空闲
+- **五号-B**：演示分期修复已合入，空闲
+- **四号**：changelog + 归档 + 说明书漂移全完成，空闲
 
 ---
 ## ⚠️ v38 迁移事故记录（一号自查发现并已修复）
@@ -84,3 +93,4 @@
 - 并行角色必须在独立 worktree；Docker 环境 SQLite 用 DELETE 模式
 - **开工第一步 `git merge master` 再读派工文件**（追加派工后角色本地文件可能是旧版）
 - 追加派工条目后一号必须提醒用户转达角色刷新
+- **一号 commit 前逐行核对 git status 暂存区**——主 worktree 有角色直提任务时防误带（e04f2f5 事故教训）
