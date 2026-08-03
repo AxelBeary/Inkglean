@@ -39,100 +39,49 @@ const PLATFORM_BADGE = {
 }
 
 /**
- * ─── v0.35 F3/F6 纯函数（mock-first，字段契约以三号波 1 交付为准） ───
- * 抽成模块级纯函数便于单测；三号 API 就绪后字段名若变化只改这里。
+ * ─── v0.35 F3/F6 纯函数（对接三号波 1 真实 API 契约） ───
+ * 抽成模块级纯函数便于单测；后端字段变化只改这里。
  */
 
 /**
- * F3: 尺寸图解析（三号预判契约）：
- * image_artwork_id 指向的作品图 > image 独立上传图 > 空串（外层兜底画风封面）
+ * F3: 尺寸图路径解析（三号契约：后端已解析好引用作品路径，互斥语义——
+ * 设作品集图时独立图被清空）。优先级：artwork_image_path（引用作品实时路径）
+ * > image（独立上传路径）> 空串（外层兜底画风封面）。
  */
-export function resolveSizeImagePath(size, artworks) {
+export function resolveSizeImagePath(size) {
   if (!size) return ''
-  if (size.image_artwork_id != null) {
-    const art = (artworks || []).find(a => a.id === size.image_artwork_id)
-    if (art?.image_path) return art.image_path
-  }
-  return size.image || ''
+  return size.artwork_image_path || size.image || ''
 }
 
 /**
- * F6: 画廊筛选标签列表 = 画师全部启用画风下的启用尺寸（从 styles 派生）。
- * 单画风只显示尺寸名；多画风用「画风 · 尺寸」避免同名尺寸歧义。
+ * F6: 画廊筛选标签列表（直接吃后端 GET /public/gallery 的 filterSizes，
+ * 已按多画风开关/启用状态门控）。多画风（style_name 种类 > 1）时拼
+ * 「画风 · 尺寸」前缀避免同名尺寸歧义；单画风只显示尺寸名。
+ * 返回条目 { sizeId, styleId, label, sortKey }，sortKey 保持后端 sort_order 稳定排序。
  */
-export function deriveGalleryFilters(styles) {
-  const list = styles || []
-  const multi = list.length > 1
-  const filters = []
-  for (const s of list) {
-    for (const sz of (s.sizes || [])) {
-      filters.push({
-        sizeId: sz.id,
-        styleId: s.id,
-        label: multi ? `${s.name} · ${sz.name}` : sz.name,
-        basePrice: sz.base_price
-      })
-    }
-  }
-  return filters
+export function buildGalleryFilters(filterSizes) {
+  const list = filterSizes || []
+  const styleNames = new Set(list.map(f => f.style_name))
+  const multi = styleNames.size > 1
+  return list.map(f => ({
+    sizeId: f.id,
+    styleId: f.style_id,
+    label: multi ? `${f.style_name} · ${f.name}` : f.name,
+    sortKey: f.sort_order ?? 0
+  }))
 }
 
-/** F6: 按档位筛选作品；sizeId 为空 → 全部混编。没标档位的作品只在「全部」下出现 */
+/**
+ * F6: 按档位筛选作品（三号契约：art.size_tags 为对象数组，
+ * 按 style_size_id 匹配）；sizeId 为空 → 全部混编。
+ * 没标档位的作品只在「全部」下出现。
+ */
 export function filterArtworksBySize(artworks, sizeId) {
   if (sizeId == null) return artworks || []
-  return (artworks || []).filter(a => Array.isArray(a.tags) && a.tags.includes(sizeId))
+  return (artworks || []).filter(a =>
+    Array.isArray(a.size_tags) && a.size_tags.some(t => t.style_size_id === sizeId)
+  )
 }
-
-/**
- * ⚠️ v0.35 波 2 mock 占位 —— 待三号波 1 API 交付后整块删除 ──
- * 迁移 v37 后：getPublicStyles 的 sizes 自带 image/image_artwork_id/description/work_days，
- * getProfile 的 artworks 自带 tags（尺寸 id 数组）/description。
- * 届时代替方案：删掉本函数 + ArtistHome.vue 里的调用行，前端直接读接口字段。
- * mock 策略：基于真实返回数据确定性附加字段（不猜 DB id），保证任何画师都能演示。
- */
-export function applyV035MockFields(styles, artworks) {
-  const styleList = styles || []
-  const artList = artworks || []
-  const allSizes = styleList.flatMap(s => (s.sizes || []).map(sz => ({ ...sz, styleId: s.id })))
-
-  const decoratedStyles = styleList.map(s => ({
-    ...s,
-    sizes: (s.sizes || []).map((sz, i) => {
-      const extra = {}
-      // 尺寸 0：引用作品图路径（image_artwork_id）；尺寸 1：独立上传路径（image）；其余无图 → 演示封面兜底
-      if (i === 0 && artList.length > 0) extra.image_artwork_id = artList[0].id
-      else if (i === 1 && artList.length > 1) extra.image = artList[1].image_path
-      if (i <= 2) {
-        extra.description = `「${sz.name}」mock 描述：构图为半身以上，含简单背景，线稿上色各一轮。`
-        extra.work_days = 3 * (i + 1)
-      }
-      return { ...sz, ...extra }
-    })
-  }))
-
-  const decoratedArtworks = artList.map((art, j) => {
-    // 无尺寸可标时不附加（旧模型画师保持原样）
-    if (!allSizes.length) return art
-    const extra = {}
-    // 最后一张不标档位 → 演示「只在全部下出现」；
-    // 其余每张按步长 2 分配两个档位（j→2j, 2j+1）→ 覆盖所有档位，多标签可演示
-    if (j < artList.length - 1) {
-      const n = allSizes.length
-      if (n === 1) {
-        extra.tags = [allSizes[0].id]
-      } else {
-        const a = allSizes[(2 * j) % n].id
-        const b = allSizes[(2 * j + 1) % n].id
-        extra.tags = a === b ? [a] : [a, b]
-      }
-    }
-    if (j < 3) extra.description = `mock 自由描述：这是第 ${j + 1} 张作品的创作说明（画师可自由填写）。`
-    return { ...art, ...extra }
-  })
-
-  return { styles: decoratedStyles, artworks: decoratedArtworks }
-}
-/** ─── mock 占位结束 ─── */
 
 export function useArtistData(props) {
   const { t } = useI18n()

@@ -126,7 +126,7 @@
               :subdomain="subdomain"
             />
           </div>
-          <!-- v0.35 F6: 自由描述（画师在作品管理填写；mock 阶段为占位文案） -->
+          <!-- v0.35 F6: 自由描述（画师在作品管理填写，gallery 端点带出；无则不显示） -->
           <p v-if="lightboxArt.description" class="tpl-lb-desc">{{ lightboxArt.description }}</p>
           <!-- v0.35 F6: 档位标签（可点击 → 下单页预选该档位，复用 F4 跳第三步） -->
           <div v-if="lightboxTags.length" class="tpl-lb-tags">
@@ -148,39 +148,52 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useArtistData, deriveGalleryFilters, filterArtworksBySize } from '../../composables/useArtistData.js'
+import { useArtistData, buildGalleryFilters, filterArtworksBySize } from '../../composables/useArtistData.js'
 import ArtworkLikeButton from '../shared/ArtworkLikeButton.vue'
 
 const props = defineProps({
+  /** 兜底数据源（gallery 端点不可用时回退，无筛选行） */
   artworks: { type: Array, default: () => [] },
+  /**
+   * v0.35 联调：画廊专用端点数据 GET /public/gallery/:subdomain
+   * { artworks: [{..., size_tags: [{style_size_id, size_name, style_id, style_name}], description }],
+   *   filterSizes: [{ id, name, style_id, style_name, sort_order }] }
+   * 端点失败/为空时回退 artworks prop（行为与旧版一致，筛选行隐藏）
+   */
+  gallery: { type: Object, default: null },
   /** grid: 等高网格 | editorial: 大小交错 | masonry: 瀑布流（v0.19 默认） */
   layout: { type: String, default: 'masonry' },
   /** F1: 点赞 localStorage 按画师隔离（huiyue_liked_${subdomain}） */
-  subdomain: { type: String, default: '' },
-  /** v0.35 F6: 画风列表 → 派生画廊筛选标签（对外档位）；空数组=不显示筛选行 */
-  styles: { type: Array, default: () => [] }
+  subdomain: { type: String, default: '' }
 })
 
 const { imgUrl } = useArtistData(props)
 const router = useRouter()
 
-// ─── v0.35 F6: 档位筛选 ───
-const filters = computed(() => deriveGalleryFilters(props.styles))
+// ─── v0.35 联调：数据源优先级 gallery 端点 > artworks prop；封面去重保持现有展示规则（REQ-017 约束 2） ───
+const displayArtworks = computed(() => {
+  const list = props.gallery?.artworks?.length ? props.gallery.artworks : props.artworks
+  const filtered = list.filter(a => !a.is_cover)
+  return filtered.length > 0 ? filtered : list
+})
+
+// ─── v0.35 F6: 档位筛选（filterSizes 由后端门控好多画风开关/启用状态） ───
+const filters = computed(() => buildGalleryFilters(props.gallery?.filterSizes))
 const activeSizeId = ref(null)
 function setFilter(sizeId) {
   activeSizeId.value = sizeId
 }
 /** 当前显示的作品：默认全部混编；选中档位 → 只显示标注该档位的作品 */
-const filteredArtworks = computed(() => filterArtworksBySize(props.artworks, activeSizeId.value))
+const filteredArtworks = computed(() => filterArtworksBySize(displayArtworks.value, activeSizeId.value))
 
 /**
- * 作品的档位标签：art.tags（尺寸 id 数组）→ 映射到筛选条目（含 styleId/label）。
- * 档位被画师删除后 tags 里的 id 在 filters 中查不到 → 自动失效不残留（REQ-024 F6 验收 8）。
+ * 作品的档位标签：art.size_tags（对象数组）→ 按 style_size_id 映射到筛选条目（含 styleId/label）。
+ * 档位被画师删除后后端 CASCADE 清理，且 tags 里的 id 在 filters 中查不到 → 自动失效不残留（REQ-024 F6 验收 8）。
  */
 const tagIndex = computed(() => new Map(filters.value.map(f => [f.sizeId, f])))
 function tagsOf(art) {
-  if (!Array.isArray(art.tags)) return []
-  return art.tags.map(id => tagIndex.value.get(id)).filter(Boolean)
+  if (!Array.isArray(art.size_tags)) return []
+  return art.size_tags.map(t => tagIndex.value.get(t.style_size_id)).filter(Boolean)
 }
 /** 有描述或档位标签才算有展示元数据（hover 浮层/lightbox 信息区显示依据） */
 function hasGalleryMeta(art) {

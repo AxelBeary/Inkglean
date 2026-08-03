@@ -18,6 +18,7 @@
       :subdomain="subdomain"
       :sanitized-rules="sanitizedRules"
       :pricing="pricing"
+      :gallery="galleryData"
     />
     <div v-else-if="!loading" class="empty-state">
       <p>{{ $t('artistHome.loadFailed') }}</p>
@@ -35,8 +36,6 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import { usePalette } from '../../composables/usePalette.js'
-// ⚠️ v0.35 波 2 mock 占位：三号波 1 API 交付后删除此 import + 下方 applyV035MockFields 调用行
-import { applyV035MockFields } from '../../composables/useArtistData.js'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 
 const { t } = useI18n()
@@ -50,6 +49,9 @@ const artworks = ref([])
 const rules = ref('')
 const workflowStages = ref([])
 const pricing = ref(null)
+// v0.35 联调：画廊数据走独立端点 GET /public/gallery/:subdomain
+// （artworks 带 size_tags/description + filterSizes 筛选档位；F6 真实数据源）
+const galleryData = ref({ artworks: [], filterSizes: [] })
 const loading = ref(true)
 
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
@@ -141,19 +143,15 @@ onMounted(async () => {
       .then(res => { pricing.value = res })
       .catch(() => {})
     // v0.32 REQ-023 Phase3: 加载画风列表（静默失败走旧模型兜底）
+    // v0.35 联调：sizes 已自带 image/artwork_image_path/description/work_days（F3 真实数据源），直读
     artistPublicApi.getPublicStyles(subdomain)
+      .then(res => { styles.value = res || [] })
+      .catch(() => {})
+    // v0.35 联调 F6: 画廊专用端点（artworks 带 size_tags/description + filterSizes 筛选档位）。
+    // 静默失败 → galleryData 保持空，TplGallery 回退 artworks prop 且隐藏筛选行（向后兼容）
+    artistPublicApi.getPublicGallery(subdomain)
       .then(res => {
-        // ⚠️ v0.35 波 2 mock 占位：为 sizes 附加图/描述/天数，为画廊作品附加 tags/描述。
-        // 三号波 1 API 交付后删除此包装块，恢复 styles.value = res || []（接口自带新字段）。
-        // 画廊只展示非封面作品（useArtistData.galleryArtworks 去重规则），
-        // mock tags 必须基于同一展示列表分布，否则会出现「档位标签存在但该档位 0 作品」。
-        const raw = artworks.value
-        const shown = raw.filter(a => !a.is_cover)
-        const galleryList = shown.length > 0 ? shown : raw
-        const decorated = applyV035MockFields(res || [], galleryList)
-        const tagById = new Map(decorated.artworks.map(a => [a.id, a]))
-        styles.value = decorated.styles
-        artworks.value = raw.map(a => tagById.get(a.id) || a)
+        galleryData.value = { artworks: res?.artworks || [], filterSizes: res?.filterSizes || [] }
       })
       .catch(() => {})
   } catch (err) {
