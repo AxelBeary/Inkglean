@@ -106,9 +106,6 @@ export const E = {
 
   // 增项
   ADDON_NOT_FOUND: 'ADDON_NOT_FOUND',
-  ADDON_NAME_EMPTY: 'ADDON_NAME_EMPTY',
-  ADDON_INVALID_PRICE: 'ADDON_INVALID_PRICE',
-  ADDON_INVALID_MODE: 'ADDON_INVALID_MODE',
   ADDON_MAX_QTY: 'ADDON_MAX_QTY',
   ADDON_NOT_FOR_TIER: 'ADDON_NOT_FOR_TIER',
 
@@ -300,9 +297,6 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 增项
   ADDON_NOT_FOUND: '增项不存在',
-  ADDON_NAME_EMPTY: '增项名称不能为空',
-  ADDON_INVALID_PRICE: '增项价格无效',
-  ADDON_INVALID_MODE: '无效的选择模式',
   ADDON_MAX_QTY: '超出最大数量限制',
   ADDON_NOT_FOR_TIER: '该增项不适用于所选档位',
 
