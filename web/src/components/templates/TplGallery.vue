@@ -130,12 +130,15 @@
     </p>
 
     <!-- v0.35 F6: 大图 lightbox（画册是浏览，灯箱是细看，两层并存） -->
+    <!-- v0.36 热修: append-to-body——画廊容器带 .tpl-reveal 渐入动画(transform)，
+         祖先 transform 会劫持 fixed 定位基准导致弹窗飘出窗口，teleport 到 body 规避 -->
     <el-dialog
       v-model="lightboxVisible"
       class="tpl-gallery-lightbox"
       width="min(860px, 92vw)"
       align-center
       destroy-on-close
+      append-to-body
       :aria-label="lightboxArt?.title || $t('artistHome.artworks')"
     >
       <div v-if="lightboxArt" class="tpl-lb-body">
