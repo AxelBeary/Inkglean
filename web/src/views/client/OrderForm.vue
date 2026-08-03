@@ -56,7 +56,7 @@
                       <div class="addon-groups">
                         <div v-for="group in addonGroups" :key="group.category" class="addon-group">
                           <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
-                            <span>{{ group.icon }} {{ group.label }}</span>
+                            <span>{{ group.label }}</span>
                             <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
                           </div>
                           <div v-show="!group.collapsed" class="addon-items">
@@ -121,7 +121,7 @@
                       <div class="price-divider"></div>
                       <!-- v0.31 F3: 折扣码输入行（总价行上方，画师开启折扣功能时才显示） -->
                       <div v-if="discountEnabled" class="discount-row">
-                        <span class="discount-label">🎟 {{ $t('orderForm.discountLabel') }}</span>
+                        <span class="discount-label">{{ $t('orderForm.discountLabel') }}</span>
                         <el-input
                           v-model="form.discountCode"
                           :placeholder="$t('orderForm.discountPlaceholder')"
@@ -184,7 +184,7 @@
                     <div v-if="s.cover_image" class="style-pick-img-wrap">
                       <el-image :src="`/uploads/${s.cover_image}`" fit="cover" class="style-pick-img" :alt="s.name" />
                     </div>
-                    <div v-else class="style-pick-img-empty">🎨</div>
+                    <div v-else class="style-pick-img-empty">{{ s.name?.charAt(0) }}</div>
                     <div class="style-pick-name">{{ s.name }}</div>
                     <div v-if="s.description" class="style-pick-desc">{{ s.description }}</div>
                   </div>
@@ -301,7 +301,7 @@
                   <div class="price-divider"></div>
                   <!-- 折扣码输入行（复用 v0.31 逻辑） -->
                   <div v-if="discountEnabled" class="discount-row">
-                    <span class="discount-label">🎟 {{ $t('orderForm.discountLabel') }}</span>
+                    <span class="discount-label">{{ $t('orderForm.discountLabel') }}</span>
                     <el-input
                       v-model="form.discountCode"
                       :placeholder="$t('orderForm.discountPlaceholder')"
@@ -380,7 +380,6 @@
                 <el-form-item v-if="workflowStages.length || artist?.revisionNote" :label="$t('orderForm.workflowLabel')">
                   <WorkflowOverviewStrip v-if="workflowStages.length" :stages="workflowStages" />
                   <div v-if="artist?.revisionNote" class="tpl-revision-note">
-                    <span class="tpl-revision-note-icon" aria-hidden="true">✏️</span>
                     <span>
                       <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
                       {{ artist.revisionNote }}
@@ -579,7 +578,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'
@@ -612,8 +611,10 @@ const {
   selectedStyleId, selectedStyle, selectedSizeId, selectedSize,
   availableStyleAddons, styleAddonSelections,
   selectStyle, selectSize, parseAddonOptions,
-  stylePricePreview, styleDisplayPrice
-} = useOrderForm(subdomain, formRef)
+  stylePricePreview, styleDisplayPrice,
+  // v0.34 任务B：URL query 预选命中记录
+  queryPreselect
+} = useOrderForm(subdomain, formRef, route.query)
 
 // ─── R58-2: 分步引导（v0.32: 动态步骤号） ───
 const step = ref(1)
@@ -647,6 +648,18 @@ const sizeStep = computed(() => stepDefs.value.findIndex(s => s.key === 'size') 
 const addonStep = computed(() => stepDefs.value.findIndex(s => s.key === 'addon') + 1)
 const detailStep = computed(() => stepDefs.value.findIndex(s => s.key === 'detail') + 1)
 const contactStep = computed(() => stepDefs.value.findIndex(s => s.key === 'contact') + 1)
+
+// v0.34 任务B：主页带 query 预选进来时，初始步骤跳过已预选部分
+// （画风+尺寸都选中 → 直接进增项步骤；仅画风选中 → 进选尺寸步骤）
+watch(loading, (v) => {
+  if (v) return
+  if (!isStyleMode.value) return
+  if (queryPreselect.sizeId) {
+    step.value = addonStep.value
+  } else if (queryPreselect.styleId && isMultiStyle.value) {
+    step.value = sizeStep.value
+  }
+}, { once: true })
 
 /** 档位卡片点选（与原 el-select @change 行为一致：切换时清空增项/倍率） */
 function selectTier(id) {

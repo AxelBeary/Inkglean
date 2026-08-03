@@ -137,6 +137,7 @@ function setupMocks({ profile = MOCK_PROFILE, pricing = MOCK_PRICING, workflow =
  * @param {Array} opts.styles - 画风列表（空数组 = 旧模型；非空 = 画风模式）
  * @param {object} opts.draft - 预置 sessionStorage 草稿
  * @param {boolean} opts.confirmRejects - 草稿恢复弹窗点"丢弃"
+ * @param {object} opts.query - v0.34 任务B：URL query 预选参数（styleId/sizeId）
  */
 async function createForm(opts = {}) {
   setupMocks(opts)
@@ -150,7 +151,7 @@ async function createForm(opts = {}) {
   let composable
   const wrapper = mount({
     setup() {
-      composable = useOrderForm('alice', formRef)
+      composable = useOrderForm('alice', formRef, opts.query || {})
       return { of: composable }
     },
     template: '<div />'
@@ -281,7 +282,7 @@ describe('档位与计价展示', () => {
     const groups = of.addonGroups.value
     expect(groups).toHaveLength(3) // expression, outfit, background
     const expr = groups.find(g => g.category === 'expression')
-    expect(expr.icon).toBe('🎭')
+    expect(expr.label).toBe('表情差分') // v0.34 任务F：emoji 图标已移除，只剩文字标签
     expect(expr.items).toHaveLength(1)
     expect(expr.collapsed).toBe(false)
   })
@@ -694,6 +695,75 @@ describe('草稿画风状态保存 / 恢复', () => {
     expect(second.of.selectedSizeId.value).toBe(121)
     expect(second.of.form.description).toBe('想要线稿头像')
     expect(second.of.form.clientQq).toBe('123')
+  })
+})
+
+// ─── URL query 预选（v0.34 任务B：主页展示柜带选择跳转下单） ───
+
+describe('URL query 预选', () => {
+  it('多画风：styleId+sizeId 有效 → 直接选中画风和尺寸，触发计价', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '11', sizeId: '111' } })
+
+    expect(of.selectedStyleId.value).toBe(11)
+    expect(of.selectedSizeId.value).toBe(111)
+    expect(of.queryPreselect.styleId).toBe(11)
+    expect(of.queryPreselect.sizeId).toBe(111)
+    await vi.advanceTimersByTimeAsync(300)
+    expect(artistPublicApi.calculateStylePrice).toHaveBeenCalledWith(expect.objectContaining({
+      styleSizeId: 111
+    }))
+  })
+
+  it('仅 styleId 有效 → 画风选中、尺寸不选', async () => {
+    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '12' } })
+    expect(of.selectedStyleId.value).toBe(12)
+    expect(of.selectedSizeId.value).toBeNull()
+    expect(of.queryPreselect.sizeId).toBeNull()
+  })
+
+  it('styleId 无效（已停用/不存在）→ 静默忽略，走正常流程', async () => {
+    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '999', sizeId: '111' } })
+    expect(of.selectedStyleId.value).toBeNull()
+    expect(of.selectedSizeId.value).toBeNull()
+  })
+
+  it('sizeId 不属于 query 选中的画风 → 忽略尺寸预选', async () => {
+    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '12', sizeId: '111' } })
+    expect(of.selectedStyleId.value).toBe(12) // 线稿画风
+    expect(of.selectedSizeId.value).toBeNull() // 111 属于厚涂画风 → 忽略
+  })
+
+  it('单画风退化：sizeId 有效 → 预选尺寸（styleId 缺省用自动选中项）', async () => {
+    const { of } = await createForm({ styles: [MOCK_STYLES[0]], query: { sizeId: '112' } })
+    expect(of.selectedStyleId.value).toBe(11) // 单画风自动选中
+    expect(of.selectedSizeId.value).toBe(112)
+    expect(of.queryPreselect.sizeId).toBe(112)
+  })
+
+  it('query 预选 > 草稿恢复：两者并存时 query 命中项不被草稿覆盖', async () => {
+    vi.useFakeTimers()
+    const draft = {
+      form: {},
+      styleState: { styleId: 12, sizeId: 121, addonSelections: {} }
+    }
+    const { of } = await createForm({ styles: MOCK_STYLES, draft, query: { styleId: '11', sizeId: '111' } })
+
+    // query 预选生效，草稿的画风/尺寸不覆盖
+    expect(of.selectedStyleId.value).toBe(11)
+    expect(of.selectedSizeId.value).toBe(111)
+  })
+
+  it('query 只有 styleId + 草稿有同画风不同尺寸 → 草稿尺寸正常恢复', async () => {
+    const draft = {
+      form: {},
+      styleState: { styleId: 11, sizeId: 112, addonSelections: {} }
+    }
+    const { of } = await createForm({ styles: MOCK_STYLES, draft, query: { styleId: '11' } })
+
+    // 画风：query 命中（与草稿相同）；尺寸：query 无 → 草稿恢复 112
+    expect(of.selectedStyleId.value).toBe(11)
+    expect(of.selectedSizeId.value).toBe(112)
   })
 })
 
