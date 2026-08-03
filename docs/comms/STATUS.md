@@ -28,10 +28,11 @@
 
 ### v0.36 波 2 候选（波 1 合入后派）
 
+- **已派：画廊画册翻页**（二号-B，worktree `-w2b` 分支 `feat/v036-gallery-album`，派工 `01-to-02b-gallery-album-20260805.md`）——用户拍板：替换网格、模板区分度、Gallery 模板大小交错
+- **已拍板待派（等波 1 二号合入，同文件冲突）**：看板下拉「已交付」统一走 DeliverDialog 交付弹窗（防手滑直接改状态）——用户确认"好的 很重要的改动细节"
 - 手动录单 ManualOrder 接新画风模型（现走旧档位 getPricing/calculatePrice，旧算价 API 保留中，波 2 改 `calculate-style-price` + `styleSizeId` 下单，参考 useOrderForm.js 现成链路）
-- task-0 剩余小修：看板平移两 PUT 非原子（可被撤销 toast 吸收一部分，二号自决）、OrderDetail picker 保存失败不回滚、备注 Enter 重复提交、状态推进防连点、滑块 pointercancel
-- gallery 模板 layout 疑点（待用户定夺）
-- 看板下拉 delivered 统一走 deliver-no-file（五号建议，待用户拍板）
+- task-0 剩余小修：OrderDetail picker 保存失败不回滚、备注 Enter 重复提交、状态推进防连点、滑块 pointercancel
+- 画师使用说明书漂移：仍写"档位"旧概念，未反映 v0.32+ 画风/尺寸模型——四号波 2 顺带修
 
 ### 已知遗留
 
