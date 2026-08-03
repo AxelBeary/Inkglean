@@ -126,13 +126,17 @@ defineExpose({ sentinelEl })
   cursor: not-allowed;
 }
 .tpl-btn--ghost {
-  background: transparent;
+  /* v0.34 任务D：hero 背景图上原 border 对比不足（用户反馈按钮框看不见）——
+     半透明底 + 可见边框，亮暗主题、亮部/暗部背景均可辨识 */
+  background: color-mix(in srgb, var(--pal-surface) 70%, transparent);
   color: var(--pal-text);
-  border-color: var(--pal-border);
+  border-color: var(--pal-text-dim);
+  backdrop-filter: blur(4px);
 }
 .tpl-btn--ghost:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+  background: color-mix(in srgb, var(--pal-surface) 85%, transparent);
 }
 .tpl-hero-actions {
   display: flex;
