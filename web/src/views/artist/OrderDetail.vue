@@ -132,12 +132,13 @@
 
         <!-- 常规操作按钮 -->
         <div v-else class="action-bar">
-          <!-- 有工作流：推进 / 打回 -->
+          <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死） -->
           <template v-if="hasWorkflow">
             <el-button v-if="canAdvanceStage" type="primary" @click="advanceStage">
               {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
             </el-button>
             <el-button v-if="canBackStage" type="warning" plain @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+            <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           </template>
           <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛） -->
           <template v-else>
@@ -459,24 +460,8 @@
       </el-card>
     </div>
 
-    <!-- 交付弹窗 -->
-    <el-dialog v-model="showDeliver" :title="$t('orderDetail.deliverTitle')" width="400px">
-      <el-upload
-        drag :auto-upload="false" :limit="1" :file-list="deliverFileList"
-        :on-change="handleDeliverFile" :on-remove="handleDeliverRemove"
-        accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.psd,.ai,.tiff,.pdf,.zip,.rar,.7z,.mp4,.mov,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
-      >
-        <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
-        <p>{{ $t('orderDetail.dragUpload') }}</p>
-        <template #tip>
-          <div class="el-upload__tip">{{ $t('orderDetail.uploadTip') }}</div>
-        </template>
-      </el-upload>
-      <template #footer>
-        <el-button @click="showDeliver = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitDeliver" :disabled="!deliverFile" :loading="delivering">{{ $t('orderDetail.confirmDeliver') }}</el-button>
-      </template>
-    </el-dialog>
+    <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
+    <DeliverDialog v-model="showDeliver" :order-id="route.params.id" @delivered="onDelivered" />
 
     <!-- B7: 记录收款弹窗 -->
     <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
@@ -581,10 +566,11 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Plus, Picture } from '@element-plus/icons-vue'
+import { Plus, Picture } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
+import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
@@ -598,22 +584,8 @@ const router = useRouter()
 const order = ref(null)
 const prevPriority = ref(null)
 const newNote = ref('')
+// 交付弹窗显隐（方案 B：文件上传/校验逻辑已迁入 DeliverDialog 组件）
 const showDeliver = ref(false)
-const deliverFile = ref(null)
-const deliverFileList = ref([])
-const delivering = ref(false)
-
-// P2-12: 交付文件前端校验
-const DELIVER_MAX_SIZE = 50 * 1024 * 1024 // 50MB
-// S-10 修复：对齐后端 upload.routes.js DELIVER_ALLOWED（23 种）
-const DELIVER_ALLOWED_EXT = [
-  '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp',
-  '.psd', '.ai', '.tiff', '.pdf',
-  '.zip', '.rar', '.7z',
-  '.mp4', '.mov',
-  '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-  '.txt', '.md'
-]
 
 // 返回来源页：排期看板进来回排期，仪表盘进来回仪表盘，订单列表进来回列表，直接访问则默认回列表
 const fromSource = route.query.from // 'queue' | 'dashboard' | undefined
@@ -1266,49 +1238,14 @@ async function copySpeechAndOpenQq() {
   }
 }
 
-function handleDeliverFile(file) {
-  // P2-12: 前端校验文件类型和大小
-  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
-  if (!DELIVER_ALLOWED_EXT.includes(ext)) {
-    ElMessage.error(t('orderDetail.invalidFileType'))
-    return
-  }
-  if (file.size > DELIVER_MAX_SIZE) {
-    ElMessage.error(t('orderDetail.fileTooLarge'))
-    return
-  }
-  deliverFile.value = file.raw
-}
-
-function handleDeliverRemove() {
-  deliverFile.value = null
-}
-
-// 打开交付弹窗时重置文件选择
+// 打开交付弹窗（方案 B：DeliverDialog 组件内自管状态重置；看板 ?deliver=1 跳转时自动弹）
 function openDeliverDialog() {
-  deliverFile.value = null
-  deliverFileList.value = []
   showDeliver.value = true
 }
 
-async function submitDeliver() {
-  if (!deliverFile.value) return
-  delivering.value = true
-  try {
-    const uploaded = await uploadApi.deliverable(deliverFile.value)
-    order.value = await artistApi.deliver(route.params.id, {
-      filePath: uploaded.filePath,
-      fileName: uploaded.originalName
-    })
-    showDeliver.value = false
-    deliverFile.value = null
-    deliverFileList.value = []
-    ElMessage.success(t('orderDetail.deliverSuccess'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    delivering.value = false
-  }
+// 交付成功回调（DeliverDialog emit delivered，回传最新订单）
+function onDelivered(updated) {
+  order.value = updated
 }
 
 // ─── R33: 签名 URL 定时刷新（10 分钟轮询 + el-image @error 兜底） ───

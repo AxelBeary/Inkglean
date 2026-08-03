@@ -117,7 +117,7 @@
                     <el-button
                       v-else-if="element.currentStageId != null && element.status === 'done'"
                       size="small" type="success"
-                      @click="$router.push(`/orders/${element.id}?from=queue`)"
+                      @click="openDeliverFor(element)"
                     >
                       {{ $t('queue.goDeliver') }}
                     </el-button>
@@ -425,6 +425,14 @@
       ref="focusInputEl" type="file" accept="image/*" hidden
       @change="handleFocusFileSelect"
     />
+
+    <!-- 方案 B: 交付弹窗（看板直接弹，含无文件交付） -->
+    <DeliverDialog
+      v-if="deliverOrderId"
+      v-model="deliverDialogVisible"
+      :order-id="deliverOrderId"
+      @delivered="onDeliveredFromBoard"
+    />
   </ArtistLayout>
 </template>
 
@@ -437,12 +445,25 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 
 const { t } = useI18n()
 const router = useRouter()
 const queue = ref([])
 const loading = ref(true)
+
+// 方案 B: 看板交付弹窗（直接弹，不跳详情页）
+const deliverDialogVisible = ref(false)
+const deliverOrderId = ref(null)
+function openDeliverFor(order) {
+  deliverOrderId.value = order.id
+  deliverDialogVisible.value = true
+}
+async function onDeliveredFromBoard() {
+  // 交付成功后刷新队列（状态变 delivered，名额释放）
+  await loadQueue()
+}
 // P0-3b: 标签切换（正式区 / 缓冲区）
 const activeTab = ref('formal')
 

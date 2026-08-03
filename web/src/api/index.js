@@ -151,6 +151,8 @@ export const artistApi = {
   // SPEC-004: 递补（buffer → formal，返回完整订单）
   promoteOrder: (id) => api.post(`/artist/orders/${id}/promote`),
   deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data),
+  // 方案 B: 无文件交付（修复工作流订单最后节点交付卡死）
+  deliverNoFile: (id) => api.post(`/artist/orders/${id}/deliver-no-file`),
   addReference: (id, data) => api.post(`/artist/orders/${id}/references`, data),
   deleteReference: (id, refId) => api.delete(`/artist/orders/${id}/references/${refId}`),
   // R4: 焦点图（off/small/large）

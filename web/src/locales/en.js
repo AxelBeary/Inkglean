@@ -205,6 +205,13 @@ export default {
     title: 'Platform notice',
     text: 'This platform only verifies identities and connects both parties. All subsequent communication, payment and delivery happen externally. The platform provides no escrow or arbitration — please assume your own risk.'
   },
+  // Plan B: deliver dialog modes (upload file / no-file delivery)
+  deliverMode: {
+    file: 'Upload deliverable',
+    noFile: 'No-file delivery',
+    noFileHint: 'This order needs no deliverable file (e.g. pure consultation, already delivered offline). Once confirmed, the order is marked "Delivered". This cannot be undone.',
+    noFileConfirm: 'Confirm delivery with no file? The order will be set to "Delivered".'
+  },
   upload: {
     pasteHint: 'Paste images with Ctrl+V',
     pasteNotImage: 'Only image files can be pasted',
