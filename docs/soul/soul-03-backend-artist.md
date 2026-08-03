@@ -82,6 +82,7 @@ PR 描述包含：变更说明、关联任务、变更内容、接口变更（�
 - service 层 INSERT 时**显式传值**，不依赖 DEFAULT（显式传 NULL 会写成 null，与 DEFAULT 行为不同）。
 - 新增文件目录（如 notes/）必须同步检查 `gcUploads` 是否收集该表字段，漏做 = 数据丢失（Q10 硬伤）。
 - 新增非 images/ 目录的文件，API 返回时**必须走签名 URL**（signOrderUrls 或 signedUrl），否则前端 403。
+- **重建表类迁移（DROP/RENAME 父表）必须事务外执行**（v38 事故 2026-08-04）：迁移运行器把迁移包在 transaction() 里，而 `PRAGMA foreign_keys` 在事务内是 **no-op**——FK 关闭防护静默失效，DROP 父表触发所有子表 ON DELETE CASCADE，子表数据全灭。规则：迁移对象加 `noTransaction: true`；关 FK 后**立即回读校验值=0** 才继续（不为 0 直接抛错中止，绝不 DROP）；按 SQLite 官方 12 步流程重建；重建后 `foreign_key_check` 验证零悬空；finally 恢复 FK=ON；迁移测试断言重建前后子表行数一致。迁移开头的 copyFileSync 备份是事故恢复的最后防线。
 
 ## 通信机制（2026-07-29 新增）
 

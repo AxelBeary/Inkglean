@@ -38,6 +38,7 @@
 - **comms 合入即删**：派工/提交文件在分支合入 master 后立即删除，不积累。每轮收工时 comms 目录应只剩 STATUS + 有效参考文件。
 - **运行时变更追踪所有消费者**：改变运行时（如 node→tsx）、构建工具、启动方式时，必须追踪所有调用方：Docker entrypoint、E2E global-setup、dev scripts、CI。漏一个 = 部署崩。v0.21 教训：TS 迁移改 tsx，Docker entrypoint 和 E2E setup 都还在用 node。
 - **Windows spawn 陷阱**：`spawn('npx', ...)` 在 Windows 上 ENOENT（npx 是 .cmd 不是 exe）。用 `process.execPath` + 绝对路径 CLI 入口，或 `shell: true`。v0.21 E2E 教训。
+- **追加派工条目后必须提醒角色刷新**：派工发出后再往文件里加条目（如中途并入 UX 审计项），角色 worktree 里的派工文件还是旧版（分支基于旧 master），角色不知道有新增条目就会漏做。v0.35 教训：一号凌晨给三号波 1 派工追加 5 条，三号开工时未 merge master，漏做全部 5 条，收口审核才发现，被迫再发补漏派工。规则：patch 派工文件后，主动告知用户转达角色「先 `git merge master` 再读派工文件」；审核交付时逐条对照最新版派工（不是角色开工时的版本）。
 
 ## 高风险操作（必须实际操作人确认）
 
