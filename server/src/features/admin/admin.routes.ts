@@ -475,7 +475,7 @@ export default async function adminRoutes(fastify) {
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           bio: { type: 'string', maxLength: 500 },
-          status: { type: 'string', enum: ['open', 'full', 'break'] },
+          status: { type: 'string', enum: ['open', 'full', 'break', 'hidden'] },
           artist_code: { type: 'string', maxLength: 10 },
           contact_qq: { type: 'string', maxLength: 15 },
           weibo_url: { type: 'string', maxLength: 300 },

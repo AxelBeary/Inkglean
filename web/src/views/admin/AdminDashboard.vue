@@ -22,7 +22,7 @@
         <el-table-column prop="qq_number" :label="$t('admin.colQq')" />
         <el-table-column :label="$t('admin.colStatus')">
           <template #default="{ row }">
-            <el-tag :type="{ open: 'success', full: 'warning', break: 'danger' }[row.status]">
+            <el-tag :type="{ open: 'success', full: 'warning', break: 'danger', hidden: 'info' }[row.status]">
               {{ $t(`common.statusShort.${row.status}`) }}
             </el-tag>
           </template>

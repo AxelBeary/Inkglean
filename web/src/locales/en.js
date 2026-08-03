@@ -186,8 +186,8 @@ export default {
   },
   pref: { toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark' },
   common: {
-    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', unknown: 'Unknown' },
-    statusShort: { open: 'Open', full: 'Full', break: 'Break' },
+    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', hidden: 'Hidden', unknown: 'Unknown' },
+    statusShort: { open: 'Open', full: 'Full', break: 'Break', hidden: 'Hidden' },
     priority: { high: 'High', medium: 'Med', low: 'Low' },
     orderStatus: {
       pending: 'Pending', confirmed: 'Confirmed', wip: 'In progress', revision: 'Revising',

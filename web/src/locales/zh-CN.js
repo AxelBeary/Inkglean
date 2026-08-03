@@ -186,8 +186,8 @@ export default {
   },
   pref: { toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗' },
   common: {
-    status: { open: '可约稿', full: '已排满', break: '休息中', unknown: '未知' },
-    statusShort: { open: '可约', full: '排满', break: '休息' },
+    status: { open: '可约稿', full: '已排满', break: '休息中', hidden: '已隐藏', unknown: '未知' },
+    statusShort: { open: '可约', full: '排满', break: '休息', hidden: '隐藏' },
     priority: { high: '高', medium: '中', low: '低' },
     orderStatus: {
       pending: '待确认', confirmed: '已确认', wip: '制作中', revision: '修改中',

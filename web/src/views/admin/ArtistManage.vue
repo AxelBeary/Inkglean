@@ -26,6 +26,7 @@
             <el-option value="open" :label="$t('common.statusShort.open')" />
             <el-option value="full" :label="$t('common.statusShort.full')" />
             <el-option value="break" :label="$t('common.statusShort.break')" />
+            <el-option value="hidden" :label="$t('common.statusShort.hidden')" />
           </el-select>
         </template>
       </el-table-column>
