@@ -26,7 +26,9 @@ api.interceptors.response.use(
         const { i18n } = await import('../i18n/index.js')
         const t = i18n.global.t
         const key = `errors.${code}`
-        const translated = t(key)
+        // detail 作为 i18n 命名插值参数（如 STAGES_RESET_BLOCKED 的 {count}）
+        const params = data.detail && typeof data.detail === 'object' ? data.detail : undefined
+        const translated = t(key, params)
         // 如果翻译成功（不是返回 key 本身），使用翻译后的消息
         if (translated !== key) {
           msg = translated
