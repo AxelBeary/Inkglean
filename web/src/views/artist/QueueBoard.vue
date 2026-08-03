@@ -328,7 +328,8 @@
           <el-radio-group v-model="tlZoom" size="small" @change="saveTlZoom">
             <el-radio-button value="2w">{{ $t('queue.tlZoom2w') }}</el-radio-button>
             <el-radio-button value="1m">{{ $t('queue.tlZoom1m') }}</el-radio-button>
-            <el-radio-button value="2m">{{ $t('queue.tlZoom2m') }}</el-radio-button>
+            <el-radio-button value="3m">{{ $t('queue.tlZoom3m') }}</el-radio-button>
+            <el-radio-button value="6m">{{ $t('queue.tlZoom6m') }}</el-radio-button>
           </el-radio-group>
           <el-button v-if="!tlIsTodayVisible" text size="small" @click="tlGoToday">{{ $t('queue.calToday') }}</el-button>
         </div>
@@ -448,7 +449,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const queue = ref([])
 const loading = ref(true)
@@ -632,8 +633,16 @@ function goOrder(order) {
 
 // ─── v0.25 D: 时间条视图（SPEC-005 §3，共享 calOrders 数据源） ───
 const TL_ZOOM_KEY = 'queue_tl_zoom'
-const TL_ZOOMS = { '2w': { days: 14, dayWidth: 48 }, '1m': { days: 30, dayWidth: 32 }, '2m': { days: 60, dayWidth: 18 } }
-const tlZoom = ref(TL_ZOOMS[localStorage.getItem(TL_ZOOM_KEY)] ? localStorage.getItem(TL_ZOOM_KEY) : '2w')
+// v0.36 波1: 四档缩放（画布宽度分别 672/960/1080/1274px，均 ≤2000px）
+const TL_ZOOMS = {
+  '2w': { days: 14, dayWidth: 48 },
+  '1m': { days: 30, dayWidth: 32 },
+  '3m': { days: 90, dayWidth: 12 },
+  '6m': { days: 182, dayWidth: 7 }
+}
+// localStorage 兼容：老版本存的 '2m' 档已删除，落到 '3m'
+const storedTlZoom = localStorage.getItem(TL_ZOOM_KEY)
+const tlZoom = ref(TL_ZOOMS[storedTlZoom] ? storedTlZoom : (storedTlZoom === '2m' ? '3m' : '2w'))
 function saveTlZoom(val) { localStorage.setItem(TL_ZOOM_KEY, val) }
 
 /** 可见窗口中心日期（默认今天，"回到今天"重置） */
@@ -655,19 +664,31 @@ function tlX(date) {
   return Math.round(ms / 86_400_000) * tlDayWidth.value
 }
 
-/** 日期刻度数组 */
+/** 日期刻度数组
+ * v0.36 波1 刻度密度适配：
+ * - dayWidth ≥ 32（2w/1m）：每天标签 M/D
+ * - 16 ≤ dayWidth < 32：每天标签，仅日号
+ * - 8 ≤ dayWidth < 16（3m）：仅周一出标签（日号），避免重叠
+ * - dayWidth < 8（6m）：仅每月 1 号出标签（短月名），周末染色跳过
+ */
 const tlTicks = computed(() => {
   const ticks = []
   const todayKey = dateKey(new Date())
   const start = tlRangeStart.value
+  const dw = tlDayWidth.value
+  const monthFmt = new Intl.DateTimeFormat(locale.value === 'zh-CN' ? 'zh-CN' : 'en', { month: 'short' })
   for (let i = 0; i < tlDays.value; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+    let label
+    if (dw >= 32) label = `${d.getMonth() + 1}/${d.getDate()}`
+    else if (dw >= 16) label = String(d.getDate())
+    else if (dw >= 8) label = d.getDay() === 1 ? String(d.getDate()) : '' // 3m: 仅周一
+    else label = d.getDate() === 1 ? monthFmt.format(d) : '' // 6m: 仅每月 1 号
     ticks.push({
       key: dateKey(d),
-      x: i * tlDayWidth.value,
-      // 缩放较宽时显示 M/D，紧凑时仅显示日
-      label: tlDayWidth.value >= 32 ? `${d.getMonth() + 1}/${d.getDate()}` : String(d.getDate()),
-      weekend: d.getDay() === 0 || d.getDay() === 6,
+      x: i * dw,
+      label,
+      weekend: dw >= 8 && (d.getDay() === 0 || d.getDay() === 6), // 低缩放跳过周末染色
       isToday: dateKey(d) === todayKey
     })
   }

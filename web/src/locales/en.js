@@ -457,7 +457,7 @@ export default {
     calNoDeadline: 'No deadline',
     calLegendFormal: 'Formal order', calLegendBuffer: 'Buffer', calLegendNoDeadline: 'No deadline', calLegendOverdue: 'Overdue', calLegendDone: 'Done',
     // v0.25 D: Timeline view
-    tlZoom2w: '2 weeks', tlZoom1m: '1 month', tlZoom2m: '2 months',
+    tlZoom2w: '2 weeks', tlZoom1m: '1 month', tlZoom3m: '3 months', tlZoom6m: '6 months',
     tlEmpty: 'No orders in the visible time range',
     // v0.28: Timeline drag
     tlDragDeadline: 'Deadline {d}', tlDragStart: 'Start {d}',

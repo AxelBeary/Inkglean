@@ -457,7 +457,7 @@ export default {
     calNoDeadline: '未设截稿',
     calLegendFormal: '正式订单', calLegendBuffer: '缓冲位', calLegendNoDeadline: '未设截稿', calLegendOverdue: '已逾期', calLegendDone: '已完成',
     // v0.25 D: 时间条视图
-    tlZoom2w: '两周', tlZoom1m: '一个月', tlZoom2m: '两个月',
+    tlZoom2w: '两周', tlZoom1m: '一个月', tlZoom3m: '三个月', tlZoom6m: '半年',
     tlEmpty: '可见时间范围内没有订单',
     // v0.28: 时间条拖拽
     tlDragDeadline: '截稿 {d}', tlDragStart: '开工 {d}',
