@@ -49,14 +49,14 @@
                 <div class="tpl-gallery-skeleton" />
               </template>
             </el-image>
-            <!-- v0.35 F6: hover 浮层（仅桌面）——默认卡片干净无叠加，hover 才显示档位标签+描述 -->
-            <div v-if="hasGalleryMeta(art)" class="tpl-gallery-hover" @click.stop>
+            <!-- v0.35 F6: hover 浮层（仅桌面）——默认卡片干净无叠加，hover 才显示档位标签+描述；点浮层空白处开大图（一号审核补：原 @click.stop 无 handler 造成点击死区） -->
+            <div v-if="hasGalleryMeta(art)" class="tpl-gallery-hover" @click.stop="openLightbox(index)">
               <p v-if="art.description" class="tpl-gallery-hover-desc">{{ art.description }}</p>
               <div v-if="tagsOf(art).length" class="tpl-gallery-hover-tags">
                 <button
                   v-for="tag in tagsOf(art)" :key="tag.sizeId"
                   type="button" class="tpl-gallery-tag"
-                  @click="orderByTag(tag)"
+                  @click.stop="orderByTag(tag)"
                 >
                   {{ tag.label }}
                 </button>
