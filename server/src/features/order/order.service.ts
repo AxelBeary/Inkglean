@@ -793,16 +793,20 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
 // ─── SPEC-004: 名额与缓冲系统 ───
 
 /**
- * 为订单生成付款节点（递补时按报价快照生成）
- * 从工作流模板的收款节点生成
+ * 为订单生成付款节点（按订单当前报价生成）
+ * 从工作流模板的收款节点生成；仅正式区订单（对齐 createOrder 的生成条件，
+ * SPEC-004: 缓冲订单不生成付款节点；promoteOrder 先更新 zone 再调本函数，不受影响）
+ * 幂等：已有节点则跳过
+ * 调用方：promoteOrder（递补时）、demo-data 脚本（直插订单补分期）
  */
-function generateInstallmentsForOrder(orderId: number): void {
+export function generateInstallmentsForOrder(orderId: number): void {
   // 已有节点则跳过（幂等）
   const existing = (db.prepare('SELECT COUNT(*) as c FROM order_payment_installments WHERE order_id = ?').get(orderId) as { c: number }).c
   if (existing > 0) return
 
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as Order | undefined
   if (!order || !order.total_price_cents) return
+  if (order.queue_zone !== 'formal') return
 
   const stages = db.prepare(
     'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'

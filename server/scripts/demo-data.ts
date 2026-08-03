@@ -11,6 +11,7 @@
  */
 import db from '/app/server/src/db/connection.js'
 import { seedArtistStages } from '/app/server/src/features/artist/workflow.service.js'
+import { generateInstallmentsForOrder } from '/app/server/src/features/order/order.service.js'
 import { existsSync, unlinkSync, renameSync } from 'fs'
 import sharp from 'sharp'
 
@@ -290,7 +291,7 @@ function seedDemoOrders(): void {
     const completedAt = s.status === 'done'
       ? new Date(Date.now() - 86400_000).toISOString().slice(0, 19).replace('T', ' ')
       : null
-    ins.run(
+    const r = ins.run(
       s.orderNo, id, s.clientQq, s.clientName, s.desc, s.status,
       idx + 1, // queue_position（生产 createOrder 分配 max+1；队列视图按此排序，NULL 会排最前乱序）
       s.price, cents,
@@ -299,6 +300,9 @@ function seedDemoOrders(): void {
       stageId, Math.round(cents * s.paidRatio),
       startDate, deadline, completedAt, created, created
     )
+    // 补分期节点：直插 orders 绕过了 createOrder 的分期生成，复用其同源函数补齐
+    // （幂等：函数内先查已有节点；本函数开头 DELETE 订单时 FK CASCADE 已清掉旧节点）
+    generateInstallmentsForOrder(Number(r.lastInsertRowid))
     void sizeId // styleSizeId 在 orders 表无对应列（快照体现在 quote_snapshot），此处仅校验尺寸存在
     console.log(`[orders] ${s.orderNo} ${s.status}（${s.styleName}/${s.sizeName} ¥${s.price}）`)
   })
@@ -354,6 +358,11 @@ function assertFieldIntegrity(): void {
     if (o.status !== 'done' && o.deadline == null) missing.push('deadline')
     if (o.status !== 'done' && o.current_stage_id == null) missing.push('current_stage_id')
     if (missing.length > 0) problems.push(`订单 ${o.order_no} 缺字段：${missing.join(', ')}`)
+    // C-4 延伸：正式区有报价的订单必须有 ≥1 条分期行（对齐 createOrder 的分期生成条件）
+    if (o.queue_zone === 'formal' && (o.total_price_cents as number) > 0) {
+      const instCount = (db.prepare('SELECT COUNT(*) as c FROM order_payment_installments WHERE order_id = ?').get(o.id) as { c: number }).c
+      if (instCount === 0) problems.push(`订单 ${o.order_no} 正式区有报价却无分期节点`)
+    }
   }
 
   // 2. 演示作品（画廊 aspect-ratio 占位依赖 width/height）
