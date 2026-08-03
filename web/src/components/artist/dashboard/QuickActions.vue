@@ -1,19 +1,23 @@
 <script>
 // #3: 快捷按钮候选池常量（命名导出，供 Settings.vue 配置区共用）
+// v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
+import { markRaw } from 'vue'
+import { Odometer, Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View } from '@element-plus/icons-vue'
+
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
 export const QUICK_ACTIONS_KEY = 'huiyue_quick_actions'
 
 /** 候选池（~10 个，命名与侧边栏 menu.* 完全一致） */
 export const QUICK_ACTION_POOL = [
-  { key: 'dashboard', icon: '📊', labelKey: 'menu.dashboard', route: '/dashboard' },
-  { key: 'queue', icon: '📋', labelKey: 'menu.queue', route: '/queue' },
-  { key: 'manual', icon: '✍️', labelKey: 'menu.manualOrder', route: '/orders?action=manual' },
-  { key: 'orders', icon: '📦', labelKey: 'menu.orders', route: '/orders' },
-  { key: 'guestbook', icon: '💬', labelKey: 'menu.guestbook', route: '/guestbook' },
-  { key: 'tiers', icon: '💰', labelKey: 'menu.tiers', route: '/tiers' },
-  { key: 'artworks', icon: '🖼️', labelKey: 'menu.artworks', route: '/artworks' },
-  { key: 'settings', icon: '⚙️', labelKey: 'menu.settings', route: '/settings' },
-  { key: 'preview', icon: '👁️', labelKey: 'menu.preview', route: null }
+  { key: 'dashboard', icon: markRaw(Odometer), labelKey: 'menu.dashboard', route: '/dashboard' },
+  { key: 'queue', icon: markRaw(Tickets), labelKey: 'menu.queue', route: '/queue' },
+  { key: 'manual', icon: markRaw(EditPen), labelKey: 'menu.manualOrder', route: '/orders?action=manual' },
+  { key: 'orders', icon: markRaw(Box), labelKey: 'menu.orders', route: '/orders' },
+  { key: 'guestbook', icon: markRaw(ChatDotRound), labelKey: 'menu.guestbook', route: '/guestbook' },
+  { key: 'tiers', icon: markRaw(Money), labelKey: 'menu.tiers', route: '/tiers' },
+  { key: 'artworks', icon: markRaw(Picture), labelKey: 'menu.artworks', route: '/artworks' },
+  { key: 'settings', icon: markRaw(Setting), labelKey: 'menu.settings', route: '/settings' },
+  { key: 'preview', icon: markRaw(View), labelKey: 'menu.preview', route: null }
 ]
 
 /** 默认 6 个（与改版前一致） */
@@ -45,7 +49,7 @@ export function readQuickActionsConfig() {
       @keydown.enter="go(action)"
       @keydown.space.prevent="go(action)"
     >
-      <span class="quick-icon">{{ action.icon }}</span>
+      <el-icon class="quick-icon"><component :is="action.icon" /></el-icon>
       <span class="quick-name">{{ $t(action.labelKey) }}</span>
     </div>
   </div>
@@ -93,7 +97,7 @@ function go(action) {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 .quick-card:active { transform: translateY(0); }
-.quick-icon { font-size: 22px; }
+.quick-icon { font-size: 22px; color: var(--el-color-primary); }
 .quick-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
 @media (max-width: 768px) {
   .quick-grid { grid-template-columns: repeat(3, 1fr); }

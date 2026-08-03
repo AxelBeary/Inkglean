@@ -69,7 +69,6 @@
 
         <!-- 终态：只读横幅，无操作 -->
         <div v-if="isTerminal" class="status-banner" :class="`status-banner--${order.status}`">
-          <span class="status-banner-icon">{{ order.status === 'delivered' ? '✅' : '❌' }}</span>
           <span class="status-banner-text">
             {{ $t(`common.orderStatus.${order.status}`) }}
             <template v-if="order.status === 'delivered' && order.completed_at"> · {{ $t('orderDetail.completedAt', { time: formatDate(order.completed_at) }) }}</template>
@@ -97,7 +96,7 @@
             </div>
           </div>
           <div class="track-on-hint">
-            <span class="track-on-hint-text">💡 {{ $t('orderDetail.enableTrackingHint') }}</span>
+            <span class="track-on-hint-text">{{ $t('orderDetail.enableTrackingHint') }}</span>
             <el-button size="small" type="primary" plain :loading="trackOnLoading" @click="enableTracking">{{ $t('orderDetail.enableTracking') }}</el-button>
           </div>
         </template>
@@ -105,7 +104,6 @@
 
       <!-- v0.31 F5: 下一节点应收（显著位置，点击跳转收款区） -->
       <div v-if="!isTerminal && nextDueInstallment" class="next-due-banner" @click="scrollToPayment">
-        <span class="next-due-icon">💰</span>
         <span class="next-due-text">
           {{ $t('orderDetail.nextDueLabel', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
         </span>
@@ -178,7 +176,7 @@
               <span class="ref-source-badge" :class="`ref-source-badge--${reference.source || 'client'}`">
                 {{ reference.source === 'artist' ? $t('orderDetail.sourceArtist') : $t('orderDetail.sourceClient') }}
               </span>
-              <!-- R44: 悬停操作组——✓设焦点（C56 手机端常驻）+ 删除；🔍已移除（单击图片即预览） -->
+              <!-- R44: 悬停操作组——✓设焦点（C56 手机端常驻）+ 删除；预览按钮已移除（单击图片即预览） -->
               <span class="ref-hover-actions">
                 <el-button size="small" circle :title="$t('orderDetail.setFocus')" @click.stop="selectFocusImage(reference)">✓</el-button>
                 <el-button size="small" circle type="danger" :title="$t('orderDetail.deleteRef')" @click.stop="deleteReference(reference)">✕</el-button>
@@ -228,7 +226,7 @@
           >
             <div class="tl-item" :class="{ 'tl-item--system': note.created_by === 'system' }">
               <div class="tl-head">
-                <span class="tl-type">{{ note.created_by === 'system' ? '🔄' : (note.image_path ? '🖼' : '📝') }} {{ note.created_by === 'system' ? $t('orderDetail.tlTypeSystem') : (note.image_path ? $t('orderDetail.tlTypeImage') : $t('orderDetail.tlTypeNote')) }}</span>
+                <span class="tl-type">{{ note.created_by === 'system' ? $t('orderDetail.tlTypeSystem') : (note.image_path ? $t('orderDetail.tlTypeImage') : $t('orderDetail.tlTypeNote')) }}</span>
                 <!-- R46: 画师备注悬停显示删除（系统备注不显示；触屏常驻，与参考图交互一致 C56） -->
                 <el-button
                   v-if="note.created_by !== 'system'"
@@ -283,7 +281,7 @@
       <el-card style="margin-top: 16px">
         <template #header>
           <div class="card-header">
-            <span>📋 {{ $t('orderDetail.logTitle') }}</span>
+            <span>{{ $t('orderDetail.logTitle') }}</span>
             <el-select v-model="logTypeFilter" size="small" style="width: 140px" @change="onLogTypeChange">
               <el-option :label="$t('orderDetail.logTypeAll')" value="" />
               <el-option v-for="lt in logTypeOptions" :key="lt.value" :label="lt.label" :value="lt.value" />
@@ -353,17 +351,17 @@
           </span>
           <!-- v0.31 五号方案A：改价按钮（后端 PUT /price 已有，前端首次接通） -->
           <el-button v-if="!isTerminal" size="small" text type="primary" @click="openPriceDialog">
-            ✏️ {{ $t('orderDetail.priceEditBtn') }}
+            {{ $t('orderDetail.priceEditBtn') }}
           </el-button>
         </div>
-        <p v-if="order.extraItems?.length" class="extra-auto-hint">💡 {{ $t('orderDetail.extraAutoHint') }}</p>
+        <p v-if="order.extraItems?.length" class="extra-auto-hint">{{ $t('orderDetail.extraAutoHint') }}</p>
       </el-card>
 
       <!-- plan-node-speech：客户沟通（QQ + 价格小结 + 话术预览 + 复制唤起QQ） -->
       <el-card style="margin-top: 16px">
         <template #header>
           <div class="card-header">
-            <span>💬 {{ $t('orderDetail.commTitle') }}</span>
+            <span>{{ $t('orderDetail.commTitle') }}</span>
           </div>
         </template>
         <div class="comm-body">
@@ -388,7 +386,7 @@
       <el-card style="margin-top: 16px">
         <template #header>
           <div class="card-header">
-            <span>💰 {{ $t('orderDetail.payTitle') }}</span>
+            <span>{{ $t('orderDetail.payTitle') }}</span>
             <el-button type="primary" size="small" @click="payDialogVisible = true">{{ $t('orderDetail.payAddBtn') }}</el-button>
           </div>
         </template>
@@ -455,7 +453,7 @@
       <el-card style="margin-top: 16px" v-if="order.deliverables?.length">
         <template #header>{{ $t('orderDetail.deliverFiles') }}</template>
         <div v-for="d in order.deliverables" :key="d.id" class="file-item">
-          <span>📄 {{ d.original_name }}</span>
+          <span>{{ d.original_name }}</span>
           <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
         </div>
       </el-card>
@@ -1421,7 +1419,6 @@ onMounted(() => {
 }
 .status-banner--delivered { background: var(--el-color-success-light-9); color: var(--el-color-success); }
 .status-banner--cancelled { background: var(--el-color-info-light-9); color: var(--el-color-info); }
-.status-banner-icon { font-size: 18px; }
 .status-banner-text { color: var(--text-primary); }
 /* 最后活动时间 */
 .status-last-active { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; }
@@ -1447,7 +1444,6 @@ onMounted(() => {
   cursor: pointer; transition: background 0.15s;
 }
 .next-due-banner:hover { background: var(--el-color-warning-light-8); }
-.next-due-icon { font-size: 18px; }
 .next-due-text { flex: 1; font-size: 14px; font-weight: 600; color: var(--el-color-warning-dark-2); }
 .next-due-arrow { font-size: 16px; color: var(--el-color-warning); }
 

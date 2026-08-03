@@ -206,11 +206,30 @@ function openEditStyle(style) {
   styleDialogVisible.value = true
 }
 
+/**
+ * 封面上传（v0.34 任务2：即时保存，对齐 R48 头像模式）
+ * 编辑已有画风：上传成功立即 PUT cover_image——不依赖「确定」，避免"传了图没保存"陷阱（用户 2026-08-03 已踩）
+ *   PUT 失败时回滚表单预览，避免"预览显示已保存、实际未保存"的不一致
+ * 新建画风：无 id 可保存，只写表单 + 醒目提示「确定后生效」
+ */
 async function uploadCover({ file }) {
   coverUploading.value = true
+  const prevCover = styleForm.cover_image
   try {
     const uploaded = await uploadApi.image(file)
     styleForm.cover_image = uploaded.filePath
+    if (editingStyleId.value) {
+      try {
+        await artistApi.updateArtStyle(editingStyleId.value, { cover_image: uploaded.filePath })
+        ElMessage.success(t('common.saved'))
+      } catch (putErr) {
+        styleForm.cover_image = prevCover // 回滚：预览与实际存储保持一致
+        ElMessage.error(putErr.message)
+      }
+    } else {
+      // 复用 tiers.exampleUploaded（"例图已上传，点保存后生效"）——locales 归二号，不新增 key
+      ElMessage({ type: 'warning', message: t('tiers.exampleUploaded'), duration: 5000 })
+    }
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

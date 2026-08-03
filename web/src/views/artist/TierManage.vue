@@ -191,16 +191,31 @@ function openTierDialog(row) {
   tierDialogVisible.value = true
 }
 
+/**
+ * 例图上传（v0.34 任务2：即时保存，对齐 R48 头像模式）
+ * 编辑已有档位：上传成功立即 PUT exampleImage——不依赖「保存」按钮（同画风封面陷阱）
+ * 新建档位：无 id 可保存，只写表单 + 提示「点保存后生效」
+ */
 async function uploadExample({ file }) {
   uploading.value = true
   try {
     const uploaded = await uploadApi.image(file)
     tierForm.exampleImage = uploaded.filePath
-    ElMessage.success(t('tiers.uploaded'))
+    await applyExampleImage(uploaded.filePath)
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
     uploading.value = false
+  }
+}
+
+/** 例图上传后的保存分派：编辑→立即 PUT 生效；新建→提示点保存后生效 */
+async function applyExampleImage(filePath) {
+  if (editingTierId.value) {
+    await artistApi.updateTier(editingTierId.value, { exampleImage: filePath })
+    ElMessage.success(t('tiers.exampleUpdated'))
+  } else {
+    ElMessage.info(t('tiers.exampleUploaded'))
   }
 }
 
@@ -218,7 +233,7 @@ async function handlePasteExampleFile(files) {
   try {
     const uploaded = await uploadApi.image(files[0])
     tierForm.exampleImage = uploaded.filePath
-    ElMessage.success(t('tiers.uploaded'))
+    await applyExampleImage(uploaded.filePath)
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

@@ -6,9 +6,9 @@
     <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
     <div class="view-switch">
       <el-radio-group v-model="viewMode" size="default" @change="saveViewMode">
-        <el-radio-button value="board">📋 {{ $t('queue.viewBoard') }}</el-radio-button>
-        <el-radio-button value="calendar">📅 {{ $t('queue.viewCalendar') }}</el-radio-button>
-        <el-radio-button value="timeline">📊 {{ $t('queue.viewTimeline') }}</el-radio-button>
+        <el-radio-button value="board">{{ $t('queue.viewBoard') }}</el-radio-button>
+        <el-radio-button value="calendar">{{ $t('queue.viewCalendar') }}</el-radio-button>
+        <el-radio-button value="timeline">{{ $t('queue.viewTimeline') }}</el-radio-button>
       </el-radio-group>
     </div>
 

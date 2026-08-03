@@ -2,7 +2,7 @@
   <div class="stage-list">
     <!-- #8: 话术变量公共区（只显示一次，点击插入当前聚焦的话术编辑框） -->
     <div v-if="!readonly" class="speech-vars-common">
-      <span class="speech-vars-label">💬 {{ $t('workflow.speechVarCommon') }}</span>
+      <span class="speech-vars-label">{{ $t('workflow.speechVarCommon') }}</span>
       <button
         v-for="v in SPEECH_VARS" :key="v" type="button" class="speech-var"
         :title="$t('workflow.speechVarHint')"

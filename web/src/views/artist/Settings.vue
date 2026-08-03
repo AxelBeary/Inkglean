@@ -171,7 +171,9 @@
               role="button"
               @keyup.enter="form.templateId = tpl.id"
             >
-              <div class="template-preview">{{ tpl.preview }}</div>
+              <div class="template-preview">
+                <el-icon v-for="(icon, idx) in tpl.preview" :key="idx" class="template-preview-icon"><component :is="icon" /></el-icon>
+              </div>
               <div class="template-info">
                 <div class="template-name">{{ tpl.name }}</div>
                 <div class="template-desc">{{ tpl.desc }}</div>
@@ -252,13 +254,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch, markRaw } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
+// v0.34 任务3：模板卡预览 SVG 图标
+import { Notebook, Brush, Picture, Sunny, Collection, Moon, Document, MagicStick } from '@element-plus/icons-vue'
 // #44: 偏好已拆出为独立页面（/preferences），此处只保留主页设置
 
 const { t } = useI18n()
@@ -322,7 +326,7 @@ const LINK_ICONS = [
   { value: 'xiaohongshu', label: '红 小红书' },
   { value: 'lofter', label: 'L Lofter' },
   { value: 'douyin', label: '抖 抖音' },
-  { value: 'link', label: '🔗 通用链接' }
+  { value: 'link', label: '通用链接' }
 ]
 
 // R58-8: 平台链接手动选择枚举（与后端 KNOWN_PLATFORMS 一致，不含 other——other 由"自动识别"兜底）
@@ -476,11 +480,12 @@ function removeTag(index) {
   form.inspirationTags.splice(index, 1)
 }
 
+// v0.34 任务3：模板卡预览 emoji 改 SVG（markRaw 防组件对象被 reactive 代理）
 const templates = computed(() => [
-  { id: 'atelier', name: t('templates.atelier'), desc: t('templates.atelierDesc'), preview: '📖 🖌' },
-  { id: 'classic', name: t('templates.classic'), desc: t('templates.classicDesc'), preview: '🖼 ☀️' },
-  { id: 'gallery', name: t('templates.gallery'), desc: t('templates.galleryDesc'), preview: '🏛 🌙' },
-  { id: 'folio',   name: t('templates.folio'),   desc: t('templates.folioDesc'),   preview: '📄 ✨' }
+  { id: 'atelier', name: t('templates.atelier'), desc: t('templates.atelierDesc'), preview: [markRaw(Notebook), markRaw(Brush)] },
+  { id: 'classic', name: t('templates.classic'), desc: t('templates.classicDesc'), preview: [markRaw(Picture), markRaw(Sunny)] },
+  { id: 'gallery', name: t('templates.gallery'), desc: t('templates.galleryDesc'), preview: [markRaw(Collection), markRaw(Moon)] },
+  { id: 'folio',   name: t('templates.folio'),   desc: t('templates.folioDesc'),   preview: [markRaw(Document), markRaw(MagicStick)] }
 ])
 
 const palettes = computed(() => [
@@ -616,9 +621,10 @@ onMounted(async () => {
 .template-card:hover { border-color: var(--el-color-primary-light-5); }
 .template-card.active { border-color: var(--el-color-primary); box-shadow: 0 0 0 1px var(--el-color-primary); }
 .template-preview {
-  height: 80px; display: flex; align-items: center; justify-content: center;
+  height: 80px; display: flex; align-items: center; justify-content: center; gap: 8px;
   font-size: 28px; background: var(--bg-inset);
 }
+.template-preview-icon { color: var(--el-color-primary); opacity: 0.75; }
 .template-info { padding: 12px; }
 .template-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
 .template-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }

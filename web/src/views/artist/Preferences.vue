@@ -39,7 +39,7 @@
               :value="opt.key"
               class="quick-config-item"
             >
-              {{ opt.icon }} {{ $t(opt.labelKey) }}
+              <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon> {{ $t(opt.labelKey) }}
             </el-checkbox>
           </el-checkbox-group>
           <div class="form-hint">{{ $t('settings.quickHint') }}</div>
@@ -137,4 +137,6 @@ onMounted(async () => {
 /* #3: 快捷按钮配置区 */
 .quick-config { display: flex; flex-direction: column; gap: 8px; }
 .quick-config-item { margin-right: 0; height: auto; }
+/* v0.34 任务3：icon 改 SVG 后与文字对齐 */
+.quick-config-icon { font-size: 15px; vertical-align: -2px; color: var(--el-color-primary); }
 </style>

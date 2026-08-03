@@ -138,7 +138,7 @@
               <div class="addon-groups">
                 <div v-for="group in addonGroups" :key="group.category" class="addon-group">
                   <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
-                    <span>{{ group.icon }} {{ group.label }}</span>
+                    <span>{{ group.label }}</span>
                     <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
                   </div>
                   <div v-show="!group.collapsed" class="addon-items">
@@ -365,11 +365,11 @@ function selectTier(tier) {
 
 // ─── 增项分组 ───
 const CATEGORY_META = {
-  expression: { icon: '🎭', key: 'catExpression' },
-  outfit: { icon: '👗', key: 'catOutfit' },
-  background: { icon: '🏞', key: 'catBackground' },
-  weapon: { icon: '⚔️', key: 'catWeapon' },
-  other: { icon: '✨', key: 'catOther' }
+  expression: { key: 'catExpression' },
+  outfit: { key: 'catOutfit' },
+  background: { key: 'catBackground' },
+  weapon: { key: 'catWeapon' },
+  other: { key: 'catOther' }
 }
 
 const availableAddons = computed(() => {
@@ -382,8 +382,8 @@ const addonGroups = computed(() => {
   const groups = {}
   for (const a of availableAddons.value) {
     if (!groups[a.category]) {
-      const meta = CATEGORY_META[a.category] || { icon: '📦', key: 'catOther' }
-      groups[a.category] = { category: a.category, icon: meta.icon, label: t(`manualOrder.${meta.key}`), collapsed: false, items: [] }
+      const meta = CATEGORY_META[a.category] || { key: 'catOther' }
+      groups[a.category] = { category: a.category, label: t(`manualOrder.${meta.key}`), collapsed: false, items: [] }
     }
     groups[a.category].items.push(a)
   }
