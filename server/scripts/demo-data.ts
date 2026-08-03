@@ -261,6 +261,11 @@ function seedDemoOrders(): void {
     { orderNo: 'ALICE-004', styleName: '默认', sizeName: '头像', price: 50, status: 'done', stage: '交付', clientQq: '99004', clientName: '演示客户D', paidRatio: 1, daysAgo: 21, desc: '简约头像，已交付' }
   ]
 
+  // M4 字段清单（与 orders 表展示依赖对齐，漏列 = 静默 NULL，下方 assertFieldIntegrity 兜底）：
+  //   order_no / artist_id / client_qq / client_name / description / priority / status / source /
+  //   client_notify / queue_position / price_snapshot / total_price_cents / quote_snapshot /
+  //   final_price_cents / queue_zone / current_stage_id / paid_total_cents /
+  //   start_date / deadline / completed_at / created_at / updated_at
   const ins = db.prepare(`
     INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source,
       client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone,
@@ -324,6 +329,48 @@ async function backfillMissingDims(): Promise<void> {
   console.log(`[backfill] 完成：成功 ${ok}，失败 ${fail}`)
 }
 
+// ─── 6. M4 修复：字段完整性断言（两次事故：deadline / width-height 漏字段静默通过） ───
+
+/**
+ * 对演示数据做字段清单断言：展示层依赖的字段一个不能静默 NULL，否则抛错中止。
+ * 清单来源：看板/时间条（queue_position、start_date、deadline、current_stage_id）、
+ * 收款展示（price_snapshot、total_price_cents、final_price_cents、paid_total_cents）、
+ * 画廊占位（width、height）。
+ */
+function assertFieldIntegrity(): void {
+  const problems: string[] = []
+
+  // 1. 演示订单
+  const orders = db.prepare("SELECT * FROM orders WHERE order_no LIKE 'ALICE-%'").all() as Array<Record<string, unknown> & { order_no: string; status: string }>
+  for (const o of orders) {
+    const missing: string[] = []
+    if (o.queue_position == null) missing.push('queue_position')
+    if (o.price_snapshot == null) missing.push('price_snapshot')
+    if (o.total_price_cents == null) missing.push('total_price_cents')
+    if (o.final_price_cents == null) missing.push('final_price_cents')
+    if (o.paid_total_cents == null) missing.push('paid_total_cents')
+    if (o.start_date == null) missing.push('start_date')
+    // done 终态不要求 deadline/current_stage_id（与 OrderSeed.deadlineDays 注释一致）
+    if (o.status !== 'done' && o.deadline == null) missing.push('deadline')
+    if (o.status !== 'done' && o.current_stage_id == null) missing.push('current_stage_id')
+    if (missing.length > 0) problems.push(`订单 ${o.order_no} 缺字段：${missing.join(', ')}`)
+  }
+
+  // 2. 演示作品（画廊 aspect-ratio 占位依赖 width/height）
+  const arts = db.prepare(`
+    SELECT id, image_path, width, height FROM artworks
+    WHERE image_path LIKE '%/alice-p%.jpg' OR image_path LIKE '%/bob-p%.jpg' OR image_path LIKE '%/carol-p%.jpg'
+  `).all() as Array<{ id: number; image_path: string; width: number | null; height: number | null }>
+  for (const a of arts) {
+    if (a.width == null || a.height == null) problems.push(`作品 #${a.id}（${a.image_path}）缺 width/height`)
+  }
+
+  if (problems.length > 0) {
+    throw new Error('字段完整性断言失败：\n  - ' + problems.join('\n  - '))
+  }
+  console.log(`[integrity] 字段完整性断言通过（订单 ${orders.length} 条，作品 ${arts.length} 张）`)
+}
+
 // ─── 主流程 ───
 
 async function main(): Promise<void> {
@@ -333,6 +380,7 @@ async function main(): Promise<void> {
   await seedCarol()
   seedDemoOrders()
   await backfillMissingDims()
+  assertFieldIntegrity()
   console.log('=== 完成 ===')
 }
 

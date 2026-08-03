@@ -325,6 +325,10 @@ export function createTier(artistId: number, fields: Record<string, unknown>): T
   const price = fields.price
   const description = fields.description
   const exampleImage = fields.exampleImage ?? fields.example_image
+  // M1 修复：示例图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
+  if (exampleImage && (String(exampleImage).includes('..') || !String(exampleImage).startsWith('images/'))) {
+    throw new AppError(E.ILLEGAL_PATH)
+  }
   const workDays = fields.workDays ?? fields.work_days
   const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM price_tiers WHERE artist_id = ?').get(artistId) as { m: number | null } | undefined
   const sortOrder = (maxOrder?.m ?? 0) + 1
@@ -347,6 +351,10 @@ export function updateTier(tierId: number, fields: Record<string, unknown>): Tie
   for (const [key, value] of Object.entries(fields)) {
     const dbKey = keyMap[key] || key
     if (allowed.includes(dbKey)) {
+      // M1 修复：示例图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
+      if (dbKey === 'example_image' && value && (String(value).includes('..') || !String(value).startsWith('images/'))) {
+        throw new AppError(E.ILLEGAL_PATH)
+      }
       updates.push(`${dbKey} = ?`)
       values.push(value)
     }

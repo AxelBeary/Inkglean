@@ -786,6 +786,11 @@ export default async function orderRoutes(fastify: any) {
     }
   }, async (request: any) => {
     const { imagePath, mode } = request.body as any
+    // M2 修复：路由层路径校验（纵深防御）— 焦点图必须来自 references/ 目录，拒绝路径穿越。
+    // 服务层仍校验参考图归属该订单（setFocusImage），此处只补格式层守卫。
+    if (imagePath && (imagePath.includes('..') || !imagePath.startsWith('references/'))) {
+      throw new AppError(E.ILLEGAL_PATH)
+    }
     const order = orderGalleryService.setFocusImage(request.order.id, imagePath, mode)
     // Bug fix: setFocusImage 返回的订单需要签名 URL（与 GET orders/:id 一致）
     return signOrderUrls(order)
