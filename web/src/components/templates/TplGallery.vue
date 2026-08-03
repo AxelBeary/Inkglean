@@ -26,59 +26,110 @@
       {{ $t('gallery.filterEmpty') }}
     </p>
 
-    <!-- key 随筛选变化 → 淡出淡入平滑过渡，不整页刷新 -->
+    <!-- key 随筛选变化 → 淡出淡入平滑过渡，不整页刷新；筛选切换同时把翻页重置到第一张 -->
     <Transition name="tpl-gallery-swap" mode="out-in">
-      <div :key="activeSizeId ?? 'all'" class="tpl-gallery" :class="`tpl-gallery--${layout}`">
-        <div
-          v-for="(art, index) in filteredArtworks"
-          :key="art.id"
-          class="tpl-gallery-item tpl-reveal"
+      <div :key="activeSizeId ?? 'all'" class="tpl-gallery tpl-gallery--album tpl-reveal">
+        <!-- v0.36: 画册模式 —— 一次一张大图居中，左右箭头翻页（单张作品时不渲染箭头/页码） -->
+        <button
+          v-if="filteredArtworks.length > 1"
+          type="button"
+          class="tpl-album-arrow tpl-album-arrow--prev"
+          :aria-label="$t('gallery.prev')"
+          :disabled="currentIndex <= 0"
+          @click="goPrev"
         >
-          <!-- #15: aspect-ratio 占位——后端返回 width/height 时精确预留高度，lazy 加载零 reflow；缺失时骨架兜底 -->
-          <!-- v0.35 F6: 点击打开自定义 lightbox（大图 + 档位标签 + 描述）；hover 浮层桌面端显示标签 -->
-          <div class="tpl-gallery-img-wrap" :style="ratioStyle(art)" @click="openLightbox(index)">
+          ‹
+        </button>
+
+        <!-- 舞台：pointer 事件处理触摸/鼠标滑动翻页（touch-action: pan-y 保留纵向滚动） -->
+        <div
+          class="tpl-album-stage"
+          :class="{ 'tpl-album-stage--peek': peek }"
+          @pointerdown="onSwipeStart"
+          @pointerup="onSwipeEnd"
+          @pointercancel="onSwipeCancel"
+        >
+          <!-- v0.36: 侧露页（peek，Gallery 模板启用）——相邻页缩小露出，点击翻到该页 -->
+          <button
+            v-if="peek && prevArt"
+            type="button"
+            class="tpl-album-peek tpl-album-peek--prev"
+            :aria-label="$t('gallery.prev')"
+            @click="goPrev"
+          >
             <el-image
-              :src="imgUrl(art.image_path)"
+              :src="imgUrl(prevArt.image_path)"
               fit="cover"
-              class="tpl-gallery-img"
-              :alt="art.title || $t('artistHome.artworks')"
-              lazy
-            >
-              <!-- #50: 加载占位——无 width/height 时兜底防跳动 -->
-              <template #placeholder>
-                <div class="tpl-gallery-skeleton" />
-              </template>
-            </el-image>
-            <!-- v0.35 F6: hover 浮层（仅桌面）——默认卡片干净无叠加，hover 才显示档位标签+描述；点浮层空白处开大图（一号审核补：原 @click.stop 无 handler 造成点击死区） -->
-            <div v-if="hasGalleryMeta(art)" class="tpl-gallery-hover" @click.stop="openLightbox(index)">
-              <p v-if="art.description" class="tpl-gallery-hover-desc">{{ art.description }}</p>
-              <div v-if="tagsOf(art).length" class="tpl-gallery-hover-tags">
-                <button
-                  v-for="tag in tagsOf(art)" :key="tag.sizeId"
-                  type="button" class="tpl-gallery-tag"
-                  @click.stop="orderByTag(tag)"
-                >
-                  {{ tag.label }}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="tpl-gallery-meta">
-            <p class="tpl-gallery-caption" v-if="art.title">{{ art.title }}</p>
-            <!-- F1: 点赞（颜色/大小由模板 class 覆盖） -->
-            <ArtworkLikeButton
-              class="tpl-gallery-like"
-              :artwork-id="art.id"
-              :initial-count="art.like_count || 0"
-              :liked="isLiked(art.id)"
-              :subdomain="subdomain"
+              class="tpl-album-peek-img"
+              :alt="prevArt.title || $t('artistHome.artworks')"
             />
-          </div>
+          </button>
+
+          <!-- 当前页：key 变化触发淡入+微位移过渡 -->
+          <Transition name="tpl-album-swap" mode="out-in">
+            <figure v-if="currentArt" class="tpl-album-page" :key="currentArt.id">
+              <div class="tpl-album-frame" @click="openLightbox(currentIndex)">
+                <el-image
+                  :src="imgUrl(currentArt.image_path)"
+                  fit="contain"
+                  class="tpl-album-img"
+                  :alt="currentArt.title || $t('artistHome.artworks')"
+                >
+                  <!-- #50: 加载占位兜底 -->
+                  <template #placeholder>
+                    <div class="tpl-gallery-skeleton" />
+                  </template>
+                </el-image>
+              </div>
+              <figcaption class="tpl-album-meta">
+                <p class="tpl-gallery-caption" v-if="currentArt.title">{{ currentArt.title }}</p>
+                <!-- F1: 点赞（颜色/大小由模板 class 覆盖） -->
+                <ArtworkLikeButton
+                  class="tpl-gallery-like"
+                  :artwork-id="currentArt.id"
+                  :initial-count="currentArt.like_count || 0"
+                  :liked="isLiked(currentArt.id)"
+                  :subdomain="subdomain"
+                />
+              </figcaption>
+            </figure>
+          </Transition>
+
+          <button
+            v-if="peek && nextArt"
+            type="button"
+            class="tpl-album-peek tpl-album-peek--next"
+            :aria-label="$t('gallery.next')"
+            @click="goNext"
+          >
+            <el-image
+              :src="imgUrl(nextArt.image_path)"
+              fit="cover"
+              class="tpl-album-peek-img"
+              :alt="nextArt.title || $t('artistHome.artworks')"
+            />
+          </button>
         </div>
+
+        <button
+          v-if="filteredArtworks.length > 1"
+          type="button"
+          class="tpl-album-arrow tpl-album-arrow--next"
+          :aria-label="$t('gallery.next')"
+          :disabled="currentIndex >= filteredArtworks.length - 1"
+          @click="goNext"
+        >
+          ›
+        </button>
       </div>
     </Transition>
 
-    <!-- v0.35 F6: 大图 lightbox（标签+描述只在这里和 hover 出现，网格小图保持干净） -->
+    <!-- v0.36: 页码指示（3 / 12）；单张作品时隐藏 -->
+    <p v-if="filteredArtworks.length > 1" class="tpl-album-counter" aria-live="polite">
+      {{ currentIndex + 1 }} / {{ filteredArtworks.length }}
+    </p>
+
+    <!-- v0.35 F6: 大图 lightbox（画册是浏览，灯箱是细看，两层并存） -->
     <el-dialog
       v-model="lightboxVisible"
       class="tpl-gallery-lightbox"
@@ -146,7 +197,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useArtistData, buildGalleryFilters, filterArtworksBySize } from '../../composables/useArtistData.js'
 import ArtworkLikeButton from '../shared/ArtworkLikeButton.vue'
@@ -161,8 +212,11 @@ const props = defineProps({
    * 端点失败/为空时回退 artworks prop（行为与旧版一致，筛选行隐藏）
    */
   gallery: { type: Object, default: null },
-  /** grid: 等高网格 | editorial: 大小交错 | masonry: 瀑布流（v0.19 默认） */
-  layout: { type: String, default: 'masonry' },
+  /**
+   * v0.36: 侧露页开关——相邻页缩小露出在当前页两侧（Gallery 模板启用的大小交错节奏）。
+   * 其他模板不传，保持单张大图居中翻页。
+   */
+  peek: { type: Boolean, default: false },
   /** F1: 点赞 localStorage 按画师隔离（huiyue_liked_${subdomain}） */
   subdomain: { type: String, default: '' }
 })
@@ -186,6 +240,57 @@ function setFilter(sizeId) {
 /** 当前显示的作品：默认全部混编；选中档位 → 只显示标注该档位的作品 */
 const filteredArtworks = computed(() => filterArtworksBySize(displayArtworks.value, activeSizeId.value))
 
+// ─── v0.36: 画册翻页状态 ───
+const currentIndex = ref(0)
+const currentArt = computed(() => filteredArtworks.value[currentIndex.value] || null)
+/** 侧露页数据（peek 模式）：越界返回 null → 模板侧不渲染 */
+const prevArt = computed(() => filteredArtworks.value[currentIndex.value - 1] || null)
+const nextArt = computed(() => filteredArtworks.value[currentIndex.value + 1] || null)
+
+function goPrev() {
+  if (currentIndex.value > 0) currentIndex.value -= 1
+}
+function goNext() {
+  if (currentIndex.value < filteredArtworks.value.length - 1) currentIndex.value += 1
+}
+
+// 筛选切换 → 翻页重置到第一张；列表变短（如数据刷新）→ 页码收敛回有效区间
+watch(activeSizeId, () => { currentIndex.value = 0 })
+watch(() => filteredArtworks.value.length, (len) => {
+  if (currentIndex.value > len - 1) currentIndex.value = Math.max(0, len - 1)
+})
+
+// 键盘 ←/→ 翻页（灯箱打开时让位给灯箱；输入框聚焦时不抢按键）
+function onKeydown(e) {
+  if (lightboxVisible.value) return
+  const el = document.activeElement
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+  if (e.key === 'ArrowLeft') goPrev()
+  else if (e.key === 'ArrowRight') goNext()
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
+// 触摸/鼠标滑动翻页（pointer events）：横向位移超阈值且以横向为主 → 翻页
+let swipeStart = null
+const justSwiped = ref(false)
+function onSwipeStart(e) {
+  swipeStart = { x: e.clientX, y: e.clientY }
+}
+function onSwipeEnd(e) {
+  if (!swipeStart) return
+  const dx = e.clientX - swipeStart.x
+  const dy = e.clientY - swipeStart.y
+  swipeStart = null
+  if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return
+  justSwiped.value = true
+  if (dx < 0) goNext()
+  else goPrev()
+  // click 在 pointerup 之后同步派发，微任务里复位即可吞掉本次点击
+  setTimeout(() => { justSwiped.value = false }, 0)
+}
+function onSwipeCancel() { swipeStart = null }
+
 /**
  * 作品的档位标签：art.size_tags（对象数组）→ 按 style_size_id 映射到筛选条目（含 styleId/label）。
  * 档位被画师删除后后端 CASCADE 清理，且 tags 里的 id 在 filters 中查不到 → 自动失效不残留（REQ-024 F6 验收 8）。
@@ -195,10 +300,6 @@ function tagsOf(art) {
   if (!Array.isArray(art.size_tags)) return []
   return art.size_tags.map(t => tagIndex.value.get(t.style_size_id)).filter(Boolean)
 }
-/** 有描述或档位标签才算有展示元数据（hover 浮层/lightbox 信息区显示依据） */
-function hasGalleryMeta(art) {
-  return !!art.description || tagsOf(art).length > 0
-}
 
 // ─── v0.35 F6: 大图 lightbox ───
 const lightboxVisible = ref(false)
@@ -206,6 +307,8 @@ const lightboxIndex = ref(0)
 const lightboxArt = computed(() => filteredArtworks.value[lightboxIndex.value] || null)
 const lightboxTags = computed(() => (lightboxArt.value ? tagsOf(lightboxArt.value) : []))
 function openLightbox(index) {
+  // 刚滑动翻页过 → 本次 click 属于滑动收尾，不开灯箱
+  if (justSwiped.value) return
   lightboxIndex.value = index
   lightboxVisible.value = true
 }
@@ -217,11 +320,6 @@ function orderByTag(tag) {
     path: `/artist/${props.subdomain}/order`,
     query: { styleId: tag.styleId, sizeId: tag.sizeId }
   })
-}
-
-// #15: 后端返回 width/height 时生成 aspect-ratio 样式，精确预留高度防 reflow；缺失时返回空对象，骨架兜底
-function ratioStyle(art) {
-  return art.width && art.height ? { aspectRatio: `${art.width} / ${art.height}` } : {}
 }
 
 // F1: 初始已赞集合（localStorage，按画师隔离）
@@ -283,76 +381,133 @@ function isLiked(id) { return likedIds.has(id) }
   opacity: 0;
 }
 
-/* ===== grid：等高网格（classic）===== */
-.tpl-gallery--grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+/* ===== v0.36: 画册模式（一次一张大图居中，左右翻页；区分度由各模板 :deep 覆盖） ===== */
+.tpl-gallery--album {
+  display: flex;
+  align-items: center;
   gap: 14px;
 }
-.tpl-gallery--grid .tpl-gallery-img {
-  width: 100%;
-  height: auto;
-  border-radius: 10px;
-  cursor: zoom-in;
+/* 舞台：固定高度，图片 contain 完整呈现；peek 模式下三列（侧露-当前页-侧露） */
+.tpl-album-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 62vh;
+  min-height: 340px;
+  touch-action: pan-y; /* 横向滑动交给翻页，纵向滚动不受影响 */
+  user-select: none;
+  -webkit-user-select: none;
 }
+.tpl-album-stage--peek { gap: 18px; }
 
-/* ===== editorial：大小交错（gallery）===== */
-.tpl-gallery--editorial {
+.tpl-album-page {
+  margin: 0;
+  height: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+}
+.tpl-album-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
   align-items: center;
-  gap: 48px;
-}
-.tpl-gallery--editorial .tpl-gallery-item {
-  width: 82%;
-  text-align: center;
-}
-.tpl-gallery--editorial .tpl-gallery-item:nth-child(even) {
-  width: 56%;
-  align-self: flex-end;
-  margin-right: 6%;
-}
-.tpl-gallery--editorial .tpl-gallery-img {
-  width: 100%;
-  height: auto;
+  justify-content: center;
   cursor: zoom-in;
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.tpl-gallery--editorial .tpl-gallery-item:hover .tpl-gallery-img {
-  transform: scale(1.02);
+.tpl-album-img {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+/* el-image 内部 img 默认 width/height:100%——覆盖为高度撑满、宽度按原图比例，contain 不拉伸 */
+.tpl-album-img :deep(img) {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+.tpl-album-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
 }
 
-/* ===== masonry：瀑布流（folio）===== */
-.tpl-gallery--masonry {
-  columns: 2;
-  column-gap: 20px;
+/* 翻页箭头（复用灯箱箭头的视觉语言；位于舞台两侧，disabled 时留位淡出） */
+.tpl-album-arrow {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--pal-border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pal-surface) 82%, transparent);
+  color: var(--pal-text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-.tpl-gallery--masonry .tpl-gallery-item {
-  break-inside: avoid;
-  margin-bottom: 20px;
-  background: var(--pal-surface);
+.tpl-album-arrow:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.tpl-album-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+/* 侧露页基线（具体尺寸/透明度由启用模板覆盖） */
+.tpl-album-peek {
+  flex-shrink: 0;
+  width: 11%;
+  height: 56%;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0.5;
+  cursor: pointer;
   overflow: hidden;
-  border-radius: 4px;
+  transition: opacity 0.25s ease;
 }
-.tpl-gallery--masonry .tpl-gallery-img {
+.tpl-album-peek:hover { opacity: 0.85; }
+.tpl-album-peek-img {
   width: 100%;
-  display: block;
-  cursor: zoom-in;
+  height: 100%;
+}
+.tpl-album-peek-img :deep(img) {
+  object-fit: cover;
+}
+
+/* 切页过渡：淡入 + 微位移（克制，不做翻页翻转） */
+.tpl-album-swap-enter-active,
+.tpl-album-swap-leave-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.tpl-album-swap-enter-from {
+  opacity: 0;
+  transform: translateX(14px);
+}
+.tpl-album-swap-leave-to {
+  opacity: 0;
+  transform: translateX(-14px);
+}
+
+/* 页码指示 */
+.tpl-album-counter {
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--pal-text-dim);
+  margin: 16px 0 0;
 }
 
 /* ===== 通用 ===== */
-/* #15: aspect-ratio 占位容器——有 width/height 时撑出精确高度，el-image 填满；缺失时高度由内容决定，骨架兜底 */
-.tpl-gallery-img-wrap {
-  width: 100%;
-  position: relative; /* v0.35 F6: hover 浮层定位锚点 */
-}
-.tpl-gallery-img-wrap .tpl-gallery-img {
-  display: block;
-  height: 100%;
-}
-/* #15: 有 aspect-ratio 时占位区填满容器（无 ratio 时高度链为 auto，由骨架 min-height 兜底） */
-.tpl-gallery-img-wrap :deep(.el-image__placeholder) { height: 100%; }
-/* #50: 加载骨架占位——无 width/height 时兜底防瀑布流跳动 */
+/* #50: 加载骨架占位（画册 placeholder 兜底） */
 .tpl-gallery-skeleton {
   width: 100%;
   height: 100%;
@@ -364,13 +519,6 @@ function isLiked(id) { return likedIds.has(id) }
 @keyframes tpl-gallery-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-.tpl-gallery-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 12px 0 0;
 }
 .tpl-gallery-caption {
   margin: 0;
@@ -387,44 +535,8 @@ function isLiked(id) { return likedIds.has(id) }
   transition: color 0.2s;
 }
 .tpl-gallery-like:hover { color: var(--color-primary); }
-.tpl-gallery--masonry .tpl-gallery-meta {
-  padding: 12px 16px;
-  margin: 0;
-}
 
-/* ===== v0.35 F6: hover 浮层（桌面端）——默认隐藏，卡片保持干净 ===== */
-.tpl-gallery-hover {
-  position: absolute;
-  inset: auto 0 0 0;
-  display: none;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, #000 62%, transparent);
-  color: #fff;
-  cursor: default;
-}
-.tpl-gallery-hover-desc {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.tpl-gallery-hover-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-@media (hover: hover) {
-  .tpl-gallery-img-wrap:hover .tpl-gallery-hover {
-    display: flex;
-  }
-}
-
-/* v0.35 F6: 档位标签（hover 浮层 + lightbox 共用；深色底白字，点击跳下单预选） */
+/* v0.35 F6: 档位标签（lightbox 用；深色底白字，点击跳下单预选） */
 .tpl-gallery-tag {
   padding: 3px 10px;
   border: 1px solid color-mix(in srgb, #fff 55%, transparent);
@@ -531,13 +643,17 @@ function isLiked(id) { return likedIds.has(id) }
 }
 
 @media (max-width: 768px) {
-  .tpl-gallery--editorial .tpl-gallery-item,
-  .tpl-gallery--editorial .tpl-gallery-item:nth-child(even) {
-    width: 100%;
-    margin-right: 0;
+  .tpl-album-stage {
+    height: 50vh;
+    min-height: 280px;
   }
-  .tpl-gallery--masonry {
-    columns: 1;
+  .tpl-album-arrow {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+  .tpl-album-peek {
+    width: 9%;
   }
   .tpl-gallery-filters {
     justify-content: flex-start;

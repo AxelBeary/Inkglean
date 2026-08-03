@@ -6,7 +6,7 @@
       <TplAnnouncement :artist="artist" class="atelier-announcement" />
     </div>
 
-    <!-- 作品画廊：画册式大留白 -->
+    <!-- v0.36: 作品画廊——画册式左右翻页（Atelier：画室纸片感——白衬厚边微旋转，宋体题注） -->
     <section class="atelier-section tpl-reveal" v-if="galleryArtworks.length">
       <p class="tpl-section-label atelier-label">{{ $t('artistHome.artworks') }}</p>
       <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" />
@@ -263,6 +263,41 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 .atelier-section--alt {
   background: var(--pal-bg-alt);
   border-top: 2px solid var(--atelier-accent-2);
+}
+
+/* v0.36: 画册翻页 — atelier：画室纸片感——白衬厚边拍立得装裱 + 微旋转（呼应封面拍立得与留言条语言），
+   宋体题注，装饰色细线页码；hover 回正，手作温度 */
+.atelier :deep(.tpl-album-frame) {
+  padding: 14px;
+  background: var(--pal-surface);
+  border: 1px solid var(--pal-border);
+  box-shadow: 0 20px 48px color-mix(in srgb, var(--pal-text) 16%, transparent);
+  transform: rotate(-0.8deg);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s;
+}
+.atelier :deep(.tpl-album-frame:hover) {
+  transform: rotate(0deg);
+  box-shadow: 0 26px 60px color-mix(in srgb, var(--pal-text) 22%, transparent);
+}
+.atelier :deep(.tpl-album-meta) {
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+}
+.atelier :deep(.tpl-gallery-caption) {
+  flex: 0 1 auto;
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  font-size: 14px;
+  color: var(--pal-text);
+}
+.atelier :deep(.tpl-album-arrow) {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--pal-text) 10%, transparent);
+}
+.atelier :deep(.tpl-album-counter) {
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  color: var(--atelier-accent);
+  opacity: 0.85;
 }
 
 /* F4: 留言板 — atelier：纸面留言条（宋体、米色卡片、微旋转，手账感） */

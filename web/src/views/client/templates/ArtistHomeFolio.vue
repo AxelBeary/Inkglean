@@ -33,7 +33,7 @@
       <TplAnnouncement :artist="artist" class="folio-announcement" />
     </div>
 
-    <!-- 作品（瀑布流） -->
+    <!-- v0.36: 作品——画册式左右翻页（沉浸暗调：图占满画幅，元信息压角）；历史注释"瀑布流"为 v0.19 前遗留，实际早已统一走共享组件 -->
     <section id="gallery" class="folio-section tpl-reveal" v-if="galleryArtworks.length">
       <div class="folio-inner">
         <h2 class="folio-title">{{ $t('artistHome.artworks') }}</h2>
@@ -388,6 +388,41 @@ onUnmounted(() => {
   text-align: center;
   color: var(--pal-text);
   margin: 0 0 48px;
+}
+
+/* v0.36: 画册翻页 — folio：沉浸暗调——图占满画幅（无边框无内边距），题注与点赞压右下角；
+   暗色配色（墨）下天然沉浸，亮色配色下靠压角信息 + 满幅构图保持编辑感 */
+.folio :deep(.tpl-album-frame) {
+  background: transparent;
+}
+/* 压角 meta 的定位上下文（当前页容器） */
+.folio :deep(.tpl-album-page) {
+  position: relative;
+}
+.folio :deep(.tpl-album-meta) {
+  position: absolute;
+  right: 4px;
+  bottom: 12px;
+  gap: 12px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, #000 42%, transparent);
+  color: #fff;
+  pointer-events: auto;
+}
+.folio :deep(.tpl-gallery-caption) {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+.folio :deep(.tpl-gallery-like) {
+  color: rgba(255, 255, 255, 0.85);
+}
+.folio :deep(.tpl-gallery-like:hover) {
+  color: #fff;
+}
+.folio :deep(.tpl-album-counter) {
+  font-size: 11px;
+  letter-spacing: 0.25em;
 }
 
 /* F4: 留言板 — folio：内联文字块（极简编辑感，无边框，留白分隔） */

@@ -6,10 +6,10 @@
       <TplAnnouncement :artist="artist" class="gallery-announcement" />
     </div>
 
-    <!-- 作品画廊：大小交错 editorial -->
+    <!-- v0.36: 作品画廊——画册式左右翻页（Gallery：大小交错 editorial 节奏——当前页大图居中，相邻页缩小侧露） -->
     <section class="gallery-section tpl-reveal" v-if="galleryArtworks.length">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" />
+      <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" peek />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
@@ -208,6 +208,39 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 .gallery-label {
   text-align: center;
   margin-bottom: 48px;
+}
+
+/* v0.36: 画册翻页 — gallery：大小交错（editorial）节奏——当前页直角细线框装裱，
+   相邻页缩小侧露（用户点名的视觉）；展签式页码，美术馆克制感 */
+.gallery :deep(.tpl-album-frame) {
+  padding: 10px;
+  border: 1px solid var(--pal-border);
+  background: var(--pal-surface);
+}
+.gallery :deep(.tpl-album-meta) {
+  padding-top: 14px;
+}
+.gallery :deep(.tpl-gallery-caption) {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gallery :deep(.tpl-album-counter) {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+/* 侧露页：缩小（58% 高）+ 直角细线框 + 半透明，hover 提亮引导点击 */
+.gallery :deep(.tpl-album-peek) {
+  width: 13%;
+  height: 58%;
+  border: 1px solid var(--pal-border);
+  background: var(--pal-surface);
+  padding: 4px;
+  opacity: 0.55;
+}
+.gallery :deep(.tpl-album-peek:hover) {
+  opacity: 0.95;
 }
 
 /* F4: 留言板 — gallery：展签式（无圆角、细线分隔、字距，美术馆感） */
