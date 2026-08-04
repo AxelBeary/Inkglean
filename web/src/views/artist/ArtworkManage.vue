@@ -36,7 +36,26 @@
             :initial-index="artworks.indexOf(art)"
             preview-teleported
           />
-          <span class="main-artwork-tag">{{ $t('artworks.mainTag') }}</span>
+          <span class="main-artwork-tag">
+            {{ $t('artworks.mainTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
+          </span>
+          <!-- v0.31: 多封面排序按钮（≥2 张主图时显示，调整轮播顺序）——F7 去重后主图不进网格，排序入口必须在主图区 -->
+          <div v-if="coverCount > 1" class="artwork-cover-reorder">
+            <button
+              class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
+              :title="$t('artworks.coverMoveUp')"
+              @click.stop="moveCover(art, -1)"
+            >
+              ↑
+            </button>
+            <button
+              class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
+              :title="$t('artworks.coverMoveDown')"
+              @click.stop="moveCover(art, 1)"
+            >
+              ↓
+            </button>
+          </div>
           <button
             class="artwork-cover-star artwork-cover-star--on"
             :disabled="coverBusyId === art.id"
