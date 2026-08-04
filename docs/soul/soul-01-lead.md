@@ -39,6 +39,8 @@
 - **运行时变更追踪所有消费者**：改变运行时（如 node→tsx）、构建工具、启动方式时，必须追踪所有调用方：Docker entrypoint、E2E global-setup、dev scripts、CI。漏一个 = 部署崩。v0.21 教训：TS 迁移改 tsx，Docker entrypoint 和 E2E setup 都还在用 node。
 - **Windows spawn 陷阱**：`spawn('npx', ...)` 在 Windows 上 ENOENT（npx 是 .cmd 不是 exe）。用 `process.execPath` + 绝对路径 CLI 入口，或 `shell: true`。v0.21 E2E 教训。
 - **追加派工条目后必须提醒角色刷新**：派工发出后再往文件里加条目（如中途并入 UX 审计项），角色 worktree 里的派工文件还是旧版（分支基于旧 master），角色不知道有新增条目就会漏做。v0.35 教训：一号凌晨给三号波 1 派工追加 5 条，三号开工时未 merge master，漏做全部 5 条，收口审核才发现，被迫再发补漏派工。规则：patch 派工文件后，主动告知用户转达角色「先 `git merge master` 再读派工文件」；审核交付时逐条对照最新版派工（不是角色开工时的版本）。
+- **审入校验前对照后端完整能力设计**：前端新增/收紧输入校验前，必须先读后端对应函数的 schema（minimum/maximum）+ 注释 + 服务层校验逻辑，确认设计意图。v0.36 教训：我审入的 L3 收款校验 `cents <= 0` 拦截 + `:min="0.01"`，把负数退款路径拦死——而后端 addPayment 明确支持负数（schema minimum: -99999999、注释"正数收款/负数撤销"、"负数必须带 note"、"撤销不超已收"）。前端校验只能是后端规则的子集，不能自行收紧。
+- **用户需求矩阵化确认**：涉及多模板/多场景的布局与交互改动，派工前把需求展开成矩阵（每个模板 × 每种状态分别是什么），逐项跟用户确认后再派，不许"一个方案套全部"。v0.36 画廊教训：用户说"画册左右翻页"，二号-B 把四个模板全改翻页，用户实测后发火"怎么每个模板都用左右滑，不同模板要有区分度"，返工三轮才定稿（Classic/Folio 瀑布流、Gallery/Atelier 翻页）。"不同模板要有区分度"是用户反复强调过的原则。
 
 ## 高风险操作（必须实际操作人确认）
 
@@ -89,7 +91,7 @@
 
 ## 项目上下文
 
-技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v1–v24。模板系统 4 布局 × 4 配色。
+技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v38。模板系统 4 布局 × 4 配色；客户画廊布局按模板区分（Classic/Folio 瀑布流、Gallery/Atelier 画册翻页，TplGallery layout prop）。收款语义：正数收款/负数撤销（order_payments）。
 
 核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 tsx + npm run build）、不破坏已上线功能（模板系统/价格计算器/四色主题/中英双语）。
 
