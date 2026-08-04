@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS default_workflow_template (
   basis_points INTEGER
 );
 
--- 订单付款分期表（v5）
+-- 订单付款分期表（v5；v40 加锁价列）
 CREATE TABLE IF NOT EXISTS order_payment_installments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
@@ -204,6 +204,8 @@ CREATE TABLE IF NOT EXISTS order_payment_installments (
   sort_order INTEGER NOT NULL DEFAULT 0,
   requested_at DATETIME,
   paid_at DATETIME,
+  locked INTEGER NOT NULL DEFAULT 0,
+  locked_reason TEXT CHECK(locked_reason IS NULL OR locked_reason IN ('completed','paidOff','prev')),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
@@ -1634,6 +1636,21 @@ export const MIGRATIONS = [
         )
       `)
       database.exec('CREATE INDEX IF NOT EXISTS idx_price_entries_order ON order_price_entries(order_id, created_at)')
+    }
+  },
+  {
+    version: 40,
+    name: 'installments_locked_columns',
+    up(database) {
+      // REQ-025 第二阶段：节点锁价持久化（R4 完成/付清即锁 + 回退不解锁）
+      // ALTER TABLE ADD COLUMN，无 DROP/RENAME 父表，事务内安全（对照 v38 教训：仅重建父表才事务外）
+      const cols = database.prepare('PRAGMA table_info(order_payment_installments)').all()
+      if (!cols.some(c => c.name === 'locked')) {
+        database.exec('ALTER TABLE order_payment_installments ADD COLUMN locked INTEGER NOT NULL DEFAULT 0')
+      }
+      if (!cols.some(c => c.name === 'locked_reason')) {
+        database.exec("ALTER TABLE order_payment_installments ADD COLUMN locked_reason TEXT CHECK(locked_reason IS NULL OR locked_reason IN ('completed','paidOff','prev'))")
+      }
     }
   }
 ]
