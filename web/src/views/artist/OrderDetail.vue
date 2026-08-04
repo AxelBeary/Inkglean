@@ -102,10 +102,14 @@
         </template>
       </el-card>
 
-      <!-- v0.31 F5: 下一节点应收（显著位置，点击跳转收款区） -->
-      <div v-if="!isTerminal && nextDueInstallment" class="next-due-banner" @click="scrollToPayment">
+      <!-- v0.31 F5 + REQ-025 二阶段: 待收横幅——主信息订单级总待收(remainingCents=总价−已收)，
+           副信息当前节点（第一个 remaining>0 的节点，无节点订单则只显示总额）；点击跳转收款区 -->
+      <div v-if="!isTerminal && remainingCents > 0" class="next-due-banner" @click="scrollToPayment">
         <span class="next-due-text">
-          {{ $t('orderDetail.nextDueLabel', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
+          {{ $t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` }) }}
+        </span>
+        <span v-if="nextDueInstallment" class="next-due-sub">
+          {{ $t('orderDetail.currentDueSuffix', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
         </span>
         <span class="next-due-arrow">→</span>
       </div>
@@ -485,7 +489,9 @@
             :placeholder="$t('orderDetail.payAmountPlaceholder')"
           />
         </el-form-item>
-        <el-form-item :label="$t('orderDetail.payNoteLabel')">
+        <!-- REQ-025 二阶段: 负数（退款/撤销）时备注 label 切换为「退款原因（必填）」——
+             与 submitPayment 的强制校验一致，消除「可选但必填」的文案误导 -->
+        <el-form-item :label="(payForm.amountYuan || 0) < 0 ? $t('orderDetail.payRefundNoteLabel') : $t('orderDetail.payNoteLabel')">
           <el-input v-model="payForm.note" :placeholder="$t('orderDetail.payNotePlaceholder')" maxlength="100" show-word-limit />
         </el-form-item>
       </el-form>
@@ -997,6 +1003,9 @@ const nextDueInstallment = computed(() =>
   installmentRefs.value.find(inst => inst.remainingCents > 0) || null
 )
 
+/** REQ-025 二阶段: 订单级总待收（后端 enrich：总价 − 已收；无总价时 null，与 >0 比较自然为 false 不显示横幅） */
+const remainingCents = computed(() => order.value?.remainingCents ?? 0)
+
 /** v0.31 F5: 点击跳转到收款区 */
 function scrollToPayment() {
   document.querySelector('.pool-ref')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1446,6 +1455,8 @@ onMounted(() => {
 }
 .next-due-banner:hover { background: var(--el-color-warning-light-8); }
 .next-due-text { flex: 1; font-size: 14px; font-weight: 600; color: var(--el-color-warning-dark-2); }
+/* REQ-025 二阶段: 当前节点副信息（权重低于总额，不抢主信息） */
+.next-due-sub { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
 .next-due-arrow { font-size: 16px; color: var(--el-color-warning); }
 
 .action-bar-card :deep(.el-card__body) { padding: 12px 16px; }

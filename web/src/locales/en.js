@@ -545,6 +545,8 @@ export default {
     payRefPaid: 'Paid', payRefPartial: 'Partial {amount}', payRefPending: 'Pending',
     payDialogTitle: 'Record Payment', payAmountLabel: 'Amount (¥)', payAmountPlaceholder: 'Enter amount',
     payNoteLabel: 'Note (optional)', payNotePlaceholder: 'e.g. WeChat transfer, deposit',
+    // REQ-025 phase 2: negative (refund) switches the note label (matches the mandatory submit validation)
+    payRefundNoteLabel: 'Refund reason (required)',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
     payAmountInvalid: 'Payment amount must be greater than 0', payAmountExceed: 'Amount cannot exceed the outstanding balance ¥{amount}',
@@ -552,8 +554,8 @@ export default {
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',
-    // v0.31 F5: next due
-    nextDueLabel: 'Next due: {name} {amount}',
+    // v0.31 F5 → REQ-025 phase 2: due banner (primary = order-level total due, secondary = current node)
+    totalDueLabel: 'Total due {amount}', currentDueSuffix: 'Now due: {name} {amount}',
     // v0.31: price edit button
     priceEditBtn: 'Edit Price', priceDialogTitle: 'Edit Final Price',
     priceNewLabel: 'New Price (¥)', pricePlaceholder: 'Enter new final price',

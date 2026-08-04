@@ -545,6 +545,8 @@ export default {
     payRefPaid: '已收', payRefPartial: '部分 {amount}', payRefPending: '待收',
     payDialogTitle: '记录收款', payAmountLabel: '收款金额（元）', payAmountPlaceholder: '输入金额',
     payNoteLabel: '备注（可选）', payNotePlaceholder: '如：微信转账、定金',
+    // REQ-025 二阶段: 负数（退款/撤销）时备注 label 切换（与提交强制校验一致）
+    payRefundNoteLabel: '退款原因（必填）',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
     // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
     payAmountInvalid: '收款金额须大于 0', payAmountExceed: '收款金额不能超出剩余应付 ¥{amount}',
@@ -552,8 +554,8 @@ export default {
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
     payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',
-    // v0.31 F5: 下一节点应收
-    nextDueLabel: '下一节点应收：{name} {amount}',
+    // v0.31 F5 → REQ-025 二阶段: 待收横幅（主信息=订单级总待收，副信息=当前节点）
+    totalDueLabel: '共待收 {amount}', currentDueSuffix: '当前：{name} {amount}',
     // v0.31 五号方案A：改价按钮
     priceEditBtn: '修改价格', priceDialogTitle: '修改最终价格',
     priceNewLabel: '新价格（元）', pricePlaceholder: '输入新的最终价格',
