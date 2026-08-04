@@ -537,13 +537,6 @@ describe('订单服务 (Order Service)', () => {
     expect(() => initDatabase(db)).not.toThrow()
   })
 
-  // TC-O-31b: login_codes.expires_at 列类型为 INTEGER
-  it('TC-O-31b: login_codes.expires_at 列类型为 INTEGER', () => {
-    const cols = db.prepare('PRAGMA table_info(login_codes)').all()
-    const expiresCol = cols.find(c => c.name === 'expires_at')
-    expect(expiresCol.type.toUpperCase()).toBe('INTEGER')
-  })
-
   // ─── v0.13 R30d: 流程状态机 ───
 
   // TC-O-32: 新订单自动接入工作流

@@ -218,17 +218,31 @@ describe('v0.25 路由层集成测试', () => {
     })
   })
 
-  // ─── B1: send-code 防枚举路由层 ───
+  // ─── B1: 登录防枚举路由层（REQ-027：verify 替代旧 send-code） ───
 
-  describe('B1: send-code 防枚举', () => {
-    it('TC-ROUTE-13: 不存在的 QQ 发送登录码 → 200（不泄露注册状态）', async () => {
-      // 防枚举核心：不存在的 QQ 与存在的 QQ 返回相同状态码
+  describe('B1: 登录防枚举', () => {
+    it('TC-ROUTE-13: 不存在的 QQ 登录 → 401 且不泄露注册状态（与码错误同响应）', async () => {
       const res = await app.inject({
         method: 'POST',
-        url: '/api/auth/send-code',
-        payload: { qqNumber: '99999' }
+        url: '/api/auth/verify',
+        payload: { qqNumber: '99999', code: '123456' }
       })
-      expect(res.statusCode).toBe(200)
+      expect(res.statusCode).toBe(401)
+      const body = res.json()
+      expect(body.code).toBe('TOTP_INVALID')
+      expect(body.error).not.toContain('注册')
+    })
+
+    it('TC-ROUTE-14: 已注册但未绑定 TOTP → 明确提示先绑定（不混同为码错误）', async () => {
+      const artist = seedArtist({ qq_number: '88001', subdomain: 'bind-hint' })
+      expect(artist.id).toBeTruthy()
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/verify',
+        payload: { qqNumber: '88001', code: '123456' }
+      })
+      expect(res.statusCode).toBe(401)
+      expect(res.json().code).toBe('TOTP_NOT_BOUND')
     })
   })
 })

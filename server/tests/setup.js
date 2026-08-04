@@ -31,7 +31,6 @@ export { db }
  */
 export function cleanDb() {
   db.exec(`
-    DELETE FROM login_codes;
     DELETE FROM deliverables;
     DELETE FROM order_notes;
     DELETE FROM order_references;

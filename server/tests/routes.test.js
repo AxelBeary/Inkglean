@@ -117,23 +117,24 @@ describe('路由层测试 (Route Integration)', () => {
   // ─── 限流测试 ───
 
   describe('限流 (Rate Limiting)', () => {
-    it('TC-RT-08: 登录码接口限流生效', async () => {
-      seedArtist({ qq_number: '12345', subdomain: 'alice' })
+    it('TC-RT-08: 登录接口限流生效（10次/5分钟）', async () => {
+      // 独立 QQ 号避免与 TC-RT-06 设置的 admin_qq='12345' 冲突
+      seedArtist({ qq_number: '77001', subdomain: 'rt-limit' })
 
-      // 连续请求 6 次（限流阈值是 5）
+      // 连续请求 11 次（限流阈值是 10）— 业务结果无关，限流独立判断
       const responses = []
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 11; i++) {
         const res = await app.inject({
           method: 'POST',
-          url: '/api/auth/send-code',
-          payload: { qqNumber: '12345' }
+          url: '/api/auth/verify',
+          payload: { qqNumber: '77001', code: '000000' }
         })
         responses.push(res.statusCode)
       }
 
-      // 前 5 次应该是 200，第 6 次应该是 429
-      expect(responses.slice(0, 5)).toEqual([200, 200, 200, 200, 200])
-      expect(responses[5]).toBe(429)
+      // 前 10 次应该是 401（业务拒绝），第 11 次应该是 429（限流）
+      expect(responses.slice(0, 10)).toEqual(Array(10).fill(401))
+      expect(responses[10]).toBe(429)
     })
   })
 

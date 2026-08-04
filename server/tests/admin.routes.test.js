@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
-import { createSession, generateLoginCode } from '../src/features/auth/auth.service.js'
+import { createSession, bindTotpInit, confirmTotpBind } from '../src/features/auth/auth.service.js'
+import { generateSecret, computeTotp } from '../src/features/auth/totp.js'
 import * as orderService from '../src/features/order/order.service.js'
 import { buildApp } from '../src/app.js'
 
@@ -13,6 +14,14 @@ function setAdmin(qqNumber) {
 /** 管理员 token */
 function adminToken(artist) {
   return createSession(artist.id, artist.token_version)
+}
+
+/** 为画师完成 TOTP 绑定（bind-init + bind-confirm），返回密钥（算码用） */
+function bindArtistTotp(artistRow) {
+  const secret = generateSecret()
+  bindTotpInit(artistRow.id, secret)
+  confirmTotpBind(artistRow.id, computeTotp(secret, Date.now()))
+  return secret
 }
 
 describe('管理员路由 (Admin Routes)', () => {
@@ -202,19 +211,18 @@ describe('管理员路由 (Admin Routes)', () => {
 
   // ─── 管理员更换 (transfer) ───
 
-  it('TC-AR-11: transfer 成功 — 两码验证通过', async () => {
+  it('TC-AR-11: transfer 成功 — 双 TOTP 验证通过', async () => {
     const admin = setAdmin('10001')
-    seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
-
-    // 为两人各生成登录码
-    const { code: code1 } = generateLoginCode('10001')
-    const { code: code2 } = generateLoginCode('20002')
+    const newAdmin = seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
+    // 双方均须已绑定 TOTP
+    const secret1 = bindArtistTotp(admin)
+    const secret2 = bindArtistTotp(newAdmin)
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/admin/transfer',
       headers: { Authorization: `Bearer ${adminToken(admin)}` },
-      payload: { newQq: '20002', currentCode: code1, newCode: code2 }
+      payload: { newQq: '20002', currentCode: computeTotp(secret1, Date.now()), newCode: computeTotp(secret2, Date.now()) }
     })
 
     expect(res.statusCode).toBe(200)
@@ -228,14 +236,15 @@ describe('管理员路由 (Admin Routes)', () => {
 
   it('TC-AR-12: transfer 第一码错误返回 401', async () => {
     const admin = setAdmin('10001')
-    seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
-    generateLoginCode('20002')
+    const newAdmin = seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
+    const secret1 = bindArtistTotp(admin)
+    const secret2 = bindArtistTotp(newAdmin)
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/admin/transfer',
       headers: { Authorization: `Bearer ${adminToken(admin)}` },
-      payload: { newQq: '20002', currentCode: '000000', newCode: '111111' }
+      payload: { newQq: '20002', currentCode: '000000', newCode: computeTotp(secret2, Date.now()) }
     })
 
     expect(res.statusCode).toBe(401)
@@ -244,26 +253,22 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(row.value).toBe('10001')
   })
 
-  it('TC-AR-13: transfer 第二码失败 — 第一码已被消耗（P2-6 已知行为）', async () => {
+  it('TC-AR-13: transfer 第二码失败返回 401（admin_qq 不变）', async () => {
     const admin = setAdmin('10001')
-    seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
-
-    const { code: code1 } = generateLoginCode('10001')
-    generateLoginCode('20002') // 生成但不使用正确码
+    const newAdmin = seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
+    const secret1 = bindArtistTotp(admin)
+    const secret2 = bindArtistTotp(newAdmin)
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/admin/transfer',
       headers: { Authorization: `Bearer ${adminToken(admin)}` },
-      payload: { newQq: '20002', currentCode: code1, newCode: '000000' }
+      payload: { newQq: '20002', currentCode: computeTotp(secret1, Date.now()), newCode: '000000' }
     })
 
     expect(res.statusCode).toBe(401)
-
-    // P2-6: 第一码已被 verifyLoginCode 消耗（删除），再次使用应失败
-    const { code: code1Again } = generateLoginCode('10001')
-    // 需要重新生成码才能再次尝试 — 证明原码已消耗
-    expect(code1Again).not.toBe(code1) // 新码 ≠ 旧码（旧码已删）
+    const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get()
+    expect(row.value).toBe('10001')
   })
 
   it('TC-AR-14: transfer 新管理员与自己相同返回 400', async () => {
@@ -282,17 +287,166 @@ describe('管理员路由 (Admin Routes)', () => {
 
   it('TC-AR-15: transfer 新管理员未注册返回 404', async () => {
     const admin = setAdmin('10001')
-    const { code } = generateLoginCode('10001')
+    const secret1 = bindArtistTotp(admin)
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/admin/transfer',
       headers: { Authorization: `Bearer ${adminToken(admin)}` },
-      payload: { newQq: '99999', currentCode: code, newCode: '123456' }
+      payload: { newQq: '99999', currentCode: computeTotp(secret1, Date.now()), newCode: '123456' }
     })
 
     expect(res.statusCode).toBe(404)
     expect(res.json().error).toContain('未注册')
+  })
+
+  it('TC-AR-15b: transfer 未绑定 TOTP 的画师返回 401（须先绑定）', async () => {
+    const admin = setAdmin('10001')
+    const secret1 = bindArtistTotp(admin)
+    seedArtist({ qq_number: '20003', subdomain: 'new-admin2' }) // 新管理员未绑定
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/transfer',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { newQq: '20003', currentCode: computeTotp(secret1, Date.now()), newCode: '123456' }
+    })
+
+    expect(res.statusCode).toBe(401)
+  })
+
+  // ─── TOTP 绑定/重置（REQ-027） ───
+
+  it('TC-AR-17: bind-init 生成二维码 dataURL（管理员权限）', async () => {
+    const admin = setAdmin('10001')
+    const artist = seedArtist({ qq_number: '77001', subdomain: 'totp-artist' })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${artist.id}/totp/bind-init`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.qrDataUrl).toMatch(/^data:image\/png;base64,/)
+    expect(body.otpauthUri).toContain('otpauth://totp/')
+    expect(body.otpauthUri).toContain(`secret=`)
+    // 密钥已入库（未验证）
+    const row = db.prepare('SELECT totp_secret, totp_verified FROM artists WHERE id = ?').get(artist.id)
+    expect(row.totp_secret).toBeTruthy()
+    expect(row.totp_verified).toBe(0)
+  })
+
+  it('TC-AR-18: bind-confirm 正确码绑定成功', async () => {
+    const admin = setAdmin('10001')
+    const artist = seedArtist({ qq_number: '77002', subdomain: 'totp-artist2' })
+
+    const init = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${artist.id}/totp/bind-init`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+    const { otpauthUri } = init.json()
+    // 从 URI 提取密钥算码（模拟画师 App）
+    const secret = otpauthUri.match(/secret=([A-Z2-7]+)/)[1]
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${artist.id}/totp/bind-confirm`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { code: computeTotp(secret, Date.now()) }
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().success).toBe(true)
+    const row = db.prepare('SELECT totp_verified FROM artists WHERE id = ?').get(artist.id)
+    expect(row.totp_verified).toBe(1)
+  })
+
+  it('TC-AR-19: bind-confirm 错误码返回 400', async () => {
+    const admin = setAdmin('10001')
+    const artist = seedArtist({ qq_number: '77003', subdomain: 'totp-artist3' })
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${artist.id}/totp/bind-init`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${artist.id}/totp/bind-confirm`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { code: '000000' }
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('TOTP_BIND_INVALID')
+    const row = db.prepare('SELECT totp_verified FROM artists WHERE id = ?').get(artist.id)
+    expect(row.totp_verified).toBe(0)
+  })
+
+  it('TC-AR-20: bind-confirm 未先生成密钥返回 400', async () => {
+    const admin = setAdmin('10001')
+    const artist = seedArtist({ qq_number: '77004', subdomain: 'totp-artist4' })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${artist.id}/totp/bind-confirm`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { code: '123456' }
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toContain('先生成绑定二维码')
+  })
+
+  it('TC-AR-21: reset 重置绑定（旧密钥失效）', async () => {
+    const admin = setAdmin('10001')
+    const artist = seedArtist({ qq_number: '77005', subdomain: 'totp-artist5' })
+    const secret = bindArtistTotp(artist)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${artist.id}/totp/reset`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().success).toBe(true)
+    const row = db.prepare('SELECT totp_secret, totp_verified FROM artists WHERE id = ?').get(artist.id)
+    expect(row.totp_secret).toBeNull()
+    expect(row.totp_verified).toBe(0)
+    // 旧密钥的码已无法登录（由登录校验拦截）
+    expect(secret).toBeTruthy()
+  })
+
+  it('TC-AR-22: 非管理员调 bind-init 返回 403', async () => {
+    const admin = setAdmin('10001')
+    const pleb = seedArtist({ qq_number: '77006', subdomain: 'totp-pleb' })
+    const target = seedArtist({ qq_number: '77007', subdomain: 'totp-target' })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${target.id}/totp/bind-init`,
+      headers: { Authorization: `Bearer ${adminToken(pleb)}` }
+    })
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('ADMIN_REQUIRED')
+  })
+
+  it('TC-AR-23: 绑定接口画师不存在返回 404', async () => {
+    const admin = setAdmin('10001')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/artists/99999/totp/bind-init',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(404)
   })
 
   // ─── 订单列表付款字段（B7 补字段） ───
