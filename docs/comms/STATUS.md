@@ -6,9 +6,9 @@
 ---
 ## master 状态
 
-- **HEAD**：`aa6891e`（三号引擎合入 + 收尾），与 origin 同步
-- **工作树**：干净。worktree 只剩主仓（本轮 4 个并行 worktree 全部回收）
-- **测试基线**：server 769/769 · web 166/166 · tsc 0 · lint 0 · build ✓
+- **HEAD**：`256c003`（二号 B 路合入 + 收尾），与 origin 同步
+- **工作树**：干净。worktree：主仓 + v037-backend（三号 A 路）
+- **测试基线**：server 769/769 · web 173/173 · tsc 0 · lint 0
 - **容器**：引擎合入后已重建，healthy；迁移 v39 实跑通过（order_price_entries 表/索引就位，订单数据完好）
 - **备份**：`data/commission.db.bak-v037-pre-v39`（引擎合入前）+ `bak-v036-w2-verify`（六路合入前）+ `bak-v036-verify`（波 1）
 - **迁移**：v39
@@ -20,7 +20,7 @@
 | 角色 | worktree/分支 | 内容 | 状态 |
 |------|--------------|------|------|
 | 三号 | artist-commission-v037-backend / v037-phase2-backend | 二阶段 A 路：后端引擎接线（locked 持久化迁移 v40 + createOrder/改价/增项/收款/推进接引擎 + recalc 退役 + done 守卫 + 守恒挂载） | 🔄 进行中（高风险） |
-| 二号 | artist-commission-v037-frontend / v037-phase2-frontend | 二阶段 B 路：订单级待收总横幅（用户反馈漏收款提示）+ 详情按钮排查 + 负数 label 文案 | 🔄 进行中 |
+| 二号 | —（worktree 已回收） | 二阶段 B 路：订单级共待收总横幅 + 负数 label 切换 + 详情按钮排查（vite reload 环境问题，非 bug） | ✅ 已合入 `5b2388b`（web 173/173） |
 | 五号 | 待派 | 二阶段 C 路：demo-data 切流（走 createOrder 入口重建演示数据）——**等 A 路合入后派** | ⏸ 待命 |
 | 四号 | 主仓 docs/（无 worktree） | 需求深聊批：QQ Bot/消息网关（用户点名）+ ManualOrder 接画风 + REQ-022 待确认 + v0.38 需求稿——与用户逐题深入交流 | 🔄 进行中 |
 
@@ -124,7 +124,7 @@ done 订单当前唯一减价路径是 updateFinalPrice——负增项被 schema
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | 开工中：二阶段 B 路前端收款展示（worktree: artist-commission-v037-frontend） |
+| 二号 | 空闲；二阶段 B 路已合入 `5b2388b`（web 基线 166→**173**） |
 | 三号 | 开工中：二阶段 A 路后端引擎接线（worktree: artist-commission-v037-backend） |
 | 四号 | 开工中：需求深聊批（QQ Bot/消息网关等 5 话题，主仓 docs/，无 worktree） |
 | 五号 | 待命；等 A 路合入后派 C 路 demo-data 切流 |
