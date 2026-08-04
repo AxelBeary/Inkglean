@@ -30,6 +30,11 @@ export const E = {
   CODE_EXPIRED: 'CODE_EXPIRED',
   CODE_TOO_MANY_ATTEMPTS: 'CODE_TOO_MANY_ATTEMPTS',
   QQ_NOT_REGISTERED: 'QQ_NOT_REGISTERED',
+  // REQ-027: TOTP 动态口令（旧登录码错误码保留，不再使用）
+  TOTP_NOT_BOUND: 'TOTP_NOT_BOUND',
+  TOTP_INVALID: 'TOTP_INVALID',
+  TOTP_LOCKED: 'TOTP_LOCKED',
+  TOTP_BIND_INVALID: 'TOTP_BIND_INVALID',
 
   // 画师
   ARTIST_NOT_FOUND: 'ARTIST_NOT_FOUND',
@@ -229,6 +234,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   CODE_EXPIRED: '登录码已过期，请重新获取',
   CODE_TOO_MANY_ATTEMPTS: '尝试次数过多，请稍后再试',
   QQ_NOT_REGISTERED: '该QQ号尚未注册',
+  // REQ-027: TOTP 动态口令
+  TOTP_NOT_BOUND: '该画师尚未绑定动态口令，请联系管理员绑定',
+  TOTP_INVALID: 'QQ号或动态口令错误',
+  TOTP_LOCKED: '尝试次数过多，账号已临时锁定，请稍后再试',
+  TOTP_BIND_INVALID: '动态口令错误，请让画师确认验证器上当前显示的 6 位码',
 
   // 画师
   ARTIST_NOT_FOUND: '画师不存在',

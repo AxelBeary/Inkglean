@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "db:init": "node src/db/init.js",
-    "db:seed": "node src/db/seed.js"
+    "db:seed": "node src/db/seed.js",
+    "totp:reset": "node scripts/totp-reset.js"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
@@ -24,12 +25,14 @@
     "dotenv": "^16.4.0",
     "fastify": "^5.0.0",
     "nanoid": "^5.0.0",
+    "qrcode": "^1.5.4",
     "sharp": "^0.35.3",
     "tsx": "^4.23.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/qrcode": "^1.5.6",
     "eslint": "^10.8.0",
     "globals": "^17.8.0",
     "pino-pretty": "^13.0.0",

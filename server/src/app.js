@@ -32,18 +32,6 @@ export async function buildApp(opts = {}) {
   // ─── 数据库初始化 ───
   initDatabase(db)
 
-  // ─── 定时清理过期登录码 ───
-  const cleanupCodes = () => {
-    try {
-      // P0-4 修复：expires_at 为 Unix 毫秒整数，用参数化比较替代 datetime('now')
-      const result = db.prepare("DELETE FROM login_codes WHERE expires_at < ?").run(Date.now())
-      if (result.changes > 0) app.log.info(`清理了 ${result.changes} 条过期登录码`)
-    } catch { /* 静默失败，不影响服务 */ }
-  }
-  cleanupCodes() // 启动时立即清理一次
-  const _codeCleanup = setInterval(cleanupCodes, 60 * 60 * 1000) // 每小时
-  _codeCleanup.unref()
-
   // ─── 孤儿文件回收（内联执行 + 启动时立即跑一次）───
   // 事故修复：删除→移入回收站（.recycle-bin/YYYY-MM-DD/），画师表空时跳过
   const RECYCLE_BIN = '.recycle-bin'

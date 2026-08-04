@@ -1,17 +1,18 @@
 import db from '../../db/connection.js'
 import crypto from 'crypto'
 import { getArtistByQq } from '../artist/artist.service.js'
+import { verifyTotp } from './totp.js'
+import { AppError, E } from '../../shared/errors.js'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
-// 认证服务 - 登录码生成与验证
+// 认证服务 - TOTP 动态口令登录（REQ-027）
 // ============================================
 
-const CODE_MIN = 100000
-const CODE_MAX = 1000000
-const CODE_TTL_MS = 5 * 60 * 1000
-const MAX_ATTEMPTS = 5
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+// 防爆破：对齐旧登录码量级，5 次错误后临时锁定 15 分钟（具体策略 REQ-027 R4，三号定）
+export const TOTP_MAX_ATTEMPTS = 5
+export const TOTP_LOCK_DURATION_MS = 15 * 60 * 1000
 
 /**
  * 签名密钥 — 生产环境必须设置 SESSION_SECRET，否则启动即崩溃
@@ -33,89 +34,134 @@ const SECRET = getSecret()
 
 /**
  * 开发模式 — 显式 AUTH_DEV_MODE=*** 开启（不再依赖 NODE_ENV 推断）
+ * REQ-027 语义变更：不再显示旧登录码，改为「绑定接口响应附带密钥明文」辅助开发/测试
  */
 export const isDevAuth = process.env.AUTH_DEV_MODE === 'true'
 
+// ============================================
+// TOTP 绑定状态
+// ============================================
+
+/** 画师 TOTP 绑定状态 */
+export type TotpStatus = {
+  /** 是否已生成密钥（bind-init 后即有，可能未验证） */
+  hasSecret: boolean
+  /** 是否已绑定（bind-confirm 通过） */
+  verified: boolean
+}
+
+/** 读取画师 TOTP 绑定状态 */
+export function getTotpStatus(artist: Artist): TotpStatus {
+  return {
+    hasSecret: Boolean(artist.totp_secret),
+    verified: Boolean(artist.totp_secret && artist.totp_verified)
+  }
+}
+
 /**
- * 生成6位登录码，有效期5分钟
- * 无论 QQ 是否注册，统一返回相同响应，防止用户枚举
+ * 绑定第一步（bind-init）：写入待确认密钥
+ * 密钥入库但未验证（verified=0），画师扫码报码后由 confirmTotpBind 完成绑定
+ * 重复调用 = 覆盖旧密钥（旧 App 绑定立即失效，须重新扫码）
  */
-export function generateLoginCode(qqNumber: string) {
+export function bindTotpInit(artistId: number, secret: string): void {
+  db.prepare(
+    'UPDATE artists SET totp_secret = ?, totp_verified = 0, totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?'
+  ).run(secret, artistId)
+}
+
+/**
+ * 绑定第二步（bind-confirm）：验证画师报的 6 位码，通过后标记已绑定
+ * 绑定失败不计数不锁定（仅管理员可调用，管理员身份本身可信；防爆破在登录接口）
+ */
+export function confirmTotpBind(artistId: number, code: string): void {
+  const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
+  if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+  if (!artist.totp_secret) throw new AppError(E.TOTP_NOT_BOUND, 400)
+
+  if (!verifyTotp(artist.totp_secret, code, Date.now())) {
+    throw new AppError(E.TOTP_BIND_INVALID, 400)
+  }
+
+  db.prepare('UPDATE artists SET totp_verified = 1, totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?')
+    .run(artistId)
+}
+
+/** 重置绑定（管理员后台 / CLI 兜底）：旧密钥立即失效，画师须重新绑定 */
+export function resetTotp(artistId: number): void {
+  db.prepare(
+    'UPDATE artists SET totp_secret = NULL, totp_verified = 0, totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?'
+  ).run(artistId)
+}
+
+/** 读取已绑定画师的密钥（transfer 双码验证用；未绑定抛错） */
+export function getBoundTotpSecret(artist: Artist): string {
+  if (!artist.totp_secret || !artist.totp_verified) {
+    throw new AppError(E.TOTP_NOT_BOUND, 400)
+  }
+  return artist.totp_secret
+}
+
+// ============================================
+// 登录校验（含防爆破）
+// ============================================
+
+/**
+ * QQ 号 + TOTP 动态码登录校验
+ * 安全对齐旧机制：未注册 QQ 返回与「码错误」相同响应（防枚举）
+ * 防爆破：连续错 TOTP_MAX_ATTEMPTS 次 → 锁定 TOTP_LOCK_DURATION_MS，锁定期间任何尝试（含正确码）都拒绝
+ */
+export function verifyTotpLogin(qqNumber: string, code: string) {
   const artist = getArtistByQq(qqNumber) as Artist | undefined
   if (!artist) {
-    // 不抛错，静默返回 — 调用方统一响应"若已注册则码已发送"
-    return { code: null, artist: null }
+    // 防枚举：与码错误同响应，不暴露注册状态
+    return { valid: false, code: E.TOTP_INVALID, error: 'QQ号或动态口令错误' }
   }
 
-  db.prepare('DELETE FROM login_codes WHERE artist_id = ?').run(artist.id)
-
-  const code = String(crypto.randomInt(CODE_MIN, CODE_MAX))
-  // P0-4 修复：expires_at 统一为 Unix 毫秒整数，消除字符串字典序比较歧义
-  const expiresAt = Date.now() + CODE_TTL_MS
-
-  db.prepare('INSERT INTO login_codes (artist_id, code, expires_at) VALUES (?, ?, ?)')
-    .run(artist.id, code, expiresAt)
-
-  if (isDevAuth) {
-    console.log(`\n🔑 [DEV] 画师「${artist.name}」(QQ: ${qqNumber}) 的登录码: ${code}\n`)
-  }
-
-  // TODO Phase 2: 接入 QQ Bot (NapCat/OneBot) 发送登录码
-  return { code, artist }
-}
-
-/** 登录码记录行 */
-interface LoginCodeRecord {
-  id: number
-  artist_id: number
-  code: string
-  expires_at: number
-  attempts: number
-}
-
-/**
- * 验证登录码（最多5次尝试）
- * 未注册 QQ 返回通用错误，不暴露注册状态
- */
-export function verifyLoginCode(qqNumber: string, code: string) {
-  const artist = getArtistByQq(qqNumber) as Artist | undefined
-  if (!artist) return { valid: false, code: 'CODE_INVALID', error: '登录码错误或已过期' }
-
-  const record = db.prepare(
-    'SELECT * FROM login_codes WHERE artist_id = ? ORDER BY created_at DESC LIMIT 1'
-  ).get(artist.id) as LoginCodeRecord | undefined
-
-  if (!record) return { valid: false, code: 'CODE_INVALID', error: '请先获取登录码' }
-
-  // P0-4 修复：整数比较，与存储格式一致
-  if (record.expires_at < Date.now()) {
-    db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
-    return { valid: false, code: 'CODE_EXPIRED', error: '登录码已过期，请重新获取' }
-  }
-
-  // 尝试次数检查
-  if (record.attempts >= MAX_ATTEMPTS) {
-    db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
-    return { valid: false, code: 'CODE_TOO_MANY_ATTEMPTS', error: '尝试次数过多，请重新获取登录码' }
-  }
-
-  // 安全：时间安全比较，防止计时攻击
-      // R1-2: 先检查字符长度（6位数字），避免全角/多字节字符触发 timingSafeEqual 崩溃
-      if (code.length !== 6 || record.code.length !== 6) {
-        db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
-        return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
-      }
-      // P2-#18: 长度已保证一致，直接 timingSafeEqual，不降级
-      const codeMatch = crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(code))
-      if (!codeMatch) {
-      db.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').run(record.id)
-      return { valid: false, code: 'CODE_INVALID', error: `登录码错误（剩余 ${4 - record.attempts} 次机会）` }
+  // 锁定检查：锁定期间一律拒绝（正确码也不行）
+  if (artist.totp_locked_until && artist.totp_locked_until > Date.now()) {
+    const remainingMin = Math.ceil((artist.totp_locked_until - Date.now()) / 60000)
+    return {
+      valid: false,
+      code: E.TOTP_LOCKED,
+      error: `尝试次数过多，账号已临时锁定，请约 ${remainingMin} 分钟后再试`,
+      remainingLockMs: artist.totp_locked_until - Date.now()
     }
+  }
 
-  // 验证成功，删除码
-  db.prepare('DELETE FROM login_codes WHERE id = ?').run(record.id)
-  return { valid: true, artist }
+  // 绑定检查：未生成密钥或未验证通过 → 无法登录
+  if (!artist.totp_secret || !artist.totp_verified) {
+    return { valid: false, code: E.TOTP_NOT_BOUND, error: '该画师尚未绑定动态口令，请联系管理员绑定' }
+  }
+
+  if (verifyTotp(artist.totp_secret, code, Date.now())) {
+    // 成功：清零防爆破计数
+    db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artist.id)
+    return { valid: true, artist }
+  }
+
+  // 失败：计数 +1，达到阈值触发锁定
+  const attempts = (artist.totp_failed_attempts || 0) + 1
+  if (attempts >= TOTP_MAX_ATTEMPTS) {
+    const lockedUntil = Date.now() + TOTP_LOCK_DURATION_MS
+    db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = ? WHERE id = ?').run(lockedUntil, artist.id)
+    return {
+      valid: false,
+      code: E.TOTP_LOCKED,
+      error: `动态口令连续错误 ${TOTP_MAX_ATTEMPTS} 次，账号已临时锁定，请约 ${TOTP_LOCK_DURATION_MS / 60000} 分钟后再试`,
+      remainingLockMs: TOTP_LOCK_DURATION_MS
+    }
+  }
+  db.prepare('UPDATE artists SET totp_failed_attempts = ? WHERE id = ?').run(attempts, artist.id)
+  return {
+    valid: false,
+    code: E.TOTP_INVALID,
+    error: `动态口令错误（剩余 ${TOTP_MAX_ATTEMPTS - attempts} 次机会）`
+  }
 }
+
+// ============================================
+// 会话 Token（HMAC 签名，无状态）— 原样保留
+// ============================================
 
 /**
  * 创建会话 Token（HMAC签名，无状态）

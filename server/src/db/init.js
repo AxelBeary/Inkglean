@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS artists (
   status TEXT DEFAULT 'open' CHECK(status IN ('open', 'full', 'break', 'hidden')),
   contact_qq TEXT,
   token_version INTEGER DEFAULT 1,
+  totp_secret TEXT,
+  totp_verified INTEGER DEFAULT 0,
+  totp_failed_attempts INTEGER DEFAULT 0,
+  totp_locked_until INTEGER,
   deleted_at DATETIME,
   weibo_url TEXT,
   bilibili_url TEXT,
@@ -286,8 +290,7 @@ CREATE TABLE IF NOT EXISTS order_price_breakdown (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
--- 登录码表（临时）
--- P0-4 修复：expires_at 实际存储 Unix 毫秒整数（auth.service.js），列类型从 DATETIME 改为 INTEGER 保持一致
+-- 登录码表（历史遗留：迁移 v13 依赖此表存在；v41（REQ-027 R7）DROP 移除，此处保留仅维持迁移链完整）
 CREATE TABLE IF NOT EXISTS login_codes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   artist_id INTEGER NOT NULL,
@@ -455,7 +458,6 @@ CREATE TABLE IF NOT EXISTS order_price_entries (
 export const schemaIndexes = `
 CREATE INDEX IF NOT EXISTS idx_orders_artist_status ON orders(artist_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_queue ON orders(artist_id, queue_position);
-CREATE INDEX IF NOT EXISTS idx_login_codes_expires ON login_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_orders_client_qq ON orders(client_qq);
 CREATE INDEX IF NOT EXISTS idx_order_references_order ON order_references(order_id);
 CREATE INDEX IF NOT EXISTS idx_deliverables_order ON deliverables(order_id);
@@ -1651,6 +1653,29 @@ export const MIGRATIONS = [
       if (!cols.some(c => c.name === 'locked_reason')) {
         database.exec("ALTER TABLE order_payment_installments ADD COLUMN locked_reason TEXT CHECK(locked_reason IS NULL OR locked_reason IN ('completed','paidOff','prev'))")
       }
+    }
+  },
+  {
+    version: 41,
+    name: 'totp_login',
+    up(database) {
+      // REQ-027：TOTP 动态口令登录
+      // 1) artists 加 TOTP 绑定/防爆破列（ADD COLUMN 事务内安全，对照 v40）
+      // 2) R7 一刀切：移除旧登录码表（DROP 子表 login_codes 不触发父表 CASCADE，对照 v38 教训：仅 DROP/RENAME 父表才事务外）
+      const cols = database.prepare('PRAGMA table_info(artists)').all()
+      if (!cols.some(c => c.name === 'totp_secret')) {
+        database.exec('ALTER TABLE artists ADD COLUMN totp_secret TEXT')
+      }
+      if (!cols.some(c => c.name === 'totp_verified')) {
+        database.exec('ALTER TABLE artists ADD COLUMN totp_verified INTEGER NOT NULL DEFAULT 0')
+      }
+      if (!cols.some(c => c.name === 'totp_failed_attempts')) {
+        database.exec('ALTER TABLE artists ADD COLUMN totp_failed_attempts INTEGER NOT NULL DEFAULT 0')
+      }
+      if (!cols.some(c => c.name === 'totp_locked_until')) {
+        database.exec('ALTER TABLE artists ADD COLUMN totp_locked_until INTEGER')
+      }
+      database.exec('DROP TABLE IF EXISTS login_codes')
     }
   }
 ]

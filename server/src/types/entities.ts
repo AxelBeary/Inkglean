@@ -18,6 +18,11 @@ export interface Artist {
   status: ArtistStatus
   contact_qq: string | null
   token_version: number
+  // REQ-027: TOTP 动态口令绑定（v41）
+  totp_secret: string | null
+  totp_verified: number
+  totp_failed_attempts: number
+  totp_locked_until: number | null
   deleted_at: string | null
   weibo_url: string | null
   bilibili_url: string | null

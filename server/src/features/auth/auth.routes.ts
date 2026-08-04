@@ -1,4 +1,4 @@
-import { generateLoginCode, verifyLoginCode, createSession, isDevAuth } from './auth.service.js'
+import { verifyTotpLogin, createSession } from './auth.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -6,7 +6,7 @@ import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance } from 'fastify'
 
 // ============================================
-// 认证路由 - 登录码获取与验证
+// 认证路由 - TOTP 动态口令登录（REQ-027）
 // ============================================
 
 /** 限流守卫：不通过则抛 429 */
@@ -17,43 +17,10 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
 export default async function authRoutes(fastify: FastifyInstance) {
 
   /**
-   * POST /api/auth/send-code
-   * 发送登录码（限流：同IP 5次/5分钟）
-   * R2-6: 加 JSON Schema 验证
-   */
-  fastify.post('/api/auth/send-code', {
-    schema: {
-      body: {
-        type: 'object',
-        required: ['qqNumber'],
-        properties: {
-          qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' }
-        },
-        additionalProperties: false
-      }
-    }
-  }, async (request) => {
-    guardRateLimit(`send-code:${request.ip}`, 5, 5 * 60_000)
-
-    const { qqNumber } = request.body as { qqNumber: string }
-
-    const { code, artist } = generateLoginCode(qqNumber)
-
-    // 安全：无论是否注册，统一响应（防枚举）
-    if (isDevAuth && artist) {
-      fastify.log.info(`🔑 [DEV] 画师 ${artist.name}(${qqNumber}) 登录码: ${code}`)
-    }
-
-    return {
-          message: `若该QQ已注册，登录码已发送`,
-          ...(isDevAuth && code ? { _dev_code: code } : {})
-        }
-  })
-
-  /**
    * POST /api/auth/verify
-   * 验证登录码（限流：同IP 10次/5分钟）
-   * R1-2: 加 JSON Schema 验证，防止非6位数字字符触发 timingSafeEqual 崩溃
+   * QQ 号 + TOTP 动态口令登录（REQ-027 R1，替代旧登录码机制）
+   * 动态码在画师手机验证器 App 上生成，全程无消息通道依赖
+   * 限流：同IP 10次/5分钟
    */
   fastify.post('/api/auth/verify', {
     schema: {
@@ -72,10 +39,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     const { qqNumber, code } = request.body as { qqNumber: string; code: string }
 
-    const result = verifyLoginCode(qqNumber, code)
+    const result = verifyTotpLogin(qqNumber, code)
     if (!result.valid) {
-      // 保留服务层的具体错误区分（过期/次数过多/不正确）
-      throw new AppError(result.code || E.CODE_INVALID, 401, result.error)
+      // 直接返回服务层动态消息（含剩余机会/剩余锁定分钟），与全局错误结构 { code, error, detail } 一致
+      return reply.code(401).send({
+        code: result.code,
+        error: result.error,
+        ...(result.remainingLockMs != null ? { detail: { remainingLockMs: result.remainingLockMs } } : {})
+      })
     }
 
     const token = createSession(result.artist.id, result.artist.token_version)
