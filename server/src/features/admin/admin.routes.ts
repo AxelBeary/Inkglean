@@ -2,7 +2,9 @@ import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import * as artistService from '../artist/artist.service.js'
 import * as adminService from './admin.service.js'
 import * as orderService from '../order/order.service.js'
-import { verifyLoginCode } from '../auth/auth.service.js'
+import { bindTotpInit, confirmTotpBind, resetTotp, verifyTotpLogin, isDevAuth } from '../auth/auth.service.js'
+import { generateSecret, buildOtpAuthUri } from '../auth/totp.js'
+import QRCode from 'qrcode'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { clamp } from '../../shared/validate.js'
 import db from '../../db/connection.js'
@@ -125,6 +127,75 @@ export default async function adminRoutes(fastify) {
   })
 
   /**
+   * POST /api/admin/artists/:id/totp/bind-init
+   * REQ-027 R2 绑定第一步：生成 TOTP 密钥 + otpauth 二维码（管理员展示给画师扫码）
+   * 密钥立即入库但未验证（verified=0）；重复调用 = 覆盖旧密钥，旧 App 绑定立即失效
+   * DEV 模式（AUTH_DEV_MODE=true）附带 _dev_secret 明文辅助开发/测试/演示
+   */
+  fastify.post('/api/admin/artists/:id/totp/bind-init', { preHandler: requireAdmin }, async (request, reply) => {
+    const artist = artistService.getArtistById(parseInt(request.params.id))
+    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+    if (artist.deleted_at) return reply.code(400).send({ error: '画师已移除，无法绑定' })
+
+    const secret = generateSecret()
+    const otpauthUri = buildOtpAuthUri(secret, artist.qq_number)
+    const qrDataUrl = await QRCode.toDataURL(otpauthUri, { width: 220, margin: 1 })
+
+    bindTotpInit(artist.id, secret)
+
+    return {
+      qrDataUrl,
+      otpauthUri,
+      ...(isDevAuth ? { _dev_secret: secret } : {})
+    }
+  })
+
+  /**
+   * POST /api/admin/artists/:id/totp/bind-confirm
+   * REQ-027 R2 绑定第二步：管理员输入画师报的 6 位动态码，验证通过后完成绑定
+   */
+  fastify.post('/api/admin/artists/:id/totp/bind-confirm', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['code'],
+        properties: {
+          code: { type: 'string', minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    const artist = artistService.getArtistById(parseInt(request.params.id))
+    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+    if (!artist.totp_secret) return reply.code(400).send({ error: '请先生成绑定二维码' })
+
+    try {
+      confirmTotpBind(artist.id, request.body.code)
+    } catch (err) {
+      if (err instanceof AppError && err.code === E.TOTP_BIND_INVALID) {
+        return reply.code(400).send({ code: E.TOTP_BIND_INVALID, error: '动态口令错误，请让画师确认验证器上当前显示的 6 位码' })
+      }
+      throw err
+    }
+
+    return { success: true, message: `画师「${artist.name}」已绑定动态口令` }
+  })
+
+  /**
+   * POST /api/admin/artists/:id/totp/reset
+   * REQ-027 R5 恢复方案：管理员重置画师绑定，旧密钥立即失效，画师须重新绑定才能登录
+   */
+  fastify.post('/api/admin/artists/:id/totp/reset', { preHandler: requireAdmin }, async (request, reply) => {
+    const artist = artistService.getArtistById(parseInt(request.params.id))
+    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+
+    resetTotp(artist.id)
+    return { success: true, message: `已重置画师「${artist.name}」的动态口令绑定，画师需重新绑定才能登录` }
+  })
+
+  /**
    * GET /api/admin/stats
    */
   fastify.get('/api/admin/stats', { preHandler: requireAdmin }, async () => {
@@ -146,10 +217,11 @@ export default async function adminRoutes(fastify) {
 
   /**
    * POST /api/admin/transfer
-   * 更换管理员账号（需要连续两次 QQ 短码验证）
-   * 1. 验证当前管理员的登录码（证明你是管理员）
-   * 2. 验证新管理员的登录码（证明对方接受）
-   * P1-F: 前置检查 + 整体事务化，任意一步失败全部回滚（码也不消耗）
+   * 更换管理员账号（需要连续两次 TOTP 动态口令验证，REQ-027 替代旧登录码机制）
+   * 1. 验证当前管理员的动态口令（证明你是管理员）
+   * 2. 验证新管理员的动态口令（证明对方接受）
+   * 双方均须已绑定 TOTP（未绑定 → 401 提示先绑定）
+   * P1-F: 前置检查 + 整体事务化，任意一步失败全部回滚
    */
   fastify.post('/api/admin/transfer', {
     preHandler: requireAdmin,
@@ -187,15 +259,14 @@ export default async function adminRoutes(fastify) {
       return reply.code(404).send({ error: '该QQ号未注册为画师，请先添加画师' })
     }
 
-    // P0-3 修复：验码移出事务 — attempts+1 不被回滚，防爆破计数正常累加
-    // 事务只做配置更新（原子性），验码的副作用（attempts 递增、过期码删除）在事务外生效
-    const currentResult = verifyLoginCode(currentAdminQq, String(currentCode))
+    // 验码走 verifyTotpLogin（含防爆破计数，失败计数不被事务回滚）
+    const currentResult = verifyTotpLogin(currentAdminQq, String(currentCode))
     if (!currentResult.valid) {
-      return reply.code(401).send({ error: '验证失败，请确认登录码' })
+      return reply.code(401).send({ error: '验证失败，请确认当前管理员的动态口令' })
     }
-    const newResult = verifyLoginCode(String(newQq), String(newCode))
+    const newResult = verifyTotpLogin(String(newQq), String(newCode))
     if (!newResult.valid) {
-      return reply.code(401).send({ error: '验证失败，请确认登录码' })
+      return reply.code(401).send({ error: '验证失败，请确认新管理员的动态口令（须先完成绑定）' })
     }
     // 两次验码均通过，原子更新配置
     db.transaction(() => {
