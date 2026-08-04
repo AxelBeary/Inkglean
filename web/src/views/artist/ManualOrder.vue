@@ -110,6 +110,12 @@
           <section class="mo-col">
             <h3 class="mo-section">{{ $t('manualOrder.rightTitle') }}</h3>
 
+            <!-- R6 (REQ-029): 图片显示开关——右栏所有卡片图片一起藏，localStorage 记忆 -->
+            <div class="mo-show-images">
+              <span>{{ $t('manualOrder.showImages') }}</span>
+              <el-switch v-model="showImages" size="small" />
+            </div>
+
             <!-- 档位选择（旧档位模式，卡片式） -->
             <div v-if="!isStyleMode" class="mo-field">
               <div class="mo-field-label">{{ $t('manualOrder.tier') }}</div>
@@ -122,7 +128,7 @@
                 >
                   <span v-if="form.tierId === tier.id" class="tier-card-check">✓</span>
                   <img
-                    v-if="tier.example_image"
+                    v-if="showImages && tier.example_image"
                     :src="`/uploads/${tier.example_image}`"
                     class="tier-card-img" alt=""
                   />
@@ -146,8 +152,8 @@
                   @click="selectStyle(s.id)"
                 >
                   <span v-if="selectedStyleId === s.id" class="tier-card-check">✓</span>
-                  <img v-if="s.cover_image" :src="`/uploads/${s.cover_image}`" class="tier-card-img" alt="" />
-                  <div v-else class="tier-card-img tier-card-img--empty">{{ s.name?.charAt(0) }}</div>
+                  <img v-if="showImages && s.cover_image" :src="`/uploads/${s.cover_image}`" class="tier-card-img" alt="" />
+                  <div v-if="showImages && !s.cover_image" class="tier-card-img tier-card-img--empty">{{ s.name?.charAt(0) }}</div>
                   <div class="tier-card-body">
                     <div class="tier-card-name">{{ s.name }}</div>
                     <div v-if="s.description" class="tier-card-desc">{{ s.description }}</div>
@@ -155,6 +161,9 @@
                 </div>
               </div>
             </div>
+
+            <!-- R2 (REQ-029): 自定义单提示——不选也能手输价录自定义单（画风模式通用，多/单画风都显示） -->
+            <p v-if="isStyleMode" class="style-skip-hint">{{ $t('manualOrder.customHint') }}</p>
 
             <!-- 选尺寸（画风模式步骤 2；单画风即步骤 1） -->
             <div v-if="isStyleMode && selectedStyle" class="mo-field">
@@ -168,7 +177,7 @@
                 >
                   <span v-if="selectedSizeId === sz.id" class="tier-card-check">✓</span>
                   <img
-                    v-if="sizeImage(sz)"
+                    v-if="showImages && sizeImage(sz)"
                     :src="`/uploads/${sizeImage(sz)}`"
                     class="tier-card-img" alt=""
                   />
@@ -292,7 +301,7 @@
 
             <!-- 价格面板 sticky（≥600px 可见，<600px 由底部价格条替代） -->
             <div class="mo-price-sticky">
-              <!-- 实时价格预览（画风模式：calculateStylePrice 明细） -->
+              <!-- 实时价格预览（画风模式：calculateStylePrice 明细 + R5 自定义增项并列） -->
               <div v-if="isStyleMode && stylePricePreview" class="price-preview">
                 <div class="price-line">
                   <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
@@ -306,22 +315,74 @@
                   <span>{{ $t('manualOrder.afterMultiplier') }}</span>
                   <span class="price-amount">¥{{ (stylePricePreview.multiplierTotal ?? 0).toFixed(2) }}</span>
                 </div>
+                <div v-for="item in customAddons" :key="item.uid" class="price-line">
+                  <span>{{ item.name }}</span>
+                  <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+                </div>
                 <div class="price-divider"></div>
                 <div class="price-line total">
                   <span>{{ $t('manualOrder.totalPrice') }}</span>
-                  <span class="price-amount">¥{{ (stylePricePreview.totalPrice ?? 0).toFixed(2) }}</span>
+                  <span class="price-amount">¥{{ ((stylePricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
                 </div>
               </div>
-              <!-- 实时价格预览（旧档位模式） -->
+              <!-- 实时价格预览（旧档位模式：pricePreview 明细 + R5 自定义增项并列） -->
               <div v-else-if="form.tierId && pricePreview" class="price-preview">
                 <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
                   <span>{{ item.name }}</span>
                   <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
                 </div>
+                <div v-for="item in customAddons" :key="item.uid" class="price-line">
+                  <span>{{ item.name }}</span>
+                  <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+                </div>
                 <div class="price-divider"></div>
                 <div class="price-line total">
                   <span>{{ $t('manualOrder.totalPrice') }}</span>
-                  <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
+                  <span class="price-amount">¥{{ ((pricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
+                </div>
+              </div>
+              <!-- R5: 自定义单（什么都不选）时无计算明细，自定义增项独立成块 -->
+              <div v-else-if="customAddons.length > 0" class="price-preview">
+                <div v-for="item in customAddons" :key="item.uid" class="price-line">
+                  <span>{{ item.name }}</span>
+                  <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+                </div>
+                <div class="price-divider"></div>
+                <div class="price-line total">
+                  <span>{{ $t('manualOrder.totalPrice') }}</span>
+                  <span class="price-amount">¥{{ customAddonsTotal.toFixed(2) }}</span>
+                </div>
+              </div>
+
+              <!-- R5 (REQ-029): 自定义增项录入（两条路径通用：选了画风可录，自定义单也可录） -->
+              <div class="mo-field">
+                <div class="mo-field-label custom-addon-label">
+                  <span>{{ $t('manualOrder.customAddons') }}</span>
+                  <el-button size="small" text type="primary" @click="customAddonOpen = !customAddonOpen">
+                    ＋ {{ $t('manualOrder.addCustomAddon') }}
+                  </el-button>
+                </div>
+                <div v-if="customAddonOpen" class="custom-addon-editor">
+                  <el-input
+                    v-model="customAddonName" maxlength="50" size="small"
+                    :placeholder="$t('manualOrder.customAddonNamePlaceholder')"
+                  />
+                  <el-input-number
+                    v-model="customAddonPrice" :precision="2" :step="10" :controls="false"
+                    size="small" style="width: 130px"
+                    :placeholder="$t('manualOrder.customAddonPricePlaceholder')"
+                  />
+                  <el-button type="primary" size="small" @click="addCustomAddon">✓</el-button>
+                  <el-button size="small" @click="customAddonOpen = false">✕</el-button>
+                </div>
+                <div v-if="customAddons.length > 0" class="custom-addon-list">
+                  <div v-for="(item, idx) in customAddons" :key="item.uid" class="custom-addon-item">
+                    <span class="custom-addon-name">{{ item.name }}</span>
+                    <span class="custom-addon-price" :class="{ 'custom-addon-price--neg': item.priceYuan < 0 }">
+                      {{ formatCustomAddonPrice(item) }}
+                    </span>
+                    <el-button size="small" text type="danger" @click="removeCustomAddon(idx)">✕</el-button>
+                  </div>
                 </div>
               </div>
 
@@ -366,10 +427,14 @@
                 <span>{{ $t('manualOrder.afterMultiplier') }}</span>
                 <span class="price-amount">¥{{ (stylePricePreview.multiplierTotal ?? 0).toFixed(2) }}</span>
               </div>
+              <div v-for="item in customAddons" :key="item.uid" class="price-line">
+                <span>{{ item.name }}</span>
+                <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+              </div>
               <div class="price-divider"></div>
               <div class="price-line total">
                 <span>{{ $t('manualOrder.totalPrice') }}</span>
-                <span class="price-amount">¥{{ (stylePricePreview.totalPrice ?? 0).toFixed(2) }}</span>
+                <span class="price-amount">¥{{ ((stylePricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
               </div>
             </div>
             <div v-else-if="form.tierId && pricePreview" class="price-preview">
@@ -377,12 +442,60 @@
                 <span>{{ item.name }}</span>
                 <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
               </div>
+              <div v-for="item in customAddons" :key="item.uid" class="price-line">
+                <span>{{ item.name }}</span>
+                <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+              </div>
               <div class="price-divider"></div>
               <div class="price-line total">
                 <span>{{ $t('manualOrder.totalPrice') }}</span>
-                <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
+                <span class="price-amount">¥{{ ((pricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
               </div>
             </div>
+            <div v-else-if="customAddons.length > 0" class="price-preview">
+              <div v-for="item in customAddons" :key="item.uid" class="price-line">
+                <span>{{ item.name }}</span>
+                <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+              </div>
+              <div class="price-divider"></div>
+              <div class="price-line total">
+                <span>{{ $t('manualOrder.totalPrice') }}</span>
+                <span class="price-amount">¥{{ customAddonsTotal.toFixed(2) }}</span>
+              </div>
+            </div>
+
+            <!-- R5: 移动端自定义增项（录入 + 列表，与桌面一致） -->
+            <div class="mo-mobile-custom">
+              <div class="mo-mobile-custom-label">
+                <span>{{ $t('manualOrder.customAddons') }}</span>
+                <el-button size="small" text type="primary" @click="customAddonOpen = !customAddonOpen">
+                  ＋ {{ $t('manualOrder.addCustomAddon') }}
+                </el-button>
+              </div>
+              <div v-if="customAddonOpen" class="custom-addon-editor">
+                <el-input
+                  v-model="customAddonName" maxlength="50" size="small"
+                  :placeholder="$t('manualOrder.customAddonNamePlaceholder')"
+                />
+                <el-input-number
+                  v-model="customAddonPrice" :precision="2" :step="10" :controls="false"
+                  size="small" style="width: 130px"
+                  :placeholder="$t('manualOrder.customAddonPricePlaceholder')"
+                />
+                <el-button type="primary" size="small" @click="addCustomAddon">✓</el-button>
+                <el-button size="small" @click="customAddonOpen = false">✕</el-button>
+              </div>
+              <div v-if="customAddons.length > 0" class="custom-addon-list">
+                <div v-for="(item, idx) in customAddons" :key="item.uid" class="custom-addon-item">
+                  <span class="custom-addon-name">{{ item.name }}</span>
+                  <span class="custom-addon-price" :class="{ 'custom-addon-price--neg': item.priceYuan < 0 }">
+                    {{ formatCustomAddonPrice(item) }}
+                  </span>
+                  <el-button size="small" text type="danger" @click="removeCustomAddon(idx)">✕</el-button>
+                </div>
+              </div>
+            </div>
+
             <div class="mo-mobile-final">
               <span>{{ $t('manualOrder.finalPrice') }}</span>
               <el-input-number
@@ -556,6 +669,57 @@ const styleAddonSelections = reactive({})
 /** 画风价格预览（calculate-style-price 响应） */
 const stylePricePreview = ref(null)
 
+// ─── v0.38 补漏 R5: 自定义增项（两条路径通用，允许负数/0，上限 20） ───
+/** 已录自定义增项 [{ uid, name, priceYuan }] */
+const customAddons = ref([])
+/** 录入区展开状态 */
+const customAddonOpen = ref(false)
+const customAddonName = ref('')
+const customAddonPrice = ref(null)
+/** 自定义增项合计（元） */
+const customAddonsTotal = computed(() => customAddons.value.reduce((sum, a) => sum + (Number(a.priceYuan) || 0), 0))
+
+/** 自定义增项金额文案（负数显示 -¥xx.xx） */
+function formatCustomAddonPrice(item) {
+  const v = Number(item.priceYuan) || 0
+  return `${v < 0 ? '-' : ''}¥${Math.abs(v).toFixed(2)}`
+}
+
+/** 添加自定义增项（名称必填 ≤50 字；金额必填；上限 20 条） */
+function addCustomAddon() {
+  const name = customAddonName.value.trim()
+  if (!name) {
+    ElMessage.warning(t('manualOrder.customAddonNameRequired'))
+    return
+  }
+  if (customAddons.value.length >= 20) {
+    ElMessage.warning(t('manualOrder.customAddonMax'))
+    return
+  }
+  const price = Number(customAddonPrice.value)
+  if (customAddonPrice.value === null || customAddonPrice.value === undefined || Number.isNaN(price)) {
+    ElMessage.warning(t('manualOrder.customAddonPriceRequired'))
+    return
+  }
+  customAddons.value.push({ uid: `ca-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name, priceYuan: price })
+  customAddonName.value = ''
+  customAddonPrice.value = null
+  customAddonOpen.value = false
+}
+
+/** 删除已录自定义增项 */
+function removeCustomAddon(idx) {
+  customAddons.value.splice(idx, 1)
+}
+
+// ─── v0.38 补漏 R6: 图片显示开关（localStorage 记忆，默认开） ───
+const SHOW_IMAGES_KEY = 'manualOrder_showImages'
+/** 右栏卡片图片显示开关（画风 + 档位一起藏） */
+const showImages = ref(localStorage.getItem(SHOW_IMAGES_KEY) !== '0')
+watch(showImages, (v) => {
+  try { localStorage.setItem(SHOW_IMAGES_KEY, v ? '1' : '0') } catch { /* 隐私模式等场景忽略 */ }
+})
+
 /** 画风卡片封面：F1/F3 约定 image_artwork_id 有值 → 用 artwork_image_path（实时引用），否则用 image */
 function sizeImage(sz) {
   return sz.artwork_image_path || sz.image || null
@@ -563,7 +727,15 @@ function sizeImage(sz) {
 
 /** 选择画风（多画风步骤 1）：切换时重置尺寸/增项/价格，脏标记恢复跟随计算（与切档语义一致） */
 function selectStyle(id) {
-  if (selectedStyleId.value === id) return
+  // B2 (REQ-029 §三 B2): 点已选中的画风卡 = 取消选中（对齐档位卡 toggle 交互），清空尺寸/增项/算价
+  if (selectedStyleId.value === id) {
+    selectedStyleId.value = null
+    selectedSizeId.value = null
+    for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+    stylePricePreview.value = null
+    priceTouched.value = false
+    return
+  }
   selectedStyleId.value = id
   selectedSizeId.value = null
   for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
@@ -660,11 +832,12 @@ async function doStyleCalc() {
   }
 }
 
-/** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（画风模式用 stylePricePreview） */
+/** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（画风模式用 stylePricePreview，均含 R5 自定义增项合计） */
 const displayPrice = computed(() => {
   if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return finalPriceYuan.value.toFixed(2)
-  if (isStyleMode.value && stylePricePreview.value) return (stylePricePreview.value.totalPrice ?? 0).toFixed(2)
-  if (pricePreview.value) return (pricePreview.value.totalPrice ?? 0).toFixed(2)
+  if (isStyleMode.value && stylePricePreview.value) return ((stylePricePreview.value.totalPrice ?? 0) + customAddonsTotal.value).toFixed(2)
+  if (pricePreview.value) return ((pricePreview.value.totalPrice ?? 0) + customAddonsTotal.value).toFixed(2)
+  if (customAddonsTotal.value !== 0) return customAddonsTotal.value.toFixed(2)
   return ''
 })
 
@@ -833,9 +1006,10 @@ async function submit() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
-  // v0.38 D路: 画风模式必须选完尺寸才能提交（后端 styleSizeId 必填且与 tierId 互斥）
-  if (isStyleMode.value && !selectedSizeId.value) {
-    ElMessage.warning(t('manualOrder.selectSizeFirst'))
+  // v0.38 D路 + 补漏 R2 (REQ-029 §四验收3): 画风模式未选尺寸时——手输过价 = 自定义单放行；
+  // 未手输 = 半途状态拦截（避免误触 0 元单）
+  if (isStyleMode.value && !selectedSizeId.value && !priceTouched.value) {
+    ElMessage.warning(t('manualOrder.selectSizeOrPrice'))
     return
   }
 
@@ -880,6 +1054,21 @@ async function submit() {
             quoteSnapshot: order.quote_snapshot || null
           })
         } catch (e) { postCreateFailed = `价格写入失败：${e.message}` }
+      }
+    }
+
+    // R5 (REQ-029): 自定义增项补写——createOrder 无自定义条目字段，创建后逐条调
+    // extra-items 接口（对齐截稿日/开稿日的 postCreate 补写模式；价格允许负数=减项/让利、0=留痕）
+    if (order.id && customAddons.value.length > 0) {
+      for (const item of customAddons.value) {
+        try {
+          await artistApi.addExtraItem(order.id, {
+            name: item.name,
+            priceCents: Math.round((Number(item.priceYuan) || 0) * 100)
+          })
+        } catch (e) {
+          postCreateFailed = postCreateFailed || `自定义增项「${item.name}」写入失败：${e.message}`
+        }
       }
     }
 
@@ -939,6 +1128,11 @@ function resetForm() {
   selectedSizeId.value = null
   for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
   stylePricePreview.value = null
+  // v0.38 补漏 R5: 自定义增项重置
+  customAddons.value = []
+  customAddonOpen.value = false
+  customAddonName.value = ''
+  customAddonPrice.value = null
   for (const key of Object.keys(addonSelections)) delete addonSelections[key]
   for (const key of Object.keys(addonToggles)) delete addonToggles[key]
   pricePreview.value = null
@@ -1003,6 +1197,58 @@ onUnmounted(() => {
   margin: 0 0 16px;
   padding-bottom: 10px;
   border-bottom: 2px solid var(--border-color);
+}
+
+/* ─── R6 (REQ-029): 图片显示开关 ─── */
+.mo-show-images {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; margin-bottom: 16px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+
+/* ─── R2 (REQ-029): 自定义单提示 ─── */
+.style-skip-hint {
+  font-size: 12px; color: var(--text-secondary);
+  margin: 8px 0 0;
+}
+
+/* ─── R5 (REQ-029): 自定义增项 ─── */
+.custom-addon-label {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.custom-addon-editor {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.custom-addon-list {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 4px;
+}
+.custom-addon-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.custom-addon-name {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary);
+}
+.custom-addon-price {
+  font-weight: 600; color: var(--el-color-primary);
+  font-variant-numeric: tabular-nums;
+}
+.custom-addon-price--neg { color: var(--el-color-danger); }
+.mo-mobile-custom {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+.mo-mobile-custom-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
 }
 
 /* ─── 参考图粘贴区（大块显眼） ─── */

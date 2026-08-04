@@ -27,7 +27,8 @@ const h = vi.hoisted(() => ({
   styleCalc: null,
   styleCalcCalls: 0,
   created: null,
-  updatedPrice: null
+  updatedPrice: null,
+  extraItems: []
 }))
 
 vi.mock('../../../api/index.js', () => ({
@@ -37,6 +38,7 @@ vi.mock('../../../api/index.js', () => ({
     getOrders: () => Promise.resolve({ items: [] }),
     createManualOrder: (data) => { h.created = data; return Promise.resolve({ id: 1, order_no: 'TEST-001', quote_snapshot: null }) },
     updatePrice: (id, data) => { h.updatedPrice = { id, ...data }; return Promise.resolve({}) },
+    addExtraItem: (id, data) => { h.extraItems.push({ id, data }); return Promise.resolve({}) },
     updateDeadline: () => Promise.resolve({}),
     updateStartDate: () => Promise.resolve({}),
     advanceStage: () => Promise.resolve({}),
@@ -127,6 +129,7 @@ function setupState({ styles = [], profile = MOCK_PROFILE, pricing = MOCK_PRICIN
   h.styleCalcCalls = 0
   h.created = null
   h.updatedPrice = null
+  h.extraItems = []
 }
 
 /** 挂载（Element Plus 全量注册；date-picker/upload/dialog 等重型组件占位） */
@@ -196,8 +199,8 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     expect(h.styleCalcCalls).toBeGreaterThan(0)
     expect(wrapper.text()).toContain('manualOrder.totalPrice')
 
-    // 4. 勾选 switch 增项 → 重算（防抖）
-    const switchComp = wrapper.findAllComponents(ElSwitch).at(0)
+    // 4. 勾选 switch 增项（定位画风增项区块内——页面第一个 ElSwitch 是 R6 图片开关）
+    const switchComp = wrapper.find('.style-addon-item').findComponent(ElSwitch)
     await switchComp.vm.$emit('change', true)
     await vi.advanceTimersByTimeAsync(300)
 
@@ -266,14 +269,14 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     wrapper.unmount()
   })
 
-  it('画风模式未选尺寸直接提交 → 拦截提示，不调 createManualOrder', async () => {
+  it('画风模式未选尺寸直接提交（未手输价）→ 拦截提示，不调 createManualOrder', async () => {
     setupState({ styles: MOCK_STYLES })
     const warnSpy = vi.spyOn(ElMessage, 'warning').mockImplementation(() => {})
     const wrapper = mountPage()
     await flushPromises()
 
     await fillQqAndSubmit(wrapper)
-    expect(warnSpy).toHaveBeenCalledWith('manualOrder.selectSizeFirst')
+    expect(warnSpy).toHaveBeenCalledWith('manualOrder.selectSizeOrPrice')
     expect(h.created).toBeNull()
 
     wrapper.unmount()
@@ -287,7 +290,7 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     // 选画风 1 → 尺寸 1 → 勾 switch
     await clickCardInSection(wrapper, 'manualOrder.styleTitle', 0)
     await clickCardInSection(wrapper, 'manualOrder.sizeTitle', 0)
-    const switchComp = wrapper.findAllComponents(ElSwitch).at(0)
+    const switchComp = wrapper.find('.style-addon-item').findComponent(ElSwitch)
     await switchComp.vm.$emit('change', true)
     await vi.advanceTimersByTimeAsync(300)
 
@@ -326,6 +329,214 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     expect(h.created).not.toBeNull()
     expect(h.created.styleSizeId).toBe(111)
     expect(h.created.styleAddons).toEqual([{ styleAddonId: 1113, optionLabel: '室内' }])
+
+    wrapper.unmount()
+  })
+})
+
+// ─── v0.38 补漏批 (REQ-029): R2 提示 / R5 自定义增项 / R6 图片开关 / B2 取消选中 ───
+describe('ManualOrder 补漏批（REQ-029）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    localStorage.clear()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('R2: 画风模式显示自定义单提示（多画风 + 单画风都可见）', async () => {
+    setupState({ styles: MOCK_STYLES })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('manualOrder.customHint')
+    wrapper.unmount()
+
+    setupState({ styles: [MOCK_STYLES[1]] })
+    const wrapper2 = mountPage()
+    await flushPromises()
+    expect(wrapper2.text()).toContain('manualOrder.customHint')
+    wrapper2.unmount()
+  })
+
+  it('B2: 点已选画风取消选中 → 尺寸区消失，手输价后可提交自定义单', async () => {
+    setupState({ styles: MOCK_STYLES })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    // 选画风 1 → 尺寸区出现
+    await clickCardInSection(wrapper, 'manualOrder.styleTitle', 0)
+    expect(wrapper.text()).toContain('manualOrder.sizeTitle')
+
+    // 再点同一画风 → 取消选中 → 尺寸区消失、无选中态
+    await clickCardInSection(wrapper, 'manualOrder.styleTitle', 0)
+    expect(wrapper.text()).not.toContain('manualOrder.sizeTitle')
+
+    // 手输价 → 提交自定义单（tierId null、无 styleSizeId）
+    const priceComp = wrapper.find('.mo-final-row').findComponent(ElInputNumber)
+    await priceComp.vm.$emit('update:modelValue', 88)
+    await fillQqAndSubmit(wrapper)
+    expect(h.created).not.toBeNull()
+    expect(h.created.tierId).toBeNull()
+    expect(h.created.styleSizeId).toBeUndefined()
+    expect(h.created.styleAddons).toBeUndefined()
+    // G2: 手输价 ≠ 计算价(null) → updatePrice 补写
+    expect(h.updatedPrice).not.toBeNull()
+    expect(h.updatedPrice.finalPriceCents).toBe(8800)
+
+    wrapper.unmount()
+  })
+
+  it('R5: 自定义增项——负数录入、明细展示、提交补写 addExtraItem', async () => {
+    setupState({ styles: MOCK_STYLES })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    // 打开编辑器（价格面板内）
+    await wrapper.find('.mo-price-sticky .custom-addon-label button').trigger('click')
+    await flushPromises()
+
+    // 名称 + 负数金额
+    const editor = wrapper.find('.mo-price-sticky .custom-addon-editor')
+    await editor.find('input').setValue('让利优惠')
+    const numComp = editor.findComponent(ElInputNumber)
+    await numComp.vm.$emit('update:modelValue', -50)
+
+    // 点 ✓ 添加
+    await editor.findAll('button').at(0).trigger('click')
+    await flushPromises()
+
+    // 列表 + 明细展示（负数格式 -¥50.00）
+    expect(wrapper.findAll('.mo-price-sticky .custom-addon-item')).toHaveLength(1)
+    expect(wrapper.text()).toContain('让利优惠')
+    expect(wrapper.text()).toContain('-¥50.00')
+
+    // 自定义单路径：不选画风/尺寸，手输价放行提交
+    const priceComp = wrapper.find('.mo-final-row').findComponent(ElInputNumber)
+    await priceComp.vm.$emit('update:modelValue', 500)
+    // 提交 → addExtraItem 补写（priceCents 负数）
+    await fillQqAndSubmit(wrapper)
+    expect(h.created).not.toBeNull()
+    expect(h.extraItems).toEqual([{ id: 1, data: { name: '让利优惠', priceCents: -5000 } }])
+
+    wrapper.unmount()
+  })
+
+  it('R5: 自定义增项——0 金额允许 + 上限 20 条拦截 + 可删除', async () => {
+    setupState({ styles: MOCK_STYLES })
+    const warnSpy = vi.spyOn(ElMessage, 'warning').mockImplementation(() => {})
+    const wrapper = mountPage()
+    await flushPromises()
+
+    // 添加 20 条（0 金额留痕场景）
+    for (let i = 0; i < 20; i++) {
+      await wrapper.find('.mo-price-sticky .custom-addon-label button').trigger('click')
+      await flushPromises()
+      const editor = wrapper.find('.mo-price-sticky .custom-addon-editor')
+      await editor.find('input').setValue(`留痕条目${i}`)
+      const numComp = editor.findComponent(ElInputNumber)
+      await numComp.vm.$emit('update:modelValue', 0)
+      await editor.findAll('button').at(0).trigger('click')
+      await flushPromises()
+    }
+    expect(wrapper.findAll('.mo-price-sticky .custom-addon-item')).toHaveLength(20)
+
+    // 第 21 条被拦
+    await wrapper.find('.mo-price-sticky .custom-addon-label button').trigger('click')
+    await flushPromises()
+    const editor = wrapper.find('.mo-price-sticky .custom-addon-editor')
+    await editor.find('input').setValue('超限条目')
+    await editor.findAll('button').at(0).trigger('click')
+    await flushPromises()
+    expect(warnSpy).toHaveBeenCalledWith('manualOrder.customAddonMax')
+    expect(wrapper.findAll('.mo-price-sticky .custom-addon-item')).toHaveLength(20)
+
+    // 删除第 1 条 → 19 条
+    await wrapper.find('.mo-price-sticky .custom-addon-item .el-button').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.mo-price-sticky .custom-addon-item')).toHaveLength(19)
+
+    wrapper.unmount()
+  })
+
+  it('R6: 图片开关——关闭后卡片图片一起藏，localStorage 记忆刷新保持', async () => {
+    setupState({ styles: MOCK_STYLES })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    // 默认开：画风卡无封面 → 首字占位块渲染
+    expect(wrapper.findAll('.mo-field .tier-card-img--empty')).toHaveLength(2)
+
+    // 关闭开关（v-model → update:modelValue）
+    const switchComp = wrapper.find('.mo-show-images').findComponent(ElSwitch)
+    await switchComp.vm.$emit('update:modelValue', false)
+    await flushPromises()
+    expect(wrapper.findAll('.mo-field .tier-card-img--empty')).toHaveLength(0)
+    expect(localStorage.getItem('manualOrder_showImages')).toBe('0')
+
+    // 重新挂载 → 读取 localStorage，图片仍隐藏
+    wrapper.unmount()
+    const wrapper2 = mountPage()
+    await flushPromises()
+    expect(wrapper2.findAll('.mo-field .tier-card-img--empty')).toHaveLength(0)
+
+    wrapper2.unmount()
+  })
+
+  it('R2/B3: 什么都不选 + 手输价 → 自定义单直接提交（不拦截）', async () => {
+    setupState({ styles: MOCK_STYLES })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    // 不选任何画风/尺寸，手输最终价格
+    const priceComp = wrapper.find('.mo-final-row').findComponent(ElInputNumber)
+    await priceComp.vm.$emit('update:modelValue', 99)
+    await fillQqAndSubmit(wrapper)
+
+    expect(h.created).not.toBeNull()
+    expect(h.created.tierId).toBeNull()
+    expect(h.created.styleSizeId).toBeUndefined()
+    expect(h.created.styleAddons).toBeUndefined()
+    expect(h.created.addons).toEqual([])
+    expect(h.updatedPrice).not.toBeNull()
+    expect(h.updatedPrice.finalPriceCents).toBe(9900)
+
+    wrapper.unmount()
+  })
+
+  it('R5: 自定义增项与画风模式并存——选画风+尺寸后录自定义增项，提交同时透传 styleAddons 与 extra items', async () => {
+    setupState({ styles: MOCK_STYLES })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    // 选画风 1 → 尺寸 1 → 勾 switch 增项（定位增项区块内）
+    await clickCardInSection(wrapper, 'manualOrder.styleTitle', 0)
+    await clickCardInSection(wrapper, 'manualOrder.sizeTitle', 0)
+    const switchComp = wrapper.find('.style-addon-item').findComponent(ElSwitch)
+    await switchComp.vm.$emit('change', true)
+    await vi.advanceTimersByTimeAsync(300)
+
+    // 自定义增项 +100
+    await wrapper.find('.mo-price-sticky .custom-addon-label button').trigger('click')
+    await flushPromises()
+    const editor = wrapper.find('.mo-price-sticky .custom-addon-editor')
+    await editor.find('input').setValue('加急包装')
+    const numComp = editor.findComponent(ElInputNumber)
+    await numComp.vm.$emit('update:modelValue', 100)
+    await editor.findAll('button').at(0).trigger('click')
+    await flushPromises()
+
+    // 价格面板总价 = 计算价(80) + 自定义(100) = 180
+    const totalLine = wrapper.find('.mo-price-sticky .price-line.total .price-amount')
+    expect(totalLine.text()).toBe('¥180.00')
+
+    // 提交 → styleSizeId + styleAddons + extraItems 三路并存
+    await fillQqAndSubmit(wrapper)
+    expect(h.created.styleSizeId).toBe(111)
+    expect(h.created.styleAddons).toEqual([{ styleAddonId: 1112 }])
+    expect(h.extraItems).toEqual([{ id: 1, data: { name: '加急包装', priceCents: 10000 } }])
+    // G2: 未手输价 → 不调 updatePrice
+    expect(h.updatedPrice).toBeNull()
 
     wrapper.unmount()
   })
