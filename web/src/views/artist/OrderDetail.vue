@@ -123,6 +123,7 @@
               @pointerdown="onSlideStart"
               @pointermove="onSlideMove"
               @pointerup="onSlideEnd"
+              @pointercancel="closeSlideCancel"
             >
               →
             </div>
@@ -132,20 +133,20 @@
 
         <!-- 常规操作按钮 -->
         <div v-else class="action-bar">
-          <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死） -->
+          <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死）；T3: 飞行中本按钮 loading、兄弟按钮 disabled -->
           <template v-if="hasWorkflow">
-            <el-button v-if="canAdvanceStage" type="primary" @click="advanceStage">
+            <el-button v-if="canAdvanceStage" type="primary" :loading="statusAction === 'advance'" :disabled="statusAction !== '' && statusAction !== 'advance'" @click="advanceStage">
               {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
             </el-button>
-            <el-button v-if="canBackStage" type="warning" plain @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+            <el-button v-if="canBackStage" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
             <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           </template>
-          <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛） -->
+          <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛）；T3: 飞行中目标按钮 loading，其余 disabled -->
           <template v-else>
-            <el-button v-if="order.status === 'pending'" type="primary" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
-            <el-button v-if="order.status === 'confirmed'" type="warning" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
-            <el-button v-if="order.status === 'wip'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
-            <el-button v-if="['wip','revision'].includes(order.status)" type="success" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
+            <el-button v-if="order.status === 'pending'" type="primary" :loading="statusAction === 'confirmed'" :disabled="statusAction !== '' && statusAction !== 'confirmed'" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
+            <el-button v-if="order.status === 'confirmed'" type="warning" :loading="statusAction === 'wip'" :disabled="statusAction !== '' && statusAction !== 'wip'" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
+            <el-button v-if="order.status === 'wip'" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
+            <el-button v-if="['wip','revision'].includes(order.status)" type="success" :loading="statusAction === 'done'" :disabled="statusAction !== '' && statusAction !== 'done'" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
             <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           </template>
           <!-- 取消订单：固定在右侧 -->
@@ -670,12 +671,15 @@ const canBackStage = computed(() =>
 )
 
 async function advanceStage() {
-  if (!nextStage.value) return
+  if (!nextStage.value || statusAction.value) return
+  statusAction.value = 'advance'
   try {
     order.value = await artistApi.advanceStage(route.params.id, nextStage.value.id)
     ElMessage.success(t('orderDetail.stageUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    statusAction.value = ''
   }
 }
 
@@ -689,11 +693,16 @@ async function backStage() {
       { type: 'warning' }
     )
   } catch { return }
+  // T3: 守卫须在 try 外——try 内 return 会触发 finally 误清飞行中请求的锁
+  if (statusAction.value) return
+  statusAction.value = 'back'
   try {
     order.value = await artistApi.stageBack(route.params.id, prev.id)
     ElMessage.success(t('orderDetail.stageUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    statusAction.value = ''
   }
 }
 
@@ -871,6 +880,8 @@ async function changeDeadline(val) {
     order.value = await artistApi.updateDeadline(route.params.id, val || null)
     ElMessage.success(t('orderDetail.deadlineUpdated'))
   } catch (err) {
+    // T1: 保存失败时回弹 picker 显示值为 order 原值（watcher 同款截取逻辑，避免界面与数据不一致）
+    deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
     ElMessage.error(err.message)
   }
 }
@@ -899,16 +910,27 @@ async function changeStartDate(val) {
       ElMessage.success(t('orderDetail.deadlineAutoSet'))
     }
   } catch (err) {
+    // T1: 保存失败时回弹显示值。第一个 PUT 可能已成功（开工日已入库），两个 picker 都从 order 同步
+    startDatePicker.value = order.value?.startDate ?? order.value?.start_date ?? null
+    deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
     ElMessage.error(err.message)
   }
 }
 
+// T3: 状态变更共享守卫——推进/打回/固定状态按钮快速连点会重复发请求。
+// statusAction 记录飞行动作（''=空闲；'advance'/'back'/目标状态值），精准控制哪个按钮转 loading
+const statusAction = ref('')
+
 async function changeStatus(status) {
+  if (statusAction.value) return
+  statusAction.value = status
   try {
     order.value = await artistApi.updateStatus(route.params.id, status)
     ElMessage.success(t('orderDetail.statusUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    statusAction.value = ''
   }
 }
 
@@ -1090,6 +1112,8 @@ async function uploadNoteImage(file) {
 }
 
 async function addNote() {
+  // T2: Enter 路径与按钮共用 addNote，按钮有 :loading 防连点，Enter 没有——统一在此拦截
+  if (noteSubmitting.value) return
   if (!newNote.value.trim()) return
   noteSubmitting.value = true
   try {
