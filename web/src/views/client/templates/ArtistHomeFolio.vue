@@ -390,39 +390,21 @@ onUnmounted(() => {
   margin: 0 0 48px;
 }
 
-/* v0.36: 画册翻页 — folio：沉浸暗调——图占满画幅（无边框无内边距），题注与点赞压右下角；
-   暗色配色（墨）下天然沉浸，亮色配色下靠压角信息 + 满幅构图保持编辑感 */
-.folio :deep(.tpl-album-frame) {
+/* v0.36 修正: 画廊恢复瀑布流（masonry）——Folio：沉浸暗调，无边框满幅卡片，题注压卡片内右下角（编辑感） */
+.folio :deep(.tpl-gallery--masonry) {
+  column-gap: 28px;
+}
+.folio :deep(.tpl-gallery--masonry .tpl-gallery-item) {
+  border-radius: 0;
   background: transparent;
 }
-/* 压角 meta 的定位上下文（当前页容器） */
-.folio :deep(.tpl-album-page) {
-  position: relative;
-}
-.folio :deep(.tpl-album-meta) {
-  position: absolute;
-  right: 4px;
-  bottom: 12px;
+.folio :deep(.tpl-gallery-meta) {
   gap: 12px;
-  padding: 6px 10px;
-  background: color-mix(in srgb, #000 42%, transparent);
-  color: #fff;
-  pointer-events: auto;
 }
 .folio :deep(.tpl-gallery-caption) {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--pal-text);
   font-size: 12px;
   letter-spacing: 0.05em;
-}
-.folio :deep(.tpl-gallery-like) {
-  color: rgba(255, 255, 255, 0.85);
-}
-.folio :deep(.tpl-gallery-like:hover) {
-  color: #fff;
-}
-.folio :deep(.tpl-album-counter) {
-  font-size: 11px;
-  letter-spacing: 0.25em;
 }
 
 /* F4: 留言板 — folio：内联文字块（极简编辑感，无边框，留白分隔） */

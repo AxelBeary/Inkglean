@@ -9,7 +9,7 @@
     <!-- v0.36: 作品画廊——画册式左右翻页（Atelier：画室纸片感——白衬厚边微旋转，宋体题注） -->
     <section class="atelier-section tpl-reveal" v-if="galleryArtworks.length">
       <p class="tpl-section-label atelier-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" />
+      <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" layout="album" />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->

@@ -9,7 +9,7 @@
     <!-- v0.36: 作品画廊——画册式左右翻页（Gallery：大小交错 editorial 节奏——当前页大图居中，相邻页缩小侧露） -->
     <section class="gallery-section tpl-reveal" v-if="galleryArtworks.length">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" peek />
+      <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" layout="album" peek />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
