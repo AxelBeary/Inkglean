@@ -15,16 +15,18 @@
 - **comms**：只剩本文件
 
 ---
-## 当前阶段：v0.37 轮——三路进行中，五号已合入
+## 当前阶段：v0.37 轮——二号/三号进行中，四号/五号已合入
 
 | 角色 | worktree/分支 | 内容 | 状态 |
 |------|--------------|------|------|
 | 二号 | artist-commission-webguard / v036-web-guard | v0.36 六路回归实测（零代码改动，纯浏览器实测 + 报告） | 🔄 进行中 |
 | 三号 | artist-commission-v037 / v037-pricing-engine | REQ-025 计价引擎第一阶段（纯函数+测试+迁移 v39，不接端点） | 🔄 进行中 |
-| 四号 | artist-commission-req025 / v037-req025-spec | REQ-025 文档轮：done 半终态写入 + 第二阶段草案 | 🔄 进行中 |
+| 四号 | —（worktree 已回收） | REQ-025 文档轮：R13 done 半终态 + 第二阶段草案 | ✅ 已合入 `32add0e`（一号修正 2 处守卫时效漂移后落库） |
 | 五号 | —（worktree 已回收） | 价格守卫批：updateFinalPrice/deleteExtraItem 补 delivered/cancelled 后端守卫（**done 不拦**，见下方裁决） | ✅ 已合入 `8c38032`（server 720/720） |
 
-合入顺序：五号已合入（测试基线 server 713→**720**）；三号（引擎）禁改现有文件，与已合入守卫零交集；四号纯 docs 随时合；二号纯实测无代码。
+**REQ-025 第二阶段草案已就位**（第八节，10 端点行号实锤 + 切流方案 + 交互稿 + 测试映射），等三号引擎第一阶段交付后，作为第二阶段派工底稿（引擎接口占位符届时补实）。
+
+合入顺序：五号、四号已合入（测试基线 server 713→**720**）；三号（引擎）禁改现有文件，与已合入内容零交集；二号纯实测无代码。
 
 **测试基线更新**：server **720/720**（43 文件）· web 166/166
 
@@ -95,7 +97,7 @@ done 订单当前唯一减价路径是 updateFinalPrice——负增项被 schema
 |------|------|
 | 二号 | 开工中：v0.36 六路回归实测（worktree: artist-commission-webguard） |
 | 三号 | 开工中：v037 引擎第一阶段（worktree: artist-commission-v037） |
-| 四号 | 开工中：REQ-025 文档轮（worktree: artist-commission-req025）；文档轮（changelog）已合入 `6141bfb` |
+| 四号 | 空闲；REQ-025 文档轮已合入 `32add0e`（changelog 轮 `6141bfb`） |
 | 五号 | 空闲；价格守卫批已合入 `8c38032`（server 720/720） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
