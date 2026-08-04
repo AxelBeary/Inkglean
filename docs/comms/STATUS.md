@@ -1,12 +1,12 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 用户终验反馈轮派工完毕（四路并行）
+> 最后更新：2026-08-05 终验反馈轮四路 + 追加两路（共六路并行）
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
 ---
 ## master 状态
 
-- **HEAD**：`8f45e90`（comms 清理 17 文件），与 origin 同步
+- **HEAD**：`6727709`（追加两路派工），与 origin 同步
 - **测试基线**：server 699/699 · web 144/144 · tsc 0 · eslint 0 · build ✓
 - **容器**：commission-web healthy（含全部热修）；备份 `data/commission.db.bak-v036-verify`
 - **迁移**：v38
@@ -22,6 +22,8 @@
 | 五号 | wt-05 / v036-w2-bugfix | `01-to-05-收款三连-20260804.md` | P1 负数卡死 + P2 多收支持 + P3 跟踪提示文案 | 中 |
 | 二号 | wt-02 / v036-w2-client | `01-to-02-orderform跳步修复-20260804.md` | F1：增项步骤"下一步"跳过写需求修复（349 行） | 低 |
 | 二号-B | wt-03b / v036-w2-dragguard | `01-to-02b-拖拽守卫+录单价格修复-20260804.md` | G1 禁页内图拖入上传区 + G2 录单手动价抹除增项修复（005 根因） | 低/中 |
+| 五号-B | wt-05b / v036-w2-board-deliver（自建 worktree） | `01-to-05b-看板交付统一走弹窗-20260804.md` | H1：看板下拉「已交付」统一走 DeliverDialog 防手滑 | 低 |
+| 三号-B | wt-03b2 / v036-w2-odfix（自建 worktree） | `01-to-03b-orderdetail四项小修-20260804.md` | T1-T4：picker 失败回滚 + 备注防重 + 推进防连点 + 滑块 pointercancel | 低 |
 
 **一号已实锤的根因（派工文件里有细节，角色不要重复侦查）**：
 1. 005 订单 380→200：ManualOrder.vue 447-448 行 finalPriceYuan 只在 null 时自动填，加增项后不更新，提交时 200≠380 被误判为画师改价自动抹除（操作日志 id=35 同秒发生、reason 是程序生成的报价快照，实锤）
@@ -38,11 +40,11 @@
 
 ### v0.36 波 2 候选（本轮未派，排队中）
 
-- 看板下拉「已交付」统一走 DeliverDialog 交付弹窗（用户已拍板）
+- ~~看板下拉「已交付」统一走 DeliverDialog 交付弹窗~~ → 已派五号-B（H1）
 - 手动录单 ManualOrder 接新画风模型（注意：G2 先合入，避免 ManualOrder 冲突）
-- task-0 剩余小修：OrderDetail picker 保存失败不回滚、备注 Enter 重复提交、状态推进防连点、滑块 pointercancel
-- createOrder 内联分期段与 generateInstallmentsForOrder 去重（五号-B 遗留 2）
-- 四号归档清单执行：REQ-024 / SPEC-025 / feedback-20260802 → archive/
+- ~~task-0 剩余小修~~ → 已派三号-B（T1-T4）
+- createOrder 内联分期段与 generateInstallmentsForOrder 去重（五号-B 遗留 2）——缓派：与三号 order.routes / 五号-B 分期测试文件冲突，待本轮合入后再派
+- ~~四号归档清单执行~~ → 已核实完成（REQ-024 / SPEC-025 / feedback-20260802 均已在 archive/，候选清单过时）
 
 ### 已知遗留
 
@@ -72,8 +74,9 @@
 - **二号-B**：已派 G1+G2，在 wt-03b（新 worktree，一号已建好）
 - **三号**：已派 B1（响应增强统一），在 wt-03
 - **五号**：已派 P1/P2/P3，在 wt-05
-- **四号**：空闲（归档清单待本轮合入后执行，避免与修复轮并线）
-- **三号-B / 五号-B**：空闲，本轮未派
+- **五号-B**：已派 H1（看板交付弹窗），worktree wt-05b 自建
+- **三号-B**：已派 T1-T4（订单详情四项小修），worktree wt-03b2 自建；**合入顺序：五号先合，三号-B 交付后等一号安排**（同改 OrderDetail.vue）
+- **四号**：空闲（归档已核实完成；下一轮文档活在修复合入后）
 
 ---
 ## ⚠️ v38 迁移事故记录（一号自查发现并已修复）
