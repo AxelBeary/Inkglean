@@ -605,7 +605,12 @@ export default {
     // F4: 初始节点状态
     initialStatus: '初始节点状态', initialStatusHint: '线下已谈好的单子可直接跳过确认环节',
     // REQ-015: QQ历史面板
-    historyTitle: '该客户的历史订单', newClient: '新客户，暂无历史订单'
+    historyTitle: '该客户的历史订单', newClient: '新客户，暂无历史订单',
+    // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
+    styleTitle: '选择画风', sizeTitle: '选择尺寸', sizeDays: '{n}天',
+    noSizes: '该画风下暂无尺寸', styleAddonsEmpty: '该尺寸下暂无可选增项',
+    addonOptionPrice: '选项价', selectSizeFirst: '请先选择画风和尺寸',
+    afterMultiplier: '倍率后小计'
   },
   tiers: {
     title: '价格管理', addTier: '+ 添加档位',

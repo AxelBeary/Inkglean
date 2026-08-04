@@ -605,7 +605,12 @@ export default {
     // F4: initial stage status
     initialStatus: 'Initial stage status', initialStatusHint: 'Skip the confirmation step for orders already agreed offline',
     // REQ-015: QQ history panel
-    historyTitle: "This client's order history", newClient: 'New client — no previous orders'
+    historyTitle: "This client's order history", newClient: 'New client — no previous orders',
+    // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
+    styleTitle: 'Choose Style', sizeTitle: 'Choose Size', sizeDays: '{n} days',
+    noSizes: 'No sizes available for this style', styleAddonsEmpty: 'No add-ons available for this size',
+    addonOptionPrice: 'Option price', selectSizeFirst: 'Please select a style and size first',
+    afterMultiplier: 'After multipliers'
   },
   tiers: {
     title: 'Pricing', addTier: '+ Add tier',

@@ -110,8 +110,8 @@
           <section class="mo-col">
             <h3 class="mo-section">{{ $t('manualOrder.rightTitle') }}</h3>
 
-            <!-- 档位选择（卡片式，替代下拉框） -->
-            <div class="mo-field">
+            <!-- 档位选择（旧档位模式，卡片式） -->
+            <div v-if="!isStyleMode" class="mo-field">
               <div class="mo-field-label">{{ $t('manualOrder.tier') }}</div>
               <div v-if="tiers.length === 0" class="mo-empty-tiers">{{ $t('manualOrder.noTiers') }}</div>
               <div v-else class="tier-cards">
@@ -135,8 +135,92 @@
               </div>
             </div>
 
-            <!-- 增项选择（选完档位后出现） -->
-            <div v-if="form.tierId && availableAddons.length > 0" class="mo-field">
+            <!-- ─── v0.38 D路：画风模式（画风→尺寸→增项 三级选择，交互对齐 OrderForm） ─── -->
+            <!-- 选画风（仅多画风；单画风自动选中，跳过此步） -->
+            <div v-if="isStyleMode && isMultiStyle" class="mo-field">
+              <div class="mo-field-label">{{ $t('manualOrder.styleTitle') }}</div>
+              <div class="tier-cards">
+                <div
+                  v-for="s in styles" :key="s.id"
+                  class="tier-card" :class="{ 'tier-card--active': selectedStyleId === s.id }"
+                  @click="selectStyle(s.id)"
+                >
+                  <span v-if="selectedStyleId === s.id" class="tier-card-check">✓</span>
+                  <img v-if="s.cover_image" :src="`/uploads/${s.cover_image}`" class="tier-card-img" alt="" />
+                  <div v-else class="tier-card-img tier-card-img--empty">{{ s.name?.charAt(0) }}</div>
+                  <div class="tier-card-body">
+                    <div class="tier-card-name">{{ s.name }}</div>
+                    <div v-if="s.description" class="tier-card-desc">{{ s.description }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 选尺寸（画风模式步骤 2；单画风即步骤 1） -->
+            <div v-if="isStyleMode && selectedStyle" class="mo-field">
+              <div class="mo-field-label">{{ $t('manualOrder.sizeTitle') }}</div>
+              <div v-if="selectedStyle.sizes.length === 0" class="mo-empty-tiers">{{ $t('manualOrder.noSizes') }}</div>
+              <div v-else class="tier-cards">
+                <div
+                  v-for="sz in selectedStyle.sizes" :key="sz.id"
+                  class="tier-card" :class="{ 'tier-card--active': selectedSizeId === sz.id }"
+                  @click="selectSize(sz.id)"
+                >
+                  <span v-if="selectedSizeId === sz.id" class="tier-card-check">✓</span>
+                  <img
+                    v-if="sizeImage(sz)"
+                    :src="`/uploads/${sizeImage(sz)}`"
+                    class="tier-card-img" alt=""
+                  />
+                  <div class="tier-card-body">
+                    <div class="tier-card-name">{{ sz.name }}</div>
+                    <div class="tier-card-price">¥{{ sz.base_price }}</div>
+                    <div v-if="sz.work_days" class="tier-card-days">{{ $t('manualOrder.sizeDays', { n: sz.work_days }) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 画风增项（选完尺寸后出现；select_mode 三种形态对齐 OrderForm） -->
+            <div v-if="isStyleMode && selectedSizeId && availableStyleAddons.length > 0" class="mo-field">
+              <div class="mo-field-label">{{ $t('manualOrder.addons') }}</div>
+              <div class="style-addon-list">
+                <div v-for="a in availableStyleAddons" :key="a.id" class="style-addon-item">
+                  <div class="addon-item-info">
+                    <span class="addon-item-name">{{ a.name }}</span>
+                    <span class="addon-item-price">{{ formatStyleAddonPrice(a) }}</span>
+                  </div>
+                  <!-- switch → el-switch -->
+                  <el-switch
+                    v-if="a.control_type === 'switch'"
+                    :model-value="styleAddonSelections[a.id]?.toggled || false"
+                    size="small"
+                    @change="(val) => setStyleAddon(a.id, { toggled: !!val })"
+                  />
+                  <!-- quantity → el-input-number -->
+                  <el-input-number
+                    v-else-if="a.control_type === 'quantity'"
+                    :model-value="styleAddonSelections[a.id]?.quantity || 0"
+                    :min="0" :max="99" :step="1" size="small" style="width: 110px"
+                    @change="(val) => setStyleAddon(a.id, { quantity: val ?? 0 })"
+                  />
+                  <!-- radio → el-radio-group（选项从 options JSON 解析） -->
+                  <el-radio-group
+                    v-else-if="a.control_type === 'radio'"
+                    :model-value="styleAddonSelections[a.id]?.optionLabel || null"
+                    size="small"
+                    @change="(val) => setStyleAddon(a.id, { optionLabel: val })"
+                  >
+                    <el-radio-button v-for="opt in parseAddonOptions(a.options)" :key="opt.label" :value="opt.label">
+                      {{ opt.label }} ¥{{ opt.price }}
+                    </el-radio-button>
+                  </el-radio-group>
+                </div>
+              </div>
+            </div>
+
+            <!-- 增项选择（旧档位模式，选完档位后出现） -->
+            <div v-if="!isStyleMode && form.tierId && availableAddons.length > 0" class="mo-field">
               <div class="mo-field-label">{{ $t('manualOrder.addons') }}</div>
               <div class="addon-groups">
                 <div v-for="group in addonGroups" :key="group.category" class="addon-group">
@@ -167,8 +251,8 @@
               </div>
             </div>
 
-            <!-- 倍率选择 -->
-            <div v-if="form.tierId && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" class="mo-field">
+            <!-- 倍率选择（画风模式选完尺寸后 / 旧模式选完档位后出现） -->
+            <div v-if="(form.tierId || (isStyleMode && selectedSizeId)) && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" class="mo-field">
               <div class="mo-field-label">{{ $t('manualOrder.multipliers') }}</div>
               <div class="multiplier-section">
                 <div v-if="usageMultipliers.length > 0" class="multiplier-row">
@@ -208,8 +292,28 @@
 
             <!-- 价格面板 sticky（≥600px 可见，<600px 由底部价格条替代） -->
             <div class="mo-price-sticky">
-              <!-- 实时价格预览 -->
-              <div v-if="form.tierId && pricePreview" class="price-preview">
+              <!-- 实时价格预览（画风模式：calculateStylePrice 明细） -->
+              <div v-if="isStyleMode && stylePricePreview" class="price-preview">
+                <div class="price-line">
+                  <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
+                  <span class="price-amount">¥{{ (stylePricePreview.basePrice ?? 0).toFixed(2) }}</span>
+                </div>
+                <div v-for="item in (stylePricePreview.addonItems || [])" :key="item.name" class="price-line">
+                  <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
+                  <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
+                </div>
+                <div v-if="stylePricePreview.multiplierTotal !== stylePricePreview.subtotal" class="price-line">
+                  <span>{{ $t('manualOrder.afterMultiplier') }}</span>
+                  <span class="price-amount">¥{{ (stylePricePreview.multiplierTotal ?? 0).toFixed(2) }}</span>
+                </div>
+                <div class="price-divider"></div>
+                <div class="price-line total">
+                  <span>{{ $t('manualOrder.totalPrice') }}</span>
+                  <span class="price-amount">¥{{ (stylePricePreview.totalPrice ?? 0).toFixed(2) }}</span>
+                </div>
+              </div>
+              <!-- 实时价格预览（旧档位模式） -->
+              <div v-else-if="form.tierId && pricePreview" class="price-preview">
                 <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
                   <span>{{ item.name }}</span>
                   <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
@@ -249,7 +353,26 @@
         <!-- 展开明细（点价格区域切换） -->
         <transition name="mo-slide">
           <div v-show="mobileDetailOpen" class="mo-mobile-details">
-            <div v-if="form.tierId && pricePreview" class="price-preview">
+            <div v-if="isStyleMode && stylePricePreview" class="price-preview">
+              <div class="price-line">
+                <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
+                <span class="price-amount">¥{{ (stylePricePreview.basePrice ?? 0).toFixed(2) }}</span>
+              </div>
+              <div v-for="item in (stylePricePreview.addonItems || [])" :key="item.name" class="price-line">
+                <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
+                <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
+              </div>
+              <div v-if="stylePricePreview.multiplierTotal !== stylePricePreview.subtotal" class="price-line">
+                <span>{{ $t('manualOrder.afterMultiplier') }}</span>
+                <span class="price-amount">¥{{ (stylePricePreview.multiplierTotal ?? 0).toFixed(2) }}</span>
+              </div>
+              <div class="price-divider"></div>
+              <div class="price-line total">
+                <span>{{ $t('manualOrder.totalPrice') }}</span>
+                <span class="price-amount">¥{{ (stylePricePreview.totalPrice ?? 0).toFixed(2) }}</span>
+              </div>
+            </div>
+            <div v-else-if="form.tierId && pricePreview" class="price-preview">
               <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
                 <span>{{ item.name }}</span>
                 <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
@@ -300,7 +423,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { Plus, InfoFilled, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
@@ -413,9 +536,134 @@ const rushMultipliers = computed(() =>
   (pricingData.value?.multipliers || []).filter(m => m.type === 'rush')
 )
 
-/** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价 */
+// ─── v0.38 D路: 画风模式（画风→尺寸→增项 三级选择，交互对齐 OrderForm 的 useOrderForm） ───
+/** 公开画风列表（GET /public/styles/:subdomain，只含 is_active=1；multi_style_enabled=0 时只含默认画风） */
+const styles = ref([])
+/** 画风模式：有画风数据时启用（styles.length > 0），旧档位模式完全不动 */
+const isStyleMode = computed(() => styles.value.length > 0)
+/** 多画风：需要选画风步骤（styles.length > 1）；单画风跳过选画风直接选尺寸 */
+const isMultiStyle = computed(() => styles.value.length > 1)
+/** 选中的画风 ID（单画风时自动选中唯一项） */
+const selectedStyleId = ref(null)
+const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
+/** 选中的尺寸 ID */
+const selectedSizeId = ref(null)
+const selectedSize = computed(() => selectedStyle.value?.sizes?.find(sz => sz.id === selectedSizeId.value) || null)
+/** 当前尺寸下可用增项（后端已过滤 is_hidden / 尺寸覆盖） */
+const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
+/** 增项选择状态 { [styleAddonId]: { toggled, quantity, optionLabel } } —— switch/quantity/radio 三形态 */
+const styleAddonSelections = reactive({})
+/** 画风价格预览（calculate-style-price 响应） */
+const stylePricePreview = ref(null)
+
+/** 画风卡片封面：F1/F3 约定 image_artwork_id 有值 → 用 artwork_image_path（实时引用），否则用 image */
+function sizeImage(sz) {
+  return sz.artwork_image_path || sz.image || null
+}
+
+/** 选择画风（多画风步骤 1）：切换时重置尺寸/增项/价格，脏标记恢复跟随计算（与切档语义一致） */
+function selectStyle(id) {
+  if (selectedStyleId.value === id) return
+  selectedStyleId.value = id
+  selectedSizeId.value = null
+  for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+  stylePricePreview.value = null
+  priceTouched.value = false
+}
+
+/** 选择尺寸（步骤 2）：切换时重置增项选择（不同尺寸可用增项不同）并重算 */
+function selectSize(id) {
+  if (selectedSizeId.value === id) return
+  selectedSizeId.value = id
+  for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+  stylePricePreview.value = null
+  priceTouched.value = false
+  initStyleAddonDefaults()
+  scheduleStyleCalc()
+}
+
+/** 增项选择统一写入（初始化缺失的 { toggled, quantity, optionLabel } 结构） */
+function setStyleAddon(id, patch) {
+  if (!styleAddonSelections[id]) {
+    styleAddonSelections[id] = { toggled: false, quantity: 0, optionLabel: null }
+  }
+  Object.assign(styleAddonSelections[id], patch)
+}
+
+/** 初始化增项默认值（el-input-number 的 v-model 不接受 undefined） */
+function initStyleAddonDefaults() {
+  for (const a of availableStyleAddons.value) {
+    if (!styleAddonSelections[a.id]) {
+      styleAddonSelections[a.id] = { toggled: false, quantity: 0, optionLabel: null }
+    }
+  }
+}
+
+/** 构建已选画风增项列表（计价与提交共用） */
+function buildStyleAddons() {
+  const addons = []
+  for (const a of availableStyleAddons.value) {
+    const sel = styleAddonSelections[a.id]
+    if (!sel) continue
+    if (a.control_type === 'switch' && sel.toggled) {
+      addons.push({ styleAddonId: a.id })
+    } else if (a.control_type === 'quantity' && sel.quantity > 0) {
+      addons.push({ styleAddonId: a.id, quantity: sel.quantity })
+    } else if (a.control_type === 'radio' && sel.optionLabel) {
+      addons.push({ styleAddonId: a.id, optionLabel: sel.optionLabel })
+    }
+  }
+  return addons
+}
+
+/** 解析 radio 选项 JSON（安全回退空数组） */
+function parseAddonOptions(optionsJson) {
+  if (!optionsJson) return []
+  try {
+    const parsed = JSON.parse(optionsJson)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/** 画风增项价格文案（radio 按选项计价，显示"选项价"） */
+function formatStyleAddonPrice(a) {
+  if (a.control_type === 'radio') return t('manualOrder.addonOptionPrice')
+  return `¥${a.price}${a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : ''}`
+}
+
+/** 画风价格计算（防抖 300ms，与旧档位 doCalc 同一模式） */
+let styleCalcTimer = null
+function scheduleStyleCalc() {
+  if (styleCalcTimer) clearTimeout(styleCalcTimer)
+  styleCalcTimer = setTimeout(doStyleCalc, 300)
+}
+
+async function doStyleCalc() {
+  if (!selectedSizeId.value) { stylePricePreview.value = null; return }
+  try {
+    stylePricePreview.value = await artistPublicApi.calculateStylePrice({
+      subdomain: subdomain.value,
+      styleSizeId: selectedSizeId.value,
+      addons: buildStyleAddons(),
+      usageMultiplierId: form.usageMultiplierId,
+      rushMultiplierId: form.rushMultiplierId
+    })
+    // G2: 未手动改过价格 → 始终同步最新计算价；已手动改过 → 尊重画师手输。
+    // 直接写 finalPriceYuan（绕过 priceInput setter，不置脏）
+    if (!priceTouched.value) {
+      finalPriceYuan.value = stylePricePreview.value.totalPrice
+    }
+  } catch {
+    stylePricePreview.value = null
+  }
+}
+
+/** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（画风模式用 stylePricePreview） */
 const displayPrice = computed(() => {
   if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return finalPriceYuan.value.toFixed(2)
+  if (isStyleMode.value && stylePricePreview.value) return (stylePricePreview.value.totalPrice ?? 0).toFixed(2)
   if (pricePreview.value) return (pricePreview.value.totalPrice ?? 0).toFixed(2)
   return ''
 })
@@ -487,6 +735,11 @@ function buildAddonList() {
 watch([() => form.tierId, () => form.usageMultiplierId, () => form.rushMultiplierId], scheduleCalc)
 watch(addonSelections, scheduleCalc, { deep: true })
 watch(addonToggles, scheduleCalc, { deep: true })
+// 画风模式：增项/倍率变化触发画风计价（旧模式路径由 doCalc 的 tierId 检查挡住，互不干扰）
+watch(styleAddonSelections, scheduleStyleCalc, { deep: true })
+watch([() => form.usageMultiplierId, () => form.rushMultiplierId], () => {
+  if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
+})
 
 // 增项默认值初始化：el-input-number 的 v-model 不接受 undefined
 watch(availableAddons, (addons) => {
@@ -580,19 +833,32 @@ async function submit() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
+  // v0.38 D路: 画风模式必须选完尺寸才能提交（后端 styleSizeId 必填且与 tierId 互斥）
+  if (isStyleMode.value && !selectedSizeId.value) {
+    ElMessage.warning(t('manualOrder.selectSizeFirst'))
+    return
+  }
+
   submitting.value = true
   try {
-    const addons = form.tierId ? buildAddonList() : []
+    // 画风模式：传 styleSizeId + styleAddons（替代 tierId/addons），后端走 calculateStylePrice 自动算价
+    const isStyleSubmit = isStyleMode.value && selectedSizeId.value
+    const addons = isStyleSubmit ? [] : (form.tierId ? buildAddonList() : [])
 
     const order = await artistApi.createManualOrder({
       clientQq: form.clientQq.trim(),
       clientName: form.clientName.trim() || null,
-      tierId: form.tierId,
+      tierId: isStyleSubmit ? null : form.tierId,
       description: form.description.trim() || null,
       priority: form.priority,
       clientNotify: form.clientNotify,
       references: uploadedRefs.value,
       addons,
+      // 画风模式结构化字段（后端验证+算价+创建）
+      ...(isStyleSubmit ? {
+        styleSizeId: selectedSizeId.value,
+        styleAddons: buildStyleAddons()
+      } : {}),
       usageMultiplierId: form.usageMultiplierId,
       rushMultiplierId: form.rushMultiplierId
     })
@@ -602,7 +868,10 @@ async function submit() {
     // updatePrice 连带抹掉增项。手输价 ≠ 计算价（含无档位无计算价）时写入。
     let postCreateFailed = null
     if (order.id && priceTouched.value && finalPriceYuan.value != null) {
-      const calcCents = pricePreview.value?.totalPriceCents ?? null
+      // v0.38 D路: 画风模式的计算价来自 stylePricePreview
+      const calcCents = isStyleMode.value
+        ? (stylePricePreview.value?.totalPriceCents ?? null)
+        : (pricePreview.value?.totalPriceCents ?? null)
       const manualCents = Math.round(finalPriceYuan.value * 100)
       if (manualCents > 0 && manualCents !== calcCents) {
         try {
@@ -665,6 +934,11 @@ function resetForm() {
   form.clientNotify = false
   form.usageMultiplierId = null
   form.rushMultiplierId = null
+  // v0.38 D路: 画风状态重置（重新从画风/尺寸选起）
+  selectedStyleId.value = null
+  selectedSizeId.value = null
+  for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+  stylePricePreview.value = null
   for (const key of Object.keys(addonSelections)) delete addonSelections[key]
   for (const key of Object.keys(addonToggles)) delete addonToggles[key]
   pricePreview.value = null
@@ -689,11 +963,25 @@ onMounted(async () => {
     artistPublicApi.getPricing(profile.subdomain)
       .then(res => { pricingData.value = res })
       .catch(() => {})
+    // v0.38 D路: 加载画风列表（失败静默走旧档位模式兜底；单画风自动选中跳过选画风步）
+    artistPublicApi.getPublicStyles(profile.subdomain)
+      .then(res => {
+        styles.value = res || []
+        if (styles.value.length === 1) {
+          selectedStyleId.value = styles.value[0].id
+        }
+      })
+      .catch(() => {})
     // F4: 加载工作流节点（判断初始状态可达性）
     artistApi.getWorkflow()
       .then(res => { workflowStages.value = res.stages || [] })
       .catch(() => {})
   } catch { /* ignore */ }
+})
+
+onUnmounted(() => {
+  if (calcTimer) clearTimeout(calcTimer)
+  if (styleCalcTimer) clearTimeout(styleCalcTimer)
 })
 </script>
 
@@ -786,6 +1074,17 @@ onMounted(async () => {
   object-fit: cover; display: block;
   background: var(--bg-inset);
 }
+/* v0.38 D路: 画风无封面时显示首字占位（与 OrderForm style-pick-img-empty 一致） */
+.tier-card-img--empty {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; font-weight: 700; color: var(--text-muted);
+  aspect-ratio: 4 / 3;
+}
+.tier-card-desc {
+  font-size: 12px; color: var(--text-secondary); margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .tier-card-body { padding: 10px 12px; }
 .tier-card-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .tier-card-price { font-size: 15px; font-weight: 700; color: var(--el-color-primary); margin-top: 2px; }
@@ -845,6 +1144,15 @@ onMounted(async () => {
 .addon-item-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
 .addon-item-price { font-size: 12px; color: var(--el-color-primary); font-weight: 600; }
 .addon-item-desc { font-size: 11px; color: var(--text-secondary); }
+
+/* v0.38 D路: 画风增项列表（平铺式，对齐 OrderForm 交互；radio 选项可换行） */
+.style-addon-list { width: 100%; }
+.style-addon-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border-color);
+}
+.style-addon-item:last-child { border-bottom: none; }
+.style-addon-item :deep(.el-radio-group) { flex-wrap: wrap; justify-content: flex-end; }
 
 /* ─── 倍率 ─── */
 .multiplier-section { width: 100%; }
