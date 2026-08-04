@@ -626,12 +626,11 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     db.prepare('UPDATE orders SET final_price_cents = ?, quote_snapshot = COALESCE(?, quote_snapshot), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(finalPriceCents, quoteSnapshot ?? null, orderId)
 
-    // manual_adjust 条目 delta = 新总价 − 当前总价；
+    // manual_adjust 条目 delta = 新总价 − 当前总价；条目由 applyDeltaToInstallments 按去向落账；
     // 节点联动只摊未锁节点（allocateDelta），已锁节点价不再变（R4/R5，替代 recalcInstallmentAmounts）
     const deltaCents = finalPriceCents - (oldCents ?? 0)
     if (deltaCents !== 0) {
-      appendPriceEntry(orderId, 'manual_adjust', deltaCents, '改价', 'artist')
-      applyDeltaToInstallments(orderId, deltaCents)
+      applyDeltaToInstallments(orderId, deltaCents, 'manual_adjust', '改价')
     }
 
     // v0.31 REQ-021 F1: 操作日志
@@ -789,25 +788,44 @@ function getCompletedPaymentStageIndex(order: { artist_id: number; current_stage
 }
 
 /**
- * 把一笔价格 delta 应用到节点（替代 recalcInstallmentAmounts，R5/R6/R10）：
- * 读库锁定状态 → computeLockedState（完成/付清/回退不解锁）→ allocateDelta 只摊未锁节点
- * → 写回 amount_cents + locked + locked_reason；全锁时 delta 进额外应收/应退条目（R10）。
+ * 把一笔价格 delta 应用到节点并落条目（替代 recalcInstallmentAmounts，R5/R6/R10）。
+ *
+ * 条目账本是总价真相源（Σ 条目 ≡ final_price_cents），因此条目由本函数统一写入，
+ * 按 delta 去向决定类型，绝不双重记账：
+ *   - 摊进未锁节点 → 写原因条目（entryType：manual_adjust/extra_item/refund_item）
+ *   - 全锁（R10）→ 写 extra_charge_after_close（正）/ extra_refund_after_close（负），
+ *     不再写原因条目（额外项条目本身即审计留痕，name 保留原操作名）
+ *
+ * 流程：读库锁定状态 → computeLockedState（完成/付清/回退不解锁）→ allocateDelta 只摊未锁节点
+ * → 写回 amount_cents + locked + locked_reason。
  */
-function applyDeltaToInstallments(orderId: number, deltaCents: number): void {
+function applyDeltaToInstallments(orderId: number, deltaCents: number, entryType: PriceEntry['type'], entryName: string): void {
   if (deltaCents === 0) return
   const { insts, lockedFlags: prevLocked } = readInstallmentState(orderId)
-  if (insts.length === 0) return
   const order = db.prepare('SELECT paid_total_cents, current_stage_id, status, artist_id FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null; current_stage_id: number | null; status: string; artist_id: number } | undefined
   if (!order) return
+
+  // 无节点订单：delta 只改总价，落原因条目即可（无分摊对象）
+  if (insts.length === 0) {
+    appendPriceEntry(orderId, entryType, deltaCents, entryName)
+    return
+  }
+
   const state = computeLockedState(insts, order.paid_total_cents ?? 0, getCompletedPaymentStageIndex(order), prevLocked)
   const res = allocateDelta(insts, state.lockedFlags, deltaCents)
   const update = db.prepare('UPDATE order_payment_installments SET amount_cents = ?, locked = ?, locked_reason = ? WHERE id = ?')
   insts.forEach((inst, i) => {
     update.run(res.amountsCents[i], state.lockedFlags[i] ? 1 : 0, state.lockedFlags[i] ? state.reasons[i] : null, inst.id)
   })
-  // R10：全锁时 delta 不进节点，落额外应收/应退条目
-  if (res.extraChargeCents > 0) appendPriceEntry(orderId, 'extra_charge_after_close', res.extraChargeCents, '关单后额外应收', 'system')
-  if (res.extraRefundCents > 0) appendPriceEntry(orderId, 'extra_refund_after_close', -res.extraRefundCents, '关单后额外应退', 'system')
+
+  // 条目落账（与 delta 去向一一对应，不双重记账）
+  if (res.extraChargeCents > 0) {
+    appendPriceEntry(orderId, 'extra_charge_after_close', res.extraChargeCents, entryName, 'system')
+  } else if (res.extraRefundCents > 0) {
+    appendPriceEntry(orderId, 'extra_refund_after_close', -res.extraRefundCents, entryName, 'system')
+  } else {
+    appendPriceEntry(orderId, entryType, deltaCents, entryName)
+  }
 }
 
 /**
@@ -922,12 +940,11 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       // P0-2: 加减法调整最终价格（不重算，保护手动改价）
       const finalCents = adjustFinalPrice(orderId, cents)
 
-      // 增项双写（R1/R2 入口 B）——order_extra_items 保留（UI 层）+ 条目账本；
-      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）；
-      // 条目类型分流：正数=extra_item，负数=refund_item（R1：负增项即退款条目）
+      // 增项双写（R1/R2 入口 B）——order_extra_items 保留（UI 层）；
+      // 条目账本由 applyDeltaToInstallments 按去向落账（正=extra_item / 负=refund_item / 全锁=额外项）；
+      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）
       if (cents !== 0) {
-        appendPriceEntry(orderId, cents > 0 ? 'extra_item' : 'refund_item', cents, name, 'artist')
-        applyDeltaToInstallments(orderId, cents)
+        applyDeltaToInstallments(orderId, cents, cents > 0 ? 'extra_item' : 'refund_item', name)
       }
 
       // v0.31 REQ-021 F1: 操作日志
@@ -986,10 +1003,10 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
       const finalCents = adjustFinalPrice(orderId, -item.price_cents)
 
       // 删项 = 冲正条目（R1：条目只追加不物理删）；UI 层 order_extra_items 仍物理删
+      // 条目账本由 applyDeltaToInstallments 按去向落账（refund_item / 全锁=额外应退）；
       // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）
       if (item.price_cents !== 0) {
-        appendPriceEntry(orderId, 'refund_item', -item.price_cents, `移除「${item.name}」`, 'artist')
-        applyDeltaToInstallments(orderId, -item.price_cents)
+        applyDeltaToInstallments(orderId, -item.price_cents, 'refund_item', `移除「${item.name}」`)
       }
 
       // v0.31 REQ-021 F1: 操作日志
@@ -1027,9 +1044,14 @@ export function generateInstallmentsForOrder(orderId: number): void {
   const existing = (db.prepare('SELECT COUNT(*) as c FROM order_payment_installments WHERE order_id = ?').get(orderId) as { c: number }).c
   if (existing > 0) return
 
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as Order | undefined
-  if (!order || !order.total_price_cents) return
+  // Order 实体类型未收录 final_price_cents（后加列），SELECT * 已取出，此处补结构断言
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as (Order & { final_price_cents: number | null }) | undefined
+  if (!order) return
   if (order.queue_zone !== 'formal') return
+  // REQ-025 第二阶段：按当前有效总价生成（final 优先——缓冲期改过价的订单
+  // final≠total，节点必须与条目账本 Σ 闭合，否则递补守恒 A1 失败）
+  const totalCents = resolvePriceCents(order)
+  if (!totalCents) return
 
   const stages = db.prepare(
     'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
@@ -1040,7 +1062,7 @@ export function generateInstallmentsForOrder(orderId: number): void {
   // REQ-025 第二阶段：走引擎 allocateInitial（末节点吸收舍入尾差——守恒 A1 的前提；
   // 原内联 Math.round 各自取整会产生 ±1~2 分漂移导致守恒断言失败）
   const engineNodes = paymentStages.map((s, i) => ({ sortOrder: i, basisPoints: s.basis_points as number, amountCents: 0 }))
-  const amounts = allocateInitial(engineNodes, order.total_price_cents)
+  const amounts = allocateInitial(engineNodes, totalCents)
   const insertInst = db.prepare(
     'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
   )
