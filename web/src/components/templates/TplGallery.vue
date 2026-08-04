@@ -151,14 +151,13 @@
           >
             ‹
           </button>
+          <!-- v0.36 热修: 移除 preview-src-list/preview-teleported——灯箱内再开 EP 内置预览会叠出第三层全屏遮罩，
+               且被弹窗宽度截断（用户实测截图）。灯箱自带左右箭头翻页，无需再套预览层 -->
           <el-image
             :src="imgUrl(lightboxArt.image_path)"
             fit="contain"
             class="tpl-lb-img"
             :alt="lightboxArt.title || $t('artistHome.artworks')"
-            :preview-src-list="[imgUrl(lightboxArt.image_path)]"
-            preview-teleported
-            hide-on-click-modal
           />
           <button
             v-if="lightboxIndex < filteredArtworks.length - 1"
