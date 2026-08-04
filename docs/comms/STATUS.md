@@ -15,20 +15,20 @@
 - **comms**：只剩本文件 + 四号深聊批派工
 
 ---
-## 当前阶段：v0.37 第二阶段开工——A 路（后端引擎接线）+ B 路（前端收款展示）并行，C 路（demo 切流）等 A
+## 当前阶段：v0.37 第二阶段——A/B 路已合入（引擎接线生效），C 路（demo 切流）+ D 路（ManualOrder 接画风）并行开工
 
 | 角色 | worktree/分支 | 内容 | 状态 |
 |------|--------------|------|------|
-| 三号 | artist-commission-v037-backend / v037-phase2-backend | 二阶段 A 路：后端引擎接线（locked 持久化迁移 v40 + createOrder/改价/增项/收款/推进接引擎 + recalc 退役 + done 守卫 + 守恒挂载） | 🔄 进行中（高风险） |
-| 二号 | —（worktree 已回收） | 二阶段 B 路：订单级共待收总横幅 + 负数 label 切换 + 详情按钮排查（vite reload 环境问题，非 bug） | ✅ 已合入 `5b2388b`（web 173/173） |
-| 五号 | 待派 | 二阶段 C 路：demo-data 切流（走 createOrder 入口重建演示数据）——**等 A 路合入后派** | ⏸ 待命 |
-| 四号 | 主仓 docs/（无 worktree） | 需求深聊批：QQ Bot/消息网关（用户点名）+ ManualOrder 接画风 + REQ-022 待确认 + v0.38 需求稿——与用户逐题深入交流 | 🔄 进行中 |
+| 三号 | — | 二阶段 A 路：后端引擎接线（locked v40 + 七函数接引擎 + recalc 退役 + done 守卫 + 守恒挂载） | ✅ 已合入 `3aea46f`（server 786/786，容器重建 + v40 实跑通过） |
+| 二号 | artist-commission-manualstyle / v037-manual-style | D 路：ManualOrder 接新画风模型（用户确认需求，交互参照 OrderForm） | 🔄 进行中 |
+| 五号 | artist-commission-demo / v037-phase2-demo | C 路：demo-data 切流（演示数据走引擎入口，全量守恒闭合） | 🔄 进行中 |
+| 四号 | 主仓 docs/（无 worktree） | 需求深聊批：REQ-027 TOTP + REQ-028 消息网关草稿在途（与用户交流中） | 🔄 进行中 |
 
-**拆路依据**：A（server/）与 B（web/）零文件交集可并行；B 的核心「总横幅」零后端依赖（remainingCents 字段已有）可独立合入；C 依赖 A 的新入口故串行。
-**用户 v0.36 终验**：✅ 2026-08-05 通过（「都 ok 暂时没问题」）。
-**新需求入账**：订单级待收总横幅（用户终验反馈）→ REQ-025 8.3 交互稿已补 + B 路任务 1。
+**A 路合入验证链**（一号独立执行）：4 commit 逐 diff 深审 + 双重记账修复确认（收口逻辑互斥分支）+ 存量订单漂移查库排查（13 单零漂移，A1 严格相等不误杀）+ ManualOrder 跨模块风险排除（录单状态到不了 done）+ 存量测试适配核实（语义变更合理适配非掩盖）+ 合并态重跑 786/786 + tsc/lint 全绿 + 容器重建 v40 实跑 + 引擎核心函数镜像存在性验证。
+**用户 v0.36 终验**：✅ 通过。「已收节点不再变」从算法变为真实生效（A 路核心承诺）。
+**拆路依据**：C（demo-data.ts）与 D（ManualOrder.vue + locales）零文件交集可并行；均不碰 A 路成果文件。
 
-**测试基线**：server **769/769**（43 文件）· web 166/166 · tsc 0 · lint 0
+**测试基线**：server **786/786**（46 文件）· web 173/173 · tsc 0 · lint 0
 
 **引擎合入验证链**（一号独立执行，不信 self-report）：
 - 逐行读 440 行引擎实现：锁价"先到先锁"、floor+尾差归最后未锁、负 delta R8 封顶、镜像退款、守恒三断言全部与 REQ-025 R4~R11 对齐
@@ -124,10 +124,10 @@ done 订单当前唯一减价路径是 updateFinalPrice——负增项被 schema
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | 空闲；二阶段 B 路已合入 `5b2388b`（web 基线 166→**173**） |
-| 三号 | 开工中：二阶段 A 路后端引擎接线（worktree: artist-commission-v037-backend） |
-| 四号 | 开工中：需求深聊批（QQ Bot/消息网关等 5 话题，主仓 docs/，无 worktree） |
-| 五号 | 待命；等 A 路合入后派 C 路 demo-data 切流 |
+| 二号 | 开工中：D 路 ManualOrder 接画风（worktree: artist-commission-manualstyle）；B 路已合入 `5b2388b` |
+| 三号 | 空闲；A 路已合入 `3aea46f`（server 基线 769→**786**） |
+| 四号 | 开工中：需求深聊批（REQ-027/028 草稿在途，主仓 docs/，无 worktree） |
+| 五号 | 开工中：C 路 demo 切流（worktree: artist-commission-demo） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
