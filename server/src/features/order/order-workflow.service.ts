@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { getOrder } from './order.service.js'
+import { getOrder, refreshInstallmentLocks } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
 import type { WorkflowStage } from '../../types/entities.js'
 
@@ -64,6 +64,9 @@ export function advanceStage(orderId: number, stageId: number | null): any {
   const newStatus = mapStageToStatus(stages, stageId)
   db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(stageId, newStatus, orderId)
+
+  // REQ-025 R4: 完成即锁——推进越过收款节点时，刷新节点锁定状态（只锁不解锁，回退不解锁由 prevLocked 保证）
+  refreshInstallmentLocks(orderId)
 
   // v0.31 REQ-021 F1: 操作日志
   logActivity(orderId, 'stage_advance', 'artist', { action: 'advance', stageName: stages[targetIdx].name, stageId })

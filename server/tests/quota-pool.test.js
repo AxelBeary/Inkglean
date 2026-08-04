@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import * as orderService from '../src/features/order/order.service.js'
+import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 
 describe('B7 额度池（v0.23）', () => {
   beforeEach(() => {
@@ -221,16 +222,16 @@ describe('B7 额度池（v0.23）', () => {
     expect(result).toBe('测试客户，已付¥300，待付¥200')
   })
 
-  // ─── v0.31 F4: 加钱后节点应收联动 ───
+  // ─── REQ-025 第二阶段：recalcInstallmentAmounts 退役后的节点联动语义 ───
 
-  it('TC-ADJ-01: addExtraItem 后 recalcInstallmentAmounts 按比列重算节点应收', () => {
+  it('TC-ADJ-01: addExtraItem 后 delta 全摊未锁节点（引擎语义，替代 recalc 按比例重算）', () => {
     const artist = seedArtist({ qq_number: '88107', subdomain: 'adj1' })
     const order = seedOrder(artist.id, {
       status: 'confirmed'
     })
     // seedOrder 不含 total_price_cents 列，手动设置
     db.prepare('UPDATE orders SET total_price_cents = 50000, final_price_cents = 50000 WHERE id = ?').run(order.id)
-    // 手动插入一个 installment（30% 比例）
+    // 手动插入一个 installment（30% 比例，未锁）
     db.prepare(
       'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
     ).run(order.id, '定金', 3000, 15000, 1)
@@ -238,55 +239,50 @@ describe('B7 额度池（v0.23）', () => {
     // 添加附加项（+5000 → 总价 55000）
     orderService.addExtraItem(order.id, { name: '加急', priceCents: 5000 })
 
-    // v0.31 F4: 节点应收按 basis_points 比例重算（55000 × 30% = 16500）
+    // REQ-025 R5: delta 按未锁节点原始比例归一化分摊——唯一未锁节点得 100% delta
+    //（旧 recalc 语义为按绝对比例重算 55000×30%=16500，已退役）
     const inst = db.prepare('SELECT amount_cents FROM order_payment_installments WHERE order_id = ?').get(order.id)
-    expect(inst.amount_cents).toBe(16500)
+    expect(inst.amount_cents).toBe(20000)
 
     // final_price_cents 已更新
     const fresh = orderService.getOrder(order.id)
     expect(fresh.final_price_cents).toBe(55000)
   })
 
-  // ─── BUG-4: 分期金额舍入尾差归末节点 ───
+  // ─── BUG-4 语义回归：初始分配尾差归末节点（现由引擎 allocateInitial 承接，经 generateInstallmentsForOrder） ───
 
-  it('TC-ADJ-02: recalcInstallmentAmounts 尾差归末节点，节点之和恒等于按比例总额（BUG-4）', () => {
+  it('TC-ADJ-02: generateInstallmentsForOrder 尾差归末节点，节点之和恒等于总价（BUG-4 语义回归）', () => {
     const artist = seedArtist({ qq_number: '88108', subdomain: 'adj2' })
+    seedArtistStages(artist.id) // 默认模板收款节点 3000 + 7000（Σbp=100%）
+    // 带舍入漂移的总价：10001 分
     const order = seedOrder(artist.id, { status: 'confirmed' })
-    db.prepare('UPDATE orders SET total_price_cents = 10000, final_price_cents = 10000 WHERE id = ?').run(order.id)
-    // 三节点各 3333bp（合计 9999bp = 99.99%）——原版各自 Math.round 会产生 ±分漂移
-    const insert = db.prepare(
-      'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
-    )
-    insert.run(order.id, '一期', 3333, 0, 1)
-    insert.run(order.id, '二期', 3333, 0, 2)
-    insert.run(order.id, '尾款', 3333, 0, 3)
+    db.prepare('UPDATE orders SET total_price_cents = 10001, final_price_cents = 10001 WHERE id = ?').run(order.id)
 
-    orderService.recalcInstallmentAmounts(order.id)
+    orderService.generateInstallmentsForOrder(order.id)
 
     const rows = db.prepare(
       'SELECT amount_cents FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
     ).all(order.id)
-    // 前两个独立四舍五入：10000×3333/10000 = 3333
-    expect(rows[0].amount_cents).toBe(3333)
-    expect(rows[1].amount_cents).toBe(3333)
-    // 末节点 = 按比例总额(round(10000×9999/10000)=9999) − 3333 − 3333 = 3333，吸收尾差
-    expect(rows[2].amount_cents).toBe(3333)
-    // 节点之和恒等于按比例总额，无漂移
+    // 首节点独立四舍五入：round(10001×3000/10000) = round(3000.3) = 3000
+    expect(rows[0].amount_cents).toBe(3000)
+    // 末节点 = 总价 − 首节点，吸收尾差（不再各自 round 产生漂移）
+    expect(rows[1].amount_cents).toBe(7001)
     const sum = rows.reduce((s, r) => s + r.amount_cents, 0)
-    expect(sum).toBe(9999)
+    expect(sum).toBe(10001)
   })
 
-  it('TC-ADJ-03: 单节点重算不受 BUG-4 修复影响（比例≠100% 场景）', () => {
+  it('TC-ADJ-03: 单收款节点 30%（Σbp≠100%）初始分配按 30% 算（引擎 allocateInitial 语义回归）', () => {
     const artist = seedArtist({ qq_number: '88109', subdomain: 'adj3' })
+    // 直插单收款节点 30%（绕过工作流编辑 API 的 SUM_NOT_100 校验，模拟非常规配置）
+    db.prepare(
+      'INSERT INTO artist_workflow_stages (artist_id, name, sort_order, takes_payment, basis_points) VALUES (?, ?, ?, ?, ?)'
+    ).run(artist.id, '定金', 1, 1, 3000)
     const order = seedOrder(artist.id, { status: 'confirmed' })
     db.prepare('UPDATE orders SET total_price_cents = 50000, final_price_cents = 50000 WHERE id = ?').run(order.id)
-    db.prepare(
-      'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
-    ).run(order.id, '定金', 3000, 0, 1)
 
-    orderService.recalcInstallmentAmounts(order.id)
+    orderService.generateInstallmentsForOrder(order.id)
 
-    // 单节点 30%：末节点=按比例总额（50000×30%=15000），不是订单全额
+    // 单节点 30%：ratioTotal = round(50000×3000/10000) = 15000，不是订单全额
     const inst = db.prepare('SELECT amount_cents FROM order_payment_installments WHERE order_id = ?').get(order.id)
     expect(inst.amount_cents).toBe(15000)
   })

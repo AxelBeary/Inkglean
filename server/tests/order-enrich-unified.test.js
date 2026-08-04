@@ -90,10 +90,10 @@ describe('B1 订单响应增强统一 (enrichOrderForArtist)', () => {
     expect(body.final_price_cents).toBe(55000) // 50000 + 5000
     expect(body.remainingCents).toBe(35000) // 55000 - 20000
     expect(body.installments).toHaveLength(2)
-    // v0.31 F4: 加项改 final 后节点应收按 basis_points 联动重算（40%/60% → 22000/33000），
-    // 已收 20000 不足以覆盖新定金 22000 → partial。这是既有正确语义。
-    expect(body.installments[0]).toMatchObject({ name: '定金', amountCents: 22000, status: 'partial' })
-    expect(body.installments[1]).toMatchObject({ name: '尾款', amountCents: 33000, paidCents: 0, status: 'pending' })
+    // REQ-025 R4/R5: 定金已付清（paid_total 20000 覆盖定金 20000）→ paidOff 锁定，
+    // 加项 delta 5000 全摊唯一未锁节点（尾款）→ 定金保持 20000/paid，尾款 30000→35000
+    expect(body.installments[0]).toMatchObject({ name: '定金', amountCents: 20000, paidCents: 20000, status: 'paid' })
+    expect(body.installments[1]).toMatchObject({ name: '尾款', amountCents: 35000, paidCents: 0, status: 'pending' })
   })
 
   // ─── 2. PUT price ───

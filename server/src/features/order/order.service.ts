@@ -4,6 +4,8 @@ import { calculatePrice } from '../pricing/pricing.service.js'
 import { calculateStylePrice } from '../pricing/style-pricing.service.js'
 import type { StylePriceResult } from '../pricing/style-pricing.service.js'
 import { validateDiscountCode, computeDiscountCents, incrementUsage } from '../pricing/discount.service.js'
+import { allocateInitial, allocateDelta, computeLockedState, deriveInstallmentProgress, assertConservation, sumEntryDeltas } from '../pricing/pricing-engine.js'
+import type { EngineInstallment, PriceEntry } from '../pricing/pricing-engine.js'
 import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
@@ -276,29 +278,28 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     }
 
     // ─── 生成分期计划（SPEC-004: 缓冲订单不生成付款节点） ───
-    if (queueZone === 'formal') {
-      if (styleCalc && totalPriceCents != null && totalPriceCents > 0) {
-        // 画风模式：从工作流节点生成分期
-        const stages = db.prepare(
-          'SELECT name, basis_points FROM artist_workflow_stages WHERE artist_id = ? AND takes_payment = 1 ORDER BY sort_order ASC'
-        ).all(artistId) as Array<{ name: string; basis_points: number }>
-        if (stages.length > 0) {
-          const insertInst = db.prepare(
-            'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
-          )
-          stages.forEach((s, i) => {
-            insertInst.run(orderId, s.name, s.basis_points, Math.round(totalPriceCents! * s.basis_points / 10000), i)
-          })
-        }
-      } else if (priceCalc && priceCalc.installments.length > 0) {
+    // REQ-025 第二阶段：统一走引擎 allocateInitial（合并原画风/priceCalc 两处内联分支——
+    // 两者分期来源同为 artist_workflow_stages takes_payment 节点；末节点吸收舍入尾差，BUG-4 语义）
+    // 同时写 base 条目（R1：条目账本是总价真相源）
+    if (queueZone === 'formal' && totalPriceCents != null && totalPriceCents > 0) {
+      const stages = db.prepare(
+        'SELECT name, basis_points FROM artist_workflow_stages WHERE artist_id = ? AND takes_payment = 1 ORDER BY sort_order ASC'
+      ).all(artistId) as Array<{ name: string; basis_points: number }>
+      if (stages.length > 0) {
+        const engineNodes = stages.map((s, i) => ({ sortOrder: i, basisPoints: s.basis_points, amountCents: 0 }))
+        const amounts = allocateInitial(engineNodes, totalPriceCents)
         const insertInst = db.prepare(
           'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
         )
-        priceCalc.installments.forEach((inst, i) => {
-          insertInst.run(orderId, inst.label, inst.basisPoints, Math.round(inst.amount * 100), i)
+        stages.forEach((s, i) => {
+          insertInst.run(orderId, s.name, s.basis_points, amounts[i], i)
         })
       }
+      appendPriceEntry(orderId, 'base', totalPriceCents, '初始报价', 'system')
     }
+
+    // REQ-025 R11: 守恒自检（初始分配后 Σ节点价 ≡ base 条目，Σbp≠100% 由守卫跳过）
+    checkOrderConservation(orderId)
 
     return getOrder(orderId)
   })()
@@ -599,7 +600,7 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
-  // v0.37 终态守卫：delivered/cancelled 禁止改价（done 不拦——done 是当前唯一减价窗口，待 REQ-025 第二阶段）
+  // v0.37 终态守卫：delivered/cancelled 禁止改价（done 半终态允许，R13）
   if (['delivered', 'cancelled'].includes(order.status)) {
     throw new AppError(E.ORDER_FINAL_STATE)
   }
@@ -613,11 +614,20 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     // 计算旧价格（用于备注）
     const oldCents = resolvePriceCents(order)
 
+    // REQ-025 第二阶段：改价条目化（R2 入口 A）——存量无账本订单先按旧价补 base 条目
+    //（必须在 UPDATE final_price 之前，否则补录的 base 会取到新价）
+    ensureBaseEntry(orderId)
+
     db.prepare('UPDATE orders SET final_price_cents = ?, quote_snapshot = COALESCE(?, quote_snapshot), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(finalPriceCents, quoteSnapshot ?? null, orderId)
 
-    // v0.31 F4: 改价后节点应收联动
-    recalcInstallmentAmounts(orderId)
+    // manual_adjust 条目 delta = 新总价 − 当前总价；
+    // 节点联动只摊未锁节点（allocateDelta），已锁节点价不再变（R4/R5，替代 recalcInstallmentAmounts）
+    const deltaCents = finalPriceCents - (oldCents ?? 0)
+    if (deltaCents !== 0) {
+      appendPriceEntry(orderId, 'manual_adjust', deltaCents, '改价', 'artist')
+      applyDeltaToInstallments(orderId, deltaCents)
+    }
 
     // v0.31 REQ-021 F1: 操作日志
     logActivity(orderId, 'price_change', 'artist', { oldCents, newCents: finalPriceCents, reason: quoteSnapshot || null })
@@ -627,6 +637,9 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     const newStr = `¥${(finalPriceCents / 100).toFixed(2)}`
     db.prepare('INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, ?)')
       .run(orderId, `最终价格从 ${oldStr} 改为 ${newStr}`, 'system')
+
+    // REQ-025 R11: 守恒自检（不守恒即抛 PRICING_CONSERVATION 回滚）
+    checkOrderConservation(orderId)
 
     return getOrder(orderId)
   })()
@@ -692,6 +705,169 @@ function formatCents(cents: number): string {
   return `¥${(cents / 100).toFixed(2)}`
 }
 
+// ─── REQ-025 第二阶段：计价引擎接线（条目账本 + 锁价 + 守恒） ───
+
+/** 读取订单价格条目账本（按写入顺序） */
+export function getPriceEntries(orderId: number): PriceEntry[] {
+  const rows = db.prepare(
+    'SELECT id, order_id, type, delta_cents, name, note, created_by, created_at FROM order_price_entries WHERE order_id = ? ORDER BY id ASC'
+  ).all(orderId) as Array<{ id: number; order_id: number; type: PriceEntry['type']; delta_cents: number; name: string | null; note: string | null; created_by: string; created_at: string }>
+  return rows.map(r => ({
+    id: r.id,
+    orderId: r.order_id,
+    type: r.type,
+    deltaCents: r.delta_cents,
+    name: r.name,
+    note: r.note,
+    createdBy: r.created_by,
+    createdAt: r.created_at
+  }))
+}
+
+/** 追加一条价格条目（R1：只追加不覆盖不删除） */
+function appendPriceEntry(orderId: number, type: PriceEntry['type'], deltaCents: number, name?: string | null, createdBy = 'artist'): void {
+  db.prepare(
+    'INSERT INTO order_price_entries (order_id, type, delta_cents, name, created_by) VALUES (?, ?, ?, ?, ?)'
+  ).run(orderId, type, deltaCents, name ?? null, createdBy)
+}
+
+/**
+ * 存量订单懒回填 base 条目：账本为空时按当前价格补一条 base。
+ * 守恒挂载的前提是账本完整；无条目订单（旧数据/直插订单）首次价格变动时触发。
+ */
+function ensureBaseEntry(orderId: number): void {
+  const count = (db.prepare('SELECT COUNT(*) AS c FROM order_price_entries WHERE order_id = ?').get(orderId) as { c: number }).c
+  if (count > 0) return
+  const order = db.prepare('SELECT final_price_cents, total_price_cents, price_snapshot FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null; price_snapshot: number | null } | undefined
+  const base = order ? resolvePriceCents(order) : null
+  if (base == null || base <= 0) return
+  appendPriceEntry(orderId, 'base', base, '初始报价（补录）', 'system')
+}
+
+/**
+ * 读取订单节点的引擎视图（含锁定标记与推导已收）。
+ * 已收一律从 orders.paid_total_cents 顺序填充推导（不读 paid_cents 旧残留列，R7）。
+ * 返回按 sort_order 升序；lockedFlags 与 insts 同序。
+ */
+function readInstallmentState(orderId: number): { insts: EngineInstallment[]; lockedFlags: boolean[] } {
+  const rows = db.prepare(
+    'SELECT id, label, basis_points, amount_cents, locked FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+  ).all(orderId) as Array<{ id: number; label: string; basis_points: number; amount_cents: number | null; locked: number }>
+  const order = db.prepare('SELECT paid_total_cents FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null } | undefined
+  const sumAmounts = rows.reduce((s, r) => s + (r.amount_cents ?? 0), 0)
+  let covered = Math.min(order?.paid_total_cents ?? 0, sumAmounts)
+  const insts: EngineInstallment[] = rows.map((r, i) => {
+    const amt = r.amount_cents ?? 0
+    const take = Math.max(0, Math.min(covered, amt))
+    covered -= take
+    return { id: r.id, label: r.label, sortOrder: i, basisPoints: r.basis_points, amountCents: amt, paidCents: take }
+  })
+  return { insts, lockedFlags: rows.map(r => r.locked === 1) }
+}
+
+/**
+ * 推导已完成的最后收款节点下标（computeLockedState 的 completedStageIndex 入参）。
+ * done/delivered → 全部阶段完成；否则 = 当前阶段之前的收款节点数 − 1。
+ */
+function getCompletedPaymentStageIndex(order: { artist_id: number; current_stage_id: number | null; status: string }): number {
+  const stages = db.prepare(
+    'SELECT id, sort_order, takes_payment FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+  ).all(order.artist_id) as Array<{ id: number; sort_order: number; takes_payment: number }>
+  const paymentStages = stages.filter(s => s.takes_payment === 1)
+  if (paymentStages.length === 0) return -1
+  if (['done', 'delivered'].includes(order.status)) return paymentStages.length - 1
+  if (order.current_stage_id == null) return -1
+  const currentStage = stages.find(s => s.id === order.current_stage_id)
+  if (!currentStage) return -1
+  const completedCount = paymentStages.filter(ps => ps.sort_order < currentStage.sort_order).length
+  return completedCount - 1
+}
+
+/**
+ * 把一笔价格 delta 应用到节点（替代 recalcInstallmentAmounts，R5/R6/R10）：
+ * 读库锁定状态 → computeLockedState（完成/付清/回退不解锁）→ allocateDelta 只摊未锁节点
+ * → 写回 amount_cents + locked + locked_reason；全锁时 delta 进额外应收/应退条目（R10）。
+ */
+function applyDeltaToInstallments(orderId: number, deltaCents: number): void {
+  if (deltaCents === 0) return
+  const { insts, lockedFlags: prevLocked } = readInstallmentState(orderId)
+  if (insts.length === 0) return
+  const order = db.prepare('SELECT paid_total_cents, current_stage_id, status, artist_id FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null; current_stage_id: number | null; status: string; artist_id: number } | undefined
+  if (!order) return
+  const state = computeLockedState(insts, order.paid_total_cents ?? 0, getCompletedPaymentStageIndex(order), prevLocked)
+  const res = allocateDelta(insts, state.lockedFlags, deltaCents)
+  const update = db.prepare('UPDATE order_payment_installments SET amount_cents = ?, locked = ?, locked_reason = ? WHERE id = ?')
+  insts.forEach((inst, i) => {
+    update.run(res.amountsCents[i], state.lockedFlags[i] ? 1 : 0, state.lockedFlags[i] ? state.reasons[i] : null, inst.id)
+  })
+  // R10：全锁时 delta 不进节点，落额外应收/应退条目
+  if (res.extraChargeCents > 0) appendPriceEntry(orderId, 'extra_charge_after_close', res.extraChargeCents, '关单后额外应收', 'system')
+  if (res.extraRefundCents > 0) appendPriceEntry(orderId, 'extra_refund_after_close', -res.extraRefundCents, '关单后额外应退', 'system')
+}
+
+/**
+ * 刷新节点锁定状态（完成即锁 / 付清即锁，R4；回退不解锁由 prevLocked 保证）。
+ * advanceStage（完成）与 addPayment（付清）后调用；只写 locked/locked_reason，不动节点价。
+ */
+export function refreshInstallmentLocks(orderId: number): void {
+  const { insts, lockedFlags: prevLocked } = readInstallmentState(orderId)
+  if (insts.length === 0) return
+  const order = db.prepare('SELECT paid_total_cents, current_stage_id, status, artist_id FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null; current_stage_id: number | null; status: string; artist_id: number } | undefined
+  if (!order) return
+  const state = computeLockedState(insts, order.paid_total_cents ?? 0, getCompletedPaymentStageIndex(order), prevLocked)
+  const update = db.prepare('UPDATE order_payment_installments SET locked = ?, locked_reason = ? WHERE id = ?')
+  insts.forEach((inst, i) => {
+    update.run(state.lockedFlags[i] ? 1 : 0, state.lockedFlags[i] ? state.reasons[i] : null, inst.id)
+  })
+}
+
+/**
+ * 守恒挂载（R11）：变动出口前自检，不守恒即抛 PRICING_CONSERVATION（事务回滚）。
+ * A1 总价 = Σ 节点价 + 额外应收 − 额外应退（额外项取条目总额，与支付状态无关）
+ * A2 总价 − 已收 = Σ 节点待收 + 额外应收 − 额外应退
+ *    已收超出 Σ 节点价的部分（纯超付）全额压到尾款待收变负，与额外应收不做冲抵——
+ *    数学上 A1/A2 同解（Σ待收 ≡ Σ节点价 − 已收），两断言同时成立。
+ * A3 追溯链需要额外持久化字段（不在本阶段 schema 范围），服务层不校验；条目只追加本身保证可追溯。
+ *
+ * 适用范围：仅 Σ basis_points = 10000（比例和 100%）的订单——此时 A1 方程才有解
+ * （R3：比例之和应为 100%，正式工作流由 validateInstallments I2 SUM_NOT_100 强制）。
+ * Σbp≠100% 的非常规配置（人工数据/历史残留）Σ节点价恒小于总价，A1 无解，跳过断言。
+ * 无节点订单（缓冲区/无工作流）无守恒对象，直接通过。
+ */
+export function checkOrderConservation(orderId: number): void {
+  const { insts } = readInstallmentState(orderId)
+  if (insts.length === 0) return
+  const bpSum = insts.reduce((s, i) => s + i.basisPoints, 0)
+  if (bpSum !== 10000) return
+  const order = db.prepare('SELECT final_price_cents, total_price_cents, price_snapshot, paid_total_cents FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null; price_snapshot: number | null; paid_total_cents: number | null } | undefined
+  if (!order) return
+  const entries = getPriceEntries(orderId)
+  const totalCents = entries.length > 0 ? sumEntryDeltas(entries) : (resolvePriceCents(order) ?? 0)
+  const nodeAmountsCents = insts.map(i => i.amountCents)
+  const sumAmounts = nodeAmountsCents.reduce((s, v) => s + v, 0)
+  const extraChargeCents = entries.filter(e => e.type === 'extra_charge_after_close').reduce((s, e) => s + e.deltaCents, 0)
+  const extraRefundCents = -entries.filter(e => e.type === 'extra_refund_after_close').reduce((s, e) => s + e.deltaCents, 0)
+  const paidTotal = order.paid_total_cents ?? 0
+  // 节点待收：顺序填充（每节点至多填满），超出 Σ 节点价的纯超付压到尾款待收（变负，可退）
+  const nodeRemainingCents: number[] = []
+  let covered = Math.min(paidTotal, sumAmounts)
+  for (const amt of nodeAmountsCents) {
+    const take = Math.max(0, Math.min(covered, amt))
+    nodeRemainingCents.push(amt - take)
+    covered -= take
+  }
+  const pureOverpay = Math.max(0, paidTotal - sumAmounts)
+  if (pureOverpay > 0) nodeRemainingCents[nodeRemainingCents.length - 1] -= pureOverpay
+  assertConservation({
+    totalCents,
+    paidTotalCents: paidTotal,
+    nodeAmountsCents,
+    nodeRemainingCents,
+    extraChargeCents,
+    extraRefundCents
+  })
+}
+
 /** 附加工作项参数 */
 interface ExtraItemParams {
   name: string
@@ -726,11 +902,19 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       db.prepare('INSERT INTO order_extra_items (order_id, name, description, price_cents) VALUES (?, ?, ?, ?)')
         .run(orderId, name, description || null, cents)
 
+      // REQ-025 第二阶段：存量无账本订单先按旧价补 base 条目
+      //（必须在 adjustFinalPrice 之前，否则补录的 base 会取到加项后的新价）
+      ensureBaseEntry(orderId)
+
       // P0-2: 加减法调整最终价格（不重算，保护手动改价）
       const finalCents = adjustFinalPrice(orderId, cents)
 
-      // v0.31 F4: 加钱后节点应收联动
-      recalcInstallmentAmounts(orderId)
+      // 增项双写（R1/R2 入口 B）——order_extra_items 保留（UI 层）+ 条目账本；
+      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）
+      if (cents !== 0) {
+        appendPriceEntry(orderId, 'extra_item', cents, name, 'artist')
+        applyDeltaToInstallments(orderId, cents)
+      }
 
       // v0.31 REQ-021 F1: 操作日志
       logActivity(orderId, 'extra_item', 'artist', { action: 'add', name, priceCents: cents })
@@ -744,6 +928,9 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       }
       db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
         .run(orderId, noteContent)
+
+      // REQ-025 R11: 守恒自检
+      checkOrderConservation(orderId)
 
       return getOrder(orderId)
     })()
@@ -778,11 +965,18 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
   return db.transaction(() => {
       db.prepare('DELETE FROM order_extra_items WHERE id = ?').run(itemId)
 
+      // REQ-025 第二阶段：存量无账本订单先按旧价补 base 条目（必须在 adjustFinalPrice 之前）
+      ensureBaseEntry(orderId)
+
       // P0-2: 加减法调整最终价格（不重算，保护手动改价）
       const finalCents = adjustFinalPrice(orderId, -item.price_cents)
 
-      // v0.31 F4: 移除加钱后节点应收联动
-      recalcInstallmentAmounts(orderId)
+      // 删项 = 冲正条目（R1：条目只追加不物理删）；UI 层 order_extra_items 仍物理删
+      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）
+      if (item.price_cents !== 0) {
+        appendPriceEntry(orderId, 'refund_item', -item.price_cents, `移除「${item.name}」`, 'artist')
+        applyDeltaToInstallments(orderId, -item.price_cents)
+      }
 
       // v0.31 REQ-021 F1: 操作日志
       logActivity(orderId, 'extra_item', 'artist', { action: 'delete', name: item.name, priceCents: item.price_cents })
@@ -797,6 +991,9 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
       }
       db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
         .run(orderId, noteContent)
+
+      // REQ-025 R11: 守恒自检
+      checkOrderConservation(orderId)
 
       return getOrder(orderId)
     })()
@@ -826,12 +1023,15 @@ export function generateInstallmentsForOrder(orderId: number): void {
   const paymentStages = stages.filter(s => s.takes_payment && s.basis_points)
   if (paymentStages.length === 0) return
 
+  // REQ-025 第二阶段：走引擎 allocateInitial（末节点吸收舍入尾差——守恒 A1 的前提；
+  // 原内联 Math.round 各自取整会产生 ±1~2 分漂移导致守恒断言失败）
+  const engineNodes = paymentStages.map((s, i) => ({ sortOrder: i, basisPoints: s.basis_points as number, amountCents: 0 }))
+  const amounts = allocateInitial(engineNodes, order.total_price_cents)
   const insertInst = db.prepare(
     'INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, ?, ?, ?, ?)'
   )
   paymentStages.forEach((stage, i) => {
-    const amountCents = Math.round(order.total_price_cents! * stage.basis_points / 10000)
-    insertInst.run(orderId, stage.name, stage.basis_points, amountCents, i)
+    insertInst.run(orderId, stage.name, stage.basis_points, amounts[i], i)
   })
 }
 
@@ -861,6 +1061,9 @@ export function promoteOrder(orderId: number): any {
     // 系统备注
     db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
       .run(orderId, '📋 从缓冲区递补到正式排期')
+
+    // REQ-025 R11: 守恒自检（生成节点后 Σ节点价 必须与账本/总价闭合）
+    checkOrderConservation(orderId)
 
     return getOrder(orderId)
   })()
@@ -952,8 +1155,15 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
       }
     }
 
+    // REQ-025 R4: 付清即锁——收款后按 paid_total 推导刷新节点锁定状态
+    //（节点已收一律从 paid_total 顺序推导，不依赖 paid_cents 旧列，R7）
+    refreshInstallmentLocks(orderId)
+
     // v0.31 REQ-021 F1: 操作日志
     logActivity(orderId, 'payment', createdBy || 'artist', { amountCents, note: note || null, installmentId: installmentId || null })
+
+    // REQ-025 R11: 守恒自检（收款不改总价/节点价，A2 由待收推导自然闭合；挂载防脏数据）
+    checkOrderConservation(orderId)
 
     return db.prepare('SELECT * FROM order_payments WHERE id = ?').get(result.lastInsertRowid) as PaymentRow
   })()
@@ -968,35 +1178,6 @@ export function getPayments(orderId: number): PaymentRow[] {
   ).all(orderId) as PaymentRow[]
 }
 
-/**
- * v0.31 F4: 总价变更后重算节点应收金额（按 basis_points 比例）
- * 加钱/改价后调用，保持节点金额之和 = 新总价
- */
-export function recalcInstallmentAmounts(orderId: number): void {
-  const order = db.prepare('SELECT final_price_cents, total_price_cents FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null } | undefined
-  const totalCents = order?.final_price_cents ?? order?.total_price_cents ?? 0
-  if (totalCents <= 0) return
+// REQ-025 第二阶段（R12 不留双轨）：recalcInstallmentAmounts 已退役删除——
+// 全部改价/增项链路改走引擎 allocateDelta（只摊未锁节点，见 applyDeltaToInstallments）。
 
-  const installments = db.prepare(
-    'SELECT id, basis_points FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
-  ).all(orderId) as Array<{ id: number; basis_points: number }>
-  if (installments.length === 0) return
-
-  const update = db.prepare('UPDATE order_payment_installments SET amount_cents = ? WHERE id = ?')
-  db.transaction(() => {
-    // BUG-4 修复：前 N-1 个节点独立四舍五入，末节点 = 按比例总额 − 前 N-1 之和
-    // 吸收舍入尾差，保证节点金额之和恒等于"按比例计算的总额"（原版各自 Math.round 会有 ±1~2 分漂移）
-    // 注意按比例总额而非订单全额：节点比例之和可能不为 100%（如单节点 30%）
-    const totalBp = installments.reduce((sum, i) => sum + i.basis_points, 0)
-    const ratioTotal = Math.round(totalCents * totalBp / 10000)
-    let allocated = 0
-    for (let i = 0; i < installments.length; i++) {
-      const isLast = i === installments.length - 1
-      const amountCents = isLast
-        ? ratioTotal - allocated
-        : Math.round(totalCents * installments[i].basis_points / 10000)
-      allocated += amountCents
-      update.run(amountCents, installments[i].id)
-    }
-  })()
-}
