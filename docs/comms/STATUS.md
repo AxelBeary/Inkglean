@@ -21,7 +21,7 @@
 |------|--------------|------|------|
 | 三号 | — | 二阶段 A 路：后端引擎接线（locked v40 + 七函数接引擎 + recalc 退役 + done 守卫 + 守恒挂载） | ✅ 已合入 `3aea46f`（server 786/786，容器重建 + v40 实跑通过） |
 | 二号 | artist-commission-manualstyle / v037-manual-style | D 路：ManualOrder 接新画风模型（用户确认需求，交互参照 OrderForm） | 🔄 进行中 |
-| 五号 | artist-commission-demo / v037-phase2-demo | C 路：demo-data 切流（演示数据走引擎入口，全量守恒闭合） | 🔄 进行中 |
+| 五号 | —（worktree 已回收） | C 路：demo-data 切流（base 条目 + 引擎分期 + locked 推导 + 全量守恒闭合 + LIKE 清理 ALICE 残留） | ✅ 已合入 `eb0b4d0`（容器实跑 2 次验证 + 脏库恢复测试 + 锁定状态逐节点语义对照） |
 | 四号 | 主仓 docs/（无 worktree） | 需求深聊批：REQ-027 TOTP + REQ-028 消息网关草稿在途（与用户交流中） | 🔄 进行中 |
 
 **A 路合入验证链**（一号独立执行）：4 commit 逐 diff 深审 + 双重记账修复确认（收口逻辑互斥分支）+ 存量订单漂移查库排查（13 单零漂移，A1 严格相等不误杀）+ ManualOrder 跨模块风险排除（录单状态到不了 done）+ 存量测试适配核实（语义变更合理适配非掩盖）+ 合并态重跑 786/786 + tsc/lint 全绿 + 容器重建 v40 实跑 + 引擎核心函数镜像存在性验证。
