@@ -944,7 +944,8 @@ export default async function orderRoutes(fastify: any) {
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 100 },
           description: { type: ['string', 'null'], maxLength: 500 },
-          priceCents: { type: 'integer', minimum: 0, maximum: 99999999 }
+          // REQ-025 R13: done 半终态减价路径——放开负数（负增项走 refund_item 冲正条目）
+          priceCents: { type: 'integer', minimum: -99999999, maximum: 99999999 }
         },
         additionalProperties: false
       }

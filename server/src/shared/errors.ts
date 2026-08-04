@@ -211,7 +211,8 @@ export const E = {
   SIZE_OVERRIDE_NOT_FOUND: 'SIZE_OVERRIDE_NOT_FOUND',
 
   // 计价引擎（v0.37 REQ-025）
-  PRICING_CONSERVATION: 'PRICING_CONSERVATION'
+  PRICING_CONSERVATION: 'PRICING_CONSERVATION',
+  PRICE_CHANGE_AFTER_DONE: 'PRICE_CHANGE_AFTER_DONE'
 } as const
 
 // ─── 错误码 → 中文用户友好消息 ───
@@ -405,5 +406,6 @@ export const ERROR_MESSAGES: Record<string, string> = {
   SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在',
 
   // 计价引擎（v0.37 REQ-025）
-  PRICING_CONSERVATION: '计价数据不守恒，操作已拒绝（请刷新后重试）'
+  PRICING_CONSERVATION: '计价数据不守恒，操作已拒绝（请刷新后重试）',
+  PRICE_CHANGE_AFTER_DONE: '订单已完成，改价请通过增减附加项操作（done 半终态仅允许条目化变动）'
 }

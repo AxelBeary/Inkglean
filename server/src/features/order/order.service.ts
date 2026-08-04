@@ -600,9 +600,14 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
-  // v0.37 终态守卫：delivered/cancelled 禁止改价（done 半终态允许，R13）
+  // v0.37 终态守卫：delivered/cancelled 禁止改价
   if (['delivered', 'cancelled'].includes(order.status)) {
     throw new AppError(E.ORDER_FINAL_STATE)
+  }
+
+  // REQ-025 R13: done = 半终态——禁止无痕改总价，改价必须走条目（加/减附加项）
+  if (order.status === 'done') {
+    throw new AppError(E.PRICE_CHANGE_AFTER_DONE)
   }
 
   // 校验：正整数，1 ~ 99999999
@@ -885,9 +890,19 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
-  // 终态拒绝
+  // 终态拒绝（R13: done 半终态允许加/减项，只拦 delivered/cancelled）
   if (['delivered', 'cancelled'].includes(order.status)) {
     throw new AppError(E.ORDER_FINAL_STATE)
+  }
+
+  const cents = priceCents ?? 0
+
+  // R13: 负增项（减价路径）守卫——减后总价不得为负
+  if (cents < 0) {
+    const currentFinal = resolvePriceCents(order) ?? 0
+    if (currentFinal + cents < 0) {
+      throw new AppError(E.INVALID_PRICE, 400, { value: cents, message: '减价金额不得超过当前总价' })
+    }
   }
 
   // 数量上限
@@ -895,8 +910,6 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
   if (count >= 20) {
     throw new AppError(E.EXTRA_ITEM_LIMIT)
   }
-
-  const cents = priceCents ?? 0
 
   return db.transaction(() => {
       db.prepare('INSERT INTO order_extra_items (order_id, name, description, price_cents) VALUES (?, ?, ?, ?)')
@@ -910,9 +923,10 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       const finalCents = adjustFinalPrice(orderId, cents)
 
       // 增项双写（R1/R2 入口 B）——order_extra_items 保留（UI 层）+ 条目账本；
-      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）
+      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）；
+      // 条目类型分流：正数=extra_item，负数=refund_item（R1：负增项即退款条目）
       if (cents !== 0) {
-        appendPriceEntry(orderId, 'extra_item', cents, name, 'artist')
+        appendPriceEntry(orderId, cents > 0 ? 'extra_item' : 'refund_item', cents, name, 'artist')
         applyDeltaToInstallments(orderId, cents)
       }
 
@@ -920,7 +934,7 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       logActivity(orderId, 'extra_item', 'artist', { action: 'add', name, priceCents: cents })
 
       // 系统备注
-      const priceStr = cents > 0 ? `+${formatCents(cents)}` : '（不计费）'
+      const priceStr = cents > 0 ? `+${formatCents(cents)}` : cents < 0 ? `-${formatCents(-cents)}` : '（不计费）'
       let noteContent = `📎 附加工作项「${name}」${priceStr}`
       const paidTotal = order.paid_total_cents ?? 0
       if (paidTotal >= finalCents) {

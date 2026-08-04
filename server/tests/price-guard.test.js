@@ -7,9 +7,10 @@ const AUTH_PREFIX = 'Bearer '
 
 /**
  * v0.37 价格守卫批：updateFinalPrice / deleteExtraItem 终态守卫
- * 边界（一号裁决）：只拦 delivered/cancelled；done 不拦——
- * done 是当前唯一减价窗口（负增项被 schema 拦、负收款只退钱不调总价），
- * done 守卫必须等 REQ-025 第二阶段负条目机制一起上。
+ * 边界演进：
+ * - 五号先行批：只拦 delivered/cancelled；done 暂不拦（当时是唯一减价窗口）
+ * - REQ-025 第二阶段（本次）：负增项机制上线后，done 改为半终态守卫——
+ *   禁止无痕改总价（PRICE_CHANGE_AFTER_DONE），加/减附加项仍允许（R13 用户拍板）
  */
 describe('v0.37 价格守卫 (Price Guard)', () => {
   let app
@@ -61,13 +62,13 @@ describe('v0.37 价格守卫 (Price Guard)', () => {
     expect(res.json().code).toBe('ORDER_FINAL_STATE')
   })
 
-  it('TC-PG-03: done 订单改价 → 200（有意不拦：done 是唯一减价窗口，待 REQ-025 第二阶段）', async () => {
+  it('TC-PG-03: done 订单无痕改价 → 400 PRICE_CHANGE_AFTER_DONE（R13 半终态守卫，REQ-025 第二阶段）', async () => {
     const artist = makeArtist()
     const order = seedOrder(artist.id, { status: 'done' })
 
     const res = await putPrice(app, order.id, authH(artist), 50000)
-    expect(res.statusCode).toBe(200)
-    expect(res.json().final_price_cents).toBe(50000)
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('PRICE_CHANGE_AFTER_DONE')
   })
 
   it('TC-PG-04: wip 订单改价 → 200（回归：非终态不受影响）', async () => {
