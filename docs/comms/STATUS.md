@@ -39,8 +39,8 @@
 
 ### 待用户拍板（不阻塞派工）
 
-1. **done 状态是否归入终态**：当前终态 = delivered + cancelled（OrderDetail isTerminal）。done（手动完成未走平台交付）仍可改价加项。「done/delivered 终态订单也生成了分期」一并定夺。
-2. **Classic 模板画廊位置**：其余三模板画廊紧跟开场，仅 Classic 把画廊放在价格区后面。用户已问「画廊为什么在约稿下面」，等拍板（涉及模板区分度原则）。
+1. **done 状态是否归入终态**：当前终态 = delivered + cancelled（OrderDetail isTerminal）。done（手动完成未走平台交付）仍可改价加项。已取证展开，等用户拍板（选项 A/B/C 已呈现）。
+2. ~~Classic 模板画廊位置~~：✅ 2026-08-05 用户确认现状正确（Classic 画廊在价格区后是有意设计），关闭。
 3. 时间条「开稿/截稿日二合一」：属 v0.38 视觉重设计范围（设计 brief 已列），已答复用户。
 
 ### 下一轮候选（REQ-025 第二阶段之后）
