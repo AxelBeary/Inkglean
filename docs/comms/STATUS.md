@@ -22,7 +22,7 @@
 | 三号 | artist-commission-v037-backend / v037-phase2-backend | 二阶段 A 路：后端引擎接线（locked 持久化迁移 v40 + createOrder/改价/增项/收款/推进接引擎 + recalc 退役 + done 守卫 + 守恒挂载） | 🔄 进行中（高风险） |
 | 二号 | artist-commission-v037-frontend / v037-phase2-frontend | 二阶段 B 路：订单级待收总横幅（用户反馈漏收款提示）+ 详情按钮排查 + 负数 label 文案 | 🔄 进行中 |
 | 五号 | 待派 | 二阶段 C 路：demo-data 切流（走 createOrder 入口重建演示数据）——**等 A 路合入后派** | ⏸ 待命 |
-| 四号 | 空闲 | 二阶段验收文案/REQ 文档收尾待命 | ⏸ 待命 |
+| 四号 | 主仓 docs/（无 worktree） | 需求深聊批：QQ Bot/消息网关（用户点名）+ ManualOrder 接画风 + REQ-022 待确认 + v0.38 需求稿——与用户逐题深入交流 | 🔄 进行中 |
 
 **拆路依据**：A（server/）与 B（web/）零文件交集可并行；B 的核心「总横幅」零后端依赖（remainingCents 字段已有）可独立合入；C 依赖 A 的新入口故串行。
 **用户 v0.36 终验**：✅ 2026-08-05 通过（「都 ok 暂时没问题」）。
@@ -126,7 +126,7 @@ done 订单当前唯一减价路径是 updateFinalPrice——负增项被 schema
 |------|------|
 | 二号 | 开工中：二阶段 B 路前端收款展示（worktree: artist-commission-v037-frontend） |
 | 三号 | 开工中：二阶段 A 路后端引擎接线（worktree: artist-commission-v037-backend） |
-| 四号 | 空闲；REQ-025 文档轮已合入 `32add0e` |
+| 四号 | 开工中：需求深聊批（QQ Bot/消息网关等 5 话题，主仓 docs/，无 worktree） |
 | 五号 | 待命；等 A 路合入后派 C 路 demo-data 切流 |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
