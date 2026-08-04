@@ -11,7 +11,7 @@
  */
 import db from '/app/server/src/db/connection.js'
 import { seedArtistStages } from '/app/server/src/features/artist/workflow.service.js'
-import { generateInstallmentsForOrder } from '/app/server/src/features/order/order.service.js'
+import { generateInstallmentsForOrder, refreshInstallmentLocks, checkOrderConservation } from '/app/server/src/features/order/order.service.js'
 import { existsSync, unlinkSync, renameSync } from 'fs'
 import sharp from 'sharp'
 
@@ -229,9 +229,10 @@ function seedDemoOrders(): void {
   if (!alice) throw new Error('画师 alice 不存在')
   const { id } = alice
 
-  // 幂等：删除本脚本造的固定订单号
-  const demoNos = ['ALICE-001', 'ALICE-002', 'ALICE-003', 'ALICE-004']
-  db.prepare(`DELETE FROM orders WHERE artist_id = ? AND order_no IN (${demoNos.map(() => '?').join(',')})`).run(id, ...demoNos)
+  // 幂等：删除本脚本管理的固定订单号 + 历史遗留的 ALICE-% 测试单
+  // （08-04 用户终验残留的 ALICE-005~014：testa/testtas/H1实测/横幅实测等，重建即清理，属预期收益——
+  //   这些单直插自旧 demo 流程，无条目账本，不能通过守恒断言，必须随重建清掉）
+  db.prepare(`DELETE FROM orders WHERE artist_id = ? AND order_no LIKE 'ALICE-%'`).run(id)
 
   // 查画风尺寸 id
   const sizeOf = (styleName: string, sizeName: string): number | null => {
@@ -300,9 +301,19 @@ function seedDemoOrders(): void {
       stageId, Math.round(cents * s.paidRatio),
       startDate, deadline, completedAt, created, created
     )
-    // 补分期节点：直插 orders 绕过了 createOrder 的分期生成，复用其同源函数补齐
-    // （幂等：函数内先查已有节点；本函数开头 DELETE 订单时 FK CASCADE 已清掉旧节点）
-    generateInstallmentsForOrder(Number(r.lastInsertRowid))
+    // REQ-025 二阶段切流：直插 orders 绕过了 createOrder，补齐新模型四要素：
+    //   1. base 条目（= 总价，条目账本是总价真相源；与 createOrder 的 appendPriceEntry('base') 同构）
+    //   2. generateInstallmentsForOrder 生成分期（已是引擎 allocateInitial 实现，幂等）
+    //   3. refreshInstallmentLocks 按剧本已收金额 + 当前阶段推导 locked/locked_reason（付清=paidOff / 完成=completed）
+    //   4. checkOrderConservation 守恒自检（Σ节点价+额外项 ≡ Σ条目 ≡ final_price_cents，失败抛错中止）
+    // （幂等：本函数开头 DELETE 订单时 FK CASCADE 已清掉旧节点与旧条目）
+    const orderId = Number(r.lastInsertRowid)
+    db.prepare(
+      "INSERT INTO order_price_entries (order_id, type, delta_cents, name, created_by) VALUES (?, 'base', ?, '初始报价', 'system')"
+    ).run(orderId, cents)
+    generateInstallmentsForOrder(orderId)
+    refreshInstallmentLocks(orderId)
+    checkOrderConservation(orderId)
     void sizeId // styleSizeId 在 orders 表无对应列（快照体现在 quote_snapshot），此处仅校验尺寸存在
     console.log(`[orders] ${s.orderNo} ${s.status}（${s.styleName}/${s.sizeName} ¥${s.price}）`)
   })
@@ -362,6 +373,30 @@ function assertFieldIntegrity(): void {
     if (o.queue_zone === 'formal' && (o.total_price_cents as number) > 0) {
       const instCount = (db.prepare('SELECT COUNT(*) as c FROM order_payment_installments WHERE order_id = ?').get(o.id) as { c: number }).c
       if (instCount === 0) problems.push(`订单 ${o.order_no} 正式区有报价却无分期节点`)
+    }
+    // REQ-025 二阶段切流断言（demo-data 走引擎入口后的数据层对账）：
+    //   a) 正式区有报价订单必须有 ≥1 条 base 条目（账本起点 = 总价）
+    //   b) Σ条目delta = final_price_cents（A1 数据层对账：条目账本是总价真相源）
+    //   c) Σ节点价 = final_price_cents（仅无额外项订单；有额外项的单由 checkOrderConservation A1 兜底）
+    //   d) locked=1 的节点必有 locked_reason
+    if (o.queue_zone === 'formal' && (o.total_price_cents as number) > 0) {
+      const baseCount = (db.prepare("SELECT COUNT(*) as c FROM order_price_entries WHERE order_id = ? AND type = 'base'").get(o.id) as { c: number }).c
+      if (baseCount === 0) problems.push(`订单 ${o.order_no} 正式区有报价却无 base 条目`)
+      const entrySum = (db.prepare('SELECT COALESCE(SUM(delta_cents), 0) as s FROM order_price_entries WHERE order_id = ?').get(o.id) as { s: number }).s
+      if (entrySum !== (o.final_price_cents as number)) {
+        problems.push(`订单 ${o.order_no} Σ条目delta=${entrySum} ≠ final_price_cents=${o.final_price_cents}`)
+      }
+      const extraCount = (db.prepare('SELECT COUNT(*) as c FROM order_extra_items WHERE order_id = ?').get(o.id) as { c: number }).c
+      if (extraCount === 0) {
+        const nodeSum = (db.prepare('SELECT COALESCE(SUM(amount_cents), 0) as s FROM order_payment_installments WHERE order_id = ?').get(o.id) as { s: number }).s
+        if (nodeSum !== (o.final_price_cents as number)) {
+          problems.push(`订单 ${o.order_no} Σ节点价=${nodeSum} ≠ final_price_cents=${o.final_price_cents}`)
+        }
+      }
+      const lockedMissing = (db.prepare(
+        "SELECT COUNT(*) as c FROM order_payment_installments WHERE order_id = ? AND locked = 1 AND (locked_reason IS NULL OR locked_reason = '')"
+      ).get(o.id) as { c: number }).c
+      if (lockedMissing > 0) problems.push(`订单 ${o.order_no} 存在 ${lockedMissing} 个 locked=1 但缺 locked_reason 的节点`)
     }
   }
 
