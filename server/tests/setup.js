@@ -37,6 +37,7 @@ export function cleanDb() {
     DELETE FROM order_references;
     DELETE FROM order_price_breakdown;
     DELETE FROM order_extra_items;
+    DELETE FROM order_price_entries;
     DELETE FROM order_payment_installments;
     DELETE FROM orders;
     DELETE FROM addon_tiers;

@@ -429,6 +429,22 @@ CREATE TABLE IF NOT EXISTS size_addon_overrides (
   FOREIGN KEY (style_addon_id) REFERENCES style_addons(id) ON DELETE CASCADE,
   UNIQUE(style_size_id, style_addon_id)
 );
+
+-- 订单价格条目账本表（v39，REQ-025 动态节点计价：总价 = Σ 条目 delta，只追加不删不改）
+CREATE TABLE IF NOT EXISTS order_price_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  type TEXT NOT NULL CHECK(type IN (
+    'base', 'manual_adjust', 'extra_item', 'discount_item',
+    'refund_item', 'extra_charge_after_close', 'extra_refund_after_close'
+  )),
+  delta_cents INTEGER NOT NULL,
+  name TEXT,
+  note TEXT,
+  created_by TEXT NOT NULL DEFAULT 'artist',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
 `
 
 /**
@@ -456,6 +472,7 @@ CREATE INDEX IF NOT EXISTS idx_style_sizes_style ON style_sizes(art_style_id, so
 CREATE INDEX IF NOT EXISTS idx_style_addons_style ON style_addons(art_style_id);
 CREATE INDEX IF NOT EXISTS idx_size_addon_overrides_size ON size_addon_overrides(style_size_id);
 CREATE INDEX IF NOT EXISTS idx_artwork_size_tags_size ON artwork_size_tags(style_size_id);
+CREATE INDEX IF NOT EXISTS idx_price_entries_order ON order_price_entries(order_id, created_at);
 `
 
 /**
@@ -1582,6 +1599,41 @@ export const MIGRATIONS = [
         database.pragma('foreign_keys = ON')
       }
       console.log('📦 迁移 v38: artists CHECK 约束补 hidden（重建表，' + cols.length + ' 列数据已迁移）')
+    }
+  },
+  {
+    version: 39,
+    name: 'order_price_entries',
+    up(database) {
+      // REQ-025 动态节点计价 第一阶段：价格条目账本表（总价 = Σ 条目 delta）
+      // 只追加不删不改（服务层不提供 UPDATE/DELETE 路径）；纯建表，事务内安全（无 DROP/RENAME 父表）
+      // 迁移前自动备份
+      const dbPath = process.env.DB_PATH || './data/commission.db'
+      if (dbPath !== ':memory:' && existsSync(dbPath)) {
+        try {
+          copyFileSync(dbPath, dbPath + '.bak.v39')
+          console.log('📦 迁移 v39: 已备份 ' + dbPath)
+        } catch (err) {
+          console.warn('⚠️ 迁移 v39: 备份失败（' + err.message + '），继续执行迁移')
+        }
+      }
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS order_price_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          type TEXT NOT NULL CHECK(type IN (
+            'base', 'manual_adjust', 'extra_item', 'discount_item',
+            'refund_item', 'extra_charge_after_close', 'extra_refund_after_close'
+          )),
+          delta_cents INTEGER NOT NULL,
+          name TEXT,
+          note TEXT,
+          created_by TEXT NOT NULL DEFAULT 'artist',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+        )
+      `)
+      database.exec('CREATE INDEX IF NOT EXISTS idx_price_entries_order ON order_price_entries(order_id, created_at)')
     }
   }
 ]
