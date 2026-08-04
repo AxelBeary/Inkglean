@@ -6,13 +6,13 @@
 ---
 ## master 状态
 
-- **HEAD**：`256c003`（二号 B 路合入 + 收尾），与 origin 同步
-- **工作树**：干净。worktree：主仓 + v037-backend（三号 A 路）
-- **测试基线**：server 769/769 · web 173/173 · tsc 0 · lint 0
-- **容器**：引擎合入后已重建，healthy；迁移 v39 实跑通过（order_price_entries 表/索引就位，订单数据完好）
-- **备份**：`data/commission.db.bak-v037-pre-v39`（引擎合入前）+ `bak-v036-w2-verify`（六路合入前）+ `bak-v036-verify`（波 1）
-- **迁移**：v39
-- **comms**：只剩本文件
+- **HEAD**：`3aea46f`（三号 A 路合入 + 收尾），与 origin 同步
+- **工作树**：干净（四号需求深聊批在途产物除外：REQ-027/028 草稿 + REQ-014/待修复清单修改，未提交，勿动）
+- **测试基线**：server 786/786 · web 173/173 · tsc 0 · lint 0
+- **容器**：A 路合入后已重建，healthy；迁移 v40 实跑通过（locked/locked_reason 列就位，订单 14 条完好，A 路核心函数在镜像）
+- **备份**：`data/commission.db.bak-v037-pre-v40`（A 路合入前）+ `bak-v037-pre-v39`（引擎合入前）+ `bak-v036-w2-verify`（六路合入前）+ `bak-v036-verify`（波 1）
+- **迁移**：v40
+- **comms**：只剩本文件 + 四号深聊批派工
 
 ---
 ## 当前阶段：v0.37 第二阶段开工——A 路（后端引擎接线）+ B 路（前端收款展示）并行，C 路（demo 切流）等 A
