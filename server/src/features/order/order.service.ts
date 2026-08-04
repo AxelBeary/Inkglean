@@ -599,6 +599,11 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
+  // v0.37 终态守卫：delivered/cancelled 禁止改价（done 不拦——done 是当前唯一减价窗口，待 REQ-025 第二阶段）
+  if (['delivered', 'cancelled'].includes(order.status)) {
+    throw new AppError(E.ORDER_FINAL_STATE)
+  }
+
   // 校验：正整数，1 ~ 99999999
   if (!Number.isInteger(finalPriceCents) || finalPriceCents < 1 || finalPriceCents > 99999999) {
     throw new AppError(E.INVALID_PRICE, 400, { value: finalPriceCents })
@@ -762,6 +767,13 @@ interface ExtraItemRow {
 export function deleteExtraItem(orderId: number, itemId: number): any {
   const item = db.prepare('SELECT * FROM order_extra_items WHERE id = ? AND order_id = ?').get(itemId, orderId) as ExtraItemRow | undefined
   if (!item) throw new AppError(E.NOT_FOUND, 404)
+
+  // v0.37 终态守卫：delivered/cancelled 禁止删除附加项（对齐 addExtraItem；done 不拦——减价窗口期，待 REQ-025 第二阶段）
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+  if (['delivered', 'cancelled'].includes(order.status)) {
+    throw new AppError(E.ORDER_FINAL_STATE)
+  }
 
   return db.transaction(() => {
       db.prepare('DELETE FROM order_extra_items WHERE id = ?').run(itemId)
