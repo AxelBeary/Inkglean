@@ -53,7 +53,7 @@
 | 管理后台 | admin panel | 画师/管理员使用的运营管理界面 |
 | 快捷按钮 | quick_actions | v0.24：画师自定义的常用操作入口（DB 字段 + localStorage MVP），管理后台可配置 |
 | 留言 | message / guestbook | v0.24：客户在画师主页的公开留言，画师后台可管理（独立页面 + 侧边栏角标） |
-| 开发模式 | dev mode | 当前阶段，AUTH_DEV_MODE=true，登录页显示验证码，非生产环境 |
+| 开发模式 | dev mode | 非生产环境；AUTH_DEV_MODE=true 时 TOTP 绑定接口返回密钥明文辅助调试（REQ-027 起替代旧登录码显示） |
 
 ## 技术栈速查
 
