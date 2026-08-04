@@ -6,25 +6,27 @@
 ---
 ## master 状态
 
-- **HEAD**：`b70a821` + 本轮派工 commit（v0.37 开局派工两路），与 origin 同步
-- **工作树**：干净。worktree：主仓 + docs（四号）+ v037（三号）
-- **测试基线**：server 713/713 · web 166/166 · tsc 0 · eslint 0 · build ✓
+- **HEAD**：`ba8e90c`（五号价格守卫批合入 + 收尾），与 origin 同步
+- **工作树**：干净。worktree：主仓 + v037（三号）+ req025（四号）+ webguard（二号）
+- **测试基线**：server 720/720 · web 166/166 · tsc 0 · eslint 0 · build ✓
 - **容器**：六路合入后已重建，healthy，镜像已验证含全部修复（enrichOrderForArtist 24 处）
 - **备份**：`data/commission.db.bak-v036-w2-verify`（六路合入前）+ `commission.db.bak-v036-verify`（波 1）
 - **迁移**：v38
 - **comms**：只剩本文件
 
 ---
-## 当前阶段：v0.37 轮——四路全并行（零文件交集）
+## 当前阶段：v0.37 轮——三路进行中，五号已合入
 
 | 角色 | worktree/分支 | 内容 | 状态 |
 |------|--------------|------|------|
 | 二号 | artist-commission-webguard / v036-web-guard | v0.36 六路回归实测（零代码改动，纯浏览器实测 + 报告） | 🔄 进行中 |
 | 三号 | artist-commission-v037 / v037-pricing-engine | REQ-025 计价引擎第一阶段（纯函数+测试+迁移 v39，不接端点） | 🔄 进行中 |
 | 四号 | artist-commission-req025 / v037-req025-spec | REQ-025 文档轮：done 半终态写入 + 第二阶段草案 | 🔄 进行中 |
-| 五号 | artist-commission-priceguard / v036-price-guard | 价格守卫批：updateFinalPrice/deleteExtraItem 补 delivered/cancelled 后端守卫（**done 不拦**，见下方裁决） | 🔄 进行中 |
+| 五号 | —（worktree 已回收） | 价格守卫批：updateFinalPrice/deleteExtraItem 补 delivered/cancelled 后端守卫（**done 不拦**，见下方裁决） | ✅ 已合入 `8c38032`（server 720/720） |
 
-合入顺序：五号（守卫）与三号（引擎）同属 server 但零文件交集（五号只改 order.service.ts 两个函数体，三号禁改现有文件），谁先交付谁先合；四号纯 docs 随时合；二号纯实测无代码。
+合入顺序：五号已合入（测试基线 server 713→**720**）；三号（引擎）禁改现有文件，与已合入守卫零交集；四号纯 docs 随时合；二号纯实测无代码。
+
+**测试基线更新**：server **720/720**（43 文件）· web 166/166
 
 ### 一号裁决：done 改价守卫的时序（2026-08-05，写入五号派工）
 
@@ -94,7 +96,7 @@ done 订单当前唯一减价路径是 updateFinalPrice——负增项被 schema
 | 二号 | 开工中：v0.36 六路回归实测（worktree: artist-commission-webguard） |
 | 三号 | 开工中：v037 引擎第一阶段（worktree: artist-commission-v037） |
 | 四号 | 开工中：REQ-025 文档轮（worktree: artist-commission-req025）；文档轮（changelog）已合入 `6141bfb` |
-| 五号 | 开工中：价格守卫批（worktree: artist-commission-priceguard） |
+| 五号 | 空闲；价格守卫批已合入 `8c38032`（server 720/720） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
