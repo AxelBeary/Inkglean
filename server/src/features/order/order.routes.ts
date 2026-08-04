@@ -34,6 +34,34 @@ function signOrderUrls(order: any): any {
   return order
 }
 
+/**
+ * 画师端订单响应统一增强（B1 修复：变更端点与 GET /:id 对齐）
+ * 签名 URL → 流程进度 → 话术 → 收款/分期/开工日 camelCase 字段。
+ * 语义严格照抄原 GET /:id（paid_total_cents ?? 0、final ?? total、remaining 不为负）。
+ * 所有返回单个订单的画师端点必须走本函数，否则前端 order.value 覆盖后
+ * paidTotalCents 变 undefined → 收款区归零、installments 丢失。
+ */
+function enrichOrderForArtist(order: any): any {
+  // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
+  const signed = signOrderUrls(order)
+  // R30d: 附加流程进度信息
+  const stageInfo = orderWorkflowService.getStageInfo(signed)
+  if (stageInfo) Object.assign(signed, stageInfo)
+  // plan-node-speech: 话术 + 客户沟通数据
+  const speechInfo = orderWorkflowService.getSpeechInfo(signed)
+  Object.assign(signed, speechInfo)
+  // B7: 额度池 — 已付/待收 + 分期推算状态
+  const finalCents = signed.final_price_cents ?? signed.total_price_cents ?? null
+  Object.assign(signed, {
+    paidTotalCents: signed.paid_total_cents ?? 0,
+    remainingCents: finalCents != null ? Math.max(0, finalCents - (signed.paid_total_cents ?? 0)) : null,
+    installments: orderService.getOrderInstallments(signed.id),
+    // v0.26 B: snake_case → camelCase 映射（对照 currentStageId 模式）
+    startDate: signed.start_date ?? null
+  })
+  return signed
+}
+
 /** 限流守卫：不通过则抛 429 */
 function guardRateLimit(key: string, max: number, windowMs: number): void {
   if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
@@ -397,24 +425,8 @@ export default async function orderRoutes(fastify: any) {
    * GET /api/artist/orders/:id
    */
   fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request: any) => {
-    // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
-    const order = signOrderUrls(request.order)
-    // R30d: 附加流程进度信息
-    const stageInfo = orderWorkflowService.getStageInfo(order)
-    if (stageInfo) Object.assign(order, stageInfo)
-    // plan-node-speech: 话术 + 客户沟通数据
-    const speechInfo = orderWorkflowService.getSpeechInfo(order)
-    Object.assign(order, speechInfo)
-    // B7: 额度池 — 已付/待收 + 分期推算状态
-    const finalCents = order.final_price_cents ?? order.total_price_cents ?? null
-    Object.assign(order, {
-      paidTotalCents: order.paid_total_cents ?? 0,
-      remainingCents: finalCents != null ? Math.max(0, finalCents - (order.paid_total_cents ?? 0)) : null,
-      installments: orderService.getOrderInstallments(order.id),
-      // v0.26 B: snake_case → camelCase 映射（对照 currentStageId 模式）
-      startDate: order.start_date ?? null
-    })
-    return order
+    // B1 修复：增强逻辑抽至 enrichOrderForArtist，与所有变更端点统一
+    return enrichOrderForArtist(request.order)
   })
 
   /**
@@ -522,7 +534,7 @@ export default async function orderRoutes(fastify: any) {
     if (request.order.current_stage_id && (request.body as any).status !== 'cancelled') {
       throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
     }
-    return orderService.updateOrderStatus(request.order.id, (request.body as any).status)
+    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, (request.body as any).status))
   })
 
   /**
@@ -542,7 +554,7 @@ export default async function orderRoutes(fastify: any) {
       }
     }
   }, async (request: any) => {
-    return orderQueueService.updatePriority(request.order.id, (request.body as any).priority)
+    return enrichOrderForArtist(orderQueueService.updatePriority(request.order.id, (request.body as any).priority))
   })
 
   /**
@@ -562,7 +574,7 @@ export default async function orderRoutes(fastify: any) {
       }
     }
   }, async (request: any) => {
-    return orderService.updateDeadline(request.order.id, (request.body as any).deadline)
+    return enrichOrderForArtist(orderService.updateDeadline(request.order.id, (request.body as any).deadline))
   })
 
   /**
@@ -582,7 +594,7 @@ export default async function orderRoutes(fastify: any) {
       }
     }
   }, async (request: any) => {
-    return orderService.updateStartDate(request.order.id, (request.body as any).startDate)
+    return enrichOrderForArtist(orderService.updateStartDate(request.order.id, (request.body as any).startDate))
   })
 
   /**
@@ -641,7 +653,7 @@ export default async function orderRoutes(fastify: any) {
       }
     }
 
-    return signOrderUrls(orderService.addNote(request.order.id, clamp(content, 'note'), 'artist', imagePath || null))
+    return enrichOrderForArtist(orderService.addNote(request.order.id, clamp(content, 'note'), 'artist', imagePath || null))
   })
 
   /**
@@ -653,7 +665,7 @@ export default async function orderRoutes(fastify: any) {
   }, async (request: any) => {
     const noteId = parseInt(request.params.noteId, 10)
     if (isNaN(noteId)) throw new AppError(E.ORDER_INVALID_ID)
-    return signOrderUrls(orderService.deleteNote(request.order.id, noteId))
+    return enrichOrderForArtist(orderService.deleteNote(request.order.id, noteId))
   })
 
   /**
@@ -684,8 +696,8 @@ export default async function orderRoutes(fastify: any) {
     }
 
     const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName, fileSize)
-    // R19: 交付返回的订单含 notes，需签名
-    return { ...signOrderUrls(result.order), statusChanged: result.statusChanged }
+    // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
+    return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
   })
 
   /**
@@ -697,8 +709,8 @@ export default async function orderRoutes(fastify: any) {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: any) => {
     const result = orderGalleryService.deliverOrderWithoutFile(request.order.id)
-    // R19: 交付返回的订单含 notes，需签名
-    return { ...signOrderUrls(result.order), statusChanged: result.statusChanged }
+    // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
+    return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
   })
 
   /**
@@ -730,7 +742,7 @@ export default async function orderRoutes(fastify: any) {
 
     // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
     orderGalleryService.addReference(request.order.id, filePath, fileName, fileSize, 'artist')
-    return signOrderUrls(orderService.getOrder(request.order.id))
+    return enrichOrderForArtist(orderService.getOrder(request.order.id))
   })
 
   /**
@@ -761,8 +773,8 @@ export default async function orderRoutes(fastify: any) {
     }
   }, async (request: any) => {
     const { finalPriceCents, quoteSnapshot } = request.body as any
-    // R19: 改价返回的订单含 notes，需签名（与 GET orders/:id 一致）
-    return signOrderUrls(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot))
+    // R19 + B1: 改价返回的订单统一增强（与 GET orders/:id 一致）
+    return enrichOrderForArtist(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot))
   })
 
   // ─── v0.11 R4: 焦点图 ───
@@ -792,8 +804,8 @@ export default async function orderRoutes(fastify: any) {
       throw new AppError(E.ILLEGAL_PATH)
     }
     const order = orderGalleryService.setFocusImage(request.order.id, imagePath, mode)
-    // Bug fix: setFocusImage 返回的订单需要签名 URL（与 GET orders/:id 一致）
-    return signOrderUrls(order)
+    // Bug fix + B1: setFocusImage 返回的订单统一增强（与 GET orders/:id 一致）
+    return enrichOrderForArtist(order)
   })
 
   /**
@@ -805,7 +817,8 @@ export default async function orderRoutes(fastify: any) {
   }, async (request: any) => {
     const refId = parseInt(request.params.refId, 10)
     if (isNaN(refId)) throw new AppError(E.ORDER_INVALID_ID)
-    return orderGalleryService.removeReference(request.order.id, refId)
+    // B1: 统一增强（此前连签名都没有，删图后前端直接覆盖 → 同样丢字段）
+    return enrichOrderForArtist(orderGalleryService.removeReference(request.order.id, refId))
   })
 
   // ─── R33: 签名 URL 批量刷新 ───
@@ -878,9 +891,8 @@ export default async function orderRoutes(fastify: any) {
     }
   }, async (request: any) => {
     const order = orderWorkflowService.advanceStage(request.order.id, (request.body as any).stageId)
-    const stageInfo = orderWorkflowService.getStageInfo(order)
-    if (stageInfo) Object.assign(order, stageInfo)
-    return signOrderUrls(order)
+    // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
+    return enrichOrderForArtist(order)
   })
 
   /**
@@ -891,9 +903,8 @@ export default async function orderRoutes(fastify: any) {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: any) => {
     const order = orderWorkflowService.enableTracking(request.order.id)
-    const stageInfo = orderWorkflowService.getStageInfo(order)
-    if (stageInfo) Object.assign(order, stageInfo)
-    return signOrderUrls(order)
+    // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
+    return enrichOrderForArtist(order)
   })
 
   /**
@@ -914,9 +925,8 @@ export default async function orderRoutes(fastify: any) {
     }
   }, async (request: any) => {
     const order = orderWorkflowService.rollbackStage(request.order.id, (request.body as any).stageId)
-    const stageInfo = orderWorkflowService.getStageInfo(order)
-    if (stageInfo) Object.assign(order, stageInfo)
-    return signOrderUrls(order)
+    // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
+    return enrichOrderForArtist(order)
   })
 
   // ─── SPEC-003: 附加工作项 ───
@@ -941,7 +951,7 @@ export default async function orderRoutes(fastify: any) {
     }
   }, async (request: any) => {
     const { name, description, priceCents } = request.body as any
-    return signOrderUrls(orderService.addExtraItem(request.order.id, { name, description, priceCents }))
+    return enrichOrderForArtist(orderService.addExtraItem(request.order.id, { name, description, priceCents }))
   })
 
   /**
@@ -953,7 +963,7 @@ export default async function orderRoutes(fastify: any) {
   }, async (request: any) => {
     const itemId = parseInt(request.params.itemId, 10)
     if (isNaN(itemId)) throw new AppError(E.ORDER_INVALID_ID)
-    return signOrderUrls(orderService.deleteExtraItem(request.order.id, itemId))
+    return enrichOrderForArtist(orderService.deleteExtraItem(request.order.id, itemId))
   })
 
   // ─── B7: 额度池收款 ───
@@ -1022,6 +1032,6 @@ export default async function orderRoutes(fastify: any) {
   fastify.post('/api/artist/orders/:id/promote', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: any) => {
-    return signOrderUrls(orderService.promoteOrder(request.order.id))
+    return enrichOrderForArtist(orderService.promoteOrder(request.order.id))
   })
 }

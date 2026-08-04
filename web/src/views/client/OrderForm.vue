@@ -346,7 +346,7 @@
 
                 <div class="step-nav">
                   <el-button @click="step = sizeStep">{{ $t('orderForm.prevStep') }}</el-button>
-                  <el-button type="primary" @click="step = contactStep">{{ $t('orderForm.nextStep') }}</el-button>
+                  <el-button type="primary" @click="step = detailStep">{{ $t('orderForm.nextStep') }}</el-button>
                 </div>
               </div>
 

@@ -398,7 +398,11 @@
             <div class="pool-nums">
               <span>{{ $t('orderDetail.payPaid') }} <strong>¥{{ formatCents(poolPaidCents) }}</strong></span>
               <span>/ {{ $t('orderDetail.payFinal') }} <strong>¥{{ formatCents(poolFinalCents) }}</strong></span>
-              <span class="pool-remaining">{{ $t('orderDetail.payRemaining') }} <strong>¥{{ formatCents(poolRemainingCents) }}</strong></span>
+              <!-- P2: 多收时以"多收 ¥X"替代"待收 ¥0" -->
+              <span class="pool-remaining" :class="{ 'pool-overpaid': poolOverpaidCents > 0 }">
+                {{ poolOverpaidCents > 0 ? $t('orderDetail.payOverpaid') : $t('orderDetail.payRemaining') }}
+                <strong>¥{{ formatCents(poolOverpaidCents > 0 ? poolOverpaidCents : poolRemainingCents) }}</strong>
+              </span>
             </div>
             <el-progress :percentage="poolPercent" :stroke-width="12" :color="poolPercent >= 100 ? '#67c23a' : '#409eff'" style="margin-top: 8px" />
           </div>
@@ -468,9 +472,11 @@
     <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
       <el-form label-position="top">
         <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
+          <!-- P1: 去掉 :min/:max 硬钳制——EP 对超范围输入 blur 时静默清空（"卡死"根因）；
+               改由 submitPayment 提交时校验（后端 addPayment 规则的子集）。P2: 正数多收合法，无上限 -->
           <el-input-number
             v-model="payForm.amountYuan"
-            :min="-poolPaidCents / 100" :max="poolRemainingCents > 0 ? poolRemainingCents / 100 : 999999.99" :precision="2" :step="50"
+            :precision="2" :step="50"
             controls-position="right" style="width: 100%"
             :placeholder="$t('orderDetail.payAmountPlaceholder')"
           />
@@ -971,6 +977,8 @@ const poolRemainingCents = computed(() => Math.max(0, poolFinalCents.value - poo
 const poolPercent = computed(() =>
   poolFinalCents.value > 0 ? Math.min(100, Math.round(poolPaidCents.value / poolFinalCents.value * 100)) : 0
 )
+/** P2: 多收金额（客户多付部分；后端 addPayment 正数无上限，溢出记为"多收"） */
+const poolOverpaidCents = computed(() => Math.max(0, poolPaidCents.value - poolFinalCents.value))
 
 /** v0.31 F4: 节点收款（后端直接返回 paidCents/amountCents/remainingCents/status） */
 const installmentRefs = computed(() => order.value?.installments || [])
@@ -988,13 +996,10 @@ function scrollToPayment() {
 /** 提交收款 */
 async function submitPayment() {
   const cents = Math.round((payForm.value.amountYuan || 0) * 100)
-  // 金额范围校验：0 禁止；正数不超剩余应付；负数（退款/撤销）必须填原因且不超已收金额（与后端 addPayment 规则一致）
+  // 金额范围校验（后端 addPayment 规则的子集）：0 禁止；正数不设上限（后端支持多收，P2）；
+  // 负数（退款/撤销）必须填原因且不超已收金额。上限/下限提示由提交时给出，不在输入框硬钳制（P1）
   if (cents === 0) {
     ElMessage.warning(t('orderDetail.payAmountZero'))
-    return
-  }
-  if (cents > 0 && cents > poolRemainingCents.value) {
-    ElMessage.warning(t('orderDetail.payAmountExceed', { amount: formatCents(poolRemainingCents.value) }))
     return
   }
   if (cents < 0 && !payForm.value.note?.trim()) {
@@ -1669,6 +1674,9 @@ onMounted(() => {
 .pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: 14px; color: var(--text-secondary); flex-wrap: wrap; }
 .pool-nums strong { color: var(--text-primary); font-size: 16px; }
 .pool-remaining { margin-left: auto; }
+/* P2: 多收（客户多付）——橙色提示，区别于正常的待收 */
+.pool-overpaid { color: var(--el-color-warning); }
+.pool-overpaid strong { color: var(--el-color-warning); }
 .pool-flow { margin-top: 12px; }
 .pool-flow-title, .pool-ref-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0 0 8px; }
 .pool-flow-row {

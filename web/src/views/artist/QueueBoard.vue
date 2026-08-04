@@ -1077,6 +1077,12 @@ async function quickAction(command, order) {
     return
   }
 
+  // H1: 交付统一走交付弹窗（防手滑一步点成已交付）
+  if (command === 'delivered') {
+    openDeliverFor(order)
+    return
+  }
+
   try {
     await artistApi.updateStatus(order.id, command)
     ElMessage.success(t('queue.statusUpdated'))

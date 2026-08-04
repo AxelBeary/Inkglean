@@ -26,7 +26,7 @@ export default {
     STAGE_NAME_EMPTY: '节点名称不能为空',
     FINAL_CANNOT_DISABLE: '尾款节点的收款不可关闭',
     FINAL_CANNOT_DELETE: '尾款节点不可删除',
-    TRACK_ALREADY_ON: '该订单已启用流程跟踪',
+    TRACK_ALREADY_ON: '请勿重复启用流程跟踪，请刷新网页',
     NO_WORKFLOW_TEMPLATE: '请先创建工作流模板（至少 1 个节点）',
     FINAL_READONLY: '不能直接修改尾款比例',
     MAX_INSTALLMENTS: '最多 20 期',
@@ -538,7 +538,7 @@ export default {
     commNoQq: '未设置客户QQ', commNoStage: '该订单未接入流程节点，暂无话术', commNoSpeech: '当前节点暂无话术',
     // B7: 额度池收款区
     payTitle: '收款记录', payAddBtn: '+ 记录收款',
-    payPaid: '已收', payFinal: '应收', payRemaining: '待收',
+    payPaid: '已收', payFinal: '应收', payRemaining: '待收', payOverpaid: '多收',
     payFlowTitle: '收款流水', payRevoke: '撤销', payEmpty: '暂无收款记录',
     payRefTitle: '应收参考（工作流节点）',
     payRefPaid: '已收', payRefPartial: '部分 {amount}', payRefPending: '待收',
