@@ -178,6 +178,31 @@ describe('B7 额度池（v0.23）', () => {
     expect(result[0]).toMatchObject({ status: 'paid', paidCents: 50000, remainingCents: 0 })
   })
 
+  // P2 多收：前端放开正数上限后，累计多收场景的节点推算保障
+  it('TC-INST-06: 多收——累计超收后全节点 paid、无负数，退款后回退正确', () => {
+    const order = seedOrderWithInstallments('88115', 'inst6',
+      [['定金', 10000], ['中期', 20000], ['尾款', 20000]], 50000)
+
+    // 分两笔多收：30000 + 30000 = 60000 > 应收 50000（多收 10000）
+    orderService.addPayment(order.id, { amountCents: 30000, note: '第一笔' })
+    orderService.addPayment(order.id, { amountCents: 30000, note: '客户多付' })
+
+    const fresh = orderService.getOrder(order.id)
+    expect(fresh.paid_total_cents).toBe(60000)
+
+    const result = orderService.getOrderInstallments(order.id)
+    // 全节点 paid；paidCents 封顶节点金额，多收不摊入；无负数
+    expect(result.map(r => r.status)).toEqual(['paid', 'paid', 'paid'])
+    expect(result.map(r => r.paidCents)).toEqual([10000, 20000, 20000])
+    expect(result.every(r => r.remainingCents === 0)).toBe(true)
+
+    // 退回多收部分：-20000 → paid_total=40000，节点自动回退（尾款 partial）
+    orderService.addPayment(order.id, { amountCents: -20000, note: '退回多收部分' })
+    const after = orderService.getOrderInstallments(order.id)
+    expect(after.map(r => r.status)).toEqual(['paid', 'paid', 'partial'])
+    expect(after[2]).toMatchObject({ paidCents: 10000, remainingCents: 10000 })
+  })
+
   // ─── 话术变量修复（T3 BUG） ───
 
   it('TC-SPEECH-01: {已付} 读 paid_total_cents 而非 SUM installments', async () => {

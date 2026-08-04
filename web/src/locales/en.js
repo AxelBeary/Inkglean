@@ -26,7 +26,7 @@ export default {
     STAGE_NAME_EMPTY: 'Stage name cannot be empty',
     FINAL_CANNOT_DISABLE: 'Cannot disable payment on final stage',
     FINAL_CANNOT_DELETE: 'Cannot delete final payment stage',
-    TRACK_ALREADY_ON: 'Workflow tracking is already enabled for this order',
+    TRACK_ALREADY_ON: 'Please refresh the page — tracking is already enabled for this order',
     NO_WORKFLOW_TEMPLATE: 'Please create a workflow template first (at least 1 stage)',
     FINAL_READONLY: 'Cannot modify final payment ratio directly',
     MAX_INSTALLMENTS: 'Maximum 20 installments',
@@ -538,7 +538,7 @@ export default {
     commNoQq: 'No client QQ set', commNoStage: 'Order not on a workflow stage — no speech yet', commNoSpeech: 'No speech for the current stage',
     // B7: 额度池收款区
     payTitle: 'Payment Records', payAddBtn: '+ Record Payment',
-    payPaid: 'Received', payFinal: 'Total Due', payRemaining: 'Outstanding',
+    payPaid: 'Received', payFinal: 'Total Due', payRemaining: 'Outstanding', payOverpaid: 'Overpaid',
     payFlowTitle: 'Payment History', payRevoke: 'Revoke', payEmpty: 'No payment records yet',
     payRefTitle: 'Due Reference (Workflow Stages)',
     payRefPaid: 'Paid', payRefPartial: 'Partial {amount}', payRefPending: 'Pending',
