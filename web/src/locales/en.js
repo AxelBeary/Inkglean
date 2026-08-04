@@ -545,8 +545,9 @@ export default {
     payDialogTitle: 'Record Payment', payAmountLabel: 'Amount (¥)', payAmountPlaceholder: 'Enter amount',
     payNoteLabel: 'Note (optional)', payNotePlaceholder: 'e.g. WeChat transfer, deposit',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
-    // L3: frontend amount range pre-validation (backend schema is the safety net; this layer is UX)
+    // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
     payAmountInvalid: 'Payment amount must be greater than 0', payAmountExceed: 'Amount cannot exceed the outstanding balance ¥{amount}',
+    payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'A reason is required when entering a negative amount (refund)', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',

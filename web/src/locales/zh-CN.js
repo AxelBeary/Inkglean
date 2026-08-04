@@ -545,8 +545,9 @@ export default {
     payDialogTitle: '记录收款', payAmountLabel: '收款金额（元）', payAmountPlaceholder: '输入金额',
     payNoteLabel: '备注（可选）', payNotePlaceholder: '如：微信转账、定金',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
-    // L3: 收款金额前端范围前置校验（后端 schema 兜底，此层补 UX）
+    // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
     payAmountInvalid: '收款金额须大于 0', payAmountExceed: '收款金额不能超出剩余应付 ¥{amount}',
+    payAmountZero: '金额不能为 0', payRefundNoteRequired: '录入负数（退款/撤销）时必须填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
     payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',

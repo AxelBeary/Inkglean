@@ -469,7 +469,7 @@
         <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
           <el-input-number
             v-model="payForm.amountYuan"
-            :min="0.01" :max="poolRemainingCents > 0 ? poolRemainingCents / 100 : 999999.99" :precision="2" :step="50"
+            :min="-poolPaidCents / 100" :max="poolRemainingCents > 0 ? poolRemainingCents / 100 : 999999.99" :precision="2" :step="50"
             controls-position="right" style="width: 100%"
             :placeholder="$t('orderDetail.payAmountPlaceholder')"
           />
@@ -480,7 +480,7 @@
       </el-form>
       <template #footer>
         <el-button @click="payDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitPayment" :disabled="!payForm.amountYuan || payForm.amountYuan <= 0" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
+        <el-button type="primary" @click="submitPayment" :disabled="!payForm.amountYuan" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 
@@ -966,13 +966,21 @@ function scrollToPayment() {
 /** 提交收款 */
 async function submitPayment() {
   const cents = Math.round((payForm.value.amountYuan || 0) * 100)
-  // L3: 金额范围前置校验（≤0 或超剩余应付 → 前端报错提示，后端 schema 仅兜底）
-  if (cents <= 0) {
-    ElMessage.warning(t('orderDetail.payAmountInvalid'))
+  // 金额范围校验：0 禁止；正数不超剩余应付；负数（退款/撤销）必须填原因且不超已收金额（与后端 addPayment 规则一致）
+  if (cents === 0) {
+    ElMessage.warning(t('orderDetail.payAmountZero'))
     return
   }
-  if (cents > poolRemainingCents.value) {
+  if (cents > 0 && cents > poolRemainingCents.value) {
     ElMessage.warning(t('orderDetail.payAmountExceed', { amount: formatCents(poolRemainingCents.value) }))
+    return
+  }
+  if (cents < 0 && !payForm.value.note?.trim()) {
+    ElMessage.warning(t('orderDetail.payRefundNoteRequired'))
+    return
+  }
+  if (cents < 0 && -cents > poolPaidCents.value) {
+    ElMessage.warning(t('orderDetail.payRefundExceed', { amount: formatCents(poolPaidCents.value) }))
     return
   }
   try {
@@ -1000,7 +1008,7 @@ function openNodePayDialog(inst) {
 async function submitNodePayment() {
   const cents = Math.round((nodePayForm.value.amountYuan || 0) * 100)
   if (!nodePayTarget.value) return
-  // L3: 节点收款同样前置校验（≤0 或超该节点差额 → 报错提示）
+  // 金额范围校验（节点快捷收款只收正数；退款/撤销请用订单级「记录收款」填负数）
   if (cents <= 0) {
     ElMessage.warning(t('orderDetail.payAmountInvalid'))
     return
