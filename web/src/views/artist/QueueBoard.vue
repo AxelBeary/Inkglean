@@ -52,6 +52,8 @@
                       class="focus-img-wrap"
                       :class="{ 'focus-img-wrap--active': focusDragId === element.id }"
                       @click="triggerFocusUpload(element)"
+                      @dragenter.capture="guardDragEnter"
+                      @dragover.capture="guardDragOver"
                       @dragover.prevent="focusDragId = element.id"
                       @dragleave="onFocusDragLeave($event, element)"
                       @drop.prevent="handleFocusDrop($event, element)"
@@ -72,6 +74,8 @@
                       class="focus-empty"
                       :class="{ 'focus-empty--active': focusDragId === element.id }"
                       @click="triggerFocusUpload(element)"
+                      @dragenter.capture="guardDragEnter"
+                      @dragover.capture="guardDragOver"
                       @dragover.prevent="focusDragId = element.id"
                       @dragleave="onFocusDragLeave($event, element)"
                       @drop.prevent="handleFocusDrop($event, element)"
@@ -458,6 +462,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import UndoToast from '../../components/artist/UndoToast.vue'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
+import { useDropGuard } from '../../composables/useDropGuard.js'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -1088,6 +1093,8 @@ async function quickAction(command, order) {
 
 // ─── 焦点图空态上传（点击选文件 / 拖拽图片，上传后直接设为焦点图） ───
 // 本页不开粘贴上传：多个上传目标，全局粘贴无法路由（用户明确指示）
+// G1: 页内拖拽守卫——捕获阶段拦 dragenter/dragover（模板已挂），drop 兜底判断在 handler 开头
+const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 const focusInputEl = ref(null)
 const focusDragId = ref(null) // 正在拖拽进入的订单 ID（高亮用）
 let focusUploadTarget = null  // 当前点击上传的订单
@@ -1113,6 +1120,7 @@ function onFocusDragLeave(e, order) {
 
 async function handleFocusDrop(event, order) {
   focusDragId.value = null
+  if (!guardDrop(event)) return // G1: 页内图拖入 → 拒绝 + 警告（dragover 已拦，此处兜底）
   const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
   if (file) {
     await uploadAndSetFocus(file, order)

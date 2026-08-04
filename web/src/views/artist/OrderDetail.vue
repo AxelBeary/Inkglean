@@ -191,6 +191,8 @@
           <div
             class="ref-upload-tile"
             :class="{ 'ref-upload-tile--active': isGalleryDragOver }"
+            @dragenter.capture="guardDragEnter"
+            @dragover.capture="guardDragOver"
             @dragover.prevent="isGalleryDragOver = true"
             @dragleave="isGalleryDragOver = false"
             @drop.prevent="handleGalleryDrop"
@@ -256,6 +258,8 @@
         <div
           class="note-input"
           :class="{ 'note-input--drag-over': isNoteDragOver }"
+          @dragenter.capture="guardDragEnter"
+          @dragover.capture="guardDragOver"
           @dragover.prevent="isNoteDragOver = true"
           @dragleave="onNoteDragLeave"
           @drop.prevent="handleNoteDrop"
@@ -572,6 +576,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
+import { useDropGuard } from '../../composables/useDropGuard.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useOrderPayments } from '../../composables/useOrderPayments.js'
@@ -799,8 +804,12 @@ function handleGalleryFileSelect(event) {
   uploadGalleryFiles(files)
 }
 
+// G1: 页内拖拽守卫——捕获阶段拦 dragenter/dragover（模板已挂），drop 兜底判断在 handler 开头
+const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
+
 function handleGalleryDrop(event) {
   isGalleryDragOver.value = false
+  if (!guardDrop(event)) return // 页内图拖入 → 拒绝 + 警告（dragover 已拦，此处兜底）
   const files = [...event.dataTransfer.files].filter(f => f.type.startsWith('image/'))
   if (files.length) uploadGalleryFiles(files)
 }
@@ -1064,6 +1073,7 @@ function onNoteDragLeave(e) {
 }
 async function handleNoteDrop(event) {
   isNoteDragOver.value = false
+  if (!guardDrop(event)) return // G1: 页内图拖入 → 拒绝 + 警告（dragover 已拦，此处兜底）
   const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
   if (file) await uploadNoteImage(file) // 单张，与粘贴行为一致
 }

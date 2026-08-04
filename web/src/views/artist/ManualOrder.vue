@@ -24,13 +24,16 @@
                   <el-icon class="ref-tip-icon"><InfoFilled /></el-icon>
                 </el-tooltip>
               </div>
-              <!-- F2: 拖拽上传（drag + multiple），保留点击上传 -->
+              <!-- F2: 拖拽上传（drag + multiple），保留点击上传；G1: 页内图拖入拦截 -->
               <el-upload
                 drag multiple
                 :auto-upload="true" :http-request="handleRefUpload"
                 accept="image/*" list-type="picture-card" :limit="5"
                 :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
                 :on-remove="handleRefRemove" class="mo-ref-upload"
+                @dragenter.capture="guardDragEnter"
+                @dragover.capture="guardDragOver"
+                @drop.capture="guardDrop"
               >
                 <el-icon :size="24" aria-label="上传参考图"><Plus /></el-icon>
                 <template #tip>
@@ -223,7 +226,7 @@
                 <div class="mo-field-label">{{ $t('manualOrder.finalPrice') }}</div>
                 <div class="mo-final-row">
                   <el-input-number
-                    v-model="finalPriceYuan"
+                    v-model="priceInput"
                     :min="0" :max="999999.99" :precision="2" :step="10"
                     style="width: 200px"
                   />
@@ -260,7 +263,7 @@
             <div class="mo-mobile-final">
               <span>{{ $t('manualOrder.finalPrice') }}</span>
               <el-input-number
-                v-model="finalPriceYuan"
+                v-model="priceInput"
                 :min="0" :max="999999.99" :precision="2" :step="10"
                 size="small" style="width: 150px"
               />
@@ -303,6 +306,7 @@ import { ElMessage } from 'element-plus'
 import { Plus, InfoFilled, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
+import { useDropGuard } from '../../composables/useDropGuard.js'
 import { useStageStatus } from '../../composables/useStageStatus.js'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 import { ORDER_STATUS_TYPE } from '../../constants/order.js'
@@ -325,6 +329,18 @@ const addonSelections = reactive({})
 const addonToggles = reactive({})
 const pricePreview = ref(null)
 const finalPriceYuan = ref(null)
+// G2: 价格脏标记——画师是否手动改过价格（005 订单事故根因修复：
+// 无脏标记时加增项后字段停在旧计算价，提交时被误判为画师有意改价而抹掉增项）
+// 实现：el-input-number 绑定 priceInput（computed setter），用户输入/步进经 setter 置脏；
+// doCalc 直接写 finalPriceYuan 绕过 setter，程序写入永不置脏。
+const priceTouched = ref(false)
+const priceInput = computed({
+  get: () => finalPriceYuan.value,
+  set: (v) => {
+    priceTouched.value = true
+    finalPriceYuan.value = v
+  }
+})
 
 // ─── REQ-015 新增状态 ───
 const mobileDetailOpen = ref(false)
@@ -421,6 +437,7 @@ function onTierChange() {
   form.rushMultiplierId = null
   pricePreview.value = null
   finalPriceYuan.value = null
+  priceTouched.value = false // G2: 切档后恢复"价格跟随计算"模式（增项已清空，旧手输价失去意义）
 }
 
 // ─── 实时价格计算（防抖） ───
@@ -443,8 +460,9 @@ async function doCalc() {
       usageMultiplierId: form.usageMultiplierId,
       rushMultiplierId: form.rushMultiplierId
     })
-    // 计算后自动填入最终价格（画师可再改）
-    if (finalPriceYuan.value == null) {
+    // G2: 未手动改过价格 → 始终同步最新计算价（选档位后加增项，字段跟随更新）；
+    // 已手动改过 → 尊重画师手输。直接写 finalPriceYuan（绕过 priceInput setter，不置脏）
+    if (!priceTouched.value) {
       finalPriceYuan.value = pricePreview.value.totalPrice
     }
   } catch {
@@ -540,6 +558,9 @@ const { pasteError } = usePasteUpload({
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
+// G1: 页内拖拽守卫（捕获阶段挂在 el-upload 上，抢在 EP dragger 之前拦截）
+const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
+
 async function handlePasteRefFiles(files) {
   for (const file of files) {
     if (refFileList.value.length >= 5) {
@@ -576,10 +597,11 @@ async function submit() {
       rushMultiplierId: form.rushMultiplierId
     })
 
-    // 有手动价格且与计算价不同（或无档位/无计算价）时，调 R2 接口写入
-    // P2-#13: 后续步骤失败时明确告知"订单已创建"，防重复提交
+    // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
+    // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，
+    // updatePrice 连带抹掉增项。手输价 ≠ 计算价（含无档位无计算价）时写入。
     let postCreateFailed = null
-    if (order.id && finalPriceYuan.value != null) {
+    if (order.id && priceTouched.value && finalPriceYuan.value != null) {
       const calcCents = pricePreview.value?.totalPriceCents ?? null
       const manualCents = Math.round(finalPriceYuan.value * 100)
       if (manualCents > 0 && manualCents !== calcCents) {
@@ -647,6 +669,7 @@ function resetForm() {
   for (const key of Object.keys(addonToggles)) delete addonToggles[key]
   pricePreview.value = null
   finalPriceYuan.value = null
+  priceTouched.value = false // G2: 重置清脏标记，恢复"价格跟随计算"模式
   refFileList.value = []
   uploadedRefs.value = []
   refUidMap.value.clear()

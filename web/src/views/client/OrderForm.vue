@@ -383,6 +383,9 @@
                     accept="image/*" list-type="picture-card" :limit="5"
                     :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('orderForm.refExceed'))"
                     :on-remove="handleRefRemove"
+                    @dragenter.capture="guardDragEnter"
+                    @dragover.capture="guardDragOver"
+                    @drop.capture="guardDrop"
                   >
                     <el-icon aria-label="上传参考图"><Plus /></el-icon>
                   </el-upload>
@@ -600,11 +603,15 @@ import Disclaimer from '../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import { useOrderForm } from '../../composables/useOrderForm.js'
+import { useDropGuard } from '../../composables/useDropGuard.js'
 
 const { t } = useI18n()
 const route = useRoute()
 const subdomain = route.params.subdomain
 const formRef = ref(null)
+
+// G1: 页内拖拽守卫（参考图上传区统一防御；捕获阶段挂在 el-upload 上）
+const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 // R58-1: 表单业务逻辑全部由共享 composable 提供，页面只保留布局与样式
 const {

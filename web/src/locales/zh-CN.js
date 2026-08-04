@@ -216,7 +216,8 @@ export default {
     pasteHint: '支持 Ctrl+V 粘贴图片',
     pasteNotImage: '仅支持粘贴图片',
     pasteTooMany: '最多粘贴 {max} 张图片',
-    pasteTooBig: '文件「{name}」超过 {max}MB 限制（{size}MB），请压缩后重试'
+    pasteTooBig: '文件「{name}」超过 {max}MB 限制（{size}MB），请压缩后重试',
+    dragFromPage: '页面里的图片不能直接拖进上传区（拖进来的是渲染图，不是原文件）。请从文件管理器拖入，或 Ctrl+V 粘贴'
   },
   pageTitle: {
     home: '画师约稿平台',

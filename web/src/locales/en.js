@@ -216,7 +216,8 @@ export default {
     pasteHint: 'Paste images with Ctrl+V',
     pasteNotImage: 'Only image files can be pasted',
     pasteTooMany: 'You can paste up to {max} images at a time',
-    pasteTooBig: 'File "{name}" exceeds the {max}MB limit ({size}MB), please compress and try again'
+    pasteTooBig: 'File "{name}" exceeds the {max}MB limit ({size}MB), please compress and try again',
+    dragFromPage: 'Images on this page can\'t be dragged into the upload area (they\'re rendered copies, not the original files). Drag files from your file manager, or paste with Ctrl+V'
   },
   pageTitle: {
     home: 'Artist Commission Platform',

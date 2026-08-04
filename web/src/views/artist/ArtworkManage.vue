@@ -14,6 +14,9 @@
       <el-upload
         drag multiple :auto-upload="true" :http-request="handleUpload"
         accept="image/*" :show-file-list="false"
+        @dragenter.capture="guardDragEnter"
+        @dragover.capture="guardDragOver"
+        @drop.capture="guardDrop"
       >
         <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
         <p>{{ $t('artworks.dragUpload') }}</p>
@@ -206,6 +209,7 @@ import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
+import { useDropGuard } from '../../composables/useDropGuard.js'
 
 const { t } = useI18n()
 
@@ -216,6 +220,9 @@ const { pasteError } = usePasteUpload({
   maxSizeMB: 10
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
+
+// G1: 页内拖拽守卫（捕获阶段挂在 el-upload 上，抢在 EP dragger 之前拦截）
+const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 const artworks = ref([])
 const loading = ref(true)
 

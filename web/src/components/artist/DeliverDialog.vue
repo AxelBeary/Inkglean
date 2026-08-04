@@ -26,6 +26,9 @@
         drag :auto-upload="false" :limit="1" :file-list="deliverFileList"
         :on-change="handleDeliverFile" :on-remove="handleDeliverRemove"
         accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.psd,.ai,.tiff,.pdf,.zip,.rar,.7z,.mp4,.mov,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+        @dragenter.capture="guardDragEnter"
+        @dragover.capture="guardDragOver"
+        @drop.capture="guardDrop"
       >
         <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
         <p>{{ $t('orderDetail.dragUpload') }}</p>
@@ -62,6 +65,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi, uploadApi } from '../../api/index.js'
+import { useDropGuard } from '../../composables/useDropGuard.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -70,6 +74,9 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'delivered'])
 
 const { t } = useI18n()
+
+// G1: 页内拖拽守卫（捕获阶段挂在 el-upload 上，抢在 EP dragger 之前拦截）
+const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 const mode = ref('file') // 'file' | 'noFile'
 const deliverFile = ref(null)
