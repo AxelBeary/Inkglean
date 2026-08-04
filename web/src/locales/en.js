@@ -610,7 +610,17 @@ export default {
     styleTitle: 'Choose Style', sizeTitle: 'Choose Size', sizeDays: '{n} days',
     noSizes: 'No sizes available for this style', styleAddonsEmpty: 'No add-ons available for this size',
     addonOptionPrice: 'Option price', selectSizeFirst: 'Please select a style and size first',
-    afterMultiplier: 'After multipliers'
+    afterMultiplier: 'After multipliers',
+    // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
+    customHint: 'You can skip all selections and enter a custom price manually',
+    showImages: 'Show images',
+    customAddons: 'Custom add-ons', addCustomAddon: 'Add',
+    customAddonNamePlaceholder: 'Name (required, ≤50 chars)',
+    customAddonPricePlaceholder: 'Amount (negative allowed)',
+    customAddonNameRequired: 'Please enter a custom add-on name',
+    customAddonPriceRequired: 'Please enter a custom add-on amount',
+    customAddonMax: 'Up to 20 custom add-ons allowed',
+    selectSizeOrPrice: 'Select a style and size first, or enter a custom final price'
   },
   tiers: {
     title: 'Pricing', addTier: '+ Add tier',

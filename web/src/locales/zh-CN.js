@@ -610,7 +610,17 @@ export default {
     styleTitle: '选择画风', sizeTitle: '选择尺寸', sizeDays: '{n}天',
     noSizes: '该画风下暂无尺寸', styleAddonsEmpty: '该尺寸下暂无可选增项',
     addonOptionPrice: '选项价', selectSizeFirst: '请先选择画风和尺寸',
-    afterMultiplier: '倍率后小计'
+    afterMultiplier: '倍率后小计',
+    // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
+    customHint: '都可以不选，直接手动填价格录入自定义单',
+    showImages: '显示图片',
+    customAddons: '自定义增项', addCustomAddon: '添加',
+    customAddonNamePlaceholder: '名称（必填，≤50字）',
+    customAddonPricePlaceholder: '金额（可为负）',
+    customAddonNameRequired: '请填写自定义增项名称',
+    customAddonPriceRequired: '请填写自定义增项金额',
+    customAddonMax: '最多添加 20 条自定义增项',
+    selectSizeOrPrice: '请先选择画风和尺寸，或手动填写最终价格'
   },
   tiers: {
     title: '价格管理', addTier: '+ 添加档位',
