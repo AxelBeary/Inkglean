@@ -388,10 +388,15 @@ export default {
     orderInfo: '订单号：{no} | 画师：{artist}', download: '下载', noFiles: '暂无交付文件'
   },
   login: {
-    title: '画师登录', subtitle: '输入你的QQ号，登录码将发送到你的QQ',
-    qqPlaceholder: '输入你的QQ号', getCode: '获取登录码', codeSent: '登录码已发送至 QQ {qq}',
-    codePlaceholder: '输入6位登录码', login: '登录', changeQq: '← 换个QQ号',
-    devCode: '开发模式登录码: {code}', enterQq: '请输入QQ号', enterCode: '请输入登录码', loginSuccess: '登录成功！'
+    title: '画师登录', subtitle: '输入QQ号与验证器App上的6位动态码',
+    qqPlaceholder: '输入你的QQ号', codePlaceholder: '输入验证器上显示的6位动态码', login: '登录',
+    helpTitle: '需要验证器App？点此查看推荐',
+    helpDesc: '动态码由手机上的「身份验证器」App生成，每30秒刷新一次：',
+    helpTencent: '不想装App：微信搜索「腾讯身份验证器」小程序',
+    helpAegis: '安卓：Aegis（开源免费，酷安可下载）',
+    help2fas: '苹果：2FAS（开源免费）或微软 Authenticator（App Store可下载）',
+    helpNotGoogle: '不推荐 Google Authenticator（谷歌服务国内不可用）',
+    enterQq: '请输入QQ号', enterCode: '请输入动态口令', loginSuccess: '登录成功！'
   },
   dashboard: {
     title: '仪表盘', pendingNew: '待处理新单', activeOrders: '进行中订单',
@@ -899,6 +904,17 @@ export default {
     sendCode: '发送验证码', codeSent: '验证码已发送', enterCode: '输入6位验证码',
     nextStep: '下一步', confirmTransfer: '确认更换',
     transferSuccess: '管理员已更换为 {name}', adminTag: '管理员',
+    transferTotpHint: '输入各自验证器App上当前显示的6位动态码（双方须先完成绑定）',
+    // REQ-027: TOTP 绑定/重置
+    totpBind: '绑定', totpRebind: '重绑',
+    totpBindTitle: '绑定动态口令 - {name}',
+    totpStep1: '① 让画师用手机验证器App扫描下方二维码（腾讯身份验证器小程序 / Aegis / 2FAS / 微软Authenticator）',
+    totpStep2: '② 画师把App上当前显示的6位码告诉你，输入下方并确认',
+    totpCodeLabel: '6位动态码', totpCodePlaceholder: '输入验证器上显示的6位动态码',
+    totpBindConfirm: '确认绑定', totpBindSuccess: '已绑定动态口令',
+    totpReset: '重置绑定', totpResetConfirm: '确定重置「{name}」的动态口令绑定？旧密钥立即失效，画师须重新绑定才能登录',
+    totpResetSuccess: '已重置绑定',
+    totpRegenerate: '重新生成二维码', totpRegenerateHint: '重新生成会使旧二维码立即失效，画师需重新扫码',
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
     orderColType: '类型', orderColTime: '下单时间',
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",

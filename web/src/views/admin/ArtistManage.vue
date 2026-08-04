@@ -30,10 +30,14 @@
           </el-select>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="260" fixed="right">
+      <el-table-column :label="$t('common.actions')" width="340" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
           <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
+          <!-- REQ-027: TOTP 绑定入口 -->
+          <el-button size="small" type="success" @click="openTotpBind(row)">
+            {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
+          </el-button>
           <el-button size="small" type="danger" @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
         </template>
       </el-table-column>
@@ -110,7 +114,7 @@
       <el-empty v-if="!ordersLoading && orders.length === 0" :description="$t('admin.noOrders')" :image-size="60" />
     </el-dialog>
 
-    <!-- 更换管理员弹窗（两步验证） -->
+    <!-- 更换管理员弹窗（两步 TOTP 验证，REQ-027） -->
     <el-dialog v-model="transferVisible" :title="$t('admin.transferTitle')" width="450px" :close-on-click-modal="false">
       <!-- 步骤1：验证当前管理员 -->
       <div v-if="transferStep === 1">
@@ -119,14 +123,10 @@
           <el-form-item :label="$t('admin.currentAdminQq')">
             <el-input :model-value="currentAdminQq" disabled />
           </el-form-item>
-          <el-form-item>
-            <el-button @click="sendCurrentCode" :loading="sendingCurrent" :disabled="currentCodeSent">
-              {{ currentCodeSent ? $t('admin.codeSent') : $t('admin.sendCode') }}
-            </el-button>
+          <el-form-item :label="$t('admin.totpCodeLabel')">
+            <el-input v-model="currentCode" maxlength="6" :placeholder="$t('admin.totpCodePlaceholder')" />
           </el-form-item>
-          <el-form-item v-if="currentCodeSent" :label="$t('admin.enterCode')">
-            <el-input v-model="currentCode" maxlength="6" :placeholder="$t('admin.enterCode')" />
-          </el-form-item>
+          <p class="transfer-hint">{{ $t('admin.transferTotpHint') }}</p>
         </el-form>
       </div>
 
@@ -135,16 +135,12 @@
         <h4 style="margin-bottom: 12px">{{ $t('admin.transferStep2Title') }}</h4>
         <el-form label-position="top">
           <el-form-item :label="$t('admin.newAdminQq')">
-            <el-input v-model="newQq" :placeholder="$t('admin.newAdminQqPlaceholder')" :disabled="newCodeSent" />
+            <el-input v-model="newQq" :placeholder="$t('admin.newAdminQqPlaceholder')" />
           </el-form-item>
-          <el-form-item>
-            <el-button @click="sendNewCode" :loading="sendingNew" :disabled="newCodeSent || !newQq">
-              {{ newCodeSent ? $t('admin.codeSent') : $t('admin.sendCode') }}
-            </el-button>
+          <el-form-item :label="$t('admin.totpCodeLabel')">
+            <el-input v-model="newCode" maxlength="6" :placeholder="$t('admin.totpCodePlaceholder')" />
           </el-form-item>
-          <el-form-item v-if="newCodeSent" :label="$t('admin.enterCode')">
-            <el-input v-model="newCode" maxlength="6" :placeholder="$t('admin.enterCode')" />
-          </el-form-item>
+          <p class="transfer-hint">{{ $t('admin.transferTotpHint') }}</p>
         </el-form>
       </div>
 
@@ -158,6 +154,33 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- TOTP 绑定弹窗（REQ-027 R2：管理员协助画师扫码绑定） -->
+    <el-dialog v-model="totpVisible" :title="$t('admin.totpBindTitle', { name: totpArtist?.name || '' })" width="420px" :close-on-click-modal="false">
+      <div v-loading="totpLoading">
+        <p class="totp-step">{{ $t('admin.totpStep1') }}</p>
+        <div class="totp-qr-wrap">
+          <img v-if="totpQr" :src="totpQr" alt="TOTP QR" class="totp-qr" />
+          <el-button v-else text type="primary" @click="genTotpQr">{{ $t('admin.totpRegenerate') }}</el-button>
+        </div>
+        <p class="totp-step">{{ $t('admin.totpStep2') }}</p>
+        <el-input
+          v-model="totpCode" maxlength="6" size="large"
+          :placeholder="$t('admin.totpCodePlaceholder')" @keyup.enter="confirmTotpBind"
+        />
+        <p class="totp-hint">{{ $t('admin.totpRegenerateHint') }}</p>
+      </div>
+      <template #footer>
+        <el-button @click="totpVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="danger" plain :loading="totpLoading" @click="resetTotpBind">
+          {{ $t('admin.totpReset') }}
+        </el-button>
+        <el-button @click="genTotpQr" :loading="totpLoading">{{ $t('admin.totpRegenerate') }}</el-button>
+        <el-button type="primary" :disabled="!totpCode" @click="confirmTotpBind" :loading="totpLoading">
+          {{ $t('admin.totpBindConfirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
     <!-- 画师详情抽屉 -->
     <ArtistDetailDrawer v-model="detailVisible" :artist="detailArtist" />
   </div>
@@ -165,7 +188,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { adminApi, authApi } from '../../api/index.js'
+import { adminApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
@@ -202,17 +225,13 @@ const ordersLoading = ref(false)
 const ordersArtist = ref(null)
 const orders = ref([])
 
-// 更换管理员
+// 更换管理员（REQ-027: 双 TOTP 动态码）
 const transferVisible = ref(false)
 const transferStep = ref(1)
 const currentAdminQq = ref('')
-const currentCodeSent = ref(false)
 const currentCode = ref('')
-const sendingCurrent = ref(false)
 const newQq = ref('')
-const newCodeSent = ref(false)
 const newCode = ref('')
-const sendingNew = ref(false)
 const transferring = ref(false)
 
 async function loadArtists() {
@@ -288,42 +307,13 @@ async function viewOrders(row) {
   }
 }
 
-// ─── 更换管理员 ───
+// ─── 更换管理员（REQ-027: 双 TOTP 动态码验证） ───
 function openTransfer() {
   transferStep.value = 1
   currentCode.value = ''
-  currentCodeSent.value = false
   newQq.value = ''
   newCode.value = ''
-  newCodeSent.value = false
   transferVisible.value = true
-}
-
-async function sendCurrentCode() {
-  sendingCurrent.value = true
-  try {
-    await authApi.sendCode(currentAdminQq.value)
-    currentCodeSent.value = true
-    ElMessage.success(t('admin.codeSent'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    sendingCurrent.value = false
-  }
-}
-
-async function sendNewCode() {
-  if (!newQq.value.trim()) return
-  sendingNew.value = true
-  try {
-    await authApi.sendCode(newQq.value.trim())
-    newCodeSent.value = true
-    ElMessage.success(t('admin.codeSent'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    sendingNew.value = false
-  }
 }
 
 async function confirmTransfer() {
@@ -344,6 +334,73 @@ async function confirmTransfer() {
   }
 }
 
+// ─── TOTP 绑定/重置（REQ-027 R2/R5） ───
+const totpVisible = ref(false)
+const totpArtist = ref(null)
+const totpQr = ref('')
+const totpCode = ref('')
+const totpLoading = ref(false)
+
+async function openTotpBind(row) {
+  totpArtist.value = row
+  totpCode.value = ''
+  totpQr.value = ''
+  totpVisible.value = true
+  await genTotpQr()
+}
+
+/** 生成/重新生成绑定二维码（覆盖旧密钥，旧 App 绑定立即失效） */
+async function genTotpQr() {
+  if (!totpArtist.value) return
+  totpLoading.value = true
+  try {
+    const res = await adminApi.totpBindInit(totpArtist.value.id)
+    totpQr.value = res.qrDataUrl
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    totpLoading.value = false
+  }
+}
+
+/** 输入画师报的 6 位码，完成绑定 */
+async function confirmTotpBind() {
+  if (!totpCode.value.trim()) return
+  totpLoading.value = true
+  try {
+    await adminApi.totpBindConfirm(totpArtist.value.id, totpCode.value.trim())
+    ElMessage.success(t('admin.totpBindSuccess'))
+    totpVisible.value = false
+    await loadArtists()
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    totpLoading.value = false
+  }
+}
+
+/** R5 恢复方案：重置绑定，旧密钥立即失效，画师须重新绑定才能登录 */
+async function resetTotpBind() {
+  if (!totpArtist.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('admin.totpResetConfirm', { name: totpArtist.value.name }),
+      t('admin.confirmRemoveTitle'), { type: 'warning', confirmButtonText: t('admin.totpReset') }
+    )
+  } catch { return }
+  totpLoading.value = true
+  try {
+    await adminApi.totpReset(totpArtist.value.id)
+    ElMessage.success(t('admin.totpResetSuccess'))
+    totpVisible.value = false
+    await loadArtists()
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    totpLoading.value = false
+  }
+}
+
 onMounted(loadArtists)
 </script>
 
@@ -355,4 +412,10 @@ onMounted(loadArtists)
 .expand-pay-summary strong { color: var(--text-primary); }
 .expand-inst-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
 .expand-no-data { font-size: 12px; color: var(--text-secondary); margin: 4px 0; }
+/* REQ-027: TOTP 绑定弹窗 + transfer 提示 */
+.totp-qr-wrap { display: flex; justify-content: center; margin: 12px 0 4px; }
+.totp-qr { width: 200px; height: 200px; border: 1px solid var(--border-color); border-radius: 8px; }
+.totp-step { font-size: 13px; color: var(--text-primary); margin: 8px 0; }
+.totp-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+.transfer-hint { font-size: 12px; color: var(--text-secondary); margin: 0; }
 </style>

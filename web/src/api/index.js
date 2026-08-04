@@ -71,7 +71,7 @@ export default api
 
 // ─── 认证 ───
 export const authApi = {
-  sendCode: (qqNumber) => api.post('/auth/send-code', { qqNumber }),
+  // REQ-027: QQ 号 + TOTP 动态口令登录（替代旧登录码）
   verify: (qqNumber, code) => api.post('/auth/verify', { qqNumber, code }),
   me: () => api.get('/auth/me'),
   // H-2 修复：补全登出接口，清除 httpOnly cookie
@@ -267,6 +267,10 @@ export const adminApi = {
   getArtists: () => api.get('/admin/artists'),
   createArtist: (data) => api.post('/admin/artists', data),
   deleteArtist: (id) => api.delete(`/admin/artists/${id}`),
+  // REQ-027: TOTP 绑定/重置
+  totpBindInit: (id) => api.post(`/admin/artists/${id}/totp/bind-init`),
+  totpBindConfirm: (id, code) => api.post(`/admin/artists/${id}/totp/bind-confirm`, { code }),
+  totpReset: (id) => api.post(`/admin/artists/${id}/totp/reset`),
   getStats: () => api.get('/admin/stats'),
   getArtistOrders: (id) => api.get(`/admin/artists/${id}/orders`),
   updateArtistStatus: (id, status) => api.put(`/admin/artists/${id}/status`, { status }),

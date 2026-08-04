@@ -12,36 +12,31 @@
         <p class="login-subtitle">{{ $t('login.subtitle') }}</p>
       </div>
 
-      <!-- 步骤1：输入QQ -->
-      <div v-if="step === 1">
-        <el-input
-          v-model="qqNumber" :placeholder="$t('login.qqPlaceholder')" size="large"
-          @keyup.enter="getCode" style="margin-bottom: 16px"
-        />
-        <el-button type="primary" size="large" style="width: 100%" @click="getCode" :loading="sending">
-          {{ $t('login.getCode') }}
-        </el-button>
-      </div>
+      <!-- REQ-027: QQ 号 + TOTP 动态口令单步登录（替代旧验证码流程） -->
+      <el-input
+        v-model="qqNumber" :placeholder="$t('login.qqPlaceholder')" size="large"
+        style="margin-bottom: 16px"
+      />
+      <el-input
+        v-model="code" :placeholder="$t('login.codePlaceholder')" size="large"
+        maxlength="6" @keyup.enter="login" style="margin-bottom: 16px"
+      />
+      <el-button type="primary" size="large" style="width: 100%" @click="login" :loading="logging">
+        {{ $t('login.login') }}
+      </el-button>
 
-      <!-- 步骤2：输入验证码 -->
-      <div v-else>
-        <p class="code-sent">{{ $t('login.codeSent', { qq: qqNumber }) }}</p>
-        <el-input
-          v-model="code" :placeholder="$t('login.codePlaceholder')" size="large"
-          maxlength="6" @keyup.enter="login" style="margin-bottom: 16px"
-        />
-        <el-button type="primary" size="large" style="width: 100%" @click="login" :loading="logging">
-          {{ $t('login.login') }}
-        </el-button>
-        <el-button text style="width: 100%; margin-top: 8px" @click="step = 1">
-          {{ $t('login.changeQq') }}
-        </el-button>
-      </div>
-
-      <!-- 开发模式提示 -->
-      <el-alert v-if="devCode" type="info" :closable="false" style="margin-top: 16px">
-        {{ $t('login.devCode', { code: devCode }) }}
-      </el-alert>
+      <!-- R6: 验证器 App 推荐清单（画师引导文案） -->
+      <el-collapse class="login-help">
+        <el-collapse-item :title="$t('login.helpTitle')" name="help">
+          <p class="help-desc">{{ $t('login.helpDesc') }}</p>
+          <ul class="help-list">
+            <li>{{ $t('login.helpTencent') }}</li>
+            <li>{{ $t('login.helpAegis') }}</li>
+            <li>{{ $t('login.help2fas') }}</li>
+          </ul>
+          <p class="help-note">{{ $t('login.helpNotGoogle') }}</p>
+        </el-collapse-item>
+      </el-collapse>
     </div>
   </div>
 </template>
@@ -50,7 +45,6 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useArtistStore } from '../../stores/artist.js'
-import { authApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
@@ -60,30 +54,15 @@ const { t } = useI18n()
 const router = useRouter()
 const store = useArtistStore()
 
-const step = ref(1)
 const qqNumber = ref('')
 const code = ref('')
-const devCode = ref('')
-const sending = ref(false)
 const logging = ref(false)
 
-async function getCode() {
+async function login() {
   if (!qqNumber.value.trim()) {
     ElMessage.warning(t('login.enterQq'))
     return
   }
-  sending.value = true
-  try {
-    const res = await authApi.sendCode(qqNumber.value.trim())
-    devCode.value = res._dev_code || ''
-    step.value = 2
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    sending.value = false
-  }
-}
-async function login() {
   if (!code.value.trim()) {
     ElMessage.warning(t('login.enterCode'))
     return
@@ -143,5 +122,19 @@ async function login() {
   color: var(--text-secondary);
   font-size: 13px;
 }
-.code-sent { color: var(--color-success); font-size: 14px; margin-bottom: 16px; text-align: center; }
+
+/* R6 验证器推荐清单 */
+.login-help { margin-top: 20px; border-top: 1px dashed var(--border-color); }
+.login-help :deep(.el-collapse-item__header) {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border-bottom: none;
+  justify-content: center;
+}
+.login-help :deep(.el-collapse-item__wrap) { background: transparent; border-bottom: none; }
+.login-help :deep(.el-collapse-item__content) { padding-bottom: 8px; }
+.help-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.help-list { margin: 0 0 8px 18px; padding: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.8; }
+.help-note { font-size: 12px; color: var(--color-danger); margin: 0; }
 </style>
