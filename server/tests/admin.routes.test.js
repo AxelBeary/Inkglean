@@ -237,7 +237,7 @@ describe('管理员路由 (Admin Routes)', () => {
   it('TC-AR-12: transfer 第一码错误返回 401', async () => {
     const admin = setAdmin('10001')
     const newAdmin = seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
-    const secret1 = bindArtistTotp(admin)
+    bindArtistTotp(admin)
     const secret2 = bindArtistTotp(newAdmin)
 
     const res = await app.inject({
@@ -257,7 +257,7 @@ describe('管理员路由 (Admin Routes)', () => {
     const admin = setAdmin('10001')
     const newAdmin = seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
     const secret1 = bindArtistTotp(admin)
-    const secret2 = bindArtistTotp(newAdmin)
+    bindArtistTotp(newAdmin)
 
     const res = await app.inject({
       method: 'POST',
@@ -423,7 +423,7 @@ describe('管理员路由 (Admin Routes)', () => {
   })
 
   it('TC-AR-22: 非管理员调 bind-init 返回 403', async () => {
-    const admin = setAdmin('10001')
+    setAdmin('10001')
     const pleb = seedArtist({ qq_number: '77006', subdomain: 'totp-pleb' })
     const target = seedArtist({ qq_number: '77007', subdomain: 'totp-target' })
 
