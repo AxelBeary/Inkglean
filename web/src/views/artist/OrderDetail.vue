@@ -123,6 +123,7 @@
               @pointerdown="onSlideStart"
               @pointermove="onSlideMove"
               @pointerup="onSlideEnd"
+              @pointercancel="closeSlideCancel"
             >
               →
             </div>
@@ -132,20 +133,20 @@
 
         <!-- 常规操作按钮 -->
         <div v-else class="action-bar">
-          <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死） -->
+          <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死）；T3: 飞行中本按钮 loading、兄弟按钮 disabled -->
           <template v-if="hasWorkflow">
-            <el-button v-if="canAdvanceStage" type="primary" @click="advanceStage">
+            <el-button v-if="canAdvanceStage" type="primary" :loading="statusAction === 'advance'" :disabled="statusAction !== '' && statusAction !== 'advance'" @click="advanceStage">
               {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
             </el-button>
-            <el-button v-if="canBackStage" type="warning" plain @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+            <el-button v-if="canBackStage" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
             <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           </template>
-          <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛） -->
+          <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛）；T3: 飞行中目标按钮 loading，其余 disabled -->
           <template v-else>
-            <el-button v-if="order.status === 'pending'" type="primary" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
-            <el-button v-if="order.status === 'confirmed'" type="warning" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
-            <el-button v-if="order.status === 'wip'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
-            <el-button v-if="['wip','revision'].includes(order.status)" type="success" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
+            <el-button v-if="order.status === 'pending'" type="primary" :loading="statusAction === 'confirmed'" :disabled="statusAction !== '' && statusAction !== 'confirmed'" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
+            <el-button v-if="order.status === 'confirmed'" type="warning" :loading="statusAction === 'wip'" :disabled="statusAction !== '' && statusAction !== 'wip'" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
+            <el-button v-if="order.status === 'wip'" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
+            <el-button v-if="['wip','revision'].includes(order.status)" type="success" :loading="statusAction === 'done'" :disabled="statusAction !== '' && statusAction !== 'done'" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
             <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           </template>
           <!-- 取消订单：固定在右侧 -->
@@ -401,7 +402,11 @@
             <div class="pool-nums">
               <span>{{ $t('orderDetail.payPaid') }} <strong>¥{{ formatCents(poolPaidCents) }}</strong></span>
               <span>/ {{ $t('orderDetail.payFinal') }} <strong>¥{{ formatCents(poolFinalCents) }}</strong></span>
-              <span class="pool-remaining">{{ $t('orderDetail.payRemaining') }} <strong>¥{{ formatCents(poolRemainingCents) }}</strong></span>
+              <!-- P2: 多收时以"多收 ¥X"替代"待收 ¥0" -->
+              <span class="pool-remaining" :class="{ 'pool-overpaid': poolOverpaidCents > 0 }">
+                {{ poolOverpaidCents > 0 ? $t('orderDetail.payOverpaid') : $t('orderDetail.payRemaining') }}
+                <strong>¥{{ formatCents(poolOverpaidCents > 0 ? poolOverpaidCents : poolRemainingCents) }}</strong>
+              </span>
             </div>
             <el-progress :percentage="poolPercent" :stroke-width="12" :color="poolPercent >= 100 ? '#67c23a' : '#409eff'" style="margin-top: 8px" />
           </div>
@@ -471,9 +476,11 @@
     <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
       <el-form label-position="top">
         <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
+          <!-- P1: 去掉 :min/:max 硬钳制——EP 对超范围输入 blur 时静默清空（"卡死"根因）；
+               改由 submitPayment 提交时校验（后端 addPayment 规则的子集）。P2: 正数多收合法，无上限 -->
           <el-input-number
             v-model="payForm.amountYuan"
-            :min="-poolPaidCents / 100" :max="poolRemainingCents > 0 ? poolRemainingCents / 100 : 999999.99" :precision="2" :step="50"
+            :precision="2" :step="50"
             controls-position="right" style="width: 100%"
             :placeholder="$t('orderDetail.payAmountPlaceholder')"
           />
@@ -675,12 +682,15 @@ const canBackStage = computed(() =>
 )
 
 async function advanceStage() {
-  if (!nextStage.value) return
+  if (!nextStage.value || statusAction.value) return
+  statusAction.value = 'advance'
   try {
     order.value = await artistApi.advanceStage(route.params.id, nextStage.value.id)
     ElMessage.success(t('orderDetail.stageUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    statusAction.value = ''
   }
 }
 
@@ -694,11 +704,16 @@ async function backStage() {
       { type: 'warning' }
     )
   } catch { return }
+  // T3: 守卫须在 try 外——try 内 return 会触发 finally 误清飞行中请求的锁
+  if (statusAction.value) return
+  statusAction.value = 'back'
   try {
     order.value = await artistApi.stageBack(route.params.id, prev.id)
     ElMessage.success(t('orderDetail.stageUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    statusAction.value = ''
   }
 }
 
@@ -880,6 +895,8 @@ async function changeDeadline(val) {
     order.value = await artistApi.updateDeadline(route.params.id, val || null)
     ElMessage.success(t('orderDetail.deadlineUpdated'))
   } catch (err) {
+    // T1: 保存失败时回弹 picker 显示值为 order 原值（watcher 同款截取逻辑，避免界面与数据不一致）
+    deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
     ElMessage.error(err.message)
   }
 }
@@ -908,16 +925,27 @@ async function changeStartDate(val) {
       ElMessage.success(t('orderDetail.deadlineAutoSet'))
     }
   } catch (err) {
+    // T1: 保存失败时回弹显示值。第一个 PUT 可能已成功（开工日已入库），两个 picker 都从 order 同步
+    startDatePicker.value = order.value?.startDate ?? order.value?.start_date ?? null
+    deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
     ElMessage.error(err.message)
   }
 }
 
+// T3: 状态变更共享守卫——推进/打回/固定状态按钮快速连点会重复发请求。
+// statusAction 记录飞行动作（''=空闲；'advance'/'back'/目标状态值），精准控制哪个按钮转 loading
+const statusAction = ref('')
+
 async function changeStatus(status) {
+  if (statusAction.value) return
+  statusAction.value = status
   try {
     order.value = await artistApi.updateStatus(route.params.id, status)
     ElMessage.success(t('orderDetail.statusUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    statusAction.value = ''
   }
 }
 
@@ -958,6 +986,8 @@ const poolRemainingCents = computed(() => Math.max(0, poolFinalCents.value - poo
 const poolPercent = computed(() =>
   poolFinalCents.value > 0 ? Math.min(100, Math.round(poolPaidCents.value / poolFinalCents.value * 100)) : 0
 )
+/** P2: 多收金额（客户多付部分；后端 addPayment 正数无上限，溢出记为"多收"） */
+const poolOverpaidCents = computed(() => Math.max(0, poolPaidCents.value - poolFinalCents.value))
 
 /** v0.31 F4: 节点收款（后端直接返回 paidCents/amountCents/remainingCents/status） */
 const installmentRefs = computed(() => order.value?.installments || [])
@@ -975,13 +1005,10 @@ function scrollToPayment() {
 /** 提交收款 */
 async function submitPayment() {
   const cents = Math.round((payForm.value.amountYuan || 0) * 100)
-  // 金额范围校验：0 禁止；正数不超剩余应付；负数（退款/撤销）必须填原因且不超已收金额（与后端 addPayment 规则一致）
+  // 金额范围校验（后端 addPayment 规则的子集）：0 禁止；正数不设上限（后端支持多收，P2）；
+  // 负数（退款/撤销）必须填原因且不超已收金额。上限/下限提示由提交时给出，不在输入框硬钳制（P1）
   if (cents === 0) {
     ElMessage.warning(t('orderDetail.payAmountZero'))
-    return
-  }
-  if (cents > 0 && cents > poolRemainingCents.value) {
-    ElMessage.warning(t('orderDetail.payAmountExceed', { amount: formatCents(poolRemainingCents.value) }))
     return
   }
   if (cents < 0 && !payForm.value.note?.trim()) {
@@ -1100,6 +1127,8 @@ async function uploadNoteImage(file) {
 }
 
 async function addNote() {
+  // T2: Enter 路径与按钮共用 addNote，按钮有 :loading 防连点，Enter 没有——统一在此拦截
+  if (noteSubmitting.value) return
   if (!newNote.value.trim()) return
   noteSubmitting.value = true
   try {
@@ -1655,6 +1684,9 @@ onMounted(() => {
 .pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: 14px; color: var(--text-secondary); flex-wrap: wrap; }
 .pool-nums strong { color: var(--text-primary); font-size: 16px; }
 .pool-remaining { margin-left: auto; }
+/* P2: 多收（客户多付）——橙色提示，区别于正常的待收 */
+.pool-overpaid { color: var(--el-color-warning); }
+.pool-overpaid strong { color: var(--el-color-warning); }
 .pool-flow { margin-top: 12px; }
 .pool-flow-title, .pool-ref-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0 0 8px; }
 .pool-flow-row {
