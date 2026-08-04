@@ -15,14 +15,20 @@
 - **comms**：只剩本文件
 
 ---
-## 当前阶段：v0.37 轮进行中——四号已合入，三号引擎开发中
+## 当前阶段：v0.37 轮——四路全并行（零文件交集）
 
 | 角色 | worktree/分支 | 内容 | 状态 |
 |------|--------------|------|------|
-| 四号 | —（worktree 已回收） | changelog v0.36 补全 + 说明书漂移修复 | ✅ 已合入 `6141bfb` |
-| 三号 | artist-commission-v037 / v037-pricing-engine | REQ-025 计价引擎第一阶段（纯函数+测试+迁移 v39，不接端点） | 🔄 开发中 |
+| 二号 | artist-commission-webguard / v036-web-guard | v0.36 六路回归实测（零代码改动，纯浏览器实测 + 报告） | 🔄 进行中 |
+| 三号 | artist-commission-v037 / v037-pricing-engine | REQ-025 计价引擎第一阶段（纯函数+测试+迁移 v39，不接端点） | 🔄 进行中 |
+| 四号 | artist-commission-req025 / v037-req025-spec | REQ-025 文档轮：done 半终态写入 + 第二阶段草案 | 🔄 进行中 |
+| 五号 | artist-commission-priceguard / v036-price-guard | 价格守卫批：updateFinalPrice/deleteExtraItem 补 delivered/cancelled 后端守卫（**done 不拦**，见下方裁决） | 🔄 进行中 |
 
-合入顺序无依赖（纯 docs vs 纯 server 新增模块，零文件交集），谁先交付谁先合。
+合入顺序：五号（守卫）与三号（引擎）同属 server 但零文件交集（五号只改 order.service.ts 两个函数体，三号禁改现有文件），谁先交付谁先合；四号纯 docs 随时合；二号纯实测无代码。
+
+### 一号裁决：done 改价守卫的时序（2026-08-05，写入五号派工）
+
+done 订单当前唯一减价路径是 updateFinalPrice——负增项被 schema 拦死（`priceCents minimum: 0`），负收款只退钱不调总价。因此 done 改价守卫**必须等 REQ-025 第二阶段的负条目机制一起上**，否则画师减价无门。五号本批只拦 delivered/cancelled。
 
 ### 本轮候选核销记录（派工前已逐项验证代码现状）
 
@@ -85,10 +91,10 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | 空闲（待 REQ-025 第二阶段前端拆分） |
+| 二号 | 开工中：v0.36 六路回归实测（worktree: artist-commission-webguard） |
 | 三号 | 开工中：v037 引擎第一阶段（worktree: artist-commission-v037） |
-| 四号 | 开工中：文档轮（worktree: artist-commission-docs） |
-| 五号 | 空闲（待 REQ-025 第二阶段拆分） |
+| 四号 | 开工中：REQ-025 文档轮（worktree: artist-commission-req025）；文档轮（changelog）已合入 `6141bfb` |
+| 五号 | 开工中：价格守卫批（worktree: artist-commission-priceguard） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
