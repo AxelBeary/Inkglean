@@ -97,4 +97,23 @@ function onTabChange(path) {
   margin: 0 auto;
   padding: 16px;
 }
+
+/* ═══ 清扫批#5: el-empty 空态插画纸墨化统一（从 AdminDashboard 抽到布局层，覆盖全部 admin 页） ═══
+   管理后台全部页面的 el-empty（ArtistManage/HealthCheck/ArtistDetailDrawer/AdminDashboard 等）
+   由布局层统一映射 EP 空态变量到纸墨 token，双主题自动适配；页面内不再各自覆写。 */
+.admin-layout :deep(.el-empty) {
+  --el-empty-fill-color-0: var(--paper2);
+  --el-empty-fill-color-1: var(--line);
+  --el-empty-fill-color-2: var(--line2);
+  --el-empty-fill-color-3: var(--ink4);
+  --el-empty-fill-color-4: var(--ink3);
+  --el-empty-fill-color-5: var(--ink3);
+  --el-empty-fill-color-6: var(--ink2);
+  --el-empty-fill-color-7: var(--ink3);
+  --el-empty-fill-color-8: var(--line);
+  --el-empty-fill-color-9: var(--line2);
+}
+.admin-layout :deep(.el-empty__description) {
+  color: var(--ink3);
+}
 </style>
