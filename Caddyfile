@@ -7,5 +7,8 @@
 # 画师主页通过路径访问：{$DOMAIN}/artist/:subdomain
 # C48 决策：放弃子域名方案，统一路径访问。未来需要时 Caddy rewrite 转发，不做进应用层。
 {$DOMAIN} {
+	# 环境批 B1: 启用压缩（zstd 优先，回退 gzip；Caddy 2 内置编码器，无需插件）
+	encode zstd gzip
+
 	reverse_proxy web:3000
 }
