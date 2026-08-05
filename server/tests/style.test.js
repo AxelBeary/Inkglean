@@ -18,13 +18,6 @@ function seedTier(artistId, name, price, sortOrder = 0) {
   return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(r.lastInsertRowid)
 }
 
-function seedPriceAddon(artistId, name, priceValue, selectMode = 'quantity', sortOrder = 0) {
-  const r = db.prepare(
-    "INSERT INTO price_addons (artist_id, category, name, price_type, price_value, select_mode, sort_order) VALUES (?, 'other', ?, 'fixed', ?, ?, ?)"
-  ).run(artistId, name, priceValue, selectMode, sortOrder)
-  return db.prepare('SELECT * FROM price_addons WHERE id = ?').get(r.lastInsertRowid)
-}
-
 // ─── 迁移测试 ───
 
 describe('迁移 v36 老数据迁移', () => {
@@ -49,8 +42,6 @@ describe('迁移 v36 老数据迁移', () => {
     const artist = seedArtist({ qq_number: '77001', subdomain: 'mig-test' })
     seedTier(artist.id, '头像', 100, 0)
     seedTier(artist.id, '全身', 300, 1)
-    seedPriceAddon(artist.id, '加人', 50, 'quantity', 0)
-    seedPriceAddon(artist.id, '加背景', 80, 'toggle', 1)
 
     // 手动执行迁移逻辑（因为 initDatabase 已跑过，v36 已标记 applied）
     // 直接调 service 层验证表结构可用
