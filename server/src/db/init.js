@@ -1819,6 +1819,27 @@ export function initDatabase(database) {
 
   // ─── 管理员自举 — 首次部署自动创建管理员账号 ───
   const adminQq = process.env.ADMIN_QQ
+
+  // P1-4 (2026-08-05): 生产环境 fail-fast —— 缺 ADMIN_QQ 且无管理员账号时启动即抛错，
+  // 不静默死锁到登录时才暴露（TOTP 上线后无管理员 = 无人能绑定/登录，恢复只能靠 CLI 重置）。
+  // 判定：环境变量缺失，且 platform_config.admin_qq 为空或其对应画师账号不存在 → 抛错退出。
+  // 已有管理员账号（重启场景，配置已持久化）不抛错；开发环境保持原静默行为。
+  if (!adminQq && process.env.NODE_ENV === 'production') {
+    const configuredRow = database.prepare(
+      "SELECT value FROM platform_config WHERE key = 'admin_qq'"
+    ).get()
+    const configuredQq = (configuredRow && configuredRow.value) || ''
+    const adminExists = configuredQq
+      ? database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(configuredQq)
+      : undefined
+    if (!adminExists) {
+      throw new Error(
+        '生产环境禁止无管理员启动：ADMIN_QQ 环境变量缺失且平台未配置管理员账号。' +
+        '请在 .env 设置 ADMIN_QQ=<管理员QQ号>（参考仓库根 .env.example）后重新启动。'
+      )
+    }
+  }
+
   if (adminQq) {
     // 仅当 admin_qq 为空时写入（不覆盖运行时更换的值）
     database.prepare(

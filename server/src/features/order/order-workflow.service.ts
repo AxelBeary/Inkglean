@@ -30,11 +30,35 @@ export function mapStageToStatus(stages: WorkflowStage[], stageId: number): stri
  * 推进流程节点（只能前进）
  * stageId=null 时关闭流程跟踪（回退旧模式）
  */
+// P0-1 (2026-08-05): 多步写事务包裹——orders 更新 + 节点锁刷新 + 操作日志 + completed_at
+// 原子提交。REQ-025 守恒逻辑不容中间态：中间步骤抛错会留 orders 已更新但锁/日志未写的半态。
+// refreshInstallmentLocks / logActivity 均走同一 db 单例，无嵌套事务，随事务一起提交/回滚。
+const advanceStageTx = db.transaction((
+  orderId: number,
+  stageId: number,
+  newStatus: string,
+  stageName: string
+): void => {
+  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(stageId, newStatus, orderId)
+
+  // REQ-025 R4: 完成即锁——推进越过收款节点时，刷新节点锁定状态（只锁不解锁，回退不解锁由 prevLocked 保证）
+  refreshInstallmentLocks(orderId)
+
+  // v0.31 REQ-021 F1: 操作日志
+  logActivity(orderId, 'stage_advance', 'artist', { action: 'advance', stageName, stageId })
+
+  if (newStatus === 'done') {
+    db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
+      .run(orderId)
+  }
+})
+
 export function advanceStage(orderId: number, stageId: number | null): any {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
-  // 关闭流程跟踪
+  // 关闭流程跟踪（单步写，无事务必要）
   if (stageId === null) {
     db.prepare('UPDATE orders SET current_stage_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(orderId)
@@ -62,19 +86,9 @@ export function advanceStage(orderId: number, stageId: number | null): any {
   }
 
   const newStatus = mapStageToStatus(stages, stageId)
-  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(stageId, newStatus, orderId)
 
-  // REQ-025 R4: 完成即锁——推进越过收款节点时，刷新节点锁定状态（只锁不解锁，回退不解锁由 prevLocked 保证）
-  refreshInstallmentLocks(orderId)
-
-  // v0.31 REQ-021 F1: 操作日志
-  logActivity(orderId, 'stage_advance', 'artist', { action: 'advance', stageName: stages[targetIdx].name, stageId })
-
-  if (newStatus === 'done') {
-    db.prepare('UPDATE orders SET completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ?')
-      .run(orderId)
-  }
+  // 多步写在事务内原子提交；校验抛错均发生在事务外（读操作）
+  advanceStageTx(orderId, stageId, newStatus, stages[targetIdx].name)
 
   return getOrder(orderId)
 }
@@ -83,6 +97,25 @@ export function advanceStage(orderId: number, stageId: number | null): any {
  * 回退流程节点（打回修改）
  * 状态映射为 revision，记录系统备注
  */
+// P0-1 (2026-08-05): 多步写事务包裹——orders 更新 + 系统备注 + 操作日志原子提交，
+// 防中间步骤抛错留半态（orders 已回退但备注/日志缺失）
+const rollbackStageTx = db.transaction((
+  orderId: number,
+  stageId: number,
+  fromName: string,
+  toName: string
+): void => {
+  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(stageId, 'revision', orderId)
+
+  // 系统备注（用户确认：客户有知情权）
+  db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+    .run(orderId, `↩ 从「${fromName}」打回到「${toName}」`)
+
+  // v0.31 REQ-021 F1: 操作日志
+  logActivity(orderId, 'stage_advance', 'artist', { action: 'rollback', from: fromName, to: toName, stageId })
+})
+
 export function rollbackStage(orderId: number, stageId: number): any {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
@@ -110,15 +143,8 @@ export function rollbackStage(orderId: number, stageId: number): any {
   const fromName = stages[currentIdx]?.name || '未知'
   const toName = stages[targetIdx].name
 
-  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(stageId, 'revision', orderId)
-
-  // 系统备注（用户确认：客户有知情权）
-  db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
-    .run(orderId, `↩ 从「${fromName}」打回到「${toName}」`)
-
-  // v0.31 REQ-021 F1: 操作日志
-  logActivity(orderId, 'stage_advance', 'artist', { action: 'rollback', from: fromName, to: toName, stageId })
+  // 多步写在事务内原子提交；校验抛错均发生在事务外（读操作）
+  rollbackStageTx(orderId, stageId, fromName, toName)
 
   return getOrder(orderId)
 }
