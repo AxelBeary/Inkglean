@@ -2,7 +2,10 @@
   <div class="order-form-page">
     <ClientFloatingActions />
     <div class="form-container" v-loading="loading">
-      <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('orderForm.backHome')" :content="$t('orderForm.title')" />
+      <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('orderForm.backHome')" :content="$t('orderForm.title')">
+        <!-- 打磨批 E：title 文本 aria-hidden——EP page-header icon 自带 aria-label=title，叠加读两遍；视觉不变 -->
+        <template #title><span aria-hidden="true">{{ $t('orderForm.backHome') }}</span></template>
+      </el-page-header>
 
       <template v-if="artist">
         <!-- R58-2: 步骤指示器（v0.32: 动态步骤——旧模型3步 / 单画风3步 / 多画风4步） -->

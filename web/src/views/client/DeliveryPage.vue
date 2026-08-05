@@ -1,7 +1,10 @@
 <template>
   <div class="delivery-page">
     <div class="delivery-container" v-loading="loading">
-      <el-page-header @back="$router.push(`/artist/${subdomain}/track`)" :title="$t('track.backHome')" :content="$t('delivery.delivered')" />
+      <el-page-header @back="$router.push(`/artist/${subdomain}/track`)" :title="$t('track.backHome')" :content="$t('delivery.delivered')">
+        <!-- 打磨批 E：title 文本 aria-hidden——EP page-header icon 自带 aria-label=title，叠加读两遍；视觉不变 -->
+        <template #title><span aria-hidden="true">{{ $t('track.backHome') }}</span></template>
+      </el-page-header>
 
       <!-- 需要输入 QQ 验证 -->
       <el-card style="margin-top: 16px" v-if="!verified">
