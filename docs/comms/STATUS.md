@@ -9,13 +9,13 @@
 ---
 ## master 状态
 
-- **HEAD**：`ee0f68a`（安全加固批 merge），与 origin 同步
-- **工作树**：主仓干净；sec worktree 待回收（`../artist-commission-sec`，security-hardening 已合入）
-- **测试基线**：server 914/914（57 文件）· web 215/215 · lint 0 · tsc 0（一号独立复跑）
-- **容器**：⚠️ 未含本批安全改动（Dockerfile USER node / CSP / entrypoint）——**下次重建必须包含**，重建前报用户确认
-- **备份**：`data/commission.db.bak-pre-v43`（DROP addons 前）+ `bak-v037-pre-v41` + 更早三轮
-- **迁移**：v42（F2 社交平台表）为最新
-- **comms**：STATUS + 四份派工在途（01-to-02 视觉通病批1 / 01-to-03 环境批 / 01-to-04 模板体检批只读 / 01-to-05 约稿页实测修复批）+ 五号两份核实报告（安全审计/前端优化，待排期消费）
+- **HEAD**：`1a8806b`（四批合入+报告归档），与 origin 同步
+- **工作树**：主仓干净；worktree 待回收（fix1/of/tpl/env，批次已合入）
+- **测试基线**：server 925/925（58 文件，含环境批 11 例）· web 215/215 · lint 0（一号独立复跑）
+- **容器**：✅ **2026-08-06 已重建上线**（含环境批压缩/缓存头+uploads响应头 + 视觉批:root:root EP蓝根治 + 非root容器 + AUTH_DEV_MODE=false）。重建过程踩两坑：①非root写不进root数据卷→chown 1000修复；②AUTH_DEV_MODE=true被F4 fail-fast拦→用户拍板开门改false
+- **备份**：`commission.db.bak-pre-env-rebuild-20260806-0636`（重建前，integrity ok）+ 更早里程碑
+- **迁移**：v43（DROP addons）为最新
+- **comms**：STATUS + 环境批/视觉批1/约稿页批/模板体检批四报告已归档 + 二号前端研判报告（M1随批1销账，余16项挂起A测后）
 
 ---
 ## v0.37 轮收官总结（2026-08-05，全部合入）
