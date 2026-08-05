@@ -113,11 +113,6 @@ export const E = {
   // 管理员
   ADMIN_VERIFY_FAILED: 'ADMIN_VERIFY_FAILED',
 
-  // 增项
-  ADDON_NOT_FOUND: 'ADDON_NOT_FOUND',
-  ADDON_MAX_QTY: 'ADDON_MAX_QTY',
-  ADDON_NOT_FOR_TIER: 'ADDON_NOT_FOR_TIER',
-
   // 倍率
   MULTIPLIER_NOT_FOUND: 'MULTIPLIER_NOT_FOUND',
   MULTIPLIER_INVALID: 'MULTIPLIER_INVALID',
@@ -323,11 +318,6 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 管理员
   ADMIN_VERIFY_FAILED: '管理员验证失败',
-
-  // 增项
-  ADDON_NOT_FOUND: '增项不存在',
-  ADDON_MAX_QTY: '超出最大数量限制',
-  ADDON_NOT_FOR_TIER: '该增项不适用于所选档位',
 
   // 倍率
   MULTIPLIER_NOT_FOUND: '倍率项不存在',

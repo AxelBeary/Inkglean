@@ -12,8 +12,6 @@ declare module 'fastify' {
     isAdmin?: boolean
     /** requireOwnOrder preHandler 挂载的订单对象 */
     order: any
-    /** requireOwnAddon preHandler 挂载的增项对象 */
-    addon: any
     /** requireOwnMultiplier preHandler 挂载的倍率对象 */
     multiplier: any
   }
