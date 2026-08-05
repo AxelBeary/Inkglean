@@ -61,14 +61,15 @@ export default async function adminRoutes(fastify) {
     }
 
     try {
-      const artist = artistService.createArtist({
+      const artist = await artistService.createArtist({
         qqNumber,
         name: clamp(name, 'name'),
         subdomain,
         bio: clamp(bio, 'bio'),
         artistCode
       })
-      return artist
+      // F1 补全：createArtist 内部同样返回完整行（SELECT *）——响应壳走 DTO（前端零消费响应体）
+      return publicArtistDTO(artist)
     } catch (err) {
       return reply.code(400).send({ error: err.message })
     }
@@ -126,7 +127,8 @@ export default async function adminRoutes(fastify) {
       return reply.code(400).send({ error: '无效状态' })
     }
 
-    return artistService.updateArtist(artist.id, { status })
+    // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
+    return publicArtistDTO(artistService.updateArtist(artist.id, { status }))
   })
 
   /**
@@ -567,7 +569,8 @@ export default async function adminRoutes(fastify) {
   }, async (request, reply) => {
     const a = artistService.getArtistById(request.params.id)
     if (!a) return reply.code(404).send({ error: '画师不存在' })
-    return artistService.updateArtist(a.id, request.body)
+    // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
+    return publicArtistDTO(artistService.updateArtist(a.id, request.body))
   })
 
   /** GET /api/admin/artists/:id/tiers — 档位列表 */

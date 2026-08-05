@@ -109,4 +109,65 @@ describe('安全加固批 F1: TOTP 密钥 DTO 投影', () => {
     expect(body.quick_actions).toBeTruthy()
     expect(body.name).toBeTruthy()
   })
+
+  // ─── F1 补全：写路径回显（改读路径漏写路径）───
+  // updateArtist()/createArtist() 内部 return getArtistById() = SELECT * 完整行，
+  // 4 个写端点直接回显响应体，与读路径同级泄露面。前端对响应体零消费，DTO 包裹无破坏。
+
+  it('TC-SEC-05: PUT /api/artist/profile 写路径回显不含敏感列', async () => {
+    const { artistToken } = setup()
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/artist/profile',
+      headers: { Authorization: BEARER + artistToken, 'content-type': 'application/json' },
+      payload: { bio: '写路径回显测试' }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expectNoSensitive(body)
+    expect(body.bio).toBe('写路径回显测试') // 更新生效且字段正常回显
+  })
+
+  it('TC-SEC-06: PUT /api/admin/artists/:id/status 写路径回显不含敏感列', async () => {
+    const { adminToken, artist } = setup()
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${artist.id}/status`,
+      headers: { Authorization: BEARER + adminToken, 'content-type': 'application/json' },
+      payload: { status: 'full' }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expectNoSensitive(body)
+    expect(body.status).toBe('full')
+  })
+
+  it('TC-SEC-07: PUT /api/admin/artists/:id/profile 写路径回显不含敏感列', async () => {
+    const { adminToken, artist } = setup()
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${artist.id}/profile`,
+      headers: { Authorization: BEARER + adminToken, 'content-type': 'application/json' },
+      payload: { name: '管理员改名' }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expectNoSensitive(body)
+    expect(body.name).toBe('管理员改名')
+  })
+
+  it('TC-SEC-08: POST /api/admin/artists 创建回显不含敏感列（第 4 泄露点，追加排查）', async () => {
+    const { adminToken } = setup()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/artists',
+      headers: { Authorization: BEARER + adminToken, 'content-type': 'application/json' },
+      payload: { qqNumber: '30001', name: '新画师', subdomain: 'newbiesec', artistCode: 'NEWB' }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expectNoSensitive(body)
+    expect(body.qq_number).toBe('30001')
+    expect(body.name).toBe('新画师')
+  })
 })

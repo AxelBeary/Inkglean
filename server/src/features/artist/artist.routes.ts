@@ -213,7 +213,8 @@ export default async function artistRoutes(fastify) {
         const { tryAutoPromote } = await import('../order/order.service.js')
         tryAutoPromote(request.artist.id)
       }
-      return updated
+      // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
+      return publicArtistDTO(updated)
     } catch (err) {
       return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
     }

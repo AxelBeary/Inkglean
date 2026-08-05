@@ -271,7 +271,11 @@ describe('路由层测试 (Route Integration)', () => {
       })
       // Fastify removeAdditional:true → weibo_url 被静默剥离，请求成功但字段未写入
       expect(res.statusCode).toBe(200)
-      expect(res.json().weibo_url).toBeNull()
+      // 安全加固批 F1：写路径回显走 DTO，遗留列 weibo_url 从响应整体剔除（不再是 null 而是不存在）
+      expect('weibo_url' in res.json()).toBe(false)
+      // 原意保留：数据库列未被写入
+      const row = db.prepare('SELECT weibo_url FROM artists WHERE id = ?').get(artist.id)
+      expect(row.weibo_url).toBeNull()
     })
 
     it('TC-RT-12d: GET 主页 customLinks 不回退旧列（REQ-022 F2 拍板删除回退）', async () => {
