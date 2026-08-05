@@ -312,6 +312,8 @@ export default {
     step1Title: 'Pick a tier', step2Title: 'Describe your request', step3Title: 'Contact details',
     nextStep: 'Next', prevStep: 'Back',
     summaryTitle: 'SUMMARY', summaryNoTier: 'Pick a tier to see the price here',
+    // W3: empty-state hint when no size selected in style mode
+    summaryNoSize: 'Pick a size to see the price here',
     // REQ-022 F3: client info echo in summary card
     summaryNickname: 'Nickname', summaryDescription: 'Request details',
     // R58-3: receipt confirmation
