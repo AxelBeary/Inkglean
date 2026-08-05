@@ -39,6 +39,8 @@ const tabs = [
   { path: '/admin/artists', labelKey: 'admin.artistManage' },
   { path: '/admin/greetings', labelKey: 'admin.greetingManage' },
   { path: '/admin/default-workflow', labelKey: 'admin.defaultWorkflow' },
+  // REQ-022 F2: 社交平台管理
+  { path: '/admin/platforms', labelKey: 'admin.platformManage' },
   { path: '/admin/health', labelKey: 'admin.health.title' }
 ]
 

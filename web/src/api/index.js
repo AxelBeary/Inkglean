@@ -98,13 +98,17 @@ export const artistPublicApi = {
   unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`),
   // F4: 留言板（公开）
   getMessages: (subdomain, page = 1, pageSize = 20) => api.get(`/public/artist/${subdomain}/messages`, { params: { page, pageSize } }),
-  postMessage: (subdomain, data) => api.post(`/public/artist/${subdomain}/messages`, data)
+  postMessage: (subdomain, data) => api.post(`/public/artist/${subdomain}/messages`, data),
+  // REQ-022 F2: 社交平台列表（公开，仅启用）
+  getPlatforms: () => api.get('/platforms')
 }
 
 // ─── 画师后台 ───
 export const artistApi = {
   getProfile: () => api.get('/artist/profile'),
   updateProfile: (data) => api.put('/artist/profile', data),
+  // REQ-022 F1: 发布交付物为作品（delivered 门槛，一图一作品）
+  publishArtwork: (orderId, data) => api.post(`/artist/orders/${orderId}/publish-artwork`, data),
   // 档位
   getTiers: () => api.get('/artist/tiers'),
   createTier: (data) => api.post('/artist/tiers', data),
@@ -314,6 +318,11 @@ export const adminApi = {
   // F4: 留言管理（跨画师）；REQ-022 F5: 可选筛选 { artistId, status, replied }
   getMessages: (filters = {}) => api.get('/admin/messages', { params: filters }),
   deleteMessage: (id) => api.delete(`/admin/messages/${id}`),
+  // REQ-022 F2: 社交平台管理（增删改 + 停用/启用）
+  getPlatforms: () => api.get('/admin/platforms'),
+  createPlatform: (data) => api.post('/admin/platforms', data),
+  updatePlatform: (id, data) => api.put(`/admin/platforms/${id}`, data),
+  deletePlatform: (id) => api.delete(`/admin/platforms/${id}`),
   // HC: 系统自检
   getHealth: () => api.get('/admin/health')
 }

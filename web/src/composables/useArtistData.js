@@ -10,35 +10,6 @@ import { useI18n } from 'vue-i18n'
 import { ARTIST_STATUS_TYPE } from '../constants/order.js'
 
 /**
- * R15: 外链图标徽标映射
- * 一号拍板：纯文字标签 + Element Plus Link 图标兜底，不自造 SVG 图标库
- */
-const LINK_ICON_BADGE = {
-  weibo: '微',
-  bilibili: 'B',
-  pixiv: 'P',
-  x: 'X',
-  xiaohongshu: '红',
-  lofter: 'L',
-  douyin: '抖',
-  link: '链'
-}
-
-/**
- * R58-8: 平台链接徽标映射（后端识别的 platform → 文字徽标）
- * 与 LINK_ICON_BADGE 共用视觉语言，other 用通用链接徽标
- */
-const PLATFORM_BADGE = {
-  pixiv: 'P',
-  x: 'X',
-  weibo: '微',
-  lofter: 'L',
-  bilibili: 'B',
-  xiaohongshu: '红',
-  other: '链'
-}
-
-/**
  * ─── v0.35 F3/F6 纯函数（对接三号波 1 真实 API 契约） ───
  * 抽成模块级纯函数便于单测；后端字段变化只改这里。
  */
@@ -102,35 +73,27 @@ export function useArtistData(props) {
   const statusType = (status) => ARTIST_STATUS_TYPE[status] || 'info'
 
   /**
-   * R15: 外链列表（读后端拼好的 customLinks 数组）
-   * 后端已处理旧列回退（custom_links=NULL → 拼 weibo_url/bilibili_url），前端不碰旧字段
-   * 每项: { name, url, icon } → 追加 badge 文字徽标
+   * REQ-022 F2: 页脚链接列表（读后端 customLinks 新结构 [{ platformId, url }]）
+   * platformId → 查 GET /api/platforms 列表拿 name/iconKey/fallbackChar 渲染；
+   * platformId=null（「其他」/未知平台/后端重推导失败）→ 通用链接徽标。
+   * 模板渲染时每项含 { key, url, label, iconKey, fallbackChar }。
    */
-  const socialLinks = computed(() => {
+  const footerLinks = computed(() => {
     const links = artist.value.customLinks
     if (!Array.isArray(links) || links.length === 0) return []
-    return links.map((item, i) => ({
-      key: `${item.icon || 'link'}-${i}`,
-      url: item.url,
-      label: item.name,
-      badge: LINK_ICON_BADGE[item.icon] || LINK_ICON_BADGE.link
-    }))
-  })
-
-  /**
-   * R58-8: 平台链接列表（读后端拼好的 platformUrls 数组）
-   * 后端已处理旧格式兼容（纯字符串数组 → 重新识别平台），前端不碰原始 JSON
-   * 每项: { url, platform, label } → 追加 badge 文字徽标
-   */
-  const platformLinks = computed(() => {
-    const links = artist.value.platformUrls
-    if (!Array.isArray(links) || links.length === 0) return []
-    return links.map((item, i) => ({
-      key: `platform-${item.platform || 'other'}-${i}`,
-      url: item.url,
-      label: item.label || item.platform || 'other',
-      badge: PLATFORM_BADGE[item.platform] || PLATFORM_BADGE.other
-    }))
+    const platforms = Array.isArray(props.platforms) ? props.platforms : []
+    return links.map((item, i) => {
+      const platform = item.platformId != null
+        ? platforms.find((p) => p.id === item.platformId)
+        : null
+      return {
+        key: `link-${i}`,
+        url: item.url,
+        label: platform?.name || t('artistHome.otherLink'),
+        iconKey: platform?.iconKey || null,
+        fallbackChar: platform?.fallbackChar || ''
+      }
+    })
   })
 
   /** v0.25 A: 封面作品列表（is_cover=1；字段缺失时为空数组=不显示封面区，向后兼容） */
@@ -162,8 +125,7 @@ export function useArtistData(props) {
     imgUrl,
     statusText,
     statusType,
-    socialLinks,
-    platformLinks,
+    footerLinks,
     heroArtwork,
     coverArtworks,
     galleryArtworks,

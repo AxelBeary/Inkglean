@@ -62,10 +62,10 @@
           {{ $t('artistHome.trackOrder') }}
         </button>
       </div>
-      <div class="tpl-hero-links" v-if="socialLinks.length">
-        <template v-for="(link, i) in socialLinks" :key="link.key">
+      <div class="tpl-hero-links" v-if="footerLinks.length">
+        <template v-for="(link, i) in footerLinks" :key="link.key">
           <a :href="link.url" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
-          <span v-if="i < socialLinks.length - 1" class="tpl-hero-sep">·</span>
+          <span v-if="i < footerLinks.length - 1" class="tpl-hero-sep">·</span>
         </template>
       </div>
     </div>
@@ -92,10 +92,12 @@ const props = defineProps({
   artworks: { type: Array, default: () => [] },
   subdomain: { type: String, default: '' },
   /** banner: 横幅 | fullscreen: 全屏展签 | split: 分屏 */
-  variant: { type: String, default: 'banner' }
+  variant: { type: String, default: 'banner' },
+  // REQ-022 F2: 社交平台列表（hero 链接平台名渲染）
+  platforms: { type: Array, default: () => [] }
 })
 
-const { imgUrl, heroArtwork, socialLinks } = useArtistData(props)
+const { imgUrl, heroArtwork, footerLinks } = useArtistData(props)
 
 // 暴露哨兵元素，供 useStickyCta 监听
 const sentinelEl = ref(null)

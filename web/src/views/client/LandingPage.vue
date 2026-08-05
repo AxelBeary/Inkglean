@@ -33,14 +33,6 @@
               {{ $t(`common.status.${artist.status}`) }}
             </el-tag>
           </div>
-          <div class="artist-links" v-if="artist.weiboUrl || artist.bilibiliUrl">
-            <a v-if="artist.weiboUrl" :href="artist.weiboUrl" target="_blank" rel="noopener noreferrer" @click.stop>
-              {{ $t('landing.weibo') }}
-            </a>
-            <a v-if="artist.bilibiliUrl" :href="artist.bilibiliUrl" target="_blank" rel="noopener noreferrer" @click.stop>
-              {{ $t('landing.bilibili') }}
-            </a>
-          </div>
           <el-button type="primary" class="enter-btn" @click.stop="enterArtist(artist)">
             {{ $t('landing.enterHome') }}
           </el-button>
@@ -133,9 +125,6 @@ onMounted(async () => {
   margin-bottom: 12px; min-height: 40px;
 }
 .artist-status { margin-bottom: 12px; }
-.artist-links { margin-bottom: 12px; display: flex; gap: 16px; justify-content: center; }
-.artist-links a { color: var(--el-color-primary); text-decoration: none; font-size: 13px; }
-.artist-links a:hover { text-decoration: underline; }
 .enter-btn { width: 100%; }
 .landing-footer {
   text-align: center;

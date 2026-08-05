@@ -19,6 +19,7 @@
       :sanitized-rules="sanitizedRules"
       :pricing="pricing"
       :gallery="galleryData"
+      :platforms="platforms"
     />
     <div v-else-if="!loading" class="empty-state">
       <p>{{ $t('artistHome.loadFailed') }}</p>
@@ -52,6 +53,8 @@ const pricing = ref(null)
 // v0.35 联调：画廊数据走独立端点 GET /public/gallery/:subdomain
 // （artworks 带 size_tags/description + filterSizes 筛选档位；F6 真实数据源）
 const galleryData = ref({ artworks: [], filterSizes: [] })
+// REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染用；静默失败走「其他」兜底）
+const platforms = ref([])
 const loading = ref(true)
 
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
@@ -153,6 +156,10 @@ onMounted(async () => {
       .then(res => {
         galleryData.value = { artworks: res?.artworks || [], filterSizes: res?.filterSizes || [] }
       })
+      .catch(() => {})
+    // REQ-022 F2: 平台列表（页脚渲染用，静默失败 → footerLinks 走「其他」兜底）
+    artistPublicApi.getPlatforms()
+      .then(res => { platforms.value = Array.isArray(res) ? res : [] })
       .catch(() => {})
   } catch (err) {
     ElMessage.error(err.message || t('artistHome.loadFailed'))

@@ -251,7 +251,7 @@ export default {
   },
   landing: {
     title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
-    noBio: 'This artist has not written a bio yet', weibo: 'Weibo', bilibili: 'Bilibili',
+    noBio: 'This artist has not written a bio yet',
     enterHome: 'Visit page →', noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
   },
   // v0.34 task A: standalone 404 page
@@ -270,6 +270,7 @@ export default {
     startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
     weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili',
+    otherLink: 'Link',
     revisionNote: 'Revision policy',
     // #9: tier showcase
     tierSelectBtn: 'Choose this tier', tierShowcase: 'Not accepting', tierShowcaseBtn: 'Not accepting orders',
@@ -504,6 +505,13 @@ export default {
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', cancelConfirm: 'Cancel this order?', confirmTitle: 'Confirm',
     statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
+    // REQ-022 F1: Publish as artwork
+    publishArtwork: 'Publish as artwork', publishDialogTitle: 'Publish as artwork',
+    publishHint: 'Select deliverables to publish as artworks (copied to public portfolio; originals are kept).',
+    publishNotImage: 'Not an image, cannot publish', publishTitleLabel: 'Title', publishTitlePlaceholder: 'Give this batch a title',
+    publishDescLabel: 'Description (optional)', publishDescPlaceholder: 'Extra notes (optional, ≤500 chars)',
+    publishSubmit: 'Publish', publishSuccess: 'Published {n} artwork(s)',
+    publishDoneTitle: 'Published', publishGoManage: 'Published {n} artwork(s). Go to artwork management?',
     uploadTip: 'Images and archives supported, max 50MB per file',
     invalidFileType: 'Unsupported file type. Please upload an image or archive',
     fileTooLarge: 'File too large (max 50MB)', referenceImage: 'Reference image',
@@ -789,11 +797,10 @@ export default {
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
     statusLabel: 'Page status', statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
-    linksLabel: 'Links (shown on public page)', linkName: 'Name', addLink: 'Add link',
-    linksHint: 'Up to 6 links. Changes appear on your public page immediately after saving. Empty rows are not saved.',
-    // R58-8: Platform links + inspiration tags
-    platformLabel: 'Platform links (shown on public page)', platformAuto: 'Auto-detect',
-    platformHint: 'Up to 10 links. Changes appear on your public page immediately after saving. Empty rows are not saved. Platform is auto-detected by default, or can be set manually.',
+    linksLabel: 'Links (shown on public page)', addLink: 'Add link',
+    linksHint: 'Up to 8 links. Platforms are auto-detected as you paste. Changes appear on your public page immediately after saving. Empty rows are not saved.',
+    linksEmpty: 'No links added yet', linkOther: 'Other', linkUrlPlaceholder: 'https://',
+    linkInvalid: 'Invalid link format (http/https only, or paste a bare URL)', linkTooLong: 'Link is too long (domain ≤253 / path ≤1500 / total ≤1800)',
     inspireLabel: 'Inspiration tags (shown on order page)', inspireInputPlaceholder: 'Type a tag and press Enter',
     inspireHint: 'Up to 20 tags, each ≤30 characters. Clients can click a tag to quickly fill in their request description. Hidden on the order page when not set.',
     inspireTagTooLong: 'Tag cannot exceed 30 characters', inspireTagLimit: 'Up to 20 tags', inspireTagDuplicate: 'Tag already exists',
@@ -981,6 +988,24 @@ export default {
       diskNote: 'for reference only', expandDetail: 'Details',
       statusOk: 'OK', statusWarn: 'Warning', statusFail: 'Failed',
       emptyHint: 'Click “Run checks” to execute the 8 system checks'
+    },
+    // REQ-022 F2: social platform management
+    platformManage: 'Platform management',
+    platform: {
+      colName: 'Platform', colIcon: 'Icon', colDomains: 'Match domains', colOrder: 'Order', colEnabled: 'Enabled',
+      add: 'Add platform', edit: 'Edit platform', delete: 'Delete',
+      nameLabel: 'Platform name', namePlaceholder: 'e.g. Weibo',
+      iconLabel: 'Icon (simple-icons whitelist)', iconNone: 'None (use fallback char)',
+      fallbackLabel: 'Fallback char', fallbackPlaceholder: 'e.g. 米 (used when simple-icons has no icon)',
+      domainsLabel: 'Match domains', domainsPlaceholder: 'One domain per line, e.g. weibo.com',
+      domainsHint: 'After saving, pasted links from these domains are auto-detected as this platform.',
+      orderLabel: 'Sort order (lower first)',
+      enabledLabel: 'Enabled', enabledHint: 'Disabled platforms disappear from the artist settings dropdown, but existing links stay visible.',
+      save: 'Save', cancel: 'Cancel', saved: 'Platform saved',
+      deleteConfirm: 'Delete "{name}"? Links referencing this platform will become "Other". The links themselves are kept.',
+      deleted: 'Platform deleted, {n} link(s) became "Other"',
+      iconFallbackHint: 'At least one of icon or fallback char is required.',
+      domainFormatError: 'Invalid domain format (no protocol/path/port)'
     }
   }
 }
