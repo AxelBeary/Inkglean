@@ -1,11 +1,11 @@
 <template>
   <ArtistLayout>
-    <h2 class="font-display">{{ $t('slots.title') }}</h2>
+    <h2 class="font-display slot-page-title">{{ $t('slots.title') }}</h2>
 
     <div v-loading="loading" class="slot-manage">
       <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与仪表盘 StatusSwitch 同逻辑） -->
       <el-card class="slot-card" shadow="never">
-        <template #header><span>{{ $t('slots.statusSection') }}</span></template>
+        <template #header><CardHead :title="$t('slots.statusSection')" /></template>
         <div class="status-row">
           <el-radio-group v-model="currentStatus" @change="updateStatus" size="large">
             <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
@@ -18,7 +18,7 @@
 
       <!-- 名额区 -->
       <el-card class="slot-card" shadow="never">
-        <template #header><span>{{ $t('slots.slotSection') }}</span></template>
+        <template #header><CardHead :title="$t('slots.slotSection')" /></template>
         <el-form label-position="top" size="large">
           <el-form-item :label="$t('settings.slotLabel')">
             <div class="slot-config">
@@ -46,7 +46,7 @@
 
       <!-- 月度额度区 -->
       <el-card class="slot-card" shadow="never">
-        <template #header><span>{{ $t('slots.quotaSection') }}</span></template>
+        <template #header><CardHead :title="$t('slots.quotaSection')" /></template>
         <el-form label-position="top" size="large">
           <el-form-item :label="$t('settings.quotaLabel')">
             <div class="slot-config">
@@ -67,7 +67,7 @@
 
       <!-- 队列行为区 -->
       <el-card class="slot-card" shadow="never">
-        <template #header><span>{{ $t('slots.queueSection') }}</span></template>
+        <template #header><CardHead :title="$t('slots.queueSection')" /></template>
         <div class="switch-grid">
           <div class="switch-row">
             <el-switch v-model="form.autoPromote" />
@@ -102,6 +102,8 @@ import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+// v0.38 第二批: 统一卡片头部（REQ-026 §二）
+import CardHead from '../../components/artist/visual/CardHead.vue'
 
 const { t } = useI18n()
 const loading = ref(true)
@@ -195,16 +197,19 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.slot-manage { max-width: 640px; margin-top: 16px; display: flex; flex-direction: column; gap: 16px; }
-.slot-card { border-radius: 12px; }
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
+/* H1 页面标题：文楷 28/700（REQ §1.3） */
+.slot-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.slot-manage { max-width: 640px; margin-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+.slot-card { border-radius: var(--r-l); }
 .status-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.status-desc { color: var(--text-secondary); font-size: 14px; }
+.status-desc { color: var(--ink2); font-size: 14px; }
 .slot-config { display: flex; flex-direction: column; gap: 8px; }
 .slot-row { display: flex; align-items: center; gap: 12px; }
 .slot-input { width: 120px; }
-.slot-unit { color: var(--text-secondary); font-size: 14px; }
-.slot-total { margin-top: 8px; padding: 8px 12px; background: var(--bg-inset); border-radius: 8px; font-size: 13px; color: var(--text-secondary); }
-.form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.slot-unit { color: var(--ink2); font-size: 14px; }
+.slot-total { margin-top: 8px; padding: 8px 12px; background: var(--paper2); border-radius: var(--r-m); font-size: 13px; color: var(--ink2); }
+.form-hint { font-size: 12px; color: var(--ink3); margin-top: 4px; }
 .switch-grid { display: flex; flex-direction: column; gap: 12px; }
 .switch-row { display: flex; align-items: center; gap: 12px; }
 </style>

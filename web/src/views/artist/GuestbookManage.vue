@@ -1,6 +1,6 @@
 <template>
   <ArtistLayout>
-    <h2 class="font-display">{{ $t('guestbookManage.title') }}</h2>
+    <h2 class="font-display gb-page-title">{{ $t('guestbookManage.title') }}</h2>
 
     <!-- 状态筛选 + F8 语言筛选 -->
     <div class="gm-filter">
@@ -225,13 +225,16 @@ onMounted(load)
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
+/* H1 页面标题：文楷 28/700（REQ §1.3） */
+.gb-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .gm-filter { margin: 16px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .gm-language-select { width: 140px; }
 .gm-badge { margin-left: 6px; }
 .gm-lang-badge {
   font-size: 11px; font-weight: 600;
-  color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
+  color: var(--hq);
+  background: var(--hq-t);
   padding: 1px 8px; border-radius: 999px;
   white-space: nowrap;
 }
@@ -239,32 +242,33 @@ onMounted(load)
 .gm-list { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
 .gm-card {
   padding: 16px 20px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  background: var(--card);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.gm-card:hover { border-color: var(--el-color-primary-light-5); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05); }
-.gm-card--pending { border-left: 3px solid var(--el-color-warning); }
+.gm-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); box-shadow: var(--sh-1); }
+/* 待审核留言：藤黄=待确认（语义一对一） */
+.gm-card--pending { border-left: 3px solid var(--th); }
 .gm-card--rejected { opacity: 0.7; }
 
 .gm-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.gm-nickname { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.gm-time { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+.gm-nickname { font-size: 14px; font-weight: 600; color: var(--ink); }
+.gm-time { font-size: 12px; color: var(--ink3); margin-left: auto; }
 
 .gm-content {
-  font-size: 14px; line-height: 1.6; color: var(--text-primary);
+  font-size: 14px; line-height: 1.6; color: var(--ink);
   margin: 0 0 10px; white-space: pre-wrap; word-break: break-word;
 }
 
 .gm-reply {
   padding: 8px 12px; margin-bottom: 10px;
-  border-radius: 8px;
-  background: var(--el-color-primary-light-9);
-  border-left: 3px solid var(--el-color-primary);
+  border-radius: var(--r-m);
+  background: var(--hq-t);
+  border-left: 3px solid var(--hq);
 }
-.gm-reply-label { font-size: 11px; font-weight: 600; color: var(--el-color-primary); }
-.gm-reply-text { font-size: 13px; color: var(--text-primary); margin: 4px 0 0; line-height: 1.5; }
+.gm-reply-label { font-size: 11px; font-weight: 600; color: var(--hq); }
+.gm-reply-text { font-size: 13px; color: var(--ink); margin: 4px 0 0; line-height: 1.5; }
 
 .gm-reply-editor { margin-bottom: 10px; }
 .gm-reply-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
