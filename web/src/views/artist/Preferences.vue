@@ -1,9 +1,11 @@
 <template>
   <ArtistLayout>
-    <h2 class="font-display">{{ $t('preferences.title') }}</h2>
+    <!-- v0.38: 纸墨 token（REQ-026）——H1 文楷 28/700，卡片 CardHead 朱砂 mark -->
+    <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
 
     <!-- 通知与面板偏好 -->
-    <el-card style="max-width: 600px; margin-top: 16px" v-loading="loading">
+    <el-card class="pref-card" v-loading="loading">
+      <template #header><CardHead :title="$t('settings.notifyPanelTitle')" /></template>
       <el-form :model="form" label-position="top" size="large">
         <el-form-item :label="$t('settings.notifyLabel')">
           <el-switch
@@ -28,8 +30,8 @@
     </el-card>
 
     <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
-    <el-card style="max-width: 600px; margin-top: 16px" v-loading="loading">
-      <template #header><span>{{ $t('settings.quickTitle') }}</span></template>
+    <el-card class="pref-card" v-loading="loading">
+      <template #header><CardHead :title="$t('settings.quickTitle')" /></template>
       <el-form label-position="top" size="large">
         <el-form-item :label="$t('settings.quickLabel')">
           <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
@@ -58,6 +60,8 @@ import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+// v0.38: 统一卡片头部（REQ-026 §二）
+import CardHead from '../../components/artist/visual/CardHead.vue'
 import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickActionsConfig, parseQuickActions } from '../../components/artist/dashboard/QuickActions.vue'
 
 const { t } = useI18n()
@@ -133,10 +137,14 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.form-hint { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+/* ═══ v0.38: 纸墨 token（REQ-026） ═══ */
+/* H1 页面标题：文楷 28/700（REQ §1.3） */
+.pref-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.pref-card { max-width: 600px; margin-top: 16px; }
+.form-hint { color: var(--ink3); font-size: 12px; margin-top: 4px; }
 /* #3: 快捷按钮配置区 */
 .quick-config { display: flex; flex-direction: column; gap: 8px; }
 .quick-config-item { margin-right: 0; height: auto; }
 /* v0.34 任务3：icon 改 SVG 后与文字对齐 */
-.quick-config-icon { font-size: 15px; vertical-align: -2px; color: var(--el-color-primary); }
+.quick-config-icon { font-size: 15px; vertical-align: -2px; color: var(--hq); }
 </style>

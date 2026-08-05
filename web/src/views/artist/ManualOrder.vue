@@ -1180,9 +1180,17 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；模板与类名不动——测试断言依赖） ═══ */
 /* ─── 页面容器 ─── */
 .manual-order-page { max-width: 1200px; margin: 0 auto; }
-.hint { color: var(--text-secondary); font-size: 13px; margin-top: 0; }
+/* H1 页面标题：文楷 28/700（REQ §1.3） */
+.manual-order-page h2 {
+  font-family: var(--f-d);
+  font-size: 28px; font-weight: 700;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+.hint { color: var(--ink3); font-size: 13px; margin-top: 4px; }
 
 /* ─── 双栏网格（≥1024px） ─── */
 .mo-grid {
@@ -1191,27 +1199,36 @@ onUnmounted(() => {
   gap: 32px;
   align-items: start;
 }
+/* 分节标题：H2 思源 15/600，朱砂小方块 mark 呼应卡片头部（REQ §二） */
 .mo-section {
-  font-size: 16px; font-weight: 700;
-  color: var(--text-primary);
+  display: flex; align-items: center; gap: 9px;
+  font-size: 15px; font-weight: 600;
+  color: var(--ink);
   margin: 0 0 16px;
   padding-bottom: 10px;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 1px solid var(--line);
+}
+.mo-section::before {
+  content: '';
+  width: 4px; height: 13px;
+  background: var(--zs);
+  border-radius: 2px 1px 2px 1px;
+  flex: none;
 }
 
 /* ─── R6 (REQ-029): 图片显示开关 ─── */
 .mo-show-images {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 12px; margin-bottom: 16px;
-  background: var(--bg-inset);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  font-size: 13px; font-weight: 600; color: var(--ink);
 }
 
 /* ─── R2 (REQ-029): 自定义单提示 ─── */
 .style-skip-hint {
-  font-size: 12px; color: var(--text-secondary);
+  font-size: 12px; color: var(--ink3);
   margin: 8px 0 0;
 }
 
@@ -1235,58 +1252,58 @@ onUnmounted(() => {
 .custom-addon-name {
   flex: 1; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--text-primary);
+  color: var(--ink);
 }
 .custom-addon-price {
-  font-weight: 600; color: var(--el-color-primary);
+  font-weight: 600; color: var(--hq);
   font-variant-numeric: tabular-nums;
 }
-.custom-addon-price--neg { color: var(--el-color-danger); }
+.custom-addon-price--neg { color: var(--zs); }
 .mo-mobile-custom {
   margin-top: 10px; padding-top: 10px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--line);
 }
 .mo-mobile-custom-label {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  font-size: 13px; font-weight: 600; color: var(--ink);
 }
 
 /* ─── 参考图粘贴区（大块显眼） ─── */
 .mo-ref-section {
-  border: 2px dashed var(--border-color);
-  border-radius: 12px;
+  border: 2px dashed var(--line2);
+  border-radius: var(--r-l);
   padding: 16px;
-  background: var(--bg-inset);
+  background: var(--paper2);
   margin-bottom: 20px;
   transition: border-color 0.2s;
 }
 .mo-ref-section:hover, .mo-ref-section:focus-within {
-  border-color: var(--el-color-primary);
+  border-color: var(--hq);
 }
 .mo-ref-label {
   display: flex; align-items: center; gap: 4px;
   font-size: 14px; font-weight: 600;
-  color: var(--text-primary);
+  color: var(--ink);
   margin-bottom: 10px;
 }
 .ref-tip-icon {
-  color: var(--text-secondary); cursor: help;
+  color: var(--ink3); cursor: help;
   vertical-align: middle; transition: color 0.2s;
 }
-.ref-tip-icon:hover { color: var(--el-color-primary); }
+.ref-tip-icon:hover { color: var(--hq); }
 .mo-ref-upload :deep(.el-upload--picture-card) {
   width: 100%; height: 100px;
-  border-radius: 8px;
+  border-radius: var(--r-m);
 }
 /* F2: 拖拽提示 */
-.drag-hint { font-size: 12px; color: var(--text-secondary); }
-.paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+.drag-hint { font-size: 12px; color: var(--ink3); }
+.paste-hint { font-size: 12px; color: var(--ink3); margin-top: 6px; }
 
 /* ─── 档位卡片 ─── */
 .mo-field { margin-bottom: 20px; }
 .mo-field-label {
   font-size: 14px; font-weight: 600;
-  color: var(--text-primary);
+  color: var(--ink);
   margin-bottom: 8px;
 }
 .tier-cards {
@@ -1296,106 +1313,108 @@ onUnmounted(() => {
 }
 .tier-card {
   position: relative;
-  border: 2px solid var(--border-color);
-  border-radius: 10px;
+  border: 2px solid var(--line);
+  border-radius: var(--r-l);
   overflow: hidden;
   cursor: pointer;
-  background: var(--bg-card);
+  background: var(--card);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.tier-card:hover { border-color: var(--el-color-primary-light-5); }
+.tier-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); box-shadow: var(--sh-1); }
 .tier-card--active {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 1px var(--el-color-primary);
+  border-color: var(--hq);
+  box-shadow: 0 0 0 1px var(--hq);
 }
 .tier-card-check {
   position: absolute; top: 6px; right: 6px; z-index: 1;
   width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
-  background: var(--el-color-primary); color: #fff;
+  background: var(--hq); color: #fff;
   border-radius: 50%; font-size: 12px; font-weight: 700;
 }
 .tier-card-img {
   width: 100%; aspect-ratio: 4 / 3;
   object-fit: cover; display: block;
-  background: var(--bg-inset);
+  background: var(--paper2);
 }
 /* v0.38 D路: 画风无封面时显示首字占位（与 OrderForm style-pick-img-empty 一致） */
 .tier-card-img--empty {
   display: flex; align-items: center; justify-content: center;
-  font-size: 32px; font-weight: 700; color: var(--text-muted);
+  font-size: 32px; font-weight: 700; color: var(--ink4);
   aspect-ratio: 4 / 3;
+  font-family: var(--f-d);
 }
 .tier-card-desc {
-  font-size: 12px; color: var(--text-secondary); margin-top: 2px;
+  font-size: 12px; color: var(--ink3); margin-top: 2px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .tier-card-body { padding: 10px 12px; }
-.tier-card-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.tier-card-price { font-size: 15px; font-weight: 700; color: var(--el-color-primary); margin-top: 2px; }
-.tier-card-days { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.tier-card-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+/* 价格文楷落款感（REQ §1.3 数字用文楷），墨色不上色——统计数字铁律 */
+.tier-card-price { font-size: 15px; font-weight: 700; color: var(--ink); font-family: var(--f-d); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tier-card-days { font-size: 12px; color: var(--ink3); margin-top: 2px; }
 .mo-empty-tiers {
   padding: 24px; text-align: center;
-  color: var(--text-secondary); font-size: 13px;
-  border: 1px dashed var(--border-color); border-radius: 8px;
+  color: var(--ink3); font-size: 13px;
+  border: 1px dashed var(--line2); border-radius: var(--r-m);
 }
 
 /* ─── QQ 历史订单面板 ─── */
 .mo-history {
   margin-top: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
   padding: 14px 16px;
-  background: var(--bg-inset);
+  background: var(--paper2);
   min-height: 60px;
 }
 .mo-history-title {
   font-size: 13px; font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--ink2);
   margin: 0 0 10px;
 }
 .mo-history-empty {
-  font-size: 14px; color: var(--el-color-success);
+  font-size: 14px; color: var(--sl);
   font-weight: 600; padding: 4px 0;
 }
 .mo-history-list { display: flex; flex-direction: column; gap: 8px; }
 .mo-history-item {
   display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--text-primary);
+  font-size: 13px; color: var(--ink);
   flex-wrap: wrap;
 }
-.mo-history-no { font-weight: 600; font-variant-numeric: tabular-nums; }
-.mo-history-tier { color: var(--text-secondary); }
-.mo-history-date { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+.mo-history-no { font-weight: 600; font-variant-numeric: tabular-nums; font-family: var(--f-d); }
+.mo-history-tier { color: var(--ink2); }
+.mo-history-date { color: var(--ink3); font-size: 12px; margin-left: auto; }
 
 /* ─── 增项分组（与 OrderForm 一致） ─── */
 .addon-groups { width: 100%; }
-.addon-group { margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+.addon-group { margin-bottom: 12px; border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; }
 .addon-group-title {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; background: var(--bg-inset); cursor: pointer;
-  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  padding: 10px 14px; background: var(--paper2); cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--ink);
   user-select: none;
 }
-.addon-group-title:hover { background: var(--bg-hover); }
-.collapse-arrow { color: var(--text-muted); font-size: 12px; }
+.addon-group-title:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.collapse-arrow { color: var(--ink3); font-size: 12px; }
 .addon-items { padding: 8px 14px; }
 .addon-item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 0; border-bottom: 1px solid var(--border-color);
+  padding: 8px 0; border-bottom: 1px solid var(--line);
 }
 .addon-item:last-child { border-bottom: none; }
 .addon-item-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.addon-item-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
-.addon-item-price { font-size: 12px; color: var(--el-color-primary); font-weight: 600; }
-.addon-item-desc { font-size: 11px; color: var(--text-secondary); }
+.addon-item-name { font-size: 14px; font-weight: 500; color: var(--ink); }
+.addon-item-price { font-size: 12px; color: var(--hq); font-weight: 600; font-variant-numeric: tabular-nums; }
+.addon-item-desc { font-size: 11px; color: var(--ink3); }
 
 /* v0.38 D路: 画风增项列表（平铺式，对齐 OrderForm 交互；radio 选项可换行） */
 .style-addon-list { width: 100%; }
 .style-addon-item {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 10px 0; border-bottom: 1px solid var(--border-color);
+  padding: 10px 0; border-bottom: 1px solid var(--line);
 }
 .style-addon-item:last-child { border-bottom: none; }
 .style-addon-item :deep(.el-radio-group) { flex-wrap: wrap; justify-content: flex-end; }
@@ -1403,31 +1422,33 @@ onUnmounted(() => {
 /* ─── 倍率 ─── */
 .multiplier-section { width: 100%; }
 .multiplier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.multiplier-label { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
+.multiplier-label { font-size: 13px; color: var(--ink2); flex-shrink: 0; }
 
 /* ─── F4: 初始节点状态 ─── */
-.initial-status-hint { font-size: 12px; color: var(--text-secondary); margin: 6px 0 0; }
+.initial-status-hint { font-size: 12px; color: var(--ink3); margin: 6px 0 0; }
 
 /* ─── 价格面板 sticky ─── */
 .mo-price-sticky {
   position: sticky; top: 24px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
   padding: 20px;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--sh-1);
   z-index: 10;
 }
 .price-preview {
-  background: var(--bg-inset); border: 1px solid var(--border-color);
-  border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
+  background: var(--paper2); border: 1px solid var(--line);
+  border-radius: var(--r-m); padding: 14px 16px; margin-bottom: 16px;
 }
-.price-line { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; color: var(--text-secondary); }
-.price-line.total { font-size: 16px; font-weight: 700; color: var(--text-primary); padding-top: 8px; }
+.price-line { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; color: var(--ink2); }
+/* 总价：文楷落款数字（REQ §1.3），墨色不上色 */
+.price-line.total { font-size: 16px; font-weight: 700; color: var(--ink); padding-top: 8px; }
+.price-line.total .price-amount { font-family: var(--f-d); }
 .price-amount { font-variant-numeric: tabular-nums; }
-.price-divider { border-top: 1px dashed var(--border-color); margin: 6px 0; }
+.price-divider { border-top: 1px dashed var(--line2); margin: 6px 0; }
 .mo-final-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.final-price-hint { font-size: 12px; color: var(--text-secondary); }
+.final-price-hint { font-size: 12px; color: var(--ink3); }
 .mo-submit-btn { width: 100%; margin-top: 4px; }
 
 /* ─── 移动端底部价格条（默认隐藏，<600px 显示） ─── */
@@ -1445,18 +1466,18 @@ onUnmounted(() => {
     display: block;
     position: fixed; bottom: 0; left: 0; right: 0;
     z-index: 200;
-    background: var(--bg-card);
-    border-top: 1px solid var(--border-color);
+    background: var(--card);
+    border-top: 1px solid var(--line);
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
   }
   .mo-mobile-details {
     padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--line);
     max-height: 40vh; overflow-y: auto;
   }
   .mo-mobile-final {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 8px; margin-top: 10px; font-size: 13px; color: var(--text-primary);
+    gap: 8px; margin-top: 10px; font-size: 13px; color: var(--ink);
   }
   .mo-mobile-actions {
     display: flex; align-items: center; gap: 12px;
@@ -1467,9 +1488,10 @@ onUnmounted(() => {
     flex: 1; cursor: pointer;
     display: flex; flex-direction: column; gap: 2px;
   }
-  .mo-mobile-total { font-size: 20px; font-weight: 700; color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
+  /* 总价文楷（REQ §1.3 数字用文楷），墨色不上色 */
+  .mo-mobile-total { font-size: 20px; font-weight: 700; color: var(--ink); font-family: var(--f-d); font-variant-numeric: tabular-nums; }
   .mo-mobile-detail-link {
-    font-size: 11px; color: var(--text-secondary);
+    font-size: 11px; color: var(--ink3);
     display: flex; align-items: center; gap: 2px;
   }
   .mo-mobile-submit { min-width: 120px; }
