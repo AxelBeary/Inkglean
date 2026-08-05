@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 晚 v4——**五号打磨第二批合入（`43395ff`）+ v0.40 四路派工齐发**：二号 D 软提示 + addons 前端清理 / 三号 workflow 事务 + ADMIN_QQ fail-fast / 四号画师说明书更新 / 五号低风险清扫批。D 项用户拍板 = 软提示。worktree 四开（d2/tx/docs2/clean）。
+> 最后更新：2026-08-05 晚 v5——**v0.40 四路全部收官**：四号说明书 v0.39（`ece9310`）+ 五号清扫批（`91c6995`，CI 补 vitest）+ 二号 D 软提示 + addons 前端清理（`13dd4e7`）+ 三号 workflow 事务 + ADMIN_QQ fail-fast（`f3d9668`）。基线 server **897/897** · web **215/215**。worktree 全回收。**待用户确认：addons 第二批含 v43 DROP 迁移（高风险）派工。**
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿（server 831/web 192）、三个 worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
@@ -8,9 +8,9 @@
 ---
 ## master 状态
 
-- **HEAD**：`43395ff`（打磨第二批合入），与 origin 同步
-- **工作树**：主仓 + v0.40 四路 worktree（d2 / tx / docs2 / clean）
-- **测试基线**：server 891/891（51 文件，含 F2 平台/防投毒测试）· web 224/224（14 文件，含 linkValidation 27 例）· lint 0 · build 过
+- **HEAD**：`78bb795`（v0.40 收工），与 origin 同步
+- **工作树**：主仓，worktree 全回收
+- **测试基线**：server 897/897（53 文件）· web 215/215（14 文件，addons 清理删 10 旧用例 + D 软提示 1 例）· lint 0 · build 过 · CI 已补 web vitest
 - **容器**：v0.38 新视觉已重建部署，healthy（TOTP 合入后重建先例；迁移 v41 实跑通过）
 - **备份**：`data/commission.db.bak-v037-pre-v41`（TOTP 合入前）+ `bak-v037-pre-v40`（A 路前）+ 更早三轮备份
 - **迁移**：v42（F2 社交平台表 + 24 平台种子，幂等守卫）
@@ -77,10 +77,10 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | 🔨 **D 软提示 + addons 前端清理进行中**（worktree `../artist-commission-d2`，先合） |
-| 三号 | 🔨 **workflow 事务 + ADMIN_QQ fail-fast 进行中**（worktree `../artist-commission-tx`；addons 第二批 schema 删除等二号合入后另派） |
-| 四号 | 🔨 **画师说明书更新进行中**（worktree `../artist-commission-docs2`） |
-| 五号 | 🔨 **低风险清扫批进行中**（worktree `../artist-commission-clean`：垃圾文件/changelog/CONTEXT/CI vitest/admin el-empty 覆写） |
+| 二号 | ✅ D 软提示 + addons 前端清理已合入（`13dd4e7`）→ 待派 |
+| 三号 | ✅ workflow 事务批已合入（`f3d9668`）→ 待派（addons 第二批等用户确认 DROP 迁移） |
+| 四号 | ✅ 说明书 v0.39 已合入（`ece9310`）→ 待派 |
+| 五号 | ✅ 清扫批已合入（`91c6995`）→ 待派 |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
@@ -89,7 +89,9 @@
 
 | 项 | 归属 |
 |----|------|
-| addons 表处置 | 第一批已合入（`1b8a375`）；第二批拆分：前端旧模型清理 = 二号本批，后端 schema 删除 + createOrder 参数 + pricing/calculate schema + errors/entities 死码 + DROP 迁移 **v43** = 二号合入后另派三号 |
+| addons 表处置 | 第一批已合入（`1b8a375`）+ 前端清理已合入（`13dd4e7`）；**剩后端收尾等用户拍板**：POST/手动录单 schema addons 字段删除 + createOrder 参数 + pricing/calculate schema + 死错误码清理 + DROP price_addons/addon_tiers 迁移 **v43**（高风险：DROP 表，事务外 + FK 关闭 + 迁移前备份，守 v38 事故规则） |
+| 环境批（待用户确认生产配置） | P0-2 Caddyfile 压缩+缓存头 / uploads attachment 区分公开与签名路径 / P1-1 compose 3000 端口暴露——A 测前打包一次做 |
+| 容器重建部署 | master 已领先容器（v42 迁移 + F1/F2 + workflow 事务 + 清扫批）——A 测前置，重建前报用户确认 |
 | 第三方报告核实修复项 | 已派：P0-1/P1-4 = 三号本批；4 低风险 = 五号本批；**待派**：P0-2 uploads attachment / P1-1 compose 3000（环境批）；P1-2 限流 LRU = 架构决策需拍板 |
 | AUTH_DEV_MODE=false 关闭 | A 测启动时执行（手册 §二检查单） |
 | 打磨批 D：约稿需求描述可空过 | ✅ 用户拍板 = **软提示**（2026-08-05），二号本批实施 |
