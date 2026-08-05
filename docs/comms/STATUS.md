@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 晚 v5——**v0.40 四路全部收官**：四号说明书 v0.39（`ece9310`）+ 五号清扫批（`91c6995`，CI 补 vitest）+ 二号 D 软提示 + addons 前端清理（`13dd4e7`）+ 三号 workflow 事务 + ADMIN_QQ fail-fast（`f3d9668`）。基线 server **897/897** · web **215/215**。worktree 全回收。**待用户确认：addons 第二批含 v43 DROP 迁移（高风险）派工。**
+> 最后更新：2026-08-05 晚 v6——**用户拍板 DROP，两路派工**：三号 addons 收尾批（schema 删除 + 死码 + DROP 迁移 v43）/ 五号安全加固批（F1 totp_secret 泄露 4 端点 DTO 补全 + F4/F6/F9/F3，依据五号安全审计核实报告——还抓出对方 patch 漏修第 4 端点）。**待用户拍板：F14 客户查单页 adminQq（保留 or 脱敏）。**
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿（server 831/web 192）、三个 worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
@@ -8,8 +8,8 @@
 ---
 ## master 状态
 
-- **HEAD**：`78bb795`（v0.40 收工），与 origin 同步
-- **工作树**：主仓，worktree 全回收
+- **HEAD**：（本轮收尾 commit），与 origin 同步
+- **工作树**：主仓 + 两路 worktree（drop=三号 addons 收尾 / sec=五号安全加固）
 - **测试基线**：server 897/897（53 文件）· web 215/215（14 文件，addons 清理删 10 旧用例 + D 软提示 1 例）· lint 0 · build 过 · CI 已补 web vitest
 - **容器**：v0.38 新视觉已重建部署，healthy（TOTP 合入后重建先例；迁移 v41 实跑通过）
 - **备份**：`data/commission.db.bak-v037-pre-v41`（TOTP 合入前）+ `bak-v037-pre-v40`（A 路前）+ 更早三轮备份
@@ -78,9 +78,9 @@
 | 角色 | 状态 |
 |------|------|
 | 二号 | ✅ D 软提示 + addons 前端清理已合入（`13dd4e7`）→ 待派 |
-| 三号 | ✅ workflow 事务批已合入（`f3d9668`）→ 待派（addons 第二批等用户确认 DROP 迁移） |
+| 三号 | 🔨 **addons 收尾批进行中**（worktree `../artist-commission-drop`：schema 删除 + 死码 + DROP v43，用户已拍板） |
 | 四号 | ✅ 说明书 v0.39 已合入（`ece9310`）→ 待派 |
-| 五号 | ✅ 清扫批已合入（`91c6995`）→ 待派 |
+| 五号 | 🔨 **安全加固批进行中**（worktree `../artist-commission-sec`：F1 totp_secret DTO 补全 + F4/F6/F9/F3） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
@@ -89,7 +89,8 @@
 
 | 项 | 归属 |
 |----|------|
-| addons 表处置 | 第一批已合入（`1b8a375`）+ 前端清理已合入（`13dd4e7`）；**剩后端收尾等用户拍板**：POST/手动录单 schema addons 字段删除 + createOrder 参数 + pricing/calculate schema + 死错误码清理 + DROP price_addons/addon_tiers 迁移 **v43**（高风险：DROP 表，事务外 + FK 关闭 + 迁移前备份，守 v38 事故规则） |
+| addons 表处置 | 第一批（`1b8a375`）+ 前端清理（`13dd4e7`）已合入；**收尾批进行中**（三号 worktree drop：schema 删除 + 死码 + DROP v43，用户 2026-08-05 拍板） |
+| 安全加固（五号核实报告） | F1 totp_secret 泄露 4 端点 + F4/F6/F9/F3 = 五号本批；**F14 adminQq 待用户拍板**（客户查单页「联系管理员」弹窗在用，产品功能）；F2/F5/F7/F8/F10/F12/F13 = P1/P2 排期（F7 已知延后/F8 产品设计/F13 已缓解/F12 CI npm audit 可选） |
 | 环境批（待用户确认生产配置） | P0-2 Caddyfile 压缩+缓存头 / uploads attachment 区分公开与签名路径 / P1-1 compose 3000 端口暴露——A 测前打包一次做 |
 | 容器重建部署 | master 已领先容器（v42 迁移 + F1/F2 + workflow 事务 + 清扫批）——A 测前置，重建前报用户确认 |
 | 第三方报告核实修复项 | 已派：P0-1/P1-4 = 三号本批；4 低风险 = 五号本批；**待派**：P0-2 uploads attachment / P1-1 compose 3000（环境批）；P1-2 限流 LRU = 架构决策需拍板 |
