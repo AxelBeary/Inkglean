@@ -79,7 +79,7 @@
 | 二号 | ✅ v038 第一批已合入（`368021c`）→ **v038 第二批待开工**（用户外部窗口；剩余页面 OrderList/SlotManage/TierManage/ArtworkManage/GuestbookManage/Settings/Login + 管理后台 + RevenueChart 数字上色修复） |
 | 三号 | ✅ F2 外链后端已过审（分支待合入，等 F2 前端批）→ **F1-1 发布作品后端待开工**（用户外部窗口；worktree `../artist-commission-f1`） |
 | 四号 | ✅ 拆解批 + AI头脑风暴拆解 + **F1/F2 验收清单（`98348e8`，一号审核合并，acc worktree 已回收）** 全部完成 → **空闲待派**。⚠️ 2026-08-05 流程违规记账：头脑风暴拆解未走 worktree 直 commit master（内容已过审），已提醒 |
-| 五号 | ✅ F4+F3+F5 已合入 → **文档同步批待开工**（TOTP 后 docs 漂移修复，worktree `../artist-commission-docs`，仅 docs/） |
+| 五号 | ✅ F4+F3+F5+文档同步批（`ce1a3eb`）+第三方测试核实（10条→真5/误报3/产品决策2，抽查属实）已合入 → **打磨批待开工**（A色板i18n/B对比度/C placeholder/E无障碍名，worktree `../artist-commission-fixes`；D 需求描述可空过等用户拍板不碰） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
