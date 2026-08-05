@@ -221,13 +221,11 @@ describe('档位与计价展示', () => {
     expect(of.selectedTier.value).toEqual(MOCK_PROFILE.tiers[0])
   })
 
-  it('onTierChange：清空增项/倍率/价格/展开状态', async () => {
+  it('onTierChange：清空倍率/价格/展开状态', async () => {
     const { of } = await createForm()
     of.form.tierId = 1
     await nextTick()
     // 制造一些状态
-    of.addonSelections[101] = 2
-    of.addonToggles[102] = true
     of.form.usageMultiplierId = 201
     of.form.rushMultiplierId = 202
     of.pricePreview.value = MOCK_CALC_RESULT
@@ -235,65 +233,19 @@ describe('档位与计价展示', () => {
 
     of.onTierChange()
 
-    expect(Object.keys(of.addonSelections)).toHaveLength(0)
-    expect(Object.keys(of.addonToggles)).toHaveLength(0)
     expect(of.form.usageMultiplierId).toBeNull()
     expect(of.form.rushMultiplierId).toBeNull()
     expect(of.pricePreview.value).toBeNull()
     expect(of.pricingExpanded.value).toBe(false)
   })
 
-  it('formatAddonPrice：inquiry → 面议', async () => {
-    const { of } = await createForm()
-    expect(of.formatAddonPrice({ select_mode: 'inquiry' })).toBe('面议')
-  })
-
-  it('formatAddonPrice：percent → +N%', async () => {
-    const { of } = await createForm()
-    expect(of.formatAddonPrice({ select_mode: 'toggle', price_type: 'percent', price_value: 0.3 })).toBe('+30%')
-  })
-
-  it('formatAddonPrice：fixed → ¥N/个', async () => {
-    const { of } = await createForm()
-    expect(of.formatAddonPrice({ select_mode: 'quantity', price_type: 'fixed', price_value: 20 })).toBe('¥20/个')
-  })
-
-  it('availableAddons：无档位 → 空数组', async () => {
-    const { of } = await createForm()
-    expect(of.availableAddons.value).toEqual([])
-  })
-
-  it('availableAddons：选中档位 1 → 返回 3 个增项', async () => {
-    const { of } = await createForm()
-    of.form.tierId = 1
-    expect(of.availableAddons.value).toHaveLength(3)
-    expect(of.availableAddons.value[0].name).toBe('表情差分A')
-  })
-
-  it('availableAddons：选中档位 2（无增项）→ 空数组', async () => {
-    const { of } = await createForm()
-    of.form.tierId = 2
-    expect(of.availableAddons.value).toEqual([])
-  })
-
-  it('addonGroups：按 category 分组，含元信息', async () => {
-    const { of } = await createForm()
-    of.form.tierId = 1
-    const groups = of.addonGroups.value
-    expect(groups).toHaveLength(3) // expression, outfit, background
-    const expr = groups.find(g => g.category === 'expression')
-    expect(expr.label).toBe('表情差分') // v0.34 任务F：emoji 图标已移除，只剩文字标签
-    expect(expr.items).toHaveLength(1)
-    expect(expr.collapsed).toBe(false)
-  })
-
-  it('hasPricingExtras：无增项无倍率 → false', async () => {
+  it('hasPricingExtras：无倍率无折扣 → false', async () => {
     const { of } = await createForm({ pricing: { tiers: [], multipliers: [] } })
     of.form.tierId = 1
     expect(of.hasPricingExtras.value).toBe(false)
   })
 
-  it('hasPricingExtras：有增项 → true', async () => {
+  it('hasPricingExtras：有倍率 → true', async () => {
     const { of } = await createForm()
     of.form.tierId = 1
     expect(of.hasPricingExtras.value).toBe(true)
@@ -305,20 +257,6 @@ describe('档位与计价展示', () => {
     expect(of.usageMultipliers.value[0].name).toBe('商用')
     expect(of.rushMultipliers.value).toHaveLength(1)
     expect(of.rushMultipliers.value[0].name).toBe('加急')
-  })
-})
-
-// ─── 增项默认值初始化 ───
-
-describe('增项默认值初始化', () => {
-  it('quantity → 0，toggle/inquiry → false（防 el-input-number undefined 崩溃）', async () => {
-    const { of } = await createForm()
-    of.form.tierId = 1
-    await nextTick() // 触发 availableAddons watcher
-
-    expect(of.addonSelections[101]).toBe(0)   // quantity
-    expect(of.addonToggles[102]).toBe(false)   // toggle
-    expect(of.addonToggles[103]).toBe(false)   // inquiry
   })
 })
 
@@ -356,40 +294,6 @@ describe('价格计算', () => {
     await vi.advanceTimersByTimeAsync(300)
 
     expect(of.pricePreview.value).toBeNull()
-  })
-
-  it('buildSelectedAddons：quantity>0 和 toggle=true 被包含，inquiry=false 不包含', async () => {
-    vi.useFakeTimers()
-    const { of } = await createForm()
-
-    of.form.tierId = 1
-    await nextTick()
-    of.addonSelections[101] = 2  // quantity > 0 → 包含
-    of.addonToggles[102] = true  // toggle on → 包含
-    // 103 (inquiry) 默认 false → 不包含
-    await nextTick()
-    await vi.advanceTimersByTimeAsync(300)
-
-    expect(artistPublicApi.calculatePrice).toHaveBeenCalledWith(expect.objectContaining({
-      addons: [
-        { addonId: 101, quantity: 2 },
-        { addonId: 102, quantity: 1 }
-      ]
-    }))
-  })
-
-  it('inquiry 增项勾选后也被包含', async () => {
-    vi.useFakeTimers()
-    const { of } = await createForm()
-
-    of.form.tierId = 1
-    await nextTick()
-    of.addonToggles[103] = true // inquiry 勾选
-    await nextTick()
-    await vi.advanceTimersByTimeAsync(300)
-
-    const callArgs = artistPublicApi.calculatePrice.mock.calls.at(-1)[0]
-    expect(callArgs.addons).toContainEqual({ addonId: 103, quantity: 1 })
   })
 })
 
@@ -434,11 +338,9 @@ describe('草稿保存 / 恢复', () => {
     expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
   })
 
-  it('恢复草稿：有效档位 + 增项选择被还原', async () => {
+  it('恢复草稿：有效档位 + 倍率被还原', async () => {
     const draft = {
-      form: { tierId: 1, description: '恢复测试', clientQq: '999', clientName: '张三', notifyEnabled: false, usageMultiplierId: 201, rushMultiplierId: null },
-      addonSelections: { 101: 3 },
-      addonToggles: { 102: true }
+      form: { tierId: 1, description: '恢复测试', clientQq: '999', clientName: '张三', notifyEnabled: false, usageMultiplierId: 201, rushMultiplierId: null }
     }
     const { of } = await createForm({ draft })
 
@@ -449,16 +351,12 @@ describe('草稿保存 / 恢复', () => {
     expect(of.form.clientName).toBe('张三')
     expect(of.form.notifyEnabled).toBe(false)
     expect(of.form.usageMultiplierId).toBe(201)
-    expect(of.addonSelections[101]).toBe(3)
-    expect(of.addonToggles[102]).toBe(true)
     expect(ElMessage.success).toHaveBeenCalled()
   })
 
   it('恢复草稿：档位已被画师删除 → tierId 和倍率置空，其余字段保留', async () => {
     const draft = {
-      form: { tierId: 999, description: '档位没了', clientQq: '888', clientName: '', notifyEnabled: true, usageMultiplierId: 201, rushMultiplierId: 202 },
-      addonSelections: { 101: 2 },
-      addonToggles: {}
+      form: { tierId: 999, description: '档位没了', clientQq: '888', clientName: '', notifyEnabled: true, usageMultiplierId: 201, rushMultiplierId: 202 }
     }
     const { of } = await createForm({ draft })
 
@@ -571,8 +469,6 @@ describe('草稿画风状态保存 / 恢复', () => {
     expect(of.form.clientQq).toBe('777')
     // 模式互斥：tierId 置空、旧增项不恢复
     expect(of.form.tierId).toBeNull()
-    expect(Object.keys(of.addonSelections)).toHaveLength(0)
-    expect(Object.keys(of.addonToggles)).toHaveLength(0)
     // 恢复后触发一次价格重算（防抖 300ms）
     await vi.advanceTimersByTimeAsync(300)
     expect(artistPublicApi.calculateStylePrice).toHaveBeenCalledWith(expect.objectContaining({
@@ -636,7 +532,6 @@ describe('草稿画风状态保存 / 恢复', () => {
     const { of } = await createStyleForm({ draft })
 
     expect(of.form.tierId).toBeNull()
-    expect(of.addonSelections[101]).toBeUndefined()
     expect(of.form.usageMultiplierId).toBeNull()
     expect(of.selectedStyleId.value).toBeNull()
     expect(of.selectedSizeId.value).toBeNull()
@@ -653,7 +548,6 @@ describe('草稿画风状态保存 / 恢复', () => {
     const { of } = await createForm({ draft }) // styles=[] → 旧模型
 
     expect(of.form.tierId).toBe(1)
-    expect(of.addonSelections[101]).toBe(2)
     expect(of.selectedStyleId.value).toBeNull()
     expect(of.selectedSizeId.value).toBeNull()
     expect(Object.keys(of.styleAddonSelections)).toHaveLength(0)

@@ -210,7 +210,7 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     expect(h.created.tierId).toBeNull()
     expect(h.created.styleSizeId).toBe(111)
     expect(h.created.styleAddons).toEqual([{ styleAddonId: 1112 }])
-    expect(h.created.addons).toEqual([])
+    expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传
     // G2：未手输价 → 不调 updatePrice
     expect(h.updatedPrice).toBeNull()
 
@@ -235,12 +235,12 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     expect(h.created.tierId).toBeNull()
     expect(h.created.styleSizeId).toBe(121)
     expect(h.created.styleAddons).toEqual([])
-    expect(h.created.addons).toEqual([])
+    expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传
 
     wrapper.unmount()
   })
 
-  it('旧档位模式回归：styles 为空时档位卡片 + 旧增项提交不受影响', async () => {
+  it('旧档位模式回归：styles 为空时档位卡片正常，旧增项 UI 已移除且提交不传 addons', async () => {
     setupState({ styles: [] })
     const wrapper = mountPage()
     await flushPromises()
@@ -249,20 +249,15 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     expect(wrapper.text()).toContain('manualOrder.tier')
     expect(wrapper.text()).not.toContain('manualOrder.styleTitle')
 
-    // 选档位 1 → 旧增项出现
+    // 选档位 1 → 旧增项 UI 不再出现（addons 冻结清理，仅倍率区保留）
     await clickCardInSection(wrapper, 'manualOrder.tier', 0)
-    expect(wrapper.text()).toContain('manualOrder.addons')
-    expect(wrapper.findAll('.addon-group')).toHaveLength(1)
-
-    // quantity 增项选择 2 个（旧模式 el-input-number 用 v-model → update:modelValue）
-    const qtyComp = wrapper.findAllComponents(ElInputNumber).at(0)
-    await qtyComp.vm.$emit('update:modelValue', 2)
-    await vi.advanceTimersByTimeAsync(300)
+    expect(wrapper.findAll('.addon-group')).toHaveLength(0)
+    expect(wrapper.text()).not.toContain('manualOrder.addons')
 
     await fillQqAndSubmit(wrapper)
     expect(h.created).not.toBeNull()
     expect(h.created.tierId).toBe(1)
-    expect(h.created.addons).toEqual([{ addonId: 101, quantity: 2 }])
+    expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传
     expect(h.created.styleSizeId).toBeUndefined()
     expect(h.created.styleAddons).toBeUndefined()
 
@@ -497,7 +492,7 @@ describe('ManualOrder 补漏批（REQ-029）', () => {
     expect(h.created.tierId).toBeNull()
     expect(h.created.styleSizeId).toBeUndefined()
     expect(h.created.styleAddons).toBeUndefined()
-    expect(h.created.addons).toEqual([])
+    expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传
     expect(h.updatedPrice).not.toBeNull()
     expect(h.updatedPrice.finalPriceCents).toBe(9900)
 

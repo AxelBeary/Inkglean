@@ -65,45 +65,9 @@
                   </button>
                 </div>
 
-                <!-- 增项选择（R14: 展开后才显示） -->
+                <!-- 增项选择（R14: 展开后才显示；旧模型增项已随 addons 冻结清理，仅剩倍率） -->
                 <Transition name="pricing-expand">
                   <div v-if="pricingExpanded && form.tierId">
-                    <el-form-item v-if="availableAddons.length > 0" label="可选增项">
-                      <div class="addon-groups">
-                        <div v-for="group in addonGroups" :key="group.category" class="addon-group">
-                          <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
-                            <span>{{ group.label }}</span>
-                            <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
-                          </div>
-                          <div v-show="!group.collapsed" class="addon-items">
-                            <div v-for="a in group.items" :key="a.id" class="addon-item">
-                              <div class="addon-item-info">
-                                <span class="addon-item-name">{{ a.name }}</span>
-                                <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
-                                <span v-if="a.description" class="addon-item-desc">{{ a.description }}</span>
-                              </div>
-                              <!-- 数量模式 -->
-                              <el-input-number
-                                v-if="a.select_mode === 'quantity'"
-                                v-model="addonSelections[a.id]"
-                                :min="0" :max="a.max_qty" size="small" style="width: 110px"
-                              />
-                              <!-- 开关模式 -->
-                              <el-switch
-                                v-else-if="a.select_mode === 'toggle'"
-                                v-model="addonToggles[a.id]" size="small"
-                              />
-                              <!-- 面议模式（P1-C 修复：改为 toggle，需用户显式勾选） -->
-                              <el-switch
-                                v-else-if="a.select_mode === 'inquiry'"
-                                v-model="addonToggles[a.id]" size="small"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </el-form-item>
-
                     <!-- 倍率选择 -->
                     <el-form-item v-if="usageMultipliers.length > 0 || rushMultipliers.length > 0" label="用途与加急">
                       <div class="multiplier-section">
@@ -408,7 +372,7 @@
 
                 <div class="step-nav">
                   <el-button @click="step = isStyleMode ? addonStep : 1">{{ $t('orderForm.prevStep') }}</el-button>
-                  <el-button type="primary" @click="step = contactStep">{{ $t('orderForm.nextStep') }}</el-button>
+                  <el-button type="primary" @click="goNextFromDetail">{{ $t('orderForm.nextStep') }}</el-button>
                 </div>
               </div>
 
@@ -634,9 +598,9 @@ const {
   form, rules,
   submitting, showSuccess, resultNo, submit,
   refFileList, handleRefUpload, handleRefRemove,
-  addonSelections, addonToggles, pricePreview, pricingExpanded,
-  selectedTier, hasPricingExtras, availableAddons, addonGroups,
-  usageMultipliers, rushMultipliers, formatAddonPrice, onTierChange,
+  pricePreview, pricingExpanded,
+  selectedTier, hasPricingExtras,
+  usageMultipliers, rushMultipliers, onTierChange,
   sanitizedRules,
   // v0.31 F3: 折扣码
   discountEnabled, discountResult, discountError, discountValidating,
@@ -652,6 +616,25 @@ const {
   // v0.35 F4: 预选摘要横幅文案（入口 A 预选可见，可回上一步改）
   preselectBannerText
 } = useOrderForm(subdomain, formRef, route.query)
+
+// ─── D 软提示（用户拍板：需求描述可空过，仅留空时弹一次确认，不拦截） ───
+function goNextFromDetail() {
+  if (!form.description.trim()) {
+    ElMessageBox.confirm(
+      t('orderForm.descSoftMsg'),
+      t('orderForm.descSoftTitle'),
+      {
+        confirmButtonText: t('orderForm.descSoftContinue'),
+        cancelButtonText: t('common.cancel'),
+        type: 'info'
+      }
+    )
+      .then(() => { step.value = contactStep.value })
+      .catch(() => { /* 用户取消：留在本步 */ })
+    return
+  }
+  step.value = contactStep.value
+}
 
 // ─── R58-2: 分步引导（v0.32: 动态步骤号） ───
 const step = ref(1)

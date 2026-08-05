@@ -27,15 +27,6 @@ import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize.js'
 import { usePasteUpload } from './usePasteUpload.js'
 
-// 增项分类元信息（图标 + 中文标签，仅 UI 展示用）
-const CATEGORY_META = {
-  expression: { label: '表情差分' },
-  outfit: { label: '服装替换' },
-  background: { label: '背景场景' },
-  weapon: { label: '武器道具' },
-  other: { label: '其他' }
-}
-
 export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const { t } = useI18n()
 
@@ -132,8 +123,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const refUidMap = ref(new Map())
 
   // ─── 价格计算器状态 ───
-  const addonSelections = reactive({}) // addonId → quantity
-  const addonToggles = reactive({})    // addonId → boolean
   const pricePreview = ref(null)
   const pricingExpanded = ref(false)   // R14: 详细计价展开状态
 
@@ -143,29 +132,10 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   // R14: 当前选中档位（摘要行用）
   const selectedTier = computed(() => tiers.value.find(tier => tier.id === form.tierId) || null)
 
-  const availableAddons = computed(() => {
-    if (!form.tierId || !pricingData.value) return []
-    const tier = pricingData.value.tiers.find(item => item.id === form.tierId)
-    return tier?.addons || []
-  })
-
-  // R14: 有增项、倍率或折扣码时才显示"详细计价"入口（v0.31 F3: 折扣码输入区在 price-preview 内）
+  // R14: 有倍率或折扣码时才显示"详细计价"入口（旧模型增项已随 addons 冻结清理，恒无增项）
   const hasPricingExtras = computed(() =>
-    availableAddons.value.length > 0 || usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0 || discountEnabled.value
+    usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0 || discountEnabled.value
   )
-
-  // 增项分组（按 category 折叠）
-  const addonGroups = computed(() => {
-    const groups = {}
-    for (const a of availableAddons.value) {
-      if (!groups[a.category]) {
-        const meta = CATEGORY_META[a.category] || { label: a.category }
-        groups[a.category] = { category: a.category, ...meta, collapsed: false, items: [] }
-      }
-      groups[a.category].items.push(a)
-    }
-    return Object.values(groups)
-  })
 
   const usageMultipliers = computed(() =>
     (pricingData.value?.multipliers || []).filter(m => m.type === 'usage')
@@ -174,16 +144,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     (pricingData.value?.multipliers || []).filter(m => m.type === 'rush')
   )
 
-  function formatAddonPrice(a) {
-    if (a.select_mode === 'inquiry') return '面议'
-    if (a.price_type === 'percent') return `+${Math.round(a.price_value * 100)}%`
-    return `¥${a.price_value}/个`
-  }
-
   function onTierChange() {
-    // 清空之前的增项选择
-    for (const key of Object.keys(addonSelections)) delete addonSelections[key]
-    for (const key of Object.keys(addonToggles)) delete addonToggles[key]
+    // 切换档位重置倍率与价格预览
     form.usageMultiplierId = null
     form.rushMultiplierId = null
     pricePreview.value = null
@@ -197,28 +159,12 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     calcTimer = setTimeout(doCalc, 300)
   }
 
-  /** 构建已选增项列表（计价与提交共用，避免两处重复逻辑漂移） */
-  function buildSelectedAddons() {
-    const addons = []
-    for (const a of availableAddons.value) {
-      if (a.select_mode === 'quantity' && addonSelections[a.id] > 0) {
-        addons.push({ addonId: a.id, quantity: addonSelections[a.id] })
-      } else if (a.select_mode === 'toggle' && addonToggles[a.id]) {
-        addons.push({ addonId: a.id, quantity: 1 })
-      } else if (a.select_mode === 'inquiry' && addonToggles[a.id]) {
-        addons.push({ addonId: a.id, quantity: 1 })
-      }
-    }
-    return addons
-  }
-
   async function doCalc() {
     if (!form.tierId) { pricePreview.value = null; return }
     try {
       pricePreview.value = await artistPublicApi.calculatePrice({
         subdomain,
         tierId: form.tierId,
-        addons: buildSelectedAddons(),
         usageMultiplierId: form.usageMultiplierId,
         rushMultiplierId: form.rushMultiplierId
       })
@@ -229,20 +175,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   // 监听选择变化 → 触发计算
   watch([() => form.tierId, () => form.usageMultiplierId, () => form.rushMultiplierId], scheduleCalc)
-  watch(addonSelections, scheduleCalc, { deep: true })
-  watch(addonToggles, scheduleCalc, { deep: true })
-
-  // 增项默认值初始化：el-input-number 的 v-model 不接受 undefined，
-  // 展开详细计价前须确保所有增项键已存在（quantity → 0，toggle/inquiry → false）
-  watch(availableAddons, (addons) => {
-    for (const a of addons) {
-      if (a.select_mode === 'quantity') {
-        if (addonSelections[a.id] === undefined) addonSelections[a.id] = 0
-      } else if (addonToggles[a.id] === undefined) {
-        addonToggles[a.id] = false
-      }
-    }
-  }, { immediate: true })
 
   // ─── v0.31 F3: 折扣码（验证 → 预估折扣展示 → 提交时传码，后端真正扣减） ───
   /** 画师是否开启折扣功能（getPricing 返回 discountEnabled） */
@@ -442,8 +374,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     || !!form.description.trim()
     || !!form.clientQq.trim()
     || !!form.clientName.trim()
-    || Object.values(addonSelections).some(v => v > 0)
-    || Object.values(addonToggles).some(Boolean)
     || Object.values(styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0 || s.optionLabel != null))
   )
 
@@ -463,8 +393,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
           usageMultiplierId: form.usageMultiplierId,
           rushMultiplierId: form.rushMultiplierId
         },
-        addonSelections: { ...addonSelections },
-        addonToggles: { ...addonToggles },
         // v0.33: 画风三步走状态（styleId/sizeId/增项勾选），恢复时按 isStyleMode 互斥取用
         styleState: {
           styleId: selectedStyleId.value,
@@ -486,8 +414,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       () => form.notifyEnabled, () => form.usageMultiplierId, () => form.rushMultiplierId],
     scheduleDraftSave
   )
-  watch(addonSelections, scheduleDraftSave, { deep: true })
-  watch(addonToggles, scheduleDraftSave, { deep: true })
   // v0.33: 画风三步走状态变化也要存草稿（刷新后不丢选择）
   watch(selectedStyleId, scheduleDraftSave)
   watch(selectedSizeId, scheduleDraftSave)
@@ -504,8 +430,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     if (isStyleMode.value) {
       // ── 画风模式：恢复三步走状态，旧模型字段置空 ──
       form.tierId = null
-      for (const key of Object.keys(addonSelections)) delete addonSelections[key]
-      for (const key of Object.keys(addonToggles)) delete addonToggles[key]
 
       const ss = draft.styleState || {}
       // v0.34 任务B：URL query 预选 > 草稿恢复——query 已预选的项不被草稿覆盖
@@ -547,8 +471,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       form.tierId = tierValid ? f.tierId : null
       form.usageMultiplierId = tierValid ? (f.usageMultiplierId ?? null) : null
       form.rushMultiplierId = tierValid ? (f.rushMultiplierId ?? null) : null
-      if (tierValid && draft.addonSelections) Object.assign(addonSelections, draft.addonSelections)
-      if (tierValid && draft.addonToggles) Object.assign(addonToggles, draft.addonToggles)
     }
 
     // ── 文本字段两种模式通用 ──
@@ -646,7 +568,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
         clientNotify: form.notifyEnabled,
         agreeRules: form.agreed,
         references: uploadedRefs.value,
-        addons: isStyleSubmit ? [] : buildSelectedAddons(), // 画风模式不传旧增项
         usageMultiplierId: form.usageMultiplierId,
         rushMultiplierId: form.rushMultiplierId,
         // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
@@ -744,9 +665,9 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     // 参考图
     refFileList, handleRefUpload, handleRefRemove,
     // 计价
-    addonSelections, addonToggles, pricePreview, pricingExpanded,
-    selectedTier, hasPricingExtras, availableAddons, addonGroups,
-    usageMultipliers, rushMultipliers, formatAddonPrice, onTierChange,
+    pricePreview, pricingExpanded,
+    selectedTier, hasPricingExtras,
+    usageMultipliers, rushMultipliers, onTierChange,
     // 须知预览
     sanitizedRules,
     // v0.31 F3: 折扣码
