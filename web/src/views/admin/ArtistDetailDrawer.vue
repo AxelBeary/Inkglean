@@ -210,7 +210,7 @@ async function saveRules() {
 </script>
 
 <style scoped>
-.tier-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-color); }
+.tier-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .tier-name { font-weight: 600; }
 .tier-price { margin-left: auto; font-weight: 700; }
 .add-row { display: flex; gap: 8px; margin-top: 12px; }
@@ -218,5 +218,5 @@ async function saveRules() {
 .artwork-item { position: relative; }
 .artwork-img { width: 100%; height: 120px; border-radius: 6px; }
 .artwork-item .el-button { position: absolute; top: 4px; right: 4px; }
-.hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+.hint { font-size: 12px; color: var(--ink2); margin-top: 8px; }
 </style>

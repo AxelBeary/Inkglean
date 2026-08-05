@@ -408,14 +408,15 @@ onMounted(loadArtists)
 .admin-page { /* 容器由 AdminLayout 提供 */ }
 /* B7: 订单行展开——收款摘要 */
 .order-expand-pay { padding: 8px 16px; }
-.expand-pay-summary { display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; flex-wrap: wrap; }
-.expand-pay-summary strong { color: var(--text-primary); }
+/* v0.38 第二批: 纸墨 token（REQ-026，管理后台从简） */
+.expand-pay-summary { display: flex; gap: 12px; font-size: 13px; color: var(--ink2); margin-bottom: 8px; flex-wrap: wrap; }
+.expand-pay-summary strong { color: var(--ink); }
 .expand-inst-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
-.expand-no-data { font-size: 12px; color: var(--text-secondary); margin: 4px 0; }
+.expand-no-data { font-size: 12px; color: var(--ink3); margin: 4px 0; }
 /* REQ-027: TOTP 绑定弹窗 + transfer 提示 */
 .totp-qr-wrap { display: flex; justify-content: center; margin: 12px 0 4px; }
-.totp-qr { width: 200px; height: 200px; border: 1px solid var(--border-color); border-radius: 8px; }
-.totp-step { font-size: 13px; color: var(--text-primary); margin: 8px 0; }
-.totp-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
-.transfer-hint { font-size: 12px; color: var(--text-secondary); margin: 0; }
+.totp-qr { width: 200px; height: 200px; border: 1px solid var(--line); border-radius: var(--r-m); }
+.totp-step { font-size: 13px; color: var(--ink); margin: 8px 0; }
+.totp-hint { font-size: 12px; color: var(--ink2); margin-top: 8px; }
+.transfer-hint { font-size: 12px; color: var(--ink2); margin: 0; }
 </style>

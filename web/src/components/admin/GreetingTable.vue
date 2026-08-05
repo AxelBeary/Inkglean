@@ -138,7 +138,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.scope-hint { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+.scope-hint { font-size: 12px; color: var(--ink2); margin-bottom: 12px; }
 .add-row { display: flex; gap: 8px; margin-bottom: 4px; }
-.preview-hint { font-size: 12px; color: var(--text-secondary); margin: 6px 0 10px; }
+.preview-hint { font-size: 12px; color: var(--ink2); margin: 6px 0 10px; }
 </style>
