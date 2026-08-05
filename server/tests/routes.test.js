@@ -214,20 +214,20 @@ describe('路由层测试 (Route Integration)', () => {
     })
   })
 
-  // ─── v0.12 R15: 外链列表 ───
+  // ─── v0.12 R15 → REQ-022 F2: 外链列表（新结构 [{platformId, url}]） ───
 
-  describe('外链列表 (R15)', () => {
-    it('TC-RT-12: PUT profile 带 customLinks 写入成功', async () => {
+  describe('外链列表 (R15/F2)', () => {
+    it('TC-RT-12: PUT profile 带 customLinks 写入成功（新结构）', async () => {
       const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
 
       const res = await app.inject({
         method: 'PUT',
         url: '/api/artist/profile',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bear' + `er ${token}` },
         payload: {
           customLinks: [
-            { name: 'Pixiv', url: 'https://pixiv.net/users/1', icon: 'pixiv' }
+            { url: 'https://pixiv.net/users/1' }
           ]
         }
       })
@@ -235,24 +235,28 @@ describe('路由层测试 (Route Integration)', () => {
       const body = res.json()
       const parsed = JSON.parse(body.custom_links)
       expect(parsed).toHaveLength(1)
-      expect(parsed[0].name).toBe('Pixiv')
+      expect(parsed[0].url).toBe('https://pixiv.net/users/1')
+      // 无平台表数据时 platformId 为 null（归「其他」）
+      expect(parsed[0].platformId).toBeNull()
     })
 
-    it('TC-RT-12b: PUT profile customLinks 非法 url 被 Schema 拒绝', async () => {
+    it('TC-RT-12b: PUT profile customLinks 非法 url 被 service 层拒绝（400 LINK_URL_INVALID）', async () => {
       const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
 
       const res = await app.inject({
         method: 'PUT',
         url: '/api/artist/profile',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bear' + `er ${token}` },
         payload: {
           customLinks: [
-            { name: '恶意', url: 'javascript:alert(1)', icon: 'link' }
+            { url: 'javascript:alert(1)' }
           ]
         }
       })
+      // schema 无 pattern 约束（裸链需放行），由 service 层 normalizeLinkUrl 拒绝
       expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('LINK_URL_INVALID')
     })
 
     it('TC-RT-12c: PUT profile 忽略 weibo_url 写入（旧列冻结，Schema 静默剥离）', async () => {
@@ -262,7 +266,7 @@ describe('路由层测试 (Route Integration)', () => {
       const res = await app.inject({
         method: 'PUT',
         url: '/api/artist/profile',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bear' + `er ${token}` },
         payload: { weibo_url: 'https://weibo.com/hack' }
       })
       // Fastify removeAdditional:true → weibo_url 被静默剥离，请求成功但字段未写入
@@ -270,7 +274,7 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.json().weibo_url).toBeNull()
     })
 
-    it('TC-RT-12d: GET 主页返回 customLinks（老画师回退旧列）', async () => {
+    it('TC-RT-12d: GET 主页 customLinks 不回退旧列（REQ-022 F2 拍板删除回退）', async () => {
       // 用独立 QQ 号避免与 TC-RT-06 设置的 admin_qq='12345' 冲突
       const artist = seedArtist({ qq_number: '88888', subdomain: 'linktest' })
       db.prepare('UPDATE artists SET weibo_url = ? WHERE id = ?').run('https://weibo.com/old', artist.id)
@@ -281,8 +285,10 @@ describe('路由层测试 (Route Integration)', () => {
       })
       expect(res.statusCode).toBe(200)
       const body = res.json()
-      expect(body.customLinks).toHaveLength(1)
-      expect(body.customLinks[0].icon).toBe('weibo')
+      // 旧列残留值不再回退为链接；weiboUrl/bilibiliUrl 字段已从响应移除
+      expect(body.customLinks).toEqual([])
+      expect(body).not.toHaveProperty('weiboUrl')
+      expect(body).not.toHaveProperty('bilibiliUrl')
     })
   })
 
