@@ -454,10 +454,11 @@
                 </template>
                 <div class="summary-divider"></div>
               </div>
-              <div class="summary-total">
+              <div v-if="selectedSize" class="summary-total">
                 <span>{{ $t('orderForm.receiptTotal') }}</span>
                 <span class="summary-total-amt">¥{{ displayPrice.toFixed(2) }}</span>
               </div>
+              <div v-else class="summary-empty">{{ $t('orderForm.summaryNoSize') }}</div>
             </template>
             <!-- 旧模型摘要 -->
             <template v-else-if="selectedTier">
@@ -830,7 +831,7 @@ async function copyQq(qq) {
   font-weight: 700; font-size: 14px;
   border: 2px solid var(--border-color-strong);
   color: var(--text-muted); background: var(--bg-card);
-  transition: transform 0.3s var(--ease-bounce), background 0.2s, border-color 0.2s, color 0.2s;
+  transition: transform 0.15s ease, background 0.2s, border-color 0.2s, color 0.2s;
 }
 .step-dot--active {
   border-color: var(--color-primary); color: var(--color-primary);
@@ -876,9 +877,9 @@ async function copyQq(qq) {
   padding: 18px 14px; text-align: center; cursor: pointer;
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 12px;
-  transition: transform 0.3s var(--ease-bounce), border-color 0.2s, box-shadow 0.3s var(--ease-bounce), background 0.2s;
+  transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.15s ease, background 0.2s;
 }
-.tier-pick:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+.tier-pick:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
 .tier-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .tier-pick-stamp {
   position: absolute; top: -9px; right: -9px;
@@ -911,7 +912,7 @@ async function copyQq(qq) {
   padding: 5px 14px; font-size: 13px; cursor: pointer;
   background: var(--bg-card); color: var(--text-secondary);
   border: 1px dashed var(--border-color-strong); border-radius: 999px;
-  transition: transform 0.25s var(--ease-bounce), color 0.2s, border-color 0.2s, background 0.2s;
+  transition: transform 0.15s ease, color 0.2s, border-color 0.2s, background 0.2s;
 }
 .inspire-tag:hover {
   color: var(--color-primary); border-color: var(--color-primary);
@@ -1075,9 +1076,9 @@ async function copyQq(qq) {
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 12px;
   overflow: hidden;
-  transition: transform 0.3s var(--ease-bounce), border-color 0.2s, box-shadow 0.3s var(--ease-bounce);
+  transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.15s ease;
 }
-.style-pick:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+.style-pick:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
 .style-pick--on { border-color: var(--color-primary); }
 .style-pick-stamp {
   position: absolute; top: 8px; right: 8px; z-index: 2;
@@ -1111,7 +1112,7 @@ async function copyQq(qq) {
   padding: 14px 18px; cursor: pointer;
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 10px;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s var(--ease-bounce);
+  transition: border-color 0.2s, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .size-pick:hover { border-color: var(--color-primary-light-5); transform: translateX(4px); }
 .size-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
