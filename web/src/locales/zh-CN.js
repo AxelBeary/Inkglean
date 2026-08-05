@@ -186,6 +186,8 @@ export default {
   },
   pref: {
     toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',
+    // 主色色板名（第三方打磨批 A：英文界面不再显中文）
+    accentNames: { teal: '青', turquoise: '碧', blue: '蓝', indigo: '靛', violet: '紫' },
     // v0.38: 画师后台宣纸/墨黑双主题（REQ-026 §1.2）
     artistToInk: '切换到墨黑主题', artistToPaper: '切换到宣纸主题',
     artistToastInk: '已切换 · 墨黑', artistToastPaper: '已切换 · 宣纸'

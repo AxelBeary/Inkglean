@@ -186,6 +186,8 @@ export default {
   },
   pref: {
     toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',
+    // Accent swatch names (polish batch A: proper color names, not literal one-word translations)
+    accentNames: { teal: 'Teal', turquoise: 'Turquoise', blue: 'Blue', indigo: 'Indigo', violet: 'Violet' },
     // v0.38: artist back-office paper/ink dual themes (REQ-026 §1.2)
     artistToInk: 'Switch to ink theme', artistToPaper: 'Switch to paper theme',
     artistToastInk: 'Switched · Ink', artistToastPaper: 'Switched · Paper'

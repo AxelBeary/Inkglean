@@ -2,7 +2,10 @@
   <div class="track-page">
     <ClientFloatingActions />
     <div class="track-container" v-loading="loading">
-      <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('track.backHome')" :content="$t('track.title')" />
+      <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('track.backHome')" :content="$t('track.title')">
+        <!-- 打磨批 E：title 文本 aria-hidden——EP page-header icon 自带 aria-label=title，叠加读两遍；视觉不变 -->
+        <template #title><span aria-hidden="true">{{ $t('track.backHome') }}</span></template>
+      </el-page-header>
 
       <!-- 查询表单 -->
       <el-card style="margin-top: 16px" v-if="!order">
@@ -327,6 +330,9 @@ onUnmounted(() => {
   transition: background 0.3s;
   position: relative;
 }
+/* 打磨批 C：调深输入框 placeholder——EP 默认 #a8abb2 白底约 2.5:1，
+   #6c6e72 ≈ 5.1:1 达 WCAG AA。仅亮色生效，暗色模式不动 */
+html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .track-container { max-width: 600px; margin: 0 auto; }
 .result-header { display: flex; justify-content: space-between; align-items: center; }
 .position-info { margin-top: 16px; }

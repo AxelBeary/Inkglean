@@ -29,7 +29,7 @@
             v-for="a in accents" :key="a.id"
             class="accent-swatch" :class="{ active: themeStore.accent === a.id }"
             :style="{ background: a.color }"
-            :title="a.name" @click="themeStore.setAccent(a.id)"
+            :title="t(a.nameKey)" @click="themeStore.setAccent(a.id)"
           >
             <span v-if="themeStore.accent === a.id" class="swatch-check">✓</span>
           </button>
@@ -58,11 +58,11 @@ const { t, locale } = useI18n()
 const themeStore = useThemeStore()
 
 const accents = [
-  { id: '1', color: '#34dbcb', name: '青' },
-  { id: '2', color: '#34c2db', name: '碧' },
-  { id: '3', color: '#3498db', name: '蓝' },
-  { id: '4', color: '#346edb', name: '靛' },
-  { id: '5', color: '#3445db', name: '紫' },
+  { id: '1', color: '#34dbcb', nameKey: 'pref.accentNames.teal' },
+  { id: '2', color: '#34c2db', nameKey: 'pref.accentNames.turquoise' },
+  { id: '3', color: '#3498db', nameKey: 'pref.accentNames.blue' },
+  { id: '4', color: '#346edb', nameKey: 'pref.accentNames.indigo' },
+  { id: '5', color: '#3445db', nameKey: 'pref.accentNames.violet' },
 ]
 
 const baseOptions = [
