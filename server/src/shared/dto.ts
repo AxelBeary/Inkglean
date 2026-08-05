@@ -10,7 +10,7 @@
 import type { Artist } from '../types/entities.js'
 
 export function publicArtistDTO(a: Artist | Record<string, unknown> | null | undefined): Record<string, unknown> | null | undefined {
-  if (!a) return a
+  if (!a) return a as Record<string, unknown> | null | undefined
   const {
     totp_secret,
     totp_failed_attempts,
