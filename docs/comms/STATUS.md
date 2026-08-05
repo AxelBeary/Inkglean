@@ -15,7 +15,7 @@
 - **容器**：⚠️ 未含本批安全改动（Dockerfile USER node / CSP / entrypoint）——**下次重建必须包含**，重建前报用户确认
 - **备份**：`data/commission.db.bak-pre-v43`（DROP addons 前）+ `bak-v037-pre-v41` + 更早三轮
 - **迁移**：v42（F2 社交平台表）为最新
-- **comms**：STATUS + 五号视觉巡检批派工（`01-to-05-视觉巡检批-20260805.md`）+ 五号两份核实报告（安全审计/前端优化，待排期消费）；安全加固批派工/交付已消费删除
+- **comms**：STATUS + 五号视觉巡检批派工（`01-to-05-视觉巡检批-20260805.md`）+ **二号手动录单日期批派工（`01-to-02-手动录单日期批-20260806.md`，worktree `../artist-commission-mo-fix` 已建）** + 五号两份核实报告（安全审计/前端优化，待排期消费）；安全加固批派工/交付已消费删除
 
 ---
 ## v0.37 轮收官总结（2026-08-05，全部合入）
@@ -76,7 +76,7 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | ✅ D 软提示 + addons 前端清理已合入（`13dd4e7`）→ 待派 |
+| 二号 | ✅ D 软提示 + addons 前端清理已合入（`13dd4e7`）→ **手动录单日期批在途**（fix/manual-order-dates，worktree `../artist-commission-mo-fix`，派工 `01-to-02-手动录单日期批-20260806.md`：B1 今天选不了 / B2 截稿↔开稿无互约束 / B3 参考图标签补齐） |
 | 三号 | ✅ addons 收尾批已合入（`58d48c9`，旧增项体系完全清退）→ 待派 |
 | 四号 | ✅ 说明书 v0.39 已合入（`ece9310`）→ 待派 |
 | 五号 | ✅ **安全加固批已合入（`ee0f68a`）**：F1 totp_secret 全堵（4 读 + 4 写端点 DTO）/F4 fail-fast/F3 去 unsafe-eval/F9 安全头/F6 容器非 root + entrypoint 修复；server 914 全绿（一号独立复跑）。**追加发现**：createArtist 未 await 的 Promise 回显隐患顺手修复。→ 待接视觉巡检批（`01-to-05-视觉巡检批-20260805.md`，sec worktree 回收后需重建） |
