@@ -109,23 +109,9 @@ export interface WorkflowStage {
   random_template: number
 }
 
-/** 增项 */
-export interface Addon {
-  id: number
-  artist_id: number
-  category: 'expression' | 'outfit' | 'background' | 'weapon' | 'other'
-  name: string
-  price_type: 'fixed' | 'percent'
-  price_value: number
-  select_mode: 'quantity' | 'toggle' | 'inquiry'
-  max_qty: number
-  description: string | null
-  sort_order: number
-  enabled: number
-  tierIds?: number[]
-}
-
-/** 倍率 */
+/**
+ * 倍率
+ */
 export interface Multiplier {
   id: number
   artist_id: number

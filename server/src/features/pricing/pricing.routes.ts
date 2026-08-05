@@ -102,19 +102,6 @@ export default async function pricingRoutes(fastify: any) {
         properties: {
           subdomain: { type: 'string', minLength: 1, maxLength: 50 },
           tierId: { type: 'integer' },
-          addons: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['addonId'],
-              properties: {
-                addonId: { type: 'integer' },
-                quantity: { type: 'integer', minimum: 1, maximum: 99 }
-              },
-              additionalProperties: false
-            },
-            maxItems: 20
-          },
           usageMultiplierId: { type: ['integer', 'null'] },
           rushMultiplierId: { type: ['integer', 'null'] }
         },
@@ -124,14 +111,13 @@ export default async function pricingRoutes(fastify: any) {
   }, async (request: any) => {
     guardRateLimit(`calc:${request.ip}`, 30, 5 * 60_000)
 
-    const { subdomain, tierId, addons, usageMultiplierId, rushMultiplierId } = request.body as any
+    const { subdomain, tierId, usageMultiplierId, rushMultiplierId } = request.body as any
 
     // BUG-3 修复：hidden 画师/管理员账号不允许算价（对照 GET pricing 范式）
     const artist = requireVisibleArtist(subdomain)
 
     return pricingService.calculatePrice(artist.id, {
       tierId,
-      addons: addons || [],
       usageMultiplierId,
       rushMultiplierId
     })

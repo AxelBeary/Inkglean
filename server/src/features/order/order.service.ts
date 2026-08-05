@@ -123,7 +123,6 @@ interface CreateOrderParams {
   source?: string
   clientNotify?: boolean
   references?: string[]
-  addons?: Array<{ addonId: number; quantity?: number }>
   usageMultiplierId?: number | null
   rushMultiplierId?: number | null
   discountCode?: string | null
@@ -134,10 +133,10 @@ interface CreateOrderParams {
 /**
  * 创建订单（客户自助 或 画师手动录入）
  * 事务包裹，防止订单号竞态
- * 支持价格计算器：addons + 倍率 → breakdown + 分期
+ * 支持价格计算器：倍率 → breakdown + 分期（旧增项 addons 已冻结删除，v43）
  * v0.31 F3: 折扣码（先倍率后折扣，REQ-023 已定）
  */
-export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, addons, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons }: CreateOrderParams): any {
+export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons }: CreateOrderParams): any {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -188,7 +187,6 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     } else if (tierId) {
       priceCalc = calculatePrice(artistId, {
         tierId,
-        addons: addons || [],
         usageMultiplierId: usageMultiplierId || null,
         rushMultiplierId: rushMultiplierId || null
       })
