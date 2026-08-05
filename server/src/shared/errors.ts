@@ -67,11 +67,15 @@ export const E = {
 
   // 订单
   ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  ORDER_NOT_OWNED: 'ORDER_NOT_OWNED',
   INVALID_TRANSITION: 'INVALID_TRANSITION',
   DELIVER_WRONG_STATUS: 'DELIVER_WRONG_STATUS',
   TIER_NOT_FOUND: 'TIER_NOT_FOUND',
   ILLEGAL_PATH: 'ILLEGAL_PATH',
   MISSING_FILE: 'MISSING_FILE',
+  // REQ-022 F1: 发布为作品
+  PUBLISH_WRONG_STATUS: 'PUBLISH_WRONG_STATUS',
+  DELIVERABLE_NOT_FOUND: 'DELIVERABLE_NOT_FOUND',
 
   // 通用
   NOT_FOUND: 'NOT_FOUND',
@@ -272,6 +276,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 订单
   ORDER_NOT_FOUND: '订单不存在',
+  ORDER_NOT_OWNED: '该订单不属于你，无权操作',
   INVALID_TRANSITION: '不允许的状态变更',
   DELIVER_WRONG_STATUS: '当前状态不允许交付',
   TIER_NOT_FOUND: '价格档位不存在',
@@ -288,6 +293,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   UNSUPPORTED_FORMAT: '不支持的文件格式',
   ILLEGAL_PATH: '非法的文件路径',
   MISSING_FILE: '缺少文件',
+  // REQ-022 F1: 发布为作品
+  PUBLISH_WRONG_STATUS: '仅已交付（delivered）的订单可发布为作品',
+  DELIVERABLE_NOT_FOUND: '交付文件不存在或不属于该订单',
 
   // 通用
   NOT_FOUND: '资源不存在',

@@ -407,7 +407,7 @@ export function getArtworkById(artworkId: number): Artwork | undefined {
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(artworkId) as Artwork | undefined
 }
 
-export async function createArtwork(artistId: number, { imagePath, title }: { imagePath: string; title?: string | null }): Promise<Artwork | undefined> {
+export async function createArtwork(artistId: number, { imagePath, title, description }: { imagePath: string; title?: string | null; description?: string | null }): Promise<Artwork | undefined> {
   const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM artworks WHERE artist_id = ?').get(artistId) as { m: number | null } | undefined
   const sortOrder = (maxOrder?.m ?? 0) + 1
 
@@ -424,8 +424,9 @@ export async function createArtwork(artistId: number, { imagePath, title }: { im
     }
   } catch { /* 读取失败不阻塞创建，width/height 留 null */ }
 
-  const result = db.prepare('INSERT INTO artworks (artist_id, image_path, title, sort_order, width, height) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(artistId, imagePath, title || null, sortOrder, width, height)
+  // REQ-022 F1: description 入列（发布为作品携带自由描述；旧调用不传 → null）
+  const result = db.prepare('INSERT INTO artworks (artist_id, image_path, title, description, sort_order, width, height) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(artistId, imagePath, title || null, description || null, sortOrder, width, height)
 
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(Number(result.lastInsertRowid)) as Artwork | undefined
 }

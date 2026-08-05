@@ -714,6 +714,34 @@ export default async function orderRoutes(fastify: any) {
   })
 
   /**
+   * POST /api/artist/orders/:id/publish-artwork
+   * REQ-022 F1: 发布为作品（用户拍板：delivered 门槛 + 一图一作品）
+   * 勾选的交付图复制（非移动）到公开目录，一图建一条 artworks 行；原交付物保留
+   * 跨画师访问在 service 层二次防御（ORDER_NOT_OWNED 403；requireOwnOrder 先行 404）
+   */
+  fastify.post('/api/artist/orders/:id/publish-artwork', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['deliverableIds', 'title'],
+        properties: {
+          deliverableIds: { type: 'array', items: { type: 'integer' }, minItems: 1, maxItems: 50 },
+          title: { type: 'string', minLength: 1, maxLength: 100 },
+          description: { type: ['string', 'null'], maxLength: 500 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: any, reply: any) => {
+    const { deliverableIds, title, description } = request.body as any
+    const artworks = await orderGalleryService.publishArtwork(
+      request.order.id, request.artist.id, deliverableIds, title, description
+    )
+    return reply.code(201).send({ artworks })
+  })
+
+  /**
    * POST /api/artist/orders/:id/references
    * 添加参考图
    * JSON Schema 输入校验
