@@ -625,7 +625,7 @@ export default {
     totalPrice: '总价', finalPrice: '最终价格（元）', finalPriceHint: '可手动修改，留空则使用计算价',
     priceDetail: '明细',
     desc: '需求描述', descPlaceholder: '从QQ聊天中复制客户的需求描述',
-    references: '参考图', refExceed: '最多上传5张参考图', fileTooBig: '{name} 过大（{size}MB），上限10MB',
+    references: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图', fileTooBig: '{name} 过大（{size}MB），上限10MB',
     refTip: '录单后仍可在订单图库中补充参考图，订单图库合计上限 20 张。',
     priority: '优先级', priorityHigh: '高', priorityMedium: '中（默认）', priorityLow: '低',
     clientNotify: '允许客户接收QQ排队提醒',
@@ -638,6 +638,8 @@ export default {
     dragHint: '拖拽图片到此处，或点击上传',
     // F3: 开稿日
     startDate: '开稿日（可选）', startDatePlaceholder: '选择开稿日',
+    // B2: 开稿日晚于截稿日的提交拦截
+    dateConflict: '开稿日不能晚于截稿日',
     // F4: 初始节点状态
     initialStatus: '初始节点状态', initialStatusHint: '线下已谈好的单子可直接跳过确认环节',
     // REQ-015: QQ历史面板

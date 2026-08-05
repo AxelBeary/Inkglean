@@ -70,7 +70,7 @@
               <el-date-picker
                 v-model="form.deadline" type="date" value-format="YYYY-MM-DD"
                 :placeholder="$t('manualOrder.deadlinePlaceholder')"
-                :disabled-date="(d) => d < new Date()"
+                :disabled-date="disableDeadlineDate"
                 clearable style="width: 200px"
               />
             </el-form-item>
@@ -79,7 +79,7 @@
               <el-date-picker
                 v-model="form.startDate" type="date" value-format="YYYY-MM-DD"
                 :placeholder="$t('manualOrder.startDatePlaceholder')"
-                :disabled-date="(d) => d < new Date()"
+                :disabled-date="disableStartDateDate"
                 clearable style="width: 200px"
               />
             </el-form-item>
@@ -572,6 +572,27 @@ const rules = {
   clientQq: [{ required: true, message: () => t('manualOrder.fillClientQq'), trigger: 'blur' }]
 }
 
+// ─── 日期选择约束（B1/B2: 今天可选 + 截稿日↔开稿日双向互约束） ───
+// B1: el-date-picker 面板日期是当天 0 点对象，new Date() 带当前时分秒 →
+// 今天 0 点 < 当前时刻 = 今天被灰掉。归一化到当天 0 点比较：今天可选，昨天及以前灰掉。
+// 录单页生命周期内跨天概率忽略不计，setup 期构造一次即可。
+const today0 = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })()
+
+// B2: 截稿日不可早于开稿日（对齐 OrderDetail.disableDeadlineDate；
+// 两个字段是 value-format="YYYY-MM-DD" 字符串，构造边界用 T00:00:00 与 OrderDetail 一致）
+function disableDeadlineDate(d) {
+  if (d < today0) return true
+  if (form.startDate) return d < new Date(form.startDate + 'T00:00:00')
+  return false
+}
+
+// B2: 开稿日不可晚于截稿日（对齐 OrderDetail.disableStartDateDate）
+function disableStartDateDate(d) {
+  if (d < today0) return true
+  if (form.deadline) return d > new Date(form.deadline + 'T00:00:00')
+  return false
+}
+
 // ─── 辅助函数 ───
 const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 const formatDate = (str) => formatDateTimeShort(str)
@@ -907,6 +928,13 @@ async function handlePasteRefFiles(files) {
 async function submit() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
+
+  // B2: 日期冲突前端兜底——开稿日晚于截稿日直接拦截不发请求（后端 INVALID_START_DATE 规则的前端子集）。
+  // YYYY-MM-DD 定长字符串字典序 == 时间序，直接比较即可。
+  if (form.startDate && form.deadline && form.startDate > form.deadline) {
+    ElMessage.error(t('manualOrder.dateConflict'))
+    return
+  }
 
   // v0.38 D路 + 补漏 R2 (REQ-029 §四验收3): 画风模式未选尺寸时——手输过价 = 自定义单放行；
   // 未手输 = 半途状态拦截（避免误触 0 元单）

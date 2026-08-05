@@ -625,7 +625,7 @@ export default {
     totalPrice: 'Total', finalPrice: 'Final price (CNY)', finalPriceHint: 'Editable; leave blank to use calculated price',
     priceDetail: 'Details',
     desc: 'Description', descPlaceholder: "Paste the client's request from the QQ chat",
-    references: 'Reference images', refExceed: 'Max 5 reference images', fileTooBig: '{name} too large ({size}MB), max 10MB',
+    references: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Max 5 reference images', fileTooBig: '{name} too large ({size}MB), max 10MB',
     refTip: 'You can add more references to the order gallery after creation. Gallery total limit: 20 images.',
     priority: 'Priority', priorityHigh: 'High', priorityMedium: 'Medium (default)', priorityLow: 'Low',
     clientNotify: 'Allow client to receive QQ queue notifications',
@@ -638,6 +638,8 @@ export default {
     dragHint: 'Drag images here, or click to upload',
     // F3: start date
     startDate: 'Start date (optional)', startDatePlaceholder: 'Pick a start date',
+    // B2: submit guard when start date is later than deadline
+    dateConflict: 'Start date cannot be later than deadline',
     // F4: initial stage status
     initialStatus: 'Initial stage status', initialStatusHint: 'Skip the confirmation step for orders already agreed offline',
     // REQ-015: QQ history panel
