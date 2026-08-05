@@ -1,6 +1,7 @@
 <template>
   <ArtistLayout>
-    <h2>{{ $t('orderList.title') }}</h2>
+    <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
+    <h2 class="font-display od-page-title">{{ $t('orderList.title') }}</h2>
 
     <!-- REQ-020 F1: 订单搜索（客户昵称/订单号/档位名，300ms debounce） -->
     <div class="search-bar">
@@ -80,8 +81,8 @@
       </el-table-column>
     </el-table>
 
-    <!-- REQ-020 F1: 搜索无结果提示 -->
-    <el-empty v-if="!loading && orders.length === 0 && searchQuery.trim()" :description="$t('orderList.noSearchResult')" />
+    <!-- REQ-020 F1: 搜索无结果提示（v0.38: 统一墨线空态） -->
+    <InkEmpty v-if="!loading && orders.length === 0 && searchQuery.trim()" :title="$t('orderList.noSearchResult')" />
 
     <!-- S-10: 分页 -->
     <div style="display: flex; justify-content: flex-end; margin-top: 16px">
@@ -104,6 +105,8 @@ import { useRoute } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+// v0.38 第二批: 统一墨线空态（REQ-026 §二）
+import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 
 const route = useRoute()
@@ -181,14 +184,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
+/* H1 页面标题：文楷 28/700（REQ §1.3） */
+.od-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+
 /* R42a: 工具栏 */
 .order-toolbar { margin: 12px 0; }
 /* REQ-020 F1: 搜索栏 */
 .search-bar { margin: 12px 0; }
 .filter-bar { overflow-x: auto; }
+
+/* ─── 表格换肤（REQ §二：表头下沉底色 / 行 hover 纸色底 / 金额日期等宽） ─── */
+.el-table { --el-table-border-color: var(--line); --el-table-header-bg-color: var(--paper2); --el-table-row-hover-bg-color: var(--paper2); }
+.el-table :deep(.el-table__header th) {
+  font-size: 12px; font-weight: 600; color: var(--ink2);
+  background: var(--paper2);
+}
+.el-table :deep(.el-table__row td) { color: var(--ink); }
+.el-table :deep(.el-table__body tr) { transition: background 0.15s; }
+/* 斑马纹用极浅纸色（密集界面保持安静） */
+.el-table :deep(.el-table__row--striped td) { background: color-mix(in srgb, var(--paper2) 55%, transparent); }
+
 /* R16: 缩略图 */
-.order-thumb { width: 40px; height: 40px; border-radius: 6px; display: block; cursor: zoom-in; }
-.no-thumb { color: var(--text-muted); }
+.order-thumb { width: 40px; height: 40px; border-radius: var(--r-s); display: block; cursor: zoom-in; }
+.no-thumb { color: var(--ink4); }
 @media (max-width: 600px) {
   .order-thumb { width: 32px; height: 32px; }
 }

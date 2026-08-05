@@ -235,15 +235,16 @@ defineExpose({ load })
 </script>
 
 <style scoped>
+/* v0.38 第二批: 纸墨 token（REQ-026） */
 .section-title {
-  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  font-size: 14px; font-weight: 600; color: var(--ink);
   margin: 0 0 10px;
 }
 .save-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.dirty-hint { font-size: 12px; color: var(--color-warning); }
-.reset-row { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border-color); }
+.dirty-hint { font-size: 12px; color: var(--th); }
+.reset-row { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--line); }
 .list-header { display: flex; align-items: center; justify-content: space-between; }
 .list-header .section-title { margin: 0; }
-.help-body { line-height: 1.9; font-size: 14px; color: var(--text-primary); margin: 0; padding-left: 20px; }
+.help-body { line-height: 1.9; font-size: 14px; color: var(--ink); margin: 0; padding-left: 20px; }
 .help-body li { margin-bottom: 6px; }
 </style>

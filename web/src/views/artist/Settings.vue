@@ -160,7 +160,7 @@
               :placeholder="$t('rules.placeholder')"
             />
             <div class="preview" v-if="rulesContent">
-              <h4 style="margin: 16px 0 8px; color: var(--text-secondary)">{{ $t('rules.preview') }}</h4>
+              <h4 class="preview-section-title">{{ $t('rules.preview') }}</h4>
               <el-card shadow="never" class="preview-card">
                 <!-- eslint-disable-next-line vue/no-v-html -->
                 <div v-html="sanitizedRulesPreview"></div>
@@ -633,10 +633,12 @@ onMounted(loadProfile)
 </script>
 
 <style scoped>
-.form-hint { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
+.form-hint { color: var(--ink2); font-size: 12px; margin-top: 4px; }
 
 /* R42b: 须知预览（原 RulesEditor.vue 样式迁入） */
-.preview-card { line-height: 1.8; color: var(--text-primary); }
+.preview-section-title { margin: 16px 0 8px; color: var(--ink2); }
+.preview-card { line-height: 1.8; color: var(--ink); }
 
 /* R15: 外链列表编辑器 */
 .link-editor { width: 100%; }
@@ -655,30 +657,30 @@ onMounted(loadProfile)
   flex-shrink: 0;
 }
 
-.template-label { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
+.template-label { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--ink); }
 .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
 .template-card {
-  cursor: pointer; border: 2px solid var(--border-color); border-radius: 8px;
-  overflow: hidden; transition: all 0.2s; background: var(--bg-card);
+  cursor: pointer; border: 2px solid var(--line); border-radius: var(--r-m);
+  overflow: hidden; transition: all 0.2s; background: var(--card);
 }
-.template-card:hover { border-color: var(--el-color-primary-light-5); }
-.template-card.active { border-color: var(--el-color-primary); box-shadow: 0 0 0 1px var(--el-color-primary); }
+.template-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); }
+.template-card.active { border-color: var(--hq); box-shadow: 0 0 0 1px var(--hq); }
 .template-preview {
   height: 80px; display: flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 28px; background: var(--bg-inset);
+  font-size: 28px; background: var(--paper2);
 }
-.template-preview-icon { color: var(--el-color-primary); opacity: 0.75; }
+.template-preview-icon { color: var(--hq); opacity: 0.75; }
 .template-info { padding: 12px; }
-.template-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
-.template-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+.template-name { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.template-desc { font-size: 12px; color: var(--ink2); line-height: 1.4; }
 
 .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
 .palette-card {
-  cursor: pointer; border: 2px solid var(--border-color); border-radius: 8px;
-  overflow: hidden; transition: all 0.2s; background: var(--bg-card);
+  cursor: pointer; border: 2px solid var(--line); border-radius: var(--r-m);
+  overflow: hidden; transition: all 0.2s; background: var(--card);
 }
-.palette-card:hover { border-color: var(--el-color-primary-light-5); }
-.palette-card.active { border-color: var(--el-color-primary); box-shadow: 0 0 0 1px var(--el-color-primary); }
+.palette-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); }
+.palette-card.active { border-color: var(--hq); box-shadow: 0 0 0 1px var(--hq); }
 .palette-swatch { height: 56px; display: flex; }
 .swatch-light, .swatch-dark { flex: 1; }
 
@@ -688,8 +690,8 @@ onMounted(loadProfile)
   cursor: pointer; user-select: none;
 }
 .avatar-preview { transition: transform 0.15s, box-shadow 0.15s; }
-.avatar-upload:hover .avatar-preview { transform: scale(1.05); box-shadow: 0 0 0 3px var(--el-color-primary-light-5); }
-.avatar-upload-hint { font-size: 12px; color: var(--text-secondary); }
+.avatar-upload:hover .avatar-preview { transform: scale(1.05); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hq) 50%, transparent); }
+.avatar-upload-hint { font-size: 12px; color: var(--ink2); }
 
 /* ─── R49: 强调色选择器 ─── */
 .accent-picker { display: flex; align-items: center; gap: 10px; }
@@ -700,15 +702,15 @@ onMounted(loadProfile)
   transition: transform 0.15s, border-color 0.15s;
 }
 .accent-swatch-btn:hover { transform: scale(1.15); }
-.accent-swatch-btn.active { border-color: var(--text-primary); }
+.accent-swatch-btn.active { border-color: var(--ink); }
 .swatch-check { color: #fff; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 .accent-clear-btn {
-  padding: 6px 14px; border: 1px solid var(--border-color); border-radius: 999px;
-  background: transparent; cursor: pointer; font-size: 12px; color: var(--text-secondary);
+  padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; cursor: pointer; font-size: 12px; color: var(--ink2);
   transition: border-color 0.15s, color 0.15s;
 }
-.accent-clear-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.accent-clear-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
+.accent-clear-btn:hover { border-color: var(--hq); color: var(--hq); }
+.accent-clear-btn.active { border-color: var(--hq); color: var(--hq); background: var(--hq-t); }
 
 /* ─── R50: 模板 tab 操作行 ─── */
 .template-actions { display: flex; gap: 12px; margin-top: 20px; }
@@ -717,18 +719,18 @@ onMounted(loadProfile)
 .cover-preview-row { display: flex; align-items: flex-start; gap: 16px; margin-top: 12px; }
 .cover-preview-thumb {
   width: 120px; height: 90px; flex-shrink: 0;
-  border: 2px solid var(--border-color); border-radius: 10px;
+  border: 2px solid var(--line); border-radius: var(--r-l);
 }
 .cover-preview-empty {
   width: 120px; height: 90px; flex-shrink: 0;
-  border: 2px dashed var(--border-color); border-radius: 10px;
+  border: 2px dashed var(--line); border-radius: var(--r-l);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: var(--text-secondary); text-align: center; padding: 8px;
+  font-size: 12px; color: var(--ink2); text-align: center; padding: 8px;
 }
 .cover-preview-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cover-preview-info .form-hint { margin: 0; }
 .cover-manage-link {
-  color: var(--el-color-primary); text-decoration: none;
+  color: var(--hq); text-decoration: none;
   font-size: 14px; font-weight: 500; transition: opacity 0.2s;
 }
 .cover-manage-link:hover { opacity: 0.75; text-decoration: underline; }
@@ -743,7 +745,7 @@ onMounted(loadProfile)
 .slot-config { width: 100%; }
 .slot-row { display: flex; align-items: center; gap: 12px; }
 .slot-input { width: 130px; }
-.slot-unit { font-size: 13px; color: var(--text-secondary); }
+.slot-unit { font-size: 13px; color: var(--ink2); }
 .switch-grid { display: flex; flex-direction: column; gap: 10px; }
-.switch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); }
+.switch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink); }
 </style>

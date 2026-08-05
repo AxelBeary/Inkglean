@@ -1,7 +1,7 @@
 <template>
   <el-card shadow="hover" class="activity-card">
     <template #header>
-      <span class="activity-title">{{ $t('dashboard.activityTitle') }}</span>
+      <CardHead :title="$t('dashboard.activityTitle')" />
     </template>
 
     <!-- 错误态 -->
@@ -39,6 +39,8 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../../api/index.js'
+// v0.38 第二批: 统一卡片头部（REQ-026 §二）
+import CardHead from '../visual/CardHead.vue'
 import { normalizeActivity, relativeTime } from '../../../utils/dashboard-normalize.js'
 
 const { t, locale } = useI18n()
@@ -65,35 +67,35 @@ onMounted(() => load())
 </script>
 
 <style scoped>
-.activity-card { background: var(--bg-card); }
-.activity-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+/* v0.38 第二批: 纸墨 token（第一批白名单内补漏） */
+.activity-card { background: var(--card); }
 
 .activity-list { display: flex; flex-direction: column; }
 .activity-item {
   display: flex; gap: 10px; padding: 8px 4px;
-  border-radius: 6px; cursor: pointer;
+  border-radius: var(--r-m); cursor: pointer;
   transition: background 0.15s;
 }
-.activity-item:hover { background: var(--bg-hover); }
+.activity-item:hover { background: var(--sb-hover); }
 .activity-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--color-primary); flex-shrink: 0;
+  background: var(--hq); flex-shrink: 0;
   margin-top: 6px;
 }
 .activity-body { min-width: 0; }
 .activity-desc {
-  display: block; font-size: 13px; color: var(--text-primary);
+  display: block; font-size: 13px; color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.activity-meta { font-size: 11px; color: var(--text-muted); }
+.activity-meta { font-size: 11px; color: var(--ink3); }
 
-.activity-empty { color: var(--text-secondary); font-size: 13px; margin: 0; }
+.activity-empty { color: var(--ink2); font-size: 13px; margin: 0; }
 
 /* 骨架条 */
 .activity-skeleton { display: flex; flex-direction: column; gap: 10px; }
 .activity-skeleton-row {
-  height: 32px; border-radius: 6px;
-  background: var(--bg-secondary, #f0f0f0);
+  height: 32px; border-radius: var(--r-m);
+  background: var(--paper2);
   animation: activity-pulse 1.2s ease-in-out infinite;
 }
 @keyframes activity-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
@@ -101,6 +103,6 @@ onMounted(() => load())
 /* 错误态 */
 .module-error {
   display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 24px 0; font-size: 13px; color: var(--text-secondary);
+  padding: 24px 0; font-size: 13px; color: var(--ink2);
 }
 </style>

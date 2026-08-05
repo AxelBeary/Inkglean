@@ -232,10 +232,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026，管理后台从简） ═══ */
 .admin-page { /* 容器由 AdminLayout 提供 */ }
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.stat-num { font-size: 28px; font-weight: bold; color: var(--el-color-primary); text-align: center; }
-.stat-label { color: var(--text-secondary); font-size: 13px; text-align: center; }
+/* 统计数字墨色不上色铁律（REQ §1.1），文楷落款感 */
+.stat-num { font-size: 28px; font-weight: bold; color: var(--ink); font-family: var(--f-d); text-align: center; font-variant-numeric: tabular-nums; }
+.stat-label { color: var(--ink2); font-size: 13px; text-align: center; }
 /* REQ-022 F5: 留言筛选行 */
 .gb-filter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .gb-filters { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -21,11 +21,18 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useThemeStore } from '../../stores/theme.js'
 
 const route = useRoute()
 const router = useRouter()
+const themeStore = useThemeStore()
+
+// v0.38 第二批: 管理后台同属后台域，启用纸墨 token 作用域（REQ-026）。
+// 复用第一批 enter/leave 机制（机制不动）：挂载挂 html[data-artist-theme]，卸载摘除。
+onMounted(() => themeStore.enterArtistScope())
+onUnmounted(() => themeStore.leaveArtistScope())
 
 const tabs = [
   { path: '/admin', labelKey: 'admin.panelTitle' },
@@ -43,13 +50,14 @@ function onTabChange(path) {
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026，管理后台从简套 token） ═══ */
 .admin-layout {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: var(--paper);
 }
 .admin-nav {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -65,7 +73,7 @@ function onTabChange(path) {
 .admin-back {
   flex-shrink: 0;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--ink2);
 }
 .admin-tabs {
   flex: 1;

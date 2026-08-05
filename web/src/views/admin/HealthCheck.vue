@@ -77,24 +77,25 @@ function downloadReport() {
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026，管理后台从简） ═══ */
 .health-page { /* 容器由 AdminLayout 提供 */ }
 .health-actions { display: flex; gap: 12px; }
-.health-note { margin: 10px 0 0; font-size: 12px; color: var(--text-secondary); }
+.health-note { margin: 10px 0 0; font-size: 12px; color: var(--ink2); }
 .health-list { margin-top: 16px; }
 .health-status { margin-right: 8px; font-size: 16px; }
-/* v0.34 任务3：SVG 状态图标沿用 ok/warn/fail 语义色 */
-.health-status--ok { color: var(--el-color-success); }
-.health-status--warn { color: var(--el-color-warning); }
-.health-status--fail { color: var(--el-color-danger); }
-.health-name { font-weight: 700; margin-right: 10px; }
-.health-summary { margin-left: 10px; font-size: 13px; color: var(--text-secondary); }
-/* #63: JSON 详情面板跟随暗色主题，不硬编码白底灰字 */
+/* v0.34 任务3：SVG 状态图标沿用 ok/warn/fail 语义色（石绿/藤黄/朱砂） */
+.health-status--ok { color: var(--sl); }
+.health-status--warn { color: var(--th); }
+.health-status--fail { color: var(--zs); }
+.health-name { font-weight: 700; margin-right: 10px; color: var(--ink); }
+.health-summary { margin-left: 10px; font-size: 13px; color: var(--ink2); }
+/* #63: JSON 详情面板跟随主题底色，不硬编码白底灰字 */
 .health-detail {
   margin: 0;
   padding: 12px;
-  background: var(--bg-inset);
-  color: var(--text-primary);
-  border-radius: 6px;
+  background: var(--paper2);
+  color: var(--ink);
+  border-radius: var(--r-m);
   font-size: 12px;
   line-height: 1.6;
   overflow-x: auto;

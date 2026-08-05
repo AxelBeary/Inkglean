@@ -42,9 +42,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useArtistStore } from '../../stores/artist.js'
+import { useThemeStore } from '../../stores/theme.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
@@ -53,6 +54,13 @@ import logoUrl from '../../assets/logo.webp'
 const { t } = useI18n()
 const router = useRouter()
 const store = useArtistStore()
+const themeStore = useThemeStore()
+
+// v0.38 第二批: 登录是后台入口，启用纸墨 token 作用域（REQ-026）。
+// 复用第一批 enter/leave 机制（机制不动）：挂载时按 localStorage 持久化值挂
+// html[data-artist-theme]，卸载时摘除，不污染客户端路由（客户端零影响）。
+onMounted(() => themeStore.enterArtistScope())
+onUnmounted(() => themeStore.leaveArtistScope())
 
 const qqNumber = ref('')
 const code = ref('')
@@ -81,9 +89,10 @@ async function login() {
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026）——token 作用域由 onMounted enterArtistScope 挂载 ═══ */
 .login-page {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: var(--paper);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,11 +102,11 @@ async function login() {
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  background: var(--card);
+  border-radius: var(--r-l);
+  border: 1px solid var(--line);
   padding: 40px 32px;
-  box-shadow: var(--shadow-pop);
+  box-shadow: var(--sh-3);
   position: relative;
   transition: background 0.3s, border-color 0.3s;
 }
@@ -108,33 +117,33 @@ async function login() {
   width: 64px; height: 64px;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 0 0 1px var(--border-color);
+  box-shadow: 0 0 0 1px var(--line);
   margin-bottom: 12px;
 }
 .login-title {
   font-size: 28px;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--ink);
   letter-spacing: 0.3em;
   margin-bottom: 6px;
 }
 .login-subtitle {
-  color: var(--text-secondary);
+  color: var(--ink2);
   font-size: 13px;
 }
 
 /* R6 验证器推荐清单 */
-.login-help { margin-top: 20px; border-top: 1px dashed var(--border-color); }
+.login-help { margin-top: 20px; border-top: 1px dashed var(--line); }
 .login-help :deep(.el-collapse-item__header) {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink2);
   background: transparent;
   border-bottom: none;
   justify-content: center;
 }
 .login-help :deep(.el-collapse-item__wrap) { background: transparent; border-bottom: none; }
 .login-help :deep(.el-collapse-item__content) { padding-bottom: 8px; }
-.help-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
-.help-list { margin: 0 0 8px 18px; padding: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.8; }
-.help-note { font-size: 12px; color: var(--color-danger); margin: 0; }
+.help-desc { font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
+.help-list { margin: 0 0 8px 18px; padding: 0; font-size: 12px; color: var(--ink2); line-height: 1.8; }
+.help-note { font-size: 12px; color: var(--zs); margin: 0; }
 </style>

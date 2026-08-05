@@ -208,12 +208,13 @@ onMounted(loadData)
 </script>
 
 <style scoped>
+/* v0.38 第二批: 纸墨 token（REQ-026） */
 .discount-toggle {
   display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; border-radius: 8px;
-  background: var(--el-fill-color-light);
+  padding: 12px 16px; border-radius: var(--r-m);
+  background: var(--paper2);
 }
-.discount-toggle-label { font-weight: 600; font-size: 14px; }
-.discount-toggle-hint { font-size: 12px; color: var(--text-secondary); }
-.form-hint { font-size: 12px; color: var(--text-secondary); margin-left: 8px; }
+.discount-toggle-label { font-weight: 600; font-size: 14px; color: var(--ink); }
+.discount-toggle-hint { font-size: 12px; color: var(--ink2); }
+.form-hint { font-size: 12px; color: var(--ink2); margin-left: 8px; }
 </style>

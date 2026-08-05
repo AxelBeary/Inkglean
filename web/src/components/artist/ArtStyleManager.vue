@@ -845,108 +845,111 @@ onMounted(load)
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* v0.35 波1: 多画风开关栏 */
 .multi-style-bar {
   margin-bottom: 16px; padding: 12px 16px;
-  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-l);
 }
 .multi-style-head { display: flex; align-items: center; gap: 12px; }
-.multi-style-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.multi-style-hint { font-size: 12px; color: var(--text-secondary); margin: 6px 0 0; line-height: 1.5; }
+.multi-style-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.multi-style-hint { font-size: 12px; color: var(--ink2); margin: 6px 0 0; line-height: 1.5; }
 
 .style-grid { display: flex; flex-direction: column; gap: 20px; }
 /* A3: 拖拽幽灵 */
 .ghost { opacity: 0.4; }
 .style-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.style-card-name { font-size: 16px; font-weight: 700; font-family: var(--font-display); color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.style-card-name { font-size: 16px; font-weight: 700; font-family: var(--f-d); color: var(--ink); display: flex; align-items: center; gap: 8px; }
 .style-card-actions { display: flex; align-items: center; gap: 4px; }
 /* A3: 画风卡片拖拽柄 */
-.style-drag-handle { cursor: grab; font-size: 16px; color: var(--text-muted); padding: 0 2px; }
-.style-drag-handle:hover { color: var(--el-color-primary); }
+.style-drag-handle { cursor: grab; font-size: 16px; color: var(--ink3); padding: 0 2px; }
+.style-drag-handle:hover { color: var(--hq); }
 .style-drag-handle:active { cursor: grabbing; }
 /* F2: 开关关闭时非默认画风灰色 */
 .style-card--locked { opacity: 0.65; }
 .style-card-body--locked { pointer-events: none; }
 .style-locked-hint {
-  font-size: 12px; color: var(--el-color-warning);
-  background: color-mix(in srgb, var(--el-color-warning) 10%, transparent);
-  padding: 6px 10px; border-radius: 6px; margin: 0 0 10px;
+  font-size: 12px; color: var(--th);
+  background: var(--th-t);
+  padding: 6px 10px; border-radius: var(--r-s); margin: 0 0 10px;
 }
-.style-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.6; }
+.style-desc { font-size: 13px; color: var(--ink2); margin: 0 0 12px; line-height: 1.6; }
 .style-cover { margin-bottom: 12px; }
-.style-cover-img { width: 120px; height: 80px; border-radius: 8px; border: 1px solid var(--border-color); }
+.style-cover-img { width: 120px; height: 80px; border-radius: var(--r-m); border: 1px solid var(--line); }
 
-.style-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border-color); }
+.style-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .section-head .section-title { margin: 0; }
-.section-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0 0 10px; }
-.size-price { font-variant-numeric: tabular-nums; color: var(--el-color-primary); font-weight: 600; }
+.section-title { font-size: 14px; font-weight: 600; color: var(--ink); margin: 0 0 10px; }
+/* 价格数字墨色不上色铁律（REQ §1.1），文楷落款感 */
+.size-price { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-family: var(--f-d); }
 
 /* A3: 尺寸行列表（替代原 el-table，支持拖拽） */
 .size-row-list { display: flex; flex-direction: column; gap: 6px; }
 .size-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 8px;
-  background: var(--bg-inset); border: 1px solid var(--border-color);
+  padding: 8px 10px; border-radius: var(--r-m);
+  background: var(--paper2); border: 1px solid var(--line);
 }
-.size-drag-handle { cursor: grab; font-size: 15px; color: var(--text-muted); flex-shrink: 0; }
-.size-drag-handle:hover { color: var(--el-color-primary); }
+.size-drag-handle { cursor: grab; font-size: 15px; color: var(--ink3); flex-shrink: 0; }
+.size-drag-handle:hover { color: var(--hq); }
 .size-drag-handle:active { cursor: grabbing; }
 .size-row-thumb { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .size-row-main { flex: 1; min-width: 0; }
 .size-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.size-row-name { font-size: 14px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.size-row-name { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .size-row-desc {
-  font-size: 12px; color: var(--text-secondary); margin: 3px 0 0;
+  font-size: 12px; color: var(--ink2); margin: 3px 0 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .size-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
 /* 尺寸缩略图 */
-.size-thumb { width: 44px; height: 34px; border-radius: 6px; border: 1px solid var(--border-color); vertical-align: middle; }
-.size-thumb-empty { color: var(--text-muted); }
+.size-thumb { width: 44px; height: 34px; border-radius: var(--r-s); border: 1px solid var(--line); vertical-align: middle; }
+.size-thumb-empty { color: var(--ink4); }
 .size-thumb-tag { transform: scale(0.9); }
 
 .style-addon-list { display: flex; flex-direction: column; gap: 6px; }
 .style-addon-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0; }
-.addon-tpl-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.addon-tpl-name { font-size: 14px; font-weight: 500; color: var(--ink); }
 
 /* 尺寸覆盖面板 */
 .override-panel {
   margin: 4px 0 12px; padding: 12px 16px;
-  background: var(--bg-inset); border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--paper2); border: 1px solid var(--line); border-radius: var(--r-m);
 }
-.override-panel-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; }
+.override-panel-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
 .override-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
-.override-size-name { font-size: 13px; color: var(--text-secondary); min-width: 60px; }
+.override-size-name { font-size: 13px; color: var(--ink2); min-width: 60px; }
 
 .cover-upload { display: flex; align-items: center; gap: 12px; }
-.cover-preview { width: 80px; height: 60px; border-radius: 8px; border: 1px solid var(--border-color); }
-.form-hint { font-size: 11px; color: var(--text-secondary); margin: 4px 0 0; }
+.cover-preview { width: 80px; height: 60px; border-radius: var(--r-m); border: 1px solid var(--line); }
+.form-hint { font-size: 11px; color: var(--ink2); margin: 4px 0 0; }
 
 /* v0.35 波1: 尺寸图设置区 */
 .size-image-picker { display: flex; align-items: center; gap: 12px; }
-.size-image-preview { width: 90px; height: 70px; border-radius: 8px; border: 1px solid var(--border-color); flex-shrink: 0; }
+.size-image-preview { width: 90px; height: 70px; border-radius: var(--r-m); border: 1px solid var(--line); flex-shrink: 0; }
 .size-image-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 
 /* v0.35 波1: 作品集挑选网格 */
-.pick-hint { font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; }
+.pick-hint { font-size: 12px; color: var(--ink2); margin: 0 0 12px; }
 .pick-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 10px; max-height: 420px; overflow-y: auto;
 }
 .pick-item {
-  position: relative; border-radius: 8px; overflow: hidden; cursor: pointer;
+  position: relative; border-radius: var(--r-m); overflow: hidden; cursor: pointer;
   border: 2px solid transparent; transition: border-color 0.2s, transform 0.2s;
 }
-.pick-item:hover { border-color: var(--el-color-primary); transform: translateY(-2px); }
+.pick-item:hover { border-color: var(--hq); transform: translateY(-2px); }
 .pick-img { width: 100%; height: 100px; display: block; }
 .pick-title {
-  display: block; font-size: 11px; color: var(--text-secondary);
+  display: block; font-size: 11px; color: var(--ink2);
   padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* A4: 增项导入弹窗 */
 .import-list { max-height: 360px; overflow-y: auto; }
 .import-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-.import-price { margin-left: auto; font-size: 13px; color: var(--el-color-primary); font-variant-numeric: tabular-nums; }
+/* 价格数字墨色不上色铁律（REQ §1.1） */
+.import-price { margin-left: auto; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
 </style>

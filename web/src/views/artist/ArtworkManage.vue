@@ -1,6 +1,7 @@
 <template>
   <ArtistLayout>
-    <h2>{{ $t('artworks.title') }}</h2>
+    <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
+    <h2 class="font-display artwork-page-title">{{ $t('artworks.title') }}</h2>
 
     <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
     <div class="artwork-toolbar">
@@ -18,10 +19,10 @@
         @dragover.capture="guardDragOver"
         @drop.capture="guardDrop"
       >
-        <el-icon style="font-size: 40px; color: var(--text-secondary)"><Upload /></el-icon>
+        <el-icon class="upload-icon"><Upload /></el-icon>
         <p>{{ $t('artworks.dragUpload') }}</p>
         <template #tip>
-          <p style="color: var(--text-secondary); font-size: 12px">{{ $t('artworks.tip') }}</p>
+          <p class="upload-tip">{{ $t('artworks.tip') }}</p>
         </template>
       </el-upload>
       <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
@@ -471,29 +472,37 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
+/* H1 页面标题：文楷 28/700（REQ §1.3） */
+.artwork-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+
 /* R45: 工具栏 */
 .artwork-toolbar { margin: 12px 0; }
+
+/* 上传区图标与提示（原 inline style 旧变量，改走 class） */
+.upload-icon { font-size: 40px; color: var(--ink3); }
+.upload-tip { color: var(--ink3); font-size: 12px; }
 
 /* ─── F7: 主图区（单独展示，不在网格重复） ─── */
 .main-artwork-section { margin: 16px 0 8px; }
 .section-label {
   font-size: 14px; font-weight: 700;
-  color: var(--text-primary);
+  color: var(--ink);
   margin: 0 0 10px;
 }
 .main-artwork-row {
   display: flex; gap: 12px; flex-wrap: wrap;
 }
 .main-artwork-card {
-  position: relative; border-radius: 8px; overflow: hidden;
+  position: relative; border-radius: var(--r-m); overflow: hidden;
   width: 220px; flex-shrink: 0;
-  border: 2px solid var(--el-color-warning-light-5);
+  border: 2px solid color-mix(in srgb, var(--th) 45%, transparent);
 }
 .main-artwork-img { width: 100%; height: 160px; display: block; }
 .main-artwork-tag {
   position: absolute; top: 6px; left: 6px; z-index: 2;
   padding: 2px 8px; border-radius: 999px;
-  background: color-mix(in srgb, var(--el-color-warning) 85%, transparent);
+  background: var(--th);
   color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
   pointer-events: none;
 }
@@ -503,7 +512,7 @@ onMounted(async () => {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px; margin-top: 16px;
 }
-.artwork-item { position: relative; border-radius: 8px; overflow: hidden; }
+.artwork-item { position: relative; border-radius: var(--r-m); overflow: hidden; }
 .artwork-img { width: 100%; height: 180px; display: block; }
 .artwork-actions {
   position: absolute; bottom: 0; left: 0; right: 0;
@@ -512,28 +521,29 @@ onMounted(async () => {
 }
 .artwork-item:hover .artwork-actions,
 .artwork-item:focus-within .artwork-actions { opacity: 1; }
-.paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center; }
+.paste-hint { font-size: 12px; color: var(--ink3); margin-top: 8px; text-align: center; }
 
 /* v0.35 波3: 作品编辑弹窗提示 */
-.edit-hint { font-size: 11px; color: var(--text-secondary); margin: 4px 0 0; line-height: 1.5; }
+.edit-hint { font-size: 11px; color: var(--ink3); margin: 4px 0 0; line-height: 1.5; }
 
 /* ─── REQ-017: 封面星标 + 标签 ─── */
 .artwork-cover-star {
   position: absolute; top: 6px; right: 6px; z-index: 2;
   width: 30px; height: 30px; border-radius: 50%; border: none;
-  background: color-mix(in srgb, var(--bg-card) 75%, transparent);
+  background: color-mix(in srgb, var(--card) 75%, transparent);
   backdrop-filter: blur(4px);
-  color: var(--text-secondary); font-size: 18px; line-height: 1;
+  color: var(--ink2); font-size: 18px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: color 0.15s, transform 0.15s;
 }
 .artwork-cover-star:hover { transform: scale(1.15); }
 .artwork-cover-star:disabled { cursor: wait; opacity: 0.6; }
-.artwork-cover-star--on { color: var(--el-color-warning); }
+/* 封面星：藤黄=待确认/封面标记语义 */
+.artwork-cover-star--on { color: var(--th); }
 .artwork-cover-tag {
   position: absolute; top: 6px; left: 6px; z-index: 2;
   padding: 2px 8px; border-radius: 999px;
-  background: color-mix(in srgb, var(--el-color-warning) 85%, transparent);
+  background: var(--th);
   color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
   pointer-events: none;
 }
@@ -544,18 +554,18 @@ onMounted(async () => {
   display: flex; gap: 2px;
 }
 .cover-reorder-btn {
-  width: 24px; height: 24px; border-radius: 4px; border: none;
-  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  width: 24px; height: 24px; border-radius: var(--r-s); border: none;
+  background: color-mix(in srgb, var(--card) 80%, transparent);
   backdrop-filter: blur(4px);
-  color: var(--text-primary); font-size: 12px; font-weight: 700;
+  color: var(--ink); font-size: 12px; font-weight: 700;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: background 0.15s;
 }
-.cover-reorder-btn:hover:not(:disabled) { background: var(--el-color-primary-light-8); }
+.cover-reorder-btn:hover:not(:disabled) { background: var(--hq-t); }
 .cover-reorder-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ─── R45: 多选模式 ─── */
-.artwork-item--selected { outline: 3px solid var(--el-color-primary); outline-offset: -3px; }
+.artwork-item--selected { outline: 3px solid var(--hq); outline-offset: -3px; }
 .artwork-select-layer {
   position: absolute; inset: 0;
   cursor: pointer; background: rgba(0, 0, 0, 0.08);
@@ -568,41 +578,41 @@ onMounted(async () => {
   color: #fff; font-size: 14px; font-weight: 700;
   transition: background 0.15s;
 }
-.artwork-checkbox--on { background: var(--el-color-primary); border-color: var(--el-color-primary); }
+.artwork-checkbox--on { background: var(--hq); border-color: var(--hq); }
 
 /* 批量操作栏（固定底部） */
 .batch-bar {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
   padding: 10px 20px; border-radius: 999px;
-  background: var(--bg-card); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  background: var(--card); box-shadow: var(--sh-3);
   z-index: 100;
 }
-.batch-count { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+.batch-count { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; }
 
-/* 滑块确认（与 OrderDetail/QueueBoard 视觉一致） */
-.batch-slide-hint { font-size: 14px; color: var(--text-primary); margin-bottom: 16px; }
+/* 滑块确认（与 OrderDetail/QueueBoard 视觉一致，朱砂=危险操作） */
+.batch-slide-hint { font-size: 14px; color: var(--ink); margin-bottom: 16px; }
 .slide-confirm {
   position: relative; height: 40px;
   border-radius: 999px; overflow: hidden; user-select: none;
-  background: var(--el-color-danger-light-9);
-  border: 1px solid var(--el-color-danger-light-5);
+  background: var(--zs-t);
+  border: 1px solid color-mix(in srgb, var(--zs) 45%, transparent);
 }
 .slide-confirm-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
-  background: var(--el-color-danger-light-7);
+  background: color-mix(in srgb, var(--zs) 28%, transparent);
   transition: width 0.05s linear;
 }
 .slide-confirm-label {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600; color: var(--el-color-danger);
+  font-size: 13px; font-weight: 600; color: var(--zs);
   pointer-events: none;
 }
 .slide-confirm-thumb {
   position: absolute; top: 2px; left: 2px;
   width: 36px; height: 36px; border-radius: 50%;
-  background: var(--el-color-danger); color: #fff;
+  background: var(--zs); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; font-weight: 700;
   cursor: grab; touch-action: none;
