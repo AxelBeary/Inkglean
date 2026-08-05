@@ -111,9 +111,17 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   // ─── 管理员接口 ───
 
-  /** GET /api/admin/messages — 管理员查看全部留言（跨画师，含 artist_name） */
-  fastify.get('/api/admin/messages', { preHandler: requireAdmin }, async () => {
-    return guestbookService.getAdminMessages()
+  /** GET /api/admin/messages — 管理员查看全部留言（跨画师，含 artist_name）；REQ-022 F5：可选 ?artistId=&status=&replied= 筛选 */
+  fastify.get('/api/admin/messages', { preHandler: requireAdmin }, async (request) => {
+    const query = request.query as { artistId?: string; status?: string; replied?: string }
+    const filters: guestbookService.AdminMessageFilters = {}
+    const artistId = parseInt(query.artistId ?? '')
+    if (!Number.isNaN(artistId)) filters.artistId = artistId
+    // 枚举白名单：非法值忽略（与全站列表惯例一致）
+    if (query.status && ['pending', 'approved', 'rejected'].includes(query.status)) filters.status = query.status
+    if (query.replied === '1') filters.replied = 1
+    else if (query.replied === '0') filters.replied = 0
+    return guestbookService.getAdminMessages(filters)
   })
 
   /** DELETE /api/admin/messages/:id — 管理员强制删除（软删除） */

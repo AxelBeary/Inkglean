@@ -129,4 +129,63 @@ describe('F4 留言板 (Guestbook)', () => {
     expect(guestbookService.adminDeleteMessage(999999)).toBeNull()
     expect(guestbookService.approveMessage(artist.id, 999999)).toBeNull()
   })
+
+  // ─── REQ-022 F5: 管理员筛选 ───
+
+  /** 造数：artist 两条（一条 approved + 已回复，一条 pending 未回复），otherArtist 一条 rejected */
+  function seedFilterFixture() {
+    const m1 = guestbookService.createMessage(artist.id, '甲', '赞一个')
+    guestbookService.approveMessage(artist.id, m1.id)
+    guestbookService.replyMessage(artist.id, m1.id, '谢谢')
+    const m2 = guestbookService.createMessage(artist.id, '乙', '求画')
+    const m3 = guestbookService.createMessage(otherArtist.id, '丙', '别人家的')
+    guestbookService.rejectMessage(otherArtist.id, m3.id)
+    return { m1, m2, m3 }
+  }
+
+  it('TC-GB-14: 管理员筛选——无参数返回全部', () => {
+    seedFilterFixture()
+    const all = guestbookService.getAdminMessages()
+    expect(all).toHaveLength(3)
+    // 保持 created_at DESC（artist_name 联查仍在）
+    expect(all[0].artist_name).toBeDefined()
+  })
+
+  it('TC-GB-15: 管理员筛选——按画师 artistId 过滤', () => {
+    seedFilterFixture()
+    const mine = guestbookService.getAdminMessages({ artistId: artist.id })
+    expect(mine).toHaveLength(2)
+    expect(mine.every(m => m.artist_id === artist.id)).toBe(true)
+    const theirs = guestbookService.getAdminMessages({ artistId: otherArtist.id })
+    expect(theirs).toHaveLength(1)
+    expect(theirs[0].nickname).toBe('丙')
+  })
+
+  it('TC-GB-16: 管理员筛选——按审核状态 status 过滤', () => {
+    seedFilterFixture()
+    expect(guestbookService.getAdminMessages({ status: 'approved' })).toHaveLength(1)
+    expect(guestbookService.getAdminMessages({ status: 'pending' })).toHaveLength(1)
+    expect(guestbookService.getAdminMessages({ status: 'rejected' })).toHaveLength(1)
+    expect(guestbookService.getAdminMessages({ status: 'approved' })[0].nickname).toBe('甲')
+  })
+
+  it('TC-GB-17: 管理员筛选——按是否已回复 replied 两态过滤', () => {
+    seedFilterFixture()
+    const replied = guestbookService.getAdminMessages({ replied: 1 })
+    expect(replied).toHaveLength(1)
+    expect(replied[0].artist_reply).toBe('谢谢')
+    expect(guestbookService.getAdminMessages({ replied: 0 })).toHaveLength(2)
+  })
+
+  it('TC-GB-18: 管理员筛选——组合条件（artistId + status + replied）', () => {
+    seedFilterFixture()
+    expect(guestbookService.getAdminMessages({ artistId: artist.id, status: 'approved', replied: 1 })).toHaveLength(1)
+    expect(guestbookService.getAdminMessages({ artistId: artist.id, status: 'approved', replied: 0 })).toHaveLength(0)
+    expect(guestbookService.getAdminMessages({ artistId: otherArtist.id, status: 'rejected' })).toHaveLength(1)
+  })
+
+  it('TC-GB-19: 管理员筛选——artistId 无匹配返回空数组', () => {
+    seedFilterFixture()
+    expect(guestbookService.getAdminMessages({ artistId: 999999 })).toHaveLength(0)
+  })
 })

@@ -311,8 +311,8 @@ export const adminApi = {
   // 回收站（事故修复：孤儿文件可恢复）
   getRecycleBin: ({ page, pageSize } = {}) => api.get('/admin/recycle-bin', { params: { page, pageSize } }),
   emptyRecycleBin: () => api.delete('/admin/recycle-bin'),
-  // F4: 留言管理（跨画师）
-  getMessages: () => api.get('/admin/messages'),
+  // F4: 留言管理（跨画师）；REQ-022 F5: 可选筛选 { artistId, status, replied }
+  getMessages: (filters = {}) => api.get('/admin/messages', { params: filters }),
   deleteMessage: (id) => api.delete(`/admin/messages/${id}`),
   // HC: 系统自检
   getHealth: () => api.get('/admin/health')
