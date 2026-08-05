@@ -83,17 +83,12 @@ function buildMockComposable(mode) {
     refFileList: ref([]),
     handleRefUpload: vi.fn(),
     handleRefRemove: vi.fn(),
-    addonSelections: reactive({}),
-    addonToggles: reactive({}),
     pricePreview: ref(null),
     pricingExpanded: ref(false),
     selectedTier: computed(() => tiers.value.find(t => t.id === form.tierId) || null),
     hasPricingExtras: ref(false),
-    availableAddons: ref([]),
-    addonGroups: ref([]),
     usageMultipliers: ref([]),
     rushMultipliers: ref([]),
-    formatAddonPrice: vi.fn(() => ''),
     onTierChange: vi.fn(),
     sanitizedRules: ref(''),
     discountEnabled: ref(false),
@@ -199,6 +194,9 @@ describe('OrderForm 步骤导航——三模式步骤链回归', () => {
       expect(wrapper.vm.step).toBe(4)
       expect(activeTitle(wrapper)).toBe('orderForm.step2Title')
 
+      // D 软提示：填描述后可直接进入联系方式步骤
+      h.current.form.description = '想要一个酷酷的头像'
+      await nextTick()
       await clickNav(wrapper, 'orderForm.nextStep')
       expect(wrapper.vm.step).toBe(5)
       expect(activeTitle(wrapper)).toBe('orderForm.step3Title')
@@ -242,6 +240,9 @@ describe('OrderForm 步骤导航——三模式步骤链回归', () => {
       expect(wrapper.vm.step).toBe(3)
       expect(activeTitle(wrapper)).toBe('orderForm.step2Title')
 
+      // D 软提示：填描述后可直接进入联系方式步骤
+      h.current.form.description = '想要一个酷酷的头像'
+      await nextTick()
       await clickNav(wrapper, 'orderForm.nextStep')
       expect(wrapper.vm.step).toBe(4)
       expect(activeTitle(wrapper)).toBe('orderForm.step3Title')
@@ -278,6 +279,9 @@ describe('OrderForm 步骤导航——三模式步骤链回归', () => {
       expect(wrapper.vm.step).toBe(2)
       expect(activeTitle(wrapper)).toBe('orderForm.step2Title')
 
+      // D 软提示：填描述后可直接进入联系方式步骤
+      h.current.form.description = '想要一个酷酷的头像'
+      await nextTick()
       await clickNav(wrapper, 'orderForm.nextStep')
       expect(wrapper.vm.step).toBe(3)
       expect(activeTitle(wrapper)).toBe('orderForm.step3Title')
@@ -294,6 +298,33 @@ describe('OrderForm 步骤导航——三模式步骤链回归', () => {
       await clickNav(wrapper, 'orderForm.prevStep')
       expect(wrapper.vm.step).toBe(1)
       expect(activeTitle(wrapper)).toBe('orderForm.step1Title')
+    })
+
+    it('D 软提示：空描述点下一步 → 弹确认框；取消留下、确认放行', async () => {
+      const { ElMessageBox } = await import('element-plus')
+      const confirmSpy = vi.spyOn(ElMessageBox, 'confirm')
+      try {
+        const wrapper = await mountForm('legacy')
+        h.current.form.tierId = 1
+        await nextTick()
+        await clickNav(wrapper, 'orderForm.nextStep')
+        expect(wrapper.vm.step).toBe(2) // 到达写需求步骤
+
+        // 需求描述留空点下一步 → 弹软提示（用户取消）→ 留在本步
+        confirmSpy.mockRejectedValueOnce('cancel')
+        await clickNav(wrapper, 'orderForm.nextStep')
+        expect(confirmSpy).toHaveBeenCalled()
+        expect(wrapper.vm.step).toBe(2)
+
+        // 确认「继续」→ 放行到联系方式步骤
+        confirmSpy.mockResolvedValueOnce('confirm')
+        await clickNav(wrapper, 'orderForm.nextStep')
+        await flushPromises()
+        expect(wrapper.vm.step).toBe(3)
+        expect(activeTitle(wrapper)).toBe('orderForm.step3Title')
+      } finally {
+        confirmSpy.mockRestore()
+      }
     })
   })
 

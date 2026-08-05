@@ -228,38 +228,7 @@
               </div>
             </div>
 
-            <!-- 增项选择（旧档位模式，选完档位后出现） -->
-            <div v-if="!isStyleMode && form.tierId && availableAddons.length > 0" class="mo-field">
-              <div class="mo-field-label">{{ $t('manualOrder.addons') }}</div>
-              <div class="addon-groups">
-                <div v-for="group in addonGroups" :key="group.category" class="addon-group">
-                  <div class="addon-group-title" @click="group.collapsed = !group.collapsed">
-                    <span>{{ group.label }}</span>
-                    <span class="collapse-arrow">{{ group.collapsed ? '▸' : '▾' }}</span>
-                  </div>
-                  <div v-show="!group.collapsed" class="addon-items">
-                    <div v-for="a in group.items" :key="a.id" class="addon-item">
-                      <div class="addon-item-info">
-                        <span class="addon-item-name">{{ a.name }}</span>
-                        <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
-                        <span v-if="a.description" class="addon-item-desc">{{ a.description }}</span>
-                      </div>
-                      <el-input-number
-                        v-if="a.select_mode === 'quantity'"
-                        v-model="addonSelections[a.id]"
-                        :min="0" :max="a.max_qty" size="small" style="width: 110px"
-                      />
-                      <el-switch
-                        v-else-if="a.select_mode === 'toggle'"
-                        v-model="addonToggles[a.id]" size="small"
-                      />
-                      <el-tag v-else size="small" type="warning">{{ $t('manualOrder.inquiry') }}</el-tag>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+            <!-- 增项选择：旧档位模型增项已随 addons 冻结清理（前端停传，后端首批已恒空数组） -->
             <!-- 倍率选择（画风模式选完尺寸后 / 旧模式选完档位后出现） -->
             <div v-if="(form.tierId || (isStyleMode && selectedSizeId)) && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" class="mo-field">
               <div class="mo-field-label">{{ $t('manualOrder.multipliers') }}</div>
@@ -561,8 +530,6 @@ const subdomain = ref('')
 
 // ─── 价格计算器状态 ───
 const pricingData = ref(null)
-const addonSelections = reactive({})
-const addonToggles = reactive({})
 const pricePreview = ref(null)
 const finalPriceYuan = ref(null)
 // G2: 价格脏标记——画师是否手动改过价格（005 订单事故根因修复：
@@ -614,33 +581,6 @@ function selectTier(tier) {
   form.tierId = form.tierId === tier.id ? null : tier.id
   onTierChange()
 }
-
-// ─── 增项分组 ───
-const CATEGORY_META = {
-  expression: { key: 'catExpression' },
-  outfit: { key: 'catOutfit' },
-  background: { key: 'catBackground' },
-  weapon: { key: 'catWeapon' },
-  other: { key: 'catOther' }
-}
-
-const availableAddons = computed(() => {
-  if (!form.tierId || !pricingData.value) return []
-  const tier = pricingData.value.tiers.find(t => t.id === form.tierId)
-  return tier?.addons || []
-})
-
-const addonGroups = computed(() => {
-  const groups = {}
-  for (const a of availableAddons.value) {
-    if (!groups[a.category]) {
-      const meta = CATEGORY_META[a.category] || { key: 'catOther' }
-      groups[a.category] = { category: a.category, label: t(`manualOrder.${meta.key}`), collapsed: false, items: [] }
-    }
-    groups[a.category].items.push(a)
-  }
-  return Object.values(groups)
-})
 
 const usageMultipliers = computed(() =>
   (pricingData.value?.multipliers || []).filter(m => m.type === 'usage')
@@ -844,21 +784,13 @@ const displayPrice = computed(() => {
 /** QQ 号格式校验（5-15位纯数字） */
 const qqValid = computed(() => /^\d{5,15}$/.test(form.clientQq.trim()))
 
-function formatAddonPrice(a) {
-  if (a.select_mode === 'inquiry') return t('manualOrder.inquiry')
-  if (a.price_type === 'percent') return `+${Math.round(a.price_value * 100)}%`
-  return `¥${a.price_value}/个`
-}
-
-/** 切换档位时清空增项/倍率并重新计算 */
+/** 切换档位时清空倍率并重新计算 */
 function onTierChange() {
-  for (const key of Object.keys(addonSelections)) delete addonSelections[key]
-  for (const key of Object.keys(addonToggles)) delete addonToggles[key]
   form.usageMultiplierId = null
   form.rushMultiplierId = null
   pricePreview.value = null
   finalPriceYuan.value = null
-  priceTouched.value = false // G2: 切档后恢复"价格跟随计算"模式（增项已清空，旧手输价失去意义）
+  priceTouched.value = false // G2: 切档后恢复"价格跟随计算"模式（倍率已清空，旧手输价失去意义）
 }
 
 // ─── 实时价格计算（防抖） ───
@@ -871,17 +803,14 @@ function scheduleCalc() {
 async function doCalc() {
   if (!form.tierId) { pricePreview.value = null; return }
 
-  const addons = buildAddonList()
-
   try {
     pricePreview.value = await artistPublicApi.calculatePrice({
       subdomain: subdomain.value,
       tierId: form.tierId,
-      addons,
       usageMultiplierId: form.usageMultiplierId,
       rushMultiplierId: form.rushMultiplierId
     })
-    // G2: 未手动改过价格 → 始终同步最新计算价（选档位后加增项，字段跟随更新）；
+    // G2: 未手动改过价格 → 始终同步最新计算价（选档位后加倍率，字段跟随更新）；
     // 已手动改过 → 尊重画师手输。直接写 finalPriceYuan（绕过 priceInput setter，不置脏）
     if (!priceTouched.value) {
       finalPriceYuan.value = pricePreview.value.totalPrice
@@ -891,39 +820,12 @@ async function doCalc() {
   }
 }
 
-function buildAddonList() {
-  const addons = []
-  for (const a of availableAddons.value) {
-    if (a.select_mode === 'quantity' && addonSelections[a.id] > 0) {
-      addons.push({ addonId: a.id, quantity: addonSelections[a.id] })
-    } else if (a.select_mode === 'toggle' && addonToggles[a.id]) {
-      addons.push({ addonId: a.id, quantity: 1 })
-    } else if (a.select_mode === 'inquiry') {
-      addons.push({ addonId: a.id, quantity: 1 })
-    }
-  }
-  return addons
-}
-
 watch([() => form.tierId, () => form.usageMultiplierId, () => form.rushMultiplierId], scheduleCalc)
-watch(addonSelections, scheduleCalc, { deep: true })
-watch(addonToggles, scheduleCalc, { deep: true })
 // 画风模式：增项/倍率变化触发画风计价（旧模式路径由 doCalc 的 tierId 检查挡住，互不干扰）
 watch(styleAddonSelections, scheduleStyleCalc, { deep: true })
 watch([() => form.usageMultiplierId, () => form.rushMultiplierId], () => {
   if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
 })
-
-// 增项默认值初始化：el-input-number 的 v-model 不接受 undefined
-watch(availableAddons, (addons) => {
-  for (const a of addons) {
-    if (a.select_mode === 'quantity') {
-      if (addonSelections[a.id] === undefined) addonSelections[a.id] = 0
-    } else if (addonToggles[a.id] === undefined) {
-      addonToggles[a.id] = false
-    }
-  }
-}, { immediate: true })
 
 // ─── QQ 历史订单（防抖 500ms，客户端过滤——API 零改动） ───
 let qqTimer = null
@@ -1015,9 +917,9 @@ async function submit() {
 
   submitting.value = true
   try {
-    // 画风模式：传 styleSizeId + styleAddons（替代 tierId/addons），后端走 calculateStylePrice 自动算价
+    // 画风模式：传 styleSizeId + styleAddons（替代 tierId），后端走 calculateStylePrice 自动算价
+    // 旧模型档位：只传 tierId + 倍率（addons 旧字段已冻结，前端停传）
     const isStyleSubmit = isStyleMode.value && selectedSizeId.value
-    const addons = isStyleSubmit ? [] : (form.tierId ? buildAddonList() : [])
 
     const order = await artistApi.createManualOrder({
       clientQq: form.clientQq.trim(),
@@ -1027,7 +929,6 @@ async function submit() {
       priority: form.priority,
       clientNotify: form.clientNotify,
       references: uploadedRefs.value,
-      addons,
       // 画风模式结构化字段（后端验证+算价+创建）
       ...(isStyleSubmit ? {
         styleSizeId: selectedSizeId.value,
@@ -1133,8 +1034,6 @@ function resetForm() {
   customAddonOpen.value = false
   customAddonName.value = ''
   customAddonPrice.value = null
-  for (const key of Object.keys(addonSelections)) delete addonSelections[key]
-  for (const key of Object.keys(addonToggles)) delete addonToggles[key]
   pricePreview.value = null
   finalPriceYuan.value = null
   priceTouched.value = false // G2: 重置清脏标记，恢复"价格跟随计算"模式

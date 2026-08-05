@@ -287,6 +287,9 @@ export default {
     backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
     workflowLabel: 'Workflow',
     descLabel: 'Description', descPlaceholder: 'Describe what you want: character features, pose, style, background, etc.',
+    // D soft prompt (user decision: description can be skipped, only prompt once when empty, no hard block)
+    descSoftTitle: 'Empty description', descSoftMsg: 'You have not described what you want. Continue anyway? (The artist may not fully understand your idea.)',
+    descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
     pricingDetail: 'Price details',

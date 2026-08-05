@@ -287,6 +287,9 @@ export default {
     backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
     workflowLabel: '约稿流程',
     descLabel: '需求描述', descPlaceholder: '描述你想要的画面：角色特征、姿势、风格、背景等',
+    // D 软提示（用户拍板：需求描述可空过，仅留空时提示一次，不拦截）
+    descSoftTitle: '需求描述为空', descSoftMsg: '你还没有填写需求描述，确定继续吗？（画师可能不太清楚你的想法）',
+    descSoftContinue: '继续',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
     refTip: '下单后画师也可在订单图库中补充参考图，订单图库合计上限 20 张。',
     pricingDetail: '详细计价',
