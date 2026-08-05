@@ -134,6 +134,13 @@ export const E = {
   LINKS_TOO_MANY: 'LINKS_TOO_MANY',
   LINK_URL_INVALID: 'LINK_URL_INVALID',
 
+  // 社交平台（v0.38 REQ-022 F2）
+  PLATFORM_NOT_FOUND: 'PLATFORM_NOT_FOUND',
+  PLATFORM_NAME_EMPTY: 'PLATFORM_NAME_EMPTY',
+  PLATFORM_ICON_REQUIRED: 'PLATFORM_ICON_REQUIRED',
+  PLATFORM_DOMAIN_INVALID: 'PLATFORM_DOMAIN_INVALID',
+  PLATFORM_DOMAIN_TAKEN: 'PLATFORM_DOMAIN_TAKEN',
+
   // 图库（v0.12 R18）
   REFERENCES_LIMIT: 'REFERENCES_LIMIT',
   REFERENCE_DUPLICATE: 'REFERENCE_DUPLICATE',
@@ -331,8 +338,15 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_FOCUS_MODE: '无效的焦点图模式（可选：off/small/large）',
 
   // 外链（v0.12 R15）
-  LINKS_TOO_MANY: '外链数量不能超过6条',
+  LINKS_TOO_MANY: '外链数量不能超过8条',
   LINK_URL_INVALID: '外链地址格式不正确（须以 http:// 或 https:// 开头）',
+
+  // 社交平台（v0.38 REQ-022 F2）
+  PLATFORM_NOT_FOUND: '社交平台不存在',
+  PLATFORM_NAME_EMPTY: '平台名称不能为空',
+  PLATFORM_ICON_REQUIRED: '平台图标键（icon_key）与单字兜底（fallback_char）至少填一项',
+  PLATFORM_DOMAIN_INVALID: '平台域名格式不正确（不含协议/路径/端口）',
+  PLATFORM_DOMAIN_TAKEN: '该域名已被其他启用平台占用',
 
   // 图库（v0.12 R18）
   REFERENCES_LIMIT: '参考图总数不能超过20张',
