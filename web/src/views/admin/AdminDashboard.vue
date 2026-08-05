@@ -241,4 +241,23 @@ onMounted(async () => {
 /* REQ-022 F5: 留言筛选行 */
 .gb-filter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .gb-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ═══ 打磨第二批：el-empty 空态插画对齐纸墨明度 ═══
+   EP 默认插画为近白浅色(#F7F8FC) + 深灰渐变，宣纸底上偏亮发白、墨黑底上缺层次。
+   将 EP 空态变量映射到纸墨 token：插画线条/渐变双主题自动适配（--ink2~4 墨色层次 + --line 纸线色）。 */
+.admin-page :deep(.el-empty) {
+  --el-empty-fill-color-0: var(--paper2);
+  --el-empty-fill-color-1: var(--line);
+  --el-empty-fill-color-2: var(--line2);
+  --el-empty-fill-color-3: var(--ink4);
+  --el-empty-fill-color-4: var(--ink3);
+  --el-empty-fill-color-5: var(--ink3);
+  --el-empty-fill-color-6: var(--ink2);
+  --el-empty-fill-color-7: var(--ink3);
+  --el-empty-fill-color-8: var(--line);
+  --el-empty-fill-color-9: var(--line2);
+}
+.admin-page :deep(.el-empty__description) {
+  color: var(--ink3);
+}
 </style>
