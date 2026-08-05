@@ -242,7 +242,7 @@ function commitInput(seg) {
 .payment-bar { user-select: none; --seg-light: 94%; }
 .bar-track {
   display: flex; height: 64px; border-radius: 10px; overflow: visible;
-  border: 1px solid var(--border-color); position: relative;
+  border: 1px solid var(--line); position: relative;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 .bar-seg {
@@ -251,7 +251,7 @@ function commitInput(seg) {
   position: relative; min-width: 0; overflow: hidden;
   background: hsl(var(--seg-hue, 210) 55% var(--seg-light));
   transition: width 0.15s ease, opacity 0.2s, background 0.3s;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--line);
 }
 .bar-seg:first-child { border-radius: 9px 0 0 9px; }
 .bar-seg:last-child { border-right: none; border-radius: 0 9px 9px 0; }
@@ -260,7 +260,7 @@ function commitInput(seg) {
 .bar-seg.elastic { opacity: 0.55; }
 .bar-seg.detach { opacity: 0.3; outline: 2px dashed var(--color-danger); outline-offset: -2px; }
 .seg-label {
-  font-size: 12px; color: var(--text-secondary); white-space: nowrap;
+  font-size: 12px; color: var(--ink2); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; max-width: 90%;
   line-height: 1.2;
 }
@@ -283,7 +283,7 @@ function commitInput(seg) {
 }
 .bar-handle .grip {
   width: 3px; height: 20px; border-radius: 2px;
-  background: var(--border-color); transition: background 0.15s, height 0.15s;
+  background: var(--line2); transition: background 0.15s, height 0.15s;
 }
 .bar-handle:hover, .bar-handle:focus {
   background: hsl(var(--seg-hue, 210) 50% 50% / 0.15);
@@ -293,7 +293,7 @@ function commitInput(seg) {
 }
 .bar-ruler {
   display: flex; justify-content: space-between;
-  font-size: 10px; color: var(--text-muted); margin-top: 4px; padding: 0 2px;
+  font-size: 10px; color: var(--ink3); margin-top: 4px; padding: 0 2px;
 }
 
 /* ===== 暗色适配（A5）=====

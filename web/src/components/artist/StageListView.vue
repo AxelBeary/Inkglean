@@ -262,39 +262,42 @@ function onTogglePay(s, val) {
 </script>
 
 <style scoped>
+/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 .stage-list { display: flex; flex-direction: column; gap: 4px; }
 .stage-row {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 8px;
-  background: var(--bg-card); border: 1px solid var(--border-color);
+  padding: 8px 12px; border-radius: var(--r-m);
+  background: var(--card); border: 1px solid var(--line);
   transition: background 0.15s, border-color 0.15s;
 }
-.stage-row:hover { border-color: var(--color-primary); }
-.stage-row.is-final { border-color: var(--color-gold); background: var(--color-gold-soft, rgba(176,141,30,0.06)); }
-.drag-handle { cursor: grab; color: var(--text-muted); font-size: 14px; user-select: none; flex-shrink: 0; }
-.stage-name { font-weight: 600; font-size: 14px; color: var(--text-primary); cursor: pointer; flex-shrink: 0; }
-.stage-name:hover { color: var(--color-primary); }
+.stage-row:hover { border-color: var(--hq); }
+/* 终态节点：赭石=客户/完结语义（原 color-gold） */
+.stage-row.is-final { border-color: var(--zhe); background: var(--zhe-t); }
+.drag-handle { cursor: grab; color: var(--ink3); font-size: 14px; user-select: none; flex-shrink: 0; }
+.stage-name { font-weight: 600; font-size: 14px; color: var(--ink); cursor: pointer; flex-shrink: 0; }
+.stage-name:hover { color: var(--hq); }
 .name-input { width: 120px; flex-shrink: 0; }
 .stage-desc {
-  font-size: 12px; color: var(--text-secondary);
+  font-size: 12px; color: var(--ink2);
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  cursor: pointer; padding: 2px 4px; border-radius: 4px;
+  cursor: pointer; padding: 2px 4px; border-radius: var(--r-s);
 }
-.stage-desc:hover { background: var(--color-primary-soft, rgba(52,150,219,0.08)); }
-.stage-desc.empty { color: var(--text-muted); opacity: 0; transition: opacity 0.15s; font-style: italic; }
+.stage-desc:hover { background: var(--hq-t); }
+.stage-desc.empty { color: var(--ink3); opacity: 0; transition: opacity 0.15s; font-style: italic; }
 .stage-row:hover .stage-desc.empty { opacity: 0.7; }
 .desc-input { flex: 1; min-width: 0; }
 .stage-pay {
   display: flex; align-items: center; gap: 6px;
   width: 110px; flex-shrink: 0; justify-content: flex-end;
 }
+/* 比例数字：统计数字墨色不上色铁律（REQ §1.1） */
 .pay-badge {
-  font-size: 12px; font-weight: 700; color: var(--color-primary);
+  font-size: 12px; font-weight: 700; color: var(--ink);
   font-variant-numeric: tabular-nums;
   min-width: 44px; text-align: right;
 }
-.pay-badge.auto { color: var(--color-gold); }
-.pay-badge.ghost { color: var(--text-muted); font-weight: 400; }
+.pay-badge.auto { color: var(--zhe); }
+.pay-badge.ghost { color: var(--ink3); font-weight: 400; }
 .stage-actions { width: 64px; flex-shrink: 0; display: flex; justify-content: flex-end; }
 .del-btn { opacity: 0.4; }
 .stage-row:hover .del-btn { opacity: 1; }
@@ -305,17 +308,17 @@ function onTogglePay(s, val) {
 .speech-vars-common {
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
   margin-bottom: 10px; padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--color-primary-soft, rgba(52,150,219,0.06));
-  border: 1px dashed color-mix(in srgb, var(--color-primary) 35%, transparent);
+  border-radius: var(--r-m);
+  background: var(--hq-t);
+  border: 1px dashed color-mix(in srgb, var(--hq) 35%, transparent);
 }
-.speech-vars-hint { font-size: 11px; color: var(--text-muted); font-style: italic; margin-left: 4px; }
+.speech-vars-hint { font-size: 11px; color: var(--ink3); font-style: italic; margin-left: 4px; }
 
 .stage-speech {
   margin: 4px 0 0 32px;
   padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--bg-secondary, rgba(0,0,0,0.025));
+  border-radius: var(--r-m);
+  background: var(--paper2);
   transition: background 0.15s;
 }
 /* #8: 折叠态更紧凑 */
@@ -326,24 +329,24 @@ function onTogglePay(s, val) {
   cursor: pointer; user-select: none;
   padding: 2px 0;
 }
-.speech-toggle { font-size: 10px; color: var(--text-muted); width: 12px; flex-shrink: 0; }
-.speech-head-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+.speech-toggle { font-size: 10px; color: var(--ink3); width: 12px; flex-shrink: 0; }
+.speech-head-label { font-size: 12px; font-weight: 600; color: var(--ink2); flex-shrink: 0; }
 .speech-preview {
-  font-size: 12px; color: var(--text-muted);
+  font-size: 12px; color: var(--ink3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   min-width: 0;
 }
 .speech-preview--empty { font-style: italic; opacity: 0.6; }
 .speech-vars { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
-.speech-vars-label { font-size: 12px; color: var(--text-secondary); margin-right: 4px; }
+.speech-vars-label { font-size: 12px; color: var(--ink2); margin-right: 4px; }
 .speech-var {
-  font-size: 11px; padding: 1px 6px; border-radius: 4px;
-  background: var(--color-primary-soft, rgba(52,150,219,0.08));
-  color: var(--color-primary); border: 1px solid transparent;
+  font-size: 11px; padding: 1px 6px; border-radius: var(--r-s);
+  background: var(--hq-t);
+  color: var(--hq); border: 1px solid transparent;
   cursor: pointer; transition: border-color 0.15s, background 0.15s;
   line-height: 1.6;
 }
-.speech-var:hover { border-color: var(--color-primary); background: rgba(52,150,219,0.14); }
+.speech-var:hover { border-color: var(--hq); background: color-mix(in srgb, var(--hq) 14%, transparent); }
 .speech-editor { display: flex; gap: 8px; align-items: flex-start; }
 .speech-editor .el-textarea { flex: 1; }
 /* v0.27: 随机开关 + 保存按钮纵向排列 */
