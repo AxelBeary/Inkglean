@@ -962,10 +962,12 @@ export default {
       emptyTitle: '清空回收站', emptyConfirm: '回收站中的文件将被永久删除，不可恢复。确定清空？',
       emptied: '已清空，删除 {n} 个文件', emptyHint: '回收站是空的'
     },
-    // F4: 留言管理（跨画师）
+    // F4: 留言管理（跨画师）；REQ-022 F5: 三维筛选
     guestbook: {
       title: '留言管理', empty: '暂无留言',
       colArtist: '画师', colNickname: '昵称', colContent: '内容', colStatus: '状态', colTime: '时间',
+      statusPending: '待审核', statusApproved: '已通过', statusRejected: '已拒绝',
+      filterByReplied: '是否已回复', repliedYes: '已回复', repliedNo: '未回复',
       delete: '强制删除', deleteConfirm: '确定删除这条留言？删除后客户主页将不再显示。', deleted: '留言已删除'
     },
     // HC: 系统自检

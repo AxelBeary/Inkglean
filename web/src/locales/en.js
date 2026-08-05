@@ -964,10 +964,12 @@ export default {
       emptyTitle: 'Empty recycle bin', emptyConfirm: 'Files in the recycle bin will be permanently deleted and cannot be recovered. Empty it?',
       emptied: '{n} files permanently deleted', emptyHint: 'Recycle bin is empty'
     },
-    // F4: guestbook management (cross-artist)
+    // F4: guestbook management (cross-artist); REQ-022 F5: three-way filters
     guestbook: {
       title: 'Guestbook management', empty: 'No messages',
       colArtist: 'Artist', colNickname: 'Nickname', colContent: 'Content', colStatus: 'Status', colTime: 'Time',
+      statusPending: 'Pending', statusApproved: 'Approved', statusRejected: 'Rejected',
+      filterByReplied: 'By reply', repliedYes: 'Replied', repliedNo: 'Not replied',
       delete: 'Force delete', deleteConfirm: 'Delete this message? It will no longer appear on the client page.', deleted: 'Message deleted'
     },
     // HC: system health check

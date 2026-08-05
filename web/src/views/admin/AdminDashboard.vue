@@ -70,7 +70,24 @@
     <!-- F4: 留言管理（跨画师，强制删除） -->
     <el-card style="margin-top: 24px">
       <template #header>
-        <span>{{ $t('admin.guestbook.title') }}</span>
+        <div class="gb-filter-header">
+          <span>{{ $t('admin.guestbook.title') }}</span>
+          <!-- REQ-022 F5: 画师 / 审核状态 / 是否已回复 三维筛选（清空即全部） -->
+          <div class="gb-filters">
+            <el-select v-model="filterArtistId" size="small" clearable style="width: 150px" :placeholder="$t('admin.guestbook.colArtist')" @change="loadAdminMessages">
+              <el-option v-for="a in artists" :key="a.id" :label="a.name" :value="a.id" />
+            </el-select>
+            <el-select v-model="filterStatus" size="small" clearable style="width: 120px" :placeholder="$t('admin.guestbook.colStatus')" @change="loadAdminMessages">
+              <el-option :label="$t('admin.guestbook.statusPending')" value="pending" />
+              <el-option :label="$t('admin.guestbook.statusApproved')" value="approved" />
+              <el-option :label="$t('admin.guestbook.statusRejected')" value="rejected" />
+            </el-select>
+            <el-select v-model="filterReplied" size="small" clearable style="width: 120px" :placeholder="$t('admin.guestbook.filterByReplied')" @change="loadAdminMessages">
+              <el-option :label="$t('admin.guestbook.repliedYes')" :value="1" />
+              <el-option :label="$t('admin.guestbook.repliedNo')" :value="0" />
+            </el-select>
+          </div>
+        </div>
       </template>
       <el-table v-if="msgLoading || adminMessages.length" :data="adminMessages" v-loading="msgLoading" stripe>
         <el-table-column :label="$t('admin.guestbook.colArtist')" width="120">
@@ -80,7 +97,7 @@
         <el-table-column prop="content" :label="$t('admin.guestbook.colContent')" min-width="200" show-overflow-tooltip />
         <el-table-column :label="$t('admin.guestbook.colStatus')" width="90">
           <template #default="{ row }">
-            <el-tag size="small" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ row.status }}</el-tag>
+            <el-tag size="small" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ $t(`admin.guestbook.status${row.status.charAt(0).toUpperCase()}${row.status.slice(1)}`) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column :label="$t('admin.guestbook.colTime')" width="170">
@@ -158,9 +175,24 @@ async function handleEmptyRecycleBin() {
   }
 }
 
-// ─── F4: 留言管理（跨画师） ───
+// ─── F4: 留言管理（跨画师）；REQ-022 F5: 三维筛选（画师/审核状态/是否已回复） ───
 const adminMessages = ref([])
 const msgLoading = ref(true)
+const filterArtistId = ref(null)
+const filterStatus = ref(null)
+const filterReplied = ref(null)
+
+async function loadAdminMessages() {
+  msgLoading.value = true
+  try {
+    adminMessages.value = (await adminApi.getMessages({
+      artistId: filterArtistId.value,
+      status: filterStatus.value,
+      replied: filterReplied.value
+    })) || []
+  } catch { /* 留言加载失败不阻塞其他模块 */ }
+  finally { msgLoading.value = false }
+}
 
 async function handleDeleteMessage(row) {
   try {
@@ -194,11 +226,8 @@ onMounted(async () => {
   }
   // REQ-022 F4: 回收站分页加载（独立请求）
   await loadRecycleBin()
-  // F4: 留言列表（独立失败，不阻塞其他模块）
-  try {
-    adminMessages.value = (await adminApi.getMessages()) || []
-  } catch { /* 后端 GET /api/admin/messages 待三号补齐 */ }
-  finally { msgLoading.value = false }
+  // F4/F5: 留言列表（独立失败，不阻塞其他模块；筛选变更时重新请求后端）
+  await loadAdminMessages()
 })
 </script>
 
@@ -207,4 +236,7 @@ onMounted(async () => {
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .stat-num { font-size: 28px; font-weight: bold; color: var(--el-color-primary); text-align: center; }
 .stat-label { color: var(--text-secondary); font-size: 13px; text-align: center; }
+/* REQ-022 F5: 留言筛选行 */
+.gb-filter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.gb-filters { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>
