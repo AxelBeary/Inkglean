@@ -206,7 +206,7 @@ export default {
     confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加',
     saved: '保存成功', deleted: '已删除', removed: '已移除',
     confirmDeleteTitle: '确认删除', uploadFailed: '上传失败',
-    footer: 'Powered by 画师约稿平台'
+    footer: '绘约 · 画师约稿平台'
   },
   disclaimer: {
     title: '平台职责说明',
@@ -252,7 +252,7 @@ export default {
   landing: {
     title: '画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
     noBio: '这位画师还没有写简介', weibo: '微博', bilibili: 'B站',
-    enterHome: '进入主页 →', noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
+    noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
   },
   // v0.34 任务A：独立 404 页
   notFound: {

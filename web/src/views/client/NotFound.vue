@@ -49,7 +49,8 @@ onMounted(async () => {
   // 404 页画师入口是锦上添花：加载失败静默隐藏，不影响主信息
   try {
     const list = await artistPublicApi.getAll()
-    artists.value = (list || []).slice(0, 6)
+    // 只推荐可约稿（open）画师；已排满/休息/隐藏不进导流位
+    artists.value = (list || []).filter((a) => a.status === 'open').slice(0, 6)
   } catch { /* 静默失败：只显示 404 主体 */ }
 })
 </script>
@@ -134,10 +135,10 @@ onMounted(async () => {
   border-radius: 12px;
   cursor: pointer;
   font-family: inherit;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .not-found-artist-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   border-color: var(--color-primary);
   box-shadow: var(--shadow-card-hover);
 }

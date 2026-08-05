@@ -206,7 +206,7 @@ export default {
     confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
     confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed',
-    footer: 'Powered by Artist Commission Platform'
+    footer: 'HuiYue · Artist Commission Platform'
   },
   disclaimer: {
     title: 'Platform notice',
@@ -252,7 +252,7 @@ export default {
   landing: {
     title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
     noBio: 'This artist has not written a bio yet',
-    enterHome: 'Visit page →', noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
+    noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
   },
   // v0.34 task A: standalone 404 page
   notFound: {
