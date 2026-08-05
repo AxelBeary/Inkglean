@@ -57,7 +57,7 @@
           </div>
         </nav>
 
-        <!-- 底部：身份区 + 登出（主题切换已上移顶栏） -->
+        <!-- 底部：身份区 + 登出 + 主题/语言（展开/折叠两态） -->
         <div class="sidebar-footer" :class="{ 'sidebar-footer--collapsed': collapsed }">
           <!-- 展开态：完整身份区 -->
           <template v-if="!collapsed">
@@ -73,6 +73,16 @@
               </div>
             </div>
             <div class="footer-actions">
+              <div class="footer-tools">
+                <ThemeToggle />
+                <button
+                  class="lang-btn" @click="toggleLang"
+                  :title="locale === 'zh-CN' ? 'English' : '中文'"
+                  :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+                >
+                  {{ locale === 'zh-CN' ? 'EN' : '中' }}
+                </button>
+              </div>
               <el-button text size="small" class="logout-btn" @click="logout">
                 {{ $t('menu.logout') }}
               </el-button>
@@ -96,14 +106,24 @@
               <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar--img avatar--mini" alt="" />
               <div v-else class="avatar avatar--mini">{{ avatarChar }}</div>
             </el-tooltip>
+            <div class="collapsed-tools">
+              <ThemeToggle />
+              <button
+                class="lang-btn" @click="toggleLang"
+                :title="locale === 'zh-CN' ? 'English' : '中文'"
+                :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+              >
+                {{ locale === 'zh-CN' ? 'EN' : '中' }}
+              </button>
+            </div>
           </template>
         </div>
       </el-aside>
 
       <!-- 主内容区（顶栏 + 内容） -->
       <el-container>
-        <!-- 顶栏：页面标题 + 主题切换 + 语言（移动端含汉堡按钮） -->
-        <header class="topbar">
+        <!-- 顶栏：仅移动端显示（页面标题 + 主题切换 + 语言 + 汉堡按钮）；桌面端已回侧边栏底部 -->
+        <header class="topbar" v-if="isMobile">
           <button
             v-if="isMobile"
             class="mobile-menu-btn"
@@ -550,4 +570,8 @@ function logout() {
   border-top: 1px solid var(--sb-border);
   display: flex; flex-direction: column; gap: 10px;
 }
+
+/* ─── topbar 压缩批：侧边栏底部主题/语言（展开/折叠两态） ─── */
+.footer-tools { display: flex; align-items: center; gap: 8px; }
+.collapsed-tools { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px; }
 </style>
