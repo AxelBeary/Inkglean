@@ -96,8 +96,8 @@
 | 前端 | Vue 3 + Element Plus + Pinia + Vue Router + Vite + vue-i18n |
 | 后端 | Fastify 5 + better-sqlite3（Feature-based 架构） |
 | 部署 | Docker Compose（多阶段构建）+ Caddy（自动 HTTPS + healthcheck） |
-| 认证 | HMAC-SHA256 签名会话 + httpOnly cookie + 登录码 |
-| 测试 | Vitest（后端 666 + 前端 106 = 772 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
+| 认证 | HMAC-SHA256 签名会话 + httpOnly cookie + TOTP 动态口令登录（REQ-027，RFC 6238） |
+| 测试 | Vitest（后端 891 + 前端 224 = 1115 个用例）+ Playwright E2E（5 条路径，已接入 CI） |
 | 类型系统 | TypeScript（渐进迁移，features/ + utils/ + middleware/ 全部 TS） |
 | 运行时 | tsx（后端 .ts/.js 混存，零配置） |
 | 监控 | Sentry（后端 + 前端，DSN 环境变量开关） |
@@ -187,7 +187,7 @@ cd web && npm run lint
 - [维护说明书](docs/维护说明书.md) — 部署、备份、运维手册
 - [开发自参考](docs/开发自参考.md) — 架构设计、API 参考、已知注意事项（60 条）
 - [开发→生产切换指南](docs/开发→生产切换指南.md) — 开发模式切生产的完整检查清单
-- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.27）
+- [变更日志](docs/changelog.md) — 版本历史（v0.1 ~ v0.39）
 - [主题规格](docs/archive/theme-spec.md) — 五色主题 + 文楷字体设计规格（已归档）
 - [流程与比例计划](docs/archive/plan-workflow-payment.md) — 流程收款系统设计文档（已归档）
 - [TDD 规格文档](docs/archive/tdd-spec-v0.1.md) — 测试用例定义（TC-O/A/R/V/W/RT）（已归档）
