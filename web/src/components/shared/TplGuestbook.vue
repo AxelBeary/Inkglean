@@ -18,7 +18,6 @@
         class="gb-input"
         type="text"
         maxlength="20"
-        required
         :placeholder="$t('guestbook.nicknamePlaceholder')"
         :aria-label="$t('guestbook.nickname')"
       />
@@ -27,7 +26,6 @@
         class="gb-textarea"
         rows="3"
         maxlength="200"
-        required
         :placeholder="$t('guestbook.contentPlaceholder')"
         :aria-label="$t('guestbook.content')"
       ></textarea>
@@ -117,7 +115,9 @@ async function loadMore() {
 async function submit() {
   const nick = nickname.value.trim()
   const text = content.value.trim()
-  if (!nick || !text) return
+  // 打磨批：空提交拦截统一为 JS 守卫 + ElMessage（与 TrackOrder 查询页同风格，替代原生 required 浏览器气泡）
+  if (!nick) return ElMessage.warning(t('guestbook.nicknameRequired'))
+  if (!text) return ElMessage.warning(t('guestbook.contentRequired'))
   submitting.value = true
   try {
     await artistPublicApi.postMessage(props.subdomain, { nickname: nick, content: text })

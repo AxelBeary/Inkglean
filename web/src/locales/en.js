@@ -371,6 +371,7 @@ export default {
     empty: 'No messages yet — say something',
     nickname: 'Nickname', nicknamePlaceholder: 'What should we call you',
     content: 'Message', contentPlaceholder: 'Say something to the artist…',
+    nicknameRequired: 'Please enter a nickname', contentRequired: 'Please enter your message',
     submit: 'Post',
     pendingHint: 'Submitted — visible once the artist approves',
     rateLimited: 'Posting too fast — please wait a moment',
@@ -392,6 +393,7 @@ export default {
   gallery: {
     filterAll: 'All',
     filterEmpty: 'No artworks tagged with this tier yet',
+    filterEmptyAll: 'No artworks yet',
     tierTag: 'Tier',
     prev: 'Previous',
     next: 'Next'

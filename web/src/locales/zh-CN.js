@@ -371,6 +371,7 @@ export default {
     empty: '还没有留言，来说点什么吧',
     nickname: '昵称', nicknamePlaceholder: '怎么称呼你',
     content: '留言内容', contentPlaceholder: '想对画师说的话…',
+    nicknameRequired: '请填写昵称', contentRequired: '请填写留言内容',
     submit: '留言',
     pendingHint: '已提交，等待画师审核后可见',
     rateLimited: '留言太频繁了，请稍后再试',
@@ -392,6 +393,7 @@ export default {
   gallery: {
     filterAll: '全部',
     filterEmpty: '该档位下暂时没有作品',
+    filterEmptyAll: '画师还没有上传作品',
     tierTag: '档位',
     prev: '上一张',
     next: '下一张'
