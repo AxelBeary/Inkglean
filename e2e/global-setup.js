@@ -2,6 +2,8 @@ import { execSync, spawn } from 'child_process'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import crypto from 'crypto'
+import { createRequire } from 'module'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const TEST_DB = resolve(ROOT, 'e2e/test.db')
@@ -10,22 +12,75 @@ const PID_FILE = resolve(ROOT, 'e2e/.server-pid')
 const TOKENS_FILE = resolve(ROOT, 'e2e/.tokens.json')
 const PORT = 3999
 
-/** 通过 API 登录，返回 httpOnly cookie 中的 token */
-async function apiLogin(baseURL, qqNumber) {
-  const sendRes = await fetch(`${baseURL}/api/auth/send-code`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ qqNumber })
-  })
-  const body = await sendRes.json()
-  if (!body._dev_code) throw new Error(`预登录失败：未获取到开发登录码 (QQ: ${qqNumber})`)
+// ─── TOTP 预登录（REQ-027）：E2E 走真实动态口令登录链路，无开发后门 ───
+// 固定测试密钥（RFC 6238 文档示例密钥）——仅注入 e2e 独立测试库，与生产/开发数据完全隔离
+const E2E_TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
 
+/** Base32 解码（与 server/src/features/auth/totp.ts 的 base32Decode 一致） */
+function base32Decode(input) {
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  const cleaned = String(input).toUpperCase().replace(/[\s-]/g, '')
+  let bits = 0
+  let value = 0
+  const bytes = []
+  for (const ch of cleaned) {
+    if (ch === '=') break
+    const idx = ALPHABET.indexOf(ch)
+    if (idx === -1) return null
+    value = (value << 5) | idx
+    bits += 5
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 0xff)
+      bits -= 8
+    }
+  }
+  return Buffer.from(bytes)
+}
+
+/** 计算当前时刻的 6 位动态码（RFC 6238：30s 步长 / HMAC-SHA1 / 动态截断，与 totp.ts 一致） */
+function currentTotp(secretBase32) {
+  const counter = Math.floor(Date.now() / 1000 / 30)
+  const key = base32Decode(secretBase32)
+  const msg = Buffer.alloc(8)
+  msg.writeUInt32BE(Math.floor(counter / 0x100000000), 0)
+  msg.writeUInt32BE(counter >>> 0, 4)
+  const hash = crypto.createHmac('sha1', key).update(msg).digest()
+  const offset = hash[19] & 0x0f
+  const binary =
+    ((hash[offset] & 0x7f) << 24) |
+    (hash[offset + 1] << 16) |
+    (hash[offset + 2] << 8) |
+    hash[offset + 3]
+  return String(binary % 10 ** 6).padStart(6, '0')
+}
+
+/** 给测试画师（Alice 10001 / 管理员 10003）注入已绑定状态的 TOTP 密钥，预登录走真实 /api/auth/verify */
+function seedTotpForE2e() {
+  // 从 server 的依赖树解析 better-sqlite3（e2e 目录自身没有 node_modules）
+  const requireServer = createRequire(resolve(ROOT, 'server/package.json'))
+  const Database = requireServer('better-sqlite3')
+  const db = new Database(TEST_DB)
+  try {
+    db.prepare(
+      'UPDATE artists SET totp_secret = ?, totp_verified = 1, totp_failed_attempts = 0, totp_locked_until = NULL WHERE qq_number IN (?, ?)'
+    ).run(E2E_TOTP_SECRET, '10001', '10003')
+  } finally {
+    db.close()
+  }
+}
+
+/** 通过真实 TOTP 登录接口拿 token（httpOnly cookie），失败抛错含状态码与响应体 */
+async function apiLogin(baseURL, qqNumber) {
+  const code = currentTotp(E2E_TOTP_SECRET)
   const verifyRes = await fetch(`${baseURL}/api/auth/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ qqNumber, code: body._dev_code })
+    body: JSON.stringify({ qqNumber, code })
   })
-  if (!verifyRes.ok) throw new Error(`预登录验证失败: ${verifyRes.status}`)
+  if (!verifyRes.ok) {
+    const detail = await verifyRes.text().catch(() => '')
+    throw new Error(`预登录失败 (QQ: ${qqNumber}): ${verifyRes.status} ${detail}`)
+  }
 
   const setCookie = verifyRes.headers.getSetCookie?.() || []
   const tokenCookie = setCookie.find(c => c.startsWith('artist_token='))
@@ -64,6 +119,10 @@ export default async function globalSetup() {
     stdio: 'pipe',
     timeout: 30_000
   })
+
+  // 3.5 给测试画师注入 TOTP 密钥（REQ-027：预登录走真实动态口令链路）
+  console.log('🔐 E2E: 注入测试 TOTP 密钥...')
+  seedTotpForE2e()
 
   // 4. 启动服务器
   console.log(`🚀 E2E: 启动服务器 (port ${PORT})...`)
