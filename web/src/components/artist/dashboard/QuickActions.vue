@@ -83,22 +83,23 @@ function go(action) {
 </script>
 
 <style scoped>
+/* v0.38 第二批: 纸墨 token（第一批白名单内补漏） */
 .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .quick-card {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 14px 8px;
-  border: 1px solid var(--border-color); border-radius: 10px;
-  background: var(--bg-card); cursor: pointer; user-select: none;
+  border: 1px solid var(--line); border-radius: var(--r-l);
+  background: var(--card); cursor: pointer; user-select: none;
   transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
 }
 .quick-card:hover {
-  border-color: var(--el-color-primary-light-5);
+  border-color: color-mix(in srgb, var(--hq) 50%, transparent);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--sh-2);
 }
 .quick-card:active { transform: translateY(0); }
-.quick-icon { font-size: 22px; color: var(--el-color-primary); }
-.quick-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+.quick-icon { font-size: 22px; color: var(--hq); }
+.quick-name { font-size: 12px; font-weight: 500; color: var(--ink); }
 @media (max-width: 768px) {
   .quick-grid { grid-template-columns: repeat(3, 1fr); }
 }
