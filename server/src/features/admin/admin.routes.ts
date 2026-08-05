@@ -204,9 +204,13 @@ export default async function adminRoutes(fastify) {
 
   // ─── 回收站管理（事故修复：孤儿文件可恢复） ───
 
-  /** GET /api/admin/recycle-bin — 列出回收站内容 */
-  fastify.get('/api/admin/recycle-bin', { preHandler: requireAdmin }, async () => {
-    return { items: adminService.listRecycleBin() }
+  /** GET /api/admin/recycle-bin — 列出回收站内容（REQ-022 F4：分页，movedAt 倒序） */
+  fastify.get('/api/admin/recycle-bin', { preHandler: requireAdmin }, async (request) => {
+    const { page, pageSize } = request.query || {}
+    return adminService.listRecycleBinPaged(
+      Math.max(1, parseInt(page, 10) || 1),
+      Math.max(1, Math.min(parseInt(pageSize, 10) || 20, 100))
+    )
   })
 
   /** DELETE /api/admin/recycle-bin — 清空回收站（不可恢复） */

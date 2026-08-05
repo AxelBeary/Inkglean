@@ -36,7 +36,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center">
           <span>{{ $t('admin.recycleBin.title') }}</span>
           <el-button
-            v-if="recycleItems.length > 0"
+            v-if="recycleTotal > 0"
             type="danger" size="small" :loading="emptying"
             @click="handleEmptyRecycleBin"
           >
@@ -55,6 +55,16 @@
         </el-table-column>
       </el-table>
       <el-empty v-else :description="$t('admin.recycleBin.emptyHint')" />
+      <!-- REQ-022 F4: 分页（每页 20 条，total 文案由 ElConfigProvider 内置双语提供） -->
+      <div v-if="recycleTotal > 0" style="display: flex; justify-content: flex-end; margin-top: 16px">
+        <el-pagination
+          v-model:current-page="recyclePage"
+          :page-size="recyclePageSize"
+          :total="recycleTotal"
+          layout="total, prev, pager, next"
+          @current-change="loadRecycleBin"
+        />
+      </div>
     </el-card>
 
     <!-- F4: 留言管理（跨画师，强制删除） -->
@@ -99,10 +109,26 @@ const stats = ref(null)
 const artists = ref([])
 const loading = ref(true)
 
-// ─── 回收站（事故修复：孤儿文件可恢复） ───
+// ─── 回收站（事故修复：孤儿文件可恢复；REQ-022 F4 分页） ───
 const recycleItems = ref([])
 const recycleLoading = ref(true)
 const emptying = ref(false)
+const recyclePage = ref(1)
+const recyclePageSize = 20
+const recycleTotal = ref(0)
+
+async function loadRecycleBin() {
+  recycleLoading.value = true
+  try {
+    const res = await adminApi.getRecycleBin({ page: recyclePage.value, pageSize: recyclePageSize })
+    recycleItems.value = res.items || []
+    recycleTotal.value = res.total || 0
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    recycleLoading.value = false
+  }
+}
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
@@ -122,7 +148,9 @@ async function handleEmptyRecycleBin() {
   try {
     const res = await adminApi.emptyRecycleBin()
     ElMessage.success(t('admin.recycleBin.emptied', { n: res.deleted }))
-    recycleItems.value = []
+    // REQ-022 F4: 清空后回到第 1 页并刷新
+    recyclePage.value = 1
+    await loadRecycleBin()
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -153,20 +181,19 @@ async function handleDeleteMessage(row) {
 
 onMounted(async () => {
   try {
-    const [s, a, rb] = await Promise.all([
+    const [s, a] = await Promise.all([
       adminApi.getStats(),
-      adminApi.getArtists(),
-      adminApi.getRecycleBin()
+      adminApi.getArtists()
     ])
     stats.value = s
     artists.value = a
-    recycleItems.value = rb.items || []
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
     loading.value = false
-    recycleLoading.value = false
   }
+  // REQ-022 F4: 回收站分页加载（独立请求）
+  await loadRecycleBin()
   // F4: 留言列表（独立失败，不阻塞其他模块）
   try {
     adminMessages.value = (await adminApi.getMessages()) || []
