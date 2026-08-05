@@ -18,6 +18,7 @@
     "dompurify": "^3.4.12",
     "element-plus": "^2.9.0",
     "pinia": "^2.2.0",
+    "simple-icons": "^16.28.0",
     "vue": "^3.5.0",
     "vue-i18n": "^11.4.8",
     "vue-router": "^4.4.0",

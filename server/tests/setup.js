@@ -53,6 +53,7 @@ export function cleanDb() {
     DELETE FROM art_styles;
     DELETE FROM addon_templates;
     DELETE FROM artists;
+    DELETE FROM social_platforms;
   `)
 }
 

@@ -1,5 +1,6 @@
 import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import * as artistService from '../artist/artist.service.js'
+import * as platformService from '../platform/platform.service.js'
 import * as adminService from './admin.service.js'
 import * as orderService from '../order/order.service.js'
 import { bindTotpInit, confirmTotpBind, resetTotp, verifyTotpLogin, isDevAuth } from '../auth/auth.service.js'
@@ -676,5 +677,73 @@ export default async function adminRoutes(fastify) {
     }
   }, async (request) => {
     return artistService.updateRules(request.params.id, request.body.content)
+  })
+
+  // ============================================
+  // REQ-022 F2: 社交平台 CRUD（管理端）
+  // ============================================
+
+  /** 平台 body schema 公共属性（snake_case，与 admin 端其余接口一致） */
+  const platformBodyProps = {
+    name: { type: 'string', minLength: 1, maxLength: 30 },
+    icon_key: { type: ['string', 'null'], maxLength: 50 },
+    fallback_char: { type: ['string', 'null'], maxLength: 4 },
+    match_domains: {
+      type: 'array', maxItems: 10,
+      items: { type: 'string', minLength: 1, maxLength: 100 }
+    },
+    sort_order: { type: 'integer', minimum: 0, maximum: 9999 },
+    enabled: { type: 'boolean' }
+  }
+
+  /** GET /api/admin/platforms — 全量平台（含停用） */
+  fastify.get('/api/admin/platforms', { preHandler: requireAdmin }, async () => {
+    return platformService.getAllPlatforms()
+  })
+
+  /** POST /api/admin/platforms — 新增平台 */
+  fastify.post('/api/admin/platforms', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object', required: ['name'], additionalProperties: false,
+        properties: platformBodyProps
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const platform = platformService.createPlatform(request.body || {})
+      return reply.code(201).send(platform)
+    } catch (err: any) {
+      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+    }
+  })
+
+  /** PUT /api/admin/platforms/:id — 更新平台（部分字段合并语义） */
+  fastify.put('/api/admin/platforms/:id', {
+    preHandler: requireAdmin,
+    schema: {
+      ...intId,
+      body: {
+        type: 'object', additionalProperties: false,
+        properties: platformBodyProps
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      return platformService.updatePlatform(request.params.id, request.body || {})
+    } catch (err: any) {
+      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+    }
+  })
+
+  /** DELETE /api/admin/platforms/:id — 删除平台（引用该平台的链接归「其他」，不级联删链接） */
+  fastify.delete('/api/admin/platforms/:id', { preHandler: requireAdmin, schema: intId }, async (request, reply) => {
+    try {
+      const { reattributed } = platformService.deletePlatform(request.params.id)
+      return { success: true, reattributed }
+    } catch (err: any) {
+      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+    }
   })
 }

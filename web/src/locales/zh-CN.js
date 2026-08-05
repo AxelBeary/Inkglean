@@ -270,6 +270,7 @@ export default {
     startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
     ctaSubtitle: '期待与你一起创作出好作品。',
     weiboPlain: '微博', bilibiliPlain: 'B站',
+    otherLink: '链接',
     revisionNote: '修改说明',
     // #9: 档位展示柜
     tierSelectBtn: '选择此档位', tierShowcase: '暂不接单', tierShowcaseBtn: '暂不接单',
@@ -504,6 +505,13 @@ export default {
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', cancelConfirm: '确定取消此订单？', confirmTitle: '确认',
     statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
+    // REQ-022 F1: 发布为作品
+    publishArtwork: '发布为作品', publishDialogTitle: '发布为作品',
+    publishHint: '勾选交付图发布为作品（复制到公开作品区，原交付文件保留）。',
+    publishNotImage: '非图片，不可发布', publishTitleLabel: '标题', publishTitlePlaceholder: '给这批作品起个标题',
+    publishDescLabel: '描述（可选）', publishDescPlaceholder: '补充说明（可选，≤500 字）',
+    publishSubmit: '发布', publishSuccess: '已发布 {n} 件作品',
+    publishDoneTitle: '发布完成', publishGoManage: '已发布 {n} 件作品，去作品管理页看看？',
     uploadTip: '支持图片及压缩包，单文件不超过 50MB',
     invalidFileType: '不支持的文件格式，请上传图片或压缩包',
     fileTooLarge: '文件过大（最大 50MB）', referenceImage: '参考图',
@@ -788,11 +796,10 @@ export default {
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
     statusLabel: '主页状态', statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
-    linksLabel: '外链（客户主页展示）', linkName: '名称', addLink: '添加链接',
-    linksHint: '最多 6 条，保存后客户主页立即生效。留空的行不会保存。',
-    // R58-8: 平台链接 + 灵感标签
-    platformLabel: '平台链接（客户主页展示）', platformAuto: '自动识别',
-    platformHint: '最多 10 条，保存后客户主页立即生效。留空的行不会保存。平台默认自动识别，也可手动指定。',
+    linksLabel: '外链（客户主页展示）', addLink: '添加链接',
+    linksHint: '最多 8 条，粘贴后自动识别平台，保存后客户主页立即生效。留空的行不会保存。',
+    linksEmpty: '还没有添加链接', linkOther: '其他', linkUrlPlaceholder: 'https://',
+    linkInvalid: '链接格式不正确（仅支持 http/https，或直接粘贴网址）', linkTooLong: '链接过长（域名≤253 / 路径≤1500 / 总长≤1800）',
     inspireLabel: '灵感标签（客户下单页展示）', inspireInputPlaceholder: '输入标签后回车添加',
     inspireHint: '最多 20 个，每个 ≤30 字。客户点击标签可快捷填入需求描述。未设置时客户下单页不显示此区域。',
     inspireTagTooLong: '标签不能超过 30 个字符', inspireTagLimit: '最多 20 个标签', inspireTagDuplicate: '标签已存在',
@@ -979,6 +986,24 @@ export default {
       diskNote: '仅供参考', expandDetail: '详情',
       statusOk: '正常', statusWarn: '警告', statusFail: '异常',
       emptyHint: '点击「开始检查」运行 8 项系统检查'
+    },
+    // REQ-022 F2: 社交平台管理
+    platformManage: '社交平台管理',
+    platform: {
+      colName: '平台名', colIcon: '图标', colDomains: '匹配域名', colOrder: '排序', colEnabled: '启用',
+      add: '新增平台', edit: '编辑平台', delete: '删除',
+      nameLabel: '平台名称', namePlaceholder: '如：微博',
+      iconLabel: '图标（simple-icons 白名单）', iconNone: '无（用单字兜底）',
+      fallbackLabel: '单字兜底', fallbackPlaceholder: '如：米（simple-icons 无此平台图标时）',
+      domainsLabel: '匹配域名', domainsPlaceholder: '每行一个域名，如 weibo.com',
+      domainsHint: '保存后，客户粘贴该域名的链接会自动识别为此平台。',
+      orderLabel: '排序（小的在前）',
+      enabledLabel: '启用', enabledHint: '停用后画师设置下拉不再出现，已存链接保留展示。',
+      save: '保存', cancel: '取消', saved: '平台已保存',
+      deleteConfirm: '确定删除「{name}」？引用该平台的链接将归为「其他」，链接本身不删除。',
+      deleted: '平台已删除，{n} 条链接归为「其他」',
+      iconFallbackHint: '图标与单字兜底至少填一项。',
+      domainFormatError: '域名格式不正确（不含协议/路径/端口）'
     }
   }
 }

@@ -1,7 +1,8 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
-import { identifyPlatform, KNOWN_PLATFORMS, parsePlatformUrls } from '../../utils/platform.js'
+import { normalizeLinkUrl, assertLinkLengthLimits, MAX_LINK_COUNT } from '../../shared/utils/platform.js'
+import { rederivePlatformId } from '../platform/platform.service.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
 import type { Artist, Tier } from '../../types/entities.js'
 import sharp from 'sharp'
@@ -123,7 +124,8 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 
 export function updateArtist(id: number, fields: Record<string, unknown>): Artist | undefined {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'platform_urls', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled']
+  // REQ-022 F2: platform_urls 写入分支已删除（列弃用，读路径全部移除）
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled']
   const updates: string[] = []
   const values: unknown[] = []
 
@@ -155,18 +157,21 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
         updates.push('notify_enabled = ?')
         values.push(value ? 1 : 0)
       } else if (key === 'custom_links') {
-        // R15: 外链列表 — JSON 数组存储，service 层做业务校验（数量 ≤6 + url 协议）
+        // REQ-022 F2: 外链列表重做 — 单一结构 [{platformId, url}]
+        // 硬校验：条数 ≤8 / 仅 http(s)（裸链补 https）/ 域名≤253 / 路径+查询≤1500 / 总长≤1800
+        // platformId 一律后端按 URL 重推导，忽略前端传值（防投毒核心）
         const links = Array.isArray(value) ? value : []
-        if (links.length > 6) {
+        if (links.length > MAX_LINK_COUNT) {
           throw new AppError(E.LINKS_TOO_MANY)
         }
+        const normalized: Array<{ platformId: number | null; url: string }> = []
         for (const link of links) {
-          if (link.url && !/^https?:\/\//i.test(String(link.url))) {
-            throw new AppError(E.LINK_URL_INVALID)
-          }
+          const url = normalizeLinkUrl((link as { url?: unknown })?.url)
+          assertLinkLengthLimits(url)
+          normalized.push({ platformId: rederivePlatformId(url), url })
         }
         updates.push('custom_links = ?')
-        values.push(JSON.stringify(links))
+        values.push(JSON.stringify(normalized))
       } else if (key === 'palette_id') {
         // 配色白名单校验 — 非法值回退到默认，避免脏数据
         const palette = String(value || 'paper')
@@ -190,27 +195,6 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
         }
         updates.push('order_template_id = ?')
         values.push(tpl)
-      } else if (key === 'platform_urls') {
-        // R58-8: 平台链接 — JSON 数组 [{url, platform?}]，service 层做业务校验
-        const links = Array.isArray(value) ? value : []
-        if (links.length > 10) {
-          throw new AppError(E.PLATFORM_URLS_TOO_MANY)
-        }
-        const normalized: Array<{ url: string; platform: string }> = []
-        for (const link of links) {
-          const url = String(link.url || '').trim()
-          if (!url) continue
-          if (!/^https?:\/\//i.test(url)) {
-            throw new AppError(E.PLATFORM_URL_INVALID)
-          }
-          // 自动识别 + 手动选择后备：有合法 platform 用手动值，否则自动识别
-          const platform = (link.platform && KNOWN_PLATFORMS.includes(link.platform))
-            ? link.platform
-            : identifyPlatform(url)
-          normalized.push({ url, platform })
-        }
-        updates.push('platform_urls = ?')
-        values.push(JSON.stringify(normalized))
       } else if (key === 'inspiration_tags') {
         // 灵感标签自定义 — JSON 字符串数组，去重 + 去空 + 截断
         const tags = Array.isArray(value) ? value : []
@@ -534,45 +518,26 @@ export function updateRules(artistId: number, content: string): CommissionRule |
 }
 
 // ============================================
-// R15: 外链列表（custom_links）
+// REQ-022 F2: 外链列表（custom_links，单一结构 [{platformId, url}]）
 // ============================================
 
 /**
  * 读取画师外链列表（后端拼好，前端无脑读）
- * 优先读 custom_links 列；为 NULL 时回退旧列 weibo_url/bilibili_url
- * custom_links 已设置（哪怕空数组）→ 以新列为准，不回退
+ * REQ-022 F2: 只读 custom_links 列（旧列 weibo_url/bilibili_url 回退已删除——
+ * 上线前无真实数据，不做迁移；列本身保留在 DB，只写路径与读路径全部移除）
  */
 export function getCustomLinks(artist: Artist): Array<Record<string, unknown>> {
-  if (artist.custom_links != null) {
-    try {
-      const parsed = JSON.parse(artist.custom_links)
-      return Array.isArray(parsed) ? parsed : []
-    } catch {
-      return []
-    }
+  if (artist.custom_links == null) return []
+  try {
+    const parsed = JSON.parse(artist.custom_links)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((link: Record<string, unknown>) => ({
+      platformId: typeof link?.platformId === 'number' ? link.platformId : null,
+      url: String(link?.url || '')
+    })).filter(link => link.url)
+  } catch {
+    return []
   }
-  // 回退旧列（老画师 custom_links=NULL 场景）
-  const links: Array<Record<string, unknown>> = []
-  if (artist.weibo_url) {
-    links.push({ name: '微博', url: artist.weibo_url, icon: 'weibo' })
-  }
-  if (artist.bilibili_url) {
-    links.push({ name: 'Bilibili', url: artist.bilibili_url, icon: 'bilibili' })
-  }
-  return links
-}
-
-// ============================================
-// R58-8: 平台链接（platform_urls）
-// ============================================
-
-/**
- * 读取画师平台链接列表（含识别后的平台名 + 原始 URL）
- * @param {object} artist - 画师行
- * @returns {Array<{url: string, platform: string, label: string}>}
- */
-export function getPlatformUrls(artist: Artist): Array<{ url: string; platform: string; label: string }> {
-  return parsePlatformUrls(artist.platform_urls)
 }
 
 // ============================================

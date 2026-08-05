@@ -29,7 +29,7 @@
 
     <!-- Opening: split screen with text on left and image on right (F3: announcement inlined in the left column, after the bio) -->
     <div class="folio-hero-wrap">
-      <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="split" ref="heroRef" />
+      <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" :platforms="platforms" variant="split" ref="heroRef" />
       <TplAnnouncement :artist="artist" class="folio-announcement" />
     </div>
 
@@ -96,25 +96,16 @@
           {{ $t('artistHome.startCommission') }}
         </button>
         <div class="folio-cta-meta">
-          <!-- R34: 外链（胶囊横排，呼应 CTA 圆角语言） -->
-          <div class="folio-links" v-if="socialLinks.length">
+          <!-- REQ-022 F2: 页脚链接（外链/平台链接合一，胶囊横排自动换行，新窗口打开） -->
+          <div class="folio-links" v-if="footerLinks.length">
             <a
-              v-for="link in socialLinks" :key="link.key"
+              v-for="link in footerLinks" :key="link.key"
               :href="link.url" target="_blank" rel="noopener noreferrer"
               class="folio-link"
             >
-              <span class="folio-link-badge" aria-hidden="true">{{ link.badge }}</span>
-              {{ link.label }}
-            </a>
-          </div>
-          <!-- R58-8: 平台链接（胶囊横排，与外链共用视觉语言） -->
-          <div class="folio-links" v-if="platformLinks.length">
-            <a
-              v-for="link in platformLinks" :key="link.key"
-              :href="link.url" target="_blank" rel="noopener noreferrer"
-              class="folio-link"
-            >
-              <span class="folio-link-badge" aria-hidden="true">{{ link.badge }}</span>
+              <span class="folio-link-badge" aria-hidden="true">
+                <TplPlatformIcon :icon-key="link.iconKey" :fallback-char="link.fallbackChar" />
+              </span>
               {{ link.label }}
             </a>
           </div>
@@ -142,17 +133,19 @@ import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
 import TplStyleGrid from '../../../components/templates/TplStyleGrid.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
+import TplPlatformIcon from '../../../components/shared/TplPlatformIcon.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({
   artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object,
-  gallery: Object // v0.35 联调：画廊端点数据（size_tags/filterSizes）
+  gallery: Object, // v0.35 联调：画廊端点数据（size_tags/filterSizes）
+  platforms: Array // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
 })
 
 const { t } = useI18n()
-const { socialLinks, platformLinks, galleryArtworks } = useArtistData(props)
+const { footerLinks, galleryArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

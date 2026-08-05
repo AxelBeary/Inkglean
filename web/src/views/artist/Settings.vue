@@ -74,43 +74,36 @@
               <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
             </el-form-item>
 
-            <!-- R15: 外链列表编辑器 -->
+            <!-- REQ-022 F2: 链接编辑器（外链/平台链接合一，粘贴自动识别平台） -->
             <el-form-item :label="$t('settings.linksLabel')">
               <div class="link-editor">
                 <div v-for="(link, index) in form.customLinks" :key="index" class="link-row">
-                  <el-select v-model="link.icon" class="link-icon-select">
-                    <el-option v-for="opt in LINK_ICONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+                  <el-select
+                    v-model="link.platformId"
+                    class="link-platform-select"
+                    disabled
+                    :placeholder="$t('settings.linkOther')"
+                  >
+                    <el-option :value="null" :label="$t('settings.linkOther')" />
+                    <el-option v-for="p in platforms" :key="p.id" :value="p.id" :label="p.name" />
                   </el-select>
-                  <el-input v-model="link.name" :placeholder="$t('settings.linkName')" maxlength="20" class="link-name-input" />
-                  <el-input v-model="link.url" placeholder="https://" class="link-url-input" />
+                  <el-input
+                    v-model="link.url"
+                    :placeholder="$t('settings.linkUrlPlaceholder')"
+                    class="link-url-input"
+                    @input="detectLinkPlatform(link)"
+                  />
                   <div class="link-actions">
                     <el-button text size="small" :disabled="index === 0" @click="moveLink(index, -1)">↑</el-button>
                     <el-button text size="small" :disabled="index === form.customLinks.length - 1" @click="moveLink(index, 1)">↓</el-button>
                     <el-button text size="small" type="danger" @click="removeLink(index)">✕</el-button>
                   </div>
                 </div>
-                <el-button size="small" @click="addLink" :disabled="form.customLinks.length >= 6">
+                <p v-if="!form.customLinks.length" class="link-empty">{{ $t('settings.linksEmpty') }}</p>
+                <el-button size="small" @click="addLink" :disabled="form.customLinks.length >= MAX_LINKS">
                   + {{ $t('settings.addLink') }}
                 </el-button>
                 <div class="form-hint">{{ $t('settings.linksHint') }}</div>
-              </div>
-            </el-form-item>
-
-            <!-- R58-8: 平台链接（自动识别 + 手动选择，客户主页展示） -->
-            <el-form-item :label="$t('settings.platformLabel')">
-              <div class="link-editor">
-                <div v-for="(pl, index) in form.platformUrls" :key="index" class="link-row">
-                  <el-select v-model="pl.platform" class="platform-select">
-                    <el-option value="" :label="$t('settings.platformAuto')" />
-                    <el-option v-for="opt in PLATFORM_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
-                  </el-select>
-                  <el-input v-model="pl.url" placeholder="https://" class="link-url-input" />
-                  <el-button text size="small" type="danger" @click="removePlatformLink(index)">✕</el-button>
-                </div>
-                <el-button size="small" @click="addPlatformLink" :disabled="form.platformUrls.length >= 10">
-                  + {{ $t('settings.addLink') }}
-                </el-button>
-                <div class="form-hint">{{ $t('settings.platformHint') }}</div>
               </div>
             </el-form-item>
 
@@ -274,11 +267,12 @@
 <script setup>
 import { ref, reactive, onMounted, computed, watch, markRaw } from 'vue'
 import { useRoute } from 'vue-router'
-import { artistApi, uploadApi } from '../../api/index.js'
+import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
+import { validateLink, MAX_LINK_COUNT as MAX_LINKS } from '../../utils/linkValidation.js'
 // v0.34 任务3：模板卡预览 SVG 图标
 import { Notebook, Brush, Picture, Sunny, Collection, Moon, Document, MagicStick } from '@element-plus/icons-vue'
 // #44: 偏好已拆出为独立页面（/preferences），此处只保留主页设置
@@ -344,32 +338,21 @@ async function saveRules() {
 // 首次切到主页展示 tab 时加载须知内容（懒加载，须知并入主页展示）
 watch(activeTab, (tab) => { if (tab === 'showcase') loadRules() }, { immediate: true })
 
-// R15: 外链图标枚举（一号拍板：纯文字标签 + Element Plus Link 图标兜底）
-const LINK_ICONS = [
-  { value: 'weibo', label: '微 微博' },
-  { value: 'bilibili', label: 'B Bilibili' },
-  { value: 'pixiv', label: 'P Pixiv' },
-  { value: 'x', label: 'X' },
-  { value: 'xiaohongshu', label: '红 小红书' },
-  { value: 'lofter', label: 'L Lofter' },
-  { value: 'douyin', label: '抖 抖音' },
-  { value: 'link', label: '通用链接' }
-]
+// REQ-022 F2: 链接编辑器（外链/平台链接合一）
+// 每行: { url, platformId } —— platformId 为识别结果（保存时不提交，后端重推导）
+const platforms = ref([])
 
-// R58-8: 平台链接手动选择枚举（与后端 KNOWN_PLATFORMS 一致，不含 other——other 由"自动识别"兜底）
-const PLATFORM_OPTIONS = [
-  { value: 'pixiv', label: 'Pixiv' },
-  { value: 'x', label: 'X (Twitter)' },
-  { value: 'weibo', label: '微博' },
-  { value: 'lofter', label: 'Lofter' },
-  { value: 'bilibili', label: 'Bilibili' },
-  { value: 'xiaohongshu', label: '小红书' }
-]
+// 粘贴/输入即时识别：更新行内 platformId（识别不出 → null=其他）
+function detectLinkPlatform(link) {
+  const raw = String(link.url || '').trim()
+  if (!raw) { link.platformId = null; return }
+  const res = validateLink(raw, platforms.value)
+  link.platformId = res.ok ? (res.platformId ?? null) : null
+}
 
 const form = reactive({
   name: '', bio: '',
   customLinks: [],
-  platformUrls: [],
   inspirationTags: [],
   contactQq: '',
   artistCode: '',
@@ -459,10 +442,10 @@ async function loadCoverArtworks() {
 // 切到模板 tab 时加载封面预览数据（懒加载，与须知 tab 同模式）
 watch(activeTab, (tab) => { if (tab === 'template') loadCoverArtworks() }, { immediate: true })
 
-// R15: 链接编辑器操作
+// REQ-022 F2: 链接编辑器操作（上限 8，保存只传 [{url}]）
 function addLink() {
-  if (form.customLinks.length >= 6) return
-  form.customLinks.push({ name: '', url: '', icon: 'link' })
+  if (form.customLinks.length >= MAX_LINKS) return
+  form.customLinks.push({ url: '', platformId: null })
 }
 function removeLink(index) {
   form.customLinks.splice(index, 1)
@@ -472,15 +455,6 @@ function moveLink(index, direction) {
   if (target < 0 || target >= form.customLinks.length) return
   const [item] = form.customLinks.splice(index, 1)
   form.customLinks.splice(target, 0, item)
-}
-
-// ─── R58-8: 平台链接操作 ───
-function addPlatformLink() {
-  if (form.platformUrls.length >= 10) return
-  form.platformUrls.push({ url: '', platform: '' })
-}
-function removePlatformLink(index) {
-  form.platformUrls.splice(index, 1)
 }
 
 // ─── R58-8: 灵感标签操作 ───
@@ -534,18 +508,21 @@ async function save() {
     if (activeTab.value === 'template') {
       await artistApi.updateProfile({ templateId: form.templateId, paletteId: form.paletteId, accentColor: form.accentColor })
     } else if (activeTab.value === 'showcase') {
-      // 主页展示：公告/外链/平台链接/灵感标签（须知走独立 saveRules）
+      // 主页展示：公告/链接/灵感标签（须知走独立 saveRules）
+      // REQ-022 F2: 保存前逐行前端校验（后端子集：补 https/协议/长度），只传 [{url}]
+      const links = []
+      for (const l of form.customLinks) {
+        const url = String(l.url || '').trim()
+        if (!url) continue
+        const res = validateLink(url, platforms.value)
+        if (!res.ok) {
+          ElMessage.error(res.reason === 'tooLong' ? t('settings.linkTooLong') : t('settings.linkInvalid'))
+          return
+        }
+        links.push({ url: res.url })
+      }
       await artistApi.updateProfile({
-        customLinks: form.customLinks
-          .filter(l => l.name.trim() && l.url.trim())
-          .map(l => ({ name: l.name.trim(), url: l.url.trim(), icon: l.icon || 'link' })),
-        platformUrls: form.platformUrls
-          .filter(p => p.url.trim())
-          .map(p => {
-            const item = { url: p.url.trim() }
-            if (p.platform) item.platform = p.platform
-            return item
-          }),
+        customLinks: links,
         inspirationTags: form.inspirationTags.map(tag => tag.trim()).filter(Boolean),
         // F3: 公告（空文本 → null 清除；过期日期空 → null 长期显示）
         announcement: form.announcement.trim() || null,
@@ -577,25 +554,19 @@ async function loadProfile() {
     const LEGACY = { 'default': 'classic', 'dark-gallery': 'gallery', 'single-page': 'folio' }
     const rawTpl = profile.template_id || 'classic'
 
-    // R15: 解析 custom_links JSON（GET profile 返回原始 DB 行，custom_links 是 JSON 字符串或 null）
+    // REQ-022 F2: 解析 custom_links JSON（新结构 [{platformId, url}]）
     let customLinks = []
     if (profile.custom_links) {
-      try { customLinks = JSON.parse(profile.custom_links) } catch { customLinks = [] }
-    }
-
-    // R58-8: 解析 platform_urls / inspiration_tags JSON（同为原始 DB 行字段）
-    // platform 有值时回显到下拉框，无值时显示"自动识别"
-    let platformUrls = []
-    if (profile.platform_urls) {
       try {
-        const parsed = JSON.parse(profile.platform_urls)
+        const parsed = JSON.parse(profile.custom_links)
         if (Array.isArray(parsed)) {
-          platformUrls = parsed
-            .map(item => typeof item === 'string' ? { url: item, platform: '' } : { url: item.url || '', platform: item.platform || '' })
+          customLinks = parsed
+            .map(item => typeof item === 'string' ? { url: item, platformId: null } : { url: item.url || '', platformId: item.platformId ?? null })
             .filter(item => item.url)
         }
-      } catch { platformUrls = [] }
+      } catch { customLinks = [] }
     }
+
     let inspirationTags = []
     if (profile.inspiration_tags) {
       try {
@@ -608,7 +579,6 @@ async function loadProfile() {
       name: profile.name,
       bio: profile.bio || '',
       customLinks,
-      platformUrls,
       inspirationTags,
       contactQq: profile.contact_qq || '',
       artistCode: profile.artist_code || '',
@@ -629,7 +599,18 @@ async function loadProfile() {
   finally { loading.value = false }
 }
 
-onMounted(loadProfile)
+// 加载平台列表（识别/展示用；失败静默——链接仍可保存，识别走「其他」）
+async function loadPlatforms() {
+  try {
+    const list = await artistPublicApi.getPlatforms()
+    platforms.value = Array.isArray(list) ? list : []
+  } catch { platforms.value = [] }
+}
+
+onMounted(() => {
+  loadProfile()
+  loadPlatforms()
+})
 </script>
 
 <style scoped>
@@ -640,7 +621,7 @@ onMounted(loadProfile)
 .preview-section-title { margin: 16px 0 8px; color: var(--ink2); }
 .preview-card { line-height: 1.8; color: var(--ink); }
 
-/* R15: 外链列表编辑器 */
+/* REQ-022 F2: 链接编辑器 */
 .link-editor { width: 100%; }
 .link-row {
   display: flex;
@@ -648,9 +629,9 @@ onMounted(loadProfile)
   gap: 8px;
   margin-bottom: 8px;
 }
-.link-icon-select { width: 110px; flex-shrink: 0; }
-.link-name-input { width: 120px; flex-shrink: 0; }
+.link-platform-select { width: 150px; flex-shrink: 0; }
 .link-url-input { flex: 1; }
+.link-empty { color: var(--ink2); font-size: 12px; margin: 0 0 8px; }
 .link-actions {
   display: flex;
   gap: 0;
