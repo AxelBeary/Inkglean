@@ -89,12 +89,36 @@ export function adminDeleteMessage(messageId: number): GuestbookMessage | null |
   return getMessageById(messageId)
 }
 
-/** 管理员查询：跨画师全部留言（含 artist_name），按 created_at DESC */
-export function getAdminMessages(): Array<GuestbookMessage & { artist_name: string | null }> {
+/** 管理员筛选参数（REQ-022 F5：按画师/审核状态/是否已回复筛选） */
+export interface AdminMessageFilters {
+  artistId?: number
+  status?: string
+  replied?: number
+}
+
+/** 管理员查询：跨画师全部留言（含 artist_name），按 created_at DESC；可选 artistId/status/replied 筛选 */
+export function getAdminMessages(filters: AdminMessageFilters = {}): Array<GuestbookMessage & { artist_name: string | null }> {
+  const clauses: string[] = []
+  const params: any[] = []
+  if (filters.artistId !== undefined) {
+    clauses.push('m.artist_id = ?')
+    params.push(filters.artistId)
+  }
+  if (filters.status) {
+    clauses.push('m.status = ?')
+    params.push(filters.status)
+  }
+  if (filters.replied === 1) {
+    clauses.push('m.artist_reply IS NOT NULL')
+  } else if (filters.replied === 0) {
+    clauses.push('m.artist_reply IS NULL')
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
   return db.prepare(`
     SELECT m.*, a.name AS artist_name
     FROM guestbook_messages m
     LEFT JOIN artists a ON m.artist_id = a.id
+    ${where}
     ORDER BY m.created_at DESC
-  `).all() as Array<GuestbookMessage & { artist_name: string | null }>
+  `).all(...params) as Array<GuestbookMessage & { artist_name: string | null }>
 }
