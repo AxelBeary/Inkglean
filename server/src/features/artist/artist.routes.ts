@@ -3,6 +3,7 @@ import * as platformService from '../platform/platform.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
+import { publicArtistDTO } from '../../shared/dto.js'
 
 // ============================================
 // 画师路由 - 公开主页 + 后台管理
@@ -94,8 +95,9 @@ export default async function artistRoutes(fastify) {
    */
   fastify.get('/api/artist/profile', { preHandler: requireAuth }, async (request) => {
     const artist = request.artist
+    // 安全加固批 F1: 完整行含 totp_secret，走 DTO 剔除敏感列（quick_actions 保留，前端 Preferences/QuickActions 消费）
     return {
-      ...artist,
+      ...publicArtistDTO(artist),
       tiers: artistService.getTiers(artist.id),
       artworks: artistService.getArtworks(artist.id),
       rules: artistService.getRules(artist.id),
@@ -211,7 +213,8 @@ export default async function artistRoutes(fastify) {
         const { tryAutoPromote } = await import('../order/order.service.js')
         tryAutoPromote(request.artist.id)
       }
-      return updated
+      // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
+      return publicArtistDTO(updated)
     } catch (err) {
       return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
     }

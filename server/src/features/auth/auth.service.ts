@@ -35,7 +35,15 @@ const SECRET = getSecret()
 /**
  * 开发模式 — 显式 AUTH_DEV_MODE=*** 开启（不再依赖 NODE_ENV 推断）
  * REQ-027 语义变更：不再显示旧登录码，改为「绑定接口响应附带密钥明文」辅助开发/测试
+ *
+ * 安全加固批 F4: 生产环境 fail-fast——AUTH_DEV_MODE=true 会让 bind-init 响应附带
+ * TOTP 密钥明文（2FA 可被绕过），仅靠 .env 约定「生产必须 false」不够，误配即高危。
+ * 判定：显式 production + dev 模式 → 启动即抛错（参照 ADMIN_QQ fail-fast 同模式，P1-4）。
+ * 开发/测试环境（NODE_ENV != production）保持原行为。
  */
+if (process.env.AUTH_DEV_MODE === 'true' && process.env.NODE_ENV === 'production') {
+  throw new Error('AUTH_DEV_MODE=true 不允许在生产环境启用（bind-init 响应会附带 TOTP 密钥明文，2FA 可被绕过）')
+}
 export const isDevAuth = process.env.AUTH_DEV_MODE === 'true'
 
 // ============================================

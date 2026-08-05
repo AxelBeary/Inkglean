@@ -142,7 +142,9 @@ export async function buildApp(opts = {}) {
   if (cspSentryDsn) {
     try { cspConnectSrc += ` ${new URL(cspSentryDsn).origin}` } catch { /* DSN 无效，忽略 */ }
   }
-  const cspHeader = `default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ${cspConnectSrc}; font-src 'self'`
+  // 安全加固批 F3: 移除 script-src 'unsafe-eval'（Vue 3 生产构建模板预编译不需要 eval，
+  // 删除可显著缩小 XSS 利用面；实测隔离实例无 CSP violation 后合入）
+  const cspHeader = `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ${cspConnectSrc}; font-src 'self'`
 
   app.addHook('onRequest', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff')
@@ -151,6 +153,10 @@ export async function buildApp(opts = {}) {
     reply.header('Content-Security-Policy', cspHeader)
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    // 安全加固批 F9: 补充安全头（纵深防御；图片/API 均同源，CORP same-origin 无副作用）
+    reply.header('Cross-Origin-Opener-Policy', 'same-origin')
+    reply.header('Cross-Origin-Resource-Policy', 'same-origin')
+    reply.header('X-Permitted-Cross-Domain-Policies', 'none')
   })
 
   // ─── 静态文件服务（上传目录） ───

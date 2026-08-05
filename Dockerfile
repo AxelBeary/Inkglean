@@ -34,5 +34,10 @@ COPY --from=frontend-build /app/web/dist ./web/dist
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# 安全加固批 F6: 非 root 运行——node:22-slim 默认 uid 0，若应用/依赖出现 RCE 即容器内 root。
+# 数据卷（SQLite DB + 上传目录）显式 chown 给 node 用户，保证可写。
+RUN mkdir -p /app/data /app/uploads && chown -R node:node /app/data /app/uploads
+
 EXPOSE 3000
+USER node
 ENTRYPOINT ["/entrypoint.sh"]
