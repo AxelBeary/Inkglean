@@ -33,9 +33,6 @@
               {{ $t(`common.status.${artist.status}`) }}
             </el-tag>
           </div>
-          <el-button type="primary" class="enter-btn" @click.stop="enterArtist(artist)">
-            {{ $t('landing.enterHome') }}
-          </el-button>
         </el-card>
       </div>
 
@@ -114,10 +111,10 @@ onMounted(async () => {
 .artist-card {
   text-align: center;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.3s;
   background: var(--bg-card);
 }
-.artist-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-card-hover); }
+.artist-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
 .artist-avatar { margin-bottom: 12px; }
 .artist-name { font-size: 18px; color: var(--text-primary); margin-bottom: 8px; }
 .artist-bio {
@@ -125,7 +122,6 @@ onMounted(async () => {
   margin-bottom: 12px; min-height: 40px;
 }
 .artist-status { margin-bottom: 12px; }
-.enter-btn { width: 100%; }
 .landing-footer {
   text-align: center;
   padding: 24px;

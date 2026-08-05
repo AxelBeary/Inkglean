@@ -37,7 +37,7 @@
   --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.10);
   --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.12);
 
-  /* 动效缓动 */
+  /* 动效缓动（bounce 仅留给庆祝时刻使用，见下单成功等场景；hover 一律 ease） */
   --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
 
   /* 字体 */
@@ -73,24 +73,27 @@ html.dark {
 }
 
 /* ===== 主色覆写（5 色 × 2 模式） ===== */
+/* 注：--color-primary-rgb 同步维护，供 EP rgba 场景（--el-color-primary-rgb）使用 */
 
 /* 亮色 */
-html[data-accent="1"] { --color-primary: #34dbcb; --color-primary-hover: #2ec4b6; --color-primary-soft: rgba(52, 219, 203, 0.10); }
-html[data-accent="2"] { --color-primary: #34c2db; --color-primary-hover: #2eaec4; --color-primary-soft: rgba(52, 194, 219, 0.10); }
-html[data-accent="3"] { --color-primary: #3498db; --color-primary-hover: #2e88c4; --color-primary-soft: rgba(52, 152, 219, 0.10); }
-html[data-accent="4"] { --color-primary: #346edb; --color-primary-hover: #2e62c4; --color-primary-soft: rgba(52, 110, 219, 0.10); }
-html[data-accent="5"] { --color-primary: #3445db; --color-primary-hover: #2e3ec4; --color-primary-soft: rgba(52, 69, 219, 0.10); }
+html[data-accent="1"] { --color-primary: #34dbcb; --color-primary-hover: #2ec4b6; --color-primary-soft: rgba(52, 219, 203, 0.10); --color-primary-rgb: 52, 219, 203; }
+html[data-accent="2"] { --color-primary: #34c2db; --color-primary-hover: #2eaec4; --color-primary-soft: rgba(52, 194, 219, 0.10); --color-primary-rgb: 52, 194, 219; }
+html[data-accent="3"] { --color-primary: #3498db; --color-primary-hover: #2e88c4; --color-primary-soft: rgba(52, 152, 219, 0.10); --color-primary-rgb: 52, 152, 219; }
+html[data-accent="4"] { --color-primary: #346edb; --color-primary-hover: #2e62c4; --color-primary-soft: rgba(52, 110, 219, 0.10); --color-primary-rgb: 52, 110, 219; }
+html[data-accent="5"] { --color-primary: #3445db; --color-primary-hover: #2e3ec4; --color-primary-soft: rgba(52, 69, 219, 0.10); --color-primary-rgb: 52, 69, 219; }
 
 /* 暗色（提亮） */
-html.dark[data-accent="1"] { --color-primary: #4de8d9; --color-primary-hover: #63ece0; --color-primary-soft: rgba(77, 232, 217, 0.12); }
-html.dark[data-accent="2"] { --color-primary: #4dd0e8; --color-primary-hover: #63d8ec; --color-primary-soft: rgba(77, 208, 232, 0.12); }
-html.dark[data-accent="3"] { --color-primary: #4da8e8; --color-primary-hover: #63b4ec; --color-primary-soft: rgba(77, 168, 232, 0.12); }
-html.dark[data-accent="4"] { --color-primary: #4d82e8; --color-primary-hover: #6392ec; --color-primary-soft: rgba(77, 130, 232, 0.12); }
-html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #636eec; --color-primary-soft: rgba(77, 92, 232, 0.12); }
+html.dark[data-accent="1"] { --color-primary: #4de8d9; --color-primary-hover: #63ece0; --color-primary-soft: rgba(77, 232, 217, 0.12); --color-primary-rgb: 77, 232, 217; }
+html.dark[data-accent="2"] { --color-primary: #4dd0e8; --color-primary-hover: #63d8ec; --color-primary-soft: rgba(77, 208, 232, 0.12); --color-primary-rgb: 77, 208, 232; }
+html.dark[data-accent="3"] { --color-primary: #4da8e8; --color-primary-hover: #63b4ec; --color-primary-soft: rgba(77, 168, 232, 0.12); --color-primary-rgb: 77, 168, 232; }
+html.dark[data-accent="4"] { --color-primary: #4d82e8; --color-primary-hover: #6392ec; --color-primary-soft: rgba(77, 130, 232, 0.12); --color-primary-rgb: 77, 130, 232; }
+html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #636eec; --color-primary-soft: rgba(77, 92, 232, 0.12); --color-primary-rgb: 77, 92, 232; }
 
 /* ===== Element Plus 覆写 ===== */
-:root {
+/* 双伪类 :root:root 提升特异性，压过 EP base.css 的 :root（EP base 按需注入，时序在本文件之后） */
+:root:root {
   --el-color-primary: var(--color-primary);
+  --el-color-primary-rgb: var(--color-primary-rgb);
   --el-color-primary-light-3: color-mix(in srgb, var(--color-primary) 70%, var(--bg-page));
   --el-color-primary-light-5: color-mix(in srgb, var(--color-primary) 50%, var(--bg-page));
   --el-color-primary-light-7: color-mix(in srgb, var(--color-primary) 30%, var(--bg-page));
@@ -116,16 +119,17 @@ html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #6
 }
 
 /* ===== 全局按钮三态（hover 浮起 / active 按下） ===== */
-.el-button {
-  transition: transform 0.25s var(--ease-bounce),
-              box-shadow 0.25s var(--ease-bounce),
-              background-color 0.2s, border-color 0.2s, color 0.2s;
+/* 双类 .el-button.el-button 提升特异性，压过 EP button.css 的 .el-button（后者定义更晚） */
+.el-button.el-button {
+  transition: transform 0.15s ease,
+              box-shadow 0.15s ease,
+              background-color 0.15s, border-color 0.15s, color 0.15s;
 }
-.el-button:hover:not(:disabled):not(.is-loading) {
-  transform: translateY(-3px);
+.el-button.el-button:hover:not(:disabled):not(.is-loading) {
+  transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
-.el-button:active:not(:disabled):not(.is-loading) {
+.el-button.el-button:active:not(:disabled):not(.is-loading) {
   transform: translateY(-1px) scale(0.98);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
 }
