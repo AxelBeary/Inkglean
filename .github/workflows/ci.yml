@@ -37,4 +37,6 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npx eslint .
+      # 清扫批#4: web 单测进 CI（此前只跑 lint+build，224 用例仅本地验证）
+      - run: npx vitest run
       - run: npm run build
