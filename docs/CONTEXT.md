@@ -64,7 +64,7 @@
 | 前端 | Vue 3 + Element Plus | SPA |
 | 前端 i18n | vue-i18n@11 | v0.20 从 v9 升级 |
 | 类型系统 | TypeScript（渐进迁移中） | v0.21 起，v0.22 完成 features/ + utils/ + middleware/ 全部 TS；剩余 app.js/index.js/db/ 入口 |
-| 数据库 | SQLite | 开发期正确选择，不上 PG/MySQL。迁移当前 v36（multi_style_model 多画风 5 表） |
+| 数据库 | SQLite（better-sqlite3 单连接，同步 API） | 开发期正确选择，不上 PG/MySQL。迁移当前 v42（F2 社交平台表）。**部署边界**：better-sqlite3 为单进程单连接同步模型——不支持多实例共享同一 DB 文件（多副本部署需外置 DB）；写操作串行执行，当前单实例量级（订单/画师运营平台）远未到瓶颈，属预期边界而非缺陷 |
 | 部署 | Docker Compose + Caddy | 容器化 |
 | 测试 | Vitest（后端 666 + 前端 106）+ Playwright E2E（5 条路径，已接入 CI） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |

@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 晚 v2——**三号 addons 清理第一批已合入（基线 server 859）+ 四号 A 测手册已合入（docs/A测执行手册.md）**。在途：二号 F1+F2 前端批（主链，合入解 f2 门控）/ 五号打磨第二批。soul-01 补派工交付纪律+核实预算（2026-08-05 事故入账）。打磨批 D（需求描述可空过）待用户拍板。
+> 最后更新：2026-08-05 晚 v4——**五号打磨第二批合入（`43395ff`）+ v0.40 四路派工齐发**：二号 D 软提示 + addons 前端清理 / 三号 workflow 事务 + ADMIN_QQ fail-fast / 四号画师说明书更新 / 五号低风险清扫批。D 项用户拍板 = 软提示。worktree 四开（d2/tx/docs2/clean）。
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿（server 831/web 192）、三个 worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
@@ -8,13 +8,13 @@
 ---
 ## master 状态
 
-- **HEAD**：（本轮收尾 commit），与 origin 同步
-- **工作树**：主仓 + 门控 worktree（f2 外链后端 `4946993`，等二号前端批一起合）+ 在途 worktree（f1f2 / polish）；addons / v038acc worktree 待回收
-- **测试基线**：server 859/859（51 文件，addons 清理删 5 例增项测试）· web 192/192（12 文件）· tsc 0 · lint 0 · build 过
+- **HEAD**：`43395ff`（打磨第二批合入），与 origin 同步
+- **工作树**：主仓 + v0.40 四路 worktree（d2 / tx / docs2 / clean）
+- **测试基线**：server 891/891（51 文件，含 F2 平台/防投毒测试）· web 224/224（14 文件，含 linkValidation 27 例）· lint 0 · build 过
 - **容器**：v0.38 新视觉已重建部署，healthy（TOTP 合入后重建先例；迁移 v41 实跑通过）
 - **备份**：`data/commission.db.bak-v037-pre-v41`（TOTP 合入前）+ `bak-v037-pre-v40`（A 路前）+ 更早三轮备份
-- **迁移**：v41
-- **comms**：只剩本文件
+- **迁移**：v42（F2 社交平台表 + 24 平台种子，幂等守卫）
+- **comms**：STATUS + v0.40 四份在途派工（01-to-0{2,3,4,5}-*-20260805）；历史已全部消费删除
 
 ---
 ## v0.37 轮收官总结（2026-08-05，全部合入）
@@ -77,10 +77,10 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | 🔨 **v0.39 F1+F2 前端批进行中**（worktree `../artist-commission-f1f2`） |
-| 三号 | ✅ addons 清理第一批已合入（`1b8a375`）→ **待派**（候选：addons 清理第二批等二号腾手前后端同批 / F1+F2 联调配合） |
-| 四号 | ✅ A 测执行手册已合入（`docs/A测执行手册.md`）→ **待派**（附带发现：画师使用说明书 v0.36 版过时，转排期项） |
-| 五号 | 🔨 **打磨第二批进行中**（worktree `../artist-commission-polish`） |
+| 二号 | 🔨 **D 软提示 + addons 前端清理进行中**（worktree `../artist-commission-d2`，先合） |
+| 三号 | 🔨 **workflow 事务 + ADMIN_QQ fail-fast 进行中**（worktree `../artist-commission-tx`；addons 第二批 schema 删除等二号合入后另派） |
+| 四号 | 🔨 **画师说明书更新进行中**（worktree `../artist-commission-docs2`） |
+| 五号 | 🔨 **低风险清扫批进行中**（worktree `../artist-commission-clean`：垃圾文件/changelog/CONTEXT/CI vitest/admin el-empty 覆写） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
@@ -89,10 +89,13 @@
 
 | 项 | 归属 |
 |----|------|
-| addons 表处置 | ✅ 已评估合入（`6f79294`）：**保留但冻结**——drop 前置是代码清理（两处读路径 getPublicPricing/calculatePrice + POST /api/orders schema addons 字段 + 前端兜底分支），清理草案见报告 §Q1.5，排 v0.39+ 批次 |
-| AUTH_DEV_MODE=false 关闭 | 上线前必做——TOTP 已就绪，关开发模式不再卡任何消息渠道 |
-| 前端 locales 死键 sendCode/codeSent | ✅ 已清（2026-08-05 一号 grep 全仓零命中，v0.38 批内已随清） |
-| 打磨批 D：约稿需求描述可空过 | **待用户拍板**（保持选填 / 软提示 / 最低校验）——拍板前不派工 |
+| addons 表处置 | 第一批已合入（`1b8a375`）；第二批拆分：前端旧模型清理 = 二号本批，后端 schema 删除 + createOrder 参数 + pricing/calculate schema + errors/entities 死码 + DROP 迁移 **v43** = 二号合入后另派三号 |
+| 第三方报告核实修复项 | 已派：P0-1/P1-4 = 三号本批；4 低风险 = 五号本批；**待派**：P0-2 uploads attachment / P1-1 compose 3000（环境批）；P1-2 限流 LRU = 架构决策需拍板 |
+| AUTH_DEV_MODE=false 关闭 | A 测启动时执行（手册 §二检查单） |
+| 打磨批 D：约稿需求描述可空过 | ✅ 用户拍板 = **软提示**（2026-08-05），二号本批实施 |
+| 画师使用说明书过时 | ✅ 已派四号更新批（worktree docs2） |
+| 前端性能/工程改进池 | 五号两份核实报告提取（原文已消费删除）：Caddyfile 压缩+缓存头（生产配置，派工需用户确认）/ 巨型组件拆分（OrderDetail 1731 行等，结构性改造独立排期）/ manualChunks+visualizer / api TS 化 / SEO 预渲染评估 / 客户端交付页签名续期接入 / README L99/L100 过时 / main.js errorHandler 去动态 import / 字体 preload。优先级 P2-P3，A 测后排 |
+| 本地产物清理 | 五号垃圾核实报告提取：playwright-report/test-results 可删（gitignored 可重建）；回收站 39 个 ≤16B 损坏占位走应用层清空。⚠️ 危险项已排除：宿主 DB 是 WAL 模式删不得 / 回收站 25 个真实文件是软删除保险 / data/ 备份是里程碑保险 |
 
 ---
 ## ⚠️ v38 迁移事故记录（长期教训）

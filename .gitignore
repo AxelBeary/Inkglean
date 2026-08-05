@@ -42,6 +42,9 @@ data/
 # 临时参考素材（用户设计参考，不入版本库）
 temp/
 
+# AI 搜索产物残留（v0.8 误提交，2026-08-05 清扫批删除）
+server/search_results.json
+
 # Playwright E2E（v0.21）
 test-results/
 playwright-report/
