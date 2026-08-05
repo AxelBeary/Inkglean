@@ -1,0 +1,251 @@
+/* ============================================
+   v0.38 画师后台视觉 token（REQ-026）
+   纸墨颜料盘 · 宣纸/墨黑双主题
+
+   隔离策略（派工 §二，验收 10 客户端零影响）：
+   - 所有变量挂在 html[data-artist-theme] 条件属性上——该属性仅在画师后台
+     路由内由 ArtistLayout 挂载/卸载，客户端路由下属性不存在，变量即不存在。
+   - 不声明在 :root，不修改 theme.css/templates.css/palettes.css 任何既有值。
+   - 变量名族采用提案 v2（--paper/--ink/--hq/--zs/--sl/--th/--zhe/--buf）。
+   - Teleport 到 body 的 EP 浮层（dialog/popup/message）仍在 html 子树内，
+     变量经 DOM 继承自然生效，无需额外处理。
+   - 附「旧变量兼容映射」：后台作用域内把 --bg-page/--text-* 等旧语义变量
+     映射到新 token，让第二批尚未换肤的页面自动跟随主题底色，避免中间态割裂。
+   ============================================ */
+
+/* ===== 宣纸主题（默认） ===== */
+html[data-artist-theme="paper"] {
+  color-scheme: light;
+
+  /* 底色与墨色层次（提案 v2 L12-36 直接采用） */
+  --paper: #F5F4EF;
+  --paper2: #FBFAF6;
+  --card: #fff;
+  --ink: #262520;
+  --ink2: #5A564B;
+  --ink3: #8D887A;
+  --ink4: #B3AE9F;
+  --line: #E7E4D9;
+  --line2: #DAD6C8;
+
+  /* 国画颜料盘 7 色（语义一对一，REQ §1.1） */
+  --hq: #33526E;            /* 花青：品牌 · 进行中 · 主操作 */
+  --hq-d: #28425B;
+  --hq-t: #E9EFF4;
+  --hq-t2: #D6E2EC;
+  --zs: #BC3A2B;            /* 朱砂：逾期 · 警示 · 印章 */
+  --zs-d: #9E2F22;
+  --zs-t: #F8EAE6;
+  --sl: #2F7D54;            /* 石绿：完成 · 交付 · 成功 */
+  --sl-t: #E5F1E9;
+  --th: #A8790B;            /* 藤黄：待确认 · 缓冲提醒 */
+  --th-t: #F7EFDA;
+  --zhe: #8A5A33;           /* 赭石：暖中性 · 客户 · 优先级 */
+  --zhe-t: #F1E8DC;
+  --buf: #7A7668;           /* 缓冲位色带（派工 Q2：以提案 CSS 实际变量为准） */
+
+  /* 圆角 / 阴影 / 字体（REQ §1.3/§1.4） */
+  --r-s: 4px;
+  --r-m: 7px;
+  --r-l: 11px;
+  --sh-1: 0 1px 2px rgba(38, 37, 30, .05);
+  --sh-2: 0 4px 14px rgba(38, 37, 30, .09);
+  --sh-3: 0 12px 34px rgba(38, 37, 30, .16);
+  --f-d: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', serif;
+  --f-b: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* 侧栏（REQ §三.1：宣纸主题 = 纸色侧栏） */
+  --sb-w: 230px;
+  --sb-bg: #FBFAF6;
+  --sb-border: #E7E4D9;
+  --sb-text: #5A564B;
+  --sb-text-dim: #8D887A;
+  --sb-text-on: #262520;
+  --sb-hover: rgba(38, 37, 32, .05);
+  --sb-active-bg: #E9EFF4;
+  --sb-active-text: #28425B;
+  --sb-seal-shadow: rgba(38, 37, 32, .18);
+
+  /* ── 旧变量兼容映射（仅后台作用域；第二批页面换肤前的过渡层） ── */
+  --bg-page: var(--paper);
+  --bg-card: var(--card);
+  --bg-elevated: var(--card);
+  --bg-inset: var(--paper2);
+  --bg-hover: var(--sb-hover);
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink2);
+  --text-muted: var(--ink3);
+  --border-color: var(--line);
+  --border-color-strong: var(--line2);
+  --color-primary: var(--hq);
+  --color-primary-hover: var(--hq-d);
+  --color-primary-soft: var(--hq-t);
+  --color-danger: var(--zs);
+  --color-warning: var(--th);
+  --color-success: var(--sl);
+  --color-info: var(--ink3);
+  --color-gold: var(--zhe);
+  --shadow-card: var(--sh-1);
+  --shadow-card-hover: var(--sh-2);
+  --shadow-pop: var(--sh-3);
+  --font-display: var(--f-d);
+  --font-body: var(--f-b);
+
+  /* ── Element Plus 换肤覆写（scoped 后台，客户端路由不受影响） ── */
+  --el-color-primary: var(--hq);
+  --el-color-primary-light-3: color-mix(in srgb, var(--hq) 70%, var(--paper));
+  --el-color-primary-light-5: color-mix(in srgb, var(--hq) 50%, var(--paper));
+  --el-color-primary-light-7: color-mix(in srgb, var(--hq) 30%, var(--paper));
+  --el-color-primary-light-8: color-mix(in srgb, var(--hq) 20%, var(--paper));
+  --el-color-primary-light-9: color-mix(in srgb, var(--hq) 10%, var(--paper));
+  --el-color-primary-dark-2: var(--hq-d);
+  --el-color-success: var(--sl);
+  --el-color-warning: var(--th);
+  --el-color-danger: var(--zs);
+  --el-color-info: var(--ink3);
+  --el-bg-color: var(--card);
+  --el-bg-color-overlay: var(--card);
+  --el-bg-color-page: var(--paper);
+  --el-text-color-primary: var(--ink);
+  --el-text-color-regular: var(--ink2);
+  --el-text-color-secondary: var(--ink3);
+  --el-text-color-placeholder: var(--ink4);
+  --el-border-color: var(--line2);
+  --el-border-color-light: var(--line);
+  --el-border-color-lighter: var(--line);
+  --el-fill-color-light: var(--paper2);
+  --el-fill-color-lighter: var(--paper2);
+  --el-fill-color-blank: var(--card);
+  --el-border-radius-base: var(--r-m);
+  --el-border-radius-small: var(--r-s);
+  --el-font-family: var(--f-b);
+  --el-box-shadow: var(--sh-3);
+  --el-box-shadow-light: var(--sh-2);
+}
+
+/* ===== 墨黑主题 ===== */
+html[data-artist-theme="ink"] {
+  color-scheme: dark;
+
+  --paper: #171611;
+  --paper2: #1D1C15;
+  --card: #22201A;
+  --ink: #ECE8DC;
+  --ink2: #B8B3A4;
+  --ink3: #87816F;
+  --ink4: #5E5A4C;
+  --line: #2F2D24;
+  --line2: #3D3A2E;
+
+  /* 颜料统一提亮，语义映射完全不变（REQ §1.2） */
+  --hq: #8FB2D1;
+  --hq-d: #ABC8E2;
+  --hq-t: rgba(143, 178, 209, .13);
+  --hq-t2: rgba(143, 178, 209, .28);
+  --zs: #E07B6B;
+  --zs-d: #EB9A8C;
+  --zs-t: rgba(224, 123, 107, .14);
+  --sl: #6FBF93;
+  --sl-t: rgba(111, 191, 147, .13);
+  --th: #D9B36A;
+  --th-t: rgba(217, 179, 106, .13);
+  --zhe: #C89B72;
+  --zhe-t: rgba(200, 155, 114, .14);
+  --buf: #928D7C;
+
+  --r-s: 4px;
+  --r-m: 7px;
+  --r-l: 11px;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --sh-2: 0 4px 14px rgba(0, 0, 0, .45);
+  --sh-3: 0 14px 38px rgba(0, 0, 0, .55);
+  --f-d: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', serif;
+  --f-b: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* 侧栏（REQ §三.1：墨黑主题 = 松烟侧栏） */
+  --sb-w: 230px;
+  --sb-bg: #211F1A;
+  --sb-border: #2E2C24;
+  --sb-text: #B9B4A5;
+  --sb-text-dim: #7A766A;
+  --sb-text-on: #F2EFE3;
+  --sb-hover: rgba(255, 255, 255, .05);
+  --sb-active-bg: rgba(143, 178, 209, .13);
+  --sb-active-text: #DCE9F5;
+  --sb-seal-shadow: rgba(0, 0, 0, .3);
+
+  /* ── 旧变量兼容映射 ── */
+  --bg-page: var(--paper);
+  --bg-card: var(--card);
+  --bg-elevated: var(--card);
+  --bg-inset: var(--paper2);
+  --bg-hover: var(--sb-hover);
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink2);
+  --text-muted: var(--ink3);
+  --border-color: var(--line);
+  --border-color-strong: var(--line2);
+  --color-primary: var(--hq);
+  --color-primary-hover: var(--hq-d);
+  --color-primary-soft: var(--hq-t);
+  --color-danger: var(--zs);
+  --color-warning: var(--th);
+  --color-success: var(--sl);
+  --color-info: var(--ink3);
+  --color-gold: var(--zhe);
+  --shadow-card: var(--sh-1);
+  --shadow-card-hover: var(--sh-2);
+  --shadow-pop: var(--sh-3);
+  --font-display: var(--f-d);
+  --font-body: var(--f-b);
+
+  /* ── Element Plus 换肤覆写 ── */
+  --el-color-primary: var(--hq);
+  --el-color-primary-light-3: color-mix(in srgb, var(--hq) 70%, var(--paper));
+  --el-color-primary-light-5: color-mix(in srgb, var(--hq) 50%, var(--paper));
+  --el-color-primary-light-7: color-mix(in srgb, var(--hq) 30%, var(--paper));
+  --el-color-primary-light-8: color-mix(in srgb, var(--hq) 20%, var(--paper));
+  --el-color-primary-light-9: color-mix(in srgb, var(--hq) 10%, var(--paper));
+  --el-color-primary-dark-2: var(--hq-d);
+  --el-color-success: var(--sl);
+  --el-color-warning: var(--th);
+  --el-color-danger: var(--zs);
+  --el-color-info: var(--ink3);
+  --el-bg-color: var(--card);
+  --el-bg-color-overlay: var(--card);
+  --el-bg-color-page: var(--paper);
+  --el-text-color-primary: var(--ink);
+  --el-text-color-regular: var(--ink2);
+  --el-text-color-secondary: var(--ink3);
+  --el-text-color-placeholder: var(--ink4);
+  --el-border-color: var(--line2);
+  --el-border-color-light: var(--line);
+  --el-border-color-lighter: var(--line);
+  --el-fill-color-light: var(--paper2);
+  --el-fill-color-lighter: var(--paper2);
+  --el-fill-color-blank: var(--card);
+  --el-border-radius-base: var(--r-m);
+  --el-border-radius-small: var(--r-s);
+  --el-font-family: var(--f-b);
+  --el-box-shadow: var(--sh-3);
+  --el-box-shadow-light: var(--sh-2);
+}
+
+/* 墨黑主题下实心色带/按钮提亮（提案 v2 L41-45） */
+html[data-artist-theme="ink"] .band-doing { background: #3E6285; color: #DCE9F5; }
+html[data-artist-theme="ink"] .band-over { background: #9E4437; color: #F6DDD7; }
+html[data-artist-theme="ink"] .band-done { background: #38735A; color: #D9EFE3; }
+html[data-artist-theme="ink"] .btn-pri-ink { background: #46708F; color: #EAF2F9; }
+html[data-artist-theme="ink"] .btn-pri-ink:hover { background: #3E6285; }
+
+/* 主题切换平滑过渡（仅后台作用域内的颜色属性） */
+html[data-artist-theme] .artist-scope,
+html[data-artist-theme] .artist-scope * {
+  transition: background-color .35s, border-color .35s, color .35s, box-shadow .35s;
+}
+/* 过渡会干扰拖拽/动画性能的元素豁免 */
+html[data-artist-theme] .artist-scope .tl-bar,
+html[data-artist-theme] .artist-scope .cal-band,
+html[data-artist-theme] .artist-scope .queue-item {
+  transition: none;
+}

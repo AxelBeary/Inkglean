@@ -37,10 +37,11 @@
         <div class="area area-guestbook">
           <el-card v-loading="guestbookLoading">
             <template #header>
-              <div class="gb-mod-header">
-                <span>{{ $t('dashboard.guestbookTitle') }}</span>
-                <el-tag v-if="pendingCount > 0" type="warning" size="small">{{ pendingCount }}</el-tag>
-              </div>
+              <CardHead :title="$t('dashboard.guestbookTitle')">
+                <template #extra>
+                  <StatusChip v-if="pendingCount > 0" type="pend">{{ pendingCount }}</StatusChip>
+                </template>
+              </CardHead>
             </template>
             <div v-if="guestbookMessages.length" class="gb-mod-list">
               <div
@@ -49,9 +50,9 @@
               >
                 <div class="gb-mod-head">
                   <span class="gb-mod-nick">{{ m.nickname }}</span>
-                  <el-tag size="small" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[m.status]">
+                  <StatusChip :type="{ pending: 'pend', approved: 'done', rejected: 'cancel' }[m.status]">
                     {{ $t(`dashboard.guestbook${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`) }}
-                  </el-tag>
+                  </StatusChip>
                 </div>
                 <p class="gb-mod-content">{{ m.content }}</p>
                 <p class="gb-mod-time">{{ formatDateTime(m.created_at) }}</p>
@@ -80,7 +81,7 @@
                 </div>
               </div>
             </div>
-            <el-empty v-else :description="$t('dashboard.guestbookEmpty')" :image-size="60" />
+            <InkEmpty v-else :title="$t('dashboard.guestbookEmpty')" />
           </el-card>
         </div>
       </div>
@@ -96,6 +97,10 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+// v0.38: 统一视觉组件（REQ-026 §二）
+import CardHead from '../../components/artist/visual/CardHead.vue'
+import StatusChip from '../../components/artist/visual/StatusChip.vue'
+import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 import GreetingHero from '../../components/artist/dashboard/GreetingHero.vue'
 import RevenueChart from '../../components/artist/dashboard/RevenueChart.vue'
 import StatCards from '../../components/artist/dashboard/StatCards.vue'
@@ -208,31 +213,32 @@ async function replyMsg(m) {
   .area-guestbook { grid-column: 2; grid-row: 5; }
 }
 
-/* ─── F4: 留言审核区 ─── */
-.gb-mod-header { display: flex; align-items: center; gap: 8px; }
+/* ─── F4: 留言审核区（v0.38 token 换肤） ─── */
 .gb-mod-list { display: flex; flex-direction: column; gap: 12px; max-height: 480px; overflow-y: auto; }
 .gb-mod-item {
   padding: 12px;
-  border: 1px solid var(--border-color, #e4e7ed);
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--card);
 }
-/* pending 醒目黄底 */
+/* pending 待确认：藤黄软底（语义：待确认） */
 .gb-mod-item--pending {
-  background: var(--el-color-warning-light-9, #fdf6ec);
-  border-color: var(--el-color-warning-light-5, #f5dab1);
+  background: var(--th-t);
+  border-color: color-mix(in srgb, var(--th) 45%, transparent);
 }
 .gb-mod-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.gb-mod-nick { font-weight: 700; font-size: 14px; }
-.gb-mod-content { margin: 0 0 4px; font-size: 13px; line-height: 1.6; word-break: break-word; }
-.gb-mod-time { margin: 0 0 8px; font-size: 11px; color: var(--text-secondary); }
+.gb-mod-nick { font-weight: 700; font-size: 14px; color: var(--ink); }
+.gb-mod-content { margin: 0 0 4px; font-size: 13px; line-height: 1.6; word-break: break-word; color: var(--ink2); }
+.gb-mod-time { margin: 0 0 8px; font-size: 11px; color: var(--ink3); }
 .gb-mod-reply {
   margin-bottom: 8px;
   padding: 6px 10px;
-  background: var(--el-color-primary-light-9, #ecf5ff);
+  background: var(--hq-t);
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.5;
+  color: var(--ink2);
 }
-.gb-mod-reply-label { font-weight: 700; color: var(--el-color-primary); }
+.gb-mod-reply-label { font-weight: 700; color: var(--hq-d); }
 .gb-mod-actions { margin-bottom: 8px; }
 </style>

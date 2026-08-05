@@ -170,7 +170,7 @@
               </template>
             </draggable>
 
-            <el-empty v-if="!loading && queue.length === 0" :description="$t('queue.empty')" />
+            <InkEmpty v-if="!loading && queue.length === 0" :title="$t('queue.empty')" />
           </div>
 
           <!-- REQ-013 #7: 完成区（留在正式区标签内，不随标签切换） -->
@@ -203,7 +203,7 @@
                   </div>
                 </div>
               </div>
-              <el-empty v-if="!completedLoading && completedQueue.length === 0" :description="$t('queue.completedEmpty')" />
+              <InkEmpty v-if="!completedLoading && completedQueue.length === 0" :title="$t('queue.completedEmpty')" />
             </div>
           </template>
         </el-tab-pane>
@@ -253,7 +253,7 @@
                 </div>
               </div>
             </div>
-            <el-empty v-if="!bufferLoading && bufferQueue.length === 0" :description="$t('queue.bufferEmpty')" />
+            <InkEmpty v-if="!bufferLoading && bufferQueue.length === 0" :title="$t('queue.bufferEmpty')" />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -397,7 +397,7 @@
                   </div>
                 </el-tooltip>
               </div>
-              <el-empty v-if="!loading && !bufferLoading && tlRows.length === 0" :description="$t('queue.tlEmpty')" />
+              <InkEmpty v-if="!loading && !bufferLoading && tlRows.length === 0" :title="$t('queue.tlEmpty')" />
             </div>
           </div>
         </div>
@@ -461,6 +461,8 @@ import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import UndoToast from '../../components/artist/UndoToast.vue'
+// v0.38: 统一墨线空状态（REQ-026 §二）
+import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 
@@ -612,25 +614,29 @@ const calCells = computed(() => {
   return cells
 })
 
-/** 带内文字：昵称-类型（超长 CSS 截断） */
+/** 带内文字：昵称-类型（超长 CSS 截断）；未设截稿日 → 前置 ⚠️（REQ §二 色带标准） */
 function bandLabel(order) {
   const name = order.client_name || order.client_qq || ''
   const tier = order.tier_name || t('common.custom')
-  return name ? `${name}-${tier}` : tier
+  const base = name ? `${name}-${tier}` : tier
+  const noDeadline = !order.deadline && !['delivered', 'done'].includes(order.status)
+  return noDeadline ? `⚠️ ${base}` : base
 }
 
-/** 带视觉样式（正式实心 / 缓冲半透明虚线 / 未设截稿斜纹 / 逾期红 / 完成绿） */
+/** 带视觉样式（正式实心 / 缓冲半透明虚线 / 未设截稿斜纹 / 逾期朱砂 / 完成石绿）。
+ * v0.38: 同时输出 band-doing/band-over/band-done 全局别名——
+ * artist-tokens.css 的墨黑主题覆写挂在这组类上（实心带提亮，语义不变）。 */
 function bandClass(order) {
-  const base = order._zone === 'buffer' ? 'cal-band--buffer' : 'cal-band--formal'
   if (!order.deadline && !['delivered', 'done'].includes(order.status)) {
-    return 'cal-band--nodeadline'
+    return ['cal-band--nodeadline', 'band-nd']
   }
-  if (['delivered', 'done'].includes(order.status)) return 'cal-band--done'
+  if (['delivered', 'done'].includes(order.status)) return ['cal-band--done', 'band-done']
   const deadline = parseDate(order.deadline)
   if (deadline && deadline < new Date() && !['delivered', 'done'].includes(order.status)) {
-    return 'cal-band--overdue'
+    return ['cal-band--overdue', 'band-over']
   }
-  return base
+  const base = order._zone === 'buffer' ? 'cal-band--buffer' : 'cal-band--formal'
+  return [base, 'band-doing']
 }
 
 /** hover tooltip：订单号 + 截稿日 + 状态 */
@@ -1284,9 +1290,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.hint { color: var(--text-secondary); font-size: 13px; margin: 8px 0 16px; }
+/* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；旧变量不残留——派工 §二.3） ═══ */
+.hint { color: var(--ink2); font-size: 13px; margin: 8px 0 16px; }
 .queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.toolbar-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+.toolbar-label { font-size: 13px; color: var(--ink2); white-space: nowrap; }
 
 /* 一行一条（用户决策：排期看板必须保持一行一条；宽屏空间由卡片内部横向展开消化） */
 .queue-list {
@@ -1297,37 +1304,38 @@ onMounted(() => {
 
 .queue-item {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  background: var(--bg-card); border-radius: 8px; padding: 12px 16px;
-  border-left: 4px solid var(--border-color); box-shadow: var(--shadow-card);
-  cursor: default; transition: box-shadow 0.2s, background 0.3s;
+  background: var(--card); border-radius: var(--r-l); padding: 12px 16px;
+  border-left: 4px solid var(--line); box-shadow: var(--sh-1);
+  cursor: default; transition: box-shadow 0.2s;
 }
-.queue-item:hover { box-shadow: var(--shadow-card-hover); }
-.priority-high { border-left-color: var(--el-color-danger); }
-.priority-medium { border-left-color: var(--el-color-warning); }
-.priority-low { border-left-color: var(--el-color-success); }
+.queue-item:hover { box-shadow: var(--sh-2); }
+/* 优先级色条（REQ §1.1 语义：高优先=赭石 / 中=藤黄提醒 / 低=安静中性） */
+.priority-high { border-left-color: var(--zhe); }
+.priority-medium { border-left-color: var(--th); }
+.priority-low { border-left-color: var(--ink4); }
 
-.drag-handle { cursor: grab; font-size: 20px; color: var(--text-secondary); user-select: none; }
+.drag-handle { cursor: grab; font-size: 20px; color: var(--ink3); user-select: none; }
 .drag-handle:active { cursor: grabbing; }
 .ghost { opacity: 0.4; }
 
 .item-body { flex: 1; min-width: 0; }
 .item-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.order-no { font-weight: bold; font-size: 15px; color: var(--text-primary); }
+.order-no { font-weight: bold; font-size: 15px; color: var(--ink); font-family: var(--f-d); }
 /* R30d: 流程节点标签 */
 .stage-tag { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-info { color: var(--text-secondary); font-size: 13px; margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
-.item-desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+.item-info { color: var(--ink2); font-size: 13px; margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
+.item-desc { color: var(--ink3); font-size: 13px; margin-top: 4px; }
 /* 焦点图区域：大图 160×120，左图右文 */
 .focus-area { flex-shrink: 0; }
-.focus-large-img { width: 160px; height: 120px; border-radius: 8px; display: block; background: var(--bg-card); }
+.focus-large-img { width: 160px; height: 120px; border-radius: var(--r-m); display: block; background: var(--card); }
 /* R53: 已有焦点图替换（点击选文件 / 拖拽替换，不需要确认弹窗——旧图保留在图库） */
 .focus-img-wrap {
   position: relative; width: 160px; height: 120px;
-  border-radius: 8px; overflow: hidden; cursor: pointer;
-  background: var(--bg-card);
+  border-radius: var(--r-m); overflow: hidden; cursor: pointer;
+  background: var(--card);
   transition: box-shadow 0.15s;
 }
-.focus-img-wrap:hover { box-shadow: 0 0 0 2px var(--el-color-primary-light-5); }
+.focus-img-wrap:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--hq) 45%, transparent); }
 .focus-replace-overlay {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -1335,19 +1343,19 @@ onMounted(() => {
   font-size: 13px; font-weight: 600;
   pointer-events: none;
 }
-.focus-img-wrap--active { box-shadow: 0 0 0 2px var(--el-color-primary); }
+.focus-img-wrap--active { box-shadow: 0 0 0 2px var(--hq); }
 /* 焦点图空态上传占位（虚线边框 + 图标 + 文字，hover/拖拽高亮） */
 .focus-empty {
   width: 160px; height: 120px;
-  border: 2px dashed var(--border-color); border-radius: 8px;
+  border: 2px dashed var(--line2); border-radius: var(--r-m);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 6px; cursor: pointer; color: var(--text-secondary);
+  gap: 6px; cursor: pointer; color: var(--ink3);
   transition: border-color 0.2s, background 0.2s, color 0.2s;
 }
 .focus-empty:hover, .focus-empty--active {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+  border-color: var(--hq);
+  background: var(--hq-t);
+  color: var(--hq);
 }
 .focus-empty-text { font-size: 12px; }
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
@@ -1365,28 +1373,28 @@ onMounted(() => {
   flex: 1;
   height: 40px;
   border-radius: 999px;
-  background: var(--el-color-danger-light-9);
-  border: 1px solid var(--el-color-danger-light-5);
+  background: var(--zs-t);
+  border: 1px solid color-mix(in srgb, var(--zs) 45%, transparent);
   overflow: hidden;
   user-select: none;
 }
 .slide-cancel-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
-  background: var(--el-color-danger-light-7);
+  background: color-mix(in srgb, var(--zs) 28%, transparent);
   transition: width 0.05s linear;
 }
 .slide-cancel-label {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 600;
-  color: var(--el-color-danger);
+  color: var(--zs);
   pointer-events: none;
 }
 .slide-cancel-thumb {
   position: absolute; top: 2px; left: 2px;
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: var(--el-color-danger);
+  background: var(--zs);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; font-weight: 700;
@@ -1400,23 +1408,23 @@ onMounted(() => {
   .item-actions { width: 100%; justify-content: flex-end; margin-left: 0; }
 }
 
-/* ─── SPEC-004: 缓冲区 ─── */
-.buffer-title { margin: 28px 0 4px; color: var(--text-primary); font-size: 16px; }
-.buffer-hint { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); }
-.buffer-item { border-left: 3px solid var(--el-color-warning); }
+/* ─── SPEC-004: 缓冲区（缓冲=--buf 灰，REQ §二/派工 Q2） ─── */
+.buffer-title { margin: 28px 0 4px; color: var(--ink); font-size: 16px; }
+.buffer-hint { margin: 0 0 12px; font-size: 12px; color: var(--ink2); }
+.buffer-item { border-left: 3px dashed var(--buf); }
 .focus-empty--static { cursor: default; }
 
 /* ─── REQ-013 #7: 完成区（灰色沉底，不可拖拽） ─── */
-.completed-title { margin: 28px 0 4px; color: var(--text-secondary); font-size: 16px; }
-.completed-hint { margin: 0 0 12px; font-size: 12px; color: var(--text-muted); }
+.completed-title { margin: 28px 0 4px; color: var(--ink2); font-size: 16px; }
+.completed-hint { margin: 0 0 12px; font-size: 12px; color: var(--ink3); }
 .completed-item {
-  opacity: 0.5;
-  border-left: 3px solid var(--el-color-success-light-5);
+  opacity: 0.55;
+  border-left: 3px solid color-mix(in srgb, var(--sl) 55%, transparent);
   cursor: default;
 }
-.completed-item:hover { box-shadow: var(--shadow-card); }
+.completed-item:hover { box-shadow: var(--sh-1); }
 
-/* ─── SPEC-005: 视图切换 + 月历 ─── */
+/* ─── SPEC-005: 视图切换 + 月历（v0.38 色带按 REQ §二标准重绘） ─── */
 .view-switch { margin-bottom: 16px; }
 
 .cal { min-height: 400px; }
@@ -1425,8 +1433,9 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 .cal-head-title {
-  font-size: 18px; font-weight: 700; color: var(--text-primary);
+  font-size: 18px; font-weight: 700; color: var(--ink);
   min-width: 110px; text-align: center;
+  font-family: var(--f-d);
   font-variant-numeric: tabular-nums;
 }
 .cal-today-btn { margin-left: 8px; }
@@ -1437,7 +1446,7 @@ onMounted(() => {
 }
 .cal-weekday {
   text-align: center; font-size: 12px; font-weight: 600;
-  color: var(--text-secondary); padding: 4px 0;
+  color: var(--ink3); padding: 4px 0;
 }
 
 .cal-grid {
@@ -1445,23 +1454,29 @@ onMounted(() => {
 }
 .cal-cell {
   min-height: 92px;
-  border: 1px solid var(--border-color); border-radius: 8px;
-  background: var(--bg-card);
+  border: 1px solid var(--line); border-radius: var(--r-m);
+  background: var(--card);
   padding: 4px;
   display: flex; flex-direction: column; gap: 3px;
   transition: border-color 0.15s;
 }
 .cal-cell--other { opacity: 0.4; background: transparent; }
-.cal-cell--weekend { background: color-mix(in srgb, var(--bg-secondary, #f5f5f5) 50%, var(--bg-card)); }
+.cal-cell--weekend { background: color-mix(in srgb, var(--paper2) 70%, var(--card)); }
+/* 今天：花青软底 + 墨色日期圆（提案 v2 .day.today） */
 .cal-cell--today {
-  border-color: var(--el-color-primary);
-  box-shadow: inset 0 0 0 1px var(--el-color-primary);
+  background: var(--hq-t);
+  border-color: color-mix(in srgb, var(--hq) 45%, transparent);
 }
 .cal-day-num {
-  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  font-size: 12px; font-weight: 600; color: var(--ink3);
   font-variant-numeric: tabular-nums;
 }
-.cal-cell--today .cal-day-num { color: var(--el-color-primary); }
+.cal-cell--today .cal-day-num {
+  background: var(--ink); color: var(--paper);
+  width: 19px; height: 19px;
+  display: inline-grid; place-items: center;
+  border-radius: 50%;
+}
 
 .cal-bands { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
 .cal-band {
@@ -1478,41 +1493,41 @@ onMounted(() => {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* 正式订单：实心蓝 */
+/* 正式订单=实心花青（进行中语义；墨黑主题由 artist-tokens.css 提亮） */
 .cal-band--formal {
-  background: var(--el-color-primary);
+  background: var(--hq);
   color: #fff;
 }
-/* 缓冲位：30% 透明 + 虚线边框 */
+/* 缓冲位=--buf 半透明 + 虚线边框（派工 Q2：以提案 CSS 实际变量为准） */
 .cal-band--buffer {
-  background: color-mix(in srgb, var(--el-color-primary) 30%, transparent);
-  border: 1px dashed var(--el-color-primary);
-  color: var(--el-color-primary);
+  background: color-mix(in srgb, var(--buf) 26%, transparent);
+  border: 1px dashed var(--buf);
+  color: var(--buf);
 }
-/* 未设截稿：斜纹 + 警示色 */
+/* 未设截稿=斜纹纹理 + ⚠️（纹理编码状态，色盲友好；⚠️ 在 bandLabel 前置） */
 .cal-band--nodeadline {
   background: repeating-linear-gradient(
     45deg,
-    var(--el-color-warning-light-5),
-    var(--el-color-warning-light-5) 4px,
-    var(--el-color-warning-light-8) 4px,
-    var(--el-color-warning-light-8) 8px
+    var(--paper2),
+    var(--paper2) 3px,
+    var(--line) 3px,
+    var(--line) 6px
   );
-  border: 1px solid var(--el-color-warning);
-  color: var(--el-color-warning-dark-2);
+  border: 1px solid var(--line2);
+  color: var(--ink2);
 }
-/* 逾期：红 */
+/* 逾期=朱砂（出现即重要，验收 3） */
 .cal-band--overdue {
-  background: var(--el-color-danger);
+  background: var(--zs);
   color: #fff;
 }
-/* 已完成：绿 */
+/* 已完成=石绿 */
 .cal-band--done {
-  background: var(--el-color-success);
+  background: var(--sl);
   color: #fff;
 }
 .cal-band-more {
-  font-size: 10px; color: var(--text-muted); text-align: center;
+  font-size: 10px; color: var(--ink3); text-align: center;
   padding: 1px 0;
 }
 
@@ -1520,11 +1535,11 @@ onMounted(() => {
 .cal-legend {
   display: flex; flex-wrap: wrap; gap: 14px;
   margin-top: 14px; padding-top: 12px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--line);
 }
 .cal-legend-item {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--text-secondary);
+  font-size: 12px; color: var(--ink2);
 }
 .cal-legend-swatch {
   display: inline-block; width: 22px; height: 12px;
@@ -1539,7 +1554,7 @@ onMounted(() => {
   .cal-head-title { font-size: 15px; min-width: 90px; }
 }
 
-/* ─── v0.25 D: 时间条视图 ─── */
+/* ─── v0.25 D: 时间条视图（v0.38 换肤；今天线朱砂 = REQ §二） ─── */
 .tl { min-height: 300px; }
 .tl-toolbar {
   display: flex; align-items: center; gap: 12px;
@@ -1547,33 +1562,34 @@ onMounted(() => {
 }
 .tl-scroll {
   overflow-x: auto; overflow-y: visible;
-  border: 1px solid var(--border-color); border-radius: 8px;
-  background: var(--bg-card);
+  border: 1px solid var(--line); border-radius: var(--r-m);
+  background: var(--card);
   -webkit-overflow-scrolling: touch;
 }
 .tl-canvas { position: relative; min-width: 100%; }
 .tl-axis {
   position: relative; height: 32px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-inset, #f9f9f9);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper2);
 }
 .tl-tick {
   position: absolute; top: 0; bottom: 0;
   display: flex; align-items: center; justify-content: center;
-  border-right: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
 }
-.tl-tick--weekend { background: color-mix(in srgb, var(--bg-secondary, #f5f5f5) 50%, transparent); }
-.tl-tick--today { background: color-mix(in srgb, var(--el-color-primary) 10%, transparent); }
+.tl-tick--weekend { background: color-mix(in srgb, var(--ink) 3%, transparent); }
+.tl-tick--today { background: var(--zs-t); }
 .tl-tick-label {
-  font-size: 10px; color: var(--text-secondary);
+  font-size: 10px; color: var(--ink3);
   white-space: nowrap; overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
-.tl-tick--today .tl-tick-label { color: var(--el-color-primary); font-weight: 700; }
+.tl-tick--today .tl-tick-label { color: var(--zs); font-weight: 700; }
 
+/* 今天线=朱砂竖线（REQ §二 排期色带标准） */
 .tl-today-line {
   position: absolute; top: 32px; bottom: 0;
-  width: 2px; background: var(--el-color-primary);
+  width: 2px; background: var(--zs);
   z-index: 2; pointer-events: none;
 }
 
@@ -1587,13 +1603,13 @@ onMounted(() => {
   width: 140px; min-width: 140px; flex-shrink: 0;
   padding: 0 8px;
   display: flex; align-items: center; gap: 4px;
-  background: var(--bg-card);
-  border-right: 1px solid var(--border-color);
+  background: var(--card);
+  border-right: 1px solid var(--line);
   overflow: hidden;
 }
-.tl-row-no { font-size: 11px; font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
+.tl-row-no { font-size: 11px; font-weight: 700; color: var(--ink3); white-space: nowrap; font-family: var(--f-d); }
 .tl-row-name {
-  font-size: 12px; color: var(--text-primary);
+  font-size: 12px; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tl-bar {
@@ -1637,11 +1653,12 @@ onMounted(() => {
 .tl-bar--movable { cursor: grab; }
 .tl-bar--movable.tl-bar--dragging { cursor: grabbing; }
 
-/* 拖拽浮动日期标签（Teleport 到 body，fixed 跟随指针） */
+/* 拖拽浮动日期标签（Teleport 到 body，fixed 跟随指针；
+   Teleport 出 artist-scope 但仍在 html[data-artist-theme] 子树内，token 可继承） */
 .tl-drag-label {
   position: fixed;
   transform: translate(-50%, calc(-100% - 10px));
-  background: var(--el-color-primary);
+  background: var(--hq);
   color: #fff;
   font-size: 12px; font-weight: 600;
   line-height: 1;

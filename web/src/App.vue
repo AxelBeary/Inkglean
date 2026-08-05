@@ -17,6 +17,8 @@ const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
 
 <style>
 @import './styles/theme.css';
+/* v0.38: 画师后台纸墨 token（scoped html[data-artist-theme]，客户端路由下不生效，见文件头注释） */
+@import './styles/artist-tokens.css';
 
 /* ===== 全局基础样式 ===== */
 * { margin: 0; padding: 0; box-sizing: border-box; }

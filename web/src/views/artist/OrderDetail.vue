@@ -3,16 +3,19 @@
     <el-page-header @back="goBack" :title="backTitle" :content="order ? `${$t('orderDetail.orderNo')}${order.order_no}` : ''" />
 
     <div v-if="order" class="order-detail">
-      <!-- 基本信息 -->
-      <el-card style="margin-top: 16px">
+      <!-- 基本信息（v0.38: CardHead 朱砂 mark 卡头） -->
+      <el-card class="od-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.orderInfo') }}</span>
-            <el-tag :type="statusType(order.status)">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
-          </div>
+          <CardHead :title="$t('orderDetail.orderInfo')">
+            <template #extra>
+              <el-tag :type="statusType(order.status)">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
+            </template>
+          </CardHead>
         </template>
         <el-descriptions :column="2" border>
-          <el-descriptions-item :label="$t('orderDetail.colOrderNo')">{{ order.order_no }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('orderDetail.colOrderNo')">
+            <span class="od-order-no">{{ order.order_no }}</span>
+          </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colType')">{{ order.tier_name || $t('common.custom') }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colQq')">
             <span class="client-qq-row">
@@ -33,38 +36,56 @@
           </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colSource')">{{ order.source === 'self' ? $t('common.source.clientSelf') : $t('common.source.manualEntry') }}</el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
-          <!-- R51: 截稿日（date-picker，可清除，即时保存） -->
-          <el-descriptions-item :label="$t('orderDetail.colDeadline')">
-            <el-date-picker
-              v-model="deadlinePicker" type="date" value-format="YYYY-MM-DD"
-              :placeholder="$t('orderDetail.deadlinePlaceholder')"
-              :disabled-date="disableDeadlineDate"
-              clearable size="small" style="width: 160px"
-              @change="changeDeadline"
-            />
-          </el-descriptions-item>
-          <!-- v0.26 B: 开工日（date-picker，可清除，即时保存 + 自动填截稿日） -->
-          <el-descriptions-item :label="$t('orderDetail.colStartDate')">
-            <el-date-picker
-              v-model="startDatePicker" type="date" value-format="YYYY-MM-DD"
-              :placeholder="$t('orderDetail.startDatePlaceholder')"
-              :disabled-date="disableStartDateDate"
-              clearable size="small" style="width: 160px"
-              @change="changeStartDate"
-            />
-          </el-descriptions-item>
           <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
         </el-descriptions>
       </el-card>
 
-      <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
-      <el-card style="margin-top: 16px">
+      <!-- v0.38: 日期卡二合一（REQ-026 §四）——开工日/截稿日两字段一卡，即时保存逻辑不变（changeStartDate/changeDeadline），
+           卡头右侧剩余天数 chip：剩 N 天(花青) / 今天截稿(藤黄) / 逾期 N 天(朱砂) -->
+      <el-card class="od-card date-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.activityTitle') }}</span>
-            <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
-            <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
+          <CardHead :title="$t('orderDetail.dateCardTitle')">
+            <template #extra>
+              <StatusChip v-if="deadlineChip" :type="deadlineChip.type">{{ deadlineChip.text }}</StatusChip>
+            </template>
+          </CardHead>
+        </template>
+        <div class="date-card-body">
+          <!-- v0.26 B: 开工日（date-picker，可清除，即时保存 + 自动填截稿日） -->
+          <div class="date-field">
+            <span class="date-field-label">{{ $t('orderDetail.colStartDate') }}</span>
+            <el-date-picker
+              v-model="startDatePicker" type="date" value-format="YYYY-MM-DD"
+              :placeholder="$t('orderDetail.startDatePlaceholder')"
+              :disabled-date="disableStartDateDate"
+              clearable size="small" style="width: 170px"
+              @change="changeStartDate"
+            />
           </div>
+          <!-- R51: 截稿日（date-picker，可清除，即时保存） -->
+          <div class="date-field">
+            <span class="date-field-label">{{ $t('orderDetail.colDeadline') }}</span>
+            <el-date-picker
+              v-model="deadlinePicker" type="date" value-format="YYYY-MM-DD"
+              :placeholder="$t('orderDetail.deadlinePlaceholder')"
+              :disabled-date="disableDeadlineDate"
+              clearable size="small" style="width: 170px"
+              @change="changeDeadline"
+            />
+          </div>
+        </div>
+        <p class="date-card-note">{{ $t('orderDetail.dateSyncNote') }}</p>
+      </el-card>
+
+      <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
+      <el-card class="od-card">
+        <template #header>
+          <CardHead :title="$t('orderDetail.activityTitle')">
+            <template #extra>
+              <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
+              <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
+            </template>
+          </CardHead>
         </template>
 
         <!-- 终态：只读横幅，无操作 -->
@@ -115,7 +136,7 @@
       </div>
 
       <!-- R39 方案B：操作条（固定位置——不随状态区内容跳动，画师永远知道按钮在哪） -->
-      <el-card v-if="!isTerminal" class="action-bar-card" style="margin-top: 12px">
+      <el-card v-if="!isTerminal" class="action-bar-card">
         <!-- 取消订单：滑块确认行（R30e，C59 高代价操作用滑块） -->
         <div v-if="slideCancelActive" class="slide-confirm-row">
           <div class="slide-confirm">
@@ -159,12 +180,13 @@
       </el-card>
 
       <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点） -->
-      <el-card style="margin-top: 16px">
+      <el-card class="od-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.gallery') }}</span>
-            <span class="gallery-count">{{ order.references?.length || 0 }} / 20</span>
-          </div>
+          <CardHead :title="$t('orderDetail.gallery')">
+            <template #extra>
+              <span class="gallery-count">{{ order.references?.length || 0 }} / 20</span>
+            </template>
+          </CardHead>
         </template>
         <div class="ref-grid">
           <div
@@ -218,12 +240,13 @@
       </el-card>
 
       <!-- R40: 活动时间线（系统备注 + 画师备注按 created_at 混排，方案A 纯前端；R46 悬停删除） -->
-      <el-card style="margin-top: 16px">
+      <el-card class="od-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.timelineTitle') }}</span>
-            <span class="timeline-count">{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
-          </div>
+          <CardHead :title="$t('orderDetail.timelineTitle')">
+            <template #extra>
+              <span class="timeline-count">{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
+            </template>
+          </CardHead>
         </template>
         <el-timeline v-if="order.notes?.length" class="activity-timeline">
           <el-timeline-item
@@ -258,7 +281,7 @@
             </div>
           </el-timeline-item>
         </el-timeline>
-        <el-empty v-else :description="$t('orderDetail.noNotes')" :image-size="60" />
+        <InkEmpty v-else :title="$t('orderDetail.noNotes')" />
         <!-- 添加备注输入框（R40：移到时间线底部） -->
         <div
           class="note-input"
@@ -288,15 +311,16 @@
       </el-card>
 
       <!-- v0.31 REQ-021 F1: 操作记录（操作日志时间线，分页 + 类型筛选） -->
-      <el-card style="margin-top: 16px">
+      <el-card class="od-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.logTitle') }}</span>
-            <el-select v-model="logTypeFilter" size="small" style="width: 140px" @change="onLogTypeChange">
-              <el-option :label="$t('orderDetail.logTypeAll')" value="" />
-              <el-option v-for="lt in logTypeOptions" :key="lt.value" :label="lt.label" :value="lt.value" />
-            </el-select>
-          </div>
+          <CardHead :title="$t('orderDetail.logTitle')">
+            <template #extra>
+              <el-select v-model="logTypeFilter" size="small" style="width: 140px" @change="onLogTypeChange">
+                <el-option :label="$t('orderDetail.logTypeAll')" value="" />
+                <el-option v-for="lt in logTypeOptions" :key="lt.value" :label="lt.label" :value="lt.value" />
+              </el-select>
+            </template>
+          </CardHead>
         </template>
         <div v-loading="logLoading">
           <el-timeline v-if="logs.length" class="activity-timeline">
@@ -314,7 +338,7 @@
               </div>
             </el-timeline-item>
           </el-timeline>
-          <el-empty v-else-if="!logLoading" :description="$t('orderDetail.logEmpty')" :image-size="60" />
+          <InkEmpty v-else-if="!logLoading" :title="$t('orderDetail.logEmpty')" />
           <div v-if="logTotal > logPageSize" class="log-pagination">
             <el-pagination
               :current-page="logPage" :page-size="logPageSize" :total="logTotal"
@@ -326,12 +350,13 @@
       </el-card>
 
       <!-- SPEC-003: 附加工作项（添加/删除后 final_price_cents 自动重算） -->
-      <el-card style="margin-top: 16px">
+      <el-card class="od-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.extraItemsTitle') }}</span>
-            <span class="extra-count">{{ order.extraItems?.length || 0 }} / 20</span>
-          </div>
+          <CardHead :title="$t('orderDetail.extraItemsTitle')">
+            <template #extra>
+              <span class="extra-count">{{ order.extraItems?.length || 0 }} / 20</span>
+            </template>
+          </CardHead>
         </template>
         <div v-if="order.extraItems?.length" class="extra-list">
           <div v-for="item in order.extraItems" :key="item.id" class="extra-item">
@@ -351,7 +376,7 @@
             </el-button>
           </div>
         </div>
-        <el-empty v-else :description="$t('orderDetail.extraEmpty')" :image-size="60" />
+        <InkEmpty v-else :title="$t('orderDetail.extraEmpty')" />
         <div class="extra-footer">
           <el-button v-if="!isTerminal" size="small" @click="openExtraDialog" :disabled="order.extraItems?.length >= 20">
             + {{ $t('orderDetail.extraAdd') }}
@@ -368,11 +393,9 @@
       </el-card>
 
       <!-- plan-node-speech：客户沟通（QQ + 价格小结 + 话术预览 + 复制唤起QQ） -->
-      <el-card style="margin-top: 16px">
+      <el-card class="od-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.commTitle') }}</span>
-          </div>
+          <CardHead :title="$t('orderDetail.commTitle')" />
         </template>
         <div class="comm-body">
           <div class="comm-row">
@@ -393,12 +416,13 @@
       </el-card>
 
       <!-- B7: 额度池收款记录 -->
-      <el-card style="margin-top: 16px">
+      <el-card class="od-card">
         <template #header>
-          <div class="card-header">
-            <span>{{ $t('orderDetail.payTitle') }}</span>
-            <el-button type="primary" size="small" @click="payDialogVisible = true">{{ $t('orderDetail.payAddBtn') }}</el-button>
-          </div>
+          <CardHead :title="$t('orderDetail.payTitle')">
+            <template #extra>
+              <el-button type="primary" size="small" @click="payDialogVisible = true">{{ $t('orderDetail.payAddBtn') }}</el-button>
+            </template>
+          </CardHead>
         </template>
         <div v-loading="paymentsLoading">
           <!-- 已收 / 应收 / 待收 + 进度条 -->
@@ -412,7 +436,7 @@
                 <strong>¥{{ formatCents(poolOverpaidCents > 0 ? poolOverpaidCents : poolRemainingCents) }}</strong>
               </span>
             </div>
-            <el-progress :percentage="poolPercent" :stroke-width="12" :color="poolPercent >= 100 ? '#67c23a' : '#409eff'" style="margin-top: 8px" />
+            <el-progress :percentage="poolPercent" :stroke-width="12" :color="poolPercent >= 100 ? 'var(--sl)' : 'var(--hq)'" style="margin-top: 8px" />
           </div>
 
           <!-- 收款流水 -->
@@ -433,7 +457,7 @@
               </el-button>
             </div>
           </div>
-          <el-empty v-else-if="!paymentsLoading" :description="$t('orderDetail.payEmpty')" :image-size="48" />
+          <InkEmpty v-else-if="!paymentsLoading" :title="$t('orderDetail.payEmpty')" />
 
           <!-- v0.31 F4: 节点收款（每节点已收/应收/差额 + 快捷收款） -->
           <div class="pool-ref" v-if="installmentRefs.length">
@@ -464,8 +488,8 @@
       </el-card>
 
       <!-- 交付文件 -->
-      <el-card style="margin-top: 16px" v-if="order.deliverables?.length">
-        <template #header>{{ $t('orderDetail.deliverFiles') }}</template>
+      <el-card class="od-card" v-if="order.deliverables?.length">
+        <template #header><CardHead :title="$t('orderDetail.deliverFiles')" /></template>
         <div v-for="d in order.deliverables" :key="d.id" class="file-item">
           <span>{{ d.original_name }}</span>
           <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
@@ -588,6 +612,10 @@ import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
+// v0.38: 统一视觉组件（REQ-026 §二）
+import CardHead from '../../components/artist/visual/CardHead.vue'
+import StatusChip from '../../components/artist/visual/StatusChip.vue'
+import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
@@ -873,6 +901,25 @@ async function changePriority(priority) {
   }
 }
 
+// ─── v0.38: 剩余天数（REQ-026 §四.4：截稿日 − 今天；正=剩余 / 0=当天 / 负=逾期） ───
+const daysLeft = computed(() => {
+  const d = order.value?.deadline
+  if (!d) return null
+  // 本地时区按日计算（deadline 可能带时间部分，截取日期段）
+  const due = new Date(String(d).slice(0, 10) + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((due.getTime() - today.getTime()) / 86400000)
+})
+
+// 日期卡头 chip：剩 N 天(花青=进行中) / 今天截稿(藤黄=待确认) / 逾期 N 天(朱砂=逾期)——7 色语义一对一
+const deadlineChip = computed(() => {
+  if (daysLeft.value === null) return null
+  if (daysLeft.value > 0) return { type: 'doing', text: t('orderDetail.daysLeft', { n: daysLeft.value }) }
+  if (daysLeft.value === 0) return { type: 'pend', text: t('orderDetail.daysToday') }
+  return { type: 'over', text: t('orderDetail.daysOverdue', { n: -daysLeft.value }) }
+})
+
 // ─── R51: 截稿日（date-picker 即时保存，null = 清除） ───
 // 本地 ref + watcher 同步：v-model 需要真实 setter——日历点选时 EP 发出 update:modelValue，
 // setter 必须写入，否则 props.modelValue 不变 → @change 永不触发 → API 不调用（画师反馈的 Bug）。
@@ -899,7 +946,7 @@ function disableStartDateDate(d) {
 async function changeDeadline(val) {
   try {
     order.value = await artistApi.updateDeadline(route.params.id, val || null)
-    ElMessage.success(t('orderDetail.deadlineUpdated'))
+    ElMessage.success(t('orderDetail.deadlineSavedSync'))
   } catch (err) {
     // T1: 保存失败时回弹 picker 显示值为 order 原值（watcher 同款截取逻辑，避免界面与数据不一致）
     deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
@@ -917,7 +964,7 @@ watch(() => order.value?.startDate ?? order.value?.start_date ?? null, (val) => 
 async function changeStartDate(val) {
   try {
     order.value = await artistApi.updateStartDate(route.params.id, val || null)
-    ElMessage.success(t('orderDetail.startDateUpdated'))
+    ElMessage.success(t('orderDetail.startDateSavedSync'))
     // 自动填截稿日：截稿日为空 + 有开工日 + 档位有工期
     if (val && !order.value.deadline && order.value.tier_work_days) {
       const start = new Date(val + 'T00:00:00')
@@ -1419,73 +1466,84 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card-header { display: flex; justify-content: space-between; align-items: center; }
+/* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；旧变量不残留——派工 §二.3） ═══ */
+/* 页面结构：卡片间距 14px（REQ §1.4） */
+.order-detail { display: flex; flex-direction: column; gap: 14px; }
+
+/* 订单号文楷——落款感（REQ §1.3：数字/单号用文楷） */
+.od-order-no { font-family: var(--f-d); font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+
+/* ─── v0.38: 日期卡二合一（REQ-026 §四：两字段一卡，交互逻辑不变） ─── */
+.date-card-body { display: flex; gap: 28px; flex-wrap: wrap; }
+.date-field { display: flex; flex-direction: column; gap: 6px; }
+.date-field-label { font-size: 13px; color: var(--ink2); }
+.date-card-note { font-size: 12px; color: var(--ink3); margin: 12px 0 0; }
 
 /* ─── R39 方案B：状态区 ─── */
-/* 终态只读横幅 */
+/* 终态只读横幅（已交付=石绿软底 / 已取消=中性，7 色语义一对一） */
 .status-banner {
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px; border-radius: 8px; font-size: 15px; font-weight: 600;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: var(--r-m); font-size: 15px; font-weight: 600;
 }
-.status-banner--delivered { background: var(--el-color-success-light-9); color: var(--el-color-success); }
-.status-banner--cancelled { background: var(--el-color-info-light-9); color: var(--el-color-info); }
-.status-banner-text { color: var(--text-primary); }
+.status-banner--delivered { background: var(--sl-t); }
+.status-banner--cancelled { background: color-mix(in srgb, var(--ink3) 12%, transparent); }
+.status-banner-text { color: var(--ink); }
 /* 最后活动时间 */
-.status-last-active { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; }
+.status-last-active { font-size: 12px; color: var(--ink2); margin: 10px 0 0; }
 /* 无工作流兜底：状态标签 + 上下文信息 */
 .status-fallback { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.status-context { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); }
-/* C53：启用流程跟踪引导 */
+.status-context { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--ink2); }
+/* C53：启用流程跟踪引导（花青软底 + 虚线） */
 .track-on-hint {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin-top: 14px; padding: 10px 14px;
-  background: var(--el-color-primary-light-9); border: 1px dashed var(--el-color-primary-light-5);
-  border-radius: 8px;
+  background: var(--hq-t); border: 1px dashed color-mix(in srgb, var(--hq) 45%, transparent);
+  border-radius: var(--r-m);
 }
-.track-on-hint-text { font-size: 13px; color: var(--text-secondary); }
+.track-on-hint-text { font-size: 13px; color: var(--ink2); }
 
 /* ─── R39 方案B：操作条（固定位置） ─── */
-/* ─── v0.31 F5: 下一节点应收提示条 ─── */
+/* ─── v0.31 F5: 下一节点应收提示条（藤黄=待办提醒，非逾期不抢朱砂） ─── */
 .next-due-banner {
   display: flex; align-items: center; gap: 10px;
-  margin-top: 12px; padding: 12px 16px; border-radius: 8px;
-  background: var(--el-color-warning-light-9);
-  border: 1px solid var(--el-color-warning-light-5);
+  padding: 12px 16px; border-radius: var(--r-m);
+  background: var(--th-t);
+  border: 1px solid color-mix(in srgb, var(--th) 45%, transparent);
   cursor: pointer; transition: background 0.15s;
 }
-.next-due-banner:hover { background: var(--el-color-warning-light-8); }
-.next-due-text { flex: 1; font-size: 14px; font-weight: 600; color: var(--el-color-warning-dark-2); }
+.next-due-banner:hover { background: color-mix(in srgb, var(--th) 18%, transparent); }
+.next-due-text { flex: 1; font-size: 14px; font-weight: 600; color: var(--th); }
 /* REQ-025 二阶段: 当前节点副信息（权重低于总额，不抢主信息） */
-.next-due-sub { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
-.next-due-arrow { font-size: 16px; color: var(--el-color-warning); }
+.next-due-sub { font-size: 13px; color: var(--ink2); white-space: nowrap; }
+.next-due-arrow { font-size: 16px; color: var(--th); }
 
 .action-bar-card :deep(.el-card__body) { padding: 12px 16px; }
 .action-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .action-cancel { margin-left: auto; }
 
-/* 滑块确认（与 QueueBoard R30e 视觉一致） */
+/* 滑块确认（与 QueueBoard R30e 视觉一致，朱砂=危险操作） */
 .slide-confirm-row { display: flex; align-items: center; gap: 8px; }
 .slide-confirm {
   position: relative; flex: 1; height: 40px;
   border-radius: 999px; overflow: hidden; user-select: none;
-  background: var(--el-color-danger-light-9);
-  border: 1px solid var(--el-color-danger-light-5);
+  background: var(--zs-t);
+  border: 1px solid color-mix(in srgb, var(--zs) 45%, transparent);
 }
 .slide-confirm-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
-  background: var(--el-color-danger-light-7);
+  background: color-mix(in srgb, var(--zs) 28%, transparent);
   transition: width 0.05s linear;
 }
 .slide-confirm-label {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600; color: var(--el-color-danger);
+  font-size: 13px; font-weight: 600; color: var(--zs);
   pointer-events: none;
 }
 .slide-confirm-thumb {
   position: absolute; top: 2px; left: 2px;
   width: 36px; height: 36px; border-radius: 50%;
-  background: var(--el-color-danger); color: #fff;
+  background: var(--zs); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; font-weight: 700;
   cursor: grab; touch-action: none;
@@ -1494,27 +1552,27 @@ onMounted(() => {
 .slide-confirm-thumb:active { cursor: grabbing; }
 
 /* ─── R30d: 流程进度 ─── */
-.stage-progress-text { font-size: 13px; color: var(--text-secondary); margin: 12px 0 0; }
-.stage-revision-mark { color: var(--el-color-warning); font-weight: 600; margin-left: 8px; }
+.stage-progress-text { font-size: 13px; color: var(--ink2); margin: 12px 0 0; }
+.stage-revision-mark { color: var(--th); font-weight: 600; margin-left: 8px; }
 
 /* ─── R18: 订单图库 ─── */
-.gallery-count { font-size: 13px; color: var(--text-secondary); }
+.gallery-count { font-size: 13px; color: var(--ink2); }
 .ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 .ref-item { display: flex; flex-direction: column; gap: 4px; }
-.ref-item--focus .ref-img { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.ref-item--focus .ref-img { outline: 2px solid var(--hq); outline-offset: 2px; }
 .ref-img-wrap {
   position: relative;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--r-m);
   overflow: hidden;
   transition: transform 0.15s;
 }
 .ref-img-wrap:hover { transform: scale(1.02); }
-.ref-img { height: 120px; width: 100%; border-radius: 6px; display: block; background: var(--bg-secondary, #f0f0f0); }
+.ref-img { height: 120px; width: 100%; border-radius: var(--r-m); display: block; background: var(--paper2); }
 /* R43: 加载骨架屏（防首屏多图白闪） */
 .ref-img-skeleton {
   width: 100%; height: 100%;
-  background: var(--bg-secondary, #f0f0f0);
+  background: var(--paper2);
   animation: ref-skeleton-pulse 1.2s ease-in-out infinite;
 }
 @keyframes ref-skeleton-pulse {
@@ -1529,12 +1587,12 @@ onMounted(() => {
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-s);
   line-height: 1.5;
   pointer-events: none;
 }
 .ref-source-badge--client { background: rgba(0, 0, 0, 0.55); color: #fff; }
-.ref-source-badge--artist { background: var(--el-color-primary); color: #fff; }
+.ref-source-badge--artist { background: var(--hq); color: #fff; }
 /* 焦点指示 */
 .ref-focus-indicator {
   position: absolute;
@@ -1543,7 +1601,7 @@ onMounted(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--el-color-primary);
+  background: var(--hq);
   color: #fff;
   font-size: 12px;
   display: flex;
@@ -1565,41 +1623,41 @@ onMounted(() => {
 /* R18: 上传磁贴 */
 .ref-upload-tile {
   height: 120px;
-  border: 2px dashed var(--border-color);
-  border-radius: 6px;
+  border: 2px dashed var(--line2);
+  border-radius: var(--r-m);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--ink2);
   transition: border-color 0.2s, background 0.2s, color 0.2s;
 }
 .ref-upload-tile:hover, .ref-upload-tile--active {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+  border-color: var(--hq);
+  background: var(--hq-t);
+  color: var(--hq);
 }
 .ref-upload-text { font-size: 12px; }
-.upload-status { font-size: 12px; color: var(--el-color-primary); margin: 8px 0 0; }
-.upload-error { font-size: 12px; color: var(--el-color-danger); margin: 8px 0 0; }
-.no-refs { color: var(--text-secondary); font-size: 13px; margin: 0; }
-.focus-hint { font-size: 12px; color: var(--text-secondary); margin: 12px 0 0; }
+.upload-status { font-size: 12px; color: var(--hq); margin: 8px 0 0; }
+.upload-error { font-size: 12px; color: var(--zs); margin: 8px 0 0; }
+.no-refs { color: var(--ink2); font-size: 13px; margin: 0; }
+.focus-hint { font-size: 12px; color: var(--ink3); margin: 12px 0 0; }
 
 /* R17: 优先级分段按钮配色（选中态由 Element Plus 内部 is-checked 控制） */
-.priority-group :deep(.prio-high.is-checked .el-radio-button__inner) { background: var(--el-color-danger); border-color: var(--el-color-danger); box-shadow: -1px 0 0 0 var(--el-color-danger); }
-.priority-group :deep(.prio-medium.is-checked .el-radio-button__inner) { background: var(--el-color-warning); border-color: var(--el-color-warning); box-shadow: -1px 0 0 0 var(--el-color-warning); }
-.priority-group :deep(.prio-low.is-checked .el-radio-button__inner) { background: var(--el-color-success); border-color: var(--el-color-success); box-shadow: -1px 0 0 0 var(--el-color-success); }
+.priority-group :deep(.prio-high.is-checked .el-radio-button__inner) { background: var(--zs); border-color: var(--zs); box-shadow: -1px 0 0 0 var(--zs); }
+.priority-group :deep(.prio-medium.is-checked .el-radio-button__inner) { background: var(--th); border-color: var(--th); box-shadow: -1px 0 0 0 var(--th); }
+.priority-group :deep(.prio-low.is-checked .el-radio-button__inner) { background: var(--sl); border-color: var(--sl); box-shadow: -1px 0 0 0 var(--sl); }
 
 /* ─── R40: 活动时间线 ─── */
-.timeline-count { font-size: 13px; color: var(--text-secondary); }
+.timeline-count { font-size: 13px; color: var(--ink2); }
 .activity-timeline { padding-top: 4px; }
 .tl-item { position: relative; }
 .tl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.tl-type { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-.tl-item--system .tl-content { color: var(--text-secondary); font-size: 13px; }
-.tl-content { font-size: 14px; color: var(--text-primary); line-height: 1.6; word-break: break-word; }
+.tl-type { font-size: 12px; font-weight: 600; color: var(--ink2); }
+.tl-item--system .tl-content { color: var(--ink2); font-size: 13px; }
+.tl-content { font-size: 14px; color: var(--ink); line-height: 1.6; word-break: break-word; }
 /* R46: 删除按钮悬停显示（触屏常驻，与参考图 .ref-hover-actions 交互一致 C56） */
 .tl-delete { opacity: 0; transition: opacity 0.15s; margin-left: auto; }
 .tl-item:hover .tl-delete { opacity: 1; }
@@ -1609,8 +1667,8 @@ onMounted(() => {
 /* ─── v0.31 REQ-021 F1: 操作记录 ─── */
 .log-item { position: relative; }
 .log-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.log-actor { font-size: 12px; color: var(--text-secondary); }
-.log-detail { font-size: 13px; color: var(--text-primary); line-height: 1.6; word-break: break-word; }
+.log-actor { font-size: 12px; color: var(--ink2); }
+.log-detail { font-size: 13px; color: var(--ink); line-height: 1.6; word-break: break-word; }
 .log-pagination { display: flex; justify-content: center; margin-top: 12px; }
 .note-thumb {
   display: block;
@@ -1618,17 +1676,16 @@ onMounted(() => {
   width: 80px;
   height: 80px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--r-m);
   cursor: zoom-in;
-  border: 1px solid var(--border-color);
-  /* UI-9: loading background color (consistent with the library's .ref-img, prevents white flash) */
-  background: var(--bg-secondary, #f0f0f0);
+  border: 1px solid var(--line);
+  background: var(--paper2);
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.note-thumb:hover { transform: scale(1.05); box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.1)); }
-.note-input { display: flex; gap: 8px; border-radius: 6px; transition: outline 0.15s; }
+.note-thumb:hover { transform: scale(1.05); box-shadow: var(--sh-2); }
+.note-input { display: flex; gap: 8px; border-radius: var(--r-m); transition: outline 0.15s; }
 /* R41: 拖拽进入高亮 */
-.note-input--drag-over { outline: 2px dashed var(--el-color-primary); outline-offset: 4px; }
+.note-input--drag-over { outline: 2px dashed var(--hq); outline-offset: 4px; }
 .note-input .el-input { flex: 1; }
 .note-pending {
   display: flex;
@@ -1636,11 +1693,11 @@ onMounted(() => {
   gap: 8px;
   margin-top: 8px;
   padding: 8px;
-  border: 1px dashed var(--el-color-primary);
-  border-radius: 6px;
-  background: var(--el-color-primary-light-9);
+  border: 1px dashed var(--hq);
+  border-radius: var(--r-m);
+  background: var(--hq-t);
 }
-.note-pending-img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+.note-pending-img { width: 48px; height: 48px; object-fit: cover; border-radius: var(--r-s); }
 
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
 
@@ -1649,70 +1706,71 @@ onMounted(() => {
 .client-qq-row .el-button { padding: 2px 6px; height: auto; }
 
 /* ─── SPEC-003: 附加工作项 ─── */
-.extra-count { font-size: 12px; color: var(--text-secondary); }
+.extra-count { font-size: 12px; color: var(--ink2); }
 .extra-list { display: flex; flex-direction: column; gap: 4px; }
 .extra-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-m);
   transition: background 0.15s;
 }
-.extra-item:hover { background: var(--el-fill-color-light); }
+.extra-item:hover { background: var(--paper2); }
 .extra-info { flex: 1; min-width: 0; }
-.extra-name { font-size: 14px; color: var(--text-primary); }
-.extra-desc { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.extra-price { font-size: 14px; font-weight: 600; color: var(--text-primary); flex-shrink: 0; }
+.extra-name { font-size: 14px; color: var(--ink); }
+.extra-desc { display: block; font-size: 12px; color: var(--ink2); margin-top: 2px; }
+/* 金额等宽（REQ §二：金额右对齐等宽字体） */
+.extra-price { font-size: 14px; font-weight: 600; color: var(--ink); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 /* 悬停显示删除（触屏常驻，与 .tl-delete 交互一致 C56） */
 .extra-delete { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
 .extra-item:hover .extra-delete { opacity: 1; }
 @media (hover: none) { .extra-delete { opacity: 1; } }
 .extra-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
-.extra-total { font-size: 13px; color: var(--text-secondary); }
-.extra-total strong { color: var(--text-primary); }
-.extra-auto-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+.extra-total { font-size: 13px; color: var(--ink2); }
+.extra-total strong { color: var(--ink); font-family: var(--f-d); }
+.extra-auto-hint { font-size: 12px; color: var(--ink3); margin-top: 8px; }
 
 /* ─── plan-node-speech：客户沟通 ─── */
 .comm-body { display: flex; flex-direction: column; gap: 10px; }
 .comm-row { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
-.comm-label { color: var(--text-secondary); flex-shrink: 0; }
-.comm-value { color: var(--text-primary); font-weight: 600; }
+.comm-label { color: var(--ink2); flex-shrink: 0; }
+.comm-value { color: var(--ink); font-weight: 600; }
 .comm-speech {
   padding: 10px 14px;
-  border-radius: 8px;
-  background: var(--el-color-primary-light-9);
-  border-left: 3px solid var(--el-color-primary);
+  border-radius: var(--r-m);
+  background: var(--hq-t);
+  border-left: 3px solid var(--hq);
 }
 .comm-speech-text {
-  font-size: 14px; line-height: 1.7; color: var(--text-primary);
+  font-size: 14px; line-height: 1.7; color: var(--ink);
   white-space: pre-wrap; word-break: break-word;
 }
 .comm-copy-btn { align-self: flex-start; }
 
 /* ─── B7: 额度池收款区 ─── */
 .pool-summary { margin-bottom: 16px; }
-.pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: 14px; color: var(--text-secondary); flex-wrap: wrap; }
-.pool-nums strong { color: var(--text-primary); font-size: 16px; }
+.pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: 14px; color: var(--ink2); flex-wrap: wrap; }
+.pool-nums strong { color: var(--ink); font-size: 16px; font-family: var(--f-d); font-variant-numeric: tabular-nums; }
 .pool-remaining { margin-left: auto; }
-/* P2: 多收（客户多付）——橙色提示，区别于正常的待收 */
-.pool-overpaid { color: var(--el-color-warning); }
-.pool-overpaid strong { color: var(--el-color-warning); }
+/* P2: 多收（客户多付）——藤黄提示，区别于正常的待收 */
+.pool-overpaid { color: var(--th); }
+.pool-overpaid strong { color: var(--th); }
 .pool-flow { margin-top: 12px; }
-.pool-flow-title, .pool-ref-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0 0 8px; }
+.pool-flow-title, .pool-ref-title { font-size: 13px; font-weight: 600; color: var(--ink2); margin: 0 0 8px; }
 .pool-flow-row {
   display: flex; align-items: center; gap: 10px; padding: 6px 0;
-  border-bottom: 1px solid var(--el-border-color-lighter); font-size: 13px;
+  border-bottom: 1px solid var(--line); font-size: 13px;
 }
 .pool-flow-row:last-child { border-bottom: none; }
-.pool-flow-date { color: var(--text-secondary); flex-shrink: 0; width: 80px; }
-.pool-flow-amount { font-weight: 600; flex-shrink: 0; min-width: 80px; }
-.pool-flow-amount.is-positive { color: var(--el-color-success); }
-.pool-flow-amount.is-negative { color: var(--el-color-danger); }
-.pool-flow-note { flex: 1; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pool-flow-date { color: var(--ink2); flex-shrink: 0; width: 80px; font-variant-numeric: tabular-nums; }
+.pool-flow-amount { font-weight: 600; flex-shrink: 0; min-width: 80px; font-variant-numeric: tabular-nums; }
+.pool-flow-amount.is-positive { color: var(--sl); }
+.pool-flow-amount.is-negative { color: var(--zs); }
+.pool-flow-note { flex: 1; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pool-ref { margin-top: 16px; }
 .pool-ref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
 .pool-ref-icon { width: 18px; text-align: center; flex-shrink: 0; }
-.pool-ref-name { flex: 1; color: var(--text-primary); }
-.pool-ref-amount { color: var(--text-secondary); flex-shrink: 0; }
+.pool-ref-name { flex: 1; color: var(--ink); }
+.pool-ref-amount { color: var(--ink2); flex-shrink: 0; }
 </style>
