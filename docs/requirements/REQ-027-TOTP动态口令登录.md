@@ -78,7 +78,7 @@ TOTP 标准 30 秒一步。校验允许 **±1 个时间窗口**（即前后 30 �
 
 ### R7 旧机制处置（建议：一刀切，不留双轨）
 
-TOTP 上线时同步移除旧登录码机制：`login_codes` 表、generateLoginCode/verifyLoginCode、send-code/verify-code 接口、AUTH_DEV_MODE 开发模式显示码逻辑。AUTH_DEV_MODE 关闭（上线前必做 H1）由本需求顺带完成。
+TOTP 上线时同步移除旧登录码机制：登录码数据表、登录码生成/校验函数（generateLoginCode/verifyLoginCode）、登录码发放/校验接口、AUTH_DEV_MODE 开发模式显示码逻辑。AUTH_DEV_MODE 关闭（上线前必做 H1）由本需求顺带完成。
 
 > 此项为四号建议（对齐用户"不留双轨"的一贯原则），**待一号/用户确认**，见待确认 Q2。
 
