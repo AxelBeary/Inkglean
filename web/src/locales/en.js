@@ -392,6 +392,7 @@ export default {
   gallery: {
     filterAll: 'All',
     filterEmpty: 'No artworks tagged with this tier yet',
+    filterEmptyAll: 'No artworks yet',
     tierTag: 'Tier',
     prev: 'Previous',
     next: 'Next'

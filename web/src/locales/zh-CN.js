@@ -392,6 +392,7 @@ export default {
   gallery: {
     filterAll: '全部',
     filterEmpty: '该档位下暂时没有作品',
+    filterEmptyAll: '画师还没有上传作品',
     tierTag: '档位',
     prev: '上一张',
     next: '下一张'

@@ -21,9 +21,10 @@
       </button>
     </div>
 
-    <!-- v0.35 F6: 筛选后无作品（档位存在但没作品标注它） -->
-    <p v-if="filters.length && !filteredArtworks.length" class="tpl-gallery-filter-empty">
-      {{ $t('gallery.filterEmpty') }}
+    <!-- 打磨批：空态条件放宽为「当前筛选结果为空」即显示（无筛选行时兜底「还没有作品」）；
+         单档位选中沿用「该档位下暂时没有作品」；全部/无筛选时用通用文案 -->
+    <p v-if="!filteredArtworks.length" class="tpl-gallery-filter-empty">
+      {{ activeSizeId == null ? $t('gallery.filterEmptyAll') : $t('gallery.filterEmpty') }}
     </p>
 
     <!-- key 随筛选变化 → 淡出淡入平滑过渡，不整页刷新；筛选切换同时把翻页重置到第一张 -->
