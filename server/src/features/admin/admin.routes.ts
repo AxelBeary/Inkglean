@@ -5,6 +5,7 @@ import * as adminService from './admin.service.js'
 import * as orderService from '../order/order.service.js'
 import { bindTotpInit, confirmTotpBind, resetTotp, verifyTotpLogin, isDevAuth } from '../auth/auth.service.js'
 import { generateSecret, buildOtpAuthUri } from '../auth/totp.js'
+import { publicArtistDTO } from '../../shared/dto.js'
 import QRCode from 'qrcode'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { clamp } from '../../shared/validate.js'
@@ -23,8 +24,9 @@ export default async function adminRoutes(fastify) {
    */
   fastify.get('/api/admin/artists', { preHandler: requireAdmin }, async () => {
     const adminQq = getAdminQq()
+    // 安全加固批 F1: getAllArtists 已显式列（不含密钥），再经 DTO 双重防御
     return artistService.getAllArtists().map(a => ({
-      ...a,
+      ...publicArtistDTO(a),
       isAdmin: a.qq_number === adminQq
     }))
   })
@@ -539,7 +541,8 @@ export default async function adminRoutes(fastify) {
   fastify.get('/api/admin/artists/:id/profile', { preHandler: requireAdmin, schema: intId }, async (request, reply) => {
     const a = artistService.getArtistById(request.params.id)
     if (!a) return reply.code(404).send({ error: '画师不存在' })
-    return a
+    // 安全加固批 F1: 完整行含 totp_secret，走 DTO 剔除敏感列
+    return publicArtistDTO(a)
   })
 
   /** PUT /api/admin/artists/:id/profile — 更新画师资料（P1-2: 字段白名单） */

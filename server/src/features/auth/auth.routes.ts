@@ -3,6 +3,7 @@ import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
+import { publicArtistDTO } from '../../shared/dto.js'
 import type { FastifyInstance } from 'fastify'
 
 // ============================================
@@ -78,7 +79,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/api/auth/me', { preHandler: requireAuth }, async (request) => {
     const isAdmin = request.artist.qq_number === getAdminQq()
-    return { ...request.artist, isAdmin }
+    // 安全加固批 F1: 完整行含 totp_secret，走 DTO 剔除敏感列
+    return { ...publicArtistDTO(request.artist), isAdmin }
   })
 
   /**

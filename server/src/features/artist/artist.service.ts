@@ -69,7 +69,20 @@ export function getArtistById(id: number): Artist | undefined {
 }
 
 export function getAllArtists(): Artist[] {
-  return db.prepare("SELECT * FROM artists WHERE deleted_at IS NULL AND subdomain != 'system' ORDER BY created_at ASC").all() as Artist[]
+  // 安全加固批 F1: 显式列——剔除 totp_secret/totp_failed_attempts/totp_locked_until（密钥体系）、
+  // token_version/deleted_at（内部）、weibo_url/bilibili_url/platform_urls（历史遗留零引用）。
+  // 保留 totp_verified：管理后台画师列表据此显示「绑定/重绑」按钮（ArtistManage.vue）。
+  // 保留 quick_actions：画师 profile 消费（Preferences.vue/QuickActions.vue）。
+  return db.prepare(`
+    SELECT id, qq_number, name, subdomain, avatar, bio, status, contact_qq, notify_enabled,
+           created_at, artist_code, template_id, custom_page_path, palette_id,
+           dashboard_default_panel, revision_note, custom_links, accent_color,
+           order_template_id, inspiration_tags, batch_limit, buffer_limit, auto_promote,
+           hide_queue_position, hide_promote_notify, buffer_short_form, announcement,
+           announcement_expires_at, monthly_quota, quick_actions, discount_enabled,
+           multi_style_enabled, totp_verified
+    FROM artists WHERE deleted_at IS NULL AND subdomain != 'system' ORDER BY created_at ASC
+  `).all() as Artist[]
 }
 
 export async function createArtist({ qqNumber, name, subdomain, bio, artistCode }: {
