@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 14:55——**v0.38 视觉重设计全部合入收官**（第一批 `368021c` + 第二批 `515fb83`）+ F1 发布作品后端合入（`9851ad5`）+ 第三方打磨批 A+B+C+E 合入（`f8e24c2`）。容器已部署 v0.38 新视觉。唯一在途门控分支：F2 外链后端（`f2-social-backend`，等前端批一起合）。打磨批 D（需求描述可空过）待用户拍板。
+> 最后更新：2026-08-05 晚——**v0.39 批次四路派工齐发**：二号 F1+F2 前端批（主链，合入即解 f2 门控）/ 三号 addons 冻结表清理第一批 / 四号 A 测执行手册 / 五号打磨第二批。worktree 四开。打磨批 D（需求描述可空过）待用户拍板。
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿（server 831/web 192）、三个 worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
@@ -9,7 +9,7 @@
 ## master 状态
 
 - **HEAD**：`f8e24c2`（五号打磨批合入），与 origin 同步
-- **工作树**：主仓 + 一个门控 worktree（f2 外链后端 `4946993`，等 F2 前端批一起合入）；v038/fixes/f1/acc/docs worktree 已全部回收
+- **工作树**：主仓 + 门控 worktree（f2 外链后端 `4946993`，等二号前端批一起合）+ v0.39 四路 worktree（f1f2 / addons / v038acc / polish）
 - **测试基线**：server 864/864（51 文件）· web 192/192（12 文件）· tsc 0 · lint 0 · build 过
 - **容器**：v0.38 新视觉已重建部署，healthy（TOTP 合入后重建先例；迁移 v41 实跑通过）
 - **备份**：`data/commission.db.bak-v037-pre-v41`（TOTP 合入前）+ `bak-v037-pre-v40`（A 路前）+ 更早三轮备份
@@ -32,17 +32,18 @@
 **遗留小项**：前端 locales 两个死键（sendCode/codeSent）下轮顺手清。
 
 ---
-## ⬇️ 当前进行中：v0.38 画师后台视觉重设计（第一批已派工）
+## ⬇️ 当前进行中：v0.39 四路并行批（2026-08-05 晚派工）
 
-**用户已拍板**：REQ-026 Q1「一次性全量切换」（不留双轨，token 层建成后全页面统一套用）。需求稿 `docs/requirements/REQ-026-画师后台视觉重设计.md`，设计依据三份文档：`docs/画师工作台视觉提案-v2.html`（视觉基准）+ `docs/画师后台视觉规范-v1.md` + `docs/design-brief-画师后台视觉重设计.md`。
+| 路 | 角色 | 内容 | worktree / 分支 |
+|----|------|------|-----------------|
+| 主链 | 二号 | **REQ-022 F1+F2 前端批**（发布为作品入口 + 外链重做前端 + 平台管理页 + simple-icons）——合入即解 f2-social-backend 门控 | `../artist-commission-f1f2` / `f1f2-frontend`（含 merge f2 后端联调） |
+| 后端 | 三号 | addons 冻结表清理第一批（算价读路径 + 测试；POST schema addons 字段留给前端同批） | `../artist-commission-addons` / `addons-cleanup` |
+| 文档 | 四号 | A 测执行手册（测试剧本 + AUTH_DEV_MODE 关闭检查单 + 反馈模板 + 已知限制） | `../artist-commission-v038acc` / `atest-docs` |
+| 打磨 | 五号 | 打磨第二批（回收站插画偏亮 + 验证风格统一 + 画廊空态可选；D 待拍板不碰） | `../artist-commission-polish` / `polish-leftover` |
 
-**第一批派工已落**：`docs/comms/01-to-02-v038视觉重设计第一批-20260805.md`（骨架 + 核心四页：仪表盘/排期看板/订单详情含日期卡二合一/手动录单 + 统一组件）。worktree `../artist-commission-v038`（分支 `v038-visual`，基于 `beec8b9`）已建。
+派工文件：`docs/comms/01-to-0{2,3,4,5}-*-20260805.md`；接力指令：`01-派工-用户侧接力指令-20260805-第三轮.md`（四窗口整段粘贴）。
 
-**二号开工流程**：cd worktree → `git merge master` 拿派工 → 读派工文件逐条执行 → 交付不推送不合并。
-
-**一号审核要点**：7 色语义一对一不破（花青=进行中/朱砂=逾期/石绿=完成/藤黄=待确认/赭石=客户）；统计数字墨色不上色；文楷只落标题/数字/印章；**客户端零影响（验收 10）——theme.css 现有变量被客户端 170+ 处引用，新 token 必须 scoped 到后台容器，不改现有变量值**；任何阶段不允许两套主题 token 并存。
-
-**第二批（第一批合入后派）**：订单管理 OrderList / 开稿 SlotManage / 价格 TierManage / 作品 ArtworkManage / 留言 GuestbookManage / 设置 Settings / 登录 Login + 管理后台（低频，只套 token 与基础组件）。
+**一号审核要点（F1+F2 批）**：验收清单 `docs/REQ022-F1F2验收清单.md` 逐条过（F1 十条 + F2 十二条 + 防投毒 ★ 向量前端行为重点）；server 零改动（两后端分支均只读消费）；4 模板页脚逐模板不破视觉；simple-icons 构建产物体积抽查；合入顺序 = f2 后端先、前端批后（一次 merge 收双分支），合入后 f2 worktree 回收。
 
 ---
 ## 已拍板规则（长期有效）
@@ -76,10 +77,10 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | ✅ **v0.38 视觉重设计全部合入收官**（第一批+第二批）→ **待派**（候选：F2 前端批 / F1 前端批 / v038 第三批小项，等一号排） |
-| 三号 | ✅ F1 发布作品后端已合入（`9851ad5`）→ **待派**（候选：F2 前端批后端已备好，或 F1 前端联调配合） |
-| 四号 | ✅ 拆解批 + AI头脑风暴拆解 + F1/F2 验收清单全部合入 → **空闲待派** |
-| 五号 | ✅ F4+F3+F5+文档同步批+第三方测试核实已合入 → **打磨批进行中**（A色板i18n/B对比度/C placeholder/E无障碍名，worktree `../artist-commission-fixes`） |
+| 二号 | 🔨 **v0.39 F1+F2 前端批进行中**（worktree `../artist-commission-f1f2`） |
+| 三号 | 🔨 **addons 清理第一批进行中**（worktree `../artist-commission-addons`） |
+| 四号 | 🔨 **A 测执行手册进行中**（worktree `../artist-commission-v038acc`） |
+| 五号 | 🔨 **打磨第二批进行中**（worktree `../artist-commission-polish`） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
@@ -90,7 +91,8 @@
 |----|------|
 | addons 表处置 | ✅ 已评估合入（`6f79294`）：**保留但冻结**——drop 前置是代码清理（两处读路径 getPublicPricing/calculatePrice + POST /api/orders schema addons 字段 + 前端兜底分支），清理草案见报告 §Q1.5，排 v0.39+ 批次 |
 | AUTH_DEV_MODE=false 关闭 | 上线前必做——TOTP 已就绪，关开发模式不再卡任何消息渠道 |
-| 前端 locales 死键 sendCode/codeSent | 随 v0.38 第一批清（已写进二号派工） |
+| 前端 locales 死键 sendCode/codeSent | ✅ 已清（2026-08-05 一号 grep 全仓零命中，v0.38 批内已随清） |
+| 打磨批 D：约稿需求描述可空过 | **待用户拍板**（保持选填 / 软提示 / 最低校验）——拍板前不派工 |
 
 ---
 ## ⚠️ v38 迁移事故记录（长期教训）
