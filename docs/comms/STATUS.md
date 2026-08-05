@@ -69,6 +69,7 @@
 | v0.38 | 画师后台视觉重设计（纸墨颜料盘，一次性全量切换） | **下一步，派工草案已备** |
 
 **v0.38 之后**：REQ-022 剩余链路（F1 作品链路 / F2 外链重做 / F3 表单回显 / F4 回收站分页 / F5 留言分组）+ 真实画师反馈批次 + 上线安全前置（AUTH_DEV_MODE=false 现仅需 TOTP 就绪即可关）。
+**候选池（REQ-031，2026-08-05 用户逐项拍板入池）**：A1 收入导出 CSV / A2 订单收据 / B1 完稿分享（搭 F2 前端批便车）/ C4 时区显示，P2。一号排期裁决：**A 测真实反馈优先于本清单**；B1 随 F2 前端批考虑；A1/A2/C4 等 A 测后视真实反馈立项（AI 模拟人格产出，未经真实验证）。REQ-032 画师协议 P3 占位备案。
 
 ---
 ## 各角色状态
@@ -77,7 +78,7 @@
 |------|------|
 | 二号 | ✅ v038 第一批已合入（`368021c`）→ **v038 第二批待开工**（用户外部窗口；剩余页面 OrderList/SlotManage/TierManage/ArtworkManage/GuestbookManage/Settings/Login + 管理后台 + RevenueChart 数字上色修复） |
 | 三号 | ✅ F2 外链后端已过审（分支待合入，等 F2 前端批）→ **F1-1 发布作品后端待开工**（用户外部窗口；worktree `../artist-commission-f1`） |
-| 四号 | ✅ 拆解批已合入 → **F1/F2 验收清单批待开工**（用户外部窗口；worktree `../artist-commission-acc`，仅 docs/） |
+| 四号 | ✅ 拆解批已合入 → **F1/F2 验收清单批待开工**（用户外部窗口；worktree `../artist-commission-acc`，仅 docs/）。⚠️ 2026-08-05 流程违规记账：AI 头脑风暴拆解（用户交办加急，内容已过审合入 `b3661c4`）未走分配的 worktree 直接 commit 主仓 master——已提醒，下次必须 cd worktree |
 | 五号 | ✅ F4+F3+F5 已合入 → **文档同步批待开工**（TOTP 后 docs 漂移修复，worktree `../artist-commission-docs`，仅 docs/） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
