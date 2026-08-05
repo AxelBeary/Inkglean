@@ -110,41 +110,44 @@ describe('画师服务 (Artist Service)', () => {
     expect(artistService.getArtworks(artist.id)).toHaveLength(1)
   })
 
-  // ─── v0.12 R15: 外链列表（custom_links） ───
+  // ─── REQ-022 F2: 外链列表（custom_links，新结构 [{platformId, url}]） ───
 
-  // TC-R-06: custom_links 写入与读取
-  it('TC-R-06: updateArtist 写入 custom_links 并读回', async () => {
+  // TC-R-06: custom_links 写入（归一化 + platformId 后端推导）与读取
+  it('TC-R-06: updateArtist 写入 custom_links 并读回（新结构）', async () => {
+    // 建平台行（service 层重推导依赖 social_platforms）
+    const p = db.prepare(`
+      INSERT INTO social_platforms (name, icon_key, match_domains, sort_order, enabled)
+      VALUES ('微博', 'sinaweibo', ?, 1, 1)
+    `).run(JSON.stringify(['weibo.com']))
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
     const links = [
-      { name: '我的Pixiv', url: 'https://pixiv.net/users/xxx', icon: 'pixiv' },
-      { name: '微博', url: 'https://weibo.com/xxx', icon: 'weibo' }
+      { platformId: 99999, url: 'https://weibo.com/xxx' }, // 前端传的 platformId 被忽略
+      { url: 'https://example.com/yyy' }
     ]
     const updated = artistService.updateArtist(artist.id, { custom_links: links })
     const parsed = JSON.parse(updated.custom_links)
     expect(parsed).toHaveLength(2)
-    expect(parsed[0].name).toBe('我的Pixiv')
-    expect(parsed[1].icon).toBe('weibo')
+    expect(parsed[0]).toEqual({ platformId: p.lastInsertRowid, url: 'https://weibo.com/xxx' })
+    expect(parsed[1]).toEqual({ platformId: null, url: 'https://example.com/yyy' })
   })
 
-  // TC-R-06b: custom_links 超 6 条被拒绝
-  it('TC-R-06b: 外链超 6 条抛出 LINKS_TOO_MANY', async () => {
+  // TC-R-06b: custom_links 超 8 条被拒绝（派工上限 8）
+  it('TC-R-06b: 外链超 8 条抛出 LINKS_TOO_MANY', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
-    const links = Array.from({ length: 7 }, (_, i) => ({
-      name: `链接${i}`, url: `https://example.com/${i}`, icon: 'link'
-    }))
+    const links = Array.from({ length: 9 }, (_, i) => ({ url: `https://example.com/${i}` }))
 
     expect(() => {
       artistService.updateArtist(artist.id, { custom_links: links })
     }).toThrow('LINKS_TOO_MANY')
   })
 
-  // TC-R-06c: custom_links 非法 url 被拒绝
+  // TC-R-06c: custom_links 非法协议被拒绝
   it('TC-R-06c: 外链 url 非 http/https 抛出 LINK_URL_INVALID', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
 
     expect(() => {
       artistService.updateArtist(artist.id, {
-        custom_links: [{ name: '恶意', url: 'javascript:alert(1)', icon: 'link' }]
+        custom_links: [{ url: 'javascript:alert(1)' }]
       })
     }).toThrow('LINK_URL_INVALID')
   })
@@ -158,30 +161,34 @@ describe('画师服务 (Artist Service)', () => {
     expect(updated.weibo_url).toBeNull() // 未被写入
   })
 
-  // TC-R-07: getCustomLinks 回退逻辑
-  it('TC-R-07: getCustomLinks 老画师回退旧列', async () => {
+  // TC-R-06e: platform_urls 写入分支已删除（updateArtist 不再接受该字段）
+  it('TC-R-06e: platform_urls 字段被冻结（不在 allowed 白名单）', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
-    // 模拟老画师：custom_links=NULL，有旧列值
+    const updated = artistService.updateArtist(artist.id, {
+      platform_urls: [{ url: 'https://pixiv.net/users/1' }]
+    })
+    expect(updated.platform_urls).toBeNull() // 未被写入
+  })
+
+  // TC-R-07: getCustomLinks 旧列回退已删除（REQ-022 F2 拍板：直接删，无迁移）
+  it('TC-R-07: custom_links=NULL 时返回空数组（不回退旧列）', async () => {
+    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
+    // 模拟旧列残留值——新读路径不回退
     db.prepare('UPDATE artists SET weibo_url = ?, bilibili_url = ? WHERE id = ?')
       .run('https://weibo.com/old', 'https://bilibili.com/old', artist.id)
     const fresh = artistService.getArtistById(artist.id)
 
-    const links = artistService.getCustomLinks(fresh)
-    expect(links).toHaveLength(2)
-    expect(links[0]).toEqual({ name: '微博', url: 'https://weibo.com/old', icon: 'weibo' })
-    expect(links[1]).toEqual({ name: 'Bilibili', url: 'https://bilibili.com/old', icon: 'bilibili' })
+    expect(artistService.getCustomLinks(fresh)).toEqual([])
   })
 
-  // TC-R-07b: getCustomLinks 已设置空数组时不回退
-  it('TC-R-07b: custom_links 空数组不回退旧列', async () => {
+  // TC-R-07b: getCustomLinks 空数组照常返回空数组
+  it('TC-R-07b: custom_links 空数组返回空数组', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
-    // 设置旧列 + 空 custom_links
-    db.prepare("UPDATE artists SET weibo_url = ?, custom_links = '[]' WHERE id = ?")
-      .run('https://weibo.com/old', artist.id)
+    db.prepare("UPDATE artists SET custom_links = '[]' WHERE id = ?").run(artist.id)
     const fresh = artistService.getArtistById(artist.id)
 
     const links = artistService.getCustomLinks(fresh)
-    expect(links).toHaveLength(0) // 空数组优先，不回退
+    expect(links).toHaveLength(0)
   })
 
   // TC-R-07c: getCustomLinks JSON 解析失败时返回空数组
