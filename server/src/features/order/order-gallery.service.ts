@@ -2,6 +2,10 @@ import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getOrder, compactQueue, tryAutoPromote } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
+import { createArtwork } from '../artist/artist.service.js'
+import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
+import { join, resolve, sep, extname, basename } from 'path'
+import { nanoid } from 'nanoid'
 
 // ============================================
 // 订单图库服务（从 order.service.js 拆出，v0.16）
@@ -165,4 +169,129 @@ export function removeReference(orderId: number, referenceId: number): any {
 
     return getOrder(orderId)
   })()
+}
+
+// ============================================
+// REQ-022 F1: 发布为作品
+// ============================================
+
+/** 可发布为作品的扩展名（对齐 /api/upload/image 白名单；deliverables 允许 zip/psd 等非图片格式，不可发布） */
+const PUBLISH_ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+
+/** 发布结果行（camelCase，路由层直接返回） */
+interface PublishedArtwork {
+  id: number
+  imagePath: string
+  title: string | null
+  description: string | null
+}
+
+/**
+ * 把订单交付物发布为作品（REQ-022 F1，用户拍板：delivered 门槛 + 一图一作品）
+ *
+ * 链路：
+ * 1. 订单必须 delivered（路由层已校验，此处双重防御）
+ * 2. deliverableIds 去重（保持首次出现顺序，重复不报错——派工定案）
+ * 3. 每张图：deliverables/{artistId}/xxx（签名私有）复制（非移动）→ images/{artistId}/yyy（公开）
+ *    原交付物保留不动（客户交付页仍可下载）
+ * 4. 一图一条 artworks：title/description 各条共用同一入参，is_cover 默认 0
+ *
+ * 回滚策略：文件复制阶段中途失败 → 删除已复制文件；
+ * DB 插入阶段中途失败 → 删除已插入 artworks + 已复制文件（GC 24h 兜底）
+ */
+export async function publishArtwork(
+  orderId: number,
+  artistId: number,
+  deliverableIds: number[],
+  title: string,
+  description?: string | null
+): Promise<PublishedArtwork[]> {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND, 404)
+  if (order.artist_id !== artistId) throw new AppError(E.ORDER_NOT_OWNED, 403)
+  if (order.status !== 'delivered') {
+    throw new AppError(E.PUBLISH_WRONG_STATUS, 400, { status: order.status })
+  }
+
+  // 去重（保持顺序；重复不报错——派工定案）
+  const ids = [...new Set(deliverableIds)]
+  if (ids.length === 0) throw new AppError(E.MISSING_PARAMS)
+
+  // 交付物行校验：每条必须属于本订单（跨单/不存在 → 404）
+  const deliverables = ids.map(id => {
+    const row = db.prepare('SELECT id, file_path FROM deliverables WHERE id = ? AND order_id = ?')
+      .get(id, orderId) as { id: number; file_path: string } | undefined
+    if (!row) throw new AppError(E.DELIVERABLE_NOT_FOUND, 404, { deliverableId: id })
+    return row
+  })
+
+  // 路径防御（对齐 deliver 端点 H-3 模式）：.. 检查 + 本画师交付目录前缀
+  for (const d of deliverables) {
+    if (d.file_path.includes('..') || !d.file_path.startsWith(`deliverables/${artistId}/`)) {
+      throw new AppError(E.ILLEGAL_PATH)
+    }
+  }
+
+  // 扩展名白名单：交付文件允许 zip/psd 等，发布为作品仅接受图片格式
+  for (const d of deliverables) {
+    const ext = extname(basename(d.file_path)).toLowerCase()
+    if (!PUBLISH_ALLOWED_EXTS.includes(ext)) {
+      throw new AppError(E.ILLEGAL_FILE_TYPE)
+    }
+  }
+
+  // ── 文件复制阶段：deliverables/（签名私有）→ images/（公开目录，同作品上传约定）──
+  const uploadDir = resolve(process.env.UPLOAD_DIR || './uploads')
+  const copiedAbs: string[] = []
+  const targets: string[] = []
+  try {
+    const destDirAbs = resolve(join(uploadDir, 'images', String(artistId)))
+    mkdirSync(destDirAbs, { recursive: true })
+    for (const d of deliverables) {
+      const srcAbs = resolve(join(uploadDir, d.file_path))
+      // P0-B 纵深防御：源/目标必须都在 uploads 子树内
+      if (!srcAbs.startsWith(uploadDir + sep)) throw new AppError(E.ILLEGAL_PATH)
+      if (!existsSync(srcAbs)) throw new AppError(E.MISSING_FILE)
+      const ext = extname(basename(d.file_path)).toLowerCase()
+      const destRel = `images/${artistId}/${nanoid(12)}${ext}`
+      const destAbs = resolve(join(uploadDir, destRel))
+      if (!destAbs.startsWith(uploadDir + sep)) throw new AppError(E.ILLEGAL_PATH)
+      copyFileSync(srcAbs, destAbs)
+      copiedAbs.push(destAbs)
+      targets.push(destRel)
+    }
+  } catch (err) {
+    // 复制中途失败：清理已复制文件，不留脏数据
+    for (const f of copiedAbs) { try { unlinkSync(f) } catch { /* 忽略 */ } }
+    throw err
+  }
+
+  // ── DB 插入阶段：一图一作品行（createArtwork 内 sharp 读宽高，故为 async，不走 db.transaction）──
+  const created: PublishedArtwork[] = []
+  try {
+    for (const destRel of targets) {
+      const artwork = await createArtwork(artistId, {
+        imagePath: destRel,
+        title,
+        description: description ?? null
+      })
+      if (!artwork) throw new AppError(E.ARTWORK_NOT_FOUND)
+      created.push({
+        id: artwork.id,
+        imagePath: artwork.image_path,
+        title: artwork.title,
+        description: artwork.description
+      })
+    }
+  } catch (err) {
+    // 插入中途失败：删除已插入 artworks + 已复制文件（GC 24h 兜底）
+    for (const a of created) db.prepare('DELETE FROM artworks WHERE id = ?').run(a.id)
+    for (const f of copiedAbs) { try { unlinkSync(f) } catch { /* 忽略 */ } }
+    throw err
+  }
+
+  // 注：发布为作品不写 order_activity_logs——action_type 列有 DB CHECK 约束
+  // （6 值枚举，加 'publish_artwork' 需重建表迁移，属结构变更，本批派工禁止动 init.js）。
+  // 留痕由 artworks 行本身承担（created_at + image_path 可追溯交付来源）。
+  return created
 }
