@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { createSession, bindTotpInit, confirmTotpBind } from '../src/features/auth/auth.service.js'
 import { generateSecret, computeTotp } from '../src/features/auth/totp.js'
 import * as orderService from '../src/features/order/order.service.js'
 import { buildApp } from '../src/app.js'
+import { mkdirSync, writeFileSync, rmSync, utimesSync } from 'fs'
+import { join, resolve } from 'path'
 
 /** 设置管理员：写 platform_config + 返回管理员画师行 */
 function setAdmin(qqNumber) {
@@ -518,5 +520,153 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(o.paidTotalCents).toBe(0)
     expect(o.finalPriceCents).toBe(0)
     expect(o.installments).toEqual([])
+  })
+
+  // ─── 回收站分页（REQ-022 F4） ───
+
+  const rbBinRoot = join(resolve(process.env.UPLOAD_DIR || './uploads'), '.recycle-bin')
+
+  /** 造 n 个回收站文件，mtime 从新到旧递减（file-0 最新），返回文件名数组（新→旧） */
+  function seedRecycleFiles(n) {
+    const dateDir = join(rbBinRoot, '2026-08-05')
+    mkdirSync(dateDir, { recursive: true })
+    const names = []
+    const baseSec = Math.floor(Date.now() / 1000)
+    for (let i = 0; i < n; i++) {
+      const name = `file-${String(i).padStart(3, '0')}.png`
+      const full = join(dateDir, name)
+      writeFileSync(full, `data-${i}`)
+      const t = baseSec - i * 60 // file-0 最新
+      utimesSync(full, t, t)
+      names.push(name)
+    }
+    return names
+  }
+
+  afterEach(() => {
+    rmSync(rbBinRoot, { recursive: true, force: true })
+  })
+
+  it('TC-RB-01: 不传参数默认 page=1/pageSize=20，返回 items/total/page/pageSize', async () => {
+    const admin = setAdmin('10001')
+    seedRecycleFiles(25)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/recycle-bin',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.total).toBe(25)
+    expect(body.items).toHaveLength(20)
+    expect(body.page).toBe(1)
+    expect(body.pageSize).toBe(20)
+  })
+
+  it('TC-RB-02: 翻页切片正确（第 2 页取剩余 5 条，与第 1 页无重叠）', async () => {
+    const admin = setAdmin('10001')
+    const names = seedRecycleFiles(25)
+
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+    const p1 = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=1', headers: auth })
+    const p2 = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=2', headers: auth })
+
+    expect(p1.statusCode).toBe(200)
+    expect(p2.statusCode).toBe(200)
+    const p1Names = p1.json().items.map(i => i.fileName)
+    const p2Body = p2.json()
+    expect(p2Body.items.map(i => i.fileName)).toEqual(names.slice(20))
+    expect(p2Body.total).toBe(25)
+    expect(p2Body.page).toBe(2)
+    // 两页无重叠
+    expect(p1Names.filter(n => p2Body.items.some(i => i.fileName === n))).toHaveLength(0)
+  })
+
+  it('TC-RB-03: movedAt 倒序（新删的在前）', async () => {
+    const admin = setAdmin('10001')
+    const names = seedRecycleFiles(3) // file-000 最新
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/recycle-bin',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().items.map(i => i.fileName)).toEqual(names)
+  })
+
+  it('TC-RB-04: page 越界返回空 items 不报错（total 照常）', async () => {
+    const admin = setAdmin('10001')
+    seedRecycleFiles(3)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/recycle-bin?page=999',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.items).toEqual([])
+    expect(body.total).toBe(3)
+    expect(body.page).toBe(999)
+  })
+
+  it('TC-RB-05: pageSize 超上限钳到 100，非法值回退默认', async () => {
+    const admin = setAdmin('10001')
+    seedRecycleFiles(3)
+
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+    const big = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?pageSize=150', headers: auth })
+    expect(big.json().pageSize).toBe(100)
+
+    // 非法值（0/非数字）回退默认 20；负值钳到下限 1（与订单分页表达式行为一致）
+    for (const q of ['pageSize=0', 'pageSize=abc']) {
+      const r = await app.inject({ method: 'GET', url: `/api/admin/recycle-bin?${q}`, headers: auth })
+      expect(r.statusCode).toBe(200)
+      expect(r.json().pageSize).toBe(20)
+    }
+    const negSize = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?pageSize=-5', headers: auth })
+    expect(negSize.json().pageSize).toBe(1)
+    const badPage = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=0', headers: auth })
+    expect(badPage.json().page).toBe(1)
+  })
+
+  it('TC-RB-06: 非管理员访问回收站返回 403', async () => {
+    setAdmin('10001')
+    const pleb = seedArtist({ qq_number: '20002', subdomain: 'rb-pleb' })
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/recycle-bin',
+      headers: { Authorization: `Bearer ${adminToken(pleb)}` }
+    })
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('ADMIN_REQUIRED')
+  })
+
+  it('TC-RB-07: 清空接口语义不变（整体清空，不分页）', async () => {
+    const admin = setAdmin('10001')
+    seedRecycleFiles(25)
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/admin/recycle-bin',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ success: true, deleted: 25 })
+
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/admin/recycle-bin',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+    expect(after.json().total).toBe(0)
   })
 })

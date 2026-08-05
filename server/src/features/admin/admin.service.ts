@@ -69,6 +69,26 @@ export function listRecycleBin(): RecycleBinItem[] {
 }
 
 /**
+ * 列出回收站内容（分页）— REQ-022 F4
+ * walk 后按 movedAt 倒序（新删的在前），切片返回当前页
+ * 返回：{ items, total, page, pageSize }
+ */
+export function listRecycleBinPaged(page: number, pageSize: number): {
+  items: RecycleBinItem[]
+  total: number
+  page: number
+  pageSize: number
+} {
+  const all = listRecycleBin()
+  // ISO 8601 字符串字典序等价时间序
+  all.sort((a, b) => b.movedAt.localeCompare(a.movedAt))
+  const total = all.length
+  const start = (page - 1) * pageSize
+  const items = all.slice(start, start + pageSize)
+  return { items, total, page, pageSize }
+}
+
+/**
  * 清空回收站（真正删除所有文件）
  * 返回删除的文件数
  */

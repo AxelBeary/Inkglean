@@ -309,7 +309,7 @@ export const adminApi = {
   getArtistRules: (id) => api.get(`/admin/artists/${id}/rules`),
   updateArtistRules: (id, content) => api.put(`/admin/artists/${id}/rules`, { content }),
   // 回收站（事故修复：孤儿文件可恢复）
-  getRecycleBin: () => api.get('/admin/recycle-bin'),
+  getRecycleBin: ({ page, pageSize } = {}) => api.get('/admin/recycle-bin', { params: { page, pageSize } }),
   emptyRecycleBin: () => api.delete('/admin/recycle-bin'),
   // F4: 留言管理（跨画师）
   getMessages: () => api.get('/admin/messages'),
