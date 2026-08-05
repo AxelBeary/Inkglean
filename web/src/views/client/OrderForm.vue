@@ -459,6 +459,18 @@
           <!-- R58-2: 粘性摘要卡（宽屏右侧 / 移动端底部） -->
           <aside class="summary-card">
             <div class="summary-title">{{ $t('orderForm.summaryTitle') }}</div>
+            <!-- REQ-022 F3: 客户信息回显（双模式公共，空值隐藏；描述 3 行截断） -->
+            <div v-if="form.clientName.trim() || form.description.trim()" class="summary-client">
+              <div v-if="form.clientName.trim()" class="summary-line">
+                <span>{{ $t('orderForm.summaryNickname') }}</span>
+                <span class="summary-client-value">{{ form.clientName }}</span>
+              </div>
+              <div v-if="form.description.trim()" class="summary-desc">
+                <div class="summary-line">{{ $t('orderForm.summaryDescription') }}</div>
+                <div class="summary-desc-text">{{ form.description }}</div>
+              </div>
+              <div class="summary-divider"></div>
+            </div>
             <!-- v0.32: 画风模式摘要 -->
             <template v-if="isStyleMode">
               <div class="summary-tier">{{ selectedStyle?.name }}</div>
@@ -959,6 +971,15 @@ async function copyQq(qq) {
   background: var(--el-color-primary-light-9); color: var(--el-color-primary);
 }
 .summary-empty { font-size: 13px; color: var(--text-muted); }
+/* ─── REQ-022 F3: 客户信息回显（昵称 + 需求描述） ─── */
+.summary-client { margin-bottom: 4px; }
+.summary-client-value { font-weight: 600; color: var(--text-primary); }
+.summary-desc { margin-top: 2px; }
+.summary-desc-text {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.6;
+  word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
 
 /* ─── R58-2: 移动端——单栏，摘要卡移到底部 ─── */
 @media (max-width: 860px) {

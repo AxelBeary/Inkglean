@@ -306,6 +306,8 @@ export default {
     step1Title: '选择约稿档位', step2Title: '描述你的需求', step3Title: '留下联系方式',
     nextStep: '下一步', prevStep: '上一步',
     summaryTitle: '约稿摘要', summaryNoTier: '选好档位后这里会显示价格',
+    // REQ-022 F3: 摘要卡客户信息回显
+    summaryNickname: '昵称', summaryDescription: '需求描述',
     // R58-3: 小票二次确认
     receiptSub: '· 约稿确认单 ·', receiptTotal: '合计', receiptConfirm: '确认下单', submitting: '提交中…',
     // R58-4: 灵感标签
