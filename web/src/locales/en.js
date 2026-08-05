@@ -184,7 +184,12 @@ export default {
     STYLE_ADDON_DUPLICATE: 'This addon is already imported into this style',
     SIZE_OVERRIDE_NOT_FOUND: 'Size override not found'
   },
-  pref: { toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark' },
+  pref: {
+    toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',
+    // v0.38: artist back-office paper/ink dual themes (REQ-026 §1.2)
+    artistToInk: 'Switch to ink theme', artistToPaper: 'Switch to paper theme',
+    artistToastInk: 'Switched · Ink', artistToastPaper: 'Switched · Paper'
+  },
   common: {
     status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', hidden: 'Hidden', unknown: 'Unknown' },
     statusShort: { open: 'Open', full: 'Full', break: 'Break', hidden: 'Hidden' },
@@ -230,7 +235,10 @@ export default {
     notFound: 'Page Not Found'
   },
   menu: {
-    logo: 'HuiYue', dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
+    logo: 'HuiYue',
+    // v0.38: sidebar brand seal character (REQ-026 §三.1 vermillion seal)
+    logoSeal: '绘',
+    dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
     manualOrder: 'Manual Entry', tiers: 'Pricing', artworks: 'Portfolio',
     guestbook: 'Guestbook', slots: 'Slot Settings',
     preview: 'Preview Page',
@@ -535,6 +543,11 @@ export default {
     // v0.26 B: start date
     colStartDate: 'Start Date', startDatePlaceholder: 'Pick a start date', startDateUpdated: 'Start date updated',
     deadlineAutoSet: 'Deadline auto-set based on turnaround days',
+    // v0.38: merged date card (REQ-026 §四) — two fields in one card + "schedule synced" + days-left chip
+    dateCardTitle: 'Dates',
+    deadlineSavedSync: 'Deadline saved, schedule synced',
+    startDateSavedSync: 'Start date saved, schedule synced',
+    daysLeft: '{n} days left', daysOverdue: '{n} days overdue', daysToday: 'Due today',
     // R58-6: QQ jump + copy
     jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
     // plan-node-speech: client communication block
@@ -913,7 +926,7 @@ export default {
     transferStep1Title: 'Verify current admin', transferStep2Title: 'Verify new admin',
     currentAdminQq: 'Current admin QQ', newAdminQq: 'New admin QQ',
     newAdminQqPlaceholder: 'Enter new admin QQ (must be a registered artist)',
-    sendCode: 'Send code', codeSent: 'Code sent', enterCode: 'Enter 6-digit code',
+    enterCode: 'Enter 6-digit code',
     nextStep: 'Next', confirmTransfer: 'Confirm transfer',
     transferSuccess: 'Admin transferred to {name}', adminTag: 'Admin',
     transferTotpHint: 'Enter the 6-digit code shown in each authenticator app (both must be bound first)',

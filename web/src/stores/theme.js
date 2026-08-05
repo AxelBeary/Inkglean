@@ -4,8 +4,11 @@ import { ref, watch, computed } from 'vue'
 const BASE_KEY = 'huiyue-theme-base'
 const ACCENT_KEY = 'huiyue-theme-accent'
 const OLD_KEY = 'huiyue-theme' // v0.4~v0.7 旧 key，向后兼容
-
 const ACCENTS = ['1', '2', '3', '4', '5']
+
+// v0.38: 画师后台宣纸/墨黑双主题（REQ-026），与客户端 base/accent 完全独立
+const ARTIST_THEME_KEY = 'huiyue-artist-theme'
+const ARTIST_ATTR = 'data-artist-theme'
 
 function detectBase() {
   // 迁移旧 key（'dark'/'light' → 新 base 格式）
@@ -34,6 +37,20 @@ function resolveDark(base) {
 function applyTheme(base, accent) {
   document.documentElement.classList.toggle('dark', resolveDark(base))
   document.documentElement.setAttribute('data-accent', accent)
+}
+
+/** v0.38: 读取后台主题持久化值（默认宣纸） */
+function detectArtistTheme() {
+  return localStorage.getItem(ARTIST_THEME_KEY) === 'ink' ? 'ink' : 'paper'
+}
+
+/** v0.38: 把后台主题属性挂到 html（token 作用域开关；客户端路由下不挂） */
+function applyArtistTheme(theme) {
+  document.documentElement.setAttribute(ARTIST_ATTR, theme)
+}
+
+function removeArtistTheme() {
+  document.documentElement.removeAttribute(ARTIST_ATTR)
 }
 
 export const useThemeStore = defineStore('theme', () => {
@@ -69,5 +86,36 @@ export const useThemeStore = defineStore('theme', () => {
     base.value = isDark.value ? 'light' : 'dark'
   }
 
-  return { base, accent, isDark, setBase, setAccent, toggle }
+  // ─── v0.38: 画师后台宣纸/墨黑双主题（REQ-026 §1.2） ───
+  // 与客户端 base/accent 互不干扰：客户端用 html.dark + data-accent，
+  // 后台用 html[data-artist-theme]（仅在后台骨架挂载期间存在，客户端零影响）。
+  const artistTheme = ref(detectArtistTheme())
+
+  watch(artistTheme, (t) => {
+    localStorage.setItem(ARTIST_THEME_KEY, t)
+    // 只有作用域激活期间才同步 DOM（离开后台后切换不残留属性）
+    if (document.documentElement.hasAttribute(ARTIST_ATTR)) applyArtistTheme(t)
+  })
+
+  const isArtistInk = computed(() => artistTheme.value === 'ink')
+
+  /** 宣纸 ↔ 墨黑 切换 */
+  function toggleArtistTheme() {
+    artistTheme.value = artistTheme.value === 'ink' ? 'paper' : 'ink'
+  }
+
+  /** 进入后台作用域（ArtistLayout 挂载时调用）：恢复持久化的主题属性 */
+  function enterArtistScope() {
+    applyArtistTheme(artistTheme.value)
+  }
+
+  /** 离开后台作用域（ArtistLayout 卸载时调用）：摘除属性，客户端拿不到后台 token */
+  function leaveArtistScope() {
+    removeArtistTheme()
+  }
+
+  return {
+    base, accent, isDark, setBase, setAccent, toggle,
+    artistTheme, isArtistInk, toggleArtistTheme, enterArtistScope, leaveArtistScope
+  }
 })

@@ -184,7 +184,12 @@ export default {
     STYLE_ADDON_DUPLICATE: '该增项已导入此画风',
     SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在'
   },
-  pref: { toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗' },
+  pref: {
+    toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',
+    // v0.38: 画师后台宣纸/墨黑双主题（REQ-026 §1.2）
+    artistToInk: '切换到墨黑主题', artistToPaper: '切换到宣纸主题',
+    artistToastInk: '已切换 · 墨黑', artistToastPaper: '已切换 · 宣纸'
+  },
   common: {
     status: { open: '可约稿', full: '已排满', break: '休息中', hidden: '已隐藏', unknown: '未知' },
     statusShort: { open: '可约', full: '排满', break: '休息', hidden: '隐藏' },
@@ -230,7 +235,10 @@ export default {
     notFound: '页面不存在'
   },
   menu: {
-    logo: '绘约', dashboard: '仪表盘', queue: '排期看板', orders: '订单管理',
+    logo: '绘约',
+    // v0.38: 侧栏品牌印章字（REQ-026 §三.1 朱砂印章「绘」）
+    logoSeal: '绘',
+    dashboard: '仪表盘', queue: '排期看板', orders: '订单管理',
     manualOrder: '手动录单', tiers: '价格管理', artworks: '作品管理',
     guestbook: '留言管理', slots: '开稿管理',
     preview: '主页预览',
@@ -535,6 +543,11 @@ export default {
     // v0.26 B: 开工日
     colStartDate: '开工日', startDatePlaceholder: '选择开工日', startDateUpdated: '开工日已更新',
     deadlineAutoSet: '已按工期自动设置截稿日',
+    // v0.38: 日期卡二合一（REQ-026 §四）——两字段一卡 + 即时保存「排期已同步」+ 剩余天数 chip
+    dateCardTitle: '日期',
+    deadlineSavedSync: '截稿日已保存，排期已同步',
+    startDateSavedSync: '开工日已保存，排期已同步',
+    daysLeft: '剩 {n} 天', daysOverdue: '逾期 {n} 天', daysToday: '今天截稿',
     // R58-6: QQ 跳转 + 复制
     jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
     // plan-node-speech：客户沟通小块
@@ -911,7 +924,7 @@ export default {
     transferStep1Title: '验证当前管理员', transferStep2Title: '验证新管理员',
     currentAdminQq: '当前管理员QQ', newAdminQq: '新管理员QQ',
     newAdminQqPlaceholder: '输入新管理员的QQ号（必须是已注册画师）',
-    sendCode: '发送验证码', codeSent: '验证码已发送', enterCode: '输入6位验证码',
+    enterCode: '输入6位验证码',
     nextStep: '下一步', confirmTransfer: '确认更换',
     transferSuccess: '管理员已更换为 {name}', adminTag: '管理员',
     transferTotpHint: '输入各自验证器App上当前显示的6位动态码（双方须先完成绑定）',
