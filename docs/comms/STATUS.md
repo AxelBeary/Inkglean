@@ -80,10 +80,12 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | ✅ 手动录单日期批已合入（`9815a3c`）→ **视觉通病批1在途**（fix/visual-batch1，worktree `../artist-commission-fix1`，派工 `01-to-02-视觉通病批1-20260806.md`：V1 动画纪律收敛 / V2 EP 蓝实测排查 / V3 404 过滤 / V4 落款 / V5 Landing 冗余按钮） |
-| 三号 | ✅ addons 收尾批已合入（`58d48c9`）→ **环境批在途**（feat/env-batch，worktree `../artist-commission-env`，派工 `01-to-03-环境批-20260806.md`：B1 压缩+缓存头 / B2 uploads 响应头区分 / B3 compose 端口方案待拍板） |
-| 四号 | ✅ 说明书 v0.39 已合入（`ece9310`）→ **模板体检批在途**（只读，worktree `../artist-commission-tpl`，派工 `01-to-04-模板体检批-20260806.md`：四模板实测缺陷清单） |
-| 五号 | ✅ 安全加固批已合入（`ee0f68a`）→ **约稿页实测修复批在途**（fix/orderform-selection，worktree `../artist-commission-of`，派工 `01-to-05-约稿页实测修复批-20260806.md`：W1-W3 选中态/按钮色/摘要空态先实测再修 + W4 动画收敛；评审指控多不实，纪律=不实不许硬改） |
+| 二号 | ✅ 手动录单日期批（`9815a3c`）+ 视觉通病批1（`096927f`）已合入 → **topbar压缩批在途**（fix/topbar-compact，worktree `../artist-commission-topbar`，派工 `01-to-02-topbar压缩批-20260806.md`：桌面去顶栏，主题/语言回侧栏底部，精确到行的施工图） |
+| 三号 | ✅ 环境批已合入（`16312c9`，B1/B2 实施 + B3 用户拍板直连3000+frp）→ 待派 |
+| 四号 | ✅ 模板体检批已交付（只读，T1吸底CTA/T2导航/T3档位禁用 等 9 项清单 + 用户拍板：T1修/T8封面上限6/T6修/T9缓）→ 待派 |
+| 五号 | ✅ 约稿页实测修复批已合入（`3b8777e`，W3摘要空态+W4动画收敛；W1不实未改；W2 EP蓝已被批1根治）→ **吸底CTA修复批在途**（fix/sticky-cta，worktree `../artist-commission-cta`，派工 `01-to-05-吸底CTA修复批-20260806.md`：根因=异步组件expose不触发computed重算，改传heroRef + useStickyCta兼容） |
+
+> ⚠️ 模型分工调整（2026-08-06 用户拍板）：执行角色窗口切便宜模型，一号保留高版本。派工一律写成"精确到行号+before/after代码"的施工图，便宜模型照抄执行，一号审核从严。
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
