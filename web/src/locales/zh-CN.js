@@ -550,6 +550,7 @@ export default {
     deadlineSavedSync: '截稿日已保存，排期已同步',
     startDateSavedSync: '开工日已保存，排期已同步',
     daysLeft: '剩 {n} 天', daysOverdue: '逾期 {n} 天', daysToday: '今天截稿',
+    dateSyncNote: '改期会自动同步到月历与时间条视图',
     // R58-6: QQ 跳转 + 复制
     jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
     // plan-node-speech：客户沟通小块
@@ -810,6 +811,7 @@ export default {
     contactQqLabel: '联系QQ（客户可见）', contactQqPlaceholder: '留空则默认使用登录QQ',
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单',
     notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
+    notifyPanelTitle: '通知与面板',
     defaultPanelLabel: '仪表盘默认面板', defaultPanelHint: '进入仪表盘时显示的快捷入口',
     announcementLabel: '主页公告', announcementPlaceholder: '如：本周休息，下周一恢复接单',
     announcementHint: '显示在客户主页首屏，最多 500 字。留空则不显示。',

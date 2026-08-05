@@ -550,6 +550,7 @@ export default {
     deadlineSavedSync: 'Deadline saved, schedule synced',
     startDateSavedSync: 'Start date saved, schedule synced',
     daysLeft: '{n} days left', daysOverdue: '{n} days overdue', daysToday: 'Due today',
+    dateSyncNote: 'Date changes sync to the calendar and timeline views',
     // R58-6: QQ jump + copy
     jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
     // plan-node-speech: client communication block
@@ -811,6 +812,7 @@ export default {
     contactQqLabel: 'Contact QQ (visible to clients)', contactQqPlaceholder: 'Leave blank to use your login QQ',
     contactQqHint: 'Clients who forgot their order number will see this QQ to contact you',
     notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
+    notifyPanelTitle: 'Notifications & Panel',
     defaultPanelLabel: 'Dashboard default panel', defaultPanelHint: 'Shortcut shown when entering the dashboard',
     announcementLabel: 'Homepage announcement', announcementPlaceholder: 'e.g.: On break this week, back on Monday',
     announcementHint: 'Shown above the fold on your public page (max 500 chars). Leave empty to hide.',
