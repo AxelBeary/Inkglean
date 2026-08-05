@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 v0.38 第一批已派工——派工文件已落 `docs/comms/01-to-02-v038视觉重设计第一批-20260805.md`，worktree `artist-commission-v038`（分支 v038-visual）已建，待二号开工
+> 最后更新：2026-08-05 v0.38 轮全员开工——三号 addons 评估已合入（`6f79294`）· 二号 v038 视觉第一批（进行中）· 五号 F4 回收站分页（进行中）· 四号 REQ-022 拆解（进行中）
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
 
@@ -68,10 +68,10 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | **v0.38 第一批已派工**（见上），待开工 |
-| 三号 | **addons 评估批已派工**（只读研究，worktree `../artist-commission-assess`） |
-| 四号 | 空闲（需求深聊批已落库） |
-| 五号 | 空闲（C 路已合入） |
+| 二号 | **v0.38 第一批进行中**（worktree `../artist-commission-v038`） |
+| 三号 | ✅ addons 评估批已合入（`6f79294`：Q1 保留但冻结 / Q2 无绕过写路径）→ 空闲 |
+| 四号 | **REQ-022 拆解 + REQ-026 验收清单进行中**（派工 `01-to-04-...-20260805.md`） |
+| 五号 | **F4 回收站分页进行中**（worktree `../artist-commission-f4`） |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
@@ -80,9 +80,9 @@
 
 | 项 | 归属 |
 |----|------|
+| addons 表处置 | ✅ 已评估合入（`6f79294`）：**保留但冻结**——drop 前置是代码清理（两处读路径 getPublicPricing/calculatePrice + POST /api/orders schema addons 字段 + 前端兜底分支），清理草案见报告 §Q1.5，排 v0.39+ 批次 |
 | AUTH_DEV_MODE=false 关闭 | 上线前必做——TOTP 已就绪，关开发模式不再卡任何消息渠道 |
-| 前端 locales 死键 sendCode/codeSent | 下轮顺手清 |
-| addons 表是否 drop + addPayment 旧写路径 | 待评估批 |
+| 前端 locales 死键 sendCode/codeSent | 随 v0.38 第一批清（已写进二号派工） |
 
 ---
 ## ⚠️ v38 迁移事故记录（长期教训）
