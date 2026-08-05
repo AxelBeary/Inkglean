@@ -1,4 +1,5 @@
 import * as artistService from './artist.service.js'
+import * as platformService from '../platform/platform.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -12,6 +13,14 @@ export default async function artistRoutes(fastify) {
   // ─── 公开接口（客户端） ───
 
   /**
+   * GET /api/platforms
+   * REQ-022 F2: 社交平台列表（公开，仅启用项）——设置页下拉 + 前端识别体验层
+   */
+  fastify.get('/api/platforms', async () => {
+    return platformService.getEnabledPlatforms()
+  })
+
+  /**
    * GET /api/artists
    * 获取所有画师公开信息（首页列表，排除管理员账号）
    */
@@ -21,7 +30,6 @@ export default async function artistRoutes(fastify) {
       .map(a => ({
         id: a.id, name: a.name, subdomain: a.subdomain,
         avatar: a.avatar, bio: a.bio, status: a.status,
-        weiboUrl: a.weibo_url, bilibiliUrl: a.bilibili_url,
         customLinks: artistService.getCustomLinks(a)
       }))
   })
@@ -52,15 +60,13 @@ export default async function artistRoutes(fastify) {
       status: artist.status,
       templateId: artist.template_id || 'default',
       paletteId: artist.palette_id || 'paper',
-      weiboUrl: artist.weibo_url,
-      bilibiliUrl: artist.bilibili_url,
+      // REQ-022 F2: 外链新结构 [{platformId, url}]；weiboUrl/bilibiliUrl/platformUrls 已移除
       customLinks: artistService.getCustomLinks(artist),
       notifyEnabled: !!artist.notify_enabled,
       contactQq: artist.contact_qq || artist.qq_number,
       revisionNote: artist.revision_note || null,
       accentColor: artist.accent_color || null,
       orderTemplateId: artist.order_template_id || 'default',
-      platformUrls: artistService.getPlatformUrls(artist),
       inspirationTags: artistService.getInspirationTags(artist),
       // SPEC-004: 名额与缓冲信息
       batchLimit: artist.batch_limit ?? null,
@@ -100,7 +106,7 @@ export default async function artistRoutes(fastify) {
   /**
    * PUT /api/artist/profile
    * 更新画师资料（昵称、简介、状态、外链、身份码等）
-   * R15: 新增 customLinks JSON Schema 校验 + 旧列冻结
+   * REQ-022 F2: customLinks 新结构 [{url}]（platformId 后端重推导）；platformUrls 已删除
    */
   fastify.put('/api/artist/profile', {
     preHandler: requireAuth,
@@ -112,16 +118,16 @@ export default async function artistRoutes(fastify) {
           avatar: { type: ['string', 'null'], maxLength: 500 },
           bio: { type: ['string', 'null'], maxLength: 500 },
           status: { type: 'string', enum: ['open', 'full', 'break', 'hidden'] },
+          // REQ-022 F2: 外链新结构 — 前端只传 url（platformId 一律后端按 URL 重推导）
+          // 无 pattern 约束：裸链补全/协议白名单/长度上限全部在 service 层硬校验
           customLinks: {
             type: 'array',
-            maxItems: 6,
+            maxItems: 8,
             items: {
               type: 'object',
-              required: ['name', 'url'],
+              required: ['url'],
               properties: {
-                name: { type: 'string', minLength: 1, maxLength: 20 },
-                url: { type: 'string', minLength: 1, maxLength: 500, pattern: '^https?://' },
-                icon: { type: 'string', enum: ['weibo', 'bilibili', 'pixiv', 'x', 'xiaohongshu', 'lofter', 'douyin', 'link'] }
+                url: { type: 'string', minLength: 1, maxLength: 2048 }
               },
               additionalProperties: false
             }
@@ -135,19 +141,6 @@ export default async function artistRoutes(fastify) {
           dashboardDefaultPanel: { type: ['string', 'null'], maxLength: 50 },
           accentColor: { type: ['string', 'null'], maxLength: 20 },
           orderTemplateId: { type: 'string', maxLength: 50 },
-          platformUrls: {
-            type: 'array',
-            maxItems: 10,
-            items: {
-              type: 'object',
-              required: ['url'],
-              properties: {
-                url: { type: 'string', minLength: 1, maxLength: 500, pattern: '^https?://' },
-                platform: { type: 'string', enum: ['pixiv', 'x', 'weibo', 'lofter', 'bilibili', 'xiaohongshu', 'other'] }
-              },
-              additionalProperties: false
-            }
-          },
           inspirationTags: {
             type: 'array',
             maxItems: 20,
@@ -185,7 +178,6 @@ export default async function artistRoutes(fastify) {
         dashboardDefaultPanel: 'dashboard_default_panel',
         accentColor: 'accent_color',
         orderTemplateId: 'order_template_id',
-        platformUrls: 'platform_urls',
         inspirationTags: 'inspiration_tags',
         batchLimit: 'batch_limit',
         bufferLimit: 'buffer_limit',

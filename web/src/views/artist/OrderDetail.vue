@@ -489,7 +489,20 @@
 
       <!-- 交付文件 -->
       <el-card class="od-card" v-if="order.deliverables?.length">
-        <template #header><CardHead :title="$t('orderDetail.deliverFiles')" /></template>
+        <template #header>
+          <CardHead :title="$t('orderDetail.deliverFiles')">
+            <template #extra>
+              <!-- REQ-022 F1: 发布为作品入口（仅 delivered 显示；done=半终态无入口） -->
+              <el-button
+                v-if="order.status === 'delivered'"
+                size="small" type="primary" plain
+                @click="openPublishDialog"
+              >
+                {{ $t('orderDetail.publishArtwork') }}
+              </el-button>
+            </template>
+          </CardHead>
+        </template>
         <div v-for="d in order.deliverables" :key="d.id" class="file-item">
           <span>{{ d.original_name }}</span>
           <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
@@ -499,6 +512,54 @@
 
     <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
     <DeliverDialog v-model="showDeliver" :order-id="route.params.id" @delivered="onDelivered" />
+
+    <!-- REQ-022 F1: 发布为作品弹窗（仅 delivered；勾选图片默认全选，非图片置灰） -->
+    <el-dialog v-model="publishDialogVisible" :title="$t('orderDetail.publishDialogTitle')" width="560px">
+      <div v-if="!publishing">
+        <div class="publish-hint">{{ $t('orderDetail.publishHint') }}</div>
+        <el-checkbox-group v-model="publishForm.deliverableIds" class="publish-list">
+          <div
+            v-for="d in order.deliverables"
+            :key="d.id"
+            class="publish-item"
+            :class="{ 'publish-item--disabled': !isPublishableImage(d) }"
+          >
+            <el-checkbox :value="d.id" :disabled="!isPublishableImage(d)">
+              <span class="publish-file-name">{{ d.original_name }}</span>
+            </el-checkbox>
+            <el-tag v-if="!isPublishableImage(d)" size="small" type="info">{{ $t('orderDetail.publishNotImage') }}</el-tag>
+          </div>
+        </el-checkbox-group>
+        <el-form label-position="top" style="margin-top: 12px">
+          <el-form-item :label="$t('orderDetail.publishTitleLabel')" required>
+            <el-input
+              v-model="publishForm.title"
+              :placeholder="$t('orderDetail.publishTitlePlaceholder')"
+              maxlength="100" show-word-limit
+            />
+          </el-form-item>
+          <el-form-item :label="$t('orderDetail.publishDescLabel')">
+            <el-input
+              v-model="publishForm.description"
+              type="textarea" :rows="3"
+              :placeholder="$t('orderDetail.publishDescPlaceholder')"
+              maxlength="500" show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="publishDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!publishForm.deliverableIds.length || !publishForm.title.trim()"
+          :loading="publishing"
+          @click="submitPublish"
+        >
+          {{ $t('orderDetail.publishSubmit') }}
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- B7: 记录收款弹窗 -->
     <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
@@ -603,7 +664,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -1368,6 +1429,56 @@ function onDelivered(updated) {
   order.value = updated
 }
 
+// ─── REQ-022 F1: 发布为作品（delivered 门槛，一图一作品，发布不锁订单可重复） ───
+const publishDialogVisible = ref(false)
+const publishing = ref(false)
+const publishForm = reactive({ deliverableIds: [], title: '', description: '' })
+
+/** 可发布的图片扩展名（对齐后端 PUBLISH_ALLOWED_EXTS；zip/psd 等不可发布） */
+const PUBLISH_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+
+function isPublishableImage(d) {
+  const name = d?.original_name || d?.file_path || ''
+  const dot = name.lastIndexOf('.')
+  if (dot < 0) return false
+  return PUBLISH_IMAGE_EXTS.includes(name.slice(dot).toLowerCase())
+}
+
+function openPublishDialog() {
+  // 默认全选图片交付物（非图片置灰不可勾）
+  publishForm.deliverableIds = (order.value?.deliverables || []).filter(isPublishableImage).map(d => d.id)
+  publishForm.title = ''
+  publishForm.description = ''
+  publishDialogVisible.value = true
+}
+
+async function submitPublish() {
+  if (!publishForm.deliverableIds.length || !publishForm.title.trim()) return
+  publishing.value = true
+  try {
+    const res = await artistApi.publishArtwork(route.params.id, {
+      deliverableIds: publishForm.deliverableIds,
+      title: publishForm.title.trim(),
+      description: publishForm.description.trim() || null
+    })
+    publishDialogVisible.value = false
+    const n = res?.artworks?.length || 0
+    ElMessage.success(t('orderDetail.publishSuccess', { n }))
+    try {
+      await ElMessageBox.confirm(
+        t('orderDetail.publishGoManage', { n }),
+        t('orderDetail.publishDoneTitle'),
+        { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'success' }
+      )
+      router.push('/artworks')
+    } catch { /* 用户取消跳转，留在本页 */ }
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    publishing.value = false
+  }
+}
+
 // ─── R33: 签名 URL 定时刷新（10 分钟轮询 + el-image @error 兜底） ───
 const { refreshNow } = useSignatureRefresh({
   collect: () => {
@@ -1700,6 +1811,17 @@ onMounted(() => {
 .note-pending-img { width: 48px; height: 48px; object-fit: cover; border-radius: var(--r-s); }
 
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+
+/* REQ-022 F1: 发布为作品弹窗 */
+.publish-hint { font-size: 12px; color: var(--ink2); margin-bottom: 10px; }
+.publish-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+.publish-item {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 6px 8px; border-radius: var(--r-s);
+}
+.publish-item:hover { background: var(--paper2); }
+.publish-item--disabled { opacity: 0.55; }
+.publish-file-name { font-size: 13px; color: var(--ink); word-break: break-all; }
 
 /* R58-6: 客户 QQ 跳转 + 复制 */
 .client-qq-row { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }

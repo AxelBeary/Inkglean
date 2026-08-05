@@ -1,7 +1,7 @@
 <template>
   <div v-if="artist" class="classic" ref="rootEl">
     <!-- 开场：代表作横幅 -->
-    <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" variant="banner" ref="heroRef" />
+    <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" :platforms="platforms" variant="banner" ref="heroRef" />
 
     <!-- 主体：桌面双栏，移动端单栏 -->
     <div class="classic-body">
@@ -15,30 +15,19 @@
           <!-- F3: Announcement (T3: below avatar/name, above status badge) -->
           <TplAnnouncement :artist="artist" class="classic-announcement" />
           <TplStatusBadge :status="artist.status" :slot-display="artist.slotDisplay" />
-          <div class="classic-side-links" v-if="socialLinks.length">
+          <!-- REQ-022 F2: 页脚链接（外链/平台链接合一，一排自动换行，新窗口打开） -->
+          <div class="classic-side-links" v-if="footerLinks.length">
             <a
-              v-for="link in socialLinks"
+              v-for="link in footerLinks"
               :key="link.key"
               :href="link.url"
               target="_blank"
               rel="noopener noreferrer"
               class="classic-side-link"
             >
-              <span class="classic-link-badge" aria-hidden="true">{{ link.badge }}</span>
-              {{ link.label }}
-            </a>
-          </div>
-          <!-- R58-8: 平台链接（与外链共用侧栏链接区，无链接时不显示） -->
-          <div class="classic-side-links" v-if="platformLinks.length">
-            <a
-              v-for="link in platformLinks"
-              :key="link.key"
-              :href="link.url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="classic-side-link"
-            >
-              <span class="classic-link-badge" aria-hidden="true">{{ link.badge }}</span>
+              <span class="classic-link-badge" aria-hidden="true">
+                <TplPlatformIcon :icon-key="link.iconKey" :fallback-char="link.fallbackChar" />
+              </span>
               {{ link.label }}
             </a>
           </div>
@@ -115,16 +104,18 @@ import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
+import TplPlatformIcon from '../../../components/shared/TplPlatformIcon.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({
   artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
   workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object,
-  gallery: Object // v0.35 联调：画廊端点数据（size_tags/filterSizes）
+  gallery: Object, // v0.35 联调：画廊端点数据（size_tags/filterSizes）
+  platforms: Array // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
 })
 
-const { imgUrl, socialLinks, platformLinks, galleryArtworks } = useArtistData(props)
+const { imgUrl, footerLinks, galleryArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
 const heroRef = ref(null)

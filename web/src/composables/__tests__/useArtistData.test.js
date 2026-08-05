@@ -11,7 +11,8 @@ vi.mock('vue-i18n', () => ({
 import {
   resolveSizeImagePath,
   buildGalleryFilters,
-  filterArtworksBySize
+  filterArtworksBySize,
+  useArtistData
 } from '../useArtistData.js'
 
 // ─── F3: 尺寸图路径解析（三号契约：后端已解析好 artwork_image_path，互斥语义） ───
@@ -106,5 +107,56 @@ describe('filterArtworksBySize（F6 档位筛选）', () => {
 
   it('artworks 为 null → 不抛错', () => {
     expect(filterArtworksBySize(null, 1)).toEqual([])
+  })
+})
+
+// ─── REQ-022 F2: 页脚链接（footerLinks） ───
+
+describe('footerLinks（F2 页脚链接适配）', () => {
+  const PLATFORMS = [
+    { id: 1, name: '微博', iconKey: 'sinaweibo', fallbackChar: null },
+    { id: 2, name: 'Bilibili', iconKey: 'bilibili', fallbackChar: null }
+  ]
+
+  it('customLinks 新结构 → 按 platformId 解析平台名/图标', () => {
+    const { footerLinks } = useArtistData({
+      artist: { customLinks: [
+        { platformId: 1, url: 'https://weibo.com/test' },
+        { platformId: 2, url: 'https://space.bilibili.com/1' }
+      ] },
+      platforms: PLATFORMS
+    })
+    expect(footerLinks.value).toEqual([
+      { key: 'link-0', url: 'https://weibo.com/test', label: '微博', iconKey: 'sinaweibo', fallbackChar: '' },
+      { key: 'link-1', url: 'https://space.bilibili.com/1', label: 'Bilibili', iconKey: 'bilibili', fallbackChar: '' }
+    ])
+  })
+
+  it('platformId=null（其他）→ 通用链接徽标', () => {
+    const { footerLinks } = useArtistData({
+      artist: { customLinks: [{ platformId: null, url: 'https://myblog.example.net' }] },
+      platforms: PLATFORMS
+    })
+    expect(footerLinks.value[0]).toMatchObject({ label: 'artistHome.otherLink', iconKey: null, fallbackChar: '' })
+  })
+
+  it('customLinks 缺失/空 → 空数组（页脚不显示）', () => {
+    expect(useArtistData({ artist: {}, platforms: PLATFORMS }).footerLinks.value).toEqual([])
+    expect(useArtistData({ artist: { customLinks: null }, platforms: PLATFORMS }).footerLinks.value).toEqual([])
+  })
+
+  it('platformId 未知（平台已删除/停用）→ 归其他兜底不崩', () => {
+    const { footerLinks } = useArtistData({
+      artist: { customLinks: [{ platformId: 999, url: 'https://example.com' }] },
+      platforms: PLATFORMS
+    })
+    expect(footerLinks.value[0]).toMatchObject({ label: 'artistHome.otherLink', iconKey: null })
+  })
+
+  it('platforms 缺失 → 全部走其他，不抛错', () => {
+    const { footerLinks } = useArtistData({
+      artist: { customLinks: [{ platformId: 1, url: 'https://weibo.com/x' }] }
+    })
+    expect(footerLinks.value[0]).toMatchObject({ label: 'artistHome.otherLink' })
   })
 })

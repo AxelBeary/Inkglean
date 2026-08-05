@@ -91,7 +91,7 @@
 
 ## 项目上下文
 
-技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v38。模板系统 4 布局 × 4 配色；客户画廊布局按模板区分（Classic/Folio 瀑布流、Gallery/Atelier 画册翻页，TplGallery layout prop）。收款语义：正数收款/负数撤销（order_payments）。
+技术栈：Fastify 5 + better-sqlite3 / Vue 3 + Element Plus + Vite / Docker + Caddy / Vitest + Playwright E2E / ESLint + CI / TypeScript（渐进迁移中）/ Sentry 错误监控。迁移 v41（v42 由 F2 平台表占用）。模板系统 4 布局（Classic/Gallery/Folio/Atelier）× 4 配色（paper/ink/dusk/moss，画师 Settings 选）；客户端主色 5 个（Teal/Turquoise/Blue/Indigo/Violet，ThemePicker accents）——两码事别混。客户画廊布局按模板区分（Classic/Folio 瀑布流、Gallery/Atelier 画册翻页，TplGallery layout prop）。收款语义：正数收款/负数撤销（order_payments）。画师后台登录 = TOTP 动态口令（REQ-027 已上线，管理员已绑定）。
 
 核心底线：不产屎山（代码清晰可维护）、不破坏开发模式（本地 tsx + npm run build）、不破坏已上线功能（模板系统/价格计算器/四色主题/中英双语）。
 
@@ -122,6 +122,8 @@
 - 审核 Agent 提交时，直接读分支 diff，不依赖用户转达提交说明全文。
 - 各角色开工前读 STATUS.md，减少状态中继损耗。
 - **STATUS.md 必须自包含**：刷新后角色不记得之前会话的事。STATUS 中每个角色的任务必须写清：做什么、在哪做（分支/worktree）、参考什么文件、API 契约、授权范围。角色只读 STATUS 就能开工，不需要翻历史 comms。
+- **派工交付纪律（2026-08-05 用户两次发火后定死）**：用户开角色外部窗口时**只复制一句话**——聊天里每角色只给一行：「你是X号，先读 docs/comms/STATUS.md 再读 docs/comms/01-to-0X-xxx.md 执行，worktree 在 ../xxx，只动自己分支，不推送不合并，交付写报告」。细节全写进 comms 派工文件让角色自读。禁止贴大段（用户不会复制一坨），也禁止只落盘不给那一行（用户看不见文件）。
+- **派工核实预算（2026-08-05 事故）**：派工前核实只做三类——①候选项过时检查 ②要写进派工的 API 契约 ③授权文件现状。每类最多一轮查证，同一事实不重复核实；授权范围靠派工后审核 diff 兜底。派工类任务超 20 分钟无可见产出 → 停下向用户报卡点。v0.39 教训：核实循环一小时，四角色空转。核实是手段不是目的，派工发出去才算产出。
 
 ## 效率纪律（2026-07-30 新增）
 
