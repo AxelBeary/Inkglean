@@ -182,11 +182,22 @@ export async function buildApp(opts = {}) {
     root: UPLOAD_DIR,
     prefix: '/uploads/',
     decorateReply: false,
-    setHeaders: (res) => {
-      // 安全头 — 禁止 MIME 嗅探 + 强制下载
+    setHeaders: (res, filePath) => {
+      // 安全头 — 禁止 MIME 嗅探
       // @fastify/static v10: setHeaders 回调参数是 Fastify Reply 对象，用 .header()
       res.header('X-Content-Type-Options', 'nosniff')
-      res.header('Content-Disposition', 'attachment')
+      // 环境批 B2: 区分公开与签名路径的响应头语义
+      // 公开路径（images/）→ inline（浏览器直接预览，去掉强制下载头）+ 适度缓存
+      // 签名路径（references/deliverables/notes）→ attachment（强制下载）+ no-store（签名 URL 不应被缓存）
+      const rel = relative(UPLOAD_DIR, filePath).split(sep).join('/')
+      const isPublic = isPublicUploadPath('/uploads/' + rel)
+      if (isPublic) {
+        res.header('Content-Disposition', 'inline')
+        res.header('Cache-Control', 'public, max-age=86400')
+      } else {
+        res.header('Content-Disposition', 'attachment')
+        res.header('Cache-Control', 'no-store')
+      }
     }
   })
 
@@ -280,9 +291,19 @@ export async function buildApp(opts = {}) {
       if ((filePath === WEB_DIST || filePath.startsWith(WEB_DIST + sep)) && existsSync(filePath) && statSync(filePath).isFile()) {
         const ext = filePath.slice(filePath.lastIndexOf('.'))
         reply.header('Content-Type', MIME[ext] || 'application/octet-stream')
+        // 环境批 B1: 静态资源缓存头
+        // /assets/*（vite hash 文件名产物）→ 长缓存 immutable（内容指纹变更即换文件名，永不失效）
+        // 其余真实文件（如 favicon）→ 短缓存，避免与 index.html 同策略
+        if (urlPath.startsWith('/assets/')) {
+          reply.header('Cache-Control', 'public, max-age=31536000, immutable')
+        } else {
+          reply.header('Cache-Control', 'public, max-age=300')
+        }
         return reply.send(createReadStream(filePath))
       }
       reply.header('Content-Type', 'text/html; charset=utf-8')
+      // 环境批 B1: index.html / SPA fallback → no-cache（保证发版即生效）
+      reply.header('Cache-Control', 'no-cache')
       return reply.send(createReadStream(resolve(WEB_DIST, 'index.html')))
     })
   }

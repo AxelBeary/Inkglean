@@ -342,4 +342,64 @@ describe('上传路由 (Upload Routes)', () => {
       }
     })
   })
+
+  // ─── 环境批 B2: uploads 响应头区分公开/签名 ───
+
+  describe('uploads 响应头 (B2)', () => {
+    it('TC-ENV-01: 公开图片（images/）→ inline + 可缓存，无强制下载头', async () => {
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const up = await uploadFile(app, '/api/upload/image', 'public.png', 'image/png', 'fake-png', token)
+      expect(up.statusCode).toBe(200)
+      const url = up.json().url // /uploads/images/{id}/{nanoid}.png
+
+      const res = await app.inject({ method: 'GET', url })
+      expect(res.statusCode).toBe(200)
+      expect(res.headers['content-disposition']).toBe('inline')
+      expect(res.headers['cache-control']).toBe('public, max-age=86400')
+      expect(res.headers['x-content-type-options']).toBe('nosniff')
+    })
+
+    it('TC-ENV-02: 参考图（references/）→ attachment + no-store', async () => {
+      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref')
+      expect(up.statusCode).toBe(200)
+      const url = up.json().url // 签名 URL，可直接 GET
+
+      const res = await app.inject({ method: 'GET', url })
+      expect(res.statusCode).toBe(200)
+      expect(res.headers['content-disposition']).toBe('attachment')
+      expect(res.headers['cache-control']).toBe('no-store')
+    })
+
+    it('TC-ENV-03: 交付文件（deliverables/）→ attachment + no-store', async () => {
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const up = await uploadFile(app, '/api/upload/deliverable', 'art.psd', 'image/vnd.adobe.photoshop', 'psd-data', token)
+      expect(up.statusCode).toBe(200)
+      const url = up.json().url
+
+      const res = await app.inject({ method: 'GET', url })
+      expect(res.statusCode).toBe(200)
+      expect(res.headers['content-disposition']).toBe('attachment')
+      expect(res.headers['cache-control']).toBe('no-store')
+    })
+
+    it('TC-ENV-04: 公开图片路径无签名也可访问（保持现状）', async () => {
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const up = await uploadFile(app, '/api/upload/image', 'public.png', 'image/png', 'fake-png', token)
+      expect(up.statusCode).toBe(200)
+      const url = up.json().url
+
+      const res = await app.inject({ method: 'GET', url: url + '?sig=bogus' })
+      expect(res.statusCode).toBe(200) // 公开路径忽略签名参数
+    })
+
+    it('TC-ENV-05: 签名路径无有效签名 → 403', async () => {
+      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref')
+      const filePath = up.json().filePath
+      const res = await app.inject({ method: 'GET', url: '/uploads/' + filePath })
+      expect(res.statusCode).toBe(403)
+    })
+  })
 })
