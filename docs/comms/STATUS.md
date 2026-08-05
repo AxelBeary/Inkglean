@@ -80,7 +80,7 @@
 | 二号 | ✅ D 软提示 + addons 前端清理已合入（`13dd4e7`）→ 待派 |
 | 三号 | ✅ addons 收尾批已合入（`58d48c9`，旧增项体系完全清退）→ 待派 |
 | 四号 | ✅ 说明书 v0.39 已合入（`ece9310`）→ 待派 |
-| 五号 | 🔨 **安全加固批进行中**（worktree `../artist-commission-sec`：F1 totp_secret DTO 补全 + F4/F6/F9/F3） |
+| 五号 | 🔨 **安全加固批返工中**（worktree `../artist-commission-sec`）：主体已交付（F3/F4/F6/F9 过关 + F1 四 GET 端点），一号审核发现 F1 缺口——`updateArtist()` 返回完整行，画师 PATCH profile + admin PUT status/profile 三端点泄露 totp_secret。返工派工：`01-to-05-安全加固批-返工-20260805.md` |
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
