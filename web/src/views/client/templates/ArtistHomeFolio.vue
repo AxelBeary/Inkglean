@@ -153,8 +153,8 @@ const menuOpen = ref(false)
 const activeSection = ref('')
 useScrollReveal(rootEl)
 
-const heroSentinel = computed(() => heroRef.value?.sentinelEl?.value)
-const { visible: ctaVisible } = useStickyCta(heroSentinel)
+// 吸底 CTA：直接传 heroRef，异步组件挂载后 ref 更新会触发 watch
+const { visible: ctaVisible } = useStickyCta(heroRef)
 
 // #55/61: 同步 CTA 避让状态给父级浮窗
 const ctaRaised = inject('ctaRaised')

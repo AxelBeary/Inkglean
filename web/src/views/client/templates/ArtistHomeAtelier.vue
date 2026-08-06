@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch } from 'vue'
+import { ref, inject, watch } from 'vue'
 import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
@@ -105,9 +105,8 @@ const rootEl = ref(null)
 const heroRef = ref(null)
 useScrollReveal(rootEl)
 
-// 吸底 CTA：监听 Hero 哨兵元素
-const heroSentinel = computed(() => heroRef.value?.sentinelEl?.value)
-const { visible: ctaVisible } = useStickyCta(heroSentinel)
+// 吸底 CTA：监听 Hero 哨兵元素（直接传 heroRef，异步组件挂载后 ref 更新会触发 watch）
+const { visible: ctaVisible } = useStickyCta(heroRef)
 
 // #55/61: 同步 CTA 避让状态给父级浮窗
 const ctaRaised = inject('ctaRaised')
