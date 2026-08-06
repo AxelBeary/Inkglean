@@ -3,6 +3,21 @@
     <!-- v0.38: 纸墨 token（REQ-026）——H1 文楷 28/700，卡片 CardHead 朱砂 mark -->
     <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
 
+    <!-- F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效，无需 DB） -->
+    <el-card class="pref-card">
+      <template #header><CardHead :title="$t('preferences.fontSize')" /></template>
+      <el-form label-position="top" size="large">
+        <el-form-item>
+          <el-radio-group v-model="fontSize">
+            <el-radio value="normal">{{ $t('preferences.fontSizeNormal') }}</el-radio>
+            <el-radio value="large">{{ $t('preferences.fontSizeLarge') }}</el-radio>
+            <el-radio value="xlarge">{{ $t('preferences.fontSizeXLarge') }}</el-radio>
+          </el-radio-group>
+          <div class="form-hint">{{ $t('preferences.fontSizeHint') }}</div>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
     <!-- 通知与面板偏好 -->
     <el-card class="pref-card" v-loading="loading">
       <template #header><CardHead :title="$t('settings.notifyPanelTitle')" /></template>
@@ -55,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -71,6 +86,24 @@ const saving = ref(false)
 const form = reactive({
   notifyEnabled: true,
   dashboardDefaultPanel: 'queue'
+})
+
+// ─── F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效） ───
+// 与 ArtistLayout.vue 的 FONT_SIZE_KEY 一致；normal 清除 dataset，恢复默认 14px
+const FONT_SIZE_KEY = 'huiyue_admin_font_size'
+function readFontSize() {
+  const v = localStorage.getItem(FONT_SIZE_KEY)
+  return v === 'large' || v === 'xlarge' ? v : 'normal'
+}
+const fontSize = ref(readFontSize())
+watch(fontSize, (val) => {
+  if (val === 'normal') {
+    localStorage.removeItem(FONT_SIZE_KEY)
+    delete document.documentElement.dataset.fontSize
+  } else {
+    localStorage.setItem(FONT_SIZE_KEY, val)
+    document.documentElement.dataset.fontSize = val
+  }
 })
 
 // ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存） ───

@@ -796,7 +796,12 @@ export default {
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
   // #44: 偏好设置独立页面（从主页设置拆出）
-  preferences: { title: '偏好设置' },
+  preferences: {
+    title: '偏好设置',
+    // F1 批4: 后台字号档位（无障碍）
+    fontSize: '后台字号', fontSizeNormal: '标准', fontSizeLarge: '大', fontSizeXLarge: '特大',
+    fontSizeHint: '即时生效，刷新后保持。大 15px、特大 17px（默认 14px）'
+  },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
     tabPrefs: '偏好', tabRules: '须知编辑', tabWorkflow: '流程与比例',
