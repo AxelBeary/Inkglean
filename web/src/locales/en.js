@@ -423,7 +423,22 @@ export default {
     helpAegis: 'Android: Aegis (open source, free, via CoolAPK)',
     help2fas: 'iOS: 2FAS (open source, free) or Microsoft Authenticator (App Store)',
     helpNotGoogle: 'Google Authenticator is not recommended (Google services unavailable in China)',
-    enterQq: 'Please enter your QQ number', enterCode: 'Please enter the dynamic code', loginSuccess: 'Logged in!'
+    enterQq: 'Please enter your QQ number', enterCode: 'Please enter the dynamic code', loginSuccess: 'Logged in!',
+    logoAlt: 'HuiYue'
+  },
+  // P0-9: MultiplierManager i18n
+  multiplier: {
+    usageTitle: 'Usage Multiplier', usageHint: 'Highest applies when multiple are selected',
+    rushTitle: 'Rush Multiplier', rushHint: 'Multiplies with the usage multiplier',
+    edit: 'Edit', deleteConfirm: 'Delete this multiplier?',
+    emptyUsage: 'No usage multipliers', emptyRush: 'No rush multipliers',
+    addUsage: '+ Add Usage Multiplier', addRush: '+ Add Rush Multiplier',
+    editTitle: 'Edit Multiplier', createTitle: 'New Multiplier',
+    name: 'Name', namePlaceholder: 'e.g. Commercial use / Rush (within 3 days)',
+    value: 'Multiplier Value', valueHint: '1.5 = price ×1.5 (+50%)',
+    descLabel: 'Description (visible to clients)',
+    cancel: 'Cancel', save: 'Save', create: 'Create',
+    msgNameRequired: 'Please enter a name', msgUpdated: 'Updated', msgCreated: 'Created', msgDeleted: 'Deleted'
   },
   dashboard: {
     title: 'Dashboard', pendingNew: 'New pending', activeOrders: 'Active orders',
@@ -644,7 +659,7 @@ export default {
     // R51: deadline
     deadline: 'Deadline (optional)', deadlinePlaceholder: 'Pick a deadline',
     // F2: drag upload hint
-    dragHint: 'Drag images here, or click to upload',
+    dragHint: 'Drag images here, or click to upload', uploadRefLabel: 'Upload reference image',
     // F3: start date
     startDate: 'Start date (optional)', startDatePlaceholder: 'Pick a start date',
     // B2: submit guard when start date is later than deadline

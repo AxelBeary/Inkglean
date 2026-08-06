@@ -423,7 +423,22 @@ export default {
     helpAegis: '安卓：Aegis（开源免费，酷安可下载）',
     help2fas: '苹果：2FAS（开源免费）或微软 Authenticator（App Store可下载）',
     helpNotGoogle: '不推荐 Google Authenticator（谷歌服务国内不可用）',
-    enterQq: '请输入QQ号', enterCode: '请输入动态口令', loginSuccess: '登录成功！'
+    enterQq: '请输入QQ号', enterCode: '请输入动态口令', loginSuccess: '登录成功！',
+    logoAlt: '绘约'
+  },
+  // P0-9: 倍率管理（MultiplierManager）i18n
+  multiplier: {
+    usageTitle: '用途倍率', usageHint: '多个同时选中时取最高',
+    rushTitle: '加急倍率', rushHint: '与用途倍率相乘叠加',
+    edit: '编辑', deleteConfirm: '确定删除？',
+    emptyUsage: '暂无用途倍率', emptyRush: '暂无加急倍率',
+    addUsage: '＋ 添加用途倍率', addRush: '＋ 添加加急倍率',
+    editTitle: '编辑倍率', createTitle: '新建倍率',
+    name: '名称', namePlaceholder: '如：商用授权 / 加急（3天内）',
+    value: '倍率值', valueHint: '1.5 = 价格 ×1.5（加收50%）',
+    descLabel: '说明（客户可见）',
+    cancel: '取消', save: '保存', create: '创建',
+    msgNameRequired: '请输入名称', msgUpdated: '已更新', msgCreated: '已创建', msgDeleted: '已删除'
   },
   dashboard: {
     title: '仪表盘', pendingNew: '待处理新单', activeOrders: '进行中订单',
@@ -644,7 +659,7 @@ export default {
     // R51: 截稿日
     deadline: '截稿日（可选）', deadlinePlaceholder: '选择截稿日',
     // F2: 拖拽上传提示
-    dragHint: '拖拽图片到此处，或点击上传',
+    dragHint: '拖拽图片到此处，或点击上传', uploadRefLabel: '上传参考图',
     // F3: 开稿日
     startDate: '开稿日（可选）', startDatePlaceholder: '选择开稿日',
     // B2: 开稿日晚于截稿日的提交拦截

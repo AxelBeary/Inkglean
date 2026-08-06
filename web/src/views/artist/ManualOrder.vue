@@ -35,7 +35,7 @@
                 @dragover.capture="guardDragOver"
                 @drop.capture="guardDrop"
               >
-                <el-icon :size="24" aria-label="上传参考图"><Plus /></el-icon>
+                <el-icon :size="24" :aria-label="$t('manualOrder.uploadRefLabel')"><Plus /></el-icon>
                 <template #tip>
                   <span class="drag-hint">{{ $t('manualOrder.dragHint') }}</span>
                 </template>

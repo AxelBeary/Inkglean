@@ -7,7 +7,7 @@
 
       <!-- Logo -->
       <div class="login-brand">
-        <img :src="logoUrl" alt="绘约" class="login-logo" />
+        <img :src="logoUrl" :alt="$t('login.logoAlt')" class="login-logo" />
         <h1 class="login-title font-display">{{ $t('login.title') }}</h1>
         <p class="login-subtitle">{{ $t('login.subtitle') }}</p>
       </div>
