@@ -66,6 +66,7 @@ export function normalizeLinkUrl(raw: unknown): string {
   try {
     parsed = new URL(candidate)
   } catch {
+    // 无效 URL → 业务错误（非吞错）
     throw new AppError(E.LINK_URL_INVALID)
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -132,6 +133,7 @@ export function derivePlatformId(
   try {
     hostname = new URL(url).hostname
   } catch {
+    // URL 解析失败 → 归「其他」平台（业务设计，非吞错）
     return null
   }
   for (const p of platforms) {
@@ -139,7 +141,8 @@ export function derivePlatformId(
     try {
       const parsed = JSON.parse(p.match_domains)
       if (Array.isArray(parsed)) domains = parsed.filter((x): x is string => typeof x === 'string')
-    } catch {
+    } catch (err) {
+      console.warn('平台 match_domains 解析失败（跳过该平台）', err)
       continue
     }
     if (matchDomain(hostname, domains)) return p.id

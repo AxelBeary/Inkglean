@@ -33,7 +33,7 @@ function rowToPlatform(row: SocialPlatform) {
   try {
     const parsed = JSON.parse(row.match_domains)
     if (Array.isArray(parsed)) domains = parsed.filter((x): x is string => typeof x === 'string')
-  } catch { /* 脏数据容错：视为空域名表 */ }
+  } catch (err) { console.warn('平台 match_domains 解析失败（视为空域名表）', err) }
   return {
     id: row.id,
     name: row.name,
@@ -101,7 +101,7 @@ function validatePlatformInput(input: PlatformInput, excludeId?: number) {
       if (Array.isArray(parsed)) {
         for (const d of parsed) if (typeof d === 'string') taken.add(d.toLowerCase())
       }
-    } catch { /* 脏数据跳过 */ }
+    } catch (err) { console.warn('平台 match_domains 解析失败（跳过冲突检测）', err) }
   }
   for (const domain of domains) {
     if (taken.has(domain)) {
@@ -179,7 +179,7 @@ export function deletePlatform(id: number): { reattributed: number } {
         const parsed = JSON.parse(row.custom_links)
         if (!Array.isArray(parsed)) continue
         links = parsed
-      } catch { continue }
+      } catch (err) { console.warn('画师 custom_links 解析失败（跳过平台归因）', err); continue }
       let touched = false
       const normalized = links.map(link => {
         if (link && link.platformId === id) {

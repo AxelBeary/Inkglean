@@ -49,7 +49,8 @@ export function verifyFileToken(token: string | null | undefined): string | null
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
     if (Date.now() > data.e) return null
     return data.p as string
-  } catch {
+  } catch (err) {
+    console.warn('文件签名 token 解析失败（拒绝访问）', err)
     return null
   }
 }
@@ -69,7 +70,8 @@ export function isPublicUploadPath(urlPath: string): boolean {
   let decoded: string
   try {
     decoded = decodeURIComponent(urlPath)
-  } catch {
+  } catch (err) {
+    console.warn('上传路径解码失败（按非公开处理，走签名校验）', err)
     return false // 解码失败 → 视为非公开，走签名校验
   }
   // 安全：解码后含 .. 一律拒绝（路径穿越）

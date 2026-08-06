@@ -94,7 +94,9 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
           mkdirSync(join(dest, '..'), { recursive: true })
           renameSync(absPath, dest)
           freed += size; recycled++
-        } catch { /* ignore */ }
+        } catch (err) {
+          app.log.warn('孤儿文件回收: 移入回收站失败', err)
+        }
       }
 
       const removeEmptyDirs = (dir) => {
@@ -143,7 +145,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   const cspSentryDsn = process.env.SENTRY_DSN_BACKEND || process.env.SENTRY_DSN
   let cspConnectSrc = "connect-src 'self'"
   if (cspSentryDsn) {
-    try { cspConnectSrc += ` ${new URL(cspSentryDsn).origin}` } catch { /* DSN 无效，忽略 */ }
+    try { cspConnectSrc += ` ${new URL(cspSentryDsn).origin}` } catch (err) { app.log.warn('SENTRY DSN 无效，CSP 不拼接 Sentry 域名', err) }
   }
   // 安全加固批 F3: 移除 script-src 'unsafe-eval'（Vue 3 生产构建模板预编译不需要 eval，
   // 删除可显著缩小 XSS 利用面；实测隔离实例无 CSP violation 后合入）
@@ -211,7 +213,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     try {
       const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '../package.json'), 'utf8'))
       release = pkg.version || release
-    } catch { /* 读不到版本号不影响启动 */ }
+    } catch (err) { app.log.warn('读取 package.json 版本号失败（不影响启动）', err) }
     Sentry.init({
       dsn: sentryDsn,
       release,
