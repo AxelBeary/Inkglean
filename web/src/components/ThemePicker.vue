@@ -59,9 +59,9 @@ const { t, locale } = useI18n()
 const themeStore = useThemeStore()
 
 const accents = [
-  { id: '1', color: '#34dbcb', nameKey: 'pref.accentNames.teal' },
-  { id: '2', color: '#34c2db', nameKey: 'pref.accentNames.turquoise' },
-  { id: '3', color: '#3498db', nameKey: 'pref.accentNames.blue' },
+  { id: '1', color: '#356B69', nameKey: 'pref.accentNames.teal' },
+  { id: '2', color: '#3F5E80', nameKey: 'pref.accentNames.turquoise' },
+  { id: '3', color: '#5E5494', nameKey: 'pref.accentNames.blue' },
   { id: '4', color: '#346edb', nameKey: 'pref.accentNames.indigo' },
   { id: '5', color: '#3445db', nameKey: 'pref.accentNames.violet' },
 ]
@@ -72,7 +72,7 @@ const baseOptions = [
   { value: 'dark', label: 'pref.dark' },
 ]
 
-const currentColor = computed(() => accents.find(a => a.id === themeStore.accent)?.color || '#34dbcb')
+const currentColor = computed(() => accents.find(a => a.id === themeStore.accent)?.color || '#356B69')
 
 function toggleLang() {
   setLocale(locale.value === 'zh-CN' ? 'en' : 'zh-CN')

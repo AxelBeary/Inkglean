@@ -165,6 +165,7 @@ export default {
 
     // Artworks (supplement)
     ARTWORK_NOT_FOUND: 'Artwork not found',
+    COVER_LIMIT_REACHED: 'Maximum 6 covers, please unset some first',
 
     // Tier visibility (supplement)
     TIER_NOT_AVAILABLE: 'This tier is not available for ordering',
