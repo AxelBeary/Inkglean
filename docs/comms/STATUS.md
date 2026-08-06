@@ -12,7 +12,7 @@
 - **HEAD**：`c48cb0e`（README 重写），与 origin 同步
 - **工作树**：主仓干净
 - **测试基线**：server 925/925（58 文件，含环境批 11 例）· web 215/215 · lint 0（一号独立复跑）
-- **容器**：✅ **2026-08-07 重建上线**（含批1+批2+批3+批4a/4b 全部：流程页palette/模板体检/后端数据/文档同步/OD拍板/查单增强/track字段/REQ-033/视觉OD/标签换色/Sentry CSP修复），healthy + `/api/health` ok。重建实录：DB备份 `commission.db.bak-pre-rebuild-2026-08-06-05-11-20`（integrity ok，orders 8/artists 5/tiers 8）→ build → chown 1000（非root存量卷）→ up。**Sentry CSP 修复容器内实测生效**（`connect-src 'self' https://o4511831952916480.ingest.us.sentry.io`——.env 变量名 SENTRY_DSN_BACKEND 对齐 app.js）。
+- **容器**：✅ **2026-08-07 二次刷新上线**（含 TS 迁移 P0-P2 + 批4 后台视觉/录单页 + entrypoint 修复 index.js→index.ts），healthy + `/api/health` ok。备份 `commission.db.bak-pre-ts-refresh-2026-08-06-07-36-05`（integrity ok，orders 8/artists 5）。⚠️ 发现并修复部署缺口：TS 迁移改名 index.ts 后 entrypoint.sh 仍指向 index.js——已改显式 index.ts（容器启动兼容）。上次重建实录见 STATUS 早期记录。
 - **备份**：`commission.db.bak-pre-env-rebuild-20260806-0636`（重建前，integrity ok）+ 更早里程碑
 - **迁移**：v43（DROP addons）为最新
 - **协议**：主仓库 **AGPL-3.0**（MIT→GPL→AGPL，防 SaaS 竞品；画师自用部署不受影响）；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md + 字体 OFL 许可
