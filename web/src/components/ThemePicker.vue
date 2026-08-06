@@ -29,7 +29,7 @@
             v-for="a in accents" :key="a.id"
             class="accent-swatch" :class="{ active: themeStore.accent === a.id }"
             :style="{ background: a.color }"
-            :title="t(a.nameKey)" @click="themeStore.setAccent(a.id)"
+            :title="t(a.nameKey)" @click="themeStore.setAccent(a.id); trackEvent('theme_accent_change', { accent: a.id })"
           >
             <span v-if="themeStore.accent === a.id" class="swatch-check">✓</span>
           </button>
@@ -53,6 +53,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useThemeStore } from '../stores/theme.js'
 import { setLocale } from '../i18n/index.js'
+import { trackEvent } from '../utils/track.js'
 
 const { t, locale } = useI18n()
 const themeStore = useThemeStore()

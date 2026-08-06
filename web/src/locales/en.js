@@ -360,6 +360,11 @@ export default {
     contactArtist: 'Artist QQ', contactAdmin: 'Admin QQ', copyQq: 'Copy', copied: 'Copied',
     noOrdersTitle: 'No orders found', noOrdersDesc: 'This QQ number has no orders with this artist. Please double-check the number.',
     noOrdersCountdown: 'Closes in {n}s',
+    // A1: my orders list
+    myOrdersBtn: 'My orders', myOrdersTitle: 'My orders',
+    myOrdersEmpty: 'No orders found for this QQ', myOrdersFailed: 'Failed to load orders, please retry',
+    // U1: brief recap
+    briefTitle: 'Your brief', briefRefAlt: 'Reference image',
     timeline: {
       title: 'Production progress',
       current: 'In progress',

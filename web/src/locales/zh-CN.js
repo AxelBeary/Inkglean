@@ -360,6 +360,11 @@ export default {
     contactArtist: '画师QQ', contactAdmin: '管理员QQ', copyQq: '复制', copied: '已复制',
     noOrdersTitle: '未找到订单', noOrdersDesc: '该QQ号在本画师处没有订单记录，请核对QQ号是否正确。',
     noOrdersCountdown: '{n} 秒后可关闭',
+    // A1: 我的订单列表
+    myOrdersBtn: '我的订单', myOrdersTitle: '我的订单',
+    myOrdersEmpty: '该 QQ 暂无订单', myOrdersFailed: '加载订单失败，请重试',
+    // U1: 需求回顾
+    briefTitle: '需求回顾', briefRefAlt: '参考图',
     timeline: {
       title: '制作进度',
       current: '进行中',

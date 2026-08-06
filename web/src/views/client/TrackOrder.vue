@@ -28,6 +28,24 @@
             </el-button>
           </el-form-item>
         </el-form>
+        <!-- A1: 只填 QQ 列出我的订单（不记得订单号场景） -->
+        <div class="my-orders-trigger">
+          <el-button size="small" text type="primary" :disabled="!qq.trim()" @click="loadMyOrders">
+            {{ $t('track.myOrdersBtn') }}
+          </el-button>
+        </div>
+      </el-card>
+
+      <!-- A1: 我的订单列表 -->
+      <el-card v-if="showMyOrders" class="my-orders-card" style="margin-top: 16px">
+        <template #header><span>{{ $t('track.myOrdersTitle') }}</span></template>
+        <el-empty v-if="!myOrders.length && !myOrdersLoading" :description="$t('track.myOrdersEmpty')" />
+        <div v-loading="myOrdersLoading">
+          <div v-for="o in myOrders" :key="o.orderNo" class="my-order-item" @click="fillAndSearch(o)">
+            <div class="my-order-no">{{ o.orderNo }}</div>
+            <div class="my-order-meta">{{ o.tierName }} · {{ formatDate(o.createdAt) }}</div>
+          </div>
+        </div>
       </el-card>
 
       <!-- 查询结果 -->
@@ -85,6 +103,21 @@
           </p>
           <p class="timeline-hint" v-if="order.currentStageId == null">{{ $t('track.timeline.notStarted') }}</p>
           <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDate(order.createdAt) }}</p>
+        </div>
+
+        <!-- U1: 需求回顾（后端补字段前不显示，v-if 守卫） -->
+        <div v-if="order.description || order.references?.length" class="brief-block">
+          <h4 class="brief-title">{{ $t('track.briefTitle') }}</h4>
+          <p v-if="order.description" class="brief-desc">{{ order.description }}</p>
+          <div v-if="order.references?.length" class="brief-refs">
+            <img
+              v-for="(r, i) in order.references"
+              :key="i"
+              :src="r.url || r"
+              class="brief-ref-img"
+              :alt="$t('track.briefRefAlt')"
+            />
+          </div>
         </div>
 
         <!-- SPEC-003 §5.5: 价格与付款（客户视角：附加项仅 name+金额，不显示 description/id/created_at） -->
@@ -189,6 +222,11 @@ const order = ref(null)
 const loading = ref(false)
 const searching = ref(false)
 
+// A1: 我的订单列表（只填 QQ 查询）
+const myOrders = ref([])
+const myOrdersLoading = ref(false)
+const showMyOrders = ref(false)
+
 // 联系引导弹窗
 const showContact = ref(false)
 const contactInfo = ref({ contactQq: '', adminQq: '', artistName: '' })
@@ -286,6 +324,28 @@ function startNoOrdersCountdown() {
     noOrdersCountdown.value--
     if (noOrdersCountdown.value <= 0) clearInterval(countdownTimer)
   }, 1000)
+}
+
+async function loadMyOrders() {
+  if (!qq.value.trim()) return
+  myOrdersLoading.value = true
+  try {
+    const res = await orderApi.myOrders(subdomain, qq.value.trim())
+    // /orders/my 实测返回：直接数组 [{ orderNo, status, tierName, createdAt }]
+    myOrders.value = Array.isArray(res) ? res : (res?.orders || [])
+    showMyOrders.value = true
+  } catch {
+    ElMessage.warning(t('track.myOrdersFailed'))
+  } finally {
+    myOrdersLoading.value = false
+  }
+}
+
+/** A1: 点列表条目 → 填订单号 → 复用既有查询流程 */
+function fillAndSearch(o) {
+  orderNo.value = o.orderNo
+  showMyOrders.value = false // 聚焦查询结果，隐藏列表
+  search()
 }
 
 async function search() {
@@ -399,4 +459,31 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
   font-size: 13px; color: var(--text-secondary);
 }
 .pay-progress-nums strong { color: var(--text-primary); font-size: 15px; }
+
+/* ─── A1: 我的订单列表 ─── */
+.my-orders-trigger { margin-top: 4px; }
+.my-order-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  transition: background 0.15s;
+}
+.my-order-item:hover { background: var(--el-fill-color-light); }
+.my-order-no { font-weight: 600; color: var(--text-primary); }
+.my-order-meta { font-size: 12px; color: var(--text-secondary); }
+
+/* ─── U1: 需求回顾 ─── */
+.brief-block {
+  margin-top: 20px; padding: 14px 16px; border-radius: 10px;
+  background: var(--el-fill-color-light);
+}
+.brief-title { margin-bottom: 8px; color: var(--text-primary); font-size: 14px; }
+.brief-desc {
+  margin: 0 0 10px; font-size: 13px; line-height: 1.7;
+  color: var(--text-primary); white-space: pre-wrap; word-break: break-word;
+}
+.brief-refs { display: flex; flex-wrap: wrap; gap: 8px; }
+.brief-ref-img {
+  width: 80px; height: 80px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--border-color); background: var(--bg-page);
+}
 </style>
