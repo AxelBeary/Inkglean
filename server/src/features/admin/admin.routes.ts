@@ -63,7 +63,7 @@ export default async function adminRoutes(fastify) {
     try {
       const artist = await artistService.createArtist({
         qqNumber,
-        name: clamp(name, 'name'),
+        name: clamp(name, 'name')!,
         subdomain,
         bio: clamp(bio, 'bio'),
         artistCode
@@ -71,7 +71,7 @@ export default async function adminRoutes(fastify) {
       // F1 补全：createArtist 内部同样返回完整行（SELECT *）——响应壳走 DTO（前端零消费响应体）
       return publicArtistDTO(artist)
     } catch (err) {
-      return reply.code(400).send({ error: err.message })
+      return reply.code(400).send({ error: (err as Error).message })
     }
   })
 

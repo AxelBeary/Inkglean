@@ -2,6 +2,7 @@ import * as artistService from './artist.service.js'
 import * as platformService from '../platform/platform.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
+import type { AppError } from '../../shared/errors.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 
@@ -216,7 +217,9 @@ export default async function artistRoutes(fastify) {
       // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
       return publicArtistDTO(updated)
     } catch (err) {
-      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+      // P1 useUnknownInCatchVariables: 按 AppError 断言（该块业务错误均来自服务层 AppError）
+      const e = err as AppError
+      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
     }
   })
 
@@ -474,7 +477,8 @@ export default async function artistRoutes(fastify) {
   fastify.put('/api/artist/rules', { preHandler: requireAuth }, async (request, reply) => {
     const { content } = request.body || {}
     if (content == null) return reply.code(400).send({ error: '内容为必填项' })
-    return artistService.updateRules(request.artist.id, clamp(content, 'rules'))
+    // P1 strictNullChecks: 上方已守卫 content == null，clamp 必返回 string
+    return artistService.updateRules(request.artist.id, clamp(content, 'rules')!)
   })
 
   // ─── 问候语 ───

@@ -160,7 +160,7 @@ export default async function orderRoutes(fastify: any) {
     const order = orderService.createOrder({
       artistId: (artist as any).id,
       tierId,
-      clientQq: clamp(clientQq, 'qq'),
+      clientQq: clamp(clientQq, 'qq')!,
       clientName: clamp(clientName, 'name'),
       description: clamp(description, 'description'),
       priority: priority || 'medium',
@@ -475,7 +475,7 @@ export default async function orderRoutes(fastify: any) {
     return orderService.createOrder({
       artistId: request.artist.id,
       tierId,
-      clientQq: clamp(clientQq, 'qq'),
+      clientQq: clamp(clientQq, 'qq')!,
       clientName: clamp(clientName, 'name'),
       description: clamp(description, 'description'),
       priority: priority || 'medium',
@@ -630,7 +630,7 @@ export default async function orderRoutes(fastify: any) {
       }
     }
 
-    return enrichOrderForArtist(orderService.addNote(request.order.id, clamp(content, 'note'), 'artist', imagePath || null))
+    return enrichOrderForArtist(orderService.addNote(request.order.id, clamp(content, 'note')!, 'artist', imagePath || null))
   })
 
   /**

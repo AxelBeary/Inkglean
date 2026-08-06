@@ -8,6 +8,8 @@
     "strict": false,
     "strictFunctionTypes": true,
     "noImplicitThis": true,
+    "strictNullChecks": true,
+    "useUnknownInCatchVariables": true,
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

@@ -48,8 +48,8 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ error: '画师不存在' })
     }
     const query = request.query as { page?: string; pageSize?: string; language?: string }
-    const page = Math.max(parseInt(query.page) || 1, 1)
-    const pageSize = Math.min(Math.max(parseInt(query.pageSize) || 20, 1), 50)
+    const page = Math.max(parseInt(query.page as string) || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(query.pageSize as string) || 20, 1), 50)
     const language = query.language && /^[a-zA-Z-]{2,10}$/.test(query.language) ? query.language : undefined
     const result = guestbookService.getPublicMessages(artist.id, page, pageSize, language)
     return {
