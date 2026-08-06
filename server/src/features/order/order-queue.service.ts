@@ -11,15 +11,35 @@ import { getOrder } from './order.service.js'
 /**
  * 获取画师的活跃队列（按 queue_position 排序）
  * N1-1: 拖拽即绝对顺序，priority 退化为纯展示标签
+ * P0-6: 显式列清单（不再 o.*，去掉 quote_snapshot 大字段——队列 UI 不消费）；
+ *       可选 limit/offset 分页，默认全量（QueueBoard 拖拽需全量，调用方按需传参）
  */
-export function getArtistQueue(artistId: number): any[] {
-  return db.prepare(`
-    SELECT o.*, t.name as tier_name, t.price as tier_price
+export function getArtistQueue(artistId: number, options: { limit?: number; offset?: number } = {}): any[] {
+  const { limit, offset } = options
+  const params: Array<string | number> = [artistId]
+  let sql = `
+    SELECT o.id, o.order_no, o.tier_id, o.client_qq, o.client_name, o.description,
+           o.priority, o.status, o.source, o.client_notify, o.queue_position,
+           o.completed_at, o.price_snapshot, o.total_price_cents,
+           o.usage_multiplier_id, o.rush_multiplier_id, o.final_price_cents,
+           o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
+           o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
+           o.discount_amount_cents, o.created_at, o.updated_at,
+           t.name as tier_name, t.price as tier_price
     FROM orders o
     LEFT JOIN price_tiers t ON o.tier_id = t.id
     WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL} AND o.queue_zone = 'formal'
     ORDER BY o.queue_position ASC
-  `).all(artistId) as any[]
+  `
+  if (limit != null) {
+    sql += ' LIMIT ?'
+    params.push(limit)
+  }
+  if (offset != null) {
+    sql += ' OFFSET ?'
+    params.push(offset)
+  }
+  return db.prepare(sql).all(...params) as any[]
 }
 
 /**
