@@ -405,7 +405,8 @@ export default {
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
-    orderInfo: '订单号：{no} | 画师：{artist}', download: '下载', noFiles: '暂无交付文件'
+    orderInfo: '订单号：{no} | 画师：{artist}', download: '下载', noFiles: '暂无交付文件',
+    downloadFailed: '下载失败，请重试或联系画师'
   },
   login: {
     title: '画师登录', subtitle: '输入QQ号与验证器App上的6位动态码',

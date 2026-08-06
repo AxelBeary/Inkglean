@@ -22,9 +22,15 @@
           @keyup.enter="enterArtist(artist)"
         >
           <div class="artist-avatar">
-            <el-avatar :size="80" :src="artist.avatar ? `/uploads/${artist.avatar}` : undefined">
-              {{ artist.name?.charAt(0) }}
-            </el-avatar>
+            <!-- U3: 原生 img + loading="lazy"（el-avatar 不透传 attrs 到 img，改用等价圆形头像） -->
+            <img
+              v-if="artist.avatar"
+              :src="`/uploads/${artist.avatar}`"
+              :alt="artist.name"
+              loading="lazy"
+              class="artist-avatar-img"
+            />
+            <span v-else class="artist-avatar-fallback">{{ artist.name?.charAt(0) }}</span>
           </div>
           <h3 class="artist-name">{{ artist.name }}</h3>
           <p class="artist-bio">{{ artist.bio || $t('landing.noBio') }}</p>
@@ -116,6 +122,24 @@ onMounted(async () => {
 }
 .artist-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
 .artist-avatar { margin-bottom: 12px; }
+/* U3: 原生 img 懒加载头像（等价 el-avatar 圆形视觉） */
+.artist-avatar-img {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-block;
+  background: var(--bg-inset);
+}
+.artist-avatar-fallback {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: var(--text-secondary);
+  background: var(--bg-inset);
+}
 .artist-name { font-size: 18px; color: var(--text-primary); margin-bottom: 8px; }
 .artist-bio {
   color: var(--text-secondary); font-size: 13px; line-height: 1.6;

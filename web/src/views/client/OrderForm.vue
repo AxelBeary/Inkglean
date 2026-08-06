@@ -69,21 +69,21 @@
                 <Transition name="pricing-expand">
                   <div v-if="pricingExpanded && form.tierId">
                     <!-- 倍率选择 -->
-                    <el-form-item v-if="usageMultipliers.length > 0 || rushMultipliers.length > 0" label="用途与加急">
+                    <el-form-item v-if="usageMultipliers.length > 0 || rushMultipliers.length > 0" :label="$t('orderForm.multiplierLabel')">
                       <div class="multiplier-section">
                         <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-                          <span class="multiplier-label">用途：</span>
+                          <span class="multiplier-label">{{ $t('orderForm.usageLabel') }}</span>
                           <el-radio-group v-model="form.usageMultiplierId" size="small">
-                            <el-radio-button :value="null">个人</el-radio-button>
+                            <el-radio-button :value="null">{{ $t('orderForm.personal') }}</el-radio-button>
                             <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
                               {{ m.name }} ×{{ m.multiplier }}
                             </el-radio-button>
                           </el-radio-group>
                         </div>
                         <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-                          <span class="multiplier-label">加急：</span>
+                          <span class="multiplier-label">{{ $t('orderForm.rushLabel') }}</span>
                           <el-radio-group v-model="form.rushMultiplierId" size="small">
-                            <el-radio-button :value="null">不加急</el-radio-button>
+                            <el-radio-button :value="null">{{ $t('orderForm.noRush') }}</el-radio-button>
                             <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
                               {{ m.name }} ×{{ m.multiplier }}
                             </el-radio-button>
@@ -124,7 +124,7 @@
                       <!-- 验证失败提示（错误码已由 axios 拦截器 i18n 翻译） -->
                       <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
                       <div class="price-line total">
-                        <span>总价</span>
+                        <span>{{ $t('orderForm.receiptTotal') }}</span>
                         <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
                       </div>
                       <!-- v0.31 F3: 折扣行（红色负数，总价行下方；先倍率后折扣，前端仅估算） -->
@@ -584,6 +584,7 @@ import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import { useOrderForm } from '../../composables/useOrderForm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
+import { usePalette } from '../../composables/usePalette.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -617,6 +618,10 @@ const {
   // v0.35 F4: 预选摘要横幅文案（入口 A 预选可见，可回上一步改）
   preselectBannerText
 } = useOrderForm(subdomain, formRef, route.query)
+
+// M2: 流程页跟随画师 palette 配色（画师数据加载后生效，卸载时自动清理）
+const paletteId = computed(() => artist.value?.paletteId || 'paper')
+usePalette(paletteId)
 
 // ─── D 软提示（用户拍板：需求描述可空过，仅留空时弹一次确认，不拦截） ───
 function goNextFromDetail() {
@@ -769,7 +774,7 @@ async function copyQq(qq) {
 <style scoped>
 .order-form-page {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: var(--pal-bg, var(--bg-page));
   padding: 16px;
   transition: background 0.3s;
   position: relative;
