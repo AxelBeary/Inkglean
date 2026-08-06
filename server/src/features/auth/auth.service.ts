@@ -23,8 +23,10 @@ function getSecret(): string {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('SESSION_SECRET 环境变量未设置，生产环境禁止使用默认密钥')
     }
-    console.warn('⚠️  SESSION_SECRET 未设置，使用开发默认值（仅限开发环境）')
-    return 'dev-secret-change-in-production'
+    // P1-3: 开发默认值随机化——固定值可被离线爆破伪造会话，改为每次启动生成随机密钥
+    const devSecret = crypto.randomBytes(32).toString('hex')
+    console.warn('⚠️  SESSION_SECRET 未设置，已生成随机开发密钥（每次启动变化，仅限开发环境）')
+    return devSecret
   }
   return secret
 }
@@ -206,7 +208,8 @@ export function verifySession(token: string): SessionPayload | null {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString()) as SessionPayload
     if (Date.now() - data.t > SESSION_TTL_MS) return null
     return data
-  } catch {
+  } catch (err) {
+    console.warn('会话 token 解析失败（拒绝访问）', err)
     return null
   }
 }
