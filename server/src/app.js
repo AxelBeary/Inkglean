@@ -137,7 +137,8 @@ export async function buildApp(opts = {}) {
 
   // ─── 安全响应头（轻量替代 helmet）───
   // #43a: CSP connect-src 动态拼接 Sentry DSN 域名（未配置则不加）
-  const cspSentryDsn = process.env.SENTRY_DSN
+  // 批4b: .env 实际变量名是 SENTRY_DSN_BACKEND（docker-compose env_file 全量注入），向后兼容 SENTRY_DSN
+  const cspSentryDsn = process.env.SENTRY_DSN_BACKEND || process.env.SENTRY_DSN
   let cspConnectSrc = "connect-src 'self'"
   if (cspSentryDsn) {
     try { cspConnectSrc += ` ${new URL(cspSentryDsn).origin}` } catch { /* DSN 无效，忽略 */ }
