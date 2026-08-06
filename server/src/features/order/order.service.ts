@@ -539,8 +539,15 @@ export function getClientQueuePosition(orderNo: string, clientQq: string): any {
   // QQ 号不匹配 → 视为不存在（防枚举）
   if (order.client_qq !== clientQq) return null
 
+  // U1: 客户回顾需求描述 + 参考图（getOrder 的 clientOnly 已过滤 source='client'）
+  const base = {
+    order,
+    description: order.description ?? null,
+    references: order.references || []
+  }
+
   if (['delivered', 'cancelled'].includes(order.status)) {
-    return { order, position: null, total: null }
+    return { ...base, position: null, total: null }
   }
 
   // 内联活跃队列查询（避免循环引用 order-queue.service.js）
@@ -551,7 +558,7 @@ export function getClientQueuePosition(orderNo: string, clientQq: string): any {
   `).all(order.artist_id) as Array<{ id: number }>
   const position = queue.findIndex(o => o.id === order.id) + 1
 
-  return { order, position, total: queue.length }
+  return { ...base, position, total: queue.length }
 }
 
 /**

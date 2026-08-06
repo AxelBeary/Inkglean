@@ -209,6 +209,11 @@ export default async function orderRoutes(fastify: any) {
       status: order.status,
       tierName: order.tier_name,
       artistName: order.artist_name,
+      description: result.description,
+      references: (result.references || []).map((r: any) => ({
+        url: signedUrl(r.file_path),
+        originalName: r.original_name
+      })),
       position,
       total,
       workflowStages,
