@@ -405,7 +405,8 @@ export default {
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
-    orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download', noFiles: 'No delivered files yet'
+    orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download', noFiles: 'No delivered files yet',
+    downloadFailed: 'Download failed, please retry or contact the artist'
   },
   login: {
     title: 'Artist login', subtitle: 'Enter your QQ number and the 6-digit code from your authenticator app',

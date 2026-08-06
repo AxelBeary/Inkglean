@@ -30,7 +30,7 @@
               <span class="file-name">{{ d.fileName }}</span>
               <span class="file-size" v-if="d.fileSize">{{ formatSize(d.fileSize) }}</span>
             </div>
-            <el-button type="primary" size="small" @click="download(d.url)">{{ $t('delivery.download') }}</el-button>
+            <el-button type="primary" size="small" @click="downloadFile(d.url, d.fileName)">{{ $t('delivery.download') }}</el-button>
           </div>
         </div>
         <el-empty v-else :description="$t('delivery.noFiles')" :image-size="60" />
@@ -45,16 +45,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { orderApi } from '../../api/index.js'
+import { orderApi, artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { usePalette } from '../../composables/usePalette.js'
 
 const { t } = useI18n()
 const route = useRoute()
 const subdomain = route.params.subdomain
 const orderNo = route.params.orderNo
+
+// M2: 流程页跟随画师 palette 配色（轻量拉画师信息；加载失败回落 paper，不影响交付主流程）
+const artist = ref(null)
+const paletteId = computed(() => artist.value?.paletteId || 'paper')
+usePalette(paletteId)
 
 const qq = ref('')
 const verified = ref(false)
@@ -68,8 +74,19 @@ function formatSize(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function download(url) {
-  window.open(url, '_blank', 'noopener')
+async function downloadFile(url, fileName) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = fileName || 'download'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch {
+    ElMessage.error(t('delivery.downloadFailed'))
+  }
 }
 
 async function verify() {
@@ -92,13 +109,15 @@ onMounted(() => {
     qq.value = route.query.qq
     verify()
   }
+  // M2: 轻量拉画师信息取 paletteId（失败静默回落 paper）
+  artistPublicApi.getProfile(subdomain).then((a) => { artist.value = a }).catch(() => {})
 })
 </script>
 
 <style scoped>
 .delivery-page {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: var(--pal-bg, var(--bg-page));
   padding: 16px;
   transition: background 0.3s;
 }

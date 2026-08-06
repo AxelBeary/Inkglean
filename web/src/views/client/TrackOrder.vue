@@ -59,8 +59,8 @@
           </el-alert>
         </div>
 
-        <!-- 状态步骤（基于订单状态，始终可用） -->
-        <el-steps :active="stepActive" finish-status="success" simple style="margin-top: 20px">
+        <!-- 状态步骤（基于订单状态，始终可用；有画师自定义流程时隐藏，避免双进度） -->
+        <el-steps v-if="!order.workflowStages?.length" :active="stepActive" finish-status="success" simple style="margin-top: 20px">
           <el-step :title="$t('track.stepSubmitted')" />
           <el-step :title="$t('track.stepConfirmed')" />
           <el-step :title="$t('track.stepWip')" />
@@ -119,7 +119,7 @@
           <h4>{{ $t('track.deliverables') }}</h4>
           <div v-for="d in order.deliverables" :key="d.id" class="file-item">
             <span>{{ d.fileName }}</span>
-            <el-button size="small" type="primary" @click="downloadFile(d.url)">{{ $t('common.download') }}</el-button>
+            <el-button size="small" type="primary" @click="downloadFile(d.url, d.fileName)">{{ $t('common.download') }}</el-button>
           </div>
         </div>
 
@@ -166,16 +166,22 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { orderApi } from '../../api/index.js'
+import { orderApi, artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
+import { usePalette } from '../../composables/usePalette.js'
 
 const { t } = useI18n()
 const route = useRoute()
 const subdomain = route.params.subdomain
+
+// M2: 流程页跟随画师 palette 配色（轻量拉画师信息；加载失败回落 paper，不影响查单主流程）
+const artist = ref(null)
+const paletteId = computed(() => artist.value?.paletteId || 'paper')
+usePalette(paletteId)
 
 const orderNo = ref('')
 const qq = ref('')
@@ -248,8 +254,19 @@ function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2)
 }
 
-function downloadFile(url) {
-  window.open(url, '_blank', 'noopener')
+async function downloadFile(url, fileName) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = fileName || 'download'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch {
+    ElMessage.error(t('delivery.downloadFailed'))
+  }
 }
 
 async function copyText(text) {
@@ -262,7 +279,7 @@ async function copyText(text) {
 }
 
 function startNoOrdersCountdown() {
-  noOrdersCountdown.value = 3
+  noOrdersCountdown.value = 2
   showNoOrders.value = true
   clearInterval(countdownTimer)
   countdownTimer = setInterval(() => {
@@ -315,6 +332,8 @@ onMounted(() => {
   if (route.query.no) {
     orderNo.value = route.query.no
   }
+  // M2: 轻量拉画师信息取 paletteId（失败静默回落 paper）
+  artistPublicApi.getProfile(subdomain).then((a) => { artist.value = a }).catch(() => {})
 })
 
 onUnmounted(() => {
@@ -325,7 +344,7 @@ onUnmounted(() => {
 <style scoped>
 .track-page {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: var(--pal-bg, var(--bg-page));
   padding: 16px;
   transition: background 0.3s;
   position: relative;
