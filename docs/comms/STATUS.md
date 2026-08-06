@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-05 夜 v8——**五号安全加固批合入（`ee0f68a`）**：F1 totp_secret 泄露全堵（4 读端点 + 4 写端点回显 DTO 投影）/ F4 AUTH_DEV_MODE 生产 fail-fast / F3 CSP 去 unsafe-eval + F9 安全头 / F6 容器非 root。基线 server **914/914** · web **215/215**（一号独立复跑）。在途：五号视觉巡检批（本批交付文件已消费删除）。教训入账：DTO 加固必须同时堵「读路径 + 写路径回显」——写路径缺口系用户直接指出，一号返工派工与用户消息存在时差错位（详见「F1 写路径回显事故」）。
+> 最后更新：2026-08-06 晚 v9——**复盘 + 开源 + 代码/视觉冲刺准备**。A 测结束（画师嫌太垃圾），进入「修 Bug + 视觉问题 → 目标几天内发布 Beta」阶段。今日完成：五 soul 重写（红线制）、skill/memory 清理隔离、协议 MIT→AGPL-3.0、方法论仓库开源、README 重写、favicon 乱码修复、THIRD-PARTY-NOTICES 署名。基线 server **925/925** · web **215/215**。HEAD `c48cb0e`。
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿、worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > ⚠️ 2026-08-05 夜**消息时差错位**：用户就五号 F1 写路径缺口的指示未送达一号会话（用户先发消息给一号、同时直接告知五号研判修复；一号侧收到时五号已在修）。所幸门禁未放行（一号独立审核也抓出同一缺口并打了返工），零损失。教训：**用户消息未达 ≠ 事情没发生**——审核结论以 diff 为准，与消息渠道无关；STATUS 必须实时反映分支真实状态（此前 STATUS 写「进行中」时五号实际已交付，引发用户误判）。
 > 维护者：一号（主理人）
@@ -9,13 +9,15 @@
 ---
 ## master 状态
 
-- **HEAD**：`1a8806b`（四批合入+报告归档），与 origin 同步
-- **工作树**：主仓干净；worktree 待回收（fix1/of/tpl/env，批次已合入）
+- **HEAD**：`c48cb0e`（README 重写），与 origin 同步
+- **工作树**：主仓干净
 - **测试基线**：server 925/925（58 文件，含环境批 11 例）· web 215/215 · lint 0（一号独立复跑）
 - **容器**：✅ **2026-08-06 重建上线**（含环境批 + 视觉批 + topbar压缩批 + 吸底CTA批 + 非root + AUTH_DEV_MODE=false），healthy。重建踩坑：①非root写不进root数据卷→chown 1000 ②AUTH_DEV_MODE=true 被 F4 fail-fast 拦→用户拍板改 false
 - **备份**：`commission.db.bak-pre-env-rebuild-20260806-0636`（重建前，integrity ok）+ 更早里程碑
 - **迁移**：v43（DROP addons）为最新
-- **comms**：STATUS + 环境批/视觉批1/约稿页批/模板体检批四报告已归档 + 二号前端研判报告（M1随批1销账，余16项挂起A测后）
+- **协议**：主仓库 **AGPL-3.0**（MIT→GPL→AGPL，防 SaaS 竞品；画师自用部署不受影响）；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md + 字体 OFL 许可
+- **开源**：①主仓库 [Brushline-HuiYue](https://github.com/AxelBeary/Brushline-HuiYue)（AGPL-3.0）②方法论仓库 [huiyue-multi-agent-playbook](https://github.com/AxelBeary/huiyue-multi-agent-playbook)（5 soul + 8 skills，CC BY-SA 4.0）
+- **comms**：STATUS + 前端全页面研判报告 + 两份核实报告（安全审计/前端优化，待排期消费）
 
 ---
 ## v0.37 轮收官总结（2026-08-05，全部合入）
@@ -42,7 +44,16 @@
 | 文档 | 四号 | A 测执行手册（9 场景 40 步剧本 + AUTH_DEV_MODE 关闭检查单） | `f496d1c` |
 | 打磨 | 五号 | 打磨第二批（回收站插画/验证风格统一/画廊空态）+ D 软提示（`13dd4e7`）+ 安全加固批（`ee0f68a`） | `43395ff` 等 |
 
-**在途情况（2026-08-06 刷新）**：四批并行——三号环境批（feat/env-batch）/ 二号视觉通病批1（fix/visual-batch1）/ 五号约稿页实测修复批（fix/orderform-selection）/ 四号模板体检批（只读，chore/template-check）。外部前端评审核实结论：12 条 5 真 3 假 1 待实测 3 页面级改造（暂缓，只派属实项）。
+**当前阶段（2026-08-06 用户定）**：A 测结束，进入 **Beta 冲刺**——修 Bug + 视觉问题，目标几天内发布 Beta。无在途批次（今天批次全合入），角色全部待派。
+
+**冲刺待办池（刷新后据此派工）**：
+- **Bug/视觉**（优先）：
+  - 画师后台视觉投诉（错位/空白/动画缺失）——曾取消视觉巡检批，现冲刺阶段应重新做，截图在 workspace/temp/visual-complaints/
+  - 二号前端全页面研判报告 16 项（M2 流程页不随 palette / M3 EP 后台风 / F1 硬编码中文 / M4 死 CSS 等）——A 测后按此修
+  - 四号模板体检清单剩余项（T2 folio 导航动态化 / T3 档位按钮状态禁用 / T4 seed 幂等 / T6 atelier 宋体统一 / T8 封面上限 6 张）
+  - 前端优化方案 P2 候选（Serif 局部化 / i18n 懒加载 / focus-visible）
+- **发布准备**：容器重建（master 领先容器一批安全改动）+ 正式发布 Beta 前完整回归
+- **文档**：维护说明书/开发自参考更新（协议、开源、soul 重写已发生，文档待同步）
 
 ---
 ## 已拍板规则（长期有效）
