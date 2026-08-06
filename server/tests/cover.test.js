@@ -121,4 +121,39 @@ describe('封面图 (Cover Artwork)', () => {
     const a1 = await addArtwork('作品1')
     expect(a1.is_cover).toBe(0)
   })
+
+  // TC-CV-09: 封面上限 6 张（T8，用户 2026-08-06 拍板：第 7 张拦截）
+  it('TC-CV-09: 第 7 张设封面被拦截且保持非封面', async () => {
+    const artworks = []
+    for (let i = 1; i <= 7; i++) artworks.push(await addArtwork(`作品${i}`))
+    for (let i = 0; i < 6; i++) artistService.setCover(artist.id, artworks[i].id)
+
+    expect(() => artistService.setCover(artist.id, artworks[6].id)).toThrow(/COVER_LIMIT_REACHED/)
+    const row = db.prepare('SELECT is_cover FROM artworks WHERE id = ?').get(artworks[6].id)
+    expect(row.is_cover).toBe(0)
+    // 原有 6 张封面不受影响
+    const coverCount = db.prepare('SELECT COUNT(*) AS c FROM artworks WHERE artist_id = ? AND is_cover = 1').get(artist.id)
+    expect(coverCount.c).toBe(6)
+  })
+
+  // TC-CV-10: 取消一张封面后可再设第 7 张
+  it('TC-CV-10: 取消一张封面后第 7 张可设成功', async () => {
+    const artworks = []
+    for (let i = 1; i <= 7; i++) artworks.push(await addArtwork(`作品${i}`))
+    for (let i = 0; i < 6; i++) artistService.setCover(artist.id, artworks[i].id)
+
+    artistService.clearCover(artist.id, artworks[0].id)
+    const result = artistService.setCover(artist.id, artworks[6].id)
+    expect(result.is_cover).toBe(1)
+  })
+
+  // TC-CV-11: 已达上限时对已封面作品重复设置幂等通过（不误报）
+  it('TC-CV-11: 已达上限时已封面作品重复设置幂等通过', async () => {
+    const artworks = []
+    for (let i = 1; i <= 7; i++) artworks.push(await addArtwork(`作品${i}`))
+    for (let i = 0; i < 6; i++) artistService.setCover(artist.id, artworks[i].id)
+
+    const result = artistService.setCover(artist.id, artworks[0].id)
+    expect(result.is_cover).toBe(1)
+  })
 })
