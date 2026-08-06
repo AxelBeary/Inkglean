@@ -3,6 +3,22 @@ import db from './connection.js'
 import { fileURLToPath } from 'url'
 import { copyFileSync, existsSync } from 'fs'
 
+/**
+ * 迁移前自动备份（仅文件数据库）— P0-10: 抽取自 13 处复制粘贴的迁移备份逻辑
+ * 行为与原实现完全一致：备份文件名 dbPath.bak.vN、成功/失败日志格式不变
+ */
+function backupDbBeforeMigration(version) {
+  const dbPath = process.env.DB_PATH || './data/commission.db'
+  if (dbPath !== ':memory:' && existsSync(dbPath)) {
+    try {
+      copyFileSync(dbPath, `${dbPath}.bak.v${version}`)
+      console.log(`📦 迁移 v${version}: 已备份 ${dbPath} → ${dbPath}.bak.v${version}`)
+    } catch (err) {
+      console.warn(`⚠️ 迁移 v${version}: 备份失败（${err.message}），继续执行迁移`)
+    }
+  }
+}
+
 // ============================================
 // 数据库初始化 - 创建所有表 + 版本化迁移
 // ============================================
@@ -747,16 +763,7 @@ export const MIGRATIONS = [
     version: 11,
     name: 'order_quote_focus_and_artist_prefs',
     up(database) {
-      // ─── 迁移前自动备份（仅文件数据库） ───
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v11`)
-          console.log(`📦 迁移 v11: 已备份 ${dbPath} → ${dbPath}.bak.v11`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v11: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(11)
 
       // ─── orders 表新增 4 字段 ───
       const orderCols = database.prepare('PRAGMA table_info(orders)').all()
@@ -787,16 +794,7 @@ export const MIGRATIONS = [
     version: 12,
     name: 'order_gallery_links_note_image',
     up(database) {
-      // ─── 迁移前自动备份（仅文件数据库） ───
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v12`)
-          console.log(`📦 迁移 v12: 已备份 ${dbPath} → ${dbPath}.bak.v12`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v12: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(12)
 
       // R15: artists.custom_links（JSON TEXT 列）
       const artistCols = database.prepare('PRAGMA table_info(artists)').all()
@@ -908,16 +906,7 @@ export const MIGRATIONS = [
     name: 'order_extra_items',
     up(database) {
       // SPEC-003: 订单附加工作项（下单后追加需求）
-      // 迁移前自动备份（恢复 v11/v12 模式，五号审计建议）
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v18`)
-          console.log(`📦 迁移 v18: 已备份 ${dbPath} → ${dbPath}.bak.v18`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v18: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(18)
       // 纯新表，无 ALTER TABLE，无存量数据影响
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_extra_items (
@@ -938,16 +927,7 @@ export const MIGRATIONS = [
     name: 'batch_buffer_system',
     up(database) {
       // SPEC-004: 名额与缓冲系统
-      // 迁移前自动备份
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v19`)
-          console.log(`📦 迁移 v19: 已备份 ${dbPath} → ${dbPath}.bak.v19`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v19: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(19)
       // artists 表：6 个新字段
       const artistCols = database.prepare('PRAGMA table_info(artists)').all()
       if (!artistCols.some(c => c.name === 'batch_limit')) {
@@ -981,16 +961,7 @@ export const MIGRATIONS = [
     name: 'stage_speech_template',
     up(database) {
       // plan-node-speech: 节点话术模板
-      // 迁移前自动备份
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v20`)
-          console.log(`📦 迁移 v20: 已备份 ${dbPath} → ${dbPath}.bak.v20`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v20: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(20)
       const cols = database.prepare('PRAGMA table_info(artist_workflow_stages)').all()
       if (!cols.some(c => c.name === 'speech_template')) {
         database.exec("ALTER TABLE artist_workflow_stages ADD COLUMN speech_template TEXT DEFAULT '{客户名}，你的订单已{节点名}。'")
@@ -1005,16 +976,7 @@ export const MIGRATIONS = [
     up(database) {
       // F3: 画师小公告（announcement + 过期时间）
       // F1: 作品点赞计数
-      // 迁移前自动备份
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v21`)
-          console.log(`📦 迁移 v21: 已备份 ${dbPath} → ${dbPath}.bak.v21`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v21: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(21)
       // artists: announcement + announcement_expires_at
       const artistCols = database.prepare('PRAGMA table_info(artists)').all()
       if (!artistCols.some(c => c.name === 'announcement')) {
@@ -1035,16 +997,7 @@ export const MIGRATIONS = [
     name: 'guestbook_messages',
     up(database) {
       // F4: 留言板
-      // 迁移前自动备份
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v22`)
-          console.log(`📦 迁移 v22: 已备份 ${dbPath} → ${dbPath}.bak.v22`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v22: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(22)
       database.exec(`
         CREATE TABLE IF NOT EXISTS guestbook_messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1067,15 +1020,7 @@ export const MIGRATIONS = [
     name: 'artist_monthly_quota',
     up(database) {
       // S5: 月度额度池（NULL=不限）
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v23`)
-          console.log(`📦 迁移 v23: 已备份 ${dbPath} → ${dbPath}.bak.v23`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v23: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(23)
       const cols = database.prepare('PRAGMA table_info(artists)').all()
       if (!cols.some(c => c.name === 'monthly_quota')) {
         database.exec('ALTER TABLE artists ADD COLUMN monthly_quota INTEGER DEFAULT NULL')
@@ -1087,15 +1032,7 @@ export const MIGRATIONS = [
     name: 'quota_pool_paid_total',
     up(database) {
       // B7: 额度池 — orders.paid_total_cents + order_payments 表 + 存量换算
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, `${dbPath}.bak.v24`)
-          console.log(`📦 迁移 v24: 已备份 ${dbPath} → ${dbPath}.bak.v24`)
-        } catch (err) {
-          console.warn(`⚠️ 迁移 v24: 备份失败（${err.message}），继续执行迁移`)
-        }
-      }
+      backupDbBeforeMigration(24)
       // 1. orders 加 paid_total_cents
       const cols = database.prepare('PRAGMA table_info(orders)').all()
       if (!cols.some(c => c.name === 'paid_total_cents')) {
@@ -1303,16 +1240,7 @@ export const MIGRATIONS = [
     name: 'multi_style_model',
     up(database) {
       // REQ-023 Phase 1: 多画风模型——5 表 + 老数据迁移
-      // 迁移前自动备份
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, dbPath + '.bak.v36')
-          console.log('📦 迁移 v36: 已备份 ' + dbPath)
-        } catch (err) {
-          console.warn('⚠️ 迁移 v36: 备份失败（' + err.message + '），继续执行迁移')
-        }
-      }
+      backupDbBeforeMigration(36)
 
       // ─── 建表（IF NOT EXISTS 幂等） ───
       database.exec(`
@@ -1451,16 +1379,7 @@ export const MIGRATIONS = [
     name: 'style_unify_sizes_artwork_tags_f5',
     up(database) {
       // REQ-024 画风档位统一（F1/F2/F5/F6 数据层，一次建全避免二次迁移）
-      // 迁移前自动备份
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, dbPath + '.bak.v37')
-          console.log('📦 迁移 v37: 已备份 ' + dbPath)
-        } catch (err) {
-          console.warn('⚠️ 迁移 v37: 备份失败（' + err.message + '），继续执行迁移')
-        }
-      }
+      backupDbBeforeMigration(37)
 
       // ─── 1. style_sizes: 尺寸带图/描述/天数（F1） ───
       // image: 独立上传路径；image_artwork_id: 从作品集挑（删作品自动置空）
@@ -1527,15 +1446,7 @@ export const MIGRATIONS = [
         return
       }
 
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, dbPath + '.bak.v38')
-          console.log('📦 迁移 v38: 已备份 ' + dbPath)
-        } catch (err) {
-          console.warn('⚠️ 迁移 v38: 备份失败（' + err.message + '），继续执行迁移')
-        }
-      }
+      backupDbBeforeMigration(38)
 
       const cols = database.prepare('PRAGMA table_info(artists)').all().map(c => c.name)
       const colList = cols.join(', ')
@@ -1586,16 +1497,7 @@ export const MIGRATIONS = [
     up(database) {
       // REQ-025 动态节点计价 第一阶段：价格条目账本表（总价 = Σ 条目 delta）
       // 只追加不删不改（服务层不提供 UPDATE/DELETE 路径）；纯建表，事务内安全（无 DROP/RENAME 父表）
-      // 迁移前自动备份
-      const dbPath = process.env.DB_PATH || './data/commission.db'
-      if (dbPath !== ':memory:' && existsSync(dbPath)) {
-        try {
-          copyFileSync(dbPath, dbPath + '.bak.v39')
-          console.log('📦 迁移 v39: 已备份 ' + dbPath)
-        } catch (err) {
-          console.warn('⚠️ 迁移 v39: 备份失败（' + err.message + '），继续执行迁移')
-        }
-      }
+      backupDbBeforeMigration(39)
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_price_entries (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
