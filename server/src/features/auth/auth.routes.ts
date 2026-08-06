@@ -50,6 +50,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
       })
     }
 
+    // P1 strictNullChecks: valid=true 时服务层必返回 artist（联合类型收窄守卫，防御登录流程空指针）
+    if (!result.artist) {
+      return reply.code(500).send({ code: 'INTERNAL', error: '登录会话状态异常' })
+    }
+
     const token = createSession(result.artist.id, result.artist.token_version)
     const isAdmin = result.artist.qq_number === getAdminQq()
 

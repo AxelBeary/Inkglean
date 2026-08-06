@@ -34,7 +34,7 @@ function checkDb(): HealthCheckResult {
     }
     return { id: 'db', name: '数据库连接', status: 'ok', summary: '读写正常', detail: {} }
   } catch (err) {
-    return { id: 'db', name: '数据库连接', status: 'fail', summary: err.message, detail: { error: err.message } }
+    return { id: 'db', name: '数据库连接', status: 'fail', summary: (err as Error).message, detail: { error: (err as Error).message } }
   }
 }
 
@@ -51,7 +51,7 @@ function checkMigration(latestVersion: number): HealthCheckResult {
       detail: { appliedVersion: applied, latestVersion, migrations: rows }
     }
   } catch (err) {
-    return { id: 'migration', name: '迁移版本', status: 'fail', summary: err.message, detail: { error: err.message } }
+    return { id: 'migration', name: '迁移版本', status: 'fail', summary: (err as Error).message, detail: { error: (err as Error).message } }
   }
 }
 
@@ -61,7 +61,7 @@ async function checkUploads(): Promise<HealthCheckResult> {
     await access(UPLOAD_DIR, constants.R_OK | constants.W_OK)
     return { id: 'uploads', name: '上传目录', status: 'ok', summary: `${UPLOAD_DIR} 可读写`, detail: { path: UPLOAD_DIR } }
   } catch (err) {
-    return { id: 'uploads', name: '上传目录', status: 'fail', summary: `${UPLOAD_DIR} 不可访问`, detail: { path: UPLOAD_DIR, error: err.message } }
+    return { id: 'uploads', name: '上传目录', status: 'fail', summary: `${UPLOAD_DIR} 不可访问`, detail: { path: UPLOAD_DIR, error: (err as Error).message } }
   }
 }
 
@@ -82,7 +82,7 @@ async function checkDisk(): Promise<HealthCheckResult> {
       detail: { path: UPLOAD_DIR, totalGB, freeGB, usedPct: `${usedPct}%`, note: 'Docker 内值可能不准，仅供参考' }
     }
   } catch (err) {
-    return { id: 'disk', name: '磁盘空间', status: 'warn', summary: '无法获取磁盘信息', detail: { error: err.message } }
+    return { id: 'disk', name: '磁盘空间', status: 'warn', summary: '无法获取磁盘信息', detail: { error: (err as Error).message } }
   }
 }
 
@@ -116,7 +116,7 @@ function checkIntegrity(): HealthCheckResult {
       detail: { checks }
     }
   } catch (err) {
-    return { id: 'integrity', name: '数据完整性', status: 'fail', summary: err.message, detail: { error: err.message } }
+    return { id: 'integrity', name: '数据完整性', status: 'fail', summary: (err as Error).message, detail: { error: (err as Error).message } }
   }
 }
 
@@ -150,7 +150,7 @@ function checkBackup(): HealthCheckResult {
       detail: { path: DATA_DIR, latestFile: latest, latestTime: new Date(latestTime).toISOString(), ageDays }
     }
   } catch (err) {
-    return { id: 'backup', name: '备份状态', status: 'warn', summary: '检查失败', detail: { error: err.message } }
+    return { id: 'backup', name: '备份状态', status: 'warn', summary: '检查失败', detail: { error: (err as Error).message } }
   }
 }
 

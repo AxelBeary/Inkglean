@@ -638,11 +638,13 @@ export function computeSlotDisplay(artist: Artist): string | null {
 
   // S5: 月度额度检查（优先于名额——额度耗尽即约满，无论名额剩余）
   const quota = hasQuota ? getMonthlyUsage(artist.id, artist.monthly_quota) : null
-  if (quota && quota.remaining <= 0) return '本月已约满'
+  // P1 strictNullChecks: hasQuota=true 时 monthly_quota 必非 null，getMonthlyUsage 返回 remaining 必非 null（断言仅类型层，不改变运行时）
+  if (quota && quota.remaining! <= 0) return '本月已约满'
 
   // status = open
   if (hasBatchLimit) {
-    const N = artist.batch_limit
+    // P1 strictNullChecks: hasBatchLimit=true 即 batch_limit != null（断言仅类型层）
+    const N = artist.batch_limit!
     const M = artist.buffer_limit ?? 0
     const { formal, buffer } = getZoneCounts(artist.id)
     if (formal < N) {
@@ -653,8 +655,8 @@ export function computeSlotDisplay(artist: Artist): string | null {
     return '已接满'
   }
 
-  // 仅额度池（无名额限制）
-  return `开放中 · 本月剩 ${quota.remaining} 单`
+  // 仅额度池（无名额限制）——走到此处说明 hasQuota=true，quota 必非 null（断言仅类型层）
+  return `开放中 · 本月剩 ${quota!.remaining} 单`
 }
 
 // ============================================

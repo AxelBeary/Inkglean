@@ -21,6 +21,8 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci
       - run: npx eslint .
+      - run: npx oxlint src tests
+      - run: npm run typecheck
       - run: npm test
 
   web:

@@ -1,3 +1,4 @@
+// @ts-nocheck — P2 豁免：1,899 行 DDL/迁移脚本，checkJs 下 14 处 catch err.message 报错（JS 文件无 as 断言），类型价值为零，按派工 P2-5 豁免路径处理；checkJs 仍覆盖未来新增 .js
 import db from './connection.js'
 import { fileURLToPath } from 'url'
 import { copyFileSync, existsSync } from 'fs'
