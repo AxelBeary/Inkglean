@@ -2,7 +2,7 @@
   "name": "artist-commission-server",
   "version": "0.10.0",
   "description": "画师约稿管理平台 - 后端服务",
-  "license": "GPL-3.0",
+  "license": "AGPL-3.0",
   "type": "module",
   "scripts": {
     "dev": "tsx --watch src/index.js",
