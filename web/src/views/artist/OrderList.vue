@@ -54,19 +54,19 @@
       <el-table-column prop="client_name" :label="$t('orderList.colName')" width="100" />
       <el-table-column :label="$t('orderList.colPriority')" width="80">
         <template #default="{ row }">
-          <el-tag :type="priorityType(row.priority)" size="small">
+          <el-tag :type="priorityType(row.priority)" size="small" :class="`prio-tag prio-tag--${row.priority}`">
             {{ $t(`common.priority.${row.priority}`) }}
           </el-tag>
         </template>
       </el-table-column>
       <el-table-column :label="$t('orderList.colStatus')" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
+          <el-tag :type="statusType(row.status)" size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column :label="$t('orderList.colSource')" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.source === 'self' ? 'primary' : 'info'" size="small">
+          <el-tag :type="row.source === 'self' ? 'primary' : 'info'" size="small" :class="`source-tag source-tag--${row.source === 'self' ? 'self' : 'manual'}`">
             {{ row.source === 'self' ? $t('common.source.self') : $t('common.source.manual') }}
           </el-tag>
         </template>
@@ -211,4 +211,21 @@ onMounted(() => {
 @media (max-width: 600px) {
   .order-thumb { width: 32px; height: 32px; }
 }
+
+/* ═══ 批4a: 三标签纸墨语义色（OrderList 专用，与 QueueBoard 色条一致；保留 :type 仅作 EP 兜底） ═══ */
+/* 优先级：高=赭石 / 中=藤黄 / 低=中性灰 */
+.prio-tag--high { background: var(--zhe); color: #fff; border-color: var(--zhe); }
+.prio-tag--medium { background: var(--th); color: #fff; border-color: var(--th); }
+.prio-tag--low { background: var(--ink4); color: #fff; border-color: var(--ink4); }
+
+/* 来源：自助=花青 / 手动=墨灰 */
+.source-tag--self { background: var(--hq); color: #fff; border-color: var(--hq); }
+.source-tag--manual { background: var(--ink3); color: #fff; border-color: var(--ink3); }
+
+/* 状态：待确认=藤黄 / 已确认·进行中=花青 / 返修=赭石 / 完成·已交付=石绿 / 取消=朱砂 */
+.status-tag--pending { background: var(--th); color: #fff; border-color: var(--th); }
+.status-tag--confirmed, .status-tag--wip { background: var(--hq); color: #fff; border-color: var(--hq); }
+.status-tag--revision { background: var(--zhe); color: #fff; border-color: var(--zhe); }
+.status-tag--done, .status-tag--delivered { background: var(--sl); color: #fff; border-color: var(--sl); }
+.status-tag--cancelled { background: var(--zs); color: #fff; border-color: var(--zs); }
 </style>
