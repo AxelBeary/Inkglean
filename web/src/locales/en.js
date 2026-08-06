@@ -265,7 +265,7 @@ export default {
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
     statusOpen: 'Open for commissions', statusFull: 'Fully booked', statusBreak: 'On break',
-    about: 'About', navPricing: 'Pricing', navProcess: 'Process', navWork: 'Work',
+    about: 'About', navPricing: 'Pricing', navProcess: 'Process', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
     heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',
     startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",

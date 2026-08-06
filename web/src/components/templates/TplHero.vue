@@ -112,7 +112,7 @@ defineExpose({ sentinelEl })
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: all 0.15s cubic-bezier(0.22, 1, 0.36, 1);
   border: 1px solid transparent;
 }
 .tpl-btn--primary {
@@ -300,6 +300,8 @@ defineExpose({ sentinelEl })
 .tpl-hero-split-img:nth-child(2) {
   bottom: 0;
   right: 0;
+  /* F4: 第二张缩窄（56%），避免与第一张（78%）对角叠放时遮挡作品主体 */
+  width: 56%;
 }
 
 @media (max-width: 768px) {
