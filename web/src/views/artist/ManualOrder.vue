@@ -507,7 +507,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, InfoFilled, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
@@ -1029,6 +1029,8 @@ async function submit() {
 
     resultNo.value = order.order_no
     showResult.value = true
+    // F6: 提交成功后清空草稿（下次进入不再弹恢复提示）
+    clearDraft()
     if (postCreateFailed) {
       ElMessage.warning(`订单 ${order.order_no} 已创建，但${postCreateFailed}。请在订单详情中补充。`)
     }
@@ -1072,10 +1074,192 @@ function resetForm() {
   qqHistory.value = []
   qqHistoryLoaded.value = false
   mobileDetailOpen.value = false
+  // F6: 表单重置时同步清空草稿（继续录入 = 已消费旧草稿）
+  clearDraft()
+}
+
+// ─── F6: 录单草稿暂存（localStorage 自动保存 + 恢复提示，键带 subdomain 后缀隔离画师） ───
+// 对齐 useOrderForm R57 实现；差异：localStorage（录单页误关页面场景，session 失效丢数据更痛）、
+// 不暂存图片文件对象（只存可序列化字段）；恢复弹窗在画风/档位数据就绪后触发。
+const DRAFT_KEY_PREFIX = 'huiyue_manual_order_draft'
+const draftKey = () => (subdomain.value ? `${DRAFT_KEY_PREFIX}_${subdomain.value}` : null)
+
+/** 表单是否有内容（任一字段非空）——有内容才落盘，避免空表单刷新生造草稿键 */
+const hasDraftContent = computed(() =>
+  form.tierId != null
+  // 多画风下"用户主动选了画风"即算；单画风自动选中不算（否则刚进页面就弹恢复框）
+  || (isMultiStyle.value && selectedStyleId.value != null)
+  || selectedSizeId.value != null
+  || !!form.description.trim()
+  || !!form.clientQq.trim()
+  || !!form.clientName.trim()
+  || !!form.deadline
+  || !!form.startDate
+  || form.priority !== 'medium'
+  || form.clientNotify
+  || Object.values(styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0 || s.optionLabel != null))
+  || customAddons.value.length > 0
+  || finalPriceYuan.value != null
+)
+
+function saveDraft() {
+  const key = draftKey()
+  if (!key) return
+  if (!hasDraftContent.value) {
+    try { localStorage.removeItem(key) } catch { /* 隐私模式等场景忽略 */ }
+    return
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      form: {
+        clientQq: form.clientQq,
+        clientName: form.clientName,
+        tierId: form.tierId,
+        description: form.description,
+        priority: form.priority,
+        deadline: form.deadline,
+        startDate: form.startDate,
+        clientNotify: form.clientNotify,
+        usageMultiplierId: form.usageMultiplierId,
+        rushMultiplierId: form.rushMultiplierId
+      },
+      // 画风三步走状态（styleId/sizeId/增项勾选），恢复时按 isStyleMode 互斥取用
+      styleState: {
+        styleId: selectedStyleId.value,
+        sizeId: selectedSizeId.value,
+        addonSelections: { ...styleAddonSelections }
+      },
+      // 自定义增项（只存可序列化字段，uid 恢复时重发）
+      customAddons: customAddons.value.map(a => ({ name: a.name, priceYuan: a.priceYuan })),
+      // G2: 手输价格恢复（恢复时保留脏标记，避免被重算价格覆盖）
+      finalPriceYuan: finalPriceYuan.value,
+      priceTouched: priceTouched.value
+    }))
+  } catch { /* ignore */ }
+}
+
+let draftTimer = null
+function scheduleDraftSave() {
+  if (draftTimer) clearTimeout(draftTimer)
+  draftTimer = setTimeout(saveDraft, 800)
+}
+
+watch([() => form.clientQq, () => form.clientName, () => form.tierId, () => form.description,
+  () => form.priority, () => form.deadline, () => form.startDate, () => form.clientNotify,
+  () => form.usageMultiplierId, () => form.rushMultiplierId], scheduleDraftSave)
+// 画风三步走状态变化也要存草稿（刷新后不丢选择）
+watch(selectedStyleId, scheduleDraftSave)
+watch(selectedSizeId, scheduleDraftSave)
+watch(styleAddonSelections, scheduleDraftSave, { deep: true })
+watch(customAddons, scheduleDraftSave, { deep: true })
+watch(finalPriceYuan, scheduleDraftSave)
+
+/** 清空草稿键（提交成功 / 恢复弹窗取消 / 重置表单时） */
+function clearDraft() {
+  const key = draftKey()
+  if (!key) return
+  try { localStorage.removeItem(key) } catch { /* ignore */ }
+}
+
+/** 把草稿回填到表单（画风/尺寸/增项若已被画师删除则逐项丢弃） */
+function applyDraft(draft) {
+  const f = draft.form || {}
+  form.clientQq = f.clientQq || ''
+  form.clientName = f.clientName || ''
+  form.description = f.description || ''
+  form.priority = f.priority || 'medium'
+  form.deadline = f.deadline || null
+  form.startDate = f.startDate || null
+  form.clientNotify = !!f.clientNotify
+
+  if (isStyleMode.value) {
+    // ── 画风模式：恢复三步走状态，旧模型字段置空 ──
+    form.tierId = null
+    const ss = draft.styleState || {}
+    if (ss.styleId != null) {
+      const style = styles.value.find(s => s.id === ss.styleId)
+      if (style) selectedStyleId.value = ss.styleId
+    }
+    const currentStyle = styles.value.find(s => s.id === selectedStyleId.value)
+    if (currentStyle && ss.sizeId != null) {
+      const size = (currentStyle.sizes || []).find(sz => sz.id === ss.sizeId)
+      if (size) {
+        selectedSizeId.value = ss.sizeId
+        // 增项勾选只恢复当前尺寸可用增项中存在的键（其余可能已删/已隐藏）
+        const validIds = new Set((size.addons || []).map(a => a.id))
+        const saved = ss.addonSelections || {}
+        for (const key of Object.keys(saved)) {
+          const id = Number(key)
+          if (validIds.has(id)) {
+            styleAddonSelections[id] = { toggled: false, quantity: 0, optionLabel: null, ...saved[key] }
+          }
+        }
+        // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
+        initStyleAddonDefaults()
+        form.usageMultiplierId = f.usageMultiplierId ?? null
+        form.rushMultiplierId = f.rushMultiplierId ?? null
+        // 尺寸有效 → 重算价格预览（防抖，与手动选择同路径）
+        scheduleStyleCalc()
+      }
+    }
+  } else {
+    // ── 旧模型（tiers）：档位被删则丢弃该字段 ──
+    const tierValid = f.tierId != null && tiers.value.some(tier => tier.id === f.tierId)
+    form.tierId = tierValid ? f.tierId : null
+    form.usageMultiplierId = tierValid ? (f.usageMultiplierId ?? null) : null
+    form.rushMultiplierId = tierValid ? (f.rushMultiplierId ?? null) : null
+  }
+
+  // 自定义增项（uid 重发，避免草稿残留 uid 冲突）
+  customAddons.value = Array.isArray(draft.customAddons)
+    ? draft.customAddons.map(a => ({
+        uid: `ca-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: String(a.name || ''),
+        priceYuan: Number(a.priceYuan) || 0
+      }))
+    : []
+
+  // G2: 手输价格恢复——保留脏标记，重算价不覆盖手输价
+  if (draft.priceTouched && draft.finalPriceYuan != null) {
+    priceTouched.value = true
+    finalPriceYuan.value = draft.finalPriceYuan
+  }
+}
+
+/** 恢复提示：mounted 且画风/档位数据就绪后调用；确认回填，取消/关闭清空草稿键 */
+async function restoreDraft() {
+  const key = draftKey()
+  if (!key) return
+  let raw
+  try { raw = localStorage.getItem(key) } catch { return }
+  if (!raw) return
+  let draft
+  try { draft = JSON.parse(raw) } catch { return }
+  if (!draft || !draft.form) return
+
+  try {
+    await ElMessageBox.confirm(t('manualOrder.draftFound'), t('common.confirm'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      type: 'info'
+    })
+    applyDraft(draft)
+    ElMessage.success(t('manualOrder.draftRestored'))
+  } catch {
+    // 用户取消/关闭弹窗 → 清空草稿键（下次进入不再打扰）
+    clearDraft()
+  }
+}
+
+/** 页面关闭/刷新前同步落盘（补防抖窗口内最后一次输入；只保存不拦截，不弹原生确认框） */
+function onBeforeUnload() {
+  if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
+  saveDraft()
 }
 
 // ─── 初始化 ───
 onMounted(async () => {
+  window.addEventListener('beforeunload', onBeforeUnload)
   try {
     const profile = await artistApi.getProfile()
     subdomain.value = profile.subdomain
@@ -1085,7 +1269,7 @@ onMounted(async () => {
       .then(res => { pricingData.value = res })
       .catch(() => {})
     // v0.38 D路: 加载画风列表（失败静默走旧档位模式兜底；单画风自动选中跳过选画风步）
-    artistPublicApi.getPublicStyles(profile.subdomain)
+    const stylesPromise = artistPublicApi.getPublicStyles(profile.subdomain)
       .then(res => {
         styles.value = res || []
         if (styles.value.length === 1) {
@@ -1097,12 +1281,17 @@ onMounted(async () => {
     artistApi.getWorkflow()
       .then(res => { workflowStages.value = res.stages || [] })
       .catch(() => {})
+    // F6: 画风/档位数据就绪后检查本地草稿——恢复回填需要 styles 已加载才能匹配画风/尺寸
+    await stylesPromise
+    await restoreDraft()
   } catch { /* ignore */ }
 })
 
 onUnmounted(() => {
+  window.removeEventListener('beforeunload', onBeforeUnload)
   if (calcTimer) clearTimeout(calcTimer)
   if (styleCalcTimer) clearTimeout(styleCalcTimer)
+  if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
 })
 </script>
 
@@ -1219,8 +1408,29 @@ onUnmounted(() => {
 }
 .ref-tip-icon:hover { color: var(--hq); }
 .mo-ref-upload :deep(.el-upload--picture-card) {
-  width: 100%; height: 100px;
+  width: 100%;
+  height: auto;
+  /* F4: 46.67×100 细长条根因——固定 100px 高 + 窄父容器；改 16/9 矩形 + 最小高度兜底 */
+  aspect-ratio: 16 / 9;
+  min-height: 140px;
   border-radius: var(--r-m);
+}
+/* F4: drag 模式下 .el-upload-dragger 包在 picture-card 内——铺满整个虚线区，
+   整块可拖拽（用户拍板：保留 drag，整个虚线区域可拖），中间图标垂直居中 */
+.mo-ref-upload :deep(.el-upload-dragger) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-radius: var(--r-m);
+}
+/* F4: 已上传缩略图保持 EP picture-card 默认方形（不被 dragger 铺满样式拉宽） */
+.mo-ref-upload :deep(.el-upload-list--picture-card .el-upload-list__item) {
+  width: 148px;
+  height: 148px;
 }
 /* F2: 拖拽提示 */
 .drag-hint { font-size: 12px; color: var(--ink3); }

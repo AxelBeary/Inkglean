@@ -667,7 +667,10 @@ export default {
     customAddonNameRequired: '请填写自定义增项名称',
     customAddonPriceRequired: '请填写自定义增项金额',
     customAddonMax: '最多添加 20 条自定义增项',
-    selectSizeOrPrice: '请先选择画风和尺寸，或手动填写最终价格'
+    selectSizeOrPrice: '请先选择画风和尺寸，或手动填写最终价格',
+    // F6: 录单草稿（localStorage 暂存 + 恢复提示）
+    draftFound: '发现未提交的录单草稿，是否恢复？',
+    draftRestored: '已恢复草稿'
   },
   tiers: {
     title: '价格管理', addTier: '+ 添加档位',
