@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-07 凌晨 v11——**Beta 冲刺批 1 四路全部合入**（二号流程页 `20b0853` + 五号模板 `544367d` + 三号后端 `dd42349` + 四号文档 `3d668c2`）。web **215/215** · server **928/928**（+3 封面上限测试）。**视觉能力不购买**：无 vision 路线（PIL diff + computed-style 量化 + 用户口述验收）。第三方报告已核实（基于 8:12 前旧分支，A1 订单号找回等新价值项入池，核实记录 `docs/comms/核实-第三方报告-20260806.md`）。HEAD `b6a5063`。
+> 最后更新：2026-08-07 v13——**容器重建上线（含批1-批4b全部）+ Sentry CSP 修复实测生效**。视觉能力不购买（无 vision 路线：PIL diff + computed-style + 用户口述）。第三方报告已核实（A1 订单号找回已实施；OD-01/05 已拍板落地）。内测反馈 6 条已核实落档（F2/F5a/F6 等批4候选）。基线 server **930/930** · web **215/215**。HEAD `7cf6c43`。
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿、worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > ⚠️ 2026-08-05 夜**消息时差错位**：用户就五号 F1 写路径缺口的指示未送达一号会话（用户先发消息给一号、同时直接告知五号研判修复；一号侧收到时五号已在修）。所幸门禁未放行（一号独立审核也抓出同一缺口并打了返工），零损失。教训：**用户消息未达 ≠ 事情没发生**——审核结论以 diff 为准，与消息渠道无关；STATUS 必须实时反映分支真实状态（此前 STATUS 写「进行中」时五号实际已交付，引发用户误判）。
 > 维护者：一号（主理人）
@@ -12,7 +12,7 @@
 - **HEAD**：`c48cb0e`（README 重写），与 origin 同步
 - **工作树**：主仓干净
 - **测试基线**：server 925/925（58 文件，含环境批 11 例）· web 215/215 · lint 0（一号独立复跑）
-- **容器**：✅ **2026-08-06 重建上线**（含环境批 + 视觉批 + topbar压缩批 + 吸底CTA批 + 非root + AUTH_DEV_MODE=false），healthy。重建踩坑：①非root写不进root数据卷→chown 1000 ②AUTH_DEV_MODE=true 被 F4 fail-fast 拦→用户拍板改 false
+- **容器**：✅ **2026-08-07 重建上线**（含批1+批2+批3+批4a/4b 全部：流程页palette/模板体检/后端数据/文档同步/OD拍板/查单增强/track字段/REQ-033/视觉OD/标签换色/Sentry CSP修复），healthy + `/api/health` ok。重建实录：DB备份 `commission.db.bak-pre-rebuild-2026-08-06-05-11-20`（integrity ok，orders 8/artists 5/tiers 8）→ build → chown 1000（非root存量卷）→ up。**Sentry CSP 修复容器内实测生效**（`connect-src 'self' https://o4511831952916480.ingest.us.sentry.io`——.env 变量名 SENTRY_DSN_BACKEND 对齐 app.js）。
 - **备份**：`commission.db.bak-pre-env-rebuild-20260806-0636`（重建前，integrity ok）+ 更早里程碑
 - **迁移**：v43（DROP addons）为最新
 - **协议**：主仓库 **AGPL-3.0**（MIT→GPL→AGPL，防 SaaS 竞品；画师自用部署不受影响）；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md + 字体 OFL 许可
