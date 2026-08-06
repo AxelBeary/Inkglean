@@ -15,7 +15,11 @@ export function useStickyCta(sentinelRef) {
 
   const setup = (el) => {
     observer?.disconnect()
-    if (!el) return
+    // 兼容两种哨兵来源：
+    // 1) DOM 元素（直接传 el）
+    // 2) 异步组件实例（el.sentinelEl 是 defineExpose 的模板 ref，经 expose proxy 已自动 unwrap 为 DOM 元素）
+    const sentinel = el?.sentinelEl || el
+    if (!sentinel || !(sentinel instanceof Element)) return
     observer = new IntersectionObserver(
       ([entry]) => {
         // 哨兵不可见（滚过去了）→ 显示吸底条
@@ -23,7 +27,7 @@ export function useStickyCta(sentinelRef) {
       },
       { threshold: 0 }
     )
-    observer.observe(el)
+    observer.observe(sentinel)
   }
 
   // 哨兵元素就绪（或变化）时建立观察
