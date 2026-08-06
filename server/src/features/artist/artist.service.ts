@@ -485,8 +485,21 @@ export function setArtworkSizeTags(artistId: number, artworkId: number, sizeIds:
  * 设为封面（多张共存，用户原声 REQ-013 #5："多张来回滚动"）
  * 不取消其他封面——画师可设多张，客户端自动轮播
  * v0.31: 自动分配 cover_order（追加到末尾）
+ * T8: 封面上限 COVER_LIMIT 张（用户 2026-08-06 拍板：第 7 张拦截并提示）
  */
+export const COVER_LIMIT = 6
+
 export function setCover(artistId: number, artworkId: number): Artwork | undefined {
+  const current = getArtworkById(artworkId)
+  // 已是封面：幂等放行（不重新计数，避免已达上限时重复设置误报）
+  if (current && current.is_cover === 1) return current
+  // T8: 封面上限校验（不含当前作品）
+  const coverCount = db.prepare(
+    'SELECT COUNT(*) AS c FROM artworks WHERE artist_id = ? AND is_cover = 1 AND id != ?'
+  ).get(artistId, artworkId) as { c: number }
+  if (coverCount.c >= COVER_LIMIT) {
+    throw new AppError(E.COVER_LIMIT_REACHED, 400)
+  }
   const maxOrder = db.prepare(
     'SELECT MAX(cover_order) as m FROM artworks WHERE artist_id = ? AND is_cover = 1'
   ).get(artistId) as { m: number | null } | undefined

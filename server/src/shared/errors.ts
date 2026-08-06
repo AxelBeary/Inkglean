@@ -194,6 +194,8 @@ export const E = {
 
   // 作品
   ARTWORK_NOT_FOUND: 'ARTWORK_NOT_FOUND',
+  // 封面上限（Beta 冲刺 T8，用户 2026-08-06 拍板）
+  COVER_LIMIT_REACHED: 'COVER_LIMIT_REACHED',
 
   // 档位三态（v0.24 #10）
   TIER_NOT_AVAILABLE: 'TIER_NOT_AVAILABLE',
@@ -400,6 +402,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 作品（v0.25 #5）
   ARTWORK_NOT_FOUND: '作品不存在',
+  // 封面上限（Beta 冲刺 T8，用户 2026-08-06 拍板）
+  COVER_LIMIT_REACHED: '封面最多 6 张',
 
   // 档位三态（v0.24 #10）
   TIER_NOT_AVAILABLE: '该档位暂不接受下单',

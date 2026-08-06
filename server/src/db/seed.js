@@ -24,6 +24,9 @@ const seed = async () => {
   const alice = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('alice')
   const bob = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('bob')
 
+  // T4 幂等修复：price_tiers 无唯一约束，先清空本 seed 画师已有档位，避免重复插入
+  db.prepare('DELETE FROM price_tiers WHERE artist_id IN (?, ?)').run(alice.id, bob.id)
+
   // 插入价格档位
   const tierStmt = db.prepare(`
     INSERT OR IGNORE INTO price_tiers (artist_id, name, price, description, work_days, sort_order)
