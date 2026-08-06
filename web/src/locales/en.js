@@ -796,7 +796,12 @@ export default {
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
   // #44: Preferences standalone page (split from Page Settings)
-  preferences: { title: 'Preferences' },
+  preferences: {
+    title: 'Preferences',
+    // F1 batch4: back-office font size tiers (accessibility)
+    fontSize: 'Back-office font size', fontSizeNormal: 'Standard', fontSizeLarge: 'Large', fontSizeXLarge: 'Extra large',
+    fontSizeHint: 'Applies immediately and persists across refreshes. Large = 15px, Extra large = 17px (default 14px)'
+  },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
     tabPrefs: 'Preferences', tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',

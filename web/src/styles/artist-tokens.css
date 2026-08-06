@@ -23,8 +23,9 @@ html[data-artist-theme="paper"] {
   --card: #fff;
   --ink: #262520;
   --ink2: #5A564B;
-  --ink3: #8D887A;
-  --ink4: #B3AE9F;
+  /* F2 批4: ink3/ink4 调深——实测对比度 ink3 on paper2 3.39→4.73:1 / on #FFF 3.54→4.94:1；ink4 on #FFF 2.22→4.23:1 */
+  --ink3: #757062;
+  --ink4: #807B6C;
   --line: #E7E4D9;
   --line2: #DAD6C8;
 
@@ -132,8 +133,9 @@ html[data-artist-theme="ink"] {
   --card: #22201A;
   --ink: #ECE8DC;
   --ink2: #B8B3A4;
-  --ink3: #87816F;
-  --ink4: #5E5A4C;
+  /* F2 批4: 暗色 ink3/ink4 调浅（深底浅字方向提亮）——ink3 on paper2 4.39→4.89:1；ink4 on card 2.36→3.15:1 */
+  --ink3: #8F8977;
+  --ink4: #726D5D;
   --line: #2F2D24;
   --line2: #3D3A2E;
 
@@ -248,4 +250,22 @@ html[data-artist-theme] .artist-scope .tl-bar,
 html[data-artist-theme] .artist-scope .cal-band,
 html[data-artist-theme] .artist-scope .queue-item {
   transition: none;
+}
+
+/* ═══ F1 批4: 后台字号档位（无障碍）═══
+   档位由 Preferences 页写入 localStorage `huiyue_admin_font_size`，
+   ArtistLayout 挂载时设置 document.documentElement.dataset.fontSize。
+   客户端路由 html 无 data-font-size 属性，以下规则不生效（零影响）。 */
+html[data-font-size='large'] .artist-layout { font-size: 15px; }
+html[data-font-size='xlarge'] .artist-layout { font-size: 17px; }
+/* EP 组件字号变量跟随档位（仅后台作用域）；EP 硬编码固定 px 的区域不受控，见交付报告 */
+html[data-artist-theme][data-font-size='large'] {
+  --el-font-size-base: 15px;
+  --el-font-size-small: 13px;
+  --el-font-size-large: 17px;
+}
+html[data-artist-theme][data-font-size='xlarge'] {
+  --el-font-size-base: 17px;
+  --el-font-size-small: 14px;
+  --el-font-size-large: 19px;
 }

@@ -63,7 +63,7 @@
           <template v-if="!collapsed">
             <div class="identity">
               <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar--img" alt="" />
-              <div v-else class="avatar">{{ avatarChar }}</div>
+              <div v-else class="avatar avatar--seal"><SealStamp text="绘" :animate="false" /></div>
               <div class="identity-info">
                 <span class="identity-name">{{ store.artistName }}</span>
                 <span class="identity-status">
@@ -104,7 +104,7 @@
                 </div>
               </template>
               <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar--img avatar--mini" alt="" />
-              <div v-else class="avatar avatar--mini">{{ avatarChar }}</div>
+              <div v-else class="avatar avatar--mini avatar--seal"><SealStamp text="绘" :animate="false" /></div>
             </el-tooltip>
             <div class="collapsed-tools">
               <ThemeToggle />
@@ -177,7 +177,7 @@
       <div class="drawer-footer">
         <div class="identity">
           <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar--img" alt="" />
-          <div v-else class="avatar">{{ avatarChar }}</div>
+          <div v-else class="avatar avatar--seal"><SealStamp text="绘" :animate="false" /></div>
           <div class="identity-info">
             <span class="identity-name">{{ store.artistName }}</span>
             <span class="identity-status">
@@ -206,6 +206,8 @@ import { setLocale } from '../i18n/index.js'
 import { artistApi } from '../api/index.js'
 import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
+// F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
+import SealStamp from './artist/visual/SealStamp.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -292,6 +294,7 @@ function onMobileChange(e) { isMobile.value = e.matches }
 onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
   mqMobile.addEventListener('change', onMobileChange)
+  applyFontSizeFromStorage()
   // #1: 侧边栏待审核留言角标（调一次 messages，失败静默——角标非关键路径）
   if (store.loggedIn) {
     artistApi.getMessages()
@@ -331,9 +334,15 @@ function toggleLang() {
 }
 
 // ─── 身份区 ───
-const avatarChar = computed(() => (store.artistName || '?')[0].toUpperCase())
-/** 画师上传头像优先显示，未设置时回退文字头像 */
+/** 画师上传头像优先显示，未设置时回退品牌印章（SealStamp，F5a 批4） */
 const avatarUrl = computed(() => store.profile?.avatar ? `/uploads/${store.profile.avatar}` : '')
+
+// ─── F1 批4: 后台字号档位（Preferences 页写入 localStorage，挂载时应用；刷新/重进后台保持） ───
+const FONT_SIZE_KEY = 'huiyue_admin_font_size'
+function applyFontSizeFromStorage() {
+  const size = localStorage.getItem(FONT_SIZE_KEY)
+  if (size === 'large' || size === 'xlarge') document.documentElement.dataset.fontSize = size
+}
 
 const statusClass = computed(() => {
   const s = store.profile?.status || 'open'
@@ -386,9 +395,10 @@ function logout() {
   transform: rotate(-4deg);
   box-shadow: 2px 2px 0 var(--sb-seal-shadow);
   flex: none;
-  transition: transform .3s cubic-bezier(.3, 1.5, .4, 1), background-color .35s;
+  /* F5a 批4: hover 微效收紧到 150ms 纪律，hover 时印章加深（可点 logo 感） */
+  transition: transform .15s cubic-bezier(.3, 1.5, .4, 1), background-color .15s;
 }
-.brand:hover .brand-seal { transform: rotate(4deg) scale(1.06); }
+.brand:hover .brand-seal { transform: rotate(4deg) scale(1.06); background-color: var(--zs-d); }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
 .brand-name {
   font-size: 19px; line-height: 1.2;
@@ -480,6 +490,15 @@ function logout() {
 .avatar--mini { cursor: pointer; transition: transform 0.15s; }
 .avatar--mini:hover { transform: scale(1.1); }
 .avatar--img { object-fit: cover; }
+/* F5a 批4: 未传头像兜底 = 品牌印章（SealStamp 默认 44px 过大，包一层适配 32px 头像格） */
+.avatar--seal { background: transparent; padding: 0; overflow: hidden; }
+.avatar--seal :deep(.v-seal.v-seal) {
+  min-width: 32px; width: 32px; height: 32px;
+  padding: 0;
+  font-size: 15px;
+  border-radius: 9px;
+  transform: rotate(-4deg);
+}
 .identity-tooltip { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .identity-tooltip-name { font-size: 13px; }
 .identity-info { display: flex; flex-direction: column; min-width: 0; }
@@ -498,7 +517,7 @@ function logout() {
 .dot-warning { background: var(--th); }
 .dot-danger { background: var(--zs); }
 .footer-actions { display: flex; align-items: center; justify-content: space-between; }
-.logout-btn { color: var(--sb-text-dim); font-size: 12px; }
+.logout-btn { color: var(--sb-text-dim); font-size: 12px; transition: color .15s, background-color .15s; }
 .logout-btn:hover { color: var(--sb-text-on); }
 
 /* ─── 顶栏（含主题切换按钮，REQ §三.1） ─── */
