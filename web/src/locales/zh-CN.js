@@ -265,7 +265,7 @@ export default {
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败', hidden: '该画师暂未开放主页',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
-    about: '关于', navPricing: '价格', navProcess: '流程', navWork: '作品',
+    about: '关于', navPricing: '价格', navProcess: '流程', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
     heroOpen: '接受约稿中', heroFull: '目前已排满', heroBreak: '休息中',
     startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
     ctaSubtitle: '期待与你一起创作出好作品。',

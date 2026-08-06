@@ -47,11 +47,11 @@
         <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
         <template v-if="styles.length">
           <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
-          <TplStyleGrid :styles="styles" :subdomain="subdomain" />
+          <TplStyleGrid :styles="styles" :subdomain="subdomain" :artist="artist" />
         </template>
         <template v-else-if="tiers.length">
           <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
-          <TplTierGrid :tiers="tiers" :subdomain="subdomain">
+          <TplTierGrid :tiers="tiers" :subdomain="subdomain" :artist="artist">
             <template #addons="{ tier }">
               <slot name="addons" :tier="tier"></slot>
             </template>
@@ -160,10 +160,14 @@ const { visible: ctaVisible } = useStickyCta(heroRef)
 const ctaRaised = inject('ctaRaised')
 watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 
-const navItems = computed(() => [
-  { id: 'gallery', label: t('artistHome.navWork') },
-  { id: 'pricing', label: t('artistHome.navPricing') }
-])
+const navItems = computed(() => {
+  const items = []
+  if (galleryArtworks.value.length) items.push({ id: 'gallery', label: t('artistHome.navWork') })
+  if (props.styles.length || props.tiers.length || props.workflowStages.length) items.push({ id: 'pricing', label: t('artistHome.navPricing') })
+  if (props.rules) items.push({ id: 'rules', label: t('artistHome.navRules') })
+  items.push({ id: 'guestbook', label: t('artistHome.navGuestbook') })
+  return items
+})
 
 function scrollTo(id) {
   menuOpen.value = false
@@ -210,63 +214,6 @@ onUnmounted(() => {
 /* F3: Hero wrapper — 公告内联于分屏左栏（左文字区底部，简介/按钮之下，首屏可见） */
 .folio-hero-wrap { position: relative; }
 
-/* v0.25 A: 封面精选 — folio：作品集编辑式，全宽薄边框 + 序号标注 + 锐利箭头 */
-.folio-covers {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 96px 32px 0;
-}
-.folio-covers-head {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  margin-bottom: 28px;
-  border-bottom: 1px solid var(--pal-border);
-  padding-bottom: 16px;
-}
-.folio-covers-count {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-primary);
-  letter-spacing: 0.1em;
-}
-.folio-cover-frame {
-  border: 1px solid var(--pal-border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.folio-cover-show {
-  height: 460px;
-}
-.folio-cover-show :deep(.el-carousel__arrow) {
-  background: transparent;
-  border: 1px solid var(--pal-border);
-  border-radius: 2px;
-  color: var(--pal-text);
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
-}
-.folio-cover-show :deep(.el-carousel__arrow:hover) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
-}
-.folio-cover-show :deep(.el-carousel__indicators--outside) { margin-top: 16px; }
-.folio-cover-show :deep(.el-carousel__indicator--horizontal .el-carousel__button) {
-  background: var(--pal-border);
-  border-radius: 0;
-  height: 3px;
-  width: 28px;
-  transition: background 0.25s, width 0.25s;
-}
-.folio-cover-show :deep(.el-carousel__indicator--horizontal.is-active .el-carousel__button) {
-  background: var(--color-primary);
-  width: 40px;
-}
-@media (max-width: 768px) {
-  .folio-covers { padding: 56px 16px 0; }
-  .folio-cover-show { height: 260px; }
-}
 .folio-announcement {
   position: absolute;
   /* TplHero--split: max-width 1100px + padding 32px，等宽双栏 + gap 48px → 左栏 x 起点与宽度 */

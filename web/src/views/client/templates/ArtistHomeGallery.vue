@@ -18,11 +18,11 @@
         <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
         <template v-if="styles.length">
           <p class="tpl-section-label gallery-label">{{ $t('artistHome.priceList') }}</p>
-          <TplStyleGrid :styles="styles" :subdomain="subdomain" />
+          <TplStyleGrid :styles="styles" :subdomain="subdomain" :artist="artist" />
         </template>
         <template v-else-if="tiers.length">
           <p class="tpl-section-label gallery-label">{{ $t('artistHome.priceList') }}</p>
-          <TplTierGrid :tiers="tiers" :subdomain="subdomain">
+          <TplTierGrid :tiers="tiers" :subdomain="subdomain" :artist="artist">
             <template #addons="{ tier }">
               <slot name="addons" :tier="tier"></slot>
             </template>
@@ -123,49 +123,6 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 /* F3: Hero wrapper (relative container for announcement overlay) */
 .gallery-hero-wrap { position: relative; }
 
-/* v0.25 A: 封面精选 — gallery：美术馆展墙式，直角细线框 + 展签标注，冷峻克制 */
-.gallery-covers {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 72px 24px 0;
-}
-.gallery-cover-frame {
-  border: 1px solid var(--pal-border);
-  padding: 10px;
-  background: var(--pal-surface);
-}
-.gallery-cover-show {
-  height: 420px;
-  overflow: hidden;
-}
-.gallery-cover-show :deep(.el-carousel__arrow) {
-  background: color-mix(in srgb, var(--pal-bg) 70%, transparent);
-  border: 1px solid var(--pal-border);
-  border-radius: 0;
-  color: var(--pal-text);
-  backdrop-filter: blur(6px);
-  transition: border-color 0.2s, color 0.2s;
-}
-.gallery-cover-show :deep(.el-carousel__arrow:hover) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--pal-bg) 85%, transparent);
-}
-.gallery-cover-show :deep(.el-carousel__indicators--outside) { margin-top: 12px; }
-.gallery-cover-show :deep(.el-carousel__indicator--horizontal .el-carousel__button) {
-  background: var(--pal-border);
-  border-radius: 0;
-  height: 2px;
-  width: 24px;
-  transition: background 0.25s;
-}
-.gallery-cover-show :deep(.el-carousel__indicator--horizontal.is-active .el-carousel__button) {
-  background: var(--color-primary);
-}
-@media (max-width: 768px) {
-  .gallery-covers { padding: 48px 16px 0; }
-  .gallery-cover-show { height: 260px; }
-}
 /* F3: Announcement — semi-transparent base + plaque-style typography (top-left, avoiding the plaque at bottom-left) */
 .gallery-announcement {
   position: absolute;
@@ -186,6 +143,16 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   color: var(--pal-text);
 }
 .gallery-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
+
+/* U2: 窄屏公告回到文档流（absolute 会与展签/CTA 重叠） */
+@media (max-width: 640px) {
+  .gallery-announcement {
+    position: relative;
+    top: auto; left: auto; right: auto; bottom: auto;
+    max-width: calc(100% - 32px);
+    margin: 12px auto;
+  }
+}
 
 .gallery-section {
   padding: 88px 24px;

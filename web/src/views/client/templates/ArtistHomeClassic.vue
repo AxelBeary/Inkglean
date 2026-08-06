@@ -47,11 +47,11 @@
           <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
           <template v-if="styles.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
-            <TplStyleGrid :styles="styles" :subdomain="subdomain" />
+            <TplStyleGrid :styles="styles" :subdomain="subdomain" :artist="artist" />
           </template>
           <template v-else-if="tiers.length">
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
-            <TplTierGrid :tiers="tiers" featured :subdomain="subdomain">
+            <TplTierGrid :tiers="tiers" featured :subdomain="subdomain" :artist="artist">
               <template #addons="{ tier }">
                 <slot name="addons" :tier="tier"></slot>
               </template>
@@ -127,40 +127,6 @@ useScrollReveal(rootEl)
   min-height: 100vh;
   background: var(--pal-bg);
   transition: background 0.3s;
-}
-
-/* v0.25 A: 封面精选 — classic：横幅下方暖色圆角展带，柔和阴影，亲切温暖 */
-.classic-covers {
-  max-width: 1080px;
-  margin: -28px auto 0;
-  padding: 0 24px;
-  position: relative;
-  z-index: 2;
-}
-.classic-cover-show {
-  height: 340px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--pal-border);
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--pal-text) 12%, transparent);
-}
-.classic-cover-show :deep(.el-carousel__indicators--outside) {
-  margin-top: 8px;
-}
-.classic-cover-show :deep(.el-carousel__indicator--horizontal .el-carousel__button) {
-  background: var(--pal-text-dim);
-  opacity: 0.35;
-  border-radius: 999px;
-  transition: opacity 0.2s, background 0.2s, width 0.2s;
-}
-.classic-cover-show :deep(.el-carousel__indicator--horizontal.is-active .el-carousel__button) {
-  background: var(--color-primary);
-  opacity: 1;
-  width: 22px;
-}
-@media (max-width: 860px) {
-  .classic-covers { padding: 0 16px; margin-top: -16px; }
-  .classic-cover-show { height: 220px; }
 }
 
 .classic-body {
