@@ -21,8 +21,8 @@ const seed = async () => {
   artistStmt.run('10001', 'Alice', 'alice', 'ALICE', '擅长日系头像和半身像', 'open', '10001')
   artistStmt.run('10002', 'Bob', 'bob', 'BOB', '专注全身插画和场景', 'full', '10002')
 
-  const alice = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('alice')
-  const bob = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('bob')
+  const alice = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('alice') as { id: number }
+  const bob = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('bob') as { id: number }
 
   // T4 幂等修复：price_tiers 无唯一约束，先清空本 seed 画师已有档位，避免重复插入
   db.prepare('DELETE FROM price_tiers WHERE artist_id IN (?, ?)').run(alice.id, bob.id)
@@ -60,8 +60,8 @@ const seed = async () => {
   // M-3 修复：为种子画师初始化工作流（从默认模板复制）
   const { seedArtistStages } = await import('../features/artist/workflow.service.js')
   for (const a of [alice, bob]) {
-    const wfCount = db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(a.id).c
-    if (wfCount === 0) seedArtistStages(a.id)
+    const wfCount = db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(a.id) as { c: number }
+    if (wfCount.c === 0) seedArtistStages(a.id)
   }
 
   // M-4 修复：用 REPLACE 确保 seed 的 admin_qq 生效（init.js 的 INSERT OR IGNORE 会先插入空值）

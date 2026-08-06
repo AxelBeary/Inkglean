@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import type { FastifyInstance, FastifyError } from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
@@ -9,12 +10,13 @@ import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
+import type { AppError } from './shared/errors.js'
 
 // ============================================
 // 应用工厂 - 构建 Fastify 实例
 // ============================================
 
-export async function buildApp(opts = {}) {
+export async function buildApp(opts: { logger?: boolean } = {}): Promise<FastifyInstance> {
   // trustProxy：Docker 部署时 Caddy 和 web 在不同容器，需信任 Docker 网段
   // 安全：默认只信任私有网段，防止攻击者伪造 X-Forwarded-For 绕过限流
   // 生产环境 Caddy 为唯一入口时可设 TRUST_PROXY=true
@@ -41,7 +43,7 @@ export async function buildApp(opts = {}) {
       if (!existsSync(UPLOAD_ROOT)) return
 
       // 安全检查：画师表为空 = 数据库异常（测试/损坏），跳过回收
-      const artistCount = db.prepare('SELECT COUNT(*) as c FROM artists').get().c
+      const artistCount = (db.prepare('SELECT COUNT(*) as c FROM artists').get() as { c: number }).c
       if (artistCount === 0) {
         app.log.warn('孤儿回收跳过：画师表为空（数据库可能异常）')
         return
@@ -66,7 +68,7 @@ export async function buildApp(opts = {}) {
       let recycled = 0, freed = 0
 
       const walk = (dir) => {
-        const files = []
+        const files: string[] = []
         for (const e of readdirSync(dir, { withFileTypes: true })) {
           // 跳过回收站目录，不参与 GC 扫描
           if (e.name === RECYCLE_BIN) continue
@@ -108,7 +110,7 @@ export async function buildApp(opts = {}) {
 
       if (recycled > 0) app.log.info(`孤儿文件回收: 移入回收站 ${recycled} 个，释放 ${(freed / 1024 / 1024).toFixed(1)} MB`)
     } catch (err) {
-      app.log.warn(`孤儿文件回收失败: ${err.message}`)
+      app.log.warn(`孤儿文件回收失败: ${(err as Error).message}`)
     }
   }
   gcUploads() // 启动时立即执行一次
@@ -171,7 +173,7 @@ export async function buildApp(opts = {}) {
     if (!request.url.startsWith('/uploads/')) return
     if (isPublicUploadPath(request.url)) return
 
-    const sig = request.query?.sig
+    const sig = (request.query as { sig?: string } | undefined)?.sig
     const filePath = decodeURIComponent(request.url.slice('/uploads/'.length).split('?')[0])
     const verified = verifyFileToken(sig)
     if (verified !== filePath) {
@@ -223,7 +225,7 @@ export async function buildApp(opts = {}) {
   // ─── 全局错误处理：结构化错误码 + 中文友好提示 ───
   // C-2 修复：必须在所有 app.register() 之前设置
   // Fastify 插件封装机制下，子作用域只继承注册时已存在的 error handler
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: FastifyError, request, reply) => {
     if (error.validation) {
       // Fastify JSON Schema 校验失败
       const field = error.validation[0]?.instancePath?.replace(/^\//, '') || '参数'
@@ -240,15 +242,17 @@ export async function buildApp(opts = {}) {
     const code = error.code || 'UNKNOWN'
     let message = ERROR_MESSAGES[code] || error.message || '请求错误'
     // 插值消息模板中的 {key} 占位符（detail 提供值，如 STAGES_RESET_BLOCKED 的 {count}）
-    if (error.detail && typeof error.detail === 'object' && typeof message === 'string') {
+    // detail 为 AppError 扩展属性（FastifyError 未声明），断言访问
+    const detail = (error as AppError).detail
+    if (detail && typeof detail === 'object' && typeof message === 'string') {
       message = message.replace(/\{([^}]+)\}/g, (raw, key) =>
-        Object.prototype.hasOwnProperty.call(error.detail, key) ? String(error.detail[key]) : raw
+        Object.prototype.hasOwnProperty.call(detail, key) ? String((detail as Record<string, unknown>)[key]) : raw
       )
     }
     reply.status(status).send({
       code,
       error: message,
-      detail: error.detail || undefined
+      detail: detail || undefined
     })
   })
 
