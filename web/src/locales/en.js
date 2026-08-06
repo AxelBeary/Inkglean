@@ -667,7 +667,10 @@ export default {
     customAddonNameRequired: 'Please enter a custom add-on name',
     customAddonPriceRequired: 'Please enter a custom add-on amount',
     customAddonMax: 'Up to 20 custom add-ons allowed',
-    selectSizeOrPrice: 'Select a style and size first, or enter a custom final price'
+    selectSizeOrPrice: 'Select a style and size first, or enter a custom final price',
+    // F6: manual order draft (localStorage + restore prompt)
+    draftFound: 'Found an unsaved manual order draft. Restore it?',
+    draftRestored: 'Draft restored'
   },
   tiers: {
     title: 'Pricing', addTier: '+ Add tier',
