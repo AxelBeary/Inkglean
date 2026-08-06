@@ -165,6 +165,7 @@ export default {
 
     // 作品（补充）
     ARTWORK_NOT_FOUND: '作品不存在',
+    COVER_LIMIT_REACHED: '封面最多 6 张，请先取消部分封面',
 
     // 档位三态（补充）
     TIER_NOT_AVAILABLE: '该档位暂不接受下单',
