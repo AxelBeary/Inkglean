@@ -54,6 +54,8 @@ export function cleanDb() {
     DELETE FROM addon_templates;
     DELETE FROM artists;
     DELETE FROM social_platforms;
+    DELETE FROM events;
+    DELETE FROM anon_tokens;
   `)
 }
 
