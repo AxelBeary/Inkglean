@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
 // 文件上传路由
@@ -134,7 +135,7 @@ async function saveDeliverable(data: MultipartFile, subDir: string, uploadDir: s
   return { filePath: filePath.split(sep).join('/'), absPath, size }
 }
 
-export default async function uploadRoutes(fastify: any, opts: any) {
+export default async function uploadRoutes(fastify: FastifyInstance, opts: { uploadDir?: string }) {
   const UPLOAD_DIR = opts.uploadDir || resolve(process.env.UPLOAD_DIR || './uploads')
 
   await fastify.register(import('@fastify/multipart'), {
@@ -145,7 +146,7 @@ export default async function uploadRoutes(fastify: any, opts: any) {
    * POST /api/upload/image — 作品图/档位示例图（需登录）
    * P0-B: 加限流（50次/10分钟，画师批量传图场景放宽；2026-08-07 用户反馈调高）
    */
-  fastify.post('/api/upload/image', { preHandler: requireAuth }, async (request: any, reply: any) => {
+  fastify.post('/api/upload/image', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!rateLimit(`upload-img:${request.ip}`, 50, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -171,8 +172,8 @@ export default async function uploadRoutes(fastify: any, opts: any) {
         size: result.size,
         typeWarning: typeCheck.recommended ? null : typeCheck.message
       }
-    } catch (err: any) {
-      return reply.code(400).send({ error: err.message })
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message })
     }
   })
 
@@ -180,7 +181,7 @@ export default async function uploadRoutes(fastify: any, opts: any) {
    * POST /api/upload/reference — 参考图（客户下单用，公开）
    * P0-B: 加限流（10次/10分钟，公开接口需更严格）
    */
-  fastify.post('/api/upload/reference', async (request: any, reply: any) => {
+  fastify.post('/api/upload/reference', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!rateLimit(`upload-ref:${request.ip}`, 10, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -206,8 +207,8 @@ export default async function uploadRoutes(fastify: any, opts: any) {
         size: result.size,
         typeWarning: typeCheck.recommended ? null : typeCheck.message
       }
-    } catch (err: any) {
-      return reply.code(400).send({ error: err.message })
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message })
     }
   })
 
@@ -215,7 +216,7 @@ export default async function uploadRoutes(fastify: any, opts: any) {
    * POST /api/upload/deliverable — 交付文件（需登录，允许更多格式）
    * P0-B: 加限流（30次/10分钟；2026-08-07 用户反馈画师多文件交付场景放宽）
    */
-  fastify.post('/api/upload/deliverable', { preHandler: requireAuth }, async (request: any, reply: any) => {
+  fastify.post('/api/upload/deliverable', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!rateLimit(`upload-deliver:${request.ip}`, 30, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -240,8 +241,8 @@ export default async function uploadRoutes(fastify: any, opts: any) {
         mimeType: data.mimetype,
         size: result.size
       }
-    } catch (err: any) {
-      return reply.code(400).send({ error: err.message })
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message })
     }
   })
 
@@ -250,7 +251,7 @@ export default async function uploadRoutes(fastify: any, opts: any) {
    * 存入 notes/{artistId}/ 目录，签名 URL 返回
    * 白名单：图片格式（同 references，JPG/PNG/WebP/GIF，10MB）
    */
-  fastify.post('/api/upload/note-image', { preHandler: requireAuth }, async (request: any, reply: any) => {
+  fastify.post('/api/upload/note-image', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!rateLimit(`upload-note:${request.ip}`, 20, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
@@ -274,8 +275,8 @@ export default async function uploadRoutes(fastify: any, opts: any) {
         mimeType: data.mimetype,
         size: result.size
       }
-    } catch (err: any) {
-      return reply.code(400).send({ error: err.message })
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message })
     }
   })
 }
