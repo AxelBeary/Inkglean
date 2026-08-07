@@ -252,6 +252,8 @@ export default {
     foodMenu: 'What to Eat',
     // REQ-031 A1: Income export (tools group menu item)
     toolsExport: 'Income Export',
+    // REQ-035 batch C: Standalone income (tools group menu item)
+    standaloneIncome: 'Standalone Income',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
   },
@@ -292,6 +294,37 @@ export default {
     incomeLoadFailed: 'Failed to load income overview',
     downloaded: 'Download started',
     failed: 'Export failed, please try again later'
+  },
+  // REQ-035 batch C: Standalone income ledger (tools page copy)
+  standaloneIncome: {
+    title: 'Standalone Income',
+    subtitle: 'Record one-off payments (deposits, final payments, rush fees) for easy reconciliation',
+    amountLabel: 'Amount (CNY)',
+    amountPlaceholder: 'e.g. 128.50',
+    dateLabel: 'Date',
+    datePlaceholder: 'Pick a date',
+    clientLabel: 'Client nickname (optional)',
+    clientPlaceholder: 'Client nickname for easy lookup',
+    noteLabel: 'Note (optional)',
+    notePlaceholder: 'Extra details, e.g. payment method or source',
+    addBtn: 'Add record',
+    adding: 'Saving…',
+    addSuccess: 'Record added',
+    addFailed: 'Failed to save, please try again',
+    listTitle: 'Records',
+    empty: 'No records yet — add your first one',
+    loadFailed: 'Failed to load records',
+    anonymous: 'Anonymous',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this record? This cannot be undone.',
+    deleteSuccess: 'Deleted',
+    deleteFailed: 'Failed to delete, please try again',
+    notFound: 'Record not found or already deleted',
+    amountRequired: 'Enter an amount',
+    amountPositive: 'Amount must be greater than 0',
+    clientTooLong: 'Client nickname must be 50 characters or fewer',
+    noteTooLong: 'Note must be 200 characters or fewer',
+    dateRequired: 'Pick a date'
   },
   // F3 quick actions (2026-08-07 user decision)
   quickAction: {
@@ -531,7 +564,7 @@ export default {
       dashboard_view: 'Dashboard views', queue_view: 'Queue views', orders_view: 'Order list views',
       manual_view: 'Manual entry', artworks_view: 'Artwork management', settings_view: 'Settings',
       tiers_view: 'Tiers', guestbook_view: 'Guestbook', preferences_view: 'Preferences',
-      dashboard_quick_click: 'Quick actions', artist_action: 'Artist actions'
+      dashboard_quick_click: 'Quick actions', artist_page_enter: 'Homepage views', artist_action: 'Artist actions'
     }
   },
   // v0.42 Step5: tracking three-state (admin switch: off / hidden / on)
@@ -811,7 +844,21 @@ export default {
       startDate: 'Failed to write start date: {message}',
       initialStatus: 'Failed to set initial stage: {message}',
       summary: 'Order {orderNo} was created, but {reason}. Please complete it in the order details.'
-    }
+    },
+    // REQ-035 §五 MVP-1: paste message parser
+    parseMessageTitle: 'Paste Message to Parse',
+    parseDialogTitle: 'Paste Message to Parse',
+    parsePlaceholder: 'Paste the client message — QQ number and hints are detected automatically…',
+    parseBtn: 'Parse',
+    parseQqLabel: 'Client QQ',
+    parseQqEmpty: 'Not detected (leave blank and fill in manually)',
+    parseAmountLabel: 'Amount hint',
+    parseAmountValue: '{amount} CNY',
+    parseDeadlineLabel: 'Deadline hint',
+    parseNone: 'None',
+    parseConfirmTip: 'Amount and deadline are hints only — never auto-filled. Please review before filling in.',
+    parseApply: 'Fill into form',
+    parseApplied: 'Filled into the form — please review before submitting'
   },
   tiers: {
     title: 'Pricing', addTier: '+ Add tier',
@@ -1132,6 +1179,13 @@ export default {
     greetingTab: 'Greetings',
     greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',
     greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.',
+    // v0.45 admin redesign: page subtitles / quick actions (previously misplaced under admin.tracking)
+    dashboardSubtitle: 'Platform overview — artists and orders at a glance',
+    quickActions: 'Quick actions',
+    artistManageSubtitle: 'Manage artist accounts, status and bindings',
+    artistActions: 'Artist actions',
+    platformManageSubtitle: 'Configure social platforms recognized on artist pages',
+    trackingSubtitle: 'Tracking events and artist-facing stats visibility',
     // Recycle bin (incident fix: orphaned files are recoverable)
     recycleBin: {
       title: 'Recycle Bin', empty: 'Empty bin',
@@ -1181,13 +1235,7 @@ export default {
       colName: 'Event', colCount: 'Count', colRatio: 'Ratio', colDay: 'Date',
       days7: 'Last 7 days', days14: 'Last 14 days', days30: 'Last 30 days', days90: 'Last 90 days',
       empty: 'No event data',
-      // v0.45 admin redesign (02-派工-管理后台重设计-20260807)
-      dashboardSubtitle: 'Platform overview — artists and orders at a glance',
-      quickActions: 'Quick actions',
-      artistManageSubtitle: 'Manage artist accounts, status and bindings',
-      artistActions: 'Artist actions',
-      platformManageSubtitle: 'Configure social platforms recognized on artist pages',
-      trackingSubtitle: 'Tracking events and artist-facing stats visibility'
+
     }
   }
 }

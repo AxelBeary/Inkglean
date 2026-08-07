@@ -173,7 +173,8 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
         typeWarning: typeCheck.recommended ? null : typeCheck.message
       }
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
@@ -208,7 +209,8 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
         typeWarning: typeCheck.recommended ? null : typeCheck.message
       }
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
@@ -242,7 +244,8 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
         size: result.size
       }
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
@@ -276,7 +279,8 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
         size: result.size
       }
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 }

@@ -207,7 +207,7 @@ import { useThemeStore } from '../stores/theme.js'
 import { setLocale } from '../i18n/index.js'
 import { trackEvent } from '../utils/track.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Download } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Download, Wallet } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
 import SealStamp from './artist/visual/SealStamp.vue'
@@ -273,6 +273,8 @@ const BASE_MENU_ITEMS = [
   { index: '/tools/food', icon: ForkSpoon, labelKey: 'menu.foodMenu', group: 'tools' },
   // REQ-031 A1: 收入导出 CSV（工具组）
   { index: '/tools/export', icon: Download, labelKey: 'menu.toolsExport', group: 'tools' },
+  // REQ-035 批C: 散单记账（工具组）
+  { index: '/tools/income', icon: Wallet, labelKey: 'menu.standaloneIncome', group: 'tools' },
   // R42b: 须知编辑合并进设置页，菜单项移除
   { index: '/stats', icon: TrendCharts, labelKey: 'menu.stats', group: 'front' },
   { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },
