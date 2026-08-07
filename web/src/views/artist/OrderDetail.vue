@@ -400,6 +400,14 @@
               >
                 {{ $t('orderDetail.publishArtwork') }}
               </el-button>
+              <!-- REQ-031 B1: 完稿分享（delivered；F2 域名校验复用 linkValidation） -->
+              <el-button
+                v-if="order.status === 'delivered'"
+                size="small" type="primary" plain
+                @click="openShareDialog"
+              >
+                {{ $t('orderDetail.shareBtn') }}
+              </el-button>
             </template>
           </CardHead>
         </template>
@@ -457,6 +465,37 @@
           @click="submitPublish"
         >
           {{ $t('orderDetail.publishSubmit') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- REQ-031 B1: 完稿分享弹窗（平台 + 文案模板；发布动作在第三方平台完成） -->
+    <el-dialog v-model="shareDialogVisible" :title="$t('orderDetail.shareDialogTitle')" width="520px">
+      <div v-loading="shareLoading">
+        <el-form label-position="top">
+          <el-form-item :label="$t('orderDetail.sharePlatformLabel')" required>
+            <el-select v-model="sharePlatformId" style="width: 100%">
+              <el-option v-for="p in sharePlatforms" :key="p.id" :value="p.id" :label="p.name" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="$t('orderDetail.shareTextLabel')">
+            <el-input
+              v-model="shareText"
+              type="textarea" :rows="5"
+              maxlength="500" show-word-limit
+              :placeholder="$t('orderDetail.shareTextPlaceholder')"
+            />
+            <div class="share-placeholders">{{ $t('orderDetail.sharePlaceholders') }}: {orderNo} {homepage}</div>
+          </el-form-item>
+        </el-form>
+        <el-alert v-if="shareNoHomepage" type="warning" :closable="false" show-icon class="share-alert">
+          {{ $t('orderDetail.shareNoHomepage') }}
+        </el-alert>
+      </div>
+      <template #footer>
+        <el-button @click="shareDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!sharePlatformId" :loading="shareOpening" @click="doShare">
+          {{ $t('orderDetail.shareOpenBtn') }}
         </el-button>
       </template>
     </el-dialog>
@@ -566,7 +605,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { artistApi, uploadApi } from '../../api/index.js'
+import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -584,6 +623,8 @@ import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useActivityLog } from '../../composables/useActivityLog.js'
 import { formatDateTime } from '../../utils/datetime.js'
+// REQ-031 B1: F2 外链校验复用（域名防投毒，前端=后端子集的弱化版）
+import { validateLink, matchDomain } from '../../utils/linkValidation.js'
 import { formatCents } from '../../utils/money.js'
 import { trackEvent } from '../../utils/track.js'
 // v0.40 瘦身批：script 4 区块抽 composable（零行为变化）
@@ -968,6 +1009,102 @@ function isPublishableImage(d) {
   return PUBLISH_IMAGE_EXTS.includes(name.slice(dot).toLowerCase())
 }
 
+// ─── REQ-031 B1: 完稿分享（delivered；文案模板 localStorage 持久化） ───
+const shareDialogVisible = ref(false)
+const shareLoading = ref(false)
+const shareOpening = ref(false)
+const sharePlatforms = ref([])
+const sharePlatformId = ref(null)
+const shareText = ref('')
+const shareNoHomepage = ref(false)
+const shareProfile = ref(null)
+const SHARE_TEMPLATE_KEY = 'huiyue_share_template'
+
+// 平台发布 intent URL（支持文案预填；B 站等无公开预填发布 URL → 复制文案方案）
+const SHARE_INTENT_URLS = [
+  { domain: 'weibo.com', intent: 'https://weibo.com/intent/post' }
+]
+function shareIntentUrl(platform) {
+  const hit = SHARE_INTENT_URLS.find(s => matchDomain(platform?.hostname || '', [s.domain]))
+  return hit ? hit.intent : null
+}
+
+function defaultShareText() {
+  return t('orderDetail.shareTemplate')
+}
+
+async function openShareDialog() {
+  shareDialogVisible.value = true
+  shareLoading.value = true
+  shareNoHomepage.value = false
+  try {
+    const [plats, profile] = await Promise.all([
+      artistPublicApi.getPlatforms(),
+      artistApi.getProfile()
+    ])
+    sharePlatforms.value = Array.isArray(plats) ? plats : []
+    shareProfile.value = profile || null
+    shareText.value = localStorage.getItem(SHARE_TEMPLATE_KEY) || defaultShareText()
+    sharePlatformId.value = sharePlatforms.value[0]?.id ?? null
+  } catch {
+    sharePlatforms.value = []
+    shareProfile.value = null
+  } finally {
+    shareLoading.value = false
+  }
+}
+
+/** 画师在所选平台的主页链接（validateLink 校验通过才返回——F2 防投毒） */
+function currentHomepage() {
+  const p = sharePlatforms.value.find(x => x.id === sharePlatformId.value)
+  if (!p) return null
+  const links = shareProfile.value?.customLinks || []
+  for (const l of links) {
+    const url = typeof l === 'string' ? l : l.url
+    if (!url) continue
+    const chk = validateLink(url, sharePlatforms.value)
+    if (chk.ok && chk.platformId === p.id) return chk.url
+  }
+  return null
+}
+
+async function doShare() {
+  const p = sharePlatforms.value.find(x => x.id === sharePlatformId.value)
+  if (!p || shareOpening.value) return
+  const homepage = currentHomepage()
+  if (shareText.value.includes('{homepage}') && !homepage) {
+    shareNoHomepage.value = true
+    return
+  }
+  const text = shareText.value
+    .replace('{orderNo}', order.value?.order_no || '')
+    .replace('{homepage}', homepage || '')
+  // 模板持久化（下次打开沿用）
+  localStorage.setItem(SHARE_TEMPLATE_KEY, shareText.value)
+  shareOpening.value = true
+  try {
+    const intent = shareIntentUrl(p)
+    if (intent) {
+      // 支持文案预填：直接打开第三方发布页
+      window.open(`${intent}?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+      ElMessage.success(t('orderDetail.shareOpened'))
+    } else {
+      // 无预填机制：复制文案 + 打开平台发布主页，用户手动粘贴
+      try {
+        await navigator.clipboard.writeText(text)
+        ElMessage.success(t('orderDetail.shareCopied'))
+      } catch {
+        ElMessage.warning(text)
+      }
+      if (homepage) window.open(homepage, '_blank', 'noopener')
+      else if (p?.hostname) window.open(`https://${p.hostname}`, '_blank', 'noopener')
+    }
+    shareDialogVisible.value = false
+  } finally {
+    shareOpening.value = false
+  }
+}
+
 function openPublishDialog() {
   // 默认全选图片交付物（非图片置灰不可勾）
   publishForm.deliverableIds = (order.value?.deliverables || []).filter(isPublishableImage).map(d => d.id)
@@ -1303,6 +1440,10 @@ onMounted(() => {
   font-size: calc(var(--font-scale, 1) * 14px); line-height: 1.7; color: var(--ink);
   white-space: pre-wrap; word-break: break-word;
 }
+/* ─── REQ-031 B1: 完稿分享 ─── */
+.share-placeholders { margin-top: 6px; font-size: 12px; color: var(--ink3, #888); }
+.share-alert { margin-top: 4px; }
+
 .comm-copy-btn { align-self: flex-start; }
 
 </style>

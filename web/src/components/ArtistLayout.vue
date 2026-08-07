@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- v0.38: 画师后台骨架重做（REQ-026 §三.1）——纸墨 token 体系
        功能清单不丢：折叠（手动+窄屏自动）、三组导航、留言角标、身份区、登出、移动端抽屉、主题切换、语言切换
        artist-scope 类 = token 作用域标记（artist-tokens.css 过渡规则） -->
@@ -207,7 +207,7 @@ import { useThemeStore } from '../stores/theme.js'
 import { setLocale } from '../i18n/index.js'
 import { trackEvent } from '../utils/track.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Download } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
 import SealStamp from './artist/visual/SealStamp.vue'
@@ -269,6 +269,8 @@ const BASE_MENU_ITEMS = [
   { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true, group: 'biz' },
   // REQ-035 批D: 今天吃什么（工具组）
   { index: '/tools/food', icon: ForkSpoon, labelKey: 'menu.foodMenu', group: 'tools' },
+  // REQ-031 A1: 收入导出 CSV（工具组）
+  { index: '/tools/export', icon: Download, labelKey: 'menu.toolsExport', group: 'tools' },
   // R42b: 须知编辑合并进设置页，菜单项移除
   { index: '/stats', icon: TrendCharts, labelKey: 'menu.stats', group: 'front' },
   { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },

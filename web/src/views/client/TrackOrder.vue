@@ -60,7 +60,12 @@
         <el-descriptions :column="1" border>
           <el-descriptions-item :label="$t('track.artist')">{{ order.artistName }}</el-descriptions-item>
           <el-descriptions-item :label="$t('track.type')">{{ order.tierName || $t('common.custom') }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('track.orderTime')">{{ formatDate(order.createdAt) }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('track.orderTime')">
+            <div class="time-cell">
+              <div>{{ formatBeijing(order.createdAt) }}<span class="tz-tag">{{ $t('track.tzBeijing') }}</span></div>
+              <div v-if="localTz !== 'Asia/Shanghai'" class="tz-local">{{ formatDate(order.createdAt) }}<span class="tz-tag tz-tag--local">{{ $t('track.tzLocal') }}</span></div>
+            </div>
+          </el-descriptions-item>
         </el-descriptions>
 
         <!-- 排队位置 -->
@@ -156,7 +161,16 @@
           </div>
         </div>
 
-        <el-button style="margin-top: 16px" @click="resetSearch">{{ $t('track.otherOrder') }}</el-button>
+        <div class="receipt-actions">
+          <el-button
+            v-if="order.status === 'delivered'"
+            size="small" type="primary" plain
+            @click="showReceipt = true"
+          >
+            {{ $t('track.receiptBtn') }}
+          </el-button>
+          <el-button style="margin-top: 16px" @click="resetSearch">{{ $t('track.otherOrder') }}</el-button>
+        </div>
       </el-card>
 
       <!-- 不记得订单号 → 联系引导弹窗 -->
@@ -177,6 +191,30 @@
               <el-button size="small" @click="copyText(contactInfo.adminQq)">{{ $t('track.copyQq') }}</el-button>
             </div>
           </div>
+        </div>
+      </el-dialog>
+
+      <!-- REQ-031 A2: 收据（delivered 只读凭证，只呈现事实流水） -->
+      <el-dialog v-model="showReceipt" :title="$t('track.receiptTitle')" width="440px">
+        <div class="receipt" v-if="order">
+          <div class="receipt-head">
+            <span class="receipt-brand font-display">HUIYUE</span>
+            <span class="receipt-sub">{{ $t('track.receiptSub') }}</span>
+          </div>
+          <div class="receipt-row"><span>{{ $t('track.receiptOrderNo') }}</span><strong>{{ order.orderNo }}</strong></div>
+          <div class="receipt-row"><span>{{ $t('track.receiptArtist') }}</span><strong>{{ order.artistName }}</strong></div>
+          <div v-if="order.installments?.length" class="receipt-section">
+            <div class="receipt-section-title">{{ $t('track.receiptItems') }}</div>
+            <div v-for="inst in order.installments" :key="inst.id" class="receipt-item">
+              <span class="receipt-item-name">{{ inst.name }}</span>
+              <span class="receipt-item-amount">¥{{ formatCents(inst.amountCents) }}</span>
+            </div>
+          </div>
+          <div class="receipt-divider"></div>
+          <div class="receipt-row receipt-total"><span>{{ $t('track.receiptTotal') }}</span><strong>¥{{ formatCents(order.finalPriceCents || 0) }}</strong></div>
+          <div class="receipt-row"><span>{{ $t('track.receiptPaid') }}</span><strong>¥{{ formatCents(order.paidTotalCents || 0) }}</strong></div>
+          <div class="receipt-row"><span>{{ $t('track.receiptRemaining') }}</span><strong>¥{{ formatCents(trackRemainingCents) }}</strong></div>
+          <p class="receipt-note">{{ $t('track.receiptNote') }}</p>
         </div>
       </el-dialog>
 
@@ -230,6 +268,24 @@ const showMyOrders = ref(false)
 // 联系引导弹窗
 const showContact = ref(false)
 const contactInfo = ref({ contactQq: '', adminQq: '', artistName: '' })
+
+// REQ-031 A2: 收据弹窗开关（delivered 只读凭证）
+const showReceipt = ref(false)
+
+// REQ-031 C4: 客户端时区（Intl 天然处理夏令时）
+const localTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || ''
+/** 北京时间格式化（后端存 UTC，需显式指定 timeZone=Asia/Shanghai） */
+function formatBeijing(str) {
+  if (!str) return ''
+  const normalized = str.includes('T') ? str : str.replace(' ', 'T') + 'Z'
+  const date = new Date(normalized)
+  if (isNaN(date.getTime())) return str
+  return date.toLocaleString(undefined, {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
 
 // 无订单弹窗（3秒倒计时）
 const showNoOrders = ref(false)
@@ -478,6 +534,41 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
   color: var(--text-primary); white-space: pre-wrap; word-break: break-word;
 }
 .brief-refs { display: flex; flex-wrap: wrap; gap: 8px; }
+/* ─── REQ-031 C4: 时区双行 ─── */
+.time-cell { display: flex; flex-direction: column; gap: 3px; }
+.tz-tag {
+  margin-left: 6px; padding: 1px 6px; border-radius: 4px;
+  font-size: 11px; color: var(--text-secondary);
+  background: var(--el-fill-color-light);
+}
+.tz-local { color: var(--text-secondary); font-size: 12px; }
+
+/* ─── REQ-031 A2: 收据 ─── */
+.receipt-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.receipt { padding: 4px 2px; }
+.receipt-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;
+}
+.receipt-brand { font-size: 18px; font-weight: 700; color: var(--text-primary); letter-spacing: .04em; }
+.receipt-sub { font-size: 12px; color: var(--text-secondary); }
+.receipt-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: 13px; color: var(--text-secondary);
+}
+.receipt-row strong { color: var(--text-primary); font-size: 14px; }
+.receipt-total { border-top: 1px dashed var(--border-color); margin-top: 4px; }
+.receipt-total strong { font-size: 18px; }
+.receipt-section { margin-top: 8px; }
+.receipt-section-title { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.receipt-item {
+  display: flex; justify-content: space-between; padding: 5px 0;
+  font-size: 13px; color: var(--text-primary);
+}
+.receipt-item-amount { font-variant-numeric: tabular-nums; }
+.receipt-divider { border-top: 1px solid var(--border-color); margin: 6px 0 2px; }
+.receipt-note { margin-top: 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+
 .brief-ref-img {
   width: 80px; height: 80px; object-fit: cover; border-radius: 8px;
   border: 1px solid var(--border-color); background: var(--bg-page);

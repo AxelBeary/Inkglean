@@ -1,4 +1,4 @@
-export default {
+﻿export default {
   errors: {
     // 认证
     NOT_LOGGED_IN: '未登录',
@@ -250,6 +250,8 @@ export default {
     langToEn: 'English', langToZh: '中文', langAriaToEn: 'Switch to English', langAriaToZh: '切换到中文',
     // REQ-035 批D: 今天吃什么（工具组菜单项）
     foodMenu: '今天吃什么',
+    // REQ-031 A1: 收入导出（工具组菜单项）
+    toolsExport: '收入导出',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
   },
@@ -267,6 +269,19 @@ export default {
     again: '换一个',
     disclaimer: '本推荐仅供参考，具体饮食请遵医嘱。',
     emptyHint: '点上方「随机推荐」按钮，看看今天吃什么'
+  },
+  // REQ-031 A1: 收入导出 CSV（工具页文案）
+  toolsExport: {
+    title: '收入导出',
+    subtitle: '按时间段导出收款流水（含退款负项），用于对账与报税',
+    rangeLabel: '时间段',
+    startPlaceholder: '开始日期',
+    endPlaceholder: '结束日期',
+    exportBtn: '导出 CSV',
+    emptyHint: '该时间段无收款记录',
+    note: '导出的 CSV 包含：日期、客户、金额（分）、类型（订单收款/散单收入）、订单号。数据与后端一致，不包含画师私有备注。',
+    downloaded: '已开始下载',
+    failed: '导出失败，请稍后重试'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {
@@ -413,7 +428,21 @@ export default {
       revisionAt: '已回退到「{name}」',
       notStarted: '订单已提交，等待画师确认后进入制作流程',
       orderedAt: '下单时间：'
-    }
+    },
+    // REQ-031 C4: 时区显示
+    tzBeijing: '北京时间',
+    tzLocal: '你的当地时间',
+    // REQ-031 A2: 订单收据
+    receiptBtn: '收据',
+    receiptTitle: '订单收据',
+    receiptSub: '交付完成 · 只读凭证',
+    receiptOrderNo: '订单号',
+    receiptArtist: '画师',
+    receiptItems: '付款节点',
+    receiptTotal: '合计金额',
+    receiptPaid: '已付',
+    receiptRemaining: '待付',
+    receiptNote: '本收据仅展示订单与付款节点信息；逐笔实收流水明细待后端开放客户可见字段后补充。'
   },
   // F4: 留言板（客户端留言墙，共享组件 TplGuestbook）
   guestbook: {
@@ -700,7 +729,19 @@ export default {
       paymentAdd: '收款 ¥{amount}', paymentRevoke: '撤销收款 ¥{amount}',
       stageAdvance: '推进到「{name}」', stageRollback: '「{from}」打回「{to}」',
       noteAdd: '添加备注', noteDelete: '删除备注'
-    }
+    },
+    // REQ-031 B1: 完稿分享
+    shareBtn: '分享',
+    shareDialogTitle: '分享完稿',
+    sharePlatformLabel: '发布平台',
+    shareTextLabel: '分享文案',
+    shareTextPlaceholder: '写点想说的话（可含占位符）',
+    sharePlaceholders: '可用占位符',
+    shareTemplate: '今日份新图！订单 {orderNo} 完成交付~ 欢迎围观 🎉 主页：{homepage}',
+    shareOpenBtn: '打开发布页',
+    shareOpened: '已在新窗口打开发布页',
+    shareCopied: '文案已复制，请在发布页粘贴',
+    shareNoHomepage: '文案包含 {homepage}，但未找到该平台主页链接——请先在「主页设置」添加对应平台的链接',
   },
   manualOrder: {
     title: '手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',

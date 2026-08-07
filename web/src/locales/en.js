@@ -250,6 +250,8 @@ export default {
     langToEn: 'English', langToZh: 'Chinese', langAriaToEn: 'Switch to English', langAriaToZh: 'Switch to Chinese',
     // REQ-035 batch D: What-to-eat tool page menu item
     foodMenu: 'What to Eat',
+    // REQ-031 A1: Income export (tools group menu item)
+    toolsExport: 'Income Export',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
   },
@@ -267,6 +269,19 @@ export default {
     again: 'Another one',
     disclaimer: 'For reference only. Please consult your doctor for specific dietary advice.',
     emptyHint: 'Click "Random pick" to see what to eat today'
+  },
+  // REQ-031 A1: Income export CSV (tools page copy)
+  toolsExport: {
+    title: 'Income Export',
+    subtitle: 'Export payment records (including refunds) by date range for reconciliation and tax filing',
+    rangeLabel: 'Date Range',
+    startPlaceholder: 'Start date',
+    endPlaceholder: 'End date',
+    exportBtn: 'Export CSV',
+    emptyHint: 'No payment records in this period',
+    note: 'The exported CSV includes: date, client, amount (cents), type (order payment / standalone income), order id. Data matches the backend and never includes private artist notes.',
+    downloaded: 'Download started',
+    failed: 'Export failed, please try again later'
   },
   // F3 quick actions (2026-08-07 user decision)
   quickAction: {
@@ -413,8 +428,23 @@ export default {
       revisionAt: 'Rolled back to “{name}”',
       notStarted: 'Order submitted — production starts once the artist confirms',
       orderedAt: 'Ordered: '
-    }
+    },
+    // REQ-031 C4: timezone display
+    tzBeijing: 'Beijing Time',
+    tzLocal: 'Your Local Time',
+    // REQ-031 A2: order receipt
+    receiptBtn: 'Receipt',
+    receiptTitle: 'Order Receipt',
+    receiptSub: 'Delivered · Read-only receipt',
+    receiptOrderNo: 'Order No.',
+    receiptArtist: 'Artist',
+    receiptItems: 'Payment Nodes',
+    receiptTotal: 'Total',
+    receiptPaid: 'Paid',
+    receiptRemaining: 'Remaining',
+    receiptNote: 'This receipt shows order and payment-node info only; per-payment records will be added once the backend exposes customer-visible fields.'
   },
+
   // F4: guestbook (client-facing message wall, shared component TplGuestbook)
   guestbook: {
     title: 'Guestbook',
@@ -700,7 +730,19 @@ export default {
       paymentAdd: 'Received ¥{amount}', paymentRevoke: 'Revoked ¥{amount}',
       stageAdvance: 'Advanced to "{name}"', stageRollback: 'Rolled back from "{from}" to "{to}"',
       noteAdd: 'Added a note', noteDelete: 'Deleted a note'
-    }
+    },
+    // REQ-031 B1: finish share
+    shareBtn: 'Share',
+    shareDialogTitle: 'Share Artwork',
+    sharePlatformLabel: 'Platform',
+    shareTextLabel: 'Share Text',
+    shareTextPlaceholder: 'Write something (placeholders allowed)',
+    sharePlaceholders: 'Available placeholders',
+    shareTemplate: 'New art just dropped! Order {orderNo} delivered~ Come check it out 🎉 Homepage: {homepage}',
+    shareOpenBtn: 'Open Publish Page',
+    shareOpened: 'Publish page opened in a new tab',
+    shareCopied: 'Text copied — paste it on the publish page',
+    shareNoHomepage: 'Text contains {homepage} but no homepage link for this platform was found — add one in Page Settings first',
   },
   manualOrder: {
     title: 'Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
