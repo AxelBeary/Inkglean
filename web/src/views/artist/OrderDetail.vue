@@ -179,65 +179,21 @@
         </div>
       </el-card>
 
-      <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点） -->
-      <el-card class="od-card">
-        <template #header>
-          <CardHead :title="$t('orderDetail.gallery')">
-            <template #extra>
-              <span class="gallery-count">{{ order.references?.length || 0 }} / 20</span>
-            </template>
-          </CardHead>
-        </template>
-        <div class="ref-grid">
-          <div
-            v-for="(reference, index) in order.references" :key="reference.id"
-            class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
-          >
-            <div class="ref-img-wrap" @click="openGalleryViewer(index)">
-              <!-- R43: placeholder 骨架屏防首屏白闪 -->
-              <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="refreshNow">
-                <template #placeholder>
-                  <div class="ref-img-skeleton"></div>
-                </template>
-              </el-image>
-              <!-- R18: 来源角标（客户/画师） -->
-              <span class="ref-source-badge" :class="`ref-source-badge--${reference.source || 'client'}`">
-                {{ reference.source === 'artist' ? $t('orderDetail.sourceArtist') : $t('orderDetail.sourceClient') }}
-              </span>
-              <!-- R44: 悬停操作组——✓设焦点（C56 手机端常驻）+ 删除；预览按钮已移除（单击图片即预览） -->
-              <span class="ref-hover-actions">
-                <el-button size="small" circle :title="$t('orderDetail.setFocus')" @click.stop="selectFocusImage(reference)">✓</el-button>
-                <el-button size="small" circle type="danger" :title="$t('orderDetail.deleteRef')" @click.stop="deleteReference(reference)">✕</el-button>
-              </span>
-              <!-- 焦点指示 -->
-              <span v-if="order.focus_image_path === reference.file_path" class="ref-focus-indicator">✓</span>
-            </div>
-          </div>
-
-          <!-- R18: 上传入口（拖拽/点击/Ctrl+V） -->
-          <div
-            class="ref-upload-tile"
-            :class="{ 'ref-upload-tile--active': isGalleryDragOver }"
-            @dragenter.capture="guardDragEnter"
-            @dragover.capture="guardDragOver"
-            @dragover.prevent="isGalleryDragOver = true"
-            @dragleave="isGalleryDragOver = false"
-            @drop.prevent="handleGalleryDrop"
-            @click="triggerGalleryUpload"
-          >
-            <el-icon :size="24"><Plus /></el-icon>
-            <span class="ref-upload-text">{{ $t('orderDetail.galleryUpload') }}</span>
-          </div>
-          <input
-            ref="galleryInputEl" type="file" accept="image/*" multiple hidden
-            @change="handleGalleryFileSelect"
-          />
-        </div>
-        <p v-if="!order.references?.length" class="no-refs">{{ $t('orderDetail.noReferences') }}</p>
-        <p v-if="galleryUploading" class="upload-status">{{ $t('orderDetail.uploading') }}</p>
-        <p v-if="pasteError" class="upload-error">{{ pasteError }}</p>
-        <p class="focus-hint">{{ $t('orderDetail.galleryHint') }}</p>
-      </el-card>
+      <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点；卡内容已拆 GalleryPanel，v0.40 拆分） -->
+      <GalleryPanel
+        :order="order"
+        :gallery-uploading="galleryUploading"
+        v-model:is-gallery-drag-over="isGalleryDragOver"
+        :paste-error="pasteError"
+        @open-viewer="openGalleryViewer"
+        @refresh="refreshNow"
+        @select-focus="selectFocusImage"
+        @delete="deleteReference"
+        @dragenter="guardDragEnter"
+        @dragover="guardDragOver"
+        @drop="handleGalleryDrop"
+        @file-select="handleGalleryFileSelect"
+      />
 
       <!-- R40: 活动时间线（系统备注 + 画师备注按 created_at 混排，方案A 纯前端；R46 悬停删除） -->
       <el-card class="od-card">
@@ -415,77 +371,21 @@
         </div>
       </el-card>
 
-      <!-- B7: 额度池收款记录 -->
-      <el-card class="od-card">
-        <template #header>
-          <CardHead :title="$t('orderDetail.payTitle')">
-            <template #extra>
-              <el-button type="primary" size="small" @click="payDialogVisible = true">{{ $t('orderDetail.payAddBtn') }}</el-button>
-            </template>
-          </CardHead>
-        </template>
-        <div v-loading="paymentsLoading">
-          <!-- 已收 / 应收 / 待收 + 进度条 -->
-          <div class="pool-summary">
-            <div class="pool-nums">
-              <span>{{ $t('orderDetail.payPaid') }} <strong>¥{{ formatCents(poolPaidCents) }}</strong></span>
-              <span>/ {{ $t('orderDetail.payFinal') }} <strong>¥{{ formatCents(poolFinalCents) }}</strong></span>
-              <!-- P2: 多收时以"多收 ¥X"替代"待收 ¥0" -->
-              <span class="pool-remaining" :class="{ 'pool-overpaid': poolOverpaidCents > 0 }">
-                {{ poolOverpaidCents > 0 ? $t('orderDetail.payOverpaid') : $t('orderDetail.payRemaining') }}
-                <strong>¥{{ formatCents(poolOverpaidCents > 0 ? poolOverpaidCents : poolRemainingCents) }}</strong>
-              </span>
-            </div>
-            <el-progress :percentage="poolPercent" :stroke-width="12" :color="poolPercent >= 100 ? 'var(--sl)' : 'var(--hq)'" style="margin-top: 8px" />
-          </div>
-
-          <!-- 收款流水 -->
-          <div class="pool-flow" v-if="payments.length">
-            <h4 class="pool-flow-title">{{ $t('orderDetail.payFlowTitle') }}</h4>
-            <div v-for="p in payments" :key="p.id" class="pool-flow-row">
-              <span class="pool-flow-date">{{ formatDate(p.created_at) }}</span>
-              <span class="pool-flow-amount" :class="p.amount_cents < 0 ? 'is-negative' : 'is-positive'">
-                {{ p.amount_cents < 0 ? '-' : '+' }}¥{{ formatCents(Math.abs(p.amount_cents)) }}
-              </span>
-              <span class="pool-flow-note">{{ p.note || '' }}</span>
-              <el-button
-                v-if="p.amount_cents > 0"
-                text size="small" type="danger"
-                @click="handleRevokePayment(p)"
-              >
-                {{ $t('orderDetail.payRevoke') }}
-              </el-button>
-            </div>
-          </div>
-          <InkEmpty v-else-if="!paymentsLoading" :title="$t('orderDetail.payEmpty')" />
-
-          <!-- v0.31 F4: 节点收款（每节点已收/应收/差额 + 快捷收款） -->
-          <div class="pool-ref" v-if="installmentRefs.length">
-            <h4 class="pool-ref-title">{{ $t('orderDetail.payRefTitle') }}</h4>
-            <div v-for="inst in installmentRefs" :key="inst.id" class="pool-ref-row pool-ref-row--v2">
-              <span class="pool-ref-icon">{{ inst.status === 'paid' ? '✓' : inst.status === 'partial' ? '◐' : '○' }}</span>
-              <span class="pool-ref-name">{{ inst.name }}</span>
-              <span class="pool-ref-amounts">
-                <span class="pool-ref-paid">{{ $t('orderDetail.payNodePaid') }} ¥{{ formatCents(inst.paidCents) }}</span>
-                <span class="pool-ref-sep">/</span>
-                <span>{{ $t('orderDetail.payNodeDue') }} ¥{{ formatCents(inst.amountCents) }}</span>
-                <span v-if="inst.remainingCents > 0" class="pool-ref-remain">（{{ $t('orderDetail.payNodeRemain') }} ¥{{ formatCents(inst.remainingCents) }}）</span>
-              </span>
-              <el-tag v-if="inst.status === 'paid'" type="success" size="small">{{ $t('orderDetail.payRefPaid') }}</el-tag>
-              <el-tag v-else-if="inst.status === 'partial'" type="warning" size="small">{{ $t('orderDetail.payRefPartial', { amount: `¥${formatCents(inst.paidCents)}` }) }}</el-tag>
-              <el-tag v-else type="info" size="small">{{ $t('orderDetail.payRefPending') }}</el-tag>
-              <!-- 快捷收款（非终态 + 有差额时显示） -->
-              <el-button
-                v-if="!isTerminal && inst.remainingCents > 0"
-                size="small" type="primary" plain
-                @click="openNodePayDialog(inst)"
-              >
-                {{ $t('orderDetail.payNodeCollect') }}
-              </el-button>
-            </div>
-          </div>
-        </div>
-      </el-card>
+      <!-- B7: 额度池收款记录（卡内容已拆 PaymentPanel，v0.40 拆分） -->
+      <PaymentPanel
+        :payments="payments"
+        :payments-loading="paymentsLoading"
+        :pool-paid-cents="poolPaidCents"
+        :pool-final-cents="poolFinalCents"
+        :pool-remaining-cents="poolRemainingCents"
+        :pool-overpaid-cents="poolOverpaidCents"
+        :pool-percent="poolPercent"
+        :installment-refs="installmentRefs"
+        :is-terminal="isTerminal"
+        @open-pay="payDialogVisible = true"
+        @revoke="handleRevokePayment"
+        @collect="openNodePayDialog"
+      />
 
       <!-- 交付文件 -->
       <el-card class="od-card" v-if="order.deliverables?.length">
@@ -668,11 +568,13 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Picture } from '@element-plus/icons-vue'
+import { Picture } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
+import PaymentPanel from '../../components/artist/order/PaymentPanel.vue'
+import GalleryPanel from '../../components/artist/order/GalleryPanel.vue'
 // v0.38: 统一视觉组件（REQ-026 §二）
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'
@@ -748,8 +650,8 @@ const { hasWorkflow, isTerminal, workflowStages, currentStageIdx, stageProgress,
   trackOnLoading, enableTracking, loadWorkflowStages } =
   useOrderWorkflow({ order, routeId: route.params.id, statusAction })
 const {
-  galleryInputEl, galleryUploading, isGalleryDragOver, galleryViewerVisible, galleryViewerIndex,
-  openGalleryViewer, triggerGalleryUpload, handleGalleryFileSelect, handleGalleryDrop,
+  galleryUploading, isGalleryDragOver, galleryViewerVisible, galleryViewerIndex,
+  openGalleryViewer, handleGalleryFileSelect, handleGalleryDrop,
   guardDragEnter, guardDragOver, guardDrop, selectFocusImage, uploadGalleryFiles, validateImageFile
 } = useOrderGallery({ order, routeId: route.params.id, onRefresh: loadOrder })
 const { daysLeft, deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
@@ -1291,95 +1193,6 @@ onMounted(() => {
 .stage-progress-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin: 12px 0 0; }
 .stage-revision-mark { color: var(--th); font-weight: 600; margin-left: 8px; }
 
-/* ─── R18: 订单图库 ─── */
-.gallery-count { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
-.ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
-.ref-item { display: flex; flex-direction: column; gap: 4px; }
-.ref-item--focus .ref-img { outline: 2px solid var(--hq); outline-offset: 2px; }
-.ref-img-wrap {
-  position: relative;
-  cursor: pointer;
-  border-radius: var(--r-m);
-  overflow: hidden;
-  transition: transform 0.15s;
-}
-.ref-img-wrap:hover { transform: scale(1.02); }
-.ref-img { height: 120px; width: 100%; border-radius: var(--r-m); display: block; background: var(--paper2); }
-/* R43: 加载骨架屏（防首屏多图白闪） */
-.ref-img-skeleton {
-  width: 100%; height: 100%;
-  background: var(--paper2);
-  animation: ref-skeleton-pulse 1.2s ease-in-out infinite;
-}
-@keyframes ref-skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
-/* R18: 来源角标 */
-.ref-source-badge {
-  position: absolute;
-  bottom: 4px;
-  left: 4px;
-  font-size: calc(var(--font-scale, 1) * 10px);
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: var(--r-s);
-  line-height: 1.5;
-  pointer-events: none;
-}
-.ref-source-badge--client { background: rgba(0, 0, 0, 0.55); color: #fff; }
-.ref-source-badge--artist { background: var(--hq); color: #fff; }
-/* 焦点指示 */
-.ref-focus-indicator {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--hq);
-  color: #fff;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-/* 悬停操作组（✓设焦点 + 删除） */
-.ref-hover-actions {
-  position: absolute; top: 4px; right: 4px;
-  display: flex; gap: 4px;
-  opacity: 0; transition: opacity 0.15s;
-}
-.ref-img-wrap:hover .ref-hover-actions { opacity: 1; }
-/* R44/C56: 触屏无悬停，✓ 设焦点按钮常驻 */
-@media (hover: none) {
-  .ref-hover-actions { opacity: 1; }
-}
-/* R18: 上传磁贴 */
-.ref-upload-tile {
-  height: 120px;
-  border: 2px dashed var(--line2);
-  border-radius: var(--r-m);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-  color: var(--ink2);
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
-}
-.ref-upload-tile:hover, .ref-upload-tile--active {
-  border-color: var(--hq);
-  background: var(--hq-t);
-  color: var(--hq);
-}
-.ref-upload-text { font-size: calc(var(--font-scale, 1) * 12px); }
-.upload-status { font-size: calc(var(--font-scale, 1) * 12px); color: var(--hq); margin: 8px 0 0; }
-.upload-error { font-size: calc(var(--font-scale, 1) * 12px); color: var(--zs); margin: 8px 0 0; }
-.no-refs { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 0; }
-.focus-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin: 12px 0 0; }
 
 /* R17: 优先级分段按钮配色（选中态由 Element Plus 内部 is-checked 控制） */
 .priority-group :deep(.prio-high.is-checked .el-radio-button__inner) { background: var(--zs); border-color: var(--zs); box-shadow: -1px 0 0 0 var(--zs); }
@@ -1495,29 +1308,4 @@ onMounted(() => {
 }
 .comm-copy-btn { align-self: flex-start; }
 
-/* ─── B7: 额度池收款区 ─── */
-.pool-summary { margin-bottom: 16px; }
-.pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink2); flex-wrap: wrap; }
-.pool-nums strong { color: var(--ink); font-size: calc(var(--font-scale, 1) * 16px); font-family: var(--f-d); font-variant-numeric: tabular-nums; }
-.pool-remaining { margin-left: auto; }
-/* P2: 多收（客户多付）——藤黄提示，区别于正常的待收 */
-.pool-overpaid { color: var(--th); }
-.pool-overpaid strong { color: var(--th); }
-.pool-flow { margin-top: 12px; }
-.pool-flow-title, .pool-ref-title { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--ink2); margin: 0 0 8px; }
-.pool-flow-row {
-  display: flex; align-items: center; gap: 10px; padding: 6px 0;
-  border-bottom: 1px solid var(--line); font-size: calc(var(--font-scale, 1) * 13px);
-}
-.pool-flow-row:last-child { border-bottom: none; }
-.pool-flow-date { color: var(--ink2); flex-shrink: 0; width: 80px; font-variant-numeric: tabular-nums; }
-.pool-flow-amount { font-weight: 600; flex-shrink: 0; min-width: 80px; font-variant-numeric: tabular-nums; }
-.pool-flow-amount.is-positive { color: var(--sl); }
-.pool-flow-amount.is-negative { color: var(--zs); }
-.pool-flow-note { flex: 1; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pool-ref { margin-top: 16px; }
-.pool-ref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: calc(var(--font-scale, 1) * 13px); }
-.pool-ref-icon { width: 18px; text-align: center; flex-shrink: 0; }
-.pool-ref-name { flex: 1; color: var(--ink); }
-.pool-ref-amount { color: var(--ink2); flex-shrink: 0; }
 </style>
