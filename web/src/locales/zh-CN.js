@@ -345,6 +345,8 @@ export default {
     styleStep: '选画风', sizeStep: '选尺寸', addonStep: '选增项',
     styleStepTitle: '选择画风', sizeStepTitle: '选择尺寸', addonStepTitle: '增项与加急',
     addonStepEmpty: '该尺寸下暂无可选增项',
+    noSizeHint: '该画风暂未设置尺寸，可跳过直接继续',
+    noSizeContinue: '跳过尺寸，继续',
     addonOptionPrice: '选项价',
     multiplierLabel: '用途与加急', usageLabel: '用途：', rushLabel: '加急：',
     personal: '个人', noRush: '不加急',

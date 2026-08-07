@@ -121,7 +121,9 @@
       </el-aside>
 
       <!-- 主内容区（顶栏 + 内容） -->
-      <el-container>
+      <!-- v0.40 修复：内层 el-container 必须纵向——原生 <header class="topbar"> 不被 EP 识别为 el-header，
+          默认 row 方向会导致移动端 topbar 与 main 横排并排（窄窗口布局损坏，2026-08-07 用户截图实锤） -->
+      <el-container direction="vertical">
         <!-- 顶栏：仅移动端显示（页面标题 + 主题切换 + 语言 + 汉堡按钮）；桌面端已回侧边栏底部 -->
         <header class="topbar" v-if="isMobile">
           <button

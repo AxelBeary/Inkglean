@@ -345,6 +345,8 @@ export default {
     styleStep: 'Style', sizeStep: 'Size', addonStep: 'Add-ons',
     styleStepTitle: 'Pick a style', sizeStepTitle: 'Pick a size', addonStepTitle: 'Add-ons & options',
     addonStepEmpty: 'No add-ons available for this size',
+    noSizeHint: 'This style has no sizes set — you can skip and continue',
+    noSizeContinue: 'Skip sizes, continue',
     addonOptionPrice: 'Option price',
     multiplierLabel: 'Usage & rush', usageLabel: 'Usage:', rushLabel: 'Rush:',
     personal: 'Personal', noRush: 'No rush',

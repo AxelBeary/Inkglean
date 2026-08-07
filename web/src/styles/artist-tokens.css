@@ -279,3 +279,44 @@ html[data-artist-theme][data-font-size='large'] {
 html[data-artist-theme][data-font-size='xlarge'] {
   --font-scale: 1.2143;
 }
+
+/* ═══ F1 批 4 补充二（2026-08-07 用户反馈：EP 硬编码组件不随档位）═══
+   EP dist CSS 内 150 处硬编码 font-size:14px（el-form-item/el-switch/el-radio/
+   el-checkbox/el-select/el-input/el-alert/el-tag 等）不走 --el-font-size-* 变量。
+   用 --font-scale 统一放大后台作用域内这些组件的基准字号（14px 族）。
+   12px 族（小号标签/错误提示）随 14px 按比例放大会过大，保守只覆盖 14px 族。
+   默认档位 --font-scale=1 → 零影响；客户端路由无 data-artist-theme → 零影响。 */
+html[data-artist-theme][data-font-size] .artist-scope :is(
+  .el-form-item,
+  .el-form-item__label,
+  .el-switch,
+  .el-switch__label,
+  .el-switch__label *,
+  .el-radio,
+  .el-radio__label,
+  .el-checkbox,
+  .el-checkbox__label,
+  .el-select,
+  .el-select__wrapper,
+  .el-input,
+  .el-input__wrapper,
+  .el-input__inner,
+  .el-input-number,
+  .el-input-tag,
+  .el-alert,
+  .el-tag,
+  .el-message__content,
+  .el-dialog,
+  .el-dropdown-menu__item,
+  .el-pagination,
+  .el-table__column-filter-trigger i,
+  .el-upload-dragger .el-upload__text,
+  .el-upload-list__item,
+  .el-segmented,
+  .el-tour,
+  .el-descriptions,
+  .el-form-item__content,
+  .el-form-item__error
+) {
+  font-size: calc(var(--font-scale, 1) * 14px);
+}

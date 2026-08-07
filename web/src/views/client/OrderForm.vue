@@ -177,21 +177,31 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
               <!-- ── v0.32: 选尺寸（画风模式步骤 2 / 单画风步骤 1） ── -->
               <div v-if="isStyleMode" v-show="step === sizeStep">
                 <h3 class="step-title">{{ $t('orderForm.sizeStepTitle') }}</h3>
-                <div class="size-pick-list">
-                  <div
-                    v-for="sz in (selectedStyle?.sizes || [])" :key="sz.id"
-                    class="size-pick" :class="{ 'size-pick--on': selectedSizeId === sz.id }"
-                    @click="selectSize(sz.id)"
-                  >
-                    <span class="size-pick-name">{{ sz.name }}</span>
-                    <span class="size-pick-price">¥{{ sz.base_price }}</span>
-                    <span v-if="selectedSizeId === sz.id" class="size-pick-check">✓</span>
+                <!-- 画风无尺寸：提示 + 直接跳过（2026-08-07 用户反馈：无尺寸画风卡死无下一步） -->
+                <div v-if="!(selectedStyle?.sizes || []).length" class="no-size-hint">
+                  <p>{{ $t('orderForm.noSizeHint') }}</p>
+                  <div class="step-nav">
+                    <el-button v-if="isMultiStyle" @click="step = 1">{{ $t('orderForm.prevStep') }}</el-button>
+                    <el-button type="primary" @click="step = addonStep">{{ $t('orderForm.noSizeContinue') }}</el-button>
                   </div>
                 </div>
-                <div class="step-nav" :class="{ 'step-nav--end': !isMultiStyle }">
-                  <el-button v-if="isMultiStyle" @click="step = 1">{{ $t('orderForm.prevStep') }}</el-button>
-                  <el-button type="primary" :disabled="!selectedSizeId" @click="step = addonStep">{{ $t('orderForm.nextStep') }}</el-button>
-                </div>
+                <template v-else>
+                  <div class="size-pick-list">
+                    <div
+                      v-for="sz in (selectedStyle?.sizes || [])" :key="sz.id"
+                      class="size-pick" :class="{ 'size-pick--on': selectedSizeId === sz.id }"
+                      @click="selectSize(sz.id)"
+                    >
+                      <span class="size-pick-name">{{ sz.name }}</span>
+                      <span class="size-pick-price">¥{{ sz.base_price }}</span>
+                      <span v-if="selectedSizeId === sz.id" class="size-pick-check">✓</span>
+                    </div>
+                  </div>
+                  <div class="step-nav" :class="{ 'step-nav--end': !isMultiStyle }">
+                    <el-button v-if="isMultiStyle" @click="step = 1">{{ $t('orderForm.prevStep') }}</el-button>
+                    <el-button type="primary" :disabled="!selectedSizeId" @click="step = addonStep">{{ $t('orderForm.nextStep') }}</el-button>
+                  </div>
+                </template>
               </div>
 
               <!-- ── v0.32: 勾增项 + 倍率 + 价格预览（画风模式步骤 3 / 单画风步骤 2） ── -->
@@ -1180,6 +1190,9 @@ async function copyQq(qq) {
 
 /* ─── v0.32: 尺寸选择列表 ─── */
 .size-pick-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+/* 画风无尺寸提示（2026-08-07） */
+.no-size-hint { padding: 14px 16px; border-radius: 8px; background: var(--bg-soft, rgba(127,127,127,.08)); color: var(--text-secondary, inherit); margin-bottom: 16px; }
+.no-size-hint p { margin: 0 0 10px; }
 .size-pick {
   display: flex; align-items: center; gap: 12px;
   padding: 14px 18px; cursor: pointer;
