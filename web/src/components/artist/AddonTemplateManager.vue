@@ -29,7 +29,7 @@
     <el-button type="primary" size="small" style="margin-top: 12px" @click="openCreate">{{ $t('styleManage.tplAdd') }}</el-button>
 
     <!-- 新建/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editingId ? $t('styleManage.tplEditTitle') : $t('styleManage.tplAddTitle')" width="460px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="editingId ? $t('styleManage.tplEditTitle') : $t('styleManage.tplAddTitle')" width="460px" destroy-on-close @closed="onDialogClosed">
       <el-form :model="form" label-position="top">
         <el-form-item :label="$t('styleManage.tplNameLabel')" required>
           <el-input v-model="form.name" :placeholder="$t('styleManage.tplNamePlaceholder')" maxlength="50" show-word-limit />
@@ -87,6 +87,7 @@ const loading = ref(true)
 const saving = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref(null)
+const pendingReload = ref(false)
 
 const form = ref({
   name: '',
@@ -193,8 +194,11 @@ async function save() {
       await artistApi.createAddonTemplate(payload)
     }
     ElMessage.success(t('styleManage.tplSaved'))
+    // 关闭弹窗触发过渡动画（约 300ms）——若此时 load() 挂 v-loading 遮罩会与动画重叠闪烁；
+    // 改为静默刷新（不遮罩）+ 等 @closed 后再正式刷新，消除闪烁
     dialogVisible.value = false
-    await load()
+    pendingReload.value = true
+    await load(true)
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -219,14 +223,22 @@ async function confirmDelete(row) {
   }
 }
 
-async function load() {
-  loading.value = true
+async function load(silent = false) {
+  if (!silent) loading.value = true
   try {
     templates.value = await artistApi.getAddonTemplates()
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
     loading.value = false
+  }
+}
+
+// el-dialog 关闭过渡动画结束后触发——补一次正式刷新（静默刷新只更新数据，这里确保 UI 完整）
+function onDialogClosed() {
+  if (pendingReload.value) {
+    pendingReload.value = false
+    load(true)
   }
 }
 
