@@ -286,6 +286,8 @@ export default {
     heroOpen: '接受约稿中', heroFull: '目前已排满', heroBreak: '休息中',
     startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
     ctaSubtitle: '期待与你一起创作出好作品。',
+    // v0.42 Step 6: 客户端画廊「加载更多」
+    loadMore: '加载更多',
     weiboPlain: '微博', bilibiliPlain: 'B站',
     otherLink: '链接',
     revisionNote: '修改说明',

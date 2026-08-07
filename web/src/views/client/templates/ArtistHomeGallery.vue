@@ -7,9 +7,19 @@
     </div>
 
     <!-- v0.36: 作品画廊——画册式左右翻页（Gallery：大小交错 editorial 节奏——当前页大图居中，相邻页缩小侧露） -->
-    <section class="gallery-section tpl-reveal" v-if="galleryArtworks.length">
+    <!-- v0.42 Step 6: 分页数据源（10/页 + 加载更多）；加载中隐藏画廊区避免「全量闪一帧」 -->
+    <section class="gallery-section tpl-reveal" v-if="galleryForTpl.length">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
-      <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" layout="album" peek />
+      <TplGallery
+        :artworks="galleryForTpl"
+        :gallery="galleryFilterOnly"
+        :subdomain="subdomain"
+        layout="album"
+        peek
+        :total="total"
+        :loading-more="loadingMore"
+        @load-more="onLoadMore"
+      />
     </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
@@ -76,7 +86,8 @@
 </template>
 
 <script setup>
-import { ref, inject, watch } from 'vue'
+import { ref, inject, watch, computed, onMounted } from 'vue'
+import { artistPublicApi } from '../../../api/index.js'
 import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
@@ -100,6 +111,62 @@ const props = defineProps({
 })
 
 const { footerLinks, galleryArtworks } = useArtistData(props)
+
+// ─── v0.42 Step 6: 作品分页（10/页 + 加载更多；封面置顶由后端排序保证） ───
+const PAGE_SIZE = 10
+const pagedArtworks = ref([])
+const total = ref(0)
+const loadingMore = ref(false)
+const pageLoading = ref(false)
+
+/**
+ * size_tags 索引（F6 画廊端点全量数据，公开分页接口 items 不带 size_tags）。
+ * 分页 items 到达后按 id 合并，保住档位筛选/大图标签（filterArtworksBySize 依赖 art.size_tags）。
+ */
+const sizeTagsById = computed(() => {
+  const map = new Map()
+  for (const a of props.gallery?.artworks || []) map.set(a.id, a.size_tags || [])
+  return map
+})
+
+async function loadArtworks(reset = false) {
+  if (reset) pageLoading.value = true
+  else loadingMore.value = true
+  try {
+    const page = reset ? 1 : Math.ceil(pagedArtworks.value.length / PAGE_SIZE) + 1
+    const res = await artistPublicApi.getPublicArtworksPaged(props.artist?.id, { page, pageSize: PAGE_SIZE })
+    const items = (res.items || []).map(a => ({
+      ...a,
+      size_tags: sizeTagsById.value.get(a.id) || []
+    }))
+    pagedArtworks.value = reset ? items : [...pagedArtworks.value, ...items]
+    total.value = res.total || 0
+  } catch {
+    // 静默失败：分页不可用时回退全量（galleryArtworks 兜底），行为与现状一致
+    pagedArtworks.value = []
+    total.value = 0
+  } finally {
+    pageLoading.value = false
+    loadingMore.value = false
+  }
+}
+
+function onLoadMore() { loadArtworks(false) }
+
+/** 展示数据：分页累积优先；分页失败/加载中回退全量兜底 */
+const galleryForTpl = computed(() => {
+  if (pagedArtworks.value.length) return pagedArtworks.value
+  return pageLoading.value ? [] : galleryArtworks.value
+})
+
+/** TplGallery 只消费 filterSizes（筛选行）+ 空 artworks——避免其优先用 gallery.artworks 全量，分页才生效 */
+const galleryFilterOnly = computed(() => ({
+  filterSizes: props.gallery?.filterSizes || []
+}))
+
+// 首载 + 画师切换重载
+onMounted(() => { if (props.artist?.id) loadArtworks(true) })
+watch(() => props.artist?.id, () => { loadArtworks(true) })
 
 const rootEl = ref(null)
 const heroRef = ref(null)
