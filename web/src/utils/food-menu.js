@@ -1,0 +1,158 @@
+// ============================================
+// 「今天吃什么」菜谱数据文件（REQ-035 批 D / 四号编排 2026-08-08）
+// 纯内容数据，零代码逻辑——页面/随机逻辑是批 D 开发的事，勿在此文件加业务逻辑
+//
+// 数据结构：
+//   FOOD_MENU     菜品数组，每条 { name: 菜名, tags: [分类key数组], note: 一句话点评 }
+//   FOOD_CATEGORIES 四类分类key -> 中文名（页面展示用）
+//
+// 四类 key：
+//   healthy  健康版（低卡/清淡/营养均衡家常菜）
+//   diabetes 糖尿病版（低GI/控糖友好）
+//   gout     痛风版（低嘌呤友好）
+//   takeout  外卖版（外卖平台可直接搜到的品类/店型）
+//
+// 同一菜品可打多个标签（共用池子，避免注水），如「清蒸鲈鱼」= 健康+糖尿病+痛风
+// 注意：本推荐仅供参考，具体饮食请遵医嘱（糖尿病/痛风版免责提示，页面展示）
+// ============================================
+
+export const FOOD_CATEGORIES = {
+  healthy: '健康版',
+  diabetes: '糖尿病版',
+  gout: '痛风版',
+  takeout: '外卖版',
+}
+
+export const FOOD_MENU = [
+  // ========== 健康版：低卡/清淡/营养均衡家常菜（本组 43 条，全部带 healthy） ==========
+  { name: '清蒸鲈鱼', tags: ['healthy', 'diabetes', 'gout'], note: '高蛋白低脂，蒸制少油，低嘌呤友好' },
+  { name: '清蒸鳕鱼', tags: ['healthy', 'diabetes'], note: '白肉鱼低脂鲜嫩（嘌呤中等，痛风缓解期适量）' },
+  { name: '番茄龙利鱼', tags: ['healthy', 'diabetes', 'gout'], note: '龙利鱼低脂低嘌呤，番茄酸甜开胃' },
+  { name: '白灼虾', tags: ['healthy'], note: '虾肉高蛋白低脂（痛风缓解期适量，急性期避开）' },
+  { name: '蒜蓉西兰花', tags: ['healthy'], note: '高纤维低热量，蒜香少油' },
+  { name: '西兰花炒虾仁', tags: ['healthy'], note: '虾仁高蛋白，西兰花脆嫩' },
+  { name: '清炒菠菜', tags: ['healthy', 'diabetes', 'gout'], note: '深绿叶菜补铁，快炒少油' },
+  { name: '凉拌黄瓜', tags: ['healthy', 'diabetes', 'gout'], note: '爽口低卡，蒜醋汁开胃' },
+  { name: '西红柿炒蛋', tags: ['healthy', 'diabetes', 'gout'], note: '国民下饭菜，酸甜少油' },
+  { name: '白灼菜心', tags: ['healthy', 'diabetes', 'gout'], note: '脆嫩清淡，低热量' },
+  { name: '上汤娃娃菜', tags: ['healthy', 'diabetes', 'gout'], note: '汤清味鲜，少油盐' },
+  { name: '蒸蛋羹', tags: ['healthy', 'diabetes', 'gout'], note: '嫩滑高蛋白，好消化' },
+  { name: '白菜炖豆腐', tags: ['healthy', 'diabetes', 'gout'], note: '白菜豆腐保平安，少油清淡' },
+  { name: '凉拌木耳', tags: ['healthy'], note: '爽脆低卡，开胃小菜' },
+  { name: '苦瓜炒蛋', tags: ['healthy', 'diabetes', 'gout'], note: '苦瓜清爽，鸡蛋高蛋白' },
+  { name: '清蒸南瓜', tags: ['healthy', 'gout'], note: '软糯微甜（适量当主食）' },
+  { name: '凉拌豆腐丝', tags: ['healthy'], note: '豆制品高蛋白，清爽开胃' },
+  { name: '番茄豆腐汤', tags: ['healthy', 'diabetes', 'gout'], note: '酸甜开胃，豆腐嫩滑' },
+  { name: '香菇青菜', tags: ['healthy'], note: '鲜香家常（菌菇痛风者适量）' },
+  { name: '紫菜蛋花汤', tags: ['healthy'], note: '清淡暖胃' },
+  { name: '西葫芦炒蛋', tags: ['healthy'], note: '清爽低卡，适合减脂' },
+  { name: '手撕包菜', tags: ['healthy', 'diabetes', 'gout'], note: '爽脆微辣，少油快炒' },
+  { name: '蒜蓉油麦菜', tags: ['healthy', 'diabetes', 'gout'], note: '绿叶菜低热量，蒜香提味' },
+  { name: '凉拌莴笋', tags: ['healthy'], note: '脆嫩清爽，低热量' },
+  { name: '蒸紫薯', tags: ['healthy', 'gout'], note: '粗粮饱腹（适量当主食）' },
+  { name: '藜麦蔬菜沙拉', tags: ['healthy', 'diabetes', 'gout'], note: '高蛋白低GI，油醋汁拌' },
+  { name: '秋葵炒蛋', tags: ['healthy'], note: '秋葵脆滑，低卡营养' },
+  { name: '清炒荷兰豆', tags: ['healthy'], note: '脆嫩清甜，低热量' },
+  { name: '杂粮饭', tags: ['healthy', 'diabetes', 'gout'], note: '糙米燕麦混合，低GI饱腹' },
+  { name: '蒸红薯', tags: ['healthy', 'gout'], note: '香甜饱腹（适量当主食）' },
+  { name: '蒸玉米', tags: ['healthy', 'gout'], note: '粗粮清甜（适量）' },
+  { name: '水煮蛋', tags: ['healthy', 'diabetes', 'gout'], note: '优质蛋白，早餐必备' },
+  { name: '无糖豆浆', tags: ['healthy', 'diabetes', 'gout'], note: '植物蛋白无糖（豆制品痛风缓解期可适量）' },
+  { name: '燕麦粥', tags: ['healthy', 'diabetes', 'gout'], note: '低GI，早餐暖胃' },
+  { name: '生菜沙拉（油醋汁）', tags: ['healthy', 'gout'], note: '低卡爽口，酱汁选油醋' },
+  { name: '芹菜炒香干', tags: ['healthy', 'diabetes', 'gout'], note: '芹菜脆爽，香干高蛋白（豆制品适量）' },
+  { name: '蚝油生菜', tags: ['healthy', 'gout'], note: '脆嫩清甜（蚝油少许）' },
+  { name: '什锦蔬菜汤', tags: ['healthy'], note: '多色蔬菜，清汤少油' },
+  { name: '清蒸豆腐', tags: ['healthy', 'diabetes', 'gout'], note: '豆香嫩滑，淋少许酱油' },
+  { name: '白萝卜炖牛肉', tags: ['healthy', 'diabetes'], note: '牛肉适量，萝卜清甜（痛风缓解期可适量）' },
+  { name: '冬瓜汤', tags: ['healthy', 'gout'], note: '清淡消暑，低热量' },
+  { name: '蒜蓉空心菜', tags: ['healthy'], note: '夏日绿叶菜，快炒脆嫩' },
+  { name: '清炒丝瓜', tags: ['healthy'], note: '清甜软嫩，清热解暑' },
+
+  // ========== 糖尿病版：低GI/控糖友好主食与菜（本组 19 条，全部带 diabetes） ==========
+  { name: '糙米饭', tags: ['diabetes', 'gout'], note: '低GI主食，饱腹稳糖，低嘌呤' },
+  { name: '荞麦面', tags: ['diabetes', 'gout'], note: '低GI，凉拌或清汤煮，低嘌呤' },
+  { name: '全麦馒头', tags: ['diabetes'], note: '粗粮主食，控糖友好' },
+  { name: '杂豆饭', tags: ['diabetes'], note: '豆米同煮，低GI高纤维' },
+  { name: '藜麦饭', tags: ['diabetes'], note: '高蛋白低GI主食' },
+  { name: '魔芋凉皮', tags: ['diabetes'], note: '近零热量，低GI' },
+  { name: '清蒸鸡胸肉', tags: ['diabetes'], note: '高蛋白低脂，蒸制少油' },
+  { name: '凉拌鸡丝', tags: ['diabetes'], note: '鸡胸肉撕丝拌黄瓜，清爽高蛋白' },
+  { name: '苦瓜炒肉片', tags: ['diabetes'], note: '苦瓜控糖友好，肉片适量' },
+  { name: '菠菜豆腐汤', tags: ['diabetes'], note: '补钙补铁，清汤少油' },
+  { name: '无糖酸奶', tags: ['diabetes'], note: '奶制品低嘌呤，选无糖' },
+  { name: '原味坚果（适量）', tags: ['diabetes'], note: '优质脂肪，每天一小把' },
+  { name: '蓝莓', tags: ['diabetes'], note: '低GI水果，糖分低' },
+  { name: '草莓', tags: ['diabetes'], note: '低GI水果，清爽' },
+  { name: '柚子', tags: ['diabetes'], note: '低GI水果，水分足' },
+  { name: '黄瓜炒蛋', tags: ['diabetes'], note: '清淡快炒，控糖友好' },
+  { name: '冬瓜海带汤', tags: ['diabetes'], note: '清淡低卡（海带量少）' },
+  { name: '杂粮煎饼（无糖）', tags: ['diabetes'], note: '粗粮摊饼，少酱料' },
+  { name: '山药紫薯粥', tags: ['diabetes'], note: '无糖杂粮粥，暖胃' },
+
+  // ========== 痛风版：低嘌呤友好，避开海鲜/内脏/浓汤（本组 14 条，全部带 gout） ==========
+  { name: '白灼秋葵', tags: ['gout'], note: '爽滑低嘌呤，酱油蒜末' },
+  { name: '上汤西兰花', tags: ['gout'], note: '清汤煮，低嘌呤' },
+  { name: '低脂牛奶', tags: ['gout'], note: '奶制品低嘌呤，补钙' },
+  { name: '清汤面条', tags: ['gout'], note: '清淡低嘌呤，少油少盐' },
+  { name: '粉丝汤', tags: ['gout'], note: '低嘌呤主食，清汤煮' },
+  { name: '蔬菜粥', tags: ['gout'], note: '温和好消化，低嘌呤' },
+  { name: '蒸芋头', tags: ['gout'], note: '低嘌呤主食，软糯饱腹' },
+  { name: '凉拌莲藕', tags: ['gout'], note: '脆爽低嘌呤，夏日开胃' },
+  { name: '木瓜', tags: ['gout'], note: '低嘌呤水果，清甜' },
+  { name: '银耳汤（无糖）', tags: ['gout'], note: '低嘌呤，润燥' },
+  { name: '百合炒西芹', tags: ['gout'], note: '清爽低嘌呤，护心' },
+  { name: '咸豆腐脑', tags: ['gout', 'diabetes'], note: '豆制品植物嘌呤影响小，缓解期可适量' },
+  { name: '蒸山药', tags: ['gout'], note: '低嘌呤主食，健脾' },
+  { name: '清汤馄饨（素馅）', tags: ['gout'], note: '低嘌呤，选素馅更清爽' },
+
+  // ========== 外卖版：外卖平台可直接搜到的品类/店型（本组 48 条，全部带 takeout） ==========
+  { name: '黄焖鸡米饭', tags: ['takeout'], note: '下饭热门，酱汁偏咸少喝汤' },
+  { name: '麻辣烫（自选菜）', tags: ['takeout', 'healthy'], note: '选蔬菜豆制品，少麻酱少辣' },
+  { name: '轻食沙拉（鸡胸肉）', tags: ['takeout', 'healthy', 'diabetes', 'gout'], note: '低卡低GI低嘌呤，酱料选油醋汁' },
+  { name: '饺子（素馅/鸡肉馅）', tags: ['takeout'], note: '实惠管饱，素馅更清爽' },
+  { name: '皮蛋瘦肉粥', tags: ['takeout', 'gout'], note: '粥底低嘌呤，瘦肉适量' },
+  { name: '兰州拉面（清汤）', tags: ['takeout'], note: '清汤少辣，面量控制' },
+  { name: '沙县蒸饺', tags: ['takeout'], note: '快捷实惠，蒸的比炸的健康' },
+  { name: '蛋炒饭', tags: ['takeout'], note: '国民快餐，油偏多' },
+  { name: '螺蛳粉', tags: ['takeout'], note: '酸辣开胃，汤底偏咸' },
+  { name: '麻辣香锅', tags: ['takeout'], note: '选蔬菜菌菇，少油少辣' },
+  { name: '清汤米线', tags: ['takeout', 'gout'], note: '清淡低嘌呤，云南风味' },
+  { name: '蔬菜披萨（薄底）', tags: ['takeout'], note: '选薄底蔬菜款，少芝士' },
+  { name: '烧烤（鸡翅/蔬菜串）', tags: ['takeout'], note: '选瘦肉蔬菜，少刷酱' },
+  { name: '卤肉饭', tags: ['takeout'], note: '肥瘦相间，热量高' },
+  { name: '番茄鸡蛋盖饭', tags: ['takeout'], note: '相对清爽的盖饭，酸甜下饭' },
+  { name: '煎饼果子', tags: ['takeout'], note: '早餐经典，酱少放' },
+  { name: '素包子', tags: ['takeout'], note: '清淡管饱，早餐友好' },
+  { name: '小笼包', tags: ['takeout'], note: '皮薄汁多，趁热吃' },
+  { name: '肠粉', tags: ['takeout'], note: '广式早餐，清淡爽滑' },
+  { name: '白切鸡饭', tags: ['takeout'], note: '清淡鲜嫩，配姜葱' },
+  { name: '清汤火锅（单人小锅）', tags: ['takeout', 'healthy'], note: '蔬菜豆腐为主，低嘌呤友好' },
+  { name: '麻辣拌', tags: ['takeout'], note: '干拌版麻辣烫，少放酱' },
+  { name: '关东煮', tags: ['takeout', 'healthy'], note: '萝卜海带豆腐，清汤低卡' },
+  { name: '石锅拌饭', tags: ['takeout'], note: '蔬菜丰富，酱料适量' },
+  { name: '紫菜包饭', tags: ['takeout'], note: '米饭蔬菜卷，方便携带' },
+  { name: '三明治（鸡胸/鸡蛋）', tags: ['takeout', 'healthy', 'diabetes'], note: '全麦低GI，早餐便捷' },
+  { name: '越南春卷', tags: ['takeout'], note: '米皮蔬菜清爽，选纯素款' },
+  { name: '鱼香肉丝饭', tags: ['takeout'], note: '下饭神器，油糖偏多' },
+  { name: '宫保鸡丁饭', tags: ['takeout'], note: '花生香脆，偏油' },
+  { name: '地三鲜盖饭', tags: ['takeout'], note: '茄子土豆吸油，偶尔吃' },
+  { name: '大盘鸡', tags: ['takeout'], note: '土豆鸡肉，微辣过瘾' },
+  { name: '羊肉泡馍', tags: ['takeout'], note: '西北风味，暖胃管饱' },
+  { name: '酸菜鱼', tags: ['takeout'], note: '鱼肉嫩滑，酸辣开胃（痛风避开鱼汤）' },
+  { name: '冒菜', tags: ['takeout'], note: '自选菜，少油少辣' },
+  { name: '潮汕粿条汤', tags: ['takeout'], note: '清汤粿条，低嘌呤友好' },
+  { name: '云吞面', tags: ['takeout'], note: '竹升面爽弹，鲜香' },
+  { name: '菜煎饼', tags: ['takeout'], note: '蔬菜多，少酱更清爽' },
+  { name: '干炒牛河', tags: ['takeout'], note: '镬气十足，油多' },
+  { name: '热干面', tags: ['takeout'], note: '武汉过早，芝麻酱浓' },
+  { name: '炸酱面', tags: ['takeout'], note: '酱香浓郁，偏咸' },
+  { name: '西红柿鸡蛋面', tags: ['takeout', 'diabetes'], note: '家常清爽，酸甜开胃' },
+  { name: '阳春面', tags: ['takeout'], note: '清汤细面，简单暖胃' },
+  { name: '葱油拌面', tags: ['takeout'], note: '葱香扑鼻，油稍多' },
+  { name: '油泼面', tags: ['takeout'], note: '辣子香，宽面劲道' },
+  { name: '刀削面', tags: ['takeout'], note: '面劲道，汤底自选' },
+  { name: '重庆小面', tags: ['takeout'], note: '麻辣重油，偶尔解馋' },
+  { name: '日式拉面', tags: ['takeout'], note: '汤浓味重，偶尔吃' },
+  { name: '卤味拼盘（素菜/豆干）', tags: ['takeout'], note: '下酒小菜，选素菜更清爽' },
+]
