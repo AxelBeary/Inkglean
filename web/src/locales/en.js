@@ -558,7 +558,11 @@ export default {
     tlUndoDeadline: 'Deadline set to {d}', tlUndoStart: 'Start date set to {d}',
     tlUndoMove: 'Rescheduled {s} → {e}', tlUndo: 'Undo', tlUndone: 'Restored',
     tlDragDeadlineBeforeStart: 'Deadline cannot be earlier than start date',
-    tlDragStartAfterDeadline: 'Start date cannot be later than deadline'
+    tlDragStartAfterDeadline: 'Start date cannot be later than deadline',
+    // Batch G (2026-08-08): calendar optimizations (MVP)
+    calAvailable: 'Available',
+    calDayViewTitle: '{d} · {n} order(s)',
+    calSelectMonth: 'Select month'
   },
   orderList: {
     title: 'Order Management', all: 'All',
