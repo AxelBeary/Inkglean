@@ -97,7 +97,7 @@ function toggleLang() {
   flex: 1; padding: 4px 0; border: 1px solid var(--border-color);
   border-radius: 6px; background: transparent; cursor: pointer;
   font-size: calc(var(--font-scale, 1) * 12px); color: var(--text-secondary);
-  transition: all 0.15s;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
 .picker-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .picker-btn.active {

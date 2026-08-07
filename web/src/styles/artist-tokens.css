@@ -240,15 +240,15 @@ html[data-artist-theme="ink"] .band-done { background: #38735A; color: #D9EFE3; 
 html[data-artist-theme="ink"] .btn-pri-ink { background: #46708F; color: #EAF2F9; }
 html[data-artist-theme="ink"] .btn-pri-ink:hover { background: #3E6285; }
 
-/* 主题切换平滑过渡（仅后台作用域内的颜色属性） */
-html[data-artist-theme] .artist-scope,
-html[data-artist-theme] .artist-scope * {
+/* 主题切换平滑过渡（仅切换瞬态挂载，日常 hover 不背 4 条 transition） */
+html[data-artist-theme].theme-animating .artist-scope,
+html[data-artist-theme].theme-animating .artist-scope * {
   transition: background-color .35s, border-color .35s, color .35s, box-shadow .35s;
 }
 /* 过渡会干扰拖拽/动画性能的元素豁免 */
-html[data-artist-theme] .artist-scope .tl-bar,
-html[data-artist-theme] .artist-scope .cal-band,
-html[data-artist-theme] .artist-scope .queue-item {
+html[data-artist-theme].theme-animating .artist-scope .tl-bar,
+html[data-artist-theme].theme-animating .artist-scope .cal-band,
+html[data-artist-theme].theme-animating .artist-scope .queue-item {
   transition: none;
 }
 

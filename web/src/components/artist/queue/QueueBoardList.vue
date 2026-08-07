@@ -16,7 +16,9 @@
   <!-- P0-3b: 标签切换（正式区 / 缓冲区） -->
   <el-tabs v-model="activeTabModel" class="queue-tabs">
     <el-tab-pane :label="$t('queue.tabFormal')" name="formal">
-      <div class="queue-container" v-loading="loading">
+      <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），正式区列表 v-if="!loading" -->
+      <HySkeleton v-if="loading" count="6" />
+      <div class="queue-container" v-if="!loading">
         <draggable
           v-model="queueModel"
           item-key="id"
@@ -264,6 +266,8 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import InkEmpty from '../visual/InkEmpty.vue'
+// M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
+import HySkeleton from '../../shared/HySkeleton.vue'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
 import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../../constants/order.js'
 

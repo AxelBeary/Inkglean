@@ -83,7 +83,7 @@
                 >
                   <!-- #50: 加载占位兜底 -->
                   <template #placeholder>
-                    <div class="tpl-gallery-skeleton" />
+                    <div class="tpl-gallery-skeleton" aria-hidden="true" />
                   </template>
                 </el-image>
               </div>
@@ -140,6 +140,7 @@
           v-for="(art, index) in filteredArtworks"
           :key="art.id"
           class="tpl-gallery-item tpl-reveal"
+          :style="{ '--i': index }"
         >
           <!-- #15: aspect-ratio 占位——有 width/height 时精确预留高度，lazy 加载零跳动 -->
           <div class="tpl-gallery-img-wrap" :style="ratioStyle(art)" @click="openLightbox(index)">
@@ -151,7 +152,7 @@
               lazy
             >
               <template #placeholder>
-                <div class="tpl-gallery-skeleton" />
+                <div class="tpl-gallery-skeleton" aria-hidden="true" />
               </template>
             </el-image>
             <!-- hover 浮层：档位标签+描述（桌面端），点浮层空白处开大图 -->
@@ -429,7 +430,7 @@ function ratioStyle(art) {
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
 }
 .tpl-gallery-filter:hover {
   border-color: var(--color-primary);
@@ -527,7 +528,7 @@ function ratioStyle(art) {
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
 .tpl-album-arrow:hover:not(:disabled) {
   border-color: var(--color-primary);
@@ -673,16 +674,24 @@ function ratioStyle(art) {
 /* ===== 通用 ===== */
 /* #50: 加载骨架占位（画册 placeholder 兜底） */
 .tpl-gallery-skeleton {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 200px;
-  background: linear-gradient(110deg, var(--pal-surface) 30%, var(--pal-border) 50%, var(--pal-surface) 70%);
-  background-size: 200% 100%;
+  background: var(--pal-surface);
+  overflow: hidden;
+}
+.tpl-gallery-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--pal-border) 55%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%);
   animation: tpl-gallery-shimmer 1.5s ease-in-out infinite;
 }
 @keyframes tpl-gallery-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 .tpl-gallery-caption {
   margin: 0;
@@ -710,7 +719,7 @@ function ratioStyle(art) {
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .tpl-gallery-tag:hover {
   background: #fff;
@@ -750,7 +759,7 @@ function ratioStyle(art) {
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
 .tpl-lb-arrow:hover {
   border-color: var(--color-primary);

@@ -84,6 +84,7 @@ function nodeState(stageId) {
 
 /* 圆点 */
 .tl-dot {
+  position: relative; /* H3: ::after 扩散环定位锚点 */
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -93,7 +94,7 @@ function nodeState(stageId) {
   font-size: 13px;
   flex-shrink: 0;
   z-index: 1;
-  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 /* 未开始：灰色空心 */
@@ -109,11 +110,19 @@ function nodeState(stageId) {
 }
 .tl-check { color: #fff; font-weight: 700; font-size: 14px; }
 
-/* 当前阶段：高亮 + 脉冲动画 */
+/* 当前阶段：高亮 + 伪元素扩散环（H3: box-shadow 动画 -> scale/opacity，GPU 友好） */
 .tl-node.current .tl-dot {
   border: 2px solid var(--el-color-primary);
   background: var(--el-color-primary-soft, color-mix(in srgb, var(--el-color-primary) 15%, transparent));
+}
+.tl-node.current .tl-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--el-color-primary) 35%, transparent);
   animation: tl-pulse 1.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* 连接线 */

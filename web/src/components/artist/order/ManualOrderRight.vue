@@ -1117,6 +1117,6 @@ onUnmounted(() => {
 }
 
 /* ─── 明细展开动画 ─── */
-.mo-slide-enter-active, .mo-slide-leave-active { transition: all 0.25s ease; }
+.mo-slide-enter-active, .mo-slide-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
 .mo-slide-enter-from, .mo-slide-leave-to { opacity: 0; transform: translateY(8px); }
 </style>

@@ -48,8 +48,10 @@
     </div>
 
     <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
-    <div class="order-table-wrap">
-      <el-table :data="displayedOrders" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
+    <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
+    <HySkeleton v-if="loading" count="6" />
+    <div class="order-table-wrap" v-if="!loading">
+      <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px">
         <!-- R16: 缩略图列（焦点图优先，无则 —） -->
         <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
           <template #default="{ row }">
@@ -127,6 +129,8 @@ import { ElMessage } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 // v0.38 第二批: 统一墨线空态（REQ-026 §二）
 import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
+// M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
+import HySkeleton from '../../components/shared/HySkeleton.vue'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 
 const route = useRoute()
