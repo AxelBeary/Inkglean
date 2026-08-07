@@ -88,6 +88,7 @@ import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../../stores/artist.js'
 import { artistApi, uploadApi } from '../../../api/index.js'
 import { usePasteUpload } from '../../../composables/usePasteUpload.js'
+import { trackEvent } from '../../../utils/track.js'
 
 const router = useRouter()
 const store = useArtistStore()
@@ -181,6 +182,7 @@ async function doPublish(files) {
 
 // ─── go() 分发：route/action/link 三型 ───
 function go(action) {
+  trackEvent('dashboard_quick_click', { action: action.key })
   if (action.type === 'link') {
     // 主页预览：动态拼接 subdomain（新窗口，与 Settings 预览行为一致）
     if (store.subdomain) window.open(`/artist/${store.subdomain}`, '_blank', 'noopener')

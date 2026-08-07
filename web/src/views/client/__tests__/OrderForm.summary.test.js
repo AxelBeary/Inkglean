@@ -18,7 +18,8 @@ if (!window.ResizeObserver) {
 // ─── Mocks（vi.mock 自动提升） ───
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { subdomain: 'alice' }, query: {} }),
-  useRouter: () => ({ push: () => {} })
+  useRouter: () => ({ push: () => {} }),
+  onBeforeRouteLeave: vi.fn()
 }))
 
 vi.mock('vue-i18n', () => ({

@@ -203,6 +203,7 @@ import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
 import { setLocale } from '../i18n/index.js'
+import { trackEvent } from '../utils/track.js'
 import { artistApi } from '../api/index.js'
 import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
@@ -224,6 +225,30 @@ const activeMenu = computed(() => {
   const p = route.path
   if (p.startsWith('/orders/') && p !== '/orders/new') return '/orders'
   return p
+})
+// ─── 埋点：后台页面浏览（REQ-033 §4 / 施工图《01-to-02-埋点前端批》§3.3） ───
+// 事件名严格用后端白名单；/slots、/admin 无白名单事件名（后端 400），不埋
+// 画师已登录（后台登录守卫）→ 后端自动记 artist_id，前端只需发事件
+const PAGE_VIEW_EVENT_MAP = {
+  '/dashboard': 'dashboard_view',
+  '/queue': 'queue_view',
+  '/orders': 'orders_view',
+  '/orders/new': 'manual_view',
+  '/tiers': 'tiers_view',
+  '/artworks': 'artworks_view',
+  '/guestbook': 'guestbook_view',
+  '/settings': 'settings_view',
+  '/preferences': 'preferences_view'
+}
+function trackPageView(path) {
+  const eventName = PAGE_VIEW_EVENT_MAP[path]
+  if (eventName) trackEvent(eventName, { page: path })
+}
+// 首次进入后台即发当前页（ArtistLayout 挂载一次，不随子路由重复挂载）
+trackPageView(activeMenu.value)
+// 路由变化统一收口：/orders/:id 详情进入也按次累计（REQ-033 §4.5 验收 5）
+watch(() => route.path, () => {
+  trackPageView(activeMenu.value)
 })
 
 // ─── R21: 菜单项注册表（侧边栏与抽屉共用） ───

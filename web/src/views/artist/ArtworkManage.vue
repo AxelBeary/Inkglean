@@ -211,6 +211,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
+import { trackEvent } from '../../utils/track.js'
 
 const { t } = useI18n()
 
@@ -318,6 +319,7 @@ async function handleUpload({ file }) {
     const uploaded = await uploadApi.image(file)
     await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName })
     ElMessage.success(t('artworks.uploaded'))
+    trackEvent('artist_action', { action: 'artwork_publish', source: 'upload' })
     await loadArtworks()
   } catch (err) {
     ElMessage.error(err.message || t('common.uploadFailed'))
@@ -355,10 +357,12 @@ async function toggleCover(art) {
       art.is_cover = 0
       art.cover_order = 0
       ElMessage.success(t('artworks.coverUnsetSuccess'))
+      trackEvent('artist_action', { action: 'artwork_set_cover', cover: 0 })
     } else {
       await artistApi.setArtworkCover(art.id)
       art.is_cover = 1
       ElMessage.success(t('artworks.coverSetSuccess'))
+      trackEvent('artist_action', { action: 'artwork_set_cover', cover: 1 })
     }
     await loadArtworks()
   } catch (err) {
@@ -460,6 +464,7 @@ async function handlePasteArtworkFiles(files) {
   }
   ElMessage.success(t('artworks.uploaded'))
   await loadArtworks()
+  trackEvent('artist_action', { action: 'artwork_publish', source: 'paste' })
 }
 
 onMounted(async () => {

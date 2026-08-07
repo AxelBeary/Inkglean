@@ -514,6 +514,7 @@ import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { useStageStatus } from '../../composables/useStageStatus.js'
 import { formatDateTimeShort } from '../../utils/datetime.js'
+import { trackEvent } from '../../utils/track.js'
 import { ORDER_STATUS_TYPE } from '../../constants/order.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 
@@ -1029,6 +1030,8 @@ async function submit() {
 
     resultNo.value = order.order_no
     showResult.value = true
+    // 埋点（REQ-033 §4.2）：手动录单提交成功
+    trackEvent('artist_action', { action: 'order_create' })
     // F6: 提交成功后清空草稿（下次进入不再弹恢复提示）
     clearDraft()
     if (postCreateFailed) {

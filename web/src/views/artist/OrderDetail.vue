@@ -682,6 +682,7 @@ import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useActivityLog } from '../../composables/useActivityLog.js'
 import { formatDateTime } from '../../utils/datetime.js'
+import { trackEvent } from '../../utils/track.js'
 // v0.40 瘦身批：script 4 区块抽 composable（零行为变化）
 import { useOrderWorkflow } from '../../composables/useOrderWorkflow.js'
 import { useOrderGallery } from '../../composables/useOrderGallery.js'
@@ -798,6 +799,7 @@ async function changeStatus(status) {
   try {
     order.value = await artistApi.updateStatus(route.params.id, status)
     ElMessage.success(t('orderDetail.statusUpdated'))
+    trackEvent('artist_action', { action: 'order_status_change', status })
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

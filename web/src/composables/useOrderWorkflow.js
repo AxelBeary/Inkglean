@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../api/index.js'
+import { trackEvent } from '../utils/track.js'
 
 /**
  * 订单工作流状态机（从 OrderDetail.vue 拆分，纯搬移零行为变化）
@@ -56,6 +57,7 @@ export function useOrderWorkflow({ order, routeId, statusAction }) {
     try {
       order.value = await artistApi.advanceStage(routeId, nextStage.value.id)
       ElMessage.success(t('orderDetail.stageUpdated'))
+      trackEvent('artist_action', { action: 'order_status_change', stage: 'advance' })
     } catch (err) {
       ElMessage.error(err.message)
     } finally {
@@ -79,6 +81,7 @@ export function useOrderWorkflow({ order, routeId, statusAction }) {
     try {
       order.value = await artistApi.stageBack(routeId, prev.id)
       ElMessage.success(t('orderDetail.stageUpdated'))
+      trackEvent('artist_action', { action: 'order_status_change', stage: 'back' })
     } catch (err) {
       ElMessage.error(err.message)
     } finally {

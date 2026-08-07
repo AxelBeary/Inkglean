@@ -273,6 +273,7 @@ import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import { validateLink, MAX_LINK_COUNT as MAX_LINKS } from '../../utils/linkValidation.js'
+import { trackEvent } from '../../utils/track.js'
 // v0.34 任务3：模板卡预览 SVG 图标
 import { Notebook, Brush, Picture, Sunny, Collection, Moon, Document, MagicStick } from '@element-plus/icons-vue'
 // #44: 偏好已拆出为独立页面（/preferences），此处只保留主页设置
@@ -328,6 +329,7 @@ async function saveRules() {
   try {
     await artistApi.updateRules(rulesContent.value)
     ElMessage.success(t('rules.saved'))
+    trackEvent('artist_action', { action: 'settings_save', tab: 'rules' })
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
@@ -538,6 +540,7 @@ async function save() {
       })
     }
     ElMessage.success(t('settings.saved'))
+    trackEvent('artist_action', { action: 'settings_save', tab: activeTab.value })
   } catch (err) { ElMessage.error(err.message) }
   finally { saving.value = false }
 }

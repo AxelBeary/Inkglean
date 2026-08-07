@@ -1,4 +1,4 @@
-<template>
+MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from 'vue-router'... HIT: import { ref, computed, watch } from 'vu... <template>
   <div class="order-form-page">
     <ClientFloatingActions />
     <div class="form-container" v-loading="loading">
@@ -574,8 +574,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -585,6 +585,7 @@ import ClientFloatingActions from '../../components/client/ClientFloatingActions
 import { useOrderForm } from '../../composables/useOrderForm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { usePalette } from '../../composables/usePalette.js'
+import { trackEvent, flushNow } from '../../utils/track.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -675,6 +676,70 @@ const addonStep = computed(() => stepDefs.value.findIndex(s => s.key === 'addon'
 const detailStep = computed(() => stepDefs.value.findIndex(s => s.key === 'detail') + 1)
 const contactStep = computed(() => stepDefs.value.findIndex(s => s.key === 'contact') + 1)
 
+// ─── 埋点：下单漏斗（REQ-033 §3.5 / 施工图《01-to-02-埋点前端批》§3.2） ───
+// 事件名严格用后端白名单；埋点失败静默，绝不打断用户、不影响业务
+const trackingStartTs = Date.now()
+let trackingLastStep = null
+
+function trackingPricingModel() {
+  return isStyleMode.value ? 'style' : 'legacy'
+}
+function trackingStepKey(stepNo) {
+  return stepDefs.value[stepNo - 1]?.key || null
+}
+function trackingEmitStep(stepNo, prevStepNo) {
+  const pricing_model = trackingPricingModel()
+  const total_steps = stepDefs.value.length
+  const stepKey = trackingStepKey(stepNo)
+  if (prevStepNo != null && prevStepNo !== stepNo) {
+    const leaveKey = trackingStepKey(prevStepNo)
+    if (leaveKey) trackEvent('order_form_step_leave', { step_key: leaveKey, step_index: prevStepNo, total_steps, pricing_model })
+  }
+  if (stepKey) trackEvent('order_form_step_view', { step_key: stepKey, step_index: stepNo, total_steps, pricing_model })
+  if (prevStepNo != null && stepNo < prevStepNo) {
+    trackEvent('order_form_step_back', { from_step: prevStepNo, to_step: stepNo, pricing_model })
+  }
+  trackingLastStep = stepNo
+}
+// artist 数据加载完成 → 漏斗起点：start + 初始步骤 view（含入口 A 预选跳步场景）
+watch(loading, (v) => {
+  if (v) return
+  trackEvent('order_form_start', { pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
+  trackingEmitStep(step.value, null)
+}, { once: true })
+// 步骤变化统一收口（覆盖模板各处 @click="step = N" 与预选横幅跳步）
+watch(step, (v, old) => {
+  if (trackingLastStep == null) trackingLastStep = old
+  if (v === trackingLastStep) return
+  trackingEmitStep(v, trackingLastStep)
+})
+// 提交成功（showSuccess 变 true）：漏斗成功 + 转化基线双事件（REQ-033 §3.2 拍板 A 沿用第三方原名）
+watch(showSuccess, (v) => {
+  if (!v) return
+  const payload = {
+    pricing_model: trackingPricingModel(),
+    total_steps: stepDefs.value.length,
+    elapsed_ms: Math.max(0, Date.now() - trackingStartTs)
+  }
+  trackEvent('order_form_submit_success', payload)
+  trackEvent('order_submit_success', payload)
+})
+function trackingEmitAbandon() {
+  if (showSuccess.value || trackingLastStep == null) return
+  trackEvent('order_form_abandon', {
+    last_step: trackingLastStep,
+    dwell_ms: Math.max(0, Date.now() - trackingStartTs)
+  })
+}
+// SPA 路由离开（未提交）：入队 + 立即发送；关标签页/刷新：入队后由 track.js pagehide sendBeacon 带走
+onBeforeRouteLeave(() => {
+  if (showSuccess.value) return
+  trackingEmitAbandon()
+  flushNow()
+})
+window.addEventListener('beforeunload', trackingEmitAbandon)
+onUnmounted(() => window.removeEventListener('beforeunload', trackingEmitAbandon))
+
 // v0.34 任务B：主页带 query 预选进来时，初始步骤跳过已预选部分
 // （画风+尺寸都选中 → 直接进增项步骤；仅画风选中 → 进选尺寸步骤）
 watch(loading, (v) => {
@@ -711,6 +776,7 @@ function appendTag(tag) {
 // ─── R58-3: 小票二次确认（校验通过才弹小票，确认后走 composable 提交流程） ───
 // R24: 校验失败时弹窗列出所有未通过项，关闭后滚动到第一个未通过字段
 async function openReceipt() {
+  trackEvent('order_form_submit_attempt', { pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
   try {
     await formRef.value.validate()
   } catch (invalidFields) {
@@ -731,6 +797,7 @@ async function openReceipt() {
       const firstField = Object.keys(invalidFields)[0]
       if (firstField) formRef.value.scrollToField(firstField)
     }
+    trackEvent('order_form_submit_fail', { reason: 'validation', pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
     return
   }
   receiptVisible.value = true
@@ -738,6 +805,7 @@ async function openReceipt() {
 async function confirmSubmit() {
   await submit()
   if (showSuccess.value) receiptVisible.value = false
+  else trackEvent('order_form_submit_fail', { reason: 'submit', pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
 }
 
 // ─── R58-5: 复制约稿信息（订单号 + 档位 + 明细 + 总价） ───

@@ -106,6 +106,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { formatDateTime } from '../../utils/datetime.js'
+import { trackEvent } from '../../utils/track.js'
 
 const { t } = useI18n()
 
@@ -212,6 +213,7 @@ async function submitReply(msg) {
   try {
     await artistApi.replyMessage(msg.id, replyText.value.trim())
     ElMessage.success(t('dashboard.guestbookRepliedMsg'))
+    trackEvent('artist_action', { action: 'guestbook_reply' })
     msg.artist_reply = replyText.value.trim()
     replyingId.value = null
   } catch (err) {
