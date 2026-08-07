@@ -2,6 +2,9 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-prefs">
+        <!-- 亮暗切换：登录页挂后台 scope（data-artist-theme），必须用后台 paper/ink 切换
+             （客户端 ThemePicker 的 base/dark 走 html.dark 与后台 token 不连通，点了不生效——用户反馈） -->
+        <ThemeToggle />
         <ThemePicker />
       </div>
 
@@ -49,6 +52,7 @@ import { useThemeStore } from '../../stores/theme.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
+import ThemeToggle from '../../components/ThemeToggle.vue'
 import logoUrl from '../../assets/logo.webp'
 
 const { t } = useI18n()
