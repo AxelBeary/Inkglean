@@ -43,8 +43,10 @@ function onToggle() {
   display: grid; place-items: center;
   cursor: pointer;
   color: var(--ink2, var(--text-secondary));
-  transition: color .15s, box-shadow .15s, background-color .35s, border-color .35s;
+  transition: color .15s, box-shadow .15s, transform .15s ease-out, background-color .35s, border-color .35s;
 }
+/* 点名1: 主题开关按钮按压反馈（克制动效批同款 0.15s ease-out） */
+.artist-theme-btn:active { transform: scale(0.98); }
 .artist-theme-btn:hover {
   color: var(--ink, var(--text-primary));
   box-shadow: var(--sh-1, 0 1px 2px rgba(0, 0, 0, .06));
