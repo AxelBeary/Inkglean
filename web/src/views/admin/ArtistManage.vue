@@ -14,6 +14,7 @@
       <div class="action-buttons">
         <el-button type="primary" @click="dialogVisible = true">{{ $t('admin.addArtist') }}</el-button>
         <el-button type="warning" plain @click="openTransfer">{{ $t('admin.transferAdmin') }}</el-button>
+        <el-button plain @click="openRecycleBin">{{ $t('admin.recycleBin.title') }}</el-button>
       </div>
     </div>
 
@@ -198,6 +199,38 @@
       </template>
     </el-dialog>
     <!-- 画师详情抽屉 -->
+    <!-- 回收站（从主页迁入：孤儿文件可恢复；REQ-022 F4 分页） -->
+    <el-dialog v-model="recycleVisible" :title="$t('admin.recycleBin.title')" width="720px" :close-on-click-modal="false">
+      <div class="recycle-body">
+        <el-table v-if="recycleLoading || recycleItems.length > 0" :data="recycleItems" v-loading="recycleLoading" stripe max-height="420">
+          <el-table-column prop="fileName" :label="$t('admin.recycleBin.colFile')" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="originalPath" :label="$t('admin.recycleBin.colPath')" min-width="180" show-overflow-tooltip />
+          <el-table-column :label="$t('admin.recycleBin.colSize')" width="90">
+            <template #default="{ row }">{{ formatSize(row.size) }}</template>
+          </el-table-column>
+          <el-table-column :label="$t('admin.recycleBin.colMovedAt')" width="160">
+            <template #default="{ row }">{{ formatDateTime(row.movedAt) }}</template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-else :description="$t('admin.recycleBin.emptyHint')" />
+        <!-- REQ-022 F4: 分页（每页 20 条） -->
+        <div v-if="recycleTotal > 0" class="pager">
+          <el-pagination
+            v-model:current-page="recyclePage"
+            :page-size="recyclePageSize"
+            :total="recycleTotal"
+            layout="total, prev, pager, next"
+            @current-change="loadRecycleBin"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="recycleVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button v-if="recycleTotal > 0" type="danger" plain :loading="emptying" @click="handleEmptyRecycleBin">
+          {{ $t('admin.recycleBin.empty') }}
+        </el-button>
+      </template>
+    </el-dialog>
     <ArtistDetailDrawer v-model="detailVisible" :artist="detailArtist" />
   </div>
 </template>
@@ -321,6 +354,62 @@ async function viewOrders(row) {
 }
 
 // ─── 更换管理员（REQ-027: 双 TOTP 动态码验证） ───
+
+// ─── 回收站（从主页迁入：孤儿文件可恢复；REQ-022 F4 分页） ───
+const recycleVisible = ref(false)
+const recycleItems = ref([])
+const recycleLoading = ref(false)
+const emptying = ref(false)
+const recyclePage = ref(1)
+const recyclePageSize = 20
+const recycleTotal = ref(0)
+
+async function openRecycleBin() {
+  recyclePage.value = 1
+  recycleVisible.value = true
+  await loadRecycleBin()
+}
+
+async function loadRecycleBin() {
+  recycleLoading.value = true
+  try {
+    const res = await adminApi.getRecycleBin({ page: recyclePage.value, pageSize: recyclePageSize })
+    recycleItems.value = res.items || []
+    recycleTotal.value = res.total || 0
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    recycleLoading.value = false
+  }
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+async function handleEmptyRecycleBin() {
+  try {
+    await ElMessageBox.confirm(
+      t('admin.recycleBin.emptyConfirm'),
+      t('admin.recycleBin.emptyTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  emptying.value = true
+  try {
+    const res = await adminApi.emptyRecycleBin()
+    ElMessage.success(t('admin.recycleBin.emptied', { n: res.deleted }))
+    // REQ-022 F4: 清空后回到第 1 页并刷新
+    recyclePage.value = 1
+    await loadRecycleBin()
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    emptying.value = false
+  }
+}
 function openTransfer() {
   transferStep.value = 1
   currentCode.value = ''
@@ -452,6 +541,8 @@ onMounted(loadArtists)
 
 /* 行操作按钮组（统一间距） */
 .row-actions { display: flex; gap: var(--sp-1, 4px); flex-wrap: nowrap; }
+/* 回收站分页 */
+.pager { display: flex; justify-content: flex-end; margin-top: var(--sp-4, 16px); }
 
 /* B7: 订单行展开——收款摘要 */
 .order-expand-pay { padding: 8px 16px; }
