@@ -490,7 +490,15 @@ export default {
     slotNext: 'Next in buffer: {name} (QQ: {qq})',
     // #4: slot overview revamp
     slotCombined: '{used}/{total} filled', slotNotEnabled: 'Slot limit is off — set it up →', slotDisplayFallback: '—',
-    artworks: 'Gallery', tiers: 'Tiers'
+    artworks: 'Gallery', tiers: 'Tiers',
+    // REQ-033: artist stats
+    trackingTitle: 'My stats', trackingTotal: 'Total events',
+    trackingNames: {
+      dashboard_view: 'Dashboard views', queue_view: 'Queue views', orders_view: 'Order list views',
+      manual_view: 'Manual entry', artworks_view: 'Artwork management', settings_view: 'Settings',
+      tiers_view: 'Tiers', guestbook_view: 'Guestbook', preferences_view: 'Preferences',
+      dashboard_quick_click: 'Quick actions', artist_action: 'Artist actions'
+    }
   },
   queue: {
     title: 'Queue Board',
@@ -1062,6 +1070,15 @@ export default {
       deleted: 'Platform deleted, {n} link(s) became "Other"',
       iconFallbackHint: 'At least one of icon or fallback char is required.',
       domainFormatError: 'Invalid domain format (no protocol/path/port)'
+    },
+    // REQ-033: analytics dashboard
+    tracking: {
+      title: 'Analytics', total: 'Total events', visibleLabel: 'Artist stats visible',
+      daysLabel: 'Range', funnelTitle: 'Order funnel',
+      byNameTitle: 'By event', byDayTitle: 'By day',
+      colName: 'Event', colCount: 'Count', colRatio: 'Ratio', colDay: 'Date',
+      days7: 'Last 7 days', days14: 'Last 14 days', days30: 'Last 30 days', days90: 'Last 90 days',
+      visibleSaved: 'Artist stats visibility updated', empty: 'No event data'
     }
   }
 }
