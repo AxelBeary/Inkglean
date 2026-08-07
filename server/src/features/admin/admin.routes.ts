@@ -11,7 +11,7 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { clamp } from '../../shared/validate.js'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
 // 管理员路由 - 多画师管理
@@ -52,8 +52,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request: any, reply: any) => {
-    const { qqNumber, name, subdomain, bio, artistCode } = request.body || {}
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { qqNumber, name, subdomain, bio, artistCode } = (request.body as { qqNumber: string; name: string; subdomain: string; bio?: string | null; artistCode?: string | null }) || {}
 
     // 子域名保留词黑名单（防止与系统路径冲突）
     const RESERVED = ['admin', 'api', 'www', 'uploads', 'static', 'login', 'assets', 'dashboard', 'app']
@@ -80,15 +80,15 @@ export default async function adminRoutes(fastify: FastifyInstance) {
    * DELETE /api/admin/artists/:id
    * 移除画师（不能删除管理员账号）
    */
-  fastify.delete('/api/admin/artists/:id', { preHandler: requireAdmin }, async (request: any, reply: any) => {
-    const artist = artistService.getArtistById(request.params.id)
+  fastify.delete('/api/admin/artists/:id', { preHandler: requireAdmin }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artist = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
 
     if (artist.qq_number === getAdminQq()) {
       return reply.code(403).send({ error: '不能删除管理员账号。如需更换管理员，请使用「更换管理员」功能。' })
     }
 
-    artistService.deleteArtist(request.params.id)
+    artistService.deleteArtist(Number((request.params as { id: string }).id))
     return { success: true, message: `已移除画师 ${artist.name}` }
   })
 
@@ -96,16 +96,16 @@ export default async function adminRoutes(fastify: FastifyInstance) {
    * GET /api/admin/artists/:id/orders
    * 查看指定画师的订单列表（支持分页）
    */
-  fastify.get('/api/admin/artists/:id/orders', { preHandler: requireAdmin }, async (request: any, reply: any) => {
-    const artist = artistService.getArtistById(request.params.id)
+  fastify.get('/api/admin/artists/:id/orders', { preHandler: requireAdmin }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artist = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
-    const { page, pageSize } = request.query || {}
+    const { page, pageSize } = (request.query as { page?: string; pageSize?: string }) || {}
     const result = orderService.getArtistOrders(artist.id, undefined, {
-      page: Math.max(1, parseInt(page, 10) || 1),
-      pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200))
+      page: Math.max(1, parseInt(page ?? '', 10) || 1),
+      pageSize: Math.max(1, Math.min(parseInt(pageSize ?? '', 10) || 50, 200))
     })
     // B7: 补充 camelCase 付款字段 + 分期三态（管理端行展开用）
-    result.items = result.items.map((o: any) => ({
+    result.items = result.items.map((o: { id: number; paid_total_cents: number | null; final_price_cents: number | null }) => ({
       ...o,
       paidTotalCents: o.paid_total_cents ?? 0,
       finalPriceCents: o.final_price_cents ?? 0,
@@ -118,13 +118,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
    * PUT /api/admin/artists/:id/status
    * 修改画师主页状态
    */
-  fastify.put('/api/admin/artists/:id/status', { preHandler: requireAdmin }, async (request: any, reply: any) => {
-    const artist = artistService.getArtistById(request.params.id)
+  fastify.put('/api/admin/artists/:id/status', { preHandler: requireAdmin }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artist = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
 
-    const { status } = request.body || {}
+    const { status } = (request.body as { status?: string }) || {}
     // BUG-8 第三项（用户拍板）：管理员可将画师设为 hidden（对外隐身）——与 updateArtist 白名单对齐
-    if (!['open', 'full', 'break', 'hidden'].includes(status)) {
+    if (!status || !['open', 'full', 'break', 'hidden'].includes(status)) {
       return reply.code(400).send({ error: '无效状态' })
     }
 
@@ -138,8 +138,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
    * 密钥立即入库但未验证（verified=0）；重复调用 = 覆盖旧密钥，旧 App 绑定立即失效
    * DEV 模式（AUTH_DEV_MODE=true）附带 _dev_secret 明文辅助开发/测试/演示
    */
-  fastify.post('/api/admin/artists/:id/totp/bind-init', { preHandler: requireAdmin }, async (request: any, reply: any) => {
-    const artist = artistService.getArtistById(parseInt(request.params.id))
+  fastify.post('/api/admin/artists/:id/totp/bind-init', { preHandler: requireAdmin }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artist = artistService.getArtistById(parseInt((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
     if (artist.deleted_at) return reply.code(400).send({ error: '画师已移除，无法绑定' })
 
@@ -172,13 +172,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request: any, reply: any) => {
-    const artist = artistService.getArtistById(parseInt(request.params.id))
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artist = artistService.getArtistById(parseInt((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
     if (!artist.totp_secret) return reply.code(400).send({ error: '请先生成绑定二维码' })
 
     try {
-      confirmTotpBind(artist.id, request.body.code)
+      confirmTotpBind(artist.id, (request.body as { code: string }).code)
     } catch (err) {
       if (err instanceof AppError && err.code === E.TOTP_BIND_INVALID) {
         return reply.code(400).send({ code: E.TOTP_BIND_INVALID, error: '动态口令错误，请让画师确认验证器上当前显示的 6 位码' })
@@ -193,8 +193,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
    * POST /api/admin/artists/:id/totp/reset
    * REQ-027 R5 恢复方案：管理员重置画师绑定，旧密钥立即失效，画师须重新绑定才能登录
    */
-  fastify.post('/api/admin/artists/:id/totp/reset', { preHandler: requireAdmin }, async (request: any, reply: any) => {
-    const artist = artistService.getArtistById(parseInt(request.params.id))
+  fastify.post('/api/admin/artists/:id/totp/reset', { preHandler: requireAdmin }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artist = artistService.getArtistById(parseInt((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
 
     resetTotp(artist.id)
@@ -211,11 +211,11 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   // ─── 回收站管理（事故修复：孤儿文件可恢复） ───
 
   /** GET /api/admin/recycle-bin — 列出回收站内容（REQ-022 F4：分页，movedAt 倒序） */
-  fastify.get('/api/admin/recycle-bin', { preHandler: requireAdmin }, async (request: any) => {
-    const { page, pageSize } = request.query || {}
+  fastify.get('/api/admin/recycle-bin', { preHandler: requireAdmin }, async (request: FastifyRequest) => {
+    const { page, pageSize } = (request.query as { page?: string; pageSize?: string }) || {}
     return adminService.listRecycleBinPaged(
-      Math.max(1, parseInt(page, 10) || 1),
-      Math.max(1, Math.min(parseInt(pageSize, 10) || 20, 100))
+      Math.max(1, parseInt(page ?? '', 10) || 1),
+      Math.max(1, Math.min(parseInt(pageSize ?? '', 10) || 20, 100))
     )
   })
 
@@ -247,8 +247,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any, reply: any) => {
-    const { newQq, currentCode, newCode } = request.body
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { newQq, currentCode, newCode } = (request.body as { newQq: string; currentCode: string; newCode: string })
 
     const currentAdminQq = getAdminQq()
     if (String(newQq) === currentAdminQq) {
@@ -291,8 +291,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   const greetingService = await import('../artist/greeting.service.js')
 
   /** GET /api/admin/greetings — 通用库列表 */
-  fastify.get('/api/admin/greetings', { preHandler: requireAdmin }, async (request: any) => {
-    return greetingService.getGlobalGreetings(request.query.slot)
+  fastify.get('/api/admin/greetings', { preHandler: requireAdmin }, async (request: FastifyRequest) => {
+    return greetingService.getGlobalGreetings((request.query as { slot?: string }).slot)
   })
 
   /** POST /api/admin/greetings — 添加通用模板 */
@@ -309,8 +309,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
-    return greetingService.createGlobalGreeting(request.body)
+  }, async (request: FastifyRequest) => {
+    return greetingService.createGlobalGreeting(request.body as { text: string; timeSlot?: string })
   })
 
   /** PUT /api/admin/greetings/:id — 编辑通用模板 */
@@ -327,22 +327,22 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any, reply: any) => {
-    const result = greetingService.updateGreeting(parseInt(request.params.id), request.body)
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const result = greetingService.updateGreeting(parseInt((request.params as { id: string }).id), request.body as { text?: string; timeSlot?: string; isEnabled?: boolean })
     if (!result) return reply.code(404).send({ error: '模板不存在' })
     return result
   })
 
   /** DELETE /api/admin/greetings/:id — 删除通用模板 */
-  fastify.delete('/api/admin/greetings/:id', { preHandler: requireAdmin }, async (request: any) => {
-    greetingService.deleteGreeting(parseInt(request.params.id))
+  fastify.delete('/api/admin/greetings/:id', { preHandler: requireAdmin }, async (request: FastifyRequest) => {
+    greetingService.deleteGreeting(parseInt((request.params as { id: string }).id))
     return { success: true }
   })
 
   /** GET /api/admin/artists/:id/greetings — 画师专属库 */
   // BUG-8 修复：补画师存在性校验（与 POST 的 requireExistingArtist 对齐，不存在时 404 而非空列表）
-  fastify.get('/api/admin/artists/:id/greetings', { preHandler: [requireAdmin, requireExistingArtist] }, async (request: any) => {
-    return greetingService.getArtistGreetings(parseInt(request.params.id))
+  fastify.get('/api/admin/artists/:id/greetings', { preHandler: [requireAdmin, requireExistingArtist] }, async (request: FastifyRequest) => {
+    return greetingService.getArtistGreetings(parseInt((request.params as { id: string }).id))
   })
 
   /** POST /api/admin/artists/:id/greetings — 为画师添加专属模板 */
@@ -359,8 +359,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
-    return greetingService.createArtistGreeting(parseInt(request.params.id), request.body)
+  }, async (request: FastifyRequest) => {
+    return greetingService.createArtistGreeting(parseInt((request.params as { id: string }).id), request.body as { text: string; timeSlot?: string })
   })
 
   /** PUT /api/admin/artists/:id/greetings/:gid — 编辑专属模板 */
@@ -377,24 +377,24 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any, reply: any) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // H-6 修复：校验问候语归属 — 必须属于该画师
-    const gid = parseInt(request.params.gid)
-    const artistId = parseInt(request.params.id)
+    const gid = parseInt((request.params as { gid: string }).gid)
+    const artistId = parseInt((request.params as { id: string }).id)
     const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid) as { id: number; artist_id: number } | undefined
     if (!existing || existing.artist_id !== artistId) {
       return reply.code(404).send({ error: '模板不存在或不属于该画师' })
     }
-    const result = greetingService.updateGreeting(gid, request.body)
+    const result = greetingService.updateGreeting(gid, request.body as { text?: string; timeSlot?: string; isEnabled?: boolean })
     if (!result) return reply.code(404).send({ error: '模板不存在' })
     return result
   })
 
   /** DELETE /api/admin/artists/:id/greetings/:gid — 删除专属模板 */
-  fastify.delete('/api/admin/artists/:id/greetings/:gid', { preHandler: requireAdmin }, async (request: any, reply: any) => {
+  fastify.delete('/api/admin/artists/:id/greetings/:gid', { preHandler: requireAdmin }, async (request: FastifyRequest, reply: FastifyReply) => {
     // H-6 修复：校验问候语归属 — 必须属于该画师
-    const gid = parseInt(request.params.gid)
-    const artistId = parseInt(request.params.id)
+    const gid = parseInt((request.params as { gid: string }).gid)
+    const artistId = parseInt((request.params as { id: string }).id)
     const existing = db.prepare('SELECT id, artist_id FROM greeting_templates WHERE id = ?').get(gid) as { id: number; artist_id: number } | undefined
     if (!existing || existing.artist_id !== artistId) {
       return reply.code(404).send({ error: '模板不存在或不属于该画师' })
@@ -434,8 +434,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
-    return workflowService.updateDefaultTemplate(request.body.nodes)
+  }, async (request: FastifyRequest) => {
+    return workflowService.updateDefaultTemplate((request.body as { nodes: Array<{ name: string; description?: string | null; takesPayment?: boolean; basisPoints?: number }> }).nodes)
   })
 
   /** POST /api/admin/default-workflow/reset — 重置出厂模板 */
@@ -445,8 +445,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
 
   /** GET /api/admin/artists/:id/workflow — 查看画师流程 */
   // BUG-8 修复：补画师存在性校验（不存在时 404 而非空 stages）
-  fastify.get('/api/admin/artists/:id/workflow', { preHandler: [requireAdmin, requireExistingArtist] }, async (request: any) => {
-    return { stages: workflowService.getWorkflow(parseInt(request.params.id)) }
+  fastify.get('/api/admin/artists/:id/workflow', { preHandler: [requireAdmin, requireExistingArtist] }, async (request: FastifyRequest) => {
+    return { stages: workflowService.getWorkflow(parseInt((request.params as { id: string }).id)) }
   })
 
   /** POST /api/admin/artists/:id/workflow — 为画师添加节点 */
@@ -461,8 +461,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
-    return workflowService.addStage(parseInt(request.params.id), request.body)
+  }, async (request: FastifyRequest) => {
+    return workflowService.addStage(parseInt((request.params as { id: string }).id), request.body as { name: string; description?: string | null })
   })
 
   /** PUT /api/admin/artists/:id/workflow/:sid — 编辑画师节点 */
@@ -480,13 +480,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
-    return workflowService.updateStage(parseInt(request.params.id), parseInt(request.params.sid), request.body)
+  }, async (request: FastifyRequest) => {
+    return workflowService.updateStage(parseInt((request.params as { id: string }).id), parseInt((request.params as { sid: string }).sid), request.body as { name?: string; description?: string | null; takesPayment?: boolean; speechTemplate?: string | null; randomTemplate?: boolean })
   })
 
   /** DELETE /api/admin/artists/:id/workflow/:sid — 删除画师节点 */
-  fastify.delete('/api/admin/artists/:id/workflow/:sid', { preHandler: requireAdmin }, async (request: any) => {
-    return workflowService.deleteStage(parseInt(request.params.id), parseInt(request.params.sid))
+  fastify.delete('/api/admin/artists/:id/workflow/:sid', { preHandler: requireAdmin }, async (request: FastifyRequest) => {
+    return workflowService.deleteStage(parseInt((request.params as { id: string }).id), parseInt((request.params as { sid: string }).sid))
   })
 
   /** PUT /api/admin/artists/:id/workflow/reorder — 画师节点排序 */
@@ -498,8 +498,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         properties: { orderedIds: { type: 'array', items: { type: 'integer' }, minItems: 1, maxItems: 50 } }
       }
     }
-  }, async (request: any) => {
-    return { stages: workflowService.reorderStages(parseInt(request.params.id), request.body.orderedIds) }
+  }, async (request: FastifyRequest) => {
+    return { stages: workflowService.reorderStages(parseInt((request.params as { id: string }).id), (request.body as { orderedIds: number[] }).orderedIds) }
   })
 
   /** PUT /api/admin/artists/:id/workflow/payment — 画师比例保存 */
@@ -522,15 +522,15 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
-    return { stages: workflowService.savePayment(parseInt(request.params.id), request.body.nodes) }
+  }, async (request: FastifyRequest) => {
+    return { stages: workflowService.savePayment(parseInt((request.params as { id: string }).id), (request.body as { nodes: Array<{ id: number; basisPoints: number }> }).nodes) }
   })
 
   // ─── 画师全设置代理（管理员编辑任意画师） ───
 
   // H-5 修复：画师存在性校验 preHandler（4 个 POST 路由共用）
-  async function requireExistingArtist(request: any, reply: any) {
-    const a = artistService.getArtistById(request.params.id)
+  async function requireExistingArtist(request: FastifyRequest, reply: FastifyReply) {
+    const a = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!a || a.deleted_at) return reply.code(404).send({ error: '画师不存在' })
     request.targetArtist = a
   }
@@ -541,8 +541,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   const intIdAid = { params: { type: 'object', properties: { id: { type: 'integer' }, aid: { type: 'integer' } }, required: ['id', 'aid'] } }
 
   /** GET /api/admin/artists/:id/profile — 画师资料 */
-  fastify.get('/api/admin/artists/:id/profile', { preHandler: requireAdmin, schema: intId }, async (request: any, reply: any) => {
-    const a = artistService.getArtistById(request.params.id)
+  fastify.get('/api/admin/artists/:id/profile', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const a = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!a) return reply.code(404).send({ error: '画师不存在' })
     // 安全加固批 F1: 完整行含 totp_secret，走 DTO 剔除敏感列
     return publicArtistDTO(a)
@@ -567,16 +567,16 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any, reply: any) => {
-    const a = artistService.getArtistById(request.params.id)
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const a = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!a) return reply.code(404).send({ error: '画师不存在' })
     // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
-    return publicArtistDTO(artistService.updateArtist(a.id, request.body))
+    return publicArtistDTO(artistService.updateArtist(a.id, request.body as Record<string, unknown>))
   })
 
   /** GET /api/admin/artists/:id/tiers — 档位列表 */
-  fastify.get('/api/admin/artists/:id/tiers', { preHandler: requireAdmin, schema: intId }, async (request: any) => {
-    return artistService.getTiers(request.params.id)
+  fastify.get('/api/admin/artists/:id/tiers', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest) => {
+    return artistService.getTiers(Number((request.params as { id: string }).id))
   })
 
   /** POST /api/admin/artists/:id/tiers — 创建档位（P1-3: schema） */
@@ -595,8 +595,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
-    return artistService.createTier(request.params.id, request.body)
+  }, async (request: FastifyRequest) => {
+    return artistService.createTier(Number((request.params as { id: string }).id), request.body as { name: string; price: number; description?: string | null; work_days?: number | null; example_image?: string | null })
   })
 
   /** PUT /api/admin/artists/:id/tiers/:tid — 更新档位（P1-3 + P1-4） */
@@ -616,24 +616,24 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any, reply: any) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // P1-4: 校验归属
-    const tiers = artistService.getTiers(request.params.id)
-    if (!tiers.some(t => t.id === request.params.tid)) return reply.code(404).send({ error: '档位不属于该画师' })
-    return artistService.updateTier(request.params.tid, request.body)
+    const tiers = artistService.getTiers(Number((request.params as { id: string }).id))
+    if (!tiers.some(t => t.id === Number((request.params as { tid: string }).tid))) return reply.code(404).send({ error: '档位不属于该画师' })
+    return artistService.updateTier(Number((request.params as { tid: string }).tid), request.body as { name?: string; price?: number; description?: string | null; work_days?: number | null; example_image?: string | null; sort_order?: number })
   })
 
   /** DELETE /api/admin/artists/:id/tiers/:tid — 删除档位（P1-4） */
-  fastify.delete('/api/admin/artists/:id/tiers/:tid', { preHandler: requireAdmin, schema: intIdTid }, async (request: any, reply: any) => {
-    const tiers = artistService.getTiers(request.params.id)
-    if (!tiers.some(t => t.id === request.params.tid)) return reply.code(404).send({ error: '档位不属于该画师' })
-    artistService.deleteTier(request.params.tid)
+  fastify.delete('/api/admin/artists/:id/tiers/:tid', { preHandler: requireAdmin, schema: intIdTid }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tiers = artistService.getTiers(Number((request.params as { id: string }).id))
+    if (!tiers.some(t => t.id === Number((request.params as { tid: string }).tid))) return reply.code(404).send({ error: '档位不属于该画师' })
+    artistService.deleteTier(Number((request.params as { tid: string }).tid))
     return { success: true }
   })
 
   /** GET /api/admin/artists/:id/artworks — 作品列表 */
-  fastify.get('/api/admin/artists/:id/artworks', { preHandler: requireAdmin, schema: intId }, async (request: any) => {
-    return artistService.getArtworks(request.params.id)
+  fastify.get('/api/admin/artists/:id/artworks', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest) => {
+    return artistService.getArtworks(Number((request.params as { id: string }).id))
   })
 
   /** POST /api/admin/artists/:id/artworks — 添加作品（P1-3） */
@@ -649,26 +649,26 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         }
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     // H-3 修复：路径归属校验（对齐画师端 POST /api/artist/artworks）
-    const { imagePath, title } = request.body
-    if (imagePath.includes('..') || !imagePath.startsWith(`images/${request.params.id}/`)) {
+    const { imagePath, title } = (request.body as { imagePath: string; title?: string | null })
+    if (imagePath.includes('..') || !imagePath.startsWith(`images/${(request.params as { id: string }).id}/`)) {
       throw new AppError(E.ILLEGAL_PATH)
     }
-    return artistService.createArtwork(request.params.id, { imagePath, title })
+    return artistService.createArtwork(Number((request.params as { id: string }).id), { imagePath, title })
   })
 
   /** DELETE /api/admin/artists/:id/artworks/:aid — 删除作品（P1-4） */
-  fastify.delete('/api/admin/artists/:id/artworks/:aid', { preHandler: requireAdmin, schema: intIdAid }, async (request: any, reply: any) => {
-    const artworks = artistService.getArtworks(request.params.id)
-    if (!artworks.some(a => a.id === request.params.aid)) return reply.code(404).send({ error: '作品不属于该画师' })
-    artistService.deleteArtwork(request.params.aid)
+  fastify.delete('/api/admin/artists/:id/artworks/:aid', { preHandler: requireAdmin, schema: intIdAid }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artworks = artistService.getArtworks(Number((request.params as { id: string }).id))
+    if (!artworks.some(a => a.id === Number((request.params as { aid: string }).aid))) return reply.code(404).send({ error: '作品不属于该画师' })
+    artistService.deleteArtwork(Number((request.params as { aid: string }).aid))
     return { success: true }
   })
 
   /** GET /api/admin/artists/:id/rules — 须知 */
-  fastify.get('/api/admin/artists/:id/rules', { preHandler: requireAdmin, schema: intId }, async (request: any) => {
-    return artistService.getRules(request.params.id)
+  fastify.get('/api/admin/artists/:id/rules', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest) => {
+    return artistService.getRules(Number((request.params as { id: string }).id))
   })
 
   /** PUT /api/admin/artists/:id/rules — 更新须知 */
@@ -682,8 +682,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         properties: { content: { type: 'string', maxLength: 10000 } }
       }
     }
-  }, async (request: any) => {
-    return artistService.updateRules(request.params.id, request.body.content)
+  }, async (request: FastifyRequest) => {
+    return artistService.updateRules(Number((request.params as { id: string }).id), (request.body as { content: string }).content)
   })
 
   // ============================================
@@ -717,12 +717,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         properties: platformBodyProps
       }
     }
-  }, async (request: any, reply: any) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const platform = platformService.createPlatform(request.body || {})
+      const platform = platformService.createPlatform((request.body || {}) as Parameters<typeof platformService.createPlatform>[0])
       return reply.code(201).send(platform)
-    } catch (err: any) {
-      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+    } catch (err) {
+      const e = err as AppError
+      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
     }
   })
 
@@ -736,21 +737,23 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         properties: platformBodyProps
       }
     }
-  }, async (request: any, reply: any) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      return platformService.updatePlatform(request.params.id, request.body || {})
-    } catch (err: any) {
-      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+      return platformService.updatePlatform(Number((request.params as { id: string }).id), (request.body || {}) as Parameters<typeof platformService.updatePlatform>[1])
+    } catch (err) {
+      const e = err as AppError
+      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
     }
   })
 
   /** DELETE /api/admin/platforms/:id — 删除平台（引用该平台的链接归「其他」，不级联删链接） */
-  fastify.delete('/api/admin/platforms/:id', { preHandler: requireAdmin, schema: intId }, async (request: any, reply: any) => {
+  fastify.delete('/api/admin/platforms/:id', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { reattributed } = platformService.deletePlatform(request.params.id)
+      const { reattributed } = platformService.deletePlatform(Number((request.params as { id: string }).id))
       return { success: true, reattributed }
-    } catch (err: any) {
-      return reply.code(err.statusCode || 400).send({ code: err.code || 'UNKNOWN', error: err.message })
+    } catch (err) {
+      const e = err as AppError
+      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
     }
   })
 }
