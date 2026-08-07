@@ -19,67 +19,70 @@
           <TodoList />
         </div>
 
-        <!-- 右栏：名额概览卡（有则显示）→ 快捷操作区 → 状态切换 → 最近活动流 -->
-        <div class="area area-slot">
-          <SlotOverview />
-        </div>
-        <div class="area area-quick">
-          <QuickActions />
-        </div>
-        <div class="area area-activity">
-          <ActivityFeed />
-        </div>
+        <!-- 右栏：名额概览卡（有则显示）→ 快捷操作区 → 状态切换 → 最近活动流
+             右栏独立 wrapper（flex 列紧凑堆叠，不与左栏行高对齐——避免左栏高卡片顶出大片空白） -->
+        <div class="area-right">
+          <div class="area area-slot">
+            <SlotOverview />
+          </div>
+          <div class="area area-quick">
+            <QuickActions />
+          </div>
+          <div class="area area-activity">
+            <ActivityFeed />
+          </div>
 
-        <!-- F4: 留言审核（右栏 row 5） -->
-        <div class="area area-guestbook">
-          <el-card v-loading="guestbookLoading">
-            <template #header>
-              <CardHead :title="$t('dashboard.guestbookTitle')">
-                <template #extra>
-                  <StatusChip v-if="pendingCount > 0" type="pend">{{ pendingCount }}</StatusChip>
-                </template>
-              </CardHead>
-            </template>
-            <div v-if="guestbookMessages.length" class="gb-mod-list">
-              <div
-                v-for="m in guestbookMessages" :key="m.id"
-                class="gb-mod-item" :class="{ 'gb-mod-item--pending': m.status === 'pending' }"
-              >
-                <div class="gb-mod-head">
-                  <span class="gb-mod-nick">{{ m.nickname }}</span>
-                  <StatusChip :type="{ pending: 'pend', approved: 'done', rejected: 'cancel' }[m.status]">
-                    {{ $t(`dashboard.guestbook${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`) }}
-                  </StatusChip>
-                </div>
-                <p class="gb-mod-content">{{ m.content }}</p>
-                <p class="gb-mod-time">{{ formatDateTime(m.created_at) }}</p>
-                <!-- 已有回复：展示 -->
-                <div class="gb-mod-reply" v-if="m.artist_reply">
-                  <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReply') }}：</span>{{ m.artist_reply }}
-                </div>
-                <!-- 操作区：pending 可通过/拒绝；所有未删除的可回复 -->
-                <div class="gb-mod-actions" v-if="m.status === 'pending'">
-                  <el-button size="small" type="primary" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>
-                  <el-button size="small" @click="rejectMsg(m)">{{ $t('dashboard.guestbookReject') }}</el-button>
-                </div>
-                <div class="gb-mod-reply-box">
-                  <el-input
-                    v-model="replyDrafts[m.id]"
-                    type="textarea" :rows="2" maxlength="500"
-                    :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
-                  />
-                  <el-button
-                    size="small" style="margin-top: 6px"
-                    :disabled="!(replyDrafts[m.id] || '').trim()"
-                    @click="replyMsg(m)"
-                  >
-                    {{ $t('dashboard.guestbookReplySave') }}
-                  </el-button>
+          <!-- F4: 留言审核（右栏 row 5） -->
+          <div class="area area-guestbook">
+            <el-card v-loading="guestbookLoading">
+              <template #header>
+                <CardHead :title="$t('dashboard.guestbookTitle')">
+                  <template #extra>
+                    <StatusChip v-if="pendingCount > 0" type="pend">{{ pendingCount }}</StatusChip>
+                  </template>
+                </CardHead>
+              </template>
+              <div v-if="guestbookMessages.length" class="gb-mod-list">
+                <div
+                  v-for="m in guestbookMessages" :key="m.id"
+                  class="gb-mod-item" :class="{ 'gb-mod-item--pending': m.status === 'pending' }"
+                >
+                  <div class="gb-mod-head">
+                    <span class="gb-mod-nick">{{ m.nickname }}</span>
+                    <StatusChip :type="{ pending: 'pend', approved: 'done', rejected: 'cancel' }[m.status]">
+                      {{ $t(`dashboard.guestbook${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`) }}
+                    </StatusChip>
+                  </div>
+                  <p class="gb-mod-content">{{ m.content }}</p>
+                  <p class="gb-mod-time">{{ formatDateTime(m.created_at) }}</p>
+                  <!-- 已有回复：展示 -->
+                  <div class="gb-mod-reply" v-if="m.artist_reply">
+                    <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReply') }}：</span>{{ m.artist_reply }}
+                  </div>
+                  <!-- 操作区：pending 可通过/拒绝；所有未删除的可回复 -->
+                  <div class="gb-mod-actions" v-if="m.status === 'pending'">
+                    <el-button size="small" type="primary" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>
+                    <el-button size="small" @click="rejectMsg(m)">{{ $t('dashboard.guestbookReject') }}</el-button>
+                  </div>
+                  <div class="gb-mod-reply-box">
+                    <el-input
+                      v-model="replyDrafts[m.id]"
+                      type="textarea" :rows="2" maxlength="500"
+                      :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
+                    />
+                    <el-button
+                      size="small" style="margin-top: 6px"
+                      :disabled="!(replyDrafts[m.id] || '').trim()"
+                      @click="replyMsg(m)"
+                    >
+                      {{ $t('dashboard.guestbookReplySave') }}
+                    </el-button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <InkEmpty v-else :title="$t('dashboard.guestbookEmpty')" />
-          </el-card>
+              <InkEmpty v-else :title="$t('dashboard.guestbookEmpty')" />
+            </el-card>
+          </div>
         </div>
       </div>
     </ArtistLayout>
@@ -185,11 +188,15 @@ async function replyMsg(m) {
   .area-revenue  { grid-column: 1; grid-row: 2; }
   .area-stats    { grid-column: 1; grid-row: 3; }
   .area-todo     { grid-column: 1; grid-row: 4; }
-  /* 右栏 */
-  .area-slot     { grid-column: 2; grid-row: 1; }
-  .area-quick    { grid-column: 2; grid-row: 2; }
-  .area-activity { grid-column: 2; grid-row: 3; }
-  .area-guestbook { grid-column: 2; grid-row: 4; }
+  /* 右栏：独立 wrapper（grid-column 2 跨全部行）——内部 flex 列紧凑堆叠，
+     不与左栏行高对齐（避免左栏高卡片把右栏下方区块顶出大片空白，用户 X② 反馈） */
+  .area-right {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 }
 
 /* ─── F4: 留言审核区（v0.38 token 换肤） ─── */
