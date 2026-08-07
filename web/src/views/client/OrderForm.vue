@@ -35,6 +35,8 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
         <div class="step-layout">
           <el-card class="step-main">
             <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
+              <!-- P0-2: 当前步眉题（第 X / Y 步） -->
+              <p class="step-eyebrow">{{ $t('orderForm.stepProgress', { cur: step, total: stepDefs.length }) }}</p>
               <!-- ── 步骤一：选档位（旧模型，无画风数据时） ── -->
               <div v-if="!isStyleMode" v-show="step === 1">
                 <h3 class="step-title">{{ $t('orderForm.step1Title') }}</h3>
@@ -493,6 +495,17 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
             <div v-else class="summary-empty">{{ $t('orderForm.summaryNoTier') }}</div>
           </aside>
         </div>
+
+        <!-- P0-1: 移动端底部粘性操作条（桌面隐藏；与原按钮并存） -->
+        <div class="mobile-cta-bar" v-if="artist">
+          <div class="mobile-cta-price">
+            <span class="mobile-cta-label">{{ $t('orderForm.receiptTotal') }}</span>
+            <span class="mobile-cta-amt">¥{{ displayPrice.toFixed(2) }}</span>
+          </div>
+          <el-button type="primary" class="mobile-cta-btn" @click="onMobileNext">
+            {{ step === contactStep ? $t('orderForm.submit') : $t('orderForm.nextStep') }}
+          </el-button>
+        </div>
       </template>
     </div>
 
@@ -651,6 +664,16 @@ function goNextFromDetail() {
     return
   }
   step.value = contactStep.value
+}
+
+// ─── P0-1: 移动端底部操作条跳转（复用既有流转逻辑，不重复造） ───
+function onMobileNext() {
+  if (step.value === contactStep.value) return openReceipt()
+  if (step.value === detailStep.value) return goNextFromDetail()
+  if (!isStyleMode.value) { step.value = detailStep.value; return }
+  if (step.value === 1 && isMultiStyle.value) { step.value = sizeStep.value; return }
+  if (step.value === sizeStep.value) { step.value = addonStep.value; return }
+  if (step.value === addonStep.value) { step.value = detailStep.value }
 }
 
 // ─── R58-2: 分步引导（v0.32: 动态步骤号） ───
@@ -901,7 +924,7 @@ async function copyQq(qq) {
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 }
 .preselect-banner-btn:hover {
   border-color: var(--color-primary);
@@ -944,6 +967,10 @@ async function copyQq(qq) {
   font-size: clamp(18px, 3vw, 22px);
   color: var(--text-primary);
   margin: 0 0 16px;
+}
+.step-eyebrow {
+  font-size: 11px; letter-spacing: .14em;
+  color: var(--text-secondary, #888); margin-bottom: 8px;
 }
 .step-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .step-nav--end { justify-content: flex-end; }
@@ -1056,7 +1083,28 @@ async function copyQq(qq) {
   .step-layout { grid-template-columns: 1fr; }
   .summary-card { position: static; }
   .step-label { display: none; }
+  .step-label--on { display: inline; }
+  .step-item:has(.step-label--on) { order: -1; }
   .step-connector { width: 32px; }
+}
+
+/* ─── P0-1: 移动端底部粘性操作条（sticky 底部；与原“下一步/提交”按钮并存） ─── */
+.mobile-cta-bar { display: none; }
+@media (max-width: 860px) {
+  .mobile-cta-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    position: sticky; bottom: 0; z-index: 60;
+    margin: 0 -16px -16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--bg-card, #fff) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border-color, #e5e5e5);
+  }
+  .mobile-cta-amt { font-size: 20px; font-weight: 700; color: var(--color-primary, var(--el-color-primary)); font-variant-numeric: tabular-nums; }
+  .mobile-cta-btn { min-width: 128px; min-height: 44px; }
+}
+@media (max-width: 860px) {
+  .step-nav { padding-bottom: 64px; }
 }
 
 /* R14: 紧凑计价摘要 + 渐进展开 */

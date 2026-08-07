@@ -328,6 +328,7 @@ export default {
     step1: '选档位', step2: '写需求', step3: '联系方式',
     step1Title: '选择约稿档位', step2Title: '描述你的需求', step3Title: '留下联系方式',
     nextStep: '下一步', prevStep: '上一步',
+    stepProgress: '第 {cur} / {total} 步',
     summaryTitle: '约稿摘要', summaryNoTier: '选好档位后这里会显示价格',
     // W3: 画风模式未选尺寸的空态引导
     summaryNoSize: '选好尺寸后这里会显示价格',
