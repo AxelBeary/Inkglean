@@ -114,7 +114,10 @@ async function login() {
   position: relative;
   transition: background 0.3s, border-color 0.3s;
 }
-.login-prefs { position: absolute; top: 12px; right: 12px; }
+.login-prefs {
+  position: absolute; top: 12px; right: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
 
 .login-brand { text-align: center; margin-bottom: 28px; }
 .login-logo {
