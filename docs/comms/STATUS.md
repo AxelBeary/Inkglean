@@ -124,7 +124,7 @@
 | 项 | 归属 |
 |----|------|
 | addons 表处置 | ✅ **旧增项体系完全清退**：算价读路径（`1b8a375`）+ 前端清理（`13dd4e7`）+ 收尾批 schema 删除 + DROP 迁移 v43（`58d48c9`，备份 bak-pre-v43） |
-| **埋点看板全链路联调** | 二号交付截图用 mock（后端接口当时未合入）；现在前后端都已合入 master，**需一次真实联调**（登录管理员看 /admin/analytics 数据真实渲染；画师门面开关联动；容器刷新） |
+| **埋点看板全链路联调** | ✅ **2026-08-07 一号容器内实测定论**：events 222 条真实数据，admin summary 200 + byName 完整；三态联动 PUT hidden→画师侧 mode=hidden/enabled=false/无数据→PUT on→恢复；画师 tracking/summary mode=on 返回数据；无 token 401。**契约正确，无需修**（此前"待联调"因二号交付时用 mock，现已在生产容器闭环） |
 | **OrderDetail 拆分后续** | 五号拆分试水完成（1523→1311 行，PaymentPanel/GalleryPanel，0% 像素差异，全门禁绿）。**QueueBoard 1530 行 / ManualOrder 1497 行待派**（模式已验证，可派；施工单蓝本 docs/comms/核实-第三方瘦身施工单-20260807.md 保留）。OrderDetail 死解构 3 个（currentStageIdx/nextStage/daysLeft，v0.40 遗留）建议下批随手清 |
 | **五号 stash 事故披露（2026-08-07）** | 拆分过程中 `git stash pop` 误弹仓库遗留 stash（WIP on fix/client-frontend-0802，历史遗留），内容仅 package.json/lock 配置类，已 checkout 还原，OrderDetail.vue 未受影响；stash 条目已消耗不可恢复。教训：**操作 stash 前先 `git stash list` 确认无他人 stash**（worktree 与主仓共享 git 状态） |
 | repowiki P2 | 四号核实：**认证系 14 篇抽样全部 TOTP 时代，0 🔴 严重过时**（派工假设被否定）。建议：P1 轻量修补 6 处 🟡（图例/文件名/措辞级）+ P2 改派**非认证主题抽样**（部署/CSP/Sentry 与近期改动相关，价值更高）。报告 docs/comms/04-to-01-repowiki-P2-交付-20260807.md |
