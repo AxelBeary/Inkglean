@@ -280,6 +280,8 @@ const pendingMsgCount = ref(0)
 const MENU_GROUPS = [
   { key: 'work', labelKey: 'menu.groupWork' },
   { key: 'biz', labelKey: 'menu.groupBiz' },
+  // v0.43 用户拍板：工具类目（经营下、门面上）——低频小工具集合（导出/收据/分享/未来更多），当卖点
+  { key: 'tools', labelKey: 'menu.groupTools' },
   { key: 'front', labelKey: 'menu.groupFront' }
 ]
 const menuGroups = computed(() => {
@@ -292,7 +294,7 @@ const menuGroups = computed(() => {
   return MENU_GROUPS.map(g => ({
     ...g,
     items: items.filter(item => item.group === g.key)
-  }))
+  })).filter(g => g.items.length > 0) // 空组不渲染标题（工具组暂无项时不显示）
 })
 
 /** 顶栏页面标题：当前路由对应菜单项的 labelKey（详情类页面归属父级） */

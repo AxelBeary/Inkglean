@@ -249,7 +249,7 @@ export default {
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单',
     langToEn: 'English', langToZh: '中文', langAriaToEn: 'Switch to English', langAriaToZh: '切换到中文',
     // REQ-016 C: 侧边栏分组标题
-    groupWork: '工作', groupBiz: '经营', groupFront: '门面'
+    groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {

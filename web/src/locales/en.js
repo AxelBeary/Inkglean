@@ -249,7 +249,7 @@ export default {
     collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu',
     langToEn: 'English', langToZh: 'Chinese', langAriaToEn: 'Switch to English', langAriaToZh: 'Switch to Chinese',
     // REQ-016 C: sidebar group titles
-    groupWork: 'Work', groupBiz: 'Business', groupFront: 'Storefront'
+    groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
   },
   // F3 quick actions (2026-08-07 user decision)
   quickAction: {
