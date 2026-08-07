@@ -853,14 +853,7 @@ function ratioStyle(art) {
   .tpl-album-peek {
     width: 9%;
   }
-  /* v0.42 Step 6: 加载更多按钮容器 */
-.tpl-gallery-loadmore {
-  display: flex;
-  justify-content: center;
-  margin-top: 32px;
-}
-
-.tpl-gallery-filters {
+  .tpl-gallery-filters {
     justify-content: flex-start;
     overflow-x: auto;
     flex-wrap: nowrap;
