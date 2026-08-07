@@ -390,7 +390,7 @@ function logout() {
   color: #fff;
   font-family: var(--f-d);
   display: grid; place-items: center;
-  font-size: 19px;
+  font-size: calc(var(--font-scale, 1) * 19px);
   border-radius: 8px;
   transform: rotate(-4deg);
   box-shadow: 2px 2px 0 var(--sb-seal-shadow);
@@ -401,12 +401,12 @@ function logout() {
 .brand:hover .brand-seal { transform: rotate(4deg) scale(1.06); background-color: var(--zs-d); }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
 .brand-name {
-  font-size: 19px; line-height: 1.2;
+  font-size: calc(var(--font-scale, 1) * 19px); line-height: 1.2;
   color: var(--sb-text-on);
   letter-spacing: .08em;
 }
 .brand-sub {
-  font-size: 9px;
+  font-size: calc(var(--font-scale, 1) * 9px);
   color: var(--sb-text-dim);
   letter-spacing: .2em;
 }
@@ -438,7 +438,7 @@ function logout() {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px;
   border-radius: var(--r-m);
-  font-size: 13px;
+  font-size: calc(var(--font-scale, 1) * 13px);
   color: var(--sb-text);
   cursor: pointer;
   position: relative;
@@ -461,7 +461,7 @@ function logout() {
 }
 .nav--collapsed .nav-item { justify-content: center; padding: 9px 0; }
 .nav--collapsed .nav-item--active::before { left: -10px; }
-.nav-item .el-icon { font-size: 16px; flex: none; }
+.nav-item .el-icon { font-size: calc(var(--font-scale, 1) * 16px); flex: none; }
 .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* #1: 留言角标（朱砂底白字胶囊——EP badge 主色已覆写为花青，此处显式朱砂：角标=警示语义） */
 .nav-badge :deep(.el-badge__content) {
@@ -484,7 +484,7 @@ function logout() {
   background: var(--hq);
   color: #fff;
   font-family: var(--f-d);
-  font-size: 15px;
+  font-size: calc(var(--font-scale, 1) * 15px);
   flex-shrink: 0;
 }
 .avatar--mini { cursor: pointer; transition: transform 0.15s; }
@@ -495,12 +495,12 @@ function logout() {
 .avatar--seal :deep(.v-seal.v-seal) {
   min-width: 32px; width: 32px; height: 32px;
   padding: 0;
-  font-size: 15px;
+  font-size: calc(var(--font-scale, 1) * 15px);
   border-radius: 9px;
   transform: rotate(-4deg);
 }
 .identity-tooltip { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.identity-tooltip-name { font-size: 13px; }
+.identity-tooltip-name { font-size: calc(var(--font-scale, 1) * 13px); }
 .identity-info { display: flex; flex-direction: column; min-width: 0; }
 .identity-name {
   font-size: 12.5px; font-weight: 600;
@@ -517,7 +517,7 @@ function logout() {
 .dot-warning { background: var(--th); }
 .dot-danger { background: var(--zs); }
 .footer-actions { display: flex; align-items: center; justify-content: space-between; }
-.logout-btn { color: var(--sb-text-dim); font-size: 12px; transition: color .15s, background-color .15s; }
+.logout-btn { color: var(--sb-text-dim); font-size: calc(var(--font-scale, 1) * 12px); transition: color .15s, background-color .15s; }
 .logout-btn:hover { color: var(--sb-text-on); }
 
 /* ─── 顶栏（含主题切换按钮，REQ §三.1） ─── */
@@ -532,7 +532,7 @@ function logout() {
   border-bottom: 1px solid var(--line);
 }
 .topbar-title {
-  font-size: 17px; font-weight: 700;
+  font-size: calc(var(--font-scale, 1) * 17px); font-weight: 700;
   color: var(--ink);
   letter-spacing: .02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -545,7 +545,7 @@ function logout() {
   border-radius: 8px;
   background: var(--card);
   color: var(--ink2);
-  font-size: 12px; font-weight: 600;
+  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600;
   cursor: pointer;
   transition: color .15s, transform .15s, box-shadow .15s, background-color .35s, border-color .35s;
 }
