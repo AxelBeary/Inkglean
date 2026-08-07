@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto'
+﻿import { randomBytes } from 'crypto'
 import db from '../../db/connection.js'
 
 // ============================================
@@ -105,4 +105,89 @@ export function insertEvents(events: TrackedEvent[], artistId: number | null, an
     count++
   }
   return count
+}
+// ============================================
+// 统计读接口（REQ-033 收尾）
+// 管理员全局统计 + 画师自身统计 + 画师门面开关
+// ============================================
+
+/** 下单漏斗事件名（顺序 = 漏斗展示顺序；简单版不去重，按事件名取总数） */
+const FUNNEL_EVENT_NAMES = [
+  'order_form_start',
+  'order_form_step_view',
+  'order_form_submit_attempt',
+  'order_form_submit_success',
+  'order_submit_success'
+]
+
+/** 画师门面统计显隐的 platform_config key（默认 true） */
+const ARTIST_STATS_VISIBLE_KEY = 'artist_stats_visible'
+
+export interface TrackingSummary {
+  total: number
+  byName: Array<{ name: string; count: number }>
+  byDay: Array<{ day: string; count: number }>
+  funnel: Array<{ name: string; count: number }>
+}
+
+export interface ArtistTrackingSummary {
+  total: number
+  byName: Array<{ name: string; count: number }>
+}
+
+/**
+ * 管理员全局事件统计（近 N 天）
+ * days 已由路由层 clamp（1..90），此处直接拼字面量无注入面
+ */
+export function getTrackingSummary(days: number): TrackingSummary {
+  const since = `datetime('now', '-${days} days')`
+  const total = (db.prepare(`SELECT COUNT(*) AS c FROM events WHERE created_at >= ${since}`).get() as { c: number }).c
+  const byName = db.prepare(`
+    SELECT name, COUNT(*) AS count FROM events
+    WHERE created_at >= ${since}
+    GROUP BY name ORDER BY count DESC
+  `).all() as Array<{ name: string; count: number }>
+  const byDay = db.prepare(`
+    SELECT date(created_at, 'localtime') AS day, COUNT(*) AS count FROM events
+    WHERE created_at >= ${since}
+    GROUP BY day ORDER BY day ASC
+  `).all() as Array<{ day: string; count: number }>
+  const funnelRows = db.prepare(`
+    SELECT name, COUNT(*) AS count FROM events
+    WHERE created_at >= ${since} AND name IN (${FUNNEL_EVENT_NAMES.map(() => '?').join(',')})
+    GROUP BY name
+  `).all(...FUNNEL_EVENT_NAMES) as Array<{ name: string; count: number }>
+  const countMap = new Map(funnelRows.map(r => [r.name, r.count]))
+  const funnel = FUNNEL_EVENT_NAMES.map(name => ({ name, count: countMap.get(name) ?? 0 }))
+  return { total, byName, byDay, funnel }
+}
+
+/** 画师自己的统计（artist_id 过滤，近 N 天） */
+export function getArtistTrackingSummary(artistId: number, days: number): ArtistTrackingSummary {
+  const since = `datetime('now', '-${days} days')`
+  const total = (db.prepare(`
+    SELECT COUNT(*) AS c FROM events
+    WHERE artist_id = ? AND created_at >= ${since}
+  `).get(artistId) as { c: number }).c
+  const byName = db.prepare(`
+    SELECT name, COUNT(*) AS count FROM events
+    WHERE artist_id = ? AND created_at >= ${since}
+    GROUP BY name ORDER BY count DESC
+  `).all(artistId) as Array<{ name: string; count: number }>
+  return { total, byName }
+}
+
+/** 管理员开关：画师门面统计显隐（platform_config key=artist_stats_visible，默认 true） */
+export function getArtistStatsVisible(): boolean {
+  const row = db.prepare(`SELECT value FROM platform_config WHERE key = ?`).get(ARTIST_STATS_VISIBLE_KEY) as { value: string } | undefined
+  return row ? row.value !== 'false' : true
+}
+
+/** 管理员开关：写入（INSERT OR REPLACE 语义，无则插有则改） */
+export function setArtistStatsVisible(visible: boolean): boolean {
+  db.prepare(`
+    INSERT INTO platform_config (key, value) VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `).run(ARTIST_STATS_VISIBLE_KEY, visible ? 'true' : 'false')
+  return visible
 }

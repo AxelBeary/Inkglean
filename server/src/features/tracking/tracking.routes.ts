@@ -1,3 +1,4 @@
+﻿import { requireAuth, requireAdmin } from '../../shared/middleware/auth.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { verifySession } from '../auth/auth.service.js'
 import { getArtistById } from '../artist/artist.service.js'
@@ -116,5 +117,45 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
       anonId
     )
     return { ok: true, received }
+  })
+
+  // ============================================
+  // 统计读接口（REQ-033 收尾）
+  // ============================================
+
+  /** GET /api/admin/tracking/summary — 管理员全局事件统计（近 N 天，默认 30，范围 1..90） */
+  fastify.get('/api/admin/tracking/summary', { preHandler: requireAdmin }, async (request) => {
+    const { days } = request.query as { days?: string }
+    const d = Math.min(Math.max(parseInt(days ?? '30', 10) || 30, 1), 90)
+    return trackingService.getTrackingSummary(d)
+  })
+
+  /** GET /api/artist/tracking/summary — 画师自己的事件统计（门面区块；enabled=管理员开关） */
+  fastify.get('/api/artist/tracking/summary', { preHandler: requireAuth }, async (request) => {
+    const { days } = request.query as { days?: string }
+    const d = Math.min(Math.max(parseInt(days ?? '14', 10) || 14, 1), 90)
+    const summary = trackingService.getArtistTrackingSummary(request.artist.id, d)
+    return { enabled: trackingService.getArtistStatsVisible(), ...summary }
+  })
+
+  /** GET /api/admin/tracking-config — 读管理员开关（画师门面统计显隐） */
+  fastify.get('/api/admin/tracking-config', { preHandler: requireAdmin }, async () => {
+    return { artistStatsVisible: trackingService.getArtistStatsVisible() }
+  })
+
+  /** PUT /api/admin/tracking-config — 写管理员开关 */
+  fastify.put('/api/admin/tracking-config', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['artistStatsVisible'],
+        properties: { artistStatsVisible: { type: 'boolean' } },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    const { artistStatsVisible } = request.body as { artistStatsVisible: boolean }
+    return { artistStatsVisible: trackingService.setArtistStatsVisible(artistStatsVisible) }
   })
 }
