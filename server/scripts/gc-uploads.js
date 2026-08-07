@@ -1,4 +1,4 @@
-﻿/* eslint-disable no-console -- CLI 脚本按约定豁免（console 输出是脚本本职） */
+/* eslint-disable no-console -- CLI 脚本按约定豁免（console 输出是脚本本职） */
 /**
  * P1-C: 孤儿文件回收脚本
  * 用法: node scripts/gc-uploads.js [--dry-run]

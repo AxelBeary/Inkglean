@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * check-i18n — 源头防屎门禁（用户红线：禁止新硬编码中文）
  *

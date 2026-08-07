@@ -1,4 +1,4 @@
-﻿/* eslint-disable no-console -- 一次性 CLI 脚本按约定豁免（console 输出是脚本本职） */
+/* eslint-disable no-console -- 一次性 CLI 脚本按约定豁免（console 输出是脚本本职） */
 /**
  * 一次性回填脚本：为存量 artworks 补 width/height
  * 用法：node server/scripts/backfill-artwork-dimensions.js
