@@ -26,7 +26,7 @@ process.on('unhandledRejection', (err) => {
 
 // ─── 优雅停机（超时强退）───
 let shuttingDown = false
-async function shutdown(signal) {
+async function shutdown(signal: NodeJS.Signals) {
   if (shuttingDown) return // 防止重复触发
   shuttingDown = true
   app.log.info(`收到 ${signal}，正在优雅关闭…`)

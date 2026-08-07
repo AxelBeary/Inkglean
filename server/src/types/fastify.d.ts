@@ -14,5 +14,7 @@ declare module 'fastify' {
     order: any
     /** requireOwnMultiplier preHandler 挂载的倍率对象 */
     multiplier: any
+    /** requireExistingArtist preHandler 挂载的画师对象（admin 路由） */
+    targetArtist: any
   }
 }

@@ -49,8 +49,8 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
         return
       }
 
-      const refs = new Set()
-      const collect = (rows, field) => { for (const r of rows) if (r[field]) refs.add(r[field]) }
+      const refs = new Set<string>()
+      const collect = (rows: unknown[], field: string) => { for (const r of rows) { const v = (r as Record<string, unknown>)[field]; if (v) refs.add(v as string) } }
       collect(db.prepare('SELECT image_path FROM artworks').all(), 'image_path')
       collect(db.prepare('SELECT example_image FROM price_tiers').all(), 'example_image')
       collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
@@ -67,7 +67,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       const now = Date.now()
       let recycled = 0, freed = 0
 
-      const walk = (dir) => {
+      const walk = (dir: string) => {
         const files: string[] = []
         for (const e of readdirSync(dir, { withFileTypes: true })) {
           // 跳过回收站目录，不参与 GC 扫描
@@ -99,7 +99,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
         }
       }
 
-      const removeEmptyDirs = (dir) => {
+      const removeEmptyDirs = (dir: string) => {
         for (const e of readdirSync(dir, { withFileTypes: true })) {
           if (e.isDirectory() && e.name !== RECYCLE_BIN) {
             const full = join(dir, e.name)
@@ -298,7 +298,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       // v0.28 D: Windows 下 resolve() 产生反斜杠，用 path.sep 兼容（五号发现：本地 E2E 全挂）
       if ((filePath === WEB_DIST || filePath.startsWith(WEB_DIST + sep)) && existsSync(filePath) && statSync(filePath).isFile()) {
         const ext = filePath.slice(filePath.lastIndexOf('.'))
-        reply.header('Content-Type', MIME[ext] || 'application/octet-stream')
+        reply.header('Content-Type', MIME[ext as keyof typeof MIME] || 'application/octet-stream')
         // 环境批 B1: 静态资源缓存头
         // /assets/*（vite hash 文件名产物）→ 长缓存 immutable（内容指纹变更即换文件名，永不失效）
         // 其余真实文件（如 favicon）→ 短缓存，避免与 index.html 同策略
