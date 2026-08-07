@@ -206,14 +206,14 @@ describe('画师服务 (Artist Service)', () => {
   // TC-R-08: updateArtist 设置合法强调色
   it('TC-R-08: updateArtist 设置 accent_color', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
-    const updated = artistService.updateArtist(artist.id, { accent_color: '#34dbcb' })
-    expect(updated.accent_color).toBe('#34dbcb')
+    const updated = artistService.updateArtist(artist.id, { accent_color: '#356b69' })
+    expect(updated.accent_color).toBe('#356b69')
   })
 
   // TC-R-08b: updateArtist 清除强调色（null）
   it('TC-R-08b: updateArtist 清除 accent_color', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
-    artistService.updateArtist(artist.id, { accent_color: '#3498db' })
+    artistService.updateArtist(artist.id, { accent_color: '#5e5494' })
     const cleared = artistService.updateArtist(artist.id, { accent_color: null })
     expect(cleared.accent_color).toBeNull()
   })
@@ -229,7 +229,7 @@ describe('画师服务 (Artist Service)', () => {
   // TC-R-08d: 5 色全部合法
   it('TC-R-08d: 5 色预设全部可设置', async () => {
     const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
-    const colors = ['#34dbcb', '#34c2db', '#3498db', '#346edb', '#3445db']
+    const colors = ['#356b69', '#3f5e80', '#5e5494', '#346edb', '#3445db']
     for (const c of colors) {
       const updated = artistService.updateArtist(artist.id, { accent_color: c })
       expect(updated.accent_color).toBe(c)

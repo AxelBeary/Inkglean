@@ -87,7 +87,7 @@ provide('ctaRaised', ctaRaised)
 
 // ─── R49: 强调色覆盖（画师设置优先于访客 ThemePicker；离开主页时恢复访客选择） ───
 // 5 色与 theme.css data-accent="1"~"5" 一一对应（含暗色提亮变体，免费获得暗色适配）
-const ACCENT_INDEX = { '#34dbcb': '1', '#34c2db': '2', '#3498db': '3', '#346edb': '4', '#3445db': '5' }
+const ACCENT_INDEX = { '#356b69': '1', '#3f5e80': '2', '#5e5494': '3', '#346edb': '4', '#3445db': '5' }
 const accentOverride = computed(() => {
   const raw = previewAccent.value || artist.value?.accentColor
   return raw ? (ACCENT_INDEX[String(raw).toLowerCase()] || null) : null

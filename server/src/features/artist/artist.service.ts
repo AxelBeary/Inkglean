@@ -193,7 +193,7 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
       } else if (key === 'accent_color') {
         // R49: 强调色白名单校验 — 仅允许 5 色预设 + null（清除）
         // 色值来源：web/src/styles/theme.css data-accent 1-5 的 --color-primary
-        const ACCENT_COLORS = ['#34dbcb', '#34c2db', '#3498db', '#346edb', '#3445db']
+        const ACCENT_COLORS = ['#356b69', '#3f5e80', '#5e5494', '#346edb', '#3445db']
         if (value !== null && !ACCENT_COLORS.includes(String(value).toLowerCase())) {
           throw new AppError(E.INVALID_ACCENT_COLOR, 400, { value })
         }
