@@ -26,9 +26,6 @@
         <div class="area area-quick">
           <QuickActions />
         </div>
-        <div class="area area-status">
-          <StatusSwitch :model-value="currentStatus" @pick="updateStatus" />
-        </div>
         <div class="area area-activity">
           <ActivityFeed />
         </div>
@@ -106,32 +103,15 @@ import RevenueChart from '../../components/artist/dashboard/RevenueChart.vue'
 import StatCards from '../../components/artist/dashboard/StatCards.vue'
 import TodoList from '../../components/artist/dashboard/TodoList.vue'
 import QuickActions from '../../components/artist/dashboard/QuickActions.vue'
-import StatusSwitch from '../../components/artist/dashboard/StatusSwitch.vue'
 import ActivityFeed from '../../components/artist/dashboard/ActivityFeed.vue'
 import SlotOverview from '../../components/artist/dashboard/SlotOverview.vue'
 
 const { t } = useI18n()
 const store = useArtistStore()
 const stats = ref(null)
-const currentStatus = ref('open')
-const lastKnownStatus = ref('open') // P1-6: 回滚用
-
-async function updateStatus(val) {
-  try {
-    await artistApi.updateProfile({ status: val })
-    lastKnownStatus.value = val // P1-6: 成功后更新已知状态
-    currentStatus.value = val
-    ElMessage.success(t('dashboard.statusUpdated'))
-  } catch (err) {
-    currentStatus.value = lastKnownStatus.value // P1-6: 回滚到上次成功状态
-    ElMessage.error(err.message)
-  }
-}
 
 onMounted(async () => {
   await store.fetchProfile()
-  currentStatus.value = store.profile?.status || 'open'
-  lastKnownStatus.value = currentStatus.value // P1-6: 初始化已知状态
   // 统计卡片 + 今日统计行（独立失败，不阻塞其他模块）
   try { stats.value = await artistApi.getStats() } catch { /* ignore */ }
   // F4: 留言审核（独立失败，不阻塞其他模块）
@@ -208,9 +188,8 @@ async function replyMsg(m) {
   /* 右栏 */
   .area-slot     { grid-column: 2; grid-row: 1; }
   .area-quick    { grid-column: 2; grid-row: 2; }
-  .area-status   { grid-column: 2; grid-row: 3; }
-  .area-activity { grid-column: 2; grid-row: 4; }
-  .area-guestbook { grid-column: 2; grid-row: 5; }
+  .area-activity { grid-column: 2; grid-row: 3; }
+  .area-guestbook { grid-column: 2; grid-row: 4; }
 }
 
 /* ─── F4: 留言审核区（v0.38 token 换肤） ─── */

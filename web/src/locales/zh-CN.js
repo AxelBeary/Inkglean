@@ -250,6 +250,21 @@ export default {
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupFront: '门面'
   },
+  // F3 快捷入口动作（2026-08-07 用户拍板）
+  quickAction: {
+    rules: '约稿须知编辑',
+    share: '分享接稿页',
+    quickconfig: '快捷入口设置',
+    status: '状态切换',
+    publish: '快速发作品',
+    publishHint: '拖图或粘贴，直接发布作品',
+    uploading: '发布中…',
+    published: '作品已发布',
+    publishFailed: '发布失败',
+    notImage: '仅支持图片',
+    copied: '接稿页链接已复制',
+    noSubdomain: '未设置主页域名，去设置'
+  },
   landing: {
     title: '画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
     noBio: '这位画师还没有写简介', weibo: '微博', bilibili: 'B站',

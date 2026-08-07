@@ -56,7 +56,8 @@
               :value="opt.key"
               class="quick-config-item"
             >
-              <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon> {{ $t(opt.labelKey) }}
+              <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
+              {{ $t(opt.labelKey) }}<template v-if="opt.type === 'action'"> <span class="quick-action-badge">⚡动作</span></template>
             </el-checkbox>
           </el-checkbox-group>
           <div class="form-hint">{{ $t('settings.quickHint') }}</div>
@@ -180,4 +181,12 @@ onMounted(async () => {
 .quick-config-item { margin-right: 0; height: auto; }
 /* v0.34 任务3：icon 改 SVG 后与文字对齐 */
 .quick-config-icon { font-size: 15px; vertical-align: -2px; color: var(--hq); }
+/* F3: 动作型候选标记 */
+.quick-action-badge {
+  display: inline-block; margin-left: 4px; padding: 0 5px;
+  font-size: 10px; line-height: 16px;
+  border-radius: 4px;
+  color: var(--hq-d, #b45309);
+  background: var(--hq-t, rgba(180, 83, 9, 0.12));
+}
 </style>

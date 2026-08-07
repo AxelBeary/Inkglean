@@ -250,6 +250,21 @@ export default {
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupFront: 'Storefront'
   },
+  // F3 quick actions (2026-08-07 user decision)
+  quickAction: {
+    rules: 'Edit Guidelines',
+    share: 'Share Page',
+    quickconfig: 'Quick Action Settings',
+    status: 'Status',
+    publish: 'Quick Publish',
+    publishHint: 'Drag or paste to publish',
+    uploading: 'Uploading…',
+    published: 'Artwork published',
+    publishFailed: 'Publish failed',
+    notImage: 'Images only',
+    copied: 'Page link copied',
+    noSubdomain: 'No page domain set — go to settings'
+  },
   landing: {
     title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
     noBio: 'This artist has not written a bio yet',
