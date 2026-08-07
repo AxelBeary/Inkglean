@@ -2,7 +2,7 @@ import * as artistService from './artist.service.js'
 import * as platformService from '../platform/platform.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
-import type { AppError } from '../../shared/errors.js'
+import { AppError } from '../../shared/errors.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -218,9 +218,9 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
       return publicArtistDTO(updated)
     } catch (err) {
-      // P1 useUnknownInCatchVariables: 按 AppError 断言（该块业务错误均来自服务层 AppError）
-      const e = err as AppError
-      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
+      // 业务错误(AppError)返回其状态码；非业务错误向上抛，走全局 500 handler
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
@@ -440,8 +440,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       const sizeIds = artistService.setArtworkSizeTags(request.artist.id, artwork.id, (request.body as { sizeIds: number[] }).sizeIds)
       return { sizeIds }
     } catch (err) {
-      const e = err as AppError
-      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
