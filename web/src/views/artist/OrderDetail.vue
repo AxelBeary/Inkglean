@@ -664,7 +664,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -678,12 +678,15 @@ import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'
 import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
-import { useDropGuard } from '../../composables/useDropGuard.js'
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
-import { useOrderPayments } from '../../composables/useOrderPayments.js'
 import { useActivityLog } from '../../composables/useActivityLog.js'
 import { formatDateTime } from '../../utils/datetime.js'
+// v0.40 瘦身批：script 4 区块抽 composable（零行为变化）
+import { useOrderWorkflow } from '../../composables/useOrderWorkflow.js'
+import { useOrderGallery } from '../../composables/useOrderGallery.js'
+import { useOrderDeadline } from '../../composables/useOrderDeadline.js'
+import { useOrderPaymentPanel } from '../../composables/useOrderPaymentPanel.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -724,12 +727,6 @@ async function copyQq(qq) {
   }
 }
 
-// ─── R39 方案B：状态区派生状态 ───
-/** 订单是否接入工作流（进度条为唯一状态展示的依据，C52） */
-const hasWorkflow = computed(() => order.value?.currentStageId != null)
-/** 终态（已交付/已取消）：状态卡只读，操作条隐藏 */
-const isTerminal = computed(() => ['delivered', 'cancelled'].includes(order.value?.status))
-
 function formatDate(str) {
   return formatDateTime(str)
 }
@@ -743,186 +740,26 @@ async function loadOrder() {
   }
 }
 
-// ─── R30d: 流程状态机（进度条 + 推进/打回 + 关闭跟踪） ───
-const workflowStages = ref([])
-
-/** 当前节点在排序后列表中的索引（-1 = 未接入/节点已删） */
-const currentStageIdx = computed(() =>
-  workflowStages.value.findIndex(s => s.id === order.value?.currentStageId)
-)
-
-/** 进度 { current, total }（后端未返回时前端兜底计算） */
-const stageProgress = computed(() =>
-  order.value?.stageProgress || { current: currentStageIdx.value + 1, total: workflowStages.value.length }
-)
-
-/** 下一节点（用于推进按钮文案） */
-const nextStage = computed(() =>
-  currentStageIdx.value !== -1 ? workflowStages.value[currentStageIdx.value + 1] : null
-)
-const nextStageName = computed(() => nextStage.value?.name || '')
-
-/** 可推进：有 stage、非终态、存在下一节点 */
-const canAdvanceStage = computed(() =>
-  order.value?.currentStageId != null
-  && !['delivered', 'cancelled'].includes(order.value?.status)
-  && !!nextStage.value
-)
-
-/** 可打回：有 stage、非终态、存在上一节点 */
-const canBackStage = computed(() =>
-  order.value?.currentStageId != null
-  && !['delivered', 'cancelled'].includes(order.value?.status)
-  && currentStageIdx.value > 0
-)
-
-async function advanceStage() {
-  if (!nextStage.value || statusAction.value) return
-  statusAction.value = 'advance'
-  try {
-    order.value = await artistApi.advanceStage(route.params.id, nextStage.value.id)
-    ElMessage.success(t('orderDetail.stageUpdated'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    statusAction.value = ''
-  }
-}
-
-async function backStage() {
-  const prev = workflowStages.value[currentStageIdx.value - 1]
-  if (!prev) return
-  try {
-    await ElMessageBox.confirm(
-      t('orderDetail.stageBackConfirm', { name: prev.name }),
-      t('orderDetail.confirmTitle'),
-      { type: 'warning' }
-    )
-  } catch { return }
-  // T3: 守卫须在 try 外——try 内 return 会触发 finally 误清飞行中请求的锁
-  if (statusAction.value) return
-  statusAction.value = 'back'
-  try {
-    order.value = await artistApi.stageBack(route.params.id, prev.id)
-    ElMessage.success(t('orderDetail.stageUpdated'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    statusAction.value = ''
-  }
-}
-
-async function turnOffStageTracking() {
-  try {
-    await ElMessageBox.confirm(
-      t('orderDetail.stageOffConfirm'),
-      t('orderDetail.confirmTitle'),
-      { type: 'warning' }
-    )
-  } catch { return }
-  try {
-    order.value = await artistApi.stageOff(route.params.id)
-    ElMessage.success(t('orderDetail.stageOffDone'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  }
-}
-
-// ─── R39/C53：老订单启用流程跟踪（后端 track-on：设第一节点，status 保持不变） ───
-const trackOnLoading = ref(false)
-async function enableTracking() {
-  trackOnLoading.value = true
-  try {
-    order.value = await artistApi.trackOn(route.params.id)
-    ElMessage.success(t('orderDetail.trackingEnabled'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    trackOnLoading.value = false
-  }
-}
-
-async function loadWorkflowStages() {
-  try {
-    const res = await artistApi.getWorkflow()
-    workflowStages.value = res.stages || []
-  } catch {
-    // 静默失败：无工作流时流程卡片不显示（currentStageId 为 null）
-  }
-}
-
-// ─── R18: 订单图库（上传 + 来源角标 + 点击设焦点） ───
-const galleryInputEl = ref(null)
-const galleryUploading = ref(false)
-const isGalleryDragOver = ref(false)
-const galleryViewerVisible = ref(false)
-const galleryViewerIndex = ref(0)
-
-function openGalleryViewer(index) {
-  galleryViewerIndex.value = index
-  galleryViewerVisible.value = true
-}
-
-/** 图片文件前端校验（格式 + 10MB） */
-function validateImageFile(file) {
-  if (!file.type.startsWith('image/')) {
-    ElMessage.error(t('orderDetail.galleryNotImage'))
-    return false
-  }
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.error(t('orderDetail.galleryTooBig'))
-    return false
-  }
-  return true
-}
-
-/** 上传单张图并关联到订单（画师加图，后端自动标 source='artist'） */
-async function uploadAndAttachReference(file) {
-  if (!validateImageFile(file)) return
-  const uploaded = await uploadApi.reference(file)
-  order.value = await artistApi.addReference(route.params.id, {
-    filePath: uploaded.filePath,
-    fileName: uploaded.originalName,
-    fileSize: uploaded.size
-  })
-}
-
-/** 批量上传（拖拽/多选/粘贴共用） */
-async function uploadGalleryFiles(files) {
-  if (!files.length) return
-  galleryUploading.value = true
-  try {
-    for (const file of files) {
-      await uploadAndAttachReference(file)
-    }
-    ElMessage.success(t('orderDetail.galleryUploadSuccess'))
-  } catch (err) {
-    ElMessage.error(err.message)
-    await loadOrder() // 部分成功时刷新到最新状态
-  } finally {
-    galleryUploading.value = false
-  }
-}
-
-function triggerGalleryUpload() {
-  galleryInputEl.value?.click()
-}
-
-function handleGalleryFileSelect(event) {
-  const files = [...event.target.files]
-  event.target.value = ''
-  uploadGalleryFiles(files)
-}
-
-// G1: 页内拖拽守卫——捕获阶段拦 dragenter/dragover（模板已挂），drop 兜底判断在 handler 开头
-const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
-
-function handleGalleryDrop(event) {
-  isGalleryDragOver.value = false
-  if (!guardDrop(event)) return // 页内图拖入 → 拒绝 + 警告（dragover 已拦，此处兜底）
-  const files = [...event.dataTransfer.files].filter(f => f.type.startsWith('image/'))
-  if (files.length) uploadGalleryFiles(files)
-}
+// ─── 瘦身批装配（v0.40）：4 区块抽 composable，零行为变化 ───
+const statusAction = ref('')  // 从 L1051 提前，workflow/changeStatus 共享
+const { hasWorkflow, isTerminal, workflowStages, currentStageIdx, stageProgress, nextStage, nextStageName,
+  canAdvanceStage, canBackStage, advanceStage, backStage, turnOffStageTracking,
+  trackOnLoading, enableTracking, loadWorkflowStages } =
+  useOrderWorkflow({ order, routeId: route.params.id, statusAction })
+const {
+  galleryInputEl, galleryUploading, isGalleryDragOver, galleryViewerVisible, galleryViewerIndex,
+  openGalleryViewer, triggerGalleryUpload, handleGalleryFileSelect, handleGalleryDrop,
+  guardDragEnter, guardDragOver, guardDrop, selectFocusImage, uploadGalleryFiles, validateImageFile
+} = useOrderGallery({ order, routeId: route.params.id, onRefresh: loadOrder })
+const { daysLeft, deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
+  useOrderDeadline({ order, routeId: route.params.id })
+const {
+  payments, paymentsLoading, paymentSubmitting, loadPayments,
+  payDialogVisible, payForm, submitPayment, nodePayDialogVisible, nodePayTarget, nodePayForm,
+  openNodePayDialog, submitNodePayment, handleRevokePayment,
+  poolPaidCents, poolFinalCents, poolRemainingCents, poolPercent, poolOverpaidCents,
+  installmentRefs, nextDueInstallment, remainingCents, scrollToPayment
+} = useOrderPaymentPanel({ order, routeId: route.params.id, onRefresh: loadOrder })
 
 // R18/R19: Ctrl+V 粘贴上传（复用 usePasteUpload，焦点路由：
 // 备注输入框聚焦时 → 备注附图（单张）；否则 → 订单图库（多张））
@@ -939,17 +776,6 @@ const { pasteError } = usePasteUpload({
   maxSizeMB: 10
 })
 
-// R44: 设焦点改由 ✓ 小钩按钮触发（单击图片 = 放大预览）
-async function selectFocusImage(reference) {
-  try {
-    // mode 仅为满足后端 schema；实际显示尺寸由看板 queue_focus_display 决定
-    order.value = await artistApi.setFocusImage(route.params.id, { imagePath: reference.file_path, mode: 'small' })
-    ElMessage.success(t('orderDetail.focusUpdated'))
-  } catch (err) {
-    ElMessage.error(err.message)
-  }
-}
-
 // ─── R17: 优先级（点击即保存，失败回滚） ───
 async function changePriority(priority) {
   try {
@@ -962,93 +788,9 @@ async function changePriority(priority) {
   }
 }
 
-// ─── v0.38: 剩余天数（REQ-026 §四.4：截稿日 − 今天；正=剩余 / 0=当天 / 负=逾期） ───
-const daysLeft = computed(() => {
-  const d = order.value?.deadline
-  if (!d) return null
-  // 本地时区按日计算（deadline 可能带时间部分，截取日期段）
-  const due = new Date(String(d).slice(0, 10) + 'T00:00:00')
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Math.round((due.getTime() - today.getTime()) / 86400000)
-})
-
-// 日期卡头 chip：剩 N 天(花青=进行中) / 今天截稿(藤黄=待确认) / 逾期 N 天(朱砂=逾期)——7 色语义一对一
-const deadlineChip = computed(() => {
-  if (daysLeft.value === null) return null
-  if (daysLeft.value > 0) return { type: 'doing', text: t('orderDetail.daysLeft', { n: daysLeft.value }) }
-  if (daysLeft.value === 0) return { type: 'pend', text: t('orderDetail.daysToday') }
-  return { type: 'over', text: t('orderDetail.daysOverdue', { n: -daysLeft.value }) }
-})
-
-// ─── R51: 截稿日（date-picker 即时保存，null = 清除） ───
-// 本地 ref + watcher 同步：v-model 需要真实 setter——日历点选时 EP 发出 update:modelValue，
-// setter 必须写入，否则 props.modelValue 不变 → @change 永不触发 → API 不调用（画师反馈的 Bug）。
-// 实际保存走 changeDeadline；API 返回后 order 更新 → watcher 同步回 ref。
-const deadlinePicker = ref(null)
-watch(() => order.value?.deadline, (val) => {
-  deadlinePicker.value = val ? val.slice(0, 10) : null
-})
-
-// REQ-018: 截稿日不可早于开工日（有开工日时灰掉之前的）
-function disableDeadlineDate(d) {
-  if (!startDatePicker.value) return false
-  const start = new Date(startDatePicker.value + 'T00:00:00')
-  return d < start
-}
-
-// REQ-018: 开工日不可晚于截稿日（有截稿日时灰掉之后的）
-function disableStartDateDate(d) {
-  if (!deadlinePicker.value) return false
-  const end = new Date(deadlinePicker.value + 'T00:00:00')
-  return d > end
-}
-
-async function changeDeadline(val) {
-  try {
-    order.value = await artistApi.updateDeadline(route.params.id, val || null)
-    ElMessage.success(t('orderDetail.deadlineSavedSync'))
-  } catch (err) {
-    // T1: 保存失败时回弹 picker 显示值为 order 原值（watcher 同款截取逻辑，避免界面与数据不一致）
-    deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
-    ElMessage.error(err.message)
-  }
-}
-
-// ─── v0.26 B: 开工日（date-picker 即时保存 + 自动填截稿日） ───
-const startDatePicker = ref(null)
-// 兼容 PUT 返回 snake_case（start_date）和 GET 返回 camelCase（startDate）
-watch(() => order.value?.startDate ?? order.value?.start_date ?? null, (val) => {
-  startDatePicker.value = val || null
-})
-
-async function changeStartDate(val) {
-  try {
-    order.value = await artistApi.updateStartDate(route.params.id, val || null)
-    ElMessage.success(t('orderDetail.startDateSavedSync'))
-    // 自动填截稿日：截稿日为空 + 有开工日 + 档位有工期
-    if (val && !order.value.deadline && order.value.tier_work_days) {
-      const start = new Date(val + 'T00:00:00')
-      start.setDate(start.getDate() + order.value.tier_work_days)
-      // 本地日期格式化（toISOString 转 UTC 会 off-by-one，UTC+8 下 08-15→08-14）
-      const y = start.getFullYear()
-      const m = String(start.getMonth() + 1).padStart(2, '0')
-      const d = String(start.getDate()).padStart(2, '0')
-      const autoDeadline = `${y}-${m}-${d}`
-      order.value = await artistApi.updateDeadline(route.params.id, autoDeadline)
-      ElMessage.success(t('orderDetail.deadlineAutoSet'))
-    }
-  } catch (err) {
-    // T1: 保存失败时回弹显示值。第一个 PUT 可能已成功（开工日已入库），两个 picker 都从 order 同步
-    startDatePicker.value = order.value?.startDate ?? order.value?.start_date ?? null
-    deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
-    ElMessage.error(err.message)
-  }
-}
-
 // T3: 状态变更共享守卫——推进/打回/固定状态按钮快速连点会重复发请求。
 // statusAction 记录飞行动作（''=空闲；'advance'/'back'/目标状态值），精准控制哪个按钮转 loading
-const statusAction = ref('')
+// （statusAction ref 定义已提前到瘦身批装配处，workflow composable 与 changeStatus 共享）
 
 async function changeStatus(status) {
   if (statusAction.value) return
@@ -1082,125 +824,6 @@ const {
     }
   }
 })
-
-// ─── B7: 额度池收款区 ───
-const {
-  payments, loading: paymentsLoading, submitting: paymentSubmitting,
-  loadPayments, addPayment, revokePayment
-} = useOrderPayments()
-
-/** 收款弹窗 */
-const payDialogVisible = ref(false)
-const payForm = ref({ amountYuan: null, note: '' })
-
-/** 已收 / 应收 / 待收（后端字段优先，兜底用流水净额） */
-const poolPaidCents = computed(() => order.value?.paidTotalCents ?? 0)
-const poolFinalCents = computed(() => order.value?.finalPriceCents ?? order.value?.totalPriceCents ?? 0)
-const poolRemainingCents = computed(() => Math.max(0, poolFinalCents.value - poolPaidCents.value))
-const poolPercent = computed(() =>
-  poolFinalCents.value > 0 ? Math.min(100, Math.round(poolPaidCents.value / poolFinalCents.value * 100)) : 0
-)
-/** P2: 多收金额（客户多付部分；后端 addPayment 正数无上限，溢出记为"多收"） */
-const poolOverpaidCents = computed(() => Math.max(0, poolPaidCents.value - poolFinalCents.value))
-
-/** v0.31 F4: 节点收款（后端直接返回 paidCents/amountCents/remainingCents/status） */
-const installmentRefs = computed(() => order.value?.installments || [])
-
-/** v0.31 F5: 下一节点应收（第一个 remainingCents > 0 的节点） */
-const nextDueInstallment = computed(() =>
-  installmentRefs.value.find(inst => inst.remainingCents > 0) || null
-)
-
-/** REQ-025 二阶段: 订单级总待收（后端 enrich：总价 − 已收；无总价时 null，与 >0 比较自然为 false 不显示横幅） */
-const remainingCents = computed(() => order.value?.remainingCents ?? 0)
-
-/** v0.31 F5: 点击跳转到收款区 */
-function scrollToPayment() {
-  document.querySelector('.pool-ref')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-/** 提交收款 */
-async function submitPayment() {
-  const cents = Math.round((payForm.value.amountYuan || 0) * 100)
-  // 金额范围校验（后端 addPayment 规则的子集）：0 禁止；正数不设上限（后端支持多收，P2）；
-  // 负数（退款/撤销）必须填原因且不超已收金额。上限/下限提示由提交时给出，不在输入框硬钳制（P1）
-  if (cents === 0) {
-    ElMessage.warning(t('orderDetail.payAmountZero'))
-    return
-  }
-  if (cents < 0 && !payForm.value.note?.trim()) {
-    ElMessage.warning(t('orderDetail.payRefundNoteRequired'))
-    return
-  }
-  if (cents < 0 && -cents > poolPaidCents.value) {
-    ElMessage.warning(t('orderDetail.payRefundExceed', { amount: formatCents(poolPaidCents.value) }))
-    return
-  }
-  try {
-    await addPayment(route.params.id, { amountCents: cents, note: payForm.value.note || undefined })
-    ElMessage.success(t('orderDetail.paySuccess'))
-    payDialogVisible.value = false
-    payForm.value = { amountYuan: null, note: '' }
-    await Promise.all([loadOrder(), loadPayments(route.params.id)])
-  } catch (err) {
-    ElMessage.error(err.message)
-  }
-}
-
-// ─── v0.31 F4: 节点快捷收款 ───
-const nodePayDialogVisible = ref(false)
-const nodePayTarget = ref(null) // { id, name, remainingCents }
-const nodePayForm = ref({ amountYuan: null, note: '' })
-
-function openNodePayDialog(inst) {
-  nodePayTarget.value = inst
-  nodePayForm.value = { amountYuan: inst.remainingCents > 0 ? inst.remainingCents / 100 : null, note: '' }
-  nodePayDialogVisible.value = true
-}
-
-async function submitNodePayment() {
-  const cents = Math.round((nodePayForm.value.amountYuan || 0) * 100)
-  if (!nodePayTarget.value) return
-  // 金额范围校验（节点快捷收款只收正数；退款/撤销请用订单级「记录收款」填负数）
-  if (cents <= 0) {
-    ElMessage.warning(t('orderDetail.payAmountInvalid'))
-    return
-  }
-  if (cents > nodePayTarget.value.remainingCents) {
-    ElMessage.warning(t('orderDetail.payAmountExceed', { amount: formatCents(nodePayTarget.value.remainingCents) }))
-    return
-  }
-  try {
-    await addPayment(route.params.id, {
-      amountCents: cents,
-      note: nodePayForm.value.note || `${nodePayTarget.value.name}收款`,
-      installmentId: nodePayTarget.value.id
-    })
-    ElMessage.success(t('orderDetail.paySuccess'))
-    nodePayDialogVisible.value = false
-    await Promise.all([loadOrder(), loadPayments(route.params.id)])
-  } catch (err) {
-    ElMessage.error(err.message)
-  }
-}
-
-/** 撤销收款（二次确认） */
-async function handleRevokePayment(payment) {
-  try {
-    await ElMessageBox.confirm(
-      t('orderDetail.payRevokeConfirm', { amount: `¥${formatCents(payment.amount_cents)}` }),
-      t('orderDetail.confirmTitle'),
-      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
-    )
-  } catch { return }
-  try {
-    await revokePayment(route.params.id, payment)
-    ElMessage.success(t('orderDetail.payRevokeSuccess'))
-    await Promise.all([loadOrder(), loadPayments(route.params.id)])
-  } catch (err) {
-    ElMessage.error(err.message)
-  }
-}
 
 // ─── R19: 备注附图 ───
 const noteImageInputEl = ref(null)
