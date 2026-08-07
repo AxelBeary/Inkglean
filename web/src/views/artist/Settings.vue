@@ -645,7 +645,7 @@ onMounted(() => {
 .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
 .template-card {
   cursor: pointer; border: 2px solid var(--line); border-radius: var(--r-m);
-  overflow: hidden; transition: all 0.2s; background: var(--card);
+  overflow: hidden; transition: border-color 0.2s ease, box-shadow 0.2s ease; background: var(--card);
 }
 .template-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); }
 .template-card.active { border-color: var(--hq); box-shadow: 0 0 0 1px var(--hq); }
@@ -661,7 +661,7 @@ onMounted(() => {
 .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
 .palette-card {
   cursor: pointer; border: 2px solid var(--line); border-radius: var(--r-m);
-  overflow: hidden; transition: all 0.2s; background: var(--card);
+  overflow: hidden; transition: border-color 0.2s ease, box-shadow 0.2s ease; background: var(--card);
 }
 .palette-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); }
 .palette-card.active { border-color: var(--hq); box-shadow: 0 0 0 1px var(--hq); }

@@ -20,12 +20,16 @@ import { useThemeStore } from '../stores/theme.js'
 const { t } = useI18n()
 const themeStore = useThemeStore()
 
-/** 切换宣纸/墨黑 + toast「已切换 · 宣纸/墨黑」（REQ §1.2 切换交互） */
+/** 切换宣纸/墨黑 + toast「已切换 · 宣纸/墨黑」（REQ §1.2 切换交互）
+ *  主题切换平滑过渡 = 瞬态挂 .theme-animating（artist-tokens.css 仅在瞬态挂 4 条 transition，
+ *  日常 hover 不背；400ms 后移除，与 .35s 过渡时长余量一致） */
 function onToggle() {
+  document.documentElement.classList.add('theme-animating')
   themeStore.toggleArtistTheme()
   ElMessage.success(
     themeStore.isArtistInk ? t('pref.artistToastInk') : t('pref.artistToastPaper')
   )
+  setTimeout(() => document.documentElement.classList.remove('theme-animating'), 400)
 }
 </script>
 
