@@ -620,4 +620,25 @@ function logout() {
 /* ─── topbar 压缩批：侧边栏底部主题/语言（展开/折叠两态） ─── */
 .footer-tools { display: flex; align-items: center; gap: 8px; }
 .collapsed-tools { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px; }
+/* ─── 克制动效批（2026-08-07 用户反馈批：按钮按压 ≤0.2s ease-out；
+     注：html[data-artist-theme] .artist-scope * 全局规则（主题切换 0.35s）特异性更高，
+     会覆盖 scoped transition —— 此处动效规则加 .artist-scope 前缀提升特异性恢复过渡） ─── */
+.artist-scope .collapse-btn { transition: background-color 0.15s, color 0.15s, transform 0.15s ease-out; }
+.artist-scope .collapse-btn:active { transform: scale(0.98); }
+.artist-scope .lang-btn { transition: color .15s, transform .15s ease-out, box-shadow .15s, background-color .35s, border-color .35s; }
+.artist-scope .lang-btn:active { transform: scale(0.98); }
+.artist-scope .mobile-menu-btn { transition: box-shadow 0.15s, background-color 0.35s, transform 0.15s ease-out; }
+.artist-scope .mobile-menu-btn:active { transform: scale(0.98); }
+.artist-scope .nav-item { transition: color 0.15s, background-color 0.15s, transform 0.15s ease-out; }
+.artist-scope .nav-item:active { transform: scale(0.98); }
+.artist-scope .logout-btn { transition: color 0.15s, background-color 0.15s, transform 0.15s ease-out; }
+.artist-scope .logout-btn:active { transform: scale(0.98); }
+/* 移动端抽屉进场：淡入 + 轻微上移（0.18s ease-out，替代 EP 默认侧滑，禁弹跳旋转） */
+.artist-scope .mobile-drawer :deep(.el-drawer-fade-enter-active),
+.artist-scope .mobile-drawer :deep(.el-drawer-fade-leave-active) { transition: opacity 0.18s ease-out, transform 0.18s ease-out; }
+.artist-scope .mobile-drawer :deep(.el-drawer-fade-enter-from) { opacity: 0; }
+.artist-scope .mobile-drawer :deep(.el-drawer-fade-leave-to) { opacity: 0; }
+/* drawer 本体：淡入 + 轻微上移（替代 EP 左侧全滑入；禁弹跳旋转） */
+.artist-scope .mobile-drawer :deep(.el-drawer-fade-enter-from .ltr),
+.artist-scope .mobile-drawer :deep(.el-drawer-fade-leave-to .ltr) { transform: translateY(8px); }
 </style>

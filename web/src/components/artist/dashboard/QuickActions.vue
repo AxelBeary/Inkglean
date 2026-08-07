@@ -47,34 +47,27 @@ export function readQuickActionsConfig() {
 
 <template>
   <div class="quick-actions-wrap">
-    <!-- 快速发作品：拖图/粘贴即发（画师直接拖到块上，真正人类逻辑） -->
-    <div
-      class="quick-publish"
-      :class="{ 'quick-publish--active': publishActive || publishUploading }"
-      @dragenter.prevent="onDragEnter"
-      @dragover.prevent
-      @drop.prevent="onDropPublish"
-      @click="publishActive = !publishActive"
-      role="button" tabindex="0"
-      @keydown.enter="publishActive = !publishActive"
-    >
-      <el-icon class="quick-publish-icon"><UploadFilled /></el-icon>
-      <span class="quick-publish-name">{{ $t('quickAction.publishHint') }}</span>
-      <span v-if="publishUploading" class="quick-publish-state">{{ $t('quickAction.uploading') }}</span>
-    </div>
-    <!-- 快捷入口网格：默认 5 项（manual/preview/rules/share/quickconfig），可自定义 -->
+    <!-- 快捷入口网格（2026-08-07 用户反馈批：常驻虚线块并入「快速发作品」卡片；
+         状态卡直接展示状态名，去掉「状态切换」字样——偏好设置里保留） -->
     <div class="quick-grid">
       <div
         v-for="action in activeActions" :key="action.key"
         class="quick-card" role="button" tabindex="0"
-        :class="{ 'quick-card--status': action.key === 'status' }"
+        :class="{
+          'quick-card--status': action.key === 'status',
+          'quick-card--publish-active': action.key === 'publish' && (publishActive || publishUploading)
+        }"
         @click="go(action)"
         @keydown.enter="go(action)"
         @keydown.space.prevent="go(action)"
+        @dragenter.prevent="onCardDragEnter(action)"
+        @dragover.prevent
+        @dragleave="onCardDragLeave(action)"
+        @drop.prevent="onCardDrop(action, $event)"
       >
         <el-icon class="quick-icon"><component :is="action.icon" /></el-icon>
-        <span class="quick-name">{{ $t(action.labelKey) }}</span>
-        <span v-if="action.key === 'status'" class="quick-status-label">{{ statusText }}</span>
+        <span v-if="action.key === 'status'" class="quick-name quick-name--status">{{ statusText }}</span>
+        <span v-else class="quick-name">{{ action.key === 'publish' && publishUploading ? $t('quickAction.uploading') : $t(action.labelKey) }}</span>
       </div>
     </div>
   </div>
@@ -143,7 +136,7 @@ async function shareLink() {
   }
 }
 
-// ─── F3 快速发作品：拖图/粘贴到块（真正人类逻辑） ───
+// ─── F3 快速发作品：拖图/粘贴直接发布（2026-08-07 用户反馈批：能力并入快捷卡片） ───
 const publishActive = ref(false)
 const publishUploading = ref(false)
 const { pasteError } = usePasteUpload({
@@ -154,10 +147,16 @@ const { pasteError } = usePasteUpload({
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
-function onDragEnter() {
+function onCardDragEnter(action) {
+  if (action.key !== 'publish') return
   publishActive.value = true
 }
-async function onDropPublish(e) {
+function onCardDragLeave(action) {
+  if (action.key !== 'publish') return
+  publishActive.value = false
+}
+async function onCardDrop(action, e) {
+  if (action.key !== 'publish') return
   const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'))
   if (!files.length) { ElMessage.warning(t('quickAction.notImage')); return }
   await doPublish(files)
@@ -192,7 +191,7 @@ function go(action) {
   if (action.type === 'action') {
     if (action.action === 'status') cycleStatus()
     else if (action.action === 'share') shareLink()
-    else if (action.action === 'publish') { publishActive.value = !publishActive.value }
+    else if (action.action === 'publish') router.push('/artworks') // 点击跳转发作品页；拖图/粘贴走卡片 drop/paste
     return
   }
   router.push(action.route)
@@ -202,45 +201,36 @@ function go(action) {
 <style scoped>
 /* v0.38 第二批: 纸墨 token（第一批白名单内补漏） */
 .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.quick-card {
+.artist-scope .quick-card {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 14px 8px;
   border: 1px solid var(--line); border-radius: var(--r-l);
   background: var(--card); cursor: pointer; user-select: none;
-  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  transition: border-color 0.2s, transform 0.15s ease-out, box-shadow 0.2s;
 }
 .quick-card:hover {
   border-color: color-mix(in srgb, var(--hq) 50%, transparent);
   transform: translateY(-2px);
   box-shadow: var(--sh-2);
 }
-.quick-card:active { transform: translateY(0); }
+.quick-card:active { transform: translateY(-2px) scale(0.98); }
+/* 快速发作品：拖图悬停/发布中高亮（2026-08-07 用户反馈批） */
+.quick-card--publish-active {
+  border-color: var(--hq);
+  background: color-mix(in srgb, var(--hq) 10%, var(--card));
+  box-shadow: var(--sh-1);
+}
+.quick-card--publish-active .quick-icon { color: var(--hq); }
 .quick-icon { font-size: calc(var(--font-scale, 1) * 22px); color: var(--hq); }
 .quick-name { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 500; color: var(--ink); }
+/* 状态卡：状态名直接作为主体展示（去掉「状态切换」小字，2026-08-07 用户反馈批） */
+.quick-name--status { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--hq-d); }
 @media (max-width: 768px) {
   .quick-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 400px) {
   .quick-grid { grid-template-columns: repeat(2, 1fr); }
 }
-/* ─── F3 快速发作品拖图块（2026-08-07） ─── */
+/* 快捷区纵向容器 */
 .quick-actions-wrap { display: flex; flex-direction: column; gap: 10px; }
-.quick-publish {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 14px 12px;
-  border: 1.5px dashed color-mix(in srgb, var(--hq) 55%, transparent);
-  border-radius: var(--r-l);
-  background: color-mix(in srgb, var(--hq) 6%, var(--card));
-  cursor: pointer; user-select: none;
-  transition: border-color 0.2s, background 0.2s;
-}
-.quick-publish:hover, .quick-publish--active {
-  border-color: var(--hq);
-  background: color-mix(in srgb, var(--hq) 12%, var(--card));
-}
-.quick-publish-icon { font-size: calc(var(--font-scale, 1) * 20px); color: var(--hq); }
-.quick-publish-name { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 500; color: var(--ink); }
-.quick-publish-state { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
-/* 状态卡当前状态文字 */
-.quick-status-label { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); margin-top: -2px; }
 </style>
