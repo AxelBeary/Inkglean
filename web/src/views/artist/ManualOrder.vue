@@ -1409,11 +1409,16 @@ onUnmounted(() => {
 .ref-tip-icon:hover { color: var(--hq); }
 .mo-ref-upload :deep(.el-upload--picture-card) {
   width: 100%;
-  height: auto;
+  height: 140px;
   /* F4: 46.67×100 细长条根因——固定 100px 高 + 窄父容器；改 16/9 矩形 + 最小高度兜底 */
-  aspect-ratio: 16 / 9;
-  min-height: 140px;
+  /* F4 修正（上传框变大根因，2026-08-07 五号实测 DOM）：EP 2.9 drag+picture-card 把 trigger 渲染进
+     el-upload-list--picture-card（flex 容器）内部，aspect-ratio 参与 flex 尺寸协商导致上传后重排撑大；
+     改固定高度不参与 flex 协商，list 容器设全宽（见下方新增规则） */
   border-radius: var(--r-m);
+}
+/* F4 修正：list flex 容器全宽，trigger/item 各自定尺寸不互相挤压 */
+.mo-ref-upload :deep(.el-upload-list--picture-card) {
+  width: 100%;
 }
 /* F4: drag 模式下 .el-upload-dragger 包在 picture-card 内——铺满整个虚线区，
    整块可拖拽（用户拍板：保留 drag，整个虚线区域可拖），中间图标垂直居中 */
