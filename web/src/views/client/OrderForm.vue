@@ -670,8 +670,21 @@ function goNextFromDetail() {
 function onMobileNext() {
   if (step.value === contactStep.value) return openReceipt()
   if (step.value === detailStep.value) return goNextFromDetail()
-  if (!isStyleMode.value) { step.value = detailStep.value; return }
-  if (step.value === 1 && isMultiStyle.value) { step.value = sizeStep.value; return }
+  // 步骤 1 校验：旧模型选档位 / 画风模式选画风+尺寸——与卡内「下一步」disabled 逻辑一致（P1-2 修复：此前直接跳步绕过校验）
+  if (step.value === 1) {
+    if (!isStyleMode.value) {
+      if (!form.tierId) { ElMessage.warning(t('orderForm.selectTier')); return }
+      step.value = detailStep.value; return
+    }
+    if (isMultiStyle.value) {
+      // 多画风：step1 = 选画风 → 校验后进 sizeStep
+      if (!selectedStyle.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
+      step.value = sizeStep.value; return
+    }
+    // 单画风：step1 = 选尺寸 → 校验后进 addonStep
+    if (!selectedSize.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
+    step.value = addonStep.value; return
+  }
   if (step.value === sizeStep.value) { step.value = addonStep.value; return }
   if (step.value === addonStep.value) { step.value = detailStep.value }
 }
