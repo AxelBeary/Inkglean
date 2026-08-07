@@ -8,11 +8,11 @@
       </el-card>
       <el-card shadow="hover" class="stat-card-center">
         <div class="stat-label">{{ $t('admin.tracking.visibleLabel') }}</div>
-        <el-switch
-          v-model="artistStatsVisible"
-          :loading="savingVisible"
-          @change="handleVisibleChange"
-        />
+        <el-radio-group v-model="statsMode" :disabled="savingVisible" @change="onModeChange">
+          <el-radio value="off">{{ $t('tracking.modeOff') }}</el-radio>
+          <el-radio value="hidden">{{ $t('tracking.modeHidden') }}</el-radio>
+          <el-radio value="on">{{ $t('tracking.modeOn') }}</el-radio>
+        </el-radio-group>
       </el-card>
       <el-card shadow="hover" class="stat-card-center">
         <div class="stat-label">{{ $t('admin.tracking.daysLabel') }}</div>
@@ -77,7 +77,7 @@ const { t } = useI18n()
 
 const loading = ref(true)
 const summary = ref(null)
-const artistStatsVisible = ref(false)
+const statsMode = ref('hidden')
 const savingVisible = ref(false)
 const days = ref(30)
 const dayOptions = [7, 14, 30, 90]
@@ -109,16 +109,17 @@ async function loadSummary() {
   }
 }
 
-async function handleVisibleChange(val) {
+async function onModeChange(v) {
+  const prev = statsMode.value
   savingVisible.value = true
   try {
-    const res = await adminApi.setTrackingConfig(val)
-    artistStatsVisible.value = res.artistStatsVisible
-    ElMessage.success(t('admin.tracking.visibleSaved'))
+    const res = await adminApi.setTrackingConfig(v)
+    statsMode.value = res.statsMode
+    ElMessage.success(t('tracking.saved'))
   } catch (err) {
     ElMessage.error(err.message)
-    // 失败回滚开关（后端为准，不本地存）
-    artistStatsVisible.value = !val
+    // 失败回滚（后端为准，不本地存）
+    statsMode.value = prev
   } finally {
     savingVisible.value = false
   }
@@ -132,7 +133,7 @@ onMounted(async () => {
       adminApi.getTrackingConfig()
     ])
     summary.value = s
-    artistStatsVisible.value = !!cfg.artistStatsVisible
+    statsMode.value = cfg.statsMode || 'hidden'
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

@@ -245,7 +245,7 @@ export default {
     manualOrder: 'Manual Entry', tiers: 'Pricing', artworks: 'Portfolio',
     guestbook: 'Guestbook', slots: 'Slot Settings',
     preview: 'Preview Page',
-    rules: 'Guidelines', settings: 'Page Settings', preferences: 'Preferences', admin: 'Admin', logout: 'Log out',
+    rules: 'Guidelines', stats: 'Statistics', settings: 'Page Settings', preferences: 'Preferences', admin: 'Admin', logout: 'Log out',
     collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu',
     langToEn: 'English', langToZh: 'Chinese', langAriaToEn: 'Switch to English', langAriaToZh: 'Switch to Chinese',
     // REQ-016 C: sidebar group titles
@@ -459,6 +459,28 @@ export default {
     cancel: 'Cancel', save: 'Save', create: 'Create',
     msgNameRequired: 'Please enter a name', msgUpdated: 'Updated', msgCreated: 'Created', msgDeleted: 'Deleted'
   },
+  // v0.42 Step5: artist stats page (REQ-033 three-state: off / hidden / on)
+  stats: {
+    title: 'Statistics',
+    totalEvents: 'Total events',
+    byDay: 'By day',
+    byName: 'Events',
+    disabledHint: 'Statistics are off. Enable them in the admin console.',
+    empty: 'No event data',
+    events: {
+      dashboard_view: 'Dashboard views', queue_view: 'Queue views', orders_view: 'Order list views',
+      manual_view: 'Manual entry', artworks_view: 'Artwork management', settings_view: 'Settings',
+      tiers_view: 'Tiers', guestbook_view: 'Guestbook', preferences_view: 'Preferences',
+      dashboard_quick_click: 'Quick actions', artist_action: 'Artist actions'
+    }
+  },
+  // v0.42 Step5: tracking three-state (admin switch: off / hidden / on)
+  tracking: {
+    modeOff: 'Off',
+    modeHidden: 'Hidden',
+    modeOn: 'On',
+    saved: 'Saved'
+  },
   dashboard: {
     title: 'Dashboard', pendingNew: 'New pending', activeOrders: 'Active orders',
     monthRevenue: 'Revenue this month', totalCompleted: 'Total completed', quickActions: 'Quick actions',
@@ -493,14 +515,6 @@ export default {
     // #4: slot overview revamp
     slotCombined: '{used}/{total} filled', slotNotEnabled: 'Slot limit is off — set it up →', slotDisplayFallback: '—',
     artworks: 'Gallery', tiers: 'Tiers',
-    // REQ-033: artist stats
-    trackingTitle: 'My stats', trackingTotal: 'Total events',
-    trackingNames: {
-      dashboard_view: 'Dashboard views', queue_view: 'Queue views', orders_view: 'Order list views',
-      manual_view: 'Manual entry', artworks_view: 'Artwork management', settings_view: 'Settings',
-      tiers_view: 'Tiers', guestbook_view: 'Guestbook', preferences_view: 'Preferences',
-      dashboard_quick_click: 'Quick actions', artist_action: 'Artist actions'
-    }
   },
   queue: {
     title: 'Queue Board',
@@ -1089,7 +1103,7 @@ export default {
       byNameTitle: 'By event', byDayTitle: 'By day',
       colName: 'Event', colCount: 'Count', colRatio: 'Ratio', colDay: 'Date',
       days7: 'Last 7 days', days14: 'Last 14 days', days30: 'Last 30 days', days90: 'Last 90 days',
-      visibleSaved: 'Artist stats visibility updated', empty: 'No event data'
+      empty: 'No event data'
     }
   }
 }

@@ -245,7 +245,7 @@ export default {
     manualOrder: '手动录单', tiers: '价格管理', artworks: '作品管理',
     guestbook: '留言管理', slots: '开稿管理',
     preview: '主页预览',
-    rules: '须知编辑', settings: '主页设置', preferences: '偏好设置', admin: '管理后台', logout: '退出登录',
+    rules: '须知编辑', stats: '数据统计', settings: '主页设置', preferences: '偏好设置', admin: '管理后台', logout: '退出登录',
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单',
     langToEn: 'English', langToZh: '中文', langAriaToEn: 'Switch to English', langAriaToZh: '切换到中文',
     // REQ-016 C: 侧边栏分组标题
@@ -459,6 +459,28 @@ export default {
     cancel: '取消', save: '保存', create: '创建',
     msgNameRequired: '请输入名称', msgUpdated: '已更新', msgCreated: '已创建', msgDeleted: '已删除'
   },
+  // v0.42 Step5: 画师统计独立页（REQ-033 埋点三态：off 关 / hidden 不显 / on 开）
+  stats: {
+    title: '数据统计',
+    totalEvents: '总事件数',
+    byDay: '按日趋势',
+    byName: '事件明细',
+    disabledHint: '统计未开启，请在管理后台开启',
+    empty: '暂无事件数据',
+    events: {
+      dashboard_view: '工作台访问', queue_view: '排期看板', orders_view: '订单列表',
+      manual_view: '手动录单', artworks_view: '作品管理', settings_view: '设置',
+      tiers_view: '档位', guestbook_view: '留言', preferences_view: '偏好',
+      dashboard_quick_click: '快捷操作', artist_action: '画师操作'
+    }
+  },
+  // v0.42 Step5: 埋点三态（管理后台开关：关/不显/开）
+  tracking: {
+    modeOff: '关闭',
+    modeHidden: '不显示',
+    modeOn: '开启',
+    saved: '已保存'
+  },
   dashboard: {
     title: '仪表盘', pendingNew: '待处理新单', activeOrders: '进行中订单',
     monthRevenue: '本月收入', totalCompleted: '累计完成', quickActions: '快捷操作',
@@ -493,14 +515,6 @@ export default {
     // #4: 名额概览改版
     slotCombined: '已接 {used}/{total}', slotNotEnabled: '未开启名额限制，去设置 →', slotDisplayFallback: '—',
     artworks: '图库管理', tiers: '档位管理',
-    // REQ-033: 门面统计
-    trackingTitle: '我的数据统计', trackingTotal: '累计事件',
-    trackingNames: {
-      dashboard_view: '工作台访问', queue_view: '排期看板', orders_view: '订单列表',
-      manual_view: '手动录单', artworks_view: '作品管理', settings_view: '设置',
-      tiers_view: '档位', guestbook_view: '留言', preferences_view: '偏好',
-      dashboard_quick_click: '快捷操作', artist_action: '画师操作'
-    }
   },
   queue: {
     title: '排期看板',
@@ -1087,7 +1101,7 @@ export default {
       byNameTitle: '事件分布', byDayTitle: '按日趋势',
       colName: '事件名', colCount: '次数', colRatio: '占比', colDay: '日期',
       days7: '近 7 天', days14: '近 14 天', days30: '近 30 天', days90: '近 90 天',
-      visibleSaved: '画师门面统计已更新', empty: '暂无事件数据'
+      empty: '暂无事件数据'
     }
   }
 }

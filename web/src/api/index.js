@@ -341,5 +341,5 @@ export const adminApi = {
   // REQ-033 埋点看板
   getTrackingSummary: (days = 30) => api.get('/admin/tracking/summary', { params: { days } }),
   getTrackingConfig: () => api.get('/admin/tracking-config'),
-  setTrackingConfig: (artistStatsVisible) => api.put('/admin/tracking-config', { artistStatsVisible })
+  setTrackingConfig: (statsMode) => api.put('/admin/tracking-config', { statsMode })
 }

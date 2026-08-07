@@ -19,23 +19,6 @@
           <TodoList />
         </div>
 
-        <!-- REQ-033: 门面统计（管理员开关控制显隐；enabled=false 完全不渲染） -->
-        <div class="area area-tracking" v-if="trackingStats?.enabled">
-          <el-card>
-            <template #header><CardHead :title="$t('dashboard.trackingTitle')" /></template>
-            <div class="tracking-mini">
-              <div class="tracking-total">{{ trackingStats?.total ?? '-' }}</div>
-              <div class="tracking-label">{{ $t('dashboard.trackingTotal') }}</div>
-              <div class="tracking-list" v-if="trackingStats?.byName?.length">
-                <div v-for="item in trackingStats.byName.slice(0, 6)" :key="item.name" class="tracking-row">
-                  <span class="tracking-name">{{ $t(`dashboard.trackingNames.${item.name}`, item.name) }}</span>
-                  <span class="tracking-count">{{ item.count }}</span>
-                </div>
-              </div>
-            </div>
-          </el-card>
-        </div>
-
         <!-- 右栏：名额概览卡（有则显示）→ 快捷操作区 → 状态切换 → 最近活动流 -->
         <div class="area area-slot">
           <SlotOverview />
@@ -126,15 +109,11 @@ import SlotOverview from '../../components/artist/dashboard/SlotOverview.vue'
 const { t } = useI18n()
 const store = useArtistStore()
 const stats = ref(null)
-// REQ-033: 门面统计（独立失败静默，区块 v-if 依赖 enabled）
-const trackingStats = ref(null)
 
 onMounted(async () => {
   await store.fetchProfile()
   // 统计卡片 + 今日统计行（独立失败，不阻塞其他模块）
   try { stats.value = await artistApi.getStats() } catch { /* ignore */ }
-  // REQ-033: 门面统计（独立失败静默，不阻塞其他模块）
-  try { trackingStats.value = await artistApi.getMyTrackingSummary() } catch { /* ignore */ }
   // F4: 留言审核（独立失败，不阻塞其他模块）
   loadGuestbook()
 })
@@ -206,23 +185,12 @@ async function replyMsg(m) {
   .area-revenue  { grid-column: 1; grid-row: 2; }
   .area-stats    { grid-column: 1; grid-row: 3; }
   .area-todo     { grid-column: 1; grid-row: 4; }
-  .area-tracking { grid-column: 1; grid-row: 5; }
   /* 右栏 */
   .area-slot     { grid-column: 2; grid-row: 1; }
   .area-quick    { grid-column: 2; grid-row: 2; }
   .area-activity { grid-column: 2; grid-row: 3; }
   .area-guestbook { grid-column: 2; grid-row: 4; }
 }
-
-/* ─── F4: 留言审核区（v0.38 token 换肤） ─── */
-/* ─── REQ-033: 门面统计（管理员开关控制显隐） ─── */
-.tracking-mini { display: flex; flex-direction: column; align-items: center; padding: 8px 0 4px; }
-.tracking-total { font-size: 28px; font-weight: bold; color: var(--ink); font-family: var(--f-d); font-variant-numeric: tabular-nums; }
-.tracking-label { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 4px 0 12px; }
-.tracking-list { width: 100%; display: flex; flex-direction: column; gap: 6px; }
-.tracking-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: var(--r-m); background: var(--card); border: 1px solid var(--line); font-size: calc(var(--font-scale, 1) * 13px); }
-.tracking-name { color: var(--ink2); }
-.tracking-count { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* ─── F4: 留言审核区（v0.38 token 换肤） ─── */
 .gb-mod-list { display: flex; flex-direction: column; gap: 12px; max-height: 480px; overflow-y: auto; }
