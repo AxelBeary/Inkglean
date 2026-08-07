@@ -531,7 +531,7 @@ export default {
       dashboard_view: 'Dashboard views', queue_view: 'Queue views', orders_view: 'Order list views',
       manual_view: 'Manual entry', artworks_view: 'Artwork management', settings_view: 'Settings',
       tiers_view: 'Tiers', guestbook_view: 'Guestbook', preferences_view: 'Preferences',
-      dashboard_quick_click: 'Quick actions', artist_action: 'Artist actions'
+      dashboard_quick_click: 'Quick actions', artist_page_enter: 'Homepage views', artist_action: 'Artist actions'
     }
   },
   // v0.42 Step5: tracking three-state (admin switch: off / hidden / on)

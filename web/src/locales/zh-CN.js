@@ -530,7 +530,7 @@
       dashboard_view: '工作台访问', queue_view: '排期看板', orders_view: '订单列表',
       manual_view: '手动录单', artworks_view: '作品管理', settings_view: '设置',
       tiers_view: '档位', guestbook_view: '留言', preferences_view: '偏好',
-      dashboard_quick_click: '快捷操作', artist_action: '画师操作'
+      dashboard_quick_click: '快捷操作', artist_page_enter: '主页访问', artist_action: '画师操作'
     }
   },
   // v0.42 Step5: 埋点三态（管理后台开关：关/不显/开）
