@@ -400,6 +400,30 @@ export function getArtworks(artistId: number): Artwork[] {
   return db.prepare('SELECT * FROM artworks WHERE artist_id = ? ORDER BY is_cover DESC, cover_order ASC, sort_order ASC').all(artistId) as Artwork[]
 }
 
+/** 画师端作品分页（画师自己管理用，20/页；封面置顶不动）
+ * 排序与 getArtworks 一致：is_cover DESC, cover_order ASC, sort_order ASC
+ */
+export interface PagedArtworks {
+  items: Artwork[]
+  total: number
+  hasMore: boolean
+}
+
+export function getArtworksPaged(artistId: number, page: number, pageSize: number): PagedArtworks {
+  const offset = (page - 1) * pageSize
+  const total = (db.prepare('SELECT COUNT(*) AS c FROM artworks WHERE artist_id = ?').get(artistId) as { c: number }).c
+  const items = db.prepare(`
+    SELECT * FROM artworks WHERE artist_id = ?
+    ORDER BY is_cover DESC, cover_order ASC, sort_order ASC
+    LIMIT ? OFFSET ?
+  `).all(artistId, pageSize, offset) as Artwork[]
+  return { items, total, hasMore: offset + items.length < total }
+}
+
+/** 公开端作品分页（访客看画师主页用，10/页 + 加载更多）；hidden 画师由路由层拦截 */
+export function getPublicArtworksPaged(artistId: number, page: number, pageSize: number): PagedArtworks {
+  return getArtworksPaged(artistId, page, pageSize)
+}
 export function getArtworkById(artworkId: number): Artwork | undefined {
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(artworkId) as Artwork | undefined
 }

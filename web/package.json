@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "artist-commission-web",
   "version": "0.41.0",
   "description": "画师约稿管理平台 - 前端",
@@ -9,7 +9,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:web": "vitest run"
+    "test:web": "vitest run",
+  "check:i18n": "node scripts/check-i18n.js"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",

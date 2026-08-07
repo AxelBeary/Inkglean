@@ -1,4 +1,4 @@
-﻿import { randomBytes } from 'crypto'
+import { randomBytes } from 'crypto'
 import db from '../../db/connection.js'
 
 // ============================================
@@ -120,8 +120,18 @@ const FUNNEL_EVENT_NAMES = [
   'order_submit_success'
 ]
 
-/** 画师门面统计显隐的 platform_config key（默认 true） */
+/**
+ * 画师门面统计三态开关（用户 2026-08-07 拍板：关/不显/开，默认不显）
+ * - 'on'    ：事件落库 + 画师端统计可见（等价旧 artist_stats_visible=true）
+ * - 'hidden'：事件落库 + 画师端统计不可见（等价旧 artist_stats_visible=false，默认）
+ * - 'off'   ：事件静默丢弃（不落库）+ 画师端统计不可见（彻底关闭埋点）
+ * 双 key 同步：stats_mode 为主，artist_stats_visible 保持同步兼容旧读取方
+ */
+const STATS_MODE_KEY = 'stats_mode'
 const ARTIST_STATS_VISIBLE_KEY = 'artist_stats_visible'
+
+export type StatsMode = 'off' | 'hidden' | 'on'
+const STATS_MODE_VALUES: StatsMode[] = ['off', 'hidden', 'on']
 
 export interface TrackingSummary {
   total: number
@@ -183,17 +193,36 @@ export function getArtistTrackingSummary(artistId: number, days: number): Artist
   return { total, byName, byDay }
 }
 
-/** 管理员开关：画师门面统计显隐（platform_config key=artist_stats_visible，默认 true） */
-export function getArtistStatsVisible(): boolean {
-  const row = db.prepare(`SELECT value FROM platform_config WHERE key = ?`).get(ARTIST_STATS_VISIBLE_KEY) as { value: string } | undefined
-  return row ? row.value !== 'false' : true
+/**
+ * 读取三态开关：stats_mode 优先，回退旧 artist_stats_visible（'true'→on / 'false'→hidden），
+ * 都没有则默认 'hidden'（用户拍板：默认不显）
+ */
+export function getStatsMode(): StatsMode {
+  const row = db.prepare('SELECT value FROM platform_config WHERE key = ?').get(STATS_MODE_KEY) as { value: string } | undefined
+  if (row && (STATS_MODE_VALUES as string[]).includes(row.value)) return row.value as StatsMode
+  const legacy = db.prepare('SELECT value FROM platform_config WHERE key = ?').get(ARTIST_STATS_VISIBLE_KEY) as { value: string } | undefined
+  if (legacy) return legacy.value === 'false' ? 'hidden' : 'on'
+  return 'hidden'
 }
 
-/** 管理员开关：写入（INSERT OR REPLACE 语义，无则插有则改） */
+/** 写入三态开关（INSERT OR REPLACE 语义）；同步旧 key 保持向后兼容 */
+export function setStatsMode(mode: StatsMode): StatsMode {
+  if (!(STATS_MODE_VALUES as string[]).includes(mode)) mode = 'hidden'
+  db.prepare('INSERT INTO platform_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(STATS_MODE_KEY, mode)
+  db.prepare('INSERT INTO platform_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(ARTIST_STATS_VISIBLE_KEY, mode === 'on' ? 'true' : 'false')
+  return mode
+}
+
+/**
+ * 兼容旧读取方：画师门面统计是否可见（可见 = mode==='on'）
+ * 旧语义 artist_stats_visible=false 仅隐藏显示、事件仍收集 → 映射为 hidden，此处返回 false
+ */
+export function getArtistStatsVisible(): boolean {
+  return getStatsMode() === 'on'
+}
+
+/** 兼容旧写入方：true→on（可见+收集）；false→hidden（仅隐藏显示，事件仍收集——匹配旧语义） */
 export function setArtistStatsVisible(visible: boolean): boolean {
-  db.prepare(`
-    INSERT INTO platform_config (key, value) VALUES (?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value
-  `).run(ARTIST_STATS_VISIBLE_KEY, visible ? 'true' : 'false')
+  setStatsMode(visible ? 'on' : 'hidden')
   return visible
 }
