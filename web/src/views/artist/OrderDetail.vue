@@ -1226,9 +1226,9 @@ onMounted(() => {
   cursor: zoom-in;
   border: 1px solid var(--line);
   background: var(--paper2);
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: box-shadow 0.15s;
 }
-.note-thumb:hover { transform: scale(1.05); box-shadow: var(--sh-2); }
+.note-thumb:hover { box-shadow: var(--sh-2); }
 .note-input { display: flex; gap: 8px; border-radius: var(--r-m); transition: outline 0.15s; }
 /* R41: 拖拽进入高亮 */
 .note-input--drag-over { outline: 2px dashed var(--hq); outline-offset: 4px; }

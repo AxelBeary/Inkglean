@@ -100,9 +100,7 @@ function handleDragLeave(event) {
   cursor: pointer;
   border-radius: var(--r-m);
   overflow: hidden;
-  transition: transform 0.15s;
 }
-.ref-img-wrap:hover { transform: scale(1.02); }
 .ref-img { height: 120px; width: 100%; border-radius: var(--r-m); display: block; background: var(--paper2); }
 /* R43: 加载骨架屏（防首屏多图白闪） */
 .ref-img-skeleton {

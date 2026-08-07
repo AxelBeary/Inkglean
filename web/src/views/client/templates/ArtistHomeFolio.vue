@@ -516,8 +516,8 @@ onUnmounted(() => {
   color: var(--color-primary);
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
-  transform: translateY(-2px);
 }
+.folio-link:active { transform: translateY(-2px); }
 .folio-link-badge {
   display: inline-flex;
   align-items: center;

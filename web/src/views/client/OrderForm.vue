@@ -1012,7 +1012,8 @@ async function copyQq(qq) {
   border: 2px solid var(--border-color); border-radius: 12px;
   transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.15s ease, background 0.2s;
 }
-.tier-pick:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.tier-pick:hover { box-shadow: var(--shadow-card-hover); }
+.tier-pick:active { transform: translateY(-2px); }
 .tier-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .tier-pick-stamp {
   position: absolute; top: -9px; right: -9px;
@@ -1050,7 +1051,6 @@ async function copyQq(qq) {
 .inspire-tag:hover {
   color: var(--color-primary); border-color: var(--color-primary);
   background: var(--color-primary-soft);
-  transform: translateY(-2px);
 }
 .inspire-tag:active { transform: translateY(0) scale(0.96); }
 
@@ -1232,7 +1232,8 @@ async function copyQq(qq) {
   overflow: hidden;
   transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.15s ease;
 }
-.style-pick:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.style-pick:hover { box-shadow: var(--shadow-card-hover); }
+.style-pick:active { transform: translateY(-2px); }
 .style-pick--on { border-color: var(--color-primary); }
 .style-pick-stamp {
   position: absolute; top: 8px; right: 8px; z-index: 2;
@@ -1269,9 +1270,9 @@ async function copyQq(qq) {
   padding: 14px 18px; cursor: pointer;
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 10px;
-  transition: border-color 0.2s, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.2s, box-shadow 0.15s ease;
 }
-.size-pick:hover { border-color: var(--color-primary-light-5); transform: translateX(4px); }
+.size-pick:hover { border-color: var(--color-primary-light-5); }
 .size-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .size-pick-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .size-pick-price { font-size: 18px; font-weight: 700; color: var(--color-primary); font-variant-numeric: tabular-nums; }
