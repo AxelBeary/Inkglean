@@ -34,7 +34,7 @@ export function createMessage(artistId: number, nickname: string, content: strin
 export function getPublicMessages(artistId: number, page: number = 1, pageSize: number = 20, language?: string): { messages: GuestbookMessage[]; total: number; page: number; pageSize: number } {
   const offset = (page - 1) * pageSize
   let where = "WHERE artist_id = ? AND status = 'approved' AND deleted_by_admin = 0"
-  const params: any[] = [artistId]
+  const params: Array<string | number> = [artistId]
   if (language) {
     where += ' AND language = ?'
     params.push(language)
@@ -99,7 +99,7 @@ export interface AdminMessageFilters {
 /** 管理员查询：跨画师全部留言（含 artist_name），按 created_at DESC；可选 artistId/status/replied 筛选 */
 export function getAdminMessages(filters: AdminMessageFilters = {}): Array<GuestbookMessage & { artist_name: string | null }> {
   const clauses: string[] = []
-  const params: any[] = []
+  const params: Array<string | number> = []
   if (filters.artistId !== undefined) {
     clauses.push('m.artist_id = ?')
     params.push(filters.artistId)

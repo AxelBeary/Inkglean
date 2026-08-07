@@ -3,6 +3,7 @@ import { AppError, E } from '../../shared/errors.js'
 import { getOrder, compactQueue, tryAutoPromote } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
 import { createArtwork } from '../artist/artist.service.js'
+import type { OrderDetail } from '../../types/entities.js'
 import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
 import { join, resolve, sep, extname, basename } from 'path'
 import { nanoid } from 'nanoid'
@@ -24,7 +25,7 @@ export function addDeliverable(orderId: number, filePath: string, fileName: stri
  * 交付订单（事务化）
  * 仅 wip/revision/done 状态允许上传交付文件
  */
-export function deliverOrder(orderId: number, filePath: string, fileName: string | null, fileSize: number | null): any {
+export function deliverOrder(orderId: number, filePath: string, fileName: string | null, fileSize: number | null): { order: OrderDetail; statusChanged: boolean } {
   return db.transaction(() => {
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
@@ -44,7 +45,7 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
       statusChanged = true
     }
 
-    return { order: getOrder(orderId), statusChanged }
+    return { order: getOrder(orderId)!, statusChanged }
   })()
 }
 
@@ -54,7 +55,7 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
  * 状态守卫同 deliverOrder（wip/revision/done）→ delivered + 队列压缩 + 自动递补
  * 与 deliverOrder 的差异：不插入交付文件，追加系统备注留痕
  */
-export function deliverOrderWithoutFile(orderId: number): any {
+export function deliverOrderWithoutFile(orderId: number): { order: OrderDetail; statusChanged: boolean } {
   return db.transaction(() => {
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
@@ -79,7 +80,7 @@ export function deliverOrderWithoutFile(orderId: number): any {
     // v0.31 REQ-021 F1: 操作日志（status_change 类型 + noFile 标记，对齐 updateOrderStatus 日志范式）
     logActivity(orderId, 'status_change', 'artist', { from: order.status, to: 'delivered', noFile: true })
 
-    return { order: getOrder(orderId), statusChanged }
+    return { order: getOrder(orderId)!, statusChanged }
   })()
 }
 
@@ -112,7 +113,7 @@ const VALID_FOCUS_MODES = ['off', 'small', 'large']
  * 焦点图路径必须是该订单已有参考图之一（校验归属）
  * mode 为 'off' 时清空焦点图
  */
-export function setFocusImage(orderId: number, imagePath: string | null, mode: string): any {
+export function setFocusImage(orderId: number, imagePath: string | null, mode: string): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -123,7 +124,7 @@ export function setFocusImage(orderId: number, imagePath: string | null, mode: s
   if (mode === 'off') {
     db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
       .run(orderId)
-    return getOrder(orderId)
+    return getOrder(orderId)!
   }
 
   // 校验参考图归属
@@ -134,7 +135,7 @@ export function setFocusImage(orderId: number, imagePath: string | null, mode: s
   db.prepare('UPDATE orders SET focus_image_path = ?, focus_image_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(imagePath, mode, orderId)
 
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /** 参考图行 */
@@ -151,7 +152,7 @@ interface ReferenceRow {
  * 删除订单参考图
  * 删除时检查并清理焦点图字段
  */
-export function removeReference(orderId: number, referenceId: number): any {
+export function removeReference(orderId: number, referenceId: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -167,7 +168,7 @@ export function removeReference(orderId: number, referenceId: number): any {
         .run(orderId)
     }
 
-    return getOrder(orderId)
+    return getOrder(orderId)!
   })()
 }
 

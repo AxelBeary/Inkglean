@@ -43,7 +43,18 @@ export function getUpcomingDeadlines(artistId: number): DeadlineRow[] {
  * 仪表盘统计数据
  * R52: 新增 todayNewOrderCents（今日新增订单金额）+ todayRevenueCents（今日收入）
  */
-export function getArtistStats(artistId: number): any {
+export function getArtistStats(artistId: number): {
+    pendingCount: number
+    activeCount: number
+    monthRevenue: number
+    monthRevenueCents: number
+    totalCompleted: number
+    todayNewOrderCents: number
+    todayNewOrderCount: number
+    todayRevenueCents: number
+    todayRevenueCount: number
+    todayTodoCount: number
+  } {
   const pendingCount = (db.prepare(
     "SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND status = 'pending'"
   ).get(artistId) as { c: number }).c

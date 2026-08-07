@@ -2,7 +2,7 @@ import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getOrder, refreshInstallmentLocks } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
-import type { WorkflowStage } from '../../types/entities.js'
+import type { WorkflowStage, OrderDetail } from '../../types/entities.js'
 
 // ============================================
 // 订单流程服务（从 order.service.js 拆出，v0.16）
@@ -54,7 +54,7 @@ const advanceStageTx = db.transaction((
   }
 })
 
-export function advanceStage(orderId: number, stageId: number | null): any {
+export function advanceStage(orderId: number, stageId: number | null): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -62,7 +62,7 @@ export function advanceStage(orderId: number, stageId: number | null): any {
   if (stageId === null) {
     db.prepare('UPDATE orders SET current_stage_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(orderId)
-    return getOrder(orderId)
+    return getOrder(orderId)!
   }
 
   // 校验目标节点属于该画师
@@ -90,7 +90,7 @@ export function advanceStage(orderId: number, stageId: number | null): any {
   // 多步写在事务内原子提交；校验抛错均发生在事务外（读操作）
   advanceStageTx(orderId, stageId, newStatus, stages[targetIdx].name)
 
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /**
@@ -116,7 +116,7 @@ const rollbackStageTx = db.transaction((
   logActivity(orderId, 'stage_advance', 'artist', { action: 'rollback', from: fromName, to: toName, stageId })
 })
 
-export function rollbackStage(orderId: number, stageId: number): any {
+export function rollbackStage(orderId: number, stageId: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -146,7 +146,7 @@ export function rollbackStage(orderId: number, stageId: number): any {
   // 多步写在事务内原子提交；校验抛错均发生在事务外（读操作）
   rollbackStageTx(orderId, stageId, fromName, toName)
 
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /**
@@ -154,7 +154,7 @@ export function rollbackStage(orderId: number, stageId: number): any {
  * 对无工作流订单设 current_stage_id = 画师工作流第一节点，status 保持不变
  * 为什么不能复用 advanceStage：advanceStage 对无跟踪订单会把 status 重置为 pending（状态倒退）
  */
-export function enableTracking(orderId: number): any {
+export function enableTracking(orderId: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -175,13 +175,13 @@ export function enableTracking(orderId: number): any {
   db.prepare('UPDATE orders SET current_stage_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(firstStage.id, orderId)
 
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /**
  * 获取订单的流程进度信息（供路由层拼装响应）
  */
-export function getStageInfo(order: any): { currentStageId: number; currentStageName: string; stageProgress: { current: number; total: number } } | null {
+export function getStageInfo(order: OrderDetail): { currentStageId: number; currentStageName: string; stageProgress: { current: number; total: number } } | null {
   if (!order.current_stage_id) return null
 
   const stages = db.prepare(
@@ -218,7 +218,7 @@ function formatCentsYuan(cents: number | null): string {
  * 替换话术模板中的 9 个变量
  * 无对应数据时替换为空字符串
  */
-export function replaceSpeechVars(template: string | null, order: any, stageName: string | null): string {
+export function replaceSpeechVars(template: string | null, order: OrderDetail, stageName: string | null): string {
   if (!template) return ''
 
   // B7: 已付金额改读 paid_total_cents（修复 T3 BUG：旧实现 SUM status='paid' 永远返回 0）
@@ -260,7 +260,7 @@ interface SpeechInfoResult {
  * 返回：{ speechText, clientQq, totalPriceCents, paidCents, unpaidCents }
  * 无 current_stage_id 时 speechText 为 null
  */
-export function getSpeechInfo(order: any): SpeechInfoResult {
+export function getSpeechInfo(order: OrderDetail): SpeechInfoResult {
   // B7: 已付金额改读 paid_total_cents
   const paidCents = order.paid_total_cents ?? 0
 

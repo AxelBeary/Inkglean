@@ -2,6 +2,7 @@ import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import { getOrder } from './order.service.js'
+import type { ArtistOrderRow, OrderDetail } from '../../types/entities.js'
 
 // ============================================
 // 订单队列服务（从 order.service.js 拆出，v0.16）
@@ -14,7 +15,7 @@ import { getOrder } from './order.service.js'
  * P0-6: 显式列清单（不再 o.*，去掉 quote_snapshot 大字段——队列 UI 不消费）；
  *       可选 limit/offset 分页，默认全量（QueueBoard 拖拽需全量，调用方按需传参）
  */
-export function getArtistQueue(artistId: number, options: { limit?: number; offset?: number } = {}): any[] {
+export function getArtistQueue(artistId: number, options: { limit?: number; offset?: number } = {}): ArtistOrderRow[] {
   const { limit, offset } = options
   const params: Array<string | number> = [artistId]
   let sql = `
@@ -39,7 +40,7 @@ export function getArtistQueue(artistId: number, options: { limit?: number; offs
     sql += ' OFFSET ?'
     params.push(offset)
   }
-  return db.prepare(sql).all(...params) as any[]
+  return db.prepare(sql).all(...params) as ArtistOrderRow[]
 }
 
 /**
@@ -47,7 +48,7 @@ export function getArtistQueue(artistId: number, options: { limit?: number; offs
  * 前端传入完整的排序后 ID 数组，后端按序分配 queue_position
  * 拖拽不改变优先级，只改变同优先级内的位置
  */
-export function reorderQueue(artistId: number, orderedIds: number[]): any[] {
+export function reorderQueue(artistId: number, orderedIds: number[]): ArtistOrderRow[] {
   if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
     throw new AppError(E.QUEUE_EMPTY)
   }
@@ -82,7 +83,7 @@ export function reorderQueue(artistId: number, orderedIds: number[]): any[] {
  * 获取最近 N 天已交付的订单（完成区沉底显示）
  * REQ-013 #7: delivered 订单在看板最下方灰色展示，超过 N 天自动隐藏
  */
-export function getCompletedQueue(artistId: number, days: number = 7): any[] {
+export function getCompletedQueue(artistId: number, days: number = 7): ArtistOrderRow[] {
   // SQLite 日期用空格格式（YYYY-MM-DD HH:MM:SS），ISO 的 T 致比较错误
   const cutoff = new Date(Date.now() - days * 86_400_000)
     .toISOString().replace('T', ' ').slice(0, 19)
@@ -93,14 +94,14 @@ export function getCompletedQueue(artistId: number, days: number = 7): any[] {
     WHERE o.artist_id = ? AND o.status = 'delivered'
       AND o.updated_at >= ?
     ORDER BY o.updated_at DESC
-  `).all(artistId, cutoff) as any[]
+  `).all(artistId, cutoff) as ArtistOrderRow[]
 }
 
 /**
  * 更新订单优先级
  * N1-1: 优先级仅作展示标签，不重排队列
  */
-export function updatePriority(orderId: number, priority: string): any {
+export function updatePriority(orderId: number, priority: string): OrderDetail {
   const valid = ['high', 'medium', 'low']
   if (!valid.includes(priority)) throw new AppError(E.INVALID_PRIORITY, 400, { priority })
 
@@ -110,5 +111,5 @@ export function updatePriority(orderId: number, priority: string): any {
   db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(priority, orderId)
 
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }

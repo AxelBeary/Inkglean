@@ -42,7 +42,7 @@ export function logActivity(orderId: number, actionType: ActionType, actor: stri
  */
 export function getOrderLogs(orderId: number, { page = 1, pageSize = 50, type }: { page?: number; pageSize?: number; type?: string } = {}): { logs: ActivityLog[]; total: number; page: number; pageSize: number } {
   let where = 'WHERE order_id = ?'
-  const params: any[] = [orderId]
+  const params: Array<string | number> = [orderId]
 
   if (type && ACTION_TYPES.includes(type as ActionType)) {
     where += ' AND action_type = ?'
