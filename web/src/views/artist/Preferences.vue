@@ -60,10 +60,12 @@
               {{ $t(opt.labelKey) }}<template v-if="opt.type === 'action'"> <span class="quick-action-badge">⚡动作</span></template>
             </el-checkbox>
           </el-checkbox-group>
-          <div class="form-hint">{{ $t('settings.quickHint') }}</div>
-          <el-button size="small" type="primary" style="margin-top: 8px" @click="saveQuickActions" :loading="quickSaving">
-            {{ $t('settings.quickSave') }}
-          </el-button>
+          <div class="quick-config-footer">
+            <div class="form-hint">{{ $t('settings.quickHint') }}</div>
+            <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving">
+              {{ $t('settings.quickSave') }}
+            </el-button>
+          </div>
         </el-form-item>
       </el-form>
     </el-card>
@@ -179,6 +181,8 @@ onMounted(async () => {
 /* #3: 快捷按钮配置区 */
 .quick-config { display: flex; flex-direction: column; gap: 8px; }
 .quick-config-item { margin-right: 0; height: auto; }
+.quick-config-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 8px; flex-basis: 100%; }
+.quick-config-footer .form-hint { margin-top: 0; }
 /* v0.34 任务3：icon 改 SVG 后与文字对齐 */
 .quick-config-icon { font-size: calc(var(--font-scale, 1) * 15px); vertical-align: -2px; color: var(--hq); }
 /* F3: 动作型候选标记 */

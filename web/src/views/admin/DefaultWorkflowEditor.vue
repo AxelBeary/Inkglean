@@ -1,6 +1,6 @@
 <template>
   <div class="admin-page">
-    <el-alert type="info" :closable="false" style="margin-bottom: 16px">
+    <el-alert type="info" :closable="false" style="max-width: 700px; margin-bottom: 16px">
       {{ $t('admin.defaultWorkflowHint') }}
     </el-alert>
     <el-card style="max-width: 700px">

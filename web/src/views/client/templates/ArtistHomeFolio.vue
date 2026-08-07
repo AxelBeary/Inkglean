@@ -40,6 +40,13 @@
         <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" />
       </div>
     </section>
+    <!-- P2-3: 无作品空态 -->
+    <section id="gallery" class="folio-section tpl-reveal" v-else>
+      <div class="folio-inner">
+        <h2 class="folio-title">{{ $t('artistHome.artworks') }}</h2>
+        <div class="folio-empty">{{ $t('artistHome.noWorks') }}</div>
+      </div>
+    </section>
 
     <!-- 价格 + 流程（R1 整合） -->
     <section id="pricing" class="folio-section folio-section--alt tpl-reveal" v-if="styles.length || tiers.length || workflowStages.length">
@@ -320,6 +327,7 @@ onUnmounted(() => {
   max-width: 900px;
   margin: 0 auto;
 }
+.folio-empty { text-align: center; color: var(--pal-text-dim); font-size: 15px; letter-spacing: 0.03em; padding: 40px 0 64px; }
 .folio-title {
   font-family: var(--font-display);
   font-size: clamp(26px, 4vw, 32px);
