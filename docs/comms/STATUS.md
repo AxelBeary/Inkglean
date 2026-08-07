@@ -1,6 +1,8 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-07 v20（四路闭环）——**埋点看板前后端 + repowiki P2 + OrderDetail 拆分试水全部合入 master**。master `5507cc6`（三路 merge：tracking-backend `5db8da3` / tracking-frontend `365b8b9` / orderdetail-split `5507cc6`），origin 同步。基线 server **944/944**（+5 新用例）· web **215/215** · 容器 healthy（**需刷新到新 master**）。
+> 最后更新：2026-08-07 v21（v0.41 收官）——**全部待办合入 master**。master `baee2ed`，origin 同步。基线 server **971/971**（+18：v45 迁移/防刷/分页/三态）· web **215/215** · tsc 0 · **全库 any 0** · 六配置文件 BOM 已修。**版本号双轨对齐：v0.41 ↔ npm 0.41.0**。**容器需刷新**（落后 8+ 批）。
+> 已合入 v0.41：埋点看板前后端 / QueueBoard 拆分(1679→177) / ManualOrder 拆分(1650→367) / strict+any 清零(266→0) / 巡检四路+健康巡检 / 用户反馈批(状态去字/快速发作品/仪表盘/动效) / 巡检修复批(i18n 红线/移动端/全局) / 质量后端三连(防屎门禁/作品分页/埋点三态) / repowiki P0 重写 3 篇 / 时间条 Excel 式滚动 / 动画核查报告
+> 已拍板待做（下轮）：动画修复批 + UI 优化批（第三方方案已核实）+ 画师统计页前端 + 埋点三态前端 + 作品分页前端 + repowiki 外部 13 处 + v0.41 容器收官重建
 > ⚠️ **视觉 API 已验证可用**（08-07 实测：vision_analyze 成功看图，无需重启）——STATUS v15 的「待重启验证」项已闭环。视觉验收=截图+用户口述。
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿、worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > ⚠️ 2026-08-05 夜**消息时差错位**：用户就五号 F1 写路径缺口的指示未送达一号会话（用户先发消息给一号、同时直接告知五号研判修复；一号侧收到时五号已在修）。所幸门禁未放行（一号独立审核也抓出同一缺口并打了返工），零损失。教训：**用户消息未达 ≠ 事情没发生**——审核结论以 diff 为准，与消息渠道无关；STATUS 必须实时反映分支真实状态（此前 STATUS 写「进行中」时五号实际已交付，引发用户误判）。
@@ -12,16 +14,18 @@
 ---
 ## master 状态
 
-- **HEAD**：`4f17bfd`（v0.40 收官：三修上线），与 origin 同步
-- **工作树**：主仓干净
-- **测试基线**：server **939/939**（60 文件）· web 215/215（13 文件）· tsc 0 · oxlint 0
-- **后端 100% TypeScript**（TS 迁移 P0-P2 合入：oxlint+CI typecheck+strictNullChecks 31 处修复+4 文件转 TS）
-- **容器**：✅ **2026-08-07 多次刷新，最新含 v0.40 全部**（字号缩放+三修 / 上传框 / 埋点前后端 / 批5色板 / 移动端布局 / 无尺寸跳过），healthy + `/api/health` ok。备份 `bak-pre-fontscale-2026-08-07T04-53-36-802Z`（integrity ok，orders 8/artists 5/greetings 93）。
-- **备份**：`commission.db.bak-pre-env-rebuild-20260806-0636` + `bak-pre-fontscale-2026-08-07` + 更早里程碑
-- **迁移**：v44（events + anon_tokens，埋点）为最新
+- **HEAD**：`baee2ed`（v0.41 收官：动画核查报告），与 origin 同步
+- **工作树**：主仓干净（仅 02 巡检A报告二次更新待提交，二号后台改的）
+- **测试基线**：server **971/971**（61 文件）· web **215/215**（13 文件）· tsc 0 · oxlint 0 · **全库 any 0** · check-i18n 0
+- **后端 100% TS + strict 全开 + any 清零**（唯一豁免 init.js @ts-nocheck）
+- **版本**：业务 v0.41 ↔ npm **0.41.0**（双轨对齐，弃旧 0.11.0）
+- **容器**：⚠️ **落后 master 8+ 批**（自 16:33 刷新后合入：strict/any/QueueBoard/用户反馈/修复批/质量三连/ManualOrder/时间条/BOM 修复）——**需 v0.41 收官重建**
+- **备份**：`bak-pre-tracking-split-2026-08-07T08-31-39-065Z`（integrity ok）+ 更早里程碑
+- **迁移**：v45（events artist_id 索引）为最新；埋点三态 stats_mode 待前端接入
+- **comms**：STATUS v21 + 动画核查报告 + repowiki 交付 + 各派工（已消费的合入即删）
+- **迁移**：v45 为最新；埋点三态 stats_mode 已后端就绪
 - **协议**：主仓库 **AGPL-3.0**（MIT→GPL→AGPL，防 SaaS 竞品；画师自用部署不受影响）；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md + 字体 OFL 许可
 - **开源**：①主仓库 [Brushline-HuiYue](https://github.com/AxelBeary/Brushline-HuiYue)（AGPL-3.0）②方法论仓库 [huiyue-multi-agent-playbook](https://github.com/AxelBeary/huiyue-multi-agent-playbook)（5 soul + 8 skills，CC BY-SA 4.0）
-- **comms**：STATUS + 前端全页面研判报告 + 两份核实报告（安全审计/前端优化，待排期消费）
 
 ---
 ## v0.37 轮收官总结（2026-08-05，全部合入）
@@ -104,12 +108,13 @@
 
 | 角色 | 状态 |
 |------|------|
-| 二号 | 🔄 **w2 `beta/tracking-frontend`：埋点看板前端**（admin analytics 页 + 画师门面统计区块+开关控制），2026-08-07 15:48 起 |
-| 三号 | 🔄 **w3 `beta/tracking-backend`：埋点统计读接口**（管理员 summary + 画师 summary + 开关 config），2026-08-07 15:48 起 |
-| 四号 | 🔄 **主仓只读：repowiki P2 认证系文档抽查**（零代码改动，报告落 comms），2026-08-07 15:48 起 |
-| 五号 | 🔄 **w5 `beta/orderdetail-split`：OrderDetail 拆分试水**（付款/画廊区块拆子组件，纯重构），2026-08-07 15:48 起 |
+| 二号 | ✅ v0.41 全合入（巡检修复批/用户反馈批）→ **待派：动画修复批 + UI 优化批前端** |
+| 三号 | ✅ v0.41 全合入（strict/any清零/质量三连/画师统计页后端/作品分页后端/埋点三态后端）→ **待派：无（后端已清）** |
+| 四号 | ✅ v0.41 全合入（repowiki P0 重写/动画核查）→ **待派：repowiki 外部 13 处 + 文档** |
+| 五号 | ✅ v0.41 全合入（QueueBoard/ManualOrder 拆分/时间条滚动）→ **待派：UI 优化批后端细节 + 三巨头拆分完成** |
 
 > ⚠️ 模型分工调整（2026-08-06 用户拍板）：执行角色窗口切便宜模型，一号保留高版本。派工一律写成"精确到行号+before/after代码"的施工图，便宜模型照抄执行，一号审核从严。
+> ⚠️ 教训入账（v0.41）：①五号/二号多次"会话结束但分支无提交"（后台进程回收打断）——交付检查必须看分支真实提交；②patch 写 .json 带 BOM 致测试挂——patch 后验字节；③拆分批基于旧基线会丢其他批修复——合并前先 merge master。
 
 新开工角色需重新建 worktree（用 `git worktree add`，一号统一分配）。
 
