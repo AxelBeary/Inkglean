@@ -1,3 +1,4 @@
+﻿/* eslint-disable no-console -- 种子脚本按约定豁免（CLI 输出是脚本本职，源头防屎门禁豁免项） */
 import db from './connection.js'
 import { initDatabase } from './init.js'
 

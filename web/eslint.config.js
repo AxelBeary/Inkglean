@@ -1,4 +1,4 @@
-import js from '@eslint/js'
+﻿import js from '@eslint/js'
 import globals from 'globals'
 import pluginVue from 'eslint-plugin-vue'
 
@@ -14,6 +14,8 @@ export default [
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-undef': 'error',
+      // 源头防屎门禁：console 残留 warn 提示（开发期允许 log，提交前提示清理）
+      'no-console': 'warn',
       'vue/multi-word-component-names': 'off',
       'vue/no-v-html': 'warn',
       'vue/require-default-prop': 'off',
@@ -24,6 +26,12 @@ export default [
       'vue/attribute-hyphenation': 'off',
       'vue/v-on-event-hyphenation': 'off'
     }
+  },
+  {
+    // scripts/ 是 node CLI 脚本（check-i18n 等），用 node globals；console 输出是脚本本职
+    files: ['scripts/**/*.js'],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { 'no-console': 'off' }
   },
   {
     ignores: ['node_modules/', 'dist/', 'coverage/']
