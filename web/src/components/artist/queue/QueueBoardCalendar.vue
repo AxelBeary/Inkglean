@@ -113,17 +113,20 @@
       </div>
 
       <div class="tl-scroll" ref="tlScrollEl" @scroll="onTlScroll">
-        <div class="tl-canvas" :style="{ width: tlCanvasWidth + 'px' }">
+        <div
+          class="tl-canvas"
+          :style="{ width: tlCanvasWidth + 'px' }"
+          @pointerdown="onTlCanvasDown"
+          @pointermove="onTlCanvasMove"
+          @pointerup="onTlCanvasUp"
+          @pointercancel="onTlCanvasCancel"
+          @wheel="onTlCanvasWheel"
+        >
           <!-- 日期刻度头：批F/F2 手势区（拖拽平移/滚轮缩放/双指 pinch；订单横条区不绑定 → 原生滚动） -->
           <div
             class="tl-axis"
             :class="{ 'tl-axis--panning': tlAxisPanning }"
             :style="{ width: tlCanvasWidth + 'px' }"
-            @pointerdown="onTlAxisDown"
-            @pointermove="onTlAxisMove"
-            @pointerup="onTlAxisUp"
-            @pointercancel="onTlAxisCancel"
-            @wheel="onTlAxisWheel"
           >
             <div
               v-for="tick in tlTicks" :key="tick.key"
@@ -217,7 +220,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { artistApi } from '../../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -426,11 +429,12 @@ function goOrder(order) {
 const TL_ZOOM_KEY = 'queue_tl_zoom'
 // v0.36 波1: 四档缩放。批F(2026-08-08): 档位只定义 dayWidth——画布恒覆盖订单日期范围，
 // 视野宽度由容器决定（不再由 days 裁剪），days 字段删除
+// 档位 = 视野宽度（视口内显示的天数），dayWidth 由视口宽÷视野天数自适应（Google Calendar 式）
 const TL_ZOOMS = {
-  '2w': { dayWidth: 48 },
-  '1m': { dayWidth: 32 },
-  '3m': { dayWidth: 12 },
-  '6m': { dayWidth: 7 }
+  '2w': { viewDays: 14 },
+  '1m': { viewDays: 30 },
+  '3m': { viewDays: 90 },
+  '6m': { viewDays: 180 }
 }
 // localStorage 兼容：老版本存的 '2m' 档已删除，落到 '3m'
 const storedTlZoom = localStorage.getItem(TL_ZOOM_KEY)
@@ -439,13 +443,35 @@ function saveTlZoom(val) { localStorage.setItem(TL_ZOOM_KEY, val) }
 
 function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()) }
 
-const tlDayWidth = computed(() => TL_ZOOMS[tlZoom.value].dayWidth)
+// 视口宽度（.tl-scroll clientWidth），ResizeObserver 跟踪；档位=视野天数 → dayWidth=视口宽/视野天数
+const tlViewportW = ref(0)
+let tlViewportObserver = null
+function watchTlViewport() {
+  const el = tlScrollEl.value
+  if (!el) return
+  tlViewportW.value = el.clientWidth || 0
+  tlViewportObserver?.disconnect()
+  if (typeof ResizeObserver !== 'undefined') {
+    tlViewportObserver = new ResizeObserver(() => {
+      if (tlScrollEl.value) tlViewportW.value = tlScrollEl.value.clientWidth || 0
+    })
+    tlViewportObserver.observe(el)
+  }
+}
+onMounted(watchTlViewport)
+onBeforeUnmount(() => { tlViewportObserver?.disconnect() })
+/** 天宽：档位决定视野内天数，视口宽÷视野天数 → 自适应（Google Calendar 式缩放） */
+const tlDayWidth = computed(() => {
+  const days = TL_ZOOMS[tlZoom.value].viewDays
+  const w = tlViewportW.value || 1200
+  return Math.max(4, Math.round(w / days))
+})
 // ─── v0.42 时间条 Excel 式滚动（用户第 6 条反馈）+ 批F(2026-08-08) 画布覆盖订单范围 ───
 // 批F: 画布恒覆盖「全部订单日期范围 ∪ 今天」+ 余量；缩放只改 dayWidth/视野中心，
 // 画布不再被视野窗口裁剪 → 任何档位下窗口外订单都可拖拽/滚动查看
 /** 画布余量（天）与宽度上限（防极端数据：超上限部分截断属预期保护） */
 const TL_CANVAS_PAD_DAYS = 7
-const TL_CANVAS_MAX_PX = 6000
+const TL_CANVAS_MAX_PX = 120000
 /** 订单实际日期范围（所有订单最早/最晚的开工日/截稿日，startOfDay 归一） */
 const tlOrderRange = computed(() => {
   let min = null, max = null
@@ -491,20 +517,29 @@ function tlX(date) {
   return Math.round(ms / 86_400_000) * tlDayWidth.value
 }
 
-/** 日期刻度数组
+/** 滚动容器状态（提前声明：tlTicks 虚拟化依赖） */
+const tlScrollEl = ref(null)
+const tlScrollLeft = ref(0)
+function onTlScroll() { tlScrollLeft.value = tlScrollEl.value?.scrollLeft || 0 }
+
+/** 日期刻度数组（虚拟化：只渲染视口内 ± buffer 的刻度，画布 2 万 px 也不卡）
  * v0.36 波1 刻度密度适配：
  * - dayWidth ≥ 32（2w/1m）：每天标签 M/D
  * - 16 ≤ dayWidth < 32：每天标签，仅日号
  * - 8 ≤ dayWidth < 16（3m）：仅周一出标签（日号），避免重叠
  * - dayWidth < 8（6m）：仅每月 1 号出标签（短月名），周末染色跳过
  */
+const TL_TICK_BUFFER = 4
 const tlTicks = computed(() => {
   const ticks = []
   const todayKey = dateKey(new Date())
   const start = tlCanvasStart.value
   const dw = tlDayWidth.value
+  const vw = tlViewportW.value || 1200
+  const first = Math.max(0, Math.floor(tlScrollLeft.value / dw) - TL_TICK_BUFFER)
+  const last = Math.min(tlCanvasDays.value, Math.ceil((tlScrollLeft.value + vw) / dw) + TL_TICK_BUFFER)
   const monthFmt = new Intl.DateTimeFormat(locale.value === 'zh-CN' ? 'zh-CN' : 'en', { month: 'short' })
-  for (let i = 0; i < tlCanvasDays.value; i++) {
+  for (let i = first; i < last; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
     let label
     if (dw >= 32) label = `${d.getMonth() + 1}/${d.getDate()}`
@@ -530,8 +565,6 @@ const tlTodayX = computed(() => {
   return x > tlCanvasWidth.value ? null : x + Math.floor(tlDayWidth.value / 2)
 })
 /** 今天是否在容器可见区内（今天恒在画布内，需结合滚动位置判断；scroll 事件驱动更新） */
-const tlScrollLeft = ref(0)
-function onTlScroll() { tlScrollLeft.value = tlScrollEl.value?.scrollLeft || 0 }
 const tlIsTodayVisible = computed(() => {
   const x = tlTodayX.value
   if (x == null) return false
@@ -585,7 +618,6 @@ const tlRows = computed(() => {
 })
 
 /** 切到时间条视图时，滚动到今天附近 */
-const tlScrollEl = ref(null)
 watch(() => props.viewMode, (mode) => {
   if (mode !== 'timeline') return
   nextTick(() => {
@@ -597,9 +629,10 @@ watch(() => props.viewMode, (mode) => {
   })
 }, { immediate: true })
 
-// ─── 批F + 批F2(2026-08-08): 刻度区手势——拖拽平移 / 滚轮缩放 / 双指 pinch ───
-// 事件仅绑定在刻度区容器（.tl-axis）；订单横条区（.tl-rows）不绑定 → 保持原生滚动。
-// 横条拖拽（onTlBarDown/onTlHandleDown）绑在横条自身（tl-canvas 内与 axis 兄弟），天然隔离。
+// ─── 批F + 批F2(2026-08-08) + 重做(2026-08-08): 画布手势——拖拽平移 / 滚轮缩放 / 双指 pinch ───
+// 事件绑定在整个 .tl-canvas（刻度区 + 横条区 + 空白区）：
+// - 空白/刻度区拖拽 = 平移（地图式），滚轮 = 缩放，双指 = pinch 缩放
+// - 横条/手柄自身 pointerdown 会 stopPropagation，只走改期拖拽，不触发画布平移
 /** 缩放档位顺序（放大方向） */
 const TL_ZOOM_ORDER = ['2w', '1m', '3m', '6m']
 
@@ -625,28 +658,33 @@ function keepTlCenter(prevDayWidth) {
   })
 }
 
-/** 滚轮缩放：向上放大 / 向下缩小，250ms 防抖合并快速连滚 */
-let tlWheelLocked = false
-function onTlAxisWheel(e) {
-  if (tlWheelLocked) return
-  tlWheelLocked = true
-  setTimeout(() => { tlWheelLocked = false }, 250)
+/** 滚轮缩放：deltaY 累计 ≥ 阈值切一档（快速连滚可多档，慢滚一次一档；保持视野中心） */
+let tlWheelAcc = 0
+const TL_WHEEL_STEP = 48
+function onTlCanvasWheel(e) {
+  tlWheelAcc += e.deltaY
+  if (Math.abs(tlWheelAcc) < TL_WHEEL_STEP) return
+  const dir = tlWheelAcc > 0 ? 1 : -1 // 下滚 = 缩小（视野变宽）；上滚 = 放大（视野变窄）
+  tlWheelAcc = 0
   const idx = TL_ZOOM_ORDER.indexOf(tlZoom.value)
-  const next = e.deltaY < 0 ? TL_ZOOM_ORDER[idx + 1] : TL_ZOOM_ORDER[idx - 1]
+  const next = TL_ZOOM_ORDER[idx + dir]
   if (next) changeTlZoom(next)
-  e.preventDefault() // 滚轮在刻度区 = 缩放，不滚动画布
+  e.preventDefault() // 滚轮在画布 = 缩放，不滚动画布
 }
 
 // ─── 刻度区指针手势状态（批F 平移 / 批F2 pinch） ───
 const tlAxisPointers = new Map() // pointerId → { x, y }
-let tlAxisPan = null // { startScroll, startX, moved }
+let tlAxisPan = null // { startScrollX, startScrollY, startX, startY, moved }
 let tlPinchDist = 0 // 双指初始间距（>0 表示 pinch 中）
 const tlAxisPanning = ref(false) // 平移中 → 光标 grabbing
 /** 平移轻移阈值（px）：超过才开始移动，防点击误触 */
 const TL_AXIS_PAN_THRESHOLD = 4
 
-function onTlAxisDown(e) {
+function onTlCanvasDown(e) {
   if (e.pointerType === 'mouse' && e.button !== 0) return
+  // 横条/手柄/行标签按下 → 不启动画布手势（横条拖拽/点击由自身 handler 处理）
+  const t = e.target
+  if (t && t.closest && t.closest('.tl-bar, .tl-handle, .tl-row-label')) return
   e.preventDefault()
   tlAxisPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
   // 第二根手指落下：释放平移 capture，进入 pinch（记录初始间距）
@@ -666,12 +704,17 @@ function onTlAxisDown(e) {
   // 第一根手指/鼠标：准备平移（不立即移动，超阈值才生效）
   if (tlAxisPointers.size === 1) {
     const el = tlScrollEl.value
-    tlAxisPan = { startScroll: el ? el.scrollLeft : 0, startX: e.clientX, moved: false }
+    tlAxisPan = {
+      startScrollX: el ? el.scrollLeft : 0,
+      startScrollY: el ? el.scrollTop : 0,
+      startX: e.clientX, startY: e.clientY,
+      moved: false
+    }
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* 忽略 */ }
   }
 }
 
-function onTlAxisMove(e) {
+function onTlCanvasMove(e) {
   if (!tlAxisPointers.has(e.pointerId)) return
   const cur = { x: e.clientX, y: e.clientY }
   tlAxisPointers.set(e.pointerId, cur)
@@ -690,20 +733,24 @@ function onTlAxisMove(e) {
     }
     return
   }
-  // 单指/鼠标：平移（超过轻移阈值才生效）
+  // 单指/鼠标：平移（超过轻移阈值才生效；地图式 2D：左右=时间轴，上下=订单列表）
   const pan = tlAxisPan
   if (!pan || tlAxisPointers.size !== 1) return
   const deltaX = e.clientX - pan.startX
+  const deltaY = e.clientY - pan.startY
   if (!pan.moved) {
-    if (Math.abs(deltaX) < TL_AXIS_PAN_THRESHOLD) return
+    if (Math.abs(deltaX) < TL_AXIS_PAN_THRESHOLD && Math.abs(deltaY) < TL_AXIS_PAN_THRESHOLD) return
     pan.moved = true
     tlAxisPanning.value = true
   }
   const el = tlScrollEl.value
-  if (el) el.scrollLeft = pan.startScroll - deltaX
+  if (el) {
+    el.scrollLeft = pan.startScrollX - deltaX
+    el.scrollTop = pan.startScrollY - deltaY
+  }
 }
 
-function onTlAxisUp(e) {
+function onTlCanvasUp(e) {
   if (!tlAxisPointers.has(e.pointerId)) return
   tlAxisPointers.delete(e.pointerId)
   if (tlAxisPointers.size < 2) tlPinchDist = 0
@@ -712,15 +759,20 @@ function onTlAxisUp(e) {
     tlAxisPanning.value = false
     return
   }
-  // 双指 pinch 抬起一根：剩余单指以当前 scrollLeft 为新基准继续平移
+  // 双指 pinch 抬起一根：剩余单指以当前 scroll 为新基准继续平移
   if (tlAxisPointers.size === 1) {
     const [only] = [...tlAxisPointers.values()]
     const el = tlScrollEl.value
-    tlAxisPan = { startScroll: el ? el.scrollLeft : 0, startX: only.x, moved: false }
+    tlAxisPan = {
+      startScrollX: el ? el.scrollLeft : 0,
+      startScrollY: el ? el.scrollTop : 0,
+      startX: only.x, startY: only.y,
+      moved: false
+    }
   }
 }
 
-function onTlAxisCancel(e) {
+function onTlCanvasCancel(e) {
   if (e.pointerId != null && tlAxisPointers.has(e.pointerId)) {
     tlAxisPointers.delete(e.pointerId)
   }
@@ -816,6 +868,7 @@ function onTlHandleDown(e, row, edge) {
 /** REQ-019: 横条中间区域按下 → 整体平移模式（handle 的 pointerdown 已 stopPropagation，不会冒泡到这里） */
 function onTlBarDown(e, row) {
   if (e.pointerType === 'mouse' && e.button !== 0) return
+  e.stopPropagation() // 画布手势隔离：横条拖拽不触发画布平移
   if (!tlCanDragMove(row)) return
   e.currentTarget.setPointerCapture(e.pointerId)
   tlDrag.value = tlMakeDrag(row, 'move', e)
@@ -1142,12 +1195,18 @@ function onTlHandleCancel() {
   margin-bottom: 12px;
 }
 .tl-scroll {
-  overflow-x: auto; overflow-y: visible;
+  overflow-x: auto; overflow-y: auto;
+  max-height: min(62vh, 640px);
   border: 1px solid var(--line); border-radius: var(--r-m);
   background: var(--card);
   -webkit-overflow-scrolling: touch;
 }
-.tl-canvas { position: relative; min-width: 100%; }
+.tl-canvas {
+  position: relative; min-width: 100%;
+  /* 重做：整块画布手势（平移/pinch）由 pointer 事件处理；横向滚动归原生（刻度区外的空白不拦截） */
+  touch-action: pan-y;
+  user-select: none;
+}
 .tl-axis {
   position: relative; height: 32px;
   border-bottom: 1px solid var(--line);
@@ -1204,6 +1263,7 @@ function onTlHandleCancel() {
   display: flex; align-items: center;
   padding: 0 6px; overflow: hidden;
   transition: filter 0.15s;
+  touch-action: none; /* 重做：移动端拖拽改期不被浏览器滚动接管 */
 }
 .tl-bar:hover { filter: brightness(1.1); }
 .tl-bar-text {
