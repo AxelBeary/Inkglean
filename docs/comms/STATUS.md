@@ -1,7 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-07 v19（新一轮派工启动）——**四路并行开工：埋点看板前端(二号/w2) + 埋点看板后端(三号/w3) + repowiki P2(四号/主仓只读) + OrderDetail拆分试水(五号/w5)**。master `943100f`（含四份派工文件），origin 同步。基线 server **939/939** · web **215/215** · 容器 healthy。
-> 当前派工：02 埋点看板前端 / 03 埋点看板后端（REQ-033 收尾，管理员看板+画师门面开关）/ 04 repowiki P2（认证系文档抽查）/ 05 OrderDetail 拆分试水（三巨头第一个）。
+> 最后更新：2026-08-07 v20（四路闭环）——**埋点看板前后端 + repowiki P2 + OrderDetail 拆分试水全部合入 master**。master `5507cc6`（三路 merge：tracking-backend `5db8da3` / tracking-frontend `365b8b9` / orderdetail-split `5507cc6`），origin 同步。基线 server **944/944**（+5 新用例）· web **215/215** · 容器 healthy（**需刷新到新 master**）。
 > ⚠️ **视觉 API 已验证可用**（08-07 实测：vision_analyze 成功看图，无需重启）——STATUS v15 的「待重启验证」项已闭环。视觉验收=截图+用户口述。
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿、worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > ⚠️ 2026-08-05 夜**消息时差错位**：用户就五号 F1 写路径缺口的指示未送达一号会话（用户先发消息给一号、同时直接告知五号研判修复；一号侧收到时五号已在修）。所幸门禁未放行（一号独立审核也抓出同一缺口并打了返工），零损失。教训：**用户消息未达 ≠ 事情没发生**——审核结论以 diff 为准，与消息渠道无关；STATUS 必须实时反映分支真实状态（此前 STATUS 写「进行中」时五号实际已交付，引发用户误判）。
@@ -120,6 +119,12 @@
 | 项 | 归属 |
 |----|------|
 | addons 表处置 | ✅ **旧增项体系完全清退**：算价读路径（`1b8a375`）+ 前端清理（`13dd4e7`）+ 收尾批 schema 删除 + DROP 迁移 v43（`58d48c9`，备份 bak-pre-v43） |
+| **埋点看板全链路联调** | 二号交付截图用 mock（后端接口当时未合入）；现在前后端都已合入 master，**需一次真实联调**（登录管理员看 /admin/analytics 数据真实渲染；画师门面开关联动；容器刷新） |
+| **OrderDetail 拆分后续** | 五号拆分试水完成（1523→1311 行，PaymentPanel/GalleryPanel，0% 像素差异，全门禁绿）。**QueueBoard 1530 行 / ManualOrder 1497 行待派**（模式已验证，可派；施工单蓝本 docs/comms/核实-第三方瘦身施工单-20260807.md 保留）。OrderDetail 死解构 3 个（currentStageIdx/nextStage/daysLeft，v0.40 遗留）建议下批随手清 |
+| **五号 stash 事故披露（2026-08-07）** | 拆分过程中 `git stash pop` 误弹仓库遗留 stash（WIP on fix/client-frontend-0802，历史遗留），内容仅 package.json/lock 配置类，已 checkout 还原，OrderDetail.vue 未受影响；stash 条目已消耗不可恢复。教训：**操作 stash 前先 `git stash list` 确认无他人 stash**（worktree 与主仓共享 git 状态） |
+| repowiki P2 | 四号核实：**认证系 14 篇抽样全部 TOTP 时代，0 🔴 严重过时**（派工假设被否定）。建议：P1 轻量修补 6 处 🟡（图例/文件名/措辞级）+ P2 改派**非认证主题抽样**（部署/CSP/Sentry 与近期改动相关，价值更高）。报告 docs/comms/04-to-01-repowiki-P2-交付-20260807.md |
+| lint 基线 warnings | server 6 个（pricing-engine.ts 既有）；web 4 个（OrderDetail 3 死解构 + OrderForm onMounted 未使用，均基线）——下批顺手清 |
+| 画师后台视觉投诉 | 用户 2026-08-05 亲测 3000 投诉错位/空白/动画缺失——曾派五号视觉巡检批（只读出缺陷清单），**2026-08-06 用户称该批之前已取消，待用户最终确认**；截图存 workspace/temp/visual-complaints/ |
 | 安全加固（五号核实报告） | ✅ F1 totp_secret 泄露全堵（`ee0f68a`，4 读 + 4 写端点 DTO 投影 + 11 例回归）；F4/F6/F9/F3 同批合入。**F14 adminQq 用户拍板保留**（2026-08-05，查单页「联系管理员」自助通道，A 测后视反馈再议）；F2/F5/F7/F8/F10/F12/F13 = P1/P2 排期（F7 已知延后/F8 产品设计/F13 已缓解/F12 CI npm audit 可选） |
 | 环境批（待用户确认生产配置） | P0-2 Caddyfile 压缩+缓存头 / uploads attachment 区分公开与签名路径 / P1-1 compose 3000 端口暴露——A 测前打包一次做 |
 | 前端优化方案（五号核实报告） | 第三方报告总体属实但 4 处事实错误：P2 候选入池——Serif 局部化（-5.5MB）/ i18n 懒加载（-60KB）/ 4 处 outline:none 补 focus-visible；**Step 3 砍 Serif bold 前提不成立**（Atelier 4 处显式 700，砍了会合成粗体失真）；reduced-motion 全局兜底 theme.css 已有（第三方建议重复实现） |
