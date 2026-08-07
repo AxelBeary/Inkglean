@@ -844,11 +844,21 @@ async function confirmSubmit() {
 // ─── R58-5: 复制约稿信息（订单号 + 档位 + 明细 + 总价） ───
 async function copyOrderSummary() {
   const lines = [
-    `${t('orderForm.summaryOrderNo')}${resultNo.value}`,
-    `${t('orderForm.tierLabel')}: ${selectedTier.value?.name || ''}`,
-    ...(pricePreview.value?.breakdown || []).map(i => `${i.name}: ¥${(i.amount ?? 0).toFixed(2)}`),
-    `${t('orderForm.receiptTotal')}: ¥${displayPrice.value.toFixed(2)}`
+    `${t('orderForm.summaryOrderNo')}${resultNo.value}`
   ]
+  if (isStyleMode.value) {
+    // 画风模式：档位 + 尺寸 + 增项明细来自 stylePricePreview（与摘要卡一致）
+    lines.push(`${t('orderForm.styleStep')}: ${selectedStyle.value?.name || ''}${selectedSize.value?.name ? ` · ${selectedSize.value.name}` : ''}`)
+    if (stylePricePreview.value?.addonItems?.length) {
+      lines.push(...stylePricePreview.value.addonItems.map(it => `- ${it.name}: ¥${(it.amount ?? 0).toFixed(2)}`))
+    }
+  } else {
+    lines.push(`${t('orderForm.tierLabel')}: ${selectedTier.value?.name || ''}`)
+    if (pricePreview.value?.breakdown?.length) {
+      lines.push(...pricePreview.value.breakdown.map(i => `- ${i.name}: ¥${(i.amount ?? 0).toFixed(2)}`))
+    }
+  }
+  lines.push(`${t('orderForm.receiptTotal')}: ¥${displayPrice.value.toFixed(2)}`)
   const text = lines.join('\n')
   try {
     await navigator.clipboard.writeText(text)

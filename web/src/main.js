@@ -31,6 +31,7 @@ if (sentryDsn) {
 
 // S-10: 全局错误边界 — 防止组件抛错导致整页白屏
 app.config.errorHandler = (err, instance, info) => {
+  // eslint-disable-next-line no-console -- 全局错误边界日志：Sentry 上报之外保留本地可见性
   console.error('[Vue Error]', err, info)
   // A1: 上报 Sentry（Sentry.init 未调用时 captureException 静默无操作）
   Sentry.captureException(err, { extra: { vueInfo: info } })
