@@ -584,7 +584,7 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'

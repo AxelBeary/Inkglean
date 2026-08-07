@@ -18,7 +18,7 @@ api.interceptors.response.use(
   async err => {
     const data = err.response?.data
     const code = data?.code
-    let msg = data?.error || '网络错误，请稍后重试'
+    let msg = data?.error || ''
 
     // 尝试用 i18n 翻译错误码
     if (code) {
@@ -39,6 +39,17 @@ api.interceptors.response.use(
       } catch (err) {
         // L1: i18n 加载失败，使用原始消息（补 console.warn，避免静默吞错）
         console.warn('[api] i18n error translation failed, using raw message', err)
+      }
+    }
+
+    // D3: 无错误码/无 error 字段（网络错误等）时，兜底文案走 i18n 键
+    if (!msg) {
+      try {
+        const { i18n } = await import('../i18n/index.js')
+        msg = i18n.global.t('common.networkError')
+      } catch {
+        // i18n 加载失败（极端兜底）：退回简单英文文案，避免空白提示
+        msg = 'Network error, please try again later'
       }
     }
 

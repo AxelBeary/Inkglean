@@ -58,6 +58,9 @@ const routes = [
 
   // ─── 404 ───
   // v0.34 任务A：独立 404 页（不再复用 LandingPage）
+  // 巡检修复批 C11: 后台/管理端未知路径重定向回各自首页（客户端保持 404 页）
+  { path: '/dashboard/:pathMatch(.*)*', redirect: '/dashboard' },
+  { path: '/admin/:pathMatch(.*)*', redirect: '/admin' },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/client/NotFound.vue'), meta: { titleKey: 'pageTitle.notFound' } }
 ]
 

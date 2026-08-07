@@ -584,6 +584,7 @@ import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useActivityLog } from '../../composables/useActivityLog.js'
 import { formatDateTime } from '../../utils/datetime.js'
+import { formatCents } from '../../utils/money.js'
 import { trackEvent } from '../../utils/track.js'
 // v0.40 瘦身批：script 4 区块抽 composable（零行为变化）
 import { useOrderWorkflow } from '../../composables/useOrderWorkflow.js'
@@ -645,7 +646,7 @@ async function loadOrder() {
 
 // ─── 瘦身批装配（v0.40）：4 区块抽 composable，零行为变化 ───
 const statusAction = ref('')  // 从 L1051 提前，workflow/changeStatus 共享
-const { hasWorkflow, isTerminal, workflowStages, currentStageIdx, stageProgress, nextStage, nextStageName,
+const { hasWorkflow, isTerminal, workflowStages, stageProgress, nextStageName,
   canAdvanceStage, canBackStage, advanceStage, backStage, turnOffStageTracking,
   trackOnLoading, enableTracking, loadWorkflowStages } =
   useOrderWorkflow({ order, routeId: route.params.id, statusAction })
@@ -654,7 +655,7 @@ const {
   openGalleryViewer, handleGalleryFileSelect, handleGalleryDrop,
   guardDragEnter, guardDragOver, guardDrop, selectFocusImage, uploadGalleryFiles, validateImageFile
 } = useOrderGallery({ order, routeId: route.params.id, onRefresh: loadOrder })
-const { daysLeft, deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
+const { deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
   useOrderDeadline({ order, routeId: route.params.id })
 const {
   payments, paymentsLoading, paymentSubmitting, loadPayments,
@@ -820,10 +821,6 @@ function openFile(url) {
 
 // ─── SPEC-003: 附加工作项（添加/删除后后端返回完整订单，final_price_cents 已重算） ───
 /** 金额分 → 元（后端返分，前端 /100） */
-function formatCents(cents) {
-  return ((cents || 0) / 100).toFixed(2)
-}
-
 const extraDialogVisible = ref(false)
 const extraSubmitting = ref(false)
 const extraForm = ref({ name: '', description: '', priceYuan: 0 })

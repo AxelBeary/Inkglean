@@ -757,7 +757,7 @@ async function submit() {
             finalPriceCents: manualCents,
             quoteSnapshot: order.quote_snapshot || null
           })
-        } catch (e) { postCreateFailed = `价格写入失败：${e.message}` }
+        } catch (e) { postCreateFailed = t('manualOrder.postCreateFailed.price', { message: e.message }) }
       }
     }
 
@@ -771,7 +771,7 @@ async function submit() {
             priceCents: Math.round((Number(item.priceYuan) || 0) * 100)
           })
         } catch (e) {
-          postCreateFailed = postCreateFailed || `自定义增项「${item.name}」写入失败：${e.message}`
+          postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.extraItem', { name: item.name, message: e.message })
         }
       }
     }
@@ -780,14 +780,14 @@ async function submit() {
     if (order.id && deadline.value) {
       try {
         await artistApi.updateDeadline(order.id, deadline.value)
-      } catch (e) { postCreateFailed = postCreateFailed || `截稿日写入失败：${e.message}` }
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.deadline', { message: e.message }) }
     }
 
     // F3: 开稿日（同截稿日，创建后单独写入）
     if (order.id && startDate.value) {
       try {
         await artistApi.updateStartDate(order.id, startDate.value)
-      } catch (e) { postCreateFailed = postCreateFailed || `开稿日写入失败：${e.message}` }
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.startDate', { message: e.message }) }
     }
 
     // F4: 初始节点状态（非默认时推进到目标节点；R30d 有工作流的订单不能直接改 status）
@@ -799,7 +799,7 @@ async function submit() {
         } else {
           await artistApi.updateStatus(order.id, initialStatus.value)
         }
-      } catch (e) { postCreateFailed = postCreateFailed || `初始状态设置失败：${e.message}` }
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.initialStatus', { message: e.message }) }
     }
 
     emit('submit-success', { order, postCreateFailed })

@@ -18,6 +18,7 @@
               <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
               <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
               <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
+              <el-radio-button value="hidden">{{ $t('settings.statusHidden') }}</el-radio-button>
             </el-radio-group>
           </el-form-item>
           <el-form-item :label="$t('settings.contactQqLabel')">

@@ -41,7 +41,7 @@
         @dragenter.capture="emit('dragenter', $event)"
         @dragover.capture="emit('dragover', $event)"
         @dragover.prevent="emit('update:isGalleryDragOver', true)"
-        @dragleave="emit('update:isGalleryDragOver', false)"
+        @dragleave="handleDragLeave"
         @drop.prevent="emit('drop', $event)"
         @click="triggerGalleryUpload"
       >
@@ -80,6 +80,12 @@ const galleryInputEl = ref(null)
 /** 触发上传：等价于父组件原 triggerGalleryUpload（input 随卡移入本组件） */
 function triggerGalleryUpload() {
   galleryInputEl.value?.click()
+}
+
+/** R4: dragleave 防闪烁——仅当指针真正离开上传区（relatedTarget 不在本容器内）才取消高亮 */
+function handleDragLeave(event) {
+  if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget)) return
+  emit('update:isGalleryDragOver', false)
 }
 </script>
 

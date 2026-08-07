@@ -8,7 +8,7 @@
 
     <el-card style="margin-top: 24px">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px">
           <span>{{ $t('admin.artistList') }}</span>
           <el-button type="primary" size="small" @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
           <el-button size="small" @click="$router.push('/admin/greetings')">{{ $t('admin.greetingManage') }}</el-button>
@@ -33,7 +33,7 @@
     <!-- 回收站（事故修复：孤儿文件不再永久删除，可恢复） -->
     <el-card style="margin-top: 24px">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px">
           <span>{{ $t('admin.recycleBin.title') }}</span>
           <el-button
             v-if="recycleTotal > 0"

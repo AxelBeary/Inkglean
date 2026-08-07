@@ -211,14 +211,11 @@ function openDetail(row) {
 
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 import { formatDateTime } from '../../utils/datetime.js'
+import { formatCents } from '../../utils/money.js'
 
 const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 
 /** 金额分 → 元（B7 行展开始用） */
-function formatCents(cents) {
-  return ((cents || 0) / 100).toFixed(2)
-}
-
 // 订单弹窗
 const ordersVisible = ref(false)
 const ordersLoading = ref(false)

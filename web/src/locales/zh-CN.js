@@ -206,7 +206,7 @@ export default {
     save: '保存', cancel: '取消', delete: '删除', edit: '编辑', download: '下载',
     confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加',
     saved: '保存成功', deleted: '已删除', removed: '已移除',
-    confirmDeleteTitle: '确认删除', uploadFailed: '上传失败',
+    confirmDeleteTitle: '确认删除', uploadFailed: '上传失败', networkError: '网络错误，请稍后重试', globalError: '页面出了点小问题，请刷新重试',
     footer: '绘约 · 画师约稿平台'
   },
   disclaimer: {
@@ -247,6 +247,7 @@ export default {
     preview: '主页预览',
     rules: '须知编辑', settings: '主页设置', preferences: '偏好设置', admin: '管理后台', logout: '退出登录',
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单',
+    langToEn: 'English', langToZh: '中文', langAriaToEn: 'Switch to English', langAriaToZh: '切换到中文',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupFront: '门面'
   },
@@ -710,7 +711,16 @@ export default {
     selectSizeOrPrice: '请先选择画风和尺寸，或手动填写最终价格',
     // F6: 录单草稿（localStorage 暂存 + 恢复提示）
     draftFound: '发现未提交的录单草稿，是否恢复？',
-    draftRestored: '已恢复草稿'
+    draftRestored: '已恢复草稿',
+    // 巡检修复批 A1: 录单后补写失败提示
+    postCreateFailed: {
+      price: '价格写入失败：{message}',
+      extraItem: '自定义增项「{name}」写入失败：{message}',
+      deadline: '截稿日写入失败：{message}',
+      startDate: '开稿日写入失败：{message}',
+      initialStatus: '初始状态设置失败：{message}',
+      summary: '订单 {orderNo} 已创建，但{reason}。请在订单详情中补充。'
+    }
   },
   tiers: {
     title: '价格管理', addTier: '+ 添加档位',
@@ -859,7 +869,7 @@ export default {
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
-    statusLabel: '主页状态', statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
+    statusLabel: '主页状态', statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中', statusHidden: '已隐藏',
     linksLabel: '外链（客户主页展示）', addLink: '添加链接',
     linksHint: '最多 8 条，粘贴后自动识别平台，保存后客户主页立即生效。留空的行不会保存。',
     linksEmpty: '还没有添加链接', linkOther: '其他', linkUrlPlaceholder: 'https://',

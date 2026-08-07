@@ -77,8 +77,8 @@
                 <ThemeToggle />
                 <button
                   class="lang-btn" @click="toggleLang"
-                  :title="locale === 'zh-CN' ? 'English' : '中文'"
-                  :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+                  :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
+                  :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
                 >
                   {{ locale === 'zh-CN' ? 'EN' : '中' }}
                 </button>
@@ -110,8 +110,8 @@
               <ThemeToggle />
               <button
                 class="lang-btn" @click="toggleLang"
-                :title="locale === 'zh-CN' ? 'English' : '中文'"
-                :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+                :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
+                :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
               >
                 {{ locale === 'zh-CN' ? 'EN' : '中' }}
               </button>
@@ -139,8 +139,8 @@
             <ThemeToggle />
             <button
               class="lang-btn" @click="toggleLang"
-              :title="locale === 'zh-CN' ? 'English' : '中文'"
-              :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+              :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
+              :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
             >
               {{ locale === 'zh-CN' ? 'EN' : '中' }}
             </button>
@@ -300,6 +300,8 @@ const pageTitle = computed(() => {
     store.isAdmin ? [{ index: '/admin', labelKey: 'menu.admin' }] : []
   )
   const hit = all.find(item => item.index === activeMenu.value)
+  // 巡检修复批 C12: /admin* 子路径（如 /admin/artists）无对应菜单项时回退管理后台标题
+  if (!hit && activeMenu.value.startsWith('/admin')) return t('menu.admin')
   return hit ? t(hit.labelKey) : ''
 })
 

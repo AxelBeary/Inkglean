@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -42,3 +42,5 @@ jobs:
       # 清扫批#4: web 单测进 CI（此前只跑 lint+build，224 用例仅本地验证）
       - run: npx vitest run
       - run: npm run build
+      # 源头防屎门禁：硬编码中文增量拦截（存量已进 baseline）
+      - run: npm run check:i18n

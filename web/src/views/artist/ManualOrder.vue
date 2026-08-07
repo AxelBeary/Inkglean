@@ -150,7 +150,7 @@ function onSubmitSuccess({ order, postCreateFailed }) {
   // F6: 提交成功后清空草稿（下次进入不再弹恢复提示）
   clearDraft()
   if (postCreateFailed) {
-    ElMessage.warning(`订单 ${order.order_no} 已创建，但${postCreateFailed}。请在订单详情中补充。`)
+    ElMessage.warning(t('manualOrder.postCreateFailed.summary', { orderNo: order.order_no, reason: postCreateFailed }))
   }
 }
 
