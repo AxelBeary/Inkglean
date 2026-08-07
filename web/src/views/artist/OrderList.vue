@@ -29,6 +29,24 @@
       </el-radio-group>
     </div>
 
+    <!-- P0-3: 移动端卡片视图（≤768px 替代表格；点击进详情） -->
+    <div class="order-cards">
+      <div v-for="row in displayedOrders" :key="row.id" class="order-card" @click="$router.push(`/orders/${row.id}?from=orders`)">
+        <div class="order-card-top">
+          <el-image v-if="row.focus_image_path" :src="row.focusImageUrl" fit="cover" class="order-card-thumb" :alt="$t('orderDetail.referenceImage')" />
+          <div class="order-card-main">
+            <div class="order-card-no">{{ row.order_no }}</div>
+            <div class="order-card-sub">{{ row.tier_name || $t('common.custom') }} · {{ row.client_name || row.client_qq }}</div>
+          </div>
+          <el-tag size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
+        </div>
+        <div class="order-card-bottom">
+          <span class="order-card-time">{{ formatDate(row.created_at) }}</span>
+          <el-tag size="small" :class="`prio-tag prio-tag--${row.priority}`">{{ $t(`common.priority.${row.priority}`) }}</el-tag>
+        </div>
+      </div>
+    </div>
+
     <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
     <div class="order-table-wrap">
       <el-table :data="displayedOrders" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
@@ -213,6 +231,21 @@ onMounted(() => {
 
 /* R16: 缩略图 */
 .order-thumb { width: 40px; height: 40px; border-radius: var(--r-s); display: block; cursor: zoom-in; }
+
+/* ─── P0-3: 移动端卡片视图（≤768px；token 用后台纸墨变量） ─── */
+.order-cards { display: none; }
+@media (max-width: 768px) {
+  .order-table-wrap { display: none; }
+  .order-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+  .order-card { background: var(--card, #fff); border: 1px solid var(--line, #e5e5e5); border-radius: 10px; padding: 12px 16px; cursor: pointer; }
+  .order-card-top { display: flex; align-items: center; gap: 12px; }
+  .order-card-thumb { width: 44px; height: 44px; border-radius: 6px; flex: none; }
+  .order-card-main { flex: 1; min-width: 0; }
+  .order-card-no { font-weight: 700; color: var(--ink, #222); font-variant-numeric: tabular-nums; }
+  .order-card-sub { font-size: 12.5px; color: var(--ink3, #888); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .order-card-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .order-card-time { font-size: 12.5px; color: var(--ink3, #888); }
+}
 .no-thumb { color: var(--ink4); }
 @media (max-width: 600px) {
   .order-thumb { width: 32px; height: 32px; }

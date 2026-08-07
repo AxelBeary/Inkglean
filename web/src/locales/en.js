@@ -328,6 +328,7 @@ export default {
     step1: 'Tier', step2: 'Details', step3: 'Contact',
     step1Title: 'Pick a tier', step2Title: 'Describe your request', step3Title: 'Contact details',
     nextStep: 'Next', prevStep: 'Back',
+    stepProgress: 'Step {cur} / {total}',
     summaryTitle: 'SUMMARY', summaryNoTier: 'Pick a tier to see the price here',
     // W3: empty-state hint when no size selected in style mode
     summaryNoSize: 'Pick a size to see the price here',

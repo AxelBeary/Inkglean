@@ -44,6 +44,22 @@
   --font-display: 'LXGW WenKai', 'KaiTi', 'STKaiti', serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  /* 间距阶梯：4pt 网格 + 两个半档 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* 文字层级（配合已有 --font-display 文楷） */
+  --fs-page-title: 26px;
+  --fs-section: 17px;
+  --fs-body: 14px;
+  --fs-aux: 12.5px;
+  --fs-eyebrow: 11px;
 }
 
 /* ===== 暗色模式 ===== */
