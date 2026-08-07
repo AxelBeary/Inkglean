@@ -115,7 +115,7 @@ export function sumEntryDeltas(entries: PriceEntry[]): number {
  */
 function forwardFill(amountsCents: number[], paidTotalCents: number): number[] {
   const n = amountsCents.length
-  const paid = new Array<number>(n).fill(0)
+  const paid = Array.from({ length: n }, () => 0)
   if (n === 0) return paid
   let remaining = paidTotalCents
   for (let i = 0; i < n; i++) {
@@ -149,7 +149,7 @@ export function allocateInitial(installments: EngineInstallment[], totalCents: n
   if (n === 0) return []
   const totalBp = sorted.reduce((s, i) => s + i.basisPoints, 0)
   const ratioTotal = Math.round((totalCents * totalBp) / 10000)
-  const amounts = new Array<number>(n).fill(0)
+  const amounts = Array.from({ length: n }, () => 0)
   let allocated = 0
   for (let i = 0; i < n; i++) {
     if (i === n - 1) {
@@ -182,8 +182,8 @@ export function computeLockedState(
   const n = sorted.length
   const amounts = sorted.map(i => i.amountCents)
   const paid = forwardFill(amounts, paidTotalCents)
-  const lockedFlags = new Array<boolean>(n).fill(false)
-  const reasons: LockedState['reasons'] = new Array(n).fill(null)
+  const lockedFlags = Array.from({ length: n }, () => false)
+  const reasons: LockedState['reasons'] = Array.from({ length: n }, () => null)
   for (let i = 0; i < n; i++) {
     const isCompleted = i <= completedStageIndex
     const isPaidOff = paid[i] >= amounts[i] && amounts[i] > 0
@@ -229,7 +229,7 @@ export function allocateDelta(
   const sorted = pairs.map(p => p.inst)
   const n = sorted.length
   const amounts = sorted.map(i => i.amountCents)
-  const alloc = new Array<number>(n).fill(0)
+  const alloc = Array.from({ length: n }, () => 0)
   let extraCharge = 0
   let extraRefund = 0
 
