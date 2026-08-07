@@ -1750,6 +1750,8 @@ export function initDatabase(database) {
   }
 
   if (adminQq) {
+    // 测试环境跳过：测试用 cleanDb+setAdmin 自建管理员，避免 init 插入干扰断言（TC-AR-01/10 预存失败修复）
+    if (process.env.NODE_ENV === 'test') return
     // 仅当 admin_qq 为空时写入（不覆盖运行时更换的值）
     database.prepare(
       "UPDATE platform_config SET value = ? WHERE key = 'admin_qq' AND (value = '' OR value IS NULL)"
