@@ -361,10 +361,12 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     expect(body.byDay.length).toBe(2) // 昨天 + 今天
     const days = body.byDay.map(r => r.day)
     expect([...days].sort()).toEqual(days) // 升序
-    const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    // 昨天/今天用 SQLite 同源口径（localtime，与 byDay 分组一致）：
+    // 不依赖 Node 本地时区——Windows+vitest 下 SQLite localtime 可能与 Node 时区不一致
+    const dayRow = db.prepare("SELECT date('now', 'localtime', '-1 day') AS yesterday, date('now', 'localtime') AS today").get()
     const countByDay = Object.fromEntries(body.byDay.map(r => [r.day, r.count]))
-    expect(countByDay[fmt(new Date(Date.now() - 86400000))]).toBe(1)
-    expect(countByDay[fmt(new Date())]).toBe(2)
+    expect(countByDay[dayRow.yesterday]).toBe(1)
+    expect(countByDay[dayRow.today]).toBe(2)
   })
 
   it('TC-TR-16: R1 修复——anon-token 同 IP 每分钟第 11 次签发被 429', async () => {
