@@ -1,43 +1,82 @@
 <template>
   <div class="admin-page">
-    <div class="stat-grid">
-      <el-card shadow="hover"><div class="stat-num">{{ stats?.artistCount ?? '-' }}</div><div class="stat-label">{{ $t('admin.artistCount') }}</div></el-card>
-      <el-card shadow="hover"><div class="stat-num">{{ stats?.orderCount ?? '-' }}</div><div class="stat-label">{{ $t('admin.totalOrders') }}</div></el-card>
-      <el-card shadow="hover"><div class="stat-num">{{ stats?.activeOrders ?? '-' }}</div><div class="stat-label">{{ $t('admin.activeOrders') }}</div></el-card>
+    <!-- 页头：标题 + 说明 -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-title font-display">{{ $t('admin.panelTitle') }}</h1>
+        <p class="page-sub">{{ $t('admin.dashboardSubtitle') }}</p>
+      </div>
     </div>
 
-    <el-card style="margin-top: 24px">
+    <!-- 统计卡（画师数/总订单/活跃订单） -->
+    <div class="stat-grid">
+      <el-card shadow="never" class="stat-card">
+        <div class="stat-num">{{ stats?.artistCount ?? '-' }}</div>
+        <div class="stat-label">{{ $t('admin.artistCount') }}</div>
+      </el-card>
+      <el-card shadow="never" class="stat-card">
+        <div class="stat-num">{{ stats?.orderCount ?? '-' }}</div>
+        <div class="stat-label">{{ $t('admin.totalOrders') }}</div>
+      </el-card>
+      <el-card shadow="never" class="stat-card">
+        <div class="stat-num">{{ stats?.activeOrders ?? '-' }}</div>
+        <div class="stat-label">{{ $t('admin.activeOrders') }}</div>
+      </el-card>
+    </div>
+
+    <!-- 操作区（从标题行独立出来，派工 B：不要挤在标题行） -->
+    <div class="action-bar">
+      <span class="action-title">{{ $t('admin.quickActions') }}</span>
+      <div class="action-buttons">
+        <el-button type="primary" @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
+        <el-button @click="$router.push('/admin/greetings')">{{ $t('admin.greetingManage') }}</el-button>
+        <el-button @click="$router.push('/admin/default-workflow')">{{ $t('admin.defaultWorkflow') }}</el-button>
+        <el-button @click="$router.push('/admin/health')">{{ $t('admin.health.title') }}</el-button>
+      </div>
+    </div>
+
+    <!-- 画师列表 -->
+    <el-card shadow="never" class="section-card">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px">
-          <span>{{ $t('admin.artistList') }}</span>
-          <el-button type="primary" size="small" @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
-          <el-button size="small" @click="$router.push('/admin/greetings')">{{ $t('admin.greetingManage') }}</el-button>
-          <el-button size="small" @click="$router.push('/admin/default-workflow')">{{ $t('admin.defaultWorkflow') }}</el-button>
-          <el-button size="small" @click="$router.push('/admin/health')">{{ $t('admin.health.title') }}</el-button>
+        <div class="card-head">
+          <span class="card-title">{{ $t('admin.artistList') }}</span>
+          <el-button text type="primary" @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
         </div>
       </template>
       <el-table :data="artists" v-loading="loading" stripe>
-        <el-table-column prop="name" :label="$t('admin.colName')" />
-        <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" />
-        <el-table-column prop="qq_number" :label="$t('admin.colQq')" />
-        <el-table-column :label="$t('admin.colStatus')">
+        <el-table-column prop="name" :label="$t('admin.colName')" min-width="120">
           <template #default="{ row }">
-            <el-tag :type="{ open: 'success', full: 'warning', break: 'danger', hidden: 'info' }[row.status]">
+            <span class="cell-name">{{ row.name }}</span>
+            <el-tag v-if="row.isAdmin" size="small" type="danger" class="cell-tag">{{ $t('admin.adminTag') }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="120">
+          <template #default="{ row }"><code class="cell-code">{{ row.subdomain }}</code></template>
+        </el-table-column>
+        <el-table-column prop="qq_number" :label="$t('admin.colQq')" width="110" />
+        <el-table-column :label="$t('admin.colStatus')" width="110">
+          <template #default="{ row }">
+            <el-tag :type="{ open: 'success', full: 'warning', break: 'danger', hidden: 'info' }[row.status]" effect="light">
               {{ $t(`common.statusShort.${row.status}`) }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('common.actions')" width="110" align="right">
+          <template #default>
+            <el-button size="small" type="primary" plain @click="$router.push('/admin/artists')">{{ $t('admin.manage') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <!-- 回收站（事故修复：孤儿文件不再永久删除，可恢复） -->
-    <el-card style="margin-top: 24px">
+    <el-card shadow="never" class="section-card">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px">
-          <span>{{ $t('admin.recycleBin.title') }}</span>
+        <div class="card-head">
+          <span class="card-title">{{ $t('admin.recycleBin.title') }}</span>
           <el-button
             v-if="recycleTotal > 0"
-            type="danger" size="small" :loading="emptying"
+            type="danger" size="small" plain :loading="emptying"
             @click="handleEmptyRecycleBin"
           >
             {{ $t('admin.recycleBin.empty') }}
@@ -55,8 +94,8 @@
         </el-table-column>
       </el-table>
       <el-empty v-else :description="$t('admin.recycleBin.emptyHint')" />
-      <!-- REQ-022 F4: 分页（每页 20 条，total 文案由 ElConfigProvider 内置双语提供） -->
-      <div v-if="recycleTotal > 0" style="display: flex; justify-content: flex-end; margin-top: 16px">
+      <!-- REQ-022 F4: 分页（每页 20 条） -->
+      <div v-if="recycleTotal > 0" class="pager">
         <el-pagination
           v-model:current-page="recyclePage"
           :page-size="recyclePageSize"
@@ -68,10 +107,10 @@
     </el-card>
 
     <!-- F4: 留言管理（跨画师，强制删除） -->
-    <el-card style="margin-top: 24px">
+    <el-card shadow="never" class="section-card">
       <template #header>
         <div class="gb-filter-header">
-          <span>{{ $t('admin.guestbook.title') }}</span>
+          <span class="card-title">{{ $t('admin.guestbook.title') }}</span>
           <!-- REQ-022 F5: 画师 / 审核状态 / 是否已回复 三维筛选（清空即全部） -->
           <div class="gb-filters">
             <el-select v-model="filterArtistId" size="small" clearable style="width: 150px" :placeholder="$t('admin.guestbook.colArtist')" @change="loadAdminMessages">
@@ -97,15 +136,15 @@
         <el-table-column prop="content" :label="$t('admin.guestbook.colContent')" min-width="200" show-overflow-tooltip />
         <el-table-column :label="$t('admin.guestbook.colStatus')" width="90">
           <template #default="{ row }">
-            <el-tag size="small" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ $t(`admin.guestbook.status${row.status.charAt(0).toUpperCase()}${row.status.slice(1)}`) }}</el-tag>
+            <el-tag size="small" effect="light" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ $t(`admin.guestbook.status${row.status.charAt(0).toUpperCase()}${row.status.slice(1)}`) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column :label="$t('admin.guestbook.colTime')" width="170">
           <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
         </el-table-column>
-        <el-table-column width="110">
+        <el-table-column width="110" align="right">
           <template #default="{ row }">
-            <el-button size="small" type="danger" @click="handleDeleteMessage(row)">{{ $t('admin.guestbook.delete') }}</el-button>
+            <el-button size="small" type="danger" plain @click="handleDeleteMessage(row)">{{ $t('admin.guestbook.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -232,13 +271,64 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026，管理后台从简） ═══ */
-.admin-page { /* 容器由 AdminLayout 提供 */ }
-.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-/* 统计数字墨色不上色铁律（REQ §1.1），文楷落款感 */
-.stat-num { font-size: 28px; font-weight: bold; color: var(--ink); font-family: var(--f-d); text-align: center; font-variant-numeric: tabular-nums; }
-.stat-label { color: var(--ink2); font-size: 13px; text-align: center; }
-/* REQ-022 F5: 留言筛选行 */
-.gb-filter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.gb-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+/* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807）——纸墨 token + 布局分层 ═══ */
+.admin-page { }
+
+/* 页头 */
+.page-head { margin-bottom: var(--sp-5, 24px); }
+.page-title {
+  font-size: var(--fs-page-title, 26px);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--sp-1, 4px);
+  letter-spacing: .02em;
+}
+.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
+
+/* 统计卡：统一卡片样式（对齐、间距、圆角/阴影） */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4, 16px); }
+.stat-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); transition: box-shadow .15s, transform .15s ease-out; }
+.stat-card:hover { box-shadow: var(--sh-2); transform: translateY(-1px); }
+.stat-num {
+  font-size: 30px; font-weight: bold; color: var(--ink);
+  font-family: var(--f-d); text-align: center;
+  font-variant-numeric: tabular-nums; margin-top: var(--sp-2, 8px);
+}
+.stat-label { color: var(--ink2); font-size: 13px; text-align: center; margin-bottom: var(--sp-2, 8px); }
+
+/* 操作区：独立一行（派工 B） */
+.action-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3, 12px); flex-wrap: wrap;
+  margin: var(--sp-5, 24px) 0;
+  padding: var(--sp-3, 12px) var(--sp-4, 16px);
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l, 11px);
+}
+.action-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
+.action-buttons { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+
+/* 区块卡 */
+.section-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); margin-top: var(--sp-5, 24px); }
+.card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-2, 8px); }
+.card-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
+
+/* 表格单元格细节 */
+.cell-name { font-weight: 600; color: var(--ink); }
+.cell-tag { margin-left: var(--sp-1, 4px); }
+.cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 1px 6px; border-radius: var(--r-s, 4px); }
+
+/* 留言筛选行 */
+.gb-filter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2, 8px); }
+.gb-filters { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+
+/* 分页 */
+.pager { display: flex; justify-content: flex-end; margin-top: var(--sp-4, 16px); }
+
+@media (max-width: 768px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  .action-bar { flex-direction: column; align-items: stretch; }
+  .action-buttons { justify-content: flex-start; }
+}
 </style>

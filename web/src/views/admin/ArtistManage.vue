@@ -1,47 +1,63 @@
-<template>
+﻿<template>
   <div class="admin-page">
-    <div style="display: flex; gap: 12px; margin-bottom: 16px">
-      <el-button type="primary" @click="dialogVisible = true">{{ $t('admin.addArtist') }}</el-button>
-      <el-button type="warning" @click="openTransfer">{{ $t('admin.transferAdmin') }}</el-button>
+    <!-- 页头 -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-title font-display">{{ $t('admin.artistManage') }}</h1>
+        <p class="page-sub">{{ $t('admin.artistManageSubtitle') }}</p>
+      </div>
     </div>
 
-    <el-table :data="artists" v-loading="loading" stripe>
-      <el-table-column prop="name" :label="$t('admin.colName')" width="120">
-        <template #default="{ row }">
-          {{ row.name }}
-          <el-tag v-if="row.isAdmin" type="danger" size="small" style="margin-left: 4px">{{ $t('admin.adminTag') }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" width="120">
-        <template #default="{ row }">{{ row.subdomain }}{{ $t('admin.domainSuffix') }}</template>
-      </el-table-column>
-      <el-table-column prop="qq_number" :label="$t('admin.colQq')" width="120" />
-      <el-table-column prop="bio" :label="$t('admin.colBio')" />
-      <el-table-column :label="$t('admin.colStatus')" width="130">
-        <template #default="{ row }">
-          <el-select
-            v-model="row.status" size="small" style="width: 100px"
-            @change="(val) => changeStatus(row, val)" :disabled="row.isAdmin"
-          >
-            <el-option value="open" :label="$t('common.statusShort.open')" />
-            <el-option value="full" :label="$t('common.statusShort.full')" />
-            <el-option value="break" :label="$t('common.statusShort.break')" />
-            <el-option value="hidden" :label="$t('common.statusShort.hidden')" />
-          </el-select>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="340" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
-          <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
-          <!-- REQ-027: TOTP 绑定入口 -->
-          <el-button size="small" type="success" @click="openTotpBind(row)">
-            {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
-          </el-button>
-          <el-button size="small" type="danger" @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- 操作条 -->
+    <div class="action-bar">
+      <span class="action-title">{{ $t('admin.artistActions') }}</span>
+      <div class="action-buttons">
+        <el-button type="primary" @click="dialogVisible = true">{{ $t('admin.addArtist') }}</el-button>
+        <el-button type="warning" plain @click="openTransfer">{{ $t('admin.transferAdmin') }}</el-button>
+      </div>
+    </div>
+
+    <el-card shadow="never" class="section-card">
+      <el-table :data="artists" v-loading="loading" stripe>
+        <el-table-column prop="name" :label="$t('admin.colName')" min-width="140">
+          <template #default="{ row }">
+            <span class="cell-name">{{ row.name }}</span>
+            <el-tag v-if="row.isAdmin" type="danger" size="small" class="cell-tag">{{ $t('admin.adminTag') }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="140">
+          <template #default="{ row }"><code class="cell-code">{{ row.subdomain }}{{ $t('admin.domainSuffix') }}</code></template>
+        </el-table-column>
+        <el-table-column prop="qq_number" :label="$t('admin.colQq')" width="120" />
+        <el-table-column prop="bio" :label="$t('admin.colBio')" min-width="160" show-overflow-tooltip />
+        <el-table-column :label="$t('admin.colStatus')" width="130">
+          <template #default="{ row }">
+            <el-select
+              v-model="row.status" size="small" style="width: 100px"
+              @change="(val) => changeStatus(row, val)" :disabled="row.isAdmin"
+            >
+              <el-option value="open" :label="$t('common.statusShort.open')" />
+              <el-option value="full" :label="$t('common.statusShort.full')" />
+              <el-option value="break" :label="$t('common.statusShort.break')" />
+              <el-option value="hidden" :label="$t('common.statusShort.hidden')" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('common.actions')" width="360" fixed="right">
+          <template #default="{ row }">
+            <div class="row-actions">
+              <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
+              <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
+              <!-- REQ-027: TOTP 绑定入口 -->
+              <el-button size="small" type="success" plain @click="openTotpBind(row)">
+                {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
+              </el-button>
+              <el-button size="small" type="danger" plain @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
     <!-- 添加画师弹窗 -->
     <el-dialog v-model="dialogVisible" :title="$t('admin.addTitle')" width="420px">
@@ -118,7 +134,7 @@
     <el-dialog v-model="transferVisible" :title="$t('admin.transferTitle')" width="450px" :close-on-click-modal="false">
       <!-- 步骤1：验证当前管理员 -->
       <div v-if="transferStep === 1">
-        <h4 style="margin-bottom: 12px">{{ $t('admin.transferStep1Title') }}</h4>
+        <h4 class="dialog-h4">{{ $t('admin.transferStep1Title') }}</h4>
         <el-form label-position="top">
           <el-form-item :label="$t('admin.currentAdminQq')">
             <el-input :model-value="currentAdminQq" disabled />
@@ -132,7 +148,7 @@
 
       <!-- 步骤2：验证新管理员 -->
       <div v-else>
-        <h4 style="margin-bottom: 12px">{{ $t('admin.transferStep2Title') }}</h4>
+        <h4 class="dialog-h4">{{ $t('admin.transferStep2Title') }}</h4>
         <el-form label-position="top">
           <el-form-item :label="$t('admin.newAdminQq')">
             <el-input v-model="newQq" :placeholder="$t('admin.newAdminQqPlaceholder')" />
@@ -402,15 +418,49 @@ onMounted(loadArtists)
 </script>
 
 <style scoped>
-.admin-page { /* 容器由 AdminLayout 提供 */ }
+/* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807） ═══ */
+.admin-page { }
+
+/* 页头 */
+.page-head { margin-bottom: var(--sp-5, 24px); }
+.page-title {
+  font-size: var(--fs-page-title, 26px);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--sp-1, 4px);
+  letter-spacing: .02em;
+}
+.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
+
+/* 操作条 */
+.action-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3, 12px); flex-wrap: wrap;
+  margin-bottom: var(--sp-4, 16px);
+  padding: var(--sp-3, 12px) var(--sp-4, 16px);
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l, 11px);
+}
+.action-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
+.action-buttons { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+
+.section-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); }
+.cell-name { font-weight: 600; color: var(--ink); }
+.cell-tag { margin-left: var(--sp-1, 4px); }
+.cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 1px 6px; border-radius: var(--r-s, 4px); }
+
+/* 行操作按钮组（统一间距） */
+.row-actions { display: flex; gap: var(--sp-1, 4px); flex-wrap: nowrap; }
+
 /* B7: 订单行展开——收款摘要 */
 .order-expand-pay { padding: 8px 16px; }
-/* v0.38 第二批: 纸墨 token（REQ-026，管理后台从简） */
 .expand-pay-summary { display: flex; gap: 12px; font-size: 13px; color: var(--ink2); margin-bottom: 8px; flex-wrap: wrap; }
 .expand-pay-summary strong { color: var(--ink); }
 .expand-inst-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
 .expand-no-data { font-size: 12px; color: var(--ink3); margin: 4px 0; }
 /* REQ-027: TOTP 绑定弹窗 + transfer 提示 */
+.dialog-h4 { margin: 0 0 var(--sp-3, 12px); font-size: var(--fs-body, 14px); color: var(--ink); }
 .totp-qr-wrap { display: flex; justify-content: center; margin: 12px 0 4px; }
 .totp-qr { width: 200px; height: 200px; border: 1px solid var(--line); border-radius: var(--r-m); }
 .totp-step { font-size: 13px; color: var(--ink); margin: 8px 0; }
