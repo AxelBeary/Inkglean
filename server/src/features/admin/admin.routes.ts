@@ -12,6 +12,7 @@ import { clamp } from '../../shared/validate.js'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import type { ArtistOrderRow } from '../../types/entities.js'
 
 // ============================================
 // 管理员路由 - 多画师管理
@@ -105,7 +106,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       pageSize: Math.max(1, Math.min(parseInt(pageSize ?? '', 10) || 50, 200))
     })
     // B7: 补充 camelCase 付款字段 + 分期三态（管理端行展开用）
-    result.items = result.items.map((o: { id: number; paid_total_cents: number | null; final_price_cents: number | null }) => ({
+    result.items = result.items.map((o: ArtistOrderRow) => ({
       ...o,
       paidTotalCents: o.paid_total_cents ?? 0,
       finalPriceCents: o.final_price_cents ?? 0,

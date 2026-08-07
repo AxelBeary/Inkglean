@@ -12,26 +12,12 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import db from '../../db/connection.js'
-import type { OrderDetail } from '../../types/entities.js'
+import type { OrderDetail, ArtistOrderRow } from '../../types/entities.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
 // 订单路由 - 下单、查询、管理、交付
 // ============================================
-
-/** SQL 订单行（队列/列表接口的返回值形状） */
-interface OrderRow {
-  id: number
-  order_no: string
-  status: string
-  tier_name: string | null
-  tier_price: number | null
-  queue_position: number | null
-  current_stage_id: number | null
-  start_date: string | null
-  focus_image_path: string | null
-  [key: string]: unknown
-}
 
 
 /** 为订单的 references + deliverables + notes 补签名 URL（H-1 修复抽取，多路由共用） */
@@ -236,7 +222,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       workflowStages,
       currentStageId: order.current_stage_id ?? null,
       currentStageName: stageInfo?.currentStageName ?? null,
-      deliverables: order.deliverables.map((d: { id: number; original_name?: string | null; file_path: string }) => ({
+      deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_path: string }) => ({
         id: d.id,
         fileName: d.original_name,
         url: signedUrl(d.file_path)
@@ -340,7 +326,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       orderNo: order.order_no,
       status: order.status,
       artistName: order.artist_name,
-      deliverables: order.deliverables.map((d: { id: number; original_name?: string | null; file_size?: number | null; file_path: string }) => ({
+      deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_size?: number | null; file_path: string }) => ({
         id: d.id,
         fileName: d.original_name,
         fileSize: d.file_size,
@@ -363,7 +349,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     })
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
     if (result.items) {
-      result.items = result.items.map((order: OrderRow) => {
+      result.items = result.items.map((order: ArtistOrderRow) => {
         if (order.focus_image_path) {
           return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
         }
@@ -387,9 +373,9 @@ export default async function orderRoutes(fastify: FastifyInstance) {
           LEFT JOIN price_tiers t ON o.tier_id = t.id
           WHERE o.artist_id = ? AND o.queue_zone = 'buffer' AND o.status NOT IN ('delivered', 'cancelled')
           ORDER BY o.queue_position ASC
-        `).all(request.artist.id) as OrderRow[]
-        return bufferOrders.map((order: OrderRow) => {
-          const mapped: OrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
+        `).all(request.artist.id) as ArtistOrderRow[]
+        return bufferOrders.map((order: ArtistOrderRow) => {
+          const mapped: ArtistOrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
           if (order.focus_image_path) {
             mapped.focusImageUrl = signedUrl(order.focus_image_path)
           }
@@ -399,8 +385,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       // REQ-013 #7: 完成区（最近 7 天已交付订单，沉底灰色展示）
       if (zone === 'completed') {
         const completed = orderQueueService.getCompletedQueue(request.artist.id)
-        return completed.map((order: OrderRow) => {
-          const mapped: OrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
+        return completed.map((order: ArtistOrderRow) => {
+          const mapped: ArtistOrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
           if (order.focus_image_path) {
             mapped.focusImageUrl = signedUrl(order.focus_image_path)
           }
@@ -411,8 +397,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       const queue = orderQueueService.getArtistQueue(request.artist.id)
       // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
       // Bug 4 fix: 映射 current_stage_id → currentStageId（前端用 camelCase）
-      return queue.map((order: OrderRow) => {
-        const mapped: OrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
+      return queue.map((order: ArtistOrderRow) => {
+        const mapped: ArtistOrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
         if (order.focus_image_path) {
           mapped.focusImageUrl = signedUrl(order.focus_image_path)
         }
@@ -611,7 +597,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     // P1-A 修复：重排返回值补焦点图签名（同 GET /api/artist/queue 逻辑）
     const queue = orderQueueService.reorderQueue(request.artist.id, (request.body as { orderedIds: number[] }).orderedIds)
-    return queue.map((order: OrderRow) => {
+    return queue.map((order: ArtistOrderRow) => {
       if (order.focus_image_path) {
         return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
       }
@@ -764,7 +750,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
 
     // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
     orderGalleryService.addReference(request.order.id, filePath, fileName ?? null, fileSize ?? null, 'artist')
-    return enrichOrderForArtist(orderService.getOrder(request.order.id))
+    return enrichOrderForArtist(orderService.getOrder(request.order.id) as OrderDetail)
   })
 
   /**
