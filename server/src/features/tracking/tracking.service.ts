@@ -133,6 +133,7 @@ export interface TrackingSummary {
 export interface ArtistTrackingSummary {
   total: number
   byName: Array<{ name: string; count: number }>
+  byDay: Array<{ day: string; count: number }>
 }
 
 /**
@@ -174,7 +175,12 @@ export function getArtistTrackingSummary(artistId: number, days: number): Artist
     WHERE artist_id = ? AND created_at >= ${since}
     GROUP BY name ORDER BY count DESC
   `).all(artistId) as Array<{ name: string; count: number }>
-  return { total, byName }
+  const byDay = db.prepare(`
+    SELECT date(created_at, 'localtime') AS day, COUNT(*) AS count FROM events
+    WHERE artist_id = ? AND created_at >= ${since}
+    GROUP BY day ORDER BY day ASC
+  `).all(artistId) as Array<{ day: string; count: number }>
+  return { total, byName, byDay }
 }
 
 /** 管理员开关：画师门面统计显隐（platform_config key=artist_stats_visible，默认 true） */

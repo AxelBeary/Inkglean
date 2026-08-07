@@ -17,8 +17,12 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     await app.ready()
   })
 
+  let anonIpCounter = 0
   async function fetchToken() {
-    const res = await app.inject({ method: 'POST', url: '/api/anon-token' })
+    // R1 修复后 anon-token 有每 IP 10 次/分限流：每次签发用独立 IP，避免用例间互扰
+    anonIpCounter += 1
+    const remoteAddress = `10.8.0.${anonIpCounter}`
+    const res = await app.inject({ method: 'POST', url: '/api/anon-token', remoteAddress })
     expect(res.statusCode).toBe(200)
     return res.json().token
   }
@@ -321,5 +325,117 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
       payload: { artistStatsVisible: 'yes' }
     })
     expect(wrongType.statusCode).toBe(400)
+  })
+
+  // ─── R1 防刷用例（2026-08-07 巡检 04-to-01 修复）+ 画师 byDay 趋势 ───
+
+  it('TC-TR-15: 画师 summary byDay 按本地日分组升序（跨日）', async () => {
+    const alice = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+    const aliceToken = createSession(alice.id, alice.token_version)
+    // 上报 3 条 dashboard_view：3 条今天，再把最早 1 条改 created_at 为昨天
+    for (let i = 0; i < 3; i++) {
+      const res = await app.inject({
+        method: 'POST', url: '/api/events',
+        headers: { Authorization: `Bearer ${aliceToken}` },
+        payload: { events: [{ name: 'dashboard_view', ts: Date.now() + i }] }
+      })
+      expect(res.statusCode).toBe(200)
+    }
+    db.prepare("UPDATE events SET created_at = datetime('now', '-1 day') WHERE id = (SELECT MIN(id) FROM events)").run()
+    const res = await app.inject({
+      method: 'GET', url: '/api/artist/tracking/summary?days=30',
+      headers: { Authorization: `Bearer ${aliceToken}` }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.total).toBe(3)
+    expect(Array.isArray(body.byDay)).toBe(true)
+    expect(body.byDay.reduce((s, r) => s + r.count, 0)).toBe(3)
+    expect(body.byDay.length).toBe(2) // 昨天 + 今天
+    const days = body.byDay.map(r => r.day)
+    expect([...days].sort()).toEqual(days) // 升序
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const countByDay = Object.fromEntries(body.byDay.map(r => [r.day, r.count]))
+    expect(countByDay[fmt(new Date(Date.now() - 86400000))]).toBe(1)
+    expect(countByDay[fmt(new Date())]).toBe(2)
+  })
+
+  it('TC-TR-16: R1 修复——anon-token 同 IP 每分钟第 11 次签发被 429', async () => {
+    const ip = '10.66.0.1'
+    for (let i = 0; i < 10; i++) {
+      const res = await app.inject({ method: 'POST', url: '/api/anon-token', remoteAddress: ip })
+      expect(res.statusCode).toBe(200)
+    }
+    const blocked = await app.inject({ method: 'POST', url: '/api/anon-token', remoteAddress: ip })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
+  })
+
+  it('TC-TR-17: R1 修复——攻击者循环签发新 token 刷 events 被 anon-token 限流堵死', async () => {
+    const ip = '10.77.0.1'
+    // 攻击循环：签发新 token → 用新 token 发 1 条事件，10 轮都放行
+    for (let i = 0; i < 10; i++) {
+      const tokenRes = await app.inject({ method: 'POST', url: '/api/anon-token', remoteAddress: ip })
+      expect(tokenRes.statusCode).toBe(200)
+      const evRes = await app.inject({
+        method: 'POST', url: '/api/events', remoteAddress: ip,
+        payload: { token: tokenRes.json().token, events: [{ name: 'order_form_start', ts: Date.now() + i }] }
+      })
+      expect(evRes.statusCode).toBe(200)
+    }
+    // 第 11 轮签发被 429 → 攻击者无法继续轮换 token 刷量（绕过已堵）
+    const blocked = await app.inject({ method: 'POST', url: '/api/anon-token', remoteAddress: ip })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
+  })
+
+  it('TC-TR-17b: 双因子 key——同 IP 换新 token 事件配额独立（正常用户 token 维度保留）', async () => {
+    const ip = '10.88.0.1'
+    // tokenA 打满 events 配额（100 次/分）
+    const tokenA = (await app.inject({ method: 'POST', url: '/api/anon-token', remoteAddress: ip })).json().token
+    for (let i = 0; i < 100; i++) {
+      const res = await app.inject({
+        method: 'POST', url: '/api/events', remoteAddress: ip,
+        payload: { token: tokenA, events: [{ name: 'order_form_start', ts: Date.now() + i }] }
+      })
+      expect(res.statusCode).toBe(200)
+    }
+    const full = await app.inject({
+      method: 'POST', url: '/api/events', remoteAddress: ip,
+      payload: { token: tokenA, events: [{ name: 'order_form_start', ts: Date.now() }] }
+    })
+    expect(full.statusCode).toBe(429)
+    // 同 IP 换新 tokenB → 新配额放行（双因子 key = token:ip，token 维度独立）
+    const tokenB = (await app.inject({ method: 'POST', url: '/api/anon-token', remoteAddress: ip })).json().token
+    const resB = await app.inject({
+      method: 'POST', url: '/api/events', remoteAddress: ip,
+      payload: { token: tokenB, events: [{ name: 'order_form_start', ts: Date.now() }] }
+    })
+    expect(resB.statusCode).toBe(200)
+  })
+
+  it('TC-TR-18: 画师 summary 同画师每分钟第 31 次被 429', async () => {
+    const artist = seedArtist({ qq_number: '50005', subdomain: 'eve' })
+    const token = createSession(artist.id, artist.token_version)
+    const auth = { Authorization: `Bearer ${token}` }
+    for (let i = 0; i < 30; i++) {
+      const res = await app.inject({ method: 'GET', url: '/api/artist/tracking/summary', headers: auth })
+      expect(res.statusCode).toBe(200)
+    }
+    const blocked = await app.inject({ method: 'GET', url: '/api/artist/tracking/summary', headers: auth })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
+  })
+
+  it('TC-TR-19: 管理员 summary 同管理员每分钟第 31 次被 429', async () => {
+    const admin = setAdmin('60006')
+    const auth = { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+    for (let i = 0; i < 30; i++) {
+      const res = await app.inject({ method: 'GET', url: '/api/admin/tracking/summary', headers: auth })
+      expect(res.statusCode).toBe(200)
+    }
+    const blocked = await app.inject({ method: 'GET', url: '/api/admin/tracking/summary', headers: auth })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
   })
 })

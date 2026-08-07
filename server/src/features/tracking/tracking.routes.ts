@@ -41,7 +41,11 @@ function getOptionalArtist(request: FastifyRequest): Artist | null {
 export default async function trackingRoutes(fastify: FastifyInstance) {
 
   /** POST /api/anon-token — 签发匿名凭证（无鉴权；前端首次上报前自动调用，前端自存） */
-  fastify.post('/api/anon-token', async () => {
+  fastify.post('/api/anon-token', async (request, reply) => {
+    // R1 修复（巡检 04-to-01）：防刷——同 IP 每分钟最多 10 次（正常前端首次上报 1 次/会话）
+    if (!rateLimit(`anon-token:${request.ip}`, 10, 60_000)) {
+      return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
+    }
     const token = trackingService.issueAnonToken()
     return { token }
   })
@@ -81,8 +85,9 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const body = request.body as { token?: string; events: Array<Record<string, unknown>> }
 
-    // 限流：同凭证（或同 IP）每分钟 100 条，防刷库（REQ-033 §2.2）
-    const limitKey = body.token || request.ip
+    // 限流：同凭证 + 同 IP 双因子每分钟 100 条，防刷库（REQ-033 §2.2 + 巡检 R1 修复）
+    // 双因子 key 保留 token 维度（正常用户独立配额），并绑定 IP——配合 anon-token 签发限流堵住轮换 token 刷量
+    const limitKey = body.token ? `${body.token}:${request.ip}` : request.ip
     if (!rateLimit(`events:${limitKey}`, EVENTS_RATE_MAX, EVENTS_RATE_WINDOW_MS)) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
@@ -124,14 +129,22 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
   // ============================================
 
   /** GET /api/admin/tracking/summary — 管理员全局事件统计（近 N 天，默认 30，范围 1..90） */
-  fastify.get('/api/admin/tracking/summary', { preHandler: requireAdmin }, async (request) => {
+  fastify.get('/api/admin/tracking/summary', { preHandler: requireAdmin }, async (request, reply) => {
+    // 防刷：同管理员每分钟最多 30 次（管理员正常看页不会超过）
+    if (!rateLimit(`admin-tracking:${request.artist.id}`, 30, 60_000)) {
+      return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
+    }
     const { days } = request.query as { days?: string }
     const d = Math.min(Math.max(parseInt(days ?? '30', 10) || 30, 1), 90)
     return trackingService.getTrackingSummary(d)
   })
 
   /** GET /api/artist/tracking/summary — 画师自己的事件统计（门面区块；enabled=管理员开关） */
-  fastify.get('/api/artist/tracking/summary', { preHandler: requireAuth }, async (request) => {
+  fastify.get('/api/artist/tracking/summary', { preHandler: requireAuth }, async (request, reply) => {
+    // 防刷：同画师每分钟最多 30 次（画师正常看页不会超过）
+    if (!rateLimit(`artist-tracking:${request.artist.id}`, 30, 60_000)) {
+      return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
+    }
     const { days } = request.query as { days?: string }
     const d = Math.min(Math.max(parseInt(days ?? '14', 10) || 14, 1), 90)
     const summary = trackingService.getArtistTrackingSummary(request.artist.id, d)
