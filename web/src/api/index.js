@@ -183,6 +183,8 @@ export const artistApi = {
   trackOn: (id) => api.put(`/artist/orders/${id}/track-on`),
   // 统计
   getStats: () => api.get('/artist/stats'),
+  // REQ-033 埋点看板：画师自己的事件统计（门面区块，管理员开关控制显隐）
+  getMyTrackingSummary: (days = 14) => api.get('/artist/tracking/summary', { params: { days } }),
   // v0.18 仪表盘（收入统计/待办合并列表/最近活动流）
   getDashboardRevenue: (period) => api.get('/artist/dashboard/revenue', { params: { period } }),
   getDashboardTodo: () => api.get('/artist/dashboard/todo'),
@@ -324,5 +326,9 @@ export const adminApi = {
   updatePlatform: (id, data) => api.put(`/admin/platforms/${id}`, data),
   deletePlatform: (id) => api.delete(`/admin/platforms/${id}`),
   // HC: 系统自检
-  getHealth: () => api.get('/admin/health')
+  getHealth: () => api.get('/admin/health'),
+  // REQ-033 埋点看板
+  getTrackingSummary: (days = 30) => api.get('/admin/tracking/summary', { params: { days } }),
+  getTrackingConfig: () => api.get('/admin/tracking-config'),
+  setTrackingConfig: (artistStatsVisible) => api.put('/admin/tracking-config', { artistStatsVisible })
 }

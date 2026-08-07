@@ -490,7 +490,15 @@ export default {
     slotNext: '下一位候补：{name}（QQ: {qq}）',
     // #4: 名额概览改版
     slotCombined: '已接 {used}/{total}', slotNotEnabled: '未开启名额限制，去设置 →', slotDisplayFallback: '—',
-    artworks: '图库管理', tiers: '档位管理'
+    artworks: '图库管理', tiers: '档位管理',
+    // REQ-033: 门面统计
+    trackingTitle: '我的数据统计', trackingTotal: '累计事件',
+    trackingNames: {
+      dashboard_view: '工作台访问', queue_view: '排期看板', orders_view: '订单列表',
+      manual_view: '手动录单', artworks_view: '作品管理', settings_view: '设置',
+      tiers_view: '档位', guestbook_view: '留言', preferences_view: '偏好',
+      dashboard_quick_click: '快捷操作', artist_action: '画师操作'
+    }
   },
   queue: {
     title: '排期看板',
@@ -1060,6 +1068,15 @@ export default {
       deleted: '平台已删除，{n} 条链接归为「其他」',
       iconFallbackHint: '图标与单字兜底至少填一项。',
       domainFormatError: '域名格式不正确（不含协议/路径/端口）'
+    },
+    // REQ-033: 埋点看板
+    tracking: {
+      title: '埋点看板', total: '总事件数', visibleLabel: '画师门面统计可见',
+      daysLabel: '统计天数', funnelTitle: '下单漏斗',
+      byNameTitle: '事件分布', byDayTitle: '按日趋势',
+      colName: '事件名', colCount: '次数', colRatio: '占比', colDay: '日期',
+      days7: '近 7 天', days14: '近 14 天', days30: '近 30 天', days90: '近 90 天',
+      visibleSaved: '画师门面统计已更新', empty: '暂无事件数据'
     }
   }
 }

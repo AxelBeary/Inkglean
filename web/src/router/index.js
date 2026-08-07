@@ -50,7 +50,9 @@ const routes = [
       // REQ-022 F2: 社交平台管理
       { path: 'platforms', name: 'AdminPlatforms', component: () => import('../views/admin/PlatformManage.vue'), meta: { titleKey: 'admin.platformManage', requiresAdmin: true } },
       // HC: 系统自检
-      { path: 'health', name: 'AdminHealthCheck', component: () => import('../views/admin/HealthCheck.vue'), meta: { titleKey: 'pageTitle.healthCheck', requiresAdmin: true } }
+      { path: 'health', name: 'AdminHealthCheck', component: () => import('../views/admin/HealthCheck.vue'), meta: { titleKey: 'pageTitle.healthCheck', requiresAdmin: true } },
+      // REQ-033 埋点看板
+      { path: 'analytics', name: 'AdminAnalytics', component: () => import('../views/admin/TrackingAnalytics.vue'), meta: { titleKey: 'admin.tracking.title', requiresAdmin: true } }
     ]
   },
 
