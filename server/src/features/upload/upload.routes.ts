@@ -143,10 +143,10 @@ export default async function uploadRoutes(fastify: any, opts: any) {
 
   /**
    * POST /api/upload/image — 作品图/档位示例图（需登录）
-   * P0-B: 加限流（20次/10分钟）
+   * P0-B: 加限流（50次/10分钟，画师批量传图场景放宽；2026-08-07 用户反馈调高）
    */
   fastify.post('/api/upload/image', { preHandler: requireAuth }, async (request: any, reply: any) => {
-    if (!rateLimit(`upload-img:${request.ip}`, 20, 10 * 60_000)) {
+    if (!rateLimit(`upload-img:${request.ip}`, 50, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
 
@@ -213,10 +213,10 @@ export default async function uploadRoutes(fastify: any, opts: any) {
 
   /**
    * POST /api/upload/deliverable — 交付文件（需登录，允许更多格式）
-   * P0-B: 加限流（20次/10分钟）
+   * P0-B: 加限流（30次/10分钟；2026-08-07 用户反馈画师多文件交付场景放宽）
    */
   fastify.post('/api/upload/deliverable', { preHandler: requireAuth }, async (request: any, reply: any) => {
-    if (!rateLimit(`upload-deliver:${request.ip}`, 20, 10 * 60_000)) {
+    if (!rateLimit(`upload-deliver:${request.ip}`, 30, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
     }
 
