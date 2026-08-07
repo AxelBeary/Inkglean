@@ -1,4 +1,4 @@
-﻿import { requireAuth, requireAdmin } from '../../shared/middleware/auth.js'
+import { requireAuth, requireAdmin } from '../../shared/middleware/auth.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { verifySession } from '../auth/auth.service.js'
 import { getArtistById } from '../artist/artist.service.js'
@@ -85,6 +85,11 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const body = request.body as { token?: string; events: Array<Record<string, unknown>> }
 
+    // stats_mode='off'：管理员关闭埋点 → 事件静默丢弃（返回 ok 不落库，对前端无感知）
+    if (trackingService.getStatsMode() === 'off') {
+      return { ok: true, received: 0 }
+    }
+
     // 限流：同凭证 + 同 IP 双因子每分钟 100 条，防刷库（REQ-033 §2.2 + 巡检 R1 修复）
     // 双因子 key 保留 token 维度（正常用户独立配额），并绑定 IP——配合 anon-token 签发限流堵住轮换 token 刷量
     const limitKey = body.token ? `${body.token}:${request.ip}` : request.ip
@@ -147,28 +152,47 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
     }
     const { days } = request.query as { days?: string }
     const d = Math.min(Math.max(parseInt(days ?? '14', 10) || 14, 1), 90)
+    const mode = trackingService.getStatsMode()
+    // mode=hidden/off：画师端统计不可见（enabled 兼容旧字段）；mode=on 才返回统计数据
+    if (mode !== 'on') {
+      return { mode, enabled: false }
+    }
     const summary = trackingService.getArtistTrackingSummary(request.artist.id, d)
-    return { enabled: trackingService.getArtistStatsVisible(), ...summary }
+    return { mode, enabled: true, ...summary }
   })
 
   /** GET /api/admin/tracking-config — 读管理员开关（画师门面统计显隐） */
   fastify.get('/api/admin/tracking-config', { preHandler: requireAdmin }, async () => {
-    return { artistStatsVisible: trackingService.getArtistStatsVisible() }
+    const mode = trackingService.getStatsMode()
+    return { statsMode: mode, artistStatsVisible: trackingService.getArtistStatsVisible() }
   })
 
-  /** PUT /api/admin/tracking-config — 写管理员开关 */
+  /** PUT /api/admin/tracking-config — 写管理员三态开关
+   * 新 body { statsMode: 'off'|'hidden'|'on' }；旧 body { artistStatsVisible: boolean } 兼容（true→on / false→hidden）
+   */
   fastify.put('/api/admin/tracking-config', {
     preHandler: requireAdmin,
     schema: {
       body: {
         type: 'object',
-        required: ['artistStatsVisible'],
-        properties: { artistStatsVisible: { type: 'boolean' } },
+        properties: {
+          statsMode: { type: 'string', enum: ['off', 'hidden', 'on'] },
+          artistStatsVisible: { type: 'boolean' }
+        },
         additionalProperties: false
       }
     }
-  }, async (request) => {
-    const { artistStatsVisible } = request.body as { artistStatsVisible: boolean }
-    return { artistStatsVisible: trackingService.setArtistStatsVisible(artistStatsVisible) }
+  }, async (request, reply) => {
+    const body = request.body as { statsMode?: trackingService.StatsMode; artistStatsVisible?: boolean }
+    if (body.statsMode !== undefined) {
+      trackingService.setStatsMode(body.statsMode)
+    } else if (body.artistStatsVisible !== undefined) {
+      // 兼容旧前端：true→on（可见+收集）；false→hidden（仅隐藏显示）
+      trackingService.setArtistStatsVisible(body.artistStatsVisible)
+    } else {
+      return reply.code(400).send({ code: 'INVALID_PARAM', error: '缺少 statsMode 或 artistStatsVisible' })
+    }
+    const mode = trackingService.getStatsMode()
+    return { statsMode: mode, artistStatsVisible: trackingService.getArtistStatsVisible() }
   })
 }

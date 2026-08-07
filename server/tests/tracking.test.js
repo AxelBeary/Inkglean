@@ -1,7 +1,8 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
+import { setStatsMode } from '../src/features/tracking/tracking.service.js'
 
 // ============================================
 // REQ-033 业务埋点后端测试（Tracking）
@@ -13,6 +14,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
 
   beforeEach(async () => {
     cleanDb()
+    // 三态开关在 platform_config（cleanDb 不清，避免用例间泄漏）
+    db.prepare("DELETE FROM platform_config WHERE key = 'stats_mode' OR key = 'artist_stats_visible'").run()
     app = await buildApp({ logger: false })
     await app.ready()
   })
@@ -226,6 +229,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
   })
 
   it('TC-TR-12: 画师 summary 只统计自己的事件（未登录 401）', async () => {
+    // 三态默认 hidden（画师统计不可见），此用例验证可见时的统计隔离 → 显式开 on
+    setStatsMode('on')
     const alice = seedArtist({ qq_number: '12345', subdomain: 'alice' })
     const aliceToken = createSession(alice.id, alice.token_version)
     const r1 = await app.inject({
@@ -267,10 +272,10 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     const adminToken = createSession(admin.id, admin.token_version)
     const auth = { Authorization: `Bearer ${adminToken}` }
 
-    // 默认 true（未写入过）
+    // 默认 hidden（用户 08-07 拍板：默认不显）
     const initial = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
     expect(initial.statusCode).toBe(200)
-    expect(initial.json()).toEqual({ artistStatsVisible: true })
+    expect(initial.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false })
 
     // PUT false → GET false
     const off = await app.inject({
@@ -280,9 +285,10 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
       payload: { artistStatsVisible: false }
     })
     expect(off.statusCode).toBe(200)
-    expect(off.json()).toEqual({ artistStatsVisible: false })
+    // 旧字段兼容：false → hidden（事件仍收集，仅隐藏显示）
+    expect(off.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false })
     const afterOff = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
-    expect(afterOff.json()).toEqual({ artistStatsVisible: false })
+    expect(afterOff.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false })
 
     // 画师侧 enabled 同步为 false
     const artist = seedArtist({ qq_number: '40004', subdomain: 'carl' })
@@ -301,12 +307,12 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
       headers: auth,
       payload: { artistStatsVisible: true }
     })
-    expect(on.json()).toEqual({ artistStatsVisible: true })
+    expect(on.json()).toEqual({ statsMode: 'on', artistStatsVisible: true })
     const afterOn = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
-    expect(afterOn.json()).toEqual({ artistStatsVisible: true })
+    expect(afterOn.json()).toEqual({ statsMode: 'on', artistStatsVisible: true })
   })
 
-  it('TC-TR-14: 开关 PUT 缺字段 / 非布尔被 schema 拒绝 400', async () => {
+  it('TC-TR-14: 开关 PUT 空 body / 非布尔被拒 400', async () => {
     const admin = setAdmin('10001')
     const auth = { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
 
@@ -330,6 +336,7 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
   // ─── R1 防刷用例（2026-08-07 巡检 04-to-01 修复）+ 画师 byDay 趋势 ───
 
   it('TC-TR-15: 画师 summary byDay 按本地日分组升序（跨日）', async () => {
+    setStatsMode('on')
     const alice = seedArtist({ qq_number: '12345', subdomain: 'alice' })
     const aliceToken = createSession(alice.id, alice.token_version)
     // 上报 3 条 dashboard_view：3 条今天，再把最早 1 条改 created_at 为昨天
