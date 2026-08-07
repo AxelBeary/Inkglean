@@ -28,4 +28,9 @@ defineProps({
 }
 .client-fab:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); }
 .client-fab--raised { bottom: 72px; }
+/* P1-1 修复：移动端底部常驻 CTA（吸底条/约稿按钮）与悬浮件同垂直带——移动端悬浮件始终上移避让，
+   避免遮挡主 CTA（Classic 无吸底 CTA 不触发 raised，此前被压；DOM 量化重叠 2714px²） */
+@media (max-width: 768px) {
+  .client-fab { bottom: 72px; }
+}
 </style>
