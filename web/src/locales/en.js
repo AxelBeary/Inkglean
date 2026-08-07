@@ -286,6 +286,8 @@ export default {
     heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',
     startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
+    // v0.42 Step 6: client gallery "load more"
+    loadMore: 'Load more',
     weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili',
     otherLink: 'Link',
     revisionNote: 'Revision policy',

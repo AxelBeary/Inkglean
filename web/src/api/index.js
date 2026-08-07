@@ -104,6 +104,8 @@ export const artistPublicApi = {
   calculateStylePrice: (data) => api.post('/public/calculate-style-price', data),
   // v0.35 F6: 画廊专用端点（作品 size_tags/描述 + filterSizes 筛选档位）
   getPublicGallery: (subdomain) => api.get(`/public/gallery/${subdomain}`),
+  // v0.42 Step 6: 公开作品分页（10/页 + 加载更多；封面置顶）
+  getPublicArtworksPaged: (artistId, { page = 1, pageSize = 10 } = {}) => api.get(`/public/artworks/${artistId}`, { params: { page, pageSize } }),
   // F1: 作品点赞（匿名公开）
   likeArtwork: (id) => api.post(`/public/artworks/${id}/like`),
   unlikeArtwork: (id) => api.delete(`/public/artworks/${id}/like`),
@@ -131,6 +133,8 @@ export const artistApi = {
   reorderTiers: (ids) => api.put('/artist/tiers/reorder', { ids }),
   // 作品
   getArtworks: () => api.get('/artist/artworks'),
+  // v0.42 Step 6: 画师端作品分页（20/页 + el-pagination；封面置顶）
+  getArtworksPaged: ({ page = 1, pageSize = 20 } = {}) => api.get('/artist/artworks/paged', { params: { page, pageSize } }),
   createArtwork: (data) => api.post('/artist/artworks', data),
   deleteArtwork: (id) => api.delete(`/artist/artworks/${id}`),
   // v0.35 波3 (REQ-024 F6): 作品编辑（标题/自由描述）+ 档位标注（替换语义）

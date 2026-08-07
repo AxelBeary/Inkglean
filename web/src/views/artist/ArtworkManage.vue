@@ -142,6 +142,17 @@
       </div>
     </div>
 
+    <!-- v0.42 Step 6: 分页器（>20 张时显示；封面置顶在后端排序已保证，前端勿重排） -->
+    <el-pagination
+      v-if="total > pageSize"
+      :current-page="page"
+      :page-size="pageSize"
+      :total="total"
+      layout="prev, pager, next"
+      @current-change="onPageChange"
+      style="margin-top: 16px; justify-content: center;"
+    />
+
     <el-empty v-if="!loading && artworks.length === 0" :description="$t('artworks.empty')" />
 
     <!-- R45: 批量操作栏（多选模式下固定底部） -->
@@ -227,6 +238,10 @@ watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 const artworks = ref([])
 const loading = ref(true)
+// v0.42 Step 6: 作品分页（20/页；封面置顶由后端排序保证，前端勿重排）
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 // ─── F7: 主图去重（主图单独展示，网格只显示非主图） ───
 /** 主图列表（is_cover=1，按 cover_order 排序） */
@@ -389,8 +404,10 @@ async function moveCover(art, direction) {
 
   coverReordering.value = true
   try {
-    artworks.value = await artistApi.reorderCovers(orderedIds)
+    await artistApi.reorderCovers(orderedIds)
     ElMessage.success(t('artworks.coverReordered'))
+    // 分页后勿用全量数组覆盖（会破坏分页语义），统一走分页刷新
+    await loadArtworks()
   } catch (err) {
     ElMessage.error(err.message)
     await loadArtworks()
@@ -402,12 +419,26 @@ async function moveCover(art, direction) {
 async function loadArtworks() {
   loading.value = true
   try {
-    artworks.value = await artistApi.getArtworks()
+    const res = await artistApi.getArtworksPaged({ page: page.value, pageSize: pageSize.value })
+    artworks.value = res.items
+    total.value = res.total
+    // 删除/批量删除当前页最后一条后回退一页，避免空白页
+    if (res.items.length === 0 && page.value > 1) {
+      page.value -= 1
+      await loadArtworks()
+      return
+    }
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
     loading.value = false
   }
+}
+
+/** v0.42 Step 6: 分页器翻页 */
+function onPageChange(p) {
+  page.value = p
+  loadArtworks()
 }
 
 // ─── v0.35 波3 (REQ-024 F6): 作品编辑 — 档位标注多选 + 自由描述 ───
