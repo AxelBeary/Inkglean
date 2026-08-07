@@ -17,7 +17,7 @@ export const PRICE_FALLBACK_SQL = `CASE
  * JS 层价格回退 — 从订单行对象解析金额（分）
  * 三级均为 null 时返回 null（未定价订单）
  */
-export function resolvePriceCents(order: { final_price_cents: number | null; total_price_cents: number | null; price_snapshot: number | null }): number | null {
+export function resolvePriceCents(order: { final_price_cents?: number | null; total_price_cents?: number | null; price_snapshot?: number | null }): number | null {
   return order.final_price_cents
     ?? order.total_price_cents
     ?? (order.price_snapshot != null ? Math.round(order.price_snapshot * 100) : null)

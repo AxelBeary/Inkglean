@@ -145,21 +145,12 @@ export interface PriceResult {
   breakdown: PriceBreakdownItem[]
 }
 
-/** 订单详情（getOrder 增强结构：关联数组 + 画师/档位字段；order.routes 与 fastify.d.ts 共用） */
-export interface OrderDetail {
-  id: number
-  artist_id: number
-  order_no: string
-  status: string
-  client_qq: string
-  queue_zone?: string | null
-  current_stage_id?: number | null
+/** 订单详情（getOrder 增强结构：Order 基础字段 + 关联数组 + 画师/档位字段；order.routes 与 fastify.d.ts 共用） */
+export interface OrderDetail extends Order {
   final_price_cents?: number | null
-  total_price_cents?: number | null
-  paid_total_cents?: number | null
   start_date?: string | null
-  created_at?: string
-  updated_at?: string
+  quote_snapshot?: string | null
+  focus_image_path?: string | null
   artist_name?: string
   artist_subdomain?: string
   tier_name?: string | null
@@ -169,4 +160,21 @@ export interface OrderDetail {
   deliverables?: Array<{ id: number; file_path: string; original_name?: string | null; file_size?: number | null }>
   notes?: Array<{ id?: number; image_path: string | null }>
   extraItems?: Array<{ name: string; price_cents: number }>
+}
+/** 订单列表/队列行（o.* + tier 关联字段；order.routes 与 admin.routes 共用） */
+export interface ArtistOrderRow {
+  id: number
+  order_no: string
+  status: string
+  client_name: string | null
+  client_qq: string
+  tier_name: string | null
+  tier_price: number | null
+  queue_position: number | null
+  current_stage_id: number | null
+  start_date: string | null
+  focus_image_path: string | null
+  paid_total_cents: number | null
+  final_price_cents: number | null
+  [key: string]: unknown
 }
