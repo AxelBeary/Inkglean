@@ -346,6 +346,22 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     }))
   })
 
+  /** GET /api/artist/artworks/paged?page&pageSize — 画师端作品分页（默认 20，clamp 1-50；封面置顶）
+   * 老接口 GET /api/artist/artworks 保留（返回全量数组），分页走新接口，避免破坏现有调用
+   */
+  fastify.get('/api/artist/artworks/paged', { preHandler: requireAuth }, async (request: FastifyRequest) => {
+    const q = request.query as { page?: string; pageSize?: string }
+    const page = Math.max(parseInt(q.page ?? '1', 10) || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(q.pageSize ?? '20', 10) || 20, 1), 50)
+    const paged = artistService.getArtworksPaged(request.artist.id, page, pageSize)
+    return {
+      ...paged,
+      items: paged.items.map((art) => ({
+        ...art,
+        size_tag_ids: artistService.getArtworkSizeTagIds(art.id)
+      }))
+    }
+  })
   fastify.post('/api/artist/artworks', {
     preHandler: requireAuth,
     schema: {
@@ -592,6 +608,28 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }
+  })
+
+  /** GET /api/public/artworks/:artistId?page&pageSize — 公开作品分页（默认 10，clamp 1-30；封面置顶）
+   * 客户端画师主页「加载更多」用；hidden 画师/管理员账号 404，与公开 profile 一致不暴露
+   * 限流：同 IP 每分钟 30 次（用户红线：公开接口必须防刷）
+   */
+  fastify.get('/api/public/artworks/:artistId', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!rateLimit(`public-artworks:${request.ip}`, 30, 60_000)) {
+      return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
+    }
+    const artistId = Number((request.params as { artistId: string }).artistId)
+    if (!Number.isInteger(artistId) || artistId <= 0) {
+      return reply.code(400).send({ code: 'INVALID_PARAM', error: '画师 ID 无效' })
+    }
+    const artist = artistService.getArtistById(artistId)
+    if (!artist || artist.qq_number === getAdminQq() || artist.deleted_at || artist.status === 'hidden') {
+      return reply.code(404).send({ code: 'NOT_FOUND', error: '画师不存在' })
+    }
+    const q = request.query as { page?: string; pageSize?: string }
+    const page = Math.max(parseInt(q.page ?? '1', 10) || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(q.pageSize ?? '10', 10) || 10, 1), 30)
+    return artistService.getPublicArtworksPaged(artistId, page, pageSize)
   })
 
   // ─── F1: 作品点赞（公开，匿名） ───
