@@ -1,6 +1,7 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import i18n from '../i18n/index.js'
 import { useArtistStore } from '../stores/artist.js'
+import { useThemeStore } from '../stores/theme.js'
 
 // ============================================
 // 路由配置
@@ -79,6 +80,16 @@ router.beforeEach((to, from, next) => {
     document.title = `${i18n.global.t(titleKey)} - ${i18n.global.t('landing.title')}`
   } else {
     document.title = i18n.global.t('landing.title')
+  }
+
+  // 后台 token 作用域统一由路由守卫管理（根治深色模式切页闪白）：
+  // 进入 requiresAuth/requiresAdmin 路由时提前挂 data-artist-theme，组件懒加载期间 token 不丢；
+  // 离开后台路由时摘除，客户端路由零影响（ArtistLayout/AdminLayout 不再自行摘除）。
+  const themeStore = useThemeStore()
+  if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+    themeStore.enterArtistScope()
+  } else {
+    themeStore.leaveArtistScope()
   }
 
   // 检查认证（token 在 httpOnly cookie 中，JS 不可读；用非敏感标记判断）

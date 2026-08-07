@@ -1,6 +1,11 @@
 <template>
   <el-config-provider :locale="elLocale">
-    <router-view />
+    <!-- 点名2: 路由切换 fade-slide（.18s 淡入 + 8px 上移，克制；out-in 避免新旧同帧） -->
+    <router-view v-slot="{ Component }">
+      <transition name="fade-slide" mode="out-in">
+        <component :is="Component" :key="$route.path" />
+      </transition>
+    </router-view>
   </el-config-provider>
 </template>
 
@@ -45,6 +50,20 @@ body {
 .text-gold {
   color: var(--color-gold);
   font-variant-numeric: tabular-nums;
+}
+
+/* ─── 点名2: 路由切换动效（全局，画师后台/管理后台/客户端通用；克制 .18s 淡入+8px） ─── */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+}
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 /* 移动端适配 */

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- v0.38: 画师后台骨架重做（REQ-026 §三.1）——纸墨 token 体系
        功能清单不丢：折叠（手动+窄屏自动）、三组导航、留言角标、身份区、登出、移动端抽屉、主题切换、语言切换
        artist-scope 类 = token 作用域标记（artist-tokens.css 过渡规则） -->
@@ -218,9 +218,11 @@ const { t, locale } = useI18n()
 const store = useArtistStore()
 const themeStore = useThemeStore()
 
-// ─── v0.38: 后台主题作用域（token 挂/摘，客户端路由拿不到） ───
+// ─── v0.38: 后台主题作用域 ───
+// 挂/摘已由路由守卫统一管理（router/index.js beforeEach）：进入后台路由提前挂 token，
+// 组件懒加载期间不闪白；离开后台摘除。此处仅保留 onMounted 幂等挂载（双保险），
+// 不再在卸载时摘除（否则切页间隙会摘掉守卫刚挂的新 token，深色切页闪白）。
 onMounted(() => themeStore.enterArtistScope())
-onUnmounted(() => themeStore.leaveArtistScope())
 
 // activeMenu：订单详情 /orders/:id 归属「订单管理」高亮（/orders/new 除外）
 const activeMenu = computed(() => {
@@ -494,6 +496,13 @@ function logout() {
   width: 3px;
   background: var(--hq);
   border-radius: 0 2px 2px 0;
+  /* 点名2: 激活竖条自上而下滑入（transform-origin top, .25s ease-out） */
+  transform-origin: top;
+  animation: nav-bar-in 0.25s ease-out;
+}
+@keyframes nav-bar-in {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
 }
 .nav--collapsed .nav-item { justify-content: center; padding: 9px 0; }
 .nav--collapsed .nav-item--active::before { left: -10px; }
@@ -638,7 +647,7 @@ function logout() {
 .artist-scope .lang-btn:active { transform: scale(0.98); }
 .artist-scope .mobile-menu-btn { transition: box-shadow 0.15s, background-color 0.35s, transform 0.15s ease-out; }
 .artist-scope .mobile-menu-btn:active { transform: scale(0.98); }
-.artist-scope .nav-item { transition: color 0.15s, background-color 0.15s, transform 0.15s ease-out; }
+.artist-scope .nav-item { transition: color 0.15s, background-color 0.2s ease-out, transform 0.15s ease-out; }
 .artist-scope .nav-item:active { transform: scale(0.98); }
 .artist-scope .logout-btn { transition: color 0.15s, background-color 0.15s, transform 0.15s ease-out; }
 .artist-scope .logout-btn:active { transform: scale(0.98); }

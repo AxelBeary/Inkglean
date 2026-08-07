@@ -54,6 +54,7 @@ html[data-artist-theme="paper"] {
   --sh-3: 0 12px 34px rgba(38, 37, 30, .16);
   --f-d: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', serif;
   --f-b: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --ease-out: cubic-bezier(.22, 1, .36, 1); /* 点名1: 切换态快动效（按钮/筛选/激活项） */
 
   /* 侧栏（REQ §三.1：宣纸主题 = 纸色侧栏） */
   --sb-w: 230px;
@@ -163,6 +164,7 @@ html[data-artist-theme="ink"] {
   --sh-3: 0 14px 38px rgba(0, 0, 0, .55);
   --f-d: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', serif;
   --f-b: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --ease-out: cubic-bezier(.22, 1, .36, 1); /* 点名1: 切换态快动效（按钮/筛选/激活项） */
 
   /* 侧栏（REQ §三.1：墨黑主题 = 松烟侧栏） */
   --sb-w: 230px;
@@ -245,6 +247,19 @@ html[data-artist-theme].theme-animating .artist-scope,
 html[data-artist-theme].theme-animating .artist-scope * {
   transition: background-color .35s, border-color .35s, color .35s, box-shadow .35s;
 }
+/* 点名1: 关键切换态统一快动效（订单状态/筛选项/侧边栏激活项）——background .2s ease-out + transform .15s；
+   与克制动效批按钮按压(0.15s)互补：按压=按下反馈，切换=状态落定反馈 */
+html[data-artist-theme] .artist-scope .nav-item--active,
+html[data-artist-theme] .artist-scope .status-tag,
+html[data-artist-theme] .artist-scope .el-radio-button__inner,
+html[data-artist-theme] .artist-scope .el-segmented__item {
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.15s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+html[data-artist-theme] .artist-scope .el-radio-button__inner:active,
+html[data-artist-theme] .artist-scope .el-segmented__item:active {
+  transform: scale(0.98);
+}
+
 /* 过渡会干扰拖拽/动画性能的元素豁免 */
 html[data-artist-theme].theme-animating .artist-scope .tl-bar,
 html[data-artist-theme].theme-animating .artist-scope .cal-band,

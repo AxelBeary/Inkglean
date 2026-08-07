@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="admin-layout">
     <!-- v0.45: 管理后台骨架重做（02-派工-管理后台重设计-20260807）——纸墨 token 体系
          由顶部 Tab 改为左侧导航（对齐 ArtistLayout 视觉语义：品牌区/导航/底部操作），
@@ -64,7 +64,12 @@
           <span class="topbar-title font-display">{{ pageTitle }}</span>
         </header>
         <el-main class="main-content">
-          <router-view />
+          <!-- 点名2: 管理后台子路由切换 fade-slide（与 App.vue 同款，克制） -->
+          <router-view v-slot="{ Component }">
+            <transition name="fade-slide" mode="out-in">
+              <component :is="Component" :key="$route.path" />
+            </transition>
+          </router-view>
         </el-main>
       </el-container>
     </el-container>
@@ -113,8 +118,9 @@ const { t } = useI18n()
 const themeStore = useThemeStore()
 
 // 纸墨 token 作用域（REQ-026）：挂载挂 html[data-artist-theme]，卸载摘除
+// 挂/摘已由路由守卫统一管理（router/index.js beforeEach）——进入 /admin 提前挂 token，
+// 切页间隙不闪白；离开后台摘除。此处仅保留幂等挂载双保险，不再卸载时摘除。
 onMounted(() => themeStore.enterArtistScope())
-onUnmounted(() => themeStore.leaveArtistScope())
 
 // ─── 导航注册表（侧栏与抽屉共用，分组渲染） ───
 const NAV_GROUPS = [
@@ -272,6 +278,13 @@ function goDrawer(path) {
   width: 3px;
   background: var(--hq);
   border-radius: 0 2px 2px 0;
+  /* 点名2: 激活竖条自上而下滑入（transform-origin top, .25s ease-out） */
+  transform-origin: top;
+  animation: nav-bar-in 0.25s ease-out;
+}
+@keyframes nav-bar-in {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
 }
 .nav--collapsed .nav-item { justify-content: center; padding: 9px 0; }
 .nav--collapsed .nav-item--active::before { left: -10px; }
