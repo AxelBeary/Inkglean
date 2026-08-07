@@ -1,6 +1,6 @@
 import * as dashboardService from './dashboard.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 
 // ============================================
 // 仪表盘路由（v0.18 第二批）
@@ -24,8 +24,8 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const period = request.query?.period || 'month'
+  }, async (request: FastifyRequest) => {
+    const period = (request.query as { period?: string })?.period || 'month'
     return dashboardService.getRevenue(request.artist.id, period)
   })
 
@@ -35,7 +35,7 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/api/artist/dashboard/todo', {
     preHandler: requireAuth
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     return { items: dashboardService.getTodoList(request.artist.id) }
   })
 
@@ -45,7 +45,7 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/api/artist/dashboard/activity', {
     preHandler: requireAuth
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     return { items: dashboardService.getActivity(request.artist.id) }
   })
 }

@@ -144,3 +144,37 @@ export interface PriceResult {
   installments: Array<{ label: string; basisPoints: number; amount: number }>
   breakdown: PriceBreakdownItem[]
 }
+
+/** 订单详情（getOrder 增强结构：Order 基础字段 + 关联数组 + 画师/档位字段；order.routes 与 fastify.d.ts 共用） */
+export interface OrderDetail extends Order {
+  final_price_cents?: number | null
+  start_date?: string | null
+  quote_snapshot?: string | null
+  focus_image_path?: string | null
+  artist_name?: string
+  artist_subdomain?: string
+  tier_name?: string | null
+  tier_price?: number | null
+  tier_work_days?: number | null
+  references?: Array<{ file_path: string; original_name?: string | null; source?: string }>
+  deliverables?: Array<{ id: number; file_path: string; original_name?: string | null; file_size?: number | null }>
+  notes?: Array<{ id?: number; image_path: string | null }>
+  extraItems?: Array<{ name: string; price_cents: number }>
+}
+/** 订单列表/队列行（o.* + tier 关联字段；order.routes 与 admin.routes 共用） */
+export interface ArtistOrderRow {
+  id: number
+  order_no: string
+  status: string
+  client_name: string | null
+  client_qq: string
+  tier_name: string | null
+  tier_price: number | null
+  queue_position: number | null
+  current_stage_id: number | null
+  start_date: string | null
+  focus_image_path: string | null
+  paid_total_cents: number | null
+  final_price_cents: number | null
+  [key: string]: unknown
+}

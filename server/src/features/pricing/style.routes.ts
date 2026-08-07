@@ -4,6 +4,7 @@ import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, requireVisibleArtist } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 
 // ============================================
 // 多画风路由 - 增项库 / 画风 / 尺寸 / 覆盖 + 公开配置
@@ -16,25 +17,25 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
 }
 
 /** 画风归属校验 preHandler — 校验 :id 画风属于当前画师，挂到 request.artStyle */
-async function requireOwnStyle(request: any): Promise<void> {
-  const id = parseInt(request.params.id, 10)
+async function requireOwnStyle(request: FastifyRequest): Promise<void> {
+  const id = parseInt((request.params as { id: string }).id, 10)
   if (isNaN(id)) throw new AppError(E.VALIDATION, 400)
   request.artStyle = styleService.getArtStyle(request.artist.id, id)
 }
 
 /** 增项模板归属校验 preHandler */
-async function requireOwnTemplate(request: any): Promise<void> {
-  const id = parseInt(request.params.id, 10)
+async function requireOwnTemplate(request: FastifyRequest): Promise<void> {
+  const id = parseInt((request.params as { id: string }).id, 10)
   if (isNaN(id)) throw new AppError(E.VALIDATION, 400)
   request.addonTemplate = styleService.getAddonTemplate(request.artist.id, id)
 }
 
-export default async function styleRoutes(fastify: any) {
+export default async function styleRoutes(fastify: FastifyInstance) {
 
   // ─── 增项库（addon_templates） ───
 
   /** GET /api/artist/addon-templates — 增项库列表 */
-  fastify.get('/api/artist/addon-templates', { preHandler: requireAuth }, async (request: any) => {
+  fastify.get('/api/artist/addon-templates', { preHandler: requireAuth }, async (request: FastifyRequest) => {
     return styleService.getAddonTemplates(request.artist.id)
   })
 
@@ -56,8 +57,8 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return styleService.createAddonTemplate(request.artist.id, request.body)
+  }, async (request: FastifyRequest) => {
+    return styleService.createAddonTemplate(request.artist.id, request.body as Parameters<typeof styleService.createAddonTemplate>[1])
   })
 
   /** PUT /api/artist/addon-templates/:id — 更新增项模板 */
@@ -77,21 +78,21 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return styleService.updateAddonTemplate(request.artist.id, parseInt(request.params.id, 10), request.body)
+  }, async (request: FastifyRequest) => {
+    return styleService.updateAddonTemplate(request.artist.id, parseInt((request.params as { id: string }).id, 10), request.body as Parameters<typeof styleService.updateAddonTemplate>[2])
   })
 
   /** DELETE /api/artist/addon-templates/:id — 删除增项模板（级联删 style_addons 引用） */
   fastify.delete('/api/artist/addon-templates/:id', {
     preHandler: [requireAuth, requireOwnTemplate]
-  }, async (request: any) => {
-    return styleService.deleteAddonTemplate(request.artist.id, parseInt(request.params.id, 10))
+  }, async (request: FastifyRequest) => {
+    return styleService.deleteAddonTemplate(request.artist.id, parseInt((request.params as { id: string }).id, 10))
   })
 
   // ─── 画风（art_styles） ───
 
   /** GET /api/artist/art-styles — 画风列表（含 sizes + addons 嵌套） */
-  fastify.get('/api/artist/art-styles', { preHandler: requireAuth }, async (request: any) => {
+  fastify.get('/api/artist/art-styles', { preHandler: requireAuth }, async (request: FastifyRequest) => {
     return styleService.getArtStyles(request.artist.id)
   })
 
@@ -111,8 +112,8 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return styleService.createArtStyle(request.artist.id, request.body)
+  }, async (request: FastifyRequest) => {
+    return styleService.createArtStyle(request.artist.id, request.body as Parameters<typeof styleService.createArtStyle>[1])
   })
 
   /** PUT /api/artist/art-styles/:id — 更新画风 */
@@ -131,15 +132,15 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return styleService.updateArtStyle(request.artist.id, parseInt(request.params.id, 10), request.body)
+  }, async (request: FastifyRequest) => {
+    return styleService.updateArtStyle(request.artist.id, parseInt((request.params as { id: string }).id, 10), request.body as Parameters<typeof styleService.updateArtStyle>[2])
   })
 
   /** DELETE /api/artist/art-styles/:id — 删除画风（级联删 sizes + style_addons + overrides） */
   fastify.delete('/api/artist/art-styles/:id', {
     preHandler: [requireAuth, requireOwnStyle]
-  }, async (request: any) => {
-    return styleService.deleteArtStyle(request.artist.id, parseInt(request.params.id, 10))
+  }, async (request: FastifyRequest) => {
+    return styleService.deleteArtStyle(request.artist.id, parseInt((request.params as { id: string }).id, 10))
   })
 
   // ─── 尺寸（style_sizes） ───
@@ -163,8 +164,8 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return styleService.createStyleSize(request.artist.id, parseInt(request.params.id, 10), request.body)
+  }, async (request: FastifyRequest) => {
+    return styleService.createStyleSize(request.artist.id, parseInt((request.params as { id: string }).id, 10), request.body as Parameters<typeof styleService.createStyleSize>[2])
   })
 
   /** PUT /api/artist/art-styles/:id/sizes/:sizeId — 更新尺寸 */
@@ -186,23 +187,23 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     return styleService.updateStyleSize(
       request.artist.id,
-      parseInt(request.params.id, 10),
-      parseInt(request.params.sizeId, 10),
-      request.body
+      parseInt((request.params as { id: string }).id, 10),
+      parseInt((request.params as { sizeId: string }).sizeId, 10),
+      request.body as Parameters<typeof styleService.updateStyleSize>[3]
     )
   })
 
   /** DELETE /api/artist/art-styles/:id/sizes/:sizeId — 删除尺寸 */
   fastify.delete('/api/artist/art-styles/:id/sizes/:sizeId', {
     preHandler: [requireAuth, requireOwnStyle]
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     return styleService.deleteStyleSize(
       request.artist.id,
-      parseInt(request.params.id, 10),
-      parseInt(request.params.sizeId, 10)
+      parseInt((request.params as { id: string }).id, 10),
+      parseInt((request.params as { sizeId: string }).sizeId, 10)
     )
   })
 
@@ -235,8 +236,8 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return styleService.setStyleAddons(request.artist.id, parseInt(request.params.id, 10), (request.body as any).items)
+  }, async (request: FastifyRequest) => {
+    return styleService.setStyleAddons(request.artist.id, parseInt((request.params as { id: string }).id, 10), (request.body as { items: Array<{ addon_template_id: number; is_enabled?: boolean; price_override?: number | null; options_override?: string | null }> }).items)
   })
 
   // ─── 尺寸覆盖 ───
@@ -267,12 +268,12 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     return styleService.setSizeOverrides(
       request.artist.id,
-      parseInt(request.params.id, 10),
-      parseInt(request.params.sizeId, 10),
-      (request.body as any).items
+      parseInt((request.params as { id: string }).id, 10),
+      parseInt((request.params as { sizeId: string }).sizeId, 10),
+      (request.body as { items: Array<{ style_addon_id: number; price_override?: number | null; is_hidden?: boolean }> }).items
     )
   })
 
@@ -282,10 +283,10 @@ export default async function styleRoutes(fastify: any) {
    * GET /api/public/styles/:subdomain
    * 获取画师画风+尺寸+增项完整配置（客户端三步走用）
    */
-  fastify.get('/api/public/styles/:subdomain', async (request: any) => {
+  fastify.get('/api/public/styles/:subdomain', async (request: FastifyRequest) => {
     guardRateLimit(`styles:${request.ip}`, 30, 5 * 60_000)
 
-    const artist = getArtistBySubdomain(request.params.subdomain) as any
+    const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicStyles(artist.id)
@@ -296,10 +297,10 @@ export default async function styleRoutes(fastify: any) {
    * v0.37 (REQ-024 F6): 公开画廊数据 — 作品列表（含档位标注 size_tags + 自由描述 description）
    * + filterSizes 筛选标签（可见画风的尺寸）。二号波 2 画廊筛选/大图标签消费此端点。
    */
-  fastify.get('/api/public/gallery/:subdomain', async (request: any) => {
+  fastify.get('/api/public/gallery/:subdomain', async (request: FastifyRequest) => {
     guardRateLimit(`gallery:${request.ip}`, 30, 5 * 60_000)
 
-    const artist = getArtistBySubdomain(request.params.subdomain) as any
+    const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicGallery(artist.id)
@@ -339,10 +340,10 @@ export default async function styleRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     guardRateLimit('calc-style:' + request.ip, 30, 5 * 60_000)
 
-    const { subdomain, styleSizeId, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as any
+    const { subdomain, styleSizeId, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as { subdomain: string; styleSizeId: number; addons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }>; usageMultiplierId?: number | null; rushMultiplierId?: number | null; discountCode?: string | null }
 
     // BUG-3 遗留修复：hidden 画师/管理员账号不允许算价（对齐同文件 GET styles/gallery 的 hidden 过滤）
     const artist = requireVisibleArtist(subdomain)

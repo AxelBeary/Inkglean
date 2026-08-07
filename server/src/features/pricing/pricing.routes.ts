@@ -4,6 +4,7 @@ import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, requireVisibleArtist } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 
 // ============================================
 // 价格计算器路由 - 增项/倍率 CRUD + 公开计算
@@ -15,20 +16,20 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
 }
 
 /** 倍率归属校验 preHandler */
-async function requireOwnMultiplier(request: any): Promise<void> {
-  const id = parseInt(request.params.id, 10)
+async function requireOwnMultiplier(request: FastifyRequest): Promise<void> {
+  const id = parseInt((request.params as { id: string }).id, 10)
   if (isNaN(id)) throw new AppError(E.VALIDATION, 400)
   // getMultipliers 返回全部，手动查找
-  const m = pricingService.getMultipliers(request.artist.id).find((x: any) => x.id === id)
+  const m = pricingService.getMultipliers(request.artist.id).find(x => x.id === id)
   if (!m) throw new AppError(E.MULTIPLIER_NOT_FOUND, 404)
   request.multiplier = m
 }
 
-export default async function pricingRoutes(fastify: any) {
+export default async function pricingRoutes(fastify: FastifyInstance) {
 
   // ─── 画师后台：倍率管理 ───
 
-  fastify.get('/api/artist/multipliers', { preHandler: requireAuth }, async (request: any) => {
+  fastify.get('/api/artist/multipliers', { preHandler: requireAuth }, async (request: FastifyRequest) => {
     return pricingService.getMultipliers(request.artist.id)
   })
 
@@ -47,8 +48,8 @@ export default async function pricingRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return pricingService.createMultiplier(request.artist.id, request.body)
+  }, async (request: FastifyRequest) => {
+    return pricingService.createMultiplier(request.artist.id, request.body as Parameters<typeof pricingService.createMultiplier>[1])
   })
 
   fastify.put('/api/artist/multipliers/:id', {
@@ -65,14 +66,14 @@ export default async function pricingRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return pricingService.updateMultiplier(request.artist.id, parseInt(request.params.id, 10), request.body)
+  }, async (request: FastifyRequest) => {
+    return pricingService.updateMultiplier(request.artist.id, parseInt((request.params as { id: string }).id, 10), request.body as Parameters<typeof pricingService.updateMultiplier>[2])
   })
 
   fastify.delete('/api/artist/multipliers/:id', {
     preHandler: [requireAuth, requireOwnMultiplier]
-  }, async (request: any) => {
-    return pricingService.deleteMultiplier(request.artist.id, parseInt(request.params.id, 10))
+  }, async (request: FastifyRequest) => {
+    return pricingService.deleteMultiplier(request.artist.id, parseInt((request.params as { id: string }).id, 10))
   })
 
   // ─── 客户端：公开报价 + 计算 ───
@@ -81,10 +82,10 @@ export default async function pricingRoutes(fastify: any) {
    * GET /api/public/pricing/:subdomain
    * 获取画师完整报价（档位+增项+倍率+分期比例）
    */
-  fastify.get('/api/public/pricing/:subdomain', async (request: any) => {
+  fastify.get('/api/public/pricing/:subdomain', async (request: FastifyRequest) => {
     guardRateLimit(`pricing:${request.ip}`, 30, 5 * 60_000)
 
-    const artist = getArtistBySubdomain(request.params.subdomain) as any
+    const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return pricingService.getPublicPricing(artist.id)
@@ -108,10 +109,10 @@ export default async function pricingRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     guardRateLimit(`calc:${request.ip}`, 30, 5 * 60_000)
 
-    const { subdomain, tierId, usageMultiplierId, rushMultiplierId } = request.body as any
+    const { subdomain, tierId, usageMultiplierId, rushMultiplierId } = request.body as { subdomain: string; tierId: number; usageMultiplierId?: number | null; rushMultiplierId?: number | null }
 
     // BUG-3 修复：hidden 画师/管理员账号不允许算价（对照 GET pricing 范式）
     const artist = requireVisibleArtist(subdomain)
@@ -126,7 +127,7 @@ export default async function pricingRoutes(fastify: any) {
   // ─── v0.31 F3: 折扣码管理（画师端） ───
 
   /** GET /api/artist/discount-codes — 折扣码列表 */
-  fastify.get('/api/artist/discount-codes', { preHandler: requireAuth }, async (request: any) => {
+  fastify.get('/api/artist/discount-codes', { preHandler: requireAuth }, async (request: FastifyRequest) => {
     return {
       enabled: discountService.getDiscountEnabled(request.artist.id),
       codes: discountService.getDiscountCodes(request.artist.id)
@@ -146,9 +147,9 @@ export default async function pricingRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    discountService.setDiscountEnabled(request.artist.id, (request.body as any).enabled)
-    return { enabled: (request.body as any).enabled }
+  }, async (request: FastifyRequest) => {
+    discountService.setDiscountEnabled(request.artist.id, (request.body as { enabled: boolean }).enabled)
+    return { enabled: (request.body as { enabled: boolean }).enabled }
   })
 
   /** POST /api/artist/discount-codes — 创建折扣码 */
@@ -168,8 +169,8 @@ export default async function pricingRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return discountService.createDiscountCode(request.artist.id, request.body)
+  }, async (request: FastifyRequest) => {
+    return discountService.createDiscountCode(request.artist.id, request.body as Parameters<typeof discountService.createDiscountCode>[1])
   })
 
   /** PUT /api/artist/discount-codes/:id — 更新折扣码 */
@@ -187,15 +188,15 @@ export default async function pricingRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return discountService.updateDiscountCode(request.artist.id, parseInt(request.params.id, 10), request.body)
+  }, async (request: FastifyRequest) => {
+    return discountService.updateDiscountCode(request.artist.id, parseInt((request.params as { id: string }).id, 10), request.body as Parameters<typeof discountService.updateDiscountCode>[2])
   })
 
   /** DELETE /api/artist/discount-codes/:id — 删除折扣码 */
   fastify.delete('/api/artist/discount-codes/:id', {
     preHandler: requireAuth
-  }, async (request: any) => {
-    return discountService.deleteDiscountCode(request.artist.id, parseInt(request.params.id, 10))
+  }, async (request: FastifyRequest) => {
+    return discountService.deleteDiscountCode(request.artist.id, parseInt((request.params as { id: string }).id, 10))
   })
 
   // ─── 客户端：折扣码验证 ───
@@ -216,10 +217,10 @@ export default async function pricingRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     guardRateLimit(`discount:${request.ip}`, 20, 5 * 60_000)
 
-    const { subdomain, code } = request.body as any
+    const { subdomain, code } = request.body as { subdomain: string; code: string }
     // BUG-3 修复：hidden 画师/管理员账号不允许验证折扣码（对照 GET pricing 范式）
     const artist = requireVisibleArtist(subdomain)
 

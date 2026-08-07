@@ -10,7 +10,7 @@ import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import { toSqliteDate } from '../../utils/date.js'
-import type { Artist, Order, WorkflowStage, PriceResult } from '../../types/entities.js'
+import type { Artist, Order, WorkflowStage, PriceResult, OrderDetail, ArtistOrderRow } from '../../types/entities.js'
 
 // ============================================
 // 订单服务 - 核心业务逻辑
@@ -136,7 +136,7 @@ interface CreateOrderParams {
  * 支持价格计算器：倍率 → breakdown + 分期（旧增项 addons 已冻结删除，v43）
  * v0.31 F3: 折扣码（先倍率后折扣，REQ-023 已定）
  */
-export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons }: CreateOrderParams): any {
+export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons }: CreateOrderParams): OrderDetail {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -299,7 +299,7 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     // REQ-025 R11: 守恒自检（初始分配后 Σ节点价 ≡ base 条目，Σbp≠100% 由守卫跳过）
     checkOrderConservation(orderId)
 
-    return getOrder(orderId)
+    return getOrder(orderId)!
   })()
 }
 
@@ -307,26 +307,24 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
  * 获取单个订单（含关联数据）
  * R18: clientOnly=true 时 references 只返回 source='client'（客户查询页不泄露画师图）
  */
-export function getOrder(orderId: number, { clientOnly = false }: { clientOnly?: boolean } = {}): any {
+export function getOrder(orderId: number, { clientOnly = false }: { clientOnly?: boolean } = {}): OrderDetail | null {
   const order = db.prepare(`
     SELECT o.*, a.name as artist_name, a.subdomain as artist_subdomain, t.name as tier_name, t.price as tier_price, t.work_days as tier_work_days
     FROM orders o
     JOIN artists a ON o.artist_id = a.id
     LEFT JOIN price_tiers t ON o.tier_id = t.id
     WHERE o.id = ?
-  `).get(orderId) as any
+  `).get(orderId) as OrderDetail | undefined
 
   if (!order) return null
 
-  if (clientOnly) {
-    order.references = db.prepare("SELECT * FROM order_references WHERE order_id = ? AND source = 'client'").all(orderId)
-  } else {
-    order.references = db.prepare('SELECT * FROM order_references WHERE order_id = ?').all(orderId)
-  }
-  order.notes = db.prepare('SELECT * FROM order_notes WHERE order_id = ? ORDER BY created_at ASC').all(orderId)
-  order.deliverables = db.prepare('SELECT * FROM deliverables WHERE order_id = ?').all(orderId)
+  const references = db.prepare("SELECT id, order_id, file_path, original_name, source FROM order_references WHERE order_id = ? AND source = 'client'").all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; source: string }>
+  const referencesAll = db.prepare('SELECT id, order_id, file_path, original_name, source FROM order_references WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; source: string }>
+  order.references = clientOnly ? references : referencesAll
+  order.notes = db.prepare('SELECT id, order_id, content, created_by, image_path, created_at FROM order_notes WHERE order_id = ? ORDER BY created_at ASC').all(orderId) as Array<{ id: number; order_id: number; content: string; created_by: string; image_path: string | null; created_at: string }>
+  order.deliverables = db.prepare('SELECT id, order_id, file_path, original_name, file_size, created_at FROM deliverables WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; file_size: number | null; created_at: string }>
   // SPEC-003: 附加工作项
-  order.extraItems = db.prepare('SELECT * FROM order_extra_items WHERE order_id = ? ORDER BY created_at ASC').all(orderId)
+  order.extraItems = db.prepare('SELECT id, order_id, name, description, price_cents, created_at FROM order_extra_items WHERE order_id = ? ORDER BY created_at ASC').all(orderId) as Array<{ id: number; order_id: number; name: string; description: string | null; price_cents: number; created_at: string }>
 
   return order
 }
@@ -335,7 +333,7 @@ export function getOrder(orderId: number, { clientOnly = false }: { clientOnly?:
  * 根据订单号查询
  * R18: clientOnly 透传给 getOrder（客户查询页只看客户图）
  */
-export function getOrderByNo(orderNo: string, { clientOnly = false }: { clientOnly?: boolean } = {}): any {
+export function getOrderByNo(orderNo: string, { clientOnly = false }: { clientOnly?: boolean } = {}): OrderDetail | null {
   const row = db.prepare('SELECT id FROM orders WHERE order_no = ?').get(orderNo) as { id: number } | undefined
   if (!row) return null
   return getOrder(row.id, { clientOnly })
@@ -345,7 +343,7 @@ export function getOrderByNo(orderNo: string, { clientOnly = false }: { clientOn
  * 更新订单状态（带状态机校验）
  * 事务包裹，防止中途崩溃留下不一致状态
  */
-export function updateOrderStatus(orderId: number, newStatus: string): any {
+export function updateOrderStatus(orderId: number, newStatus: string): OrderDetail {
   const validStatuses = ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
   if (!validStatuses.includes(newStatus)) throw new AppError(E.ORDER_INVALID_STATUS, 400, { status: newStatus })
 
@@ -375,7 +373,7 @@ export function updateOrderStatus(orderId: number, newStatus: string): any {
       tryAutoPromote(order.artist_id)
     }
 
-    return getOrder(orderId)
+    return getOrder(orderId)!
   })()
 }
 
@@ -400,7 +398,7 @@ export function compactQueue(artistId: number): void {
  * 更新订单截稿日（v0.15 R51）
  * deadline: ISO 8601 字符串 或 null（清除）
  */
-export function updateDeadline(orderId: number, deadline: string | null): any {
+export function updateDeadline(orderId: number, deadline: string | null): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -425,14 +423,14 @@ export function updateDeadline(orderId: number, deadline: string | null): any {
   db.prepare('UPDATE orders SET deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(normalized, orderId)
 
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /**
  * v0.26 B: 更新订单开工日
  * startDate: 'YYYY-MM-DD' 字符串 或 null（清除）
  */
-export function updateStartDate(orderId: number, startDate: string | null): any {
+export function updateStartDate(orderId: number, startDate: string | null): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -459,21 +457,21 @@ export function updateStartDate(orderId: number, startDate: string | null): any 
   db.prepare('UPDATE orders SET start_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(normalized, orderId)
 
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /**
  * 添加订单备注
  * R19: 支持可选附图 imagePath（notes/{artistId}/ 目录）
  */
-export function addNote(orderId: number, content: string, createdBy: string = 'artist', imagePath: string | null = null): any {
+export function addNote(orderId: number, content: string, createdBy: string = 'artist', imagePath: string | null = null): OrderDetail {
   db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
     .run(orderId, content, createdBy, imagePath)
   // v0.31 REQ-021 F1: 操作日志（仅画师备注，系统备注不记）
   if (createdBy !== 'system') {
     logActivity(orderId, 'note_update', createdBy, { action: 'add', hasImage: !!imagePath })
   }
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /**
@@ -481,7 +479,7 @@ export function addNote(orderId: number, content: string, createdBy: string = 'a
  * 系统备注（created_by='system'）不可删除
  * 带图备注删除后，图片由 GC 孤儿回收机制自动清理（app.js gcUploads 已收集 order_notes.image_path）
  */
-export function deleteNote(orderId: number, noteId: number): any {
+export function deleteNote(orderId: number, noteId: number): OrderDetail {
   const note = db.prepare('SELECT * FROM order_notes WHERE id = ? AND order_id = ?').get(noteId, orderId) as { created_by: string } | undefined
   if (!note) throw new AppError(E.NOTE_NOT_FOUND, 404)
   if (note.created_by === 'system') throw new AppError(E.SYSTEM_NOTE_PROTECTED, 403)
@@ -489,15 +487,15 @@ export function deleteNote(orderId: number, noteId: number): any {
   db.prepare('DELETE FROM order_notes WHERE id = ?').run(noteId)
   // v0.31 REQ-021 F1: 操作日志
   logActivity(orderId, 'note_update', 'artist', { action: 'delete', noteId })
-  return getOrder(orderId)
+  return getOrder(orderId)!
 }
 
 /**
  * 获取画师的订单列表（支持状态筛选 + 关键字搜索 + 分页）
  */
-export function getArtistOrders(artistId: number, status: string | undefined, { page = 1, pageSize = 50, q }: { page?: number; pageSize?: number; q?: string } = {}): any {
+export function getArtistOrders(artistId: number, status: string | undefined, { page = 1, pageSize = 50, q }: { page?: number; pageSize?: number; q?: string } = {}): { items: ArtistOrderRow[]; total: number; page: number; pageSize: number } {
   let where = 'WHERE o.artist_id = ?'
-  const params: any[] = [artistId]
+  const params: Array<string | number> = [artistId]
   if (status) {
     where += ' AND o.status = ?'
     params.push(status)
@@ -523,7 +521,7 @@ export function getArtistOrders(artistId: number, status: string | undefined, { 
     ${where}
     ORDER BY o.created_at DESC
     LIMIT ? OFFSET ?
-  `).all(...params, pageSize, offset)
+  `).all(...params, pageSize, offset) as ArtistOrderRow[]
 
   return { items, total, page, pageSize }
 }
@@ -532,7 +530,7 @@ export function getArtistOrders(artistId: number, status: string | undefined, { 
  * 客户查询排队位置（需同时提供订单号和QQ号验证身份）
  * R18: clientOnly=true，客户只看自己上传的参考图
  */
-export function getClientQueuePosition(orderNo: string, clientQq: string): any {
+export function getClientQueuePosition(orderNo: string, clientQq: string): { order: OrderDetail; description: string | null; references: Array<{ file_path: string; original_name?: string | null }>; position: number | null; total: number | null } | null {
   const order = getOrderByNo(orderNo, { clientOnly: true })
   if (!order) return null
 
@@ -564,7 +562,7 @@ export function getClientQueuePosition(orderNo: string, clientQq: string): any {
 /**
  * 客户凭 QQ 号查询在某画师处的所有订单（"不知道订单号"场景）
  */
-export function getClientOrdersByQq(artistId: number, clientQq: string): any[] {
+export function getClientOrdersByQq(artistId: number, clientQq: string): Array<{ order_no: string; status: string; created_at: string; updated_at: string; tier_name: string | null }> {
   return db.prepare(`
     SELECT o.order_no, o.status, o.created_at, o.updated_at,
            t.name as tier_name
@@ -573,7 +571,7 @@ export function getClientOrdersByQq(artistId: number, clientQq: string): any[] {
     WHERE o.artist_id = ? AND o.client_qq = ?
     ORDER BY o.id DESC
     LIMIT 20
-  `).all(artistId, clientQq) as any[]
+  `).all(artistId, clientQq) as Array<{ order_no: string; status: string; created_at: string; updated_at: string; tier_name: string | null }>
 }
 
 /**
@@ -601,7 +599,7 @@ export function getPlatformConfig(key: string): string | null {
  * 校验：正整数（分），上限 99999999（999999.99 元）
  * 改价时自动追加订单备注 "最终价格从 ¥A 改为 ¥B"
  */
-export function updateFinalPrice(orderId: number, finalPriceCents: number, quoteSnapshot?: string | null): any {
+export function updateFinalPrice(orderId: number, finalPriceCents: number, quoteSnapshot?: string | null): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -650,7 +648,7 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     // REQ-025 R11: 守恒自检（不守恒即抛 PRICING_CONSERVATION 回滚）
     checkOrderConservation(orderId)
 
-    return getOrder(orderId)
+    return getOrder(orderId)!
   })()
 }
 
@@ -909,7 +907,7 @@ interface ExtraItemParams {
  * 事务：插入 → 重算 final_price → 系统备注
  * B7: 不再调 adjustInstallments（额度池模型不关心"计入哪个节点"）
  */
-export function addExtraItem(orderId: number, { name, description, priceCents }: ExtraItemParams): any {
+export function addExtraItem(orderId: number, { name, description, priceCents }: ExtraItemParams): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -968,7 +966,7 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
       // REQ-025 R11: 守恒自检
       checkOrderConservation(orderId)
 
-      return getOrder(orderId)
+      return getOrder(orderId)!
     })()
 }
 
@@ -987,7 +985,7 @@ interface ExtraItemRow {
  * 事务：删除 → 重算 final_price → 系统备注
  * B7: 不再调 adjustInstallments
  */
-export function deleteExtraItem(orderId: number, itemId: number): any {
+export function deleteExtraItem(orderId: number, itemId: number): OrderDetail {
   const item = db.prepare('SELECT * FROM order_extra_items WHERE id = ? AND order_id = ?').get(itemId, orderId) as ExtraItemRow | undefined
   if (!item) throw new AppError(E.NOT_FOUND, 404)
 
@@ -1031,7 +1029,7 @@ export function deleteExtraItem(orderId: number, itemId: number): any {
       // REQ-025 R11: 守恒自检
       checkOrderConservation(orderId)
 
-      return getOrder(orderId)
+      return getOrder(orderId)!
     })()
 }
 
@@ -1080,7 +1078,7 @@ export function generateInstallmentsForOrder(orderId: number): void {
  * 递补订单：buffer → formal
  * 排到正式队列末尾 + 生成付款节点 + 系统备注
  */
-export function promoteOrder(orderId: number): any {
+export function promoteOrder(orderId: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
   if (order.queue_zone !== 'buffer') throw new AppError(E.NOT_BUFFER_ORDER)
@@ -1106,7 +1104,7 @@ export function promoteOrder(orderId: number): any {
     // REQ-025 R11: 守恒自检（生成节点后 Σ节点价 必须与账本/总价闭合）
     checkOrderConservation(orderId)
 
-    return getOrder(orderId)
+    return getOrder(orderId)!
   })()
 }
 
