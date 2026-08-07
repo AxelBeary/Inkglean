@@ -1,5 +1,43 @@
 # 变更日志
 
+## v0.40 — 2026-08-07
+
+> 命名：v0.39 之后 08-05 晚至 08-07 合入的全部内容（含原「v0.40 四路」预定号 + TS 迁移 + 批1-批4b + 低垂果实批 + F3 快捷入口）统一收进 v0.40。
+
+### ✨ 功能
+
+- **TS 迁移 P0-P2（后端 100% TypeScript）**：app/index/connection/seed 转 .ts（init.js 豁免 @ts-nocheck）+ 门禁全开（oxlint 覆盖 TS + CI typecheck + strictNullChecks，修复登录 7 处/配额 4 处空指针）+ entrypoint 修复 index.js→index.ts
+- **F3 快捷入口改造（内测反馈，用户拍板）**：快捷入口从导航镜像改为动作型快捷通道——候选池 9→14 项（新增 rules 约稿须知编辑 / share 分享接稿页复制链接 / quickconfig 快捷入口设置 / status 状态循环 / publish 快速发作品）+ 默认 6 项（manual/preview/rules/share/quickconfig/status）+ 状态切换循环按钮（open→full→break，替代原 StatusSwitch）+ 拖图/粘贴直接发布作品 + 分享链接复制（clipboard+降级）+ 偏好页动作型「⚡动作」标记
+- **批 4 内测反馈**：F2 订单列表对比度（标签换纸墨语义色）+ F5a 侧边栏观感 + F1 后台字号档位（normal/large/xlarge 即时生效）+ F4 上传区矩形修复 + F6 录单草稿暂存
+- **OD-01 客户端五色换色（用户拍板）**：1/2/3 号色换低饱和（月白青 #356B69 / 雾蓝 #3F5E80 / 藤紫 #5E5494），4/5 号保留；埋点 3 处全就位
+- **OD-05 功能色边界（用户拍板）**：客户端不收 token、后台可收；藤黄警示调深 #A8790B→#966C0A（对比度 3.89→5.28:1）
+- **topbar 压缩（二号）**：桌面端去顶栏（收回 54px），主题/语言切换回侧边栏底部，移动端保留顶栏
+- **视觉通病批 1（五号）**：动画纪律（-2px/0.15s/全局去 bounce）+ EP 蓝泄漏根治（:root:root 特异性）+ 404 只推 open 画师 + Landing 删冗余按钮 + 清死键
+- **吸底 CTA 修复（五号）**：T1 哨兵修复（异步组件 expose 已 unwrap，改传 heroRef+setup 兼容），三模板吸底约稿条恢复
+- **约稿页实测修复（五号）**：W3 摘要空态引导 + W4 动画收敛（W1 不实未改 / W2 已被批 1 根治）
+- **环境批（三号）**：B1 压缩+静态缓存头 / B2 uploads 响应头区分公开 inline 与签名 attachment / B3 用户拍板直连 3000
+- **低垂果实批（三号/五号）**：裸 catch 吞错记日志、SESSION_SECRET 开发默认值随机化、备份逻辑抽函数、硬编码中文 i18n、getArtistQueue 显式列清单
+- **协议 AGPL-3.0**：MIT→GPL→AGPL（防 SaaS 竞品，画师自用部署不受影响）+ THIRD-PARTY-NOTICES.md 第三方署名
+
+### 🐛 修复
+
+- **批 4 上传区**：46.67×100 细长条根因（drag+picture-card 冲突）修复为矩形
+- **Sentry CSP 缺口**：.env 变量名 SENTRY_DSN_BACKEND vs 代码读 SENTRY_DSN 不一致 → CSP connect-src 缺 ingest 域名；修 app.js 读 SENTRY_DSN_BACKEND||SENTRY_DSN
+- **模板体检批（四号清单）**：T1 吸底 CTA 修复（见上）/ T6 atelier 硬编码字体统一 / T8 封面上限 6 张（第 7 张拦截提示）
+- **P0-7 复核**：v-for 稳定 key 4 处均已有（审计过期结论，blame 证明）
+
+### 📊 测试
+
+- 后端 891 → **930**（+39，含 TS 迁移类型修复）· 前端 224 → **215**（重跑口径调整）· F3 批独立复跑 215/215 + build + oxlint 全绿
+
+### 🧹 技术债（新增入池）
+
+- 三巨头组件拆分（OrderDetail 1898 / QueueBoard 1679 / ManualOrder 1432 行）——排发布后，蓝本见《核实-第三方瘦身施工单-20260807》
+- 批 5 色板联动缺口：theme.css 已换新色但 Settings 预设/后端白名单/渲染映射仍旧 hex + 1 条 DB 存量
+- 审计外 10 处裸 catch 待下批
+
+---
+
 ## v0.39 — 2026-08-05
 
 ### ✨ 功能
