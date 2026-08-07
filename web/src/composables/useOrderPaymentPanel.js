@@ -101,10 +101,7 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }) {
       ElMessage.warning(t('orderDetail.payAmountInvalid'))
       return
     }
-    if (cents > nodePayTarget.value.remainingCents) {
-      ElMessage.warning(t('orderDetail.payAmountExceed', { amount: formatCents(nodePayTarget.value.remainingCents) }))
-      return
-    }
+
     try {
       await addPayment(routeId, {
         amountCents: cents,

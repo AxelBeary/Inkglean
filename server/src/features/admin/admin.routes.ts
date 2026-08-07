@@ -73,7 +73,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       // F1 补全：createArtist 内部同样返回完整行（SELECT *）——响应壳走 DTO（前端零消费响应体）
       return publicArtistDTO(artist)
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
@@ -723,8 +724,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       const platform = platformService.createPlatform((request.body || {}) as Parameters<typeof platformService.createPlatform>[0])
       return reply.code(201).send(platform)
     } catch (err) {
-      const e = err as AppError
-      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
@@ -742,8 +743,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     try {
       return platformService.updatePlatform(Number((request.params as { id: string }).id), (request.body || {}) as Parameters<typeof platformService.updatePlatform>[1])
     } catch (err) {
-      const e = err as AppError
-      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 
@@ -753,8 +754,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       const { reattributed } = platformService.deletePlatform(Number((request.params as { id: string }).id))
       return { success: true, reattributed }
     } catch (err) {
-      const e = err as AppError
-      return reply.code(e.statusCode || 400).send({ code: e.code || 'UNKNOWN', error: e.message })
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
     }
   })
 }

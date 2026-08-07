@@ -697,8 +697,8 @@ export function getOrderInstallments(orderId: number): Array<{ id: number; name:
  * 手动改价不会被后续增项操作覆盖
  */
 function adjustFinalPrice(orderId: number, deltaCents: number): number {
-  const order = db.prepare('SELECT final_price_cents, total_price_cents FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null } | undefined
-  const currentFinal = order?.final_price_cents ?? order?.total_price_cents ?? 0
+  const order = db.prepare('SELECT final_price_cents, total_price_cents, price_snapshot FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null; price_snapshot: number | null } | undefined
+  const currentFinal = order ? (resolvePriceCents(order) ?? 0) : 0
   const newFinal = currentFinal + deltaCents
   db.prepare('UPDATE orders SET final_price_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(newFinal, orderId)
