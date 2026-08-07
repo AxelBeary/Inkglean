@@ -12,6 +12,7 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import db from '../../db/connection.js'
+import type { OrderDetail } from '../../types/entities.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
@@ -32,31 +33,6 @@ interface OrderRow {
   [key: string]: unknown
 }
 
-/** 订单详情（getOrder 增强结构：关联数组 + 画师/档位字段） */
-interface OrderDetail {
-  id: number
-  artist_id: number
-  order_no: string
-  status: string
-  client_qq: string
-  queue_zone?: string | null
-  current_stage_id?: number | null
-  final_price_cents?: number | null
-  total_price_cents?: number | null
-  paid_total_cents?: number | null
-  start_date?: string | null
-  created_at?: string
-  updated_at?: string
-  artist_name?: string
-  artist_subdomain?: string
-  tier_name?: string | null
-  tier_price?: number | null
-  tier_work_days?: number | null
-  references?: Array<{ file_path: string; original_name?: string | null; source?: string }>
-  deliverables?: Array<{ id: number; file_path: string; original_name?: string | null; file_size?: number | null }>
-  notes?: Array<{ id?: number; image_path: string | null }>
-  extraItems?: Array<{ name: string; price_cents: number }>
-}
 
 /** 为订单的 references + deliverables + notes 补签名 URL（H-1 修复抽取，多路由共用） */
 function signOrderUrls(order: OrderDetail): OrderDetail {
