@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- ═══ SPEC-005: 月历视图 ═══ -->
   <template v-if="viewMode === 'calendar'">
     <div
@@ -365,11 +365,54 @@ const tlRangeStart = computed(() => {
   const c = tlCenter.value
   return new Date(c.getFullYear(), c.getMonth(), c.getDate() - Math.floor(tlDays.value / 2))
 })
-const tlCanvasWidth = computed(() => tlDays.value * tlDayWidth.value)
+// ─── v0.42 时间条 Excel 式滚动（用户第 6 条反馈）：画布覆盖订单实际日期范围，可左右滚动 ───
+/** 画布余量（天）与宽度上限（防极端数据） */
+const TL_CANVAS_PAD_DAYS = 7
+const TL_CANVAS_MAX_PX = 2000
+/** 订单实际日期范围（所有订单最早/最晚的开工日/截稿日，startOfDay 归一） */
+const tlOrderRange = computed(() => {
+  let min = null, max = null
+  for (const order of calOrders.value) {
+    const rawStart = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
+    if (rawStart) {
+      const d = startOfDay(rawStart)
+      if (!min || d < min) min = d
+      if (!max || d > max) max = d
+    }
+    const rawEnd = parseDate(order.deadline)
+    if (rawEnd) {
+      const d = startOfDay(rawEnd)
+      if (!min || d < min) min = d
+      if (!max || d > max) max = d
+    }
+  }
+  return { min, max }
+})
+/** 画布起点：窗口起点与（最早订单日 - 余量）取更早 */
+const tlCanvasStart = computed(() => {
+  const win = tlRangeStart.value
+  const { min } = tlOrderRange.value
+  if (!min) return win
+  const padded = new Date(min.getFullYear(), min.getMonth(), min.getDate() - TL_CANVAS_PAD_DAYS)
+  return padded < win ? padded : win
+})
+/** 画布终点：窗口终点与（最晚订单日 + 余量）取更晚 */
+const tlCanvasEnd = computed(() => {
+  const winEnd = new Date(tlRangeStart.value.getFullYear(), tlRangeStart.value.getMonth(), tlRangeStart.value.getDate() + tlDays.value - 1)
+  const { max } = tlOrderRange.value
+  if (!max) return winEnd
+  const padded = new Date(max.getFullYear(), max.getMonth(), max.getDate() + TL_CANVAS_PAD_DAYS)
+  return padded > winEnd ? padded : winEnd
+})
+const tlCanvasDays = computed(() =>
+  Math.round((tlCanvasEnd.value.getTime() - tlCanvasStart.value.getTime()) / 86_400_000) + 1
+)
+/** 画布宽度：覆盖订单范围（min = 当前跨度），上限 2000px */
+const tlCanvasWidth = computed(() => Math.min(tlCanvasDays.value * tlDayWidth.value, TL_CANVAS_MAX_PX))
 
-/** 日期 → 画布 x 坐标（可为负/超出，由裁剪逻辑处理） */
+/** 日期 → 画布 x 坐标（相对画布起点；画布覆盖订单范围，x ≥ 0） */
 function tlX(date) {
-  const ms = startOfDay(date).getTime() - tlRangeStart.value.getTime()
+  const ms = startOfDay(date).getTime() - tlCanvasStart.value.getTime()
   return Math.round(ms / 86_400_000) * tlDayWidth.value
 }
 
@@ -383,10 +426,10 @@ function tlX(date) {
 const tlTicks = computed(() => {
   const ticks = []
   const todayKey = dateKey(new Date())
-  const start = tlRangeStart.value
+  const start = tlCanvasStart.value
   const dw = tlDayWidth.value
   const monthFmt = new Intl.DateTimeFormat(locale.value === 'zh-CN' ? 'zh-CN' : 'en', { month: 'short' })
-  for (let i = 0; i < tlDays.value; i++) {
+  for (let i = 0; i < tlCanvasDays.value; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
     let label
     if (dw >= 32) label = `${d.getMonth() + 1}/${d.getDate()}`
@@ -407,17 +450,25 @@ const tlTicks = computed(() => {
 /** 今天参考线 x（不在可见窗口内 → null） */
 const tlTodayX = computed(() => {
   const today = startOfDay(new Date())
-  if (today < tlRangeStart.value) return null
+  if (today < tlCanvasStart.value) return null
   const x = tlX(today)
   return x > tlCanvasWidth.value ? null : x + Math.floor(tlDayWidth.value / 2)
 })
 const tlIsTodayVisible = computed(() => tlTodayX.value != null)
-function tlGoToday() { tlCenter.value = startOfDay(new Date()) }
+function tlGoToday() {
+  tlCenter.value = startOfDay(new Date())
+  nextTick(() => {
+    const el = tlScrollEl.value
+    if (!el) return
+    const x = tlX(new Date())
+    el.scrollLeft = Math.max(0, x - el.clientWidth / 3)
+  })
+}
 
-/** 时间条行：按确认日排序，横条裁剪到可见窗口；未设截稿 → 画满到窗口末端 */
+/** 时间条行：按确认日排序，横条裁剪到画布（v0.42 画布覆盖订单范围）；未设截稿 → 画满到画布末端 */
 const tlRows = computed(() => {
-  const winStart = tlRangeStart.value
-  const winEnd = new Date(winStart.getFullYear(), winStart.getMonth(), winStart.getDate() + tlDays.value - 1)
+  const winStart = tlCanvasStart.value
+  const winEnd = tlCanvasEnd.value
   return calOrders.value
     .map(order => {
       const rawStart = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
@@ -425,9 +476,9 @@ const tlRows = computed(() => {
       const start = startOfDay(rawStart)
       const rawEnd = parseDate(order.deadline)
       const noDeadline = !rawEnd
-      const end = rawEnd ? startOfDay(rawEnd) : winEnd // 未设截稿：画满到可见窗口末端
-      if (end < winStart || start > winEnd) return null // 与窗口无交集
-      // 裁剪到窗口
+      const end = rawEnd ? startOfDay(rawEnd) : winEnd // 未设截稿：画满到画布末端
+      if (end < winStart || start > winEnd) return null // 与画布无交集
+      // 裁剪到画布
       const clipStart = start < winStart ? winStart : start
       const clipEnd = end > winEnd ? winEnd : end
       return {
