@@ -64,7 +64,7 @@ onBeforeUnmount(clearTimer)
   background: rgba(30, 32, 36, 0.92);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
-  font-size: 13px;
+  font-size: calc(var(--font-scale, 1) * 13px);
   color: #fff;
 }
 .undo-toast-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -75,7 +75,7 @@ onBeforeUnmount(clearTimer)
   border-radius: 4px;
   background: none;
   color: #7ab3ff;
-  font-size: 13px;
+  font-size: calc(var(--font-scale, 1) * 13px);
   font-weight: 600;
   cursor: pointer;
 }

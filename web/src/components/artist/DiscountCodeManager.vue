@@ -214,7 +214,7 @@ onMounted(loadData)
   padding: 12px 16px; border-radius: var(--r-m);
   background: var(--paper2);
 }
-.discount-toggle-label { font-weight: 600; font-size: 14px; color: var(--ink); }
-.discount-toggle-hint { font-size: 12px; color: var(--ink2); }
-.form-hint { font-size: 12px; color: var(--ink2); margin-left: 8px; }
+.discount-toggle-label { font-weight: 600; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); }
+.discount-toggle-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
+.form-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin-left: 8px; }
 </style>

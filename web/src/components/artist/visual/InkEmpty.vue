@@ -45,12 +45,12 @@ defineProps({
 }
 .v-empty-title {
   font-family: var(--f-d, serif);
-  font-size: 15px; font-weight: 400;
+  font-size: calc(var(--font-scale, 1) * 15px); font-weight: 400;
   color: var(--ink2, var(--text-secondary));
   margin: 0;
 }
 .v-empty-desc {
-  font-size: 12px;
+  font-size: calc(var(--font-scale, 1) * 12px);
   color: var(--ink3, var(--text-muted));
   margin: 6px 0 0;
   line-height: 1.6;

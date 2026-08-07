@@ -29,13 +29,13 @@ defineProps({
   flex: none;
 }
 .v-card-head-title {
-  font-size: 14px; font-weight: 600;
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600;
   color: var(--ink, var(--text-primary));
 }
 .v-card-head-extra {
   margin-left: auto;
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11.5px;
+  font-size: calc(var(--font-scale, 1) * 11.5px);
   color: var(--ink4, var(--text-muted));
 }
 </style>

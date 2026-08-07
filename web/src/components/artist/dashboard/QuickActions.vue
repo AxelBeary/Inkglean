@@ -213,8 +213,8 @@ function go(action) {
   box-shadow: var(--sh-2);
 }
 .quick-card:active { transform: translateY(0); }
-.quick-icon { font-size: 22px; color: var(--hq); }
-.quick-name { font-size: 12px; font-weight: 500; color: var(--ink); }
+.quick-icon { font-size: calc(var(--font-scale, 1) * 22px); color: var(--hq); }
+.quick-name { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 500; color: var(--ink); }
 @media (max-width: 768px) {
   .quick-grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -236,9 +236,9 @@ function go(action) {
   border-color: var(--hq);
   background: color-mix(in srgb, var(--hq) 12%, var(--card));
 }
-.quick-publish-icon { font-size: 20px; color: var(--hq); }
-.quick-publish-name { font-size: 13px; font-weight: 500; color: var(--ink); }
-.quick-publish-state { font-size: 12px; color: var(--ink3); }
+.quick-publish-icon { font-size: calc(var(--font-scale, 1) * 20px); color: var(--hq); }
+.quick-publish-name { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 500; color: var(--ink); }
+.quick-publish-state { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 /* 状态卡当前状态文字 */
-.quick-status-label { font-size: 11px; color: var(--ink3); margin-top: -2px; }
+.quick-status-label { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); margin-top: -2px; }
 </style>

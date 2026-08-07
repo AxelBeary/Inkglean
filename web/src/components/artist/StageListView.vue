@@ -273,12 +273,12 @@ function onTogglePay(s, val) {
 .stage-row:hover { border-color: var(--hq); }
 /* 终态节点：赭石=客户/完结语义（原 color-gold） */
 .stage-row.is-final { border-color: var(--zhe); background: var(--zhe-t); }
-.drag-handle { cursor: grab; color: var(--ink3); font-size: 14px; user-select: none; flex-shrink: 0; }
-.stage-name { font-weight: 600; font-size: 14px; color: var(--ink); cursor: pointer; flex-shrink: 0; }
+.drag-handle { cursor: grab; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 14px); user-select: none; flex-shrink: 0; }
+.stage-name { font-weight: 600; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); cursor: pointer; flex-shrink: 0; }
 .stage-name:hover { color: var(--hq); }
 .name-input { width: 120px; flex-shrink: 0; }
 .stage-desc {
-  font-size: 12px; color: var(--ink2);
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2);
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   cursor: pointer; padding: 2px 4px; border-radius: var(--r-s);
 }
@@ -292,7 +292,7 @@ function onTogglePay(s, val) {
 }
 /* 比例数字：统计数字墨色不上色铁律（REQ §1.1） */
 .pay-badge {
-  font-size: 12px; font-weight: 700; color: var(--ink);
+  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 700; color: var(--ink);
   font-variant-numeric: tabular-nums;
   min-width: 44px; text-align: right;
 }
@@ -312,7 +312,7 @@ function onTogglePay(s, val) {
   background: var(--hq-t);
   border: 1px dashed color-mix(in srgb, var(--hq) 35%, transparent);
 }
-.speech-vars-hint { font-size: 11px; color: var(--ink3); font-style: italic; margin-left: 4px; }
+.speech-vars-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); font-style: italic; margin-left: 4px; }
 
 .stage-speech {
   margin: 4px 0 0 32px;
@@ -329,18 +329,18 @@ function onTogglePay(s, val) {
   cursor: pointer; user-select: none;
   padding: 2px 0;
 }
-.speech-toggle { font-size: 10px; color: var(--ink3); width: 12px; flex-shrink: 0; }
-.speech-head-label { font-size: 12px; font-weight: 600; color: var(--ink2); flex-shrink: 0; }
+.speech-toggle { font-size: calc(var(--font-scale, 1) * 10px); color: var(--ink3); width: 12px; flex-shrink: 0; }
+.speech-head-label { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink2); flex-shrink: 0; }
 .speech-preview {
-  font-size: 12px; color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   min-width: 0;
 }
 .speech-preview--empty { font-style: italic; opacity: 0.6; }
 .speech-vars { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
-.speech-vars-label { font-size: 12px; color: var(--ink2); margin-right: 4px; }
+.speech-vars-label { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin-right: 4px; }
 .speech-var {
-  font-size: 11px; padding: 1px 6px; border-radius: var(--r-s);
+  font-size: calc(var(--font-scale, 1) * 11px); padding: 1px 6px; border-radius: var(--r-s);
   background: var(--hq-t);
   color: var(--hq); border: 1px solid transparent;
   cursor: pointer; transition: border-color 0.15s, background 0.15s;

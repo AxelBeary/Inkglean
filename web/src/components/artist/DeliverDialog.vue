@@ -30,7 +30,7 @@
         @dragover.capture="guardDragOver"
         @drop.capture="guardDrop"
       >
-        <el-icon style="font-size: 40px; color: var(--ink3)"><Upload /></el-icon>
+        <el-icon style="font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink3)"><Upload /></el-icon>
         <p>{{ $t('orderDetail.dragUpload') }}</p>
         <template #tip>
           <div class="el-upload__tip">{{ $t('orderDetail.uploadTip') }}</div>

@@ -84,12 +84,12 @@ onMounted(() => load())
 }
 .activity-body { min-width: 0; }
 .activity-desc {
-  display: block; font-size: 13px; color: var(--ink);
+  display: block; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.activity-meta { font-size: 11px; color: var(--ink3); }
+.activity-meta { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); }
 
-.activity-empty { color: var(--ink2); font-size: 13px; margin: 0; }
+.activity-empty { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 0; }
 
 /* 骨架条 */
 .activity-skeleton { display: flex; flex-direction: column; gap: 10px; }
@@ -103,6 +103,6 @@ onMounted(() => load())
 /* 错误态 */
 .module-error {
   display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 24px 0; font-size: 13px; color: var(--ink2);
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
 }
 </style>

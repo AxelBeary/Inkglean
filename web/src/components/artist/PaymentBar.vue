@@ -260,19 +260,19 @@ function commitInput(seg) {
 .bar-seg.elastic { opacity: 0.55; }
 .bar-seg.detach { opacity: 0.3; outline: 2px dashed var(--color-danger); outline-offset: -2px; }
 .seg-label {
-  font-size: 12px; color: var(--ink2); white-space: nowrap;
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; max-width: 90%;
   line-height: 1.2;
 }
 .seg-pct {
-  font-size: 15px; font-weight: 700;
+  font-size: calc(var(--font-scale, 1) * 15px); font-weight: 700;
   color: hsl(var(--seg-hue, 210) 50% var(--seg-text-light, 38%));
   font-variant-numeric: tabular-nums; cursor: pointer;
   line-height: 1.2;
 }
 .bar-seg.final .seg-pct { color: hsl(45 55% var(--seg-text-light, 35%)); }
 .final-badge {
-  font-size: 10px; color: hsl(45 55% var(--seg-text-light, 42%)); opacity: 0.85;
+  font-size: calc(var(--font-scale, 1) * 10px); color: hsl(45 55% var(--seg-text-light, 42%)); opacity: 0.85;
   line-height: 1; letter-spacing: 0.5px;
 }
 .bar-handle {
@@ -293,7 +293,7 @@ function commitInput(seg) {
 }
 .bar-ruler {
   display: flex; justify-content: space-between;
-  font-size: 10px; color: var(--ink3); margin-top: 4px; padding: 0 2px;
+  font-size: calc(var(--font-scale, 1) * 10px); color: var(--ink3); margin-top: 4px; padding: 0 2px;
 }
 
 /* ===== 暗色适配（A5）=====

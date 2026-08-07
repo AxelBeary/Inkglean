@@ -852,35 +852,35 @@ onMounted(load)
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-l);
 }
 .multi-style-head { display: flex; align-items: center; gap: 12px; }
-.multi-style-label { font-size: 14px; font-weight: 600; color: var(--ink); }
-.multi-style-hint { font-size: 12px; color: var(--ink2); margin: 6px 0 0; line-height: 1.5; }
+.multi-style-label { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
+.multi-style-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 6px 0 0; line-height: 1.5; }
 
 .style-grid { display: flex; flex-direction: column; gap: 20px; }
 /* A3: 拖拽幽灵 */
 .ghost { opacity: 0.4; }
 .style-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.style-card-name { font-size: 16px; font-weight: 700; font-family: var(--f-d); color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.style-card-name { font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700; font-family: var(--f-d); color: var(--ink); display: flex; align-items: center; gap: 8px; }
 .style-card-actions { display: flex; align-items: center; gap: 4px; }
 /* A3: 画风卡片拖拽柄 */
-.style-drag-handle { cursor: grab; font-size: 16px; color: var(--ink3); padding: 0 2px; }
+.style-drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 16px); color: var(--ink3); padding: 0 2px; }
 .style-drag-handle:hover { color: var(--hq); }
 .style-drag-handle:active { cursor: grabbing; }
 /* F2: 开关关闭时非默认画风灰色 */
 .style-card--locked { opacity: 0.65; }
 .style-card-body--locked { pointer-events: none; }
 .style-locked-hint {
-  font-size: 12px; color: var(--th);
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--th);
   background: var(--th-t);
   padding: 6px 10px; border-radius: var(--r-s); margin: 0 0 10px;
 }
-.style-desc { font-size: 13px; color: var(--ink2); margin: 0 0 12px; line-height: 1.6; }
+.style-desc { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin: 0 0 12px; line-height: 1.6; }
 .style-cover { margin-bottom: 12px; }
 .style-cover-img { width: 120px; height: 80px; border-radius: var(--r-m); border: 1px solid var(--line); }
 
 .style-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .section-head .section-title { margin: 0; }
-.section-title { font-size: 14px; font-weight: 600; color: var(--ink); margin: 0 0 10px; }
+.section-title { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); margin: 0 0 10px; }
 /* 价格数字墨色不上色铁律（REQ §1.1），文楷落款感 */
 .size-price { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-family: var(--f-d); }
 
@@ -891,15 +891,15 @@ onMounted(load)
   padding: 8px 10px; border-radius: var(--r-m);
   background: var(--paper2); border: 1px solid var(--line);
 }
-.size-drag-handle { cursor: grab; font-size: 15px; color: var(--ink3); flex-shrink: 0; }
+.size-drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink3); flex-shrink: 0; }
 .size-drag-handle:hover { color: var(--hq); }
 .size-drag-handle:active { cursor: grabbing; }
 .size-row-thumb { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .size-row-main { flex: 1; min-width: 0; }
 .size-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.size-row-name { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.size-row-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .size-row-desc {
-  font-size: 12px; color: var(--ink2); margin: 3px 0 0;
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 3px 0 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .size-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
@@ -910,20 +910,20 @@ onMounted(load)
 
 .style-addon-list { display: flex; flex-direction: column; gap: 6px; }
 .style-addon-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0; }
-.addon-tpl-name { font-size: 14px; font-weight: 500; color: var(--ink); }
+.addon-tpl-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 500; color: var(--ink); }
 
 /* 尺寸覆盖面板 */
 .override-panel {
   margin: 4px 0 12px; padding: 12px 16px;
   background: var(--paper2); border: 1px solid var(--line); border-radius: var(--r-m);
 }
-.override-panel-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
+.override-panel-title { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--ink); margin-bottom: 10px; }
 .override-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
-.override-size-name { font-size: 13px; color: var(--ink2); min-width: 60px; }
+.override-size-name { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); min-width: 60px; }
 
 .cover-upload { display: flex; align-items: center; gap: 12px; }
 .cover-preview { width: 80px; height: 60px; border-radius: var(--r-m); border: 1px solid var(--line); }
-.form-hint { font-size: 11px; color: var(--ink2); margin: 4px 0 0; }
+.form-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2); margin: 4px 0 0; }
 
 /* v0.35 波1: 尺寸图设置区 */
 .size-image-picker { display: flex; align-items: center; gap: 12px; }
@@ -931,7 +931,7 @@ onMounted(load)
 .size-image-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 
 /* v0.35 波1: 作品集挑选网格 */
-.pick-hint { font-size: 12px; color: var(--ink2); margin: 0 0 12px; }
+.pick-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 0 0 12px; }
 .pick-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 10px; max-height: 420px; overflow-y: auto;
@@ -943,7 +943,7 @@ onMounted(load)
 .pick-item:hover { border-color: var(--hq); transform: translateY(-2px); }
 .pick-img { width: 100%; height: 100px; display: block; }
 .pick-title {
-  display: block; font-size: 11px; color: var(--ink2);
+  display: block; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2);
   padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -951,5 +951,5 @@ onMounted(load)
 .import-list { max-height: 360px; overflow-y: auto; }
 .import-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 /* 价格数字墨色不上色铁律（REQ §1.1） */
-.import-price { margin-left: auto; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.import-price { margin-left: auto; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); font-variant-numeric: tabular-nums; }
 </style>

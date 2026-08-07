@@ -24,7 +24,7 @@ defineProps({
   background: var(--zs, #BC3A2B);
   color: #fff;
   font-family: var(--f-d, serif);
-  font-size: 15px; font-weight: 700; letter-spacing: 0.1em;
+  font-size: calc(var(--font-scale, 1) * 15px); font-weight: 700; letter-spacing: 0.1em;
   border-radius: 8px;
   transform: rotate(-6deg);
   box-shadow: 2px 2px 0 var(--sb-seal-shadow, rgba(0, 0, 0, 0.3));

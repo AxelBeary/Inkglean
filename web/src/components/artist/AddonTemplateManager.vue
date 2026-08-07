@@ -235,8 +235,8 @@ onMounted(load)
 
 <style scoped>
 /* v0.38 第二批: 纸墨 token（REQ-026）；价格数字墨色不上色铁律（REQ §1.1） */
-.tpl-price { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-size: 13px; }
+.tpl-price { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-size: calc(var(--font-scale, 1) * 13px); }
 .options-editor { width: 100%; }
 .option-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.options-hint { font-size: 11px; color: var(--ink2); margin: 4px 0 0; }
+.options-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2); margin: 4px 0 0; }
 </style>

@@ -19,7 +19,7 @@ defineProps({
 <style scoped>
 .v-chip {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11.5px; font-weight: 500; line-height: 1.6;
+  font-size: calc(var(--font-scale, 1) * 11.5px); font-weight: 500; line-height: 1.6;
   padding: 2px 8px;
   border-radius: var(--r-s, 4px);
   white-space: nowrap;
@@ -35,5 +35,5 @@ defineProps({
 }
 .v-chip--pri { background: var(--zhe-t); color: var(--zhe); }
 .v-chip--cancel { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink3); }
-.v-chip-flag { font-size: 10px; }
+.v-chip-flag { font-size: calc(var(--font-scale, 1) * 10px); }
 </style>

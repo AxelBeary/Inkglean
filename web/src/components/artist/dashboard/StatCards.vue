@@ -59,16 +59,16 @@ function goOrders(status) {
 /* 数字：文楷 + 墨色（不上色，REQ 硬规则）+ tnum */
 .stat-num {
   font-family: var(--f-d);
-  font-size: 34px; font-weight: 700; line-height: 1.15;
+  font-size: calc(var(--font-scale, 1) * 34px); font-weight: 700; line-height: 1.15;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.stat-label { color: var(--ink2); font-size: 12.5px; margin-top: 4px; }
+.stat-label { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 12.5px); margin-top: 4px; }
 /* hover 跳转箭头（右上角浮现） */
 .stat-go {
   position: absolute; right: 13px; top: 12px;
   color: var(--ink4);
-  font-size: 14px;
+  font-size: calc(var(--font-scale, 1) * 14px);
   opacity: 0;
   transition: opacity 0.15s, transform 0.15s;
 }
