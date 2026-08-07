@@ -47,7 +47,8 @@ const { statusText } = useArtistData({ artist: null })
 .tpl-status-text {
   font-size: 13px;
   letter-spacing: 1px;
-  color: var(--pal-text-dim);
+  /* P2 对比度：pal-text-dim 浅色 #8a8177 on #faf8f5 仅 3.61:1；65% pal-text + 35% dim = 8.78:1（浅）/ 10.27:1（深） */
+  color: color-mix(in srgb, var(--pal-text) 65%, var(--pal-text-dim));
 }
 /* SPEC-004: 名额文案（状态色点缀，与状态文字区分） */
 .tpl-status-slot {

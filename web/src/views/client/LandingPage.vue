@@ -111,7 +111,7 @@ onMounted(async () => {
 }
 .artist-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
 }
 .artist-card {
@@ -150,7 +150,7 @@ onMounted(async () => {
 .landing-footer {
   text-align: center;
   padding: 24px;
-  color: var(--text-muted);
+  color: var(--text-footer);
   font-size: 13px;
   border-top: 1px solid var(--border-color);
 }

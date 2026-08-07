@@ -15,6 +15,7 @@
   --text-primary: #303133;
   --text-secondary: #909399;
   --text-muted: #c0c4cc;
+  --text-footer: #606266;
 
   /* 线条 */
   --border-color: #e4e7ed;
@@ -73,6 +74,7 @@ html.dark {
   --text-primary: #e5eaf3;
   --text-secondary: #a3a6ad;
   --text-muted: #6c6e72;
+  --text-footer: #8a8f98;
 
   --border-color: #414243;
   --border-color-strong: #4c4d4f;
@@ -158,3 +160,15 @@ html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #6
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ===== 状态徽章对比度修复（P2）：dark 模式改深字，只调对比度不改色相 ===== */
+/* 现状：el-tag success 绿底白字 #67C23A/#fff ≈ 2.24:1；warning 2.19:1；danger 2.90:1（12px 小字需 4.5:1） */
+/* 修复：dark 模式文字改深（success #0E3D20 on #67C23A = 5.48:1 / warning #4d320b on #e6a23c = 5.40:1 / danger #5c1616 on #f56c6c = 4.58:1） */
+/* 深色主题：bg 提亮后（#95d475/#eebe77/#f89898），文字更深（6.97/6.36/5.56:1） */
+/* 注：light 模式不动——admin 全部 el-tag 为 light（三号审计批地盘），且 TrackOrder 不在本批授权 */
+.el-tag.el-tag--dark.el-tag--success { --el-tag-text-color: #0E3D20; }
+.el-tag.el-tag--dark.el-tag--warning { --el-tag-text-color: #4d320b; }
+.el-tag.el-tag--dark.el-tag--danger  { --el-tag-text-color: #5c1616; }
+html.dark .el-tag.el-tag--dark.el-tag--success { --el-tag-text-color: #123D20; }
+html.dark .el-tag.el-tag--dark.el-tag--warning { --el-tag-text-color: #54370c; }
+html.dark .el-tag.el-tag--dark.el-tag--danger  { --el-tag-text-color: #6b1a1a; }

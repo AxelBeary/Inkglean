@@ -108,8 +108,8 @@ function bpLabel(s) {
   padding: 2px 10px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
-  font-size: 12px;
+  color: color-mix(in srgb, var(--color-primary) 70%, #000);
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -119,6 +119,10 @@ function bpLabel(s) {
 }
 .strip-node.final .strip-pay-chip {
   background: color-mix(in srgb, var(--color-gold) 14%, transparent);
+}
+/* P2 对比度：深色主题 chip 文字提亮（70% primary + 30% white ≥ 4.5:1，全部 accent 验证过） */
+html.dark .strip-pay-chip {
+  color: color-mix(in srgb, var(--color-primary) 70%, #fff);
 }
 
 /* ─── 竖向（客户端 4 模板 workflow 区块）：左侧轴线时间线 ─── */
