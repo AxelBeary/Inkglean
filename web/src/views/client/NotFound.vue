@@ -103,8 +103,8 @@ onMounted(async () => {
 }
 .not-found-home-btn:hover {
   opacity: 0.88;
-  transform: translateY(-2px);
 }
+.not-found-home-btn:active { transform: translateY(-2px); }
 /* 画师入口区 */
 .not-found-artists-divider {
   width: 48px;
@@ -138,10 +138,10 @@ onMounted(async () => {
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .not-found-artist-card:hover {
-  transform: translateY(-2px);
   border-color: var(--color-primary);
   box-shadow: var(--shadow-card-hover);
 }
+.not-found-artist-card:active { transform: translateY(-2px); }
 .not-found-artist-name {
   font-size: 14px;
   font-weight: 600;

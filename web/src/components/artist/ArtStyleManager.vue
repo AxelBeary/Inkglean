@@ -940,7 +940,8 @@ onMounted(load)
   position: relative; border-radius: var(--r-m); overflow: hidden; cursor: pointer;
   border: 2px solid transparent; transition: border-color 0.2s, transform 0.2s;
 }
-.pick-item:hover { border-color: var(--hq); transform: translateY(-2px); }
+.pick-item:hover { border-color: var(--hq); box-shadow: var(--sh-1); }
+.pick-item:active { transform: translateY(-2px); }
 .pick-img { width: 100%; height: 100px; display: block; }
 .pick-title {
   display: block; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2);

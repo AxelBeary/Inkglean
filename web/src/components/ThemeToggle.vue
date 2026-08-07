@@ -43,11 +43,10 @@ function onToggle() {
   display: grid; place-items: center;
   cursor: pointer;
   color: var(--ink2, var(--text-secondary));
-  transition: color .15s, transform .15s, box-shadow .15s, background-color .35s, border-color .35s;
+  transition: color .15s, box-shadow .15s, background-color .35s, border-color .35s;
 }
 .artist-theme-btn:hover {
   color: var(--ink, var(--text-primary));
-  transform: translateY(-1px);
   box-shadow: var(--sh-1, 0 1px 2px rgba(0, 0, 0, .06));
 }
 /* 太阳/月亮图标：纯 CSS 图形，切换时旋转淡入淡出（提案 v2 同款动效） */
