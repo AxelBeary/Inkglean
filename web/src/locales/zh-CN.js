@@ -575,7 +575,11 @@ export default {
     tlUndoDeadline: '截稿日已改为 {d}', tlUndoStart: '开工日已改为 {d}',
     tlUndoMove: '档期已移动 {s} → {e}', tlUndo: '撤销', tlUndone: '已恢复',
     tlDragDeadlineBeforeStart: '截稿日不能早于开工日',
-    tlDragStartAfterDeadline: '开工日不能晚于截稿日'
+    tlDragStartAfterDeadline: '开工日不能晚于截稿日',
+    // 批G(2026-08-08): 月历优化（MVP）
+    calAvailable: '可接单',
+    calDayViewTitle: '{d} · {n} 单',
+    calSelectMonth: '选择月份'
   },
   orderList: {
     title: '订单管理', all: '全部',

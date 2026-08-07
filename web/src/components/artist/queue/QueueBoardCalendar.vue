@@ -11,6 +11,16 @@
         <el-button text @click="changeMonth(-1)" :aria-label="$t('queue.calPrev')">←</el-button>
         <span class="cal-head-title">{{ $t('queue.calTitle', { y: calYear, m: calMonth + 1 }) }}</span>
         <el-button text @click="changeMonth(1)" :aria-label="$t('queue.calNext')">→</el-button>
+        <el-date-picker
+          v-model="calMonthPicker"
+          type="month"
+          :clearable="false"
+          format="YYYY-MM"
+          value-format="YYYY-MM"
+          :placeholder="$t('queue.calSelectMonth')"
+          class="cal-month-picker"
+          @change="onCalMonthPick"
+        />
         <el-button v-if="!isCurrentMonth" text size="small" class="cal-today-btn" @click="goToday">{{ $t('queue.calToday') }}</el-button>
       </div>
 
@@ -27,10 +37,17 @@
           :class="{
             'cal-cell--other': !cell.inMonth,
             'cal-cell--today': cell.isToday,
-            'cal-cell--weekend': cell.weekend
+            'cal-cell--weekend': cell.weekend,
+            'cal-cell--free': cell.free
           }"
+          @click="openDayView(cell)"
         >
-          <span class="cal-day-num">{{ cell.day }}</span>
+          <div class="cal-day-head">
+            <span class="cal-day-num">{{ cell.day }}</span>
+            <el-tooltip v-if="cell.free" :content="$t('queue.calAvailable')" placement="top" :show-after="300">
+              <span class="cal-free-dot" aria-hidden="true"></span>
+            </el-tooltip>
+          </div>
           <!-- 该日的订单带（最多 3 条 + "+N"） -->
           <div class="cal-bands">
             <el-tooltip
@@ -41,15 +58,35 @@
                 class="cal-band"
                 :class="bandClass(band.order)"
                 :data-order-id="band.order.id"
-                @click="goOrder(band.order)"
+                @click.stop="goOrder(band.order)"
               >
                 <span class="cal-band-text">{{ bandLabel(band.order) }}</span>
               </div>
             </el-tooltip>
-            <div v-if="cell.bands.length > 3" class="cal-band-more">+{{ cell.bands.length - 3 }}</div>
+            <div v-if="cell.bands.length > 3" class="cal-band-more" @click="openDayView(cell)">+{{ cell.bands.length - 3 }}</div>
           </div>
         </div>
       </div>
+
+      <!-- 批G: 日视图展开（当天完整订单列表） -->
+      <el-dialog
+        v-model="dayDialogVisible"
+        :title="dayDialogTitle"
+        width="min(92vw, 460px)"
+        class="cal-day-dialog"
+      >
+        <div class="cal-day-list">
+          <div
+            v-for="order in dayDialogOrders" :key="order.id"
+            class="cal-day-item"
+            @click="goDayOrder(order)"
+          >
+            <span class="cal-day-item-band" :class="bandClass(order)">{{ bandLabel(order) }}</span>
+            <span class="cal-day-item-no">#{{ order.order_no }}</span>
+            <span class="cal-day-item-status">{{ t(`common.orderStatus.${order.status}`) }}</span>
+          </div>
+        </div>
+      </el-dialog>
 
       <!-- 图例 -->
       <div class="cal-legend">
@@ -66,7 +103,7 @@
     <div class="tl" v-loading="loading || bufferLoading">
       <!-- 工具栏：缩放 + 回到今天 -->
       <div class="tl-toolbar">
-        <el-radio-group v-model="tlZoom" size="small" @change="saveTlZoom">
+        <el-radio-group :model-value="tlZoom" size="small" @update:model-value="changeTlZoom">
           <el-radio-button value="2w">{{ $t('queue.tlZoom2w') }}</el-radio-button>
           <el-radio-button value="1m">{{ $t('queue.tlZoom1m') }}</el-radio-button>
           <el-radio-button value="3m">{{ $t('queue.tlZoom3m') }}</el-radio-button>
@@ -75,10 +112,19 @@
         <el-button v-if="!tlIsTodayVisible" text size="small" @click="tlGoToday">{{ $t('queue.calToday') }}</el-button>
       </div>
 
-      <div class="tl-scroll" ref="tlScrollEl">
+      <div class="tl-scroll" ref="tlScrollEl" @scroll="onTlScroll">
         <div class="tl-canvas" :style="{ width: tlCanvasWidth + 'px' }">
-          <!-- 日期刻度头 -->
-          <div class="tl-axis" :style="{ width: tlCanvasWidth + 'px' }">
+          <!-- 日期刻度头：批F/F2 手势区（拖拽平移/滚轮缩放/双指 pinch；订单横条区不绑定 → 原生滚动） -->
+          <div
+            class="tl-axis"
+            :class="{ 'tl-axis--panning': tlAxisPanning }"
+            :style="{ width: tlCanvasWidth + 'px' }"
+            @pointerdown="onTlAxisDown"
+            @pointermove="onTlAxisMove"
+            @pointerup="onTlAxisUp"
+            @pointercancel="onTlAxisCancel"
+            @wheel="onTlAxisWheel"
+          >
             <div
               v-for="tick in tlTicks" :key="tick.key"
               class="tl-tick"
@@ -214,6 +260,40 @@ function goToday() {
   calCursor.value = startOfMonth(new Date())
 }
 
+// ─── 批G(2026-08-08): 日视图展开 + 月份选择器 ───
+const dayDialogVisible = ref(false)
+const dayDialogOrders = ref([])
+const dayDialogDate = ref(null)
+const dayDialogTitle = computed(() => {
+  if (!dayDialogDate.value) return ''
+  const d = dayDialogDate.value
+  return t('queue.calDayViewTitle', {
+    d: `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`,
+    n: dayDialogOrders.value.length
+  })
+})
+/** 点击日期格 / "+N" → 打开当天完整订单列表（非当月格或空格不响应） */
+function openDayView(cell) {
+  if (!cell || !cell.inMonth || cell.bands.length === 0) return
+  dayDialogOrders.value = cell.bands.map(b => b.order)
+  dayDialogDate.value = new Date(calYear.value, calMonth.value, cell.day)
+  dayDialogVisible.value = true
+}
+function goDayOrder(order) {
+  dayDialogVisible.value = false
+  router.push(`/orders/${order.id}?from=queue`)
+}
+
+/** 月份选择器（el-date-picker 月粒度，值 'YYYY-MM'；翻月头时联动） */
+const calMonthPicker = ref(`${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}`)
+watch(calCursor, (c) => {
+  calMonthPicker.value = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}`
+})
+function onCalMonthPick(val) {
+  if (!val) return
+  calCursor.value = new Date(Number(val.slice(0, 4)), Number(val.slice(5, 7)) - 1, 1)
+}
+
 // ─── v0.25 E: 移动端翻月手势（水平滑动 > 50px 触发，参考 TplTierGrid 实现） ───
 let calTouchStartX = 0
 function onCalTouchStart(e) {
@@ -295,7 +375,9 @@ const calCells = computed(() => {
       inMonth: d.getMonth() === first.getMonth(),
       isToday: key === todayKey,
       weekend: d.getDay() === 0 || d.getDay() === 6,
-      bands
+      bands,
+      // 批G: 可接单 = 当月无任何订单覆盖（formal + buffer 均算）
+      free: d.getMonth() === first.getMonth() && bands.length === 0
     })
   }
   return cells
@@ -342,33 +424,28 @@ function goOrder(order) {
 
 // ─── v0.25 D: 时间条视图（SPEC-005 §3，共享 calOrders 数据源） ───
 const TL_ZOOM_KEY = 'queue_tl_zoom'
-// v0.36 波1: 四档缩放（画布宽度分别 672/960/1080/1274px，均 ≤2000px）
+// v0.36 波1: 四档缩放。批F(2026-08-08): 档位只定义 dayWidth——画布恒覆盖订单日期范围，
+// 视野宽度由容器决定（不再由 days 裁剪），days 字段删除
 const TL_ZOOMS = {
-  '2w': { days: 14, dayWidth: 48 },
-  '1m': { days: 30, dayWidth: 32 },
-  '3m': { days: 90, dayWidth: 12 },
-  '6m': { days: 182, dayWidth: 7 }
+  '2w': { dayWidth: 48 },
+  '1m': { dayWidth: 32 },
+  '3m': { dayWidth: 12 },
+  '6m': { dayWidth: 7 }
 }
 // localStorage 兼容：老版本存的 '2m' 档已删除，落到 '3m'
 const storedTlZoom = localStorage.getItem(TL_ZOOM_KEY)
 const tlZoom = ref(TL_ZOOMS[storedTlZoom] ? storedTlZoom : (storedTlZoom === '2m' ? '3m' : '2w'))
 function saveTlZoom(val) { localStorage.setItem(TL_ZOOM_KEY, val) }
 
-/** 可见窗口中心日期（默认今天，"回到今天"重置） */
-const tlCenter = ref(startOfDay(new Date()))
 function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()) }
 
 const tlDayWidth = computed(() => TL_ZOOMS[tlZoom.value].dayWidth)
-const tlDays = computed(() => TL_ZOOMS[tlZoom.value].days)
-/** 可见窗口起点（中心 - 天数/2） */
-const tlRangeStart = computed(() => {
-  const c = tlCenter.value
-  return new Date(c.getFullYear(), c.getMonth(), c.getDate() - Math.floor(tlDays.value / 2))
-})
-// ─── v0.42 时间条 Excel 式滚动（用户第 6 条反馈）：画布覆盖订单实际日期范围，可左右滚动 ───
-/** 画布余量（天）与宽度上限（防极端数据） */
+// ─── v0.42 时间条 Excel 式滚动（用户第 6 条反馈）+ 批F(2026-08-08) 画布覆盖订单范围 ───
+// 批F: 画布恒覆盖「全部订单日期范围 ∪ 今天」+ 余量；缩放只改 dayWidth/视野中心，
+// 画布不再被视野窗口裁剪 → 任何档位下窗口外订单都可拖拽/滚动查看
+/** 画布余量（天）与宽度上限（防极端数据：超上限部分截断属预期保护） */
 const TL_CANVAS_PAD_DAYS = 7
-const TL_CANVAS_MAX_PX = 2000
+const TL_CANVAS_MAX_PX = 6000
 /** 订单实际日期范围（所有订单最早/最晚的开工日/截稿日，startOfDay 归一） */
 const tlOrderRange = computed(() => {
   let min = null, max = null
@@ -388,26 +465,24 @@ const tlOrderRange = computed(() => {
   }
   return { min, max }
 })
-/** 画布起点：窗口起点与（最早订单日 - 余量）取更早 */
+/** 画布起点：最早订单日与今天取更早，再减余量（保证今天线始终在画布内） */
 const tlCanvasStart = computed(() => {
-  const win = tlRangeStart.value
+  const today = startOfDay(new Date())
   const { min } = tlOrderRange.value
-  if (!min) return win
-  const padded = new Date(min.getFullYear(), min.getMonth(), min.getDate() - TL_CANVAS_PAD_DAYS)
-  return padded < win ? padded : win
+  const anchor = min && min < today ? min : today
+  return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - TL_CANVAS_PAD_DAYS)
 })
-/** 画布终点：窗口终点与（最晚订单日 + 余量）取更晚 */
+/** 画布终点：最晚订单日与今天取更晚，再加余量 */
 const tlCanvasEnd = computed(() => {
-  const winEnd = new Date(tlRangeStart.value.getFullYear(), tlRangeStart.value.getMonth(), tlRangeStart.value.getDate() + tlDays.value - 1)
+  const today = startOfDay(new Date())
   const { max } = tlOrderRange.value
-  if (!max) return winEnd
-  const padded = new Date(max.getFullYear(), max.getMonth(), max.getDate() + TL_CANVAS_PAD_DAYS)
-  return padded > winEnd ? padded : winEnd
+  const anchor = max && max > today ? max : today
+  return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + TL_CANVAS_PAD_DAYS)
 })
 const tlCanvasDays = computed(() =>
   Math.round((tlCanvasEnd.value.getTime() - tlCanvasStart.value.getTime()) / 86_400_000) + 1
 )
-/** 画布宽度：覆盖订单范围（min = 当前跨度），上限 2000px */
+/** 画布宽度：覆盖订单范围（min = 当前跨度），上限 TL_CANVAS_MAX_PX（防极端数据） */
 const tlCanvasWidth = computed(() => Math.min(tlCanvasDays.value * tlDayWidth.value, TL_CANVAS_MAX_PX))
 
 /** 日期 → 画布 x 坐标（相对画布起点；画布覆盖订单范围，x ≥ 0） */
@@ -447,16 +522,24 @@ const tlTicks = computed(() => {
   return ticks
 })
 
-/** 今天参考线 x（不在可见窗口内 → null） */
+/** 今天参考线 x（不在画布内 → null；画布恒含今天，故通常有值） */
 const tlTodayX = computed(() => {
   const today = startOfDay(new Date())
   if (today < tlCanvasStart.value) return null
   const x = tlX(today)
   return x > tlCanvasWidth.value ? null : x + Math.floor(tlDayWidth.value / 2)
 })
-const tlIsTodayVisible = computed(() => tlTodayX.value != null)
+/** 今天是否在容器可见区内（今天恒在画布内，需结合滚动位置判断；scroll 事件驱动更新） */
+const tlScrollLeft = ref(0)
+function onTlScroll() { tlScrollLeft.value = tlScrollEl.value?.scrollLeft || 0 }
+const tlIsTodayVisible = computed(() => {
+  const x = tlTodayX.value
+  if (x == null) return false
+  const el = tlScrollEl.value
+  const w = el ? el.clientWidth : 0
+  return x >= tlScrollLeft.value && x <= tlScrollLeft.value + w
+})
 function tlGoToday() {
-  tlCenter.value = startOfDay(new Date())
   nextTick(() => {
     const el = tlScrollEl.value
     if (!el) return
@@ -513,6 +596,140 @@ watch(() => props.viewMode, (mode) => {
     el.scrollLeft = Math.max(0, x - el.clientWidth / 3)
   })
 }, { immediate: true })
+
+// ─── 批F + 批F2(2026-08-08): 刻度区手势——拖拽平移 / 滚轮缩放 / 双指 pinch ───
+// 事件仅绑定在刻度区容器（.tl-axis）；订单横条区（.tl-rows）不绑定 → 保持原生滚动。
+// 横条拖拽（onTlBarDown/onTlHandleDown）绑在横条自身（tl-canvas 内与 axis 兄弟），天然隔离。
+/** 缩放档位顺序（放大方向） */
+const TL_ZOOM_ORDER = ['2w', '1m', '3m', '6m']
+
+/** 切档：更新 tlZoom + 持久化 + 保持视野中心。radio 点击 / 滚轮 / pinch 统一走这里 */
+function changeTlZoom(nextZoom) {
+  if (!TL_ZOOMS[nextZoom] || nextZoom === tlZoom.value) return
+  const prevDayWidth = tlDayWidth.value // 旧 dayWidth（切档前取值，供中心换算）
+  tlZoom.value = nextZoom
+  saveTlZoom(nextZoom)
+  keepTlCenter(prevDayWidth)
+}
+
+/** 缩放切换后保持视野中心日期：按旧 dayWidth 把滚动中心换算成日期，切后重新定位 */
+function keepTlCenter(prevDayWidth) {
+  const el = tlScrollEl.value
+  if (!el) return
+  const dw = prevDayWidth || tlDayWidth.value
+  const centerX = el.scrollLeft + el.clientWidth / 2
+  const centerDate = new Date(tlCanvasStart.value.getTime() + Math.round(centerX / dw) * 86_400_000)
+  nextTick(() => {
+    const x = tlX(centerDate)
+    el.scrollLeft = Math.max(0, Math.min(x - el.clientWidth / 2, el.scrollWidth - el.clientWidth))
+  })
+}
+
+/** 滚轮缩放：向上放大 / 向下缩小，250ms 防抖合并快速连滚 */
+let tlWheelLocked = false
+function onTlAxisWheel(e) {
+  if (tlWheelLocked) return
+  tlWheelLocked = true
+  setTimeout(() => { tlWheelLocked = false }, 250)
+  const idx = TL_ZOOM_ORDER.indexOf(tlZoom.value)
+  const next = e.deltaY < 0 ? TL_ZOOM_ORDER[idx + 1] : TL_ZOOM_ORDER[idx - 1]
+  if (next) changeTlZoom(next)
+  e.preventDefault() // 滚轮在刻度区 = 缩放，不滚动画布
+}
+
+// ─── 刻度区指针手势状态（批F 平移 / 批F2 pinch） ───
+const tlAxisPointers = new Map() // pointerId → { x, y }
+let tlAxisPan = null // { startScroll, startX, moved }
+let tlPinchDist = 0 // 双指初始间距（>0 表示 pinch 中）
+const tlAxisPanning = ref(false) // 平移中 → 光标 grabbing
+/** 平移轻移阈值（px）：超过才开始移动，防点击误触 */
+const TL_AXIS_PAN_THRESHOLD = 4
+
+function onTlAxisDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  e.preventDefault()
+  tlAxisPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  // 第二根手指落下：释放平移 capture，进入 pinch（记录初始间距）
+  if (tlAxisPointers.size === 2) {
+    const [a, b] = [...tlAxisPointers.values()]
+    tlPinchDist = Math.hypot(a.x - b.x, a.y - b.y)
+    tlAxisPan = null
+    tlAxisPanning.value = false
+    const el = tlScrollEl.value
+    if (el) {
+      for (const id of [...tlAxisPointers.keys()]) {
+        try { el.releasePointerCapture(id) } catch { /* 未捕获则忽略 */ }
+      }
+    }
+    return
+  }
+  // 第一根手指/鼠标：准备平移（不立即移动，超阈值才生效）
+  if (tlAxisPointers.size === 1) {
+    const el = tlScrollEl.value
+    tlAxisPan = { startScroll: el ? el.scrollLeft : 0, startX: e.clientX, moved: false }
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* 忽略 */ }
+  }
+}
+
+function onTlAxisMove(e) {
+  if (!tlAxisPointers.has(e.pointerId)) return
+  const cur = { x: e.clientX, y: e.clientY }
+  tlAxisPointers.set(e.pointerId, cur)
+  // pinch：两指间距变化 ≥20% 切一档并重置基准（连续捏合可多档）
+  if (tlAxisPointers.size === 2 && tlPinchDist > 0) {
+    const [a, b] = [...tlAxisPointers.values()]
+    const dist = Math.hypot(a.x - b.x, a.y - b.y)
+    if (dist / tlPinchDist >= 1.2) {
+      const idx = TL_ZOOM_ORDER.indexOf(tlZoom.value)
+      if (idx < TL_ZOOM_ORDER.length - 1) changeTlZoom(TL_ZOOM_ORDER[idx + 1])
+      tlPinchDist = dist
+    } else if (dist / tlPinchDist <= 0.8) {
+      const idx = TL_ZOOM_ORDER.indexOf(tlZoom.value)
+      if (idx > 0) changeTlZoom(TL_ZOOM_ORDER[idx - 1])
+      tlPinchDist = dist
+    }
+    return
+  }
+  // 单指/鼠标：平移（超过轻移阈值才生效）
+  const pan = tlAxisPan
+  if (!pan || tlAxisPointers.size !== 1) return
+  const deltaX = e.clientX - pan.startX
+  if (!pan.moved) {
+    if (Math.abs(deltaX) < TL_AXIS_PAN_THRESHOLD) return
+    pan.moved = true
+    tlAxisPanning.value = true
+  }
+  const el = tlScrollEl.value
+  if (el) el.scrollLeft = pan.startScroll - deltaX
+}
+
+function onTlAxisUp(e) {
+  if (!tlAxisPointers.has(e.pointerId)) return
+  tlAxisPointers.delete(e.pointerId)
+  if (tlAxisPointers.size < 2) tlPinchDist = 0
+  if (tlAxisPointers.size === 0) {
+    tlAxisPan = null
+    tlAxisPanning.value = false
+    return
+  }
+  // 双指 pinch 抬起一根：剩余单指以当前 scrollLeft 为新基准继续平移
+  if (tlAxisPointers.size === 1) {
+    const [only] = [...tlAxisPointers.values()]
+    const el = tlScrollEl.value
+    tlAxisPan = { startScroll: el ? el.scrollLeft : 0, startX: only.x, moved: false }
+  }
+}
+
+function onTlAxisCancel(e) {
+  if (e.pointerId != null && tlAxisPointers.has(e.pointerId)) {
+    tlAxisPointers.delete(e.pointerId)
+  }
+  if (tlAxisPointers.size < 2) tlPinchDist = 0
+  if (tlAxisPointers.size === 0) {
+    tlAxisPan = null
+    tlAxisPanning.value = false
+  }
+}
 
 // ─── v0.28: 时间条拖拽（原生 Pointer Events：右端改截稿日 / 左端改开工日，吸附到天） ───
 const TL_TERMINAL_STATUSES = ['done', 'delivered', 'cancelled']
@@ -801,6 +1018,45 @@ function onTlHandleCancel() {
   border-radius: 50%;
 }
 
+/* 批G: 可接单标识（无订单覆盖的当月格）——石绿浅底 + 角标，轻量不打扰 */
+.cal-day-head { display: flex; align-items: center; gap: 5px; }
+.cal-free-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sl); opacity: 0.8; flex-shrink: 0;
+  cursor: help;
+}
+.cal-cell--free:not(.cal-cell--today):not(.cal-cell--weekend) {
+  background: color-mix(in srgb, var(--sl) 7%, var(--card));
+}
+.cal-month-picker { width: 132px; }
+/* 批G: 日视图展开（当天完整订单列表） */
+.cal-day-list {
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 60vh; overflow-y: auto;
+}
+.cal-day-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line); border-radius: var(--r-m);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cal-day-item:hover { border-color: var(--hq); background: var(--hq-t); }
+.cal-day-item-band {
+  flex-shrink: 0;
+  padding: 2px 8px; border-radius: 4px;
+  font-size: calc(var(--font-scale, 1) * 12px); line-height: 1.5;
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-day-item-no {
+  font-family: var(--f-d); font-variant-numeric: tabular-nums;
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); white-space: nowrap;
+}
+.cal-day-item-status {
+  margin-left: auto;
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); white-space: nowrap;
+}
+
 .cal-bands { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
 .cal-band {
   padding: 2px 6px;
@@ -875,6 +1131,8 @@ function onTlHandleCancel() {
   .cal-day-num { font-size: calc(var(--font-scale, 1) * 10px); }
   .cal-band { padding: 1px 3px; font-size: calc(var(--font-scale, 1) * 9px); }
   .cal-head-title { font-size: calc(var(--font-scale, 1) * 15px); min-width: 90px; }
+  .cal-month-picker { width: 96px; }
+  .cal-day-item-band { max-width: 110px; }
 }
 
 /* ─── v0.25 D: 时间条视图（v0.38 换肤；今天线朱砂 = REQ §二） ─── */
@@ -894,7 +1152,12 @@ function onTlHandleCancel() {
   position: relative; height: 32px;
   border-bottom: 1px solid var(--line);
   background: var(--paper2);
+  /* 批F/F2: 手势区——禁用浏览器滚动接管（平移/pinch 由 pointer 事件处理）；滚轮=缩放 */
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
 }
+.tl-axis--panning { cursor: grabbing; }
 .tl-tick {
   position: absolute; top: 0; bottom: 0;
   display: flex; align-items: center; justify-content: center;
