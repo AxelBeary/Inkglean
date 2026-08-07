@@ -248,8 +248,25 @@ export default {
     rules: 'Guidelines', stats: 'Statistics', settings: 'Page Settings', preferences: 'Preferences', admin: 'Admin', logout: 'Log out',
     collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu',
     langToEn: 'English', langToZh: 'Chinese', langAriaToEn: 'Switch to English', langAriaToZh: 'Switch to Chinese',
+    // REQ-035 batch D: What-to-eat tool page menu item
+    foodMenu: 'What to Eat',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
+  },
+  // REQ-035 batch D: What-to-eat tool page copy
+  foodMenu: {
+    title: 'What to Eat Today',
+    subtitle: 'Pick a mode and get a random dish',
+    modes: {
+      healthy: 'Healthy',
+      diabetes: 'Diabetic-friendly',
+      gout: 'Gout-friendly',
+      takeout: 'Takeout'
+    },
+    pick: 'Random pick',
+    again: 'Another one',
+    disclaimer: 'For reference only. Please consult your doctor for specific dietary advice.',
+    emptyHint: 'Click "Random pick" to see what to eat today'
   },
   // F3 quick actions (2026-08-07 user decision)
   quickAction: {

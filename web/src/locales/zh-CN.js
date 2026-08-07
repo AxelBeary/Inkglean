@@ -248,8 +248,25 @@ export default {
     rules: '须知编辑', stats: '数据统计', settings: '主页设置', preferences: '偏好设置', admin: '管理后台', logout: '退出登录',
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单',
     langToEn: 'English', langToZh: '中文', langAriaToEn: 'Switch to English', langAriaToZh: '切换到中文',
+    // REQ-035 批D: 今天吃什么（工具组菜单项）
+    foodMenu: '今天吃什么',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
+  },
+  // REQ-035 批D: 今天吃什么（工具页文案）
+  foodMenu: {
+    title: '今天吃什么',
+    subtitle: '选一个模式，随机推荐一道菜',
+    modes: {
+      healthy: '健康版',
+      diabetes: '糖尿病版',
+      gout: '痛风版',
+      takeout: '外卖版'
+    },
+    pick: '随机推荐',
+    again: '换一个',
+    disclaimer: '本推荐仅供参考，具体饮食请遵医嘱。',
+    emptyHint: '点上方「随机推荐」按钮，看看今天吃什么'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {
