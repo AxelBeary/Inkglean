@@ -1,6 +1,6 @@
 {
   "name": "artist-commission-server",
-  "version": "0.41.0",
+  "version": "0.43.0",
   "description": "画师约稿管理平台 - 后端服务",
   "license": "AGPL-3.0",
   "type": "module",
