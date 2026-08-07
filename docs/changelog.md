@@ -1,5 +1,40 @@
 # 变更日志
 
+## v0.41 — 2026-08-07
+
+> 命名：v0.40 之后 08-07 合入的全部内容统一收进 v0.41。**版本号双轨对齐**（用户拍板）：业务版本 v0.x ↔ npm 0.x.0 一一对应（v0.41 ↔ **0.41.0**，弃旧 0.11.0 编号）。
+
+### ✨ 功能
+
+- **埋点看板（REQ-033 收尾）**：管理员 `/admin/analytics` 看板页（总事件/下单漏斗/事件分布/按日趋势，开关+天数切换）；画师统计页后端（byDay 趋势 + events artist_id 索引 v45 + **R1 防刷**：anon-token 限流 10/分 + events 限流 key 双因子 + summary 30/分）；画师侧统计开关（platform_config）
+- **画师统计三态化拍板（用户）**：关/不显/开，默认「不显」；off=连采集也停（前端实现排队中）
+- **作品分页拍板（用户）**：画师端 20/页+封面置顶；用户端 10/页+「加载更多」；公开接口限流（施工图已派）
+- **QueueBoard 拆分（三巨头之二）**：1679→177 行，QueueBoardList（列表视图 578 行）+ QueueBoardCalendar（月历+时间条 862 行），props/emit 模式，0% 像素差异
+- **类型攻坚**：strict 全开（tsconfig strict:true）+ **全库 any 清零 266→0**（路由 handler FastifyRequest 化 + 具体类型化 + fastify.d.ts 扩展 order/multiplier/targetArtist 等）
+- **用户反馈批（四路巡检后）**：状态切换快捷卡去字（偏好设置保留）+ 快速发作品常驻块并入卡片（点击跳转/拖图粘贴直接发布）+ 仪表盘布局微调 + 克制动效（卡片微浮起/按钮按压/抽屉淡入，≤0.2s 禁弹跳旋转，.artist-scope 提特异性修存量 transition 覆盖）
+- **源头防屎门禁（立项）**：no-explicit-any / no-console / check-i18n 脚本 / CI 强制（用户红线：任何「为过门禁而绕」的假修复一律打回）
+
+### 🐛 修复（巡检发现）
+
+- **巡检 B 画师后台 6🔴**：ManualOrder 录单后补写 6 处硬编码中文（i18n 红线）/ OrderList 移动端表格列裁剪无滚动 / QueueBoard+Settings 标题字号字体不一致 / TierManage 移动端 tabs 溢出（复测修正：箭头存在，降为信息级）/ main.js 全局错误兜底中文 / en 缺 2 键
+- **巡检 A 客户端 3🔴**：OrderForm「复制约稿信息」画风模式缺档位/明细 / DeliveryPage 交付空数组双卡片同屏 / LandingPage import 位置
+- **巡检 C 管理后台 2🟡**：AdminDashboard 窄屏 header 按钮溢出 / ArtistDetailDrawer 状态缺 hidden
+- **巡检 D 全局工程 7🟡**：Settings 强调色硬编码中文 / 全局错误兜底中文 / api 拦截器中文 / 后台 404 视觉断裂 / admin 顶栏标题空 / 支付进度条硬编码色 / 断点分散
+- **四号健康巡检 4🔴**：R1 anon-token 无限流+events 限流可绕过（已随画师统计页修）/ decodeURIComponent 500 / 滚动续期注释矛盾 / GalleryPanel dragleave 闪烁
+
+### 📊 测试
+
+- 后端 939 → **953**（+14：v45 迁移 3 + 防刷 6 + 画师统计 5）· 前端 215/215 · strict tsc 0 · **全库 any 0** · 四路巡检截图 76+ 张（inspect-a/b/c/d）
+
+### 🧹 技术债（新增入池）
+
+- 巡检修复批已派（i18n 红线/移动端/全局）；画师统计页前端 + 埋点三态化前端待做
+- 作品分页前后端待做；时间条 Excel 式滚动待派（等 QueueBoard 稳定）；ManualOrder 拆分待派
+- repowiki 外部 13 处 🟡（路线 A 转贡献者 or 路线 B 仓库内维护）；P0 重写 3 篇待决策
+- no-explicit-any 门禁开启待 any 清零后执行
+
+---
+
 ## v0.40 — 2026-08-07
 
 > 命名：v0.39 之后 08-05 晚至 08-07 合入的全部内容（含原「v0.40 四路」预定号 + TS 迁移 + 批1-批4b + 低垂果实批 + F3 快捷入口）统一收进 v0.40。
