@@ -248,8 +248,25 @@ export default {
     rules: '须知编辑', stats: '数据统计', settings: '主页设置', preferences: '偏好设置', admin: '管理后台', logout: '退出登录',
     collapse: '收起侧边栏', expand: '展开侧边栏', openMenu: '打开菜单',
     langToEn: 'English', langToZh: '中文', langAriaToEn: 'Switch to English', langAriaToZh: '切换到中文',
+    // REQ-035 批D: 今天吃什么（工具组菜单项）
+    foodMenu: '今天吃什么',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
+  },
+  // REQ-035 批D: 今天吃什么（工具页文案）
+  foodMenu: {
+    title: '今天吃什么',
+    subtitle: '选一个模式，随机推荐一道菜',
+    modes: {
+      healthy: '健康版',
+      diabetes: '糖尿病版',
+      gout: '痛风版',
+      takeout: '外卖版'
+    },
+    pick: '随机推荐',
+    again: '换一个',
+    disclaimer: '本推荐仅供参考，具体饮食请遵医嘱。',
+    emptyHint: '点上方「随机推荐」按钮，看看今天吃什么'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {
@@ -1108,7 +1125,14 @@ export default {
       byNameTitle: '事件分布', byDayTitle: '按日趋势',
       colName: '事件名', colCount: '次数', colRatio: '占比', colDay: '日期',
       days7: '近 7 天', days14: '近 14 天', days30: '近 30 天', days90: '近 90 天',
-      empty: '暂无事件数据'
+      empty: '暂无事件数据',
+      // v0.45 管理后台重设计（02-派工-管理后台重设计-20260807）
+      dashboardSubtitle: '平台运营总览，画师与订单一目了然',
+      quickActions: '快捷操作',
+      artistManageSubtitle: '管理画师账号、状态与绑定',
+      artistActions: '画师操作',
+      platformManageSubtitle: '配置客户主页可识别的社交平台',
+      trackingSubtitle: '埋点事件统计与画师门面可见开关'
     }
   }
 }
