@@ -11,6 +11,11 @@
       <p class="tpl-section-label atelier-label">{{ $t('artistHome.artworks') }}</p>
       <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" layout="album" />
     </section>
+    <!-- P2-3: 无作品空态 -->
+    <section class="atelier-section tpl-reveal" v-else>
+      <p class="tpl-section-label atelier-label">{{ $t('artistHome.artworks') }}</p>
+      <div class="atelier-empty">{{ $t('artistHome.noWorks') }}</div>
+    </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
     <section class="atelier-section atelier-section--alt tpl-reveal" v-if="styles.length || tiers.length || workflowStages.length">
@@ -185,6 +190,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 }
 
 /* 标题：思源宋体 + 手绘笔触下划线（装饰色） */
+.atelier-empty { text-align: center; color: var(--pal-text-dim); font-size: 15px; letter-spacing: 0.03em; padding: 40px 0 64px; }
 .atelier-label {
   font-family: var(--font-display);
   font-weight: 700;

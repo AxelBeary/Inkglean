@@ -279,6 +279,7 @@ export default {
   },
   artistHome: {
     weibo: '我的微博', bilibili: '我的B站', commission: '我要约稿', track: '查询进度',
+    noWorks: '暂无作品，敬请期待',
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败', hidden: '该画师暂未开放主页',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',

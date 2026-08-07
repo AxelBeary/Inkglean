@@ -75,6 +75,11 @@
           <p class="tpl-section-label classic-label">{{ $t('artistHome.artworks') }}</p>
           <TplGallery :artworks="galleryArtworks" :gallery="gallery" :subdomain="subdomain" layout="masonry" />
         </section>
+        <!-- P2-3: 无作品空态 -->
+        <section class="classic-section tpl-reveal" v-else>
+          <p class="tpl-section-label classic-label">{{ $t('artistHome.artworks') }}</p>
+          <div class="classic-empty">{{ $t('artistHome.noWorks') }}</div>
+        </section>
 
         <section class="classic-section tpl-reveal" v-if="rules">
           <TplRules :rules="rules" :sanitized-rules="sanitizedRules" />
@@ -245,6 +250,7 @@ useScrollReveal(rootEl)
   cursor: not-allowed;
 }
 /* ===== 右栏内容 ===== */
+.classic-empty { text-align: center; color: var(--pal-text-dim); font-size: 14px; letter-spacing: 0.05em; padding: 40px 0 64px; }
 .classic-section {
   margin-bottom: 56px;
 }

@@ -279,6 +279,7 @@ export default {
   },
   artistHome: {
     weibo: 'My Weibo', bilibili: 'My Bilibili', commission: 'Commission me', track: 'Track order',
+    noWorks: 'No artworks yet — stay tuned',
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
     statusOpen: 'Open for commissions', statusFull: 'Fully booked', statusBreak: 'On break',

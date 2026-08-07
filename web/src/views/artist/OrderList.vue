@@ -92,7 +92,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" :label="$t('orderList.colTime')" width="160">
+        <el-table-column prop="created_at" :label="$t('orderList.colTime')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
         </el-table-column>
         <el-table-column :label="$t('orderList.colActions')" fixed="right" width="100">

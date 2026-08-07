@@ -21,6 +21,11 @@
         @load-more="onLoadMore"
       />
     </section>
+    <!-- P2-3: 无作品空态（分页加载中不显示，避免闪烁） -->
+    <section class="gallery-section tpl-reveal" v-else-if="!pageLoading">
+      <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
+      <div class="gallery-empty">{{ $t('artistHome.noWorks') }}</div>
+    </section>
 
     <!-- 价格档位 + 流程（R1 整合） -->
     <section class="gallery-section gallery-section--alt tpl-reveal" v-if="styles.length || tiers.length || workflowStages.length">
@@ -231,6 +236,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   max-width: 900px;
   margin: 0 auto;
 }
+.gallery-empty { text-align: center; color: var(--pal-text-dim); font-size: 14px; letter-spacing: 0.05em; padding: 48px 0 72px; }
 .gallery-label {
   text-align: center;
   margin-bottom: 48px;

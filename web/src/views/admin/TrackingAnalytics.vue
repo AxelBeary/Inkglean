@@ -26,7 +26,7 @@
     <el-card style="margin-top: 24px">
       <template #header><span>{{ $t('admin.tracking.funnelTitle') }}</span></template>
       <el-table v-if="funnel.length" :data="funnel" stripe>
-        <el-table-column :label="$t('admin.tracking.colName')">
+        <el-table-column :label="$t('admin.tracking.colName')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name }}</template>
         </el-table-column>
         <el-table-column :label="$t('admin.tracking.colCount')" width="120" align="right">
