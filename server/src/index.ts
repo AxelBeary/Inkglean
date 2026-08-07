@@ -15,7 +15,7 @@ const app = await buildApp()
 process.on('uncaughtException', (err) => {
   app.log.fatal(err, '未捕获异常，进程即将退出')
   // P2-7: 退出前关闭数据库连接
-  try { db.close() } catch (err) { app.log.warn('关闭数据库连接失败（进程即将退出）', err) }
+  try { db.close() } catch (err) { app.log.warn({ err }, '关闭数据库连接失败（进程即将退出）') }
   // 给日志刷盘留 500ms，然后强退
   setTimeout(() => process.exit(1), 500).unref()
 })
