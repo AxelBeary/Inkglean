@@ -206,7 +206,7 @@ export default {
     save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', download: 'Download',
     confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
-    confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed',
+    confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
     footer: 'HuiYue · Artist Commission Platform'
   },
   disclaimer: {
@@ -247,6 +247,7 @@ export default {
     preview: 'Preview Page',
     rules: 'Guidelines', settings: 'Page Settings', preferences: 'Preferences', admin: 'Admin', logout: 'Log out',
     collapse: 'Collapse sidebar', expand: 'Expand sidebar', openMenu: 'Open menu',
+    langToEn: 'English', langToZh: 'Chinese', langAriaToEn: 'Switch to English', langAriaToZh: 'Switch to Chinese',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupFront: 'Storefront'
   },
@@ -267,7 +268,7 @@ export default {
   },
   landing: {
     title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
-    noBio: 'This artist has not written a bio yet',
+    noBio: 'This artist has not written a bio yet', weibo: 'Weibo', bilibili: 'Bilibili',
     noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
   },
   // v0.34 task A: standalone 404 page
@@ -710,7 +711,16 @@ export default {
     selectSizeOrPrice: 'Select a style and size first, or enter a custom final price',
     // F6: manual order draft (localStorage + restore prompt)
     draftFound: 'Found an unsaved manual order draft. Restore it?',
-    draftRestored: 'Draft restored'
+    draftRestored: 'Draft restored',
+    // inspection fix batch A1: post-create write-back failure messages
+    postCreateFailed: {
+      price: 'Failed to write price: {message}',
+      extraItem: 'Failed to write custom add-on "{name}": {message}',
+      deadline: 'Failed to write deadline: {message}',
+      startDate: 'Failed to write start date: {message}',
+      initialStatus: 'Failed to set initial stage: {message}',
+      summary: 'Order {orderNo} was created, but {reason}. Please complete it in the order details.'
+    }
   },
   tiers: {
     title: 'Pricing', addTier: '+ Add tier',

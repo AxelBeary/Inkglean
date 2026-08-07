@@ -77,8 +77,8 @@
                 <ThemeToggle />
                 <button
                   class="lang-btn" @click="toggleLang"
-                  :title="locale === 'zh-CN' ? 'English' : '中文'"
-                  :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+                  :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
+                  :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
                 >
                   {{ locale === 'zh-CN' ? 'EN' : '中' }}
                 </button>
@@ -110,8 +110,8 @@
               <ThemeToggle />
               <button
                 class="lang-btn" @click="toggleLang"
-                :title="locale === 'zh-CN' ? 'English' : '中文'"
-                :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+                :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
+                :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
               >
                 {{ locale === 'zh-CN' ? 'EN' : '中' }}
               </button>
@@ -139,8 +139,8 @@
             <ThemeToggle />
             <button
               class="lang-btn" @click="toggleLang"
-              :title="locale === 'zh-CN' ? 'English' : '中文'"
-              :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+              :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
+              :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
             >
               {{ locale === 'zh-CN' ? 'EN' : '中' }}
             </button>

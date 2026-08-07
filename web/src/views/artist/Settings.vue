@@ -224,7 +224,7 @@
               v-for="a in ACCENT_PRESETS" :key="a.color"
               class="accent-swatch-btn" :class="{ active: form.accentColor === a.color }"
               :style="{ background: a.color }"
-              :title="a.name"
+              :title="$t(a.nameKey)"
               @click="form.accentColor = a.color"
             >
               <span v-if="form.accentColor === a.color" class="swatch-check">✓</span>
@@ -376,11 +376,11 @@ const announcementShortcuts = [
 
 // ─── R49: 强调色预设（5 色与 ThemePicker 一致，后端白名单校验） ───
 const ACCENT_PRESETS = [
-  { color: '#356B69', name: '青' },
-  { color: '#3F5E80', name: '碧' },
-  { color: '#5E5494', name: '蓝' },
-  { color: '#346edb', name: '靛' },
-  { color: '#3445db', name: '紫' }
+  { color: '#356B69', nameKey: 'pref.accentNames.teal' },
+  { color: '#3F5E80', nameKey: 'pref.accentNames.turquoise' },
+  { color: '#5E5494', nameKey: 'pref.accentNames.blue' },
+  { color: '#346edb', nameKey: 'pref.accentNames.indigo' },
+  { color: '#3445db', nameKey: 'pref.accentNames.violet' }
 ]
 
 // ─── R48: 头像上传（即时保存，uploadApi.image → PUT profile avatar） ───

@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import * as Sentry from '@sentry/vue'
-import { ElLoading } from 'element-plus'
+import { ElLoading, ElMessage } from 'element-plus'
 // A4: EP CSS 按需引入 — el-* 组件样式由 resolver 随注册自动注入（vite.config.js）
 // 以下三个走 JS API 调用（非模板 el-* 标签），resolver 不覆盖，需手动引入样式
 import 'element-plus/theme-chalk/el-message.css'
@@ -35,9 +35,7 @@ app.config.errorHandler = (err, instance, info) => {
   // A1: 上报 Sentry（Sentry.init 未调用时 captureException 静默无操作）
   Sentry.captureException(err, { extra: { vueInfo: info } })
   // 用户可见的友好提示（避免重复弹窗：5秒内只弹一次）
-  import('element-plus').then(({ ElMessage }) => {
-    ElMessage.error('页面出了点小问题，请刷新重试')
-  })
+  ElMessage.error(i18n.global.t('common.globalError'))
 }
 
 app.use(createPinia())
