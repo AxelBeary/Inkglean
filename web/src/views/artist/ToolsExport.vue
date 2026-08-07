@@ -29,6 +29,33 @@
           </el-button>
         </el-form>
 
+        <!-- 收入概览区（日期范围选好后自动加载；订单/总收入待后端区间汇总端点） -->
+        <div class="income-overview" v-if="overview || overviewLoading">
+          <div class="income-overview-head">
+            <h3 class="income-overview-title">{{ $t('toolsExport.incomeOverview') }}</h3>
+            <span v-if="overviewLoading" class="income-overview-loading">{{ $t('toolsExport.incomeLoading') }}</span>
+          </div>
+          <div class="income-grid" v-if="overview">
+            <div class="income-cell">
+              <span class="income-label">{{ $t('toolsExport.incomeTotal') }}</span>
+              <span class="income-value income-total">{{ $t('toolsExport.incomeUnavailable') }}</span>
+            </div>
+            <div class="income-cell">
+              <span class="income-label">{{ $t('toolsExport.incomeOrder') }}</span>
+              <span class="income-value">{{ $t('toolsExport.incomeUnavailable') }}</span>
+            </div>
+            <div class="income-cell">
+              <span class="income-label">{{ $t('toolsExport.incomeStandalone') }}</span>
+              <span class="income-value income-standalone">{{ fmtYuan(overview.standaloneCents) }}</span>
+            </div>
+            <div class="income-cell">
+              <span class="income-label">{{ $t('toolsExport.incomeCount') }}</span>
+              <span class="income-value">{{ overview.standaloneCount }}{{ $t('toolsExport.incomeCountUnit') }}</span>
+            </div>
+          </div>
+          <p class="income-overview-note">{{ $t('toolsExport.incomeNote') }}</p>
+        </div>
+
         <!-- 空数据提示（后端空 CSV 仅表头 → 前端检测行数） -->
         <el-alert
           v-if="emptyHint"
@@ -47,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -65,6 +92,41 @@ function defaultRange() {
 const range = ref(defaultRange())
 const exporting = ref(false)
 const emptyHint = ref(false)
+
+// 收入概览：散单数据来自 /api/artist/tools/standalone-incomes（口径与导出 CSV 的散单行一致）；
+// 订单/总收入无区间 JSON 汇总端点（后端缺口，见交付报告），暂不展示
+const overview = ref(null)
+const overviewLoading = ref(false)
+
+function fmtYuan(cents) {
+  return `¥${(cents / 100).toFixed(2)}`
+}
+
+async function loadOverview() {
+  if (!range.value?.length) return
+  const [from, to] = range.value
+  overviewLoading.value = true
+  try {
+    const res = await fetch(`/api/artist/tools/standalone-incomes?from=${from}&to=${to}`, { credentials: 'include' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    const items = data?.items || []
+    overview.value = {
+      standaloneCents: items.reduce((s, it) => s + (it.amountCents || 0), 0),
+      standaloneCount: items.length
+    }
+  } catch (err) {
+    overview.value = null
+    ElMessage.error(err.message || t('toolsExport.incomeLoadFailed'))
+  } finally {
+    overviewLoading.value = false
+  }
+}
+
+// 日期范围变化自动刷新收入概览（初始加载一次）
+watch(range, () => {
+  if (range.value?.length) loadOverview()
+}, { immediate: true })
 
 /** 从 Content-Disposition 解析下载文件名（后端返回 income-YYYYMMDD-YYYYMMDD.csv） */
 function filenameFromDisposition(header, fallback) {
@@ -126,4 +188,32 @@ async function doExport() {
 }
 .export-empty-hint { margin-top: 16px; }
 .tools-export-note { margin-top: 16px; font-size: 12px; color: var(--ink3, #888); line-height: 1.6; }
+/* 收入概览：纸墨 token 卡片（--card/--ink/--hq），亮暗双主题自动适配 */
+.income-overview {
+  margin-top: 20px;
+  padding: 18px 20px;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: var(--r-m, 8px);
+}
+.income-overview-head { display: flex; align-items: baseline; justify-content: space-between; }
+.income-overview-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.income-overview-loading { font-size: 12px; color: var(--ink3, #888); }
+.income-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.income-cell {
+  padding: 12px 14px;
+  background: var(--paper, #faf8f2);
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: var(--r-s, 6px);
+}
+.income-label { display: block; font-size: 12px; color: var(--ink3, #888); margin-bottom: 6px; }
+.income-value { display: block; font-size: 20px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.income-total { color: var(--ink3, #888); font-weight: 600; font-size: 14px; }
+.income-standalone { color: var(--hq, #b4532a); }
+.income-overview-note { margin-top: 12px; font-size: 12px; color: var(--ink3, #888); line-height: 1.6; }
 </style>
