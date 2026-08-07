@@ -252,6 +252,8 @@
     foodMenu: '今天吃什么',
     // REQ-031 A1: 收入导出（工具组菜单项）
     toolsExport: '收入导出',
+    // REQ-035 批C: 散单记账（工具组菜单项）
+    standaloneIncome: '散单记账',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
   },
@@ -292,6 +294,37 @@
     incomeLoadFailed: '收入概览加载失败',
     downloaded: '已开始下载',
     failed: '导出失败，请稍后重试'
+  },
+  // REQ-035 批C: 散单记账（工具页文案）
+  standaloneIncome: {
+    title: '散单记账',
+    subtitle: '记一笔散单收入（定金、尾款、加急费等），随时对账',
+    amountLabel: '金额（元）',
+    amountPlaceholder: '如 128.50',
+    dateLabel: '日期',
+    datePlaceholder: '选择日期',
+    clientLabel: '客户昵称（选填）',
+    clientPlaceholder: '客户昵称，方便对账',
+    noteLabel: '备注（选填）',
+    notePlaceholder: '补充说明，如收款方式、订单来源',
+    addBtn: '记一笔',
+    adding: '保存中…',
+    addSuccess: '已记入散单',
+    addFailed: '保存失败，请稍后重试',
+    listTitle: '记账明细',
+    empty: '还没有散单记录，记下第一笔吧',
+    loadFailed: '散单列表加载失败',
+    anonymous: '匿名',
+    delete: '删除',
+    deleteConfirm: '确定删除这条散单记录吗？删除后不可恢复。',
+    deleteSuccess: '已删除',
+    deleteFailed: '删除失败，请稍后重试',
+    notFound: '记录不存在或已删除',
+    amountRequired: '请输入金额',
+    amountPositive: '金额须大于 0',
+    clientTooLong: '客户昵称不能超过 50 字',
+    noteTooLong: '备注不能超过 200 字',
+    dateRequired: '请选择日期'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {

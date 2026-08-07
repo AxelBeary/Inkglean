@@ -252,6 +252,8 @@ export default {
     foodMenu: 'What to Eat',
     // REQ-031 A1: Income export (tools group menu item)
     toolsExport: 'Income Export',
+    // REQ-035 batch C: Standalone income (tools group menu item)
+    standaloneIncome: 'Standalone Income',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
   },
@@ -292,6 +294,37 @@ export default {
     incomeLoadFailed: 'Failed to load income overview',
     downloaded: 'Download started',
     failed: 'Export failed, please try again later'
+  },
+  // REQ-035 batch C: Standalone income ledger (tools page copy)
+  standaloneIncome: {
+    title: 'Standalone Income',
+    subtitle: 'Record one-off payments (deposits, final payments, rush fees) for easy reconciliation',
+    amountLabel: 'Amount (CNY)',
+    amountPlaceholder: 'e.g. 128.50',
+    dateLabel: 'Date',
+    datePlaceholder: 'Pick a date',
+    clientLabel: 'Client nickname (optional)',
+    clientPlaceholder: 'Client nickname for easy lookup',
+    noteLabel: 'Note (optional)',
+    notePlaceholder: 'Extra details, e.g. payment method or source',
+    addBtn: 'Add record',
+    adding: 'Saving…',
+    addSuccess: 'Record added',
+    addFailed: 'Failed to save, please try again',
+    listTitle: 'Records',
+    empty: 'No records yet — add your first one',
+    loadFailed: 'Failed to load records',
+    anonymous: 'Anonymous',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this record? This cannot be undone.',
+    deleteSuccess: 'Deleted',
+    deleteFailed: 'Failed to delete, please try again',
+    notFound: 'Record not found or already deleted',
+    amountRequired: 'Enter an amount',
+    amountPositive: 'Amount must be greater than 0',
+    clientTooLong: 'Client nickname must be 50 characters or fewer',
+    noteTooLong: 'Note must be 200 characters or fewer',
+    dateRequired: 'Pick a date'
   },
   // F3 quick actions (2026-08-07 user decision)
   quickAction: {

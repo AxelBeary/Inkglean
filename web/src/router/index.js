@@ -32,6 +32,8 @@ const routes = [
   { path: '/tools/food', name: 'ArtistFoodMenu', component: () => import('../views/artist/FoodMenu.vue'), meta: { titleKey: 'menu.foodMenu', requiresAuth: true } },
   // REQ-031 A1: 收入导出 CSV（工具页）
   { path: '/tools/export', name: 'ArtistToolsExport', component: () => import('../views/artist/ToolsExport.vue'), meta: { titleKey: 'menu.toolsExport', requiresAuth: true } },
+  // REQ-035 批C: 散单记账（工具页）
+  { path: '/tools/income', name: 'ArtistStandaloneIncome', component: () => import('../views/artist/StandaloneIncome.vue'), meta: { titleKey: 'menu.standaloneIncome', requiresAuth: true } },
   { path: '/stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
   { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
   { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
