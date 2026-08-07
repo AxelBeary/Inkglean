@@ -273,6 +273,11 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   outline: none;
   border-color: var(--atelier-accent);
 }
+.atelier-guestbook :deep(.gb-input:focus-visible),
+.atelier-guestbook :deep(.gb-textarea:focus-visible) {
+  outline: 2px solid var(--atelier-accent);
+  outline-offset: 2px;
+}
 .atelier-guestbook :deep(.gb-submit) {
   align-self: flex-start;
   padding: 10px 30px;

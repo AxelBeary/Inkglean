@@ -372,6 +372,11 @@ onUnmounted(() => {
   outline: none;
   border-color: var(--pal-text);
 }
+.folio-guestbook :deep(.gb-input:focus-visible),
+.folio-guestbook :deep(.gb-textarea:focus-visible) {
+  outline: 2px solid var(--pal-text);
+  outline-offset: 2px;
+}
 .folio-guestbook :deep(.gb-submit) {
   align-self: flex-start;
   padding: 12px 36px;

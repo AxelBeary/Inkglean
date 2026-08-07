@@ -295,6 +295,11 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   outline: none;
   border-bottom-color: var(--color-primary);
 }
+.gallery-guestbook :deep(.gb-input:focus-visible),
+.gallery-guestbook :deep(.gb-textarea:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 .gallery-guestbook :deep(.gb-submit) {
   align-self: flex-start;
   padding: 10px 32px;

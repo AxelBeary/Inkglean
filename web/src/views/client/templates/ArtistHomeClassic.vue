@@ -293,6 +293,11 @@ useScrollReveal(rootEl)
   outline: none;
   border-color: var(--color-primary);
 }
+.classic-guestbook :deep(.gb-input:focus-visible),
+.classic-guestbook :deep(.gb-textarea:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 .classic-guestbook :deep(.gb-submit) {
   align-self: flex-start;
   padding: 10px 28px;
