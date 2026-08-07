@@ -85,9 +85,9 @@ function toggleLang() {
 .accent-dot {
   width: 20px; height: 20px; border-radius: 50%;
   border: 2px solid var(--border-color);
-  cursor: pointer; transition: transform 0.15s, border-color 0.15s;
+  cursor: pointer; transition: border-color 0.15s;
 }
-.accent-dot:hover { transform: scale(1.15); border-color: var(--color-primary); }
+.accent-dot:hover { border-color: var(--color-primary); }
 
 .picker-body { display: flex; flex-direction: column; gap: 10px; }
 .picker-label { font-size: calc(var(--font-scale, 1) * 12px); color: var(--text-secondary); }
@@ -109,9 +109,8 @@ function toggleLang() {
   width: 28px; height: 28px; border-radius: 50%;
   border: 2px solid transparent; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: transform 0.15s, border-color 0.15s;
+  transition: border-color 0.15s;
 }
-.accent-swatch:hover { transform: scale(1.15); }
 .accent-swatch.active { border-color: var(--text-primary); }
 .swatch-check { color: #fff; font-size: calc(var(--font-scale, 1) * 12px); font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 

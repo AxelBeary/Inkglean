@@ -570,9 +570,8 @@ onMounted(async () => {
   backdrop-filter: blur(4px);
   color: var(--ink2); font-size: calc(var(--font-scale, 1) * 18px); line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: color 0.15s, transform 0.15s;
+  cursor: pointer; transition: color 0.15s;
 }
-.artwork-cover-star:hover { transform: scale(1.15); }
 .artwork-cover-star:disabled { cursor: wait; opacity: 0.6; }
 /* 封面星：藤黄=待确认/封面标记语义 */
 .artwork-cover-star--on { color: var(--th); }

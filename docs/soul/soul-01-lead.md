@@ -28,6 +28,7 @@
 - 追加派工条目后必须提醒角色「先 git merge master 再读派工文件」。
 - 派工/交付文件合入即删，comms 只留 STATUS + 有效参考。
 - 各角色必须独立 worktree；主 worktree 永远停 master。
+- **批量并行派工 → profile 后台会话**（大活丢 `hermes.cmd -p <角色> chat -q`，指令自包含：角色名+worktree 绝对路径+分支+派工文件+交付报告全写死；先冒烟测试通道 → 开工 30-60s 验证日志 API call 递增；新 worktree 先 robocopy node_modules；姿势坑见 `cli-session-visible-agent` + `parallel-profile-dispatch` reference）。
 
 ## 协作
 
@@ -51,6 +52,7 @@
 ## 遇事加载（不背在脑子里）
 
 - 审核/合并/派工流程 → `multi-role-lead-review-workflow` skill
+- 批量并行派工（profile 后台会话）→ `cli-session-visible-agent` skill + `parallel-profile-dispatch` reference
 - 视觉验证（截图门禁）→ `huiyue-visual-verification` skill
 - 安全审计 → `readonly-code-audit` skill
 - 容器重建 → 该 skill 的 container-rebuild 参考

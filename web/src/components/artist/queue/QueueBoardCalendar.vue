@@ -807,10 +807,10 @@ function onTlHandleCancel() {
   border-radius: 4px;
   font-size: calc(var(--font-scale, 1) * 11px); line-height: 1.4;
   cursor: pointer;
-  transition: filter 0.15s, transform 0.1s;
+  transition: filter 0.15s;
   overflow: hidden;
 }
-.cal-band:hover { filter: brightness(1.08); transform: translateX(1px); }
+.cal-band:hover { filter: brightness(1.08); }
 .cal-band-text {
   display: block;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

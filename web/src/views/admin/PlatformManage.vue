@@ -1,17 +1,21 @@
-<template>
+﻿<template>
   <div class="platform-manage">
-    <div class="pm-head">
-      <h2 class="pm-title">{{ $t('admin.platformManage') }}</h2>
+    <!-- 页头 -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-title font-display">{{ $t('admin.platformManage') }}</h1>
+        <p class="page-sub">{{ $t('admin.platformManageSubtitle') }}</p>
+      </div>
       <el-button type="primary" @click="openDialog()">{{ $t('admin.platform.add') }}</el-button>
     </div>
 
-    <el-card v-loading="loading">
+    <el-card shadow="never" class="section-card" v-loading="loading">
       <el-table :data="platforms" style="width: 100%">
         <el-table-column :label="$t('admin.platform.colName')" min-width="140">
           <template #default="{ row }">
             <div class="pm-name-cell">
               <span class="pm-icon"><TplPlatformIcon :icon-key="row.iconKey" :fallback-char="row.fallbackChar" /></span>
-              {{ row.name }}
+              <span class="pm-name">{{ row.name }}</span>
             </div>
           </template>
         </el-table-column>
@@ -26,8 +30,8 @@
             <span class="pm-domains">{{ (row.matchDomains || []).join('、') || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('admin.platform.colOrder')" width="80" prop="sortOrder" />
-        <el-table-column :label="$t('admin.platform.colEnabled')" width="90">
+        <el-table-column :label="$t('admin.platform.colOrder')" width="80" prop="sortOrder" align="center" />
+        <el-table-column :label="$t('admin.platform.colEnabled')" width="90" align="center">
           <template #default="{ row }">
             <el-switch
               :model-value="!!row.enabled"
@@ -35,10 +39,12 @@
             />
           </template>
         </el-table-column>
-        <el-table-column :label="$t('common.actions')" width="140" fixed="right">
+        <el-table-column :label="$t('common.actions')" width="150" fixed="right" align="right">
           <template #default="{ row }">
-            <el-button size="small" @click="openDialog(row)">{{ $t('admin.platform.edit') }}</el-button>
-            <el-button size="small" type="danger" @click="remove(row)">{{ $t('admin.platform.delete') }}</el-button>
+            <div class="row-actions">
+              <el-button size="small" @click="openDialog(row)">{{ $t('admin.platform.edit') }}</el-button>
+              <el-button size="small" type="danger" plain @click="remove(row)">{{ $t('admin.platform.delete') }}</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -205,12 +211,31 @@ onMounted(load)
 </script>
 
 <style scoped>
-.pm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.pm-title { font-size: 18px; font-weight: 600; color: var(--ink); margin: 0; }
+/* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807） ═══ */
+.platform-manage { }
+
+/* 页头 */
+.page-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--sp-3, 12px); flex-wrap: wrap;
+  margin-bottom: var(--sp-5, 24px);
+}
+.page-title {
+  font-size: var(--fs-page-title, 26px);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--sp-1, 4px);
+  letter-spacing: .02em;
+}
+.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
+
+.section-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); }
 .pm-name-cell { display: inline-flex; align-items: center; gap: 8px; }
+.pm-name { font-weight: 600; color: var(--ink); }
 .pm-icon { display: inline-flex; align-items: center; color: var(--ink); font-size: 16px; }
 .pm-code { font-size: 12px; color: var(--ink2); }
 .pm-fallback { margin-left: 6px; font-size: 12px; color: var(--ink3); }
 .pm-domains { font-size: 12px; color: var(--ink2); }
+.row-actions { display: flex; gap: var(--sp-1, 4px); }
 .form-hint { color: var(--ink2); font-size: 12px; margin-top: 4px; }
 </style>

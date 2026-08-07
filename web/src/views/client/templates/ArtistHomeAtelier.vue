@@ -166,7 +166,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   color: var(--pal-text);
   transition: transform 0.25s ease;
 }
-.atelier-announcement:hover { transform: rotate(0deg); }
+.atelier-announcement:hover { box-shadow: 0 12px 28px color-mix(in srgb, var(--pal-text) 24%, transparent); }
 .atelier-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 
 /* U2: 窄屏公告回到文档流（absolute 会与展签/CTA 重叠） */

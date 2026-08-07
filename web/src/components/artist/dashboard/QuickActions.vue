@@ -210,7 +210,6 @@ function go(action) {
 }
 .quick-card:hover {
   border-color: color-mix(in srgb, var(--hq) 50%, transparent);
-  transform: translateY(-2px);
   box-shadow: var(--sh-2);
 }
 .quick-card:active { transform: translateY(-2px) scale(0.98); }

@@ -120,7 +120,8 @@ onMounted(async () => {
   transition: transform 0.15s, box-shadow 0.15s, background 0.3s;
   background: var(--bg-card);
 }
-.artist-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.artist-card:hover { box-shadow: var(--shadow-card-hover); }
+.artist-card:active { transform: translateY(-2px); }
 .artist-avatar { margin-bottom: 12px; }
 /* U3: 原生 img 懒加载头像（等价 el-avatar 圆形视觉） */
 .artist-avatar-img {

@@ -519,8 +519,8 @@ function logout() {
   font-size: calc(var(--font-scale, 1) * 15px);
   flex-shrink: 0;
 }
-.avatar--mini { cursor: pointer; transition: transform 0.15s; }
-.avatar--mini:hover { transform: scale(1.1); }
+.avatar--mini { cursor: pointer; transition: box-shadow 0.15s; }
+.avatar--mini:hover { box-shadow: var(--sh-1); }
 .avatar--img { object-fit: cover; }
 /* F5a 批4: 未传头像兜底 = 品牌印章（SealStamp 默认 44px 过大，包一层适配 32px 头像格） */
 .avatar--seal { background: transparent; padding: 0; overflow: hidden; }
@@ -581,7 +581,7 @@ function logout() {
   cursor: pointer;
   transition: color .15s, transform .15s, box-shadow .15s, background-color .35s, border-color .35s;
 }
-.lang-btn:hover { color: var(--ink); transform: translateY(-1px); box-shadow: var(--sh-1); }
+.lang-btn:hover { color: var(--ink); box-shadow: var(--sh-1); }
 
 /* R21: 移动端汉堡按钮（顶栏内左侧） */
 .mobile-menu-btn {

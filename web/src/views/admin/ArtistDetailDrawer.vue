@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <el-drawer v-model="visible" :title="`${artist?.name || ''} — ${$t('admin.artistDetail')}`" size="560px" destroy-on-close>
-    <el-tabs v-model="tab" v-if="artist">
+    <el-tabs v-model="tab" v-if="artist" class="detail-tabs">
       <!-- 基本资料 -->
       <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
         <el-form label-position="top" size="default" v-loading="profileLoading">
@@ -211,6 +211,17 @@ async function saveRules() {
 </script>
 
 <style scoped>
+/* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807）——抽屉统一纸墨样式 ═══ */
+.detail-tabs :deep(.el-tabs__item) {
+  color: var(--ink2);
+}
+.detail-tabs :deep(.el-tabs__item.is-active) {
+  color: var(--hq);
+  font-weight: 600;
+}
+.detail-tabs :deep(.el-tabs__active-bar) {
+  background-color: var(--hq);
+}
 .tier-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .tier-name { font-weight: 600; }
 .tier-price { margin-left: auto; font-weight: 700; }

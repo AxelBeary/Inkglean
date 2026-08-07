@@ -683,9 +683,8 @@ onMounted(() => {
   width: 32px; height: 32px; border-radius: 50%;
   border: 2px solid transparent; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: transform 0.15s, border-color 0.15s;
+  transition: border-color 0.15s;
 }
-.accent-swatch-btn:hover { transform: scale(1.15); }
 .accent-swatch-btn.active { border-color: var(--ink); }
 .swatch-check { color: #fff; font-size: calc(var(--font-scale, 1) * 13px); font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 .accent-clear-btn {
