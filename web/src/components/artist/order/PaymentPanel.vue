@@ -76,6 +76,7 @@
 import CardHead from '../visual/CardHead.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
 import { formatDateTime } from '../../../utils/datetime.js'
+import { formatCents } from '../../../utils/money.js'
 
 defineProps({
   payments: { type: Array, default: () => [] },
@@ -91,9 +92,6 @@ defineProps({
 const emit = defineEmits(['open-pay', 'revoke', 'collect'])
 
 /** 金额分 → 元（与 OrderDetail.vue 本地 formatCents 同款，纯函数两处一致） */
-function formatCents(cents) {
-  return ((cents || 0) / 100).toFixed(2)
-}
 function formatDate(str) {
   return formatDateTime(str)
 }

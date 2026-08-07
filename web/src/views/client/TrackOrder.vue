@@ -143,7 +143,7 @@
               <span>{{ $t('track.payRemaining') }} <strong>¥{{ formatCents(trackRemainingCents) }}</strong></span>
               <span>{{ $t('track.payTotal') }} <strong>¥{{ formatCents(order.finalPriceCents) }}</strong></span>
             </div>
-            <el-progress :percentage="trackPayPercent" :stroke-width="10" :color="trackPayPercent >= 100 ? '#67c23a' : '#409eff'" style="margin-top: 8px" />
+            <el-progress :percentage="trackPayPercent" :stroke-width="10" :color="trackPayPercent >= 100 ? 'var(--el-color-success)' : 'var(--el-color-primary)'" style="margin-top: 8px" />
           </div>
         </div>
 
@@ -203,6 +203,7 @@ import { orderApi, artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
+import { formatCents } from '../../utils/money.js'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePalette } from '../../composables/usePalette.js'
@@ -288,10 +289,6 @@ function formatDate(str) {
 }
 
 /** 金额分 → 元（后端返分，前端 /100） */
-function formatCents(cents) {
-  return ((cents || 0) / 100).toFixed(2)
-}
-
 async function downloadFile(url, fileName) {
   try {
     const res = await fetch(url)
