@@ -12,22 +12,63 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import db from '../../db/connection.js'
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
 // 订单路由 - 下单、查询、管理、交付
 // ============================================
 
+/** SQL 订单行（队列/列表接口的返回值形状） */
+interface OrderRow {
+  id: number
+  order_no: string
+  status: string
+  tier_name: string | null
+  tier_price: number | null
+  queue_position: number | null
+  current_stage_id: number | null
+  start_date: string | null
+  focus_image_path: string | null
+  [key: string]: unknown
+}
+
+/** 订单详情（getOrder 增强结构：关联数组 + 画师/档位字段） */
+interface OrderDetail {
+  id: number
+  artist_id: number
+  order_no: string
+  status: string
+  client_qq: string
+  queue_zone?: string | null
+  current_stage_id?: number | null
+  final_price_cents?: number | null
+  total_price_cents?: number | null
+  paid_total_cents?: number | null
+  start_date?: string | null
+  created_at?: string
+  updated_at?: string
+  artist_name?: string
+  artist_subdomain?: string
+  tier_name?: string | null
+  tier_price?: number | null
+  tier_work_days?: number | null
+  references?: Array<{ file_path: string; original_name?: string | null; source?: string }>
+  deliverables?: Array<{ id: number; file_path: string; original_name?: string | null; file_size?: number | null }>
+  notes?: Array<{ id?: number; image_path: string | null }>
+  extraItems?: Array<{ name: string; price_cents: number }>
+}
+
 /** 为订单的 references + deliverables + notes 补签名 URL（H-1 修复抽取，多路由共用） */
-function signOrderUrls(order: any): any {
+function signOrderUrls(order: OrderDetail): OrderDetail {
   if (order.references) {
-    order.references = order.references.map((r: any) => ({ ...r, url: signedUrl(r.file_path) }))
+    order.references = order.references.map((r) => ({ ...r, url: signedUrl(r.file_path) }))
   }
   if (order.deliverables) {
-    order.deliverables = order.deliverables.map((d: any) => ({ ...d, url: signedUrl(d.file_path) }))
+    order.deliverables = order.deliverables.map((d) => ({ ...d, url: signedUrl(d.file_path) }))
   }
   // R19: 备注附图签名 — 漏做 = 前端拿裸路径 → 403（焦点图 Bug 翻版）
   if (order.notes) {
-    order.notes = order.notes.map((n: any) =>
+    order.notes = order.notes.map((n) =>
       n.image_path ? { ...n, imageUrl: signedUrl(n.image_path) } : n
     )
   }
@@ -41,7 +82,7 @@ function signOrderUrls(order: any): any {
  * 所有返回单个订单的画师端点必须走本函数，否则前端 order.value 覆盖后
  * paidTotalCents 变 undefined → 收款区归零、installments 丢失。
  */
-function enrichOrderForArtist(order: any): any {
+function enrichOrderForArtist(order: OrderDetail): OrderDetail {
   // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
   const signed = signOrderUrls(order)
   // R30d: 附加流程进度信息
@@ -71,8 +112,8 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
  * 订单归属校验 preHandler
  * 解析 :id → 查订单 → 校验 artist_id → 挂载 request.order
  */
-async function requireOwnOrder(request: any): Promise<void> {
-  const id = parseInt(request.params.id, 10)
+async function requireOwnOrder(request: FastifyRequest): Promise<void> {
+  const id = parseInt((request.params as { id: string }).id, 10)
   if (isNaN(id)) throw new AppError(E.ORDER_INVALID_ID)
   const order = orderService.getOrder(id)
   if (!order || order.artist_id !== request.artist.id) {
@@ -81,7 +122,7 @@ async function requireOwnOrder(request: any): Promise<void> {
   request.order = order
 }
 
-export default async function orderRoutes(fastify: any) {
+export default async function orderRoutes(fastify: FastifyInstance) {
 
   // ─── 客户端接口（公开 + 限流） ───
 
@@ -127,18 +168,18 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     guardRateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)
 
-    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as any
+    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as { subdomain: string; tierId?: number | null; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; agreeRules: boolean; references?: string[]; usageMultiplierId?: number | null; rushMultiplierId?: number | null; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }> }
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
-    if ((artist as any).status !== 'open') throw new AppError(E.ARTIST_NOT_OPEN)
+    if (artist.status !== 'open') throw new AppError(E.ARTIST_NOT_OPEN)
 
     // 仅当画师设置了非空须知时，才要求客户勾选同意
-    const rules = getRules((artist as any).id)
-    if ((rules as any)?.content && !agreeRules) throw new AppError(E.RULES_NOT_AGREED)
+    const rules = getRules(artist.id)
+    if (rules?.content && !agreeRules) throw new AppError(E.RULES_NOT_AGREED)
 
     // v0.24 #10: 档位三态校验 — showcase/hidden 不允许下单
     if (tierId) {
@@ -158,7 +199,7 @@ export default async function orderRoutes(fastify: any) {
     }
 
     const order = orderService.createOrder({
-      artistId: (artist as any).id,
+      artistId: artist.id,
       tierId,
       clientQq: clamp(clientQq, 'qq')!,
       clientName: clamp(clientName, 'name'),
@@ -185,14 +226,14 @@ export default async function orderRoutes(fastify: any) {
    * GET /api/orders/track/:orderNo
    * 客户凭订单号 + QQ号查询进度（限流：同IP 20次/5分钟）
    */
-  fastify.get('/api/orders/track/:orderNo', async (request: any) => {
+  fastify.get('/api/orders/track/:orderNo', async (request: FastifyRequest) => {
     guardRateLimit(`track:${request.ip}`, 20, 5 * 60_000)
 
-    const { qq } = (request.query || {}) as any
+    const { qq } = (request.query || {}) as { qq?: string }
     if (!qq) throw new AppError(E.QQ_REQUIRED)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
-    const result = orderService.getClientQueuePosition(request.params.orderNo, qq)
+    const result = orderService.getClientQueuePosition((request.params as { orderNo: string }).orderNo, qq)
     if (!result) throw new AppError(E.ORDER_NOT_FOUND, 404)
 
     const { order, position, total } = result
@@ -210,7 +251,7 @@ export default async function orderRoutes(fastify: any) {
       tierName: order.tier_name,
       artistName: order.artist_name,
       description: result.description,
-      references: (result.references || []).map((r: any) => ({
+      references: (result.references || []).map((r: { file_path: string; original_name?: string | null }) => ({
         url: signedUrl(r.file_path),
         originalName: r.original_name
       })),
@@ -219,13 +260,13 @@ export default async function orderRoutes(fastify: any) {
       workflowStages,
       currentStageId: order.current_stage_id ?? null,
       currentStageName: stageInfo?.currentStageName ?? null,
-      deliverables: order.deliverables.map((d: any) => ({
+      deliverables: order.deliverables.map((d: { id: number; original_name?: string | null; file_path: string }) => ({
         id: d.id,
         fileName: d.original_name,
         url: signedUrl(d.file_path)
       })),
       // SPEC-003 §5.5: 客户可见附加项（仅 name + priceCents）+ 最终价格 + 付款节点
-      extraItems: (order.extraItems || []).map((item: any) => ({
+      extraItems: (order.extraItems || []).map((item: { name: string; price_cents: number }) => ({
         name: item.name,
         priceCents: item.price_cents
       })),
@@ -256,18 +297,18 @@ export default async function orderRoutes(fastify: any) {
      * 客户凭 QQ号 + 画师子域名 查询自己的所有订单（"不知道订单号"场景）
      * P2-#19: 限流收紧为每 IP 每分钟 10 次（防 QQ 枚举）
      */
-    fastify.get('/api/orders/my', async (request: any) => {
+    fastify.get('/api/orders/my', async (request: FastifyRequest) => {
       guardRateLimit(`my-orders:${request.ip}`, 10, 60_000)
 
-    const { subdomain, qq } = (request.query || {}) as any
+    const { subdomain, qq } = (request.query || {}) as { subdomain?: string; qq?: string }
     if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
-    const orders = orderService.getClientOrdersByQq((artist as any).id, qq)
-    return orders.map((o: any) => ({
+    const orders = orderService.getClientOrdersByQq(artist.id, qq)
+    return orders.map((o: { order_no: string; status: string; tier_name: string | null; created_at: string }) => ({
       orderNo: o.order_no,
       status: o.status,
       tierName: o.tier_name,
@@ -280,26 +321,26 @@ export default async function orderRoutes(fastify: any) {
    * 客户凭 QQ号 查询在某画师处是否有订单（不记得订单号场景）
    * 限流：同IP 10次/5分钟
    */
-  fastify.get('/api/orders/lookup', async (request: any) => {
+  fastify.get('/api/orders/lookup', async (request: FastifyRequest) => {
     guardRateLimit(`lookup:${request.ip}`, 10, 5 * 60_000)
 
-    const { subdomain, qq } = (request.query || {}) as any
+    const { subdomain, qq } = (request.query || {}) as { subdomain?: string; qq?: string }
     if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
-    const hasOrders = orderService.hasClientOrders((artist as any).id, qq)
+    const hasOrders = orderService.hasClientOrders(artist.id, qq)
     if (!hasOrders) {
       return { hasOrders: false }
     }
 
     return {
       hasOrders: true,
-      contactQq: (artist as any).contact_qq || (artist as any).qq_number,
+      contactQq: artist.contact_qq || artist.qq_number,
       adminQq: orderService.getPlatformConfig('admin_qq'),
-      artistName: (artist as any).name
+      artistName: artist.name
     }
   })
 
@@ -307,14 +348,14 @@ export default async function orderRoutes(fastify: any) {
    * GET /api/orders/delivery/:orderNo
    * 交付文件下载页数据（需 QQ 验证）
    */
-  fastify.get('/api/orders/delivery/:orderNo', async (request: any) => {
+  fastify.get('/api/orders/delivery/:orderNo', async (request: FastifyRequest) => {
     guardRateLimit(`delivery:${request.ip}`, 20, 5 * 60_000)
 
-    const { qq } = (request.query || {}) as any
+    const { qq } = (request.query || {}) as { qq?: string }
     if (!qq) throw new AppError(E.QQ_REQUIRED)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
-    const order = orderService.getOrderByNo(request.params.orderNo)
+    const order = orderService.getOrderByNo((request.params as { orderNo: string }).orderNo)
     if (!order || order.client_qq !== qq) {
       throw new AppError(E.ORDER_NOT_FOUND, 404)
     }
@@ -323,7 +364,7 @@ export default async function orderRoutes(fastify: any) {
       orderNo: order.order_no,
       status: order.status,
       artistName: order.artist_name,
-      deliverables: order.deliverables.map((d: any) => ({
+      deliverables: order.deliverables.map((d: { id: number; original_name?: string | null; file_size?: number | null; file_path: string }) => ({
         id: d.id,
         fileName: d.original_name,
         fileSize: d.file_size,
@@ -337,16 +378,16 @@ export default async function orderRoutes(fastify: any) {
   /**
    * GET /api/artist/orders
    */
-  fastify.get('/api/artist/orders', { preHandler: requireAuth }, async (request: any) => {
-    const { status, page, pageSize, q } = (request.query || {}) as any
+  fastify.get('/api/artist/orders', { preHandler: requireAuth }, async (request: FastifyRequest) => {
+    const { status, page, pageSize, q } = (request.query || {}) as { status?: string; page?: string; pageSize?: string; q?: string }
     const result = orderService.getArtistOrders(request.artist.id, status, {
-      page: Math.max(1, parseInt(page, 10) || 1),
-      pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200)),
+      page: Math.max(1, parseInt(page ?? '', 10) || 1),
+      pageSize: Math.max(1, Math.min(parseInt(pageSize ?? '', 10) || 50, 200)),
       q: typeof q === 'string' ? q.slice(0, 100) : undefined
     })
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
     if (result.items) {
-      result.items = result.items.map((order: any) => {
+      result.items = result.items.map((order: OrderRow) => {
         if (order.focus_image_path) {
           return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
         }
@@ -360,8 +401,8 @@ export default async function orderRoutes(fastify: any) {
    * GET /api/artist/queue
    * SPEC-004: zone=buffer 返回缓冲区列表
    */
-  fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request: any) => {
-      const { zone } = (request.query || {}) as any
+  fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request: FastifyRequest) => {
+      const { zone } = (request.query || {}) as { zone?: string }
       if (zone === 'buffer') {
         // 缓冲区列表
         const bufferOrders = db.prepare(`
@@ -370,9 +411,9 @@ export default async function orderRoutes(fastify: any) {
           LEFT JOIN price_tiers t ON o.tier_id = t.id
           WHERE o.artist_id = ? AND o.queue_zone = 'buffer' AND o.status NOT IN ('delivered', 'cancelled')
           ORDER BY o.queue_position ASC
-        `).all(request.artist.id) as any[]
-        return bufferOrders.map((order: any) => {
-          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
+        `).all(request.artist.id) as OrderRow[]
+        return bufferOrders.map((order: OrderRow) => {
+          const mapped: OrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
           if (order.focus_image_path) {
             mapped.focusImageUrl = signedUrl(order.focus_image_path)
           }
@@ -382,8 +423,8 @@ export default async function orderRoutes(fastify: any) {
       // REQ-013 #7: 完成区（最近 7 天已交付订单，沉底灰色展示）
       if (zone === 'completed') {
         const completed = orderQueueService.getCompletedQueue(request.artist.id)
-        return completed.map((order: any) => {
-          const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
+        return completed.map((order: OrderRow) => {
+          const mapped: OrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
           if (order.focus_image_path) {
             mapped.focusImageUrl = signedUrl(order.focus_image_path)
           }
@@ -394,8 +435,8 @@ export default async function orderRoutes(fastify: any) {
       const queue = orderQueueService.getArtistQueue(request.artist.id)
       // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
       // Bug 4 fix: 映射 current_stage_id → currentStageId（前端用 camelCase）
-      return queue.map((order: any) => {
-        const mapped: any = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
+      return queue.map((order: OrderRow) => {
+        const mapped: OrderRow = { ...order, currentStageId: order.current_stage_id ?? null, startDate: order.start_date ?? null }
         if (order.focus_image_path) {
           mapped.focusImageUrl = signedUrl(order.focus_image_path)
         }
@@ -408,14 +449,14 @@ export default async function orderRoutes(fastify: any) {
    * R51: 即将到期订单列表（deadline 在未来 7 天内 + 非终态，按 deadline 升序）
    * 注意：必须在 /api/artist/orders/:id 之前注册，避免被 :id 吞掉
    */
-  fastify.get('/api/artist/orders/upcoming-deadlines', { preHandler: requireAuth }, async (request: any) => {
+  fastify.get('/api/artist/orders/upcoming-deadlines', { preHandler: requireAuth }, async (request: FastifyRequest) => {
     return orderStatsService.getUpcomingDeadlines(request.artist.id)
   })
 
   /**
    * GET /api/artist/orders/:id
    */
-  fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request: any) => {
+  fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request: FastifyRequest) => {
     // B1 修复：增强逻辑抽至 enrichOrderForArtist，与所有变更端点统一
     return enrichOrderForArtist(request.order)
   })
@@ -460,8 +501,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { tierId, clientQq, clientName, description, priority, clientNotify, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { tierId, clientQq, clientName, description, priority, clientNotify, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as { tierId?: number | null; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; references?: string[]; usageMultiplierId?: number | null; rushMultiplierId?: number | null; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }> }
 
     // C-3 安全：参考图路径校验（与自助下单一致）
     if (references) {
@@ -506,12 +547,12 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     // R30d: 有 current_stage_id 的订单必须走 stage 接口（cancelled 除外）
-    if (request.order.current_stage_id && (request.body as any).status !== 'cancelled') {
+    if (request.order.current_stage_id && (request.body as { status: string }).status !== 'cancelled') {
       throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
     }
-    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, (request.body as any).status))
+    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, (request.body as { status: string }).status))
   })
 
   /**
@@ -530,8 +571,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return enrichOrderForArtist(orderQueueService.updatePriority(request.order.id, (request.body as any).priority))
+  }, async (request: FastifyRequest) => {
+    return enrichOrderForArtist(orderQueueService.updatePriority(request.order.id, (request.body as { priority: string }).priority))
   })
 
   /**
@@ -550,8 +591,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return enrichOrderForArtist(orderService.updateDeadline(request.order.id, (request.body as any).deadline))
+  }, async (request: FastifyRequest) => {
+    return enrichOrderForArtist(orderService.updateDeadline(request.order.id, (request.body as { deadline: string | null }).deadline))
   })
 
   /**
@@ -570,8 +611,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    return enrichOrderForArtist(orderService.updateStartDate(request.order.id, (request.body as any).startDate))
+  }, async (request: FastifyRequest) => {
+    return enrichOrderForArtist(orderService.updateStartDate(request.order.id, (request.body as { startDate: string | null }).startDate))
   })
 
   /**
@@ -591,10 +632,10 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     // P1-A 修复：重排返回值补焦点图签名（同 GET /api/artist/queue 逻辑）
-    const queue = orderQueueService.reorderQueue(request.artist.id, (request.body as any).orderedIds)
-    return queue.map((order: any) => {
+    const queue = orderQueueService.reorderQueue(request.artist.id, (request.body as { orderedIds: number[] }).orderedIds)
+    return queue.map((order: OrderRow) => {
       if (order.focus_image_path) {
         return { ...order, focusImageUrl: signedUrl(order.focus_image_path) }
       }
@@ -620,8 +661,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { content, imagePath } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { content, imagePath } = request.body as { content: string; imagePath?: string | null }
 
     // R19: 路径归属校验 — 只允许 notes/{artistId}/ 目录，拒绝路径穿越
     if (imagePath) {
@@ -639,8 +680,8 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.delete('/api/artist/orders/:id/notes/:noteId', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
-    const noteId = parseInt(request.params.noteId, 10)
+  }, async (request: FastifyRequest) => {
+    const noteId = parseInt((request.params as { noteId: string }).noteId, 10)
     if (isNaN(noteId)) throw new AppError(E.ORDER_INVALID_ID)
     return enrichOrderForArtist(orderService.deleteNote(request.order.id, noteId))
   })
@@ -664,15 +705,15 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { filePath, fileName, fileSize } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { filePath, fileName, fileSize } = request.body as { filePath: string; fileName?: string | null; fileSize?: number | null }
 
     // 安全：路径归属校验 — 只允许自己交付目录下的文件，拒绝路径穿越
     if (filePath.includes('..') || !filePath.startsWith(`deliverables/${request.artist.id}/`)) {
       throw new AppError(E.ILLEGAL_PATH)
     }
 
-    const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName, fileSize)
+    const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName ?? null, fileSize ?? null)
     // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
     return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
   })
@@ -684,7 +725,7 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.post('/api/artist/orders/:id/deliver-no-file', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     const result = orderGalleryService.deliverOrderWithoutFile(request.order.id)
     // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
     return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
@@ -710,8 +751,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any, reply: any) => {
-    const { deliverableIds, title, description } = request.body as any
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { deliverableIds, title, description } = request.body as { deliverableIds: number[]; title: string; description?: string | null }
     const artworks = await orderGalleryService.publishArtwork(
       request.order.id, request.artist.id, deliverableIds, title, description
     )
@@ -737,8 +778,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { filePath, fileName, fileSize } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { filePath, fileName, fileSize } = request.body as { filePath: string; fileName?: string | null; fileSize?: number | null }
 
     // 安全：路径归属校验 — 参考图只允许 references/ 目录，拒绝路径穿越
     if (filePath.includes('..') || !filePath.startsWith('references/')) {
@@ -746,14 +787,14 @@ export default async function orderRoutes(fastify: any) {
     }
 
     // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
-    orderGalleryService.addReference(request.order.id, filePath, fileName, fileSize, 'artist')
+    orderGalleryService.addReference(request.order.id, filePath, fileName ?? null, fileSize ?? null, 'artist')
     return enrichOrderForArtist(orderService.getOrder(request.order.id))
   })
 
   /**
    * GET /api/artist/stats
    */
-  fastify.get('/api/artist/stats', { preHandler: requireAuth }, async (request: any) => {
+  fastify.get('/api/artist/stats', { preHandler: requireAuth }, async (request: FastifyRequest) => {
     return orderStatsService.getArtistStats(request.artist.id)
   })
 
@@ -776,8 +817,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { finalPriceCents, quoteSnapshot } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { finalPriceCents, quoteSnapshot } = request.body as { finalPriceCents: number; quoteSnapshot?: string | null }
     // R19 + B1: 改价返回的订单统一增强（与 GET orders/:id 一致）
     return enrichOrderForArtist(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot))
   })
@@ -801,14 +842,14 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { imagePath, mode } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { imagePath, mode } = request.body as { imagePath?: string | null; mode: string }
     // M2 修复：路由层路径校验（纵深防御）— 焦点图必须来自 references/ 目录，拒绝路径穿越。
     // 服务层仍校验参考图归属该订单（setFocusImage），此处只补格式层守卫。
     if (imagePath && (imagePath.includes('..') || !imagePath.startsWith('references/'))) {
       throw new AppError(E.ILLEGAL_PATH)
     }
-    const order = orderGalleryService.setFocusImage(request.order.id, imagePath, mode)
+    const order = orderGalleryService.setFocusImage(request.order.id, imagePath ?? null, mode)
     // Bug fix + B1: setFocusImage 返回的订单统一增强（与 GET orders/:id 一致）
     return enrichOrderForArtist(order)
   })
@@ -819,8 +860,8 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.delete('/api/artist/orders/:id/references/:refId', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
-    const refId = parseInt(request.params.refId, 10)
+  }, async (request: FastifyRequest) => {
+    const refId = parseInt((request.params as { refId: string }).refId, 10)
     if (isNaN(refId)) throw new AppError(E.ORDER_INVALID_ID)
     // B1: 统一增强（此前连签名都没有，删图后前端直接覆盖 → 同样丢字段）
     return enrichOrderForArtist(orderGalleryService.removeReference(request.order.id, refId))
@@ -850,10 +891,10 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     guardRateLimit(`refresh-sig:${request.artist.id}`, 20, 5 * 60_000)
 
-    const { paths } = request.body as any
+    const { paths } = request.body as { paths: string[] }
     const artistId = String(request.artist.id)
 
     // 安全：路径归属校验 — 只允许本画师有权访问的目录
@@ -894,8 +935,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const order = orderWorkflowService.advanceStage(request.order.id, (request.body as any).stageId)
+  }, async (request: FastifyRequest) => {
+    const order = orderWorkflowService.advanceStage(request.order.id, (request.body as { stageId: number | null }).stageId)
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
     return enrichOrderForArtist(order)
   })
@@ -906,7 +947,7 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.put('/api/artist/orders/:id/track-on', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     const order = orderWorkflowService.enableTracking(request.order.id)
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
     return enrichOrderForArtist(order)
@@ -928,8 +969,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const order = orderWorkflowService.rollbackStage(request.order.id, (request.body as any).stageId)
+  }, async (request: FastifyRequest) => {
+    const order = orderWorkflowService.rollbackStage(request.order.id, (request.body as { stageId: number }).stageId)
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
     return enrichOrderForArtist(order)
   })
@@ -955,8 +996,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { name, description, priceCents } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { name, description, priceCents } = request.body as { name: string; description?: string | null; priceCents?: number }
     return enrichOrderForArtist(orderService.addExtraItem(request.order.id, { name, description, priceCents }))
   })
 
@@ -966,8 +1007,8 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.delete('/api/artist/orders/:id/extra-items/:itemId', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
-    const itemId = parseInt(request.params.itemId, 10)
+  }, async (request: FastifyRequest) => {
+    const itemId = parseInt((request.params as { itemId: string }).itemId, 10)
     if (isNaN(itemId)) throw new AppError(E.ORDER_INVALID_ID)
     return enrichOrderForArtist(orderService.deleteExtraItem(request.order.id, itemId))
   })
@@ -992,8 +1033,8 @@ export default async function orderRoutes(fastify: any) {
         additionalProperties: false
       }
     }
-  }, async (request: any) => {
-    const { amountCents, note, installmentId } = request.body as any
+  }, async (request: FastifyRequest) => {
+    const { amountCents, note, installmentId } = request.body as { amountCents: number; note?: string | null; installmentId?: number | null }
     const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', installmentId: installmentId || null })
     const order = orderService.getOrder(request.order.id)
     return {
@@ -1010,7 +1051,7 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.get('/api/artist/orders/:id/payments', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     return { payments: orderService.getPayments(request.order.id) }
   })
 
@@ -1020,11 +1061,11 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.get('/api/artist/orders/:id/logs', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
-    const { page, pageSize, type } = (request.query || {}) as any
+  }, async (request: FastifyRequest) => {
+    const { page, pageSize, type } = (request.query || {}) as { page?: string; pageSize?: string; type?: string }
     return activityLogService.getOrderLogs(request.order.id, {
-      page: Math.max(1, parseInt(page, 10) || 1),
-      pageSize: Math.max(1, Math.min(parseInt(pageSize, 10) || 50, 200)),
+      page: Math.max(1, parseInt(page ?? '', 10) || 1),
+      pageSize: Math.max(1, Math.min(parseInt(pageSize ?? '', 10) || 50, 200)),
       type: typeof type === 'string' ? type : undefined
     })
   })
@@ -1037,7 +1078,7 @@ export default async function orderRoutes(fastify: any) {
    */
   fastify.post('/api/artist/orders/:id/promote', {
     preHandler: [requireAuth, requireOwnOrder]
-  }, async (request: any) => {
+  }, async (request: FastifyRequest) => {
     return enrichOrderForArtist(orderService.promoteOrder(request.order.id))
   })
 }
