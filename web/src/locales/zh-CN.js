@@ -1025,6 +1025,7 @@ export default {
     ]
   },
   admin: {
+    navGroupOverview: '概览', navGroupOps: '运营', navGroupConfig: '配置与监控',
     backToAdmin: '返回后台', panelTitle: '管理员面板',
     artistCount: '画师数', totalOrders: '总订单', activeOrders: '活跃订单',
     artistList: '画师列表', manageArtists: '管理画师',

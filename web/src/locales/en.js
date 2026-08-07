@@ -1027,6 +1027,7 @@ export default {
     ]
   },
   admin: {
+    navGroupOverview: 'Overview', navGroupOps: 'Operations', navGroupConfig: 'Config & Monitor',
     backToAdmin: 'Back to dashboard', panelTitle: 'Admin panel',
     artistCount: 'Artists', totalOrders: 'Total orders', activeOrders: 'Active orders',
     artistList: 'Artist list', manageArtists: 'Manage artists',

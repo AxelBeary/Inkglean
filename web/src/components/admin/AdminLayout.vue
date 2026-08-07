@@ -17,23 +17,26 @@
 
         <!-- 导航（7 项：管理员面板/画师管理/问候语管理/默认流程/社交平台/系统自检/埋点看板） -->
         <nav class="nav" :class="{ 'nav--collapsed': collapsed }">
-          <template v-for="item in navItems" :key="item.path">
-            <el-tooltip v-if="collapsed" placement="right" effect="light" :hide-after="200" :content="$t(item.labelKey)">
+          <template v-for="group in groupedNav" :key="group.key">
+            <div v-if="!collapsed" class="nav-group-title">{{ $t(group.labelKey) }}</div>
+            <template v-for="item in group.items" :key="item.path">
+              <el-tooltip v-if="collapsed" placement="right" effect="light" :hide-after="200" :content="$t(item.labelKey)">
+                <div
+                  class="nav-item" :class="{ 'nav-item--active': activePath === item.path }"
+                  role="link" tabindex="0" @click="go(item.path)" @keydown.enter="go(item.path)"
+                >
+                  <el-icon><component :is="item.icon" /></el-icon>
+                </div>
+              </el-tooltip>
               <div
+                v-else
                 class="nav-item" :class="{ 'nav-item--active': activePath === item.path }"
                 role="link" tabindex="0" @click="go(item.path)" @keydown.enter="go(item.path)"
               >
                 <el-icon><component :is="item.icon" /></el-icon>
+                <span class="nav-label">{{ $t(item.labelKey) }}</span>
               </div>
-            </el-tooltip>
-            <div
-              v-else
-              class="nav-item" :class="{ 'nav-item--active': activePath === item.path }"
-              role="link" tabindex="0" @click="go(item.path)" @keydown.enter="go(item.path)"
-            >
-              <el-icon><component :is="item.icon" /></el-icon>
-              <span class="nav-label">{{ $t(item.labelKey) }}</span>
-            </div>
+            </template>
           </template>
         </nav>
 
@@ -75,14 +78,17 @@
         </div>
       </template>
       <nav class="nav nav--drawer">
-        <div
-          v-for="item in navItems" :key="item.path"
-          class="nav-item" :class="{ 'nav-item--active': activePath === item.path }"
-          role="link" tabindex="0" @click="goDrawer(item.path)" @keydown.enter="goDrawer(item.path)"
-        >
-          <el-icon><component :is="item.icon" /></el-icon>
-          <span class="nav-label">{{ $t(item.labelKey) }}</span>
-        </div>
+        <template v-for="group in groupedNav" :key="group.key">
+          <div class="nav-group-title">{{ $t(group.labelKey) }}</div>
+          <div
+            v-for="item in group.items" :key="item.path"
+            class="nav-item" :class="{ 'nav-item--active': activePath === item.path }"
+            role="link" tabindex="0" @click="goDrawer(item.path)" @keydown.enter="goDrawer(item.path)"
+          >
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span class="nav-label">{{ $t(item.labelKey) }}</span>
+          </div>
+        </template>
       </nav>
       <div class="drawer-footer">
         <button class="back-btn" @click="$router.push('/dashboard')">
@@ -110,16 +116,29 @@ const themeStore = useThemeStore()
 onMounted(() => themeStore.enterArtistScope())
 onUnmounted(() => themeStore.leaveArtistScope())
 
-// ─── 导航注册表（侧栏与抽屉共用） ───
-const navItems = [
-  { path: '/admin', icon: Management, labelKey: 'admin.panelTitle' },
-  { path: '/admin/artists', icon: User, labelKey: 'admin.artistManage' },
-  { path: '/admin/greetings', icon: ChatLineSquare, labelKey: 'admin.greetingManage' },
-  { path: '/admin/default-workflow', icon: SetUp, labelKey: 'admin.defaultWorkflow' },
-  { path: '/admin/platforms', icon: Share, labelKey: 'admin.platformManage' },
-  { path: '/admin/health', icon: Monitor, labelKey: 'admin.health.title' },
-  { path: '/admin/analytics', icon: TrendCharts, labelKey: 'admin.tracking.title' }
+// ─── 导航注册表（侧栏与抽屉共用，分组渲染） ───
+const NAV_GROUPS = [
+  { key: 'overview', labelKey: 'admin.navGroupOverview' },
+  { key: 'ops', labelKey: 'admin.navGroupOps' },
+  { key: 'config', labelKey: 'admin.navGroupConfig' }
 ]
+const navItems = [
+  { path: '/admin', icon: Management, labelKey: 'admin.panelTitle', group: 'overview' },
+  { path: '/admin/artists', icon: User, labelKey: 'admin.artistManage', group: 'ops' },
+  { path: '/admin/greetings', icon: ChatLineSquare, labelKey: 'admin.greetingManage', group: 'ops' },
+  { path: '/admin/default-workflow', icon: SetUp, labelKey: 'admin.defaultWorkflow', group: 'ops' },
+  { path: '/admin/platforms', icon: Share, labelKey: 'admin.platformManage', group: 'config' },
+  { path: '/admin/health', icon: Monitor, labelKey: 'admin.health.title', group: 'config' },
+  { path: '/admin/analytics', icon: TrendCharts, labelKey: 'admin.tracking.title', group: 'config' }
+]
+
+// 分组渲染：按 NAV_GROUPS 顺序展平为 [{ group, items }]
+const groupedNav = computed(() =>
+  NAV_GROUPS.map(group => ({
+    ...group,
+    items: navItems.filter(item => item.group === group.key)
+  }))
+)
 
 // 子路由（如 /admin/artists 详情）归属父级高亮；无匹配时管理员面板
 const activePath = computed(() => {
@@ -258,6 +277,16 @@ function goDrawer(path) {
 .nav--collapsed .nav-item--active::before { left: -10px; }
 .nav-item .el-icon { font-size: calc(var(--font-scale, 1) * 16px); flex: none; }
 .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 分组标题：低饱和小字（--ink3），与激活项花青软底不抢视觉；折叠态由模板 v-if 隐藏 */
+.nav-group-title {
+  padding: 14px 16px 6px;
+  font-size: 11px;
+  color: var(--ink3);
+  letter-spacing: .08em;
+  white-space: nowrap;
+  user-select: none;
+}
 
 /* ─── 底部返回区 ─── */
 .sidebar-footer {
