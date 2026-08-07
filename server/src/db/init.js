@@ -1683,6 +1683,46 @@ export const MIGRATIONS = [
       // 纯 CREATE INDEX，无 ALTER/DROP，事务内安全（对照 v44）；IF NOT EXISTS 幂等
       database.exec('CREATE INDEX IF NOT EXISTS idx_events_artist_ts ON events(artist_id, ts)')
     }
+  },
+  {
+    version: 46,
+    name: 'client_profiles',
+    up(database) {
+      // REQ-035 批A: 画师私有客户标记（标签+备注，挂 client_qq 维度）
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS client_profiles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+          client_qq TEXT NOT NULL,
+          tags TEXT NOT NULL DEFAULT '[]',
+          note TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE(artist_id, client_qq)
+        );
+        CREATE INDEX IF NOT EXISTS idx_client_profiles_artist ON client_profiles(artist_id);
+      `)
+    }
+  },
+  {
+    version: 47,
+    name: 'standalone_incomes',
+    up(database) {
+      // REQ-035 批C: 散单收入记账（不走订单流程，只记钱）
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS standalone_incomes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+          amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+          client_name TEXT NOT NULL DEFAULT '',
+          note TEXT NOT NULL DEFAULT '',
+          income_date TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_standalone_incomes_artist_date ON standalone_incomes(artist_id, income_date);
+      `)
+    }
   }
 ]
 

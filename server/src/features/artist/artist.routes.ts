@@ -657,4 +657,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
   // ─── 仪表盘（v0.18 第二批） ───
   const dashboardRoutes = await import('./dashboard.routes.js')
   await fastify.register(dashboardRoutes.default)
+
+  // ─── 画师工具（REQ-035 批A/批C + REQ-031 A1：客户标记/老客召回/散单记账/收入导出） ───
+  const toolsRoutes = await import('./tools.routes.js')
+  await fastify.register(toolsRoutes.default)
 }
