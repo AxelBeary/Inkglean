@@ -32,8 +32,8 @@
 | 后端 | Fastify 5 + better-sqlite3 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） |
 | 登录 | TOTP 动态口令（RFC 6238） |
-| 测试 | Vitest（后端 925 + 前端 215 = 1140 用例）+ Playwright E2E |
-| 类型 | TypeScript（后端渐进迁移） |
+| 测试 | Vitest（后端 971 + 前端 215 = 1186 用例）+ Playwright E2E |
+| 类型 | TypeScript（后端 100% TS，strict 全开） |
 | 监控 | Sentry |
 
 ## 快速开始
@@ -62,7 +62,7 @@ cd web && npm install
 npm run dev        # http://localhost:5173
 
 # 测试
-cd server && npm test    # 925 个用例
+cd server && npm test    # 971 个用例
 cd server && npm run lint
 cd web && npm run lint
 ```
@@ -72,7 +72,7 @@ cd web && npm run lint
 ```
 server/                 # 后端（Fastify，按业务域分目录）
   src/
-    app.js              # 应用工厂（cookie、CORS、安全头）
+    app.ts              # 应用工厂（cookie、CORS、安全头）
     features/           # auth / artist / order / upload / pricing / admin
     shared/             # 错误码、校验、中间件、文件签名
     db/                 # 连接、建表、迁移、种子
@@ -99,7 +99,7 @@ docs/                   # 文档（含 soul 角色定义）
 ## 安全说明
 
 - 会话用 HMAC-SHA256 签名 + httpOnly cookie，JS 读不到
-- 登录用密码学安全随机数 + IP 限速
+- 登录用 TOTP 动态口令（RFC 6238）+ IP 限速
 - 上传文件有扩展名 + MIME 双重白名单
 - 交付文件/参考图走签名 URL（15 分钟有效）
 - 后端统一错误码，不把内部信息透给用户
