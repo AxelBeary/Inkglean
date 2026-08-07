@@ -321,4 +321,41 @@ describe('SPEC-003 附加工作项 (Extra Items)', () => {
     // final 应该是 500000 - 10000 = 490000
     expect(body.final_price_cents).toBe(490000)
   })
-})
+
+  it('TC-EI-P03: final/total 均 NULL、仅 price_snapshot → 加增项 → final = snapshot×100 + delta', async () => {
+    const artist = makeArtist()
+    const order = makeOrder(artist.id)
+    // 模拟存量订单未定价但记录快照：三级回退链只剩 price_snapshot
+    db.prepare('UPDATE orders SET total_price_cents = NULL, final_price_cents = NULL, price_snapshot = 600 WHERE id = ?').run(order.id)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/artist/orders/${order.id}/extra-items`,
+      headers: authH(artist),
+      payload: { name: '武器', priceCents: 5000 }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().final_price_cents).toBe(65000) // 600×100 + 5000
+  })
+
+  it('TC-EI-P03b: 仅 price_snapshot → 删除增项 → final 回退 snapshot×100', async () => {
+    const artist = makeArtist()
+    const order = makeOrder(artist.id)
+    db.prepare('UPDATE orders SET total_price_cents = NULL, final_price_cents = NULL, price_snapshot = 600 WHERE id = ?').run(order.id)
+
+    const addRes = await app.inject({
+      method: 'POST',
+      url: `/api/artist/orders/${order.id}/extra-items`,
+      headers: authH(artist),
+      payload: { name: '武器', priceCents: 5000 }
+    })
+    const itemId = addRes.json().extraItems[0].id
+
+    const delRes = await app.inject({
+      method: 'DELETE',
+      url: `/api/artist/orders/${order.id}/extra-items/${itemId}`,
+      headers: authH(artist)
+    })
+    expect(delRes.statusCode).toBe(200)
+    expect(delRes.json().final_price_cents).toBe(60000) // 回退到 snapshot×100
+  })})
