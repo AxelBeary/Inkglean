@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-07 v17——**大轮闭环：字号全局缩放+侧边栏补漏 / 上传框修复 / repowiki重写 / 后端埋点(939/939) / 批5色板联动 / 前端埋点全接入 / 第三方报告High项修复，全部合入推送；profile通道修复（providers缺失定义+key）；容器统一重建中**。基线 server **939/939** · web **215/215**。HEAD `9384020`。
+> 最后更新：2026-08-07 v18（版本收工）——**v0.40 收官：三修上线（移动端布局/字号档位全覆盖/无尺寸跳过）+ 容器刷新到 master `4f17bfd`**。基线 server **939/939** · web **215/215** · 容器 healthy。**本版本结束，待办池见下（下次开工据此派工）**。
 > ⚠️ **视觉 API 已验证可用**（08-07 实测：vision_analyze 成功看图，无需重启）——STATUS v15 的「待重启验证」项已闭环。视觉验收=截图+用户口述。
 > ⚠️ 2026-08-05 上午发生**身份混淆事故**：一个二号窗口误认自己是一号代行了门禁/派工。经一号独立复核：master 完整、测试全绿、worktree 断点可信、无 reset/rebase/强推痕迹，**本次事故零代码损失**。防再发规则见「身份自检」。
 > ⚠️ 2026-08-05 夜**消息时差错位**：用户就五号 F1 写路径缺口的指示未送达一号会话（用户先发消息给一号、同时直接告知五号研判修复；一号侧收到时五号已在修）。所幸门禁未放行（一号独立审核也抓出同一缺口并打了返工），零损失。教训：**用户消息未达 ≠ 事情没发生**——审核结论以 diff 为准，与消息渠道无关；STATUS 必须实时反映分支真实状态（此前 STATUS 写「进行中」时五号实际已交付，引发用户误判）。
@@ -12,13 +12,13 @@
 ---
 ## master 状态
 
-- **HEAD**：`022071a`（OrderDetail 瘦身批派工落盘），与 origin 同步
+- **HEAD**：`4f17bfd`（v0.40 收官：三修上线），与 origin 同步
 - **工作树**：主仓干净
-- **测试基线**：server 930/930（59 文件）· web 215/215（13 文件）· tsc 0 · oxlint 6 warnings（既有）
+- **测试基线**：server **939/939**（60 文件）· web 215/215（13 文件）· tsc 0 · oxlint 0
 - **后端 100% TypeScript**（TS 迁移 P0-P2 合入：oxlint+CI typecheck+strictNullChecks 31 处修复+4 文件转 TS）
-- **容器**：✅ **2026-08-07 二次刷新上线**（含 TS 迁移 P0-P2 + 批4 后台视觉/录单页 + entrypoint 修复 index.js→index.ts），healthy + `/api/health` ok。备份 `commission.db.bak-pre-ts-refresh-2026-08-06-07-36-05`（integrity ok，orders 8/artists 5）。⚠️ 发现并修复部署缺口：TS 迁移改名 index.ts 后 entrypoint.sh 仍指向 index.js——已改显式 index.ts（容器启动兼容）。上次重建实录见 STATUS 早期记录。
-- **备份**：`commission.db.bak-pre-env-rebuild-20260806-0636`（重建前，integrity ok）+ 更早里程碑
-- **迁移**：v43（DROP addons）为最新
+- **容器**：✅ **2026-08-07 多次刷新，最新含 v0.40 全部**（字号缩放+三修 / 上传框 / 埋点前后端 / 批5色板 / 移动端布局 / 无尺寸跳过），healthy + `/api/health` ok。备份 `bak-pre-fontscale-2026-08-07T04-53-36-802Z`（integrity ok，orders 8/artists 5/greetings 93）。
+- **备份**：`commission.db.bak-pre-env-rebuild-20260806-0636` + `bak-pre-fontscale-2026-08-07` + 更早里程碑
+- **迁移**：v44（events + anon_tokens，埋点）为最新
 - **协议**：主仓库 **AGPL-3.0**（MIT→GPL→AGPL，防 SaaS 竞品；画师自用部署不受影响）；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md + 字体 OFL 许可
 - **开源**：①主仓库 [Brushline-HuiYue](https://github.com/AxelBeary/Brushline-HuiYue)（AGPL-3.0）②方法论仓库 [huiyue-multi-agent-playbook](https://github.com/AxelBeary/huiyue-multi-agent-playbook)（5 soul + 8 skills，CC BY-SA 4.0）
 - **comms**：STATUS + 前端全页面研判报告 + 两份核实报告（安全审计/前端优化，待排期消费）
@@ -51,15 +51,16 @@
 ## 当前阶段（2026-08-06 用户定）**Beta 冲刺**——修 Bug + 视觉问题，目标几天内发布 Beta。**批 1-批 4b + 低垂果实批 + F3 快捷入口实施批全部合入**，容器已刷新到最新。**待办池见下**。
 
 **冲刺待办池（刷新后据此派工）**：
-- **F3 快捷入口实施批 ✅ 已合入**（2026-08-07：候选池 9→14 项 type/action 字段、默认 6 项 manual/preview/rules/share/quickconfig/status、状态循环按钮替代 StatusSwitch、拖图/粘贴发作品、分享复制链接、⚡动作标记；二号子代理 `9b5a6d4`，一号审核通过合入 `a143077`+`2c74b61`）。运行态风险点：拖图发布/剪贴板依赖浏览器权限，**待用户浏览器验收**。
-- **Bug/视觉**：
-  - 屎山审计低垂果实批 ✅ 已合入；**遗留**：审计外 10 处裸 catch（health/artist.service/upload.routes/order-gallery/style-pricing）待下批；三巨头组件拆分（OrderDetail 1898/QueueBoard 1679/ManualOrder 1432 行）——**OrderDetail 瘦身试水批在途**（五号子代理 `deleg_6eab4d19`，worktree w15，砍 P2 init.js 拆分、P0 目标 B 只拆 script 4 区块成 composable、模板不拆）
-  - 内测反馈批 4 ✅ F2对比度/F5a观感/F1字号/F4上传区/F6草稿 全合入；F3 快捷入口 ✅ 已合入
-  - 视觉截图待用户口述验收（beta-od01 五色换色 / beta-tags 标签 / beta-templates 模板 / beta-batch4 批4，部分 after 待视觉 skill 就绪后补拍）——素材在 docs/audit-screenshots/
-  - **批 5 色板联动缺口（三号候选，已核实待派）**：theme.css 已换 OD-01 新色（1 号 #356B69 月白青 / 2 号 #3F5E80 雾蓝 / 3 号 #5E5494 藤紫），但 Settings.vue L376 ACCENT_PRESETS + server artist.service.ts L196 白名单 + ArtistHome.vue L90 ACCENT_INDEX **三处仍是旧 hex**（#34dbcb/#34c2db/#3498db）→ 设置页色块与实际渲染不一致；DB 存量 1 条（Alice `#34dbcb`）需迁移兼容（UPDATE 映射或渲染兼容）
-  - 埋点实施（REQ-033 口径已定：换色已埋骨架；后端 /api/events + 漏斗 + 后台使用率待实施）
-- **发布准备**：容器重建 ✅ 已刷新；正式发布 Beta 前完整回归 + 截图验收
-- **文档**：repowiki 已归档 docs/external-wiki/（核对报告 + 2 篇待重写原文，不新增维护面）；维护说明书/开发自参考已由批 1 四号同步
+- **v0.40 全部合入 ✅**（F3 快捷入口 / 字号缩放+三修 / 上传框 / 每日一句 / 瘦身试水 / 埋点前后端 / 批5色板 / repowiki / 第三方 High 项）。容器已刷新到 master `4f17bfd`。**本版本结束**。
+- **下次开工候选（按优先级）**：
+  1. **埋点数据看板**（REQ-033 收尾：events 数据已在库，可做后台统计页/漏斗分析）
+  2. **三巨头剩余拆分**（QueueBoard 1679 / ManualOrder 1432 行——OrderDetail 试水模式已验证，可派）
+  3. **repowiki P2**（其余 112 篇抽样检查认证系文档）
+  4. **审计遗留**：审计外裸 catch（已判定多为"错误已传播/清理类"，0 需补——**已核实销账**）；类型门禁 strict=false 可开（第三方报告 Low 项，可选）
+  5. **视觉 backlog 待用户口述验收**（beta-od01 / tags / templates / batch4，素材在 docs/audit-screenshots/）
+- **F3 运行态**（拖图发布/剪贴板）：待用户浏览器验收
+- **发布准备**：容器 ✅ 已刷新；正式发布 Beta 前完整回归 + 截图验收（AUTH_DEV_MODE 关闭 = A 测启动事件，需用户拍板）
+- **文档**：repowiki 已归档 docs/external-wiki/（P0 重写完成，P2 抽样挂起）
 
 ---
 ## 已拍板规则（长期有效）
