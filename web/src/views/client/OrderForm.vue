@@ -1,6 +1,6 @@
 MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from 'vue-router'... HIT: import { ref, computed, watch } from 'vu... <template>
   <div class="order-form-page">
-    <ClientFloatingActions />
+    <ClientFloatingActions raised />
     <div class="form-container" v-loading="loading">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('orderForm.backHome')" :content="$t('orderForm.title')">
         <!-- 打磨批 E：title 文本 aria-hidden——EP page-header icon 自带 aria-label=title，叠加读两遍；视觉不变 -->
@@ -1093,7 +1093,7 @@ async function copyQq(qq) {
 @media (max-width: 860px) {
   .mobile-cta-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    position: sticky; bottom: 0; z-index: 60;
+    position: sticky; bottom: 0; z-index: 100;
     margin: 0 -16px -16px;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--bg-card, #fff) 92%, transparent);
