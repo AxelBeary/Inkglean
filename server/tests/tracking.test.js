@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+﻿import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
@@ -154,5 +154,172 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     expect(res.statusCode).toBe(429)
     expect(res.json().code).toBe('RATE_LIMITED')
     expect(db.prepare('SELECT COUNT(*) AS c FROM events').get().c).toBe(100)
+  })
+
+  // ─── REQ-033 收尾：统计读接口 ───
+
+  /** 设置管理员：写 platform_config.admin_qq + 创建管理员画师，返回画师行 */
+  function setAdmin(qqNumber) {
+    db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(qqNumber)
+    return seedArtist({ qq_number: qqNumber, subdomain: `admin-${qqNumber.slice(-4)}` })
+  }
+
+  /** 匿名凭证上报一条事件 */
+  async function reportEvent(event) {
+    const token = await fetchToken()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: { token, events: [event] }
+    })
+    expect(res.statusCode).toBe(200)
+  }
+
+  it('TC-TR-10: 管理员 summary 聚合全局事件（total/byName/byDay/funnel）', async () => {
+    const admin = setAdmin('10001')
+    await reportEvent({ name: 'order_form_start', ts: Date.now() })
+    await reportEvent({ name: 'order_form_step_view', ts: Date.now() })
+    await reportEvent({ name: 'order_form_submit_success', ts: Date.now() })
+    await reportEvent({ name: 'theme_accent_change', ts: Date.now(), accent: '3' })
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/tracking/summary?days=30',
+      headers: { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.total).toBe(4)
+    const names = body.byName.map(r => r.name)
+    expect(names).toContain('order_form_start')
+    expect(names).toContain('theme_accent_change')
+    const start = body.byName.find(r => r.name === 'order_form_start')
+    expect(start.count).toBe(1)
+    expect(Array.isArray(body.byDay)).toBe(true)
+    expect(body.byDay.reduce((s, r) => s + r.count, 0)).toBe(4)
+    // 漏斗固定 5 项顺序，无数据项补 0
+    expect(body.funnel).toHaveLength(5)
+    expect(body.funnel[0]).toEqual({ name: 'order_form_start', count: 1 })
+    expect(body.funnel.find(r => r.name === 'order_form_submit_success').count).toBe(1)
+    expect(body.funnel.find(r => r.name === 'order_submit_success').count).toBe(0)
+  })
+
+  it('TC-TR-11: 管理员 summary 未登录 401 / 普通画师 403', async () => {
+    setAdmin('10001')
+
+    const anon = await app.inject({ method: 'GET', url: '/api/admin/tracking/summary' })
+    expect(anon.statusCode).toBe(401)
+
+    const pleb = seedArtist({ qq_number: '20002', subdomain: 'pleb' })
+    const plebToken = createSession(pleb.id, pleb.token_version)
+    const forbidden = await app.inject({
+      method: 'GET',
+      url: '/api/admin/tracking/summary',
+      headers: { Authorization: `Bearer ${plebToken}` }
+    })
+    expect(forbidden.statusCode).toBe(403)
+    expect(forbidden.json().code).toBe('ADMIN_REQUIRED')
+  })
+
+  it('TC-TR-12: 画师 summary 只统计自己的事件（未登录 401）', async () => {
+    const alice = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+    const aliceToken = createSession(alice.id, alice.token_version)
+    const r1 = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      headers: { Authorization: `Bearer ${aliceToken}` },
+      payload: { events: [{ name: 'dashboard_view', ts: Date.now(), page: '/dashboard' }] }
+    })
+    expect(r1.statusCode).toBe(200)
+
+    // 未登录访问 → 401
+    const anon = await app.inject({ method: 'GET', url: '/api/artist/tracking/summary' })
+    expect(anon.statusCode).toBe(401)
+
+    // alice 自己看 → total=1
+    const mine = await app.inject({
+      method: 'GET',
+      url: '/api/artist/tracking/summary?days=30',
+      headers: { Authorization: `Bearer ${aliceToken}` }
+    })
+    expect(mine.statusCode).toBe(200)
+    expect(mine.json().total).toBe(1)
+    expect(mine.json().byName).toEqual([{ name: 'dashboard_view', count: 1 }])
+
+    // 另一个画师看 → 看不到 alice 的事件
+    const bob = seedArtist({ qq_number: '30003', subdomain: 'bob' })
+    const bobToken = createSession(bob.id, bob.token_version)
+    const other = await app.inject({
+      method: 'GET',
+      url: '/api/artist/tracking/summary?days=30',
+      headers: { Authorization: `Bearer ${bobToken}` }
+    })
+    expect(other.statusCode).toBe(200)
+    expect(other.json().total).toBe(0)
+  })
+
+  it('TC-TR-13: 开关 config 默认 true，PUT false 后读取 false，PUT true 恢复', async () => {
+    const admin = setAdmin('10001')
+    const adminToken = createSession(admin.id, admin.token_version)
+    const auth = { Authorization: `Bearer ${adminToken}` }
+
+    // 默认 true（未写入过）
+    const initial = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
+    expect(initial.statusCode).toBe(200)
+    expect(initial.json()).toEqual({ artistStatsVisible: true })
+
+    // PUT false → GET false
+    const off = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/tracking-config',
+      headers: auth,
+      payload: { artistStatsVisible: false }
+    })
+    expect(off.statusCode).toBe(200)
+    expect(off.json()).toEqual({ artistStatsVisible: false })
+    const afterOff = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
+    expect(afterOff.json()).toEqual({ artistStatsVisible: false })
+
+    // 画师侧 enabled 同步为 false
+    const artist = seedArtist({ qq_number: '40004', subdomain: 'carl' })
+    const artistToken = createSession(artist.id, artist.token_version)
+    const artistView = await app.inject({
+      method: 'GET',
+      url: '/api/artist/tracking/summary',
+      headers: { Authorization: `Bearer ${artistToken}` }
+    })
+    expect(artistView.json().enabled).toBe(false)
+
+    // PUT true 恢复
+    const on = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/tracking-config',
+      headers: auth,
+      payload: { artistStatsVisible: true }
+    })
+    expect(on.json()).toEqual({ artistStatsVisible: true })
+    const afterOn = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
+    expect(afterOn.json()).toEqual({ artistStatsVisible: true })
+  })
+
+  it('TC-TR-14: 开关 PUT 缺字段 / 非布尔被 schema 拒绝 400', async () => {
+    const admin = setAdmin('10001')
+    const auth = { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+
+    const noField = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/tracking-config',
+      headers: auth,
+      payload: {}
+    })
+    expect(noField.statusCode).toBe(400)
+
+    const wrongType = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/tracking-config',
+      headers: auth,
+      payload: { artistStatsVisible: 'yes' }
+    })
+    expect(wrongType.statusCode).toBe(400)
   })
 })
