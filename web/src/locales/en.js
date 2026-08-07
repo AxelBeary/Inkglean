@@ -1146,6 +1146,13 @@ export default {
     greetingTab: 'Greetings',
     greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',
     greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.',
+    // v0.45 admin redesign: page subtitles / quick actions (previously misplaced under admin.tracking)
+    dashboardSubtitle: 'Platform overview — artists and orders at a glance',
+    quickActions: 'Quick actions',
+    artistManageSubtitle: 'Manage artist accounts, status and bindings',
+    artistActions: 'Artist actions',
+    platformManageSubtitle: 'Configure social platforms recognized on artist pages',
+    trackingSubtitle: 'Tracking events and artist-facing stats visibility',
     // Recycle bin (incident fix: orphaned files are recoverable)
     recycleBin: {
       title: 'Recycle Bin', empty: 'Empty bin',
@@ -1195,13 +1202,7 @@ export default {
       colName: 'Event', colCount: 'Count', colRatio: 'Ratio', colDay: 'Date',
       days7: 'Last 7 days', days14: 'Last 14 days', days30: 'Last 30 days', days90: 'Last 90 days',
       empty: 'No event data',
-      // v0.45 admin redesign (02-派工-管理后台重设计-20260807)
-      dashboardSubtitle: 'Platform overview — artists and orders at a glance',
-      quickActions: 'Quick actions',
-      artistManageSubtitle: 'Manage artist accounts, status and bindings',
-      artistActions: 'Artist actions',
-      platformManageSubtitle: 'Configure social platforms recognized on artist pages',
-      trackingSubtitle: 'Tracking events and artist-facing stats visibility'
+
     }
   }
 }

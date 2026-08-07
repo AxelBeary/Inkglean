@@ -571,7 +571,7 @@
         <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
           <el-input-number
             v-model="nodePayForm.amountYuan"
-            :min="0.01" :max="nodePayTarget?.remainingCents > 0 ? nodePayTarget.remainingCents / 100 : 999999.99" :precision="2" :step="50"
+            :min="0.01" :precision="2" :step="50"
             controls-position="right" style="width: 100%"
           />
         </el-form-item>
