@@ -29,57 +29,59 @@
       </el-radio-group>
     </div>
 
-    <!-- 订单列表 -->
-    <el-table :data="displayedOrders" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
-      <!-- R16: 缩略图列（焦点图优先，无则 —） -->
-      <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
-        <template #default="{ row }">
-          <el-image
-            v-if="row.focus_image_path"
-            :src="row.focusImageUrl"
-            fit="cover"
-            class="order-thumb"
-            :alt="$t('orderDetail.referenceImage')"
-            :preview-src-list="[row.focusImageUrl]"
-            preview-teleported
-          />
-          <span v-else class="no-thumb">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="order_no" :label="$t('orderList.colOrderNo')" width="100" />
-      <el-table-column prop="tier_name" :label="$t('orderList.colType')" width="100">
-        <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
-      </el-table-column>
-      <el-table-column prop="client_qq" :label="$t('orderList.colQq')" width="120" />
-      <el-table-column prop="client_name" :label="$t('orderList.colName')" width="100" />
-      <el-table-column :label="$t('orderList.colPriority')" width="80">
-        <template #default="{ row }">
-          <el-tag :type="priorityType(row.priority)" size="small" :class="`prio-tag prio-tag--${row.priority}`">
-            {{ $t(`common.priority.${row.priority}`) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('orderList.colStatus')" width="100">
-        <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('orderList.colSource')" width="80">
-        <template #default="{ row }">
-          <el-tag :type="row.source === 'self' ? 'primary' : 'info'" size="small" :class="`source-tag source-tag--${row.source === 'self' ? 'self' : 'manual'}`">
-            {{ row.source === 'self' ? $t('common.source.self') : $t('common.source.manual') }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="created_at" :label="$t('orderList.colTime')" width="160">
-        <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
-      </el-table-column>
-      <el-table-column :label="$t('orderList.colActions')" fixed="right" width="100">
-        <template #default="{ row }">
-          <el-button size="small" @click="$router.push(`/orders/${row.id}?from=orders`)">{{ $t('common.detail') }}</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
+    <div class="order-table-wrap">
+      <el-table :data="displayedOrders" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
+        <!-- R16: 缩略图列（焦点图优先，无则 —） -->
+        <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
+          <template #default="{ row }">
+            <el-image
+              v-if="row.focus_image_path"
+              :src="row.focusImageUrl"
+              fit="cover"
+              class="order-thumb"
+              :alt="$t('orderDetail.referenceImage')"
+              :preview-src-list="[row.focusImageUrl]"
+              preview-teleported
+            />
+            <span v-else class="no-thumb">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="order_no" :label="$t('orderList.colOrderNo')" width="100" />
+        <el-table-column prop="tier_name" :label="$t('orderList.colType')" width="100">
+          <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
+        </el-table-column>
+        <el-table-column prop="client_qq" :label="$t('orderList.colQq')" width="120" />
+        <el-table-column prop="client_name" :label="$t('orderList.colName')" width="100" />
+        <el-table-column :label="$t('orderList.colPriority')" width="80">
+          <template #default="{ row }">
+            <el-tag :type="priorityType(row.priority)" size="small" :class="`prio-tag prio-tag--${row.priority}`">
+              {{ $t(`common.priority.${row.priority}`) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('orderList.colStatus')" width="100">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('orderList.colSource')" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.source === 'self' ? 'primary' : 'info'" size="small" :class="`source-tag source-tag--${row.source === 'self' ? 'self' : 'manual'}`">
+              {{ row.source === 'self' ? $t('common.source.self') : $t('common.source.manual') }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" :label="$t('orderList.colTime')" width="160">
+          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+        </el-table-column>
+        <el-table-column :label="$t('orderList.colActions')" fixed="right" width="100">
+          <template #default="{ row }">
+            <el-button size="small" @click="$router.push(`/orders/${row.id}?from=orders`)">{{ $t('common.detail') }}</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
     <!-- REQ-020 F1: 搜索无结果提示（v0.38: 统一墨线空态） -->
     <InkEmpty v-if="!loading && orders.length === 0 && searchQuery.trim()" :title="$t('orderList.noSearchResult')" />
@@ -204,6 +206,10 @@ onMounted(() => {
 .el-table :deep(.el-table__body tr) { transition: background 0.15s; }
 /* 斑马纹用极浅纸色（密集界面保持安静） */
 .el-table :deep(.el-table__row--striped td) { background: color-mix(in srgb, var(--paper2) 55%, transparent); }
+
+/* 巡检修复批 B7: 窄屏表格横向滚动（修法②——容器 overflow-x + 表格 min-width） */
+.order-table-wrap { overflow-x: auto; }
+.order-table-wrap .el-table { min-width: 1004px; }
 
 /* R16: 缩略图 */
 .order-thumb { width: 40px; height: 40px; border-radius: var(--r-s); display: block; cursor: zoom-in; }
