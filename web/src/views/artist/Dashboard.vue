@@ -5,18 +5,21 @@
            DOM 顺序 = 窄屏顺序（验收 6.6）；宽屏通过 grid-row/grid-column 显式分栏（验收 6.4/6.5）
            各模块独立加载/独立失败，互不阻塞（验收 §9.1） -->
       <div class="dash-grid">
-        <!-- 左栏：问候区（含今日统计行）→ 收入统计 → 统计卡片 ×3 → 合并列表 -->
-        <div class="area area-greeting">
-          <GreetingHero :stats="stats" />
-        </div>
-        <div class="area area-revenue">
-          <RevenueChart />
-        </div>
-        <div class="area area-stats">
-          <StatCards :stats="stats" />
-        </div>
-        <div class="area area-todo">
-          <TodoList />
+        <!-- 左栏：问候区（含今日统计行）→ 收入统计 → 统计卡片 ×3 → 合并列表
+             左栏独立 wrapper（flex 列紧凑堆叠，与右栏互不对齐行高） -->
+        <div class="area-left">
+          <div class="area area-greeting">
+            <GreetingHero :stats="stats" />
+          </div>
+          <div class="area area-revenue">
+            <RevenueChart />
+          </div>
+          <div class="area area-stats">
+            <StatCards :stats="stats" />
+          </div>
+          <div class="area area-todo">
+            <TodoList />
+          </div>
         </div>
 
         <!-- 右栏：名额概览卡（有则显示）→ 快捷操作区 → 状态切换 → 最近活动流
@@ -183,13 +186,15 @@ async function replyMsg(m) {
     row-gap: 16px;
     align-items: start;
   }
-  /* 左栏 */
-  .area-greeting { grid-column: 1; grid-row: 1; }
-  .area-revenue  { grid-column: 1; grid-row: 2; }
-  .area-stats    { grid-column: 1; grid-row: 3; }
-  .area-todo     { grid-column: 1; grid-row: 4; }
-  /* 右栏：独立 wrapper（grid-column 2 跨全部行）——内部 flex 列紧凑堆叠，
-     不与左栏行高对齐（避免左栏高卡片把右栏下方区块顶出大片空白，用户 X② 反馈） */
+  /* 左栏 + 右栏：各自独立列（flex 紧凑堆叠，互不对齐行高——
+     避免一栏高卡片把另一栏下方区块顶出大片空白，用户 X①② 反馈） */
+  .area-left {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
   .area-right {
     grid-column: 2;
     grid-row: 1 / -1;
