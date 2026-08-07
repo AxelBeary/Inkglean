@@ -19,7 +19,7 @@
       </el-card>
 
       <!-- 交付内容 -->
-      <el-card style="margin-top: 16px" v-if="verified && delivery">
+      <el-card style="margin-top: 16px" v-if="verified && delivery && delivery.deliverables?.length">
         <template #header>
           <span>{{ $t('delivery.orderInfo', { no: delivery.orderNo, artist: delivery.artistName }) }}</span>
         </template>
@@ -33,7 +33,6 @@
             <el-button type="primary" size="small" @click="downloadFile(d.url, d.fileName)">{{ $t('delivery.download') }}</el-button>
           </div>
         </div>
-        <el-empty v-else :description="$t('delivery.noFiles')" :image-size="60" />
       </el-card>
 
       <!-- 未交付 -->

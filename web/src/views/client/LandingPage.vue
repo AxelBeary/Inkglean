@@ -61,13 +61,13 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
 import Disclaimer from '../../components/Disclaimer.vue'
+import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 
 const { t } = useI18n()
 const router = useRouter()
 const artists = ref([])
 const loading = ref(true)
 
-import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 
 const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 

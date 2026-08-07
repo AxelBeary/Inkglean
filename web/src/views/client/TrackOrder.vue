@@ -1,7 +1,7 @@
 <template>
   <div class="track-page">
     <ClientFloatingActions />
-    <div class="track-container" v-loading="loading">
+    <div class="track-container">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('track.backHome')" :content="$t('track.title')">
         <!-- 打磨批 E：title 文本 aria-hidden——EP page-header icon 自带 aria-label=title，叠加读两遍；视觉不变 -->
         <template #title><span aria-hidden="true">{{ $t('track.backHome') }}</span></template>
@@ -220,7 +220,6 @@ usePalette(paletteId)
 const orderNo = ref('')
 const qq = ref('')
 const order = ref(null)
-const loading = ref(false)
 const searching = ref(false)
 
 // A1: 我的订单列表（只填 QQ 查询）

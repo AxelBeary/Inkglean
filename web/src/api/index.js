@@ -38,6 +38,7 @@ api.interceptors.response.use(
         }
       } catch (err) {
         // L1: i18n 加载失败，使用原始消息（补 console.warn，避免静默吞错）
+        // eslint-disable-next-line no-console -- 错误处理兜底日志：避免 i18n 翻译失败静默吞错
         console.warn('[api] i18n error translation failed, using raw message', err)
       }
     }
@@ -70,6 +71,7 @@ api.interceptors.response.use(
         }
       } catch (err) {
         // L1: 兜底硬跳转（保留原行为，补 console.warn 避免静默吞错）
+        // eslint-disable-next-line no-console -- 错误处理兜底日志：避免 401 软跳转失败静默吞错
         console.warn('[api] 401 soft-redirect failed, falling back to hard redirect', err)
         window.location.href = '/login'
       }
