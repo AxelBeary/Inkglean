@@ -252,4 +252,8 @@ async function replyMsg(m) {
 }
 .gb-mod-reply-label { font-weight: 700; color: var(--hq-d); }
 .gb-mod-actions { margin-bottom: 8px; }
+/* 克制动效批（2026-08-07 用户反馈批：留言审核按钮按压 ≤0.2s，含 transition 特异性恢复过渡） */
+.artist-scope .gb-mod-actions :deep(.el-button) { transition: color .25s, background-color .25s, border-color .25s, transform 0.15s ease-out; }
+.artist-scope .gb-mod-actions :deep(.el-button:active),
+.artist-scope .gb-mod-reply-box :deep(.el-button:active) { transform: scale(0.98); }
 </style>

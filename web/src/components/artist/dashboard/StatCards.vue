@@ -39,14 +39,15 @@ function goOrders(status) {
 
 <style scoped>
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.stat-card {
+.artist-scope .stat-card {
   position: relative;
   overflow: hidden;
   cursor: pointer;
   text-align: center;
-  transition: transform 0.18s, box-shadow 0.2s, background-color 0.35s;
+  transition: transform 0.18s ease-out, box-shadow 0.2s, background-color 0.35s;
 }
-.stat-card:hover { transform: translateY(-3px); box-shadow: var(--sh-2); }
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
+.stat-card:active { transform: translateY(-2px) scale(0.98); }
 /* 顶部 3px 状态色条（色只标状态，数字保持墨色） */
 .stat-card::after {
   content: '';
