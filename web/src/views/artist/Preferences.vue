@@ -173,18 +173,18 @@ onMounted(async () => {
 <style scoped>
 /* ═══ v0.38: 纸墨 token（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
-.pref-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.pref-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .pref-card { max-width: 600px; margin-top: 16px; }
-.form-hint { color: var(--ink3); font-size: 12px; margin-top: 4px; }
+.form-hint { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); margin-top: 4px; }
 /* #3: 快捷按钮配置区 */
 .quick-config { display: flex; flex-direction: column; gap: 8px; }
 .quick-config-item { margin-right: 0; height: auto; }
 /* v0.34 任务3：icon 改 SVG 后与文字对齐 */
-.quick-config-icon { font-size: 15px; vertical-align: -2px; color: var(--hq); }
+.quick-config-icon { font-size: calc(var(--font-scale, 1) * 15px); vertical-align: -2px; color: var(--hq); }
 /* F3: 动作型候选标记 */
 .quick-action-badge {
   display: inline-block; margin-left: 4px; padding: 0 5px;
-  font-size: 10px; line-height: 16px;
+  font-size: calc(var(--font-scale, 1) * 10px); line-height: 16px;
   border-radius: 4px;
   color: var(--hq-d, #b45309);
   background: var(--hq-t, rgba(180, 83, 9, 0.12));

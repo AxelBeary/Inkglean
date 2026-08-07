@@ -269,3 +269,13 @@ html[data-artist-theme][data-font-size='xlarge'] {
   --el-font-size-small: 14px;
   --el-font-size-large: 19px;
 }
+/* ═══ F1 批 4 补充（A 方案，2026-08-07）：--font-scale 全局缩放 ═══
+   硬编码 font-size: Npx 的样式通过 calc(var(--font-scale, 1) * Npx) 跟随档位。
+   --font-scale 默认 1（无档位/客户端 = 零影响）；large=15/14≈1.0714, xlarge=17/14≈1.2143。
+   与上方 .artist-layout font-size 15px/17px 及 --el-font-size-* 保持一致。 */
+html[data-artist-theme][data-font-size='large'] {
+  --font-scale: 1.0714;
+}
+html[data-artist-theme][data-font-size='xlarge'] {
+  --font-scale: 1.2143;
+}

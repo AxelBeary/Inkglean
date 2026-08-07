@@ -48,6 +48,6 @@ const activeTab = ref('artStyles')
 <style scoped>
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
-.tier-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.tier-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 /* tabs 下划线与文字走花青（EP 变量已 scoped 覆写，此处仅补激活字重观感） */
 </style>

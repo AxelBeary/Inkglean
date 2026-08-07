@@ -615,7 +615,7 @@ onMounted(() => {
 
 <style scoped>
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
-.form-hint { color: var(--ink2); font-size: 12px; margin-top: 4px; }
+.form-hint { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 12px); margin-top: 4px; }
 
 /* R42b: 须知预览（原 RulesEditor.vue 样式迁入） */
 .preview-section-title { margin: 16px 0 8px; color: var(--ink2); }
@@ -631,14 +631,14 @@ onMounted(() => {
 }
 .link-platform-select { width: 150px; flex-shrink: 0; }
 .link-url-input { flex: 1; }
-.link-empty { color: var(--ink2); font-size: 12px; margin: 0 0 8px; }
+.link-empty { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 12px); margin: 0 0 8px; }
 .link-actions {
   display: flex;
   gap: 0;
   flex-shrink: 0;
 }
 
-.template-label { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--ink); }
+.template-label { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; margin-bottom: 12px; color: var(--ink); }
 .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
 .template-card {
   cursor: pointer; border: 2px solid var(--line); border-radius: var(--r-m);
@@ -648,12 +648,12 @@ onMounted(() => {
 .template-card.active { border-color: var(--hq); box-shadow: 0 0 0 1px var(--hq); }
 .template-preview {
   height: 80px; display: flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 28px; background: var(--paper2);
+  font-size: calc(var(--font-scale, 1) * 28px); background: var(--paper2);
 }
 .template-preview-icon { color: var(--hq); opacity: 0.75; }
 .template-info { padding: 12px; }
-.template-name { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
-.template-desc { font-size: 12px; color: var(--ink2); line-height: 1.4; }
+.template-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.template-desc { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.4; }
 
 .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
 .palette-card {
@@ -672,7 +672,7 @@ onMounted(() => {
 }
 .avatar-preview { transition: transform 0.15s, box-shadow 0.15s; }
 .avatar-upload:hover .avatar-preview { transform: scale(1.05); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hq) 50%, transparent); }
-.avatar-upload-hint { font-size: 12px; color: var(--ink2); }
+.avatar-upload-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
 
 /* ─── R49: 强调色选择器 ─── */
 .accent-picker { display: flex; align-items: center; gap: 10px; }
@@ -684,10 +684,10 @@ onMounted(() => {
 }
 .accent-swatch-btn:hover { transform: scale(1.15); }
 .accent-swatch-btn.active { border-color: var(--ink); }
-.swatch-check { color: #fff; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.swatch-check { color: #fff; font-size: calc(var(--font-scale, 1) * 13px); font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 .accent-clear-btn {
   padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px;
-  background: transparent; cursor: pointer; font-size: 12px; color: var(--ink2);
+  background: transparent; cursor: pointer; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2);
   transition: border-color 0.15s, color 0.15s;
 }
 .accent-clear-btn:hover { border-color: var(--hq); color: var(--hq); }
@@ -706,13 +706,13 @@ onMounted(() => {
   width: 120px; height: 90px; flex-shrink: 0;
   border: 2px dashed var(--line); border-radius: var(--r-l);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: var(--ink2); text-align: center; padding: 8px;
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); text-align: center; padding: 8px;
 }
 .cover-preview-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cover-preview-info .form-hint { margin: 0; }
 .cover-manage-link {
   color: var(--hq); text-decoration: none;
-  font-size: 14px; font-weight: 500; transition: opacity 0.2s;
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 500; transition: opacity 0.2s;
 }
 .cover-manage-link:hover { opacity: 0.75; text-decoration: underline; }
 
@@ -726,7 +726,7 @@ onMounted(() => {
 .slot-config { width: 100%; }
 .slot-row { display: flex; align-items: center; gap: 12px; }
 .slot-input { width: 130px; }
-.slot-unit { font-size: 13px; color: var(--ink2); }
+.slot-unit { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 .switch-grid { display: flex; flex-direction: column; gap: 10px; }
-.switch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink); }
+.switch-row { display: flex; align-items: center; gap: 10px; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); }
 </style>

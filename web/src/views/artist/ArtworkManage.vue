@@ -474,19 +474,19 @@ onMounted(async () => {
 <style scoped>
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
-.artwork-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.artwork-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 
 /* R45: 工具栏 */
 .artwork-toolbar { margin: 12px 0; }
 
 /* 上传区图标与提示（原 inline style 旧变量，改走 class） */
-.upload-icon { font-size: 40px; color: var(--ink3); }
-.upload-tip { color: var(--ink3); font-size: 12px; }
+.upload-icon { font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink3); }
+.upload-tip { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); }
 
 /* ─── F7: 主图区（单独展示，不在网格重复） ─── */
 .main-artwork-section { margin: 16px 0 8px; }
 .section-label {
-  font-size: 14px; font-weight: 700;
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 700;
   color: var(--ink);
   margin: 0 0 10px;
 }
@@ -503,7 +503,7 @@ onMounted(async () => {
   position: absolute; top: 6px; left: 6px; z-index: 2;
   padding: 2px 8px; border-radius: 999px;
   background: var(--th);
-  color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  color: #fff; font-size: calc(var(--font-scale, 1) * 11px); font-weight: 600; letter-spacing: 0.5px;
   pointer-events: none;
 }
 .main-artwork-card:hover .artwork-actions { opacity: 1; }
@@ -521,10 +521,10 @@ onMounted(async () => {
 }
 .artwork-item:hover .artwork-actions,
 .artwork-item:focus-within .artwork-actions { opacity: 1; }
-.paste-hint { font-size: 12px; color: var(--ink3); margin-top: 8px; text-align: center; }
+.paste-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 8px; text-align: center; }
 
 /* v0.35 波3: 作品编辑弹窗提示 */
-.edit-hint { font-size: 11px; color: var(--ink3); margin: 4px 0 0; line-height: 1.5; }
+.edit-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); margin: 4px 0 0; line-height: 1.5; }
 
 /* ─── REQ-017: 封面星标 + 标签 ─── */
 .artwork-cover-star {
@@ -532,7 +532,7 @@ onMounted(async () => {
   width: 30px; height: 30px; border-radius: 50%; border: none;
   background: color-mix(in srgb, var(--card) 75%, transparent);
   backdrop-filter: blur(4px);
-  color: var(--ink2); font-size: 18px; line-height: 1;
+  color: var(--ink2); font-size: calc(var(--font-scale, 1) * 18px); line-height: 1;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: color 0.15s, transform 0.15s;
 }
@@ -544,7 +544,7 @@ onMounted(async () => {
   position: absolute; top: 6px; left: 6px; z-index: 2;
   padding: 2px 8px; border-radius: 999px;
   background: var(--th);
-  color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  color: #fff; font-size: calc(var(--font-scale, 1) * 11px); font-weight: 600; letter-spacing: 0.5px;
   pointer-events: none;
 }
 
@@ -557,7 +557,7 @@ onMounted(async () => {
   width: 24px; height: 24px; border-radius: var(--r-s); border: none;
   background: color-mix(in srgb, var(--card) 80%, transparent);
   backdrop-filter: blur(4px);
-  color: var(--ink); font-size: 12px; font-weight: 700;
+  color: var(--ink); font-size: calc(var(--font-scale, 1) * 12px); font-weight: 700;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: background 0.15s;
 }
@@ -575,7 +575,7 @@ onMounted(async () => {
   width: 24px; height: 24px; border-radius: 50%;
   border: 2px solid #fff; background: rgba(0, 0, 0, 0.35);
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 14px; font-weight: 700;
+  color: #fff; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 700;
   transition: background 0.15s;
 }
 .artwork-checkbox--on { background: var(--hq); border-color: var(--hq); }
@@ -588,10 +588,10 @@ onMounted(async () => {
   background: var(--card); box-shadow: var(--sh-3);
   z-index: 100;
 }
-.batch-count { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.batch-count { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); white-space: nowrap; }
 
 /* 滑块确认（与 OrderDetail/QueueBoard 视觉一致，朱砂=危险操作） */
-.batch-slide-hint { font-size: 14px; color: var(--ink); margin-bottom: 16px; }
+.batch-slide-hint { font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); margin-bottom: 16px; }
 .slide-confirm {
   position: relative; height: 40px;
   border-radius: 999px; overflow: hidden; user-select: none;
@@ -606,7 +606,7 @@ onMounted(async () => {
 .slide-confirm-label {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600; color: var(--zs);
+  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--zs);
   pointer-events: none;
 }
 .slide-confirm-thumb {
@@ -614,7 +614,7 @@ onMounted(async () => {
   width: 36px; height: 36px; border-radius: 50%;
   background: var(--zs); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 700;
+  font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700;
   cursor: grab; touch-action: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }

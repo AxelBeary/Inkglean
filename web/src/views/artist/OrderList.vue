@@ -186,7 +186,7 @@ onMounted(() => {
 <style scoped>
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
-.od-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 
 /* R42a: 工具栏 */
 .order-toolbar { margin: 12px 0; }
@@ -197,7 +197,7 @@ onMounted(() => {
 /* ─── 表格换肤（REQ §二：表头下沉底色 / 行 hover 纸色底 / 金额日期等宽） ─── */
 .el-table { --el-table-border-color: var(--line); --el-table-header-bg-color: var(--paper2); --el-table-row-hover-bg-color: var(--paper2); }
 .el-table :deep(.el-table__header th) {
-  font-size: 12px; font-weight: 600; color: var(--ink2);
+  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink2);
   background: var(--paper2);
 }
 .el-table :deep(.el-table__row td) { color: var(--ink); }

@@ -206,15 +206,15 @@ async function replyMsg(m) {
   border-color: color-mix(in srgb, var(--th) 45%, transparent);
 }
 .gb-mod-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.gb-mod-nick { font-weight: 700; font-size: 14px; color: var(--ink); }
-.gb-mod-content { margin: 0 0 4px; font-size: 13px; line-height: 1.6; word-break: break-word; color: var(--ink2); }
-.gb-mod-time { margin: 0 0 8px; font-size: 11px; color: var(--ink3); }
+.gb-mod-nick { font-weight: 700; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); }
+.gb-mod-content { margin: 0 0 4px; font-size: calc(var(--font-scale, 1) * 13px); line-height: 1.6; word-break: break-word; color: var(--ink2); }
+.gb-mod-time { margin: 0 0 8px; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); }
 .gb-mod-reply {
   margin-bottom: 8px;
   padding: 6px 10px;
   background: var(--hq-t);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-scale, 1) * 12px);
   line-height: 1.5;
   color: var(--ink2);
 }

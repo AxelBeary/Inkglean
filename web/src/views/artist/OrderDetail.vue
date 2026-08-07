@@ -1205,28 +1205,28 @@ onMounted(() => {
 .order-detail { display: flex; flex-direction: column; gap: 14px; }
 
 /* 订单号文楷——落款感（REQ §1.3：数字/单号用文楷） */
-.od-order-no { font-family: var(--f-d); font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+.od-order-no { font-family: var(--f-d); font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600; letter-spacing: .02em; }
 
 /* ─── v0.38: 日期卡二合一（REQ-026 §四：两字段一卡，交互逻辑不变） ─── */
 .date-card-body { display: flex; gap: 28px; flex-wrap: wrap; }
 .date-field { display: flex; flex-direction: column; gap: 6px; }
-.date-field-label { font-size: 13px; color: var(--ink2); }
-.date-card-note { font-size: 12px; color: var(--ink3); margin: 12px 0 0; }
+.date-field-label { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
+.date-card-note { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin: 12px 0 0; }
 
 /* ─── R39 方案B：状态区 ─── */
 /* 终态只读横幅（已交付=石绿软底 / 已取消=中性，7 色语义一对一） */
 .status-banner {
   display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; border-radius: var(--r-m); font-size: 15px; font-weight: 600;
+  padding: 14px 16px; border-radius: var(--r-m); font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600;
 }
 .status-banner--delivered { background: var(--sl-t); }
 .status-banner--cancelled { background: color-mix(in srgb, var(--ink3) 12%, transparent); }
 .status-banner-text { color: var(--ink); }
 /* 最后活动时间 */
-.status-last-active { font-size: 12px; color: var(--ink2); margin: 10px 0 0; }
+.status-last-active { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 10px 0 0; }
 /* 无工作流兜底：状态标签 + 上下文信息 */
 .status-fallback { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.status-context { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--ink2); }
+.status-context { display: flex; gap: 12px; flex-wrap: wrap; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 /* C53：启用流程跟踪引导（花青软底 + 虚线） */
 .track-on-hint {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -1234,7 +1234,7 @@ onMounted(() => {
   background: var(--hq-t); border: 1px dashed color-mix(in srgb, var(--hq) 45%, transparent);
   border-radius: var(--r-m);
 }
-.track-on-hint-text { font-size: 13px; color: var(--ink2); }
+.track-on-hint-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 
 /* ─── R39 方案B：操作条（固定位置） ─── */
 /* ─── v0.31 F5: 下一节点应收提示条（藤黄=待办提醒，非逾期不抢朱砂） ─── */
@@ -1246,10 +1246,10 @@ onMounted(() => {
   cursor: pointer; transition: background 0.15s;
 }
 .next-due-banner:hover { background: color-mix(in srgb, var(--th) 18%, transparent); }
-.next-due-text { flex: 1; font-size: 14px; font-weight: 600; color: var(--th); }
+.next-due-text { flex: 1; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--th); }
 /* REQ-025 二阶段: 当前节点副信息（权重低于总额，不抢主信息） */
-.next-due-sub { font-size: 13px; color: var(--ink2); white-space: nowrap; }
-.next-due-arrow { font-size: 16px; color: var(--th); }
+.next-due-sub { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); white-space: nowrap; }
+.next-due-arrow { font-size: calc(var(--font-scale, 1) * 16px); color: var(--th); }
 
 .action-bar-card :deep(.el-card__body) { padding: 12px 16px; }
 .action-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -1271,7 +1271,7 @@ onMounted(() => {
 .slide-confirm-label {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600; color: var(--zs);
+  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--zs);
   pointer-events: none;
 }
 .slide-confirm-thumb {
@@ -1279,18 +1279,18 @@ onMounted(() => {
   width: 36px; height: 36px; border-radius: 50%;
   background: var(--zs); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 700;
+  font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700;
   cursor: grab; touch-action: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 .slide-confirm-thumb:active { cursor: grabbing; }
 
 /* ─── R30d: 流程进度 ─── */
-.stage-progress-text { font-size: 13px; color: var(--ink2); margin: 12px 0 0; }
+.stage-progress-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin: 12px 0 0; }
 .stage-revision-mark { color: var(--th); font-weight: 600; margin-left: 8px; }
 
 /* ─── R18: 订单图库 ─── */
-.gallery-count { font-size: 13px; color: var(--ink2); }
+.gallery-count { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 .ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 .ref-item { display: flex; flex-direction: column; gap: 4px; }
 .ref-item--focus .ref-img { outline: 2px solid var(--hq); outline-offset: 2px; }
@@ -1318,7 +1318,7 @@ onMounted(() => {
   position: absolute;
   bottom: 4px;
   left: 4px;
-  font-size: 10px;
+  font-size: calc(var(--font-scale, 1) * 10px);
   font-weight: 600;
   padding: 1px 6px;
   border-radius: var(--r-s);
@@ -1337,7 +1337,7 @@ onMounted(() => {
   border-radius: 50%;
   background: var(--hq);
   color: #fff;
-  font-size: 12px;
+  font-size: calc(var(--font-scale, 1) * 12px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1373,11 +1373,11 @@ onMounted(() => {
   background: var(--hq-t);
   color: var(--hq);
 }
-.ref-upload-text { font-size: 12px; }
-.upload-status { font-size: 12px; color: var(--hq); margin: 8px 0 0; }
-.upload-error { font-size: 12px; color: var(--zs); margin: 8px 0 0; }
-.no-refs { color: var(--ink2); font-size: 13px; margin: 0; }
-.focus-hint { font-size: 12px; color: var(--ink3); margin: 12px 0 0; }
+.ref-upload-text { font-size: calc(var(--font-scale, 1) * 12px); }
+.upload-status { font-size: calc(var(--font-scale, 1) * 12px); color: var(--hq); margin: 8px 0 0; }
+.upload-error { font-size: calc(var(--font-scale, 1) * 12px); color: var(--zs); margin: 8px 0 0; }
+.no-refs { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 0; }
+.focus-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin: 12px 0 0; }
 
 /* R17: 优先级分段按钮配色（选中态由 Element Plus 内部 is-checked 控制） */
 .priority-group :deep(.prio-high.is-checked .el-radio-button__inner) { background: var(--zs); border-color: var(--zs); box-shadow: -1px 0 0 0 var(--zs); }
@@ -1385,13 +1385,13 @@ onMounted(() => {
 .priority-group :deep(.prio-low.is-checked .el-radio-button__inner) { background: var(--sl); border-color: var(--sl); box-shadow: -1px 0 0 0 var(--sl); }
 
 /* ─── R40: 活动时间线 ─── */
-.timeline-count { font-size: 13px; color: var(--ink2); }
+.timeline-count { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 .activity-timeline { padding-top: 4px; }
 .tl-item { position: relative; }
 .tl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.tl-type { font-size: 12px; font-weight: 600; color: var(--ink2); }
-.tl-item--system .tl-content { color: var(--ink2); font-size: 13px; }
-.tl-content { font-size: 14px; color: var(--ink); line-height: 1.6; word-break: break-word; }
+.tl-type { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink2); }
+.tl-item--system .tl-content { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); }
+.tl-content { font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); line-height: 1.6; word-break: break-word; }
 /* R46: 删除按钮悬停显示（触屏常驻，与参考图 .ref-hover-actions 交互一致 C56） */
 .tl-delete { opacity: 0; transition: opacity 0.15s; margin-left: auto; }
 .tl-item:hover .tl-delete { opacity: 1; }
@@ -1401,8 +1401,8 @@ onMounted(() => {
 /* ─── v0.31 REQ-021 F1: 操作记录 ─── */
 .log-item { position: relative; }
 .log-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.log-actor { font-size: 12px; color: var(--ink2); }
-.log-detail { font-size: 13px; color: var(--ink); line-height: 1.6; word-break: break-word; }
+.log-actor { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
+.log-detail { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); line-height: 1.6; word-break: break-word; }
 .log-pagination { display: flex; justify-content: center; margin-top: 12px; }
 .note-thumb {
   display: block;
@@ -1436,7 +1436,7 @@ onMounted(() => {
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
 
 /* REQ-022 F1: 发布为作品弹窗 */
-.publish-hint { font-size: 12px; color: var(--ink2); margin-bottom: 10px; }
+.publish-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin-bottom: 10px; }
 .publish-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
 .publish-item {
   display: flex; align-items: center; justify-content: space-between;
@@ -1444,14 +1444,14 @@ onMounted(() => {
 }
 .publish-item:hover { background: var(--paper2); }
 .publish-item--disabled { opacity: 0.55; }
-.publish-file-name { font-size: 13px; color: var(--ink); word-break: break-all; }
+.publish-file-name { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); word-break: break-all; }
 
 /* R58-6: 客户 QQ 跳转 + 复制 */
 .client-qq-row { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .client-qq-row .el-button { padding: 2px 6px; height: auto; }
 
 /* ─── SPEC-003: 附加工作项 ─── */
-.extra-count { font-size: 12px; color: var(--ink2); }
+.extra-count { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
 .extra-list { display: flex; flex-direction: column; gap: 4px; }
 .extra-item {
   display: flex;
@@ -1463,22 +1463,22 @@ onMounted(() => {
 }
 .extra-item:hover { background: var(--paper2); }
 .extra-info { flex: 1; min-width: 0; }
-.extra-name { font-size: 14px; color: var(--ink); }
-.extra-desc { display: block; font-size: 12px; color: var(--ink2); margin-top: 2px; }
+.extra-name { font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); }
+.extra-desc { display: block; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin-top: 2px; }
 /* 金额等宽（REQ §二：金额右对齐等宽字体） */
-.extra-price { font-size: 14px; font-weight: 600; color: var(--ink); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.extra-price { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 /* 悬停显示删除（触屏常驻，与 .tl-delete 交互一致 C56） */
 .extra-delete { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
 .extra-item:hover .extra-delete { opacity: 1; }
 @media (hover: none) { .extra-delete { opacity: 1; } }
 .extra-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
-.extra-total { font-size: 13px; color: var(--ink2); }
+.extra-total { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 .extra-total strong { color: var(--ink); font-family: var(--f-d); }
-.extra-auto-hint { font-size: 12px; color: var(--ink3); margin-top: 8px; }
+.extra-auto-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 8px; }
 
 /* ─── plan-node-speech：客户沟通 ─── */
 .comm-body { display: flex; flex-direction: column; gap: 10px; }
-.comm-row { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.comm-row { display: flex; align-items: baseline; gap: 8px; font-size: calc(var(--font-scale, 1) * 14px); }
 .comm-label { color: var(--ink2); flex-shrink: 0; }
 .comm-value { color: var(--ink); font-weight: 600; }
 .comm-speech {
@@ -1488,24 +1488,24 @@ onMounted(() => {
   border-left: 3px solid var(--hq);
 }
 .comm-speech-text {
-  font-size: 14px; line-height: 1.7; color: var(--ink);
+  font-size: calc(var(--font-scale, 1) * 14px); line-height: 1.7; color: var(--ink);
   white-space: pre-wrap; word-break: break-word;
 }
 .comm-copy-btn { align-self: flex-start; }
 
 /* ─── B7: 额度池收款区 ─── */
 .pool-summary { margin-bottom: 16px; }
-.pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: 14px; color: var(--ink2); flex-wrap: wrap; }
-.pool-nums strong { color: var(--ink); font-size: 16px; font-family: var(--f-d); font-variant-numeric: tabular-nums; }
+.pool-nums { display: flex; align-items: baseline; gap: 6px; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink2); flex-wrap: wrap; }
+.pool-nums strong { color: var(--ink); font-size: calc(var(--font-scale, 1) * 16px); font-family: var(--f-d); font-variant-numeric: tabular-nums; }
 .pool-remaining { margin-left: auto; }
 /* P2: 多收（客户多付）——藤黄提示，区别于正常的待收 */
 .pool-overpaid { color: var(--th); }
 .pool-overpaid strong { color: var(--th); }
 .pool-flow { margin-top: 12px; }
-.pool-flow-title, .pool-ref-title { font-size: 13px; font-weight: 600; color: var(--ink2); margin: 0 0 8px; }
+.pool-flow-title, .pool-ref-title { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--ink2); margin: 0 0 8px; }
 .pool-flow-row {
   display: flex; align-items: center; gap: 10px; padding: 6px 0;
-  border-bottom: 1px solid var(--line); font-size: 13px;
+  border-bottom: 1px solid var(--line); font-size: calc(var(--font-scale, 1) * 13px);
 }
 .pool-flow-row:last-child { border-bottom: none; }
 .pool-flow-date { color: var(--ink2); flex-shrink: 0; width: 80px; font-variant-numeric: tabular-nums; }
@@ -1514,7 +1514,7 @@ onMounted(() => {
 .pool-flow-amount.is-negative { color: var(--zs); }
 .pool-flow-note { flex: 1; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pool-ref { margin-top: 16px; }
-.pool-ref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+.pool-ref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: calc(var(--font-scale, 1) * 13px); }
 .pool-ref-icon { width: 18px; text-align: center; flex-shrink: 0; }
 .pool-ref-name { flex: 1; color: var(--ink); }
 .pool-ref-amount { color: var(--ink2); flex-shrink: 0; }

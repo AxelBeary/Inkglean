@@ -1291,9 +1291,9 @@ onMounted(() => {
 
 <style scoped>
 /* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；旧变量不残留——派工 §二.3） ═══ */
-.hint { color: var(--ink2); font-size: 13px; margin: 8px 0 16px; }
+.hint { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 8px 0 16px; }
 .queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.toolbar-label { font-size: 13px; color: var(--ink2); white-space: nowrap; }
+.toolbar-label { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); white-space: nowrap; }
 
 /* 一行一条（用户决策：排期看板必须保持一行一条；宽屏空间由卡片内部横向展开消化） */
 .queue-list {
@@ -1314,17 +1314,17 @@ onMounted(() => {
 .priority-medium { border-left-color: var(--th); }
 .priority-low { border-left-color: var(--ink4); }
 
-.drag-handle { cursor: grab; font-size: 20px; color: var(--ink3); user-select: none; }
+.drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 20px); color: var(--ink3); user-select: none; }
 .drag-handle:active { cursor: grabbing; }
 .ghost { opacity: 0.4; }
 
 .item-body { flex: 1; min-width: 0; }
 .item-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.order-no { font-weight: bold; font-size: 15px; color: var(--ink); font-family: var(--f-d); }
+.order-no { font-weight: bold; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink); font-family: var(--f-d); }
 /* R30d: 流程节点标签 */
 .stage-tag { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-info { color: var(--ink2); font-size: 13px; margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
-.item-desc { color: var(--ink3); font-size: 13px; margin-top: 4px; }
+.item-info { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
+.item-desc { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); margin-top: 4px; }
 /* 焦点图区域：大图 160×120，左图右文 */
 .focus-area { flex-shrink: 0; }
 .focus-large-img { width: 160px; height: 120px; border-radius: var(--r-m); display: block; background: var(--card); }
@@ -1340,7 +1340,7 @@ onMounted(() => {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.55); color: #fff;
-  font-size: 13px; font-weight: 600;
+  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600;
   pointer-events: none;
 }
 .focus-img-wrap--active { box-shadow: 0 0 0 2px var(--hq); }
@@ -1357,7 +1357,7 @@ onMounted(() => {
   background: var(--hq-t);
   color: var(--hq);
 }
-.focus-empty-text { font-size: 12px; }
+.focus-empty-text { font-size: calc(var(--font-scale, 1) * 12px); }
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
 
 /* R30e: 滑块确认（整行，拖到底触发取消） */
@@ -1386,7 +1386,7 @@ onMounted(() => {
 .slide-cancel-label {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600;
+  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600;
   color: var(--zs);
   pointer-events: none;
 }
@@ -1397,7 +1397,7 @@ onMounted(() => {
   background: var(--zs);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 700;
+  font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700;
   cursor: grab;
   touch-action: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
@@ -1409,14 +1409,14 @@ onMounted(() => {
 }
 
 /* ─── SPEC-004: 缓冲区（缓冲=--buf 灰，REQ §二/派工 Q2） ─── */
-.buffer-title { margin: 28px 0 4px; color: var(--ink); font-size: 16px; }
-.buffer-hint { margin: 0 0 12px; font-size: 12px; color: var(--ink2); }
+.buffer-title { margin: 28px 0 4px; color: var(--ink); font-size: calc(var(--font-scale, 1) * 16px); }
+.buffer-hint { margin: 0 0 12px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
 .buffer-item { border-left: 3px dashed var(--buf); }
 .focus-empty--static { cursor: default; }
 
 /* ─── REQ-013 #7: 完成区（灰色沉底，不可拖拽） ─── */
-.completed-title { margin: 28px 0 4px; color: var(--ink2); font-size: 16px; }
-.completed-hint { margin: 0 0 12px; font-size: 12px; color: var(--ink3); }
+.completed-title { margin: 28px 0 4px; color: var(--ink2); font-size: calc(var(--font-scale, 1) * 16px); }
+.completed-hint { margin: 0 0 12px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 .completed-item {
   opacity: 0.55;
   border-left: 3px solid color-mix(in srgb, var(--sl) 55%, transparent);
@@ -1433,7 +1433,7 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 .cal-head-title {
-  font-size: 18px; font-weight: 700; color: var(--ink);
+  font-size: calc(var(--font-scale, 1) * 18px); font-weight: 700; color: var(--ink);
   min-width: 110px; text-align: center;
   font-family: var(--f-d);
   font-variant-numeric: tabular-nums;
@@ -1445,7 +1445,7 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 .cal-weekday {
-  text-align: center; font-size: 12px; font-weight: 600;
+  text-align: center; font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600;
   color: var(--ink3); padding: 4px 0;
 }
 
@@ -1468,7 +1468,7 @@ onMounted(() => {
   border-color: color-mix(in srgb, var(--hq) 45%, transparent);
 }
 .cal-day-num {
-  font-size: 12px; font-weight: 600; color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink3);
   font-variant-numeric: tabular-nums;
 }
 .cal-cell--today .cal-day-num {
@@ -1482,7 +1482,7 @@ onMounted(() => {
 .cal-band {
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 11px; line-height: 1.4;
+  font-size: calc(var(--font-scale, 1) * 11px); line-height: 1.4;
   cursor: pointer;
   transition: filter 0.15s, transform 0.1s;
   overflow: hidden;
@@ -1527,7 +1527,7 @@ onMounted(() => {
   color: #fff;
 }
 .cal-band-more {
-  font-size: 10px; color: var(--ink3); text-align: center;
+  font-size: calc(var(--font-scale, 1) * 10px); color: var(--ink3); text-align: center;
   padding: 1px 0;
 }
 
@@ -1539,7 +1539,7 @@ onMounted(() => {
 }
 .cal-legend-item {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--ink2);
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2);
 }
 .cal-legend-swatch {
   display: inline-block; width: 22px; height: 12px;
@@ -1549,9 +1549,9 @@ onMounted(() => {
 /* 移动端：格子缩小，带内文字截断 */
 @media (max-width: 768px) {
   .cal-cell { min-height: 64px; padding: 2px; }
-  .cal-day-num { font-size: 10px; }
-  .cal-band { padding: 1px 3px; font-size: 9px; }
-  .cal-head-title { font-size: 15px; min-width: 90px; }
+  .cal-day-num { font-size: calc(var(--font-scale, 1) * 10px); }
+  .cal-band { padding: 1px 3px; font-size: calc(var(--font-scale, 1) * 9px); }
+  .cal-head-title { font-size: calc(var(--font-scale, 1) * 15px); min-width: 90px; }
 }
 
 /* ─── v0.25 D: 时间条视图（v0.38 换肤；今天线朱砂 = REQ §二） ─── */
@@ -1580,7 +1580,7 @@ onMounted(() => {
 .tl-tick--weekend { background: color-mix(in srgb, var(--ink) 3%, transparent); }
 .tl-tick--today { background: var(--zs-t); }
 .tl-tick-label {
-  font-size: 10px; color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 10px); color: var(--ink3);
   white-space: nowrap; overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
@@ -1607,9 +1607,9 @@ onMounted(() => {
   border-right: 1px solid var(--line);
   overflow: hidden;
 }
-.tl-row-no { font-size: 11px; font-weight: 700; color: var(--ink3); white-space: nowrap; font-family: var(--f-d); }
+.tl-row-no { font-size: calc(var(--font-scale, 1) * 11px); font-weight: 700; color: var(--ink3); white-space: nowrap; font-family: var(--f-d); }
 .tl-row-name {
-  font-size: 12px; color: var(--ink);
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tl-bar {
@@ -1621,7 +1621,7 @@ onMounted(() => {
 }
 .tl-bar:hover { filter: brightness(1.1); }
 .tl-bar-text {
-  font-size: 11px; white-space: nowrap;
+  font-size: calc(var(--font-scale, 1) * 11px); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -1660,7 +1660,7 @@ onMounted(() => {
   transform: translate(-50%, calc(-100% - 10px));
   background: var(--hq);
   color: #fff;
-  font-size: 12px; font-weight: 600;
+  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600;
   line-height: 1;
   padding: 5px 9px; border-radius: 4px;
   white-space: nowrap;
@@ -1672,8 +1672,8 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .tl-row-label { width: 100px; min-width: 100px; }
-  .tl-row-name { font-size: 11px; }
-  .tl-tick-label { font-size: 9px; }
+  .tl-row-name { font-size: calc(var(--font-scale, 1) * 11px); }
+  .tl-tick-label { font-size: calc(var(--font-scale, 1) * 9px); }
   .tl-handle { width: 24px; } /* 触摸热区扩大 */
 }
 </style>

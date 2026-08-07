@@ -227,12 +227,12 @@ onMounted(load)
 <style scoped>
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
-.gb-page-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.gb-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .gm-filter { margin: 16px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .gm-language-select { width: 140px; }
 .gm-badge { margin-left: 6px; }
 .gm-lang-badge {
-  font-size: 11px; font-weight: 600;
+  font-size: calc(var(--font-scale, 1) * 11px); font-weight: 600;
   color: var(--hq);
   background: var(--hq-t);
   padding: 1px 8px; border-radius: 999px;
@@ -253,11 +253,11 @@ onMounted(load)
 .gm-card--rejected { opacity: 0.7; }
 
 .gm-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.gm-nickname { font-size: 14px; font-weight: 600; color: var(--ink); }
-.gm-time { font-size: 12px; color: var(--ink3); margin-left: auto; }
+.gm-nickname { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
+.gm-time { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-left: auto; }
 
 .gm-content {
-  font-size: 14px; line-height: 1.6; color: var(--ink);
+  font-size: calc(var(--font-scale, 1) * 14px); line-height: 1.6; color: var(--ink);
   margin: 0 0 10px; white-space: pre-wrap; word-break: break-word;
 }
 
@@ -267,8 +267,8 @@ onMounted(load)
   background: var(--hq-t);
   border-left: 3px solid var(--hq);
 }
-.gm-reply-label { font-size: 11px; font-weight: 600; color: var(--hq); }
-.gm-reply-text { font-size: 13px; color: var(--ink); margin: 4px 0 0; line-height: 1.5; }
+.gm-reply-label { font-size: calc(var(--font-scale, 1) * 11px); font-weight: 600; color: var(--hq); }
+.gm-reply-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); margin: 4px 0 0; line-height: 1.5; }
 
 .gm-reply-editor { margin-bottom: 10px; }
 .gm-reply-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }

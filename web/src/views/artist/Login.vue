@@ -121,7 +121,7 @@ async function login() {
   margin-bottom: 12px;
 }
 .login-title {
-  font-size: 28px;
+  font-size: calc(var(--font-scale, 1) * 28px);
   font-weight: 400;
   color: var(--ink);
   letter-spacing: 0.3em;
@@ -129,13 +129,13 @@ async function login() {
 }
 .login-subtitle {
   color: var(--ink2);
-  font-size: 13px;
+  font-size: calc(var(--font-scale, 1) * 13px);
 }
 
 /* R6 验证器推荐清单 */
 .login-help { margin-top: 20px; border-top: 1px dashed var(--line); }
 .login-help :deep(.el-collapse-item__header) {
-  font-size: 12px;
+  font-size: calc(var(--font-scale, 1) * 12px);
   color: var(--ink2);
   background: transparent;
   border-bottom: none;
@@ -143,7 +143,7 @@ async function login() {
 }
 .login-help :deep(.el-collapse-item__wrap) { background: transparent; border-bottom: none; }
 .login-help :deep(.el-collapse-item__content) { padding-bottom: 8px; }
-.help-desc { font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
-.help-list { margin: 0 0 8px 18px; padding: 0; font-size: 12px; color: var(--ink2); line-height: 1.8; }
-.help-note { font-size: 12px; color: var(--zs); margin: 0; }
+.help-desc { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin-bottom: 8px; }
+.help-list { margin: 0 0 8px 18px; padding: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.8; }
+.help-note { font-size: calc(var(--font-scale, 1) * 12px); color: var(--zs); margin: 0; }
 </style>
