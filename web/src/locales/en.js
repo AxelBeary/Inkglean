@@ -811,7 +811,21 @@ export default {
       startDate: 'Failed to write start date: {message}',
       initialStatus: 'Failed to set initial stage: {message}',
       summary: 'Order {orderNo} was created, but {reason}. Please complete it in the order details.'
-    }
+    },
+    // REQ-035 §五 MVP-1: paste message parser
+    parseMessageTitle: 'Paste Message to Parse',
+    parseDialogTitle: 'Paste Message to Parse',
+    parsePlaceholder: 'Paste the client message — QQ number and hints are detected automatically…',
+    parseBtn: 'Parse',
+    parseQqLabel: 'Client QQ',
+    parseQqEmpty: 'Not detected (leave blank and fill in manually)',
+    parseAmountLabel: 'Amount hint',
+    parseAmountValue: '{amount} CNY',
+    parseDeadlineLabel: 'Deadline hint',
+    parseNone: 'None',
+    parseConfirmTip: 'Amount and deadline are hints only — never auto-filled. Please review before filling in.',
+    parseApply: 'Fill into form',
+    parseApplied: 'Filled into the form — please review before submitting'
   },
   tiers: {
     title: 'Pricing', addTier: '+ Add tier',

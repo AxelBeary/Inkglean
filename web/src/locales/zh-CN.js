@@ -810,7 +810,21 @@
       startDate: '开稿日写入失败：{message}',
       initialStatus: '初始状态设置失败：{message}',
       summary: '订单 {orderNo} 已创建，但{reason}。请在订单详情中补充。'
-    }
+    },
+    // REQ-035 §五 MVP-1: 粘贴消息解析
+    parseMessageTitle: '粘贴消息解析',
+    parseDialogTitle: '粘贴消息解析',
+    parsePlaceholder: '粘贴客户发来的消息，自动识别 QQ 号与线索…',
+    parseBtn: '解析',
+    parseQqLabel: '客户QQ',
+    parseQqEmpty: '未识别（留空，请手动填写）',
+    parseAmountLabel: '金额线索',
+    parseAmountValue: '{amount} 元',
+    parseDeadlineLabel: '日期线索',
+    parseNone: '未识别',
+    parseConfirmTip: '金额与日期仅作线索提示，不会自动填入，请人工核对后填写。',
+    parseApply: '填入表单',
+    parseApplied: '已填入表单，请核对后提交'
   },
   tiers: {
     title: '价格管理', addTier: '+ 添加档位',

@@ -6,6 +6,13 @@
       <h2>{{ $t('manualOrder.title') }}</h2>
       <p class="hint">{{ $t('manualOrder.hint') }}</p>
 
+      <!-- REQ-035 §五 MVP-1: 粘贴消息解析入口（顶部） -->
+      <div class="mo-toolbar">
+        <el-button type="primary" plain :icon="ChatDotRound" @click="openParseDialog">
+          {{ $t('manualOrder.parseMessageTitle') }}
+        </el-button>
+      </div>
+
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
         <div class="mo-grid">
           <!-- ═══ 左栏：客户说了什么（客户信息 + 参考图上传 + QQ 历史） ═══ -->
@@ -50,6 +57,44 @@
         </div>
       </el-form>
 
+      <!-- REQ-035 §五 MVP-1: 粘贴消息解析弹窗（解析→确认→回填，不自动提交） -->
+      <el-dialog v-model="parseDialogVisible" :title="$t('manualOrder.parseDialogTitle')" width="480px">
+        <el-input
+          v-model="parseInput"
+          type="textarea"
+          :rows="6"
+          :placeholder="$t('manualOrder.parsePlaceholder')"
+          resize="vertical"
+        />
+        <div class="parse-result" v-if="parseResult">
+          <div class="parse-row">
+            <span class="parse-key">{{ $t('manualOrder.parseQqLabel') }}</span>
+            <el-tag v-if="parseResult.clientQq" type="success">{{ parseResult.clientQq }}</el-tag>
+            <span v-else class="parse-empty">{{ $t('manualOrder.parseQqEmpty') }}</span>
+          </div>
+          <div class="parse-row">
+            <span class="parse-key">{{ $t('manualOrder.parseAmountLabel') }}</span>
+            <span v-if="parseResult.hints.amount">{{ $t('manualOrder.parseAmountValue', { amount: parseResult.hints.amount }) }}</span>
+            <span v-else class="parse-empty">{{ $t('manualOrder.parseNone') }}</span>
+          </div>
+          <div class="parse-row">
+            <span class="parse-key">{{ $t('manualOrder.parseDeadlineLabel') }}</span>
+            <span v-if="parseResult.hints.deadline">{{ parseResult.hints.deadline }}</span>
+            <span v-else class="parse-empty">{{ $t('manualOrder.parseNone') }}</span>
+          </div>
+          <p class="parse-tip">{{ $t('manualOrder.parseConfirmTip') }}</p>
+        </div>
+        <template #footer>
+          <el-button @click="parseDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+          <el-button type="primary" :disabled="!parseInput.trim()" @click="doParseMessage">
+            {{ $t('manualOrder.parseBtn') }}
+          </el-button>
+          <el-button type="success" :disabled="!parseResult" @click="applyParseResult">
+            {{ $t('manualOrder.parseApply') }}
+          </el-button>
+        </template>
+      </el-dialog>
+
       <!-- 录入成功 -->
       <el-dialog v-model="showResult" :title="$t('manualOrder.resultTitle')" width="400px">
         <el-result icon="success" :title="$t('manualOrder.orderNo', { no: resultNo })">
@@ -73,9 +118,15 @@ import { trackEvent } from '../../utils/track.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import ManualOrderLeft from '../../components/artist/order/ManualOrderLeft.vue'
 import ManualOrderRight from '../../components/artist/order/ManualOrderRight.vue'
+import { parseMessage } from '../../utils/message-parser.js'
+import { ChatDotRound } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 const formRef = ref(null)
+// REQ-035 §五 MVP-1: 粘贴消息解析（弹窗状态）
+const parseDialogVisible = ref(false)
+const parseInput = ref('')
+const parseResult = ref(null)
 const leftRef = ref(null)
 const rightRef = ref(null)
 const tiers = ref([])
@@ -100,6 +151,27 @@ const form = reactive({
   usageMultiplierId: null,
   rushMultiplierId: null
 })
+
+// ─── REQ-035 §五 MVP-1: 粘贴消息解析（解析→确认→回填，不自动提交） ───
+function openParseDialog() {
+  parseInput.value = ''
+  parseResult.value = null
+  parseDialogVisible.value = true
+}
+
+function doParseMessage() {
+  parseResult.value = parseMessage(parseInput.value)
+}
+
+/** 预填后人工确认：只回填识别到的 clientQq/description，金额/日期仅提示不自动填 */
+function applyParseResult() {
+  const r = parseResult.value
+  if (!r) return
+  if (r.clientQq) form.clientQq = r.clientQq
+  if (r.description) form.description = r.description
+  parseDialogVisible.value = false
+  ElMessage.success(t('manualOrder.parseApplied'))
+}
 
 /** 提交校验（右栏经 prop 调用；函数形式保证取到挂载后的 el-form 实例） */
 const validateForm = () => formRef.value?.validate()
@@ -376,6 +448,21 @@ onUnmounted(() => {
 @media (max-width: 1023px) {
   .mo-grid { grid-template-columns: 1fr; }
 }
+
+/* ─── REQ-035 §五 MVP-1: 粘贴消息解析（顶部按钮 + 弹窗结果） ─── */
+.mo-toolbar { margin: 12px 0 18px; }
+.parse-result {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  padding: 12px 14px;
+  background: var(--paper2);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.parse-row { display: flex; align-items: center; gap: 10px; font-size: calc(var(--font-scale, 1) * 13px); }
+.parse-key { color: var(--ink2); width: 76px; flex: none; }
+.parse-empty { color: var(--ink3); }
+.parse-tip { margin: 2px 0 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 
 /* ─── 响应式：手机（<600px）底部钉住价格条（价格条本体在 ManualOrderRight） ─── */
 @media (max-width: 599px) {
