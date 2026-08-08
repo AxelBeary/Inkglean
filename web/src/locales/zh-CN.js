@@ -1199,7 +1199,7 @@
     catAdd: '普通增项', catUsage: '用途', catRush: '加急',
     createKindLabel: '类别',
     createCatHintAdd: '普通增项加在基础价上，可多选共存；百分比计价的按基础价计算（不受其他增项影响）',
-    createCatHintMultiplier: '用途/加急是计价公式中的乘法位：顾客下单时各选一个生效，乘在小计之后',
+    createCatHintMultiplier: '用途/加急是计价公式中的乘法位：下单时各选一个生效，乘在普通增项小计之后（开关控件 + 百分比）',
     createControlLabel: '控件类型（顾客怎么选）', createControlHint: '个数 = 按数量计价（如加人 ×N）；开关 = 加/不加',
     createPricingLabel: '计价方式', pricingPercent: '百分比 +%', pricingFixed: '固定金额 ¥',
     pricingHintFixed: '固定金额：直接加 ¥N；个数类 = 单价 × 数量',

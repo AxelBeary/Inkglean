@@ -130,12 +130,12 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
 
     const sa = db.prepare(`
       SELECT sa.id, sa.is_enabled, sa.price_override,
-             COALESCE(sa.tpl_name, at.name) AS name,
-             COALESCE(sa.tpl_control_type, at.control_type) AS control_type,
-             COALESCE(sa.tpl_price_mode, at.price_mode) AS price_mode,
-             COALESCE(sa.tpl_default_price, at.default_price) AS default_price,
-             COALESCE(sa.tpl_category, at.category) AS category,
-             COALESCE(sa.tpl_max_quantity, at.max_quantity) AS max_quantity
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_name ELSE at.name END AS name,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_control_type ELSE at.control_type END AS control_type,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_price_mode ELSE at.price_mode END AS price_mode,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_default_price ELSE at.default_price END AS default_price,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_category ELSE at.category END AS category,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_max_quantity ELSE at.max_quantity END AS max_quantity
       FROM style_addons sa
       LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
       WHERE sa.id = ? AND sa.art_style_id = ?

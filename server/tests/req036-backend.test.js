@@ -314,3 +314,54 @@ describe('REQ-036 locked 字段（02F 遗留）', () => {
     expect(lockedOne.lockedReason).toBe('completed')
   })
 })
+
+// ─── v51 补丁：用途/加急强制开关控件 + 绑定行快照语义（模板为唯一权威） ───
+describe('SPEC-PRICE-2 v51：控件约束与快照语义', () => {
+  beforeEach(() => cleanDb())
+
+  it('TC-V51-01: 用途/加急禁止个数控件（创建拦截）', () => {
+    const artist = seedArtist({ qq_number: '99010', subdomain: 'v51a' })
+    expect(() => styleService.createAddonTemplate(artist.id, {
+      name: '商用', control_type: 'quantity', price_mode: 'percent', default_price: 50, category: 'usage'
+    })).toThrow('VALIDATION')
+  })
+
+  it('TC-V51-02: 用途/加急改个数控件（更新拦截）', () => {
+    const artist = seedArtist({ qq_number: '99011', subdomain: 'v51b' })
+    const tpl = styleService.createAddonTemplate(artist.id, {
+      name: '加急', control_type: 'switch', price_mode: 'percent', default_price: 100, category: 'rush'
+    })
+    expect(() => styleService.updateAddonTemplate(artist.id, tpl.id, { control_type: 'quantity' })).toThrow('VALIDATION')
+  })
+
+  it('TC-V51-03: 绑定行脏快照不遮蔽模板真实值（v50 污染修复回归）', () => {
+    const artist = seedArtist({ qq_number: '99012', subdomain: 'v51c' })
+    seedWorkflowStages(artist.id)
+    // 系统种子「加急」= rush/percent/100
+    const rushTpl = styleService.getAddonTemplates(artist.id).find(t => t.category === 'rush')
+    expect(rushTpl).toBeTruthy()
+    const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: false })
+    const size = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: rushTpl.id }])
+
+    // 人为写入脏快照（模拟 v50 迁移污染）：把绑定行快照写成 fixed/add
+    db.prepare(`
+      UPDATE style_addons SET tpl_price_mode = 'fixed', tpl_category = 'add', tpl_default_price = 100
+      WHERE addon_template_id = ?
+    `).run(rushTpl.id)
+
+    // 读取：模板仍为唯一权威（快照仅解绑行生效）
+    const addons = styleService.getStyleAddons(style.id)
+    const rushSa = addons.find(a => a.addon_template_id === rushTpl.id)
+    expect(rushSa.template_category).toBe('rush')
+    expect(rushSa.template_price_mode).toBe('percent')
+
+    // 算价：仍按加急倍率而非普通加法项（200 × 2 = 400）
+    const result = stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId: size.id,
+      addons: [{ styleAddonId: rushSa.id }]
+    })
+    expect(result.rush.percent).toBe(100)
+    expect(result.totalCents).toBe(40000)
+  })
+})

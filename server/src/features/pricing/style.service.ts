@@ -75,9 +75,14 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
   // SPEC-PRICE-2：category 维度 + max_quantity 上限校验
   const category = input.category || 'add'
   if (!VALID_CATEGORIES.includes(category as typeof VALID_CATEGORIES[number])) throw new AppError(E.VALIDATION, 400, { field: 'category', hint: 'category 只能是 add/usage/rush' })
-  // 用途/加急必须百分比计价（公式中它们是乘法因子）
-  if (category !== 'add' && priceMode !== 'percent') {
-    throw new AppError(E.VALIDATION, 400, { field: 'price_mode', hint: '用途/加急增项必须选择百分比计价' })
+  // 用途/加急必须百分比计价（公式中它们是乘法因子）且只能是开关控件（下单时各选一个）
+  if (category !== 'add') {
+    if (priceMode !== 'percent') {
+      throw new AppError(E.VALIDATION, 400, { field: 'price_mode', hint: '用途/加急增项必须选择百分比计价' })
+    }
+    if (controlType !== 'switch') {
+      throw new AppError(E.VALIDATION, 400, { field: 'control_type', hint: '用途/加急增项只能使用开关控件（下单时各选一个）' })
+    }
   }
   if (input.max_quantity != null && (!Number.isInteger(input.max_quantity) || input.max_quantity < 1 || input.max_quantity > 999)) {
     throw new AppError(E.VALIDATION, 400, { field: 'max_quantity', hint: '数量上限须为 1-999 的整数' })
@@ -148,11 +153,14 @@ export function updateAddonTemplate(artistId: number, templateId: number, fields
     if (!VALID_CATEGORIES.includes(fields.category as typeof VALID_CATEGORIES[number])) throw new AppError(E.VALIDATION, 400, { field: 'category', hint: 'category 只能是 add/usage/rush' })
     db.prepare('UPDATE addon_templates SET category = ? WHERE id = ?').run(fields.category, templateId)
   }
-  // SPEC-PRICE-2 组合约束：用途/加急必须百分比计价（跨字段校验，读最新值）
-  if (fields.category !== undefined || fields.price_mode !== undefined) {
-    const now = db.prepare('SELECT category, price_mode FROM addon_templates WHERE id = ?').get(templateId) as { category: string; price_mode: string }
+  // SPEC-PRICE-2 组合约束：用途/加急必须百分比计价 + 开关控件（跨字段校验，读最新值）
+  if (fields.category !== undefined || fields.price_mode !== undefined || fields.control_type !== undefined) {
+    const now = db.prepare('SELECT category, price_mode, control_type FROM addon_templates WHERE id = ?').get(templateId) as { category: string; price_mode: string; control_type: string }
     if (now.category !== 'add' && now.price_mode !== 'percent') {
       throw new AppError(E.VALIDATION, 400, { field: 'price_mode', hint: '用途/加急增项必须选择百分比计价' })
+    }
+    if (now.category !== 'add' && now.control_type !== 'switch') {
+      throw new AppError(E.VALIDATION, 400, { field: 'control_type', hint: '用途/加急增项只能使用开关控件（下单时各选一个）' })
     }
   }
   // percent 计价百分比范围校验
@@ -521,17 +529,18 @@ export interface StyleAddonWithTemplate {
   detached: boolean
 }
 
-/** 获取画风下的增项列表（含模板信息） */
+/** 获取画风下的增项列表（含模板信息）
+ * 快照语义（v51）：快照列仅服务解绑行（addon_template_id IS NULL）；绑定行以模板为唯一权威 */
 export function getStyleAddons(styleId: number): StyleAddonWithTemplate[] {
   return db.prepare(`
     SELECT sa.*,
-           COALESCE(sa.tpl_name, at.name) AS template_name,
-           COALESCE(sa.tpl_control_type, at.control_type) AS template_control_type,
-           COALESCE(sa.tpl_price_mode, at.price_mode) AS template_price_mode,
-           COALESCE(sa.tpl_default_price, at.default_price) AS template_default_price,
-           COALESCE(sa.tpl_unit_label, at.unit_label) AS template_unit_label,
-           COALESCE(sa.tpl_category, at.category) AS template_category,
-           COALESCE(sa.tpl_max_quantity, at.max_quantity) AS template_max_quantity,
+           CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_name ELSE at.name END AS template_name,
+           CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_control_type ELSE at.control_type END AS template_control_type,
+           CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_price_mode ELSE at.price_mode END AS template_price_mode,
+           CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_default_price ELSE at.default_price END AS template_default_price,
+           CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_unit_label ELSE at.unit_label END AS template_unit_label,
+           CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_category ELSE at.category END AS template_category,
+           CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_max_quantity ELSE at.max_quantity END AS template_max_quantity,
            (sa.addon_template_id IS NULL) AS detached
     FROM style_addons sa
     LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
@@ -849,16 +858,16 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
       "SELECT * FROM style_sizes WHERE art_style_id = ? AND display_status != 'closed' ORDER BY sort_order ASC"
     ).all(style.id) as StyleSize[]
 
-    // 画风级增项（启用的；SPEC-PRICE-2 新维度）
+    // 画风级增项（启用的；SPEC-PRICE-2 新维度；快照语义 v51：仅解绑行生效，绑定行以模板为权威）
     const styleAddons = db.prepare(`
       SELECT sa.*,
-             COALESCE(sa.tpl_name, at.name) AS tpl_name,
-             COALESCE(sa.tpl_control_type, at.control_type) AS tpl_control_type,
-             COALESCE(sa.tpl_price_mode, at.price_mode) AS tpl_price_mode,
-             COALESCE(sa.tpl_default_price, at.default_price) AS tpl_default_price,
-             COALESCE(sa.tpl_unit_label, at.unit_label) AS tpl_unit_label,
-             COALESCE(sa.tpl_category, at.category) AS tpl_category,
-             COALESCE(sa.tpl_max_quantity, at.max_quantity) AS tpl_max_quantity
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_name ELSE at.name END AS tpl_name,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_control_type ELSE at.control_type END AS tpl_control_type,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_price_mode ELSE at.price_mode END AS tpl_price_mode,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_default_price ELSE at.default_price END AS tpl_default_price,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_unit_label ELSE at.unit_label END AS tpl_unit_label,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_category ELSE at.category END AS tpl_category,
+             CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_max_quantity ELSE at.max_quantity END AS tpl_max_quantity
       FROM style_addons sa
       LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
       WHERE sa.art_style_id = ? AND sa.is_enabled = 1

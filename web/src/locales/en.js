@@ -1201,7 +1201,7 @@
     catAdd: 'Add-on', catUsage: 'Usage', catRush: 'Rush',
     createKindLabel: 'Category',
     createCatHintAdd: 'Regular addons add to the base price and can be combined; percent-priced ones are computed on the base price only',
-    createCatHintMultiplier: 'Usage/Rush are the multiplier slots of the pricing formula: the client picks one of each when ordering, applied after the subtotal',
+    createCatHintMultiplier: 'Usage/Rush are multiplier slots in the formula: pick at most one of each when ordering, applied after the add-ons subtotal (switch control + percentage)',
     createControlLabel: 'Control type (how clients choose)', createControlHint: 'Quantity = priced per unit (e.g. extra person xN); Switch = on/off',
     createPricingLabel: 'Pricing mode', pricingPercent: 'Percentage +%', pricingFixed: 'Fixed amount ¥',
     pricingHintFixed: 'Fixed amount: adds ¥N directly; quantity type = unit price x quantity',

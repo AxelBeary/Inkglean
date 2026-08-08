@@ -24,8 +24,8 @@
         <p class="form-hint">{{ categoryHint }}</p>
       </el-form-item>
 
-      <!-- 控件类型：开关类 / 个数类（SPEC-PRICE-2 仅两类） -->
-      <el-form-item :label="$t('styleManage.createControlLabel')" required>
+      <!-- 控件类型：仅普通增项可选（开关/个数）；用途/加急固定开关（下单时各选一个） -->
+      <el-form-item v-if="form.category === 'add'" :label="$t('styleManage.createControlLabel')" required>
         <el-radio-group v-model="form.control_type">
           <el-radio-button value="switch">{{ $t('styleManage.tplControlSwitch') }}</el-radio-button>
           <el-radio-button value="quantity">{{ $t('styleManage.tplControlQuantity') }}</el-radio-button>
@@ -113,10 +113,11 @@ function initForm() {
   form.max_quantity = 99
 }
 
-/** 用途/加急必须是百分比计价（后端铁律：它们是公式中的乘法因子）→ 自动切到 percent */
+/** 用途/加急必须百分比计价（后端铁律：它们是公式中的乘法因子）→ 自动切 percent + 锁定开关控件 */
 watch(() => form.category, (cat) => {
-  if (cat !== 'add' && form.price_mode !== 'percent') {
+  if (cat !== 'add') {
     form.price_mode = 'percent'
+    form.control_type = 'switch'
     if (form.default_price > 1000) form.default_price = 50
   }
 })

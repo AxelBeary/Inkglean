@@ -2061,9 +2061,9 @@ export const MIGRATIONS = [
             INSERT INTO style_addons_new (id, art_style_id, addon_template_id, is_enabled, price_override, tpl_name, tpl_control_type, tpl_price_mode, tpl_default_price, tpl_unit_label, tpl_category, tpl_max_quantity)
             SELECT id, art_style_id, addon_template_id, is_enabled, price_override, tpl_name,
               CASE WHEN tpl_control_type = 'radio' THEN 'switch' ELSE tpl_control_type END,
-              CASE WHEN tpl_kind = 'multiply' THEN 'percent' ELSE 'fixed' END,
+              CASE WHEN tpl_kind IS NULL THEN NULL WHEN tpl_kind = 'multiply' THEN 'percent' ELSE 'fixed' END,
               tpl_default_price, tpl_unit_label,
-              CASE WHEN tpl_kind = 'multiply' THEN
+              CASE WHEN tpl_kind IS NULL THEN NULL WHEN tpl_kind = 'multiply' THEN
                 CASE WHEN tpl_name LIKE '%加急%' OR tpl_name LIKE '%急件%' THEN 'rush' ELSE 'usage' END
               ELSE 'add' END,
               tpl_max_quantity
@@ -2089,6 +2089,22 @@ export const MIGRATIONS = [
         // 失败也必须恢复 FK，否则连接留在 OFF 状态（后续 CASCADE 全部失效）
         database.pragma('foreign_keys = ON')
       }
+    }
+  },
+  {
+    version: 51,
+    name: 'style_addons_snapshot_cleanup',
+    up(database) {
+      // v50 修复补丁：v50 转换把已绑定行（快照本应为 NULL）的 tpl_* 写入了错误的
+      // 'fixed'/'add' 默认值，遮蔽了模板真实值（如系统种子「加急」被显示成普通加法项）。
+      // 快照列语义：仅服务解绑行（addon_template_id IS NULL）；绑定行以模板为准 → 清空其快照
+      const r = database.prepare(`
+        UPDATE style_addons SET
+          tpl_name = NULL, tpl_control_type = NULL, tpl_price_mode = NULL,
+          tpl_default_price = NULL, tpl_unit_label = NULL, tpl_category = NULL, tpl_max_quantity = NULL
+        WHERE addon_template_id IS NOT NULL
+      `).run()
+      console.log(`📦 迁移 v51: 已清理 ${r.changes} 行绑定行的脏快照（模板为唯一权威）`)
     }
   }
 ]

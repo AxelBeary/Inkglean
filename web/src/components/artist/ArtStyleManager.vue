@@ -78,48 +78,43 @@
                     @dragover.prevent="onSizeDragOver"
                     @drop.prevent="onDropToSize(style, size, $event)"
                   >
-                    <span class="size-drag-handle" :title="$t('tiers.dragHint')">⠿</span>
-                    <div class="size-row-thumb">
+                    <!-- 第一行：拖拽柄 + 缩略图 + 名称/价/工期 + 三态 + 操作 -->
+                    <div class="size-row-top">
+                      <span class="size-drag-handle" :title="$t('tiers.dragHint')">⠿</span>
                       <el-image v-if="sizeThumb(size)" :src="`/uploads/${sizeThumb(size)}`" fit="cover" class="size-thumb" />
-                      <span v-else class="size-thumb-empty">—</span>
+                      <span class="size-row-name">{{ size.name }}</span>
                       <el-tag v-if="size.image_artwork_id" size="small" effect="plain" class="size-thumb-tag">{{ $t('styleManage.sizeFromArtworkTag') }}</el-tag>
-                    </div>
-                    <div class="size-row-main">
-                      <div class="size-row-head">
-                        <span class="size-row-name">{{ size.name }}</span>
-                        <span class="size-price">¥{{ size.base_price }}</span>
+                      <span class="size-price">¥{{ size.base_price }}</span>
+                      <span v-if="size.work_days" class="size-days">{{ $t('tiers.daysUnit', { n: size.work_days }) }}</span>
+                      <!-- SPEC-PRICE-2: 尺寸三态（后端 display_status 落库，算价/下单同步拒单） -->
+                      <div class="size-status-seg">
+                        <button
+                          v-for="st in statusOptions" :key="st.value"
+                          class="seg-btn" :class="[`seg-${st.value}`, { on: (size.display_status || 'available') === st.value }]"
+                          :disabled="isLocked(style)"
+                          @click="setSizeStatus(style, size, st.value)"
+                        >
+                          <i></i>{{ st.label }}
+                        </button>
                       </div>
-                      <p class="size-row-desc">
-                        {{ size.description || '—' }}
-                        <template v-if="size.work_days"> · {{ $t('tiers.daysUnit', { n: size.work_days }) }}</template>
-                      </p>
-                      <!-- REQ-036 (任务5): 尺寸摘要行实时更新（拖入即出现） -->
-                      <div class="size-summary">
-                        <span class="sum-label">{{ $t('styleManage.sizeSummaryLabel') }}</span>
-                        <span
-                          v-for="chip in sizeSummary(style, size)" :key="chip.id"
-                          class="sum-chip" :class="chip.kind"
-                          draggable="true" :title="$t('styleManage.addonDragBackHint')"
-                          @dragstart="onChipDragStart(style, size, chip, $event)"
-                        >{{ chip.name }} {{ chip.priceText }}</span>
-                        <span v-if="!sizeSummary(style, size).length" class="sum-empty">{{ $t('styleManage.sizeSummaryEmpty') }}</span>
+                      <div class="size-row-actions">
+                        <el-button text size="small" :disabled="isLocked(style)" @click="openPreview(style, size)">{{ $t('styleManage.previewBtn') }}</el-button>
+                        <el-button text size="small" :disabled="isLocked(style)" @click="openSizeDialog(style, size)">{{ $t('common.edit') }}</el-button>
+                        <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteSize(style, size)">{{ $t('common.delete') }}</el-button>
                       </div>
                     </div>
-                    <!-- SPEC-PRICE-2: 尺寸三态（后端 display_status 落库，算价/下单同步拒单） -->
-                    <div class="size-status-seg">
-                      <button
-                        v-for="st in statusOptions" :key="st.value"
-                        class="seg-btn" :class="[`seg-${st.value}`, { on: (size.display_status || 'available') === st.value }]"
-                        :disabled="isLocked(style)"
-                        @click="setSizeStatus(style, size, st.value)"
-                      >
-                        <i></i>{{ st.label }}
-                      </button>
-                    </div>
-                    <div class="size-row-actions">
-                      <el-button text size="small" :disabled="isLocked(style)" @click="openPreview(style, size)">{{ $t('styleManage.previewBtn') }}</el-button>
-                      <el-button text size="small" :disabled="isLocked(style)" @click="openSizeDialog(style, size)">{{ $t('common.edit') }}</el-button>
-                      <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteSize(style, size)">{{ $t('common.delete') }}</el-button>
+                    <!-- 第二行：描述（有才显示） -->
+                    <p v-if="size.description" class="size-row-desc">{{ size.description }}</p>
+                    <!-- 第三行：已配增项摘要（REQ-036 任务5，实时更新） -->
+                    <div class="size-summary">
+                      <span class="sum-label">{{ $t('styleManage.sizeSummaryLabel') }}</span>
+                      <span
+                        v-for="chip in sizeSummary(style, size)" :key="chip.id"
+                        class="sum-chip" :class="chip.kind"
+                        draggable="true" :title="$t('styleManage.addonDragBackHint')"
+                        @dragstart="onChipDragStart(style, size, chip, $event)"
+                      >{{ chip.name }} {{ chip.priceText }}</span>
+                      <span v-if="!sizeSummary(style, size).length" class="sum-empty">{{ $t('styleManage.sizeSummaryEmpty') }}</span>
                     </div>
                   </div>
                 </template>
@@ -153,7 +148,7 @@
                   <span v-if="grp.items.length" class="pool-group-label">{{ categoryLabel($t, grp.cat) }}</span>
                   <span
                     v-for="sa in grp.items" :key="sa.id"
-                    class="addon-cap"
+                    class="addon-cap" :class="`cap-cat-${addonCategory(sa)}`"
                     draggable="true"
                     :title="$t('styleManage.addonCapHint')"
                     @dragstart="onCapDragStart(style, sa, $event)"
@@ -162,7 +157,7 @@
                   >
                     <span class="cap-name">{{ sa.template_name }}</span>
                     <span class="cap-price">{{ capPriceText(sa) }}</span>
-                    <span class="cap-tag" :class="`cap-tag-${sa.template_control_type}`">{{ controlLabel(sa.template_control_type) }}</span>
+                    <span v-if="sa.template_control_type === 'quantity'" class="cap-tag cap-tag-quantity">{{ controlLabel(sa.template_control_type) }}</span>
                   </span>
                 </template>
                 <span v-if="!style.addons.length" class="pool-empty">{{ $t('styleManage.addonPoolEmpty') }}</span>
@@ -1017,28 +1012,28 @@ defineExpose({ reload: load })
 .size-price { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-family: var(--f-d); }
 
 /* A3: 尺寸行列表（替代原 el-table，支持拖拽） */
-.size-row-list { display: flex; flex-direction: column; gap: 6px; }
+.size-row-list { display: flex; flex-direction: column; gap: 8px; }
 .size-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: var(--r-m);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px; border-radius: var(--r-m);
   background: var(--paper2); border: 1px solid var(--line);
 }
+/* 第一行：拖拽柄+缩略图+名称/价/工期 ｜ 三态 ｜ 操作 */
+.size-row-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .size-drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink3); flex-shrink: 0; }
 .size-drag-handle:hover { color: var(--hq); }
 .size-drag-handle:active { cursor: grabbing; }
-.size-row-thumb { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.size-row-main { flex: 1; min-width: 0; }
-.size-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.size-row-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.size-row-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
+.size-days { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+.size-status-seg { margin-left: auto; }
+.size-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+/* 尺寸缩略图（仅有图时渲染，不再放丑占位块） */
+.size-thumb { width: 44px; height: 34px; border-radius: var(--r-s); border: 1px solid var(--line); flex-shrink: 0; }
+.size-thumb-tag { transform: scale(0.9); }
 .size-row-desc {
-  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 3px 0 0;
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.size-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
-/* 尺寸缩略图 */
-.size-thumb { width: 44px; height: 34px; border-radius: var(--r-s); border: 1px solid var(--line); vertical-align: middle; }
-.size-thumb-empty { color: var(--ink4); }
-.size-thumb-tag { transform: scale(0.9); }
 
 .addon-tpl-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 500; color: var(--ink); }
 
@@ -1067,6 +1062,11 @@ defineExpose({ reload: load })
   background: var(--line); color: var(--ink3); flex: none;
 }
 .addon-cap .cap-tag.cap-tag-quantity { background: var(--sl-t); color: var(--sl); }
+/* 类别色（SPEC-PRICE-2）：普通=中性 / 用途=赭石 / 加急=朱砂 */
+.addon-cap.cap-cat-usage { border-color: color-mix(in srgb, var(--zhe) 45%, transparent); }
+.addon-cap.cap-cat-usage .cap-price { color: var(--zhe); }
+.addon-cap.cap-cat-rush { border-color: color-mix(in srgb, var(--zs) 45%, transparent); }
+.addon-cap.cap-cat-rush .cap-price { color: var(--zs); }
 
 /* ═══ 尺寸三态（石绿/藤黄/朱砂，色块+文字；SPEC-PRICE-2 后端枚举） ═══ */
 .size-status-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--line2); border-radius: var(--r-m); padding: 2px; gap: 2px; background: var(--paper2); }
