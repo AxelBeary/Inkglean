@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
+import { toSqliteDate } from '../src/utils/date.js'
 import * as dashboard from '../src/features/artist/dashboard.service.js'
 
 // ============================================
@@ -265,4 +266,60 @@ describe('活动流 (getActivity)', () => {
     expect(result[0].orderNo).toBe('T-034')
     expect(result[1].orderNo).toBe('T-033')
   })
+describe('时区口径（P2-1）：季度周分组与本地日期一致', () => {
+  let artist
+
+  beforeEach(() => {
+    cleanDb()
+    artist = seedArtist()
+  })
+
+  it('TC-DASH-TZ-01: 季度周分组——UTC 凌晨订单归入本地日期所在周', () => {
+    // 构造一个 UTC 00:30 完成、本地时区同日 00:30 的订单（北京 +8）
+    // 核心：completed_at 存 UTC；SQL 层 localtime 转本地日后再分周，不因 UTC/本地差跨周
+    const now = new Date()
+    const year = now.getFullYear()
+    const quarter = Math.floor(now.getMonth() / 3)
+    // 季度第 8 天本地 00:30 → 应在第 2 周（W2, index 1）
+    const local8th = new Date(year, quarter * 3, 8, 0, 30, 0)
+    const o = seedOrder(artist.id, { order_no: 'TZ-001' })
+    // 存入 UTC 表示（toSqliteDate = UTC）
+    completeOrder(o.id, toSqliteDate(local8th), 20000)
+
+    const result = dashboard.getRevenue(artist.id, 'quarter')
+    expect(result.period).toBe('quarter')
+    // 本地第 8 天：距季度首日 7 天 → week = 1（W2）
+    expect(result.bars[1].cents).toBe(20000)
+    expect(result.bars[0].cents).toBe(0)
+  })
+
+  it('TC-DASH-TZ-02: 季度周分组——月末最后一天不溢出到下周', () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const quarter = Math.floor(now.getMonth() / 3)
+    // 季度第 14 天本地 23:59 → 第 2 周（week = 1）
+    const local14th = new Date(year, quarter * 3, 14, 23, 59, 0)
+    const o = seedOrder(artist.id, { order_no: 'TZ-002' })
+    completeOrder(o.id, toSqliteDate(local14th), 30000)
+
+    const result = dashboard.getRevenue(artist.id, 'quarter')
+    expect(result.bars[1].cents).toBe(30000)
+    expect(result.bars[2].cents).toBe(0)
+  })
+
+  it('TC-DASH-TZ-03: 月维度——UTC 凌晨订单按本地日期落柱', () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    // 本月第 3 天本地 00:30
+    const local3rd = new Date(year, month, 3, 0, 30, 0)
+    const o = seedOrder(artist.id, { order_no: 'TZ-003' })
+    completeOrder(o.id, toSqliteDate(local3rd), 40000)
+
+    const result = dashboard.getRevenue(artist.id, 'month')
+    // 本地第 3 天 → bars[2]
+    expect(result.bars[2].cents).toBe(40000)
+    expect(result.bars[1].cents).toBe(0)
+  })
+})
 })

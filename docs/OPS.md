@@ -94,3 +94,65 @@ docker compose exec web ls /app/web/dist/assets/ | tail            # ③ 前端�
 - `AUTH_DEV_MODE=true` 时，TOTP 绑定接口（bind-init）响应会附带密钥明文 `_dev_secret`（仅开发/测试辅助用）。
 - **生产环境必须设为 `false` 或删除该行**，否则 TOTP 密钥泄露，任何人可伪造动态口令登录。
 - 检查：`docker compose exec web printenv AUTH_DEV_MODE` 应输出 `false`（或为空）。
+
+## 7. 数据库迁移与回滚
+
+> 本节补充迁移（schema 变更）的运维口径（P2-4，外部研判项）。迁移代码在 `server/src/db/init.js`。
+
+### 当前机制（单机小项目取舍）
+
+- 迁移均为 **up-only**：`MIGRATIONS` 共 48 条（version 1~48），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
+- 每次迁移执行前自动备份：`init.js` 的 `backupDbBeforeMigration` 会复制 `commission.db` → `commission.db.bak.v<N>`（仅文件数据库；`:memory:` 跳过）。
+- 采用该取舍的原因：单机小项目、单部署点，schema 变更频率低，写 `down()` 的维护成本高于收益；错误回滚用备份恢复兜底（见 §3）。
+
+### 回滚方式
+
+schema 变更出错时**不提供自动 down 迁移**，统一走「备份恢复」：
+
+```bash
+# 1) 停服务
+docker compose down
+# 2) 用迁移前自动备份或手动备份恢复（第 3 节）
+cp ./data/commission.db.bak.v<N> ./data/commission.db
+# 3) 起服务
+docker compose up -d
+```
+
+- 迁移前自动备份文件名含目标版本号（如 `commission.db.bak.v45`），按需选择。
+- 恢复后确认数据完整：`sqlite3 ./data/commission.db "PRAGMA user_version"` 应与目标版本一致（`user_version` 由 init.js 维护）。
+
+### 建议（技术债登记）
+
+- 未来新迁移若涉及**破坏性变更**（删除/改约束/改数据语义），建议补充 `down()`；非破坏性变更（加列/建索引）可继续 up-only。
+- 若补充 `down()`，命名与 `up()` 同构（`down(database)`），并在迁移对象内注释回滚动作与数据影响。
+- 上线前执行 `npm run db:init` 验证迁移链可用，确认 `user_version` 前进到目标值。
+
+> 本节补充迁移（schema 变更）的运维口径（P2-4，外部研判项）。迁移代码在 `server/src/db/init.js`。
+
+### 当前机制（单机小项目取舍）
+
+- 迁移均为 **up-only**：`MIGRATIONS` 共 48 条（version 1~48），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
+- 每次迁移执行前自动备份：`init.js` 的 `backupDbBeforeMigration` 会复制 `commission.db` → `commission.db.bak.v<N>`（仅文件数据库；`:memory:` 跳过）。
+- 采用该取舍的原因：单机小项目、单部署点，schema 变更频率低，写 `down()` 的维护成本高于收益；错误回滚用备份恢复兜底（见第 3 节）。
+
+### 回滚方式
+
+schema 变更出错时**不提供自动 down 迁移**，统一走"备份恢复"：
+
+```bash
+# 1) 停服务
+docker compose down
+# 2) 用迁移前自动备份或手动备份恢复（第 3 节）
+cp ./data/commission.db.bak.v<N> ./data/commission.db
+# 3) 起服务
+docker compose up -d
+```
+
+- 迁移前自动备份文件命名含目标版本号（如 `commission.db.bak.v45`），按需选择。
+- 恢复后确认数据完整：`sqlite3 ./data/commission.db "PRAGMA user_version"` 应与目标版本一致（`user_version` 由 init.js 维护）。
+
+### 建议（技术债登记）
+
+- 未来新增迁移若涉及**破坏性变更**（删列/改约束/改数据语义），建议补充 `down()`；非破坏性变更（加列/建索引）可继续 up-only。
+- 若补充 `down()`，命名与 `up()` 同构（`down(database)`），并在迁移对象内注释回滚动作与数据影响。
+- 上线前执行 `npm run db:init` 验证迁移链可用，确认 `user_version` 前进到目标值。

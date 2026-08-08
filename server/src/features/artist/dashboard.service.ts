@@ -32,6 +32,16 @@ function localYearStart(year: number): string {
   return toSqliteDate(new Date(year, 0, 1))
 }
 
+// ── 时区换算（P2-1 修复）──
+// SQLite 的 strftime('localtime') 依赖 CRT 时区：Windows/容器时区设置不同则行为不同
+// （TZ='Asia/Shanghai' 时 Windows CRT 不识别 IANA 名 → 退化为 UTC，差一天）。
+// 统一改在应用层换算：completed_at 存 UTC（如 '2026-07-07 16:30:00'），
+// 显式补 'Z' 按 UTC 解析，再取本地日期分量——与 date.ts 口径一致、环境无关。
+/** UTC 存储字符串 → 本地 Date（时区换算在应用层，不依赖 SQLite localtime） */
+function toLocalDate(utcStr: string): Date {
+  return new Date(utcStr.replace(' ', 'T') + 'Z')
+}
+
 interface RevenueBar {
   label: string
   cents: number
@@ -59,18 +69,24 @@ export function getRevenue(artistId: number, period: string = 'month') {
     prevStart = localMonthStart(year, month - 1)
     prevEnd = currentStart
 
-    // 查询当月每天的完成收入
+    // 查询当月每天的完成收入（P2-1：时区换算在应用层，SQL 取 UTC 原始值）
     const rows = db.prepare(`
-      SELECT CAST(strftime('%d', o.completed_at, 'localtime') AS INTEGER) as day,
-             SUM(${PRICE_FALLBACK_SQL}) as cents,
+      SELECT o.completed_at,
+             ${PRICE_FALLBACK_SQL} as cents,
              COUNT(*) as cnt
       FROM orders o
       WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
         AND o.completed_at >= ? AND o.completed_at < ?
-      GROUP BY day
-    `).all(artistId, currentStart, nextMonthStart) as Array<{ day: number; cents: number; cnt: number }>
+      GROUP BY o.completed_at
+    `).all(artistId, currentStart, nextMonthStart) as Array<{ completed_at: string; cents: number; cnt: number }>
 
-    const dayMap = new Map(rows.map(r => [r.day, r]))
+    // 按本地日期分组（date.ts 同款口径：UTC 字符串补 Z 按 UTC 解析，取本地日）
+    const dayMap = new Map<number, { cents: number; cnt: number }>()
+    for (const r of rows) {
+      const day = toLocalDate(r.completed_at).getDate()
+      const prev = dayMap.get(day) ?? { cents: 0, cnt: 0 }
+      dayMap.set(day, { cents: prev.cents + r.cents, cnt: prev.cnt + r.cnt })
+    }
     bars = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1
       const row = dayMap.get(day)
@@ -87,18 +103,23 @@ export function getRevenue(artistId: number, period: string = 'month') {
     prevStart = localQuarterStart(quarter === 0 ? year - 1 : year, quarter === 0 ? 3 : quarter - 1)
     prevEnd = currentStart
 
-    // 查询当季所有完成订单，在 JS 层按周分组
+    // 查询当季所有完成订单，按本地日期在 JS 层分周
+    // 时区口径（P2-1 修复）：SQL 取 UTC 原始值，JS 用 toLocalDate 转本地日期，
+    // 与 month/year 分支一致（存储 UTC、分组展示用本地时区，应用层换算）；
+    // 修复前用 new Date(completed_at) 把 UTC 字符串按本地解析，区区时差可能跨天分错周
     const rows = db.prepare(`
-      SELECT o.completed_at, ${PRICE_FALLBACK_SQL} as cents
+      SELECT o.completed_at,
+             ${PRICE_FALLBACK_SQL} as cents
       FROM orders o
       WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
         AND o.completed_at >= ? AND o.completed_at < ?
     `).all(artistId, currentStart, nextQuarterStart) as Array<{ completed_at: string; cents: number }>
 
     const weekData = Array.from({ length: 13 }, () => ({ cents: 0, count: 0 }))
-    const quarterStartDate = new Date(currentStart.replace(' ', 'T'))
+    // 季度首日（本地时区），与 toLocalDate 同口径
+    const quarterStartDate = new Date(year, quarter * 3, 1)
     for (const row of rows) {
-      const d = new Date(row.completed_at.replace(' ', 'T'))
+      const d = toLocalDate(row.completed_at)
       const diffDays = Math.floor((d.getTime() - quarterStartDate.getTime()) / (7 * 24 * 60 * 60 * 1000))
       const week = Math.min(Math.max(diffDays, 0), 12)
       weekData[week].cents += row.cents
@@ -114,16 +135,22 @@ export function getRevenue(artistId: number, period: string = 'month') {
     prevEnd = currentStart
 
     const rows = db.prepare(`
-      SELECT CAST(strftime('%m', o.completed_at, 'localtime') AS INTEGER) as month,
-             SUM(${PRICE_FALLBACK_SQL}) as cents,
+      SELECT o.completed_at,
+             ${PRICE_FALLBACK_SQL} as cents,
              COUNT(*) as cnt
       FROM orders o
       WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
         AND o.completed_at >= ? AND o.completed_at < ?
-      GROUP BY month
-    `).all(artistId, currentStart, nextYearStart) as Array<{ month: number; cents: number; cnt: number }>
+      GROUP BY o.completed_at
+    `).all(artistId, currentStart, nextYearStart) as Array<{ completed_at: string; cents: number; cnt: number }>
 
-    const monthMap = new Map(rows.map(r => [r.month, r]))
+    // 按本地月份分组（P2-1：应用层换算，不依赖 SQLite localtime）
+    const monthMap = new Map<number, { cents: number; cnt: number }>()
+    for (const r of rows) {
+      const m = toLocalDate(r.completed_at).getMonth() + 1
+      const prev = monthMap.get(m) ?? { cents: 0, cnt: 0 }
+      monthMap.set(m, { cents: prev.cents + r.cents, cnt: prev.cnt + r.cnt })
+    }
     bars = Array.from({ length: 12 }, (_, i) => {
       const m = i + 1
       const row = monthMap.get(m)
