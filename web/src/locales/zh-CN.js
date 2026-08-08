@@ -1,4 +1,4 @@
-﻿export default {
+export default {
   errors: {
     // 认证
     NOT_LOGGED_IN: '未登录',
@@ -254,6 +254,9 @@
     toolsExport: '收入导出',
     // REQ-035 批C: 散单记账（工具组菜单项）
     standaloneIncome: '散单记账',
+    // REQ-035 批E: 进度拼图 / 排期公示（工具组菜单项）
+    puzzle: '进度拼图',
+    scheduleShare: '排期公示',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
   },
@@ -325,6 +328,49 @@
     clientTooLong: '客户昵称不能超过 50 字',
     noteTooLong: '备注不能超过 200 字',
     dateRequired: '请选择日期'
+  },
+  // REQ-035 批E: 进度对比拼图（工具页文案）
+  puzzle: {
+    title: '进度对比拼图',
+    subtitle: '把同一订单的多张图片拼成一张对比图，方便向客户展示进度',
+    selectOrder: '选择订单',
+    selectImages: '勾选图片（2~6 张）',
+    arrange: '调整顺序',
+    up: '上移',
+    down: '下移',
+    export: '导出拼图',
+    preview: '实时预览',
+    noImages: '该订单暂无图片',
+    needTwo: '至少选择 2 张图片',
+    kindDeliverable: '完稿',
+    kindReference: '参考',
+    loadOrdersFailed: '加载订单列表失败',
+    loadOrderFailed: '加载订单详情失败',
+    exportFailed: '导出失败：部分图片受跨域限制，请重新选择',
+    exported: '拼图已导出'
+  },
+  // REQ-035 批E: 排期公示（工具页文案）
+  schedule: {
+    title: '排期公示',
+    subtitle: '生成可分享的排期状态，复制文本或下载图片发给客户',
+    loading: '加载排期中…',
+    copyText: '复制文本',
+    downloadImage: '下载图片',
+    queueFormal: '正式队列 {n} 单',
+    queueBuffer: '缓冲队列 {n} 单',
+    deadlineSoon: '近期截稿',
+    statusBusy: '排期较满',
+    statusNormal: '档期正常',
+    statusFree: '档期宽松',
+    statusLabel: '档期状态：',
+    textHeader: '【绘约排期】{artist}',
+    noDeadline: '近期无截稿',
+    brandFooter: '绘约 · 排期公示',
+    copied: '已复制',
+    copyFailed: '复制失败，请手动复制',
+    loadFailed: '加载排期数据失败',
+    exported: '排期卡片已下载',
+    exportFailed: '生成图片失败'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {

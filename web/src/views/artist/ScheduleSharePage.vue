@@ -1,0 +1,378 @@
+<template>
+  <ArtistLayout>
+    <div class="schedule-page">
+      <h2 class="od-page-title">{{ $t('schedule.title') }}</h2>
+      <p class="schedule-sub">{{ $t('schedule.subtitle') }}</p>
+
+      <div class="schedule-panel">
+        <div v-if="loading" class="schedule-loading">{{ $t('schedule.loading') }}</div>
+
+        <template v-else>
+          <!-- 预览卡片（CSS 渲染，纸墨 token 双主题自适应） -->
+          <div class="schedule-card">
+            <div class="schedule-card-head">
+              <span class="schedule-card-title">{{ $t('schedule.title') }}</span>
+              <span class="schedule-card-date">{{ todayText }}</span>
+            </div>
+            <div class="schedule-card-artist">{{ artistName }}</div>
+            <span class="schedule-card-status" :class="statusKey">{{ statusText }}</span>
+            <div class="schedule-card-rows">
+              <div class="schedule-card-row">{{ $t('schedule.queueFormal', { n: formalCount }) }}</div>
+              <div class="schedule-card-row">{{ $t('schedule.queueBuffer', { n: bufferCount }) }}</div>
+            </div>
+            <div class="schedule-card-divider"></div>
+            <div class="schedule-card-dl-title">{{ $t('schedule.deadlineSoon') }}</div>
+            <div v-if="topDeadlines.length" class="schedule-card-dl">
+              <div v-for="d in topDeadlines" :key="d.id" class="schedule-card-dl-row">· #{{ d.order_no }} {{ fmtDate(d.deadline) }}</div>
+            </div>
+            <div v-else class="schedule-card-dl">{{ $t('schedule.noDeadline') }}</div>
+            <div class="schedule-card-footer">{{ $t('schedule.brandFooter') }}</div>
+          </div>
+
+          <!-- 导出操作 -->
+          <div class="schedule-actions">
+            <el-button :disabled="!previewText" @click="copyText">{{ $t('schedule.copyText') }}</el-button>
+            <el-button type="primary" :loading="exporting" :disabled="!previewText" @click="downloadImage">
+              {{ $t('schedule.downloadImage') }}
+            </el-button>
+          </div>
+
+          <!-- 生成的图片预览（与下载内容完全一致） -->
+          <img v-if="cardImage" :src="cardImage" class="schedule-img" :alt="$t('schedule.title')" />
+        </template>
+      </div>
+    </div>
+  </ArtistLayout>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
+import { artistApi } from '../../api/index.js'
+import ArtistLayout from '../../components/ArtistLayout.vue'
+
+const { t } = useI18n()
+
+// ─── 数据 ───
+const loading = ref(true)
+const profile = ref(null)
+const formalQueue = ref([])
+const bufferQueue = ref([])
+const deadlines = ref([])
+
+async function loadAll() {
+  loading.value = true
+  try {
+    const [p, fq, bq, dl] = await Promise.all([
+      artistApi.getProfile(),
+      artistApi.getQueue(),
+      artistApi.getQueue('buffer'),
+      artistApi.getUpcomingDeadlines()
+    ])
+    profile.value = p
+    formalQueue.value = Array.isArray(fq) ? fq : []
+    bufferQueue.value = Array.isArray(bq) ? bq : []
+    deadlines.value = Array.isArray(dl) ? dl : []
+  } catch (err) {
+    ElMessage.error(err.message || t('schedule.loadFailed'))
+  } finally {
+    loading.value = false
+  }
+}
+
+// ─── 派生数据 ───
+const artistName = computed(() => (profile.value && profile.value.name) || '')
+const formalCount = computed(() => formalQueue.value.length)
+const bufferCount = computed(() => bufferQueue.value.length)
+const totalCount = computed(() => formalCount.value + bufferCount.value)
+const topDeadlines = computed(() => deadlines.value.slice(0, 3))
+
+/** 档期状态：≥10 单「排期较满」/ 3-9 单「档期正常」/ <3 单「档期宽松」 */
+const statusKey = computed(() => {
+  if (totalCount.value >= 10) return 'busy'
+  if (totalCount.value >= 3) return 'normal'
+  return 'free'
+})
+const statusText = computed(() => t('schedule.status' + capitalize(statusKey.value)))
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+function fmtDate(v) {
+  const s = String(v || '')
+  return s.slice(0, 10)
+}
+
+function todayText() {
+  const now = new Date()
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+}
+
+// ─── 排期文本（复制用） ───
+const previewText = computed(() => {
+  const lines = []
+  lines.push(t('schedule.textHeader', { artist: artistName.value }))
+  lines.push(t('schedule.statusLabel') + statusText.value)
+  lines.push(t('schedule.queueFormal', { n: formalCount.value }))
+  lines.push(t('schedule.queueBuffer', { n: bufferCount.value }))
+  lines.push(t('schedule.deadlineSoon'))
+  if (topDeadlines.value.length) {
+    for (const d of topDeadlines.value) {
+      lines.push('· #' + d.order_no + ' ' + fmtDate(d.deadline))
+    }
+  } else {
+    lines.push('· ' + t('schedule.noDeadline'))
+  }
+  return lines.join('\n')
+})
+
+// ─── 复制文本（clipboard API + 兜底 execCommand） ───
+async function copyText() {
+  try {
+    await navigator.clipboard.writeText(previewText.value)
+    ElMessage.success(t('schedule.copied'))
+  } catch {
+    copyFallback()
+  }
+}
+
+function copyFallback() {
+  const ta = document.createElement('textarea')
+  ta.value = previewText.value
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  try {
+    document.execCommand('copy')
+    ElMessage.success(t('schedule.copied'))
+  } catch {
+    ElMessage.error(t('schedule.copyFailed'))
+  }
+  document.body.removeChild(ta)
+}
+
+// ─── 图片卡片（canvas 绘制，纸墨风格固定配色，导出图清晰可分享） ───
+const exporting = ref(false)
+const cardImage = ref('')
+
+const CARD_W = 620
+const CARD_PAD = 36
+
+const STATUS_COLORS = {
+  busy: { bg: '#F8EAE6', fg: '#BC3A2B' },
+  normal: { bg: '#E9EFF4', fg: '#33526E' },
+  free: { bg: '#EAF3EC', fg: '#2F7D54' }
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
+
+async function drawCard() {
+  if (!previewText.value) return ''
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  const font = (weight, size) => weight + ' ' + size + 'px "Microsoft YaHei", "PingFang SC", sans-serif'
+
+  // 先按预估高度绘制第一遍测量，再定稿（两遍绘制保证高度精确）
+  const W = CARD_W
+  const pad = CARD_PAD
+  const measure = () => {
+    ctx.font = font('700', 28)
+    const titleH = 40
+    ctx.font = font('400', 24)
+    const artistH = 40
+    ctx.font = font('400', 16)
+    const statusH = 40
+    const rowH = 28
+    ctx.font = font('400', 15)
+    const dlRowH = 26
+    const divider = 20
+    const gap = 12
+    let y = pad
+    y += titleH + 8
+    y += artistH + 8
+    y += statusH + 4
+    y += rowH * 2 + 4
+    y += divider
+    y += gap
+    y += dlRowH
+    y += (topDeadlines.value.length ? topDeadlines.value.length : 1) * dlRowH
+    y += 16
+    return y + pad
+  }
+  const H = measure()
+  canvas.width = W
+  canvas.height = H
+  ctx.clearRect(0, 0, W, H)
+  ctx.fillStyle = '#F5F4EF'
+  ctx.fillRect(0, 0, W, H)
+
+  let y = pad
+
+  // 标题 + 日期
+  ctx.font = font('700', 28)
+  ctx.fillStyle = '#33526E'
+  ctx.textBaseline = 'top'
+  ctx.fillText(t('schedule.title'), pad, y)
+  ctx.font = font('400', 13)
+  ctx.fillStyle = '#757062'
+  const dateW = ctx.measureText(todayText()).width
+  ctx.fillText(todayText(), W - pad - dateW, y + 10)
+  y += 40 + 8
+
+  // 画师名
+  ctx.font = font('700', 24)
+  ctx.fillStyle = '#262520'
+  ctx.fillText(artistName.value || '-', pad, y)
+  y += 40 + 8
+
+  // 状态 pill
+  const colors = STATUS_COLORS[statusKey.value] || STATUS_COLORS.normal
+  ctx.font = font('400', 14)
+  const statusW = ctx.measureText(statusText.value).width
+  const pillW = statusW + 24
+  const pillH = 28
+  ctx.fillStyle = colors.bg
+  roundRectPath(ctx, pad, y, pillW, pillH, 14)
+  ctx.fill()
+  ctx.fillStyle = colors.fg
+  ctx.fillText(statusText.value, pad + 12, y + 6)
+  y += pillH + 4
+
+  // 队列概览
+  ctx.font = font('400', 16)
+  ctx.fillStyle = '#5A564B'
+  ctx.fillText(t('schedule.queueFormal', { n: formalCount.value }), pad, y)
+  y += 28
+  ctx.fillText(t('schedule.queueBuffer', { n: bufferCount.value }), pad, y)
+  y += 28 + 4
+
+  // 分隔线
+  ctx.strokeStyle = '#E7E4D9'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(pad, y)
+  ctx.lineTo(W - pad, y)
+  ctx.stroke()
+  y += 20
+
+  // 近期截稿
+  ctx.font = font('700', 15)
+  ctx.fillStyle = '#262520'
+  ctx.fillText(t('schedule.deadlineSoon'), pad, y)
+  y += 26
+  ctx.font = font('400', 15)
+  ctx.fillStyle = '#5A564B'
+  if (topDeadlines.value.length) {
+    for (const d of topDeadlines.value) {
+      ctx.fillText('· #' + d.order_no + '  ' + fmtDate(d.deadline), pad, y)
+      y += 26
+    }
+  } else {
+    ctx.fillText('· ' + t('schedule.noDeadline'), pad, y)
+    y += 26
+  }
+
+  // 底部落款
+  y += 16
+  ctx.font = font('400', 12)
+  ctx.fillStyle = '#757062'
+  ctx.fillText(t('schedule.brandFooter'), pad, y)
+
+  return canvas.toDataURL('image/png')
+}
+
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement('a')
+  a.href = dataUrl
+  a.download = filename
+  a.click()
+}
+
+async function downloadImage() {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    const dataUrl = await drawCard()
+    if (!dataUrl) throw new Error('empty')
+    downloadDataUrl(dataUrl, 'schedule-' + todayText().replace(/-/g, '') + '.png')
+    ElMessage.success(t('schedule.exported'))
+  } catch {
+    ElMessage.error(t('schedule.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
+
+// 数据/文案变化后自动重绘预览图
+watch(previewText, async () => {
+  cardImage.value = await drawCard()
+}, { immediate: true })
+
+onMounted(loadAll)
+</script>
+
+<style scoped>
+/* 纸墨 token 体系（--paper/--ink/--hq/--card/--line），亮暗双主题自动适配 */
+.schedule-page { padding: 24px; max-width: 760px; }
+.od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.schedule-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+
+.schedule-panel {
+  margin-top: 20px;
+  padding: 22px 24px;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: var(--r-m, 8px);
+  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
+}
+.schedule-loading { font-size: 13px; color: var(--ink3, #888); padding: 20px 0; }
+
+/* 预览卡片（与导出图同构，双主题自适应） */
+.schedule-card {
+  background: var(--paper, #faf8f2);
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: var(--r-m, 8px);
+  padding: 24px 28px;
+}
+.schedule-card-head { display: flex; align-items: baseline; justify-content: space-between; }
+.schedule-card-title { font-size: calc(var(--font-scale, 1) * 20px); font-weight: 700; color: var(--hq, #33526e); }
+.schedule-card-date { font-size: 12px; color: var(--ink3, #888); }
+.schedule-card-artist { margin-top: 14px; font-size: calc(var(--font-scale, 1) * 18px); font-weight: 700; color: var(--ink); }
+.schedule-card-status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+.schedule-card-status.busy { background: var(--zs-t, #f8eae6); color: var(--zs, #bc3a2b); }
+.schedule-card-status.normal { background: var(--hq-t, #e9eff4); color: var(--hq, #33526e); }
+.schedule-card-status.free { background: var(--sl-t, #eaf3ec); color: var(--sl, #2f7d54); }
+.schedule-card-rows { margin-top: 14px; }
+.schedule-card-row { font-size: 14px; color: var(--ink2, #5a564b); line-height: 1.9; }
+.schedule-card-divider { margin: 12px 0; border-top: 1px solid var(--line, #e7e4d9); }
+.schedule-card-dl-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+.schedule-card-dl { margin-top: 6px; }
+.schedule-card-dl-row { font-size: 14px; color: var(--ink2, #5a564b); line-height: 1.8; }
+.schedule-card-footer { margin-top: 16px; font-size: 12px; color: var(--ink3, #888); }
+
+.schedule-actions { margin-top: 16px; display: flex; gap: 10px; }
+.schedule-img {
+  display: block;
+  margin-top: 16px;
+  max-width: 100%;
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: var(--r-s, 6px);
+}
+</style>

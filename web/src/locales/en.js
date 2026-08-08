@@ -254,6 +254,9 @@ export default {
     toolsExport: 'Income Export',
     // REQ-035 batch C: Standalone income (tools group menu item)
     standaloneIncome: 'Standalone Income',
+    // REQ-035 batch E: Progress puzzle / Schedule share (tools group menu items)
+    puzzle: 'Progress Puzzle',
+    scheduleShare: 'Schedule Share',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
   },
@@ -325,6 +328,49 @@ export default {
     clientTooLong: 'Client nickname must be 50 characters or fewer',
     noteTooLong: 'Note must be 200 characters or fewer',
     dateRequired: 'Pick a date'
+  },
+  // REQ-035 batch E: Progress comparison puzzle (tool page copy)
+  puzzle: {
+    title: 'Progress Comparison',
+    subtitle: 'Combine multiple images of one order into a comparison sheet to show progress to clients',
+    selectOrder: 'Select order',
+    selectImages: 'Select images (2-6)',
+    arrange: 'Arrange order',
+    up: 'Up',
+    down: 'Down',
+    export: 'Export',
+    preview: 'Preview',
+    noImages: 'No images in this order',
+    needTwo: 'Select at least 2 images',
+    kindDeliverable: 'Deliverable',
+    kindReference: 'Reference',
+    loadOrdersFailed: 'Failed to load orders',
+    loadOrderFailed: 'Failed to load order',
+    exportFailed: 'Export failed: some images are cross-origin restricted, please reselect',
+    exported: 'Puzzle exported'
+  },
+  // REQ-035 batch E: Schedule share (tool page copy)
+  schedule: {
+    title: 'Schedule Share',
+    subtitle: 'Generate a shareable schedule status: copy text or download an image to send clients',
+    loading: 'Loading schedule…',
+    copyText: 'Copy text',
+    downloadImage: 'Download image',
+    queueFormal: '{n} formal',
+    queueBuffer: '{n} buffer',
+    deadlineSoon: 'Upcoming deadlines',
+    statusBusy: 'Busy',
+    statusNormal: 'Normal',
+    statusFree: 'Available',
+    statusLabel: 'Schedule status: ',
+    textHeader: '[HuiYue Schedule] {artist}',
+    noDeadline: 'No upcoming deadlines',
+    brandFooter: 'HuiYue · Schedule Share',
+    copied: 'Copied',
+    copyFailed: 'Copy failed, please copy manually',
+    loadFailed: 'Failed to load schedule',
+    exported: 'Card downloaded',
+    exportFailed: 'Failed to generate image'
   },
   // F3 quick actions (2026-08-07 user decision)
   quickAction: {
