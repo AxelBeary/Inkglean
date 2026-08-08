@@ -271,7 +271,15 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(import('./features/tracking/tracking.routes.js'))
 
   // ─── 健康检查 ───
-  app.get('/api/health', async () => ({ status: 'ok', time: new Date().toISOString() }))
+  app.get('/api/health', async (_request, reply) => {
+    // P2-运维：health 查库——DB 挂了返回 503（容器 healthcheck / 负载均衡能感知），而非 200 假健康
+    try {
+      db.prepare('SELECT 1').get()
+    } catch {
+      return reply.code(503).send({ status: 'error', error: 'database unavailable' })
+    }
+    return { status: 'ok', time: new Date().toISOString() }
+  })
 
   // ─── 前端 SPA 静态文件 + fallback（手动路由，不依赖 @fastify/static wildcard）───
   const WEB_DIST = resolve(process.env.WEB_DIST || join(import.meta.dirname, '../../web/dist'))
