@@ -48,7 +48,7 @@ export function readQuickActionsConfig() {
 <template>
   <div class="quick-actions-wrap">
     <!-- 快捷入口网格（2026-08-07 用户反馈批：常驻虚线块并入「快速发作品」卡片；
-         状态卡直接展示状态名，去掉「状态切换」字样——偏好设置里保留） -->
+         02B：状态卡内嵌三态滑块，直接点目标态） -->
     <div class="quick-grid">
       <div
         v-for="action in activeActions" :key="action.key"
@@ -65,9 +65,20 @@ export function readQuickActionsConfig() {
         @dragleave="onCardDragLeave(action)"
         @drop.prevent="onCardDrop(action, $event)"
       >
-        <el-icon class="quick-icon"><component :is="action.icon" /></el-icon>
-        <span v-if="action.key === 'status'" class="quick-name quick-name--status">{{ statusText }}</span>
-        <span v-else class="quick-name">{{ action.key === 'publish' && publishUploading ? $t('quickAction.uploading') : $t(action.labelKey) }}</span>
+        <template v-if="action.key === 'status'">
+          <SliderSwitch
+            class="quick-status-slider"
+            :model-value="store.profile?.status || 'open'"
+            :options="statusOptions"
+            size="small"
+            @click.stop
+            @change="onStatusChange"
+          />
+        </template>
+        <template v-else>
+          <el-icon class="quick-icon"><component :is="action.icon" /></el-icon>
+          <span class="quick-name">{{ action.key === 'publish' && publishUploading ? $t('quickAction.uploading') : $t(action.labelKey) }}</span>
+        </template>
       </div>
     </div>
   </div>
@@ -82,6 +93,7 @@ import { useArtistStore } from '../../../stores/artist.js'
 import { artistApi, uploadApi } from '../../../api/index.js'
 import { usePasteUpload } from '../../../composables/usePasteUpload.js'
 import { trackEvent } from '../../../utils/track.js'
+import SliderSwitch from '../SliderSwitch.vue'
 
 const router = useRouter()
 const store = useArtistStore()
@@ -96,18 +108,15 @@ const activeActions = computed(() => {
     .filter(Boolean)
 })
 
-// ─── F3 状态循环按钮（替代 Dashboard StatusSwitch，2026-08-07 拍板） ───
-const STATUS_CYCLE = ['open', 'full', 'break']
+// ─── 02B: 状态三态滑块（与 05B SliderSwitch 统一；直接点目标态替代循环） ───
 const statusBusy = ref(false)
-const statusText = computed(() => t(`dashboard.status${statusLabel(store.profile?.status || 'open')}`))
-function statusLabel(s) {
-  return { open: 'Open', full: 'Full', break: 'Break' }[s] || 'Open'
-}
-async function cycleStatus() {
-  if (statusBusy.value) return
-  const cur = store.profile?.status || 'open'
-  const idx = STATUS_CYCLE.indexOf(cur)
-  const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length]
+const statusOptions = [
+  { value: 'open', label: t('dashboard.statusOpen') },
+  { value: 'full', label: t('dashboard.statusFull') },
+  { value: 'break', label: t('dashboard.statusBreak') }
+]
+async function onStatusChange(next) {
+  if (statusBusy.value || next === (store.profile?.status || 'open')) return
   statusBusy.value = true
   try {
     await artistApi.updateProfile({ status: next })
@@ -189,8 +198,8 @@ function go(action) {
     return
   }
   if (action.type === 'action') {
-    if (action.action === 'status') cycleStatus()
-    else if (action.action === 'share') shareLink()
+    // 02B: status 由卡片内 SliderSwitch 直接处理（点卡片空白处无循环）
+    if (action.action === 'share') shareLink()
     else if (action.action === 'publish') router.push('/artworks') // 点击跳转发作品页；拖图/粘贴走卡片 drop/paste
     return
   }
@@ -222,8 +231,8 @@ function go(action) {
 .quick-card--publish-active .quick-icon { color: var(--hq); }
 .quick-icon { font-size: calc(var(--font-scale, 1) * 22px); color: var(--hq); }
 .quick-name { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 500; color: var(--ink); }
-/* 状态卡：状态名直接作为主体展示（去掉「状态切换」小字，2026-08-07 用户反馈批） */
-.quick-name--status { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--hq-d); }
+/* 02B: 状态卡内嵌三态滑块（占满卡片宽度，直接点目标态） */
+.quick-status-slider { width: 100%; }
 @media (max-width: 768px) {
   .quick-grid { grid-template-columns: repeat(3, 1fr); }
 }
