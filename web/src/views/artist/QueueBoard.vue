@@ -5,11 +5,7 @@
 
     <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
     <div class="view-switch">
-      <el-radio-group v-model="viewMode" size="default" @change="saveViewMode">
-        <el-radio-button value="board">{{ $t('queue.viewBoard') }}</el-radio-button>
-        <el-radio-button value="calendar">{{ $t('queue.viewCalendar') }}</el-radio-button>
-        <el-radio-button value="timeline">{{ $t('queue.viewTimeline') }}</el-radio-button>
-      </el-radio-group>
+      <SliderSwitch v-model="viewMode" :options="viewOptions" @change="saveViewMode" />
     </div>
 
     <!-- ═══ 列表视图（拆 QueueBoardList，v0.41 瘦身批） ═══ -->
@@ -60,6 +56,8 @@ import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
+import SliderSwitch from '../../components/artist/SliderSwitch.vue'
+import { Odometer, Calendar, Clock } from '@element-plus/icons-vue'
 // v0.41 瘦身批：列表视图 → QueueBoardList，月历/时间条 → QueueBoardCalendar（零行为变化）
 import QueueBoardList from '../../components/artist/queue/QueueBoardList.vue'
 import QueueBoardCalendar from '../../components/artist/queue/QueueBoardCalendar.vue'
@@ -109,6 +107,13 @@ const viewMode = ref(
 function saveViewMode(val) {
   localStorage.setItem(VIEW_MODE_KEY, val)
 }
+
+// 05B: 三视图滑块选项（radiogroup 语义等价 el-radio-button）
+const viewOptions = [
+  { value: 'board', label: t('queue.viewBoard'), icon: Odometer },
+  { value: 'calendar', label: t('queue.viewCalendar'), icon: Calendar },
+  { value: 'timeline', label: t('queue.viewTimeline'), icon: Clock }
+]
 
 async function loadQueue() {
   loading.value = true
