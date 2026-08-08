@@ -322,4 +322,12 @@ onMounted(() => {
 .status-tag--revision { background: var(--zhe); color: #fff; border-color: var(--zhe); }
 .status-tag--done, .status-tag--delivered { background: var(--sl); color: #fff; border-color: var(--sl); }
 .status-tag--cancelled { background: var(--zs); color: #fff; border-color: var(--zs); }
+
+/* 02D P1-8: 空态墨线轻微浮沉（2s 缓动循环，位移 ≤4px，不缩放不旋转——克制动效纪律；
+   reduced-motion 由 theme.css 全局兜底压缩） */
+:deep(.v-empty-stroke) { animation: huiyue-empty-float 2s ease-in-out infinite; }
+@keyframes huiyue-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
 </style>
