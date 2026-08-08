@@ -128,15 +128,6 @@ export const artistApi = {
   updateProfile: (data) => api.put('/artist/profile', data),
   // REQ-022 F1: 发布交付物为作品（delivered 门槛，一图一作品）
   publishArtwork: (orderId, data) => api.post(`/artist/orders/${orderId}/publish-artwork`, data),
-  // 档位
-  getTiers: () => api.get('/artist/tiers'),
-  createTier: (data) => api.post('/artist/tiers', data),
-  updateTier: (id, data) => api.put(`/artist/tiers/${id}`, data),
-  deleteTier: (id) => api.delete(`/artist/tiers/${id}`),
-  // #10: 档位三态切换（visible/showcase/hidden）
-  setTierVisibility: (id, visibility) => api.put(`/artist/tiers/${id}/visibility`, { visibility }),
-  // v0.26 A: 档位拖拽排序
-  reorderTiers: (ids) => api.put('/artist/tiers/reorder', { ids }),
   // 作品
   getArtworks: () => api.get('/artist/artworks'),
   // v0.42 Step 6: 画师端作品分页（20/页 + el-pagination；封面置顶）
