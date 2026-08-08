@@ -90,6 +90,7 @@ import { ref, reactive, onMounted } from 'vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { formatCents } from '../../utils/money.js'
 
 const { t } = useI18n()
 
@@ -189,7 +190,7 @@ async function loadItems() {
 
 /** 分 → 元展示（后端存整数分，前端 ÷100） */
 function fmtYuan(cents) {
-  return `¥${(cents / 100).toFixed(2)}`
+  return `¥${formatCents(cents)}`
 }
 
 async function remove(item) {

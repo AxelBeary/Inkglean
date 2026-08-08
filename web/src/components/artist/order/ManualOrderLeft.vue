@@ -92,7 +92,7 @@
         <p v-if="clientProfile.note" class="mo-client-note">{{ clientProfile.note }}</p>
         <div v-if="clientSummary" class="mo-client-summary">
           <span>{{ $t('manualOrder.clientSummaryOrders', { n: clientSummary.totalOrders }) }}</span>
-          <span>{{ $t('manualOrder.clientSummaryPaid', { amount: (clientSummary.totalPaidCents / 100).toFixed(2) }) }}</span>
+          <span>{{ $t('manualOrder.clientSummaryPaid', { amount: formatCents(clientSummary.totalPaidCents) }) }}</span>
           <span>{{ $t('manualOrder.clientSummaryLast', { date: formatDate(clientSummary.lastOrderAt) }) }}</span>
           <el-tag :type="statusType(clientSummary.lastOrderStatus)" size="small">{{ $t(`common.orderStatus.${clientSummary.lastOrderStatus}`) }}</el-tag>
         </div>
@@ -121,6 +121,7 @@ import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../../composables/usePasteUpload.js'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
 import { formatDateTimeShort } from '../../../utils/datetime.js'
+import { formatCents } from '../../../utils/money.js'
 import { ORDER_STATUS_TYPE } from '../../../constants/order.js'
 
 defineProps({

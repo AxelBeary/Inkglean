@@ -77,7 +77,7 @@
             <!-- REQ-022 F2: 链接编辑器（外链/平台链接合一，粘贴自动识别平台） -->
             <el-form-item :label="$t('settings.linksLabel')">
               <div class="link-editor">
-                <div v-for="(link, index) in form.customLinks" :key="index" class="link-row">
+                <div v-for="(link, index) in form.customLinks" :key="link.__k ?? index" class="link-row">
                   <el-select
                     v-model="link.platformId"
                     class="link-platform-select"
@@ -445,9 +445,11 @@ async function loadCoverArtworks() {
 watch(activeTab, (tab) => { if (tab === 'template') loadCoverArtworks() }, { immediate: true })
 
 // REQ-022 F2: 链接编辑器操作（上限 8，保存只传 [{url}]）
+// 稳定 key（__k 自增）：↑↓ 变序/删除后 v-for index 会漂移，输入状态必须跟对象走（保存不提交 __k）
+let linkKey = 1
 function addLink() {
   if (form.customLinks.length >= MAX_LINKS) return
-  form.customLinks.push({ url: '', platformId: null })
+  form.customLinks.push({ url: '', platformId: null, __k: linkKey++ })
 }
 function removeLink(index) {
   form.customLinks.splice(index, 1)
@@ -566,6 +568,7 @@ async function loadProfile() {
           customLinks = parsed
             .map(item => typeof item === 'string' ? { url: item, platformId: null } : { url: item.url || '', platformId: item.platformId ?? null })
             .filter(item => item.url)
+            .map(l => ({ ...l, __k: linkKey++ }))
         }
       } catch { customLinks = [] }
     }

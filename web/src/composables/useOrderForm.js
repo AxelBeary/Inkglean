@@ -154,21 +154,27 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   // ─── 实时价格计算（防抖） ───
   let calcTimer = null
+  // 竞态保护：请求序号（慢请求不得覆盖快请求）
+  let calcSeq = 0
   function scheduleCalc() {
     if (calcTimer) clearTimeout(calcTimer)
     calcTimer = setTimeout(doCalc, 300)
   }
 
   async function doCalc() {
+    const mySeq = ++calcSeq
     if (!form.tierId) { pricePreview.value = null; return }
     try {
-      pricePreview.value = await artistPublicApi.calculatePrice({
+      const res = await artistPublicApi.calculatePrice({
         subdomain,
         tierId: form.tierId,
         usageMultiplierId: form.usageMultiplierId,
         rushMultiplierId: form.rushMultiplierId
       })
+      if (mySeq !== calcSeq) return
+      pricePreview.value = res
     } catch {
+      if (mySeq !== calcSeq) return
       pricePreview.value = null
     }
   }
@@ -313,15 +319,18 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   /** 画风价格计算（防抖 300ms，全走后端 API） */
   let styleCalcTimer = null
+  // 竞态保护：请求序号（慢请求不得覆盖快请求）
+  let styleCalcSeq = 0
   function scheduleStyleCalc() {
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
     styleCalcTimer = setTimeout(doStyleCalc, 300)
   }
 
   async function doStyleCalc() {
+    const mySeq = ++styleCalcSeq
     if (!selectedSizeId.value) { stylePricePreview.value = null; return }
     try {
-      stylePricePreview.value = await artistPublicApi.calculateStylePrice({
+      const res = await artistPublicApi.calculateStylePrice({
         subdomain,
         styleSizeId: selectedSizeId.value,
         addons: buildStyleAddons(),
@@ -329,7 +338,10 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
         rushMultiplierId: form.rushMultiplierId,
         discountCode: form.discountCode.trim() || null
       })
+      if (mySeq !== styleCalcSeq) return
+      stylePricePreview.value = res
     } catch {
+      if (mySeq !== styleCalcSeq) return
       stylePricePreview.value = null
     }
   }
