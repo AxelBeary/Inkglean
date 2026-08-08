@@ -123,6 +123,7 @@ html[data-artist-theme="paper"] {
   --el-font-family: var(--f-b);
   --el-box-shadow: var(--sh-3);
   --el-box-shadow-light: var(--sh-2);
+  --el-mask-color: rgba(245, 244, 239, 0.82);
 }
 
 /* ===== 墨黑主题 ===== */
@@ -233,6 +234,7 @@ html[data-artist-theme="ink"] {
   --el-font-family: var(--f-b);
   --el-box-shadow: var(--sh-3);
   --el-box-shadow-light: var(--sh-2);
+  --el-mask-color: rgba(23, 22, 17, 0.78);
 }
 
 /* 墨黑主题下实心色带/按钮提亮（提案 v2 L41-45） */

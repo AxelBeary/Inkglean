@@ -7,10 +7,7 @@
   <!-- R20: 焦点图显示模式（全局设置，存 localStorage；仅 无/大 两态） -->
   <div class="queue-toolbar">
     <span class="toolbar-label">{{ $t('queue.focusDisplay') }}</span>
-    <el-radio-group v-model="focusDisplayModel" size="small">
-      <el-radio-button value="off">{{ $t('queue.focusOff') }}</el-radio-button>
-      <el-radio-button value="large">{{ $t('queue.focusLarge') }}</el-radio-button>
-    </el-radio-group>
+    <SliderSwitch v-model="focusDisplayModel" size="small" :options="focusDisplayOptions" />
   </div>
 
   <!-- P0-3b: 标签切换（正式区 / 缓冲区） -->
@@ -266,6 +263,7 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import InkEmpty from '../visual/InkEmpty.vue'
+import SliderSwitch from '../SliderSwitch.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
 import HySkeleton from '../../shared/HySkeleton.vue'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
@@ -299,6 +297,12 @@ const focusDisplayModel = computed({
   get: () => props.focusDisplay,
   set: (val) => emit('update:focus-display', val)
 })
+
+// 05B: 焦点图显示模式两态滑块选项
+const focusDisplayOptions = [
+  { value: 'off', label: t('queue.focusOff') },
+  { value: 'large', label: t('queue.focusLarge') }
+]
 const activeTabModel = computed({
   get: () => props.activeTab,
   set: (val) => emit('update:active-tab', val)
