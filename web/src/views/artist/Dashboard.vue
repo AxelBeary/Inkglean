@@ -8,16 +8,16 @@
         <!-- 左栏：问候区（含今日统计行）→ 收入统计 → 统计卡片 ×3 → 合并列表
              左栏独立 wrapper（flex 列紧凑堆叠，与右栏互不对齐行高） -->
         <div class="area-left">
-          <div class="area area-greeting">
+          <div class="area area-greeting enter-stagger" :style="{ '--stagger': 0 }">
             <GreetingHero :stats="stats" />
           </div>
-          <div class="area area-revenue">
+          <div class="area area-revenue enter-stagger" :style="{ '--stagger': 1 }">
             <RevenueChart />
           </div>
-          <div class="area area-stats">
+          <div class="area area-stats enter-stagger" :style="{ '--stagger': 2 }">
             <StatCards :stats="stats" />
           </div>
-          <div class="area area-todo">
+          <div class="area area-todo enter-stagger" :style="{ '--stagger': 3 }">
             <TodoList />
           </div>
         </div>
@@ -25,18 +25,18 @@
         <!-- 右栏：名额概览卡（有则显示）→ 快捷操作区 → 状态切换 → 最近活动流
              右栏独立 wrapper（flex 列紧凑堆叠，不与左栏行高对齐——避免左栏高卡片顶出大片空白） -->
         <div class="area-right">
-          <div class="area area-slot">
+          <div class="area area-slot enter-stagger" :style="{ '--stagger': 4 }">
             <SlotOverview />
           </div>
-          <div class="area area-quick">
+          <div class="area area-quick enter-stagger" :style="{ '--stagger': 5 }">
             <QuickActions />
           </div>
-          <div class="area area-activity">
+          <div class="area area-activity enter-stagger" :style="{ '--stagger': 6 }">
             <ActivityFeed />
           </div>
 
           <!-- F4: 留言审核（右栏 row 5） -->
-          <div class="area area-guestbook">
+          <div class="area area-guestbook enter-stagger" :style="{ '--stagger': 7 }">
             <el-card v-loading="guestbookLoading">
               <template #header>
                 <CardHead :title="$t('dashboard.guestbookTitle')">
@@ -202,6 +202,20 @@ async function replyMsg(m) {
     flex-direction: column;
     gap: 16px;
   }
+}
+
+/* 02C: 仪表盘各区 staggered 进入（一次性 fade-up，间隔 60ms；克制 0.3s ease-out；total = 7x60ms = 420ms） */
+@keyframes dash-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.enter-stagger {
+  animation: dash-enter 0.3s var(--ease-out) both;
+  animation-delay: calc(var(--stagger, 0) * 60ms);
+}
+/* 02C: reduced-motion 显式兜底——theme.css 全局只压 duration 不压 delay，delay 期间 both 填充态会空白 */
+@media (prefers-reduced-motion: reduce) {
+  .enter-stagger { animation: none; }
 }
 
 /* ─── F4: 留言审核区（v0.38 token 换肤） ─── */

@@ -1,16 +1,24 @@
 <template>
   <el-config-provider :locale="elLocale">
-    <!-- 点名2: 路由切换 fade-slide（.18s 淡入 + 8px 上移，克制；out-in 避免新旧同帧） -->
+    <!-- 点名2: 路由切换 fade-slide（.18s 淡入 + 8px 上移，克制；out-in 避免新旧同帧）
+         02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡由 ArtistLayout 内部处理；
+         客户端路由保留 fade-slide 整页过渡 -->
     <router-view v-slot="{ Component }">
-      <transition name="fade-slide" mode="out-in">
-        <component :is="Component" :key="$route.path" />
-      </transition>
+      <template v-if="isArtistRoute">
+        <component :is="Component" />
+      </template>
+      <template v-else>
+        <transition name="fade-slide" mode="out-in">
+          <component :is="Component" :key="$route.path" />
+        </transition>
+      </template>
     </router-view>
   </el-config-provider>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElConfigProvider } from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
@@ -18,6 +26,11 @@ import en from 'element-plus/es/locale/lang/en'
 
 const { locale } = useI18n()
 const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
+
+// 02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡在 ArtistLayout 内部；
+//      客户端路由保留 fade-slide 整页过渡
+const route = useRoute()
+const isArtistRoute = computed(() => !!route.meta.requiresAuth)
 </script>
 
 <style>

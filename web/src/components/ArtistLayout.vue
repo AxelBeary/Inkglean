@@ -147,7 +147,12 @@
           </div>
         </header>
         <el-main class="main-content">
-          <slot />
+          <!-- 02C: 内容区过渡（导航稳定；keyed div 触发 fade-slide——后台路由切换只动这里） -->
+          <transition name="fade-slide" mode="out-in">
+            <div :key="$route.path" class="main-content-inner">
+              <slot />
+            </div>
+          </transition>
         </el-main>
       </el-container>
     </el-container>
