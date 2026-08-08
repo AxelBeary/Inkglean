@@ -10,7 +10,7 @@ Supplementary: `docs/协作规则.md`, `docs/templates/submit-*.md`.
 | 一号 | Project Lead (主理人) | Review, merge, release, risk control. Reports to user. |
 | 二号 | Client Frontend | `web/src/views/client/**`, `web/src/components/templates/**`, `web/src/composables/use*.js`, `web/src/styles/templates.css`, `web/src/styles/palettes.css`, `web/src/embed/**` |
 | 三号 | Backend + Artist UI | `server/src/**`, `server/tests/**`, `web/src/views/artist/**`, `web/src/views/admin/**`, `web/src/components/artist/**`, `web/src/components/admin/**`, `web/src/stores/artist.js`, `web/src/constants/order.js` |
-| 四号 | Requirements | `docs/requirements/**`, `docs/tasks/**`, `docs/specs/**`, `docs/acceptance/**`, `docs/待修复问题清单.md`, `README.md`. NO code/config/deps. NOTE: `docs/plan-*.md` are technical implementation plans (SQL/API/component trees), owned by 一号 or the relevant tech role — 四号 does NOT modify them. |
+| 四号 | Requirements | `docs/requirements/**`, `docs/tasks/**`, `docs/specs/**`, `docs/acceptance/**`, `STATUS.md 待办池`, `README.md`. NO code/config/deps. NOTE: `docs/plan-*.md` are technical implementation plans (SQL/API/component trees), owned by 一号 or the relevant tech role — 四号 does NOT modify them. |
 | 五号 | Bug Audit & Fix | Minimal file set per bug, assigned by 一号. No fixed directory scope. |
 
 ## Branch Naming
@@ -210,7 +210,7 @@ The @fastify/static 8→10 incident: `setHeaders` callback parameter changed fro
 
 When a release stabilizes (all features merged, tests green), 一号 dispatches 四号 for a full documentation audit:
 
-1. **四号 directly updates** docs in their permission scope: `docs/画师使用说明书.md`, `docs/待修复问题清单.md`, `README.md`, `docs/requirements/**`.
+1. **四号 directly updates** docs in their permission scope: `docs/画师使用说明书.md`, `STATUS.md 待办池`, `README.md`, `docs/requirements/**`.
 2. **四号 audits but does NOT modify** technical docs: `docs/开发自参考.md`, `docs/维护说明书.md`, `docs/开发→生产切换指南.md`, `docs/changelog.md`, `docs/plan-*.md`, `docs/协作规则.md`.
 3. **四号 outputs a structured 技术文档过期清单** — a table per file: `| 文件 | 过期条目 | 当前内容 | 应改为 |`. This goes to 一号.
 4. **一号 arranges technical doc updates** — either does them directly or delegates to parallel subagents (proven: 3 subagents for changelog / 开发自参考 / 维护说明书+切换指南, ~2.5 min total). Each subagent gets the specific stale items + instruction to read the full file first + match existing format.

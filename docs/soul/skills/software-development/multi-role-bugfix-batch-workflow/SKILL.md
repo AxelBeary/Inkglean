@@ -286,7 +286,7 @@ When 一号 dispatches items marked "待补充" or says "先方案后动手 / �
 
 **Workflow:**
 
-1. Read `docs/comms/STATUS.md` + `docs/待修复问题清单.md` (batch both reads).
+1. Read `docs/comms/STATUS.md` + `STATUS.md 待办池` (batch both reads).
 2. For each item, run parallel searches to locate code: use domain-specific regex patterns (e.g. `transfer|转让`, `rate.?limit|brute|爆破`, `v-html|DOMPurify|sanitize`, `expires_at|DATETIME`). Batch 3-4 searches per turn.
 3. Read the **full chain** for each item: route → service → middleware → DB schema → frontend consumer. Don't stop at the first hit — audit items often span layers.
 4. Decompose each item into **sub-problems** (e.g. P0-3 → 3a/3b/3c). A single audit line often hides 2-4 distinct issues at different layers.
@@ -607,7 +607,7 @@ When 一号 dispatches a read-only visual/UX audit of the artist dashboard (e.g.
    - `vision_analyze` on screenshots <50KB (login, empty states, small pages) — works reliably
    - Source code reading for ALL pages (template structure, CSS classes, component composition) — this is the primary evidence channel; vision is supplementary
    - 🔴 vision_analyze times out on screenshots >~100KB. Do NOT retry more than once per image. Fall back to source code analysis and note in the report which pages were analyzed by code vs. screenshot.
-4. **Produce the audit document** (`docs/audit-画师后台现状.md` or prescribed name). Structure:
+4. **Produce the audit document** (`（该审计已归档删除，以 05G 拆分审计为准）` or prescribed name). Structure:
    - `## 全局问题` — cross-page issues table (# / 问题 / 严重度 / 涉及页面)
    - `## 逐页审计` — one `###` per page with findings table (# / 问题 / 类型). Types: 视觉/布局/交互/信息层次/空状态/响应式/信息架构/代码/正面
    - `## 侧边栏专项` / `## 移动端专项` — cross-cutting concerns

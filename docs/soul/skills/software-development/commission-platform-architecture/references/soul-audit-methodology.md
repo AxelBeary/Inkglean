@@ -17,7 +17,7 @@ Read these files and list every **hard rule** (not suggestion):
 - `docs/changelog.md` — look for "修复" entries that established new patterns (e.g., "all v-html must use sanitizeHtml")
 - `docs/开发自参考.md` — "已知注意事项" section contains numbered rules
 - `docs/维护说明书.md` — security section
-- `docs/待修复问题清单.md` — P0/P1 fixes that became permanent standards
+- `STATUS.md 待办池` — P0/P1 fixes that became permanent standards
 
 Output: a checklist of rules like:
 - [ ] All `v-html` → `sanitizeHtml()`

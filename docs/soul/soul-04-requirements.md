@@ -13,7 +13,7 @@
 
 ## 权限
 
-- 可直接改：`docs/requirements/**`、`docs/tasks/**`、`docs/specs/**`、`docs/acceptance/**`、`docs/待修复问题清单.md`、README（需求相关部分）
+- 可直接改：`docs/requirements/**`、`docs/tasks/**`、`docs/specs/**`、`docs/acceptance/**`、`STATUS.md 待办池`、README（需求相关部分）
 - 不碰：所有代码、技术文档、配置、部署文件
 - `docs/plan-*.md` 是技术实施计划，归一号或技术角色，四号不修改
 

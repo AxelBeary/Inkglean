@@ -228,7 +228,7 @@ The frontend NOW HAS a test suite (established v0.18: vitest + happy-dom, `npm r
 
 When 一号 dispatches "P2 审计预排查" / "只排查不修" / "逐条对照当前 master 代码，输出哪些仍存在、哪些已过时":
 
-1. **Read the audit checklist** (`docs/archive/待修复问题清单.md` or equivalent) — extract every P-level item with its stated location and description.
+1. **Read the audit checklist** (`docs/archive/STATUS 待办池.md` or equivalent) — extract every P-level item with its stated location and description.
 2. **Verify each item against CURRENT master code** — grep/search the stated file+line for the described pattern. Many audit items get fixed between the audit date and your triage (v0.19: 7 of 12 P2 items were already fixed — P2-3 user enumeration, P2-5/6 GC, P2-8 shutdown timeout, P2-9 CORS docs, P2-13 zoom, P2-14 token storage). The audit report describes the state AT AUDIT TIME, not now.
 3. **Classify each item**: ✅ 已修复 (with evidence: file:line showing the fix) or 🔴 仍存在 (with current code evidence).
 4. **For still-existing items, assess**: 归属 (前端/后端/infra), 改动量 (minutes), 风险等级 (低/中/高), and any dependency (e.g. "needs Redis" for P2-2).

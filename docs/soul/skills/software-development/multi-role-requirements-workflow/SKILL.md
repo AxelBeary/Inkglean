@@ -22,7 +22,7 @@ metadata:
 
 ## Hard rules
 
-1. **Only modify**: `docs/requirements/**`, `docs/tasks/**`, `docs/specs/**`, `docs/acceptance/**`, `docs/待修复问题清单.md`, `README.md`. Never touch code, config, dependencies, or `docs/plan-*.md`.
+1. **Only modify**: `docs/requirements/**`, `docs/tasks/**`, `docs/specs/**`, `docs/acceptance/**`, `STATUS.md 待办池`, `README.md`. Never touch code, config, dependencies, or `docs/plan-*.md`.
 2. **Verify before writing.** Never write a requirement based on docs alone — read the actual Vue components, services, DB schema, and routes to confirm "现状" claims. Mark verified facts as "（已核实）".
 3. **Every 待确认 item must have a recommendation (建议).** This allows batch approval ("按建议执行") without 22 individual decisions.
 4. **Acceptance criteria format**: "当……时，应该……" — testable, specific, no ambiguity.
@@ -33,7 +33,7 @@ metadata:
 ### Phase 1: Context Loading
 
 1. Read required docs in order: `docs/协作规则.md` → `docs/画师使用说明书.md` → `docs/开发自参考.md` → `docs/templates/submit-requirements.md`
-2. Read `docs/待修复问题清单.md` and `docs/changelog.md` for current state
+2. Read `STATUS.md 待办池` and `docs/changelog.md` for current state
 3. **Verify codebase**: read the actual components/services/DB related to the requirement. Batch independent reads in one turn.
 
 ### Phase 2: Structure Requirements
@@ -135,7 +135,7 @@ Distinct from a proactive UX walkthrough: the user dumps a batch of **raw experi
 1. **Verify each complaint against code FIRST** — read the actual component the complaint targets. Complaints mix true gaps, already-shipped features the user didn't find, and half-finished features. You cannot triage without ground truth.
 2. **Answer any embedded direct question prominently.** Raw feedback often contains a literal question ("计算器我们做了吗 怎么没找到啊?"). Answer it explicitly and up front in your reply ("做了，但不在手动录单页——这正是 R3"), BEFORE the structured doc. Don't bury it.
 3. **Split every item into Bug vs 需求 vs 已拍板决策 vs 待确认**:
-   - **Bug** = existing feature doesn't work / is half-built. Route to 五号, NOT through the requirements process. Record it in `docs/待修复问题清单.md` with a clear **（转五号）** tag, the exact file:line, and the fact that the backend API may already exist (common: API done, frontend button missing).
+   - **Bug** = existing feature doesn't work / is half-built. Route to 五号, NOT through the requirements process. Record it in `STATUS.md 待办池` with a clear **（转五号）** tag, the exact file:line, and the fact that the backend API may already exist (common: API done, frontend button missing).
    - **需求** = new feature / improvement. Gets an R-number and full acceptance criteria.
    - **已拍板决策** = user already decided the direction (e.g. "手动录单合并进订单管理；须知编辑合并进主页设置"). NO C-item needed, NO 建议 needed — the direction is final. Treatment: record the decision verbatim with date, then plan implementation (验收标准 cover "功能不丢失" + "旧路由重定向" + "菜单项变化"). The only open questions are implementation-level (抽屉/弹窗/内嵌? by 二号定), not directional.
    - **待确认** = user asks a question ("有必要加吗？""统一为滑块？"). Gets a C-item with 四号建议. The 建议 should be opinionated and actionable — the user wants to batch-approve ("按建议执行"), not deliberate each item.
@@ -148,7 +148,7 @@ Distinct from a proactive UX walkthrough: the user dumps a batch of **raw experi
 
 ## Workflow: Verifying a User-Reported "X fails to load / displays broken" Bug
 
-When the user reports a visual loading failure (image broken, thumbnail 加载失败, asset 404), do NOT record it as a bare symptom. Do layered elimination so the 待修复问题清单 entry names the root cause AND lists what was ruled out — that is what makes it actionable for 五号.
+When the user reports a visual loading failure (image broken, thumbnail 加载失败, asset 404), do NOT record it as a bare symptom. Do layered elimination so the STATUS 待办池 entry names the root cause AND lists what was ruled out — that is what makes it actionable for 五号.
 
 Verify in this order (each step eliminates a layer; batch the independent reads):
 
@@ -160,7 +160,7 @@ Verify in this order (each step eliminates a layer; batch the independent reads)
 4. **Does signing work when invoked directly?** Generate a signed URL inside the container (`docker exec -w /app/server commission-web node --input-type=module -e "import { signedUrl } from './src/shared/file-sign.js'; console.log(signedUrl('<path>'))"`) then fetch it from BOTH inside and outside the container. 200 ⇒ signing is innocent; the bug is upstream in response shaping.
 5. **Compare a sibling endpoint that DOES work.** This project enriches file-path fields with signed URLs at the ROUTES layer (not the service). If the queue board shows the image but the order list doesn't, diff the two handlers — the working one is your oracle. The recurring defect: enrichment references the wrong response key (service returns `{items, total}` but the route maps `result.orders`), so it silently never runs.
 
-Record in 待修复问题清单 with: exact file:line, a root-cause one-liner, a "已验证排除" checklist (✅ signing works / ✅ file exists / ✅ sibling endpoint works), the one-line fix, and blast radius (which pages are and aren't affected). Tag **（转五号）** or **（转三号/五号）**.
+Record in STATUS 待办池 with: exact file:line, a root-cause one-liner, a "已验证排除" checklist (✅ signing works / ✅ file exists / ✅ sibling endpoint works), the one-line fix, and blast radius (which pages are and aren't affected). Tag **（转五号）** or **（转三号/五号）**.
 
 **This is a recurring bug CLASS, not a one-off — sweep for siblings.** File-path fields are enriched with signed URLs at the ROUTES layer, and each route does it by hand, so every route that returns a file path is an independent chance to forget. When you find ONE instance (UI-3: order list mapped `result.orders` instead of `result.items`; UI-4: reorder route returned raw service data with no enrichment at all), immediately grep every route that returns that field (`focus_image_path`, `file_path`, `image_path`, `url`) and diff each against the known-good sibling. One session yielded three instances (UI-3/4/5) from one user complaint. Recommend in the 清单 that 五号 do a full sweep + add a regression test, rather than fixing one route and waiting for the next report.
 
@@ -179,7 +179,7 @@ Distinct from a load failure: the asset loads fine, but a fullscreen preview, di
 2. Clear the transform after the reveal animation (don't leave `forwards` holding `translateY(0)`), or apply the reveal animation to a wrapper that does NOT host the overlay.
 3. Avoid `transform`/`filter` on ancestors of fixed overlays generally.
 
-When triaging as 四号: this is a **Bug (转五号)**, not a 需求 — record in 待修复问题清单 with the exact component, the ancestor carrying the transform, and the `preview-teleported` fix. It often co-occurs with a separate genuine 需求 (e.g. "长图被裁成正方形" = grid `height: 200px` + `fit: cover` is a *layout* 需求, distinct from the trapped-preview Bug) — split them, don't merge.
+When triaging as 四号: this is a **Bug (转五号)**, not a 需求 — record in STATUS 待办池 with the exact component, the ancestor carrying the transform, and the `preview-teleported` fix. It often co-occurs with a separate genuine 需求 (e.g. "长图被裁成正方形" = grid `height: 200px` + `fit: cover` is a *layout* 需求, distinct from the trapped-preview Bug) — split them, don't merge.
 
 ## Workflow: Verifying a "can't navigate back / stuck / dead-end" Bug
 
@@ -435,7 +435,7 @@ Distinct from Consultative Feasibility (user floats "能不能加X") and Interac
 - **Don't write the spec between rounds.** Wait until ALL questions are answered. The user expects one complete deliverable.
 - **Capture user's exact interaction choreography.** When the user specifies a button behavior sequence ("复制 → 提示 → 1秒 → 唤起"), record it as a numbered step list in the spec, not a paraphrase.
 - **Default content is minimal.** The user's pattern: "我们默认给个很简单的，画师可以自己去改" — system provides a bare-minimum default (one sentence), user customizes. Record the exact default string.
-- **Bug discovery during discussion:** The user will mention potential bugs in passing ("现在的节点和比例功能是不能手动输入具体数值的 不确定是不是bug"). Record these in `docs/待修复问题清单.md` immediately (new file if it doesn't exist), tagged with discovery context. Don't let them get lost in the feature discussion.
+- **Bug discovery during discussion:** The user will mention potential bugs in passing ("现在的节点和比例功能是不能手动输入具体数值的 不确定是不是bug"). Record these in `STATUS.md 待办池` immediately (new file if it doesn't exist), tagged with discovery context. Don't let them get lost in the feature discussion.
 - **"拼接不考虑" = explicit scope-out.** When the user rejects a complexity ("拼接这种东西不考虑...真收到反馈再考虑"), record it in "不在本规格范围" with their verbatim reasoning. This prevents future sessions from re-proposing it.
 - **Output file naming:** `docs/specs/plan-<feature-slug>.md` (same convention as 预研 drafts). Comms: `04-to-01-<feature>-<date>.md`.
 
@@ -652,7 +652,7 @@ Concise (`04-to-01-<topic>-<date>.md`):
 
 C-items (待确认问题) accumulate across REQ docs and versions. When STATUS.md says "12 个未关闭 C 项" or a new planning round starts, do a systematic sweep:
 
-1. **Collect all open C-items** from every REQ doc (REQ-005/006/007/008...) + 待修复问题清单. Grep for `- [ ] **C` across `docs/requirements/` and `docs/待修复问题清单.md`.
+1. **Collect all open C-items** from every REQ doc (REQ-005/006/007/008...) + STATUS 待办池. Grep for `- [ ] **C` across `docs/requirements/` and `STATUS.md 待办池`.
 
 2. **Close factually-resolved items** — a C-item is closed when:
    - The feature it asked about was implemented (verify via git log / code read, not just doc claims)
