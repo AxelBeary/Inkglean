@@ -1175,7 +1175,46 @@
     // v0.35 fix A4: import addons into an existing style
     addonImportBtn: '+ Import addons', addonImportTitle: 'Import from addon library',
     addonImportEmpty: 'No new addons to import (all library addons are already in this style)',
-    addonImportConfirm: 'Import selected', addonImported: 'Addons imported'
+    addonImportConfirm: 'Import selected', addonImported: 'Addons imported',
+    // REQ-036 Batch A: intuitive addon interactions (dual entry / pool+drag / tri-state / 3-layer dialog / preview / summary)
+    // Dual entry
+    addonCreateBtn: '+ New Addon', addonPickBtn: '+ Pick Existing',
+    // Pool
+    addonPoolEmpty: 'No addons yet - create one or pick from the library above',
+    addonPoolHint: 'Drag to a size above to enable; click a capsule for details',
+    addonCapHint: 'Click to configure / drag to a size row to enable',
+    addonAlreadyEnabled: '"{name}" is already enabled on "{size}" - no need to drag again',
+    addonEnabled: 'Enabled: {size} + {name}',
+    addonDisabled: 'Disabled: {size} - {name}',
+    addonDragBackHint: 'Drag back to pool to disable',
+    // Create addon dialog
+    createTitle: 'New Addon', createNameLabel: 'Addon name', createNamePlaceholder: 'e.g. Background, Extra person, Buyout, Rush...',
+    createControlLabel: 'Control type (how clients choose)', createControlHint: 'Quantity = per unit (e.g. extra person xN); Switch = on/off; Radio: create in the addon library',
+    createPriceLabel: 'Default price', createPriceHint: 'Quantity = price per unit; multipliers come in batch B',
+    createSaveHint: 'On save it attaches to this style and is stored in the library for reuse; duplicate names are confirmed first',
+    createSaveBtn: 'Save + Attach', createNameRequired: 'Please enter an addon name',
+    createDuplicateTitle: 'Name exists in library', createDuplicateMsg: '"{name}" already exists in the library. Attach it directly, or create a separate one?',
+    createAttach: 'Attach', createNew: 'Create separate', createAttached: 'Attached library template',
+    addonCreatedAttached: 'Created and attached to this style', addonAttached: 'Attached to this style',
+    // 3-layer settings dialog
+    addonDialogTitle: '"{name}" Settings', addonTplLevel: 'Template level (base price - affects every style using it)',
+    addonScopeStyle: 'This style only', addonScopeAll: 'Apply to all styles',
+    addonScopeHintStyle: 'Base edits (name/control/base price) only affect this style on save',
+    addonScopeHintAll: 'Base edits affect every style using this addon on save',
+    addonStyleLevel: 'Style level (this style)', addonStyleEnable: 'Active in this style', addonStylePriceInfo: 'Style price: {price}',
+    addonSizeLevel: 'Size level (precise version of drag)', addonBatchAll: 'Enable all', addonBatchOff: 'Disable all',
+    addonBatchHint: 'Empty diff price = use style price', addonSizeCol: 'Size', addonEnableCol: 'Enable', addonDiffPriceCol: 'Diff price for this size',
+    addonPricePriority: 'Price priority: this size > style > template',
+    addonRemove: 'Remove (unbind from this style)', addonRemoveBlocked: 'Unbind needs a new backend delete endpoint (batch B) - unavailable in this batch',
+    // Preview dialog
+    previewBtn: 'Preview', previewTitle: 'Customer Preview', previewReadonly: 'Read-only preview - what customers see',
+    previewComposition: 'Price breakdown', previewBase: 'Base ({name})', previewEmpty: 'No addons enabled for this size',
+    previewTotal: 'Estimated total', previewFormula: 'Formula: (base + addons) x usage multiplier x rush multiplier - discount',
+    previewClose: 'Close', previewStatusOpen: 'Open', previewStatusShow: 'Displaying - visible but not bookable', previewStatusClose: 'Closed - hidden from customers',
+    // Size tri-state
+    sizeStatusOpen: 'Open', sizeStatusShow: 'Display', sizeStatusClose: 'Closed',
+    // Size summary line
+    sizeSummaryLabel: 'Addons', sizeSummaryEmpty: 'No addons enabled (drag from pool above)'
   },
   artworks: {
     title: 'Portfolio', dragUpload: 'Drag images here, or click to upload',

@@ -1173,7 +1173,46 @@
     // v0.35 补漏 A4: 已有画风追加导入增项
     addonImportBtn: '＋ 导入增项', addonImportTitle: '从增项库导入',
     addonImportEmpty: '增项库中没有新增项可导入（都已导入该画风）',
-    addonImportConfirm: '导入所选', addonImported: '增项已导入'
+    addonImportConfirm: '导入所选', addonImported: '增项已导入',
+    // REQ-036 批A: 增项交互直觉化（双入口/池+拖拽/三态/三层弹窗/预览/摘要）
+    // 双入口
+    addonCreateBtn: '+ 新建增项', addonPickBtn: '+ 从已有挑选',
+    // 池子
+    addonPoolEmpty: '还没有增项，点上方按钮新建或从增项库挑选',
+    addonPoolHint: '拖到上方尺寸 = 该尺寸启用；点击胶囊 = 详细设置',
+    addonCapHint: '点击设置 / 拖到尺寸行启用',
+    addonAlreadyEnabled: '「{name}」在「{size}」已启用，无需重复拖入',
+    addonEnabled: '已启用：{size} ＋ {name}',
+    addonDisabled: '已停用：{size} － {name}',
+    addonDragBackHint: '拖回池子 = 停用',
+    // 新建增项弹窗
+    createTitle: '新建增项', createNameLabel: '增项名称', createNamePlaceholder: '如：背景、加人、买断、加急…',
+    createControlLabel: '控件类型（决定顾客怎么选）', createControlHint: '数量 = 按个数（如加人 ×N）；开关 = 加/不加；单选请到增项库创建',
+    createPriceLabel: '默认价格', createPriceHint: '数量型 = 每位单价；倍率型由批B接入',
+    createSaveHint: '保存后自动挂到本画风，并沉淀进增项库供其他画风复用；若与库中同名会先询问',
+    createSaveBtn: '保存并挂载', createNameRequired: '请输入增项名称',
+    createDuplicateTitle: '库中已有同名', createDuplicateMsg: '增项库中已有「{name}」，直接挂载 or 另建独立？',
+    createAttach: '直接挂载', createNew: '另建独立', createAttached: '已挂载库中模板',
+    addonCreatedAttached: '已新建并挂载到本画风', addonAttached: '已挂载到本画风',
+    // 三层设置弹窗
+    addonDialogTitle: '「{name}」设置', addonTplLevel: '模板级（本身价格 · 影响所有引用画风）',
+    addonScopeStyle: '仅当前画风', addonScopeAll: '应用到所有画风',
+    addonScopeHintStyle: '改基础属性（名称/控件类型/本身价）并保存：仅影响当前画风',
+    addonScopeHintAll: '改基础属性并保存：同时影响所有引用此增项的画风',
+    addonStyleLevel: '画风级（本画风）', addonStyleEnable: '本画风激活', addonStylePriceInfo: '画风价：{price}',
+    addonSizeLevel: '尺寸级（拖拽的精确版）', addonBatchAll: '全部启用', addonBatchOff: '全部关闭',
+    addonBatchHint: '差异价留空 = 沿用画风价', addonSizeCol: '尺寸', addonEnableCol: '启用', addonDiffPriceCol: '本尺寸差异价',
+    addonPricePriority: '价格优先级：本尺寸 > 画风价 > 本身价',
+    addonRemove: '移除（解绑本画风）', addonRemoveBlocked: '解绑需后端新增删除端点（批B），本批暂不可用',
+    // 预览弹窗
+    previewBtn: '预览', previewTitle: '顾客视角预览', previewReadonly: '只读预览 · 顾客看到的样子',
+    previewComposition: '价格构成', previewBase: '基础价（{name}）', previewEmpty: '该尺寸未启用增项',
+    previewTotal: '预估合计', previewFormula: '计价公式：（基础价 + 增项）× 用途倍率 × 加急倍率 − 折扣',
+    previewClose: '关闭', previewStatusOpen: '可约', previewStatusShow: '展示中 · 顾客可见但不可约稿', previewStatusClose: '已关闭 · 顾客不可见',
+    // 尺寸三态
+    sizeStatusOpen: '可约', sizeStatusShow: '展示', sizeStatusClose: '关闭',
+    // 尺寸摘要行
+    sizeSummaryLabel: '已配增项', sizeSummaryEmpty: '未启用增项（可拖入上方胶囊）'
   },
   artworks: {
     title: '作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
