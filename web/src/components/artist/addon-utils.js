@@ -1,6 +1,7 @@
 ﻿// REQ-036 批A: 增项交互直觉化重构 —— 共享工具（池子/胶囊/摘要/弹窗共用）
+// 02H (2026-08-09): 价格三类合并 —— 增项类/用途类/加急类；multiply 显示 +50%；用途/加急单选约束
 // 仅放纯函数；组件状态留在各组件内
-// ⚠️ 倍率 kind（multiply）为批B后端字段，本批前端只预留 mul 样式分支，不产生 multiply 数据
+// 后端契约：addon_templates.kind ∈ {add, multiply}（v49 已实现）；style_addons 返回 template_kind（COALESCE tpl_kind/at.kind）
 
 /** 控件类型中文标签（与 AddonTemplateManager 一致） */
 export function controlLabel(t, type) {
@@ -19,12 +20,15 @@ export function unitLabelOf(sa) {
 
 /**
  * 增项价格文本（池子胶囊 / 摘要 chip / 预览明细）
+ * - 倍率 multiply: +50%（kind=multiply，default_price=百分比数值）
  * - 数量型: ¥80/位（per_unit）
  * - 其他:   ¥50
- * - 倍率批B后: +50%（kind=multiply 时调用方自己拼，本函数不处理）
  */
-export function formatAddonPrice(price, pricingMode, unitLabel) {
+export function formatAddonPrice(price, pricingMode, unitLabel, kind) {
   const n = price ?? 0
+  if (kind === 'multiply') {
+    return `+${n}%`
+  }
   if (pricingMode === 'per_unit') {
     return `¥${n}/${unitLabel || '位'}`
   }
@@ -41,10 +45,29 @@ export function effectivePrice(sa, sizePriceOverride) {
   return price ?? 0
 }
 
-/** 摘要/胶囊形态：qty=数量 / add=加法 / mul=倍率（批B预留） */
+/** 摘要/胶囊形态：qty=数量 / add=加法 / mul=倍率 */
 export function addonKind(sa) {
   if (sa.template_pricing_mode === 'per_unit') return 'qty'
-  // 批B kind=multiply 出现后前端按此分支渲染倍率样式；本批无 multiply 数据，永不命中
   if (sa.template_kind === 'multiply') return 'mul'
   return 'add'
+}
+
+/**
+ * 价格类别（02H 用户拍板三类）：add=增项类（加法，可多选）/ usage=用途类（乘法，单选）/ rush=加急类（乘法，单选）
+ * 后端无 usage/rush 维度（kind 只有 add/multiply）→ 前端按名称约定：
+ *   multiply 项名称含「加急」→ rush；其余 multiply → usage（预置「商用」=usage、「加急」=rush）
+ * 新建加急类时名称校验提示（见 AddonCreateDialog）
+ */
+export function addonCategory(sa) {
+  if (sa.template_kind === 'multiply') {
+    const name = sa.template_name || ''
+    if (name.includes('加急') || name.includes('急件')) return 'rush'
+    return 'usage'
+  }
+  return 'add'
+}
+
+/** 类别标签（池内分组标题 / 胶囊分类徽标） */
+export function categoryLabel(t, cat) {
+  return { add: t('styleManage.catAdd'), usage: t('styleManage.catUsage'), rush: t('styleManage.catRush') }[cat] || cat
 }

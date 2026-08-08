@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <ArtistLayout>
     <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
     <h2 class="font-display tier-page-title">{{ $t('tiers.title') }}</h2>
@@ -10,8 +10,9 @@
         <ArtStyleManager ref="styleManagerRef" />
       </el-tab-pane>
 
-      <!-- 倍率 -->
+      <!-- 倍率（02H: 已并入加购项池——日常入口=画风与价格页池内三类；tab 保留过渡标注） -->
       <el-tab-pane :label="$t('tiers.tabMultipliers')" name="multipliers" lazy>
+        <div class="multiplier-merged-tip">{{ $t('styleManage.multiplierMergedTip') }}</div>
         <MultiplierManager />
       </el-tab-pane>
 
@@ -62,4 +63,10 @@ function onTabChange(name) {
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .tier-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 /* tabs 下划线与文字走花青（EP 变量已 scoped 覆写，此处仅补激活字重观感） */
+/* 02H: 倍率 tab 退居预置——过渡提示 */
+.multiplier-merged-tip {
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2);
+  background: var(--paper2); border: 1px dashed var(--line2); border-radius: var(--r-m);
+  padding: 8px 12px; margin-bottom: 12px; line-height: 1.6;
+}
 </style>

@@ -17,6 +17,8 @@
         <div class="set-section-title">{{ $t('styleManage.addonTplLevel') }}</div>
         <div class="inp-row">
           <el-input-number v-model="form.basePrice" :min="0" :max="999999" :step="10" style="width: 200px" />
+          <span v-if="sa?.template_kind === 'multiply'" class="pct-suffix">%</span>
+          <el-tag v-if="sa" size="small" effect="plain" :type="categoryTagType" class="cat-tag">{{ categoryTagText }}</el-tag>
           <el-button :plain="form.scope === 'all'" @click="toggleScope">
             {{ form.scope === 'style' ? $t('styleManage.addonScopeStyle') : $t('styleManage.addonScopeAll') }}
           </el-button>
@@ -91,7 +93,7 @@ import { reactive, computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
-import { formatAddonPrice, effectivePrice } from './addon-utils.js'
+import { formatAddonPrice, effectivePrice, addonCategory, categoryLabel } from './addon-utils.js'
 
 const { t } = useI18n()
 
@@ -111,14 +113,18 @@ const form = reactive({
   sizeRows: []
 })
 
+/** 02H: 价格类别（增项/用途/加急）——分类标记 */
+const categoryTagType = computed(() => ({ usage: 'warning', rush: 'danger', add: 'info' }[addonCategory(props.sa || {})] || 'info'))
+const categoryTagText = computed(() => categoryLabel(t, addonCategory(props.sa || {})))
+
 /** 画风级当前生效价文案（本尺寸 > 画风价 > 本身价 的中间层） */
 const stylePriceInfo = computed(() => {
   const sa = props.sa
   if (!sa) return ''
   if (sa.price_override != null) {
-    return `${formatAddonPrice(sa.price_override, sa.template_pricing_mode, undefined)}（已覆盖模板价）`
+    return `${formatAddonPrice(sa.price_override, sa.template_pricing_mode, undefined, sa.template_kind)}（已覆盖模板价）`
   }
-  return `${formatAddonPrice(sa.template_default_price, sa.template_pricing_mode, undefined)}（沿用模板价）`
+    return `${formatAddonPrice(sa.template_default_price, sa.template_pricing_mode, undefined, sa.template_kind)}（沿用模板价）`
 })
 
 /** 某尺寸差异价为空时的 placeholder：沿用画风价（画风价 ?? 本身价） */
@@ -185,7 +191,19 @@ async function save() {
 
     // ── 画风级：激活开关 ──
     if (!!sa.is_enabled !== form.styleEnabled) {
-      await artistApi.setStyleAddons(props.style.id, [{ addon_template_id: sa.addon_template_id, is_enabled: form.styleEnabled }])
+      // 02H 单选约束：打开用途/加急的画风级激活 → 同画风其他同类停用
+      let styleItems = [{ addon_template_id: sa.addon_template_id, is_enabled: form.styleEnabled }]
+      if (form.styleEnabled) {
+        const cat = addonCategory(sa)
+        if (cat !== 'add') {
+          for (const other of (props.style.addons || [])) {
+            if (other.id !== sa.id && addonCategory(other) === cat && !!other.is_enabled) {
+              styleItems.push({ addon_template_id: other.addon_template_id, is_enabled: false })
+            }
+          }
+        }
+      }
+      await artistApi.setStyleAddons(props.style.id, styleItems)
     }
 
     // ── 尺寸级：启用开关（is_hidden 反义）+ 差异价 ──
@@ -226,6 +244,8 @@ async function save() {
 .set-section:last-child { border-bottom: none; }
 .set-section-title { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--ink); margin-bottom: 10px; }
 .inp-row { display: flex; align-items: center; gap: 10px; }
+.pct-suffix { margin-left: 6px; color: var(--ink3); font-weight: 600; }
+.cat-tag { margin-left: 8px; }
 .hint { font-size: calc(var(--font-scale, 1) * 11.5px); color: var(--ink2); margin: 6px 0 0; line-height: 1.6; }
 .batch-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .batch-hint { margin-left: auto; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); }

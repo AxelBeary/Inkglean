@@ -1189,6 +1189,16 @@
     addonDragBackHint: 'Drag back to pool to disable',
     // Create addon dialog
     createTitle: 'New Addon', createNameLabel: 'Addon name', createNamePlaceholder: 'e.g. Background, Extra person, Buyout, Rush...',
+    // 02H (2026-08-09): price 3 categories (add-on / usage / rush) - user decision
+    catAdd: 'Add-on', catUsage: 'Usage', catRush: 'Rush',
+    createKindLabel: 'Category (3 price types)', createKindHint: 'Add-on = flat amount (multi-select); Usage/Rush = percentage multiplier (only one active per style)',
+    createPricingLabel: 'Pricing mode', pricingPercent: 'Percentage', pricingFixed: 'Flat amount', pricingSwitch: 'Switch', pricingCount: 'Per unit',
+    pricingHintAdd: 'Flat/Switch = fixed amount; Per unit = price x quantity', pricingHintMultiply: 'Percentage: e.g. 50 = add 50% to the base price',
+    createPercentLabel: 'Percent (%)',
+    createUnitLabel: 'Unit', createUnitPlaceholder: 'e.g. person, sheet, item',
+    createMaxQtyLabel: 'Max quantity (anti-abuse)', createMaxQtyHint: 'Max units a client can add, e.g. 10',
+    createRushNameHint: 'Rush add-on names must contain Rush or Urgent (front-end category convention)',
+    multiplierMergedTip: 'Multipliers are now part of the add-on pool on the Styles and Pricing page (Add-on / Usage / Rush). This tab is kept for compatibility; configure new ones in the pool.',
     createControlLabel: 'Control type (how clients choose)', createControlHint: 'Quantity = per unit (e.g. extra person xN); Switch = on/off; Radio: create in the addon library',
     createPriceLabel: 'Default price', createPriceHint: 'Quantity = price per unit; multipliers come in batch B',
     createSaveHint: 'On save it attaches to this style and is stored in the library for reuse; duplicate names are confirmed first',

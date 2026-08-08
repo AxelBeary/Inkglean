@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="style-manager" v-loading="loading">
     <!-- v0.35 波1 (REQ-024 F2): 多画风开关 — 关=客户端只见默认画风，其他画风灰色不可编辑 -->
     <div class="multi-style-bar">
@@ -141,7 +141,7 @@
                   {{ $t('styleManage.addonPickBtn') }}
                 </el-button>
               </div>
-              <!-- §2.2 池子：胶囊 = 画风已挂增项；拖到尺寸行=启用，点击=三层弹窗 -->
+              <!-- §2.2 池子（02H 三类分组）：胶囊 = 画风已挂增项；拖到尺寸行=启用，点击=三层弹窗 -->
               <div
                 class="addon-pool"
                 :class="{ 'pool--drag-over': poolDragOver }"
@@ -149,22 +149,24 @@
                 @dragleave="onPoolDragLeave"
                 @drop.prevent="onDropToPool(style, $event)"
               >
-                <span
-                  v-for="sa in style.addons" :key="sa.id"
-                  class="addon-cap"
-                  draggable="true"
-                  :title="$t('styleManage.addonCapHint')"
-                  @dragstart="onCapDragStart(style, sa, $event)"
-                  @dragend="onCapDragEnd"
-                  @click="openAddonSettings(style, sa)"
-                >
-                  <span class="cap-name">{{ sa.template_name }}</span>
-                  <span class="cap-price">{{ capPriceText(sa) }}</span>
-                  <span class="cap-tag" :class="`cap-tag-${sa.template_control_type}`">{{ controlLabel(sa.template_control_type) }}</span>
-                </span>
+                <template v-for="grp in poolGroups(style)" :key="grp.cat">
+                  <span v-if="grp.items.length" class="pool-group-label">{{ categoryLabel($t, grp.cat) }}</span>
+                  <span
+                    v-for="sa in grp.items" :key="sa.id"
+                    class="addon-cap"
+                    draggable="true"
+                    :title="$t('styleManage.addonCapHint')"
+                    @dragstart="onCapDragStart(style, sa, $event)"
+                    @dragend="onCapDragEnd"
+                    @click="openAddonSettings(style, sa)"
+                  >
+                    <span class="cap-name">{{ sa.template_name }}</span>
+                    <span class="cap-price">{{ capPriceText(sa) }}</span>
+                    <span class="cap-tag" :class="`cap-tag-${sa.template_control_type}`">{{ controlLabel(sa.template_control_type) }}</span>
+                  </span>
+                </template>
                 <span v-if="!style.addons.length" class="pool-empty">{{ $t('styleManage.addonPoolEmpty') }}</span>
               </div>
-              <p class="pool-hint">{{ $t('styleManage.addonPoolHint') }}</p>
             </div>
           </div>
         </el-card>
@@ -300,7 +302,7 @@ import { useI18n } from 'vue-i18n'
 import AddonCreateDialog from './AddonCreateDialog.vue'
 import AddonPreviewDialog from './AddonPreviewDialog.vue'
 import AddonSettingsDialog from './AddonSettingsDialog.vue'
-import { addonKind, effectivePrice, formatAddonPrice } from './addon-utils.js'
+import { addonKind, addonCategory, categoryLabel, effectivePrice, formatAddonPrice } from './addon-utils.js'
 
 const { t } = useI18n()
 
@@ -722,9 +724,25 @@ function setSizeStatus(style, size, value) {
   size._status = value // 本地状态（批A UI；批B 落库 + 算价/下单校验）
 }
 
+/** 02H: 池子三类分组（增项/用途/加急，顺序固定）——用途/加急分类按名称约定（见 addonCategory） */
+function poolGroups(style) {
+  return ['add', 'usage', 'rush'].map(cat => ({ cat, items: style.addons.filter(sa => addonCategory(sa) === cat) }))
+}
+
+/** 02H 单选约束（用户原话「用途、加急分别只能选一个」）：启用目标 usage/rush 时，同画风其他同类项 is_enabled=false
+ * 返回 setStyleAddons items（含目标项 is_enabled=true + 其他同类 false）；增项类(add)不互斥 */
+function mutexAddonItems(style, targetSa) {
+  const cat = addonCategory(targetSa)
+  if (cat === 'add') return null
+  const items = style.addons.filter(sa => sa.id !== targetSa.id && addonCategory(sa) === cat && !!sa.is_enabled)
+    .map(sa => ({ addon_template_id: sa.addon_template_id, is_enabled: false }))
+  if (!items.length) return null
+  return [{ addon_template_id: targetSa.addon_template_id, is_enabled: true }, ...items]
+}
+
 /** 画风级生效价文本（池子胶囊 / 预览明细 / 摘要 chip）：本身价 or 画风覆盖价 */
 function capPriceText(sa) {
-  return formatAddonPrice(effectivePrice(sa, null), sa.template_pricing_mode, sa.template_unit_label || undefined)
+  return formatAddonPrice(effectivePrice(sa, null), sa.template_pricing_mode, sa.template_unit_label || undefined, sa.template_kind)
 }
 
 /**
@@ -739,7 +757,7 @@ function sizeSummary(style, size) {
       id: sa.id,
       name: sa.template_name,
       kind: addonKind(sa),
-      priceText: formatAddonPrice(effectivePrice(sa, ov[sa.id]?.price_override ?? null), sa.template_pricing_mode, sa.template_unit_label || undefined)
+      priceText: formatAddonPrice(effectivePrice(sa, ov[sa.id]?.price_override ?? null), sa.template_pricing_mode, sa.template_unit_label || undefined, sa.template_kind)
     }))
 }
 
@@ -758,6 +776,10 @@ async function onAddonCreated(payload) {
   if (!styleId || !payload?.name) return
   try {
     const tpl = await artistApi.createAddonTemplate(payload)
+    // 02H 单选约束：新建用途/加急默认启用 → 同画风其他同类画风级停用
+    const styleObj = styles.value.find(s => s.id === styleId)
+    const mutex = styleObj ? mutexAddonItems(styleObj, { id: -1, addon_template_id: tpl.id, template_kind: payload.kind === 'multiply' ? 'multiply' : 'add', template_name: payload.name, is_enabled: true }) : null
+    if (mutex) { await artistApi.setStyleAddons(styleId, mutex) }
     await artistApi.setStyleAddons(styleId, [{ addon_template_id: tpl.id, is_enabled: true }])
     ElMessage.success(t('styleManage.addonCreatedAttached'))
     await load()
@@ -853,6 +875,15 @@ async function onDropToSize(style, size, _e) {
     return
   }
   try {
+    // 02H 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（后端 multiply 全乘，前端保证单选）
+    const mutex = mutexAddonItems(style, sa)
+    if (mutex) {
+      await artistApi.setStyleAddons(style.id, mutex)
+      for (const m of mutex) {
+        const other = style.addons.find(x => x.addon_template_id === m.addon_template_id)
+        if (other) other.is_enabled = !!m.is_enabled
+      }
+    }
     await artistApi.setSizeOverrides(style.id, size.id, [{ style_addon_id: sa.id, price_override: ov[sa.id]?.price_override ?? null, is_hidden: false }])
     if (!size._overrides) size._overrides = {}
     size._overrides[sa.id] = { price_override: ov[sa.id]?.price_override ?? null, is_hidden: false }

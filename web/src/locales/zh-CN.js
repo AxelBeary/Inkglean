@@ -1187,6 +1187,16 @@
     addonDragBackHint: '拖回池子 = 停用',
     // 新建增项弹窗
     createTitle: '新建增项', createNameLabel: '增项名称', createNamePlaceholder: '如：背景、加人、买断、加急…',
+    // 02H (2026-08-09): 价格三类合并（增项类/用途类/加急类）——用户拍板
+    catAdd: '增项类', catUsage: '用途类', catRush: '加急类',
+    createKindLabel: '类别（价格三类）', createKindHint: '增项类 = 加钱（可多选）；用途/加急 = 按百分比乘（同画风各只能启用一个）',
+    createPricingLabel: '计价方式', pricingPercent: '原价百分比', pricingFixed: '纯数字', pricingSwitch: '开关', pricingCount: '计数',
+    pricingHintAdd: '纯数字/开关 = 固定加钱；计数 = 按个数 × 单价', pricingHintMultiply: '原价百分比：如 50 = 在原价基础上加 50%',
+    createPercentLabel: '百分比（%）',
+    createUnitLabel: '单位', createUnitPlaceholder: '如：位、张、个',
+    createMaxQtyLabel: '数量上限（防刷）', createMaxQtyHint: '顾客一次最多可加的个数，如 10',
+    createRushNameHint: '加急类名称需包含「加急」或「急件」（前端分类约定）',
+    multiplierMergedTip: '倍率已并入「画风与价格」页的加购项池（增项/用途/加急三类）。此处保留原倍率设置作兼容，新配置请到加购项池操作。',
     createControlLabel: '控件类型（决定顾客怎么选）', createControlHint: '数量 = 按个数（如加人 ×N）；开关 = 加/不加；单选请到增项库创建',
     createPriceLabel: '默认价格', createPriceHint: '数量型 = 每位单价；倍率型由批B接入',
     createSaveHint: '保存后自动挂到本画风，并沉淀进增项库供其他画风复用；若与库中同名会先询问',
