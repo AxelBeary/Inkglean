@@ -3,10 +3,11 @@
     <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
     <h2 class="font-display tier-page-title">{{ $t('tiers.title') }}</h2>
 
-    <el-tabs v-model="activeTab" style="margin-top: 16px">
+    <el-tabs v-model="activeTab" style="margin-top: 16px" @tab-change="onTabChange">
       <!-- v0.35 波1 (REQ-024 F2): 「档位」tab 并入画风体系——升级为「画风与价格」；原档位 CRUD 由迁移 v37 (F5) 承接 -->
+      <!-- REQ-036 批A: ref 暴露 reload —— 修复「增项库建模板后切回画风页不刷新」 -->
       <el-tab-pane :label="$t('styleManage.tabStylesAndPricing')" name="artStyles" lazy>
-        <ArtStyleManager />
+        <ArtStyleManager ref="styleManagerRef" />
       </el-tab-pane>
 
       <!-- 倍率 -->
@@ -43,6 +44,17 @@ import AddonTemplateManager from '../../components/artist/AddonTemplateManager.v
 
 // v0.35 波1 (REQ-024 F2): 默认落在「画风与价格」（原「档位」tab 已移除）
 const activeTab = ref('artStyles')
+
+// REQ-036 批A (任务1-1): 切 tab 数据不刷新修复
+// 背景: el-tab-pane lazy 首次激活后保持挂载，切回「画风与价格」不会重新 onMounted
+// 表现: 画师在「增项库」新建模板后切回，看不到新模板（旧代码必须手动刷新页面）
+// 修复: 切回 artStyles 时调用子组件暴露的 reload() 重新拉取
+const styleManagerRef = ref(null)
+function onTabChange(name) {
+  if (name === 'artStyles') {
+    styleManagerRef.value?.reload()
+  }
+}
 </script>
 
 <style scoped>
