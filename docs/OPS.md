@@ -10,7 +10,7 @@
 
 ```bash
 # 进 web 容器执行（DB_PATH 由 compose 注入 /app/data/commission.db）
-docker compose exec web npm run backup
+docker compose exec -T web npm --prefix /app/server run backup
 
 # 宿主机本地开发库
 cd 仓库根目录 && cd server && npm run backup
@@ -30,7 +30,7 @@ cd 仓库根目录 && cd server && npm run backup
 宿主机 cron 示例（每日 03:30）：
 
 ```cron
-30 3 * * * cd /path/to/artist-commission && docker compose exec -T web npm run backup >> /var/log/commission-backup.log 2>&1
+30 3 * * * cd /path/to/artist-commission && docker compose exec -T web npm --prefix /app/server run backup >> /var/log/commission-backup.log 2>&1   # 容器 WORKDIR=/app，--prefix 指向 /app/server
 ```
 
 ## 3. 恢复方式（备份文件 → 回滚）
@@ -50,7 +50,7 @@ cp ./data/backups/commission.db.bak-<选中的时间戳> ./data/commission.db
 
 # 4) 起服务并验证
 docker compose up -d
-curl -s http://127.0.0.1:3000/api/health   # 期望 {"status":"ok",...}
+docker compose exec web curl -s localhost:3000/api/health   # 期望 {"status":"ok",...}
 ```
 
 - 文件属主：若容器以 node 用户跑，恢复后确认 `./data/commission.db` 属主可写（chown -R 1000:1000 视宿主机映射而定）。
@@ -64,3 +64,33 @@ sqlite3 /tmp/verify.db ".tables" && sqlite3 /tmp/verify.db "SELECT COUNT(*) FROM
 ```
 
 （临时验证库放在 /tmp，用完即删，别污染数据目录。）
+
+## 5. 部署 / 重建清单（备份 → 构建 → 启动 → 验证）
+
+版本更新或容器重建前，先备份（见 §1），再按序执行：
+
+```bash
+# 0) 重建前备份（防重建失败丢数据）
+docker compose exec -T web npm --prefix /app/server run backup
+
+# 1) 拉新代码 + 重建镜像并启动（多阶段构建，自动编译前端）
+git pull
+docker compose up -d --build
+
+# 2) Caddy 会自动跟随 web 容器（depends_on: service_healthy），
+#    若 Caddy 未自动恢复，显式重启
+docker compose restart caddy
+
+# 3) 三层验证
+docker compose exec web curl -s localhost:3000/api/health          # ① health：应返回 {"status":"ok",...}
+docker compose exec web curl -s -X POST localhost:3000/api/anon-token               # ② 匿名凭证：应返回 64 位 hex token（埋点防刷链路可用）
+docker compose exec web ls /app/web/dist/assets/ | tail            # ③ 前端产物：应看到本次版本新增的 chunk
+```
+
+> 注意：`docker compose up -d` 不会应用 compose 新增的 logging/mem_limit 等创建期选项，需 `--build`（或 `--force-recreate`）重建容器才生效。
+
+## 6. AUTH_DEV_MODE（生产必须 false）
+
+- `AUTH_DEV_MODE=true` 时，TOTP 绑定接口（bind-init）响应会附带密钥明文 `_dev_secret`（仅开发/测试辅助用）。
+- **生产环境必须设为 `false` 或删除该行**，否则 TOTP 密钥泄露，任何人可伪造动态口令登录。
+- 检查：`docker compose exec web printenv AUTH_DEV_MODE` 应输出 `false`（或为空）。
