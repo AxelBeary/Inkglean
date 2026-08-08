@@ -52,6 +52,7 @@ export function cleanDb() {
     DELETE FROM style_sizes;
     DELETE FROM art_styles;
     DELETE FROM addon_templates;
+    DELETE FROM totp_used_codes;
     DELETE FROM artists;
     DELETE FROM social_platforms;
     DELETE FROM events;

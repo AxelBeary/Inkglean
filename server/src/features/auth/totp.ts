@@ -126,21 +126,33 @@ export function computeTotp(secretBase32: string, timestampMs: number, digits = 
  * 校验动态码（默认 ±1 窗口：当前 + 前后各 1 个时间步）
  * 校验输入前先做长度检查，避免 timingSafeEqual 崩溃
  */
+export function verifyTotpWithCounter(
+  secretBase32: string,
+  code: string,
+  timestampMs: number,
+  window = TOTP_DEFAULT_WINDOW
+): number | null {
+  if (!/^\d{6}$/.test(String(code))) return null
+  const counter = Math.floor(timestampMs / 1000 / TOTP_STEP_SECONDS)
+  for (let offset = -window; offset <= window; offset++) {
+    const candidate = computeTotpAtCounter(secretBase32, counter + offset)
+    const a = Buffer.from(candidate)
+    const b = Buffer.from(String(code))
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return counter + offset
+  }
+  return null
+}
+
+/**
+ * 兼容入口：仅判断是否通过（绑定确认等场景）
+ */
 export function verifyTotp(
   secretBase32: string,
   code: string,
   timestampMs: number,
   window = TOTP_DEFAULT_WINDOW
 ): boolean {
-  if (!/^\d{6}$/.test(String(code))) return false
-  const counter = Math.floor(timestampMs / 1000 / TOTP_STEP_SECONDS)
-  for (let offset = -window; offset <= window; offset++) {
-    const candidate = computeTotpAtCounter(secretBase32, counter + offset)
-    const a = Buffer.from(candidate)
-    const b = Buffer.from(String(code))
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return true
-  }
-  return false
+  return verifyTotpWithCounter(secretBase32, code, timestampMs, window) !== null
 }
 
 // ============================================
@@ -160,4 +172,17 @@ export function buildOtpAuthUri(secretBase32: string, account: string, issuer = 
     'period=30'
   ]
   return `otpauth://totp/${encodedIssuer}:${encodedAccount}?${params.join('&')}`
+}
+
+
+// ============================================
+// 重放防护哈希（P1-1）
+// ============================================
+
+/**
+ * 已用动态码哈希：同一画师同一时间步同一码 → 同一哈希
+ * 用于 totp_used_codes 唯一索引防并发重放（插入冲突 = 已用过 = 拒绝）
+ */
+export function hashTotpCode(artistId: number, code: string, counter: number): string {
+  return crypto.createHash('sha256').update(`${artistId}:${code}:${counter}`).digest('hex')
 }
