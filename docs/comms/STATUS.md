@@ -23,7 +23,7 @@
 - **容器**：✅ **已重建 = master `c3407fb`**（v0.45 全批上线：REQ-036 增项重构 / 外部审计修复 / docs 加固；--force-recreate 应用 logging/mem_limit）
 - **备份**：`bak-pre-v045-rebuild-2026-08-08T18-21-19-437Z`（最新，integrity ok + orders 10/10）+ 更早里程碑；**03E backup-db.ts 每日备份能力（VACUUM INTO + 保留 7 份，宿主 cron 待配置，见 OPS.md）**
 - **迁移**：**v49**（REQ-036：style_addons 重建 SET NULL + 快照列 / display_status 三态 / kind+max_quantity / 5 系统模板种子）为最新——容器实测：display_status/kind/快照列在 + 5 模板（加人物/背景/机甲/商用/加急）
-- **comms**：STATUS v45 + 各批派工/交付（已消费的合入即删纪律——03D 发现 ~40 个应删未删，待清理）
+- **comms**：STATUS v46 + 02H 派工 + 外部研判 + REQ036 转交/讨论稿 + 用户点名bug记录（**纪律：派工/交付合入即删——08-09 已清理 117 个消费文件 + 9 个孤儿 worktree**）
 - **协议**：主仓库 **AGPL-3.0**；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md
 - **开源**：①主仓库 [Brushline-HuiYue](https://github.com/AxelBeary/Brushline-HuiYue)（AGPL-3.0）②方法论仓库 [huiyue-multi-agent-playbook](https://github.com/AxelBeary/huiyue-multi-agent-playbook)
 
