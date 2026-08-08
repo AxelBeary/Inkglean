@@ -163,7 +163,7 @@
             <el-button v-if="canAdvanceStage" type="primary" :loading="statusAction === 'advance'" :disabled="statusAction !== '' && statusAction !== 'advance'" @click="advanceStage">
               {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
             </el-button>
-            <el-button v-if="canBackStage" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+            <el-button v-if="canBackStage && order.status !== 'done'" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
             <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
           </template>
           <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛）；T3: 飞行中目标按钮 loading，其余 disabled -->
@@ -341,7 +341,7 @@
             {{ $t('orderDetail.extraTotal') }} ¥{{ formatCents(order.final_price_cents) }}
           </span>
           <!-- v0.31 五号方案A：改价按钮（后端 PUT /price 已有，前端首次接通） -->
-          <el-button v-if="!isTerminal" size="small" text type="primary" @click="openPriceDialog">
+          <el-button v-if="!isTerminal && order.status !== 'done'" size="small" text type="primary" @click="openPriceDialog">
             {{ $t('orderDetail.priceEditBtn') }}
           </el-button>
         </div>
@@ -535,7 +535,7 @@
           <el-input v-model="extraForm.description" type="textarea" :rows="2" :placeholder="$t('orderDetail.extraDescPlaceholder')" maxlength="500" show-word-limit />
         </el-form-item>
         <el-form-item :label="$t('orderDetail.extraPriceLabel')">
-          <el-input-number v-model="extraForm.priceYuan" :min="0" :max="999999.99" :precision="2" :step="10" controls-position="right" style="width: 200px" />
+          <el-input-number v-model="extraForm.priceYuan" :min="-999999.99" :max="999999.99" :precision="2" :step="10" controls-position="right" style="width: 200px" />
         </el-form-item>
       </el-form>
       <template #footer>
