@@ -278,4 +278,12 @@ onMounted(load)
 .gm-actions { display: flex; gap: 8px; }
 
 .gm-pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+/* 02D P1-8: 空态插画轻微浮沉（2s 缓动循环，位移 ≤4px，不缩放不旋转——克制动效纪律；
+   reduced-motion 由 theme.css 全局兜底压缩） */
+:deep(.el-empty__image) { animation: huiyue-empty-float 2s ease-in-out infinite; }
+@keyframes huiyue-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
 </style>
