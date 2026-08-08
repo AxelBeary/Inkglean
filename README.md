@@ -32,7 +32,7 @@
 | 后端 | Fastify 5 + better-sqlite3 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） |
 | 登录 | TOTP 动态口令（RFC 6238） |
-| 测试 | Vitest（后端 971 + 前端 215 = 1186 用例）+ Playwright E2E |
+| 测试 | Vitest（后端 1024 + 前端 262 = 1286 用例）+ Playwright E2E |
 | 类型 | TypeScript（后端 100% TS，strict 全开） |
 | 监控 | Sentry |
 
@@ -62,7 +62,7 @@ cd web && npm install
 npm run dev        # http://localhost:5173
 
 # 测试
-cd server && npm test    # 971 个用例
+cd server && npm test    # 1024 个用例
 cd server && npm run lint
 cd web && npm run lint
 ```
