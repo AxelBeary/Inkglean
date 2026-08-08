@@ -6,7 +6,7 @@
 FROM node:22-slim AS frontend-build
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json* ./
-RUN npm install
+RUN npm ci
 COPY web/ ./
 # v0.21: 前端 Sentry DSN（构建时注入，留空=禁用）
 ARG VITE_SENTRY_DSN=
@@ -19,7 +19,7 @@ WORKDIR /app
 
 # 后端依赖（仅 production）
 COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && npm install --omit=dev
+RUN cd server && npm ci --omit=dev
 
 # CVE 修复：升级 npm 工具链（消除 tar/brace-expansion/picomatch/sigstore 已知漏洞）
 RUN npm install -g npm@latest
