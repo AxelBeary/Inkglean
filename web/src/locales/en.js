@@ -1182,6 +1182,7 @@ export default {
     // REQ-018: announcement expiry shortcuts
     shortcut7d: 'Next 7 days', shortcut30d: 'Next 30 days', shortcutMonthEnd: 'End of month',
     save: 'Save settings', saved: 'Settings saved',
+    noChanges: 'No changes',
     // R48: avatar upload
     avatarLabel: 'Avatar', avatarHint: 'Click to upload or change (JPG/PNG/WebP, ≤10MB)',
     avatarUpdated: 'Avatar updated', avatarNotImage: 'Only image files are supported', avatarTooBig: 'Image exceeds the 10MB limit',

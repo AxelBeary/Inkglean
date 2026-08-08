@@ -1179,6 +1179,7 @@ export default {
     // REQ-018: 公告过期日快捷预设
     shortcut7d: '近 7 天', shortcut30d: '近 30 天', shortcutMonthEnd: '本月底',
     save: '保存设置', saved: '设置已保存',
+    noChanges: '没有修改',
     // R48: 头像上传
     avatarLabel: '头像', avatarHint: '点击上传或更换（JPG/PNG/WebP，≤10MB）',
     avatarUpdated: '头像已更新', avatarNotImage: '仅支持图片文件', avatarTooBig: '图片超过 10MB 限制',

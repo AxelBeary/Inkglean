@@ -78,6 +78,7 @@ import { ref, watch } from 'vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { formatCents } from '../../utils/money.js'
 
 const { t } = useI18n()
 
@@ -99,7 +100,7 @@ const overview = ref(null)
 const overviewLoading = ref(false)
 
 function fmtYuan(cents) {
-  return `¥${(cents / 100).toFixed(2)}`
+  return `¥${formatCents(cents)}`
 }
 
 async function loadOverview() {

@@ -10,7 +10,7 @@
           :placeholder="$t('clients.searchPlaceholder')"
           clearable
           class="clients-search"
-          @input="loadClients"
+          @input="onSearchInput"
         />
       </div>
 
@@ -67,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -78,16 +78,28 @@ const items = ref([])
 const loading = ref(false)
 const searchQq = ref('')
 
+// 搜索防抖 + 竞态保护（300ms；慢请求不得覆盖快请求）
+let searchTimer = null
+let searchSeq = 0
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(loadClients, 300)
+}
+onUnmounted(() => clearTimeout(searchTimer))
+
 async function loadClients() {
+  const mySeq = ++searchSeq
   loading.value = true
   try {
     const res = await artistApi.getToolsClients(searchQq.value.trim())
+    if (mySeq !== searchSeq) return
     items.value = res.items || []
   } catch (err) {
+    if (mySeq !== searchSeq) return
     items.value = []
     ElMessage.error(err.message || t('clients.loadFailed'))
   } finally {
-    loading.value = false
+    if (mySeq === searchSeq) loading.value = false
   }
 }
 

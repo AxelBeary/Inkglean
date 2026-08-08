@@ -195,10 +195,14 @@ const qqHistoryLoaded = ref(false)
 const clientProfile = ref(null)
 const clientSummary = ref(null)
 let qqTimer = null
+// 竞态保护：请求序号（慢请求不得覆盖快请求；输入变无效/重置也递增使旧请求失效）
+let qqSeq = 0
 watch(() => form.clientQq, (qq) => {
+  const mySeq = ++qqSeq
   if (qqTimer) clearTimeout(qqTimer)
   const trimmed = (qq || '').trim()
   if (!/^\d{5,15}$/.test(trimmed)) {
+    qqHistoryLoading.value = false
     qqHistory.value = []
     qqHistoryLoaded.value = false
     // REQ-035 批A: QQ 无效/切换时清掉上一个客户的标记与汇总
@@ -214,18 +218,22 @@ watch(() => form.clientQq, (qq) => {
         artistApi.getOrders(undefined, { page: 1, pageSize: 200 }),
         artistApi.getToolsClient(trimmed).catch(() => null)
       ])
+      if (mySeq !== qqSeq) return
       const items = ordersRes.items ?? ordersRes
       qqHistory.value = items.filter(o => o.client_qq === trimmed).slice(0, 5)
       const cp = clientRes ? clientRes.profile || null : null
       clientProfile.value = cp
       clientSummary.value = cp ? clientRes.summary || null : null
     } catch {
+      if (mySeq !== qqSeq) return
       qqHistory.value = []
       clientProfile.value = null
       clientSummary.value = null
     } finally {
-      qqHistoryLoading.value = false
-      qqHistoryLoaded.value = true
+      if (mySeq === qqSeq) {
+        qqHistoryLoading.value = false
+        qqHistoryLoaded.value = true
+      }
     }
   }, 500)
 })

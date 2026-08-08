@@ -179,17 +179,22 @@ function onFilterChange() {
   loadOrders()
 }
 
+// 竞态保护：请求序号（搜索/翻页快速切换时慢请求不得覆盖新结果）
+let loadSeq = 0
 async function loadOrders() {
+  const mySeq = ++loadSeq
   loading.value = true
   try {
     const q = searchQuery.value.trim() || undefined
     const res = await artistApi.getOrders(filter.value || undefined, { page: page.value, pageSize: pageSize.value, q })
+    if (mySeq !== loadSeq) return
     orders.value = res.items ?? res
     total.value = res.total ?? orders.value.length
   } catch (err) {
+    if (mySeq !== loadSeq) return
     ElMessage.error(err.message)
   } finally {
-    loading.value = false
+    if (mySeq === loadSeq) loading.value = false
   }
 }
 

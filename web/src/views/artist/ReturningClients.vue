@@ -17,7 +17,7 @@
           <template #default="{ row }">{{ $t('returning.totalOrders', { n: row.totalOrders }) }}</template>
         </el-table-column>
         <el-table-column :label="$t('returning.totalPaid')" min-width="120">
-          <template #default="{ row }">¥{{ (row.totalPaidCents / 100).toFixed(2) }}</template>
+          <template #default="{ row }">¥{{ formatCents(row.totalPaidCents) }}</template>
         </el-table-column>
         <el-table-column :label="$t('returning.lastOrder')" min-width="150">
           <template #default="{ row }">{{ formatDate(row.lastOrderAt) }}</template>
@@ -45,6 +45,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
 import { formatDateTimeShort } from '../../utils/datetime.js'
+import { formatCents } from '../../utils/money.js'
 
 const { t } = useI18n()
 const days = ref(30)
