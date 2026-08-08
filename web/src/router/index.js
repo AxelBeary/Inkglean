@@ -30,6 +30,8 @@ const routes = [
   { path: '/preferences', name: 'ArtistPreferences', component: () => import('../views/artist/Preferences.vue'), meta: { titleKey: 'menu.preferences', requiresAuth: true } },
   // REQ-035 批D: 今天吃什么（工具页）
   { path: '/tools/food', name: 'ArtistFoodMenu', component: () => import('../views/artist/FoodMenu.vue'), meta: { titleKey: 'menu.foodMenu', requiresAuth: true } },
+  // REQ-035 批D: 图片水印（工具页）
+  { path: '/tools/watermark', name: 'ArtistWatermark', component: () => import('../views/artist/Watermark.vue'), meta: { titleKey: 'menu.watermark', requiresAuth: true } },
   // REQ-031 A1: 收入导出 CSV（工具页）
   { path: '/tools/export', name: 'ArtistToolsExport', component: () => import('../views/artist/ToolsExport.vue'), meta: { titleKey: 'menu.toolsExport', requiresAuth: true } },
   // REQ-035 批C: 散单记账（工具页）

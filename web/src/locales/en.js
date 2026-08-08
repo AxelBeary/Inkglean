@@ -254,6 +254,8 @@ export default {
     toolsExport: 'Income Export',
     // REQ-035 batch C: Standalone income (tools group menu item)
     standaloneIncome: 'Standalone Income',
+    // REQ-035 batch D: Watermark tool (tools group menu item)
+    watermark: 'Watermark',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
   },
@@ -325,6 +327,49 @@ export default {
     clientTooLong: 'Client nickname must be 50 characters or fewer',
     noteTooLong: 'Note must be 200 characters or fewer',
     dateRequired: 'Pick a date'
+  },
+
+  // REQ-035 batch D: Watermark tool page copy
+  watermark: {
+    title: 'Watermark Tool',
+    sourceSection: 'Image source',
+    watermarkSection: 'Watermark settings',
+    sourceNew: 'New image',
+    sourceArtwork: 'Artwork',
+    sourceDeliverable: 'Deliverable',
+    chooseFile: 'Choose image',
+    selectArtwork: 'Select artwork',
+    selectOrder: 'Select order',
+    selectDeliverable: 'Select deliverable',
+    emptyArtworks: 'No artworks',
+    emptyDeliverables: 'No deliverables',
+    watermarkType: 'Watermark type',
+    text: 'Text',
+    logo: 'Logo',
+    uploadLogo: 'Upload logo (PNG)',
+    logoScale: 'Logo scale',
+    modeLabel: 'Watermark mode',
+    modeCorner: 'Corners',
+    modeStretch: 'Stretch',
+    modeTile: 'Tile',
+    opacity: 'Opacity',
+    fontSize: 'Font size',
+    margin: 'Margin',
+    spacing: 'Spacing',
+    position: 'Position',
+    positionAll: 'Corners',
+    posTopLeft: 'Top-left',
+    posTopRight: 'Top-right',
+    posBottomLeft: 'Bottom-left',
+    posBottomRight: 'Bottom-right',
+    posCenter: 'Center',
+    export: 'Export',
+    exporting: 'Exporting…',
+    noImage: 'Choose an image first',
+    preview: 'Preview',
+    renderError: 'Image compositing failed, please try another image',
+    fileTypeError: 'Please choose an image file (LOGO must be PNG)',
+    logoSaved: 'Logo saved'
   },
   // F3 quick actions (2026-08-07 user decision)
   quickAction: {

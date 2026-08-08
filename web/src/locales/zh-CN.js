@@ -1,4 +1,4 @@
-﻿export default {
+export default {
   errors: {
     // 认证
     NOT_LOGGED_IN: '未登录',
@@ -254,6 +254,8 @@
     toolsExport: '收入导出',
     // REQ-035 批C: 散单记账（工具组菜单项）
     standaloneIncome: '散单记账',
+    // REQ-035 批D: 图片水印（工具组菜单项）
+    watermark: '图片水印',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
   },
@@ -325,6 +327,48 @@
     clientTooLong: '客户昵称不能超过 50 字',
     noteTooLong: '备注不能超过 200 字',
     dateRequired: '请选择日期'
+  },
+  // REQ-035 批D: 图片水印（工具页文案）
+  watermark: {
+    title: '图片水印工具',
+    sourceSection: '图片来源',
+    watermarkSection: '水印设置',
+    sourceNew: '新传图',
+    sourceArtwork: '作品图',
+    sourceDeliverable: '完稿图',
+    chooseFile: '选择图片',
+    selectArtwork: '选择作品',
+    selectOrder: '选择订单',
+    selectDeliverable: '选择完稿图',
+    emptyArtworks: '暂无作品',
+    emptyDeliverables: '该订单暂无完稿图',
+    watermarkType: '水印类型',
+    text: '文字水印',
+    logo: 'LOGO 水印',
+    uploadLogo: '上传透明底 LOGO',
+    logoScale: 'LOGO 缩放',
+    modeLabel: '水印模式',
+    modeCorner: '四角',
+    modeStretch: '拉伸',
+    modeTile: '平铺',
+    opacity: '透明度',
+    fontSize: '字号',
+    margin: '边距',
+    spacing: '间距',
+    position: '位置',
+    positionAll: '四角',
+    posTopLeft: '左上',
+    posTopRight: '右上',
+    posBottomLeft: '左下',
+    posBottomRight: '右下',
+    posCenter: '中央',
+    export: '导出图片',
+    exporting: '导出中…',
+    noImage: '请先选择图片',
+    preview: '预览',
+    renderError: '图片合成失败，请换一张图片重试',
+    fileTypeError: '请选择图片文件（LOGO 需 PNG）',
+    logoSaved: 'LOGO 已保存'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {
