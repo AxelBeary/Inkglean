@@ -6,9 +6,10 @@ import { AppError, E } from '../../shared/errors.js'
 // REQ-023 Phase 1
 // ============================================
 
-const VALID_CONTROL_TYPES = ['switch', 'quantity', 'radio'] as const
-const VALID_PRICING_MODES = ['fixed', 'per_unit', 'per_option'] as const
-const VALID_KINDS = ['add', 'multiply'] as const
+// SPEC-PRICE-2（v50）：增项两类控件 × 两种计价 × 三类别；radio/options 退役
+const VALID_CONTROL_TYPES = ['switch', 'quantity'] as const
+const VALID_PRICE_MODES = ['fixed', 'percent'] as const
+const VALID_CATEGORIES = ['add', 'usage', 'rush'] as const
 const VALID_DISPLAY_STATUS = ['available', 'showcase', 'closed'] as const
 
 // ─── 增项库（addon_templates） ───
@@ -18,13 +19,12 @@ export interface AddonTemplate {
   artist_id: number | null
   name: string
   control_type: string
-  pricing_mode: string
+  price_mode: string
   default_price: number
-  options: string | null
   unit_label: string | null
   sort_order: number
-  // v49 (REQ-036): kind 维度（add 加法 / multiply 倍率）；max_quantity 数量型上限
-  kind: string
+  // SPEC-PRICE-2：category add/usage/rush；max_quantity 数量型上限
+  category: string
   max_quantity: number | null
   created_at: string
 }
@@ -48,11 +48,10 @@ export function getAddonTemplate(artistId: number, templateId: number): AddonTem
 interface CreateAddonTemplateInput {
   name: string
   control_type?: string
-  pricing_mode?: string
+  price_mode?: string
   default_price?: number
-  options?: string | null
   unit_label?: string | null
-  kind?: string
+  category?: string
   max_quantity?: number | null
 }
 
@@ -63,22 +62,25 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
   if (!VALID_CONTROL_TYPES.includes(controlType as typeof VALID_CONTROL_TYPES[number])) {
     throw new AppError(E.ADDON_TEMPLATE_INVALID_CONTROL)
   }
-  const pricingMode = input.pricing_mode || 'fixed'
-  if (!VALID_PRICING_MODES.includes(pricingMode as typeof VALID_PRICING_MODES[number])) {
+  const priceMode = input.price_mode || 'fixed'
+  if (!VALID_PRICE_MODES.includes(priceMode as typeof VALID_PRICE_MODES[number])) {
     throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICING)
   }
   const defaultPrice = input.default_price ?? 0
   if (defaultPrice < 0) throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICE)
-  // v49 (REQ-036): kind 维度 + max_quantity 上限校验
-  const kind = input.kind || 'add'
-  if (!VALID_KINDS.includes(kind as typeof VALID_KINDS[number])) throw new AppError(E.VALIDATION, 400, { field: 'kind', hint: 'kind 只能是 add 或 multiply' })
+  // SPEC-PRICE-2：percent 计价存整数百分比（50 = +50%）
+  if (priceMode === 'percent' && (!Number.isInteger(defaultPrice) || defaultPrice > 1000)) {
+    throw new AppError(E.VALIDATION, 400, { field: 'default_price', hint: '百分比须为 0-1000 的整数' })
+  }
+  // SPEC-PRICE-2：category 维度 + max_quantity 上限校验
+  const category = input.category || 'add'
+  if (!VALID_CATEGORIES.includes(category as typeof VALID_CATEGORIES[number])) throw new AppError(E.VALIDATION, 400, { field: 'category', hint: 'category 只能是 add/usage/rush' })
+  // 用途/加急必须百分比计价（公式中它们是乘法因子）
+  if (category !== 'add' && priceMode !== 'percent') {
+    throw new AppError(E.VALIDATION, 400, { field: 'price_mode', hint: '用途/加急增项必须选择百分比计价' })
+  }
   if (input.max_quantity != null && (!Number.isInteger(input.max_quantity) || input.max_quantity < 1 || input.max_quantity > 999)) {
     throw new AppError(E.VALIDATION, 400, { field: 'max_quantity', hint: '数量上限须为 1-999 的整数' })
-  }
-
-  // radio 类型必须有 options
-  if (controlType === 'radio' && !input.options) {
-    throw new AppError(E.VALIDATION, 400, { field: 'options', hint: 'radio 类型必须提供选项列表' })
   }
 
   const maxOrder = (db.prepare(
@@ -86,18 +88,17 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
   ).get(artistId) as { m: number | null }).m ?? -1
 
   const result = db.prepare(`
-    INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, options, unit_label, sort_order, kind, max_quantity)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     artistId,
     input.name.trim(),
     controlType,
-    pricingMode,
+    priceMode,
     defaultPrice,
-    input.options || null,
     input.unit_label || null,
     maxOrder + 1,
-    kind,
+    category,
     input.max_quantity ?? null
   )
 
@@ -107,11 +108,10 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
 interface UpdateAddonTemplateFields {
   name?: string
   control_type?: string
-  pricing_mode?: string
+  price_mode?: string
   default_price?: number
-  options?: string | null
   unit_label?: string | null
-  kind?: string
+  category?: string
   max_quantity?: number | null
 }
 
@@ -131,25 +131,36 @@ export function updateAddonTemplate(artistId: number, templateId: number, fields
     }
     db.prepare('UPDATE addon_templates SET control_type = ? WHERE id = ?').run(fields.control_type, templateId)
   }
-  if (fields.pricing_mode !== undefined) {
-    if (!VALID_PRICING_MODES.includes(fields.pricing_mode as typeof VALID_PRICING_MODES[number])) {
+  if (fields.price_mode !== undefined) {
+    if (!VALID_PRICE_MODES.includes(fields.price_mode as typeof VALID_PRICE_MODES[number])) {
       throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICING)
     }
-    db.prepare('UPDATE addon_templates SET pricing_mode = ? WHERE id = ?').run(fields.pricing_mode, templateId)
+    db.prepare('UPDATE addon_templates SET price_mode = ? WHERE id = ?').run(fields.price_mode, templateId)
   }
   if (fields.default_price !== undefined) {
     if (fields.default_price < 0) throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICE)
     db.prepare('UPDATE addon_templates SET default_price = ? WHERE id = ?').run(fields.default_price, templateId)
   }
-  if (fields.options !== undefined) {
-    db.prepare('UPDATE addon_templates SET options = ? WHERE id = ?').run(fields.options || null, templateId)
-  }
   if (fields.unit_label !== undefined) {
     db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(fields.unit_label || null, templateId)
   }
-  if (fields.kind !== undefined) {
-    if (!VALID_KINDS.includes(fields.kind as typeof VALID_KINDS[number])) throw new AppError(E.VALIDATION, 400, { field: 'kind', hint: 'kind 只能是 add 或 multiply' })
-    db.prepare('UPDATE addon_templates SET kind = ? WHERE id = ?').run(fields.kind, templateId)
+  if (fields.category !== undefined) {
+    if (!VALID_CATEGORIES.includes(fields.category as typeof VALID_CATEGORIES[number])) throw new AppError(E.VALIDATION, 400, { field: 'category', hint: 'category 只能是 add/usage/rush' })
+    db.prepare('UPDATE addon_templates SET category = ? WHERE id = ?').run(fields.category, templateId)
+  }
+  // SPEC-PRICE-2 组合约束：用途/加急必须百分比计价（跨字段校验，读最新值）
+  if (fields.category !== undefined || fields.price_mode !== undefined) {
+    const now = db.prepare('SELECT category, price_mode FROM addon_templates WHERE id = ?').get(templateId) as { category: string; price_mode: string }
+    if (now.category !== 'add' && now.price_mode !== 'percent') {
+      throw new AppError(E.VALIDATION, 400, { field: 'price_mode', hint: '用途/加急增项必须选择百分比计价' })
+    }
+  }
+  // percent 计价百分比范围校验
+  if (fields.default_price !== undefined || fields.price_mode !== undefined) {
+    const now = db.prepare('SELECT price_mode, default_price FROM addon_templates WHERE id = ?').get(templateId) as { price_mode: string; default_price: number }
+    if (now.price_mode === 'percent' && (!Number.isInteger(now.default_price) || now.default_price > 1000)) {
+      throw new AppError(E.VALIDATION, 400, { field: 'default_price', hint: '百分比须为 0-1000 的整数' })
+    }
   }
   if (fields.max_quantity !== undefined) {
     if (fields.max_quantity != null && (!Number.isInteger(fields.max_quantity) || fields.max_quantity < 1 || fields.max_quantity > 999)) {
@@ -174,15 +185,15 @@ export function deleteAddonTemplate(artistId: number, templateId: number): { del
     'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
   ).get(templateId) as { c: number }
   if (refs.c > 0) {
-    // 快照模板数据（解绑后独立增项保留名称/控件/价格/上限等展示数据）
+    // 快照模板数据（解绑后独立增项保留名称/控件/价格/上限等展示数据；SPEC-PRICE-2 新维度）
     db.prepare(`
       UPDATE style_addons SET
-        tpl_name = ?, tpl_control_type = ?, tpl_pricing_mode = ?, tpl_default_price = ?,
-        tpl_options = ?, tpl_unit_label = ?, tpl_kind = ?, tpl_max_quantity = ?
+        tpl_name = ?, tpl_control_type = ?, tpl_price_mode = ?, tpl_default_price = ?,
+        tpl_unit_label = ?, tpl_category = ?, tpl_max_quantity = ?
       WHERE addon_template_id = ?
     `).run(
-      tpl.name, tpl.control_type, tpl.pricing_mode, tpl.default_price,
-      tpl.options, tpl.unit_label, tpl.kind, tpl.max_quantity, templateId
+      tpl.name, tpl.control_type, tpl.price_mode, tpl.default_price,
+      tpl.unit_label, tpl.category, tpl.max_quantity, templateId
     )
     // 解除引用（外键 ON DELETE SET NULL 双保险，此处显式置空保证快照一致性）
     db.prepare('UPDATE style_addons SET addon_template_id = NULL WHERE addon_template_id = ?').run(templateId)
@@ -498,15 +509,13 @@ export interface StyleAddonWithTemplate {
   addon_template_id: number | null
   is_enabled: number
   price_override: number | null
-  options_override: string | null
-  // 嵌套模板信息（快照列兜底：解绑后的独立增项仍可展示/计价）
+  // 嵌套模板信息（快照列兑底：解绑后的独立增项仍可展示/计价）
   template_name: string
   template_control_type: string
-  template_pricing_mode: string
+  template_price_mode: string
   template_default_price: number
-  template_options: string | null
   template_unit_label: string | null
-  template_kind: string
+  template_category: string
   template_max_quantity: number | null
   // v49 (REQ-036 C): 已解绑（独立增项，不再跟随库更新）——注释内撇号已省略避免转义
   detached: boolean
@@ -518,11 +527,10 @@ export function getStyleAddons(styleId: number): StyleAddonWithTemplate[] {
     SELECT sa.*,
            COALESCE(sa.tpl_name, at.name) AS template_name,
            COALESCE(sa.tpl_control_type, at.control_type) AS template_control_type,
-           COALESCE(sa.tpl_pricing_mode, at.pricing_mode) AS template_pricing_mode,
+           COALESCE(sa.tpl_price_mode, at.price_mode) AS template_price_mode,
            COALESCE(sa.tpl_default_price, at.default_price) AS template_default_price,
-           COALESCE(sa.tpl_options, at.options) AS template_options,
            COALESCE(sa.tpl_unit_label, at.unit_label) AS template_unit_label,
-           COALESCE(sa.tpl_kind, at.kind) AS template_kind,
+           COALESCE(sa.tpl_category, at.category) AS template_category,
            COALESCE(sa.tpl_max_quantity, at.max_quantity) AS template_max_quantity,
            (sa.addon_template_id IS NULL) AS detached
     FROM style_addons sa
@@ -536,7 +544,6 @@ interface StyleAddonSetItem {
   addon_template_id: number
   is_enabled?: boolean
   price_override?: number | null
-  options_override?: string | null
 }
 
 /** 批量设置画风增项（启用/禁用/改价） */
@@ -561,7 +568,6 @@ export function setStyleAddons(artistId: number, styleId: number, items: StyleAd
         const params: unknown[] = []
         if (item.is_enabled !== undefined) { updates.push('is_enabled = ?'); params.push(item.is_enabled ? 1 : 0) }
         if (item.price_override !== undefined) { updates.push('price_override = ?'); params.push(item.price_override) }
-        if (item.options_override !== undefined) { updates.push('options_override = ?'); params.push(item.options_override) }
         if (updates.length > 0) {
           params.push(existing.id)
           db.prepare(`UPDATE style_addons SET ${updates.join(', ')} WHERE id = ?`).run(...params)
@@ -569,13 +575,12 @@ export function setStyleAddons(artistId: number, styleId: number, items: StyleAd
       } else {
         // 新增
         db.prepare(
-          'INSERT INTO style_addons (art_style_id, addon_template_id, is_enabled, price_override, options_override) VALUES (?, ?, ?, ?, ?)'
+          'INSERT INTO style_addons (art_style_id, addon_template_id, is_enabled, price_override) VALUES (?, ?, ?, ?)'
         ).run(
           styleId,
           item.addon_template_id,
           item.is_enabled !== undefined ? (item.is_enabled ? 1 : 0) : 1,
-          item.price_override ?? null,
-          item.options_override ?? null
+          item.price_override ?? null
         )
       }
     }
@@ -762,12 +767,11 @@ export interface PublicStyleAddon {
   addon_template_id: number | null
   name: string
   control_type: string
-  pricing_mode: string
+  price_mode: string
   price: number
-  options: string | null
   unit_label: string | null
   is_enabled: boolean
-  kind: string
+  category: string
   max_quantity: number | null
 }
 
@@ -823,26 +827,25 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
       "SELECT * FROM style_sizes WHERE art_style_id = ? AND display_status != 'closed' ORDER BY sort_order ASC"
     ).all(style.id) as StyleSize[]
 
-    // 画风级增项（启用的）
+    // 画风级增项（启用的；SPEC-PRICE-2 新维度）
     const styleAddons = db.prepare(`
       SELECT sa.*,
              COALESCE(sa.tpl_name, at.name) AS tpl_name,
              COALESCE(sa.tpl_control_type, at.control_type) AS tpl_control_type,
-             COALESCE(sa.tpl_pricing_mode, at.pricing_mode) AS tpl_pricing_mode,
+             COALESCE(sa.tpl_price_mode, at.price_mode) AS tpl_price_mode,
              COALESCE(sa.tpl_default_price, at.default_price) AS tpl_default_price,
-             COALESCE(sa.tpl_options, at.options) AS tpl_options,
              COALESCE(sa.tpl_unit_label, at.unit_label) AS tpl_unit_label,
-             COALESCE(sa.tpl_kind, at.kind) AS tpl_kind,
+             COALESCE(sa.tpl_category, at.category) AS tpl_category,
              COALESCE(sa.tpl_max_quantity, at.max_quantity) AS tpl_max_quantity
       FROM style_addons sa
       LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
       WHERE sa.art_style_id = ? AND sa.is_enabled = 1
       ORDER BY (sa.addon_template_id IS NOT NULL) DESC, at.sort_order ASC, sa.id ASC
     `).all(style.id) as Array<{
-      id: number; addon_template_id: number | null; price_override: number | null; options_override: string | null
-      tpl_name: string; tpl_control_type: string; tpl_pricing_mode: string
-      tpl_default_price: number; tpl_options: string | null; tpl_unit_label: string | null
-      tpl_kind: string; tpl_max_quantity: number | null
+      id: number; addon_template_id: number | null; price_override: number | null
+      tpl_name: string; tpl_control_type: string; tpl_price_mode: string
+      tpl_default_price: number; tpl_unit_label: string | null
+      tpl_category: string; tpl_max_quantity: number | null
     }>
 
     const publicSizes: PublicStyleSize[] = sizes.map(size => {
@@ -861,20 +864,17 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
           const ov = overrideMap.get(sa.id)
           // 价格优先级：尺寸覆盖 > 画风覆盖 > 模板默认价
           const price = ov?.price_override ?? sa.price_override ?? sa.tpl_default_price
-          // 选项：画风覆盖 > 模板默认
-          const options = sa.options_override ?? sa.tpl_options
 
           return {
             id: sa.id,
             addon_template_id: sa.addon_template_id,
             name: sa.tpl_name,
             control_type: sa.tpl_control_type,
-            pricing_mode: sa.tpl_pricing_mode,
+            price_mode: sa.tpl_price_mode,
             price,
-            options,
             unit_label: sa.tpl_unit_label,
             is_enabled: true,
-            kind: sa.tpl_kind,
+            category: sa.tpl_category,
             max_quantity: sa.tpl_max_quantity
           }
         })

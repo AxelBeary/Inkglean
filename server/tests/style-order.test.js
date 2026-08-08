@@ -6,8 +6,8 @@ import * as styleService from '../src/features/pricing/style.service.js'
 import * as orderService from '../src/features/order/order.service.js'
 
 // ============================================
-// 订单创建支持画风模式测试
-// REQ-023 Phase 2 - POST /orders 接受 styleSizeId + styleAddons
+// 订单创建支持画风模式测试（SPEC-PRICE-2 v50：唯一计价路径 = 画风尺寸 + 增项）
+// POST /orders 接受 styleSizeId + styleAddons（含用途/加急增项）
 // ============================================
 
 // ─── 辅助函数 ───
@@ -20,45 +20,36 @@ function seedWorkflowStages(artistId) {
   ins.run(artistId, '尾款', 2, 7000)
 }
 
-function seedMultiplier(artistId, type, name, multiplier) {
-  const r = db.prepare(
-    'INSERT INTO price_multipliers (artist_id, type, name, multiplier, sort_order, enabled) VALUES (?, ?, ?, ?, 0, 1)'
-  ).run(artistId, type, name, multiplier)
-  return db.prepare('SELECT * FROM price_multipliers WHERE id = ?').get(r.lastInsertRowid)
-}
-
-function seedTier(artistId, name, price, sortOrder = 0) {
-  const r = db.prepare(
-    'INSERT INTO price_tiers (artist_id, name, price, sort_order) VALUES (?, ?, ?, ?)'
-  ).run(artistId, name, price, sortOrder)
-  return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(r.lastInsertRowid)
-}
-
-/** 搭建标准画风场景：画师 + 画风 + 2尺寸 + 2增项 + 工作流 */
+/** 搭建标准画风场景：画师 + 画风 + 2尺寸 + 3增项（含用途）+ 工作流 */
 function setupStyleScene() {
   const artist = seedArtist({ qq_number: '88101', subdomain: 'style-order' })
   seedWorkflowStages(artist.id)
 
   const tplSwitch = styleService.createAddonTemplate(artist.id, {
-    name: '加背景', control_type: 'switch', pricing_mode: 'fixed', default_price: 150
+    name: '加背景', control_type: 'switch', price_mode: 'fixed', default_price: 150
   })
   const tplQty = styleService.createAddonTemplate(artist.id, {
-    name: '加人', control_type: 'quantity', pricing_mode: 'per_unit', default_price: 100, unit_label: '人'
+    name: '加人', control_type: 'quantity', price_mode: 'fixed', default_price: 100, unit_label: '人'
+  })
+  const tplUsage = styleService.createAddonTemplate(artist.id, {
+    name: '商用', control_type: 'switch', price_mode: 'percent', default_price: 100, category: 'usage'
   })
 
-  const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: true })
+  const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: false })
   const sizeHead = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
   const sizeBody = styleService.createStyleSize(artist.id, style.id, { name: '全身', base_price: 600 })
 
   styleService.setStyleAddons(artist.id, style.id, [
     { addon_template_id: tplSwitch.id },
-    { addon_template_id: tplQty.id }
+    { addon_template_id: tplQty.id },
+    { addon_template_id: tplUsage.id }
   ])
   const styleAddons = styleService.getStyleAddons(style.id)
   const saSwitch = styleAddons.find(a => a.addon_template_id === tplSwitch.id)
   const saQty = styleAddons.find(a => a.addon_template_id === tplQty.id)
+  const saUsage = styleAddons.find(a => a.addon_template_id === tplUsage.id)
 
-  return { artist, style, sizeHead, sizeBody, saSwitch, saQty }
+  return { artist, style, sizeHead, sizeBody, saSwitch, saQty, saUsage }
 }
 
 // ─── Service 层测试 ───
@@ -81,7 +72,7 @@ describe('订单创建画风模式 (createOrder styleSizeId)', () => {
     expect(order.quote_snapshot).toContain('日系')
     expect(order.quote_snapshot).toContain('头像')
     expect(order.quote_snapshot).toContain('加背景')
-    expect(order.tier_id).toBeNull()
+    expect(order.style_size_id).toBe(sizeHead.id)
   })
 
   it('TC-SO-02: 画风模式 — quantity 增项计价', () => {
@@ -97,16 +88,15 @@ describe('订单创建画风模式 (createOrder styleSizeId)', () => {
     expect(order.quote_snapshot).toContain('加人×3')
   })
 
-  it('TC-SO-03: 画风模式 — 倍率', () => {
-    const { artist, sizeHead } = setupStyleScene()
-    const um = seedMultiplier(artist.id, 'usage', '商用', 2.0)
+  it('TC-SO-03: 画风模式 — 用途增项作为倍率位', () => {
+    const { artist, sizeHead, saUsage } = setupStyleScene()
     const order = orderService.createOrder({
       artistId: artist.id,
       styleSizeId: sizeHead.id,
-      usageMultiplierId: um.id,
+      styleAddons: [{ styleAddonId: saUsage.id }],
       clientQq: '88203'
     })
-    // 200 × 2 = 400
+    // 200 × (100+100)/100 = 400
     expect(order.total_price_cents).toBe(40000)
     expect(order.quote_snapshot).toContain('商用')
   })
@@ -146,7 +136,7 @@ describe('订单创建画风模式 (createOrder styleSizeId)', () => {
     expect(installments[1].amount_cents).toBe(14000) // 200 × 70%
   })
 
-  it('TC-SO-06: 画风模式 — 写 breakdown（tier/addon 语义）', () => {
+  it('TC-SO-06: 画风模式 — 写 breakdown（SPEC-PRICE-2 新口径 base/addon_fixed）', () => {
     const { artist, sizeHead, saSwitch } = setupStyleScene()
     const order = orderService.createOrder({
       artistId: artist.id,
@@ -158,36 +148,9 @@ describe('订单创建画风模式 (createOrder styleSizeId)', () => {
       'SELECT * FROM order_price_breakdown WHERE order_id = ? ORDER BY sort_order ASC'
     ).all(order.id)
     expect(breakdown.length).toBeGreaterThanOrEqual(2)
-    expect(breakdown[0].item_type).toBe('tier')
+    expect(breakdown[0].item_type).toBe('base')
     expect(breakdown[0].item_name).toContain('日系')
-    expect(breakdown[1].item_type).toBe('addon')
-  })
-
-  it('TC-SO-07: 旧档位模式不受影响', () => {
-    const artist = seedArtist({ qq_number: '88102', subdomain: 'old-model' })
-    seedWorkflowStages(artist.id)
-    const tier = seedTier(artist.id, '全身', 500)
-    const order = orderService.createOrder({
-      artistId: artist.id,
-      tierId: tier.id,
-      clientQq: '88207'
-    })
-    expect(order.total_price_cents).toBe(50000)
-    expect(order.tier_id).toBe(tier.id)
-    expect(order.quote_snapshot).toContain('全身')
-  })
-
-  it('TC-SO-08: styleSizeId 与 tierId 互斥 → 400', () => {
-    const { artist, sizeHead } = setupStyleScene()
-    const tier = seedTier(artist.id, '头像', 100)
-    expect(() => {
-      orderService.createOrder({
-        artistId: artist.id,
-        tierId: tier.id,
-        styleSizeId: sizeHead.id,
-        clientQq: '88208'
-      })
-    }).toThrow('VALIDATION')
+    expect(breakdown[1].item_type).toBe('addon_fixed')
   })
 
   it('TC-SO-09: 无效 styleSizeId → 404', () => {
@@ -260,37 +223,20 @@ describe('画风模式下单路由 (POST /api/orders)', () => {
     expect(res.json().total_price_cents).toBe(80000)
   })
 
-  it('TC-RT-03: 旧档位下单不受影响 → 200', async () => {
+  it('TC-RT-03: 旧字段 tierId 静默剥离（additionalProperties 去除）→ 无价格订单 200', async () => {
     const artist = seedArtist({ qq_number: '88103', subdomain: 'old-rt' })
     seedWorkflowStages(artist.id)
-    const tier = seedTier(artist.id, '头像', 100)
     const res = await app.inject({
       method: 'POST', url: '/api/orders',
       payload: {
         subdomain: 'old-rt',
         clientQq: '88303',
         agreeRules: true,
-        tierId: tier.id
+        tierId: 123
       }
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json().totalPriceCents).toBe(10000)
-  })
-
-  it('TC-RT-04: styleSizeId + tierId 同传 → 400', async () => {
-    const { sizeHead } = setupStyleScene()
-    const tier = seedTier(db.prepare("SELECT id FROM artists WHERE subdomain='style-order'").get().id, 'X', 100)
-    const res = await app.inject({
-      method: 'POST', url: '/api/orders',
-      payload: {
-        subdomain: 'style-order',
-        clientQq: '88304',
-        agreeRules: true,
-        tierId: tier.id,
-        styleSizeId: sizeHead.id
-      }
-    })
-    expect(res.statusCode).toBe(400)
+    expect(res.json().totalPriceCents).toBeNull()
   })
 
   it('TC-RT-05: 无效 styleSizeId → 404', async () => {

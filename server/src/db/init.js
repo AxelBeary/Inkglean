@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS totp_used_codes (
 );
 
 -- 价格档位表
+-- 档位表（历史遗留：迁移 v1-v37 依赖此表存在；v50（SPEC-PRICE-2 价格模型统一）DROP 移除，
+-- 此处保留仅维持迁移链完整——新库建了也会被 v50 删掉）
 CREATE TABLE IF NOT EXISTS price_tiers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   artist_id INTEGER NOT NULL,
@@ -115,12 +117,12 @@ CREATE TABLE IF NOT EXISTS commission_rules (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
--- 订单表（含所有迁移后的完整结构）
+-- 订单表（含所有迁移后的完整结构；v50 SPEC-PRICE-2：移除 tier_id/旧倍率列，新增 style_size_id）
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_no TEXT UNIQUE NOT NULL,
   artist_id INTEGER NOT NULL,
-  tier_id INTEGER,
+  style_size_id INTEGER,
   client_qq TEXT NOT NULL,
   client_name TEXT,
   description TEXT,
@@ -134,8 +136,6 @@ CREATE TABLE IF NOT EXISTS orders (
   completed_at DATETIME,
   price_snapshot REAL,
   total_price_cents INTEGER,
-  usage_multiplier_id INTEGER,
-  rush_multiplier_id INTEGER,
   quote_snapshot TEXT,
   final_price_cents INTEGER,
   focus_image_path TEXT,
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
-  FOREIGN KEY (tier_id) REFERENCES price_tiers(id) ON DELETE SET NULL
+  FOREIGN KEY (style_size_id) REFERENCES style_sizes(id) ON DELETE SET NULL
 );
 
 -- 订单参考图表
@@ -264,7 +264,8 @@ CREATE TABLE IF NOT EXISTS greeting_templates (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
--- 价格倍率表（v9）
+-- 价格倍率表（历史遗留：迁移 v9-v49 依赖此表存在；v50（SPEC-PRICE-2）DROP 移除，
+-- 用途/加急统一为 addon_templates category=usage/rush 增项；此处保留仅维持迁移链完整）
 CREATE TABLE IF NOT EXISTS price_multipliers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   artist_id INTEGER NOT NULL,
@@ -278,11 +279,11 @@ CREATE TABLE IF NOT EXISTS price_multipliers (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
--- 订单价格明细快照表（v9）
+-- 订单价格明细快照表（v9；v50 SPEC-PRICE-2 新 item_type 口径）
 CREATE TABLE IF NOT EXISTS order_price_breakdown (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
-  item_type TEXT NOT NULL CHECK(item_type IN ('tier','addon','usage','rush')),
+  item_type TEXT NOT NULL CHECK(item_type IN ('base','addon_fixed','addon_percent','usage','rush','discount')),
   item_name TEXT NOT NULL,
   amount_cents INTEGER NOT NULL,
   multiplier REAL DEFAULT 1.0,
@@ -359,20 +360,20 @@ CREATE TABLE IF NOT EXISTS order_activity_logs (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
--- 增项库表（v36，画师级，替代 price_addons 的角色）
+-- 增项库表（v36 画师级；v50 SPEC-PRICE-2 统一价格模型：
+--   control_type 仅 switch/quantity；price_mode fixed(¥)/percent(%)；category add/usage/rush）
 CREATE TABLE IF NOT EXISTS addon_templates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   -- v49 (REQ-036): artist_id 可空——NULL = 系统预置模板（全画师共用，管理员可维护）
   artist_id INTEGER,
   name TEXT NOT NULL,
-  control_type TEXT NOT NULL DEFAULT 'switch' CHECK(control_type IN ('switch','quantity','radio')),
-  pricing_mode TEXT NOT NULL DEFAULT 'fixed' CHECK(pricing_mode IN ('fixed','per_unit','per_option')),
+  control_type TEXT NOT NULL DEFAULT 'switch' CHECK(control_type IN ('switch','quantity')),
+  price_mode TEXT NOT NULL DEFAULT 'fixed' CHECK(price_mode IN ('fixed','percent')),
+  -- fixed: 元；percent: 整数百分比（50 = +50%）
   default_price REAL NOT NULL DEFAULT 0,
-  options TEXT,
   unit_label TEXT,
   sort_order INTEGER DEFAULT 0,
-  -- v49 (REQ-036): kind 维度（add 加法 / multiply 倍率），max_quantity 数量型上限（防刷）
-  kind TEXT NOT NULL DEFAULT 'add' CHECK(kind IN ('add','multiply')),
+  category TEXT NOT NULL DEFAULT 'add' CHECK(category IN ('add','usage','rush')),
   max_quantity INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
@@ -416,7 +417,7 @@ CREATE TABLE IF NOT EXISTS artwork_size_tags (
   FOREIGN KEY (style_size_id) REFERENCES style_sizes(id) ON DELETE CASCADE
 );
 
--- 画风增项表（v36，从增项库导入，可改价/禁用）
+-- 画风增项表（v36，从增项库导入，可改价/禁用；v50 SPEC-PRICE-2 快照列对齐新维度）
 CREATE TABLE IF NOT EXISTS style_addons (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   art_style_id INTEGER NOT NULL,
@@ -424,15 +425,13 @@ CREATE TABLE IF NOT EXISTS style_addons (
   addon_template_id INTEGER,
   is_enabled INTEGER DEFAULT 1,
   price_override REAL,
-  options_override TEXT,
-  -- v49 (REQ-036 C'): 模板快照列——解绑后独立增项的展示/计价数据（删除模板时从 addon_templates 拷入）
+  -- v49 (REQ-036 C') / v50: 模板快照列——解绑后独立增项的展示/计价数据（删除模板时从 addon_templates 拷入）
   tpl_name TEXT,
   tpl_control_type TEXT,
-  tpl_pricing_mode TEXT,
+  tpl_price_mode TEXT,
   tpl_default_price REAL,
-  tpl_options TEXT,
   tpl_unit_label TEXT,
-  tpl_kind TEXT,
+  tpl_category TEXT,
   tpl_max_quantity INTEGER,
   FOREIGN KEY (art_style_id) REFERENCES art_styles(id) ON DELETE CASCADE,
   FOREIGN KEY (addon_template_id) REFERENCES addon_templates(id) ON DELETE SET NULL,
@@ -480,7 +479,6 @@ CREATE INDEX IF NOT EXISTS idx_deliverables_order ON deliverables(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_deadline ON orders(artist_id, deadline);
 CREATE INDEX IF NOT EXISTS idx_order_notes_order ON order_notes(order_id);
 CREATE INDEX IF NOT EXISTS idx_artworks_artist ON artworks(artist_id);
-CREATE INDEX IF NOT EXISTS idx_price_tiers_artist ON price_tiers(artist_id);
 CREATE INDEX IF NOT EXISTS idx_artists_qq ON artists(qq_number);
 CREATE INDEX IF NOT EXISTS idx_extra_items_order ON order_extra_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_queue_zone ON orders(artist_id, queue_zone);
@@ -538,10 +536,12 @@ export const MIGRATIONS = [
       }
       // 回填已有的 done/delivered 订单的 completed_at
       database.exec("UPDATE orders SET completed_at = updated_at WHERE status IN ('done', 'delivered') AND completed_at IS NULL")
-      // 回填已有的 price_snapshot
-      database.exec(`UPDATE orders SET price_snapshot = (
-        SELECT t.price FROM price_tiers t WHERE t.id = orders.tier_id
-      ) WHERE price_snapshot IS NULL AND tier_id IS NOT NULL`)
+      // 回填已有的 price_snapshot（形状感知守卫：新库基线已无 tier_id 列（SPEC-PRICE-2 v50），跳过）
+      if (orderCols.some(c => c.name === 'tier_id')) {
+        database.exec(`UPDATE orders SET price_snapshot = (
+          SELECT t.price FROM price_tiers t WHERE t.id = orders.tier_id
+        ) WHERE price_snapshot IS NULL AND tier_id IS NOT NULL`)
+      }
     }
   },
   {
@@ -1339,6 +1339,10 @@ export const MIGRATIONS = [
       database.exec('CREATE INDEX IF NOT EXISTS idx_size_addon_overrides_size ON size_addon_overrides(style_size_id)')
 
       // ─── 老数据迁移（幂等：已有 art_styles 数据则跳过） ───
+      // 形状感知守卫（SPEC-PRICE-2 v50）：新库基线已是新形（无 pricing_mode 列）且旧表为空，
+      // 无需搬运旧数据（真实老库早已应用过本迁移，不会再到这里）
+      const atColsV36 = database.prepare('PRAGMA table_info(addon_templates)').all().map(c => c.name)
+      if (!atColsV36.includes('pricing_mode')) return
       const existingStyles = database.prepare('SELECT COUNT(*) AS c FROM art_styles').get().c
       if (existingStyles > 0) return // 已迁移过
 
@@ -1794,9 +1798,9 @@ export const MIGRATIONS = [
         throw new Error('迁移 v49: foreign_keys 未能关闭（值=' + fkState + '），中止重建以防 CASCADE 清空子表')
       }
       try {
-        // 幂等守卫：已含 kind 列则跳过（新库建表即带新结构）；清理上次失败残留的临时表
+        // 幂等守卫：已含 kind 列（旧形已迁移）或 category 列（新库直接新形，v50 SPEC-PRICE-2）则跳过；清理上次失败残留的临时表
         const atCols = database.prepare('PRAGMA table_info(addon_templates)').all().map(c => c.name)
-        if (!atCols.includes('kind')) {
+        if (!atCols.includes('kind') && !atCols.includes('category')) {
           database.exec(`
             CREATE TABLE addon_templates_new (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1824,7 +1828,7 @@ export const MIGRATIONS = [
         }
 
         const saCols = database.prepare('PRAGMA table_info(style_addons)').all().map(c => c.name)
-        if (!saCols.includes('tpl_name')) {
+        if (!saCols.includes('tpl_name') && !saCols.includes('tpl_price_mode')) {
           database.exec(`
             CREATE TABLE style_addons_new (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1871,21 +1875,219 @@ export const MIGRATIONS = [
       }
 
       // ─── 4. 内置模板种子（系统预置 artist_id NULL，全画师共用；幂等守卫） ───
+      // v50 (SPEC-PRICE-2): 种子列名对齐新结构（category/price_mode）——
+      // 既有库已跑过 v49 不会再到这里；仅新库（基线即新结构）执行本 INSERT
       const seedCount = database.prepare('SELECT COUNT(*) AS c FROM addon_templates WHERE artist_id IS NULL').get().c
       if (seedCount === 0) {
         const insert = database.prepare(`
-          INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, options, unit_label, sort_order, kind, max_quantity)
-          VALUES (NULL, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+          INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity)
+          VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
-        // REQ-036 §三：默认 5 个内置模板（用户指定）；乘法项 default_price=百分比（商用+50%、加急+100%）
-        insert.run('加人物', 'quantity', 'per_unit', 80, '人', 0, 'add', 10)
-        insert.run('背景', 'quantity', 'per_unit', 50, '个', 1, 'add', 10)
+        // REQ-036 §三：默认 5 个内置模板（用户指定）；商用/加急 = 百分比计价（SPEC-PRICE-2：百分比金额只基于基础价）
+        insert.run('加人物', 'quantity', 'fixed', 80, '人', 0, 'add', 10)
+        insert.run('背景', 'quantity', 'fixed', 50, '个', 1, 'add', 10)
         insert.run('机甲', 'switch', 'fixed', 100, null, 2, 'add', null)
-        insert.run('商用', 'switch', 'fixed', 50, null, 3, 'multiply', null)
-        insert.run('加急', 'switch', 'fixed', 100, null, 4, 'multiply', null)
+        insert.run('商用', 'switch', 'percent', 50, null, 3, 'usage', null)
+        insert.run('加急', 'switch', 'percent', 100, null, 4, 'rush', null)
         console.log('📦 迁移 v49: 内置模板种子已写入（加人物/背景/机甲/商用/加急）')
       } else {
         console.log('📦 迁移 v49: 内置模板种子已存在，跳过')
+      }
+    }
+  },
+  {
+    version: 50,
+    name: 'price_model_unify_spec_price_2',
+    // ⚠️ 必须事务外执行：重建 orders/addon_templates/style_addons/order_price_breakdown + DROP price_tiers/price_multipliers
+    //（DROP/RENAME 父表触发子表 CASCADE 陷阱，v38 事故教训；PRAGMA foreign_keys 事务内 no-op）
+    noTransaction: true,
+    up(database) {
+      // SPEC-PRICE-2 价格模型统一（2026-08-09 用户拍板）：
+      //  1. orders 重建：移除 tier_id/usage_multiplier_id/rush_multiplier_id，新增 style_size_id（SET NULL）
+      //  2. addon_templates 重建：control_type 仅 switch/quantity；price_mode fixed/percent；新增 category add/usage/rush（kind 退役）
+      //  3. style_addons 重建：快照列对齐（tpl_price_mode/tpl_category，options 退役）
+      //  4. order_price_breakdown 重建：新 item_type 口径（旧 tier→base / addon→addon_fixed 映射，数据不丢）
+      //  5. DROP price_tiers / price_multipliers（用户拍板：均为测试垃圾数据；备份 bak-pre-v050-pricemodel-20260809）
+      backupDbBeforeMigration(50)
+
+      database.pragma('foreign_keys = OFF')
+      // 事故教训双保险：确认 FK 真的关了（事务内 PRAGMA 是 no-op，此处若仍在事务内会返回 ON → 直接中止）
+      const fkState = database.pragma('foreign_keys', { simple: true })
+      if (fkState !== 0) {
+        throw new Error('迁移 v50: foreign_keys 未能关闭（值=' + fkState + '），中止重建以防 CASCADE 清空子表')
+      }
+      try {
+        // ─── 1. orders 重建（幂等守卫：已无 tier_id 则跳过） ───
+        const oCols = database.prepare('PRAGMA table_info(orders)').all().map(c => c.name)
+        if (oCols.includes('tier_id')) {
+          database.exec(`
+            CREATE TABLE orders_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              order_no TEXT UNIQUE NOT NULL,
+              artist_id INTEGER NOT NULL,
+              style_size_id INTEGER,
+              client_qq TEXT NOT NULL,
+              client_name TEXT,
+              description TEXT,
+              priority TEXT DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
+              status TEXT DEFAULT 'pending' CHECK(status IN (
+                'pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled'
+              )),
+              source TEXT DEFAULT 'self' CHECK(source IN ('self', 'manual')),
+              client_notify INTEGER DEFAULT 0,
+              queue_position INTEGER,
+              completed_at DATETIME,
+              price_snapshot REAL,
+              total_price_cents INTEGER,
+              quote_snapshot TEXT,
+              final_price_cents INTEGER,
+              focus_image_path TEXT,
+              focus_image_mode TEXT DEFAULT 'off',
+              current_stage_id INTEGER,
+              deadline DATETIME,
+              start_date TEXT DEFAULT NULL,
+              queue_zone TEXT DEFAULT 'formal',
+              paid_total_cents INTEGER DEFAULT 0,
+              discount_code_id INTEGER DEFAULT NULL,
+              discount_amount_cents INTEGER DEFAULT 0,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
+              FOREIGN KEY (style_size_id) REFERENCES style_sizes(id) ON DELETE SET NULL
+            )
+          `)
+          // 保留列搬运（历史 style 订单 style_size_id 置 NULL，报价信息在 quote_snapshot）
+          const keep = oCols.filter(c => !['tier_id', 'usage_multiplier_id', 'rush_multiplier_id'].includes(c))
+          const colList = keep.join(', ')
+          database.exec(`INSERT INTO orders_new (${colList}, style_size_id) SELECT ${colList}, NULL FROM orders`)
+          database.exec('DROP TABLE orders')
+          database.exec('ALTER TABLE orders_new RENAME TO orders')
+        } else {
+          database.exec('DROP TABLE IF EXISTS orders_new')
+        }
+
+        // ─── 2. order_price_breakdown 重建（幂等守卫：sqlite_master 中已含新口径则跳过） ───
+        const bdSql = database.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='order_price_breakdown'").get()
+        if (bdSql && !bdSql.sql.includes('addon_fixed')) {
+          database.exec(`
+            CREATE TABLE order_price_breakdown_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              order_id INTEGER NOT NULL,
+              item_type TEXT NOT NULL CHECK(item_type IN ('base','addon_fixed','addon_percent','usage','rush','discount')),
+              item_name TEXT NOT NULL,
+              amount_cents INTEGER NOT NULL,
+              multiplier REAL DEFAULT 1.0,
+              quantity INTEGER DEFAULT 1,
+              sort_order INTEGER DEFAULT 0,
+              FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+            )
+          `)
+          // 旧口径映射：tier→base（档位基础价），addon→addon_fixed（旧增项均为加法）
+          database.exec(`
+            INSERT INTO order_price_breakdown_new (id, order_id, item_type, item_name, amount_cents, multiplier, quantity, sort_order)
+            SELECT id, order_id,
+              CASE item_type WHEN 'tier' THEN 'base' WHEN 'addon' THEN 'addon_fixed' ELSE item_type END,
+              item_name, amount_cents, multiplier, quantity, sort_order
+            FROM order_price_breakdown
+          `)
+          database.exec('DROP TABLE order_price_breakdown')
+          database.exec('ALTER TABLE order_price_breakdown_new RENAME TO order_price_breakdown')
+        } else {
+          database.exec('DROP TABLE IF EXISTS order_price_breakdown_new')
+        }
+
+        // ─── 3. addon_templates 重建（幂等守卫：已含 category 则跳过） ───
+        const atCols = database.prepare('PRAGMA table_info(addon_templates)').all().map(c => c.name)
+        if (atCols.includes('kind') && !atCols.includes('category')) {
+          database.exec(`
+            CREATE TABLE addon_templates_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              artist_id INTEGER,
+              name TEXT NOT NULL,
+              control_type TEXT NOT NULL DEFAULT 'switch' CHECK(control_type IN ('switch','quantity')),
+              price_mode TEXT NOT NULL DEFAULT 'fixed' CHECK(price_mode IN ('fixed','percent')),
+              default_price REAL NOT NULL DEFAULT 0,
+              unit_label TEXT,
+              sort_order INTEGER DEFAULT 0,
+              category TEXT NOT NULL DEFAULT 'add' CHECK(category IN ('add','usage','rush')),
+              max_quantity INTEGER,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+            )
+          `)
+          // 换算：kind=multiply → price_mode=percent；category 按名称约定一次性落库（加急/急件→rush，其余 multiply→usage）
+          // radio 控件退役 → switch（生产 0 条 radio 数据，守卫兑底）；per_unit/per_option → fixed
+          database.exec(`
+            INSERT INTO addon_templates_new (id, artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity, created_at)
+            SELECT id, artist_id, name,
+              CASE WHEN control_type = 'radio' THEN 'switch' ELSE control_type END,
+              CASE WHEN kind = 'multiply' THEN 'percent' ELSE 'fixed' END,
+              default_price, unit_label, sort_order,
+              CASE WHEN kind = 'multiply' THEN
+                CASE WHEN name LIKE '%加急%' OR name LIKE '%急件%' THEN 'rush' ELSE 'usage' END
+              ELSE 'add' END,
+              max_quantity, created_at
+            FROM addon_templates
+          `)
+          database.exec('DROP TABLE addon_templates')
+          database.exec('ALTER TABLE addon_templates_new RENAME TO addon_templates')
+        } else {
+          database.exec('DROP TABLE IF EXISTS addon_templates_new')
+        }
+
+        // ─── 4. style_addons 重建（幂等守卫：已含 tpl_price_mode 则跳过） ───
+        const saCols = database.prepare('PRAGMA table_info(style_addons)').all().map(c => c.name)
+        if (saCols.includes('tpl_kind') && !saCols.includes('tpl_price_mode')) {
+          database.exec(`
+            CREATE TABLE style_addons_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              art_style_id INTEGER NOT NULL,
+              addon_template_id INTEGER,
+              is_enabled INTEGER DEFAULT 1,
+              price_override REAL,
+              tpl_name TEXT,
+              tpl_control_type TEXT,
+              tpl_price_mode TEXT,
+              tpl_default_price REAL,
+              tpl_unit_label TEXT,
+              tpl_category TEXT,
+              tpl_max_quantity INTEGER,
+              FOREIGN KEY (art_style_id) REFERENCES art_styles(id) ON DELETE CASCADE,
+              FOREIGN KEY (addon_template_id) REFERENCES addon_templates(id) ON DELETE SET NULL,
+              UNIQUE(art_style_id, addon_template_id)
+            )
+          `)
+          database.exec(`
+            INSERT INTO style_addons_new (id, art_style_id, addon_template_id, is_enabled, price_override, tpl_name, tpl_control_type, tpl_price_mode, tpl_default_price, tpl_unit_label, tpl_category, tpl_max_quantity)
+            SELECT id, art_style_id, addon_template_id, is_enabled, price_override, tpl_name,
+              CASE WHEN tpl_control_type = 'radio' THEN 'switch' ELSE tpl_control_type END,
+              CASE WHEN tpl_kind = 'multiply' THEN 'percent' ELSE 'fixed' END,
+              tpl_default_price, tpl_unit_label,
+              CASE WHEN tpl_kind = 'multiply' THEN
+                CASE WHEN tpl_name LIKE '%加急%' OR tpl_name LIKE '%急件%' THEN 'rush' ELSE 'usage' END
+              ELSE 'add' END,
+              tpl_max_quantity
+            FROM style_addons
+          `)
+          database.exec('DROP TABLE style_addons')
+          database.exec('ALTER TABLE style_addons_new RENAME TO style_addons')
+        } else {
+          database.exec('DROP TABLE IF EXISTS style_addons_new')
+        }
+
+        // ─── 5. 旧模型表清退（用户拍板：均为测试垃圾数据；0 订单引用旧倍率） ───
+        database.exec('DROP TABLE IF EXISTS price_tiers')
+        database.exec('DROP TABLE IF EXISTS price_multipliers')
+
+        // 官方 12 步流程：FK 关闭期间完成重建后，恢复前验证无悬空外键引用
+        const fkViolations = database.pragma('foreign_key_check')
+        if (fkViolations.length > 0) {
+          throw new Error('迁移 v50: foreign_key_check 发现 ' + fkViolations.length + ' 处悬空引用，中止: ' + JSON.stringify(fkViolations.slice(0, 3)))
+        }
+        console.log('📦 迁移 v50: SPEC-PRICE-2 价格模型统一完成（旧档位/旧倍率表已 DROP）')
+      } finally {
+        // 失败也必须恢复 FK，否则连接留在 OFF 状态（后续 CASCADE 全部失效）
+        database.pragma('foreign_keys = ON')
       }
     }
   }
@@ -1901,6 +2103,13 @@ export const MIGRATIONS = [
  * 导出供测试直接调用。
  */
 export function migrateF5OldModelArtists(database) {
+  // SPEC-PRICE-2 v50 守卫：新库基线经 v50 后 price_tiers 已 DROP，无旧数据可搬，直接跳过
+  const tierTable = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='price_tiers'").get()
+  if (!tierTable) {
+    console.log('📦 迁移 F5: price_tiers 表不存在（v50 后新库），跳过')
+    return
+  }
+
   const unmigratedArtists = database.prepare(`
     SELECT id FROM artists
     WHERE deleted_at IS NULL

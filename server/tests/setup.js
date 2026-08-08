@@ -39,10 +39,8 @@ export function cleanDb() {
     DELETE FROM order_price_entries;
     DELETE FROM order_payment_installments;
     DELETE FROM orders;
-    DELETE FROM price_multipliers;
     DELETE FROM commission_rules;
     DELETE FROM artworks;
-    DELETE FROM price_tiers;
     DELETE FROM artist_workflow_stages;
     DELETE FROM greeting_templates;
     DELETE FROM guestbook_messages;

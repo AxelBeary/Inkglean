@@ -113,12 +113,10 @@ export const E = {
   // 管理员
   ADMIN_VERIFY_FAILED: 'ADMIN_VERIFY_FAILED',
 
-  // 倍率
-  MULTIPLIER_NOT_FOUND: 'MULTIPLIER_NOT_FOUND',
-  MULTIPLIER_INVALID: 'MULTIPLIER_INVALID',
+  // 增项选择（SPEC-PRICE-2：用途/加急各只生效一个）
+  ADDON_SELECTION_MUTEX: 'ADDON_SELECTION_MUTEX',
 
   // 计算
-  PRICING_TIER_REQUIRED: 'PRICING_TIER_REQUIRED',
   PRICING_CALC_FAILED: 'PRICING_CALC_FAILED',
 
   // 价格（v0.11）
@@ -322,12 +320,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 管理员
   ADMIN_VERIFY_FAILED: '管理员验证失败',
 
-  // 倍率
-  MULTIPLIER_NOT_FOUND: '倍率项不存在',
-  MULTIPLIER_INVALID: '倍率值无效（须大于等于1.0）',
+  // 增项选择（SPEC-PRICE-2）
+  ADDON_SELECTION_MUTEX: '用途/加急增项各只能选择一个生效',
 
   // 计算
-  PRICING_TIER_REQUIRED: '请先选择基础档位',
   PRICING_CALC_FAILED: '价格计算失败',
 
   // 价格（v0.11）

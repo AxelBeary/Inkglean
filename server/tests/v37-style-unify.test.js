@@ -2,117 +2,20 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
-import { migrateF5OldModelArtists } from '../src/db/init.js'
 import * as styleService from '../src/features/pricing/style.service.js'
 import * as artistService from '../src/features/artist/artist.service.js'
 
 // ============================================
-// v0.35 波1 测试 — 迁移 v37 + F5 旧模型迁移 + 尺寸新字段 + 多画风开关 + 作品档位标注
+// v0.35 波1 测试 — 迁移 v37 结构 + 尺寸新字段 + 多画风开关 + 作品档位标注
 // REQ-024 (F1/F2/F5/F6 数据层与 API)
+// （F5 旧模型迁移用例已随 SPEC-PRICE-2 v50 退役：price_tiers 表清退，旧档位模型不再存在）
 // ============================================
 
 // ─── 辅助函数 ───
 
-function seedOldTier(artistId, name, price, sortOrder = 0, visibility = 'visible') {
-  const r = db.prepare(
-    'INSERT INTO price_tiers (artist_id, name, price, sort_order, visibility) VALUES (?, ?, ?, ?, ?)'
-  ).run(artistId, name, price, sortOrder, visibility)
-  return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(r.lastInsertRowid)
-}
-
 function setMultiStyleEnabled(artistId, enabled) {
   db.prepare('UPDATE artists SET multi_style_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, artistId)
 }
-
-// ─── F5 旧模型迁移 ───
-
-describe('F5 旧模型迁移 (migrateF5OldModelArtists)', () => {
-  beforeEach(() => cleanDb())
-
-  it('TC-F5-01: 旧模型画师 → 建「默认」画风 + visible 档位转尺寸（只搬 name/price/sort_order）', () => {
-    const artist = seedArtist({ qq_number: '78001', subdomain: 'f5-carol' })
-    seedOldTier(artist.id, '头像插画', 60, 1)
-    seedOldTier(artist.id, '半身场景', 150, 2)
-    seedOldTier(artist.id, '全身插画', 260, 3)
-
-    migrateF5OldModelArtists(db)
-
-    const styles = styleService.getArtStyles(artist.id)
-    expect(styles).toHaveLength(1)
-    expect(styles[0].name).toBe('默认')
-    expect(styles[0].is_active).toBe(1)
-    expect(styles[0].sort_order).toBe(0)
-    expect(styles[0].sizes).toHaveLength(3)
-    expect(styles[0].sizes[0].name).toBe('头像插画')
-    expect(styles[0].sizes[0].base_price).toBe(60)
-    expect(styles[0].sizes[2].name).toBe('全身插画')
-    // 图/描述/天数不搬
-    expect(styles[0].sizes[0].image).toBeNull()
-    expect(styles[0].sizes[0].description).toBeNull()
-    expect(styles[0].sizes[0].work_days).toBeNull()
-    // 旧 price_tiers 数据保留（orders.tier_id 外键仍指向它）
-    const oldTiers = db.prepare('SELECT COUNT(*) AS c FROM price_tiers WHERE artist_id = ?').get(artist.id).c
-    expect(oldTiers).toBe(3)
-  })
-
-  it('TC-F5-02: showcase/hidden 档位直接丢弃，不迁移', () => {
-    const artist = seedArtist({ qq_number: '78002', subdomain: 'f5-drop' })
-    seedOldTier(artist.id, '普通档', 100, 1, 'visible')
-    seedOldTier(artist.id, '展示档', 200, 2, 'showcase')
-    seedOldTier(artist.id, '隐藏档', 300, 3, 'hidden')
-
-    migrateF5OldModelArtists(db)
-
-    const styles = styleService.getArtStyles(artist.id)
-    expect(styles[0].sizes).toHaveLength(1)
-    expect(styles[0].sizes[0].name).toBe('普通档')
-  })
-
-  it('TC-F5-03: 幂等复跑 — 不产生重复画风/尺寸', () => {
-    const artist = seedArtist({ qq_number: '78003', subdomain: 'f5-idem' })
-    seedOldTier(artist.id, '头像', 60, 1)
-    seedOldTier(artist.id, '全身', 260, 2)
-
-    migrateF5OldModelArtists(db)
-    migrateF5OldModelArtists(db) // 复跑
-    migrateF5OldModelArtists(db) // 再复跑
-
-    const styles = styleService.getArtStyles(artist.id)
-    expect(styles).toHaveLength(1)
-    expect(styles[0].sizes).toHaveLength(2)
-  })
-
-  it('TC-F5-04: 已有画风的画师跳过（alice 场景）', () => {
-    const artist = seedArtist({ qq_number: '78004', subdomain: 'f5-alice' })
-    // alice 已被 v36 迁移过：有默认画风 + 厚涂画风
-    styleService.createArtStyle(artist.id, { name: '默认' })
-    styleService.createArtStyle(artist.id, { name: '厚涂插画' })
-    seedOldTier(artist.id, '残留旧档', 999, 1)
-
-    migrateF5OldModelArtists(db)
-
-    const styles = styleService.getArtStyles(artist.id)
-    expect(styles).toHaveLength(2) // 不新建
-    expect(styles.every(s => s.name !== '默认' || s.id)).toBe(true)
-    // 残留旧档不会被搬
-    expect(styles[0].sizes).toHaveLength(0)
-  })
-
-  it('TC-F5-05: 多画师混合 — 只迁 art_styles 为零的画师', () => {
-    const alice = seedArtist({ qq_number: '78005', subdomain: 'f5-mix-alice' })
-    styleService.createArtStyle(alice.id, { name: '默认' })
-    const carol = seedArtist({ qq_number: '78006', subdomain: 'f5-mix-carol' })
-    seedOldTier(carol.id, '头像', 50, 1)
-
-    migrateF5OldModelArtists(db)
-
-    expect(styleService.getArtStyles(alice.id)).toHaveLength(1)
-    expect(styleService.getArtStyles(alice.id)[0].name).toBe('默认')
-    const carolStyles = styleService.getArtStyles(carol.id)
-    expect(carolStyles).toHaveLength(1)
-    expect(carolStyles[0].sizes).toHaveLength(1)
-  })
-})
 
 // ─── 迁移 v37 结构 ───
 

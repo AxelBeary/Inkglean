@@ -305,14 +305,16 @@ describe('SPEC-004 名额与缓冲系统', () => {
     seedArtistStages(artist.id)
     setBatchLimit(artist.id, 0, 10)
 
-    // 创建有价格的档位
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price, sort_order) VALUES (?, '测试档', 100, 1)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id = ?').get(artist.id)
+    // 创建有价格的尺寸（SPEC-PRICE-2）
+    db.prepare("INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)").run(artist.id)
+    const style = db.prepare('SELECT id FROM art_styles WHERE artist_id = ?').get(artist.id)
+    db.prepare("INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, '测试档', 100, 1)").run(style.id)
+    const size = db.prepare('SELECT id FROM style_sizes WHERE art_style_id = ?').get(style.id)
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/orders',
-      payload: { subdomain: 'batch-test', clientQq: '99040', agreeRules: true, tierId: tier.id }
+      payload: { subdomain: 'batch-test', clientQq: '99040', agreeRules: true, styleSizeId: size.id }
     })
     expect(res.statusCode).toBe(200)
     const orderNo = res.json().orderNo
@@ -331,13 +333,15 @@ describe('SPEC-004 名额与缓冲系统', () => {
     seedArtistStages(artist.id)
     setBatchLimit(artist.id, 0, 10)
 
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price, sort_order) VALUES (?, '测试档', 100, 1)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id = ?').get(artist.id)
+    db.prepare("INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)").run(artist.id)
+    const style = db.prepare('SELECT id FROM art_styles WHERE artist_id = ?').get(artist.id)
+    db.prepare("INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, '测试档', 100, 1)").run(style.id)
+    const size = db.prepare('SELECT id FROM style_sizes WHERE art_style_id = ?').get(style.id)
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/orders',
-      payload: { subdomain: 'batch-test', clientQq: '99041', agreeRules: true, tierId: tier.id }
+      payload: { subdomain: 'batch-test', clientQq: '99041', agreeRules: true, styleSizeId: size.id }
     })
     const orderNo = res.json().orderNo
     const order = db.prepare('SELECT * FROM orders WHERE order_no = ?').get(orderNo)

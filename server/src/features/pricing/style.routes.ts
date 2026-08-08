@@ -48,13 +48,12 @@ export default async function styleRoutes(fastify: FastifyInstance) {
         required: ['name'],
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
-          control_type: { type: 'string', enum: ['switch', 'quantity', 'radio'], default: 'switch' },
-          pricing_mode: { type: 'string', enum: ['fixed', 'per_unit', 'per_option'], default: 'fixed' },
+          control_type: { type: 'string', enum: ['switch', 'quantity'], default: 'switch' },
+          price_mode: { type: 'string', enum: ['fixed', 'percent'], default: 'fixed' },
           default_price: { type: 'number', minimum: 0, maximum: 999999, default: 0 },
-          options: { type: ['string', 'null'], maxLength: 2000 },
           unit_label: { type: ['string', 'null'], maxLength: 20 },
-          // v49 (REQ-036): kind 维度 + 数量上限
-          kind: { type: 'string', enum: ['add', 'multiply'], default: 'add' },
+          // SPEC-PRICE-2：category 维度 + 数量上限
+          category: { type: 'string', enum: ['add', 'usage', 'rush'], default: 'add' },
           max_quantity: { type: ['integer', 'null'], minimum: 1, maximum: 999 }
         },
         additionalProperties: false
@@ -72,13 +71,12 @@ export default async function styleRoutes(fastify: FastifyInstance) {
         type: 'object',
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
-          control_type: { type: 'string', enum: ['switch', 'quantity', 'radio'] },
-          pricing_mode: { type: 'string', enum: ['fixed', 'per_unit', 'per_option'] },
+          control_type: { type: 'string', enum: ['switch', 'quantity'] },
+          price_mode: { type: 'string', enum: ['fixed', 'percent'] },
           default_price: { type: 'number', minimum: 0, maximum: 999999 },
-          options: { type: ['string', 'null'], maxLength: 2000 },
           unit_label: { type: ['string', 'null'], maxLength: 20 },
-          // v49 (REQ-036): kind 维度 + 数量上限
-          kind: { type: 'string', enum: ['add', 'multiply'] },
+          // SPEC-PRICE-2：category 维度 + 数量上限
+          category: { type: 'string', enum: ['add', 'usage', 'rush'] },
           max_quantity: { type: ['integer', 'null'], minimum: 1, maximum: 999 }
         },
         additionalProperties: false
@@ -235,8 +233,7 @@ export default async function styleRoutes(fastify: FastifyInstance) {
               properties: {
                 addon_template_id: { type: 'integer' },
                 is_enabled: { type: 'boolean' },
-                price_override: { type: ['number', 'null'], minimum: 0, maximum: 999999 },
-                options_override: { type: ['string', 'null'], maxLength: 2000 }
+                price_override: { type: ['number', 'null'], minimum: 0, maximum: 999999 }
               },
               additionalProperties: false
             },
@@ -247,7 +244,7 @@ export default async function styleRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest) => {
-    return styleService.setStyleAddons(request.artist.id, parseInt((request.params as { id: string }).id, 10), (request.body as { items: Array<{ addon_template_id: number; is_enabled?: boolean; price_override?: number | null; options_override?: string | null }> }).items)
+    return styleService.setStyleAddons(request.artist.id, parseInt((request.params as { id: string }).id, 10), (request.body as { items: Array<{ addon_template_id: number; is_enabled?: boolean; price_override?: number | null }> }).items)
   })
 
   // ─── 尺寸覆盖 ───
@@ -318,7 +315,7 @@ export default async function styleRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/public/calculate-style-price
-   * 多画风价格计算（基于 style_size_id + 增项 + 倍率 + 折扣码）
+   * SPEC-PRICE-2 唯一算价入口：style_size_id + 增项选择（含用途/加急，各最多选一个）+ 折扣码
    * 限流：同IP 30次/5分钟
    */
   fastify.post('/api/public/calculate-style-price', {
@@ -336,15 +333,12 @@ export default async function styleRoutes(fastify: FastifyInstance) {
               required: ['styleAddonId'],
               properties: {
                 styleAddonId: { type: 'integer' },
-                quantity: { type: 'integer', minimum: 1, maximum: 99 },
-                optionLabel: { type: 'string', maxLength: 100 }
+                quantity: { type: 'integer', minimum: 1, maximum: 999 }
               },
               additionalProperties: false
             },
             maxItems: 20
           },
-          usageMultiplierId: { type: ['integer', 'null'] },
-          rushMultiplierId: { type: ['integer', 'null'] },
           discountCode: { type: ['string', 'null'], maxLength: 20 }
         },
         additionalProperties: false
@@ -353,7 +347,7 @@ export default async function styleRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     guardRateLimit('calc-style:' + request.ip, 30, 5 * 60_000)
 
-    const { subdomain, styleSizeId, addons, usageMultiplierId, rushMultiplierId, discountCode } = request.body as { subdomain: string; styleSizeId: number; addons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }>; usageMultiplierId?: number | null; rushMultiplierId?: number | null; discountCode?: string | null }
+    const { subdomain, styleSizeId, addons, discountCode } = request.body as { subdomain: string; styleSizeId: number; addons?: Array<{ styleAddonId: number; quantity?: number }>; discountCode?: string | null }
 
     // BUG-3 遗留修复：hidden 画师/管理员账号不允许算价（对齐同文件 GET styles/gallery 的 hidden 过滤）
     const artist = requireVisibleArtist(subdomain)
@@ -361,8 +355,6 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     return stylePricingService.calculateStylePrice(artist.id, {
       styleSizeId,
       addons: addons || [],
-      usageMultiplierId,
-      rushMultiplierId,
       discountCode
     })
   })

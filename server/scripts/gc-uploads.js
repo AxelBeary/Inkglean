@@ -40,7 +40,9 @@ function collect(rows, field) {
 }
 
 collect(db.prepare('SELECT image_path FROM artworks').all(), 'image_path')
-collect(db.prepare('SELECT example_image FROM price_tiers').all(), 'example_image')
+// SPEC-PRICE-2（v50）：price_tiers 已 DROP；补收画风封面/尺寸图（与 app.ts GC 清单对齐）
+collect(db.prepare('SELECT cover_image FROM art_styles').all(), 'cover_image')
+collect(db.prepare('SELECT image FROM style_sizes').all(), 'image')
 collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
 collect(db.prepare('SELECT file_path FROM deliverables').all(), 'file_path')
 collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')

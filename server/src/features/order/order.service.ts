@@ -1,6 +1,5 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { calculatePrice } from '../pricing/pricing.service.js'
 import { calculateStylePrice } from '../pricing/style-pricing.service.js'
 import type { StylePriceResult } from '../pricing/style-pricing.service.js'
 import { validateDiscountCode, computeDiscountCents, incrementUsage } from '../pricing/discount.service.js'
@@ -10,7 +9,7 @@ import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import { toSqliteDate } from '../../utils/date.js'
-import type { Artist, Order, WorkflowStage, PriceResult, OrderDetail, ArtistOrderRow } from '../../types/entities.js'
+import type { Artist, Order, WorkflowStage, OrderDetail, ArtistOrderRow } from '../../types/entities.js'
 
 // ============================================
 // 订单服务 - 核心业务逻辑
@@ -18,62 +17,36 @@ import type { Artist, Order, WorkflowStage, PriceResult, OrderDetail, ArtistOrde
 
 // ─── 报价快照字符串生成（v0.11 R2） ───
 
-/** 金额格式化：整数不带小数，非整数保留两位 */
-function formatYuan(amount: number): string {
-  return Number.isInteger(amount) ? `¥${amount}` : `¥${amount.toFixed(2)}`
+/** 金额格式化：整数不带小数，非整数保留两位（入参为分，报价快照用） */
+function formatSnapshotCents(cents: number): string {
+  const yuan = cents / 100
+  return Number.isInteger(yuan) ? `¥${yuan}` : `¥${yuan.toFixed(2)}`
 }
 
 /**
- * 从价格计算结果生成报价快照字符串
- * 格式："档位名 ¥X + 增项A×n ¥Y，倍率×z → 总价 ¥T"
- * 无计算结果时返回 null（手动录单无价格场景）
+ * SPEC-PRICE-2 报价快照（与引擎公式逐项对应）
+ * 格式："[日系 / 全身] 基础¥600 + 加人×2 ¥160 + 背景+10% ¥60 = ¥820 × 商用+50% × 加急+100% = ¥2460 → 总价 ¥2214"
  */
-function buildQuoteSnapshot(priceCalc: PriceResult | null): string | null {
-  if (!priceCalc || !priceCalc.breakdown || priceCalc.breakdown.length === 0) return null
-
-  const parts: string[] = []
-  const multipliers: string[] = []
-
-  for (const item of priceCalc.breakdown) {
-    if (item.type === 'tier' || item.type === 'addon') {
-      parts.push(`${item.name} ${formatYuan(item.amount)}`)
-    } else if (item.type === 'usage' || item.type === 'rush') {
-      multipliers.push(item.name) // 已含 "×倍率" 格式
-    }
+function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotalCents: number): string {
+  const parts: string[] = [`基础${formatSnapshotCents(sc.baseCents)}`]
+  for (const item of sc.fixedAddonItems) {
+    parts.push(item.quantity > 1
+      ? `${item.name}×${item.quantity} ${formatSnapshotCents(item.amountCents)}`
+      : `${item.name} ${formatSnapshotCents(item.amountCents)}`)
   }
-
-  let snapshot = parts.join(' + ')
-  if (multipliers.length > 0) {
-    snapshot += `，${multipliers.join('，')}`
+  for (const item of sc.percentAddonItems) {
+    parts.push(item.quantity > 1
+      ? `${item.name}+${item.percent}%×${item.quantity} ${formatSnapshotCents(item.amountCents)}`
+      : `${item.name}+${item.percent}% ${formatSnapshotCents(item.amountCents)}`)
   }
-  snapshot += ` → 总价 ${formatYuan(priceCalc.totalPrice)}`
-
-  return snapshot
-}
-
-/**
- * 画风模式报价快照
- * 格式："[日系 / 全身] 基础¥600 + 加人×2 ¥400 + 加背景 ¥150 = ¥1150 × 商用2.0 = ¥2300"
- */
-function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotal: number): string {
-  const parts: string[] = [`基础${formatYuan(sc.basePrice)}`]
-  for (const item of sc.addonItems) {
-    if (item.quantity > 1) {
-      parts.push(`${item.name}×${item.quantity} ${formatYuan(item.amount)}`)
-    } else {
-      parts.push(`${item.name} ${formatYuan(item.amount)}`)
-    }
-  }
-  let snapshot = `[${sc.styleName} / ${sc.sizeName}] ${parts.join(' + ')} = ${formatYuan(sc.subtotal)}`
+  let snapshot = `[${sc.styleName} / ${sc.sizeName}] ${parts.join(' + ')} = ${formatSnapshotCents(sc.subtotalCents)}`
   const factors: string[] = []
-  // v49 (REQ-036): 乘法项百分比（如 商用+50% → ×1.5）
-  for (const item of sc.multiplyItems) factors.push(`${item.name}+${item.percent}%`)
-  if (sc.usageMultiplier) factors.push(`${sc.usageMultiplier.name}${sc.usageMultiplier.factor}`)
-  if (sc.rushMultiplier) factors.push(`${sc.rushMultiplier.name}${sc.rushMultiplier.factor}`)
+  if (sc.usage) factors.push(`${sc.usage.name}+${sc.usage.percent}%`)
+  if (sc.rush) factors.push(`${sc.rush.name}+${sc.rush.percent}%`)
   if (factors.length > 0) {
-    snapshot += ` × ${factors.join(' × ')} = ${formatYuan(sc.multiplierTotal)}`
+    snapshot += ` × ${factors.join(' × ')} = ${formatSnapshotCents(sc.afterMultipliersCents)}`
   }
-  snapshot += ` → 总价 ${formatYuan(finalTotal)}`
+  snapshot += ` → 总价 ${formatSnapshotCents(finalTotalCents)}`
   return snapshot
 }
 
@@ -114,10 +87,9 @@ export function generateOrderNo(artistId: number, artistCode: string): string {
   return `${artistCode}-${seqStr}`
 }
 
-/** createOrder 参数 */
+/** createOrder 参数（SPEC-PRICE-2：唯一计价路径 = 画风尺寸 + 增项选择，含用途/加急） */
 interface CreateOrderParams {
   artistId: number
-  tierId?: number | null
   clientQq: string
   clientName?: string | null
   description?: string | null
@@ -125,20 +97,17 @@ interface CreateOrderParams {
   source?: string
   clientNotify?: boolean
   references?: string[]
-  usageMultiplierId?: number | null
-  rushMultiplierId?: number | null
   discountCode?: string | null
   styleSizeId?: number | null
-  styleAddons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }>
+  styleAddons?: Array<{ styleAddonId: number; quantity?: number }>
 }
 
 /**
  * 创建订单（客户自助 或 画师手动录入）
  * 事务包裹，防止订单号竞态
- * 支持价格计算器：倍率 → breakdown + 分期（旧增项 addons 已冻结删除，v43）
- * v0.31 F3: 折扣码（先倍率后折扣，REQ-023 已定）
+ * SPEC-PRICE-2：价格全链路唯一引擎 calculateStylePrice（整数分）；折扣最后应用
  */
-export function createOrder({ artistId, tierId, clientQq, clientName, description, priority, source, clientNotify, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons }: CreateOrderParams): OrderDetail {
+export function createOrder({ artistId, clientQq, clientName, description, priority, source, clientNotify, references, discountCode, styleSizeId, styleAddons }: CreateOrderParams): OrderDetail {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -169,30 +138,17 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
     ).get(artistId) as { max_pos: number | null } | undefined
     const queuePosition = (maxPos?.max_pos ?? 0) + 1
 
-    // ─── 价格计算（画风模式 或 旧档位模式，互斥） ───
-    if (styleSizeId && tierId) {
-      throw new AppError(E.VALIDATION, 400, { reason: 'styleSizeId 与 tierId 互斥，只能传其一' })
-    }
+    // ─── 价格计算（SPEC-PRICE-2 唯一路径：画风尺寸 + 增项；无价格录入时 styleSizeId 为空） ───
     let totalPriceCents: number | null = null
-    let priceCalc: PriceResult | null = null
     let styleCalc: StylePriceResult | null = null
     if (styleSizeId) {
-      // 画风模式：调 calculateStylePrice（不含折扣，折扣走下面统一逻辑）
+      // 折扣在下方统一处理（引擎 discountCode 传 null，保证折扣链路只有一处）
       styleCalc = calculateStylePrice(artistId, {
         styleSizeId,
         addons: styleAddons || [],
-        usageMultiplierId: usageMultiplierId || null,
-        rushMultiplierId: rushMultiplierId || null,
         discountCode: null
       })
-      totalPriceCents = Math.round(styleCalc.multiplierTotal * 100)
-    } else if (tierId) {
-      priceCalc = calculatePrice(artistId, {
-        tierId,
-        usageMultiplierId: usageMultiplierId || null,
-        rushMultiplierId: rushMultiplierId || null
-      })
-      totalPriceCents = priceCalc.totalPriceCents
+      totalPriceCents = styleCalc.afterMultipliersCents
     }
 
     // ─── v0.31 F3: 折扣码（先倍率后折扣，REQ-023 已定） ───
@@ -205,24 +161,22 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       totalPriceCents = totalPriceCents - discountAmountCents
     }
 
-    // ─── 报价快照字符串（v0.11 R2 / v0.32 画风模式） ───
+    // ─── 报价快照字符串（SPEC-PRICE-2：与引擎公式逐项对应） ───
     const quoteSnapshot = styleCalc
-      ? buildStyleQuoteSnapshot(styleCalc, totalPriceCents != null ? totalPriceCents / 100 : 0)
-      : buildQuoteSnapshot(priceCalc)
+      ? buildStyleQuoteSnapshot(styleCalc, totalPriceCents ?? 0)
+      : null
 
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, usage_multiplier_id, rush_multiplier_id, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (order_no, artist_id, style_size_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      orderNo, artistId, tierId || null, clientQq, clientName || null,
+      orderNo, artistId, styleSizeId || null, clientQq, clientName || null,
       description || null, priority || 'medium', source || 'self',
       clientNotify ? 1 : 0, queuePosition,
-      styleCalc ? styleCalc.basePrice : (priceCalc ? priceCalc.basePrice : null),
+      styleCalc ? styleCalc.baseCents / 100 : null,
       totalPriceCents,
-      usageMultiplierId || null,
-      rushMultiplierId || null,
       quoteSnapshot,
-      totalPriceCents, // R3: 有价格计算时，最终价格初始 = 计算器总价（已含折扣）
+      totalPriceCents, // R3: 有价格计算时，最终价格初始 = 折后总价
       queueZone,
       discountCodeId,
       discountAmountCents
@@ -249,38 +203,29 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       }
     }
 
-    // ─── 价格明细快照 ───
+    // ─── 价格明细快照（SPEC-PRICE-2 新 item_type 口径，全整数分） ───
     if (styleCalc) {
-      // 画风模式：用 'tier'/'addon' 语义兼容（避免改 CHECK 约束）
       const insertBd = db.prepare(
         'INSERT INTO order_price_breakdown (order_id, item_type, item_name, amount_cents, multiplier, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
       let sortIdx = 0
-      insertBd.run(orderId, 'tier', `${styleCalc.styleName} / ${styleCalc.sizeName}`, Math.round(styleCalc.basePrice * 100), 1.0, 1, sortIdx++)
-      for (const item of styleCalc.addonItems) {
-        insertBd.run(orderId, 'addon', item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name, Math.round(item.amount * 100), 1.0, item.quantity, sortIdx++)
+      insertBd.run(orderId, 'base', `${styleCalc.styleName} / ${styleCalc.sizeName}`, styleCalc.baseCents, 1.0, 1, sortIdx++)
+      for (const item of styleCalc.fixedAddonItems) {
+        insertBd.run(orderId, 'addon_fixed', item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name, item.amountCents, 1.0, item.quantity, sortIdx++)
       }
-      // v49 (REQ-036): 乘法项写 breakdown（item_type='addon'，multiplier=因子，金额=加价增量）
-      // 增量 = 小计 × (factor-1)（与 usage/rush 的增量口径一致，不含自身因子）
-      for (const item of styleCalc.multiplyItems) {
-        const incAmount = styleCalc.subtotal * (item.factor - 1)
-        insertBd.run(orderId, 'addon', `${item.name} ×${item.factor}`, Math.round(incAmount * 100), item.factor, 1, sortIdx++)
+      // 百分比增项：金额 = 百分比 × 基础价（只基于基础价）；multiplier 列存因子供展示
+      for (const item of styleCalc.percentAddonItems) {
+        insertBd.run(orderId, 'addon_percent', item.quantity > 1 ? `${item.name} +${item.percent}%×${item.quantity}` : `${item.name} +${item.percent}%`, item.amountCents, 1 + item.percent / 100, item.quantity, sortIdx++)
       }
-      if (styleCalc.usageMultiplier) {
-        const umAmount = styleCalc.subtotal * (styleCalc.usageMultiplier.factor - 1) * (styleCalc.rushMultiplier?.factor ?? 1)
-        insertBd.run(orderId, 'usage', `${styleCalc.usageMultiplier.name} ×${styleCalc.usageMultiplier.factor}`, Math.round(umAmount * 100), styleCalc.usageMultiplier.factor, 1, sortIdx++)
+      if (styleCalc.usage) {
+        insertBd.run(orderId, 'usage', `${styleCalc.usage.name} +${styleCalc.usage.percent}%`, styleCalc.usage.incrementCents, 1 + styleCalc.usage.percent / 100, 1, sortIdx++)
       }
-      if (styleCalc.rushMultiplier) {
-        const rmAmount = styleCalc.subtotal * (styleCalc.usageMultiplier?.factor ?? 1) * (styleCalc.rushMultiplier.factor - 1)
-        insertBd.run(orderId, 'rush', `${styleCalc.rushMultiplier.name} ×${styleCalc.rushMultiplier.factor}`, Math.round(rmAmount * 100), styleCalc.rushMultiplier.factor, 1, sortIdx++)
+      if (styleCalc.rush) {
+        insertBd.run(orderId, 'rush', `${styleCalc.rush.name} +${styleCalc.rush.percent}%`, styleCalc.rush.incrementCents, 1 + styleCalc.rush.percent / 100, 1, sortIdx++)
       }
-    } else if (priceCalc && priceCalc.breakdown.length > 0) {
-      const insertBd = db.prepare(
-        'INSERT INTO order_price_breakdown (order_id, item_type, item_name, amount_cents, multiplier, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      )
-      priceCalc.breakdown.forEach((item, i) => {
-        insertBd.run(orderId, item.type, item.name, Math.round(item.amount * 100), item.multiplier, item.quantity, i)
-      })
+      if (discountAmountCents > 0) {
+        insertBd.run(orderId, 'discount', '折扣优惠', -discountAmountCents, 1.0, 1, sortIdx++)
+      }
     }
 
     // ─── 生成分期计划（SPEC-004: 缓冲订单不生成付款节点） ───
@@ -316,11 +261,14 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
  * R18: clientOnly=true 时 references 只返回 source='client'（客户查询页不泄露画师图）
  */
 export function getOrder(orderId: number, { clientOnly = false }: { clientOnly?: boolean } = {}): OrderDetail | null {
+  // SPEC-PRICE-2：tier_* 字段名保留（前端过渡），内容 = 画风/尺寸标签、尺寸基础价、尺寸工期
   const order = db.prepare(`
-    SELECT o.*, a.name as artist_name, a.subdomain as artist_subdomain, t.name as tier_name, t.price as tier_price, t.work_days as tier_work_days
+    SELECT o.*, a.name as artist_name, a.subdomain as artist_subdomain,
+           (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price, ss.work_days as tier_work_days
     FROM orders o
     JOIN artists a ON o.artist_id = a.id
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+    LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     WHERE o.id = ?
   `).get(orderId) as OrderDetail | undefined
 
@@ -508,24 +456,26 @@ export function getArtistOrders(artistId: number, status: string | undefined, { 
     where += ' AND o.status = ?'
     params.push(status)
   }
-  // REQ-020 F1: 关键字搜索（客户昵称、QQ号、订单号、档位名）
+  // REQ-020 F1: 关键字搜索（客户昵称、QQ号、订单号、画风/尺寸名）
   if (q && q.trim()) {
-    where += ' AND (o.client_name LIKE ? OR o.client_qq LIKE ? OR o.order_no LIKE ? OR t.name LIKE ?)'
+    where += ' AND (o.client_name LIKE ? OR o.client_qq LIKE ? OR o.order_no LIKE ? OR ast.name LIKE ? OR ss.name LIKE ?)'
     const like = `%${q.trim()}%`
-    params.push(like, like, like, like)
+    params.push(like, like, like, like, like)
   }
 
   const total = (db.prepare(`
     SELECT COUNT(*) as c FROM orders o
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+    LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     ${where}
   `).get(...params) as { c: number }).c
 
   const offset = (Math.max(1, page) - 1) * pageSize
   const items = db.prepare(`
-    SELECT o.*, t.name as tier_name, t.price as tier_price
+    SELECT o.*, (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+    LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     ${where}
     ORDER BY o.created_at DESC
     LIMIT ? OFFSET ?
@@ -573,9 +523,10 @@ export function getClientQueuePosition(orderNo: string, clientQq: string): { ord
 export function getClientOrdersByQq(artistId: number, clientQq: string): Array<{ order_no: string; status: string; created_at: string; updated_at: string; tier_name: string | null }> {
   return db.prepare(`
     SELECT o.order_no, o.status, o.created_at, o.updated_at,
-           t.name as tier_name
+           (ast.name || ' / ' || ss.name) as tier_name
     FROM orders o
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+    LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     WHERE o.artist_id = ? AND o.client_qq = ?
     ORDER BY o.id DESC
     LIMIT 20

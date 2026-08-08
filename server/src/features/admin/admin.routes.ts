@@ -576,62 +576,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     return publicArtistDTO(artistService.updateArtist(a.id, request.body as Record<string, unknown>))
   })
 
-  /** GET /api/admin/artists/:id/tiers — 档位列表 */
-  fastify.get('/api/admin/artists/:id/tiers', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest) => {
-    return artistService.getTiers(Number((request.params as { id: string }).id))
-  })
-
-  /** POST /api/admin/artists/:id/tiers — 创建档位（P1-3: schema） */
-  fastify.post('/api/admin/artists/:id/tiers', {
-    preHandler: [requireAdmin, requireExistingArtist],
-    schema: {
-      ...intId,
-      body: {
-        type: 'object', required: ['name', 'price'], additionalProperties: false,
-        properties: {
-          name: { type: 'string', minLength: 1, maxLength: 50 },
-          price: { type: 'number', minimum: 0 },
-          description: { type: 'string', maxLength: 500 },
-          work_days: { type: 'integer', minimum: 0 },
-          example_image: { type: 'string', maxLength: 300 }
-        }
-      }
-    }
-  }, async (request: FastifyRequest) => {
-    return artistService.createTier(Number((request.params as { id: string }).id), request.body as { name: string; price: number; description?: string | null; work_days?: number | null; example_image?: string | null })
-  })
-
-  /** PUT /api/admin/artists/:id/tiers/:tid — 更新档位（P1-3 + P1-4） */
-  fastify.put('/api/admin/artists/:id/tiers/:tid', {
-    preHandler: requireAdmin,
-    schema: {
-      ...intIdTid,
-      body: {
-        type: 'object', additionalProperties: false,
-        properties: {
-          name: { type: 'string', minLength: 1, maxLength: 50 },
-          price: { type: 'number', minimum: 0 },
-          description: { type: 'string', maxLength: 500 },
-          work_days: { type: 'integer', minimum: 0 },
-          example_image: { type: 'string', maxLength: 300 },
-          sort_order: { type: 'integer' }
-        }
-      }
-    }
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    // P1-4: 校验归属
-    const tiers = artistService.getTiers(Number((request.params as { id: string }).id))
-    if (!tiers.some(t => t.id === Number((request.params as { tid: string }).tid))) return reply.code(404).send({ error: '档位不属于该画师' })
-    return artistService.updateTier(Number((request.params as { tid: string }).tid), request.body as { name?: string; price?: number; description?: string | null; work_days?: number | null; example_image?: string | null; sort_order?: number })
-  })
-
-  /** DELETE /api/admin/artists/:id/tiers/:tid — 删除档位（P1-4） */
-  fastify.delete('/api/admin/artists/:id/tiers/:tid', { preHandler: requireAdmin, schema: intIdTid }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const tiers = artistService.getTiers(Number((request.params as { id: string }).id))
-    if (!tiers.some(t => t.id === Number((request.params as { tid: string }).tid))) return reply.code(404).send({ error: '档位不属于该画师' })
-    artistService.deleteTier(Number((request.params as { tid: string }).tid))
-    return { success: true }
-  })
+  // SPEC-PRICE-2（v50）：旧档位 CRUD 端点已随 price_tiers 表清退移除（画师价格统一走画风/尺寸/增项模型）
 
   /** GET /api/admin/artists/:id/artworks — 作品列表 */
   fastify.get('/api/admin/artists/:id/artworks', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest) => {

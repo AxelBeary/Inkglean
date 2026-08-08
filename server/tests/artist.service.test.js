@@ -69,29 +69,8 @@ describe('画师服务 (Artist Service)', () => {
     expect(updated.artist_code).toBe('NEWCODE')
   })
 
-  // TC-R-04: 价格档位 CRUD
-  it('TC-R-04: 档位创建、读取、更新、删除', async () => {
-    const artist = await artistService.createArtist({ qqNumber: '111', name: '测试', subdomain: 'test' })
-
-    // 创建
-    const tier = artistService.createTier(artist.id, { name: '头像', price: 50 })
-    expect(tier.name).toBe('头像')
-    expect(tier.price).toBe(50)
-    expect(tier.sort_order).toBe(1)
-
-    // 读取
-    const tiers = artistService.getTiers(artist.id)
-    expect(tiers).toHaveLength(1)
-
-    // 更新（camelCase 和 snake_case 都支持）
-    const updated = artistService.updateTier(tier.id, { price: 80, workDays: 5 })
-    expect(updated.price).toBe(80)
-    expect(updated.work_days).toBe(5)
-
-    // 删除
-    artistService.deleteTier(tier.id)
-    expect(artistService.getTiers(artist.id)).toHaveLength(0)
-  })
+  // TC-R-04: 价格档位 CRUD（SPEC-PRICE-2 v50：price_tiers 已清退，用例退役；
+  // 画风/尺寸/增项 CRUD 覆盖见 tests/style.test.js）
 
   // TC-R-05: 作品 CRUD
   it('TC-R-05: 作品创建、读取、删除', async () => {

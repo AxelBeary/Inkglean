@@ -46,16 +46,16 @@ describe('deleteArtist 软删除', () => {
     expect(row.artist_id).toBe(artist.id)
   })
 
-  // TC-D-04: 软删除不影响关联价格档位
-  it('TC-D-04: 关联档位不受软删除影响', () => {
+  // TC-D-04: 软删除不影响关联画风（SPEC-PRICE-2：替代旧档位用例）
+  it('TC-D-04: 关联画风不受软删除影响', () => {
     const artist = seedArtist()
-    artistService.createTier(artist.id, { name: '头像', price: 50 })
+    db.prepare("INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '日系', 0, 1)").run(artist.id)
 
     artistService.deleteArtist(artist.id)
 
-    const tiers = db.prepare('SELECT * FROM price_tiers WHERE artist_id = ?').all(artist.id)
-    expect(tiers).toHaveLength(1)
-    expect(tiers[0].name).toBe('头像')
+    const styles = db.prepare('SELECT * FROM art_styles WHERE artist_id = ?').all(artist.id)
+    expect(styles).toHaveLength(1)
+    expect(styles[0].name).toBe('日系')
   })
 
   // TC-D-05: 重复删除幂等（不报错）

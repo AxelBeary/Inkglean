@@ -19,16 +19,17 @@ export function getArtistQueue(artistId: number, options: { limit?: number; offs
   const { limit, offset } = options
   const params: Array<string | number> = [artistId]
   let sql = `
-    SELECT o.id, o.order_no, o.tier_id, o.client_qq, o.client_name, o.description,
+    SELECT o.id, o.order_no, o.style_size_id, o.client_qq, o.client_name, o.description,
            o.priority, o.status, o.source, o.client_notify, o.queue_position,
            o.completed_at, o.price_snapshot, o.total_price_cents,
-           o.usage_multiplier_id, o.rush_multiplier_id, o.final_price_cents,
+           o.final_price_cents,
            o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
            o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
            o.discount_amount_cents, o.created_at, o.updated_at,
-           t.name as tier_name, t.price as tier_price
+           (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+    LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL} AND o.queue_zone = 'formal'
     ORDER BY o.queue_position ASC
   `
@@ -88,9 +89,10 @@ export function getCompletedQueue(artistId: number, days: number = 7): ArtistOrd
   const cutoff = new Date(Date.now() - days * 86_400_000)
     .toISOString().replace('T', ' ').slice(0, 19)
   return db.prepare(`
-    SELECT o.*, t.name as tier_name, t.price as tier_price
+    SELECT o.*, (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
-    LEFT JOIN price_tiers t ON o.tier_id = t.id
+    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+    LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     WHERE o.artist_id = ? AND o.status = 'delivered'
       AND o.updated_at >= ?
     ORDER BY o.updated_at DESC

@@ -53,7 +53,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       // ── 显式收集：已知引用字段（文档化清单 + 快速路径；新字段靠下方动态全表扫描兜底）──
       const collect = (rows: unknown[], field: string) => { for (const r of rows) { const v = (r as Record<string, unknown>)[field]; if (v) refs.add(v as string) } }
       collect(db.prepare('SELECT image_path FROM artworks').all(), 'image_path')
-      collect(db.prepare('SELECT example_image FROM price_tiers').all(), 'example_image')
+      // SPEC-PRICE-2（v50）：price_tiers 已 DROP，example_image 收集随之移除
       collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
       collect(db.prepare('SELECT file_path FROM deliverables').all(), 'file_path')
       collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')

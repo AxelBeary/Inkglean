@@ -9,16 +9,8 @@ import * as styleService from '../src/features/pricing/style.service.js'
 // REQ-023 Phase 1
 // ============================================
 
-// ─── 辅助函数 ───
-
-function seedTier(artistId, name, price, sortOrder = 0) {
-  const r = db.prepare(
-    'INSERT INTO price_tiers (artist_id, name, price, sort_order) VALUES (?, ?, ?, ?)'
-  ).run(artistId, name, price, sortOrder)
-  return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(r.lastInsertRowid)
-}
-
 // ─── 迁移测试 ───
+// （SPEC-PRICE-2 v50：v36 老数据搬运已退役——新库直接新形，真实老库早已应用过迁移）
 
 describe('迁移 v36 老数据迁移', () => {
   beforeEach(() => {
@@ -37,11 +29,9 @@ describe('迁移 v36 老数据迁移', () => {
     expect(styleCount).toBe(0)
   })
 
-  it('TC-MIG-02: 有老数据的画师 → 迁移后默认画风 + 尺寸 + 增项模板', () => {
-    // 手动插入老数据（模拟迁移前状态）
+  it('TC-MIG-02: 手工构造画风/尺寸/增项数据 → getArtStyles 嵌套读取正常', () => {
+    // 直接构造新模型数据（旧 price_tiers 种子已退役）
     const artist = seedArtist({ qq_number: '77001', subdomain: 'mig-test' })
-    seedTier(artist.id, '头像', 100, 0)
-    seedTier(artist.id, '全身', 300, 1)
 
     // 手动执行迁移逻辑（因为 initDatabase 已跑过，v36 已标记 applied）
     // 直接调 service 层验证表结构可用
@@ -52,8 +42,8 @@ describe('迁移 v36 老数据迁移', () => {
     db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, ?, ?, ?)').run(style.id, '头像', 100, 0)
     db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, ?, ?, ?)').run(style.id, '全身', 300, 1)
 
-    db.prepare("INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, sort_order) VALUES (?, '加人', 'quantity', 'fixed', 50, 0)").run(artist.id)
-    db.prepare("INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, sort_order) VALUES (?, '加背景', 'switch', 'fixed', 80, 1)").run(artist.id)
+    db.prepare("INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, sort_order) VALUES (?, '加人', 'quantity', 'fixed', 50, 0)").run(artist.id)
+    db.prepare("INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, sort_order) VALUES (?, '加背景', 'switch', 'fixed', 80, 1)").run(artist.id)
 
     const templates = db.prepare('SELECT * FROM addon_templates WHERE artist_id = ?').all(artist.id)
     for (const tpl of templates) {
@@ -97,12 +87,12 @@ describe('增项库 CRUD (addon_templates)', () => {
     const tpl = styleService.createAddonTemplate(artist.id, {
       name: '加背景',
       control_type: 'switch',
-      pricing_mode: 'fixed',
+      price_mode: 'fixed',
       default_price: 150
     })
     expect(tpl.name).toBe('加背景')
     expect(tpl.control_type).toBe('switch')
-    expect(tpl.pricing_mode).toBe('fixed')
+    expect(tpl.price_mode).toBe('fixed')
     expect(tpl.default_price).toBe(150)
     expect(tpl.sort_order).toBe(0)
   })
@@ -111,34 +101,34 @@ describe('增项库 CRUD (addon_templates)', () => {
     const tpl = styleService.createAddonTemplate(artist.id, {
       name: '加人',
       control_type: 'quantity',
-      pricing_mode: 'per_unit',
+      price_mode: 'fixed',
       default_price: 100,
       unit_label: '人'
     })
     expect(tpl.control_type).toBe('quantity')
-    expect(tpl.pricing_mode).toBe('per_unit')
+    expect(tpl.price_mode).toBe('fixed')
     expect(tpl.unit_label).toBe('人')
   })
 
-  it('TC-AT-03: 创建增项模板 — radio 类型必须有 options', () => {
+  it('TC-AT-03: 创建增项模板 — radio 控件拒绝（SPEC-PRICE-2 仅开关/个数两类）', () => {
     expect(() => {
       styleService.createAddonTemplate(artist.id, {
         name: '加衣服',
         control_type: 'radio',
-        pricing_mode: 'per_option'
+        price_mode: 'fixed'
       })
-    }).toThrow('VALIDATION')
+    }).toThrow('ADDON_TEMPLATE_INVALID_CONTROL')
   })
 
-  it('TC-AT-04: 创建增项模板 — radio 类型带 options 成功', () => {
+  it('TC-AT-04: 创建增项模板 — 百分比计价（price_mode=percent）', () => {
     const tpl = styleService.createAddonTemplate(artist.id, {
-      name: '加衣服',
-      control_type: 'radio',
-      pricing_mode: 'per_option',
-      options: JSON.stringify([{ label: '简易', price: 80 }, { label: '复杂', price: 200 }])
+      name: '精细刻画',
+      control_type: 'switch',
+      price_mode: 'percent',
+      default_price: 20
     })
-    expect(tpl.control_type).toBe('radio')
-    expect(JSON.parse(tpl.options)).toHaveLength(2)
+    expect(tpl.price_mode).toBe('percent')
+    expect(tpl.default_price).toBe(20)
   })
 
   it('TC-AT-05: 创建增项模板 — 名称为空拒绝', () => {
@@ -454,7 +444,7 @@ describe('公开配置 (getPublicStyles)', () => {
     const s2 = styleService.createStyleSize(artist.id, style.id, { name: '全身', base_price: 600 })
 
     const tpl = styleService.createAddonTemplate(artist.id, {
-      name: '加人', control_type: 'quantity', pricing_mode: 'per_unit', default_price: 100, unit_label: '人'
+      name: '加人', control_type: 'quantity', price_mode: 'fixed', default_price: 100, unit_label: '人'
     })
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
     const addons = styleService.getStyleAddons(style.id)
@@ -584,7 +574,7 @@ describe('多画风路由层集成测试', () => {
     // 创建增项模板
     await app.inject({
       method: 'POST', url: '/api/artist/addon-templates', headers,
-      payload: { name: '加人', control_type: 'quantity', pricing_mode: 'per_unit', default_price: 100, unit_label: '人' }
+      payload: { name: '加人', control_type: 'quantity', price_mode: 'fixed', default_price: 100, unit_label: '人' }
     })
 
     // 创建画风（一键导入）

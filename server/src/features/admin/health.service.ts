@@ -96,11 +96,11 @@ function checkIntegrity(): HealthCheckResult {
     ).get() as { c: number }).c
     checks.push({ table: 'orders→artists', orphans: orphanOrders })
 
-    // orders → price_tiers（tier_id 可为 NULL，只查非 NULL 的）
-    const orphanTiers = (db.prepare(
-      'SELECT COUNT(*) as c FROM orders o LEFT JOIN price_tiers t ON o.tier_id = t.id WHERE o.tier_id IS NOT NULL AND t.id IS NULL'
+    // orders → style_sizes（style_size_id 可为 NULL，只查非 NULL 的；SPEC-PRICE-2 替代旧 tiers 检查）
+    const orphanSizes = (db.prepare(
+      'SELECT COUNT(*) as c FROM orders o LEFT JOIN style_sizes ss ON o.style_size_id = ss.id WHERE o.style_size_id IS NOT NULL AND ss.id IS NULL'
     ).get() as { c: number }).c
-    checks.push({ table: 'orders→price_tiers', orphans: orphanTiers })
+    checks.push({ table: 'orders→style_sizes', orphans: orphanSizes })
 
     // order_extra_items → orders
     const orphanExtras = (db.prepare(
@@ -108,7 +108,7 @@ function checkIntegrity(): HealthCheckResult {
     ).get() as { c: number }).c
     checks.push({ table: 'order_extra_items→orders', orphans: orphanExtras })
 
-    const totalOrphans = orphanOrders + orphanTiers + orphanExtras
+    const totalOrphans = orphanOrders + orphanSizes + orphanExtras
     return {
       id: 'integrity', name: '数据完整性',
       status: totalOrphans === 0 ? 'ok' : 'warn',

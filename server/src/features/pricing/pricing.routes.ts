@@ -1,5 +1,6 @@
-import * as pricingService from './pricing.service.js'
+import * as styleService from './style.service.js'
 import * as discountService from './discount.service.js'
+import * as workflowService from '../artist/workflow.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, requireVisibleArtist } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -7,7 +8,8 @@ import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 
 // ============================================
-// 价格计算器路由 - 增项/倍率 CRUD + 公开计算
+// 价格公开路由（SPEC-PRICE-2 后：公开报价 + 折扣码）
+// 旧倍率 CRUD / 旧档位算价已随 v50 迁移清退；唯一算价入口 = POST /api/public/calculate-style-price（style.routes）
 // ============================================
 
 /** 限流守卫 */
@@ -15,72 +17,13 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
   if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
 }
 
-/** 倍率归属校验 preHandler */
-async function requireOwnMultiplier(request: FastifyRequest): Promise<void> {
-  const id = parseInt((request.params as { id: string }).id, 10)
-  if (isNaN(id)) throw new AppError(E.VALIDATION, 400)
-  // getMultipliers 返回全部，手动查找
-  const m = pricingService.getMultipliers(request.artist.id).find(x => x.id === id)
-  if (!m) throw new AppError(E.MULTIPLIER_NOT_FOUND, 404)
-  request.multiplier = m
-}
-
 export default async function pricingRoutes(fastify: FastifyInstance) {
 
-  // ─── 画师后台：倍率管理 ───
-
-  fastify.get('/api/artist/multipliers', { preHandler: requireAuth }, async (request: FastifyRequest) => {
-    return pricingService.getMultipliers(request.artist.id)
-  })
-
-  fastify.post('/api/artist/multipliers', {
-    preHandler: requireAuth,
-    schema: {
-      body: {
-        type: 'object',
-        required: ['type', 'name', 'multiplier'],
-        properties: {
-          type: { type: 'string', enum: ['usage', 'rush'] },
-          name: { type: 'string', minLength: 1, maxLength: 50 },
-          multiplier: { type: 'number', minimum: 1.0, maximum: 100 },
-          description: { type: ['string', 'null'], maxLength: 200 }
-        },
-        additionalProperties: false
-      }
-    }
-  }, async (request: FastifyRequest) => {
-    return pricingService.createMultiplier(request.artist.id, request.body as Parameters<typeof pricingService.createMultiplier>[1])
-  })
-
-  fastify.put('/api/artist/multipliers/:id', {
-    preHandler: [requireAuth, requireOwnMultiplier],
-    schema: {
-      body: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', minLength: 1, maxLength: 50 },
-          multiplier: { type: 'number', minimum: 1.0, maximum: 100 },
-          description: { type: ['string', 'null'], maxLength: 200 },
-          enabled: { type: 'boolean' }
-        },
-        additionalProperties: false
-      }
-    }
-  }, async (request: FastifyRequest) => {
-    return pricingService.updateMultiplier(request.artist.id, parseInt((request.params as { id: string }).id, 10), request.body as Parameters<typeof pricingService.updateMultiplier>[2])
-  })
-
-  fastify.delete('/api/artist/multipliers/:id', {
-    preHandler: [requireAuth, requireOwnMultiplier]
-  }, async (request: FastifyRequest) => {
-    return pricingService.deleteMultiplier(request.artist.id, parseInt((request.params as { id: string }).id, 10))
-  })
-
-  // ─── 客户端：公开报价 + 计算 ───
+  // ─── 客户端：公开报价（新模型：画风/尺寸/增项 + 分期比例 + 折扣开关） ───
 
   /**
    * GET /api/public/pricing/:subdomain
-   * 获取画师完整报价（档位+增项+倍率+分期比例）
+   * 获取画师完整报价（SPEC-PRICE-2：styles 含尺寸三态与增项 category，installments 为收款节点比例）
    */
   fastify.get('/api/public/pricing/:subdomain', async (request: FastifyRequest) => {
     guardRateLimit(`pricing:${request.ip}`, 30, 5 * 60_000)
@@ -88,40 +31,12 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
     const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
-    return pricingService.getPublicPricing(artist.id)
-  })
-
-  /**
-   * POST /api/public/calculate-price
-   * 无状态价格计算（限流：同IP 30次/5分钟）
-   */
-  fastify.post('/api/public/calculate-price', {
-    schema: {
-      body: {
-        type: 'object',
-        required: ['subdomain', 'tierId'],
-        properties: {
-          subdomain: { type: 'string', minLength: 1, maxLength: 50 },
-          tierId: { type: 'integer' },
-          usageMultiplierId: { type: ['integer', 'null'] },
-          rushMultiplierId: { type: ['integer', 'null'] }
-        },
-        additionalProperties: false
-      }
+    return {
+      styles: styleService.getPublicStyles(artist.id),
+      installments: workflowService.getPaymentPlan(artist.id),
+      // v0.31 F3: 客户端据此决定是否显示折扣码输入框
+      discountEnabled: discountService.getDiscountEnabled(artist.id)
     }
-  }, async (request: FastifyRequest) => {
-    guardRateLimit(`calc:${request.ip}`, 30, 5 * 60_000)
-
-    const { subdomain, tierId, usageMultiplierId, rushMultiplierId } = request.body as { subdomain: string; tierId: number; usageMultiplierId?: number | null; rushMultiplierId?: number | null }
-
-    // BUG-3 修复：hidden 画师/管理员账号不允许算价（对照 GET pricing 范式）
-    const artist = requireVisibleArtist(subdomain)
-
-    return pricingService.calculatePrice(artist.id, {
-      tierId,
-      usageMultiplierId,
-      rushMultiplierId
-    })
   })
 
   // ─── v0.31 F3: 折扣码管理（画师端） ───

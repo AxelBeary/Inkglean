@@ -305,90 +305,9 @@ export function bumpTokenVersion(artistId: number): void {
 }
 
 // ============================================
-// 价格档位
+// 价格档位（SPEC-PRICE-2 v50：price_tiers 表已 DROP，档位 CRUD 全部清退；
+// 画师价格统一走画风/尺寸/增项模型，见 features/pricing/style.service.ts）
 // ============================================
-
-export function getTiers(artistId: number): Tier[] {
-  return db.prepare('SELECT * FROM price_tiers WHERE artist_id = ? ORDER BY sort_order ASC').all(artistId) as Tier[]
-}
-
-export function getTierById(tierId: number): Tier | undefined {
-  return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(tierId) as Tier | undefined
-}
-
-export function createTier(artistId: number, fields: Record<string, unknown>): Tier | undefined {
-  // H-4 修复：同时接受 camelCase 和 snake_case（对齐 updateTier 的 keyMap 策略）
-  const name = fields.name
-  const price = fields.price
-  const description = fields.description
-  const exampleImage = fields.exampleImage ?? fields.example_image
-  // M1 修复：示例图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
-  if (exampleImage && (String(exampleImage).includes('..') || !String(exampleImage).startsWith('images/'))) {
-    throw new AppError(E.ILLEGAL_PATH)
-  }
-  const workDays = fields.workDays ?? fields.work_days
-  const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM price_tiers WHERE artist_id = ?').get(artistId) as { m: number | null } | undefined
-  const sortOrder = (maxOrder?.m ?? 0) + 1
-
-  const result = db.prepare(`
-    INSERT INTO price_tiers (artist_id, name, price, description, example_image, work_days, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(artistId, name, price, description || null, exampleImage || null, workDays || null, sortOrder)
-
-  return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(Number(result.lastInsertRowid)) as Tier | undefined
-}
-
-export function updateTier(tierId: number, fields: Record<string, unknown>): Tier | undefined | null {
-  // 同时接受 camelCase 和 snake_case（前端统一用 camelCase）
-  const keyMap: Record<string, string> = { workDays: 'work_days', exampleImage: 'example_image' }
-  const allowed = ['name', 'price', 'description', 'example_image', 'work_days', 'sort_order', 'visibility']
-  const updates: string[] = []
-  const values: unknown[] = []
-
-  for (const [key, value] of Object.entries(fields)) {
-    const dbKey = keyMap[key] || key
-    if (allowed.includes(dbKey)) {
-      // M1 修复：示例图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
-      if (dbKey === 'example_image' && value && (String(value).includes('..') || !String(value).startsWith('images/'))) {
-        throw new AppError(E.ILLEGAL_PATH)
-      }
-      updates.push(`${dbKey} = ?`)
-      values.push(value)
-    }
-  }
-
-  if (updates.length === 0) return null
-  values.push(tierId)
-  db.prepare(`UPDATE price_tiers SET ${updates.join(', ')} WHERE id = ?`).run(...values)
-  return db.prepare('SELECT * FROM price_tiers WHERE id = ?').get(tierId) as Tier | undefined
-}
-
-export function deleteTier(tierId: number): void {
-  db.prepare('DELETE FROM price_tiers WHERE id = ?').run(tierId)
-}
-
-/**
- * v0.26 A: 档位拖拽排序（事务内逐个 UPDATE sort_order）
- * ids 按目标顺序排列，所有 id 必须属于该画师
- */
-export function reorderTiers(artistId: number, ids: number[]): Tier[] {
-  return db.transaction(() => {
-    const existing = getTiers(artistId)
-    const existingIds = new Set(existing.map(t => t.id))
-    // 校验：长度一致 + 全部归属
-    if (ids.length !== existing.length) throw new AppError(E.REORDER_LENGTH)
-    for (const id of ids) {
-      if (!existingIds.has(id)) throw new AppError(E.REORDER_INVALID)
-    }
-    if (new Set(ids).size !== ids.length) throw new AppError(E.REORDER_DUPLICATE)
-    // 逐个写入 sort_order
-    ids.forEach((id, i) => {
-      db.prepare('UPDATE price_tiers SET sort_order = ? WHERE id = ? AND artist_id = ?')
-        .run(i + 1, id, artistId)
-    })
-    return getTiers(artistId)
-  })()
-}
 
 // ============================================
 // 作品

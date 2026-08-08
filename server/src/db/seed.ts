@@ -25,21 +25,25 @@ const seed = async () => {
   const alice = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('alice') as { id: number }
   const bob = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('bob') as { id: number }
 
-  // T4 幂等修复：price_tiers 无唯一约束，先清空本 seed 画师已有档位，避免重复插入
-  db.prepare('DELETE FROM price_tiers WHERE artist_id IN (?, ?)').run(alice.id, bob.id)
+  // SPEC-PRICE-2（v50）：旧 price_tiers 种子已退役，演示价格改走画风/尺寸模型
+  // 幂等：先清空本 seed 画师已有画风（连同尺寸/增项级联）
+  db.prepare('DELETE FROM art_styles WHERE artist_id IN (?, ?)').run(alice.id, bob.id)
 
-  // 插入价格档位
-  const tierStmt = db.prepare(`
-    INSERT OR IGNORE INTO price_tiers (artist_id, name, price, description, work_days, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `)
+  const insertStyle = db.prepare(
+    "INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)"
+  )
+  const insertSize = db.prepare(
+    'INSERT INTO style_sizes (art_style_id, name, base_price, description, work_days, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
+  )
 
-  tierStmt.run(alice.id, '头像', 50, '正方形头像，含简单背景', 3, 1)
-  tierStmt.run(alice.id, '半身像', 120, '胸部以上，可加简单手势', 5, 2)
-  tierStmt.run(alice.id, '全身像', 200, '全身立绘，含简单背景', 7, 3)
+  const aliceStyle = Number(insertStyle.run(alice.id).lastInsertRowid)
+  insertSize.run(aliceStyle, '头像', 50, '正方形头像，含简单背景', 3, 1)
+  insertSize.run(aliceStyle, '半身像', 120, '胸部以上，可加简单手势', 5, 2)
+  insertSize.run(aliceStyle, '全身像', 200, '全身立绘，含简单背景', 7, 3)
 
-  tierStmt.run(bob.id, '全身插画', 350, '全身 + 场景背景', 10, 1)
-  tierStmt.run(bob.id, '双人插画', 500, '两个角色互动场景', 14, 2)
+  const bobStyle = Number(insertStyle.run(bob.id).lastInsertRowid)
+  insertSize.run(bobStyle, '全身插画', 350, '全身 + 场景背景', 10, 1)
+  insertSize.run(bobStyle, '双人插画', 500, '两个角色互动场景', 14, 2)
 
   // 插入约稿须知
   const rulesStmt = db.prepare(`

@@ -49,8 +49,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     if (artist.status === 'hidden') {
       return { id: artist.id, name: artist.name, subdomain: artist.subdomain, status: 'hidden' }
     }
-    // v0.24 #10: 过滤 hidden 档位（showcase 保留，前端渲染灰色"暂不接单"）
-    const tiers = artistService.getTiers(artist.id).filter((t: { visibility: string }) => t.visibility !== 'hidden')
+    // SPEC-PRICE-2（v50）：旧档位表已清退；tiers 字段保留空数组仅为前端过渡兼容，价格数据走 /api/public/styles
     const artworks = artistService.getArtworks(artist.id)
     const rules = artistService.getRules(artist.id)
 
@@ -83,7 +82,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       monthlyQuota: artist.monthly_quota ?? null,
       quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null,
       announcement: artistService.getAnnouncement(artist),
-      tiers,
+      tiers: [],
       artworks,
       rules: rules?.content || ''
     }
@@ -100,7 +99,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     // 安全加固批 F1: 完整行含 totp_secret，走 DTO 剔除敏感列（quick_actions 保留，前端 Preferences/QuickActions 消费）
     return {
       ...publicArtistDTO(artist),
-      tiers: artistService.getTiers(artist.id),
+      tiers: [], // SPEC-PRICE-2（v50）：旧档位已清退，空数组过渡兼容
       artworks: artistService.getArtworks(artist.id),
       rules: artistService.getRules(artist.id),
       slotDisplay: artistService.computeSlotDisplay(artist)

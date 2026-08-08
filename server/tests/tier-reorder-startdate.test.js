@@ -1,77 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
-import * as artistService from '../src/features/artist/artist.service.js'
 import * as orderService from '../src/features/order/order.service.js'
 
 // ============================================
-// v0.26 A: 档位拖拽排序 + v0.26 B: 开工日
+// v0.26 B: 开工日
+// （v0.26 A 档位拖拽排序已随 SPEC-PRICE-2 v50 退役：price_tiers 表清退）
 // ============================================
-
-describe('档位排序 (Tier Reorder, v0.26 A)', () => {
-  let artist
-
-  beforeEach(() => {
-    cleanDb()
-    artist = seedArtist()
-  })
-
-  function addTier(name, price) {
-    return artistService.createTier(artist.id, { name, price })
-  }
-
-  it('TC-TR-01: reorderTiers 正常排序', () => {
-    const t1 = addTier('头像', 50)
-    const t2 = addTier('半身', 100)
-    const t3 = addTier('全身', 200)
-
-    // 反转顺序
-    const result = artistService.reorderTiers(artist.id, [t3.id, t2.id, t1.id])
-    expect(result[0].id).toBe(t3.id)
-    expect(result[1].id).toBe(t2.id)
-    expect(result[2].id).toBe(t1.id)
-    // sort_order 验证
-    expect(result[0].sort_order).toBe(1)
-    expect(result[2].sort_order).toBe(3)
-  })
-
-  it('TC-TR-02: 排序后 getTiers 返回新顺序', () => {
-    const t1 = addTier('A', 10)
-    const t2 = addTier('B', 20)
-    artistService.reorderTiers(artist.id, [t2.id, t1.id])
-    const list = artistService.getTiers(artist.id)
-    expect(list[0].id).toBe(t2.id)
-    expect(list[1].id).toBe(t1.id)
-  })
-
-  it('TC-TR-03: 长度不匹配抛错', () => {
-    addTier('A', 10)
-    addTier('B', 20)
-    expect(() => artistService.reorderTiers(artist.id, [1])).toThrow('REORDER_LENGTH')
-  })
-
-  it('TC-TR-04: 包含他人档位抛错', () => {
-    const other = seedArtist({ qq_number: '77002', subdomain: 'bob', artist_code: 'BOB' })
-    const t1 = addTier('A', 10)
-    addTier('B', 20)
-    const tOther = artistService.createTier(other.id, { name: 'X', price: 99 })
-    // 长度匹配（2 个），但含他人 ID
-    expect(() => artistService.reorderTiers(artist.id, [t1.id, tOther.id])).toThrow('REORDER_INVALID')
-  })
-
-  it('TC-TR-05: 重复 ID 抛错', () => {
-    const t1 = addTier('A', 10)
-    addTier('B', 20)
-    expect(() => artistService.reorderTiers(artist.id, [t1.id, t1.id])).toThrow('REORDER_DUPLICATE')
-  })
-
-  it('TC-TR-06: 幂等——相同顺序不变', () => {
-    const t1 = addTier('A', 10)
-    const t2 = addTier('B', 20)
-    const result = artistService.reorderTiers(artist.id, [t1.id, t2.id])
-    expect(result[0].id).toBe(t1.id)
-    expect(result[1].id).toBe(t2.id)
-  })
-})
 
 describe('开工日 (Start Date, v0.26 B)', () => {
   let artist
@@ -121,12 +55,15 @@ describe('开工日 (Start Date, v0.26 B)', () => {
     expect(order.start_date).toBeNull()
   })
 
-  it('TC-SD-06: getOrder 返回 tier_work_days', () => {
-    const tier = artistService.createTier(artist.id, { name: '全身', price: 200, workDays: 14 })
+  it('TC-SD-06: getOrder 返回尺寸工期（tier_work_days 字段名过渡保留）', () => {
+    db.prepare("INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)").run(artist.id)
+    const style = db.prepare('SELECT id FROM art_styles WHERE artist_id = ?').get(artist.id)
+    db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price, work_days, sort_order) VALUES (?, ?, 200, 14, 0)').run(style.id, '全身')
+    const size = db.prepare('SELECT id FROM style_sizes WHERE art_style_id = ?').get(style.id)
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, client_qq, tier_id, status, queue_position, queue_zone)
+      INSERT INTO orders (order_no, artist_id, client_qq, style_size_id, status, queue_position, queue_zone)
       VALUES (?, ?, '99999', ?, 'pending', 1, 'formal')
-    `).run(`SD-WD-${Date.now()}`, artist.id, tier.id)
+    `).run(`SD-WD-${Date.now()}`, artist.id, size.id)
     const order = orderService.getOrder(Number(result.lastInsertRowid))
     expect(order.tier_work_days).toBe(14)
   })

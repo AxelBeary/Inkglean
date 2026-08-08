@@ -7,6 +7,17 @@ import * as orderGalleryService from '../src/features/order/order-gallery.servic
 import * as orderWorkflowService from '../src/features/order/order-workflow.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 
+/** SPEC-PRICE-2：为画师建默认画风 + 指定尺寸（替代旧 price_tiers 种子） */
+function seedStyleSize(artistId, name, price) {
+  let style = db.prepare('SELECT id FROM art_styles WHERE artist_id = ?').get(artistId)
+  if (!style) {
+    db.prepare("INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)").run(artistId)
+    style = db.prepare('SELECT id FROM art_styles WHERE artist_id = ?').get(artistId)
+  }
+  db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, ?, ?, 0)').run(style.id, name, price)
+  return db.prepare('SELECT * FROM style_sizes WHERE art_style_id = ? AND name = ?').get(style.id, name)
+}
+
 describe('订单服务 (Order Service)', () => {
   let artist
 
@@ -224,16 +235,15 @@ describe('订单服务 (Order Service)', () => {
 
   // TC-O-16: v0.6.3 - 创建订单时快照价格
   it('TC-O-16: createOrder 快照 price_snapshot', () => {
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, 'headshot', 150)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, 'headshot')
+    const size = seedStyleSize(artist.id, 'headshot', 150)
 
-    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
     expect(order.price_snapshot).toBe(150)
     // 快照不应随后续改价变化
-    db.prepare('UPDATE price_tiers SET price=999 WHERE id=?').run(tier.id)
+    db.prepare('UPDATE style_sizes SET base_price=999 WHERE id=?').run(size.id)
     const reloaded = orderService.getOrder(order.id)
     expect(reloaded.price_snapshot).toBe(150)
-    expect(reloaded.tier_price).toBe(999) // tier_price 是实时 JOIN 的价格
+    expect(reloaded.tier_price).toBe(999) // tier_price 字段名保留过渡，内容 = 实时 JOIN 的尺寸基础价
   })
 
   // TC-O-17: v0.6.3 - done/delivered 写入 completed_at
@@ -256,26 +266,24 @@ describe('订单服务 (Order Service)', () => {
 
   // TC-O-18: 报价快照字符串生成
   it('TC-O-18: createOrder 生成 quote_snapshot 字符串', () => {
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '头像', 200)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '头像')
+    const size = seedStyleSize(artist.id, '头像', 200)
 
-    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
     expect(order.quote_snapshot).toContain('头像')
     expect(order.quote_snapshot).toContain('¥200')
     expect(order.quote_snapshot).toContain('→ 总价')
   })
 
   // TC-O-18b: 手动录单无价格时 quote_snapshot 为空
-  it('TC-O-18b: 无 tierId 时 quote_snapshot 为 null', () => {
+  it('TC-O-18b: 无 styleSizeId 时 quote_snapshot 为 null', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111', source: 'manual' })
     expect(order.quote_snapshot).toBeNull()
   })
 
   // TC-O-19: 修改最终价格 + 自动备注
   it('TC-O-19: updateFinalPrice 改价并追加备注', () => {
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '全身', 500)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '全身')
-    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    const size = seedStyleSize(artist.id, '全身', 500)
+    const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
 
     const updated = orderService.updateFinalPrice(order.id, 60000, '全身 ¥500 → 总价 ¥600')
     expect(updated.final_price_cents).toBe(60000)
@@ -371,10 +379,9 @@ describe('订单服务 (Order Service)', () => {
 
   // TC-O-22: 收入统计使用 final_price_cents
   it('TC-O-22: getArtistStats 收入优先使用 final_price_cents', () => {
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '测试', 300)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '测试')
+    const size = seedStyleSize(artist.id, '测试', 300)
 
-    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
     // 改最终价格为 800 元 = 80000 分
     orderService.updateFinalPrice(order.id, 80000)
 
@@ -761,9 +768,8 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-47: 今日新增订单金额
   it('TC-O-47: getArtistStats 返回 todayNewOrderCents', () => {
     // 创建有价格的订单
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '头像', 200)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '头像')
-    orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    const size = seedStyleSize(artist.id, '头像', 200)
+    orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
 
     const stats = orderStatsService.getArtistStats(artist.id)
     // 200 元 = 20000 分
@@ -772,9 +778,8 @@ describe('订单服务 (Order Service)', () => {
 
   // TC-O-48: 今日收入（completed_at 在今天）
   it('TC-O-48: getArtistStats 返回 todayRevenueCents', () => {
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '全身', 500)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '全身')
-    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    const size = seedStyleSize(artist.id, '全身', 500)
+    const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
 
     // 走到 done（completed_at = 当前时间 = 今天）
     orderService.updateOrderStatus(order.id, 'confirmed')
@@ -794,9 +799,8 @@ describe('订单服务 (Order Service)', () => {
 
   // TC-O-50: 昨天的订单不计入今日统计
   it('TC-O-50: 昨天创建的订单不计入 todayNewOrderCents', () => {
-    db.prepare("INSERT INTO price_tiers (artist_id, name, price) VALUES (?, '测试', 100)").run(artist.id)
-    const tier = db.prepare('SELECT id FROM price_tiers WHERE artist_id=? AND name=?').get(artist.id, '测试')
-    const order = orderService.createOrder({ artistId: artist.id, tierId: tier.id, clientQq: '111' })
+    const size = seedStyleSize(artist.id, '测试', 100)
+    const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
 
     // 手动把 created_at 改为昨天
     db.prepare("UPDATE orders SET created_at = datetime('now', '-1 day') WHERE id = ?").run(order.id)

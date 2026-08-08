@@ -5,7 +5,7 @@ import * as orderGalleryService from './order-gallery.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
 import * as activityLogService from './activity-log.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
-import { getArtistBySubdomain, getRules, getTierById } from '../artist/artist.service.js'
+import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
 import { clamp, isValidQq } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -100,7 +100,6 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         required: ['subdomain', 'clientQq', 'agreeRules'],
         properties: {
           subdomain: { type: 'string', minLength: 1, maxLength: 50 },
-          tierId: { type: ['integer', 'null'] },
           clientQq: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
           clientName: { type: ['string', 'null'], maxLength: 50 },
           description: { type: ['string', 'null'], maxLength: 2000 },
@@ -108,8 +107,6 @@ export default async function orderRoutes(fastify: FastifyInstance) {
           clientNotify: { type: 'boolean' },
           agreeRules: { type: 'boolean' },
           references: { type: 'array', items: { type: 'string' }, maxItems: 5 },
-          usageMultiplierId: { type: ['integer', 'null'] },
-          rushMultiplierId: { type: ['integer', 'null'] },
           discountCode: { type: ['string', 'null'], maxLength: 20 },
           styleSizeId: { type: ['integer', 'null'] },
           styleAddons: {
@@ -119,8 +116,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
               required: ['styleAddonId'],
               properties: {
                 styleAddonId: { type: 'integer' },
-                quantity: { type: 'integer', minimum: 1, maximum: 99 },
-                optionLabel: { type: 'string', maxLength: 100 }
+                quantity: { type: 'integer', minimum: 1, maximum: 999 }
               },
               additionalProperties: false
             },
@@ -133,7 +129,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     guardRateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)
 
-    const { subdomain, tierId, clientQq, clientName, description, priority, clientNotify, agreeRules, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as { subdomain: string; tierId?: number | null; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; agreeRules: boolean; references?: string[]; usageMultiplierId?: number | null; rushMultiplierId?: number | null; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }> }
+    const { subdomain, clientQq, clientName, description, priority, clientNotify, agreeRules, references, discountCode, styleSizeId, styleAddons } = request.body as { subdomain: string; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; agreeRules: boolean; references?: string[]; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number }> }
 
     const artist = getArtistBySubdomain(subdomain)
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
@@ -142,14 +138,6 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     // 仅当画师设置了非空须知时，才要求客户勾选同意
     const rules = getRules(artist.id)
     if (rules?.content && !agreeRules) throw new AppError(E.RULES_NOT_AGREED)
-
-    // v0.24 #10: 档位三态校验 — showcase/hidden 不允许下单
-    if (tierId) {
-      const tier = getTierById(tierId)
-      if (tier && tier.visibility !== 'visible') {
-        throw new AppError(E.TIER_NOT_AVAILABLE)
-      }
-    }
 
     // C-3 修复：参考图路径校验 — 必须在 references/ 目录下，拒绝路径穿越
     if (references) {
@@ -162,7 +150,6 @@ export default async function orderRoutes(fastify: FastifyInstance) {
 
     const order = orderService.createOrder({
       artistId: artist.id,
-      tierId,
       clientQq: clamp(clientQq, 'qq')!,
       clientName: clamp(clientName, 'name'),
       description: clamp(description, 'description'),
@@ -170,8 +157,6 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       source: 'self',
       clientNotify: clientNotify || false,
       references: references || [],
-      usageMultiplierId: usageMultiplierId || null,
-      rushMultiplierId: rushMultiplierId || null,
       discountCode: discountCode || null,
       styleSizeId: styleSizeId || null,
       styleAddons: styleAddons || []
@@ -372,9 +357,10 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       if (zone === 'buffer') {
         // 缓冲区列表
         const bufferOrders = db.prepare(`
-          SELECT o.*, t.name as tier_name, t.price as tier_price
+          SELECT o.*, (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
           FROM orders o
-          LEFT JOIN price_tiers t ON o.tier_id = t.id
+          LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+          LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
           WHERE o.artist_id = ? AND o.queue_zone = 'buffer' AND o.status NOT IN ('delivered', 'cancelled')
           ORDER BY o.queue_position ASC
         `).all(request.artist.id) as ArtistOrderRow[]
@@ -429,7 +415,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/artist/orders/manual
-   * R3: 补全参考图/增项/倍率/QQ通知，信息完整度不低于自助下单
+   * SPEC-PRICE-2：手动录单同走画风尺寸 + 增项唯一计价路径
    */
   fastify.post('/api/artist/orders/manual', {
     preHandler: requireAuth,
@@ -438,15 +424,12 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['clientQq'],
         properties: {
-          tierId: { type: ['integer', 'null'] },
           clientQq: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
           clientName: { type: ['string', 'null'], maxLength: 50 },
           description: { type: ['string', 'null'], maxLength: 2000 },
           priority: { type: 'string', enum: ['high', 'medium', 'low'] },
           clientNotify: { type: 'boolean' },
           references: { type: 'array', items: { type: 'string' }, maxItems: 5 },
-          usageMultiplierId: { type: ['integer', 'null'] },
-          rushMultiplierId: { type: ['integer', 'null'] },
           discountCode: { type: ['string', 'null'], maxLength: 20 },
           styleSizeId: { type: ['integer', 'null'] },
           styleAddons: {
@@ -456,8 +439,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
               required: ['styleAddonId'],
               properties: {
                 styleAddonId: { type: 'integer' },
-                quantity: { type: 'integer', minimum: 1, maximum: 99 },
-                optionLabel: { type: 'string', maxLength: 100 }
+                quantity: { type: 'integer', minimum: 1, maximum: 999 }
               },
               additionalProperties: false
             },
@@ -468,7 +450,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest) => {
-    const { tierId, clientQq, clientName, description, priority, clientNotify, references, usageMultiplierId, rushMultiplierId, discountCode, styleSizeId, styleAddons } = request.body as { tierId?: number | null; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; references?: string[]; usageMultiplierId?: number | null; rushMultiplierId?: number | null; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number; optionLabel?: string }> }
+    const { clientQq, clientName, description, priority, clientNotify, references, discountCode, styleSizeId, styleAddons } = request.body as { clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; references?: string[]; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number }> }
 
     // C-3 安全：参考图路径校验（与自助下单一致）
     if (references) {
@@ -481,7 +463,6 @@ export default async function orderRoutes(fastify: FastifyInstance) {
 
     return orderService.createOrder({
       artistId: request.artist.id,
-      tierId,
       clientQq: clamp(clientQq, 'qq')!,
       clientName: clamp(clientName, 'name'),
       description: clamp(description, 'description'),
@@ -489,8 +470,6 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       source: 'manual',
       clientNotify: clientNotify || false,
       references: references || [],
-      usageMultiplierId: usageMultiplierId || null,
-      rushMultiplierId: rushMultiplierId || null,
       discountCode: discountCode || null,
       styleSizeId: styleSizeId || null,
       styleAddons: styleAddons || []

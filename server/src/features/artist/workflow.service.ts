@@ -130,6 +130,15 @@ export function getWorkflow(artistId: number): StageCamel[] {
   return listCamel(artistId)
 }
 
+/** 收款计划（SPEC-PRICE-2：公开报价页展示分期比例，仅收款节点） */
+export function getPaymentPlan(artistId: number): Array<{ label: string; basisPoints: number }> {
+  const stages = getStages(artistId)
+  return stages
+    .filter(s => s.takes_payment)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map(s => ({ label: s.name, basisPoints: s.basis_points ?? 0 }))
+}
+
 /** 添加节点（插入到倒数第二位，R3） */
 export function addStage(artistId: number, { name, description }: { name: string; description?: string | null }): StageCamel | null {
   return db.transaction(() => {

@@ -50,7 +50,7 @@ export interface Artist {
   created_at: string
 }
 
-/** 价格档位 */
+/** 价格档位（历史类型：v50 后 price_tiers 已 DROP，仅遗留测试/admin 兼容引用） */
 export interface Tier {
   id: number
   artist_id: number
@@ -69,12 +69,12 @@ export type OrderStatus = 'pending' | 'confirmed' | 'wip' | 'revision' | 'done' 
 /** 订单优先级 */
 export type OrderPriority = 'high' | 'medium' | 'low'
 
-/** 订单 */
+/** 订单（SPEC-PRICE-2 v50：移除 tier_id/旧倍率列，新增 style_size_id） */
 export interface Order {
   id: number
   order_no: string
   artist_id: number
-  tier_id: number | null
+  style_size_id: number | null
   client_qq: string
   client_name: string | null
   description: string | null
@@ -86,8 +86,6 @@ export interface Order {
   completed_at: string | null
   price_snapshot: number | null
   total_price_cents: number | null
-  usage_multiplier_id: number | null
-  rush_multiplier_id: number | null
   queue_zone: 'formal' | 'buffer'
   current_stage_id: number | null
   deadline: string | null
@@ -145,7 +143,8 @@ export interface PriceResult {
   breakdown: PriceBreakdownItem[]
 }
 
-/** 订单详情（getOrder 增强结构：Order 基础字段 + 关联数组 + 画师/档位字段；order.routes 与 fastify.d.ts 共用） */
+/** 订单详情（getOrder 增强结构：Order 基础字段 + 关联数组 + 画师字段；order.routes 与 fastify.d.ts 共用）
+ * SPEC-PRICE-2：tier_name/tier_price/tier_work_days 字段名保留（前端渐进过渡），内容 = 画风/尺寸标签、尺寸基础价、尺寸工期 */
 export interface OrderDetail extends Order {
   final_price_cents?: number | null
   start_date?: string | null
@@ -161,7 +160,7 @@ export interface OrderDetail extends Order {
   notes?: Array<{ id?: number; image_path: string | null }>
   extraItems?: Array<{ name: string; price_cents: number }>
 }
-/** 订单列表/队列行（o.* + tier 关联字段；order.routes 与 admin.routes 共用） */
+/** 订单列表/队列行（o.* + 画风尺寸关联字段；字段名 tier_* 为过渡兼容；order.routes 与 admin.routes 共用） */
 export interface ArtistOrderRow {
   id: number
   order_no: string

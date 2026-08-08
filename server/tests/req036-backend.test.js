@@ -6,8 +6,8 @@ import * as stylePricingService from '../src/features/pricing/style-pricing.serv
 import * as orderService from '../src/features/order/order.service.js'
 
 // ============================================
-// REQ-036 批B 后端核心测试
-// 删除策略 C' / 尺寸三态 / kind 乘法项 / 内置模板种子 / locked 字段
+// REQ-036 批B 后端核心测试（SPEC-PRICE-2 v50 对齐）
+// 删除策略 C' / 尺寸三态 / category 维度（用途/加急）/ 内置模板种子 / locked 字段
 // ============================================
 
 function seedWorkflowStages(artistId) {
@@ -24,13 +24,16 @@ function setupScene() {
   seedWorkflowStages(artist.id)
 
   const tplSwitch = styleService.createAddonTemplate(artist.id, {
-    name: '加背景', control_type: 'switch', pricing_mode: 'fixed', default_price: 150
+    name: '加背景', control_type: 'switch', price_mode: 'fixed', default_price: 150
   })
   const tplQty = styleService.createAddonTemplate(artist.id, {
-    name: '加人', control_type: 'quantity', pricing_mode: 'per_unit', default_price: 100, unit_label: '人', max_quantity: 5
+    name: '加人', control_type: 'quantity', price_mode: 'fixed', default_price: 100, unit_label: '人', max_quantity: 5
   })
   const tplMult = styleService.createAddonTemplate(artist.id, {
-    name: '商用', control_type: 'switch', pricing_mode: 'fixed', default_price: 50, kind: 'multiply'
+    name: '商用', control_type: 'switch', price_mode: 'percent', default_price: 50, category: 'usage'
+  })
+  const tplRush = styleService.createAddonTemplate(artist.id, {
+    name: '加急单', control_type: 'switch', price_mode: 'percent', default_price: 100, category: 'rush'
   })
 
   const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: true })
@@ -41,14 +44,16 @@ function setupScene() {
   styleService.setStyleAddons(artist.id, style.id, [
     { addon_template_id: tplSwitch.id },
     { addon_template_id: tplQty.id },
-    { addon_template_id: tplMult.id }
+    { addon_template_id: tplMult.id },
+    { addon_template_id: tplRush.id }
   ])
   const styleAddons = styleService.getStyleAddons(style.id)
   const saSwitch = styleAddons.find(a => a.addon_template_id === tplSwitch.id)
   const saQty = styleAddons.find(a => a.addon_template_id === tplQty.id)
   const saMult = styleAddons.find(a => a.addon_template_id === tplMult.id)
+  const saRush = styleAddons.find(a => a.addon_template_id === tplRush.id)
 
-  return { artist, style, sizeHead, sizeShowcase, sizeClosed, tplSwitch, tplQty, tplMult, saSwitch, saQty, saMult }
+  return { artist, style, sizeHead, sizeShowcase, sizeClosed, tplSwitch, tplQty, tplMult, tplRush, saSwitch, saQty, saMult, saRush }
 }
 
 // ─── 任务 1：删除策略 C'（保留独立增项 + 解除引用） ───
@@ -97,9 +102,9 @@ describe("REQ-036 C' 删除策略", () => {
       styleSizeId: sizeHead.id,
       addons: [{ styleAddonId: saSwitch.id }]
     })
-    expect(result.addonItems).toHaveLength(1)
-    expect(result.addonItems[0].name).toBe('加背景')
-    expect(result.addonItems[0].amount).toBe(150)
+    expect(result.fixedAddonItems).toHaveLength(1)
+    expect(result.fixedAddonItems[0].name).toBe('加背景')
+    expect(result.fixedAddonItems[0].amountCents).toBe(15000)
   })
 })
 
@@ -125,7 +130,7 @@ describe('REQ-036 尺寸三态', () => {
   it('TC-R36-12: available 尺寸算价正常', () => {
     const { artist, sizeHead } = setupScene()
     const result = stylePricingService.calculateStylePrice(artist.id, { styleSizeId: sizeHead.id })
-    expect(result.totalPrice).toBe(200)
+    expect(result.totalCents).toBe(20000)
   })
 
   it('TC-R36-13: showcase 尺寸下单 → 400（路由层）', async () => {
@@ -169,53 +174,48 @@ describe('REQ-036 尺寸三态', () => {
   })
 })
 
-// ─── 任务 3：kind 维度（乘法项） ───
+// ─── 任务 3：category 维度（用途/加急 = SPEC-PRICE-2 公式中的乘法位） ───
 
-describe('REQ-036 kind 乘法项', () => {
+describe('SPEC-PRICE-2 用途/加急增项', () => {
   beforeEach(() => { cleanDb() })
 
-  it('TC-R36-20: 乘法项 +50% → factor 1.5，总价 = 基础 × 1.5', () => {
+  it('TC-R36-20: 用途增项 +50% → 小计 × 150/100', () => {
     const { artist, sizeHead, saMult } = setupScene()
     const result = stylePricingService.calculateStylePrice(artist.id, {
       styleSizeId: sizeHead.id,
       addons: [{ styleAddonId: saMult.id }]
     })
-    expect(result.multiplyItems).toHaveLength(1)
-    expect(result.multiplyItems[0].percent).toBe(50)
-    expect(result.multiplyItems[0].factor).toBe(1.5)
-    // 200 × 1.5 = 300（乘法项不进加法小计）
-    expect(result.subtotal).toBe(200)
-    expect(result.multiplierTotal).toBe(300)
-    expect(result.totalPrice).toBe(300)
+    expect(result.usage).toMatchObject({ percent: 50, incrementCents: 10000 })
+    // 200 小计 × 1.5 = 300（用途不进加法小计）
+    expect(result.subtotalCents).toBe(20000)
+    expect(result.afterMultipliersCents).toBe(30000)
+    expect(result.totalCents).toBe(30000)
   })
 
-  it('TC-R36-21: 加法项 + 乘法项组合 =（基础+加法）× 乘法因子', () => {
+  it('TC-R36-21: 固定增项 + 用途组合 =（基础+固定）× 用途因子', () => {
     const { artist, sizeHead, saSwitch, saMult } = setupScene()
     const result = stylePricingService.calculateStylePrice(artist.id, {
       styleSizeId: sizeHead.id,
       addons: [{ styleAddonId: saSwitch.id }, { styleAddonId: saMult.id }]
     })
     // (200 + 150) × 1.5 = 525
-    expect(result.subtotal).toBe(350)
-    expect(result.multiplierTotal).toBe(525)
-    expect(result.totalPrice).toBe(525)
+    expect(result.subtotalCents).toBe(35000)
+    expect(result.afterMultipliersCents).toBe(52500)
+    expect(result.totalCents).toBe(52500)
   })
 
-  it('TC-R36-22: 乘法项 + 用途倍率叠加', () => {
-    const { artist, sizeHead, saMult } = setupScene()
-    db.prepare('INSERT INTO price_multipliers (artist_id, type, name, multiplier, sort_order, enabled) VALUES (?, ?, ?, ?, 0, 1)')
-      .run(artist.id, 'usage', '商用用途', 2.0)
-    const um = db.prepare("SELECT id FROM price_multipliers WHERE artist_id = ? AND type = 'usage'").get(artist.id)
+  it('TC-R36-22: 用途 × 加急链式（先用途后加急）', () => {
+    const { artist, sizeHead, saMult, saRush } = setupScene()
     const result = stylePricingService.calculateStylePrice(artist.id, {
       styleSizeId: sizeHead.id,
-      addons: [{ styleAddonId: saMult.id }],
-      usageMultiplierId: um.id
+      addons: [{ styleAddonId: saMult.id }, { styleAddonId: saRush.id }]
     })
     // 200 × 1.5 × 2.0 = 600
-    expect(result.multiplierTotal).toBe(600)
+    expect(result.afterMultipliersCents).toBe(60000)
+    expect(result.rush.incrementCents).toBe(30000)
   })
 
-  it('TC-R36-23: 乘法项下单 → quote_snapshot 含百分比 + breakdown 写增量', () => {
+  it('TC-R36-23: 用途增项下单 → quote_snapshot 含百分比 + breakdown 写增量', () => {
     const { artist, sizeHead, saMult } = setupScene()
     const order = orderService.createOrder({
       artistId: artist.id,
@@ -228,6 +228,7 @@ describe('REQ-036 kind 乘法项', () => {
     const bd = db.prepare('SELECT * FROM order_price_breakdown WHERE order_id = ? ORDER BY sort_order ASC').all(order.id)
     const multRow = bd.find(r => r.item_name.includes('商用'))
     expect(multRow).toBeTruthy()
+    expect(multRow.item_type).toBe('usage')
     expect(multRow.multiplier).toBe(1.5)
     expect(multRow.amount_cents).toBe(10000) // 200 × 0.5
   })
@@ -248,12 +249,13 @@ describe('REQ-036 内置模板种子', () => {
     expect(names).toContain('机甲')
     expect(names).toContain('商用')
     expect(names).toContain('加急')
-    // 乘法项语义：商用 +50% / 加急 +100%
+    // 用途/加急语义（SPEC-PRICE-2）：商用 +50% / 加急 +100%
     const comm = sys.find(t => t.name === '商用')
-    expect(comm.kind).toBe('multiply')
+    expect(comm.category).toBe('usage')
+    expect(comm.price_mode).toBe('percent')
     expect(comm.default_price).toBe(50)
     const rush = sys.find(t => t.name === '加急')
-    expect(rush.kind).toBe('multiply')
+    expect(rush.category).toBe('rush')
     expect(rush.default_price).toBe(100)
   })
 
@@ -270,7 +272,7 @@ describe('REQ-036 内置模板种子', () => {
       styleSizeId: sizeHead.id,
       addons: [{ styleAddonId: saQty.id, quantity: 5 }]
     })
-    expect(ok.addonItems[0].quantity).toBe(5)
+    expect(ok.fixedAddonItems[0].quantity).toBe(5)
   })
 
   it('TC-R36-32: 系统模板可被画师导入画风（setStyleAddons 允许）', () => {

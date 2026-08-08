@@ -580,8 +580,8 @@ describe('路由层测试 (Route Integration)', () => {
 
       const res = await app.inject({
         method: 'POST',
-        url: '/api/public/calculate-price',
-        payload: { subdomain: 'hidden-calc', tierId: 1 }
+        url: '/api/public/calculate-style-price',
+        payload: { subdomain: 'hidden-calc', styleSizeId: 1 }
       })
       expect(res.statusCode).toBe(404)
       expect(res.json().code).toBe('ARTIST_NOT_FOUND')
