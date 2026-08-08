@@ -1,7 +1,7 @@
 import db from '../../db/connection.js'
 import crypto from 'crypto'
 import { getArtistByQq } from '../artist/artist.service.js'
-import { verifyTotp } from './totp.js'
+import { verifyTotp, verifyTotpWithCounter, hashTotpCode } from './totp.js'
 import { AppError, E } from '../../shared/errors.js'
 import type { Artist } from '../../types/entities.js'
 
@@ -143,7 +143,19 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
     return { valid: false, code: E.TOTP_NOT_BOUND, error: '该画师尚未绑定动态口令，请联系管理员绑定' }
   }
 
-  if (verifyTotp(artist.totp_secret, code, Date.now())) {
+  const hitCounter = verifyTotpWithCounter(artist.totp_secret, code, Date.now())
+  if (hitCounter !== null) {
+    // P1-1 重放防护：同一 (画师, 时间步, 码) 只准成功一次。
+    // 先插入已用码，唯一约束冲突 = 该码已用过 = 拒绝。
+    // 重放不计入防爆破失败计数（避免用户重复点登录误触发锁定）。
+    const codeHash = hashTotpCode(artist.id, code, hitCounter)
+    try {
+      db.prepare('INSERT INTO totp_used_codes (artist_id, code_hash) VALUES (?, ?)').run(artist.id, codeHash)
+    } catch {
+      return { valid: false, code: E.TOTP_INVALID, error: '该动态口令已使用，请使用最新动态口令' }
+    }
+    // 顺带清理 7 天前已用记录（低频写，登录路径可接受）
+    db.prepare("DELETE FROM totp_used_codes WHERE used_at < datetime('now', '-7 days')").run()
     // 成功：清零防爆破计数
     db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artist.id)
     return { valid: true, artist }

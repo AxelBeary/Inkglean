@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS artists (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- TOTP 已用动态码表（v48：重放防护，同一码只准成功一次）
+CREATE TABLE IF NOT EXISTS totp_used_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL,
+  code_hash TEXT NOT NULL,
+  used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (artist_id, code_hash)
+);
+
 -- 价格档位表
 CREATE TABLE IF NOT EXISTS price_tiers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -469,6 +478,7 @@ CREATE INDEX IF NOT EXISTS idx_style_addons_style ON style_addons(art_style_id);
 CREATE INDEX IF NOT EXISTS idx_size_addon_overrides_size ON size_addon_overrides(style_size_id);
 CREATE INDEX IF NOT EXISTS idx_artwork_size_tags_size ON artwork_size_tags(style_size_id);
 CREATE INDEX IF NOT EXISTS idx_price_entries_order ON order_price_entries(order_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_totp_used_artist ON totp_used_codes(artist_id);
 `
 
 /**
@@ -1721,6 +1731,23 @@ export const MIGRATIONS = [
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         CREATE INDEX IF NOT EXISTS idx_standalone_incomes_artist_date ON standalone_incomes(artist_id, income_date);
+      `)
+    }
+  },
+  {
+    version: 48,
+    name: 'totp_used_codes',
+    up(database) {
+      // P1-1：TOTP 重放防护——已用动态码记录表（唯一索引防并发插入，与 schema 区幂等）
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS totp_used_codes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          artist_id INTEGER NOT NULL,
+          code_hash TEXT NOT NULL,
+          used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (artist_id, code_hash)
+        );
+        CREATE INDEX IF NOT EXISTS idx_totp_used_artist ON totp_used_codes(artist_id);
       `)
     }
   }
