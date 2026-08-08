@@ -14,14 +14,14 @@
 ---
 ## master 状态
 
-- **HEAD**：`2b0f9a8`，与 origin 同步
-- **工作树**：主仓干净（4 个活跃 worktree：w29/w30/w31/w32 = 02G/03F/05K/04C 执行中）
-- **测试基线**：server **1024/1024**（69 文件）· web **262/262**（17 文件）· tsc 0 · oxlint 0 · **全库 any 0** · check-i18n 0
+- **HEAD**：`c3407fb`，与 origin 同步
+- **工作树**：主仓干净（无活跃 worktree——四路 02G/03F/05K/04C 已全部审合）
+- **测试基线**：server **1033/1033**（70 文件）· web **262/262**（17 文件）· tsc 0 · oxlint 0 · **全库 any 0** · check-i18n 0
 - **后端 100% TS + strict 全开 + any 清零**（唯一豁免 init.js @ts-nocheck）
-- **版本**：业务 **v0.44 已收编** ↔ npm **0.44.0**（双轨对齐）
-- **容器**：✅ **已重建 = master `3b8a1cb`**（v0.44 全批上线；03E 备份/05J TOTP 等后续批次未重建——下次重建时 --force-recreate 应用 logging/mem_limit）
-- **备份**：`bak-pre-v044-rebuild-2026-08-08T15-50-37-912Z`（最新）+ 更早里程碑；**03E 已加 backup-db.ts 每日备份能力（VACUUM INTO + 保留 7 份，宿主 cron 待配置，见 OPS.md）**
-- **迁移**：**v48**（totp_used_codes）为最新（03F 将加 v49：REQ-036 删除策略C'/kind/内置模板）
+- **版本**：业务 **v0.45 已收编** ↔ npm **0.45.0**（双轨对齐）
+- **容器**：✅ **已重建 = master `c3407fb`**（v0.45 全批上线：REQ-036 增项重构 / 外部审计修复 / docs 加固；--force-recreate 应用 logging/mem_limit）
+- **备份**：`bak-pre-v045-rebuild-2026-08-08T18-21-19-437Z`（最新，integrity ok + orders 10/10）+ 更早里程碑；**03E backup-db.ts 每日备份能力（VACUUM INTO + 保留 7 份，宿主 cron 待配置，见 OPS.md）**
+- **迁移**：**v49**（REQ-036：style_addons 重建 SET NULL + 快照列 / display_status 三态 / kind+max_quantity / 5 系统模板种子）为最新——容器实测：display_status/kind/快照列在 + 5 模板（加人物/背景/机甲/商用/加急）
 - **comms**：STATUS v45 + 各批派工/交付（已消费的合入即删纪律——03D 发现 ~40 个应删未删，待清理）
 - **协议**：主仓库 **AGPL-3.0**；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md
 - **开源**：①主仓库 [Brushline-HuiYue](https://github.com/AxelBeary/Brushline-HuiYue)（AGPL-3.0）②方法论仓库 [huiyue-multi-agent-playbook](https://github.com/AxelBeary/huiyue-multi-agent-playbook)
