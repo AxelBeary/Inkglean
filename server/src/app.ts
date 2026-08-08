@@ -5,7 +5,7 @@ import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import * as Sentry from '@sentry/node'
 import { resolve, join, relative, sep } from 'path'
-import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync } from 'fs'
+import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync, rmSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
@@ -50,19 +50,47 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       }
 
       const refs = new Set<string>()
+      // ── 显式收集：已知引用字段（文档化清单 + 快速路径；新字段靠下方动态全表扫描兜底）──
       const collect = (rows: unknown[], field: string) => { for (const r of rows) { const v = (r as Record<string, unknown>)[field]; if (v) refs.add(v as string) } }
       collect(db.prepare('SELECT image_path FROM artworks').all(), 'image_path')
       collect(db.prepare('SELECT example_image FROM price_tiers').all(), 'example_image')
       collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
       collect(db.prepare('SELECT file_path FROM deliverables').all(), 'file_path')
       collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')
-      // R19: 备注附图 — 不收集 = 在用备注附图被 GC 误删（数据丢失）
+      // R19: 备注附图 —— 不收 = 在用备注附图被 GC 误删（数据丢失）
       collect(db.prepare('SELECT image_path FROM order_notes').all(), 'image_path')
-      // v0.35 波1: 画风封面（v0.36 遗留漏收集，封面图上传 24h 后会被 GC 误删——数据丢失）
+      // v0.35 修复: 画风封面（v0.36 遗留漏收集，封面图上传 24h 后会被 GC 误删——数据丢失）
       collect(db.prepare('SELECT cover_image FROM art_styles').all(), 'cover_image')
-      // v0.35 波1: 尺寸独立上传图（F1）
+      // v0.35 修复: 尺寸独立上传图（F1）
       collect(db.prepare('SELECT image FROM style_sizes').all(), 'image')
 
+      // ── 黑名单动态扫描（P0-2 修复）──
+      // 从「白名单允许删」反转为「黑名单禁止删」：遍历所有表所有 TEXT 列，
+      // 凡是非空且带路径分隔符（/ 或 \\）的值都视为「DB 仍引用」——被引用则文件绝不回收。
+      // 漏登记新表/新字段最多多留垃圾，绝不丢数据（两次事故教训：R19 备注附图、v0.35 画风封面）。
+      // 黑名单判定需查的表：不维护清单，动态遍历 sqlite_master 全部业务表（排除 sqlite_% 系统表）。
+      const tableRows = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+      ).all() as Array<{ name: string }>
+      for (const t of tableRows) {
+        const tableName = t.name.replace(/"/g, '""')
+        const colRows = db.prepare(`PRAGMA table_info("${tableName}")`).all() as Array<{ name: string; type: string }>
+        for (const c of colRows) {
+          // 只扫文本类列（路径值必然 TEXT/CLOB；跳过 INTEGER/REAL 等）
+          if (!/TEXT|CLOB/i.test(c.type)) continue
+          const colName = c.name.replace(/"/g, '""')
+          // 路径一般较短；>512 字符的值（如长 JSON/正文）不可能是文件相对路径，跳过省内存
+          const pathRows = db.prepare(
+            `SELECT DISTINCT "${colName}" AS v FROM "${tableName}" WHERE "${colName}" IS NOT NULL AND "${colName}" != '' AND length("${colName}") <= 512`
+          ).all() as Array<{ v: unknown }>
+          for (const r of pathRows) {
+            const v = r.v
+            if (typeof v === 'string' && (v.includes('/') || v.includes('\\'))) {
+              refs.add(v.replace(/\\/g, '/'))
+            }
+          }
+        }
+      }
       const MIN_AGE_MS = 24 * 60 * 60 * 1000
       const now = Date.now()
       let recycled = 0, freed = 0
@@ -82,6 +110,27 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       // 回收站日期子目录：.recycle-bin/YYYY-MM-DD/
       const dateStr = new Date().toISOString().slice(0, 10)
       const recycleBinDay = join(UPLOAD_ROOT, RECYCLE_BIN, dateStr)
+
+      // 回收站 TTL（P2-4 验收「回收站超期删」）：超过 30 天的日期子目录整体物理删除，
+      // 防回收站无限膨胀。30 天保留期 = 软删除后的恢复窗口（admin 清空接口仍可立即清）。
+      const RECYCLE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+      const recycleRoot = join(UPLOAD_ROOT, RECYCLE_BIN)
+      if (existsSync(recycleRoot)) {
+        for (const e of readdirSync(recycleRoot, { withFileTypes: true })) {
+          if (!e.isDirectory()) continue
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(e.name)) continue // 只认日期目录名，防误删
+          const dirDate = new Date(e.name + 'T00:00:00')
+          if (isNaN(dirDate.getTime())) continue
+          if (Date.now() - dirDate.getTime() > RECYCLE_TTL_MS) {
+            try {
+              rmSync(join(recycleRoot, e.name), { recursive: true, force: true })
+              app.log.info(`孤儿回收: 清理超期回收站目录 ${e.name}`)
+            } catch (err) {
+              app.log.warn({ err }, '孤儿回收: 清理超期回收站目录失败')
+            }
+          }
+        }
+      }
 
       for (const absPath of walk(UPLOAD_ROOT)) {
         const rel = relative(UPLOAD_ROOT, absPath).replace(/\\/g, '/')
