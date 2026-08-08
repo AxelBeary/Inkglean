@@ -66,6 +66,8 @@ function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotal: number): stri
   }
   let snapshot = `[${sc.styleName} / ${sc.sizeName}] ${parts.join(' + ')} = ${formatYuan(sc.subtotal)}`
   const factors: string[] = []
+  // v49 (REQ-036): 乘法项百分比（如 商用+50% → ×1.5）
+  for (const item of sc.multiplyItems) factors.push(`${item.name}+${item.percent}%`)
   if (sc.usageMultiplier) factors.push(`${sc.usageMultiplier.name}${sc.usageMultiplier.factor}`)
   if (sc.rushMultiplier) factors.push(`${sc.rushMultiplier.name}${sc.rushMultiplier.factor}`)
   if (factors.length > 0) {
@@ -257,6 +259,12 @@ export function createOrder({ artistId, tierId, clientQq, clientName, descriptio
       insertBd.run(orderId, 'tier', `${styleCalc.styleName} / ${styleCalc.sizeName}`, Math.round(styleCalc.basePrice * 100), 1.0, 1, sortIdx++)
       for (const item of styleCalc.addonItems) {
         insertBd.run(orderId, 'addon', item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name, Math.round(item.amount * 100), 1.0, item.quantity, sortIdx++)
+      }
+      // v49 (REQ-036): 乘法项写 breakdown（item_type='addon'，multiplier=因子，金额=加价增量）
+      // 增量 = 小计 × (factor-1)（与 usage/rush 的增量口径一致，不含自身因子）
+      for (const item of styleCalc.multiplyItems) {
+        const incAmount = styleCalc.subtotal * (item.factor - 1)
+        insertBd.run(orderId, 'addon', `${item.name} ×${item.factor}`, Math.round(incAmount * 100), item.factor, 1, sortIdx++)
       }
       if (styleCalc.usageMultiplier) {
         const umAmount = styleCalc.subtotal * (styleCalc.usageMultiplier.factor - 1) * (styleCalc.rushMultiplier?.factor ?? 1)
@@ -661,10 +669,10 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
  * paid: 完全覆盖 | partial: 部分覆盖 | pending: 未覆盖
  * 撤销回冲自然生效：负流水 → paid_total_cents 减少 → 状态自动回退，无需额外代码
  */
-export function getOrderInstallments(orderId: number): Array<{ id: number; name: string; amountCents: number; paidCents: number; remainingCents: number; status: string }> {
+export function getOrderInstallments(orderId: number): Array<{ id: number; name: string; amountCents: number; paidCents: number; remainingCents: number; status: string; locked: boolean; lockedReason: string | null }> {
   const rows = db.prepare(
-    'SELECT id, label as name, amount_cents as amountCents FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
-  ).all(orderId) as Array<{ id: number; name: string; amountCents: number }>
+    'SELECT id, label as name, amount_cents as amountCents, locked, locked_reason as lockedReason FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
+  ).all(orderId) as Array<{ id: number; name: string; amountCents: number; locked: number; lockedReason: string | null }>
   const orderRow = db.prepare('SELECT paid_total_cents FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null } | undefined
   let covered = orderRow?.paid_total_cents ?? 0
   return rows.map(r => {
@@ -686,7 +694,9 @@ export function getOrderInstallments(orderId: number): Array<{ id: number; name:
       amountCents: amt,
       paidCents,
       remainingCents: Math.max(0, amt - paidCents),
-      status
+      status,
+      locked: r.locked === 1,
+      lockedReason: r.lockedReason ?? null
     }
   })
 }

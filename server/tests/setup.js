@@ -51,7 +51,8 @@ export function cleanDb() {
     DELETE FROM style_addons;
     DELETE FROM style_sizes;
     DELETE FROM art_styles;
-    DELETE FROM addon_templates;
+    -- v49 (REQ-036): 保留系统预置模板（artist_id NULL，initDatabase 自动种子），只清画师私有模板
+    DELETE FROM addon_templates WHERE artist_id IS NOT NULL;
     DELETE FROM totp_used_codes;
     DELETE FROM artists;
     DELETE FROM social_platforms;

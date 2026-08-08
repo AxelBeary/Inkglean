@@ -52,7 +52,10 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           pricing_mode: { type: 'string', enum: ['fixed', 'per_unit', 'per_option'], default: 'fixed' },
           default_price: { type: 'number', minimum: 0, maximum: 999999, default: 0 },
           options: { type: ['string', 'null'], maxLength: 2000 },
-          unit_label: { type: ['string', 'null'], maxLength: 20 }
+          unit_label: { type: ['string', 'null'], maxLength: 20 },
+          // v49 (REQ-036): kind 维度 + 数量上限
+          kind: { type: 'string', enum: ['add', 'multiply'], default: 'add' },
+          max_quantity: { type: ['integer', 'null'], minimum: 1, maximum: 999 }
         },
         additionalProperties: false
       }
@@ -73,7 +76,10 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           pricing_mode: { type: 'string', enum: ['fixed', 'per_unit', 'per_option'] },
           default_price: { type: 'number', minimum: 0, maximum: 999999 },
           options: { type: ['string', 'null'], maxLength: 2000 },
-          unit_label: { type: ['string', 'null'], maxLength: 20 }
+          unit_label: { type: ['string', 'null'], maxLength: 20 },
+          // v49 (REQ-036): kind 维度 + 数量上限
+          kind: { type: 'string', enum: ['add', 'multiply'] },
+          max_quantity: { type: ['integer', 'null'], minimum: 1, maximum: 999 }
         },
         additionalProperties: false
       }
@@ -159,7 +165,9 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           image: { type: ['string', 'null'], maxLength: 500 },
           image_artwork_id: { type: ['integer', 'null'] },
           description: { type: ['string', 'null'], maxLength: 500 },
-          work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 }
+          work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 },
+          // v49 (REQ-036): 尺寸三态
+          display_status: { type: 'string', enum: ['available', 'showcase', 'closed'], default: 'available' }
         },
         additionalProperties: false
       }
@@ -182,7 +190,9 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           image: { type: ['string', 'null'], maxLength: 500 },
           image_artwork_id: { type: ['integer', 'null'] },
           description: { type: ['string', 'null'], maxLength: 500 },
-          work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 }
+          work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 },
+          // v49 (REQ-036): 尺寸三态
+          display_status: { type: 'string', enum: ['available', 'showcase', 'closed'] }
         },
         additionalProperties: false
       }
