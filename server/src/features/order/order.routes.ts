@@ -235,6 +235,10 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       finalPriceCents: order.final_price_cents ?? null,
       paidTotalCents: order.paid_total_cents ?? 0,
       installments: orderService.getOrderInstallments(order.id),
+      // 收款明细（客户可见：金额/备注/时间，负数=退款）
+      payments: orderService.getOrderPayments(order.id),
+      // 截稿日（无则 null）
+      deadline: order.deadline ?? null,
       // SPEC-004: 排队分区信息
       queueZone: order.queue_zone || 'formal',
       queueDisplay: (() => {

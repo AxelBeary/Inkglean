@@ -309,3 +309,43 @@ export function getExportRows(artistId: number, from: string, to: string): Expor
     orderId: r.order_id
   }))
 }
+
+/**
+ * 画师收入汇总（订单收款 + 散单，按收入日期区间）
+ * from/to 必填，YYYY-MM-DD；无区间数据返回 0 而非 null
+ */
+export interface IncomeSummary {
+  /** 订单收款合计（order_payments SUM，正数收款 - 负数退款） */
+  orderIncomeCents: number
+  /** 散单收入合计（standalone_incomes SUM） */
+  standaloneIncomeCents: number
+  /** 合计 */
+  totalCents: number
+  /** 区间起始/结束（与请求一致） */
+  from: string
+  to: string
+}
+
+/**
+ * 画师收入汇总查询。
+ * 时间口径说明：order_payments.created_at 为 UTC datetime，date(p.created_at) 取 UTC 日期；
+ * standalone_incomes.income_date 为本地日期字符串。两口径可能差一天，保持各自口径
+ * （散单页已用 income_date 本地日期；如需严格对齐可后续排期，本批不扩复杂度）。
+ */
+export function getIncomeSummary(artistId: number, from: string, to: string): IncomeSummary {
+  // order_payments 按 p.created_at（datetime）date() 与订单关联过滤 artist
+  const orderRow = db.prepare(`
+    SELECT COALESCE(SUM(p.amount_cents), 0) AS s
+    FROM order_payments p
+    JOIN orders o ON p.order_id = o.id
+    WHERE o.artist_id = ? AND date(p.created_at) BETWEEN ? AND ?
+  `).get(artistId, from, to) as { s: number }
+  const standaloneRow = db.prepare(`
+    SELECT COALESCE(SUM(amount_cents), 0) AS s
+    FROM standalone_incomes
+    WHERE artist_id = ? AND income_date BETWEEN ? AND ?
+  `).get(artistId, from, to) as { s: number }
+  const orderIncomeCents = orderRow.s
+  const standaloneIncomeCents = standaloneRow.s
+  return { orderIncomeCents, standaloneIncomeCents, totalCents: orderIncomeCents + standaloneIncomeCents, from, to }
+}

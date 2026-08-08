@@ -254,4 +254,26 @@ export default async function toolsRoutes(fastify: FastifyInstance) {
     reply.header('Content-Disposition', `attachment; filename="${filename}"`)
     return reply.send(csv)
   })
+
+  /**
+   * GET /api/artist/tools/income-summary?from=&to=
+   * 画师收入汇总（订单收款 + 散单收入，按区间）
+   */
+  fastify.get('/api/artist/tools/income-summary', {
+    preHandler: requireAuth,
+    schema: {
+      querystring: {
+        type: 'object',
+        required: ['from', 'to'],
+        additionalProperties: false,
+        properties: {
+          from: { type: 'string', pattern: DATE_PATTERN },
+          to: { type: 'string', pattern: DATE_PATTERN }
+        }
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const q = request.query as { from: string; to: string }
+    return toolsService.getIncomeSummary(request.artist.id, q.from, q.to)
+  })
 }

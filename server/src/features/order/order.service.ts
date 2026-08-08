@@ -692,6 +692,22 @@ export function getOrderInstallments(orderId: number): Array<{ id: number; name:
 }
 
 /**
+ * 订单收款明细（客户可见字段——只返回金额/备注/时间，不含 created_by 等内部信息）
+ * 按创建时间升序，与额度池收款流水一致；负数=退款（前端按正负展示）
+ */
+export function getOrderPayments(orderId: number): Array<{ id: number; amountCents: number; note: string | null; createdAt: string }> {
+  const rows = db.prepare(
+    `SELECT id, amount_cents, note, created_at FROM order_payments WHERE order_id = ? ORDER BY created_at ASC`
+  ).all(orderId) as Array<{ id: number; amount_cents: number; note: string | null; created_at: string }>
+  return rows.map(r => ({
+    id: r.id,
+    amountCents: r.amount_cents,
+    note: r.note,
+    createdAt: r.created_at
+  }))
+}
+
+/**
  * 加减法调整订单最终价格（P0-2: 替代 recalcFinalPrice 重算）
  * 在当前 final_price_cents 基础上加减 delta，不从头重算
  * 手动改价不会被后续增项操作覆盖
