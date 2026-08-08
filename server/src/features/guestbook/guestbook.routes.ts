@@ -115,7 +115,8 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
   fastify.get('/api/admin/messages', { preHandler: requireAdmin }, async (request) => {
     const query = request.query as { artistId?: string; status?: string; replied?: string }
     const filters: guestbookService.AdminMessageFilters = {}
-    const artistId = parseInt(query.artistId ?? '')
+    // 严格数字串校验（'12abc'→NaN 而非 12；'1.9'→NaN 而非 1）
+    const artistId = /^\d+$/.test(query.artistId ?? '') ? Number(query.artistId) : NaN
     if (!Number.isNaN(artistId)) filters.artistId = artistId
     // 枚举白名单：非法值忽略（与全站列表惯例一致）
     if (query.status && ['pending', 'approved', 'rejected'].includes(query.status)) filters.status = query.status
