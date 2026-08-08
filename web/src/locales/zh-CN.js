@@ -1,4 +1,4 @@
-export default {
+﻿export default {
   errors: {
     // 认证
     NOT_LOGGED_IN: '未登录',
@@ -265,8 +265,81 @@ export default {
     // REQ-035 批A: 客户标记 + 老客召回（工具组菜单项）
     clientTags: '客户标记',
     returningClients: '老客召回',
+    // REQ-035 工具集后置: 稿价计算器 / 社恐轻松回复 / 速记剪切板 / 截稿日建议（工具组菜单项）
+    priceCalc: '稿价计算器',
+    socialReply: '社恐轻松回复',
+    quickNote: '速记剪切板',
+    deadlineAdvice: '截稿日建议',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
+  },
+  // REQ-035 工具集后置: 稿价计算器（工具页文案）
+  priceCalc: {
+    title: '稿价计算器',
+    subtitle: '客户询价时快速算个参考价，结果与客户看到的报价一致',
+    loading: '加载中…',
+    stepStyle: '选画风',
+    stepSize: '选尺寸',
+    stepAddons: '增项（选填）',
+    stepMultipliers: '倍率（选填）',
+    noSizes: '该画风还没有配置尺寸，请先到价格管理添加',
+    noStyles: '还没有配置画风与尺寸，请先到价格管理配置',
+    workDays: '约 {n} 天',
+    usage: '用途',
+    rush: '加急',
+    none: '无',
+    basePrice: '基础价',
+    multiplierNote: '倍率合计',
+    optionPrice: '按选项计价',
+    disclaimer: '仅供参考，以实际报价为准'
+  },
+  // REQ-035 工具集后置: 社恐轻松回复（工具页文案）
+  reply: {
+    title: '社恐轻松回复',
+    subtitle: '预设话术一键复制，不好意思开口的场景照抄就行',
+    copy: '复制',
+    copied: '已复制到剪贴板',
+    cats: {
+      remind: '催款',
+      decline: '拒单',
+      delay: '延期',
+      negotiate: '谈价',
+      daily: '日常沟通'
+    }
+  },
+  // REQ-035 工具集后置: 速记剪切板（工具页文案）
+  note: {
+    title: '速记剪切板',
+    subtitle: '随手记灵感、客户要求、待办，自动保存在本机浏览器',
+    titlePlaceholder: '标题（选填）',
+    contentPlaceholder: '记点什么…',
+    add: '记一条',
+    empty: '还没有记录，记下第一笔吧',
+    untitled: '无标题',
+    copy: '复制',
+    delete: '删除',
+    copied: '已复制',
+    saveFailed: '保存失败（浏览器可能处于隐私模式）'
+  },
+  // REQ-035 工具集后置: 截稿日建议（工具页文案）
+  deadlineAdvice: {
+    title: '截稿日建议',
+    subtitle: '客户问「什么时候能好」时，快速算一个建议日期',
+    workDays: '工期（天）',
+    queueMode: '按队列顺延',
+    queueHint: '当前正式队列 {n} 单，每单约 1 天缓冲',
+    compute: '算建议日期',
+    resultLabel: '建议截稿日',
+    today: '今天',
+    workDaysShort: '工期',
+    queueBuffer: '队列缓冲',
+    totalDays: '合计',
+    daysUnit: '天',
+    ordersUnit: '单',
+    disclaimer: '估算仅供参考，实际以排期和档期安排为准',
+    weekdays: {
+      sun: '周日', mon: '周一', tue: '周二', wed: '周三', thu: '周四', fri: '周五', sat: '周六'
+    }
   },
   // REQ-035 批D: 今天吃什么（工具页文案）
   foodMenu: {

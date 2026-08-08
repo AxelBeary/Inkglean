@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- v0.38: 画师后台骨架重做（REQ-026 §三.1）——纸墨 token 体系
        功能清单不丢：折叠（手动+窄屏自动）、三组导航、留言角标、身份区、登出、移动端抽屉、主题切换、语言切换
        artist-scope 类 = token 作用域标记（artist-tokens.css 过渡规则） -->
@@ -212,7 +212,7 @@ import { useThemeStore } from '../stores/theme.js'
 import { setLocale } from '../i18n/index.js'
 import { trackEvent } from '../utils/track.js'
 import { artistApi } from '../api/index.js'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Stamp, Download, Wallet, Grid, Calendar, User, Connection } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Stamp, Download, Wallet, Grid, Calendar, User, Connection, PriceTag, ChatLineRound, Notebook, AlarmClock } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
 import SealStamp from './artist/visual/SealStamp.vue'
@@ -290,6 +290,11 @@ const BASE_MENU_ITEMS = [
   { index: '/tools/clients', icon: User, labelKey: 'menu.clientTags', group: 'tools' },
   // REQ-035 批A: 老客召回（工具组）
   { index: '/tools/returning', icon: Connection, labelKey: 'menu.returningClients', group: 'tools' },
+  // REQ-035 工具集后置: 稿价计算器 / 社恐轻松回复 / 速记剪切板 / 截稿日建议（工具组）
+  { index: '/tools/price-calc', icon: PriceTag, labelKey: 'menu.priceCalc', group: 'tools' },
+  { index: '/tools/reply', icon: ChatLineRound, labelKey: 'menu.socialReply', group: 'tools' },
+  { index: '/tools/note', icon: Notebook, labelKey: 'menu.quickNote', group: 'tools' },
+  { index: '/tools/deadline', icon: AlarmClock, labelKey: 'menu.deadlineAdvice', group: 'tools' },
   // R42b: 须知编辑合并进设置页，菜单项移除
   { index: '/stats', icon: TrendCharts, labelKey: 'menu.stats', group: 'front' },
   { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },
@@ -677,3 +682,4 @@ function logout() {
 .artist-scope .mobile-drawer :deep(.el-drawer-fade-enter-from .ltr),
 .artist-scope .mobile-drawer :deep(.el-drawer-fade-leave-to .ltr) { transform: translateY(8px); }
 </style>
+
