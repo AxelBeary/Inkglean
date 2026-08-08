@@ -3,7 +3,8 @@ import { test, expect } from '../fixtures/auth.js'
 // E5: 管理员配置流程 — 管理后台 → 画师详情 → 流程标签 → 添加阶段 → 列表更新
 test('E5 管理员配置画师流程', async ({ adminPage: page }) => {
   await page.goto('/admin/artists')
-  await expect(page.getByText('画师管理')).toBeVisible()
+  // 页面标题（管理端导航项与页面 h1 均有「画师管理」，用 heading 定位页面标题避免 strict violation）
+  await expect(page.getByRole('heading', { name: '画师管理' })).toBeVisible()
 
   // 点击 Alice 行的"管理"按钮，打开详情抽屉
   const aliceRow = page.locator('tr', { hasText: 'Alice' })

@@ -3,7 +3,8 @@ import { test, expect } from '../fixtures/auth.js'
 // E4: 管理员添加画师 — 管理后台 → 填画师信息 → 提交 → 列表出现
 test('E4 管理员添加画师', async ({ adminPage: page }) => {
   await page.goto('/admin/artists')
-  await expect(page.getByText('画师管理')).toBeVisible()
+  // 页面标题（管理端导航项与页面 h1 均有「画师管理」，用 heading 定位页面标题避免 strict violation）
+  await expect(page.getByRole('heading', { name: '画师管理' })).toBeVisible()
 
   // 打开添加弹窗
   await page.getByRole('button', { name: '+ 添加画师' }).click()

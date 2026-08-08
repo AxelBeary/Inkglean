@@ -14,9 +14,9 @@ test('E3 画师推进流程节点', async ({ artistPage: page }) => {
   expect(res.ok()).toBeTruthy()
   const { orderNo } = await res.json()
 
-  // 进入订单列表，找到该订单
+  // 进入订单列表，找到该订单（订单列表有移动卡片 + 桌面表格双布局，同订单号出现 2 次 → .first() 避免 strict violation）
   await page.goto('/orders')
-  await expect(page.getByText(orderNo)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText(orderNo).first()).toBeVisible({ timeout: 10_000 })
 
   // 点击该订单行的"详情"按钮
   const row = page.locator('tr', { hasText: orderNo })
