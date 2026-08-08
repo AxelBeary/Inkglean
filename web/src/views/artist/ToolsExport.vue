@@ -36,14 +36,7 @@
             <span v-if="overviewLoading" class="income-overview-loading">{{ $t('toolsExport.incomeLoading') }}</span>
           </div>
           <div class="income-grid" v-if="overview">
-            <div class="income-cell">
-              <span class="income-label">{{ $t('toolsExport.incomeTotal') }}</span>
-              <span class="income-value income-total">{{ $t('toolsExport.incomeUnavailable') }}</span>
-            </div>
-            <div class="income-cell">
-              <span class="income-label">{{ $t('toolsExport.incomeOrder') }}</span>
-              <span class="income-value">{{ $t('toolsExport.incomeUnavailable') }}</span>
-            </div>
+            <!-- 05D-E2: 订单收入/总收入两格无后端区间汇总端点，隐藏占位（保留 incomeNote 说明；后端端点预留不动） -->
             <div class="income-cell">
               <span class="income-label">{{ $t('toolsExport.incomeStandalone') }}</span>
               <span class="income-value income-standalone">{{ fmtYuan(overview.standaloneCents) }}</span>
@@ -79,6 +72,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatCents } from '../../utils/money.js'
+import { artistApi } from '../../api/index.js'
 
 const { t } = useI18n()
 
@@ -108,9 +102,8 @@ async function loadOverview() {
   const [from, to] = range.value
   overviewLoading.value = true
   try {
-    const res = await fetch(`/api/artist/tools/standalone-incomes?from=${from}&to=${to}`, { credentials: 'include' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
+    // 05D-I1: 收口进 artistApi（401 自动登出/15s 超时/i18n 翻译走统一拦截器）
+    const data = await artistApi.getStandaloneIncomes({ from, to })
     const items = data?.items || []
     overview.value = {
       standaloneCents: items.reduce((s, it) => s + (it.amountCents || 0), 0),
@@ -140,10 +133,20 @@ async function doExport() {
   const [from, to] = range.value
   exporting.value = true
   emptyHint.value = false
+  // 05D-E1: CSV blob 下载保留 fetch（不经 JSON 拦截器），但补 15s 超时 + 401 登出（对齐 axios 拦截器行为）
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
   try {
     // token 在 httpOnly cookie → 必须带 credentials；CSV 走 blob 下载（不经过 axios JSON 拦截器）
-    const res = await fetch(`/api/artist/tools/export.csv?from=${from}&to=${to}`, { credentials: 'include' })
+    const res = await fetch(`/api/artist/tools/export.csv?from=${from}&to=${to}`, { credentials: 'include', signal: controller.signal })
     if (!res.ok) {
+      // 05D-E1: 401 → 与拦截器一致清认证并跳登录
+      if (res.status === 401) {
+        localStorage.removeItem('artist_logged_in')
+        localStorage.removeItem('artist_is_admin')
+        window.location.href = '/login'
+        return
+      }
       let msg = `HTTP ${res.status}`
       try {
         const data = await res.json()
@@ -166,8 +169,14 @@ async function doExport() {
     URL.revokeObjectURL(url)
     ElMessage.success(t('toolsExport.downloaded'))
   } catch (err) {
+    // 05D-E1: AbortController 超时 → 专用提示
+    if (err?.name === 'AbortError') {
+      ElMessage.error(t('toolsExport.timeout'))
+      return
+    }
     ElMessage.error(err.message || t('toolsExport.failed'))
   } finally {
+    clearTimeout(timer)
     exporting.value = false
   }
 }

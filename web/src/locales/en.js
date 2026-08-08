@@ -225,7 +225,10 @@ export default {
     pasteNotImage: 'Only image files can be pasted',
     pasteTooMany: 'You can paste up to {max} images at a time',
     pasteTooBig: 'File "{name}" exceeds the {max}MB limit ({size}MB), please compress and try again',
-    dragFromPage: 'Images on this page can\'t be dragged into the upload area (they\'re rendered copies, not the original files). Drag files from your file manager, or paste with Ctrl+V'
+    dragFromPage: 'Images on this page can\'t be dragged into the upload area (they\'re rendered copies, not the original files). Drag files from your file manager, or paste with Ctrl+V',
+    // 05D-A2: upload (non-paste) path validation messages
+    fileNotImage: 'Only image files are supported',
+    fileTooBig: 'File "{name}" exceeds the {max}MB limit ({size}MB). Please compress and try again.'
   },
   pageTitle: {
     home: 'Artist Commission Platform',
@@ -301,7 +304,9 @@ export default {
     incomeNote: 'Standalone income and count match the standalone rows of the exported CSV. Order and total income will appear once a backend range-summary endpoint is added.',
     incomeLoadFailed: 'Failed to load income overview',
     downloaded: 'Download started',
-    failed: 'Export failed, please try again later'
+    failed: 'Export failed, please try again later',
+    // 05D-E1: CSV export timeout
+    timeout: 'Export timed out, please try again'
   },
   // REQ-035 batch C: Standalone income ledger (tools page copy)
   standaloneIncome: {
@@ -1039,7 +1044,9 @@ export default {
     expiryLabel: 'Expiry date', expiryPlaceholder: 'Leave empty = never expires',
     createdMsg: 'Code created', updatedMsg: 'Code updated', deletedMsg: 'Code deleted',
     deleteConfirm: 'Delete code "{code}"?', disable: 'Disable', enable: 'Enable',
-    empty: 'No discount codes yet. Click "New Code" to create one.'
+    empty: 'No discount codes yet. Click "New Code" to create one.',
+    // 05D-T2: inline copy
+    copyCode: 'Copy', copied: 'Copied to clipboard', copyFailed: 'Copy failed, please copy manually'
   },
   // v0.32 REQ-023 Phase1: art styles + addon templates
   styleManage: {
@@ -1197,7 +1204,10 @@ export default {
     coverEmpty: 'No artworks yet — upload artworks first to set covers',
     coverManageLink: 'Manage covers',
     // R50: preview
-    previewBtn: 'Preview page'
+    previewBtn: 'Preview page',
+    // 05D-SE1: unsaved-changes guard on tab switch
+    unsavedLeaveTitle: 'Unsaved changes',
+    unsavedLeaveTip: 'This tab has unsaved changes that will be lost if you switch. Leave anyway?'
   },
   // v0.26 C: Slot management page
   slots: {

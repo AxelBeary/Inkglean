@@ -14,7 +14,13 @@
       </el-button>
 
       <el-table v-if="codes.length" :data="codes" size="small" stripe>
-        <el-table-column prop="code" :label="$t('discount.colCode')" width="140" />
+        <el-table-column :label="$t('discount.colCode')" width="150">
+          <template #default="{ row }">
+            <!-- 05D-T2: 行内复制（clipboard API + execCommand 兜底，照 ScheduleSharePage 模式） -->
+            <span class="discount-code-text">{{ row.code }}</span>
+            <el-button size="small" text type="primary" @click="copyCode(row.code)">{{ $t('discount.copyCode') }}</el-button>
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('discount.colType')" width="120">
           <template #default="{ row }">
             {{ row.discount_type === 'percent' ? `${row.discount_value}%` : `¥${row.discount_value}` }}
@@ -113,6 +119,32 @@ const dialogVisible = ref(false)
 const submitting = ref(false)
 const editingId = ref(null)
 const form = ref({ code: '', discountType: 'percent', discountValue: 10, maxUses: null, expiresAt: null })
+
+// 05D-T2: 复制折扣码（clipboard API + execCommand 兜底）
+async function copyCode(code) {
+  try {
+    await navigator.clipboard.writeText(code)
+    ElMessage.success(t('discount.copied'))
+  } catch {
+    copyCodeFallback(code)
+  }
+}
+function copyCodeFallback(code) {
+  const ta = document.createElement('textarea')
+  ta.value = code
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  try {
+    document.execCommand('copy')
+    ElMessage.success(t('discount.copied'))
+  } catch {
+    ElMessage.error(t('discount.copyFailed'))
+  } finally {
+    document.body.removeChild(ta)
+  }
+}
 
 async function loadData() {
   loading.value = true
@@ -217,4 +249,6 @@ onMounted(loadData)
 .discount-toggle-label { font-weight: 600; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); }
 .discount-toggle-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
 .form-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin-left: 8px; }
+/* 05D-T2: 折扣码行内布局 */
+.discount-code-text { font-family: var(--font-mono, monospace); font-weight: 600; margin-right: 4px; }
 </style>

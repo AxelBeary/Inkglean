@@ -292,8 +292,9 @@ function pickArtwork(art) {
 async function loadOrders() {
   ordersLoading.value = true
   try {
-    const res = await artistApi.getOrders(undefined, { pageSize: 100 })
-    orders.value = res?.items ?? res ?? []
+    // 05D-W1: 拉全量（原来 100 条上限 → 订单多时选不到早期完稿图）
+    const all = await artistApi.getAllOrders()
+    orders.value = all ?? []
   } catch {
     // 同上
   } finally {
