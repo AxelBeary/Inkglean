@@ -276,16 +276,26 @@ export function createArtStyle(artistId: number, input: CreateArtStyleInput): Ar
 
   const styleId = Number(result.lastInsertRowid)
 
-  // 从增项库一键导入（v49: 只导画师私有模板；系统预置模板由画师在「从已有挑选」中主动挂载）
+  const insAddon = db.prepare(
+    'INSERT OR IGNORE INTO style_addons (art_style_id, addon_template_id, is_enabled, price_override) VALUES (?, ?, 1, NULL)'
+  )
+
+  // SPEC-PRICE-2：用途/加急是全局计价维度——新建画风无条件自动绑定
+  //（画师私有 + 系统预置的 usage/rush 模板全绑，与 importAddons 开关无关）
+  const multTemplates = db.prepare(
+    "SELECT id FROM addon_templates WHERE (artist_id = ? OR artist_id IS NULL) AND category IN ('usage','rush') ORDER BY sort_order ASC"
+  ).all(artistId) as Array<{ id: number }>
+  for (const tpl of multTemplates) {
+    insAddon.run(styleId, tpl.id)
+  }
+
+  // 从增项库一键导入（v49: 只导画师私有普通增项；系统预置模板由画师在「从已有挑选」中主动挂载）
   if (input.importAddons) {
     const templates = db.prepare(
-      'SELECT id FROM addon_templates WHERE artist_id = ? ORDER BY sort_order ASC'
+      "SELECT id FROM addon_templates WHERE artist_id = ? AND category = 'add' ORDER BY sort_order ASC"
     ).all(artistId) as Array<{ id: number }>
-    const ins = db.prepare(
-      'INSERT OR IGNORE INTO style_addons (art_style_id, addon_template_id, is_enabled, price_override) VALUES (?, ?, 1, NULL)'
-    )
     for (const tpl of templates) {
-      ins.run(styleId, tpl.id)
+      insAddon.run(styleId, tpl.id)
     }
   }
 

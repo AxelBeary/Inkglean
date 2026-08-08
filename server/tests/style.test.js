@@ -156,16 +156,18 @@ describe('增项库 CRUD (addon_templates)', () => {
   it("TC-AT-08: 删除增项模板 — REQ-036 C' 保留独立增项（不级联删）", () => {
     const tpl = styleService.createAddonTemplate(artist.id, { name: '加背景', default_price: 100 })
     const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: true })
-    // 验证已导入
-    expect(style.addons).toHaveLength(1)
+    // 验证已导入（过滤系统自动绑定的用途/加急）
+    expect(style.addons.filter(a => a.template_category === 'add')).toHaveLength(1)
 
     const result = styleService.deleteAddonTemplate(artist.id, tpl.id)
     // C': 返回 referenced N，画风内增项保留为独立增项（解绑，不再跟随库更新）
     expect(result.referenced).toBe(1)
     const addons = styleService.getStyleAddons(style.id)
-    expect(addons).toHaveLength(1)
-    expect(addons[0].addon_template_id).toBeNull()
-    expect(addons[0].detached).toBeTruthy()
+    const detached = addons.find(a => a.detached)
+    expect(detached).toBeTruthy()
+    expect(detached.addon_template_id).toBeNull()
+    // 其余 = 系统用途/加急自动绑定（未解绑）
+    expect(addons.filter(a => !a.detached)).toHaveLength(2)
   })
 
   it('TC-AT-09: 获取不存在的模板 → 404', () => {
@@ -193,7 +195,7 @@ describe('画风 CRUD (art_styles)', () => {
     artist = seedArtist({ qq_number: '77020', subdomain: 'style-crud' })
   })
 
-  it('TC-AS-01: 新建画风 — 基础', () => {
+  it('TC-AS-01: 新建画风 — 基础（自动绑定系统用途/加急，无普通增项）', () => {
     const style = styleService.createArtStyle(artist.id, {
       name: '日系',
       description: '适合清新风格'
@@ -202,17 +204,22 @@ describe('画风 CRUD (art_styles)', () => {
     expect(style.description).toBe('适合清新风格')
     expect(style.is_active).toBe(1)
     expect(style.sizes).toHaveLength(0)
-    expect(style.addons).toHaveLength(0)
+    // SPEC-PRICE-2：新画风无条件自动绑定系统用途/加急；普通增项为空
+    expect(style.addons.filter(a => a.template_category === 'add')).toHaveLength(0)
+    expect(style.addons.filter(a => a.template_category === 'usage')).toHaveLength(1)
+    expect(style.addons.filter(a => a.template_category === 'rush')).toHaveLength(1)
   })
 
-  it('TC-AS-02: 新建画风 — importAddons 一键导入', () => {
+  it('TC-AS-02: 新建画风 — importAddons 一键导入（仅普通增项；用途/加急自动绑定）', () => {
     styleService.createAddonTemplate(artist.id, { name: '加人', default_price: 100 })
     styleService.createAddonTemplate(artist.id, { name: '加背景', default_price: 150 })
 
     const style = styleService.createArtStyle(artist.id, { name: '厚涂', importAddons: true })
-    expect(style.addons).toHaveLength(2)
-    expect(style.addons[0].template_name).toBe('加人')
-    expect(style.addons[1].template_name).toBe('加背景')
+    const regular = style.addons.filter(a => a.template_category === 'add')
+    expect(regular).toHaveLength(2)
+    expect(regular[0].template_name).toBe('加人')
+    expect(regular[1].template_name).toBe('加背景')
+    expect(style.addons.filter(a => a.template_category !== 'add')).toHaveLength(2) // 系统用途/加急
   })
 
   it('TC-AS-03: 新建画风 — 名称为空拒绝', () => {
@@ -333,14 +340,15 @@ describe('画风增项批量设置 (style_addons)', () => {
     tpl2 = styleService.createAddonTemplate(artist.id, { name: '加背景', default_price: 150 })
   })
 
-  it('TC-SA-01: 批量导入增项', () => {
+  it('TC-SA-01: 批量导入增项（含系统自动绑定项，按模板匹配断言）', () => {
     const result = styleService.setStyleAddons(artist.id, style.id, [
       { addon_template_id: tpl1.id },
       { addon_template_id: tpl2.id }
     ])
-    expect(result).toHaveLength(2)
-    expect(result[0].template_name).toBe('加人')
-    expect(result[1].template_name).toBe('加背景')
+    const bound = result.filter(a => a.addon_template_id === tpl1.id || a.addon_template_id === tpl2.id)
+    expect(bound).toHaveLength(2)
+    expect(bound.find(a => a.addon_template_id === tpl1.id).template_name).toBe('加人')
+    expect(bound.find(a => a.addon_template_id === tpl2.id).template_name).toBe('加背景')
   })
 
   it('TC-SA-02: 禁用增项 + 改价', () => {
@@ -459,13 +467,13 @@ describe('公开配置 (getPublicStyles)', () => {
     expect(result[0].name).toBe('日系')
     expect(result[0].sizes).toHaveLength(2)
 
-    // 头像下加人价格 = 模板默认 100
-    const headAddons = result[0].sizes[0].addons
+    // 头像下普通增项（过滤系统自动绑定的用途/加急）价格 = 模板默认 100
+    const headAddons = result[0].sizes[0].addons.filter(a => a.category === 'add')
     expect(headAddons).toHaveLength(1)
     expect(headAddons[0].price).toBe(100)
 
     // 全身下加人价格 = 覆盖 200
-    const bodyAddons = result[0].sizes[1].addons
+    const bodyAddons = result[0].sizes[1].addons.filter(a => a.category === 'add')
     expect(bodyAddons).toHaveLength(1)
     expect(bodyAddons[0].price).toBe(200)
   })
@@ -482,7 +490,8 @@ describe('公开配置 (getPublicStyles)', () => {
     ])
 
     const result = styleService.getPublicStyles(artist.id)
-    expect(result[0].sizes[0].addons).toHaveLength(0) // 隐藏的增项不出现
+    // 隐藏的普通增项不出现（系统用途/加急仍在，过滤后断言）
+    expect(result[0].sizes[0].addons.filter(a => a.category === 'add')).toHaveLength(0)
   })
 
   it('TC-PUB-03: 禁用画风不出现在公开配置', () => {
@@ -502,7 +511,7 @@ describe('公开配置 (getPublicStyles)', () => {
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id, is_enabled: false }])
 
     const result = styleService.getPublicStyles(artist.id)
-    expect(result[0].sizes[0].addons).toHaveLength(0)
+    expect(result[0].sizes[0].addons.filter(a => a.category === 'add')).toHaveLength(0)
   })
 
   it('TC-PUB-05: 画风覆盖价 > 模板默认价', () => {
@@ -584,7 +593,8 @@ describe('多画风路由层集成测试', () => {
     })
     expect(styleRes.statusCode).toBe(200)
     const style = styleRes.json()
-    expect(style.addons).toHaveLength(1)
+    // 普通增项 1 个（另含系统自动绑定的用途/加急）
+    expect(style.addons.filter(a => a.template_category === 'add')).toHaveLength(1)
 
     // 添加尺寸
     const sizeRes = await app.inject({
@@ -595,7 +605,7 @@ describe('多画风路由层集成测试', () => {
     const size = sizeRes.json()
 
     // 批量设置增项（改价）
-    const tplId = style.addons[0].addon_template_id
+    const tplId = style.addons.find(a => a.template_category === 'add').addon_template_id
     const saRes = await app.inject({
       method: 'PUT', url: `/api/artist/art-styles/${style.id}/addons`, headers,
       payload: { items: [{ addon_template_id: tplId, price_override: 120 }] }
@@ -604,9 +614,10 @@ describe('多画风路由层集成测试', () => {
 
     // 设尺寸覆盖
     const styleAddons = saRes.json()
+    const targetSa = styleAddons.find(a => a.addon_template_id === tplId)
     const ovRes = await app.inject({
       method: 'PUT', url: `/api/artist/art-styles/${style.id}/sizes/${size.id}/overrides`, headers,
-      payload: { items: [{ style_addon_id: styleAddons[0].id, price_override: 50 }] }
+      payload: { items: [{ style_addon_id: targetSa.id, price_override: 50 }] }
     })
     expect(ovRes.statusCode).toBe(200)
 
@@ -615,7 +626,7 @@ describe('多画风路由层集成测试', () => {
     const styles = listRes.json()
     expect(styles).toHaveLength(1)
     expect(styles[0].sizes).toHaveLength(1)
-    expect(styles[0].addons).toHaveLength(1)
+    expect(styles[0].addons.filter(a => a.template_category === 'add')).toHaveLength(1)
   })
 
   it('TC-RT-04: 跨画师操作 → 404', async () => {
@@ -733,7 +744,10 @@ describe('SPEC-PRICE-2 画风增项解绑与覆盖读取', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().deleted).toBe(true)
-    expect(styleService.getStyleAddons(style.id)).toHaveLength(0)
+    // 目标增项已移除；其余 = 系统自动绑定的用途/加急
+    const remaining = styleService.getStyleAddons(style.id)
+    expect(remaining.find(a => a.id === sa.id)).toBeUndefined()
+    expect(remaining).toHaveLength(2)
     // 尺寸覆盖随外键 CASCADE 清除
     expect(styleService.getSizeOverrides(artist.id, style.id, size.id)).toHaveLength(0)
     // 增项库模板保留（解绑不动库）

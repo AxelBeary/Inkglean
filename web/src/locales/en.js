@@ -1167,7 +1167,12 @@
     // v0.35 wave 1 (REQ-024 F2/F1): merged entry + multi-style switch + size edit extension
     tabStylesAndPricing: 'Styles & Pricing',
     multiStyle: 'Multi-style',
-    multiStyleHintOff: 'Off: clients only see the default style (first active one); other styles are kept but greyed out',
+    multiStyleHintOff: 'Off: clients only see the default style (the top active one; click "Set as default" to switch); others stay but are greyed out',
+    multiStyleLastGuard: 'Only one active style remains — multi-style cannot be turned off',
+    createStyleBtn: 'New Style',
+    setAsDefault: 'Set as default',
+    defaultChanged: 'Set as default and moved to the top',
+    poolRowEmpty: 'None',
     multiStyleHintOn: 'On: all active styles are visible to clients',
     styleLocked: 'Multi-style switch is off — only the default style is editable',
     styleDefaultTag: 'Default',

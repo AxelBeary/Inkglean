@@ -1165,7 +1165,12 @@
     // v0.35 波1 (REQ-024 F2/F1): 合并入口 + 多画风开关 + 尺寸编辑扩展
     tabStylesAndPricing: '画风与价格',
     multiStyle: '多画风',
-    multiStyleHintOff: '关闭：客户端只显示默认画风（排序最前的启用画风），其他画风保留但灰色不可编辑',
+    multiStyleHintOff: '关闭：客户只显示默认画风（排在最上的启用画风，可点「设为默认」切换）；其余画风保留但灰色不可编辑',
+    multiStyleLastGuard: '只剩最后一个启用的画风，不能关闭多画风',
+    createStyleBtn: '新建画风',
+    setAsDefault: '设为默认',
+    defaultChanged: '已设为默认并移到最上',
+    poolRowEmpty: '暂无',
     multiStyleHintOn: '开启：所有启用的画风对客户可见',
     styleLocked: '多画风开关已关闭，仅默认画风可编辑',
     styleDefaultTag: '默认',

@@ -66,3 +66,12 @@
 3. radio 控件新建 → 400；price_mode/category 非法值 → 400。
 4. 旧端点（/api/pricing/multipliers/*、tier 相关）→ 404/410。
 5. 全链路回归：后端测试全绿、tsc 0、lint 0。
+
+## 六、交互行为与防呆（批6 补充，2026-08-09）
+
+1. **用途/加急控件约束**：category=usage/rush 的模板强制开关控件 + 百分比计价（创建/更新后端双拦）；新建弹窗选用途/加急时控件选择隐藏。
+2. **新画风自动绑定**：createArtStyle 无条件绑定全部 usage/rush 模板（画师私有 + 系统预置），与 importAddons 无关；importAddons 仅控制普通增项导入。
+3. **快照语义（v51）**：style_addons 的 tpl_* 快照列仅服务解绑行（addon_template_id IS NULL）；绑定行以模板为唯一权威，查询用 CASE WHEN 而非 COALESCE。
+4. **多画风防呆**：关闭多画风时若启用画风 ≤1 个 → 拦截并提示；关闭成功后默认画风（首个启用）自动置顶。
+5. **设为默认**：仅多画风关闭时可见；置顶并持久化 sort_order（默认 = 首个启用画风）。
+6. **默认徽标**：仅多画风关闭时显示（开启时无默认概念，拖拽即调序）。
