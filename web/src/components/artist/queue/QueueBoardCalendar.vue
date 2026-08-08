@@ -63,7 +63,7 @@
                 <span class="cal-band-text">{{ bandLabel(band.order) }}</span>
               </div>
             </el-tooltip>
-            <div v-if="cell.bands.length > 3" class="cal-band-more" @click="openDayView(cell)">+{{ cell.bands.length - 3 }}</div>
+            <div v-if="cell.bands.length > 3" class="cal-band-more" @click.stop="openDayView(cell)">+{{ cell.bands.length - 3 }}</div>
           </div>
         </div>
       </div>
@@ -120,13 +120,13 @@
           @pointermove="onTlCanvasMove"
           @pointerup="onTlCanvasUp"
           @pointercancel="onTlCanvasCancel"
-          @wheel="onTlCanvasWheel"
         >
           <!-- 日期刻度头：批F/F2 手势区（拖拽平移/滚轮缩放/双指 pinch；订单横条区不绑定 → 原生滚动） -->
           <div
             class="tl-axis"
             :class="{ 'tl-axis--panning': tlAxisPanning }"
             :style="{ width: tlCanvasWidth + 'px' }"
+            @wheel.prevent="onTlCanvasWheel"
           >
             <div
               v-for="tick in tlTicks" :key="tick.key"
