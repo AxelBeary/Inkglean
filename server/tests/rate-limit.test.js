@@ -81,3 +81,43 @@ describe('P2-1 限流滑动窗口 (Rate Limit Sliding Window)', () => {
     expect(rateLimit(key, 3, 60_000)).toBe(true)
   })
 })
+
+describe('P1-2 限流器 LRU 化 (Rate Limit LRU Eviction)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('TC-RL-06: LRU 超限精确淘汰——最早访问的被淘汰，最近访问的保留', () => {
+    // maxBuckets 小值验证淘汰；key 数量 > maxBuckets 保证淘汰必然覆盖本组 key
+    const key = (n) => `test-lru-${n}`
+    const maxBuckets = 3
+    for (let i = 0; i < 10; i++) {
+      expect(rateLimit(key(i), 1, 60_000, maxBuckets)).toBe(true)
+    }
+    // 最早访问的 key(0) 已被淘汰：重新访问 → 重新计数 → 放行
+    expect(rateLimit(key(0), 1, 60_000, maxBuckets)).toBe(true)
+    // 最近访问的 key(9) 保留：桶在、计数满 → 限流
+    expect(rateLimit(key(9), 1, 60_000, maxBuckets)).toBe(false)
+    // 倒数第二 key(8) 保留
+    expect(rateLimit(key(8), 1, 60_000, maxBuckets)).toBe(false)
+  })
+
+  it('TC-RL-07: 访问刷新 LRU 顺序——最近访问的不先被淘汰', () => {
+    const key = (n) => `test-lru-refresh-${n}`
+    const maxBuckets = 2
+    expect(rateLimit(key('A'), 1, 60_000, maxBuckets)).toBe(true)
+    expect(rateLimit(key('B'), 1, 60_000, maxBuckets)).toBe(true)
+    // 再次访问 A：刷新顺序（A 变为最近访问）；桶在 → 限流
+    expect(rateLimit(key('A'), 1, 60_000, maxBuckets)).toBe(false)
+    // 插入 C：size=3 > 2 → 淘汰最久未访问。刷新生效则淘汰 B（A 已刷新为最近）
+    expect(rateLimit(key('C'), 1, 60_000, maxBuckets)).toBe(true)
+    // A 保留（限流）、C 保留（限流）、B 被淘汰（重新计数 → 放行）
+    expect(rateLimit(key('A'), 1, 60_000, maxBuckets)).toBe(false)
+    expect(rateLimit(key('C'), 1, 60_000, maxBuckets)).toBe(false)
+    expect(rateLimit(key('B'), 1, 60_000, maxBuckets)).toBe(true)
+  })
+})
