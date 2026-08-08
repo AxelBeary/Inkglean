@@ -26,6 +26,6 @@ test('E4 管理员添加画师', async ({ adminPage: page }) => {
   ])
   expect(response.ok()).toBeTruthy()
 
-  // 新画师出现在列表中
-  await expect(page.getByText(`E2E画师${ts}`)).toBeVisible({ timeout: 10_000 })
+  // 动态画师名：scope 到桌面表格 tbody（与 E3 同模式，防未来移动卡片双布局 strict）
+  await expect(page.locator("tbody").getByText(`E2E画师${ts}`)).toBeVisible({ timeout: 10_000 })
 })
