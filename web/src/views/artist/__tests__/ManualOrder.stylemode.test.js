@@ -1,8 +1,8 @@
-// ManualOrder 画风模式测试（v0.38 D路：画风→尺寸→增项 三级选择 + calculateStylePrice 算价 + 提交透传）
-// 覆盖：多画风三级选择、单画风退化、旧档位模式回归、未选尺寸拦截、G2 脏标记语义（未手输不调 updatePrice）
+// ManualOrder 画风模式测试（SPEC-PRICE-2：画风→尺寸→增项三区选择 + calculate-style-price 算价 + 提交透传）
+// 覆盖：多画风三级选择、单画风退化、无画风自定义单、未选尺寸拦截、用途单选、G2 脏标记语义（未手输不调 updatePrice）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { ElMessage, ElSwitch, ElInputNumber, ElRadioGroup } from 'element-plus'
+import { ElMessage, ElSwitch, ElInputNumber } from 'element-plus'
 import ElementPlus from 'element-plus'
 
 // happy-dom 无 ResizeObserver，Element Plus 内部可能用到，补齐
@@ -72,53 +72,42 @@ vi.mock('../../../composables/useDropGuard.js', () => ({
 
 import ManualOrder from '../ManualOrder.vue'
 
-// ─── 测试数据（对齐后端 getPublicStyles / calculate-style-price 响应结构） ───
+// ─── 测试数据（SPEC-PRICE-2：getPublicStyles 含 category/price_mode；算价响应整数分） ───
 const MOCK_PROFILE = {
-  subdomain: 'alice',
-  tiers: [
-    { id: 1, name: '头像', price: 100, work_days: 3 },
-    { id: 2, name: '半身像', price: 300, work_days: 7 }
-  ]
+  subdomain: 'alice'
 }
 
 const MOCK_PRICING = {
-  tiers: [
-    {
-      id: 1,
-      addons: [
-        { id: 101, name: '表情差分A', category: 'expression', select_mode: 'quantity', price_type: 'fixed', price_value: 20, max_qty: 5 }
-      ]
-    },
-    { id: 2, addons: [] }
-  ],
-  multipliers: [],
-  installments: []
+  styles: [],
+  installments: [],
+  discountEnabled: false
 }
 
-const ADDON_SWITCH = { id: 1112, addon_template_id: 92, name: '换装', control_type: 'switch', pricing_mode: 'fixed', price: 40, options: null, unit_label: null, is_enabled: true }
-const ADDON_QTY = { id: 1111, addon_template_id: 91, name: '表情差分', control_type: 'quantity', pricing_mode: 'fixed', price: 15, options: null, unit_label: '个', is_enabled: true }
-const ADDON_RADIO = { id: 1113, addon_template_id: 93, name: '复杂背景', control_type: 'radio', pricing_mode: 'fixed', price: 0, options: '[{"label":"室内","price":30},{"label":"室外","price":60}]', unit_label: null, is_enabled: true }
+const ADDON_SWITCH = { id: 1112, addon_template_id: 92, name: '换装', control_type: 'switch', price_mode: 'fixed', price: 40, unit_label: null, category: 'add', max_quantity: null, is_enabled: true }
+const ADDON_QTY = { id: 1111, addon_template_id: 91, name: '表情差分', control_type: 'quantity', price_mode: 'fixed', price: 15, unit_label: '个', category: 'add', max_quantity: 5, is_enabled: true }
+const ADDON_USAGE = { id: 1113, addon_template_id: 93, name: '商用', control_type: 'switch', price_mode: 'percent', price: 50, unit_label: null, category: 'usage', max_quantity: null, is_enabled: true }
 
 const MOCK_STYLES = [
   {
     id: 11, name: '厚涂', description: '厚涂风格', cover_image: null, sort_order: 1,
     sizes: [
-      { id: 111, name: '头像', base_price: 80, sort_order: 1, image: null, image_artwork_id: null, artwork_image_path: null, description: null, work_days: 3, addons: [ADDON_SWITCH, ADDON_QTY, ADDON_RADIO] },
-      { id: 112, name: '全身', base_price: 200, sort_order: 2, image: null, image_artwork_id: null, artwork_image_path: null, description: null, work_days: 7, addons: [ADDON_QTY] }
+      { id: 111, name: '头像', base_price: 80, sort_order: 1, image: null, image_artwork_id: null, artwork_image_path: null, description: null, work_days: 3, display_status: 'available', addons: [ADDON_SWITCH, ADDON_QTY, ADDON_USAGE] },
+      { id: 112, name: '全身', base_price: 200, sort_order: 2, image: null, image_artwork_id: null, artwork_image_path: null, description: null, work_days: 7, display_status: 'available', addons: [ADDON_QTY] }
     ]
   },
   {
     id: 12, name: '线稿', description: null, cover_image: null, sort_order: 2,
     sizes: [
-      { id: 121, name: '头像', base_price: 50, sort_order: 1, image: null, image_artwork_id: null, artwork_image_path: null, description: null, work_days: 2, addons: [] }
+      { id: 121, name: '头像', base_price: 50, sort_order: 1, image: null, image_artwork_id: null, artwork_image_path: null, description: null, work_days: 2, display_status: 'available', addons: [] }
     ]
   }
 ]
 
 const MOCK_STYLE_CALC = {
-  styleName: '厚涂', sizeName: '头像', basePrice: 80,
-  addonItems: [], subtotal: 80, usageMultiplier: null, rushMultiplier: null,
-  multiplierTotal: 80, discount: null, totalPrice: 80, totalPriceCents: 8000
+  styleName: '厚涂', sizeName: '头像', baseCents: 8000,
+  fixedAddonItems: [], percentAddonItems: [], subtotalCents: 8000,
+  usage: null, rush: null, afterMultipliersCents: 8000,
+  discount: null, totalCents: 8000
 }
 
 function setupState({ styles = [], profile = MOCK_PROFILE, pricing = MOCK_PRICING, styleCalc = MOCK_STYLE_CALC } = {}) {
@@ -168,7 +157,7 @@ async function fillQqAndSubmit(wrapper, qq = '123456789') {
   await flushPromises()
 }
 
-describe('ManualOrder 画风模式（v0.38 D路）', () => {
+describe('ManualOrder 画风模式（SPEC-PRICE-2）', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -177,24 +166,25 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     vi.restoreAllMocks()
   })
 
-  it('多画风：画风→尺寸→增项 三级选择，提交透传 styleSizeId/styleAddons', async () => {
+  it('多画风：画风→尺寸→增项 三级选择，提交透传 styleSizeId/styleAddons（无旧字段）', async () => {
     setupState({ styles: MOCK_STYLES })
     const wrapper = mountPage()
     await flushPromises()
 
-    // 1. 画风模式激活：画风卡片渲染（2 张），旧档位区不渲染
+    // 1. 画风卡片渲染（2 张），旧档位区已退役不渲染
     expect(wrapper.findAll('.mo-field .tier-card')).toHaveLength(2)
     expect(wrapper.text()).toContain('manualOrder.styleTitle')
-    expect(wrapper.text()).not.toContain('manualOrder.tier')
+    expect(wrapper.text()).not.toContain('manualOrder.tier:')
 
     // 2. 选画风 → 尺寸卡片渲染（2 张），显示天数
     await clickCardInSection(wrapper, 'manualOrder.styleTitle', 0)
     expect(wrapper.text()).toContain('manualOrder.sizeTitle')
     expect(wrapper.text()).toContain('manualOrder.sizeDays:{"n":3}')
 
-    // 3. 选尺寸 → 画风增项出现（3 个），300ms 防抖后 calculateStylePrice 触发
+    // 3. 选尺寸 → 普通增项 2 个（switch+qty）+ 用途 chip 1 个；300ms 防抖后算价触发
     await clickCardInSection(wrapper, 'manualOrder.sizeTitle', 0)
-    expect(wrapper.findAll('.style-addon-item')).toHaveLength(3)
+    expect(wrapper.findAll('.style-addon-item')).toHaveLength(2)
+    expect(wrapper.findAll('.mult-chip--usage')).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(300)
     expect(h.styleCalcCalls).toBeGreaterThan(0)
     expect(wrapper.text()).toContain('manualOrder.totalPrice')
@@ -204,10 +194,11 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     await switchComp.vm.$emit('change', true)
     await vi.advanceTimersByTimeAsync(300)
 
-    // 5. 填 QQ 提交 → 透传断言
+    // 5. 填 QQ 提交 → 透传断言（SPEC-PRICE-2 契约，无 tierId/旧倍率字段）
     await fillQqAndSubmit(wrapper)
     expect(h.created).not.toBeNull()
-    expect(h.created.tierId).toBeNull()
+    expect(h.created).not.toHaveProperty('tierId')
+    expect(h.created).not.toHaveProperty('usageMultiplierId')
     expect(h.created.styleSizeId).toBe(111)
     expect(h.created.styleAddons).toEqual([{ styleAddonId: 1112 }])
     expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传
@@ -232,7 +223,7 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     await fillQqAndSubmit(wrapper)
 
     expect(h.created).not.toBeNull()
-    expect(h.created.tierId).toBeNull()
+    expect(h.created).not.toHaveProperty('tierId')
     expect(h.created.styleSizeId).toBe(121)
     expect(h.created.styleAddons).toEqual([])
     expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传
@@ -240,26 +231,22 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     wrapper.unmount()
   })
 
-  it('旧档位模式回归：styles 为空时档位卡片正常，旧增项 UI 已移除且提交不传 addons', async () => {
+  it('无画风配置：自定义单路径可用（手输价提交，无 styleSizeId）', async () => {
     setupState({ styles: [] })
     const wrapper = mountPage()
     await flushPromises()
 
-    // 档位区渲染，画风区不渲染
-    expect(wrapper.text()).toContain('manualOrder.tier')
+    // 无画风/尺寸区；手输价后提交
     expect(wrapper.text()).not.toContain('manualOrder.styleTitle')
-
-    // 选档位 1 → 旧增项 UI 不再出现（addons 冻结清理，仅倍率区保留）
-    await clickCardInSection(wrapper, 'manualOrder.tier', 0)
-    expect(wrapper.findAll('.addon-group')).toHaveLength(0)
-    expect(wrapper.text()).not.toContain('manualOrder.addons')
-
+    const priceComp = wrapper.find('.mo-final-row').findComponent(ElInputNumber)
+    await priceComp.vm.$emit('update:modelValue', 66)
     await fillQqAndSubmit(wrapper)
+
     expect(h.created).not.toBeNull()
-    expect(h.created.tierId).toBe(1)
-    expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传
     expect(h.created.styleSizeId).toBeUndefined()
     expect(h.created.styleAddons).toBeUndefined()
+    expect(h.updatedPrice).not.toBeNull()
+    expect(h.updatedPrice.finalPriceCents).toBe(6600)
 
     wrapper.unmount()
   })
@@ -305,25 +292,32 @@ describe('ManualOrder 画风模式（v0.38 D路）', () => {
     wrapper.unmount()
   })
 
-  it('radio 增项：选选项后提交带 optionLabel', async () => {
+  it('用途单选 chip：点选后提交带用途增项；再点取消', async () => {
     setupState({ styles: MOCK_STYLES })
     const wrapper = mountPage()
     await flushPromises()
 
     await clickCardInSection(wrapper, 'manualOrder.styleTitle', 0)
     await clickCardInSection(wrapper, 'manualOrder.sizeTitle', 0)
-    expect(wrapper.text()).toContain('manualOrder.addonOptionPrice')
 
-    // 画风增项内的 radio 组（页面还有优先级/初始状态两个 radio 组，须按区块定位）
-    const radioItem = wrapper.findAll('.style-addon-item').find(i => i.findComponent(ElRadioGroup).exists())
-    const radioGroup = radioItem.findComponent(ElRadioGroup)
-    await radioGroup.vm.$emit('change', '室内')
+    // 用途 chip 渲染（商用 +50%）
+    const chip = wrapper.find('.mult-chip--usage')
+    expect(chip.exists()).toBe(true)
+    expect(chip.text()).toContain('商用')
+    expect(chip.text()).toContain('+50%')
+
+    // 点选 → 提交带用途增项
+    await chip.trigger('click')
     await vi.advanceTimersByTimeAsync(300)
-
     await fillQqAndSubmit(wrapper)
-    expect(h.created).not.toBeNull()
     expect(h.created.styleSizeId).toBe(111)
-    expect(h.created.styleAddons).toEqual([{ styleAddonId: 1113, optionLabel: '室内' }])
+    expect(h.created.styleAddons).toEqual([{ styleAddonId: 1113 }])
+
+    // 再点取消 → 提交不带用途增项
+    await chip.trigger('click')
+    await vi.advanceTimersByTimeAsync(300)
+    await fillQqAndSubmit(wrapper)
+    expect(h.created.styleAddons).toEqual([])
 
     wrapper.unmount()
   })
@@ -367,12 +361,12 @@ describe('ManualOrder 补漏批（REQ-029）', () => {
     await clickCardInSection(wrapper, 'manualOrder.styleTitle', 0)
     expect(wrapper.text()).not.toContain('manualOrder.sizeTitle')
 
-    // 手输价 → 提交自定义单（tierId null、无 styleSizeId）
+    // 手输价 → 提交自定义单（无 tierId/无 styleSizeId）
     const priceComp = wrapper.find('.mo-final-row').findComponent(ElInputNumber)
     await priceComp.vm.$emit('update:modelValue', 88)
     await fillQqAndSubmit(wrapper)
     expect(h.created).not.toBeNull()
-    expect(h.created.tierId).toBeNull()
+    expect(h.created).not.toHaveProperty('tierId')
     expect(h.created.styleSizeId).toBeUndefined()
     expect(h.created.styleAddons).toBeUndefined()
     // G2: 手输价 ≠ 计算价(null) → updatePrice 补写
@@ -489,7 +483,7 @@ describe('ManualOrder 补漏批（REQ-029）', () => {
     await fillQqAndSubmit(wrapper)
 
     expect(h.created).not.toBeNull()
-    expect(h.created.tierId).toBeNull()
+    expect(h.created).not.toHaveProperty('tierId')
     expect(h.created.styleSizeId).toBeUndefined()
     expect(h.created.styleAddons).toBeUndefined()
     expect(h.created.addons).toBeUndefined() // 旧 addons 字段已冻结停传

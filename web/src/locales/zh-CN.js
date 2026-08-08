@@ -641,9 +641,17 @@
     addonStepEmpty: '该尺寸下暂无可选增项',
     noSizeHint: '该画风暂未设置尺寸，可跳过直接继续',
     noSizeContinue: '跳过尺寸，继续',
-    addonOptionPrice: '选项价',
-    multiplierLabel: '用途与加急', usageLabel: '用途：', rushLabel: '加急：',
-    personal: '个人', noRush: '不加急',
+    // SPEC-PRICE-2：增项步三区分组 + 用途/加急单选 + 展示态尺寸 + 价格明细
+    noStylesHint: '画师暂未开放约稿配置，请稍后再来',
+    addonGroupRegular: '普通增项（可多选）',
+    addonGroupUsage: '用途（最多选一项）',
+    addonGroupRush: '加急（最多选一项）',
+    multOptionalHint: '可不选',
+    sizeShowcaseTag: '展示中 · 暂不可约',
+    sizeShowcaseBlocked: '该尺寸展示中，暂不可约稿',
+    pctOfBase: '按基础价计算',
+    priceSubtotal: '小计（基础价 + 增项）',
+    previewBaseLine: '基础价（{size}）',
     // v0.35 F4: 入口 A 预选可见横幅（展示柜带选择进来）
     preselectedBoth: '已按主页选择预选：{style} · {size}',
     preselectedStyle: '已预选画风「{style}」，请选择尺寸',
@@ -1228,6 +1236,7 @@
     previewClose: '关闭', previewStatusOpen: '可约', previewStatusShow: '展示中 · 顾客可见但不可约稿', previewStatusClose: '已关闭 · 顾客不可见',
     // 尺寸三态
     sizeStatusOpen: '可约', sizeStatusShow: '展示', sizeStatusClose: '关闭',
+    styleInactiveTag: '已停用',
     // 尺寸摘要行
     sizeSummaryLabel: '已配增项', sizeSummaryEmpty: '未启用增项（可拖入上方胶囊）'
   },
@@ -1456,7 +1465,7 @@
     slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     defaultWorkflow: '默认流程模板', defaultWorkflowHint: '修改后仅影响新注册画师，已有画师不受影响。',
     resetTemplate: '重置为出厂默认', resetConfirm: '确定恢复出厂默认模板？当前自定义模板将被覆盖。', resetDone: '已恢复出厂默认',
-    manage: '管理', artistDetail: '画师详情', tierName: '档位名称',
+    manage: '管理', artistDetail: '画师详情', pricingHint: '价格由画师在「画风与价格」页维护，此处仅展示概览',
     artworkHint: '作品图片需通过画师后台上传，此处仅支持查看和删除。',
     greetingTab: '问候语',
     greetingGlobalHint: '通用库条目对所有画师生效，与画师专属库混合抽取。',

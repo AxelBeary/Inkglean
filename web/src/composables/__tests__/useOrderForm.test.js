@@ -1,9 +1,10 @@
-// useOrderForm composable 测试
-// 覆盖：数据加载、档位选择、计价逻辑、增项初始化、草稿保存/恢复、校验规则、提交流程、参考图上传
+// useOrderForm composable 测试（SPEC-PRICE-2 v50 统一价格模型）
+// 覆盖：数据加载、画风三步走、增项三区选择（普通多选/用途单选/加急单选）、
+//       计价调用、草稿保存/恢复、URL 预选、校验规则、提交流程、折扣预估、参考图上传
 // R58 架构：OrderForm.vue 是纯布局壳，全部业务逻辑在此 composable——测它即覆盖下单页关键交互
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { ref, nextTick } from 'vue'
+import { ref } from 'vue'
 
 // ─── Mocks（vi.mock 自动提升） ───
 vi.mock('vue-i18n', () => ({
@@ -20,9 +21,9 @@ vi.mock('../../api/index.js', () => ({
     getProfile: vi.fn(),
     getWorkflow: vi.fn(),
     getPricing: vi.fn(),
-    calculatePrice: vi.fn(),
     getPublicStyles: vi.fn(),
-    calculateStylePrice: vi.fn()
+    calculateStylePrice: vi.fn(),
+    validateDiscount: vi.fn()
   },
   orderApi: { create: vi.fn() },
   uploadApi: { reference: vi.fn() }
@@ -44,75 +45,66 @@ import { useOrderForm } from '../useOrderForm.js'
 import { artistPublicApi, orderApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// ─── 测试数据 ───
+// ─── 测试数据（SPEC-PRICE-2 公开结构：category 真实维度） ───
 const MOCK_PROFILE = {
   name: 'Alice',
   subdomain: 'alice',
-  tiers: [
-    { id: 1, name: '头像', price: 100, work_days: 3 },
-    { id: 2, name: '半身像', price: 300, work_days: 7 }
-  ],
   rules: '<p>约稿须知</p>',
   notifyEnabled: true
 }
 
 const MOCK_PRICING = {
-  tiers: [
-    {
-      id: 1,
-      addons: [
-        { id: 101, name: '表情差分A', category: 'expression', select_mode: 'quantity', price_type: 'fixed', price_value: 20, max_qty: 5 },
-        { id: 102, name: '换装', category: 'outfit', select_mode: 'toggle', price_type: 'fixed', price_value: 50 },
-        { id: 103, name: '特殊背景', category: 'background', select_mode: 'inquiry', price_type: 'fixed', price_value: 0 }
-      ]
-    },
-    { id: 2, addons: [] }
+  styles: [],
+  installments: [
+    { label: '定金', basisPoints: 3000 },
+    { label: '尾款', basisPoints: 7000 }
   ],
-  multipliers: [
-    { id: 201, name: '商用', type: 'usage', multiplier: 2 },
-    { id: 202, name: '加急', type: 'rush', multiplier: 1.5 }
-  ],
-  installments: []
+  discountEnabled: true
 }
 
-const MOCK_CALC_RESULT = {
-  totalPrice: 170,
-  totalPriceCents: 17000,
-  breakdown: [
-    { name: '基础价', amount: 100 },
-    { name: '表情差分A ×2', amount: 40 },
-    { name: '换装', amount: 50 }
-  ],
-  installments: []
-}
+// 增项 fixture（后端 getPublicStyles 返回结构：含 category/price_mode）
+const ADDON_BG = { id: 1111, addon_template_id: 91, name: '背景', control_type: 'switch', price_mode: 'fixed', price: 30, unit_label: null, category: 'add', max_quantity: null, is_enabled: true }
+const ADDON_PERSON = { id: 1112, addon_template_id: 92, name: '加人', control_type: 'quantity', price_mode: 'fixed', price: 15, unit_label: '位', category: 'add', max_quantity: 5, is_enabled: true }
+const ADDON_DETAIL = { id: 1113, addon_template_id: 93, name: '精细刻画', control_type: 'switch', price_mode: 'percent', price: 20, unit_label: null, category: 'add', max_quantity: null, is_enabled: true }
+const ADDON_COMM = { id: 1114, addon_template_id: 94, name: '商用', control_type: 'switch', price_mode: 'percent', price: 50, unit_label: null, category: 'usage', max_quantity: null, is_enabled: true }
+const ADDON_BUYOUT = { id: 1115, addon_template_id: 95, name: '买断', control_type: 'switch', price_mode: 'percent', price: 100, unit_label: null, category: 'usage', max_quantity: null, is_enabled: true }
+const ADDON_RUSH = { id: 1116, addon_template_id: 96, name: '加急', control_type: 'switch', price_mode: 'percent', price: 100, unit_label: null, category: 'rush', max_quantity: null, is_enabled: true }
+const ADDON_SRUSH = { id: 1117, addon_template_id: 97, name: '超级加急', control_type: 'switch', price_mode: 'percent', price: 200, unit_label: null, category: 'rush', max_quantity: null, is_enabled: true }
 
-// ─── 画风 mock 数据（v0.32 REQ-023 公开结构：snake_case，与后端 getPublicStyles 一致） ───
-const ADDON_1111 = { id: 1111, addon_template_id: 91, name: '表情差分', control_type: 'quantity', pricing_mode: 'fixed', price: 15, options: null, unit_label: '个', is_enabled: true }
-const ADDON_1112 = { id: 1112, addon_template_id: 92, name: '换装', control_type: 'switch', pricing_mode: 'fixed', price: 40, options: null, unit_label: null, is_enabled: true }
-const ADDON_1113 = { id: 1113, addon_template_id: 93, name: '复杂背景', control_type: 'radio', pricing_mode: 'fixed', price: 0, options: '[{"label":"室内","price":30},{"label":"室外","price":60}]', unit_label: null, is_enabled: true }
+const HEAD_ADDONS = [ADDON_BG, ADDON_PERSON, ADDON_DETAIL, ADDON_COMM, ADDON_BUYOUT, ADDON_RUSH, ADDON_SRUSH]
 
 const MOCK_STYLES = [
   {
     id: 11, name: '厚涂', description: '厚涂风格', cover_image: null, sort_order: 1,
     sizes: [
-      { id: 111, name: '头像', base_price: 80, sort_order: 1, addons: [ADDON_1111, ADDON_1112] },
-      // 全身尺寸下 1112（换装）被尺寸级隐藏 → 不在 addons 里
-      { id: 112, name: '全身', base_price: 200, sort_order: 2, addons: [ADDON_1111, ADDON_1113] }
+      { id: 111, name: '头像', base_price: 80, sort_order: 1, display_status: 'available', addons: HEAD_ADDONS },
+      { id: 112, name: '全身', base_price: 200, sort_order: 2, display_status: 'available', addons: [ADDON_BG] },
+      { id: 113, name: '展示尺寸', base_price: 300, sort_order: 3, display_status: 'showcase', addons: [] }
     ]
   },
   {
     id: 12, name: '线稿', description: null, cover_image: null, sort_order: 2,
     sizes: [
-      { id: 121, name: '头像', base_price: 50, sort_order: 1, addons: [] }
+      { id: 121, name: '头像', base_price: 50, sort_order: 1, display_status: 'available', addons: [] }
     ]
   }
 ]
 
+// calculate-style-price 响应（SPEC-PRICE-2 整数分口径）
+// 场景：基础 80 + 背景 30 + 加人×2 30 + 精细刻画 20%×80=16 = 156；商用 +50% → 234；加急 +100% → 468
 const MOCK_STYLE_CALC_RESULT = {
-  styleName: '厚涂', sizeName: '头像', basePrice: 80,
-  addonItems: [{ name: '表情差分', quantity: 2, unitPrice: 15, amount: 30, source: 'template_default' }],
-  subtotal: 110, usageMultiplier: null, rushMultiplier: null,
-  multiplierTotal: 110, discount: null, totalPrice: 110, totalPriceCents: 11000
+  styleName: '厚涂', sizeName: '头像', baseCents: 8000,
+  fixedAddonItems: [
+    { name: '背景', quantity: 1, unitCents: 3000, amountCents: 3000 },
+    { name: '加人', quantity: 2, unitCents: 1500, amountCents: 3000 }
+  ],
+  percentAddonItems: [{ name: '精细刻画', percent: 20, amountCents: 1600 }],
+  subtotalCents: 15600,
+  usage: { name: '商用', percent: 50, incrementCents: 7800 },
+  rush: { name: '加急', percent: 100, incrementCents: 23400 },
+  afterMultipliersCents: 46800,
+  discount: null,
+  totalCents: 46800
 }
 
 // ─── 工具函数 ───
@@ -120,8 +112,6 @@ function setupMocks({ profile = MOCK_PROFILE, pricing = MOCK_PRICING, workflow =
   artistPublicApi.getProfile.mockResolvedValue(profile)
   artistPublicApi.getWorkflow.mockResolvedValue(workflow)
   artistPublicApi.getPricing.mockResolvedValue(pricing)
-  artistPublicApi.calculatePrice.mockResolvedValue(MOCK_CALC_RESULT)
-  // 画风接口默认空数组 → isStyleMode=false，旧测试路径不受影响（v0.33）
   artistPublicApi.getPublicStyles.mockResolvedValue(styles)
   artistPublicApi.calculateStylePrice.mockResolvedValue(MOCK_STYLE_CALC_RESULT)
   orderApi.create.mockResolvedValue({ orderNo: 'ALICE-001' })
@@ -132,15 +122,13 @@ function setupMocks({ profile = MOCK_PROFILE, pricing = MOCK_PRICING, workflow =
 /**
  * 创建 useOrderForm 实例并等待 onMounted 完成
  * @param {object} opts - 配置项
- * @param {object} opts.profile - 画师资料 mock 数据
- * @param {object} opts.pricing - 计价数据 mock 数据
- * @param {Array} opts.styles - 画风列表（空数组 = 旧模型；非空 = 画风模式）
+ * @param {Array} opts.styles - 画风列表（默认双画风 MOCK_STYLES）
  * @param {object} opts.draft - 预置 sessionStorage 草稿
  * @param {boolean} opts.confirmRejects - 草稿恢复弹窗点"丢弃"
- * @param {object} opts.query - v0.34 任务B：URL query 预选参数（styleId/sizeId）
+ * @param {object} opts.query - URL query 预选参数（styleId/sizeId）
  */
 async function createForm(opts = {}) {
-  setupMocks(opts)
+  setupMocks({ styles: MOCK_STYLES, ...opts })
   if (opts.confirmRejects) ElMessageBox.confirm.mockRejectedValueOnce('cancel')
   if (opts.draft) sessionStorage.setItem('orderForm_draft_alice', JSON.stringify(opts.draft))
 
@@ -172,527 +160,374 @@ afterEach(() => {
 // ─── 数据加载 ───
 
 describe('数据加载', () => {
-  it('加载成功：artist/tiers/rulesContent 正确设置，loading 变 false', async () => {
+  it('加载成功：artist/rulesContent/styles 正确设置，loading 变 false', async () => {
     const { of } = await createForm()
     expect(of.loading.value).toBe(false)
     expect(of.artist.value.name).toBe('Alice')
-    expect(of.tiers.value).toHaveLength(2)
-    expect(of.tiers.value[0].name).toBe('头像')
     expect(of.rulesContent.value).toBe('<p>约稿须知</p>')
+    expect(of.styles.value).toHaveLength(2)
+    expect(of.isStyleMode.value).toBe(true)
+    expect(of.isMultiStyle.value).toBe(true)
   })
 
-  it('加载失败：loading 变 false，弹出错误提示', async () => {
+  it('加载失败：loading 变 false，错误消息提示', async () => {
+    artistPublicApi.getProfile.mockRejectedValueOnce(new Error('网络错误'))
+    setupMocks({ styles: MOCK_STYLES })
     artistPublicApi.getProfile.mockRejectedValue(new Error('网络错误'))
-    const formRef = ref({ validate: vi.fn(), scrollToField: vi.fn() })
+    const formRef = ref({ validate: vi.fn() })
     let composable
     mount({
       setup() {
         composable = useOrderForm('alice', formRef)
-        return { of: composable }
+        return {}
       },
       template: '<div />'
     })
     await flushPromises()
     expect(composable.loading.value).toBe(false)
-    expect(composable.artist.value).toBeNull()
     expect(ElMessage.error).toHaveBeenCalled()
   })
 
-  it('workflow 和 pricing 异步加载不阻塞主流程', async () => {
-    const { of } = await createForm({ workflow: { stages: [{ id: 1, name: '草稿' }] } })
-    // workflow 是 fire-and-forget，需额外 flush
+  it('无画风配置：isStyleMode=false（页面显示空态）', async () => {
+    const { of } = await createForm({ styles: [] })
+    expect(of.isStyleMode.value).toBe(false)
+  })
+
+  it('单画风：自动选中唯一画风，isMultiStyle=false', async () => {
+    const { of } = await createForm({ styles: [MOCK_STYLES[0]] })
+    expect(of.isMultiStyle.value).toBe(false)
+    expect(of.selectedStyleId.value).toBe(11)
+  })
+
+  it('workflow 与 pricing 异步加载不阻塞主流程', async () => {
+    artistPublicApi.getWorkflow.mockResolvedValueOnce({ stages: [{ id: 1, name: '定金' }] })
+    const { of } = await createForm()
     await flushPromises()
-    expect(of.workflowStages.value).toHaveLength(1)
-    expect(of.pricingData.value).toEqual(MOCK_PRICING)
-  })
-})
-
-// ─── 档位与计价展示 ───
-
-describe('档位与计价展示', () => {
-  it('selectedTier：未选档位 → null', async () => {
-    const { of } = await createForm()
-    expect(of.selectedTier.value).toBeNull()
-  })
-
-  it('selectedTier：选中后返回对应档位对象', async () => {
-    const { of } = await createForm()
-    of.form.tierId = 1
-    expect(of.selectedTier.value).toEqual(MOCK_PROFILE.tiers[0])
-  })
-
-  it('onTierChange：清空倍率/价格/展开状态', async () => {
-    const { of } = await createForm()
-    of.form.tierId = 1
-    await nextTick()
-    // 制造一些状态
-    of.form.usageMultiplierId = 201
-    of.form.rushMultiplierId = 202
-    of.pricePreview.value = MOCK_CALC_RESULT
-    of.pricingExpanded.value = true
-
-    of.onTierChange()
-
-    expect(of.form.usageMultiplierId).toBeNull()
-    expect(of.form.rushMultiplierId).toBeNull()
-    expect(of.pricePreview.value).toBeNull()
-    expect(of.pricingExpanded.value).toBe(false)
-  })
-
-  it('hasPricingExtras：无倍率无折扣 → false', async () => {
-    const { of } = await createForm({ pricing: { tiers: [], multipliers: [] } })
-    of.form.tierId = 1
-    expect(of.hasPricingExtras.value).toBe(false)
-  })
-
-  it('hasPricingExtras：有倍率 → true', async () => {
-    const { of } = await createForm()
-    of.form.tierId = 1
-    expect(of.hasPricingExtras.value).toBe(true)
-  })
-
-  it('usageMultipliers / rushMultipliers：按 type 过滤', async () => {
-    const { of } = await createForm()
-    expect(of.usageMultipliers.value).toHaveLength(1)
-    expect(of.usageMultipliers.value[0].name).toBe('商用')
-    expect(of.rushMultipliers.value).toHaveLength(1)
-    expect(of.rushMultipliers.value[0].name).toBe('加急')
-  })
-})
-
-// ─── 价格计算 ───
-
-describe('价格计算', () => {
-  it('无档位时 pricePreview 为 null', async () => {
-    const { of } = await createForm()
-    expect(of.pricePreview.value).toBeNull()
-  })
-
-  it('选档位后防抖调用 calculatePrice，结果写入 pricePreview', async () => {
-    vi.useFakeTimers()
-    const { of } = await createForm()
-
-    of.form.tierId = 1
-    await nextTick()
-    await vi.advanceTimersByTimeAsync(300)
-
-    expect(artistPublicApi.calculatePrice).toHaveBeenCalledWith(expect.objectContaining({
-      subdomain: 'alice',
-      tierId: 1
-    }))
-    expect(of.pricePreview.value).toEqual(MOCK_CALC_RESULT)
-  })
-
-  it('calculatePrice 失败 → pricePreview 回退 null', async () => {
-    vi.useFakeTimers()
-    const { of } = await createForm()
-    // 在 createForm 之后覆盖 mock（setupMocks 会设置默认 resolve）
-    artistPublicApi.calculatePrice.mockRejectedValue(new Error('计价失败'))
-
-    of.form.tierId = 1
-    await nextTick()
-    await vi.advanceTimersByTimeAsync(300)
-
-    expect(of.pricePreview.value).toBeNull()
-  })
-})
-
-// ─── 草稿保存 / 恢复（R57 表单防丢失） ───
-
-describe('草稿保存 / 恢复', () => {
-  it('表单有内容 → 防抖后写入 sessionStorage', async () => {
-    vi.useFakeTimers()
-    const { of } = await createForm()
-
-    of.form.tierId = 1
-    of.form.description = '想要一个酷酷的头像'
-    of.form.clientQq = '123456'
-    await nextTick()
-    vi.advanceTimersByTime(500)
-
-    const raw = sessionStorage.getItem('orderForm_draft_alice')
-    expect(raw).toBeTruthy()
-    const draft = JSON.parse(raw)
-    expect(draft.form.tierId).toBe(1)
-    expect(draft.form.description).toBe('想要一个酷酷的头像')
-    expect(draft.form.clientQq).toBe('123456')
-  })
-
-  it('表单为空 → 清除已有草稿', async () => {
-    vi.useFakeTimers()
-    const { of } = await createForm()
-
-    // 先填表单 → 写入草稿
-    of.form.tierId = 1
-    of.form.clientQq = '123'
-    await nextTick()
-    vi.advanceTimersByTime(500)
-    expect(sessionStorage.getItem('orderForm_draft_alice')).toBeTruthy()
-
-    // 再清空表单 → 草稿应被删除
-    of.form.tierId = null
-    of.form.clientQq = ''
-    await nextTick()
-    vi.advanceTimersByTime(500)
-
-    expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
-  })
-
-  it('恢复草稿：有效档位 + 倍率被还原', async () => {
-    const draft = {
-      form: { tierId: 1, description: '恢复测试', clientQq: '999', clientName: '张三', notifyEnabled: false, usageMultiplierId: 201, rushMultiplierId: null }
-    }
-    const { of } = await createForm({ draft })
-
-    expect(ElMessageBox.confirm).toHaveBeenCalled()
-    expect(of.form.tierId).toBe(1)
-    expect(of.form.description).toBe('恢复测试')
-    expect(of.form.clientQq).toBe('999')
-    expect(of.form.clientName).toBe('张三')
-    expect(of.form.notifyEnabled).toBe(false)
-    expect(of.form.usageMultiplierId).toBe(201)
-    expect(ElMessage.success).toHaveBeenCalled()
-  })
-
-  it('恢复草稿：档位已被画师删除 → tierId 和倍率置空，其余字段保留', async () => {
-    const draft = {
-      form: { tierId: 999, description: '档位没了', clientQq: '888', clientName: '', notifyEnabled: true, usageMultiplierId: 201, rushMultiplierId: 202 }
-    }
-    const { of } = await createForm({ draft })
-
-    expect(of.form.tierId).toBeNull()
-    expect(of.form.usageMultiplierId).toBeNull()
-    expect(of.form.rushMultiplierId).toBeNull()
-    expect(of.form.description).toBe('档位没了') // 非档位字段仍恢复
-    expect(of.form.clientQq).toBe('888')
-  })
-
-  it('用户点"丢弃" → 草稿被清除，表单保持空', async () => {
-    const draft = { form: { tierId: 1, description: '不要了' } }
-    const { of } = await createForm({ draft, confirmRejects: true })
-
-    expect(of.form.tierId).toBeNull()
-    expect(of.form.description).toBe('')
-    expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
-  })
-
-  it('损坏的草稿 JSON → 静默丢弃不崩溃', async () => {
-    sessionStorage.setItem('orderForm_draft_alice', '{broken json!!!')
-    const { of } = await createForm()
-
-    expect(of.form.tierId).toBeNull()
     expect(of.loading.value).toBe(false)
   })
 })
 
-// ─── 草稿画风状态保存 / 恢复（v0.33，三步走防丢失） ───
+// ─── 画风三步走选择 ───
 
-describe('草稿画风状态保存 / 恢复', () => {
-  /** 多画风表单（styles = MOCK_STYLES，isStyleMode + isMultiStyle） */
-  const createStyleForm = (opts = {}) => createForm({ styles: MOCK_STYLES, ...opts })
+describe('画风/尺寸选择', () => {
+  it('selectStyle：切换画风重置尺寸/增项/用途加急/预览', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.styleAddonSelections[1111] = { toggled: true, quantity: 0 }
+    of.toggleUsage(1114)
+    of.selectStyle(12)
+    expect(of.selectedSizeId.value).toBeNull()
+    expect(of.styleAddonSelections[1111]).toBeUndefined()
+    expect(of.selectedUsageId.value).toBeNull()
+    expect(of.stylePricePreview.value).toBeNull()
+  })
 
-  it('hasDraftContent：多画风下选了画风 → true（其余字段全空也算）', async () => {
-    const { of } = await createStyleForm()
+  it('selectSize：初始化普通增项默认选择结构', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    expect(of.styleAddonSelections[1111]).toEqual({ toggled: false, quantity: 0 })
+    expect(of.styleAddonSelections[1112]).toEqual({ toggled: false, quantity: 0 })
+  })
+
+  it('selectSize：展示态（showcase）尺寸不可选并提示', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(113)
+    expect(of.selectedSizeId.value).toBeNull()
+    expect(ElMessage.info).toHaveBeenCalledWith('orderForm.sizeShowcaseBlocked')
+  })
+
+  it('selectSize：切换尺寸重置增项与用途/加急', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.toggleRush(1116)
+    of.selectSize(112)
+    expect(of.selectedRushId.value).toBeNull()
+    expect(Object.keys(of.styleAddonSelections)).toHaveLength(1) // 只剩全身尺寸的 ADDON_BG
+  })
+})
+
+// ─── 增项三区分类与单选 ───
+
+describe('增项分类与选择', () => {
+  it('regularAddons/usageAddons/rushAddons 按真实 category 分类', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    expect(of.regularAddons.value.map(a => a.id)).toEqual([1111, 1112, 1113])
+    expect(of.usageAddons.value.map(a => a.id)).toEqual([1114, 1115])
+    expect(of.rushAddons.value.map(a => a.id)).toEqual([1116, 1117])
+  })
+
+  it('toggleUsage：单选切换，再点取消', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.toggleUsage(1114)
+    expect(of.selectedUsageId.value).toBe(1114)
+    of.toggleUsage(1115)
+    expect(of.selectedUsageId.value).toBe(1115) // 换选
+    of.toggleUsage(1115)
+    expect(of.selectedUsageId.value).toBeNull() // 再点取消
+  })
+
+  it('toggleRush：单选切换', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.toggleRush(1116)
+    expect(of.selectedRushId.value).toBe(1116)
+    of.toggleRush(1117)
+    expect(of.selectedRushId.value).toBe(1117)
+  })
+
+  it('buildStyleAddons：普通增项（开关/数量）+ 用途 + 加急', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.styleAddonSelections[1111].toggled = true
+    of.styleAddonSelections[1112].quantity = 2
+    of.toggleUsage(1114)
+    of.toggleRush(1116)
+    expect(of.buildStyleAddons()).toEqual([
+      { styleAddonId: 1111 },
+      { styleAddonId: 1112, quantity: 2 },
+      { styleAddonId: 1114 },
+      { styleAddonId: 1116 }
+    ])
+  })
+
+  it('styleAddonPriceText：¥/单价单位/+百分比 三种形态', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    expect(of.styleAddonPriceText(ADDON_BG)).toBe('¥30')
+    expect(of.styleAddonPriceText(ADDON_PERSON)).toBe('¥15/位')
+    expect(of.styleAddonPriceText(ADDON_DETAIL)).toBe('+20%')
+  })
+})
+
+// ─── 计价调用 ───
+
+describe('计价', () => {
+  it('选尺寸后防抖调 calculate-style-price（新契约：无倍率 ID 参数）', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    await vi.advanceTimersByTimeAsync(800)
+    expect(artistPublicApi.calculateStylePrice).toHaveBeenCalled()
+    const arg = artistPublicApi.calculateStylePrice.mock.calls.at(-1)[0]
+    expect(arg.styleSizeId).toBe(111)
+    expect(arg).not.toHaveProperty('usageMultiplierId')
+    expect(arg).not.toHaveProperty('rushMultiplierId')
+    expect(of.stylePricePreview.value.totalCents).toBe(46800)
+  })
+
+  it('calculate-style-price 失败 → 预览置 null 不抛错', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm()
+    artistPublicApi.calculateStylePrice.mockRejectedValue(new Error('boom'))
+    of.selectStyle(11)
+    of.selectSize(111)
+    await vi.advanceTimersByTimeAsync(800)
+    expect(of.stylePricePreview.value).toBeNull()
+  })
+
+  it('styleDisplayPrice：无尺寸=0；选尺寸未计价=基础价回退；计价后=总价', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    expect(of.styleDisplayPrice.value).toBe(0) // 未选尺寸
+    of.selectSize(111)
+    expect(of.styleDisplayPrice.value).toBe(80) // 未计价回退基础价
+    await new Promise(r => setTimeout(r, 350))
+    await flushPromises()
+    expect(of.styleDisplayPrice.value).toBe(468) // 46800 分
+  })
+
+  it('installmentPreview：定金30%/尾款70% 分摊（尾差归末节点）', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    await new Promise(r => setTimeout(r, 350))
+    await flushPromises()
+    const inst = of.installmentPreview.value
+    expect(inst).toHaveLength(2)
+    expect(inst[0].label).toBe('定金')
+    expect(inst[0].amountCents + inst[1].amountCents).toBe(46800)
+    expect(inst[0].amountCents).toBe(Math.round(46800 * 3000 / 10000))
+  })
+})
+
+// ─── 折扣预估 ───
+
+describe('折扣预估', () => {
+  it('percent 折扣：floor(倍率后总价 × value/100)（与后端口径一致）', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    await new Promise(r => setTimeout(r, 350))
+    await flushPromises()
+    of.discountResult.value = { discountType: 'percent', discountValue: 10 }
+    // afterMultipliersCents=46800 → floor(4680)=4680 分
+    expect(of.discountPreviewCents.value).toBe(4680)
+    expect(of.discountedTotalYuan.value).toBe(421.2)
+  })
+
+  it('fixed 折扣：不超过倍率后总价', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    await new Promise(r => setTimeout(r, 350))
+    await flushPromises()
+    of.discountResult.value = { discountType: 'fixed', discountValue: 9999 }
+    expect(of.discountPreviewCents.value).toBe(46800) // 封顶
+    expect(of.discountedTotalYuan.value).toBe(0)
+  })
+})
+
+// ─── 草稿保存 / 恢复 ───
+
+describe('草稿保存 / 恢复', () => {
+  it('表单无内容 → 不落草稿键', async () => {
+    const { of } = await createForm()
     expect(of.hasDraftContent.value).toBe(false)
+  })
+
+  it('多画风主动选了画风 → 算有内容', async () => {
+    const { of } = await createForm()
     of.selectStyle(11)
     expect(of.hasDraftContent.value).toBe(true)
   })
 
-  it('hasDraftContent：单画风自动选中 → false（刚进页面不拦截离开）', async () => {
-    const { of } = await createForm({ styles: [MOCK_STYLES[0]] })
-    expect(of.selectedStyleId.value).toBe(11) // 自动选中已发生
-    expect(of.hasDraftContent.value).toBe(false)
-  })
-
-  it('watch：只选画风+尺寸（不填任何文字）→ 也写入草稿', async () => {
-    vi.useFakeTimers()
-    const { of } = await createStyleForm()
-
+  it('选了用途/加急 → 算有内容', async () => {
+    const { of } = await createForm()
     of.selectStyle(11)
     of.selectSize(111)
-    await nextTick()
-    vi.advanceTimersByTime(500)
-
-    const raw = sessionStorage.getItem('orderForm_draft_alice')
-    expect(raw).toBeTruthy()
-    const draft = JSON.parse(raw)
-    expect(draft.styleState.styleId).toBe(11)
-    expect(draft.styleState.sizeId).toBe(111)
+    of.toggleUsage(1114)
+    expect(of.hasDraftContent.value).toBe(true)
   })
 
-  it('saveDraft：styleState 完整保存（styleId/sizeId/增项勾选）', async () => {
+  it('saveDraft：styleState 含 styleId/sizeId/普通增项/用途/加急', async () => {
     vi.useFakeTimers()
-    const { of } = await createStyleForm()
-
+    const { of } = await createForm()
     of.selectStyle(11)
     of.selectSize(111)
-    of.styleAddonSelections[1111].quantity = 2
-    of.styleAddonSelections[1112].toggled = true
-    of.form.usageMultiplierId = 201
-    await nextTick()
-    vi.advanceTimersByTime(500)
-
+    of.styleAddonSelections[1111].toggled = true
+    of.toggleUsage(1114)
+    of.toggleRush(1116)
+    await vi.advanceTimersByTimeAsync(800)
     const draft = JSON.parse(sessionStorage.getItem('orderForm_draft_alice'))
     expect(draft.styleState.styleId).toBe(11)
     expect(draft.styleState.sizeId).toBe(111)
-    expect(draft.styleState.addonSelections[1111].quantity).toBe(2)
-    expect(draft.styleState.addonSelections[1112].toggled).toBe(true)
+    expect(draft.styleState.usageId).toBe(1114)
+    expect(draft.styleState.rushId).toBe(1116)
+    expect(draft.styleState.addonSelections[1111]).toMatchObject({ toggled: true })
   })
 
-  it('restoreDraft：画风+尺寸+增项勾选+倍率+文本全部恢复，旧模型字段不交叉污染，价格重算', async () => {
-    vi.useFakeTimers()
-    const draft = {
-      form: { tierId: 1, description: '画风草稿', clientQq: '777', clientName: '李四', notifyEnabled: true, usageMultiplierId: 201, rushMultiplierId: 202 },
-      addonSelections: { 101: 3 },
-      addonToggles: { 102: true },
-      styleState: {
-        styleId: 11,
-        sizeId: 111,
-        addonSelections: {
-          1111: { toggled: false, quantity: 2, optionLabel: null },
-          1112: { toggled: true, quantity: 0, optionLabel: null }
+  it('restoreDraft：画风+尺寸+增项+用途加急+文本全量恢复', async () => {
+    const { of } = await createForm({
+      draft: {
+        form: { clientQq: '12345678', clientName: '小王', description: '要一只猫', notifyEnabled: true },
+        styleState: {
+          styleId: 11, sizeId: 111,
+          addonSelections: { 1111: { toggled: true, quantity: 0 } },
+          usageId: 1114, rushId: 1116
         }
       }
-    }
-    const { of } = await createStyleForm({ draft })
-
-    // 三步走状态恢复
+    })
+    expect(of.form.clientQq).toBe('12345678')
+    expect(of.form.description).toBe('要一只猫')
     expect(of.selectedStyleId.value).toBe(11)
     expect(of.selectedSizeId.value).toBe(111)
-    expect(of.styleAddonSelections[1111].quantity).toBe(2)
-    expect(of.styleAddonSelections[1112].toggled).toBe(true)
-    // 倍率恢复（共用字段，画风模式增项步骤可选）
-    expect(of.form.usageMultiplierId).toBe(201)
-    expect(of.form.rushMultiplierId).toBe(202)
-    // 文本字段恢复
-    expect(of.form.description).toBe('画风草稿')
-    expect(of.form.clientQq).toBe('777')
-    // 模式互斥：tierId 置空、旧增项不恢复
-    expect(of.form.tierId).toBeNull()
-    // 恢复后触发一次价格重算（防抖 300ms）
-    await vi.advanceTimersByTimeAsync(300)
-    expect(artistPublicApi.calculateStylePrice).toHaveBeenCalledWith(expect.objectContaining({
-      subdomain: 'alice',
-      styleSizeId: 111
-    }))
-    expect(of.stylePricePreview.value).toEqual(MOCK_STYLE_CALC_RESULT)
+    expect(of.styleAddonSelections[1111]).toMatchObject({ toggled: true })
+    expect(of.selectedUsageId.value).toBe(1114)
+    expect(of.selectedRushId.value).toBe(1116)
   })
 
-  it('restoreDraft：增项键不在当前尺寸可用列表 → 丢弃，其余可用增项补默认值', async () => {
-    const draft = {
-      form: {},
-      styleState: {
-        styleId: 11,
-        sizeId: 112, // 全身：addons = [1111, 1113]，1112（换装）在此尺寸被隐藏
-        addonSelections: {
-          1111: { toggled: false, quantity: 1, optionLabel: null },
-          1112: { toggled: true, quantity: 0, optionLabel: null } // 当前尺寸不可用 → 丢弃
-        }
+  it('restoreDraft：增项已不在当前尺寸可用列表 → 丢弃该勾选项', async () => {
+    const { of } = await createForm({
+      draft: {
+        form: {},
+        styleState: { styleId: 11, sizeId: 112, addonSelections: { 1112: { toggled: false, quantity: 3 } }, usageId: 1114, rushId: null }
       }
-    }
-    const { of } = await createStyleForm({ draft })
-
-    expect(of.selectedSizeId.value).toBe(112)
-    expect(of.styleAddonSelections[1111].quantity).toBe(1) // 有效键保留
-    expect(of.styleAddonSelections[1112]).toBeUndefined()  // 无效键丢弃
-    expect(of.styleAddonSelections[1113]).toEqual({ toggled: false, quantity: 0, optionLabel: null }) // 补默认值
+    })
+    // 全身尺寸只有 ADDON_BG（1111）；1112 与 usage 1114 都不可用
+    expect(of.styleAddonSelections[1112]).toBeUndefined()
+    expect(of.selectedUsageId.value).toBeNull()
   })
 
-  it('restoreDraft：画风已被画师删除 → styleState 整体丢弃，文本字段仍恢复', async () => {
-    const draft = {
-      form: { description: '画风没了', clientQq: '666' },
-      styleState: { styleId: 999, sizeId: 111, addonSelections: { 1111: { quantity: 2 } } }
-    }
-    const { of } = await createStyleForm({ draft })
-
-    expect(of.selectedStyleId.value).toBeNull()
-    expect(of.selectedSizeId.value).toBeNull()
-    expect(Object.keys(of.styleAddonSelections)).toHaveLength(0)
-    expect(of.form.description).toBe('画风没了')
-    expect(of.form.clientQq).toBe('666')
-  })
-
-  it('restoreDraft：尺寸已被画师删除 → styleId 恢复但 sizeId/增项丢弃', async () => {
-    const draft = {
-      form: {},
-      styleState: { styleId: 11, sizeId: 999, addonSelections: { 1111: { quantity: 2 } } }
-    }
-    const { of } = await createStyleForm({ draft })
-
-    expect(of.selectedStyleId.value).toBe(11)
-    expect(of.selectedSizeId.value).toBeNull()
-    expect(Object.keys(of.styleAddonSelections)).toHaveLength(0)
-  })
-
-  it('模式互斥：草稿只有 tierId 无 styleState → 画风模式下 tierId 丢弃，文本字段保留', async () => {
-    const draft = {
-      form: { tierId: 1, description: '旧模型草稿', clientQq: '555', usageMultiplierId: 201 },
-      addonSelections: { 101: 3 }
-    }
-    const { of } = await createStyleForm({ draft })
-
-    expect(of.form.tierId).toBeNull()
-    expect(of.form.usageMultiplierId).toBeNull()
-    expect(of.selectedStyleId.value).toBeNull()
-    expect(of.selectedSizeId.value).toBeNull()
-    expect(of.form.description).toBe('旧模型草稿')
-    expect(of.form.clientQq).toBe('555')
-  })
-
-  it('模式互斥：草稿含 styleState 但当前是旧模型 → tierId 恢复，styleState 忽略', async () => {
-    const draft = {
-      form: { tierId: 1, description: '混合草稿', clientQq: '444' },
-      addonSelections: { 101: 2 },
-      styleState: { styleId: 11, sizeId: 111, addonSelections: { 1111: { quantity: 3 } } }
-    }
-    const { of } = await createForm({ draft }) // styles=[] → 旧模型
-
-    expect(of.form.tierId).toBe(1)
-    expect(of.selectedStyleId.value).toBeNull()
-    expect(of.selectedSizeId.value).toBeNull()
-    expect(Object.keys(of.styleAddonSelections)).toHaveLength(0)
-  })
-
-  it('单画风退化：草稿 styleId 与自动选中相同 → 幂等（尺寸/增项正常恢复，不报错）', async () => {
-    const draft = {
-      form: {},
-      styleState: {
-        styleId: 11, // 与单画风自动选中值相同
-        sizeId: 111,
-        addonSelections: { 1112: { toggled: true, quantity: 0, optionLabel: null } }
+  it('restoreDraft：旧版草稿（含 tierId/倍率字段）→ 过时字段静默忽略', async () => {
+    const { of } = await createForm({
+      draft: {
+        form: { clientQq: '87654321', tierId: 5, usageMultiplierId: 201, rushMultiplierId: 202 },
+        styleState: {}
       }
-    }
-    const { of } = await createForm({ styles: [MOCK_STYLES[0]], draft })
-
-    expect(of.selectedStyleId.value).toBe(11)
-    expect(of.selectedSizeId.value).toBe(111)
-    expect(of.styleAddonSelections[1112].toggled).toBe(true)
+    })
+    expect(of.form.clientQq).toBe('87654321')
+    expect(of.form).not.toHaveProperty('tierId')
+    expect(of.selectedUsageId.value).toBeNull()
+    expect(of.selectedRushId.value).toBeNull()
   })
 
-  it('完整往返：画风模式填写 → 保存草稿 → 新实例恢复后三步选择全部回来', async () => {
-    vi.useFakeTimers()
-    // 第一实例：模拟用户填写（选画风→选尺寸→填文字）
-    const first = await createStyleForm()
-    first.of.selectStyle(12)
-    first.of.selectSize(121)
-    first.of.form.description = '想要线稿头像'
-    first.of.form.clientQq = '123'
-    await nextTick()
-    vi.advanceTimersByTime(500)
-    const raw = sessionStorage.getItem('orderForm_draft_alice')
-    expect(raw).toBeTruthy()
-    first.wrapper.unmount()
+  it('用户点"丢弃" → 草稿键被清除且不恢复', async () => {
+    const { of } = await createForm({
+      confirmRejects: true,
+      draft: { form: { clientQq: '11112222' }, styleState: {} }
+    })
+    expect(of.form.clientQq).toBe('')
+    expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
+  })
 
-    // 第二实例：模拟刷新后重新加载（弹窗确认恢复）
-    const second = await createStyleForm({ draft: JSON.parse(raw) })
-    expect(second.of.selectedStyleId.value).toBe(12)
-    expect(second.of.selectedSizeId.value).toBe(121)
-    expect(second.of.form.description).toBe('想要线稿头像')
-    expect(second.of.form.clientQq).toBe('123')
+  it('损坏的草稿 JSON → 静默丢弃不弹错', async () => {
+    sessionStorage.setItem('orderForm_draft_alice', '{broken')
+    const { of } = await createForm()
+    expect(of.form.clientQq).toBe('')
   })
 })
 
-// ─── URL query 预选（v0.34 任务B：主页展示柜带选择跳转下单） ───
+// ─── URL query 预选 ───
 
 describe('URL query 预选', () => {
-  it('多画风：styleId+sizeId 有效 → 直接选中画风和尺寸，触发计价', async () => {
-    vi.useFakeTimers()
-    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '11', sizeId: '111' } })
-
+  it('多画风：styleId+sizeId 有效 → 直接选中画风和尺寸', async () => {
+    const { of } = await createForm({ query: { styleId: '11', sizeId: '111' } })
     expect(of.selectedStyleId.value).toBe(11)
     expect(of.selectedSizeId.value).toBe(111)
-    expect(of.queryPreselect.styleId).toBe(11)
     expect(of.queryPreselect.sizeId).toBe(111)
-    await vi.advanceTimersByTimeAsync(300)
-    expect(artistPublicApi.calculateStylePrice).toHaveBeenCalledWith(expect.objectContaining({
-      styleSizeId: 111
-    }))
   })
 
-  it('仅 styleId 有效 → 画风选中、尺寸不选', async () => {
-    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '12' } })
-    expect(of.selectedStyleId.value).toBe(12)
+  it('仅 styleId 有效 → 只选画风，尺寸不选', async () => {
+    const { of } = await createForm({ query: { styleId: '11' } })
+    expect(of.selectedStyleId.value).toBe(11)
     expect(of.selectedSizeId.value).toBeNull()
-    expect(of.queryPreselect.sizeId).toBeNull()
   })
 
-  it('styleId 无效（已停用/不存在）→ 静默忽略，走正常流程', async () => {
-    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '999', sizeId: '111' } })
-    expect(of.selectedStyleId.value).toBeNull()
+  it('sizeId 属于展示态 → 不预选', async () => {
+    const { of } = await createForm({ query: { styleId: '11', sizeId: '113' } })
     expect(of.selectedSizeId.value).toBeNull()
   })
 
   it('sizeId 不属于 query 选中的画风 → 忽略尺寸预选', async () => {
-    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '12', sizeId: '111' } })
-    expect(of.selectedStyleId.value).toBe(12) // 线稿画风
-    expect(of.selectedSizeId.value).toBeNull() // 111 属于厚涂画风 → 忽略
+    const { of } = await createForm({ query: { styleId: '12', sizeId: '111' } })
+    expect(of.selectedSizeId.value).toBeNull()
   })
 
-  it('单画风退化：sizeId 有效 → 预选尺寸（styleId 缺省用自动选中项）', async () => {
-    const { of } = await createForm({ styles: [MOCK_STYLES[0]], query: { sizeId: '112' } })
-    expect(of.selectedStyleId.value).toBe(11) // 单画风自动选中
-    expect(of.selectedSizeId.value).toBe(112)
-    expect(of.queryPreselect.sizeId).toBe(112)
-  })
-
-  it('query 预选 > 草稿恢复：两者并存时 query 命中项不被草稿覆盖', async () => {
-    vi.useFakeTimers()
-    const draft = {
-      form: {},
-      styleState: { styleId: 12, sizeId: 121, addonSelections: {} }
-    }
-    const { of } = await createForm({ styles: MOCK_STYLES, draft, query: { styleId: '11', sizeId: '111' } })
-
-    // query 预选生效，草稿的画风/尺寸不覆盖
-    expect(of.selectedStyleId.value).toBe(11)
-    expect(of.selectedSizeId.value).toBe(111)
-  })
-
-  it('query 只有 styleId + 草稿有同画风不同尺寸 → 草稿尺寸正常恢复', async () => {
-    const draft = {
-      form: {},
-      styleState: { styleId: 11, sizeId: 112, addonSelections: {} }
-    }
-    const { of } = await createForm({ styles: MOCK_STYLES, draft, query: { styleId: '11' } })
-
-    // 画风：query 命中（与草稿相同）；尺寸：query 无 → 草稿恢复 112
-    expect(of.selectedStyleId.value).toBe(11)
-    expect(of.selectedSizeId.value).toBe(112)
-  })
-
-  // ─── v0.35 F4: 预选可见横幅（入口 A 展示柜带选择进来） ───
-
-  it('F4：画风+尺寸齐预选 → 横幅显示已预选两者（可见可改）', async () => {
-    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '11', sizeId: '111' } })
+  it('F4：画风+尺寸都预选 → 横幅显示两者', async () => {
+    const { of } = await createForm({ query: { styleId: '11', sizeId: '111' } })
     expect(of.preselectBannerText.value).toBe('orderForm.preselectedBoth')
   })
 
-  it('F4：多画风仅预选画风 → 横幅提示选尺寸', async () => {
-    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '12' } })
-    expect(of.preselectBannerText.value).toBe('orderForm.preselectedStyle')
-  })
-
-  it('F4：单画风 + 仅尺寸预选（query 无 styleId）→ 不触发横幅', async () => {
-    const { of } = await createForm({ styles: [MOCK_STYLES[0]], query: { sizeId: '112' } })
-    // 单画风 styleId 缺省但自动选中；queryPreselect.styleId 仅在 query 带 styleId 且命中时记录，
-    // 此处 query 无 styleId → queryPreselect.styleId 为 null → 不触发横幅（价格摘要卡已显示尺寸）
+  it('F4：用户改选尺寸 → 横幅自动消失', async () => {
+    const { of } = await createForm({ query: { styleId: '11', sizeId: '111' } })
+    of.selectSize(112)
     expect(of.preselectBannerText.value).toBe('')
   })
 
-  it('F4：用户改选尺寸后 → 横幅自动消失（预选已被手动选择取代）', async () => {
-    const { of } = await createForm({ styles: MOCK_STYLES, query: { styleId: '11', sizeId: '111' } })
-    expect(of.preselectBannerText.value).toBe('orderForm.preselectedBoth')
-    of.selectSize(112) // 回上一步改选尺寸
-    expect(of.preselectBannerText.value).toBe('')
-  })
-
-  it('F4：入口 B（无 query）→ 无横幅', async () => {
-    const { of } = await createForm({ styles: MOCK_STYLES })
-    expect(of.preselectBannerText.value).toBe('')
-  })
-
-  it('F4：旧模型（无画风）→ 无横幅', async () => {
-    const { of } = await createForm({ styles: [], query: { styleId: '11' } })
+  it('F4：无 query → 无横幅', async () => {
+    const { of } = await createForm()
     expect(of.preselectBannerText.value).toBe('')
   })
 })
@@ -702,37 +537,27 @@ describe('URL query 预选', () => {
 describe('校验规则', () => {
   it('agreed 校验：有须知 + 未勾选 → 报错', async () => {
     const { of } = await createForm()
-    const validator = of.rules.agreed[0].validator
-    const callback = vi.fn()
-
-    validator(null, false, callback)
-
-    expect(callback).toHaveBeenCalledWith(expect.any(Error))
+    await expect(new Promise((resolve, reject) => {
+      of.rules.agreed[0].validator(null, false, (err) => (err ? reject(err) : resolve()))
+    })).rejects.toMatchObject({ message: 'order.validation.agreeRequired' })
   })
 
   it('agreed 校验：有须知 + 已勾选 → 通过', async () => {
     const { of } = await createForm()
-    const validator = of.rules.agreed[0].validator
-    const callback = vi.fn()
-
-    validator(null, true, callback)
-
-    expect(callback).toHaveBeenCalledWith()
+    await expect(new Promise((resolve, reject) => {
+      of.rules.agreed[0].validator(null, true, (err) => (err ? reject(err) : resolve()))
+    })).resolves.toBeUndefined()
   })
 
   it('agreed 校验：无须知内容 → 不要求勾选', async () => {
     const { of } = await createForm({ profile: { ...MOCK_PROFILE, rules: '' } })
-    const validator = of.rules.agreed[0].validator
-    const callback = vi.fn()
-
-    validator(null, false, callback)
-
-    expect(callback).toHaveBeenCalledWith()
+    await expect(new Promise((resolve, reject) => {
+      of.rules.agreed[0].validator(null, false, (err) => (err ? reject(err) : resolve()))
+    })).resolves.toBeUndefined()
   })
 
-  it('tierId 和 clientQq 为必填', async () => {
+  it('clientQq 为必填', async () => {
     const { of } = await createForm()
-    expect(of.rules.tierId[0].required).toBe(true)
     expect(of.rules.clientQq[0].required).toBe(true)
   })
 })
@@ -742,44 +567,50 @@ describe('校验规则', () => {
 describe('提交', () => {
   it('校验失败 → 不调用 API，submitting 保持 false', async () => {
     const { of, formRef } = await createForm()
-    formRef.value.validate.mockRejectedValueOnce({ tierId: [{ message: '请选择档位' }] })
-
+    formRef.value.validate.mockResolvedValueOnce(false)
     await of.submit()
-
     expect(orderApi.create).not.toHaveBeenCalled()
     expect(of.submitting.value).toBe(false)
   })
 
-  it('提交成功 → showSuccess + resultNo + 草稿清除', async () => {
+  it('提交成功 → payload 为 SPEC-PRICE-2 契约（styleSizeId + styleAddons，无旧字段）', async () => {
     const { of } = await createForm()
-    of.form.tierId = 1
-    of.form.clientQq = '12345'
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.styleAddonSelections[1111].toggled = true
+    of.styleAddonSelections[1112].quantity = 2
+    of.toggleUsage(1114)
+    of.toggleRush(1116)
+    of.form.clientQq = '12345678'
     of.form.agreed = true
-
     await of.submit()
-
-    expect(orderApi.create).toHaveBeenCalledWith(expect.objectContaining({
-      subdomain: 'alice',
-      tierId: 1,
-      clientQq: '12345'
-    }))
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+    const payload = orderApi.create.mock.calls[0][0]
+    expect(payload.styleSizeId).toBe(111)
+    expect(payload.styleAddons).toEqual([
+      { styleAddonId: 1111 },
+      { styleAddonId: 1112, quantity: 2 },
+      { styleAddonId: 1114 },
+      { styleAddonId: 1116 }
+    ])
+    expect(payload).not.toHaveProperty('tierId')
+    expect(payload).not.toHaveProperty('usageMultiplierId')
+    expect(payload).not.toHaveProperty('rushMultiplierId')
     expect(of.showSuccess.value).toBe(true)
     expect(of.resultNo.value).toBe('ALICE-001')
-    expect(of.submitting.value).toBe(false)
+    // 提交成功清草稿键
     expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
   })
 
-  it('提交失败 → 弹出错误提示，showSuccess 保持 false', async () => {
-    const { of } = await createForm()
+  it('提交失败 → 错误消息提示，showSuccess 保持 false', async () => {
     orderApi.create.mockRejectedValueOnce(new Error('服务器错误'))
-    of.form.tierId = 1
-    of.form.clientQq = '12345'
-
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.form.clientQq = '12345678'
     await of.submit()
-
     expect(ElMessage.error).toHaveBeenCalledWith('服务器错误')
     expect(of.showSuccess.value).toBe(false)
-    expect(of.submitting.value).toBe(false)
   })
 })
 
@@ -788,59 +619,44 @@ describe('提交', () => {
 describe('参考图上传', () => {
   it('文件超过 10MB → 警告且不上传', async () => {
     const { of } = await createForm()
-    const file = { name: 'big.png', size: 11 * 1024 * 1024, uid: 'u1' }
-
-    await of.handleRefUpload({ file })
-
-    expect(ElMessage.warning).toHaveBeenCalled()
+    const bigFile = new File([new ArrayBuffer(11 * 1024 * 1024)], 'big.png', { type: 'image/png' })
+    await of.handleRefUpload({ file: bigFile })
     expect(uploadApi.reference).not.toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalled()
   })
 
-  it('非图片扩展名 → 提示但仍上传', async () => {
+  it('非图片扩展名 → 提示仍可上传', async () => {
     const { of } = await createForm()
-    const file = { name: 'doc.pdf', size: 1024, uid: 'u1' }
-
+    const file = new File(['x'], 'a.txt', { type: 'text/plain' })
     await of.handleRefUpload({ file })
-
-    expect(ElMessage.info).toHaveBeenCalled()
-    expect(uploadApi.reference).toHaveBeenCalledWith(file)
+    expect(ElMessage.info).toHaveBeenCalledWith('orderForm.typeWarning')
+    expect(uploadApi.reference).toHaveBeenCalled()
   })
 
-  it('上传成功 → 提交时 references 包含路径', async () => {
+  it('上传成功 → 提交时 references 带路径', async () => {
     const { of } = await createForm()
-    const file = { name: 'ref.png', size: 1024, uid: 'u1' }
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
     await of.handleRefUpload({ file })
-
-    of.form.tierId = 1
-    of.form.clientQq = '12345'
+    of.form.clientQq = '12345678'
     await of.submit()
-
-    expect(orderApi.create).toHaveBeenCalledWith(expect.objectContaining({
-      references: ['references/test.png']
-    }))
+    expect(orderApi.create.mock.calls[0][0].references).toEqual(['references/test.png'])
   })
 
   it('移除参考图 → 提交时 references 为空', async () => {
     const { of } = await createForm()
-    const file = { name: 'ref.png', size: 1024, uid: 'u1' }
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
     await of.handleRefUpload({ file })
-    of.handleRefRemove({ uid: 'u1' })
-
-    of.form.tierId = 1
-    of.form.clientQq = '12345'
+    of.handleRefRemove({ uid: file.uid })
+    of.form.clientQq = '12345678'
     await of.submit()
-
-    expect(orderApi.create).toHaveBeenCalledWith(expect.objectContaining({
-      references: []
-    }))
+    expect(orderApi.create.mock.calls[0][0].references).toEqual([])
   })
 
-  it('上传失败 → 弹出错误提示', async () => {
-    const { of } = await createForm()
+  it('上传失败 → 错误消息提示', async () => {
     uploadApi.reference.mockRejectedValueOnce(new Error('上传失败'))
-    const file = { name: 'ref.png', size: 1024, uid: 'u1' }
-
+    const { of } = await createForm()
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
     await expect(of.handleRefUpload({ file })).rejects.toThrow('上传失败')
-    expect(ElMessage.error).toHaveBeenCalled()
+    expect(ElMessage.error).toHaveBeenCalledWith('上传失败')
   })
 })

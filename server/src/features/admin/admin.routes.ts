@@ -1,5 +1,6 @@
 import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import * as artistService from '../artist/artist.service.js'
+import * as styleService from '../pricing/style.service.js'
 import * as platformService from '../platform/platform.service.js'
 import * as adminService from './admin.service.js'
 import * as orderService from '../order/order.service.js'
@@ -577,6 +578,18 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   })
 
   // SPEC-PRICE-2（v50）：旧档位 CRUD 端点已随 price_tiers 表清退移除（画师价格统一走画风/尺寸/增项模型）
+
+  /** GET /api/admin/artists/:id/pricing-overview — 价格概览（SPEC-PRICE-2：画风/尺寸只读；旧档位 CRUD 已退役） */
+  fastify.get('/api/admin/artists/:id/pricing-overview', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest) => {
+    const artistId = Number((request.params as { id: string }).id)
+    const styles = styleService.getArtStyles(artistId)
+    return styles.map(s => ({
+      id: s.id,
+      name: s.name,
+      is_active: s.is_active,
+      sizes: (s.sizes || []).map(sz => ({ id: sz.id, name: sz.name, base_price: sz.base_price, display_status: sz.display_status }))
+    }))
+  })
 
   /** GET /api/admin/artists/:id/artworks — 作品列表 */
   fastify.get('/api/admin/artists/:id/artworks', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest) => {

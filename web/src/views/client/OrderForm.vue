@@ -1,4 +1,4 @@
-MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from 'vue-router'... HIT: import { ref, computed, watch } from 'vu... <template>
+<template>
   <div class="order-form-page">
     <ClientFloatingActions raised />
     <div class="form-container" v-loading="loading">
@@ -37,123 +37,16 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
             <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
               <!-- P0-2: 当前步眉题（第 X / Y 步） -->
               <p class="step-eyebrow">{{ $t('orderForm.stepProgress', { cur: step, total: stepDefs.length }) }}</p>
-              <!-- ── 步骤一：选档位（旧模型，无画风数据时） ── -->
-              <div v-if="!isStyleMode" v-show="step === 1">
-                <h3 class="step-title">{{ $t('orderForm.step1Title') }}</h3>
-                <div class="tier-pick-grid">
-                  <div
-                    v-for="tier in tiers" :key="tier.id"
-                    class="tier-pick" :class="{ 'tier-pick--on': form.tierId === tier.id }"
-                    @click="selectTier(tier.id)"
-                  >
-                    <span v-if="form.tierId === tier.id" class="tier-pick-stamp">✓</span>
-                    <div class="tier-pick-name">{{ tier.name }}</div>
-                    <div class="tier-pick-price">¥{{ tier.price }}</div>
-                    <div v-if="tier.work_days" class="tier-pick-days">{{ $t('tiers.daysUnit', { n: tier.work_days }) }}</div>
-                  </div>
-                </div>
 
-                <!-- R14: 紧凑计价摘要 + 渐进展开 -->
-                <div v-if="form.tierId && selectedTier" class="pricing-summary">
-                  <span class="pricing-summary-name">{{ selectedTier.name }}</span>
-                  <span class="pricing-summary-price">¥{{ selectedTier.price }}</span>
-                  <button
-                    v-if="hasPricingExtras"
-                    type="button"
-                    class="pricing-expand-btn"
-                    @click="pricingExpanded = !pricingExpanded"
-                  >
-                    {{ $t('orderForm.pricingDetail') }} {{ pricingExpanded ? '▾' : '▸' }}
-                  </button>
-                </div>
-
-                <!-- 增项选择（R14: 展开后才显示；旧模型增项已随 addons 冻结清理，仅剩倍率） -->
-                <Transition name="pricing-expand">
-                  <div v-if="pricingExpanded && form.tierId">
-                    <!-- 倍率选择 -->
-                    <el-form-item v-if="usageMultipliers.length > 0 || rushMultipliers.length > 0" :label="$t('orderForm.multiplierLabel')">
-                      <div class="multiplier-section">
-                        <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-                          <span class="multiplier-label">{{ $t('orderForm.usageLabel') }}</span>
-                          <el-radio-group v-model="form.usageMultiplierId" size="small">
-                            <el-radio-button :value="null">{{ $t('orderForm.personal') }}</el-radio-button>
-                            <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
-                              {{ m.name }} ×{{ m.multiplier }}
-                            </el-radio-button>
-                          </el-radio-group>
-                        </div>
-                        <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-                          <span class="multiplier-label">{{ $t('orderForm.rushLabel') }}</span>
-                          <el-radio-group v-model="form.rushMultiplierId" size="small">
-                            <el-radio-button :value="null">{{ $t('orderForm.noRush') }}</el-radio-button>
-                            <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
-                              {{ m.name }} ×{{ m.multiplier }}
-                            </el-radio-button>
-                          </el-radio-group>
-                        </div>
-                      </div>
-                    </el-form-item>
-
-                    <!-- 实时价格预览（R14: 展开后才显示） -->
-                    <div v-if="form.tierId && pricePreview" class="price-preview">
-                      <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
-                        <span>{{ item.name }}</span>
-                        <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
-                      </div>
-                      <div class="price-divider"></div>
-                      <!-- v0.31 F3: 折扣码输入行（总价行上方，画师开启折扣功能时才显示） -->
-                      <div v-if="discountEnabled" class="discount-row">
-                        <span class="discount-label">{{ $t('orderForm.discountLabel') }}</span>
-                        <el-input
-                          v-model="form.discountCode"
-                          :placeholder="$t('orderForm.discountPlaceholder')"
-                          size="small" class="discount-input"
-                          @keyup.enter="validateDiscountCode"
-                        />
-                        <el-button
-                          size="small" type="primary" plain
-                          :loading="discountValidating"
-                          :disabled="!form.discountCode.trim()"
-                          @click="validateDiscountCode"
-                        >
-                          {{ $t('orderForm.discountValidate') }}
-                        </el-button>
-                        <!-- 验证通过后显示折扣信息（如 -10% 或 -¥20） -->
-                        <span v-if="discountResult" class="discount-ok">
-                          ✓ {{ discountResult.discountType === 'percent' ? `-${discountResult.discountValue}%` : `-¥${discountResult.discountValue}` }}
-                        </span>
-                      </div>
-                      <!-- 验证失败提示（错误码已由 axios 拦截器 i18n 翻译） -->
-                      <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
-                      <div class="price-line total">
-                        <span>{{ $t('orderForm.receiptTotal') }}</span>
-                        <span class="price-amount">¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</span>
-                      </div>
-                      <!-- v0.31 F3: 折扣行（红色负数，总价行下方；先倍率后折扣，前端仅估算） -->
-                      <div v-if="discountResult && discountPreviewYuan > 0" class="price-line discount">
-                        <span>{{ $t('orderForm.discountEstimate') }}</span>
-                        <span class="price-amount discount-amount">-¥{{ discountPreviewYuan.toFixed(2) }}</span>
-                      </div>
-                      <!-- v0.31 F3: 预估总价（折扣后） -->
-                      <div v-if="discountResult && discountPreviewYuan > 0" class="price-line discounted-total">
-                        <span>{{ $t('orderForm.discountedTotal') }}</span>
-                        <span class="price-amount">¥{{ discountedTotalYuan.toFixed(2) }}</span>
-                      </div>
-                      <div v-if="pricePreview?.installments?.length > 1" class="installment-row">
-                        <span v-for="inst in pricePreview.installments" :key="inst.label" class="installment-chip">
-                          {{ inst.label }} ¥{{ (inst.amount ?? 0).toFixed(2) }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Transition>
-
+              <!-- ── 无计价配置空态（画师未设画风） ── -->
+              <div v-if="!loading && !isStyleMode" v-show="step === 1">
+                <el-empty :description="$t('orderForm.noStylesHint')" :image-size="60" />
                 <div class="step-nav step-nav--end">
-                  <el-button type="primary" :disabled="!form.tierId" @click="step = 2">{{ $t('orderForm.nextStep') }}</el-button>
+                  <el-button @click="$router.push(`/artist/${subdomain}`)">{{ $t('orderForm.backHome') }}</el-button>
                 </div>
               </div>
 
-              <!-- ── v0.32: 选画风（多画风步骤 1，单画风跳过） ── -->
+              <!-- ── 选画风（多画风步骤 1，单画风跳过） ── -->
               <div v-if="isStyleMode && isMultiStyle" v-show="step === 1">
                 <h3 class="step-title">{{ $t('orderForm.styleStepTitle') }}</h3>
                 <div class="style-pick-grid">
@@ -191,10 +84,12 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
                   <div class="size-pick-list">
                     <div
                       v-for="sz in (selectedStyle?.sizes || [])" :key="sz.id"
-                      class="size-pick" :class="{ 'size-pick--on': selectedSizeId === sz.id }"
+                      class="size-pick" :class="{ 'size-pick--on': selectedSizeId === sz.id, 'size-pick--showcase': sz.display_status === 'showcase' }"
                       @click="selectSize(sz.id)"
                     >
                       <span class="size-pick-name">{{ sz.name }}</span>
+                      <!-- SPEC-PRICE-2: 展示态尺寸可见但不可约（后端同步拒单） -->
+                      <span v-if="sz.display_status === 'showcase'" class="size-pick-showcase">{{ $t('orderForm.sizeShowcaseTag') }}</span>
                       <span class="size-pick-price">¥{{ sz.base_price }}</span>
                       <span v-if="selectedSizeId === sz.id" class="size-pick-check">✓</span>
                     </div>
@@ -206,92 +101,102 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
                 </template>
               </div>
 
-              <!-- ── v0.32: 勾增项 + 倍率 + 价格预览（画风模式步骤 3 / 单画风步骤 2） ── -->
+              <!-- ── SPEC-PRICE-2: 选增项（普通多选 + 用途单选 + 加急单选）+ 实时价格明细 ── -->
               <div v-if="isStyleMode" v-show="step === addonStep">
                 <h3 class="step-title">{{ $t('orderForm.addonStepTitle') }}</h3>
 
-                <!-- 增项控件（switch / quantity / radio） -->
-                <div v-if="availableStyleAddons.length" class="style-addon-list">
-                  <div v-for="a in availableStyleAddons" :key="a.id" class="style-addon-item">
-                    <div class="style-addon-info">
-                      <span class="style-addon-name">{{ a.name }}</span>
-                      <span class="style-addon-price">
-                        {{ a.control_type === 'radio' ? $t('orderForm.addonOptionPrice') : `¥${a.price}${a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : ''}` }}
-                      </span>
+                <!-- 普通增项（可多选共存；开关类/个数类，支持 ¥ 或 %） -->
+                <div v-if="regularAddons.length" class="addon-group">
+                  <p class="addon-group-label">{{ $t('orderForm.addonGroupRegular') }}</p>
+                  <div class="style-addon-list">
+                    <div v-for="a in regularAddons" :key="a.id" class="style-addon-item">
+                      <div class="style-addon-info">
+                        <span class="style-addon-name">{{ a.name }}</span>
+                        <span class="style-addon-price">{{ styleAddonPriceText(a) }}</span>
+                        <span v-if="a.price_mode === 'percent'" class="style-addon-note">{{ $t('orderForm.pctOfBase') }}</span>
+                      </div>
+                      <el-switch
+                        v-if="a.control_type === 'switch'"
+                        :model-value="styleAddonSelections[a.id]?.toggled || false"
+                        size="small"
+                        @change="(val) => { if (!styleAddonSelections[a.id]) styleAddonSelections[a.id] = { toggled: false, quantity: 0 }; styleAddonSelections[a.id].toggled = val }"
+                      />
+                      <el-input-number
+                        v-else
+                        :model-value="styleAddonSelections[a.id]?.quantity || 0"
+                        :min="0" :max="a.max_quantity || 99" :step="1" size="small" style="width: 110px"
+                        @change="(val) => { if (!styleAddonSelections[a.id]) styleAddonSelections[a.id] = { toggled: false, quantity: 0 }; styleAddonSelections[a.id].quantity = val ?? 0 }"
+                      />
                     </div>
-                    <!-- switch → el-switch -->
-                    <el-switch
-                      v-if="a.control_type === 'switch'"
-                      :model-value="styleAddonSelections[a.id]?.toggled || false"
-                      size="small"
-                      @change="(val) => { if (!styleAddonSelections[a.id]) styleAddonSelections[a.id] = { toggled: false, quantity: 0, optionLabel: null }; styleAddonSelections[a.id].toggled = val }"
-                    />
-                    <!-- quantity → el-input-number -->
-                    <el-input-number
-                      v-else-if="a.control_type === 'quantity'"
-                      :model-value="styleAddonSelections[a.id]?.quantity || 0"
-                      :min="0" :max="99" :step="1" size="small" style="width: 110px"
-                      @change="(val) => { if (!styleAddonSelections[a.id]) styleAddonSelections[a.id] = { toggled: false, quantity: 0, optionLabel: null }; styleAddonSelections[a.id].quantity = val ?? 0 }"
-                    />
-                    <!-- radio → el-radio-group（选项从 options JSON 解析） -->
-                    <el-radio-group
-                      v-else-if="a.control_type === 'radio'"
-                      :model-value="styleAddonSelections[a.id]?.optionLabel || null"
-                      size="small"
-                      @change="(val) => { if (!styleAddonSelections[a.id]) styleAddonSelections[a.id] = { toggled: false, quantity: 0, optionLabel: null }; styleAddonSelections[a.id].optionLabel = val }"
-                    >
-                      <el-radio-button v-for="opt in parseAddonOptions(a.options)" :key="opt.label" :value="opt.label">
-                        {{ opt.label }} ¥{{ opt.price }}
-                      </el-radio-button>
-                    </el-radio-group>
                   </div>
                 </div>
-                <el-empty v-else :description="$t('orderForm.addonStepEmpty')" :image-size="40" />
 
-                <!-- 倍率选择（复用现有逻辑） -->
-                <el-form-item v-if="usageMultipliers.length > 0 || rushMultipliers.length > 0" :label="$t('orderForm.multiplierLabel')" style="margin-top: 16px">
-                  <div class="multiplier-section">
-                    <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-                      <span class="multiplier-label">{{ $t('orderForm.usageLabel') }}</span>
-                      <el-radio-group v-model="form.usageMultiplierId" size="small">
-                        <el-radio-button :value="null">{{ $t('orderForm.personal') }}</el-radio-button>
-                        <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
-                          {{ m.name }} ×{{ m.multiplier }}
-                        </el-radio-button>
-                      </el-radio-group>
-                    </div>
-                    <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-                      <span class="multiplier-label">{{ $t('orderForm.rushLabel') }}</span>
-                      <el-radio-group v-model="form.rushMultiplierId" size="small">
-                        <el-radio-button :value="null">{{ $t('orderForm.noRush') }}</el-radio-button>
-                        <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
-                          {{ m.name }} ×{{ m.multiplier }}
-                        </el-radio-button>
-                      </el-radio-group>
-                    </div>
+                <!-- 用途（最多选一项，可不选；乘在小计之后） -->
+                <div v-if="usageAddons.length" class="addon-group">
+                  <p class="addon-group-label">{{ $t('orderForm.addonGroupUsage') }}<span class="addon-group-hint">{{ $t('orderForm.multOptionalHint') }}</span></p>
+                  <div class="mult-chips">
+                    <button
+                      v-for="a in usageAddons" :key="a.id"
+                      type="button"
+                      class="mult-chip mult-chip--usage"
+                      :class="{ 'mult-chip--on': selectedUsageId === a.id }"
+                      :aria-pressed="selectedUsageId === a.id"
+                      @click="toggleUsage(a.id)"
+                    >
+                      <span class="mult-chip-name">{{ a.name }}</span>
+                      <span class="mult-chip-pct">+{{ a.price }}%</span>
+                    </button>
                   </div>
-                </el-form-item>
+                </div>
 
-                <!-- 画风价格预览（全走后端 calculate-style-price） -->
+                <!-- 加急（最多选一项，可不选） -->
+                <div v-if="rushAddons.length" class="addon-group">
+                  <p class="addon-group-label">{{ $t('orderForm.addonGroupRush') }}<span class="addon-group-hint">{{ $t('orderForm.multOptionalHint') }}</span></p>
+                  <div class="mult-chips">
+                    <button
+                      v-for="a in rushAddons" :key="a.id"
+                      type="button"
+                      class="mult-chip mult-chip--rush"
+                      :class="{ 'mult-chip--on': selectedRushId === a.id }"
+                      :aria-pressed="selectedRushId === a.id"
+                      @click="toggleRush(a.id)"
+                    >
+                      <span class="mult-chip-name">{{ a.name }}</span>
+                      <span class="mult-chip-pct">+{{ a.price }}%</span>
+                    </button>
+                  </div>
+                </div>
+
+                <el-empty v-if="!availableStyleAddons.length" :description="$t('orderForm.addonStepEmpty')" :image-size="40" />
+
+                <!-- SPEC-PRICE-2 实时价格明细（与后端唯一引擎同公式：小计×用途×加急−折扣） -->
                 <div v-if="stylePricePreview" class="price-preview">
                   <div class="price-line">
-                    <span>{{ stylePricePreview.sizeName }}</span>
-                    <span class="price-amount">¥{{ stylePricePreview.basePrice.toFixed(2) }}</span>
+                    <span>{{ $t('orderForm.previewBaseLine', { size: stylePricePreview.sizeName }) }}</span>
+                    <span class="price-amount">¥{{ (stylePricePreview.baseCents / 100).toFixed(2) }}</span>
                   </div>
-                  <div v-for="(item, idx) in stylePricePreview.addonItems" :key="idx" class="price-line">
+                  <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="price-line">
                     <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-                    <span class="price-amount">¥{{ item.amount.toFixed(2) }}</span>
+                    <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
                   </div>
-                  <div v-if="stylePricePreview.usageMultiplier" class="price-line">
-                    <span>{{ stylePricePreview.usageMultiplier.name }} ×{{ stylePricePreview.usageMultiplier.factor }}</span>
-                    <span class="price-amount"></span>
+                  <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="price-line">
+                    <span>{{ item.name }} +{{ item.percent }}%<span class="price-line-note">（{{ $t('orderForm.pctOfBase') }}）</span></span>
+                    <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
                   </div>
-                  <div v-if="stylePricePreview.rushMultiplier" class="price-line">
-                    <span>{{ stylePricePreview.rushMultiplier.name }} ×{{ stylePricePreview.rushMultiplier.factor }}</span>
-                    <span class="price-amount"></span>
+                  <div class="price-line subtotal">
+                    <span>{{ $t('orderForm.priceSubtotal') }}</span>
+                    <span class="price-amount">¥{{ (stylePricePreview.subtotalCents / 100).toFixed(2) }}</span>
+                  </div>
+                  <div v-if="stylePricePreview.usage" class="price-line">
+                    <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
+                    <span class="price-amount">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
+                  </div>
+                  <div v-if="stylePricePreview.rush" class="price-line">
+                    <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
+                    <span class="price-amount">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
                   </div>
                   <div class="price-divider"></div>
-                  <!-- 折扣码输入行（复用 v0.31 逻辑） -->
+                  <!-- 折扣码输入行（画师开启折扣功能时才显示；先倍率后折扣） -->
                   <div v-if="discountEnabled" class="discount-row">
                     <span class="discount-label">{{ $t('orderForm.discountLabel') }}</span>
                     <el-input
@@ -315,11 +220,16 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
                   <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
                   <div class="price-line total">
                     <span>{{ $t('orderForm.receiptTotal') }}</span>
-                    <span class="price-amount">¥{{ stylePricePreview.totalPrice.toFixed(2) }}</span>
+                    <span class="price-amount">¥{{ (stylePricePreview.totalCents / 100).toFixed(2) }}</span>
                   </div>
                   <div v-if="stylePricePreview.discount" class="price-line discount">
                     <span>{{ $t('orderForm.discountEstimate') }}（{{ stylePricePreview.discount.code }}）</span>
-                    <span class="price-amount discount-amount">-¥{{ stylePricePreview.discount.amount.toFixed(2) }}</span>
+                    <span class="price-amount discount-amount">-¥{{ (stylePricePreview.discount.amountCents / 100).toFixed(2) }}</span>
+                  </div>
+                  <div v-if="installmentPreview.length > 1" class="installment-row">
+                    <span v-for="inst in installmentPreview" :key="inst.label" class="installment-chip">
+                      {{ inst.label }} ¥{{ (inst.amountCents / 100).toFixed(2) }}
+                    </span>
                   </div>
                 </div>
 
@@ -427,8 +337,7 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
                   <el-button @click="step = detailStep">{{ $t('orderForm.prevStep') }}</el-button>
                   <el-button type="primary" @click="openReceipt">
                     {{ $t('orderForm.submit') }}
-                    <template v-if="isStyleMode && stylePricePreview"> — ¥{{ stylePricePreview.totalPrice.toFixed(2) }}</template>
-                    <template v-else-if="pricePreview"> — ¥{{ (pricePreview.totalPrice ?? 0).toFixed(2) }}</template>
+                    <template v-if="isStyleMode && selectedSize"> — ¥{{ displayPrice.toFixed(2) }}</template>
                   </el-button>
                 </div>
               </div>
@@ -450,49 +359,49 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
               </div>
               <div class="summary-divider"></div>
             </div>
-            <!-- v0.32: 画风模式摘要 -->
-            <template v-if="isStyleMode">
+            <!-- SPEC-PRICE-2 摘要：画风/尺寸 + 增项明细 + 用途/加急 + 总价 -->
+            <template v-if="isStyleMode && selectedSize">
               <div class="summary-tier">{{ selectedStyle?.name }}</div>
-              <div v-if="selectedSize" class="summary-lines">
+              <div class="summary-lines">
                 <div class="summary-line">
                   <span>{{ selectedSize.name }}</span>
                   <span class="summary-amt">¥{{ selectedSize.base_price.toFixed(2) }}</span>
                 </div>
                 <template v-if="stylePricePreview">
-                  <div v-for="(item, idx) in stylePricePreview.addonItems" :key="idx" class="summary-line">
+                  <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="summary-line">
                     <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-                    <span class="summary-amt">¥{{ item.amount.toFixed(2) }}</span>
+                    <span class="summary-amt">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+                  </div>
+                  <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="summary-line">
+                    <span>{{ item.name }} +{{ item.percent }}%</span>
+                    <span class="summary-amt">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+                  </div>
+                  <div v-if="stylePricePreview.usage" class="summary-line">
+                    <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
+                    <span class="summary-amt">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
+                  </div>
+                  <div v-if="stylePricePreview.rush" class="summary-line">
+                    <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
+                    <span class="summary-amt">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
+                  </div>
+                  <div v-if="stylePricePreview.discount" class="summary-line summary-line--discount">
+                    <span>{{ $t('orderForm.discountEstimate') }}</span>
+                    <span class="summary-amt">-¥{{ (stylePricePreview.discount.amountCents / 100).toFixed(2) }}</span>
                   </div>
                 </template>
-                <div class="summary-divider"></div>
-              </div>
-              <div v-if="selectedSize" class="summary-total">
-                <span>{{ $t('orderForm.receiptTotal') }}</span>
-                <span class="summary-total-amt">¥{{ displayPrice.toFixed(2) }}</span>
-              </div>
-              <div v-else class="summary-empty">{{ $t('orderForm.summaryNoSize') }}</div>
-            </template>
-            <!-- 旧模型摘要 -->
-            <template v-else-if="selectedTier">
-              <div class="summary-tier">{{ selectedTier.name }}</div>
-              <div v-if="pricePreview" class="summary-lines">
-                <div v-for="item in (pricePreview.breakdown || [])" :key="item.name" class="summary-line">
-                  <span>{{ item.name }}</span>
-                  <span class="summary-amt">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
-                </div>
                 <div class="summary-divider"></div>
               </div>
               <div class="summary-total">
                 <span>{{ $t('orderForm.receiptTotal') }}</span>
                 <span class="summary-total-amt">¥{{ displayPrice.toFixed(2) }}</span>
               </div>
-              <div v-if="pricePreview?.installments?.length > 1" class="summary-installments">
-                <span v-for="inst in pricePreview.installments" :key="inst.label" class="summary-inst">
-                  {{ inst.label }} ¥{{ (inst.amount ?? 0).toFixed(2) }}
+              <div v-if="installmentPreview.length > 1" class="summary-installments">
+                <span v-for="inst in installmentPreview" :key="inst.label" class="summary-inst">
+                  {{ inst.label }} ¥{{ (inst.amountCents / 100).toFixed(2) }}
                 </span>
               </div>
             </template>
-            <div v-else class="summary-empty">{{ $t('orderForm.summaryNoTier') }}</div>
+            <div v-else class="summary-empty">{{ $t('orderForm.summaryNoSize') }}</div>
           </aside>
         </div>
 
@@ -519,44 +428,45 @@ MISS: import { usePalette } from '../../compos... MISS: import { useRoute } from
         <div class="receipt-head">{{ artist?.name }}</div>
         <div class="receipt-sub">{{ $t('orderForm.receiptSub') }}</div>
         <div class="receipt-dashed"></div>
-        <!-- v0.32: 画风模式小票 -->
-        <template v-if="isStyleMode">
-          <div class="receipt-row">
-            <span>{{ $t('orderForm.styleStep') }}</span>
-            <span>{{ selectedStyle?.name }}</span>
+        <!-- SPEC-PRICE-2 小票：画风/尺寸 + 增项/用途/加急明细 -->
+        <div class="receipt-row">
+          <span>{{ $t('orderForm.styleStep') }}</span>
+          <span>{{ selectedStyle?.name }}</span>
+        </div>
+        <div class="receipt-row">
+          <span>{{ $t('orderForm.sizeStep') }}</span>
+          <span>{{ selectedSize?.name }}</span>
+        </div>
+        <template v-if="stylePricePreview">
+          <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="receipt-row">
+            <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
+            <span>+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
           </div>
-          <div class="receipt-row">
-            <span>{{ $t('orderForm.sizeStep') }}</span>
-            <span>{{ selectedSize?.name }}</span>
+          <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="receipt-row">
+            <span>{{ item.name }} +{{ item.percent }}%</span>
+            <span>+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
           </div>
-          <template v-if="stylePricePreview">
-            <div v-for="(item, idx) in stylePricePreview.addonItems" :key="idx" class="receipt-row">
-              <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-              <span>¥{{ item.amount.toFixed(2) }}</span>
-            </div>
-          </template>
-        </template>
-        <!-- 旧模型小票 -->
-        <template v-else>
-          <div class="receipt-row">
-            <span>{{ $t('orderForm.tierLabel') }}</span>
-            <span>{{ selectedTier?.name }}</span>
+          <div v-if="stylePricePreview.usage" class="receipt-row">
+            <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
+            <span>+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
           </div>
-          <template v-if="pricePreview">
-            <div v-for="item in (pricePreview.breakdown || [])" :key="item.name" class="receipt-row">
-              <span>{{ item.name }}</span>
-              <span>¥{{ (item.amount ?? 0).toFixed(2) }}</span>
-            </div>
-          </template>
+          <div v-if="stylePricePreview.rush" class="receipt-row">
+            <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
+            <span>+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
+          </div>
+          <div v-if="stylePricePreview.discount" class="receipt-row">
+            <span>{{ $t('orderForm.discountEstimate') }}（{{ stylePricePreview.discount.code }}）</span>
+            <span>-¥{{ (stylePricePreview.discount.amountCents / 100).toFixed(2) }}</span>
+          </div>
         </template>
         <div class="receipt-dashed"></div>
         <div class="receipt-total">
           <span>{{ $t('orderForm.receiptTotal') }}</span>
           <span>¥{{ displayPrice.toFixed(2) }}</span>
         </div>
-        <div v-if="!isStyleMode && pricePreview?.installments?.length > 1" class="receipt-installments">
-          <span v-for="inst in pricePreview.installments" :key="inst.label" class="receipt-inst">
-            {{ inst.label }} ¥{{ (inst.amount ?? 0).toFixed(2) }}
+        <div v-if="installmentPreview.length > 1" class="receipt-installments">
+          <span v-for="inst in installmentPreview" :key="inst.label" class="receipt-inst">
+            {{ inst.label }} ¥{{ (inst.amountCents / 100).toFixed(2) }}
           </span>
         </div>
         <div class="receipt-barcode" aria-hidden="true"></div>
@@ -620,23 +530,21 @@ const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 // R58-1: 表单业务逻辑全部由共享 composable 提供，页面只保留布局与样式
 const {
-  artist, tiers, rulesContent, loading, workflowStages,
+  artist, rulesContent, loading, workflowStages,
   form, rules,
   submitting, showSuccess, resultNo, submit,
   refFileList, handleRefUpload, handleRefRemove,
-  pricePreview, pricingExpanded,
-  selectedTier, hasPricingExtras,
-  usageMultipliers, rushMultipliers, onTierChange,
   sanitizedRules,
-  // v0.31 F3: 折扣码
+  // 折扣码
   discountEnabled, discountResult, discountError, discountValidating,
-  validateDiscountCode, discountPreviewYuan, discountedTotalYuan,
-  // v0.32 REQ-023 Phase2: 多画风
+  validateDiscountCode,
+  // SPEC-PRICE-2: 画风/尺寸/增项（含用途/加急单选）
   styles, isStyleMode, isMultiStyle,
   selectedStyleId, selectedStyle, selectedSizeId, selectedSize,
-  availableStyleAddons, styleAddonSelections,
-  selectStyle, selectSize, parseAddonOptions,
-  stylePricePreview, styleDisplayPrice,
+  availableStyleAddons, regularAddons, usageAddons, rushAddons,
+  styleAddonSelections, selectedUsageId, selectedRushId,
+  selectStyle, selectSize, toggleUsage, toggleRush, styleAddonPriceText,
+  stylePricePreview, styleDisplayPrice, installmentPreview,
   // v0.34 任务B：URL query 预选命中记录
   queryPreselect,
   // v0.35 F4: 预选摘要横幅文案（入口 A 预选可见，可回上一步改）
@@ -670,12 +578,8 @@ function goNextFromDetail() {
 function onMobileNext() {
   if (step.value === contactStep.value) return openReceipt()
   if (step.value === detailStep.value) return goNextFromDetail()
-  // 步骤 1 校验：旧模型选档位 / 画风模式选画风+尺寸——与卡内「下一步」disabled 逻辑一致（P1-2 修复：此前直接跳步绕过校验）
+  // 步骤 1 校验：多画风选画风 / 单画风选尺寸——与卡内「下一步」disabled 逻辑一致
   if (step.value === 1) {
-    if (!isStyleMode.value) {
-      if (!form.tierId) { ElMessage.warning(t('orderForm.selectTier')); return }
-      step.value = detailStep.value; return
-    }
     if (isMultiStyle.value) {
       // 多画风：step1 = 选画风 → 校验后进 sizeStep
       if (!selectedStyle.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
@@ -694,19 +598,11 @@ const step = ref(1)
 const receiptVisible = ref(false)
 
 /**
- * 动态步骤定义：
- * 旧模型（无画风）：选档位(1) → 写需求(2) → 联系方式(3)
- * 单画风：选尺寸(1) → 增项+倍率(2) → 写需求(3) → 联系方式(4)
- * 多画风：选画风(1) → 选尺寸(2) → 增项+倍率(3) → 写需求(4) → 联系方式(5)
+ * 动态步骤定义（SPEC-PRICE-2：画风模型唯一）：
+ * 单画风：选尺寸(1) → 选增项(2) → 写需求(3) → 联系方式(4)
+ * 多画风：选画风(1) → 选尺寸(2) → 选增项(3) → 写需求(4) → 联系方式(5)
  */
 const stepDefs = computed(() => {
-  if (!isStyleMode.value) {
-    return [
-      { key: 'tier', label: t('orderForm.step1') },
-      { key: 'detail', label: t('orderForm.step2') },
-      { key: 'contact', label: t('orderForm.step3') }
-    ]
-  }
   const defs = []
   if (isMultiStyle.value) defs.push({ key: 'style', label: t('orderForm.styleStep') })
   defs.push({ key: 'size', label: t('orderForm.sizeStep') })
@@ -728,7 +624,7 @@ const trackingStartTs = Date.now()
 let trackingLastStep = null
 
 function trackingPricingModel() {
-  return isStyleMode.value ? 'style' : 'legacy'
+  return 'style'
 }
 function trackingStepKey(stepNo) {
   return stepDefs.value[stepNo - 1]?.key || null
@@ -798,19 +694,8 @@ watch(loading, (v) => {
   }
 }, { once: true })
 
-/** 档位卡片点选（与原 el-select @change 行为一致：切换时清空增项/倍率） */
-function selectTier(id) {
-  if (form.tierId === id) return
-  form.tierId = id
-  onTierChange()
-}
-
-/** 摘要卡/小票展示价：画风模式用 styleDisplayPrice，旧模型用 pricePreview/档位基础价 */
-const displayPrice = computed(() =>
-  isStyleMode.value
-    ? styleDisplayPrice.value
-    : (pricePreview.value?.totalPrice ?? selectedTier.value?.price ?? 0)
-)
+/** 摘要卡/小票/提交按钮展示价（SPEC-PRICE-2 唯一引擎总价） */
+const displayPrice = computed(() => styleDisplayPrice.value)
 
 // ─── R58-4: 灵感标签快捷注入（R58-8: 从 API 读取画师自定义标签，未设置时不显示，不 fallback 硬编码） ───
 const inspireTags = computed(() => artist.value?.inspirationTags || [])
@@ -854,22 +739,19 @@ async function confirmSubmit() {
   else trackEvent('order_form_submit_fail', { reason: 'submit', pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
 }
 
-// ─── R58-5: 复制约稿信息（订单号 + 档位 + 明细 + 总价） ───
+// ─── R58-5: 复制约稿信息（订单号 + 画风/尺寸 + 明细 + 总价） ───
 async function copyOrderSummary() {
   const lines = [
-    `${t('orderForm.summaryOrderNo')}${resultNo.value}`
+    `${t('orderForm.summaryOrderNo')}${resultNo.value}`,
+    `${t('orderForm.styleStep')}: ${selectedStyle.value?.name || ''}${selectedSize.value?.name ? ` · ${selectedSize.value.name}` : ''}`
   ]
-  if (isStyleMode.value) {
-    // 画风模式：档位 + 尺寸 + 增项明细来自 stylePricePreview（与摘要卡一致）
-    lines.push(`${t('orderForm.styleStep')}: ${selectedStyle.value?.name || ''}${selectedSize.value?.name ? ` · ${selectedSize.value.name}` : ''}`)
-    if (stylePricePreview.value?.addonItems?.length) {
-      lines.push(...stylePricePreview.value.addonItems.map(it => `- ${it.name}: ¥${(it.amount ?? 0).toFixed(2)}`))
-    }
-  } else {
-    lines.push(`${t('orderForm.tierLabel')}: ${selectedTier.value?.name || ''}`)
-    if (pricePreview.value?.breakdown?.length) {
-      lines.push(...pricePreview.value.breakdown.map(i => `- ${i.name}: ¥${(i.amount ?? 0).toFixed(2)}`))
-    }
+  const p = stylePricePreview.value
+  if (p) {
+    lines.push(...p.fixedAddonItems.map(it => `- ${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}: +¥${(it.amountCents / 100).toFixed(2)}`))
+    lines.push(...p.percentAddonItems.map(it => `- ${it.name} +${it.percent}%: +¥${(it.amountCents / 100).toFixed(2)}`))
+    if (p.usage) lines.push(`- ${p.usage.name} +${p.usage.percent}%: +¥${(p.usage.incrementCents / 100).toFixed(2)}`)
+    if (p.rush) lines.push(`- ${p.rush.name} +${p.rush.percent}%: +¥${(p.rush.incrementCents / 100).toFixed(2)}`)
+    if (p.discount) lines.push(`- ${t('orderForm.discountEstimate')}: -¥${(p.discount.amountCents / 100).toFixed(2)}`)
   }
   lines.push(`${t('orderForm.receiptTotal')}: ¥${displayPrice.value.toFixed(2)}`)
   const text = lines.join('\n')
@@ -997,6 +879,45 @@ async function copyQq(qq) {
 }
 .step-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .step-nav--end { justify-content: flex-end; }
+
+/* ─── SPEC-PRICE-2: 增项步三区分组 + 用途/加急单选 chip ─── */
+.addon-group { margin-bottom: 18px; }
+.addon-group-label {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px;
+}
+.addon-group-hint { font-size: 11px; font-weight: 400; color: var(--text-secondary); }
+.mult-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.mult-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 999px;
+  border: 1px solid var(--border-color-strong, #c0c4cc);
+  background: var(--bg-card, #fff); color: var(--text-primary);
+  font-size: 13px; font-family: inherit; cursor: pointer; user-select: none;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.mult-chip:hover { border-color: var(--color-primary); }
+.mult-chip-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mult-chip--usage.mult-chip--on {
+  border-color: var(--color-primary); color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-card, #fff));
+}
+.mult-chip--rush.mult-chip--on {
+  border-color: var(--color-danger, #f56c6c); color: var(--color-danger, #f56c6c);
+  background: color-mix(in srgb, var(--color-danger, #f56c6c) 10%, var(--bg-card, #fff));
+}
+/* 展示态尺寸徽标（可见但不可约） */
+.size-pick-showcase {
+  font-size: 11px; padding: 1px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--color-warning, #e6a23c) 15%, transparent);
+  color: var(--color-warning, #e6a23c);
+}
+.size-pick--showcase { opacity: 0.75; }
+/* 价格明细：小计行 + 注释 */
+.price-line.subtotal { font-weight: 600; color: var(--text-primary); }
+.price-line-note { font-size: 11px; color: var(--text-secondary); margin-left: 4px; }
+.style-addon-note { font-size: 11px; color: var(--text-secondary); margin-left: 6px; }
+.summary-line--discount .summary-amt { color: var(--color-danger, #f56c6c); }
 
 /* ─── R58-2: 档位卡片选择（选中态弹性动画） ─── */
 .tier-pick-grid {

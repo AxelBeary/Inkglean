@@ -1,6 +1,6 @@
 // OrderForm 摘要卡客户信息回显测试（REQ-022 F3：昵称 + 需求描述补齐）
-// 覆盖：空值整块隐藏 / 填写后实时回显 / 双模式（画风模式与旧模型）公共渲染 / 只填一项时另一行不显示
-// 复用 stepnav 测试同款 mock 方案：mock useOrderForm 控制三模式
+// 覆盖：空值整块隐藏 / 填写后实时回显 / 只填一项时另一行不显示
+// SPEC-PRICE-2：画风模型唯一，复用 stepnav 同款 mock 方案
 import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick, ref, reactive, computed } from 'vue'
@@ -32,7 +32,7 @@ vi.mock('../../../i18n/index.js', () => ({
   default: { global: { locale: { value: 'zh-CN' } } }
 }))
 
-const h = vi.hoisted(() => ({ mode: 'legacy', current: null, build: null }))
+const h = vi.hoisted(() => ({ mode: 'single', current: null, build: null }))
 
 vi.mock('../../../composables/useOrderForm.js', () => ({
   useOrderForm: () => (h.current = h.build(h.mode))
@@ -45,24 +45,22 @@ const STYLE_A = {
   sizes: [{ id: 111, name: '头像', base_price: 80, sort_order: 1, addons: [] }]
 }
 
-/** 构造 useOrderForm 可控 mock：mode = 'legacy' | 'single' */
+/** 构造 useOrderForm 可控 mock（SPEC-PRICE-2 新 API 面） */
 function buildMockComposable(mode) {
-  const styleMode = mode !== 'legacy'
-  const tiers = ref(mode === 'legacy' ? [{ id: 1, name: '头像', price: 100, work_days: 3 }] : [])
+  const styleMode = mode !== 'empty'
   const form = reactive({
-    tierId: null, description: '', clientQq: '', clientName: '',
-    notifyEnabled: false, usageMultiplierId: null, rushMultiplierId: null,
-    discountCode: '', agreed: false
+    description: '', clientQq: '', clientName: '',
+    notifyEnabled: false, discountCode: '', agreed: false
   })
   const styles = ref(styleMode ? [STYLE_A] : [])
   const selectedStyleId = ref(styleMode ? STYLE_A.id : null)
   const selectedSizeId = ref(null)
   const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
   const selectedSize = computed(() => selectedStyle.value?.sizes?.find(sz => sz.id === selectedSizeId.value) || null)
+  const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
 
   return {
     artist: ref({ name: 'Alice', notifyEnabled: false, revisionNote: '' }),
-    tiers,
     rulesContent: ref(''),
     loading: ref(false),
     workflowStages: ref([]),
@@ -75,21 +73,12 @@ function buildMockComposable(mode) {
     refFileList: ref([]),
     handleRefUpload: vi.fn(),
     handleRefRemove: vi.fn(),
-    pricePreview: ref(null),
-    pricingExpanded: ref(false),
-    selectedTier: computed(() => tiers.value.find(t => t.id === form.tierId) || null),
-    hasPricingExtras: ref(false),
-    usageMultipliers: ref([]),
-    rushMultipliers: ref([]),
-    onTierChange: vi.fn(),
     sanitizedRules: ref(''),
     discountEnabled: ref(false),
     discountResult: ref(null),
     discountError: ref(''),
     discountValidating: ref(false),
     validateDiscountCode: vi.fn(),
-    discountPreviewYuan: ref(0),
-    discountedTotalYuan: ref(0),
     styles,
     isStyleMode: computed(() => styleMode),
     isMultiStyle: computed(() => false),
@@ -97,13 +86,21 @@ function buildMockComposable(mode) {
     selectedStyle,
     selectedSizeId,
     selectedSize,
-    availableStyleAddons: computed(() => selectedSize.value?.addons || []),
+    availableStyleAddons,
+    regularAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'add')),
+    usageAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'usage')),
+    rushAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'rush')),
     styleAddonSelections: reactive({}),
+    selectedUsageId: ref(null),
+    selectedRushId: ref(null),
     selectStyle: vi.fn(),
     selectSize: vi.fn(),
-    parseAddonOptions: vi.fn(() => []),
+    toggleUsage: vi.fn(),
+    toggleRush: vi.fn(),
+    styleAddonPriceText: (a) => `¥${a.price}`,
     stylePricePreview: ref(null),
     styleDisplayPrice: ref(0),
+    installmentPreview: ref([]),
     queryPreselect: reactive({ styleId: null, sizeId: null }),
     preselectBannerText: computed(() => '')
   }
@@ -130,15 +127,15 @@ async function mountForm(mode) {
 
 describe('OrderForm 摘要卡客户信息回显（REQ-022 F3）', () => {
   it('昵称与描述均为空时，客户信息区整体不渲染（无占位灰字）', async () => {
-    const wrapper = await mountForm('legacy')
+    const wrapper = await mountForm('single')
     const card = wrapper.find('.summary-card')
     expect(card.find('.summary-client').exists()).toBe(false)
     expect(card.text()).not.toContain('orderForm.summaryNickname')
     expect(card.text()).not.toContain('orderForm.summaryDescription')
   })
 
-  it('填写昵称与描述后，摘要卡实时回显两行（旧模型）', async () => {
-    const wrapper = await mountForm('legacy')
+  it('填写昵称与描述后，摘要卡实时回显两行', async () => {
+    const wrapper = await mountForm('single')
     h.current.form.clientName = '小鱼'
     h.current.form.description = '想要一张头像'
     await nextTick()
@@ -153,7 +150,7 @@ describe('OrderForm 摘要卡客户信息回显（REQ-022 F3）', () => {
   })
 
   it('只填昵称不填描述：仅昵称行渲染，描述行不渲染', async () => {
-    const wrapper = await mountForm('legacy')
+    const wrapper = await mountForm('single')
     h.current.form.clientName = '小鱼'
     await nextTick()
 
@@ -164,7 +161,7 @@ describe('OrderForm 摘要卡客户信息回显（REQ-022 F3）', () => {
   })
 
   it('只填描述不填昵称：仅描述行渲染，昵称行不渲染', async () => {
-    const wrapper = await mountForm('legacy')
+    const wrapper = await mountForm('single')
     h.current.form.description = '想要一张头像'
     await nextTick()
 
@@ -175,7 +172,7 @@ describe('OrderForm 摘要卡客户信息回显（REQ-022 F3）', () => {
   })
 
   it('纯空白昵称/描述视为空，客户信息区不渲染', async () => {
-    const wrapper = await mountForm('legacy')
+    const wrapper = await mountForm('single')
     h.current.form.clientName = '   '
     h.current.form.description = '  \n '
     await nextTick()
@@ -183,8 +180,9 @@ describe('OrderForm 摘要卡客户信息回显（REQ-022 F3）', () => {
     expect(wrapper.find('.summary-client').exists()).toBe(false)
   })
 
-  it('画风模式下同样回显（双模式公共位置渲染）', async () => {
+  it('选中尺寸后摘要卡渲染画风/尺寸与价格区（回显不破坏既有结构）', async () => {
     const wrapper = await mountForm('single')
+    h.current.selectedSizeId.value = 111
     h.current.form.clientName = '大鱼'
     h.current.form.description = '想要一张全身立绘'
     await nextTick()
@@ -193,7 +191,6 @@ describe('OrderForm 摘要卡客户信息回显（REQ-022 F3）', () => {
     expect(card.find('.summary-client').exists()).toBe(true)
     expect(card.text()).toContain('大鱼')
     expect(card.text()).toContain('想要一张全身立绘')
-    // 画风模式的价格区仍正常（回显不破坏既有结构）
     expect(card.find('.summary-tier').text()).toBe('厚涂')
   })
 })

@@ -642,9 +642,17 @@
     addonStepEmpty: 'No add-ons available for this size',
     noSizeHint: 'This style has no sizes set — you can skip and continue',
     noSizeContinue: 'Skip sizes, continue',
-    addonOptionPrice: 'Option price',
-    multiplierLabel: 'Usage & rush', usageLabel: 'Usage:', rushLabel: 'Rush:',
-    personal: 'Personal', noRush: 'No rush',
+    // SPEC-PRICE-2: addon step groups + usage/rush single-select + showcase sizes + price breakdown
+    noStylesHint: 'This artist has not opened commissions yet — please come back later',
+    addonGroupRegular: 'Add-ons (multi-select)',
+    addonGroupUsage: 'Usage (pick at most one)',
+    addonGroupRush: 'Rush (pick at most one)',
+    multOptionalHint: 'optional',
+    sizeShowcaseTag: 'Showcase · not bookable',
+    sizeShowcaseBlocked: 'This size is on display and not bookable right now',
+    pctOfBase: 'of base price',
+    priceSubtotal: 'Subtotal (base + add-ons)',
+    previewBaseLine: 'Base price ({size})',
     // v0.35 F4: Entry A preselection banner (coming from the showcase with a choice)
     preselectedBoth: 'Pre-selected from your homepage choice: {style} · {size}',
     preselectedStyle: 'Style pre-selected: "{style}" — pick a size',
@@ -1230,6 +1238,7 @@
     previewClose: 'Close', previewStatusOpen: 'Open', previewStatusShow: 'Displaying - visible but not bookable', previewStatusClose: 'Closed - hidden from customers',
     // Size tri-state
     sizeStatusOpen: 'Open', sizeStatusShow: 'Display', sizeStatusClose: 'Closed',
+    styleInactiveTag: 'Inactive',
     // Size summary line
     sizeSummaryLabel: 'Addons', sizeSummaryEmpty: 'No addons enabled (drag from pool above)'
   },
@@ -1460,7 +1469,7 @@
     slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     defaultWorkflow: 'Default Workflow Template', defaultWorkflowHint: 'Changes only affect newly registered artists. Existing artists are not affected.',
     resetTemplate: 'Reset to factory default', resetConfirm: 'Restore factory default template? Your custom template will be overwritten.', resetDone: 'Factory default restored',
-    manage: 'Manage', artistDetail: 'Artist Detail', tierName: 'Tier name',
+    manage: 'Manage', artistDetail: 'Artist Detail', pricingHint: 'Pricing is managed by the artist on the Styles & Pricing page; this is a read-only overview',
     artworkHint: 'Artwork images must be uploaded via the artist dashboard. Here you can only view and delete.',
     greetingTab: 'Greetings',
     greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',

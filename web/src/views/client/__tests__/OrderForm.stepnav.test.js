@@ -1,6 +1,6 @@
 // OrderForm 步骤导航组件测试（F1：增项步骤"下一步"跳过写需求修复的回归守卫）
-// 覆盖三模式完整步骤链：旧模型(3步) / 单画风(4步) / 多画风(5步)——每个"下一步""上一步"按 stepDefs 顺序移动
-// 步骤导航逻辑（stepDefs/step/各步骤号 computed）在本组件内、不在 useOrderForm 里，故 mock composable 控制三模式
+// SPEC-PRICE-2：画风模型唯一——单画风(4步) / 多画风(5步) + 无配置空态
+// 步骤导航逻辑（stepDefs/step/各步骤号 computed）在本组件内、不在 useOrderForm 里，故 mock composable 控制模式
 import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick, ref, reactive, computed } from 'vue'
@@ -52,15 +52,13 @@ const STYLE_B = {
   sizes: [{ id: 121, name: '头像', base_price: 50, sort_order: 1, addons: [] }]
 }
 
-/** 构造 useOrderForm 可控 mock：mode = 'legacy' | 'single' | 'multi' */
+/** 构造 useOrderForm 可控 mock：mode = 'single' | 'multi' | 'empty'（无画风配置） */
 function buildMockComposable(mode) {
-  const styleMode = mode !== 'legacy'
+  const styleMode = mode !== 'empty'
   const multi = mode === 'multi'
-  const tiers = ref(mode === 'legacy' ? [{ id: 1, name: '头像', price: 100, work_days: 3 }] : [])
   const form = reactive({
-    tierId: null, description: '', clientQq: '', clientName: '',
-    notifyEnabled: false, usageMultiplierId: null, rushMultiplierId: null,
-    discountCode: '', agreed: false
+    description: '', clientQq: '', clientName: '',
+    notifyEnabled: false, discountCode: '', agreed: false
   })
   const styles = ref(styleMode ? (multi ? [STYLE_A, STYLE_B] : [STYLE_A]) : [])
   // 单画风自动选中唯一画风（与真实 composable 行为一致）
@@ -68,10 +66,10 @@ function buildMockComposable(mode) {
   const selectedSizeId = ref(null)
   const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
   const selectedSize = computed(() => selectedStyle.value?.sizes?.find(sz => sz.id === selectedSizeId.value) || null)
+  const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
 
   return {
     artist: ref({ name: 'Alice', notifyEnabled: false, revisionNote: '' }),
-    tiers,
     rulesContent: ref(''),
     loading: ref(false),
     workflowStages: ref([]),
@@ -84,21 +82,12 @@ function buildMockComposable(mode) {
     refFileList: ref([]),
     handleRefUpload: vi.fn(),
     handleRefRemove: vi.fn(),
-    pricePreview: ref(null),
-    pricingExpanded: ref(false),
-    selectedTier: computed(() => tiers.value.find(t => t.id === form.tierId) || null),
-    hasPricingExtras: ref(false),
-    usageMultipliers: ref([]),
-    rushMultipliers: ref([]),
-    onTierChange: vi.fn(),
     sanitizedRules: ref(''),
     discountEnabled: ref(false),
     discountResult: ref(null),
     discountError: ref(''),
     discountValidating: ref(false),
     validateDiscountCode: vi.fn(),
-    discountPreviewYuan: ref(0),
-    discountedTotalYuan: ref(0),
     styles,
     isStyleMode: computed(() => styleMode),
     isMultiStyle: computed(() => multi),
@@ -106,13 +95,22 @@ function buildMockComposable(mode) {
     selectedStyle,
     selectedSizeId,
     selectedSize,
-    availableStyleAddons: computed(() => selectedSize.value?.addons || []),
+    availableStyleAddons,
+    // SPEC-PRICE-2 增项三区
+    regularAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'add')),
+    usageAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'usage')),
+    rushAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'rush')),
     styleAddonSelections: reactive({}),
+    selectedUsageId: ref(null),
+    selectedRushId: ref(null),
     selectStyle: vi.fn(),
     selectSize: vi.fn(),
-    parseAddonOptions: vi.fn(() => []),
+    toggleUsage: vi.fn(),
+    toggleRush: vi.fn(),
+    styleAddonPriceText: (a) => `¥${a.price}`,
     stylePricePreview: ref(null),
     styleDisplayPrice: ref(0),
+    installmentPreview: ref([]),
     queryPreselect: reactive({ styleId: null, sizeId: null }),
     preselectBannerText: computed(() => '')
   }
@@ -167,8 +165,8 @@ async function clickNav(wrapper, labelKey) {
 
 // ─── 测试 ───
 
-describe('OrderForm 步骤导航——三模式步骤链回归', () => {
-  describe('多画风（5 步：选画风→选尺寸→增项+倍率→写需求→联系方式）', () => {
+describe('OrderForm 步骤导航——画风模型步骤链回归（SPEC-PRICE-2）', () => {
+  describe('多画风（5 步：选画风→选尺寸→选增项→写需求→联系方式）', () => {
     it('步骤指示器渲染 5 步，起始于选画风', async () => {
       const wrapper = await mountForm('multi')
       expect(wrapper.findAll('.step-item')).toHaveLength(5)
@@ -220,7 +218,7 @@ describe('OrderForm 步骤导航——三模式步骤链回归', () => {
     })
   })
 
-  describe('单画风（4 步：选尺寸→增项+倍率→写需求→联系方式，无选画风步）', () => {
+  describe('单画风（4 步：选尺寸→选增项→写需求→联系方式，无选画风步）', () => {
     it('步骤指示器渲染 4 步，起始于选尺寸', async () => {
       const wrapper = await mountForm('single')
       expect(wrapper.findAll('.step-item')).toHaveLength(4)
@@ -267,61 +265,34 @@ describe('OrderForm 步骤导航——三模式步骤链回归', () => {
     })
   })
 
-  describe('旧模型（3 步：选档位→写需求→联系方式，无画风）', () => {
-    it('正向全链路：1→2→3 无跳步', async () => {
-      const wrapper = await mountForm('legacy')
-      expect(wrapper.findAll('.step-item')).toHaveLength(3)
-      expect(wrapper.vm.step).toBe(1)
-      expect(activeTitle(wrapper)).toBe('orderForm.step1Title')
-
-      h.current.form.tierId = 1
-      await nextTick()
-      await clickNav(wrapper, 'orderForm.nextStep')
-      expect(wrapper.vm.step).toBe(2)
-      expect(activeTitle(wrapper)).toBe('orderForm.step2Title')
-
-      // D 软提示：填描述后可直接进入联系方式步骤
-      h.current.form.description = '想要一个酷酷的头像'
-      await nextTick()
-      await clickNav(wrapper, 'orderForm.nextStep')
-      expect(wrapper.vm.step).toBe(3)
-      expect(activeTitle(wrapper)).toBe('orderForm.step3Title')
+  describe('无画风配置空态（SPEC-PRICE-2：旧档位模型已退役）', () => {
+    it('无画风 → 无可见步骤面板，渲染空态提示 + 返回主页按钮', async () => {
+      const wrapper = await mountForm('empty')
+      expect(activePanel(wrapper)).toBeUndefined()
+      expect(wrapper.text()).toContain('orderForm.noStylesHint')
     })
+  })
 
-    it('反向全链路：联系方式→写需求→选档位', async () => {
-      const wrapper = await mountForm('legacy')
-      wrapper.vm.step = 3
-      await nextTick()
-
-      await clickNav(wrapper, 'orderForm.prevStep')
-      expect(wrapper.vm.step).toBe(2)
-      expect(activeTitle(wrapper)).toBe('orderForm.step2Title')
-      await clickNav(wrapper, 'orderForm.prevStep')
-      expect(wrapper.vm.step).toBe(1)
-      expect(activeTitle(wrapper)).toBe('orderForm.step1Title')
-    })
-
-    it('D 软提示：空描述点下一步 → 弹确认框；取消留下、确认放行', async () => {
+  describe('D 软提示：空描述点下一步 → 弹确认框；取消留下、确认放行', () => {
+    it('多画风写需求步：取消留在本步，确认放行到联系方式', async () => {
       const { ElMessageBox } = await import('element-plus')
       const confirmSpy = vi.spyOn(ElMessageBox, 'confirm')
       try {
-        const wrapper = await mountForm('legacy')
-        h.current.form.tierId = 1
+        const wrapper = await mountForm('multi')
+        wrapper.vm.step = 4
         await nextTick()
-        await clickNav(wrapper, 'orderForm.nextStep')
-        expect(wrapper.vm.step).toBe(2) // 到达写需求步骤
 
         // 需求描述留空点下一步 → 弹软提示（用户取消）→ 留在本步
         confirmSpy.mockRejectedValueOnce('cancel')
         await clickNav(wrapper, 'orderForm.nextStep')
         expect(confirmSpy).toHaveBeenCalled()
-        expect(wrapper.vm.step).toBe(2)
+        expect(wrapper.vm.step).toBe(4)
 
         // 确认「继续」→ 放行到联系方式步骤
         confirmSpy.mockResolvedValueOnce('confirm')
         await clickNav(wrapper, 'orderForm.nextStep')
         await flushPromises()
-        expect(wrapper.vm.step).toBe(3)
+        expect(wrapper.vm.step).toBe(5)
         expect(activeTitle(wrapper)).toBe('orderForm.step3Title')
       } finally {
         confirmSpy.mockRestore()

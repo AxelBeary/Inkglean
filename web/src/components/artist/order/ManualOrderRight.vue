@@ -9,32 +9,7 @@
       <el-switch v-model="showImages" size="small" />
     </div>
 
-    <!-- 档位选择（旧档位模式，卡片式） -->
-    <div v-if="!isStyleMode" class="mo-field">
-      <div class="mo-field-label">{{ $t('manualOrder.tier') }}</div>
-      <div v-if="tiers.length === 0" class="mo-empty-tiers">{{ $t('manualOrder.noTiers') }}</div>
-      <div v-else class="tier-cards">
-        <div
-          v-for="tier in tiers" :key="tier.id"
-          class="tier-card" :class="{ 'tier-card--active': tierId === tier.id }"
-          @click="selectTier(tier)"
-        >
-          <span v-if="tierId === tier.id" class="tier-card-check">✓</span>
-          <img
-            v-if="showImages && tier.example_image"
-            :src="`/uploads/${tier.example_image}`"
-            class="tier-card-img" alt=""
-          />
-          <div class="tier-card-body">
-            <div class="tier-card-name">{{ tier.name }}</div>
-            <div class="tier-card-price">¥{{ tier.price }}</div>
-            <div v-if="tier.work_days" class="tier-card-days">{{ $t('manualOrder.tierDays', { n: tier.work_days }) }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ─── v0.38 D路：画风模式（画风→尺寸→增项 三级选择，交互对齐 OrderForm） ─── -->
+    <!-- ─── SPEC-PRICE-2：画风模式唯一（画风→尺寸→增项三区选择，交互对齐 OrderForm） ─── -->
     <!-- 选画风（仅多画风；单画风自动选中，跳过此步） -->
     <div v-if="isStyleMode && isMultiStyle" class="mo-field">
       <div class="mo-field-label">{{ $t('manualOrder.styleTitle') }}</div>
@@ -83,67 +58,65 @@
       </div>
     </div>
 
-    <!-- 画风增项（选完尺寸后出现；select_mode 三种形态对齐 OrderForm） -->
-    <div v-if="isStyleMode && selectedSizeId && availableStyleAddons.length > 0" class="mo-field">
+    <!-- 普通增项（多选共存；开关类/个数类） -->
+    <div v-if="selectedSizeId && regularAddons.length > 0" class="mo-field">
       <div class="mo-field-label">{{ $t('manualOrder.addons') }}</div>
       <div class="style-addon-list">
-        <div v-for="a in availableStyleAddons" :key="a.id" class="style-addon-item">
+        <div v-for="a in regularAddons" :key="a.id" class="style-addon-item">
           <div class="addon-item-info">
             <span class="addon-item-name">{{ a.name }}</span>
             <span class="addon-item-price">{{ formatStyleAddonPrice(a) }}</span>
+            <span v-if="a.price_mode === 'percent'" class="addon-item-note">{{ $t('orderForm.pctOfBase') }}</span>
           </div>
-          <!-- switch → el-switch -->
           <el-switch
             v-if="a.control_type === 'switch'"
             :model-value="styleAddonSelections[a.id]?.toggled || false"
             size="small"
             @change="(val) => setStyleAddon(a.id, { toggled: !!val })"
           />
-          <!-- quantity → el-input-number -->
           <el-input-number
-            v-else-if="a.control_type === 'quantity'"
+            v-else
             :model-value="styleAddonSelections[a.id]?.quantity || 0"
-            :min="0" :max="99" :step="1" size="small" style="width: 110px"
+            :min="0" :max="a.max_quantity || 99" :step="1" size="small" style="width: 110px"
             @change="(val) => setStyleAddon(a.id, { quantity: val ?? 0 })"
           />
-          <!-- radio → el-radio-group（选项从 options JSON 解析） -->
-          <el-radio-group
-            v-else-if="a.control_type === 'radio'"
-            :model-value="styleAddonSelections[a.id]?.optionLabel || null"
-            size="small"
-            @change="(val) => setStyleAddon(a.id, { optionLabel: val })"
-          >
-            <el-radio-button v-for="opt in parseAddonOptions(a.options)" :key="opt.label" :value="opt.label">
-              {{ opt.label }} ¥{{ opt.price }}
-            </el-radio-button>
-          </el-radio-group>
         </div>
       </div>
     </div>
 
-    <!-- 增项选择：旧档位模型增项已随 addons 冻结清理（前端停传，后端首批已恒空数组） -->
-    <!-- 倍率选择（画风模式选完尺寸后 / 旧模式选完档位后出现） -->
-    <div v-if="(tierId || (isStyleMode && selectedSizeId)) && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" class="mo-field">
-      <div class="mo-field-label">{{ $t('manualOrder.multipliers') }}</div>
-      <div class="multiplier-section">
-        <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-          <span class="multiplier-label">{{ $t('manualOrder.usage') }}：</span>
-          <el-radio-group v-model="usageMultiplierId" size="small">
-            <el-radio-button :value="null">{{ $t('manualOrder.personal') }}</el-radio-button>
-            <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
-              {{ m.name }} ×{{ m.multiplier }}
-            </el-radio-button>
-          </el-radio-group>
-        </div>
-        <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-          <span class="multiplier-label">{{ $t('manualOrder.rush') }}：</span>
-          <el-radio-group v-model="rushMultiplierId" size="small">
-            <el-radio-button :value="null">{{ $t('manualOrder.noRush') }}</el-radio-button>
-            <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
-              {{ m.name }} ×{{ m.multiplier }}
-            </el-radio-button>
-          </el-radio-group>
-        </div>
+    <!-- 用途（最多选一项，可不选） -->
+    <div v-if="selectedSizeId && usageAddons.length > 0" class="mo-field">
+      <div class="mo-field-label">{{ $t('manualOrder.usage') }}<span class="mo-field-label-hint">（{{ $t('orderForm.multOptionalHint') }}）</span></div>
+      <div class="mult-chips">
+        <button
+          v-for="a in usageAddons" :key="a.id"
+          type="button"
+          class="mult-chip mult-chip--usage"
+          :class="{ 'mult-chip--on': selectedUsageId === a.id }"
+          :aria-pressed="selectedUsageId === a.id"
+          @click="toggleUsage(a.id)"
+        >
+          <span>{{ a.name }}</span>
+          <span class="mult-chip-pct">+{{ a.price }}%</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 加急（最多选一项，可不选） -->
+    <div v-if="selectedSizeId && rushAddons.length > 0" class="mo-field">
+      <div class="mo-field-label">{{ $t('manualOrder.rush') }}<span class="mo-field-label-hint">（{{ $t('orderForm.multOptionalHint') }}）</span></div>
+      <div class="mult-chips">
+        <button
+          v-for="a in rushAddons" :key="a.id"
+          type="button"
+          class="mult-chip mult-chip--rush"
+          :class="{ 'mult-chip--on': selectedRushId === a.id }"
+          :aria-pressed="selectedRushId === a.id"
+          @click="toggleRush(a.id)"
+        >
+          <span>{{ a.name }}</span>
+          <span class="mult-chip-pct">+{{ a.price }}%</span>
+        </button>
       </div>
     </div>
 
@@ -163,35 +136,27 @@
 
     <!-- 价格面板 sticky（≥600px 可见，<600px 由底部价格条替代） -->
     <div class="mo-price-sticky">
-      <!-- 实时价格预览（画风模式：calculateStylePrice 明细 + R5 自定义增项并列） -->
-      <div v-if="isStyleMode && stylePricePreview" class="price-preview">
+      <!-- SPEC-PRICE-2 实时价格明细（小计×用途×加急 + R5 自定义增项并列） -->
+      <div v-if="stylePricePreview" class="price-preview">
         <div class="price-line">
           <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
-          <span class="price-amount">¥{{ (stylePricePreview.basePrice ?? 0).toFixed(2) }}</span>
+          <span class="price-amount">¥{{ ((stylePricePreview.baseCents ?? 0) / 100).toFixed(2) }}</span>
         </div>
-        <div v-for="item in (stylePricePreview.addonItems || [])" :key="item.name" class="price-line">
+        <div v-for="(item, idx) in (stylePricePreview.fixedAddonItems || [])" :key="'f' + idx" class="price-line">
           <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-          <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
+          <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
         </div>
-        <div v-if="stylePricePreview.multiplierTotal !== stylePricePreview.subtotal" class="price-line">
-          <span>{{ $t('manualOrder.afterMultiplier') }}</span>
-          <span class="price-amount">¥{{ (stylePricePreview.multiplierTotal ?? 0).toFixed(2) }}</span>
+        <div v-for="(item, idx) in (stylePricePreview.percentAddonItems || [])" :key="'p' + idx" class="price-line">
+          <span>{{ item.name }} +{{ item.percent }}%</span>
+          <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
         </div>
-        <div v-for="item in customAddons" :key="item.uid" class="price-line">
-          <span>{{ item.name }}</span>
-          <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+        <div v-if="stylePricePreview.usage" class="price-line">
+          <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
+          <span class="price-amount">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
         </div>
-        <div class="price-divider"></div>
-        <div class="price-line total">
-          <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">¥{{ ((stylePricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
-        </div>
-      </div>
-      <!-- 实时价格预览（旧档位模式：pricePreview 明细 + R5 自定义增项并列） -->
-      <div v-else-if="tierId && pricePreview" class="price-preview">
-        <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
-          <span>{{ item.name }}</span>
-          <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
+        <div v-if="stylePricePreview.rush" class="price-line">
+          <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
+          <span class="price-amount">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
         </div>
         <div v-for="item in customAddons" :key="item.uid" class="price-line">
           <span>{{ item.name }}</span>
@@ -200,7 +165,7 @@
         <div class="price-divider"></div>
         <div class="price-line total">
           <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">¥{{ ((pricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
+          <span class="price-amount">¥{{ (((stylePricePreview.totalCents ?? 0) / 100) + customAddonsTotal).toFixed(2) }}</span>
         </div>
       </div>
       <!-- R5: 自定义单（什么都不选）时无计算明细，自定义增项独立成块 -->
@@ -274,33 +239,26 @@
     <!-- 展开明细（点价格区域切换） -->
     <transition name="mo-slide">
       <div v-show="mobileDetailOpen" class="mo-mobile-details">
-        <div v-if="isStyleMode && stylePricePreview" class="price-preview">
+        <div v-if="stylePricePreview" class="price-preview">
           <div class="price-line">
             <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
-            <span class="price-amount">¥{{ (stylePricePreview.basePrice ?? 0).toFixed(2) }}</span>
+            <span class="price-amount">¥{{ ((stylePricePreview.baseCents ?? 0) / 100).toFixed(2) }}</span>
           </div>
-          <div v-for="item in (stylePricePreview.addonItems || [])" :key="item.name" class="price-line">
+          <div v-for="(item, idx) in (stylePricePreview.fixedAddonItems || [])" :key="'f' + idx" class="price-line">
             <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-            <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
+            <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
           </div>
-          <div v-if="stylePricePreview.multiplierTotal !== stylePricePreview.subtotal" class="price-line">
-            <span>{{ $t('manualOrder.afterMultiplier') }}</span>
-            <span class="price-amount">¥{{ (stylePricePreview.multiplierTotal ?? 0).toFixed(2) }}</span>
+          <div v-for="(item, idx) in (stylePricePreview.percentAddonItems || [])" :key="'p' + idx" class="price-line">
+            <span>{{ item.name }} +{{ item.percent }}%</span>
+            <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
           </div>
-          <div v-for="item in customAddons" :key="item.uid" class="price-line">
-            <span>{{ item.name }}</span>
-            <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
+          <div v-if="stylePricePreview.usage" class="price-line">
+            <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
+            <span class="price-amount">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
           </div>
-          <div class="price-divider"></div>
-          <div class="price-line total">
-            <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">¥{{ ((stylePricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
-          </div>
-        </div>
-        <div v-else-if="tierId && pricePreview" class="price-preview">
-          <div class="price-line" v-for="item in (pricePreview.breakdown || [])" :key="item.name">
-            <span>{{ item.name }}</span>
-            <span class="price-amount">¥{{ (item.amount ?? 0).toFixed(2) }}</span>
+          <div v-if="stylePricePreview.rush" class="price-line">
+            <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
+            <span class="price-amount">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
           </div>
           <div v-for="item in customAddons" :key="item.uid" class="price-line">
             <span>{{ item.name }}</span>
@@ -309,7 +267,7 @@
           <div class="price-divider"></div>
           <div class="price-line total">
             <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">¥{{ ((pricePreview.totalPrice ?? 0) + customAddonsTotal).toFixed(2) }}</span>
+            <span class="price-amount">¥{{ (((stylePricePreview.totalCents ?? 0) / 100) + customAddonsTotal).toFixed(2) }}</span>
           </div>
         </div>
         <div v-else-if="customAddons.length > 0" class="price-preview">
@@ -389,13 +347,13 @@ import { ElMessage } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useStageStatus } from '../../../composables/useStageStatus.js'
+import { formatPrice } from '../../artist/addon-utils.js'
 
 const props = defineProps({
-  // 表单字段（父组件 reactive form 对象——v-model 绑定同一对象；本组件只使用 tierId/usageMultiplierId/rushMultiplierId）
+  // 表单字段（父组件 reactive form 对象——v-model 绑定同一对象）
   form: { type: Object, required: true },
-  tiers: { type: Array, default: () => [] },
   styles: { type: Array, default: () => [] },
-  // 价格数据（增项+倍率，父组件初始化加载）
+  // 价格元数据（分期比例等，父组件初始化加载）
   pricingData: { type: Object, default: null },
   subdomain: { type: String, default: '' },
   workflowStages: { type: Array, default: () => [] },
@@ -409,22 +367,17 @@ const emit = defineEmits(['submit-success', 'dirty'])
 // 表单字段（字段级 v-model 双向绑定——vue/no-mutating-props 规范：不直接改 props）
 const clientQq = defineModel('clientQq', { type: String, default: '' })
 const clientName = defineModel('clientName', { type: String, default: '' })
-const tierId = defineModel('tierId', { type: [Number, String], default: null })
 const description = defineModel('description', { type: String, default: '' })
 const priority = defineModel('priority', { type: String, default: 'medium' })
 const deadline = defineModel('deadline', { type: String, default: null })
 const startDate = defineModel('startDate', { type: String, default: null })
 const clientNotify = defineModel('clientNotify', { type: Boolean, default: false })
-const usageMultiplierId = defineModel('usageMultiplierId', { type: [Number, String], default: null })
-const rushMultiplierId = defineModel('rushMultiplierId', { type: [Number, String], default: null })
 
 const { t } = useI18n()
 
 const submitting = ref(false)
 
 // ─── 价格计算器状态 ───
-// 价格数据来自 props.pricingData（父组件加载）
-const pricePreview = ref(null)
 const finalPriceYuan = ref(null)
 // G2: 价格脏标记——画师是否手动改过价格（005 订单事故根因修复：
 // 无脏标记时加增项后字段停在旧计算价，提交时被误判为画师有意改价而抹掉增项）
@@ -446,21 +399,8 @@ const mobileDetailOpen = ref(false)
 const workflowStagesRef = computed(() => props.workflowStages)
 const { initialStatus, options: initialStatusOptions, findTarget: findTargetStage } = useStageStatus(workflowStagesRef)
 
-// ─── 档位卡片选择（替代下拉框） ───
-function selectTier(tier) {
-  tierId.value = tierId.value === tier.id ? null : tier.id
-  onTierChange()
-}
-
-const usageMultipliers = computed(() =>
-  (props.pricingData?.multipliers || []).filter(m => m.type === 'usage')
-)
-const rushMultipliers = computed(() =>
-  (props.pricingData?.multipliers || []).filter(m => m.type === 'rush')
-)
-
-// ─── v0.38 D路: 画风模式（画风→尺寸→增项 三级选择，交互对齐 OrderForm 的 useOrderForm） ───
-/** 画风模式：有画风数据时启用（styles.length > 0），旧档位模式完全不动 */
+// ─── SPEC-PRICE-2: 画风模式唯一（旧档位模式已随 v50 退役） ───
+/** 画风模式：有画风数据时可用（styles.length > 0） */
 const isStyleMode = computed(() => props.styles.length > 0)
 /** 多画风：需要选画风步骤（styles.length > 1）；单画风跳过选画风直接选尺寸 */
 const isMultiStyle = computed(() => props.styles.length > 1)
@@ -470,9 +410,24 @@ const selectedStyle = computed(() => props.styles.find(s => s.id === selectedSty
 /** 选中的尺寸 ID */
 const selectedSizeId = ref(null)
 const selectedSize = computed(() => selectedStyle.value?.sizes?.find(sz => sz.id === selectedSizeId.value) || null)
-/** 当前尺寸下可用增项（后端已过滤 is_hidden / 尺寸覆盖） */
+/** 当前尺寸下可用增项（后端已过滤 is_hidden / 尺寸覆盖；含 category 维度） */
 const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
-/** 增项选择状态 { [styleAddonId]: { toggled, quantity, optionLabel } } —— switch/quantity/radio 三形态 */
+/** 普通增项（多选共存） */
+const regularAddons = computed(() => availableStyleAddons.value.filter(a => a.category === 'add'))
+/** 用途可选项（最多选一个） */
+const usageAddons = computed(() => availableStyleAddons.value.filter(a => a.category === 'usage'))
+/** 加急可选项（最多选一个） */
+const rushAddons = computed(() => availableStyleAddons.value.filter(a => a.category === 'rush'))
+/** 用途/加急单选（styleAddonId；null = 不选） */
+const selectedUsageId = ref(null)
+const selectedRushId = ref(null)
+function toggleUsage(id) {
+  selectedUsageId.value = selectedUsageId.value === id ? null : id
+}
+function toggleRush(id) {
+  selectedRushId.value = selectedRushId.value === id ? null : id
+}
+/** 增项选择状态 { [styleAddonId]: { toggled, quantity } } —— 普通增项（switch/quantity） */
 const styleAddonSelections = reactive({})
 /** 画风价格预览（calculate-style-price 响应） */
 const stylePricePreview = ref(null)
@@ -533,20 +488,23 @@ function sizeImage(sz) {
   return sz.artwork_image_path || sz.image || null
 }
 
-/** 选择画风（多画风步骤 1）：切换时重置尺寸/增项/价格，脏标记恢复跟随计算（与切档语义一致） */
+/** 选择画风（多画风步骤 1）：切换时重置尺寸/增项/价格，脏标记恢复跟随计算 */
 function selectStyle(id) {
   // B2 (REQ-029 §三 B2): 点已选中的画风卡 = 取消选中（对齐档位卡 toggle 交互），清空尺寸/增项/算价
   if (selectedStyleId.value === id) {
     selectedStyleId.value = null
-    selectedSizeId.value = null
-    for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
-    stylePricePreview.value = null
-    priceTouched.value = false
+    resetSelections()
     return
   }
   selectedStyleId.value = id
+  resetSelections()
+}
+
+function resetSelections() {
   selectedSizeId.value = null
   for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+  selectedUsageId.value = null
+  selectedRushId.value = null
   stylePricePreview.value = null
   priceTouched.value = false
 }
@@ -556,61 +514,51 @@ function selectSize(id) {
   if (selectedSizeId.value === id) return
   selectedSizeId.value = id
   for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+  selectedUsageId.value = null
+  selectedRushId.value = null
   stylePricePreview.value = null
   priceTouched.value = false
   initStyleAddonDefaults()
   scheduleStyleCalc()
 }
 
-/** 增项选择统一写入（初始化缺失的 { toggled, quantity, optionLabel } 结构） */
+/** 增项选择统一写入（初始化缺失的 { toggled, quantity } 结构） */
 function setStyleAddon(id, patch) {
   if (!styleAddonSelections[id]) {
-    styleAddonSelections[id] = { toggled: false, quantity: 0, optionLabel: null }
+    styleAddonSelections[id] = { toggled: false, quantity: 0 }
   }
   Object.assign(styleAddonSelections[id], patch)
 }
 
 /** 初始化增项默认值（el-input-number 的 v-model 不接受 undefined） */
 function initStyleAddonDefaults() {
-  for (const a of availableStyleAddons.value) {
+  for (const a of regularAddons.value) {
     if (!styleAddonSelections[a.id]) {
-      styleAddonSelections[a.id] = { toggled: false, quantity: 0, optionLabel: null }
+      styleAddonSelections[a.id] = { toggled: false, quantity: 0 }
     }
   }
 }
 
-/** 构建已选画风增项列表（计价与提交共用） */
+/** 构建已选画风增项列表（计价与提交共用；普通增项 + 用途/加急单选） */
 function buildStyleAddons() {
   const addons = []
-  for (const a of availableStyleAddons.value) {
+  for (const a of regularAddons.value) {
     const sel = styleAddonSelections[a.id]
     if (!sel) continue
     if (a.control_type === 'switch' && sel.toggled) {
       addons.push({ styleAddonId: a.id })
     } else if (a.control_type === 'quantity' && sel.quantity > 0) {
       addons.push({ styleAddonId: a.id, quantity: sel.quantity })
-    } else if (a.control_type === 'radio' && sel.optionLabel) {
-      addons.push({ styleAddonId: a.id, optionLabel: sel.optionLabel })
     }
   }
+  if (selectedUsageId.value != null) addons.push({ styleAddonId: selectedUsageId.value })
+  if (selectedRushId.value != null) addons.push({ styleAddonId: selectedRushId.value })
   return addons
 }
 
-/** 解析 radio 选项 JSON（安全回退空数组） */
-function parseAddonOptions(optionsJson) {
-  if (!optionsJson) return []
-  try {
-    const parsed = JSON.parse(optionsJson)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-/** 画风增项价格文案（radio 按选项计价，显示"选项价"） */
+/** 画风增项价格文案（¥50 / ¥80/位 / +50%，读真实 price_mode） */
 function formatStyleAddonPrice(a) {
-  if (a.control_type === 'radio') return t('manualOrder.addonOptionPrice')
-  return `¥${a.price}${a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : ''}`
+  return formatPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
 }
 
 /** 画风价格计算（防抖 300ms，与旧档位 doCalc 同一模式） */
@@ -626,70 +574,30 @@ async function doStyleCalc() {
     stylePricePreview.value = await artistPublicApi.calculateStylePrice({
       subdomain: props.subdomain,
       styleSizeId: selectedSizeId.value,
-      addons: buildStyleAddons(),
-      usageMultiplierId: usageMultiplierId.value,
-      rushMultiplierId: rushMultiplierId.value
+      addons: buildStyleAddons()
     })
     // G2: 未手动改过价格 → 始终同步最新计算价；已手动改过 → 尊重画师手输。
     // 直接写 finalPriceYuan（绕过 priceInput setter，不置脏）
     if (!priceTouched.value) {
-      finalPriceYuan.value = stylePricePreview.value.totalPrice
+      finalPriceYuan.value = (stylePricePreview.value.totalCents ?? 0) / 100
     }
   } catch {
     stylePricePreview.value = null
   }
 }
 
-/** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（画风模式用 stylePricePreview，均含 R5 自定义增项合计） */
+/** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（含 R5 自定义增项合计） */
 const displayPrice = computed(() => {
   if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return finalPriceYuan.value.toFixed(2)
-  if (isStyleMode.value && stylePricePreview.value) return ((stylePricePreview.value.totalPrice ?? 0) + customAddonsTotal.value).toFixed(2)
-  if (pricePreview.value) return ((pricePreview.value.totalPrice ?? 0) + customAddonsTotal.value).toFixed(2)
+  if (stylePricePreview.value) return (((stylePricePreview.value.totalCents ?? 0) / 100) + customAddonsTotal.value).toFixed(2)
   if (customAddonsTotal.value !== 0) return customAddonsTotal.value.toFixed(2)
   return ''
 })
 
-/** 切换档位时清空倍率并重新计算 */
-function onTierChange() {
-  usageMultiplierId.value = null
-  rushMultiplierId.value = null
-  pricePreview.value = null
-  finalPriceYuan.value = null
-  priceTouched.value = false // G2: 切档后恢复"价格跟随计算"模式（倍率已清空，旧手输价失去意义）
-}
-
-// ─── 实时价格计算（防抖） ───
-let calcTimer = null
-function scheduleCalc() {
-  if (calcTimer) clearTimeout(calcTimer)
-  calcTimer = setTimeout(doCalc, 300)
-}
-
-async function doCalc() {
-  if (!tierId.value) { pricePreview.value = null; return }
-
-  try {
-    pricePreview.value = await artistPublicApi.calculatePrice({
-      subdomain: props.subdomain,
-      tierId: tierId.value,
-      usageMultiplierId: usageMultiplierId.value,
-      rushMultiplierId: rushMultiplierId.value
-    })
-    // G2: 未手动改过价格 → 始终同步最新计算价（选档位后加倍率，字段跟随更新）；
-    // 已手动改过 → 尊重画师手输。直接写 finalPriceYuan（绕过 priceInput setter，不置脏）
-    if (!priceTouched.value) {
-      finalPriceYuan.value = pricePreview.value.totalPrice
-    }
-  } catch {
-    pricePreview.value = null
-  }
-}
-
-watch([() => tierId.value, () => usageMultiplierId.value, () => rushMultiplierId.value], scheduleCalc)
-// 画风模式：增项/倍率变化触发画风计价（旧模式路径由 doCalc 的 tierId 检查挡住，互不干扰）
+// 增项/用途/加急变化触发计价
 watch(styleAddonSelections, scheduleStyleCalc, { deep: true })
-watch([() => usageMultiplierId.value, () => rushMultiplierId.value], () => {
-  if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
+watch([selectedUsageId, selectedRushId], () => {
+  if (selectedSizeId.value) scheduleStyleCalc()
 })
 
 // ─── 单画风自动选中（跳过选画风步骤；多画风变化时不清已选项，草稿恢复优先） ───
@@ -720,36 +628,30 @@ async function submit() {
 
   submitting.value = true
   try {
-    // 画风模式：传 styleSizeId + styleAddons（替代 tierId），后端走 calculateStylePrice 自动算价
-    // 旧模型档位：只传 tierId + 倍率（addons 旧字段已冻结，前端停传）
-    const isStyleSubmit = isStyleMode.value && selectedSizeId.value
+    // SPEC-PRICE-2：传 styleSizeId + styleAddons（含用途/加急单选），后端唯一引擎自动算价；
+    // 未选尺寸 = 自定义单（手输价路径）
+    const isStyleSubmit = selectedSizeId.value != null
 
     const order = await artistApi.createManualOrder({
       clientQq: clientQq.value.trim(),
       clientName: clientName.value.trim() || null,
-      tierId: isStyleSubmit ? null : tierId.value,
       description: description.value.trim() || null,
       priority: priority.value,
       clientNotify: clientNotify.value,
       references: props.uploadedRefs,
-      // 画风模式结构化字段（后端验证+算价+创建）
+      // 画风结构化字段（后端验证+算价+创建）
       ...(isStyleSubmit ? {
         styleSizeId: selectedSizeId.value,
         styleAddons: buildStyleAddons()
-      } : {}),
-      usageMultiplierId: usageMultiplierId.value,
-      rushMultiplierId: rushMultiplierId.value
+      } : {})
     })
 
     // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
     // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，
-    // updatePrice 连带抹掉增项。手输价 ≠ 计算价（含无档位无计算价）时写入。
+    // updatePrice 连带抹掉增项。手输价 ≠ 计算价（含无尺寸无计算价）时写入。
     let postCreateFailed = null
     if (order.id && priceTouched.value && finalPriceYuan.value != null) {
-      // v0.38 D路: 画风模式的计算价来自 stylePricePreview
-      const calcCents = isStyleMode.value
-        ? (stylePricePreview.value?.totalPriceCents ?? null)
-        : (pricePreview.value?.totalPriceCents ?? null)
+      const calcCents = stylePricePreview.value?.totalCents ?? null
       const manualCents = Math.round(finalPriceYuan.value * 100)
       if (manualCents > 0 && manualCents !== calcCents) {
         try {
@@ -817,19 +719,18 @@ watch(styleAddonSelections, () => emit('dirty'), { deep: true })
 // ─── 重置（父组件 resetForm 调用） ───
 function reset() {
   initialStatus.value = 'pending'
-  usageMultiplierId.value = null
-  rushMultiplierId.value = null
-  // v0.38 D路: 画风状态重置（重新从画风/尺寸选起）
+  // 画风状态重置（重新从画风/尺寸选起）
   selectedStyleId.value = null
   selectedSizeId.value = null
   for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+  selectedUsageId.value = null
+  selectedRushId.value = null
   stylePricePreview.value = null
   // v0.38 补漏 R5: 自定义增项重置
   customAddons.value = []
   customAddonOpen.value = false
   customAddonName.value = ''
   customAddonPrice.value = null
-  pricePreview.value = null
   finalPriceYuan.value = null
   priceTouched.value = false // G2: 重置清脏标记，恢复"价格跟随计算"模式
   mobileDetailOpen.value = false
@@ -841,6 +742,8 @@ function getDraftState() {
     styleId: selectedStyleId.value,
     sizeId: selectedSizeId.value,
     addonSelections: { ...styleAddonSelections },
+    usageId: selectedUsageId.value,
+    rushId: selectedRushId.value,
     customAddons: customAddons.value.map(a => ({ name: a.name, priceYuan: a.priceYuan })),
     finalPriceYuan: finalPriceYuan.value,
     priceTouched: priceTouched.value
@@ -850,7 +753,7 @@ function getDraftState() {
 /** 草稿回填（父组件 applyDraft 调用；画风/尺寸/增项若已被画师删除则逐项丢弃） */
 function setDraftState(state) {
   const ss = state || {}
-  // 画风模式：恢复三步走状态（旧模型档位字段由父组件恢复）
+  // 恢复三步走状态
   if (ss.styleId != null) {
     const style = props.styles.find(s => s.id === ss.styleId)
     if (style) selectedStyleId.value = ss.styleId
@@ -860,19 +763,27 @@ function setDraftState(state) {
     const size = (currentStyle.sizes || []).find(sz => sz.id === ss.sizeId)
     if (size) {
       selectedSizeId.value = ss.sizeId
-      // 增项勾选只恢复当前尺寸可用增项中存在的键（其余可能已删/已隐藏）
-      const validIds = new Set((size.addons || []).map(a => a.id))
+      // 普通增项勾选只恢复当前尺寸可用普通增项中存在的键（其余可能已删/已隐藏）
+      const validRegularIds = new Set(regularAddons.value.map(a => a.id))
       const saved = ss.addonSelections || {}
       for (const key of Object.keys(saved)) {
         const id = Number(key)
-        if (validIds.has(id)) {
-          styleAddonSelections[id] = { toggled: false, quantity: 0, optionLabel: null, ...saved[key] }
+        if (validRegularIds.has(id)) {
+          // 只取 toggled/quantity（旧草稿的 optionLabel 等过时字段丢弃）
+          const savedSel = saved[key] || {}
+          styleAddonSelections[id] = {
+            toggled: !!savedSel.toggled,
+            quantity: savedSel.quantity > 0 ? savedSel.quantity : 0
+          }
         }
       }
       // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
       initStyleAddonDefaults()
-      usageMultiplierId.value = ss.usageMultiplierId ?? null
-      rushMultiplierId.value = ss.rushMultiplierId ?? null
+      // 用途/加急单选只恢复仍在可选项中的 ID
+      const usageIds = new Set(usageAddons.value.map(a => a.id))
+      const rushIds = new Set(rushAddons.value.map(a => a.id))
+      selectedUsageId.value = usageIds.has(ss.usageId) ? ss.usageId : null
+      selectedRushId.value = rushIds.has(ss.rushId) ? ss.rushId : null
       // 尺寸有效 → 重算价格预览（防抖，与手动选择同路径）
       scheduleStyleCalc()
     }
@@ -897,7 +808,6 @@ function setDraftState(state) {
 defineExpose({ reset, getDraftState, setDraftState })
 
 onUnmounted(() => {
-  if (calcTimer) clearTimeout(calcTimer)
   if (styleCalcTimer) clearTimeout(styleCalcTimer)
 })
 </script>
@@ -1050,6 +960,22 @@ onUnmounted(() => {
 
 /* ─── F4: 初始节点状态 ─── */
 .initial-status-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin: 6px 0 0; }
+
+/* ─── SPEC-PRICE-2: 用途/加急单选 chip + 增项注释 ─── */
+.mo-field-label-hint { font-size: calc(var(--font-scale, 1) * 11px); font-weight: 400; color: var(--ink3); }
+.addon-item-note { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); margin-left: 6px; }
+.mult-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.mult-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--line2); background: var(--card); color: var(--ink2);
+  font-size: calc(var(--font-scale, 1) * 12.5px); font-family: var(--f-b);
+  cursor: pointer; user-select: none; transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.mult-chip:hover { border-color: var(--hq); }
+.mult-chip-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mult-chip--usage.mult-chip--on { border-color: var(--zhe); color: var(--zhe); background: var(--zhe-t); }
+.mult-chip--rush.mult-chip--on { border-color: var(--zs); color: var(--zs); background: var(--zs-t); }
 
 /* ─── 价格面板 sticky ─── */
 .mo-price-sticky {

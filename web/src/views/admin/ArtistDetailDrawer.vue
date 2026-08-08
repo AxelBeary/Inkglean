@@ -28,20 +28,20 @@
         </el-form>
       </el-tab-pane>
 
-      <!-- 价格档位 -->
-      <el-tab-pane :label="$t('menu.tiers')" name="tiers" lazy>
-        <div v-loading="tiersLoading">
-          <div v-for="tier in tiers" :key="tier.id" class="tier-row">
-            <span class="tier-name">{{ tier.name }}</span>
-            <span class="tier-price text-gold">¥{{ tier.price }}</span>
-            <el-button text size="small" type="danger" @click="removeTier(tier.id)">✕</el-button>
+      <!-- 价格概览（SPEC-PRICE-2：画风/尺寸只读；价格由画师在「画风与价格」页维护） -->
+      <el-tab-pane :label="$t('menu.tiers')" name="pricing" lazy>
+        <div v-loading="pricingLoading">
+          <div v-for="style in stylesOverview" :key="style.id" class="pricing-style">
+            <div class="pricing-style-name">{{ style.name }}<span v-if="!style.is_active" class="pricing-inactive">（{{ $t('styleManage.styleInactiveTag') }}）</span></div>
+            <div v-for="sz in style.sizes" :key="sz.id" class="tier-row">
+              <span class="tier-name">{{ sz.name }}</span>
+              <el-tag size="small" effect="plain" :type="sizeStatusType(sz.display_status)">{{ sizeStatusLabel(sz.display_status) }}</el-tag>
+              <span class="tier-price text-gold">¥{{ sz.base_price }}</span>
+            </div>
+            <div v-if="style.sizes.length === 0" class="pricing-empty">{{ $t('styleManage.sizeEmpty') }}</div>
           </div>
-          <el-empty v-if="!tiersLoading && tiers.length === 0" :image-size="40" />
-          <div class="add-row">
-            <el-input v-model="newTier.name" :placeholder="$t('admin.tierName')" size="small" style="width: 120px" />
-            <el-input-number v-model="newTier.price" :min="0" :step="10" size="small" style="width: 120px" />
-            <el-button size="small" @click="addTier" :disabled="!newTier.name.trim()">＋</el-button>
-          </div>
+          <el-empty v-if="!pricingLoading && stylesOverview.length === 0" :image-size="40" />
+          <p class="hint">{{ $t('admin.pricingHint') }}</p>
         </div>
       </el-tab-pane>
 
@@ -101,10 +101,9 @@ const saving = ref(false)
 const profileLoading = ref(false)
 const profile = ref({})
 const originalProfile = ref({}) // M-2: 记录初始值，只发送有变化的字段
-// 档位
-const tiersLoading = ref(false)
-const tiers = ref([])
-const newTier = ref({ name: '', price: 0 })
+// 价格概览（SPEC-PRICE-2：画风/尺寸只读）
+const pricingLoading = ref(false)
+const stylesOverview = ref([])
 // 作品
 const artworksLoading = ref(false)
 const artworks = ref([])
@@ -125,22 +124,32 @@ watch(() => props.artist, async (a) => {
     originalProfile.value = { ...profile.value } // M-2: 快照初始值
   } catch (err) { ElMessage.error(err.message) }
   finally { profileLoading.value = false }
-  // 预加载档位
-  loadTiers()
+  // 预加载价格概览
+  loadPricing()
 }, { immediate: true })
 
 watch(tab, (tabName) => {
-  if (tabName === 'tiers') loadTiers()
+  if (tabName === 'pricing') loadPricing()
   if (tabName === 'artworks') loadArtworks()
   if (tabName === 'rules') loadRules()
 })
 
-async function loadTiers() {
+async function loadPricing() {
   if (!props.artist) return
-  tiersLoading.value = true
-  try { tiers.value = await adminApi.getArtistTiers(props.artist.id) }
+  pricingLoading.value = true
+  try { stylesOverview.value = await adminApi.getArtistPricingOverview(props.artist.id) }
   catch (err) { ElMessage.error(err.message) }
-  finally { tiersLoading.value = false }
+  finally { pricingLoading.value = false }
+}
+
+/** 尺寸三态展示（与后端 display_status 枚举对齐） */
+function sizeStatusLabel(status) {
+  if (status === 'showcase') return t('styleManage.sizeStatusShow')
+  if (status === 'closed') return t('styleManage.sizeStatusClose')
+  return t('styleManage.sizeStatusOpen')
+}
+function sizeStatusType(status) {
+  return { available: 'success', showcase: 'warning', closed: 'danger' }[status] || 'info'
 }
 
 async function loadArtworks() {
@@ -182,19 +191,6 @@ async function saveProfile() {
   finally { saving.value = false }
 }
 
-async function addTier() {
-  try {
-    await adminApi.createArtistTier(props.artist.id, { name: newTier.value.name.trim(), price: newTier.value.price })
-    newTier.value = { name: '', price: 0 }
-    await loadTiers()
-  } catch (err) { ElMessage.error(err.message) }
-}
-
-async function removeTier(tid) {
-  try { await adminApi.deleteArtistTier(props.artist.id, tid); await loadTiers() }
-  catch (err) { ElMessage.error(err.message) }
-}
-
 async function removeArtwork(aid) {
   try { await adminApi.deleteArtistArtwork(props.artist.id, aid); await loadArtworks() }
   catch (err) { ElMessage.error(err.message) }
@@ -225,6 +221,10 @@ async function saveRules() {
 .tier-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .tier-name { font-weight: 600; }
 .tier-price { margin-left: auto; font-weight: 700; }
+.pricing-style { margin-bottom: 12px; }
+.pricing-style-name { font-weight: 700; padding: 4px 0; }
+.pricing-inactive { font-weight: 400; color: var(--el-text-color-secondary); margin-left: 4px; }
+.pricing-empty { color: var(--el-text-color-secondary); font-size: 12px; padding: 4px 0; }
 .add-row { display: flex; gap: 8px; margin-top: 12px; }
 .artwork-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .artwork-item { position: relative; }

@@ -1,14 +1,21 @@
 /**
- * useOrderForm — 约稿表单业务逻辑核心（R58-1）
+ * useOrderForm — 约稿表单业务逻辑核心（R58-1；SPEC-PRICE-2 v50 统一价格模型）
  *
  * 将约稿表单的全部业务逻辑从页面组件中剥离，使页面只保留布局与样式。
- * R58-2 分步引导布局、以及未来的下单页多模板（小票风/杂志风等）
+ * 分步引导布局、以及未来的下单页多模板（小票风/杂志风等）
  * 都将共享此逻辑核心——模板只负责布局壳，逻辑零重复。
  *
+ * SPEC-PRICE-2 唯一计价公式（与后端 calculate-style-price 严格一致）：
+ *   最终价 = (基础价 + Σ固定增项 + Σ百分比增项[只按基础价]) × 用途 × 加急 − 折扣
+ * 增项三类（后端 category 真实维度）：
+ *   - add 普通增项：多选共存（开关类/个数类，支持 ¥ 或 %）
+ *   - usage 用途：顾客最多选一个
+ *   - rush 加急：顾客最多选一个
+ *
  * 封装的能力：
- * - 数据加载：画师资料 / 档位 / 须知 / 流程 / 计价数据（增项+倍率）
- * - 档位选择 + 实时计价（基础价+增项+倍率，300ms 防抖调后端 calculate-price）
- * - 表单校验规则（档位必填 / QQ 必填 / 须知同意必勾）
+ * - 数据加载：画师资料 / 画风与尺寸 / 须知 / 流程 / 折扣开关与分期比例
+ * - 画风 → 尺寸 → 增项三步选择 + 实时计价（300ms 防抖调后端 calculate-style-price）
+ * - 表单校验规则（QQ 必填 / 须知同意必勾）
  * - 参考图上传（文件选择 + Ctrl+V 粘贴，走相同校验）
  * - 订单提交（API 调用 + 错误 toast + loading + 成功弹窗状态）
  * - R57 表单防丢失（sessionStorage 草稿 + beforeunload 拦截 + 恢复询问）
@@ -26,22 +33,23 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize.js'
 import { usePasteUpload } from './usePasteUpload.js'
+import { formatPrice } from '../components/artist/addon-utils.js'
 
 export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const { t } = useI18n()
 
   // ─── 数据加载状态 ───
   const artist = ref(null)
-  const tiers = ref([])
   const rulesContent = ref('')
   const loading = ref(true)
   const workflowStages = ref([])
-  const pricingData = ref(null) // { tiers, multipliers, installments }
+  /** 公开报价元数据（getPricing：installments 分期比例 + discountEnabled） */
+  const pricingData = ref(null)
 
-  // ─── v0.32 REQ-023 Phase2: 多画风状态 ───
+  // ─── 画风/尺寸状态（SPEC-PRICE-2 唯一下单模型） ───
   /** 公开画风列表（GET /public/styles/:subdomain，只含 is_active=1） */
   const styles = ref([])
-  /** 画风模式：有画风数据时启用（styles.length > 0） */
+  /** 画风模式：有画风数据时可用（styles.length > 0） */
   const isStyleMode = computed(() => styles.value.length > 0)
   /** 多画风：需要选画风步骤（styles.length > 1）；单画风退化为扁平模型 */
   const isMultiStyle = computed(() => styles.value.length > 1)
@@ -51,14 +59,23 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   /** 选中的尺寸 ID */
   const selectedSizeId = ref(null)
   const selectedSize = computed(() => selectedStyle.value?.sizes?.find(sz => sz.id === selectedSizeId.value) || null)
-  /** 当前尺寸下可用增项（后端已过滤 is_hidden） */
+  /** 当前尺寸下可用增项（后端已过滤 is_hidden；含 category 维度） */
   const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
+  /** 普通增项（多选共存） */
+  const regularAddons = computed(() => availableStyleAddons.value.filter(a => a.category === 'add'))
+  /** 用途可选项（顾客最多选一个） */
+  const usageAddons = computed(() => availableStyleAddons.value.filter(a => a.category === 'usage'))
+  /** 加急可选项（顾客最多选一个） */
+  const rushAddons = computed(() => availableStyleAddons.value.filter(a => a.category === 'rush'))
   /**
-   * 增项选择状态 { [styleAddonId]: { toggled, quantity, optionLabel } }
-   * switch → toggled; quantity → quantity>0; radio → optionLabel!=null
+   * 普通增项选择状态 { [styleAddonId]: { toggled, quantity } }
+   * switch → toggled; quantity → quantity>0
    */
   const styleAddonSelections = reactive({})
-  /** 画风价格预览（calculate-style-price 响应） */
+  /** 用途/加急单选（styleAddonId；null = 不选） */
+  const selectedUsageId = ref(null)
+  const selectedRushId = ref(null)
+  /** 画风价格预览（calculate-style-price 响应，全整数分口径） */
   const stylePricePreview = ref(null)
   const stylePricingExpanded = ref(false)
 
@@ -69,7 +86,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   /**
    * v0.35 F4: 预选摘要横幅文案（REQ-024 F4-3：预选择必须可见、可改）。
    * 入口 A（展示柜带 query）预选命中时显示；用户手动改选后自动隐藏（此时摘要卡已反映实选）。
-   * 返回已翻译文案；空串 = 不显示。
    */
   const preselectBannerText = computed(() => {
     if (!isStyleMode.value) return ''
@@ -87,20 +103,16 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   // ─── 表单状态 ───
   const form = reactive({
-    tierId: null,
     description: '',
     clientQq: '',
     clientName: '',
     notifyEnabled: true,
     agreed: false,
-    usageMultiplierId: null,
-    rushMultiplierId: null,
     discountCode: '' // v0.31 F3: 折扣码（验证通过后随订单提交，后端负责真正扣减）
   })
 
   // ─── 校验规则 ───
   const rules = {
-    tierId: [{ required: true, message: () => t('orderForm.selectTier'), trigger: 'change' }],
     clientQq: [{ required: true, message: () => t('orderForm.fillQq'), trigger: 'blur' }],
     agreed: [{
       validator: (rule, value, callback) => {
@@ -122,67 +134,15 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const uploadedRefs = ref([])
   const refUidMap = ref(new Map())
 
-  // ─── 价格计算器状态 ───
-  const pricePreview = ref(null)
-  const pricingExpanded = ref(false)   // R14: 详细计价展开状态
-
   // ─── 计算属性 ───
   const sanitizedRules = computed(() => sanitizeHtml(rulesContent.value))
 
-  // R14: 当前选中档位（摘要行用）
-  const selectedTier = computed(() => tiers.value.find(tier => tier.id === form.tierId) || null)
-
-  // R14: 有倍率或折扣码时才显示"详细计价"入口（旧模型增项已随 addons 冻结清理，恒无增项）
-  const hasPricingExtras = computed(() =>
-    usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0 || discountEnabled.value
-  )
-
-  const usageMultipliers = computed(() =>
-    (pricingData.value?.multipliers || []).filter(m => m.type === 'usage')
-  )
-  const rushMultipliers = computed(() =>
-    (pricingData.value?.multipliers || []).filter(m => m.type === 'rush')
-  )
-
-  function onTierChange() {
-    // 切换档位重置倍率与价格预览
-    form.usageMultiplierId = null
-    form.rushMultiplierId = null
-    pricePreview.value = null
-    pricingExpanded.value = false // R14: 切换档位重置展开状态
+  /** 增项单价展示文本（¥50 / ¥80/位 / +50%；读公开接口真实 price_mode/category） */
+  function styleAddonPriceText(a) {
+    return formatPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
   }
 
-  // ─── 实时价格计算（防抖） ───
-  let calcTimer = null
-  // 竞态保护：请求序号（慢请求不得覆盖快请求）
-  let calcSeq = 0
-  function scheduleCalc() {
-    if (calcTimer) clearTimeout(calcTimer)
-    calcTimer = setTimeout(doCalc, 300)
-  }
-
-  async function doCalc() {
-    const mySeq = ++calcSeq
-    if (!form.tierId) { pricePreview.value = null; return }
-    try {
-      const res = await artistPublicApi.calculatePrice({
-        subdomain,
-        tierId: form.tierId,
-        usageMultiplierId: form.usageMultiplierId,
-        rushMultiplierId: form.rushMultiplierId
-      })
-      if (mySeq !== calcSeq) return
-      pricePreview.value = res
-    } catch {
-      if (mySeq !== calcSeq) return
-      pricePreview.value = null
-    }
-  }
-
-  // 监听选择变化 → 触发计算
-  watch([() => form.tierId, () => form.usageMultiplierId, () => form.rushMultiplierId], scheduleCalc)
-
-  // ─── v0.31 F3: 折扣码（验证 → 预估折扣展示 → 提交时传码，后端真正扣减） ───
+  // ─── 折扣码（验证 → 预估折扣展示 → 提交时传码，后端真正扣减） ───
   /** 画师是否开启折扣功能（getPricing 返回 discountEnabled） */
   const discountEnabled = computed(() => !!pricingData.value?.discountEnabled)
   /** 验证结果 { discountType: 'percent'|'fixed', discountValue: number } | null */
@@ -199,8 +159,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     try {
       const res = await artistPublicApi.validateDiscount({ subdomain, code })
       discountResult.value = { discountType: res.discountType, discountValue: res.discountValue }
-      // v0.32: 画风模式下验证通过后立即重算价格（calculate-style-price 含折扣）
-      if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
+      // 验证通过后立即重算价格（calculate-style-price 含折扣）
+      if (selectedSizeId.value) scheduleStyleCalc()
     } catch (err) {
       discountResult.value = null
       discountError.value = err.message
@@ -209,56 +169,66 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     }
   }
 
-  /** 清除折扣码（修改码/切换档位时调用） */
+  /** 清除折扣码（修改码时调用） */
   function clearDiscount() {
     discountResult.value = null
     discountError.value = ''
-    // v0.32: 画风模式下折扣码变化需重算价格（calculate-style-price 含折扣）
-    if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
+    if (selectedSizeId.value) scheduleStyleCalc()
   }
 
   // 输入框内容变化 → 清除旧验证结果（防止码改了但折扣还挂着）
   watch(() => form.discountCode, clearDiscount)
 
   /**
-   * 预估折扣金额（元）。先倍率后折扣（REQ-023 已定）：
-   * pricePreview.totalPrice 已含倍率，折扣在此基础上计算。
-   * 前端仅做展示估算，实际扣减由后端下单时计算。
+   * 预估折扣金额（分）。与后端 computeDiscountCents 同口径：
+   * percent = floor(倍率后总价 × value/100)；fixed = min(value元, 总价)。
    */
-  const discountPreviewYuan = computed(() => {
-    const total = pricePreview.value?.totalPrice
-    if (!discountResult.value || total == null || total <= 0) return 0
+  const discountPreviewCents = computed(() => {
+    const baseCents = stylePricePreview.value?.afterMultipliersCents
+    if (!discountResult.value || baseCents == null || baseCents <= 0) return 0
     const { discountType, discountValue } = discountResult.value
-    if (discountType === 'percent') return total * discountValue / 100
-    if (discountType === 'fixed') return Math.min(discountValue, total)
+    if (discountType === 'percent') return Math.floor(baseCents * discountValue / 100)
+    if (discountType === 'fixed') return Math.min(Math.round(discountValue * 100), baseCents)
     return 0
   })
 
-  /** 折扣后预估总价（元） */
+  /** 折扣后预估总价（元；展示用，整数分换算） */
   const discountedTotalYuan = computed(() => {
-    const total = pricePreview.value?.totalPrice ?? 0
-    return Math.max(0, total - discountPreviewYuan.value)
+    const baseCents = stylePricePreview.value?.afterMultipliersCents ?? 0
+    return Math.max(0, baseCents - discountPreviewCents.value) / 100
   })
 
-  // ─── v0.32 REQ-023 Phase2: 画风选择 + 计价 + 提交 ───
+  // ─── 画风选择 + 计价 + 提交 ───
 
   /** 选择画风（多画风步骤 1） */
   function selectStyle(id) {
     if (selectedStyleId.value === id) return
     selectedStyleId.value = id
-    // 切换画风时重置尺寸和增项
+    // 切换画风时重置尺寸、增项与用途/加急选择
     selectedSizeId.value = null
-    for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+    resetAddonSelections()
     stylePricePreview.value = null
     stylePricingExpanded.value = false
   }
 
-  /** 选择尺寸（步骤 2） */
+  function resetAddonSelections() {
+    for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+    selectedUsageId.value = null
+    selectedRushId.value = null
+  }
+
+  /** 选择尺寸（步骤 2）；展示态（showcase）尺寸不可选，明确提示 */
   function selectSize(id) {
     if (selectedSizeId.value === id) return
+    const size = (selectedStyle.value?.sizes || []).find(sz => sz.id === id)
+    if (!size) return
+    if (size.display_status === 'showcase') {
+      ElMessage.info(t('orderForm.sizeShowcaseBlocked'))
+      return
+    }
     selectedSizeId.value = id
     // 切换尺寸时重置增项选择（不同尺寸可用增项不同）
-    for (const key of Object.keys(styleAddonSelections)) delete styleAddonSelections[key]
+    resetAddonSelections()
     stylePricePreview.value = null
     initStyleAddonDefaults()
     scheduleStyleCalc()
@@ -278,10 +248,10 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       selectedStyleId.value = qStyleId
       queryPreselect.styleId = qStyleId
     }
-    // 尺寸：在当前已选画风（query 选中或单画风自动选中）的 sizes 里有效才预选
+    // 尺寸：在当前已选画风（query 选中或单画风自动选中）的 sizes 里有效才可预选（展示态除外）
     if (Number.isInteger(qSizeId) && selectedStyleId.value != null) {
       const style = styles.value.find(s => s.id === selectedStyleId.value)
-      const size = (style?.sizes || []).find(sz => sz.id === qSizeId)
+      const size = (style?.sizes || []).find(sz => sz.id === qSizeId && sz.display_status !== 'showcase')
       if (size) {
         selectedSizeId.value = qSizeId
         initStyleAddonDefaults()
@@ -293,31 +263,39 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   /** 初始化增项默认值（el-input-number 不接受 undefined） */
   function initStyleAddonDefaults() {
-    for (const a of availableStyleAddons.value) {
+    for (const a of regularAddons.value) {
       if (!styleAddonSelections[a.id]) {
-        styleAddonSelections[a.id] = { toggled: false, quantity: 0, optionLabel: null }
+        styleAddonSelections[a.id] = { toggled: false, quantity: 0 }
       }
     }
   }
 
-  /** 构建已选增项列表（计价与提交共用） */
+  /** 用途/加急单选（再点已选项 = 取消） */
+  function toggleUsage(id) {
+    selectedUsageId.value = selectedUsageId.value === id ? null : id
+  }
+  function toggleRush(id) {
+    selectedRushId.value = selectedRushId.value === id ? null : id
+  }
+
+  /** 构建已选增项列表（计价与提交共用；普通增项 + 用途/加急单选） */
   function buildStyleAddons() {
     const addons = []
-    for (const a of availableStyleAddons.value) {
+    for (const a of regularAddons.value) {
       const sel = styleAddonSelections[a.id]
       if (!sel) continue
       if (a.control_type === 'switch' && sel.toggled) {
         addons.push({ styleAddonId: a.id })
       } else if (a.control_type === 'quantity' && sel.quantity > 0) {
         addons.push({ styleAddonId: a.id, quantity: sel.quantity })
-      } else if (a.control_type === 'radio' && sel.optionLabel) {
-        addons.push({ styleAddonId: a.id, optionLabel: sel.optionLabel })
       }
     }
+    if (selectedUsageId.value != null) addons.push({ styleAddonId: selectedUsageId.value })
+    if (selectedRushId.value != null) addons.push({ styleAddonId: selectedRushId.value })
     return addons
   }
 
-  /** 画风价格计算（防抖 300ms，全走后端 API） */
+  /** 画风价格计算（防抖 300ms，全走后端 calculate-style-price） */
   let styleCalcTimer = null
   // 竞态保护：请求序号（慢请求不得覆盖快请求）
   let styleCalcSeq = 0
@@ -334,8 +312,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
         subdomain,
         styleSizeId: selectedSizeId.value,
         addons: buildStyleAddons(),
-        usageMultiplierId: form.usageMultiplierId,
-        rushMultiplierId: form.rushMultiplierId,
         discountCode: form.discountCode.trim() || null
       })
       if (mySeq !== styleCalcSeq) return
@@ -346,47 +322,51 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     }
   }
 
-  // 监听增项/倍率/折扣变化 → 触发画风计价
+  // 监听增项/用途/加急变化 → 触发计价
   watch(styleAddonSelections, scheduleStyleCalc, { deep: true })
-  watch([() => form.usageMultiplierId, () => form.rushMultiplierId], () => {
-    if (isStyleMode.value && selectedSizeId.value) scheduleStyleCalc()
+  watch([selectedUsageId, selectedRushId], () => {
+    if (selectedSizeId.value) scheduleStyleCalc()
   })
 
-  /** 解析 radio 选项 JSON（安全回退空数组） */
-  function parseAddonOptions(optionsJson) {
-    if (!optionsJson) return []
-    try {
-      const parsed = JSON.parse(optionsJson)
-      return Array.isArray(parsed) ? parsed : []
-    } catch {
-      return []
-    }
-  }
+  /** 展示价（元）：优先后端计价结果总价，未计价时回退尺寸基础价 */
+  const styleDisplayPrice = computed(() => {
+    if (stylePricePreview.value?.totalCents != null) return stylePricePreview.value.totalCents / 100
+    return selectedSize.value?.base_price ?? 0
+  })
 
-  /** 画风模式展示价（优先后端计价结果，未计价时回退尺寸基础价） */
-  const styleDisplayPrice = computed(() =>
-    stylePricePreview.value?.totalPrice ?? selectedSize.value?.base_price ?? 0
-  )
+  /** 是否有可选增项/用途/加急（控制增项步骤内容展示） */
+  const hasStylePricingExtras = computed(() => availableStyleAddons.value.length > 0)
 
-  /** 画风模式是否有计价增项（控制"详细计价"展开入口） */
-  const hasStylePricingExtras = computed(() =>
-    availableStyleAddons.value.length > 0 || usageMultipliers.value.length > 0 || rushMultipliers.value.length > 0
-  )
+  /**
+   * 分期预估（展示用，与后端 allocateInitial 同口径：各节点 round(总价×bp/10000)，尾差归末节点）
+   * 总价取当前预估（含折扣）；未计价时为空。
+   */
+  const installmentPreview = computed(() => {
+    const stages = pricingData.value?.installments || []
+    const preview = stylePricePreview.value
+    if (!stages.length || !preview || preview.totalCents == null) return []
+    const total = preview.totalCents
+    const items = stages.map(s => ({ label: s.label, amountCents: Math.round(total * s.basisPoints / 10000) }))
+    // 尾差归末节点（与后端一致）
+    const sum = items.reduce((acc, it) => acc + it.amountCents, 0)
+    if (items.length) items[items.length - 1].amountCents += total - sum
+    return items
+  })
 
   // ─── R57: 表单防丢失（beforeunload 拦截 + sessionStorage 草稿） ───
   const DRAFT_KEY = `orderForm_draft_${subdomain}`
 
   /** 表单是否有内容（任一字段非空）——决定 beforeunload 拦截与草稿保存 */
   const hasDraftContent = computed(() =>
-    form.tierId != null
-    // v0.33: 画风状态算内容。多画风下"用户主动选了画风"即算；
-    // 单画风自动选中不算（否则刚进页面就拦截离开+弹恢复框，见 restoreDraft 幂等要求）
-    || (isMultiStyle.value && selectedStyleId.value != null)
+    // 多画风下"用户主动选了画风"即算；单画风自动选中不算（否则刚进页面就拦截离开+弹恢复框）
+    (isMultiStyle.value && selectedStyleId.value != null)
     || selectedSizeId.value != null
     || !!form.description.trim()
     || !!form.clientQq.trim()
     || !!form.clientName.trim()
-    || Object.values(styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0 || s.optionLabel != null))
+    || selectedUsageId.value != null
+    || selectedRushId.value != null
+    || Object.values(styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0))
   )
 
   function saveDraft() {
@@ -397,19 +377,18 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
         form: {
-          tierId: form.tierId,
           description: form.description,
           clientQq: form.clientQq,
           clientName: form.clientName,
-          notifyEnabled: form.notifyEnabled,
-          usageMultiplierId: form.usageMultiplierId,
-          rushMultiplierId: form.rushMultiplierId
+          notifyEnabled: form.notifyEnabled
         },
-        // v0.33: 画风三步走状态（styleId/sizeId/增项勾选），恢复时按 isStyleMode 互斥取用
+        // SPEC-PRICE-2: 三步走状态（画风/尺寸/普通增项勾选/用途/加急）
         styleState: {
           styleId: selectedStyleId.value,
           sizeId: selectedSizeId.value,
-          addonSelections: { ...styleAddonSelections }
+          addonSelections: { ...styleAddonSelections },
+          usageId: selectedUsageId.value,
+          rushId: selectedRushId.value
         }
       }))
     } catch { /* Ignore when sessionStorage is unavailable (private mode, etc.) */ }
@@ -422,70 +401,58 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   }
 
   watch(
-    [() => form.tierId, () => form.description, () => form.clientQq, () => form.clientName,
-      () => form.notifyEnabled, () => form.usageMultiplierId, () => form.rushMultiplierId],
+    [() => form.description, () => form.clientQq, () => form.clientName, () => form.notifyEnabled],
     scheduleDraftSave
   )
-  // v0.33: 画风三步走状态变化也要存草稿（刷新后不丢选择）
   watch(selectedStyleId, scheduleDraftSave)
   watch(selectedSizeId, scheduleDraftSave)
   watch(styleAddonSelections, scheduleDraftSave, { deep: true })
+  watch([selectedUsageId, selectedRushId], scheduleDraftSave)
 
   /**
-   * 恢复草稿（styles/tiers 加载后调用）
-   * v0.33: 按当前 isStyleMode 互斥恢复——画风模式恢复 styleState，旧模型恢复 tierId，
-   * 不交叉污染（草稿可能同时含两组状态）。画风/尺寸/增项若已被画师删除则逐项丢弃。
+   * 恢复草稿（styles 加载后调用）
+   * 画风/尺寸/增项若已被画师删除或尺寸转展示态则逐项丢弃。
+   * 旧版本草稿（含 tierId 等字段）静默忽略过时字段。
    */
   function restoreDraft(draft) {
     const f = draft.form || {}
+    const ss = draft.styleState || {}
 
-    if (isStyleMode.value) {
-      // ── 画风模式：恢复三步走状态，旧模型字段置空 ──
-      form.tierId = null
-
-      const ss = draft.styleState || {}
-      // v0.34 任务B：URL query 预选 > 草稿恢复——query 已预选的项不被草稿覆盖
-      if (!queryPreselect.styleId && ss.styleId != null) {
-        // 与单画风自动选中相同值时幂等（ref 等值赋值不触发 watcher）
-        const style = styles.value.find(s => s.id === ss.styleId)
-        if (style) selectedStyleId.value = ss.styleId
-      }
-      const currentStyle = styles.value.find(s => s.id === selectedStyleId.value)
-      if (!queryPreselect.sizeId) {
-        const size = currentStyle && ss.sizeId != null ? (currentStyle.sizes || []).find(sz => sz.id === ss.sizeId) : null
-        if (size) {
-          selectedSizeId.value = ss.sizeId
-          // 增项勾选只恢复当前尺寸可用增项中存在的键（其余可能已删/已隐藏）
-          const validIds = new Set((size.addons || []).map(a => a.id))
-          const saved = ss.addonSelections || {}
-          for (const key of Object.keys(saved)) {
-            const id = Number(key)
-            if (validIds.has(id)) {
-              styleAddonSelections[id] = { toggled: false, quantity: 0, optionLabel: null, ...saved[key] }
-            }
-          }
-          // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
-          initStyleAddonDefaults()
-          // v0.33: 倍率是共用字段，画风模式增项步骤也可选——尺寸有效时一并恢复
-          form.usageMultiplierId = f.usageMultiplierId ?? null
-          form.rushMultiplierId = f.rushMultiplierId ?? null
-        }
-      } else {
-        // query 已预选尺寸：增项以 query 为准，倍率仍从草稿恢复
-        form.usageMultiplierId = f.usageMultiplierId ?? null
-        form.rushMultiplierId = f.rushMultiplierId ?? null
-      }
-      // 尺寸有效 → 重算价格预览（防抖，多次触发合并为一次）
-      if (selectedSizeId.value) scheduleStyleCalc()
-    } else {
-      // ── 旧模型（tiers）：原逻辑保留，档位被删则丢弃该字段 ──
-      const tierValid = f.tierId != null && tiers.value.some(tier => tier.id === f.tierId)
-      form.tierId = tierValid ? f.tierId : null
-      form.usageMultiplierId = tierValid ? (f.usageMultiplierId ?? null) : null
-      form.rushMultiplierId = tierValid ? (f.rushMultiplierId ?? null) : null
+    // v0.34 任务B：URL query 预选 > 草稿恢复——query 已预选的项不被草稿覆盖
+    if (!queryPreselect.styleId && ss.styleId != null) {
+      // 与单画风自动选中相同值时幂等（ref 等值赋值不触发 watcher）
+      const style = styles.value.find(s => s.id === ss.styleId)
+      if (style) selectedStyleId.value = ss.styleId
     }
+    const currentStyle = styles.value.find(s => s.id === selectedStyleId.value)
+    if (!queryPreselect.sizeId) {
+      const size = currentStyle && ss.sizeId != null
+        ? (currentStyle.sizes || []).find(sz => sz.id === ss.sizeId && sz.display_status !== 'showcase')
+        : null
+      if (size) {
+        selectedSizeId.value = ss.sizeId
+        // 普通增项勾选只恢复当前尺寸可用普通增项中存在的键（其余可能已删/已隐藏）
+        const validIds = new Set(regularAddons.value.map(a => a.id))
+        const saved = ss.addonSelections || {}
+        for (const key of Object.keys(saved)) {
+          const id = Number(key)
+          if (validIds.has(id)) {
+            styleAddonSelections[id] = { toggled: false, quantity: 0, ...saved[key], optionLabel: undefined }
+          }
+        }
+        // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
+        initStyleAddonDefaults()
+        // 用途/加急单选只恢复仍在可选项中的 ID
+        const usageIds = new Set(usageAddons.value.map(a => a.id))
+        const rushIds = new Set(rushAddons.value.map(a => a.id))
+        selectedUsageId.value = usageIds.has(ss.usageId) ? ss.usageId : null
+        selectedRushId.value = rushIds.has(ss.rushId) ? ss.rushId : null
+      }
+    }
+    // 尺寸有效 → 重算价格预览（防抖，多次触发合并为一次）
+    if (selectedSizeId.value) scheduleStyleCalc()
 
-    // ── 文本字段两种模式通用 ──
+    // ── 文本字段 ──
     form.description = f.description || ''
     form.clientQq = f.clientQq || ''
     form.clientName = f.clientName || ''
@@ -562,26 +529,17 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
     submitting.value = true
     try {
-      // v0.32 REQ-023 Phase2: 画风模式 vs 旧模型（tiers）
-      // 后端已扩展 POST /orders 接受 styleSizeId + styleAddons（8b519aa），服务端自动算价
-      const isStyleSubmit = isStyleMode.value && selectedStyle.value && selectedSize.value
-
+      // SPEC-PRICE-2: 画风尺寸 + 增项（含用途/加急单选），服务端唯一引擎算价
       const order = await orderApi.create({
         subdomain,
-        tierId: isStyleSubmit ? null : form.tierId,
-        // 画风模式：结构化字段（后端验证+算价+创建）
-        ...(isStyleSubmit ? {
-          styleSizeId: selectedSizeId.value,
-          styleAddons: buildStyleAddons()
-        } : {}),
+        styleSizeId: selectedSizeId.value,
+        styleAddons: buildStyleAddons(),
         description: form.description.trim(),
         clientQq: form.clientQq.trim(),
         clientName: form.clientName.trim(),
         clientNotify: form.notifyEnabled,
         agreeRules: form.agreed,
         references: uploadedRefs.value,
-        usageMultiplierId: form.usageMultiplierId,
-        rushMultiplierId: form.rushMultiplierId,
         // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
         discountCode: form.discountCode.trim() || null
       })
@@ -604,18 +562,17 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     try {
       const data = await artistPublicApi.getProfile(subdomain)
       artist.value = data
-      tiers.value = data.tiers || []
       rulesContent.value = data.rules || ''
       // 加载流程（静默失败不阻塞下单）
       artistPublicApi.getWorkflow(subdomain)
         .then(res => { workflowStages.value = res.stages || [] })
         .catch(() => {})
-      // 加载价格数据（增项+倍率）
+      // 加载报价元数据（分期比例 + 折扣开关）
       artistPublicApi.getPricing(subdomain)
         .then(res => { pricingData.value = res })
         .catch(() => {})
 
-      // v0.32 REQ-023 Phase2: 加载画风列表（await 保证步骤列表渲染前稳定；失败静默走旧模型兜底）
+      // 加载画风列表（await 保证步骤列表渲染前稳定）
       try {
         const styleRes = await artistPublicApi.getPublicStyles(subdomain)
         styles.value = styleRes || []
@@ -623,12 +580,12 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
         if (styles.value.length === 1) {
           selectedStyleId.value = styles.value[0].id
         }
-      } catch { /* 静默失败：走旧模型（tiers） */ }
+      } catch { /* 静默失败：页面显示无 pricing 空态 */ }
 
       // v0.34 任务B：URL query 预选（优先于草稿恢复，restoreDraft 里不覆盖已预选的项）
       applyQueryPreselect()
 
-      // R57: 草稿恢复（tiers 加载后校验档位有效性）
+      // R57: 草稿恢复（styles 加载后校验有效性）
       let draft = null
       try {
         const raw = sessionStorage.getItem(DRAFT_KEY)
@@ -661,36 +618,34 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   onUnmounted(() => {
     window.removeEventListener('beforeunload', onBeforeUnload)
     if (draftTimer) clearTimeout(draftTimer)
-    if (calcTimer) clearTimeout(calcTimer)
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
   })
 
   return {
     // 数据加载
-    artist, tiers, rulesContent, loading, workflowStages, pricingData,
+    artist, rulesContent, loading, workflowStages, pricingData,
     // 表单 + 校验
     form, rules,
-    // R57 草稿状态（v0.33: 导出供测试验证画风状态是否算"有内容"）
+    // R57 草稿状态（导出供测试验证状态是否算"有内容"）
     hasDraftContent,
     // 提交状态
     submitting, showSuccess, resultNo, submit,
     // 参考图
     refFileList, handleRefUpload, handleRefRemove,
-    // 计价
-    pricePreview, pricingExpanded,
-    selectedTier, hasPricingExtras,
-    usageMultipliers, rushMultipliers, onTierChange,
     // 须知预览
     sanitizedRules,
-    // v0.31 F3: 折扣码
+    // 折扣码
     discountEnabled, discountResult, discountError, discountValidating,
-    validateDiscountCode, discountPreviewYuan, discountedTotalYuan,
-    // v0.32 REQ-023 Phase2: 多画风
+    validateDiscountCode, discountPreviewCents, discountedTotalYuan,
+    // 画风/尺寸/增项
     styles, isStyleMode, isMultiStyle,
     selectedStyleId, selectedStyle, selectedSizeId, selectedSize,
-    availableStyleAddons, styleAddonSelections,
-    selectStyle, selectSize, buildStyleAddons, parseAddonOptions,
+    availableStyleAddons, regularAddons, usageAddons, rushAddons,
+    styleAddonSelections, selectedUsageId, selectedRushId,
+    selectStyle, selectSize, toggleUsage, toggleRush,
+    buildStyleAddons, styleAddonPriceText,
     stylePricePreview, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras,
+    installmentPreview,
     // v0.34 任务B：URL query 预选命中记录
     queryPreselect,
     // v0.35 F4: 预选摘要横幅文案

@@ -33,19 +33,15 @@
             @update:uploaded-refs="uploadedRefs = $event"
             ref="leftRef"
           />
-          <!-- ═══ 右栏：怎么录（档位/画风/尺寸/增项/价格/初始状态/提交 + 移动端价格条） ═══ -->
+          <!-- ═══ 右栏：怎么录（画风/尺寸/增项/价格/初始状态/提交 + 移动端价格条） ═══ -->
           <ManualOrderRight
             v-model:clientQq="form.clientQq"
             v-model:clientName="form.clientName"
-            v-model:tierId="form.tierId"
             v-model:description="form.description"
             v-model:priority="form.priority"
             v-model:deadline="form.deadline"
             v-model:startDate="form.startDate"
             v-model:clientNotify="form.clientNotify"
-            v-model:usageMultiplierId="form.usageMultiplierId"
-            v-model:rushMultiplierId="form.rushMultiplierId"
-            :tiers="tiers"
             :styles="styles"
             :pricing-data="pricingData"
             :subdomain="subdomain"
@@ -131,7 +127,6 @@ const parseInput = ref('')
 const parseResult = ref(null)
 const leftRef = ref(null)
 const rightRef = ref(null)
-const tiers = ref([])
 const showResult = ref(false)
 const resultNo = ref('')
 /** 参考图路径数组（左栏上传后同步；提交时由右栏使用） */
@@ -144,14 +139,11 @@ const workflowStages = ref([])
 const form = reactive({
   clientQq: '',
   clientName: '',
-  tierId: null,
   description: '',
   priority: 'medium',
   deadline: null,
   startDate: null,
-  clientNotify: false,
-  usageMultiplierId: null,
-  rushMultiplierId: null
+  clientNotify: false
 })
 
 // ─── REQ-035 §五 MVP-1: 粘贴消息解析（解析→确认→回填，不自动提交） ───
@@ -182,8 +174,7 @@ const rules = {
   clientQq: [{ required: true, message: () => t('manualOrder.fillClientQq'), trigger: 'blur' }]
 }
 
-// 画风模式判定（草稿/回填使用；右栏 UI 联动在 ManualOrderRight 内部）
-const isStyleMode = computed(() => styles.value.length > 0)
+// 多画风判定（草稿内容判定使用；右栏 UI 联动在 ManualOrderRight 内部）
 const isMultiStyle = computed(() => styles.value.length > 1)
 
 // ─── QQ 历史订单（防抖 500ms，客户端过滤——API 零改动） ───
@@ -255,14 +246,11 @@ function resetForm() {
   showResult.value = false
   form.clientQq = ''
   form.clientName = ''
-  form.tierId = null
   form.description = ''
   form.priority = 'medium'
   form.deadline = null
   form.startDate = null
   form.clientNotify = false
-  form.usageMultiplierId = null
-  form.rushMultiplierId = null
   // REQ-015 新增状态重置
   qqHistory.value = []
   qqHistoryLoaded.value = false
@@ -283,9 +271,7 @@ const draftKey = () => (subdomain.value ? `${DRAFT_KEY_PREFIX}_${subdomain.value
 /** 表单是否有内容（任一字段非空）——有内容才落盘，避免空表单刷新生造草稿键 */
 function hasDraftContent() {
   const r = rightRef.value?.getDraftState() || {}
-  return form.tierId != null
-    // 多画风下"用户主动选了画风"即算；单画风自动选中不算（否则刚进页面就弹恢复框）
-    || (isMultiStyle.value && r.styleId != null)
+  return (isMultiStyle.value && r.styleId != null)
     || r.sizeId != null
     || !!form.description.trim()
     || !!form.clientQq.trim()
@@ -294,7 +280,9 @@ function hasDraftContent() {
     || !!form.startDate
     || form.priority !== 'medium'
     || form.clientNotify
-    || Object.values(r.addonSelections || {}).some(s => s && (s.toggled || s.quantity > 0 || s.optionLabel != null))
+    || Object.values(r.addonSelections || {}).some(s => s && (s.toggled || s.quantity > 0))
+    || r.usageId != null
+    || r.rushId != null
     || (r.customAddons || []).length > 0
     || r.finalPriceYuan != null
 }
@@ -312,17 +300,14 @@ function saveDraft() {
       form: {
         clientQq: form.clientQq,
         clientName: form.clientName,
-        tierId: form.tierId,
         description: form.description,
         priority: form.priority,
         deadline: form.deadline,
         startDate: form.startDate,
-        clientNotify: form.clientNotify,
-        usageMultiplierId: form.usageMultiplierId,
-        rushMultiplierId: form.rushMultiplierId
+        clientNotify: form.clientNotify
       },
-      // 画风三步走状态（styleId/sizeId/增项勾选），恢复时按 isStyleMode 互斥取用
-      styleState: { styleId: r.styleId, sizeId: r.sizeId, addonSelections: r.addonSelections },
+      // SPEC-PRICE-2: 三步走状态（styleId/sizeId/普通增项勾选/用途/加急）
+      styleState: { styleId: r.styleId, sizeId: r.sizeId, addonSelections: r.addonSelections, usageId: r.usageId, rushId: r.rushId },
       // 自定义增项（只存可序列化字段，uid 恢复时重发）
       customAddons: r.customAddons || [],
       // G2: 手输价格恢复（恢复时保留脏标记，避免被重算价格覆盖）
@@ -338,10 +323,9 @@ function scheduleDraftSave() {
   draftTimer = setTimeout(saveDraft, 800)
 }
 
-watch([() => form.clientQq, () => form.clientName, () => form.tierId, () => form.description,
-  () => form.priority, () => form.deadline, () => form.startDate, () => form.clientNotify,
-  () => form.usageMultiplierId, () => form.rushMultiplierId], scheduleDraftSave)
-// 画风三步走/增项/自定义增项/手输价变化由 ManualOrderRight emit('dirty') 触发 scheduleDraftSave
+watch([() => form.clientQq, () => form.clientName, () => form.description,
+  () => form.priority, () => form.deadline, () => form.startDate, () => form.clientNotify], scheduleDraftSave)
+// 三步走/增项/自定义增项/手输价变化由 ManualOrderRight emit('dirty') 触发 scheduleDraftSave
 
 /** 清空草稿键（提交成功 / 恢复弹窗取消 / 重置表单时） */
 function clearDraft() {
@@ -361,28 +345,17 @@ function applyDraft(draft) {
   form.startDate = f.startDate || null
   form.clientNotify = !!f.clientNotify
 
-  if (isStyleMode.value) {
-    // ── 画风模式：tierId 置空，右栏恢复三步走状态 ──
-    form.tierId = null
-  } else {
-    // ── 旧模型（tiers）：档位被删则丢弃该字段 ──
-    const tierValid = f.tierId != null && tiers.value.some(tier => tier.id === f.tierId)
-    form.tierId = tierValid ? f.tierId : null
-    form.usageMultiplierId = tierValid ? (f.usageMultiplierId ?? null) : null
-    form.rushMultiplierId = tierValid ? (f.rushMultiplierId ?? null) : null
-  }
-
-  // 右栏状态回填（画风三步走/自定义增项/手输价；倍率在尺寸有效时由子组件设置）
+  // 右栏状态回填（三步走/用途加急/自定义增项/手输价；旧草稿中的 tierId/倍率字段静默忽略）
   const ss = draft.styleState || {}
   rightRef.value?.setDraftState({
     styleId: ss.styleId,
     sizeId: ss.sizeId,
     addonSelections: ss.addonSelections || {},
+    usageId: ss.usageId ?? null,
+    rushId: ss.rushId ?? null,
     customAddons: draft.customAddons,
     finalPriceYuan: draft.finalPriceYuan,
-    priceTouched: draft.priceTouched,
-    usageMultiplierId: f.usageMultiplierId,
-    rushMultiplierId: f.rushMultiplierId
+    priceTouched: draft.priceTouched
   })
 }
 
@@ -423,12 +396,11 @@ onMounted(async () => {
   try {
     const profile = await artistApi.getProfile()
     subdomain.value = profile.subdomain
-    tiers.value = profile.tiers || []
-    // 加载价格数据（增项+倍率）——右栏使用
+    // 加载价格元数据（分期比例/折扣开关）——右栏使用
     artistPublicApi.getPricing(profile.subdomain)
       .then(res => { pricingData.value = res })
       .catch(() => {})
-    // v0.38 D路: 加载画风列表（失败静默走旧档位模式兜底；单画风自动选中在右栏 watch 处理）
+    // 加载画风列表（单画风自动选中在右栏 watch 处理）
     const stylesPromise = artistPublicApi.getPublicStyles(profile.subdomain)
       .then(res => { styles.value = res || [] })
       .catch(() => {})
@@ -436,7 +408,7 @@ onMounted(async () => {
     artistApi.getWorkflow()
       .then(res => { workflowStages.value = res.stages || [] })
       .catch(() => {})
-    // F6: 画风/档位数据就绪后检查本地草稿——恢复回填需要 styles 已加载才能匹配画风/尺寸
+    // F6: 画风数据就绪后检查本地草稿——恢复回填需要 styles 已加载才能匹配画风/尺寸
     await stylesPromise
     await restoreDraft()
   } catch { /* ignore */ }

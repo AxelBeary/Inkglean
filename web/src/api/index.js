@@ -102,7 +102,6 @@ export const artistPublicApi = {
   getWorkflow: (subdomain) => api.get(`/artists/${subdomain}/workflow`),
   // 价格计算器
   getPricing: (subdomain) => api.get(`/public/pricing/${subdomain}`),
-  calculatePrice: (data) => api.post('/public/calculate-price', data),
   // v0.31 F3: 折扣码验证（公开，限流 20次/5分钟）
   validateDiscount: (data) => api.post('/public/validate-discount', data),
   // v0.32 REQ-023 Phase2: 多画风公开配置 + 价格计算
@@ -343,10 +342,8 @@ export const adminApi = {
   // 画师全设置代理
   getArtistProfile: (id) => api.get(`/admin/artists/${id}/profile`),
   updateArtistProfile: (id, data) => api.put(`/admin/artists/${id}/profile`, data),
-  getArtistTiers: (id) => api.get(`/admin/artists/${id}/tiers`),
-  createArtistTier: (id, data) => api.post(`/admin/artists/${id}/tiers`, data),
-  updateArtistTier: (id, tid, data) => api.put(`/admin/artists/${id}/tiers/${tid}`, data),
-  deleteArtistTier: (id, tid) => api.delete(`/admin/artists/${id}/tiers/${tid}`),
+  // SPEC-PRICE-2 (v50): 旧档位 CRUD 已退役；管理员价格概览（画风/尺寸只读）
+  getArtistPricingOverview: (id) => api.get(`/admin/artists/${id}/pricing-overview`),
   getArtistArtworks: (id) => api.get(`/admin/artists/${id}/artworks`),
   createArtistArtwork: (id, data) => api.post(`/admin/artists/${id}/artworks`, data),
   deleteArtistArtwork: (id, aid) => api.delete(`/admin/artists/${id}/artworks/${aid}`),
