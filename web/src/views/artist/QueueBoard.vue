@@ -79,6 +79,8 @@ function openDeliverFor(order) {
 async function onDeliveredFromBoard() {
   // 交付成功后刷新队列（状态变 delivered，名额释放）
   await loadQueue()
+  // 05D-Q1: 完成区同步刷新（刚交付的订单立即出现在最近 7 天完成区）
+  await loadCompletedQueue()
 }
 // P0-3b: 标签切换（正式区 / 缓冲区）——状态留父，切视图不丢
 const activeTab = ref('formal')
@@ -171,7 +173,7 @@ async function loadCompletedQueue() {
 
 // 子组件 API 变更后重拉（与 OrderDetail 拆分同款：composable 留父，子纯展示/事件上抛）
 async function refreshAll() {
-  await Promise.all([loadQueue(), loadBufferQueue()])
+  await Promise.all([loadQueue(), loadBufferQueue(), loadCompletedQueue()])
 }
 
 // ─── SPEC-004: 缓冲区（候补订单列表 + 手动递补） ───

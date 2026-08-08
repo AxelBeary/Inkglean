@@ -76,7 +76,11 @@ api.interceptors.response.use(
         window.location.href = '/login'
       }
     }
-    return Promise.reject(new Error(msg))
+    // 05D-I1/E1: 错误对象附加 status/code（调用方可特判 404 等场景），不改变既有错误消息行为
+    const wrapped = new Error(msg)
+    if (err.response?.status) wrapped.status = err.response.status
+    if (code) wrapped.code = code
+    return Promise.reject(wrapped)
   }
 )
 
@@ -161,8 +165,28 @@ export const artistApi = {
   rejectMessage: (id) => api.put(`/artist/messages/${id}/reject`),
   replyMessage: (id, reply) => api.put(`/artist/messages/${id}/reply`, { reply }),
   updateRules: (content) => api.put('/artist/rules', { content }),
+  // 05D-I1: 散单记账（原裸 fetch 收口 → 401 自动登出/15s 超时/i18n 翻译统一走拦截器）
+  getStandaloneIncomes: (params = {}) => api.get('/artist/tools/standalone-incomes', { params }),
+  createStandaloneIncome: (data) => api.post('/artist/tools/standalone-incomes', data),
+  deleteStandaloneIncome: (id) => api.delete(`/artist/tools/standalone-incomes/${id}`),
   // 订单
   getOrders: (status, { page, pageSize, q } = {}) => api.get('/artist/orders', { params: { status, page, pageSize, q } }),
+  // 05D-W1/P1: 拉全量订单（下拉选择用；pageSize 上限 200 循环，订单多时稍慢但可选到任意早期订单）
+  getAllOrders: async (q) => {
+    const pageSize = 200
+    const all = []
+    const first = await api.get('/artist/orders', { params: { page: 1, pageSize, q } })
+    const firstItems = first.items ?? first
+    all.push(...firstItems)
+    const totalCount = first.total ?? firstItems.length
+    const pages = Math.ceil(totalCount / pageSize)
+    for (let p = 2; p <= pages; p++) {
+      const res = await api.get('/artist/orders', { params: { page: p, pageSize, q } })
+      const items = res.items ?? res
+      if (items.length) all.push(...items)
+    }
+    return all
+  },
   getQueue: (zone) => api.get('/artist/queue', zone ? { params: { zone } } : undefined),
   getOrder: (id) => api.get(`/artist/orders/${id}`),
   createManualOrder: (data) => api.post('/artist/orders/manual', data),

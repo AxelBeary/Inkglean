@@ -13,7 +13,7 @@
       <el-button size="small" type="primary" style="margin-top: 8px" @click="loadProfile">{{ $t('settings.retry') }}</el-button>
     </el-alert>
 
-    <el-tabs v-model="activeTab" style="margin-top: 16px">
+    <el-tabs v-model="activeTab" :before-leave="beforeTabLeave" style="margin-top: 16px">
       <!-- 基本资料 -->
       <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
         <el-card style="max-width: 600px" v-loading="loading">
@@ -268,7 +268,7 @@
 import { ref, reactive, onMounted, computed, watch, markRaw } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
@@ -316,6 +316,8 @@ async function loadRules() {
     const rules = await artistApi.getRules()
     rulesContent.value = rules?.content || ''
     rulesLoaded.value = true
+    // 05D-SE1: 须知加载成功 → 更新 showcase 基线（懒加载后 rules 才进入快照）
+    markTabSaved('showcase')
   } catch {
     // BUG-7: 不再静默吞错——标记失败，禁用保存按钮，显示错误态+重试入口
     rulesLoadFailed.value = true
@@ -329,6 +331,8 @@ async function saveRules() {
   try {
     await artistApi.updateRules(rulesContent.value)
     ElMessage.success(t('rules.saved'))
+    // 05D-SE1: 须知保存成功 → 更新 showcase 基线
+    markTabSaved('showcase')
     trackEvent('artist_action', { action: 'settings_save', tab: 'rules' })
   } catch (err) {
     ElMessage.error(err.message)
@@ -542,9 +546,54 @@ async function save() {
       })
     }
     ElMessage.success(t('settings.saved'))
+    // 05D-SE1: 保存成功 → 更新当前 tab 基线（下次切走不再误报）
+    markTabSaved(activeTab.value)
     trackEvent('artist_action', { action: 'settings_save', tab: activeTab.value })
   } catch (err) { ElMessage.error(err.message) }
   finally { saving.value = false }
+}
+
+// ─── 05D-SE1: 切 tab 脏检测——防止未保存修改静默丢失（方案 A：离开前确认） ───
+// 基线快照：加载/保存成功后记录各 tab 业务字段；切换前对比，有改动弹确认
+// profile 保存提交 name/bio/artistCode/contactQq（avatar 即时上传不参与）；template 保存提交模板/配色/强调色
+const TAB_BASELINE_FIELDS = {
+  profile: ['name', 'bio', 'artistCode', 'contactQq'],
+  template: ['templateId', 'paletteId', 'accentColor']
+}
+const tabBaseline = { profile: null, showcase: null, template: null }
+
+function snapshotTab(tab) {
+  if (tab === 'showcase') {
+    // 链接行含本地 __k（稳定 key），只比较业务 url；须知独立保存，一并纳入（同一页签）
+    return JSON.stringify({
+      links: form.customLinks.map(l => l.url || ''),
+      tags: [...form.inspirationTags],
+      announcement: form.announcement,
+      announcementExpiresAt: form.announcementExpiresAt,
+      rules: rulesContent.value
+    })
+  }
+  return JSON.stringify(TAB_BASELINE_FIELDS[tab].map(k => form[k]))
+}
+function markTabSaved(tab) {
+  tabBaseline[tab] = snapshotTab(tab)
+}
+function isTabDirty(tab) {
+  if (tabBaseline[tab] === null) return false // 未加载过（加载失败/懒加载未发生）不拦截
+  return snapshotTab(tab) !== tabBaseline[tab]
+}
+async function beforeTabLeave(newName, oldName) {
+  if (!isTabDirty(oldName)) return true
+  try {
+    await ElMessageBox.confirm(t('settings.unsavedLeaveTip'), t('settings.unsavedLeaveTitle'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
+    })
+    return true
+  } catch {
+    return false
+  }
 }
 
 // BUG-7 修复：profile 加载失败标记——失败时表单仍是默认值，必须禁用保存防止默认值覆盖真实配置
@@ -597,6 +646,10 @@ async function loadProfile() {
       announcement: profile.announcement || '',
       announcementExpiresAt: profile.announcement_expires_at ? String(profile.announcement_expires_at).slice(0, 10) : null
     })
+    // 05D-SE1: 加载成功 → 记录各 tab 基线（切 tab 脏检测用）
+    markTabSaved('profile')
+    markTabSaved('showcase')
+    markTabSaved('template')
   } catch (err) {
     ElMessage.error(err.message)
     // BUG-7: 标记失败——此时 form 仍是默认值，保存会覆盖真实配置

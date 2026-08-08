@@ -330,6 +330,16 @@ async function doBatchDelete() {
 }
 
 async function handleUpload({ file }) {
+  // 05D-A2: 上传前校验（与粘贴路径一致：仅图片 + ≤10MB；超限不发送）
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning(t('upload.fileNotImage'))
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1)
+    ElMessage.warning(t('upload.fileTooBig', { name: file.name, size: sizeMB, max: 10 }))
+    return
+  }
   try {
     const uploaded = await uploadApi.image(file)
     await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName })
@@ -557,6 +567,10 @@ onMounted(async () => {
 }
 .artwork-item:hover .artwork-actions,
 .artwork-item:focus-within .artwork-actions { opacity: 1; }
+/* 05D-A1: 触屏设备无 hover —— 操作层常显（桌面保持 hover 展开，克制动效纪律：只改可见性） */
+@media (hover: none) {
+  .artwork-actions { opacity: 1; }
+}
 .paste-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 8px; text-align: center; }
 
 /* v0.35 波3: 作品编辑弹窗提示 */

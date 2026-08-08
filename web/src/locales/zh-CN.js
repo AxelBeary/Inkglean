@@ -225,7 +225,10 @@ export default {
     pasteNotImage: '仅支持粘贴图片',
     pasteTooMany: '最多粘贴 {max} 张图片',
     pasteTooBig: '文件「{name}」超过 {max}MB 限制（{size}MB），请压缩后重试',
-    dragFromPage: '页面里的图片不能直接拖进上传区（拖进来的是渲染图，不是原文件）。请从文件管理器拖入，或 Ctrl+V 粘贴'
+    dragFromPage: '页面里的图片不能直接拖进上传区（拖进来的是渲染图，不是原文件）。请从文件管理器拖入，或 Ctrl+V 粘贴',
+    // 05D-A2: 上传（非粘贴）路径校验提示
+    fileNotImage: '仅支持图片文件',
+    fileTooBig: '文件「{name}」超过 {max}MB 限制（{size}MB），请压缩后重试'
   },
   pageTitle: {
     home: '画师约稿平台',
@@ -301,7 +304,9 @@ export default {
     incomeNote: '散单收入与笔数与导出 CSV 的散单行口径一致；订单收入与总收入需后端补充区间汇总端点后展示。',
     incomeLoadFailed: '收入概览加载失败',
     downloaded: '已开始下载',
-    failed: '导出失败，请稍后重试'
+    failed: '导出失败，请稍后重试',
+    // 05D-E1: CSV 导出超时
+    timeout: '导出超时，请重试'
   },
   // REQ-035 批C: 散单记账（工具页文案）
   standaloneIncome: {
@@ -1037,7 +1042,9 @@ export default {
     expiryLabel: '过期日期', expiryPlaceholder: '留空 = 永久有效',
     createdMsg: '折扣码已创建', updatedMsg: '折扣码已更新', deletedMsg: '折扣码已删除',
     deleteConfirm: '确定删除折扣码「{code}」？', disable: '停用', enable: '启用',
-    empty: '还没有折扣码，点击"新建折扣码"创建'
+    empty: '还没有折扣码，点击"新建折扣码"创建',
+    // 05D-T2: 行内复制
+    copyCode: '复制', copied: '已复制到剪贴板', copyFailed: '复制失败，请手动复制'
   },
   // v0.32 REQ-023 Phase1: 画风管理 + 增项库
   styleManage: {
@@ -1194,7 +1201,10 @@ export default {
     coverEmpty: '暂无作品，上传作品后可设置封面',
     coverManageLink: '管理封面',
     // R50: 预览
-    previewBtn: '预览主页'
+    previewBtn: '预览主页',
+    // 05D-SE1: 切 tab 未保存修改拦截
+    unsavedLeaveTitle: '未保存的修改',
+    unsavedLeaveTip: '当前页签有未保存的修改，切换将丢失。确定离开？'
   },
   // v0.26 C: 开稿管理独立页
   slots: {

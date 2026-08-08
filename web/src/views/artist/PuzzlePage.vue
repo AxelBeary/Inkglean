@@ -108,8 +108,8 @@ function orderLabel(o) {
 async function loadOrders() {
   ordersLoading.value = true
   try {
-    const res = await artistApi.getOrders(undefined, { page: 1, pageSize: 100 })
-    orders.value = res.items ?? res
+    // 05D-P1: 拉全量（原来 100 条上限 → 订单多时选不到早期订单）
+    orders.value = await artistApi.getAllOrders()
   } catch (err) {
     ElMessage.error(err.message || t('puzzle.loadOrdersFailed'))
   } finally {

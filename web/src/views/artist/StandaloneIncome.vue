@@ -91,6 +91,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatCents } from '../../utils/money.js'
+import { artistApi } from '../../api/index.js'
 
 const { t } = useI18n()
 
@@ -134,27 +135,13 @@ async function submit() {
   const amountCents = Math.round(form.amount * 100)
   saving.value = true
   try {
-    const res = await fetch('/api/artist/tools/standalone-incomes', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amountCents,
-        clientName: form.clientName.trim(),
-        note: form.note.trim(),
-        incomeDate: form.incomeDate
-      })
+    // 05D-I1: 收口进 artistApi（401 自动登出/15s 超时/i18n 翻译走统一拦截器）
+    await artistApi.createStandaloneIncome({
+      amountCents,
+      clientName: form.clientName.trim(),
+      note: form.note.trim(),
+      incomeDate: form.incomeDate
     })
-    if (!res.ok) {
-      let msg = `HTTP ${res.status}`
-      try {
-        const data = await res.json()
-        if (data?.error) msg = data.error
-      } catch {
-        // 非 JSON 错误体，用状态码兜底
-      }
-      throw new Error(msg)
-    }
     ElMessage.success(t('standaloneIncome.addSuccess'))
     // 重置表单（日期回到今天），列表刷新
     form.amount = null
@@ -177,9 +164,8 @@ const loading = ref(false)
 async function loadItems() {
   loading.value = true
   try {
-    const res = await fetch('/api/artist/tools/standalone-incomes', { credentials: 'include' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
+    // 05D-I1: 收口进 artistApi
+    const data = await artistApi.getStandaloneIncomes()
     items.value = data?.items || []
   } catch (err) {
     ElMessage.error(err.message || t('standaloneIncome.loadFailed'))
@@ -204,22 +190,17 @@ async function remove(item) {
     return // 用户取消
   }
   try {
-    const res = await fetch(`/api/artist/tools/standalone-incomes/${item.id}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    })
-    if (!res.ok) {
-      // 越权/已删：后端统一 404，提示并刷新列表
-      if (res.status === 404) {
-        ElMessage.warning(t('standaloneIncome.notFound'))
-        await loadItems()
-        return
-      }
-      throw new Error(`HTTP ${res.status}`)
-    }
+    // 05D-I1: 收口进 artistApi（错误对象带 status，拦截器附加）
+    await artistApi.deleteStandaloneIncome(item.id)
     ElMessage.success(t('standaloneIncome.deleteSuccess'))
     await loadItems()
   } catch (err) {
+    // 越权/已删：后端统一 404，提示并刷新列表
+    if (err?.status === 404) {
+      ElMessage.warning(t('standaloneIncome.notFound'))
+      await loadItems()
+      return
+    }
     ElMessage.error(err.message || t('standaloneIncome.deleteFailed'))
   }
 }

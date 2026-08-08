@@ -51,7 +51,7 @@
     <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
     <HySkeleton v-if="loading" count="6" />
     <div class="order-table-wrap" v-if="!loading">
-      <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px">
+      <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px" @row-click="onRowClick">
         <!-- R16: 缩略图列（焦点图优先，无则 —） -->
         <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
           <template #default="{ row }">
@@ -97,7 +97,7 @@
         </el-table-column>
         <el-table-column :label="$t('orderList.colActions')" fixed="right" width="100">
           <template #default="{ row }">
-            <el-button size="small" @click="$router.push(`/orders/${row.id}?from=orders`)">{{ $t('common.detail') }}</el-button>
+            <el-button size="small" @click.stop="$router.push(`/orders/${row.id}?from=orders`)">{{ $t('common.detail') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -114,8 +114,8 @@
         :total="total"
         :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next"
-        @current-change="loadOrders"
-        @size-change="loadOrders"
+        @current-change="onPageChange"
+        @size-change="onSizeChange"
       />
     </div>
   </ArtistLayout>
@@ -123,7 +123,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
@@ -134,6 +134,7 @@ import HySkeleton from '../../components/shared/HySkeleton.vue'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 
 const route = useRoute()
+const router = useRouter()
 const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
@@ -155,8 +156,11 @@ const compositeFilter = ref('')
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'wip', 'revision', 'done']
 const COMPLETED_STATUSES = ['done', 'delivered']
 const displayedOrders = computed(() => {
-  if (compositeFilter.value === 'active') return orders.value.filter(o => ACTIVE_STATUSES.includes(o.status))
-  if (compositeFilter.value === 'completed') return orders.value.filter(o => COMPLETED_STATUSES.includes(o.status))
+  if (compositeFilter.value) {
+    // 05D-O1: 复合筛选已拉全量并过滤（见 loadOrders）→ 前端分页切片
+    const start = (page.value - 1) * pageSize.value
+    return orders.value.slice(start, start + pageSize.value)
+  }
   return orders.value
 })
 const page = ref(1)
@@ -181,10 +185,38 @@ function onFilterChange() {
 
 // 竞态保护：请求序号（搜索/翻页快速切换时慢请求不得覆盖新结果）
 let loadSeq = 0
+// 05D-O1: 复合筛选（active/completed）后端无该语义 → 拉全量后客户端过滤（pageSize 上限 200 循环，订单多时稍慢）
+async function fetchAllOrders() {
+  const q = searchQuery.value.trim() || undefined
+  const status = filter.value || undefined
+  const pageSize = 200
+  const all = []
+  const first = await artistApi.getOrders(status, { page: 1, pageSize, q })
+  const firstItems = first.items ?? first
+  all.push(...firstItems)
+  const totalCount = first.total ?? firstItems.length
+  const pages = Math.ceil(totalCount / pageSize)
+  for (let p = 2; p <= pages; p++) {
+    const res = await artistApi.getOrders(status, { page: p, pageSize, q })
+    const items = res.items ?? res
+    if (items.length) all.push(...items)
+  }
+  return all
+}
+
 async function loadOrders() {
   const mySeq = ++loadSeq
   loading.value = true
   try {
+    if (compositeFilter.value) {
+      // 05D-O1: 复合筛选 → 全量拉取后过滤，orders.value 即过滤结果，total 不再误导
+      const all = await fetchAllOrders()
+      if (mySeq !== loadSeq) return
+      const filtered = all.filter(o => compositeFilter.value === 'active' ? ACTIVE_STATUSES.includes(o.status) : COMPLETED_STATUSES.includes(o.status))
+      orders.value = filtered
+      total.value = filtered.length
+      return
+    }
     const q = searchQuery.value.trim() || undefined
     const res = await artistApi.getOrders(filter.value || undefined, { page: page.value, pageSize: pageSize.value, q })
     if (mySeq !== loadSeq) return
@@ -196,6 +228,20 @@ async function loadOrders() {
   } finally {
     if (mySeq === loadSeq) loading.value = false
   }
+}
+
+// 分页事件分发：复合筛选数据已在内存，翻页/切 pageSize 只切片不重拉
+function onPageChange() {
+  if (!compositeFilter.value) loadOrders()
+}
+function onSizeChange() {
+  page.value = 1
+  if (!compositeFilter.value) loadOrders()
+}
+
+// 05D-O2: 桌面整行点击进详情（移动端卡片原本就可点；详情按钮保留兼容）
+function onRowClick(row) {
+  router.push(`/orders/${row.id}?from=orders`)
 }
 
 onMounted(() => {
@@ -230,7 +276,7 @@ onMounted(() => {
   background: var(--paper2);
 }
 .el-table :deep(.el-table__row td) { color: var(--ink); }
-.el-table :deep(.el-table__body tr) { transition: background 0.15s; }
+.el-table :deep(.el-table__body tr) { transition: background 0.15s; cursor: pointer; }
 /* 斑马纹用极浅纸色（密集界面保持安静） */
 .el-table :deep(.el-table__row--striped td) { background: color-mix(in srgb, var(--paper2) 55%, transparent); }
 
