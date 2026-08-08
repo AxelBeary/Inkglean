@@ -1339,6 +1339,11 @@
     speechEmpty: '暂无话术',
     // v0.27: 多模板随机开关
     randomTemplate: '随机', randomTemplateHint: '多条话术时可开启，发送时随机选一条',
+    // 05I: 管理员默认流程（默认模板无话术字段，保存话术时拦截提示）
+    templateNoSpeech: '默认流程模板不含话术（各画师流程自行编辑话术），此处不可保存话术',
+    maxInstallments: '收款节点已达上限',
+    finalCannotDisable: '尾款节点不可关闭收款',
+    finalCannotDelete: '尾款节点不可删除',
     helpBtn: '使用说明', helpTitle: '流程与比例使用说明',
     helpLines: [
       '每个节点代表约稿的一个阶段，客户会按顺序看到你的进度。',

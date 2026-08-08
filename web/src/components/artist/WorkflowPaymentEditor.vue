@@ -66,25 +66,101 @@ const dirtyNodes = ref([])
 const showHelp = ref(false)
 
 // API 分发：画师端 / 管理员端 / 默认模板
+// 默认模板行 → 前端 stages 映射（P1-7: isFinal = 最后一个收款节点）
+function mapTemplateRows(rows) {
+  const list = (rows || []).map(x => ({
+    id: x.id, name: x.name, description: x.description, sortOrder: x.sort_order,
+    takesPayment: !!x.takes_payment, basisPoints: x.basis_points, isFinal: false,
+    speechTemplate: x.speech_template ?? ''
+  }))
+  const payNodes = list.filter(s => s.takesPayment)
+  if (payNodes.length > 0) payNodes[payNodes.length - 1].isFinal = true
+  return { stages: list }
+}
+
+// 后端仅提供默认模板的整体 PUT（无逐节点 API）——管理员默认流程编辑器
+// 采用「本地编辑 + 整体保存」：每次操作本地改 stages 后立即 saveTemplateAll()，
+// 由后端 updateDefaultTemplate 校验兜底（SUM_NOT_100 / BP_TOO_LOW / NO_PAYMENT_NODE）。
+const isTemplateAdmin = computed(() => props.mode === 'admin' && !props.artistId)
+
+// 与 server workflow.service.ts 常量保持一致
+const TPL_MIN_BP = 500
+const TPL_TOTAL_BP = 10000
+const TPL_MAX_INSTALLMENTS = 20
+const TPL_NEW_BP = 1000
+
+// 本地临时 id（保存成功后由后端真实 id 覆盖）
+let tplTempId = 0
+function nextTplId() { return --tplTempId }
+
+// 对齐后端 recalcFinal：尾款 = 10000 - 其他收款节点之和
+function recalcFinalLocal() {
+  const pays = stages.value.filter(s => s.takesPayment)
+  const final = pays[pays.length - 1]
+  if (!final) return
+  const othersSum = pays.filter(s => s.id !== final.id).reduce((sum, s) => sum + (s.basisPoints || 0), 0)
+  final.basisPoints = TPL_TOTAL_BP - othersSum
+}
+
+// 重算 isFinal（最后一个收款节点）——对齐后端 findFinal
+function refreshIsFinalLocal() {
+  const pays = stages.value.filter(s => s.takesPayment)
+  for (const s of stages.value) s.isFinal = false
+  if (pays.length > 0) pays[pays.length - 1].isFinal = true
+}
+
+// 整体保存：组装完整 nodes（PUT schema 只收 name/description/takesPayment/basisPoints，
+// 非收款节点不传 basisPoints——传 0 会触发 minimum:500 校验失败）
+// 保存前统一重算比例守恒（对齐后端 recalcFinal：尾款 = 10000 - 其他收款之和），
+// 覆盖「比例条只传非尾款节点、尾款未同步」的场景。
+async function saveTemplateAll() {
+  recalcFinalLocal()
+  refreshIsFinalLocal()
+  const nodes = stages.value.map(s => ({
+    name: s.name,
+    // 后端 schema description 非 nullable：传空串（service 层 '' || null → null）
+    description: s.description || '',
+    takesPayment: !!s.takesPayment,
+    ...(s.takesPayment ? { basisPoints: s.basisPoints ?? 0 } : {})
+  }))
+  const res = await adminApi.updateDefaultWorkflow(nodes)
+  stages.value = mapTemplateRows(res).stages
+  dirtyNodes.value = []
+  return stages.value
+}
+
+// 管理员默认流程：话术保存拦截（后端模板表无 speech 列，PUT schema 拒收）
+function templateSpeechBlocked() {
+  ElMessage.info(t('workflow.templateNoSpeech'))
+}
+
 const api = computed(() => {
   if (props.mode === 'template') {
     return {
-      get: () => adminApi.getDefaultWorkflow().then(r => {
-        const list = (r || []).map(x => ({
-          id: x.id, name: x.name, description: x.description, sortOrder: x.sort_order,
-          takesPayment: !!x.takes_payment, basisPoints: x.basis_points, isFinal: false,
-          speechTemplate: x.speech_template ?? ''
-        }))
-        // P1-7: 计算 isFinal（最后一个收款节点）
-        const payNodes = list.filter(s => s.takesPayment)
-        if (payNodes.length > 0) payNodes[payNodes.length - 1].isFinal = true
-        return { stages: list }
-      }),
+      get: () => adminApi.getDefaultWorkflow().then(mapTemplateRows),
       add: (_d) => Promise.reject(new Error('模板不支持添加')),
       update: () => Promise.reject(new Error('模板不支持编辑')),
       del: () => Promise.reject(new Error('模板不支持删除')),
       reorder: () => Promise.reject(new Error('模板不支持排序')),
       save: (nodes) => adminApi.updateDefaultWorkflow(nodes)
+    }
+  }
+  if (props.mode === 'admin' && !props.artistId) {
+    // 仅 get/save 供 load()/savePayment 复用；结构操作走 handler 的本地分支
+    return {
+      get: () => adminApi.getDefaultWorkflow().then(mapTemplateRows),
+      add: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      update: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      del: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      reorder: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      save: (dirtyNodes) => {
+        // 比例条：用 dirtyNodes 覆盖本地比例后整体保存
+        const overrides = new Map((dirtyNodes || []).map(n => [n.id, n.basisPoints]))
+        for (const s of stages.value) {
+          if (s.takesPayment && overrides.has(s.id)) s.basisPoints = overrides.get(s.id)
+        }
+        return saveTemplateAll()
+      }
     }
   }
   if (props.artistId) {
@@ -119,6 +195,17 @@ async function load() {
 // ─── 即时操作 ───
 
 async function onReorder(orderedIds) {
+  if (isTemplateAdmin.value) {
+    try {
+      // 本地重排 + 尾款可能易主 → 重算
+      const map = new Map(stages.value.map(s => [s.id, s]))
+      stages.value = orderedIds.map(id => map.get(id)).filter(Boolean)
+      recalcFinalLocal()
+      refreshIsFinalLocal()
+      await saveTemplateAll()
+    } catch (err) { ElMessage.error(err.message); await load() }
+    return
+  }
   try {
     const res = await api.value.reorder(orderedIds)
     stages.value = res.stages || res
@@ -126,6 +213,14 @@ async function onReorder(orderedIds) {
 }
 
 async function onAdd({ name }) {
+  if (isTemplateAdmin.value) {
+    try {
+      // 本地新增：默认不收款，插入到列表末尾（保存后由后端排序）
+      stages.value.push({ id: nextTplId(), name, description: '', sortOrder: stages.value.length + 1, takesPayment: false, basisPoints: null, isFinal: false, speechTemplate: '' })
+      await saveTemplateAll()
+    } catch (err) { ElMessage.error(err.message); await load() }
+    return
+  }
   try {
     await api.value.add({ name })
     await load()
@@ -133,6 +228,14 @@ async function onAdd({ name }) {
 }
 
 async function onRename(id, name) {
+  if (isTemplateAdmin.value) {
+    try {
+      const s = stages.value.find(x => x.id === id)
+      if (s) s.name = name
+      await saveTemplateAll()
+    } catch (err) { ElMessage.error(err.message); await load() }
+    return
+  }
   try {
     await api.value.update(id, { name })
     await load()
@@ -140,6 +243,14 @@ async function onRename(id, name) {
 }
 
 async function onUpdateDesc(id, description) {
+  if (isTemplateAdmin.value) {
+    try {
+      const s = stages.value.find(x => x.id === id)
+      if (s) s.description = description
+      await saveTemplateAll()
+    } catch (err) { ElMessage.error(err.message); await load() }
+    return
+  }
   try {
     await api.value.update(id, { description })
     await load()
@@ -148,6 +259,8 @@ async function onUpdateDesc(id, description) {
 
 // plan-node-speech：保存节点话术（PUT 时附带 speechTemplate + randomTemplate 字段，v0.27）
 async function onUpdateSpeech(id, { speechTemplate, randomTemplate }) {
+  // 管理员默认流程：模板无话术字段（后端表无列 + PUT schema 拒收）→ 诚实拦截
+  if (isTemplateAdmin.value) { templateSpeechBlocked(); return }
   try {
     await api.value.update(id, { speechTemplate, randomTemplate })
     await load()
@@ -158,6 +271,33 @@ async function onUpdateSpeech(id, { speechTemplate, randomTemplate }) {
 async function onTogglePay(id, val) {
   // R22: 有未保存比例时先自动保存
   if (dirtyNodes.value.length > 0 && !await savePayment()) return
+  if (isTemplateAdmin.value) {
+    try {
+      const s = stages.value.find(x => x.id === id)
+      if (!s || s.takesPayment === val) return
+      // 对齐后端 updateStage 收款切换：开启从尾款扣；关闭并入尾款
+      const pays = stages.value.filter(x => x.takesPayment)
+      const final = pays[pays.length - 1]
+      if (val) {
+        if (s.isFinal) return // 尾款已是收款节点
+        if (pays.length >= TPL_MAX_INSTALLMENTS) { ElMessage.warning(t('workflow.maxInstallments')); return }
+        let newBp = TPL_NEW_BP
+        if (final && final.basisPoints - newBp < TPL_MIN_BP) newBp = final.basisPoints - TPL_MIN_BP
+        if (newBp < TPL_MIN_BP) { ElMessage.warning(t('workflow.finalTooLow')); return }
+        s.takesPayment = true
+        s.basisPoints = newBp
+        if (final) final.basisPoints -= newBp
+      } else {
+        if (s.isFinal) { ElMessage.warning(t('workflow.finalCannotDisable')); return }
+        if (final && final.id !== s.id) final.basisPoints += s.basisPoints
+        s.takesPayment = false
+        s.basisPoints = null
+      }
+      refreshIsFinalLocal()
+      await saveTemplateAll()
+    } catch (err) { ElMessage.error(err.message); await load() }
+    return
+  }
   try {
     await api.value.update(id, { takesPayment: val })
     await load()
@@ -166,6 +306,23 @@ async function onTogglePay(id, val) {
 
 async function onDelete(id) {
   if (dirtyNodes.value.length > 0 && !await savePayment()) return
+  if (isTemplateAdmin.value) {
+    try {
+      const s = stages.value.find(x => x.id === id)
+      if (!s) return
+      if (s.isFinal) { ElMessage.warning(t('workflow.finalCannotDelete')); return }
+      // 对齐后端 deleteStage：收款节点比例并入尾款
+      if (s.takesPayment) {
+        const pays = stages.value.filter(x => x.takesPayment && x.id !== id)
+        const final = pays[pays.length - 1]
+        if (final) final.basisPoints += s.basisPoints
+      }
+      stages.value = stages.value.filter(x => x.id !== id)
+      refreshIsFinalLocal()
+      await saveTemplateAll()
+    } catch (err) { ElMessage.error(err.message); await load() }
+    return
+  }
   try {
     await api.value.del(id)
     await load()
@@ -175,6 +332,22 @@ async function onDelete(id) {
 async function onDetach(id) {
   // Q弹拖离 = 关闭收款
   if (dirtyNodes.value.length > 0 && !await savePayment()) return
+  if (isTemplateAdmin.value) {
+    try {
+      const s = stages.value.find(x => x.id === id)
+      if (!s || !s.takesPayment) return
+      if (s.isFinal) { ElMessage.warning(t('workflow.finalCannotDisable')); return }
+      const pays = stages.value.filter(x => x.takesPayment && x.id !== id)
+      const final = pays[pays.length - 1]
+      if (final) final.basisPoints += s.basisPoints
+      s.takesPayment = false
+      s.basisPoints = null
+      refreshIsFinalLocal()
+      await saveTemplateAll()
+      ElMessage.info(t('workflow.detached'))
+    } catch (err) { ElMessage.error(err.message); await load() }
+    return
+  }
   try {
     await api.value.update(id, { takesPayment: false })
     ElMessage.info(t('workflow.detached'))

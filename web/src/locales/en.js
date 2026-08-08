@@ -1343,6 +1343,11 @@
     speechEmpty: 'No speech yet',
     // v0.27: random template toggle
     randomTemplate: 'Random', randomTemplateHint: 'Available with multiple speech lines — picks one at random when sending',
+    // 05I: admin default workflow (default template has no speech field — block speech save with clear hint)
+    templateNoSpeech: 'The default workflow template has no speech texts (each artist edits their own). Speech cannot be saved here.',
+    maxInstallments: 'Payment stage limit reached',
+    finalCannotDisable: 'The final payment stage cannot disable payment',
+    finalCannotDelete: 'The final payment stage cannot be deleted',
     helpBtn: 'How it works', helpTitle: 'Workflow & Payment Guide',
     helpLines: [
       'Each stage is a step in your commission process; clients see progress in order.',

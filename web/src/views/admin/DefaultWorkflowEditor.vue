@@ -9,7 +9,7 @@
     </div>
 
     <el-card shadow="never" class="section-card">
-      <WorkflowPaymentEditor mode="template" ref="editorRef" />
+      <WorkflowPaymentEditor mode="admin" ref="editorRef" />
     </el-card>
     <el-button class="reset-btn" @click="resetTemplate" :loading="resetting">
       {{ $t('admin.resetTemplate') }}
