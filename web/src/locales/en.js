@@ -1098,7 +1098,7 @@
     // R54: card layout empty state
     empty: 'No tiers yet',
     // v0.28 T3: tab labels + action text i18n
-    tabTiers: 'Tiers', tabAddons: 'Add-ons', tabMultipliers: 'Multipliers', tabWorkflow: 'Workflow & Payment',
+    tabTiers: 'Tiers', tabAddons: 'Add-ons', tabWorkflow: 'Workflow & Payment',
     tabDiscount: 'Discount Codes',
     newTier: '+ New tier', cancel: 'Cancel', save: 'Save',
     uploaded: 'Uploaded', saved: 'Saved', deleted: 'Deleted'
@@ -1124,18 +1124,18 @@
   // v0.32 REQ-023 Phase1: art styles + addon templates
   styleManage: {
     tabStyles: 'Art Styles', tabTemplates: 'Addon Library', confirmTitle: 'Confirm',
-    // Addon templates
+    // Addon templates (SPEC-PRICE-2: full category/control/pricing/max-qty management)
+    tplIntro: 'The addon library is the single place to manage all price items (regular addons, usage, rush); then attach them to styles on the Styles & Pricing page.',
     tplName: 'Name', tplControl: 'Control', tplPricing: 'Pricing', tplDefaultPrice: 'Default price', tplActions: 'Actions',
+    tplCategory: 'Category', tplCategoryLabel: 'Category', tplMaxQty: 'Max qty', tplMaxQtyLabel: 'Max quantity (anti-abuse for quantity type)',
     tplEmpty: 'No addon templates yet. Click "New Addon" to create one.', tplAdd: '+ New Addon',
     tplAddTitle: 'New Addon', tplEditTitle: 'Edit Addon',
-    tplNameLabel: 'Name', tplNamePlaceholder: 'e.g. Extra character, Expression set, Background', tplNameRequired: 'Please enter a name',
-    tplControlLabel: 'Control type', tplControlSwitch: 'Switch', tplControlQuantity: 'Quantity', tplControlRadio: 'Radio',
-    tplPricingLabel: 'Pricing mode', tplPricingFixed: 'Fixed', tplPricingPerUnit: 'Price × Qty', tplPricingPerOption: 'Option price',
-    tplPriceLabel: 'Default price (¥)',
+    tplNameLabel: 'Name', tplNamePlaceholder: 'e.g. Extra person, Background, Commercial use, Rush', tplNameRequired: 'Please enter a name',
+    tplControlLabel: 'Control type', tplControlSwitch: 'Switch', tplControlQuantity: 'Quantity',
+    tplPricingLabel: 'Pricing mode', tplPricingFixed: 'Fixed amount ¥', tplPricingPercent: 'Percentage +%',
+    tplPriceLabel: 'Default price',
     tplUnitLabel: 'Unit label', tplUnitPlaceholder: 'e.g. person, sheet, item',
-    tplOptionsLabel: 'Options', tplOptionLabel: 'Option name', tplAddOption: '+ Add option',
-    tplOptionsHint: 'Clients pick one option when ordering; each option can have its own price.', tplOptionsRequired: 'Radio type needs at least one valid option',
-    tplSaved: 'Addon saved', tplDeleted: 'Addon deleted', tplDeleteConfirm: 'Delete addon "{name}"? All style references to it will be removed too.',
+    tplSaved: 'Addon saved', tplDeleted: 'Addon deleted', tplDeleteConfirm: 'Delete addon "{name}"? Styles using it keep it as a standalone addon (no longer follows library updates).',
     pricePerUnit: '¥{price}/{unit}', unitDefault: 'item',
     // Art styles
     styleAdd: '+ New Style (import from addon library)', styleAddTitle: 'New Style', styleEditTitle: 'Edit Style',
@@ -1188,19 +1188,20 @@
     addonDisabled: 'Disabled: {size} - {name}',
     addonDragBackHint: 'Drag back to pool to disable',
     // Create addon dialog
-    createTitle: 'New Addon', createNameLabel: 'Addon name', createNamePlaceholder: 'e.g. Background, Extra person, Buyout, Rush...',
-    // 02H (2026-08-09): price 3 categories (add-on / usage / rush) - user decision
+    createTitle: 'New Addon', createNameLabel: 'Addon name', createNamePlaceholder: 'e.g. Background, Extra person, Commercial use, Rush...',
+    // SPEC-PRICE-2 (2026-08-09): category = real backend dimension (regular addon / usage / rush)
     catAdd: 'Add-on', catUsage: 'Usage', catRush: 'Rush',
-    createKindLabel: 'Category (3 price types)', createKindHint: 'Add-on = flat amount (multi-select); Usage/Rush = percentage multiplier (only one active per style)',
-    createPricingLabel: 'Pricing mode', pricingPercent: 'Percentage', pricingFixed: 'Flat amount', pricingSwitch: 'Switch', pricingCount: 'Per unit',
-    pricingHintAdd: 'Flat/Switch = fixed amount; Per unit = price x quantity', pricingHintMultiply: 'Percentage: e.g. 50 = add 50% to the base price',
-    createPercentLabel: 'Percent (%)',
+    createKindLabel: 'Category',
+    createCatHintAdd: 'Regular addons add to the base price and can be combined; percent-priced ones are computed on the base price only',
+    createCatHintMultiplier: 'Usage/Rush are the multiplier slots of the pricing formula: the client picks one of each when ordering, applied after the subtotal',
+    createControlLabel: 'Control type (how clients choose)', createControlHint: 'Quantity = priced per unit (e.g. extra person xN); Switch = on/off',
+    createPricingLabel: 'Pricing mode', pricingPercent: 'Percentage +%', pricingFixed: 'Fixed amount ¥',
+    pricingHintFixed: 'Fixed amount: adds ¥N directly; quantity type = unit price x quantity',
+    pricingHintPercent: 'Percentage: computed on the base price only, e.g. 50 = base price x 50%',
+    createPercentLabel: 'Percent (%)', createPercentRangeHint: 'Percent must be an integer between 0 and 1000',
     createUnitLabel: 'Unit', createUnitPlaceholder: 'e.g. person, sheet, item',
     createMaxQtyLabel: 'Max quantity (anti-abuse)', createMaxQtyHint: 'Max units a client can add, e.g. 10',
-    createRushNameHint: 'Rush add-on names must contain Rush or Urgent (front-end category convention)',
-    multiplierMergedTip: 'Multipliers are now part of the add-on pool on the Styles and Pricing page (Add-on / Usage / Rush). This tab is kept for compatibility; configure new ones in the pool.',
-    createControlLabel: 'Control type (how clients choose)', createControlHint: 'Quantity = per unit (e.g. extra person xN); Switch = on/off; Radio: create in the addon library',
-    createPriceLabel: 'Default price', createPriceHint: 'Quantity = price per unit; multipliers come in batch B',
+    createPriceLabel: 'Default price (¥)',
     createSaveHint: 'On save it attaches to this style and is stored in the library for reuse; duplicate names are confirmed first',
     createSaveBtn: 'Save + Attach', createNameRequired: 'Please enter an addon name',
     createDuplicateTitle: 'Name exists in library', createDuplicateMsg: '"{name}" already exists in the library. Attach it directly, or create a separate one?',
@@ -1211,15 +1212,21 @@
     addonScopeStyle: 'This style only', addonScopeAll: 'Apply to all styles',
     addonScopeHintStyle: 'Base edits (name/control/base price) only affect this style on save',
     addonScopeHintAll: 'Base edits affect every style using this addon on save',
-    addonStyleLevel: 'Style level (this style)', addonStyleEnable: 'Active in this style', addonStylePriceInfo: 'Style price: {price}',
+    addonStyleLevel: 'Style level (this style)', addonStyleEnable: 'Active in this style',
+    addonStylePriceOverride: 'Style price (overrides template): {price}', addonStylePriceTemplate: 'Follows template price: {price}',
     addonSizeLevel: 'Size level (precise version of drag)', addonBatchAll: 'Enable all', addonBatchOff: 'Disable all',
     addonBatchHint: 'Empty diff price = use style price', addonSizeCol: 'Size', addonEnableCol: 'Enable', addonDiffPriceCol: 'Diff price for this size',
     addonPricePriority: 'Price priority: this size > style > template',
-    addonRemove: 'Remove (unbind from this style)', addonRemoveBlocked: 'Unbind needs a new backend delete endpoint (batch B) - unavailable in this batch',
-    // Preview dialog
+    addonRemove: 'Remove (unbind from this style)',
+    addonRemoveConfirm: 'Remove "{name}" from this style? It stays in the library and can be picked again later.', addonRemoved: 'Removed (unbound)',
+    // Preview dialog (SPEC-PRICE-2 formula: (base + fixed addons + percent addons[base only]) x usage x rush - discount)
     previewBtn: 'Preview', previewTitle: 'Customer Preview', previewReadonly: 'Read-only preview - what customers see',
     previewComposition: 'Price breakdown', previewBase: 'Base ({name})', previewEmpty: 'No addons enabled for this size',
-    previewTotal: 'Estimated total', previewFormula: 'Formula: (base + addons) x usage multiplier x rush multiplier - discount',
+    previewQtyEstimate: 'Estimated at x1 - quantity chosen when ordering', previewPctOfBase: 'Computed on base price',
+    previewSubtotal: 'Subtotal (base + addons)',
+    previewUsageLabel: 'Usage (pick one)', previewRushLabel: 'Rush (pick one)',
+    previewMultHint: 'Usage/Rush are chosen by the client when ordering (one of each) and multiply the subtotal; not included above.',
+    previewFormula: 'Formula: (base + fixed addons + percent addons) x usage x rush - discount; percent addons are computed on the base price only',
     previewClose: 'Close', previewStatusOpen: 'Open', previewStatusShow: 'Displaying - visible but not bookable', previewStatusClose: 'Closed - hidden from customers',
     // Size tri-state
     sizeStatusOpen: 'Open', sizeStatusShow: 'Display', sizeStatusClose: 'Closed',

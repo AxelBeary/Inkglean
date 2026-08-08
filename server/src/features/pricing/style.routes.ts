@@ -247,7 +247,29 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     return styleService.setStyleAddons(request.artist.id, parseInt((request.params as { id: string }).id, 10), (request.body as { items: Array<{ addon_template_id: number; is_enabled?: boolean; price_override?: number | null }> }).items)
   })
 
+  /** DELETE /api/artist/art-styles/:id/addons/:saId — 移除画风增项（解绑，不动增项库） */
+  fastify.delete('/api/artist/art-styles/:id/addons/:saId', {
+    preHandler: [requireAuth, requireOwnStyle]
+  }, async (request: FastifyRequest) => {
+    return styleService.removeStyleAddon(
+      request.artist.id,
+      parseInt((request.params as { id: string }).id, 10),
+      parseInt((request.params as { saId: string }).saId, 10)
+    )
+  })
+
   // ─── 尺寸覆盖 ───
+
+  /** GET /api/artist/art-styles/:id/sizes/:sizeId/overrides — 读取尺寸覆盖列表（只读） */
+  fastify.get('/api/artist/art-styles/:id/sizes/:sizeId/overrides', {
+    preHandler: [requireAuth, requireOwnStyle]
+  }, async (request: FastifyRequest) => {
+    return styleService.getSizeOverrides(
+      request.artist.id,
+      parseInt((request.params as { id: string }).id, 10),
+      parseInt((request.params as { sizeId: string }).sizeId, 10)
+    )
+  })
 
   /** PUT /api/artist/art-styles/:id/sizes/:sizeId/overrides — 设置尺寸覆盖 */
   fastify.put('/api/artist/art-styles/:id/sizes/:sizeId/overrides', {

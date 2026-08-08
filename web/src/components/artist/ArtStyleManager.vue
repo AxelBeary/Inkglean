@@ -74,7 +74,7 @@
                 <template #item="{ element: size }">
                   <div
                     class="size-row"
-                    :class="{ 'size-row--dim': (size._status || 'open') === 'close' }"
+                    :class="{ 'size-row--dim': size.display_status === 'closed' }"
                     @dragover.prevent="onSizeDragOver"
                     @drop.prevent="onDropToSize(style, size, $event)"
                   >
@@ -105,11 +105,11 @@
                         <span v-if="!sizeSummary(style, size).length" class="sum-empty">{{ $t('styleManage.sizeSummaryEmpty') }}</span>
                       </div>
                     </div>
-                    <!-- REQ-036 (任务5/验收7): 尺寸三态（前端本地状态，批B后端校验持久化） -->
+                    <!-- SPEC-PRICE-2: 尺寸三态（后端 display_status 落库，算价/下单同步拒单） -->
                     <div class="size-status-seg">
                       <button
                         v-for="st in statusOptions" :key="st.value"
-                        class="seg-btn" :class="[`seg-${st.value}`, { on: (size._status || 'open') === st.value }]"
+                        class="seg-btn" :class="[`seg-${st.value}`, { on: (size.display_status || 'available') === st.value }]"
                         :disabled="isLocked(style)"
                         @click="setSizeStatus(style, size, st.value)"
                       >
@@ -262,7 +262,8 @@
               <span class="addon-tpl-name">{{ tpl.name }}</span>
             </el-checkbox>
             <el-tag size="small" :type="controlTagType(tpl.control_type)">{{ controlLabel(tpl.control_type) }}</el-tag>
-            <span class="import-price">¥{{ tpl.default_price }}</span>
+            <el-tag size="small" effect="plain" :type="tplCategoryTagType(tpl.category)">{{ categoryLabel($t, tpl.category || 'add') }}</el-tag>
+            <span class="import-price">{{ formatPrice(tpl.default_price, tpl.price_mode, { controlType: tpl.control_type, unitLabel: tpl.unit_label }) }}</span>
           </div>
         </el-checkbox-group>
       </div>
@@ -298,11 +299,11 @@ import draggable from 'vuedraggable'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-// REQ-036 批A: 增项直觉化子组件（新建/预览/三层设置）+ 共享纯函数
+// REQ-036 批A: 增项直觉化子组件（新建/预览/三层设置）+ SPEC-PRICE-2 共享纯函数
 import AddonCreateDialog from './AddonCreateDialog.vue'
 import AddonPreviewDialog from './AddonPreviewDialog.vue'
 import AddonSettingsDialog from './AddonSettingsDialog.vue'
-import { addonKind, addonCategory, categoryLabel, effectivePrice, formatAddonPrice } from './addon-utils.js'
+import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText, controlTagType, formatPrice } from './addon-utils.js'
 
 const { t } = useI18n()
 
@@ -369,12 +370,9 @@ async function onSizeDragEnd(style) {
   }
 }
 
-// ─── 控件类型标签（与 AddonTemplateManager 一致） ───
+// ─── 控件类型标签（addon-utils 单一来源，不再本地重复定义） ───
 function controlLabel(type) {
-  return { switch: t('styleManage.tplControlSwitch'), quantity: t('styleManage.tplControlQuantity'), radio: t('styleManage.tplControlRadio') }[type] || type
-}
-function controlTagType(type) {
-  return { switch: 'info', quantity: 'primary', radio: 'warning' }[type] || 'info'
+  return controlLabelText(t, type)
 }
 
 // ─── 画风 CRUD ───
@@ -713,18 +711,27 @@ async function confirmImportAddons() {
 
 // ─── REQ-036 批A: 加购项池 + 拖拽 + 三态 + 摘要 + 弹窗（直觉化重构，替换 v0.35 A4/A5 行内交互） ───
 
-/** 尺寸三态选项（§2.3：可约/展示/关闭；本批前端本地状态，批B后端校验+持久化） */
+/** 尺寸三态选项（SPEC-PRICE-2：后端真实枚举 available/showcase/closed，落库持久化） */
 const statusOptions = computed(() => [
-  { value: 'open', label: t('styleManage.sizeStatusOpen') },
-  { value: 'show', label: t('styleManage.sizeStatusShow') },
-  { value: 'close', label: t('styleManage.sizeStatusClose') }
+  { value: 'available', label: t('styleManage.sizeStatusOpen') },
+  { value: 'showcase', label: t('styleManage.sizeStatusShow') },
+  { value: 'closed', label: t('styleManage.sizeStatusClose') }
 ])
 
-function setSizeStatus(style, size, value) {
-  size._status = value // 本地状态（批A UI；批B 落库 + 算价/下单校验）
+/** 三态切换：即时 PUT display_status 落库；失败回滚显示 */
+async function setSizeStatus(style, size, value) {
+  const prev = size.display_status
+  size.display_status = value // 乐观更新
+  try {
+    await artistApi.updateStyleSize(style.id, size.id, { display_status: value })
+    ElMessage.success(t('common.saved'))
+  } catch (err) {
+    size.display_status = prev
+    ElMessage.error(err.message)
+  }
 }
 
-/** 02H: 池子三类分组（增项/用途/加急，顺序固定）——用途/加急分类按名称约定（见 addonCategory） */
+/** 池子三类分组（增项/用途/加急，顺序固定）——读后端真实 category 字段 */
 function poolGroups(style) {
   return ['add', 'usage', 'rush'].map(cat => ({ cat, items: style.addons.filter(sa => addonCategory(sa) === cat) }))
 }
@@ -740,14 +747,14 @@ function mutexAddonItems(style, targetSa) {
   return [{ addon_template_id: targetSa.addon_template_id, is_enabled: true }, ...items]
 }
 
-/** 画风级生效价文本（池子胶囊 / 预览明细 / 摘要 chip）：本身价 or 画风覆盖价 */
+/** 画风级生效价文本（池子胶囊 / 摘要 chip）：本身价 or 画风覆盖价 */
 function capPriceText(sa) {
-  return formatAddonPrice(effectivePrice(sa, null), sa.template_pricing_mode, sa.template_unit_label || undefined, sa.template_kind)
+  return addonPriceText(sa, null, t)
 }
 
 /**
- * 某尺寸已启用增项摘要（§2.7，实时）：画风级启用 && 尺寸级未隐藏
- * 返回 [{ id, name, kind, priceText }] — kind: add/qty/mul（三种计价形态视觉区分）
+ * 某尺寸已启用增项摘要（实时更新）：画风级启用 && 尺寸级未隐藏
+ * 返回 [{ id, name, kind, priceText }] — kind: add/qty/pct（三种计价形态视觉区分）
  */
 function sizeSummary(style, size) {
   const ov = size._overrides || {}
@@ -756,8 +763,8 @@ function sizeSummary(style, size) {
     .map(sa => ({
       id: sa.id,
       name: sa.template_name,
-      kind: addonKind(sa),
-      priceText: formatAddonPrice(effectivePrice(sa, ov[sa.id]?.price_override ?? null), sa.template_pricing_mode, sa.template_unit_label || undefined, sa.template_kind)
+      kind: addonChipKind(sa),
+      priceText: addonPriceText(sa, ov[sa.id]?.price_override ?? null, t)
     }))
 }
 
@@ -776,9 +783,9 @@ async function onAddonCreated(payload) {
   if (!styleId || !payload?.name) return
   try {
     const tpl = await artistApi.createAddonTemplate(payload)
-    // 02H 单选约束：新建用途/加急默认启用 → 同画风其他同类画风级停用
+    // 单选约束：新建用途/加急默认启用 → 同画风其他同类画风级停用（读真实 category）
     const styleObj = styles.value.find(s => s.id === styleId)
-    const mutex = styleObj ? mutexAddonItems(styleObj, { id: -1, addon_template_id: tpl.id, template_kind: payload.kind === 'multiply' ? 'multiply' : 'add', template_name: payload.name, is_enabled: true }) : null
+    const mutex = styleObj ? mutexAddonItems(styleObj, { id: -1, addon_template_id: tpl.id, template_category: payload.category, is_enabled: true }) : null
     if (mutex) { await artistApi.setStyleAddons(styleId, mutex) }
     await artistApi.setStyleAddons(styleId, [{ addon_template_id: tpl.id, is_enabled: true }])
     ElMessage.success(t('styleManage.addonCreatedAttached'))
@@ -875,7 +882,7 @@ async function onDropToSize(style, size, _e) {
     return
   }
   try {
-    // 02H 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（后端 multiply 全乘，前端保证单选）
+    // 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（顾客每单各选一个，后端兜底互斥）
     const mutex = mutexAddonItems(style, sa)
     if (mutex) {
       await artistApi.setStyleAddons(style.id, mutex)
@@ -918,12 +925,17 @@ async function onDropToPool(style, _e) {
   }
 }
 
-/** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } } */
+/** 类别标签 el-tag type（导入弹窗用） */
+function tplCategoryTagType(cat) {
+  return { usage: 'warning', rush: 'danger', add: 'info' }[cat] || 'info'
+}
+
+/** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } }（GET 只读端点） */
 async function preloadOverrides(styleList) {
   await Promise.all(styleList.map(async style => {
     await Promise.all((style.sizes || []).map(async size => {
       try {
-        const overrides = await artistApi.setSizeOverrides(style.id, size.id, []) // 空 items = 只读
+        const overrides = await artistApi.getSizeOverrides(style.id, size.id)
         size._overrides = {}
         for (const o of overrides) {
           size._overrides[o.style_addon_id] = { price_override: o.price_override, is_hidden: !!o.is_hidden }
@@ -974,7 +986,8 @@ defineExpose({ reload: load })
 .multi-style-label { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
 .multi-style-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 6px 0 0; line-height: 1.5; }
 
-.style-grid { display: flex; flex-direction: column; gap: 20px; }
+.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(540px, 1fr)); gap: 20px; align-items: start; }
+@media (max-width: 620px) { .style-grid { grid-template-columns: 1fr; } }
 /* A3: 拖拽幽灵 */
 .ghost { opacity: 0.4; }
 .style-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -1039,10 +1052,9 @@ defineExpose({ reload: load })
 }
 .addon-pool.pool--drag-over { border-color: var(--hq); border-style: solid; background: var(--hq-t); }
 .pool-empty { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink4); }
-.pool-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); margin: 6px 0 0; }
 .addon-cap {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border-radius: 20px;
+  padding: 4px 10px; border-radius: var(--r-pill);
   background: var(--card); border: 1px solid var(--line); box-shadow: var(--sh-1);
   cursor: pointer; user-select: none; transition: border-color 0.15s, transform 0.15s;
 }
@@ -1051,28 +1063,27 @@ defineExpose({ reload: load })
 .addon-cap .cap-name { font-size: calc(var(--font-scale, 1) * 12.5px); font-weight: 600; color: var(--ink); }
 .addon-cap .cap-price { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); font-variant-numeric: tabular-nums; }
 .addon-cap .cap-tag {
-  font-size: calc(var(--font-scale, 1) * 10.5px); padding: 1px 6px; border-radius: 8px;
+  font-size: calc(var(--font-scale, 1) * 10.5px); padding: 1px 6px; border-radius: var(--r-s);
   background: var(--line); color: var(--ink3); flex: none;
 }
 .addon-cap .cap-tag.cap-tag-quantity { background: var(--sl-t); color: var(--sl); }
-.addon-cap .cap-tag.cap-tag-radio { background: var(--th-t); color: var(--th); }
 
-/* ═══ REQ-036 批A: 尺寸三态（石绿/藤黄/朱砂，色块+文字） ═══ */
-.size-status-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--line2); border-radius: 8px; padding: 2px; gap: 2px; background: var(--paper2); }
+/* ═══ 尺寸三态（石绿/藤黄/朱砂，色块+文字；SPEC-PRICE-2 后端枚举） ═══ */
+.size-status-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--line2); border-radius: var(--r-m); padding: 2px; gap: 2px; background: var(--paper2); }
 .seg-btn {
   border: none; background: transparent; padding: 3px 8px; font-size: calc(var(--font-scale, 1) * 11px);
-  border-radius: 6px; color: var(--ink3); cursor: pointer; font-family: var(--f-b);
+  border-radius: var(--r-s); color: var(--ink3); cursor: pointer; font-family: var(--f-b);
   display: inline-flex; align-items: center; gap: 4px; transition: 0.15s;
 }
 .seg-btn i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; background: var(--ink4); }
 .seg-btn:disabled { cursor: not-allowed; opacity: 0.5; }
-.seg-open i { background: var(--sl); }
-.seg-show i { background: var(--th); }
-.seg-close i { background: var(--zs); }
+.seg-available i { background: var(--sl); }
+.seg-showcase i { background: var(--th); }
+.seg-closed i { background: var(--zs); }
 .seg-btn.on { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: var(--sh-1); }
-.seg-btn.seg-open.on { color: var(--sl); }
-.seg-btn.seg-show.on { color: var(--th); }
-.seg-btn.seg-close.on { color: var(--zs); }
+.seg-btn.seg-available.on { color: var(--sl); }
+.seg-btn.seg-showcase.on { color: var(--th); }
+.seg-btn.seg-closed.on { color: var(--zs); }
 /* 关闭态整行弱化 */
 .size-row--dim { opacity: 0.55; }
 
@@ -1083,13 +1094,13 @@ defineExpose({ reload: load })
 }
 .sum-label { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); padding-top: 2px; flex: none; }
 .sum-chip {
-  font-size: calc(var(--font-scale, 1) * 11px); padding: 1px 8px; border-radius: 9px;
+  font-size: calc(var(--font-scale, 1) * 11px); padding: 1px 8px; border-radius: var(--r-pill);
   background: var(--hq-t); color: var(--hq); border: 1px solid transparent; cursor: grab;
   animation: chipIn 0.25s ease backwards;
 }
 .sum-chip.add { background: var(--paper2); color: var(--ink2); border: 1px solid var(--line); }
 .sum-chip.qty { background: var(--sl-t); color: var(--sl); }
-.sum-chip.mul { background: var(--zhe-t); color: var(--zhe); }
+.sum-chip.pct { background: var(--zhe-t); color: var(--zhe); }
 .sum-empty { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); }
 @keyframes chipIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 

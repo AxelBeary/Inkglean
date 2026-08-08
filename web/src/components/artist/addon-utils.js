@@ -1,43 +1,60 @@
-﻿// REQ-036 批A: 增项交互直觉化重构 —— 共享工具（池子/胶囊/摘要/弹窗共用）
-// 02H (2026-08-09): 价格三类合并 —— 增项类/用途类/加急类；multiply 显示 +50%；用途/加急单选约束
-// 仅放纯函数；组件状态留在各组件内
-// 后端契约：addon_templates.kind ∈ {add, multiply}（v49 已实现）；style_addons 返回 template_kind（COALESCE tpl_kind/at.kind）
+﻿// SPEC-PRICE-2 共享纯函数（池子/胶囊/摘要/弹窗/预览共用）
+// 后端契约（v50）：addon_templates 三维——
+//   control_type ∈ {switch, quantity}（开关类/个数类）
+//   price_mode   ∈ {fixed, percent}（固定金额 ¥N / 百分比 +N%）
+//   category     ∈ {add, usage, rush}（普通增项 / 用途 / 加急）
+// style_addons 返回 template_* 快照字段（template_price_mode / template_category / ...）
+// 铁律：分类只读后端真实字段，禁止任何名称约定推导。
+// 仅放纯函数；组件状态留在各组件内。
 
-/** 控件类型中文标签（与 AddonTemplateManager 一致） */
+/** 控件类型中文标签 */
 export function controlLabel(t, type) {
-  return { switch: t('styleManage.tplControlSwitch'), quantity: t('styleManage.tplControlQuantity'), radio: t('styleManage.tplControlRadio') }[type] || type
+  return { switch: t('styleManage.tplControlSwitch'), quantity: t('styleManage.tplControlQuantity') }[type] || type
 }
 
-/** 控件类型 el-tag type（与 AddonTemplateManager 一致） */
+/** 控件类型 el-tag type */
 export function controlTagType(type) {
-  return { switch: 'info', quantity: 'primary', radio: 'warning' }[type] || 'info'
+  return { switch: 'info', quantity: 'primary' }[type] || 'info'
 }
 
-/** 数量型单位标签：优先模板 unit_label，默认「位」（原型用词） */
-export function unitLabelOf(sa) {
-  return sa.template_unit_label || sa.unit_label || '位'
+/** 增项类别：读后端真实字段（template_category / category），兜底 add */
+export function addonCategory(sa) {
+  const cat = sa?.template_category ?? sa?.category
+  return cat === 'usage' || cat === 'rush' ? cat : 'add'
+}
+
+/** 类别标签（池内分组标题 / 胶囊分类徽标） */
+export function categoryLabel(t, cat) {
+  return { add: t('styleManage.catAdd'), usage: t('styleManage.catUsage'), rush: t('styleManage.catRush') }[cat] || cat
+}
+
+/** 数量型单位标签：优先模板 unit_label，默认「位」 */
+export function unitLabelOf(sa, t) {
+  return sa?.template_unit_label || sa?.unit_label || (t ? t('styleManage.unitDefault') : '位')
 }
 
 /**
- * 增项价格文本（池子胶囊 / 摘要 chip / 预览明细）
- * - 倍率 multiply: +50%（kind=multiply，default_price=百分比数值）
- * - 数量型: ¥80/位（per_unit）
- * - 其他:   ¥50
+ * 价格展示文本（池子胶囊 / 摘要 chip / 预览明细 / 增项库）
+ * - percent: +50%（值为整数百分比）
+ * - quantity+fixed: ¥80/位
+ * - fixed: ¥50
  */
-export function formatAddonPrice(price, pricingMode, unitLabel, kind) {
+export function formatPrice(price, priceMode, { controlType = null, unitLabel = null } = {}) {
   const n = price ?? 0
-  if (kind === 'multiply') {
-    return `+${n}%`
-  }
-  if (pricingMode === 'per_unit') {
-    return `¥${n}/${unitLabel || '位'}`
-  }
+  if (priceMode === 'percent') return `+${n}%`
+  if (controlType === 'quantity') return `¥${n}/${unitLabel || '位'}`
   return `¥${n}`
+}
+
+/** 金额（分）→ 展示文本：整数不带小数，非整数保留两位 */
+export function formatCents(cents) {
+  const yuan = (cents ?? 0) / 100
+  return Number.isInteger(yuan) ? `¥${yuan}` : `¥${yuan.toFixed(2)}`
 }
 
 /**
  * 画风增项当前生效价格（价格优先级：本尺寸 > 画风价 > 本身价）
- * @param {object} sa style_addons 行（含 price_override / template_default_price / template_pricing_mode）
+ * @param {object} sa style_addons 行（含 price_override / template_default_price）
  * @param {number|null} sizePriceOverride 本尺寸差异价（可选）
  */
 export function effectivePrice(sa, sizePriceOverride) {
@@ -45,29 +62,79 @@ export function effectivePrice(sa, sizePriceOverride) {
   return price ?? 0
 }
 
-/** 摘要/胶囊形态：qty=数量 / add=加法 / mul=倍率 */
-export function addonKind(sa) {
-  if (sa.template_pricing_mode === 'per_unit') return 'qty'
-  if (sa.template_kind === 'multiply') return 'mul'
+/** 增项生效价展示文本（组合 effectivePrice + formatPrice） */
+export function addonPriceText(sa, sizePriceOverride, t) {
+  return formatPrice(effectivePrice(sa, sizePriceOverride), sa.template_price_mode, {
+    controlType: sa.template_control_type,
+    unitLabel: unitLabelOf(sa, t)
+  })
+}
+
+/** 摘要/胶囊形态（三种计价形态视觉区分）：pct=百分比 / qty=数量 / add=加法 */
+export function addonChipKind(sa) {
+  if (sa.template_price_mode === 'percent') return 'pct'
+  if (sa.template_control_type === 'quantity') return 'qty'
   return 'add'
 }
 
 /**
- * 价格类别（02H 用户拍板三类）：add=增项类（加法，可多选）/ usage=用途类（乘法，单选）/ rush=加急类（乘法，单选）
- * 后端无 usage/rush 维度（kind 只有 add/multiply）→ 前端按名称约定：
- *   multiply 项名称含「加急」→ rush；其余 multiply → usage（预置「商用」=usage、「加急」=rush）
- * 新建加急类时名称校验提示（见 AddonCreateDialog）
+ * 尺寸预览计算（顾客视角，与后端 calculateStylePrice 严格同公式、全程整数分）：
+ * 最终价格 = (基础价 + Σ固定增项 + Σ百分比增项[只基于基础价]) × 用途 × 加急 × 折扣
+ * 预览场景不含折扣；用途/加急由顾客下单时各选一个 → 作为可选项返回展示。
+ * 数量型增项数量由顾客下单时决定 → 预估按 ×1 计入并在 UI 标注。
+ * @returns {{ baseCents, fixedItems, percentItems, subtotalCents, usageOptions, rushOptions }}
  */
-export function addonCategory(sa) {
-  if (sa.template_kind === 'multiply') {
-    const name = sa.template_name || ''
-    if (name.includes('加急') || name.includes('急件')) return 'rush'
-    return 'usage'
-  }
-  return 'add'
-}
+export function computeSizePreview(style, size) {
+  const baseCents = Math.round((size?.base_price || 0) * 100)
+  const ov = size?._overrides || {}
+  const visible = (style?.addons || []).filter(sa => !!sa.is_enabled && !(ov[sa.id]?.is_hidden))
 
-/** 类别标签（池内分组标题 / 胶囊分类徽标） */
-export function categoryLabel(t, cat) {
-  return { add: t('styleManage.catAdd'), usage: t('styleManage.catUsage'), rush: t('styleManage.catRush') }[cat] || cat
+  const fixedItems = []
+  const percentItems = []
+  const usageOptions = []
+  const rushOptions = []
+  let fixedCents = 0
+  let percentCents = 0
+
+  for (const sa of visible) {
+    const price = effectivePrice(sa, ov[sa.id]?.price_override ?? null)
+    const cat = addonCategory(sa)
+    const percent = Math.round(price)
+
+    if (cat === 'usage') {
+      usageOptions.push({ id: sa.id, name: sa.template_name, percent })
+      continue
+    }
+    if (cat === 'rush') {
+      rushOptions.push({ id: sa.id, name: sa.template_name, percent })
+      continue
+    }
+    if (sa.template_price_mode === 'percent') {
+      // 铁律：百分比增项金额 = 百分比 × 基础价（不基于含其他增项的小计）
+      const amountCents = Math.round(baseCents * percent / 100)
+      percentCents += amountCents
+      percentItems.push({ id: sa.id, name: sa.template_name, percent, amountCents })
+    } else {
+      // 数量型预估按 ×1（顾客下单时选数量）；开关型恒 ×1
+      const unitCents = Math.round(price * 100)
+      fixedCents += unitCents
+      fixedItems.push({
+        id: sa.id,
+        name: sa.template_name,
+        quantity: 1,
+        isQuantityControl: sa.template_control_type === 'quantity',
+        unitCents,
+        amountCents: unitCents
+      })
+    }
+  }
+
+  return {
+    baseCents,
+    fixedItems,
+    percentItems,
+    subtotalCents: baseCents + fixedCents + percentCents,
+    usageOptions,
+    rushOptions
+  }
 }

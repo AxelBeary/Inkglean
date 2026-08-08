@@ -49,6 +49,7 @@ html[data-artist-theme="paper"] {
   --r-s: 4px;
   --r-m: 7px;
   --r-l: 11px;
+  --r-pill: 999px;          /* 胶囊形（chip/胶囊徽标，SPEC-PRICE-2 批3） */
   --sh-1: 0 1px 2px rgba(38, 37, 30, .05);
   --sh-2: 0 4px 14px rgba(38, 37, 30, .09);
   --sh-3: 0 12px 34px rgba(38, 37, 30, .16);
@@ -160,6 +161,7 @@ html[data-artist-theme="ink"] {
   --r-s: 4px;
   --r-m: 7px;
   --r-l: 11px;
+  --r-pill: 999px;          /* 胶囊形（chip/胶囊徽标，SPEC-PRICE-2 批3） */
   --sh-1: 0 1px 2px rgba(0, 0, 0, .35);
   --sh-2: 0 4px 14px rgba(0, 0, 0, .45);
   --sh-3: 0 14px 38px rgba(0, 0, 0, .55);

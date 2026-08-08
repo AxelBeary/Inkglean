@@ -696,3 +696,84 @@ describe('多画风路由层集成测试', () => {
     expect(listRes.json()).toHaveLength(0)
   })
 })
+
+// ─── SPEC-PRICE-2 批3: 增项解绑 + 尺寸覆盖只读端点 ───
+
+describe('SPEC-PRICE-2 画风增项解绑与覆盖读取', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(() => app.close())
+
+  /** 构造：画师 + 画风 + 尺寸 + 模板绑定 + 尺寸覆盖 */
+  function setupScene(qq, subdomain) {
+    const artist = seedArtist({ qq_number: qq, subdomain })
+    const style = styleService.createArtStyle(artist.id, { name: '日系' })
+    const size = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
+    const tpl = styleService.createAddonTemplate(artist.id, { name: '背景', control_type: 'switch', price_mode: 'fixed', default_price: 50 })
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
+    const sa = styleService.getStyleAddons(style.id)[0]
+    return { artist, style, size, tpl, sa }
+  }
+
+  it('TC-SA-01: DELETE 解绑 → 增项行与尺寸覆盖清除，模板保留', async () => {
+    const { artist, style, size, tpl, sa } = setupScene('77080', 'sa-unbind')
+    const token = createSession(artist.id, artist.token_version)
+    styleService.setSizeOverrides(artist.id, style.id, size.id, [{ style_addon_id: sa.id, price_override: 30 }])
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/artist/art-styles/${style.id}/addons/${sa.id}`,
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().deleted).toBe(true)
+    expect(styleService.getStyleAddons(style.id)).toHaveLength(0)
+    // 尺寸覆盖随外键 CASCADE 清除
+    expect(styleService.getSizeOverrides(artist.id, style.id, size.id)).toHaveLength(0)
+    // 增项库模板保留（解绑不动库）
+    expect(styleService.getAddonTemplate(artist.id, tpl.id).name).toBe('背景')
+  })
+
+  it('TC-SA-02: 解绑不存在的增项 / 他人画风 → 404', async () => {
+    const { artist, style } = setupScene('77081', 'sa-404')
+    const other = seedArtist({ qq_number: '77082', subdomain: 'sa-404b' })
+    const tokenOther = createSession(other.id, other.token_version)
+
+    const resA = await app.inject({
+      method: 'DELETE',
+      url: `/api/artist/art-styles/${style.id}/addons/99999`,
+      headers: { Authorization: `Bearer ${tokenOther}` }
+    })
+    expect(resA.statusCode).toBe(404) // 画风不属于当前画师
+
+    const token = createSession(artist.id, artist.token_version)
+    const resB = await app.inject({
+      method: 'DELETE',
+      url: `/api/artist/art-styles/${style.id}/addons/99999`,
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(resB.statusCode).toBe(404)
+  })
+
+  it('TC-SA-03: GET 尺寸覆盖列表 → 与 PUT 写入一致', async () => {
+    const { artist, style, size, sa } = setupScene('77083', 'sa-get-ov')
+    const token = createSession(artist.id, artist.token_version)
+    styleService.setSizeOverrides(artist.id, style.id, size.id, [{ style_addon_id: sa.id, price_override: 40, is_hidden: true }])
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/artist/art-styles/${style.id}/sizes/${size.id}/overrides`,
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    const list = res.json()
+    expect(list).toHaveLength(1)
+    expect(list[0]).toMatchObject({ style_addon_id: sa.id, price_override: 40, is_hidden: 1 })
+  })
+})

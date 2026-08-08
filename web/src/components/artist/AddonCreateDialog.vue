@@ -1,7 +1,6 @@
 ﻿<template>
-  <!-- REQ-036 批A (任务2) + 02H (2026-08-09): [+ 新建增项] 弹窗 —— 名称/类别(增项/用途/加急)/计价方式/数量上限 → 保存后自动挂到本画风并沉淀进增项库 -->
-  <!-- 用户原话(08-09): 价格分 增项类 用途类 加急类；增项可设个数、计价方式可设(原价百分比/纯数字/开关/计数)；算完乘用途类再乘加急类；用途、加急分别只能选一个 -->
-  <!-- 后端契约: kind=add 加法 / kind=multiply 倍率(百分比)；max_quantity 数量上限（v49 已支持） -->
+  <!-- SPEC-PRICE-2: [+ 新建增项] 弹窗 —— 名称 / 类别(增项/用途/加急) / 控件(开关/个数) / 计价(固定¥/百分比%) → 保存后自动挂到本画风并沉淀进增项库 -->
+  <!-- 后端契约（v50）: category add/usage/rush；control_type switch/quantity；price_mode fixed/percent；max_quantity 数量上限 -->
   <el-dialog
     :model-value="modelValue"
     :title="$t('styleManage.createTitle')"
@@ -15,34 +14,47 @@
         <el-input v-model="form.name" :placeholder="$t('styleManage.createNamePlaceholder')" maxlength="50" show-word-limit />
       </el-form-item>
 
-      <!-- 02H: 类别三选（增项类=加法多选；用途/加急=乘法单选） -->
+      <!-- 类别：后端真实维度（category），顾客下单时用途/加急各只能选一个生效 -->
       <el-form-item :label="$t('styleManage.createKindLabel')" required>
-        <el-radio-group v-model="form.kind">
+        <el-radio-group v-model="form.category">
           <el-radio-button value="add">{{ $t('styleManage.catAdd') }}</el-radio-button>
           <el-radio-button value="usage">{{ $t('styleManage.catUsage') }}</el-radio-button>
           <el-radio-button value="rush">{{ $t('styleManage.catRush') }}</el-radio-button>
         </el-radio-group>
-        <p class="form-hint">{{ $t('styleManage.createKindHint') }}</p>
+        <p class="form-hint">{{ categoryHint }}</p>
       </el-form-item>
 
-      <!-- 02H: 计价方式（增项类：纯数字/开关/计数；用途/加急：原价百分比） -->
+      <!-- 控件类型：开关类 / 个数类（SPEC-PRICE-2 仅两类） -->
+      <el-form-item :label="$t('styleManage.createControlLabel')" required>
+        <el-radio-group v-model="form.control_type">
+          <el-radio-button value="switch">{{ $t('styleManage.tplControlSwitch') }}</el-radio-button>
+          <el-radio-button value="quantity">{{ $t('styleManage.tplControlQuantity') }}</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+
+      <!-- 计价方式：固定金额 ¥N / 百分比 +N%（两类控件都支持） -->
       <el-form-item :label="$t('styleManage.createPricingLabel')" required>
-        <el-radio-group v-model="form.pricing_mode">
-          <el-radio-button v-if="form.kind !== 'add'" value="percent">{{ $t('styleManage.pricingPercent') }}</el-radio-button>
-          <el-radio-button v-if="form.kind === 'add'" value="fixed">{{ $t('styleManage.pricingFixed') }}</el-radio-button>
-          <el-radio-button v-if="form.kind === 'add'" value="switch">{{ $t('styleManage.pricingSwitch') }}</el-radio-button>
-          <el-radio-button v-if="form.kind === 'add'" value="count">{{ $t('styleManage.pricingCount') }}</el-radio-button>
+        <el-radio-group v-model="form.price_mode">
+          <el-radio-button value="fixed">{{ $t('styleManage.pricingFixed') }}</el-radio-button>
+          <el-radio-button value="percent">{{ $t('styleManage.pricingPercent') }}</el-radio-button>
         </el-radio-group>
         <p class="form-hint">{{ pricingHint }}</p>
       </el-form-item>
 
       <el-form-item :label="priceLabel" required>
-        <el-input-number v-model="form.default_price" :min="0" :max="999999" :step="10" style="width: 200px" />
-        <span v-if="form.kind !== 'add'" class="price-suffix">%</span>
+        <el-input-number
+          v-model="form.default_price"
+          :min="0"
+          :max="form.price_mode === 'percent' ? 1000 : 999999"
+          :step="form.price_mode === 'percent' ? 5 : 10"
+          :precision="form.price_mode === 'percent' ? 0 : undefined"
+          style="width: 200px"
+        />
+        <span class="price-suffix">{{ form.price_mode === 'percent' ? '%' : '¥' }}</span>
       </el-form-item>
 
-      <!-- 02H: 计数类型 → 单位 + 数量上限（防刷，v49 后端 max_quantity） -->
-      <template v-if="form.kind === 'add' && form.pricing_mode === 'count'">
+      <!-- 个数类 → 单位 + 数量上限（防刷） -->
+      <template v-if="form.control_type === 'quantity'">
         <el-form-item :label="$t('styleManage.createUnitLabel')">
           <el-input v-model="form.unit_label" :placeholder="$t('styleManage.createUnitPlaceholder')" maxlength="10" style="width: 200px" />
         </el-form-item>
@@ -64,7 +76,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 
@@ -81,59 +93,63 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'created', 'attached'])
 
 const saving = ref(false)
-const form = reactive({ name: '', kind: 'add', pricing_mode: 'fixed', default_price: 50, unit_label: '', max_quantity: 99 })
+const form = reactive({
+  name: '',
+  category: 'add',
+  control_type: 'switch',
+  price_mode: 'fixed',
+  default_price: 50,
+  unit_label: '',
+  max_quantity: 99
+})
 
 function initForm() {
   form.name = ''
-  form.kind = 'add'
-  form.pricing_mode = 'fixed'
+  form.category = 'add'
+  form.control_type = 'switch'
+  form.price_mode = 'fixed'
   form.default_price = 50
   form.unit_label = ''
   form.max_quantity = 99
 }
 
-/** 计价方式提示：按类别/计价方式联动 */
-const pricingHint = computed(() => {
-  if (form.kind === 'add') {
-    return t('styleManage.pricingHintAdd', { percent: form.pricing_mode === 'fixed' ? t('styleManage.pricingFixed') : t('styleManage.pricingSwitch') })
+/** 用途/加急必须是百分比计价（后端铁律：它们是公式中的乘法因子）→ 自动切到 percent */
+watch(() => form.category, (cat) => {
+  if (cat !== 'add' && form.price_mode !== 'percent') {
+    form.price_mode = 'percent'
+    if (form.default_price > 1000) form.default_price = 50
   }
-  return t('styleManage.pricingHintMultiply')
 })
 
-const priceLabel = computed(() => form.kind === 'add' ? t('styleManage.createPriceLabel') : t('styleManage.createPercentLabel'))
+/** 类别提示：增项=加法可多选；用途/加急=乘法位，顾客各选一个 */
+const categoryHint = computed(() =>
+  form.category === 'add' ? t('styleManage.createCatHintAdd') : t('styleManage.createCatHintMultiplier')
+)
 
-/** 后端字段映射（与 AddonTemplateManager/后端 schema 一致）：
- *  增项类: kind=add，计价方式 fixed=纯数字 / switch=开关 / count=计数(per_unit)
- *  用途/加急: kind=multiply，计价方式 percent → default_price=百分比（+50% → 50） */
+/** 计价方式提示 */
+const pricingHint = computed(() =>
+  form.price_mode === 'percent' ? t('styleManage.pricingHintPercent') : t('styleManage.pricingHintFixed')
+)
+
+/** 价格输入标签随计价方式切换（¥ 金额 / % 百分比） */
+const priceLabel = computed(() =>
+  form.price_mode === 'percent' ? t('styleManage.createPercentLabel') : t('styleManage.createPriceLabel')
+)
+
+/** 后端 payload（与 v50 schema 一一对应） */
 function toPayload() {
-  if (form.kind !== 'add') {
-    return {
-      name: form.name.trim(),
-      control_type: 'switch',
-      pricing_mode: 'fixed',
-      default_price: form.default_price,
-      kind: 'multiply'
-    }
-  }
-  if (form.pricing_mode === 'count') {
-    return {
-      name: form.name.trim(),
-      control_type: 'quantity',
-      pricing_mode: 'per_unit',
-      default_price: form.default_price,
-      unit_label: form.unit_label.trim() || null,
-      max_quantity: form.max_quantity ?? null,
-      kind: 'add'
-    }
-  }
-  // 纯数字 / 开关 → switch 控件，fixed 计价
-  return {
+  const payload = {
     name: form.name.trim(),
-    control_type: 'switch',
-    pricing_mode: 'fixed',
+    control_type: form.control_type,
+    price_mode: form.price_mode,
     default_price: form.default_price,
-    kind: 'add'
+    category: form.category
   }
+  if (form.control_type === 'quantity') {
+    payload.unit_label = form.unit_label.trim() || null
+    payload.max_quantity = form.max_quantity ?? null
+  }
+  return payload
 }
 
 async function submit() {
@@ -142,14 +158,13 @@ async function submit() {
     ElMessage.warning(t('styleManage.createNameRequired'))
     return
   }
-  // 02H: 加急类名称必须含「加急/急件」→ 前端分类约定（后端无 usage/rush 维度）
-  if (form.kind === 'rush' && !(name.includes('加急') || name.includes('急件'))) {
-    ElMessage.warning(t('styleManage.createRushNameHint'))
+  if (form.price_mode === 'percent' && (!Number.isInteger(form.default_price) || form.default_price > 1000)) {
+    ElMessage.warning(t('styleManage.createPercentRangeHint'))
     return
   }
   saving.value = true
   try {
-    // §3 同名处理：库中已有同名 → 「直接挂载 or 另建独立」
+    // 同名处理：库中已有同名 → 「直接挂载 or 另建独立」
     const dup = props.templates.find(tp => tp.name === name)
     if (dup) {
       // 区分确认/取消/右上角关闭：确认=直接挂载，取消=另建独立，关闭=不操作

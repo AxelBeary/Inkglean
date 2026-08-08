@@ -237,13 +237,9 @@ export const artistApi = {
   savePayment: (nodes) => api.put('/artist/workflow/payment', { nodes }),
   resetWorkflow: () => api.post('/artist/workflow/reset'),
   // 增项
-  // L0 (v0.36 波1): 旧增项模型六个封装已删（getAddons/createAddon/updateAddon/deleteAddon/reorderAddons/updateAddonTiers，零调用点；后端端点同步删除）
-  // 新模型增项库见下方 addonTemplate 系列（在用）
-  // 倍率
-  getMultipliers: () => api.get('/artist/multipliers'),
-  createMultiplier: (data) => api.post('/artist/multipliers', data),
-  updateMultiplier: (id, data) => api.put(`/artist/multipliers/${id}`, data),
-  deleteMultiplier: (id) => api.delete(`/artist/multipliers/${id}`),
+  // L0 (v0.36 波1): 旧增项模型六个封装已删（零调用点；后端端点同步删除）
+  // SPEC-PRICE-2 (v50): 旧倍率 CRUD 已随 price_multipliers 表清退移除；
+  // 用途/加急统一为增项库 category 维度（见 addonTemplate 系列）
   // v0.32 REQ-023 Phase1: 增项库（addon_templates）
   getAddonTemplates: () => api.get('/artist/addon-templates'),
   createAddonTemplate: (data) => api.post('/artist/addon-templates', data),
@@ -258,6 +254,10 @@ export const artistApi = {
   updateStyleSize: (styleId, sizeId, data) => api.put(`/artist/art-styles/${styleId}/sizes/${sizeId}`, data),
   deleteStyleSize: (styleId, sizeId) => api.delete(`/artist/art-styles/${styleId}/sizes/${sizeId}`),
   setStyleAddons: (styleId, items) => api.put(`/artist/art-styles/${styleId}/addons`, { items }),
+  // SPEC-PRICE-2 (v50): 画风增项解绑（移除=解绑，不动增项库）
+  removeStyleAddon: (styleId, saId) => api.delete(`/artist/art-styles/${styleId}/addons/${saId}`),
+  // SPEC-PRICE-2 (v50): 尺寸覆盖只读查询（替代 PUT 空 items 伪装读取）
+  getSizeOverrides: (styleId, sizeId) => api.get(`/artist/art-styles/${styleId}/sizes/${sizeId}/overrides`),
   setSizeOverrides: (styleId, sizeId, items) => api.put(`/artist/art-styles/${styleId}/sizes/${sizeId}/overrides`, { items }),
   // REQ-035 批A: 客户标记 + 老客召回（后端 tools.routes.ts 已就绪）
   getToolsClients: (qq) => api.get('/artist/tools/clients', { params: { qq } }),

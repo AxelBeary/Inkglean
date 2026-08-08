@@ -590,6 +590,20 @@ export function setStyleAddons(artistId: number, styleId: number, items: StyleAd
   return getStyleAddons(styleId)
 }
 
+/**
+ * 移除画风增项（SPEC-PRICE-2：画风内移除 = 解绑，不动增项库）
+ * 删除 style_addons 行；尺寸覆盖由外键 ON DELETE CASCADE 自动清
+ */
+export function removeStyleAddon(artistId: number, styleId: number, styleAddonId: number): { deleted: boolean } {
+  getArtStyle(artistId, styleId) // 画风归属校验
+  const sa = db.prepare(
+    'SELECT id FROM style_addons WHERE id = ? AND art_style_id = ?'
+  ).get(styleAddonId, styleId) as { id: number } | undefined
+  if (!sa) throw new AppError(E.STYLE_ADDON_NOT_FOUND, 404, { styleAddonId })
+  db.prepare('DELETE FROM style_addons WHERE id = ?').run(styleAddonId)
+  return { deleted: true }
+}
+
 // ─── 尺寸覆盖（size_addon_overrides） ───
 
 export interface SizeAddonOverride {
@@ -604,6 +618,14 @@ interface OverrideSetItem {
   style_addon_id: number
   price_override?: number | null
   is_hidden?: boolean
+}
+
+/** 读取尺寸覆盖列表（只读；前端预载用，替代 PUT 空 items 伪装读取） */
+export function getSizeOverrides(artistId: number, styleId: number, sizeId: number): SizeAddonOverride[] {
+  getStyleSize(artistId, styleId, sizeId) // 尺寸归属校验
+  return db.prepare(
+    'SELECT * FROM size_addon_overrides WHERE style_size_id = ?'
+  ).all(sizeId) as SizeAddonOverride[]
 }
 
 /** 设置尺寸覆盖（price_override / is_hidden） */

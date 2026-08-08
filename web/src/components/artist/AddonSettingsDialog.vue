@@ -1,5 +1,5 @@
 ﻿<template>
-  <!-- REQ-036 批A (任务4): 胶囊设置弹窗 —— 三层编辑（模板级本身价+范围 / 画风级激活 / 尺寸级表格+批量） -->
+  <!-- SPEC-PRICE-2: 胶囊设置弹窗 —— 三层编辑（模板级本身价+范围 / 画风级激活 / 尺寸级表格+批量）+ 移除解绑 -->
   <!-- 数据模型映射（与后端契约一致）:
        模板级 default_price → updateAddonTemplate；画风级 is_enabled/price_override → setStyleAddons；
        尺寸级 is_hidden(反义=启用)/price_override → setSizeOverrides。价格优先级: 本尺寸 > 画风价 > 本身价 -->
@@ -16,9 +16,16 @@
       <div class="set-section">
         <div class="set-section-title">{{ $t('styleManage.addonTplLevel') }}</div>
         <div class="inp-row">
-          <el-input-number v-model="form.basePrice" :min="0" :max="999999" :step="10" style="width: 200px" />
-          <span v-if="sa?.template_kind === 'multiply'" class="pct-suffix">%</span>
-          <el-tag v-if="sa" size="small" effect="plain" :type="categoryTagType" class="cat-tag">{{ categoryTagText }}</el-tag>
+          <el-input-number
+            v-model="form.basePrice"
+            :min="0"
+            :max="isPercent ? 1000 : 999999"
+            :step="isPercent ? 5 : 10"
+            :precision="isPercent ? 0 : undefined"
+            style="width: 200px"
+          />
+          <span class="unit-suffix">{{ isPercent ? '%' : '¥' }}</span>
+          <el-tag size="small" effect="plain" :type="categoryTagType" class="cat-tag">{{ categoryTagText }}</el-tag>
           <el-button :plain="form.scope === 'all'" @click="toggleScope">
             {{ form.scope === 'style' ? $t('styleManage.addonScopeStyle') : $t('styleManage.addonScopeAll') }}
           </el-button>
@@ -36,7 +43,7 @@
           :active-text="$t('styleManage.addonStyleEnable')"
           @change="(v) => (form.styleEnabled = !!v)"
         />
-        <p class="hint">{{ $t('styleManage.addonStylePriceInfo', { price: stylePriceInfo }) }}</p>
+        <p class="hint">{{ stylePriceInfo }}</p>
       </div>
 
       <!-- ── 尺寸级 ── -->
@@ -52,7 +59,7 @@
             <tr>
               <th>{{ $t('styleManage.addonSizeCol') }}</th>
               <th style="width: 90px">{{ $t('styleManage.addonEnableCol') }}</th>
-              <th style="width: 170px">{{ $t('styleManage.addonDiffPriceCol') }}</th>
+              <th style="width: 190px">{{ $t('styleManage.addonDiffPriceCol') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -60,11 +67,18 @@
               <td class="row-name">{{ row.sizeName }}</td>
               <td><el-switch v-model="row.enabled" size="small" /></td>
               <td>
-                <el-input-number
-                  v-model="row.diffPrice"
-                  :min="0" :max="999999" :step="10" size="small" style="width: 130px"
-                  :placeholder="`¥${effectivePriceOf(row)}`"
-                />
+                <div class="diff-cell">
+                  <el-input-number
+                    v-model="row.diffPrice"
+                    :min="0"
+                    :max="isPercent ? 1000 : 999999"
+                    :step="isPercent ? 5 : 10"
+                    :precision="isPercent ? 0 : undefined"
+                    size="small" style="width: 130px"
+                    :placeholder="diffPlaceholder(row)"
+                  />
+                  <span v-if="row.diffPrice != null" class="unit-suffix">{{ isPercent ? '%' : '¥' }}</span>
+                </div>
               </td>
             </tr>
             <tr v-if="!form.sizeRows.length">
@@ -90,10 +104,10 @@
 
 <script setup>
 import { reactive, computed, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
-import { formatAddonPrice, effectivePrice, addonCategory, categoryLabel } from './addon-utils.js'
+import { addonCategory, categoryLabel, addonPriceText } from './addon-utils.js'
 
 const { t } = useI18n()
 
@@ -113,25 +127,28 @@ const form = reactive({
   sizeRows: []
 })
 
-/** 02H: 价格类别（增项/用途/加急）——分类标记 */
+/** 是否百分比计价（模板级 price_mode，真实后端字段） */
+const isPercent = computed(() => props.sa?.template_price_mode === 'percent')
+
+/** 类别徽标（真实 template_category，非名称约定） */
 const categoryTagType = computed(() => ({ usage: 'warning', rush: 'danger', add: 'info' }[addonCategory(props.sa || {})] || 'info'))
 const categoryTagText = computed(() => categoryLabel(t, addonCategory(props.sa || {})))
 
-/** 画风级当前生效价文案（本尺寸 > 画风价 > 本身价 的中间层） */
+/** 画风级当前生效价文案（i18n；本尺寸 > 画风价 > 本身价 的中间层） */
 const stylePriceInfo = computed(() => {
   const sa = props.sa
   if (!sa) return ''
   if (sa.price_override != null) {
-    return `${formatAddonPrice(sa.price_override, sa.template_pricing_mode, undefined, sa.template_kind)}（已覆盖模板价）`
+    return t('styleManage.addonStylePriceOverride', { price: addonPriceText(sa, null, t) })
   }
-    return `${formatAddonPrice(sa.template_default_price, sa.template_pricing_mode, undefined, sa.template_kind)}（沿用模板价）`
+  return t('styleManage.addonStylePriceTemplate', { price: addonPriceText(sa, null, t) })
 })
 
-/** 某尺寸差异价为空时的 placeholder：沿用画风价（画风价 ?? 本身价） */
-function effectivePriceOf(row) {
+/** 尺寸差异价为空时的 placeholder：沿用上层生效价（画风价 ?? 本身价） */
+function diffPlaceholder(row) {
   const sa = props.sa
-  if (!sa) return 0
-  return effectivePrice(sa, row.diffPrice)
+  if (!sa) return ''
+  return addonPriceText(sa, row.diffPrice ?? null, t)
 }
 
 /** 打开时初始化表单（快照当前数据） */
@@ -160,15 +177,37 @@ function batchSet(on) {
   form.sizeRows.forEach(r => { r.enabled = on })
 }
 
-/** 移除（解绑本画风）：后端无删除 style_addon 端点（批B 需新增），本批提示不落库 */
-function onRemove() {
-  emit('update:modelValue', false)
-  ElMessage.warning(t('styleManage.addonRemoveBlocked'))
+/** 移除（解绑本画风）：DELETE 端点删 style_addons 行（尺寸覆盖级联清），增项库保留 */
+async function onRemove() {
+  const sa = props.sa
+  if (!sa) return
+  try {
+    await ElMessageBox.confirm(
+      t('styleManage.addonRemoveConfirm', { name: sa.template_name }),
+      t('styleManage.confirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  saving.value = true
+  try {
+    await artistApi.removeStyleAddon(props.style.id, sa.id)
+    ElMessage.success(t('styleManage.addonRemoved'))
+    emit('update:modelValue', false)
+    emit('saved')
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    saving.value = false
+  }
 }
 
 async function save() {
   const sa = props.sa
   if (!sa) return
+  if (isPercent.value && !Number.isInteger(form.basePrice)) {
+    ElMessage.warning(t('styleManage.createPercentRangeHint'))
+    return
+  }
   saving.value = true
   try {
     // ── 模板级：本身价 ──
@@ -181,7 +220,7 @@ async function save() {
         await artistApi.setStyleAddons(props.style.id, [{ addon_template_id: sa.addon_template_id, price_override: null }])
       }
     } else {
-      // 仅当前画风：改本身价输入 = 写画风价覆盖（null 当值与模板价一致时 = 沿用模板）
+      // 仅当前画风：改本身价输入 = 写画风价覆盖（与模板价一致时 = 沿用模板，置 null）
       const target = form.basePrice
       const newOverride = target === sa.template_default_price ? null : target
       if ((sa.price_override ?? null) !== newOverride) {
@@ -191,7 +230,7 @@ async function save() {
 
     // ── 画风级：激活开关 ──
     if (!!sa.is_enabled !== form.styleEnabled) {
-      // 02H 单选约束：打开用途/加急的画风级激活 → 同画风其他同类停用
+      // 单选约束：打开用途/加急的画风级激活 → 同画风其他同类停用（顾客每单各选一个，后端兜底互斥）
       let styleItems = [{ addon_template_id: sa.addon_template_id, is_enabled: form.styleEnabled }]
       if (form.styleEnabled) {
         const cat = addonCategory(sa)
@@ -243,9 +282,9 @@ async function save() {
 .set-section { padding: 12px 0; border-bottom: 1px dashed var(--line); }
 .set-section:last-child { border-bottom: none; }
 .set-section-title { font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--ink); margin-bottom: 10px; }
-.inp-row { display: flex; align-items: center; gap: 10px; }
-.pct-suffix { margin-left: 6px; color: var(--ink3); font-weight: 600; }
-.cat-tag { margin-left: 8px; }
+.inp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.unit-suffix { color: var(--ink3); font-weight: 600; }
+.cat-tag { margin-left: 2px; }
 .hint { font-size: calc(var(--font-scale, 1) * 11.5px); color: var(--ink2); margin: 6px 0 0; line-height: 1.6; }
 .batch-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .batch-hint { margin-left: auto; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); }
@@ -254,5 +293,6 @@ async function save() {
 .set-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); color: var(--ink2); }
 .row-name { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); }
 .row-empty { text-align: center; color: var(--ink4); padding: 14px 0; }
+.diff-cell { display: flex; align-items: center; gap: 6px; }
 .dlg-foot-inner { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 </style>
