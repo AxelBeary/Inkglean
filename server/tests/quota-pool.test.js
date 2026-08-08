@@ -131,10 +131,12 @@ describe('B7 额度池（v0.23）', () => {
     expect(result[0]).toMatchObject({ name: '定金', amountCents: 10000, paidCents: 10000, remainingCents: 0, status: 'paid' })
     expect(result[1]).toMatchObject({ name: '中期', amountCents: 20000, paidCents: 15000, remainingCents: 5000, status: 'partial' })
     expect(result[2]).toMatchObject({ name: '尾款', amountCents: 20000, paidCents: 0, remainingCents: 20000, status: 'pending' })
-    // 返回结构严格不变：六字段，调用方（order.routes/admin.routes/前端）零改动
+    // REQ-036 批B (02F 遗留闭环): 返回结构 = 八字段，新增 locked/lockedReason（前端批A 渲染「已锁定」标识）
     for (const r of result) {
-      expect(Object.keys(r).sort()).toEqual(['amountCents', 'id', 'name', 'paidCents', 'remainingCents', 'status'])
+      expect(Object.keys(r).sort()).toEqual(['amountCents', 'id', 'locked', 'lockedReason', 'name', 'paidCents', 'remainingCents', 'status'])
       expect(typeof r.id).toBe('number')
+      expect(typeof r.locked).toBe('boolean')
+      expect(r.lockedReason === null || typeof r.lockedReason === 'string').toBe(true)
     }
   })
 

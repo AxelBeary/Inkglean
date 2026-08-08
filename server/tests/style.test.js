@@ -163,16 +163,19 @@ describe('增项库 CRUD (addon_templates)', () => {
     expect(updated.default_price).toBe(200)
   })
 
-  it('TC-AT-08: 删除增项模板 — 级联删 style_addons', () => {
+  it("TC-AT-08: 删除增项模板 — REQ-036 C' 保留独立增项（不级联删）", () => {
     const tpl = styleService.createAddonTemplate(artist.id, { name: '加背景', default_price: 100 })
     const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: true })
     // 验证已导入
     expect(style.addons).toHaveLength(1)
 
-    styleService.deleteAddonTemplate(artist.id, tpl.id)
-    // 级联删除后画风增项为空
+    const result = styleService.deleteAddonTemplate(artist.id, tpl.id)
+    // C': 返回 referenced N，画风内增项保留为独立增项（解绑，不再跟随库更新）
+    expect(result.referenced).toBe(1)
     const addons = styleService.getStyleAddons(style.id)
-    expect(addons).toHaveLength(0)
+    expect(addons).toHaveLength(1)
+    expect(addons[0].addon_template_id).toBeNull()
+    expect(addons[0].detached).toBeTruthy()
   })
 
   it('TC-AT-09: 获取不存在的模板 → 404', () => {
@@ -555,9 +558,9 @@ describe('多画风路由层集成测试', () => {
     const tpl = createRes.json()
     expect(tpl.name).toBe('加背景')
 
-    // 列表
+    // 列表（v49: 含 5 个系统预置模板 + 自建 1 = 6）
     const listRes = await app.inject({ method: 'GET', url: '/api/artist/addon-templates', headers })
-    expect(listRes.json()).toHaveLength(1)
+    expect(listRes.json()).toHaveLength(6)
 
     // 更新
     const updateRes = await app.inject({

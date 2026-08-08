@@ -8,12 +8,14 @@ import { AppError, E } from '../../shared/errors.js'
 
 const VALID_CONTROL_TYPES = ['switch', 'quantity', 'radio'] as const
 const VALID_PRICING_MODES = ['fixed', 'per_unit', 'per_option'] as const
+const VALID_KINDS = ['add', 'multiply'] as const
+const VALID_DISPLAY_STATUS = ['available', 'showcase', 'closed'] as const
 
 // ─── 增项库（addon_templates） ───
 
 export interface AddonTemplate {
   id: number
-  artist_id: number
+  artist_id: number | null
   name: string
   control_type: string
   pricing_mode: string
@@ -21,20 +23,23 @@ export interface AddonTemplate {
   options: string | null
   unit_label: string | null
   sort_order: number
+  // v49 (REQ-036): kind 维度（add 加法 / multiply 倍率）；max_quantity 数量型上限
+  kind: string
+  max_quantity: number | null
   created_at: string
 }
 
 /** 获取画师的增项模板列表 */
 export function getAddonTemplates(artistId: number): AddonTemplate[] {
   return db.prepare(
-    'SELECT * FROM addon_templates WHERE artist_id = ? ORDER BY sort_order ASC'
+    'SELECT * FROM addon_templates WHERE artist_id = ? OR artist_id IS NULL ORDER BY sort_order ASC, id ASC'
   ).all(artistId) as AddonTemplate[]
 }
 
 /** 获取单个增项模板（含归属校验） */
 export function getAddonTemplate(artistId: number, templateId: number): AddonTemplate {
   const tpl = db.prepare(
-    'SELECT * FROM addon_templates WHERE id = ? AND artist_id = ?'
+    'SELECT * FROM addon_templates WHERE id = ? AND (artist_id = ? OR artist_id IS NULL)'
   ).get(templateId, artistId) as AddonTemplate | undefined
   if (!tpl) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
   return tpl
@@ -47,6 +52,8 @@ interface CreateAddonTemplateInput {
   default_price?: number
   options?: string | null
   unit_label?: string | null
+  kind?: string
+  max_quantity?: number | null
 }
 
 /** 创建增项模板 */
@@ -62,6 +69,12 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
   }
   const defaultPrice = input.default_price ?? 0
   if (defaultPrice < 0) throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICE)
+  // v49 (REQ-036): kind 维度 + max_quantity 上限校验
+  const kind = input.kind || 'add'
+  if (!VALID_KINDS.includes(kind as typeof VALID_KINDS[number])) throw new AppError(E.VALIDATION, 400, { field: 'kind', hint: 'kind 只能是 add 或 multiply' })
+  if (input.max_quantity != null && (!Number.isInteger(input.max_quantity) || input.max_quantity < 1 || input.max_quantity > 999)) {
+    throw new AppError(E.VALIDATION, 400, { field: 'max_quantity', hint: '数量上限须为 1-999 的整数' })
+  }
 
   // radio 类型必须有 options
   if (controlType === 'radio' && !input.options) {
@@ -73,8 +86,8 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
   ).get(artistId) as { m: number | null }).m ?? -1
 
   const result = db.prepare(`
-    INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, options, unit_label, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, options, unit_label, sort_order, kind, max_quantity)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     artistId,
     input.name.trim(),
@@ -83,7 +96,9 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
     defaultPrice,
     input.options || null,
     input.unit_label || null,
-    maxOrder + 1
+    maxOrder + 1,
+    kind,
+    input.max_quantity ?? null
   )
 
   return getAddonTemplate(artistId, Number(result.lastInsertRowid))
@@ -96,11 +111,15 @@ interface UpdateAddonTemplateFields {
   default_price?: number
   options?: string | null
   unit_label?: string | null
+  kind?: string
+  max_quantity?: number | null
 }
 
 /** 更新增项模板 */
 export function updateAddonTemplate(artistId: number, templateId: number, fields: UpdateAddonTemplateFields): AddonTemplate {
-  getAddonTemplate(artistId, templateId) // 归属校验
+  const tpl = getAddonTemplate(artistId, templateId) // 归属校验
+  // 系统预置模板（artist_id NULL）画师不可改（管理员后台维护）
+  if (tpl.artist_id !== artistId) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
 
   if (fields.name !== undefined) {
     if (!fields.name.trim()) throw new AppError(E.ADDON_TEMPLATE_NAME_EMPTY)
@@ -128,16 +147,48 @@ export function updateAddonTemplate(artistId: number, templateId: number, fields
   if (fields.unit_label !== undefined) {
     db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(fields.unit_label || null, templateId)
   }
+  if (fields.kind !== undefined) {
+    if (!VALID_KINDS.includes(fields.kind as typeof VALID_KINDS[number])) throw new AppError(E.VALIDATION, 400, { field: 'kind', hint: 'kind 只能是 add 或 multiply' })
+    db.prepare('UPDATE addon_templates SET kind = ? WHERE id = ?').run(fields.kind, templateId)
+  }
+  if (fields.max_quantity !== undefined) {
+    if (fields.max_quantity != null && (!Number.isInteger(fields.max_quantity) || fields.max_quantity < 1 || fields.max_quantity > 999)) {
+      throw new AppError(E.VALIDATION, 400, { field: 'max_quantity', hint: '数量上限须为 1-999 的整数' })
+    }
+    db.prepare('UPDATE addon_templates SET max_quantity = ? WHERE id = ?').run(fields.max_quantity ?? null, templateId)
+  }
 
   return getAddonTemplate(artistId, templateId)
 }
 
-/** 删除增项模板（级联删 style_addons 引用） */
-export function deleteAddonTemplate(artistId: number, templateId: number): { deleted: boolean } {
-  getAddonTemplate(artistId, templateId) // 归属校验
-  // style_addons 有 ON DELETE CASCADE，直接删模板即可
+/**
+ * 删除增项模板（REQ-036 C' 删除策略）
+ * 被画风引用 → 快照模板数据到 style_addons 快照列 → 解绑（addon_template_id 置 NULL，保留独立增项）→ 删模板
+ * 返回 referenced N：前端弹窗提示「有 N 个画风在用，删除后它们将保留为独立增项」
+ */
+export function deleteAddonTemplate(artistId: number, templateId: number): { deleted: boolean; referenced: number } {
+  const tpl = getAddonTemplate(artistId, templateId) // 归属校验
+  // 系统预置模板（artist_id NULL）画师不可删（管理员后台维护）
+  if (tpl.artist_id !== artistId) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
+  const refs = db.prepare(
+    'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
+  ).get(templateId) as { c: number }
+  if (refs.c > 0) {
+    // 快照模板数据（解绑后独立增项保留名称/控件/价格/上限等展示数据）
+    db.prepare(`
+      UPDATE style_addons SET
+        tpl_name = ?, tpl_control_type = ?, tpl_pricing_mode = ?, tpl_default_price = ?,
+        tpl_options = ?, tpl_unit_label = ?, tpl_kind = ?, tpl_max_quantity = ?
+      WHERE addon_template_id = ?
+    `).run(
+      tpl.name, tpl.control_type, tpl.pricing_mode, tpl.default_price,
+      tpl.options, tpl.unit_label, tpl.kind, tpl.max_quantity, templateId
+    )
+    // 解除引用（外键 ON DELETE SET NULL 双保险，此处显式置空保证快照一致性）
+    db.prepare('UPDATE style_addons SET addon_template_id = NULL WHERE addon_template_id = ?').run(templateId)
+  }
   db.prepare('DELETE FROM addon_templates WHERE id = ?').run(templateId)
-  return { deleted: true }
+  return { deleted: true, referenced: refs.c }
 }
 
 // ─── 画风（art_styles） ───
@@ -206,7 +257,7 @@ export function createArtStyle(artistId: number, input: CreateArtStyleInput): Ar
 
   const styleId = Number(result.lastInsertRowid)
 
-  // 从增项库一键导入
+  // 从增项库一键导入（v49: 只导画师私有模板；系统预置模板由画师在「从已有挑选」中主动挂载）
   if (input.importAddons) {
     const templates = db.prepare(
       'SELECT id FROM addon_templates WHERE artist_id = ? ORDER BY sort_order ASC'
@@ -289,6 +340,8 @@ export interface StyleSize {
   image_artwork_id: number | null
   description: string | null
   work_days: number | null
+  // v49 (REQ-036): 尺寸三态 available/showcase/closed
+  display_status: string
 }
 
 /** 获取画风下的尺寸列表 */
@@ -315,6 +368,7 @@ interface CreateStyleSizeInput {
   image_artwork_id?: number | null
   description?: string | null
   work_days?: number | null
+  display_status?: string
 }
 
 /**
@@ -366,12 +420,13 @@ export function createStyleSize(artistId: number, styleId: number, input: Create
   ).get(styleId) as { m: number | null }).m ?? -1
 
   const result = db.prepare(`
-    INSERT INTO style_sizes (art_style_id, name, base_price, sort_order, image, image_artwork_id, description, work_days)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO style_sizes (art_style_id, name, base_price, sort_order, image, image_artwork_id, description, work_days, display_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     styleId, input.name.trim(), input.base_price, maxOrder + 1,
     img.image, img.image_artwork_id,
-    input.description || null, input.work_days ?? null
+    input.description || null, input.work_days ?? null,
+    input.display_status && VALID_DISPLAY_STATUS.includes(input.display_status as typeof VALID_DISPLAY_STATUS[number]) ? input.display_status : 'available'
   )
 
   return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(Number(result.lastInsertRowid)) as StyleSize
@@ -385,6 +440,7 @@ interface UpdateStyleSizeFields {
   image_artwork_id?: number | null
   description?: string | null
   work_days?: number | null
+  display_status?: string
 }
 
 /** 更新尺寸 */
@@ -417,6 +473,12 @@ export function updateStyleSize(artistId: number, styleId: number, sizeId: numbe
   if (fields.work_days !== undefined) {
     db.prepare('UPDATE style_sizes SET work_days = ? WHERE id = ?').run(fields.work_days, sizeId)
   }
+  if (fields.display_status !== undefined) {
+    if (!VALID_DISPLAY_STATUS.includes(fields.display_status as typeof VALID_DISPLAY_STATUS[number])) {
+      throw new AppError(E.VALIDATION, 400, { field: 'display_status', hint: 'display_status 只能是 available/showcase/closed' })
+    }
+    db.prepare('UPDATE style_sizes SET display_status = ? WHERE id = ?').run(fields.display_status, sizeId)
+  }
 
   return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(sizeId) as StyleSize
 }
@@ -433,29 +495,40 @@ export function deleteStyleSize(artistId: number, styleId: number, sizeId: numbe
 export interface StyleAddonWithTemplate {
   id: number
   art_style_id: number
-  addon_template_id: number
+  addon_template_id: number | null
   is_enabled: number
   price_override: number | null
   options_override: string | null
-  // 嵌套模板信息
+  // 嵌套模板信息（快照列兜底：解绑后的独立增项仍可展示/计价）
   template_name: string
   template_control_type: string
   template_pricing_mode: string
   template_default_price: number
   template_options: string | null
   template_unit_label: string | null
+  template_kind: string
+  template_max_quantity: number | null
+  // v49 (REQ-036 C): 已解绑（独立增项，不再跟随库更新）——注释内撇号已省略避免转义
+  detached: boolean
 }
 
 /** 获取画风下的增项列表（含模板信息） */
 export function getStyleAddons(styleId: number): StyleAddonWithTemplate[] {
   return db.prepare(`
-    SELECT sa.*, at.name AS template_name, at.control_type AS template_control_type,
-           at.pricing_mode AS template_pricing_mode, at.default_price AS template_default_price,
-           at.options AS template_options, at.unit_label AS template_unit_label
+    SELECT sa.*,
+           COALESCE(sa.tpl_name, at.name) AS template_name,
+           COALESCE(sa.tpl_control_type, at.control_type) AS template_control_type,
+           COALESCE(sa.tpl_pricing_mode, at.pricing_mode) AS template_pricing_mode,
+           COALESCE(sa.tpl_default_price, at.default_price) AS template_default_price,
+           COALESCE(sa.tpl_options, at.options) AS template_options,
+           COALESCE(sa.tpl_unit_label, at.unit_label) AS template_unit_label,
+           COALESCE(sa.tpl_kind, at.kind) AS template_kind,
+           COALESCE(sa.tpl_max_quantity, at.max_quantity) AS template_max_quantity,
+           (sa.addon_template_id IS NULL) AS detached
     FROM style_addons sa
-    JOIN addon_templates at ON at.id = sa.addon_template_id
+    LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
     WHERE sa.art_style_id = ?
-    ORDER BY at.sort_order ASC
+    ORDER BY (sa.addon_template_id IS NOT NULL) DESC, at.sort_order ASC, sa.id ASC
   `).all(styleId) as StyleAddonWithTemplate[]
 }
 
@@ -474,7 +547,7 @@ export function setStyleAddons(artistId: number, styleId: number, items: StyleAd
     for (const item of items) {
       // 验证模板属于该画师
       const tpl = db.prepare(
-        'SELECT id FROM addon_templates WHERE id = ? AND artist_id = ?'
+        'SELECT id FROM addon_templates WHERE id = ? AND (artist_id = ? OR artist_id IS NULL)'
       ).get(item.addon_template_id, artistId)
       if (!tpl) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404, { templateId: item.addon_template_id })
 
@@ -686,7 +759,7 @@ function resolveArtworkImagePath(artworkId: number | null): string | null {
 
 export interface PublicStyleAddon {
   id: number
-  addon_template_id: number
+  addon_template_id: number | null
   name: string
   control_type: string
   pricing_mode: string
@@ -694,6 +767,8 @@ export interface PublicStyleAddon {
   options: string | null
   unit_label: string | null
   is_enabled: boolean
+  kind: string
+  max_quantity: number | null
 }
 
 export interface PublicStyleSize {
@@ -708,6 +783,7 @@ export interface PublicStyleSize {
   artwork_image_path: string | null
   description: string | null
   work_days: number | null
+  display_status: string
   addons: PublicStyleAddon[]
 }
 
@@ -742,23 +818,31 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
   }
 
   return styles.map(style => {
+    // v49 (REQ-036): 三态——closed 完全隐藏不返回；showcase 返回（带状态，前端禁「去约稿」）
     const sizes = db.prepare(
-      'SELECT * FROM style_sizes WHERE art_style_id = ? ORDER BY sort_order ASC'
+      "SELECT * FROM style_sizes WHERE art_style_id = ? AND display_status != 'closed' ORDER BY sort_order ASC"
     ).all(style.id) as StyleSize[]
 
     // 画风级增项（启用的）
     const styleAddons = db.prepare(`
-      SELECT sa.*, at.name AS tpl_name, at.control_type AS tpl_control_type,
-             at.pricing_mode AS tpl_pricing_mode, at.default_price AS tpl_default_price,
-             at.options AS tpl_options, at.unit_label AS tpl_unit_label
+      SELECT sa.*,
+             COALESCE(sa.tpl_name, at.name) AS tpl_name,
+             COALESCE(sa.tpl_control_type, at.control_type) AS tpl_control_type,
+             COALESCE(sa.tpl_pricing_mode, at.pricing_mode) AS tpl_pricing_mode,
+             COALESCE(sa.tpl_default_price, at.default_price) AS tpl_default_price,
+             COALESCE(sa.tpl_options, at.options) AS tpl_options,
+             COALESCE(sa.tpl_unit_label, at.unit_label) AS tpl_unit_label,
+             COALESCE(sa.tpl_kind, at.kind) AS tpl_kind,
+             COALESCE(sa.tpl_max_quantity, at.max_quantity) AS tpl_max_quantity
       FROM style_addons sa
-      JOIN addon_templates at ON at.id = sa.addon_template_id
+      LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
       WHERE sa.art_style_id = ? AND sa.is_enabled = 1
-      ORDER BY at.sort_order ASC
+      ORDER BY (sa.addon_template_id IS NOT NULL) DESC, at.sort_order ASC, sa.id ASC
     `).all(style.id) as Array<{
-      id: number; addon_template_id: number; price_override: number | null; options_override: string | null
+      id: number; addon_template_id: number | null; price_override: number | null; options_override: string | null
       tpl_name: string; tpl_control_type: string; tpl_pricing_mode: string
       tpl_default_price: number; tpl_options: string | null; tpl_unit_label: string | null
+      tpl_kind: string; tpl_max_quantity: number | null
     }>
 
     const publicSizes: PublicStyleSize[] = sizes.map(size => {
@@ -789,7 +873,9 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
             price,
             options,
             unit_label: sa.tpl_unit_label,
-            is_enabled: true
+            is_enabled: true,
+            kind: sa.tpl_kind,
+            max_quantity: sa.tpl_max_quantity
           }
         })
 
@@ -804,6 +890,7 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
         artwork_image_path: resolveArtworkImagePath(size.image_artwork_id),
         description: size.description,
         work_days: size.work_days,
+        display_status: size.display_status,
         addons
       }
     })

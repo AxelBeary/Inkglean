@@ -33,11 +33,19 @@ interface AddonLineItem {
   source: 'size_override' | 'style_override' | 'template_default'
 }
 
+export interface MultiplyLineItem {
+  name: string
+  percent: number
+  factor: number
+  source: 'size_override' | 'style_override' | 'template_default'
+}
+
 export interface StylePriceResult {
   styleName: string
   sizeName: string
   basePrice: number
   addonItems: AddonLineItem[]
+  multiplyItems: MultiplyLineItem[]
   subtotal: number
   usageMultiplier: { name: string; factor: number } | null
   rushMultiplier: { name: string; factor: number } | null
@@ -60,18 +68,23 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
     WHERE ss.id = ?
   `).get(styleSizeId) as {
     id: number; art_style_id: number; name: string; base_price: number; sort_order: number
-    artist_id: number; is_active: number; style_name: string
+    artist_id: number; is_active: number; style_name: string; display_status: string
   } | undefined
 
   if (!size) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404)
   if (size.artist_id !== artistId) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404)
   if (!size.is_active) throw new AppError(E.STYLE_NOT_FOUND, 404, { hint: '画风已停用' })
+  // v49 (REQ-036): 尺寸三态——showcase/closed 不允许算价（防 F12 直调）
+  if (size.display_status && size.display_status !== 'available') {
+    throw new AppError(E.STYLE_SIZE_NOT_AVAILABLE, 400, { displayStatus: size.display_status })
+  }
 
   const basePrice = size.base_price
   const styleId = size.art_style_id
 
   // 2. 增项计算
   const addonItems: AddonLineItem[] = []
+  const multiplyItems: MultiplyLineItem[] = []
   let addonTotal = 0
 
   // 去重校验
@@ -84,16 +97,24 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
 
     // 查画风增项（含模板信息）
     const sa = db.prepare(`
-      SELECT sa.*, at.name AS tpl_name, at.control_type, at.pricing_mode,
-             at.default_price AS tpl_default_price, at.options AS tpl_options, at.unit_label
+      SELECT sa.*,
+             COALESCE(sa.tpl_name, at.name) AS tpl_name,
+             COALESCE(sa.tpl_control_type, at.control_type) AS control_type,
+             COALESCE(sa.tpl_pricing_mode, at.pricing_mode) AS pricing_mode,
+             COALESCE(sa.tpl_default_price, at.default_price) AS tpl_default_price,
+             COALESCE(sa.tpl_options, at.options) AS tpl_options,
+             COALESCE(sa.tpl_unit_label, at.unit_label) AS unit_label,
+             COALESCE(sa.tpl_kind, at.kind) AS kind,
+             COALESCE(sa.tpl_max_quantity, at.max_quantity) AS max_quantity
       FROM style_addons sa
-      JOIN addon_templates at ON at.id = sa.addon_template_id
+      LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
       WHERE sa.id = ? AND sa.art_style_id = ?
     `).get(sel.styleAddonId, styleId) as {
-      id: number; art_style_id: number; addon_template_id: number
+      id: number; art_style_id: number; addon_template_id: number | null
       is_enabled: number; price_override: number | null; options_override: string | null
       tpl_name: string; control_type: string; pricing_mode: string
       tpl_default_price: number; tpl_options: string | null; unit_label: string | null
+      kind: string; max_quantity: number | null
     } | undefined
 
     if (!sa) throw new AppError(E.STYLE_ADDON_NOT_FOUND, 404, { styleAddonId: sel.styleAddonId })
@@ -122,6 +143,14 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
       source = 'template_default'
     }
 
+    // v49 (REQ-036): kind=multiply 乘法项——百分比加价，不进加法小计，收集倍率因子
+    // 语义与 price_multipliers 一致：+50% → factor 1.5；最终 =（基础价+加法项）×Π乘法因子×用途×加急
+    if (sa.kind === 'multiply') {
+      if (unitPrice < 0) throw new AppError(E.VALIDATION, 400, { hint: '乘法项百分比不能为负' })
+      multiplyItems.push({ name: sa.tpl_name, percent: unitPrice, factor: 1 + unitPrice / 100, source })
+      continue
+    }
+
     // 按控件类型计价
     let quantity = 1
     let lineTotal: number
@@ -132,8 +161,10 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
     } else if (sa.control_type === 'quantity') {
       // quantity: price × quantity
       quantity = sel.quantity ?? 1
-      if (quantity < 1 || quantity > 99) {
-        throw new AppError(E.VALIDATION, 400, { field: 'quantity', hint: '数量范围 1-99' })
+      // v49 (REQ-036): max_quantity 数量上限（防刷，默认 99 与旧逻辑一致）
+      const qtyMax = sa.max_quantity ?? 99
+      if (quantity < 1 || quantity > qtyMax) {
+        throw new AppError(E.VALIDATION, 400, { field: 'quantity', hint: `数量范围 1-${qtyMax}` })
       }
       lineTotal = unitPrice * quantity
     } else if (sa.control_type === 'radio') {
@@ -201,8 +232,9 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
     rushMultiplier = { name: rm.name, factor: rm.multiplier }
   }
 
-  // 6. 倍率后总价
-  const multiplierTotal = subtotal * usageFactor * rushFactor
+  // 6. 倍率后总价（v49: 含乘法增项因子 Π）
+  const multiplyFactor = multiplyItems.reduce((acc, m) => acc * m.factor, 1)
+  const multiplierTotal = subtotal * multiplyFactor * usageFactor * rushFactor
   const multiplierTotalCents = Math.round(multiplierTotal * 100)
 
   // 7. 折扣（先倍率后折扣）
@@ -228,6 +260,7 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
     sizeName: size.name,
     basePrice,
     addonItems,
+    multiplyItems,
     subtotal: Math.round(subtotal * 100) / 100,
     usageMultiplier,
     rushMultiplier,
