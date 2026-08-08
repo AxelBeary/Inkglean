@@ -6,15 +6,25 @@ on:
   pull_request:
     branches: [master, main]
 
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+            server/package-lock.json
 
       # 根依赖（@playwright/test）
       - name: Install root dependencies
@@ -29,6 +39,19 @@ jobs:
         run: npm ci
         working-directory: server
 
+      # 03C 防回归：E2E 定位器静态扫描（strict-mode 复发门禁）
+      - name: Check E2E locators
+        run: node e2e/scripts/check-locators.js
+
+      # Playwright 浏览器缓存（03C：Chromium 下载 20s→缓存命中约 2s；key 随 package-lock 失效自动重装）
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       # Playwright 浏览器 + 系统依赖
       - name: Install Playwright Chromium
         run: npx playwright install chromium --with-deps
@@ -37,10 +60,13 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
 
+      # 03C：trace/screenshot 在 test-results/，报告引用它们——两个目录一起传，失败可完整复现
       - name: Upload test report
         if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7

@@ -18,7 +18,7 @@ test('E2 客户查进度', async ({ page }) => {
 
   // 进入进度查询页
   await page.goto('/artist/alice/track')
-  await expect(page.getByText('查询进度')).toBeVisible()
+  await expect(page.getByText('查询进度')).toBeVisible() // locator-ok: TrackOrder 页仅 el-page-header content 渲染（导航/首页入口不在本页 DOM）
 
   // 填写查询表单
   await page.getByPlaceholder('下单时填写的QQ号').fill('88888')
@@ -26,7 +26,8 @@ test('E2 客户查进度', async ({ page }) => {
   await page.getByRole('button', { name: '查询' }).click()
 
   // 看到订单信息
-  await expect(page.getByText(orderNo)).toBeVisible({ timeout: 10_000 })
+  // 动态订单号：scope 到查询结果卡片（防未来双布局/重复文本 strict；桌面无移动卡片时仍安全）
+  await expect(page.locator('.el-card', { hasText: orderNo }).getByText(orderNo)).toBeVisible({ timeout: 10_000 })
   // 新订单自动接入工作流（R30d），应显示流程进度
   await expect(page.locator('.timeline-block')).toBeVisible()
 })
