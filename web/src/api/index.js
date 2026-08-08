@@ -243,7 +243,13 @@ export const artistApi = {
   updateStyleSize: (styleId, sizeId, data) => api.put(`/artist/art-styles/${styleId}/sizes/${sizeId}`, data),
   deleteStyleSize: (styleId, sizeId) => api.delete(`/artist/art-styles/${styleId}/sizes/${sizeId}`),
   setStyleAddons: (styleId, items) => api.put(`/artist/art-styles/${styleId}/addons`, { items }),
-  setSizeOverrides: (styleId, sizeId, items) => api.put(`/artist/art-styles/${styleId}/sizes/${sizeId}/overrides`, { items })
+  setSizeOverrides: (styleId, sizeId, items) => api.put(`/artist/art-styles/${styleId}/sizes/${sizeId}/overrides`, { items }),
+  // REQ-035 批A: 客户标记 + 老客召回（后端 tools.routes.ts 已就绪）
+  getToolsClients: (qq) => api.get('/artist/tools/clients', { params: { qq } }),
+  getToolsClient: (qq) => api.get(`/artist/tools/clients/${qq}`),
+  saveToolsClient: (qq, data) => api.put(`/artist/tools/clients/${qq}`, data),
+  deleteToolsClient: (qq) => api.delete(`/artist/tools/clients/${qq}`),
+  getReturningClients: (days) => api.get('/artist/tools/returning-clients', { params: { days } }),
 }
 
 // ─── 客户端订单 ───

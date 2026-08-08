@@ -34,6 +34,8 @@ const routes = [
   { path: '/tools/export', name: 'ArtistToolsExport', component: () => import('../views/artist/ToolsExport.vue'), meta: { titleKey: 'menu.toolsExport', requiresAuth: true } },
   // REQ-035 批C: 散单记账（工具页）
   { path: '/tools/income', name: 'ArtistStandaloneIncome', component: () => import('../views/artist/StandaloneIncome.vue'), meta: { titleKey: 'menu.standaloneIncome', requiresAuth: true } },
+  { path: '/tools/clients', name: 'ArtistClientsPage', component: () => import('../views/artist/ClientsPage.vue'), meta: { titleKey: 'menu.clientTags', requiresAuth: true } },
+  { path: '/tools/returning', name: 'ArtistReturningClients', component: () => import('../views/artist/ReturningClients.vue'), meta: { titleKey: 'menu.returningClients', requiresAuth: true } },
   { path: '/stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
   { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
   { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },

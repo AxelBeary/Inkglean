@@ -28,6 +28,8 @@
             :qq-history="qqHistory"
             :qq-history-loading="qqHistoryLoading"
             :qq-history-loaded="qqHistoryLoaded"
+            :client-profile="clientProfile"
+            :client-summary="clientSummary"
             @update:uploaded-refs="uploadedRefs = $event"
             ref="leftRef"
           />
@@ -189,6 +191,9 @@ const qqValid = computed(() => /^\d{5,15}$/.test(form.clientQq.trim()))
 const qqHistory = ref([])
 const qqHistoryLoading = ref(false)
 const qqHistoryLoaded = ref(false)
+// REQ-035 批A: 客户标记/汇总（与历史订单并行加载；404/失败置 null 不阻塞历史）
+const clientProfile = ref(null)
+const clientSummary = ref(null)
 let qqTimer = null
 watch(() => form.clientQq, (qq) => {
   if (qqTimer) clearTimeout(qqTimer)
@@ -196,16 +201,28 @@ watch(() => form.clientQq, (qq) => {
   if (!/^\d{5,15}$/.test(trimmed)) {
     qqHistory.value = []
     qqHistoryLoaded.value = false
+    // REQ-035 批A: QQ 无效/切换时清掉上一个客户的标记与汇总
+    clientProfile.value = null
+    clientSummary.value = null
     return
   }
   qqHistoryLoading.value = true
   qqTimer = setTimeout(async () => {
     try {
-      const res = await artistApi.getOrders(undefined, { page: 1, pageSize: 200 })
-      const items = res.items ?? res
+      // REQ-035 批A: 历史订单 + 客户标记并行加载（标记 404/失败不影响历史查询）
+      const [ordersRes, clientRes] = await Promise.all([
+        artistApi.getOrders(undefined, { page: 1, pageSize: 200 }),
+        artistApi.getToolsClient(trimmed).catch(() => null)
+      ])
+      const items = ordersRes.items ?? ordersRes
       qqHistory.value = items.filter(o => o.client_qq === trimmed).slice(0, 5)
+      const cp = clientRes ? clientRes.profile || null : null
+      clientProfile.value = cp
+      clientSummary.value = cp ? clientRes.summary || null : null
     } catch {
       qqHistory.value = []
+      clientProfile.value = null
+      clientSummary.value = null
     } finally {
       qqHistoryLoading.value = false
       qqHistoryLoaded.value = true

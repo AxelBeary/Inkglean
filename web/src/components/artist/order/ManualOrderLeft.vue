@@ -84,6 +84,19 @@
     <!-- 该QQ历史订单面板（输入QQ后防抖500ms自动查询，查询逻辑在父组件） -->
     <div v-if="qqValid" class="mo-history" v-loading="qqHistoryLoading" element-loading-background="transparent">
       <h4 class="mo-history-title">{{ $t('manualOrder.historyTitle') }}</h4>
+      <!-- REQ-035 批A: 客户信息卡（有标记/汇总时显示；无则整卡不渲染） -->
+      <div v-if="clientProfile" class="mo-client-card">
+        <div v-if="clientProfile.tags && clientProfile.tags.length" class="mo-client-tags">
+          <el-tag v-for="tag in clientProfile.tags" :key="tag" size="small" class="mo-client-tag">{{ tag }}</el-tag>
+        </div>
+        <p v-if="clientProfile.note" class="mo-client-note">{{ clientProfile.note }}</p>
+        <div v-if="clientSummary" class="mo-client-summary">
+          <span>{{ $t('manualOrder.clientSummaryOrders', { n: clientSummary.totalOrders }) }}</span>
+          <span>{{ $t('manualOrder.clientSummaryPaid', { amount: (clientSummary.totalPaidCents / 100).toFixed(2) }) }}</span>
+          <span>{{ $t('manualOrder.clientSummaryLast', { date: formatDate(clientSummary.lastOrderAt) }) }}</span>
+          <el-tag :type="statusType(clientSummary.lastOrderStatus)" size="small">{{ $t(`common.orderStatus.${clientSummary.lastOrderStatus}`) }}</el-tag>
+        </div>
+      </div>
       <div v-if="qqHistoryLoaded && qqHistory.length === 0" class="mo-history-empty">
         {{ $t('manualOrder.newClient') }}
       </div>
@@ -114,7 +127,10 @@ defineProps({
   qqValid: Boolean,
   qqHistory: { type: Array, default: () => [] },
   qqHistoryLoading: Boolean,
-  qqHistoryLoaded: Boolean
+  qqHistoryLoaded: Boolean,
+  // REQ-035 批A: 客户标记/汇总（父组件并行加载；无标记时 null 不渲染卡片）
+  clientProfile: { type: Object, default: null },
+  clientSummary: { type: Object, default: null }
 })
 const emit = defineEmits(['update:uploadedRefs'])
 
@@ -315,4 +331,20 @@ defineExpose({ reset })
 .mo-history-no { font-weight: 600; font-variant-numeric: tabular-nums; font-family: var(--f-d); }
 .mo-history-tier { color: var(--ink2); }
 .mo-history-date { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); margin-left: auto; }
+
+/* ─── REQ-035 批A: 客户信息卡（纸墨 token 对齐 mo-history） ─── */
+.mo-client-card {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mo-client-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.mo-client-tag { font-family: var(--f-d); }
+.mo-client-note { margin: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.5; }
+.mo-client-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink); }
 </style>
