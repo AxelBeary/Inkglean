@@ -259,6 +259,9 @@ export default {
     // REQ-035 批E: 进度拼图 / 排期公示（工具组菜单项）
     puzzle: '进度拼图',
     scheduleShare: '排期公示',
+    // REQ-035 批A: 客户标记 + 老客召回（工具组菜单项）
+    clientTags: '客户标记',
+    returningClients: '老客召回',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
   },
@@ -415,6 +418,49 @@ export default {
     loadFailed: '加载排期数据失败',
     exported: '排期卡片已下载',
     exportFailed: '生成图片失败'
+  },
+  // REQ-035 批A: 客户标记（工具页文案）
+  clients: {
+    title: '客户标记',
+    searchPlaceholder: '搜索QQ号',
+    qq: 'QQ',
+    tags: '标签',
+    note: '备注',
+    actions: '操作',
+    edit: '编辑',
+    delete: '删除',
+    deleteConfirm: '确定删除该客户标记？',
+    empty: '暂无客户标记',
+    editTitle: '编辑客户标记',
+    save: '保存',
+    cancel: '取消',
+    // 校验/反馈文案（后端规则子集：tags ≤20、每项 ≤20 字符；note ≤200）
+    tagsMax: '标签最多 20 个',
+    tagLength: '每个标签 1-20 个字符',
+    noteMax: '备注最多 200 字',
+    saveSuccess: '已保存',
+    saveFailed: '保存失败，请稍后重试',
+    deleteSuccess: '已删除',
+    deleteFailed: '删除失败，请稍后重试',
+    loadFailed: '加载失败，请稍后重试'
+  },
+  // REQ-035 批A: 老客召回（工具页文案）
+  returning: {
+    title: '老客召回',
+    days30: '超过30天未下单',
+    days60: '超过60天未下单',
+    days90: '超过90天未下单',
+    ordersColumn: '单数',
+    totalOrders: '共 {n} 单',
+    totalPaid: '累计',
+    lastOrder: '最近一单',
+    daysSince: '{n} 天未下单',
+    copyScript: '复制话术',
+    copySuccess: '话术已复制',
+    copyFailed: '复制失败，请手动复制',
+    empty: '暂无符合条件的客户',
+    loadFailed: '加载失败，请稍后重试',
+    script: '好久不见～我是您的画师，最近开了新档期。您上次约稿是 {days} 天前了，有空来看看吗？（客户QQ：{qq}）'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {
@@ -907,6 +953,10 @@ export default {
     initialStatus: '初始节点状态', initialStatusHint: '线下已谈好的单子可直接跳过确认环节',
     // REQ-015: QQ历史面板
     historyTitle: '该客户的历史订单', newClient: '新客户，暂无历史订单',
+    // REQ-035 批A: 客户信息卡汇总文案
+    clientSummaryOrders: '共 {n} 单',
+    clientSummaryPaid: '累计 ¥{amount}',
+    clientSummaryLast: '最近一单 {date}',
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: '选择画风', sizeTitle: '选择尺寸', sizeDays: '{n}天',
     noSizes: '该画风下暂无尺寸', styleAddonsEmpty: '该尺寸下暂无可选增项',

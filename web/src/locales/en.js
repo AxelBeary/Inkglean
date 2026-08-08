@@ -259,6 +259,9 @@ export default {
     // REQ-035 batch E: Progress puzzle / Schedule share (tools group menu items)
     puzzle: 'Progress Puzzle',
     scheduleShare: 'Schedule Share',
+    // REQ-035 batch A: Client tags + Returning clients (tools group menu items)
+    clientTags: 'Client Tags',
+    returningClients: 'Returning Clients',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
   },
@@ -418,6 +421,49 @@ export default {
     exportFailed: 'Failed to generate image'
   },
   // F3 quick actions (2026-08-07 user decision)
+  // REQ-035 batch A: Client tags (tools page copy)
+  clients: {
+    title: 'Client Tags',
+    searchPlaceholder: 'Search by QQ',
+    qq: 'QQ',
+    tags: 'Tags',
+    note: 'Note',
+    actions: 'Actions',
+    edit: 'Edit',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this client profile?',
+    empty: 'No client profiles yet',
+    editTitle: 'Edit Client Tags',
+    save: 'Save',
+    cancel: 'Cancel',
+    // validation/feedback copy (subset of backend rules: tags <=20, each 1-20 chars; note <=200)
+    tagsMax: 'At most 20 tags',
+    tagLength: 'Each tag 1-20 characters',
+    noteMax: 'Note at most 200 characters',
+    saveSuccess: 'Saved',
+    saveFailed: 'Save failed, please retry',
+    deleteSuccess: 'Deleted',
+    deleteFailed: 'Delete failed, please retry',
+    loadFailed: 'Failed to load, please retry'
+  },
+  // REQ-035 batch A: Returning clients (tools page copy)
+  returning: {
+    title: 'Returning Clients',
+    days30: 'Over 30 days',
+    days60: 'Over 60 days',
+    days90: 'Over 90 days',
+    ordersColumn: 'Orders',
+    totalOrders: '{n} orders',
+    totalPaid: 'Total paid',
+    lastOrder: 'Last order',
+    daysSince: '{n} days since',
+    copyScript: 'Copy script',
+    copySuccess: 'Script copied',
+    copyFailed: 'Copy failed, please copy manually',
+    empty: 'No matching clients',
+    loadFailed: 'Failed to load, please retry',
+    script: 'Long time no see! I am your artist and I just opened a new slot. Your last commission was {days} days ago. Care to take a look? (Client QQ: {qq})'
+  },
   quickAction: {
     rules: 'Edit Guidelines',
     share: 'Share Page',
@@ -909,6 +955,10 @@ export default {
     initialStatus: 'Initial stage status', initialStatusHint: 'Skip the confirmation step for orders already agreed offline',
     // REQ-015: QQ history panel
     historyTitle: "This client's order history", newClient: 'New client — no previous orders',
+    // REQ-035 batch A: client info card summary copy
+    clientSummaryOrders: '{n} orders',
+    clientSummaryPaid: 'Total ¥{amount}',
+    clientSummaryLast: 'Last {date}',
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: 'Choose Style', sizeTitle: 'Choose Size', sizeDays: '{n} days',
     noSizes: 'No sizes available for this style', styleAddonsEmpty: 'No add-ons available for this size',

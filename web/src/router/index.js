@@ -40,6 +40,8 @@ const routes = [
   { path: '/tools/puzzle', name: 'ArtistPuzzlePage', component: () => import('../views/artist/PuzzlePage.vue'), meta: { titleKey: 'menu.puzzle', requiresAuth: true } },
   // REQ-035 批E: 排期公示（工具页）
   { path: '/tools/schedule', name: 'ArtistScheduleSharePage', component: () => import('../views/artist/ScheduleSharePage.vue'), meta: { titleKey: 'menu.scheduleShare', requiresAuth: true } },
+  { path: '/tools/clients', name: 'ArtistClientsPage', component: () => import('../views/artist/ClientsPage.vue'), meta: { titleKey: 'menu.clientTags', requiresAuth: true } },
+  { path: '/tools/returning', name: 'ArtistReturningClients', component: () => import('../views/artist/ReturningClients.vue'), meta: { titleKey: 'menu.returningClients', requiresAuth: true } },
   { path: '/stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
   { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
   { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
