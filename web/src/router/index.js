@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+﻿import { createRouter, createWebHistory } from 'vue-router'
 import i18n from '../i18n/index.js'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
@@ -42,6 +42,14 @@ const routes = [
   { path: '/tools/schedule', name: 'ArtistScheduleSharePage', component: () => import('../views/artist/ScheduleSharePage.vue'), meta: { titleKey: 'menu.scheduleShare', requiresAuth: true } },
   { path: '/tools/clients', name: 'ArtistClientsPage', component: () => import('../views/artist/ClientsPage.vue'), meta: { titleKey: 'menu.clientTags', requiresAuth: true } },
   { path: '/tools/returning', name: 'ArtistReturningClients', component: () => import('../views/artist/ReturningClients.vue'), meta: { titleKey: 'menu.returningClients', requiresAuth: true } },
+  // REQ-035 工具集后置: 稿价计算器（工具页）
+  { path: '/tools/price-calc', name: 'ArtistPriceCalculator', component: () => import('../views/artist/PriceCalculator.vue'), meta: { titleKey: 'menu.priceCalc', requiresAuth: true } },
+  // REQ-035 工具集后置: 社恐轻松回复（工具页）
+  { path: '/tools/reply', name: 'ArtistSocialReply', component: () => import('../views/artist/SocialReply.vue'), meta: { titleKey: 'menu.socialReply', requiresAuth: true } },
+  // REQ-035 工具集后置: 速记剪切板（工具页）
+  { path: '/tools/note', name: 'ArtistQuickNote', component: () => import('../views/artist/QuickNote.vue'), meta: { titleKey: 'menu.quickNote', requiresAuth: true } },
+  // REQ-035 工具集后置: 截稿日建议（工具页）
+  { path: '/tools/deadline', name: 'ArtistDeadlineAdvice', component: () => import('../views/artist/DeadlineAdvice.vue'), meta: { titleKey: 'menu.deadlineAdvice', requiresAuth: true } },
   { path: '/stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
   { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
   { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },

@@ -1,4 +1,4 @@
-export default {
+﻿export default {
   errors: {
     // Auth
     NOT_LOGGED_IN: 'Not logged in',
@@ -262,8 +262,81 @@ export default {
     // REQ-035 batch A: Client tags + Returning clients (tools group menu items)
     clientTags: 'Client Tags',
     returningClients: 'Returning Clients',
+    // REQ-035 postponed tools: Price calculator / Social reply / Quick notes / Deadline advice (tools group menu items)
+    priceCalc: 'Price Calculator',
+    socialReply: 'Social Reply',
+    quickNote: 'Quick Notes',
+    deadlineAdvice: 'Deadline Advice',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
+  },
+  // REQ-035 postponed tools: Price calculator (tools page copy)
+  priceCalc: {
+    title: 'Price Calculator',
+    subtitle: 'Quick estimate when a client asks about price; matches what the client sees',
+    loading: 'Loading…',
+    stepStyle: 'Pick a style',
+    stepSize: 'Pick a size',
+    stepAddons: 'Add-ons (optional)',
+    stepMultipliers: 'Multipliers (optional)',
+    noSizes: 'No sizes configured for this style yet. Add them in Pricing first',
+    noStyles: 'No styles configured yet. Set up styles in Pricing first',
+    workDays: '~{n} days',
+    usage: 'Usage',
+    rush: 'Rush',
+    none: 'None',
+    basePrice: 'Base price',
+    multiplierNote: 'Multipliers',
+    optionPrice: 'Priced per option',
+    disclaimer: 'For reference only. Final price is based on the actual quote'
+  },
+  // REQ-035 postponed tools: Social reply (tools page copy)
+  reply: {
+    title: 'Social Reply',
+    subtitle: 'Copy-paste replies for the moments you hate speaking up',
+    copy: 'Copy',
+    copied: 'Copied to clipboard',
+    cats: {
+      remind: 'Payment Reminders',
+      decline: 'Declining',
+      delay: 'Delays',
+      negotiate: 'Negotiating',
+      daily: 'Daily Chat'
+    }
+  },
+  // REQ-035 postponed tools: Quick notes (tools page copy)
+  note: {
+    title: 'Quick Notes',
+    subtitle: 'Jot down ideas, client notes and to-dos; saved locally in this browser',
+    titlePlaceholder: 'Title (optional)',
+    contentPlaceholder: 'Write something…',
+    add: 'Add note',
+    empty: 'No notes yet. Add your first one',
+    untitled: 'Untitled',
+    copy: 'Copy',
+    delete: 'Delete',
+    copied: 'Copied',
+    saveFailed: 'Save failed (the browser may be in private mode)'
+  },
+  // REQ-035 postponed tools: Deadline advice (tools page copy)
+  deadlineAdvice: {
+    title: 'Deadline Advice',
+    subtitle: 'Quickly suggest a due date when a client asks "when will it be done?"',
+    workDays: 'Work days',
+    queueMode: 'Include queue',
+    queueHint: 'Current formal queue has {n} orders, ~1 day buffer each',
+    compute: 'Suggest a date',
+    resultLabel: 'Suggested due date',
+    today: 'Today',
+    workDaysShort: 'Work days',
+    queueBuffer: 'Queue buffer',
+    totalDays: 'Total',
+    daysUnit: 'days',
+    ordersUnit: 'orders',
+    disclaimer: 'Estimate only; actual date depends on your schedule',
+    weekdays: {
+      sun: 'Sun', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat'
+    }
   },
   // REQ-035 batch D: What-to-eat tool page copy
   foodMenu: {
