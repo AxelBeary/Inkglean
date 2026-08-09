@@ -125,6 +125,11 @@ export function rollbackStage(orderId: number, stageId: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
+  // REQ-025 R13（用户拍板）：done 后禁止工作流回退——返工需求用新条目表达
+  if (order.status === 'done') {
+    throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: 'revision' })
+  }
+
   if (order.current_stage_id === null) {
     throw new AppError(E.INVALID_TRANSITION, 400, { from: '无流程', to: '回退' })
   }
@@ -144,6 +149,9 @@ export function rollbackStage(orderId: number, stageId: number): OrderDetail {
   if (['delivered', 'cancelled'].includes(order.status)) {
     throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: stages[targetIdx].name })
   }
+
+  // audit-b F2: 回退写 revision 前过统一状态机断言——confirmed→revision 等非法组合直接拒绝
+  assertStatusTransition(order.status, 'revision')
 
   const fromName = stages[currentIdx]?.name || '未知'
   const toName = stages[targetIdx].name
