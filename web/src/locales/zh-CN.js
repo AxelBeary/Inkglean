@@ -1061,28 +1061,24 @@
     parseApplied: '已填入表单，请核对后提交'
   },
   tiers: {
-    title: '价格管理', addTier: '+ 添加档位',
+    title: '价格管理',
     dragHint: '拖拽排序', reorderSaved: '排序已保存',
-    colExample: '例图', colName: '名称', colPrice: '价格', colDays: '工期', colDesc: '描述',
-    editTitle: '编辑档位', addTitle: '添加档位', nameLabel: '名称',
-    namePlaceholder: '如：头像、半身像、全身像', priceLabel: '价格（元）', daysLabel: '工期（天）',
-    descLabel: '描述', descPlaceholder: '简要说明这个档位包含什么', exampleLabel: '例图（可选）',
-    changeExample: '更换例图', uploadExample: '上传例图', removeExample: '移除',
-    exampleUploaded: '例图已上传，点保存后生效', fillName: '请填写名称',
-    confirmDelete: '确定删除档位「{name}」？', daysUnit: '{n}天',
+    nameLabel: '名称',
+    namePlaceholder: '如：头像、半身像、全身像', priceLabel: '价格（元）',
+    uploadExample: '上传例图', removeExample: '移除',
+    fillName: '请填写名称',
+    daysUnit: '{n}天',
     // #10: 档位三态
     visVisible: '开', visShowcase: '只展示', visHidden: '不展示',
     // R55: 示例图拖拽直传
-    dropToUpload: '拖入上传', notImage: '仅支持图片文件', tooBig: '图片超过 10MB 限制',
+    notImage: '仅支持图片文件', tooBig: '图片超过 10MB 限制',
     overwriteTitle: '覆盖示例图', overwriteConfirm: '已有示例图，覆盖后旧图不可恢复。确定覆盖？',
-    exampleUpdated: '示例图已更新',
     // R54: 卡片布局空状态
-    empty: '还没有档位',
     // v0.28 T3: Tab 标签 + 操作文案 i18n 化
     tabTiers: '档位', tabAddons: '增项', tabWorkflow: '流程与比例',
     tabDiscount: '折扣码',
-    newTier: '＋ 新建档位', cancel: '取消', save: '保存',
-    uploaded: '已上传', saved: '已保存', deleted: '已删除'
+    newTier: '＋ 新建档位', save: '保存',
+    uploaded: '已上传', saved: '已保存'
   },
   // v0.31 F3: 折扣码管理
   discount: {

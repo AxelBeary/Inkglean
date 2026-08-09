@@ -1063,28 +1063,24 @@
     parseApplied: 'Filled into the form — please review before submitting'
   },
   tiers: {
-    title: 'Pricing', addTier: '+ Add tier',
+    title: 'Pricing',
     dragHint: 'Drag to reorder', reorderSaved: 'Order saved',
-    colExample: 'Example', colName: 'Name', colPrice: 'Price', colDays: 'Turnaround', colDesc: 'Description',
-    editTitle: 'Edit tier', addTitle: 'Add tier', nameLabel: 'Name',
-    namePlaceholder: 'e.g. Headshot, Half-body, Full-body', priceLabel: 'Price (CNY)', daysLabel: 'Turnaround (days)',
-    descLabel: 'Description', descPlaceholder: 'Briefly describe what this tier includes', exampleLabel: 'Example image (optional)',
-    changeExample: 'Change image', uploadExample: 'Upload image', removeExample: 'Remove',
-    exampleUploaded: 'Image uploaded — click Save to apply', fillName: 'Please enter a name',
-    confirmDelete: 'Delete tier "{name}"?', daysUnit: '{n} days',
+    nameLabel: 'Name',
+    namePlaceholder: 'e.g. Headshot, Half-body, Full-body', priceLabel: 'Price (CNY)',
+    uploadExample: 'Upload image', removeExample: 'Remove',
+    fillName: 'Please enter a name',
+    daysUnit: '{n} days',
     // #10: tier visibility
     visVisible: 'Open', visShowcase: 'Showcase', visHidden: 'Hidden',
     // R55: example image drag-and-drop
-    dropToUpload: 'Drop to upload', notImage: 'Only image files are supported', tooBig: 'Image exceeds the 10MB limit',
+    notImage: 'Only image files are supported', tooBig: 'Image exceeds the 10MB limit',
     overwriteTitle: 'Replace example image', overwriteConfirm: 'This tier already has an example image. The old image cannot be recovered after replacement. Continue?',
-    exampleUpdated: 'Example image updated',
     // R54: card layout empty state
-    empty: 'No tiers yet',
     // v0.28 T3: tab labels + action text i18n
     tabTiers: 'Tiers', tabAddons: 'Add-ons', tabWorkflow: 'Workflow & Payment',
     tabDiscount: 'Discount Codes',
-    newTier: '+ New tier', cancel: 'Cancel', save: 'Save',
-    uploaded: 'Uploaded', saved: 'Saved', deleted: 'Deleted'
+    newTier: '+ New tier', save: 'Save',
+    uploaded: 'Uploaded', saved: 'Saved'
   },
   // v0.31 F3: discount code management
   discount: {
