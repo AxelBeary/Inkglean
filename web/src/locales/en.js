@@ -754,17 +754,6 @@
   },
   // P0-9: MultiplierManager i18n
   multiplier: {
-    usageTitle: 'Usage Multiplier', usageHint: 'Highest applies when multiple are selected',
-    rushTitle: 'Rush Multiplier', rushHint: 'Multiplies with the usage multiplier',
-    edit: 'Edit', deleteConfirm: 'Delete this multiplier?',
-    emptyUsage: 'No usage multipliers', emptyRush: 'No rush multipliers',
-    addUsage: '+ Add Usage Multiplier', addRush: '+ Add Rush Multiplier',
-    editTitle: 'Edit Multiplier', createTitle: 'New Multiplier',
-    name: 'Name', namePlaceholder: 'e.g. Commercial use / Rush (within 3 days)',
-    value: 'Multiplier Value', valueHint: '1.5 = price ×1.5 (+50%)',
-    descLabel: 'Description (visible to clients)',
-    cancel: 'Cancel', save: 'Save', create: 'Create',
-    msgNameRequired: 'Please enter a name', msgUpdated: 'Updated', msgCreated: 'Created', msgDeleted: 'Deleted'
   },
   // v0.42 Step5: artist stats page (REQ-033 three-state: off / hidden / on)
   stats: {

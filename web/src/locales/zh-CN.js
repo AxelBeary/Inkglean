@@ -752,17 +752,6 @@
   },
   // P0-9: 倍率管理（MultiplierManager）i18n
   multiplier: {
-    usageTitle: '用途倍率', usageHint: '多个同时选中时取最高',
-    rushTitle: '加急倍率', rushHint: '与用途倍率相乘叠加',
-    edit: '编辑', deleteConfirm: '确定删除？',
-    emptyUsage: '暂无用途倍率', emptyRush: '暂无加急倍率',
-    addUsage: '＋ 添加用途倍率', addRush: '＋ 添加加急倍率',
-    editTitle: '编辑倍率', createTitle: '新建倍率',
-    name: '名称', namePlaceholder: '如：商用授权 / 加急（3天内）',
-    value: '倍率值', valueHint: '1.5 = 价格 ×1.5（加收50%）',
-    descLabel: '说明（客户可见）',
-    cancel: '取消', save: '保存', create: '创建',
-    msgNameRequired: '请输入名称', msgUpdated: '已更新', msgCreated: '已创建', msgDeleted: '已删除'
   },
   // v0.42 Step5: 画师统计独立页（REQ-033 埋点三态：off 关 / hidden 不显 / on 开）
   stats: {
