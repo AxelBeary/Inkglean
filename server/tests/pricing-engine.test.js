@@ -277,6 +277,51 @@ describe('案例 5：全部锁定收齐后 −50 → 额外应退，节点不动
 })
 
 // ============================================
+// A3：R10 关闭语义向 R13 收敛（关闭 = 全节点锁定 且 Σ待收=0）
+// ============================================
+
+describe('allocateDelta 关闭语义（A3：R10/R13 收敛）', () => {
+  const doneAmounts = [3000, 12000, 9000, 6000]
+  const allLocked = [true, true, true, true]
+
+  it('TC-PE-A3-01: 全锁未付清（done 未付全）+ 负 delta → R9 镜像冲抵债务节点，不进额外应退', () => {
+    const nodes = fourNodes(doneAmounts, [3000, 0, 0, 0])
+    const res = allocateDelta(nodes, allLocked, -20000)
+    // 从尾往头冲抵：完稿 6000→0、细化 9000→0、线稿 12000→7000
+    expect(res.amountsCents).toEqual([3000, 7000, 0, 0])
+    expect(res.allocationsCents).toEqual([0, -5000, -9000, -6000])
+    expect(res.extraRefundCents).toBe(0)
+    expect(res.extraChargeCents).toBe(0)
+  })
+
+  it('TC-PE-A3-02: 全锁未付清 + 负 delta 超出欠款 → 欠款冲光 + 剩余进额外应退', () => {
+    const nodes = fourNodes(doneAmounts, [3000, 0, 0, 0])
+    const res = allocateDelta(nodes, allLocked, -28000)
+    expect(res.amountsCents).toEqual([3000, 0, 0, 0])
+    expect(res.allocationsCents).toEqual([0, -12000, -9000, -6000])
+    expect(res.extraRefundCents).toBe(1000)
+    // 守恒：Σalloc − extraRefund = −28000 = delta
+    expect(res.allocationsCents.reduce((s, v) => s + v, 0) - res.extraRefundCents).toBe(-28000)
+  })
+
+  it('TC-PE-A3-03: 全锁未付清 + 正 delta → R5 比例摊入债务节点，待收增加', () => {
+    const nodes = fourNodes(doneAmounts, [3000, 0, 0, 0])
+    const res = allocateDelta(nodes, allLocked, 20000)
+    expect(res.allocationsCents).toEqual([0, 8888, 6666, 4446])
+    expect(res.amountsCents).toEqual([3000, 20888, 15666, 10446])
+    expect(res.extraChargeCents).toBe(0)
+  })
+
+  it('TC-PE-A3-04: 全锁已付清（Σ待收=0）→ 维持 extra 语义不变（R10/R13 回归）', () => {
+    const nodes = fourNodes(doneAmounts, doneAmounts)
+    const res = allocateDelta(nodes, allLocked, -5000)
+    expect(res.amountsCents).toEqual(doneAmounts)
+    expect(res.allocationsCents).toEqual([0, 0, 0, 0])
+    expect(res.extraRefundCents).toBe(5000)
+  })
+})
+
+// ============================================
 // 案例 6：尾差取整
 // ============================================
 

@@ -67,9 +67,9 @@ export interface AllocateDeltaResult {
   amountsCents: number[]
   /** 每节点分得的 delta（可追溯，R11.3；锁定节点为 0） */
   allocationsCents: number[]
-  /** 全锁时正 delta 进入额外应收（R10） */
+  /** 关闭（全节点锁定且 Σ待收=0）时正 delta 进入额外应收（R10/R13） */
   extraChargeCents: number
-  /** 全锁时负 delta 进入额外应退（R10） */
+  /** 关闭时负 delta 进入额外应退；全锁未付清时负 delta 冲抵完欠款后的剩余进入额外应退（R10/R13） */
   extraRefundCents: number
 }
 
@@ -205,12 +205,21 @@ export function computeLockedState(
 // ─── 增减价分摊 ───
 
 /**
- * 分摊一笔 delta（R5/R6/R10）。
+ * 分摊一笔 delta（R5/R6/R10/R13，A3 关闭语义收敛）。
  *
- * - 无未锁节点 → 正 delta 进额外应收、负 delta 进额外应退，节点不动（R10）。
- * - 有未锁节点 → 按未锁节点「原始基点」归一化分摊；逐节点向下取整，
- *   尾差归最后一个未锁节点，保证 Σ 分摊 ≡ delta（R6）。
- * - 负 delta 额外受 R8 下限约束：非尾款未锁节点待收最低 0，
+ * 关闭判定（R10 + R13 收敛，A3）：**全部节点锁定 且 Σ待收 = 0** 双条件同时满足
+ * 才算关闭——不再是「无未锁节点即关闭」（未付清的全锁 done 订单不属于关闭）。
+ *
+ * - 关闭 → 正 delta 进额外应收、负 delta 进额外应退，节点不动（R10）。
+ * - 未关闭（存在待收 > 0 的节点）→ delta 作用于「有待款的节点」：
+ *   · 非全锁订单：按 R5/R9 既有规则只摊未锁节点，已锁但未付清的欠款保留
+ *     （案例 2/7：完成即锁的节点不参与分摊）。
+ *   · 全锁订单（done 半终态，R13）：参与节点 = 有待款的节点（含已锁但未付清），
+ *     正 delta 按 R5「原始基点」比例摊入（增加其待收）；负 delta 按 R9 镜像
+ *     从尾往头冲抵欠款，冲抵完仍有剩余 → 额外应退（R13「已付全 → 额外应退」推广）。
+ *
+ * - 比例分摊逐节点向下取整，尾差归最后一个参与节点，保证 Σ 分摊 + 额外 ≡ delta（R6）。
+ * - 非全锁路径的负 delta 额外受 R8 下限约束：非尾款未锁节点待收最低 0，
  *   超出部分压到尾款节点使其待收变负（案例 8）。
  *
  * @param installments 节点列表（需含 basisPoints / amountCents / paidCents）
@@ -233,55 +242,77 @@ export function allocateDelta(
   let extraCharge = 0
   let extraRefund = 0
 
-  const unlockedIdx: number[] = []
+  // 每节点待收（R8：由入参 paidCents 推导；非尾款最低 0、尾款可为负）
+  const remaining = sorted.map((inst, idx) => amounts[idx] - (inst.paidCents ?? 0))
+  const allLocked = pairs.every(p => p.locked)
+  const sumRemaining = remaining.reduce((s, v) => s + v, 0)
+  // A3：关闭 = 全节点锁定 且 Σ待收 = 0（双条件）
+  const closed = allLocked && sumRemaining === 0
+
+  // 参与分摊的节点：
+  //   - 非全锁 → 未锁节点（R5/R9 既有：只摊未锁，已锁欠款保留）
+  //   - 全锁但未关闭（done 未付全，R13）→ 有待款的节点（含已锁但未付清的节点）
+  const participantIdx: number[] = []
   for (let i = 0; i < n; i++) {
-    if (!pairs[i].locked) unlockedIdx.push(i)
+    if (allLocked ? remaining[i] > 0 : !pairs[i].locked) participantIdx.push(i)
   }
 
-  if (unlockedIdx.length === 0 || deltaCents === 0) {
+  if (closed || deltaCents === 0 || participantIdx.length === 0) {
     if (deltaCents > 0) extraCharge = deltaCents
     else if (deltaCents < 0) extraRefund = -deltaCents
     return { amountsCents: amounts, allocationsCents: alloc, extraChargeCents: extraCharge, extraRefundCents: extraRefund }
   }
 
-  const bpSum = unlockedIdx.reduce((s, i) => s + sorted[i].basisPoints, 0)
+  const bpSum = participantIdx.reduce((s, i) => s + sorted[i].basisPoints, 0)
   if (bpSum <= 0) {
-    // 退化：未锁节点基点和为 0，无法按比例分摊 → 全部进额外项
+    // 退化：参与节点基点和为 0，无法按比例分摊 → 全部进额外项
     if (deltaCents > 0) extraCharge = deltaCents
     else extraRefund = -deltaCents
     return { amountsCents: amounts, allocationsCents: alloc, extraChargeCents: extraCharge, extraRefundCents: extraRefund }
   }
 
-  // 比例分摊：向下取整，尾差归最后一个未锁节点（R6）
-  let allocated = 0
-  for (let k = 0; k < unlockedIdx.length; k++) {
-    const i = unlockedIdx[k]
-    const isLast = k === unlockedIdx.length - 1
-    if (isLast) {
-      alloc[i] = deltaCents - allocated
-    } else {
-      alloc[i] = Math.floor((deltaCents * sorted[i].basisPoints) / bpSum)
-      allocated += alloc[i]
+  if (allLocked && deltaCents < 0) {
+    // 全锁未关闭（done 未付全）负 delta：R9 镜像——从尾往头冲抵债务节点待收，
+    // 每个节点最多冲掉自己的待收；冲抵完仍有剩余 → 额外应退（R13）
+    let remainingDelta = -deltaCents
+    for (let k = participantIdx.length - 1; k >= 0; k--) {
+      if (remainingDelta <= 0) break
+      const i = participantIdx[k]
+      const take = Math.min(remainingDelta, Math.max(remaining[i], 0))
+      alloc[i] -= take
+      remainingDelta -= take
     }
-  }
-
-  // 负 delta 的 R8 下限：非尾款未锁节点待收不得 < 0，超出部分压到尾款节点
-  if (deltaCents < 0) {
-    const lastUnlocked = unlockedIdx[unlockedIdx.length - 1]
-    let excess = 0
-    for (const i of unlockedIdx) {
-      if (i === lastUnlocked) continue // 尾款节点可吸收（待收可为负）
-      const paidCents = sorted[i].paidCents ?? 0
-      const remaining = amounts[i] - paidCents
-      const newRemaining = remaining + alloc[i]
-      if (newRemaining < 0) {
-        // 该节点最多只能减掉自己的待收（把待收打到 0）
-        const capped = -remaining
-        excess += alloc[i] - capped // alloc[i] 更负，excess 为负
-        alloc[i] = capped
+    if (remainingDelta > 0) extraRefund = remainingDelta
+  } else {
+    // 比例分摊：向下取整，尾差归最后一个参与节点（R6）
+    let allocated = 0
+    for (let k = 0; k < participantIdx.length; k++) {
+      const i = participantIdx[k]
+      const isLast = k === participantIdx.length - 1
+      if (isLast) {
+        alloc[i] = deltaCents - allocated
+      } else {
+        alloc[i] = Math.floor((deltaCents * sorted[i].basisPoints) / bpSum)
+        allocated += alloc[i]
       }
     }
-    alloc[lastUnlocked] += excess
+
+    // 负 delta 的 R8 下限（非全锁路径）：非尾款未锁节点待收不得 < 0，超出部分压到尾款节点
+    if (deltaCents < 0) {
+      const lastParticipant = participantIdx[participantIdx.length - 1]
+      let excess = 0
+      for (const i of participantIdx) {
+        if (i === lastParticipant) continue // 尾款节点可吸收（待收可为负）
+        const newRemaining = remaining[i] + alloc[i]
+        if (newRemaining < 0) {
+          // 该节点最多只能减掉自己的待收（把待收打到 0）
+          const capped = -remaining[i]
+          excess += alloc[i] - capped // alloc[i] 更负，excess 为负
+          alloc[i] = capped
+        }
+      }
+      alloc[lastParticipant] += excess
+    }
   }
 
   for (let i = 0; i < n; i++) amounts[i] += alloc[i]
@@ -327,6 +358,9 @@ export interface RefundResult {
  * - 冲的是未锁节点的「待收」（等价于降价，客户少付），不回溯已锁节点。
  * - 冲到底（未锁节点待收全部为 0）后仍有剩余 → 尾款节点待收变负（应退给客户）。
  * - 全部节点锁定（订单关闭）→ 退款进额外应退（R10），节点不动。
+ *   （A3 注：本函数为独立退款助手、未接服务层；生产链路的正/负 delta 一律走
+ *   allocateDelta——「关闭 = 全节点锁定 且 Σ待收=0」双条件与 done 未付全冲抵
+ *   由 allocateDelta 承载，勿在本函数上扩展。）
  *
  * @param installments 节点列表（含当前价 amountCents 与已分配 paidCents）
  * @param lockedFlags  与 installments 顺序一致的锁定标记
