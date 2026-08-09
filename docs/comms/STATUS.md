@@ -1,8 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-09 v57（**批4A + A3 + formatYuan A2 三路合入推送；批4B 停等拍板；纸墨 Dashboard 原型 v0.1 已交付**）——master `357e1d0` 与 origin 同步。
+> 最后更新：2026-08-09 v58（**批4B 按方案 B 施工中；批4A/A3/FYA2 已合入推送；原型 v0.1 已交付待用户 fork**）——master `7963ac3` 与 origin 同步。
+> 🔄 **批4B 施工中（2026-08-09 用户拍板方案 B，codex 在 worktree artist-commission-w-b4b 执行）**：base 严格删四冗余列（paid_cents/status/paid_at/requested_at，不留僵尸列）+ addPayment 停写节点列 + v24 第2步存量换算补 PRAGMA 列探测守卫 + 迁移 v52 删列（备份+冻结清零+幂等 DROP）。拍板依据=目标最优原则（见已拍板规则）；四列真实库全是空值，数据损失=0。验收要求：一号独立复跑门禁（tsc+npm test）+ 双库全链验证证据（新库 v1→v52 跑通 + 旧形态库 v24 换算字节级一致）+ 交付报告填充完整。
+> ✅ **旧 v57 摘要（批4A+A3+FYA2 三路合入推送；纸墨 Dashboard 原型 v0.1 交付）**——master `357e1d0`/`7963ac3`。
 > ✅ **三路合入（2026-08-09，各自独立复跑门禁通过后合入）**：批4A `7cafefb`（savePayment 方案 b 守卫+appliesToNewOrdersOnly 提示 + scripts 纳入编译 + demo-data v51 对齐）/ A3 `d76a81c`（R10 关闭语义收敛：关闭=全锁且Σ待收=0，done 未付全的 delta 冲抵未付节点）/ formatYuan A2 `357e1d0`（formatYuanValue 整数裁剪 + addon-utils 收编进 money.js）。合入后全量门禁：server 1027 · web 254 全绿。
-> ⚠️ **批4B（paid_cents 迁移 v52）停等拍板**：施工中发现规格冲突——v24 存量换算无条件读 status 列，base schema 删列则新库迁移链必崩。方案 A（base 暂留四列+v52 末尾删，历史迁移不动，推荐）vs 方案 B（base 严格删列+v24 加列探测守卫）。详谈见 03-to-01-批4B-交付.md。
+> ⚠️ **批4B（paid_cents 迁移 v52）已从停等拍板转为施工中**（方案 B，见顶部与已拍板规则）。详谈见 03-to-01-批4B-交付.md。
 > 🎨 **纸墨 Dashboard 原型 v0.1（2026-08-09）**：%TEMP%\prototype-dashboard\dashboard-v0.1.html（单文件自包含+notes.md+审计截图）。已过 huiyue-layout-audit v2 两轮（圆角 3 种/4px 栅格/对比度≥4.5:1 全达标），13 条已知待打磨点列在 notes.md §三，供 fork 后打磨。
 > ✅ **旧 v56 摘要（formatYuan A1 统一合入；每日备份计划任务已配并实测）**——master `6b4f2fe` 与 origin 同步。
 > ✅ **批7 内容**：①顶部改工具栏（标题+开关+语义状态徽章[开=石绿/关=藤黄] ｜ 右侧新建画风主按钮）+精简提示语；②**CI/E2E 断链根因修复**：仓库 Actions 权限被设为 `local_only`（只许本仓库内行动）→ 所有外部 actions（checkout/setup-node 等）被拦，自 08-08 18:28 起 CI/E2E 全部 startup_failure（0 jobs）；已改为 `selected`+仅允许 GitHub 官方行动（供应链不放松）；本地全门禁复跑全绿（E2E 7/7、server 1005、web 254、oxlint/check-locators 0 错）。教训：**CI 红不一定是代码错，先查仓库设置**。
@@ -24,10 +26,24 @@
 > **分工流程（2026-08-07 用户拍板，落档 docs/soul/soul-01-lead.md）**：简单问/拍板/常规活=一号直接处理（本窗口）；长讨论/深交流=引导操作人左侧另开 default 窗口，开窗第一句声明「你是X号，本次专门讨论XX，讨论完即弃，不承担门禁职责」，default SOUL.md 永不改成「讨论角色」（本窗口=一号），多开窗口靠对话声明角色覆盖。
 
 ---
+## 🔄 在途任务（刷新后先看这里，2026-08-09 落档）
+
+1. **验收批4B**（worktree `artist-commission-w-b4b`，分支 `fix/b4b`，codex 无头执行中）：查收工（`git -C <worktree> log --oneline -5` + `git status --short`）→ 独立复跑门禁（`cd server; npx tsc --noEmit; npm test`）→ 核双库验证证据（交付报告 `docs/comms/03-to-01-批4B-交付.md`）→ 无冲突合入 master（`git merge --no-ff fix/b4b`，英文 commit message）→ 立即推送。⚠️ 若 codex 会话已断但未收工：进 worktree 查进度，用重派指令模板继续（见尾部）。
+2. **容器重建**（批4B 合入后）：先备份 `data/commission.db` → `docker compose up -d --build` → 启动时自动跑迁移 v52 → 回读验证：`PRAGMA table_info(order_payment_installments)` 无四列 + `schema_migrations.version=52` + 订单节点收款推导状态正确（真实库当前仅 2 条流水，重点看 ALICE 系订单展示正常）。
+3. **清理**：批4B 合入后删 worktree 与分支（`git worktree remove` + `git branch -d fix/b4b`）；其余 worktree 已清。
+4. **启动巨型组件拆分 Top5**（④a 已拍板：批4 后、视觉批前）：QueueBoard 1530 行 / ManualOrder 1497 行等；蓝本 `docs/comms/核实-第三方瘦身施工单-20260807.md`；参照 OrderDetail 拆分模式（0% 像素差异 + 全门禁绿）；OrderDetail 死解构 3 个随手清。
+5. **视觉批**：等用户 fork 打磨原型后按打磨稿实施；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批。
+6. **等用户侧**：复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；北极星图。
+
+- **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）。
+- **codex 重派模板**（pwsh，worktree 内执行）：`$task=@"...中文任务..."@` 然后 `"" | codex exec --profile huiyue -c sandbox_mode=danger-full-access $task`。
+- **已合入待办销账**：批4A（workflow 守卫+scripts 编译）/ A3（R10 收敛）/ FYA2（元源收编）均已合入推送，无残留。
+
+---
 ## master 状态
 
-- **HEAD**：`357e1d0`（批4A+A3+FYA2 三路合入，与 origin 同步）
-- **工作树**：主仓干净；活跃 worktree：artist-commission-w-b4b（批4B，停等拍板）
+- **HEAD**：`7963ac3`（STATUS v57，与 origin 同步）
+- **工作树**：主仓干净；活跃 worktree：仅 `artist-commission-w-b4b`（批4B 施工中）
 - **测试基线**：server **1027/1027**（69 文件）· web **254/254**（17 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint 0 · oxlint 0 错 · check-locators 0 错 · check-i18n 0
 - **后端 100% TS + strict 全开 + any 清零**（唯一豁免 init.js @ts-nocheck）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
@@ -71,7 +87,7 @@
 
 **待用户验收**：重建后容器即新模型（验收重点见顶部）。不满意可按提交链分批回滚。
 
-**排队中（验收通过后）**：批4 结构批（paid_cents 列退役 + workflow 模板变更守卫 + scripts 纳入编译）；A3 R10 关闭语义二选一（**待用户拍板**）；formatYuan A2 元源收编 + addon-utils 迁移（**待拍板**，见施工图）；巨型组件拆分 Top5；v0.46 收编发版。
+**排队中**：~~批4 结构批~~（批4A 已合入）；~~A3~~（已合入）；~~formatYuan A2~~（已合入）；**批4B 施工中**；巨型组件拆分 Top5（④a 拍板：批4 后、视觉批前）；v0.46 收编发版（待用户复验 SPEC-PRICE-2）。
 - **部署**：每日备份计划任务已配（CommissionDailyBackup，03:30，已实测）
 
 ---
@@ -84,6 +100,10 @@
 > **OD-01 客户端五色主色（2026-08-06 用户拍板，四号落档）**：**选 b——只换 1/2/3 号不达标色，4/5 保留**。1 号 `#34dbcb`→月白青 `#356B69`（6.07:1）、2 号 `#34c2db`→雾蓝 `#3F5E80`（6.72:1）、3 号 `#3498db`→藤紫 `#5E5494`（6.62:1）；4/5 号不动。验收铁律：新值 ≥4.5:1 且不低于旧值。⚠️ 已知风险（用户接受）：换后 1/2/3 低饱和、4/5 仍霓虹深蓝，五色视觉可能不连贯，实施后观感差可再议。**埋点 3 处全做**：① 换色率 `theme_accent_change` 带 `palette_version`（neon-v1/natural-v2），**埋点 ≤ 值替换**同批；② 下单流程漏斗（定义第三方 01-PM §9.2）；③ 后台功能使用率（用户主动要求，口径一号排期时定义）。实施文件 theme.css:79-83 亮色 + :86-90 暗色（暗色沿用 §2.2.4 v2 建议值）。
 
 > **OD-05 功能色边界（2026-08-06 用户拍板，四号落档）**：**选乙——客户端不收 token、后台可收**。规则 11 边界补充见上。藤黄调深 `#A8790B→#966C0A` 已拍板并入后台轨。
+
+> **目标最优原则（2026-08-09 用户拍板，决策框架级）**：若存在确认无 bug 且更优的方案，老数据库允许丢弃；最终目的一定是最优解、最直觉、最符合设计、最低屎山与技术债；当前无真实数据，DB 内容随时可删。推论：「历史迁移不可动」纪律在无真数据前提下失效（其保护对象=存量库升级路径）；修改历史迁移须补防御性守卫（风格对齐迁移自身既有写法）并做新旧形态双库等价验证。
+
+> **批4B 方案 B（2026-08-09 拍板，依目标最优原则推导）**：base schema 严格删四列（拒绝方案 A 的僵尸列）；v24 第2步存量换算补 PRAGMA 列探测守卫（列在=照常换算，列不在=新库 no-op，与 v24 第1步既有探测风格一致）；v52 删列（backupDbBeforeMigration+冻结清零+幂等 DROP）；speech.test.js fixture 同步去退役列写入。四列真实库全空值，数据损失=0。
 
 > **纸墨设计语言提案（2026-08-09 用户拍板）**：docs/纸墨设计语言提案-v1.md 为视觉唯一事实源。要点：色彩造型克制+材质细节爆炸；泥金仅完稿盖章/今日焦点/画师成就三时刻；一模块一器物（账本待办/竹简留言/挂牌开关稿/百眼柜快捷/工具箱抽屉/卷轴排期）；三档完成仪式（日常沉底/清账撕页/泥金盖章）；钱不进日报；客户端跟宪法不跟皮肤；命名说人话。问候系统=创始人司机人设（8h/20h 触发/逐句浮现/手写资产）。后续视觉批以此为准。
 
