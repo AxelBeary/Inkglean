@@ -69,7 +69,8 @@ describe('订单流程事务包裹 (P0-1)', () => {
   })
 
   it('TC-TX-02: rollbackStage 中间步骤抛错 → 事务回滚，orders 与备注均未变更', () => {
-    // 先推进到节点 3（写 1 条成功日志）
+    // 先推进到节点 3（写 1 条成功日志；逐级经过合法状态，状态机不允许 pending 直跳）
+    advanceStage(order.id, stages[1].id)
     advanceStage(order.id, stages[2].id)
 
     // 模拟 logActivity（最后一个写步骤）抛错

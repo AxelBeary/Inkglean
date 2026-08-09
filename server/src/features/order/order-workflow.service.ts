@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { getOrder, refreshInstallmentLocks } from './order.service.js'
+import { getOrder, refreshInstallmentLocks, assertStatusTransition } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
 import type { WorkflowStage, OrderDetail } from '../../types/entities.js'
 
@@ -58,7 +58,7 @@ export function advanceStage(orderId: number, stageId: number | null): OrderDeta
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
-  // 关闭流程跟踪（单步写，无事务必要）
+  // 关闭流程跟踪（单步写，无事务必要；只清 current_stage_id，不动状态，行为保持不变）
   if (stageId === null) {
     db.prepare('UPDATE orders SET current_stage_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(orderId)
@@ -86,6 +86,11 @@ export function advanceStage(orderId: number, stageId: number | null): OrderDeta
   }
 
   const newStatus = mapStageToStatus(stages, stageId)
+
+  // audit-b F1: 状态机统一断言——mapStageToStatus 结果必须落在 STATUS_TRANSITIONS 合法路径内。
+  // 两节点工作流 pending→done、关跟踪后 current_stage_id=null 直推末节点等机器外跳转一律拒绝
+  // （current_stage_id=null 只跳过"只能前进"校验，不绕过状态机）。
+  assertStatusTransition(order.status, newStatus)
 
   // 多步写在事务内原子提交；校验抛错均发生在事务外（读操作）
   advanceStageTx(orderId, stageId, newStatus, stages[targetIdx].name)

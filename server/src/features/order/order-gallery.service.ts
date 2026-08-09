@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { getOrder, compactQueue, tryAutoPromote } from './order.service.js'
+import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
 import { createArtwork } from '../artist/artist.service.js'
 import type { OrderDetail } from '../../types/entities.js'
@@ -23,15 +23,14 @@ export function addDeliverable(orderId: number, filePath: string, fileName: stri
 
 /**
  * 交付订单（事务化）
- * 仅 wip/revision/done 状态允许上传交付文件
+ * 状态守卫走统一状态机断言（audit-b F1）：wip/revision/done → delivered 显式合法，
+ * pending/confirmed 等机器外路径一律拒绝
  */
 export function deliverOrder(orderId: number, filePath: string, fileName: string | null, fileSize: number | null): { order: OrderDetail; statusChanged: boolean } {
   return db.transaction(() => {
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-    if (!['wip', 'revision', 'done'].includes(order.status)) {
-      throw new AppError(E.DELIVER_WRONG_STATUS, 400, { status: order.status })
-    }
+    assertStatusTransition(order.status, 'delivered')
 
     addDeliverable(orderId, filePath, fileName, fileSize)
 
@@ -52,16 +51,14 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
 /**
  * 无文件交付（方案 B：修复工作流订单最后节点交付卡死）
  * 画师确认本单无需交付文件时，直接完成交付流程：
- * 状态守卫同 deliverOrder（wip/revision/done）→ delivered + 队列压缩 + 自动递补
+ * 状态守卫同 deliverOrder（统一状态机断言）→ delivered + 队列压缩 + 自动递补
  * 与 deliverOrder 的差异：不插入交付文件，追加系统备注留痕
  */
 export function deliverOrderWithoutFile(orderId: number): { order: OrderDetail; statusChanged: boolean } {
   return db.transaction(() => {
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
-    if (!['wip', 'revision', 'done'].includes(order.status)) {
-      throw new AppError(E.DELIVER_WRONG_STATUS, 400, { status: order.status })
-    }
+    assertStatusTransition(order.status, 'delivered')
 
     let statusChanged = false
     if (order.status !== 'delivered') {

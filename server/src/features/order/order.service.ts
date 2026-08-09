@@ -52,15 +52,30 @@ function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotalCents: number):
 
 /**
  * 订单状态机：定义每个状态允许转换到的下一个状态
+ * 唯一事实源：updateOrderStatus / advanceStage / rollbackStage / deliver 共用
+ * （audit-b F1：workflow 路径此前绕过本表，现统一收敛到 assertStatusTransition）
  */
-const STATUS_TRANSITIONS: Record<string, string[]> = {
+export const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending:   ['confirmed', 'cancelled'],
   confirmed: ['wip', 'cancelled'],
-  wip:       ['revision', 'done', 'cancelled'],
-  revision:  ['wip', 'done', 'cancelled'],
+  // delivered 本就是交付合法路径（wip/revision 可交付），显式化而非绕过
+  wip:       ['revision', 'done', 'delivered', 'cancelled'],
+  revision:  ['wip', 'done', 'delivered', 'cancelled'],
   done:      ['delivered', 'cancelled'],
   delivered: [],
   cancelled: []
+}
+
+/**
+ * 统一状态机断言：from → to 非法时抛 INVALID_TRANSITION。
+ * 同状态（from === to）不构成状态转换（wip 中间节点推进、revision 连续回退等仅移动节点），直接放行。
+ */
+export function assertStatusTransition(from: string, to: string): void {
+  if (from === to) return
+  const allowed = STATUS_TRANSITIONS[from]
+  if (!allowed || !allowed.includes(to)) {
+    throw new AppError(E.INVALID_TRANSITION, 400, { from, to })
+  }
 }
 
 /**
