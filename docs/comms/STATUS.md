@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-09 v55（**批2 时区口径 + 批3 清理批全部合入；审计债只剩批4 结构批 + A3 待拍板**）——master `eb51c32` 与 origin 同步。
+> 最后更新：2026-08-09 v56（**formatYuan A1 统一合入；每日备份计划任务已配并实测；排队只剩批4+A3 拍板项**）——master `6b4f2fe` 与 origin 同步。
 > ✅ **批7 内容**：①顶部改工具栏（标题+开关+语义状态徽章[开=石绿/关=藤黄] ｜ 右侧新建画风主按钮）+精简提示语；②**CI/E2E 断链根因修复**：仓库 Actions 权限被设为 `local_only`（只许本仓库内行动）→ 所有外部 actions（checkout/setup-node 等）被拦，自 08-08 18:28 起 CI/E2E 全部 startup_failure（0 jobs）；已改为 `selected`+仅允许 GitHub 官方行动（供应链不放松）；本地全门禁复跑全绿（E2E 7/7、server 1005、web 254、oxlint/check-locators 0 错）。教训：**CI 红不一定是代码错，先查仓库设置**。
 > ✅ **SPEC-PRICE-2 全链（已验收通过）**：批1 `856055a` / 批3 `777a9a5` / 批4 `7be8b27` / 批5 `ae9f7ed` / v51 热修 `d88465e`（脏快照清洗，快照仅解绑行生效）/ 批6 `1d2914b`（交互布局，用户评“超出预期”）。规范：`docs/specs/SPEC-PRICE-2-价格模型统一重构.md`（含 §6 交互防呆铁律）。
 > 🔴 **公式铁律（全链路已统一）**：最终价 = (基础价 + Σ固定增项 + Σ百分比增项[只按基础价]) × 用途 × 加急 × 折扣；全程整数分；增项两类控件（开关/个数，**用途/加急强制开关**）× 两种计价（¥/%）× 三类 category；用途/加急下单各选一个（ADDON_SELECTION_MUTEX）；新建画风无条件自动绑定用途/加急。
@@ -11,6 +11,8 @@
 > ✅ **批1 急救批（2026-08-09 合入 `891a7fe`+`60ea24f`）**：R1 状态机统一断言（advanceStage/交付路径接入 STATUS_TRANSITIONS，pending→done 一步登天已堵）/ R2 rollback done 守卫（R13 落实，顺带消除 B3 completed_at 漂移路径）/ R3 删增项负价守卫 / R4 i18n 键错位（orderForm.selectSizeFirst）。新增 7 用例 TC-B1-01~07；worktree 双路并行，用完即删。
 > ✅ **批2 口径批（2026-08-09 合入 `50dbbfb`）**：A4 收入汇总改 strftime localtime 与导出对齐（UTC+8 凌晨收款不再差一天）+ 时区自适应回归用例（任何 TZ 成立）。B3 因 R2 守卫自然消除不再需修。
 > ✅ **批3 清理批（2026-08-09 合入 `ee4a0e1`+`eb51c32`）**：E2 parseInt radix 27 处补齐；183+2+9 死键删除（分 9 批小步提交每步过 check:i18n）；16 个 errors.* 缺键补齐（zh+en）；3 死文件 + App.vue 冗余导入 + ACTION_TYPES 死导出清除；fetchProfile 仅 401 登出修复（网络抖动不再误踢人）+ Dashboard 不白屏。门禁全绿：server 1013 · web 254 · build 通过。
+> ✅ **formatYuan A1 统一（2026-08-09 合入 `11e6110`）**：money.js 新增 formatYuan 单一事实源；OrderForm 26 点位 + ManualOrderRight 分源/混合源 + StandaloneIncome/ToolsExport 私有 fmtYuan 清除（侦察施工图在 docs/comms/formatYuan-施工图.md，含 A2/addon-utils 冻结清单待后续拍板）。收敛断言通过（残留 5 处均 basisPoints 百分比，属非金额类正确保留）。
+> ✅ **每日备份计划任务（2026-08-09）**：Windows 计划任务 CommissionDailyBackup 每日 03:30 跑 docker compose exec 备份（OPS §2 等效），已手动触发实测 BACKUP_OK；保留 7 份脚本内置；日志 data/backups/daily-backup.log。
 > ⚠️ 2026-08-05 上午**身份混淆事故**（二号误认一号）：master 完整、零损失。防再发见「身份自检」。
 > 维护者：一号（主理人）
 > **刷新后自包含**：新会话只读本文件即可完全恢复，不依赖任何对话记忆。
@@ -65,8 +67,8 @@
 
 **待用户验收**：重建后容器即新模型（验收重点见顶部）。不满意可按提交链分批回滚。
 
-**排队中（验收通过后）**：批4 结构批（paid_cents 列退役 + workflow 模板变更守卫 + scripts 纳入编译）；A3 R10 关闭语义二选一（**待用户拍板**）；宿主 cron 每日备份配置（OPS.md §2）；巨型组件拆分 Top5；formatYuan 统一；v0.46 收编发版。
-- **部署**：宿主 cron 每日备份待配置（OPS.md §2 有命令）
+**排队中（验收通过后）**：批4 结构批（paid_cents 列退役 + workflow 模板变更守卫 + scripts 纳入编译）；A3 R10 关闭语义二选一（**待用户拍板**）；formatYuan A2 元源收编 + addon-utils 迁移（**待拍板**，见施工图）；巨型组件拆分 Top5；v0.46 收编发版。
+- **部署**：每日备份计划任务已配（CommissionDailyBackup，03:30，已实测）
 
 ---
 ## 已拍板规则（长期有效）
