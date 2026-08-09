@@ -2,16 +2,17 @@
  * 示例数据制作脚本（v0.32 演示底数据）
  *
  * 设计：在 commission-web 容器内运行，复用运行中的 DB 连接（不碰 WAL 锁）。
- *   docker cp server/scripts/demo-data.ts commission-web:/tmp/demo-data.ts
- *   docker exec commission-web npx tsx /tmp/demo-data.ts
+ *   docker cp server/scripts/demo-data.ts commission-web:/app/server/scripts/demo-data.ts
+ *   docker exec -w /app/server commission-web npx tsx scripts/demo-data.ts
+ * （生产镜像 COPY server/ 已含脚本，重建后直接执行第二条即可）
  *
  * 幂等：可重复执行，结果一致（先按标记清理旧数据再插入）。
  * 图片：全部为网上 CC0 / 公有领域 / Unsplash 来源，已预先下载到 uploads/images/ 下。
  *       来源与许可证清单见 docs/comms/03-to-01-示例数据交付-*.md。
  */
-import db from '/app/server/src/db/connection.js'
-import { seedArtistStages } from '/app/server/src/features/artist/workflow.service.js'
-import { generateInstallmentsForOrder, refreshInstallmentLocks, checkOrderConservation } from '/app/server/src/features/order/order.service.js'
+import db from '../src/db/connection.js'
+import { seedArtistStages } from '../src/features/artist/workflow.service.js'
+import { generateInstallmentsForOrder, refreshInstallmentLocks, checkOrderConservation } from '../src/features/order/order.service.js'
 import { existsSync, unlinkSync, renameSync } from 'fs'
 import sharp from 'sharp'
 
@@ -179,14 +180,24 @@ async function seedCarol(): Promise<number> {
     ].join('\n'))
     console.log('[carol] 约稿须知已写入')
 
-    // 旧模型档位（每档带 example_image）
-    const tier = db.prepare(
-      'INSERT INTO price_tiers (artist_id, name, price, description, example_image, work_days, sort_order, visibility) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    )
-    tier.run(id, '头像插画', 60, '正方形头像，纯色或简单渐变背景', `images/${id}/carol-p01.jpg`, 3, 1, 'visible')
-    tier.run(id, '半身场景', 150, '胸部以上，含简单道具或氛围元素', `images/${id}/carol-p02.jpg`, 5, 2, 'visible')
-    tier.run(id, '全身插画', 260, '全身立绘，含简单场景背景', `images/${id}/carol-p03.jpg`, 8, 3, 'visible')
-    console.log('[carol] 3 个档位已创建（各带示例图）')
+    // 画风与尺寸（v50 SPEC-PRICE-2：旧 price_tiers 已清退，改为 art_styles/style_sizes 默认画风）
+    const defaultStyle = db.prepare("SELECT id FROM art_styles WHERE artist_id = ? AND name = '默认'").get(id) as { id: number } | undefined
+    if (defaultStyle) {
+      console.log(`[carol] 默认画风已存在(${defaultStyle.id})，跳过创建`)
+    } else {
+      const r = db.prepare(
+        "INSERT INTO art_styles (artist_id, name, description, cover_image, sort_order, is_active) VALUES (?, '默认', '自由插画师默认画风，印象派光影与厚涂肌理', ?, 1, 1)"
+      ).run(id, `images/${id}/carol-p01.jpg`)
+      const styleId = Number(r.lastInsertRowid)
+      const sizes: Array<[string, number, string]> = [
+        ['头像插画', 60, `images/${id}/carol-p01.jpg`],
+        ['半身场景', 150, `images/${id}/carol-p02.jpg`],
+        ['全身插画', 260, `images/${id}/carol-p03.jpg`]
+      ]
+      const ins = db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price, sort_order, image) VALUES (?, ?, ?, ?, ?)')
+      sizes.forEach(([name, price, image], i) => ins.run(styleId, name, price, i + 1, image))
+      console.log(`[carol] 默认画风(${styleId})已创建，3 个尺寸：头像插画¥60 / 半身场景¥150 / 全身插画¥260`)
+    }
 
     carol = { id, artist_code: 'CAROL' }
   } else {
@@ -269,10 +280,10 @@ function seedDemoOrders(): void {
   //   final_price_cents / queue_zone / current_stage_id / paid_total_cents /
   //   start_date / deadline / completed_at / created_at / updated_at
   const ins = db.prepare(`
-    INSERT INTO orders (order_no, artist_id, tier_id, client_qq, client_name, description, priority, status, source,
+    INSERT INTO orders (order_no, artist_id, client_qq, client_name, description, priority, status, source,
       client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone,
       current_stage_id, paid_total_cents, start_date, deadline, completed_at, created_at, updated_at)
-    VALUES (?, ?, NULL, ?, ?, ?, 'medium', ?, 'self', 0, ?, ?, ?, ?, ?, 'formal', ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, 'medium', ?, 'self', 0, ?, ?, ?, ?, ?, 'formal', ?, ?, ?, ?, ?, ?, ?)
   `)
 
   seeds.forEach((s, idx) => {
@@ -292,13 +303,14 @@ function seedDemoOrders(): void {
     const completedAt = s.status === 'done'
       ? new Date(Date.now() - 86400_000).toISOString().slice(0, 19).replace('T', ' ')
       : null
+    const paidCents = Math.round(cents * s.paidRatio)
     const r = ins.run(
       s.orderNo, id, s.clientQq, s.clientName, s.desc, s.status,
       idx + 1, // queue_position（生产 createOrder 分配 max+1；队列视图按此排序，NULL 会排最前乱序）
       s.price, cents,
       `[${s.styleName} / ${s.sizeName}] 基础¥${s.price}`,
       cents,
-      stageId, Math.round(cents * s.paidRatio),
+      stageId, paidCents,
       startDate, deadline, completedAt, created, created
     )
     // REQ-025 二阶段切流：直插 orders 绕过了 createOrder，补齐新模型四要素：
@@ -314,6 +326,10 @@ function seedDemoOrders(): void {
     generateInstallmentsForOrder(orderId)
     refreshInstallmentLocks(orderId)
     checkOrderConservation(orderId)
+    // 批4 A5：补写收款流水（双源对账：Σ order_payments = paid_total_cents；FK CASCADE 随订单重建自动清理）
+    db.prepare(
+      "INSERT INTO order_payments (order_id, installment_id, amount_cents, note, created_by) VALUES (?, NULL, ?, '演示收款', 'demo')"
+    ).run(orderId, paidCents)
     void sizeId // styleSizeId 在 orders 表无对应列（快照体现在 quote_snapshot），此处仅校验尺寸存在
     console.log(`[orders] ${s.orderNo} ${s.status}（${s.styleName}/${s.sizeName} ¥${s.price}）`)
   })
@@ -385,6 +401,11 @@ function assertFieldIntegrity(): void {
       const entrySum = (db.prepare('SELECT COALESCE(SUM(delta_cents), 0) as s FROM order_price_entries WHERE order_id = ?').get(o.id) as { s: number }).s
       if (entrySum !== (o.final_price_cents as number)) {
         problems.push(`订单 ${o.order_no} Σ条目delta=${entrySum} ≠ final_price_cents=${o.final_price_cents}`)
+      }
+      // 批4 A5：双源对账——Σ收款流水 = paid_total_cents（真实库 ALICE-001~004 曾不一致，随本批修复）
+      const paySum = (db.prepare('SELECT COALESCE(SUM(amount_cents), 0) as s FROM order_payments WHERE order_id = ?').get(o.id) as { s: number }).s
+      if (paySum !== (o.paid_total_cents as number)) {
+        problems.push(`订单 ${o.order_no} Σ流水=${paySum} ≠ paid_total_cents=${o.paid_total_cents}`)
       }
       const extraCount = (db.prepare('SELECT COUNT(*) as c FROM order_extra_items WHERE order_id = ?').get(o.id) as { c: number }).c
       if (extraCount === 0) {
