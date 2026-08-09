@@ -140,23 +140,23 @@
       <div v-if="stylePricePreview" class="price-preview">
         <div class="price-line">
           <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
-          <span class="price-amount">¥{{ ((stylePricePreview.baseCents ?? 0) / 100).toFixed(2) }}</span>
+          <span class="price-amount">{{ formatYuan(stylePricePreview.baseCents ?? 0) }}</span>
         </div>
         <div v-for="(item, idx) in (stylePricePreview.fixedAddonItems || [])" :key="'f' + idx" class="price-line">
           <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-          <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+          <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
         </div>
         <div v-for="(item, idx) in (stylePricePreview.percentAddonItems || [])" :key="'p' + idx" class="price-line">
           <span>{{ item.name }} +{{ item.percent }}%</span>
-          <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+          <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
         </div>
         <div v-if="stylePricePreview.usage" class="price-line">
           <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-          <span class="price-amount">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
+          <span class="price-amount">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
         </div>
         <div v-if="stylePricePreview.rush" class="price-line">
           <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-          <span class="price-amount">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
+          <span class="price-amount">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
         </div>
         <div v-for="item in customAddons" :key="item.uid" class="price-line">
           <span>{{ item.name }}</span>
@@ -165,7 +165,7 @@
         <div class="price-divider"></div>
         <div class="price-line total">
           <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">¥{{ (((stylePricePreview.totalCents ?? 0) / 100) + customAddonsTotal).toFixed(2) }}</span>
+          <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + Math.round(customAddonsTotal * 100)) }}</span>
         </div>
       </div>
       <!-- R5: 自定义单（什么都不选）时无计算明细，自定义增项独立成块 -->
@@ -177,7 +177,7 @@
         <div class="price-divider"></div>
         <div class="price-line total">
           <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">¥{{ customAddonsTotal.toFixed(2) }}</span>
+          <span class="price-amount">{{ formatYuan(Math.round(customAddonsTotal * 100)) }}</span>
         </div>
       </div>
 
@@ -242,23 +242,23 @@
         <div v-if="stylePricePreview" class="price-preview">
           <div class="price-line">
             <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
-            <span class="price-amount">¥{{ ((stylePricePreview.baseCents ?? 0) / 100).toFixed(2) }}</span>
+            <span class="price-amount">{{ formatYuan(stylePricePreview.baseCents ?? 0) }}</span>
           </div>
           <div v-for="(item, idx) in (stylePricePreview.fixedAddonItems || [])" :key="'f' + idx" class="price-line">
             <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-            <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+            <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
           </div>
           <div v-for="(item, idx) in (stylePricePreview.percentAddonItems || [])" :key="'p' + idx" class="price-line">
             <span>{{ item.name }} +{{ item.percent }}%</span>
-            <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+            <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
           </div>
           <div v-if="stylePricePreview.usage" class="price-line">
             <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-            <span class="price-amount">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
+            <span class="price-amount">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
           </div>
           <div v-if="stylePricePreview.rush" class="price-line">
             <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-            <span class="price-amount">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
+            <span class="price-amount">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
           </div>
           <div v-for="item in customAddons" :key="item.uid" class="price-line">
             <span>{{ item.name }}</span>
@@ -267,7 +267,7 @@
           <div class="price-divider"></div>
           <div class="price-line total">
             <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">¥{{ (((stylePricePreview.totalCents ?? 0) / 100) + customAddonsTotal).toFixed(2) }}</span>
+            <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + Math.round(customAddonsTotal * 100)) }}</span>
           </div>
         </div>
         <div v-else-if="customAddons.length > 0" class="price-preview">
@@ -278,7 +278,7 @@
           <div class="price-divider"></div>
           <div class="price-line total">
             <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">¥{{ customAddonsTotal.toFixed(2) }}</span>
+            <span class="price-amount">{{ formatYuan(Math.round(customAddonsTotal * 100)) }}</span>
           </div>
         </div>
 
@@ -348,6 +348,7 @@ import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useStageStatus } from '../../../composables/useStageStatus.js'
 import { formatPrice } from '../../artist/addon-utils.js'
+import { formatCents, formatYuan } from '../../../utils/money.js'
 
 const props = defineProps({
   // 表单字段（父组件 reactive form 对象——v-model 绑定同一对象）
@@ -445,7 +446,7 @@ const customAddonsTotal = computed(() => customAddons.value.reduce((sum, a) => s
 /** 自定义增项金额文案（负数显示 -¥xx.xx） */
 function formatCustomAddonPrice(item) {
   const v = Number(item.priceYuan) || 0
-  return `${v < 0 ? '-' : ''}¥${Math.abs(v).toFixed(2)}`
+  return `${v < 0 ? '-' : ''}${formatYuan(Math.round(Math.abs(v) * 100))}`
 }
 
 /** 添加自定义增项（名称必填 ≤50 字；金额必填；上限 20 条） */
@@ -588,9 +589,9 @@ async function doStyleCalc() {
 
 /** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（含 R5 自定义增项合计） */
 const displayPrice = computed(() => {
-  if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return finalPriceYuan.value.toFixed(2)
-  if (stylePricePreview.value) return (((stylePricePreview.value.totalCents ?? 0) / 100) + customAddonsTotal.value).toFixed(2)
-  if (customAddonsTotal.value !== 0) return customAddonsTotal.value.toFixed(2)
+  if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return formatCents(Math.round(finalPriceYuan.value * 100))
+  if (stylePricePreview.value) return formatCents((stylePricePreview.value.totalCents ?? 0) + Math.round(customAddonsTotal.value * 100))
+  if (customAddonsTotal.value !== 0) return formatCents(Math.round(customAddonsTotal.value * 100))
   return ''
 })
 
