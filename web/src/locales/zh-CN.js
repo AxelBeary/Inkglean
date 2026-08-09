@@ -111,19 +111,10 @@
     ORDER_INVALID_ID: '无效的订单ID',
 
     // 增项（补充）
-    ADDON_NOT_FOUND: '增项不存在',
-    ADDON_NAME_EMPTY: '增项名称不能为空',
-    ADDON_INVALID_PRICE: '增项价格无效',
-    ADDON_INVALID_MODE: '无效的选择模式',
-    ADDON_MAX_QTY: '超出最大数量限制',
-    ADDON_NOT_FOR_TIER: '该增项不适用于所选档位',
 
     // 倍率（补充）
-    MULTIPLIER_NOT_FOUND: '倍率项不存在',
-    MULTIPLIER_INVALID: '倍率值无效（须大于等于1.0）',
 
     // 计算（补充）
-    PRICING_TIER_REQUIRED: '请先选择基础档位',
     PRICING_CALC_FAILED: '价格计算失败',
     INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
 

@@ -111,19 +111,10 @@
     ORDER_INVALID_ID: 'Invalid order ID',
 
     // Addons (supplement)
-    ADDON_NOT_FOUND: 'Addon not found',
-    ADDON_NAME_EMPTY: 'Addon name cannot be empty',
-    ADDON_INVALID_PRICE: 'Invalid addon price',
-    ADDON_INVALID_MODE: 'Invalid selection mode',
-    ADDON_MAX_QTY: 'Maximum quantity exceeded',
-    ADDON_NOT_FOR_TIER: 'This addon does not apply to the selected tier',
 
     // Multipliers (supplement)
-    MULTIPLIER_NOT_FOUND: 'Multiplier not found',
-    MULTIPLIER_INVALID: 'Invalid multiplier value (must be >= 1.0)',
 
     // Pricing (supplement)
-    PRICING_TIER_REQUIRED: 'Please select a base tier first',
     PRICING_CALC_FAILED: 'Price calculation failed',
     INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 99999999)',
 
