@@ -607,7 +607,7 @@
     notifyLabel: '排到我的时候通过QQ通知我', agreeLabel: '我已阅读并同意以上约稿须知',
     submit: '提交约稿', successTitle: '约稿提交成功！', orderNoIs: '你的订单号是：',
     addQqHint: '请添加画师QQ沟通细节，报上你的订单号即可', viewProgress: '查看进度',
-    selectTier: '请选择档位', fillQq: '请填写QQ号',
+    selectTier: '请选择档位', fillQq: '请填写QQ号', selectSizeFirst: '请先选择画风和尺寸',
     fileTooBig: '文件「{name}」超过10MB限制（{size}MB），请压缩后重新上传',
     typeWarning: '建议转换为 JPG 或 WebP 格式以获得更好的预览体验，但当前格式也可以正常上传。',
     loadFailed: '加载画师信息失败',
@@ -1046,7 +1046,7 @@
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: '选择画风', sizeTitle: '选择尺寸', sizeDays: '{n}天',
     noSizes: '该画风下暂无尺寸', styleAddonsEmpty: '该尺寸下暂无可选增项',
-    addonOptionPrice: '选项价', selectSizeFirst: '请先选择画风和尺寸',
+    addonOptionPrice: '选项价',
     afterMultiplier: '倍率后小计',
     // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
     customHint: '都可以不选，直接手动填价格录入自定义单',
