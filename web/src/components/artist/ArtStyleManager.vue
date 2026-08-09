@@ -1,16 +1,19 @@
 ﻿<template>
   <div class="style-manager" v-loading="loading">
-    <!-- 顶部操作栏：多画风开关 + 新建画风（主入口放大，直觉可见） -->
-    <div class="multi-style-bar">
-      <div class="multi-style-head">
-        <span class="multi-style-label">{{ $t('styleManage.multiStyle') }}</span>
+    <!-- 顶部工具栏：标题 + 开关 + 状态徽章 ｜ 新建画风主入口 -->
+    <div class="style-toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-title">{{ $t('styleManage.multiStyle') }}</span>
         <el-switch v-model="multiStyleEnabled" :loading="switchSaving" @change="onMultiStyleChange" />
-        <el-button type="primary" class="create-style-btn" @click="openCreateStyle">
-          ＋ {{ $t('styleManage.createStyleBtn') }}
-        </el-button>
+        <span class="toolbar-status" :class="multiStyleEnabled ? 'status-on' : 'status-off'">
+          {{ multiStyleEnabled ? $t('styleManage.toolbarStatusOn') : $t('styleManage.toolbarStatusOff') }}
+        </span>
       </div>
-      <p class="multi-style-hint">{{ multiStyleEnabled ? $t('styleManage.multiStyleHintOn') : $t('styleManage.multiStyleHintOff') }}</p>
+      <el-button type="primary" class="create-style-btn" @click="openCreateStyle">
+        + {{ $t('styleManage.createStyleBtn') }}
+      </el-button>
     </div>
+    <p class="toolbar-hint">{{ multiStyleEnabled ? $t('styleManage.multiStyleHintOn') : $t('styleManage.multiStyleHintOff') }}</p>
 
     <!-- v0.35 补漏 A3: 画风卡片拖拽排序（flex class 放 draggable 自身——v0.26 教训） -->
     <draggable
@@ -1025,16 +1028,24 @@ defineExpose({ reload: load })
 </script>
 
 <style scoped>
-/* ═══ 顶部操作栏：多画风开关 + 新建画风主入口 ═══ */
-.multi-style-bar {
-  margin-bottom: 16px; padding: 12px 16px;
+/* ═══ 顶部工具栏：标题+开关+状态徽章 ｜ 新建画风主入口 ═══ */
+.style-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 8px; padding: 16px 20px;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-l);
 }
-.multi-style-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.multi-style-label { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
-/* 新建画风：主入口放大，右侧独立可见 */
-.create-style-btn { margin-left: auto; font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600; padding: 12px 20px; height: auto; }
-.multi-style-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 8px 0 0; line-height: 1.5; }
+.toolbar-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.toolbar-title { font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700; color: var(--ink); font-family: var(--f-d); }
+/* 状态徽章：开=石绿软底 / 关=藤黄软底（语义色一眼可辨） */
+.toolbar-status {
+  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600;
+  padding: 4px 12px; border-radius: var(--r-pill);
+}
+.toolbar-status.status-on { background: var(--sl-t); color: var(--sl); }
+.toolbar-status.status-off { background: var(--th-t); color: var(--th); }
+/* 新建画风：页面唯一最强主操作 */
+.create-style-btn { font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600; padding: 12px 24px; height: auto; }
+.toolbar-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 0 0 16px; line-height: 1.6; padding: 0 4px; }
 
 /* 分栏阈值 680px：宽屏才分两列，避免单块过窄 */
 .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(680px, 1fr)); gap: 20px; align-items: start; }

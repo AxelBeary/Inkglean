@@ -156,3 +156,14 @@ docker compose up -d
 - 未来新增迁移若涉及**破坏性变更**（删列/改约束/改数据语义），建议补充 `down()`；非破坏性变更（加列/建索引）可继续 up-only。
 - 若补充 `down()`，命名与 `up()` 同构（`down(database)`），并在迁移对象内注释回滚动作与数据影响。
 - 上线前执行 `npm run db:init` 验证迁移链可用，确认 `user_version` 前进到目标值。
+
+---
+## 8. GitHub Actions CI/CD（批7 事故教训，2026-08-09）
+
+- 两个工作流：`.github/workflows/ci.yml`（server/web 门禁）与 `e2e.yml`（Playwright）。push 到 master 即触发。
+- **仓库 Actions 权限必须保持 `selected`（仅 GitHub 官方行动）**，勿改成 `local_only`。
+  - 2026-08-08 18:28 起因权限被设为 `local_only`，checkout/setup-node 等全部外部 actions 被拦，CI/E2E 连续 `startup_failure`（0 jobs），但本地测试全绿——**排查 CI 红先看仓库设置，再看代码**。
+  - 查询：`gh api repos/AxelBeary/Brushline-HuiYue/actions/permissions`
+  - 修复：`gh api -X PUT .../actions/permissions --input '{"enabled":true,"allowed_actions":"selected"}'` + `PUT .../selected-actions --input '{"github_owned_allowed":true,"verified_allowed":false,"patterns_allowed":[]}'`
+- `startup_failure` 的 run 不可 rerun，须新提交触发。
+
