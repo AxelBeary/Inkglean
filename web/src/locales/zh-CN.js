@@ -735,7 +735,7 @@
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
-    orderInfo: '订单号：{no} | 画师：{artist}', download: '下载', noFiles: '暂无交付文件',
+    orderInfo: '订单号：{no} | 画师：{artist}', download: '下载',
     downloadFailed: '下载失败，请重试或联系画师'
   },
   login: {
@@ -787,14 +787,13 @@
     saved: '已保存'
   },
   dashboard: {
-    title: '仪表盘', pendingNew: '待处理新单', activeOrders: '进行中订单',
-    monthRevenue: '本月收入', totalCompleted: '累计完成', quickActions: '快捷操作',
-    queueBoard: '排期看板', manualOrder: '手动录单', allOrders: '全部订单', settings: '主页设置',
+    pendingNew: '待处理新单', activeOrders: '进行中订单',
+    totalCompleted: '累计完成',
     currentStatus: '当前主页状态', statusUpdated: '状态已更新',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     anotherOne: '换一句',
     slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
-    defaultPanel: '默认面板', panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
+    panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
     // F4: 留言审核
     guestbookTitle: '留言审核', guestbookEmpty: '暂无留言',
     guestbookPending: '待审核', guestbookApproved: '已通过', guestbookRejected: '已拒绝',
@@ -804,9 +803,6 @@
     // R52: 今日统计
     todayNewOrders: '今日新增订单', todayRevenue: '今日收入',
     // R51: 截稿日 + 今日待办
-    deadlineCard: '即将到期', noDeadlines: '近期无截稿',
-    todoCard: '今日待办', noTodos: '暂无待办，喝杯茶吧',
-    daysLeft: '剩 {n} 天', dueToday: '今天截稿',
     // v0.18 仪表盘重构
     revenueTitle: '收入统计', periodMonth: '月', periodQuarter: '季', periodYear: '年',
     revenueOrderCount: '{n} 单完成', revenueVs: 'vs {label}', revenueError: '收入数据加载失败',
@@ -815,11 +811,10 @@
     tag_overdue: '逾期', tag_dueToday: '截稿', tag_pending: '新单', tag_revision: '修改', tag_inProgress: '进行中',
     activityTitle: '最近活动', activityError: '活动记录加载失败', activityEmpty: '暂无最近活动',
     timeJustNow: '刚刚', timeMinutesAgo: '{n} 分钟前', timeHoursAgo: '{n} 小时前', timeDaysAgo: '{n} 天前',
-    slotTitle: '名额概览', slotFormal: '正式 {used}/{total}', slotBuffer: '缓冲 {used}/{total}',
+    slotTitle: '名额概览',
     slotNext: '下一位候补：{name}（QQ: {qq}）',
     // #4: 名额概览改版
     slotCombined: '已接 {used}/{total}', slotNotEnabled: '未开启名额限制，去设置 →', slotDisplayFallback: '—',
-    artworks: '图库管理', tiers: '档位管理',
   },
   queue: {
     title: '排期看板',
@@ -827,7 +822,7 @@
     confirm: '确认', startWip: '开始制作', done: '✔ 完成', deliver: '交付', cancel: '取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
     // SPEC-004: 缓冲区
-    bufferTitle: '缓冲区（候补）', bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
+    bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',

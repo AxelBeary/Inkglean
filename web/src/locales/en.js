@@ -737,7 +737,7 @@
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
-    orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download', noFiles: 'No delivered files yet',
+    orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download',
     downloadFailed: 'Download failed, please retry or contact the artist'
   },
   login: {
@@ -789,14 +789,13 @@
     saved: 'Saved'
   },
   dashboard: {
-    title: 'Dashboard', pendingNew: 'New pending', activeOrders: 'Active orders',
-    monthRevenue: 'Revenue this month', totalCompleted: 'Total completed', quickActions: 'Quick actions',
-    queueBoard: 'Queue Board', manualOrder: 'Manual Entry', allOrders: 'All Orders', settings: 'Settings',
+    pendingNew: 'New pending', activeOrders: 'Active orders',
+    totalCompleted: 'Total completed',
     currentStatus: 'Current page status', statusUpdated: 'Status updated',
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     anotherOne: 'Another',
     slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
-    defaultPanel: 'Default panel', panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
+    panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
     // F4: guestbook moderation
     guestbookTitle: 'Guestbook moderation', guestbookEmpty: 'No messages',
     guestbookPending: 'Pending', guestbookApproved: 'Approved', guestbookRejected: 'Rejected',
@@ -806,9 +805,6 @@
     // R52: today stats
     todayNewOrders: 'New orders today', todayRevenue: 'Revenue today',
     // R51: deadlines + today's todos
-    deadlineCard: 'Due soon', noDeadlines: 'No deadlines coming up',
-    todoCard: "Today's todos", noTodos: 'Nothing pending — enjoy your tea',
-    daysLeft: '{n}d left', dueToday: 'Due today',
     // v0.18 dashboard rebuild
     revenueTitle: 'Revenue', periodMonth: 'Month', periodQuarter: 'Quarter', periodYear: 'Year',
     revenueOrderCount: '{n} completed', revenueVs: 'vs {label}', revenueError: 'Failed to load revenue data',
@@ -817,11 +813,10 @@
     tag_overdue: 'Overdue', tag_dueToday: 'Due today', tag_pending: 'New', tag_revision: 'Revision', tag_inProgress: 'In progress',
     activityTitle: 'Recent activity', activityError: 'Failed to load activity', activityEmpty: 'No recent activity',
     timeJustNow: 'just now', timeMinutesAgo: '{n}m ago', timeHoursAgo: '{n}h ago', timeDaysAgo: '{n}d ago',
-    slotTitle: 'Slot overview', slotFormal: 'Formal {used}/{total}', slotBuffer: 'Buffer {used}/{total}',
+    slotTitle: 'Slot overview',
     slotNext: 'Next in buffer: {name} (QQ: {qq})',
     // #4: slot overview revamp
     slotCombined: '{used}/{total} filled', slotNotEnabled: 'Slot limit is off — set it up →', slotDisplayFallback: '—',
-    artworks: 'Gallery', tiers: 'Tiers',
   },
   queue: {
     title: 'Queue Board',
@@ -829,7 +824,7 @@
     confirm: 'Confirm', startWip: 'Start work', done: '✔ Complete', deliver: 'Deliver', cancel: 'Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
     // SPEC-004: buffer zone
-    bufferTitle: 'Buffer zone (waitlist)', bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
+    bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
