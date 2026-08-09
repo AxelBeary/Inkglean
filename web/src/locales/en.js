@@ -608,7 +608,7 @@
     notifyLabel: 'Notify me on QQ when my turn comes', agreeLabel: 'I have read and agree to the guidelines above',
     submit: 'Submit commission', successTitle: 'Commission submitted!', orderNoIs: 'Your order number is: ',
     addQqHint: 'Add the artist on QQ to discuss details — just quote your order number', viewProgress: 'Track progress',
-    selectTier: 'Please select a tier', fillQq: 'Please enter your QQ number',
+    selectTier: 'Please select a tier', fillQq: 'Please enter your QQ number', selectSizeFirst: 'Please select a style and size first',
     fileTooBig: 'File "{name}" exceeds the 10MB limit ({size}MB). Please compress and re-upload',
     typeWarning: 'Converting to JPG or WebP is recommended for better previews, but the current format can still be uploaded.',
     loadFailed: 'Failed to load artist info',
@@ -1048,7 +1048,7 @@
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: 'Choose Style', sizeTitle: 'Choose Size', sizeDays: '{n} days',
     noSizes: 'No sizes available for this style', styleAddonsEmpty: 'No add-ons available for this size',
-    addonOptionPrice: 'Option price', selectSizeFirst: 'Please select a style and size first',
+    addonOptionPrice: 'Option price',
     afterMultiplier: 'After multipliers',
     // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
     customHint: 'You can skip all selections and enter a custom price manually',
