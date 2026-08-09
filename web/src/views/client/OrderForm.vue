@@ -173,27 +173,27 @@
                 <div v-if="stylePricePreview" class="price-preview">
                   <div class="price-line">
                     <span>{{ $t('orderForm.previewBaseLine', { size: stylePricePreview.sizeName }) }}</span>
-                    <span class="price-amount">¥{{ (stylePricePreview.baseCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount">{{ formatYuan(stylePricePreview.baseCents) }}</span>
                   </div>
                   <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="price-line">
                     <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-                    <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
                   </div>
                   <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="price-line">
                     <span>{{ item.name }} +{{ item.percent }}%<span class="price-line-note">（{{ $t('orderForm.pctOfBase') }}）</span></span>
-                    <span class="price-amount">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
                   </div>
                   <div class="price-line subtotal">
                     <span>{{ $t('orderForm.priceSubtotal') }}</span>
-                    <span class="price-amount">¥{{ (stylePricePreview.subtotalCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount">{{ formatYuan(stylePricePreview.subtotalCents) }}</span>
                   </div>
                   <div v-if="stylePricePreview.usage" class="price-line">
                     <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-                    <span class="price-amount">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
                   </div>
                   <div v-if="stylePricePreview.rush" class="price-line">
                     <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-                    <span class="price-amount">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
                   </div>
                   <div class="price-divider"></div>
                   <!-- 折扣码输入行（画师开启折扣功能时才显示；先倍率后折扣） -->
@@ -220,15 +220,15 @@
                   <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
                   <div class="price-line total">
                     <span>{{ $t('orderForm.receiptTotal') }}</span>
-                    <span class="price-amount">¥{{ (stylePricePreview.totalCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount">{{ formatYuan(stylePricePreview.totalCents) }}</span>
                   </div>
                   <div v-if="stylePricePreview.discount" class="price-line discount">
                     <span>{{ $t('orderForm.discountEstimate') }}（{{ stylePricePreview.discount.code }}）</span>
-                    <span class="price-amount discount-amount">-¥{{ (stylePricePreview.discount.amountCents / 100).toFixed(2) }}</span>
+                    <span class="price-amount discount-amount">-{{ formatYuan(stylePricePreview.discount.amountCents) }}</span>
                   </div>
                   <div v-if="installmentPreview.length > 1" class="installment-row">
                     <span v-for="inst in installmentPreview" :key="inst.label" class="installment-chip">
-                      {{ inst.label }} ¥{{ (inst.amountCents / 100).toFixed(2) }}
+                      {{ inst.label }} {{ formatYuan(inst.amountCents) }}
                     </span>
                   </div>
                 </div>
@@ -370,23 +370,23 @@
                 <template v-if="stylePricePreview">
                   <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="summary-line">
                     <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-                    <span class="summary-amt">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+                    <span class="summary-amt">+{{ formatYuan(item.amountCents) }}</span>
                   </div>
                   <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="summary-line">
                     <span>{{ item.name }} +{{ item.percent }}%</span>
-                    <span class="summary-amt">+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+                    <span class="summary-amt">+{{ formatYuan(item.amountCents) }}</span>
                   </div>
                   <div v-if="stylePricePreview.usage" class="summary-line">
                     <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-                    <span class="summary-amt">+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
+                    <span class="summary-amt">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
                   </div>
                   <div v-if="stylePricePreview.rush" class="summary-line">
                     <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-                    <span class="summary-amt">+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
+                    <span class="summary-amt">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
                   </div>
                   <div v-if="stylePricePreview.discount" class="summary-line summary-line--discount">
                     <span>{{ $t('orderForm.discountEstimate') }}</span>
-                    <span class="summary-amt">-¥{{ (stylePricePreview.discount.amountCents / 100).toFixed(2) }}</span>
+                    <span class="summary-amt">-{{ formatYuan(stylePricePreview.discount.amountCents) }}</span>
                   </div>
                 </template>
                 <div class="summary-divider"></div>
@@ -397,7 +397,7 @@
               </div>
               <div v-if="installmentPreview.length > 1" class="summary-installments">
                 <span v-for="inst in installmentPreview" :key="inst.label" class="summary-inst">
-                  {{ inst.label }} ¥{{ (inst.amountCents / 100).toFixed(2) }}
+                  {{ inst.label }} {{ formatYuan(inst.amountCents) }}
                 </span>
               </div>
             </template>
@@ -440,23 +440,23 @@
         <template v-if="stylePricePreview">
           <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="receipt-row">
             <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-            <span>+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+            <span>+{{ formatYuan(item.amountCents) }}</span>
           </div>
           <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="receipt-row">
             <span>{{ item.name }} +{{ item.percent }}%</span>
-            <span>+¥{{ (item.amountCents / 100).toFixed(2) }}</span>
+            <span>+{{ formatYuan(item.amountCents) }}</span>
           </div>
           <div v-if="stylePricePreview.usage" class="receipt-row">
             <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-            <span>+¥{{ (stylePricePreview.usage.incrementCents / 100).toFixed(2) }}</span>
+            <span>+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
           </div>
           <div v-if="stylePricePreview.rush" class="receipt-row">
             <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-            <span>+¥{{ (stylePricePreview.rush.incrementCents / 100).toFixed(2) }}</span>
+            <span>+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
           </div>
           <div v-if="stylePricePreview.discount" class="receipt-row">
             <span>{{ $t('orderForm.discountEstimate') }}（{{ stylePricePreview.discount.code }}）</span>
-            <span>-¥{{ (stylePricePreview.discount.amountCents / 100).toFixed(2) }}</span>
+            <span>-{{ formatYuan(stylePricePreview.discount.amountCents) }}</span>
           </div>
         </template>
         <div class="receipt-dashed"></div>
@@ -466,7 +466,7 @@
         </div>
         <div v-if="installmentPreview.length > 1" class="receipt-installments">
           <span v-for="inst in installmentPreview" :key="inst.label" class="receipt-inst">
-            {{ inst.label }} ¥{{ (inst.amountCents / 100).toFixed(2) }}
+            {{ inst.label }} {{ formatYuan(inst.amountCents) }}
           </span>
         </div>
         <div class="receipt-barcode" aria-hidden="true"></div>
@@ -518,6 +518,7 @@ import ClientFloatingActions from '../../components/client/ClientFloatingActions
 import { useOrderForm } from '../../composables/useOrderForm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { usePalette } from '../../composables/usePalette.js'
+import { formatYuan } from '../../utils/money.js'
 import { trackEvent, flushNow } from '../../utils/track.js'
 
 const { t } = useI18n()
@@ -747,11 +748,11 @@ async function copyOrderSummary() {
   ]
   const p = stylePricePreview.value
   if (p) {
-    lines.push(...p.fixedAddonItems.map(it => `- ${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}: +¥${(it.amountCents / 100).toFixed(2)}`))
-    lines.push(...p.percentAddonItems.map(it => `- ${it.name} +${it.percent}%: +¥${(it.amountCents / 100).toFixed(2)}`))
-    if (p.usage) lines.push(`- ${p.usage.name} +${p.usage.percent}%: +¥${(p.usage.incrementCents / 100).toFixed(2)}`)
-    if (p.rush) lines.push(`- ${p.rush.name} +${p.rush.percent}%: +¥${(p.rush.incrementCents / 100).toFixed(2)}`)
-    if (p.discount) lines.push(`- ${t('orderForm.discountEstimate')}: -¥${(p.discount.amountCents / 100).toFixed(2)}`)
+    lines.push(...p.fixedAddonItems.map(it => `- ${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}: +${formatYuan(it.amountCents)}`))
+    lines.push(...p.percentAddonItems.map(it => `- ${it.name} +${it.percent}%: +${formatYuan(it.amountCents)}`))
+    if (p.usage) lines.push(`- ${p.usage.name} +${p.usage.percent}%: +${formatYuan(p.usage.incrementCents)}`)
+    if (p.rush) lines.push(`- ${p.rush.name} +${p.rush.percent}%: +${formatYuan(p.rush.incrementCents)}`)
+    if (p.discount) lines.push(`- ${t('orderForm.discountEstimate')}: -${formatYuan(p.discount.amountCents)}`)
   }
   lines.push(`${t('orderForm.receiptTotal')}: ¥${displayPrice.value.toFixed(2)}`)
   const text = lines.join('\n')
