@@ -223,18 +223,15 @@ CREATE TABLE IF NOT EXISTS default_workflow_template (
   basis_points INTEGER
 );
 
--- 订单付款分期表（v5；v40 加锁价列）
+-- 订单付款分期表（v5；v40 加锁价列；v52 退役 paid_cents/status/paid_at/requested_at
+-- 用户拍板（批4B）：老数据库允许丢弃，不留僵尸列；节点已收一律由 orders.paid_total_cents 顺序推导）
 CREATE TABLE IF NOT EXISTS order_payment_installments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
   label TEXT NOT NULL,
   basis_points INTEGER NOT NULL,
   amount_cents INTEGER,
-  paid_cents INTEGER DEFAULT 0,
-  status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','overdue')),
   sort_order INTEGER NOT NULL DEFAULT 0,
-  requested_at DATETIME,
-  paid_at DATETIME,
   locked INTEGER NOT NULL DEFAULT 0,
   locked_reason TEXT CHECK(locked_reason IS NULL OR locked_reason IN ('completed','paidOff','prev')),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
