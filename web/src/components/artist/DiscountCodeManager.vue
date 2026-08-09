@@ -23,7 +23,7 @@
         </el-table-column>
         <el-table-column :label="$t('discount.colType')" width="120">
           <template #default="{ row }">
-            {{ row.discount_type === 'percent' ? `${row.discount_value}%` : `¥${row.discount_value}` }}
+            {{ row.discount_type === 'percent' ? `${row.discount_value}%` : formatYuanValue(row.discount_value) }}
           </template>
         </el-table-column>
         <el-table-column :label="$t('discount.colUsage')" width="100">
@@ -107,6 +107,7 @@ import { ref, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { formatYuanValue } from '../../utils/money.js'
 
 const { t } = useI18n()
 

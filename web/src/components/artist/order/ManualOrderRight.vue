@@ -51,7 +51,7 @@
           />
           <div class="tier-card-body">
             <div class="tier-card-name">{{ sz.name }}</div>
-            <div class="tier-card-price">¥{{ sz.base_price }}</div>
+            <div class="tier-card-price">{{ formatYuanValue(sz.base_price) }}</div>
             <div v-if="sz.work_days" class="tier-card-days">{{ $t('manualOrder.sizeDays', { n: sz.work_days }) }}</div>
           </div>
         </div>
@@ -229,7 +229,7 @@
       <!-- 提交按钮（桌面/平板） -->
       <el-button type="primary" @click="submit" :loading="submitting" class="mo-submit-btn">
         {{ $t('manualOrder.submit') }}
-        <template v-if="displayPrice"> — ¥{{ displayPrice }}</template>
+        <template v-if="displayPrice"> — {{ formatYuanValue(displayPrice) }}</template>
       </el-button>
     </div>
   </section>
@@ -327,7 +327,7 @@
     <!-- 底栏：价格 + 提交 -->
     <div class="mo-mobile-actions">
       <div class="mo-mobile-price" @click="mobileDetailOpen = !mobileDetailOpen">
-        <span class="mo-mobile-total">¥{{ displayPrice || '—' }}</span>
+        <span class="mo-mobile-total">{{ displayPrice ? formatYuanValue(displayPrice) : '—' }}</span>
         <span class="mo-mobile-detail-link">
           {{ $t('manualOrder.priceDetail') }}
           <el-icon :size="12"><ArrowUp v-if="mobileDetailOpen" /><ArrowDown v-else /></el-icon>
