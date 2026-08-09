@@ -368,12 +368,9 @@
     note: 'The exported CSV includes: date, client, amount (cents), type (order payment / standalone income), order id. Data matches the backend and never includes private artist notes.',
     incomeOverview: 'Income Overview',
     incomeLoading: 'Loading…',
-    incomeTotal: 'Total Income',
-    incomeOrder: 'Order Income',
     incomeStandalone: 'Standalone Income',
     incomeCount: 'Transactions',
     incomeCountUnit: '',
-    incomeUnavailable: 'Pending backend summary',
     incomeNote: 'Standalone income and count match the standalone rows of the exported CSV. Order and total income will appear once a backend range-summary endpoint is added.',
     incomeLoadFailed: 'Failed to load income overview',
     downloaded: 'Download started',
@@ -422,9 +419,7 @@
     sourceArtwork: 'Artwork',
     sourceDeliverable: 'Deliverable',
     chooseFile: 'Choose image',
-    selectArtwork: 'Select artwork',
     selectOrder: 'Select order',
-    selectDeliverable: 'Select deliverable',
     emptyArtworks: 'No artworks',
     emptyDeliverables: 'No deliverables',
     watermarkType: 'Watermark type',
@@ -548,7 +543,6 @@
     quickconfig: 'Quick Action Settings',
     status: 'Status',
     publish: 'Quick Publish',
-    publishHint: 'Drag or paste to publish',
     uploading: 'Uploading…',
     published: 'Artwork published',
     publishFailed: 'Publish failed',
@@ -558,7 +552,7 @@
   },
   landing: {
     title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
-    noBio: 'This artist has not written a bio yet', weibo: 'Weibo', bilibili: 'Bilibili',
+    noBio: 'This artist has not written a bio yet',
     noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
   },
   // v0.34 task A: standalone 404 page
@@ -568,18 +562,16 @@
     artistsTitle: 'Or visit one of our artists'
   },
   artistHome: {
-    weibo: 'My Weibo', bilibili: 'My Bilibili', commission: 'Commission me', track: 'Track order',
+    commission: 'Commission me', track: 'Track order',
     noWorks: 'No artworks yet — stay tuned',
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
     statusOpen: 'Open for commissions', statusFull: 'Fully booked', statusBreak: 'On break',
-    about: 'About', navPricing: 'Pricing', navProcess: 'Process', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
-    heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',
-    startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
+    navPricing: 'Pricing', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
+    startCommission: 'Start a commission →', trackOrder: 'Track order',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
     // v0.42 Step 6: client gallery "load more"
     loadMore: 'Load more',
-    weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili',
     otherLink: 'Link',
     revisionNote: 'Revision policy',
     // #9: tier showcase
@@ -587,7 +579,6 @@
     // R50: preview mode
     previewBanner: 'Preview mode — changes not yet saved',
     // v0.25 A: Cover showcase
-    covers: 'Featured Covers',
     // v0.32 REQ-023 Phase3: multi-style price table
     styleOrderBtn: 'Commission in this style',
     // v0.34 task B: order hint after size selected
@@ -1437,7 +1428,7 @@
     artistCount: 'Artists', totalOrders: 'Total orders', activeOrders: 'Active orders',
     artistList: 'Artist list', manageArtists: 'Manage artists',
     colName: 'Name', colSubdomain: 'Subdomain', colQq: 'QQ No.', colStatus: 'Status', colBio: 'Bio',
-    backToPanel: 'Back to admin panel', artistManage: 'Artist management', addArtist: '+ Add artist',
+    artistManage: 'Artist management', addArtist: '+ Add artist',
     addTitle: 'Add artist', qqLabel: 'QQ No.', qqPlaceholder: "Artist's QQ number (used for login)",
     nameLabel: 'Name', namePlaceholder: 'Name shown to clients',
     subdomainLabel: 'Subdomain', subdomainPlaceholder: 'e.g. alice (lowercase letters/digits/hyphens)',
@@ -1454,7 +1445,6 @@
     transferStep1Title: 'Verify current admin', transferStep2Title: 'Verify new admin',
     currentAdminQq: 'Current admin QQ', newAdminQq: 'New admin QQ',
     newAdminQqPlaceholder: 'Enter new admin QQ (must be a registered artist)',
-    enterCode: 'Enter 6-digit code',
     nextStep: 'Next', confirmTransfer: 'Confirm transfer',
     transferSuccess: 'Admin transferred to {name}', adminTag: 'Admin',
     transferTotpHint: 'Enter the 6-digit code shown in each authenticator app (both must be bound first)',
@@ -1471,7 +1461,7 @@
     orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
     orderColType: 'Type', orderColTime: 'Order time',
     greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",
-    greetingPreview: 'Preview', greetingEmpty: 'Please enter greeting text',
+    greetingPreview: 'Preview',
     greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
     slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     defaultWorkflow: 'Default Workflow Template', defaultWorkflowHint: 'Changes only affect newly registered artists. Existing artists are not affected.',
@@ -1507,7 +1497,7 @@
     health: {
       title: 'System Health', start: 'Run checks', checking: 'Checking…',
       download: 'Download diagnostic report', refresh: 'Results are not persisted after refresh',
-      diskNote: 'for reference only', expandDetail: 'Details',
+      diskNote: 'for reference only',
       statusOk: 'OK', statusWarn: 'Warning', statusFail: 'Failed',
       emptyHint: 'Click “Run checks” to execute the 8 system checks'
     },

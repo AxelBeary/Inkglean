@@ -368,12 +368,9 @@
     note: '导出的 CSV 包含：日期、客户、金额（分）、类型（订单收款/散单收入）、订单号。数据与后端一致，不包含画师私有备注。',
     incomeOverview: '收入概览',
     incomeLoading: '加载中…',
-    incomeTotal: '总收入',
-    incomeOrder: '订单收入',
     incomeStandalone: '散单收入',
     incomeCount: '收款笔数',
     incomeCountUnit: '笔',
-    incomeUnavailable: '待后端汇总',
     incomeNote: '散单收入与笔数与导出 CSV 的散单行口径一致；订单收入与总收入需后端补充区间汇总端点后展示。',
     incomeLoadFailed: '收入概览加载失败',
     downloaded: '已开始下载',
@@ -421,9 +418,7 @@
     sourceArtwork: '作品图',
     sourceDeliverable: '完稿图',
     chooseFile: '选择图片',
-    selectArtwork: '选择作品',
     selectOrder: '选择订单',
-    selectDeliverable: '选择完稿图',
     emptyArtworks: '暂无作品',
     emptyDeliverables: '该订单暂无完稿图',
     watermarkType: '水印类型',
@@ -547,7 +542,6 @@
     quickconfig: '快捷入口设置',
     status: '状态切换',
     publish: '快速发作品',
-    publishHint: '拖图或粘贴，直接发布作品',
     uploading: '发布中…',
     published: '作品已发布',
     publishFailed: '发布失败',
@@ -557,7 +551,7 @@
   },
   landing: {
     title: '画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
-    noBio: '这位画师还没有写简介', weibo: '微博', bilibili: 'B站',
+    noBio: '这位画师还没有写简介',
     noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
   },
   // v0.34 任务A：独立 404 页
@@ -567,18 +561,16 @@
     artistsTitle: '或者，去看看这些画师'
   },
   artistHome: {
-    weibo: '我的微博', bilibili: '我的B站', commission: '我要约稿', track: '查询进度',
+    commission: '我要约稿', track: '查询进度',
     noWorks: '暂无作品，敬请期待',
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败', hidden: '该画师暂未开放主页',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
-    about: '关于', navPricing: '价格', navProcess: '流程', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
-    heroOpen: '接受约稿中', heroFull: '目前已排满', heroBreak: '休息中',
-    startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
+    navPricing: '价格', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
+    startCommission: '开始约稿 →', trackOrder: '查询进度',
     ctaSubtitle: '期待与你一起创作出好作品。',
     // v0.42 Step 6: 客户端画廊「加载更多」
     loadMore: '加载更多',
-    weiboPlain: '微博', bilibiliPlain: 'B站',
     otherLink: '链接',
     revisionNote: '修改说明',
     // #9: 档位展示柜
@@ -586,7 +578,6 @@
     // R50: 预览模式
     previewBanner: '预览模式 — 修改尚未保存',
     // v0.25 A: 封面精选
-    covers: '封面精选',
     // v0.32 REQ-023 Phase3: 多画风价格表
     styleOrderBtn: '选择此画风约稿',
     // v0.34 任务B：尺寸选中后下单引导
@@ -1433,7 +1424,7 @@
     artistCount: '画师数', totalOrders: '总订单', activeOrders: '活跃订单',
     artistList: '画师列表', manageArtists: '管理画师',
     colName: '昵称', colSubdomain: '子域名', colQq: 'QQ号', colStatus: '状态', colBio: '简介',
-    backToPanel: '返回管理面板', artistManage: '画师管理', addArtist: '+ 添加画师',
+    artistManage: '画师管理', addArtist: '+ 添加画师',
     addTitle: '添加画师', qqLabel: 'QQ号', qqPlaceholder: '画师的QQ号（用于登录）',
     nameLabel: '昵称', namePlaceholder: '展示给客户的名字',
     subdomainLabel: '子域名', subdomainPlaceholder: '如 alice（小写字母/数字/连字符）',
@@ -1450,7 +1441,6 @@
     transferStep1Title: '验证当前管理员', transferStep2Title: '验证新管理员',
     currentAdminQq: '当前管理员QQ', newAdminQq: '新管理员QQ',
     newAdminQqPlaceholder: '输入新管理员的QQ号（必须是已注册画师）',
-    enterCode: '输入6位验证码',
     nextStep: '下一步', confirmTransfer: '确认更换',
     transferSuccess: '管理员已更换为 {name}', adminTag: '管理员',
     transferTotpHint: '输入各自验证器App上当前显示的6位动态码（双方须先完成绑定）',
@@ -1467,7 +1457,7 @@
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
     orderColType: '类型', orderColTime: '下单时间',
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",
-    greetingPreview: '预览', greetingEmpty: '请输入问候语内容',
+    greetingPreview: '预览',
     greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
     slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     defaultWorkflow: '默认流程模板', defaultWorkflowHint: '修改后仅影响新注册画师，已有画师不受影响。',
@@ -1503,7 +1493,7 @@
     health: {
       title: '系统自检', start: '开始检查', checking: '检查中…',
       download: '下载诊断包', refresh: '刷新后结果不保留',
-      diskNote: '仅供参考', expandDetail: '详情',
+      diskNote: '仅供参考',
       statusOk: '正常', statusWarn: '警告', statusFail: '异常',
       emptyHint: '点击「开始检查」运行 8 项系统检查'
     },
