@@ -3,7 +3,7 @@
     <h2 class="font-display slot-page-title">{{ $t('slots.title') }}</h2>
 
     <div v-loading="loading" class="slot-manage">
-      <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与仪表盘 StatusSwitch 同逻辑） -->
+      <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与开稿管理内联逻辑一致） -->
       <el-card class="slot-card" shadow="never">
         <template #header><CardHead :title="$t('slots.statusSection')" /></template>
         <div class="status-row">
@@ -109,7 +109,7 @@ const { t } = useI18n()
 const loading = ref(true)
 const saving = ref(false)
 const profile = ref(null)
-// REQ-016 B: 接稿状态即时切换（与仪表盘 StatusSwitch 同逻辑）
+// REQ-016 B: 接稿状态即时切换（与开稿管理内联逻辑一致）
 const currentStatus = ref('open')
 const lastKnownStatus = ref('open')
 
