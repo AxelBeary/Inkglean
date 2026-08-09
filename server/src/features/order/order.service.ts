@@ -988,6 +988,16 @@ export function deleteExtraItem(orderId: number, itemId: number): OrderDetail {
     throw new AppError(E.ORDER_FINAL_STATE)
   }
 
+  // audit-a F1: 删正项守卫——减后总价不得为负（与 addExtraItem 的负增项守卫对称）。
+  // 合法操作序列「改价 1000 → 加项 +1500 → 改价回 1000 → 删该增项」会被这里拦下，
+  // 防止 final_price_cents 被 adjustFinalPrice 打成负数。
+  if (item.price_cents > 0) {
+    const currentFinal = resolvePriceCents(order) ?? 0
+    if (currentFinal - item.price_cents < 0) {
+      throw new AppError(E.INVALID_PRICE, 400, { value: -item.price_cents, message: '删除金额不得超过当前总价' })
+    }
+  }
+
   return db.transaction(() => {
       db.prepare('DELETE FROM order_extra_items WHERE id = ?').run(itemId)
 

@@ -7,6 +7,7 @@
  *   - R1: 交付路径并入状态机——wip → delivered 显式合法
  *   - R2: rollbackStage done 守卫（REQ-025 R13）+ 写 revision 前过状态机断言，
  *         confirmed → revision 被拒；wip → revision 合法
+ *   - R3: deleteExtraItem 减后总价不得为负守卫（与 addExtraItem 对称）
  */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
@@ -32,7 +33,7 @@ function seedTwoStageArtist(qq = '88011', sub = 'b1-two') {
   return { artist, stageIds: [id1, id2] }
 }
 
-describe('批1 状态机修复（R1/R2）', () => {
+describe('批1 状态机修复（R1/R2/R3）', () => {
   // ─── R1: advanceStage 统一断言 ───
 
   it('TC-B1-01: 两节点工作流 pending 直推末节点被拒（pending→done 非法）', () => {
@@ -151,5 +152,35 @@ describe('批1 状态机修复（R1/R2）', () => {
     const rolledBack = rollbackStage(order.id, stages[1].id)
     expect(rolledBack.status).toBe('revision')
     expect(rolledBack.current_stage_id).toBe(stages[1].id)
+  })
+
+  // ─── R3: deleteExtraItem 减后总价不得为负 ───
+
+  it('TC-B1-07: 改价1000→加项1500→改回1000→删项 抛 INVALID_PRICE 且订单数据无损', () => {
+    const artist = seedArtist({ qq_number: '88017', subdomain: 'b1-price' })
+    const order = seedOrder(artist.id)
+    db.prepare('UPDATE orders SET total_price_cents = NULL, final_price_cents = NULL WHERE id = ?').run(order.id)
+
+    // 复现 audit-a F1 序列：1000 → +1500 → 回 1000
+    orderService.updateFinalPrice(order.id, 1000)
+    orderService.addExtraItem(order.id, { name: '加急', priceCents: 1500 })
+    expect(orderService.getOrder(order.id).final_price_cents).toBe(2500)
+    orderService.updateFinalPrice(order.id, 1000)
+    expect(orderService.getOrder(order.id).final_price_cents).toBe(1000)
+
+    const itemId = db.prepare('SELECT id FROM order_extra_items WHERE order_id = ?').get(order.id).id
+    const notesBefore = db.prepare('SELECT COUNT(*) AS c FROM order_notes WHERE order_id = ?').get(order.id).c
+    const entriesBefore = db.prepare('SELECT COUNT(*) AS c FROM order_price_entries WHERE order_id = ?').get(order.id).c
+
+    // 删 1500 的增项会把 1000 打成 -500 → 抛 INVALID_PRICE
+    expect(() => orderService.deleteExtraItem(order.id, itemId)).toThrow('INVALID_PRICE')
+
+    // 订单数据无损：final 仍 1000、增项仍在、备注与条目账本均未追加
+    const after = orderService.getOrder(order.id)
+    expect(after.final_price_cents).toBe(1000)
+    expect(after.extraItems).toHaveLength(1)
+    expect(after.extraItems[0].price_cents).toBe(1500)
+    expect(db.prepare('SELECT COUNT(*) AS c FROM order_notes WHERE order_id = ?').get(order.id).c).toBe(notesBefore)
+    expect(db.prepare('SELECT COUNT(*) AS c FROM order_price_entries WHERE order_id = ?').get(order.id).c).toBe(entriesBefore)
   })
 })
