@@ -1062,13 +1062,18 @@ export const MIGRATIONS = [
         database.exec('ALTER TABLE orders ADD COLUMN paid_total_cents INTEGER DEFAULT 0')
       }
       // 2. 存量换算：已付分期 SUM → paid_total_cents
-      database.exec(`
-        UPDATE orders SET paid_total_cents = (
-          SELECT COALESCE(SUM(amount_cents), 0)
-          FROM order_payment_installments
-          WHERE order_id = orders.id AND status = 'paid'
-        )
-      `)
+      // 守卫（批4B）：新形态库已退役 status 节点列（v52），空表无存量，换算自然不适用；
+      // 仅旧形态库（含 status 列）照常执行。探测风格与第 1 步一致：PRAGMA table_info
+      const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all()
+      if (instCols.some(c => c.name === 'status')) {
+        database.exec(`
+          UPDATE orders SET paid_total_cents = (
+            SELECT COALESCE(SUM(amount_cents), 0)
+            FROM order_payment_installments
+            WHERE order_id = orders.id AND status = 'paid'
+          )
+        `)
+      }
       // 3. 收款流水表
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_payments (
