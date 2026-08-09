@@ -585,7 +585,7 @@
     styleSizeHint: '{size} selected · ¥{price} — click below to start with this choice'
   },
   orderForm: {
-    backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
+    backHome: 'Back to page', title: 'Commission me',
     workflowLabel: 'Workflow',
     descLabel: 'Description', descPlaceholder: 'Describe what you want: character features, pose, style, background, etc.',
     // D soft prompt (user decision: description can be skipped, only prompt once when empty, no hard block)
@@ -593,13 +593,12 @@
     descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
-    pricingDetail: 'Price details',
     qqLabel: 'Your QQ number', qqPlaceholder: 'The artist will contact you via QQ',
     nameLabel: 'Nickname (optional)', namePlaceholder: 'What should we call you',
     notifyLabel: 'Notify me on QQ when my turn comes', agreeLabel: 'I have read and agree to the guidelines above',
     submit: 'Submit commission', successTitle: 'Commission submitted!', orderNoIs: 'Your order number is: ',
     addQqHint: 'Add the artist on QQ to discuss details — just quote your order number', viewProgress: 'Track progress',
-    selectTier: 'Please select a tier', fillQq: 'Please enter your QQ number', selectSizeFirst: 'Please select a style and size first',
+    fillQq: 'Please enter your QQ number', selectSizeFirst: 'Please select a style and size first',
     fileTooBig: 'File "{name}" exceeds the 10MB limit ({size}MB). Please compress and re-upload',
     typeWarning: 'Converting to JPG or WebP is recommended for better previews, but the current format can still be uploaded.',
     loadFailed: 'Failed to load artist info',
@@ -609,11 +608,11 @@
     // R58-6: QQ jump + copy
     artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied',
     // R58-2: step-by-step guide
-    step1: 'Tier', step2: 'Details', step3: 'Contact',
-    step1Title: 'Pick a tier', step2Title: 'Describe your request', step3Title: 'Contact details',
+    step2: 'Details', step3: 'Contact',
+    step2Title: 'Describe your request', step3Title: 'Contact details',
     nextStep: 'Next', prevStep: 'Back',
     stepProgress: 'Step {cur} / {total}',
-    summaryTitle: 'SUMMARY', summaryNoTier: 'Pick a tier to see the price here',
+    summaryTitle: 'SUMMARY',
     // W3: empty-state hint when no size selected in style mode
     summaryNoSize: 'Pick a size to see the price here',
     // REQ-022 F3: client info echo in summary card
@@ -626,7 +625,7 @@
     copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: ',
     // v0.31 F3: discount code
     discountLabel: 'Discount code', discountPlaceholder: 'Have a code?', discountValidate: 'Apply',
-    discountEstimate: 'Est. discount', discountedTotal: 'Est. total after discount',
+    discountEstimate: 'Est. discount',
     // v0.32 REQ-023 Phase2: multi-style three-step flow
     styleStep: 'Style', sizeStep: 'Size', addonStep: 'Add-ons',
     styleStepTitle: 'Pick a style', sizeStepTitle: 'Pick a size', addonStepTitle: 'Add-ons & options',
@@ -990,10 +989,9 @@
     leftTitle: 'What the client said', rightTitle: 'How to record',
     clientQq: 'Client QQ', clientQqPlaceholder: "Client's QQ number",
     clientName: 'Client nickname (optional)', clientNamePlaceholder: 'What to call the client',
-    tier: 'Tier', tierPlaceholder: 'Select a tier (optional)',
-    noTiers: 'No tiers yet — add some in Pricing first', tierDays: '{n} days',
-    addons: 'Add-ons', multipliers: 'Usage & Rush',
-    usage: 'Usage', rush: 'Rush', personal: 'Personal', noRush: 'No rush', inquiry: 'Inquiry',
+    tier: 'Tier',
+    addons: 'Add-ons',
+    usage: 'Usage', rush: 'Rush',
     totalPrice: 'Total', finalPrice: 'Final price (CNY)', finalPriceHint: 'Editable; leave blank to use calculated price',
     priceDetail: 'Details',
     desc: 'Description', descPlaceholder: "Paste the client's request from the QQ chat",
@@ -1001,7 +999,6 @@
     refTip: 'You can add more references to the order gallery after creation. Gallery total limit: 20 images.',
     priority: 'Priority', priorityHigh: 'High', priorityMedium: 'Medium (default)', priorityLow: 'Low',
     clientNotify: 'Allow client to receive QQ queue notifications',
-    catExpression: 'Expressions', catOutfit: 'Outfits', catBackground: 'Backgrounds', catWeapon: 'Weapons', catOther: 'Other',
     submit: 'Record order', resultTitle: 'Recorded', orderNo: 'Order No: {no}', addedToQueue: 'Added to the queue',
     viewQueue: 'View queue', continueEntry: 'Enter another', fillClientQq: "Please enter the client's QQ number",
     // R51: deadline
@@ -1022,9 +1019,7 @@
     clientSummaryLast: 'Last {date}',
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: 'Choose Style', sizeTitle: 'Choose Size', sizeDays: '{n} days',
-    noSizes: 'No sizes available for this style', styleAddonsEmpty: 'No add-ons available for this size',
-    addonOptionPrice: 'Option price',
-    afterMultiplier: 'After multipliers',
+    noSizes: 'No sizes available for this style',
     // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
     customHint: 'You can skip all selections and enter a custom price manually',
     showImages: 'Show images',

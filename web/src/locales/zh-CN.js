@@ -584,7 +584,7 @@
     styleSizeHint: '已选 {size} · ¥{price}，点击下方按钮带此选择进入约稿'
   },
   orderForm: {
-    backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
+    backHome: '返回主页', title: '我要约稿',
     workflowLabel: '约稿流程',
     descLabel: '需求描述', descPlaceholder: '描述你想要的画面：角色特征、姿势、风格、背景等',
     // D 软提示（用户拍板：需求描述可空过，仅留空时提示一次，不拦截）
@@ -592,13 +592,12 @@
     descSoftContinue: '继续',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
     refTip: '下单后画师也可在订单图库中补充参考图，订单图库合计上限 20 张。',
-    pricingDetail: '详细计价',
     qqLabel: '你的QQ号', qqPlaceholder: '画师会通过QQ联系你',
     nameLabel: '昵称（可选）', namePlaceholder: '怎么称呼你',
     notifyLabel: '排到我的时候通过QQ通知我', agreeLabel: '我已阅读并同意以上约稿须知',
     submit: '提交约稿', successTitle: '约稿提交成功！', orderNoIs: '你的订单号是：',
     addQqHint: '请添加画师QQ沟通细节，报上你的订单号即可', viewProgress: '查看进度',
-    selectTier: '请选择档位', fillQq: '请填写QQ号', selectSizeFirst: '请先选择画风和尺寸',
+    fillQq: '请填写QQ号', selectSizeFirst: '请先选择画风和尺寸',
     fileTooBig: '文件「{name}」超过10MB限制（{size}MB），请压缩后重新上传',
     typeWarning: '建议转换为 JPG 或 WebP 格式以获得更好的预览体验，但当前格式也可以正常上传。',
     loadFailed: '加载画师信息失败',
@@ -608,11 +607,11 @@
     // R58-6: QQ 跳转 + 复制
     artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制',
     // R58-2: 分步引导
-    step1: '选档位', step2: '写需求', step3: '联系方式',
-    step1Title: '选择约稿档位', step2Title: '描述你的需求', step3Title: '留下联系方式',
+    step2: '写需求', step3: '联系方式',
+    step2Title: '描述你的需求', step3Title: '留下联系方式',
     nextStep: '下一步', prevStep: '上一步',
     stepProgress: '第 {cur} / {total} 步',
-    summaryTitle: '约稿摘要', summaryNoTier: '选好档位后这里会显示价格',
+    summaryTitle: '约稿摘要',
     // W3: 画风模式未选尺寸的空态引导
     summaryNoSize: '选好尺寸后这里会显示价格',
     // REQ-022 F3: 摘要卡客户信息回显
@@ -625,7 +624,7 @@
     copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：',
     // v0.31 F3: 折扣码
     discountLabel: '折扣码', discountPlaceholder: '有折扣码？输入试试', discountValidate: '验证',
-    discountEstimate: '预估折扣', discountedTotal: '预估折后总价',
+    discountEstimate: '预估折扣',
     // v0.32 REQ-023 Phase2: 多画风三步走
     styleStep: '选画风', sizeStep: '选尺寸', addonStep: '选增项',
     styleStepTitle: '选择画风', sizeStepTitle: '选择尺寸', addonStepTitle: '增项与加急',
@@ -988,10 +987,9 @@
     leftTitle: '客户说了什么', rightTitle: '怎么录',
     clientQq: '客户QQ号', clientQqPlaceholder: '客户的QQ号',
     clientName: '客户昵称（可选）', clientNamePlaceholder: '怎么称呼客户',
-    tier: '档位', tierPlaceholder: '选择档位（可不选）',
-    noTiers: '还没有档位，请先在价格管理中添加', tierDays: '{n}天',
-    addons: '可选增项', multipliers: '用途与加急',
-    usage: '用途', rush: '加急', personal: '个人', noRush: '不加急', inquiry: '面议',
+    tier: '档位',
+    addons: '可选增项',
+    usage: '用途', rush: '加急',
     totalPrice: '总价', finalPrice: '最终价格（元）', finalPriceHint: '可手动修改，留空则使用计算价',
     priceDetail: '明细',
     desc: '需求描述', descPlaceholder: '从QQ聊天中复制客户的需求描述',
@@ -999,7 +997,6 @@
     refTip: '录单后仍可在订单图库中补充参考图，订单图库合计上限 20 张。',
     priority: '优先级', priorityHigh: '高', priorityMedium: '中（默认）', priorityLow: '低',
     clientNotify: '允许客户接收QQ排队提醒',
-    catExpression: '表情差分', catOutfit: '服装替换', catBackground: '背景场景', catWeapon: '武器道具', catOther: '其他',
     submit: '录入订单', resultTitle: '录入成功', orderNo: '订单号: {no}', addedToQueue: '已加入排期队列',
     viewQueue: '查看排期', continueEntry: '继续录入', fillClientQq: '请填写客户QQ号',
     // R51: 截稿日
@@ -1020,9 +1017,7 @@
     clientSummaryLast: '最近一单 {date}',
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: '选择画风', sizeTitle: '选择尺寸', sizeDays: '{n}天',
-    noSizes: '该画风下暂无尺寸', styleAddonsEmpty: '该尺寸下暂无可选增项',
-    addonOptionPrice: '选项价',
-    afterMultiplier: '倍率后小计',
+    noSizes: '该画风下暂无尺寸',
     // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
     customHint: '都可以不选，直接手动填价格录入自定义单',
     showImages: '显示图片',
