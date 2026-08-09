@@ -1086,10 +1086,10 @@
   },
   // v0.32 REQ-023 Phase1: 画风管理 + 增项库
   styleManage: {
-    tabStyles: '画风管理', tabTemplates: '增项库', confirmTitle: '确认',
+    tabTemplates: '增项库', confirmTitle: '确认',
     // 增项库（SPEC-PRICE-2：类别/控件/计价方式/数量上限全维度管理）
     tplIntro: '增项库是全平台价格资产的唯一管理面：普通增项、用途、加急都在这里维护，再到「画风与价格」页挂到各画风。',
-    tplName: '名称', tplControl: '控件', tplPricing: '计价', tplDefaultPrice: '默认价', tplActions: '操作',
+    tplName: '名称', tplControl: '控件', tplDefaultPrice: '默认价', tplActions: '操作',
     tplCategory: '类别', tplCategoryLabel: '类别', tplMaxQty: '数量上限', tplMaxQtyLabel: '数量上限（个数类防刷）',
     tplEmpty: '还没有增项模板，点击"新建增项"创建', tplAdd: '+ 新建增项',
     tplAddTitle: '新建增项', tplEditTitle: '编辑增项',
@@ -1099,7 +1099,7 @@
     tplPriceLabel: '默认价格',
     tplUnitLabel: '单位标签', tplUnitPlaceholder: '如：人、张、个',
     tplSaved: '增项已保存', tplDeleted: '增项已删除', tplDeleteConfirm: '确定删除增项「{name}」？已引用它的画风会保留为独立增项（不再跟随库更新）。',
-    pricePerUnit: '¥{price}/{unit}', unitDefault: '个',
+    unitDefault: '个',
     // 画风
     styleAddTitle: '新建画风', styleEditTitle: '编辑画风',
     styleNameLabel: '画风名称', styleNamePlaceholder: '如：日系、厚涂、像素风', styleNameRequired: '请输入画风名称',
@@ -1109,16 +1109,14 @@
     styleSaved: '画风已保存', styleDeleted: '画风已删除', styleDeleteConfirm: '确定删除画风「{name}」？其下所有尺寸、增项配置和覆盖将一并删除。',
     styleActive: '启用', styleEmpty: '还没有画风，点击"新建画风"开始配置',
     // 尺寸
-    sizeTitle: '尺寸与基础价', sizeName: '尺寸', sizePrice: '基础价', sizeActions: '操作',
+    sizeTitle: '尺寸与基础价', sizeName: '尺寸', sizePrice: '基础价',
     sizeNamePlaceholder: '如：头像、半身、全身', sizeNameRequired: '请输入尺寸名称',
-    sizeAdd: '添加', sizeSaved: '尺寸已保存', sizeAdded: '尺寸已添加', sizeDeleted: '尺寸已删除',
+    sizeSaved: '尺寸已保存', sizeAdded: '尺寸已添加', sizeDeleted: '尺寸已删除',
     sizeDeleteConfirm: '确定删除尺寸「{name}」？该尺寸下的覆盖配置将一并删除。',
     // 增项
-    addonTitle: '增项（从增项库导入）', addonEmpty: '还没有导入增项，可在增项库中创建后重新导入',
-    addonSave: '保存增项配置', addonSaved: '增项配置已保存',
+    addonTitle: '增项（从增项库导入）',
+    addonSaved: '增项配置已保存',
     // 尺寸覆盖
-    overrideExpand: '尺寸覆盖 ▾', overrideCollapse: '收起 ▴',
-    overrideTitle: '「{name}」尺寸覆盖', overrideHidden: '隐藏', overrideSaved: '覆盖已保存',
     // v0.35 波1 (REQ-024 F2/F1): 合并入口 + 多画风开关 + 尺寸编辑扩展
     tabStylesAndPricing: '画风与价格',
     multiStyle: '多画风',
@@ -1139,19 +1137,16 @@
     sizeImageSavedMsg: '尺寸图已更新', sizeImageUploadHint: '尺寸图已上传，点保存后生效',
     sizeDescLabel: '描述（可选）', sizeDescPlaceholder: '这个尺寸包含什么、适合什么',
     sizeDaysLabel: '工期（天，可选）',
-    sizeImageCol: '图片', sizeDescCol: '描述', sizeDaysCol: '工期',
     sizeFromArtworkTag: '作品集', sizeAddBtn: '+ 添加尺寸', sizeEmpty: '还没有尺寸',
     sizePickTitle: '从作品集挑选', sizePickHint: '点击选择一张作品作为尺寸图', sizePickEmpty: '还没有作品，请先去作品管理上传',
     // v0.35 补漏 A4: 已有画风追加导入增项
-    addonImportBtn: '＋ 导入增项', addonImportTitle: '从增项库导入',
+    addonImportTitle: '从增项库导入',
     addonImportEmpty: '增项库中没有新增项可导入（都已导入该画风）',
     addonImportConfirm: '导入所选', addonImported: '增项已导入',
     // REQ-036 批A: 增项交互直觉化（双入口/池+拖拽/三态/三层弹窗/预览/摘要）
     // 双入口
     addonCreateBtn: '+ 新建增项', addonPickBtn: '+ 从已有挑选',
     // 池子
-    addonPoolEmpty: '还没有增项，点上方按钮新建或从增项库挑选',
-    addonPoolHint: '拖到上方尺寸 = 该尺寸启用；点击胶囊 = 详细设置',
     addonCapHint: '点击设置 / 拖到尺寸行启用',
     addonAlreadyEnabled: '「{name}」在「{size}」已启用，无需重复拖入',
     addonEnabled: '已启用：{size} ＋ {name}',
@@ -1164,7 +1159,7 @@
     createKindLabel: '类别',
     createCatHintAdd: '普通增项加在基础价上，可多选共存；百分比计价的按基础价计算（不受其他增项影响）',
     createCatHintMultiplier: '用途/加急是计价公式中的乘法位：下单时各选一个生效，乘在普通增项小计之后（开关控件 + 百分比）',
-    createControlLabel: '控件类型（顾客怎么选）', createControlHint: '个数 = 按数量计价（如加人 ×N）；开关 = 加/不加',
+    createControlLabel: '控件类型（顾客怎么选）',
     createPricingLabel: '计价方式', pricingPercent: '百分比 +%', pricingFixed: '固定金额 ¥',
     pricingHintFixed: '固定金额：直接加 ¥N；个数类 = 单价 × 数量',
     pricingHintPercent: '百分比：只按基础价计算，如 50 = 基础价 × 50%',

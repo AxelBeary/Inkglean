@@ -1088,10 +1088,10 @@
   },
   // v0.32 REQ-023 Phase1: art styles + addon templates
   styleManage: {
-    tabStyles: 'Art Styles', tabTemplates: 'Addon Library', confirmTitle: 'Confirm',
+    tabTemplates: 'Addon Library', confirmTitle: 'Confirm',
     // Addon templates (SPEC-PRICE-2: full category/control/pricing/max-qty management)
     tplIntro: 'The addon library is the single place to manage all price items (regular addons, usage, rush); then attach them to styles on the Styles & Pricing page.',
-    tplName: 'Name', tplControl: 'Control', tplPricing: 'Pricing', tplDefaultPrice: 'Default price', tplActions: 'Actions',
+    tplName: 'Name', tplControl: 'Control', tplDefaultPrice: 'Default price', tplActions: 'Actions',
     tplCategory: 'Category', tplCategoryLabel: 'Category', tplMaxQty: 'Max qty', tplMaxQtyLabel: 'Max quantity (anti-abuse for quantity type)',
     tplEmpty: 'No addon templates yet. Click "New Addon" to create one.', tplAdd: '+ New Addon',
     tplAddTitle: 'New Addon', tplEditTitle: 'Edit Addon',
@@ -1101,7 +1101,7 @@
     tplPriceLabel: 'Default price',
     tplUnitLabel: 'Unit label', tplUnitPlaceholder: 'e.g. person, sheet, item',
     tplSaved: 'Addon saved', tplDeleted: 'Addon deleted', tplDeleteConfirm: 'Delete addon "{name}"? Styles using it keep it as a standalone addon (no longer follows library updates).',
-    pricePerUnit: '¥{price}/{unit}', unitDefault: 'item',
+    unitDefault: 'item',
     // Art styles
     styleAddTitle: 'New Style', styleEditTitle: 'Edit Style',
     styleNameLabel: 'Style name', styleNamePlaceholder: 'e.g. Anime, Painterly, Pixel art', styleNameRequired: 'Please enter a style name',
@@ -1111,16 +1111,14 @@
     styleSaved: 'Style saved', styleDeleted: 'Style deleted', styleDeleteConfirm: 'Delete style "{name}"? All its sizes, addon configs and overrides will be removed too.',
     styleActive: 'Active', styleEmpty: 'No styles yet. Click "New Style" to start configuring.',
     // Sizes
-    sizeTitle: 'Sizes & base prices', sizeName: 'Size', sizePrice: 'Base price', sizeActions: 'Actions',
+    sizeTitle: 'Sizes & base prices', sizeName: 'Size', sizePrice: 'Base price',
     sizeNamePlaceholder: 'e.g. Avatar, Half-body, Full-body', sizeNameRequired: 'Please enter a size name',
-    sizeAdd: 'Add', sizeSaved: 'Size saved', sizeAdded: 'Size added', sizeDeleted: 'Size deleted',
+    sizeSaved: 'Size saved', sizeAdded: 'Size added', sizeDeleted: 'Size deleted',
     sizeDeleteConfirm: 'Delete size "{name}"? Its override configs will be removed too.',
     // Addons
-    addonTitle: 'Addons (imported from library)', addonEmpty: 'No addons imported yet. Create some in the addon library, then re-import.',
-    addonSave: 'Save addon config', addonSaved: 'Addon config saved',
+    addonTitle: 'Addons (imported from library)',
+    addonSaved: 'Addon config saved',
     // Size overrides
-    overrideExpand: 'Size overrides ▾', overrideCollapse: 'Collapse ▴',
-    overrideTitle: 'Size overrides for "{name}"', overrideHidden: 'Hide', overrideSaved: 'Override saved',
     // v0.35 wave 1 (REQ-024 F2/F1): merged entry + multi-style switch + size edit extension
     tabStylesAndPricing: 'Styles & Pricing',
     multiStyle: 'Multi-style',
@@ -1141,19 +1139,16 @@
     sizeImageSavedMsg: 'Size image updated', sizeImageUploadHint: 'Size image uploaded — click Save to apply',
     sizeDescLabel: 'Description (optional)', sizeDescPlaceholder: 'What this size includes / suits',
     sizeDaysLabel: 'Turnaround (days, optional)',
-    sizeImageCol: 'Image', sizeDescCol: 'Description', sizeDaysCol: 'Turnaround',
     sizeFromArtworkTag: 'Portfolio', sizeAddBtn: '+ Add size', sizeEmpty: 'No sizes yet',
     sizePickTitle: 'Pick from portfolio', sizePickHint: 'Click an artwork to use it as the size image', sizePickEmpty: 'No artworks yet — upload some in Portfolio first',
     // v0.35 fix A4: import addons into an existing style
-    addonImportBtn: '+ Import addons', addonImportTitle: 'Import from addon library',
+    addonImportTitle: 'Import from addon library',
     addonImportEmpty: 'No new addons to import (all library addons are already in this style)',
     addonImportConfirm: 'Import selected', addonImported: 'Addons imported',
     // REQ-036 Batch A: intuitive addon interactions (dual entry / pool+drag / tri-state / 3-layer dialog / preview / summary)
     // Dual entry
     addonCreateBtn: '+ New Addon', addonPickBtn: '+ Pick Existing',
     // Pool
-    addonPoolEmpty: 'No addons yet - create one or pick from the library above',
-    addonPoolHint: 'Drag to a size above to enable; click a capsule for details',
     addonCapHint: 'Click to configure / drag to a size row to enable',
     addonAlreadyEnabled: '"{name}" is already enabled on "{size}" - no need to drag again',
     addonEnabled: 'Enabled: {size} + {name}',
@@ -1166,7 +1161,7 @@
     createKindLabel: 'Category',
     createCatHintAdd: 'Regular addons add to the base price and can be combined; percent-priced ones are computed on the base price only',
     createCatHintMultiplier: 'Usage/Rush are multiplier slots in the formula: pick at most one of each when ordering, applied after the add-ons subtotal (switch control + percentage)',
-    createControlLabel: 'Control type (how clients choose)', createControlHint: 'Quantity = priced per unit (e.g. extra person xN); Switch = on/off',
+    createControlLabel: 'Control type (how clients choose)',
     createPricingLabel: 'Pricing mode', pricingPercent: 'Percentage +%', pricingFixed: 'Fixed amount ¥',
     pricingHintFixed: 'Fixed amount: adds ¥N directly; quantity type = unit price x quantity',
     pricingHintPercent: 'Percentage: computed on the base price only, e.g. 50 = base price x 50%',
