@@ -658,12 +658,12 @@
   track: {
     backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
     orderNo: '订单号', orderNoLabel: '订单号', qqLabel: '你的QQ号', qqPlaceholder: '下单时填写的QQ号',
-    artist: '画师', type: '类型', status: '状态', position: '排队位置',
+    artist: '画师', type: '类型',
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
     stepSubmitted: '已提交', stepConfirmed: '已确认', stepWip: '制作中', stepDone: '已完成', stepDelivered: '已交付',
     deliverables: '交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
     // SPEC-003: 价格与付款
-    priceTitle: '价格明细', finalPrice: '最终价格', installmentsTitle: '付款节点', paid: '已付', unpaid: '未付',
+    priceTitle: '价格明细', finalPrice: '最终价格',
     // B7: 额度池付款进度
     payPaid: '已付', payNext: '下期应付', payRemaining: '待付', payTotal: '总额',
     contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
@@ -679,7 +679,6 @@
       title: '制作进度',
       current: '进行中',
       progress: '{name} {current}/{total}',
-      revision: '画师打回修改中，进度已回退',
       revisionAt: '已回退到「{name}」',
       notStarted: '订单已提交，等待画师确认后进入制作流程',
       orderedAt: '下单时间：'
@@ -861,11 +860,11 @@
     backToQueue: '返回排期看板', backToDashboard: '返回仪表盘', backToList: '返回订单列表', orderNo: '订单 #',
     orderInfo: '订单信息', colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
     colPriority: '优先级', colSource: '来源', colTime: '下单时间', colDesc: '需求描述',
-    statusFlow: '状态流转', confirmOrder: '确认接单', startWip: '开始制作',
+    confirmOrder: '确认接单', startWip: '开始制作',
     needRevision: '需要修改', markDone: '✔ 标记完成', uploadDeliver: '上传交付', cancelOrder: '取消订单',
-    references: '参考图', noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
+    noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
-    confirmDeliver: '确认交付', cancelConfirm: '确定取消此订单？', confirmTitle: '确认',
+    confirmDeliver: '确认交付', confirmTitle: '确认',
     statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
     // REQ-022 F1: 发布为作品
     publishArtwork: '发布为作品', publishDialogTitle: '发布为作品',
@@ -880,8 +879,7 @@
     noReferences: '暂无参考图',
     focusUpdated: '焦点图已更新',
     deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
-    focusHint: '显示尺寸在排期看板工具栏统一设置',
-    workflowTitle: '流程进度', stageOff: '关闭流程跟踪',
+    stageOff: '关闭流程跟踪',
     stageProgress: '进度 {current}/{total}', stageRevision: '已打回修改',
     advanceTo: '推进到：', stageBack: '↩ 打回上一节点', stageUpdated: '流程已更新',
     stageBackConfirm: '确定打回到「{name}」？订单状态将标记为修改中。',
@@ -913,9 +911,9 @@
     extraDeleteConfirm: '确定删除附加项「{name}」？删除后最终价格将自动重算。',
     extraTotal: '最终价格', extraAutoHint: '最终价格 = 基础价格 + 附加项合计，由系统自动计算',
     // R51: 截稿日
-    colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新',
+    colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日',
     // v0.26 B: 开工日
-    colStartDate: '开工日', startDatePlaceholder: '选择开工日', startDateUpdated: '开工日已更新',
+    colStartDate: '开工日', startDatePlaceholder: '选择开工日',
     deadlineAutoSet: '已按工期自动设置截稿日',
     // v0.38: 日期卡二合一（REQ-026 §四）——两字段一卡 + 即时保存「排期已同步」+ 剩余天数 chip
     dateCardTitle: '日期',
@@ -926,7 +924,7 @@
     // R58-6: QQ 跳转 + 复制
     jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
     // plan-node-speech：客户沟通小块
-    commTitle: '客户沟通', commQq: 'QQ:', commCopyContact: '复制联系方式',
+    commTitle: '客户沟通',
     commPriceSummary: '价格小结：总价{total} / 已付{paid} / 待付{unpaid}',
     commCopyBtn: '复制文案并唤起QQ', commCopied: '已复制节点文案，正在唤起QQ',
     commNoQq: '未设置客户QQ', commNoStage: '该订单未接入流程节点，暂无话术', commNoSpeech: '当前节点暂无话术',
@@ -942,7 +940,7 @@
     payRefundNoteLabel: '退款原因（必填）',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
     // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
-    payAmountInvalid: '收款金额须大于 0', payAmountExceed: '收款金额不能超出剩余应付 ¥{amount}',
+    payAmountInvalid: '收款金额须大于 0',
     payAmountZero: '金额不能为 0', payRefundNoteRequired: '录入负数（退款/撤销）时必须填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
@@ -1317,7 +1315,6 @@
     statusHidden: '主页已隐藏'
   },
   templates: {
-    tab: '主页模板',
     hint: '选择客户看到的画师主页样式。布局决定页面结构，配色决定气质底色，所有模板共享同一套作品/价格数据。',
     label: '页面布局',
     atelier: '画册工作室',
@@ -1334,16 +1331,8 @@
     paletteInk: '墨', paletteInkDesc: '画廊深炭，层灰，克制',
     paletteDusk: '暮', paletteDuskDesc: '蓝灰暮色，冷静',
     paletteMoss: '苔', paletteMossDesc: '深绿自然，温润',
-    saved: '模板已更新'
   },
   embed: {
-    tab: '嵌入脚本',
-    hint: '如果你已经有自己的个人网站（Carrd / Framer / 自建站等），可以在你的网站里插入一段代码，让客户直接通过你的网站下单。',
-    step1: '1. 复制以下代码：',
-    step2: '2. 将代码粘贴到你网站中想要显示「我要约稿」按钮的位置。客户点击按钮后会弹出下单表单。',
-    copyBtn: '复制代码',
-    copied: '已复制',
-    copyFailed: '复制失败，请手动选择并复制'
   },
   workflow: {
     stageList: '流程节点', paymentBar: '收款比例', overview: '流程全览',

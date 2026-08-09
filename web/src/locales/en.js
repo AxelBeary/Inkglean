@@ -659,12 +659,12 @@
   track: {
     backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',
     orderNo: 'Order No.', orderNoLabel: 'Order number', qqLabel: 'Your QQ number', qqPlaceholder: 'The QQ you used when ordering',
-    artist: 'Artist', type: 'Type', status: 'Status', position: 'Queue position',
+    artist: 'Artist', type: 'Type',
     positionText: '#{pos} of {total}', orderTime: 'Order time',
     stepSubmitted: 'Submitted', stepConfirmed: 'Confirmed', stepWip: 'In progress', stepDone: 'Done', stepDelivered: 'Delivered',
     deliverables: 'Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
     // SPEC-003: price & payments
-    priceTitle: 'Price breakdown', finalPrice: 'Final price', installmentsTitle: 'Payment schedule', paid: 'Paid', unpaid: 'Unpaid',
+    priceTitle: 'Price breakdown', finalPrice: 'Final price',
     // B7: quota-pool payment progress
     payPaid: 'Paid', payNext: 'Next Due', payRemaining: 'Outstanding', payTotal: 'Total',
     contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
@@ -680,7 +680,6 @@
       title: 'Production progress',
       current: 'In progress',
       progress: '{name} {current}/{total}',
-      revision: 'Sent back by the artist for revision — progress rolled back',
       revisionAt: 'Rolled back to “{name}”',
       notStarted: 'Order submitted — production starts once the artist confirms',
       orderedAt: 'Ordered: '
@@ -863,11 +862,11 @@
     backToQueue: 'Back to queue', backToDashboard: 'Back to dashboard', backToList: 'Back to orders', orderNo: 'Order #',
     orderInfo: 'Order info', colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
     colPriority: 'Priority', colSource: 'Source', colTime: 'Order time', colDesc: 'Description',
-    statusFlow: 'Status flow', confirmOrder: 'Accept order', startWip: 'Start work',
+    confirmOrder: 'Accept order', startWip: 'Start work',
     needRevision: 'Needs revision', markDone: '✔ Mark done', uploadDeliver: 'Upload delivery', cancelOrder: 'Cancel order',
-    references: 'Reference images', noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
+    noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
-    confirmDeliver: 'Confirm delivery', cancelConfirm: 'Cancel this order?', confirmTitle: 'Confirm',
+    confirmDeliver: 'Confirm delivery', confirmTitle: 'Confirm',
     statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
     // REQ-022 F1: Publish as artwork
     publishArtwork: 'Publish as artwork', publishDialogTitle: 'Publish as artwork',
@@ -882,8 +881,7 @@
     noReferences: 'No reference images',
     focusUpdated: 'Focus image updated',
     deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted',
-    focusHint: 'Display size is set globally in the queue board toolbar',
-    workflowTitle: 'Workflow progress', stageOff: 'Turn off stage tracking',
+    stageOff: 'Turn off stage tracking',
     stageProgress: 'Progress {current}/{total}', stageRevision: 'Sent back for revision',
     advanceTo: 'Advance to: ', stageBack: '↩ Send back', stageUpdated: 'Workflow updated',
     stageBackConfirm: 'Send back to "{name}"? The order will be marked as in revision.',
@@ -915,9 +913,9 @@
     extraDeleteConfirm: 'Delete extra item "{name}"? The final price will be recalculated.',
     extraTotal: 'Final price', extraAutoHint: 'Final price = base price + extras, calculated automatically',
     // R51: deadline
-    colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated',
+    colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline',
     // v0.26 B: start date
-    colStartDate: 'Start Date', startDatePlaceholder: 'Pick a start date', startDateUpdated: 'Start date updated',
+    colStartDate: 'Start Date', startDatePlaceholder: 'Pick a start date',
     deadlineAutoSet: 'Deadline auto-set based on turnaround days',
     // v0.38: merged date card (REQ-026 §四) — two fields in one card + "schedule synced" + days-left chip
     dateCardTitle: 'Dates',
@@ -928,7 +926,7 @@
     // R58-6: QQ jump + copy
     jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
     // plan-node-speech: client communication block
-    commTitle: 'Client Communication', commQq: 'QQ:', commCopyContact: 'Copy contact',
+    commTitle: 'Client Communication',
     commPriceSummary: 'Price: total {total} / paid {paid} / due {unpaid}',
     commCopyBtn: 'Copy text & open QQ', commCopied: 'Speech copied — opening QQ',
     commNoQq: 'No client QQ set', commNoStage: 'Order not on a workflow stage — no speech yet', commNoSpeech: 'No speech for the current stage',
@@ -944,7 +942,7 @@
     payRefundNoteLabel: 'Refund reason (required)',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
-    payAmountInvalid: 'Payment amount must be greater than 0', payAmountExceed: 'Amount cannot exceed the outstanding balance ¥{amount}',
+    payAmountInvalid: 'Payment amount must be greater than 0',
     payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'A reason is required when entering a negative amount (refund)', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
@@ -1320,7 +1318,6 @@
     statusHidden: 'Page is hidden'
   },
   templates: {
-    tab: 'Page Template',
     hint: 'Choose how your public page looks. Layout sets the structure, palette sets the mood — all share the same artwork and pricing data.',
     label: 'Page layout',
     atelier: 'Atelier',
@@ -1337,16 +1334,8 @@
     paletteInk: 'Ink', paletteInkDesc: 'Gallery charcoal, layered grey, restrained',
     paletteDusk: 'Dusk', paletteDuskDesc: 'Blue-grey twilight, cool',
     paletteMoss: 'Moss', paletteMossDesc: 'Deep green, natural, warm',
-    saved: 'Template updated'
   },
   embed: {
-    tab: 'Embed Script',
-    hint: 'If you already have your own website (Carrd / Framer / custom HTML), you can embed a snippet to let clients commission you directly from your site.',
-    step1: '1. Copy this code:',
-    step2: '2. Paste it where you want the "Commission me" button to appear on your site. Clicking it opens an order form.',
-    copyBtn: 'Copy code',
-    copied: 'Copied',
-    copyFailed: 'Copy failed — please select and copy manually'
   },
   workflow: {
     stageList: 'Workflow Stages', paymentBar: 'Payment Split', overview: 'Full Workflow',
