@@ -439,12 +439,12 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest) => {
-    return workflowService.updateStage(request.artist.id, parseInt((request.params as { id: string }).id), request.body as Record<string, unknown>)
+    return workflowService.updateStage(request.artist.id, parseInt((request.params as { id: string }).id, 10), request.body as Record<string, unknown>)
   })
 
   /** DELETE /api/artist/workflow/:id — 删除节点 */
   fastify.delete('/api/artist/workflow/:id', { preHandler: requireAuth }, async (request: FastifyRequest) => {
-    return workflowService.deleteStage(request.artist.id, parseInt((request.params as { id: string }).id))
+    return workflowService.deleteStage(request.artist.id, parseInt((request.params as { id: string }).id, 10))
   })
 
   /** PUT /api/artist/workflow/reorder — 拖拽排序 */
@@ -527,7 +527,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       if (!rateLimit(`like:${request.ip}:${(request.params as { id: string }).id}`, 5, 60_000)) {
         return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
       }
-      const artwork = artistService.likeArtwork(parseInt((request.params as { id: string }).id))
+      const artwork = artistService.likeArtwork(parseInt((request.params as { id: string }).id, 10))
       if (!artwork) return reply.code(404).send({ error: '作品不存在' })
       return { likeCount: artwork.like_count }
     })
@@ -537,7 +537,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       if (!rateLimit(`unlike:${request.ip}:${(request.params as { id: string }).id}`, 5, 60_000)) {
         return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
       }
-      const artwork = artistService.unlikeArtwork(parseInt((request.params as { id: string }).id))
+      const artwork = artistService.unlikeArtwork(parseInt((request.params as { id: string }).id, 10))
       if (!artwork) return reply.code(404).send({ error: '作品不存在' })
       return { likeCount: artwork.like_count }
     })
