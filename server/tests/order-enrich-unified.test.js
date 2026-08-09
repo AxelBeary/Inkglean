@@ -257,7 +257,7 @@ describe('B1 订单响应增强统一 (enrichOrderForArtist)', () => {
     expectEnriched(onRes.json())
     expect(onRes.json().paidTotalCents).toBe(20000)
 
-    // 推进到第二节点
+    // 推进到第二节点（confirmed）
     const advRes = await app.inject({
       method: 'PUT',
       url: `/api/artist/orders/${order.id}/stage`,
@@ -269,12 +269,23 @@ describe('B1 订单响应增强统一 (enrichOrderForArtist)', () => {
     expect(advRes.json().paidTotalCents).toBe(20000)
     expect(advRes.json().installments).toHaveLength(2)
 
-    // 打回第一节点
+    // 再推进到第三节点（wip）——confirmed 状态回退会被状态机拒绝，wip → revision 才是合法回退
+    const advRes2 = await app.inject({
+      method: 'PUT',
+      url: `/api/artist/orders/${order.id}/stage`,
+      headers: h,
+      payload: { stageId: stages[2].id }
+    })
+    expect(advRes2.statusCode).toBe(200)
+    expectEnriched(advRes2.json())
+    expect(advRes2.json().paidTotalCents).toBe(20000)
+
+    // 打回第二节点（wip → revision 合法）
     const backRes = await app.inject({
       method: 'PUT',
       url: `/api/artist/orders/${order.id}/stage-back`,
       headers: h,
-      payload: { stageId: stages[0].id }
+      payload: { stageId: stages[1].id }
     })
     expect(backRes.statusCode).toBe(200)
     expectEnriched(backRes.json())

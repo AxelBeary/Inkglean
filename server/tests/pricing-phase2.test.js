@@ -137,6 +137,7 @@ describe('R4 锁价规则', () => {
     const orderId = makePricedOrder(artist)
 
     orderService.addPayment(orderId, { amountCents: 3000 })
+    advanceStage(orderId, stageIds[1]) // 推进到线稿 → 定金阶段完成
     advanceStage(orderId, stageIds[2]) // 推进到细化 → 定金/线稿完成锁定
     let insts = instsOf(orderId)
     expect(insts[0].locked).toBe(1)
@@ -175,7 +176,10 @@ describe('R10 关单后额外项 + R13 done 半终态', () => {
     db.prepare('INSERT INTO order_price_entries (order_id, type, delta_cents, created_by) VALUES (?, ?, ?, ?)').run(orderId, 'base', 30000, 'system')
 
     orderService.addPayment(orderId, { amountCents: 30000 }) // 收齐
-    advanceStage(orderId, stageIds[3]) // 推进完稿 → done，全部完成锁
+    // 逐级推进（状态机不允许 pending 直推 done），末节点 → done，全部完成锁
+    advanceStage(orderId, stageIds[1])
+    advanceStage(orderId, stageIds[2])
+    advanceStage(orderId, stageIds[3])
     expect(instsOf(orderId).every(i => i.locked === 1 && i.locked_reason === 'completed')).toBe(true)
 
     orderService.addExtraItem(orderId, { name: '多版本光影', priceCents: 5000 })
@@ -198,7 +202,10 @@ describe('R10 关单后额外项 + R13 done 半终态', () => {
     db.prepare('INSERT INTO order_price_entries (order_id, type, delta_cents, created_by) VALUES (?, ?, ?, ?)').run(orderId, 'base', 30000, 'system')
 
     orderService.addPayment(orderId, { amountCents: 3000 }) // 只收定金
-    advanceStage(orderId, stageIds[3]) // 直接推完稿 → done（定金 completed，其余 paidOff 未满足）
+    // 逐级推进到完稿 → done（状态机不允许 pending 直推 done；定金 completed，其余未满足）
+    advanceStage(orderId, stageIds[1])
+    advanceStage(orderId, stageIds[2])
+    advanceStage(orderId, stageIds[3])
     db.prepare("UPDATE orders SET status = 'done' WHERE id = ?").run(orderId)
 
     // done 后客户十张改一张：减 20000。done 状态全部节点 completed 锁定（R13：客户已付全→负数进额外应退）

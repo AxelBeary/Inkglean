@@ -52,15 +52,30 @@ function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotalCents: number):
 
 /**
  * 订单状态机：定义每个状态允许转换到的下一个状态
+ * 唯一事实源：updateOrderStatus / advanceStage / rollbackStage / deliver 共用
+ * （audit-b F1：workflow 路径此前绕过本表，现统一收敛到 assertStatusTransition）
  */
-const STATUS_TRANSITIONS: Record<string, string[]> = {
+export const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending:   ['confirmed', 'cancelled'],
   confirmed: ['wip', 'cancelled'],
-  wip:       ['revision', 'done', 'cancelled'],
-  revision:  ['wip', 'done', 'cancelled'],
+  // delivered 本就是交付合法路径（wip/revision 可交付），显式化而非绕过
+  wip:       ['revision', 'done', 'delivered', 'cancelled'],
+  revision:  ['wip', 'done', 'delivered', 'cancelled'],
   done:      ['delivered', 'cancelled'],
   delivered: [],
   cancelled: []
+}
+
+/**
+ * 统一状态机断言：from → to 非法时抛 INVALID_TRANSITION。
+ * 同状态（from === to）不构成状态转换（wip 中间节点推进、revision 连续回退等仅移动节点），直接放行。
+ */
+export function assertStatusTransition(from: string, to: string): void {
+  if (from === to) return
+  const allowed = STATUS_TRANSITIONS[from]
+  if (!allowed || !allowed.includes(to)) {
+    throw new AppError(E.INVALID_TRANSITION, 400, { from, to })
+  }
 }
 
 /**
@@ -971,6 +986,16 @@ export function deleteExtraItem(orderId: number, itemId: number): OrderDetail {
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
   if (['delivered', 'cancelled'].includes(order.status)) {
     throw new AppError(E.ORDER_FINAL_STATE)
+  }
+
+  // audit-a F1: 删正项守卫——减后总价不得为负（与 addExtraItem 的负增项守卫对称）。
+  // 合法操作序列「改价 1000 → 加项 +1500 → 改价回 1000 → 删该增项」会被这里拦下，
+  // 防止 final_price_cents 被 adjustFinalPrice 打成负数。
+  if (item.price_cents > 0) {
+    const currentFinal = resolvePriceCents(order) ?? 0
+    if (currentFinal - item.price_cents < 0) {
+      throw new AppError(E.INVALID_PRICE, 400, { value: -item.price_cents, message: '删除金额不得超过当前总价' })
+    }
   }
 
   return db.transaction(() => {

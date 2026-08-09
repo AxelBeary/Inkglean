@@ -591,7 +591,8 @@ describe('订单服务 (Order Service)', () => {
       'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
     ).all(artist.id)
 
-    // 先推进到第 3 个
+    // 先推进到第 3 个（必须逐级经过合法状态：pending→confirmed→wip，状态机不允许跳状态）
+    orderWorkflowService.advanceStage(order.id, stages[1].id)
     orderWorkflowService.advanceStage(order.id, stages[2].id)
 
     // 尝试回到第 1 个 → 拒绝
@@ -608,7 +609,9 @@ describe('订单服务 (Order Service)', () => {
       'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
     ).all(artist.id)
 
-    // 推进到第 4 个（线稿确认）
+    // 推进到第 4 个（线稿确认）——逐级经过合法状态，不触发状态机拦截
+    orderWorkflowService.advanceStage(order.id, stages[1].id)
+    orderWorkflowService.advanceStage(order.id, stages[2].id)
     orderWorkflowService.advanceStage(order.id, stages[3].id)
 
     // 打回到第 2 个（排期确认）

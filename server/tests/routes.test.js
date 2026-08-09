@@ -851,7 +851,7 @@ describe('路由层测试 (Route Integration)', () => {
       expect(note.content).toContain('无需交付文件')
     })
 
-    it('TC-RT-25: pending 订单无文件交付被拒（DELIVER_WRONG_STATUS）', async () => {
+    it('TC-RT-25: pending 订单无文件交付被拒（统一状态机断言 INVALID_TRANSITION）', async () => {
       const artist = seedArtist({ qq_number: '77831', subdomain: 'nofile-pend' })
       const token = createSession(artist.id, artist.token_version)
       const order = seedOrder(artist.id, { status: 'pending' })
@@ -862,7 +862,7 @@ describe('路由层测试 (Route Integration)', () => {
         headers: { Authorization: 'Bearer ' + token }
       })
       expect(res.statusCode).toBe(400)
-      expect(res.json().code).toBe('DELIVER_WRONG_STATUS')
+      expect(res.json().code).toBe('INVALID_TRANSITION')
     })
 
     it('TC-RT-26: 无 token 返回 401', async () => {
