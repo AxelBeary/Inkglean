@@ -191,7 +191,7 @@ describe('R10 关单后额外项 + R13 done 半终态', () => {
     expect(sum(entries.map(e => e.delta_cents))).toBe(35000)
   })
 
-  it('TC-P2-R13a: done 订单加负增项（减价）→ refund_item 条目 + 未锁节点被冲（R13 用户场景②）', () => {
+  it('TC-P2-R13a: done 未付全 + 负增项（减价）→ 冲抵未付节点欠款，refund_item 条目（R13 用户场景②）', () => {
     const { artist, stageIds } = seedFourStageArtist('88206', 'p2-r13a')
     const r = db.prepare(`
       INSERT INTO orders (order_no, artist_id, client_qq, status, queue_zone, total_price_cents, final_price_cents)
@@ -208,15 +208,107 @@ describe('R10 关单后额外项 + R13 done 半终态', () => {
     advanceStage(orderId, stageIds[3])
     db.prepare("UPDATE orders SET status = 'done' WHERE id = ?").run(orderId)
 
-    // done 后客户十张改一张：减 20000。done 状态全部节点 completed 锁定（R13：客户已付全→负数进额外应退）
+    // A3 口径变更（R10 关闭语义向 R13 收敛）：
+    //   旧口径：全部节点 completed 锁定 → 视作关闭，负 delta 一律进 extra_refund_after_close（与数据矛盾——
+    //   客户只付了定金 3000/30000，并非「已付全」，注释与数据不符）。
+    //   新口径：关闭 = 全节点锁定 且 Σ待收=0 双条件；本单 Σ待收=27000 ≠ 0 → 未关闭，
+    //   负 delta 按 R9 镜像从尾往头冲抵未付节点欠款（done 未付全 → 冲抵未付节点，R13）：
+    //     完稿 6000→0、细化 9000→0、线稿 12000→7000，剩余 0 → 不进额外应退。
     orderService.addExtraItem(orderId, { name: '减量退款', priceCents: -20000 })
     const entries = entriesOf(orderId)
-    expect(entries[entries.length - 1]).toEqual({ type: 'extra_refund_after_close', delta_cents: -20000 })
+    expect(entries[entries.length - 1]).toEqual({ type: 'refund_item', delta_cents: -20000 })
     const finalPrice = db.prepare('SELECT final_price_cents FROM orders WHERE id = ?').get(orderId).final_price_cents
     expect(finalPrice).toBe(10000)
-    // 守恒自检通过（未抛错即通过）：Σ条目 = 10000；节点价不动
+    // 节点价被冲抵（已锁但未付清的节点可被 delta 冲抵，R13 例外于 R4 冻结）
+    expect(instsOf(orderId).map(i => i.amount_cents)).toEqual([3000, 7000, 0, 0])
+    // 守恒自检通过（未抛错即通过）：Σ条目 = 10000 = Σ节点价；总价−已收 = 7000 = Σ待收
     expect(sum(entries.map(e => e.delta_cents))).toBe(10000)
+    orderService.checkOrderConservation(orderId)
+  })
+
+  it('TC-P2-R13d: done 未付全 + 正增项（加价）→ 按 R5 比例摊入未付节点，待收增加（extra_item 条目）', () => {
+    const { artist, stageIds } = seedFourStageArtist('88213', 'p2-r13d')
+    const r = db.prepare(`
+      INSERT INTO orders (order_no, artist_id, client_qq, status, queue_zone, total_price_cents, final_price_cents)
+      VALUES (?, ?, '88313', 'pending', 'formal', 30000, 30000)
+    `).run('P2-R13D', artist.id)
+    const orderId = Number(r.lastInsertRowid)
+    orderService.generateInstallmentsForOrder(orderId)
+    db.prepare('INSERT INTO order_price_entries (order_id, type, delta_cents, created_by) VALUES (?, ?, ?, ?)').run(orderId, 'base', 30000, 'system')
+
+    orderService.addPayment(orderId, { amountCents: 3000 }) // 只收定金
+    advanceStage(orderId, stageIds[1])
+    advanceStage(orderId, stageIds[2])
+    advanceStage(orderId, stageIds[3])
+    db.prepare("UPDATE orders SET status = 'done' WHERE id = ?").run(orderId)
+
+    // A3 新口径：done 未付全 → 正 delta 按 R5 摊入有待款的节点（含已锁未付清），
+    // 客户应付随之同步更新（R13 案例 9 末段）。未付节点 = 线稿/细化/完稿（40:30:20）：
+    //   线稿 +8888、细化 +6666、完稿 +4446（尾差归最后未付节点），Σ=20000
+    orderService.addExtraItem(orderId, { name: '加多版本光影', priceCents: 20000 })
+    const insts = instsOf(orderId)
+    expect(insts.map(i => i.amount_cents)).toEqual([3000, 20888, 15666, 10446])
+    expect(insts.every(i => i.locked === 1)).toBe(true) // done 全部 completed 锁定，但价格仍可经条目变动
+    const entries = entriesOf(orderId)
+    expect(entries[entries.length - 1]).toEqual({ type: 'extra_item', delta_cents: 20000 })
+    expect(sum(entries.map(e => e.delta_cents))).toBe(50000)
+    // 待收增加：总价 50000 − 已收 3000 = 47000 = Σ节点待收
+    orderService.checkOrderConservation(orderId)
+  })
+
+  it('TC-P2-R13e: done 已付全 + 负增项（减价）→ 维持 extra 语义不变（R10/R13 回归）', () => {
+    const { artist, stageIds } = seedFourStageArtist('88214', 'p2-r13e')
+    const r = db.prepare(`
+      INSERT INTO orders (order_no, artist_id, client_qq, status, queue_zone, total_price_cents, final_price_cents)
+      VALUES (?, ?, '88314', 'pending', 'formal', 30000, 30000)
+    `).run('P2-R13E', artist.id)
+    const orderId = Number(r.lastInsertRowid)
+    orderService.generateInstallmentsForOrder(orderId)
+    db.prepare('INSERT INTO order_price_entries (order_id, type, delta_cents, created_by) VALUES (?, ?, ?, ?)').run(orderId, 'base', 30000, 'system')
+
+    orderService.addPayment(orderId, { amountCents: 30000 }) // 收齐
+    advanceStage(orderId, stageIds[1])
+    advanceStage(orderId, stageIds[2])
+    advanceStage(orderId, stageIds[3])
+    db.prepare("UPDATE orders SET status = 'done' WHERE id = ?").run(orderId)
+
+    // A3 回归：已付全 + 全锁 → 关闭（Σ待收=0）→ 负 delta 进额外应退，节点不动（R10/R13 案例 9）
+    orderService.addExtraItem(orderId, { name: '退款', priceCents: -5000 })
+    const entries = entriesOf(orderId)
+    expect(entries[entries.length - 1]).toEqual({ type: 'extra_refund_after_close', delta_cents: -5000 })
     expect(instsOf(orderId).map(i => i.amount_cents)).toEqual([3000, 12000, 9000, 6000])
+    expect(sum(entries.map(e => e.delta_cents))).toBe(25000)
+    orderService.checkOrderConservation(orderId)
+  })
+
+  it('TC-P2-R13f: done 未付全 + 负增项超出欠款 → 欠款冲光 + 剩余进额外应退（混合去向双条目）', () => {
+    const { artist, stageIds } = seedFourStageArtist('88215', 'p2-r13f')
+    const r = db.prepare(`
+      INSERT INTO orders (order_no, artist_id, client_qq, status, queue_zone, total_price_cents, final_price_cents)
+      VALUES (?, ?, '88315', 'pending', 'formal', 30000, 30000)
+    `).run('P2-R13F', artist.id)
+    const orderId = Number(r.lastInsertRowid)
+    orderService.generateInstallmentsForOrder(orderId)
+    db.prepare('INSERT INTO order_price_entries (order_id, type, delta_cents, created_by) VALUES (?, ?, ?, ?)').run(orderId, 'base', 30000, 'system')
+
+    orderService.addPayment(orderId, { amountCents: 3000 }) // 只收定金
+    advanceStage(orderId, stageIds[1])
+    advanceStage(orderId, stageIds[2])
+    advanceStage(orderId, stageIds[3])
+    db.prepare("UPDATE orders SET status = 'done' WHERE id = ?").run(orderId)
+
+    // A3 新口径：负 delta 28000 > 未付欠款 27000 → 欠款冲光（节点 0 化）+ 剩余 1000 进 extra_refund_after_close。
+    // 条目：refund_item -27000（节点部分）+ extra_refund_after_close -1000（剩余），Σ = -28000 不双重记账
+    orderService.addExtraItem(orderId, { name: '大幅退款', priceCents: -28000 })
+    const entries = entriesOf(orderId)
+    expect(entries).toEqual([
+      { type: 'base', delta_cents: 30000 },
+      { type: 'refund_item', delta_cents: -27000 },
+      { type: 'extra_refund_after_close', delta_cents: -1000 }
+    ])
+    expect(instsOf(orderId).map(i => i.amount_cents)).toEqual([3000, 0, 0, 0])
+    expect(sum(entries.map(e => e.delta_cents))).toBe(2000)
+    orderService.checkOrderConservation(orderId)
   })
 
   it('TC-P2-R13c: 有未锁节点时减价 → refund_item 条目冲未锁节点（非全锁路径）', () => {

@@ -788,8 +788,11 @@ function getCompletedPaymentStageIndex(order: { artist_id: number; current_stage
  * 条目账本是总价真相源（Σ 条目 ≡ final_price_cents），因此条目由本函数统一写入，
  * 按 delta 去向决定类型，绝不双重记账：
  *   - 摊进未锁节点 → 写原因条目（entryType：manual_adjust/extra_item/refund_item）
- *   - 全锁（R10）→ 写 extra_charge_after_close（正）/ extra_refund_after_close（负），
- *     不再写原因条目（额外项条目本身即审计留痕，name 保留原操作名）
+ *   - 关闭（R10/R13：全节点锁定 且 Σ待收=0）→ 写 extra_charge_after_close（正）/
+ *     extra_refund_after_close（负），不再写原因条目（额外项条目本身即审计留痕）
+ *   - A3 混合去向（全锁未付清的 done 订单负 delta 冲抵完欠款后仍有剩余）→
+ *     节点部分写原因条目 + 剩余部分写 extra_refund_after_close，两部分各记一笔，
+ *     Σ 仍 ≡ delta（不双重记账、不丢账）
  *
  * 流程：读库锁定状态 → computeLockedState（完成/付清/回退不解锁）→ allocateDelta 只摊未锁节点
  * → 写回 amount_cents + locked + locked_reason。
@@ -813,13 +816,17 @@ function applyDeltaToInstallments(orderId: number, deltaCents: number, entryType
     update.run(res.amountsCents[i], state.lockedFlags[i] ? 1 : 0, state.lockedFlags[i] ? state.reasons[i] : null, inst.id)
   })
 
-  // 条目落账（与 delta 去向一一对应，不双重记账）
+  // 条目落账（与 delta 去向一一对应，不双重记账）：
+  //   进节点的部分 → 原因条目；进额外项的部分 → extra 条目；Σ 两笔 = delta
+  const nodeDelta = deltaCents - (res.extraChargeCents > 0 ? res.extraChargeCents : 0) + (res.extraRefundCents > 0 ? res.extraRefundCents : 0)
+  if (nodeDelta !== 0) {
+    appendPriceEntry(orderId, entryType, nodeDelta, entryName)
+  }
   if (res.extraChargeCents > 0) {
     appendPriceEntry(orderId, 'extra_charge_after_close', res.extraChargeCents, entryName, 'system')
-  } else if (res.extraRefundCents > 0) {
+  }
+  if (res.extraRefundCents > 0) {
     appendPriceEntry(orderId, 'extra_refund_after_close', -res.extraRefundCents, entryName, 'system')
-  } else {
-    appendPriceEntry(orderId, entryType, deltaCents, entryName)
   }
 }
 
