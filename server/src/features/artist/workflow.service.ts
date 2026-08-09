@@ -53,6 +53,16 @@ function getStages(artistId: number): WorkflowStage[] {
   ).all(artistId) as WorkflowStage[]
 }
 
+/** 统计画师存在分期快照的活跃订单数（批4 B10：收款结构变更守卫的命中条件） */
+function countActivePaymentOrders(artistId: number): number {
+  return (db.prepare(`
+    SELECT COUNT(DISTINCT o.id) AS c
+    FROM orders o
+    JOIN order_payment_installments i ON i.order_id = o.id
+    WHERE o.artist_id = ? AND o.status NOT IN ('delivered', 'cancelled')
+  `).get(artistId) as { c: number }).c
+}
+
 function getStageById(id: number): WorkflowStage | undefined {
   return db.prepare('SELECT * FROM artist_workflow_stages WHERE id = ?').get(id) as WorkflowStage | undefined
 }
@@ -191,6 +201,10 @@ export function updateStage(artistId: number, stageId: number, fields: Record<st
 
     // 切换收款开关
     if (fields.takesPayment !== undefined) {
+      // 批4 B10: 有活跃订单引用收款节点快照时禁止切换（锁定/状态推导读实时模板，只拦收款结构变更）
+      const active = countActivePaymentOrders(artistId)
+      if (active > 0) throw new AppError(E.WORKFLOW_PAYMENT_IN_USE, 400, { count: active })
+
       const wantOn = !!fields.takesPayment
 
       if (isFinal && !wantOn) {
@@ -280,6 +294,10 @@ export function reorderStages(artistId: number, orderedIds: number[]): StageCame
     }
     if (new Set(orderedIds).size !== orderedIds.length) throw new AppError(E.REORDER_DUPLICATE)
 
+    // 批4 B10: 有活跃订单引用收款节点快照时禁止排序（收款相对顺序变化会漂移锁定/状态映射）
+    const active = countActivePaymentOrders(artistId)
+    if (active > 0) throw new AppError(E.WORKFLOW_PAYMENT_IN_USE, 400, { count: active })
+
     orderedIds.forEach((id, i) => {
       db.prepare('UPDATE artist_workflow_stages SET sort_order = ? WHERE id = ? AND artist_id = ?')
         .run(i + 1, id, artistId)
@@ -292,7 +310,7 @@ export function reorderStages(artistId: number, orderedIds: number[]): StageCame
 }
 
 /** 批量保存比例（比例条 [保存比例] 按钮） */
-export function savePayment(artistId: number, nodes: Array<{ id: number; basisPoints: number }>): StageCamel[] {
+export function savePayment(artistId: number, nodes: Array<{ id: number; basisPoints: number }>): { stages: StageCamel[]; appliesToNewOrdersOnly: boolean } {
   return db.transaction(() => {
     const stages = getStages(artistId)
     const final = findFinal(stages)
@@ -307,13 +325,16 @@ export function savePayment(artistId: number, nodes: Array<{ id: number; basisPo
       if (n.basisPoints > MAX_BP - MIN_BP) throw new AppError(E.BP_TOO_HIGH, 400, { name: stage.name })
     }
 
+    // 批4 B10（方案 b）：有活跃订单时放行，但标注仅影响新订单（快照不变，不破坏既有订单）
+    const appliesToNewOrdersOnly = countActivePaymentOrders(artistId) > 0
+
     for (const n of nodes) {
       db.prepare('UPDATE artist_workflow_stages SET basis_points = ? WHERE id = ?')
         .run(n.basisPoints, n.id)
     }
     recalcFinal(artistId)
     assertInvariants(artistId)
-    return listCamel(artistId)
+    return { stages: listCamel(artistId), appliesToNewOrdersOnly }
   })()
 }
 

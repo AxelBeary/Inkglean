@@ -526,7 +526,9 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest) => {
-    return { stages: workflowService.savePayment(parseInt((request.params as { id: string }).id, 10), (request.body as { nodes: Array<{ id: number; basisPoints: number }> }).nodes) }
+    // 批4 B10（方案 b）：活跃订单存在时附 appliesToNewOrdersOnly，与画师端口径一致
+    const result = workflowService.savePayment(parseInt((request.params as { id: string }).id, 10), (request.body as { nodes: Array<{ id: number; basisPoints: number }> }).nodes)
+    return { stages: result.stages, ...(result.appliesToNewOrdersOnly ? { appliesToNewOrdersOnly: true } : {}) }
   })
 
   // ─── 画师全设置代理（管理员编辑任意画师） ───

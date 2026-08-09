@@ -46,6 +46,7 @@
     NO_PAYMENT_NODE: 'At least 1 payment stage required',
     SUM_NOT_100: 'Ratios must sum to 100%',
     STAGES_RESET_BLOCKED: '{count} order(s) are in progress. Complete them or turn off workflow tracking before resetting.',
+    WORKFLOW_PAYMENT_IN_USE: 'There are {count} active order(s) referencing payment stages. Changing the payment structure affects their stage locks and payment plans — finish the orders first or try again later.',
 
     // Order
     ORDER_NOT_FOUND: 'Order not found',
@@ -1353,6 +1354,8 @@
     deleteHint: 'Delete this stage?', deletePayHint: 'This stage\'s payment % will merge into the final payment. Delete?',
     savePayment: 'Save Split', unsaved: 'Unsaved payment changes',
     saved: 'Payment split saved', detached: 'Payment node removed, % merged into final',
+    // Batch 4 B10 (option b): backend appends appliesToNewOrdersOnly when active orders exist
+    paymentNewOrdersOnly: 'Payment split saved — applies to new orders only (existing orders keep their snapshot)',
     dragHandle: 'Drag to adjust ratio', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate',
     reset: 'Reset to Default', resetConfirm: 'Reset to default template? All custom stages and payment splits will be overwritten. This cannot be undone.', resetDone: 'Reset to default template',
     descPlaceholder: 'Click to add a note',

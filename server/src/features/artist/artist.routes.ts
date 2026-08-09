@@ -481,7 +481,9 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest) => {
-    return { stages: workflowService.savePayment(request.artist.id, (request.body as { nodes: Array<{ id: number; basisPoints: number }> }).nodes) }
+    // 批4 B10（方案 b）：活跃订单存在时附 appliesToNewOrdersOnly，前端 toast 提示仅影响新订单
+    const result = workflowService.savePayment(request.artist.id, (request.body as { nodes: Array<{ id: number; basisPoints: number }> }).nodes)
+    return { stages: result.stages, ...(result.appliesToNewOrdersOnly ? { appliesToNewOrdersOnly: true } : {}) }
   })
 
   /** POST /api/artist/workflow/reset — 恢复默认模板 */
