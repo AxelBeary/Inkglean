@@ -1065,22 +1065,13 @@
   tiers: {
     title: 'Pricing',
     dragHint: 'Drag to reorder', reorderSaved: 'Order saved',
-    nameLabel: 'Name',
-    namePlaceholder: 'e.g. Headshot, Half-body, Full-body', priceLabel: 'Price (CNY)',
-    uploadExample: 'Upload image', removeExample: 'Remove',
-    fillName: 'Please enter a name',
     daysUnit: '{n} days',
     // #10: tier visibility
-    visVisible: 'Open', visShowcase: 'Showcase', visHidden: 'Hidden',
     // R55: example image drag-and-drop
-    notImage: 'Only image files are supported', tooBig: 'Image exceeds the 10MB limit',
-    overwriteTitle: 'Replace example image', overwriteConfirm: 'This tier already has an example image. The old image cannot be recovered after replacement. Continue?',
     // R54: card layout empty state
     // v0.28 T3: tab labels + action text i18n
-    tabTiers: 'Tiers', tabAddons: 'Add-ons', tabWorkflow: 'Workflow & Payment',
+    tabWorkflow: 'Workflow & Payment',
     tabDiscount: 'Discount Codes',
-    newTier: '+ New tier', save: 'Save',
-    uploaded: 'Uploaded', saved: 'Saved'
   },
   // v0.31 F3: discount code management
   discount: {
