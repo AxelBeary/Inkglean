@@ -186,7 +186,7 @@
     SIZE_OVERRIDE_NOT_FOUND: 'Size override not found'
   },
   pref: {
-    toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',
+    theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',
     // Accent swatch names (polish batch A: proper color names, not literal one-word translations)
     accentNames: { teal: 'Teal', turquoise: 'Turquoise', blue: 'Blue', indigo: 'Indigo', violet: 'Violet' },
     // v0.38: artist back-office paper/ink dual themes (REQ-026 §1.2)
@@ -194,12 +194,12 @@
     artistToastInk: 'Switched · Ink', artistToastPaper: 'Switched · Paper'
   },
   common: {
-    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', hidden: 'Hidden', unknown: 'Unknown' },
+    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break' },
     statusShort: { open: 'Open', full: 'Full', break: 'Break', hidden: 'Hidden' },
     priority: { high: 'High', medium: 'Med', low: 'Low' },
     orderStatus: {
       pending: 'Pending', confirmed: 'Confirmed', wip: 'In progress', revision: 'Revising',
-      done: 'Done', delivered: 'Delivered', cancelled: 'Cancelled', unknown: 'Unknown'
+      done: 'Done', delivered: 'Delivered', cancelled: 'Cancelled'
     },
     source: { self: 'Self', manual: 'Manual', clientSelf: 'Client self-order', manualEntry: 'Manual entry' },
     custom: 'Custom', none: 'None',
@@ -1225,7 +1225,7 @@
     editSaved: 'Artwork saved'
   },
   rules: {
-    title: 'Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
+    hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
     placeholder: 'Enter your commission guidelines. HTML tags like <h3>, <ul>, <li>, <strong> are supported',
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
@@ -1238,7 +1238,7 @@
   },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
-    tabPrefs: 'Preferences', tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',
+    tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',
     // BUG-7: load-failure protection (prevent default/empty values overwriting real settings)
     loadFailedTitle: 'Failed to load settings', loadFailedDesc: 'The form currently holds default values. Saving now would overwrite your real settings. Retry loading first, then edit and save.',
     loadFailedHint: 'Settings have not loaded yet. Please retry before saving.',
@@ -1267,7 +1267,6 @@
     // S5: monthly quota
     quotaLabel: 'Monthly quota', quotaEnable: 'Enable monthly quota', quotaUnit: 'orders/mo',
     quotaHint: 'Limit new orders per month (by creation date; cancelled orders excluded). Off = unlimited. Independent of slot system — when both are enabled, hitting either limit shows as full.',
-    bufferSwitchLabel: 'Buffer settings',
     autoPromote: 'Auto-promote (when a formal slot opens, automatically move the earliest buffer order in)',
     hideQueuePosition: 'Hide queue position from clients (only show "In queue")',
     hidePromoteNotify: 'Do not notify clients on promotion',
@@ -1294,8 +1293,6 @@
     // v0.25 A: Cover management
     coverTitle: 'Cover images (homepage carousel)',
     coverHint: 'Click the star to feature an artwork as a homepage cover. Multiple covers rotate automatically. Click again to remove.',
-    coverSet: 'Set as cover', coverUnset: 'Remove cover',
-    coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
     coverEmpty: 'No artworks yet — upload artworks first to set covers',
     coverManageLink: 'Manage covers',
     // R50: preview

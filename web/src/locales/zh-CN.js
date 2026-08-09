@@ -186,7 +186,7 @@
     SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在'
   },
   pref: {
-    toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',
+    theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',
     // 主色色板名（第三方打磨批 A：英文界面不再显中文）
     accentNames: { teal: '青', turquoise: '碧', blue: '蓝', indigo: '靛', violet: '紫' },
     // v0.38: 画师后台宣纸/墨黑双主题（REQ-026 §1.2）
@@ -194,12 +194,12 @@
     artistToastInk: '已切换 · 墨黑', artistToastPaper: '已切换 · 宣纸'
   },
   common: {
-    status: { open: '可约稿', full: '已排满', break: '休息中', hidden: '已隐藏', unknown: '未知' },
+    status: { open: '可约稿', full: '已排满', break: '休息中' },
     statusShort: { open: '可约', full: '排满', break: '休息', hidden: '隐藏' },
     priority: { high: '高', medium: '中', low: '低' },
     orderStatus: {
       pending: '待确认', confirmed: '已确认', wip: '制作中', revision: '修改中',
-      done: '已完成', delivered: '已交付', cancelled: '已取消', unknown: '未知'
+      done: '已完成', delivered: '已交付', cancelled: '已取消'
     },
     source: { self: '自助', manual: '手动', clientSelf: '客户自助', manualEntry: '手动录入' },
     custom: '自定义', none: '无',
@@ -1223,7 +1223,7 @@
     editSaved: '作品已保存'
   },
   rules: {
-    title: '须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
+    hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
     placeholder: '输入约稿须知内容，支持 HTML 标签如 <h3>、<ul>、<li>、<strong> 等',
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
@@ -1236,7 +1236,7 @@
   },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
-    tabPrefs: '偏好', tabRules: '须知编辑', tabWorkflow: '流程与比例',
+    tabRules: '须知编辑', tabWorkflow: '流程与比例',
     // BUG-7: 加载失败保护（防止默认值/空内容覆盖真实配置）
     loadFailedTitle: '设置加载失败', loadFailedDesc: '表单当前是默认值，保存会覆盖你的真实设置。请重试加载成功后再编辑保存。',
     loadFailedHint: '设置尚未加载成功，无法保存，请先重试',
@@ -1264,7 +1264,6 @@
     // S5: 月度额度池
     quotaLabel: '月度额度', quotaEnable: '启用月度额度', quotaUnit: '单/月',
     quotaHint: '限制每月可接新订单数（按创建时间计，已取消不计）。关闭 = 不限制。与名额系统独立，两者同时启用时任一达到上限即约满。',
-    bufferSwitchLabel: '缓冲区设置',
     autoPromote: '自动递补（正式位空出时自动将缓冲区最早订单移入）',
     hideQueuePosition: '对客户隐藏排队位置（只显示"排队中"）',
     hidePromoteNotify: '递补时不通知客户',
@@ -1291,8 +1290,6 @@
     // v0.25 A: 封面管理
     coverTitle: '封面图（主页顶部轮播）',
     coverHint: '点击星标将作品设为主页封面，可设多张（自动轮播）。再点一次取消。',
-    coverSet: '设为封面', coverUnset: '取消封面',
-    coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
     coverEmpty: '暂无作品，上传作品后可设置封面',
     coverManageLink: '管理封面',
     // R50: 预览
