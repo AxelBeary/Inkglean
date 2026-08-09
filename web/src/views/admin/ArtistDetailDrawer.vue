@@ -36,7 +36,7 @@
             <div v-for="sz in style.sizes" :key="sz.id" class="tier-row">
               <span class="tier-name">{{ sz.name }}</span>
               <el-tag size="small" effect="plain" :type="sizeStatusType(sz.display_status)">{{ sizeStatusLabel(sz.display_status) }}</el-tag>
-              <span class="tier-price text-gold">¥{{ sz.base_price }}</span>
+              <span class="tier-price text-gold">{{ formatYuanValue(sz.base_price) }}</span>
             </div>
             <div v-if="style.sizes.length === 0" class="pricing-empty">{{ $t('styleManage.sizeEmpty') }}</div>
           </div>
@@ -89,6 +89,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import GreetingTable from '../../components/admin/GreetingTable.vue'
+import { formatYuanValue } from '../../utils/money.js'
 
 const { t } = useI18n()
 const visible = defineModel({ type: Boolean, default: false })

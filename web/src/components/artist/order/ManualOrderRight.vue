@@ -51,7 +51,7 @@
           />
           <div class="tier-card-body">
             <div class="tier-card-name">{{ sz.name }}</div>
-            <div class="tier-card-price">¥{{ sz.base_price }}</div>
+            <div class="tier-card-price">{{ formatYuanValue(sz.base_price) }}</div>
             <div v-if="sz.work_days" class="tier-card-days">{{ $t('manualOrder.sizeDays', { n: sz.work_days }) }}</div>
           </div>
         </div>
@@ -229,7 +229,7 @@
       <!-- 提交按钮（桌面/平板） -->
       <el-button type="primary" @click="submit" :loading="submitting" class="mo-submit-btn">
         {{ $t('manualOrder.submit') }}
-        <template v-if="displayPrice"> — ¥{{ displayPrice }}</template>
+        <template v-if="displayPrice"> — {{ formatYuanValue(displayPrice) }}</template>
       </el-button>
     </div>
   </section>
@@ -327,7 +327,7 @@
     <!-- 底栏：价格 + 提交 -->
     <div class="mo-mobile-actions">
       <div class="mo-mobile-price" @click="mobileDetailOpen = !mobileDetailOpen">
-        <span class="mo-mobile-total">¥{{ displayPrice || '—' }}</span>
+        <span class="mo-mobile-total">{{ displayPrice ? formatYuanValue(displayPrice) : '—' }}</span>
         <span class="mo-mobile-detail-link">
           {{ $t('manualOrder.priceDetail') }}
           <el-icon :size="12"><ArrowUp v-if="mobileDetailOpen" /><ArrowDown v-else /></el-icon>
@@ -347,8 +347,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useStageStatus } from '../../../composables/useStageStatus.js'
-import { formatPrice } from '../../artist/addon-utils.js'
-import { formatCents, formatYuan } from '../../../utils/money.js'
+import { formatAddonPrice, formatCents, formatYuan, formatYuanValue } from '../../../utils/money.js'
 
 const props = defineProps({
   // 表单字段（父组件 reactive form 对象——v-model 绑定同一对象）
@@ -559,7 +558,7 @@ function buildStyleAddons() {
 
 /** 画风增项价格文案（¥50 / ¥80/位 / +50%，读真实 price_mode） */
 function formatStyleAddonPrice(a) {
-  return formatPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
+  return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
 }
 
 /** 画风价格计算（防抖 300ms，与旧档位 doCalc 同一模式） */

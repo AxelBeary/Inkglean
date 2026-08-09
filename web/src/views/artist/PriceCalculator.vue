@@ -32,7 +32,7 @@
               @click="selectSize(sz.id)"
             >
               <span class="size-card-name">{{ sz.name }}</span>
-              <span class="size-card-price">¥{{ Number(sz.base_price ?? 0).toFixed(2) }}</span>
+              <span class="size-card-price">{{ formatYuanValue(sz.base_price) }}</span>
               <span v-if="sz.work_days" class="size-card-days">{{ $t('priceCalc.workDays', { n: sz.work_days }) }}</span>
             </button>
           </div>
@@ -64,7 +64,7 @@
                 @change="(val) => setAddon(a.id, { optionLabel: val })"
               >
                 <el-radio-button v-for="opt in parseOptions(a.options)" :key="opt.label" :value="opt.label">
-                  {{ opt.label }} ¥{{ opt.price }}
+                  {{ opt.label }} {{ formatYuanValue(opt.price) }}
                 </el-radio-button>
               </el-radio-group>
             </div>
@@ -100,12 +100,12 @@
         <div v-if="preview" class="calc-result">
           <div class="calc-result-head">
             <span>{{ preview.styleName }} · {{ preview.sizeName }}</span>
-            <span class="calc-result-total">¥{{ Number(preview.totalPrice ?? 0).toFixed(2) }}</span>
+            <span class="calc-result-total">{{ formatYuanValue(preview.totalPrice) }}</span>
           </div>
-          <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>¥{{ Number(preview.basePrice ?? 0).toFixed(2) }}</span></div>
+          <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanValue(preview.basePrice) }}</span></div>
           <div v-for="item in preview.addonItems" :key="item.name + item.quantity + item.amount" class="calc-line">
             <span>{{ item.name }}{{ item.quantity > 1 ? ' ×' + item.quantity : '' }}</span>
-            <span>¥{{ Number(item.amount ?? 0).toFixed(2) }}</span>
+            <span>{{ formatYuanValue(item.amount) }}</span>
           </div>
           <div v-if="preview.usageMultiplier || preview.rushMultiplier" class="calc-line calc-line--dim">
             <span>
@@ -113,7 +113,7 @@
               <template v-if="preview.usageMultiplier">{{ preview.usageMultiplier.name }} ×{{ preview.usageMultiplier.factor }}</template>
               <template v-if="preview.rushMultiplier">{{ preview.rushMultiplier.name }} ×{{ preview.rushMultiplier.factor }}</template>
             </span>
-            <span>¥{{ Number(preview.multiplierTotal ?? 0).toFixed(2) }}</span>
+            <span>{{ formatYuanValue(preview.multiplierTotal) }}</span>
           </div>
           <p class="calc-disclaimer">{{ $t('priceCalc.disclaimer') }}</p>
         </div>
@@ -130,6 +130,7 @@ import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { artistPublicApi, artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
+import { formatYuanValue } from '../../utils/money.js'
 
 // 数据：画风（含尺寸+增项）+ 倍率
 const store = useArtistStore()
@@ -237,7 +238,7 @@ function parseOptions(optionsJson) {
 /** 增项价格文案：radio 按选项计价，其余显示单价（quantity 带单位） */
 function formatAddonPrice(a) {
   if (a.control_type === 'radio') return t('priceCalc.optionPrice')
-  return '¥' + Number(a.price ?? 0).toFixed(2) + (a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : '')
+  return formatYuanValue(a.price ?? 0) + (a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : '')
 }
 
 onMounted(async () => {

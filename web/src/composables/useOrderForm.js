@@ -33,7 +33,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize.js'
 import { usePasteUpload } from './usePasteUpload.js'
-import { formatPrice } from '../components/artist/addon-utils.js'
+import { formatAddonPrice } from '../utils/money.js'
 
 export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const { t } = useI18n()
@@ -139,7 +139,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   /** 增项单价展示文本（¥50 / ¥80/位 / +50%；读公开接口真实 price_mode/category） */
   function styleAddonPriceText(a) {
-    return formatPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
+    return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
   }
 
   // ─── 折扣码（验证 → 预估折扣展示 → 提交时传码，后端真正扣减） ───
