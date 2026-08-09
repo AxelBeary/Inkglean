@@ -7,3 +7,8 @@
 export function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2)
 }
+
+/** 金额分 → 「¥元」字符串（¥ 前缀 + formatCents；负数输出 ¥-12.00，与旧各点 `¥{{ (x/100).toFixed(2) }}` 等价） */
+export function formatYuan(cents) {
+  return `¥${formatCents(cents)}`
+}

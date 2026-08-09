@@ -39,7 +39,7 @@
             <!-- 05D-E2: 订单收入/总收入两格无后端区间汇总端点，隐藏占位（保留 incomeNote 说明；后端端点预留不动） -->
             <div class="income-cell">
               <span class="income-label">{{ $t('toolsExport.incomeStandalone') }}</span>
-              <span class="income-value income-standalone">{{ fmtYuan(overview.standaloneCents) }}</span>
+              <span class="income-value income-standalone">{{ formatYuan(overview.standaloneCents) }}</span>
             </div>
             <div class="income-cell">
               <span class="income-label">{{ $t('toolsExport.incomeCount') }}</span>
@@ -71,7 +71,7 @@ import { ref, watch } from 'vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatCents } from '../../utils/money.js'
+import { formatYuan } from '../../utils/money.js'
 import { artistApi } from '../../api/index.js'
 
 const { t } = useI18n()
@@ -92,10 +92,6 @@ const emptyHint = ref(false)
 // 订单/总收入无区间 JSON 汇总端点（后端缺口，见交付报告），暂不展示
 const overview = ref(null)
 const overviewLoading = ref(false)
-
-function fmtYuan(cents) {
-  return `¥${formatCents(cents)}`
-}
 
 async function loadOverview() {
   if (!range.value?.length) return

@@ -68,7 +68,7 @@
               <span class="si-row-client">{{ item.clientName || $t('standaloneIncome.anonymous') }}</span>
               <span v-if="item.note" class="si-row-note">{{ item.note }}</span>
             </div>
-            <span class="si-row-amount">{{ fmtYuan(item.amountCents) }}</span>
+            <span class="si-row-amount">{{ formatYuan(item.amountCents) }}</span>
             <el-button
               text
               type="danger"
@@ -90,7 +90,7 @@ import { ref, reactive, onMounted } from 'vue'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatCents } from '../../utils/money.js'
+import { formatYuan } from '../../utils/money.js'
 import { artistApi } from '../../api/index.js'
 
 const { t } = useI18n()
@@ -172,11 +172,6 @@ async function loadItems() {
   } finally {
     loading.value = false
   }
-}
-
-/** 分 → 元展示（后端存整数分，前端 ÷100） */
-function fmtYuan(cents) {
-  return `¥${formatCents(cents)}`
 }
 
 async function remove(item) {
