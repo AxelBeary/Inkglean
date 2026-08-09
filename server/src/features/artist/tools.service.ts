@@ -328,17 +328,17 @@ export interface IncomeSummary {
 
 /**
  * 画师收入汇总查询。
- * 时间口径说明：order_payments.created_at 为 UTC datetime，date(p.created_at) 取 UTC 日期；
- * standalone_incomes.income_date 为本地日期字符串。两口径可能差一天，保持各自口径
- * （散单页已用 income_date 本地日期；如需严格对齐可后续排期，本批不扩复杂度）。
+ * 时间口径说明：order_payments.created_at 为 UTC datetime，统一转本地日期过滤
+ * （strftime(...,'localtime')），与 getExportRows 导出口径一致；散单
+ * standalone_incomes.income_date 本身为本地日期字符串，两条数据源按本地日期对齐。
  */
 export function getIncomeSummary(artistId: number, from: string, to: string): IncomeSummary {
-  // order_payments 按 p.created_at（datetime）date() 与订单关联过滤 artist
+  // order_payments 按本地日期过滤（created_at 为 UTC，localtime 转本地；与导出对齐）
   const orderRow = db.prepare(`
     SELECT COALESCE(SUM(p.amount_cents), 0) AS s
     FROM order_payments p
     JOIN orders o ON p.order_id = o.id
-    WHERE o.artist_id = ? AND date(p.created_at) BETWEEN ? AND ?
+    WHERE o.artist_id = ? AND strftime('%Y-%m-%d', p.created_at, 'localtime') BETWEEN ? AND ?
   `).get(artistId, from, to) as { s: number }
   const standaloneRow = db.prepare(`
     SELECT COALESCE(SUM(amount_cents), 0) AS s
