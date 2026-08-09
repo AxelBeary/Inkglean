@@ -11,6 +11,10 @@
     CODE_EXPIRED: '登录码已过期',
     CODE_TOO_MANY_ATTEMPTS: '尝试次数过多，请重新获取登录码',
     QQ_NOT_REGISTERED: '该 QQ 号未注册为画师',
+    TOTP_NOT_BOUND: '该画师尚未绑定动态口令，请联系管理员',
+    TOTP_INVALID: 'QQ号或动态口令错误',
+    TOTP_LOCKED: '尝试次数过多，账号已临时锁定，请稍后再试',
+    TOTP_BIND_INVALID: '动态口令错误，请让画师确认验证器上当前显示的 6 位码',
 
     // 画师
     ARTIST_NOT_FOUND: '画师不存在',
@@ -45,6 +49,7 @@
 
     // 订单
     ORDER_NOT_FOUND: '订单不存在',
+    ORDER_NOT_OWNED: '该订单不属于你，无权操作',
     ORDER_INVALID_STATUS: '无效状态',
     INVALID_TRANSITION: '不能进行此状态转换',
     DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
@@ -56,6 +61,10 @@
     QUEUE_LENGTH: '排序列表长度与队列不一致',
     QUEUE_DUPLICATE: '排序列表存在重复订单',
     INVALID_PRIORITY: '无效优先级',
+
+    // REQ-022 F1: 发布为作品
+    PUBLISH_WRONG_STATUS: '仅已交付的订单可发布为作品',
+    DELIVERABLE_NOT_FOUND: '交付文件不存在或不属于该订单',
 
     // 备注删除（v0.15 R46）
     NOTE_NOT_FOUND: '备注不存在',
@@ -111,12 +120,17 @@
     ORDER_INVALID_ID: '无效的订单ID',
 
     // 增项（补充）
+    // 增项选择（补充，SPEC-PRICE-2：用途/加急各只生效一个）
+    ADDON_SELECTION_MUTEX: '用途/加急增项各只能选择一个生效',
 
     // 倍率（补充）
 
     // 计算（补充）
     PRICING_CALC_FAILED: '价格计算失败',
     INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
+    // 计价引擎（补充，v0.37 REQ-025）
+    PRICING_CONSERVATION: '计价数据不守恒，操作已拒绝，请刷新后重试',
+    PRICE_CHANGE_AFTER_DONE: '订单已完成，改价请通过增减附加项操作',
 
     // 焦点图（补充）
     FOCUS_IMAGE_NOT_FOUND: '参考图不存在',
@@ -138,6 +152,13 @@
     // 平台链接（补充）
     PLATFORM_URLS_TOO_MANY: '平台链接数量不能超过10条',
     PLATFORM_URL_INVALID: '平台链接格式不正确（须以 http:// 或 https:// 开头）',
+
+    // 社交平台（补充，v0.38 REQ-022 F2）
+    PLATFORM_NOT_FOUND: '社交平台不存在',
+    PLATFORM_NAME_EMPTY: '平台名称不能为空',
+    PLATFORM_ICON_REQUIRED: '平台图标键与单字兜底至少填一项',
+    PLATFORM_DOMAIN_INVALID: '平台域名格式不正确（不含协议/路径/端口）',
+    PLATFORM_DOMAIN_TAKEN: '该域名已被其他启用平台占用',
 
     // 灵感标签（补充）
     TAGS_TOO_MANY: '灵感标签数量不能超过20个',
@@ -167,6 +188,7 @@
     STYLE_SIZE_NOT_FOUND: '尺寸不存在',
     STYLE_SIZE_NAME_EMPTY: '尺寸名称不能为空',
     STYLE_SIZE_INVALID_PRICE: '尺寸价格无效',
+    STYLE_SIZE_NOT_AVAILABLE: '该尺寸暂不接受约稿',
     ADDON_TEMPLATE_NOT_FOUND: '增项模板不存在',
     ADDON_TEMPLATE_NAME_EMPTY: '增项模板名称不能为空',
     ADDON_TEMPLATE_INVALID_PRICE: '增项模板价格无效',

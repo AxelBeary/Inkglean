@@ -11,6 +11,10 @@
     CODE_EXPIRED: 'Login code expired',
     CODE_TOO_MANY_ATTEMPTS: 'Too many attempts, please request a new code',
     QQ_NOT_REGISTERED: 'This QQ number is not registered as an artist',
+    TOTP_NOT_BOUND: 'This artist has not bound an authenticator yet. Please contact the admin',
+    TOTP_INVALID: 'Incorrect QQ number or one-time password',
+    TOTP_LOCKED: 'Too many attempts. Account temporarily locked, please try again later',
+    TOTP_BIND_INVALID: 'Incorrect one-time password. Ask the artist to check the 6-digit code on their authenticator',
 
     // Artist
     ARTIST_NOT_FOUND: 'Artist not found',
@@ -45,6 +49,7 @@
 
     // Order
     ORDER_NOT_FOUND: 'Order not found',
+    ORDER_NOT_OWNED: 'This order does not belong to you',
     ORDER_INVALID_STATUS: 'Invalid status',
     INVALID_TRANSITION: 'Invalid status transition',
     DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
@@ -56,6 +61,10 @@
     QUEUE_LENGTH: 'Reorder list length mismatch',
     QUEUE_DUPLICATE: 'Reorder list has duplicate orders',
     INVALID_PRIORITY: 'Invalid priority',
+
+    // REQ-022 F1: Publish as artwork
+    PUBLISH_WRONG_STATUS: 'Only delivered orders can be published as artworks',
+    DELIVERABLE_NOT_FOUND: 'Deliverable not found or does not belong to this order',
 
     // Note deletion (v0.15 R46)
     NOTE_NOT_FOUND: 'Note not found',
@@ -111,12 +120,17 @@
     ORDER_INVALID_ID: 'Invalid order ID',
 
     // Addons (supplement)
+    // Add-on selection (supplement, SPEC-PRICE-2: only one usage / rush each)
+    ADDON_SELECTION_MUTEX: 'Only one usage and one rush add-on can be active at a time',
 
     // Multipliers (supplement)
 
     // Pricing (supplement)
     PRICING_CALC_FAILED: 'Price calculation failed',
     INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 99999999)',
+    // Pricing engine (supplement, v0.37 REQ-025)
+    PRICING_CONSERVATION: 'Pricing data is inconsistent; operation rejected. Please refresh and retry',
+    PRICE_CHANGE_AFTER_DONE: 'Order is complete; adjust the price by adding or removing extra items',
 
     // Focus image (supplement)
     FOCUS_IMAGE_NOT_FOUND: 'Reference image not found',
@@ -138,6 +152,13 @@
     // Platform links (supplement)
     PLATFORM_URLS_TOO_MANY: 'Cannot have more than 10 platform links',
     PLATFORM_URL_INVALID: 'Invalid platform link format (must start with http:// or https://)',
+
+    // Social platforms (supplement, v0.38 REQ-022 F2)
+    PLATFORM_NOT_FOUND: 'Social platform not found',
+    PLATFORM_NAME_EMPTY: 'Platform name cannot be empty',
+    PLATFORM_ICON_REQUIRED: 'Provide at least an icon key or a single-character fallback',
+    PLATFORM_DOMAIN_INVALID: 'Invalid platform domain (no protocol/path/port)',
+    PLATFORM_DOMAIN_TAKEN: 'This domain is already used by another enabled platform',
 
     // Inspiration tags (supplement)
     TAGS_TOO_MANY: 'Cannot have more than 20 inspiration tags',
@@ -167,6 +188,7 @@
     STYLE_SIZE_NOT_FOUND: 'Size not found',
     STYLE_SIZE_NAME_EMPTY: 'Size name cannot be empty',
     STYLE_SIZE_INVALID_PRICE: 'Invalid size price',
+    STYLE_SIZE_NOT_AVAILABLE: 'This size is not available for ordering',
     ADDON_TEMPLATE_NOT_FOUND: 'Addon template not found',
     ADDON_TEMPLATE_NAME_EMPTY: 'Addon template name cannot be empty',
     ADDON_TEMPLATE_INVALID_PRICE: 'Invalid addon template price',
