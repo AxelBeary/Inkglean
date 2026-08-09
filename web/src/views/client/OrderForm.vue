@@ -90,7 +90,7 @@
                       <span class="size-pick-name">{{ sz.name }}</span>
                       <!-- SPEC-PRICE-2: 展示态尺寸可见但不可约（后端同步拒单） -->
                       <span v-if="sz.display_status === 'showcase'" class="size-pick-showcase">{{ $t('orderForm.sizeShowcaseTag') }}</span>
-                      <span class="size-pick-price">¥{{ sz.base_price }}</span>
+                      <span class="size-pick-price">{{ formatYuanValue(sz.base_price) }}</span>
                       <span v-if="selectedSizeId === sz.id" class="size-pick-check">✓</span>
                     </div>
                   </div>
@@ -214,7 +214,7 @@
                       {{ $t('orderForm.discountValidate') }}
                     </el-button>
                     <span v-if="discountResult" class="discount-ok">
-                      ✓ {{ discountResult.discountType === 'percent' ? `-${discountResult.discountValue}%` : `-¥${discountResult.discountValue}` }}
+                      ✓ {{ discountResult.discountType === 'percent' ? `-${discountResult.discountValue}%` : `-${formatYuanValue(discountResult.discountValue)}` }}
                     </span>
                   </div>
                   <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
@@ -337,7 +337,7 @@
                   <el-button @click="step = detailStep">{{ $t('orderForm.prevStep') }}</el-button>
                   <el-button type="primary" @click="openReceipt">
                     {{ $t('orderForm.submit') }}
-                    <template v-if="isStyleMode && selectedSize"> — ¥{{ displayPrice.toFixed(2) }}</template>
+                    <template v-if="isStyleMode && selectedSize"> — {{ formatYuanValue(displayPrice) }}</template>
                   </el-button>
                 </div>
               </div>
@@ -365,7 +365,7 @@
               <div class="summary-lines">
                 <div class="summary-line">
                   <span>{{ selectedSize.name }}</span>
-                  <span class="summary-amt">¥{{ selectedSize.base_price.toFixed(2) }}</span>
+                  <span class="summary-amt">{{ formatYuanValue(selectedSize.base_price) }}</span>
                 </div>
                 <template v-if="stylePricePreview">
                   <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="summary-line">
@@ -393,7 +393,7 @@
               </div>
               <div class="summary-total">
                 <span>{{ $t('orderForm.receiptTotal') }}</span>
-                <span class="summary-total-amt">¥{{ displayPrice.toFixed(2) }}</span>
+                <span class="summary-total-amt">{{ formatYuanValue(displayPrice) }}</span>
               </div>
               <div v-if="installmentPreview.length > 1" class="summary-installments">
                 <span v-for="inst in installmentPreview" :key="inst.label" class="summary-inst">
@@ -409,7 +409,7 @@
         <div class="mobile-cta-bar" v-if="artist">
           <div class="mobile-cta-price">
             <span class="mobile-cta-label">{{ $t('orderForm.receiptTotal') }}</span>
-            <span class="mobile-cta-amt">¥{{ displayPrice.toFixed(2) }}</span>
+            <span class="mobile-cta-amt">{{ formatYuanValue(displayPrice) }}</span>
           </div>
           <el-button type="primary" class="mobile-cta-btn" @click="onMobileNext">
             {{ step === contactStep ? $t('orderForm.submit') : $t('orderForm.nextStep') }}
@@ -462,7 +462,7 @@
         <div class="receipt-dashed"></div>
         <div class="receipt-total">
           <span>{{ $t('orderForm.receiptTotal') }}</span>
-          <span>¥{{ displayPrice.toFixed(2) }}</span>
+          <span>{{ formatYuanValue(displayPrice) }}</span>
         </div>
         <div v-if="installmentPreview.length > 1" class="receipt-installments">
           <span v-for="inst in installmentPreview" :key="inst.label" class="receipt-inst">
@@ -518,7 +518,7 @@ import ClientFloatingActions from '../../components/client/ClientFloatingActions
 import { useOrderForm } from '../../composables/useOrderForm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { usePalette } from '../../composables/usePalette.js'
-import { formatYuan } from '../../utils/money.js'
+import { formatYuan, formatYuanValue } from '../../utils/money.js'
 import { trackEvent, flushNow } from '../../utils/track.js'
 
 const { t } = useI18n()
@@ -754,7 +754,7 @@ async function copyOrderSummary() {
     if (p.rush) lines.push(`- ${p.rush.name} +${p.rush.percent}%: +${formatYuan(p.rush.incrementCents)}`)
     if (p.discount) lines.push(`- ${t('orderForm.discountEstimate')}: -${formatYuan(p.discount.amountCents)}`)
   }
-  lines.push(`${t('orderForm.receiptTotal')}: ¥${displayPrice.value.toFixed(2)}`)
+  lines.push(`${t('orderForm.receiptTotal')}: ${formatYuanValue(displayPrice.value)}`)
   const text = lines.join('\n')
   try {
     await navigator.clipboard.writeText(text)
