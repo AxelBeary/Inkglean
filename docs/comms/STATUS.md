@@ -1,6 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-09 v56（**formatYuan A1 统一合入；每日备份计划任务已配并实测；排队只剩批4+A3 拍板项**）——master `6b4f2fe` 与 origin 同步。
+> 最后更新：2026-08-09 v57（**批4A + A3 + formatYuan A2 三路合入推送；批4B 停等拍板；纸墨 Dashboard 原型 v0.1 已交付**）——master `357e1d0` 与 origin 同步。
+> ✅ **三路合入（2026-08-09，各自独立复跑门禁通过后合入）**：批4A `7cafefb`（savePayment 方案 b 守卫+appliesToNewOrdersOnly 提示 + scripts 纳入编译 + demo-data v51 对齐）/ A3 `d76a81c`（R10 关闭语义收敛：关闭=全锁且Σ待收=0，done 未付全的 delta 冲抵未付节点）/ formatYuan A2 `357e1d0`（formatYuanValue 整数裁剪 + addon-utils 收编进 money.js）。合入后全量门禁：server 1027 · web 254 全绿。
+> ⚠️ **批4B（paid_cents 迁移 v52）停等拍板**：施工中发现规格冲突——v24 存量换算无条件读 status 列，base schema 删列则新库迁移链必崩。方案 A（base 暂留四列+v52 末尾删，历史迁移不动，推荐）vs 方案 B（base 严格删列+v24 加列探测守卫）。详谈见 03-to-01-批4B-交付.md。
+> 🎨 **纸墨 Dashboard 原型 v0.1（2026-08-09）**：%TEMP%\prototype-dashboard\dashboard-v0.1.html（单文件自包含+notes.md+审计截图）。已过 huiyue-layout-audit v2 两轮（圆角 3 种/4px 栅格/对比度≥4.5:1 全达标），13 条已知待打磨点列在 notes.md §三，供 fork 后打磨。
+> ✅ **旧 v56 摘要（formatYuan A1 统一合入；每日备份计划任务已配并实测）**——master `6b4f2fe` 与 origin 同步。
 > ✅ **批7 内容**：①顶部改工具栏（标题+开关+语义状态徽章[开=石绿/关=藤黄] ｜ 右侧新建画风主按钮）+精简提示语；②**CI/E2E 断链根因修复**：仓库 Actions 权限被设为 `local_only`（只许本仓库内行动）→ 所有外部 actions（checkout/setup-node 等）被拦，自 08-08 18:28 起 CI/E2E 全部 startup_failure（0 jobs）；已改为 `selected`+仅允许 GitHub 官方行动（供应链不放松）；本地全门禁复跑全绿（E2E 7/7、server 1005、web 254、oxlint/check-locators 0 错）。教训：**CI 红不一定是代码错，先查仓库设置**。
 > ✅ **SPEC-PRICE-2 全链（已验收通过）**：批1 `856055a` / 批3 `777a9a5` / 批4 `7be8b27` / 批5 `ae9f7ed` / v51 热修 `d88465e`（脏快照清洗，快照仅解绑行生效）/ 批6 `1d2914b`（交互布局，用户评“超出预期”）。规范：`docs/specs/SPEC-PRICE-2-价格模型统一重构.md`（含 §6 交互防呆铁律）。
 > 🔴 **公式铁律（全链路已统一）**：最终价 = (基础价 + Σ固定增项 + Σ百分比增项[只按基础价]) × 用途 × 加急 × 折扣；全程整数分；增项两类控件（开关/个数，**用途/加急强制开关**）× 两种计价（¥/%）× 三类 category；用途/加急下单各选一个（ADDON_SELECTION_MUTEX）；新建画风无条件自动绑定用途/加急。
@@ -22,9 +26,9 @@
 ---
 ## master 状态
 
-- **HEAD**：批7 提交（与 origin 同步）
-- **工作树**：主仓干净（无活跃 worktree）
-- **测试基线**：server **1013/1013**（69 文件）· web **254/254**（17 文件）· E2E 7/7 · tsc 0 · eslint 0 · oxlint 0 错 · check-locators 0 错 · check-i18n 0
+- **HEAD**：`357e1d0`（批4A+A3+FYA2 三路合入，与 origin 同步）
+- **工作树**：主仓干净；活跃 worktree：artist-commission-w-b4b（批4B，停等拍板）
+- **测试基线**：server **1027/1027**（69 文件）· web **254/254**（17 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint 0 · oxlint 0 错 · check-locators 0 错 · check-i18n 0
 - **后端 100% TS + strict 全开 + any 清零**（唯一豁免 init.js @ts-nocheck）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
 - **容器**：✅ **已重建 = 批7 最新**（备份 `bak-pre-v050-pricemodel-20260809` + 迁移器自动 .bak.v50 在）
