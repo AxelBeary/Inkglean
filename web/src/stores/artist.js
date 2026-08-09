@@ -41,8 +41,8 @@ export const useArtistStore = defineStore('artist', {
       try {
         this.profile = await artistApi.getProfile()
       } catch (err) {
-        // Token 失效
-        this.logout()
+        // 仅 Token 失效（401）登出；其余异常原样抛出，由调用方决定兜底
+        if (err.status === 401) this.logout()
         throw err
       } finally {
         this.loading = false

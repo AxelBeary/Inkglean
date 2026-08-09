@@ -11,6 +11,10 @@
     CODE_EXPIRED: '登录码已过期',
     CODE_TOO_MANY_ATTEMPTS: '尝试次数过多，请重新获取登录码',
     QQ_NOT_REGISTERED: '该 QQ 号未注册为画师',
+    TOTP_NOT_BOUND: '该画师尚未绑定动态口令，请联系管理员',
+    TOTP_INVALID: 'QQ号或动态口令错误',
+    TOTP_LOCKED: '尝试次数过多，账号已临时锁定，请稍后再试',
+    TOTP_BIND_INVALID: '动态口令错误，请让画师确认验证器上当前显示的 6 位码',
 
     // 画师
     ARTIST_NOT_FOUND: '画师不存在',
@@ -45,6 +49,7 @@
 
     // 订单
     ORDER_NOT_FOUND: '订单不存在',
+    ORDER_NOT_OWNED: '该订单不属于你，无权操作',
     ORDER_INVALID_STATUS: '无效状态',
     INVALID_TRANSITION: '不能进行此状态转换',
     DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
@@ -56,6 +61,10 @@
     QUEUE_LENGTH: '排序列表长度与队列不一致',
     QUEUE_DUPLICATE: '排序列表存在重复订单',
     INVALID_PRIORITY: '无效优先级',
+
+    // REQ-022 F1: 发布为作品
+    PUBLISH_WRONG_STATUS: '仅已交付的订单可发布为作品',
+    DELIVERABLE_NOT_FOUND: '交付文件不存在或不属于该订单',
 
     // 备注删除（v0.15 R46）
     NOTE_NOT_FOUND: '备注不存在',
@@ -111,21 +120,17 @@
     ORDER_INVALID_ID: '无效的订单ID',
 
     // 增项（补充）
-    ADDON_NOT_FOUND: '增项不存在',
-    ADDON_NAME_EMPTY: '增项名称不能为空',
-    ADDON_INVALID_PRICE: '增项价格无效',
-    ADDON_INVALID_MODE: '无效的选择模式',
-    ADDON_MAX_QTY: '超出最大数量限制',
-    ADDON_NOT_FOR_TIER: '该增项不适用于所选档位',
+    // 增项选择（补充，SPEC-PRICE-2：用途/加急各只生效一个）
+    ADDON_SELECTION_MUTEX: '用途/加急增项各只能选择一个生效',
 
     // 倍率（补充）
-    MULTIPLIER_NOT_FOUND: '倍率项不存在',
-    MULTIPLIER_INVALID: '倍率值无效（须大于等于1.0）',
 
     // 计算（补充）
-    PRICING_TIER_REQUIRED: '请先选择基础档位',
     PRICING_CALC_FAILED: '价格计算失败',
     INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
+    // 计价引擎（补充，v0.37 REQ-025）
+    PRICING_CONSERVATION: '计价数据不守恒，操作已拒绝，请刷新后重试',
+    PRICE_CHANGE_AFTER_DONE: '订单已完成，改价请通过增减附加项操作',
 
     // 焦点图（补充）
     FOCUS_IMAGE_NOT_FOUND: '参考图不存在',
@@ -147,6 +152,13 @@
     // 平台链接（补充）
     PLATFORM_URLS_TOO_MANY: '平台链接数量不能超过10条',
     PLATFORM_URL_INVALID: '平台链接格式不正确（须以 http:// 或 https:// 开头）',
+
+    // 社交平台（补充，v0.38 REQ-022 F2）
+    PLATFORM_NOT_FOUND: '社交平台不存在',
+    PLATFORM_NAME_EMPTY: '平台名称不能为空',
+    PLATFORM_ICON_REQUIRED: '平台图标键与单字兜底至少填一项',
+    PLATFORM_DOMAIN_INVALID: '平台域名格式不正确（不含协议/路径/端口）',
+    PLATFORM_DOMAIN_TAKEN: '该域名已被其他启用平台占用',
 
     // 灵感标签（补充）
     TAGS_TOO_MANY: '灵感标签数量不能超过20个',
@@ -176,6 +188,7 @@
     STYLE_SIZE_NOT_FOUND: '尺寸不存在',
     STYLE_SIZE_NAME_EMPTY: '尺寸名称不能为空',
     STYLE_SIZE_INVALID_PRICE: '尺寸价格无效',
+    STYLE_SIZE_NOT_AVAILABLE: '该尺寸暂不接受约稿',
     ADDON_TEMPLATE_NOT_FOUND: '增项模板不存在',
     ADDON_TEMPLATE_NAME_EMPTY: '增项模板名称不能为空',
     ADDON_TEMPLATE_INVALID_PRICE: '增项模板价格无效',
@@ -186,7 +199,7 @@
     SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在'
   },
   pref: {
-    toLight: '切换到亮色模式', toDark: '切换到暗色模式', theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',
+    theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',
     // 主色色板名（第三方打磨批 A：英文界面不再显中文）
     accentNames: { teal: '青', turquoise: '碧', blue: '蓝', indigo: '靛', violet: '紫' },
     // v0.38: 画师后台宣纸/墨黑双主题（REQ-026 §1.2）
@@ -194,12 +207,12 @@
     artistToastInk: '已切换 · 墨黑', artistToastPaper: '已切换 · 宣纸'
   },
   common: {
-    status: { open: '可约稿', full: '已排满', break: '休息中', hidden: '已隐藏', unknown: '未知' },
+    status: { open: '可约稿', full: '已排满', break: '休息中' },
     statusShort: { open: '可约', full: '排满', break: '休息', hidden: '隐藏' },
     priority: { high: '高', medium: '中', low: '低' },
     orderStatus: {
       pending: '待确认', confirmed: '已确认', wip: '制作中', revision: '修改中',
-      done: '已完成', delivered: '已交付', cancelled: '已取消', unknown: '未知'
+      done: '已完成', delivered: '已交付', cancelled: '已取消'
     },
     source: { self: '自助', manual: '手动', clientSelf: '客户自助', manualEntry: '手动录入' },
     custom: '自定义', none: '无',
@@ -368,12 +381,9 @@
     note: '导出的 CSV 包含：日期、客户、金额（分）、类型（订单收款/散单收入）、订单号。数据与后端一致，不包含画师私有备注。',
     incomeOverview: '收入概览',
     incomeLoading: '加载中…',
-    incomeTotal: '总收入',
-    incomeOrder: '订单收入',
     incomeStandalone: '散单收入',
     incomeCount: '收款笔数',
     incomeCountUnit: '笔',
-    incomeUnavailable: '待后端汇总',
     incomeNote: '散单收入与笔数与导出 CSV 的散单行口径一致；订单收入与总收入需后端补充区间汇总端点后展示。',
     incomeLoadFailed: '收入概览加载失败',
     downloaded: '已开始下载',
@@ -421,9 +431,7 @@
     sourceArtwork: '作品图',
     sourceDeliverable: '完稿图',
     chooseFile: '选择图片',
-    selectArtwork: '选择作品',
     selectOrder: '选择订单',
-    selectDeliverable: '选择完稿图',
     emptyArtworks: '暂无作品',
     emptyDeliverables: '该订单暂无完稿图',
     watermarkType: '水印类型',
@@ -547,7 +555,6 @@
     quickconfig: '快捷入口设置',
     status: '状态切换',
     publish: '快速发作品',
-    publishHint: '拖图或粘贴，直接发布作品',
     uploading: '发布中…',
     published: '作品已发布',
     publishFailed: '发布失败',
@@ -557,7 +564,7 @@
   },
   landing: {
     title: '画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
-    noBio: '这位画师还没有写简介', weibo: '微博', bilibili: 'B站',
+    noBio: '这位画师还没有写简介',
     noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
   },
   // v0.34 任务A：独立 404 页
@@ -567,18 +574,16 @@
     artistsTitle: '或者，去看看这些画师'
   },
   artistHome: {
-    weibo: '我的微博', bilibili: '我的B站', commission: '我要约稿', track: '查询进度',
+    commission: '我要约稿', track: '查询进度',
     noWorks: '暂无作品，敬请期待',
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败', hidden: '该画师暂未开放主页',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
-    about: '关于', navPricing: '价格', navProcess: '流程', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
-    heroOpen: '接受约稿中', heroFull: '目前已排满', heroBreak: '休息中',
-    startCommission: '开始约稿 →', trackOrder: '查询进度', howItWorks: '约稿流程',
+    navPricing: '价格', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
+    startCommission: '开始约稿 →', trackOrder: '查询进度',
     ctaSubtitle: '期待与你一起创作出好作品。',
     // v0.42 Step 6: 客户端画廊「加载更多」
     loadMore: '加载更多',
-    weiboPlain: '微博', bilibiliPlain: 'B站',
     otherLink: '链接',
     revisionNote: '修改说明',
     // #9: 档位展示柜
@@ -586,14 +591,13 @@
     // R50: 预览模式
     previewBanner: '预览模式 — 修改尚未保存',
     // v0.25 A: 封面精选
-    covers: '封面精选',
     // v0.32 REQ-023 Phase3: 多画风价格表
     styleOrderBtn: '选择此画风约稿',
     // v0.34 任务B：尺寸选中后下单引导
     styleSizeHint: '已选 {size} · ¥{price}，点击下方按钮带此选择进入约稿'
   },
   orderForm: {
-    backHome: '返回主页', title: '我要约稿', tierLabel: '选择档位', tierPlaceholder: '请选择约稿类型',
+    backHome: '返回主页', title: '我要约稿',
     workflowLabel: '约稿流程',
     descLabel: '需求描述', descPlaceholder: '描述你想要的画面：角色特征、姿势、风格、背景等',
     // D 软提示（用户拍板：需求描述可空过，仅留空时提示一次，不拦截）
@@ -601,13 +605,12 @@
     descSoftContinue: '继续',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
     refTip: '下单后画师也可在订单图库中补充参考图，订单图库合计上限 20 张。',
-    pricingDetail: '详细计价',
     qqLabel: '你的QQ号', qqPlaceholder: '画师会通过QQ联系你',
     nameLabel: '昵称（可选）', namePlaceholder: '怎么称呼你',
     notifyLabel: '排到我的时候通过QQ通知我', agreeLabel: '我已阅读并同意以上约稿须知',
     submit: '提交约稿', successTitle: '约稿提交成功！', orderNoIs: '你的订单号是：',
     addQqHint: '请添加画师QQ沟通细节，报上你的订单号即可', viewProgress: '查看进度',
-    selectTier: '请选择档位', fillQq: '请填写QQ号', selectSizeFirst: '请先选择画风和尺寸',
+    fillQq: '请填写QQ号', selectSizeFirst: '请先选择画风和尺寸',
     fileTooBig: '文件「{name}」超过10MB限制（{size}MB），请压缩后重新上传',
     typeWarning: '建议转换为 JPG 或 WebP 格式以获得更好的预览体验，但当前格式也可以正常上传。',
     loadFailed: '加载画师信息失败',
@@ -617,11 +620,11 @@
     // R58-6: QQ 跳转 + 复制
     artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制',
     // R58-2: 分步引导
-    step1: '选档位', step2: '写需求', step3: '联系方式',
-    step1Title: '选择约稿档位', step2Title: '描述你的需求', step3Title: '留下联系方式',
+    step2: '写需求', step3: '联系方式',
+    step2Title: '描述你的需求', step3Title: '留下联系方式',
     nextStep: '下一步', prevStep: '上一步',
     stepProgress: '第 {cur} / {total} 步',
-    summaryTitle: '约稿摘要', summaryNoTier: '选好档位后这里会显示价格',
+    summaryTitle: '约稿摘要',
     // W3: 画风模式未选尺寸的空态引导
     summaryNoSize: '选好尺寸后这里会显示价格',
     // REQ-022 F3: 摘要卡客户信息回显
@@ -634,7 +637,7 @@
     copySummary: '复制约稿信息', summaryCopied: '约稿信息已复制', summaryOrderNo: '订单号：',
     // v0.31 F3: 折扣码
     discountLabel: '折扣码', discountPlaceholder: '有折扣码？输入试试', discountValidate: '验证',
-    discountEstimate: '预估折扣', discountedTotal: '预估折后总价',
+    discountEstimate: '预估折扣',
     // v0.32 REQ-023 Phase2: 多画风三步走
     styleStep: '选画风', sizeStep: '选尺寸', addonStep: '选增项',
     styleStepTitle: '选择画风', sizeStepTitle: '选择尺寸', addonStepTitle: '增项与加急',
@@ -668,12 +671,12 @@
   track: {
     backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
     orderNo: '订单号', orderNoLabel: '订单号', qqLabel: '你的QQ号', qqPlaceholder: '下单时填写的QQ号',
-    artist: '画师', type: '类型', status: '状态', position: '排队位置',
+    artist: '画师', type: '类型',
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
     stepSubmitted: '已提交', stepConfirmed: '已确认', stepWip: '制作中', stepDone: '已完成', stepDelivered: '已交付',
     deliverables: '交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
     // SPEC-003: 价格与付款
-    priceTitle: '价格明细', finalPrice: '最终价格', installmentsTitle: '付款节点', paid: '已付', unpaid: '未付',
+    priceTitle: '价格明细', finalPrice: '最终价格',
     // B7: 额度池付款进度
     payPaid: '已付', payNext: '下期应付', payRemaining: '待付', payTotal: '总额',
     contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
@@ -689,7 +692,6 @@
       title: '制作进度',
       current: '进行中',
       progress: '{name} {current}/{total}',
-      revision: '画师打回修改中，进度已回退',
       revisionAt: '已回退到「{name}」',
       notStarted: '订单已提交，等待画师确认后进入制作流程',
       orderedAt: '下单时间：'
@@ -744,7 +746,7 @@
   },
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
-    orderInfo: '订单号：{no} | 画师：{artist}', download: '下载', noFiles: '暂无交付文件',
+    orderInfo: '订单号：{no} | 画师：{artist}', download: '下载',
     downloadFailed: '下载失败，请重试或联系画师'
   },
   login: {
@@ -761,17 +763,6 @@
   },
   // P0-9: 倍率管理（MultiplierManager）i18n
   multiplier: {
-    usageTitle: '用途倍率', usageHint: '多个同时选中时取最高',
-    rushTitle: '加急倍率', rushHint: '与用途倍率相乘叠加',
-    edit: '编辑', deleteConfirm: '确定删除？',
-    emptyUsage: '暂无用途倍率', emptyRush: '暂无加急倍率',
-    addUsage: '＋ 添加用途倍率', addRush: '＋ 添加加急倍率',
-    editTitle: '编辑倍率', createTitle: '新建倍率',
-    name: '名称', namePlaceholder: '如：商用授权 / 加急（3天内）',
-    value: '倍率值', valueHint: '1.5 = 价格 ×1.5（加收50%）',
-    descLabel: '说明（客户可见）',
-    cancel: '取消', save: '保存', create: '创建',
-    msgNameRequired: '请输入名称', msgUpdated: '已更新', msgCreated: '已创建', msgDeleted: '已删除'
   },
   // v0.42 Step5: 画师统计独立页（REQ-033 埋点三态：off 关 / hidden 不显 / on 开）
   stats: {
@@ -796,14 +787,13 @@
     saved: '已保存'
   },
   dashboard: {
-    title: '仪表盘', pendingNew: '待处理新单', activeOrders: '进行中订单',
-    monthRevenue: '本月收入', totalCompleted: '累计完成', quickActions: '快捷操作',
-    queueBoard: '排期看板', manualOrder: '手动录单', allOrders: '全部订单', settings: '主页设置',
+    pendingNew: '待处理新单', activeOrders: '进行中订单',
+    totalCompleted: '累计完成',
     currentStatus: '当前主页状态', statusUpdated: '状态已更新',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     anotherOne: '换一句',
     slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
-    defaultPanel: '默认面板', panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
+    panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
     // F4: 留言审核
     guestbookTitle: '留言审核', guestbookEmpty: '暂无留言',
     guestbookPending: '待审核', guestbookApproved: '已通过', guestbookRejected: '已拒绝',
@@ -813,9 +803,6 @@
     // R52: 今日统计
     todayNewOrders: '今日新增订单', todayRevenue: '今日收入',
     // R51: 截稿日 + 今日待办
-    deadlineCard: '即将到期', noDeadlines: '近期无截稿',
-    todoCard: '今日待办', noTodos: '暂无待办，喝杯茶吧',
-    daysLeft: '剩 {n} 天', dueToday: '今天截稿',
     // v0.18 仪表盘重构
     revenueTitle: '收入统计', periodMonth: '月', periodQuarter: '季', periodYear: '年',
     revenueOrderCount: '{n} 单完成', revenueVs: 'vs {label}', revenueError: '收入数据加载失败',
@@ -824,11 +811,10 @@
     tag_overdue: '逾期', tag_dueToday: '截稿', tag_pending: '新单', tag_revision: '修改', tag_inProgress: '进行中',
     activityTitle: '最近活动', activityError: '活动记录加载失败', activityEmpty: '暂无最近活动',
     timeJustNow: '刚刚', timeMinutesAgo: '{n} 分钟前', timeHoursAgo: '{n} 小时前', timeDaysAgo: '{n} 天前',
-    slotTitle: '名额概览', slotFormal: '正式 {used}/{total}', slotBuffer: '缓冲 {used}/{total}',
+    slotTitle: '名额概览',
     slotNext: '下一位候补：{name}（QQ: {qq}）',
     // #4: 名额概览改版
     slotCombined: '已接 {used}/{total}', slotNotEnabled: '未开启名额限制，去设置 →', slotDisplayFallback: '—',
-    artworks: '图库管理', tiers: '档位管理',
   },
   queue: {
     title: '排期看板',
@@ -836,7 +822,7 @@
     confirm: '确认', startWip: '开始制作', done: '✔ 完成', deliver: '交付', cancel: '取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
     // SPEC-004: 缓冲区
-    bufferTitle: '缓冲区（候补）', bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
+    bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
@@ -887,11 +873,11 @@
     backToQueue: '返回排期看板', backToDashboard: '返回仪表盘', backToList: '返回订单列表', orderNo: '订单 #',
     orderInfo: '订单信息', colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
     colPriority: '优先级', colSource: '来源', colTime: '下单时间', colDesc: '需求描述',
-    statusFlow: '状态流转', confirmOrder: '确认接单', startWip: '开始制作',
+    confirmOrder: '确认接单', startWip: '开始制作',
     needRevision: '需要修改', markDone: '✔ 标记完成', uploadDeliver: '上传交付', cancelOrder: '取消订单',
-    references: '参考图', noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
+    noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
-    confirmDeliver: '确认交付', cancelConfirm: '确定取消此订单？', confirmTitle: '确认',
+    confirmDeliver: '确认交付', confirmTitle: '确认',
     statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
     // REQ-022 F1: 发布为作品
     publishArtwork: '发布为作品', publishDialogTitle: '发布为作品',
@@ -906,8 +892,7 @@
     noReferences: '暂无参考图',
     focusUpdated: '焦点图已更新',
     deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
-    focusHint: '显示尺寸在排期看板工具栏统一设置',
-    workflowTitle: '流程进度', stageOff: '关闭流程跟踪',
+    stageOff: '关闭流程跟踪',
     stageProgress: '进度 {current}/{total}', stageRevision: '已打回修改',
     advanceTo: '推进到：', stageBack: '↩ 打回上一节点', stageUpdated: '流程已更新',
     stageBackConfirm: '确定打回到「{name}」？订单状态将标记为修改中。',
@@ -939,9 +924,9 @@
     extraDeleteConfirm: '确定删除附加项「{name}」？删除后最终价格将自动重算。',
     extraTotal: '最终价格', extraAutoHint: '最终价格 = 基础价格 + 附加项合计，由系统自动计算',
     // R51: 截稿日
-    colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日', deadlineUpdated: '截稿日已更新',
+    colDeadline: '截稿日', deadlinePlaceholder: '选择截稿日',
     // v0.26 B: 开工日
-    colStartDate: '开工日', startDatePlaceholder: '选择开工日', startDateUpdated: '开工日已更新',
+    colStartDate: '开工日', startDatePlaceholder: '选择开工日',
     deadlineAutoSet: '已按工期自动设置截稿日',
     // v0.38: 日期卡二合一（REQ-026 §四）——两字段一卡 + 即时保存「排期已同步」+ 剩余天数 chip
     dateCardTitle: '日期',
@@ -952,7 +937,7 @@
     // R58-6: QQ 跳转 + 复制
     jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
     // plan-node-speech：客户沟通小块
-    commTitle: '客户沟通', commQq: 'QQ:', commCopyContact: '复制联系方式',
+    commTitle: '客户沟通',
     commPriceSummary: '价格小结：总价{total} / 已付{paid} / 待付{unpaid}',
     commCopyBtn: '复制文案并唤起QQ', commCopied: '已复制节点文案，正在唤起QQ',
     commNoQq: '未设置客户QQ', commNoStage: '该订单未接入流程节点，暂无话术', commNoSpeech: '当前节点暂无话术',
@@ -968,7 +953,7 @@
     payRefundNoteLabel: '退款原因（必填）',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
     // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
-    payAmountInvalid: '收款金额须大于 0', payAmountExceed: '收款金额不能超出剩余应付 ¥{amount}',
+    payAmountInvalid: '收款金额须大于 0',
     payAmountZero: '金额不能为 0', payRefundNoteRequired: '录入负数（退款/撤销）时必须填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
@@ -1013,10 +998,9 @@
     leftTitle: '客户说了什么', rightTitle: '怎么录',
     clientQq: '客户QQ号', clientQqPlaceholder: '客户的QQ号',
     clientName: '客户昵称（可选）', clientNamePlaceholder: '怎么称呼客户',
-    tier: '档位', tierPlaceholder: '选择档位（可不选）',
-    noTiers: '还没有档位，请先在价格管理中添加', tierDays: '{n}天',
-    addons: '可选增项', multipliers: '用途与加急',
-    usage: '用途', rush: '加急', personal: '个人', noRush: '不加急', inquiry: '面议',
+    tier: '档位',
+    addons: '可选增项',
+    usage: '用途', rush: '加急',
     totalPrice: '总价', finalPrice: '最终价格（元）', finalPriceHint: '可手动修改，留空则使用计算价',
     priceDetail: '明细',
     desc: '需求描述', descPlaceholder: '从QQ聊天中复制客户的需求描述',
@@ -1024,7 +1008,6 @@
     refTip: '录单后仍可在订单图库中补充参考图，订单图库合计上限 20 张。',
     priority: '优先级', priorityHigh: '高', priorityMedium: '中（默认）', priorityLow: '低',
     clientNotify: '允许客户接收QQ排队提醒',
-    catExpression: '表情差分', catOutfit: '服装替换', catBackground: '背景场景', catWeapon: '武器道具', catOther: '其他',
     submit: '录入订单', resultTitle: '录入成功', orderNo: '订单号: {no}', addedToQueue: '已加入排期队列',
     viewQueue: '查看排期', continueEntry: '继续录入', fillClientQq: '请填写客户QQ号',
     // R51: 截稿日
@@ -1045,9 +1028,7 @@
     clientSummaryLast: '最近一单 {date}',
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: '选择画风', sizeTitle: '选择尺寸', sizeDays: '{n}天',
-    noSizes: '该画风下暂无尺寸', styleAddonsEmpty: '该尺寸下暂无可选增项',
-    addonOptionPrice: '选项价',
-    afterMultiplier: '倍率后小计',
+    noSizes: '该画风下暂无尺寸',
     // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
     customHint: '都可以不选，直接手动填价格录入自定义单',
     showImages: '显示图片',
@@ -1086,28 +1067,15 @@
     parseApplied: '已填入表单，请核对后提交'
   },
   tiers: {
-    title: '价格管理', addTier: '+ 添加档位',
+    title: '价格管理',
     dragHint: '拖拽排序', reorderSaved: '排序已保存',
-    colExample: '例图', colName: '名称', colPrice: '价格', colDays: '工期', colDesc: '描述',
-    editTitle: '编辑档位', addTitle: '添加档位', nameLabel: '名称',
-    namePlaceholder: '如：头像、半身像、全身像', priceLabel: '价格（元）', daysLabel: '工期（天）',
-    descLabel: '描述', descPlaceholder: '简要说明这个档位包含什么', exampleLabel: '例图（可选）',
-    changeExample: '更换例图', uploadExample: '上传例图', removeExample: '移除',
-    exampleUploaded: '例图已上传，点保存后生效', fillName: '请填写名称',
-    confirmDelete: '确定删除档位「{name}」？', daysUnit: '{n}天',
+    daysUnit: '{n}天',
     // #10: 档位三态
-    visVisible: '开', visShowcase: '只展示', visHidden: '不展示',
     // R55: 示例图拖拽直传
-    dropToUpload: '拖入上传', notImage: '仅支持图片文件', tooBig: '图片超过 10MB 限制',
-    overwriteTitle: '覆盖示例图', overwriteConfirm: '已有示例图，覆盖后旧图不可恢复。确定覆盖？',
-    exampleUpdated: '示例图已更新',
     // R54: 卡片布局空状态
-    empty: '还没有档位',
     // v0.28 T3: Tab 标签 + 操作文案 i18n 化
-    tabTiers: '档位', tabAddons: '增项', tabWorkflow: '流程与比例',
+    tabWorkflow: '流程与比例',
     tabDiscount: '折扣码',
-    newTier: '＋ 新建档位', cancel: '取消', save: '保存',
-    uploaded: '已上传', saved: '已保存', deleted: '已删除'
   },
   // v0.31 F3: 折扣码管理
   discount: {
@@ -1129,10 +1097,10 @@
   },
   // v0.32 REQ-023 Phase1: 画风管理 + 增项库
   styleManage: {
-    tabStyles: '画风管理', tabTemplates: '增项库', confirmTitle: '确认',
+    tabTemplates: '增项库', confirmTitle: '确认',
     // 增项库（SPEC-PRICE-2：类别/控件/计价方式/数量上限全维度管理）
     tplIntro: '增项库是全平台价格资产的唯一管理面：普通增项、用途、加急都在这里维护，再到「画风与价格」页挂到各画风。',
-    tplName: '名称', tplControl: '控件', tplPricing: '计价', tplDefaultPrice: '默认价', tplActions: '操作',
+    tplName: '名称', tplControl: '控件', tplDefaultPrice: '默认价', tplActions: '操作',
     tplCategory: '类别', tplCategoryLabel: '类别', tplMaxQty: '数量上限', tplMaxQtyLabel: '数量上限（个数类防刷）',
     tplEmpty: '还没有增项模板，点击"新建增项"创建', tplAdd: '+ 新建增项',
     tplAddTitle: '新建增项', tplEditTitle: '编辑增项',
@@ -1142,7 +1110,7 @@
     tplPriceLabel: '默认价格',
     tplUnitLabel: '单位标签', tplUnitPlaceholder: '如：人、张、个',
     tplSaved: '增项已保存', tplDeleted: '增项已删除', tplDeleteConfirm: '确定删除增项「{name}」？已引用它的画风会保留为独立增项（不再跟随库更新）。',
-    pricePerUnit: '¥{price}/{unit}', unitDefault: '个',
+    unitDefault: '个',
     // 画风
     styleAddTitle: '新建画风', styleEditTitle: '编辑画风',
     styleNameLabel: '画风名称', styleNamePlaceholder: '如：日系、厚涂、像素风', styleNameRequired: '请输入画风名称',
@@ -1152,16 +1120,14 @@
     styleSaved: '画风已保存', styleDeleted: '画风已删除', styleDeleteConfirm: '确定删除画风「{name}」？其下所有尺寸、增项配置和覆盖将一并删除。',
     styleActive: '启用', styleEmpty: '还没有画风，点击"新建画风"开始配置',
     // 尺寸
-    sizeTitle: '尺寸与基础价', sizeName: '尺寸', sizePrice: '基础价', sizeActions: '操作',
+    sizeTitle: '尺寸与基础价', sizeName: '尺寸', sizePrice: '基础价',
     sizeNamePlaceholder: '如：头像、半身、全身', sizeNameRequired: '请输入尺寸名称',
-    sizeAdd: '添加', sizeSaved: '尺寸已保存', sizeAdded: '尺寸已添加', sizeDeleted: '尺寸已删除',
+    sizeSaved: '尺寸已保存', sizeAdded: '尺寸已添加', sizeDeleted: '尺寸已删除',
     sizeDeleteConfirm: '确定删除尺寸「{name}」？该尺寸下的覆盖配置将一并删除。',
     // 增项
-    addonTitle: '增项（从增项库导入）', addonEmpty: '还没有导入增项，可在增项库中创建后重新导入',
-    addonSave: '保存增项配置', addonSaved: '增项配置已保存',
+    addonTitle: '增项（从增项库导入）',
+    addonSaved: '增项配置已保存',
     // 尺寸覆盖
-    overrideExpand: '尺寸覆盖 ▾', overrideCollapse: '收起 ▴',
-    overrideTitle: '「{name}」尺寸覆盖', overrideHidden: '隐藏', overrideSaved: '覆盖已保存',
     // v0.35 波1 (REQ-024 F2/F1): 合并入口 + 多画风开关 + 尺寸编辑扩展
     tabStylesAndPricing: '画风与价格',
     multiStyle: '多画风',
@@ -1182,19 +1148,16 @@
     sizeImageSavedMsg: '尺寸图已更新', sizeImageUploadHint: '尺寸图已上传，点保存后生效',
     sizeDescLabel: '描述（可选）', sizeDescPlaceholder: '这个尺寸包含什么、适合什么',
     sizeDaysLabel: '工期（天，可选）',
-    sizeImageCol: '图片', sizeDescCol: '描述', sizeDaysCol: '工期',
     sizeFromArtworkTag: '作品集', sizeAddBtn: '+ 添加尺寸', sizeEmpty: '还没有尺寸',
     sizePickTitle: '从作品集挑选', sizePickHint: '点击选择一张作品作为尺寸图', sizePickEmpty: '还没有作品，请先去作品管理上传',
     // v0.35 补漏 A4: 已有画风追加导入增项
-    addonImportBtn: '＋ 导入增项', addonImportTitle: '从增项库导入',
+    addonImportTitle: '从增项库导入',
     addonImportEmpty: '增项库中没有新增项可导入（都已导入该画风）',
     addonImportConfirm: '导入所选', addonImported: '增项已导入',
     // REQ-036 批A: 增项交互直觉化（双入口/池+拖拽/三态/三层弹窗/预览/摘要）
     // 双入口
     addonCreateBtn: '+ 新建增项', addonPickBtn: '+ 从已有挑选',
     // 池子
-    addonPoolEmpty: '还没有增项，点上方按钮新建或从增项库挑选',
-    addonPoolHint: '拖到上方尺寸 = 该尺寸启用；点击胶囊 = 详细设置',
     addonCapHint: '点击设置 / 拖到尺寸行启用',
     addonAlreadyEnabled: '「{name}」在「{size}」已启用，无需重复拖入',
     addonEnabled: '已启用：{size} ＋ {name}',
@@ -1207,7 +1170,7 @@
     createKindLabel: '类别',
     createCatHintAdd: '普通增项加在基础价上，可多选共存；百分比计价的按基础价计算（不受其他增项影响）',
     createCatHintMultiplier: '用途/加急是计价公式中的乘法位：下单时各选一个生效，乘在普通增项小计之后（开关控件 + 百分比）',
-    createControlLabel: '控件类型（顾客怎么选）', createControlHint: '个数 = 按数量计价（如加人 ×N）；开关 = 加/不加',
+    createControlLabel: '控件类型（顾客怎么选）',
     createPricingLabel: '计价方式', pricingPercent: '百分比 +%', pricingFixed: '固定金额 ¥',
     pricingHintFixed: '固定金额：直接加 ¥N；个数类 = 单价 × 数量',
     pricingHintPercent: '百分比：只按基础价计算，如 50 = 基础价 × 50%',
@@ -1273,7 +1236,7 @@
     editSaved: '作品已保存'
   },
   rules: {
-    title: '须知编辑', hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
+    hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
     placeholder: '输入约稿须知内容，支持 HTML 标签如 <h3>、<ul>、<li>、<strong> 等',
     preview: '预览：', save: '保存须知', saved: '须知已保存'
   },
@@ -1286,7 +1249,7 @@
   },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
-    tabPrefs: '偏好', tabRules: '须知编辑', tabWorkflow: '流程与比例',
+    tabRules: '须知编辑', tabWorkflow: '流程与比例',
     // BUG-7: 加载失败保护（防止默认值/空内容覆盖真实配置）
     loadFailedTitle: '设置加载失败', loadFailedDesc: '表单当前是默认值，保存会覆盖你的真实设置。请重试加载成功后再编辑保存。',
     loadFailedHint: '设置尚未加载成功，无法保存，请先重试',
@@ -1314,7 +1277,6 @@
     // S5: 月度额度池
     quotaLabel: '月度额度', quotaEnable: '启用月度额度', quotaUnit: '单/月',
     quotaHint: '限制每月可接新订单数（按创建时间计，已取消不计）。关闭 = 不限制。与名额系统独立，两者同时启用时任一达到上限即约满。',
-    bufferSwitchLabel: '缓冲区设置',
     autoPromote: '自动递补（正式位空出时自动将缓冲区最早订单移入）',
     hideQueuePosition: '对客户隐藏排队位置（只显示"排队中"）',
     hidePromoteNotify: '递补时不通知客户',
@@ -1341,8 +1303,6 @@
     // v0.25 A: 封面管理
     coverTitle: '封面图（主页顶部轮播）',
     coverHint: '点击星标将作品设为主页封面，可设多张（自动轮播）。再点一次取消。',
-    coverSet: '设为封面', coverUnset: '取消封面',
-    coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
     coverEmpty: '暂无作品，上传作品后可设置封面',
     coverManageLink: '管理封面',
     // R50: 预览
@@ -1365,7 +1325,6 @@
     statusHidden: '主页已隐藏'
   },
   templates: {
-    tab: '主页模板',
     hint: '选择客户看到的画师主页样式。布局决定页面结构，配色决定气质底色，所有模板共享同一套作品/价格数据。',
     label: '页面布局',
     atelier: '画册工作室',
@@ -1382,16 +1341,8 @@
     paletteInk: '墨', paletteInkDesc: '画廊深炭，层灰，克制',
     paletteDusk: '暮', paletteDuskDesc: '蓝灰暮色，冷静',
     paletteMoss: '苔', paletteMossDesc: '深绿自然，温润',
-    saved: '模板已更新'
   },
   embed: {
-    tab: '嵌入脚本',
-    hint: '如果你已经有自己的个人网站（Carrd / Framer / 自建站等），可以在你的网站里插入一段代码，让客户直接通过你的网站下单。',
-    step1: '1. 复制以下代码：',
-    step2: '2. 将代码粘贴到你网站中想要显示「我要约稿」按钮的位置。客户点击按钮后会弹出下单表单。',
-    copyBtn: '复制代码',
-    copied: '已复制',
-    copyFailed: '复制失败，请手动选择并复制'
   },
   workflow: {
     stageList: '流程节点', paymentBar: '收款比例', overview: '流程全览',
@@ -1433,7 +1384,7 @@
     artistCount: '画师数', totalOrders: '总订单', activeOrders: '活跃订单',
     artistList: '画师列表', manageArtists: '管理画师',
     colName: '昵称', colSubdomain: '子域名', colQq: 'QQ号', colStatus: '状态', colBio: '简介',
-    backToPanel: '返回管理面板', artistManage: '画师管理', addArtist: '+ 添加画师',
+    artistManage: '画师管理', addArtist: '+ 添加画师',
     addTitle: '添加画师', qqLabel: 'QQ号', qqPlaceholder: '画师的QQ号（用于登录）',
     nameLabel: '昵称', namePlaceholder: '展示给客户的名字',
     subdomainLabel: '子域名', subdomainPlaceholder: '如 alice（小写字母/数字/连字符）',
@@ -1450,7 +1401,6 @@
     transferStep1Title: '验证当前管理员', transferStep2Title: '验证新管理员',
     currentAdminQq: '当前管理员QQ', newAdminQq: '新管理员QQ',
     newAdminQqPlaceholder: '输入新管理员的QQ号（必须是已注册画师）',
-    enterCode: '输入6位验证码',
     nextStep: '下一步', confirmTransfer: '确认更换',
     transferSuccess: '管理员已更换为 {name}', adminTag: '管理员',
     transferTotpHint: '输入各自验证器App上当前显示的6位动态码（双方须先完成绑定）',
@@ -1467,7 +1417,7 @@
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
     orderColType: '类型', orderColTime: '下单时间',
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",
-    greetingPreview: '预览', greetingEmpty: '请输入问候语内容',
+    greetingPreview: '预览',
     greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
     slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     defaultWorkflow: '默认流程模板', defaultWorkflowHint: '修改后仅影响新注册画师，已有画师不受影响。',
@@ -1503,7 +1453,7 @@
     health: {
       title: '系统自检', start: '开始检查', checking: '检查中…',
       download: '下载诊断包', refresh: '刷新后结果不保留',
-      diskNote: '仅供参考', expandDetail: '详情',
+      diskNote: '仅供参考',
       statusOk: '正常', statusWarn: '警告', statusFail: '异常',
       emptyHint: '点击「开始检查」运行 8 项系统检查'
     },

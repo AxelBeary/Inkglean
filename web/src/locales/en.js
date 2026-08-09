@@ -11,6 +11,10 @@
     CODE_EXPIRED: 'Login code expired',
     CODE_TOO_MANY_ATTEMPTS: 'Too many attempts, please request a new code',
     QQ_NOT_REGISTERED: 'This QQ number is not registered as an artist',
+    TOTP_NOT_BOUND: 'This artist has not bound an authenticator yet. Please contact the admin',
+    TOTP_INVALID: 'Incorrect QQ number or one-time password',
+    TOTP_LOCKED: 'Too many attempts. Account temporarily locked, please try again later',
+    TOTP_BIND_INVALID: 'Incorrect one-time password. Ask the artist to check the 6-digit code on their authenticator',
 
     // Artist
     ARTIST_NOT_FOUND: 'Artist not found',
@@ -45,6 +49,7 @@
 
     // Order
     ORDER_NOT_FOUND: 'Order not found',
+    ORDER_NOT_OWNED: 'This order does not belong to you',
     ORDER_INVALID_STATUS: 'Invalid status',
     INVALID_TRANSITION: 'Invalid status transition',
     DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
@@ -56,6 +61,10 @@
     QUEUE_LENGTH: 'Reorder list length mismatch',
     QUEUE_DUPLICATE: 'Reorder list has duplicate orders',
     INVALID_PRIORITY: 'Invalid priority',
+
+    // REQ-022 F1: Publish as artwork
+    PUBLISH_WRONG_STATUS: 'Only delivered orders can be published as artworks',
+    DELIVERABLE_NOT_FOUND: 'Deliverable not found or does not belong to this order',
 
     // Note deletion (v0.15 R46)
     NOTE_NOT_FOUND: 'Note not found',
@@ -111,21 +120,17 @@
     ORDER_INVALID_ID: 'Invalid order ID',
 
     // Addons (supplement)
-    ADDON_NOT_FOUND: 'Addon not found',
-    ADDON_NAME_EMPTY: 'Addon name cannot be empty',
-    ADDON_INVALID_PRICE: 'Invalid addon price',
-    ADDON_INVALID_MODE: 'Invalid selection mode',
-    ADDON_MAX_QTY: 'Maximum quantity exceeded',
-    ADDON_NOT_FOR_TIER: 'This addon does not apply to the selected tier',
+    // Add-on selection (supplement, SPEC-PRICE-2: only one usage / rush each)
+    ADDON_SELECTION_MUTEX: 'Only one usage and one rush add-on can be active at a time',
 
     // Multipliers (supplement)
-    MULTIPLIER_NOT_FOUND: 'Multiplier not found',
-    MULTIPLIER_INVALID: 'Invalid multiplier value (must be >= 1.0)',
 
     // Pricing (supplement)
-    PRICING_TIER_REQUIRED: 'Please select a base tier first',
     PRICING_CALC_FAILED: 'Price calculation failed',
     INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 99999999)',
+    // Pricing engine (supplement, v0.37 REQ-025)
+    PRICING_CONSERVATION: 'Pricing data is inconsistent; operation rejected. Please refresh and retry',
+    PRICE_CHANGE_AFTER_DONE: 'Order is complete; adjust the price by adding or removing extra items',
 
     // Focus image (supplement)
     FOCUS_IMAGE_NOT_FOUND: 'Reference image not found',
@@ -147,6 +152,13 @@
     // Platform links (supplement)
     PLATFORM_URLS_TOO_MANY: 'Cannot have more than 10 platform links',
     PLATFORM_URL_INVALID: 'Invalid platform link format (must start with http:// or https://)',
+
+    // Social platforms (supplement, v0.38 REQ-022 F2)
+    PLATFORM_NOT_FOUND: 'Social platform not found',
+    PLATFORM_NAME_EMPTY: 'Platform name cannot be empty',
+    PLATFORM_ICON_REQUIRED: 'Provide at least an icon key or a single-character fallback',
+    PLATFORM_DOMAIN_INVALID: 'Invalid platform domain (no protocol/path/port)',
+    PLATFORM_DOMAIN_TAKEN: 'This domain is already used by another enabled platform',
 
     // Inspiration tags (supplement)
     TAGS_TOO_MANY: 'Cannot have more than 20 inspiration tags',
@@ -176,6 +188,7 @@
     STYLE_SIZE_NOT_FOUND: 'Size not found',
     STYLE_SIZE_NAME_EMPTY: 'Size name cannot be empty',
     STYLE_SIZE_INVALID_PRICE: 'Invalid size price',
+    STYLE_SIZE_NOT_AVAILABLE: 'This size is not available for ordering',
     ADDON_TEMPLATE_NOT_FOUND: 'Addon template not found',
     ADDON_TEMPLATE_NAME_EMPTY: 'Addon template name cannot be empty',
     ADDON_TEMPLATE_INVALID_PRICE: 'Invalid addon template price',
@@ -186,7 +199,7 @@
     SIZE_OVERRIDE_NOT_FOUND: 'Size override not found'
   },
   pref: {
-    toLight: 'Switch to light mode', toDark: 'Switch to dark mode', theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',
+    theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',
     // Accent swatch names (polish batch A: proper color names, not literal one-word translations)
     accentNames: { teal: 'Teal', turquoise: 'Turquoise', blue: 'Blue', indigo: 'Indigo', violet: 'Violet' },
     // v0.38: artist back-office paper/ink dual themes (REQ-026 §1.2)
@@ -194,12 +207,12 @@
     artistToastInk: 'Switched · Ink', artistToastPaper: 'Switched · Paper'
   },
   common: {
-    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', hidden: 'Hidden', unknown: 'Unknown' },
+    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break' },
     statusShort: { open: 'Open', full: 'Full', break: 'Break', hidden: 'Hidden' },
     priority: { high: 'High', medium: 'Med', low: 'Low' },
     orderStatus: {
       pending: 'Pending', confirmed: 'Confirmed', wip: 'In progress', revision: 'Revising',
-      done: 'Done', delivered: 'Delivered', cancelled: 'Cancelled', unknown: 'Unknown'
+      done: 'Done', delivered: 'Delivered', cancelled: 'Cancelled'
     },
     source: { self: 'Self', manual: 'Manual', clientSelf: 'Client self-order', manualEntry: 'Manual entry' },
     custom: 'Custom', none: 'None',
@@ -368,12 +381,9 @@
     note: 'The exported CSV includes: date, client, amount (cents), type (order payment / standalone income), order id. Data matches the backend and never includes private artist notes.',
     incomeOverview: 'Income Overview',
     incomeLoading: 'Loading…',
-    incomeTotal: 'Total Income',
-    incomeOrder: 'Order Income',
     incomeStandalone: 'Standalone Income',
     incomeCount: 'Transactions',
     incomeCountUnit: '',
-    incomeUnavailable: 'Pending backend summary',
     incomeNote: 'Standalone income and count match the standalone rows of the exported CSV. Order and total income will appear once a backend range-summary endpoint is added.',
     incomeLoadFailed: 'Failed to load income overview',
     downloaded: 'Download started',
@@ -422,9 +432,7 @@
     sourceArtwork: 'Artwork',
     sourceDeliverable: 'Deliverable',
     chooseFile: 'Choose image',
-    selectArtwork: 'Select artwork',
     selectOrder: 'Select order',
-    selectDeliverable: 'Select deliverable',
     emptyArtworks: 'No artworks',
     emptyDeliverables: 'No deliverables',
     watermarkType: 'Watermark type',
@@ -548,7 +556,6 @@
     quickconfig: 'Quick Action Settings',
     status: 'Status',
     publish: 'Quick Publish',
-    publishHint: 'Drag or paste to publish',
     uploading: 'Uploading…',
     published: 'Artwork published',
     publishFailed: 'Publish failed',
@@ -558,7 +565,7 @@
   },
   landing: {
     title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
-    noBio: 'This artist has not written a bio yet', weibo: 'Weibo', bilibili: 'Bilibili',
+    noBio: 'This artist has not written a bio yet',
     noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
   },
   // v0.34 task A: standalone 404 page
@@ -568,18 +575,16 @@
     artistsTitle: 'Or visit one of our artists'
   },
   artistHome: {
-    weibo: 'My Weibo', bilibili: 'My Bilibili', commission: 'Commission me', track: 'Track order',
+    commission: 'Commission me', track: 'Track order',
     noWorks: 'No artworks yet — stay tuned',
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
     statusOpen: 'Open for commissions', statusFull: 'Fully booked', statusBreak: 'On break',
-    about: 'About', navPricing: 'Pricing', navProcess: 'Process', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
-    heroOpen: 'Open for commissions', heroFull: 'Currently full', heroBreak: 'On break',
-    startCommission: 'Start a commission →', trackOrder: 'Track order', howItWorks: 'How it works',
+    navPricing: 'Pricing', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
+    startCommission: 'Start a commission →', trackOrder: 'Track order',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
     // v0.42 Step 6: client gallery "load more"
     loadMore: 'Load more',
-    weiboPlain: 'Weibo', bilibiliPlain: 'Bilibili',
     otherLink: 'Link',
     revisionNote: 'Revision policy',
     // #9: tier showcase
@@ -587,14 +592,13 @@
     // R50: preview mode
     previewBanner: 'Preview mode — changes not yet saved',
     // v0.25 A: Cover showcase
-    covers: 'Featured Covers',
     // v0.32 REQ-023 Phase3: multi-style price table
     styleOrderBtn: 'Commission in this style',
     // v0.34 task B: order hint after size selected
     styleSizeHint: '{size} selected · ¥{price} — click below to start with this choice'
   },
   orderForm: {
-    backHome: 'Back to page', title: 'Commission me', tierLabel: 'Select tier', tierPlaceholder: 'Choose a commission type',
+    backHome: 'Back to page', title: 'Commission me',
     workflowLabel: 'Workflow',
     descLabel: 'Description', descPlaceholder: 'Describe what you want: character features, pose, style, background, etc.',
     // D soft prompt (user decision: description can be skipped, only prompt once when empty, no hard block)
@@ -602,13 +606,12 @@
     descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
-    pricingDetail: 'Price details',
     qqLabel: 'Your QQ number', qqPlaceholder: 'The artist will contact you via QQ',
     nameLabel: 'Nickname (optional)', namePlaceholder: 'What should we call you',
     notifyLabel: 'Notify me on QQ when my turn comes', agreeLabel: 'I have read and agree to the guidelines above',
     submit: 'Submit commission', successTitle: 'Commission submitted!', orderNoIs: 'Your order number is: ',
     addQqHint: 'Add the artist on QQ to discuss details — just quote your order number', viewProgress: 'Track progress',
-    selectTier: 'Please select a tier', fillQq: 'Please enter your QQ number', selectSizeFirst: 'Please select a style and size first',
+    fillQq: 'Please enter your QQ number', selectSizeFirst: 'Please select a style and size first',
     fileTooBig: 'File "{name}" exceeds the 10MB limit ({size}MB). Please compress and re-upload',
     typeWarning: 'Converting to JPG or WebP is recommended for better previews, but the current format can still be uploaded.',
     loadFailed: 'Failed to load artist info',
@@ -618,11 +621,11 @@
     // R58-6: QQ jump + copy
     artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied',
     // R58-2: step-by-step guide
-    step1: 'Tier', step2: 'Details', step3: 'Contact',
-    step1Title: 'Pick a tier', step2Title: 'Describe your request', step3Title: 'Contact details',
+    step2: 'Details', step3: 'Contact',
+    step2Title: 'Describe your request', step3Title: 'Contact details',
     nextStep: 'Next', prevStep: 'Back',
     stepProgress: 'Step {cur} / {total}',
-    summaryTitle: 'SUMMARY', summaryNoTier: 'Pick a tier to see the price here',
+    summaryTitle: 'SUMMARY',
     // W3: empty-state hint when no size selected in style mode
     summaryNoSize: 'Pick a size to see the price here',
     // REQ-022 F3: client info echo in summary card
@@ -635,7 +638,7 @@
     copySummary: 'Copy order info', summaryCopied: 'Order info copied', summaryOrderNo: 'Order No.: ',
     // v0.31 F3: discount code
     discountLabel: 'Discount code', discountPlaceholder: 'Have a code?', discountValidate: 'Apply',
-    discountEstimate: 'Est. discount', discountedTotal: 'Est. total after discount',
+    discountEstimate: 'Est. discount',
     // v0.32 REQ-023 Phase2: multi-style three-step flow
     styleStep: 'Style', sizeStep: 'Size', addonStep: 'Add-ons',
     styleStepTitle: 'Pick a style', sizeStepTitle: 'Pick a size', addonStepTitle: 'Add-ons & options',
@@ -669,12 +672,12 @@
   track: {
     backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',
     orderNo: 'Order No.', orderNoLabel: 'Order number', qqLabel: 'Your QQ number', qqPlaceholder: 'The QQ you used when ordering',
-    artist: 'Artist', type: 'Type', status: 'Status', position: 'Queue position',
+    artist: 'Artist', type: 'Type',
     positionText: '#{pos} of {total}', orderTime: 'Order time',
     stepSubmitted: 'Submitted', stepConfirmed: 'Confirmed', stepWip: 'In progress', stepDone: 'Done', stepDelivered: 'Delivered',
     deliverables: 'Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
     // SPEC-003: price & payments
-    priceTitle: 'Price breakdown', finalPrice: 'Final price', installmentsTitle: 'Payment schedule', paid: 'Paid', unpaid: 'Unpaid',
+    priceTitle: 'Price breakdown', finalPrice: 'Final price',
     // B7: quota-pool payment progress
     payPaid: 'Paid', payNext: 'Next Due', payRemaining: 'Outstanding', payTotal: 'Total',
     contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
@@ -690,7 +693,6 @@
       title: 'Production progress',
       current: 'In progress',
       progress: '{name} {current}/{total}',
-      revision: 'Sent back by the artist for revision — progress rolled back',
       revisionAt: 'Rolled back to “{name}”',
       notStarted: 'Order submitted — production starts once the artist confirms',
       orderedAt: 'Ordered: '
@@ -746,7 +748,7 @@
   },
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
-    orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download', noFiles: 'No delivered files yet',
+    orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download',
     downloadFailed: 'Download failed, please retry or contact the artist'
   },
   login: {
@@ -763,17 +765,6 @@
   },
   // P0-9: MultiplierManager i18n
   multiplier: {
-    usageTitle: 'Usage Multiplier', usageHint: 'Highest applies when multiple are selected',
-    rushTitle: 'Rush Multiplier', rushHint: 'Multiplies with the usage multiplier',
-    edit: 'Edit', deleteConfirm: 'Delete this multiplier?',
-    emptyUsage: 'No usage multipliers', emptyRush: 'No rush multipliers',
-    addUsage: '+ Add Usage Multiplier', addRush: '+ Add Rush Multiplier',
-    editTitle: 'Edit Multiplier', createTitle: 'New Multiplier',
-    name: 'Name', namePlaceholder: 'e.g. Commercial use / Rush (within 3 days)',
-    value: 'Multiplier Value', valueHint: '1.5 = price ×1.5 (+50%)',
-    descLabel: 'Description (visible to clients)',
-    cancel: 'Cancel', save: 'Save', create: 'Create',
-    msgNameRequired: 'Please enter a name', msgUpdated: 'Updated', msgCreated: 'Created', msgDeleted: 'Deleted'
   },
   // v0.42 Step5: artist stats page (REQ-033 three-state: off / hidden / on)
   stats: {
@@ -798,14 +789,13 @@
     saved: 'Saved'
   },
   dashboard: {
-    title: 'Dashboard', pendingNew: 'New pending', activeOrders: 'Active orders',
-    monthRevenue: 'Revenue this month', totalCompleted: 'Total completed', quickActions: 'Quick actions',
-    queueBoard: 'Queue Board', manualOrder: 'Manual Entry', allOrders: 'All Orders', settings: 'Settings',
+    pendingNew: 'New pending', activeOrders: 'Active orders',
+    totalCompleted: 'Total completed',
     currentStatus: 'Current page status', statusUpdated: 'Status updated',
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     anotherOne: 'Another',
     slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
-    defaultPanel: 'Default panel', panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
+    panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
     // F4: guestbook moderation
     guestbookTitle: 'Guestbook moderation', guestbookEmpty: 'No messages',
     guestbookPending: 'Pending', guestbookApproved: 'Approved', guestbookRejected: 'Rejected',
@@ -815,9 +805,6 @@
     // R52: today stats
     todayNewOrders: 'New orders today', todayRevenue: 'Revenue today',
     // R51: deadlines + today's todos
-    deadlineCard: 'Due soon', noDeadlines: 'No deadlines coming up',
-    todoCard: "Today's todos", noTodos: 'Nothing pending — enjoy your tea',
-    daysLeft: '{n}d left', dueToday: 'Due today',
     // v0.18 dashboard rebuild
     revenueTitle: 'Revenue', periodMonth: 'Month', periodQuarter: 'Quarter', periodYear: 'Year',
     revenueOrderCount: '{n} completed', revenueVs: 'vs {label}', revenueError: 'Failed to load revenue data',
@@ -826,11 +813,10 @@
     tag_overdue: 'Overdue', tag_dueToday: 'Due today', tag_pending: 'New', tag_revision: 'Revision', tag_inProgress: 'In progress',
     activityTitle: 'Recent activity', activityError: 'Failed to load activity', activityEmpty: 'No recent activity',
     timeJustNow: 'just now', timeMinutesAgo: '{n}m ago', timeHoursAgo: '{n}h ago', timeDaysAgo: '{n}d ago',
-    slotTitle: 'Slot overview', slotFormal: 'Formal {used}/{total}', slotBuffer: 'Buffer {used}/{total}',
+    slotTitle: 'Slot overview',
     slotNext: 'Next in buffer: {name} (QQ: {qq})',
     // #4: slot overview revamp
     slotCombined: '{used}/{total} filled', slotNotEnabled: 'Slot limit is off — set it up →', slotDisplayFallback: '—',
-    artworks: 'Gallery', tiers: 'Tiers',
   },
   queue: {
     title: 'Queue Board',
@@ -838,7 +824,7 @@
     confirm: 'Confirm', startWip: 'Start work', done: '✔ Complete', deliver: 'Deliver', cancel: 'Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
     // SPEC-004: buffer zone
-    bufferTitle: 'Buffer zone (waitlist)', bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
+    bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
@@ -889,11 +875,11 @@
     backToQueue: 'Back to queue', backToDashboard: 'Back to dashboard', backToList: 'Back to orders', orderNo: 'Order #',
     orderInfo: 'Order info', colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
     colPriority: 'Priority', colSource: 'Source', colTime: 'Order time', colDesc: 'Description',
-    statusFlow: 'Status flow', confirmOrder: 'Accept order', startWip: 'Start work',
+    confirmOrder: 'Accept order', startWip: 'Start work',
     needRevision: 'Needs revision', markDone: '✔ Mark done', uploadDeliver: 'Upload delivery', cancelOrder: 'Cancel order',
-    references: 'Reference images', noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
+    noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
-    confirmDeliver: 'Confirm delivery', cancelConfirm: 'Cancel this order?', confirmTitle: 'Confirm',
+    confirmDeliver: 'Confirm delivery', confirmTitle: 'Confirm',
     statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
     // REQ-022 F1: Publish as artwork
     publishArtwork: 'Publish as artwork', publishDialogTitle: 'Publish as artwork',
@@ -908,8 +894,7 @@
     noReferences: 'No reference images',
     focusUpdated: 'Focus image updated',
     deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted',
-    focusHint: 'Display size is set globally in the queue board toolbar',
-    workflowTitle: 'Workflow progress', stageOff: 'Turn off stage tracking',
+    stageOff: 'Turn off stage tracking',
     stageProgress: 'Progress {current}/{total}', stageRevision: 'Sent back for revision',
     advanceTo: 'Advance to: ', stageBack: '↩ Send back', stageUpdated: 'Workflow updated',
     stageBackConfirm: 'Send back to "{name}"? The order will be marked as in revision.',
@@ -941,9 +926,9 @@
     extraDeleteConfirm: 'Delete extra item "{name}"? The final price will be recalculated.',
     extraTotal: 'Final price', extraAutoHint: 'Final price = base price + extras, calculated automatically',
     // R51: deadline
-    colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline', deadlineUpdated: 'Deadline updated',
+    colDeadline: 'Deadline', deadlinePlaceholder: 'Pick a deadline',
     // v0.26 B: start date
-    colStartDate: 'Start Date', startDatePlaceholder: 'Pick a start date', startDateUpdated: 'Start date updated',
+    colStartDate: 'Start Date', startDatePlaceholder: 'Pick a start date',
     deadlineAutoSet: 'Deadline auto-set based on turnaround days',
     // v0.38: merged date card (REQ-026 §四) — two fields in one card + "schedule synced" + days-left chip
     dateCardTitle: 'Dates',
@@ -954,7 +939,7 @@
     // R58-6: QQ jump + copy
     jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
     // plan-node-speech: client communication block
-    commTitle: 'Client Communication', commQq: 'QQ:', commCopyContact: 'Copy contact',
+    commTitle: 'Client Communication',
     commPriceSummary: 'Price: total {total} / paid {paid} / due {unpaid}',
     commCopyBtn: 'Copy text & open QQ', commCopied: 'Speech copied — opening QQ',
     commNoQq: 'No client QQ set', commNoStage: 'Order not on a workflow stage — no speech yet', commNoSpeech: 'No speech for the current stage',
@@ -970,7 +955,7 @@
     payRefundNoteLabel: 'Refund reason (required)',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
-    payAmountInvalid: 'Payment amount must be greater than 0', payAmountExceed: 'Amount cannot exceed the outstanding balance ¥{amount}',
+    payAmountInvalid: 'Payment amount must be greater than 0',
     payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'A reason is required when entering a negative amount (refund)', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
@@ -1015,10 +1000,9 @@
     leftTitle: 'What the client said', rightTitle: 'How to record',
     clientQq: 'Client QQ', clientQqPlaceholder: "Client's QQ number",
     clientName: 'Client nickname (optional)', clientNamePlaceholder: 'What to call the client',
-    tier: 'Tier', tierPlaceholder: 'Select a tier (optional)',
-    noTiers: 'No tiers yet — add some in Pricing first', tierDays: '{n} days',
-    addons: 'Add-ons', multipliers: 'Usage & Rush',
-    usage: 'Usage', rush: 'Rush', personal: 'Personal', noRush: 'No rush', inquiry: 'Inquiry',
+    tier: 'Tier',
+    addons: 'Add-ons',
+    usage: 'Usage', rush: 'Rush',
     totalPrice: 'Total', finalPrice: 'Final price (CNY)', finalPriceHint: 'Editable; leave blank to use calculated price',
     priceDetail: 'Details',
     desc: 'Description', descPlaceholder: "Paste the client's request from the QQ chat",
@@ -1026,7 +1010,6 @@
     refTip: 'You can add more references to the order gallery after creation. Gallery total limit: 20 images.',
     priority: 'Priority', priorityHigh: 'High', priorityMedium: 'Medium (default)', priorityLow: 'Low',
     clientNotify: 'Allow client to receive QQ queue notifications',
-    catExpression: 'Expressions', catOutfit: 'Outfits', catBackground: 'Backgrounds', catWeapon: 'Weapons', catOther: 'Other',
     submit: 'Record order', resultTitle: 'Recorded', orderNo: 'Order No: {no}', addedToQueue: 'Added to the queue',
     viewQueue: 'View queue', continueEntry: 'Enter another', fillClientQq: "Please enter the client's QQ number",
     // R51: deadline
@@ -1047,9 +1030,7 @@
     clientSummaryLast: 'Last {date}',
     // v0.38 D路: 画风模式（画风→尺寸→增项 三级选择）
     styleTitle: 'Choose Style', sizeTitle: 'Choose Size', sizeDays: '{n} days',
-    noSizes: 'No sizes available for this style', styleAddonsEmpty: 'No add-ons available for this size',
-    addonOptionPrice: 'Option price',
-    afterMultiplier: 'After multipliers',
+    noSizes: 'No sizes available for this style',
     // v0.38 补漏批: R2 自定义单提示 / R5 自定义增项 / R6 图片开关
     customHint: 'You can skip all selections and enter a custom price manually',
     showImages: 'Show images',
@@ -1088,28 +1069,15 @@
     parseApplied: 'Filled into the form — please review before submitting'
   },
   tiers: {
-    title: 'Pricing', addTier: '+ Add tier',
+    title: 'Pricing',
     dragHint: 'Drag to reorder', reorderSaved: 'Order saved',
-    colExample: 'Example', colName: 'Name', colPrice: 'Price', colDays: 'Turnaround', colDesc: 'Description',
-    editTitle: 'Edit tier', addTitle: 'Add tier', nameLabel: 'Name',
-    namePlaceholder: 'e.g. Headshot, Half-body, Full-body', priceLabel: 'Price (CNY)', daysLabel: 'Turnaround (days)',
-    descLabel: 'Description', descPlaceholder: 'Briefly describe what this tier includes', exampleLabel: 'Example image (optional)',
-    changeExample: 'Change image', uploadExample: 'Upload image', removeExample: 'Remove',
-    exampleUploaded: 'Image uploaded — click Save to apply', fillName: 'Please enter a name',
-    confirmDelete: 'Delete tier "{name}"?', daysUnit: '{n} days',
+    daysUnit: '{n} days',
     // #10: tier visibility
-    visVisible: 'Open', visShowcase: 'Showcase', visHidden: 'Hidden',
     // R55: example image drag-and-drop
-    dropToUpload: 'Drop to upload', notImage: 'Only image files are supported', tooBig: 'Image exceeds the 10MB limit',
-    overwriteTitle: 'Replace example image', overwriteConfirm: 'This tier already has an example image. The old image cannot be recovered after replacement. Continue?',
-    exampleUpdated: 'Example image updated',
     // R54: card layout empty state
-    empty: 'No tiers yet',
     // v0.28 T3: tab labels + action text i18n
-    tabTiers: 'Tiers', tabAddons: 'Add-ons', tabWorkflow: 'Workflow & Payment',
+    tabWorkflow: 'Workflow & Payment',
     tabDiscount: 'Discount Codes',
-    newTier: '+ New tier', cancel: 'Cancel', save: 'Save',
-    uploaded: 'Uploaded', saved: 'Saved', deleted: 'Deleted'
   },
   // v0.31 F3: discount code management
   discount: {
@@ -1131,10 +1099,10 @@
   },
   // v0.32 REQ-023 Phase1: art styles + addon templates
   styleManage: {
-    tabStyles: 'Art Styles', tabTemplates: 'Addon Library', confirmTitle: 'Confirm',
+    tabTemplates: 'Addon Library', confirmTitle: 'Confirm',
     // Addon templates (SPEC-PRICE-2: full category/control/pricing/max-qty management)
     tplIntro: 'The addon library is the single place to manage all price items (regular addons, usage, rush); then attach them to styles on the Styles & Pricing page.',
-    tplName: 'Name', tplControl: 'Control', tplPricing: 'Pricing', tplDefaultPrice: 'Default price', tplActions: 'Actions',
+    tplName: 'Name', tplControl: 'Control', tplDefaultPrice: 'Default price', tplActions: 'Actions',
     tplCategory: 'Category', tplCategoryLabel: 'Category', tplMaxQty: 'Max qty', tplMaxQtyLabel: 'Max quantity (anti-abuse for quantity type)',
     tplEmpty: 'No addon templates yet. Click "New Addon" to create one.', tplAdd: '+ New Addon',
     tplAddTitle: 'New Addon', tplEditTitle: 'Edit Addon',
@@ -1144,7 +1112,7 @@
     tplPriceLabel: 'Default price',
     tplUnitLabel: 'Unit label', tplUnitPlaceholder: 'e.g. person, sheet, item',
     tplSaved: 'Addon saved', tplDeleted: 'Addon deleted', tplDeleteConfirm: 'Delete addon "{name}"? Styles using it keep it as a standalone addon (no longer follows library updates).',
-    pricePerUnit: '¥{price}/{unit}', unitDefault: 'item',
+    unitDefault: 'item',
     // Art styles
     styleAddTitle: 'New Style', styleEditTitle: 'Edit Style',
     styleNameLabel: 'Style name', styleNamePlaceholder: 'e.g. Anime, Painterly, Pixel art', styleNameRequired: 'Please enter a style name',
@@ -1154,16 +1122,14 @@
     styleSaved: 'Style saved', styleDeleted: 'Style deleted', styleDeleteConfirm: 'Delete style "{name}"? All its sizes, addon configs and overrides will be removed too.',
     styleActive: 'Active', styleEmpty: 'No styles yet. Click "New Style" to start configuring.',
     // Sizes
-    sizeTitle: 'Sizes & base prices', sizeName: 'Size', sizePrice: 'Base price', sizeActions: 'Actions',
+    sizeTitle: 'Sizes & base prices', sizeName: 'Size', sizePrice: 'Base price',
     sizeNamePlaceholder: 'e.g. Avatar, Half-body, Full-body', sizeNameRequired: 'Please enter a size name',
-    sizeAdd: 'Add', sizeSaved: 'Size saved', sizeAdded: 'Size added', sizeDeleted: 'Size deleted',
+    sizeSaved: 'Size saved', sizeAdded: 'Size added', sizeDeleted: 'Size deleted',
     sizeDeleteConfirm: 'Delete size "{name}"? Its override configs will be removed too.',
     // Addons
-    addonTitle: 'Addons (imported from library)', addonEmpty: 'No addons imported yet. Create some in the addon library, then re-import.',
-    addonSave: 'Save addon config', addonSaved: 'Addon config saved',
+    addonTitle: 'Addons (imported from library)',
+    addonSaved: 'Addon config saved',
     // Size overrides
-    overrideExpand: 'Size overrides ▾', overrideCollapse: 'Collapse ▴',
-    overrideTitle: 'Size overrides for "{name}"', overrideHidden: 'Hide', overrideSaved: 'Override saved',
     // v0.35 wave 1 (REQ-024 F2/F1): merged entry + multi-style switch + size edit extension
     tabStylesAndPricing: 'Styles & Pricing',
     multiStyle: 'Multi-style',
@@ -1184,19 +1150,16 @@
     sizeImageSavedMsg: 'Size image updated', sizeImageUploadHint: 'Size image uploaded — click Save to apply',
     sizeDescLabel: 'Description (optional)', sizeDescPlaceholder: 'What this size includes / suits',
     sizeDaysLabel: 'Turnaround (days, optional)',
-    sizeImageCol: 'Image', sizeDescCol: 'Description', sizeDaysCol: 'Turnaround',
     sizeFromArtworkTag: 'Portfolio', sizeAddBtn: '+ Add size', sizeEmpty: 'No sizes yet',
     sizePickTitle: 'Pick from portfolio', sizePickHint: 'Click an artwork to use it as the size image', sizePickEmpty: 'No artworks yet — upload some in Portfolio first',
     // v0.35 fix A4: import addons into an existing style
-    addonImportBtn: '+ Import addons', addonImportTitle: 'Import from addon library',
+    addonImportTitle: 'Import from addon library',
     addonImportEmpty: 'No new addons to import (all library addons are already in this style)',
     addonImportConfirm: 'Import selected', addonImported: 'Addons imported',
     // REQ-036 Batch A: intuitive addon interactions (dual entry / pool+drag / tri-state / 3-layer dialog / preview / summary)
     // Dual entry
     addonCreateBtn: '+ New Addon', addonPickBtn: '+ Pick Existing',
     // Pool
-    addonPoolEmpty: 'No addons yet - create one or pick from the library above',
-    addonPoolHint: 'Drag to a size above to enable; click a capsule for details',
     addonCapHint: 'Click to configure / drag to a size row to enable',
     addonAlreadyEnabled: '"{name}" is already enabled on "{size}" - no need to drag again',
     addonEnabled: 'Enabled: {size} + {name}',
@@ -1209,7 +1172,7 @@
     createKindLabel: 'Category',
     createCatHintAdd: 'Regular addons add to the base price and can be combined; percent-priced ones are computed on the base price only',
     createCatHintMultiplier: 'Usage/Rush are multiplier slots in the formula: pick at most one of each when ordering, applied after the add-ons subtotal (switch control + percentage)',
-    createControlLabel: 'Control type (how clients choose)', createControlHint: 'Quantity = priced per unit (e.g. extra person xN); Switch = on/off',
+    createControlLabel: 'Control type (how clients choose)',
     createPricingLabel: 'Pricing mode', pricingPercent: 'Percentage +%', pricingFixed: 'Fixed amount ¥',
     pricingHintFixed: 'Fixed amount: adds ¥N directly; quantity type = unit price x quantity',
     pricingHintPercent: 'Percentage: computed on the base price only, e.g. 50 = base price x 50%',
@@ -1275,7 +1238,7 @@
     editSaved: 'Artwork saved'
   },
   rules: {
-    title: 'Guidelines Editor', hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
+    hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
     placeholder: 'Enter your commission guidelines. HTML tags like <h3>, <ul>, <li>, <strong> are supported',
     preview: 'Preview:', save: 'Save guidelines', saved: 'Guidelines saved'
   },
@@ -1288,7 +1251,7 @@
   },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
-    tabPrefs: 'Preferences', tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',
+    tabRules: 'Rules', tabWorkflow: 'Workflow & Payment',
     // BUG-7: load-failure protection (prevent default/empty values overwriting real settings)
     loadFailedTitle: 'Failed to load settings', loadFailedDesc: 'The form currently holds default values. Saving now would overwrite your real settings. Retry loading first, then edit and save.',
     loadFailedHint: 'Settings have not loaded yet. Please retry before saving.',
@@ -1317,7 +1280,6 @@
     // S5: monthly quota
     quotaLabel: 'Monthly quota', quotaEnable: 'Enable monthly quota', quotaUnit: 'orders/mo',
     quotaHint: 'Limit new orders per month (by creation date; cancelled orders excluded). Off = unlimited. Independent of slot system — when both are enabled, hitting either limit shows as full.',
-    bufferSwitchLabel: 'Buffer settings',
     autoPromote: 'Auto-promote (when a formal slot opens, automatically move the earliest buffer order in)',
     hideQueuePosition: 'Hide queue position from clients (only show "In queue")',
     hidePromoteNotify: 'Do not notify clients on promotion',
@@ -1344,8 +1306,6 @@
     // v0.25 A: Cover management
     coverTitle: 'Cover images (homepage carousel)',
     coverHint: 'Click the star to feature an artwork as a homepage cover. Multiple covers rotate automatically. Click again to remove.',
-    coverSet: 'Set as cover', coverUnset: 'Remove cover',
-    coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
     coverEmpty: 'No artworks yet — upload artworks first to set covers',
     coverManageLink: 'Manage covers',
     // R50: preview
@@ -1368,7 +1328,6 @@
     statusHidden: 'Page is hidden'
   },
   templates: {
-    tab: 'Page Template',
     hint: 'Choose how your public page looks. Layout sets the structure, palette sets the mood — all share the same artwork and pricing data.',
     label: 'Page layout',
     atelier: 'Atelier',
@@ -1385,16 +1344,8 @@
     paletteInk: 'Ink', paletteInkDesc: 'Gallery charcoal, layered grey, restrained',
     paletteDusk: 'Dusk', paletteDuskDesc: 'Blue-grey twilight, cool',
     paletteMoss: 'Moss', paletteMossDesc: 'Deep green, natural, warm',
-    saved: 'Template updated'
   },
   embed: {
-    tab: 'Embed Script',
-    hint: 'If you already have your own website (Carrd / Framer / custom HTML), you can embed a snippet to let clients commission you directly from your site.',
-    step1: '1. Copy this code:',
-    step2: '2. Paste it where you want the "Commission me" button to appear on your site. Clicking it opens an order form.',
-    copyBtn: 'Copy code',
-    copied: 'Copied',
-    copyFailed: 'Copy failed — please select and copy manually'
   },
   workflow: {
     stageList: 'Workflow Stages', paymentBar: 'Payment Split', overview: 'Full Workflow',
@@ -1437,7 +1388,7 @@
     artistCount: 'Artists', totalOrders: 'Total orders', activeOrders: 'Active orders',
     artistList: 'Artist list', manageArtists: 'Manage artists',
     colName: 'Name', colSubdomain: 'Subdomain', colQq: 'QQ No.', colStatus: 'Status', colBio: 'Bio',
-    backToPanel: 'Back to admin panel', artistManage: 'Artist management', addArtist: '+ Add artist',
+    artistManage: 'Artist management', addArtist: '+ Add artist',
     addTitle: 'Add artist', qqLabel: 'QQ No.', qqPlaceholder: "Artist's QQ number (used for login)",
     nameLabel: 'Name', namePlaceholder: 'Name shown to clients',
     subdomainLabel: 'Subdomain', subdomainPlaceholder: 'e.g. alice (lowercase letters/digits/hyphens)',
@@ -1454,7 +1405,6 @@
     transferStep1Title: 'Verify current admin', transferStep2Title: 'Verify new admin',
     currentAdminQq: 'Current admin QQ', newAdminQq: 'New admin QQ',
     newAdminQqPlaceholder: 'Enter new admin QQ (must be a registered artist)',
-    enterCode: 'Enter 6-digit code',
     nextStep: 'Next', confirmTransfer: 'Confirm transfer',
     transferSuccess: 'Admin transferred to {name}', adminTag: 'Admin',
     transferTotpHint: 'Enter the 6-digit code shown in each authenticator app (both must be bound first)',
@@ -1471,7 +1421,7 @@
     orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
     orderColType: 'Type', orderColTime: 'Order time',
     greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",
-    greetingPreview: 'Preview', greetingEmpty: 'Please enter greeting text',
+    greetingPreview: 'Preview',
     greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
     slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     defaultWorkflow: 'Default Workflow Template', defaultWorkflowHint: 'Changes only affect newly registered artists. Existing artists are not affected.',
@@ -1507,7 +1457,7 @@
     health: {
       title: 'System Health', start: 'Run checks', checking: 'Checking…',
       download: 'Download diagnostic report', refresh: 'Results are not persisted after refresh',
-      diskNote: 'for reference only', expandDetail: 'Details',
+      diskNote: 'for reference only',
       statusOk: 'OK', statusWarn: 'Warning', statusFail: 'Failed',
       emptyHint: 'Click “Run checks” to execute the 8 system checks'
     },

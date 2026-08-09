@@ -12,16 +12,6 @@
 import { ref } from 'vue'
 import { artistApi } from '../api/index.js'
 
-/** 操作类型枚举（与后端 activity-log.service.ts ACTION_TYPES 一致） */
-export const ACTION_TYPES = [
-  'status_change',
-  'price_change',
-  'extra_item',
-  'payment',
-  'stage_advance',
-  'note_update'
-]
-
 export function useActivityLog(orderId) {
   const logs = ref([])
   const total = ref(0)

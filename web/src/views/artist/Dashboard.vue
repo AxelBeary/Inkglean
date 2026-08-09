@@ -117,7 +117,13 @@ const store = useArtistStore()
 const stats = ref(null)
 
 onMounted(async () => {
-  await store.fetchProfile()
+  // 拉取画师资料失败不白屏也不额外登出（401 由 api 拦截器/store 处理），仅记录
+  try {
+    await store.fetchProfile()
+  } catch (err) {
+    // eslint-disable-next-line no-console -- 本地兜底日志：资料拉取失败不阻断仪表盘其他模块
+    console.warn('[Dashboard] fetchProfile failed:', err)
+  }
   // 统计卡片 + 今日统计行（独立失败，不阻塞其他模块）
   try { stats.value = await artistApi.getStats() } catch { /* ignore */ }
   // F4: 留言审核（独立失败，不阻塞其他模块）
