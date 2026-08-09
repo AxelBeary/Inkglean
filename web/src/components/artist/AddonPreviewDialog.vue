@@ -22,7 +22,7 @@
       <div class="pv-section-label">{{ $t('styleManage.previewComposition') }}</div>
       <div class="pv-line base">
         <span class="pv-name">{{ $t('styleManage.previewBase', { name: size.name }) }}</span>
-        <span class="pv-price">{{ formatCents(preview.baseCents) }}</span>
+        <span class="pv-price">{{ formatYuanTrimmed(preview.baseCents) }}</span>
       </div>
       <template v-if="preview.fixedItems.length || preview.percentItems.length">
         <div v-for="item in preview.fixedItems" :key="item.id" class="pv-line">
@@ -30,21 +30,21 @@
             {{ item.name }}
             <span v-if="item.isQuantityControl" class="pv-control">{{ $t('styleManage.previewQtyEstimate') }}</span>
           </span>
-          <span class="pv-price">{{ formatCents(item.amountCents) }}</span>
+          <span class="pv-price">{{ formatYuanTrimmed(item.amountCents) }}</span>
         </div>
         <div v-for="item in preview.percentItems" :key="item.id" class="pv-line">
           <span class="pv-name">
             {{ item.name }} <span class="pv-pct">+{{ item.percent }}%</span>
             <span class="pv-control">{{ $t('styleManage.previewPctOfBase') }}</span>
           </span>
-          <span class="pv-price">{{ formatCents(item.amountCents) }}</span>
+          <span class="pv-price">{{ formatYuanTrimmed(item.amountCents) }}</span>
         </div>
       </template>
       <div v-else class="pv-empty">{{ $t('styleManage.previewEmpty') }}</div>
 
       <div class="pv-total">
         <span>{{ $t('styleManage.previewSubtotal') }}</span>
-        <span class="amt">{{ formatCents(preview.subtotalCents) }}</span>
+        <span class="amt">{{ formatYuanTrimmed(preview.subtotalCents) }}</span>
       </div>
 
       <!-- ── 用途/加急可选项（顾客下单时各选一个生效，乘在小计上） ── -->
@@ -72,7 +72,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { computeSizePreview, formatCents } from './addon-utils.js'
+import { formatYuanTrimmed } from '../../utils/money.js'
+import { computeSizePreview } from './addon-utils.js'
 
 const { t } = useI18n()
 

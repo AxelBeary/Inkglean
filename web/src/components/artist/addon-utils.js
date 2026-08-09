@@ -6,6 +6,7 @@
 // style_addons 返回 template_* 快照字段（template_price_mode / template_category / ...）
 // 铁律：分类只读后端真实字段，禁止任何名称约定推导。
 // 仅放纯函数；组件状态留在各组件内。
+import { formatAddonPrice } from '../../utils/money.js'
 
 /** 控件类型中文标签 */
 export function controlLabel(t, type) {
@@ -34,25 +35,6 @@ export function unitLabelOf(sa, t) {
 }
 
 /**
- * 价格展示文本（池子胶囊 / 摘要 chip / 预览明细 / 增项库）
- * - percent: +50%（值为整数百分比）
- * - quantity+fixed: ¥80/位
- * - fixed: ¥50
- */
-export function formatPrice(price, priceMode, { controlType = null, unitLabel = null } = {}) {
-  const n = price ?? 0
-  if (priceMode === 'percent') return `+${n}%`
-  if (controlType === 'quantity') return `¥${n}/${unitLabel || '位'}`
-  return `¥${n}`
-}
-
-/** 金额（分）→ 展示文本：整数不带小数，非整数保留两位 */
-export function formatCents(cents) {
-  const yuan = (cents ?? 0) / 100
-  return Number.isInteger(yuan) ? `¥${yuan}` : `¥${yuan.toFixed(2)}`
-}
-
-/**
  * 画风增项当前生效价格（价格优先级：本尺寸 > 画风价 > 本身价）
  * @param {object} sa style_addons 行（含 price_override / template_default_price）
  * @param {number|null} sizePriceOverride 本尺寸差异价（可选）
@@ -64,7 +46,7 @@ export function effectivePrice(sa, sizePriceOverride) {
 
 /** 增项生效价展示文本（组合 effectivePrice + formatPrice） */
 export function addonPriceText(sa, sizePriceOverride, t) {
-  return formatPrice(effectivePrice(sa, sizePriceOverride), sa.template_price_mode, {
+  return formatAddonPrice(effectivePrice(sa, sizePriceOverride), sa.template_price_mode, {
     controlType: sa.template_control_type,
     unitLabel: unitLabelOf(sa, t)
   })

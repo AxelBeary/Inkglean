@@ -273,7 +273,7 @@
             </el-checkbox>
             <el-tag size="small" :type="controlTagType(tpl.control_type)">{{ controlLabel(tpl.control_type) }}</el-tag>
             <el-tag size="small" effect="plain" :type="tplCategoryTagType(tpl.category)">{{ categoryLabel($t, tpl.category || 'add') }}</el-tag>
-            <span class="import-price">{{ formatPrice(tpl.default_price, tpl.price_mode, { controlType: tpl.control_type, unitLabel: tpl.unit_label }) }}</span>
+            <span class="import-price">{{ formatAddonPrice(tpl.default_price, tpl.price_mode, { controlType: tpl.control_type, unitLabel: tpl.unit_label }) }}</span>
           </div>
         </el-checkbox-group>
       </div>
@@ -313,7 +313,8 @@ import { useI18n } from 'vue-i18n'
 import AddonCreateDialog from './AddonCreateDialog.vue'
 import AddonPreviewDialog from './AddonPreviewDialog.vue'
 import AddonSettingsDialog from './AddonSettingsDialog.vue'
-import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText, controlTagType, formatPrice } from './addon-utils.js'
+import { formatAddonPrice } from '../../utils/money.js'
+import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText, controlTagType } from './addon-utils.js'
 
 const { t } = useI18n()
 

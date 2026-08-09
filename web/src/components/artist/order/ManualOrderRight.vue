@@ -347,8 +347,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useStageStatus } from '../../../composables/useStageStatus.js'
-import { formatPrice } from '../../artist/addon-utils.js'
-import { formatCents, formatYuan } from '../../../utils/money.js'
+import { formatAddonPrice, formatCents, formatYuan, formatYuanValue } from '../../../utils/money.js'
 
 const props = defineProps({
   // 表单字段（父组件 reactive form 对象——v-model 绑定同一对象）
@@ -559,7 +558,7 @@ function buildStyleAddons() {
 
 /** 画风增项价格文案（¥50 / ¥80/位 / +50%，读真实 price_mode） */
 function formatStyleAddonPrice(a) {
-  return formatPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
+  return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
 }
 
 /** 画风价格计算（防抖 300ms，与旧档位 doCalc 同一模式） */

@@ -18,7 +18,7 @@
       </el-table-column>
       <el-table-column :label="$t('styleManage.tplDefaultPrice')" min-width="130">
         <template #default="{ row }">
-          <span class="tpl-price">{{ formatPrice(row.default_price, row.price_mode, { controlType: row.control_type, unitLabel: row.unit_label }) }}</span>
+          <span class="tpl-price">{{ formatAddonPrice(row.default_price, row.price_mode, { controlType: row.control_type, unitLabel: row.unit_label }) }}</span>
         </template>
       </el-table-column>
       <el-table-column :label="$t('styleManage.tplMaxQty')" width="90">
@@ -95,7 +95,8 @@ import { ref, computed, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { controlLabel, controlTagType, categoryLabel, formatPrice } from './addon-utils.js'
+import { formatAddonPrice } from '../../utils/money.js'
+import { controlLabel, controlTagType, categoryLabel } from './addon-utils.js'
 
 const { t } = useI18n()
 

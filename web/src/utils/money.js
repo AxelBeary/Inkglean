@@ -12,3 +12,38 @@ export function formatCents(cents) {
 export function formatYuan(cents) {
   return `¥${formatCents(cents)}`
 }
+
+/**
+ * 元源金额 → 「¥元」字符串（整数裁剪：整数 ¥80，非整数两位小数 ¥80.50）
+ * NaN/null/undefined 按 0 处理；负数输出 ¥-12.00（¥ 在负号前，与 formatYuan 形态一致）
+ * @param {number|string|null|undefined} yuan 金额（元）
+ * @returns {string}
+ */
+export function formatYuanValue(yuan) {
+  const n = Number(yuan ?? 0)
+  const v = Number.isNaN(n) ? 0 : n
+  if (v < 0) return `¥${v.toFixed(2)}`
+  return Number.isInteger(v) ? `¥${v}` : `¥${v.toFixed(2)}`
+}
+
+/**
+ * 增项价格展示文本（自 addon-utils.formatPrice 迁入，命名 formatAddonPrice）
+ * - percent: +N%（整数百分比）
+ * - quantity: ¥N/位
+ * - fixed: ¥N
+ */
+export function formatAddonPrice(price, priceMode, { controlType = null, unitLabel = null } = {}) {
+  const n = price ?? 0
+  if (priceMode === 'percent') return `+${n}%`
+  if (controlType === 'quantity') return `¥${n}/${unitLabel || '位'}`
+  return `¥${n}`
+}
+
+/**
+ * 金额（分）→ 展示文本（自 addon-utils.formatCents 迁入，命名 formatYuanTrimmed）：¥ 前缀 + 整数裁剪
+ * 整数不带小数（¥80），非整数保留两位（¥80.50）；与 formatCents（裸两位小数）语义不同，勿互替
+ */
+export function formatYuanTrimmed(cents) {
+  const yuan = (cents ?? 0) / 100
+  return Number.isInteger(yuan) ? `¥${yuan}` : `¥${yuan.toFixed(2)}`
+}
