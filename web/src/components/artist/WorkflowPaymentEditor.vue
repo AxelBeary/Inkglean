@@ -369,6 +369,8 @@ async function savePayment() {
     stages.value = res.stages || res
     dirtyNodes.value = []
     ElMessage.success(t('workflow.saved'))
+    // 批4 B10（方案 b）：活跃订单存在时后端附 appliesToNewOrdersOnly，提示仅影响新订单
+    if (res.appliesToNewOrdersOnly) ElMessage.info(t('workflow.paymentNewOrdersOnly'))
     return true
   } catch (err) { ElMessage.error(err.message); return false }
   finally { saving.value = false }

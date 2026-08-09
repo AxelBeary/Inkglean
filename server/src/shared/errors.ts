@@ -190,6 +190,9 @@ export const E = {
     // 流程重置（v0.24 P0-1）
     STAGES_RESET_BLOCKED: 'STAGES_RESET_BLOCKED',
 
+    // 流程变更守卫（批4 B10）
+    WORKFLOW_PAYMENT_IN_USE: 'WORKFLOW_PAYMENT_IN_USE',
+
   // 作品
   ARTWORK_NOT_FOUND: 'ARTWORK_NOT_FOUND',
   // 封面上限（Beta 冲刺 T8，用户 2026-08-06 拍板）
@@ -396,6 +399,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
     // 流程重置（v0.24 P0-1）
     STAGES_RESET_BLOCKED: '有 {count} 个进行中订单，请先完成或关闭流程跟踪后再重置工作流',
+
+    // 流程变更守卫（批4 B10）
+    WORKFLOW_PAYMENT_IN_USE: '有 {count} 个进行中的订单已引用收款节点，调整收款结构会影响这些订单的节点锁定与收款计划；请先完成订单或稍后再试',
 
   // 作品（v0.25 #5）
   ARTWORK_NOT_FOUND: '作品不存在',

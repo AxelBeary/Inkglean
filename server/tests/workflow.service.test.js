@@ -1,11 +1,30 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import * as wf from '../src/features/artist/workflow.service.js'
+import * as orderSvc from '../src/features/order/order.service.js'
 
 /** 快速给画师种入默认 7 节点 */
 function seed(artistId) {
   wf.seedArtistStages(artistId)
   return wf.getWorkflow(artistId)
+}
+
+/** 种入一个正式区订单并生成分期快照（批4 B10 守卫的命中条件：订单行 + 分期行） */
+function seedOrderWithInstallments(artistId, overrides = {}) {
+  const order = seedOrder(artistId, { queue_zone: 'formal', ...overrides })
+  db.prepare('UPDATE orders SET total_price_cents = ?, final_price_cents = ?, price_snapshot = ? WHERE id = ?')
+    .run(10000, 10000, 100, order.id)
+  orderSvc.generateInstallmentsForOrder(order.id)
+  return order
+}
+
+/** 断言抛 WORKFLOW_PAYMENT_IN_USE 且 detail.count 正确（批4 B10 守卫） */
+function expectBlocked(fn, count) {
+  let caught = null
+  try { fn() } catch (err) { caught = err }
+  expect(caught).toBeInstanceOf(Error)
+  expect(caught.code).toBe('WORKFLOW_PAYMENT_IN_USE')
+  expect(caught.detail).toEqual({ count })
 }
 
 describe('流程与比例服务 (Workflow Service)', () => {
@@ -296,5 +315,96 @@ describe('流程与比例服务 (Workflow Service)', () => {
     seed(artist.id)
     const result = wf.resetArtistStages(artist.id)
     expect(result.length).toBeGreaterThan(0)
+  })
+
+  // ─── 批4 B10: workflow 模板变更守卫（收款结构变更 vs 活跃订单分期快照） ───
+
+  it('TC-WF-G1: 活跃订单存在时切换收款开关被拒（WORKFLOW_PAYMENT_IN_USE, count=1）', () => {
+    const stages = seed(artist.id)
+    seedOrderWithInstallments(artist.id, { status: 'wip' })
+    const pay = stages.find(s => s.takesPayment && !s.isFinal)
+    expectBlocked(() => wf.updateStage(artist.id, pay.id, { takesPayment: false }), 1)
+  })
+
+  it('TC-WF-G2: 活跃订单存在时 reorder 被拒；无活跃订单时放行', () => {
+    const stages = seed(artist.id)
+    seedOrderWithInstallments(artist.id, { status: 'wip' })
+    expectBlocked(() => wf.reorderStages(artist.id, stages.map(s => s.id).reverse()), 1)
+    // 无活跃订单（清空订单）→ 放行（既有排序用例回归不破）
+    db.prepare('DELETE FROM orders WHERE artist_id = ?').run(artist.id)
+    const result = wf.reorderStages(artist.id, stages.map(s => s.id).reverse())
+    expect(result).toHaveLength(7)
+  })
+
+  it('TC-WF-G3: 活跃订单存在时 savePayment 放行并标注仅影响新订单（方案 b），新订单按新比例生成', () => {
+    const stages = seed(artist.id)
+    const oldOrder = seedOrderWithInstallments(artist.id, { status: 'wip' })
+    const pay = stages.find(s => s.takesPayment && !s.isFinal)
+    const result = wf.savePayment(artist.id, [{ id: pay.id, basisPoints: 2000 }])
+    // 返回成功 + 活跃订单存在时 appliesToNewOrdersOnly=true
+    expect(result.appliesToNewOrdersOnly).toBe(true)
+    const after = wf.getWorkflow(artist.id)
+    expect(after.find(s => s.id === pay.id).basisPoints).toBe(2000)
+    // 既有订单分期仍按旧快照（比例只影响新订单）
+    const oldInsts = db.prepare('SELECT basis_points FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order').all(oldOrder.id)
+    expect(oldInsts[0].basis_points).toBe(3000)
+    expect(oldInsts[1].basis_points).toBe(7000)
+    // 新订单按新比例生成
+    const newOrder = seedOrderWithInstallments(artist.id, { status: 'wip' })
+    const newInsts = db.prepare('SELECT basis_points FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order').all(newOrder.id)
+    expect(newInsts[0].basis_points).toBe(2000)
+    expect(newInsts[1].basis_points).toBe(8000)
+  })
+
+  it('TC-WF-G4: 活跃订单存在时改名/话术等非收款结构变更放行', () => {
+    const stages = seed(artist.id)
+    seedOrderWithInstallments(artist.id, { status: 'wip' })
+    const s = stages[0]
+    expect(wf.updateStage(artist.id, s.id, { name: '需求确认' }).name).toBe('需求确认')
+    expect(wf.updateStage(artist.id, s.id, { speechTemplate: '新的话术' }).speechTemplate).toBe('新的话术')
+  })
+
+  it('TC-WF-G5: 活跃订单仅缓冲/0价（无分期行）时三处均放行', () => {
+    const stages = seed(artist.id)
+    // 缓冲单：不生成分期
+    seedOrder(artist.id, { status: 'wip', queue_zone: 'buffer' })
+    // 正式区 0 价单：无分期行
+    const zero = seedOrder(artist.id, { status: 'wip' })
+    db.prepare('UPDATE orders SET total_price_cents = 0, final_price_cents = 0 WHERE id = ?').run(zero.id)
+    const pay = stages.find(s => s.takesPayment && !s.isFinal)
+    // savePayment 放行且无活跃订单标注
+    const result = wf.savePayment(artist.id, [{ id: pay.id, basisPoints: 2000 }])
+    expect(result.appliesToNewOrdersOnly).toBe(false)
+    // reorder 放行
+    expect(() => wf.reorderStages(artist.id, stages.map(s => s.id))).not.toThrow()
+    // takesPayment 切换放行（开启草稿确认收款）
+    const draft = stages.find(s => s.name === '草稿确认')
+    expect(() => wf.updateStage(artist.id, draft.id, { takesPayment: true })).not.toThrow()
+  })
+
+  it('TC-WF-G6: 已交付/已取消订单不拦截（终态排除）', () => {
+    const stages = seed(artist.id)
+    seedOrderWithInstallments(artist.id, { status: 'delivered' })
+    seedOrderWithInstallments(artist.id, { status: 'cancelled' })
+    const pay = stages.find(s => s.takesPayment && !s.isFinal)
+    const result = wf.savePayment(artist.id, [{ id: pay.id, basisPoints: 2000 }])
+    expect(result.appliesToNewOrdersOnly).toBe(false)
+    expect(() => wf.reorderStages(artist.id, stages.map(s => s.id))).not.toThrow()
+    const draft = stages.find(s => s.name === '草稿确认')
+    expect(() => wf.updateStage(artist.id, draft.id, { takesPayment: true })).not.toThrow()
+  })
+
+  it('TC-WF-G7: 变更被拒后既有订单节点金额与锁定状态不变（防摊错节点）', () => {
+    const stages = seed(artist.id)
+    const order = seedOrderWithInstallments(artist.id, { status: 'wip' })
+    orderSvc.refreshInstallmentLocks(order.id)
+    const before = db.prepare('SELECT amount_cents, locked, locked_reason FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order').all(order.id)
+    const pay = stages.find(s => s.takesPayment && !s.isFinal)
+    expectBlocked(() => wf.updateStage(artist.id, pay.id, { takesPayment: false }), 1)
+    expectBlocked(() => wf.reorderStages(artist.id, stages.map(s => s.id).reverse()), 1)
+    // 拒绝后刷新锁定，结果与变更前一致
+    orderSvc.refreshInstallmentLocks(order.id)
+    const after = db.prepare('SELECT amount_cents, locked, locked_reason FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order').all(order.id)
+    expect(after).toEqual(before)
   })
 })

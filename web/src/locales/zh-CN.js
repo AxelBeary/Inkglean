@@ -46,6 +46,7 @@
     NO_PAYMENT_NODE: '至少需要保留 1 个收款节点',
     SUM_NOT_100: '比例总和必须等于 100%',
     STAGES_RESET_BLOCKED: '有 {count} 个进行中订单，请先完成或关闭流程跟踪后再重置工作流',
+    WORKFLOW_PAYMENT_IN_USE: '有 {count} 个进行中的订单已引用收款节点，调整收款结构会影响这些订单的节点锁定与收款计划；请先完成订单或稍后再试',
 
     // 订单
     ORDER_NOT_FOUND: '订单不存在',
@@ -1350,6 +1351,8 @@
     deleteHint: '确定删除此节点？', deletePayHint: '此节点收款比例将并入尾款，确定删除？',
     savePayment: '保存比例', unsaved: '有未保存的比例变更',
     saved: '比例已保存', detached: '已移除该收款节点，比例已并入尾款',
+    // 批4 B10（方案 b）：活跃订单存在时后端附 appliesToNewOrdersOnly，提示仅影响新订单
+    paymentNewOrdersOnly: '比例已保存，仅影响新订单（已有订单按下单时快照不变）',
     dragHandle: '拖拽调整比例', minPercent: '比例不能低于 5%', finalTooLow: '尾款比例不足，无法分配',
     reset: '恢复默认模板', resetConfirm: '确定恢复默认模板？你当前的所有自定义节点和比例将被覆盖，此操作无法撤销。', resetDone: '已恢复默认模板',
     descPlaceholder: '点击添加说明',
