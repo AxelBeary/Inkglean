@@ -13,21 +13,28 @@
       </defs>
     </svg>
 
-    <!-- 纸艺山水：折纸山脉（拉伸层）+ 小亭（独立定尺寸，竖屏不形变） -->
+    <!-- 纸艺山水：曲线远山（水墨圆润山脊，v0.47 重画）+ 小亭（飞檐翹脊重绘）；
+         雾带已删（用户验收：横向线条丑） -->
     <div class="mountains" aria-hidden="true">
       <svg class="mt-range" viewBox="0 0 1440 360" preserveAspectRatio="none">
-        <path class="mt-far" d="M0,236 L150,128 L296,206 L470,88 L648,196 L830,110 L1010,200 L1188,124 L1330,196 L1440,150 L1440,360 L0,360 Z" />
-        <rect class="mt-mist" x="0" y="228" width="1440" height="30" />
-        <path class="mt-mid" d="M0,286 L210,182 L392,268 L586,164 L788,272 L986,190 L1178,278 L1332,214 L1440,262 L1440,360 L0,360 Z" />
-        <path class="mt-near" d="M0,330 L260,240 L470,318 L700,236 L930,326 L1150,252 L1330,322 L1440,286 L1440,360 L0,360 Z" />
+        <path class="mt-far" d="M0,240 Q120,150 260,208 Q380,118 520,190 Q660,96 820,182 Q960,116 1120,196 Q1260,140 1440,180 L1440,360 L0,360 Z" />
+        <path class="mt-mid" d="M0,290 Q170,196 340,268 Q520,178 700,262 Q880,190 1060,270 Q1240,214 1440,258 L1440,360 L0,360 Z" />
+        <path class="mt-near" d="M0,332 Q220,252 440,318 Q660,242 880,324 Q1100,256 1300,318 Q1380,296 1440,306 L1440,360 L0,360 Z" />
       </svg>
       <div class="pavilion-wrap">
-        <svg viewBox="-24 -8 48 40">
+        <svg viewBox="-24 -10 48 42">
           <g class="pavilion">
-            <path d="M-22,10 Q-18,6 -15,6 Q-6,-3 0,-5 Q6,-3 15,6 Q18,6 22,10 L17,10 Q7,3 0,1 Q-7,3 -17,10 Z" />
-            <rect x="-9" y="10" width="2.5" height="16" />
-            <rect x="6.5" y="10" width="2.5" height="16" />
-            <rect x="-14" y="26" width="28" height="3" />
+            <!-- 宝顶 -->
+            <circle cx="0" cy="-7" r="1.3" />
+            <!-- 飞檐屋顶：两端翹起，底缘微弧 -->
+            <path d="M-22,8 Q-21,4 -16,5 Q-8,-3 0,-5.5 Q8,-3 16,5 Q21,4 22,8 Q10,3.5 0,3 Q-10,3.5 -22,8 Z" />
+            <!-- 檐下横梁 -->
+            <rect x="-11" y="8.6" width="22" height="1.4" />
+            <!-- 双柱 -->
+            <rect x="-8" y="10" width="2" height="15" />
+            <rect x="6" y="10" width="2" height="15" />
+            <!-- 台基 -->
+            <rect x="-13" y="25" width="26" height="2.4" />
           </g>
         </svg>
       </div>
@@ -225,16 +232,18 @@ async function login() {
      页面底色直接消费 --paper 本体，确保吃到 550ms token 缓动。 -->
 <style>
 .login-page {
-  /* --lg-tex（真纸纹理 URL）由模板 :style 注入（script 导入的 webp 资源地址） */
+  /* --lg-tex（真纸纹理 URL）由模板 :style 注入（script 导入的 webp 资源地址）。
+     v0.47：纹理可见性修复落在源图侧（压缩脚本像素级拉伸灰度百分位，纤维对比增强），
+     op 保持 .5：斑驳约 6.5%，可见不显脏 */
   --lg-tex-op: 0.5;
   --lg-tex-blend: multiply;
-  --lg-sheet-tex-op: 0.35;
+  --lg-sheet-tex-op: 0.4;
 }
 
 html[data-artist-theme='ink'] .login-page {
-  --lg-tex-op: 0.14;      /* 暗主题改 overlay：只叠肌理不染色 */
+  --lg-tex-op: 0.2;       /* 暗主题改 overlay：只叠肌理不染色 */
   --lg-tex-blend: overlay;
-  --lg-sheet-tex-op: 0.1;
+  --lg-sheet-tex-op: 0.12;
 }
 
 /* 手剪纸不规则圆角（全后台视觉批基线：纸不是机器倒的角） */
@@ -318,32 +327,30 @@ html[data-artist-theme] {
 
 .svg-defs { position: absolute; }
 
-/* 小亭：锁定山脊交点，定宽不形变 */
+/* 小亭：锁定中景山脊，定宽不形变（v0.47：配合曲线山脊微调落点） */
 .pavilion-wrap {
   position: absolute;
-  left: 68.5%;
-  bottom: 48%;
-  width: 44px;
+  left: 47.5%;
+  bottom: 46%;
+  width: 40px;
   transform: translateX(-50%);
 }
 
 .pavilion-wrap svg { width: 100%; height: auto; }
 
-.mt-far { fill: color-mix(in srgb, var(--ink) 5%, transparent); }
-.mt-mid { fill: color-mix(in srgb, var(--ink) 8%, transparent); }
-.mt-near { fill: color-mix(in srgb, var(--ink) 11%, transparent); }
-.mt-mist { fill: color-mix(in srgb, var(--paper2) 55%, transparent); }
-.pavilion { fill: color-mix(in srgb, var(--ink) 26%, transparent); }
+/* 山墨阶：v0.47 每档加深一档，白底上远景不再隐形（color-mix 随主题自适应） */
+.mt-far { fill: color-mix(in srgb, var(--ink) 6%, transparent); }
+.mt-mid { fill: color-mix(in srgb, var(--ink) 10%, transparent); }
+.mt-near { fill: color-mix(in srgb, var(--ink) 15%, transparent); }
+.pavilion { fill: color-mix(in srgb, var(--ink) 30%, transparent); }
 
-/* 入场：山脉逐层升起 + 雾横漂入（一次性） */
+/* 入场：山脉逐层升起（一次性；雾带已删） */
 @keyframes mt-rise { from { transform: translateY(36px); } to { transform: translateY(0); } }
-@keyframes mist-in { from { transform: translateX(-36px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .mt-far  { animation: mt-rise 0.6s var(--ease-out) 0.05s backwards; }
 .mt-mid  { animation: mt-rise 0.6s var(--ease-out) 0.15s backwards; }
 .mt-near { animation: mt-rise 0.6s var(--ease-out) 0.25s backwards; }
-.mt-mist { animation: mist-in 0.9s ease-out 0.3s backwards; }
 .pavilion-wrap { animation: fade-in 0.6s ease 0.55s backwards; }
 
 /* ═══ 登录主体 ═══ */
@@ -397,13 +404,14 @@ html[data-artist-theme] {
   position: relative;
   width: 100%;
   height: 100%;
-  background: var(--paper);
+  /* v0.47 纸叠明度梯度转正：底张比页面底暗，边缘轮廓才立得住（color-mix 随主题自适应） */
+  background: color-mix(in srgb, var(--ink) 7%, var(--paper));
   border-radius: var(--r-s-hand);
-  box-shadow: 0 4px 10px rgba(38, 37, 32, 0.06);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 18%, transparent);
   clip-path: polygon(0 0, 100% 0, 100% 88%, 95% 91%, 89% 87%, 82% 92%, 74% 88%, 66% 93%, 58% 89%, 49% 93%, 41% 88%, 33% 92%, 25% 88%, 17% 93%, 9% 89%, 4% 92%, 0 88%);
 }
 
-/* 第二张：微斜垫底 */
+/* 第二张：微斜垫底（v0.47：底色改用比页面底暗一档的混色，不再用比页面底亮的 --paper2） */
 .sheet-b {
   position: absolute;
   left: 8px;
@@ -411,9 +419,9 @@ html[data-artist-theme] {
   top: 8px;
   bottom: -6px;
   z-index: -1;
-  background: var(--paper2);
+  background: color-mix(in srgb, var(--ink) 3%, var(--paper));
   border-radius: var(--r-s-hand);
-  box-shadow: 0 2px 6px rgba(38, 37, 32, 0.07);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 11%, transparent);
   transform: rotate(0.9deg);
   animation: sheet-b 0.5s var(--ease-out) 0.02s backwards;
 }
@@ -432,17 +440,23 @@ html[data-artist-theme] {
   pointer-events: none;
 }
 
-/* 主纸：手剪圆角 + 真纸纹理 + 噪点 + 下缘纸边 */
+/* 主纸：手剪圆角 + 真纸纹理 + 噪点 + 下缘纸边（v0.47：三档投影，白底上把厚度托出来） */
 .card {
   position: relative;
   background: var(--card);
   border-radius: var(--r-paper);
   padding: 32px 40px 36px;
-  box-shadow: 0 1px 2px rgba(38, 37, 32, 0.05), 0 14px 34px rgba(38, 37, 32, 0.14);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent),
+    0 2px 6px color-mix(in srgb, var(--ink) 7%, transparent),
+    0 6px 16px color-mix(in srgb, var(--ink) 11%, transparent),
+    0 20px 48px color-mix(in srgb, var(--ink) 16%, transparent);
   animation: fade-in 0.4s ease 0.16s backwards;
 }
 
-/* 卡面真纸纹理（ambientCG Paper001，CC0，经 --lg-tex 注入）+ 混合模式随主题 */
+/* 卡面真纸纹理（ambientCG Paper001，CC0，经 --lg-tex 注入）+ 混合模式随主题。
+   v0.47：可见性修复——根因是源图灰度 range 仅 38 级，multiply 白卡上隐形；
+   压缩脚本像素级拉伸后，此处维持单层 multiply op .5 即肉眼可见 */
 .card::before {
   content: '';
   position: absolute;
@@ -468,16 +482,16 @@ html[data-artist-theme] {
 
 :global(html[data-artist-theme='ink']) .grain-layer { mix-blend-mode: screen; }
 
-/* 下缘纸边（厚度） */
+/* 下缘纸边（厚度，v0.47：3px→4px 加深一档，白底上看得见厚度） */
 .card::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 3px;
+  height: 4px;
   border-radius: var(--r-s-hand);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 5%, transparent), color-mix(in srgb, var(--ink) 12%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 5%, transparent), color-mix(in srgb, var(--ink) 16%, transparent));
   pointer-events: none;
 }
 
