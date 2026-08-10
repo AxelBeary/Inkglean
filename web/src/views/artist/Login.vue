@@ -154,9 +154,10 @@ async function login() {
     setTimeout(() => router.push(target), 500)
   } catch (err) {
     // 错误关联到具体字段；锁定类错误用后端 remainingLockMs 告知剩余时长
+    // G-6（衔接批 F-9）: 旧登录码三码已退役，错误码按 REQ-027 TOTP 现状处理
     if (err.code === 'QQ_NOT_REGISTERED') errQq.value = true
-    else if (err.code === 'CODE_INVALID' || err.code === 'CODE_EXPIRED') errCode.value = true
-    const isLockError = err.code === 'TOTP_LOCKED' || err.code === 'CODE_TOO_MANY_ATTEMPTS'
+    else if (err.code === 'TOTP_INVALID' || err.code === 'TOTP_NOT_BOUND') errCode.value = true
+    const isLockError = err.code === 'TOTP_LOCKED'
     noticeError.value = isLockError && err.detail?.remainingLockMs
       ? t('login.locked', { minutes: Math.ceil(err.detail.remainingLockMs / 60000) })
       : err.message

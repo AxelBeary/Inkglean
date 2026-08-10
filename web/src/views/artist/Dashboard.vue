@@ -93,12 +93,13 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useArtistStore } from '../../stores/artist.js'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
+import { subscribeReconnect } from '../../utils/reconnect.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 // v0.38: 统一视觉组件（REQ-026 §二）
 import CardHead from '../../components/artist/visual/CardHead.vue'
@@ -116,7 +117,8 @@ const { t } = useI18n()
 const store = useArtistStore()
 const stats = ref(null)
 
-onMounted(async () => {
+/** 仪表盘关键数据重拉（断网重连/回前台复用；各模块独立失败互不阻塞） */
+async function refreshAll() {
   // 拉取画师资料失败不白屏也不额外登出（401 由 api 拦截器/store 处理），仅记录
   try {
     await store.fetchProfile()
@@ -128,6 +130,16 @@ onMounted(async () => {
   try { stats.value = await artistApi.getStats() } catch { /* ignore */ }
   // F4: 留言审核（独立失败，不阻塞其他模块）
   loadGuestbook()
+}
+
+let unsubscribeReconnect = null
+onMounted(() => {
+  refreshAll()
+  // G-3（R-16）: 断网重连后复用 refreshAll 重拉
+  unsubscribeReconnect = subscribeReconnect(refreshAll)
+})
+onUnmounted(() => {
+  unsubscribeReconnect?.()
 })
 
 // ─── F4: 留言审核 ───
@@ -140,9 +152,11 @@ const pendingCount = computed(() => guestbookMessages.value.filter(m => m.status
 async function loadGuestbook() {
   guestbookLoading.value = true
   try {
-    const msgs = await artistApi.getMessages()
+    // G-8（F-2 适配）: 后端改分页响应 { items, total, page, pageSize }；
+    // 留言卡片取最新一页（pageSize=20 = 后端默认，行为与旧全量列表的口径对齐为"最新 N 条"）
+    const res = await artistApi.getMessages({ pageSize: 20 })
     // 管理员已删除的留言不进入画师审核列表
-    guestbookMessages.value = (msgs || []).filter(m => !m.deleted_by_admin)
+    guestbookMessages.value = (res.items || []).filter(m => !m.deleted_by_admin)
   } catch { /* ignore */ }
   finally { guestbookLoading.value = false }
 }

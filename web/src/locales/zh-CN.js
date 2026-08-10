@@ -7,9 +7,6 @@
     ACCOUNT_DISABLED: '账号已被停用',
     TOKEN_REVOKED: '登录状态已失效，请重新登录',
     ADMIN_REQUIRED: '需要管理员权限',
-    CODE_INVALID: '登录码错误',
-    CODE_EXPIRED: '登录码已过期',
-    CODE_TOO_MANY_ATTEMPTS: '尝试次数过多，请重新获取登录码',
     QQ_NOT_REGISTERED: '该 QQ 号未注册为画师',
     TOTP_NOT_BOUND: '该画师尚未绑定动态口令，请联系管理员',
     TOTP_INVALID: 'QQ号或动态口令错误',
@@ -618,6 +615,8 @@
     fillQq: '请填写QQ号', selectSizeFirst: '请先选择画风和尺寸',
     fileTooBig: '文件「{name}」超过10MB限制（{size}MB），请压缩后重新上传',
     typeWarning: '建议转换为 JPG 或 WebP 格式以获得更好的预览体验，但当前格式也可以正常上传。',
+    // G-7（P2-13）: 参考图归属凭证获取失败（匿名凭证签发链路网络异常时提示）
+    anonTokenRequired: '参考图凭证获取失败，请检查网络后重试',
     loadFailed: '加载画师信息失败',
     // R57: 草稿恢复
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
@@ -1027,6 +1026,8 @@
     desc: '需求描述', descPlaceholder: '从QQ聊天中复制客户的需求描述',
     references: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图', fileTooBig: '{name} 过大（{size}MB），上限10MB',
     refTip: '录单后仍可在订单图库中补充参考图，订单图库合计上限 20 张。',
+    // G-7（P2-13）: 参考图归属凭证获取失败（匿名凭证签发链路网络异常时提示）
+    anonTokenRequired: '参考图凭证获取失败，请检查网络后重试',
     priority: '优先级', priorityHigh: '高', priorityMedium: '中（默认）', priorityLow: '低',
     clientNotify: '允许客户接收QQ排队提醒',
     submit: '录入订单', resultTitle: '录入成功', orderNo: '订单号: {no}', addedToQueue: '已加入排期队列',

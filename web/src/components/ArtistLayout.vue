@@ -211,6 +211,7 @@ import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
 import { setLocale } from '../i18n/index.js'
 import { trackEvent } from '../utils/track.js'
+import { safeGetItem, safeSetItem } from '../utils/storage.js'
 import { artistApi } from '../api/index.js'
 import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Stamp, Download, Wallet, Grid, Calendar, User, Connection, PriceTag, ChatLineRound, Notebook, AlarmClock } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
@@ -339,7 +340,8 @@ const pageTitle = computed(() => {
 // ─── R21: 折叠状态管理 ───
 const SIDEBAR_KEY = 'sidebar_collapsed'
 /** 用户手动折叠偏好（localStorage 持久化，桌面默认展开） */
-const userCollapsed = ref(localStorage.getItem(SIDEBAR_KEY) === '1')
+// G-5: 裸读写换 safe 封装（存储禁用时按默认展开态降级）
+const userCollapsed = ref(safeGetItem(SIDEBAR_KEY) === '1')
 /** ≤900px 窄屏（自动收起为图标窄条） */
 const isNarrow = ref(window.matchMedia('(max-width: 900px)').matches)
 /** ≤600px 移动端（侧边栏完全隐藏，汉堡按钮 + 抽屉） */
@@ -355,10 +357,13 @@ onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
   mqMobile.addEventListener('change', onMobileChange)
   applyFontSizeFromStorage()
+  validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
   // #1: 侧边栏待审核留言角标（调一次 messages，失败静默——角标非关键路径）
   if (store.loggedIn) {
-    artistApi.getMessages()
-      .then(list => { pendingMsgCount.value = (list || []).filter(m => m.status === 'pending').length })
+    // G-8（F-2 适配）: 后端改分页响应 { items, total, page, pageSize }；
+    // 角标取最新一页（pageSize=100 为后端上限），超量时可能低估——角标非关键路径可接受
+    artistApi.getMessages({ pageSize: 100 })
+      .then(res => { pendingMsgCount.value = (res.items || []).filter(m => m.status === 'pending').length })
       .catch(() => {})
   }
 })
@@ -376,7 +381,7 @@ const asideWidth = computed(() => collapsed.value ? '64px' : '230px')
 
 function toggleCollapse() {
   userCollapsed.value = !userCollapsed.value
-  localStorage.setItem(SIDEBAR_KEY, userCollapsed.value ? '1' : '0')
+  safeSetItem(SIDEBAR_KEY, userCollapsed.value ? '1' : '0')
 }
 
 // ─── 导航与操作 ───
@@ -400,7 +405,7 @@ const avatarUrl = computed(() => store.profile?.avatar ? `/uploads/${store.profi
 // ─── F1 批4: 后台字号档位（Preferences 页写入 localStorage，挂载时应用；刷新/重进后台保持） ───
 const FONT_SIZE_KEY = 'huiyue_admin_font_size'
 function applyFontSizeFromStorage() {
-  const size = localStorage.getItem(FONT_SIZE_KEY)
+  const size = safeGetItem(FONT_SIZE_KEY)
   if (size === 'large' || size === 'xlarge') document.documentElement.dataset.fontSize = size
 }
 
@@ -412,6 +417,28 @@ const statusClass = computed(() => {
 function logout() {
   store.logout()
   router.push('/login')
+}
+
+// ─── G-1（P2-8）: 后台会话强校验 ───
+// 路由守卫的 localStorage 检查只管体验（快速路径：未登录先跳登录页）；
+// 真实边界在布局挂载后调 /api/auth/me 以服务端为准校验：
+// 成功 → isAdmin 标记以服务端为准修正；401/403 → 复用既有登出逻辑清标记跳登录。
+async function validateSession() {
+  try {
+    const me = await artistApi.getMe()
+    const serverAdmin = !!me.isAdmin
+    if (serverAdmin !== store.isAdmin) {
+      store.isAdmin = serverAdmin
+      safeSetItem('artist_is_admin', serverAdmin ? '1' : '0')
+    }
+  } catch (err) {
+    if (err.status === 401 || err.status === 403) {
+      await store.logout()
+      if (router.currentRoute.value.name !== 'ArtistLogin') {
+        router.push({ name: 'ArtistLogin' })
+      }
+    }
+  }
 }
 </script>
 
@@ -682,4 +709,3 @@ function logout() {
 .artist-scope .mobile-drawer :deep(.el-drawer-fade-enter-from .ltr),
 .artist-scope .mobile-drawer :deep(.el-drawer-fade-leave-to .ltr) { transform: translateY(8px); }
 </style>
-

@@ -27,6 +27,7 @@
 <script setup>
 import { ref } from 'vue'
 import { artistPublicApi } from '../../api/index.js'
+import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
 const props = defineProps({
   artworkId: { type: Number, required: true },
@@ -45,20 +46,20 @@ const popping = ref(false)
 const STORAGE_KEY = `huiyue_liked_${props.subdomain}`
 
 function readIds() {
+  // G-5: 裸读写换 safe 封装（存储禁用/损坏 JSON 均按未点赞降级）
+  const raw = safeGetItem(STORAGE_KEY)
+  if (!raw) return []
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const ids = raw ? JSON.parse(raw) : []
+    const ids = JSON.parse(raw)
     return Array.isArray(ids) ? ids : []
   } catch { return [] }
 }
 
 function persist() {
-  try {
-    const ids = new Set(readIds())
-    if (isLiked.value) ids.add(props.artworkId)
-    else ids.delete(props.artworkId)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]))
-  } catch { /* 隐私模式下 localStorage 不可用，静默 */ }
+  const ids = new Set(readIds())
+  if (isLiked.value) ids.add(props.artworkId)
+  else ids.delete(props.artworkId)
+  safeSetItem(STORAGE_KEY, JSON.stringify([...ids]))
 }
 
 async function toggle() {

@@ -110,12 +110,16 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useThemeStore } from '../../stores/theme.js'
+import { useArtistStore } from '../../stores/artist.js'
+import { safeSetItem } from '../../utils/storage.js'
+import { artistApi } from '../../api/index.js'
 import { Management, User, ChatLineSquare, SetUp, Share, Monitor, TrendCharts, Operation, Back } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const themeStore = useThemeStore()
+const store = useArtistStore()
 
 // 纸墨 token 作用域（REQ-026）：挂载挂 html[data-artist-theme]，卸载摘除
 // 挂/摘已由路由守卫统一管理（router/index.js beforeEach）——进入 /admin 提前挂 token，
@@ -174,6 +178,7 @@ function onMobileChange(e) { isMobile.value = e.matches }
 onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
   mqMobile.addEventListener('change', onMobileChange)
+  validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
 })
 onUnmounted(() => {
   mqNarrow.removeEventListener('change', onNarrowChange)
@@ -192,6 +197,27 @@ function go(path) {
 function goDrawer(path) {
   drawerVisible.value = false
   go(path)
+}
+
+// ─── G-1（P2-8）: 后台会话强校验 ───
+// 路由守卫只读 localStorage 是 UX 快速路径；管理后台布局挂载后以 /api/auth/me 为准做真实边界校验：
+// 成功 → isAdmin 以服务端为准修正本地标记；401/403 → 复用既有登出逻辑清标记跳登录。
+async function validateSession() {
+  try {
+    const me = await artistApi.getMe()
+    const serverAdmin = !!me.isAdmin
+    if (serverAdmin !== store.isAdmin) {
+      store.isAdmin = serverAdmin
+      safeSetItem('artist_is_admin', serverAdmin ? '1' : '0')
+    }
+  } catch (err) {
+    if (err.status === 401 || err.status === 403) {
+      await store.logout()
+      if (router.currentRoute.value.name !== 'ArtistLogin') {
+        router.push({ name: 'ArtistLogin' })
+      }
+    }
+  }
 }
 </script>
 

@@ -81,6 +81,7 @@ import ArtistLayout from '../../components/ArtistLayout.vue'
 // v0.38: 统一卡片头部（REQ-026 §二）
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickActionsConfig, parseQuickActions } from '../../components/artist/dashboard/QuickActions.vue'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js'
 
 const { t } = useI18n()
 const loading = ref(true)
@@ -95,16 +96,17 @@ const form = reactive({
 // 与 ArtistLayout.vue 的 FONT_SIZE_KEY 一致；normal 清除 dataset，恢复默认 14px
 const FONT_SIZE_KEY = 'huiyue_admin_font_size'
 function readFontSize() {
-  const v = localStorage.getItem(FONT_SIZE_KEY)
+  // G-5: 裸读写换 safe 封装（存储禁用时按默认档降级）
+  const v = safeGetItem(FONT_SIZE_KEY)
   return v === 'large' || v === 'xlarge' ? v : 'normal'
 }
 const fontSize = ref(readFontSize())
 watch(fontSize, (val) => {
   if (val === 'normal') {
-    localStorage.removeItem(FONT_SIZE_KEY)
+    safeRemoveItem(FONT_SIZE_KEY)
     delete document.documentElement.dataset.fontSize
   } else {
-    localStorage.setItem(FONT_SIZE_KEY, val)
+    safeSetItem(FONT_SIZE_KEY, val)
     document.documentElement.dataset.fontSize = val
   }
 })
@@ -124,11 +126,11 @@ async function saveQuickActions() {
   try {
     await artistApi.updateProfile({ quickActions: quickSelected.value })
     // DB 写入成功，同步 localStorage 缓存（离线/降级时回退用）
-    localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
+    safeSetItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
     ElMessage.success(t('settings.quickSaved'))
   } catch {
     // DB 写入失败（后端可能尚未支持该字段）：回退 localStorage，用户配置不丢
-    localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
+    safeSetItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
     ElMessage.warning(t('settings.quickLocalFallback'))
   } finally {
     quickSaving.value = false
@@ -157,7 +159,7 @@ onMounted(async () => {
     const dbQuick = parseQuickActions(profile.quick_actions)
     if (dbQuick) {
       quickSelected.value = dbQuick
-      localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(dbQuick))
+      safeSetItem(QUICK_ACTIONS_KEY, JSON.stringify(dbQuick))
     } else {
       const localKeys = readQuickActionsConfig()
       quickSelected.value = localKeys

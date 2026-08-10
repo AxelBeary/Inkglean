@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize.js'
 import { usePasteUpload } from './usePasteUpload.js'
 import { formatAddonPrice } from '../utils/money.js'
+import { getAnonToken } from '../utils/track.js'
 
 export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const { t } = useI18n()
@@ -481,8 +482,14 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
       ElMessage.info(t('orderForm.typeWarning'))
     }
+    // G-7（P2-13 前端侧）: 上传参考图需携带匿名归属凭证（后端 F-10 契约，与下单同 token）
+    const anonToken = await getAnonToken()
+    if (!anonToken) {
+      ElMessage.error(t('orderForm.anonTokenRequired'))
+      throw new Error(t('orderForm.anonTokenRequired'))
+    }
     try {
-      const uploaded = await uploadApi.reference(file)
+      const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
       uploadedRefs.value.push(uploaded.filePath)
       refUidMap.value.set(file.uid, uploaded.filePath)
     } catch (err) {
@@ -502,6 +509,11 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   // ─── 粘贴上传（参考图） ───
   async function handlePasteRefFiles(files) {
+    const anonToken = await getAnonToken()
+    if (!anonToken) {
+      ElMessage.error(t('orderForm.anonTokenRequired'))
+      return
+    }
     for (const file of files) {
       if (refFileList.value.length >= 5) {
         ElMessage.warning(t('orderForm.refExceed'))
@@ -511,7 +523,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       if (ext && !['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
         ElMessage.info(t('orderForm.typeWarning'))
       }
-      const uploaded = await uploadApi.reference(file)
+      const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
       uploadedRefs.value.push(uploaded.filePath)
       const uid = `paste-${Date.now()}-${Math.random().toString(36).slice(2)}`
       refUidMap.value.set(uid, uploaded.filePath)
@@ -531,8 +543,18 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     const valid = await formRef.value.validate().catch(() => false)
     if (!valid) return
 
-    if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
     submitting.value = true
+    if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
+    // G-7: 有参考图时必须携带与上传同源的 x-anon-token（无参考图下单不带 token 照常）
+    let anonToken = null
+    if (uploadedRefs.value.length > 0) {
+      anonToken = await getAnonToken()
+      if (!anonToken) {
+        ElMessage.error(t('orderForm.anonTokenRequired'))
+        submitting.value = false
+        return
+      }
+    }
     try {
       // SPEC-PRICE-2: 画风尺寸 + 增项（含用途/加急单选），服务端唯一引擎算价
       const order = await orderApi.create({
@@ -548,7 +570,10 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
         // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
         discountCode: form.discountCode.trim() || null
       }, {
-        headers: { 'idempotency-key': submitIdemKey }
+        headers: {
+          'idempotency-key': submitIdemKey,
+          ...(anonToken ? { 'x-anon-token': anonToken } : {})
+        }
       })
       submitIdemKey = null
       resultNo.value = order.orderNo

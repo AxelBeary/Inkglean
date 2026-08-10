@@ -167,6 +167,7 @@ import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
 import { artistApi } from '../../api/index.js'
 import { WM_POSITIONS, WM_POSITION_CORNERS, loadImage, composeWatermarked } from '../../utils/watermark.js'
+import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
 const { t } = useI18n()
 const store = useArtistStore()
@@ -235,12 +236,9 @@ onMounted(async () => {
 function loadLogo() {
   const key = logoKey.value
   if (!key) return
-  try {
-    const saved = localStorage.getItem(key)
-    if (saved) logoDataUrl.value = saved
-  } catch {
-    // localStorage 不可用（隐私模式）时静默，不阻塞页面
-  }
+  // G-5: 裸读写换 safe 封装（存储禁用时静默，不阻塞页面）
+  const saved = safeGetItem(key)
+  if (saved) logoDataUrl.value = saved
 }
 
 // ─── 新传图（FileReader 本地读图，不发服务器） ───
@@ -347,11 +345,7 @@ function onLogoChange(e) {
 function saveLogo(dataUrl) {
   const key = logoKey.value
   if (!key) return
-  try {
-    localStorage.setItem(key, dataUrl)
-  } catch {
-    // localStorage 不可用时仅本次会话可用
-  }
+  safeSetItem(key, dataUrl)
 }
 
 // ─── 合成参数 → 实时预览（防抖 300ms） ───

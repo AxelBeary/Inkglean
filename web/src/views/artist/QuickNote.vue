@@ -45,6 +45,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import ArtistLayout from '../../components/ArtistLayout.vue'
+import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
 const { t } = useI18n()
 const STORAGE_KEY = 'huiyue_quick_notes'
@@ -52,11 +53,11 @@ const notes = ref([])
 const newTitle = ref('')
 const newContent = ref('')
 
-/** localStorage 读取（隐私模式 try-catch 兜底） */
+/** localStorage 读取（G-5: safeGetItem 静默降级；损坏 JSON 丢弃） */
 function loadNotes() {
+  const raw = safeGetItem(STORAGE_KEY)
+  if (!raw) return []
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
   } catch {
@@ -65,11 +66,8 @@ function loadNotes() {
 }
 
 function saveNotes() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes.value))
-  } catch {
-    ElMessage.warning(t('note.saveFailed'))
-  }
+  // G-5: 写入失败静默（safeSetItem 契约），隐私模式下仅本次会话生效
+  safeSetItem(STORAGE_KEY, JSON.stringify(notes.value))
 }
 
 /** 当前时间短格式（MM-DD HH:mm） */

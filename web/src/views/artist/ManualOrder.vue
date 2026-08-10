@@ -108,11 +108,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { artistApi, artistPublicApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { trackEvent } from '../../utils/track.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import ManualOrderLeft from '../../components/artist/order/ManualOrderLeft.vue'
 import ManualOrderRight from '../../components/artist/order/ManualOrderRight.vue'
@@ -237,6 +238,8 @@ function onSubmitSuccess({ order, postCreateFailed }) {
   trackEvent('artist_action', { action: 'order_create' })
   // F6: 提交成功后清空草稿（下次进入不再弹恢复提示）
   clearDraft()
+  // G-4: 提交即消费草稿 → 本页视为全新（远端草稿更新可继续同步）
+  userModified = false
   if (postCreateFailed) {
     ElMessage.warning(t('manualOrder.postCreateFailed.summary', { orderNo: order.order_no, reason: postCreateFailed }))
   }
@@ -259,6 +262,8 @@ function resetForm() {
   rightRef.value?.reset()
   // F6: 表单重置时同步清空草稿（继续录入 = 已消费旧草稿）
   clearDraft()
+  // G-4: 重置后视为未修改（远端草稿更新可继续同步）
+  userModified = false
 }
 
 // ─── F6: 录单草稿暂存（localStorage 自动保存 + 恢复提示，键带 subdomain 后缀隔离画师） ───
@@ -291,34 +296,39 @@ function saveDraft() {
   const key = draftKey()
   if (!key) return
   if (!hasDraftContent()) {
-    try { localStorage.removeItem(key) } catch { /* 隐私模式等场景忽略 */ }
+    safeRemoveItem(key)
     return
   }
   const r = rightRef.value?.getDraftState() || {}
-  try {
-    localStorage.setItem(key, JSON.stringify({
-      form: {
-        clientQq: form.clientQq,
-        clientName: form.clientName,
-        description: form.description,
-        priority: form.priority,
-        deadline: form.deadline,
-        startDate: form.startDate,
-        clientNotify: form.clientNotify
-      },
-      // SPEC-PRICE-2: 三步走状态（styleId/sizeId/普通增项勾选/用途/加急）
-      styleState: { styleId: r.styleId, sizeId: r.sizeId, addonSelections: r.addonSelections, usageId: r.usageId, rushId: r.rushId },
-      // 自定义增项（只存可序列化字段，uid 恢复时重发）
-      customAddons: r.customAddons || [],
-      // G2: 手输价格恢复（恢复时保留脏标记，避免被重算价格覆盖）
-      finalPriceYuan: r.finalPriceYuan,
-      priceTouched: r.priceTouched
-    }))
-  } catch { /* ignore */ }
+  // G-5: 裸读写换 safe 封装（写入失败静默降级）
+  safeSetItem(key, JSON.stringify({
+    form: {
+      clientQq: form.clientQq,
+      clientName: form.clientName,
+      description: form.description,
+      priority: form.priority,
+      deadline: form.deadline,
+      startDate: form.startDate,
+      clientNotify: form.clientNotify
+    },
+    // SPEC-PRICE-2: 三步走状态（styleId/sizeId/普通增项勾选/用途/加急）
+    styleState: { styleId: r.styleId, sizeId: r.sizeId, addonSelections: r.addonSelections, usageId: r.usageId, rushId: r.rushId },
+    // 自定义增项（只存可序列化字段，uid 恢复时重发）
+    customAddons: r.customAddons || [],
+    // G2: 手输价格恢复（恢复时保留脏标记，避免被重算价格覆盖）
+    finalPriceYuan: r.finalPriceYuan,
+    priceTouched: r.priceTouched
+  }))
 }
 
 let draftTimer = null
+// ─── G-4（R-17）: 多标签草稿互害修复 ───
+// userModified = 本标签页是否被用户修改过（storage 事件判断 last-edit-wins 的依据）；
+// applyingRemoteSeq 用于远端回填后清掉由 watcher 连锁产生的脏标记（见 markRemoteApply）。
+let userModified = false
+let applyingRemoteSeq = 0
 function scheduleDraftSave() {
+  userModified = true
   if (draftTimer) clearTimeout(draftTimer)
   draftTimer = setTimeout(saveDraft, 800)
 }
@@ -331,7 +341,15 @@ watch([() => form.clientQq, () => form.clientName, () => form.description,
 function clearDraft() {
   const key = draftKey()
   if (!key) return
-  try { localStorage.removeItem(key) } catch { /* ignore */ }
+  safeRemoveItem(key)
+}
+
+/** 远端草稿回填/重置后调用：等 watcher 连锁跑完再清脏标记（远端来源不算用户修改） */
+function markRemoteApply() {
+  const seq = ++applyingRemoteSeq
+  nextTick(() => {
+    if (seq === applyingRemoteSeq) userModified = false
+  })
 }
 
 /** 把草稿回填到表单（画风/尺寸/增项若已被画师删除则逐项丢弃——右栏 setDraftState 内部校验） */
@@ -357,6 +375,7 @@ function applyDraft(draft) {
     finalPriceYuan: draft.finalPriceYuan,
     priceTouched: draft.priceTouched
   })
+  markRemoteApply()
 }
 
 /** 恢复提示：mounted 且画风/档位数据就绪后调用；确认回填，取消/关闭清空草稿键 */
@@ -364,7 +383,7 @@ async function restoreDraft() {
   const key = draftKey()
   if (!key) return
   let raw
-  try { raw = localStorage.getItem(key) } catch { return }
+  raw = safeGetItem(key)
   if (!raw) return
   let draft
   try { draft = JSON.parse(raw) } catch { return }
@@ -384,6 +403,30 @@ async function restoreDraft() {
   }
 }
 
+/**
+ * G-4（R-17）: 他标签页草稿变更监听（window 'storage' 事件天然广播，仅其他文档触发）
+ * ① 有内容变更：本页未被用户修改过 → 静默同步；已修改 → 不打断（last-edit-wins 取舍：
+ *    本地正在录入的内容优先，避免被远端覆盖）
+ * ③ 清除信号（newValue=null，本页提交/重置产生）：本页重置本地草稿状态
+ *    （防 Tab A 提交后 Tab B 仍持已加载草稿重复提交）
+ */
+function onDraftStorage(e) {
+  const key = draftKey()
+  if (!key || e.key !== key) return
+  if (e.newValue == null) {
+    if (!userModified) {
+      resetForm()
+      markRemoteApply()
+    }
+    return
+  }
+  if (userModified) return
+  let draft
+  try { draft = JSON.parse(e.newValue) } catch { return }
+  if (!draft || !draft.form) return
+  applyDraft(draft)
+}
+
 /** 页面关闭/刷新前同步落盘（补防抖窗口内最后一次输入；只保存不拦截，不弹原生确认框） */
 function onBeforeUnload() {
   if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
@@ -393,6 +436,7 @@ function onBeforeUnload() {
 // ─── 初始化 ───
 onMounted(async () => {
   window.addEventListener('beforeunload', onBeforeUnload)
+  window.addEventListener('storage', onDraftStorage) // G-4: 多标签草稿同步/清除广播
   try {
     const profile = await artistApi.getProfile()
     subdomain.value = profile.subdomain
@@ -416,6 +460,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', onBeforeUnload)
+  window.removeEventListener('storage', onDraftStorage) // G-4: 成对清理
   if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
 })
 </script>

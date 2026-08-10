@@ -56,8 +56,10 @@ api.interceptors.response.use(
     }
 
     // 401 时清除本地认证状态并跳转登录页
-    // P1-3 修复：登录相关错误码（CODE_INVALID/CODE_EXPIRED 等）不触发登出，只提示
-    const LOGIN_CODES = ['CODE_INVALID', 'CODE_EXPIRED', 'CODE_TOO_MANY_ATTEMPTS', 'QQ_NOT_REGISTERED', 'MISSING_CREDENTIALS']
+    // P1-3 修复：登录相关错误码不触发登出，只提示
+    // G-6（衔接批 F-9）: 退役三码 CODE_INVALID/CODE_EXPIRED/CODE_TOO_MANY_ATTEMPTS 已从白名单移除；
+    // 保留/新增码与 server/src/shared/errors.ts 现状核对一致（REQ-027 TOTP 登录返回 TOTP_*）
+    const LOGIN_CODES = ['QQ_NOT_REGISTERED', 'TOTP_NOT_BOUND', 'TOTP_INVALID', 'TOTP_LOCKED', 'MISSING_CREDENTIALS']
     if (err.response?.status === 401 && !LOGIN_CODES.includes(code)) {
       // P3-10: 存储禁用时 401 清标记也不得抛错（否则登出软跳转被吞）
       safeRemoveItem('artist_logged_in')
@@ -82,7 +84,7 @@ api.interceptors.response.use(
     const wrapped = new Error(msg)
     if (err.response?.status) wrapped.status = err.response.status
     if (code) wrapped.code = code
-    // 登录页重构（2026-08-10）：附带 detail（如 CODE_TOO_MANY_ATTEMPTS 的 remainingLockMs），
+    // 登录页重构（2026-08-10）：附带 detail（如 TOTP_LOCKED 的 remainingLockMs），
     // 调用方可做字段级呈现；纯增量，不影响既有 msg/status/code 行为
     if (data?.detail && typeof data.detail === 'object') wrapped.detail = data.detail
     return Promise.reject(wrapped)
@@ -128,6 +130,8 @@ export const artistPublicApi = {
 
 // ─── 画师后台 ───
 export const artistApi = {
+  // G-1（P2-8）: 会话强校验（布局挂载时调用；以服务端 isAdmin 为准修正本地标记）
+  getMe: () => api.get('/auth/me'),
   getProfile: () => api.get('/artist/profile'),
   updateProfile: (data) => api.put('/artist/profile', data),
   // REQ-022 F1: 发布交付物为作品（delivered 门槛，一图一作品）
@@ -155,7 +159,8 @@ export const artistApi = {
   // 须知
   getRules: () => api.get('/artist/rules'),
   // F4: 留言审核
-  getMessages: () => api.get('/artist/messages'),
+  // G-8（F-2 前端适配）: 扩 page/pageSize 可选参数（后端默认 20，pageSize clamp 1-100）
+  getMessages: (params = {}) => api.get('/artist/messages', { params }),
   approveMessage: (id) => api.put(`/artist/messages/${id}/approve`),
   rejectMessage: (id) => api.put(`/artist/messages/${id}/reject`),
   replyMessage: (id, reply) => api.put(`/artist/messages/${id}/reply`, { reply }),
@@ -184,7 +189,8 @@ export const artistApi = {
   },
   getQueue: (zone) => api.get('/artist/queue', zone ? { params: { zone } } : undefined),
   getOrder: (id) => api.get(`/artist/orders/${id}`),
-  createManualOrder: (data) => api.post('/artist/orders/manual', data),
+  // G-4（D-2 契约衔接）: options 透传幂等键 header（手动录单端点当前忽略，随契约升级自动生效）
+  createManualOrder: (data, options = {}) => api.post('/artist/orders/manual', data, options),
   // R-2: 取消已收款订单需 confirmPaidCancel 确认（Batch A 契约：不带则 409 CANCEL_WITH_PAYMENT）；
   // options 透传为 body 附加字段，既有调用方不传时行为不变
   // D-1（R-5）: options.version 可选——乐观锁版本，旧快照写入后端 409 ORDER_CONFLICT
@@ -300,10 +306,14 @@ export const uploadApi = {
     fd.append('file', file)
     return api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
   },
-  reference: (file) => {
+  // G-7（P2-13 前端侧）: 参考图上传需 x-anon-token（后端 F-10 契约），options 合并调用方 header
+  reference: (file, options = {}) => {
     const fd = new FormData()
     fd.append('file', file)
-    return api.post('/upload/reference', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
+    return api.post('/upload/reference', fd, {
+      headers: { 'Content-Type': 'multipart/form-data', ...(options.headers || {}) },
+      timeout: UPLOAD_TIMEOUT_MS
+    })
   },
   deliverable: (file) => {
     const fd = new FormData()

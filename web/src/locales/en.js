@@ -7,9 +7,6 @@
     ACCOUNT_DISABLED: 'Account has been disabled',
     TOKEN_REVOKED: 'Session invalidated, please log in again',
     ADMIN_REQUIRED: 'Admin privileges required',
-    CODE_INVALID: 'Invalid login code',
-    CODE_EXPIRED: 'Login code expired',
-    CODE_TOO_MANY_ATTEMPTS: 'Too many attempts, please request a new code',
     QQ_NOT_REGISTERED: 'This QQ number is not registered as an artist',
     TOTP_NOT_BOUND: 'This artist has not bound an authenticator yet. Please contact the admin',
     TOTP_INVALID: 'Incorrect QQ number or one-time password',
@@ -619,6 +616,8 @@
     fillQq: 'Please enter your QQ number', selectSizeFirst: 'Please select a style and size first',
     fileTooBig: 'File "{name}" exceeds the 10MB limit ({size}MB). Please compress and re-upload',
     typeWarning: 'Converting to JPG or WebP is recommended for better previews, but the current format can still be uploaded.',
+    // G-7 (P2-13): reference upload credential unavailable (anon-token issuance network failure)
+    anonTokenRequired: 'Failed to obtain the upload credential. Please check your network and retry.',
     loadFailed: 'Failed to load artist info',
     // R57: draft recovery
     draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
@@ -1029,6 +1028,8 @@
     desc: 'Description', descPlaceholder: "Paste the client's request from the QQ chat",
     references: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Max 5 reference images', fileTooBig: '{name} too large ({size}MB), max 10MB',
     refTip: 'You can add more references to the order gallery after creation. Gallery total limit: 20 images.',
+    // G-7 (P2-13): reference upload credential unavailable (anon-token issuance network failure)
+    anonTokenRequired: 'Failed to obtain the upload credential. Please check your network and retry.',
     priority: 'Priority', priorityHigh: 'High', priorityMedium: 'Medium (default)', priorityLow: 'Low',
     clientNotify: 'Allow client to receive QQ queue notifications',
     submit: 'Record order', resultTitle: 'Recorded', orderNo: 'Order No: {no}', addedToQueue: 'Added to the queue',
