@@ -1,6 +1,8 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-10 v59（**批4B 全闭环：合入+容器重建+v52 迁移回读验证通过；接口契约清单侦察在途**）——master `aefc1c9` 与 origin 同步。
+> 最后更新：2026-08-10 v60（**纸墨登录页安装合入：视觉批开局；圆角族审计口径落地；接口契约清单侦察在途**）——master `f021eb6` 与 origin 同步。
+> ✅ **纸墨登录页安装（2026-08-10，视觉批开局，用户插队拍板在拆分前）**：合入 `f021eb6`（分支 feat/login-paper-ink，worktree artist-commission-w-login，Qoder 宿主直接施工——用户拍板：视觉批拼审美判断不走便宜模型）。内容：Login.vue 全量重写（纸艺山水/手剪不规则圆角/三张纸叠+feTurbulence 真毛边/ambientCG 真纸纹理 12.9KB WebP/一次性入场动效/550ms @property token 统一缓动切主题/WAAPI 单次交叉淡出+高度锁切语言/grid-rows 帮助展开）；locales 登录键重写（真实 TOTP 推荐 Google/Microsoft Authenticator+2FAS，旧臆测文案删除，新增 纸白/墨黑 主题名键）；check-i18n 白名单+eslint scripts/*.mjs 口径。门禁：web 254/254（master 复跑）+ lint 0 + build 过 + check-i18n 过 + measure 圆角族 3/野生 0 + 安装后交互核验 12/12；容器已重建（备份 bak-pre-login-install-20260810），生产登录页截图已出（workspace/temp/prototype-login/prod-login-*.png）待用户终验。E2E 不涉登录 UI（预登录走 API）未重跑；server 未改动。原型全史：workspace/temp/prototype-login（login-v0.1→v0.6 定稿 + notes.md）。
+> 🔴 **圆角族审计口径（2026-08-10 用户拍板方案 A，已落地）**：measure.mjs 弃「取值种数 ≤3」改「圆角族 ≤3 + 野生字面圆角出现即阻塞」（var(--r-*)=token 角族 / 50%=圆族 / 0=直角族），手剪不规则圆角 token（--r-paper/--r-s-hand，暂定义在 Login.vue 全局块，视觉批铺开时迁入 artist-tokens.css）正名；SKILL.md/评审清单已同步，原件备份 measure.mjs.bak-pre-radius-family。
 > ✅ **批4B 全闭环（2026-08-10）**：合入 `aefc1c9`（base 严格删四列+v24 列探测守卫+v52 删列迁移+addPayment 停写+fixture 修正，交付报告 03-to-01-批4B-交付.md 含双库字节级验证证据）；合入后 master 门禁 server 1027 全绿；容器重建后 v52 自动应用：回读 version=52、分期表仅剩 9 列（四列已删）、23 行分期+2 条流水完好；备份三重（迁移器 .bak.v52 + 手工 bak-pre-v052-rebuild-20260810 + 每日备份）。worktree 已清。批4 结构批至此全部完成。
 > 🔄 **接口契约清单侦察在途（2026-08-10）**：codex 在主仓只读生成 docs/specs/接口契约清单-v1.md（165 端点逐条写实+错误码总表+前端映射+孤儿端点+缺口清单），作为前端重构前置依赖。背景：分身研判契约缺口属实（0 个 response schema / entities.ts 5KB / 前端纯 JS）；裁决：清单现在做，api 层加 TS 与 entities 补全随前端重构批做（避免重复改动制造合并冲突）。
 > ✅ **旧 v58 摘要（批4B 方案 B 施工中；批4A/A3/FYA2 已合入；原型 v0.1 交付）**。
@@ -30,17 +32,17 @@
 ## 🔄 在途任务（刷新后先看这里，2026-08-10 刷新）
 
 1. **验收接口契约清单**（codex 在主仓只读生成，无 worktree）：查收工后读 `docs/specs/接口契约清单-v1.md` 抽查核验（随机抽 3-5 个端点对照 routes 代码）→ 无误则 commit+push（英文 message）。⚠️ codex 在主仓跑时若中断，用重派模板重派（只写单文件、不 commit，冲突风险低）。
-2. **启动巨型组件拆分 Top5**（④a 已拍板）：QueueBoard 1530 行 / ManualOrder 1497 行等；蓝本 `docs/comms/核实-第三方瘦身施工单-20260807.md`；参照 OrderDetail 拆分模式（0% 像素差异 + 全门禁绿）；OrderDetail 死解构 3 个随手清。⚠️ 用户已在分身窗口启动前端重构方向（含登录原型 workspace/temp/prototype-login），拆分派工前先确认与分身侧工作面无冲突。
+2. **启动巨型组件拆分 Top5**（④a 已拍板；登录页插队已完成，拆分顺延）：QueueBoard 1530 行 / ManualOrder 1497 行等；蓝本 `docs/comms/核实-第三方瘦身施工单-20260807.md`；参照 OrderDetail 拆分模式（0% 像素差异 + 全门禁绿）；OrderDetail 死解构 3 个随手清。
 3. **前端重构批**（含 api 层加 TS + entities.ts 补全）：等契约清单落盘后作为前置依赖；若用户选择在分身窗口直接执行，分身窗口转执行角色模式（独立 worktree、不碰 master/不推送，一号验收合入）。
-4. **视觉批**：等用户 fork 打磨原型后按打磨稿实施；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批。
-5. **等用户侧**：复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；北极星图。
+4. **视觉批（已开局）**：登录页已合入；后续按原型打磨稿推进后台壳/Dashboard；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批；@property 注册+550ms 缓动+手剪圆角 token 从 Login.vue 迁入 artist-tokens.css 随下一视觉批。
+5. **等用户侧**：终验生产登录页（截图已在 workspace/temp/prototype-login）；复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）。
 6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
 7. **已裁决不动（2026-08-10）**：分身提「双包结构致 @sentry/esbuild/eslint 重复安装 ~60MB，应上 npm workspaces」——实测否决：@sentry 两侧是不同包（node 系 vs browser/vue 系，36.5MB 任何架构都要装两份）；esbuild 两侧版本不同（0.28.1 vs 0.25.12，workspaces 只去重同名同版本）；真正可去重仅 eslint ~3MB。迁移代价（lock 合并+Dockerfile/CI 重写）≫ 收益，且独立包结构恰好对齐部署边界（server 容器运行时 / web 静态产物），非债是边界。分身勿重提。
 
-- **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）；分身侧另有登录原型 workspace/temp/prototype-login。
+- **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）；登录原型已安装进仓库，全史留档 workspace/temp/prototype-login（login-v0.1→v0.6 + notes.md + 审计脚本）。
 - **codex 重派模板**（pwsh，worktree/主仓内执行）：`$task=@"...中文任务..."@` 然后 `"" | codex exec --profile huiyue -c sandbox_mode=danger-full-access $task`。
 - **docker 操作注意**：compose 服务名是 `web`（容器名 commission-web），`docker compose exec -T web ...`；容器内查 DB 要 `-w /app/server`（better-sqlite3 在那里）。
-- **已合入待办销账**：批4A / A3 / FYA2 / 批4B 均已合入推送+容器已重建，批4 结构批全部完成，无残留。
+- **已合入待办销账**：批4A / A3 / FYA2 / 批4B 均已合入推送+容器已重建，批4 结构批全部完成；纸墨登录页 `f021eb6` 已合入推送+容器已重建，无残留。
 
 ---
 ## master 状态
