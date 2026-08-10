@@ -8,7 +8,7 @@ import type { EngineInstallment, PriceEntry } from '../pricing/pricing-engine.js
 import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
-import { toSqliteDate } from '../../utils/date.js'
+import { toSqliteDate, toLocalDateString } from '../../utils/date.js'
 import type { Artist, Order, WorkflowStage, OrderDetail, ArtistOrderRow } from '../../types/entities.js'
 
 // ============================================
@@ -56,7 +56,9 @@ function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotalCents: number):
  * （audit-b F1：workflow 路径此前绕过本表，现统一收敛到 assertStatusTransition）
  */
 export const STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending:   ['confirmed', 'cancelled'],
+  // audit-a P1-1: pending → wip 合法——「定金(收款)→线稿(非收款)→交付」类工作流的
+  // 第 2 节点非收款时 mapStageToStatus 返回 wip，未收款直接开工属合法语义（confirmed 非强制前置）
+  pending:   ['confirmed', 'wip', 'cancelled'],
   confirmed: ['wip', 'cancelled'],
   // delivered 本就是交付合法路径（wip/revision 可交付），显式化而非绕过
   wip:       ['revision', 'done', 'delivered', 'cancelled'],
@@ -383,9 +385,11 @@ export function updateDeadline(orderId: number, deadline: string | null): OrderD
     // 统一存储为 SQLite 格式（YYYY-MM-DD HH:MM:SS UTC），与 SQL 比较格式一致
     normalized = toSqliteDate(d)
     // #35: 交叉校验——截稿日不得早于开工日
+    // audit-a P2-2: 比较口径统一为本地日期——用户传入的 deadline 按本地日历日解释，
+    // 而存储走 UTC；UTC+8 每日 00:00~08:00 的本地日会比 UTC 日早一天，直接比 UTC 前缀会误拒
     if (order.start_date) {
       const startStr = String(order.start_date).slice(0, 10)
-      if (normalized.slice(0, 10) < startStr) {
+      if (toLocalDateString(d) < startStr) {
         throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
       }
     }
@@ -417,9 +421,10 @@ export function updateStartDate(orderId: number, startDate: string | null): Orde
     }
     normalized = startDate
     // #35: 交叉校验——开工日不得晚于截稿日
+    // audit-a P2-2: 与 updateDeadline 对称——deadline 存 UTC，须换算成本地日历日再比
     if (order.deadline) {
-      const deadlineStr = String(order.deadline).slice(0, 10)
-      if (normalized > deadlineStr) {
+      const deadlineLocal = toLocalDateString(new Date(String(order.deadline).replace(' ', 'T') + 'Z'))
+      if (normalized > deadlineLocal) {
         throw new AppError(E.INVALID_START_DATE, 400, { value: startDate })
       }
     }

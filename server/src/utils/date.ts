@@ -13,6 +13,17 @@ export function toSqliteDate(date: Date): string {
 }
 
 /**
+ * Date → 本地时区日期字符串（YYYY-MM-DD）
+ * 用于截稿日/开工日交叉校验：用户语义是「本地日历日」，不能拿 UTC 日期直接比
+ */
+export function toLocalDateString(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/**
  * 本地时区今日零点 → SQLite 格式（UTC 表示）
  * 用于"今日统计"查询，避免 UTC+8 用户零点偏移
  */

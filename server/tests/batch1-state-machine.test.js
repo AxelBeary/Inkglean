@@ -75,11 +75,11 @@ describe('批1 状态机修复（R1/R2/R3）', () => {
     expect(result.statusChanged).toBe(true)
     expect(result.order.status).toBe('delivered')
 
-    // 带文件交付：wip 允许上传交付物（状态不变，仅落文件）
+    // 带文件交付（audit-a P2-1）：wip 直接交付 → delivered + 落文件
     const wipOrder = seedOrder(artist.id, { status: 'wip', order_no: 'B1-DEL-FILE' })
     const withFile = deliverOrder(wipOrder.id, 'deliverables/1/art.png', 'art.png', 100)
-    expect(withFile.statusChanged).toBe(false)
-    expect(withFile.order.status).toBe('wip')
+    expect(withFile.statusChanged).toBe(true)
+    expect(withFile.order.status).toBe('delivered')
     const file = db.prepare('SELECT * FROM deliverables WHERE order_id = ?').get(wipOrder.id)
     expect(file).toBeTruthy()
   })
