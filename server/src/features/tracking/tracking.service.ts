@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { parseSqliteUtcDate, toLocalDateString } from '../../utils/date.js'
 
 // ============================================
 // 业务埋点服务（REQ-033）
@@ -177,11 +178,18 @@ export function getTrackingSummary(days: number): TrackingSummary {
     WHERE created_at >= datetime('now', ?)
     GROUP BY name ORDER BY count DESC
   `).all(sinceParam) as Array<{ name: string; count: number }>
-  const byDay = db.prepare(`
-    SELECT date(created_at, 'localtime') AS day, COUNT(*) AS count FROM events
+  // 本地日分组在 JS 层完成（不用 SQLite date(...,'localtime')，避免 C 运行时 TZ 分叉，
+  // 与 tools/dashboard 口径一致）
+  const dayRows = db.prepare(`
+    SELECT created_at FROM events
     WHERE created_at >= datetime('now', ?)
-    GROUP BY day ORDER BY day ASC
-  `).all(sinceParam) as Array<{ day: string; count: number }>
+  `).all(sinceParam) as Array<{ created_at: string }>
+  const byDayMap = new Map<string, number>()
+  for (const r of dayRows) {
+    const day = toLocalDateString(parseSqliteUtcDate(r.created_at))
+    byDayMap.set(day, (byDayMap.get(day) ?? 0) + 1)
+  }
+  const byDay = [...byDayMap.entries()].map(([day, count]) => ({ day, count })).sort((a, b) => a.day.localeCompare(b.day))
   const funnelRows = db.prepare(`
     SELECT name, COUNT(*) AS count FROM events
     WHERE created_at >= datetime('now', ?) AND name IN (${FUNNEL_EVENT_NAMES.map(() => '?').join(',')})
@@ -204,11 +212,17 @@ export function getArtistTrackingSummary(artistId: number, days: number): Artist
     WHERE artist_id = ? AND created_at >= datetime('now', ?)
     GROUP BY name ORDER BY count DESC
   `).all(artistId, sinceParam) as Array<{ name: string; count: number }>
-  const byDay = db.prepare(`
-    SELECT date(created_at, 'localtime') AS day, COUNT(*) AS count FROM events
+  // 本地日分组同 getTrackingSummary（JS 层换算，不依赖 SQLite localtime）
+  const dayRows = db.prepare(`
+    SELECT created_at FROM events
     WHERE artist_id = ? AND created_at >= datetime('now', ?)
-    GROUP BY day ORDER BY day ASC
-  `).all(artistId, sinceParam) as Array<{ day: string; count: number }>
+  `).all(artistId, sinceParam) as Array<{ created_at: string }>
+  const byDayMap = new Map<string, number>()
+  for (const r of dayRows) {
+    const day = toLocalDateString(parseSqliteUtcDate(r.created_at))
+    byDayMap.set(day, (byDayMap.get(day) ?? 0) + 1)
+  }
+  const byDay = [...byDayMap.entries()].map(([day, count]) => ({ day, count })).sort((a, b) => a.day.localeCompare(b.day))
   return { total, byName, byDay }
 }
 

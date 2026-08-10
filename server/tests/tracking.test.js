@@ -403,12 +403,15 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     expect(body.byDay.length).toBe(2) // 昨天 + 今天
     const days = body.byDay.map(r => r.day)
     expect([...days].sort()).toEqual(days) // 升序
-    // 昨天/今天用 SQLite 同源口径（localtime，与 byDay 分组一致）：
-    // 不依赖 Node 本地时区——Windows+vitest 下 SQLite localtime 可能与 Node 时区不一致
-    const dayRow = db.prepare("SELECT date('now', 'localtime', '-1 day') AS yesterday, date('now', 'localtime') AS today").get()
+    // 昨天/今天用 JS 本地日历日（byDay 分组的唯一口径；不用 SQLite localtime——
+    // C 运行时 TZ 与 JS TZ 在 Windows/容器间会分叉，审计批已统一改 JS 层换算）
+    const fmtDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const nowD = new Date()
+    const today = fmtDay(nowD)
+    const yesterday = fmtDay(new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate() - 1))
     const countByDay = Object.fromEntries(body.byDay.map(r => [r.day, r.count]))
-    expect(countByDay[dayRow.yesterday]).toBe(1)
-    expect(countByDay[dayRow.today]).toBe(2)
+    expect(countByDay[yesterday]).toBe(1)
+    expect(countByDay[today]).toBe(2)
   })
 
   it('TC-TR-16: R1 修复——anon-token 同 IP 每分钟第 11 次签发被 429', async () => {

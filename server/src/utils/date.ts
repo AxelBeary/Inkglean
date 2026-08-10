@@ -46,3 +46,26 @@ export function localDayEndSqlite(now: Date = new Date()): string {
 export function localMonthStartSqlite(now: Date = new Date()): string {
   return toSqliteDate(new Date(now.getFullYear(), now.getMonth(), 1))
 }
+
+/**
+ * SQLite UTC datetime 串（'YYYY-MM-DD HH:MM:SS'，CURRENT_TIMESTAMP 口径）→ Date
+ * SQLite 的 strftime(...,'localtime') 依赖 C 运行时 TZ，与 JS 的 TZ 环境变量在
+ * Windows/容器间行为不一致（vitest TZ=Asia/Shanghai 下实测分叉），故本地日
+ * 换算一律走 JS 层：先按 UTC 解析，再取本地日历日。
+ */
+export function parseSqliteUtcDate(sqliteUtc: string): Date {
+  return new Date(sqliteUtc.replace(' ', 'T') + 'Z')
+}
+
+/**
+ * 本地日期区间 [from, to]（YYYY-MM-DD）→ SQLite UTC 半开窗口 [startUtc, endUtc)
+ * 用于 created_at（UTC）按本地日历日过滤：字符串比较即可，无需 SQLite 时区函数
+ */
+export function localDateRangeToUtc(from: string, to: string): { startUtc: string; endUtcExclusive: string } {
+  const [fy, fm, fd] = from.split('-').map(Number)
+  const [ty, tm, td] = to.split('-').map(Number)
+  return {
+    startUtc: toSqliteDate(new Date(fy, fm - 1, fd)),
+    endUtcExclusive: toSqliteDate(new Date(ty, tm - 1, td + 1))
+  }
+}

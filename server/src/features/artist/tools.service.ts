@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { parseSqliteUtcDate, localDateRangeToUtc, toLocalDateString } from '../../utils/date.js'
 
 // ============================================
 // 画师工具服务（REQ-035 批A/批C + REQ-031 A1）
@@ -164,17 +165,16 @@ export function listReturningClients(artistId: number, days: number): ReturningC
     last_order_status: string | null
   }>
 
-  // 本地日期（与 lastOrderAt 的 localtime 口径一致；toSqliteDate 是 UTC 会差一天）
+  // 本地日期（lastOrderAt 转本地日历日在 JS 层完成，与 todayStr 同源；
+  // 不用 SQLite strftime localtime——C 运行时 TZ 与 JS TZ 在 Windows/容器间会分叉）
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const result: ReturningClientRow[] = []
   for (const row of rows) {
     if (!row.last_order_at) continue
     // created_at 为 UTC（CURRENT_TIMESTAMP），转本地日期再算天数（与散单 income_date 同为本地口径）
-    const lastDateStr = db.prepare(
-      "SELECT strftime('%Y-%m-%d', ?, 'localtime') AS d"
-    ).get(row.last_order_at) as { d: string }
-    const daysSinceLastOrder = daysBetween(todayStr, lastDateStr.d)
+    const lastDateStr = toLocalDateString(parseSqliteUtcDate(row.last_order_at))
+    const daysSinceLastOrder = daysBetween(todayStr, lastDateStr)
     if (daysSinceLastOrder <= days) continue
     result.push({
       clientQq: row.client_qq,
@@ -286,47 +286,52 @@ export interface ExportRow {
 
 /**
  * 时间段内合并：order_payments（join orders 取 artist_id + client_qq）+ standalone_incomes，按 date 升序。
- * 订单日期口径：order_payments.created_at 为 UTC，转本地日期（与散单 income_date 本地口径一致）。
+ * 订单日期口径：order_payments.created_at 为 UTC，本地日历日换算在 JS 层完成
+ * （与散单 income_date 本地口径一致；不用 SQLite localtime，避免 C 运行时 TZ 分叉）。
  * type：订单流水 'order'（含退款负数）；散单 'standalone'。
  */
 export function getExportRows(artistId: number, from: string, to: string): ExportRow[] {
   assertIncomeDate(from)
   assertIncomeDate(to)
+  // 本地日区间 → UTC 半开窗口，created_at 字符串比较即可（无需 SQLite 时区函数）
+  const { startUtc, endUtcExclusive } = localDateRangeToUtc(from, to)
   const rows = db.prepare(`
     SELECT
-      strftime('%Y-%m-%d', p.created_at, 'localtime') AS date,
+      p.created_at AS raw_date,
       o.client_qq AS client,
       p.amount_cents AS amount_cents,
       'order' AS type,
       p.order_id AS order_id
     FROM order_payments p
     JOIN orders o ON p.order_id = o.id
-    WHERE o.artist_id = ? AND strftime('%Y-%m-%d', p.created_at, 'localtime') BETWEEN ? AND ?
+    WHERE o.artist_id = ? AND p.created_at >= ? AND p.created_at < ?
     UNION ALL
     SELECT
-      income_date AS date,
+      income_date AS raw_date,
       client_name AS client,
       amount_cents AS amount_cents,
       'standalone' AS type,
       NULL AS order_id
     FROM standalone_incomes
     WHERE artist_id = ? AND income_date BETWEEN ? AND ?
-    ORDER BY date ASC
-  `).all(artistId, from, to, artistId, from, to) as Array<{
-    date: string
+  `).all(artistId, startUtc, endUtcExclusive, artistId, from, to) as Array<{
+    raw_date: string
     client: string
     amount_cents: number
     type: 'order' | 'standalone'
     order_id: number | null
   }>
 
-  return rows.map(r => ({
-    date: r.date,
-    client: r.client,
-    amountCents: r.amount_cents,
-    type: r.type,
-    orderId: r.order_id
-  }))
+  return rows
+    .map(r => ({
+      // order 行 raw_date 为 UTC datetime → 本地日历日；standalone 行本就是本地日期串
+      date: r.type === 'order' ? toLocalDateString(parseSqliteUtcDate(r.raw_date)) : r.raw_date.slice(0, 10),
+      client: r.client,
+      amountCents: r.amount_cents,
+      type: r.type,
+      orderId: r.order_id
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 }
 
 /**
@@ -347,18 +352,19 @@ export interface IncomeSummary {
 
 /**
  * 画师收入汇总查询。
- * 时间口径说明：order_payments.created_at 为 UTC datetime，统一转本地日期过滤
- * （strftime(...,'localtime')），与 getExportRows 导出口径一致；散单
- * standalone_incomes.income_date 本身为本地日期字符串，两条数据源按本地日期对齐。
+ * 时间口径说明：order_payments.created_at 为 UTC datetime，按本地日历日过滤——
+ * 本地日区间转 UTC 半开窗口后字符串比较（不用 SQLite strftime localtime，
+ * 避免 C 运行时 TZ 与 JS TZ 分叉）；与 getExportRows 导出口径一致。
+ * 散单 standalone_incomes.income_date 本身为本地日期字符串，两条数据源按本地日期对齐。
  */
 export function getIncomeSummary(artistId: number, from: string, to: string): IncomeSummary {
-  // order_payments 按本地日期过滤（created_at 为 UTC，localtime 转本地；与导出对齐）
+  const { startUtc, endUtcExclusive } = localDateRangeToUtc(from, to)
   const orderRow = db.prepare(`
     SELECT COALESCE(SUM(p.amount_cents), 0) AS s
     FROM order_payments p
     JOIN orders o ON p.order_id = o.id
-    WHERE o.artist_id = ? AND strftime('%Y-%m-%d', p.created_at, 'localtime') BETWEEN ? AND ?
-  `).get(artistId, from, to) as { s: number }
+    WHERE o.artist_id = ? AND p.created_at >= ? AND p.created_at < ?
+  `).get(artistId, startUtc, endUtcExclusive) as { s: number }
   const standaloneRow = db.prepare(`
     SELECT COALESCE(SUM(amount_cents), 0) AS s
     FROM standalone_incomes
