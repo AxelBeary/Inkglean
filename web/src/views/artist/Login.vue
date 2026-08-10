@@ -13,8 +13,8 @@
       </defs>
     </svg>
 
-    <!-- 纸艺山水：曲线远山（v0.48：山体加垂直墨色渐变——峰顶淡如远雾/山脚浓如近石，对齐北极星水墨浓淡；
-         亭子已删（用户验收：丑）。雾带已删（v0.47） -->
+    <!-- 纸艺山水 v0.49：曲线远山 + 垂直墨色渐变（峰顶淡/山脚浓）+ 山脊受光线（纸折边缘亮棱，非金）；
+         每层包进 g：入场升起与鼠标视差都挂在层上。亭子已删（v0.48），雾带已删（v0.47） -->
     <div class="mountains" aria-hidden="true">
       <svg class="mt-range" viewBox="0 0 1440 360" preserveAspectRatio="none">
         <defs>
@@ -31,10 +31,25 @@
             <stop offset="1" stop-color="currentColor" stop-opacity="1" />
           </linearGradient>
         </defs>
-        <path class="mt-far" fill="url(#lgMtFar)" d="M0,240 Q120,150 260,208 Q380,118 520,190 Q660,96 820,182 Q960,116 1120,196 Q1260,140 1440,180 L1440,360 L0,360 Z" />
-        <path class="mt-mid" fill="url(#lgMtMid)" d="M0,290 Q170,196 340,268 Q520,178 700,262 Q880,190 1060,270 Q1240,214 1440,258 L1440,360 L0,360 Z" />
-        <path class="mt-near" fill="url(#lgMtNear)" d="M0,332 Q220,252 440,318 Q660,242 880,324 Q1100,256 1300,318 Q1380,296 1440,306 L1440,360 L0,360 Z" />
+        <g ref="mtFarRef" class="mt-layer mt-layer-far">
+          <path class="mt-far" fill="url(#lgMtFar)" d="M0,240 Q120,150 260,208 Q380,118 520,190 Q660,96 820,182 Q960,116 1120,196 Q1260,140 1440,180 L1440,360 L0,360 Z" />
+          <path class="mt-ridge mt-ridge-far" fill="none" vector-effect="non-scaling-stroke" d="M0,240 Q120,150 260,208 Q380,118 520,190 Q660,96 820,182 Q960,116 1120,196 Q1260,140 1440,180" />
+        </g>
+        <g ref="mtMidRef" class="mt-layer mt-layer-mid">
+          <path class="mt-mid" fill="url(#lgMtMid)" d="M0,290 Q170,196 340,268 Q520,178 700,262 Q880,190 1060,270 Q1240,214 1440,258 L1440,360 L0,360 Z" />
+          <path class="mt-ridge mt-ridge-mid" fill="none" vector-effect="non-scaling-stroke" d="M0,290 Q170,196 340,268 Q520,178 700,262 Q880,190 1060,270 Q1240,214 1440,258" />
+        </g>
+        <g ref="mtNearRef" class="mt-layer mt-layer-near">
+          <path class="mt-near" fill="url(#lgMtNear)" d="M0,332 Q220,252 440,318 Q660,242 880,324 Q1100,256 1300,318 Q1380,296 1440,306 L1440,360 L0,360 Z" />
+          <path class="mt-ridge mt-ridge-near" fill="none" vector-effect="non-scaling-stroke" d="M0,332 Q220,252 440,318 Q660,242 880,324 Q1100,256 1300,318 Q1380,296 1440,306" />
+        </g>
       </svg>
+    </div>
+
+    <!-- 季节/自定义背景层（v0.49 预留接口，useSeasonalBackdrop）：
+         backdropUrl 非空时渲染在山水之上、卡片之下；节日主题与画师自定义背景都走这一层 -->
+    <div v-if="backdropUrl" class="seasonal-backdrop rise" aria-hidden="true">
+      <img :src="backdropUrl" :alt="backdropAlt">
     </div>
 
     <div class="scene">
@@ -60,9 +75,9 @@
             </div>
           </div>
 
-          <!-- 品牌区：朱砂印（斑驳、盖得不正）+ 绘约（文楷）+ 副标 -->
+          <!-- 品牌区：手绘吉祥物 logo（v0.49 用户拍板替换印章字）+ 绘约（文楷）+ 副标 -->
           <div class="brand rise rise-2">
-            <div class="brand-seal" aria-hidden="true">{{ t('menu.logoSeal') }}</div>
+            <img class="brand-logo" :src="logoUrl" alt="" aria-hidden="true">
             <h1 id="login-title" class="brand-title">{{ t('login.brandTitle') }}</h1>
             <p class="brand-sub">{{ t('login.subtitle') }}</p>
           </div>
@@ -129,7 +144,9 @@ import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
 import { useThemeStore } from '../../stores/theme.js'
 import { setLocale } from '../../i18n/index.js'
+import { useSeasonalBackdrop } from '../../composables/useSeasonalBackdrop.js'
 import paperTexUrl from '../../assets/paper-tex.webp'
+import logoUrl from '../../assets/logo.webp'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -137,8 +154,20 @@ const store = useArtistStore()
 const themeStore = useThemeStore()
 
 // v0.38 机制不动：登录是后台入口，挂载纸墨 token 作用域（客户端零影响）
-onMounted(() => themeStore.enterArtistScope())
-onUnmounted(() => themeStore.leaveArtistScope())
+// v0.49：同批挂视差监听（reduced-motion 不启用），卸载时一并清理
+onMounted(() => {
+  themeStore.enterArtistScope()
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.addEventListener('pointermove', onParaMove)
+    document.documentElement.addEventListener('mouseleave', onParaLeave)
+  }
+})
+onUnmounted(() => {
+  themeStore.leaveArtistScope()
+  window.removeEventListener('pointermove', onParaMove)
+  document.documentElement.removeEventListener('mouseleave', onParaLeave)
+  if (paraRaf) cancelAnimationFrame(paraRaf)
+})
 
 /** v0.48 时辰底色：按真实时间定纸白底色的色温（晨微暖/午标准/暮暖深/夜微冷），
  *  配合 CSS light-drift 一次性超慢漂移（不循环，宪法动效纪律）；墨黑主题不参与 */
@@ -154,6 +183,50 @@ const errCode = ref(false)
 const noticeError = ref('')
 const noticeOk = ref('')
 const cardRef = ref(null)
+
+/** 季节/自定义背景预留接口（v0.49）：数据源接通前恒 null，页面保持默认山水 */
+const { backdropUrl, backdropAlt } = useSeasonalBackdrop()
+
+/** v0.49 山体视差：鼠标移动时三层山以不同幅度随视線轻移（远慢近快，如纸层空间），
+ *  帧率无关阻尼插值 cur += (target-cur)·(1-e^{-λ·dt})，收敛即停 rAF 不空转；
+ *  触发式非循环（宪法动效纪律）；reduced-motion 完全不启用 */
+const mtFarRef = ref(null)
+const mtMidRef = ref(null)
+const mtNearRef = ref(null)
+let paraRaf = 0
+let paraLast = 0
+let paraTx = 0, paraTy = 0, paraCx = 0, paraCy = 0
+
+function paraStep(now) {
+  const dt = Math.min(0.05, (now - paraLast) / 1000)
+  paraLast = now
+  const k = 1 - Math.exp(-6 * dt)
+  paraCx += (paraTx - paraCx) * k
+  paraCy += (paraTy - paraCy) * k
+  if (mtFarRef.value) mtFarRef.value.setAttribute('transform', `translate(${(paraCx * 5).toFixed(2)} ${(paraCy * 3).toFixed(2)})`)
+  if (mtMidRef.value) mtMidRef.value.setAttribute('transform', `translate(${(paraCx * 9).toFixed(2)} ${(paraCy * 5).toFixed(2)})`)
+  if (mtNearRef.value) mtNearRef.value.setAttribute('transform', `translate(${(paraCx * 14).toFixed(2)} ${(paraCy * 8).toFixed(2)})`)
+  if (Math.abs(paraTx - paraCx) + Math.abs(paraTy - paraCy) < 0.002) { paraRaf = 0; return }
+  paraRaf = requestAnimationFrame(paraStep)
+}
+
+function paraKick() {
+  if (paraRaf) return
+  paraLast = performance.now()
+  paraRaf = requestAnimationFrame(paraStep)
+}
+
+function onParaMove(e) {
+  paraTx = (e.clientX / window.innerWidth - 0.5) * 2
+  paraTy = (e.clientY / window.innerHeight - 0.5) * 2
+  paraKick()
+}
+
+function onParaLeave() {
+  paraTx = 0
+  paraTy = 0
+  paraKick()
+}
 
 /** 主题切换：直写 themeStore.artistTheme（持久化 + DOM 属性由 store watch 应用），
  *  550ms 统一 token 缓动见下方全局样式（材质连续，不硬切） */
@@ -330,15 +403,15 @@ html[data-artist-theme='paper'] .login-page {
 </style>
 
 <style scoped>
-/* ═══ 纸艺山水：底部折纸山脉（北极星） ═══ */
+/* ═══ 纸艺山水：底部曲线山脉（北极星）v0.49：高度 36vh→52vh，更包围（人在山中） ═══ */
 .mountains {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 0;
-  height: 36vh;
-  min-height: 200px;
+  height: 52vh;
+  min-height: 300px;
   pointer-events: none;
 }
 
@@ -348,19 +421,49 @@ html[data-artist-theme='paper'] .login-page {
 
 .svg-defs { position: absolute; }
 
-/* 山墨阶：v0.48 改垂直渐变（模板 defs），CSS 只供 currentColor 墨色；
+/* 山墨阶：v0.48 垂直渐变（模板 defs），CSS 只供 currentColor 墨色；
    峰顶淡如远雾/山脚浓如近石，对齐北极星水墨浓淡 */
 .mt-far { color: color-mix(in srgb, var(--ink) 7%, transparent); }
 .mt-mid { color: color-mix(in srgb, var(--ink) 11%, transparent); }
 .mt-near { color: color-mix(in srgb, var(--ink) 16%, transparent); }
 
-/* 入场：山脉逐层升起（一次性；雾带已删，亭子已删） */
+/* 山脊受光线（v0.49）：纸折边缘的亮棱，用光不用金（宪法金仅三时刻）；
+   远层细淡/近层粗亮，随主题 token 自适应 */
+.mt-ridge {
+  stroke: color-mix(in srgb, var(--card) 82%, transparent);
+  stroke-linecap: round;
+}
+
+.mt-ridge-far { stroke-width: 1.5; opacity: 0.4; }
+.mt-ridge-mid { stroke-width: 2.2; opacity: 0.55; }
+.mt-ridge-near { stroke-width: 3; opacity: 0.75; }
+
+/* 季节/自定义背景层（v0.49 预留渲染层）：铺满视口，山水之上卡片之下；
+   图片 cover 居中，边缘用页面底色渐隐融入（不硬切） */
+.seasonal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.seasonal-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.92;
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 40%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(120% 100% at 50% 40%, #000 62%, transparent 100%);
+}
+
+/* 入场：山脉逐层升起（一次性，挂在层上；雾带已删，亭子已删） */
 @keyframes mt-rise { from { transform: translateY(36px); } to { transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
-.mt-far  { animation: mt-rise 0.6s var(--ease-out) 0.05s backwards; }
-.mt-mid  { animation: mt-rise 0.6s var(--ease-out) 0.15s backwards; }
-.mt-near { animation: mt-rise 0.6s var(--ease-out) 0.25s backwards; }
+.mt-layer-far  { animation: mt-rise 0.6s var(--ease-out) 0.05s backwards; }
+.mt-layer-mid  { animation: mt-rise 0.6s var(--ease-out) 0.15s backwards; }
+.mt-layer-near { animation: mt-rise 0.6s var(--ease-out) 0.25s backwards; }
 
 /* ═══ 登录主体 ═══ */
 .scene {
@@ -579,32 +682,12 @@ html[data-artist-theme='paper'] .login-page {
   margin-bottom: 32px;
 }
 
-/* 朱砂印：印泥不匀（径向浓淡）+ 盖得不正，入场「盖章」 */
-@keyframes stamp {
-  0%   { opacity: 0; transform: scale(0.88) rotate(-6deg); }
-  62%  { opacity: 1; transform: scale(1.05) rotate(-2.4deg); }
-  100% { opacity: 1; transform: scale(1) rotate(-2.4deg); }
-}
-
-.brand-seal {
-  width: 44px;
-  height: 44px;
-  margin: 0 auto 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-s-hand);
-  background-color: var(--zs);
-  background-image:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.2), transparent 46%),
-    radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.1), transparent 52%);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(38, 37, 32, 0.18);
-  color: #FFFFFF;
-  font-family: var(--f-d);
-  font-size: calc(var(--font-scale, 1) * 24px);
-  line-height: 1;
-  transform: rotate(-2.4deg);
-  animation: stamp 0.45s var(--ease-out) 0.5s backwards;
+/* 品牌区 logo（v0.49：手绘吉祥物替换朱砂印章字，入场随 .brand 容器 rise，不单独动） */
+.brand-logo {
+  display: block;
+  width: 68px;
+  height: auto;
+  margin: 0 auto 14px;
 }
 
 .brand-title {
@@ -771,7 +854,7 @@ html[data-artist-theme='ink'] .login-btn { color: #171611; }
 
 /* ═══ 768 竖屏 ═══ */
 @media (max-width: 768px) {
-  .mountains { height: 26vh; min-height: 148px; }
+  .mountains { height: 36vh; min-height: 220px; }
 
   .card { padding: 28px 24px 32px; }
 
