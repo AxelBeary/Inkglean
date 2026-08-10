@@ -6,7 +6,13 @@
 //       消除 60s 定时全扫 O(n) 与超限 clear() 全清导致的误杀
 // ============================================
 
-const buckets = new Map<string, number[]>()
+/** 桶结构：时间戳列表 + 该桶最近一次调用使用的窗口时长（audit-a R-3） */
+interface RateBucket {
+  timestamps: number[]
+  windowMs: number
+}
+
+const buckets = new Map<string, RateBucket>()
 
 /**
  * @param {string} key - 限流键（如 `send-code:1.2.3.4`）
@@ -25,28 +31,31 @@ export function rateLimit(
   const cutoff = now - windowMs
 
   // LRU 刷新：取出的桶重插到 Map 末尾（最近访问）；新 key 直接插入
-  let timestamps = buckets.get(key)
-  if (timestamps) {
+  let bucket = buckets.get(key)
+  if (bucket) {
     buckets.delete(key)
-    buckets.set(key, timestamps)
+    buckets.set(key, bucket)
   } else {
-    timestamps = []
-    buckets.set(key, timestamps)
+    bucket = { timestamps: [], windowMs }
+    buckets.set(key, bucket)
     // 新增桶后若超上限，精确淘汰最久未访问（替代原 clear() 全清）
     evictOldest(maxBuckets)
   }
 
+  // audit-a R-3: 每次调用刷新该桶的 windowMs——同一 key 若窗口变更，清理器按最新窗口清
+  bucket.windowMs = windowMs
+
   // 清除窗口外的旧记录（行为不变——滑动日志语义）
-  while (timestamps.length > 0 && timestamps[0] <= cutoff) {
-    timestamps.shift()
+  while (bucket.timestamps.length > 0 && bucket.timestamps[0] <= cutoff) {
+    bucket.timestamps.shift()
   }
 
   // 判断是否超限（行为不变）
-  if (timestamps.length >= maxHits) {
+  if (bucket.timestamps.length >= maxHits) {
     return false
   }
 
-  timestamps.push(now)
+  bucket.timestamps.push(now)
   return true
 }
 
@@ -62,19 +71,24 @@ function evictOldest(maxBuckets: number): void {
   }
 }
 
-// 定期清理过期桶（unref 避免阻止进程退出 / 测试挂起）
-// 保留：LRU 只处理「超上限」；「不活跃但未超上限」的 key 仍靠定时清理空桶/过期桶
-const _cleanup = setInterval(() => {
-  const now = Date.now()
-  for (const [k, timestamps] of buckets) {
-    // 清除过期时间戳
-    while (timestamps.length > 0 && timestamps[0] <= now - 60_000) {
-      timestamps.shift()
+/**
+ * audit-a R-3: 清理过期时间戳——按桶自身 windowMs 清，长窗口（5min/15min）不再被
+ * 60s 硬编码误删历史计数。导出供测试确定性调用；定时器仅作生产兜底。
+ */
+export function cleanupExpiredBuckets(now: number = Date.now()): void {
+  for (const [k, bucket] of buckets) {
+    const cutoff = now - bucket.windowMs
+    while (bucket.timestamps.length > 0 && bucket.timestamps[0] <= cutoff) {
+      bucket.timestamps.shift()
     }
     // 空桶删除
-    if (timestamps.length === 0) buckets.delete(k)
+    if (bucket.timestamps.length === 0) buckets.delete(k)
   }
   // 超限保护：超出上限时精确淘汰最久未访问（极端情况，正常不会触发）
   if (buckets.size > MAX_BUCKETS) evictOldest(MAX_BUCKETS)
-}, 60_000)
+}
+
+// 定期清理过期桶（unref 避免阻止进程退出 / 测试挂起）
+// 保留：LRU 只处理「超上限」；「不活跃但未超上限」的 key 仍靠定时清理空桶/过期桶
+const _cleanup = setInterval(() => cleanupExpiredBuckets(), 60_000)
 _cleanup.unref()

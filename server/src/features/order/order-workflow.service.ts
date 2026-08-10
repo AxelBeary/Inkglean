@@ -171,6 +171,12 @@ export function enableTracking(orderId: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
+  // audit-a P3-5: 终态订单开启跟踪无意义——交付/取消后工作流已封板，
+  // 与 advanceStage 的终态守卫同码同语义（不泄漏终态外的细节）
+  if (['delivered', 'cancelled'].includes(order.status)) {
+    throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: 'tracking' })
+  }
+
   // 已有跟踪 → 409
   if (order.current_stage_id !== null) {
     throw new AppError(E.TRACK_ALREADY_ON, 409)

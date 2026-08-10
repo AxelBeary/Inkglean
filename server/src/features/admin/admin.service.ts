@@ -11,7 +11,8 @@ import { existsSync, readdirSync, statSync, rmSync } from 'fs'
  * 系统全局统计数据
  */
 export function getGlobalStats(): { artistCount: number; orderCount: number; activeOrders: number } {
-  const artistCount = (db.prepare('SELECT COUNT(*) as c FROM artists').get() as { c: number }).c
+  // audit-a P3-6: 软删除画师不计入（与画师列表口径一致）
+  const artistCount = (db.prepare('SELECT COUNT(*) as c FROM artists WHERE deleted_at IS NULL').get() as { c: number }).c
   const orderCount = (db.prepare('SELECT COUNT(*) as c FROM orders').get() as { c: number }).c
   const activeOrders = (db.prepare(
     `SELECT COUNT(*) as c FROM orders WHERE ${ACTIVE_ORDER_SQL}`

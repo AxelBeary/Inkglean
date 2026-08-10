@@ -5,7 +5,7 @@ import * as orderGalleryService from './order-gallery.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
 import * as activityLogService from './activity-log.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
-import { getArtistBySubdomain, getRules } from '../artist/artist.service.js'
+import { getRules, requireVisibleArtist, isArtistVisibleById } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
 import { clamp, isValidQq } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -131,8 +131,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
 
     const { subdomain, clientQq, clientName, description, priority, clientNotify, agreeRules, references, discountCode, styleSizeId, styleAddons } = request.body as { subdomain: string; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; agreeRules: boolean; references?: string[]; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number }> }
 
-    const artist = getArtistBySubdomain(subdomain)
-    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // audit-a P2-7: hidden/管理员/不存在统一 404，不泄露存在性
+    const artist = requireVisibleArtist(subdomain)
     if (artist.status !== 'open') throw new AppError(E.ARTIST_NOT_OPEN)
 
     // 仅当画师设置了非空须知时，才要求客户勾选同意
@@ -184,6 +184,10 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     if (!result) throw new AppError(E.ORDER_NOT_FOUND, 404)
 
     const { order, position, total } = result
+    // audit-a P2-7: 订单所属画师不可见（hidden/管理员/已删除）→ 按订单不存在处理，不泄露画师
+    if (!isArtistVisibleById(order.artist_id)) {
+      throw new AppError(E.ORDER_NOT_FOUND, 404)
+    }
 
     // R11: 流程阶段列表 + 当前阶段（需迁移 v12 后才有真实值）
     const workflowStages = getWorkflow(order.artist_id)
@@ -255,8 +259,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
-    const artist = getArtistBySubdomain(subdomain)
-    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // audit-a P2-7: 与 lookup/track 同口径——hidden/管理员/不存在统一 404
+    const artist = requireVisibleArtist(subdomain)
 
     const orders = orderService.getClientOrdersByQq(artist.id, qq)
     return orders.map((o: { order_no: string; status: string; tier_name: string | null; created_at: string }) => ({
@@ -279,8 +283,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
-    const artist = getArtistBySubdomain(subdomain)
-    if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // audit-a P2-7: 与 my/track 同口径——hidden/管理员/不存在统一 404
+    const artist = requireVisibleArtist(subdomain)
 
     const hasOrders = orderService.hasClientOrders(artist.id, qq)
     if (!hasOrders) {
@@ -487,7 +491,9 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['status'],
         properties: {
-          status: { type: 'string', enum: ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled'] }
+          status: { type: 'string', enum: ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled'] },
+          // audit-a R-2: 取消已收款订单的显式确认开关
+          confirmPaidCancel: { type: 'boolean' }
         },
         additionalProperties: false
       }
@@ -497,7 +503,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     if (request.order.current_stage_id && (request.body as { status: string }).status !== 'cancelled') {
       throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
     }
-    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, (request.body as { status: string }).status))
+    const { status, confirmPaidCancel } = request.body as { status: string; confirmPaidCancel?: boolean }
+    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, status, !!confirmPaidCancel))
   })
 
   /**

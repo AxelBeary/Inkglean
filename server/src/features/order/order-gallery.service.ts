@@ -35,8 +35,10 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
     addDeliverable(orderId, filePath, fileName, fileSize)
 
     let statusChanged = false
-    if (order.status === 'done') {
-      db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    // audit-a P2-1: 与 deliverOrderWithoutFile 对齐——wip/revision/done 均可迁移，
+    // 已交付订单重复传文件只落文件不迁状态（幂等）
+    if (order.status !== 'delivered') {
+      db.prepare('UPDATE orders SET status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run('delivered', orderId)
       compactQueue(order.artist_id)
       // SPEC-004: 交付释放名额后尝试自动递补

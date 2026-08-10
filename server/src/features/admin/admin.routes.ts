@@ -258,18 +258,19 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: '新管理员不能与当前管理员相同' })
     }
 
-    // P1-F: 限流 + 画师存在性 + 不等于自己 —— 全部无副作用，放在验码前
+    // audit-a P3-13: 先做目标存在性校验再耗限流配额——无效目标反复请求不消耗配额；
+    // 有效目标的爆破仍被 IP + 目标 QQ 双维度限流拦住
+    const newArtist = artistService.getArtistByQq(String(newQq))
+    if (!newArtist) {
+      return reply.code(404).send({ error: '该QQ号未注册为画师，请先添加画师' })
+    }
+    // P1-F: 限流 + 不等于自己 —— 无副作用，放在验码前
     // P0-3 修复：增加 IP 维度限流，防止攻击者轮换 newQq 绕过单目标限流
     if (!rateLimit(`transfer-ip:${request.ip}`, 5, 15 * 60_000)) {
       return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
     }
     if (!rateLimit(`transfer:${newQq}`, 3, 15 * 60_000)) {
       return reply.code(429).send({ error: '操作过于频繁，请稍后再试' })
-    }
-
-    const newArtist = artistService.getArtistByQq(String(newQq))
-    if (!newArtist) {
-      return reply.code(404).send({ error: '该QQ号未注册为画师，请先添加画师' })
     }
 
     // 验码走 verifyTotpLogin（含防爆破计数，失败计数不被事务回滚）
@@ -337,8 +338,12 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   })
 
   /** DELETE /api/admin/greetings/:id — 删除通用模板 */
-  fastify.delete('/api/admin/greetings/:id', { preHandler: requireAdmin }, async (request: FastifyRequest) => {
-    greetingService.deleteGreeting(parseInt((request.params as { id: string }).id, 10))
+  fastify.delete('/api/admin/greetings/:id', { preHandler: requireAdmin }, async (request: FastifyRequest, reply: FastifyReply) => {
+    // audit-a P3-7: 不存在 → 404（对齐同文件 PUT 分支），不再恒返回 success
+    const id = parseInt((request.params as { id: string }).id, 10)
+    const existing = db.prepare('SELECT id FROM greeting_templates WHERE id = ? AND artist_id IS NULL').get(id)
+    if (!existing) return reply.code(404).send({ error: '模板不存在' })
+    greetingService.deleteGreeting(id)
     return { success: true }
   })
 

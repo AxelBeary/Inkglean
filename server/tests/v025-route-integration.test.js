@@ -233,7 +233,7 @@ describe('v0.25 路由层集成测试', () => {
       expect(body.error).not.toContain('注册')
     })
 
-    it('TC-ROUTE-14: 已注册但未绑定 TOTP → 明确提示先绑定（不混同为码错误）', async () => {
+    it('TC-ROUTE-14: 已注册但未绑定 TOTP → 与码错误同码同文案（audit-a P3-11 防枚举）', async () => {
       const artist = seedArtist({ qq_number: '88001', subdomain: 'bind-hint' })
       expect(artist.id).toBeTruthy()
       const res = await app.inject({
@@ -242,7 +242,8 @@ describe('v0.25 路由层集成测试', () => {
         payload: { qqNumber: '88001', code: '123456' }
       })
       expect(res.statusCode).toBe(401)
-      expect(res.json().code).toBe('TOTP_NOT_BOUND')
+      expect(res.json().code).toBe('TOTP_INVALID')
+      expect(res.json().error).toBe('QQ号或动态口令错误')
     })
   })
 })

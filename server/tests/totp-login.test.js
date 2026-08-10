@@ -125,7 +125,7 @@ describe('TOTP 登录端到端 (REQ-027)', () => {
       payload: { qqNumber: '77113', code: computeTotp(secret, Date.now()) }
     })
     expect(loginRes.statusCode).toBe(401)
-    expect(loginRes.json().code).toBe('TOTP_NOT_BOUND')
+    expect(loginRes.json().code).toBe('TOTP_INVALID')
 
     // 重新绑定后可登录
     const secret2 = await bindInit(token, artist.id)

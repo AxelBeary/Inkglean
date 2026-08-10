@@ -502,7 +502,7 @@ describe('路由层测试 (Route Integration)', () => {
       expect(body.rules).toBeUndefined()
     })
 
-    it('TC-RT-16b: hidden 画师拒绝客户下单', async () => {
+    it('TC-RT-16b: hidden 画师拒绝客户下单（audit-a P2-7 统一 404 不泄露存在性）', async () => {
       const artist = seedArtist({ qq_number: '77778', subdomain: 'hidden-order' })
       db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
 
@@ -511,8 +511,8 @@ describe('路由层测试 (Route Integration)', () => {
         url: '/api/orders',
         payload: { subdomain: 'hidden-order', clientQq: '123456', agreeRules: true }
       })
-      expect(res.statusCode).toBe(400)
-      expect(res.json().code).toBe('ARTIST_NOT_OPEN')
+      expect(res.statusCode).toBe(404)
+      expect(res.json().code).toBe('ARTIST_NOT_FOUND')
     })
 
     it('TC-RT-16c: 画师本人可设置 hidden 状态', async () => {

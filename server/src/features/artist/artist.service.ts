@@ -119,20 +119,27 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
     throw new AppError(E.SUBDOMAIN_TAKEN, 400, { subdomain })
   }
 
-  const result = db.prepare(`
-    INSERT INTO artists (qq_number, name, subdomain, artist_code, bio)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(qqNumber, name, subdomain, code, bio || null)
-
-  // 初始化空的约稿须知
-  db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)')
-    .run(result.lastInsertRowid, '')
-
-  // 初始化流程与比例（从默认模板复制）
+  // audit-a P2-5: 三步写入（artists + commission_rules + seedArtistStages）包进同一事务，
+  // 任一步失败整体回滚，杜绝半建画师（有主行无须知/无流程）；唯一性预检保留在事务外（错误码语义不变）
   const { seedArtistStages } = await import('./workflow.service.js')
-  seedArtistStages(Number(result.lastInsertRowid))
+  const createTx = db.transaction((): number => {
+    const result = db.prepare(`
+      INSERT INTO artists (qq_number, name, subdomain, artist_code, bio)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(qqNumber, name, subdomain, code, bio || null)
+    const artistId = Number(result.lastInsertRowid)
 
-  return getArtistById(Number(result.lastInsertRowid))
+    // 初始化空的约稿须知
+    db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)')
+      .run(artistId, '')
+
+    // 初始化流程与比例（从默认模板复制）
+    seedArtistStages(artistId)
+    return artistId
+  })
+  const artistId = createTx()
+
+  return getArtistById(artistId)
 }
 
 export function updateArtist(id: number, fields: Record<string, unknown>): Artist | undefined {
@@ -650,8 +657,9 @@ export function unlikeArtwork(artworkId: number): Artwork | null {
 /**
  * BUG-3 修复：按 artist_id 判断画师是否对公开端点可见
  * hidden 状态或管理员账号 → 不可见（对照 requireVisibleArtist 语义）
+ * audit-a P2-7: 导出供订单公开路由（track）复用，避免复制隐藏逻辑
  */
-function isArtistVisibleById(artistId: number): boolean {
+export function isArtistVisibleById(artistId: number): boolean {
   const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
   if (!artist || artist.deleted_at) return false
   if (artist.status === 'hidden') return false

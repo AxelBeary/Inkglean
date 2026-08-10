@@ -8,12 +8,15 @@ import type { EngineInstallment, PriceEntry } from '../pricing/pricing-engine.js
 import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
-import { toSqliteDate } from '../../utils/date.js'
+import { toSqliteDate, toLocalDateString } from '../../utils/date.js'
 import type { Artist, Order, WorkflowStage, OrderDetail, ArtistOrderRow } from '../../types/entities.js'
 
 // ============================================
 // 订单服务 - 核心业务逻辑
 // ============================================
+
+/** audit-a R-10: 下单总价封顶 = 99999999 元（分），与 updateFinalPrice 上限同量级 */
+const MAX_ORDER_TOTAL_CENTS = 9_999_999_900
 
 // ─── 报价快照字符串生成（v0.11 R2） ───
 
@@ -56,7 +59,9 @@ function buildStyleQuoteSnapshot(sc: StylePriceResult, finalTotalCents: number):
  * （audit-b F1：workflow 路径此前绕过本表，现统一收敛到 assertStatusTransition）
  */
 export const STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending:   ['confirmed', 'cancelled'],
+  // audit-a P1-1: pending → wip 合法——「定金(收款)→线稿(非收款)→交付」类工作流的
+  // 第 2 节点非收款时 mapStageToStatus 返回 wip，未收款直接开工属合法语义（confirmed 非强制前置）
+  pending:   ['confirmed', 'wip', 'cancelled'],
   confirmed: ['wip', 'cancelled'],
   // delivered 本就是交付合法路径（wip/revision 可交付），显式化而非绕过
   wip:       ['revision', 'done', 'delivered', 'cancelled'],
@@ -93,7 +98,9 @@ export function generateOrderNo(artistId: number, artistCode: string): string {
     const dashIdx = last.order_no.lastIndexOf('-')
     if (dashIdx !== -1) {
       const num = parseInt(last.order_no.slice(dashIdx + 1), 10)
-      if (!isNaN(num)) seq = num + 1
+      // audit-a R-12: parseInt 对超长数字串返回 Infinity、对非数字返回 NaN——
+      // 两者都按 0 处理（下一序号 1），避免拼出非法/重复订单号撞 UNIQUE 报 500
+      if (Number.isFinite(num)) seq = num + 1
     }
   }
 
@@ -174,6 +181,16 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       discountAmountCents = computeDiscountCents(dc, totalPriceCents)
       discountCodeId = dc.id
       totalPriceCents = totalPriceCents - discountAmountCents
+    } else if (discountCode && (totalPriceCents == null || totalPriceCents <= 0)) {
+      // audit-a P3-4: 自定义单（无画风尺寸）没有计价基准——客户填了合法折扣码却静默无效
+      // 是坏体验，显式拒绝并说明原因
+      throw new AppError(E.VALIDATION, 400, { field: 'discountCode', message: '当前订单无可计价基准，折扣码不可用' })
+    }
+
+    // audit-a R-10: 计价结果封顶——引擎返回后、落库前校验，防止极端组合
+    // （超大基础价 × 超高百分比 × 大数量）击穿 MAX_SAFE_INTEGER 造成负数/失真总价
+    if (totalPriceCents != null && totalPriceCents > MAX_ORDER_TOTAL_CENTS) {
+      throw new AppError(E.INVALID_PRICE, 400, { value: totalPriceCents, message: '订单总价超出上限' })
     }
 
     // ─── 报价快照字符串（SPEC-PRICE-2：与引擎公式逐项对应） ───
@@ -314,12 +331,17 @@ export function getOrderByNo(orderNo: string, { clientOnly = false }: { clientOn
  * 更新订单状态（带状态机校验）
  * 事务包裹，防止中途崩溃留下不一致状态
  */
-export function updateOrderStatus(orderId: number, newStatus: string): OrderDetail {
+export function updateOrderStatus(orderId: number, newStatus: string, confirmPaidCancel: boolean = false): OrderDetail {
   const validStatuses = ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
   if (!validStatuses.includes(newStatus)) throw new AppError(E.ORDER_INVALID_STATUS, 400, { status: newStatus })
 
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  // audit-a R-2: 取消已收款订单必须有显式确认——否则资金静默滞留（409 + 已收金额）
+  if (newStatus === 'cancelled' && (order.paid_total_cents ?? 0) > 0 && !confirmPaidCancel) {
+    throw new AppError(E.CANCEL_WITH_PAYMENT, 409, { paidCents: order.paid_total_cents })
+  }
 
   const allowed = STATUS_TRANSITIONS[order.status]
   if (!allowed || !allowed.includes(newStatus)) {
@@ -354,14 +376,21 @@ export function updateOrderStatus(orderId: number, newStatus: string): OrderDeta
  */
 export function compactQueue(artistId: number): void {
   const queue = db.prepare(`
-    SELECT id FROM orders
+    SELECT id, queue_zone FROM orders
     WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
-    ORDER BY queue_position ASC
-  `).all(artistId) as Array<{ id: number }>
+    ORDER BY queue_zone ASC, queue_position ASC
+  `).all(artistId) as Array<{ id: number; queue_zone: string }>
 
   const updatePos = db.prepare('UPDATE orders SET queue_position = ? WHERE id = ?')
   db.transaction(() => {
-    queue.forEach((row, index) => updatePos.run(index + 1, row.id))
+    // audit-a R-7: 分区各自重排 1..n——formal 与 buffer 独立编号，
+    // promoteOrder（formal-only MAX+1）不再与 buffer 单位置号重复
+    const zoneCounters = new Map<string, number>()
+    for (const row of queue) {
+      const next = (zoneCounters.get(row.queue_zone) ?? 0) + 1
+      zoneCounters.set(row.queue_zone, next)
+      updatePos.run(next, row.id)
+    }
   })()
 }
 
@@ -383,9 +412,11 @@ export function updateDeadline(orderId: number, deadline: string | null): OrderD
     // 统一存储为 SQLite 格式（YYYY-MM-DD HH:MM:SS UTC），与 SQL 比较格式一致
     normalized = toSqliteDate(d)
     // #35: 交叉校验——截稿日不得早于开工日
+    // audit-a P2-2: 比较口径统一为本地日期——用户传入的 deadline 按本地日历日解释，
+    // 而存储走 UTC；UTC+8 每日 00:00~08:00 的本地日会比 UTC 日早一天，直接比 UTC 前缀会误拒
     if (order.start_date) {
       const startStr = String(order.start_date).slice(0, 10)
-      if (normalized.slice(0, 10) < startStr) {
+      if (toLocalDateString(d) < startStr) {
         throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
       }
     }
@@ -417,9 +448,10 @@ export function updateStartDate(orderId: number, startDate: string | null): Orde
     }
     normalized = startDate
     // #35: 交叉校验——开工日不得晚于截稿日
+    // audit-a P2-2: 与 updateDeadline 对称——deadline 存 UTC，须换算成本地日历日再比
     if (order.deadline) {
-      const deadlineStr = String(order.deadline).slice(0, 10)
-      if (normalized > deadlineStr) {
+      const deadlineLocal = toLocalDateString(new Date(String(order.deadline).replace(' ', 'T') + 'Z'))
+      if (normalized > deadlineLocal) {
         throw new AppError(E.INVALID_START_DATE, 400, { value: startDate })
       }
     }
@@ -524,9 +556,9 @@ export function getClientQueuePosition(orderNo: string, clientQq: string): { ord
   // 内联活跃队列查询（避免循环引用 order-queue.service.js）
   const queue = db.prepare(`
     SELECT id FROM orders
-    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
+    WHERE artist_id = ? AND queue_zone = ? AND ${ACTIVE_ORDER_SQL}
     ORDER BY queue_position ASC
-  `).all(order.artist_id) as Array<{ id: number }>
+  `).all(order.artist_id, order.queue_zone || 'formal') as Array<{ id: number }>
   const position = queue.findIndex(o => o.id === order.id) + 1
 
   return { ...base, position, total: queue.length }
@@ -1138,7 +1170,15 @@ export function tryAutoPromote(artistId: number): void {
     `).get(artistId) as { id: number } | undefined
     if (!next) break
 
-    promoteOrder(next.id)
+    try {
+      promoteOrder(next.id)
+    } catch (err) {
+      // audit-a R-1: 自动递补是 best-effort 副作用——单条脏缓冲单守恒校验失败
+      // 不得让整个交付/取消事务回滚；记录原因后终止本轮递补（该单仍在 buffer，
+      // 继续循环会无限选中同一单，故 break 而非跳过）
+      console.error(`[tryAutoPromote] 缓冲单递补失败，跳过本轮：artistId=${artistId}, orderId=${next.id}, reason=${err instanceof Error ? err.message : String(err)}`)
+      break
+    }
   }
 }
 

@@ -43,6 +43,10 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   /** GET /api/public/artist/:subdomain/messages — 已审核留言（分页，v0.31: 可选 ?language= 过滤） */
   fastify.get('/api/public/artist/:subdomain/messages', async (request, reply) => {
+    // audit-a P3-16: 公开读接口补限流（对齐 artworks：30次/分钟/IP，429 错误码对齐）
+    if (!rateLimit(`guestbook-read:${request.ip}`, 30, 60_000)) {
+      return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
+    }
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
     if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') {
       return reply.code(404).send({ error: '画师不存在' })
