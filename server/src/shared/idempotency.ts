@@ -60,8 +60,7 @@ export function withIdempotency(
 
 /**
  * 清理超期幂等行（默认保留 24h）
- * TODO（审计批 D-2）：由 app.ts 既有 GC 定时器调用接线——审计批 E 已在同一 GC 函数落地
- * TTL 清理，两批改动存在合并冲突风险，故本批不硬改 app.ts，交由验收方在合并后接线。
+ * 已由 app.ts 的 GC 定时器接线（审计批 D-2 验收时接入，与 R-20 埋点 TTL 同批执行）。
  */
 export function pruneIdempotencyKeys(keepHours = 24): number {
   const r = db.prepare(

@@ -9,6 +9,7 @@ import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStr
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
+import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
 
@@ -140,6 +141,13 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       const anonDeleted = db.prepare("DELETE FROM anon_tokens WHERE created_at < datetime('now', ?)").run(`-${ANON_TOKENS_TTL_DAYS} days`).changes
       if (eventsDeleted > 0 || anonDeleted > 0) {
         app.log.info(`埋点 TTL 清理: events 删除 ${eventsDeleted} 条, anon_tokens 删除 ${anonDeleted} 条`)
+      }
+
+      // ── 幂等键 TTL（审计批 D-2 接线）──
+      // 幂等缓存只为防短时窗重复提交，24h 足够；超期行累积无意义。
+      const idemDeleted = pruneIdempotencyKeys(24)
+      if (idemDeleted > 0) {
+        app.log.info(`幂等键 TTL 清理: 删除 ${idemDeleted} 条`)
       }
 
       for (const absPath of walk(UPLOAD_ROOT)) {

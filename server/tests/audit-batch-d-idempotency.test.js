@@ -177,4 +177,21 @@ describe('审计批 D-2 幂等键', () => {
     expect(deleted).toBe(1)
     expect(db.prepare('SELECT key FROM idempotency_keys WHERE scope = ?').all(scope).map(r => r.key)).toEqual(['fresh'])
   })
+
+  it('TC-D2-10: GC 接线——启动 GC 自动清超期幂等行（app.ts 定时器同批）', async () => {
+    const scope = 'gc-wire-test'
+    db.prepare(
+      "INSERT INTO idempotency_keys (scope, key, status_code, response_json, created_at) VALUES (?, 'expired', 200, '{}', datetime('now', '-3 days'))"
+    ).run(scope)
+    db.prepare(
+      "INSERT INTO idempotency_keys (scope, key, status_code, response_json, created_at) VALUES (?, 'kept', 200, '{}', datetime('now', '-2 hours'))"
+    ).run(scope)
+
+    const app = await buildApp({ logger: false })
+    try {
+      expect(db.prepare('SELECT key FROM idempotency_keys WHERE scope = ?').all(scope).map(r => r.key)).toEqual(['kept'])
+    } finally {
+      await app.close()
+    }
+  })
 })
