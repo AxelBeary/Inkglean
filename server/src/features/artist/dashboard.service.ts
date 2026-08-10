@@ -70,22 +70,22 @@ export function getRevenue(artistId: number, period: string = 'month') {
     prevEnd = currentStart
 
     // 查询当月每天的完成收入（P2-1：时区换算在应用层，SQL 取 UTC 原始值）
+    // audit-a P3-3: 去掉 GROUP BY completed_at——同秒完成多单价格不同时，GROUP BY 只取任意一行的
+    // 非聚合 cents（bare column）导致收入偏低；逐单取行、应用层按本地日累加
     const rows = db.prepare(`
       SELECT o.completed_at,
-             ${PRICE_FALLBACK_SQL} as cents,
-             COUNT(*) as cnt
+             ${PRICE_FALLBACK_SQL} as cents
       FROM orders o
       WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
         AND o.completed_at >= ? AND o.completed_at < ?
-      GROUP BY o.completed_at
-    `).all(artistId, currentStart, nextMonthStart) as Array<{ completed_at: string; cents: number; cnt: number }>
+    `).all(artistId, currentStart, nextMonthStart) as Array<{ completed_at: string; cents: number }>
 
     // 按本地日期分组（date.ts 同款口径：UTC 字符串补 Z 按 UTC 解析，取本地日）
     const dayMap = new Map<number, { cents: number; cnt: number }>()
     for (const r of rows) {
       const day = toLocalDate(r.completed_at).getDate()
       const prev = dayMap.get(day) ?? { cents: 0, cnt: 0 }
-      dayMap.set(day, { cents: prev.cents + r.cents, cnt: prev.cnt + r.cnt })
+      dayMap.set(day, { cents: prev.cents + r.cents, cnt: prev.cnt + 1 })
     }
     bars = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1
@@ -134,22 +134,21 @@ export function getRevenue(artistId: number, period: string = 'month') {
     prevStart = localYearStart(year - 1)
     prevEnd = currentStart
 
+    // audit-a P3-3: 与 month 分支同口径——逐单 SELECT cents，应用层聚合
     const rows = db.prepare(`
       SELECT o.completed_at,
-             ${PRICE_FALLBACK_SQL} as cents,
-             COUNT(*) as cnt
+             ${PRICE_FALLBACK_SQL} as cents
       FROM orders o
       WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
         AND o.completed_at >= ? AND o.completed_at < ?
-      GROUP BY o.completed_at
-    `).all(artistId, currentStart, nextYearStart) as Array<{ completed_at: string; cents: number; cnt: number }>
+    `).all(artistId, currentStart, nextYearStart) as Array<{ completed_at: string; cents: number }>
 
     // 按本地月份分组（P2-1：应用层换算，不依赖 SQLite localtime）
     const monthMap = new Map<number, { cents: number; cnt: number }>()
     for (const r of rows) {
       const m = toLocalDate(r.completed_at).getMonth() + 1
       const prev = monthMap.get(m) ?? { cents: 0, cnt: 0 }
-      monthMap.set(m, { cents: prev.cents + r.cents, cnt: prev.cnt + r.cnt })
+      monthMap.set(m, { cents: prev.cents + r.cents, cnt: prev.cnt + 1 })
     }
     bars = Array.from({ length: 12 }, (_, i) => {
       const m = i + 1

@@ -181,6 +181,10 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       discountAmountCents = computeDiscountCents(dc, totalPriceCents)
       discountCodeId = dc.id
       totalPriceCents = totalPriceCents - discountAmountCents
+    } else if (discountCode && (totalPriceCents == null || totalPriceCents <= 0)) {
+      // audit-a P3-4: 自定义单（无画风尺寸）没有计价基准——客户填了合法折扣码却静默无效
+      // 是坏体验，显式拒绝并说明原因
+      throw new AppError(E.VALIDATION, 400, { field: 'discountCode', message: '当前订单无可计价基准，折扣码不可用' })
     }
 
     // audit-a R-10: 计价结果封顶——引擎返回后、落库前校验，防止极端组合

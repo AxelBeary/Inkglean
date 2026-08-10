@@ -121,6 +121,15 @@ const FUNNEL_EVENT_NAMES = [
 ]
 
 /**
+ * audit-a P3-15: 服务层兜底钳制 days 到 1..90——
+ * 函数导出后未来调用方可能不钳制，模板字符串拼 SQL 存在注入面；参数化绑定 + 钳制双保险
+ */
+function clampDays(days: number): number {
+  const n = Math.trunc(days)
+  return Math.min(Math.max(Number.isFinite(n) && n > 0 ? n : 30, 1), 90)
+}
+
+/**
  * 画师门面统计三态开关（用户 2026-08-07 拍板：关/不显/开，默认不显）
  * - 'on'    ：事件落库 + 画师端统计可见（等价旧 artist_stats_visible=true）
  * - 'hidden'：事件落库 + 画师端统计不可见（等价旧 artist_stats_visible=false，默认）
@@ -151,23 +160,25 @@ export interface ArtistTrackingSummary {
  * days 已由路由层 clamp（1..90），此处直接拼字面量无注入面
  */
 export function getTrackingSummary(days: number): TrackingSummary {
-  const since = `datetime('now', '-${days} days')`
-  const total = (db.prepare(`SELECT COUNT(*) AS c FROM events WHERE created_at >= ${since}`).get() as { c: number }).c
+  const sinceParam = `-${clampDays(days)} days`
+  const total = (db.prepare(`
+    SELECT COUNT(*) AS c FROM events WHERE created_at >= datetime('now', ?)
+  `).get(sinceParam) as { c: number }).c
   const byName = db.prepare(`
     SELECT name, COUNT(*) AS count FROM events
-    WHERE created_at >= ${since}
+    WHERE created_at >= datetime('now', ?)
     GROUP BY name ORDER BY count DESC
-  `).all() as Array<{ name: string; count: number }>
+  `).all(sinceParam) as Array<{ name: string; count: number }>
   const byDay = db.prepare(`
     SELECT date(created_at, 'localtime') AS day, COUNT(*) AS count FROM events
-    WHERE created_at >= ${since}
+    WHERE created_at >= datetime('now', ?)
     GROUP BY day ORDER BY day ASC
-  `).all() as Array<{ day: string; count: number }>
+  `).all(sinceParam) as Array<{ day: string; count: number }>
   const funnelRows = db.prepare(`
     SELECT name, COUNT(*) AS count FROM events
-    WHERE created_at >= ${since} AND name IN (${FUNNEL_EVENT_NAMES.map(() => '?').join(',')})
+    WHERE created_at >= datetime('now', ?) AND name IN (${FUNNEL_EVENT_NAMES.map(() => '?').join(',')})
     GROUP BY name
-  `).all(...FUNNEL_EVENT_NAMES) as Array<{ name: string; count: number }>
+  `).all(sinceParam, ...FUNNEL_EVENT_NAMES) as Array<{ name: string; count: number }>
   const countMap = new Map(funnelRows.map(r => [r.name, r.count]))
   const funnel = FUNNEL_EVENT_NAMES.map(name => ({ name, count: countMap.get(name) ?? 0 }))
   return { total, byName, byDay, funnel }
@@ -175,21 +186,21 @@ export function getTrackingSummary(days: number): TrackingSummary {
 
 /** 画师自己的统计（artist_id 过滤，近 N 天） */
 export function getArtistTrackingSummary(artistId: number, days: number): ArtistTrackingSummary {
-  const since = `datetime('now', '-${days} days')`
+  const sinceParam = `-${clampDays(days)} days`
   const total = (db.prepare(`
     SELECT COUNT(*) AS c FROM events
-    WHERE artist_id = ? AND created_at >= ${since}
-  `).get(artistId) as { c: number }).c
+    WHERE artist_id = ? AND created_at >= datetime('now', ?)
+  `).get(artistId, sinceParam) as { c: number }).c
   const byName = db.prepare(`
     SELECT name, COUNT(*) AS count FROM events
-    WHERE artist_id = ? AND created_at >= ${since}
+    WHERE artist_id = ? AND created_at >= datetime('now', ?)
     GROUP BY name ORDER BY count DESC
-  `).all(artistId) as Array<{ name: string; count: number }>
+  `).all(artistId, sinceParam) as Array<{ name: string; count: number }>
   const byDay = db.prepare(`
     SELECT date(created_at, 'localtime') AS day, COUNT(*) AS count FROM events
-    WHERE artist_id = ? AND created_at >= ${since}
+    WHERE artist_id = ? AND created_at >= datetime('now', ?)
     GROUP BY day ORDER BY day ASC
-  `).all(artistId) as Array<{ day: string; count: number }>
+  `).all(artistId, sinceParam) as Array<{ day: string; count: number }>
   return { total, byName, byDay }
 }
 

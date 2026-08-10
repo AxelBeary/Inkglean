@@ -86,3 +86,51 @@ describe('audit-a P2-7 公开订单路由可见性', () => {
     expect(res.json().code).toBe('ARTIST_NOT_OPEN')
   })
 })
+
+/**
+ * audit-a P3-16: 公开读接口限流口径对齐（30次/分钟/IP）
+ */
+describe('audit-a P3-16 公开读接口限流', () => {
+  let app
+  let ipCounter = 100
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+  })
+
+  function uniqueIp() {
+    return `10.20.${++ipCounter}.${ipCounter}`
+  }
+
+  async function assertLimited(url) {
+    const ip = uniqueIp()
+    for (let i = 0; i < 30; i++) {
+      const res = await app.inject({ method: 'GET', url, remoteAddress: ip })
+      expect(res.statusCode).toBeLessThan(500)
+    }
+    const blocked = await app.inject({ method: 'GET', url, remoteAddress: ip })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
+  }
+
+  it('TC-P316-01: GET /api/artists/:subdomain 超限返回 429', async () => {
+    seedArtist({ qq_number: '77101', subdomain: 'rl-artist' })
+    await assertLimited('/api/artists/rl-artist')
+  })
+
+  it('TC-P316-02: GET /api/artists/:subdomain/workflow 超限返回 429', async () => {
+    seedArtist({ qq_number: '77102', subdomain: 'rl-workflow' })
+    await assertLimited('/api/artists/rl-workflow/workflow')
+  })
+
+  it('TC-P316-03: GET /api/public/artist/:subdomain/messages 超限返回 429', async () => {
+    seedArtist({ qq_number: '77103', subdomain: 'rl-guest' })
+    await assertLimited('/api/public/artist/rl-guest/messages')
+  })
+})

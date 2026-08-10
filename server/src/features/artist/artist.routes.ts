@@ -2,7 +2,7 @@ import * as artistService from './artist.service.js'
 import * as platformService from '../platform/platform.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
-import { AppError } from '../../shared/errors.js'
+import { AppError, E } from '../../shared/errors.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -10,6 +10,11 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 // ============================================
 // 画师路由 - 公开主页 + 后台管理
 // ============================================
+
+/** audit-a P3-16: 公开读接口限流守卫（对齐 artworks 30次/分钟/IP，429 错误码对齐） */
+function guardRateLimit(key: string, max: number, windowMs: number): void {
+  if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
+}
 
 export default async function artistRoutes(fastify: FastifyInstance) {
 
@@ -42,6 +47,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
    * 获取画师公开主页信息（作品、价格、状态、须知）
    */
   fastify.get('/api/artists/:subdomain', async (request: FastifyRequest, reply: FastifyReply) => {
+    // audit-a P3-16: 公开主页较重，补 30次/分钟/IP 限流
+    guardRateLimit(`artist-profile:${request.ip}`, 30, 60_000)
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     if (!artist || artist.qq_number === getAdminQq()) return reply.code(404).send({ error: '画师不存在' })
 
@@ -495,6 +502,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
 
   /** GET /api/artists/:subdomain/workflow — 客户端可见 */
   fastify.get('/api/artists/:subdomain/workflow', async (request: FastifyRequest, reply: FastifyReply) => {
+    // audit-a P3-16: 公开工作流接口补 30次/分钟/IP 限流
+    guardRateLimit(`artist-workflow:${request.ip}`, 30, 60_000)
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }

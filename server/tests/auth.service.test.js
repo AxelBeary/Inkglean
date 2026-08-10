@@ -61,10 +61,11 @@ describe('认证服务 (Auth Service) — REQ-027 TOTP', () => {
 
   // ─── 登录校验 ───
 
-  it('TC-A-07: 未绑定画师登录返回 TOTP_NOT_BOUND', () => {
+  it('TC-A-07: 未绑定画师登录返回 TOTP_INVALID（audit-a P3-11 防枚举统一）', () => {
     const result = authService.verifyTotpLogin('12345', '123456')
     expect(result.valid).toBe(false)
-    expect(result.code).toBe('TOTP_NOT_BOUND')
+    expect(result.code).toBe('TOTP_INVALID')
+    expect(result.error).toBe('QQ号或动态口令错误')
   })
 
   it('TC-A-08: 已绑定 + 正确动态码登录成功', () => {
@@ -176,7 +177,7 @@ describe('认证服务 (Auth Service) — REQ-027 TOTP', () => {
     // 旧密钥的码已无法登录
     const result = authService.verifyTotpLogin('12345', computeTotp(secret, Date.now()))
     expect(result.valid).toBe(false)
-    expect(result.code).toBe('TOTP_NOT_BOUND')
+    expect(result.code).toBe('TOTP_INVALID')
   })
 
   // ─── 会话 Token（原样保留） ───

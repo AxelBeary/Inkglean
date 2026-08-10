@@ -31,6 +31,14 @@ function parseTags(raw: string): string[] {
   }
 }
 
+/**
+ * audit-a P3-8: LIKE 通配符转义——用户输入中的 %/_/\ 按字面匹配，
+ * 防止 qq='%' 一次匹配全部客户（ESCAPE '\'）
+ */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, ch => '\\' + ch)
+}
+
 function toClientProfile(row: ClientProfileDbRow): ClientProfileRow {
   return { id: row.id, clientQq: row.client_qq, tags: parseTags(row.tags), note: row.note }
 }
@@ -47,8 +55,8 @@ export function getClientProfile(artistId: number, clientQq: string): ClientProf
 export function listClientProfiles(artistId: number, qq?: string): ClientProfileRow[] {
   const rows = qq
     ? db.prepare(
-        'SELECT id, client_qq, tags, note FROM client_profiles WHERE artist_id = ? AND client_qq LIKE ? ORDER BY updated_at DESC'
-      ).all(artistId, `%${qq}%`) as ClientProfileDbRow[]
+        "SELECT id, client_qq, tags, note FROM client_profiles WHERE artist_id = ? AND client_qq LIKE ? ESCAPE '\\' ORDER BY updated_at DESC"
+      ).all(artistId, `%${escapeLike(qq)}%`) as ClientProfileDbRow[]
     : db.prepare(
         'SELECT id, client_qq, tags, note FROM client_profiles WHERE artist_id = ? ORDER BY updated_at DESC'
       ).all(artistId) as ClientProfileDbRow[]

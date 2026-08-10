@@ -140,7 +140,9 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
 
   // 绑定检查：未生成密钥或未验证通过 → 无法登录
   if (!artist.totp_secret || !artist.totp_verified) {
-    return { valid: false, code: E.TOTP_NOT_BOUND, error: '该画师尚未绑定动态口令，请联系管理员绑定' }
+    // audit-a P3-11: 与「不存在 QQ」统一返回 TOTP_INVALID + 同文案——
+    // 未绑定状态不得成为平台画师枚举 oracle（bind/transfer 流程仍用 TOTP_NOT_BOUND，不受影响）
+    return { valid: false, code: E.TOTP_INVALID, error: 'QQ号或动态口令错误' }
   }
 
   const hitCounter = verifyTotpWithCounter(artist.totp_secret, code, Date.now())
