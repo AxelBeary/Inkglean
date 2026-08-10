@@ -89,6 +89,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { artistApi, artistPublicApi } from '../../../api/index.js'
 // REQ-031 B1: F2 外链校验复用（域名防投毒，前端=后端子集的弱化版）
 import { validateLink, matchDomain } from '../../../utils/linkValidation.js'
+// P3-10: 分享模板读写走安全封装（隐私模式/存储禁用时静默降级，不打断发布流程）
+import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
 
 const props = defineProps({
   order: { type: Object, required: true },
@@ -183,7 +185,7 @@ async function openShareDialog() {
     ])
     sharePlatforms.value = Array.isArray(plats) ? plats : []
     shareProfile.value = profile || null
-    shareText.value = localStorage.getItem(SHARE_TEMPLATE_KEY) || defaultShareText()
+    shareText.value = safeGetItem(SHARE_TEMPLATE_KEY) || defaultShareText()
     sharePlatformId.value = sharePlatforms.value[0]?.id ?? null
   } catch {
     sharePlatforms.value = []
@@ -219,7 +221,7 @@ async function doShare() {
     .replace('{orderNo}', props.order?.order_no || '')
     .replace('{homepage}', homepage || '')
   // 模板持久化（下次打开沿用）
-  localStorage.setItem(SHARE_TEMPLATE_KEY, shareText.value)
+  safeSetItem(SHARE_TEMPLATE_KEY, shareText.value)
   shareOpening.value = true
   try {
     const intent = shareIntentUrl(p)

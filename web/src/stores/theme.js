@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch, computed } from 'vue'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
 
 const BASE_KEY = 'huiyue-theme-base'
 const ACCENT_KEY = 'huiyue-theme-accent'
@@ -12,19 +13,20 @@ const ARTIST_ATTR = 'data-artist-theme'
 
 function detectBase() {
   // 迁移旧 key（'dark'/'light' → 新 base 格式）
-  const old = localStorage.getItem(OLD_KEY)
+  // P3-10: 安全读取，存储禁用时按默认值走（防 state 工厂抛错白屏）
+  const old = safeGetItem(OLD_KEY)
   if (old === 'dark' || old === 'light') {
-    localStorage.setItem(BASE_KEY, old)
-    localStorage.removeItem(OLD_KEY)
+    safeSetItem(BASE_KEY, old)
+    safeRemoveItem(OLD_KEY)
     return old
   }
-  const saved = localStorage.getItem(BASE_KEY)
+  const saved = safeGetItem(BASE_KEY)
   if (saved === 'light' || saved === 'dark') return saved
   return 'auto'
 }
 
 function detectAccent() {
-  const saved = localStorage.getItem(ACCENT_KEY)
+  const saved = safeGetItem(ACCENT_KEY)
   return ACCENTS.includes(saved) ? saved : '1'
 }
 
@@ -41,7 +43,7 @@ function applyTheme(base, accent) {
 
 /** v0.38: 读取后台主题持久化值（默认宣纸） */
 function detectArtistTheme() {
-  return localStorage.getItem(ARTIST_THEME_KEY) === 'ink' ? 'ink' : 'paper'
+  return safeGetItem(ARTIST_THEME_KEY) === 'ink' ? 'ink' : 'paper'
 }
 
 /** v0.38: 把后台主题属性挂到 html（token 作用域开关；客户端路由下不挂） */
@@ -68,11 +70,11 @@ export const useThemeStore = defineStore('theme', () => {
 
   // 持久化 + 应用
   watch(base, (b) => {
-    localStorage.setItem(BASE_KEY, b)
+    safeSetItem(BASE_KEY, b)
     applyTheme(b, accent.value)
   })
   watch(accent, (a) => {
-    localStorage.setItem(ACCENT_KEY, a)
+    safeSetItem(ACCENT_KEY, a)
     applyTheme(base.value, a)
   })
 
@@ -92,7 +94,7 @@ export const useThemeStore = defineStore('theme', () => {
   const artistTheme = ref(detectArtistTheme())
 
   watch(artistTheme, (t) => {
-    localStorage.setItem(ARTIST_THEME_KEY, t)
+    safeSetItem(ARTIST_THEME_KEY, t)
     // 只有作用域激活期间才同步 DOM（离开后台后切换不残留属性）
     if (document.documentElement.hasAttribute(ARTIST_ATTR)) applyArtistTheme(t)
   })

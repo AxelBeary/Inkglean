@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { authApi, artistApi } from '../api/index.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
 
 // ============================================
 // 画师状态管理
@@ -8,11 +9,12 @@ import { authApi, artistApi } from '../api/index.js'
 
 export const useArtistStore = defineStore('artist', {
   state: () => ({
-    loggedIn: localStorage.getItem('artist_logged_in') === '1',
+    // P3-10: 存储禁用/隐私模式时安全读取，失败按未登录降级（防 state 工厂抛错白屏）
+    loggedIn: safeGetItem('artist_logged_in') === '1',
     profile: null,
     stats: null,
     loading: false,
-    isAdmin: localStorage.getItem('artist_is_admin') === '1'
+    isAdmin: safeGetItem('artist_is_admin') === '1'
   }),
 
   getters: {
@@ -28,8 +30,8 @@ export const useArtistStore = defineStore('artist', {
       // token 已由后端设为 httpOnly cookie，前端只记录非敏感标记
       this.loggedIn = true
       this.isAdmin = !!res.isAdmin
-      localStorage.setItem('artist_logged_in', '1')
-      localStorage.setItem('artist_is_admin', res.isAdmin ? '1' : '0')
+      safeSetItem('artist_logged_in', '1')
+      safeSetItem('artist_is_admin', res.isAdmin ? '1' : '0')
       this.profile = res.artist
       return res
     },
@@ -62,8 +64,8 @@ export const useArtistStore = defineStore('artist', {
       this.profile = null
       this.stats = null
       this.isAdmin = false
-      localStorage.removeItem('artist_logged_in')
-      localStorage.removeItem('artist_is_admin')
+      safeRemoveItem('artist_logged_in')
+      safeRemoveItem('artist_is_admin')
     }
   }
 })

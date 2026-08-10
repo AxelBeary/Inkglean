@@ -53,6 +53,8 @@
     ORDER_NOT_OWNED: 'This order does not belong to you',
     ORDER_INVALID_STATUS: 'Invalid status',
     INVALID_TRANSITION: 'Invalid status transition',
+    // R-2: cancelling a paid order needs explicit confirmation (Batch A contract 409 CANCEL_WITH_PAYMENT)
+    CANCEL_WITH_PAYMENT: 'This order has received payment. Please refund offline before cancelling',
     DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
     TIER_NOT_FOUND: 'Price tier not found or does not belong to this artist',
     ILLEGAL_PATH: 'Illegal path',
@@ -887,6 +889,8 @@
     colPriority: 'Priority', colSource: 'Source', colTime: 'Order time', colDesc: 'Description',
     confirmOrder: 'Accept order', startWip: 'Start work',
     needRevision: 'Needs revision', markDone: '✔ Mark done', uploadDeliver: 'Upload delivery', cancelOrder: 'Cancel order',
+    // R-2: second confirmation for cancelling a paid order (amount from backend detail.paidCents)
+    cancelPaidConfirm: 'This order has received ¥{amount}. Cancel anyway? Funds must be refunded offline',
     noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', confirmTitle: 'Confirm',

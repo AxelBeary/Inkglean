@@ -1,0 +1,45 @@
+// router auth guard localStorage 降级测试（P3-10）
+// 覆盖：存储读取抛错时守卫按未登录跳登录页（不抛错白屏）；正常标记照常放行
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+
+vi.mock('../../stores/artist.js', () => ({
+  useArtistStore: () => ({ isAdmin: false })
+}))
+vi.mock('../../stores/theme.js', () => ({
+  useThemeStore: () => ({ enterArtistScope: vi.fn(), leaveArtistScope: vi.fn() })
+}))
+vi.mock('../../i18n/index.js', () => ({
+  default: { global: { t: (key) => key } }
+}))
+
+import router from '../index.js'
+
+describe('router guard 存储禁用降级（P3-10）', () => {
+  // vitest 4 的 restoreAllMocks 对 happy-dom Storage.prototype spy 不生效，须显式 mockRestore
+  let getItemSpy = null
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    getItemSpy?.mockRestore()
+  })
+
+  it('localStorage.getItem 抛错 → 视为未登录，重定向登录页', async () => {
+    getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied')
+    })
+    await router.push('/dashboard')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('ArtistLogin')
+  })
+
+  it('已登录标记正常 → 放行后台路由', async () => {
+    window.localStorage.setItem('artist_logged_in', '1')
+    await router.push('/dashboard')
+    expect(router.currentRoute.value.name).toBe('ArtistDashboard')
+    window.localStorage.removeItem('artist_logged_in')
+  })
+})

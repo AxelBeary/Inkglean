@@ -1,6 +1,6 @@
 // OrderDetail 待收横幅组件测试（REQ-025 二阶段 B 路：订单级总待收横幅 + 负数退款 label 切换）
 // 覆盖：总横幅显示/隐藏边界（remainingCents 为 0/null、终态）、主副信息内容、负数 label 动态切换
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 
@@ -24,14 +24,27 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key) })
 }))
 
-// 订单数据容器：每个用例 mount 前设置 h.order
-const h = vi.hoisted(() => ({ order: null }))
+// 订单数据容器 + 可注入 spy：每个用例 mount 前设置 h.order / mock 返回
+const h = vi.hoisted(() => ({
+  order: null,
+  getOrder: vi.fn(() => Promise.resolve(h.order)),
+  updateStatus: vi.fn(() => Promise.resolve({})),
+  confirm: vi.fn(() => Promise.resolve('confirm')),
+  msgSuccess: vi.fn(),
+  msgError: vi.fn(),
+  slideConfirm: { onConfirm: null, trigger: null }
+}))
+
+vi.mock('element-plus', () => ({
+  ElMessage: { success: h.msgSuccess, error: h.msgError, warning: vi.fn(), info: vi.fn() },
+  ElMessageBox: { confirm: h.confirm }
+}))
 
 vi.mock('../../../api/index.js', () => ({
   artistApi: {
-    getOrder: () => Promise.resolve(h.order),
+    getOrder: h.getOrder,
     getWorkflow: () => Promise.resolve({ stages: [] }),
-    updateStatus: () => Promise.resolve(h.order),
+    updateStatus: h.updateStatus,
     updatePriority: () => Promise.resolve(h.order),
     updateDeadline: () => Promise.resolve(h.order),
     updateStartDate: () => Promise.resolve(h.order),
@@ -80,15 +93,20 @@ vi.mock('../../../composables/useSignatureRefresh.js', () => ({
   useSignatureRefresh: () => ({ refreshNow: () => {} })
 }))
 vi.mock('../../../composables/useSlideConfirm.js', () => ({
-  useSlideConfirm: () => ({
-    active: ref(false),
-    progress: ref(0),
-    open: () => {},
-    close: () => {},
-    onStart: () => {},
-    onMove: () => {},
-    onEnd: () => {}
-  })
+  useSlideConfirm: (opts) => {
+    // 捕获 onConfirm，测试用 trigger 模拟滑块拖到底（对齐真实 useSlideConfirm 的调用点）
+    h.slideConfirm.onConfirm = opts.onConfirm
+    h.slideConfirm.trigger = () => h.slideConfirm.onConfirm?.()
+    return {
+      active: ref(false),
+      progress: ref(0),
+      open: () => {},
+      close: () => {},
+      onStart: () => {},
+      onMove: () => {},
+      onEnd: () => {}
+    }
+  }
 }))
 vi.mock('../../../composables/useOrderPayments.js', () => ({
   useOrderPayments: () => ({
@@ -278,5 +296,142 @@ describe('OrderDetail 收款弹窗负数 label（REQ-025 二阶段 B 路）', ()
     wrapper.vm.payForm.amountYuan = 50
     await flushPromises()
     expect(labels()).toContain('orderDetail.payNoteLabel')
+  })
+})
+
+describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
+  beforeEach(() => {
+    h.updateStatus.mockReset()
+    h.updateStatus.mockResolvedValue({})
+    h.confirm.mockReset()
+    h.confirm.mockResolvedValue('confirm')
+    h.msgSuccess.mockClear()
+    h.msgError.mockClear()
+  })
+
+  it('未收款订单直接取消：一次请求、不带 confirmPaidCancel、不走二次确认', async () => {
+    const order = buildOrder({ paidTotalCents: 0, remainingCents: 0 })
+    const updated = { ...order, status: 'cancelled' }
+    h.updateStatus.mockResolvedValue(updated)
+    await mountDetail(order)
+
+    await h.slideConfirm.trigger()
+    await flushPromises()
+
+    expect(h.updateStatus).toHaveBeenCalledTimes(1)
+    expect(h.updateStatus).toHaveBeenCalledWith('806', 'cancelled')
+    expect(h.confirm).not.toHaveBeenCalled()
+    expect(h.msgSuccess).toHaveBeenCalled()
+  })
+
+  it('已收款订单：第一次 409 → 弹确认（金额=detail.paidCents）→ 确认后带 confirmPaidCancel 重发成功', async () => {
+    const order = buildOrder({ paidTotalCents: 17640 })
+    const updated = { ...order, status: 'cancelled' }
+    h.updateStatus
+      .mockRejectedValueOnce(Object.assign(new Error('blocked'), {
+        code: 'CANCEL_WITH_PAYMENT',
+        status: 409,
+        detail: { paidCents: 17640 }
+      }))
+      .mockResolvedValue(updated)
+    const wrapper = await mountDetail(order)
+
+    await h.slideConfirm.trigger()
+    await flushPromises()
+
+    // 确认框文案带金额（formatCents 17640 → ¥176.40）
+    expect(h.confirm).toHaveBeenCalledTimes(1)
+    expect(h.confirm.mock.calls[0][0]).toContain('orderDetail.cancelPaidConfirm')
+    expect(h.confirm.mock.calls[0][0]).toContain('"amount":"176.40"')
+
+    // 用户点确认 → 第二次带 confirmPaidCancel
+    expect(h.updateStatus).toHaveBeenCalledTimes(2)
+    expect(h.updateStatus).toHaveBeenLastCalledWith('806', 'cancelled', { confirmPaidCancel: true })
+    expect(wrapper.vm.order.status).toBe('cancelled')
+    expect(h.msgSuccess).toHaveBeenCalled()
+  })
+
+  it('二次确认取消 → 不重发取消请求', async () => {
+    const order = buildOrder({ paidTotalCents: 17640 })
+    h.updateStatus.mockRejectedValueOnce(Object.assign(new Error('blocked'), {
+      code: 'CANCEL_WITH_PAYMENT',
+      detail: { paidCents: 17640 }
+    }))
+    h.confirm.mockRejectedValueOnce('cancel')
+    await mountDetail(order)
+
+    await h.slideConfirm.trigger()
+    await flushPromises()
+
+    expect(h.confirm).toHaveBeenCalledTimes(1)
+    expect(h.updateStatus).toHaveBeenCalledTimes(1) // 没有第二次重发
+    expect(h.msgSuccess).not.toHaveBeenCalled()
+  })
+
+  it('非 CANCEL_WITH_PAYMENT 错误 → 直接报错，不弹二次确认', async () => {
+    const order = buildOrder({ paidTotalCents: 0 })
+    h.updateStatus.mockRejectedValueOnce(new Error('其他错误'))
+    await mountDetail(order)
+
+    await h.slideConfirm.trigger()
+    await flushPromises()
+
+    expect(h.confirm).not.toHaveBeenCalled()
+    expect(h.msgError).toHaveBeenCalledWith('其他错误')
+    expect(h.updateStatus).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('OrderDetail loadOrder 竞态守卫（R-14）', () => {
+  it('两次请求乱序返回：最终 order 为最后一次请求的结果', async () => {
+    const stale = buildOrder({ order_no: 'STALE-001', paidTotalCents: 1000, remainingCents: 1000 })
+    const fresh = buildOrder({ order_no: 'FRESH-001', paidTotalCents: 5000, remainingCents: 5000 })
+    let resolveStale
+    let resolveFresh
+    const stalePromise = new Promise(resolve => { resolveStale = resolve })
+    const freshPromise = new Promise(resolve => { resolveFresh = resolve })
+
+    h.getOrder.mockReset()
+      .mockReturnValueOnce(stalePromise) // mount 触发请求 #1
+      .mockReturnValueOnce(freshPromise) // 手动触发请求 #2
+    h.order = stale
+    const wrapper = await mountDetail(stale)
+
+    const secondLoad = wrapper.vm.loadOrder()
+    // 新请求先返回，旧请求后返回
+    resolveFresh(fresh)
+    await flushPromises()
+    resolveStale(stale)
+    await flushPromises()
+    await secondLoad
+
+    expect(wrapper.vm.order.order_no).toBe('FRESH-001')
+    expect(wrapper.vm.order.paidTotalCents).toBe(5000)
+    expect(h.getOrder).toHaveBeenCalledTimes(2)
+  })
+
+  it('晚到请求失败不弹错误（旧请求已过期）', async () => {
+    const fresh = buildOrder({ order_no: 'FRESH-002', paidTotalCents: 5000, remainingCents: 5000 })
+    let resolveFresh
+    let rejectStale
+    const stalePromise = new Promise((resolve, reject) => { rejectStale = reject })
+    const freshPromise = new Promise(resolve => { resolveFresh = resolve })
+
+    h.getOrder.mockReset()
+      .mockReturnValueOnce(stalePromise)
+      .mockReturnValueOnce(freshPromise)
+    h.order = fresh
+    h.msgError.mockClear()
+    const wrapper = await mountDetail(fresh)
+
+    const secondLoad = wrapper.vm.loadOrder()
+    resolveFresh(fresh)
+    await flushPromises()
+    rejectStale(new Error('stale error'))
+    await flushPromises()
+    await secondLoad
+
+    expect(wrapper.vm.order.order_no).toBe('FRESH-002')
+    expect(h.msgError).not.toHaveBeenCalled()
   })
 })

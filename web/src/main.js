@@ -15,6 +15,7 @@ import './styles/templates.css'
 import App from './App.vue'
 import router from './router/index.js'
 import i18n from './i18n/index.js'
+import { createGlobalErrorDedup } from './utils/globalErrorDedup.js'
 
 const app = createApp(App)
 
@@ -30,13 +31,17 @@ if (sentryDsn) {
 }
 
 // S-10: 全局错误边界 — 防止组件抛错导致整页白屏
+// P3-9: 同一错误消息 5 秒内只弹一次（兑现下方注释；console/Sentry 每次照常）
+const shouldShowGlobalError = createGlobalErrorDedup()
 app.config.errorHandler = (err, instance, info) => {
   // eslint-disable-next-line no-console -- 全局错误边界日志：Sentry 上报之外保留本地可见性
   console.error('[Vue Error]', err, info)
   // A1: 上报 Sentry（Sentry.init 未调用时 captureException 静默无操作）
   Sentry.captureException(err, { extra: { vueInfo: info } })
-  // 用户可见的友好提示（避免重复弹窗：5秒内只弹一次）
-  ElMessage.error(i18n.global.t('common.globalError'))
+  // 用户可见的友好提示（同一错误消息 5 秒内只弹一次）
+  if (shouldShowGlobalError(err?.message || '')) {
+    ElMessage.error(i18n.global.t('common.globalError'))
+  }
 }
 
 app.use(createPinia())
