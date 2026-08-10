@@ -1,4 +1,5 @@
 import db from '../../db/connection.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 留言板服务（F4）
@@ -24,9 +25,11 @@ export function getMessageById(id: number): GuestbookMessage | undefined {
 
 /** 客户提交留言（默认 pending，v0.31: 后端写入 language） */
 export function createMessage(artistId: number, nickname: string, content: string, language: string = 'zh-CN'): GuestbookMessage | undefined {
+  // F-5（P3-18）: 留言内容入库前最小清洗（纵深防御，前端 DOMPurify 仍是渲染层主力）
+  const safeContent = sanitizeStoredText(content)
   const result = db.prepare(
     'INSERT INTO guestbook_messages (artist_id, nickname, content, language) VALUES (?, ?, ?, ?)'
-  ).run(artistId, nickname, content, language)
+  ).run(artistId, nickname, safeContent, language)
   return getMessageById(result.lastInsertRowid as number)
 }
 
@@ -48,11 +51,19 @@ export function getPublicMessages(artistId: number, page: number = 1, pageSize: 
   return { messages, total, page, pageSize }
 }
 
-/** 画师查询：自己所有留言（含 pending/rejected），按 created_at DESC */
-export function getArtistMessages(artistId: number): GuestbookMessage[] {
-  return db.prepare(
-    'SELECT * FROM guestbook_messages WHERE artist_id = ? ORDER BY created_at DESC'
-  ).all(artistId) as GuestbookMessage[]
+/**
+ * 画师查询：自己所有留言（含 pending/rejected/管理员软删），按 created_at DESC 分页
+ * F-2（P3-21）: 由全量数组改为分页结构 { items, total, page, pageSize }（对齐公开端分页风格）
+ */
+export function getArtistMessages(artistId: number, page: number = 1, pageSize: number = 20): { items: GuestbookMessage[]; total: number; page: number; pageSize: number } {
+  const offset = (page - 1) * pageSize
+  const total = (db.prepare(
+    'SELECT COUNT(*) AS c FROM guestbook_messages WHERE artist_id = ?'
+  ).get(artistId) as { c: number }).c
+  const items = db.prepare(
+    'SELECT * FROM guestbook_messages WHERE artist_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?'
+  ).all(artistId, pageSize, offset) as GuestbookMessage[]
+  return { items, total, page, pageSize }
 }
 
 /** 通过留言（归属校验：不匹配返回 null） */
@@ -75,9 +86,11 @@ export function rejectMessage(artistId: number, messageId: number): GuestbookMes
 export function replyMessage(artistId: number, messageId: number, reply: string): GuestbookMessage | null | undefined {
   const msg = getMessageById(messageId)
   if (!msg || msg.artist_id !== artistId) return null
+  // F-5（P3-18）: 回复入库前最小清洗（与留言内容同口径）
+  const safeReply = sanitizeStoredText(reply)
   db.prepare(
     'UPDATE guestbook_messages SET artist_reply = ?, replied_at = CURRENT_TIMESTAMP WHERE id = ?'
-  ).run(reply, messageId)
+  ).run(safeReply, messageId)
   return getMessageById(messageId)
 }
 

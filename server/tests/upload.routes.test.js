@@ -27,11 +27,19 @@ function multipartBody(filename, contentType, content) {
 }
 
 /** 快捷上传 */
-async function uploadFile(app, url, filename, contentType, content, token) {
+async function uploadFile(app, url, filename, contentType, content, token, anonToken) {
   const { boundary, body } = multipartBody(filename, contentType, content)
   const headers = { 'content-type': 'multipart/form-data; boundary=' + boundary }
   if (token) headers.Authorization = 'Bear' + 'er ' + token
+  // F-10（P2-13 后端侧）: 参考图上传需匿名凭证（x-anon-token）
+  if (anonToken) headers['x-anon-token'] = anonToken
   return app.inject({ method: 'POST', url, headers, payload: body })
+}
+
+/** 签发匿名凭证（参考图上传/下单归属用） */
+async function issueAnonToken(app) {
+  const res = await app.inject({ method: 'POST', url: '/api/anon-token' })
+  return res.json().token
 }
 
 describe('上传路由 (Upload Routes)', () => {
@@ -153,8 +161,9 @@ describe('上传路由 (Upload Routes)', () => {
   // ─── POST /api/upload/reference ───
 
   describe('POST /api/upload/reference', () => {
-    it('TC-U-11: 公开上传参考图成功（无需登录）', async () => {
-      const res = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref')
+    it('TC-U-11: 匿名凭证上传参考图成功（无需登录，F-10 需 x-anon-token）', async () => {
+      const anonToken = await issueAnonToken(app)
+      const res = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref', null, anonToken)
       expect(res.statusCode).toBe(200)
       const json = res.json()
       expect(json.filePath).toContain('references/')
@@ -164,27 +173,36 @@ describe('上传路由 (Upload Routes)', () => {
     })
 
     it('TC-U-12: 参考图拒绝非图片格式', async () => {
-      const res = await uploadFile(app, '/api/upload/reference', 'doc.pdf', 'application/pdf', 'pdf-data')
+      const anonToken = await issueAnonToken(app)
+      const res = await uploadFile(app, '/api/upload/reference', 'doc.pdf', 'application/pdf', 'pdf-data', null, anonToken)
       expect(res.statusCode).toBe(400)
       expect(res.json().error).toContain('仅支持')
     })
 
     it('TC-U-13: 参考图 GIF 返回格式建议', async () => {
-      const res = await uploadFile(app, '/api/upload/reference', 'anim.gif', 'image/gif', 'gif-data')
+      const anonToken = await issueAnonToken(app)
+      const res = await uploadFile(app, '/api/upload/reference', 'anim.gif', 'image/gif', 'gif-data', null, anonToken)
       expect(res.statusCode).toBe(200)
       expect(res.json().typeWarning).toContain('建议转换')
     })
 
     it('TC-U-14: 参考图无文件返回 400', async () => {
+      const anonToken = await issueAnonToken(app)
       const boundary = '----EmptyRef'
       const res = await app.inject({
         method: 'POST',
         url: '/api/upload/reference',
-        headers: { 'content-type': 'multipart/form-data; boundary=' + boundary },
+        headers: { 'content-type': 'multipart/form-data; boundary=' + boundary, 'x-anon-token': anonToken },
         payload: '--' + boundary + '--'
       })
       expect(res.statusCode).toBe(400)
       expect(res.json().error).toBe('未收到文件')
+    })
+
+    it('TC-U-14b: 无 x-anon-token 上传 → 400 INVALID_ANON_TOKEN（F-10）', async () => {
+      const res = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref')
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('INVALID_ANON_TOKEN')
     })
   })
 
@@ -361,7 +379,8 @@ describe('上传路由 (Upload Routes)', () => {
     })
 
     it('TC-ENV-02: 参考图（references/）→ attachment + no-store', async () => {
-      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref')
+      const anonToken = await issueAnonToken(app)
+      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref', null, anonToken)
       expect(up.statusCode).toBe(200)
       const url = up.json().url // 签名 URL，可直接 GET
 
@@ -382,6 +401,15 @@ describe('上传路由 (Upload Routes)', () => {
       expect(res.statusCode).toBe(200)
       expect(res.headers['content-disposition']).toBe('attachment')
       expect(res.headers['cache-control']).toBe('no-store')
+    })
+
+    it('TC-ENV-03b: 参考图签名 URL 拒绝无签名访问（F-10 归属登记后行为不变）', async () => {
+      const anonToken = await issueAnonToken(app)
+      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref', null, anonToken)
+      expect(up.statusCode).toBe(200)
+      const filePath = up.json().filePath
+      const raw = await app.inject({ method: 'GET', url: `/uploads/${filePath}` })
+      expect(raw.statusCode).toBe(403)
     })
 
     it('TC-ENV-04: 公开图片路径无签名也可访问（保持现状）', async () => {

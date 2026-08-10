@@ -4,6 +4,7 @@ import { isValidArtistCode } from '../../shared/validate.js'
 import { normalizeLinkUrl, assertLinkLengthLimits, MAX_LINK_COUNT } from '../../shared/utils/platform.js'
 import { rederivePlatformId } from '../platform/platform.service.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 import type { Artist, Tier } from '../../types/entities.js'
 import sharp from 'sharp'
 import { resolve, join } from 'path'
@@ -11,6 +12,17 @@ import { resolve, join } from 'path'
 // ============================================
 // 画师服务
 // ============================================
+
+// F-4（P3-17）: 客户端模板 id 白名单——与 web 侧实际消费枚举一致
+// 来源：web/src/views/artist/Settings.vue templates 列表（atelier/classic/gallery/folio）+
+//       web/src/views/client/ArtistHome.vue TEMPLATES 映射（同集合）
+// 历史遗留值 default/dark-gallery/single-page 仅由前端读取时映射到新 id（ArtistHome.vue LEGACY），
+// 写路径一律拒绝旧值（旧值入库会让新前端渲染回退经典模板，属脏数据）
+const CLIENT_TEMPLATE_IDS = ['atelier', 'classic', 'gallery', 'folio']
+
+// F-4（P3-17）: Dashboard 默认面板枚举——来源 web/src/views/artist/Preferences.vue
+// el-option 列表（queue/orders/manual/tiers），null=未设置（前端回退 queue）
+const DASHBOARD_DEFAULT_PANELS = ['queue', 'orders', 'manual', 'tiers']
 
 /** 作品（entities.ts 未定义，内联） */
 interface Artwork {
@@ -197,6 +209,25 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
         const palette = String(value || 'paper')
         updates.push('palette_id = ?')
         values.push(['paper', 'ink', 'dusk', 'moss'].includes(palette) ? palette : 'paper')
+      } else if (key === 'template_id') {
+        // F-4（P3-17）: 客户端模板白名单校验（来源注释见文件顶部 CLIENT_TEMPLATE_IDS）
+        const tpl = String(value || '')
+        if (!CLIENT_TEMPLATE_IDS.includes(tpl)) {
+          throw new AppError(E.VALIDATION, 400, { field: 'template_id', hint: `template_id 只能是 ${CLIENT_TEMPLATE_IDS.join('/')}` })
+        }
+        updates.push('template_id = ?')
+        values.push(tpl)
+      } else if (key === 'dashboard_default_panel') {
+        // F-4（P3-17）: Dashboard 面板白名单校验（来源注释见文件顶部 DASHBOARD_DEFAULT_PANELS）
+        if (value !== null && !DASHBOARD_DEFAULT_PANELS.includes(String(value))) {
+          throw new AppError(E.VALIDATION, 400, { field: 'dashboard_default_panel', hint: `dashboard_default_panel 只能是 ${DASHBOARD_DEFAULT_PANELS.join('/')} 或 null` })
+        }
+        updates.push('dashboard_default_panel = ?')
+        values.push(value || null)
+      } else if (key === 'bio' || key === 'announcement') {
+        // F-5（P3-18）: 简介/公告入库前最小清洗（纵深防御）
+        updates.push(`${key} = ?`)
+        values.push(value ? sanitizeStoredText(String(value)) : null)
       } else if (key === 'accent_color') {
         // R49: 强调色白名单校验 — 仅允许 5 色预设 + null（清除）
         // 色值来源：web/src/styles/theme.css data-accent 1-5 的 --color-primary
@@ -372,8 +403,9 @@ export async function createArtwork(artistId: number, { imagePath, title, descri
   } catch { /* 读取失败不阻塞创建，width/height 留 null */ }
 
   // REQ-022 F1: description 入列（发布为作品携带自由描述；旧调用不传 → null）
+  // F-5（P3-18）: 作品描述入库前最小清洗（纵深防御）
   const result = db.prepare('INSERT INTO artworks (artist_id, image_path, title, description, sort_order, width, height) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(artistId, imagePath, title || null, description || null, sortOrder, width, height)
+    .run(artistId, imagePath, title || null, description ? sanitizeStoredText(String(description)) : null, sortOrder, width, height)
 
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(Number(result.lastInsertRowid)) as Artwork | undefined
 }
@@ -392,7 +424,8 @@ export function updateArtwork(artworkId: number, fields: { title?: string | null
     db.prepare('UPDATE artworks SET title = ? WHERE id = ?').run(fields.title || null, artworkId)
   }
   if (fields.description !== undefined) {
-    db.prepare('UPDATE artworks SET description = ? WHERE id = ?').run(fields.description || null, artworkId)
+    // F-5（P3-18）: 作品描述入库前最小清洗（纵深防御）
+    db.prepare('UPDATE artworks SET description = ? WHERE id = ?').run(fields.description ? sanitizeStoredText(String(fields.description)) : null, artworkId)
   }
   return getArtworkById(artworkId)
 }
@@ -488,8 +521,10 @@ export function getRules(artistId: number): CommissionRule | undefined {
 }
 
 export function updateRules(artistId: number, content: string): CommissionRule | undefined {
+  // F-5（P3-18）: 须知入库前最小清洗——富文本排版保留，仅去脚本/事件/危险协议（纵深防御）
+  const safeContent = sanitizeStoredText(content)
   db.prepare('UPDATE commission_rules SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE artist_id = ?')
-    .run(content, artistId)
+    .run(safeContent, artistId)
   return getRules(artistId)
 }
 

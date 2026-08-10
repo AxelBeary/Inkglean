@@ -7,6 +7,8 @@ import { nanoid } from 'nanoid'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
+import * as trackingService from '../tracking/tracking.service.js'
+import db from '../../db/connection.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
@@ -181,10 +183,19 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
   /**
    * POST /api/upload/reference — 参考图（客户下单用，公开）
    * P0-B: 加限流（10次/10分钟，公开接口需更严格）
+   * F-10（P2-13 后端侧）: 要求 x-anon-token（复用匿名凭证机制）——有效则登记
+   * (anon_id, file_path) 供下单归属校验；无 token/无效 → 拒绝上传（前端由批 G 接 token，两端同步上线）
    */
   fastify.post('/api/upload/reference', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!rateLimit(`upload-ref:${request.ip}`, 10, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
+    }
+
+    // F-10: 凭证先行——无效凭证不落盘不登记（限流不变，仍按 IP 计数）
+    const anonToken = request.headers['x-anon-token']
+    const anonId = typeof anonToken === 'string' ? trackingService.resolveAnonToken(anonToken) : null
+    if (anonId == null) {
+      return reply.code(400).send({ code: 'INVALID_ANON_TOKEN', error: '缺少有效匿名凭证（x-anon-token）' })
     }
 
     const data = await request.file()
@@ -199,6 +210,11 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
       if (!result) return reply.code(400).send({ error: '文件大小超过10MB限制' })
 
       const typeCheck = checkFileType(data.mimetype, data.filename)
+
+      // F-10: 登记归属（文件名为随机 nanoid，同路径重复登记实际不会发生；
+      // file_path UNIQUE 兜底防手写路径投毒，冲突即 500 由全局兜底）
+      db.prepare('INSERT INTO reference_uploads (anon_id, file_path) VALUES (?, ?)')
+        .run(anonId, result.filePath)
 
       return {
         filePath: result.filePath,

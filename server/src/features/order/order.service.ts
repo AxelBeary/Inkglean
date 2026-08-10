@@ -149,6 +149,8 @@ interface CreateOrderParams {
   discountCode?: string | null
   styleSizeId?: number | null
   styleAddons?: Array<{ styleAddonId: number; quantity?: number }>
+  // F-10（P2-13 后端侧）: 已解析的匿名凭证 id（客户上传参考图的归属者；无参考图/画师手动录单为 null）
+  anonId?: number | null
 }
 
 /**
@@ -156,7 +158,7 @@ interface CreateOrderParams {
  * 事务包裹，防止订单号竞态
  * SPEC-PRICE-2：价格全链路唯一引擎 calculateStylePrice（整数分）；折扣最后应用
  */
-export function createOrder({ artistId, clientQq, clientName, description, priority, source, clientNotify, references, discountCode, styleSizeId, styleAddons }: CreateOrderParams): OrderDetail {
+export function createOrder({ artistId, clientQq, clientName, description, priority, source, clientNotify, references, discountCode, styleSizeId, styleAddons, anonId }: CreateOrderParams): OrderDetail {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -266,6 +268,25 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       const insertRef = db.prepare("INSERT INTO order_references (order_id, file_path, source) VALUES (?, ?, 'client')")
       for (const ref of references.slice(0, 5)) {
         insertRef.run(orderId, ref)
+      }
+      // F-10（P2-13 后端侧）: 归属校验 + 绑定——客户上传的参考图必须属于同一匿名凭证且
+      // 未绑定订单；校验通过即绑定 order_id（并发抢绑时 bind 0 行 → 整体回滚）。
+      // 未登记路径（迁移 v55 前的存量文件）放行且不绑定，由路由层存在性校验兜底。
+      // 归属校验失败一律 ILLEGAL_PATH，不泄露归属细节。
+      if (anonId != null) {
+        const bind = db.prepare('UPDATE reference_uploads SET order_id = ? WHERE file_path = ? AND anon_id = ? AND order_id IS NULL')
+        for (const ref of references.slice(0, 5)) {
+          const upload = db.prepare(
+            'SELECT anon_id, order_id FROM reference_uploads WHERE file_path = ?'
+          ).get(ref) as { anon_id: number; order_id: number | null } | undefined
+          if (upload) {
+            if (upload.anon_id !== anonId || upload.order_id != null) {
+              throw new AppError(E.ILLEGAL_PATH, 400)
+            }
+            const r = bind.run(orderId, ref, anonId)
+            if (r.changes === 0) throw new AppError(E.ILLEGAL_PATH, 400)
+          }
+        }
       }
     }
 

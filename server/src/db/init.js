@@ -38,22 +38,23 @@ CREATE TABLE IF NOT EXISTS artists (
   contact_qq TEXT,
   token_version INTEGER DEFAULT 1,
   totp_secret TEXT,
-  totp_verified INTEGER DEFAULT 0,
-  totp_failed_attempts INTEGER DEFAULT 0,
+  totp_verified INTEGER NOT NULL DEFAULT 0,
+  totp_failed_attempts INTEGER NOT NULL DEFAULT 0,
   totp_locked_until INTEGER,
   deleted_at DATETIME,
   weibo_url TEXT,
   bilibili_url TEXT,
   notify_enabled INTEGER DEFAULT 1,
+  quick_actions TEXT DEFAULT NULL,
   template_id TEXT DEFAULT 'default',
   palette_id TEXT DEFAULT 'paper',
   custom_page_path TEXT,
   dashboard_default_panel TEXT,
   revision_note TEXT,
   custom_links TEXT,
-  accent_color TEXT,
-  platform_urls TEXT,
-  inspiration_tags TEXT,
+  accent_color TEXT DEFAULT NULL,
+  platform_urls TEXT DEFAULT NULL,
+  inspiration_tags TEXT DEFAULT NULL,
   order_template_id TEXT DEFAULT 'default',
   batch_limit INTEGER DEFAULT NULL,
   buffer_limit INTEGER DEFAULT 0,
@@ -103,7 +104,9 @@ CREATE TABLE IF NOT EXISTS artworks (
   like_count INTEGER DEFAULT 0,
   is_cover INTEGER DEFAULT 0,
   cover_order INTEGER DEFAULT 0,
-  description TEXT,
+  description TEXT DEFAULT NULL,
+  width INTEGER DEFAULT NULL,
+  height INTEGER DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
@@ -117,11 +120,14 @@ CREATE TABLE IF NOT EXISTS commission_rules (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
--- 订单表（含所有迁移后的完整结构；v50 SPEC-PRICE-2：移除 tier_id/旧倍率列，新增 style_size_id）
+-- 订单表（v50 重建前基线 + 迁移补充列：tier_id 仅维持迁移链完整，v50 按此触发重建清退；
+-- 旧倍率列 usage/rush_multiplier_id 由 v9 补齐、v50 重建移除；version 由 v53 补充——
+-- 最终结构与迁移链一致，见 F-6（P3-19）一致性测试）
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_no TEXT UNIQUE NOT NULL,
   artist_id INTEGER NOT NULL,
+  tier_id INTEGER,
   style_size_id INTEGER,
   client_qq TEXT NOT NULL,
   client_name TEXT,
@@ -147,8 +153,6 @@ CREATE TABLE IF NOT EXISTS orders (
   paid_total_cents INTEGER DEFAULT 0,
   discount_code_id INTEGER DEFAULT NULL,
   discount_amount_cents INTEGER DEFAULT 0,
-  -- D-1（R-5/P3-1）: 订单 version 乐观锁——写路径带版本守卫，防双标签页/撤销重放静默覆盖
-  version INTEGER NOT NULL DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -164,6 +168,17 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
   response_json TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (scope, key)
+);
+
+-- 参考图归属登记表（v55，审计批 F-10/P2-13 后端侧）
+-- 客户上传参考图时按匿名凭证登记 (anon_id, file_path)；下单校验归属后绑定 order_id，
+-- 绑定后不可再被他人使用；存量未登记路径由存在性校验兜底
+CREATE TABLE IF NOT EXISTS reference_uploads (
+  id INTEGER PRIMARY KEY,
+  anon_id INTEGER NOT NULL,
+  file_path TEXT NOT NULL UNIQUE,
+  order_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 订单参考图表
@@ -409,10 +424,10 @@ CREATE TABLE IF NOT EXISTS style_sizes (
   name TEXT NOT NULL,
   base_price REAL NOT NULL,
   sort_order INTEGER DEFAULT 0,
-  image TEXT,
-  image_artwork_id INTEGER,
-  description TEXT,
-  work_days INTEGER,
+  image TEXT DEFAULT NULL,
+  image_artwork_id INTEGER DEFAULT NULL,
+  description TEXT DEFAULT NULL,
+  work_days INTEGER DEFAULT NULL,
   display_status TEXT NOT NULL DEFAULT 'available' CHECK(display_status IN ('available','showcase','closed')),
   FOREIGN KEY (art_style_id) REFERENCES art_styles(id) ON DELETE CASCADE,
   FOREIGN KEY (image_artwork_id) REFERENCES artworks(id) ON DELETE SET NULL
@@ -1893,7 +1908,11 @@ export const MIGRATIONS = [
       // v50 (SPEC-PRICE-2): 种子列名对齐新结构（category/price_mode）——
       // 既有库已跑过 v49 不会再到这里；仅新库（基线即新结构）执行本 INSERT
       const seedCount = database.prepare('SELECT COUNT(*) AS c FROM addon_templates WHERE artist_id IS NULL').get().c
-      if (seedCount === 0) {
+      // F-6（P3-19）: 旧形表（pricing_mode/kind，重建分支刚产出）无 price_mode 列，
+      // 且旧形 CHECK 不含 percent——种子无法表达，跳过；v50 重建后系统模板由
+      // 新库基线供给，旧库升级路径本迁移不产生种子（结构一致，数据口径见审计批F摘要）
+      const atColsFinal = database.prepare('PRAGMA table_info(addon_templates)').all().map(c => c.name)
+      if (seedCount === 0 && atColsFinal.includes('price_mode')) {
         const insert = database.prepare(`
           INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity)
           VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2175,6 +2194,23 @@ export const MIGRATIONS = [
           response_json TEXT NOT NULL,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           PRIMARY KEY (scope, key)
+        )
+      `)
+    }
+  },
+  {
+    version: 55,
+    name: 'reference_uploads_ownership',
+    up(database) {
+      // F-10（P2-13 后端侧）: 参考图归属凭据——上传按匿名凭证登记，下单校验并绑定。
+      // 幂等：IF NOT EXISTS（新库基线 schema 已含，存量库重复执行直接跳过）
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS reference_uploads (
+          id INTEGER PRIMARY KEY,
+          anon_id INTEGER NOT NULL,
+          file_path TEXT NOT NULL UNIQUE,
+          order_id INTEGER,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
       `)
     }

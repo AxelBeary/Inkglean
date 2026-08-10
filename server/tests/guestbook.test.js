@@ -93,7 +93,7 @@ describe('F4 留言板 (Guestbook)', () => {
 
   // ─── 画师列表 ───
 
-  it('TC-GB-11: 画师获取自己所有留言（含 pending/rejected）', () => {
+  it('TC-GB-11: 画师获取自己所有留言（含 pending/rejected，分页结构）', () => {
     guestbookService.createMessage(artist.id, 'K', '待审')
     const m2 = guestbookService.createMessage(artist.id, 'L', '拒绝')
     guestbookService.rejectMessage(artist.id, m2.id)
@@ -101,7 +101,10 @@ describe('F4 留言板 (Guestbook)', () => {
     guestbookService.createMessage(otherArtist.id, 'M', '别人的')
 
     const list = guestbookService.getArtistMessages(artist.id)
-    expect(list).toHaveLength(2)
+    expect(list.total).toBe(2)
+    expect(list.items).toHaveLength(2)
+    expect(list.page).toBe(1)
+    expect(list.pageSize).toBe(20)
   })
 
   // ─── 分页 ───

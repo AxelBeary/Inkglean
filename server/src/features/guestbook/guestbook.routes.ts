@@ -74,9 +74,13 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   // ─── 画师后台接口（需登录） ───
 
-  /** GET /api/artist/messages — 画师获取自己所有留言（含 pending） */
+  /** GET /api/artist/messages — 画师获取自己所有留言（含 pending），分页（默认 20，pageSize clamp 1-100） */
   fastify.get('/api/artist/messages', { preHandler: requireAuth }, async (request) => {
-    return guestbookService.getArtistMessages(request.artist.id)
+    const query = request.query as { page?: string; pageSize?: string }
+    // F-2（P3-21）: 对齐公开端分页实现风格（同文件 GET /api/public/artist/:subdomain/messages）
+    const page = Math.max(parseInt(query.page as string, 10) || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(query.pageSize as string, 10) || 20, 1), 100)
+    return guestbookService.getArtistMessages(request.artist.id, page, pageSize)
   })
 
   /** PUT /api/artist/messages/:id/approve — 通过 */

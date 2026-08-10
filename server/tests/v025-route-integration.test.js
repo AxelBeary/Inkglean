@@ -112,7 +112,7 @@ describe('v0.25 路由层集成测试', () => {
         headers: { Authorization: `Bearer ${token}` }
       })
       expect(res.statusCode).toBe(200)
-      const messages = res.json()
+      const messages = res.json().items // F-2（P3-21）: 响应改为分页结构 { items, total, page, pageSize }
       expect(messages).toHaveLength(3)
       expect(messages.some(m => m.status === 'pending')).toBe(true)
       expect(messages.some(m => m.status === 'approved')).toBe(true)
@@ -138,7 +138,7 @@ describe('v0.25 路由层集成测试', () => {
         headers: { Authorization: `Bearer ${tokenA}` }
       })
       expect(res.statusCode).toBe(200)
-      expect(res.json()).toHaveLength(1)
+      expect(res.json().items).toHaveLength(1) // F-2（P3-21）: 分页结构
     })
   })
 

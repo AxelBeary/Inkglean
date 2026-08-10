@@ -1,0 +1,33 @@
+/**
+ * F-5（P3-18）: 存储型 XSS 纵深防御——最小入库清洗
+ *
+ * 安全完全依赖前端 DOMPurify 时为单点防御，本函数做后端兜底。只做三件事，
+ * 刻意保守，不动正常文本/HTML 排版（富文本须知等 v-html 合法用途必须保留）：
+ *   1. 去 <script>/<style> 标签对（含属性、大小写、换行、自闭合）
+ *   2. 去内联事件属性（on*，大小写不敏感）
+ *   3. 去 javascript: 协议（大小写、字母间空白混淆均命中）
+ * 渲染层消毒仍由前端 DOMPurify 负责（本函数不解析 DOM，不替代它）。
+ */
+
+/** 去 <script>/<style> 标签对（含属性、大小写、换行），并补去自闭合标签 */
+function removeTagPairs(input: string): string {
+  return input
+    .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*(script|style)\s*>/gi, '')
+    .replace(/<\s*(script|style)\b[^>]*\/\s*>/gi, '')
+}
+
+/** 去内联事件属性（on*），保留属性名前的空白避免标签粘连 */
+function removeInlineEventAttributes(input: string): string {
+  return input.replace(/(\s)on[a-z][a-z0-9_]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '$1')
+}
+
+/** 去 javascript: 协议（大小写、字母间空白混淆均命中；保留其余文本） */
+function removeJavascriptProtocol(input: string): string {
+  return input.replace(/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/gi, '')
+}
+
+/** 最小入库清洗（只清理脚本/事件/危险协议，保留排版 HTML） */
+export function sanitizeStoredText(input: unknown): string {
+  if (typeof input !== 'string') return ''
+  return removeJavascriptProtocol(removeInlineEventAttributes(removeTagPairs(input)))
+}
