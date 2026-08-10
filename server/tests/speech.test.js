@@ -101,12 +101,12 @@ describe('话术变量替换 (replaceSpeechVars)', () => {
     order.deadline = '2026-08-05 00:00:00'
     order.paid_total_cents = 15000 // B7: 话术改读 paid_total_cents
 
-    // 插入分期（仅作应收参考，status 不再影响话术）
+    // 插入分期（仅作应收参考；status 列已随 v52 退役，不再写入）
     db.prepare(
-      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '定金', 3000, 15000, 'paid', 0)"
+      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, '定金', 3000, 15000, 0)"
     ).run(order.id)
     db.prepare(
-      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '尾款', 7000, 35000, 'pending', 1)"
+      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, '尾款', 7000, 35000, 1)"
     ).run(order.id)
 
     const template = '{客户名}({客户QQ})，订单{订单号}，档位{档位名}，已{节点名}。截稿{截稿日}，总价{总价}，已付{已付}，待付{待付}。'
@@ -149,7 +149,7 @@ describe('话术变量替换 (replaceSpeechVars)', () => {
     order.paid_total_cents = 3704 // B7: 话术改读 paid_total_cents
 
     db.prepare(
-      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '定金', 3000, 3704, 'paid', 0)"
+      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, '定金', 3000, 3704, 0)"
     ).run(order.id)
 
     const template = '总价{总价}，已付{已付}，待付{待付}'
@@ -178,10 +178,10 @@ describe('客户沟通数据 (getSpeechInfo)', () => {
     order.paid_total_cents = 30000 // B7: 话术改读 paid_total_cents
 
     db.prepare(
-      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '定金', 3000, 30000, 'paid', 0)"
+      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, '定金', 3000, 30000, 0)"
     ).run(order.id)
     db.prepare(
-      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, status, sort_order) VALUES (?, '尾款', 7000, 70000, 'pending', 1)"
+      "INSERT INTO order_payment_installments (order_id, label, basis_points, amount_cents, sort_order) VALUES (?, '尾款', 7000, 70000, 1)"
     ).run(order.id)
 
     const info = getSpeechInfo(order)

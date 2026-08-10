@@ -223,18 +223,15 @@ CREATE TABLE IF NOT EXISTS default_workflow_template (
   basis_points INTEGER
 );
 
--- 订单付款分期表（v5；v40 加锁价列）
+-- 订单付款分期表（v5；v40 加锁价列；v52 退役 paid_cents/status/paid_at/requested_at
+-- 用户拍板（批4B）：老数据库允许丢弃，不留僵尸列；节点已收一律由 orders.paid_total_cents 顺序推导）
 CREATE TABLE IF NOT EXISTS order_payment_installments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
   label TEXT NOT NULL,
   basis_points INTEGER NOT NULL,
   amount_cents INTEGER,
-  paid_cents INTEGER DEFAULT 0,
-  status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','overdue')),
   sort_order INTEGER NOT NULL DEFAULT 0,
-  requested_at DATETIME,
-  paid_at DATETIME,
   locked INTEGER NOT NULL DEFAULT 0,
   locked_reason TEXT CHECK(locked_reason IS NULL OR locked_reason IN ('completed','paidOff','prev')),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1065,13 +1062,18 @@ export const MIGRATIONS = [
         database.exec('ALTER TABLE orders ADD COLUMN paid_total_cents INTEGER DEFAULT 0')
       }
       // 2. 存量换算：已付分期 SUM → paid_total_cents
-      database.exec(`
-        UPDATE orders SET paid_total_cents = (
-          SELECT COALESCE(SUM(amount_cents), 0)
-          FROM order_payment_installments
-          WHERE order_id = orders.id AND status = 'paid'
-        )
-      `)
+      // 守卫（批4B）：新形态库已退役 status 节点列（v52），空表无存量，换算自然不适用；
+      // 仅旧形态库（含 status 列）照常执行。探测风格与第 1 步一致：PRAGMA table_info
+      const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all()
+      if (instCols.some(c => c.name === 'status')) {
+        database.exec(`
+          UPDATE orders SET paid_total_cents = (
+            SELECT COALESCE(SUM(amount_cents), 0)
+            FROM order_payment_installments
+            WHERE order_id = orders.id AND status = 'paid'
+          )
+        `)
+      }
       // 3. 收款流水表
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_payments (
@@ -2105,6 +2107,32 @@ export const MIGRATIONS = [
         WHERE addon_template_id IS NOT NULL
       `).run()
       console.log(`📦 迁移 v51: 已清理 ${r.changes} 行绑定行的脏快照（模板为唯一权威）`)
+    }
+  },
+  {
+    version: 52,
+    name: 'retire_installment_paid_columns',
+    up(database) {
+      // 批4B 用户拍板（方案 B = base schema 严格删列 + v24 探测守卫）：
+      // 「如果我们现在有更好的解决方案，且确认无bug、更优，则老数据库允许丢弃。最终目的一定是最优解，
+      // 最直觉，最符合设计，且最低屎山和技术债。现在没有真数据随时可以删数据库内容」
+      // —— 历史迁移不可动的保护对象（存量库升级路径）已不存在；paid_cents/status/paid_at/requested_at
+      // 属应消灭的僵尸列，节点已收一律由 orders.paid_total_cents 顺序推导（R7），本迁移在存量库上收尾删列。
+      backupDbBeforeMigration(52)
+      // 1) 清零冻结（防 DROP 前残留脏值；新形态库列不存在则跳过，空表无存量）
+      const cols = database.prepare('PRAGMA table_info(order_payment_installments)').all().map(c => c.name)
+      if (cols.includes('paid_cents') && cols.includes('status') && cols.includes('paid_at')) {
+        database.exec(`
+          UPDATE order_payment_installments
+          SET paid_cents = 0, status = 'pending', paid_at = NULL
+          WHERE paid_cents <> 0 OR status <> 'pending' OR paid_at IS NOT NULL
+        `)
+      }
+      // 2) 列删除（幂等：每次 DROP 前重新 PRAGMA 探测，列不存在即跳过）
+      for (const col of ['paid_cents', 'status', 'paid_at', 'requested_at']) {
+        const curCols = database.prepare('PRAGMA table_info(order_payment_installments)').all().map(c => c.name)
+        if (curCols.includes(col)) database.exec(`ALTER TABLE order_payment_installments DROP COLUMN ${col}`)
+      }
     }
   }
 ]

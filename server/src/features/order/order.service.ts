@@ -631,7 +631,7 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
 /**
  * 获取订单付款节点（客户进度页 + 画师端节点收款）
  * v0.36 BUG-1 方案 b: 改读额度池 orders.paid_total_cents，按节点金额顺序推算每期状态，
- * 不再读 order_payment_installments.paid_cents（旧节点模型残留，写路径暂保留）。
+ * 不再读 order_payment_installments.paid_cents（旧节点模型残留，列已随 v52 退役删除）。
  * paid: 完全覆盖 | partial: 部分覆盖 | pending: 未覆盖
  * 撤销回冲自然生效：负流水 → paid_total_cents 减少 → 状态自动回退，无需额外代码
  */
@@ -745,7 +745,7 @@ function ensureBaseEntry(orderId: number): void {
 
 /**
  * 读取订单节点的引擎视图（含锁定标记与推导已收）。
- * 已收一律从 orders.paid_total_cents 顺序填充推导（不读 paid_cents 旧残留列，R7）。
+ * 已收一律从 orders.paid_total_cents 顺序填充推导（paid_cents 旧列已随 v52 退役，R7）。
  * 返回按 sort_order 升序；lockedFlags 与 insts 同序。
  */
 function readInstallmentState(orderId: number): { insts: EngineInstallment[]; lockedFlags: boolean[] } {
@@ -1157,7 +1157,7 @@ interface PaymentRow {
 
 /**
  * 记录一笔收款（正数）或撤销/退款（负数）
- * 事务原子：INSERT 流水 + UPDATE paid_total_cents + UPDATE 节点 paid_cents
+ * 事务原子：INSERT 流水 + UPDATE paid_total_cents；节点已收一律从 paid_total 推导（R7）
  * v0.31 F4: 可选 installmentId 关联到具体节点
  */
 export function addPayment(orderId: number, { amountCents, note, createdBy, installmentId }: { amountCents: number; note?: string | null; createdBy?: string; installmentId?: number | null }): PaymentRow {
@@ -1192,19 +1192,8 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
     db.prepare('UPDATE orders SET paid_total_cents = paid_total_cents + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(amountCents, orderId)
 
-    // v0.31 F4: 更新节点 paid_cents
-    if (installmentId) {
-      db.prepare('UPDATE order_payment_installments SET paid_cents = paid_cents + ? WHERE id = ?')
-        .run(amountCents, installmentId)
-      // 自动标记已付清
-      const inst = db.prepare('SELECT paid_cents, amount_cents FROM order_payment_installments WHERE id = ?').get(installmentId) as { paid_cents: number; amount_cents: number }
-      if (inst.paid_cents >= inst.amount_cents) {
-        db.prepare("UPDATE order_payment_installments SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE id = ?").run(installmentId)
-      }
-    }
-
     // REQ-025 R4: 付清即锁——收款后按 paid_total 推导刷新节点锁定状态
-    //（节点已收一律从 paid_total 顺序推导，不依赖 paid_cents 旧列，R7）
+    //（R7/批4B：节点实收一律从 paid_total 顺序推导，不写已随 v52 退役的 paid_cents/status/paid_at）
     refreshInstallmentLocks(orderId)
 
     // v0.31 REQ-021 F1: 操作日志
