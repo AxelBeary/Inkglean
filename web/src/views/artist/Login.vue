@@ -687,7 +687,7 @@ html[data-artist-theme='paper'] .login-page {
   display: block;
   width: 68px;
   height: auto;
-  margin: 0 auto 14px;
+  margin: 0 auto 16px;
 }
 
 .brand-title {
