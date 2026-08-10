@@ -178,6 +178,8 @@ export const E = {
   // 附加工作项（v0.17 SPEC-003）
   EXTRA_ITEM_LIMIT: 'EXTRA_ITEM_LIMIT',
   ORDER_FINAL_STATE: 'ORDER_FINAL_STATE',
+  // audit-a R-2: 取消已收款订单需确认
+  CANCEL_WITH_PAYMENT: 'CANCEL_WITH_PAYMENT',
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: 'BATCH_FULL',
@@ -388,6 +390,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 附加工作项（v0.17 SPEC-003）
   EXTRA_ITEM_LIMIT: '附加工作项数量不能超过20条',
   ORDER_FINAL_STATE: '已交付或已取消的订单不能添加附加项',
+  CANCEL_WITH_PAYMENT: '订单已有收款，取消前请确认退款安排',
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: '该画师已接满，暂时无法下单',

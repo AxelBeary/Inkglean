@@ -316,12 +316,17 @@ export function getOrderByNo(orderNo: string, { clientOnly = false }: { clientOn
  * 更新订单状态（带状态机校验）
  * 事务包裹，防止中途崩溃留下不一致状态
  */
-export function updateOrderStatus(orderId: number, newStatus: string): OrderDetail {
+export function updateOrderStatus(orderId: number, newStatus: string, confirmPaidCancel: boolean = false): OrderDetail {
   const validStatuses = ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
   if (!validStatuses.includes(newStatus)) throw new AppError(E.ORDER_INVALID_STATUS, 400, { status: newStatus })
 
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  // audit-a R-2: 取消已收款订单必须有显式确认——否则资金静默滞留（409 + 已收金额）
+  if (newStatus === 'cancelled' && (order.paid_total_cents ?? 0) > 0 && !confirmPaidCancel) {
+    throw new AppError(E.CANCEL_WITH_PAYMENT, 409, { paidCents: order.paid_total_cents })
+  }
 
   const allowed = STATUS_TRANSITIONS[order.status]
   if (!allowed || !allowed.includes(newStatus)) {
@@ -1143,7 +1148,15 @@ export function tryAutoPromote(artistId: number): void {
     `).get(artistId) as { id: number } | undefined
     if (!next) break
 
-    promoteOrder(next.id)
+    try {
+      promoteOrder(next.id)
+    } catch (err) {
+      // audit-a R-1: 自动递补是 best-effort 副作用——单条脏缓冲单守恒校验失败
+      // 不得让整个交付/取消事务回滚；记录原因后终止本轮递补（该单仍在 buffer，
+      // 继续循环会无限选中同一单，故 break 而非跳过）
+      console.error(`[tryAutoPromote] 缓冲单递补失败，跳过本轮：artistId=${artistId}, orderId=${next.id}, reason=${err instanceof Error ? err.message : String(err)}`)
+      break
+    }
   }
 }
 

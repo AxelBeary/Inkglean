@@ -491,7 +491,9 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['status'],
         properties: {
-          status: { type: 'string', enum: ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled'] }
+          status: { type: 'string', enum: ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled'] },
+          // audit-a R-2: 取消已收款订单的显式确认开关
+          confirmPaidCancel: { type: 'boolean' }
         },
         additionalProperties: false
       }
@@ -501,7 +503,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     if (request.order.current_stage_id && (request.body as { status: string }).status !== 'cancelled') {
       throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
     }
-    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, (request.body as { status: string }).status))
+    const { status, confirmPaidCancel } = request.body as { status: string; confirmPaidCancel?: boolean }
+    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, status, !!confirmPaidCancel))
   })
 
   /**
