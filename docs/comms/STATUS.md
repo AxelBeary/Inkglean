@@ -1,10 +1,11 @@
 # 全局状态（一号维护，其他角色只读）
 
-> 最后更新：2026-08-09 v58（**批4B 按方案 B 施工中；批4A/A3/FYA2 已合入推送；原型 v0.1 已交付待用户 fork**）——master `7963ac3` 与 origin 同步。
-> 🔄 **批4B 施工中（2026-08-09 用户拍板方案 B，codex 在 worktree artist-commission-w-b4b 执行）**：base 严格删四冗余列（paid_cents/status/paid_at/requested_at，不留僵尸列）+ addPayment 停写节点列 + v24 第2步存量换算补 PRAGMA 列探测守卫 + 迁移 v52 删列（备份+冻结清零+幂等 DROP）。拍板依据=目标最优原则（见已拍板规则）；四列真实库全是空值，数据损失=0。验收要求：一号独立复跑门禁（tsc+npm test）+ 双库全链验证证据（新库 v1→v52 跑通 + 旧形态库 v24 换算字节级一致）+ 交付报告填充完整。
-> ✅ **旧 v57 摘要（批4A+A3+FYA2 三路合入推送；纸墨 Dashboard 原型 v0.1 交付）**——master `357e1d0`/`7963ac3`。
+> 最后更新：2026-08-10 v59（**批4B 全闭环：合入+容器重建+v52 迁移回读验证通过；接口契约清单侦察在途**）——master `aefc1c9` 与 origin 同步。
+> ✅ **批4B 全闭环（2026-08-10）**：合入 `aefc1c9`（base 严格删四列+v24 列探测守卫+v52 删列迁移+addPayment 停写+fixture 修正，交付报告 03-to-01-批4B-交付.md 含双库字节级验证证据）；合入后 master 门禁 server 1027 全绿；容器重建后 v52 自动应用：回读 version=52、分期表仅剩 9 列（四列已删）、23 行分期+2 条流水完好；备份三重（迁移器 .bak.v52 + 手工 bak-pre-v052-rebuild-20260810 + 每日备份）。worktree 已清。批4 结构批至此全部完成。
+> 🔄 **接口契约清单侦察在途（2026-08-10）**：codex 在主仓只读生成 docs/specs/接口契约清单-v1.md（165 端点逐条写实+错误码总表+前端映射+孤儿端点+缺口清单），作为前端重构前置依赖。背景：分身研判契约缺口属实（0 个 response schema / entities.ts 5KB / 前端纯 JS）；裁决：清单现在做，api 层加 TS 与 entities 补全随前端重构批做（避免重复改动制造合并冲突）。
+> ✅ **旧 v58 摘要（批4B 方案 B 施工中；批4A/A3/FYA2 已合入；原型 v0.1 交付）**。
 > ✅ **三路合入（2026-08-09，各自独立复跑门禁通过后合入）**：批4A `7cafefb`（savePayment 方案 b 守卫+appliesToNewOrdersOnly 提示 + scripts 纳入编译 + demo-data v51 对齐）/ A3 `d76a81c`（R10 关闭语义收敛：关闭=全锁且Σ待收=0，done 未付全的 delta 冲抵未付节点）/ formatYuan A2 `357e1d0`（formatYuanValue 整数裁剪 + addon-utils 收编进 money.js）。合入后全量门禁：server 1027 · web 254 全绿。
-> ⚠️ **批4B（paid_cents 迁移 v52）已从停等拍板转为施工中**（方案 B，见顶部与已拍板规则）。详谈见 03-to-01-批4B-交付.md。
+> ⚠️ **批4B（paid_cents 迁移 v52）已全闭环**（方案 B，2026-08-10 容器内回读验证通过）。详谈见 03-to-01-批4B-交付.md。
 > 🎨 **纸墨 Dashboard 原型 v0.1（2026-08-09）**：%TEMP%\prototype-dashboard\dashboard-v0.1.html（单文件自包含+notes.md+审计截图）。已过 huiyue-layout-audit v2 两轮（圆角 3 种/4px 栅格/对比度≥4.5:1 全达标），13 条已知待打磨点列在 notes.md §三，供 fork 后打磨。
 > ✅ **旧 v56 摘要（formatYuan A1 统一合入；每日备份计划任务已配并实测）**——master `6b4f2fe` 与 origin 同步。
 > ✅ **批7 内容**：①顶部改工具栏（标题+开关+语义状态徽章[开=石绿/关=藤黄] ｜ 右侧新建画风主按钮）+精简提示语；②**CI/E2E 断链根因修复**：仓库 Actions 权限被设为 `local_only`（只许本仓库内行动）→ 所有外部 actions（checkout/setup-node 等）被拦，自 08-08 18:28 起 CI/E2E 全部 startup_failure（0 jobs）；已改为 `selected`+仅允许 GitHub 官方行动（供应链不放松）；本地全门禁复跑全绿（E2E 7/7、server 1005、web 254、oxlint/check-locators 0 错）。教训：**CI 红不一定是代码错，先查仓库设置**。
@@ -26,30 +27,31 @@
 > **分工流程（2026-08-07 用户拍板，落档 docs/soul/soul-01-lead.md）**：简单问/拍板/常规活=一号直接处理（本窗口）；长讨论/深交流=引导操作人左侧另开 default 窗口，开窗第一句声明「你是X号，本次专门讨论XX，讨论完即弃，不承担门禁职责」，default SOUL.md 永不改成「讨论角色」（本窗口=一号），多开窗口靠对话声明角色覆盖。
 
 ---
-## 🔄 在途任务（刷新后先看这里，2026-08-09 落档）
+## 🔄 在途任务（刷新后先看这里，2026-08-10 刷新）
 
-1. **验收批4B**（worktree `artist-commission-w-b4b`，分支 `fix/b4b`，codex 无头执行中）：查收工（`git -C <worktree> log --oneline -5` + `git status --short`）→ 独立复跑门禁（`cd server; npx tsc --noEmit; npm test`）→ 核双库验证证据（交付报告 `docs/comms/03-to-01-批4B-交付.md`）→ 无冲突合入 master（`git merge --no-ff fix/b4b`，英文 commit message）→ 立即推送。⚠️ 若 codex 会话已断但未收工：进 worktree 查进度，用重派指令模板继续（见尾部）。
-2. **容器重建**（批4B 合入后）：先备份 `data/commission.db` → `docker compose up -d --build` → 启动时自动跑迁移 v52 → 回读验证：`PRAGMA table_info(order_payment_installments)` 无四列 + `schema_migrations.version=52` + 订单节点收款推导状态正确（真实库当前仅 2 条流水，重点看 ALICE 系订单展示正常）。
-3. **清理**：批4B 合入后删 worktree 与分支（`git worktree remove` + `git branch -d fix/b4b`）；其余 worktree 已清。
-4. **启动巨型组件拆分 Top5**（④a 已拍板：批4 后、视觉批前）：QueueBoard 1530 行 / ManualOrder 1497 行等；蓝本 `docs/comms/核实-第三方瘦身施工单-20260807.md`；参照 OrderDetail 拆分模式（0% 像素差异 + 全门禁绿）；OrderDetail 死解构 3 个随手清。
-5. **视觉批**：等用户 fork 打磨原型后按打磨稿实施；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批。
-6. **等用户侧**：复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；北极星图。
+1. **验收接口契约清单**（codex 在主仓只读生成，无 worktree）：查收工后读 `docs/specs/接口契约清单-v1.md` 抽查核验（随机抽 3-5 个端点对照 routes 代码）→ 无误则 commit+push（英文 message）。⚠️ codex 在主仓跑时若中断，用重派模板重派（只写单文件、不 commit，冲突风险低）。
+2. **启动巨型组件拆分 Top5**（④a 已拍板）：QueueBoard 1530 行 / ManualOrder 1497 行等；蓝本 `docs/comms/核实-第三方瘦身施工单-20260807.md`；参照 OrderDetail 拆分模式（0% 像素差异 + 全门禁绿）；OrderDetail 死解构 3 个随手清。⚠️ 用户已在分身窗口启动前端重构方向（含登录原型 workspace/temp/prototype-login），拆分派工前先确认与分身侧工作面无冲突。
+3. **前端重构批**（含 api 层加 TS + entities.ts 补全）：等契约清单落盘后作为前置依赖；若用户选择在分身窗口直接执行，分身窗口转执行角色模式（独立 worktree、不碰 master/不推送，一号验收合入）。
+4. **视觉批**：等用户 fork 打磨原型后按打磨稿实施；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批。
+5. **等用户侧**：复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；北极星图。
+6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
 
-- **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）。
-- **codex 重派模板**（pwsh，worktree 内执行）：`$task=@"...中文任务..."@` 然后 `"" | codex exec --profile huiyue -c sandbox_mode=danger-full-access $task`。
-- **已合入待办销账**：批4A（workflow 守卫+scripts 编译）/ A3（R10 收敛）/ FYA2（元源收编）均已合入推送，无残留。
+- **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）；分身侧另有登录原型 workspace/temp/prototype-login。
+- **codex 重派模板**（pwsh，worktree/主仓内执行）：`$task=@"...中文任务..."@` 然后 `"" | codex exec --profile huiyue -c sandbox_mode=danger-full-access $task`。
+- **docker 操作注意**：compose 服务名是 `web`（容器名 commission-web），`docker compose exec -T web ...`；容器内查 DB 要 `-w /app/server`（better-sqlite3 在那里）。
+- **已合入待办销账**：批4A / A3 / FYA2 / 批4B 均已合入推送+容器已重建，批4 结构批全部完成，无残留。
 
 ---
 ## master 状态
 
-- **HEAD**：`7963ac3`（STATUS v57，与 origin 同步）
-- **工作树**：主仓干净；活跃 worktree：仅 `artist-commission-w-b4b`（批4B 施工中）
+- **HEAD**：`aefc1c9`（批4B 合入，与 origin 同步）
+- **工作树**：主仓干净（codex 契约清单侦察在途，只新增单文件）；无活跃 worktree
 - **测试基线**：server **1027/1027**（69 文件）· web **254/254**（17 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint 0 · oxlint 0 错 · check-locators 0 错 · check-i18n 0
 - **后端 100% TS + strict 全开 + any 清零**（唯一豁免 init.js @ts-nocheck）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
-- **容器**：✅ **已重建 = 批7 最新**（备份 `bak-pre-v050-pricemodel-20260809` + 迁移器自动 .bak.v50 在）
+- **容器**：✅ **已重建 = 批4B 最新**（2026-08-10，迁移 v52 已应用回读验证；备份三重：.bak.v52 + bak-pre-v052-rebuild-20260810 + 每日备份）
 - **CI/CD**：GitHub Actions（ci.yml + e2e.yml）；**仓库 Actions 权限 = selected（仅 GitHub 官方行动）**——改回 local_only 会导致全部 startup_failure，勿动（批7 事故教训）
-- **迁移**：**v51** 为最新；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）
+- **迁移**：**v52** 为最新（分期表四冗余列已退役）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（在途，前端重构前置）
 - **协议**：主仓库 **AGPL-3.0**；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md
 
 ---
@@ -87,7 +89,7 @@
 
 **待用户验收**：重建后容器即新模型（验收重点见顶部）。不满意可按提交链分批回滚。
 
-**排队中**：~~批4 结构批~~（批4A 已合入）；~~A3~~（已合入）；~~formatYuan A2~~（已合入）；**批4B 施工中**；巨型组件拆分 Top5（④a 拍板：批4 后、视觉批前）；v0.46 收编发版（待用户复验 SPEC-PRICE-2）。
+**排队中**：~~批4 结构批~~（批4A/4B 全部合入，容器已重建）；接口契约清单（在途）；巨型组件拆分 Top5（④a 拍板）；前端重构批（api 加 TS + entities 补全，契约清单为前置）；v0.46 收编发版（待用户复验 SPEC-PRICE-2）。
 - **部署**：每日备份计划任务已配（CommissionDailyBackup，03:30，已实测）
 
 ---
