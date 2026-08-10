@@ -229,6 +229,39 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * POST /api/admin/recycle-bin/restore — 恢复单个回收站文件到原始路径（R-21，审计批E）
+   * 误清空不可逆之外的第二缺口：回收站只读/清空，无恢复接口（注释曾宣称「可恢复」）。
+   * fileName 按回收站内文件名精确匹配；目标已存在 → 409（不覆盖），找不到 → 404。
+   */
+  fastify.post('/api/admin/recycle-bin/restore', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['fileName'],
+        additionalProperties: false,
+        properties: {
+          // maxLength 255 + 路径分隔符拒绝：fileName 只允许是文件名，防路径穿越/目录猜测
+          fileName: { type: 'string', minLength: 1, maxLength: 255 }
+        }
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { fileName } = request.body as { fileName: string }
+    if (fileName.includes('/') || fileName.includes('\\')) {
+      return reply.code(400).send({ code: 'INVALID_PARAM', error: 'fileName 不能包含路径分隔符' })
+    }
+    const result = adminService.restoreRecycleBinFile(fileName)
+    if (result.status === 'not_found') {
+      return reply.code(404).send({ error: '回收站中未找到该文件' })
+    }
+    if (result.status === 'conflict') {
+      return reply.code(409).send({ error: '目标路径已存在同名文件，恢复被拒绝（不覆盖现有文件）' })
+    }
+    return { success: true, restoredPath: result.restoredPath }
+  })
+
+  /**
    * POST /api/admin/transfer
    * 更换管理员账号（需要连续两次 TOTP 动态口令验证，REQ-027 替代旧登录码机制）
    * 1. 验证当前管理员的动态口令（证明你是管理员）

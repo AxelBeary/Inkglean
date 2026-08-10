@@ -14,7 +14,9 @@
     "db:init": "node src/db/init.js",
     "db:seed": "tsx src/db/seed.ts",
     "totp:rebind": "tsx scripts/totp-rebind.ts",
-    "backup": "tsx scripts/backup-db.ts"
+    "backup": "tsx scripts/backup-db.ts",
+    "backup:uploads": "tsx scripts/backup-uploads.ts",
+    "restore": "tsx scripts/restore-db.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
