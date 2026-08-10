@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import CardHead from '../visual/CardHead.vue'
@@ -41,6 +41,8 @@ const props = defineProps({
 const { t } = useI18n()
 
 const commCopying = ref(false)
+// R-19: QQ 唤起定时器句柄（1 秒内路由离开时须清理，否则新页面被 tencent:// 跳转拽走）
+let qqOpenTimer = null
 
 /** 话术预览（后端已替换变量；无当前节点话术时提示） */
 const commSpeechText = computed(() => {
@@ -59,7 +61,7 @@ async function copySpeechAndOpenQq() {
   try {
     await navigator.clipboard.writeText(o.speechText)
     ElMessage.success(t('orderDetail.commCopied'))
-    setTimeout(() => {
+    qqOpenTimer = setTimeout(() => {
       window.open(`tencent://message/?uin=${encodeURIComponent(o.client_qq)}`, '_self')
     }, 1000)
   } catch {
@@ -69,6 +71,11 @@ async function copySpeechAndOpenQq() {
     commCopying.value = false
   }
 }
+
+onUnmounted(() => {
+  // 卸载即清理：清掉后定时器回调不再执行，等效于跳转前再确认组件未卸载
+  if (qqOpenTimer) clearTimeout(qqOpenTimer)
+})
 </script>
 
 <style scoped>

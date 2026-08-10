@@ -31,12 +31,22 @@ import { artistApi } from '../api/index.js'
 
 const DEFAULT_INTERVAL_MS = 10 * 60 * 1000 // 10 分钟（签名 TTL 15 分钟，留 5 分钟余量）
 const MAX_ERROR_RETRIES = 2 // @error 触发刷新的每图最大重试次数
+// R-15: 后台标签回可见的补刷阈值（Chrome 节流 setInterval 后，切后台 >15min 签名会过期；
+// 回可见时距上次刷新超过该阈值立即补一次，比 TTL 余量再多留 2 分钟）
+const VISIBLE_REFRESH_THRESHOLD_MS = 8 * 60 * 1000
 
 export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTERVAL_MS }) {
   let refreshing = false
   let debounceTimer = null
+  let lastRefreshAt = Date.now()
   const pendingPaths = new Set() // 等待刷新的出错图片 path（BUG-5：Set 去重）
   const errorRetries = new Map() // path → 重试次数（BUG-5：按图独立计数）
+
+  /** R-15: 页面回可见时补刷（防后台定时器节流导致的签名过期） */
+  function onVisibilityChange() {
+    if (document.visibilityState !== 'visible') return
+    if (Date.now() - lastRefreshAt >= VISIBLE_REFRESH_THRESHOLD_MS) refreshNow()
+  }
 
   /**
    * @param {string[]} [paths] 仅刷新指定路径；省略时走 collect() 全量（定时器 / 旧无参调用）
@@ -50,6 +60,7 @@ export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTER
     try {
       const { urls } = await artistApi.refreshSignatures(targets)
       apply(urls)
+      lastRefreshAt = Date.now() // 只按成功刷新计时（失败不推迟补刷）
       for (const p of targets) errorRetries.delete(p) // 刷新成功 → 清除该图计数
     } catch {
       if (fromError) {
@@ -89,9 +100,11 @@ export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTER
   }
 
   const timer = setInterval(() => doRefresh(), intervalMs)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   onUnmounted(() => {
     clearInterval(timer)
     clearTimeout(debounceTimer)
+    document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 
   return { refreshNow }

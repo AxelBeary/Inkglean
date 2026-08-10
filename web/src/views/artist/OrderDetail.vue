@@ -238,6 +238,7 @@
         :pool-percent="poolPercent"
         :installment-refs="installmentRefs"
         :is-terminal="isTerminal"
+        :revoke-submitting="paymentSubmitting"
         @open-pay="payDialogVisible = true"
         @revoke="handleRevokePayment"
         @collect="openNodePayDialog"
@@ -414,11 +415,19 @@ function formatDate(str) {
   return formatDateTime(str)
 }
 
+// ─── R-14: loadOrder 竞态守卫 ───
+// 收款/图库/改价等十余处并发触发刷新，晚到的旧快照会让已收金额/状态显示倒退；
+// 请求发出取号，响应晚于最新序号即丢弃（同款 seq 模式，对齐 useOrderForm.doStyleCalc）
+let loadOrderSeq = 0
 async function loadOrder() {
+  const mySeq = ++loadOrderSeq
   try {
-    order.value = await artistApi.getOrder(route.params.id)
-    prevPriority.value = order.value?.priority || 'medium'
+    const data = await artistApi.getOrder(route.params.id)
+    if (mySeq !== loadOrderSeq) return
+    order.value = data
+    prevPriority.value = data?.priority || 'medium'
   } catch (err) {
+    if (mySeq !== loadOrderSeq) return
     ElMessage.error(err.message)
   }
 }
@@ -504,7 +513,27 @@ const {
       order.value = await artistApi.updateStatus(route.params.id, 'cancelled')
       ElMessage.success(t('orderDetail.statusUpdated'))
     } catch (err) {
-      ElMessage.error(err.message)
+      // R-2: 已收款订单取消被后端拦截（409 CANCEL_WITH_PAYMENT，Batch A 契约）——
+      // 二次确认「已收 ¥X、资金需线下退还」，确认后带 confirmPaidCancel 重发
+      if (err.code === 'CANCEL_WITH_PAYMENT' && err.detail?.paidCents != null) {
+        try {
+          await ElMessageBox.confirm(
+            t('orderDetail.cancelPaidConfirm', { amount: formatCents(err.detail.paidCents) }),
+            t('orderDetail.confirmTitle'),
+            { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+          )
+        } catch {
+          return // 用户取消二次确认：不取消订单
+        }
+        try {
+          order.value = await artistApi.updateStatus(route.params.id, 'cancelled', { confirmPaidCancel: true })
+          ElMessage.success(t('orderDetail.statusUpdated'))
+        } catch (err) {
+          ElMessage.error(err.message)
+        }
+      } else {
+        ElMessage.error(err.message)
+      }
     }
   }
 })

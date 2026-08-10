@@ -35,6 +35,8 @@
           <el-button
             v-if="p.amount_cents > 0"
             text size="small" type="danger"
+            :loading="revokeSubmitting"
+            :disabled="revokeSubmitting"
             @click="emit('revoke', p)"
           >
             {{ $t('orderDetail.payRevoke') }}
@@ -87,7 +89,9 @@ defineProps({
   poolOverpaidCents: Number,
   poolPercent: Number,
   installmentRefs: { type: Array, default: () => [] },
-  isTerminal: Boolean
+  isTerminal: Boolean,
+  // R-4: 撤销请求在途时禁用全部撤销按钮（防连击直接伤钱；父级传 paymentSubmitting）
+  revokeSubmitting: Boolean
 })
 const emit = defineEmits(['open-pay', 'revoke', 'collect'])
 

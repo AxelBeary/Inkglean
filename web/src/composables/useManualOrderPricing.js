@@ -187,25 +187,32 @@ export function useManualOrderPricing({ styles, getSubdomain }) {
 
   /** 画风价格计算（防抖 300ms，与旧档位 doCalc 同一模式） */
   let styleCalcTimer = null
+  // R-13: 算价竞态守卫——同款 seq 模式（对齐 useOrderForm.doStyleCalc）：
+  // 慢请求晚到不得覆盖新请求的价格预览，也不得把旧价写回 finalPriceYuan
+  let styleCalcSeq = 0
   function scheduleStyleCalc() {
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
     styleCalcTimer = setTimeout(doStyleCalc, 300)
   }
 
   async function doStyleCalc() {
+    const mySeq = ++styleCalcSeq
     if (!selectedSizeId.value) { stylePricePreview.value = null; return }
     try {
-      stylePricePreview.value = await artistPublicApi.calculateStylePrice({
+      const res = await artistPublicApi.calculateStylePrice({
         subdomain: getSubdomain(),
         styleSizeId: selectedSizeId.value,
         addons: buildStyleAddons()
       })
+      if (mySeq !== styleCalcSeq) return
+      stylePricePreview.value = res
       // G2: 未手动改过价格 → 始终同步最新计算价；已手动改过 → 尊重画师手输。
       // 直接写 finalPriceYuan（绕过 priceInput setter，不置脏）
       if (!priceTouched.value) {
-        finalPriceYuan.value = (stylePricePreview.value.totalCents ?? 0) / 100
+        finalPriceYuan.value = (res.totalCents ?? 0) / 100
       }
     } catch {
+      if (mySeq !== styleCalcSeq) return
       stylePricePreview.value = null
     }
   }

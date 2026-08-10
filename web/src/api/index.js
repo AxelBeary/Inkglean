@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { safeRemoveItem } from '../utils/storage.js'
 
 // ============================================
 // API 请求封装
@@ -58,8 +59,9 @@ api.interceptors.response.use(
     // P1-3 修复：登录相关错误码（CODE_INVALID/CODE_EXPIRED 等）不触发登出，只提示
     const LOGIN_CODES = ['CODE_INVALID', 'CODE_EXPIRED', 'CODE_TOO_MANY_ATTEMPTS', 'QQ_NOT_REGISTERED', 'MISSING_CREDENTIALS']
     if (err.response?.status === 401 && !LOGIN_CODES.includes(code)) {
-      localStorage.removeItem('artist_logged_in')
-      localStorage.removeItem('artist_is_admin')
+      // P3-10: 存储禁用时 401 清标记也不得抛错（否则登出软跳转被吞）
+      safeRemoveItem('artist_logged_in')
+      safeRemoveItem('artist_is_admin')
       // 动态导入避免循环依赖（store/router 依赖本模块）
       try {
         const { useArtistStore } = await import('../stores/artist.js')
@@ -183,7 +185,9 @@ export const artistApi = {
   getQueue: (zone) => api.get('/artist/queue', zone ? { params: { zone } } : undefined),
   getOrder: (id) => api.get(`/artist/orders/${id}`),
   createManualOrder: (data) => api.post('/artist/orders/manual', data),
-  updateStatus: (id, status) => api.put(`/artist/orders/${id}/status`, { status }),
+  // R-2: 取消已收款订单需 confirmPaidCancel 确认（Batch A 契约：不带则 409 CANCEL_WITH_PAYMENT）；
+  // options 透传为 body 附加字段，既有调用方不传时行为不变
+  updateStatus: (id, status, options = {}) => api.put(`/artist/orders/${id}/status`, { status, ...options }),
   updatePriority: (id, priority) => api.put(`/artist/orders/${id}/priority`, { priority }),
   reorderQueue: (orderedIds) =>
     api.put('/artist/queue/reorder', { orderedIds }),

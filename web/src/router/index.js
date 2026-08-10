@@ -2,6 +2,7 @@
 import i18n from '../i18n/index.js'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
+import { safeGetItem } from '../utils/storage.js'
 
 // ============================================
 // 路由配置
@@ -112,7 +113,8 @@ router.beforeEach((to, from, next) => {
 
   // 检查认证（token 在 httpOnly cookie 中，JS 不可读；用非敏感标记判断）
   if (to.meta.requiresAuth || to.meta.requiresAdmin) {
-    const loggedIn = localStorage.getItem('artist_logged_in') === '1'
+    // P3-10: 存储禁用时按未登录处理（跳登录页），不让守卫抛错白屏
+    const loggedIn = safeGetItem('artist_logged_in') === '1'
     if (!loggedIn) {
       return next({ name: 'ArtistLogin', query: { redirect: to.fullPath } })
     }

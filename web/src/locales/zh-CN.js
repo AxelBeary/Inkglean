@@ -53,6 +53,8 @@
     ORDER_NOT_OWNED: '该订单不属于你，无权操作',
     ORDER_INVALID_STATUS: '无效状态',
     INVALID_TRANSITION: '不能进行此状态转换',
+    // R-2: 已收款订单取消需二次确认（Batch A 契约 409 CANCEL_WITH_PAYMENT）
+    CANCEL_WITH_PAYMENT: '该订单已收款，请先线下退还后再取消',
     DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
     TIER_NOT_FOUND: '价格档位不存在或不属于该画师',
     ILLEGAL_PATH: '非法路径',
@@ -885,6 +887,8 @@
     colPriority: '优先级', colSource: '来源', colTime: '下单时间', colDesc: '需求描述',
     confirmOrder: '确认接单', startWip: '开始制作',
     needRevision: '需要修改', markDone: '✔ 标记完成', uploadDeliver: '上传交付', cancelOrder: '取消订单',
+    // R-2: 已收款订单取消的二次确认（金额来自后端 detail.paidCents）
+    cancelPaidConfirm: '该订单已收 ¥{amount}，确认取消？资金需线下退还',
     noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', confirmTitle: '确认',

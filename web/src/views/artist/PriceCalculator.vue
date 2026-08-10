@@ -125,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import { artistPublicApi, artistApi } from '../../api/index.js'
@@ -267,6 +267,11 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+onUnmounted(() => {
+  // R-18: 卸载后 300ms 内 doCalc 仍会白发请求——清理防抖计时器（对齐 useManualOrderPricing.stopStyleCalc）
+  if (calcTimer) clearTimeout(calcTimer)
+})
 </script>
 
 <style scoped>
@@ -333,4 +338,3 @@ onMounted(async () => {
 .calc-line--dim { color: var(--ink3, #888); font-size: 13px; }
 .calc-disclaimer { margin-top: 12px; font-size: 12px; color: var(--ink3, #888); }
 </style>
-
