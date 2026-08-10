@@ -90,6 +90,8 @@ export interface Order {
   current_stage_id: number | null
   deadline: string | null
   paid_total_cents: number
+  // D-1（R-5/P3-1）: 乐观锁版本号——写路径守卫（version = version + 1）
+  version: number
   created_at: string
   updated_at: string
 }

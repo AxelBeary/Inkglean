@@ -11,6 +11,7 @@ import { clamp, isValidQq } from '../../shared/validate.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
+import { withIdempotency, readIdempotencyKey } from '../../shared/idempotency.js'
 import db from '../../db/connection.js'
 import { existsSync, statSync } from 'fs'
 import { resolve, sep } from 'path'
@@ -103,6 +104,21 @@ async function requireOwnOrder(request: FastifyRequest): Promise<void> {
   request.order = order
 }
 
+/**
+ * D-1（R-5）: 无 body schema 的写路由（deliver-no-file/track-on/promote）手动解析可选 version。
+ * 不给这三个路由加 body schema 的原因：既有调用方/测试无 body 直发（Fastify 会先于
+ * preHandler 校验并 400，破坏 401/409/404 语义），手动解析只拦非法 version、放行空 body。
+ */
+function parseOptionalVersion(body: unknown): number | undefined {
+  if (body == null) return undefined
+  const v = (body as { version?: unknown }).version
+  if (v === undefined || v === null) return undefined
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) {
+    throw new AppError(E.VALIDATION, 400, { field: 'version', message: 'version 须为正整数' })
+  }
+  return v
+}
+
 export default async function orderRoutes(fastify: FastifyInstance) {
 
   // ─── 客户端接口（公开 + 限流） ───
@@ -146,10 +162,11 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     guardRateLimit(`order-create:${request.ip}`, 10, 10 * 60_000)
 
     const { subdomain, clientQq, clientName, description, priority, clientNotify, agreeRules, references, discountCode, styleSizeId, styleAddons } = request.body as { subdomain: string; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; agreeRules: boolean; references?: string[]; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number }> }
+    const qq = clamp(clientQq, 'qq')!
 
     // audit-a P2-7: hidden/管理员/不存在统一 404，不泄露存在性
     const artist = requireVisibleArtist(subdomain)
@@ -166,25 +183,33 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       }
     }
 
-    const order = orderService.createOrder({
-      artistId: artist.id,
-      clientQq: clamp(clientQq, 'qq')!,
-      clientName: clamp(clientName, 'name'),
-      description: clamp(description, 'description'),
-      priority: priority || 'medium',
-      source: 'self',
-      clientNotify: clientNotify || false,
-      references: references || [],
-      discountCode: discountCode || null,
-      styleSizeId: styleSizeId || null,
-      styleAddons: styleAddons || []
+    // D-2（R-9）: 下单幂等键——scope 含画师身份 + 客户 QQ（防跨画师/跨客户串 key），
+    // 双标签页/慢渲染双击同 key 只落一单；错误（校验/下单失败）不缓存，允许重试
+    const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
+    const result = withIdempotency(`orders:${artist.id}:${qq}`, idempotencyKey, () => {
+      const order = orderService.createOrder({
+        artistId: artist.id,
+        clientQq: qq,
+        clientName: clamp(clientName, 'name'),
+        description: clamp(description, 'description'),
+        priority: priority || 'medium',
+        source: 'self',
+        clientNotify: clientNotify || false,
+        references: references || [],
+        discountCode: discountCode || null,
+        styleSizeId: styleSizeId || null,
+        styleAddons: styleAddons || []
+      })
+      return {
+        statusCode: 200,
+        body: {
+          orderNo: order.order_no,
+          totalPriceCents: order.total_price_cents,
+          message: '下单成功！请添加画师QQ沟通细节。'
+        }
+      }
     })
-
-    return {
-      orderNo: order.order_no,
-      totalPriceCents: order.total_price_cents,
-      message: '下单成功！请添加画师QQ沟通细节。'
-    }
+    return reply.code(result.statusCode).send(result.body)
   })
 
   /**
@@ -511,7 +536,9 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         properties: {
           status: { type: 'string', enum: ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled'] },
           // audit-a R-2: 取消已收款订单的显式确认开关
-          confirmPaidCancel: { type: 'boolean' }
+          confirmPaidCancel: { type: 'boolean' },
+          // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+          version: { type: 'integer', minimum: 1 }
         },
         additionalProperties: false
       }
@@ -521,8 +548,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     if (request.order.current_stage_id && (request.body as { status: string }).status !== 'cancelled') {
       throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
     }
-    const { status, confirmPaidCancel } = request.body as { status: string; confirmPaidCancel?: boolean }
-    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, status, !!confirmPaidCancel))
+    const { status, confirmPaidCancel, version } = request.body as { status: string; confirmPaidCancel?: boolean; version?: number }
+    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, status, !!confirmPaidCancel, version))
   })
 
   /**
@@ -556,13 +583,16 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['deadline'],
         properties: {
-          deadline: { type: ['string', 'null'], maxLength: 50 }
+          deadline: { type: ['string', 'null'], maxLength: 50 },
+          // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+          version: { type: 'integer', minimum: 1 }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest) => {
-    return enrichOrderForArtist(orderService.updateDeadline(request.order.id, (request.body as { deadline: string | null }).deadline))
+    const { deadline, version } = request.body as { deadline: string | null; version?: number }
+    return enrichOrderForArtist(orderService.updateDeadline(request.order.id, deadline, version))
   })
 
   /**
@@ -576,13 +606,16 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['startDate'],
         properties: {
-          startDate: { type: ['string', 'null'], maxLength: 10 }
+          startDate: { type: ['string', 'null'], maxLength: 10 },
+          // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+          version: { type: 'integer', minimum: 1 }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest) => {
-    return enrichOrderForArtist(orderService.updateStartDate(request.order.id, (request.body as { startDate: string | null }).startDate))
+    const { startDate, version } = request.body as { startDate: string | null; version?: number }
+    return enrichOrderForArtist(orderService.updateStartDate(request.order.id, startDate, version))
   })
 
   /**
@@ -670,20 +703,22 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         properties: {
           filePath: { type: 'string', minLength: 1, maxLength: 500 },
           fileName: { type: ['string', 'null'], maxLength: 255 },
-          fileSize: { type: ['integer', 'null'], minimum: 0 }
+          fileSize: { type: ['integer', 'null'], minimum: 0 },
+          // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+          version: { type: 'integer', minimum: 1 }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest) => {
-    const { filePath, fileName, fileSize } = request.body as { filePath: string; fileName?: string | null; fileSize?: number | null }
+    const { filePath, fileName, fileSize, version } = request.body as { filePath: string; fileName?: string | null; fileSize?: number | null; version?: number }
 
     // 安全：路径归属校验 — 只允许自己交付目录下的文件，拒绝路径穿越
     if (filePath.includes('..') || !filePath.startsWith(`deliverables/${request.artist.id}/`)) {
       throw new AppError(E.ILLEGAL_PATH)
     }
 
-    const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName ?? null, fileSize ?? null)
+    const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName ?? null, fileSize ?? null, version)
     // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
     return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
   })
@@ -696,7 +731,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.post('/api/artist/orders/:id/deliver-no-file', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: FastifyRequest) => {
-    const result = orderGalleryService.deliverOrderWithoutFile(request.order.id)
+    // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+    const result = orderGalleryService.deliverOrderWithoutFile(request.order.id, parseOptionalVersion(request.body))
     // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
     return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
   })
@@ -780,15 +816,17 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         required: ['finalPriceCents'],
         properties: {
           finalPriceCents: { type: 'integer', minimum: 1, maximum: 99999999 },
-          quoteSnapshot: { type: ['string', 'null'], maxLength: 500 }
+          quoteSnapshot: { type: ['string', 'null'], maxLength: 500 },
+          // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+          version: { type: 'integer', minimum: 1 }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest) => {
-    const { finalPriceCents, quoteSnapshot } = request.body as { finalPriceCents: number; quoteSnapshot?: string | null }
+    const { finalPriceCents, quoteSnapshot, version } = request.body as { finalPriceCents: number; quoteSnapshot?: string | null; version?: number }
     // R19 + B1: 改价返回的订单统一增强（与 GET orders/:id 一致）
-    return enrichOrderForArtist(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot))
+    return enrichOrderForArtist(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot, version))
   })
 
   // ─── v0.11 R4: 焦点图 ───
@@ -898,13 +936,16 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['stageId'],
         properties: {
-          stageId: { type: ['integer', 'null'] }
+          stageId: { type: ['integer', 'null'] },
+          // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+          version: { type: 'integer', minimum: 1 }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest) => {
-    const order = orderWorkflowService.advanceStage(request.order.id, (request.body as { stageId: number | null }).stageId)
+    const { stageId, version } = request.body as { stageId: number | null; version?: number }
+    const order = orderWorkflowService.advanceStage(request.order.id, stageId, version)
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
     return enrichOrderForArtist(order)
   })
@@ -916,7 +957,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.put('/api/artist/orders/:id/track-on', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: FastifyRequest) => {
-    const order = orderWorkflowService.enableTracking(request.order.id)
+    // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+    const order = orderWorkflowService.enableTracking(request.order.id, parseOptionalVersion(request.body))
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
     return enrichOrderForArtist(order)
   })
@@ -932,13 +974,16 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['stageId'],
         properties: {
-          stageId: { type: 'integer' }
+          stageId: { type: 'integer' },
+          // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+          version: { type: 'integer', minimum: 1 }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest) => {
-    const order = orderWorkflowService.rollbackStage(request.order.id, (request.body as { stageId: number }).stageId)
+    const { stageId, version } = request.body as { stageId: number; version?: number }
+    const order = orderWorkflowService.rollbackStage(request.order.id, stageId, version)
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
     return enrichOrderForArtist(order)
   })
@@ -1001,16 +1046,25 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { amountCents, note, installmentId } = request.body as { amountCents: number; note?: string | null; installmentId?: number | null }
-    const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', installmentId: installmentId || null })
-    const order = orderService.getOrder(request.order.id)
-    return {
-      payment,
-      paidTotalCents: order?.paid_total_cents ?? 0,
-      finalPriceCents: order?.final_price_cents ?? order?.total_price_cents ?? null,
-      installments: orderService.getOrderInstallments(request.order.id)
-    }
+    // D-2（R-9）: 收款幂等键——scope 含 orderId（跨订单不串），双标签页/脚本双击同 key
+    // 只入账一笔；金额/撤销校验错误不缓存（同 key 修正后重试可成功）
+    const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
+    const result = withIdempotency(`payment:${request.order.id}`, idempotencyKey, () => {
+      const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', installmentId: installmentId || null })
+      const order = orderService.getOrder(request.order.id)
+      return {
+        statusCode: 200,
+        body: {
+          payment,
+          paidTotalCents: order?.paid_total_cents ?? 0,
+          finalPriceCents: order?.final_price_cents ?? order?.total_price_cents ?? null,
+          installments: orderService.getOrderInstallments(request.order.id)
+        }
+      }
+    })
+    return reply.code(result.statusCode).send(result.body)
   })
 
   /**
@@ -1047,6 +1101,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.post('/api/artist/orders/:id/promote', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: FastifyRequest) => {
-    return enrichOrderForArtist(orderService.promoteOrder(request.order.id))
+    // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
+    return enrichOrderForArtist(orderService.promoteOrder(request.order.id, parseOptionalVersion(request.body)))
   })
 }

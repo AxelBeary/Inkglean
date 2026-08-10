@@ -147,10 +147,23 @@ CREATE TABLE IF NOT EXISTS orders (
   paid_total_cents INTEGER DEFAULT 0,
   discount_code_id INTEGER DEFAULT NULL,
   discount_amount_cents INTEGER DEFAULT 0,
+  -- D-1（R-5/P3-1）: 订单 version 乐观锁——写路径带版本守卫，防双标签页/撤销重放静默覆盖
+  version INTEGER NOT NULL DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
   FOREIGN KEY (style_size_id) REFERENCES style_sizes(id) ON DELETE SET NULL
+);
+
+-- D-2（R-9）: 下单/收款幂等键表——scope+key 复合主键兜业务重复
+-- （UNIQUE order_no 只兜单号不兜业务重复；错误响应不落缓存，允许重试）
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+  scope TEXT NOT NULL,
+  key TEXT NOT NULL,
+  status_code INTEGER NOT NULL,
+  response_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (scope, key)
 );
 
 -- 订单参考图表
@@ -2133,6 +2146,37 @@ export const MIGRATIONS = [
         const curCols = database.prepare('PRAGMA table_info(order_payment_installments)').all().map(c => c.name)
         if (curCols.includes(col)) database.exec(`ALTER TABLE order_payment_installments DROP COLUMN ${col}`)
       }
+    }
+  },
+  {
+    version: 53,
+    name: 'orders_version_optimistic_lock',
+    up(database) {
+      // D-1（R-5/P3-1）: 订单 version 乐观锁——双标签页/撤销重放防静默覆盖。
+      // 幂等：新库基线 schema 已含该列（init.js 顶部 orders 表），存量库由本迁移补列
+      const cols = database.prepare('PRAGMA table_info(orders)').all()
+      if (!cols.some(c => c.name === 'version')) {
+        database.exec('ALTER TABLE orders ADD COLUMN version INTEGER NOT NULL DEFAULT 1')
+      }
+    }
+  },
+  {
+    version: 54,
+    name: 'idempotency_keys',
+    up(database) {
+      // D-2（R-9）: 下单/收款幂等键——UNIQUE order_no 只兜单号不兜业务重复，
+      // 双标签页/慢渲染双击可产生两笔收款/两个订单；scope+key 复合主键兜业务幂等。
+      // 幂等：IF NOT EXISTS（新库基线 schema 已含，存量库重复执行直接跳过）
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS idempotency_keys (
+          scope TEXT NOT NULL,
+          key TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          response_json TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (scope, key)
+        )
+      `)
     }
   }
 ]

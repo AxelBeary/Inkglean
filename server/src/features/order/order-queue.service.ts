@@ -26,6 +26,8 @@ export function getArtistQueue(artistId: number, options: { limit?: number; offs
            o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
            o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
            o.discount_amount_cents, o.created_at, o.updated_at,
+           -- D-1: 队列行携带 version，前端时间条拖拽两步 PUT 用旧值起步、响应新值接力
+           o.version,
            (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id

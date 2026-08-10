@@ -187,6 +187,7 @@ export const artistApi = {
   createManualOrder: (data) => api.post('/artist/orders/manual', data),
   // R-2: 取消已收款订单需 confirmPaidCancel 确认（Batch A 契约：不带则 409 CANCEL_WITH_PAYMENT）；
   // options 透传为 body 附加字段，既有调用方不传时行为不变
+  // D-1（R-5）: options.version 可选——乐观锁版本，旧快照写入后端 409 ORDER_CONFLICT
   updateStatus: (id, status, options = {}) => api.put(`/artist/orders/${id}/status`, { status, ...options }),
   updatePriority: (id, priority) => api.put(`/artist/orders/${id}/priority`, { priority }),
   reorderQueue: (orderedIds) =>
@@ -198,27 +199,30 @@ export const artistApi = {
   addExtraItem: (id, data) => api.post(`/artist/orders/${id}/extra-items`, data),
   deleteExtraItem: (id, itemId) => api.delete(`/artist/orders/${id}/extra-items/${itemId}`),
   // SPEC-004: 递补（buffer → formal，返回完整订单）
-  promoteOrder: (id) => api.post(`/artist/orders/${id}/promote`),
-  deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data),
+  // D-1（R-5）: options.version 可选（递补/交付同为订单写路径）
+  promoteOrder: (id, options = {}) => api.post(`/artist/orders/${id}/promote`, options),
+  deliver: (id, data) => api.post(`/artist/orders/${id}/deliver`, data), // data.version 可选
   // 方案 B: 无文件交付（修复工作流订单最后节点交付卡死）
-  deliverNoFile: (id) => api.post(`/artist/orders/${id}/deliver-no-file`),
+  deliverNoFile: (id, options = {}) => api.post(`/artist/orders/${id}/deliver-no-file`, options),
   addReference: (id, data) => api.post(`/artist/orders/${id}/references`, data),
   deleteReference: (id, refId) => api.delete(`/artist/orders/${id}/references/${refId}`),
   // R4: 焦点图（off/small/large）
   setFocusImage: (id, data) => api.put(`/artist/orders/${id}/focus-image`, data),
-  updatePrice: (id, data) => api.put(`/artist/orders/${id}/price`, data),
+  updatePrice: (id, data) => api.put(`/artist/orders/${id}/price`, data), // data.version 可选
   // B7: 额度池收款（记录/流水/撤销=负数记录）
   getPayments: (id) => api.get(`/artist/orders/${id}/payments`),
-  addPayment: (id, data) => api.post(`/artist/orders/${id}/payments`, data),
+  // D-2（R-9）: options 透传幂等键 header（同一次提交重试复用同 key）
+  addPayment: (id, data, options = {}) => api.post(`/artist/orders/${id}/payments`, data, options),
   // v0.31 REQ-021 F1: 操作日志（分页 + ?type= 筛选）
   getOrderLogs: (id, { page = 1, pageSize = 50, type } = {}) => api.get(`/artist/orders/${id}/logs`, { params: { page, pageSize, type } }),
   // R33: 签名 URL 批量刷新（防 15min 过期 403）
   refreshSignatures: (paths) => api.post('/artist/refresh-signatures', { paths }),
   // R30d: 流程状态机（推进/打回/关闭跟踪；stageId 为目标节点 ID，SPEC-002 必填）
-  advanceStage: (id, stageId) => api.put(`/artist/orders/${id}/stage`, { stageId }),
-  stageBack: (id, stageId) => api.put(`/artist/orders/${id}/stage-back`, { stageId }),
-  stageOff: (id) => api.put(`/artist/orders/${id}/stage`, { stageId: null }),
-  trackOn: (id) => api.put(`/artist/orders/${id}/track-on`),
+  // D-1（R-5）: options.version 可选（推进/回退/关跟踪/开跟踪同为订单写路径）
+  advanceStage: (id, stageId, options = {}) => api.put(`/artist/orders/${id}/stage`, { stageId, ...options }),
+  stageBack: (id, stageId, options = {}) => api.put(`/artist/orders/${id}/stage-back`, { stageId, ...options }),
+  stageOff: (id, options = {}) => api.put(`/artist/orders/${id}/stage`, { stageId: null, ...options }),
+  trackOn: (id, options = {}) => api.put(`/artist/orders/${id}/track-on`, options),
   // 统计
   getStats: () => api.get('/artist/stats'),
   // REQ-033 埋点看板：画师自己的事件统计（门面区块，管理员开关控制显隐）
@@ -229,9 +233,10 @@ export const artistApi = {
   getDashboardActivity: () => api.get('/artist/dashboard/activity'),
   // R51: 截稿日
   getUpcomingDeadlines: () => api.get('/artist/orders/upcoming-deadlines'),
-  updateDeadline: (id, deadline) => api.put(`/artist/orders/${id}/deadline`, { deadline }),
+  // D-1（R-5）: options.version 可选——时间条拖拽两步 PUT 用响应 version 接力
+  updateDeadline: (id, deadline, options = {}) => api.put(`/artist/orders/${id}/deadline`, { deadline, ...options }),
   // v0.26 B: 开工日
-  updateStartDate: (id, startDate) => api.put(`/artist/orders/${id}/start-date`, { startDate }),
+  updateStartDate: (id, startDate, options = {}) => api.put(`/artist/orders/${id}/start-date`, { startDate, ...options }),
   // 问候语
   getGreeting: () => api.get('/artist/greeting'),
   // 流程与比例
@@ -275,7 +280,8 @@ export const artistApi = {
 
 // ─── 客户端订单 ───
 export const orderApi = {
-  create: (data) => api.post('/orders', data),
+  // D-2（R-9）: options 透传幂等键 header（同一次提交重试复用同 key）
+  create: (data, options = {}) => api.post('/orders', data, options),
   track: (orderNo, qq) => api.get(`/orders/track/${orderNo}`, { params: { qq } }),
   delivery: (orderNo, qq) => api.get(`/orders/delivery/${orderNo}`, { params: { qq } }),
   /** 凭 QQ 号查询在某画师处的所有订单（"不知道订单号"场景） */

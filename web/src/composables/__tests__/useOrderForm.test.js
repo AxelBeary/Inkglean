@@ -596,6 +596,9 @@ describe('提交', () => {
     expect(payload).not.toHaveProperty('tierId')
     expect(payload).not.toHaveProperty('usageMultiplierId')
     expect(payload).not.toHaveProperty('rushMultiplierId')
+    // D-2（R-9）: 提交带 idempotency-key header（UUID）
+    const options = orderApi.create.mock.calls[0][1]
+    expect(options.headers['idempotency-key']).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     expect(of.showSuccess.value).toBe(true)
     expect(of.resultNo.value).toBe('ALICE-001')
     // 提交成功清草稿键
@@ -611,6 +614,24 @@ describe('提交', () => {
     await of.submit()
     expect(ElMessage.error).toHaveBeenCalledWith('服务器错误')
     expect(of.showSuccess.value).toBe(false)
+  })
+
+  it('D-2: 同一次提交失败重试复用同 key，成功后换新 key', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.form.clientQq = '12345678'
+    orderApi.create.mockRejectedValueOnce(new Error('服务器错误'))
+    await of.submit()
+    await of.submit()
+    const key1 = orderApi.create.mock.calls[0][1].headers['idempotency-key']
+    const key2 = orderApi.create.mock.calls[1][1].headers['idempotency-key']
+    expect(key1).toBe(key2)
+    // 成功后下一次提交换新 key
+    of.form.clientQq = '87654321'
+    await of.submit()
+    const key3 = orderApi.create.mock.calls[2][1].headers['idempotency-key']
+    expect(key3).not.toBe(key1)
   })
 })
 

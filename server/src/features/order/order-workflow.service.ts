@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { getOrder, refreshInstallmentLocks, assertStatusTransition } from './order.service.js'
+import { getOrder, refreshInstallmentLocks, assertStatusTransition, updateOrderChecked } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
 import type { WorkflowStage, OrderDetail } from '../../types/entities.js'
 
@@ -37,10 +37,11 @@ const advanceStageTx = db.transaction((
   orderId: number,
   stageId: number,
   newStatus: string,
-  stageName: string
+  stageName: string,
+  expectedVersion?: number
 ): void => {
-  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(stageId, newStatus, orderId)
+  // D-1: 事务内 orders 更新带版本守卫（防双标签页旧快照推进/回退）
+  updateOrderChecked(orderId, expectedVersion, 'current_stage_id = ?, status = ?', stageId, newStatus)
 
   // REQ-025 R4: 完成即锁——推进越过收款节点时，刷新节点锁定状态（只锁不解锁，回退不解锁由 prevLocked 保证）
   refreshInstallmentLocks(orderId)
@@ -54,14 +55,13 @@ const advanceStageTx = db.transaction((
   }
 })
 
-export function advanceStage(orderId: number, stageId: number | null): OrderDetail {
+export function advanceStage(orderId: number, stageId: number | null, expectedVersion?: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
   // 关闭流程跟踪（单步写，无事务必要；只清 current_stage_id，不动状态，行为保持不变）
   if (stageId === null) {
-    db.prepare('UPDATE orders SET current_stage_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(orderId)
+    updateOrderChecked(orderId, expectedVersion, 'current_stage_id = NULL')
     return getOrder(orderId)!
   }
 
@@ -93,7 +93,7 @@ export function advanceStage(orderId: number, stageId: number | null): OrderDeta
   assertStatusTransition(order.status, newStatus)
 
   // 多步写在事务内原子提交；校验抛错均发生在事务外（读操作）
-  advanceStageTx(orderId, stageId, newStatus, stages[targetIdx].name)
+  advanceStageTx(orderId, stageId, newStatus, stages[targetIdx].name, expectedVersion)
 
   return getOrder(orderId)!
 }
@@ -108,10 +108,11 @@ const rollbackStageTx = db.transaction((
   orderId: number,
   stageId: number,
   fromName: string,
-  toName: string
+  toName: string,
+  expectedVersion?: number
 ): void => {
-  db.prepare('UPDATE orders SET current_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(stageId, 'revision', orderId)
+  // D-1: 事务内 orders 更新带版本守卫（与 advanceStageTx 同款）
+  updateOrderChecked(orderId, expectedVersion, 'current_stage_id = ?, status = ?', stageId, 'revision')
 
   // 系统备注（用户确认：客户有知情权）
   db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
@@ -121,7 +122,7 @@ const rollbackStageTx = db.transaction((
   logActivity(orderId, 'stage_advance', 'artist', { action: 'rollback', from: fromName, to: toName, stageId })
 })
 
-export function rollbackStage(orderId: number, stageId: number): OrderDetail {
+export function rollbackStage(orderId: number, stageId: number, expectedVersion?: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -157,7 +158,7 @@ export function rollbackStage(orderId: number, stageId: number): OrderDetail {
   const toName = stages[targetIdx].name
 
   // 多步写在事务内原子提交；校验抛错均发生在事务外（读操作）
-  rollbackStageTx(orderId, stageId, fromName, toName)
+  rollbackStageTx(orderId, stageId, fromName, toName, expectedVersion)
 
   return getOrder(orderId)!
 }
@@ -167,7 +168,7 @@ export function rollbackStage(orderId: number, stageId: number): OrderDetail {
  * 对无工作流订单设 current_stage_id = 画师工作流第一节点，status 保持不变
  * 为什么不能复用 advanceStage：advanceStage 对无跟踪订单会把 status 重置为 pending（状态倒退）
  */
-export function enableTracking(orderId: number): OrderDetail {
+export function enableTracking(orderId: number, expectedVersion?: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -191,8 +192,7 @@ export function enableTracking(orderId: number): OrderDetail {
   }
 
   // 只设 current_stage_id，不动 status
-  db.prepare('UPDATE orders SET current_stage_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(firstStage.id, orderId)
+  updateOrderChecked(orderId, expectedVersion, 'current_stage_id = ?', firstStage.id)
 
   return getOrder(orderId)!
 }
