@@ -751,16 +751,23 @@
     downloadFailed: '下载失败，请重试或联系画师'
   },
   login: {
-    title: '画师登录', subtitle: '输入QQ号与验证器App上的6位动态码',
-    qqPlaceholder: '输入你的QQ号', codePlaceholder: '输入验证器上显示的6位动态码', login: '登录',
-    helpTitle: '需要验证器App？点此查看推荐',
-    helpDesc: '动态码由手机上的「身份验证器」App生成，每30秒刷新一次：',
-    helpTencent: '不想装App：微信搜索「腾讯身份验证器」小程序',
-    helpAegis: '安卓：Aegis（开源免费，酷安可下载）',
-    help2fas: '苹果：2FAS（开源免费）或微软 Authenticator（App Store可下载）',
-    helpNotGoogle: '不推荐 Google Authenticator（谷歌服务国内不可用）',
-    enterQq: '请输入QQ号', enterCode: '请输入动态口令', loginSuccess: '登录成功！',
-    logoAlt: '绘约'
+    // v0.46 纸墨登录页：品牌区（朱砂印 + 绘约 + 副标）
+    brandTitle: '绘约', subtitle: '画师后台',
+    // 偏好区：主题 + 语言（与后台同逻辑）
+    prefThemeGroup: '主题切换', themePaper: '纸白', themeInk: '墨黑',
+    prefLangGroup: '语言切换',
+    // 表单
+    qqLabel: 'QQ 号', qqPlaceholder: '输入你的 QQ 号',
+    codeLabel: '动态口令', codePlaceholder: '验证器上的 6 位数字',
+    login: '登 录', logging: '正在进站…',
+    enterQq: '先填一下 QQ 号。', qqInvalid: 'QQ 号只有数字。',
+    enterCode: '还差验证器里的 6 位数字。', codeInvalid: '动态口令是 6 位数字，看一眼验证器。',
+    loginSuccess: '登录成功！',
+    // 帮助：真实 TOTP 验证器推荐（2026-08-10 用户拍板重写：
+    // 旧 helpTencent/helpAegis/helpNotGoogle 内容属臆测，已删；TOTP 是 RFC 6238 标准，任何标准验证器都能用）
+    helpTitle: '需要验证器 App？点此查看推荐',
+    helpDesc: '动态口令由验证器 App 生成，任何支持标准动态口令（TOTP）的都可以用：',
+    helpNote: '绑定后每 30 秒刷新一次，登录时输入当前显示的 6 位数字。'
   },
   // P0-9: 倍率管理（MultiplierManager）i18n
   multiplier: {

@@ -28,8 +28,8 @@ export default [
     }
   },
   {
-    // scripts/ 是 node CLI 脚本（check-i18n 等），用 node globals；console 输出是脚本本职
-    files: ['scripts/**/*.js'],
+    // scripts/ 是 node CLI 脚本（check-i18n、compress-paper-tex 等），用 node globals；console 输出是脚本本职
+    files: ['scripts/**/*.js', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
     rules: { 'no-console': 'off' }
   },
