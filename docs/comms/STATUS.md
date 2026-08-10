@@ -1,5 +1,9 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-10 v73（**巨型组件三拆全部合入推送，前端主线下一站 = 前端重构批**）——master `54a69ff` 与 origin 同步。
+> ✅ **巨型组件拆分批（2026-08-10 用户拍板「都先拆掉」，一号项目内施工）**：现存 >900 行三候选全部拆完，均纯搬移零行为变化 + 真实登录态像素对比验证：①OrderDetail 1450→628：抽五面板组件（LogPanel/CommPanel/ExtraItemsPanel/NotesPanel/PublishShareDialogs，`dea0a41`）；②ManualOrderRight 1049→868：价格状态机抽 useManualOrderPricing（画风/尺寸/增项选择 + 自定义增项 + 防抖计价 + G2 脏标记，`7b5d732`）；③QueueBoardCalendar 1326→756：时间条状态机抽 useQueueTimeline（缩放档位/视口自适应/画布手势/拖拽改期/撤销 toast，`54a69ff`）。验证：web 254/254 + eslint 0 + build；隔离测试库（种子+真 TOTP 登录+造数）前后像素差均 0.000%/maxDelta 0（截图 workspace/temp/split-{od,mo,qb}-*.png）。⚠️ **诚实更正**：OD 批提交信息里的像素验证首版为假通过（未登录被重定向，实际对比的是登录页 vs 登录页）；发现后补落地断言重验，真实结果仍为 0%。教训入账：**截图验证必须带落地断言（目标元素存在 + URL 非登录页），否则防不住“登录页对登录页”假通过**。验证脚本在 workspace/temp/shot-split-*.mjs（隔离库+真登录链路，后续拆分批可复用）。
+> ✅ **同日前序（v72 补充）**：登录页重构+打磨四修+倒影动画修复合入（`d12d793`）；REQ-014 拍板落档（`740bcfa`）；接口契约清单验收 4/4 属实并提交（`dc28c85`，前端重构批前置解除）；登录页旧约束解冻（用户主动打磨）。前端主线队列：前端重构批（api 层 TS + entities 补全，契约清单已就绪）→ 视觉批（后台壳/Dashboard）。
+
 > 最后更新：2026-08-10 v72（**登录页重构+打磨四修，施工完未提交**）——基于 master `67c5425`，工作树含登录页重构（Login.vue 拆分 LoginBackdrop/PaperCard/LoginPrefs + useLocaleSwitch，落档 docs/comms/登录页重构-变更与建议-2026-08-10.md）与本轮打磨，均未 commit，等用户验收后决定提交。
 > ✅ **登录页打磨四修（2026-08-10 用户四条反馈，一号项目内施工）**：①山简单丑→两层均匀 Q 曲线重绘为三层不等距有机山脊（C 曲线峰距/峰高不对称）+ 墨阶 5/8→7/12/18 三档递进；②墨黑山太亮→改暗剪影（黑混 paper token 18/30/44% 压到底色之下，倒影 26/38/52% 实色）；**根因 = SVG 渐变 stop 的 currentColor 沿 <defs> 所在 DOM 链取色而非引用 path 的色**（计算样式正常但渲染亮成浅色 --ink），改 CSS 变量→stop-color 供色，教训入账；③纸底和框不同步→纸叠三张入场统一 0.45s/延迟 0.1s 同步落定；④滚动条闪现→根因登录路由走全局 fade-slide，translateY(8px) 把 100vh 页面推出视口，App.vue 豁免 ArtistLogin（登录页自带入场编排）。门禁：web 254/254 + build + check-i18n + eslint 0 全过；measure 圆角族 1/野生 0/离栅 0（inherit 1 处人工核验：PaperCard ::after 随父卡 token 角）；huiyue-layout-audit VL 双主题各一轮 C1-C4/S1-S5 全否 0 阻塞（VL 提的次要文字偏弱为 F2 批4 已达标 ink3/ink4 token 的有意层级，logo 裁切感为用户自换 logo 前已知项）；像素采样实证：墨黑山 23→20→13 递沉、纸白 242→232→181 递浓；scrollHeight 全程 = innerHeight 零滚动条。截图 workspace/temp/login-polish-{paper,ink,390}.png。⑤**追修：倒影入场动画 bug（用户实拍报告「先过深再瞬变淡」）**：根因 .m-refl 误借用季节背景图专用的 fade-in 关键帧（终值 0.92），播完瞬跳回静态 opacity 0.45；改专属 refl-in（终值 0.45），时序像素采样实证 opacity 0.22→0.43→0.45 单调收敛零跳变；门禁复跑 web 254/254 + build 全过。教训入账：**共用关键帧名必须核对终值与元素静态值一致，backwards 填充不保证播完态二致**。⚠️ 旧约束更新：「登录页未经指示不再改动」因用户本轮主动提出打磨而解冻，后续仍以用户指示为准。
 
@@ -65,9 +69,9 @@
 ---
 ## 🔄 在途任务（刷新后先看这里，2026-08-10 刷新）
 
-1. **验收接口契约清单**（codex 在主仓只读生成，无 worktree）：查收工后读 `docs/specs/接口契约清单-v1.md` 抽查核验（随机抽 3-5 个端点对照 routes 代码）→ 无误则 commit+push（英文 message）。⚠️ codex 在主仓跑时若中断，用重派模板重派（只写单文件、不 commit，冲突风险低）。
-2. **启动巨型组件拆分 Top5**（④a 已拍板；登录页插队已完成，拆分顺延）：QueueBoard 1530 行 / ManualOrder 1497 行等；蓝本 `docs/comms/核实-第三方瘦身施工单-20260807.md`；参照 OrderDetail 拆分模式（0% 像素差异 + 全门禁绿）；OrderDetail 死解构 3 个随手清。
-3. **前端重构批**（含 api 层加 TS + entities.ts 补全）：等契约清单落盘后作为前置依赖；若用户选择在分身窗口直接执行，分身窗口转执行角色模式（独立 worktree、不碰 master/不推送，一号验收合入）。
+1. ~~**验收接口契约清单**~~ ✅ **已完成（2026-08-10）**：抽查 4/4 端点逐行对照 routes 代码属实（auth/verify、calculate-style-price、增项解绑 DELETE、workflow/payment），已 commit+push `dc28c85`。前端重构批前置依赖解除。
+2. **巨型组件拆分（现状核实更正 2026-08-10）**：旧待办行过时——QueueBoard 已拆（188 行壳 + QueueBoardCalendar 1245 + QueueBoardList 592，`322fa5d` 等）、ManualOrder 已拆（435 行壳 + Left 326 + Right 974）；蓝本施工单已随纪律清理删除（`f957ab8`）。现存 >900 行候选：OrderDetail 1352（拆分模式已验证 + 死解构 3 个待清）/ QueueBoardCalendar 1245（时间条重做后新肥，近期频繁改动中）/ ManualOrderRight 974。具体拆哪个待用户拍板。
+3. **前端重构批**（含 api 层加 TS + entities.ts 补全）：前置契约清单已落盘（`dc28c85`），**解除阻塞可排**；若用户选择在分身窗口直接执行，分身窗口转执行角色模式（独立 worktree、不碰 master/不推送，一号验收合入）。
 4. **视觉批（已开局）**：登录页已合入；后续按原型打磨稿推进后台壳/Dashboard；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批；@property 注册+550ms 缓动+手剪圆角 token 从 Login.vue 迁入 artist-tokens.css 随下一视觉批。
 5. **等用户侧**：终验生产登录页（截图已在 workspace/temp/prototype-login）；复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）。
 6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
