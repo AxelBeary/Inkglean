@@ -2,8 +2,8 @@
 // 用途：① 节日换背景（服务端节日主题）② 画师自定义登录背景
 //
 // 契约：返回 backdropUrl（null = 默认纸艺山水）+ backdropAlt（描述文案）。
-// 渲染层已在 Login.vue 完整实现（.seasonal-backdrop，位于山水之上、卡片之下，入场渐显）；
-// 本文件只负责数据源——数据源接通前恒返回 null，页面保持默认山水，无行为差异。
+// 渲染层在 components/artist/login/LoginBackdrop.vue（.seasonal-backdrop，位于远山之上、卡片之下，入场渐显）；
+// 本文件只负责数据源——数据源接通前恒返回 null，页面保持默认远山，无行为差异。
 //
 // 数据源接入点（立项后在此实现，前端其余部分零改动）：
 //   1. 节日主题：GET /api/seasonal-backdrop → { url, alt }（服务端节日日历，未立项）

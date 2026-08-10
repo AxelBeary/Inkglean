@@ -4,7 +4,7 @@
          02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡由 ArtistLayout 内部处理；
          客户端路由保留 fade-slide 整页过渡 -->
     <router-view v-slot="{ Component }">
-      <template v-if="isArtistRoute">
+      <template v-if="noPageTransition">
         <component :is="Component" />
       </template>
       <template v-else>
@@ -27,9 +27,11 @@ const { locale } = useI18n()
 const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
 
 // 02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡在 ArtistLayout 内部；
-//      客户端路由保留 fade-slide 整页过渡
+//      客户端路由保留 fade-slide 整页过渡。
+// 登录页一并豁免：自带入场编排（rise/山水墨晕染），且 fade-slide 的 translateY(8px)
+// 会把 100vh 页面推出视口，加载瞬间滚动条闪现、落定后消失（用户反馈）。
 const route = useRoute()
-const isArtistRoute = computed(() => !!route.meta.requiresAuth)
+const noPageTransition = computed(() => !!route.meta.requiresAuth || route.name === 'ArtistLogin')
 </script>
 
 <style>

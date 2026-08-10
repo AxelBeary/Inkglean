@@ -763,6 +763,8 @@
     enterQq: '先填一下 QQ 号。', qqInvalid: 'QQ 号只有数字。',
     enterCode: '还差验证器里的 6 位数字。', codeInvalid: '动态口令是 6 位数字，看一眼验证器。',
     loginSuccess: '登录成功！',
+    // 锁定错误（TOTP_LOCKED 带 remainingLockMs 时按此呈现剩余时长）
+    locked: '尝试太多次，先锁一会儿——约 {minutes} 分钟后再试。',
     // 帮助：真实 TOTP 验证器推荐（2026-08-10 用户拍板重写：
     // 旧 helpTencent/helpAegis/helpNotGoogle 内容属臆测，已删；TOTP 是 RFC 6238 标准，任何标准验证器都能用）
     helpTitle: '需要验证器 App？点此查看推荐',

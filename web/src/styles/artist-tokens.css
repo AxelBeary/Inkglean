@@ -339,3 +339,48 @@ html[data-artist-theme][data-font-size] .artist-scope :is(
 ) {
   font-size: calc(var(--font-scale, 1) * 14px);
 }
+
+/* ═══ 纸艺基线（2026-08-10 登录页重构迁入，兑现 Login.vue v0.46 注释承诺）═══
+   原定义在 Login.vue 非 scoped 全局块，会随路由懒加载泄漏到整个后台；
+   迁至 token 层后随 App.vue 全局引入，作用域仍锁 html[data-artist-theme]，客户端零影响。 */
+
+/* 手剪纸不规则圆角（全后台视觉批基线：纸不是机器倒的角） */
+html[data-artist-theme] {
+  --r-paper: 3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand: 2px 3px 2px 3px / 3px 2px 3px 2px;
+}
+
+/* 主题 token 注册为可动画属性：切换时变量本身 550ms 缓动，
+   所有下游颜色/渐变/纹理同时间轴重绘——材质连续「纸还是那张纸」 */
+@property --paper   { syntax: '<color>'; inherits: true; initial-value: #F5F4EF; }
+@property --paper2  { syntax: '<color>'; inherits: true; initial-value: #FBFAF6; }
+@property --card    { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --ink     { syntax: '<color>'; inherits: true; initial-value: #262520; }
+@property --ink2    { syntax: '<color>'; inherits: true; initial-value: #5A564B; }
+@property --ink3    { syntax: '<color>'; inherits: true; initial-value: #757062; }
+@property --ink4    { syntax: '<color>'; inherits: true; initial-value: #807B6C; }
+@property --line    { syntax: '<color>'; inherits: true; initial-value: #E7E4D9; }
+@property --line2   { syntax: '<color>'; inherits: true; initial-value: #DAD6C8; }
+@property --hq      { syntax: '<color>'; inherits: true; initial-value: #33526E; }
+@property --hq-d    { syntax: '<color>'; inherits: true; initial-value: #28425B; }
+@property --hq-t    { syntax: '<color>'; inherits: true; initial-value: #E9EFF4; }
+@property --zs      { syntax: '<color>'; inherits: true; initial-value: #BC3A2B; }
+@property --sl      { syntax: '<color>'; inherits: true; initial-value: #2F7D54; }
+
+html[data-artist-theme] {
+  transition:
+    --paper 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --paper2 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --card 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --ink 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --ink2 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --ink3 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --ink4 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --line 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --line2 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --hq 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --hq-d 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --hq-t 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --zs 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
+    --sl 0.55s cubic-bezier(0.45, 0.05, 0.25, 1);
+}

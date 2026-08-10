@@ -765,6 +765,8 @@
     enterQq: 'Enter your QQ number first.', qqInvalid: 'QQ numbers are digits only.',
     enterCode: 'Now the 6-digit code from your authenticator.', codeInvalid: 'The code is 6 digits — check your authenticator.',
     loginSuccess: 'Logged in!',
+    // Lockout error (TOTP_LOCKED with remainingLockMs renders remaining time via this key)
+    locked: 'Too many attempts — locked for now. Try again in about {minutes} min.',
     // Help: real TOTP authenticator recommendations (2026-08-10 rewrite:
     // old helpTencent/helpAegis/helpNotGoogle claims were unfounded and removed; TOTP is RFC 6238, any standard authenticator works)
     helpTitle: 'Need an authenticator app? See recommendations',

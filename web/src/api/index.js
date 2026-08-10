@@ -80,6 +80,9 @@ api.interceptors.response.use(
     const wrapped = new Error(msg)
     if (err.response?.status) wrapped.status = err.response.status
     if (code) wrapped.code = code
+    // 登录页重构（2026-08-10）：附带 detail（如 CODE_TOO_MANY_ATTEMPTS 的 remainingLockMs），
+    // 调用方可做字段级呈现；纯增量，不影响既有 msg/status/code 行为
+    if (data?.detail && typeof data.detail === 'object') wrapped.detail = data.detail
     return Promise.reject(wrapped)
   }
 )
