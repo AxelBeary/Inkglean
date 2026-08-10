@@ -15,6 +15,9 @@ import type { Artist, Order, WorkflowStage, OrderDetail, ArtistOrderRow } from '
 // 订单服务 - 核心业务逻辑
 // ============================================
 
+/** audit-a R-10: 下单总价封顶 = 99999999 元（分），与 updateFinalPrice 上限同量级 */
+const MAX_ORDER_TOTAL_CENTS = 9_999_999_900
+
 // ─── 报价快照字符串生成（v0.11 R2） ───
 
 /** 金额格式化：整数不带小数，非整数保留两位（入参为分，报价快照用） */
@@ -95,7 +98,9 @@ export function generateOrderNo(artistId: number, artistCode: string): string {
     const dashIdx = last.order_no.lastIndexOf('-')
     if (dashIdx !== -1) {
       const num = parseInt(last.order_no.slice(dashIdx + 1), 10)
-      if (!isNaN(num)) seq = num + 1
+      // audit-a R-12: parseInt 对超长数字串返回 Infinity、对非数字返回 NaN——
+      // 两者都按 0 处理（下一序号 1），避免拼出非法/重复订单号撞 UNIQUE 报 500
+      if (Number.isFinite(num)) seq = num + 1
     }
   }
 
@@ -176,6 +181,12 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       discountAmountCents = computeDiscountCents(dc, totalPriceCents)
       discountCodeId = dc.id
       totalPriceCents = totalPriceCents - discountAmountCents
+    }
+
+    // audit-a R-10: 计价结果封顶——引擎返回后、落库前校验，防止极端组合
+    // （超大基础价 × 超高百分比 × 大数量）击穿 MAX_SAFE_INTEGER 造成负数/失真总价
+    if (totalPriceCents != null && totalPriceCents > MAX_ORDER_TOTAL_CENTS) {
+      throw new AppError(E.INVALID_PRICE, 400, { value: totalPriceCents, message: '订单总价超出上限' })
     }
 
     // ─── 报价快照字符串（SPEC-PRICE-2：与引擎公式逐项对应） ───
@@ -361,14 +372,21 @@ export function updateOrderStatus(orderId: number, newStatus: string, confirmPai
  */
 export function compactQueue(artistId: number): void {
   const queue = db.prepare(`
-    SELECT id FROM orders
+    SELECT id, queue_zone FROM orders
     WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
-    ORDER BY queue_position ASC
-  `).all(artistId) as Array<{ id: number }>
+    ORDER BY queue_zone ASC, queue_position ASC
+  `).all(artistId) as Array<{ id: number; queue_zone: string }>
 
   const updatePos = db.prepare('UPDATE orders SET queue_position = ? WHERE id = ?')
   db.transaction(() => {
-    queue.forEach((row, index) => updatePos.run(index + 1, row.id))
+    // audit-a R-7: 分区各自重排 1..n——formal 与 buffer 独立编号，
+    // promoteOrder（formal-only MAX+1）不再与 buffer 单位置号重复
+    const zoneCounters = new Map<string, number>()
+    for (const row of queue) {
+      const next = (zoneCounters.get(row.queue_zone) ?? 0) + 1
+      zoneCounters.set(row.queue_zone, next)
+      updatePos.run(next, row.id)
+    }
   })()
 }
 
@@ -534,9 +552,9 @@ export function getClientQueuePosition(orderNo: string, clientQq: string): { ord
   // 内联活跃队列查询（避免循环引用 order-queue.service.js）
   const queue = db.prepare(`
     SELECT id FROM orders
-    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
+    WHERE artist_id = ? AND queue_zone = ? AND ${ACTIVE_ORDER_SQL}
     ORDER BY queue_position ASC
-  `).all(order.artist_id) as Array<{ id: number }>
+  `).all(order.artist_id, order.queue_zone || 'formal') as Array<{ id: number }>
   const position = queue.findIndex(o => o.id === order.id) + 1
 
   return { ...base, position, total: queue.length }
