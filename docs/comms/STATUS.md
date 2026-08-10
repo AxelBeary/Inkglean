@@ -35,6 +35,7 @@
 4. **视觉批**：等用户 fork 打磨原型后按打磨稿实施；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批。
 5. **等用户侧**：复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；北极星图。
 6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
+7. **已裁决不动（2026-08-10）**：分身提「双包结构致 @sentry/esbuild/eslint 重复安装 ~60MB，应上 npm workspaces」——实测否决：@sentry 两侧是不同包（node 系 vs browser/vue 系，36.5MB 任何架构都要装两份）；esbuild 两侧版本不同（0.28.1 vs 0.25.12，workspaces 只去重同名同版本）；真正可去重仅 eslint ~3MB。迁移代价（lock 合并+Dockerfile/CI 重写）≫ 收益，且独立包结构恰好对齐部署边界（server 容器运行时 / web 静态产物），非债是边界。分身勿重提。
 
 - **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）；分身侧另有登录原型 workspace/temp/prototype-login。
 - **codex 重派模板**（pwsh，worktree/主仓内执行）：`$task=@"...中文任务..."@` 然后 `"" | codex exec --profile huiyue -c sandbox_mode=danger-full-access $task`。
