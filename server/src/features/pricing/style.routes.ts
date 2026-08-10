@@ -50,7 +50,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           control_type: { type: 'string', enum: ['switch', 'quantity'], default: 'switch' },
           price_mode: { type: 'string', enum: ['fixed', 'percent'], default: 'fixed' },
-          default_price: { type: 'number', minimum: 0, maximum: 999999, default: 0 },
+          // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
+          default_price: { type: 'number', minimum: 0, maximum: 999999, multipleOf: 0.01, default: 0 },
           unit_label: { type: ['string', 'null'], maxLength: 20 },
           // SPEC-PRICE-2：category 维度 + 数量上限
           category: { type: 'string', enum: ['add', 'usage', 'rush'], default: 'add' },
@@ -73,7 +74,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           control_type: { type: 'string', enum: ['switch', 'quantity'] },
           price_mode: { type: 'string', enum: ['fixed', 'percent'] },
-          default_price: { type: 'number', minimum: 0, maximum: 999999 },
+          // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
+          default_price: { type: 'number', minimum: 0, maximum: 999999, multipleOf: 0.01 },
           unit_label: { type: ['string', 'null'], maxLength: 20 },
           // SPEC-PRICE-2：category 维度 + 数量上限
           category: { type: 'string', enum: ['add', 'usage', 'rush'] },
@@ -158,7 +160,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
         required: ['name', 'base_price'],
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
-          base_price: { type: 'number', minimum: 0, maximum: 999999 },
+          // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
+          base_price: { type: 'number', minimum: 0, maximum: 999999, multipleOf: 0.01 },
           // v0.37 (REQ-024 F1): 尺寸带图/描述/天数（均可选）
           image: { type: ['string', 'null'], maxLength: 500 },
           image_artwork_id: { type: ['integer', 'null'] },
@@ -182,7 +185,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
         type: 'object',
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 50 },
-          base_price: { type: 'number', minimum: 0, maximum: 999999 },
+          // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
+          base_price: { type: 'number', minimum: 0, maximum: 999999, multipleOf: 0.01 },
           sort_order: { type: 'integer', minimum: 0, maximum: 999 },
           // v0.37 (REQ-024 F1): 尺寸带图/描述/天数（image/image_artwork_id 互斥，传一清一）
           image: { type: ['string', 'null'], maxLength: 500 },
@@ -233,7 +237,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
               properties: {
                 addon_template_id: { type: 'integer' },
                 is_enabled: { type: 'boolean' },
-                price_override: { type: ['number', 'null'], minimum: 0, maximum: 999999 }
+                // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
+                price_override: { type: ['number', 'null'], minimum: 0, maximum: 999999, multipleOf: 0.01 }
               },
               additionalProperties: false
             },
@@ -286,7 +291,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
               required: ['style_addon_id'],
               properties: {
                 style_addon_id: { type: 'integer' },
-                price_override: { type: ['number', 'null'], minimum: 0, maximum: 999999 },
+                // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
+                price_override: { type: ['number', 'null'], minimum: 0, maximum: 999999, multipleOf: 0.01 },
                 is_hidden: { type: 'boolean' }
               },
               additionalProperties: false

@@ -163,6 +163,48 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     expect(db.prepare('SELECT COUNT(*) AS c FROM events').get().c).toBe(100)
   })
 
+  it('TC-TR-20: P2-10 单事件扩展 payload 超 2KB → 400 INVALID_EVENT_PAYLOAD 且整批不落库', async () => {
+    const token = await fetchToken()
+
+    // 单独超限事件被拒
+    const big = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: { token, events: [{ name: 'order_form_start', ts: Date.now(), payload: 'x'.repeat(2100) }] }
+    })
+    expect(big.statusCode).toBe(400)
+    expect(big.json().code).toBe('INVALID_EVENT_PAYLOAD')
+    expect(db.prepare('SELECT COUNT(*) AS c FROM events').get().c).toBe(0)
+
+    // 混合批次：合法事件在前、超限事件在后——整请求拒绝，前面的事件也不落库
+    const mixed = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: {
+        token,
+        events: [
+          { name: 'order_form_start', ts: Date.now() },
+          { name: 'order_form_start', ts: Date.now(), payload: 'x'.repeat(2100) }
+        ]
+      }
+    })
+    expect(mixed.statusCode).toBe(400)
+    expect(mixed.json().code).toBe('INVALID_EVENT_PAYLOAD')
+    expect(db.prepare('SELECT COUNT(*) AS c FROM events').get().c).toBe(0)
+  })
+
+  it('TC-TR-21: P2-10 正常小 payload 照常落库', async () => {
+    const token = await fetchToken()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: { token, events: [{ name: 'theme_accent_change', ts: Date.now(), accent: '3', page: '/p/alice' }] }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ ok: true, received: 1 })
+    expect(db.prepare('SELECT COUNT(*) AS c FROM events').get().c).toBe(1)
+  })
+
   // ─── REQ-033 收尾：统计读接口 ───
 
   /** 设置管理员：写 platform_config.admin_qq + 创建管理员画师，返回画师行 */

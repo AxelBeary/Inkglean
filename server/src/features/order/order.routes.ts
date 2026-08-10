@@ -12,6 +12,8 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import db from '../../db/connection.js'
+import { existsSync, statSync } from 'fs'
+import { resolve, sep } from 'path'
 import type { OrderDetail, ArtistOrderRow } from '../../types/entities.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
@@ -19,6 +21,23 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 // 订单路由 - 下单、查询、管理、交付
 // ============================================
 
+const UPLOAD_ROOT = resolve(process.env.UPLOAD_DIR || './uploads')
+
+/**
+ * P2-12: 参考图路径存在性校验（客户下单/手动录单/画师追加共用）
+ * 存在性校验是当前归属校验的最小替代——客户 A 拿不到客户 B 上传文件的随机文件名
+ * （uploads 不列目录），挂不存在的路径没有意义；真正的归属凭据体系（上传即绑定
+ * 上传者）另立。与上传钩子一致：resolve 到 uploads 根下 + 拒绝穿越。
+ */
+function assertReferenceFileExists(ref: string): void {
+  if (ref.includes('..') || !ref.startsWith('references/')) {
+    throw new AppError(E.ILLEGAL_PATH)
+  }
+  const abs = resolve(UPLOAD_ROOT, ref)
+  if (!abs.startsWith(resolve(UPLOAD_ROOT) + sep) || !existsSync(abs) || !statSync(abs).isFile()) {
+    throw new AppError(E.ILLEGAL_PATH)
+  }
+}
 
 /** 为订单的 references + deliverables + notes 补签名 URL（H-1 修复抽取，多路由共用） */
 function signOrderUrls(order: OrderDetail): OrderDetail {
@@ -106,7 +125,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
           priority: { type: 'string', enum: ['high', 'medium', 'low'] },
           clientNotify: { type: 'boolean' },
           agreeRules: { type: 'boolean' },
-          references: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+          // P2-12: 单条参考图路径限长，防超大字符串撑爆后续校验/落库
+          references: { type: 'array', items: { type: 'string', maxLength: 2000 }, maxItems: 5 },
           discountCode: { type: ['string', 'null'], maxLength: 20 },
           styleSizeId: { type: ['integer', 'null'] },
           styleAddons: {
@@ -139,12 +159,10 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     const rules = getRules(artist.id)
     if (rules?.content && !agreeRules) throw new AppError(E.RULES_NOT_AGREED)
 
-    // C-3 修复：参考图路径校验 — 必须在 references/ 目录下，拒绝路径穿越
+    // C-3 + P2-12：参考图路径校验 — references/ 目录 + 拒绝穿越 + 文件真实存在
     if (references) {
       for (const ref of references) {
-        if (ref.includes('..') || !ref.startsWith('references/')) {
-          throw new AppError(E.ILLEGAL_PATH)
-        }
+        assertReferenceFileExists(ref)
       }
     }
 
@@ -293,7 +311,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
 
     return {
       hasOrders: true,
-      contactQq: artist.contact_qq || artist.qq_number,
+      // P3-14: 与公开主页同口径——不兜底登录账号 QQ（lookup 也是公开接口）
+      contactQq: artist.contact_qq || null,
       adminQq: orderService.getPlatformConfig('admin_qq'),
       artistName: artist.name
     }
@@ -433,7 +452,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
           description: { type: ['string', 'null'], maxLength: 2000 },
           priority: { type: 'string', enum: ['high', 'medium', 'low'] },
           clientNotify: { type: 'boolean' },
-          references: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+          // P2-12: 单条参考图路径限长，防超大字符串撑爆后续校验/落库
+          references: { type: 'array', items: { type: 'string', maxLength: 2000 }, maxItems: 5 },
           discountCode: { type: ['string', 'null'], maxLength: 20 },
           styleSizeId: { type: ['integer', 'null'] },
           styleAddons: {
@@ -456,12 +476,10 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     const { clientQq, clientName, description, priority, clientNotify, references, discountCode, styleSizeId, styleAddons } = request.body as { clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; references?: string[]; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number }> }
 
-    // C-3 安全：参考图路径校验（与自助下单一致）
+    // C-3 + P2-12：参考图路径校验（与自助下单一致，含文件存在性）
     if (references) {
       for (const ref of references) {
-        if (ref.includes('..') || !ref.startsWith('references/')) {
-          throw new AppError(E.ILLEGAL_PATH)
-        }
+        assertReferenceFileExists(ref)
       }
     }
 
@@ -733,10 +751,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     const { filePath, fileName, fileSize } = request.body as { filePath: string; fileName?: string | null; fileSize?: number | null }
 
-    // 安全：路径归属校验 — 参考图只允许 references/ 目录，拒绝路径穿越
-    if (filePath.includes('..') || !filePath.startsWith('references/')) {
-      throw new AppError(E.ILLEGAL_PATH)
-    }
+    // 安全：路径归属校验 — 参考图只允许 references/ 目录，拒绝路径穿越；P2-12 追加存在性校验
+    assertReferenceFileExists(filePath)
 
     // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
     orderGalleryService.addReference(request.order.id, filePath, fileName ?? null, fileSize ?? null, 'artist')

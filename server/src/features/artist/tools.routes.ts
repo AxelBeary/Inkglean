@@ -10,12 +10,20 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 const DATE_PATTERN = '^\\d{4}-\\d{2}-\\d{2}$'
 
-/** CSV 字段转义：含逗号/引号/换行时用双引号包裹，内部引号翻倍 */
+/**
+ * CSV 字段转义（P2-9）：
+ * 1) 公式注入——值以 = + - @ 或 \t \r 开头时前置单引号，Excel 按纯文本显示；
+ * 2) 含逗号/引号/换行时用双引号包裹，内部引号翻倍。
+ */
 function csvEscape(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`
+  let out = value
+  if (/^[=+\-@\t\r]/.test(out)) {
+    out = `'${out}`
   }
-  return value
+  if (/[",\n\r]/.test(out)) {
+    out = `"${out.replace(/"/g, '""')}"`
+  }
+  return out
 }
 
 export default async function toolsRoutes(fastify: FastifyInstance) {
@@ -174,7 +182,8 @@ export default async function toolsRoutes(fastify: FastifyInstance) {
         required: ['amountCents', 'incomeDate'],
         additionalProperties: false,
         properties: {
-          amountCents: { type: 'integer', minimum: 1 },
+          // P2-11: 单笔散单金额上限（防 1e15 污染统计；服务层同步兜底）
+          amountCents: { type: 'integer', minimum: 1, maximum: toolsService.MAX_STANDALONE_INCOME_CENTS },
           clientName: { type: 'string', maxLength: 50 },
           note: { type: 'string', maxLength: 200 },
           incomeDate: { type: 'string', pattern: DATE_PATTERN }
@@ -239,11 +248,12 @@ export default async function toolsRoutes(fastify: FastifyInstance) {
     const lines = [
       'date,client,amount_cents,type,order_id',
       ...rows.map(r => [
-        r.date,
+        // P2-9: 所有出口字段统一走 csvEscape（date/金额/type 虽非用户可控，统一防未来加字段漏网）
+        csvEscape(r.date),
         csvEscape(r.client),
-        r.amountCents,
-        r.type,
-        r.orderId === null ? '' : r.orderId
+        csvEscape(String(r.amountCents)),
+        csvEscape(r.type),
+        csvEscape(r.orderId === null ? '' : String(r.orderId))
       ].join(','))
     ]
 

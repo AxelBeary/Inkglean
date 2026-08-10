@@ -177,7 +177,8 @@
       <el-dialog v-model="showContact" :title="$t('track.contactTitle')" width="400px">
         <p class="contact-desc">{{ $t('track.contactDesc') }}</p>
         <div class="contact-list">
-          <div class="contact-item" v-if="contactInfo.artistName">
+          <!-- P3-14: 画师未设置展示 QQ 时隐藏整行（避免空 QQ + 无效复制按钮） -->
+          <div class="contact-item" v-if="contactInfo.artistName && contactInfo.contactQq">
             <span class="contact-label">{{ $t('track.contactArtist') }}（{{ contactInfo.artistName }}）</span>
             <div class="contact-value">
               <code>{{ contactInfo.contactQq }}</code>

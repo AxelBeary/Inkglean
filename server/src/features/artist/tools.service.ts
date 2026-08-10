@@ -191,6 +191,13 @@ export function listReturningClients(artistId: number, days: number): ReturningC
 
 // ─── standalone_incomes（散单记账） ───
 
+/**
+ * P2-11: 散单单笔金额上限（单位分）。
+ * 100_000_000_00 分 = 1e8 元（1 亿元）——防 1e15 量级金额逼近 MAX_SAFE_INTEGER
+ * 污染收入统计；量级与订单金额上限（99999999 分）同档。
+ */
+export const MAX_STANDALONE_INCOME_CENTS = 100_000_000_00
+
 export interface StandaloneIncomeRow {
   id: number
   amountCents: number
@@ -246,6 +253,10 @@ export function createStandaloneIncome(
 ): StandaloneIncomeRow {
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
     throw new AppError(E.INVALID_PRICE, 400, { value: input.amountCents })
+  }
+  // P2-11 兜底：schema 已有 maximum，但未来直连 service 的调用方可能绕过——超限即拒
+  if (input.amountCents > MAX_STANDALONE_INCOME_CENTS) {
+    throw new AppError(E.VALIDATION, 400, { field: 'amountCents', message: '散单金额超出上限' })
   }
   assertIncomeDate(input.incomeDate)
   const result = db.prepare(

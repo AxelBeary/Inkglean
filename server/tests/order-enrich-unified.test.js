@@ -3,6 +3,8 @@ import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 import { buildApp } from '../src/app.js'
+import { mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
 
 // ─────────────────────────────────────────────────────────
 // B1：订单响应增强统一
@@ -122,6 +124,10 @@ describe('B1 订单响应增强统一 (enrichOrderForArtist)', () => {
     const artist = makeArtist()
     const order = makePaidOrder(artist)
     const h = authH(artist)
+
+    // P2-12: 参考图存在性校验——先造真实文件（测试 uploads 目录）
+    mkdirSync(join(process.env.UPLOAD_DIR, 'references'), { recursive: true })
+    writeFileSync(join(process.env.UPLOAD_DIR, 'references', 'test-a.png'), 'fake-image')
 
     const addRes = await app.inject({
       method: 'POST',
