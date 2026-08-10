@@ -1,7 +1,7 @@
 import db from '../../db/connection.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
-import { resolve, join, relative } from 'path'
-import { existsSync, readdirSync, statSync, rmSync } from 'fs'
+import { resolve, join, relative, sep } from 'path'
+import { existsSync, readdirSync, statSync, rmSync, mkdirSync, renameSync } from 'fs'
 
 // ============================================
 // 管理员服务 - 全局统计查询
@@ -100,4 +100,49 @@ export function emptyRecycleBin(): number {
   const count = listRecycleBin().length
   rmSync(binRoot, { recursive: true, force: true })
   return count
+}
+
+/** 回收站恢复结果（路由层据此映射 200/404/409） */
+export type RestoreRecycleBinResult =
+  | { status: 'restored'; restoredPath: string }
+  | { status: 'not_found' }
+  | { status: 'conflict' }
+
+/**
+ * 恢复回收站文件到原始路径（R-21，审计批E）
+ * - 在各日期子目录中按 fileName（文件名）精确查找（回收站不保留原文件名映射以外的信息）
+ * - 目标已存在 → conflict（绝不覆盖，误恢复也不丢现有文件）
+ * - 找不到 → not_found（含目标越界等异常结构，按不可恢复处理）
+ */
+export function restoreRecycleBinFile(fileName: string): RestoreRecycleBinResult {
+  const uploadRoot = resolve(process.env.UPLOAD_DIR || './uploads')
+  const binRoot = getRecycleBinRoot()
+  if (!existsSync(binRoot)) return { status: 'not_found' }
+
+  const matches: Array<{ abs: string; originalPath: string }> = []
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (e.name !== fileName) continue
+      // originalPath = 相对回收站根路径去掉日期前缀（与 listRecycleBin 同口径）
+      const relToBin = relative(binRoot, full).replace(/\\/g, '/')
+      matches.push({ abs: full, originalPath: relToBin.replace(/^\d{4}-\d{2}-\d{2}\//, '') })
+    }
+  }
+  walk(binRoot)
+  if (matches.length === 0) return { status: 'not_found' }
+
+  const src = matches[0]
+  const target = resolve(join(uploadRoot, src.originalPath))
+  const resolvedRoot = resolve(uploadRoot)
+  // 纵深防御：originalPath 来自回收站目录结构，仍校验目标在 uploadRoot 内（防异常目录结构越界）
+  if (target === resolvedRoot || !target.startsWith(resolvedRoot + sep)) {
+    return { status: 'not_found' }
+  }
+  if (existsSync(target)) return { status: 'conflict' }
+
+  mkdirSync(join(target, '..'), { recursive: true })
+  renameSync(src.abs, target)
+  return { status: 'restored', restoredPath: src.originalPath }
 }

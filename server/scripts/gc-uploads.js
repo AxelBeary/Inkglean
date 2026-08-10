@@ -5,7 +5,7 @@
  * --dry-run: 只列出孤儿文件，不实际删除
  *
  * 扫描 uploads/ 下所有文件，与数据库中的引用比对，
- * 删除超过 24h 未被引用的孤儿文件。
+ * 删除超过 72h 未被引用的孤儿文件（窗口说明见下方 MIN_AGE_MS 注释）。
  * 建议通过 cron 每天执行一次。
  */
 import { resolve, join, relative } from 'path'
@@ -16,7 +16,10 @@ import 'dotenv/config'
 const DB_PATH = process.env.DB_PATH || './data/commission.db'
 const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
 const DRY_RUN = process.argv.includes('--dry-run')
-const MIN_AGE_MS = 24 * 60 * 60 * 1000 // 24h
+// R-6（审计批E）：孤儿回收窗口 24h → 72h（与 app.ts gcUploads 同款）。
+// 复合炸弹：手工恢复旧 DB 备份后，备份时点之后新上传且已关联订单的文件在新 DB 里「无引用」，
+// 24h 窗口会把它们移入回收站。72h 给运维留出恢复后的关联核对窗口。
+const MIN_AGE_MS = 72 * 60 * 60 * 1000
 
 if (!existsSync(DB_PATH)) {
   console.error(`数据库不存在: ${DB_PATH}`)
@@ -30,24 +33,31 @@ if (!existsSync(UPLOAD_DIR)) {
 const db = new Database(DB_PATH)
 db.pragma('journal_mode = WAL')
 
-// 收集所有数据库中的文件引用
+// 收集所有数据库中的文件引用——黑名单动态扫描（P0-2 / P3-24 审计批E收敛）：
+// 与 app.ts gcUploads 同款，不再维护显式 collect 清单（历史漏登记导致 R19 备注附图、
+// v0.35 画风封面误删事故），遍历全部业务表所有 TEXT 列，带路径分隔符的值即视为引用。
 const refs = new Set()
 
-function collect(rows, field) {
-  for (const row of rows) {
-    if (row[field]) refs.add(row[field])
+const tableRows = db.prepare(
+  "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+).all()
+for (const t of tableRows) {
+  const tableName = String(t.name).replace(/"/g, '""')
+  const colRows = db.prepare(`PRAGMA table_info("${tableName}")`).all()
+  for (const c of colRows) {
+    if (!/TEXT|CLOB/i.test(String(c.type))) continue
+    const colName = String(c.name).replace(/"/g, '""')
+    const pathRows = db.prepare(
+      `SELECT DISTINCT "${colName}" AS v FROM "${tableName}" WHERE "${colName}" IS NOT NULL AND "${colName}" != '' AND length("${colName}") <= 512`
+    ).all()
+    for (const r of pathRows) {
+      const v = r.v
+      if (typeof v === 'string' && (v.includes('/') || v.includes('\\'))) {
+        refs.add(v.replace(/\\/g, '/'))
+      }
+    }
   }
 }
-
-collect(db.prepare('SELECT image_path FROM artworks').all(), 'image_path')
-// SPEC-PRICE-2（v50）：price_tiers 已 DROP；补收画风封面/尺寸图（与 app.ts GC 清单对齐）
-collect(db.prepare('SELECT cover_image FROM art_styles').all(), 'cover_image')
-collect(db.prepare('SELECT image FROM style_sizes').all(), 'image')
-collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
-collect(db.prepare('SELECT file_path FROM deliverables').all(), 'file_path')
-collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')
-// P2-#17: 收集备注附图（旧版遗漏，会把在用备注图当孤儿删掉）
-collect(db.prepare('SELECT image_path FROM order_notes WHERE image_path IS NOT NULL').all(), 'image_path')
 
 console.log(`数据库引用文件数: ${refs.size}`)
 

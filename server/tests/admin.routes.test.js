@@ -4,7 +4,7 @@ import { createSession, bindTotpInit, confirmTotpBind } from '../src/features/au
 import { generateSecret, computeTotp } from '../src/features/auth/totp.js'
 import * as orderService from '../src/features/order/order.service.js'
 import { buildApp } from '../src/app.js'
-import { mkdirSync, writeFileSync, rmSync, utimesSync } from 'fs'
+import { mkdirSync, writeFileSync, rmSync, utimesSync, existsSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
 
 /** 设置管理员：写 platform_config + 返回管理员画师行 */
@@ -525,6 +525,7 @@ describe('管理员路由 (Admin Routes)', () => {
   // ─── 回收站分页（REQ-022 F4） ───
 
   const rbBinRoot = join(resolve(process.env.UPLOAD_DIR || './uploads'), '.recycle-bin')
+  const rbUploadRoot = resolve(process.env.UPLOAD_DIR || './uploads')
 
   /** 造 n 个回收站文件，mtime 从新到旧递减（file-0 最新），返回文件名数组（新→旧） */
   function seedRecycleFiles(n) {
@@ -545,6 +546,8 @@ describe('管理员路由 (Admin Routes)', () => {
 
   afterEach(() => {
     rmSync(rbBinRoot, { recursive: true, force: true })
+    // 恢复测试会把文件移回 uploads 原始路径，一并清理防跨用例残留
+    rmSync(rbUploadRoot, { recursive: true, force: true })
   })
 
   it('TC-RB-01: 不传参数默认 page=1/pageSize=20，返回 items/total/page/pageSize', async () => {
@@ -668,5 +671,90 @@ describe('管理员路由 (Admin Routes)', () => {
       headers: { Authorization: `Bearer ${adminToken(admin)}` }
     })
     expect(after.json().total).toBe(0)
+  })
+
+  it('TC-RB-08: 恢复成功——文件从回收站移回原始路径（R-21）', async () => {
+    const admin = setAdmin('10001')
+    const dateDir = join(rbBinRoot, '2026-08-05', 'images', '1')
+    mkdirSync(dateDir, { recursive: true })
+    writeFileSync(join(dateDir, 'avatar.png'), 'bin-png-data')
+    const originalAbs = join(rbUploadRoot, 'images', '1', 'avatar.png')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/recycle-bin/restore',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { fileName: 'avatar.png' }
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ success: true, restoredPath: 'images/1/avatar.png' })
+    expect(existsSync(originalAbs)).toBe(true)
+    expect(readFileSync(originalAbs, 'utf8')).toBe('bin-png-data')
+    expect(existsSync(join(dateDir, 'avatar.png'))).toBe(false)
+  })
+
+  it('TC-RB-09: 重复恢复返回 404（文件已不在回收站）', async () => {
+    const admin = setAdmin('10001')
+    const dateDir = join(rbBinRoot, '2026-08-05', 'images', '1')
+    mkdirSync(dateDir, { recursive: true })
+    writeFileSync(join(dateDir, 'avatar.png'), 'bin-png-data')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+
+    const first = await app.inject({ method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth, payload: { fileName: 'avatar.png' } })
+    expect(first.statusCode).toBe(200)
+
+    const second = await app.inject({ method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth, payload: { fileName: 'avatar.png' } })
+    expect(second.statusCode).toBe(404)
+  })
+
+  it('TC-RB-10: 目标路径已存在 → 409，不覆盖现有文件', async () => {
+    const admin = setAdmin('10001')
+    const dateDir = join(rbBinRoot, '2026-08-05', 'images', '1')
+    mkdirSync(dateDir, { recursive: true })
+    writeFileSync(join(dateDir, 'avatar.png'), 'bin-png-data')
+    const originalAbs = join(rbUploadRoot, 'images', '1', 'avatar.png')
+    mkdirSync(join(originalAbs, '..'), { recursive: true })
+    writeFileSync(originalAbs, 'existing-data')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/recycle-bin/restore',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { fileName: 'avatar.png' }
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(readFileSync(originalAbs, 'utf8')).toBe('existing-data')
+    expect(existsSync(join(dateDir, 'avatar.png'))).toBe(true)
+  })
+
+  it('TC-RB-11: fileName 含路径分隔符或超 255 字符被拒', async () => {
+    const admin = setAdmin('10001')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+
+    for (const bad of ['a/b.png', 'a\\b.png']) {
+      const res = await app.inject({ method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth, payload: { fileName: bad } })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toContain('路径分隔符')
+    }
+
+    const long = await app.inject({ method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth, payload: { fileName: 'x'.repeat(256) } })
+    expect(long.statusCode).toBe(400)
+  })
+
+  it('TC-RB-12: 非管理员恢复返回 403', async () => {
+    setAdmin('10001')
+    const pleb = seedArtist({ qq_number: '20002', subdomain: 'rb-restore-pleb' })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/recycle-bin/restore',
+      headers: { Authorization: `Bearer ${adminToken(pleb)}` },
+      payload: { fileName: 'a.png' }
+    })
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('ADMIN_REQUIRED')
   })
 })

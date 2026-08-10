@@ -37,6 +37,13 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   // ─── 孤儿文件回收（内联执行 + 启动时立即跑一次）───
   // 事故修复：删除→移入回收站（.recycle-bin/YYYY-MM-DD/），画师表空时跳过
   const RECYCLE_BIN = '.recycle-bin'
+  // R-20（审计批E）：埋点表 TTL——events/anon_tokens 只进不出，生产代码零清理，慢性膨胀。
+  // events 保留 180 天：管理端统计窗口最宽 90 天（tracking.routes 钳制），留一倍余量；
+  // anon_tokens 保留 30 天：与凭证 TTL 对齐（tracking.service ANON_TOKEN_TTL_DAYS=30，到期即失效）。
+  // 其余表不动：guestbook_messages / order_activity_logs / order_notes / artworks
+  // 为业务与审计数据，永久保留（v35 操作日志注释明确「永久保留，不清理」）。
+  const EVENTS_TTL_DAYS = 180
+  const ANON_TOKENS_TTL_DAYS = 30
   const gcUploads = () => {
     try {
       const UPLOAD_ROOT = resolve(process.env.UPLOAD_DIR || './uploads')
@@ -50,21 +57,11 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       }
 
       const refs = new Set<string>()
-      // ── 显式收集：已知引用字段（文档化清单 + 快速路径；新字段靠下方动态全表扫描兜底）──
-      const collect = (rows: unknown[], field: string) => { for (const r of rows) { const v = (r as Record<string, unknown>)[field]; if (v) refs.add(v as string) } }
-      collect(db.prepare('SELECT image_path FROM artworks').all(), 'image_path')
-      // SPEC-PRICE-2（v50）：price_tiers 已 DROP，example_image 收集随之移除
-      collect(db.prepare('SELECT file_path FROM order_references').all(), 'file_path')
-      collect(db.prepare('SELECT file_path FROM deliverables').all(), 'file_path')
-      collect(db.prepare('SELECT avatar FROM artists').all(), 'avatar')
-      // R19: 备注附图 —— 不收 = 在用备注附图被 GC 误删（数据丢失）
-      collect(db.prepare('SELECT image_path FROM order_notes').all(), 'image_path')
-      // v0.35 修复: 画风封面（v0.36 遗留漏收集，封面图上传 24h 后会被 GC 误删——数据丢失）
-      collect(db.prepare('SELECT cover_image FROM art_styles').all(), 'cover_image')
-      // v0.35 修复: 尺寸独立上传图（F1）
-      collect(db.prepare('SELECT image FROM style_sizes').all(), 'image')
-
-      // ── 黑名单动态扫描（P0-2 修复）──
+      // ── 黑名单动态扫描（P0-2 修复；P3-24 审计批E收敛）──
+      // 历史：早期是「显式 collect 清单 + 动态全表扫描」双轨。R19 备注附图、v0.35 画风封面
+      // 都是显式清单漏登记导致的误删事故；动态扫描已覆盖全部 TEXT 列，双轨功能重叠，
+      // 显式清单成为纯维护负担（新增引用字段漏登记有误导风险）。审计 P3-24 拍板二选一，
+      // 只保留覆盖更全的动态扫描——后续新增引用字段无需再登记。
       // 从「白名单允许删」反转为「黑名单禁止删」：遍历所有表所有 TEXT 列，
       // 凡是非空且带路径分隔符（/ 或 \\）的值都视为「DB 仍引用」——被引用则文件绝不回收。
       // 漏登记新表/新字段最多多留垃圾，绝不丢数据（两次事故教训：R19 备注附图、v0.35 画风封面）。
@@ -91,7 +88,11 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
           }
         }
       }
-      const MIN_AGE_MS = 24 * 60 * 60 * 1000
+
+      // R-6（审计批E）：孤儿回收窗口 24h → 72h。
+      // 复合炸弹：手工恢复旧 DB 备份后，备份时点之后新上传且已关联订单的文件在新 DB 里「无引用」，
+      // 24h 窗口会把它们移入回收站。72h 给运维留出恢复后的关联核对窗口；超 72h 仍未引用的才是真孤儿。
+      const MIN_AGE_MS = 72 * 60 * 60 * 1000
       const now = Date.now()
       let recycled = 0, freed = 0
 
@@ -130,6 +131,15 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
             }
           }
         }
+      }
+
+      // ── 埋点表 TTL（R-20）──
+      // created_at 与 tracking.service 写入/续期口径一致（SQLite datetime('now') 文本，UTC），
+      // 用 datetime('now', ?) 同款表达式比较，避免 JS ISO 字符串与库内格式混比。
+      const eventsDeleted = db.prepare("DELETE FROM events WHERE created_at < datetime('now', ?)").run(`-${EVENTS_TTL_DAYS} days`).changes
+      const anonDeleted = db.prepare("DELETE FROM anon_tokens WHERE created_at < datetime('now', ?)").run(`-${ANON_TOKENS_TTL_DAYS} days`).changes
+      if (eventsDeleted > 0 || anonDeleted > 0) {
+        app.log.info(`埋点 TTL 清理: events 删除 ${eventsDeleted} 条, anon_tokens 删除 ${anonDeleted} 条`)
       }
 
       for (const absPath of walk(UPLOAD_ROOT)) {
