@@ -43,10 +43,13 @@ describe('audit-batch-b P2-12 参考图存在性校验', () => {
 
   it('TC-P2-12-02: 客户下单引用真实存在的参考图 → 200 且订单带参考图', async () => {
     seedArtist({ qq_number: '88002', subdomain: 'p212-ok' })
+    // F-10（P2-13 后端侧）: references 非空需 x-anon-token；未登记存量路径放行（存在性校验兜底）
+    const anon = await app.inject({ method: 'POST', url: '/api/anon-token' })
     const ref = createReferenceFile('references/p2-12-ok.png')
     const res = await app.inject({
       method: 'POST',
       url: '/api/orders',
+      headers: { 'x-anon-token': anon.json().token },
       payload: { subdomain: 'p212-ok', clientQq: '123456', agreeRules: true, references: [ref] }
     })
     expect(res.statusCode).toBe(200)

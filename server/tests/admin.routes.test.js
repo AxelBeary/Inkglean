@@ -173,8 +173,8 @@ describe('管理员路由 (Admin Routes)', () => {
       payload: { status: 'bogus' }
     })
 
+    // F-3（P3-22）: body enum schema 在 handler 前拦截，错误信息走 Fastify 校验默认文案
     expect(res.statusCode).toBe(400)
-    expect(res.json().error).toContain('无效状态')
   })
 
   it('TC-AR-09b: 管理员可设 hidden（BUG-8 第三项，用户拍板）', async () => {
@@ -618,24 +618,24 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(body.page).toBe(999)
   })
 
-  it('TC-RB-05: pageSize 超上限钳到 100，非法值回退默认', async () => {
+  it('TC-RB-05: pageSize/page 非法入参 400（F-3 schema 校验）', async () => {
     const admin = setAdmin('10001')
     seedRecycleFiles(3)
 
     const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+    // 超上限（150 > 100）→ 400（此前钳到 100，F-3 改为 schema 直接拒绝）
     const big = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?pageSize=150', headers: auth })
-    expect(big.json().pageSize).toBe(100)
+    expect(big.statusCode).toBe(400)
 
-    // 非法值（0/非数字）回退默认 20；负值钳到下限 1（与订单分页表达式行为一致）
+    // 非法值（0/非数字/负值/page=0）→ 400（此前回退默认/钳制，F-3 改为 schema 直接拒绝）
     for (const q of ['pageSize=0', 'pageSize=abc']) {
       const r = await app.inject({ method: 'GET', url: `/api/admin/recycle-bin?${q}`, headers: auth })
-      expect(r.statusCode).toBe(200)
-      expect(r.json().pageSize).toBe(20)
+      expect(r.statusCode).toBe(400)
     }
     const negSize = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?pageSize=-5', headers: auth })
-    expect(negSize.json().pageSize).toBe(1)
+    expect(negSize.statusCode).toBe(400)
     const badPage = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=0', headers: auth })
-    expect(badPage.json().page).toBe(1)
+    expect(badPage.statusCode).toBe(400)
   })
 
   it('TC-RB-06: 非管理员访问回收站返回 403', async () => {

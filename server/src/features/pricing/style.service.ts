@@ -122,62 +122,65 @@ interface UpdateAddonTemplateFields {
 
 /** 更新增项模板 */
 export function updateAddonTemplate(artistId: number, templateId: number, fields: UpdateAddonTemplateFields): AddonTemplate {
-  const tpl = getAddonTemplate(artistId, templateId) // 归属校验
-  // 系统预置模板（artist_id NULL）画师不可改（管理员后台维护）
-  if (tpl.artist_id !== artistId) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
+  // F-1（P3-20）: 校验与写入同事务——任意后置校验抛错即整体回滚，杜绝先写后校验的半态
+  return db.transaction(() => {
+    const tpl = getAddonTemplate(artistId, templateId) // 归属校验
+    // 系统预置模板（artist_id NULL）画师不可改（管理员后台维护）
+    if (tpl.artist_id !== artistId) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
 
-  if (fields.name !== undefined) {
-    if (!fields.name.trim()) throw new AppError(E.ADDON_TEMPLATE_NAME_EMPTY)
-    db.prepare('UPDATE addon_templates SET name = ? WHERE id = ?').run(fields.name.trim(), templateId)
-  }
-  if (fields.control_type !== undefined) {
-    if (!VALID_CONTROL_TYPES.includes(fields.control_type as typeof VALID_CONTROL_TYPES[number])) {
-      throw new AppError(E.ADDON_TEMPLATE_INVALID_CONTROL)
+    if (fields.name !== undefined) {
+      if (!fields.name.trim()) throw new AppError(E.ADDON_TEMPLATE_NAME_EMPTY)
+      db.prepare('UPDATE addon_templates SET name = ? WHERE id = ?').run(fields.name.trim(), templateId)
     }
-    db.prepare('UPDATE addon_templates SET control_type = ? WHERE id = ?').run(fields.control_type, templateId)
-  }
-  if (fields.price_mode !== undefined) {
-    if (!VALID_PRICE_MODES.includes(fields.price_mode as typeof VALID_PRICE_MODES[number])) {
-      throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICING)
+    if (fields.control_type !== undefined) {
+      if (!VALID_CONTROL_TYPES.includes(fields.control_type as typeof VALID_CONTROL_TYPES[number])) {
+        throw new AppError(E.ADDON_TEMPLATE_INVALID_CONTROL)
+      }
+      db.prepare('UPDATE addon_templates SET control_type = ? WHERE id = ?').run(fields.control_type, templateId)
     }
-    db.prepare('UPDATE addon_templates SET price_mode = ? WHERE id = ?').run(fields.price_mode, templateId)
-  }
-  if (fields.default_price !== undefined) {
-    if (fields.default_price < 0) throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICE)
-    db.prepare('UPDATE addon_templates SET default_price = ? WHERE id = ?').run(fields.default_price, templateId)
-  }
-  if (fields.unit_label !== undefined) {
-    db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(fields.unit_label || null, templateId)
-  }
-  if (fields.category !== undefined) {
-    if (!VALID_CATEGORIES.includes(fields.category as typeof VALID_CATEGORIES[number])) throw new AppError(E.VALIDATION, 400, { field: 'category', hint: 'category 只能是 add/usage/rush' })
-    db.prepare('UPDATE addon_templates SET category = ? WHERE id = ?').run(fields.category, templateId)
-  }
-  // SPEC-PRICE-2 组合约束：用途/加急必须百分比计价 + 开关控件（跨字段校验，读最新值）
-  if (fields.category !== undefined || fields.price_mode !== undefined || fields.control_type !== undefined) {
-    const now = db.prepare('SELECT category, price_mode, control_type FROM addon_templates WHERE id = ?').get(templateId) as { category: string; price_mode: string; control_type: string }
-    if (now.category !== 'add' && now.price_mode !== 'percent') {
-      throw new AppError(E.VALIDATION, 400, { field: 'price_mode', hint: '用途/加急增项必须选择百分比计价' })
+    if (fields.price_mode !== undefined) {
+      if (!VALID_PRICE_MODES.includes(fields.price_mode as typeof VALID_PRICE_MODES[number])) {
+        throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICING)
+      }
+      db.prepare('UPDATE addon_templates SET price_mode = ? WHERE id = ?').run(fields.price_mode, templateId)
     }
-    if (now.category !== 'add' && now.control_type !== 'switch') {
-      throw new AppError(E.VALIDATION, 400, { field: 'control_type', hint: '用途/加急增项只能使用开关控件（下单时各选一个）' })
+    if (fields.default_price !== undefined) {
+      if (fields.default_price < 0) throw new AppError(E.ADDON_TEMPLATE_INVALID_PRICE)
+      db.prepare('UPDATE addon_templates SET default_price = ? WHERE id = ?').run(fields.default_price, templateId)
     }
-  }
-  // percent 计价百分比范围校验
-  if (fields.default_price !== undefined || fields.price_mode !== undefined) {
-    const now = db.prepare('SELECT price_mode, default_price FROM addon_templates WHERE id = ?').get(templateId) as { price_mode: string; default_price: number }
-    if (now.price_mode === 'percent' && (!Number.isInteger(now.default_price) || now.default_price > 1000)) {
-      throw new AppError(E.VALIDATION, 400, { field: 'default_price', hint: '百分比须为 0-1000 的整数' })
+    if (fields.unit_label !== undefined) {
+      db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(fields.unit_label || null, templateId)
     }
-  }
-  if (fields.max_quantity !== undefined) {
-    if (fields.max_quantity != null && (!Number.isInteger(fields.max_quantity) || fields.max_quantity < 1 || fields.max_quantity > 999)) {
-      throw new AppError(E.VALIDATION, 400, { field: 'max_quantity', hint: '数量上限须为 1-999 的整数' })
+    if (fields.category !== undefined) {
+      if (!VALID_CATEGORIES.includes(fields.category as typeof VALID_CATEGORIES[number])) throw new AppError(E.VALIDATION, 400, { field: 'category', hint: 'category 只能是 add/usage/rush' })
+      db.prepare('UPDATE addon_templates SET category = ? WHERE id = ?').run(fields.category, templateId)
     }
-    db.prepare('UPDATE addon_templates SET max_quantity = ? WHERE id = ?').run(fields.max_quantity ?? null, templateId)
-  }
+    // SPEC-PRICE-2 组合约束：用途/加急必须百分比计价 + 开关控件（跨字段校验，读最新值）
+    if (fields.category !== undefined || fields.price_mode !== undefined || fields.control_type !== undefined) {
+      const now = db.prepare('SELECT category, price_mode, control_type FROM addon_templates WHERE id = ?').get(templateId) as { category: string; price_mode: string; control_type: string }
+      if (now.category !== 'add' && now.price_mode !== 'percent') {
+        throw new AppError(E.VALIDATION, 400, { field: 'price_mode', hint: '用途/加急增项必须选择百分比计价' })
+      }
+      if (now.category !== 'add' && now.control_type !== 'switch') {
+        throw new AppError(E.VALIDATION, 400, { field: 'control_type', hint: '用途/加急增项只能使用开关控件（下单时各选一个）' })
+      }
+    }
+    // percent 计价百分比范围校验
+    if (fields.default_price !== undefined || fields.price_mode !== undefined) {
+      const now = db.prepare('SELECT price_mode, default_price FROM addon_templates WHERE id = ?').get(templateId) as { price_mode: string; default_price: number }
+      if (now.price_mode === 'percent' && (!Number.isInteger(now.default_price) || now.default_price > 1000)) {
+        throw new AppError(E.VALIDATION, 400, { field: 'default_price', hint: '百分比须为 0-1000 的整数' })
+      }
+    }
+    if (fields.max_quantity !== undefined) {
+      if (fields.max_quantity != null && (!Number.isInteger(fields.max_quantity) || fields.max_quantity < 1 || fields.max_quantity > 999)) {
+        throw new AppError(E.VALIDATION, 400, { field: 'max_quantity', hint: '数量上限须为 1-999 的整数' })
+      }
+      db.prepare('UPDATE addon_templates SET max_quantity = ? WHERE id = ?').run(fields.max_quantity ?? null, templateId)
+    }
 
-  return getAddonTemplate(artistId, templateId)
+    return getAddonTemplate(artistId, templateId)
+  })()
 }
 
 /**
@@ -322,30 +325,33 @@ interface UpdateArtStyleFields {
 
 /** 更新画风 */
 export function updateArtStyle(artistId: number, styleId: number, fields: UpdateArtStyleFields): ArtStyleWithDetails {
-  getArtStyle(artistId, styleId) // 归属校验
+  // F-1（P3-20）: 校验与写入同事务——任意后置校验抛错即整体回滚，杜绝先写后校验的半态
+  return db.transaction(() => {
+    getArtStyle(artistId, styleId) // 归属校验
 
-  if (fields.name !== undefined) {
-    if (!fields.name.trim()) throw new AppError(E.STYLE_NAME_EMPTY)
-    db.prepare('UPDATE art_styles SET name = ? WHERE id = ?').run(fields.name.trim(), styleId)
-  }
-  if (fields.description !== undefined) {
-    db.prepare('UPDATE art_styles SET description = ? WHERE id = ?').run(fields.description || null, styleId)
-  }
-  if (fields.cover_image !== undefined) {
-    // M1 修复：封面图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
-    if (fields.cover_image && (String(fields.cover_image).includes('..') || !String(fields.cover_image).startsWith('images/'))) {
-      throw new AppError(E.ILLEGAL_PATH)
+    if (fields.name !== undefined) {
+      if (!fields.name.trim()) throw new AppError(E.STYLE_NAME_EMPTY)
+      db.prepare('UPDATE art_styles SET name = ? WHERE id = ?').run(fields.name.trim(), styleId)
     }
-    db.prepare('UPDATE art_styles SET cover_image = ? WHERE id = ?').run(fields.cover_image || null, styleId)
-  }
-  if (fields.sort_order !== undefined) {
-    db.prepare('UPDATE art_styles SET sort_order = ? WHERE id = ?').run(fields.sort_order, styleId)
-  }
-  if (fields.is_active !== undefined) {
-    db.prepare('UPDATE art_styles SET is_active = ? WHERE id = ?').run(fields.is_active ? 1 : 0, styleId)
-  }
+    if (fields.description !== undefined) {
+      db.prepare('UPDATE art_styles SET description = ? WHERE id = ?').run(fields.description || null, styleId)
+    }
+    if (fields.cover_image !== undefined) {
+      // M1 修复：封面图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
+      if (fields.cover_image && (String(fields.cover_image).includes('..') || !String(fields.cover_image).startsWith('images/'))) {
+        throw new AppError(E.ILLEGAL_PATH)
+      }
+      db.prepare('UPDATE art_styles SET cover_image = ? WHERE id = ?').run(fields.cover_image || null, styleId)
+    }
+    if (fields.sort_order !== undefined) {
+      db.prepare('UPDATE art_styles SET sort_order = ? WHERE id = ?').run(fields.sort_order, styleId)
+    }
+    if (fields.is_active !== undefined) {
+      db.prepare('UPDATE art_styles SET is_active = ? WHERE id = ?').run(fields.is_active ? 1 : 0, styleId)
+    }
 
-  return getArtStyleWithDetails(artistId, styleId)
+    return getArtStyleWithDetails(artistId, styleId)
+  })()
 }
 
 /** 删除画风（级联删 sizes + style_addons + overrides） */

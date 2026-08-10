@@ -26,11 +26,10 @@ export const E = {
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
   TOKEN_REVOKED: 'TOKEN_REVOKED',
   ADMIN_REQUIRED: 'ADMIN_REQUIRED',
-  CODE_INVALID: 'CODE_INVALID',
-  CODE_EXPIRED: 'CODE_EXPIRED',
-  CODE_TOO_MANY_ATTEMPTS: 'CODE_TOO_MANY_ATTEMPTS',
+  // F-9（审计批F）: 旧登录码时代错误码 CODE_INVALID / CODE_EXPIRED / CODE_TOO_MANY_ATTEMPTS
+  // 已退役删除（REQ-027 TOTP 上线后后端不再产生；前端 LOGIN_CODES 白名单由批 G 同步清理）
   QQ_NOT_REGISTERED: 'QQ_NOT_REGISTERED',
-  // REQ-027: TOTP 动态口令（旧登录码错误码保留，不再使用）
+  // REQ-027: TOTP 动态口令
   TOTP_NOT_BOUND: 'TOTP_NOT_BOUND',
   TOTP_INVALID: 'TOTP_INVALID',
   TOTP_LOCKED: 'TOTP_LOCKED',
@@ -247,9 +246,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   ACCOUNT_DISABLED: '账号已被禁用',
   TOKEN_REVOKED: '登录已失效，请重新登录',
   ADMIN_REQUIRED: '需要管理员权限',
-  CODE_INVALID: '登录码不正确',
-  CODE_EXPIRED: '登录码已过期，请重新获取',
-  CODE_TOO_MANY_ATTEMPTS: '尝试次数过多，请稍后再试',
+  // F-9（审计批F）: 旧登录码时代错误码已退役删除（见 E 枚举同注释）
   QQ_NOT_REGISTERED: '该QQ号尚未注册',
   // REQ-027: TOTP 动态口令
   TOTP_NOT_BOUND: '该画师尚未绑定动态口令，请联系管理员绑定',

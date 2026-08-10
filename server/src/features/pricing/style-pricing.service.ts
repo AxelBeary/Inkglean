@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { validateDiscountCode, computeDiscountCents } from './discount.service.js'
+import { validateDiscountCode, computeDiscountCents, type DiscountCode } from './discount.service.js'
 
 // ============================================
 // SPEC-PRICE-2 唯一计价引擎（2026-08-09 价格模型统一重构）
@@ -85,44 +85,36 @@ interface ResolvedAddon {
   max_quantity: number | null
 }
 
-// ─── 核心计算 ───
+// ─── 增项解析（F-7 第一段） ───
 
-export function calculateStylePrice(artistId: number, opts: CalculateStylePriceOpts): StylePriceResult {
-  const { styleSizeId, addons = [], discountCode = null } = opts
+/** 解析后的普通增项行（价格优先级已定、数量已校验；金额由 buildPriceLines 计算） */
+export interface ResolvedAddonItem {
+  name: string
+  price_mode: string
+  unitPrice: number
+  source: PriceSource
+  quantity: number
+}
 
-  // 1. 验证尺寸存在且属于该画师的活跃画风
-  const size = db.prepare(`
-    SELECT ss.*, s.artist_id, s.is_active, s.name AS style_name
-    FROM style_sizes ss
-    JOIN art_styles s ON s.id = ss.art_style_id
-    WHERE ss.id = ?
-  `).get(styleSizeId) as {
-    id: number; art_style_id: number; name: string; base_price: number
-    artist_id: number; is_active: number; style_name: string; display_status: string
-  } | undefined
+/** 解析结果：普通增项分组 + 用途/加急各至多一个（互斥已在解析期强制） */
+export interface ResolvedAddonSelection {
+  addons: ResolvedAddonItem[]
+  usage: { name: string; percent: number } | null
+  rush: { name: string; percent: number } | null
+}
 
-  if (!size) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404)
-  if (size.artist_id !== artistId) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404)
-  if (!size.is_active) throw new AppError(E.STYLE_NOT_FOUND, 404, { hint: '画风已停用' })
-  // v49 (REQ-036): 尺寸三态——showcase/closed 不允许算价（防 F12 直调）
-  if (size.display_status && size.display_status !== 'available') {
-    throw new AppError(E.STYLE_SIZE_NOT_AVAILABLE, 400, { displayStatus: size.display_status })
-  }
-
-  // 2. 基础价入整数分（公式链起点，后续所有百分比金额以此为基准）
-  const baseCents = Math.round(size.base_price * 100)
-  const styleId = size.art_style_id
-
-  // 3. 增项遍历（去重 + 归属/启用/尺寸隐藏校验 + 分类累计）
-  const fixedAddonItems: FixedAddonLine[] = []
-  const percentAddonItems: PercentAddonLine[] = []
-  let fixedTotalCents = 0
-  let percentTotalCents = 0
-  let usageSelection: { line: ResolvedAddon; percent: number } | null = null
-  let rushSelection: { line: ResolvedAddon; percent: number } | null = null
+/**
+ * 解析增项选择（F-7（P3-31）: 原 calculateStylePrice 步骤 3 拆出）
+ * 职责：去重 + 归属/启用/尺寸隐藏校验 + 数量解析 + 价格优先级 + 用途/加急分组互斥
+ * 铁律转为段内校验：用途/加急各只生效一个 → 违反抛 ADDON_SELECTION_MUTEX（不再是注释约定）
+ */
+export function resolveSelectedAddons(styleId: number, styleSizeId: number, selections: AddonSelection[]): ResolvedAddonSelection {
+  const addons: ResolvedAddonItem[] = []
+  let usageSelection: { name: string; percent: number } | null = null
+  let rushSelection: { name: string; percent: number } | null = null
 
   const seenIds = new Set<number>()
-  for (const sel of addons) {
+  for (const sel of selections) {
     if (seenIds.has(sel.styleAddonId)) {
       throw new AppError(E.VALIDATION, 400, { reason: 'styleAddonId ' + sel.styleAddonId + ' 重复提交' })
     }
@@ -184,7 +176,7 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
         throw new AppError(E.VALIDATION, 400, { hint: '用途/加急增项必须是百分比计价' })
       }
       const pct = Math.round(unitPrice)
-      const selection = { line: sa, percent: pct }
+      const selection = { name: sa.name, percent: pct }
       if (sa.category === 'usage') {
         if (usageSelection) throw new AppError(E.ADDON_SELECTION_MUTEX, 400)
         usageSelection = selection
@@ -195,50 +187,168 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
       continue
     }
 
-    // category=add：按计价方式分别累计（百分比金额只基于基础价——铁律 3）
+    // category=add：按计价方式分派给 buildPriceLines（百分比金额只基于基础价——见下一段断言）
     if (sa.price_mode === 'percent') {
       const pct = Math.round(unitPrice)
       if (pct < 0) throw new AppError(E.VALIDATION, 400, { hint: '增项 "' + sa.name + '" 百分比不能为负' })
-      const amountCents = Math.round(baseCents * pct / 100) * quantity
+    }
+    addons.push({ name: sa.name, price_mode: sa.price_mode, unitPrice, source, quantity })
+  }
+
+  return { addons, usage: usageSelection, rush: rushSelection }
+}
+
+// ─── 公式链构建（F-7 第二段，纯函数） ───
+
+export interface PriceLinesResult {
+  fixedAddonItems: FixedAddonLine[]
+  percentAddonItems: PercentAddonLine[]
+  subtotalCents: number
+}
+
+/**
+ * F-7 铁律断言：百分比增项金额必须以基础价为基数（不允许基于小计/其他增项）。
+ * 独立重算校验——未来若把金额计算改成基于小计，此处会抛错而不是靠注释提醒。
+ * 导出供单测直接验证断言本身。
+ */
+export function assertPercentAmountOnBase(name: string, percent: number, quantity: number, baseCents: number, amountCents: number): void {
+  const expected = Math.round(baseCents * percent / 100) * quantity
+  if (!Number.isInteger(percent) || percent < 0 || amountCents !== expected) {
+    throw new AppError(E.PRICING_CALC_FAILED, 500, {
+      field: name,
+      reason: `百分比增项「${name}」基数校验失败（金额须=基础价×${percent}%×${quantity}）`
+    })
+  }
+}
+
+/**
+ * 构建公式链（F-7（P3-31）: 原 calculateStylePrice 步骤 4 拆出，纯整数分运算）
+ * 基础价 → 固定增项（单价×数量） → 百分比增项（只按基础价，段内断言） → 小计
+ */
+export function buildPriceLines(baseCents: number, selection: ResolvedAddonSelection): PriceLinesResult {
+  const fixedAddonItems: FixedAddonLine[] = []
+  const percentAddonItems: PercentAddonLine[] = []
+  let fixedTotalCents = 0
+  let percentTotalCents = 0
+
+  for (const addon of selection.addons) {
+    if (addon.price_mode === 'percent') {
+      const percent = Math.round(addon.unitPrice)
+      const amountCents = Math.round(baseCents * percent / 100) * addon.quantity
+      assertPercentAmountOnBase(addon.name, percent, addon.quantity, baseCents, amountCents)
       percentTotalCents += amountCents
-      percentAddonItems.push({ name: sa.name, quantity, percent: pct, amountCents, source })
+      percentAddonItems.push({ name: addon.name, quantity: addon.quantity, percent, amountCents, source: addon.source })
     } else {
-      const unitCents = Math.round(unitPrice * 100)
-      const amountCents = unitCents * quantity
+      const unitCents = Math.round(addon.unitPrice * 100)
+      const amountCents = unitCents * addon.quantity
       fixedTotalCents += amountCents
-      fixedAddonItems.push({ name: sa.name, quantity, unitCents, amountCents, source })
+      fixedAddonItems.push({ name: addon.name, quantity: addon.quantity, unitCents, amountCents, source: addon.source })
     }
   }
 
-  // 4. 小计 = 基础价 + 固定增项合计 + 百分比增项合计（整数分加法，无损）
   const subtotalCents = baseCents + fixedTotalCents + percentTotalCents
+  return { fixedAddonItems, percentAddonItems, subtotalCents }
+}
 
-  // 5. 用途倍率 → 加急倍率（顺序不可颠倒；因子用整数 (100+pct) 避免浮点）
-  let usage: MultiplierLine | null = null
+// ─── 倍率与折扣（F-7 第三段，纯函数） ───
+
+/** 已解析的折扣（金额在应用段基于倍率后总价计算） */
+export interface ResolvedDiscount {
+  code: string
+  discount_type: 'percent' | 'fixed'
+  discount_value: number
+}
+
+export interface MultiplierDiscountResult {
+  usage: MultiplierLine | null
+  rush: MultiplierLine | null
+  afterMultipliersCents: number
+  discount: StylePriceResult['discount']
+  totalCents: number
+}
+
+/**
+ * 应用倍率与折扣（F-7（P3-31）: 原 calculateStylePrice 步骤 5-7 拆出，纯函数）
+ * 顺序铁律：用途倍率 → 加急倍率 → 折扣（最后应用）；因子用整数 (100+pct) 避免浮点。
+ * 顺序由本函数的结构强制：usage 基于小计、rush 基于用途后、discount 基于倍率后。
+ */
+export function applyMultipliersAndDiscount(
+  subtotalCents: number,
+  usage: { name: string; percent: number } | null,
+  rush: { name: string; percent: number } | null,
+  discount: ResolvedDiscount | null
+): MultiplierDiscountResult {
+  let usageLine: MultiplierLine | null = null
   let afterUsageCents = subtotalCents
-  if (usageSelection) {
-    afterUsageCents = Math.round(subtotalCents * (100 + usageSelection.percent) / 100)
-    usage = { name: usageSelection.line.name, percent: usageSelection.percent, incrementCents: afterUsageCents - subtotalCents }
+  if (usage) {
+    afterUsageCents = Math.round(subtotalCents * (100 + usage.percent) / 100)
+    usageLine = { name: usage.name, percent: usage.percent, incrementCents: afterUsageCents - subtotalCents }
   }
 
-  let rush: MultiplierLine | null = null
+  let rushLine: MultiplierLine | null = null
   let afterMultipliersCents = afterUsageCents
-  if (rushSelection) {
-    afterMultipliersCents = Math.round(afterUsageCents * (100 + rushSelection.percent) / 100)
-    rush = { name: rushSelection.line.name, percent: rushSelection.percent, incrementCents: afterMultipliersCents - afterUsageCents }
+  if (rush) {
+    afterMultipliersCents = Math.round(afterUsageCents * (100 + rush.percent) / 100)
+    rushLine = { name: rush.name, percent: rush.percent, incrementCents: afterMultipliersCents - afterUsageCents }
   }
 
-  // 6. 折扣（最后应用；percent 向下取整 / fixed 不超过总价，语义沿用 discount.service）
-  let discount: StylePriceResult['discount'] = null
+  let discountLine: StylePriceResult['discount'] = null
   let discountCents = 0
+  if (discount) {
+    // percent 向下取整 / fixed 不超过总价，语义沿用 discount.service
+    discountCents = computeDiscountCents(discount as DiscountCode, afterMultipliersCents)
+    discountLine = { code: discount.code, type: discount.discount_type, value: discount.discount_value, amountCents: discountCents }
+  }
+
+  return {
+    usage: usageLine,
+    rush: rushLine,
+    afterMultipliersCents,
+    discount: discountLine,
+    totalCents: afterMultipliersCents - discountCents
+  }
+}
+
+// ─── 核心计算（编排三段） ───
+
+export function calculateStylePrice(artistId: number, opts: CalculateStylePriceOpts): StylePriceResult {
+  const { styleSizeId, addons = [], discountCode = null } = opts
+
+  // 1. 验证尺寸存在且属于该画师的活跃画风
+  const size = db.prepare(`
+    SELECT ss.*, s.artist_id, s.is_active, s.name AS style_name
+    FROM style_sizes ss
+    JOIN art_styles s ON s.id = ss.art_style_id
+    WHERE ss.id = ?
+  `).get(styleSizeId) as {
+    id: number; art_style_id: number; name: string; base_price: number
+    artist_id: number; is_active: number; style_name: string; display_status: string
+  } | undefined
+
+  if (!size) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404)
+  if (size.artist_id !== artistId) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404)
+  if (!size.is_active) throw new AppError(E.STYLE_NOT_FOUND, 404, { hint: '画风已停用' })
+  // v49 (REQ-036): 尺寸三态——showcase/closed 不允许算价（防 F12 直调）
+  if (size.display_status && size.display_status !== 'available') {
+    throw new AppError(E.STYLE_SIZE_NOT_AVAILABLE, 400, { displayStatus: size.display_status })
+  }
+
+  // 2. 基础价入整数分（公式链起点，后续所有百分比金额以此为基准）
+  const baseCents = Math.round(size.base_price * 100)
+  const styleId = size.art_style_id
+
+  // F-7（P3-31）: 三段拆分——解析增项 → 构建公式链 → 倍率/折扣
+  const selection = resolveSelectedAddons(styleId, styleSizeId, addons)
+  const { fixedAddonItems, percentAddonItems, subtotalCents } = buildPriceLines(baseCents, selection)
+
+  // 折扣码先解析（应用段基于倍率后总价计算金额；错误码在应用前抛出，行为不变）
+  let discount: ResolvedDiscount | null = null
   if (discountCode) {
     const dc = validateDiscountCode(artistId, discountCode)
-    discountCents = computeDiscountCents(dc, afterMultipliersCents)
-    discount = { code: dc.code, type: dc.discount_type, value: dc.discount_value, amountCents: discountCents }
+    discount = { code: dc.code, discount_type: dc.discount_type, discount_value: dc.discount_value }
   }
 
-  // 7. 最终总价
-  const totalCents = afterMultipliersCents - discountCents
+  const final = applyMultipliersAndDiscount(subtotalCents, selection.usage, selection.rush, discount)
 
   return {
     styleName: size.style_name,
@@ -247,10 +357,10 @@ export function calculateStylePrice(artistId: number, opts: CalculateStylePriceO
     fixedAddonItems,
     percentAddonItems,
     subtotalCents,
-    usage,
-    rush,
-    afterMultipliersCents,
-    discount,
-    totalCents
+    usage: final.usage,
+    rush: final.rush,
+    afterMultipliersCents: final.afterMultipliersCents,
+    discount: final.discount,
+    totalCents: final.totalCents
   }
 }

@@ -12,6 +12,7 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import { withIdempotency, readIdempotencyKey } from '../../shared/idempotency.js'
+import { resolveAnonToken } from '../tracking/tracking.service.js'
 import db from '../../db/connection.js'
 import { existsSync, statSync } from 'fs'
 import { resolve, sep } from 'path'
@@ -183,6 +184,17 @@ export default async function orderRoutes(fastify: FastifyInstance) {
       }
     }
 
+    // F-10（P2-13 后端侧）: 参考图归属凭据——references 非空时要求 x-anon-token，
+    // 校验/绑定由 createOrder 事务内完成；缺失/无效一律 ILLEGAL_PATH（不泄露归属细节）
+    let anonId: number | null = null
+    if (references && references.length > 0) {
+      const anonToken = request.headers['x-anon-token']
+      anonId = typeof anonToken === 'string' ? resolveAnonToken(anonToken) : null
+      if (anonId == null) {
+        throw new AppError(E.ILLEGAL_PATH, 400)
+      }
+    }
+
     // D-2（R-9）: 下单幂等键——scope 含画师身份 + 客户 QQ（防跨画师/跨客户串 key），
     // 双标签页/慢渲染双击同 key 只落一单；错误（校验/下单失败）不缓存，允许重试
     const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
@@ -198,7 +210,8 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         references: references || [],
         discountCode: discountCode || null,
         styleSizeId: styleSizeId || null,
-        styleAddons: styleAddons || []
+        styleAddons: styleAddons || [],
+        anonId
       })
       return {
         statusCode: 200,
