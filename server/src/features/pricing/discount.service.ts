@@ -55,6 +55,10 @@ export function createDiscountCode(artistId: number, { code, discountType, disco
     throw new AppError(E.VALIDATION, 400, { field: 'discountValue', message: '固定金额须大于 0' })
   }
 
+  // audit-a P2-4: 服务层兜底校验——路由 schema 之外的调用方（直连/内部脚本）也必须拒绝非法日期，
+  // 否则非法 expires_at 会让过期检查 NaN 恒 false（永不过期）
+  assertValidExpiresAt(expiresAt)
+
   // 唯一性校验（同画师下码不重复）
   const existing = db.prepare(
     'SELECT id FROM discount_codes WHERE artist_id = ? AND code = ?'
@@ -96,6 +100,8 @@ export function updateDiscountCode(artistId: number, codeId: number, fields: Upd
     db.prepare('UPDATE discount_codes SET max_uses = ? WHERE id = ?').run(fields.maxUses, codeId)
   }
   if (fields.expiresAt !== undefined) {
+    // audit-a P2-4: 更新入口同样兜底校验（与 create 对称）
+    assertValidExpiresAt(fields.expiresAt)
     db.prepare('UPDATE discount_codes SET expires_at = ? WHERE id = ?').run(fields.expiresAt, codeId)
   }
   if (fields.enabled !== undefined) {
@@ -130,8 +136,9 @@ export function validateDiscountCode(artistId: number, codeStr: string): Discoun
   ).get(artistId, codeStr.trim().toUpperCase()) as DiscountCode | undefined
   if (!code) throw new AppError(E.DISCOUNT_CODE_INVALID)
 
-  // 过期检查
-  if (code.expires_at && new Date(code.expires_at) < new Date()) {
+  // 过期检查（audit-a P2-4 fail-closed）：存量脏数据 expires_at 不可解析时按已过期处理，
+  // 杜绝「非法日期 NaN 恒 false」导致永不过期
+  if (code.expires_at && (isNaN(new Date(code.expires_at).getTime()) || new Date(code.expires_at) < new Date())) {
     throw new AppError(E.DISCOUNT_CODE_EXPIRED)
   }
 
@@ -141,6 +148,14 @@ export function validateDiscountCode(artistId: number, codeStr: string): Discoun
   }
 
   return code
+}
+
+/** audit-a P2-4: expiresAt 写入口校验——非 null 且不可解析即拒绝（YYYY-MM-DD 或 ISO 8601） */
+function assertValidExpiresAt(expiresAt: string | null | undefined): void {
+  if (expiresAt == null) return
+  if (isNaN(new Date(expiresAt).getTime())) {
+    throw new AppError(E.VALIDATION, 400, { field: 'expiresAt', message: '过期时间格式无效（须为 YYYY-MM-DD 或 ISO 8601）' })
+  }
 }
 
 /**

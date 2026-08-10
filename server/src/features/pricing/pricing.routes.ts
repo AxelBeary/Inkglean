@@ -17,6 +17,9 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
   if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
 }
 
+/** audit-a P2-4: 折扣码过期时间——仅接受 YYYY-MM-DD 或 ISO 8601 日期时间 */
+const EXPIRES_AT_PATTERN = '^(?:\\d{4}-\\d{2}-\\d{2}|\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z?)$'
+
 export default async function pricingRoutes(fastify: FastifyInstance) {
 
   // ─── 客户端：公开报价（新模型：画风/尺寸/增项 + 分期比例 + 折扣开关） ───
@@ -79,7 +82,7 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
           discountType: { type: 'string', enum: ['percent', 'fixed'], default: 'percent' },
           discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
-          expiresAt: { type: ['string', 'null'], maxLength: 50 }
+          expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN }
         },
         additionalProperties: false
       }
@@ -97,7 +100,7 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
         properties: {
           discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
-          expiresAt: { type: ['string', 'null'], maxLength: 50 },
+          expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN },
           enabled: { type: 'boolean' }
         },
         additionalProperties: false
