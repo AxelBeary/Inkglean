@@ -1,5 +1,5 @@
 <template>
-  <div class="login-page" :style="{ '--lg-tex': `url(${paperTexUrl})` }">
+  <div class="login-page" :data-daypart="daypart" :style="{ '--lg-tex': `url(${paperTexUrl})` }">
     <!-- v0.46 纸墨登录页（原型 login-v0.3.html v0.6 定稿安装）
          宪法落位：纸艺山水 / 手剪纸角 / 纸叠厚度 / 真纸纹理 / 克制动效（一次性、不循环） -->
 
@@ -13,31 +13,28 @@
       </defs>
     </svg>
 
-    <!-- 纸艺山水：曲线远山（水墨圆润山脊，v0.47 重画）+ 小亭（飞檐翹脊重绘）；
-         雾带已删（用户验收：横向线条丑） -->
+    <!-- 纸艺山水：曲线远山（v0.48：山体加垂直墨色渐变——峰顶淡如远雾/山脚浓如近石，对齐北极星水墨浓淡；
+         亭子已删（用户验收：丑）。雾带已删（v0.47） -->
     <div class="mountains" aria-hidden="true">
       <svg class="mt-range" viewBox="0 0 1440 360" preserveAspectRatio="none">
-        <path class="mt-far" d="M0,240 Q120,150 260,208 Q380,118 520,190 Q660,96 820,182 Q960,116 1120,196 Q1260,140 1440,180 L1440,360 L0,360 Z" />
-        <path class="mt-mid" d="M0,290 Q170,196 340,268 Q520,178 700,262 Q880,190 1060,270 Q1240,214 1440,258 L1440,360 L0,360 Z" />
-        <path class="mt-near" d="M0,332 Q220,252 440,318 Q660,242 880,324 Q1100,256 1300,318 Q1380,296 1440,306 L1440,360 L0,360 Z" />
+        <defs>
+          <linearGradient id="lgMtFar" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="currentColor" stop-opacity="0.45" />
+            <stop offset="1" stop-color="currentColor" stop-opacity="1" />
+          </linearGradient>
+          <linearGradient id="lgMtMid" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="currentColor" stop-opacity="0.6" />
+            <stop offset="1" stop-color="currentColor" stop-opacity="1" />
+          </linearGradient>
+          <linearGradient id="lgMtNear" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="currentColor" stop-opacity="0.72" />
+            <stop offset="1" stop-color="currentColor" stop-opacity="1" />
+          </linearGradient>
+        </defs>
+        <path class="mt-far" fill="url(#lgMtFar)" d="M0,240 Q120,150 260,208 Q380,118 520,190 Q660,96 820,182 Q960,116 1120,196 Q1260,140 1440,180 L1440,360 L0,360 Z" />
+        <path class="mt-mid" fill="url(#lgMtMid)" d="M0,290 Q170,196 340,268 Q520,178 700,262 Q880,190 1060,270 Q1240,214 1440,258 L1440,360 L0,360 Z" />
+        <path class="mt-near" fill="url(#lgMtNear)" d="M0,332 Q220,252 440,318 Q660,242 880,324 Q1100,256 1300,318 Q1380,296 1440,306 L1440,360 L0,360 Z" />
       </svg>
-      <div class="pavilion-wrap">
-        <svg viewBox="-24 -10 48 42">
-          <g class="pavilion">
-            <!-- 宝顶 -->
-            <circle cx="0" cy="-7" r="1.3" />
-            <!-- 飞檐屋顶：两端翹起，底缘微弧 -->
-            <path d="M-22,8 Q-21,4 -16,5 Q-8,-3 0,-5.5 Q8,-3 16,5 Q21,4 22,8 Q10,3.5 0,3 Q-10,3.5 -22,8 Z" />
-            <!-- 檐下横梁 -->
-            <rect x="-11" y="8.6" width="22" height="1.4" />
-            <!-- 双柱 -->
-            <rect x="-8" y="10" width="2" height="15" />
-            <rect x="6" y="10" width="2" height="15" />
-            <!-- 台基 -->
-            <rect x="-13" y="25" width="26" height="2.4" />
-          </g>
-        </svg>
-      </div>
     </div>
 
     <div class="scene">
@@ -142,6 +139,11 @@ const themeStore = useThemeStore()
 // v0.38 机制不动：登录是后台入口，挂载纸墨 token 作用域（客户端零影响）
 onMounted(() => themeStore.enterArtistScope())
 onUnmounted(() => themeStore.leaveArtistScope())
+
+/** v0.48 时辰底色：按真实时间定纸白底色的色温（晨微暖/午标准/暮暖深/夜微冷），
+ *  配合 CSS light-drift 一次性超慢漂移（不循环，宪法动效纪律）；墨黑主题不参与 */
+const h = new Date().getHours()
+const daypart = h >= 5 && h < 10 ? 'morning' : h >= 16 && h < 20 ? 'dusk' : (h >= 20 || h < 5) ? 'night' : 'noon'
 
 const qqNumber = ref('')
 const code = ref('')
@@ -287,6 +289,25 @@ html[data-artist-theme] {
     --sl 0.55s cubic-bezier(0.45, 0.05, 0.25, 1);
 }
 
+/* ═══ v0.48 时辰底色：纸白底色随真实时间轻微变色（用户拍板） ═══
+   ① 按 JS 算出的 data-daypart 定色温起点（晨微暖/午标准/暮暖深/夜微冷，
+      偏移仅 ±2 级亮度，不破坏七色锁死的纸色家族）
+   ② 停留期间一次性超慢漂移（240s，如天光缓缓西沉，不循环=宪法动效纪律）
+   ③ 仅纸白主题参与；墨黑主题底色仍走 --paper */
+@property --lg-drift { syntax: '<color>'; inherits: true; initial-value: #F5F4EF; }
+
+.login-page { --lg-drift: #F5F4EF; }
+.login-page[data-daypart='morning'] { --lg-drift: #F6F3EC; }
+.login-page[data-daypart='dusk'] { --lg-drift: #F4F0E5; }
+.login-page[data-daypart='night'] { --lg-drift: #F2F2EF; }
+
+@keyframes lg-light-drift { to { --lg-drift: #F3EEE2; } }
+
+html[data-artist-theme='paper'] .login-page {
+  background: var(--lg-drift);
+  animation: lg-light-drift 240s linear forwards;
+}
+
 .login-page {
   position: relative;
   min-height: 100vh;
@@ -327,31 +348,19 @@ html[data-artist-theme] {
 
 .svg-defs { position: absolute; }
 
-/* 小亭：锁定中景山脊，定宽不形变（v0.47：配合曲线山脊微调落点） */
-.pavilion-wrap {
-  position: absolute;
-  left: 47.5%;
-  bottom: 46%;
-  width: 40px;
-  transform: translateX(-50%);
-}
+/* 山墨阶：v0.48 改垂直渐变（模板 defs），CSS 只供 currentColor 墨色；
+   峰顶淡如远雾/山脚浓如近石，对齐北极星水墨浓淡 */
+.mt-far { color: color-mix(in srgb, var(--ink) 7%, transparent); }
+.mt-mid { color: color-mix(in srgb, var(--ink) 11%, transparent); }
+.mt-near { color: color-mix(in srgb, var(--ink) 16%, transparent); }
 
-.pavilion-wrap svg { width: 100%; height: auto; }
-
-/* 山墨阶：v0.47 每档加深一档，白底上远景不再隐形（color-mix 随主题自适应） */
-.mt-far { fill: color-mix(in srgb, var(--ink) 6%, transparent); }
-.mt-mid { fill: color-mix(in srgb, var(--ink) 10%, transparent); }
-.mt-near { fill: color-mix(in srgb, var(--ink) 15%, transparent); }
-.pavilion { fill: color-mix(in srgb, var(--ink) 30%, transparent); }
-
-/* 入场：山脉逐层升起（一次性；雾带已删） */
+/* 入场：山脉逐层升起（一次性；雾带已删，亭子已删） */
 @keyframes mt-rise { from { transform: translateY(36px); } to { transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .mt-far  { animation: mt-rise 0.6s var(--ease-out) 0.05s backwards; }
 .mt-mid  { animation: mt-rise 0.6s var(--ease-out) 0.15s backwards; }
 .mt-near { animation: mt-rise 0.6s var(--ease-out) 0.25s backwards; }
-.pavilion-wrap { animation: fade-in 0.6s ease 0.55s backwards; }
 
 /* ═══ 登录主体 ═══ */
 .scene {
@@ -440,18 +449,27 @@ html[data-artist-theme] {
   pointer-events: none;
 }
 
-/* 主纸：手剪圆角 + 真纸纹理 + 噪点 + 下缘纸边（v0.47：三档投影，白底上把厚度托出来） */
+/* 主纸：手剪圆角 + 真纸纹理 + 噪点 + 下缘纸边（v0.48：纸白外影再加重一档，
+   对齐北极星纸层的强定向光影；墨黑主题维持原四档） */
 .card {
   position: relative;
   background: var(--card);
   border-radius: var(--r-paper);
   padding: 32px 40px 36px;
   box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent),
+    0 3px 8px color-mix(in srgb, var(--ink) 10%, transparent),
+    0 10px 24px color-mix(in srgb, var(--ink) 15%, transparent),
+    0 28px 64px color-mix(in srgb, var(--ink) 24%, transparent);
+  animation: fade-in 0.4s ease 0.16s backwards;
+}
+
+:global(html[data-artist-theme='ink']) .card {
+  box-shadow:
     0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent),
     0 2px 6px color-mix(in srgb, var(--ink) 7%, transparent),
     0 6px 16px color-mix(in srgb, var(--ink) 11%, transparent),
     0 20px 48px color-mix(in srgb, var(--ink) 16%, transparent);
-  animation: fade-in 0.4s ease 0.16s backwards;
 }
 
 /* 卡面真纸纹理（ambientCG Paper001，CC0，经 --lg-tex 注入）+ 混合模式随主题。
@@ -754,8 +772,6 @@ html[data-artist-theme='ink'] .login-btn { color: #171611; }
 /* ═══ 768 竖屏 ═══ */
 @media (max-width: 768px) {
   .mountains { height: 26vh; min-height: 148px; }
-
-  .pavilion-wrap { width: 32px; }
 
   .card { padding: 28px 24px 32px; }
 
