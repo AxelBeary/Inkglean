@@ -3,6 +3,16 @@ import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 import { buildApp } from '../src/app.js'
+import { mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
+
+/** 在测试 uploads 目录造一个真实参考图文件（P2-12 存在性校验需要） */
+function createReferenceFile(relPath) {
+  const abs = join(process.env.UPLOAD_DIR, relPath)
+  mkdirSync(join(abs, '..'), { recursive: true })
+  writeFileSync(abs, 'fake-image')
+  return relPath
+}
 
 describe('路由层测试 (Route Integration)', () => {
   let app
@@ -303,6 +313,7 @@ describe('路由层测试 (Route Integration)', () => {
       const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
       const order = seedOrder(artist.id)
+      createReferenceFile('references/1/test.png')
 
       const res = await app.inject({
         method: 'POST',
@@ -322,6 +333,7 @@ describe('路由层测试 (Route Integration)', () => {
       const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
       const order = seedOrder(artist.id)
+      createReferenceFile('references/1/test.png')
 
       const res = await app.inject({
         method: 'POST',

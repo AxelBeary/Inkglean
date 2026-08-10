@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto'
 import db from '../../db/connection.js'
+import { AppError, E } from '../../shared/errors.js'
 
 // ============================================
 // 业务埋点服务（REQ-033）
@@ -8,6 +9,9 @@ import db from '../../db/connection.js'
 
 /** 凭证有效期：30 天滚动（last_seen_at 更新即续期；查询时 created_at 30 天内有效） */
 const ANON_TOKEN_TTL_DAYS = 30
+
+/** P2-10: 单事件扩展 payload 序列化字节上限——防超大 payload 落库造成存储放大 */
+const MAX_EVENT_PAYLOAD_BYTES = 2048
 
 /**
  * 事件白名单（只收白名单事件，其余 400——防乱写/刷垃圾事件）
@@ -88,20 +92,24 @@ export function insertEvents(events: TrackedEvent[], artistId: number | null, an
     INSERT INTO events (name, ts, version, artist_id, anon_id, payload_json)
     VALUES (?, ?, ?, ?, ?, ?)
   `)
-  let count = 0
+  // P2-10: 先全量序列化并校验体积，再统一落库——任一事件超限即整请求 400，
+  // 避免前面的合法事件已写入留下半批数据
+  const payloadJsonList: string[] = []
   for (const ev of events) {
     const payload: Record<string, unknown> = { ...ev }
     delete payload.name
     delete payload.ts
     delete payload.version
-    insert.run(
-      String(ev.name),
-      Number(ev.ts),
-      ev.version ?? 1,
-      artistId,
-      anonId,
-      JSON.stringify(payload)
-    )
+    const payloadJson = JSON.stringify(payload)
+    if (payloadJson.length > MAX_EVENT_PAYLOAD_BYTES) {
+      throw new AppError(E.INVALID_EVENT_PAYLOAD, 400, { maxBytes: MAX_EVENT_PAYLOAD_BYTES })
+    }
+    payloadJsonList.push(payloadJson)
+  }
+  let count = 0
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i]
+    insert.run(String(ev.name), Number(ev.ts), ev.version ?? 1, artistId, anonId, payloadJsonList[i])
     count++
   }
   return count

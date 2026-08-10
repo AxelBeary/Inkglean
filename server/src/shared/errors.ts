@@ -110,6 +110,9 @@ export const E = {
   ILLEGAL_FILE_TYPE: 'ILLEGAL_FILE_TYPE',
   UNSUPPORTED_FORMAT: 'UNSUPPORTED_FORMAT',
 
+  // 埋点（REQ-033）
+  INVALID_EVENT_PAYLOAD: 'INVALID_EVENT_PAYLOAD',
+
   // 管理员
   ADMIN_VERIFY_FAILED: 'ADMIN_VERIFY_FAILED',
 
@@ -304,6 +307,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // REQ-022 F1: 发布为作品
   PUBLISH_WRONG_STATUS: '仅已交付（delivered）的订单可发布为作品',
   DELIVERABLE_NOT_FOUND: '交付文件不存在或不属于该订单',
+
+  // 埋点（REQ-033）
+  INVALID_EVENT_PAYLOAD: '事件扩展数据过大（单事件序列化 ≤2KB）',
 
   // 通用
   NOT_FOUND: '资源不存在',

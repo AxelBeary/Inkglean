@@ -791,3 +791,122 @@ describe('SPEC-PRICE-2 画风增项解绑与覆盖读取', () => {
     expect(list[0]).toMatchObject({ style_addon_id: sa.id, price_override: 40, is_hidden: 1 })
   })
 })
+
+// ─── audit-batch-b P3-29: 金额写入限两位小数（分精度） ───
+
+describe('audit-batch-b P3-29 金额写入两位小数约束', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(() => app.close())
+
+  function setup() {
+    const artist = seedArtist({ qq_number: '88030', subdomain: 'p329-artist' })
+    const token = createSession(artist.id, artist.token_version)
+    return { artist, auth: { Authorization: `Bearer ${token}` } }
+  }
+
+  it('TC-P3-29-01: addon-templates default_price——600.005 → 400；600.01/600 → 200', async () => {
+    const { auth } = setup()
+    const bad = await app.inject({
+      method: 'POST', url: '/api/artist/addon-templates', headers: auth,
+      payload: { name: 'X', default_price: 600.005 }
+    })
+    expect(bad.statusCode).toBe(400)
+
+    const ok1 = await app.inject({
+      method: 'POST', url: '/api/artist/addon-templates', headers: auth,
+      payload: { name: 'A', default_price: 600.01 }
+    })
+    expect(ok1.statusCode).toBe(200)
+
+    const ok2 = await app.inject({
+      method: 'POST', url: '/api/artist/addon-templates', headers: auth,
+      payload: { name: 'B', default_price: 600 }
+    })
+    expect(ok2.statusCode).toBe(200)
+  })
+
+  it('TC-P3-29-02: 尺寸 base_price——创建/更新 600.005 → 400；600.01/600 → 200', async () => {
+    const { auth } = setup()
+    const styleRes = await app.inject({
+      method: 'POST', url: '/api/artist/art-styles', headers: auth,
+      payload: { name: '日系' }
+    })
+    const styleId = styleRes.json().id
+
+    const bad = await app.inject({
+      method: 'POST', url: `/api/artist/art-styles/${styleId}/sizes`, headers: auth,
+      payload: { name: '头像', base_price: 600.005 }
+    })
+    expect(bad.statusCode).toBe(400)
+
+    const ok = await app.inject({
+      method: 'POST', url: `/api/artist/art-styles/${styleId}/sizes`, headers: auth,
+      payload: { name: '头像', base_price: 600.01 }
+    })
+    expect(ok.statusCode).toBe(200)
+    const size = ok.json()
+
+    const badPut = await app.inject({
+      method: 'PUT', url: `/api/artist/art-styles/${styleId}/sizes/${size.id}`, headers: auth,
+      payload: { base_price: 600.005 }
+    })
+    expect(badPut.statusCode).toBe(400)
+
+    const okPut = await app.inject({
+      method: 'PUT', url: `/api/artist/art-styles/${styleId}/sizes/${size.id}`, headers: auth,
+      payload: { base_price: 600 }
+    })
+    expect(okPut.statusCode).toBe(200)
+  })
+
+  it('TC-P3-29-03: 增项 price_override（画风/尺寸覆盖）——600.005 → 400；600.01 → 200', async () => {
+    const { auth } = setup()
+    const tplRes = await app.inject({
+      method: 'POST', url: '/api/artist/addon-templates', headers: auth,
+      payload: { name: '加人', default_price: 100 }
+    })
+    const tpl = tplRes.json()
+    const styleRes = await app.inject({
+      method: 'POST', url: '/api/artist/art-styles', headers: auth,
+      payload: { name: '日系' }
+    })
+    const style = styleRes.json()
+    const sizeRes = await app.inject({
+      method: 'POST', url: `/api/artist/art-styles/${style.id}/sizes`, headers: auth,
+      payload: { name: '全身', base_price: 600 }
+    })
+    const size = sizeRes.json()
+
+    // 画风增项改价
+    const badAddons = await app.inject({
+      method: 'PUT', url: `/api/artist/art-styles/${style.id}/addons`, headers: auth,
+      payload: { items: [{ addon_template_id: tpl.id, price_override: 600.005 }] }
+    })
+    expect(badAddons.statusCode).toBe(400)
+    const okAddons = await app.inject({
+      method: 'PUT', url: `/api/artist/art-styles/${style.id}/addons`, headers: auth,
+      payload: { items: [{ addon_template_id: tpl.id, price_override: 600.01 }] }
+    })
+    expect(okAddons.statusCode).toBe(200)
+    const sa = okAddons.json().find(a => a.addon_template_id === tpl.id)
+
+    // 尺寸覆盖改价
+    const badOv = await app.inject({
+      method: 'PUT', url: `/api/artist/art-styles/${style.id}/sizes/${size.id}/overrides`, headers: auth,
+      payload: { items: [{ style_addon_id: sa.id, price_override: 600.005 }] }
+    })
+    expect(badOv.statusCode).toBe(400)
+    const okOv = await app.inject({
+      method: 'PUT', url: `/api/artist/art-styles/${style.id}/sizes/${size.id}/overrides`, headers: auth,
+      payload: { items: [{ style_addon_id: sa.id, price_override: 600.01 }] }
+    })
+    expect(okOv.statusCode).toBe(200)
+  })
+})

@@ -72,7 +72,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       // REQ-022 F2: 外链新结构 [{platformId, url}]；weiboUrl/bilibiliUrl/platformUrls 已移除
       customLinks: artistService.getCustomLinks(artist),
       notifyEnabled: !!artist.notify_enabled,
-      contactQq: artist.contact_qq || artist.qq_number,
+      // P3-14: 不再兜底登录账号 QQ——未设置展示联系 QQ 时公开接口返回 null
+      contactQq: artist.contact_qq || null,
       revisionNote: artist.revision_note || null,
       accentColor: artist.accent_color || null,
       orderTemplateId: artist.order_template_id || 'default',

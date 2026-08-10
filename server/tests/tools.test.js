@@ -221,6 +221,13 @@ describe('standalone_incomes CRUD', () => {
     expect(() => tools.createStandaloneIncome(artist.id, { amountCents: -5, clientName: '', note: '', incomeDate: '2026-08-01' })).toThrow()
   })
 
+  it('TC-TL-16b: P2-11 金额上限——1e15 被服务层拒（VALIDATION），边界内照常通过', () => {
+    expect(() => tools.createStandaloneIncome(artist.id, { amountCents: 1e15, clientName: '', note: '', incomeDate: '2026-08-01' })).toThrow('VALIDATION')
+    expect(() => tools.createStandaloneIncome(artist.id, { amountCents: 100_000_000_00 + 1, clientName: '', note: '', incomeDate: '2026-08-01' })).toThrow('VALIDATION')
+    const ok = tools.createStandaloneIncome(artist.id, { amountCents: 100_000_000_00, clientName: '', note: '', incomeDate: '2026-08-01' })
+    expect(ok.amountCents).toBe(100_000_000_00)
+  })
+
   it('TC-TL-17: 日期格式校验——非法日期被拒', () => {
     expect(() => tools.createStandaloneIncome(artist.id, { amountCents: 100, clientName: '', note: '', incomeDate: '2026/08/01' })).toThrow()
     expect(() => tools.createStandaloneIncome(artist.id, { amountCents: 100, clientName: '', note: '', incomeDate: '2026-13-99' })).toThrow()
@@ -356,6 +363,25 @@ describe('tools 路由层（鉴权 + schema + CSV）', () => {
     expect(ok.json().item.amountCents).toBe(5000)
   })
 
+  it('TC-TL-25b: P2-11 POST 散单 1e15 金额 → 400 VALIDATION；常规金额通过', async () => {
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/api/artist/tools/standalone-incomes',
+      headers: { Authorization: `Bearer ${token}` },
+      payload: { amountCents: 1e15, incomeDate: '2026-08-01' }
+    })
+    expect(bad.statusCode).toBe(400)
+    expect(bad.json().code).toBe('VALIDATION')
+
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/api/artist/tools/standalone-incomes',
+      headers: { Authorization: `Bearer ${token}` },
+      payload: { amountCents: 5000, incomeDate: '2026-08-01' }
+    })
+    expect(ok.statusCode).toBe(200)
+  })
+
   it('TC-TL-26: DELETE 他人散单 → 404；本人 → ok', async () => {
     const other = seedArtist({ subdomain: 'bob', qq_number: '999' })
     const item = await app.inject({
@@ -428,6 +454,30 @@ describe('tools 路由层（鉴权 + schema + CSV）', () => {
     expect(lines[0]).toBe('date,client,amount_cents,type,order_id')
     expect(lines).toContain(`2026-08-01,10001,30000,order,${o1.id}`)
     expect(lines).toContain('2026-08-02,张客户,5000,standalone,')
+  })
+
+  it('TC-TL-30: P2-9 export.csv 公式注入值前置单引号；逗号/引号转义不变', async () => {
+    const injections = ["=cmd|'/C calc'!A0", '+1', '-1', '@SUM(A1)']
+    injections.forEach((name, i) => {
+      tools.createStandaloneIncome(artist.id, { amountCents: 100 + i, clientName: name, note: '', incomeDate: '2026-08-01' })
+    })
+    tools.createStandaloneIncome(artist.id, { amountCents: 200, clientName: '张"客户,老', note: '', incomeDate: '2026-08-02' })
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/artist/tools/export.csv?from=2026-08-01&to=2026-08-31',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.body.replace(/^\uFEFF/, '')
+
+    // 公式注入防护：值以 = + - @ 开头时前置单引号（单引号本身不触发 CSV 双引号包裹）
+    expect(body).toContain(`'=cmd|'/C calc'!A0`)
+    expect(body).toContain(`'+1`)
+    expect(body).toContain(`'-1`)
+    expect(body).toContain(`'@SUM(A1)`)
+    // 正常含逗号/引号值转义行为不变
+    expect(body).toContain('"张""客户,老"')
   })
 
   it('TC-TL-29: export.csv 缺 from/to → 400', async () => {
