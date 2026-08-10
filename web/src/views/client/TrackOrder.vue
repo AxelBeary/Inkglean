@@ -140,8 +140,13 @@
             <span>{{ $t('track.finalPrice') }}</span>
             <strong>¥{{ formatCents(order.finalPriceCents) }}</strong>
           </div>
+          <!-- D-3（R-11）: 零元订单显式化——0 元单无分期无收款，徽标代替待收文案，避免误以为漏收款 -->
+          <div v-if="order.finalPriceCents === 0" class="zero-order-row">
+            <el-tag type="info">{{ $t('track.zeroOrder') }}</el-tag>
+            <span class="zero-order-hint">{{ $t('track.zeroOrderHint') }}</span>
+          </div>
           <!-- B7: 付款进度（额度池模型：进度条 + 四项数据，不显示画师内部节点名） -->
-          <div v-if="order.finalPriceCents != null" class="pay-progress">
+          <div v-if="order.finalPriceCents != null && order.finalPriceCents > 0" class="pay-progress">
             <div class="pay-progress-nums">
               <span>{{ $t('track.payPaid') }} <strong>¥{{ formatCents(order.paidTotalCents || 0) }}</strong></span>
               <span>{{ $t('track.payNext') }} <strong>¥{{ formatCents(trackNextDueCents) }}</strong></span>
@@ -505,6 +510,9 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
   font-size: 14px; color: var(--text-primary);
 }
 .final-price-row strong { font-size: 18px; }
+/* D-3: 零元订单徽标行（type=info 灰标 + 说明文字） */
+.zero-order-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.zero-order-hint { font-size: 13px; color: var(--text-secondary); }
 /* B7: 付款进度（额度池） */
 .pay-progress { margin-top: 16px; }
 .pay-progress-nums {

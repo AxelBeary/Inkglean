@@ -128,6 +128,10 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const submitting = ref(false)
   const showSuccess = ref(false)
   const resultNo = ref('')
+  // D-2（R-9）: 下单幂等键——同一次提交意图（失败重试）复用同 key，
+  // 提交成功后置空（下一次提交 = 新意图，换新 key）。后端按 scope+key 去重，
+  // 防双标签页/慢渲染双击产生两个订单；服务端错误不缓存，重试不受影响。
+  let submitIdemKey = null
 
   // ─── 参考图上传 ───
   const refFileList = ref([])
@@ -527,6 +531,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     const valid = await formRef.value.validate().catch(() => false)
     if (!valid) return
 
+    if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
     submitting.value = true
     try {
       // SPEC-PRICE-2: 画风尺寸 + 增项（含用途/加急单选），服务端唯一引擎算价
@@ -542,7 +547,10 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
         references: uploadedRefs.value,
         // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
         discountCode: form.discountCode.trim() || null
+      }, {
+        headers: { 'idempotency-key': submitIdemKey }
       })
+      submitIdemKey = null
       resultNo.value = order.orderNo
       showSuccess.value = true
       // R57: 提交成功清除草稿 + 解除离开拦截

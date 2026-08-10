@@ -494,8 +494,8 @@ let tlUndoState = null
 
 const tlFmtMD = (dt) => `${dt.getMonth() + 1}/${dt.getDate()}`
 
-/** 拖拽成功后弹出撤销 toast（替代原 ElMessage.success） */
-function showTlUndoToast(d) {
+/** 拖拽成功后弹出撤销 toast（替代原 ElMessage.success）；version 供撤销时乐观锁接力 */
+function showTlUndoToast(d, version) {
   let msg
   if (d.edge === 'move') {
     const s = tlFmtMD(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000))
@@ -512,7 +512,9 @@ function showTlUndoToast(d) {
     oldStartDate: d.oldStartDate,
     oldDeadline: d.oldDeadline,
     newStart: dateKey(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000)),
-    newEnd: dateKey(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000))
+    newEnd: dateKey(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000)),
+    // D-1: 拖拽成功后的最新 version——撤销同样两步 PUT 用旧值起步、响应新值接力
+    newVersion: version
   }
   undoToastMessage.value = msg
   undoToastVisible.value = true
@@ -529,23 +531,30 @@ async function onTlUndo() {
       // 两次 PUT 恢复顺序与拖拽时 dayDelta 正负分支对称，避免交叉校验 400：
       // 旧开工日晚于当前截稿日（拖右的撤销）→ 先恢复截稿日再恢复开工日
       if (u.oldStartDate > u.newEnd) {
-        await artistApi.updateDeadline(u.orderId, u.oldDeadline)
-        await artistApi.updateStartDate(u.orderId, u.oldStartDate)
+        const first = await artistApi.updateDeadline(u.orderId, u.oldDeadline, { version: u.newVersion })
+        const second = await artistApi.updateStartDate(u.orderId, u.oldStartDate, { version: first?.version })
+        void second
       } else {
-        await artistApi.updateStartDate(u.orderId, u.oldStartDate)
-        await artistApi.updateDeadline(u.orderId, u.oldDeadline)
+        const first = await artistApi.updateStartDate(u.orderId, u.oldStartDate, { version: u.newVersion })
+        const second = await artistApi.updateDeadline(u.orderId, u.oldDeadline, { version: first?.version })
+        void second
       }
     } else if (u.edge === 'deadline') {
       // oldDeadline 可能为 null（原本未设截稿，拖拽才设上）→ 恢复即清除
-      await artistApi.updateDeadline(u.orderId, u.oldDeadline)
+      await artistApi.updateDeadline(u.orderId, u.oldDeadline, { version: u.newVersion })
     } else {
       // oldStartDate 可能为 null（原本未设开工日，横条起点是 fallback 显示）
-      await artistApi.updateStartDate(u.orderId, u.oldStartDate)
+      await artistApi.updateStartDate(u.orderId, u.oldStartDate, { version: u.newVersion })
     }
     onRefreshAll()
     ElMessage.success(t('queue.tlUndone'))
   } catch (err) {
-    ElMessage.error(err.message)
+    // D-1: 撤销同样可能撞上他人已改（409）→ 明确冲突提示 + 重拉队列
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('queue.tlOrderConflict'))
+    } else {
+      ElMessage.error(err.message)
+    }
     onRefreshAll() // 恢复失败重拉服务端数据，界面与后端一致
   }
 }
@@ -572,34 +581,47 @@ async function onTlHandleUp() {
   }
 
   try {
+    let newVersion
     if (d.edge === 'move') {
       // REQ-019: 整体平移——一次性更新开工日+截稿日
       const newStart = dateKey(new Date(d.startDate.getTime() + d.dayDelta * 86_400_000))
       const newEnd = dateKey(new Date(d.endDate.getTime() + d.dayDelta * 86_400_000))
       // 往右拖（延后）：先更新截稿日再更新开工日，避免交叉校验 400（newStart > 旧 deadline）
       // 往左拖（提前）：先更新开工日再更新截稿日，避免 newEnd < 旧 startDate
+      // D-1: 两步 PUT 带乐观锁——第一步用行内 version，第一步响应（getOrder）带回新 version 供第二步；
+      // 双标签页先改过则第一步 409，走下方 catch 提示冲突并刷新队列
+      const src = findOrder(d.orderId)
+      const baseVersion = src?.version
       if (d.dayDelta > 0) {
-        await artistApi.updateDeadline(d.orderId, newEnd)
-        await artistApi.updateStartDate(d.orderId, newStart)
+        const first = await artistApi.updateDeadline(d.orderId, newEnd, { version: baseVersion })
+        const second = await artistApi.updateStartDate(d.orderId, newStart, { version: first?.version })
+        newVersion = second?.version ?? first?.version
       } else {
-        await artistApi.updateStartDate(d.orderId, newStart)
-        await artistApi.updateDeadline(d.orderId, newEnd)
+        const first = await artistApi.updateStartDate(d.orderId, newStart, { version: baseVersion })
+        const second = await artistApi.updateDeadline(d.orderId, newEnd, { version: first?.version })
+        newVersion = second?.version ?? first?.version
       }
-      const src = findOrder(d.orderId)
-      if (src) { src.startDate = newStart; src.deadline = newEnd }
+      if (src) { src.startDate = newStart; src.deadline = newEnd; src.version = newVersion }
     } else if (d.edge === 'deadline') {
-      await artistApi.updateDeadline(d.orderId, dateStr)
       const src = findOrder(d.orderId)
-      if (src) src.deadline = dateStr
+      const res = await artistApi.updateDeadline(d.orderId, dateStr, { version: src?.version })
+      if (src) { src.deadline = dateStr; src.version = res?.version }
+      newVersion = res?.version
     } else {
-      await artistApi.updateStartDate(d.orderId, dateStr)
       const src = findOrder(d.orderId)
-      if (src) src.startDate = dateStr
+      const res = await artistApi.updateStartDate(d.orderId, dateStr, { version: src?.version })
+      if (src) { src.startDate = dateStr; src.version = res?.version }
+      newVersion = res?.version
     }
     // v0.36 波1: 成功不再弹 ElMessage.success，改带「撤销」按钮的 toast（API 失败走 catch，不弹）
-    showTlUndoToast(d)
+    showTlUndoToast(d, newVersion)
   } catch (err) {
-    ElMessage.error(err.message)
+    // D-1: 旧快照写入被拒（双标签页/撤销重放）→ 明确冲突提示 + 重拉队列恢复服务端真相
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('queue.tlOrderConflict'))
+    } else {
+      ElMessage.error(err.message)
+    }
     onRefreshAll() // 回滚
   }
 }

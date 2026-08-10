@@ -53,6 +53,8 @@
     ORDER_NOT_OWNED: '该订单不属于你，无权操作',
     ORDER_INVALID_STATUS: '无效状态',
     INVALID_TRANSITION: '不能进行此状态转换',
+    // D-1（R-5）: 订单 version 乐观锁冲突（双标签页/撤销重放）
+    ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
     // R-2: 已收款订单取消需二次确认（Batch A 契约 409 CANCEL_WITH_PAYMENT）
     CANCEL_WITH_PAYMENT: '该订单已收款，请先线下退还后再取消',
     DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
@@ -682,6 +684,9 @@
     priceTitle: '价格明细', finalPrice: '最终价格',
     // B7: 额度池付款进度
     payPaid: '已付', payNext: '下期应付', payRemaining: '待付', payTotal: '总额',
+    // D-3（R-11）: 零元订单显式化
+    zeroOrder: '0 元订单',
+    zeroOrderHint: '本订单为 0 元，无需收款',
     contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
     contactArtist: '画师QQ', contactAdmin: '管理员QQ', copyQq: '复制', copied: '已复制',
     noOrdersTitle: '未找到订单', noOrdersDesc: '该QQ号在本画师处没有订单记录，请核对QQ号是否正确。',
@@ -868,6 +873,8 @@
     tlUndoMove: '档期已移动 {s} → {e}', tlUndo: '撤销', tlUndone: '已恢复',
     tlDragDeadlineBeforeStart: '截稿日不能早于开工日',
     tlDragStartAfterDeadline: '开工日不能晚于截稿日',
+    // D-1（R-5）: 时间条拖拽撞上他人已改（409 ORDER_CONFLICT）
+    tlOrderConflict: '订单已被其他操作更新，请刷新后重试',
     // 批G(2026-08-08): 月历优化（MVP）
     calAvailable: '可接单',
     calDayViewTitle: '{d} · {n} 单',

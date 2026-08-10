@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition } from './order.service.js'
+import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition, updateOrderChecked } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
 import { createArtwork } from '../artist/artist.service.js'
 import type { OrderDetail } from '../../types/entities.js'
@@ -26,7 +26,7 @@ export function addDeliverable(orderId: number, filePath: string, fileName: stri
  * 状态守卫走统一状态机断言（audit-b F1）：wip/revision/done → delivered 显式合法，
  * pending/confirmed 等机器外路径一律拒绝
  */
-export function deliverOrder(orderId: number, filePath: string, fileName: string | null, fileSize: number | null): { order: OrderDetail; statusChanged: boolean } {
+export function deliverOrder(orderId: number, filePath: string, fileName: string | null, fileSize: number | null, expectedVersion?: number): { order: OrderDetail; statusChanged: boolean } {
   return db.transaction(() => {
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
@@ -38,8 +38,8 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
     // audit-a P2-1: 与 deliverOrderWithoutFile 对齐——wip/revision/done 均可迁移，
     // 已交付订单重复传文件只落文件不迁状态（幂等）
     if (order.status !== 'delivered') {
-      db.prepare('UPDATE orders SET status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('delivered', orderId)
+      // D-1: 交付状态迁移带版本守卫（防双标签页旧快照覆盖）
+      updateOrderChecked(orderId, expectedVersion, "status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP)", 'delivered')
       compactQueue(order.artist_id)
       // SPEC-004: 交付释放名额后尝试自动递补
       tryAutoPromote(order.artist_id)
@@ -56,7 +56,7 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
  * 状态守卫同 deliverOrder（统一状态机断言）→ delivered + 队列压缩 + 自动递补
  * 与 deliverOrder 的差异：不插入交付文件，追加系统备注留痕
  */
-export function deliverOrderWithoutFile(orderId: number): { order: OrderDetail; statusChanged: boolean } {
+export function deliverOrderWithoutFile(orderId: number, expectedVersion?: number): { order: OrderDetail; statusChanged: boolean } {
   return db.transaction(() => {
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
@@ -64,8 +64,8 @@ export function deliverOrderWithoutFile(orderId: number): { order: OrderDetail; 
 
     let statusChanged = false
     if (order.status !== 'delivered') {
-      db.prepare('UPDATE orders SET status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('delivered', orderId)
+      // D-1: 交付状态迁移带版本守卫（与 deliverOrder 同款）
+      updateOrderChecked(orderId, expectedVersion, "status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP)", 'delivered')
       compactQueue(order.artist_id)
       // SPEC-004: 交付释放名额后尝试自动递补
       tryAutoPromote(order.artist_id)

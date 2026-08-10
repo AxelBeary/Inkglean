@@ -39,6 +39,7 @@ export function cleanDb() {
     DELETE FROM order_price_entries;
     DELETE FROM order_payment_installments;
     DELETE FROM orders;
+    DELETE FROM idempotency_keys;
     DELETE FROM commission_rules;
     DELETE FROM artworks;
     DELETE FROM artist_workflow_stages;

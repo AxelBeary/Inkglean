@@ -53,6 +53,8 @@
     ORDER_NOT_OWNED: 'This order does not belong to you',
     ORDER_INVALID_STATUS: 'Invalid status',
     INVALID_TRANSITION: 'Invalid status transition',
+    // D-1（R-5）: order version optimistic-lock conflict (stale snapshot writes)
+    ORDER_CONFLICT: 'The order was updated by another action. Please refresh and retry',
     // R-2: cancelling a paid order needs explicit confirmation (Batch A contract 409 CANCEL_WITH_PAYMENT)
     CANCEL_WITH_PAYMENT: 'This order has received payment. Please refund offline before cancelling',
     DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
@@ -683,6 +685,9 @@
     priceTitle: 'Price breakdown', finalPrice: 'Final price',
     // B7: quota-pool payment progress
     payPaid: 'Paid', payNext: 'Next Due', payRemaining: 'Outstanding', payTotal: 'Total',
+    // D-3（R-11）: explicit zero-price order
+    zeroOrder: 'Free order',
+    zeroOrderHint: 'This is a ¥0 order — no payment needed',
     contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
     contactArtist: 'Artist QQ', contactAdmin: 'Admin QQ', copyQq: 'Copy', copied: 'Copied',
     noOrdersTitle: 'No orders found', noOrdersDesc: 'This QQ number has no orders with this artist. Please double-check the number.',
@@ -870,6 +875,8 @@
     tlUndoMove: 'Rescheduled {s} → {e}', tlUndo: 'Undo', tlUndone: 'Restored',
     tlDragDeadlineBeforeStart: 'Deadline cannot be earlier than start date',
     tlDragStartAfterDeadline: 'Start date cannot be later than deadline',
+    // D-1（R-5）: timeline drag hit a concurrent update (409 ORDER_CONFLICT)
+    tlOrderConflict: 'The order was updated elsewhere. Please refresh and retry',
     // Batch G (2026-08-08): calendar optimizations (MVP)
     calAvailable: 'Available',
     calDayViewTitle: '{d} · {n} order(s)',

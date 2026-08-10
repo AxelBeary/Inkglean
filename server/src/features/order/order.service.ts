@@ -84,6 +84,33 @@ export function assertStatusTransition(from: string, to: string): void {
 }
 
 /**
+ * D-1（R-5/P3-1）统一版本守卫写：订单 UPDATE 只允许基于预期版本执行。
+ * expectedVersion 为空（兼容期调用方未传）时先读当前版本——better-sqlite3 单进程同步下
+ * 读-写之间无 await，天然原子，行为与旧版一致；双标签页/撤销重放则由调用方传入的
+ * 版本号兜住：受影响行数 0 = 版本已被他人推进 → ORDER_CONFLICT（409，防静默覆盖）。
+ * sets 不含 updated_at/version（由本函数统一追加），调用方只需传业务列 SET 片段。
+ */
+export function updateOrderChecked(
+  orderId: number,
+  expectedVersion: number | undefined,
+  sets: string,
+  ...params: Array<string | number | null>
+): void {
+  let version: number
+  if (expectedVersion === undefined) {
+    const row = db.prepare('SELECT version FROM orders WHERE id = ?').get(orderId) as { version: number } | undefined
+    if (!row) throw new AppError(E.ORDER_NOT_FOUND)
+    version = row.version
+  } else {
+    version = expectedVersion
+  }
+  const r = db.prepare(
+    `UPDATE orders SET ${sets}, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?`
+  ).run(...params, orderId, version)
+  if (r.changes === 0) throw new AppError(E.ORDER_CONFLICT, 409)
+}
+
+/**
  * 生成订单号：画师身份码 + 动态位数序号
  * 序号 ≤999 时补零到3位；>999 时自然增长（1000、1001…）
  * 按前缀查最大序号（跨画师），防止改码后订单号碰撞
@@ -227,6 +254,13 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(firstStage.id, orderId)
     }
 
+    // D-3（R-11）: 零元订单显式化——base_price=0 或 100% 折扣无分期无收款，
+    // 写入系统备注避免画师/客户误以为漏收款（返回体不变，状态机不改）
+    if (totalPriceCents != null && totalPriceCents === 0) {
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, '0 元订单：无需收款', 'system')")
+        .run(orderId)
+    }
+
     // R0-1: 参考图在事务内落库（R18: 显式传 source='client'，不依赖 DEFAULT）
     if (Array.isArray(references) && references.length > 0) {
       const insertRef = db.prepare("INSERT INTO order_references (order_id, file_path, source) VALUES (?, ?, 'client')")
@@ -331,7 +365,7 @@ export function getOrderByNo(orderNo: string, { clientOnly = false }: { clientOn
  * 更新订单状态（带状态机校验）
  * 事务包裹，防止中途崩溃留下不一致状态
  */
-export function updateOrderStatus(orderId: number, newStatus: string, confirmPaidCancel: boolean = false): OrderDetail {
+export function updateOrderStatus(orderId: number, newStatus: string, confirmPaidCancel: boolean = false, expectedVersion?: number): OrderDetail {
   const validStatuses = ['pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
   if (!validStatuses.includes(newStatus)) throw new AppError(E.ORDER_INVALID_STATUS, 400, { status: newStatus })
 
@@ -349,8 +383,7 @@ export function updateOrderStatus(orderId: number, newStatus: string, confirmPai
   }
 
   return db.transaction(() => {
-    db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(newStatus, orderId)
+    updateOrderChecked(orderId, expectedVersion, 'status = ?', newStatus)
 
     // v0.31 REQ-021 F1: 操作日志
     logActivity(orderId, 'status_change', 'artist', { from: order.status, to: newStatus })
@@ -376,12 +409,11 @@ export function updateOrderStatus(orderId: number, newStatus: string, confirmPai
  */
 export function compactQueue(artistId: number): void {
   const queue = db.prepare(`
-    SELECT id, queue_zone FROM orders
+    SELECT id, queue_zone, version FROM orders
     WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
     ORDER BY queue_zone ASC, queue_position ASC
-  `).all(artistId) as Array<{ id: number; queue_zone: string }>
+  `).all(artistId) as Array<{ id: number; queue_zone: string; version: number }>
 
-  const updatePos = db.prepare('UPDATE orders SET queue_position = ? WHERE id = ?')
   db.transaction(() => {
     // audit-a R-7: 分区各自重排 1..n——formal 与 buffer 独立编号，
     // promoteOrder（formal-only MAX+1）不再与 buffer 单位置号重复
@@ -389,7 +421,8 @@ export function compactQueue(artistId: number): void {
     for (const row of queue) {
       const next = (zoneCounters.get(row.queue_zone) ?? 0) + 1
       zoneCounters.set(row.queue_zone, next)
-      updatePos.run(next, row.id)
+      // D-1: 批量重排逐条带 version 守卫（队列 SELECT 在同一同步调用内完成，版本必然新鲜）
+      updateOrderChecked(row.id, row.version, 'queue_position = ?', next)
     }
   })()
 }
@@ -398,7 +431,7 @@ export function compactQueue(artistId: number): void {
  * 更新订单截稿日（v0.15 R51）
  * deadline: ISO 8601 字符串 或 null（清除）
  */
-export function updateDeadline(orderId: number, deadline: string | null): OrderDetail {
+export function updateDeadline(orderId: number, deadline: string | null, expectedVersion?: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -422,8 +455,7 @@ export function updateDeadline(orderId: number, deadline: string | null): OrderD
     }
   }
 
-  db.prepare('UPDATE orders SET deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(normalized, orderId)
+  updateOrderChecked(orderId, expectedVersion, 'deadline = ?', normalized)
 
   return getOrder(orderId)!
 }
@@ -432,7 +464,7 @@ export function updateDeadline(orderId: number, deadline: string | null): OrderD
  * v0.26 B: 更新订单开工日
  * startDate: 'YYYY-MM-DD' 字符串 或 null（清除）
  */
-export function updateStartDate(orderId: number, startDate: string | null): OrderDetail {
+export function updateStartDate(orderId: number, startDate: string | null, expectedVersion?: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -457,8 +489,7 @@ export function updateStartDate(orderId: number, startDate: string | null): Orde
     }
   }
 
-  db.prepare('UPDATE orders SET start_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(normalized, orderId)
+  updateOrderChecked(orderId, expectedVersion, 'start_date = ?', normalized)
 
   return getOrder(orderId)!
 }
@@ -605,7 +636,7 @@ export function getPlatformConfig(key: string): string | null {
  * 校验：正整数（分），上限 99999999（999999.99 元）
  * 改价时自动追加订单备注 "最终价格从 ¥A 改为 ¥B"
  */
-export function updateFinalPrice(orderId: number, finalPriceCents: number, quoteSnapshot?: string | null): OrderDetail {
+export function updateFinalPrice(orderId: number, finalPriceCents: number, quoteSnapshot?: string | null, expectedVersion?: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -632,8 +663,13 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     //（必须在 UPDATE final_price 之前，否则补录的 base 会取到新价）
     ensureBaseEntry(orderId)
 
-    db.prepare('UPDATE orders SET final_price_cents = ?, quote_snapshot = COALESCE(?, quote_snapshot), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(finalPriceCents, quoteSnapshot ?? null, orderId)
+    updateOrderChecked(
+      orderId,
+      expectedVersion,
+      'final_price_cents = ?, quote_snapshot = COALESCE(?, quote_snapshot)',
+      finalPriceCents,
+      quoteSnapshot ?? null
+    )
 
     // manual_adjust 条目 delta = 新总价 − 当前总价；条目由 applyDeltaToInstallments 按去向落账；
     // 节点联动只摊未锁节点（allocateDelta），已锁节点价不再变（R4/R5，替代 recalcInstallmentAmounts）
@@ -1119,7 +1155,7 @@ export function generateInstallmentsForOrder(orderId: number): void {
  * 递补订单：buffer → formal
  * 排到正式队列末尾 + 生成付款节点 + 系统备注
  */
-export function promoteOrder(orderId: number): OrderDetail {
+export function promoteOrder(orderId: number, expectedVersion?: number): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
   if (order.queue_zone !== 'buffer') throw new AppError(E.NOT_BUFFER_ORDER)
@@ -1132,8 +1168,8 @@ export function promoteOrder(orderId: number): OrderDetail {
     ).get(order.artist_id) as { m: number | null } | undefined
     const newPos = (maxPos?.m ?? 0) + 1
 
-    db.prepare("UPDATE orders SET queue_zone = 'formal', queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .run(newPos, orderId)
+    // D-1: 递补是正式位语义变更（zone/position），带版本守卫防旧快照重复递补
+    updateOrderChecked(orderId, expectedVersion, "queue_zone = 'formal', queue_position = ?", newPos)
 
     // 递补后生成付款节点（按下单时报价快照）
     generateInstallmentsForOrder(orderId)
@@ -1229,7 +1265,9 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
       'INSERT INTO order_payments (order_id, installment_id, amount_cents, note, created_by) VALUES (?, ?, ?, ?, ?)'
     ).run(orderId, installmentId || null, amountCents, note || null, createdBy || 'artist')
 
-    db.prepare('UPDATE orders SET paid_total_cents = paid_total_cents + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    // D-1: paid_total_cents 走相对增量（paid_total_cents + ?）本就无丢失更新问题，
+    // 不需要 WHERE version 条件；但同属订单写，version 照常 +1 让其他绝对写路径感知本次变更
+    db.prepare('UPDATE orders SET paid_total_cents = paid_total_cents + ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(amountCents, orderId)
 
     // REQ-025 R4: 付清即锁——收款后按 paid_total 推导刷新节点锁定状态
