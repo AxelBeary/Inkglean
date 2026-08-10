@@ -3,6 +3,7 @@
 // v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
 import { markRaw } from 'vue'
 import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, Refresh, UploadFilled } from '@element-plus/icons-vue'
+import { safeGetItem } from '../../../utils/storage.js'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
 export const QUICK_ACTIONS_KEY = 'huiyue_quick_actions'
@@ -40,7 +41,8 @@ export function parseQuickActions(raw) {
 
 /** 读取 localStorage 配置（无效/缺失 → 默认副本） */
 export function readQuickActionsConfig() {
-  return parseQuickActions(localStorage.getItem(QUICK_ACTIONS_KEY)) || [...QUICK_ACTIONS_DEFAULT]
+  // G-5: 裸读换 safeGetItem（存储禁用时按默认配置降级，不抛错）
+  return parseQuickActions(safeGetItem(QUICK_ACTIONS_KEY)) || [...QUICK_ACTIONS_DEFAULT]
 }
 </script>
 

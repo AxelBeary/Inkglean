@@ -1,10 +1,12 @@
 import { createI18n } from 'vue-i18n'
 import zhCN from '../locales/zh-CN.js'   // 默认 locale 同步（保首屏翻译）；en 懒加载
+import { safeGetItem, safeSetItem } from '../utils/storage.js'
 
 const STORAGE_KEY = 'huiyue-locale'
 
 function detectLocale() {
-  const saved = localStorage.getItem(STORAGE_KEY)
+  // G-5: 裸读换 safeGetItem（存储禁用时按浏览器语言降级，不抛错）
+  const saved = safeGetItem(STORAGE_KEY)
   if (saved) return saved
   const nav = navigator.language.toLowerCase()
   return nav.startsWith('zh') ? 'zh-CN' : 'en'
@@ -35,7 +37,7 @@ function ensureEn() {
 export async function setLocale(locale) {
   if (locale === 'en') await ensureEn()
   i18n.global.locale.value = locale
-  localStorage.setItem(STORAGE_KEY, locale)
+  safeSetItem(STORAGE_KEY, locale)
   document.documentElement.lang = locale === 'zh-CN' ? 'zh-CN' : 'en'
 }
 

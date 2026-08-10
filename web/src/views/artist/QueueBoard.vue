@@ -50,10 +50,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { subscribeReconnect } from '../../utils/reconnect.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import SliderSwitch from '../../components/artist/SliderSwitch.vue'
@@ -87,12 +89,13 @@ const activeTab = ref('formal')
 
 // ─── R20: 焦点图显示模式（全局设置；仅 无/大 两态，旧值 small 映射为 large） ───
 const FOCUS_DISPLAY_KEY = 'queue_focus_display'
+// G-5: 裸读写换 safe 封装（存储禁用时按默认值降级，不抛错）
 const focusDisplay = ref(
-  localStorage.getItem(FOCUS_DISPLAY_KEY) === 'small' ? 'large'
-    : (localStorage.getItem(FOCUS_DISPLAY_KEY) || 'large')
+  safeGetItem(FOCUS_DISPLAY_KEY) === 'small' ? 'large'
+    : (safeGetItem(FOCUS_DISPLAY_KEY) || 'large')
 )
 function saveFocusDisplay(val) {
-  localStorage.setItem(FOCUS_DISPLAY_KEY, val)
+  safeSetItem(FOCUS_DISPLAY_KEY, val)
 }
 /** 子组件 v-model 上抛 → 更新 ref + 持久化（原 el-radio-group v-model + @change 合并） */
 function onFocusDisplayChange(val) {
@@ -104,10 +107,10 @@ function onFocusDisplayChange(val) {
 const VIEW_MODE_KEY = 'queue_view_mode'
 const VALID_VIEW_MODES = ['board', 'calendar', 'timeline']
 const viewMode = ref(
-  VALID_VIEW_MODES.includes(localStorage.getItem(VIEW_MODE_KEY)) ? localStorage.getItem(VIEW_MODE_KEY) : 'board'
+  VALID_VIEW_MODES.includes(safeGetItem(VIEW_MODE_KEY)) ? safeGetItem(VIEW_MODE_KEY) : 'board'
 )
 function saveViewMode(val) {
-  localStorage.setItem(VIEW_MODE_KEY, val)
+  safeSetItem(VIEW_MODE_KEY, val)
 }
 
 // 05B: 三视图滑块选项（radiogroup 语义等价 el-radio-button）
@@ -194,10 +197,16 @@ const { refreshNow } = useSignatureRefresh({
   }
 })
 
+let unsubscribeReconnect = null
 onMounted(() => {
   loadQueue()
   loadBufferQueue()
   loadCompletedQueue()
+  // G-3（R-16）: 断网重连后复用 refreshAll 重拉（online / 回前台）
+  unsubscribeReconnect = subscribeReconnect(refreshAll)
+})
+onUnmounted(() => {
+  unsubscribeReconnect?.()
 })
 </script>
 

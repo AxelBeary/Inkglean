@@ -3,7 +3,8 @@
     <!-- 全局开关 -->
     <div class="discount-toggle">
       <span class="discount-toggle-label">{{ $t('discount.enableLabel') }}</span>
-      <el-switch v-model="enabled" :loading="toggling" @change="toggleDiscount" />
+      <!-- G-2（R-22）: 在途时 disabled——连点不重复发送；末态以最后一次点击为准（见 toggleDiscount） -->
+      <el-switch v-model="enabled" :loading="toggling" :disabled="toggling" @change="toggleDiscount" />
       <span class="discount-toggle-hint">{{ enabled ? $t('discount.enabledHint') : $t('discount.disabledHint') }}</span>
     </div>
 
@@ -46,7 +47,11 @@
         <el-table-column :label="$t('common.actions')" min-width="140">
           <template #default="{ row }">
             <el-button size="small" text @click="openDialog(row)">{{ $t('common.edit') }}</el-button>
-            <el-button size="small" text :type="row.enabled ? 'warning' : 'success'" @click="toggleCode(row)">
+            <el-button
+              size="small" text :type="row.enabled ? 'warning' : 'success'"
+              :disabled="codeTogglingIds.has(row.id)" :loading="codeTogglingIds.has(row.id)"
+              @click="toggleCode(row)"
+            >
               {{ row.enabled ? $t('discount.disable') : $t('discount.enable') }}
             </el-button>
             <el-popconfirm :title="$t('discount.deleteConfirm', { code: row.code })" @confirm="removeCode(row)">
@@ -115,6 +120,8 @@ const enabled = ref(false)
 const toggling = ref(false)
 const loading = ref(true)
 const codes = ref([])
+/** G-2: 行级启停在途集合（按钮 disabled + loading） */
+const codeTogglingIds = ref(new Set())
 
 const dialogVisible = ref(false)
 const submitting = ref(false)
@@ -160,16 +167,22 @@ async function loadData() {
   }
 }
 
+// G-2（R-22）: 启停连点乱序 PUT 守卫——请求序号取号，响应晚于最新请求即丢弃；
+// 末态以最后一次点击为准（前序请求即使先返回也不覆盖）；开关在途 disabled 拦截重复发送。
+let toggleSeq = 0
 async function toggleDiscount(val) {
+  const mySeq = ++toggleSeq
   toggling.value = true
   try {
     await artistApi.toggleDiscount(val)
+    if (mySeq !== toggleSeq) return
     ElMessage.success(val ? t('discount.enabledMsg') : t('discount.disabledMsg'))
   } catch (err) {
+    if (mySeq !== toggleSeq) return
     enabled.value = !val
     ElMessage.error(err.message)
   } finally {
-    toggling.value = false
+    if (mySeq === toggleSeq) toggling.value = false
   }
 }
 
@@ -218,12 +231,20 @@ async function submitCode() {
   }
 }
 
+// G-2: 行级启停同款守卫（按行禁用，防不同行并发乱序覆盖 loadData）
+let codeToggleSeq = 0
 async function toggleCode(row) {
+  const mySeq = ++codeToggleSeq
+  codeTogglingIds.value = new Set(codeTogglingIds.value).add(row.id)
   try {
     await artistApi.updateDiscountCode(row.id, { enabled: !row.enabled })
-    await loadData()
+    if (mySeq === codeToggleSeq) await loadData()
   } catch (err) {
-    ElMessage.error(err.message)
+    if (mySeq === codeToggleSeq) ElMessage.error(err.message)
+  } finally {
+    const next = new Set(codeTogglingIds.value)
+    next.delete(row.id)
+    codeTogglingIds.value = next
   }
 }
 

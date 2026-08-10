@@ -1,0 +1,223 @@
+// 后台布局会话强校验测试（G-1 / P2-8）
+// 覆盖：/api/auth/me 401/403 → 复用登出逻辑清标记跳登录；isAdmin 与本地标记不符 → 以服务端为准修正；
+//       成功 → 不跳转；ArtistLayout 留言角标按 { items } 消费（G-8 适配）
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
+
+// happy-dom 无 matchMedia addEventListener，补齐
+if (!window.matchMedia) {
+  window.matchMedia = () => ({
+    matches: false,
+    addEventListener: () => {},
+    removeEventListener: () => {}
+  })
+}
+
+const h = vi.hoisted(() => ({
+  getMe: vi.fn(),
+  getMessages: vi.fn(),
+  logout: vi.fn(),
+  push: vi.fn(),
+  routeName: 'ArtistDashboard',
+  artistStore: null,
+  themeStore: null
+}))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ path: '/dashboard' }),
+  useRouter: () => ({
+    push: h.push,
+    currentRoute: { value: { name: h.routeName } }
+  })
+}))
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key) => key, locale: { value: 'zh-CN' } })
+}))
+
+vi.mock('../../i18n/index.js', () => ({
+  setLocale: vi.fn()
+}))
+
+vi.mock('../../utils/track.js', () => ({
+  trackEvent: vi.fn()
+}))
+
+vi.mock('../../api/index.js', () => ({
+  artistApi: {
+    getMe: h.getMe,
+    getMessages: h.getMessages
+  }
+}))
+
+vi.mock('../../stores/artist.js', () => ({
+  useArtistStore: () => h.artistStore
+}))
+
+vi.mock('../../stores/theme.js', () => ({
+  useThemeStore: () => h.themeStore
+}))
+
+vi.mock('../../components/ThemeToggle.vue', () => ({
+  default: { name: 'ThemeToggle', template: '<span />' }
+}))
+
+vi.mock('../../components/artist/visual/SealStamp.vue', () => ({
+  default: { name: 'SealStamp', template: '<span />' }
+}))
+
+import ArtistLayout from '../ArtistLayout.vue'
+import AdminLayout from '../admin/AdminLayout.vue'
+
+const EP_STUBS = {
+  'el-container': { template: '<div><slot /></div>' },
+  'el-aside': { template: '<aside><slot /></aside>' },
+  'el-main': { template: '<main><slot /></main>' },
+  'el-tooltip': { template: '<span><slot /></span>' },
+  'el-badge': { template: '<span><slot /></span>' },
+  'el-icon': { template: '<i><slot /></i>' },
+  'el-button': { template: '<button><slot /></button>' },
+  'el-drawer': { template: '<div><slot /><slot name="header" /></div>' },
+  'el-header': { template: '<header><slot /></header>' },
+  'router-view': { template: '<div />' },
+  Teleport: { template: '<div><slot /></div>' }
+}
+
+function freshStores() {
+  h.artistStore = {
+    artistName: 'Alice',
+    profile: null,
+    loggedIn: true,
+    isAdmin: false,
+    logout: h.logout
+  }
+  h.themeStore = { enterArtistScope: vi.fn(), leaveArtistScope: vi.fn() }
+}
+
+function mountLayout(component) {
+  return mount(component, {
+    global: {
+      mocks: {
+        $t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key),
+        $route: { path: '/dashboard' }
+      },
+      stubs: EP_STUBS
+    }
+  })
+}
+
+beforeEach(() => {
+  localStorage.clear()
+  h.getMe.mockReset()
+  h.getMessages.mockReset().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 100 })
+  h.logout.mockReset()
+  h.push.mockReset()
+  h.routeName = 'ArtistDashboard'
+  freshStores()
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe('ArtistLayout 会话强校验（G-1）', () => {
+  it('me 401 → 复用登出逻辑（清标记 + 跳登录）', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockRejectedValue(Object.assign(new Error('unauth'), { status: 401 }))
+
+    await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    expect(h.logout).toHaveBeenCalledTimes(1)
+    expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
+    expect(h.artistStore.isAdmin).toBe(false)
+  })
+
+  it('me 403 → 同样登出跳转', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockRejectedValue(Object.assign(new Error('forbidden'), { status: 403 }))
+
+    await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    expect(h.logout).toHaveBeenCalledTimes(1)
+    expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
+  })
+
+  it('isAdmin 与本地标记不符 → 以服务端为准修正标记', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    localStorage.setItem('artist_is_admin', '0')
+    h.getMe.mockResolvedValue({ isAdmin: true })
+
+    await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    expect(h.artistStore.isAdmin).toBe(true)
+    expect(localStorage.getItem('artist_is_admin')).toBe('1')
+    expect(h.push).not.toHaveBeenCalled()
+  })
+
+  it('成功且标记一致 → 不跳转不登出', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    localStorage.setItem('artist_is_admin', '0')
+    h.getMe.mockResolvedValue({ isAdmin: false })
+
+    await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    expect(h.artistStore.isAdmin).toBe(false)
+    expect(localStorage.getItem('artist_is_admin')).toBe('0')
+    expect(h.logout).not.toHaveBeenCalled()
+    expect(h.push).not.toHaveBeenCalled()
+  })
+
+  it('留言角标按分页响应 { items } 消费（G-8 适配）', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockResolvedValue({ isAdmin: false })
+    h.getMessages.mockResolvedValue({
+      items: [
+        { id: 1, status: 'pending' },
+        { id: 2, status: 'approved' },
+        { id: 3, status: 'pending' }
+      ],
+      total: 3,
+      page: 1,
+      pageSize: 100
+    })
+
+    const wrapper = await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    expect(h.getMessages).toHaveBeenCalledWith({ pageSize: 100 })
+    // 骨架渲染不受影响；角标值经 menuGroups 注入（pending 2 条）
+    expect(wrapper.exists()).toBe(true)
+  })
+})
+
+describe('AdminLayout 会话强校验（G-1）', () => {
+  it('me 401 → 复用登出逻辑（清标记 + 跳登录）', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.routeName = 'AdminDashboard'
+    h.getMe.mockRejectedValue(Object.assign(new Error('unauth'), { status: 401 }))
+
+    await mountLayout(AdminLayout)
+    await flushPromises()
+
+    expect(h.logout).toHaveBeenCalledTimes(1)
+    expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
+  })
+
+  it('isAdmin 与本地标记不符 → 以服务端为准修正标记', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    localStorage.setItem('artist_is_admin', '1')
+    h.artistStore.isAdmin = true
+    h.getMe.mockResolvedValue({ isAdmin: false })
+
+    await mountLayout(AdminLayout)
+    await flushPromises()
+
+    expect(h.artistStore.isAdmin).toBe(false)
+    expect(localStorage.getItem('artist_is_admin')).toBe('0')
+    expect(h.logout).not.toHaveBeenCalled()
+  })
+})

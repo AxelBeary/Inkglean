@@ -41,6 +41,11 @@ vi.mock('../../utils/sanitize.js', () => ({
   sanitizeHtml: (html) => html || ''
 }))
 
+// G-7: useOrderForm 依赖匿名凭证链路，测试统一走固定 token
+vi.mock('../../utils/track.js', () => ({
+  getAnonToken: () => Promise.resolve('anon-token-test')
+}))
+
 import { useOrderForm } from '../useOrderForm.js'
 import { artistPublicApi, orderApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'

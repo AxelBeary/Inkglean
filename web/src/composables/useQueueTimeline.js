@@ -12,6 +12,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { artistApi } from '../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { safeGetItem, safeSetItem } from '../utils/storage.js'
 
 export function useQueueTimeline({ calOrders, getViewMode, findOrder, onRefreshAll, dateKey, parseDate, markDragHappened }) {
   const { t, locale } = useI18n()
@@ -28,9 +29,10 @@ const TL_ZOOMS = {
   '6m': { viewDays: 180 }
 }
 // localStorage 兼容：老版本存的 '2m' 档已删除，落到 '3m'
-const storedTlZoom = localStorage.getItem(TL_ZOOM_KEY)
+// G-5: 裸读写换 safe 封装（存储禁用时按默认档降级，不抛错）
+const storedTlZoom = safeGetItem(TL_ZOOM_KEY)
 const tlZoom = ref(TL_ZOOMS[storedTlZoom] ? storedTlZoom : (storedTlZoom === '2m' ? '3m' : '2w'))
-function saveTlZoom(val) { localStorage.setItem(TL_ZOOM_KEY, val) }
+function saveTlZoom(val) { safeSetItem(TL_ZOOM_KEY, val) }
 
 function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()) }
 

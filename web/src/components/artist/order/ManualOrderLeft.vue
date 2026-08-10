@@ -123,6 +123,7 @@ import { useDropGuard } from '../../../composables/useDropGuard.js'
 import { formatDateTimeShort } from '../../../utils/datetime.js'
 import { formatCents } from '../../../utils/money.js'
 import { ORDER_STATUS_TYPE } from '../../../constants/order.js'
+import { getAnonToken } from '../../../utils/track.js'
 
 defineProps({
   qqValid: Boolean,
@@ -176,8 +177,14 @@ async function handleRefUpload({ file }) {
     ElMessage.warning(t('manualOrder.fileTooBig', { name: file.name, size: sizeMB }))
     return
   }
+  // G-7（P2-13 前端侧）: 参考图上传需匿名归属凭证（后端 F-10 契约）
+  const anonToken = await getAnonToken()
+  if (!anonToken) {
+    ElMessage.error(t('manualOrder.anonTokenRequired'))
+    throw new Error(t('manualOrder.anonTokenRequired'))
+  }
   try {
-    const uploaded = await uploadApi.reference(file)
+    const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
     uploadedRefs.value.push(uploaded.filePath)
     refUidMap.value.set(file.uid, uploaded.filePath)
   } catch (err) {
@@ -207,12 +214,17 @@ watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 async function handlePasteRefFiles(files) {
+  const anonToken = await getAnonToken()
+  if (!anonToken) {
+    ElMessage.error(t('manualOrder.anonTokenRequired'))
+    return
+  }
   for (const file of files) {
     if (refFileList.value.length >= 5) {
       ElMessage.warning(t('manualOrder.refExceed'))
       return
     }
-    const uploaded = await uploadApi.reference(file)
+    const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
     uploadedRefs.value.push(uploaded.filePath)
     const uid = `paste-${Date.now()}-${Math.random().toString(36).slice(2)}`
     refUidMap.value.set(uid, uploaded.filePath)

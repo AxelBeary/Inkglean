@@ -350,6 +350,7 @@ import { useStageStatus } from '../../../composables/useStageStatus.js'
 // 2026-08-10 拆分批：价格状态机抽 composable（纯搬移零行为变化）
 import { useManualOrderPricing } from '../../../composables/useManualOrderPricing.js'
 import { formatCents, formatYuan, formatYuanValue } from '../../../utils/money.js'
+import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
 
 const props = defineProps({
   // 表单字段（父组件 reactive form 对象——v-model 绑定同一对象）
@@ -378,6 +379,8 @@ const clientNotify = defineModel('clientNotify', { type: Boolean, default: false
 const { t } = useI18n()
 
 const submitting = ref(false)
+/** G-4: 提交意图幂等键（同一次意图失败重试复用；提交成功后置空 = 新意图换新 key） */
+let submitIdemKey = null
 
 // ─── 价格状态机装配（2026-08-10 拆分：useManualOrderPricing，纯搬移零行为变化） ───
 const {
@@ -403,9 +406,10 @@ const mobileDetailOpen = ref(false)
 // ─── v0.38 补漏 R6: 图片显示开关（localStorage 记忆，默认开） ───
 const SHOW_IMAGES_KEY = 'manualOrder_showImages'
 /** 右栏卡片图片显示开关（画风 + 档位一起藏） */
-const showImages = ref(localStorage.getItem(SHOW_IMAGES_KEY) !== '0')
+// G-5: 裸读写换 safe 封装（存储禁用时按默认开降级）
+const showImages = ref(safeGetItem(SHOW_IMAGES_KEY) !== '0')
 watch(showImages, (v) => {
-  try { localStorage.setItem(SHOW_IMAGES_KEY, v ? '1' : '0') } catch { /* 隐私模式等场景忽略 */ }
+  safeSetItem(SHOW_IMAGES_KEY, v ? '1' : '0')
 })
 
 // ─── F4: 初始节点状态 ───
@@ -446,24 +450,32 @@ async function submit() {
   }
 
   submitting.value = true
+  // G-4（R-17）: 幂等键契约核对——批 D（D-2）已给客户下单 /api/orders 与收款接 idempotency-key；
+  // 手动录单端点未消费该 header（后端零改动约束下不重复实现），此处仍按提交意图生成
+  // crypto.randomUUID() 随 header 携带（服务端当前忽略，契约升级后自动生效）；
+  // 双标签页重复提交主要防线 = 草稿清除广播（ManualOrder.vue storage 事件）+ 提交按钮 loading。
+  if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
   try {
     // SPEC-PRICE-2：传 styleSizeId + styleAddons（含用途/加急单选），后端唯一引擎自动算价；
     // 未选尺寸 = 自定义单（手输价路径）
     const isStyleSubmit = selectedSizeId.value != null
 
-    const order = await artistApi.createManualOrder({
-      clientQq: clientQq.value.trim(),
-      clientName: clientName.value.trim() || null,
-      description: description.value.trim() || null,
-      priority: priority.value,
-      clientNotify: clientNotify.value,
-      references: props.uploadedRefs,
-      // 画风结构化字段（后端验证+算价+创建）
-      ...(isStyleSubmit ? {
-        styleSizeId: selectedSizeId.value,
-        styleAddons: buildStyleAddons()
-      } : {})
-    })
+    const order = await artistApi.createManualOrder(
+      {
+        clientQq: clientQq.value.trim(),
+        clientName: clientName.value.trim() || null,
+        description: description.value.trim() || null,
+        priority: priority.value,
+        clientNotify: clientNotify.value,
+        references: props.uploadedRefs,
+        // 画风结构化字段（后端验证+算价+创建）
+        ...(isStyleSubmit ? {
+          styleSizeId: selectedSizeId.value,
+          styleAddons: buildStyleAddons()
+        } : {})
+      },
+      { headers: { 'idempotency-key': submitIdemKey } }
+    )
 
     // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
     // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，
@@ -524,6 +536,7 @@ async function submit() {
     }
 
     emit('submit-success', { order, postCreateFailed })
+    submitIdemKey = null
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

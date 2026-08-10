@@ -339,7 +339,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -364,6 +364,7 @@ import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { formatDateTime } from '../../utils/datetime.js'
 import { formatCents } from '../../utils/money.js'
 import { trackEvent } from '../../utils/track.js'
+import { subscribeReconnect } from '../../utils/reconnect.js'
 // v0.40 瘦身批：script 4 区块抽 composable（零行为变化）
 import { useOrderWorkflow } from '../../composables/useOrderWorkflow.js'
 import { useOrderGallery } from '../../composables/useOrderGallery.js'
@@ -602,10 +603,19 @@ const { refreshNow } = useSignatureRefresh({
 
 // ─── v0.31 REQ-021 F1: 操作记录已随 LogPanel 拆出（含 useActivityLog 装配，2026-08-10） ───
 
+let unsubscribeReconnect = null
 onMounted(() => {
   loadOrder()
   loadWorkflowStages() // R30d: 流程进度条需要节点列表
   loadPayments(route.params.id) // B7: 额度池收款流水
+  // G-3（R-16）: 断网重连后重拉订单 + 收款流水（复用既有刷新函数）
+  unsubscribeReconnect = subscribeReconnect(() => {
+    loadOrder()
+    loadPayments(route.params.id)
+  })
+})
+onUnmounted(() => {
+  unsubscribeReconnect?.()
 })
 </script>
 

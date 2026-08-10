@@ -146,7 +146,9 @@ const languageOptions = computed(() => {
     .map(([lang]) => ({ value: lang, label: languageLabel(lang) }))
 })
 
-/** 后端 GET /api/artist/messages 返回全量数组（无分页参数），前端本地筛选+分页 */
+/** G-8（F-2 适配）: 后端已分页（items/total/page/pageSize）且无 status/language 筛选参数，
+    故按 pageSize=100（后端上限）分页拉全量后沿用本地筛选+分页——筛选口径与角标计数保持不变；
+    对齐 api/index.js getAllOrders 的循环取全模式。 */
 const filteredMessages = computed(() => {
   let list = messages.value
   if (statusFilter.value) list = list.filter(m => m.status === statusFilter.value)
@@ -175,7 +177,16 @@ const statusLabel = (s) => STATUS_LABEL[s] || 'Pending'
 async function load() {
   loading.value = true
   try {
-    messages.value = await artistApi.getMessages()
+    const PAGE_SIZE = 100 // 后端单页上限（F-2 clamp 1-100）
+    const first = await artistApi.getMessages({ page: 1, pageSize: PAGE_SIZE })
+    const total = first.total ?? (first.items || []).length
+    let all = [...(first.items || [])]
+    const pages = Math.ceil(total / PAGE_SIZE)
+    for (let p = 2; p <= pages; p++) {
+      const res = await artistApi.getMessages({ page: p, pageSize: PAGE_SIZE })
+      all = all.concat(res.items || [])
+    }
+    messages.value = all
   } catch (err) {
     ElMessage.error(err.message)
   } finally {

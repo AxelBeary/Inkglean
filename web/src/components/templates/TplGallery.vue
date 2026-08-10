@@ -267,6 +267,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useArtistData, buildGalleryFilters, filterArtworksBySize } from '../../composables/useArtistData.js'
 import ArtworkLikeButton from '../shared/ArtworkLikeButton.vue'
+import { safeGetItem } from '../../utils/storage.js'
 
 const emit = defineEmits(['load-more'])
 
@@ -410,9 +411,11 @@ function orderByTag(tag) {
 
 // F1: 初始已赞集合（localStorage，按画师隔离）
 function readLikedIds() {
+  // G-5: 裸读换 safeGetItem（存储禁用/损坏 JSON 均按未点赞降级）
+  const raw = safeGetItem(`huiyue_liked_${props.subdomain}`)
+  if (!raw) return new Set()
   try {
-    const raw = localStorage.getItem(`huiyue_liked_${props.subdomain}`)
-    const ids = raw ? JSON.parse(raw) : []
+    const ids = JSON.parse(raw)
     return Array.isArray(ids) ? new Set(ids) : new Set()
   } catch { return new Set() }
 }

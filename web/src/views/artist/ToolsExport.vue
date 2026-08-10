@@ -73,6 +73,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'
 import { artistApi } from '../../api/index.js'
+import { safeRemoveItem } from '../../utils/storage.js'
 
 const { t } = useI18n()
 
@@ -138,8 +139,8 @@ async function doExport() {
     if (!res.ok) {
       // 05D-E1: 401 → 与拦截器一致清认证并跳登录
       if (res.status === 401) {
-        localStorage.removeItem('artist_logged_in')
-        localStorage.removeItem('artist_is_admin')
+        safeRemoveItem('artist_logged_in')
+        safeRemoveItem('artist_is_admin')
         window.location.href = '/login'
         return
       }

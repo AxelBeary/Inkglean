@@ -88,6 +88,9 @@ function onPointerDown(e, idx) {
   e.target.setPointerCapture(e.pointerId)
   e.target.addEventListener('pointermove', onPointerMove)
   e.target.addEventListener('pointerup', onPointerUp, { once: true })
+  // G-2（R-22）: 系统取消拖拽（触摸打断/捕获丢失）时同样解绑监听并复位状态，
+  // 对齐 pointerup 的清理；与 pointerup 的差异：取消不提交变更（丢弃本次拖拽）
+  e.target.addEventListener('pointercancel', onPointerCancel, { once: true })
 }
 
 function onPointerMove(e) {
@@ -148,6 +151,7 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
+  if (dragIdx < 0) return // 防御：无活动拖拽的 stray pointerup（cancel 已复位后不应再提交）
   e.target.removeEventListener('pointermove', onPointerMove)
 
   if (detachId.value) {
@@ -168,6 +172,14 @@ function onPointerUp(e) {
     emitChange()
   }
 
+  elasticId.value = null
+  detachId.value = null
+  dragIdx = -1
+}
+
+function onPointerCancel(e) {
+  e.target.removeEventListener('pointermove', onPointerMove)
+  e.target.removeEventListener('pointerup', onPointerUp)
   elasticId.value = null
   detachId.value = null
   dragIdx = -1

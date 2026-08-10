@@ -7,7 +7,10 @@
  *  - 失败策略：网络错误回队下次重试；400 INVALID_ANON_TOKEN 静默重取后重试一次；
  *    其余 4xx（白名单外/限流）丢弃该批——埋点永不打断用户、不影响业务
  *  - 与 Sentry 分工：Sentry=错误监控，本文件=业务埋点，不混用
+ *  - G-7（P2-13 前端侧）: 匿名凭证同时供参考图上传/下单归属校验使用（getAnonToken）
  */
+import { safeGetItem, safeSetItem, safeRemoveItem } from './storage.js'
+
 const EVENT_VERSION = 'natural-v2' // 当前五色值版本：neon-v1 旧 / natural-v2 换色后
 const ANON_TOKEN_KEY = 'huiyue_anon_token'
 const FLUSH_INTERVAL_MS = 5000
@@ -17,7 +20,13 @@ const SEND_BATCH_MAX = 50
 let queue = []
 let flushTimer = null
 let flushBusy = false
-let anonToken = localStorage.getItem(ANON_TOKEN_KEY) || null
+// G-5: 裸读换 safeGetItem（存储禁用时按无凭证降级，不抛错）
+let anonToken = safeGetItem(ANON_TOKEN_KEY) || null
+
+/** 获取当前匿名凭证（无则签发一次；失败返回 null）。G-7: 参考图上传/下单归属校验复用此链路 */
+export async function getAnonToken() {
+  return ensureAnonToken()
+}
 
 async function ensureAnonToken() {
   if (anonToken) return anonToken
@@ -26,7 +35,7 @@ async function ensureAnonToken() {
     if (!res.ok) return null
     const data = await res.json()
     anonToken = data.token
-    try { localStorage.setItem(ANON_TOKEN_KEY, anonToken) } catch { /* 隐私模式禁存：静默 */ }
+    safeSetItem(ANON_TOKEN_KEY, anonToken)
   } catch { /* 网络失败：静默，不打断用户 */ }
   return anonToken
 }
@@ -71,7 +80,7 @@ async function flush() {
         if (body?.code === 'INVALID_ANON_TOKEN') {
           // 凭证无效/过期：静默重取一次并重试（REQ-033 §2.2）
           anonToken = null
-          try { localStorage.removeItem(ANON_TOKEN_KEY) } catch { /* 静默 */ }
+          safeRemoveItem(ANON_TOKEN_KEY)
           const newToken = await ensureAnonToken()
           if (newToken) {
             await fetch('/api/events', {
