@@ -194,4 +194,47 @@ describe('审计批 D-2 幂等键', () => {
       await app.close()
     }
   })
+
+  it('TC-D2-11: 手动录单同 key 二次提交 → 返回首次缓存、只落一单（I6-d v75 遗留收尾）', async () => {
+    const app = await buildApp({ logger: false })
+    await app.ready()
+    try {
+      const token = createSession(artist.id, artist.token_version)
+      const headers = {
+        authorization: `Bearer ${token}`,
+        'idempotency-key': 'manual-order-key-0001'
+      }
+      const payload = { clientQq: '123456', clientName: '幂等客户', priority: 'medium' }
+      const first = await app.inject({
+        method: 'POST', url: '/api/artist/orders/manual', headers, payload
+      })
+      const second = await app.inject({
+        method: 'POST', url: '/api/artist/orders/manual', headers, payload
+      })
+      expect(first.statusCode).toBe(200)
+      expect(second.statusCode).toBe(200)
+      expect(second.json()).toEqual(first.json())
+      expect(first.json().order_no).toBeTruthy()
+      expect(db.prepare('SELECT * FROM orders').all()).toHaveLength(1)
+      expect(db.prepare('SELECT source FROM orders').get().source).toBe('manual')
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('TC-D2-12: 手动录单无 header 正常一笔；不同 key 正常两笔', async () => {
+    const app = await buildApp({ logger: false })
+    await app.ready()
+    try {
+      const token = createSession(artist.id, artist.token_version)
+      const base = { method: 'POST', url: '/api/artist/orders/manual' }
+      const payload = { clientQq: '123456' }
+      await app.inject({ ...base, headers: { authorization: `Bearer ${token}` }, payload })
+      await app.inject({ ...base, headers: { authorization: `Bearer ${token}`, 'idempotency-key': 'manual-key-0002' }, payload })
+      await app.inject({ ...base, headers: { authorization: `Bearer ${token}`, 'idempotency-key': 'manual-key-0003' }, payload })
+      expect(db.prepare('SELECT * FROM orders').all()).toHaveLength(3)
+    } finally {
+      await app.close()
+    }
+  })
 })

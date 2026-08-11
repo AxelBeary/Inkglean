@@ -301,3 +301,68 @@ export function getActivity(artistId: number, limit: number = 10) {
     createdAt: n.created_at
   }))
 }
+
+// ════════════════════════════════════════════
+// REQ-043 I2: 开张任务卡（新手引导，后端标记）
+// 前端不靠 localStorage——「不再提示」与「自然达成」都写 artists 表，
+// 换设备/清缓存后依然保持隐藏（用户拍板 2026-08-11）
+// ════════════════════════════════════════════
+
+export interface OnboardingTask {
+  key: 'artwork' | 'tier' | 'share'
+  done: boolean
+}
+
+export interface OnboardingState {
+  dismissed: boolean
+  tasks: OnboardingTask[]
+}
+
+/**
+ * 开张任务卡状态（GET /api/artist/onboarding）
+ * 任务口径：
+ *  - artwork = 作品数 > 0（传了第一张作品）
+ *  - tier    = 已有画风（当前价格模型 = 画风 + 尺寸；有画风即有定价骨架，视为「设了档位」）
+ *  - share   = 恒 false：分享主页发生在浏览器本地动作，后端无可判定的数据信号，
+ *              定位为「建议项」（前端不要求勾选，不阻塞自然达成）
+ * 自然达成：artwork + tier 两项完成即写 onboarded_at（任务全完成 = 必做项全完成，
+ * share 为建议项；若按字面三任务全完成，share 恒 false 将永不达成，与需求意图不符）
+ */
+export function getOnboarding(artistId: number): OnboardingState {
+  const row = db.prepare(
+    'SELECT onboarded_at, onboarding_dismissed_at FROM artists WHERE id = ?'
+  ).get(artistId) as { onboarded_at: string | null; onboarding_dismissed_at: string | null } | undefined
+
+  const dismissed = !!row?.onboarding_dismissed_at
+  const artworkDone = (db.prepare(
+    'SELECT COUNT(*) AS c FROM artworks WHERE artist_id = ?'
+  ).get(artistId) as { c: number }).c > 0
+  const tierDone = (db.prepare(
+    'SELECT COUNT(*) AS c FROM art_styles WHERE artist_id = ?'
+  ).get(artistId) as { c: number }).c > 0
+
+  // 自然达成：必做项（作品 + 档位）全部完成且未主动关闭时，写 onboarded_at（幂等）
+  if (!dismissed && artworkDone && tierDone && !row?.onboarded_at) {
+    db.prepare("UPDATE artists SET onboarded_at = datetime('now') WHERE id = ?").run(artistId)
+  }
+
+  return {
+    dismissed,
+    tasks: [
+      { key: 'artwork', done: artworkDone },
+      { key: 'tier', done: tierDone },
+      { key: 'share', done: false }
+    ]
+  }
+}
+
+/**
+ * 「不再提示」：写 onboarding_dismissed_at（幂等，已标记不重复覆盖时间）
+ * 关闭后前端彻底隐藏；此标记不因任务完成而被清除（与 onboarded_at 独立）
+ */
+export function dismissOnboarding(artistId: number): { dismissed: boolean } {
+  db.prepare(
+    "UPDATE artists SET onboarding_dismissed_at = COALESCE(onboarding_dismissed_at, datetime('now')) WHERE id = ?"
+  ).run(artistId)
+  return { dismissed: true }
+}

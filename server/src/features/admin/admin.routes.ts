@@ -15,6 +15,7 @@ import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import type { ArtistOrderRow } from '../../types/entities.js'
+import { savePlatformAnnouncement } from '../announcement/announcement.service.js'
 
 // ============================================
 // 管理员路由 - 多画师管理
@@ -808,5 +809,26 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
       throw err
     }
+  })
+
+  /**
+   * PUT /api/admin/announcement
+   * REQ-043 I4: 平台公告编辑（发布/清空）——step-up 由 registerAdminStepUpHooks 自动挂载
+   * 内容消毒入库（sanitizeStoredText：去脚本/事件属性/javascript: 协议）
+   */
+  fastify.put('/api/admin/announcement', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: ['string', 'null'], maxLength: 100 },
+          content: { type: ['string', 'null'], maxLength: 10000 }
+        }
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    return savePlatformAnnouncement((request.body || {}) as { title?: string | null; content?: string | null })
   })
 }

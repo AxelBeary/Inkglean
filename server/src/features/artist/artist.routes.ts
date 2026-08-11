@@ -6,6 +6,7 @@ import { AppError, E } from '../../shared/errors.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import { collectSensitiveHits } from '../../shared/sensitive-words.js'
+import { getPlatformAnnouncement } from '../announcement/announcement.service.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
@@ -114,6 +115,14 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       rules: artistService.getRules(artist.id),
       slotDisplay: artistService.computeSlotDisplay(artist)
     }
+  })
+
+  /**
+   * GET /api/artist/announcement
+   * REQ-043 I4: 平台公告（画师侧入口弹窗数据源；零主动打扰，仅登录态可读）
+   */
+  fastify.get('/api/artist/announcement', { preHandler: requireAuth }, async () => {
+    return getPlatformAnnouncement()
   })
 
   /**

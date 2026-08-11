@@ -15,7 +15,7 @@
           </div>
         </div>
 
-        <!-- 导航（8 项：管理员面板/画师管理/举报处理/问候语管理/默认流程/社交平台/系统自检/埋点看板） -->
+        <!-- 导航（管理员面板/画师管理/举报处理/公告编辑/问候语管理/默认流程/社交平台/系统自检/埋点看板） -->
         <nav class="nav" :class="{ 'nav--collapsed': collapsed }">
           <template v-for="group in groupedNav" :key="group.key">
             <div v-if="!collapsed" class="nav-group-title">{{ $t(group.labelKey) }}</div>
@@ -123,7 +123,7 @@ import { useSessionGuard } from '../../composables/useSessionGuard'
 // REQ-041: 管理后台二次验证对话框（入口级守卫）
 import StepUpDialog from './StepUpDialog.vue'
 import { stepUpApi } from '../../api/index.js'
-import { Management, User, ChatLineSquare, SetUp, Share, Monitor, TrendCharts, Operation, Back, Warning } from '@element-plus/icons-vue'
+import { Management, User, ChatLineSquare, SetUp, Share, Monitor, TrendCharts, Operation, Back, Warning, Bell } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -146,6 +146,8 @@ const navItems = [
   { path: '/admin/artists', icon: User, labelKey: 'admin.artistManage', group: 'ops' },
   // REQ-042: 举报处理
   { path: '/admin/reports', icon: Warning, labelKey: 'compliance.admin.reportManage', group: 'ops' },
+  // REQ-043 I4: 公告编辑（与举报处理并存）
+  { path: '/admin/announcement', icon: Bell, labelKey: 'announcement.admin.manage', group: 'ops' },
   { path: '/admin/greetings', icon: ChatLineSquare, labelKey: 'admin.greetingManage', group: 'ops' },
   { path: '/admin/default-workflow', icon: SetUp, labelKey: 'admin.defaultWorkflow', group: 'ops' },
   { path: '/admin/platforms', icon: Share, labelKey: 'admin.platformManage', group: 'config' },

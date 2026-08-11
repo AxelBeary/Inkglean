@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS artists (
   monthly_quota INTEGER DEFAULT NULL,
   discount_enabled INTEGER DEFAULT 0,
   multi_style_enabled INTEGER DEFAULT 0,
+  -- REQ-043（v60）: 开张任务卡后端标记——自然达成/画师主动「不再提示」都写这里，前端不靠 localStorage
+  onboarded_at TEXT NULL,
+  onboarding_dismissed_at TEXT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

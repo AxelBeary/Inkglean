@@ -73,6 +73,15 @@
             <div class="footer-actions">
               <div class="footer-tools">
                 <ThemeToggle />
+                <!-- REQ-043 I4: 平台公告入口（零主动打扰；有未读才显示圆点） -->
+                <button
+                  v-if="announcement"
+                  class="announce-btn" :class="{ 'announce-btn--unread': announcementUnread }"
+                  :title="$t('announcement.entry')" :aria-label="$t('announcement.entry')"
+                  @click="openAnnouncement"
+                >
+                  <el-icon><Bell /></el-icon>
+                </button>
                 <button
                   class="lang-btn" @click="toggleLang"
                   :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
@@ -107,6 +116,14 @@
             <div class="collapsed-tools">
               <ThemeToggle />
               <button
+                v-if="announcement"
+                class="announce-btn" :class="{ 'announce-btn--unread': announcementUnread }"
+                :title="$t('announcement.entry')" :aria-label="$t('announcement.entry')"
+                @click="openAnnouncement"
+              >
+                <el-icon><Bell /></el-icon>
+              </button>
+              <button
                 class="lang-btn" @click="toggleLang"
                 :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
                 :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
@@ -135,6 +152,15 @@
           <span class="topbar-title font-display">{{ pageTitle }}</span>
           <div class="topbar-actions">
             <ThemeToggle />
+            <!-- REQ-043 I4: 移动端公告入口 -->
+            <button
+              v-if="announcement"
+              class="announce-btn" :class="{ 'announce-btn--unread': announcementUnread }"
+              :title="$t('announcement.entry')" :aria-label="$t('announcement.entry')"
+              @click="openAnnouncement"
+            >
+              <el-icon><Bell /></el-icon>
+            </button>
             <button
               class="lang-btn" @click="toggleLang"
               :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
@@ -199,6 +225,16 @@
         </div>
       </div>
     </el-drawer>
+
+    <!-- REQ-043 I4: 平台公告弹窗（点开即已读；本地记录已读时间戳，新公告重新标点） -->
+    <el-dialog v-model="announcementOpen" :title="$t('announcement.dialogTitle')" width="min(560px, calc(100vw - 32px))" class="announcement-dialog">
+      <template v-if="announcement">
+        <h3 class="announcement-title">{{ announcement.title }}</h3>
+        <p v-if="announcement.updatedAt" class="announcement-time">{{ $t('announcement.updatedAt', { time: announcement.updatedAt }) }}</p>
+        <div class="announcement-content">{{ announcement.content }}</div>
+      </template>
+      <p v-else class="announcement-empty">{{ $t('announcement.empty') }}</p>
+    </el-dialog>
   </div>
 </template>
 
@@ -214,7 +250,7 @@ import { safeGetItem, safeSetItem } from '../utils/storage.js'
 import { artistApi } from '../api/index.js'
 // REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
 import { useSessionGuard } from '../composables/useSessionGuard'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools, UserFilled } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools, UserFilled, Bell } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 // 工具箱四分类注册表（纸墨提案 §5.5；单一事实源，ArtistLayout/ToolsHome 共用）
 import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../constants/toolbox.js'
@@ -293,6 +329,32 @@ const BASE_MENU_ITEMS = [
 ]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
+// REQ-043 I4: 平台公告（零主动打扰：不弹窗不 banner，仅入口小圆点提示）
+const announcement = ref(null)
+const announcementOpen = ref(false)
+const ANNOUNCEMENT_READ_KEY = 'inkglean_announcement_read_at'
+const announcementUnread = computed(() => {
+  const a = announcement.value
+  if (!a?.updatedAt) return false
+  const readAt = safeGetItem(ANNOUNCEMENT_READ_KEY)
+  return !readAt || readAt < a.updatedAt
+})
+
+async function loadAnnouncement() {
+  try {
+    announcement.value = await artistApi.getAnnouncement()
+  } catch {
+    /* 失败静默：公告非关键路径 */
+  }
+}
+
+function openAnnouncement() {
+  announcementOpen.value = true
+  // 点开即已读：本地记已读时间戳（拍板：本地会话记已读，后端不做已读表）
+  if (announcement.value?.updatedAt) {
+    safeSetItem(ANNOUNCEMENT_READ_KEY, announcement.value.updatedAt)
+  }
+}
 // I0（REQ-039 拍板）: 待确认订单数（getStats.pendingCount 轻量统计；独立计时器轮询 5 分钟）
 const pendingOrderCount = ref(0)
 // UI-7: 管理员追加"管理后台"入口
@@ -368,6 +430,7 @@ onMounted(() => {
   mqMobile.addEventListener('change', onMobileChange)
   applyFontSizeFromStorage()
   validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
+  loadAnnouncement() // REQ-043 I4: 公告入口数据（登录态接口，失败静默）
   // I0: 待确认订单角标轮询（5 分钟；页面隐藏暂停，可见立即刷新——visibilitychange）
   startPendingOrderPolling()
   document.addEventListener('visibilitychange', onVisibilityChange)
@@ -668,6 +731,52 @@ const { validateSession } = useSessionGuard()
   transition: color .15s, transform .15s, box-shadow .15s, background-color .35s, border-color .35s;
 }
 .lang-btn:hover { color: var(--ink); box-shadow: var(--sh-1); }
+
+/* ─── REQ-043 I4: 公告入口（小铃铛；未读时右上角朱砂圆点） ─── */
+.announce-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink2);
+  cursor: pointer;
+  flex: none;
+  transition: color .15s, box-shadow .15s, transform .15s ease-out, background-color .35s, border-color .35s;
+}
+.announce-btn:hover { color: var(--ink); box-shadow: var(--sh-1); }
+.announce-btn:active { transform: scale(0.98); }
+.announce-btn--unread::after {
+  content: '';
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--zs);
+  border: 1px solid var(--card);
+}
+.announcement-dialog :deep(.el-dialog__body) { padding-top: 8px; }
+.announcement-title {
+  margin: 0 0 6px;
+  font-size: calc(var(--font-scale, 1) * 16px);
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--f-d);
+}
+.announcement-time {
+  margin: 0 0 10px;
+  font-size: calc(var(--font-scale, 1) * 11px);
+  color: var(--ink3);
+}
+.announcement-content {
+  font-size: calc(var(--font-scale, 1) * 13.5px);
+  color: var(--ink2);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.announcement-empty { margin: 0; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
 
 /* R21: 移动端汉堡按钮（顶栏内左侧） */
 .mobile-menu-btn {

@@ -1,5 +1,5 @@
 import Fastify from 'fastify'
-import type { FastifyInstance, FastifyError } from 'fastify'
+import type { FastifyInstance, FastifyError, FastifyRequest } from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
@@ -13,6 +13,7 @@ import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
 import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
+import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  // REQ-043 I1: OG 分享卡片
 
 // ============================================
 // 应用工厂 - 构建 Fastify 实例
@@ -369,6 +370,14 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   const hasWebDist = existsSync(WEB_DIST)
 
   if (hasWebDist) {
+    // REQ-043 I1: 仅命中 /artist/:subdomain 的 HTML 请求（Accept 含 text/html 且非 XHR）时注入 OG meta；
+    // 其余 SPA 路由保持 index.html 静态默认，不整页替换
+    const OG_ARTIST_ROUTE_RE = /^\/artist\/[^/]+$/
+    const wantsHtml = (request: FastifyRequest): boolean => {
+      const accept = String(request.headers.accept || '').toLowerCase()
+      if (!accept.includes('text/html')) return false
+      return String(request.headers['x-requested-with'] || '').toLowerCase() !== 'xmlhttprequest'
+    }
     const MIME = {
       '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
       '.css': 'text/css; charset=utf-8', '.json': 'application/json',
@@ -403,6 +412,12 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       reply.header('Content-Type', 'text/html; charset=utf-8')
       // 环境批 B1: index.html / SPA fallback → no-cache（保证发版即生效）
       reply.header('Cache-Control', 'no-cache')
+      // REQ-043 I1: 画师主页 HTML 请求注入 OG（未找到画师返回默认 OG，不报错）
+      if (OG_ARTIST_ROUTE_RE.test(urlPath) && wantsHtml(request)) {
+        const subdomain = urlPath.slice('/artist/'.length)
+        const html = readFileSync(resolve(WEB_DIST, 'index.html'), 'utf8')
+        return reply.send(injectOgMeta(html, buildOgMeta(subdomain, request.headers.host)))
+      }
       return reply.send(createReadStream(resolve(WEB_DIST, 'index.html')))
     })
   }

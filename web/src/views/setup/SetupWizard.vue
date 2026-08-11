@@ -104,11 +104,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSetupStore } from '../../stores/setup.js'
+import { useArtistStore } from '../../stores/artist.js'
 import { useThemeStore } from '../../stores/theme.js'
 import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
 
 const { t, locale } = useI18n()
 const setupStore = useSetupStore()
+const artistStore = useArtistStore()
 const themeStore = useThemeStore()
 
 const { switchLang } = useLocaleSwitch()
@@ -232,11 +234,8 @@ async function confirmTotp() {
   totpSubmitting.value = true
   try {
     await setupStore.confirmTotp(code)
-    try {
-      const { safeSetItem } = await import('../../utils/storage.js')
-      safeSetItem('artist_logged_in', '1')
-      safeSetItem('artist_is_admin', '1')
-    } catch { /* 存储禁用静默 */ }
+    // REQ-043 I6-e: 会话标记统一走 store action（单一数据源；profile 由后续登录补齐）
+    artistStore.applySession(null, true)
     currentStep.value = 4
   } catch (err) {
     totpError.value = err.message || t('setup.step3CodeError')

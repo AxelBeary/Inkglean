@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
 vi.mock('../../stores/artist.js', () => ({
-  useArtistStore: () => ({ isAdmin: false })
+  useArtistStore: () => ({ loggedIn: true, isAdmin: false })
 }))
 vi.mock('../../stores/theme.js', () => ({
   useThemeStore: () => ({ enterArtistScope: vi.fn(), leaveArtistScope: vi.fn() })

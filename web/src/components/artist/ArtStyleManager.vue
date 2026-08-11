@@ -184,107 +184,17 @@
     </draggable>
     <el-empty v-else-if="!loading" :description="$t('styleManage.styleEmpty')" :image-size="80" />
 
-    <!-- 新建/编辑画风弹窗 -->
-    <el-dialog v-model="styleDialogVisible" :title="editingStyleId ? $t('styleManage.styleEditTitle') : $t('styleManage.styleAddTitle')" width="460px" destroy-on-close>
-      <el-form :model="styleForm" label-position="top">
-        <el-form-item :label="$t('styleManage.styleNameLabel')" required>
-          <el-input v-model="styleForm.name" :placeholder="$t('styleManage.styleNamePlaceholder')" maxlength="50" show-word-limit />
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.styleDescLabel')">
-          <el-input v-model="styleForm.description" type="textarea" :rows="2" :placeholder="$t('styleManage.styleDescPlaceholder')" maxlength="500" show-word-limit />
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.styleCoverLabel')">
-          <div class="cover-upload">
-            <el-image v-if="styleForm.cover_image" :src="`/uploads/${styleForm.cover_image}`" fit="cover" class="cover-preview" />
-            <el-upload :auto-upload="true" :http-request="uploadCover" :show-file-list="false" accept="image/*">
-              <el-button size="small" :loading="coverUploading">
-                {{ styleForm.cover_image ? $t('styleManage.styleCoverChange') : $t('styleManage.styleCoverUpload') }}
-              </el-button>
-            </el-upload>
-            <el-button v-if="styleForm.cover_image" size="small" text type="danger" @click="styleForm.cover_image = ''">{{ $t('common.remove') }}</el-button>
-          </div>
-        </el-form-item>
-        <!-- 新建时显示"从增项库导入"勾选 -->
-        <el-form-item v-if="!editingStyleId">
-          <el-checkbox v-model="styleForm.importAddons">{{ $t('styleManage.styleImportAddons') }}</el-checkbox>
-          <p class="form-hint">{{ $t('styleManage.styleImportHint') }}</p>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="styleDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="styleSaving" @click="saveStyle">{{ $t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- v0.35 波1 (REQ-024 F1): 尺寸编辑弹窗 — 图（上传 or 作品集挑）+ 描述 + 天数，全部可选 -->
-    <el-dialog v-model="sizeDialogVisible" :title="editingSizeId ? $t('styleManage.sizeEditTitle') : $t('styleManage.sizeAddTitle')" width="460px" destroy-on-close>
-      <el-form :model="sizeForm" label-position="top">
-        <el-form-item :label="$t('styleManage.sizeName')" required>
-          <el-input v-model="sizeForm.name" :placeholder="$t('styleManage.sizeNamePlaceholder')" maxlength="50" />
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.sizePrice')" required>
-          <el-input-number v-model="sizeForm.base_price" :min="0" :max="999999" :step="10" style="width: 100%" />
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.sizeImageLabel')">
-          <div class="size-image-picker">
-            <el-image v-if="sizeFormPreview" :src="`/uploads/${sizeFormPreview}`" fit="cover" class="size-image-preview" />
-            <div class="size-image-actions">
-              <el-upload :auto-upload="true" :http-request="uploadSizeImage" :show-file-list="false" accept="image/*">
-                <el-button size="small" :loading="sizeUploading">{{ $t('styleManage.sizeImageUpload') }}</el-button>
-              </el-upload>
-              <el-button size="small" @click="openPickDialog">{{ $t('styleManage.sizeImagePick') }}</el-button>
-              <el-button v-if="sizeForm.image || sizeForm.image_artwork_id" size="small" text type="danger" @click="removeSizeImage">{{ $t('styleManage.sizeImageRemove') }}</el-button>
-            </div>
-          </div>
-          <p class="form-hint">{{ $t('styleManage.sizeImageHint') }}</p>
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.sizeDescLabel')">
-          <el-input v-model="sizeForm.description" type="textarea" :rows="2" :placeholder="$t('styleManage.sizeDescPlaceholder')" maxlength="500" show-word-limit />
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.sizeDaysLabel')">
-          <el-input-number v-model="sizeForm.work_days" :min="1" :max="365" style="width: 100%" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="sizeDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="sizeSaving" @click="saveSize">{{ $t('common.save') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- v0.35 波1 (REQ-024 F1): 从作品集挑选尺寸图 -->
-    <el-dialog v-model="pickDialogVisible" :title="$t('styleManage.sizePickTitle')" width="640px">
-      <p class="pick-hint">{{ $t('styleManage.sizePickHint') }}</p>
-      <div v-if="artworks.length" class="pick-grid">
-        <div v-for="art in artworks" :key="art.id" class="pick-item" @click="onPickArtwork(art)">
-          <el-image :src="`/uploads/${art.image_path}`" fit="cover" class="pick-img" />
-          <span v-if="art.title" class="pick-title">{{ art.title }}</span>
-        </div>
-      </div>
-      <el-empty v-else :description="$t('styleManage.sizePickEmpty')" :image-size="60" />
-    </el-dialog>
-
-    <!-- v0.35 补漏 A4: 从增项库导入（已有画风追加导入——SPEC-025 动线 5） -->
-    <el-dialog v-model="importDialogVisible" :title="$t('styleManage.addonImportTitle')" width="460px">
-      <div v-if="importCandidates.length" class="import-list">
-        <el-checkbox-group v-model="importSelection">
-          <div v-for="tpl in importCandidates" :key="tpl.id" class="import-row">
-            <el-checkbox :value="tpl.id">
-              <span class="addon-tpl-name">{{ tpl.name }}</span>
-            </el-checkbox>
-            <el-tag size="small" :type="controlTagType(tpl.control_type)">{{ controlLabel(tpl.control_type) }}</el-tag>
-            <el-tag size="small" effect="plain" :type="tplCategoryTagType(tpl.category)">{{ categoryLabel($t, tpl.category || 'add') }}</el-tag>
-            <span class="import-price">{{ formatAddonPrice(tpl.default_price, tpl.price_mode, { controlType: tpl.control_type, unitLabel: tpl.unit_label }) }}</span>
-          </div>
-        </el-checkbox-group>
-      </div>
-      <el-empty v-else :description="$t('styleManage.addonImportEmpty')" :image-size="40" />
-      <template #footer>
-        <el-button @click="importDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :disabled="!importSelection.length" :loading="importSaving" @click="confirmImportAddons">
-          {{ $t('styleManage.addonImportConfirm') }}
-        </el-button>
-      </template>
-    </el-dialog>
+    <!-- REQ-043 I6-a: 画风/尺寸/导入弹窗拆为子组件（纯搬移，零行为变化） -->
+    <StyleEditDialog v-model="styleDialogVisible" :style="editingStyle" @saved="load" />
+    <SizeEditDialog
+      v-model="sizeDialogVisible"
+      :style-id="editingSizeStyleId"
+      :size="editingSize"
+      :artworks="artworks"
+      @saved="load"
+      @row-patch="onRowPatch"
+    />
+    <AddonImportDialog v-model="importDialogVisible" :style="importStyle" :templates="addonTemplates" @imported="load" />
 
     <!-- REQ-036 批A (任务2): [+ 新建增项] 弹窗 —— created=建库+挂载, attached=直接挂载同名库模板 -->
     <AddonCreateDialog
@@ -304,17 +214,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import draggable from 'vuedraggable'
-import { artistApi, uploadApi } from '../../api/index.js'
+import { artistApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 // REQ-036 批A: 增项直觉化子组件（新建/预览/三层设置）+ SPEC-PRICE-2 共享纯函数
 import AddonCreateDialog from './AddonCreateDialog.vue'
 import AddonPreviewDialog from './AddonPreviewDialog.vue'
 import AddonSettingsDialog from './AddonSettingsDialog.vue'
-import { formatAddonPrice, formatYuanValue } from '../../utils/money.js'
-import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText, controlTagType } from './addon-utils.js'
+// REQ-043 I6-a: 画风/尺寸/导入弹窗子组件
+import StyleEditDialog from './StyleEditDialog.vue'
+import SizeEditDialog from './SizeEditDialog.vue'
+import AddonImportDialog from './AddonImportDialog.vue'
+import { formatYuanValue } from '../../utils/money.js'
+import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText } from './addon-utils.js'
 
 const { t } = useI18n()
 
@@ -428,84 +342,18 @@ function controlLabel(type) {
   return controlLabelText(t, type)
 }
 
-// ─── 画风 CRUD ───
+// ─── 画风 CRUD（表单/封面上传/保存已拆入 StyleEditDialog，此处只保留弹窗开关） ───
 const styleDialogVisible = ref(false)
-const editingStyleId = ref(null)
-const styleSaving = ref(false)
-const coverUploading = ref(false)
-const styleForm = reactive({ name: '', description: '', cover_image: '', importAddons: true })
+const editingStyle = ref(null) // 编辑对象；null = 新建
 
 function openCreateStyle() {
-  editingStyleId.value = null
-  Object.assign(styleForm, { name: '', description: '', cover_image: '', importAddons: true })
+  editingStyle.value = null
   styleDialogVisible.value = true
 }
 
 function openEditStyle(style) {
-  editingStyleId.value = style.id
-  Object.assign(styleForm, { name: style.name, description: style.description || '', cover_image: style.cover_image || '', importAddons: false })
+  editingStyle.value = style
   styleDialogVisible.value = true
-}
-
-/**
- * 封面上传（v0.34 任务2：即时保存，对齐 R48 头像模式）
- * 编辑已有画风：上传成功立即 PUT cover_image——不依赖「确定」，避免"传了图没保存"陷阱（用户 2026-08-03 已踩）
- *   PUT 失败时回滚表单预览，避免"预览显示已保存、实际未保存"的不一致
- * 新建画风：无 id 可保存，只写表单 + 醒目提示「确定后生效」
- */
-async function uploadCover({ file }) {
-  coverUploading.value = true
-  const prevCover = styleForm.cover_image
-  try {
-    const uploaded = await uploadApi.image(file)
-    styleForm.cover_image = uploaded.filePath
-    if (editingStyleId.value) {
-      try {
-        await artistApi.updateArtStyle(editingStyleId.value, { cover_image: uploaded.filePath })
-        ElMessage.success(t('common.saved'))
-      } catch (putErr) {
-        styleForm.cover_image = prevCover // 回滚：预览与实际存储保持一致
-        ElMessage.error(putErr.message)
-      }
-    } else {
-      ElMessage({ type: 'warning', message: t('styleManage.sizeImageUploadHint'), duration: 5000 })
-    }
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    coverUploading.value = false
-  }
-}
-
-async function saveStyle() {
-  if (!styleForm.name.trim()) {
-    ElMessage.warning(t('styleManage.styleNameRequired'))
-    return
-  }
-  styleSaving.value = true
-  try {
-    if (editingStyleId.value) {
-      await artistApi.updateArtStyle(editingStyleId.value, {
-        name: styleForm.name.trim(),
-        description: styleForm.description.trim() || null,
-        cover_image: styleForm.cover_image || null
-      })
-    } else {
-      await artistApi.createArtStyle({
-        name: styleForm.name.trim(),
-        description: styleForm.description.trim() || null,
-        cover_image: styleForm.cover_image || null,
-        importAddons: styleForm.importAddons
-      })
-    }
-    ElMessage.success(t('styleManage.styleSaved'))
-    styleDialogVisible.value = false
-    await load()
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    styleSaving.value = false
-  }
 }
 
 async function toggleActive(style, val) {
@@ -534,13 +382,10 @@ async function confirmDeleteStyle(style) {
   }
 }
 
-// ─── v0.35 波1 (F1): 尺寸 CRUD（弹窗编辑：图/描述/天数全部可选） ───
+// ─── v0.35 波1 (F1): 尺寸 CRUD（表单/图上传/作品集挑选/保存已拆入 SizeEditDialog） ───
 const sizeDialogVisible = ref(false)
-const editingSizeStyleId = ref(null) // 尺寸弹窗所属画风（与画风弹窗的 editingStyleId 区分）
-const editingSizeId = ref(null)
-const sizeSaving = ref(false)
-const sizeUploading = ref(false)
-const sizeForm = reactive({ name: '', base_price: 0, image: '', image_artwork_id: null, description: '', work_days: null })
+const editingSizeStyleId = ref(null) // 尺寸弹窗所属画风（与画风弹窗的 editingStyle 区分）
+const editingSize = ref(null) // 编辑对象；null = 新建
 
 /** 尺寸缩略图：image_artwork_id 有值 → 作品集实图；否则独立上传图（渲染优先级与客户端一致） */
 function sizeThumb(size) {
@@ -551,31 +396,9 @@ function sizeThumb(size) {
   return size.image || null
 }
 
-/** 弹窗内当前预览图 */
-const sizeFormPreview = computed(() => {
-  if (sizeForm.image_artwork_id) {
-    const art = artworks.value.find(a => a.id === sizeForm.image_artwork_id)
-    if (art) return art.image_path
-  }
-  return sizeForm.image || ''
-})
-
 function openSizeDialog(style, size) {
   editingSizeStyleId.value = style.id
-  if (size) {
-    editingSizeId.value = size.id
-    Object.assign(sizeForm, {
-      name: size.name,
-      base_price: size.base_price,
-      image: size.image || '',
-      image_artwork_id: size.image_artwork_id || null,
-      description: size.description || '',
-      work_days: size.work_days ?? null
-    })
-  } else {
-    editingSizeId.value = null
-    Object.assign(sizeForm, { name: '', base_price: 0, image: '', image_artwork_id: null, description: '', work_days: null })
-  }
+  editingSize.value = size || null
   sizeDialogVisible.value = true
 }
 
@@ -587,107 +410,9 @@ function patchSizeRow(styleId, sizeId, patch) {
   if (size) Object.assign(size, patch)
 }
 
-/**
- * 尺寸图上传（v0.34 即时保存模式）
- * 编辑已有尺寸：上传成功立即 PUT——失败回滚预览；新建尺寸：只写表单 + 提示「点保存后生效」
- */
-async function uploadSizeImage({ file }) {
-  sizeUploading.value = true
-  const prev = { image: sizeForm.image, image_artwork_id: sizeForm.image_artwork_id }
-  try {
-    const uploaded = await uploadApi.image(file)
-    sizeForm.image = uploaded.filePath
-    sizeForm.image_artwork_id = null
-    if (editingSizeId.value) {
-      try {
-        await artistApi.updateStyleSize(editingSizeStyleId.value, editingSizeId.value, { image: uploaded.filePath })
-        patchSizeRow(editingSizeStyleId.value, editingSizeId.value, { image: uploaded.filePath, image_artwork_id: null })
-        ElMessage.success(t('styleManage.sizeImageSavedMsg'))
-      } catch (putErr) {
-        sizeForm.image = prev.image
-        sizeForm.image_artwork_id = prev.image_artwork_id
-        ElMessage.error(putErr.message)
-      }
-    } else {
-      ElMessage({ type: 'warning', message: t('styleManage.sizeImageUploadHint'), duration: 5000 })
-    }
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    sizeUploading.value = false
-  }
-}
-
-/** 从作品集挑选（点击选择器内的作品） */
-async function onPickArtwork(art) {
-  pickDialogVisible.value = false
-  const prev = { image: sizeForm.image, image_artwork_id: sizeForm.image_artwork_id }
-  sizeForm.image = ''
-  sizeForm.image_artwork_id = art.id
-  if (editingSizeId.value) {
-    try {
-      await artistApi.updateStyleSize(editingSizeStyleId.value, editingSizeId.value, { image_artwork_id: art.id })
-      patchSizeRow(editingSizeStyleId.value, editingSizeId.value, { image: null, image_artwork_id: art.id })
-      ElMessage.success(t('styleManage.sizeImageSavedMsg'))
-    } catch (err) {
-      sizeForm.image = prev.image
-      sizeForm.image_artwork_id = prev.image_artwork_id
-      ElMessage.error(err.message)
-    }
-  } else {
-    ElMessage({ type: 'warning', message: t('styleManage.sizeImageUploadHint'), duration: 5000 })
-  }
-}
-
-/** 移除尺寸图（即时保存模式同上传） */
-async function removeSizeImage() {
-  const prev = { image: sizeForm.image, image_artwork_id: sizeForm.image_artwork_id }
-  sizeForm.image = ''
-  sizeForm.image_artwork_id = null
-  if (editingSizeId.value) {
-    try {
-      await artistApi.updateStyleSize(editingSizeStyleId.value, editingSizeId.value, { image: null })
-      patchSizeRow(editingSizeStyleId.value, editingSizeId.value, { image: null, image_artwork_id: null })
-      ElMessage.success(t('styleManage.sizeImageSavedMsg'))
-    } catch (err) {
-      sizeForm.image = prev.image
-      sizeForm.image_artwork_id = prev.image_artwork_id
-      ElMessage.error(err.message)
-    }
-  }
-}
-
-async function saveSize() {
-  if (!sizeForm.name.trim()) {
-    ElMessage.warning(t('styleManage.sizeNameRequired'))
-    return
-  }
-  sizeSaving.value = true
-  try {
-    // 图片字段互斥：image_artwork_id 优先；都没有则显式清空（后端"传一清一"）
-    const payload = {
-      name: sizeForm.name.trim(),
-      base_price: sizeForm.base_price,
-      description: sizeForm.description.trim() || null,
-      work_days: sizeForm.work_days
-    }
-    if (sizeForm.image_artwork_id) payload.image_artwork_id = sizeForm.image_artwork_id
-    else payload.image = sizeForm.image || null
-
-    if (editingSizeId.value) {
-      await artistApi.updateStyleSize(editingSizeStyleId.value, editingSizeId.value, payload)
-      ElMessage.success(t('styleManage.sizeSaved'))
-    } else {
-      await artistApi.createStyleSize(editingSizeStyleId.value, payload)
-      ElMessage.success(t('styleManage.sizeAdded'))
-    }
-    sizeDialogVisible.value = false
-    await load()
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    sizeSaving.value = false
-  }
+/** SizeEditDialog 即时保存（上传/挑图/移除）成功后回写列表行，避免整体重载 */
+function onRowPatch({ styleId, sizeId, patch }) {
+  patchSizeRow(styleId, sizeId, patch)
 }
 
 async function confirmDeleteSize(style, size) {
@@ -707,59 +432,13 @@ async function confirmDeleteSize(style, size) {
   }
 }
 
-// ─── 作品集挑选弹窗 ───
-const pickDialogVisible = ref(false)
-
-function openPickDialog() {
-  pickDialogVisible.value = true
-}
-
-// ─── v0.35 补漏 A4: 从增项库导入（已有画风追加导入） ───
+// ─── v0.35 补漏 A4: 从增项库导入（已拆入 AddonImportDialog，此处只保留弹窗开关） ───
 const importDialogVisible = ref(false)
-const importStyleId = ref(null)
-const importSelection = ref([])
-const importSaving = ref(false)
-
-/** 该画风尚未导入的增项库模板 */
-function unimportedTemplates(style) {
-  const imported = new Set(style.addons.map(sa => sa.addon_template_id))
-  return addonTemplates.value.filter(tpl => !imported.has(tpl.id))
-}
-
-const importCandidates = computed(() => {
-  const style = styles.value.find(s => s.id === importStyleId.value)
-  return style ? unimportedTemplates(style) : []
-})
+const importStyle = ref(null)
 
 function openImportDialog(style) {
-  importStyleId.value = style.id
-  importSelection.value = []
+  importStyle.value = style
   importDialogVisible.value = true
-}
-
-/** 确认导入：现有增项原状 + 新导入项（默认启用）整体 PUT（setStyleAddons upsert 语义） */
-async function confirmImportAddons() {
-  const style = styles.value.find(s => s.id === importStyleId.value)
-  if (!style || !importSelection.value.length) return
-  importSaving.value = true
-  try {
-    const items = [
-      ...style.addons.map(sa => ({
-        addon_template_id: sa.addon_template_id,
-        is_enabled: !!sa.is_enabled,
-        price_override: sa.price_override ?? null
-      })),
-      ...importSelection.value.map(tplId => ({ addon_template_id: tplId, is_enabled: true }))
-    ]
-    await artistApi.setStyleAddons(style.id, items)
-    ElMessage.success(t('styleManage.addonImported'))
-    importDialogVisible.value = false
-    await load()
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    importSaving.value = false
-  }
 }
 
 // ─── REQ-036 批A: 加购项池 + 拖拽 + 三态 + 摘要 + 弹窗（直觉化重构，替换 v0.35 A4/A5 行内交互） ───
@@ -978,11 +657,6 @@ async function onDropToPool(style, _e) {
   }
 }
 
-/** 类别标签 el-tag type（导入弹窗用） */
-function tplCategoryTagType(cat) {
-  return { usage: 'warning', rush: 'danger', add: 'info' }[cat] || 'info'
-}
-
 /** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } }（GET 只读端点） */
 async function preloadOverrides(styleList) {
   await Promise.all(styleList.map(async style => {
@@ -1182,36 +856,4 @@ defineExpose({ reload: load })
 .sum-empty { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); }
 @keyframes chipIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 
-.cover-upload { display: flex; align-items: center; gap: 12px; }
-.cover-preview { width: 80px; height: 60px; border-radius: var(--r-m); border: 1px solid var(--line); }
-.form-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2); margin: 4px 0 0; }
-
-/* v0.35 波1: 尺寸图设置区 */
-.size-image-picker { display: flex; align-items: center; gap: 12px; }
-.size-image-preview { width: 90px; height: 70px; border-radius: var(--r-m); border: 1px solid var(--line); flex-shrink: 0; }
-.size-image-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-
-/* v0.35 波1: 作品集挑选网格 */
-.pick-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 0 0 12px; }
-.pick-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px; max-height: 420px; overflow-y: auto;
-}
-.pick-item {
-  position: relative; border-radius: var(--r-m); overflow: hidden; cursor: pointer;
-  border: 2px solid transparent; transition: border-color 0.2s, transform 0.2s;
-}
-.pick-item:hover { border-color: var(--hq); box-shadow: var(--sh-1); }
-.pick-item:active { transform: translateY(-2px); }
-.pick-img { width: 100%; height: 100px; display: block; }
-.pick-title {
-  display: block; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2);
-  padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-/* A4: 增项导入弹窗 */
-.import-list { max-height: 360px; overflow-y: auto; }
-.import-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-/* 价格数字墨色不上色铁律（REQ §1.1） */
-.import-price { margin-left: auto; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); font-variant-numeric: tabular-nums; }
 </style>

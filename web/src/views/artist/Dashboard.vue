@@ -20,15 +20,19 @@
         <div class="area area-slot enter-stagger" :style="{ '--stagger': 4 }">
           <SlotOverview />
         </div>
-        <div class="area area-quick enter-stagger" :style="{ '--stagger': 5 }">
+        <!-- REQ-043 I2: 开张任务卡（右栏 SlotOverview 下方；后端标记隐藏） -->
+        <div class="area area-onboarding enter-stagger" :style="{ '--stagger': 5 }">
+          <OnboardingCard />
+        </div>
+        <div class="area area-quick enter-stagger" :style="{ '--stagger': 6 }">
           <QuickActions />
         </div>
-        <div class="area area-activity enter-stagger" :style="{ '--stagger': 6 }">
+        <div class="area area-activity enter-stagger" :style="{ '--stagger': 7 }">
           <ActivityFeed />
         </div>
 
         <!-- F4: 留言审核（右栏 row 5） -->
-        <div class="area area-guestbook enter-stagger" :style="{ '--stagger': 7 }">
+        <div class="area area-guestbook enter-stagger" :style="{ '--stagger': 8 }">
           <el-card>
             <template #header>
               <CardHead :title="$t('dashboard.guestbookTitle')">
@@ -60,6 +64,8 @@ import QuickActions from '../../components/artist/dashboard/QuickActions.vue'
 import ActivityFeed from '../../components/artist/dashboard/ActivityFeed.vue'
 import SlotOverview from '../../components/artist/dashboard/SlotOverview.vue'
 import GuestbookReviewCard from '../../components/artist/dashboard/GuestbookReviewCard.vue'
+// REQ-043 I2: 开张任务卡
+import OnboardingCard from '../../components/artist/dashboard/OnboardingCard.vue'
 
 const store = useArtistStore()
 const stats = ref(null)

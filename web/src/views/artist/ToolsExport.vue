@@ -70,9 +70,10 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'
 import { artistApi } from '../../api/index.js'
-import { safeRemoveItem } from '../../utils/storage.js'
+import { useArtistStore } from '../../stores/artist.js'
 
 const { t } = useI18n()
+const store = useArtistStore()
 
 // 默认区间：本月 1 号 → 今天（导出最常见诉求是当月/上月对账）
 function defaultRange() {
@@ -136,8 +137,8 @@ async function doExport() {
     if (!res.ok) {
       // 05D-E1: 401 → 与拦截器一致清认证并跳登录
       if (res.status === 401) {
-        safeRemoveItem('artist_logged_in')
-        safeRemoveItem('artist_is_admin')
+        // REQ-043 I6-e: 清会话统一走 store action（store 为准，localStorage 由 action 清理）
+        store.logout()
         window.location.href = '/login'
         return
       }

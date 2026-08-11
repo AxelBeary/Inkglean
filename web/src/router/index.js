@@ -98,7 +98,9 @@ const routes = [
       // REQ-033 埋点看板
       { path: 'analytics', name: 'AdminAnalytics', component: () => import('../views/admin/TrackingAnalytics.vue'), meta: { titleKey: 'admin.tracking.title', requiresAdmin: true } },
       // REQ-042: 举报处理
-      { path: 'reports', name: 'AdminReports', component: () => import('../views/admin/ReportManage.vue'), meta: { titleKey: 'compliance.admin.reportManage', requiresAdmin: true } }
+      { path: 'reports', name: 'AdminReports', component: () => import('../views/admin/ReportManage.vue'), meta: { titleKey: 'compliance.admin.reportManage', requiresAdmin: true } },
+      // REQ-043 I4: 公告编辑
+      { path: 'announcement', name: 'AdminAnnouncement', component: () => import('../views/admin/AnnouncementManage.vue'), meta: { titleKey: 'announcement.admin.manage', requiresAdmin: true } }
     ]
   },
 
@@ -159,19 +161,19 @@ router.beforeEach(async (to, from, next) => {
     themeStore.leaveArtistScope()
   }
 
-  // 检查认证（token 在 httpOnly cookie 中，JS 不可读；用非敏感标记判断）
+  // 检查认证（token 在 httpOnly cookie 中，JS 不可读）
+  // REQ-043 I6-e: 单一数据源 = Pinia store（store 初始化时读 localStorage 快速路径，
+  // 写入一律走 store action，守卫不再直接读写 localStorage）
+  const artistStore = useArtistStore()
   if (to.meta.requiresAuth || to.meta.requiresAdmin) {
-    // P3-10: 存储禁用时按未登录处理（跳登录页），不让守卫抛错白屏
-    const loggedIn = safeGetItem('artist_logged_in') === '1'
-    if (!loggedIn) {
+    // P3-10: 存储禁用/未登录时按未登录处理（跳登录页），不让守卫抛错白屏
+    if (!artistStore.loggedIn) {
       return next({ name: 'ArtistLogin', query: { redirect: to.fullPath } })
     }
   }
 
-  if (to.meta.requiresAdmin) {
-    // 从 Pinia store 读取（单一数据源），避免 localStorage key 不一致
-    const artistStore = useArtistStore()
-    if (!artistStore.isAdmin) return next({ name: 'ArtistDashboard' })
+  if (to.meta.requiresAdmin && !artistStore.isAdmin) {
+    return next({ name: 'ArtistDashboard' })
   }
 
   next()
