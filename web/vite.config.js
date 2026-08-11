@@ -28,6 +28,13 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html')
+      },
+      output: {
+        manualChunks: {
+          // REQ-037 b5: 框架/监控供应商拆包，减小 main chunk gzip
+          'vendor-vue': ['vue', 'vue-router', 'pinia', 'vue-i18n'],
+          'vendor-sentry': ['@sentry/vue']
+        }
       }
     }
   }
