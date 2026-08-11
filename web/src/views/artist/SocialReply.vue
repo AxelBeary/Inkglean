@@ -1,42 +1,39 @@
 ﻿<template>
-  <ArtistLayout>
-    <div class="reply-page">
-      <h2 class="od-page-title">{{ $t('reply.title') }}</h2>
-      <p class="page-sub">{{ $t('reply.subtitle') }}</p>
+  <div class="reply-page">
+    <h2 class="od-page-title">{{ $t('reply.title') }}</h2>
+    <p class="page-sub">{{ $t('reply.subtitle') }}</p>
 
-      <!-- 分类 tab -->
-      <div class="reply-tabs" role="tablist" :aria-label="$t('reply.title')">
-        <button
-          v-for="cat in REPLY_CATEGORIES" :key="cat" type="button"
-          class="reply-tab" :class="{ 'reply-tab--active': currentCat === cat }"
-          role="tab" :aria-selected="currentCat === cat"
-          @click="selectCategory(cat)"
-        >
-          {{ $t('reply.cats.' + cat) }}
-        </button>
-      </div>
+    <!-- 分类 tab -->
+    <div class="reply-tabs" role="tablist" :aria-label="$t('reply.title')">
+      <button
+        v-for="cat in REPLY_CATEGORIES" :key="cat" type="button"
+        class="reply-tab" :class="{ 'reply-tab--active': currentCat === cat }"
+        role="tab" :aria-selected="currentCat === cat"
+        @click="selectCategory(cat)"
+      >
+        {{ $t('reply.cats.' + cat) }}
+      </button>
+    </div>
 
-      <!-- 话术列表 -->
-      <div class="reply-list">
-        <div v-for="(item, i) in templates" :key="catKey(item, i)" class="reply-item">
-          <div class="reply-item-head">
-            <span class="reply-item-name">{{ item.name }}</span>
-            <button type="button" class="reply-copy-btn" @click="copyText(item)">
-              {{ $t('reply.copy') }}
-            </button>
-          </div>
-          <p class="reply-item-text">{{ item.text }}</p>
+    <!-- 话术列表 -->
+    <div class="reply-list">
+      <div v-for="(item, i) in templates" :key="catKey(item, i)" class="reply-item">
+        <div class="reply-item-head">
+          <span class="reply-item-name">{{ item.name }}</span>
+          <button type="button" class="reply-copy-btn" @click="copyText(item)">
+            {{ $t('reply.copy') }}
+          </button>
         </div>
+        <p class="reply-item-text">{{ item.text }}</p>
       </div>
     </div>
-  </ArtistLayout>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { REPLY_CATEGORIES, REPLY_TEMPLATES } from '../../utils/reply-templates.js'
 
 const { t } = useI18n()
@@ -135,4 +132,3 @@ function fallbackCopy(text) {
 .reply-copy-btn:active { transform: scale(0.98); }
 .reply-item-text { margin-top: 10px; font-size: 14px; line-height: 1.7; color: var(--ink2, #555); white-space: pre-wrap; }
 </style>
-

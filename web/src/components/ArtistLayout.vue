@@ -213,6 +213,8 @@ import { setLocale } from '../i18n/index.js'
 import { trackEvent } from '../utils/track.js'
 import { safeGetItem, safeSetItem } from '../utils/storage.js'
 import { artistApi } from '../api/index.js'
+// REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
+import { useSessionGuard } from '../composables/useSessionGuard'
 import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Stamp, Download, Wallet, Grid, Calendar, User, Connection, PriceTag, ChatLineRound, Notebook, AlarmClock } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
@@ -419,27 +421,8 @@ function logout() {
   router.push('/login')
 }
 
-// ─── G-1（P2-8）: 后台会话强校验 ───
-// 路由守卫的 localStorage 检查只管体验（快速路径：未登录先跳登录页）；
-// 真实边界在布局挂载后调 /api/auth/me 以服务端为准校验：
-// 成功 → isAdmin 标记以服务端为准修正；401/403 → 复用既有登出逻辑清标记跳登录。
-async function validateSession() {
-  try {
-    const me = await artistApi.getMe()
-    const serverAdmin = !!me.isAdmin
-    if (serverAdmin !== store.isAdmin) {
-      store.isAdmin = serverAdmin
-      safeSetItem('artist_is_admin', serverAdmin ? '1' : '0')
-    }
-  } catch (err) {
-    if (err.status === 401 || err.status === 403) {
-      await store.logout()
-      if (router.currentRoute.value.name !== 'ArtistLogin') {
-        router.push({ name: 'ArtistLogin' })
-      }
-    }
-  }
-}
+// ─── G-1（P2-8）: 后台会话强校验（REQ-037 批2 A4: 逻辑收敛进 useSessionGuard，AdminLayout 同款复用） ───
+const { validateSession } = useSessionGuard()
 </script>
 
 <style scoped>

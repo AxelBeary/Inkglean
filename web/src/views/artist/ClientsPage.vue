@@ -1,74 +1,71 @@
 <template>
-  <ArtistLayout>
-    <div class="clients-page">
-      <h2 class="od-page-title">{{ $t('clients.title') }}</h2>
+  <div class="clients-page">
+    <h2 class="od-page-title">{{ $t('clients.title') }}</h2>
 
-      <!-- 顶部搜索：QQ 过滤（后端 GET /artist/tools/clients?qq= 支持） -->
-      <div class="clients-toolbar">
-        <el-input
-          v-model="searchQq"
-          :placeholder="$t('clients.searchPlaceholder')"
-          clearable
-          class="clients-search"
-          @input="onSearchInput"
-        />
-      </div>
-
-      <!-- 客户标记表格 -->
-      <el-table :data="items" v-loading="loading" class="clients-table">
-        <el-table-column :label="$t('clients.qq')" prop="clientQq" min-width="120" />
-        <el-table-column :label="$t('clients.tags')" min-width="220">
-          <template #default="{ row }">
-            <div class="clients-tags">
-              <el-tag v-for="tag in (row.tags || [])" :key="tag" size="small">{{ tag }}</el-tag>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('clients.note')" prop="note" min-width="180" show-overflow-tooltip />
-        <el-table-column :label="$t('clients.actions')" width="140" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row)">{{ $t('clients.edit') }}</el-button>
-            <el-button link type="danger" @click="removeClient(row)">{{ $t('clients.delete') }}</el-button>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <span>{{ $t('clients.empty') }}</span>
-        </template>
-      </el-table>
-
-      <!-- 编辑弹窗：QQ 只读；标签 allow-create（默认空）；备注 ≤200 -->
-      <el-dialog v-model="editVisible" :title="t('clients.editTitle')" width="480px" :close-on-click-modal="false">
-        <el-form label-position="top" @submit.prevent="saveEdit">
-          <el-form-item :label="$t('clients.qq')">
-            <el-input :model-value="editForm.qq" disabled />
-          </el-form-item>
-          <el-form-item :label="$t('clients.tags')">
-            <el-select
-              v-model="editForm.tags"
-              multiple allow-create filterable default-first-option
-              :multiple-limit="20"
-              :placeholder="$t('clients.tags')"
-              class="clients-tag-select"
-            >
-              <el-option v-for="tag in editForm.tags" :key="tag" :value="tag" />
-            </el-select>
-          </el-form-item>
-          <el-form-item :label="$t('clients.note')">
-            <el-input v-model="editForm.note" type="textarea" :rows="3" maxlength="200" show-word-limit />
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-button @click="editVisible = false">{{ $t('clients.cancel') }}</el-button>
-          <el-button type="primary" :loading="saving" @click="saveEdit">{{ $t('clients.save') }}</el-button>
-        </template>
-      </el-dialog>
+    <!-- 顶部搜索：QQ 过滤（后端 GET /artist/tools/clients?qq= 支持） -->
+    <div class="clients-toolbar">
+      <el-input
+        v-model="searchQq"
+        :placeholder="$t('clients.searchPlaceholder')"
+        clearable
+        class="clients-search"
+        @input="onSearchInput"
+      />
     </div>
-  </ArtistLayout>
+
+    <!-- 客户标记表格 -->
+    <el-table :data="items" v-loading="loading" class="clients-table">
+      <el-table-column :label="$t('clients.qq')" prop="clientQq" min-width="120" />
+      <el-table-column :label="$t('clients.tags')" min-width="220">
+        <template #default="{ row }">
+          <div class="clients-tags">
+            <el-tag v-for="tag in (row.tags || [])" :key="tag" size="small">{{ tag }}</el-tag>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('clients.note')" prop="note" min-width="180" show-overflow-tooltip />
+      <el-table-column :label="$t('clients.actions')" width="140" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openEdit(row)">{{ $t('clients.edit') }}</el-button>
+          <el-button link type="danger" @click="removeClient(row)">{{ $t('clients.delete') }}</el-button>
+        </template>
+      </el-table-column>
+      <template #empty>
+        <span>{{ $t('clients.empty') }}</span>
+      </template>
+    </el-table>
+
+    <!-- 编辑弹窗：QQ 只读；标签 allow-create（默认空）；备注 ≤200 -->
+    <el-dialog v-model="editVisible" :title="t('clients.editTitle')" width="480px" :close-on-click-modal="false">
+      <el-form label-position="top" @submit.prevent="saveEdit">
+        <el-form-item :label="$t('clients.qq')">
+          <el-input :model-value="editForm.qq" disabled />
+        </el-form-item>
+        <el-form-item :label="$t('clients.tags')">
+          <el-select
+            v-model="editForm.tags"
+            multiple allow-create filterable default-first-option
+            :multiple-limit="20"
+            :placeholder="$t('clients.tags')"
+            class="clients-tag-select"
+          >
+            <el-option v-for="tag in editForm.tags" :key="tag" :value="tag" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="$t('clients.note')">
+          <el-input v-model="editForm.note" type="textarea" :rows="3" maxlength="200" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editVisible = false">{{ $t('clients.cancel') }}</el-button>
+        <el-button type="primary" :loading="saving" @click="saveEdit">{{ $t('clients.save') }}</el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'

@@ -1,54 +1,51 @@
 <template>
-  <ArtistLayout>
-    <div class="stats-page" v-loading="loading">
-      <h2 class="od-page-title">{{ $t('stats.title') }}</h2>
+  <div class="stats-page" v-loading="loading">
+    <h2 class="od-page-title">{{ $t('stats.title') }}</h2>
 
-      <!-- 总览卡：总事件数 -->
-      <div class="stats-overview" v-if="data">
-        <div class="stats-overview-item">
-          <div class="stats-overview-num">{{ data.total }}</div>
-          <div class="stats-overview-label">{{ $t('stats.totalEvents') }}</div>
-        </div>
-      </div>
-
-      <!-- 按日趋势：柱状图（纯 CSS/div 实现，不引图表库） -->
-      <div class="stats-section" v-if="byDay.length">
-        <h3 class="od-section-title">{{ $t('stats.byDay') }}</h3>
-        <div class="stats-bars">
-          <div v-for="d in byDay" :key="d.day" class="stats-bar-col">
-            <div class="stats-bar" :style="{ height: barHeight(d.count) }" :title="`${d.day}: ${d.count}`"></div>
-            <div class="stats-bar-label">{{ shortDay(d.day) }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 事件明细：byName 列表 -->
-      <div class="stats-section" v-if="byName.length">
-        <h3 class="od-section-title">{{ $t('stats.byName') }}</h3>
-        <div class="stats-list">
-          <div v-for="e in byName" :key="e.name" class="stats-list-row">
-            <span class="stats-list-name">{{ $t(`stats.events.${e.name}`, e.name) }}</span>
-            <span class="stats-list-count">{{ e.count }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 已开启但暂无数据 -->
-      <div v-if="mode === 'on' && !byDay.length && !byName.length" class="stats-disabled">
-        {{ $t('stats.empty') }}
-      </div>
-
-      <!-- 未开启/不显示：提示去管理后台开启 -->
-      <div v-if="mode !== 'on'" class="stats-disabled">
-        {{ $t('stats.disabledHint') }}
+    <!-- 总览卡：总事件数 -->
+    <div class="stats-overview" v-if="data">
+      <div class="stats-overview-item">
+        <div class="stats-overview-num">{{ data.total }}</div>
+        <div class="stats-overview-label">{{ $t('stats.totalEvents') }}</div>
       </div>
     </div>
-  </ArtistLayout>
+
+    <!-- 按日趋势：柱状图（纯 CSS/div 实现，不引图表库） -->
+    <div class="stats-section" v-if="byDay.length">
+      <h3 class="od-section-title">{{ $t('stats.byDay') }}</h3>
+      <div class="stats-bars">
+        <div v-for="d in byDay" :key="d.day" class="stats-bar-col">
+          <div class="stats-bar" :style="{ height: barHeight(d.count) }" :title="`${d.day}: ${d.count}`"></div>
+          <div class="stats-bar-label">{{ shortDay(d.day) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 事件明细：byName 列表 -->
+    <div class="stats-section" v-if="byName.length">
+      <h3 class="od-section-title">{{ $t('stats.byName') }}</h3>
+      <div class="stats-list">
+        <div v-for="e in byName" :key="e.name" class="stats-list-row">
+          <span class="stats-list-name">{{ $t(`stats.events.${e.name}`, e.name) }}</span>
+          <span class="stats-list-count">{{ e.count }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 已开启但暂无数据 -->
+    <div v-if="mode === 'on' && !byDay.length && !byName.length" class="stats-disabled">
+      {{ $t('stats.empty') }}
+    </div>
+
+    <!-- 未开启/不显示：提示去管理后台开启 -->
+    <div v-if="mode !== 'on'" class="stats-disabled">
+      {{ $t('stats.disabledHint') }}
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { artistApi } from '../../api/index.js'
 
 const loading = ref(true)

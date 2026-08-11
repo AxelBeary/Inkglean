@@ -1,48 +1,46 @@
 <template>
-  <ArtistLayout>
-    <div class="schedule-page">
-      <h2 class="od-page-title">{{ $t('schedule.title') }}</h2>
-      <p class="schedule-sub">{{ $t('schedule.subtitle') }}</p>
+  <div class="schedule-page">
+    <h2 class="od-page-title">{{ $t('schedule.title') }}</h2>
+    <p class="schedule-sub">{{ $t('schedule.subtitle') }}</p>
 
-      <div class="schedule-panel">
-        <div v-if="loading" class="schedule-loading">{{ $t('schedule.loading') }}</div>
+    <div class="schedule-panel">
+      <div v-if="loading" class="schedule-loading">{{ $t('schedule.loading') }}</div>
 
-        <template v-else>
-          <!-- 预览卡片（CSS 渲染，纸墨 token 双主题自适应） -->
-          <div class="schedule-card">
-            <div class="schedule-card-head">
-              <span class="schedule-card-title">{{ $t('schedule.title') }}</span>
-              <span class="schedule-card-date">{{ todayText }}</span>
-            </div>
-            <div class="schedule-card-artist">{{ artistName }}</div>
-            <span class="schedule-card-status" :class="statusKey">{{ statusText }}</span>
-            <div class="schedule-card-rows">
-              <div class="schedule-card-row">{{ $t('schedule.queueFormal', { n: formalCount }) }}</div>
-              <div class="schedule-card-row">{{ $t('schedule.queueBuffer', { n: bufferCount }) }}</div>
-            </div>
-            <div class="schedule-card-divider"></div>
-            <div class="schedule-card-dl-title">{{ $t('schedule.deadlineSoon') }}</div>
-            <div v-if="topDeadlines.length" class="schedule-card-dl">
-              <div v-for="d in topDeadlines" :key="d.id" class="schedule-card-dl-row">· #{{ d.order_no }} {{ fmtDate(d.deadline) }}</div>
-            </div>
-            <div v-else class="schedule-card-dl">{{ $t('schedule.noDeadline') }}</div>
-            <div class="schedule-card-footer">{{ $t('schedule.brandFooter') }}</div>
+      <template v-else>
+        <!-- 预览卡片（CSS 渲染，纸墨 token 双主题自适应） -->
+        <div class="schedule-card">
+          <div class="schedule-card-head">
+            <span class="schedule-card-title">{{ $t('schedule.title') }}</span>
+            <span class="schedule-card-date">{{ todayText }}</span>
           </div>
-
-          <!-- 导出操作 -->
-          <div class="schedule-actions">
-            <el-button :disabled="!previewText" @click="copyText">{{ $t('schedule.copyText') }}</el-button>
-            <el-button type="primary" :loading="exporting" :disabled="!previewText" @click="downloadImage">
-              {{ $t('schedule.downloadImage') }}
-            </el-button>
+          <div class="schedule-card-artist">{{ artistName }}</div>
+          <span class="schedule-card-status" :class="statusKey">{{ statusText }}</span>
+          <div class="schedule-card-rows">
+            <div class="schedule-card-row">{{ $t('schedule.queueFormal', { n: formalCount }) }}</div>
+            <div class="schedule-card-row">{{ $t('schedule.queueBuffer', { n: bufferCount }) }}</div>
           </div>
+          <div class="schedule-card-divider"></div>
+          <div class="schedule-card-dl-title">{{ $t('schedule.deadlineSoon') }}</div>
+          <div v-if="topDeadlines.length" class="schedule-card-dl">
+            <div v-for="d in topDeadlines" :key="d.id" class="schedule-card-dl-row">· #{{ d.order_no }} {{ fmtDate(d.deadline) }}</div>
+          </div>
+          <div v-else class="schedule-card-dl">{{ $t('schedule.noDeadline') }}</div>
+          <div class="schedule-card-footer">{{ $t('schedule.brandFooter') }}</div>
+        </div>
 
-          <!-- 生成的图片预览（与下载内容完全一致） -->
-          <img v-if="cardImage" :src="cardImage" class="schedule-img" :alt="$t('schedule.title')" />
-        </template>
-      </div>
+        <!-- 导出操作 -->
+        <div class="schedule-actions">
+          <el-button :disabled="!previewText" @click="copyText">{{ $t('schedule.copyText') }}</el-button>
+          <el-button type="primary" :loading="exporting" :disabled="!previewText" @click="downloadImage">
+            {{ $t('schedule.downloadImage') }}
+          </el-button>
+        </div>
+
+        <!-- 生成的图片预览（与下载内容完全一致） -->
+        <img v-if="cardImage" :src="cardImage" class="schedule-img" :alt="$t('schedule.title')" />
+      </template>
     </div>
-  </ArtistLayout>
+  </div>
 </template>
 
 <script setup>
@@ -50,7 +48,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../api/index.js'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 
 const { t } = useI18n()
 

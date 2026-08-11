@@ -1,102 +1,100 @@
 <template>
-  <ArtistLayout>
-    <h2 class="font-display gb-page-title">{{ $t('guestbookManage.title') }}</h2>
+  <h2 class="font-display gb-page-title">{{ $t('guestbookManage.title') }}</h2>
 
-    <!-- 状态筛选 + F8 语言筛选 -->
-    <div class="gm-filter">
-      <el-radio-group v-model="statusFilter" size="default" @change="onFilterChange">
-        <el-radio-button value="">{{ $t('guestbookManage.all') }}</el-radio-button>
-        <el-radio-button value="pending">
-          {{ $t('dashboard.guestbookPending') }}
-          <el-badge v-if="pendingCount > 0" :value="pendingCount" class="gm-badge" />
-        </el-radio-button>
-        <el-radio-button value="approved">{{ $t('dashboard.guestbookApproved') }}</el-radio-button>
-        <el-radio-button value="rejected">{{ $t('dashboard.guestbookRejected') }}</el-radio-button>
-      </el-radio-group>
-      <el-select
-        v-model="languageFilter" size="default" class="gm-language-select"
-        @change="onFilterChange"
-      >
-        <el-option value="" :label="$t('guestbookManage.languageAll')" />
-        <el-option
-          v-for="lang in languageOptions" :key="lang.value"
-          :value="lang.value" :label="lang.label"
+  <!-- 状态筛选 + F8 语言筛选 -->
+  <div class="gm-filter">
+    <el-radio-group v-model="statusFilter" size="default" @change="onFilterChange">
+      <el-radio-button value="">{{ $t('guestbookManage.all') }}</el-radio-button>
+      <el-radio-button value="pending">
+        {{ $t('dashboard.guestbookPending') }}
+        <el-badge v-if="pendingCount > 0" :value="pendingCount" class="gm-badge" />
+      </el-radio-button>
+      <el-radio-button value="approved">{{ $t('dashboard.guestbookApproved') }}</el-radio-button>
+      <el-radio-button value="rejected">{{ $t('dashboard.guestbookRejected') }}</el-radio-button>
+    </el-radio-group>
+    <el-select
+      v-model="languageFilter" size="default" class="gm-language-select"
+      @change="onFilterChange"
+    >
+      <el-option value="" :label="$t('guestbookManage.languageAll')" />
+      <el-option
+        v-for="lang in languageOptions" :key="lang.value"
+        :value="lang.value" :label="lang.label"
+      />
+    </el-select>
+  </div>
+
+  <!-- 留言列表 -->
+  <div v-loading="loading" class="gm-list">
+    <div v-for="msg in pagedMessages" :key="msg.id" class="gm-card" :class="`gm-card--${msg.status}`">
+      <div class="gm-card-head">
+        <span class="gm-nickname">{{ msg.nickname }}</span>
+        <span v-if="msg.language" class="gm-lang-badge">{{ languageLabel(msg.language) }}</span>
+        <el-tag :type="statusType(msg.status)" size="small">{{ $t(`dashboard.guestbook${statusLabel(msg.status)}`) }}</el-tag>
+        <span class="gm-time">{{ formatDateTime(msg.created_at) }}</span>
+      </div>
+      <p class="gm-content">{{ msg.content }}</p>
+
+      <!-- 已有回复 -->
+      <div v-if="msg.artist_reply" class="gm-reply">
+        <span class="gm-reply-label">{{ $t('guestbookManage.replyLabel') }}</span>
+        <p class="gm-reply-text">{{ msg.artist_reply }}</p>
+      </div>
+
+      <!-- 回复编辑区（展开时） -->
+      <div v-if="replyingId === msg.id" class="gm-reply-editor">
+        <el-input
+          v-model="replyText" type="textarea" :rows="2"
+          :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
+          maxlength="500" show-word-limit
         />
-      </el-select>
-    </div>
-
-    <!-- 留言列表 -->
-    <div v-loading="loading" class="gm-list">
-      <div v-for="msg in pagedMessages" :key="msg.id" class="gm-card" :class="`gm-card--${msg.status}`">
-        <div class="gm-card-head">
-          <span class="gm-nickname">{{ msg.nickname }}</span>
-          <span v-if="msg.language" class="gm-lang-badge">{{ languageLabel(msg.language) }}</span>
-          <el-tag :type="statusType(msg.status)" size="small">{{ $t(`dashboard.guestbook${statusLabel(msg.status)}`) }}</el-tag>
-          <span class="gm-time">{{ formatDateTime(msg.created_at) }}</span>
-        </div>
-        <p class="gm-content">{{ msg.content }}</p>
-
-        <!-- 已有回复 -->
-        <div v-if="msg.artist_reply" class="gm-reply">
-          <span class="gm-reply-label">{{ $t('guestbookManage.replyLabel') }}</span>
-          <p class="gm-reply-text">{{ msg.artist_reply }}</p>
-        </div>
-
-        <!-- 回复编辑区（展开时） -->
-        <div v-if="replyingId === msg.id" class="gm-reply-editor">
-          <el-input
-            v-model="replyText" type="textarea" :rows="2"
-            :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
-            maxlength="500" show-word-limit
-          />
-          <div class="gm-reply-actions">
-            <el-button size="small" @click="replyingId = null">{{ $t('common.cancel') }}</el-button>
-            <el-button size="small" type="primary" :loading="replySaving" :disabled="!replyText.trim()" @click="submitReply(msg)">
-              {{ $t('dashboard.guestbookReplySave') }}
-            </el-button>
-          </div>
-        </div>
-
-        <!-- 操作按钮 -->
-        <div class="gm-actions">
-          <el-button
-            v-if="msg.status !== 'approved'"
-            size="small" type="success"
-            @click="approve(msg)"
-          >
-            {{ $t('dashboard.guestbookApprove') }}
-          </el-button>
-          <el-popconfirm
-            v-if="msg.status !== 'rejected'"
-            :title="$t('guestbookManage.rejectConfirm')"
-            @confirm="reject(msg)"
-          >
-            <template #reference>
-              <el-button size="small" type="danger">{{ $t('dashboard.guestbookReject') }}</el-button>
-            </template>
-          </el-popconfirm>
-          <el-button
-            size="small"
-            @click="openReply(msg)"
-          >
-            {{ msg.artist_reply ? $t('guestbookManage.editReply') : $t('dashboard.guestbookReply') }}
+        <div class="gm-reply-actions">
+          <el-button size="small" @click="replyingId = null">{{ $t('common.cancel') }}</el-button>
+          <el-button size="small" type="primary" :loading="replySaving" :disabled="!replyText.trim()" @click="submitReply(msg)">
+            {{ $t('dashboard.guestbookReplySave') }}
           </el-button>
         </div>
       </div>
 
-      <el-empty v-if="!loading && filteredMessages.length === 0" :description="$t('dashboard.guestbookEmpty')" />
+      <!-- 操作按钮 -->
+      <div class="gm-actions">
+        <el-button
+          v-if="msg.status !== 'approved'"
+          size="small" type="success"
+          @click="approve(msg)"
+        >
+          {{ $t('dashboard.guestbookApprove') }}
+        </el-button>
+        <el-popconfirm
+          v-if="msg.status !== 'rejected'"
+          :title="$t('guestbookManage.rejectConfirm')"
+          @confirm="reject(msg)"
+        >
+          <template #reference>
+            <el-button size="small" type="danger">{{ $t('dashboard.guestbookReject') }}</el-button>
+          </template>
+        </el-popconfirm>
+        <el-button
+          size="small"
+          @click="openReply(msg)"
+        >
+          {{ msg.artist_reply ? $t('guestbookManage.editReply') : $t('dashboard.guestbookReply') }}
+        </el-button>
+      </div>
     </div>
 
-    <!-- 分页（后端返回全量，前端本地分页） -->
-    <div v-if="filteredMessages.length > pageSize" class="gm-pagination">
-      <el-pagination
-        v-model:current-page="page"
-        :page-size="pageSize"
-        :total="filteredMessages.length"
-        layout="total, prev, pager, next"
-      />
-    </div>
-  </ArtistLayout>
+    <el-empty v-if="!loading && filteredMessages.length === 0" :description="$t('dashboard.guestbookEmpty')" />
+  </div>
+
+  <!-- 分页（后端返回全量，前端本地分页） -->
+  <div v-if="filteredMessages.length > pageSize" class="gm-pagination">
+    <el-pagination
+      v-model:current-page="page"
+      :page-size="pageSize"
+      :total="filteredMessages.length"
+      layout="total, prev, pager, next"
+    />
+  </div>
 </template>
 
 <script setup>
@@ -104,7 +102,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { formatDateTime } from '../../utils/datetime.js'
 import { trackEvent } from '../../utils/track.js'
 

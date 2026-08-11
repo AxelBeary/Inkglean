@@ -1,93 +1,90 @@
 <template>
-  <ArtistLayout>
-    <div class="standalone-income-page">
-      <h2 class="od-page-title">{{ $t('standaloneIncome.title') }}</h2>
-      <p class="si-sub">{{ $t('standaloneIncome.subtitle') }}</p>
+  <div class="standalone-income-page">
+    <h2 class="od-page-title">{{ $t('standaloneIncome.title') }}</h2>
+    <p class="si-sub">{{ $t('standaloneIncome.subtitle') }}</p>
 
-      <!-- 记一笔：金额（元→分）/ 日期（默认今天）/ 客户昵称 / 备注 -->
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-position="top"
-        class="si-form"
-        @submit.prevent="submit"
-      >
-        <div class="si-form-grid">
-          <el-form-item :label="$t('standaloneIncome.amountLabel')" prop="amount" class="si-field">
-            <el-input-number
-              v-model="form.amount"
-              :min="0"
-              :precision="2"
-              :controls="false"
-              :placeholder="$t('standaloneIncome.amountPlaceholder')"
-              class="si-amount-input"
-            />
-          </el-form-item>
-          <el-form-item :label="$t('standaloneIncome.dateLabel')" prop="incomeDate" class="si-field">
-            <el-date-picker
-              v-model="form.incomeDate"
-              type="date"
-              value-format="YYYY-MM-DD"
-              :placeholder="$t('standaloneIncome.datePlaceholder')"
-              style="width: 100%"
-            />
-          </el-form-item>
-        </div>
-        <el-form-item :label="$t('standaloneIncome.clientLabel')" prop="clientName">
-          <el-input
-            v-model="form.clientName"
-            :maxlength="50"
-            show-word-limit
-            :placeholder="$t('standaloneIncome.clientPlaceholder')"
+    <!-- 记一笔：金额（元→分）/ 日期（默认今天）/ 客户昵称 / 备注 -->
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      class="si-form"
+      @submit.prevent="submit"
+    >
+      <div class="si-form-grid">
+        <el-form-item :label="$t('standaloneIncome.amountLabel')" prop="amount" class="si-field">
+          <el-input-number
+            v-model="form.amount"
+            :min="0"
+            :precision="2"
+            :controls="false"
+            :placeholder="$t('standaloneIncome.amountPlaceholder')"
+            class="si-amount-input"
           />
         </el-form-item>
-        <el-form-item :label="$t('standaloneIncome.noteLabel')" prop="note">
-          <el-input
-            v-model="form.note"
-            type="textarea"
-            :rows="3"
-            :maxlength="200"
-            show-word-limit
-            :placeholder="$t('standaloneIncome.notePlaceholder')"
+        <el-form-item :label="$t('standaloneIncome.dateLabel')" prop="incomeDate" class="si-field">
+          <el-date-picker
+            v-model="form.incomeDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            :placeholder="$t('standaloneIncome.datePlaceholder')"
+            style="width: 100%"
           />
         </el-form-item>
-        <el-button type="primary" :loading="saving" @click="submit">
-          {{ saving ? $t('standaloneIncome.adding') : $t('standaloneIncome.addBtn') }}
-        </el-button>
-      </el-form>
+      </div>
+      <el-form-item :label="$t('standaloneIncome.clientLabel')" prop="clientName">
+        <el-input
+          v-model="form.clientName"
+          :maxlength="50"
+          show-word-limit
+          :placeholder="$t('standaloneIncome.clientPlaceholder')"
+        />
+      </el-form-item>
+      <el-form-item :label="$t('standaloneIncome.noteLabel')" prop="note">
+        <el-input
+          v-model="form.note"
+          type="textarea"
+          :rows="3"
+          :maxlength="200"
+          show-word-limit
+          :placeholder="$t('standaloneIncome.notePlaceholder')"
+        />
+      </el-form-item>
+      <el-button type="primary" :loading="saving" @click="submit">
+        {{ saving ? $t('standaloneIncome.adding') : $t('standaloneIncome.addBtn') }}
+      </el-button>
+    </el-form>
 
-      <!-- 记账明细（按日期倒序：日期 / 客户 / 金额 / 备注） -->
-      <div class="si-list">
-        <h3 class="si-list-title">{{ $t('standaloneIncome.listTitle') }}</h3>
-        <div v-loading="loading" class="si-list-body">
-          <p v-if="!loading && items.length === 0" class="si-empty">{{ $t('standaloneIncome.empty') }}</p>
-          <div v-for="item in items" :key="item.id" class="si-row">
-            <span class="si-row-date">{{ item.incomeDate }}</span>
-            <div class="si-row-info">
-              <span class="si-row-client">{{ item.clientName || $t('standaloneIncome.anonymous') }}</span>
-              <span v-if="item.note" class="si-row-note">{{ item.note }}</span>
-            </div>
-            <span class="si-row-amount">{{ formatYuan(item.amountCents) }}</span>
-            <el-button
-              text
-              type="danger"
-              size="small"
-              class="si-row-delete"
-              @click="remove(item)"
-            >
-              {{ $t('standaloneIncome.delete') }}
-            </el-button>
+    <!-- 记账明细（按日期倒序：日期 / 客户 / 金额 / 备注） -->
+    <div class="si-list">
+      <h3 class="si-list-title">{{ $t('standaloneIncome.listTitle') }}</h3>
+      <div v-loading="loading" class="si-list-body">
+        <p v-if="!loading && items.length === 0" class="si-empty">{{ $t('standaloneIncome.empty') }}</p>
+        <div v-for="item in items" :key="item.id" class="si-row">
+          <span class="si-row-date">{{ item.incomeDate }}</span>
+          <div class="si-row-info">
+            <span class="si-row-client">{{ item.clientName || $t('standaloneIncome.anonymous') }}</span>
+            <span v-if="item.note" class="si-row-note">{{ item.note }}</span>
           </div>
+          <span class="si-row-amount">{{ formatYuan(item.amountCents) }}</span>
+          <el-button
+            text
+            type="danger"
+            size="small"
+            class="si-row-delete"
+            @click="remove(item)"
+          >
+            {{ $t('standaloneIncome.delete') }}
+          </el-button>
         </div>
       </div>
     </div>
-  </ArtistLayout>
+  </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'

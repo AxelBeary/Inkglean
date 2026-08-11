@@ -1,349 +1,347 @@
 <template>
-  <ArtistLayout>
-    <el-page-header @back="goBack" :title="backTitle" :content="order ? `${$t('orderDetail.orderNo')}${order.order_no}` : ''" />
+  <el-page-header @back="goBack" :title="backTitle" :content="order ? `${$t('orderDetail.orderNo')}${order.order_no}` : ''" />
 
-    <div v-if="order" class="order-detail">
-      <!-- 基本信息（v0.38: CardHead 朱砂 mark 卡头） -->
-      <el-card class="od-card">
-        <template #header>
-          <CardHead :title="$t('orderDetail.orderInfo')">
-            <template #extra>
-              <el-tag :type="statusType(order.status)">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
-            </template>
-          </CardHead>
-        </template>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item :label="$t('orderDetail.colOrderNo')">
-            <span class="od-order-no">{{ order.order_no }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colType')">{{ order.tier_name || $t('common.custom') }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colQq')">
-            <span class="client-qq-row">
-              <span>{{ order.client_qq }}</span>
-              <!-- R58-6: 客户 QQ 跳转 + 复制 -->
-              <el-button size="small" text type="primary" @click="jumpToQq(order.client_qq)">{{ $t('orderDetail.jumpQq') }}</el-button>
-              <el-button size="small" text @click="copyQq(order.client_qq)">{{ $t('orderDetail.copyQq') }}</el-button>
-            </span>
-          </el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colName')">{{ order.client_name || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colPriority')">
-            <!-- R17: 优先级分段按钮（红/黄/绿，点击即保存） -->
-            <el-radio-group v-model="order.priority" size="small" class="priority-group" @change="changePriority">
-              <el-radio-button value="high" class="prio-high">{{ $t('common.priority.high') }}</el-radio-button>
-              <el-radio-button value="medium" class="prio-medium">{{ $t('common.priority.medium') }}</el-radio-button>
-              <el-radio-button value="low" class="prio-low">{{ $t('common.priority.low') }}</el-radio-button>
-            </el-radio-group>
-          </el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colSource')">{{ order.source === 'self' ? $t('common.source.clientSelf') : $t('common.source.manualEntry') }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
-        </el-descriptions>
-      </el-card>
-
-      <!-- v0.38: 日期卡二合一（REQ-026 §四）——开工日/截稿日两字段一卡，即时保存逻辑不变（changeStartDate/changeDeadline），
-           卡头右侧剩余天数 chip：剩 N 天(花青) / 今天截稿(藤黄) / 逾期 N 天(朱砂) -->
-      <el-card class="od-card date-card">
-        <template #header>
-          <CardHead :title="$t('orderDetail.dateCardTitle')">
-            <template #extra>
-              <StatusChip v-if="deadlineChip" :type="deadlineChip.type">{{ deadlineChip.text }}</StatusChip>
-            </template>
-          </CardHead>
-        </template>
-        <div class="date-card-body">
-          <!-- v0.26 B: 开工日（date-picker，可清除，即时保存 + 自动填截稿日） -->
-          <div class="date-field">
-            <span class="date-field-label">{{ $t('orderDetail.colStartDate') }}</span>
-            <el-date-picker
-              v-model="startDatePicker" type="date" value-format="YYYY-MM-DD"
-              :placeholder="$t('orderDetail.startDatePlaceholder')"
-              :disabled-date="disableStartDateDate"
-              clearable size="small" style="width: 170px"
-              @change="changeStartDate"
-            />
-          </div>
-          <!-- R51: 截稿日（date-picker，可清除，即时保存） -->
-          <div class="date-field">
-            <span class="date-field-label">{{ $t('orderDetail.colDeadline') }}</span>
-            <el-date-picker
-              v-model="deadlinePicker" type="date" value-format="YYYY-MM-DD"
-              :placeholder="$t('orderDetail.deadlinePlaceholder')"
-              :disabled-date="disableDeadlineDate"
-              clearable size="small" style="width: 170px"
-              @change="changeDeadline"
-            />
-          </div>
-        </div>
-        <p class="date-card-note">{{ $t('orderDetail.dateSyncNote') }}</p>
-      </el-card>
-
-      <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
-      <el-card class="od-card">
-        <template #header>
-          <CardHead :title="$t('orderDetail.activityTitle')">
-            <template #extra>
-              <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
-              <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
-            </template>
-          </CardHead>
-        </template>
-
-        <!-- 终态：只读横幅，无操作 -->
-        <div v-if="isTerminal" class="status-banner" :class="`status-banner--${order.status}`">
-          <span class="status-banner-text">
-            {{ $t(`common.orderStatus.${order.status}`) }}
-            <template v-if="order.status === 'delivered' && order.completed_at"> · {{ $t('orderDetail.completedAt', { time: formatDate(order.completed_at) }) }}</template>
+  <div v-if="order" class="order-detail">
+    <!-- 基本信息（v0.38: CardHead 朱砂 mark 卡头） -->
+    <el-card class="od-card">
+      <template #header>
+        <CardHead :title="$t('orderDetail.orderInfo')">
+          <template #extra>
+            <el-tag :type="statusType(order.status)">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
+          </template>
+        </CardHead>
+      </template>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item :label="$t('orderDetail.colOrderNo')">
+          <span class="od-order-no">{{ order.order_no }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('orderDetail.colType')">{{ order.tier_name || $t('common.custom') }}</el-descriptions-item>
+        <el-descriptions-item :label="$t('orderDetail.colQq')">
+          <span class="client-qq-row">
+            <span>{{ order.client_qq }}</span>
+            <!-- R58-6: 客户 QQ 跳转 + 复制 -->
+            <el-button size="small" text type="primary" @click="jumpToQq(order.client_qq)">{{ $t('orderDetail.jumpQq') }}</el-button>
+            <el-button size="small" text @click="copyQq(order.client_qq)">{{ $t('orderDetail.copyQq') }}</el-button>
           </span>
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('orderDetail.colName')">{{ order.client_name || '-' }}</el-descriptions-item>
+        <el-descriptions-item :label="$t('orderDetail.colPriority')">
+          <!-- R17: 优先级分段按钮（红/黄/绿，点击即保存） -->
+          <el-radio-group v-model="order.priority" size="small" class="priority-group" @change="changePriority">
+            <el-radio-button value="high" class="prio-high">{{ $t('common.priority.high') }}</el-radio-button>
+            <el-radio-button value="medium" class="prio-medium">{{ $t('common.priority.medium') }}</el-radio-button>
+            <el-radio-button value="low" class="prio-low">{{ $t('common.priority.low') }}</el-radio-button>
+          </el-radio-group>
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('orderDetail.colSource')">{{ order.source === 'self' ? $t('common.source.clientSelf') : $t('common.source.manualEntry') }}</el-descriptions-item>
+        <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
+        <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
+    <!-- v0.38: 日期卡二合一（REQ-026 §四）——开工日/截稿日两字段一卡，即时保存逻辑不变（changeStartDate/changeDeadline），
+           卡头右侧剩余天数 chip：剩 N 天(花青) / 今天截稿(藤黄) / 逾期 N 天(朱砂) -->
+    <el-card class="od-card date-card">
+      <template #header>
+        <CardHead :title="$t('orderDetail.dateCardTitle')">
+          <template #extra>
+            <StatusChip v-if="deadlineChip" :type="deadlineChip.type">{{ deadlineChip.text }}</StatusChip>
+          </template>
+        </CardHead>
+      </template>
+      <div class="date-card-body">
+        <!-- v0.26 B: 开工日（date-picker，可清除，即时保存 + 自动填截稿日） -->
+        <div class="date-field">
+          <span class="date-field-label">{{ $t('orderDetail.colStartDate') }}</span>
+          <el-date-picker
+            v-model="startDatePicker" type="date" value-format="YYYY-MM-DD"
+            :placeholder="$t('orderDetail.startDatePlaceholder')"
+            :disabled-date="disableStartDateDate"
+            clearable size="small" style="width: 170px"
+            @change="changeStartDate"
+          />
         </div>
+        <!-- R51: 截稿日（date-picker，可清除，即时保存） -->
+        <div class="date-field">
+          <span class="date-field-label">{{ $t('orderDetail.colDeadline') }}</span>
+          <el-date-picker
+            v-model="deadlinePicker" type="date" value-format="YYYY-MM-DD"
+            :placeholder="$t('orderDetail.deadlinePlaceholder')"
+            :disabled-date="disableDeadlineDate"
+            clearable size="small" style="width: 170px"
+            @change="changeDeadline"
+          />
+        </div>
+      </div>
+      <p class="date-card-note">{{ $t('orderDetail.dateSyncNote') }}</p>
+    </el-card>
 
-        <!-- 有工作流：工作流进度条为唯一状态展示（C52：固定状态条隐藏） -->
-        <template v-else-if="hasWorkflow">
-          <OrderTimeline :stages="workflowStages" :current-stage-id="order.currentStageId" />
-          <p class="stage-progress-text">
-            {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
-            <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
-          </p>
-          <p class="status-last-active">{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</p>
-        </template>
+    <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
+    <el-card class="od-card">
+      <template #header>
+        <CardHead :title="$t('orderDetail.activityTitle')">
+          <template #extra>
+            <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
+            <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
+          </template>
+        </CardHead>
+      </template>
 
-        <!-- 无工作流：固定状态兜底 + 上下文信息 + 启用跟踪引导（C53） -->
-        <template v-else>
-          <div class="status-fallback">
-            <el-tag :type="statusType(order.status)" size="large">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
-            <div class="status-context">
-              <span>{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</span>
-              <span>{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
-              <span>{{ $t('orderDetail.refCount', { n: order.references?.length || 0 }) }}</span>
-            </div>
-          </div>
-          <div class="track-on-hint">
-            <span class="track-on-hint-text">{{ $t('orderDetail.enableTrackingHint') }}</span>
-            <el-button size="small" type="primary" plain :loading="trackOnLoading" @click="enableTracking">{{ $t('orderDetail.enableTracking') }}</el-button>
-          </div>
-        </template>
-      </el-card>
-
-      <!-- v0.31 F5 + REQ-025 二阶段: 待收横幅——主信息订单级总待收(remainingCents=总价−已收)，
-           副信息当前节点（第一个 remaining>0 的节点，无节点订单则只显示总额）；点击跳转收款区 -->
-      <div v-if="!isTerminal && remainingCents > 0" class="next-due-banner" @click="scrollToPayment">
-        <span class="next-due-text">
-          {{ $t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` }) }}
+      <!-- 终态：只读横幅，无操作 -->
+      <div v-if="isTerminal" class="status-banner" :class="`status-banner--${order.status}`">
+        <span class="status-banner-text">
+          {{ $t(`common.orderStatus.${order.status}`) }}
+          <template v-if="order.status === 'delivered' && order.completed_at"> · {{ $t('orderDetail.completedAt', { time: formatDate(order.completed_at) }) }}</template>
         </span>
-        <span v-if="nextDueInstallment" class="next-due-sub">
-          {{ $t('orderDetail.currentDueSuffix', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
-        </span>
-        <span class="next-due-arrow">→</span>
       </div>
 
-      <!-- R39 方案B：操作条（固定位置——不随状态区内容跳动，画师永远知道按钮在哪） -->
-      <el-card v-if="!isTerminal" class="action-bar-card">
-        <!-- 取消订单：滑块确认行（R30e，C59 高代价操作用滑块） -->
-        <div v-if="slideCancelActive" class="slide-confirm-row">
-          <div class="slide-confirm">
-            <div class="slide-confirm-fill" :style="{ width: `calc(${slideCancelProgress} * 100%)` }"></div>
-            <span class="slide-confirm-label">{{ $t('orderDetail.slideToCancel') }}</span>
-            <div
-              class="slide-confirm-thumb"
-              :style="{ left: `calc(2px + ${slideCancelProgress} * (100% - 40px))` }"
-              @pointerdown="onSlideStart"
-              @pointermove="onSlideMove"
-              @pointerup="onSlideEnd"
-              @pointercancel="closeSlideCancel"
-            >
-              →
-            </div>
+      <!-- 有工作流：工作流进度条为唯一状态展示（C52：固定状态条隐藏） -->
+      <template v-else-if="hasWorkflow">
+        <OrderTimeline :stages="workflowStages" :current-stage-id="order.currentStageId" />
+        <p class="stage-progress-text">
+          {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
+          <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
+        </p>
+        <p class="status-last-active">{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</p>
+      </template>
+
+      <!-- 无工作流：固定状态兜底 + 上下文信息 + 启用跟踪引导（C53） -->
+      <template v-else>
+        <div class="status-fallback">
+          <el-tag :type="statusType(order.status)" size="large">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
+          <div class="status-context">
+            <span>{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</span>
+            <span>{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
+            <span>{{ $t('orderDetail.refCount', { n: order.references?.length || 0 }) }}</span>
           </div>
-          <el-button text size="small" @click="closeSlideCancel">✕</el-button>
         </div>
-
-        <!-- 常规操作按钮 -->
-        <div v-else class="action-bar">
-          <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死）；T3: 飞行中本按钮 loading、兄弟按钮 disabled -->
-          <template v-if="hasWorkflow">
-            <el-button v-if="canAdvanceStage" type="primary" :loading="statusAction === 'advance'" :disabled="statusAction !== '' && statusAction !== 'advance'" @click="advanceStage">
-              {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
-            </el-button>
-            <el-button v-if="canBackStage && order.status !== 'done'" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
-            <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
-          </template>
-          <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛）；T3: 飞行中目标按钮 loading，其余 disabled -->
-          <template v-else>
-            <el-button v-if="order.status === 'pending'" type="primary" :loading="statusAction === 'confirmed'" :disabled="statusAction !== '' && statusAction !== 'confirmed'" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
-            <el-button v-if="order.status === 'confirmed'" type="warning" :loading="statusAction === 'wip'" :disabled="statusAction !== '' && statusAction !== 'wip'" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
-            <el-button v-if="order.status === 'wip'" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
-            <el-button v-if="['wip','revision'].includes(order.status)" type="success" :loading="statusAction === 'done'" :disabled="statusAction !== '' && statusAction !== 'done'" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
-            <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
-          </template>
-          <!-- 取消订单：固定在右侧 -->
-          <el-button type="danger" plain class="action-cancel" @click="openSlideCancel">{{ $t('orderDetail.cancelOrder') }}</el-button>
+        <div class="track-on-hint">
+          <span class="track-on-hint-text">{{ $t('orderDetail.enableTrackingHint') }}</span>
+          <el-button size="small" type="primary" plain :loading="trackOnLoading" @click="enableTracking">{{ $t('orderDetail.enableTracking') }}</el-button>
         </div>
-      </el-card>
+      </template>
+    </el-card>
 
-      <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点；卡内容已拆 GalleryPanel，v0.40 拆分） -->
-      <GalleryPanel
-        :order="order"
-        :gallery-uploading="galleryUploading"
-        v-model:is-gallery-drag-over="isGalleryDragOver"
-        :paste-error="pasteError"
-        @open-viewer="openGalleryViewer"
-        @refresh="refreshNow"
-        @select-focus="selectFocusImage"
-        @delete="deleteReference"
-        @dragenter="guardDragEnter"
-        @dragover="guardDragOver"
-        @drop="handleGalleryDrop"
-        @file-select="handleGalleryFileSelect"
-      />
+    <!-- v0.31 F5 + REQ-025 二阶段: 待收横幅——主信息订单级总待收(remainingCents=总价−已收)，
+           副信息当前节点（第一个 remaining>0 的节点，无节点订单则只显示总额）；点击跳转收款区 -->
+    <div v-if="!isTerminal && remainingCents > 0" class="next-due-banner" @click="scrollToPayment">
+      <span class="next-due-text">
+        {{ $t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` }) }}
+      </span>
+      <span v-if="nextDueInstallment" class="next-due-sub">
+        {{ $t('orderDetail.currentDueSuffix', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
+      </span>
+      <span class="next-due-arrow">→</span>
+    </div>
 
-      <!-- R40: 备注时间线（卡内容已拆 NotesPanel，2026-08-10 拆分） -->
-      <NotesPanel
-        ref="notesPanelRef"
-        :order="order"
-        :route-id="route.params.id"
-        :guard-drop="guardDrop"
-        :guard-drag-enter="guardDragEnter"
-        :guard-drag-over="guardDragOver"
-        :validate-image-file="validateImageFile"
-        @order-updated="onOrderUpdated"
-        @refresh="refreshNow"
-      />
+    <!-- R39 方案B：操作条（固定位置——不随状态区内容跳动，画师永远知道按钮在哪） -->
+    <el-card v-if="!isTerminal" class="action-bar-card">
+      <!-- 取消订单：滑块确认行（R30e，C59 高代价操作用滑块） -->
+      <div v-if="slideCancelActive" class="slide-confirm-row">
+        <div class="slide-confirm">
+          <div class="slide-confirm-fill" :style="{ width: `calc(${slideCancelProgress} * 100%)` }"></div>
+          <span class="slide-confirm-label">{{ $t('orderDetail.slideToCancel') }}</span>
+          <div
+            class="slide-confirm-thumb"
+            :style="{ left: `calc(2px + ${slideCancelProgress} * (100% - 40px))` }"
+            @pointerdown="onSlideStart"
+            @pointermove="onSlideMove"
+            @pointerup="onSlideEnd"
+            @pointercancel="closeSlideCancel"
+          >
+            →
+          </div>
+        </div>
+        <el-button text size="small" @click="closeSlideCancel">✕</el-button>
+      </div>
 
-      <!-- v0.31 REQ-021 F1: 操作记录（卡内容已拆 LogPanel，2026-08-10 拆分） -->
-      <LogPanel :route-id="route.params.id" />
-
-      <!-- SPEC-003: 附加工作项 + 改价（卡内容已拆 ExtraItemsPanel，2026-08-10 拆分） -->
-      <ExtraItemsPanel
-        :order="order"
-        :is-terminal="isTerminal"
-        :route-id="route.params.id"
-        @order-updated="onOrderUpdated"
-      />
-
-      <!-- plan-node-speech：客户沟通（卡内容已拆 CommPanel，2026-08-10 拆分） -->
-      <CommPanel
-        :order="order"
-        :pool-final-cents="poolFinalCents"
-        :pool-paid-cents="poolPaidCents"
-        :pool-remaining-cents="poolRemainingCents"
-      />
-
-      <!-- B7: 额度池收款记录（卡内容已拆 PaymentPanel，v0.40 拆分） -->
-      <PaymentPanel
-        :payments="payments"
-        :payments-loading="paymentsLoading"
-        :pool-paid-cents="poolPaidCents"
-        :pool-final-cents="poolFinalCents"
-        :pool-remaining-cents="poolRemainingCents"
-        :pool-overpaid-cents="poolOverpaidCents"
-        :pool-percent="poolPercent"
-        :installment-refs="installmentRefs"
-        :is-terminal="isTerminal"
-        :revoke-submitting="paymentSubmitting"
-        @open-pay="payDialogVisible = true"
-        @revoke="handleRevokePayment"
-        @collect="openNodePayDialog"
-      />
-
-      <!-- 交付文件 -->
-      <el-card class="od-card" v-if="order.deliverables?.length">
-        <template #header>
-          <CardHead :title="$t('orderDetail.deliverFiles')">
-            <template #extra>
-              <!-- REQ-022 F1: 发布为作品入口（仅 delivered 显示；done=半终态无入口） -->
-              <el-button
-                v-if="order.status === 'delivered'"
-                size="small" type="primary" plain
-                @click="publishShareRef?.openPublish()"
-              >
-                {{ $t('orderDetail.publishArtwork') }}
-              </el-button>
-              <!-- REQ-031 B1: 完稿分享（delivered；F2 域名校验复用 linkValidation） -->
-              <el-button
-                v-if="order.status === 'delivered'"
-                size="small" type="primary" plain
-                @click="publishShareRef?.openShare()"
-              >
-                {{ $t('orderDetail.shareBtn') }}
-              </el-button>
-            </template>
-          </CardHead>
+      <!-- 常规操作按钮 -->
+      <div v-else class="action-bar">
+        <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死）；T3: 飞行中本按钮 loading、兄弟按钮 disabled -->
+        <template v-if="hasWorkflow">
+          <el-button v-if="canAdvanceStage" type="primary" :loading="statusAction === 'advance'" :disabled="statusAction !== '' && statusAction !== 'advance'" @click="advanceStage">
+            {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
+          </el-button>
+          <el-button v-if="canBackStage && order.status !== 'done'" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+          <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
         </template>
-        <div v-for="d in order.deliverables" :key="d.id" class="file-item">
-          <span>{{ d.original_name }}</span>
-          <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
-        </div>
-      </el-card>
-    </div>
+        <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛）；T3: 飞行中目标按钮 loading，其余 disabled -->
+        <template v-else>
+          <el-button v-if="order.status === 'pending'" type="primary" :loading="statusAction === 'confirmed'" :disabled="statusAction !== '' && statusAction !== 'confirmed'" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
+          <el-button v-if="order.status === 'confirmed'" type="warning" :loading="statusAction === 'wip'" :disabled="statusAction !== '' && statusAction !== 'wip'" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
+          <el-button v-if="order.status === 'wip'" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
+          <el-button v-if="['wip','revision'].includes(order.status)" type="success" :loading="statusAction === 'done'" :disabled="statusAction !== '' && statusAction !== 'done'" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
+          <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
+        </template>
+        <!-- 取消订单：固定在右侧 -->
+        <el-button type="danger" plain class="action-cancel" @click="openSlideCancel">{{ $t('orderDetail.cancelOrder') }}</el-button>
+      </div>
+    </el-card>
 
-    <!-- REQ-037 F1: 首载失败错误态（自助重试，不白屏死局） -->
-    <div v-else-if="loadError" class="od-load-failed">
-      <p>{{ $t('orderDetail.loadFailed') }}</p>
-      <el-button type="primary" @click="loadOrder">{{ $t('orderDetail.loadFailedRetry') }}</el-button>
-    </div>
-    <!-- REQ-037 F2: 首载骨架（替代白屏） -->
-    <HySkeleton v-else count="4" />
-
-    <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
-    <DeliverDialog v-model="showDeliver" :order-id="route.params.id" @delivered="onOrderUpdated" />
-
-    <!-- REQ-022 F1 + REQ-031 B1: 发布为作品/完稿分享弹窗（已拆 PublishShareDialogs，2026-08-10 拆分） -->
-    <PublishShareDialogs ref="publishShareRef" :order="order" :route-id="route.params.id" />
-
-    <!-- B7: 记录收款弹窗 -->
-    <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
-      <el-form label-position="top">
-        <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
-          <!-- P1: 去掉 :min/:max 硬钳制——EP 对超范围输入 blur 时静默清空（"卡死"根因）；
-               改由 submitPayment 提交时校验（后端 addPayment 规则的子集）。P2: 正数多收合法，无上限 -->
-          <el-input-number
-            v-model="payForm.amountYuan"
-            :precision="2" :step="50"
-            controls-position="right" style="width: 100%"
-            :placeholder="$t('orderDetail.payAmountPlaceholder')"
-          />
-        </el-form-item>
-        <!-- REQ-025 二阶段: 负数（退款/撤销）时备注 label 切换为「退款原因（必填）」——
-             与 submitPayment 的强制校验一致，消除「可选但必填」的文案误导 -->
-        <el-form-item :label="(payForm.amountYuan || 0) < 0 ? $t('orderDetail.payRefundNoteLabel') : $t('orderDetail.payNoteLabel')">
-          <el-input v-model="payForm.note" :placeholder="$t('orderDetail.payNotePlaceholder')" maxlength="100" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="payDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitPayment" :disabled="!payForm.amountYuan" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- SPEC-003 附加项弹窗 + 改价弹窗已随 ExtraItemsPanel 拆出（2026-08-10） -->
-
-    <!-- v0.31 F4: 节点快捷收款弹窗 -->
-    <el-dialog v-model="nodePayDialogVisible" :title="$t('orderDetail.payNodeTitle', { name: nodePayTarget?.name || '' })" width="380px">
-      <el-form label-position="top">
-        <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
-          <el-input-number
-            v-model="nodePayForm.amountYuan"
-            :min="0.01" :precision="2" :step="50"
-            controls-position="right" style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item :label="$t('orderDetail.payNoteLabel')">
-          <el-input v-model="nodePayForm.note" :placeholder="$t('orderDetail.payNotePlaceholder')" maxlength="100" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="nodePayDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitNodePayment" :disabled="!nodePayForm.amountYuan || nodePayForm.amountYuan <= 0" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- R18: 图库大图预览（悬停放大镜打开，支持左右切换） -->
-    <el-image-viewer
-      v-if="galleryViewerVisible"
-      :url-list="order.references?.map(r => r.url) || []"
-      :initial-index="galleryViewerIndex"
-      @close="galleryViewerVisible = false"
+    <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点；卡内容已拆 GalleryPanel，v0.40 拆分） -->
+    <GalleryPanel
+      :order="order"
+      :gallery-uploading="galleryUploading"
+      v-model:is-gallery-drag-over="isGalleryDragOver"
+      :paste-error="pasteError"
+      @open-viewer="openGalleryViewer"
+      @refresh="refreshNow"
+      @select-focus="selectFocusImage"
+      @delete="deleteReference"
+      @dragenter="guardDragEnter"
+      @dragover="guardDragOver"
+      @drop="handleGalleryDrop"
+      @file-select="handleGalleryFileSelect"
     />
-  </ArtistLayout>
+
+    <!-- R40: 备注时间线（卡内容已拆 NotesPanel，2026-08-10 拆分） -->
+    <NotesPanel
+      ref="notesPanelRef"
+      :order="order"
+      :route-id="route.params.id"
+      :guard-drop="guardDrop"
+      :guard-drag-enter="guardDragEnter"
+      :guard-drag-over="guardDragOver"
+      :validate-image-file="validateImageFile"
+      @order-updated="onOrderUpdated"
+      @refresh="refreshNow"
+    />
+
+    <!-- v0.31 REQ-021 F1: 操作记录（卡内容已拆 LogPanel，2026-08-10 拆分） -->
+    <LogPanel :route-id="route.params.id" />
+
+    <!-- SPEC-003: 附加工作项 + 改价（卡内容已拆 ExtraItemsPanel，2026-08-10 拆分） -->
+    <ExtraItemsPanel
+      :order="order"
+      :is-terminal="isTerminal"
+      :route-id="route.params.id"
+      @order-updated="onOrderUpdated"
+    />
+
+    <!-- plan-node-speech：客户沟通（卡内容已拆 CommPanel，2026-08-10 拆分） -->
+    <CommPanel
+      :order="order"
+      :pool-final-cents="poolFinalCents"
+      :pool-paid-cents="poolPaidCents"
+      :pool-remaining-cents="poolRemainingCents"
+    />
+
+    <!-- B7: 额度池收款记录（卡内容已拆 PaymentPanel，v0.40 拆分） -->
+    <PaymentPanel
+      :payments="payments"
+      :payments-loading="paymentsLoading"
+      :pool-paid-cents="poolPaidCents"
+      :pool-final-cents="poolFinalCents"
+      :pool-remaining-cents="poolRemainingCents"
+      :pool-overpaid-cents="poolOverpaidCents"
+      :pool-percent="poolPercent"
+      :installment-refs="installmentRefs"
+      :is-terminal="isTerminal"
+      :revoke-submitting="paymentSubmitting"
+      @open-pay="payDialogVisible = true"
+      @revoke="handleRevokePayment"
+      @collect="openNodePayDialog"
+    />
+
+    <!-- 交付文件 -->
+    <el-card class="od-card" v-if="order.deliverables?.length">
+      <template #header>
+        <CardHead :title="$t('orderDetail.deliverFiles')">
+          <template #extra>
+            <!-- REQ-022 F1: 发布为作品入口（仅 delivered 显示；done=半终态无入口） -->
+            <el-button
+              v-if="order.status === 'delivered'"
+              size="small" type="primary" plain
+              @click="publishShareRef?.openPublish()"
+            >
+              {{ $t('orderDetail.publishArtwork') }}
+            </el-button>
+            <!-- REQ-031 B1: 完稿分享（delivered；F2 域名校验复用 linkValidation） -->
+            <el-button
+              v-if="order.status === 'delivered'"
+              size="small" type="primary" plain
+              @click="publishShareRef?.openShare()"
+            >
+              {{ $t('orderDetail.shareBtn') }}
+            </el-button>
+          </template>
+        </CardHead>
+      </template>
+      <div v-for="d in order.deliverables" :key="d.id" class="file-item">
+        <span>{{ d.original_name }}</span>
+        <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
+      </div>
+    </el-card>
+  </div>
+
+  <!-- REQ-037 F1: 首载失败错误态（自助重试，不白屏死局） -->
+  <div v-else-if="loadError" class="od-load-failed">
+    <p>{{ $t('orderDetail.loadFailed') }}</p>
+    <el-button type="primary" @click="loadOrder">{{ $t('orderDetail.loadFailedRetry') }}</el-button>
+  </div>
+  <!-- REQ-037 F2: 首载骨架（替代白屏） -->
+  <HySkeleton v-else count="4" />
+
+  <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
+  <DeliverDialog v-model="showDeliver" :order-id="route.params.id" @delivered="onOrderUpdated" />
+
+  <!-- REQ-022 F1 + REQ-031 B1: 发布为作品/完稿分享弹窗（已拆 PublishShareDialogs，2026-08-10 拆分） -->
+  <PublishShareDialogs ref="publishShareRef" :order="order" :route-id="route.params.id" />
+
+  <!-- B7: 记录收款弹窗 -->
+  <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
+    <el-form label-position="top">
+      <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
+        <!-- P1: 去掉 :min/:max 硬钳制——EP 对超范围输入 blur 时静默清空（"卡死"根因）；
+               改由 submitPayment 提交时校验（后端 addPayment 规则的子集）。P2: 正数多收合法，无上限 -->
+        <el-input-number
+          v-model="payForm.amountYuan"
+          :precision="2" :step="50"
+          controls-position="right" style="width: 100%"
+          :placeholder="$t('orderDetail.payAmountPlaceholder')"
+        />
+      </el-form-item>
+      <!-- REQ-025 二阶段: 负数（退款/撤销）时备注 label 切换为「退款原因（必填）」——
+             与 submitPayment 的强制校验一致，消除「可选但必填」的文案误导 -->
+      <el-form-item :label="(payForm.amountYuan || 0) < 0 ? $t('orderDetail.payRefundNoteLabel') : $t('orderDetail.payNoteLabel')">
+        <el-input v-model="payForm.note" :placeholder="$t('orderDetail.payNotePlaceholder')" maxlength="100" show-word-limit />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="payDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="submitPayment" :disabled="!payForm.amountYuan" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- SPEC-003 附加项弹窗 + 改价弹窗已随 ExtraItemsPanel 拆出（2026-08-10） -->
+
+  <!-- v0.31 F4: 节点快捷收款弹窗 -->
+  <el-dialog v-model="nodePayDialogVisible" :title="$t('orderDetail.payNodeTitle', { name: nodePayTarget?.name || '' })" width="380px">
+    <el-form label-position="top">
+      <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
+        <el-input-number
+          v-model="nodePayForm.amountYuan"
+          :min="0.01" :precision="2" :step="50"
+          controls-position="right" style="width: 100%"
+        />
+      </el-form-item>
+      <el-form-item :label="$t('orderDetail.payNoteLabel')">
+        <el-input v-model="nodePayForm.note" :placeholder="$t('orderDetail.payNotePlaceholder')" maxlength="100" show-word-limit />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="nodePayDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="submitNodePayment" :disabled="!nodePayForm.amountYuan || nodePayForm.amountYuan <= 0" :loading="paymentSubmitting">{{ $t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- R18: 图库大图预览（悬停放大镜打开，支持左右切换） -->
+  <el-image-viewer
+    v-if="galleryViewerVisible"
+    :url-list="order.references?.map(r => r.url) || []"
+    :initial-index="galleryViewerIndex"
+    @close="galleryViewerVisible = false"
+  />
 </template>
 
 <script setup>
@@ -352,7 +350,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import HySkeleton from '../../components/shared/HySkeleton.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'

@@ -1,267 +1,265 @@
 <template>
-  <ArtistLayout>
-    <h2 class="font-display">{{ $t('settings.title') }}</h2>
+  <h2 class="font-display">{{ $t('settings.title') }}</h2>
 
-    <!-- BUG-7 修复：profile 加载失败横幅——此时表单是默认值，禁止保存防止覆盖真实配置 -->
-    <el-alert
-      v-if="profileLoadFailed"
-      type="error" :closable="false" show-icon
-      style="margin-top: 16px"
-      :title="$t('settings.loadFailedTitle')"
-    >
-      <div>{{ $t('settings.loadFailedDesc') }}</div>
-      <el-button size="small" type="primary" style="margin-top: 8px" @click="loadProfile">{{ $t('settings.retry') }}</el-button>
-    </el-alert>
+  <!-- BUG-7 修复：profile 加载失败横幅——此时表单是默认值，禁止保存防止覆盖真实配置 -->
+  <el-alert
+    v-if="profileLoadFailed"
+    type="error" :closable="false" show-icon
+    style="margin-top: 16px"
+    :title="$t('settings.loadFailedTitle')"
+  >
+    <div>{{ $t('settings.loadFailedDesc') }}</div>
+    <el-button size="small" type="primary" style="margin-top: 8px" @click="loadProfile">{{ $t('settings.retry') }}</el-button>
+  </el-alert>
 
-    <el-tabs v-model="activeTab" :before-leave="beforeTabLeave" style="margin-top: 16px">
-      <!-- 基本资料 -->
-      <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
-        <el-card style="max-width: 600px" v-loading="loading">
-          <el-form :model="form" label-position="top" size="large">
-            <!-- R48: 头像上传（即时保存，不等 Save 按钮） -->
-            <el-form-item :label="$t('settings.avatarLabel')">
-              <div class="avatar-upload" @click="triggerAvatarUpload">
-                <el-avatar :size="72" :src="avatarPreviewUrl" class="avatar-preview">
-                  {{ form.name?.charAt(0) || '?' }}
-                </el-avatar>
-                <span class="avatar-upload-hint">{{ $t('settings.avatarHint') }}</span>
-              </div>
-              <input ref="avatarInputEl" type="file" accept="image/*" hidden @change="handleAvatarSelect" />
-            </el-form-item>
-            <el-form-item :label="$t('settings.nameLabel')">
-              <el-input v-model="form.name" />
-            </el-form-item>
-            <el-form-item :label="$t('settings.codeLabel')">
-              <el-input v-model="form.artistCode" :placeholder="$t('settings.codePlaceholder')" maxlength="10" />
-              <div class="form-hint">{{ $t('settings.codeHint') }}</div>
-            </el-form-item>
-            <el-form-item :label="$t('settings.bioLabel')">
-              <el-input v-model="form.bio" type="textarea" :rows="3" :placeholder="$t('settings.bioPlaceholder')" />
-            </el-form-item>
-            <el-form-item :label="$t('settings.contactQqLabel')">
-              <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
-              <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-tab-pane>
-
-      <!-- REQ-016 A: 主页展示（客户看到什么：公告/外链/平台链接/灵感标签/须知） -->
-      <el-tab-pane :label="$t('settings.tabShowcase')" name="showcase" lazy>
-        <el-card style="max-width: 700px" v-loading="loading">
-          <el-form :model="form" label-position="top" size="large">
-            <!-- F3: 主页公告（客户主页首屏展示，可选过期时间） -->
-            <el-form-item :label="$t('settings.announcementLabel')">
-              <el-input
-                v-model="form.announcement" type="textarea" :rows="3"
-                :placeholder="$t('settings.announcementPlaceholder')"
-                maxlength="500" show-word-limit
-              />
-              <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
-              <el-date-picker
-                v-model="form.announcementExpiresAt"
-                type="date"
-                value-format="YYYY-MM-DD"
-                :placeholder="$t('settings.announcementExpiresLabel')"
-                :disabled-date="(d) => d < new Date()"
-                :shortcuts="announcementShortcuts"
-                clearable
-                style="margin-top: 8px; width: 220px"
-              />
-              <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
-            </el-form-item>
-
-            <!-- REQ-022 F2: 链接编辑器（外链/平台链接合一，粘贴自动识别平台） -->
-            <el-form-item :label="$t('settings.linksLabel')">
-              <div class="link-editor">
-                <div v-for="(link, index) in form.customLinks" :key="link.__k ?? index" class="link-row">
-                  <el-select
-                    v-model="link.platformId"
-                    class="link-platform-select"
-                    disabled
-                    :placeholder="$t('settings.linkOther')"
-                  >
-                    <el-option :value="null" :label="$t('settings.linkOther')" />
-                    <el-option v-for="p in platforms" :key="p.id" :value="p.id" :label="p.name" />
-                  </el-select>
-                  <el-input
-                    v-model="link.url"
-                    :placeholder="$t('settings.linkUrlPlaceholder')"
-                    class="link-url-input"
-                    @input="detectLinkPlatform(link)"
-                  />
-                  <div class="link-actions">
-                    <el-button text size="small" :disabled="index === 0" @click="moveLink(index, -1)">↑</el-button>
-                    <el-button text size="small" :disabled="index === form.customLinks.length - 1" @click="moveLink(index, 1)">↓</el-button>
-                    <el-button text size="small" type="danger" @click="removeLink(index)">✕</el-button>
-                  </div>
-                </div>
-                <p v-if="!form.customLinks.length" class="link-empty">{{ $t('settings.linksEmpty') }}</p>
-                <el-button size="small" @click="addLink" :disabled="form.customLinks.length >= MAX_LINKS">
-                  + {{ $t('settings.addLink') }}
-                </el-button>
-                <div class="form-hint">{{ $t('settings.linksHint') }}</div>
-              </div>
-            </el-form-item>
-
-            <!-- R58-8: 灵感标签（客户下单页展示，点击注入描述框） -->
-            <el-form-item :label="$t('settings.inspireLabel')">
-              <div class="tag-editor">
-                <div class="tag-list">
-                  <el-tag
-                    v-for="(tag, index) in form.inspirationTags"
-                    :key="tag + index"
-                    closable
-                    @close="removeTag(index)"
-                  >
-                    {{ tag }}
-                  </el-tag>
-                </div>
-                <el-input
-                  v-model="newTag"
-                  class="tag-input"
-                  :placeholder="$t('settings.inspireInputPlaceholder')"
-                  maxlength="30"
-                  show-word-limit
-                  @keyup.enter="addTag"
-                />
-                <div class="form-hint">{{ $t('settings.inspireHint') }}</div>
-              </div>
-            </el-form-item>
-
-            <el-form-item>
-              <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
-
-        <!-- R42b: 须知编辑（并入主页展示，独立卡片 + 独立保存） -->
-        <el-card style="max-width: 700px; margin-top: 16px" v-loading="rulesLoading">
-          <template #header><span>{{ $t('settings.tabRules') }}</span></template>
-          <!-- BUG-7 修复：须知加载失败错误态——禁止保存防止空内容覆盖真实须知 -->
-          <div v-if="rulesLoadFailed" class="rules-load-failed">
-            <el-alert type="error" :closable="false" show-icon :title="$t('settings.rulesLoadFailed')" />
-            <el-button size="small" type="primary" style="margin-top: 8px" @click="loadRules">{{ $t('settings.retry') }}</el-button>
-          </div>
-          <template v-else>
-            <p class="form-hint" style="margin-bottom: 16px">{{ $t('rules.hint') }}</p>
-            <el-input
-              v-model="rulesContent" type="textarea" :rows="16"
-              :placeholder="$t('rules.placeholder')"
-            />
-            <div class="preview" v-if="rulesContent">
-              <h4 class="preview-section-title">{{ $t('rules.preview') }}</h4>
-              <el-card shadow="never" class="preview-card">
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <div v-html="sanitizedRulesPreview"></div>
-              </el-card>
+  <el-tabs v-model="activeTab" :before-leave="beforeTabLeave" style="margin-top: 16px">
+    <!-- 基本资料 -->
+    <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
+      <el-card style="max-width: 600px" v-loading="loading">
+        <el-form :model="form" label-position="top" size="large">
+          <!-- R48: 头像上传（即时保存，不等 Save 按钮） -->
+          <el-form-item :label="$t('settings.avatarLabel')">
+            <div class="avatar-upload" @click="triggerAvatarUpload">
+              <el-avatar :size="72" :src="avatarPreviewUrl" class="avatar-preview">
+                {{ form.name?.charAt(0) || '?' }}
+              </el-avatar>
+              <span class="avatar-upload-hint">{{ $t('settings.avatarHint') }}</span>
             </div>
-            <el-button type="primary" style="margin-top: 16px" @click="saveRules" :loading="rulesSaving" :disabled="rulesLoadFailed || !rulesLoaded">
-              {{ $t('rules.save') }}
-            </el-button>
-          </template>
-        </el-card>
-      </el-tab-pane>
-
-      <!-- 模板与风格 -->
-      <el-tab-pane :label="$t('settings.tabTemplate')" name="template" lazy>
-        <el-card style="max-width: 700px" v-loading="loading">
-          <p class="form-hint" style="margin-bottom: 20px">{{ $t('templates.hint') }}</p>
-          <p class="template-label">{{ $t('templates.label') }}</p>
-          <div class="template-grid">
-            <div
-              v-for="tpl in templates"
-              :key="tpl.id"
-              class="template-card"
-              :class="{ active: form.templateId === tpl.id }"
-              @click="form.templateId = tpl.id"
-              tabindex="0"
-              role="button"
-              @keyup.enter="form.templateId = tpl.id"
-            >
-              <div class="template-preview">
-                <el-icon v-for="(icon, idx) in tpl.preview" :key="idx" class="template-preview-icon"><component :is="icon" /></el-icon>
-              </div>
-              <div class="template-info">
-                <div class="template-name">{{ tpl.name }}</div>
-                <div class="template-desc">{{ tpl.desc }}</div>
-              </div>
-            </div>
-          </div>
-
-          <p class="template-label" style="margin-top: 24px">{{ $t('templates.palette') }}</p>
-          <p class="form-hint" style="margin-bottom: 12px">{{ $t('templates.paletteHint') }}</p>
-          <div class="palette-grid">
-            <div
-              v-for="pal in palettes"
-              :key="pal.id"
-              class="palette-card"
-              :class="{ active: form.paletteId === pal.id }"
-              @click="form.paletteId = pal.id"
-              tabindex="0"
-              role="button"
-              @keyup.enter="form.paletteId = pal.id"
-            >
-              <div class="palette-swatch">
-                <span class="swatch-light" :style="{ background: pal.light }"></span>
-                <span class="swatch-dark" :style="{ background: pal.dark }"></span>
-              </div>
-              <div class="template-info">
-                <div class="template-name">{{ pal.name }}</div>
-                <div class="template-desc">{{ pal.desc }}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- R49: 强调色选择器（5 色预设 + 清除，后端白名单校验） -->
-          <p class="template-label" style="margin-top: 24px">{{ $t('settings.accentLabel') }}</p>
-          <p class="form-hint" style="margin-bottom: 12px">{{ $t('settings.accentHint') }}</p>
-          <div class="accent-picker">
-            <button
-              v-for="a in ACCENT_PRESETS" :key="a.color"
-              class="accent-swatch-btn" :class="{ active: form.accentColor === a.color }"
-              :style="{ background: a.color }"
-              :title="$t(a.nameKey)"
-              @click="form.accentColor = a.color"
-            >
-              <span v-if="form.accentColor === a.color" class="swatch-check">✓</span>
-            </button>
-            <button
-              class="accent-clear-btn" :class="{ active: !form.accentColor }"
-              @click="form.accentColor = null"
-            >
-              {{ $t('settings.accentClear') }}
-            </button>
-          </div>
-          <p class="form-hint" style="margin-top: 8px">{{ $t('settings.accentDarkHint') }}</p>
-
-          <!-- REQ-017: 封面预览 + 作品管理链接（不搬作品列表，约束 3） -->
-          <p class="template-label" style="margin-top: 24px">{{ $t('settings.coverTitle') }}</p>
-          <div class="cover-preview-row" v-loading="coverLoading">
-            <el-image
-              v-if="coverPreview"
-              :src="`/uploads/${coverPreview.image_path}`"
-              fit="cover" class="cover-preview-thumb" :alt="coverPreview.title || ''"
-            />
-            <div v-else class="cover-preview-empty">{{ $t('settings.coverEmpty') }}</div>
-            <div class="cover-preview-info">
-              <p class="form-hint">{{ $t('settings.coverHint') }}</p>
-              <router-link to="/artworks" class="cover-manage-link">{{ $t('settings.coverManageLink') }} →</router-link>
-            </div>
-          </div>
-
-          <!-- R50: 预览按钮（新窗口打开，参数覆盖渲染层） -->
-          <div class="template-actions">
-            <el-button @click="openPreview" :disabled="!form.subdomain">{{ $t('settings.previewBtn') }}</el-button>
+            <input ref="avatarInputEl" type="file" accept="image/*" hidden @change="handleAvatarSelect" />
+          </el-form-item>
+          <el-form-item :label="$t('settings.nameLabel')">
+            <el-input v-model="form.name" />
+          </el-form-item>
+          <el-form-item :label="$t('settings.codeLabel')">
+            <el-input v-model="form.artistCode" :placeholder="$t('settings.codePlaceholder')" maxlength="10" />
+            <div class="form-hint">{{ $t('settings.codeHint') }}</div>
+          </el-form-item>
+          <el-form-item :label="$t('settings.bioLabel')">
+            <el-input v-model="form.bio" type="textarea" :rows="3" :placeholder="$t('settings.bioPlaceholder')" />
+          </el-form-item>
+          <el-form-item :label="$t('settings.contactQqLabel')">
+            <el-input v-model="form.contactQq" :placeholder="$t('settings.contactQqPlaceholder')" maxlength="15" />
+            <div class="form-hint">{{ $t('settings.contactQqHint') }}</div>
+          </el-form-item>
+          <el-form-item>
             <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+    </el-tab-pane>
+
+    <!-- REQ-016 A: 主页展示（客户看到什么：公告/外链/平台链接/灵感标签/须知） -->
+    <el-tab-pane :label="$t('settings.tabShowcase')" name="showcase" lazy>
+      <el-card style="max-width: 700px" v-loading="loading">
+        <el-form :model="form" label-position="top" size="large">
+          <!-- F3: 主页公告（客户主页首屏展示，可选过期时间） -->
+          <el-form-item :label="$t('settings.announcementLabel')">
+            <el-input
+              v-model="form.announcement" type="textarea" :rows="3"
+              :placeholder="$t('settings.announcementPlaceholder')"
+              maxlength="500" show-word-limit
+            />
+            <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
+            <el-date-picker
+              v-model="form.announcementExpiresAt"
+              type="date"
+              value-format="YYYY-MM-DD"
+              :placeholder="$t('settings.announcementExpiresLabel')"
+              :disabled-date="(d) => d < new Date()"
+              :shortcuts="announcementShortcuts"
+              clearable
+              style="margin-top: 8px; width: 220px"
+            />
+            <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
+          </el-form-item>
+
+          <!-- REQ-022 F2: 链接编辑器（外链/平台链接合一，粘贴自动识别平台） -->
+          <el-form-item :label="$t('settings.linksLabel')">
+            <div class="link-editor">
+              <div v-for="(link, index) in form.customLinks" :key="link.__k ?? index" class="link-row">
+                <el-select
+                  v-model="link.platformId"
+                  class="link-platform-select"
+                  disabled
+                  :placeholder="$t('settings.linkOther')"
+                >
+                  <el-option :value="null" :label="$t('settings.linkOther')" />
+                  <el-option v-for="p in platforms" :key="p.id" :value="p.id" :label="p.name" />
+                </el-select>
+                <el-input
+                  v-model="link.url"
+                  :placeholder="$t('settings.linkUrlPlaceholder')"
+                  class="link-url-input"
+                  @input="detectLinkPlatform(link)"
+                />
+                <div class="link-actions">
+                  <el-button text size="small" :disabled="index === 0" @click="moveLink(index, -1)">↑</el-button>
+                  <el-button text size="small" :disabled="index === form.customLinks.length - 1" @click="moveLink(index, 1)">↓</el-button>
+                  <el-button text size="small" type="danger" @click="removeLink(index)">✕</el-button>
+                </div>
+              </div>
+              <p v-if="!form.customLinks.length" class="link-empty">{{ $t('settings.linksEmpty') }}</p>
+              <el-button size="small" @click="addLink" :disabled="form.customLinks.length >= MAX_LINKS">
+                + {{ $t('settings.addLink') }}
+              </el-button>
+              <div class="form-hint">{{ $t('settings.linksHint') }}</div>
+            </div>
+          </el-form-item>
+
+          <!-- R58-8: 灵感标签（客户下单页展示，点击注入描述框） -->
+          <el-form-item :label="$t('settings.inspireLabel')">
+            <div class="tag-editor">
+              <div class="tag-list">
+                <el-tag
+                  v-for="(tag, index) in form.inspirationTags"
+                  :key="tag + index"
+                  closable
+                  @close="removeTag(index)"
+                >
+                  {{ tag }}
+                </el-tag>
+              </div>
+              <el-input
+                v-model="newTag"
+                class="tag-input"
+                :placeholder="$t('settings.inspireInputPlaceholder')"
+                maxlength="30"
+                show-word-limit
+                @keyup.enter="addTag"
+              />
+              <div class="form-hint">{{ $t('settings.inspireHint') }}</div>
+            </div>
+          </el-form-item>
+
+          <el-form-item>
+            <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
+      <!-- R42b: 须知编辑（并入主页展示，独立卡片 + 独立保存） -->
+      <el-card style="max-width: 700px; margin-top: 16px" v-loading="rulesLoading">
+        <template #header><span>{{ $t('settings.tabRules') }}</span></template>
+        <!-- BUG-7 修复：须知加载失败错误态——禁止保存防止空内容覆盖真实须知 -->
+        <div v-if="rulesLoadFailed" class="rules-load-failed">
+          <el-alert type="error" :closable="false" show-icon :title="$t('settings.rulesLoadFailed')" />
+          <el-button size="small" type="primary" style="margin-top: 8px" @click="loadRules">{{ $t('settings.retry') }}</el-button>
+        </div>
+        <template v-else>
+          <p class="form-hint" style="margin-bottom: 16px">{{ $t('rules.hint') }}</p>
+          <el-input
+            v-model="rulesContent" type="textarea" :rows="16"
+            :placeholder="$t('rules.placeholder')"
+          />
+          <div class="preview" v-if="rulesContent">
+            <h4 class="preview-section-title">{{ $t('rules.preview') }}</h4>
+            <el-card shadow="never" class="preview-card">
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <div v-html="sanitizedRulesPreview"></div>
+            </el-card>
           </div>
-        </el-card>
-      </el-tab-pane>
-    </el-tabs>
-  </ArtistLayout>
+          <el-button type="primary" style="margin-top: 16px" @click="saveRules" :loading="rulesSaving" :disabled="rulesLoadFailed || !rulesLoaded">
+            {{ $t('rules.save') }}
+          </el-button>
+        </template>
+      </el-card>
+    </el-tab-pane>
+
+    <!-- 模板与风格 -->
+    <el-tab-pane :label="$t('settings.tabTemplate')" name="template" lazy>
+      <el-card style="max-width: 700px" v-loading="loading">
+        <p class="form-hint" style="margin-bottom: 20px">{{ $t('templates.hint') }}</p>
+        <p class="template-label">{{ $t('templates.label') }}</p>
+        <div class="template-grid">
+          <div
+            v-for="tpl in templates"
+            :key="tpl.id"
+            class="template-card"
+            :class="{ active: form.templateId === tpl.id }"
+            @click="form.templateId = tpl.id"
+            tabindex="0"
+            role="button"
+            @keyup.enter="form.templateId = tpl.id"
+          >
+            <div class="template-preview">
+              <el-icon v-for="(icon, idx) in tpl.preview" :key="idx" class="template-preview-icon"><component :is="icon" /></el-icon>
+            </div>
+            <div class="template-info">
+              <div class="template-name">{{ tpl.name }}</div>
+              <div class="template-desc">{{ tpl.desc }}</div>
+            </div>
+          </div>
+        </div>
+
+        <p class="template-label" style="margin-top: 24px">{{ $t('templates.palette') }}</p>
+        <p class="form-hint" style="margin-bottom: 12px">{{ $t('templates.paletteHint') }}</p>
+        <div class="palette-grid">
+          <div
+            v-for="pal in palettes"
+            :key="pal.id"
+            class="palette-card"
+            :class="{ active: form.paletteId === pal.id }"
+            @click="form.paletteId = pal.id"
+            tabindex="0"
+            role="button"
+            @keyup.enter="form.paletteId = pal.id"
+          >
+            <div class="palette-swatch">
+              <span class="swatch-light" :style="{ background: pal.light }"></span>
+              <span class="swatch-dark" :style="{ background: pal.dark }"></span>
+            </div>
+            <div class="template-info">
+              <div class="template-name">{{ pal.name }}</div>
+              <div class="template-desc">{{ pal.desc }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- R49: 强调色选择器（5 色预设 + 清除，后端白名单校验） -->
+        <p class="template-label" style="margin-top: 24px">{{ $t('settings.accentLabel') }}</p>
+        <p class="form-hint" style="margin-bottom: 12px">{{ $t('settings.accentHint') }}</p>
+        <div class="accent-picker">
+          <button
+            v-for="a in ACCENT_PRESETS" :key="a.color"
+            class="accent-swatch-btn" :class="{ active: form.accentColor === a.color }"
+            :style="{ background: a.color }"
+            :title="$t(a.nameKey)"
+            @click="form.accentColor = a.color"
+          >
+            <span v-if="form.accentColor === a.color" class="swatch-check">✓</span>
+          </button>
+          <button
+            class="accent-clear-btn" :class="{ active: !form.accentColor }"
+            @click="form.accentColor = null"
+          >
+            {{ $t('settings.accentClear') }}
+          </button>
+        </div>
+        <p class="form-hint" style="margin-top: 8px">{{ $t('settings.accentDarkHint') }}</p>
+
+        <!-- REQ-017: 封面预览 + 作品管理链接（不搬作品列表，约束 3） -->
+        <p class="template-label" style="margin-top: 24px">{{ $t('settings.coverTitle') }}</p>
+        <div class="cover-preview-row" v-loading="coverLoading">
+          <el-image
+            v-if="coverPreview"
+            :src="`/uploads/${coverPreview.image_path}`"
+            fit="cover" class="cover-preview-thumb" :alt="coverPreview.title || ''"
+          />
+          <div v-else class="cover-preview-empty">{{ $t('settings.coverEmpty') }}</div>
+          <div class="cover-preview-info">
+            <p class="form-hint">{{ $t('settings.coverHint') }}</p>
+            <router-link to="/artworks" class="cover-manage-link">{{ $t('settings.coverManageLink') }} →</router-link>
+          </div>
+        </div>
+
+        <!-- R50: 预览按钮（新窗口打开，参数覆盖渲染层） -->
+        <div class="template-actions">
+          <el-button @click="openPreview" :disabled="!form.subdomain">{{ $t('settings.previewBtn') }}</el-button>
+          <el-button type="primary" @click="save" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
+        </div>
+      </el-card>
+    </el-tab-pane>
+  </el-tabs>
 </template>
 
 <script setup>
@@ -270,7 +268,6 @@ import { useRoute } from 'vue-router'
 import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { sanitizeHtml } from '../../utils/sanitize.js'
 import { validateLink, MAX_LINK_COUNT as MAX_LINKS } from '../../utils/linkValidation.js'
 import { trackEvent } from '../../utils/track.js'

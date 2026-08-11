@@ -1,127 +1,125 @@
 <template>
-  <ArtistLayout>
-    <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
-    <h2 class="font-display od-page-title">{{ $t('orderList.title') }}</h2>
+  <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
+  <h2 class="font-display od-page-title">{{ $t('orderList.title') }}</h2>
 
-    <!-- REQ-020 F1: 订单搜索（客户昵称/订单号/档位名，300ms debounce） -->
-    <div class="search-bar">
-      <el-input
-        v-model="searchQuery"
-        :placeholder="$t('orderList.searchPlaceholder')"
-        clearable
-        prefix-icon="Search"
-        style="max-width: 320px"
-        @input="onSearchInput"
-        @clear="onSearchClear"
-      />
-    </div>
+  <!-- REQ-020 F1: 订单搜索（客户昵称/订单号/档位名，300ms debounce） -->
+  <div class="search-bar">
+    <el-input
+      v-model="searchQuery"
+      :placeholder="$t('orderList.searchPlaceholder')"
+      clearable
+      prefix-icon="Search"
+      style="max-width: 320px"
+      @input="onSearchInput"
+      @clear="onSearchClear"
+    />
+  </div>
 
-    <!-- 筛选 -->
-    <div class="filter-bar">
-      <el-radio-group v-model="filter" @change="onFilterChange" size="default">
-        <el-radio-button value="">{{ $t('orderList.all') }}</el-radio-button>
-        <el-radio-button value="pending">{{ $t('common.orderStatus.pending') }}</el-radio-button>
-        <el-radio-button value="confirmed">{{ $t('common.orderStatus.confirmed') }}</el-radio-button>
-        <el-radio-button value="wip">{{ $t('common.orderStatus.wip') }}</el-radio-button>
-        <el-radio-button value="done">{{ $t('common.orderStatus.done') }}</el-radio-button>
-        <el-radio-button value="delivered">{{ $t('common.orderStatus.delivered') }}</el-radio-button>
-        <el-radio-button value="cancelled">{{ $t('common.orderStatus.cancelled') }}</el-radio-button>
-      </el-radio-group>
-    </div>
+  <!-- 筛选 -->
+  <div class="filter-bar">
+    <el-radio-group v-model="filter" @change="onFilterChange" size="default">
+      <el-radio-button value="">{{ $t('orderList.all') }}</el-radio-button>
+      <el-radio-button value="pending">{{ $t('common.orderStatus.pending') }}</el-radio-button>
+      <el-radio-button value="confirmed">{{ $t('common.orderStatus.confirmed') }}</el-radio-button>
+      <el-radio-button value="wip">{{ $t('common.orderStatus.wip') }}</el-radio-button>
+      <el-radio-button value="done">{{ $t('common.orderStatus.done') }}</el-radio-button>
+      <el-radio-button value="delivered">{{ $t('common.orderStatus.delivered') }}</el-radio-button>
+      <el-radio-button value="cancelled">{{ $t('common.orderStatus.cancelled') }}</el-radio-button>
+    </el-radio-group>
+  </div>
 
-    <!-- P0-3: 移动端卡片视图（≤768px 替代表格；点击进详情） -->
-    <div class="order-cards">
-      <div v-for="row in displayedOrders" :key="row.id" class="order-card" @click="$router.push(`/orders/${row.id}?from=orders`)">
-        <div class="order-card-top">
-          <el-image v-if="row.focus_image_path" :src="row.focusImageUrl" fit="cover" class="order-card-thumb" :alt="$t('orderDetail.referenceImage')" />
-          <div class="order-card-main">
-            <div class="order-card-no">{{ row.order_no }}</div>
-            <div class="order-card-sub">{{ row.tier_name || $t('common.custom') }} · {{ row.client_name || row.client_qq }}</div>
-          </div>
-          <el-tag size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
+  <!-- P0-3: 移动端卡片视图（≤768px 替代表格；点击进详情） -->
+  <div class="order-cards">
+    <div v-for="row in displayedOrders" :key="row.id" class="order-card" @click="$router.push(`/orders/${row.id}?from=orders`)">
+      <div class="order-card-top">
+        <el-image v-if="row.focus_image_path" :src="row.focusImageUrl" fit="cover" class="order-card-thumb" :alt="$t('orderDetail.referenceImage')" />
+        <div class="order-card-main">
+          <div class="order-card-no">{{ row.order_no }}</div>
+          <div class="order-card-sub">{{ row.tier_name || $t('common.custom') }} · {{ row.client_name || row.client_qq }}</div>
         </div>
-        <div class="order-card-bottom">
-          <span class="order-card-time">{{ formatDate(row.created_at) }}</span>
-          <el-tag size="small" :class="`prio-tag prio-tag--${row.priority}`">{{ $t(`common.priority.${row.priority}`) }}</el-tag>
-        </div>
+        <el-tag size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
+      </div>
+      <div class="order-card-bottom">
+        <span class="order-card-time">{{ formatDate(row.created_at) }}</span>
+        <el-tag size="small" :class="`prio-tag prio-tag--${row.priority}`">{{ $t(`common.priority.${row.priority}`) }}</el-tag>
       </div>
     </div>
+  </div>
 
-    <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
-    <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
-    <HySkeleton v-if="loading" count="6" />
-    <div class="order-table-wrap" v-if="!loading">
-      <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px" @row-click="onRowClick">
-        <!-- R16: 缩略图列（焦点图优先，无则 —） -->
-        <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
-          <template #default="{ row }">
-            <!-- REQ-037 D2: 预览点击 stopPropagation，避免与整行 row-click 跳详情叠加
+  <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
+  <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
+  <HySkeleton v-if="loading" count="6" />
+  <div class="order-table-wrap" v-if="!loading">
+    <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px" @row-click="onRowClick">
+      <!-- R16: 缩略图列（焦点图优先，无则 —） -->
+      <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
+        <template #default="{ row }">
+          <!-- REQ-037 D2: 预览点击 stopPropagation，避免与整行 row-click 跳详情叠加
                  （QueueBoardList R18/R53 同款陷阱：el-image 内置预览点击会冒泡） -->
-            <el-image
-              v-if="row.focus_image_path"
-              :src="row.focusImageUrl"
-              fit="cover"
-              class="order-thumb"
-              :alt="$t('orderDetail.referenceImage')"
-              :preview-src-list="[row.focusImageUrl]"
-              preview-teleported
-              @click.stop
-            />
-            <span v-else class="no-thumb">—</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="order_no" :label="$t('orderList.colOrderNo')" width="100" />
-        <el-table-column prop="tier_name" :label="$t('orderList.colType')" width="100">
-          <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
-        </el-table-column>
-        <el-table-column prop="client_qq" :label="$t('orderList.colQq')" width="120" />
-        <el-table-column prop="client_name" :label="$t('orderList.colName')" width="100" />
-        <el-table-column :label="$t('orderList.colPriority')" width="80">
-          <template #default="{ row }">
-            <el-tag :type="priorityType(row.priority)" size="small" :class="`prio-tag prio-tag--${row.priority}`">
-              {{ $t(`common.priority.${row.priority}`) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('orderList.colStatus')" width="100">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('orderList.colSource')" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.source === 'self' ? 'primary' : 'info'" size="small" :class="`source-tag source-tag--${row.source === 'self' ? 'self' : 'manual'}`">
-              {{ row.source === 'self' ? $t('common.source.self') : $t('common.source.manual') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" :label="$t('orderList.colTime')" min-width="160">
-          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('orderList.colActions')" fixed="right" width="100">
-          <template #default="{ row }">
-            <el-button size="small" @click.stop="$router.push(`/orders/${row.id}?from=orders`)">{{ $t('common.detail') }}</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+          <el-image
+            v-if="row.focus_image_path"
+            :src="row.focusImageUrl"
+            fit="cover"
+            class="order-thumb"
+            :alt="$t('orderDetail.referenceImage')"
+            :preview-src-list="[row.focusImageUrl]"
+            preview-teleported
+            @click.stop
+          />
+          <span v-else class="no-thumb">—</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="order_no" :label="$t('orderList.colOrderNo')" width="100" />
+      <el-table-column prop="tier_name" :label="$t('orderList.colType')" width="100">
+        <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
+      </el-table-column>
+      <el-table-column prop="client_qq" :label="$t('orderList.colQq')" width="120" />
+      <el-table-column prop="client_name" :label="$t('orderList.colName')" width="100" />
+      <el-table-column :label="$t('orderList.colPriority')" width="80">
+        <template #default="{ row }">
+          <el-tag :type="priorityType(row.priority)" size="small" :class="`prio-tag prio-tag--${row.priority}`">
+            {{ $t(`common.priority.${row.priority}`) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('orderList.colStatus')" width="100">
+        <template #default="{ row }">
+          <el-tag :type="statusType(row.status)" size="small" :class="`status-tag status-tag--${row.status}`">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('orderList.colSource')" width="80">
+        <template #default="{ row }">
+          <el-tag :type="row.source === 'self' ? 'primary' : 'info'" size="small" :class="`source-tag source-tag--${row.source === 'self' ? 'self' : 'manual'}`">
+            {{ row.source === 'self' ? $t('common.source.self') : $t('common.source.manual') }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="created_at" :label="$t('orderList.colTime')" min-width="160">
+        <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('orderList.colActions')" fixed="right" width="100">
+        <template #default="{ row }">
+          <el-button size="small" @click.stop="$router.push(`/orders/${row.id}?from=orders`)">{{ $t('common.detail') }}</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </div>
 
-    <!-- REQ-020 F1: 搜索无结果提示（v0.38: 统一墨线空态） -->
-    <InkEmpty v-if="!loading && orders.length === 0 && searchQuery.trim()" :title="$t('orderList.noSearchResult')" />
+  <!-- REQ-020 F1: 搜索无结果提示（v0.38: 统一墨线空态） -->
+  <InkEmpty v-if="!loading && orders.length === 0 && searchQuery.trim()" :title="$t('orderList.noSearchResult')" />
 
-    <!-- S-10: 分页 -->
-    <div style="display: flex; justify-content: flex-end; margin-top: 16px">
-      <el-pagination
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        @current-change="onPageChange"
-        @size-change="onSizeChange"
-      />
-    </div>
-  </ArtistLayout>
+  <!-- S-10: 分页 -->
+  <div style="display: flex; justify-content: flex-end; margin-top: 16px">
+    <el-pagination
+      v-model:current-page="page"
+      v-model:page-size="pageSize"
+      :total="total"
+      :page-sizes="[20, 50, 100]"
+      layout="total, sizes, prev, pager, next"
+      @current-change="onPageChange"
+      @size-change="onSizeChange"
+    />
+  </div>
 </template>
 
 <script setup>
@@ -129,7 +127,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 // v0.38 第二批: 统一墨线空态（REQ-026 §二）
 import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）

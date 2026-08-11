@@ -1,46 +1,43 @@
 <template>
-  <ArtistLayout>
-    <div class="returning-page">
-      <h2 class="od-page-title">{{ $t('returning.title') }}</h2>
+  <div class="returning-page">
+    <h2 class="od-page-title">{{ $t('returning.title') }}</h2>
 
-      <!-- 天数筛选：30/60/90（后端 GET /artist/tools/returning-clients?days=） -->
-      <el-radio-group v-model="days" class="returning-days" @change="loadClients">
-        <el-radio-button :value="30">{{ $t('returning.days30') }}</el-radio-button>
-        <el-radio-button :value="60">{{ $t('returning.days60') }}</el-radio-button>
-        <el-radio-button :value="90">{{ $t('returning.days90') }}</el-radio-button>
-      </el-radio-group>
+    <!-- 天数筛选：30/60/90（后端 GET /artist/tools/returning-clients?days=） -->
+    <el-radio-group v-model="days" class="returning-days" @change="loadClients">
+      <el-radio-button :value="30">{{ $t('returning.days30') }}</el-radio-button>
+      <el-radio-button :value="60">{{ $t('returning.days60') }}</el-radio-button>
+      <el-radio-button :value="90">{{ $t('returning.days90') }}</el-radio-button>
+    </el-radio-group>
 
-      <!-- 老客列表 -->
-      <el-table :data="items" v-loading="loading" class="returning-table">
-        <el-table-column :label="$t('clients.qq')" prop="clientQq" min-width="120" />
-        <el-table-column :label="$t('returning.ordersColumn')" min-width="100">
-          <template #default="{ row }">{{ $t('returning.totalOrders', { n: row.totalOrders }) }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('returning.totalPaid')" min-width="120">
-          <template #default="{ row }">¥{{ formatCents(row.totalPaidCents) }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('returning.lastOrder')" min-width="150">
-          <template #default="{ row }">{{ formatDate(row.lastOrderAt) }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('returning.daysSince')" min-width="140">
-          <template #default="{ row }">{{ $t('returning.daysSince', { n: row.daysSinceLastOrder }) }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('returning.copyScript')" width="130" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="copyScript(row)">{{ $t('returning.copyScript') }}</el-button>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <span>{{ $t('returning.empty') }}</span>
+    <!-- 老客列表 -->
+    <el-table :data="items" v-loading="loading" class="returning-table">
+      <el-table-column :label="$t('clients.qq')" prop="clientQq" min-width="120" />
+      <el-table-column :label="$t('returning.ordersColumn')" min-width="100">
+        <template #default="{ row }">{{ $t('returning.totalOrders', { n: row.totalOrders }) }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('returning.totalPaid')" min-width="120">
+        <template #default="{ row }">¥{{ formatCents(row.totalPaidCents) }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('returning.lastOrder')" min-width="150">
+        <template #default="{ row }">{{ formatDate(row.lastOrderAt) }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('returning.daysSince')" min-width="140">
+        <template #default="{ row }">{{ $t('returning.daysSince', { n: row.daysSinceLastOrder }) }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('returning.copyScript')" width="130" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="copyScript(row)">{{ $t('returning.copyScript') }}</el-button>
         </template>
-      </el-table>
-    </div>
-  </ArtistLayout>
+      </el-table-column>
+      <template #empty>
+        <span>{{ $t('returning.empty') }}</span>
+      </template>
+    </el-table>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'

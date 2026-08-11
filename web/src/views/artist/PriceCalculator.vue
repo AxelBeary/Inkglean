@@ -1,133 +1,130 @@
 ﻿<template>
-  <ArtistLayout>
-    <div class="price-calc-page">
-      <h2 class="od-page-title">{{ $t('priceCalc.title') }}</h2>
-      <p class="page-sub">{{ $t('priceCalc.subtitle') }}</p>
+  <div class="price-calc-page">
+    <h2 class="od-page-title">{{ $t('priceCalc.title') }}</h2>
+    <p class="page-sub">{{ $t('priceCalc.subtitle') }}</p>
 
-      <div v-if="loading" class="calc-empty">{{ $t('priceCalc.loading') }}</div>
+    <div v-if="loading" class="calc-empty">{{ $t('priceCalc.loading') }}</div>
 
-      <template v-else-if="styles.length > 0">
-        <!-- 步骤 1：选画风（多画风才显示；单画风自动选中） -->
-        <div v-if="styles.length > 1" class="calc-step">
-          <div class="calc-step-label">{{ $t('priceCalc.stepStyle') }}</div>
-          <div class="style-cards">
-            <button
-              v-for="s in styles" :key="s.id" type="button"
-              class="style-card" :class="{ 'style-card--active': selectedStyleId === s.id }"
-              @click="selectStyle(s.id)"
+    <template v-else-if="styles.length > 0">
+      <!-- 步骤 1：选画风（多画风才显示；单画风自动选中） -->
+      <div v-if="styles.length > 1" class="calc-step">
+        <div class="calc-step-label">{{ $t('priceCalc.stepStyle') }}</div>
+        <div class="style-cards">
+          <button
+            v-for="s in styles" :key="s.id" type="button"
+            class="style-card" :class="{ 'style-card--active': selectedStyleId === s.id }"
+            @click="selectStyle(s.id)"
+          >
+            {{ s.name }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 步骤 2：选尺寸 -->
+      <div v-if="selectedStyle" class="calc-step">
+        <div class="calc-step-label">{{ $t('priceCalc.stepSize') }}</div>
+        <div v-if="selectedStyle.sizes.length === 0" class="calc-empty">{{ $t('priceCalc.noSizes') }}</div>
+        <div v-else class="size-cards">
+          <button
+            v-for="sz in selectedStyle.sizes" :key="sz.id" type="button"
+            class="size-card" :class="{ 'size-card--active': selectedSizeId === sz.id }"
+            @click="selectSize(sz.id)"
+          >
+            <span class="size-card-name">{{ sz.name }}</span>
+            <span class="size-card-price">{{ formatYuanValue(sz.base_price) }}</span>
+            <span v-if="sz.work_days" class="size-card-days">{{ $t('priceCalc.workDays', { n: sz.work_days }) }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 步骤 3：增项（选完尺寸后出现） -->
+      <div v-if="selectedSizeId && availableAddons.length > 0" class="calc-step">
+        <div class="calc-step-label">{{ $t('priceCalc.stepAddons') }}</div>
+        <div class="addon-list">
+          <div v-for="a in availableAddons" :key="a.id" class="addon-item">
+            <div class="addon-item-info">
+              <span class="addon-item-name">{{ a.name }}</span>
+              <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
+            </div>
+            <el-switch
+              v-if="a.control_type === 'switch'" size="small"
+              :model-value="addonSel[a.id]?.toggled || false"
+              @change="(val) => setAddon(a.id, { toggled: !!val })"
+            />
+            <el-input-number
+              v-else-if="a.control_type === 'quantity'" size="small"
+              :model-value="addonSel[a.id]?.quantity || 0" :min="0" :max="99" :step="1"
+              style="width: 110px"
+              @change="(val) => setAddon(a.id, { quantity: val ?? 0 })"
+            />
+            <el-radio-group
+              v-else-if="a.control_type === 'radio'" size="small"
+              :model-value="addonSel[a.id]?.optionLabel || null"
+              @change="(val) => setAddon(a.id, { optionLabel: val })"
             >
-              {{ s.name }}
-            </button>
+              <el-radio-button v-for="opt in parseOptions(a.options)" :key="opt.label" :value="opt.label">
+                {{ opt.label }} {{ formatYuanValue(opt.price) }}
+              </el-radio-button>
+            </el-radio-group>
           </div>
         </div>
+      </div>
 
-        <!-- 步骤 2：选尺寸 -->
-        <div v-if="selectedStyle" class="calc-step">
-          <div class="calc-step-label">{{ $t('priceCalc.stepSize') }}</div>
-          <div v-if="selectedStyle.sizes.length === 0" class="calc-empty">{{ $t('priceCalc.noSizes') }}</div>
-          <div v-else class="size-cards">
-            <button
-              v-for="sz in selectedStyle.sizes" :key="sz.id" type="button"
-              class="size-card" :class="{ 'size-card--active': selectedSizeId === sz.id }"
-              @click="selectSize(sz.id)"
-            >
-              <span class="size-card-name">{{ sz.name }}</span>
-              <span class="size-card-price">{{ formatYuanValue(sz.base_price) }}</span>
-              <span v-if="sz.work_days" class="size-card-days">{{ $t('priceCalc.workDays', { n: sz.work_days }) }}</span>
-            </button>
+      <!-- 步骤 4：倍率（可选，选完尺寸后出现） -->
+      <div v-if="selectedSizeId && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" class="calc-step">
+        <div class="calc-step-label">{{ $t('priceCalc.stepMultipliers') }}</div>
+        <div class="multiplier-section">
+          <div v-if="usageMultipliers.length > 0" class="multiplier-row">
+            <span class="multiplier-label">{{ $t('priceCalc.usage') }}：</span>
+            <el-radio-group size="small" :model-value="usageMultiplierId" @change="(v) => { usageMultiplierId = v; scheduleCalc() }">
+              <el-radio-button :value="null">{{ $t('priceCalc.none') }}</el-radio-button>
+              <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
+                {{ m.name }} ×{{ m.multiplier }}
+              </el-radio-button>
+            </el-radio-group>
+          </div>
+          <div v-if="rushMultipliers.length > 0" class="multiplier-row">
+            <span class="multiplier-label">{{ $t('priceCalc.rush') }}：</span>
+            <el-radio-group size="small" :model-value="rushMultiplierId" @change="(v) => { rushMultiplierId = v; scheduleCalc() }">
+              <el-radio-button :value="null">{{ $t('priceCalc.none') }}</el-radio-button>
+              <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
+                {{ m.name }} ×{{ m.multiplier }}
+              </el-radio-button>
+            </el-radio-group>
           </div>
         </div>
+      </div>
 
-        <!-- 步骤 3：增项（选完尺寸后出现） -->
-        <div v-if="selectedSizeId && availableAddons.length > 0" class="calc-step">
-          <div class="calc-step-label">{{ $t('priceCalc.stepAddons') }}</div>
-          <div class="addon-list">
-            <div v-for="a in availableAddons" :key="a.id" class="addon-item">
-              <div class="addon-item-info">
-                <span class="addon-item-name">{{ a.name }}</span>
-                <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
-              </div>
-              <el-switch
-                v-if="a.control_type === 'switch'" size="small"
-                :model-value="addonSel[a.id]?.toggled || false"
-                @change="(val) => setAddon(a.id, { toggled: !!val })"
-              />
-              <el-input-number
-                v-else-if="a.control_type === 'quantity'" size="small"
-                :model-value="addonSel[a.id]?.quantity || 0" :min="0" :max="99" :step="1"
-                style="width: 110px"
-                @change="(val) => setAddon(a.id, { quantity: val ?? 0 })"
-              />
-              <el-radio-group
-                v-else-if="a.control_type === 'radio'" size="small"
-                :model-value="addonSel[a.id]?.optionLabel || null"
-                @change="(val) => setAddon(a.id, { optionLabel: val })"
-              >
-                <el-radio-button v-for="opt in parseOptions(a.options)" :key="opt.label" :value="opt.label">
-                  {{ opt.label }} {{ formatYuanValue(opt.price) }}
-                </el-radio-button>
-              </el-radio-group>
-            </div>
-          </div>
+      <!-- 估算结果 -->
+      <div v-if="preview" class="calc-result">
+        <div class="calc-result-head">
+          <span>{{ preview.styleName }} · {{ preview.sizeName }}</span>
+          <span class="calc-result-total">{{ formatYuanValue(preview.totalPrice) }}</span>
         </div>
-
-        <!-- 步骤 4：倍率（可选，选完尺寸后出现） -->
-        <div v-if="selectedSizeId && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" class="calc-step">
-          <div class="calc-step-label">{{ $t('priceCalc.stepMultipliers') }}</div>
-          <div class="multiplier-section">
-            <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-              <span class="multiplier-label">{{ $t('priceCalc.usage') }}：</span>
-              <el-radio-group size="small" :model-value="usageMultiplierId" @change="(v) => { usageMultiplierId = v; scheduleCalc() }">
-                <el-radio-button :value="null">{{ $t('priceCalc.none') }}</el-radio-button>
-                <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
-                  {{ m.name }} ×{{ m.multiplier }}
-                </el-radio-button>
-              </el-radio-group>
-            </div>
-            <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-              <span class="multiplier-label">{{ $t('priceCalc.rush') }}：</span>
-              <el-radio-group size="small" :model-value="rushMultiplierId" @change="(v) => { rushMultiplierId = v; scheduleCalc() }">
-                <el-radio-button :value="null">{{ $t('priceCalc.none') }}</el-radio-button>
-                <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
-                  {{ m.name }} ×{{ m.multiplier }}
-                </el-radio-button>
-              </el-radio-group>
-            </div>
-          </div>
+        <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanValue(preview.basePrice) }}</span></div>
+        <div v-for="item in preview.addonItems" :key="item.name + item.quantity + item.amount" class="calc-line">
+          <span>{{ item.name }}{{ item.quantity > 1 ? ' ×' + item.quantity : '' }}</span>
+          <span>{{ formatYuanValue(item.amount) }}</span>
         </div>
-
-        <!-- 估算结果 -->
-        <div v-if="preview" class="calc-result">
-          <div class="calc-result-head">
-            <span>{{ preview.styleName }} · {{ preview.sizeName }}</span>
-            <span class="calc-result-total">{{ formatYuanValue(preview.totalPrice) }}</span>
-          </div>
-          <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanValue(preview.basePrice) }}</span></div>
-          <div v-for="item in preview.addonItems" :key="item.name + item.quantity + item.amount" class="calc-line">
-            <span>{{ item.name }}{{ item.quantity > 1 ? ' ×' + item.quantity : '' }}</span>
-            <span>{{ formatYuanValue(item.amount) }}</span>
-          </div>
-          <div v-if="preview.usageMultiplier || preview.rushMultiplier" class="calc-line calc-line--dim">
-            <span>
-              {{ $t('priceCalc.multiplierNote') }}
-              <template v-if="preview.usageMultiplier">{{ preview.usageMultiplier.name }} ×{{ preview.usageMultiplier.factor }}</template>
-              <template v-if="preview.rushMultiplier">{{ preview.rushMultiplier.name }} ×{{ preview.rushMultiplier.factor }}</template>
-            </span>
-            <span>{{ formatYuanValue(preview.multiplierTotal) }}</span>
-          </div>
-          <p class="calc-disclaimer">{{ $t('priceCalc.disclaimer') }}</p>
+        <div v-if="preview.usageMultiplier || preview.rushMultiplier" class="calc-line calc-line--dim">
+          <span>
+            {{ $t('priceCalc.multiplierNote') }}
+            <template v-if="preview.usageMultiplier">{{ preview.usageMultiplier.name }} ×{{ preview.usageMultiplier.factor }}</template>
+            <template v-if="preview.rushMultiplier">{{ preview.rushMultiplier.name }} ×{{ preview.rushMultiplier.factor }}</template>
+          </span>
+          <span>{{ formatYuanValue(preview.multiplierTotal) }}</span>
         </div>
-      </template>
+        <p class="calc-disclaimer">{{ $t('priceCalc.disclaimer') }}</p>
+      </div>
+    </template>
 
-      <div v-else class="calc-empty">{{ $t('priceCalc.noStyles') }}</div>
-    </div>
-  </ArtistLayout>
+    <div v-else class="calc-empty">{{ $t('priceCalc.noStyles') }}</div>
+  </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { artistPublicApi, artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
 import { formatYuanValue } from '../../utils/money.js'
