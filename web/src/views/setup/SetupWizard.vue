@@ -203,9 +203,9 @@ async function generateQrCode(otpauthUri) {
     const QRCode = await import('qrcode')
     return await QRCode.default.toDataURL(otpauthUri, { width: 220, margin: 1 })
   } catch (err) {
-    // eslint-disable-next-line no-console -- QR 生成失败降级链路，需留痕（兼容 Google Charts 兑底）
+    // eslint-disable-next-line no-console -- QR 生成失败降级链路，需留痕（零网络约束：不走外网兑底）
     console.error('QR generation failed', err)
-    return 'https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=' + encodeURIComponent(otpauthUri)
+    return ''
   }
 }
 

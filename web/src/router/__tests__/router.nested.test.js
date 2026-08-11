@@ -15,13 +15,21 @@ vi.mock('../../i18n/index.js', () => ({
 
 import router from '../index.js'
 
+// REQ-038: setup 状态接口 mock（测试密封——不依赖恰好在跑的 dev server）
+const setupStatusMock = () => Promise.resolve({
+  ok: true,
+  json: () => Promise.resolve({ initialized: true, tokenRequired: false })
+})
+
 describe('画师后台嵌套路由（REQ-037 批2 A1）', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.stubGlobal('fetch', vi.fn(setupStatusMock))
     window.localStorage.setItem('artist_logged_in', '1')
   })
 
   afterEach(() => {
+    vi.unstubAllGlobals()
     window.localStorage.removeItem('artist_logged_in')
   })
 

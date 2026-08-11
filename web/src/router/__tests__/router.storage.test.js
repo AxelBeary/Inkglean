@@ -21,9 +21,15 @@ describe('router guard 存储禁用降级（P3-10）', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia())
+    // REQ-038: setup 状态接口 mock（测试密封——不依赖恰好在跑的 dev server）
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ initialized: true, tokenRequired: false })
+    })))
   })
 
   afterEach(() => {
+    vi.unstubAllGlobals()
     getItemSpy?.mockRestore()
   })
 
