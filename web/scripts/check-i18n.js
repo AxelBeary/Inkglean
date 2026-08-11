@@ -27,7 +27,7 @@ const BASELINE_FILE = join(ROOT, 'scripts', 'i18n-baseline.json')
 
 /** 合法中文白名单（品牌名/专有名词等，命中即豁免整串） */
 const WHITELIST = [
-  '绘约',
+  '拾绘',
   '中'  // 语言切换自指字（国际惯例：语言名用自身文字显示，不翻译）
 ]
 

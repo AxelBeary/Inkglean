@@ -222,7 +222,7 @@ export default {
     confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
     confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
-    footer: 'HuiYue · Artist Commission Platform'
+    footer: 'Foundink · Artist Commission Platform'
   },
   disclaimer: {
     title: 'Platform notice',
@@ -256,7 +256,7 @@ export default {
     notFound: 'Page Not Found'
   },
   menu: {
-    logo: 'HuiYue',
+    logo: 'Foundink',
     // v0.38: sidebar brand seal character (REQ-026 §三.1 vermillion seal)
     logoSeal: '绘',
     dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
@@ -502,9 +502,9 @@ export default {
     statusNormal: 'Normal',
     statusFree: 'Available',
     statusLabel: 'Schedule status: ',
-    textHeader: '[HuiYue Schedule] {artist}',
+    textHeader: '[Foundink Schedule] {artist}',
     noDeadline: 'No upcoming deadlines',
-    brandFooter: 'HuiYue · Schedule Share',
+    brandFooter: 'Foundink · Schedule Share',
     copied: 'Copied',
     copyFailed: 'Copy failed, please copy manually',
     loadFailed: 'Failed to load schedule',
@@ -762,8 +762,8 @@ export default {
     downloadFailed: 'Download failed, please retry or contact the artist'
   },
   login: {
-    // v0.46 paper-ink login page: brand block (seal + Huiyue + subtitle)
-    brandTitle: 'Huiyue', subtitle: 'Artist Studio',
+    // v0.46 paper-ink login page: brand block (seal + Foundink + subtitle)
+    brandTitle: 'Foundink', subtitle: 'Artist Studio',
     // Preferences: theme + language (same logic as the studio)
     prefThemeGroup: 'Theme', themePaper: 'Paper', themeInk: 'Ink',
     prefLangGroup: 'Language',

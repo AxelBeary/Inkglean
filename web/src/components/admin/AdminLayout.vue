@@ -6,7 +6,7 @@
     <el-container style="min-height: 100vh">
       <!-- 侧边栏（≤900px 自动收窄 64px 图标条，≤600px 隐藏走抽屉） -->
       <el-aside v-show="!isMobile" :width="asideWidth" class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
-        <!-- 品牌区：朱砂印章「绘」+ 绘约（文楷）+ ADMIN 副标 -->
+        <!-- 品牌区：朱砂印章「绘」+ 拾绘（文楷）+ ADMIN 副标 -->
         <div class="brand" :class="{ 'brand--collapsed': collapsed }">
           <span class="brand-seal" aria-hidden="true">{{ $t('menu.logoSeal') }}</span>
           <div v-show="!collapsed" class="brand-text">

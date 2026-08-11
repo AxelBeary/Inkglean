@@ -222,7 +222,7 @@ export default {
     confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加',
     saved: '保存成功', deleted: '已删除', removed: '已移除',
     confirmDeleteTitle: '确认删除', uploadFailed: '上传失败', networkError: '网络错误，请稍后重试', globalError: '页面出了点小问题，请刷新重试',
-    footer: '绘约 · 画师约稿平台'
+    footer: '拾绘 · 画师约稿平台'
   },
   disclaimer: {
     title: '平台职责说明',
@@ -256,7 +256,7 @@ export default {
     notFound: '页面不存在'
   },
   menu: {
-    logo: '绘约',
+    logo: '拾绘',
     // v0.38: 侧栏品牌印章字（REQ-026 §三.1 朱砂印章「绘」）
     logoSeal: '绘',
     dashboard: '仪表盘', queue: '排期看板', orders: '订单管理',
@@ -501,9 +501,9 @@ export default {
     statusNormal: '档期正常',
     statusFree: '档期宽松',
     statusLabel: '档期状态：',
-    textHeader: '【绘约排期】{artist}',
+    textHeader: '【拾绘排期】{artist}',
     noDeadline: '近期无截稿',
-    brandFooter: '绘约 · 排期公示',
+    brandFooter: '拾绘 · 排期公示',
     copied: '已复制',
     copyFailed: '复制失败，请手动复制',
     loadFailed: '加载排期数据失败',
@@ -760,8 +760,8 @@ export default {
     downloadFailed: '下载失败，请重试或联系画师'
   },
   login: {
-    // v0.46 纸墨登录页：品牌区（朱砂印 + 绘约 + 副标）
-    brandTitle: '绘约', subtitle: '画师后台',
+    // v0.46 纸墨登录页：品牌区（朱砂印 + 拾绘 + 副标）
+    brandTitle: '拾绘', subtitle: '画师后台',
     // 偏好区：主题 + 语言（与后台同逻辑）
     prefThemeGroup: '主题切换', themePaper: '纸白', themeInk: '墨黑',
     prefLangGroup: '语言切换',
