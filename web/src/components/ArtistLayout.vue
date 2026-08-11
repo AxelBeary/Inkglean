@@ -164,7 +164,8 @@
         </div>
       </template>
       <nav class="nav nav--drawer">
-        <div v-for="group in menuGroups" :key="group.labelKey" class="nav-group">
+        <!-- 工具箱收纳：四分类组展开（纸墨提案 §5.5，drawerMenuGroups） -->
+        <div v-for="group in drawerMenuGroups" :key="group.key" class="nav-group">
           <div class="nav-title">{{ $t(group.labelKey) }}</div>
           <router-link
             v-for="item in group.items" :key="item.index"
@@ -213,8 +214,10 @@ import { safeGetItem, safeSetItem } from '../utils/storage.js'
 import { artistApi } from '../api/index.js'
 // REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
 import { useSessionGuard } from '../composables/useSessionGuard'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, ForkSpoon, Stamp, Download, Wallet, Grid, Calendar, User, Connection, PriceTag, ChatLineRound, Notebook, AlarmClock } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
+// 工具箱四分类注册表（纸墨提案 §5.5；单一事实源，ArtistLayout/ToolsHome 共用）
+import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../constants/toolbox.js'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
 import SealStamp from './artist/visual/SealStamp.vue'
 
@@ -230,10 +233,12 @@ const themeStore = useThemeStore()
 // 不再在卸载时摘除（否则切页间隙会摘掉守卫刚挂的新 token，深色切页闪白）。
 onMounted(() => themeStore.enterArtistScope())
 
-// activeMenu：订单详情 /orders/:id 归属「订单管理」高亮（/orders/new 除外）
+// activeMenu：订单详情 /orders/:id 归属「订单管理」高亮（/orders/new 除外）；
+// 工具子页 /tools/* 归属「工具箱」把手高亮（纸墨提案 §5.5）
 const activeMenu = computed(() => {
   const p = route.path
   if (p.startsWith('/orders/') && p !== '/orders/new') return '/orders'
+  if (p.startsWith('/tools/')) return '/tools'
   return p
 })
 // ─── 埋点：后台页面浏览（REQ-033 §4 / 施工图《01-to-02-埋点前端批》§3.3） ───
@@ -275,41 +280,22 @@ const BASE_MENU_ITEMS = [
   { index: '/artworks', icon: Picture, labelKey: 'menu.artworks', group: 'biz' },
   // #1: 留言管理（作品管理下方，待审核角标）
   { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true, group: 'biz' },
-  // REQ-035 批D: 今天吃什么（工具组）
-  { index: '/tools/food', icon: ForkSpoon, labelKey: 'menu.foodMenu', group: 'tools' },
-  // REQ-035 批D: 图片水印（工具组）
-  { index: '/tools/watermark', icon: Stamp, labelKey: 'menu.watermark', group: 'tools' },
-  // REQ-031 A1: 收入导出 CSV（工具组）
-  { index: '/tools/export', icon: Download, labelKey: 'menu.toolsExport', group: 'tools' },
-  // REQ-035 批C: 散单记账（工具组）
-  { index: '/tools/income', icon: Wallet, labelKey: 'menu.standaloneIncome', group: 'tools' },
-  // REQ-035 批E: 进度对比拼图（工具组）
-  { index: '/tools/puzzle', icon: Grid, labelKey: 'menu.puzzle', group: 'tools' },
-  // REQ-035 批E: 排期公示（工具组）
-  { index: '/tools/schedule', icon: Calendar, labelKey: 'menu.scheduleShare', group: 'tools' },
-  // REQ-035 批A: 客户标记（工具组）
-  { index: '/tools/clients', icon: User, labelKey: 'menu.clientTags', group: 'tools' },
-  // REQ-035 批A: 老客召回（工具组）
-  { index: '/tools/returning', icon: Connection, labelKey: 'menu.returningClients', group: 'tools' },
-  // REQ-035 工具集后置: 稿价计算器 / 社恐轻松回复 / 速记剪切板 / 截稿日建议（工具组）
-  { index: '/tools/price-calc', icon: PriceTag, labelKey: 'menu.priceCalc', group: 'tools' },
-  { index: '/tools/reply', icon: ChatLineRound, labelKey: 'menu.socialReply', group: 'tools' },
-  { index: '/tools/note', icon: Notebook, labelKey: 'menu.quickNote', group: 'tools' },
-  { index: '/tools/deadline', icon: AlarmClock, labelKey: 'menu.deadlineAdvice', group: 'tools' },
+  // 工具箱收纳（纸墨提案 §5.5）：侧栏只留一个把手，13 个工具收进四分类抽屉（见 TOOL_BOX_CATEGORIES）
+  { index: '/tools', icon: Tools, labelKey: 'menu.toolbox', group: 'tools' },
   // R42b: 须知编辑合并进设置页，菜单项移除
   { index: '/stats', icon: TrendCharts, labelKey: 'menu.stats', group: 'front' },
   { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },
-  // #44: 偏好独立导航（主页对外，偏好对内）
+  // #44: 偏好独立导航（主页对外/偏好对内）
   { index: '/preferences', icon: Document, labelKey: 'menu.preferences', group: 'front' }
 ]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
 // UI-7: 管理员追加"管理后台"入口
-// REQ-016 C: 菜单分组渲染（工作/经营/门面），管理员后台追加到门面组
+// REQ-016 C: 菜单分组渲染（工作/经营/门面）；工具组收窄为单个工具箱把手（纸墨提案 §5.5）
 const MENU_GROUPS = [
   { key: 'work', labelKey: 'menu.groupWork' },
   { key: 'biz', labelKey: 'menu.groupBiz' },
-  // v0.43 用户拍板：工具类目（经营下、门面上）——低频小工具集合（导出/收据/分享/未来更多），当卖点
+  // 工具箱把手（组标题保持「工具」，组内单项 = 工具箱入口）
   { key: 'tools', labelKey: 'menu.groupTools' },
   { key: 'front', labelKey: 'menu.groupFront' }
 ]
@@ -326,9 +312,26 @@ const menuGroups = computed(() => {
   })).filter(g => g.items.length > 0) // 空组不渲染标题（工具组暂无项时不显示）
 })
 
-/** 顶栏页面标题：当前路由对应菜单项的 labelKey（详情类页面归属父级） */
+/** 抽屉导航：工作/经营原样 + 工具箱展开为四分类组 + 门面（分类抽屉，纸墨提案 §5.5） */
+const drawerMenuGroups = computed(() => {
+  const base = menuGroups.value.filter(g => g.key !== 'tools')
+  const catGroups = TOOL_BOX_CATEGORIES.map(cat => ({
+    key: `tools-${cat.key}`,
+    labelKey: cat.labelKey,
+    items: TOOLS_MENU_ITEMS.filter(item => item.cat === cat.key)
+  }))
+  const frontIdx = base.findIndex(g => g.key === 'front')
+  const head = frontIdx === -1 ? base : base.slice(0, frontIdx)
+  const front = frontIdx === -1 ? [] : base.slice(frontIdx)
+  // 工具箱把手项自身也保留在分类组之前（入口 + 分类格）
+  const toolboxHandle = menuGroups.value.find(g => g.key === 'tools')
+  const handleGroup = toolboxHandle ? [{ key: 'tools', labelKey: 'menu.groupTools', items: toolboxHandle.items }] : []
+  return [...head, ...handleGroup, ...catGroups, ...front]
+})
+
+/** 顶栏页面标题：当前路由对应菜单项的 labelKey（详情类页面归属父级；工具子页查 TOOLS_MENU_ITEMS） */
 const pageTitle = computed(() => {
-  const all = BASE_MENU_ITEMS.concat(
+  const all = BASE_MENU_ITEMS.concat(TOOLS_MENU_ITEMS).concat(
     store.isAdmin ? [{ index: '/admin', labelKey: 'menu.admin' }] : []
   )
   const hit = all.find(item => item.index === activeMenu.value)

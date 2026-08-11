@@ -43,4 +43,10 @@ describe('画师后台嵌套路由（REQ-037 批2 A1）', () => {
     expect(router.currentRoute.value.name).toBe('ArtistQuickNote')
     expect(router.currentRoute.value.matched.length).toBe(2)
   })
+
+  it('工具箱首页解析正确（/tools → ArtistToolbox，纸墨提案 §5.5 收纳入口）', async () => {
+    await router.push('/tools')
+    expect(router.currentRoute.value.name).toBe('ArtistToolbox')
+    expect(router.currentRoute.value.matched.length).toBe(2)
+  })
 })
