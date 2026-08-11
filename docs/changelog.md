@@ -1,5 +1,40 @@
 # 变更日志
 
+## v0.46+（未发版累积）— 2026-08-11 ~ 2026-08-12
+
+> 1.0 上线需求波（REQ-038~043 全部合入）+ 品牌改名（拾绘/Inkglean）+ 结构债清偿批 + 容器重建烘焙 v56-v60。
+
+### 🏷️ 品牌
+
+- **品牌名统一为「拾绘 / Inkglean」**（弃用绘约/Brushline-HuiYue）：前端显示/i18n/TOTP issuer/OG meta/文档全量落地（`0b5506ec`）。
+
+### ✨ 1.0 上线需求波（一号派工 codex 并行施工 + 逐路独立验收）
+
+- **REQ-038 开箱设置向导**（`fc6ad5ce`）：setup.sh 一键脚本 + /setup 四步向导 + setup 守卫仅生产生效 + ADMIN_QQ 环境变量自举退役（管理员创建改由向导/seed 接管）。
+- **REQ-040 Passkey 登录**（`8af7591`）：@simplewebauthn/server + 迁移 v56 webauthn_credentials / v57 totp_rebound_at + 登录页 Passkey 按钮 + /account 账号安全页 + TOTP 自助重绑分层验证/24h 冷却/管理员豁免/踢下线。
+- **REQ-039 邀请码注册**（`3b6cb885`）：迁移 v58 invite_codes；管理端批量生成/吊销（防枚举同响应/事务消费防双花/限流）；登录页叠加层两步入驻（TOTP 首绑衔接）；I0 侧栏待确认订单角标（5min 轮询 + visibilitychange 暂停）。
+- **REQ-041 管理后台二次验证**（`cf1c339` + 集成接线 `729f57a`）：token 会话升级（auth_level/admin_verified_at）+ /api/auth/step-up（TOTP/Passkey 双分支）+ requireAdminStepUp（30min 窗口）+ requireAdminReauth（动作级 ≤60s）+ StepUpDialog；更换管理员遇 STEP_UP_REQUIRED 弹验证后自动重提交。
+- **REQ-042 合规与内容安全**（`0ad7f12d`）：迁移 v59（reports/admin_actions/artists.is_banned）；举报公开接口 + 处理留痕 + 内容下架 + 封禁拦截（登录 TOTP/Passkey 双链路 + 公开目录/主页过滤）；敏感词 warning 不硬拦；/privacy /terms 静态页 + 页脚链接 + 举报弹窗；OrderForm 首单同意勾选。
+- **REQ-043 体验与质量批**（`f15cb577`）：OG 分享卡片（HTML 实体转义消毒 + 5min 缓存）；开张任务卡（迁移 v60 + OnboardingCard 后端标记）；移动端 375px 核查修复（收入图日标签裁切）；零打扰平台公告；OPS 恢复演练 checklist；技术债三态裁决收尾（ArtStyleManager 拆三弹窗/手动录单幂等键后端消费/守卫双写收敛 store）。
+
+### 🏗️ 结构债清偿批（2026-08-12，`e11e044`）
+
+- 迁移层拆分：init.js 2382 行 → schema.ts + migrate.ts + migrations/ 版本化 TS + init.ts 门面（13 个 import 点零改动）。
+- order 域拆分：order.service.ts 1320 行→五子模块；order.routes.ts 1121 行→四子路由 + 组合器。
+- API 边界类型化：web/src/api/types.ts 161 DTO + index.ts 全量标注（零 any）；web/tsconfig strict + allowJs 增量轨 + vue-tsc 进 lint/CI。
+- OrderForm 1148 行 → 编排层 + 7 个 lang="ts" 子组件。
+
+### 🐛 修复
+
+- 波A 遗留 master 破损清理：entities.ts 结构污染（55 处错位粘贴）/ migrations 重复 import / webauthn 运行时 bug / auth 域死码（随 039 验收一并修）。
+- common.or i18n 键缺失：登录页 Passkey 分隔线与 StepUpDialog 显示生键（`06abd2d`，截图验收抓到）。
+- webauthn v13 字段裁决：credential.id 已是 Base64URLString，废除二次编码写法。
+
+### 📦 部署
+
+- 容器重建两次烘焙全部成果；迁移 v56-v60 应用回读验证（备份 bak-pre-final-rebuild-20260811-2321）。
+- 测试基线刷新：后端 1335/103 文件 · 前端 351/42 文件 · E2E 7/7（global-setup 含管理员 step-up）。
+
 ## v0.45+（未发版累积）— 2026-08-10 ~ 2026-08-11
 
 > 登录页纸墨重构 + 巨型组件三拆 + 外部审计修复战役（七批）+ TZ 分叉根治 + docs 纪律性清理。

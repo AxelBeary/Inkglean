@@ -65,12 +65,12 @@
 |----|------|------|
 | 后端 | Fastify 5 + better-sqlite3 | 单体，非微服务 |
 | 后端运行时 | tsx | 支持 .ts/.js 混存，零配置；TS 覆盖率 100%（strict，any 清零） |
-| 前端 | Vue 3 + Element Plus + Pinia | SPA，纯 JS（api 层 TS 化在前端重构批计划中） |
+| 前端 | Vue 3 + Element Plus + Pinia | SPA；api 层已全量 TS（161 DTO，2026-08-12 结构债清偿批）；tsconfig strict + allowJs 增量轨（新文件一律 TS，存量谁触碰谁迁移，vue-tsc 进 lint/CI） |
 | 前端 i18n | vue-i18n@11 | zh-CN + en 双键，check-i18n 门禁 |
-| 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v55**（version 乐观锁/幂等键/参考图归属） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
+| 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v60**（v55 前：乐观锁/幂等键/参考图归属；v56 webauthn_credentials / v57 totp_rebound_at / v58 invite_codes / v59 reports+admin_actions+is_banned / v60 onboarding 标记） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） | entrypoint 带 DB 损坏自愈（自动恢复最新备份） |
 | 备份 | DB 每日备份（3 份轮转）+ uploads tar 备份（2 份轮转）+ restore-db 恢复脚本 | OPS.md「备份与恢复」章节 |
-| 测试 | Vitest（后端 1213 + 前端 332）+ Playwright E2E（7 条，接入 CI） | |
+| 测试 | Vitest（后端 1335/103 文件 + 前端 351/42 文件）+ Playwright E2E（7 条，接入 CI；global-setup 含管理员 step-up） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则
