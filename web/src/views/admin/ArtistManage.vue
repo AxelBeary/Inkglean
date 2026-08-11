@@ -174,6 +174,9 @@
       </template>
     </el-dialog>
 
+    <!-- REQ-041 集成接线：更换管理员动作级再验（提交遇 STEP_UP_REQUIRED 弹窗，验证通过自动重提交） -->
+    <StepUpDialog v-model="actionStepUpVisible" @verified="onActionStepUpVerified" @cancel="actionStepUpVisible = false" />
+
     <!-- TOTP 绑定弹窗（REQ-027 R2：管理员协助画师扫码绑定） -->
     <el-dialog v-model="totpVisible" :title="$t('admin.totpBindTitle', { name: totpArtist?.name || '' })" width="420px" :close-on-click-modal="false">
       <div v-loading="totpLoading">
@@ -311,6 +314,8 @@ import { adminApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
+// REQ-041 集成接线：更换管理员动作级再验对话框（后端 requireAdminReauth 已就位）
+import StepUpDialog from '../../components/admin/StepUpDialog.vue'
 // REQ-039: 纸墨卡片头（管理弹窗内分组标题）
 import CardHead from '../../components/artist/visual/CardHead.vue'
 
@@ -565,6 +570,9 @@ function openTransfer() {
   transferVisible.value = true
 }
 
+// REQ-041 集成接线：动作级再验对话框状态（仅更换管理员提交链路使用，与 AdminLayout 入口级守卫互不干扰）
+const actionStepUpVisible = ref(false)
+
 async function confirmTransfer() {
   transferring.value = true
   try {
@@ -577,10 +585,21 @@ async function confirmTransfer() {
     transferVisible.value = false
     await loadArtists()
   } catch (err) {
+    // 动作级再验：刚验证过（≤60s）才放行；否则弹 StepUpDialog，验证通过后自动重提交
+    if (err && err.code === 'STEP_UP_REQUIRED') {
+      actionStepUpVisible.value = true
+      return
+    }
     ElMessage.error(err.message)
   } finally {
     transferring.value = false
   }
+}
+
+/** 动作级验证通过：admin_verified_at 刚刷新（满足 ≤60s 窗口），自动重提交更换管理员 */
+function onActionStepUpVerified() {
+  actionStepUpVisible.value = false
+  confirmTransfer()
 }
 
 // ─── TOTP 绑定/重置（REQ-027 R2/R5） ───
