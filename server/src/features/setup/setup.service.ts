@@ -15,19 +15,20 @@ const RESERVED_SUBDOMAINS = ['admin', 'api', 'www', 'uploads', 'static', 'login'
 
 /**
  * 是否已完成初始化
- * 判定条件：platform_config.admin_qq 非空 且 setup_completed='1' 且 artists 表有管理员
+ * 判据：platform_config.admin_qq 非空 且 对应管理员画师存在 且 已绑定 TOTP（能登录）。
+ * 用 totp_verified 而非 setup_completed 作为信号：
+ *   - 存量部署（seed/迁移自举/手动建管理员）管理员已绑 TOTP → 判已初始化，升级不会被误导到 /setup；
+ *   - 开箱向导在绑码（totp-confirm）前 totp_verified=0 → /setup 保持可达，向导中途刷新不被踢去登录页。
  */
 export function isSetupCompleted(): boolean {
   const adminQqRow = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
   const adminQq = adminQqRow?.value || ''
   if (!adminQq) return false
 
-  const setupDone = db.prepare("SELECT value FROM platform_config WHERE key = 'setup_completed'").get() as { value: string } | undefined
-  if (setupDone?.value !== '1') return false
-
-  // 确认管理员画师存在（防止配置残留但画师被删）
-  const adminExists = db.prepare('SELECT id FROM artists WHERE qq_number = ? AND deleted_at IS NULL').get(adminQq)
-  if (!adminExists) return false
+  // 确认管理员画师存在（防止配置残留但画师被删）且已绑 TOTP（能登录）
+  const admin = db.prepare('SELECT id, totp_verified FROM artists WHERE qq_number = ? AND deleted_at IS NULL').get(adminQq) as { id: number; totp_verified: number } | undefined
+  if (!admin) return false
+  if (!admin.totp_verified) return false
 
   return true
 }

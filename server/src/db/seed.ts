@@ -12,7 +12,7 @@ const seed = async () => {
 
   console.log('🌱 开始插入种子数据...')
 
-  // 插入测试画师（含身份码）— 不创建 admin，管理员由 initDatabase 自举逻辑处理
+  // 插入测试画师（含身份码）— REQ-038：管理员自举退役后，管理员账号改由 seed 创建（仅开发/测试用途；生产首装走 /setup 向导）
   const artistStmt = db.prepare(`
     INSERT OR IGNORE INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -21,6 +21,11 @@ const seed = async () => {
   artistStmt.run('10000', 'System', 'system', 'SYS', '系统保留', 'open', '10000')
   artistStmt.run('10001', 'Alice', 'alice', 'ALICE', '擅长日系头像和半身像', 'open', '10001')
   artistStmt.run('10002', 'Bob', 'bob', 'BOB', '专注全身插画和场景', 'full', '10002')
+
+  // REQ-038：管理员画师账号（管理员判定 = qq_number == platform_config.admin_qq，无独立列；
+  // status 用 hidden（CHECK 约束仅 open/full/break/hidden），不上客户端目录）
+  const adminQq = process.env.ADMIN_QQ || '10003'
+  artistStmt.run(adminQq, 'Admin', 'admin', 'ADMIN', '平台管理员', 'hidden', adminQq)
 
   const alice = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('alice') as { id: number }
   const bob = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get('bob') as { id: number }
@@ -69,8 +74,8 @@ const seed = async () => {
     if (wfCount.c === 0) seedArtistStages(a.id)
   }
 
-  // M-4 修复：用 REPLACE 确保 seed 的 admin_qq 生效（init.js 的 INSERT OR IGNORE 会先插入空值）
-  db.prepare("INSERT OR REPLACE INTO platform_config (key, value) VALUES ('admin_qq', '10003')").run()
+  // M-4 修复：用 REPLACE 确保 seed 的 admin_qq 生效（init.js 的 INSERT OR IGNORE 会先插入空值）；REQ-038：跟随 ADMIN_QQ 变量
+  db.prepare("INSERT OR REPLACE INTO platform_config (key, value) VALUES ('admin_qq', ?)").run(adminQq)
 
   console.log('✅ 种子数据插入完成')
 }

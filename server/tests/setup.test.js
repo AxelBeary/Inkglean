@@ -32,16 +32,21 @@ describe('REQ-038 开箱设置 (Setup)', () => {
     expect(isSetupCompleted()).toBe(false)
   })
 
-  it('TC-SETUP-02: 有 admin_qq 但无 setup_completed 返回 false', () => {
+  it('TC-SETUP-02: 有 admin_qq 但管理员画师不存在 返回 false', () => {
     db.prepare("UPDATE platform_config SET value = '10001' WHERE key = 'admin_qq'").run()
     expect(isSetupCompleted()).toBe(false)
   })
 
-  it('TC-SETUP-03: 有 admin_qq 且有 setup_completed=1 返回 true', () => {
+  it('TC-SETUP-03: 有 admin_qq 且管理员存在但未绑 TOTP 返回 false（向导中途保护）', () => {
     db.prepare("UPDATE platform_config SET value = '10001' WHERE key = 'admin_qq'").run()
-    db.prepare("UPDATE platform_config SET value = '1' WHERE key = 'setup_completed'").run()
-    // 需要有管理员画师行
     seedArtist({ qq_number: '10001', subdomain: 'admin' })
+    expect(isSetupCompleted()).toBe(false)
+  })
+
+  it('TC-SETUP-03b: 有 admin_qq 且管理员存在且已绑 TOTP 返回 true', () => {
+    db.prepare("UPDATE platform_config SET value = '10001' WHERE key = 'admin_qq'").run()
+    seedArtist({ qq_number: '10001', subdomain: 'admin' })
+    db.prepare("UPDATE artists SET totp_verified = 1 WHERE qq_number = '10001'").run()
     expect(isSetupCompleted()).toBe(true)
   })
 
@@ -117,10 +122,10 @@ describe('REQ-038 开箱设置 (Setup)', () => {
   })
 
   it('TC-SETUP-09: 已初始化后创建管理员返回 403', () => {
-    // 模拟已完成初始化
+    // 模拟已完成初始化（管理员存在且已绑 TOTP）
     db.prepare("UPDATE platform_config SET value = '10001' WHERE key = 'admin_qq'").run()
-    db.prepare("UPDATE platform_config SET value = '1' WHERE key = 'setup_completed'").run()
     seedArtist({ qq_number: '10001', subdomain: 'admin' })
+    db.prepare("UPDATE artists SET totp_verified = 1 WHERE qq_number = '10001'").run()
 
     expect(() => createAdminArtist({
       qqNumber: '10002',
