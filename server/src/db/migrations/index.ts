@@ -60,8 +60,7 @@ import { migration as v54 } from './v54-idempotency-keys.js'
 import { migration as v55 } from './v55-reference-uploads-ownership.js'
 import { migration as v56 } from './v56-webauthn-credentials.js'
 import { migration as v57 } from './v57-totp-rebound-at.js'
-import { migration as v56 } from './v56-webauthn-credentials.js'
-import { migration as v57 } from './v57-totp-rebound-at.js'
+import { migration as v58 } from './v58-invite-codes.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -72,6 +71,7 @@ export const MIGRATIONS: Migration[] = [
   v51, v52, v53, v54, v55,
   v56,
   v57,
+  v58,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错

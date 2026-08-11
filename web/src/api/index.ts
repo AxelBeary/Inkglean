@@ -28,6 +28,7 @@ import type {
   ArtworkWithTags,
   AuthMeResult,
   AuthVerifyResult,
+  AdminInviteCodesResult,
   CommissionRule,
   CreateArtistRequest,
   CreateDiscountCodeRequest,
@@ -51,12 +52,19 @@ import type {
   EnrichedOrderDetail,
   ExtraItemRequest,
   GlobalStats,
+  GenerateInviteCodesRequest,
+  GenerateInviteCodesResult,
   GreetingInput,
   GreetingResult,
   GreetingTemplate,
   GuestbookMessage,
   HasMoreResult,
   HealthResult,
+  InviteRegisterRequest,
+  InviteRegisterResult,
+  InviteStatusResult,
+  InviteTotpConfirmRequest,
+  InviteTotpConfirmResult,
   LikeArtworkResult,
   LogoutResult,
   MyOrderItem,
@@ -85,6 +93,7 @@ import type {
   QueueOrderItem,
   RecycleBinResult,
   RefreshSignaturesResult,
+  RevokeInviteCodeResult,
   ReturningClientsResult,
   RevenueResult,
   SavePaymentNode,
@@ -274,6 +283,13 @@ export const totpRebindApi = {
     postJson('/auth/totp/rebind-init'),
   rebindConfirm: (data: Record<string, unknown>): Promise<import('./types.js').RebindConfirmResult> =>
     postJson('/auth/totp/rebind-confirm', data)
+}
+
+// ─── REQ-039: 邀请码注册（公开） ───
+export const inviteApi = {
+  status: (): Promise<InviteStatusResult> => getJson('/invite/status'),
+  register: (data: InviteRegisterRequest): Promise<InviteRegisterResult> => postJson('/invite/register', data),
+  totpConfirm: (data: InviteTotpConfirmRequest): Promise<InviteTotpConfirmResult> => postJson('/invite/totp-confirm', data)
 }
 
 // ─── 认证 ───
@@ -641,7 +657,12 @@ export const adminApi = {
   // REQ-033 埋点看板
   getTrackingSummary: (days = 30): Promise<TrackingSummary> => getJson('/admin/tracking/summary', { params: { days } }),
   getTrackingConfig: (): Promise<TrackingConfig> => getJson('/admin/tracking-config'),
-  setTrackingConfig: (statsMode: StatsMode): Promise<TrackingConfig> => putJson('/admin/tracking-config', { statsMode })
+  setTrackingConfig: (statsMode: StatsMode): Promise<TrackingConfig> => putJson('/admin/tracking-config', { statsMode }),
+  // REQ-039: 邀请码管理（生成/列表/吊销）
+  generateInviteCodes: (data: GenerateInviteCodesRequest): Promise<GenerateInviteCodesResult> =>
+    postJson('/admin/invite-codes', data),
+  getInviteCodes: (): Promise<AdminInviteCodesResult> => getJson('/admin/invite-codes'),
+  revokeInviteCode: (id: number): Promise<RevokeInviteCodeResult> => postJson(`/admin/invite-codes/${id}/revoke`)
 }
 
 

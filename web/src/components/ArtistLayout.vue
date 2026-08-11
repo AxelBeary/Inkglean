@@ -271,7 +271,8 @@ watch(() => route.path, () => {
 const BASE_MENU_ITEMS = [
   { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard', group: 'work' },
   { index: '/queue', icon: List, labelKey: 'menu.queue', group: 'work' },
-  { index: '/orders', icon: Box, labelKey: 'menu.orders', group: 'work' },
+  // I0（REQ-039 拍板）: 订单管理待确认角标（pending 数，5 分钟轮询）
+  { index: '/orders', icon: Box, labelKey: 'menu.orders', group: 'work', hasOrderBadge: true },
   // #8: 录单入口归位（从订单管理页移回侧边栏「工作」分组）
   { index: '/orders/new', icon: EditPen, labelKey: 'menu.manualOrder', group: 'work' },
   // v0.26 C: 开稿管理（排期看板后面）
@@ -292,6 +293,8 @@ const BASE_MENU_ITEMS = [
 ]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
+// I0（REQ-039 拍板）: 待确认订单数（getStats.pendingCount 轻量统计；独立计时器轮询 5 分钟）
+const pendingOrderCount = ref(0)
 // UI-7: 管理员追加"管理后台"入口
 // REQ-016 C: 菜单分组渲染（工作/经营/门面）；工具组收窄为单个工具箱把手（纸墨提案 §5.5）
 const MENU_GROUPS = [
@@ -302,9 +305,11 @@ const MENU_GROUPS = [
   { key: 'front', labelKey: 'menu.groupFront' }
 ]
 const menuGroups = computed(() => {
-  const items = BASE_MENU_ITEMS.map(item =>
-    item.hasBadge ? { ...item, badge: pendingMsgCount.value } : item
-  )
+  const items = BASE_MENU_ITEMS.map(item => {
+    if (item.hasBadge) return { ...item, badge: pendingMsgCount.value }
+    if (item.hasOrderBadge) return { ...item, badge: pendingOrderCount.value }
+    return item
+  })
   if (store.isAdmin) {
     items.push({ index: '/admin', icon: Management, labelKey: 'menu.admin', group: 'front' })
   }
@@ -363,6 +368,9 @@ onMounted(() => {
   mqMobile.addEventListener('change', onMobileChange)
   applyFontSizeFromStorage()
   validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
+  // I0: 待确认订单角标轮询（5 分钟；页面隐藏暂停，可见立即刷新——visibilitychange）
+  startPendingOrderPolling()
+  document.addEventListener('visibilitychange', onVisibilityChange)
   // #1: 侧边栏待审核留言角标（调一次 messages，失败静默——角标非关键路径）
   if (store.loggedIn) {
     // G-8（F-2 适配）: 后端改分页响应 { items, total, page, pageSize }；
@@ -375,7 +383,45 @@ onMounted(() => {
 onUnmounted(() => {
   mqNarrow.removeEventListener('change', onNarrowChange)
   mqMobile.removeEventListener('change', onMobileChange)
+  stopPendingOrderPolling()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
+
+// ─── I0（REQ-039）: 待确认订单角标轮询 ───
+// 数据源选择：artistApi.getStats().pendingCount —— 单请求最轻（orders 列表带 status=pending&pageSize=1
+// 也能取 total，但返回整行数据体量更大）；5 分钟一次低频，失败静默（角标非关键路径）
+const PENDING_ORDER_POLL_MS = 5 * 60 * 1000
+let pendingOrderTimer = null
+
+async function refreshPendingOrderCount() {
+  if (!store.loggedIn) return
+  try {
+    const stats = await artistApi.getStats()
+    pendingOrderCount.value = stats?.pendingCount || 0
+  } catch { /* 轮询失败静默，下次再试 */ }
+}
+
+function startPendingOrderPolling() {
+  stopPendingOrderPolling()
+  refreshPendingOrderCount()
+  pendingOrderTimer = setInterval(refreshPendingOrderCount, PENDING_ORDER_POLL_MS)
+}
+
+function stopPendingOrderPolling() {
+  if (pendingOrderTimer) {
+    clearInterval(pendingOrderTimer)
+    pendingOrderTimer = null
+  }
+}
+
+function onVisibilityChange() {
+  // 页面隐藏时暂停（省电/省请求），回到前台立即刷新并恢复轮询
+  if (document.hidden) {
+    stopPendingOrderPolling()
+  } else {
+    startPendingOrderPolling()
+  }
+}
 
 // 窗口变宽时自动关闭抽屉
 watch(isMobile, (mobile) => { if (!mobile) drawerVisible.value = false })
