@@ -11,7 +11,8 @@ function setAdmin(qqNumber) {
 }
 
 function adminToken(artist) {
-  return createSession(artist.id, artist.token_version)
+  // REQ-041：管理后台路由需 step-up 升级会话
+  return createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
 }
 
 describe('埋点三态后端 (Tracking Stats Mode)', () => {

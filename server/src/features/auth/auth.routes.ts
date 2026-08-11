@@ -1,16 +1,34 @@
 import { verifyTotpLogin, createSession } from './auth.service.js'
+import type { CreateSessionOptions } from './auth.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import { getArtistByQq } from '../artist/artist.service.js'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
 // 认证路由 - TOTP 动态口令登录（REQ-027）+ WebAuthn Passkey（REQ-040）
+// + 管理后台二次验证（REQ-041）
 // ============================================
+
+/** REQ-040 TOTP 自助重绑：challenge 之外的临时新 secret 暂存（单实例内存） */
+interface TotpRebindEntry {
+  newSecret: string
+  artistId: number
+  expiresAt: number
+}
+
+type TotpRebindStore = Map<string, TotpRebindEntry>
+
+/** 读取/创建临时重绑存储（globalThis 扩展，避免 any） */
+function getTotpRebindStore(): TotpRebindStore {
+  const g = globalThis as { __totpRebindStore?: TotpRebindStore }
+  if (!g.__totpRebindStore) g.__totpRebindStore = new Map()
+  return g.__totpRebindStore
+}
 
 /** 限流守卫：不通过则抛 429 */
 function guardRateLimit(key: string, max: number, windowMs: number): void {
@@ -20,8 +38,10 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
 export default async function authRoutes(fastify: FastifyInstance) {
 
   // ─── 签发会话 cookie 辅助函数 ───
-  function signSession(artist: Artist, reply: any) {
-    const token = createSession(artist.id, artist.token_version)
+  // REQ-041：options.authLevel/adminVerifiedAt 缺省 = basic 会话（既有调用语义不变）；
+  // step-up 验证通过后传入升级参数重签 token 覆盖 cookie
+  function signSession(artist: Artist, reply: FastifyReply, options: CreateSessionOptions = {}) {
+    const token = createSession(artist.id, artist.token_version, options)
     const isAdmin = artist.qq_number === getAdminQq()
     reply.setCookie('artist_token', token, {
       path: '/',
@@ -40,6 +60,92 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
     }
   }
+
+  /** REQ-041 step-up 请求体（totp 与 passkey 二选一） */
+  type StepUpBody =
+    | { method: 'totp'; code: string }
+    | { method: 'passkey'; credentialId: string; authenticatorData: string; signature: string; clientDataJSON: string }
+
+  /**
+   * POST /api/auth/step-up
+   * REQ-041：管理后台二次验证（登录态，仅管理员可用，非管理员 403）
+   * - totp：验证管理员本人 TOTP（复用 verifyTotpLogin：重放防护 + 失败计数/锁定语义）
+   * - passkey：复用 webauthn 认证校验（counter 递增），校验对象 = 当前登录管理员的凭据
+   * 验证通过 → 重新签发升级 token（auth_level=admin_verified + admin_verified_at=now）覆盖 cookie；失败不升级
+   */
+  fastify.post('/api/auth/step-up', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['method'],
+        additionalProperties: false,
+        properties: {
+          method: { type: 'string', enum: ['totp', 'passkey'] },
+          code: { type: 'string', minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' },
+          credentialId: { type: 'string', minLength: 1, maxLength: 500 },
+          authenticatorData: { type: 'string', minLength: 1, maxLength: 5000 },
+          signature: { type: 'string', minLength: 1, maxLength: 5000 },
+          clientDataJSON: { type: 'string', minLength: 1, maxLength: 10000 }
+        },
+        if: { properties: { method: { const: 'totp' } }, required: ['method'] },
+        then: { required: ['code'] },
+        else: { required: ['credentialId', 'authenticatorData', 'signature', 'clientDataJSON'] }
+      }
+    }
+  }, async (request, reply) => {
+    guardRateLimit(`step-up:${request.ip}`, 10, 5 * 60_000)
+
+    // 仅管理员可用（非管理员 403，与 requireAdmin 同语义；画师无 step-up 能力）
+    if (request.artist.qq_number !== getAdminQq()) {
+      throw new AppError(E.ADMIN_REQUIRED, 403)
+    }
+
+    const body = request.body as StepUpBody
+
+    if (body.method === 'totp') {
+      // 复用登录校验（verifyTotpWithCounter + 重放防护 + 防爆破计数/锁定），失败语义与登录一致
+      const result = verifyTotpLogin(request.artist.qq_number, body.code)
+      if (!result.valid) {
+        return reply.code(401).send({
+          code: result.code,
+          error: result.error,
+          ...(result.remainingLockMs != null ? { detail: { remainingLockMs: result.remainingLockMs } } : {})
+        })
+      }
+      if (!result.artist) {
+        return reply.code(500).send({ code: 'INTERNAL', error: '登录会话状态异常' })
+      }
+      const verifiedAt = new Date().toISOString()
+      signSession(result.artist, reply, { authLevel: 'admin_verified', adminVerifiedAt: verifiedAt })
+      return { success: true, verifiedAt }
+    }
+
+    // passkey 分支：flat body → simplewebauthn credential 形状（verifyLogin 内部消费 challenge + 递增 counter）
+    const { verifyLogin } = await import('./webauthn.js')
+    const credential = {
+      id: body.credentialId,
+      response: {
+        authenticatorData: body.authenticatorData,
+        clientDataJSON: body.clientDataJSON,
+        signature: body.signature
+      }
+    }
+    try {
+      const { artist } = await verifyLogin(credential, request.hostname, request.artist.id)
+      const verifiedAt = new Date().toISOString()
+      signSession(artist, reply, { authLevel: 'admin_verified', adminVerifiedAt: verifiedAt })
+      return { success: true, verifiedAt }
+    } catch (err) {
+      // 防枚举：认证失败/challenge 无效统一为认证失败响应（与登录一致）
+      if (err instanceof AppError && (
+        err.code === E.WEBAUTHN_AUTHENTICATION_FAILED || err.code === E.WEBAUTHN_CHALLENGE_INVALID
+      )) {
+        return reply.code(401).send({ code: E.WEBAUTHN_AUTHENTICATION_FAILED, error: '身份验证失败，请重试' })
+      }
+      throw err
+    }
+  })
 
   /**
    * POST /api/auth/verify
@@ -288,9 +394,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // 存入 challenge store（扩展 purpose）
     // 由于我们使用 webauthn 的 challenge 存储，但这里需要存 totp 的 secret
     // 简单处理：在内存中存一个临时映射
-    const tempStore = globalThis as any
-    if (!tempStore.__totpRebindStore) tempStore.__totpRebindStore = new Map()
-    tempStore.__totpRebindStore.set(tempKey, {
+    getTotpRebindStore().set(tempKey, {
       newSecret,
       artistId: artist.id,
       expiresAt: Date.now() + 5 * 60 * 1000
@@ -371,11 +475,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       // 从 tempKey 获取新 secret
       const tempKey = body.tempKey as string | undefined
-      const tempStore = (globalThis as any).__totpRebindStore
+      const tempStore = getTotpRebindStore()
       if (!tempKey || !tempStore || !tempStore.has(tempKey)) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
-      const entry = tempStore.get(tempKey)
+      const entry = tempStore.get(tempKey)!
       tempStore.delete(tempKey) // 一次性消费
 
       if (entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
@@ -401,8 +505,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // 全局踢下线（bumpTokenVersion）
     bumpTokenVersion(artist.id)
 
-    // 审计日志（console，注释说明最小实现）
-    console.log(`[AUDIT] TOTP rebind: artist_id=${artist.id}, qq=${artist.qq_number}, ip=${request.ip}, time=${new Date().toISOString()}`)
+    // 审计日志（走 Fastify logger，最小实现）
+    request.log.info({ artistId: artist.id, qq: artist.qq_number, ip: request.ip }, 'AUDIT TOTP rebind')
 
     return { success: true, message: 'TOTP 已重绑，请重新登录' }
   })

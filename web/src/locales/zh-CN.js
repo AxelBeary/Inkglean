@@ -7,6 +7,8 @@ export default {
     ACCOUNT_DISABLED: '账号已被停用',
     TOKEN_REVOKED: '登录状态已失效，请重新登录',
     ADMIN_REQUIRED: '需要管理员权限',
+    // REQ-041: 管理后台二次验证
+    STEP_UP_REQUIRED: '需要完成管理员二次验证',
     QQ_NOT_REGISTERED: '该 QQ 号未注册为画师',
     TOTP_NOT_BOUND: '该画师尚未绑定动态口令，请联系管理员',
     TOTP_INVALID: 'QQ号或动态口令错误',
@@ -1611,6 +1613,17 @@ export default {
     retry: '重试',
     prevStep: '上一步',
     nextStep: '下一步'
+  },
+  // REQ-041: 管理后台二次验证（会话升级）
+  stepup: {
+    title: '管理员验证',
+    desc: '为保障平台安全，请完成管理员身份验证（30 分钟内有效）。',
+    codeLabel: '动态验证码',
+    codePlaceholder: '输入验证器上的 6 位数字',
+    codeFormat: '动态码为 6 位数字',
+    confirm: '验证',
+    passkeyVerify: '使用 Passkey 验证',
+    passkeyVerifying: '正在验证…',
+    error: '验证失败，请重试'
   }
 }
-

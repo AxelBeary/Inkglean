@@ -234,7 +234,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/admin/tracking/summary?days=30',
-      headers: { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+      // REQ-041：管理后台路由需 step-up 升级会话
+      headers: { Authorization: `Bearer ${createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()
@@ -311,7 +312,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
 
   it('TC-TR-13: 开关 config 默认 true，PUT false 后读取 false，PUT true 恢复', async () => {
     const admin = setAdmin('10001')
-    const adminToken = createSession(admin.id, admin.token_version)
+    // REQ-041：管理后台路由需 step-up 升级会话
+    const adminToken = createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
     const auth = { Authorization: `Bearer ${adminToken}` }
 
     // 默认 hidden（用户 08-07 拍板：默认不显）
@@ -356,7 +358,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
 
   it('TC-TR-14: 开关 PUT 空 body / 非布尔被拒 400', async () => {
     const admin = setAdmin('10001')
-    const auth = { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+    // REQ-041：管理后台路由需 step-up 升级会话
+    const auth = { Authorization: `Bearer ${createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
 
     const noField = await app.inject({
       method: 'PUT',
@@ -483,7 +486,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
 
   it('TC-TR-19: 管理员 summary 同管理员每分钟第 31 次被 429', async () => {
     const admin = setAdmin('60006')
-    const auth = { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+    // REQ-041：管理后台路由需 step-up 升级会话
+    const auth = { Authorization: `Bearer ${createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
     for (let i = 0; i < 30; i++) {
       const res = await app.inject({ method: 'GET', url: '/api/admin/tracking/summary', headers: auth })
       expect(res.statusCode).toBe(200)

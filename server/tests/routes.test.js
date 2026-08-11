@@ -99,7 +99,8 @@ describe('路由层测试 (Route Integration)', () => {
       db.prepare("UPDATE platform_config SET value = '12345' WHERE key = 'admin_qq'").run()
 
       const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
-      const token = createSession(artist.id, artist.token_version)
+      // REQ-041：管理后台路由需 step-up 升级会话
+      const token = createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
 
       const res = await app.inject({
         method: 'GET',

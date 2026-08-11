@@ -1,4 +1,5 @@
 import { requireAuth, requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
+import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import * as guestbookService from './guestbook.service.js'
 import * as artistService from '../artist/artist.service.js'
@@ -10,6 +11,10 @@ import type { Artist } from '../../types/entities.js'
 // ============================================
 
 export default async function guestbookRoutes(fastify: FastifyInstance) {
+
+  // REQ-041：/api/admin/messages* 同为管理后台路由，受 step-up 入口级守卫保护
+  // （onRoute 按 url 前缀过滤，/api/public/* 与画师接口不受影响）
+  registerAdminStepUpHooks(fastify)
 
   // ─── 公开接口 ───
 

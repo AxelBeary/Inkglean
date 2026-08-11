@@ -1,4 +1,5 @@
 import { requireAdmin } from '../../shared/middleware/auth.js'
+import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { runHealthChecks, buildDiagnosticReport } from './health.service.js'
 import { MIGRATIONS } from '../../db/init.js'
 import type { FastifyInstance } from 'fastify'
@@ -10,6 +11,9 @@ import type { FastifyInstance } from 'fastify'
 const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
 
 export default async function healthRoutes(fastify: FastifyInstance) {
+
+  // REQ-041：/api/admin/health* 同为管理后台读路由，受 step-up 入口级守卫保护
+  registerAdminStepUpHooks(fastify)
 
   /** GET /api/admin/health — 执行 8 项系统检查 */
   fastify.get('/api/admin/health', { preHandler: requireAdmin }, async () => {

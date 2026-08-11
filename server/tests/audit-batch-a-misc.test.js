@@ -104,7 +104,8 @@ describe('audit-a P3-7 DELETE 通用问候语存在性', () => {
     cleanDb()
     db.prepare("UPDATE platform_config SET value = '77031' WHERE key = 'admin_qq'").run()
     adminArtist = seedArtist({ qq_number: '77031', subdomain: 'admin' })
-    adminHeaders = { Authorization: `Bearer ${createSession(adminArtist.id, adminArtist.token_version)}` }
+    // REQ-041：管理后台路由需 step-up 升级会话
+    adminHeaders = { Authorization: `Bearer ${createSession(adminArtist.id, adminArtist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
     app = await buildApp({ logger: false })
     await app.ready()
   })
@@ -197,7 +198,8 @@ describe('audit-a P3-13 transfer 限流配额预耗', () => {
     cleanDb()
     db.prepare("UPDATE platform_config SET value = '77051' WHERE key = 'admin_qq'").run()
     adminArtist = seedArtist({ qq_number: '77051', subdomain: 'adming' })
-    adminHeaders = { Authorization: `Bearer ${createSession(adminArtist.id, adminArtist.token_version)}` }
+    // REQ-041：管理后台路由需 step-up 升级会话
+    adminHeaders = { Authorization: `Bearer ${createSession(adminArtist.id, adminArtist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
     app = await buildApp({ logger: false })
     await app.ready()
   })

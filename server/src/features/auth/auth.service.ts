@@ -184,29 +184,55 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
 }
 
 // ============================================
-// 会话 Token（HMAC 签名，无状态）— 原样保留
+// 会话 Token（HMAC 签名，无状态）
 // ============================================
+
+/**
+ * 会话升级级别（REQ-041）
+ * - basic：登录基本会话（缺省，旧 token 兼容视为 basic）
+ * - admin_verified：通过管理员二次验证（TOTP/Passkey）后的升级会话
+ */
+export type AuthLevel = 'basic' | 'admin_verified'
+
+/** 会话 payload */
+export interface SessionPayload {
+  id: number
+  t: number
+  v: number
+  /** REQ-041：会话升级级别（旧 token 无此字段 = basic） */
+  auth_level?: AuthLevel
+  /** REQ-041：管理员二次验证通过时刻（ISO 时间戳，可空；与 auth_level 配套） */
+  admin_verified_at?: string | null
+}
+
+/** 创建升级会话的附加参数（REQ-041；缺省 = basic 会话，既有调用语义不变） */
+export interface CreateSessionOptions {
+  authLevel?: AuthLevel
+  adminVerifiedAt?: string | null
+}
 
 /**
  * 创建会话 Token（HMAC签名，无状态）
  * payload 中包含 token_version，用于服务端主动使旧 token 失效
+ * REQ-041：验证通过后由 step-up 接口用 authLevel='admin_verified' + adminVerifiedAt 重签覆盖 cookie
  */
-export function createSession(artistId: number, tokenVersion: number): string {
-  const payload = Buffer.from(JSON.stringify({ id: artistId, t: Date.now(), v: tokenVersion || 1 })).toString('base64url')
-  const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
-  return `${payload}.${sig}`
-}
-
-/** 会话 payload */
-interface SessionPayload {
-  id: number
-  t: number
-  v: number
+export function createSession(artistId: number, tokenVersion: number, options: CreateSessionOptions = {}): string {
+  const payload: SessionPayload = {
+    id: artistId,
+    t: Date.now(),
+    v: tokenVersion || 1,
+    ...(options.authLevel ? { auth_level: options.authLevel } : {}),
+    ...(options.adminVerifiedAt != null ? { admin_verified_at: options.adminVerifiedAt } : {})
+  }
+  const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const sig = crypto.createHmac('sha256', SECRET).update(payloadBase64).digest('base64url')
+  return `${payloadBase64}.${sig}`
 }
 
 /**
  * 验证会话 Token
  * 使用 timingSafeEqual 防止时序攻击
+ * 旧 token（无 auth_level/admin_verified_at）兼容：字段缺失时按 basic 处理（见中间件）
  */
 export function verifySession(token: string): SessionPayload | null {
   if (!token) return null

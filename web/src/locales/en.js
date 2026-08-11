@@ -7,6 +7,8 @@ export default {
     ACCOUNT_DISABLED: 'Account has been disabled',
     TOKEN_REVOKED: 'Session invalidated, please log in again',
     ADMIN_REQUIRED: 'Admin privileges required',
+    // REQ-041: Admin step-up verification
+    STEP_UP_REQUIRED: 'Admin verification required',
     QQ_NOT_REGISTERED: 'This QQ number is not registered as an artist',
     TOTP_NOT_BOUND: 'This artist has not bound an authenticator yet. Please contact the admin',
     TOTP_INVALID: 'Incorrect QQ number or one-time password',
@@ -1614,7 +1616,18 @@ export default {
     retry: 'Retry',
     prevStep: 'Previous',
     nextStep: 'Next'
+  },
+  // REQ-041: Admin step-up verification (session upgrade)
+  stepup: {
+    title: 'Admin Verification',
+    desc: 'For platform security, please verify your admin identity (valid for 30 minutes).',
+    codeLabel: 'Auth Code',
+    codePlaceholder: '6-digit code from your authenticator',
+    codeFormat: 'The code must be 6 digits',
+    confirm: 'Verify',
+    passkeyVerify: 'Verify with Passkey',
+    passkeyVerifying: 'Verifying…',
+    error: 'Verification failed, please try again'
   }
 }
-
 
