@@ -1,5 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-11 v86（**REQ-042 合入；REQ-043 施工在途（最后一波）**）——master `0ad7f12d` 与 origin 同步。
+> ✅ **REQ-042 合规与内容安全合入**（`0ad7f12d`，811-req042-compliance：codex 施工 `23dbcf6` + 一号合并解冲突 `dc77026`）：v59 迁移（reports/admin_actions/artists.is_banned，schema.ts 双轨一致已核）；举报公开接口+限流/处理留痕/内容下架/封禁解封；登录拦截 ARTIST_BANNED（TOTP+Passkey 双链路，公开目录/主页/track 全过滤）；敏感词 warning 不硬拦；/privacy /terms 静态页 + 页脚链接 + 举报弹窗；AdminLayout 举报处理导航 + ReportManage；OrderForm 首单同意勾选；+15 用例。**codex 随暂停中断，一号接手收尾**：LegalDoc.vue 未用变量 TS 错修复 + 按清单 commit + merge master 解 9 处冲突（entities/api×2/AdminLayout/locales×2/migrations/auth.routes×6 块/webauthn×3 块，均两侧保留+补共享闭合括号，v58/v59 迁移并插，auth 域取 041 清洁版与 v13 正确写法）。**一号独立验收**：server typecheck/lint 0警0错/**1302/1302**（100 文件）· web lint/351/351/i18n/build · E2E 7/7；抽查：迁移双轨一致/封禁拦截覆盖面/截图不入库（shot-*.png 留 worktree）。
+> 🔄 **REQ-043 施工在途**：worktree artist-commission-811-req043 / 分支 811-req043-quality 基于 0ad7f12d，codex 无头施工中（日志 workspace/temp/811-req043-codex.log）；施工图已标注前置现状勿重做（step-up 守卫/举报导航/条款勾选/敏感词链路）。一号独立验收后合入，然后收官：容器重建（v56-v59 烘焙）+ 截图验收 + 全量记账。
+> ⚠️ **遗留**：①Passkey HTTPS/localhost 验证未做；②w-rebrand/811-req039/811-req041/811-req042 worktree 待清理；③041 前端单测缺口（随收官批补或接受现状待拍板）。
+
 > 最后更新：2026-08-11 v85（**REQ-041 全闭环；REQ-042 codex 中断待处置；REQ-043 待派**）——master `729f57a` 与 origin 同步。
 > ✅ **REQ-041 管理后台二次验证合入**（`cf1c339` 合入 + `729f57a` 集成接线，811-req041-stepup 分支 `d65e49ff` + 一号合并解冲突 `4b377de`）：token 会话升级（auth_level/admin_verified_at）+ /api/auth/step-up（TOTP/Passkey 双分支）+ requireAdminStepUp（30min 窗口）+ requireAdminReauth（动作级 ≤60s）+ StepUpDialog + AdminLayout 入口守卫 + e2e global-setup 补 step-up；+11 用例。**一号独立验收**：server typecheck/lint 0警0错/**1287/1287** · web lint/351/351/i18n/build · E2E 7/7。集成接线：ArtistManage 更换管理员遇 STEP_UP_REQUIRED 弹 StepUpDialog 验证后自动重提交（web 351 + E2E 7/7 复验）。**验收中裁决**：webauthn.ts v13 credential.id 已是 Base64URLString，039 版 Buffer.from 二次编码是错的，取 041 版（教训：库升级后的字段类型必须对照 .d.ts 裁决）；合并冲突 8 处（auth 域×4 + api×2 + locales×2）均两侧保留型，拼接处共享闭合括号需补 `}`/`},`（locales/api 四处）。
 > ⚠️ **E2E 环境坑入账**：端口 3999 残留旧服务器（旧版无新路由）导致 step-up 404 假故障——**E2E 失败先查端口占用（Get-NetTCPConnection 3999）再疑代码**。
