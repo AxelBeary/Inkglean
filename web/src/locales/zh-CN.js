@@ -256,6 +256,8 @@ export default {
     notFound: '页面不存在'
   },
   menu: {
+    // REQ-040: 账号与安全菜单项
+    account: '账号与安全',
     logo: '绘约',
     // v0.38: 侧栏品牌印章字（REQ-026 §三.1 朱砂印章「绘」）
     logoSeal: '绘',
@@ -338,6 +340,41 @@ export default {
     delete: '删除',
     copied: '已复制',
     saveFailed: '保存失败（浏览器可能处于隐私模式）'
+  },
+  // REQ-040: 账号与安全页
+  account: {
+    title: '账号与安全',
+    accountInfo: '账号信息',
+    qqLabel: 'QQ 号',
+    qqHint: 'QQ 号是登录标识，不可修改',
+    profileHint: '修改昵称、头像等个人资料请前往',
+    profileLink: '主页设置',
+    totpSection: '动态口令（TOTP）',
+    totpBound: '已绑定',
+    totpNotBound: '未绑定',
+    totpRebind: '自助重绑',
+    totpRebindStep1: '验证身份',
+    totpRebindStep2: '扫描新二维码',
+    totpRebindStep3: '确认新码',
+    totpRebindDone: '重绑完成',
+    totpRebindPasskeyHint: '使用 Passkey 验证身份',
+    totpRebindCodeHint: '输入当前验证器上的 6 位码',
+    totpRebindNewCodeHint: '输入新绑定验证器上的 6 位码',
+    totpRebindNewCodePlaceholder: '新验证器上的 6 位数字',
+    totpRebindConfirm: '确认重绑',
+    totpRebindCooldown: '重绑过于频繁，剩余 {hours} 小时后可再次操作',
+    totpRebindAdminExempt: '管理员操作不受限制',
+    totpRebindSuccess: 'TOTP 已重绑成功，所有设备已强制登出，请重新登录',
+    passkeySection: 'Passkey 登录设备',
+    passkeyRegister: '注册本设备',
+    passkeyRegistering: '正在注册…',
+    passkeyDeviceName: '设备名',
+    passkeyLastUsed: '最后使用',
+    passkeyNeverUsed: '未使用',
+    passkeyDelete: '删除',
+    passkeyDeleteConfirm: '确定删除此 Passkey 凭据？删除后该设备无法使用 Passkey 登录。',
+    passkeyEmpty: '还没有注册设备，点击上方按钮注册',
+    passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
   },
   // REQ-035 工具集后置: 截稿日建议（工具页文案）
   deadlineAdvice: {
@@ -760,6 +797,11 @@ export default {
     downloadFailed: '下载失败，请重试或联系画师'
   },
   login: {
+    // REQ-040: Passkey 登录按钮
+    passkeyLogin: '使用 Windows Hello / 指纹登录',
+    passkeyLogging: '正在验证身份…',
+    passkeyError: 'Passkey 验证失败，请重试或使用动态码登录',
+
     // v0.46 纸墨登录页：品牌区（朱砂印 + 绘约 + 副标）
     brandTitle: '绘约', subtitle: '画师后台',
     // 偏好区：主题 + 语言（与后台同逻辑）
@@ -1522,4 +1564,6 @@ export default {
     }
   }
 }
+
+
 

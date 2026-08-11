@@ -239,6 +239,9 @@ function getJson<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
 function postJson<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   return api.post<T, T>(url, data, config)
 }
+function patchJson<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  return api.patch<T, T>(url, data, config)
+}
 function putJson<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   return api.put<T, T>(url, data, config)
 }
@@ -247,6 +250,31 @@ function deleteJson<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
 }
 
 export default api
+
+// ─── REQ-040: WebAuthn Passkey + TOTP 重绑 ───
+export const webauthnApi = {
+  registerOptions: (): Promise<import('./types.js').WebAuthnRegisterOptions> =>
+    postJson('/auth/webauthn/register-options'),
+  registerVerify: (credential: unknown): Promise<import('./types.js').WebAuthnRegisterVerifyResult> =>
+    postJson('/auth/webauthn/register-verify', credential),
+  loginOptions: (qqNumber: string): Promise<import('./types.js').WebAuthnLoginOptions> =>
+    postJson('/auth/webauthn/login-options', { qqNumber }),
+  loginVerify: (credential: unknown): Promise<import('./types.js').WebAuthnLoginVerifyResult> =>
+    postJson('/auth/webauthn/login-verify', credential),
+  getCredentials: (): Promise<import('./types.js').WebAuthnCredentialsResult> =>
+    getJson('/auth/webauthn/credentials'),
+  updateCredential: (id: number, deviceName: string): Promise<import('./types.js').WebAuthnUpdateCredentialResult> =>
+    patchJson(/auth/webauthn/credentials/, { deviceName }),
+  deleteCredential: (id: number): Promise<{ success: boolean }> =>
+    deleteJson(/auth/webauthn/credentials/)
+}
+
+export const totpRebindApi = {
+  rebindInit: (): Promise<import('./types.js').RebindInitResult> =>
+    postJson('/auth/totp/rebind-init'),
+  rebindConfirm: (data: Record<string, unknown>): Promise<import('./types.js').RebindConfirmResult> =>
+    postJson('/auth/totp/rebind-confirm', data)
+}
 
 // ─── 认证 ───
 export const authApi = {
@@ -615,3 +643,5 @@ export const adminApi = {
   getTrackingConfig: (): Promise<TrackingConfig> => getJson('/admin/tracking-config'),
   setTrackingConfig: (statsMode: StatsMode): Promise<TrackingConfig> => putJson('/admin/tracking-config', { statsMode })
 }
+
+

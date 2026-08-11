@@ -1,0 +1,362 @@
+// ============================================
+// WebAuthn / Passkey 认证核心（REQ-040）
+// Challenge 存储：内存 Map（单实例部署可接受，注释说明）
+// 依赖：@simplewebauthn/server（仅服务端验证）
+// 前端：浏览器原生 navigator.credentials API，零依赖
+// ============================================
+import db from '../../db/connection.js'
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse
+} from '@simplewebauthn/server'
+import type {
+  GenerateRegistrationOptionsOpts,
+  VerifyRegistrationResponseOpts,
+  GenerateAuthenticationOptionsOpts,
+  VerifyAuthenticationResponseOpts
+} from '@simplewebauthn/server'
+import { AppError, E } from '../../shared/errors.js'
+import type { Artist } from '../../types/entities.js'
+
+// ─── Challenge 存储 ───
+
+interface ChallengeEntry {
+  /** 关联的画师 ID（注册流程必填，认证流程可空） */
+  artistId?: number
+  /** challenge 用途 */
+  purpose: 'register' | 'login' | 'rebind-passkey'
+  /** 过期时间戳 */
+  expiresAt: number
+  /** 附加数据（如 TOTP 重绑新 secret） */
+  meta?: Record<string, unknown>
+}
+
+/**
+ * 内存 Challenge Map（单实例部署可接受）
+ * 多实例部署需迁移到 Redis/DB。TTL 5 分钟，惰性清理。
+ * 容量上限 10,000 条，超限淘汰最早条目。
+ */
+const challengeStore = new Map<string, ChallengeEntry>()
+const CHALLENGE_TTL_MS = 5 * 60 * 1000
+const MAX_CHALLENGES = 10_000
+
+/** 存储 challenge（由 @simplewebauthn/server 生成后调用） */
+function storeChallenge(challenge: string, purpose: ChallengeEntry['purpose'], artistId?: number, meta?: Record<string, unknown>): void {
+  // 惰性清理：每次写入前清理一部分过期条目
+  const now = Date.now()
+  let cleaned = 0
+  for (const [key, entry] of challengeStore) {
+    if (entry.expiresAt <= now) {
+      challengeStore.delete(key)
+      cleaned++
+      if (cleaned > 100) break
+    }
+  }
+  // 超限淘汰
+  if (challengeStore.size >= MAX_CHALLENGES) {
+    const oldestKey = challengeStore.keys().next().value
+    if (oldestKey) challengeStore.delete(oldestKey)
+  }
+  challengeStore.set(challenge, { artistId, purpose, expiresAt: now + CHALLENGE_TTL_MS, meta })
+}
+
+/** 验证并消费 challenge（一次性，防重放） */
+function consumeChallenge(challenge: string, purpose: ChallengeEntry['purpose'], artistId?: number): ChallengeEntry | null {
+  const entry = challengeStore.get(challenge)
+  if (!entry) return null
+  challengeStore.delete(challenge) // 一次性消费
+  if (entry.expiresAt <= Date.now()) return null // 已过期
+  if (entry.purpose !== purpose) return null
+  if (artistId !== undefined && entry.artistId !== artistId) return null
+  return entry
+}
+
+// ─── 凭据数据库操作 ───
+
+export interface WebAuthnCredentialRow {
+  id: number
+  artist_id: number
+  credential_id: string
+  public_key: string
+  counter: number
+  device_name: string | null
+  created_at: string
+  last_used_at: string | null
+}
+
+/** 获取画师的所有凭据 */
+export function getCredentials(artistId: number): WebAuthnCredentialRow[] {
+  return db.prepare(
+    'SELECT * FROM webauthn_credentials WHERE artist_id = ? ORDER BY created_at DESC'
+  ).all(artistId) as WebAuthnCredentialRow[]
+}
+
+/** 获取单条凭据（按 credential_id 即 base64url 字符串） */
+function getCredentialByCredId(credentialId: string): WebAuthnCredentialRow | undefined {
+  return db.prepare('SELECT * FROM webauthn_credentials WHERE credential_id = ?').get(credentialId) as WebAuthnCredentialRow | undefined
+}
+
+/** 获取画师已有凭据 ID 列表 */
+export function getExistingCredentialIds(artistId: number): string[] {
+  const rows = db.prepare('SELECT credential_id FROM webauthn_credentials WHERE artist_id = ?').all(artistId) as Pick<WebAuthnCredentialRow, 'credential_id'>[]
+  return rows.map(r => r.credential_id)
+}
+
+/** 检查画师是否有 Passkey 凭据 */
+export function hasPasskeyCredentials(artistId: number): boolean {
+  const row = db.prepare('SELECT COUNT(*) AS c FROM webauthn_credentials WHERE artist_id = ?').get(artistId) as { c: number }
+  return row.c > 0
+}
+
+// ─── RP 配置 ───
+
+function getRpId(requestHostname?: string): string {
+  return process.env.WEBAUTHN_RP_ID || requestHostname || 'localhost'
+}
+
+function getRpName(): string {
+  return '绘约'
+}
+
+function getRpOrigin(requestHostname?: string): string {
+  if (process.env.WEBAUTHN_ORIGIN) return process.env.WEBAUTHN_ORIGIN
+  const hostname = requestHostname || 'localhost'
+  if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+    return `http://${hostname}`
+  }
+  return `https://${hostname}`
+}
+
+// ─── 注册流程（登录态） ───
+
+/**
+ * 生成注册选项（POST /api/auth/webauthn/register-options）
+ * 前端用返回的 options 调用 navigator.credentials.create()
+ */
+export async function generateRegisterOptions(artist: Artist, requestHostname?: string) {
+  const rpId = getRpId(requestHostname)
+  const rpName = getRpName()
+
+  const opts: GenerateRegistrationOptionsOpts = {
+    rpName,
+    rpID: rpId,
+    userName: artist.qq_number,
+    userDisplayName: artist.name,
+    excludeCredentials: getExistingCredentialIds(artist.id).map(cid => ({
+      id: cid,
+      type: 'public-key' as const,
+      transports: ['internal', 'hybrid', 'usb', 'nfc', 'ble'] as const
+    })),
+    attestationType: 'none',
+    authenticatorSelection: {
+      userVerification: 'preferred',
+      residentKey: 'preferred',
+    }
+  }
+
+  const options = await generateRegistrationOptions(opts)
+  // 存储 challenge
+  storeChallenge(options.challenge, 'register', artist.id)
+  return options
+}
+
+/**
+ * 验证注册响应（POST /api/auth/webauthn/register-verify）
+ */
+export async function verifyRegistration(
+  artist: Artist,
+  credential: unknown,
+  requestHostname?: string
+): Promise<WebAuthnCredentialRow> {
+  const rpId = getRpId(requestHostname)
+  const origin = getRpOrigin(requestHostname)
+
+  // 从 credential 提取 challenge
+  const cred = credential as Record<string, unknown>
+  const response = cred.response as Record<string, unknown> | undefined
+  const clientDataJSON = response?.clientDataJSON as string | undefined
+  let challengeFromClient = ''
+  if (clientDataJSON) {
+    try {
+      const parsed = JSON.parse(Buffer.from(clientDataJSON, 'base64url').toString())
+      challengeFromClient = parsed.challenge
+    } catch { /* 解析失败，后续验证会拒绝 */ }
+  }
+
+  // 消费 challenge
+  if (!challengeFromClient || !consumeChallenge(challengeFromClient, 'register', artist.id)) {
+    throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
+  }
+
+  const verificationOpts: VerifyRegistrationResponseOpts = {
+    response: credential as any,
+    expectedChallenge: challengeFromClient,
+    expectedOrigin: origin,
+    expectedRPID: rpId,
+  }
+
+  const verification = await verifyRegistrationResponse(verificationOpts)
+  if (!verification.verified || !verification.registrationInfo) {
+    throw new AppError(E.WEBAUTHN_REGISTRATION_FAILED, 400)
+  }
+
+  const { credentialPublicKey, credentialID, counter } = verification.registrationInfo
+  const credentialIdBase64 = Buffer.from(credentialID).toString('base64url')
+  const publicKeyBase64 = Buffer.from(credentialPublicKey).toString('base64url')
+
+  // 检查是否已存在（幂等防护）
+  const existing = db.prepare('SELECT id FROM webauthn_credentials WHERE credential_id = ?').get(credentialIdBase64)
+  if (existing) {
+    throw new AppError(E.WEBAUTHN_CREDENTIAL_EXISTS, 409)
+  }
+
+  const result = db.prepare(`
+    INSERT INTO webauthn_credentials (artist_id, credential_id, public_key, counter, device_name)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(artist.id, credentialIdBase64, publicKeyBase64, counter, null)
+
+  return db.prepare('SELECT * FROM webauthn_credentials WHERE id = ?').get(Number(result.lastInsertRowid)) as WebAuthnCredentialRow
+}
+
+// ─── 认证流程（公开） ───
+
+/**
+ * 生成认证选项（POST /api/auth/webauthn/login-options）
+ * 防枚举：未注册 QQ 与正常同响应结构（仅返回 options 骨架）
+ */
+export async function generateLoginOptions(requestHostname?: string) {
+  const rpId = getRpId(requestHostname)
+
+  const opts: GenerateAuthenticationOptionsOpts = {
+    rpID: rpId,
+    userVerification: 'preferred',
+  }
+
+  const options = await generateAuthenticationOptions(opts)
+  storeChallenge(options.challenge, 'login')
+  return options
+}
+
+/**
+ * 验证认证响应（POST /api/auth/webauthn/login-verify）
+ * 成功返回画师信息和凭据行
+ */
+export async function verifyLogin(
+  credential: unknown,
+  requestHostname?: string
+): Promise<{ artist: Artist; credentialRow: WebAuthnCredentialRow }> {
+  const rpId = getRpId(requestHostname)
+  const origin = getRpOrigin(requestHostname)
+
+  // 提取 credential_id
+  const cred = credential as Record<string, unknown>
+  const credId = cred.id as string
+
+  // 从 clientDataJSON 提取 challenge
+  const response = cred.response as Record<string, unknown> | undefined
+  const clientDataJSON = response?.clientDataJSON as string | undefined
+  let challengeFromClient = ''
+  if (clientDataJSON) {
+    try {
+      const parsed = JSON.parse(Buffer.from(clientDataJSON, 'base64url').toString())
+      challengeFromClient = parsed.challenge
+    } catch { /* 解析失败，后续验证会拒绝 */ }
+  }
+
+  // 消费 challenge（不检查 artistId，认证是公开的）
+  if (!challengeFromClient || !consumeChallenge(challengeFromClient, 'login')) {
+    throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
+  }
+
+  // 查找凭据
+  const credentialRow = getCredentialByCredId(credId)
+  if (!credentialRow) {
+    // 防枚举：与凭据无效同响应
+    throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
+
+  // 查找画师
+  const { getArtistById } = await import('../../features/artist/artist.service.js')
+  const artist = getArtist(credentialRow.artist_id) as Artist | undefined
+  if (!artist || artist.deleted_at) {
+    throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
+
+  // 验证认证响应
+  const verificationOpts: VerifyAuthenticationResponseOpts = {
+    response: credential as any,
+    expectedChallenge: challengeFromClient,
+    expectedOrigin: origin,
+    expectedRPID: rpId,
+    credential: {
+      id: credentialRow.credential_id,
+      publicKey: Buffer.from(credentialRow.public_key, 'base64url'),
+      counter: credentialRow.counter,
+      transports: ['internal', 'hybrid', 'usb', 'nfc', 'ble'] as const
+    }
+  }
+
+  const verification = await verifyAuthenticationResponse(verificationOpts)
+  if (!verification.verified) {
+    throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
+
+  const { authenticationInfo } = verification
+  // counter 递增校验（防克隆）
+  if (authenticationInfo.newCounter <= credentialRow.counter) {
+    throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
+
+  // 更新 counter 和 last_used_at
+  db.prepare(`
+    UPDATE webauthn_credentials SET counter = ?, last_used_at = datetime('now') WHERE id = ?
+  `).run(authenticationInfo.newCounter, credentialRow.id)
+
+  return { artist, credentialRow }
+}
+
+// ─── 凭据管理（登录态） ───
+
+/** 更新凭据设备名 */
+export function updateCredentialName(credentialPkId: number, artistId: number, deviceName: string): WebAuthnCredentialRow {
+  const row = db.prepare('SELECT * FROM webauthn_credentials WHERE id = ? AND artist_id = ?').get(credentialPkId, artistId) as WebAuthnCredentialRow | undefined
+  if (!row) throw new AppError(E.WEBAUTHN_CREDENTIAL_NOT_FOUND, 404)
+  db.prepare('UPDATE webauthn_credentials SET device_name = ? WHERE id = ?').run(deviceName, credentialPkId)
+  return db.prepare('SELECT * FROM webauthn_credentials WHERE id = ?').get(credentialPkId) as WebAuthnCredentialRow
+}
+
+/** 删除凭据 */
+export function deleteCredential(credentialPkId: number, artistId: number): void {
+  const row = db.prepare('SELECT * FROM webauthn_credentials WHERE id = ? AND artist_id = ?').get(credentialPkId, artistId)
+  if (!row) throw new AppError(E.WEBAUTHN_CREDENTIAL_NOT_FOUND, 404)
+  db.prepare('DELETE FROM webauthn_credentials WHERE id = ?').run(credentialPkId)
+}
+
+// ─── 设备名生成 ───
+
+export function generateDeviceNameFromUA(ua?: string): string {
+  if (!ua) return '设备 ' + crypto.randomUUID().slice(0, 8)
+  const browser = extractBrowser(ua)
+  const os = extractOS(ua)
+  return `${browser} · ${os}`
+}
+
+function extractBrowser(ua: string): string {
+  if (ua.includes('Edg/')) return 'Edge'
+  if (ua.includes('Chrome/')) return 'Chrome'
+  if (ua.includes('Firefox/')) return 'Firefox'
+  if (ua.includes('Safari/')) return 'Safari'
+  return '浏览器'
+}
+
+function extractOS(ua: string): string {
+  if (ua.includes('Windows NT 10')) return 'Windows 10'
+  if (ua.includes('Windows NT 11')) return 'Windows 11'
+  if (ua.includes('Mac OS X')) return 'macOS'
+  if (ua.includes('Android')) return 'Android'
+  if (ua.includes('iPhone') || ua.includes('iPad')) return 'iOS'
+  if (ua.includes('Linux')) return 'Linux'
+  return '桌面'
+}

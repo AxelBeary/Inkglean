@@ -1330,3 +1330,86 @@ export interface AdminMessageFilters {
   status?: 'pending' | 'approved' | 'rejected'
   replied?: '0' | '1' | 0 | 1
 }
+
+
+// ─── REQ-040: WebAuthn Passkey ───
+
+/** WebAuthn 凭据行 */
+export interface WebAuthnCredential {
+  id: number
+  artist_id: number
+  credential_id: string
+  public_key: string
+  counter: number
+  device_name: string | null
+  created_at: string
+  last_used_at: string | null
+}
+
+/** POST /api/auth/webauthn/register-options 响应（PublicKeyCredentialCreationOptions 镜像） */
+export interface WebAuthnRegisterOptions {
+  challenge: string
+  rp: { name: string; id: string }
+  user: { id: string; name: string; displayName: string }
+  pubKeyCredParams: Array<{ type: string; alg: number }>
+  timeout?: number
+  excludeCredentials?: Array<{ id: string; type: string; transports?: string[] }>
+  authenticatorSelection?: { authenticatorAttachment?: string; residentKey?: string; userVerification?: string }
+  attestation?: string
+}
+
+/** POST /api/auth/webauthn/register-verify 响应 */
+export interface WebAuthnRegisterVerifyResult {
+  credential: WebAuthnCredential
+}
+
+/** POST /api/auth/webauthn/login-options 响应（PublicKeyCredentialRequestOptions 镜像） */
+export interface WebAuthnLoginOptions {
+  challenge: string
+  timeout?: number
+  rpId?: string
+  allowCredentials?: Array<{ id: string; type: string; transports?: string[] }>
+  userVerification?: string
+}
+
+/** POST /api/auth/webauthn/login-verify 响应 */
+export interface WebAuthnLoginVerifyResult {
+  isAdmin: boolean
+  artist: { id: number; name: string; subdomain: string; qqNumber: string }
+}
+
+/** GET /api/auth/webauthn/credentials 响应 */
+export interface WebAuthnCredentialsResult {
+  credentials: WebAuthnCredential[]
+}
+
+/** PATCH /api/auth/webauthn/credentials/:id 响应 */
+export interface WebAuthnUpdateCredentialResult {
+  credential: WebAuthnCredential
+}
+
+// ─── REQ-040: TOTP 自助重绑 ───
+
+/** POST /api/auth/totp/rebind-init 响应（有 Passkey 路径） */
+export interface RebindInitPasskeyResult {
+  verifyMethod: 'passkey'
+  options: WebAuthnRegisterOptions
+}
+
+/** POST /api/auth/totp/rebind-init 响应（无 Passkey 路径） */
+export interface RebindInitCodeResult {
+  verifyMethod: 'code'
+  tempKey: string
+  qrDataUrl: string | null
+  otpauthUri: string
+}
+
+export type RebindInitResult = RebindInitPasskeyResult | RebindInitCodeResult
+
+/** POST /api/auth/totp/rebind-confirm 响应 */
+export interface RebindConfirmResult {
+  success: boolean
+  message: string
+}
+
+

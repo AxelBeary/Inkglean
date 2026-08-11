@@ -62,6 +62,8 @@ const routes = [
       // #1: 留言管理独立页面（v0.24-C）
       { path: 'guestbook', name: 'ArtistGuestbook', component: () => import('../views/artist/GuestbookManage.vue'), meta: { titleKey: 'menu.guestbook', requiresAuth: true } },
       // v0.26 C: 开稿管理独立页（名额/额度/队列行为，从设置页移出）
+      // REQ-040: 账号与安全
+      { path: 'account', name: 'ArtistAccount', component: () => import('../views/artist/AccountSecurity.vue'), meta: { titleKey: 'menu.account', requiresAuth: true } },
       { path: 'slots', name: 'ArtistSlots', component: () => import('../views/artist/SlotManage.vue'), meta: { titleKey: 'menu.slots', requiresAuth: true } }
     ]
   },
