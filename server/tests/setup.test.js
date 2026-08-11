@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import { initDatabase } from '../src/db/init.js'
-import { isSetupCompleted, getSetupStatus, validateSetupToken, createAdminArtist, confirmTotpAndComplete } from '../src/features/setup/setup.service.js'
+import { isSetupCompleted, getSetupStatus, validateSetupToken, createAdminArtist, confirmTotpAndComplete, seedDefaultAddonTemplates } from '../src/features/setup/setup.service.js'
 import { computeTotp } from '../src/features/auth/totp.js'
 
 const ORIGINAL_SETUP_TOKEN = process.env.SETUP_TOKEN
@@ -195,5 +195,41 @@ describe('REQ-038 开箱设置 (Setup)', () => {
       qqNumber: '10005',
       code: computeTotp(result.totpSecret, Date.now() + 60000)
     })).toThrow('SETUP_ALREADY_DONE')
+  })
+
+  // ─── 812-B B7: 开箱预置基础增项 ───
+
+  it('TC-SETUP-B7-01: setup 完成后增项表含 4 条默认档', () => {
+    const result = createAdminArtist({
+      qqNumber: '10006',
+      name: '测试管理员'
+    })
+    const code = computeTotp(result.totpSecret, Date.now())
+    confirmTotpAndComplete({ qqNumber: '10006', code })
+
+    const rows = db.prepare(
+      'SELECT name, category, control_type, price_mode, default_price, sort_order, artist_id FROM addon_templates ORDER BY sort_order ASC, id ASC'
+    ).all()
+    expect(rows).toHaveLength(4)
+    expect(rows.map(r => r.name)).toEqual(['个人用途', '商业用途', '标准', '加急'])
+    expect(rows.map(r => r.category)).toEqual(['usage', 'usage', 'rush', 'rush'])
+    expect(rows.map(r => r.default_price)).toEqual([0, 50, 0, 30])
+    expect(rows.map(r => r.sort_order)).toEqual([0, 1, 2, 3])
+    expect(rows.every(r => r.control_type === 'switch' && r.price_mode === 'percent' && r.artist_id === null)).toBe(true)
+  })
+
+  it('TC-SETUP-B7-02: 二次补种不重复插入（幂等断言）', () => {
+    expect(seedDefaultAddonTemplates()).toBe(4)
+    // 表已非空 → 直接返回现有行数，不追加
+    expect(seedDefaultAddonTemplates()).toBe(4)
+    expect(db.prepare('SELECT COUNT(*) AS c FROM addon_templates').get().c).toBe(4)
+
+    // 存在画师自定义增项时同样不再插入
+    const artist = seedArtist()
+    db.prepare(
+      "INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity) VALUES (?, '自定义增项', 'switch', 'fixed', 10, NULL, 99, 'add', NULL)"
+    ).run(artist.id)
+    expect(seedDefaultAddonTemplates()).toBe(5)
+    expect(db.prepare('SELECT COUNT(*) AS c FROM addon_templates').get().c).toBe(5)
   })
 })

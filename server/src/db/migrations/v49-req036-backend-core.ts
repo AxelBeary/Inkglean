@@ -13,7 +13,7 @@ export const migration: Migration = {
       //  1. style_sizes 尺寸三态 display_status（available/showcase/closed，默认 available）
       //  2. addon_templates 重建：artist_id 可空（NULL=系统预置）+ kind 维度（add/multiply）+ max_quantity 数量上限
       //  3. style_addons 重建：addon_template_id 可空 + 外键 ON DELETE SET NULL（删除策略 C'）+ 模板快照列
-      //  4. 内置模板种子 5 个（系统预置 artist_id NULL，全画师共用）
+      //  4. 内置模板种子 4 个（系统预置 artist_id NULL，全画师共用；812-B B7 用户拍板口径）
       backupDbBeforeMigration(49)
 
       // ─── 1. style_sizes 加 display_status（ADD COLUMN 事务内安全，对照 v37） ───
@@ -119,13 +119,14 @@ export const migration: Migration = {
           INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity)
           VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
-        // REQ-036 §三：默认 5 个内置模板（用户指定）；商用/加急 = 百分比计价（SPEC-PRICE-2：百分比金额只基于基础价）
-        insert.run('加人物', 'quantity', 'fixed', 80, '人', 0, 'add', 10)
-        insert.run('背景', 'quantity', 'fixed', 50, '个', 1, 'add', 10)
-        insert.run('机甲', 'switch', 'fixed', 100, null, 2, 'add', null)
-        insert.run('商用', 'switch', 'percent', 50, null, 3, 'usage', null)
-        insert.run('加急', 'switch', 'percent', 100, null, 4, 'rush', null)
-        console.log('📦 迁移 v49: 内置模板种子已写入（加人物/背景/机甲/商用/加急）')
+        // 812-B B7（用户拍板：预置基础增项，不预置画风）：
+        // 用途 ×2（个人 1.0 / 商业 1.5）+ 加急 ×2（标准 1.0 / 加急 1.3），数值保守，管理员可改
+        // 全部强制开关控件 + 百分比计价（SPEC-PRICE-2：用途/加急是公式乘法位，百分比金额只基于基础价）
+        insert.run('个人用途', 'switch', 'percent', 0, null, 0, 'usage', null)
+        insert.run('商业用途', 'switch', 'percent', 50, null, 1, 'usage', null)
+        insert.run('标准', 'switch', 'percent', 0, null, 2, 'rush', null)
+        insert.run('加急', 'switch', 'percent', 30, null, 3, 'rush', null)
+        console.log('📦 迁移 v49: 内置模板种子已写入（个人用途/商业用途/标准/加急）')
       } else {
         console.log('📦 迁移 v49: 内置模板种子已存在，跳过')
       }
