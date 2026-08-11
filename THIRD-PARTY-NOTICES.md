@@ -1,6 +1,6 @@
 # 第三方资产与许可声明（THIRD-PARTY NOTICES）
 
-本文件列出「拾绘 / Foundink（原 Brushline-HuiYue）」项目中使用到的第三方字体、图标与其他资产的来源与许可。项目整体采用 **AGPL-3.0**（见 LICENSE），但以下第三方资产保留其各自许可。
+本文件列出「拾绘 / Inkglean（原 Brushline-HuiYue）」项目中使用到的第三方字体、图标与其他资产的来源与许可。项目整体采用 **AGPL-3.0**（见 LICENSE），但以下第三方资产保留其各自许可。
 
 ---
 

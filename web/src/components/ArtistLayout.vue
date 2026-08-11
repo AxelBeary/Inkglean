@@ -6,12 +6,12 @@
     <el-container style="min-height: 100vh">
       <!-- 侧边栏（R21: 可折叠，移动端隐藏）——宣纸主题纸色底 / 墨黑主题松烟底（REQ §三.1） -->
       <el-aside v-show="!isMobile" :width="asideWidth" class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
-        <!-- 品牌区：朱砂印章「绘」字 + 拾绘（文楷）+ FOUNDINK 副标 -->
+        <!-- 品牌区：朱砂印章「绘」字 + 拾绘（文楷）+ INKGLEAN 副标 -->
         <div class="brand" :class="{ 'brand--collapsed': collapsed }">
           <span class="brand-seal" aria-hidden="true">{{ $t('menu.logoSeal') }}</span>
           <div v-show="!collapsed" class="brand-text">
             <span class="brand-name font-display">{{ $t('menu.logo') }}</span>
-            <span class="brand-sub">FOUNDINK</span>
+            <span class="brand-sub">INKGLEAN</span>
           </div>
           <button
             class="collapse-btn"
