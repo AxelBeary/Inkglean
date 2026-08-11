@@ -30,7 +30,8 @@ describe('审计批 F-3 管理端 schema 校验', () => {
   afterEach(() => app.close())
 
   function auth() {
-    return { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+    // REQ-041：管理后台路由需 step-up 升级会话
+    return { Authorization: `Bearer ${createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
   }
 
   it('TC-F3-01: 非法路径参数 → 400（DELETE /artists/:id、bind-init、greetings/:id）', async () => {

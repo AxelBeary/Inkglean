@@ -42,7 +42,8 @@ describe('REQ-022 F5: GET /api/admin/messages 筛选参数', () => {
     return app.inject({
       method: 'GET',
       url,
-      headers: { Authorization: `Bearer ${createSession(admin.id, admin.token_version)}` }
+      // REQ-041：管理后台路由需 step-up 升级会话
+      headers: { Authorization: `Bearer ${createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
     })
   }
 

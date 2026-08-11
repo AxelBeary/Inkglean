@@ -15,7 +15,8 @@ function setAdmin(qqNumber) {
 
 /** 管理员 token */
 function adminToken(artist) {
-  return createSession(artist.id, artist.token_version)
+  // REQ-041：管理后台路由需 step-up 升级会话（入口级 30 分钟窗口内）
+  return createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
 }
 
 /** 为画师完成 TOTP 绑定（bind-init + bind-confirm），返回密钥（算码用） */

@@ -204,11 +204,13 @@ export async function verifyRegistration(
     throw new AppError(E.WEBAUTHN_REGISTRATION_FAILED, 400)
   }
 
-  // REQ-040 基线修复：registrationInfo.credential 为 WebAuthnCredential 对象（id/publicKey/counter），
-  // 原写法取顶层 credentialPublicKey/credentialID 在运行时也会 TypeError（typecheck 先行拦截）
-  const { publicKey: credentialPublicKey, id: credentialID, counter } = verification.registrationInfo.credential
-  const credentialIdBase64 = Buffer.from(credentialID).toString('base64url')
-  const publicKeyBase64 = Buffer.from(credentialPublicKey).toString('base64url')
+  // @simplewebauthn/server v13：registrationInfo.credential.id 已是 Base64URLString 直接用；
+  // publicKey 为 Uint8Array 需转 base64url（旧版顶层 credentialID/credentialPublicKey 字段已移除）。
+  // 注：对 id 再包 Buffer.from(...).toString('base64url') 会把字符串当 UTF-8 二次编码，是错的
+  const registered = verification.registrationInfo
+  const credentialIdBase64 = registered.credential.id
+  const publicKeyBase64 = Buffer.from(registered.credential.publicKey).toString('base64url')
+  const counter = registered.credential.counter
 
   // 检查是否已存在（幂等防护）
   const existing = db.prepare('SELECT id FROM webauthn_credentials WHERE credential_id = ?').get(credentialIdBase64)
@@ -246,10 +248,13 @@ export async function generateLoginOptions(requestHostname?: string) {
 /**
  * 验证认证响应（POST /api/auth/webauthn/login-verify）
  * 成功返回画师信息和凭据行
+ * REQ-041 step-up 扩展：expectedArtistId 传入时校验凭据归属（必须属于当前登录管理员），
+ * 不传则保持公开认证语义（既有调用不变）
  */
 export async function verifyLogin(
   credential: unknown,
-  requestHostname?: string
+  requestHostname?: string,
+  expectedArtistId?: number
 ): Promise<{ artist: Artist; credentialRow: WebAuthnCredentialRow }> {
   const rpId = getRpId(requestHostname)
   const origin = getRpOrigin(requestHostname)
@@ -278,6 +283,10 @@ export async function verifyLogin(
   const credentialRow = getCredentialByCredId(credId)
   if (!credentialRow) {
     // 防枚举：与凭据无效同响应
+    throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
+  // REQ-041：step-up 校验对象 = 当前登录管理员的凭据（他人凭据与无效同响应，防枚举）
+  if (expectedArtistId !== undefined && credentialRow.artist_id !== expectedArtistId) {
     throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
   }
 

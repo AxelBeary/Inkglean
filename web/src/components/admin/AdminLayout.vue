@@ -64,11 +64,15 @@
           <span class="topbar-title font-display">{{ pageTitle }}</span>
         </header>
         <el-main class="main-content">
-          <!-- 点名2: 管理后台子路由切换 fade-slide（与 App.vue 同款，克制） -->
+          <!-- 点名2: 管理后台子路由切换 fade-slide（与 App.vue 同款，克制）
+               REQ-041: 首次 step-up 探测完成前/未验证时不渲染子路由——
+               避免后台数据请求在验证弹窗背后先行触发（401 toast 与弹窗双焦点） -->
           <router-view v-slot="{ Component }">
-            <transition name="fade-slide" mode="out-in">
-              <component :is="Component" :key="$route.path" />
-            </transition>
+            <template v-if="!stepUpInitializing && !stepUpVisible">
+              <transition name="fade-slide" mode="out-in">
+                <component :is="Component" :key="$route.path" />
+              </transition>
+            </template>
           </router-view>
         </el-main>
       </el-container>
@@ -102,6 +106,9 @@
         </button>
       </div>
     </el-drawer>
+
+    <!-- REQ-041：入口级二次验证对话框（step-up 状态不足时弹出，验证通过后继续） -->
+    <StepUpDialog v-model="stepUpVisible" @verified="onStepUpVerified" @cancel="onStepUpCancel" />
   </div>
 </template>
 
@@ -113,6 +120,9 @@ import { useThemeStore } from '../../stores/theme.js'
 // REQ-037 批2 A4: 会话强校验 composable（与 ArtistLayout 共用单一实现；
 // 原内联版依赖的 useArtistStore/safeSetItem/artistApi 随之收敛进 composable）
 import { useSessionGuard } from '../../composables/useSessionGuard'
+// REQ-041: 管理后台二次验证对话框（入口级守卫）
+import StepUpDialog from './StepUpDialog.vue'
+import { stepUpApi } from '../../api/index.js'
 import { Management, User, ChatLineSquare, SetUp, Share, Monitor, TrendCharts, Operation, Back } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -178,6 +188,7 @@ onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
   mqMobile.addEventListener('change', onMobileChange)
   validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
+  checkStepUp() // REQ-041: 入口级 step-up 探测（30 分钟窗口内免弹，由后端判定）
 })
 onUnmounted(() => {
   mqNarrow.removeEventListener('change', onNarrowChange)
@@ -200,6 +211,40 @@ function goDrawer(path) {
 
 // ─── G-1（P2-8）: 后台会话强校验（REQ-037 批2 A4: 逻辑收敛进 useSessionGuard，ArtistLayout 同款复用） ───
 const { validateSession } = useSessionGuard()
+
+// ─── REQ-041: 管理后台二次验证（会话升级）入口级守卫 ───
+const stepUpVisible = ref(false)
+const stepUpChecking = ref(false)
+// 首次探测完成前不渲染子路由（避免后台请求在验证弹窗背后先行触发）
+const stepUpInitializing = ref(true)
+
+/** 探测 step-up 状态：不足（401 STEP_UP_REQUIRED）→ 弹验证；窗口内 → 免弹 */
+async function checkStepUp() {
+  if (stepUpChecking.value) return
+  stepUpChecking.value = true
+  try {
+    await stepUpApi.status()
+  } catch (err) {
+    // 只响应后端 401 码；其余（网络/权限等）交由 useSessionGuard 兜底，不阻塞骨架
+    if (err.status === 401 && err.code === 'STEP_UP_REQUIRED') {
+      stepUpVisible.value = true
+    }
+  } finally {
+    stepUpChecking.value = false
+    stepUpInitializing.value = false
+  }
+}
+
+/** 验证通过：cookie 已覆盖为升级 token，后续 admin API 自然放行 */
+function onStepUpVerified() {
+  stepUpVisible.value = false
+}
+
+/** 取消验证：未升级不得停留在管理后台 → 回画师后台 */
+function onStepUpCancel() {
+  stepUpVisible.value = false
+  router.push('/dashboard')
+}
 </script>
 
 <style scoped>

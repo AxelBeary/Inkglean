@@ -19,7 +19,8 @@ describe('TOTP 登录端到端 (REQ-027)', () => {
   function setupAdmin(qq = '10001') {
     db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(qq)
     const admin = seedArtist({ qq_number: qq, subdomain: 'admin-totp' })
-    return { admin, token: createSession(admin.id, admin.token_version) }
+    // REQ-041：管理后台路由需 step-up 升级会话
+    return { admin, token: createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() }) }
   }
 
   /** 管理员生成绑定二维码，返回密钥 */

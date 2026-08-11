@@ -1,4 +1,5 @@
 import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
+import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import * as artistService from '../artist/artist.service.js'
 import * as styleService from '../pricing/style.service.js'
 import * as platformService from '../platform/platform.service.js'
@@ -21,11 +22,22 @@ import type { ArtistOrderRow } from '../../types/entities.js'
 
 export default async function adminRoutes(fastify: FastifyInstance) {
 
+  // REQ-041：批量挂载 step-up 守卫（所有 /api/admin 路由，追加在 requireAdmin 之后；
+  // /api/admin/transfer 自动改用动作级 requireAdminReauth——60 秒强制再验）
+  registerAdminStepUpHooks(fastify)
+
   // P2-7 + F-3（P3-22）: 统一 params schema（AJV 自动把路径参数强转为整数，非法值 400）
   const intId = { params: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] } }
   const intIdAid = { params: { type: 'object', properties: { id: { type: 'integer' }, aid: { type: 'integer' } }, required: ['id', 'aid'] } }
   const intIdGid = { params: { type: 'object', properties: { id: { type: 'integer' }, gid: { type: 'integer' } }, required: ['id', 'gid'] } }
   const intIdSid = { params: { type: 'object', properties: { id: { type: 'integer' }, sid: { type: 'integer' } }, required: ['id', 'sid'] } }
+
+  /**
+   * GET /api/admin/stepup-status
+   * REQ-041：前端入口级轻量探测——已升级且在 30 分钟窗口内返回 200 { verified: true }；
+   * 未升级/超时由 requireAdminStepUp 返回 401 STEP_UP_REQUIRED（前端据此弹 StepUpDialog）
+   */
+  fastify.get('/api/admin/stepup-status', { preHandler: requireAdmin }, async () => ({ verified: true }))
 
   /**
    * GET /api/admin/artists

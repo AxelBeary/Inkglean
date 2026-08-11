@@ -1,4 +1,5 @@
 import { requireAuth, requireAdmin } from '../../shared/middleware/auth.js'
+import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { verifySession } from '../auth/auth.service.js'
 import { getArtistById } from '../artist/artist.service.js'
@@ -39,6 +40,10 @@ function getOptionalArtist(request: FastifyRequest): Artist | null {
 }
 
 export default async function trackingRoutes(fastify: FastifyInstance) {
+
+  // REQ-041：/api/admin/tracking* 同为管理后台路由，受 step-up 入口级守卫保护
+  // （onRoute 按 url 前缀过滤，/api/events、/api/artist/tracking/* 不受影响）
+  registerAdminStepUpHooks(fastify)
 
   /** POST /api/anon-token — 签发匿名凭证（无鉴权；前端首次上报前自动调用，前端自存） */
   fastify.post('/api/anon-token', async (request, reply) => {
