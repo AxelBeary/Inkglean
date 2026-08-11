@@ -1,5 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-11 v80（**REQ-037 波2 四路全部合入，画师面板前端优化全收官**）——master `6d22b6d` 与 origin 同步。
+> ✅ **波2 四路 codex 并行施工全部合入**（各自 worktree 文件领地互斥，一号逐路独立复跑门禁验收后依次合入，非 self-report）：①**批3 数据效率**（`21e6a15`/`c05519e`）：OrderList 复合筛选会话内缓存（60s TTL，缓存写入放 seq 校验后防旧请求污染）+拉取进度条、订单号列改真链接（键盘可达）、≤600px 筛选按钮换行胶囊收纳；+4 测试。②**批4a 可访问**（`921bf3f`/`2fb93aa`）：侧栏+抽屉导航 div[role=link]→真 router-link（去手写 keydown/同路径去重逻辑随之退役）、artist-tokens.css 全局 :focus-visible 焦点环（a/button/[tabindex]，EP 内部不碰）；**一号审计补漏 `0924f23`：QuickNote 两处 outline:none 阻塞焦点环已清除**（outline:none 全库裁决表见 REQ-037 §十：SliderSwitch 自带焦点环保留/Login 冻结/客户端模板非领地）。③**批4b 一致性与拆分**（`1fa5080`/`6d22b6d`）：Dashboard 留言审核区抽 GuestbookReviewCard（三态对齐 TodoList 模式：骨架/错误+重试/InkEmpty，v-loading 遮罩退役）+其余 5 模块三态对照表（GreetingHero/StatCards/QuickActions/SlotOverview 静默降级为有意设计不动）；Settings 791 行拆三 tab 子组件（父留全部状态/脏检测/BUG-7 守卫，DOM 逐字保留自查表在交付报告）+头像上传区/模板卡/配色卡键盘可达；+7 测试。④**批5 性能候选**（`609c3dd`/`498cf47`）：Noto Serif SC 零引用裁决删除 **-2.9MB**（一号独立复核字族栈只含 Noto Sans/WenKai）；manualChunks（vendor-vue/vendor-sentry）**main gzip 174.3→91.7KB（-47%）**；preload 评估不做（unicode-range 按需加载，preload 负收益）；i18n 懒加载早已存在不重复做。
+> ✅ **验收门禁（一号独立复跑）**：web lint+vue-tsc 0 错 / vitest **349/349**（338+4+7）/ check-i18n 过 / build 过；server **1213/1213**；E2E **7/7**；像素对比：波2 合入后 48 帧 vs 批2 基线，11 帧未变页面哈希全同，其余差异逐张视觉自审均为有意改动。**容器已重建**（烘焙新构建产物，dist 可见 vendor-vue/main 新 chunk）；验收截图 72 帧（12 页×3 宽度×纸白/墨黑）在 workspace/temp/req037-acceptance/（真实登录+落地断言；生产库画师均未绑 TOTP 未动生产数据，截图走开发库同构建产物）。
+> ⚠️ **遗留小项**：①用户终验 72 帧截图 + 实机体验（订单详情错误态/看板排序撤销/筛选进度条/窄屏收纳/Tab 焦点环）；②codex 渠道曾 402 欠费阻塞（批2 期间，用户充值后恢复）——教训入账：**并行派工前先小任务探活渠道额度**；③H1 断点口径未强行归拢（改断点=改行为，随触碰收敛）；④SettingsShowcaseTab 头部 1 处 eslint-disable vue/no-mutating-props（父态子视图受控模式，非蒙混）。
+
 > 最后更新：2026-08-11 v79（**REQ-037 批2 结构批合入 + 波2 四路 codex 并行施工在途**）——master `e9c83d1` 与 origin 同步。
 > ✅ **批2 结构批合入**（`87b8fdf`/`e9c83d1`，**一号自施工**——codex 渠道 402 欠费阻塞期用户知情，恢复后波2 已切回 codex）：A1 画师后台嵌套路由（ArtistLayoutRoute 载体，ArtistLayout 全会话单挂载：切页不再重挂骨架，getMe/留言角标请求每会话各一次；内容区过渡沿用内部 keyed transition，02C 纪律不变）+ A4 useSessionGuard.ts 抽取（ArtistLayout/AdminLayout 重复 validateSession 收敛，AdminLayout 死引用一并清除）。23 视图去包装（机械脚本+eslint --fix，BOM 保留），/tiers 保持 flat（REQ-036 冻结区，代价已注释）。+3 测试（router.nested.test.js）。
 > ✅ **验收（一号独立实测）**：web lint+vue-tsc 0 警 0 错 / vitest **338/338**（基线 335+3）/ check-i18n 过 / build 过；server **1213/1213**；E2E **7/7**；**像素对比 48/48 哈希一致**（12 页×4 档位，真实 TOTP 登录+落地断言+问候语拦截固定化；首轮 44/48 的 dashboard 差异已查实为拦截路径笔误造成的随机问候语假差异，修正后成对重拍全同）。教训入账：**截图脚本的 API 拦截模式必须对照实际端点路径（/api/artist/* 前缀）验证生效，否则防不住随机文案假差异**。
@@ -108,7 +113,7 @@
 4. **视觉批（已开局）**：登录页已合入；后续按原型打磨稿推进后台壳/Dashboard；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批；@property 注册+550ms 缓动+手剪圆角 token 从 Login.vue 迁入 artist-tokens.css 随下一视觉批。
 5. **等用户侧**：终验生产登录页（截图已在 workspace/temp/prototype-login）；复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；REQ-037 批1 实机体验（订单详情错误态/看板排序撤销）。
 6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
-7. **REQ-037 后续批次**：批3/4a/4b/5 四路 codex 并行施工中（验收后依次合入）；合入收官后容器重建+双主题三宽度截图交用户终验。
+7. **REQ-037 已收官**：批0-批5 全部合入；等用户终验 72 帧截图与实机体验；后续若视觉批（Dashboard 骨架重设计）开工，基于本次嵌套路由/组件化后的新结构施工。
 8. **已裁决不动（2026-08-10）**：分身提「双包结构致 @sentry/esbuild/eslint 重复安装 ~60MB，应上 npm workspaces」——实测否决：@sentry 两侧是不同包（node 系 vs browser/vue 系，36.5MB 任何架构都要装两份）；esbuild 两侧版本不同（0.28.1 vs 0.25.12，workspaces 只去重同名同版本）；真正可去重仅 eslint ~3MB。迁移代价（lock 合并+Dockerfile/CI 重写）≫ 收益，且独立包结构恰好对齐部署边界（server 容器运行时 / web 静态产物），非债是边界。分身勿重提。
 
 - **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）；登录原型已安装进仓库，全史留档 workspace/temp/prototype-login（login-v0.1→v0.6 + notes.md + 审计脚本）。
@@ -119,12 +124,12 @@
 ---
 ## master 状态
 
-- **HEAD**：`e9c83d1`（REQ-037 批2 合入，与 origin 同步；波2 四路 worktree 在途）
-- **工作树**：主仓干净；活跃 worktree 4 个（artist-commission-w-req037{b3,b4a,b4b,b5}，用完即删）
-- **测试基线**：server **1213/1213**（94 文件）· web **338/338**（40 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 警 0 错 · check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
+- **HEAD**：`6d22b6d`（REQ-037 批0-批5 全部合入，与 origin 同步）
+- **工作树**：主仓干净；无活跃 worktree（波2 四个已删）
+- **测试基线**：server **1213/1213**（94 文件）· web **349/349**（42 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 错（web 1 警告=搬移的须知 v-html 已有消毒）· check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
 - **后端 100% TS + strict 全开 + any 清零**（init.js 豁免已随 v77 拆分清偿）；**前端 TS 增量纪律生效**（web/tsconfig.json strict + allowJs，新文件一律 TS，vue-tsc 进 lint 与 CI）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
-- **容器**：✅ **已重建 = 审计修复战役最新**（2026-08-11，迁移 v55 已应用回读验证；备份：bak-pre-audit-rebuild-20260811 + BACKUP_OK 每日备份）
+- **容器**：✅ **已重建 = REQ-037 全批次最新**（2026-08-11 波2 收官重建，烘焙 vendor-vue/main 新 chunk；迁移 v55 无变化）
 - **CI/CD**：GitHub Actions（ci.yml + e2e.yml）；**仓库 Actions 权限 = selected（仅 GitHub 官方行动）**——改回 local_only 会导致全部 startup_failure，勿动（批7 事故教训）；web job 已加 typecheck（v77）
 - **迁移**：**v55** 为最新（v53 version 乐观锁 / v54 幂等键 / v55 参考图归属）；**迁移代码已版本化**（v77：server/src/db/migrations/ 55 个 TS 文件，新增迁移按 vNN-name.ts 单文件 + index.ts 聚合）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（前端重构前置）
 - **协议**：主仓库 **AGPL-3.0**；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md
