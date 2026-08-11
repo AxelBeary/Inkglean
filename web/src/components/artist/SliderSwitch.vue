@@ -186,4 +186,9 @@ function onKeydown(e) {
 .sw-track--default .sw-option { font-size: calc(var(--font-scale, 1) * 13px); }
 .sw-track--small { height: 28px; }
 .sw-track--small .sw-option { font-size: calc(var(--font-scale, 1) * 12px); }
+/* 812-C B9: 窄屏容器不足时允许自身收缩（仅布局友好，不改交互；桌面不受影响） */
+@media (max-width: 768px) {
+  .sw-track { max-width: 100%; }
+  .sw-option { min-width: 0; }
+}
 </style>

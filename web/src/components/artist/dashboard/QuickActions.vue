@@ -240,6 +240,10 @@ function go(action) {
 @media (max-width: 400px) {
   .quick-grid { grid-template-columns: repeat(2, 1fr); }
 }
+/* 812-C B9: 窄屏状态卡独占整行，滑块不与操作按钮挤压（纵向堆叠；桌面不变） */
+@media (max-width: 600px) {
+  .quick-card--status { grid-column: 1 / -1; }
+}
 /* 快捷区纵向容器 */
 .quick-actions-wrap { display: flex; flex-direction: column; gap: 10px; }
 </style>
