@@ -32,27 +32,25 @@
                 v-if="collapsed" placement="right" effect="light" :hide-after="200"
                 :content="$t(item.labelKey)"
               >
-                <div
+                <router-link
                   class="nav-item" :class="{ 'nav-item--active': activeMenu === item.index }"
-                  role="link" tabindex="0"
-                  @click="goMenu(item.index)" @keydown.enter="goMenu(item.index)"
+                  :to="item.index"
                 >
                   <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="nav-badge">
                     <el-icon><component :is="item.icon" /></el-icon>
                   </el-badge>
-                </div>
+                </router-link>
               </el-tooltip>
-              <div
+              <router-link
                 v-else
                 class="nav-item" :class="{ 'nav-item--active': activeMenu === item.index }"
-                role="link" tabindex="0"
-                @click="goMenu(item.index)" @keydown.enter="goMenu(item.index)"
+                :to="item.index"
               >
                 <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="nav-badge">
                   <el-icon><component :is="item.icon" /></el-icon>
                 </el-badge>
                 <span class="nav-label">{{ $t(item.labelKey) }}</span>
-              </div>
+              </router-link>
             </template>
           </div>
         </nav>
@@ -168,17 +166,17 @@
       <nav class="nav nav--drawer">
         <div v-for="group in menuGroups" :key="group.labelKey" class="nav-group">
           <div class="nav-title">{{ $t(group.labelKey) }}</div>
-          <div
+          <router-link
             v-for="item in group.items" :key="item.index"
             class="nav-item" :class="{ 'nav-item--active': activeMenu === item.index }"
-            role="link" tabindex="0"
-            @click="goMenuDrawer(item.index)" @keydown.enter="goMenuDrawer(item.index)"
+            :to="item.index"
+            @click="drawerVisible = false"
           >
             <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="nav-badge">
               <el-icon><component :is="item.icon" /></el-icon>
             </el-badge>
             <span class="nav-label">{{ $t(item.labelKey) }}</span>
-          </div>
+          </router-link>
         </div>
       </nav>
       <div class="drawer-footer">
@@ -387,14 +385,6 @@ function toggleCollapse() {
 }
 
 // ─── 导航与操作 ───
-function goMenu(index) {
-  if (route.path !== index) router.push(index)
-}
-/** 抽屉导航：点击后关闭抽屉再跳转 */
-function goMenuDrawer(index) {
-  drawerVisible.value = false
-  goMenu(index)
-}
 
 function toggleLang() {
   setLocale(locale.value === 'zh-CN' ? 'en' : 'zh-CN')
@@ -691,4 +681,7 @@ const { validateSession } = useSessionGuard()
 /* drawer 本体：淡入 + 轻微上移（替代 EP 左侧全滑入；禁弹跳旋转） */
 .artist-scope .mobile-drawer :deep(.el-drawer-fade-enter-from .ltr),
 .artist-scope .mobile-drawer :deep(.el-drawer-fade-leave-to .ltr) { transform: translateY(8px); }
+
+/* ─── REQ-037 批4a A2: 原生 <a> 重置——router-link 渲染为 <a>, 消除默认蓝字下划线 ─── */
+a.nav-item { text-decoration: none; color: inherit; }
 </style>
