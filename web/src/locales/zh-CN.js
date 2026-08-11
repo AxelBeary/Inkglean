@@ -256,6 +256,8 @@ export default {
     notFound: '页面不存在'
   },
   menu: {
+    // REQ-040: 账号与安全菜单项
+    account: '账号与安全',
     logo: '绘约',
     // v0.38: 侧栏品牌印章字（REQ-026 §三.1 朱砂印章「绘」）
     logoSeal: '绘',
@@ -338,6 +340,41 @@ export default {
     delete: '删除',
     copied: '已复制',
     saveFailed: '保存失败（浏览器可能处于隐私模式）'
+  },
+  // REQ-040: 账号与安全页
+  account: {
+    title: '账号与安全',
+    accountInfo: '账号信息',
+    qqLabel: 'QQ 号',
+    qqHint: 'QQ 号是登录标识，不可修改',
+    profileHint: '修改昵称、头像等个人资料请前往',
+    profileLink: '主页设置',
+    totpSection: '动态口令（TOTP）',
+    totpBound: '已绑定',
+    totpNotBound: '未绑定',
+    totpRebind: '自助重绑',
+    totpRebindStep1: '验证身份',
+    totpRebindStep2: '扫描新二维码',
+    totpRebindStep3: '确认新码',
+    totpRebindDone: '重绑完成',
+    totpRebindPasskeyHint: '使用 Passkey 验证身份',
+    totpRebindCodeHint: '输入当前验证器上的 6 位码',
+    totpRebindNewCodeHint: '输入新绑定验证器上的 6 位码',
+    totpRebindNewCodePlaceholder: '新验证器上的 6 位数字',
+    totpRebindConfirm: '确认重绑',
+    totpRebindCooldown: '重绑过于频繁，剩余 {hours} 小时后可再次操作',
+    totpRebindAdminExempt: '管理员操作不受限制',
+    totpRebindSuccess: 'TOTP 已重绑成功，所有设备已强制登出，请重新登录',
+    passkeySection: 'Passkey 登录设备',
+    passkeyRegister: '注册本设备',
+    passkeyRegistering: '正在注册…',
+    passkeyDeviceName: '设备名',
+    passkeyLastUsed: '最后使用',
+    passkeyNeverUsed: '未使用',
+    passkeyDelete: '删除',
+    passkeyDeleteConfirm: '确定删除此 Passkey 凭据？删除后该设备无法使用 Passkey 登录。',
+    passkeyEmpty: '还没有注册设备，点击上方按钮注册',
+    passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
   },
   // REQ-035 工具集后置: 截稿日建议（工具页文案）
   deadlineAdvice: {
@@ -760,6 +797,11 @@ export default {
     downloadFailed: '下载失败，请重试或联系画师'
   },
   login: {
+    // REQ-040: Passkey 登录按钮
+    passkeyLogin: '使用 Windows Hello / 指纹登录',
+    passkeyLogging: '正在验证身份…',
+    passkeyError: 'Passkey 验证失败，请重试或使用动态码登录',
+
     // v0.46 纸墨登录页：品牌区（朱砂印 + 绘约 + 副标）
     brandTitle: '绘约', subtitle: '画师后台',
     // 偏好区：主题 + 语言（与后台同逻辑）
@@ -1520,62 +1562,14 @@ export default {
       empty: '暂无事件数据',
 
     }
-  }
-}
-
-,
-  setup: {
-    pageTitle: '开箱设置',
-    step1Title: '欢迎使用绘约',
-    step1Desc: '首次使用需要先完成开箱设置，设置管理员账号后即可开始使用。',
-    step1Lang: '选择语言',
-    step1TokenLabel: '安装口令',
-    step1TokenPlaceholder: '请输入安装口令',
-    step1TokenRequired: '请先输入安装口令',
-    step1TokenError: '安装口令错误',
-    step1Start: '开始设置',
-    step2Title: '创建管理员账号',
-    step2Desc: '设置管理员信息，管理员拥有平台最高权限。',
-    step2QqLabel: '管理员QQ号',
-    step2QqPlaceholder: '输入你的QQ号',
-    step2NameLabel: '显示名称',
-    step2NamePlaceholder: '输入你的显示名称',
-    step2StudioLabel: '同时创建我的画师工作室',
-    step2StudioNameLabel: '工作室名称',
-    step2StudioNamePlaceholder: '输入工作室名称',
-    step2StudioSubdomainLabel: '工作室子域名',
-    step2StudioSubdomainPlaceholder: '如 myart（小写字母/数字/连字符）',
-    step2Submit: '创建管理员',
-    step2Success: '管理员账号已创建',
-    step2QqRequired: '请填写QQ号',
-    step2NameRequired: '请填写显示名称',
-    step2SubdomainRequired: '请填写工作室子域名',
-    step2SubdomainFormat: '子域名只能包含小写字母、数字和连字符，2-20个字符',
-    step3Title: '绑定动态口令',
-    step3Desc: '请使用验证器 App 扫描下方二维码，然后输入 6 位动态码完成验证。',
-    step3QrAlt: 'TOTP 二维码',
-    step3QrRegenerate: '重新生成',
-    step3CodeLabel: '6 位动态码',
-    step3CodePlaceholder: '输入验证器上显示的 6 位数字',
-    step3CodeRequired: '请输入 6 位动态码',
-    step3CodeFormat: '动态码为 6 位数字',
-    step3CodeError: '动态口令错误，请重试',
-    step3Confirm: '验证并完成设置',
-    step3Success: '动态口令绑定成功！',
-    step4Title: '设置完成',
-    step4Desc: '开箱设置已完成，现在可以登录使用了。',
-    step4Login: '去登录',
-    step4TokenNote: '请妥善保管安装口令，后续重置需要用到。',
-    error: '设置过程出错，请重试',
-    retry: '重试',
-    prevStep: '上一步',
-    nextStep: '下一步'
   },
   setup: {
     pageTitle: '开箱设置',
     step1Title: '欢迎使用绘约',
     step1Desc: '首次使用需要先完成开箱设置，设置管理员账号后即可开始使用。',
     step1Lang: '选择语言',
+    // 语言切换按钮固定显示各语言自身写法（跨语言常量）
+    langZh: '中文', langEn: 'English',
     step1TokenLabel: '安装口令',
     step1TokenPlaceholder: '请输入安装口令',
     step1TokenRequired: '请先输入安装口令',
@@ -1619,3 +1613,4 @@ export default {
     nextStep: '下一步'
   }
 }
+

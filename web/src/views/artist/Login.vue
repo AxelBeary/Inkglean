@@ -29,6 +29,15 @@
             >
           </div>
 
+          <!-- REQ-040: Passkey login button -->
+          <div v-if="passkeySupported" class="passkey-section">
+            <button class="passkey-btn" type="button" :disabled="logging || loginOk" @click="passkeyLogin">
+              <el-icon><Lock /></el-icon>
+              {{ passkeyLogging ? t('login.passkeyLogging') : t('login.passkeyLogin') }}
+            </button>
+            <div class="passkey-divider"><span>{{ t('common.or') }}</span></div>
+          </div>
+
           <div class="field" :class="{ 'field-error': errCode }">
             <label class="field-label" for="login-code">{{ t('login.codeLabel') }}</label>
             <input
@@ -86,6 +95,7 @@ import PaperCard from '../../components/artist/login/PaperCard.vue'
 import LoginPrefs from '../../components/artist/login/LoginPrefs.vue'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
+import { Lock } from '@element-plus/icons-vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -102,6 +112,8 @@ onUnmounted(() => themeStore.leaveArtistScope())
 const h = new Date().getHours()
 const daypart = h >= 5 && h < 10 ? 'morning' : h >= 16 && h < 20 ? 'dusk' : (h >= 20 || h < 5) ? 'night' : 'noon'
 
+const passkeySupported = ref(window.PublicKeyCredential !== undefined && window.isSecureContext === true)
+const passkeyLogging = ref(false)
 const qqNumber = ref('')
 const code = ref('')
 const logging = ref(false)
@@ -114,6 +126,41 @@ const paperCardRef = ref(null)
 
 const { switchLang } = useLocaleSwitch(() => paperCardRef.value?.getCardEl())
 const onSwitchLang = (next) => switchLang(next, locale.value)
+
+async function passkeyLogin() {
+  noticeError.value = ''
+  const qq = qqNumber.value.trim()
+  if (!qq) {
+    errQq.value = true
+    noticeError.value = t('login.enterQq')
+    return
+  }
+  if (!/^\d+$/.test(qq)) {
+    errQq.value = true
+    noticeError.value = t('login.qqInvalid')
+    return
+  }
+
+  passkeyLogging.value = true
+  try {
+    const { webauthnApi } = await import('../../api/index.js')
+    const options = await webauthnApi.loginOptions(qq)
+    const credential = await navigator.credentials.get({ publicKey: options })
+    if (!credential) throw new Error('cancelled')
+    const result = await webauthnApi.loginVerify(credential)
+    loginOk.value = true
+    const redirect = route.query.redirect
+    const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
+      ? redirect
+      : result.isAdmin ? '/admin' : '/dashboard'
+    setTimeout(() => router.push(target), 500)
+  } catch (err) {
+    if (err.name === 'NotAllowedError' || err.message === 'cancelled') return
+    noticeError.value = err.message || t('login.passkeyError')
+  } finally {
+    passkeyLogging.value = false
+  }
+}
 
 async function login() {
   noticeError.value = ''
@@ -319,6 +366,53 @@ async function login() {
 
 .field-error .field-label { color: var(--zs); }
 
+/* ── REQ-040: Passkey 登录按钮 ── */
+.passkey-section {
+  margin-bottom: 20px;
+}
+.passkey-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 0;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-paper);
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: calc(var(--font-scale, 1) * 14px);
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.passkey-btn:hover:not(:disabled) {
+  background: var(--hq-bg);
+  box-shadow: var(--sh-1);
+}
+.passkey-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.passkey-btn .el-icon {
+  font-size: 18px;
+}
+.passkey-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 12px);
+}
+.passkey-divider::before,
+.passkey-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 /* ── 登录按钮：一锭墨（手剪圆角 + 深浅不均 + 底缘厚墨） ── */
 .login-btn {
   display: inline-flex;
@@ -479,3 +573,4 @@ async function login() {
   }
 }
 </style>
+

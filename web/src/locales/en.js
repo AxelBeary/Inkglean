@@ -256,6 +256,8 @@ export default {
     notFound: 'Page Not Found'
   },
   menu: {
+    // REQ-040: Account & Security menu item
+    account: 'Account & Security',
     logo: 'HuiYue',
     // v0.38: sidebar brand seal character (REQ-026 §三.1 vermillion seal)
     logoSeal: '绘',
@@ -338,6 +340,41 @@ export default {
     delete: 'Delete',
     copied: 'Copied',
     saveFailed: 'Save failed (the browser may be in private mode)'
+  },
+  // REQ-040: Account & Security page
+  account: {
+    title: 'Account & Security',
+    accountInfo: 'Account Info',
+    qqLabel: 'QQ Number',
+    qqHint: 'Your QQ number is your login ID and cannot be changed',
+    profileHint: 'Edit your name, avatar and other profile info at',
+    profileLink: 'Page Settings',
+    totpSection: 'Authenticator (TOTP)',
+    totpBound: 'Bound',
+    totpNotBound: 'Not bound',
+    totpRebind: 'Rebind',
+    totpRebindStep1: 'Verify Identity',
+    totpRebindStep2: 'Scan New QR Code',
+    totpRebindStep3: 'Confirm New Code',
+    totpRebindDone: 'Rebind Complete',
+    totpRebindPasskeyHint: 'Verify with Passkey',
+    totpRebindCodeHint: 'Enter the current 6-digit code from your authenticator',
+    totpRebindNewCodeHint: 'Enter the 6-digit code from your new authenticator',
+    totpRebindNewCodePlaceholder: '6-digit code from new authenticator',
+    totpRebindConfirm: 'Confirm Rebind',
+    totpRebindCooldown: 'Rebind too frequent. Please wait {hours} hours before retrying.',
+    totpRebindAdminExempt: 'Admin operations are not restricted',
+    totpRebindSuccess: 'TOTP rebound successfully. All devices have been logged out. Please log in again.',
+    passkeySection: 'Passkey Devices',
+    passkeyRegister: 'Register This Device',
+    passkeyRegistering: 'Registering…',
+    passkeyDeviceName: 'Device Name',
+    passkeyLastUsed: 'Last Used',
+    passkeyNeverUsed: 'Never',
+    passkeyDelete: 'Delete',
+    passkeyDeleteConfirm: 'Delete this Passkey credential? This device will no longer be able to log in with Passkey.',
+    passkeyEmpty: 'No devices registered yet. Click the button above to register.',
+    passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
   },
   // REQ-035 postponed tools: Deadline advice (tools page copy)
   deadlineAdvice: {
@@ -762,6 +799,10 @@ export default {
     downloadFailed: 'Download failed, please retry or contact the artist'
   },
   login: {
+    // REQ-040: Passkey login button
+    passkeyLogin: 'Sign in with Windows Hello / Fingerprint',
+    passkeyLogging: 'Verifying identity…',
+    passkeyError: 'Passkey verification failed. Please try again or use an auth code.',
     // v0.46 paper-ink login page: brand block (seal + Huiyue + subtitle)
     brandTitle: 'Huiyue', subtitle: 'Artist Studio',
     // Preferences: theme + language (same logic as the studio)
@@ -1530,6 +1571,8 @@ export default {
     step1Title: 'Welcome to HuiYue',
     step1Desc: 'First-time setup is required. Create your admin account to get started.',
     step1Lang: 'Language',
+    // Language switch buttons always show each language's own name (cross-locale constants)
+    langZh: '中文', langEn: 'English',
     step1TokenLabel: 'Setup Token',
     step1TokenPlaceholder: 'Enter the setup token',
     step1TokenRequired: 'Please enter the setup token',
@@ -1573,3 +1616,5 @@ export default {
     nextStep: 'Next'
   }
 }
+
+

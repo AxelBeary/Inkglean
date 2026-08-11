@@ -12,40 +12,82 @@ export interface Artist {
   qq_number: string
   name: string
   subdomain: string
-  artist_code: string | null
-  avatar: string | null
-  bio: string | null
+  artist_code: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  avatar: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  bio: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   status: ArtistStatus
-  contact_qq: string | null
+  contact_qq: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   token_version: number
   // REQ-027: TOTP 动态口令绑定（v41）
-  totp_secret: string | null
+  totp_secret: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   totp_verified: number
   totp_failed_attempts: number
   totp_locked_until: number | null
-  deleted_at: string | null
-  weibo_url: string | null
-  bilibili_url: string | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null|totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  deleted_at: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  weibo_url: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  bilibili_url: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   notify_enabled: number
   template_id: string
   palette_id: string
-  custom_page_path: string | null
-  dashboard_default_panel: string | null
-  revision_note: string | null
-  custom_links: string | null
-  accent_color: string | null
-  platform_urls: string | null
-  inspiration_tags: string | null
+  custom_page_path: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  dashboard_default_panel: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  revision_note: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  custom_links: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  accent_color: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  platform_urls: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  inspiration_tags: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   order_template_id: string
-  batch_limit: number | null
+  batch_limit: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   buffer_limit: number
   auto_promote: number
   hide_queue_position: number
   hide_promote_notify: number
   buffer_short_form: number
-  announcement: string | null
-  announcement_expires_at: string | null
-  monthly_quota: number | null
+  announcement: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  announcement_expires_at: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  monthly_quota: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   multi_style_enabled: number
   created_at: string
 }
@@ -56,9 +98,15 @@ export interface Tier {
   artist_id: number
   name: string
   price: number
-  description: string | null
-  example_image: string | null
-  work_days: number | null
+  description: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  example_image: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  work_days: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   sort_order: number
   visibility: string
 }
@@ -74,21 +122,39 @@ export interface Order {
   id: number
   order_no: string
   artist_id: number
-  style_size_id: number | null
+  style_size_id: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   client_qq: string
-  client_name: string | null
-  description: string | null
+  client_name: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  description: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   priority: OrderPriority
   status: OrderStatus
   source: 'self' | 'manual'
   client_notify: number
-  queue_position: number | null
-  completed_at: string | null
-  price_snapshot: number | null
-  total_price_cents: number | null
+  queue_position: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  completed_at: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  price_snapshot: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  total_price_cents: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   queue_zone: 'formal' | 'buffer'
-  current_stage_id: number | null
-  deadline: string | null
+  current_stage_id: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  deadline: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   paid_total_cents: number
   // D-1（R-5/P3-1）: 乐观锁版本号——写路径守卫（version = version + 1）
   version: number
@@ -101,11 +167,15 @@ export interface WorkflowStage {
   id: number
   artist_id: number
   name: string
-  description: string | null
+  description: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   sort_order: number
   takes_payment: number
   basis_points: number
-  speech_template: string | null
+  speech_template: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   random_template: number
 }
 
@@ -118,7 +188,9 @@ export interface Multiplier {
   type: 'usage' | 'rush'
   name: string
   multiplier: number
-  description: string | null
+  description: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   sort_order: number
   enabled: number
 }
@@ -148,18 +220,40 @@ export interface PriceResult {
 /** 订单详情（getOrder 增强结构：Order 基础字段 + 关联数组 + 画师字段；order.routes 与 fastify.d.ts 共用）
  * SPEC-PRICE-2：tier_name/tier_price/tier_work_days 字段名保留（前端渐进过渡），内容 = 画风/尺寸标签、尺寸基础价、尺寸工期 */
 export interface OrderDetail extends Order {
-  final_price_cents?: number | null
-  start_date?: string | null
-  quote_snapshot?: string | null
-  focus_image_path?: string | null
+  final_price_cents?: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  start_date?: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  quote_snapshot?: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  focus_image_path?: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   artist_name?: string
   artist_subdomain?: string
-  tier_name?: string | null
-  tier_price?: number | null
-  tier_work_days?: number | null
-  references?: Array<{ file_path: string; original_name?: string | null; source?: string }>
-  deliverables?: Array<{ id: number; file_path: string; original_name?: string | null; file_size?: number | null }>
-  notes?: Array<{ id?: number; image_path: string | null }>
+  tier_name?: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  tier_price?: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  tier_work_days?: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  references?: Array<{ file_path: string; original_name?: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null; source?: string }>
+  deliverables?: Array<{ id: number; file_path: string; original_name?: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null; file_size?: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null }>
+  notes?: Array<{ id?: number; image_path: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null }>
   extraItems?: Array<{ name: string; price_cents: number }>
 }
 /** 订单列表/队列行（o.* + 画风尺寸关联字段；字段名 tier_* 为过渡兼容；order.routes 与 admin.routes 共用） */
@@ -167,15 +261,34 @@ export interface ArtistOrderRow {
   id: number
   order_no: string
   status: string
-  client_name: string | null
+  client_name: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   client_qq: string
-  tier_name: string | null
-  tier_price: number | null
-  queue_position: number | null
-  current_stage_id: number | null
-  start_date: string | null
-  focus_image_path: string | null
-  paid_total_cents: number | null
-  final_price_cents: number | null
+  tier_name: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  tier_price: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  queue_position: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  current_stage_id: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  start_date: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  focus_image_path: string |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  paid_total_cents: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
+  final_price_cents: number |totp_locked_until: number | null
+  // REQ-040: TOTP 自助重绑冷却期
+  totp_rebound_at: string | null
   [key: string]: unknown
 }
+

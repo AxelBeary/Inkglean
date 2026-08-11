@@ -214,7 +214,7 @@ import { safeGetItem, safeSetItem } from '../utils/storage.js'
 import { artistApi } from '../api/index.js'
 // REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
 import { useSessionGuard } from '../composables/useSessionGuard'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools } from '@element-plus/icons-vue'
+import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools, UserFilled } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 // 工具箱四分类注册表（纸墨提案 §5.5；单一事实源，ArtistLayout/ToolsHome 共用）
 import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../constants/toolbox.js'
@@ -286,7 +286,9 @@ const BASE_MENU_ITEMS = [
   { index: '/stats', icon: TrendCharts, labelKey: 'menu.stats', group: 'front' },
   { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },
   // #44: 偏好独立导航（主页对外/偏好对内）
-  { index: '/preferences', icon: Document, labelKey: 'menu.preferences', group: 'front' }
+  { index: '/preferences', icon: Document, labelKey: 'menu.preferences', group: 'front' },
+  // REQ-040: 账号与安全
+  { index: '/account', icon: UserFilled, labelKey: 'menu.account', group: 'front' }
 ]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)

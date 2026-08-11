@@ -58,6 +58,10 @@ import { migration as v52 } from './v52-retire-installment-paid-columns.js'
 import { migration as v53 } from './v53-orders-version-optimistic-lock.js'
 import { migration as v54 } from './v54-idempotency-keys.js'
 import { migration as v55 } from './v55-reference-uploads-ownership.js'
+import { migration as v56 } from './v56-webauthn-credentials.js'
+import { migration as v57 } from './v57-totp-rebound-at.js'
+import { migration as v56 } from './v56-webauthn-credentials.js'
+import { migration as v57 } from './v57-totp-rebound-at.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -66,6 +70,8 @@ export const MIGRATIONS: Migration[] = [
   v31, v32, v33, v34, v35, v36, v37, v38, v39, v40,
   v41, v42, v43, v44, v45, v46, v47, v48, v49, v50,
   v51, v52, v53, v54, v55,
+  v56,
+  v57,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错
@@ -76,3 +82,4 @@ for (let i = 1; i < MIGRATIONS.length; i++) {
     )
   }
 }
+
