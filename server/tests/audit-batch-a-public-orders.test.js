@@ -62,7 +62,7 @@ describe('audit-a P2-7 公开订单路由可见性', () => {
     expect((await app.inject({ method: 'GET', url: '/api/orders/track/ADM-002?qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
   })
 
-  it('TC-P27-06: 管理员账号 status=open 时目录/公开主页可见，hidden 时 404', async () => {
+  it('TC-P27-06: 管理员账号 status=open 时目录/公开主页可见，hidden 时目录排除、主页 UI-8 最小信息', async () => {
     db.prepare("UPDATE platform_config SET value = '77013' WHERE key = 'admin_qq'").run()
     const admin = seedArtist({ qq_number: '77013', subdomain: 'admin-profile', status: 'open' })
 
@@ -80,8 +80,10 @@ describe('audit-a P2-7 公开订单路由可见性', () => {
     expect(dirHidden.statusCode).toBe(200)
     expect(dirHidden.json().some(a => a.subdomain === 'admin-profile')).toBe(false)
 
+    // UI-8 既有语义保留：hidden 公开主页返回 200 + 最小信息（不暴露 bio/pricing/artworks），店主可见隐藏态提示
     const profileHidden = await app.inject({ method: 'GET', url: '/api/artists/admin-profile' })
-    expect(profileHidden.statusCode).toBe(404)
+    expect(profileHidden.statusCode).toBe(200)
+    expect(profileHidden.json()).toEqual({ id: admin.id, name: admin.name, subdomain: 'admin-profile', status: 'hidden' })
   })
 
   it('TC-P27-03: 可见画师 my/lookup/track 回归正常', async () => {

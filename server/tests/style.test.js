@@ -456,10 +456,12 @@ describe('公开配置 (getPublicStyles)', () => {
     })
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
     const addons = styleService.getStyleAddons(style.id)
+    // 812-B B7：新种子下系统用途/加急自动绑定 4 条，按模板类别定位加人增项（不依赖数组顺序）
+    const personAddon = addons.find(a => a.template_category === 'add')
 
     // 全身尺寸下加人价格覆盖为 200
     styleService.setSizeOverrides(artist.id, style.id, s2.id, [
-      { style_addon_id: addons[0].id, price_override: 200 }
+      { style_addon_id: personAddon.id, price_override: 200 }
     ])
 
     const result = styleService.getPublicStyles(artist.id)
@@ -484,9 +486,9 @@ describe('公开配置 (getPublicStyles)', () => {
     const tpl = styleService.createAddonTemplate(artist.id, { name: '加背景', default_price: 150 })
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
     const addons = styleService.getStyleAddons(style.id)
-
+    // 812-B B7：隐藏的是加背景普通增项（按模板类别定位，不依赖数组顺序）
     styleService.setSizeOverrides(artist.id, style.id, size.id, [
-      { style_addon_id: addons[0].id, is_hidden: true }
+      { style_addon_id: addons.find(a => a.template_category === 'add').id, is_hidden: true }
     ])
 
     const result = styleService.getPublicStyles(artist.id)
@@ -521,7 +523,9 @@ describe('公开配置 (getPublicStyles)', () => {
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id, price_override: 120 }])
 
     const result = styleService.getPublicStyles(artist.id)
-    expect(result[0].sizes[0].addons[0].price).toBe(120)
+    // 812-B B7：按名称断言加人覆盖价（公开配置首位可能是系统用途/加急）
+    const pubPerson = result[0].sizes[0].addons.find(a => a.category === 'add')
+    expect(pubPerson.price).toBe(120)
   })
 })
 
@@ -744,10 +748,10 @@ describe('SPEC-PRICE-2 画风增项解绑与覆盖读取', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().deleted).toBe(true)
-    // 目标增项已移除；其余 = 系统自动绑定的用途/加急
+    // 目标增项已移除；其余 = 系统自动绑定的用途×2/加急×2（812-B B7 新种子）
     const remaining = styleService.getStyleAddons(style.id)
     expect(remaining.find(a => a.id === sa.id)).toBeUndefined()
-    expect(remaining).toHaveLength(2)
+    expect(remaining).toHaveLength(4)
     // 尺寸覆盖随外键 CASCADE 清除
     expect(styleService.getSizeOverrides(artist.id, style.id, size.id)).toHaveLength(0)
     // 增项库模板保留（解绑不动库）
