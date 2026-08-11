@@ -1,4 +1,4 @@
-# REQ-040 Passkey 身份验证登录
+# REQ-040 Passkey 身份验证登录与账号安全页
 
 > 状态：方案落档（2026-08-11 用户拍板「1.0 必须有这个才能上线」）
 > 整理：四号（借一号窗口）
@@ -13,14 +13,23 @@
 
 **用户拍板（2026-08-11）**：1.0 必须有此功能才能上线。
 
+同时将散落的登录身份功能收拢为画师侧**「账号与安全」页**（登录域），与设置页（主页展示域）划清边界。
+
 ---
 
 ## 二、方案设计
 
-### 总原则（建议，待确认）
+### 页面边界（用户拍板：按「客户可见 vs 仅登录」划界）
 
-- **TOTP 并存，Passkey 便捷**：登录时二选一。Passkey 是日常主路径；TOTP 兜底换设备/重装系统场景。**不替代 TOTP**——Passkey 私钥锁在设备里，设备丢失且无 TOTP 将死锁（TOTP 上线初期同款教训）。
-- **多设备多凭据**：一个画师可注册多个凭据（家里电脑 + 手机 + 平板），设置页统一管理。
+| 页面 | 内容 | 归属 |
+|------|------|------|
+| 设置页（现有，不动） | 名称/头像/简介/联系方式（客户可见）+ 主页展示/规则/外链/模板 | 主页展示域 |
+| **账号与安全页（新）** | QQ（只读）+ TOTP 自助重绑 + Passkey 登录设备 | 登录域 |
+
+### 总原则（已拍板）
+
+- **TOTP 并存，Passkey 便捷**：登录时二选一。Passkey 是日常主路径；TOTP 兜底换设备/重装系统。**不替代 TOTP**——Passkey 私钥锁在设备里，设备丢失且无 TOTP 将死锁。
+- **多设备多凭据**：一个画师可注册多个 Passkey（家里电脑 + 手机 + 平板），账号与安全页统一管理。
 - **全平台**：Windows Hello（指纹/PIN/人脸）+ 手机（面容/指纹/iCloud/Google 同步）均走 WebAuthn，天然支持。
 
 ### 登录流程
@@ -32,67 +41,92 @@
   B. 「输入动态码」→ 现有 TOTP 流程（不变）
 ```
 
-### 注册/管理流程（画师设置页新增「登录设备」）
+### 账号与安全页（画师侧，新）
 
-```
-已登录画师 → 设置 → 登录设备：
-  · 「注册此设备」→ 系统认证 → 保存凭据（显示设备名，可改）
-  · 凭据列表：设备名 / 最后使用时间 / 删除按钮（删除后该设备不可一键登录，TOTP 仍可用）
-  · 换设备：新设备注册即用（旧设备可删可留）
-```
+**① 账号信息**：QQ 号（只读，登录标识不可改）、显示名/头像入口提示（指向设置页 profile）。
+
+**② 登录方式 - TOTP**：
+- 首次绑定：邀请码自助注册流程内完成（REQ-039）；手动模式=管理员帮绑（现状保留）
+- **自助重绑**（换手机/丢验证器）：分层验证 + 生效安全动作（见下）
+- 重绑冷却期 24h（管理员 CLI/后台重绑不受限）
+
+**③ 登录方式 - Passkey**：注册此设备 / 凭据列表（设备名可改、最后使用时间、删除）——换设备在新机器注册即可。
+
+### TOTP 自助重绑（安全设计，2026-08-11 用户拍板）
+
+**分层验证**（现有凭据其一）：
+
+| 画师有什么 | 重绑 TOTP 时的验证 |
+|-----------|-------------------|
+| 有 Passkey | 要求 **Passkey 确认**（指纹/PIN，最强） |
+| 无 Passkey 但旧验证器还能用 | 输 **当前 6 位码** |
+| 都没有（手机真丢了+没设 Passkey） | **不给自助**——引导联系管理员，管理员 CLI 重绑（REQ-027 既有兜底） |
+
+理由：仅登录态不够——登录态被劫持（公共电脑/cookie 被偷/远控）时攻击者可换绑锁号；卡住「什么都没有」的场景=卡住攻击路径。
+
+**生效安全动作**（全做）：
+1. 旧密钥立即作废（现有语义）
+2. **全局会话踢下线**：重绑后所有设备强制重新登录（bumpTokenVersion 机制，现成）
+3. **审计日志**：重绑动作留痕（时间/IP），管理员可查
+
+**冷却期**：重绑后 24 小时内不能再自助重绑（防连环换绑）；**管理员操作不受限制**。
 
 ### 后端
 
 - 依赖：`@simplewebauthn/server`（验证注册/认证；前端用浏览器原生 API，零依赖）
 - **迁移 v57**：新表 `webauthn_credentials`（id、artist_id、public_key、counter、device_name、created_at、last_used_at；UNIQUE(artist_id, credential_id)）
-- challenge：注册/认证前签发，一次性 + 短时效（建议 5 分钟），存内存或 DB
+- **迁移 v58**：`artists` 加列 `totp_rebound_at`（冷却期记录）
+- challenge：注册/认证/重绑前签发，一次性 + 短时效（建议 5 分钟）
 - API：
-  - `POST /api/auth/webauthn/register-options`（登录态，生成注册 challenge + 参数）
-  - `POST /api/auth/webauthn/register-verify`（验证 attestation，存凭据）
-  - `GET /api/auth/webauthn/credentials`（列表）
-  - `PATCH /api/auth/webauthn/credentials/:id`（改设备名）
-  - `DELETE /api/auth/webauthn/credentials/:id`（删除）
-  - `POST /api/auth/webauthn/login-options`（公开，按 QQ 生成认证 challenge）
-  - `POST /api/auth/webauthn/login-verify`（公开+限流，验证签名 → 复用 createSession 登录）
-- 安全：counter 递增校验（防克隆）；RP ID = 部署域名；登录接口限流（复用 rate-limit）；未注册 QQ 与认证失败同响应（防枚举，对齐 TOTP 现状）
+  - Passkey：`POST /api/auth/webauthn/register-options`（登录态）、`register-verify`、`GET credentials`、`PATCH credentials/:id`（改名）、`DELETE credentials/:id`、`POST login-options`（公开）、`POST login-verify`（公开+限流）
+  - TOTP 重绑：`POST /api/auth/totp/rebind-init`（登录态，生成重绑二维码 + 分层验证 challenge）、`POST /api/auth/totp/rebind-confirm`（验证凭据 + 新码 → 生效 + bumpTokenVersion + 写冷却期）
+- 安全：counter 递增校验（防克隆）；RP ID = 部署域名；登录/注册/重绑接口限流（复用 rate-limit）；未注册 QQ 与认证失败同响应（防枚举，对齐 TOTP 现状）
 
 ### 前端
 
 - 登录页：输 QQ 后出现「使用 Windows Hello / 指纹登录」按钮（浏览器支持才显示，不支持/非 HTTPS 降级为仅动态码）
-- 设置页：「登录设备」tab——注册/列表/改名/删除（纸墨设计语言）
-- i18n 键（zh/en）
+- **账号与安全页**：新路由（如 `/account`），三块内容（QQ 只读 / TOTP 重绑 / Passkey 设备），纸墨设计语言，i18n 键（zh/en）
+- 设置页：加「账号与安全」入口链接（侧栏导航），profile 等主页展示内容不动
 
 ### 测试
 
-- 后端单测：注册/认证/challenge 过期/counter 递增/删除/限流
-- 前端 E2E：Playwright 虚拟认证器（webAuthn addCredential）跑通「注册→登录」链路
+- 后端单测：Passkey 注册/认证/challenge 过期/counter 递增/删除/限流；TOTP 重绑分层验证（Passkey 路径/旧码路径/都无→拒绝）/冷却期/管理员豁免/踢下线
+- 前端 E2E：Playwright 虚拟认证器（webAuthn addCredential）跑通「注册 Passkey → Passkey 登录」；重绑流程
 
 ---
 
 ## 三、验收标准
 
-1. 画师在设置页注册本设备后，登录页输 QQ → 点「Windows Hello 登录」→ 系统认证 → 直接进入后台（可测：Playwright 虚拟认证器）
+1. 画师在账号与安全页注册本设备后，登录页输 QQ → 点「Windows Hello 登录」→ 系统认证 → 直接进入后台（可测：Playwright 虚拟认证器）
 2. TOTP 登录不受影响（并存）（可测）
 3. 画师可注册多个设备、改名、删除；删除后该设备 Passkey 失效（可测）
-4. 未注册 QQ 请求 Passkey 登录与动态码错误同响应（防枚举）（可测）
-5. 不支持 WebAuthn 的浏览器（或非 HTTPS）登录页不显示 Passkey 按钮，仅动态码（可测）
-6. 认证成功走与 TOTP 相同的会话/token 机制（cookie、isAdmin 判定不变）（可测）
+4. 重绑 TOTP：有 Passkey 须 Passkey 确认；无 Passkey 有旧码须输旧码；都没有→拒绝并引导联系管理员（可测）
+5. 重绑生效后：旧密钥作废 + 其他设备全部被踢下线（重新登录）（可测）
+6. 重绑后 24 小时内再次自助重绑被拒；管理员 CLI 重绑不受限（可测）
+7. 未注册 QQ 请求 Passkey 登录与动态码错误同响应（防枚举）（可测）
+8. 不支持 WebAuthn 的浏览器（或非 HTTPS）登录页不显示 Passkey 按钮，仅动态码（可测）
+9. 认证成功走与 TOTP 相同的会话/token 机制（cookie、isAdmin 判定不变）（可测）
 
 ---
 
 ## 四、待确认
 
-| # | 事项 | 建议 |
+| # | 事项 | 状态 |
 |---|------|------|
-| 1 | TOTP 并存（不替代） | 建议并存，TOTP 兜底 |
-| 2 | 多设备多凭据 | 建议支持（WebAuthn 天然支持） |
-| 3 | 设备名自动生成 | 建议自动填「浏览器+系统」名，可改 |
-| 4 | 开发量 | 预计 3~5 天（后端 2-3 + 前端 1-2） |
+| 1 | TOTP 并存（不替代） | ✅ 已拍板（2026-08-11） |
+| 2 | 多设备多凭据 | ✅ 已拍板 |
+| 3 | 账号与安全页并入本 REQ | ✅ 已拍板 |
+| 4 | 页面边界（客户可见留设置页，登录域进账号页） | ✅ 已拍板 |
+| 5 | 重绑分层验证 + 踢下线 + 审计 | ✅ 已拍板 |
+| 6 | 重绑冷却期 24h（管理员豁免） | ✅ 已拍板 |
+| 7 | 设备名自动生成「浏览器+系统」可改 | 建议 ✅（开发前确认即可） |
+| 8 | 开发量 | 预计 4~6 天（Passkey 3-5 + 账号页/TOTP 重绑增量） |
 
 ---
 
 ## 五、边界声明
 
-- 本 REQ 只做画师登录的 Passkey 能力；管理后台/客户端登录（若有）不涉及
+- 本 REQ 只做画师登录的 Passkey + 账号与安全页；管理后台/客户端登录不涉及
 - 不引入外部身份服务（Google/微软登录）——Passkey 走设备自带认证器
-- 不替代 TOTP，不做「忘记所有凭据」自助恢复（兜底仍靠 TOTP + 管理员 CLI 重绑，REQ-027 既有）
+- 不替代 TOTP，不做「忘记所有凭据」自助恢复（兜底=TOTP + 管理员 CLI 重绑）
+- 设置页（主页展示域）内容不动，只加「账号与安全」入口
