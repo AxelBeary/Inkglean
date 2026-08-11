@@ -340,6 +340,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
 
   // ─── 注册功能路由 ───
   await app.register(import('./features/setup/setup.routes.js'))  // REQ-038: 开箱设置
+  await app.register(import('./features/invite/invite.routes.js'))  // REQ-039: 邀请码注册
   await app.register(import('./features/auth/auth.routes.js'))
   await app.register(import('./features/artist/artist.routes.js'))
   await app.register(import('./features/order/order.routes.js'))

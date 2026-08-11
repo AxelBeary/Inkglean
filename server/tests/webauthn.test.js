@@ -151,7 +151,8 @@ describe('WebAuthn Passkey (REQ-040)', () => {
 
   describe('Challenge 过期', () => {
     it('挑战不存在时应验证失败', async () => {
-      const options = await generateLoginOptions()
+      // 生成一次挑战使 challenge store 处于非空态（fakeCredential 引用不存在的 challenge）
+      await generateLoginOptions()
       const fakeCredential = {
         id: 'fake-cred-id',
         response: {

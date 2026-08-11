@@ -12,7 +12,9 @@ import {
   verifyAuthenticationResponse
 } from '@simplewebauthn/server'
 import type {
+  AuthenticationResponseJSON,
   GenerateRegistrationOptionsOpts,
+  RegistrationResponseJSON,
   VerifyRegistrationResponseOpts,
   GenerateAuthenticationOptionsOpts,
   VerifyAuthenticationResponseOpts
@@ -191,7 +193,7 @@ export async function verifyRegistration(
   }
 
   const verificationOpts: VerifyRegistrationResponseOpts = {
-    response: credential as any,
+    response: credential as RegistrationResponseJSON,
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,
@@ -202,7 +204,9 @@ export async function verifyRegistration(
     throw new AppError(E.WEBAUTHN_REGISTRATION_FAILED, 400)
   }
 
-  const { credentialPublicKey, credentialID, counter } = verification.registrationInfo
+  // REQ-040 基线修复：registrationInfo.credential 为 WebAuthnCredential 对象（id/publicKey/counter），
+  // 原写法取顶层 credentialPublicKey/credentialID 在运行时也会 TypeError（typecheck 先行拦截）
+  const { publicKey: credentialPublicKey, id: credentialID, counter } = verification.registrationInfo.credential
   const credentialIdBase64 = Buffer.from(credentialID).toString('base64url')
   const publicKeyBase64 = Buffer.from(credentialPublicKey).toString('base64url')
 
@@ -279,14 +283,14 @@ export async function verifyLogin(
 
   // 查找画师
   const { getArtistById } = await import('../../features/artist/artist.service.js')
-  const artist = getArtist(credentialRow.artist_id) as Artist | undefined
+  const artist = getArtistById(credentialRow.artist_id) as Artist | undefined
   if (!artist || artist.deleted_at) {
     throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
   }
 
   // 验证认证响应
   const verificationOpts: VerifyAuthenticationResponseOpts = {
-    response: credential as any,
+    response: credential as AuthenticationResponseJSON,
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,
