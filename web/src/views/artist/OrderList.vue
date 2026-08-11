@@ -28,6 +28,12 @@
     </el-radio-group>
   </div>
 
+  <!-- REQ-037 批3 D1: 复合筛选全量拉取进度（大单量可见反馈） -->
+  <div v-if="fetchProgress" class="fetch-progress">
+    <el-progress :percentage="Math.round(fetchProgress.done / fetchProgress.total * 100)" :stroke-width="6" :show-text="false" />
+    <span class="fetch-progress-text">{{ $t('orderList.fetchAllProgress', { done: fetchProgress.done, total: fetchProgress.total }) }}</span>
+  </div>
+
   <!-- P0-3: 移动端卡片视图（≤768px 替代表格；点击进详情） -->
   <div class="order-cards">
     <div v-for="row in displayedOrders" :key="row.id" class="order-card" @click="$router.push(`/orders/${row.id}?from=orders`)">
@@ -69,7 +75,12 @@
           <span v-else class="no-thumb">—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="order_no" :label="$t('orderList.colOrderNo')" width="100" />
+      <!-- REQ-037 批3 D2: 订单号列改真链接（键盘可达；stop 防与 row-click 双跳） -->
+      <el-table-column :label="$t('orderList.colOrderNo')" width="100">
+        <template #default="{ row }">
+          <router-link class="order-no-link" :to="{ path: `/orders/${row.id}`, query: { from: 'orders' } }" @click.stop>{{ row.order_no }}</router-link>
+        </template>
+      </el-table-column>
       <el-table-column prop="tier_name" :label="$t('orderList.colType')" width="100">
         <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
       </el-table-column>
@@ -143,10 +154,12 @@ const searchQuery = ref('')
 let searchTimer = null
 function onSearchInput() {
   clearTimeout(searchTimer)
+  invalidateFullOrdersCache()
   searchTimer = setTimeout(() => { page.value = 1; loadOrders() }, 300)
 }
 function onSearchClear() {
   clearTimeout(searchTimer)
+  invalidateFullOrdersCache()
   page.value = 1
   loadOrders()
 }
@@ -163,6 +176,14 @@ const displayedOrders = computed(() => {
   }
   return orders.value
 })
+// ─── REQ-037 批3 D1: 复合筛选全量数据会话内缓存 ───
+// active/completed 复合筛选需拉全量客户端过滤；同会话短时缓存避免统计卡来回跳转重复拉；
+// 订单列表页无写操作，TTL 到期自然失效即可
+let fullOrdersCache = null // { key, items, at }
+const FULL_ORDERS_CACHE_TTL = 60_000
+function fullOrdersCacheKey() { return searchQuery.value.trim() || '' }
+function invalidateFullOrdersCache() { fullOrdersCache = null }
+const fetchProgress = ref(null) // { done, total } | null
 const page = ref(1)
 const pageSize = ref(50)
 const total = ref(0)
@@ -180,26 +201,35 @@ function formatDate(str) {
 function onFilterChange() {
   page.value = 1
   compositeFilter.value = '' // 手动切筛选时清除复合过滤
+  invalidateFullOrdersCache()
   loadOrders()
 }
 
 // 竞态保护：请求序号（搜索/翻页快速切换时慢请求不得覆盖新结果）
 let loadSeq = 0
 // 05D-O1: 复合筛选（active/completed）后端无该语义 → 拉全量后客户端过滤（pageSize 上限 200 循环，订单多时稍慢）
+// REQ-037 批3 D1: 会话内缓存 + 进度提示
 async function fetchAllOrders() {
-  const q = searchQuery.value.trim() || undefined
+  const q = searchQuery.value.trim() || ''
+  const ck = fullOrdersCacheKey()
+  // REQ-037 批3 D1: 缓存命中直接返回
+  if (fullOrdersCache && fullOrdersCache.key === ck && Date.now() - fullOrdersCache.at < FULL_ORDERS_CACHE_TTL) {
+    return fullOrdersCache.items
+  }
   const status = filter.value || undefined
   const pageSize = 200
   const all = []
-  const first = await artistApi.getOrders(status, { page: 1, pageSize, q })
+  const first = await artistApi.getOrders(status, { page: 1, pageSize, q: q || undefined })
   const firstItems = first.items ?? first
   all.push(...firstItems)
   const totalCount = first.total ?? firstItems.length
   const pages = Math.ceil(totalCount / pageSize)
+  fetchProgress.value = { done: 1, total: pages }
   for (let p = 2; p <= pages; p++) {
-    const res = await artistApi.getOrders(status, { page: p, pageSize, q })
+    const res = await artistApi.getOrders(status, { page: p, pageSize, q: q || undefined })
     const items = res.items ?? res
     if (items.length) all.push(...items)
+    fetchProgress.value = { done: p, total: pages }
   }
   return all
 }
@@ -212,6 +242,9 @@ async function loadOrders() {
       // 05D-O1: 复合筛选 → 全量拉取后过滤，orders.value 即过滤结果，total 不再误导
       const all = await fetchAllOrders()
       if (mySeq !== loadSeq) return
+      // REQ-037 批3 D1: 写入缓存（seq 校验通过后，防旧请求污染）
+      fullOrdersCache = { key: fullOrdersCacheKey(), items: all, at: Date.now() }
+      fetchProgress.value = null
       const filtered = all.filter(o => compositeFilter.value === 'active' ? ACTIVE_STATUSES.includes(o.status) : COMPLETED_STATUSES.includes(o.status))
       orders.value = filtered
       total.value = filtered.length
@@ -268,6 +301,15 @@ onMounted(() => {
 /* REQ-020 F1: 搜索栏 */
 .search-bar { margin: 12px 0; }
 .filter-bar { overflow-x: auto; }
+
+/* REQ-037 批3 D1: 复合筛选进度条 */
+.fetch-progress { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.fetch-progress-text { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); white-space: nowrap; }
+.fetch-progress .el-progress { flex: 1; }
+
+/* REQ-037 批3 D2: 订单号真链接（悬停显示链接感） */
+.order-no-link { color: inherit; text-decoration: none; }
+.order-no-link:hover { color: var(--hq); text-decoration: underline; }
 
 /* ─── 表格换肤（REQ §二：表头下沉底色 / 行 hover 纸色底 / 金额日期等宽） ─── */
 .el-table { --el-table-border-color: var(--line); --el-table-header-bg-color: var(--paper2); --el-table-row-hover-bg-color: var(--paper2); }
@@ -329,5 +371,19 @@ onMounted(() => {
 @keyframes huiyue-empty-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+
+/* ═══ REQ-037 批3 D3: ≤600px 筛选换行胶囊（桌面端 0 变化） ═══ */
+@media (max-width: 600px) {
+  .filter-bar { overflow-x: visible; }
+  .filter-bar :deep(.el-radio-group) { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filter-bar :deep(.el-radio-button__inner) {
+    border-radius: var(--r-s);
+    border: 1px solid var(--line2);
+    box-shadow: none;
+  }
+  .filter-bar :deep(.el-radio-button:first-child .el-radio-button__inner),
+  .filter-bar :deep(.el-radio-button:last-child .el-radio-button__inner) { border-radius: var(--r-s); }
+  .filter-bar :deep(.el-radio-button__inner.is-checked) { border-color: var(--hq); }
 }
 </style>

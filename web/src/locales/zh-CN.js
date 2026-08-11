@@ -1,4 +1,4 @@
-﻿export default {
+export default {
   errors: {
     // 认证
     NOT_LOGGED_IN: '未登录',
@@ -887,7 +887,8 @@
     colPriority: '优先级', colStatus: '状态', colSource: '来源', colTime: '下单时间', colActions: '操作',
     colImage: '图片',
     // REQ-020 F1: 订单搜索
-    searchPlaceholder: '搜索昵称 / 订单号 / 档位名', noSearchResult: '无匹配订单'
+    searchPlaceholder: '搜索昵称 / 订单号 / 档位名', noSearchResult: '无匹配订单',
+    fetchAllProgress: '正在拉取全部订单（{done}/{total}）…'
   },
   orderDetail: {
     backToQueue: '返回排期看板', backToDashboard: '返回仪表盘', backToList: '返回订单列表', orderNo: '订单 #',

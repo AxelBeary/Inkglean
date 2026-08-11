@@ -1,4 +1,4 @@
-﻿export default {
+export default {
   errors: {
     // Auth
     NOT_LOGGED_IN: 'Not logged in',
@@ -889,7 +889,8 @@
     colPriority: 'Priority', colStatus: 'Status', colSource: 'Source', colTime: 'Order time', colActions: 'Actions',
     colImage: 'Image',
     // REQ-020 F1: order search
-    searchPlaceholder: 'Search name / order no. / tier', noSearchResult: 'No matching orders'
+    searchPlaceholder: 'Search name / order no. / tier', noSearchResult: 'No matching orders',
+    fetchAllProgress: 'Loading all orders ({done}/{total})…'
   },
   orderDetail: {
     backToQueue: 'Back to queue', backToDashboard: 'Back to dashboard', backToList: 'Back to orders', orderNo: 'Order #',
