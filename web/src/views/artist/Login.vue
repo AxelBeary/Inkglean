@@ -182,6 +182,12 @@ import { inviteApi } from '../../api/index.js'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
 import { Lock } from '@element-plus/icons-vue'
+import {
+  toCredentialRequestOptions,
+  publicKeyCredentialToJSON,
+  isWebAuthnCancellation,
+  isWebAuthnUnsupported
+} from '../../utils/webauthn.js'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -381,20 +387,31 @@ async function passkeyLogin() {
   try {
     const { webauthnApi } = await import('../../api/index.js')
     const options = await webauthnApi.loginOptions(qq)
-    const credential = await navigator.credentials.get({ publicKey: options })
+    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/allowCredentials[].id）
+    const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
     if (!credential) throw new Error('cancelled')
-    const result = await webauthnApi.loginVerify(credential)
+    // 812-B5: 上传侧统一转 base64url JSON（与后端 verifyLogin 的 Base64URL 解码口径一致）
+    const result = await webauthnApi.loginVerify(publicKeyCredentialToJSON(credential))
     // REQ-043 I6-e: Passkey 登录同样走 store 会话落地（原实现漏同步 store，跳转会被守卫拦截）
     store.applySession(result.artist, result.isAdmin)
     loginOk.value = true
     const redirect = route.query.redirect
+    // 812-B6: 管理员与普通画师默认落地一致为画师面板；手动访问 /admin 由 requiresAdmin 守卫放行
     const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
       ? redirect
-      : result.isAdmin ? '/admin' : '/dashboard'
+      : '/dashboard'
     setTimeout(() => router.push(target), 500)
   } catch (err) {
-    if (err.name === 'NotAllowedError' || err.message === 'cancelled') return
-    noticeError.value = err.message || t('login.passkeyError')
+    // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
+    if (isWebAuthnCancellation(err) || (err instanceof Error && err.message === 'cancelled')) {
+      noticeError.value = t('common.passkeyCancelled')
+      return
+    }
+    if (isWebAuthnUnsupported(err)) {
+      noticeError.value = t('common.passkeyNotSupported')
+      return
+    }
+    noticeError.value = t('common.passkeyFailed')
   } finally {
     passkeyLogging.value = false
   }
@@ -431,11 +448,12 @@ async function login() {
     await store.login(qq, cd)
     // 成功反馈落按钮（石绿 + 文案），停留 500ms 让用户看见再跳
     loginOk.value = true
-    // 消费守卫带来的 ?redirect=（限站内路径，防开放跳转），兜底按身份分流
+    // 消费守卫带来的 ?redirect=（限站内路径，防开放跳转），兜底统一落地画师面板（812-B6）
     const redirect = route.query.redirect
+    // 812-B6: 管理员登录后默认落在画师面板（管理后台入口保留在侧栏，/admin 守卫不变）
     const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
       ? redirect
-      : store.isAdmin ? '/admin' : '/dashboard'
+      : '/dashboard'
     setTimeout(() => router.push(target), 500)
   } catch (err) {
     // 错误关联到具体字段；锁定类错误用后端 remainingLockMs 告知剩余时长
