@@ -2,7 +2,7 @@
 import i18n from '../i18n/index.js'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
-import { safeGetItem } from '../utils/storage.js'
+import { safeGetItem, safeSetItem } from '../utils/storage.js'
 
 // ============================================
 // 路由配置
@@ -19,6 +19,8 @@ const routes = [
 
   // ─── 画师后台 ───
   { path: '/login', name: 'ArtistLogin', component: () => import('../views/artist/Login.vue'), meta: { titleKey: 'pageTitle.login' } },
+  // REQ-038: 开箱设置向导（未初始化时由守卫重定向进入；完成后永久失效跳登录）
+  { path: '/setup', name: 'SetupWizard', component: () => import('../views/setup/SetupWizard.vue'), meta: { titleKey: 'setup.pageTitle' } },
   // ─── 画师后台（REQ-037 批2 A1: 嵌套路由——ArtistLayout 经 ArtistLayoutRoute 载体全会话只挂载一次，
   //     消除切页骨架重挂与 getMe/留言角标重复请求；路由 name/meta 逐字保留） ───
   {
@@ -108,26 +110,30 @@ const router = createRouter({ history: createWebHistory(), routes })
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   // REQ-038: 开箱设置初始化守卫
-  // 跳过已初始化检查的路由，避免无限循环
+  // 跳过已初始化检查的路由，避免无限循环；存储一律走 safe 封装（G-5：存储禁用不卡路由）
   if (to.name !== 'SetupWizard' && to.name !== 'ArtistLogin' && to.name !== 'NotFound') {
-    const setupDone = localStorage.getItem('setup_initialized')
+    const setupDone = safeGetItem('setup_initialized')
     if (setupDone !== '1') {
       try {
         const res = await fetch('/api/setup/status')
-        const data = await res.json()
-        if (!data.initialized) {
-          return next({ name: 'SetupWizard' })
+        // res.ok 守卫：404/5xx 的 JSON 不带 initialized，不得误触重定向
+        if (res.ok) {
+          const data = await res.json()
+          if (data.initialized === false) {
+            return next({ name: 'SetupWizard' })
+          }
+          // 缓存已初始化状态
+          safeSetItem('setup_initialized', '1')
         }
-        // 缓存已初始化状态
-        localStorage.setItem('setup_initialized', '1')
       } catch (err) {
         // 网络异常，放行避免卡死
+        // eslint-disable-next-line no-console -- setup 守卫 fail-open 降级链路需留痕
         console.warn('[setup] 初始化状态检查失败，放行', err)
       }
     }
   }
   // 已初始化状态下访问 /setup → 重定向到 /login
-  if (to.name === 'SetupWizard' && localStorage.getItem('setup_initialized') === '1') {
+  if (to.name === 'SetupWizard' && safeGetItem('setup_initialized') === '1') {
     return next({ name: 'ArtistLogin' })
   }
   // P2-C: 页面标题通过 i18n key 动态渲染

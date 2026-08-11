@@ -20,8 +20,8 @@
           <div class="field-group">
             <label class="field-label">{{ $t('setup.step1Lang') }}</label>
             <div class="lang-switch">
-              <button :class="{ active: locale === 'zh-CN' }" @click="switchLang('zh-CN')">中文</button>
-              <button :class="{ active: locale === 'en' }" @click="switchLang('en')">English</button>
+              <button :class="{ active: locale === 'zh-CN' }" @click="switchLang('zh-CN')">{{ $t('setup.langZh') }}</button>
+              <button :class="{ active: locale === 'en' }" @click="switchLang('en')">{{ $t('setup.langEn') }}</button>
             </div>
           </div>
           <div v-if="setupStore.tokenRequired" class="field-group">
@@ -103,13 +103,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import { useSetupStore } from '../../stores/setup.js'
 import { useThemeStore } from '../../stores/theme.js'
 import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
 
 const { t, locale } = useI18n()
-const router = useRouter()
 const setupStore = useSetupStore()
 const themeStore = useThemeStore()
 
@@ -205,6 +203,7 @@ async function generateQrCode(otpauthUri) {
     const QRCode = await import('qrcode')
     return await QRCode.default.toDataURL(otpauthUri, { width: 220, margin: 1 })
   } catch (err) {
+    // eslint-disable-next-line no-console -- QR 生成失败降级链路，需留痕（兼容 Google Charts 兑底）
     console.error('QR generation failed', err)
     return 'https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=' + encodeURIComponent(otpauthUri)
   }
@@ -232,12 +231,12 @@ async function confirmTotp() {
 
   totpSubmitting.value = true
   try {
-    const result = await setupStore.confirmTotp(code)
+    await setupStore.confirmTotp(code)
     try {
       const { safeSetItem } = await import('../../utils/storage.js')
       safeSetItem('artist_logged_in', '1')
       safeSetItem('artist_is_admin', '1')
-    } catch (e) { /* silent */ }
+    } catch { /* 存储禁用静默 */ }
     currentStep.value = 4
   } catch (err) {
     totpError.value = err.message || t('setup.step3CodeError')

@@ -38,9 +38,6 @@ export const useSetupStore = defineStore('setup', () => {
       initialized.value = data.initialized
       tokenRequired.value = data.tokenRequired
       return data
-    } catch (err) {
-      console.error('检查设置状态失败', err)
-      throw err
     } finally {
       checking.value = false
     }
