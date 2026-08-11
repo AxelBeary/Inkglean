@@ -1,10 +1,27 @@
 import js from '@eslint/js'
 import globals from 'globals'
 import pluginVue from 'eslint-plugin-vue'
+import tsParser from '@typescript-eslint/parser'
+import tsPlugin from '@typescript-eslint/eslint-plugin'
 
 export default [
   js.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
+  {
+    // .vue 文件：<script lang="ts"> 走 @typescript-eslint/parser；
+    // 普通 js script 与模板表达式维持 espree 不变
+    files: ['**/*.vue'],
+    plugins: { '@typescript-eslint': tsPlugin },
+    languageOptions: {
+      parserOptions: {
+        parser: {
+          js: 'espree',
+          ts: tsParser,
+          '<template>': 'espree'
+        }
+      }
+    }
+  },
   {
     languageOptions: {
       ecmaVersion: 2024,
@@ -28,10 +45,25 @@ export default [
     }
   },
   {
+    // 必须在通用 rules 块之后（flat config 后者胜出）：
+    // lang="ts" 块的类型位参数（defineEmits<{ (e: 'x'): void }>）对基础规则是误报源，
+    // 换 TS 感知版；JS 块同样兼容（ESTree 超集），未用变量纪律不降级
+    files: ['**/*.vue'],
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
+    }
+  },
+  {
     // scripts/ 是 node CLI 脚本（check-i18n、compress-paper-tex 等），用 node globals；console 输出是脚本本职
     files: ['scripts/**/*.js', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
     rules: { 'no-console': 'off' }
+  },
+  {
+    // eslint 配置本身是 node 环境 ESM 脚本
+    files: ['eslint.config.js'],
+    languageOptions: { globals: { ...globals.node } }
   },
   {
     ignores: ['node_modules/', 'dist/', 'coverage/']

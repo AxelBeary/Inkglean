@@ -9,6 +9,6 @@
     "src/main.js\u0000页面出了点小问题，请刷新重试",
     "src/views/artist/ManualOrder.vue\u0000订单 ${order.order_no} 已创建，但${postCreateFailed}。请在订单详情中补充。",
     "src/views/artist/Preferences.vue\u0000⚡动作",
-    "src/views/client/OrderForm.vue\u0000上传参考图"
+    "src/views/client/order-form/DetailStep.vue\u0000上传参考图"
   ]
 }

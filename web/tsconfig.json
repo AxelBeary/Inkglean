@@ -1,0 +1,32 @@
+{
+  // TS 增量迁移纪律（2026-08-11 立）：
+  // - 新增源码文件一律 .ts / <script setup lang="ts">，受 strict 全量约束
+  // - 存量 .js/.vue 保持 allowJs 引入、checkJs 关闭，谁触碰谁迁移，禁止为过编译写 any/@ts-ignore
+  // - vue-tsc --noEmit 已接入 npm run typecheck（CI 前本地必跑）
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "useUnknownInCatchVariables": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.js", "src/**/*.vue"],
+  "exclude": ["node_modules", "dist"]
+}

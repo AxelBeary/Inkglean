@@ -8,29 +8,13 @@
       </el-page-header>
 
       <template v-if="artist">
-        <!-- R58-2: 步骤指示器（v0.32: 动态步骤——旧模型3步 / 单画风3步 / 多画风4步） -->
-        <div class="step-indicator">
-          <template v-for="(sd, idx) in stepDefs" :key="sd.key">
-            <div class="step-item">
-              <span class="step-dot" :class="{ 'step-dot--active': step === idx + 1, 'step-dot--done': step > idx + 1 }">{{ step > idx + 1 ? '✓' : idx + 1 }}</span>
-              <span class="step-label" :class="{ 'step-label--on': step === idx + 1 }">{{ sd.label }}</span>
-            </div>
-            <span v-if="idx < stepDefs.length - 1" class="step-connector" :class="{ 'step-connector--done': step > idx + 1 }"></span>
-          </template>
-        </div>
-
-        <!-- v0.35 F4: 入口 A 预选摘要横幅——展示柜带选择进来时明确显示已预选内容，可回上一步修改 -->
-        <div v-if="preselectBannerText" class="preselect-banner">
-          <span class="preselect-banner-text">{{ preselectBannerText }}</span>
-          <!-- 多画风回选画风步；单画风回选尺寸步（改选后价格自动重算，横幅随之消失） -->
-          <button
-            type="button"
-            class="preselect-banner-btn"
-            @click="step = isMultiStyle ? 1 : sizeStep"
-          >
-            {{ $t('orderForm.preselectChange') }}
-          </button>
-        </div>
+        <!-- R58-2: 步骤指示器 + v0.35 F4 预选摘要横幅（拆分子组件） -->
+        <StepIndicator
+          :step-defs="stepDefs"
+          :step="step"
+          :banner-text="preselectBannerText"
+          @edit-preselect="onEditPreselect"
+        />
 
         <div class="step-layout">
           <el-card class="step-main">
@@ -47,362 +31,95 @@
               </div>
 
               <!-- ── 选画风（多画风步骤 1，单画风跳过） ── -->
-              <div v-if="isStyleMode && isMultiStyle" v-show="step === 1">
-                <h3 class="step-title">{{ $t('orderForm.styleStepTitle') }}</h3>
-                <div class="style-pick-grid">
-                  <div
-                    v-for="s in styles" :key="s.id"
-                    class="style-pick" :class="{ 'style-pick--on': selectedStyleId === s.id }"
-                    @click="selectStyle(s.id)"
-                  >
-                    <span v-if="selectedStyleId === s.id" class="style-pick-stamp">✓</span>
-                    <div v-if="s.cover_image" class="style-pick-img-wrap">
-                      <el-image :src="`/uploads/${s.cover_image}`" fit="cover" class="style-pick-img" :alt="s.name" />
-                    </div>
-                    <div v-else class="style-pick-img-empty">{{ s.name?.charAt(0) }}</div>
-                    <div class="style-pick-name">{{ s.name }}</div>
-                    <div v-if="s.description" class="style-pick-desc">{{ s.description }}</div>
-                  </div>
-                </div>
-                <div class="step-nav step-nav--end">
-                  <el-button type="primary" :disabled="!selectedStyleId" @click="step = 2">{{ $t('orderForm.nextStep') }}</el-button>
-                </div>
-              </div>
+              <StylePickStep
+                v-if="isStyleMode && isMultiStyle" v-show="step === 1"
+                :styles="styles"
+                :selected-style-id="selectedStyleId"
+                @select="selectStyle"
+                @next="step = 2"
+              />
 
               <!-- ── v0.32: 选尺寸（画风模式步骤 2 / 单画风步骤 1） ── -->
-              <div v-if="isStyleMode" v-show="step === sizeStep">
-                <h3 class="step-title">{{ $t('orderForm.sizeStepTitle') }}</h3>
-                <!-- 画风无尺寸：提示 + 直接跳过（2026-08-07 用户反馈：无尺寸画风卡死无下一步） -->
-                <div v-if="!(selectedStyle?.sizes || []).length" class="no-size-hint">
-                  <p>{{ $t('orderForm.noSizeHint') }}</p>
-                  <div class="step-nav">
-                    <el-button v-if="isMultiStyle" @click="step = 1">{{ $t('orderForm.prevStep') }}</el-button>
-                    <el-button type="primary" @click="step = addonStep">{{ $t('orderForm.noSizeContinue') }}</el-button>
-                  </div>
-                </div>
-                <template v-else>
-                  <div class="size-pick-list">
-                    <div
-                      v-for="sz in (selectedStyle?.sizes || [])" :key="sz.id"
-                      class="size-pick" :class="{ 'size-pick--on': selectedSizeId === sz.id, 'size-pick--showcase': sz.display_status === 'showcase' }"
-                      @click="selectSize(sz.id)"
-                    >
-                      <span class="size-pick-name">{{ sz.name }}</span>
-                      <!-- SPEC-PRICE-2: 展示态尺寸可见但不可约（后端同步拒单） -->
-                      <span v-if="sz.display_status === 'showcase'" class="size-pick-showcase">{{ $t('orderForm.sizeShowcaseTag') }}</span>
-                      <span class="size-pick-price">{{ formatYuanValue(sz.base_price) }}</span>
-                      <span v-if="selectedSizeId === sz.id" class="size-pick-check">✓</span>
-                    </div>
-                  </div>
-                  <div class="step-nav" :class="{ 'step-nav--end': !isMultiStyle }">
-                    <el-button v-if="isMultiStyle" @click="step = 1">{{ $t('orderForm.prevStep') }}</el-button>
-                    <el-button type="primary" :disabled="!selectedSizeId" @click="step = addonStep">{{ $t('orderForm.nextStep') }}</el-button>
-                  </div>
-                </template>
-              </div>
+              <SizePickStep
+                v-if="isStyleMode" v-show="step === sizeStep"
+                :sizes="selectedStyle?.sizes || []"
+                :selected-size-id="selectedSizeId"
+                :is-multi-style="isMultiStyle"
+                @select="selectSize"
+                @prev="step = 1"
+                @next="step = addonStep"
+                @skip="step = addonStep"
+              />
 
               <!-- ── SPEC-PRICE-2: 选增项（普通多选 + 用途单选 + 加急单选）+ 实时价格明细 ── -->
-              <div v-if="isStyleMode" v-show="step === addonStep">
-                <h3 class="step-title">{{ $t('orderForm.addonStepTitle') }}</h3>
+              <AddonStep
+                v-if="isStyleMode" v-show="step === addonStep"
+                :regular-addons="regularAddons"
+                :usage-addons="usageAddons"
+                :rush-addons="rushAddons"
+                :has-addons="availableStyleAddons.length > 0"
+                :addon-selections="styleAddonSelections"
+                :selected-usage-id="selectedUsageId"
+                :selected-rush-id="selectedRushId"
+                :price-text="styleAddonPriceText"
+                :preview="stylePricePreview"
+                :installments="installmentPreview"
+                :discount-enabled="discountEnabled"
+                :discount-validating="discountValidating"
+                :discount-result="discountResult"
+                :discount-error="discountError"
+                v-model:discount-code="form.discountCode"
+                @addon-toggle="onAddonToggle"
+                @addon-quantity="onAddonQuantity"
+                @toggle-usage="toggleUsage"
+                @toggle-rush="toggleRush"
+                @validate-discount="validateDiscountCode"
+                @prev="step = sizeStep"
+                @next="step = detailStep"
+              />
 
-                <!-- 普通增项（可多选共存；开关类/个数类，支持 ¥ 或 %） -->
-                <div v-if="regularAddons.length" class="addon-group">
-                  <p class="addon-group-label">{{ $t('orderForm.addonGroupRegular') }}</p>
-                  <div class="style-addon-list">
-                    <div v-for="a in regularAddons" :key="a.id" class="style-addon-item">
-                      <div class="style-addon-info">
-                        <span class="style-addon-name">{{ a.name }}</span>
-                        <span class="style-addon-price">{{ styleAddonPriceText(a) }}</span>
-                        <span v-if="a.price_mode === 'percent'" class="style-addon-note">{{ $t('orderForm.pctOfBase') }}</span>
-                      </div>
-                      <el-switch
-                        v-if="a.control_type === 'switch'"
-                        :model-value="styleAddonSelections[a.id]?.toggled || false"
-                        size="small"
-                        @change="(val) => { if (!styleAddonSelections[a.id]) styleAddonSelections[a.id] = { toggled: false, quantity: 0 }; styleAddonSelections[a.id].toggled = val }"
-                      />
-                      <el-input-number
-                        v-else
-                        :model-value="styleAddonSelections[a.id]?.quantity || 0"
-                        :min="0" :max="a.max_quantity || 99" :step="1" size="small" style="width: 110px"
-                        @change="(val) => { if (!styleAddonSelections[a.id]) styleAddonSelections[a.id] = { toggled: false, quantity: 0 }; styleAddonSelections[a.id].quantity = val ?? 0 }"
-                      />
-                    </div>
-                  </div>
-                </div>
+              <!-- ── 写需求 + 上传（v0.32: 动态步骤号） ── -->
+              <DetailStep
+                v-show="step === detailStep"
+                v-model:description="form.description"
+                :inspire-tags="inspireTags"
+                :workflow-stages="workflowStages"
+                :revision-note="artist?.revisionNote || ''"
+                :ref-file-list="refFileList"
+                :upload-request="handleRefUpload"
+                :upload-remove="handleRefRemove"
+                @prev="step = isStyleMode ? addonStep : 1"
+                @next="goNextFromDetail"
+              />
 
-                <!-- 用途（最多选一项，可不选；乘在小计之后） -->
-                <div v-if="usageAddons.length" class="addon-group">
-                  <p class="addon-group-label">{{ $t('orderForm.addonGroupUsage') }}<span class="addon-group-hint">{{ $t('orderForm.multOptionalHint') }}</span></p>
-                  <div class="mult-chips">
-                    <button
-                      v-for="a in usageAddons" :key="a.id"
-                      type="button"
-                      class="mult-chip mult-chip--usage"
-                      :class="{ 'mult-chip--on': selectedUsageId === a.id }"
-                      :aria-pressed="selectedUsageId === a.id"
-                      @click="toggleUsage(a.id)"
-                    >
-                      <span class="mult-chip-name">{{ a.name }}</span>
-                      <span class="mult-chip-pct">+{{ a.price }}%</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- 加急（最多选一项，可不选） -->
-                <div v-if="rushAddons.length" class="addon-group">
-                  <p class="addon-group-label">{{ $t('orderForm.addonGroupRush') }}<span class="addon-group-hint">{{ $t('orderForm.multOptionalHint') }}</span></p>
-                  <div class="mult-chips">
-                    <button
-                      v-for="a in rushAddons" :key="a.id"
-                      type="button"
-                      class="mult-chip mult-chip--rush"
-                      :class="{ 'mult-chip--on': selectedRushId === a.id }"
-                      :aria-pressed="selectedRushId === a.id"
-                      @click="toggleRush(a.id)"
-                    >
-                      <span class="mult-chip-name">{{ a.name }}</span>
-                      <span class="mult-chip-pct">+{{ a.price }}%</span>
-                    </button>
-                  </div>
-                </div>
-
-                <el-empty v-if="!availableStyleAddons.length" :description="$t('orderForm.addonStepEmpty')" :image-size="40" />
-
-                <!-- SPEC-PRICE-2 实时价格明细（与后端唯一引擎同公式：小计×用途×加急−折扣） -->
-                <div v-if="stylePricePreview" class="price-preview">
-                  <div class="price-line">
-                    <span>{{ $t('orderForm.previewBaseLine', { size: stylePricePreview.sizeName }) }}</span>
-                    <span class="price-amount">{{ formatYuan(stylePricePreview.baseCents) }}</span>
-                  </div>
-                  <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="price-line">
-                    <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-                    <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
-                  </div>
-                  <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="price-line">
-                    <span>{{ item.name }} +{{ item.percent }}%<span class="price-line-note">（{{ $t('orderForm.pctOfBase') }}）</span></span>
-                    <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
-                  </div>
-                  <div class="price-line subtotal">
-                    <span>{{ $t('orderForm.priceSubtotal') }}</span>
-                    <span class="price-amount">{{ formatYuan(stylePricePreview.subtotalCents) }}</span>
-                  </div>
-                  <div v-if="stylePricePreview.usage" class="price-line">
-                    <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-                    <span class="price-amount">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
-                  </div>
-                  <div v-if="stylePricePreview.rush" class="price-line">
-                    <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-                    <span class="price-amount">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
-                  </div>
-                  <div class="price-divider"></div>
-                  <!-- 折扣码输入行（画师开启折扣功能时才显示；先倍率后折扣） -->
-                  <div v-if="discountEnabled" class="discount-row">
-                    <span class="discount-label">{{ $t('orderForm.discountLabel') }}</span>
-                    <el-input
-                      v-model="form.discountCode"
-                      :placeholder="$t('orderForm.discountPlaceholder')"
-                      size="small" class="discount-input"
-                      @keyup.enter="validateDiscountCode"
-                    />
-                    <el-button
-                      size="small" type="primary" plain
-                      :loading="discountValidating"
-                      :disabled="!form.discountCode.trim()"
-                      @click="validateDiscountCode"
-                    >
-                      {{ $t('orderForm.discountValidate') }}
-                    </el-button>
-                    <span v-if="discountResult" class="discount-ok">
-                      ✓ {{ discountResult.discountType === 'percent' ? `-${discountResult.discountValue}%` : `-${formatYuanValue(discountResult.discountValue)}` }}
-                    </span>
-                  </div>
-                  <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
-                  <div class="price-line total">
-                    <span>{{ $t('orderForm.receiptTotal') }}</span>
-                    <span class="price-amount">{{ formatYuan(stylePricePreview.totalCents) }}</span>
-                  </div>
-                  <div v-if="stylePricePreview.discount" class="price-line discount">
-                    <span>{{ $t('orderForm.discountEstimate') }}（{{ stylePricePreview.discount.code }}）</span>
-                    <span class="price-amount discount-amount">-{{ formatYuan(stylePricePreview.discount.amountCents) }}</span>
-                  </div>
-                  <div v-if="installmentPreview.length > 1" class="installment-row">
-                    <span v-for="inst in installmentPreview" :key="inst.label" class="installment-chip">
-                      {{ inst.label }} {{ formatYuan(inst.amountCents) }}
-                    </span>
-                  </div>
-                </div>
-
-                <div class="step-nav">
-                  <el-button @click="step = sizeStep">{{ $t('orderForm.prevStep') }}</el-button>
-                  <el-button type="primary" @click="step = detailStep">{{ $t('orderForm.nextStep') }}</el-button>
-                </div>
-              </div>
-
-              <!-- ── 步骤二：写需求 + 上传（v0.32: 动态步骤号） ── -->
-              <div v-show="step === detailStep">
-                <h3 class="step-title">{{ $t('orderForm.step2Title') }}</h3>
-
-                <!-- R58-4: 灵感标签快捷注入（R58-8: 改为画师自定义标签，未设置时不显示） -->
-                <div v-if="inspireTags.length" class="inspire-block">
-                  <span class="inspire-hint">{{ $t('orderForm.inspireHint') }}</span>
-                  <div class="inspire-tags">
-                    <button v-for="tag in inspireTags" :key="tag" type="button" class="inspire-tag" @click="appendTag(tag)">{{ tag }}</button>
-                  </div>
-                </div>
-
-                <!-- 需求描述 -->
-                <el-form-item :label="$t('orderForm.descLabel')" prop="description">
-                  <el-input
-                    v-model="form.description" type="textarea" :rows="5"
-                    :placeholder="$t('orderForm.descPlaceholder')" maxlength="2000" show-word-limit
-                  />
-                </el-form-item>
-
-                <!-- 参考图上传（P1-4: tooltip 显示详细说明） -->
-                <el-form-item>
-                  <template #label>
-                    <span>{{ $t('orderForm.refLabel') }}</span>
-                    <el-tooltip :content="$t('orderForm.refTip')" placement="top">
-                      <el-icon class="ref-tip-icon"><InfoFilled /></el-icon>
-                    </el-tooltip>
-                  </template>
-                  <el-upload
-                    :auto-upload="true" :http-request="handleRefUpload"
-                    accept="image/*" list-type="picture-card" :limit="5"
-                    :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('orderForm.refExceed'))"
-                    :on-remove="handleRefRemove"
-                    @dragenter.capture="guardDragEnter"
-                    @dragover.capture="guardDragOver"
-                    @drop.capture="guardDrop"
-                  >
-                    <el-icon aria-label="上传参考图"><Plus /></el-icon>
-                  </el-upload>
-                  <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
-                </el-form-item>
-
-                <!-- 流程与收款预览（R1: 保持原位，增加修改说明告示） -->
-                <el-form-item v-if="workflowStages.length || artist?.revisionNote" :label="$t('orderForm.workflowLabel')">
-                  <WorkflowOverviewStrip v-if="workflowStages.length" :stages="workflowStages" />
-                  <div v-if="artist?.revisionNote" class="tpl-revision-note">
-                    <span>
-                      <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
-                      {{ artist.revisionNote }}
-                    </span>
-                  </div>
-                </el-form-item>
-
-                <div class="step-nav">
-                  <el-button @click="step = isStyleMode ? addonStep : 1">{{ $t('orderForm.prevStep') }}</el-button>
-                  <el-button type="primary" @click="goNextFromDetail">{{ $t('orderForm.nextStep') }}</el-button>
-                </div>
-              </div>
-
-              <!-- ── 步骤三：联系方式（v0.32: 动态步骤号） ── -->
-              <div v-show="step === contactStep">
-                <h3 class="step-title">{{ $t('orderForm.step3Title') }}</h3>
-
-                <!-- QQ号 -->
-                <el-form-item :label="$t('orderForm.qqLabel')" prop="clientQq">
-                  <el-input v-model="form.clientQq" :placeholder="$t('orderForm.qqPlaceholder')" />
-                </el-form-item>
-
-                <!-- 昵称 -->
-                <el-form-item :label="$t('orderForm.nameLabel')">
-                  <el-input v-model="form.clientName" :placeholder="$t('orderForm.namePlaceholder')" />
-                </el-form-item>
-
-                <!-- QQ通知 -->
-                <el-form-item v-if="artist.notifyEnabled">
-                  <el-checkbox v-model="form.notifyEnabled">{{ $t('orderForm.notifyLabel') }}</el-checkbox>
-                </el-form-item>
-
-                <!-- 须知确认（消毒后渲染） -->
-                <el-form-item v-if="rulesContent" prop="agreed">
-                  <el-card shadow="never" class="rules-preview">
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div v-html="sanitizedRules" class="rules-html"></div>
-                  </el-card>
-                  <el-checkbox v-model="form.agreed" style="margin-top: 8px">
-                    {{ $t('orderForm.agreeLabel') }}
-                  </el-checkbox>
-                </el-form-item>
-
-                <!-- 平台职责声明 -->
-                <el-form-item>
-                  <Disclaimer />
-                </el-form-item>
-
-                <div class="step-nav">
-                  <el-button @click="step = detailStep">{{ $t('orderForm.prevStep') }}</el-button>
-                  <el-button type="primary" @click="openReceipt">
-                    {{ $t('orderForm.submit') }}
-                    <template v-if="isStyleMode && selectedSize"> — {{ formatYuanValue(displayPrice) }}</template>
-                  </el-button>
-                </div>
-              </div>
+              <!-- ── 联系方式（v0.32: 动态步骤号） ── -->
+              <ContactStep
+                v-show="step === contactStep"
+                v-model:client-qq="form.clientQq"
+                v-model:client-name="form.clientName"
+                v-model:notify-enabled="form.notifyEnabled"
+                v-model:agreed="form.agreed"
+                :notify-visible="!!artist?.notifyEnabled"
+                :has-rules="!!rulesContent"
+                :sanitized-rules="sanitizedRules"
+                :submit-price-text="submitPriceText"
+                @prev="step = detailStep"
+                @submit="openReceipt"
+              />
             </el-form>
           </el-card>
 
           <!-- R58-2: 粘性摘要卡（宽屏右侧 / 移动端底部） -->
-          <aside class="summary-card">
-            <div class="summary-title">{{ $t('orderForm.summaryTitle') }}</div>
-            <!-- REQ-022 F3: 客户信息回显（双模式公共，空值隐藏；描述 3 行截断） -->
-            <div v-if="form.clientName.trim() || form.description.trim()" class="summary-client">
-              <div v-if="form.clientName.trim()" class="summary-line">
-                <span>{{ $t('orderForm.summaryNickname') }}</span>
-                <span class="summary-client-value">{{ form.clientName }}</span>
-              </div>
-              <div v-if="form.description.trim()" class="summary-desc">
-                <div class="summary-line">{{ $t('orderForm.summaryDescription') }}</div>
-                <div class="summary-desc-text">{{ form.description }}</div>
-              </div>
-              <div class="summary-divider"></div>
-            </div>
-            <!-- SPEC-PRICE-2 摘要：画风/尺寸 + 增项明细 + 用途/加急 + 总价 -->
-            <template v-if="isStyleMode && selectedSize">
-              <div class="summary-tier">{{ selectedStyle?.name }}</div>
-              <div class="summary-lines">
-                <div class="summary-line">
-                  <span>{{ selectedSize.name }}</span>
-                  <span class="summary-amt">{{ formatYuanValue(selectedSize.base_price) }}</span>
-                </div>
-                <template v-if="stylePricePreview">
-                  <div v-for="(item, idx) in stylePricePreview.fixedAddonItems" :key="'f' + idx" class="summary-line">
-                    <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-                    <span class="summary-amt">+{{ formatYuan(item.amountCents) }}</span>
-                  </div>
-                  <div v-for="(item, idx) in stylePricePreview.percentAddonItems" :key="'p' + idx" class="summary-line">
-                    <span>{{ item.name }} +{{ item.percent }}%</span>
-                    <span class="summary-amt">+{{ formatYuan(item.amountCents) }}</span>
-                  </div>
-                  <div v-if="stylePricePreview.usage" class="summary-line">
-                    <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-                    <span class="summary-amt">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
-                  </div>
-                  <div v-if="stylePricePreview.rush" class="summary-line">
-                    <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-                    <span class="summary-amt">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
-                  </div>
-                  <div v-if="stylePricePreview.discount" class="summary-line summary-line--discount">
-                    <span>{{ $t('orderForm.discountEstimate') }}</span>
-                    <span class="summary-amt">-{{ formatYuan(stylePricePreview.discount.amountCents) }}</span>
-                  </div>
-                </template>
-                <div class="summary-divider"></div>
-              </div>
-              <div class="summary-total">
-                <span>{{ $t('orderForm.receiptTotal') }}</span>
-                <span class="summary-total-amt">{{ formatYuanValue(displayPrice) }}</span>
-              </div>
-              <div v-if="installmentPreview.length > 1" class="summary-installments">
-                <span v-for="inst in installmentPreview" :key="inst.label" class="summary-inst">
-                  {{ inst.label }} {{ formatYuan(inst.amountCents) }}
-                </span>
-              </div>
-            </template>
-            <div v-else class="summary-empty">{{ $t('orderForm.summaryNoSize') }}</div>
-          </aside>
+          <OrderSummaryCard
+            :client-name="form.clientName"
+            :description="form.description"
+            :is-style-mode="isStyleMode"
+            :selected-style="selectedStyle"
+            :selected-size="selectedSize"
+            :preview="stylePricePreview"
+            :installments="installmentPreview"
+            :display-price="displayPrice"
+          />
         </div>
 
         <!-- P0-1: 移动端底部粘性操作条（桌面隐藏；与原按钮并存） -->
@@ -510,13 +227,16 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import Disclaimer from '../../components/Disclaimer.vue'
-import WorkflowOverviewStrip from '../../components/shared/WorkflowOverviewStrip.vue'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
+import StepIndicator from './order-form/StepIndicator.vue'
+import StylePickStep from './order-form/StylePickStep.vue'
+import SizePickStep from './order-form/SizePickStep.vue'
+import AddonStep from './order-form/AddonStep.vue'
+import DetailStep from './order-form/DetailStep.vue'
+import ContactStep from './order-form/ContactStep.vue'
+import OrderSummaryCard from './order-form/OrderSummaryCard.vue'
 import { useOrderForm } from '../../composables/useOrderForm.js'
-import { useDropGuard } from '../../composables/useDropGuard.js'
 import { usePalette } from '../../composables/usePalette.js'
 import { formatYuan, formatYuanValue } from '../../utils/money.js'
 import { trackEvent, flushNow } from '../../utils/track.js'
@@ -525,9 +245,6 @@ const { t } = useI18n()
 const route = useRoute()
 const subdomain = route.params.subdomain
 const formRef = ref(null)
-
-// G1: 页内拖拽守卫（参考图上传区统一防御；捕获阶段挂在 el-upload 上）
-const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 // R58-1: 表单业务逻辑全部由共享 composable 提供，页面只保留布局与样式
 const {
@@ -555,6 +272,21 @@ const {
 // M2: 流程页跟随画师 palette 配色（画师数据加载后生效，卸载时自动清理）
 const paletteId = computed(() => artist.value?.paletteId || 'paper')
 usePalette(paletteId)
+
+// ─── 拆分批：普通增项开关/个数变更（子组件 emit 上报，语义与原内联 handler 一致） ───
+function onAddonToggle(id, toggled) {
+  if (!styleAddonSelections[id]) styleAddonSelections[id] = { toggled: false, quantity: 0 }
+  styleAddonSelections[id].toggled = toggled
+}
+function onAddonQuantity(id, quantity) {
+  if (!styleAddonSelections[id]) styleAddonSelections[id] = { toggled: false, quantity: 0 }
+  styleAddonSelections[id].quantity = quantity
+}
+
+// ─── v0.35 F4: 预选横幅「修改」——多画风回选画风步；单画风回选尺寸步 ───
+function onEditPreselect() {
+  step.value = isMultiStyle.value ? 1 : sizeStep.value
+}
 
 // ─── D 软提示（用户拍板：需求描述可空过，仅留空时弹一次确认，不拦截） ───
 function goNextFromDetail() {
@@ -698,12 +430,13 @@ watch(loading, (v) => {
 /** 摘要卡/小票/提交按钮展示价（SPEC-PRICE-2 唯一引擎总价） */
 const displayPrice = computed(() => styleDisplayPrice.value)
 
+/** 联系方式步提交按钮价格后缀（已选画风+尺寸时显示，否则不拼） */
+const submitPriceText = computed(() =>
+  (isStyleMode.value && selectedSize.value) ? formatYuanValue(displayPrice.value) : null
+)
+
 // ─── R58-4: 灵感标签快捷注入（R58-8: 从 API 读取画师自定义标签，未设置时不显示，不 fallback 硬编码） ───
 const inspireTags = computed(() => artist.value?.inspirationTags || [])
-function appendTag(tag) {
-  const sep = form.description && !/[，。、\s]$/.test(form.description) ? '，' : ''
-  form.description = `${form.description}${sep}${tag}`.slice(0, 2000)
-}
 
 // ─── R58-3: 小票二次确认（校验通过才弹小票，确认后走 composable 提交流程） ───
 // R24: 校验失败时弹窗列出所有未通过项，关闭后滚动到第一个未通过字段
@@ -788,78 +521,6 @@ async function copyQq(qq) {
 }
 /* R58-2: 加宽容器容纳 主区 + 摘要卡 双栏 */
 .form-container { max-width: 920px; margin: 0 auto; }
-.paste-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
-/* P1-4: 参考图说明 tooltip 图标 */
-.ref-tip-icon {
-  margin-left: 4px;
-  color: var(--text-secondary);
-  cursor: help;
-  vertical-align: middle;
-  transition: color 0.2s;
-}
-.ref-tip-icon:hover { color: var(--color-primary); }
-
-/* ─── R58-2: 步骤指示器 ─── */
-.step-indicator {
-  display: flex; align-items: center; justify-content: center;
-  margin: 24px 0 20px;
-}
-/* ─── v0.35 F4: 入口 A 预选摘要横幅（可见可改） ─── */
-.preselect-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 0 0 18px;
-  padding: 10px 16px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--border-color, #dcdfe6));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-primary) 7%, var(--bg-page, #fff));
-}
-.preselect-banner-text {
-  font-size: 13px;
-  color: var(--text-primary, var(--el-text-color-primary));
-}
-.preselect-banner-btn {
-  padding: 3px 12px;
-  border: 1px solid var(--border-color-strong, #c0c4cc);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-primary);
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-}
-.preselect-banner-btn:hover {
-  border-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-}
-.step-item { display: flex; align-items: center; gap: 8px; }
-.step-dot {
-  width: 32px; height: 32px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px;
-  border: 2px solid var(--border-color-strong);
-  color: var(--text-muted); background: var(--bg-card);
-  transition: transform 0.15s ease, background 0.2s, border-color 0.2s, color 0.2s;
-}
-.step-dot--active {
-  border-color: var(--color-primary); color: var(--color-primary);
-  transform: scale(1.15);
-}
-.step-dot--done {
-  background: var(--color-primary); border-color: var(--color-primary); color: #fff;
-}
-.step-label { font-size: 13px; color: var(--text-muted); transition: color 0.2s; }
-.step-label--on { color: var(--text-primary); font-weight: 600; }
-.step-connector {
-  width: 48px; height: 2px; margin: 0 10px;
-  background: var(--border-color-strong);
-  transition: background 0.3s;
-}
-.step-connector--done { background: var(--color-primary); }
 
 /* ─── R58-2: 双栏布局（主区 + 粘性摘要卡） ─── */
 .step-layout {
@@ -868,57 +529,12 @@ async function copyQq(qq) {
   gap: 20px;
   align-items: start;
 }
-.step-title {
-  font-family: var(--font-display);
-  font-size: clamp(18px, 3vw, 22px);
-  color: var(--text-primary);
-  margin: 0 0 16px;
-}
 .step-eyebrow {
   font-size: 11px; letter-spacing: .14em;
   color: var(--text-secondary, #888); margin-bottom: 8px;
 }
 .step-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .step-nav--end { justify-content: flex-end; }
-
-/* ─── SPEC-PRICE-2: 增项步三区分组 + 用途/加急单选 chip ─── */
-.addon-group { margin-bottom: 18px; }
-.addon-group-label {
-  font-size: 13px; font-weight: 600; color: var(--text-primary);
-  margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px;
-}
-.addon-group-hint { font-size: 11px; font-weight: 400; color: var(--text-secondary); }
-.mult-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.mult-chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 14px; border-radius: 999px;
-  border: 1px solid var(--border-color-strong, #c0c4cc);
-  background: var(--bg-card, #fff); color: var(--text-primary);
-  font-size: 13px; font-family: inherit; cursor: pointer; user-select: none;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
-}
-.mult-chip:hover { border-color: var(--color-primary); }
-.mult-chip-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
-.mult-chip--usage.mult-chip--on {
-  border-color: var(--color-primary); color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-card, #fff));
-}
-.mult-chip--rush.mult-chip--on {
-  border-color: var(--color-danger, #f56c6c); color: var(--color-danger, #f56c6c);
-  background: color-mix(in srgb, var(--color-danger, #f56c6c) 10%, var(--bg-card, #fff));
-}
-/* 展示态尺寸徽标（可见但不可约） */
-.size-pick-showcase {
-  font-size: 11px; padding: 1px 8px; border-radius: 999px;
-  background: color-mix(in srgb, var(--color-warning, #e6a23c) 15%, transparent);
-  color: var(--color-warning, #e6a23c);
-}
-.size-pick--showcase { opacity: 0.75; }
-/* 价格明细：小计行 + 注释 */
-.price-line.subtotal { font-weight: 600; color: var(--text-primary); }
-.price-line-note { font-size: 11px; color: var(--text-secondary); margin-left: 4px; }
-.style-addon-note { font-size: 11px; color: var(--text-secondary); margin-left: 6px; }
-.summary-line--discount .summary-amt { color: var(--color-danger, #f56c6c); }
 
 /* ─── R58-2: 档位卡片选择（选中态弹性动画） ─── */
 .tier-pick-grid {
@@ -960,77 +576,9 @@ async function copyQq(qq) {
 }
 .tier-pick-days { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-/* ─── R58-4: 灵感标签 ─── */
-.inspire-block { margin-bottom: 16px; }
-.inspire-hint { font-size: 12px; color: var(--text-secondary); }
-.inspire-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.inspire-tag {
-  padding: 5px 14px; font-size: 13px; cursor: pointer;
-  background: var(--bg-card); color: var(--text-secondary);
-  border: 1px dashed var(--border-color-strong); border-radius: 999px;
-  transition: transform 0.15s ease, color 0.2s, border-color 0.2s, background 0.2s;
-}
-.inspire-tag:hover {
-  color: var(--color-primary); border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-}
-.inspire-tag:active { transform: translateY(0) scale(0.96); }
-
-/* ─── R58-2: 粘性摘要卡 ─── */
-.summary-card {
-  position: sticky; top: 24px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color); border-radius: 12px;
-  padding: 18px;
-}
-.summary-title {
-  font-size: 13px; font-weight: 600; letter-spacing: 2px;
-  color: var(--text-secondary); margin-bottom: 12px;
-}
-.summary-tier {
-  font-family: var(--font-display);
-  font-size: 16px; font-weight: 600; color: var(--text-primary);
-  margin-bottom: 8px;
-}
-.summary-lines { margin-bottom: 4px; }
-.summary-line {
-  display: flex; justify-content: space-between;
-  font-size: 13px; color: var(--text-secondary); padding: 3px 0;
-}
-.summary-amt { font-variant-numeric: tabular-nums; }
-.summary-divider { border-top: 1px dashed var(--border-color); margin: 6px 0; }
-.summary-total {
-  display: flex; justify-content: space-between; align-items: baseline;
-  font-size: 14px; font-weight: 600; color: var(--text-primary);
-}
-.summary-total-amt {
-  font-size: 22px; font-weight: 700; color: var(--color-primary);
-  font-variant-numeric: tabular-nums;
-}
-.summary-installments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.summary-inst {
-  font-size: 11px; padding: 2px 8px; border-radius: 10px;
-  background: var(--el-color-primary-light-9); color: var(--el-color-primary);
-}
-.summary-empty { font-size: 13px; color: var(--text-muted); }
-/* ─── REQ-022 F3: 客户信息回显（昵称 + 需求描述） ─── */
-.summary-client { margin-bottom: 4px; }
-.summary-client-value { font-weight: 600; color: var(--text-primary); }
-.summary-desc { margin-top: 2px; }
-.summary-desc-text {
-  font-size: 12px; color: var(--text-secondary); line-height: 1.6;
-  word-break: break-word;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-}
-
-/* ─── R58-2: 移动端——单栏，摘要卡移到底部 ─── */
+/* ─── R58-2: 移动端——单栏 ─── */
 @media (max-width: 860px) {
   .step-layout { grid-template-columns: 1fr; }
-  .summary-card { position: static; }
-  .step-label { display: none; }
-  .step-label--on { display: inline; }
-  .step-item:has(.step-label--on) { order: -1; }
-  .step-connector { width: 32px; }
 }
 
 /* ─── P0-1: 移动端底部粘性操作条（sticky 底部；与原“下一步/提交”按钮并存） ─── */
@@ -1069,12 +617,9 @@ async function copyQq(qq) {
 .pricing-expand-btn:hover { color: var(--el-color-primary); border-color: var(--el-color-primary); }
 .pricing-expand-enter-active, .pricing-expand-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
 .pricing-expand-enter-from, .pricing-expand-leave-to { opacity: 0; transform: translateY(-8px); }
-.rules-preview { max-height: 200px; overflow-y: auto; }
-.rules-html { line-height: 1.8; color: var(--text-primary); }
 
-/* 增项分组 */
+/* 增项分组（旧折叠式残留；.addon-group 级联样式已随区块迁入 AddonStep.vue） */
 .addon-groups { width: 100%; }
-.addon-group { margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
 .addon-group-title {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 14px; background: var(--bg-inset); cursor: pointer;
@@ -1099,30 +644,6 @@ async function copyQq(qq) {
 .multiplier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .multiplier-label { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
 
-/* 价格预览 */
-.price-preview {
-  background: var(--bg-inset); border: 1px solid var(--border-color);
-  border-radius: 8px; padding: 14px 16px; margin-bottom: 20px;
-}
-.price-line { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; color: var(--text-secondary); }
-.price-line.total { font-size: 16px; font-weight: 700; color: var(--text-primary); padding-top: 8px; }
-/* v0.31 F3: 折扣码输入行 + 折扣行 */
-.discount-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; flex-wrap: wrap; }
-.discount-label { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
-.discount-input { width: 140px; }
-.discount-ok { font-size: 13px; font-weight: 600; color: var(--el-color-success); }
-.discount-error { font-size: 12px; color: var(--el-color-danger); margin: 2px 0 0; }
-.price-line.discount .discount-amount { color: var(--el-color-danger); font-weight: 600; }
-.price-line.discounted-total { font-size: 15px; font-weight: 700; color: var(--el-color-danger); }
-.price-amount { font-variant-numeric: tabular-nums; }
-.price-divider { border-top: 1px dashed var(--border-color); margin: 6px 0; }
-.installment-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.installment-chip {
-  font-size: 12px; padding: 3px 10px; border-radius: 12px;
-  background: var(--el-color-primary-light-9); color: var(--el-color-primary);
-  font-weight: 500;
-}
-
 /* R58-6: 成功弹窗画师 QQ 区 */
 .success-qq {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -1138,76 +659,4 @@ async function copyQq(qq) {
 .success-qq-actions { display: flex; gap: 8px; }
 /* R58-5: 成功弹窗按钮行 */
 .success-actions { display: flex; gap: 8px; justify-content: center; }
-
-/* ─── v0.32: 画风卡片选择 ─── */
-.style-pick-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
-}
-.style-pick {
-  position: relative;
-  padding: 0 0 14px; text-align: center; cursor: pointer;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color); border-radius: 12px;
-  overflow: hidden;
-  transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.15s ease;
-}
-.style-pick:hover { box-shadow: var(--shadow-card-hover); }
-.style-pick:active { transform: translateY(-2px); }
-.style-pick--on { border-color: var(--color-primary); }
-.style-pick-stamp {
-  position: absolute; top: 8px; right: 8px; z-index: 2;
-  width: 24px; height: 24px; border-radius: 50%;
-  background: var(--color-primary); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700;
-  animation: tier-stamp-in 0.35s var(--ease-bounce);
-}
-.style-pick-img-wrap { height: 130px; overflow: hidden; }
-.style-pick-img { width: 100%; height: 130px; display: block; }
-.style-pick-img-empty {
-  height: 130px; display: flex; align-items: center; justify-content: center;
-  font-size: 40px; background: var(--bg-inset);
-}
-.style-pick-name {
-  font-family: var(--font-display);
-  font-size: 15px; font-weight: 600; color: var(--text-primary);
-  margin: 10px 12px 4px;
-}
-.style-pick-desc {
-  font-size: 12px; color: var(--text-secondary); line-height: 1.5;
-  margin: 0 12px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-
-/* ─── v0.32: 尺寸选择列表 ─── */
-.size-pick-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-/* 画风无尺寸提示（2026-08-07） */
-.no-size-hint { padding: 14px 16px; border-radius: 8px; background: var(--bg-soft, rgba(127,127,127,.08)); color: var(--text-secondary, inherit); margin-bottom: 16px; }
-.no-size-hint p { margin: 0 0 10px; }
-.size-pick {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 18px; cursor: pointer;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color); border-radius: 10px;
-  transition: border-color 0.2s, box-shadow 0.15s ease;
-}
-.size-pick:hover { border-color: var(--color-primary-light-5); }
-.size-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
-.size-pick-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text-primary); }
-.size-pick-price { font-size: 18px; font-weight: 700; color: var(--color-primary); font-variant-numeric: tabular-nums; }
-.size-pick-check { font-size: 16px; color: var(--color-primary); font-weight: 700; }
-
-/* ─── v0.32: 增项控件列表 ─── */
-.style-addon-list { display: flex; flex-direction: column; gap: 4px; }
-.style-addon-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 10px 14px; border-radius: 8px;
-  background: var(--bg-card); border: 1px solid var(--border-color);
-}
-.style-addon-info { display: flex; flex-direction: column; gap: 2px; }
-.style-addon-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.style-addon-price { font-size: 12px; color: var(--el-color-primary); font-weight: 600; }
 </style>

@@ -7,10 +7,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "npm run typecheck && eslint .",
     "preview": "vite preview",
     "test:web": "vitest run",
-  "check:i18n": "node scripts/check-i18n.js"
+    "typecheck": "vue-tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n.js"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
@@ -27,6 +28,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "@vitejs/plugin-vue": "^5.2.0",
     "@vue/test-utils": "^2.4.11",
     "eslint": "^10.8.0",
@@ -34,8 +37,13 @@
     "globals": "^17.8.0",
     "happy-dom": "^20.11.1",
     "prettier": "^3.9.6",
+    "typescript": "~5.9.0",
     "unplugin-vue-components": "^32.1.0",
     "vite": "^6.0.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.3.9"
+  },
+  "allowScripts": {
+    "vue-demi@0.14.10": true
   }
 }

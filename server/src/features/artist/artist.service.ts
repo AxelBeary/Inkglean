@@ -5,7 +5,7 @@ import { normalizeLinkUrl, assertLinkLengthLimits, MAX_LINK_COUNT } from '../../
 import { rederivePlatformId } from '../platform/platform.service.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
 import { sanitizeStoredText } from '../../shared/sanitize.js'
-import type { Artist, Tier } from '../../types/entities.js'
+import type { Artist } from '../../types/entities.js'
 import sharp from 'sharp'
 import { resolve, join } from 'path'
 
