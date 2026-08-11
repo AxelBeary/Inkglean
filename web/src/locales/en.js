@@ -839,6 +839,8 @@
     hint: 'Drag cards to reorder. Order is saved immediately. Priority is a label only and does not affect sorting.',
     confirm: 'Confirm', startWip: 'Start work', done: '✔ Complete', deliver: 'Deliver', cancel: 'Cancel',
     empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
+    // REQ-037 C1: drag reorder success + undo
+    reorderSuccess: 'Order updated', reorderUndo: 'Undo',
     // SPEC-004: buffer zone
     bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
@@ -901,6 +903,8 @@
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', confirmTitle: 'Confirm',
     statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
+    // REQ-037 F1: initial load failure error state (self-service retry)
+    loadFailed: 'Failed to load order. Please retry.', loadFailedRetry: 'Retry',
     // REQ-022 F1: Publish as artwork
     publishArtwork: 'Publish as artwork', publishDialogTitle: 'Publish as artwork',
     publishHint: 'Select deliverables to publish as artworks (copied to public portfolio; originals are kept).',
@@ -1066,6 +1070,8 @@
     // F6: manual order draft (localStorage + restore prompt)
     draftFound: 'Found an unsaved manual order draft. Restore it?',
     draftRestored: 'Draft restored',
+    // REQ-037 E3: explicit restore/discard draft button copy
+    draftRestore: 'Restore', draftDiscard: 'Discard draft',
     // inspection fix batch A1: post-create write-back failure messages
     postCreateFailed: {
       price: 'Failed to write price: {message}',

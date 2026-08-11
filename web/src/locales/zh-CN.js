@@ -837,6 +837,8 @@
     hint: '拖拽卡片调整顺序，顺序立即保存。优先级仅作标记，不影响排列顺序。',
     confirm: '确认', startWip: '开始制作', done: '✔ 完成', deliver: '交付', cancel: '取消',
     empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
+    // REQ-037 C1: 拖拽排序成功提示 + 撤销
+    reorderSuccess: '已调整顺序', reorderUndo: '撤销',
     // SPEC-004: 缓冲区
     bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
@@ -899,6 +901,8 @@
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', confirmTitle: '确认',
     statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
+    // REQ-037 F1: 首载失败错误态（自助重试）
+    loadFailed: '订单加载失败，请重试', loadFailedRetry: '重试',
     // REQ-022 F1: 发布为作品
     publishArtwork: '发布为作品', publishDialogTitle: '发布为作品',
     publishHint: '勾选交付图发布为作品（复制到公开作品区，原交付文件保留）。',
@@ -1064,6 +1068,8 @@
     // F6: 录单草稿（localStorage 暂存 + 恢复提示）
     draftFound: '发现未提交的录单草稿，是否恢复？',
     draftRestored: '已恢复草稿',
+    // REQ-037 E3: 恢复弹窗按钮文案显式化（旧 common.cancel「取消」实为丢弃草稿）
+    draftRestore: '恢复', draftDiscard: '丢弃草稿',
     // 巡检修复批 A1: 录单后补写失败提示
     postCreateFailed: {
       price: '价格写入失败：{message}',

@@ -46,6 +46,14 @@
       :order-id="deliverOrderId"
       @delivered="onDeliveredFromBoard"
     />
+    <!-- REQ-037 C1: 拖拽排序成功撤销提示（5s 自动消失，UndoToast 组件） -->
+    <UndoToast
+      :visible="reorderToastVisible"
+      :message="$t('queue.reorderSuccess')"
+      :label="$t('queue.reorderUndo')"
+      @undo="undoReorder"
+      @timeout="reorderToastVisible = false"
+    />
   </ArtistLayout>
 </template>
 
@@ -58,6 +66,7 @@ import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 import { subscribeReconnect } from '../../utils/reconnect.js'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
+import UndoToast from '../../components/artist/UndoToast.vue'
 import SliderSwitch from '../../components/artist/SliderSwitch.vue'
 import { Odometer, Calendar, Clock } from '@element-plus/icons-vue'
 // v0.41 瘦身批：列表视图 → QueueBoardList，月历/时间条 → QueueBoardCalendar（零行为变化）
@@ -124,10 +133,31 @@ async function loadQueue() {
   loading.value = true
   try {
     queue.value = await artistApi.getQueue()
+    lastServerOrder.value = queue.value.map(o => o.id) // REQ-037 C1
+    reorderToastVisible.value = false
   } catch (err) {
     ElMessage.error(err.message)
   } finally {
     loading.value = false
+  }
+}
+
+// ─── REQ-037 C1: 拖拽排序成功提示 + 软撤销（UndoToast 与时间条拖拽改期同款交互） ───
+const reorderToastVisible = ref(false)
+const lastServerOrder = ref([])   // 最近一次服务端确认的正式区顺序（ids）
+let reorderUndoTarget = []        // 本次拖拽前的顺序（撤销目标）
+
+/** 撤销：把服务端顺序还原为拖拽前（失败则重拉兜底） */
+async function undoReorder() {
+  try {
+    const restored = await artistApi.reorderQueue(reorderUndoTarget)
+    queue.value = restored
+    lastServerOrder.value = restored.map(o => o.id)
+  } catch (err) {
+    ElMessage.error(err.message)
+    await loadQueue()
+  } finally {
+    reorderToastVisible.value = false
   }
 }
 
@@ -139,11 +169,13 @@ async function onDragEnd(evt) {
   const { oldIndex, newIndex } = evt
   if (oldIndex === newIndex) return
 
+  reorderUndoTarget = lastServerOrder.value // REQ-037 C1: 撤销目标 = 拖拽前的服务端顺序
   try {
     const orderedIds = queue.value.map(item => item.id)
     const newQueue = await artistApi.reorderQueue(orderedIds)
     queue.value = newQueue
-    ElMessage.success(t('queue.orderUpdated'))
+    lastServerOrder.value = newQueue.map(o => o.id)
+    reorderToastVisible.value = true
   } catch (err) {
     ElMessage.error(err.message)
     // 回滚：重新加载

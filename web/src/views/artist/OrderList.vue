@@ -55,6 +55,8 @@
         <!-- R16: 缩略图列（焦点图优先，无则 —） -->
         <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
           <template #default="{ row }">
+            <!-- REQ-037 D2: 预览点击 stopPropagation，避免与整行 row-click 跳详情叠加
+                 （QueueBoardList R18/R53 同款陷阱：el-image 内置预览点击会冒泡） -->
             <el-image
               v-if="row.focus_image_path"
               :src="row.focusImageUrl"
@@ -63,6 +65,7 @@
               :alt="$t('orderDetail.referenceImage')"
               :preview-src-list="[row.focusImageUrl]"
               preview-teleported
+              @click.stop
             />
             <span v-else class="no-thumb">—</span>
           </template>

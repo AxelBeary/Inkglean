@@ -178,6 +178,20 @@ const rules = {
 // 多画风判定（草稿内容判定使用；右栏 UI 联动在 ManualOrderRight 内部）
 const isMultiStyle = computed(() => styles.value.length > 1)
 
+// ─── REQ-037 E1: QQ 历史会话内缓存 ───
+// QQ 每次有效都拉全量订单（200 条）客户端过滤；会话内短时缓存避免连续录入重复重请求；
+// 提交成功后手动失效（新订单应立即进入该 QQ 的历史）
+let qqOrdersCache = null // { items, at }
+const QQ_ORDERS_CACHE_TTL = 60_000
+function invalidateQqOrdersCache() { qqOrdersCache = null }
+async function getQqOrdersSource() {
+  if (qqOrdersCache && Date.now() - qqOrdersCache.at < QQ_ORDERS_CACHE_TTL) return qqOrdersCache.items
+  const res = await artistApi.getOrders(undefined, { page: 1, pageSize: 200 })
+  const items = res.items ?? res
+  qqOrdersCache = { items, at: Date.now() }
+  return items
+}
+
 // ─── QQ 历史订单（防抖 500ms，客户端过滤——API 零改动） ───
 const qqValid = computed(() => /^\d{5,15}$/.test(form.clientQq.trim()))
 const qqHistory = ref([])
@@ -206,12 +220,12 @@ watch(() => form.clientQq, (qq) => {
   qqTimer = setTimeout(async () => {
     try {
       // REQ-035 批A: 历史订单 + 客户标记并行加载（标记 404/失败不影响历史查询）
-      const [ordersRes, clientRes] = await Promise.all([
-        artistApi.getOrders(undefined, { page: 1, pageSize: 200 }),
+      // REQ-037 E1: 历史订单走会话内缓存（同一 QQ 连续录入不重复拉全量）
+      const [items, clientRes] = await Promise.all([
+        getQqOrdersSource(),
         artistApi.getToolsClient(trimmed).catch(() => null)
       ])
       if (mySeq !== qqSeq) return
-      const items = ordersRes.items ?? ordersRes
       qqHistory.value = items.filter(o => o.client_qq === trimmed).slice(0, 5)
       const cp = clientRes ? clientRes.profile || null : null
       clientProfile.value = cp
@@ -238,6 +252,8 @@ function onSubmitSuccess({ order, postCreateFailed }) {
   trackEvent('artist_action', { action: 'order_create' })
   // F6: 提交成功后清空草稿（下次进入不再弹恢复提示）
   clearDraft()
+  // REQ-037 E1: 新订单入库 → QQ 历史缓存失效（下次查同 QQ 立即可见新单）
+  invalidateQqOrdersCache()
   // G-4: 提交即消费草稿 → 本页视为全新（远端草稿更新可继续同步）
   userModified = false
   if (postCreateFailed) {
@@ -391,8 +407,9 @@ async function restoreDraft() {
 
   try {
     await ElMessageBox.confirm(t('manualOrder.draftFound'), t('common.confirm'), {
-      confirmButtonText: t('common.confirm'),
-      cancelButtonText: t('common.cancel'),
+      // REQ-037 E3: 按钮文案显式化（恢复/丢弃草稿——旧 common.cancel「取消」实为丢弃）
+      confirmButtonText: t('manualOrder.draftRestore'),
+      cancelButtonText: t('manualOrder.draftDiscard'),
       type: 'info'
     })
     applyDraft(draft)
