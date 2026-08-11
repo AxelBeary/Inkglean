@@ -1,5 +1,11 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-11 v79（**REQ-037 批2 结构批合入 + 波2 四路 codex 并行施工在途**）——master `e9c83d1` 与 origin 同步。
+> ✅ **批2 结构批合入**（`87b8fdf`/`e9c83d1`，**一号自施工**——codex 渠道 402 欠费阻塞期用户知情，恢复后波2 已切回 codex）：A1 画师后台嵌套路由（ArtistLayoutRoute 载体，ArtistLayout 全会话单挂载：切页不再重挂骨架，getMe/留言角标请求每会话各一次；内容区过渡沿用内部 keyed transition，02C 纪律不变）+ A4 useSessionGuard.ts 抽取（ArtistLayout/AdminLayout 重复 validateSession 收敛，AdminLayout 死引用一并清除）。23 视图去包装（机械脚本+eslint --fix，BOM 保留），/tiers 保持 flat（REQ-036 冻结区，代价已注释）。+3 测试（router.nested.test.js）。
+> ✅ **验收（一号独立实测）**：web lint+vue-tsc 0 警 0 错 / vitest **338/338**（基线 335+3）/ check-i18n 过 / build 过；server **1213/1213**；E2E **7/7**；**像素对比 48/48 哈希一致**（12 页×4 档位，真实 TOTP 登录+落地断言+问候语拦截固定化；首轮 44/48 的 dashboard 差异已查实为拦截路径笔误造成的随机问候语假差异，修正后成对重拍全同）。教训入账：**截图脚本的 API 拦截模式必须对照实际端点路径（/api/artist/* 前缀）验证生效，否则防不住随机文案假差异**。
+> 🔄 **波2 四路并行施工在途**（codex 恢复后派出，各自 worktree 文件领地互斥）：批3 数据效率（w-req037b3：D1 复合筛选缓存+进度/D2 订单号真链接/D3 窄屏筛选收纳）+ 批4a 可访问（w-req037b4a：A2 导航真链接/A3 focus-visible/H1 断点审计）+ 批4b 一致性与拆分（w-req037b4b：B2 GuestbookReviewCard/B3 三态统一/G1 Settings 三tab/G2 Settings 可访问）+ 批5 性能候选（w-req037b5：Noto Serif 存废/manualChunks/preload 评估）。四路施工图在 workspace/temp/req037-batch{3,4a,4b,5}-task.md。一号逐路独立验收后依次合入。
+> ⚠️ **遗留小项**：①容器未重建（批1/批2 均纯前端静态产物，随波2 收官后一次性重建+双主题三宽度截图交用户验收）；②dev 库 Alice（10001）已绑固定测试 TOTP 密钥供截图链路（仅开发库，生产不受影响）。
+
 > 最后更新：2026-08-11 v78（**REQ-037 画师面板前端优化方案落档 + 批1 健壮批合入**）——master `5b878e5` 与 origin 同步。
 > 📋 **REQ-037 方案落档**（docs/requirements/REQ-037-画师面板前端优化.md，用户 2026-08-11 拍板）：画师面板全量诊断（结构/交互/视觉/响应式/性能/可访问性六方向），结论=骨架无需推倒，本轮=健壮性补漏+结构提效+一致性收口；P0/P1/P2 分组 + 批0-批5 路线；与 REQ-036（增项交互 w29）和视觉批（Dashboard v0.3 原型）边界显式声明。**批0 两项核实**：B1 统计重复展示证伪销账（GreetingHero 今日金额口径 vs StatCards 订单数口径，互补）；D2 缩略图预览与整行点击冲突属实（QueueBoardList R18/R53 同款陷阱看板已修、订单列表漏修）。
 > ✅ **批1 健壮批合入**（`893a51a`，codex deepseek-v4-flash 无头施工 + 一号独立验收）：①F1/F2 订单详情首载失败错误态+重试入口+首载骨架（对齐 Settings profileLoadFailed 模式；已有数据时刷新失败仍走 ElMessage，首载/刷新双分支不误伤）；②E1 手动录单 QQ 历史会话内缓存（60s TTL + 提交成功后手动失效）；③C1 看板拖拽排序成功接 UndoToast 软撤销（loadQueue 时收起 toast 防陈旧撤销）；④E3 草稿恢复弹窗文案改 恢复/丢弃草稿（对齐 useOrderForm R57 口径）；⑤D2 OrderList 缩略图预览 @click.stop。+3 测试（OrderDetail.loadfail.test.js）。codex 越权加分项已核：自造截图审计脚本/measure 分离核验只落 workspace/temp 未入库，提交面净 7 文件无 scope creep。
@@ -102,7 +108,7 @@
 4. **视觉批（已开局）**：登录页已合入；后续按原型打磨稿推进后台壳/Dashboard；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批；@property 注册+550ms 缓动+手剪圆角 token 从 Login.vue 迁入 artist-tokens.css 随下一视觉批。
 5. **等用户侧**：终验生产登录页（截图已在 workspace/temp/prototype-login）；复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；REQ-037 批1 实机体验（订单详情错误态/看板排序撤销）。
 6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
-7. **REQ-037 后续批次**：批2 嵌套路由（中高风险，需像素对比）/ 批3 数据效率 / 批4 一致性与可访问 / 批5 性能候选池，逐批拍板排期。
+7. **REQ-037 后续批次**：批3/4a/4b/5 四路 codex 并行施工中（验收后依次合入）；合入收官后容器重建+双主题三宽度截图交用户终验。
 8. **已裁决不动（2026-08-10）**：分身提「双包结构致 @sentry/esbuild/eslint 重复安装 ~60MB，应上 npm workspaces」——实测否决：@sentry 两侧是不同包（node 系 vs browser/vue 系，36.5MB 任何架构都要装两份）；esbuild 两侧版本不同（0.28.1 vs 0.25.12，workspaces 只去重同名同版本）；真正可去重仅 eslint ~3MB。迁移代价（lock 合并+Dockerfile/CI 重写）≫ 收益，且独立包结构恰好对齐部署边界（server 容器运行时 / web 静态产物），非债是边界。分身勿重提。
 
 - **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）；登录原型已安装进仓库，全史留档 workspace/temp/prototype-login（login-v0.1→v0.6 + notes.md + 审计脚本）。
@@ -113,9 +119,9 @@
 ---
 ## master 状态
 
-- **HEAD**：`5b878e5`（REQ-037 批1 合入，与 origin 同步）
-- **工作树**：主仓干净；无活跃 worktree
-- **测试基线**：server **1213/1213**（94 文件）· web **335/335**（39 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 警 0 错 · check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
+- **HEAD**：`e9c83d1`（REQ-037 批2 合入，与 origin 同步；波2 四路 worktree 在途）
+- **工作树**：主仓干净；活跃 worktree 4 个（artist-commission-w-req037{b3,b4a,b4b,b5}，用完即删）
+- **测试基线**：server **1213/1213**（94 文件）· web **338/338**（40 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 警 0 错 · check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
 - **后端 100% TS + strict 全开 + any 清零**（init.js 豁免已随 v77 拆分清偿）；**前端 TS 增量纪律生效**（web/tsconfig.json strict + allowJs，新文件一律 TS，vue-tsc 进 lint 与 CI）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
 - **容器**：✅ **已重建 = 审计修复战役最新**（2026-08-11，迁移 v55 已应用回读验证；备份：bak-pre-audit-rebuild-20260811 + BACKUP_OK 每日备份）
