@@ -149,7 +149,7 @@ onMounted(() => {
   background: var(--paper, #faf9f6);
   color: var(--ink);
   font-size: 14px;
-  outline: none;
+  /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
   transition: border-color 0.15s;
 }
 .note-input:focus { border-color: var(--hq, var(--el-color-primary)); }
@@ -162,7 +162,7 @@ onMounted(() => {
   font-size: 14px;
   line-height: 1.6;
   resize: vertical;
-  outline: none;
+  /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
   font-family: inherit;
   transition: border-color 0.15s;
 }
