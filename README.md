@@ -32,7 +32,7 @@
 | 后端 | Fastify 5 + better-sqlite3 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） |
 | 登录 | TOTP 动态口令（RFC 6238） |
-| 测试 | Vitest（后端 1024 + 前端 262 = 1286 用例）+ Playwright E2E |
+| 测试 | Vitest（后端 1213 + 前端 332 = 1545 用例）+ Playwright E2E（7 条） |
 | 类型 | TypeScript（后端 100% TS，strict 全开） |
 | 监控 | Sentry |
 

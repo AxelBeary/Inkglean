@@ -8,7 +8,7 @@
  *
  * 幂等：可重复执行，结果一致（先按标记清理旧数据再插入）。
  * 图片：全部为网上 CC0 / 公有领域 / Unsplash 来源，已预先下载到 uploads/images/ 下。
- *       来源与许可证清单见 docs/comms/03-to-01-示例数据交付-*.md。
+ *       来源与许可证清单原见 comms 交付文档（已随 2026-08-11 docs 清理删除，git 历史可查）。
  */
 import db from '../src/db/connection.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'

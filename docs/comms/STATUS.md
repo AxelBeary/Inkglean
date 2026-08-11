@@ -1,5 +1,9 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-11 v76（**docs 纪律性清理 + 全量文档刷新**）——master 与 origin 同步。
+> 🧹 **删除 116 个已消费/过时文档（-23315 行）**：comms 交付/派工/施工图 13 件（全部批次已合入，结论已在本文件）；docs/archive 整目录（v0.1-v0.4x 时代需求/specs/计划/旧审计/视觉提案，决策已吸纳进本文件已拍板规则）；external-wiki 副本 28 件（过时且可再生）；audit-screenshots 20 件（旧审计证据，结论已留档）；孤儿 overview.md 与 docs 根增项原型 html。所有删除内容 git 历史可查（本提交前的 HEAD）。**保留**：STATUS（唯一状态源）/specs 两件（契约清单+SPEC-PRICE-2）/soul 知识库/requirements 14 件（含 REQ-014 桌面端等待办）/纸墨提案/CONTEXT/OPS/三份说明书。
+> 📝 **文档刷新**：CONTEXT.md 重写（价格模型对齐 SPEC-PRICE-2：档位/分期标退役，新增幂等键/乐观锁/anon-token/零元单术语，技术栈数字对齐）；changelog 补 v0.45+ 段（登录页/三拆/审计七批/TZ 根治/本次清理）；README 测试数刷新；开发自参考加时效性声明（事实源优先级：STATUS > 契约清单 > CONTEXT > 自参考）+ 数字修正；契约清单 CODE_* 三码标退役（衔接批 F-9）；全部指向已删文档的引用改为「已随清理删除，git 历史可查」。
+
 > 最后更新：2026-08-11 v75（**审计修复第二批 D/E/F/G 全部验收合入 + 容器重建部署**）——master `2079745` 与 origin 同步。
 > ✅ **审计修复续批（codex 四批施工 + 一号逐批独立验收，接 v74 的 A/B/C 三批）**：**批 D 订单/钱域**（`a5245c6`：R-5+P3-1 订单 version 乐观锁全写路径守卫[旧快照写入→409 ORDER_CONFLICT]、R-9 下单/收款幂等键[同 key 重放不重复入账]、R-11 零元单显式化，迁移 v53/v54，+37 测试；验收时接线幂等键 GC TTL 并补测试（接线提交在 `a5245c6` 之后）；**批 E 运维域**（`838a2b9`：R-6 备份自愈三件套[uploads tar 备份+restore-db 脚本+entrypoint DB 损坏自愈]、R-20 埋点表 TTL[events 180d/anon_tokens 30d]、R-21 回收站恢复接口、P3-23 签名密钥随机化、P3-24 GC 双轨收敛，+16 测试）；**批 F 后端杂项**（`69a14d4`：P3-20 更新事务回滚、P3-21 留言分页、P3-22 管理端 schema 补齐、P3-17 模板/面板白名单、P3-18 入库消毒、P3-19 DDL 双轨一致性测试[过程中抓到 v49 种子崩坏与 schema 漂移两处真实缺陷并修+新增 v55 双轨同步]、P3-31 计价函数三段拆分[铁律转段内断言]、P3-12 核实无需改、F-9 死码清理、P2-13 参考图归属凭据[x-anon-token+reference_uploads 表，迁移 v55]，+63 测试）；**批 G 前端健壮**（`2079745`：P2-8 布局会话强校验[getMe 失败即登出，补上 v74 漏项]、R-22 三竞态[pointercancel/柱图 seq/开关防连点]、R-16 断网重连订阅、R-17 多标签草稿 storage 同步+幂等键、G-5 localStorage 全量清扫、G-6 死码衔接、G-7 anon-token 归属链路、G-8 留言分页适配，+39 测试）。每批验收=一号独立复跑门禁+抽查 diff，非 self-report。
 > ✅ **终态门禁与部署**：server **1213/1213** + web **332/332** + E2E **7/7** + tsc/eslint/build/check-i18n 全绿。容器已重建（备份 bak-pre-audit-rebuild-20260811 + BACKUP_OK），迁移 v55 已应用回读（orders.version 列/idempotency_keys/reference_uploads 均就位），登录页 HTTP 正常。
@@ -51,24 +55,24 @@
 > ✅ **旧 v60 摘要（纸墨登录页安装合入 f021eb6；圆角族审计口径落地；接口契约清单在途）**。
 > ✅ **纸墨登录页安装（2026-08-10，视觉批开局，用户插队拍板在拆分前）**：合入 `f021eb6`（分支 feat/login-paper-ink，worktree artist-commission-w-login，Qoder 宿主直接施工——用户拍板：视觉批拼审美判断不走便宜模型）。内容：Login.vue 全量重写（纸艺山水/手剪不规则圆角/三张纸叠+feTurbulence 真毛边/ambientCG 真纸纹理 12.9KB WebP/一次性入场动效/550ms @property token 统一缓动切主题/WAAPI 单次交叉淡出+高度锁切语言/grid-rows 帮助展开）；locales 登录键重写（真实 TOTP 推荐 Google/Microsoft Authenticator+2FAS，旧臆测文案删除，新增 纸白/墨黑 主题名键）；check-i18n 白名单+eslint scripts/*.mjs 口径。门禁：web 254/254（master 复跑）+ lint 0 + build 过 + check-i18n 过 + measure 圆角族 3/野生 0 + 安装后交互核验 12/12；容器已重建（备份 bak-pre-login-install-20260810），生产登录页截图已出（workspace/temp/prototype-login/prod-login-*.png）待用户终验。E2E 不涉登录 UI（预登录走 API）未重跑；server 未改动。原型全史：workspace/temp/prototype-login（login-v0.1→v0.6 定稿 + notes.md）。
 > 🔴 **圆角族审计口径（2026-08-10 用户拍板方案 A，已落地）**：measure.mjs 弃「取值种数 ≤3」改「圆角族 ≤3 + 野生字面圆角出现即阻塞」（var(--r-*)=token 角族 / 50%=圆族 / 0=直角族），手剪不规则圆角 token（--r-paper/--r-s-hand，暂定义在 Login.vue 全局块，视觉批铺开时迁入 artist-tokens.css）正名；SKILL.md/评审清单已同步，原件备份 measure.mjs.bak-pre-radius-family。
-> ✅ **批4B 全闭环（2026-08-10）**：合入 `aefc1c9`（base 严格删四列+v24 列探测守卫+v52 删列迁移+addPayment 停写+fixture 修正，交付报告 03-to-01-批4B-交付.md 含双库字节级验证证据）；合入后 master 门禁 server 1027 全绿；容器重建后 v52 自动应用：回读 version=52、分期表仅剩 9 列（四列已删）、23 行分期+2 条流水完好；备份三重（迁移器 .bak.v52 + 手工 bak-pre-v052-rebuild-20260810 + 每日备份）。worktree 已清。批4 结构批至此全部完成。
+> ✅ **批4B 全闭环（2026-08-10）**：合入 `aefc1c9`（base 严格删四列+v24 列探测守卫+v52 删列迁移+addPayment 停写+fixture 修正，交付报告原含双库字节级验证证据，交付文档已随 docs 纪律性清理删除）；合入后 master 门禁 server 1027 全绿；容器重建后 v52 自动应用：回读 version=52、分期表仅剩 9 列（四列已删）、23 行分期+2 条流水完好；备份三重（迁移器 .bak.v52 + 手工 bak-pre-v052-rebuild-20260810 + 每日备份）。worktree 已清。批4 结构批至此全部完成。
 > 🔄 **接口契约清单侦察在途（2026-08-10）**：codex 在主仓只读生成 docs/specs/接口契约清单-v1.md（165 端点逐条写实+错误码总表+前端映射+孤儿端点+缺口清单），作为前端重构前置依赖。背景：分身研判契约缺口属实（0 个 response schema / entities.ts 5KB / 前端纯 JS）；裁决：清单现在做，api 层加 TS 与 entities 补全随前端重构批做（避免重复改动制造合并冲突）。
 > ✅ **旧 v58 摘要（批4B 方案 B 施工中；批4A/A3/FYA2 已合入；原型 v0.1 交付）**。
 > ✅ **三路合入（2026-08-09，各自独立复跑门禁通过后合入）**：批4A `7cafefb`（savePayment 方案 b 守卫+appliesToNewOrdersOnly 提示 + scripts 纳入编译 + demo-data v51 对齐）/ A3 `d76a81c`（R10 关闭语义收敛：关闭=全锁且Σ待收=0，done 未付全的 delta 冲抵未付节点）/ formatYuan A2 `357e1d0`（formatYuanValue 整数裁剪 + addon-utils 收编进 money.js）。合入后全量门禁：server 1027 · web 254 全绿。
-> ⚠️ **批4B（paid_cents 迁移 v52）已全闭环**（方案 B，2026-08-10 容器内回读验证通过）。详谈见 03-to-01-批4B-交付.md。
+> ⚠️ **批4B（paid_cents 迁移 v52）已全闭环**（方案 B，2026-08-10 容器内回读验证通过）。详谈见本条上一行摘要（原交付文档已清理删除）。
 > 🎨 **纸墨 Dashboard 原型 v0.1（2026-08-09）**：%TEMP%\prototype-dashboard\dashboard-v0.1.html（单文件自包含+notes.md+审计截图）。已过 huiyue-layout-audit v2 两轮（圆角 3 种/4px 栅格/对比度≥4.5:1 全达标），13 条已知待打磨点列在 notes.md §三，供 fork 后打磨。
 > ✅ **旧 v56 摘要（formatYuan A1 统一合入；每日备份计划任务已配并实测）**——master `6b4f2fe` 与 origin 同步。
 > ✅ **批7 内容**：①顶部改工具栏（标题+开关+语义状态徽章[开=石绿/关=藤黄] ｜ 右侧新建画风主按钮）+精简提示语；②**CI/E2E 断链根因修复**：仓库 Actions 权限被设为 `local_only`（只许本仓库内行动）→ 所有外部 actions（checkout/setup-node 等）被拦，自 08-08 18:28 起 CI/E2E 全部 startup_failure（0 jobs）；已改为 `selected`+仅允许 GitHub 官方行动（供应链不放松）；本地全门禁复跑全绿（E2E 7/7、server 1005、web 254、oxlint/check-locators 0 错）。教训：**CI 红不一定是代码错，先查仓库设置**。
 > ✅ **SPEC-PRICE-2 全链（已验收通过）**：批1 `856055a` / 批3 `777a9a5` / 批4 `7be8b27` / 批5 `ae9f7ed` / v51 热修 `d88465e`（脏快照清洗，快照仅解绑行生效）/ 批6 `1d2914b`（交互布局，用户评“超出预期”）。规范：`docs/specs/SPEC-PRICE-2-价格模型统一重构.md`（含 §6 交互防呆铁律）。
 > 🔴 **公式铁律（全链路已统一）**：最终价 = (基础价 + Σ固定增项 + Σ百分比增项[只按基础价]) × 用途 × 加急 × 折扣；全程整数分；增项两类控件（开关/个数，**用途/加急强制开关**）× 两种计价（¥/%）× 三类 category；用途/加急下单各选一个（ADDON_SELECTION_MUTEX）；新建画风无条件自动绑定用途/加急。
-> 📁 **布局审计证据**：docs/audit-screenshots/price-round1-*.png（批6，4 宽度）+ price-round2-1440.png（批7 工具栏）；VL 评审无阻塞项。
-> 📜 **纸墨设计语言提案 v1（2026-08-09 用户口述+四号详谈，逐点拍板）**：docs/纸墨设计语言提案-v1.md——绘约视觉唯一事实源（定位/视觉公式/问候系统/器物章/三纪律/待办八项）。旧《画师工作台视觉提案-v2.html》已吸纳归档 docs/archive/。视觉方向自此以该提案为准，变更走 v2。
+> 📁 **布局审计证据（2026-08-11 已随 docs 清理删除，结论留档于此）**：SPEC-PRICE-2 批6 四宽度截图 + 批7 工具栏截图曾存 docs/audit-screenshots/，VL 评审无阻塞项。
+> 📜 **纸墨设计语言提案 v1（2026-08-09 用户口述+四号详谈，逐点拍板）**：docs/纸墨设计语言提案-v1.md——绘约视觉唯一事实源（定位/视觉公式/问候系统/器物章/三纪律/待办八项）。旧《画师工作台视觉提案-v2.html》已全文吸纳进本提案，原件已随 docs 清理删除。视觉方向自此以该提案为准，变更走 v2。
 > 🔧 **执行通道切换（2026-08-09）**：hermes 通道因当前版本反复性故障+降智弃用；新通道 = 一号 codex exec 无头派工（DeepSeek v4-flash，approval never + 沙箱双模式），本日已实战：五路并行只读审计 + 批1 双路 worktree 修复全部走新通道。视觉自检 skill huiyue-layout-audit 用户级已装（VL 链路 qwen3.8-max 已通）。
 > 🩺 **五路技术债审计（2026-08-09，五路 codex 并行只读，一号逐条复核）**：🔴4 已全部修复（批1）；🟡19 / 🟢50+ 清单在审计报告中（%TEMP%\audit-A~E，落档前已转述要点）；全库 TODO/FIXME 为 0、TS 门禁干净（any 清零属实、0 处 ts-ignore 蒙混）。
 > ✅ **批1 急救批（2026-08-09 合入 `891a7fe`+`60ea24f`）**：R1 状态机统一断言（advanceStage/交付路径接入 STATUS_TRANSITIONS，pending→done 一步登天已堵）/ R2 rollback done 守卫（R13 落实，顺带消除 B3 completed_at 漂移路径）/ R3 删增项负价守卫 / R4 i18n 键错位（orderForm.selectSizeFirst）。新增 7 用例 TC-B1-01~07；worktree 双路并行，用完即删。
 > ✅ **批2 口径批（2026-08-09 合入 `50dbbfb`）**：A4 收入汇总改 strftime localtime 与导出对齐（UTC+8 凌晨收款不再差一天）+ 时区自适应回归用例（任何 TZ 成立）。B3 因 R2 守卫自然消除不再需修。
 > ✅ **批3 清理批（2026-08-09 合入 `ee4a0e1`+`eb51c32`）**：E2 parseInt radix 27 处补齐；183+2+9 死键删除（分 9 批小步提交每步过 check:i18n）；16 个 errors.* 缺键补齐（zh+en）；3 死文件 + App.vue 冗余导入 + ACTION_TYPES 死导出清除；fetchProfile 仅 401 登出修复（网络抖动不再误踢人）+ Dashboard 不白屏。门禁全绿：server 1013 · web 254 · build 通过。
-> ✅ **formatYuan A1 统一（2026-08-09 合入 `11e6110`）**：money.js 新增 formatYuan 单一事实源；OrderForm 26 点位 + ManualOrderRight 分源/混合源 + StandaloneIncome/ToolsExport 私有 fmtYuan 清除（侦察施工图在 docs/comms/formatYuan-施工图.md，含 A2/addon-utils 冻结清单待后续拍板）。收敛断言通过（残留 5 处均 basisPoints 百分比，属非金额类正确保留）。
+> ✅ **formatYuan A1 统一（2026-08-09 合入 `11e6110`）**：money.js 新增 formatYuan 单一事实源；OrderForm 26 点位 + ManualOrderRight 分源/混合源 + StandaloneIncome/ToolsExport 私有 fmtYuan 清除（侦察施工图已随 docs 清理删除，A2/addon-utils 已后续合入）。收敛断言通过（残留 5 处均 basisPoints 百分比，属非金额类正确保留）。
 > ✅ **每日备份计划任务（2026-08-09）**：Windows 计划任务 CommissionDailyBackup 每日 03:30 跑 docker compose exec 备份（OPS §2 等效），已手动触发实测 BACKUP_OK；保留 7 份脚本内置；日志 data/backups/daily-backup.log。
 > ⚠️ 2026-08-05 上午**身份混淆事故**（二号误认一号）：master 完整、零损失。防再发见「身份自检」。
 > 维护者：一号（主理人）
@@ -97,12 +101,12 @@
 
 - **HEAD**：`aefc1c9`（批4B 合入，与 origin 同步）
 - **工作树**：主仓干净（codex 契约清单侦察在途，只新增单文件）；无活跃 worktree
-- **测试基线**：server **1027/1027**（69 文件）· web **254/254**（17 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint 0 · oxlint 0 错 · check-locators 0 错 · check-i18n 0
+- **测试基线**：server **1213/1213**（94 文件）· web **332/332**（38 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint 0 · check-locators 0 错 · check-i18n 0
 - **后端 100% TS + strict 全开 + any 清零**（唯一豁免 init.js @ts-nocheck）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
-- **容器**：✅ **已重建 = 批4B 最新**（2026-08-10，迁移 v52 已应用回读验证；备份三重：.bak.v52 + bak-pre-v052-rebuild-20260810 + 每日备份）
+- **容器**：✅ **已重建 = 审计修复战役最新**（2026-08-11，迁移 v55 已应用回读验证；备份：bak-pre-audit-rebuild-20260811 + BACKUP_OK 每日备份）
 - **CI/CD**：GitHub Actions（ci.yml + e2e.yml）；**仓库 Actions 权限 = selected（仅 GitHub 官方行动）**——改回 local_only 会导致全部 startup_failure，勿动（批7 事故教训）
-- **迁移**：**v52** 为最新（分期表四冗余列已退役）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（在途，前端重构前置）
+- **迁移**：**v55** 为最新（v53 version 乐观锁 / v54 幂等键 / v55 参考图归属）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（前端重构前置）
 - **协议**：主仓库 **AGPL-3.0**；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md
 
 ---
@@ -167,7 +171,7 @@
 5. **REQ-022 F1 三项拍板**（2026-08-05 用户拍板）：① 发布为作品门槛 = 订单状态 `delivered`；② 勾选 3 张完稿图 = 3 条独立作品（沿用 artworks 一行一图）；③ 「立即约稿」档位预选 = 从展品（客户端作品展示）点进去才带预选，其他路径不带（复用现有 v0.35 F4 预选机制，?sizeId=）。
 6. **REQ-022 F2 工时 3.5 天接受**（2026-08-05 用户拍板）。
 7. **F5 留言 = 主页留言板 guestbook**（2026-08-05 用户问清确认）；**未读/已读语义已拍板选 c（2026-08-05）：本期不做未读语义，三维筛选（画师/审核态/已回复）已够用，推迟**——安全范围筛选批 `5049aff` 已按此交付。
-8. **执行角色会话由用户在外部窗口开启**（2026-08-05 下午起：可观察可叫停）；一号会话只做 master 门禁（审核+合并+状态记账），不再自拉子代理。接力开工指令统一落 `docs/comms/01-派工-用户侧接力指令-*.md`。
+8. **执行角色会话由用户在外部窗口开启**（2026-08-05 下午起：可观察可叫停）；一号会话只做 master 门禁（审核+合并+状态记账），不再自拉子代理。（早期接力开工指令模板文件已随 docs 清理删除，模式已内化为本规则）
 9. **AUTH_DEV_MODE 关闭时机 = A 测（首轮真实画师测试）启动时**（2026-08-05 用户拍板"随a测关闭"）。届时改 .env `AUTH_DEV_MODE=false` + 重建容器。⚠️ 前置条件：管理员 TOTP 绑定必须先完成（见下），否则关闭后无人能绑定。
 10. **管理员 TOTP 绑定已完成（2026-08-05 一号服务器本机 bootstrap）**：REQ-027 CLI 只有 reset 无 bootstrap，管理员从未绑定 + 旧登录码已删 = cookie 过期后死锁。处置：备份 `data/commission.db.bak-pre-admin-bootstrap` → 生成密钥直写 DB（totp_verified=1）→ 二维码交用户扫码入验证器 App → 端到端实跑 `/api/auth/verify` 登录成功（200 + isAdmin:true + cookie 签发）。⚠️ 教训入账：TOTP 上线合入时就该强制完成管理员绑定（鸡蛋问题），已补 STATUS 流程；A 测关 AUTH_DEV_MODE 前管理员登录链路已无死锁风险。
 11. **功能色保持 EP 出厂色不跟随主色（2026-08-06 用户拍板，边界 OD-05 补充 2026-08-06 四号落档）**：徽章绿"可约稿"/橙"已排满"等功能色沿用 EP 出厂值（theme.css:28-31 既有设计），不收进平台五色体系——功能色跨平台一致是惯例。**边界：此规则仅指客户端**（访客页面）；**画师后台不受此限**，纸墨盘国画语义色（artist-tokens.css：石绿=完成/藤黄=待确认/朱砂=逾期/危险，v0.38 拍板设计）维持现状，外部评审"收进 token 体系"建议继续打回。**后台藤黄警告色调深**：`--warning #A8790B → #966C0A`（白字对比度 3.89→6.28:1 达标，暗色 `#D9B36A` 保持）——同属后台轨，已拍板。
@@ -211,9 +215,9 @@
 |----|------|
 | addons 表处置 | ✅ **旧增项体系完全清退**：算价读路径（`1b8a375`）+ 前端清理（`13dd4e7`）+ 收尾批 schema 删除 + DROP 迁移 v43（`58d48c9`，备份 bak-pre-v43） |
 | **埋点看板全链路联调** | ✅ **2026-08-07 一号容器内实测定论**：events 222 条真实数据，admin summary 200 + byName 完整；三态联动 PUT hidden→画师侧 mode=hidden/enabled=false/无数据→PUT on→恢复；画师 tracking/summary mode=on 返回数据；无 token 401。**契约正确，无需修**（此前"待联调"因二号交付时用 mock，现已在生产容器闭环） |
-| **OrderDetail 拆分后续** | 五号拆分试水完成（1523→1311 行，PaymentPanel/GalleryPanel，0% 像素差异，全门禁绿）。**QueueBoard 1530 行 / ManualOrder 1497 行待派**（模式已验证，可派；施工单蓝本 docs/comms/核实-第三方瘦身施工单-20260807.md 保留）。OrderDetail 死解构 3 个（currentStageIdx/nextStage/daysLeft，v0.40 遗留）建议下批随手清 |
+| **OrderDetail 拆分后续** | 五号拆分试水完成（1523→1311 行，PaymentPanel/GalleryPanel，0% 像素差异，全门禁绿）。**QueueBoard 1530 行 / ManualOrder 1497 行待派**（模式已验证，可派）。OrderDetail 死解构 3 个（currentStageIdx/nextStage/daysLeft，v0.40 遗留）建议下批随手清。（后续实际执行：三大组件已在 v73 全部拆完，本行仅留历史轨迹） |
 | **五号 stash 事故披露（2026-08-07）** | 拆分过程中 `git stash pop` 误弹仓库遗留 stash（WIP on fix/client-frontend-0802，历史遗留），内容仅 package.json/lock 配置类，已 checkout 还原，OrderDetail.vue 未受影响；stash 条目已消耗不可恢复。教训：**操作 stash 前先 `git stash list` 确认无他人 stash**（worktree 与主仓共享 git 状态） |
-| repowiki P2 | 四号核实：**认证系 14 篇抽样全部 TOTP 时代，0 🔴 严重过时**（派工假设被否定）。建议：P1 轻量修补 6 处 🟡（图例/文件名/措辞级）+ P2 改派**非认证主题抽样**（部署/CSP/Sentry 与近期改动相关，价值更高）。报告 docs/comms/04-to-01-repowiki-P2-交付-20260807.md |
+| repowiki P2 | 四号核实：**认证系 14 篇抽样全部 TOTP 时代，0 🔴 严重过时**（派工假设被否定）。建议：P1 轻量修补 6 处 🟡（图例/文件名/措辞级）+ P2 改派**非认证主题抽样**（部署/CSP/Sentry 与近期改动相关，价值更高）。原交付报告已随 docs 清理删除；另 external-wiki 副本已于 2026-08-11 整体删除（过时且可再生） |
 | lint 基线 warnings | server 6 个（pricing-engine.ts 既有）；web 4 个（OrderDetail 3 死解构 + OrderForm onMounted 未使用，均基线）——下批顺手清 |
 | 画师后台视觉投诉 | ✅ **已销账**（2026-08-07 一号核实 git 历史：`d49fe08` 用户 08-06 已拍板取消视觉巡检批，投诉截图已作废删除 `e97467c`）。STATUS 旧记录滞后，现更正为「已取消」 |
 | 安全加固（五号核实报告） | ✅ F1 totp_secret 泄露全堵（`ee0f68a`，4 读 + 4 写端点 DTO 投影 + 11 例回归）；F4/F6/F9/F3 同批合入。**F14 adminQq 用户拍板保留**（2026-08-05，查单页「联系管理员」自助通道，A 测后视反馈再议）；F2/F5/F7/F8/F10/F12/F13 = P1/P2 排期（F7 已知延后/F8 产品设计/F13 已缓解/F12 CI npm audit 可选） |
