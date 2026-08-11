@@ -104,7 +104,30 @@ const routes = [
 const router = createRouter({ history: createWebHistory(), routes })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
+  // REQ-038: 开箱设置初始化守卫
+  // 跳过已初始化检查的路由，避免无限循环
+  if (to.name !== 'SetupWizard' && to.name !== 'ArtistLogin' && to.name !== 'NotFound') {
+    const setupDone = localStorage.getItem('setup_initialized')
+    if (setupDone !== '1') {
+      try {
+        const res = await fetch('/api/setup/status')
+        const data = await res.json()
+        if (!data.initialized) {
+          return next({ name: 'SetupWizard' })
+        }
+        // 缓存已初始化状态
+        localStorage.setItem('setup_initialized', '1')
+      } catch (err) {
+        // 网络异常，放行避免卡死
+        console.warn('[setup] 初始化状态检查失败，放行', err)
+      }
+    }
+  }
+  // 已初始化状态下访问 /setup → 重定向到 /login
+  if (to.name === 'SetupWizard' && localStorage.getItem('setup_initialized') === '1') {
+    return next({ name: 'ArtistLogin' })
+  }
   // P2-C: 页面标题通过 i18n key 动态渲染
   const titleKey = to.meta.titleKey
   if (titleKey) {

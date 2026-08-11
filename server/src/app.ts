@@ -12,6 +12,7 @@ import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
 import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
+import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
 
 // ============================================
 // 应用工厂 - 构建 Fastify 实例
@@ -231,6 +232,18 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     reply.header('X-Permitted-Cross-Domain-Policies', 'none')
   })
 
+  // ─── REQ-038: 开箱设置守卫 — 未初始化时除健康检查/setup/静态资源外返回 503 ───
+  app.addHook('onRequest', async (request, reply) => {
+    // REQ-038: 开箱设置守卡 — 仅生产环境生效
+    if (process.env.NODE_ENV !== 'production') return
+    // 只拦截 /api/ 路径，放行静态资源、健康检查、setup 路径
+    if (!request.url.startsWith('/api/')) return
+    if (request.url === '/api/health' || request.url.startsWith('/api/setup/')) return
+    if (isSetupMode()) {
+      return reply.code(503).send({ code: 'SETUP_REQUIRED', error: '系统尚未初始化，请先完成开箱设置' })
+    }
+  })
+
   // ─── 静态文件服务（上传目录） ───
   const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
   // ENV-1 修复：确保上传目录存在（全新部署时不存在，首次上传会失败）
@@ -326,6 +339,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   })
 
   // ─── 注册功能路由 ───
+  await app.register(import('./features/setup/setup.routes.js'))  // REQ-038: 开箱设置
   await app.register(import('./features/auth/auth.routes.js'))
   await app.register(import('./features/artist/artist.routes.js'))
   await app.register(import('./features/order/order.routes.js'))
