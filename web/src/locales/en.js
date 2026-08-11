@@ -286,7 +286,10 @@ export default {
     quickNote: 'Quick Notes',
     deadlineAdvice: 'Deadline Advice',
     // REQ-016 C: sidebar group titles
-    groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront'
+    groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront',
+    // Toolbox reorganization (Paper-Ink proposal §5.5: one drawer handle + four category slots)
+    toolbox: 'Toolbox', toolboxHint: 'All small tools live here, sorted into four drawers by purpose',
+    toolboxCatMoney: 'Money', toolboxCatDelivery: 'Delivery', toolboxCatClients: 'Clients', toolboxCatEfficiency: 'Efficiency',
   },
   // REQ-035 postponed tools: Price calculator (tools page copy)
   priceCalc: {

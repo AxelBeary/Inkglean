@@ -286,7 +286,10 @@ export default {
     quickNote: '速记剪切板',
     deadlineAdvice: '截稿日建议',
     // REQ-016 C: 侧边栏分组标题
-    groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面'
+    groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面',
+    // 工具箱收纳（纸墨提案 §5.5：导航一个把手 + 四个分类格子）
+    toolbox: '工具箱', toolboxHint: '小工具都收在这里，按用途分了四格',
+    toolboxCatMoney: '钱袋子', toolboxCatDelivery: '交付', toolboxCatClients: '客户', toolboxCatEfficiency: '效率',
   },
   // REQ-035 工具集后置: 稿价计算器（工具页文案）
   priceCalc: {
