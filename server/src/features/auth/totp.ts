@@ -160,7 +160,7 @@ export function verifyTotp(
 // ============================================
 
 /** 构建 otpauth:// URI（Authenticator App 扫码格式） */
-export function buildOtpAuthUri(secretBase32: string, account: string, issuer = '绘约'): string {
+export function buildOtpAuthUri(secretBase32: string, account: string, issuer = '拾绘'): string {
   // RFC 3986 编码 label 中的特殊字符（account 通常是 QQ 号，仍防御性编码）
   const encodedAccount = encodeURIComponent(account)
   const encodedIssuer = encodeURIComponent(issuer)

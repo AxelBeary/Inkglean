@@ -10,7 +10,7 @@
       <PaperCard ref="paperCardRef">
         <LoginPrefs class="rise rise-1" @switch-lang="onSwitchLang" />
 
-        <!-- 品牌区：logo（用户后续替换，保留引用）+ 绘约（文楷）+ 副标 -->
+        <!-- 品牌区：logo（用户后续替换，保留引用）+ 拾绘（文楷）+ 副标 -->
         <div class="brand rise rise-2">
           <img class="brand-logo" :src="logoUrl" alt="" aria-hidden="true">
           <h1 id="login-title" class="brand-title">{{ t('login.brandTitle') }}</h1>

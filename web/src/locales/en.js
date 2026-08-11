@@ -222,7 +222,7 @@ export default {
     confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
     confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
-    footer: 'HuiYue · Artist Commission Platform'
+    footer: 'Inkglean · Artist Commission Platform'
   },
   disclaimer: {
     title: 'Platform notice',
@@ -258,7 +258,7 @@ export default {
   menu: {
     // REQ-040: Account & Security menu item
     account: 'Account & Security',
-    logo: 'HuiYue',
+    logo: 'Inkglean',
     // v0.38: sidebar brand seal character (REQ-026 §三.1 vermillion seal)
     logoSeal: '绘',
     dashboard: 'Dashboard', queue: 'Queue Board', orders: 'Orders',
@@ -539,9 +539,9 @@ export default {
     statusNormal: 'Normal',
     statusFree: 'Available',
     statusLabel: 'Schedule status: ',
-    textHeader: '[HuiYue Schedule] {artist}',
+    textHeader: '[Inkglean Schedule] {artist}',
     noDeadline: 'No upcoming deadlines',
-    brandFooter: 'HuiYue · Schedule Share',
+    brandFooter: 'Inkglean · Schedule Share',
     copied: 'Copied',
     copyFailed: 'Copy failed, please copy manually',
     loadFailed: 'Failed to load schedule',
@@ -803,8 +803,8 @@ export default {
     passkeyLogin: 'Sign in with Windows Hello / Fingerprint',
     passkeyLogging: 'Verifying identity…',
     passkeyError: 'Passkey verification failed. Please try again or use an auth code.',
-    // v0.46 paper-ink login page: brand block (seal + Huiyue + subtitle)
-    brandTitle: 'Huiyue', subtitle: 'Artist Studio',
+    // v0.46 paper-ink login page: brand block (seal + Inkglean + subtitle)
+    brandTitle: 'Inkglean', subtitle: 'Artist Studio',
     // Preferences: theme + language (same logic as the studio)
     prefThemeGroup: 'Theme', themePaper: 'Paper', themeInk: 'Ink',
     prefLangGroup: 'Language',
