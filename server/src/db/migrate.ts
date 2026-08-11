@@ -3,7 +3,7 @@ import { copyFileSync, existsSync } from 'fs'
 import type Database from 'better-sqlite3'
 import { schema, schemaIndexes } from './schema.js'
 import { MIGRATIONS } from './migrations/index.js'
-import type { CountRow, DefaultWorkflowTemplateRow, IdRow } from './migrations/types.js'
+import type { IdRow } from './migrations/types.js'
 
 /**
  * 迁移前自动备份（仅文件数据库）— P0-10: 抽取自 13 处复制粘贴的迁移备份逻辑
@@ -75,13 +75,8 @@ interface SchemaMigrationRow {
   version: number
 }
 
-/** platform_config 表行 */
-interface PlatformConfigRow {
-  value: string
-}
-
 /**
- * 在给定数据库实例上执行建表 + 版本化迁移
+ * 在给定数据库实例上执行建库 + 版本化迁移
  */
 export function initDatabase(database: Database.Database) {
   database.exec(schema)

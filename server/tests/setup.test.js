@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
 import { initDatabase } from '../src/db/init.js'
 import { isSetupCompleted, getSetupStatus, validateSetupToken, createAdminArtist, confirmTotpAndComplete } from '../src/features/setup/setup.service.js'
-import { generateSecret, computeTotp } from '../src/features/auth/totp.js'
+import { computeTotp } from '../src/features/auth/totp.js'
 
 const ORIGINAL_SETUP_TOKEN = process.env.SETUP_TOKEN
 
