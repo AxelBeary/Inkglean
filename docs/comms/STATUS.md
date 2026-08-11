@@ -1,5 +1,13 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-11 v82（**REQ-038~043 波A 合入 master；波B/C/D 施工图就绪待派工；品牌名最终确认 拾绘/Inkglean**）——master `ec33dff` 与 origin 同步。
+> ✅ **波A 双路合入**：REQ-038 开箱设置向导（`fc6ad5ce`：setup.sh 一键脚本 + /setup 四步向导 + 后端 setup 守卫仅生产生效 + ADMIN_QQ 环境变量自举退役，管理员创建改由向导/seed 接管）+ REQ-040 Passkey（`8af7591`：@simplewebauthn/server + 迁移 v56 webauthn_credentials + v57 totp_rebound_at + 登录页 Passkey 按钮 + /account 账号安全页 + TOTP 自助重绑分层验证/24h 冷却/管理员豁免/踢下线）。收尾提交 `84f5153`+`ec33dff`。
+> ⚠️ **波A 事故与修复全记录（防幻觉权威记录）**：①codex 渠道 402 欠费致批2 派工阻塞 → 一号自施工，用户充值后恢复；②040 路 codex 跳过 web 门禁（只跑 server）→ 验收补跑抓到真问题；③**038 路多处修复未提交就合入**（/setup 路由注册/守卫 safe 封装/res.ok 硬化/语言键 i18n 化）→ 验收发现后补提交 `84f5153`；教训：**worktree 合入前必须 git status 确认零未提交改动**；④zh-CN.js 结构破损（codex 把 setup 块插在根对象闭合之外且重复两份 + 040 合入冲突）→ 脚本化修复；⑤qrcode 依赖漏装 + SetupWizard 带 Google Charts 外网兑底（违反零网络约束）→ 装 qrcode@1.5.4 + 去兑底；⑥router 单测不密封（happy-dom fetch 打到恰好在跑的 dev server）→ vi.stubGlobal('fetch') mock；⑦seed 管理员 status='closed' 违反 CHECK 约束被 INSERT OR IGNORE 静默吞掉 + 管理员账号缺失致 E2E 预登录失败 → seed 接管管理员创建（status='hidden'）；⑧isSetupCompleted 原判据要求 setup_completed='1' 会把存量部署误判未初始化锁进向导 → 改用「admin_qq 非空 + 管理员存在 + totp_verified=1」判据（向导绑码前保持 /setup 可达，存量升级不受影响），setup 单测同步更新；⑨dev 库 admin(10003) 绑开发测试 TOTP 密钥（仅 dev 库，与 E2E 同款固定密钥）。教训入账：**INSERT OR IGNORE 会静默吞 CHECK 违约，关键种子数据插入后必须回读验证**。
+> 📋 **波B/C/D 施工图就绪**（workspace/temp/req039-task.md · req041-task.md · req042-task.md · req043-task.md，领地互斥设计）：波B = REQ-039 邀请码（含 I0 角标）+ REQ-041 step-up 并行；波C = REQ-042 合规；波D = REQ-043 体验质量批。迁移号按合入顺序预排：v58 invite_codes / v59 compliance / v60 onboarding。
+> 🏷️ **品牌名最终确认（2026-08-11 用户拍板）：拾绘 / Inkglean**（取代此前 Foundink/Brushline 候选；「绘约」「约绘」弃用）。改名实施（代码/文案/i18n/文档全量）待波 B-D 合入后作为独立改名波执行，避免与在途波次冲突；REQ-039/043 文档品牌行已同步 Inkglean。
+> ✅ **门禁基线（master 实测）**：web vitest **350/350**（42 文件）· lint 0 错（1 警告=既有 v-html 豁免）· check-i18n 过 · build 过；server vitest **1226/1226**（含 setup 13 用例）；E2E **7/7**。worktree：w-req038/w-req040 已合入待清理。
+> ⚠️ **遗留**：①容器未重建（波A 成果未烘焙，随波B-D 收官一次性重建+截图验收）；②Passkey 登录需 HTTPS/localhost 环境验证（Playwright 虚拟认证器 E2E 未做，040 施工图中标注为取舍）；③品牌改名波待排期。
+
 > 最后更新：2026-08-11 v81（**工具箱四分类收纳合入——视觉批前置导航瘦身**）——master `3b35c0f` 与 origin 同步。
 > ✅ **工具箱收纳**（`b93f2fc`/`3b35c0f`，一号自施工；用户指令「重构前先把工具整理成四个大类」，落地纸墨提案 §5.5 已拍板方向）：侧栏 13 个工具项收成一个「工具箱」把手（Tools 图标），四分类 = **钱袋子**（散单记账/收入导出/稿价计算器）· **交付**（图片水印/进度拼图/排期公示）· **客户**（客户标记/老客召回/社恐轻松回复）· **效率**（今天吃什么/速记剪切板/截稿日建议）；移动端抽屉展开为四分类组；新增 /tools 首页四格卡片（ToolsHome.vue，lang="ts"）；注册表抽 constants/toolbox.js 单一事实源（侧栏/抽屉/首页共用）；路由与 i18n 键零改动，/tools/* 子页归属把手高亮。+1 测试（router.nested）。**事故与修复**：@element-plus/icons-vue 2.3.2 无 Toolbox 图标致运行时 SyntaxError 页面白屏（单测/类型检查均未拦住——图标存在性无静态校验），实机报错误定位后换 Tools 图标；教训入账：**图标/资源类导入必须实机挂载验证，构建绿不等于运行时绿**。验收：web 350/350 + lint 0 错 + check-i18n + build 过；server 1213/1213；E2E 7/7；截图 14 帧（工具箱首页/侧栏把手/抽屉展开，双主题）视觉自审通过。**容器已重建**（healthy，ToolsHome chunk 已烘焙）；验收截图 workspace/temp/req037-toolbox-after/。
 > ⚠️ **遗留小项**：①用户终验工具箱收纳（实机看侧栏/抽屉/首页）；②视觉批（Dashboard 骨架重设计 v0.3）前置已就绪（嵌套路由+组件化+导航瘦身），待用户拍板开工。
@@ -128,14 +136,14 @@
 ---
 ## master 状态
 
-- **HEAD**：`3b35c0f`（工具箱四分类收纳合入，与 origin 同步；期间另有 REQ-039 落档提交 `0cd1837` 来自其他会话）
-- **工作树**：主仓干净；无活跃 worktree
-- **测试基线**：server **1213/1213**（94 文件）· web **350/350**（42 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 错（web 1 警告=搬移的须知 v-html 已有消毒）· check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
+- **HEAD**：`ec33dff`（REQ-038/040 波A 合入收尾，与 origin 同步）
+- **工作树**：主仓干净；活跃 worktree：w-req038 / w-req040（已合入待删）；波B/C/D 尚未建 worktree
+- **测试基线**：server **1226/1226**（95 文件，含 setup 13 用例）· web **350/350**（42 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 错（web 1 警告=搬移的须知 v-html 已有消毒）· check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
 - **后端 100% TS + strict 全开 + any 清零**（init.js 豁免已随 v77 拆分清偿）；**前端 TS 增量纪律生效**（web/tsconfig.json strict + allowJs，新文件一律 TS，vue-tsc 进 lint 与 CI）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
-- **容器**：✅ **已重建 = 工具箱收纳最新**（2026-08-11，healthy，ToolsHome/vendor-vue chunk 已烘焙；迁移 v55 无变化）
+- **容器**：⚠️ **未烘焙波A 成果**（线上容器仍是工具箱收纳版；迁移 v57 未应用——webauthn 表未建，Passkey 功能需重建后才可用；随波B-D 收官一次性重建+截图验收）
 - **CI/CD**：GitHub Actions（ci.yml + e2e.yml）；**仓库 Actions 权限 = selected（仅 GitHub 官方行动）**——改回 local_only 会导致全部 startup_failure，勿动（批7 事故教训）；web job 已加 typecheck（v77）
-- **迁移**：**v55** 为最新（v53 version 乐观锁 / v54 幂等键 / v55 参考图归属）；**迁移代码已版本化**（v77：server/src/db/migrations/ 55 个 TS 文件，新增迁移按 vNN-name.ts 单文件 + index.ts 聚合）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（前端重构前置）
+- **迁移**：**v57** 为最新（v56 webauthn_credentials / v57 totp_rebound_at）；迁移代码版本化（server/src/db/migrations/）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（前端重构前置）
 - **协议**：主仓库 **AGPL-3.0**；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md
 
 ---
