@@ -1,5 +1,11 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-12 v77（**结构债清偿批——迁移层/order域/API类型化/OrderForm 四路拆分 + 前端 TS 增量纪律落地**）——master `e11e044` 与 origin 同步。
+> ✅ **结构债清偿批（2026-08-11~12 用户拍板「把值得做的都做了，禁止屎山和新技术债」，一号派四路子代理并行施工 + 逐件独立验收）**：纯重构零行为变更。①**迁移层**：server/src/db/init.js（2382 行巨怪）→ schema.ts + migrate.ts + migrations/（v01-v55 共 55 个版本化 TS 文件）+ init.ts 门面（13 个 import 点零改动）；db:init 脚本同步改 tsx src/db/init.ts。②**order 域**：order.service.ts 1320 行 → 门面 + read/fields/status/create/pricing 五子模块（依赖单向无循环）；order.routes.ts 1121 行 → 组合器 + client/list/action/delivery 四子路由 + order-route-utils；外部 import 点零改动。③**API 边界类型化**：web/src/api/types.ts（161 个 DTO，逐一对照后端 routes 建模）+ index.js→index.ts（axios 第二泛型对齐拦截器解包，零 any）——**v73 起排队的前端重构批 api 层 TS 主体至此完成**。④**OrderForm**：1148 行 → 编排层 + 7 个 lang="ts" 子组件（views/client/order-form/），DOM/类名/i18n 键原样搬运，useOrderForm.js 零改动。
+> ✅ **纪律基建（防新增债）**：web/tsconfig.json（strict + allowJs 增量：新文件一律 .ts/lang="ts"，存量谁触碰谁迁移）+ vue-tsc typecheck 接入 npm run lint 组合与 CI web job；eslint 用 @typescript-eslint/parser+plugin 支持 TS 块（一号否掉执行角色自研 strip-shim 方案——它关了 vue/valid-define-* 规则属新债，换标准解析器后规则全恢复，web lint 0 警 0 错）；环境断链修复：server oxlint 二进制缺失补装、web typescript 钉 ~5.9（v7 与 vue-tsc 不兼容）、artist.service.ts 未用 import Tier 清理。
+> ✅ **验收（一号独立复跑，非 self-report）**：server typecheck（双 tsconfig）/lint 0 警 0 错/test **1213/1213**；web typecheck/lint/test **332/332**/build/check-i18n；Playwright E2E **7/7**。抽查实证：v50 高风险迁移 noTransaction/FK 双保险/事故注释忠实搬运；拦截器 code=undefined 分支语义等价；git 变更面与四路任务严丝合缝无 scope creep。**lint 基线 warnings 遗留项销账**：server 6 + web 4 实测均已归零（部分为早前批次已清、本批实测确认）。
+> ⚠️ **遗留小项**：① 前端存量 JS 走「谁触碰谁迁移」增量轨（locales/food-menu 等纯数据文件不迁）；② v75 遗留③（手动录单端点未消费幂等键 header）仍适用；③ 每日备份计划任务只备 DB 不含 uploads（v76 已升级为 daily-backup.bat 双备，此行已随 v76 销账）。
+
 > 最后更新：2026-08-11 v76（**docs 纪律性清理 + 全量文档刷新**）——master 与 origin 同步。
 > 🧹 **删除 116 个已消费/过时文档（-23315 行）**：comms 交付/派工/施工图 13 件（全部批次已合入，结论已在本文件）；docs/archive 整目录（v0.1-v0.4x 时代需求/specs/计划/旧审计/视觉提案，决策已吸纳进本文件已拍板规则）；external-wiki 副本 28 件（过时且可再生）；audit-screenshots 20 件（旧审计证据，结论已留档）；孤儿 overview.md 与 docs 根增项原型 html。所有删除内容 git 历史可查（本提交前的 HEAD）。**保留**：STATUS（唯一状态源）/specs 两件（契约清单+SPEC-PRICE-2）/soul 知识库/requirements 14 件（含 REQ-014 桌面端等待办）/纸墨提案/CONTEXT/OPS/三份说明书。
 > 📝 **文档刷新**：CONTEXT.md 重写（价格模型对齐 SPEC-PRICE-2：档位/分期标退役，新增幂等键/乐观锁/anon-token/零元单术语，技术栈数字对齐）；changelog 补 v0.45+ 段（登录页/三拆/审计七批/TZ 根治/本次清理）；README 测试数刷新；开发自参考加时效性声明（事实源优先级：STATUS > 契约清单 > CONTEXT > 自参考）+ 数字修正；契约清单 CODE_* 三码标退役（衔接批 F-9）；全部指向已删文档的引用改为「已随清理删除，git 历史可查」。
@@ -85,8 +91,8 @@
 ## 🔄 在途任务（刷新后先看这里，2026-08-10 刷新）
 
 1. ~~**验收接口契约清单**~~ ✅ **已完成（2026-08-10）**：抽查 4/4 端点逐行对照 routes 代码属实（auth/verify、calculate-style-price、增项解绑 DELETE、workflow/payment），已 commit+push `dc28c85`。前端重构批前置依赖解除。
-2. **巨型组件拆分（现状核实更正 2026-08-10）**：旧待办行过时——QueueBoard 已拆（188 行壳 + QueueBoardCalendar 1245 + QueueBoardList 592，`322fa5d` 等）、ManualOrder 已拆（435 行壳 + Left 326 + Right 974）；蓝本施工单已随纪律清理删除（`f957ab8`）。现存 >900 行候选：OrderDetail 1352（拆分模式已验证 + 死解构 3 个待清）/ QueueBoardCalendar 1245（时间条重做后新肥，近期频繁改动中）/ ManualOrderRight 974。具体拆哪个待用户拍板。
-3. **前端重构批**（含 api 层加 TS + entities.ts 补全）：前置契约清单已落盘（`dc28c85`），**解除阻塞可排**；若用户选择在分身窗口直接执行，分身窗口转执行角色模式（独立 worktree、不碰 master/不推送，一号验收合入）。
+2. **巨型组件拆分**：✅ **2026-08-12 本批收官**——OrderForm 1148 行拆为编排层 + 7 个 lang="ts" 子组件（`e11e044`）；叠加 v73 三拆（OrderDetail/ManualOrderRight/QueueBoardCalendar），>900 行巨型组件清单全部清完。
+3. **前端重构批**：✅ **api 层 TS 主体已完成（2026-08-12，`e11e044`）**：161 DTO + index.ts 全量标注 + tsconfig/vue-tsc/CI 门禁落地。**剩余走增量轨**：entities.ts 补全（按需）、存量 JS「谁触碰谁迁移」，不再单独立批。
 4. **视觉批（已开局）**：登录页已合入；后续按原型打磨稿推进后台壳/Dashboard；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批；@property 注册+550ms 缓动+手剪圆角 token 从 Login.vue 迁入 artist-tokens.css 随下一视觉批。
 5. **等用户侧**：终验生产登录页（截图已在 workspace/temp/prototype-login）；复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）。
 6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
@@ -100,14 +106,14 @@
 ---
 ## master 状态
 
-- **HEAD**：`aefc1c9`（批4B 合入，与 origin 同步）
-- **工作树**：主仓干净（codex 契约清单侦察在途，只新增单文件）；无活跃 worktree
-- **测试基线**：server **1213/1213**（94 文件）· web **332/332**（38 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint 0 · check-locators 0 错 · check-i18n 0
-- **后端 100% TS + strict 全开 + any 清零**（唯一豁免 init.js @ts-nocheck）
+- **HEAD**：`e11e044`（结构债清偿批合入，与 origin 同步）
+- **工作树**：主仓干净；无活跃 worktree
+- **测试基线**：server **1213/1213**（94 文件）· web **332/332**（38 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 警 0 错 · check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
+- **后端 100% TS + strict 全开 + any 清零**（init.js 豁免已随 v77 拆分清偿）；**前端 TS 增量纪律生效**（web/tsconfig.json strict + allowJs，新文件一律 TS，vue-tsc 进 lint 与 CI）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
 - **容器**：✅ **已重建 = 审计修复战役最新**（2026-08-11，迁移 v55 已应用回读验证；备份：bak-pre-audit-rebuild-20260811 + BACKUP_OK 每日备份）
-- **CI/CD**：GitHub Actions（ci.yml + e2e.yml）；**仓库 Actions 权限 = selected（仅 GitHub 官方行动）**——改回 local_only 会导致全部 startup_failure，勿动（批7 事故教训）
-- **迁移**：**v55** 为最新（v53 version 乐观锁 / v54 幂等键 / v55 参考图归属）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（前端重构前置）
+- **CI/CD**：GitHub Actions（ci.yml + e2e.yml）；**仓库 Actions 权限 = selected（仅 GitHub 官方行动）**——改回 local_only 会导致全部 startup_failure，勿动（批7 事故教训）；web job 已加 typecheck（v77）
+- **迁移**：**v55** 为最新（v53 version 乐观锁 / v54 幂等键 / v55 参考图归属）；**迁移代码已版本化**（v77：server/src/db/migrations/ 55 个 TS 文件，新增迁移按 vNN-name.ts 单文件 + index.ts 聚合）；**规范**：SPEC-PRICE-2（公式/模型唯一事实源）+ 接口契约清单-v1（前端重构前置）
 - **协议**：主仓库 **AGPL-3.0**；方法论仓库 **CC BY-SA 4.0**；第三方署名见 THIRD-PARTY-NOTICES.md
 
 ---
@@ -219,7 +225,7 @@
 | **OrderDetail 拆分后续** | 五号拆分试水完成（1523→1311 行，PaymentPanel/GalleryPanel，0% 像素差异，全门禁绿）。**QueueBoard 1530 行 / ManualOrder 1497 行待派**（模式已验证，可派）。OrderDetail 死解构 3 个（currentStageIdx/nextStage/daysLeft，v0.40 遗留）建议下批随手清。（后续实际执行：三大组件已在 v73 全部拆完，本行仅留历史轨迹） |
 | **五号 stash 事故披露（2026-08-07）** | 拆分过程中 `git stash pop` 误弹仓库遗留 stash（WIP on fix/client-frontend-0802，历史遗留），内容仅 package.json/lock 配置类，已 checkout 还原，OrderDetail.vue 未受影响；stash 条目已消耗不可恢复。教训：**操作 stash 前先 `git stash list` 确认无他人 stash**（worktree 与主仓共享 git 状态） |
 | repowiki P2 | 四号核实：**认证系 14 篇抽样全部 TOTP 时代，0 🔴 严重过时**（派工假设被否定）。建议：P1 轻量修补 6 处 🟡（图例/文件名/措辞级）+ P2 改派**非认证主题抽样**（部署/CSP/Sentry 与近期改动相关，价值更高）。原交付报告已随 docs 清理删除；另 external-wiki 副本已于 2026-08-11 整体删除（过时且可再生） |
-| lint 基线 warnings | server 6 个（pricing-engine.ts 既有）；web 4 个（OrderDetail 3 死解构 + OrderForm onMounted 未使用，均基线）——下批顺手清 |
+| lint 基线 warnings | ✅ **已销账（2026-08-12 v77 实测）**：server eslint+oxlint 与 web eslint 均 0 警 0 错（旧基线 server 6 / web 4 部分早前批次已清，本批实测确认归零） |
 | 画师后台视觉投诉 | ✅ **已销账**（2026-08-07 一号核实 git 历史：`d49fe08` 用户 08-06 已拍板取消视觉巡检批，投诉截图已作废删除 `e97467c`）。STATUS 旧记录滞后，现更正为「已取消」 |
 | 安全加固（五号核实报告） | ✅ F1 totp_secret 泄露全堵（`ee0f68a`，4 读 + 4 写端点 DTO 投影 + 11 例回归）；F4/F6/F9/F3 同批合入。**F14 adminQq 用户拍板保留**（2026-08-05，查单页「联系管理员」自助通道，A 测后视反馈再议）；F2/F5/F7/F8/F10/F12/F13 = P1/P2 排期（F7 已知延后/F8 产品设计/F13 已缓解/F12 CI npm audit 可选） |
 | 环境批 | ✅ **B1/B2 已完成**（`be60ef0`：Caddyfile encode zstd gzip + 静态缓存头 + uploads 公开/签名响应头区分）；**B3 compose 3000 端口已注释**（2026-08-07 用户选 B，随 v0.42 Step 8 重建生效，仅走 Caddy） |
