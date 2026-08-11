@@ -32,7 +32,7 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
     guardRateLimit(`pricing:${request.ip}`, 30, 5 * 60_000)
 
     const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    if (!artist || artist.status === 'hidden' || artist.is_banned) throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return {
       styles: styleService.getPublicStyles(artist.id),

@@ -339,7 +339,11 @@ async function handleUpload({ file }) {
   }
   try {
     const uploaded = await uploadApi.image(file)
-    await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName })
+    const res = await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName })
+    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
+    if (res?.warning?.sensitiveWords?.length) {
+      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+    }
     ElMessage.success(t('artworks.uploaded'))
     trackEvent('artist_action', { action: 'artwork_publish', source: 'upload' })
     await loadArtworks()
@@ -480,10 +484,14 @@ async function openEditDialog(art) {
 async function saveArtworkEdit() {
   editSaving.value = true
   try {
-    await artistApi.updateArtwork(editingArtworkId.value, {
+    const res = await artistApi.updateArtwork(editingArtworkId.value, {
       title: editForm.title.trim() || null,
       description: editForm.description.trim() || null
     })
+    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
+    if (res?.warning?.sensitiveWords?.length) {
+      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+    }
     await artistApi.setArtworkTags(editingArtworkId.value, editForm.sizeIds)
     ElMessage.success(t('artworks.editSaved'))
     editDialogVisible.value = false
@@ -498,7 +506,11 @@ async function saveArtworkEdit() {
 async function handlePasteArtworkFiles(files) {
   for (const file of files) {
     const uploaded = await uploadApi.image(file)
-    await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName || file.name })
+    const res = await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName || file.name })
+    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
+    if (res?.warning?.sensitiveWords?.length) {
+      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+    }
   }
   ElMessage.success(t('artworks.uploaded'))
   await loadArtworks()

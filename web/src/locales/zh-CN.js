@@ -5,6 +5,7 @@ export default {
     SESSION_EXPIRED: '登录已过期，请重新登录',
     ACCOUNT_NOT_FOUND: '画师账号不存在',
     ACCOUNT_DISABLED: '账号已被停用',
+    ARTIST_BANNED: '账号已被封禁，如有疑问请联系管理员',
     TOKEN_REVOKED: '登录状态已失效，请重新登录',
     ADMIN_REQUIRED: '需要管理员权限',
     QQ_NOT_REGISTERED: '该 QQ 号未注册为画师',
@@ -709,7 +710,8 @@ export default {
     validation: {
       title: '请先完成以下项目',
       confirm: '知道了',
-      agreeRequired: '请勾选「我已阅读并同意以上约稿须知」'
+      agreeRequired: '请勾选「我已阅读并同意以上约稿须知」',
+      termsRequired: '请先阅读并同意服务条款与隐私政策'
     }
   },
   track: {
@@ -1611,6 +1613,161 @@ export default {
     retry: '重试',
     prevStep: '上一步',
     nextStep: '下一步'
+  },
+  // ═══ REQ-042 合规与内容安全（2026-08-11 拍板：隐私权利实现路径 A 联系管理员处理） ═══
+  compliance: {
+    common: {
+      backHome: '返回首页',
+      updated: '更新日期',
+      privacy: '隐私政策',
+      terms: '服务条款',
+      report: '举报',
+      and: '和',
+      agreePrefix: '我已阅读并同意'
+    },
+    privacy: {
+      pageTitle: '隐私政策',
+      updated: '2026-08-11',
+      note: '本政策为平台标准版模板文案（人工审校），非法律意见；业务重大变化时平台将更新条款。',
+      sections: [
+        {
+          title: '一、我们收集哪些数据',
+          paragraphs: ['拾绘（Inkglean）为提供约稿服务，仅收集完成服务所必需的数据：'],
+          items: [
+            'QQ 号（画师与客户身份识别与联系）',
+            '联系方式（contact_qq，画师展示联系渠道）',
+            '订单需求、备注与参考图（完成约稿必需）',
+            '作品图与交付完稿（画师展示与交付）',
+            '浏览行为（埋点，可在偏好中关闭；日志保留 180 天）',
+            'Passkey 公钥（用于免密登录，仅存公钥凭证）'
+          ]
+        },
+        {
+          title: '二、收集目的与使用',
+          paragraphs: [
+            '数据仅用于：账号登录与安全、约稿沟通与交付、画师主页展示、平台运营统计。平台不会向第三方出售个人数据。'
+          ]
+        },
+        {
+          title: '三、存储位置与保留期限',
+          paragraphs: [
+            '当前服务部署于海外服务器，境内用户数据可能构成「数据出境」，平台已作知情声明；未来国内部署时数据将保留在境内。',
+            '埋点日志保留 180 天后自动删除；业务数据（订单/作品/留言）在账号存续期间保留。'
+          ]
+        },
+        {
+          title: '四、你的权利',
+          paragraphs: [
+            '你可以依法查询、更正、复制、删除你的个人信息，或要求解释数据处理规则。实现路径：联系管理员处理（本平台当前为个人小站，权利请求由管理员人工响应）。'
+          ]
+        },
+        {
+          title: '五、联系方式',
+          paragraphs: ['如对隐私政策有任何疑问，可通过画师主页联系渠道或页脚「举报」入口反馈。']
+        },
+        {
+          title: '六、法律依据',
+          paragraphs: ['本政策参照《中华人民共和国个人信息保护法》《中华人民共和国网络安全法》《中华人民共和国数据安全法》制定。']
+        }
+      ]
+    },
+    terms: {
+      pageTitle: '服务条款与画师协议',
+      updated: '2026-08-11',
+      note: '本条款为平台标准版模板文案（人工审校），非法律意见；交易由画师与客户自行协商，平台不介入。',
+      sections: [
+        {
+          title: '一、平台角色',
+          paragraphs: ['拾绘（Inkglean）是画师展示作品、接收约稿的工具平台。平台不参与画师与客户之间的交易磋商、收款与交付，不介入双方交易纠纷。']
+        },
+        {
+          title: '二、内容红线',
+          paragraphs: ['发布内容（作品/留言/主页/公告）不得包含：'],
+          items: [
+            '违法信息（赌博、毒品、枪支、诈骗、代开发票等）',
+            '色情与未成年相关违规内容',
+            '侵犯他人著作权、肖像权、名誉权等合法权益的内容',
+            '其他违反中国法律法规的内容'
+          ]
+        },
+        {
+          title: '三、画师内容责任',
+          paragraphs: ['画师对自己上传的所有内容负责，包括内容合法性、原创性与授权完整。平台按「先发后审 + 举报驱动」模式管理内容。']
+        },
+        {
+          title: '四、违规处理阶梯',
+          paragraphs: ['平台对违规内容与账号按阶梯处理：警告 → 内容下架 → 封禁。所有处理均记录留痕。'],
+          items: [
+            '内容下架：作品删除或留言隐藏，客户端立即不可见',
+            '封禁：画师主页下架、登录被拒、已登录会话失效；可解封恢复'
+          ]
+        },
+        {
+          title: '五、实名预留',
+          paragraphs: ['必要时，平台将按法律法规要求实施实名制（如真实身份核验）；具体方案另行公告。']
+        },
+        {
+          title: '六、未成年人声明',
+          paragraphs: ['本平台服务面向成年人。未成年人在监护人同意并指导下使用；涉及未成年人形象的内容须确保合法合规。']
+        },
+        {
+          title: '七、免责声明',
+          paragraphs: ['平台是工具，交易由画师与客户自行协商；平台不担保画师交付质量，不介入交易纠纷，不对因交易产生的损失承担赔偿责任。']
+        }
+      ]
+    },
+    report: {
+      title: '举报',
+      hint: '举报匿名提交，请如实描述；平台将按流程处理并记录。',
+      targetType: '举报类型',
+      targetTypeRequired: '请选择举报类型',
+      targetId: '对象编号（可选）',
+      targetIdPlaceholder: '如作品/留言/画师 ID，不知道可留空',
+      description: '描述',
+      descriptionPlaceholder: '请描述问题内容（最多 1000 字）',
+      descriptionRequired: '请填写举报描述',
+      descriptionLength: '描述长度需在 1-1000 字之间',
+      contact: '联系方式（可选）',
+      contactPlaceholder: '如需反馈处理结果可留下 QQ 等联系方式',
+      submit: '提交举报',
+      submitted: '举报已提交，感谢反馈',
+      submitFailed: '提交失败，请稍后再试',
+      rateLimited: '提交过于频繁，请稍后再试',
+      types: {
+        artist_home: '画师主页',
+        artwork: '作品',
+        message: '留言',
+        other: '其他'
+      }
+    },
+    warning: {
+      hit: '内容可能包含敏感词（{words}），已按先发后审发布，管理员可能审核下架'
+    },
+    admin: {
+      reportManage: '举报处理',
+      tabPending: '待处理',
+      tabResolved: '已处理',
+      colId: 'ID',
+      colType: '类型',
+      colTargetId: '对象ID',
+      colDescription: '描述',
+      colContact: '联系方式',
+      colCreatedAt: '提交时间',
+      colActions: '操作',
+      resolve: '处理',
+      resolveConfirm: '填写处理说明（可选）',
+      resolvedToast: '举报已标记处理',
+      resolved: '已处理',
+      removeArtwork: '下架作品',
+      removeMessage: '下架留言',
+      removeConfirm: '填写下架原因（可选）',
+      removedToast: '内容已下架',
+      ban: '封禁画师',
+      banConfirm: '填写封禁原因（可选）',
+      bannedToast: '画师已封禁',
+      reasonPlaceholder: '原因（可留空）',
+      empty: '暂无举报',
+      loadFailed: '举报列表加载失败'
+    }
   }
 }
-

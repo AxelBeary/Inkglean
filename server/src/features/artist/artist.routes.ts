@@ -5,6 +5,7 @@ import { clamp } from '../../shared/validate.js'
 import { AppError, E } from '../../shared/errors.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { publicArtistDTO } from '../../shared/dto.js'
+import { collectSensitiveHits } from '../../shared/sensitive-words.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
@@ -34,7 +35,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/api/artists', async () => {
     return artistService.getAllArtists()
-      .filter(a => a.qq_number !== getAdminQq() && a.status !== 'hidden')
+      .filter(a => a.qq_number !== getAdminQq() && a.status !== 'hidden' && !a.is_banned)
       .map(a => ({
         id: a.id, name: a.name, subdomain: a.subdomain,
         avatar: a.avatar, bio: a.bio, status: a.status,
@@ -50,7 +51,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     // audit-a P3-16: 公开主页较重，补 30次/分钟/IP 限流
     guardRateLimit(`artist-profile:${request.ip}`, 30, 60_000)
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.qq_number === getAdminQq()) return reply.code(404).send({ error: '画师不存在' })
+    // REQ-042: 封禁画师与「不存在」同响应（目录/主页/工作流全链路隐身）
+    if (!artist || artist.qq_number === getAdminQq() || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
 
     // UI-8: hidden 状态 — 只返回最小信息，不暴露 bio/pricing/artworks/rules
     if (artist.status === 'hidden') {
@@ -222,8 +224,13 @@ export default async function artistRoutes(fastify: FastifyInstance) {
         const { tryAutoPromote } = await import('../order/order.service.js')
         tryAutoPromote(request.artist.id)
       }
+      // REQ-042: 主页公告保存命中敏感词 → warning 提示（不硬拦，先发后审）
+      const sensitiveWords = 'announcement' in sanitized
+        ? collectSensitiveHits(typeof sanitized.announcement === 'string' ? sanitized.announcement : null)
+        : []
       // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
-      return publicArtistDTO(updated)
+      const dto = publicArtistDTO(updated)
+      return sensitiveWords.length ? { ...dto, warning: { sensitiveWords } } : dto
     } catch (err) {
       // 业务错误(AppError)返回其状态码；非业务错误向上抛，走全局 500 handler
       if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
@@ -278,7 +285,10 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     if (imagePath.includes('..') || !imagePath.startsWith(`images/${request.artist.id}/`)) {
       return reply.code(400).send({ error: '非法图片路径' })
     }
-    return artistService.createArtwork(request.artist.id, { imagePath, title })
+    const artwork = await artistService.createArtwork(request.artist.id, { imagePath, title })
+    // REQ-042: 敏感词命中不硬拦，响应带 warning 供前端提示（先发后审）
+    const sensitiveWords = collectSensitiveHits(title)
+    return sensitiveWords.length ? { ...artwork, warning: { sensitiveWords } } : artwork
   })
 
   fastify.delete('/api/artist/artworks/:id', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -311,7 +321,11 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     if (!artwork || artwork.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '作品不存在' })
     }
-    return artistService.updateArtwork(artwork.id, request.body || {})
+    const updated = artistService.updateArtwork(artwork.id, request.body || {})
+    // REQ-042: 编辑标题/描述命中敏感词 → warning 提示（不硬拦）
+    const body = (request.body || {}) as { title?: string | null; description?: string | null }
+    const sensitiveWords = collectSensitiveHits(body.title, body.description)
+    return sensitiveWords.length ? { ...updated, warning: { sensitiveWords } } : updated
   })
 
   /** PUT /api/artist/artworks/:id/tags — 批量设置档位标注（多选替换语义） */
@@ -506,7 +520,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     // audit-a P3-16: 公开工作流接口补 30次/分钟/IP 限流
     guardRateLimit(`artist-workflow:${request.ip}`, 30, 60_000)
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') return reply.code(404).send({ error: '画师不存在' })
+    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden' || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }
   })
 
@@ -523,7 +537,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ code: 'INVALID_PARAM', error: '画师 ID 无效' })
     }
     const artist = artistService.getArtistById(artistId)
-    if (!artist || artist.qq_number === getAdminQq() || artist.deleted_at || artist.status === 'hidden') {
+    if (!artist || artist.qq_number === getAdminQq() || artist.deleted_at || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ code: 'NOT_FOUND', error: '画师不存在' })
     }
     const q = request.query as { page?: string; pageSize?: string }

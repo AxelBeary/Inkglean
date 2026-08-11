@@ -5,6 +5,7 @@ export default {
     SESSION_EXPIRED: 'Session expired, please log in again',
     ACCOUNT_NOT_FOUND: 'Artist account not found',
     ACCOUNT_DISABLED: 'Account has been disabled',
+    ARTIST_BANNED: 'This account has been banned. Please contact the administrator if you have questions.',
     TOKEN_REVOKED: 'Session invalidated, please log in again',
     ADMIN_REQUIRED: 'Admin privileges required',
     QQ_NOT_REGISTERED: 'This QQ number is not registered as an artist',
@@ -710,7 +711,8 @@ export default {
     validation: {
       title: 'Please complete the following first',
       confirm: 'Got it',
-      agreeRequired: 'Please tick "I have read and agree to the guidelines above"'
+      agreeRequired: 'Please tick "I have read and agree to the guidelines above"',
+      termsRequired: 'Please read and agree to the Terms of Service and Privacy Policy first'
     }
   },
   track: {
@@ -1614,7 +1616,161 @@ export default {
     retry: 'Retry',
     prevStep: 'Previous',
     nextStep: 'Next'
+  },
+  // ═══ REQ-042 Compliance & Content Safety (2026-08-11 decision: privacy rights path A — contact the admin) ═══
+  compliance: {
+    common: {
+      backHome: 'Back to home',
+      updated: 'Last updated',
+      privacy: 'Privacy Policy',
+      terms: 'Terms of Service',
+      report: 'Report',
+      and: 'and',
+      agreePrefix: 'I have read and agree to the'
+    },
+    privacy: {
+      pageTitle: 'Privacy Policy',
+      updated: '2026-08-11',
+      note: 'This policy is a standard template (human-reviewed), not legal advice. The platform will update it when business changes materially.',
+      sections: [
+        {
+          title: '1. Data We Collect',
+          paragraphs: ['Inkglean (拾绘) only collects data necessary to provide the commission service:'],
+          items: [
+            'QQ number (artist/client identification and contact)',
+            'Contact information (contact_qq, the artist’s public contact channel)',
+            'Order requirements, notes and reference images (required to complete commissions)',
+            'Artwork images and final deliverables (artist showcase and delivery)',
+            'Browsing behavior (tracking, can be disabled in preferences; logs retained for 180 days)',
+            'Passkey public key (for passwordless login; only the public credential is stored)'
+          ]
+        },
+        {
+          title: '2. Purpose of Use',
+          paragraphs: [
+            'Data is used only for: account login and security, commission communication and delivery, artist homepage display, and platform statistics. The platform does not sell personal data to third parties.'
+          ]
+        },
+        {
+          title: '3. Storage Location and Retention',
+          paragraphs: [
+            'The service currently runs on overseas servers, so data from users in mainland China may involve cross-border data transfer; the platform has made this disclosure in accordance with the PIPL. If the platform moves to domestic hosting, data will remain in-country.',
+            'Tracking logs are automatically deleted after 180 days; business data (orders/artworks/messages) is retained while the account exists.'
+          ]
+        },
+        {
+          title: '4. Your Rights',
+          paragraphs: [
+            'You may request to access, correct, copy, delete or receive an explanation of how your personal data is processed. Implementation path: contact the administrator (this platform is currently an individual site; requests are handled manually by the admin).'
+          ]
+        },
+        {
+          title: '5. Contact',
+          paragraphs: ['For any privacy questions, use the artist’s contact channels on their homepage or the "Report" entry in the footer.']
+        },
+        {
+          title: '6. Legal Basis',
+          paragraphs: ['This policy references China’s Personal Information Protection Law (PIPL), Cybersecurity Law, and Data Security Law.']
+        }
+      ]
+    },
+    terms: {
+      pageTitle: 'Terms of Service & Artist Agreement',
+      updated: '2026-08-11',
+      note: 'These terms are a standard template (human-reviewed), not legal advice. Transactions are negotiated between artists and clients; the platform does not intervene.',
+      sections: [
+        {
+          title: '1. Platform Role',
+          paragraphs: ['Inkglean (拾绘) is a tool platform where artists showcase works and receive commissions. The platform does not participate in negotiation, payment, delivery, or dispute resolution between artists and clients.']
+        },
+        {
+          title: '2. Content Red Lines',
+          paragraphs: ['Published content (artworks/messages/homepages/announcements) must not contain:'],
+          items: [
+            'Illegal information (gambling, drugs, firearms, fraud, fake invoicing, etc.)',
+            'Pornography or content involving minors in violation of regulations',
+            'Content infringing copyright, portrait rights, reputation or other lawful rights',
+            'Any other content that violates Chinese laws and regulations'
+          ]
+        },
+        {
+          title: '3. Artist Content Responsibility',
+          paragraphs: ['Artists are responsible for all content they upload, including legality, originality and license completeness. The platform manages content on a "publish-first, review-later + report-driven" basis.']
+        },
+        {
+          title: '4. Enforcement Ladder',
+          paragraphs: ['The platform handles violations and accounts in escalating steps: warning → content removal → ban. All actions are logged.'],
+          items: [
+            'Content removal: artwork deletion or message hiding, immediately invisible to clients',
+            'Ban: homepage taken down, login rejected, existing sessions invalidated; can be lifted'
+          ]
+        },
+        {
+          title: '5. Real-Name Reservation',
+          paragraphs: ['When required by law, the platform may implement real-name verification; the specific plan will be announced separately.']
+        },
+        {
+          title: '6. Minor Statement',
+          paragraphs: ['This platform serves adults. Minors should use it with guardian consent and guidance; content involving minors must remain lawful and compliant.']
+        },
+        {
+          title: '7. Disclaimer',
+          paragraphs: ['The platform is a tool. Transactions are negotiated between artists and clients; the platform does not guarantee delivery quality, does not mediate disputes, and is not liable for losses arising from transactions.']
+        }
+      ]
+    },
+    report: {
+      title: 'Report',
+      hint: 'Reports are submitted anonymously. Please describe the issue truthfully; the platform will process and log it.',
+      targetType: 'Report type',
+      targetTypeRequired: 'Please choose a report type',
+      targetId: 'Target ID (optional)',
+      targetIdPlaceholder: 'e.g. artwork/message/artist ID; leave blank if unknown',
+      description: 'Description',
+      descriptionPlaceholder: 'Describe the issue (up to 1000 characters)',
+      descriptionRequired: 'Please describe the issue',
+      descriptionLength: 'Description must be 1-1000 characters',
+      contact: 'Contact (optional)',
+      contactPlaceholder: 'Leave a QQ number or other contact if you want a follow-up',
+      submit: 'Submit report',
+      submitted: 'Report submitted. Thank you for your feedback',
+      submitFailed: 'Submission failed, please try again later',
+      rateLimited: 'Too many submissions, please try again later',
+      types: {
+        artist_home: 'Artist homepage',
+        artwork: 'Artwork',
+        message: 'Message',
+        other: 'Other'
+      }
+    },
+    warning: {
+      hit: 'The content may contain sensitive words ({words}). It has been published under publish-first review and may be removed by moderators'
+    },
+    admin: {
+      reportManage: 'Reports',
+      tabPending: 'Pending',
+      tabResolved: 'Resolved',
+      colId: 'ID',
+      colType: 'Type',
+      colTargetId: 'Target ID',
+      colDescription: 'Description',
+      colContact: 'Contact',
+      colCreatedAt: 'Submitted at',
+      colActions: 'Actions',
+      resolve: 'Resolve',
+      resolveConfirm: 'Add a resolution note (optional)',
+      resolvedToast: 'Report resolved',
+      resolved: 'Resolved',
+      removeArtwork: 'Remove artwork',
+      removeMessage: 'Remove message',
+      removeConfirm: 'Add a removal reason (optional)',
+      removedToast: 'Content removed',
+      ban: 'Ban artist',
+      banConfirm: 'Add a ban reason (optional)',
+      bannedToast: 'Artist banned',
+      reasonPlaceholder: 'Reason (optional)',
+      empty: 'No reports',
+      loadFailed: 'Failed to load reports'
+    }
   }
 }
-
-

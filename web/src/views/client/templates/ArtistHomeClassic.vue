@@ -92,6 +92,8 @@
         </section>
 
         <Disclaimer class="classic-disclaimer" />
+        <!-- REQ-042: 页脚合规入口（隐私/条款 + 举报） -->
+        <ComplianceFooterLinks class="classic-compliance" />
       </main>
     </div>
   </div>
@@ -111,6 +113,7 @@ import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplPlatformIcon from '../../../components/shared/TplPlatformIcon.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
+import ComplianceFooterLinks from '../../../components/client/ComplianceFooterLinks.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({
@@ -369,6 +372,9 @@ useScrollReveal(rootEl)
 .classic-guestbook :deep(.gb-load-more:hover:not(:disabled)) { border-color: var(--color-primary); color: var(--color-primary); }
 .classic-guestbook :deep(.gb-no-more) { text-align: center; font-size: 12px; color: var(--pal-text-dim); margin-top: 8px; }
 .classic-disclaimer {
+  margin-top: 24px;
+}
+.classic-compliance {
   margin-top: 24px;
 }
 

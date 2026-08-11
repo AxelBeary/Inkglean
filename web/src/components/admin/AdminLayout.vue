@@ -15,7 +15,7 @@
           </div>
         </div>
 
-        <!-- 导航（7 项：管理员面板/画师管理/问候语管理/默认流程/社交平台/系统自检/埋点看板） -->
+        <!-- 导航（8 项：管理员面板/画师管理/举报处理/问候语管理/默认流程/社交平台/系统自检/埋点看板） -->
         <nav class="nav" :class="{ 'nav--collapsed': collapsed }">
           <template v-for="group in groupedNav" :key="group.key">
             <div v-if="!collapsed" class="nav-group-title">{{ $t(group.labelKey) }}</div>
@@ -113,7 +113,7 @@ import { useThemeStore } from '../../stores/theme.js'
 // REQ-037 批2 A4: 会话强校验 composable（与 ArtistLayout 共用单一实现；
 // 原内联版依赖的 useArtistStore/safeSetItem/artistApi 随之收敛进 composable）
 import { useSessionGuard } from '../../composables/useSessionGuard'
-import { Management, User, ChatLineSquare, SetUp, Share, Monitor, TrendCharts, Operation, Back } from '@element-plus/icons-vue'
+import { Management, User, ChatLineSquare, SetUp, Share, Monitor, TrendCharts, Operation, Back, Warning } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -134,6 +134,8 @@ const NAV_GROUPS = [
 const navItems = [
   { path: '/admin', icon: Management, labelKey: 'admin.panelTitle', group: 'overview' },
   { path: '/admin/artists', icon: User, labelKey: 'admin.artistManage', group: 'ops' },
+  // REQ-042: 举报处理
+  { path: '/admin/reports', icon: Warning, labelKey: 'compliance.admin.reportManage', group: 'ops' },
   { path: '/admin/greetings', icon: ChatLineSquare, labelKey: 'admin.greetingManage', group: 'ops' },
   { path: '/admin/default-workflow', icon: SetUp, labelKey: 'admin.defaultWorkflow', group: 'ops' },
   { path: '/admin/platforms', icon: Share, labelKey: 'admin.platformManage', group: 'config' },

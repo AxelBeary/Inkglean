@@ -5,12 +5,23 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import { getArtistByQq } from '../artist/artist.service.js'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
 // 认证路由 - TOTP 动态口令登录（REQ-027）+ WebAuthn Passkey（REQ-040）
 // ============================================
+
+/** REQ-040: TOTP 重绑临时存储（内存 Map，挂在 globalThis 上；单实例部署可接受） */
+interface TotpRebindStoreEntry {
+  newSecret: string
+  artistId: number
+  expiresAt: number
+}
+
+interface TotpRebindGlobal {
+  __totpRebindStore?: Map<string, TotpRebindStoreEntry>
+}
 
 /** 限流守卫：不通过则抛 429 */
 function guardRateLimit(key: string, max: number, windowMs: number): void {
@@ -20,7 +31,7 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
 export default async function authRoutes(fastify: FastifyInstance) {
 
   // ─── 签发会话 cookie 辅助函数 ───
-  function signSession(artist: Artist, reply: any) {
+  function signSession(artist: Artist, reply: FastifyReply) {
     const token = createSession(artist.id, artist.token_version)
     const isAdmin = artist.qq_number === getAdminQq()
     reply.setCookie('artist_token', token, {
@@ -288,9 +299,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // 存入 challenge store（扩展 purpose）
     // 由于我们使用 webauthn 的 challenge 存储，但这里需要存 totp 的 secret
     // 简单处理：在内存中存一个临时映射
-    const tempStore = globalThis as any
-    if (!tempStore.__totpRebindStore) tempStore.__totpRebindStore = new Map()
-    tempStore.__totpRebindStore.set(tempKey, {
+    const tempStore = (globalThis as TotpRebindGlobal).__totpRebindStore ??= new Map()
+    tempStore.set(tempKey, {
       newSecret,
       artistId: artist.id,
       expiresAt: Date.now() + 5 * 60 * 1000
@@ -371,14 +381,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       // 从 tempKey 获取新 secret
       const tempKey = body.tempKey as string | undefined
-      const tempStore = (globalThis as any).__totpRebindStore
+      const tempStore = (globalThis as TotpRebindGlobal).__totpRebindStore
       if (!tempKey || !tempStore || !tempStore.has(tempKey)) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
       const entry = tempStore.get(tempKey)
       tempStore.delete(tempKey) // 一次性消费
 
-      if (entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
+      if (!entry || entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
       newSecret = entry.newSecret
@@ -401,8 +411,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // 全局踢下线（bumpTokenVersion）
     bumpTokenVersion(artist.id)
 
-    // 审计日志（console，注释说明最小实现）
-    console.log(`[AUDIT] TOTP rebind: artist_id=${artist.id}, qq=${artist.qq_number}, ip=${request.ip}, time=${new Date().toISOString()}`)
+    // 审计日志（console.warn 合规通道，注释说明最小实现）
+    console.warn(`[AUDIT] TOTP rebind: artist_id=${artist.id}, qq=${artist.qq_number}, ip=${request.ip}, time=${new Date().toISOString()}`)
 
     return { success: true, message: 'TOTP 已重绑，请重新登录' }
   })

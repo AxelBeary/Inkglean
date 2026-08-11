@@ -127,6 +127,11 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
     return { valid: false, code: E.TOTP_INVALID, error: 'QQ号或动态口令错误' }
   }
 
+  // REQ-042: 封禁独立态——封禁画师一律拒绝登录（即使动态码正确）
+  if (artist.is_banned) {
+    return { valid: false, code: E.ARTIST_BANNED, error: '账号已被封禁，如有疑问请联系管理员' }
+  }
+
   // 锁定检查：锁定期间一律拒绝（正确码也不行）
   if (artist.totp_locked_until && artist.totp_locked_until > Date.now()) {
     const remainingMin = Math.ceil((artist.totp_locked_until - Date.now()) / 60000)

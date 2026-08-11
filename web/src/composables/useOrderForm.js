@@ -109,6 +109,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     clientName: '',
     notifyEnabled: true,
     agreed: false,
+    // REQ-042: 首单须勾选「已阅读服务条款/隐私政策」（前端门禁，未勾不可提交）
+    termsAgreed: false,
     discountCode: '' // v0.31 F3: 折扣码（验证通过后随订单提交，后端负责真正扣减）
   })
 
@@ -119,6 +121,14 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       validator: (rule, value, callback) => {
         // R24：错误文案走 order.validation 命名空间（弹窗与行内提示一致）
         if (rulesContent.value && !value) callback(new Error(t('order.validation.agreeRequired')))
+        else callback()
+      },
+      trigger: 'change'
+    }],
+    // REQ-042: 服务条款/隐私政策同意（恒必勾，与画师须知 agreed 相互独立）
+    termsAgreed: [{
+      validator: (rule, value, callback) => {
+        if (!value) callback(new Error(t('order.validation.termsRequired')))
         else callback()
       },
       trigger: 'change'

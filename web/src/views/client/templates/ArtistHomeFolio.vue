@@ -116,6 +116,8 @@
               {{ link.label }}
             </a>
           </div>
+          <!-- REQ-042: 页脚合规入口（隐私/条款 + 举报） -->
+          <ComplianceFooterLinks />
           <Disclaimer />
         </div>
       </div>
@@ -142,6 +144,7 @@ import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
 import TplPlatformIcon from '../../../components/shared/TplPlatformIcon.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
+import ComplianceFooterLinks from '../../../components/client/ComplianceFooterLinks.vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({

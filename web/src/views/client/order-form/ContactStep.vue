@@ -29,6 +29,18 @@
       </el-checkbox>
     </el-form-item>
 
+    <!-- REQ-042: 服务条款/隐私政策同意（首单恒显示，未勾不可提交） -->
+    <el-form-item prop="termsAgreed">
+      <el-checkbox v-model="termsAgreed" style="margin-top: 8px">
+        <span>
+          {{ $t('compliance.common.agreePrefix') }}
+          <router-link to="/terms" class="terms-link">{{ $t('compliance.common.terms') }}</router-link>
+          {{ $t('compliance.common.and') }}
+          <router-link to="/privacy" class="terms-link">{{ $t('compliance.common.privacy') }}</router-link>
+        </span>
+      </el-checkbox>
+    </el-form-item>
+
     <!-- 平台职责声明 -->
     <el-form-item>
       <Disclaimer />
@@ -69,6 +81,8 @@ const clientQq = defineModel<string>('clientQq', { default: '' })
 const clientName = defineModel<string>('clientName', { default: '' })
 const notifyEnabled = defineModel<boolean>('notifyEnabled', { default: true })
 const agreed = defineModel<boolean>('agreed', { default: false })
+/** REQ-042: 首单同意条款（服务条款/隐私政策） */
+const termsAgreed = defineModel<boolean>('termsAgreed', { default: false })
 
 const { t } = useI18n()
 </script>
@@ -87,4 +101,10 @@ const { t } = useI18n()
 
 .rules-preview { max-height: 200px; overflow-y: auto; }
 .rules-html { line-height: 1.8; color: var(--text-primary); }
+.terms-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin: 0 4px;
+}
 </style>

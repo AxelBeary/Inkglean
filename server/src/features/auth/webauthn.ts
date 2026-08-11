@@ -191,7 +191,7 @@ export async function verifyRegistration(
   }
 
   const verificationOpts: VerifyRegistrationResponseOpts = {
-    response: credential as any,
+    response: credential as unknown as VerifyRegistrationResponseOpts['response'],
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,
@@ -202,9 +202,11 @@ export async function verifyRegistration(
     throw new AppError(E.WEBAUTHN_REGISTRATION_FAILED, 400)
   }
 
-  const { credentialPublicKey, credentialID, counter } = verification.registrationInfo
-  const credentialIdBase64 = Buffer.from(credentialID).toString('base64url')
-  const publicKeyBase64 = Buffer.from(credentialPublicKey).toString('base64url')
+  // @simplewebauthn/server v13: registrationInfo.credential 聚合公钥/计数器（旧版顶层字段已移除）
+  const { credential: regCredential } = verification.registrationInfo
+  const credentialIdBase64 = regCredential.id
+  const publicKeyBase64 = Buffer.from(regCredential.publicKey).toString('base64url')
+  const counter = regCredential.counter
 
   // 检查是否已存在（幂等防护）
   const existing = db.prepare('SELECT id FROM webauthn_credentials WHERE credential_id = ?').get(credentialIdBase64)
@@ -279,14 +281,18 @@ export async function verifyLogin(
 
   // 查找画师
   const { getArtistById } = await import('../../features/artist/artist.service.js')
-  const artist = getArtist(credentialRow.artist_id) as Artist | undefined
+  const artist = getArtistById(credentialRow.artist_id) as Artist | undefined
   if (!artist || artist.deleted_at) {
     throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
+  // REQ-042: Passkey 登录同样拦截封禁画师（明确错误码，前端可读）
+  if (artist.is_banned) {
+    throw new AppError(E.ARTIST_BANNED, 403)
   }
 
   // 验证认证响应
   const verificationOpts: VerifyAuthenticationResponseOpts = {
-    response: credential as any,
+    response: credential as unknown as VerifyAuthenticationResponseOpts['response'],
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,

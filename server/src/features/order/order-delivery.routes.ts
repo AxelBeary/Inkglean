@@ -4,6 +4,7 @@ import * as orderWorkflowService from './order-workflow.service.js'
 import { assertReferenceFileExists, enrichOrderForArtist, parseOptionalVersion, requireOwnOrder } from './order-route-utils.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { AppError, E } from '../../shared/errors.js'
+import { collectSensitiveHits } from '../../shared/sensitive-words.js'
 import type { OrderDetail } from '../../types/entities.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
@@ -87,7 +88,11 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     const artworks = await orderGalleryService.publishArtwork(
       request.order.id, request.artist.id, deliverableIds, title, description
     )
-    return reply.code(201).send({ artworks })
+    // REQ-042: 作品发布命中敏感词 → warning 提示（不硬拦，先发后审）
+    const sensitiveWords = collectSensitiveHits(title, description)
+    return reply.code(201).send(
+      sensitiveWords.length ? { artworks, warning: { sensitiveWords } } : { artworks }
+    )
   })
 
   /**
