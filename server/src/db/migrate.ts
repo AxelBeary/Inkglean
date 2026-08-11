@@ -117,73 +117,10 @@ export function initDatabase(database: Database.Database) {
     INSERT OR IGNORE INTO platform_config (key, value) VALUES ('admin_qq', '')
   `)
 
-  // ─── 管理员自举 — 首次部署自动创建管理员账号 ───
-  const adminQq = process.env.ADMIN_QQ
-
-  // P1-4 (2026-08-05): 生产环境 fail-fast —— 缺 ADMIN_QQ 且无管理员账号时启动即抛错，
-  // 不静默死锁到登录时才暴露（TOTP 上线后无管理员 = 无人能绑定/登录，恢复只能靠 CLI 重置）。
-  // 判定：环境变量缺失，且 platform_config.admin_qq 为空或其对应画师账号不存在 → 抛错退出。
-  // 已有管理员账号（重启场景，配置已持久化）不抛错；开发环境保持原静默行为。
-  if (!adminQq && process.env.NODE_ENV === 'production') {
-    const configuredRow = database.prepare(
-      "SELECT value FROM platform_config WHERE key = 'admin_qq'"
-    ).get() as PlatformConfigRow | undefined
-    const configuredQq = (configuredRow && configuredRow.value) || ''
-    const adminExists = configuredQq
-      ? database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(configuredQq)
-      : undefined
-    if (!adminExists) {
-      throw new Error(
-        '生产环境禁止无管理员启动：ADMIN_QQ 环境变量缺失且平台未配置管理员账号。' +
-        '请在 .env 设置 ADMIN_QQ=<管理员QQ号>（参考仓库根 .env.example）后重新启动。'
-      )
-    }
-  }
-
-  if (adminQq) {
-    // 测试环境跳过：测试用 cleanDb+setAdmin 自建管理员，避免 init 插入干扰断言（TC-AR-01/10 预存失败修复）
-    if (process.env.NODE_ENV === 'test') return
-    // 仅当 admin_qq 为空时写入（不覆盖运行时更换的值）
-    database.prepare(
-      "UPDATE platform_config SET value = ? WHERE key = 'admin_qq' AND (value = '' OR value IS NULL)"
-    ).run(adminQq)
-
-    // 确保管理员画师账号存在
-    const existing = database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(adminQq) as IdRow | undefined
-    if (!existing) {
-      try {
-        // R1-3: 检查 subdomain 和 artist_code 是否冲突
-        const conflict = database.prepare(
-          'SELECT id FROM artists WHERE subdomain = ? OR artist_code = ?'
-        ).get('admin', 'ADMIN')
-        if (conflict) {
-          // 用 QQ 号做子域名兜底
-          const fallbackSubdomain = `admin${adminQq.slice(-4)}`
-          const fallbackCode = `AD${adminQq.slice(-4)}`
-          database.prepare(`
-            INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
-            VALUES (?, 'Admin', ?, ?, '平台管理员', 'open', ?)
-          `).run(adminQq, fallbackSubdomain, fallbackCode, adminQq)
-          console.log(`✅ 管理员账号已创建 (QQ: ${adminQq}, subdomain: ${fallbackSubdomain})`)
-        } else {
-          database.prepare(`
-            INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status, contact_qq)
-            VALUES (?, 'Admin', 'admin', 'ADMIN', '平台管理员', 'open', ?)
-          `).run(adminQq, adminQq)
-        }
-        const admin = database.prepare('SELECT id FROM artists WHERE qq_number = ?').get(adminQq) as IdRow
-        database.prepare('INSERT OR IGNORE INTO commission_rules (artist_id, content) VALUES (?, ?)').run(admin.id, '')
-        // P1-5: 管理员画师也需要工作流种子
-        const wfCount = database.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(admin.id) as CountRow
-        if (wfCount.c === 0) {
-          const tpl = database.prepare('SELECT * FROM default_workflow_template ORDER BY sort_order ASC').all() as DefaultWorkflowTemplateRow[]
-          const ins = database.prepare('INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points, speech_template) VALUES (?, ?, ?, ?, ?, ?, ?)')
-          for (const t of tpl) ins.run(admin.id, t.name, t.description || null, t.sort_order, t.takes_payment ? 1 : 0, t.basis_points, '{客户名}，你的订单已{节点名}。')
-        }
-        console.log(`✅ 管理员账号已自动创建 (QQ: ${adminQq})`)
-      } catch (err) {
-        console.error(`⚠️ 管理员账号创建失败: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    }
-  }
+  // ─── REQ-038: 开箱设置模式 — 不再自举管理员，运行时由 setup 守卫决定 ───
+  // setup_completed（空=未完成，1=已完成）、onboarding_mode（invite=邀请制）
+  database.exec(`
+    INSERT OR IGNORE INTO platform_config (key, value) VALUES ('setup_completed', '');
+    INSERT OR IGNORE INTO platform_config (key, value) VALUES ('onboarding_mode', 'invite');
+  `)
 }

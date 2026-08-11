@@ -35,7 +35,7 @@
           <template #default="{ row }">
             <el-select
               v-model="row.status" size="small" style="width: 100px"
-              @change="(val) => changeStatus(row, val)" :disabled="row.isAdmin"
+              @change="(val) => changeStatus(row, val)"
             >
               <el-option value="open" :label="$t('common.statusShort.open')" />
               <el-option value="full" :label="$t('common.statusShort.full')" />
