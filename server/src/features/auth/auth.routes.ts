@@ -5,7 +5,6 @@ import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
-import { getArtistByQq } from '../artist/artist.service.js'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
@@ -89,6 +88,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
           clientDataJSON: { type: 'string', minLength: 1, maxLength: 10000 }
         },
         if: { properties: { method: { const: 'totp' } }, required: ['method'] },
+        // eslint-disable-next-line unicorn/no-thenable -- JSON Schema if/then/else 关键字，非 thenable 对象
         then: { required: ['code'] },
         else: { required: ['credentialId', 'authenticatorData', 'signature', 'clientDataJSON'] }
       }
@@ -211,7 +211,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * POST /api/auth/webauthn/register-options
    * 生成注册选项（登录态）
    */
-  fastify.post('/api/auth/webauthn/register-options', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/auth/webauthn/register-options', { preHandler: requireAuth }, async (request) => {
     const { generateRegisterOptions } = await import('./webauthn.js')
     const options = generateRegisterOptions(request.artist, request.hostname)
     return options
@@ -221,7 +221,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * POST /api/auth/webauthn/register-verify
    * 验证注册并保存凭据（登录态）
    */
-  fastify.post('/api/auth/webauthn/register-verify', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/auth/webauthn/register-verify', { preHandler: requireAuth }, async (request) => {
     const { verifyRegistration, generateDeviceNameFromUA } = await import('./webauthn.js')
     const credential = request.body as Record<string, unknown>
     const credentialRow = await verifyRegistration(request.artist, credential, request.hostname)
@@ -256,11 +256,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request, reply) => {
+  }, async (request) => {
     guardRateLimit(`webauthn-login-options:${request.ip}`, 10, 5 * 60_000)
 
-    const { qqNumber } = request.body as { qqNumber: string }
-    // 防枚举：查找画师但不暴露注册状态
+    // 防枚举：login-options 不依赖 QQ 号是否注册，总是返回相同的 options 结构
     const { generateLoginOptions } = await import('./webauthn.js')
     const options = generateLoginOptions(request.hostname)
     return options
@@ -307,7 +306,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * PATCH /api/auth/webauthn/credentials/:id
    * 修改凭据设备名
    */
-  fastify.patch('/api/auth/webauthn/credentials/:id', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.patch('/api/auth/webauthn/credentials/:id', { preHandler: requireAuth }, async (request) => {
     const { updateCredentialName } = await import('./webauthn.js')
     const { id } = request.params as { id: string }
     const { deviceName } = request.body as { deviceName: string }
@@ -322,7 +321,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * DELETE /api/auth/webauthn/credentials/:id
    * 删除凭据
    */
-  fastify.delete('/api/auth/webauthn/credentials/:id', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.delete('/api/auth/webauthn/credentials/:id', { preHandler: requireAuth }, async (request) => {
     const { deleteCredential } = await import('./webauthn.js')
     const { id } = request.params as { id: string }
     deleteCredential(Number(id), request.artist.id)
@@ -341,7 +340,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * 都无 → 拒绝
    * 冷却期 24h 内拒绝（管理员豁免）
    */
-  fastify.post('/api/auth/totp/rebind-init', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/auth/totp/rebind-init', { preHandler: requireAuth }, async (request) => {
     const artist = request.artist
     const isAdmin = artist.qq_number === getAdminQq()
 
@@ -381,19 +380,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     // 生成新 secret 并暂存
     const newSecret = generateSecret()
-    const otpauthUri = buildOtpAuthUri(newSecret, artist.qq_number, '绘约')
+    const otpauthUri = buildOtpAuthUri(newSecret, artist.qq_number, '拾绘')
 
-    // 用 challenge 暂存新 secret
-    const { generateLoginOptions } = await import('./webauthn.js')
-    const options = generateLoginOptions(request.hostname)
-    // 我们需要额外存储新 secret 到 challenge store
-    // 这里用 challenge 本身作为 key 的扩展
-    // 实际上我们使用一个临时的存储机制
+    // 用临时映射存储新 secret（challenge store 存的是 webauthn challenge，此处单独存 totp secret）
     const { default: crypto } = await import('crypto')
     const tempKey = 'rebind:' + crypto.randomUUID()
-    // 存入 challenge store（扩展 purpose）
-    // 由于我们使用 webauthn 的 challenge 存储，但这里需要存 totp 的 secret
-    // 简单处理：在内存中存一个临时映射
+    // 存入临时映射（5 分钟过期，一次性消费）
     getTotpRebindStore().set(tempKey, {
       newSecret,
       artistId: artist.id,
@@ -421,39 +413,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * TOTP 自助重绑确认
    * 验证凭据 + 新码 → 生效 + bumpTokenVersion + 写冷却期
    */
-  fastify.post('/api/auth/totp/rebind-confirm', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/auth/totp/rebind-confirm', { preHandler: requireAuth }, async (request) => {
     const artist = request.artist
     const body = request.body as Record<string, unknown>
 
-    const { verifyTotp, hashTotpCode } = await import('./totp.js')
+    const { verifyTotp } = await import('./totp.js')
     const { hasPasskeyCredentials } = await import('./webauthn.js')
-    const { generateSecret, buildOtpAuthUri } = await import('./totp.js')
 
     const hasPasskey = hasPasskeyCredentials(artist.id)
 
     let newSecret: string
 
     if (hasPasskey) {
-      // Passkey 路径：验证 credential
-      const { verifyRegistration } = await import('./webauthn.js')
+      // Passkey 路径：认证验证（复用 login-verify 同款 verifyLogin 链路，counter 递增与 challenge 校验一并完成）
       const credential = body.credential as Record<string, unknown> | undefined
       if (!credential) throw new AppError(E.VALIDATION, 400, { field: 'credential' })
 
-      // 验证 Passkey 认证
-      // 注意：这里使用的是注册验证，但我们需要的是认证验证
-      // 实际上我们应该用 verifyLogin 的逻辑验证现有的 Passkey
-      // 但由于 verifyLogin 会签发会话，我们在这里重新实现简化版验证
-      const { verifyAuthenticationResponse } = await import('@simplewebauthn/server')
-      // 从 challenge store 中查找
-      // 简化：直接验证一个新的注册挑战，但实际需要认证挑战
-      // 这里我们使用一个简化方案：要求用户使用 Passkey 登录，然后重定向回来
-      // 但实际上，更合理的做法是：
-      // 1. 前端先调 login-options + login-verify 拿到会话
-      // 2. 但这已经是登录态了，所以只需要验证用户确实有 Passkey 并确认操作
-      // 
-      // 简化实现：检查用户有 Passkey 凭据，并且传了 credential 就验证它
-      // 更安全的做法：在前端先调 navigator.credentials.get() 验证用户身份
-      // 这里我们假设前端已经完成了验证，我们只需要验证 credential
       const { verifyLogin } = await import('./webauthn.js')
       try {
         await verifyLogin(credential, request.hostname)
@@ -476,10 +451,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // 从 tempKey 获取新 secret
       const tempKey = body.tempKey as string | undefined
       const tempStore = getTotpRebindStore()
-      if (!tempKey || !tempStore || !tempStore.has(tempKey)) {
+      if (!tempKey || !tempStore.has(tempKey)) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
-      const entry = tempStore.get(tempKey)!
+      const entry = tempStore.get(tempKey) as TotpRebindEntry | undefined
+      if (!entry) throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       tempStore.delete(tempKey) // 一次性消费
 
       if (entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
@@ -505,7 +481,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // 全局踢下线（bumpTokenVersion）
     bumpTokenVersion(artist.id)
 
-    // 审计日志（走 Fastify logger，最小实现）
+    // 审计日志（走 Fastify logger，结构化最小实现）
     request.log.info({ artistId: artist.id, qq: artist.qq_number, ip: request.ip }, 'AUDIT TOTP rebind')
 
     return { success: true, message: 'TOTP 已重绑，请重新登录' }

@@ -78,6 +78,91 @@
             </div>
           </div>
         </div>
+
+        <!-- REQ-039: 邀请码入驻入口（onboarding_mode=invite 时显示；纯增量，不动登录结构） -->
+        <button
+          v-if="inviteEnabled && !inviteView"
+          class="invite-entry rise rise-4" type="button"
+          @click="openInvite"
+        >
+          {{ t('invite.entry') }}
+        </button>
+
+        <!-- REQ-039: 入驻叠加层（两步：信息表单 → TOTP 首绑；覆盖卡片，v0.49 冻结页最小增量） -->
+        <div v-if="inviteView" class="invite-overlay" role="dialog" aria-modal="true" :aria-label="t('invite.title')">
+          <div class="invite-overlay-inner">
+            <button class="invite-back" type="button" @click="closeInvite">← {{ t('invite.back') }}</button>
+            <h2 class="invite-title">{{ t('invite.title') }}</h2>
+            <p class="invite-sub">{{ t('invite.subtitle') }}</p>
+
+            <!-- 步骤 1：入驻信息 -->
+            <form v-if="inviteStep === 1" novalidate @submit.prevent="submitInvite">
+              <div class="field" :class="{ 'field-error': inviteErrCode }">
+                <label class="field-label" for="invite-code">{{ t('invite.codeLabel') }}</label>
+                <input
+                  id="invite-code" v-model="invCode" class="field-input" type="text"
+                  maxlength="8" autocomplete="off" :placeholder="t('invite.codePlaceholder')"
+                  :disabled="inviteSubmitting" @input="inviteErrCode = false"
+                >
+              </div>
+              <div class="field" :class="{ 'field-error': inviteErrQq }">
+                <label class="field-label" for="invite-qq">{{ t('invite.qqLabel') }}</label>
+                <input
+                  id="invite-qq" v-model="invQq" class="field-input" type="text" inputmode="numeric"
+                  autocomplete="username" :placeholder="t('invite.qqPlaceholder')"
+                  :disabled="inviteSubmitting" @input="inviteErrQq = false"
+                >
+              </div>
+              <div class="field" :class="{ 'field-error': inviteErrName }">
+                <label class="field-label" for="invite-name">{{ t('invite.nameLabel') }}</label>
+                <input
+                  id="invite-name" v-model="invName" class="field-input" type="text"
+                  autocomplete="nickname" :placeholder="t('invite.namePlaceholder')"
+                  :disabled="inviteSubmitting" @input="inviteErrName = false"
+                >
+              </div>
+              <div class="field" :class="{ 'field-error': inviteErrSub }">
+                <label class="field-label" for="invite-subdomain">{{ t('invite.subdomainLabel') }}</label>
+                <input
+                  id="invite-subdomain" v-model="invSubdomain" class="field-input" type="text"
+                  autocomplete="off" :placeholder="t('invite.subdomainPlaceholder')"
+                  :disabled="inviteSubmitting" @input="inviteErrSub = false"
+                >
+                <p class="field-hint">{{ t('invite.subdomainHint') }}</p>
+              </div>
+              <button class="login-btn" type="submit" :disabled="inviteSubmitting">
+                <span v-if="inviteSubmitting" class="btn-spinner" aria-hidden="true"></span>
+                {{ inviteSubmitting ? t('invite.submitting') : t('invite.submit') }}
+              </button>
+              <p v-if="inviteError" class="notice notice-error" role="alert">{{ inviteError }}</p>
+            </form>
+
+            <!-- 步骤 2：TOTP 首绑（复用 SetupWizard 同款二维码生成） -->
+            <div v-else>
+              <p class="invite-step-title">{{ t('invite.step2Title') }}</p>
+              <p class="invite-step-desc">{{ t('invite.step2Desc') }}</p>
+              <div class="invite-qr-wrap">
+                <img v-if="inviteQr" :src="inviteQr" :alt="t('invite.qrAlt')" class="invite-qr" />
+              </div>
+              <div class="field" :class="{ 'field-error': !!inviteError && inviteErrTotp }">
+                <label class="field-label" for="invite-totp">{{ t('invite.totpCodeLabel') }}</label>
+                <input
+                  id="invite-totp" v-model="inviteTotpCode" class="field-input" type="text" inputmode="numeric"
+                  maxlength="6" autocomplete="one-time-code" :placeholder="t('invite.totpCodePlaceholder')"
+                  :disabled="inviteConfirming || inviteTotpOk" @input="inviteErrTotp = false"
+                >
+              </div>
+              <button
+                class="login-btn" :class="{ 'is-ok': inviteTotpOk }" type="button"
+                :disabled="inviteConfirming || inviteTotpOk" @click="confirmInviteTotp"
+              >
+                <span v-if="inviteConfirming" class="btn-spinner" aria-hidden="true"></span>
+                {{ inviteTotpOk ? t('invite.success') : inviteConfirming ? t('invite.confirming') : t('invite.totpConfirm') }}
+              </button>
+              <p v-if="inviteError" class="notice notice-error" role="alert">{{ inviteError }}</p>
+            </div>
+          </div>
+        </div>
       </PaperCard>
     </div>
   </div>
@@ -93,6 +178,8 @@ import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
 import LoginBackdrop from '../../components/artist/login/LoginBackdrop.vue'
 import PaperCard from '../../components/artist/login/PaperCard.vue'
 import LoginPrefs from '../../components/artist/login/LoginPrefs.vue'
+import { inviteApi } from '../../api/index.js'
+import { safeSetItem } from '../../utils/storage.js'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
 import { Lock } from '@element-plus/icons-vue'
@@ -124,8 +211,162 @@ const errCode = ref(false)
 const noticeError = ref('')
 const paperCardRef = ref(null)
 
+// ─── REQ-039: 邀请码入驻叠加层 ───
+const inviteEnabled = ref(false)
+const inviteView = ref(false)
+const inviteStep = ref(1)
+const invCode = ref('')
+const invQq = ref('')
+const invName = ref('')
+const invSubdomain = ref('')
+const inviteSubmitting = ref(false)
+const inviteError = ref('')
+const inviteErrCode = ref(false)
+const inviteErrQq = ref(false)
+const inviteErrName = ref(false)
+const inviteErrSub = ref(false)
+const inviteQr = ref('')
+const inviteTotpCode = ref('')
+const inviteErrTotp = ref(false)
+const inviteConfirming = ref(false)
+const inviteTotpOk = ref(false)
+
 const { switchLang } = useLocaleSwitch(() => paperCardRef.value?.getCardEl())
 const onSwitchLang = (next) => switchLang(next, locale.value)
+
+onMounted(async () => {
+  // REQ-039: 入驻模式判定（manual 时登录页不显示入口）
+  try {
+    const res = await inviteApi.status()
+    inviteEnabled.value = res.enabled
+  } catch { /* 状态查询失败静默——入口不显示，登录不受影响 */ }
+})
+
+function openInvite() {
+  inviteView.value = true
+  inviteStep.value = 1
+  inviteError.value = ''
+}
+
+function closeInvite() {
+  inviteView.value = false
+  invCode.value = ''
+  invQq.value = ''
+  invName.value = ''
+  invSubdomain.value = ''
+  inviteQr.value = ''
+  inviteTotpCode.value = ''
+  inviteStep.value = 1
+  inviteError.value = ''
+  inviteErrCode.value = false
+  inviteErrQq.value = false
+  inviteErrName.value = false
+  inviteErrSub.value = false
+  inviteErrTotp.value = false
+  inviteTotpOk.value = false
+}
+
+async function generateInviteQr(otpauthUri) {
+  try {
+    const QRCode = await import('qrcode')
+    return await QRCode.default.toDataURL(otpauthUri, { width: 220, margin: 1 })
+  } catch { return '' }
+}
+
+async function submitInvite() {
+  inviteError.value = ''
+  inviteErrCode.value = false
+  inviteErrQq.value = false
+  inviteErrName.value = false
+  inviteErrSub.value = false
+
+  const code = invCode.value.trim()
+  const qq = invQq.value.trim()
+  const name = invName.value.trim()
+  const sub = invSubdomain.value.trim().toLowerCase()
+
+  if (!code) {
+    inviteErrCode.value = true
+    inviteError.value = t('invite.codeRequired')
+    return
+  }
+  if (!/^[A-Za-z0-9]{8}$/.test(code)) {
+    inviteErrCode.value = true
+    inviteError.value = t('invite.codeFormat')
+    return
+  }
+  if (!qq) {
+    inviteErrQq.value = true
+    inviteError.value = t('invite.qqRequired')
+    return
+  }
+  if (!/^\d+$/.test(qq)) {
+    inviteErrQq.value = true
+    inviteError.value = t('invite.qqInvalid')
+    return
+  }
+  if (!name) {
+    inviteErrName.value = true
+    inviteError.value = t('invite.nameRequired')
+    return
+  }
+  if (!sub) {
+    inviteErrSub.value = true
+    inviteError.value = t('invite.subdomainRequired')
+    return
+  }
+  if (!/^[a-z0-9-]{2,20}$/.test(sub)) {
+    inviteErrSub.value = true
+    inviteError.value = t('invite.subdomainFormat')
+    return
+  }
+
+  inviteSubmitting.value = true
+  try {
+    const res = await inviteApi.register({ code, qqNumber: qq, name, subdomain: sub })
+    inviteQr.value = await generateInviteQr(res.otpauthUri)
+    inviteStep.value = 2
+  } catch (err) {
+    inviteError.value = err.message || t('invite.totpError')
+  } finally {
+    inviteSubmitting.value = false
+  }
+}
+
+async function confirmInviteTotp() {
+  inviteError.value = ''
+  inviteErrTotp.value = false
+
+  const code = inviteTotpCode.value.trim()
+  if (!code) {
+    inviteErrTotp.value = true
+    inviteError.value = t('invite.totpRequired')
+    return
+  }
+  if (!/^\d{6}$/.test(code)) {
+    inviteErrTotp.value = true
+    inviteError.value = t('invite.totpFormat')
+    return
+  }
+
+  inviteConfirming.value = true
+  try {
+    const res = await inviteApi.totpConfirm({ qqNumber: invQq.value.trim(), code })
+    // 会话 cookie 已由后端签发；本地只记录非敏感标记（与 store.login 同口径）
+    store.loggedIn = true
+    store.isAdmin = false
+    store.profile = res.artist
+    safeSetItem('artist_logged_in', '1')
+    safeSetItem('artist_is_admin', '0')
+    inviteTotpOk.value = true
+    setTimeout(() => router.push('/dashboard'), 500)
+  } catch (err) {
+    inviteErrTotp.value = true
+    inviteError.value = err.message || t('invite.totpError')
+  } finally {
+    inviteConfirming.value = false
+  }
+}
 
 async function passkeyLogin() {
   noticeError.value = ''
@@ -555,6 +796,85 @@ async function login() {
 .help-body ul { margin: 0 0 8px 16px; padding: 0; }
 .help-note { color: var(--ink3); }
 
+/* ─── REQ-039: 邀请码入驻（入口 + 叠加层，纸墨 token 复用登录表单样式） ─── */
+.invite-entry {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px 0;
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-paper);
+  background: transparent;
+  font-family: inherit;
+  font-size: calc(var(--font-scale, 1) * 13px);
+  color: var(--hq);
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.invite-entry:hover {
+  background: var(--hq-bg);
+  box-shadow: var(--sh-1);
+}
+.invite-entry:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: 3px;
+}
+
+/* 叠加层：覆盖主卡（主卡 position: relative），纸面同色 + 可滚动 */
+.invite-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--card);
+  border-radius: var(--r-paper);
+  overflow-y: auto;
+  animation: note-in 0.3s var(--ease-out);
+}
+.invite-overlay-inner { padding: 34px 44px 40px; }
+.invite-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: calc(var(--font-scale, 1) * 12px);
+  color: var(--ink2);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.invite-back:hover { color: var(--ink); }
+.invite-title {
+  margin: 12px 0 4px;
+  font-family: var(--f-d);
+  font-size: calc(var(--font-scale, 1) * 22px);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+.invite-sub {
+  margin: 0 0 24px;
+  font-size: calc(var(--font-scale, 1) * 12px);
+  color: var(--ink2);
+  line-height: 1.7;
+}
+.field-hint { margin: 6px 0 0; font-size: 11px; color: var(--ink3); }
+.invite-step-title { margin: 20px 0 6px; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
+.invite-step-desc { margin: 0 0 14px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.7; }
+.invite-qr-wrap { display: flex; justify-content: center; margin: 4px 0 18px; }
+.invite-qr {
+  width: 200px;
+  height: 200px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: #fff;
+}
+
+@media (max-width: 768px) {
+  .invite-overlay-inner { padding: 24px 24px 28px; }
+}
+
 /* ═══ 768 竖屏 ═══ */
 @media (max-width: 768px) {
   .brand-title { font-size: calc(var(--font-scale, 1) * 24px); }
@@ -573,4 +893,3 @@ async function login() {
   }
 }
 </style>
-

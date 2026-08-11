@@ -12,12 +12,12 @@ import {
   verifyAuthenticationResponse
 } from '@simplewebauthn/server'
 import type {
+  AuthenticationResponseJSON,
   GenerateRegistrationOptionsOpts,
+  RegistrationResponseJSON,
   VerifyRegistrationResponseOpts,
   GenerateAuthenticationOptionsOpts,
-  VerifyAuthenticationResponseOpts,
-  RegistrationResponseJSON,
-  AuthenticationResponseJSON
+  VerifyAuthenticationResponseOpts
 } from '@simplewebauthn/server'
 import { AppError, E } from '../../shared/errors.js'
 import type { Artist } from '../../types/entities.js'
@@ -204,8 +204,9 @@ export async function verifyRegistration(
     throw new AppError(E.WEBAUTHN_REGISTRATION_FAILED, 400)
   }
 
-  // @simplewebauthn/server v13：registrationInfo.credential.id 已是 base64url 字符串，
-  // publicKey/counter 同旧版语义（旧版顶层字段名在 v13 类型中已移除）
+  // @simplewebauthn/server v13：registrationInfo.credential.id 已是 Base64URLString 直接用；
+  // publicKey 为 Uint8Array 需转 base64url（旧版顶层 credentialID/credentialPublicKey 字段已移除）。
+  // 注：对 id 再包 Buffer.from(...).toString('base64url') 会把字符串当 UTF-8 二次编码，是错的
   const registered = verification.registrationInfo
   const credentialIdBase64 = registered.credential.id
   const publicKeyBase64 = Buffer.from(registered.credential.publicKey).toString('base64url')

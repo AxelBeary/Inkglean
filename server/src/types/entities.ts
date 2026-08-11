@@ -23,7 +23,7 @@ export interface Artist {
   totp_verified: number
   totp_failed_attempts: number
   totp_locked_until: number | null
-  // REQ-040: TOTP 自助重绑冷却期
+  // REQ-040: TOTP 自助重绑冷却期（v57）
   totp_rebound_at: string | null
   deleted_at: string | null
   weibo_url: string | null

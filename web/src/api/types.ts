@@ -1442,4 +1442,83 @@ export interface StepUpStatusResult {
   verified: true
 }
 
+// ─── REQ-039: 邀请码注册 ───
+
+export type InviteCodeStatus = 'unused' | 'used' | 'revoked'
+
+/** GET /api/invite/status 响应 */
+export interface InviteStatusResult {
+  enabled: boolean
+}
+
+/** POST /api/invite/register 请求体 */
+export interface InviteRegisterRequest {
+  code: string
+  qqNumber: string
+  name: string
+  subdomain: string
+}
+
+/** POST /api/invite/register 响应（TOTP 首绑上下文） */
+export interface InviteRegisterResult {
+  otpauthUri: string
+  qqNumber: string
+}
+
+/** POST /api/invite/totp-confirm 请求体 */
+export interface InviteTotpConfirmRequest {
+  qqNumber: string
+  code: string
+}
+
+/** POST /api/invite/totp-confirm 响应（与 auth verify 同形状） */
+export type InviteTotpConfirmResult = AuthVerifyResult
+
+/** POST /api/admin/invite-codes 请求体 */
+export interface GenerateInviteCodesRequest {
+  count: number
+  validDays?: number
+}
+
+/** 生成的码行 */
+export interface GeneratedInviteCode {
+  id: number
+  code: string
+  expiresAt: string
+}
+
+/** POST /api/admin/invite-codes 响应 */
+export interface GenerateInviteCodesResult {
+  codes: GeneratedInviteCode[]
+}
+
+/** GET /api/admin/invite-codes 行（使用人 null=未使用） */
+export interface AdminInviteCode {
+  id: number
+  code: string
+  status: InviteCodeStatus
+  expiresAt: string
+  usedAt: string | null
+  createdAt: string
+  createdBy: number | null
+  usedBy: {
+    id: number
+    name: string | null
+    subdomain: string | null
+    qqNumber: string | null
+  } | null
+}
+
+/** GET /api/admin/invite-codes 响应 */
+export interface AdminInviteCodesResult {
+  codes: AdminInviteCode[]
+}
+
+/** POST /api/admin/invite-codes/:id/revoke 响应 */
+export interface RevokeInviteCodeResult {
+  success: true
+  code: string
+  status: InviteCodeStatus
+}
+
 
