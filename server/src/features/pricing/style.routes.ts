@@ -377,7 +377,7 @@ export default async function styleRoutes(fastify: FastifyInstance) {
 
     const { subdomain, styleSizeId, addons, discountCode } = request.body as { subdomain: string; styleSizeId: number; addons?: Array<{ styleAddonId: number; quantity?: number }>; discountCode?: string | null }
 
-    // BUG-3 遗留修复：hidden 画师/管理员账号不允许算价（对齐同文件 GET styles/gallery 的 hidden 过滤）
+    // BUG-3 遗留修复：hidden/封禁画师不允许算价（对齐同文件 GET styles/gallery 的 hidden 过滤）
     const artist = requireVisibleArtist(subdomain)
 
     return stylePricingService.calculateStylePrice(artist.id, {

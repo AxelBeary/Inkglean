@@ -166,8 +166,8 @@ describe('增项库 CRUD (addon_templates)', () => {
     const detached = addons.find(a => a.detached)
     expect(detached).toBeTruthy()
     expect(detached.addon_template_id).toBeNull()
-    // 其余 = 系统用途/加急自动绑定（未解绑）
-    expect(addons.filter(a => !a.detached)).toHaveLength(2)
+    // 其余 = 系统用途/加急自动绑定（未解绑；812-B B7：用途×2 + 加急×2）
+    expect(addons.filter(a => !a.detached)).toHaveLength(4)
   })
 
   it('TC-AT-09: 获取不存在的模板 → 404', () => {
@@ -206,8 +206,8 @@ describe('画风 CRUD (art_styles)', () => {
     expect(style.sizes).toHaveLength(0)
     // SPEC-PRICE-2：新画风无条件自动绑定系统用途/加急；普通增项为空
     expect(style.addons.filter(a => a.template_category === 'add')).toHaveLength(0)
-    expect(style.addons.filter(a => a.template_category === 'usage')).toHaveLength(1)
-    expect(style.addons.filter(a => a.template_category === 'rush')).toHaveLength(1)
+    expect(style.addons.filter(a => a.template_category === 'usage')).toHaveLength(2)
+    expect(style.addons.filter(a => a.template_category === 'rush')).toHaveLength(2)
   })
 
   it('TC-AS-02: 新建画风 — importAddons 一键导入（仅普通增项；用途/加急自动绑定）', () => {
@@ -219,7 +219,7 @@ describe('画风 CRUD (art_styles)', () => {
     expect(regular).toHaveLength(2)
     expect(regular[0].template_name).toBe('加人')
     expect(regular[1].template_name).toBe('加背景')
-    expect(style.addons.filter(a => a.template_category !== 'add')).toHaveLength(2) // 系统用途/加急
+    expect(style.addons.filter(a => a.template_category !== 'add')).toHaveLength(4) // 系统用途/加急（812-B B7）
   })
 
   it('TC-AS-03: 新建画风 — 名称为空拒绝', () => {
@@ -557,9 +557,9 @@ describe('多画风路由层集成测试', () => {
     const tpl = createRes.json()
     expect(tpl.name).toBe('加背景')
 
-    // 列表（v49: 含 5 个系统预置模板 + 自建 1 = 6）
+    // 列表（v49: 含 4 个系统预置基础增项 + 自建 1 = 5；812-B B7）
     const listRes = await app.inject({ method: 'GET', url: '/api/artist/addon-templates', headers })
-    expect(listRes.json()).toHaveLength(6)
+    expect(listRes.json()).toHaveLength(5)
 
     // 更新
     const updateRes = await app.inject({

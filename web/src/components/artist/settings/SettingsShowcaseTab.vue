@@ -2,6 +2,15 @@
 <template>
   <el-card style="max-width: 700px" v-loading="loading">
     <el-form :model="form" label-position="top" size="large">
+      <!-- 812-B B2+B3: 小店展示独立开关（语义 = status 是否 hidden；已隐藏时可见当前隐藏态） -->
+      <el-form-item>
+        <ShopVisibilitySwitch
+          :visible="form.status !== 'hidden'"
+          :disabled="profileLoadFailed"
+          @update:visible="onShopVisibleChange"
+        />
+      </el-form-item>
+
       <el-form-item :label="$t('settings.announcementLabel')">
         <el-input
           v-model="form.announcement" type="textarea" :rows="3"
@@ -110,6 +119,8 @@
 </template>
 
 <script setup lang="ts">
+import ShopVisibilitySwitch from './ShopVisibilitySwitch.vue'
+
 defineProps<{
   form: any
   loading: boolean
@@ -125,8 +136,9 @@ defineProps<{
   sanitizedRulesPreview: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   save: []
+  'update:status': [value: string]
   'add-link': []
   'remove-link': [index: number | string]
   'move-link': [index: number | string, direction: number]
@@ -139,6 +151,10 @@ defineEmits<{
 }>()
 
 const disabledDate = (d: Date) => d < new Date()
+
+function onShopVisibleChange(value: boolean) {
+  emit('update:status', value ? 'open' : 'hidden')
+}
 </script>
 
 <style scoped>
@@ -164,4 +180,3 @@ const disabledDate = (d: Date) => d < new Date()
 .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .tag-input { max-width: 300px; }
 </style>
-

@@ -62,7 +62,7 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     const { subdomain, clientQq, clientName, description, priority, clientNotify, agreeRules, references, discountCode, styleSizeId, styleAddons } = request.body as { subdomain: string; clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; agreeRules: boolean; references?: string[]; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number }> }
     const qq = clamp(clientQq, 'qq')!
 
-    // audit-a P2-7: hidden/管理员/不存在统一 404，不泄露存在性
+    // audit-a P2-7: hidden/封禁/不存在统一 404，不泄露存在性
     const artist = requireVisibleArtist(subdomain)
     if (artist.status !== 'open') throw new AppError(E.ARTIST_NOT_OPEN)
 
@@ -133,7 +133,7 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     if (!result) throw new AppError(E.ORDER_NOT_FOUND, 404)
 
     const { order, position, total } = result
-    // audit-a P2-7: 订单所属画师不可见（hidden/管理员/已删除）→ 按订单不存在处理，不泄露画师
+    // audit-a P2-7: 订单所属画师不可见（hidden/封禁/已删除）→ 按订单不存在处理，不泄露画师
     if (!isArtistVisibleById(order.artist_id)) {
       throw new AppError(E.ORDER_NOT_FOUND, 404)
     }
@@ -208,7 +208,7 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
-    // audit-a P2-7: 与 lookup/track 同口径——hidden/管理员/不存在统一 404
+    // audit-a P2-7: 与 lookup/track 同口径——hidden/封禁/不存在统一 404
     const artist = requireVisibleArtist(subdomain)
 
     const orders = orderService.getClientOrdersByQq(artist.id, qq)
@@ -232,7 +232,7 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
     if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
 
-    // audit-a P2-7: 与 my/track 同口径——hidden/管理员/不存在统一 404
+    // audit-a P2-7: 与 my/track 同口径——hidden/封禁/不存在统一 404
     const artist = requireVisibleArtist(subdomain)
 
     const hasOrders = orderService.hasClientOrders(artist.id, qq)

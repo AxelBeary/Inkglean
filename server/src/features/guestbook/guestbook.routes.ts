@@ -1,4 +1,4 @@
-import { requireAuth, requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
+import { requireAuth, requireAdmin } from '../../shared/middleware/auth.js'
 import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { findSensitiveWords } from '../../shared/sensitive-words.js'
@@ -39,7 +39,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
-    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden' || artist.is_banned) {
+    if (!artist || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ error: '画师不存在' })
     }
     const body = request.body as { nickname: string; content: string; language?: string }
@@ -58,7 +58,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
-    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden' || artist.is_banned) {
+    if (!artist || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ error: '画师不存在' })
     }
     const query = request.query as { page?: string; pageSize?: string; language?: string }

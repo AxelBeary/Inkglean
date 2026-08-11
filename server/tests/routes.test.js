@@ -542,6 +542,45 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.json().status).toBe('hidden')
     })
 
+    it('TC-RT-16c2: hidden→open→hidden 往返写入（812-B 小店展示开关语义）', async () => {
+      const artist = seedArtist({ qq_number: '77785', subdomain: 'hidden-roundtrip' })
+      const token = createSession(artist.id, artist.token_version)
+
+      // 初始 open → 关闭小店展示（hidden）
+      const off = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { status: 'hidden' }
+      })
+      expect(off.statusCode).toBe(200)
+      expect(off.json().status).toBe('hidden')
+
+      // 重新开启小店展示（hidden → open）
+      const on = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { status: 'open' }
+      })
+      expect(on.statusCode).toBe(200)
+      expect(on.json().status).toBe('open')
+
+      // 再次关闭（open → hidden）
+      const offAgain = await app.inject({
+        method: 'PUT',
+        url: '/api/artist/profile',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { status: 'hidden' }
+      })
+      expect(offAgain.statusCode).toBe(200)
+      expect(offAgain.json().status).toBe('hidden')
+
+      // 落库核对
+      const row = db.prepare('SELECT status FROM artists WHERE id = ?').get(artist.id)
+      expect(row.status).toBe('hidden')
+    })
+
     it('TC-RT-16d: hidden 画师后台接口不受影响', async () => {
       const artist = seedArtist({ qq_number: '77780', subdomain: 'hidden-admin' })
       db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
