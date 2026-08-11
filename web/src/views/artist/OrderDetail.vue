@@ -275,6 +275,14 @@
       </el-card>
     </div>
 
+    <!-- REQ-037 F1: 首载失败错误态（自助重试，不白屏死局） -->
+    <div v-else-if="loadError" class="od-load-failed">
+      <p>{{ $t('orderDetail.loadFailed') }}</p>
+      <el-button type="primary" @click="loadOrder">{{ $t('orderDetail.loadFailedRetry') }}</el-button>
+    </div>
+    <!-- REQ-037 F2: 首载骨架（替代白屏） -->
+    <HySkeleton v-else count="4" />
+
     <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
     <DeliverDialog v-model="showDeliver" :order-id="route.params.id" @delivered="onOrderUpdated" />
 
@@ -346,6 +354,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistLayout from '../../components/ArtistLayout.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
+import HySkeleton from '../../components/shared/HySkeleton.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import PaymentPanel from '../../components/artist/order/PaymentPanel.vue'
 import GalleryPanel from '../../components/artist/order/GalleryPanel.vue'
@@ -375,6 +384,8 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const order = ref(null)
+// REQ-037 F1: 加载失败错误态（对齐 Settings profileLoadFailed 模式：页面内横幅+重试，不再白屏死局）
+const loadError = ref(false)
 const prevPriority = ref(null)
 // 拆分批面板 ref：备注粘贴焦点路由 + 发布/分享弹窗开关
 const notesPanelRef = ref(null)
@@ -423,13 +434,18 @@ let loadOrderSeq = 0
 async function loadOrder() {
   const mySeq = ++loadOrderSeq
   try {
+    loadError.value = false
     const data = await artistApi.getOrder(route.params.id)
     if (mySeq !== loadOrderSeq) return
     order.value = data
     prevPriority.value = data?.priority || 'medium'
   } catch (err) {
     if (mySeq !== loadOrderSeq) return
-    ElMessage.error(err.message)
+    if (order.value) {
+      ElMessage.error(err.message)
+    } else {
+      loadError.value = true // F1: 首载失败 → 页内错误态+重试入口
+    }
   }
 }
 
@@ -726,4 +742,11 @@ onUnmounted(() => {
 .client-qq-row .el-button { padding: 2px 6px; height: auto; }
 
 /* SPEC-003 附加工作项/改价/客户沟通样式已随 ExtraItemsPanel/CommPanel 拆出（2026-08-10） */
+
+/* REQ-037 F1: 首载失败错误态 */
+.od-load-failed {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 56px 0; color: var(--ink2); font-size: calc(var(--font-scale, 1) * 14px);
+}
+.od-load-failed p { margin: 0; }
 </style>
