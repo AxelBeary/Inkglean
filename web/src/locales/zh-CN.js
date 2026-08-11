@@ -1,4 +1,4 @@
-﻿export default {
+export default {
   errors: {
     // 认证
     NOT_LOGGED_IN: '未登录',
@@ -816,6 +816,7 @@
     guestbookApprove: '通过', guestbookReject: '拒绝', guestbookReply: '回复',
     guestbookReplyPlaceholder: '回复这位访客（≤500字）', guestbookReplySave: '保存回复',
     guestbookApprovedMsg: '留言已通过', guestbookRejectedMsg: '留言已拒绝', guestbookRepliedMsg: '回复已保存',
+    guestbookError: '留言审核加载失败',
     // R52: 今日统计
     todayNewOrders: '今日新增订单', todayRevenue: '今日收入',
     // R51: 截稿日 + 今日待办
@@ -1517,3 +1518,4 @@
     }
   }
 }
+
