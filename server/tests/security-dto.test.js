@@ -26,7 +26,8 @@ describe('安全加固批 F1: TOTP 密钥 DTO 投影', () => {
     db.prepare("UPDATE artists SET totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = 1, totp_failed_attempts = 0 WHERE id = ?").run(artist.id)
     db.prepare("UPDATE artists SET quick_actions = '[\"slot\",\"tier\"]' WHERE id = ?").run(artist.id)
     return {
-      adminToken: createSession(admin.id, admin.token_version),
+      // REQ-041：管理后台路由需 step-up 升级会话
+      adminToken: createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() }),
       artistToken: createSession(artist.id, artist.token_version),
       artist
     }

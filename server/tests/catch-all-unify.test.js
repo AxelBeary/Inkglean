@@ -36,7 +36,8 @@ describe('C-2 catch-all 统一 AppError 分流（审计 🔴-2）', () => {
   }
 
   function adminToken(artist) {
-    return createSession(artist.id, artist.token_version)
+    // REQ-041：管理后台路由需 step-up 升级会话
+    return createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
   }
 
   function createArtistPayload(name, subdomain) {

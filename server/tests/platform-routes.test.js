@@ -34,7 +34,8 @@ describe('外链重做 + 社交平台 CRUD (REQ-022 F2)', () => {
   }
 
   function authHeader(artist) {
-    const token = createSession(artist.id, artist.token_version)
+    // REQ-041：管理后台路由需 step-up 升级会话（非管理员用例由 requireAdmin 先行 403，不受影响）
+    const token = createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
     return { Authorization: AUTH_PREFIX + token }
   }
 

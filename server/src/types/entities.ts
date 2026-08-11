@@ -23,7 +23,7 @@ export interface Artist {
   totp_verified: number
   totp_failed_attempts: number
   totp_locked_until: number | null
-  // REQ-040: TOTP 自助重绑冷却期
+  // REQ-040: TOTP 自助重绑冷却期（v57）
   totp_rebound_at: string | null
   // REQ-042: 封禁独立态（v59，不动 status 三态）：1=封禁（主页下架+登录拒绝）
   is_banned: number

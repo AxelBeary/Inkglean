@@ -29,6 +29,7 @@ import type {
   ArtworkWithTags,
   AuthMeResult,
   AuthVerifyResult,
+  AdminInviteCodesResult,
   BanArtistResult,
   CommissionRule,
   CreateArtistRequest,
@@ -53,12 +54,19 @@ import type {
   EnrichedOrderDetail,
   ExtraItemRequest,
   GlobalStats,
+  GenerateInviteCodesRequest,
+  GenerateInviteCodesResult,
   GreetingInput,
   GreetingResult,
   GreetingTemplate,
   GuestbookMessage,
   HasMoreResult,
   HealthResult,
+  InviteRegisterRequest,
+  InviteRegisterResult,
+  InviteStatusResult,
+  InviteTotpConfirmRequest,
+  InviteTotpConfirmResult,
   LikeArtworkResult,
   LogoutResult,
   MyOrderItem,
@@ -90,6 +98,7 @@ import type {
   QueueOrderItem,
   RecycleBinResult,
   RefreshSignaturesResult,
+  RevokeInviteCodeResult,
   ReturningClientsResult,
   RevenueResult,
   SavePaymentNode,
@@ -206,7 +215,10 @@ api.interceptors.response.use(
     // G-6（衔接批 F-9）: 退役三码 CODE_INVALID/CODE_EXPIRED/CODE_TOO_MANY_ATTEMPTS 已从白名单移除；
     // 保留/新增码与 server/src/shared/errors.ts 现状核对一致（REQ-027 TOTP 登录返回 TOTP_*）
     const LOGIN_CODES = ['QQ_NOT_REGISTERED', 'TOTP_NOT_BOUND', 'TOTP_INVALID', 'TOTP_LOCKED', 'MISSING_CREDENTIALS']
-    if (err.response?.status === 401 && !(code !== undefined && LOGIN_CODES.includes(code))) {
+    // REQ-041: STEP_UP_REQUIRED（入口/动作级需二次验证）与 Passkey 认证失败不应踢出登录态——
+    // 验证对话框内失败只提示，用户仍可重试；其余 401 维持既有登出语义
+    const NO_LOGOUT_CODES = new Set([...LOGIN_CODES, 'STEP_UP_REQUIRED', 'WEBAUTHN_AUTHENTICATION_FAILED', 'WEBAUTHN_CHALLENGE_INVALID'])
+    if (err.response?.status === 401 && !(code !== undefined && NO_LOGOUT_CODES.has(code))) {
       // P3-10: 存储禁用时 401 清标记也不得抛错（否则登出软跳转被吞）
       safeRemoveItem('artist_logged_in')
       safeRemoveItem('artist_is_admin')
@@ -281,6 +293,22 @@ export const totpRebindApi = {
     postJson('/auth/totp/rebind-init'),
   rebindConfirm: (data: Record<string, unknown>): Promise<import('./types.js').RebindConfirmResult> =>
     postJson('/auth/totp/rebind-confirm', data)
+}
+
+// ─── REQ-041: 管理后台二次验证（会话升级） ───
+export const stepUpApi = {
+  /** 入口级探测：200=已升级且在 30 分钟窗口内；401 STEP_UP_REQUIRED=需弹验证对话框 */
+  status: (): Promise<import('./types.js').StepUpStatusResult> => getJson('/admin/stepup-status'),
+  /** 验证并升级会话（TOTP 或 Passkey 二选一），成功重签 token 覆盖 cookie */
+  verify: (data: import('./types.js').StepUpRequest): Promise<import('./types.js').StepUpResult> =>
+    postJson('/auth/step-up', data)
+}
+
+// ─── REQ-039: 邀请码注册（公开） ───
+export const inviteApi = {
+  status: (): Promise<InviteStatusResult> => getJson('/invite/status'),
+  register: (data: InviteRegisterRequest): Promise<InviteRegisterResult> => postJson('/invite/register', data),
+  totpConfirm: (data: InviteTotpConfirmRequest): Promise<InviteTotpConfirmResult> => postJson('/invite/totp-confirm', data)
 }
 
 // ─── 认证 ───
@@ -649,7 +677,12 @@ export const adminApi = {
   // REQ-033 埋点看板
   getTrackingSummary: (days = 30): Promise<TrackingSummary> => getJson('/admin/tracking/summary', { params: { days } }),
   getTrackingConfig: (): Promise<TrackingConfig> => getJson('/admin/tracking-config'),
-  setTrackingConfig: (statsMode: StatsMode): Promise<TrackingConfig> => putJson('/admin/tracking-config', { statsMode })
+  setTrackingConfig: (statsMode: StatsMode): Promise<TrackingConfig> => putJson('/admin/tracking-config', { statsMode }),
+  // REQ-039: 邀请码管理（生成/列表/吊销）
+  generateInviteCodes: (data: GenerateInviteCodesRequest): Promise<GenerateInviteCodesResult> =>
+    postJson('/admin/invite-codes', data),
+  getInviteCodes: (): Promise<AdminInviteCodesResult> => getJson('/admin/invite-codes'),
+  revokeInviteCode: (id: number): Promise<RevokeInviteCodeResult> => postJson(`/admin/invite-codes/${id}/revoke`)
 }
 
 // ─── REQ-042 合规与内容安全 ───

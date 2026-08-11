@@ -60,6 +60,7 @@ import { migration as v54 } from './v54-idempotency-keys.js'
 import { migration as v55 } from './v55-reference-uploads-ownership.js'
 import { migration as v56 } from './v56-webauthn-credentials.js'
 import { migration as v57 } from './v57-totp-rebound-at.js'
+import { migration as v58 } from './v58-invite-codes.js'
 import { migration as v59 } from './v59-compliance.js'
 
 export const MIGRATIONS: Migration[] = [
@@ -71,6 +72,7 @@ export const MIGRATIONS: Migration[] = [
   v51, v52, v53, v54, v55,
   v56,
   v57,
+  v58,
   v59,
 ]
 

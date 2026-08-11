@@ -16,6 +16,7 @@ if (!window.matchMedia) {
 const h = vi.hoisted(() => ({
   getMe: vi.fn(),
   getMessages: vi.fn(),
+  getStats: vi.fn(),
   logout: vi.fn(),
   push: vi.fn(),
   routeName: 'ArtistDashboard',
@@ -46,7 +47,9 @@ vi.mock('../../utils/track.js', () => ({
 vi.mock('../../api/index.js', () => ({
   artistApi: {
     getMe: h.getMe,
-    getMessages: h.getMessages
+    getMessages: h.getMessages,
+    // I0（REQ-039）: 待确认订单角标轮询数据源
+    getStats: h.getStats
   }
 }))
 
@@ -94,8 +97,10 @@ function freshStores() {
   h.themeStore = { enterArtistScope: vi.fn(), leaveArtistScope: vi.fn() }
 }
 
+const mountedWrappers = []
+
 function mountLayout(component) {
-  return mount(component, {
+  const wrapper = mount(component, {
     global: {
       mocks: {
         $t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key),
@@ -104,12 +109,15 @@ function mountLayout(component) {
       stubs: EP_STUBS
     }
   })
+  mountedWrappers.push(wrapper)
+  return wrapper
 }
 
 beforeEach(() => {
   localStorage.clear()
   h.getMe.mockReset()
   h.getMessages.mockReset().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 100 })
+  h.getStats.mockReset().mockResolvedValue({ pendingCount: 0 })
   h.logout.mockReset()
   h.push.mockReset()
   h.routeName = 'ArtistDashboard'
@@ -117,6 +125,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  // I0（REQ-039）: ArtistLayout 新增 5 分钟轮询，卸载组件释放 interval，避免测试挂起
+  for (const w of mountedWrappers.splice(0)) w.unmount()
   vi.restoreAllMocks()
 })
 
@@ -190,6 +200,18 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
 
     expect(h.getMessages).toHaveBeenCalledWith({ pageSize: 100 })
     // 骨架渲染不受影响；角标值经 menuGroups 注入（pending 2 条）
+    expect(wrapper.exists()).toBe(true)
+  })
+
+  it('待确认订单角标轮询读取 getStats.pendingCount（I0/REQ-039）', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockResolvedValue({ isAdmin: false })
+    h.getStats.mockResolvedValue({ pendingCount: 3 })
+
+    const wrapper = await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    expect(h.getStats).toHaveBeenCalled()
     expect(wrapper.exists()).toBe(true)
   })
 })

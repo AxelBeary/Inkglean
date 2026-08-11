@@ -1469,7 +1469,115 @@ export interface RemoveContentResult {
 /** POST /api/admin/artists/:id/ban | /unban 响应 */
 export interface BanArtistResult {
   success: boolean
-  isBanned: 0 | 1
+  isBanned: 0 | 1}
+
+// ─── REQ-041: 管理后台二次验证（会话升级） ───
+
+/** POST /api/auth/step-up 请求体 — TOTP 分支 */
+export interface StepUpTotpRequest {
+  method: 'totp'
+  code: string
+}
+
+/** POST /api/auth/step-up 请求体 — Passkey 分支（flat 字段，后端组回 credential 校验） */
+export interface StepUpPasskeyRequest {
+  method: 'passkey'
+  credentialId: string
+  authenticatorData: string
+  signature: string
+  clientDataJSON: string
+}
+
+export type StepUpRequest = StepUpTotpRequest | StepUpPasskeyRequest
+
+/** POST /api/auth/step-up 响应（成功即重签升级 token 覆盖 cookie） */
+export interface StepUpResult {
+  success: true
+  verifiedAt: string
+}
+
+/** GET /api/admin/stepup-status 响应（200 = 已升级且在 30 分钟窗口内；401 STEP_UP_REQUIRED = 需验证） */
+export interface StepUpStatusResult {
+  verified: true
+}
+
+// ─── REQ-039: 邀请码注册 ───
+
+export type InviteCodeStatus = 'unused' | 'used' | 'revoked'
+
+/** GET /api/invite/status 响应 */
+export interface InviteStatusResult {
+  enabled: boolean
+}
+
+/** POST /api/invite/register 请求体 */
+export interface InviteRegisterRequest {
+  code: string
+  qqNumber: string
+  name: string
+  subdomain: string
+}
+
+/** POST /api/invite/register 响应（TOTP 首绑上下文） */
+export interface InviteRegisterResult {
+  otpauthUri: string
+  qqNumber: string
+}
+
+/** POST /api/invite/totp-confirm 请求体 */
+export interface InviteTotpConfirmRequest {
+  qqNumber: string
+  code: string
+}
+
+/** POST /api/invite/totp-confirm 响应（与 auth verify 同形状） */
+export type InviteTotpConfirmResult = AuthVerifyResult
+
+/** POST /api/admin/invite-codes 请求体 */
+export interface GenerateInviteCodesRequest {
+  count: number
+  validDays?: number
+}
+
+/** 生成的码行 */
+export interface GeneratedInviteCode {
+  id: number
+  code: string
+  expiresAt: string
+}
+
+/** POST /api/admin/invite-codes 响应 */
+export interface GenerateInviteCodesResult {
+  codes: GeneratedInviteCode[]
+}
+
+/** GET /api/admin/invite-codes 行（使用人 null=未使用） */
+export interface AdminInviteCode {
+  id: number
+  code: string
+  status: InviteCodeStatus
+  expiresAt: string
+  usedAt: string | null
+  createdAt: string
+  createdBy: number | null
+  usedBy: {
+    id: number
+    name: string | null
+    subdomain: string | null
+    qqNumber: string | null
+  } | null
+}
+
+/** GET /api/admin/invite-codes 响应 */
+export interface AdminInviteCodesResult {
+  codes: AdminInviteCode[]
+}
+
+/** POST /api/admin/invite-codes/:id/revoke 响应 */
+export interface RevokeInviteCodeResult {
+  success: true
+  code: string
+  status: InviteCodeStatus
 }
 
 

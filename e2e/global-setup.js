@@ -37,9 +37,8 @@ function base32Decode(input) {
   return Buffer.from(bytes)
 }
 
-/** 计算当前时刻的 6 位动态码（RFC 6238：30s 步长 / HMAC-SHA1 / 动态截断，与 totp.ts 一致） */
-function currentTotp(secretBase32) {
-  const counter = Math.floor(Date.now() / 1000 / 30)
+/** 计算指定时间步的 6 位动态码（RFC 6238：30s 步长 / HMAC-SHA1 / 动态截断，与 totp.ts 一致） */
+function totpForCounter(secretBase32, counter) {
   const key = base32Decode(secretBase32)
   const msg = Buffer.alloc(8)
   msg.writeUInt32BE(Math.floor(counter / 0x100000000), 0)
@@ -52,6 +51,19 @@ function currentTotp(secretBase32) {
     (hash[offset + 2] << 8) |
     hash[offset + 3]
   return String(binary % 10 ** 6).padStart(6, '0')
+}
+
+/** 计算当前时刻的 6 位动态码 */
+function currentTotp(secretBase32) {
+  return totpForCounter(secretBase32, Math.floor(Date.now() / 1000 / 30))
+}
+
+/**
+ * REQ-041：计算下一时间步的动态码——预登录已消费当前步的码（重放防护），
+ * step-up 必须用下一个步的码（校验窗口 ±1 恒可命中，且不与登录码哈希冲突）
+ */
+function nextStepTotp(secretBase32) {
+  return totpForCounter(secretBase32, Math.floor(Date.now() / 1000 / 30) + 1)
 }
 
 /** 给测试画师（Alice 10001 / 管理员 10003）注入已绑定状态的 TOTP 密钥，预登录走真实 /api/auth/verify */
@@ -85,6 +97,24 @@ async function apiLogin(baseURL, qqNumber) {
   const setCookie = verifyRes.headers.getSetCookie?.() || []
   const tokenCookie = setCookie.find(c => c.startsWith('artist_token='))
   if (!tokenCookie) throw new Error('预登录成功但未收到 artist_token cookie')
+  return tokenCookie.split(';')[0].split('=').slice(1).join('=')
+}
+
+/** REQ-041：管理员二次验证（step-up），返回升级后的 token（httpOnly cookie 同域名可覆盖） */
+async function apiStepUp(baseURL, token, qqNumber) {
+  const code = nextStepTotp(E2E_TOTP_SECRET)
+  const stepUpRes = await fetch(`${baseURL}/api/auth/step-up`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ method: 'totp', code })
+  })
+  if (!stepUpRes.ok) {
+    const detail = await stepUpRes.text().catch(() => '')
+    throw new Error(`管理员 step-up 失败 (QQ: ${qqNumber}): ${stepUpRes.status} ${detail}`)
+  }
+  const setCookie = stepUpRes.headers.getSetCookie?.() || []
+  const tokenCookie = setCookie.find(c => c.startsWith('artist_token='))
+  if (!tokenCookie) throw new Error('step-up 成功但未收到升级后的 artist_token cookie')
   return tokenCookie.split(';')[0].split('=').slice(1).join('=')
 }
 
@@ -157,7 +187,10 @@ export default async function globalSetup() {
   console.log('🔑 E2E: 预登录...')
   const artistToken = await apiLogin(baseURL, '10001')
   const adminToken = await apiLogin(baseURL, '10003')
-  writeFileSync(TOKENS_FILE, JSON.stringify({ artist: artistToken, admin: adminToken }))
+  // REQ-041：管理后台已挂 step-up 入口级守卫——管理员会话必须升级后缓存，
+  // 否则既有 admin E2E 用例会被 401 STEP_UP_REQUIRED 拦截
+  const adminUpgradedToken = await apiStepUp(baseURL, adminToken, '10003')
+  writeFileSync(TOKENS_FILE, JSON.stringify({ artist: artistToken, admin: adminUpgradedToken }))
 
   console.log('✅ E2E: 服务器就绪，token 已缓存')
 }

@@ -45,6 +45,10 @@ export const E = {
   // REQ-040: TOTP 自助重绑
   REBIND_COOLDOWN: 'REBIND_COOLDOWN',
   REBIND_NO_CREDENTIAL: 'REBIND_NO_CREDENTIAL',
+  // REQ-039: 邀请码注册
+  INVITE_INVALID: 'INVITE_INVALID',
+  INVITE_CANNOT_REVOKE: 'INVITE_CANNOT_REVOKE',
+  ONBOARDING_DISABLED: 'ONBOARDING_DISABLED',
 
   // 画师
   ARTIST_NOT_FOUND: 'ARTIST_NOT_FOUND',
@@ -274,6 +278,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // REQ-040: TOTP 自助重绑
   REBIND_COOLDOWN: '重绑操作过于频繁，请在 24 小时后再试',
   REBIND_NO_CREDENTIAL: '没有可用的验证方式，请联系管理员重绑',
+  // REQ-039: 邀请码注册
+  INVITE_INVALID: '邀请码无效、已使用或已过期',
+  INVITE_CANNOT_REVOKE: '仅未使用的邀请码可吊销',
+  ONBOARDING_DISABLED: '当前未开启邀请入驻，请联系管理员开通',
 
   // 画师
   ARTIST_NOT_FOUND: '画师不存在',

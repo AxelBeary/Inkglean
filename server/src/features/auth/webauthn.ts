@@ -12,7 +12,9 @@ import {
   verifyAuthenticationResponse
 } from '@simplewebauthn/server'
 import type {
+  AuthenticationResponseJSON,
   GenerateRegistrationOptionsOpts,
+  RegistrationResponseJSON,
   VerifyRegistrationResponseOpts,
   GenerateAuthenticationOptionsOpts,
   VerifyAuthenticationResponseOpts
@@ -191,7 +193,7 @@ export async function verifyRegistration(
   }
 
   const verificationOpts: VerifyRegistrationResponseOpts = {
-    response: credential as unknown as VerifyRegistrationResponseOpts['response'],
+    response: credential as RegistrationResponseJSON,
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,
@@ -202,11 +204,13 @@ export async function verifyRegistration(
     throw new AppError(E.WEBAUTHN_REGISTRATION_FAILED, 400)
   }
 
-  // @simplewebauthn/server v13: registrationInfo.credential 聚合公钥/计数器（旧版顶层字段已移除）
-  const { credential: regCredential } = verification.registrationInfo
-  const credentialIdBase64 = regCredential.id
-  const publicKeyBase64 = Buffer.from(regCredential.publicKey).toString('base64url')
-  const counter = regCredential.counter
+  // @simplewebauthn/server v13：registrationInfo.credential.id 已是 Base64URLString 直接用；
+  // publicKey 为 Uint8Array 需转 base64url（旧版顶层 credentialID/credentialPublicKey 字段已移除）。
+  // 注：对 id 再包 Buffer.from(...).toString('base64url') 会把字符串当 UTF-8 二次编码，是错的
+  const registered = verification.registrationInfo
+  const credentialIdBase64 = registered.credential.id
+  const publicKeyBase64 = Buffer.from(registered.credential.publicKey).toString('base64url')
+  const counter = registered.credential.counter
 
   // 检查是否已存在（幂等防护）
   const existing = db.prepare('SELECT id FROM webauthn_credentials WHERE credential_id = ?').get(credentialIdBase64)
@@ -244,10 +248,13 @@ export async function generateLoginOptions(requestHostname?: string) {
 /**
  * 验证认证响应（POST /api/auth/webauthn/login-verify）
  * 成功返回画师信息和凭据行
+ * REQ-041 step-up 扩展：expectedArtistId 传入时校验凭据归属（必须属于当前登录管理员），
+ * 不传则保持公开认证语义（既有调用不变）
  */
 export async function verifyLogin(
   credential: unknown,
-  requestHostname?: string
+  requestHostname?: string,
+  expectedArtistId?: number
 ): Promise<{ artist: Artist; credentialRow: WebAuthnCredentialRow }> {
   const rpId = getRpId(requestHostname)
   const origin = getRpOrigin(requestHostname)
@@ -278,6 +285,10 @@ export async function verifyLogin(
     // 防枚举：与凭据无效同响应
     throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
   }
+  // REQ-041：step-up 校验对象 = 当前登录管理员的凭据（他人凭据与无效同响应，防枚举）
+  if (expectedArtistId !== undefined && credentialRow.artist_id !== expectedArtistId) {
+    throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
 
   // 查找画师
   const { getArtistById } = await import('../../features/artist/artist.service.js')
@@ -292,7 +303,7 @@ export async function verifyLogin(
 
   // 验证认证响应
   const verificationOpts: VerifyAuthenticationResponseOpts = {
-    response: credential as unknown as VerifyAuthenticationResponseOpts['response'],
+    response: credential as AuthenticationResponseJSON,
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,

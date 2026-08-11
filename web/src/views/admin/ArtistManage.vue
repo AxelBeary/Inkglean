@@ -14,6 +14,8 @@
       <div class="action-buttons">
         <el-button type="primary" @click="dialogVisible = true">{{ $t('admin.addArtist') }}</el-button>
         <el-button type="warning" plain @click="openTransfer">{{ $t('admin.transferAdmin') }}</el-button>
+        <!-- REQ-039: 邀请码管理入口 -->
+        <el-button plain @click="openInviteCodes">{{ $t('invite.manageTitle') }}</el-button>
         <el-button plain @click="openRecycleBin">{{ $t('admin.recycleBin.title') }}</el-button>
       </div>
     </div>
@@ -172,6 +174,9 @@
       </template>
     </el-dialog>
 
+    <!-- REQ-041 集成接线：更换管理员动作级再验（提交遇 STEP_UP_REQUIRED 弹窗，验证通过自动重提交） -->
+    <StepUpDialog v-model="actionStepUpVisible" @verified="onActionStepUpVerified" @cancel="actionStepUpVisible = false" />
+
     <!-- TOTP 绑定弹窗（REQ-027 R2：管理员协助画师扫码绑定） -->
     <el-dialog v-model="totpVisible" :title="$t('admin.totpBindTitle', { name: totpArtist?.name || '' })" width="420px" :close-on-click-modal="false">
       <div v-loading="totpLoading">
@@ -231,6 +236,74 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- REQ-039: 邀请码管理弹窗（生成/列表/复制/吊销；纸墨 token + CardHead） -->
+    <el-dialog v-model="inviteVisible" :title="$t('invite.manageTitle')" width="760px" :close-on-click-modal="false">
+      <div class="invite-body">
+        <CardHead :title="$t('invite.generateTitle')" />
+        <div class="invite-gen">
+          <el-form inline label-position="top" class="invite-form">
+            <el-form-item :label="$t('invite.countLabel')">
+              <el-input-number v-model="inviteCount" :min="1" :max="50" controls-position="right" />
+              <span class="invite-form-hint">{{ $t('invite.countHint') }}</span>
+            </el-form-item>
+            <el-form-item :label="$t('invite.validDaysLabel')">
+              <el-input-number v-model="inviteValidDays" :min="1" :max="30" controls-position="right" />
+              <span class="invite-form-hint">{{ $t('invite.validDaysHint') }}</span>
+            </el-form-item>
+            <el-form-item class="invite-form-action">
+              <el-button type="primary" :loading="inviteGenerating" @click="generateInviteCodes">
+                {{ $t('invite.generateBtn') }}
+              </el-button>
+            </el-form-item>
+          </el-form>
+          <p class="invite-hint">{{ $t('invite.manageHint') }}</p>
+        </div>
+
+        <CardHead :title="$t('invite.colCode')" />
+        <el-table :data="inviteCodes" v-loading="inviteLoading" stripe max-height="420">
+          <el-table-column :label="$t('invite.colCode')" min-width="170">
+            <template #default="{ row }">
+              <code class="invite-code">{{ row.code }}</code>
+              <el-button
+                v-if="row.status === 'unused'" size="small" text type="primary"
+                class="invite-copy" @click="copyInviteCode(row.code)"
+              >
+                {{ $t('invite.copy') }}
+              </el-button>
+            </template>
+          </el-table-column>
+          <el-table-column :label="$t('invite.colStatus')" width="110">
+            <template #default="{ row }">
+              <el-tag :type="inviteStatusType(row.status)" size="small">
+                {{ $t(`invite.status${row.status[0].toUpperCase()}${row.status.slice(1)}`) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column :label="$t('invite.colExpires')" width="180">
+            <template #default="{ row }">{{ formatDateTime(row.expiresAt) }}</template>
+          </el-table-column>
+          <el-table-column :label="$t('invite.colUsedBy')" min-width="130">
+            <template #default="{ row }">
+              <span v-if="row.usedBy">{{ row.usedBy.name || row.usedBy.qqNumber }}</span>
+              <span v-else class="invite-unused">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="$t('invite.colActions')" width="100" fixed="right">
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'unused'" size="small" type="danger" plain
+                @click="revokeInviteCode(row)"
+              >
+                {{ $t('invite.revoke') }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-if="!inviteLoading && inviteCodes.length === 0" :description="$t('invite.empty')" :image-size="60" />
+      </div>
+    </el-dialog>
+
     <ArtistDetailDrawer v-model="detailVisible" :artist="detailArtist" />
   </div>
 </template>
@@ -241,6 +314,10 @@ import { adminApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
+// REQ-041 集成接线：更换管理员动作级再验对话框（后端 requireAdminReauth 已就位）
+import StepUpDialog from '../../components/admin/StepUpDialog.vue'
+// REQ-039: 纸墨卡片头（管理弹窗内分组标题）
+import CardHead from '../../components/artist/visual/CardHead.vue'
 
 const { t } = useI18n()
 const artists = ref([])
@@ -249,6 +326,81 @@ const dialogVisible = ref(false)
 const saving = ref(false)
 
 const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
+
+// ─── REQ-039: 邀请码管理 ───
+const inviteVisible = ref(false)
+const inviteCodes = ref([])
+const inviteLoading = ref(false)
+const inviteGenerating = ref(false)
+const inviteCount = ref(5)
+const inviteValidDays = ref(3)
+
+function inviteStatusType(status) {
+  return { unused: 'success', used: 'info', revoked: 'danger' }[status] || 'info'
+}
+
+async function openInviteCodes() {
+  inviteVisible.value = true
+  await loadInviteCodes()
+}
+
+async function loadInviteCodes() {
+  inviteLoading.value = true
+  try {
+    const res = await adminApi.getInviteCodes()
+    inviteCodes.value = res.codes || []
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    inviteLoading.value = false
+  }
+}
+
+async function generateInviteCodes() {
+  if (!inviteCount.value || inviteCount.value < 1 || inviteCount.value > 50) {
+    return ElMessage.warning(t('invite.countHint'))
+  }
+  if (!inviteValidDays.value || inviteValidDays.value < 1 || inviteValidDays.value > 30) {
+    return ElMessage.warning(t('invite.validDaysHint'))
+  }
+  inviteGenerating.value = true
+  try {
+    const res = await adminApi.generateInviteCodes({
+      count: inviteCount.value,
+      validDays: inviteValidDays.value
+    })
+    ElMessage.success(t('invite.generated', { count: res.codes.length }))
+    await loadInviteCodes()
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    inviteGenerating.value = false
+  }
+}
+
+async function copyInviteCode(code) {
+  try {
+    await navigator.clipboard.writeText(code)
+    ElMessage.success(t('invite.copied'))
+  } catch { /* 剪贴板受限时静默（非关键路径） */ }
+}
+
+async function revokeInviteCode(row) {
+  try {
+    await ElMessageBox.confirm(
+      t('invite.revokeConfirm', { code: row.code }),
+      t('invite.revoke'),
+      { type: 'warning', confirmButtonText: t('invite.revoke'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { /* 取消 */ return }
+  try {
+    await adminApi.revokeInviteCode(row.id)
+    ElMessage.success(t('invite.revoked'))
+    await loadInviteCodes()
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
 
 // 画师详情抽屉
 const detailVisible = ref(false)
@@ -418,6 +570,9 @@ function openTransfer() {
   transferVisible.value = true
 }
 
+// REQ-041 集成接线：动作级再验对话框状态（仅更换管理员提交链路使用，与 AdminLayout 入口级守卫互不干扰）
+const actionStepUpVisible = ref(false)
+
 async function confirmTransfer() {
   transferring.value = true
   try {
@@ -430,10 +585,21 @@ async function confirmTransfer() {
     transferVisible.value = false
     await loadArtists()
   } catch (err) {
+    // 动作级再验：刚验证过（≤60s）才放行；否则弹 StepUpDialog，验证通过后自动重提交
+    if (err && err.code === 'STEP_UP_REQUIRED') {
+      actionStepUpVisible.value = true
+      return
+    }
     ElMessage.error(err.message)
   } finally {
     transferring.value = false
   }
+}
+
+/** 动作级验证通过：admin_verified_at 刚刷新（满足 ≤60s 窗口），自动重提交更换管理员 */
+function onActionStepUpVerified() {
+  actionStepUpVisible.value = false
+  confirmTransfer()
 }
 
 // ─── TOTP 绑定/重置（REQ-027 R2/R5） ───
@@ -557,4 +723,28 @@ onMounted(loadArtists)
 .totp-step { font-size: 13px; color: var(--ink); margin: 8px 0; }
 .totp-hint { font-size: 12px; color: var(--ink2); margin-top: 8px; }
 .transfer-hint { font-size: 12px; color: var(--ink2); margin: 0; }
+/* ─── REQ-039: 邀请码弹窗（纸墨 token） ─── */
+.invite-body { display: flex; flex-direction: column; gap: 12px; }
+.invite-gen {
+  padding: 12px 14px;
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m, 8px);
+}
+.invite-form { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.invite-form :deep(.el-form-item) { margin-bottom: 0; }
+.invite-form-hint { display: block; font-size: 11px; color: var(--ink3); margin-top: 4px; }
+.invite-form-action { margin-left: auto; }
+.invite-hint { font-size: 12px; color: var(--ink2); margin: 8px 0 0; line-height: 1.6; }
+.invite-code {
+  font-family: var(--f-mono, ui-monospace, monospace);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  background: var(--paper2);
+  padding: 2px 6px;
+  border-radius: var(--r-s, 4px);
+}
+.invite-copy { margin-left: 8px; }
+.invite-unused { color: var(--ink3); }
 </style>
