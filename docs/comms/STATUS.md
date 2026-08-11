@@ -1,5 +1,11 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-11 v78（**REQ-037 画师面板前端优化方案落档 + 批1 健壮批合入**）——master `5b878e5` 与 origin 同步。
+> 📋 **REQ-037 方案落档**（docs/requirements/REQ-037-画师面板前端优化.md，用户 2026-08-11 拍板）：画师面板全量诊断（结构/交互/视觉/响应式/性能/可访问性六方向），结论=骨架无需推倒，本轮=健壮性补漏+结构提效+一致性收口；P0/P1/P2 分组 + 批0-批5 路线；与 REQ-036（增项交互 w29）和视觉批（Dashboard v0.3 原型）边界显式声明。**批0 两项核实**：B1 统计重复展示证伪销账（GreetingHero 今日金额口径 vs StatCards 订单数口径，互补）；D2 缩略图预览与整行点击冲突属实（QueueBoardList R18/R53 同款陷阱看板已修、订单列表漏修）。
+> ✅ **批1 健壮批合入**（`893a51a`，codex deepseek-v4-flash 无头施工 + 一号独立验收）：①F1/F2 订单详情首载失败错误态+重试入口+首载骨架（对齐 Settings profileLoadFailed 模式；已有数据时刷新失败仍走 ElMessage，首载/刷新双分支不误伤）；②E1 手动录单 QQ 历史会话内缓存（60s TTL + 提交成功后手动失效）；③C1 看板拖拽排序成功接 UndoToast 软撤销（loadQueue 时收起 toast 防陈旧撤销）；④E3 草稿恢复弹窗文案改 恢复/丢弃草稿（对齐 useOrderForm R57 口径）；⑤D2 OrderList 缩略图预览 @click.stop。+3 测试（OrderDetail.loadfail.test.js）。codex 越权加分项已核：自造截图审计脚本/measure 分离核验只落 workspace/temp 未入库，提交面净 7 文件无 scope creep。
+> ✅ **验收门禁（一号独立复跑，非 self-report）**：web lint+vue-tsc 0 警 0 错 / vitest **335/335**（基线 332+3）/ check-i18n 过 / build 过；server **1213/1213**；E2E **7/7**。diff 抽查 5 项与施工图逐条对齐。
+> ⚠️ **遗留小项**：①容器未重建（批1 纯前端静态产物，随下次部署动作烘焙）；②REQ-037 批2-批5 待排期（批2 嵌套路由=中高风险，需独立 worktree+像素对比）；③批1 用户终验：订单详情错误态/看板排序撤销 toast 可实机体验。
+
 > 最后更新：2026-08-12 v77（**结构债清偿批——迁移层/order域/API类型化/OrderForm 四路拆分 + 前端 TS 增量纪律落地**）——master `e11e044` 与 origin 同步。
 > ✅ **结构债清偿批（2026-08-11~12 用户拍板「把值得做的都做了，禁止屎山和新技术债」，一号派四路子代理并行施工 + 逐件独立验收）**：纯重构零行为变更。①**迁移层**：server/src/db/init.js（2382 行巨怪）→ schema.ts + migrate.ts + migrations/（v01-v55 共 55 个版本化 TS 文件）+ init.ts 门面（13 个 import 点零改动）；db:init 脚本同步改 tsx src/db/init.ts。②**order 域**：order.service.ts 1320 行 → 门面 + read/fields/status/create/pricing 五子模块（依赖单向无循环）；order.routes.ts 1121 行 → 组合器 + client/list/action/delivery 四子路由 + order-route-utils；外部 import 点零改动。③**API 边界类型化**：web/src/api/types.ts（161 个 DTO，逐一对照后端 routes 建模）+ index.js→index.ts（axios 第二泛型对齐拦截器解包，零 any）——**v73 起排队的前端重构批 api 层 TS 主体至此完成**。④**OrderForm**：1148 行 → 编排层 + 7 个 lang="ts" 子组件（views/client/order-form/），DOM/类名/i18n 键原样搬运，useOrderForm.js 零改动。
 > ✅ **纪律基建（防新增债）**：web/tsconfig.json（strict + allowJs 增量：新文件一律 .ts/lang="ts"，存量谁触碰谁迁移）+ vue-tsc typecheck 接入 npm run lint 组合与 CI web job；eslint 用 @typescript-eslint/parser+plugin 支持 TS 块（一号否掉执行角色自研 strip-shim 方案——它关了 vue/valid-define-* 规则属新债，换标准解析器后规则全恢复，web lint 0 警 0 错）；环境断链修复：server oxlint 二进制缺失补装、web typescript 钉 ~5.9（v7 与 vue-tsc 不兼容）、artist.service.ts 未用 import Tier 清理。
@@ -94,9 +100,10 @@
 2. **巨型组件拆分**：✅ **2026-08-12 本批收官**——OrderForm 1148 行拆为编排层 + 7 个 lang="ts" 子组件（`e11e044`）；叠加 v73 三拆（OrderDetail/ManualOrderRight/QueueBoardCalendar），>900 行巨型组件清单全部清完。
 3. **前端重构批**：✅ **api 层 TS 主体已完成（2026-08-12，`e11e044`）**：161 DTO + index.ts 全量标注 + tsconfig/vue-tsc/CI 门禁落地。**剩余走增量轨**：entities.ts 补全（按需）、存量 JS「谁触碰谁迁移」，不再单独立批。
 4. **视觉批（已开局）**：登录页已合入；后续按原型打磨稿推进后台壳/Dashboard；小项随批：账本待办带金额列（淡墨）；问候系统实施并入视觉批；@property 注册+550ms 缓动+手剪圆角 token 从 Login.vue 迁入 artist-tokens.css 随下一视觉批。
-5. **等用户侧**：终验生产登录页（截图已在 workspace/temp/prototype-login）；复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）。
+5. **等用户侧**：终验生产登录页（截图已在 workspace/temp/prototype-login）；复验 SPEC-PRICE-2 页面（解锁 v0.46 发版）；REQ-037 批1 实机体验（订单详情错误态/看板排序撤销）。
 6. **顺手项排队**：F8 revokePayment 负流水双倍防御（批4B 交付报告 §六建议，一行防御）；历史文档（开发自参考/外部 wiki/REQ-025）旧列描述与代码不同步，如需同步另行派工。
-7. **已裁决不动（2026-08-10）**：分身提「双包结构致 @sentry/esbuild/eslint 重复安装 ~60MB，应上 npm workspaces」——实测否决：@sentry 两侧是不同包（node 系 vs browser/vue 系，36.5MB 任何架构都要装两份）；esbuild 两侧版本不同（0.28.1 vs 0.25.12，workspaces 只去重同名同版本）；真正可去重仅 eslint ~3MB。迁移代价（lock 合并+Dockerfile/CI 重写）≫ 收益，且独立包结构恰好对齐部署边界（server 容器运行时 / web 静态产物），非债是边界。分身勿重提。
+7. **REQ-037 后续批次**：批2 嵌套路由（中高风险，需像素对比）/ 批3 数据效率 / 批4 一致性与可访问 / 批5 性能候选池，逐批拍板排期。
+8. **已裁决不动（2026-08-10）**：分身提「双包结构致 @sentry/esbuild/eslint 重复安装 ~60MB，应上 npm workspaces」——实测否决：@sentry 两侧是不同包（node 系 vs browser/vue 系，36.5MB 任何架构都要装两份）；esbuild 两侧版本不同（0.28.1 vs 0.25.12，workspaces 只去重同名同版本）；真正可去重仅 eslint ~3MB。迁移代价（lock 合并+Dockerfile/CI 重写）≫ 收益，且独立包结构恰好对齐部署边界（server 容器运行时 / web 静态产物），非债是边界。分身勿重提。
 
 - **原型位置**：`%TEMP%\prototype-dashboard\dashboard-v0.1.html`（单文件可交互；notes.md §三有 13 条已知打磨点清单）；登录原型已安装进仓库，全史留档 workspace/temp/prototype-login（login-v0.1→v0.6 + notes.md + 审计脚本）。
 - **codex 重派模板**（pwsh，worktree/主仓内执行）：`$task=@"...中文任务..."@` 然后 `"" | codex exec --profile huiyue -c sandbox_mode=danger-full-access $task`。
@@ -106,9 +113,9 @@
 ---
 ## master 状态
 
-- **HEAD**：`e11e044`（结构债清偿批合入，与 origin 同步）
+- **HEAD**：`5b878e5`（REQ-037 批1 合入，与 origin 同步）
 - **工作树**：主仓干净；无活跃 worktree
-- **测试基线**：server **1213/1213**（94 文件）· web **332/332**（38 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 警 0 错 · check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
+- **测试基线**：server **1213/1213**（94 文件）· web **335/335**（39 文件）· E2E 7/7 · tsc 0（含 scripts 双编译）· eslint+oxlint 双侧 0 警 0 错 · check-locators 0 错 · check-i18n 0 · web typecheck（vue-tsc）0
 - **后端 100% TS + strict 全开 + any 清零**（init.js 豁免已随 v77 拆分清偿）；**前端 TS 增量纪律生效**（web/tsconfig.json strict + allowJs，新文件一律 TS，vue-tsc 进 lint 与 CI）
 - **版本**：npm 0.45.0（SPEC-PRICE-2 收编发版 v0.46 待用户验收后定）
 - **容器**：✅ **已重建 = 审计修复战役最新**（2026-08-11，迁移 v55 已应用回读验证；备份：bak-pre-audit-rebuild-20260811 + BACKUP_OK 每日备份）
