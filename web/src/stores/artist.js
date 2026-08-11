@@ -5,6 +5,9 @@ import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
 // ============================================
 // 画师状态管理
 // token 存 httpOnly cookie（JS 不可读），localStorage 只保留非敏感标记
+// REQ-043 I6-e: 单一数据源 = Pinia store；localStorage 仅在 store 初始化时作
+// 快速路径引导读取（刷新后免等 /auth/me），写入一律走 store action（applySession/logout），
+// 路由守卫只读 store，不再各自读写 localStorage
 // ============================================
 
 export const useArtistStore = defineStore('artist', {
@@ -24,15 +27,23 @@ export const useArtistStore = defineStore('artist', {
   },
 
   actions: {
+    /**
+     * 会话落地（登录/入驻/Passkey/开箱设置共用）：
+     * 同步 store 状态 + 写 localStorage 非敏感标记（唯一写入口之一）
+     */
+    applySession(profile, isAdmin) {
+      this.loggedIn = true
+      this.isAdmin = !!isAdmin
+      this.profile = profile || null
+      safeSetItem('artist_logged_in', '1')
+      safeSetItem('artist_is_admin', this.isAdmin ? '1' : '0')
+    },
+
     // 登录
     async login(qqNumber, code) {
       const res = await authApi.verify(qqNumber, code)
       // token 已由后端设为 httpOnly cookie，前端只记录非敏感标记
-      this.loggedIn = true
-      this.isAdmin = !!res.isAdmin
-      safeSetItem('artist_logged_in', '1')
-      safeSetItem('artist_is_admin', res.isAdmin ? '1' : '0')
-      this.profile = res.artist
+      this.applySession(res.artist, res.isAdmin)
       return res
     },
 

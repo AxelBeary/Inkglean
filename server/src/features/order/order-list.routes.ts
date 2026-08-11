@@ -8,7 +8,8 @@ import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import db from '../../db/connection.js'
 import type { ArtistOrderRow } from '../../types/entities.js'
-import type { FastifyInstance, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import { withIdempotency, readIdempotencyKey } from '../../shared/idempotency.js'
 
 // ============================================
 // 订单路由 - 画师端列表/队列/统计子插件（从 order.routes.ts 拆出）
@@ -140,7 +141,7 @@ export async function orderListRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { clientQq, clientName, description, priority, clientNotify, references, discountCode, styleSizeId, styleAddons } = request.body as { clientQq: string; clientName?: string | null; description?: string | null; priority?: string; clientNotify?: boolean; references?: string[]; discountCode?: string | null; styleSizeId?: number | null; styleAddons?: Array<{ styleAddonId: number; quantity?: number }> }
 
     // C-3 + P2-12：参考图路径校验（与自助下单一致，含文件存在性）
@@ -150,19 +151,26 @@ export async function orderListRoutes(fastify: FastifyInstance) {
       }
     }
 
-    return orderService.createOrder({
-      artistId: request.artist.id,
-      clientQq: clamp(clientQq, 'qq')!,
-      clientName: clamp(clientName, 'name'),
-      description: clamp(description, 'description'),
-      priority: priority || 'medium',
-      source: 'manual',
-      clientNotify: clientNotify || false,
-      references: references || [],
-      discountCode: discountCode || null,
-      styleSizeId: styleSizeId || null,
-      styleAddons: styleAddons || []
+    // I6-d（v75 遗留收尾）: 手动录单消费幂等键 header（前端已携带 idempotency-key；
+    // 对齐 R-9 既有模式——同 key 重放原样返回首单结果，不重复建单）
+    const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
+    const result = withIdempotency(`manual-order:${request.artist.id}`, idempotencyKey, () => {
+      const order = orderService.createOrder({
+        artistId: request.artist.id,
+        clientQq: clamp(clientQq, 'qq')!,
+        clientName: clamp(clientName, 'name'),
+        description: clamp(description, 'description'),
+        priority: priority || 'medium',
+        source: 'manual',
+        clientNotify: clientNotify || false,
+        references: references || [],
+        discountCode: discountCode || null,
+        styleSizeId: styleSizeId || null,
+        styleAddons: styleAddons || []
+      })
+      return { statusCode: 200, body: order }
     })
+    return reply.code(result.statusCode).send(result.body)
   })
 
   /**

@@ -71,6 +71,8 @@ import type {
   LogoutResult,
   MyOrderItem,
   OkResult,
+  OnboardingState,
+  PlatformAnnouncement,
   OrderCreateResult,
   OrderDeliveryResult,
   OrderDetail,
@@ -103,6 +105,7 @@ import type {
   RevenueResult,
   SavePaymentNode,
   SavePaymentResult,
+  SaveAnnouncementRequest,
   SaveToolsClientRequest,
   SaveToolsClientResult,
   SetArtworkTagsResult,
@@ -489,6 +492,11 @@ export const artistApi = {
   getDashboardRevenue: (period: string): Promise<RevenueResult> => getJson('/artist/dashboard/revenue', { params: { period } }),
   getDashboardTodo: (): Promise<TodoResult> => getJson('/artist/dashboard/todo'),
   getDashboardActivity: (): Promise<ActivityResult> => getJson('/artist/dashboard/activity'),
+  // REQ-043 I2: 开张任务卡（后端标记，前端不靠 localStorage）
+  getOnboarding: (): Promise<OnboardingState> => getJson('/artist/onboarding'),
+  dismissOnboarding: (): Promise<{ dismissed: true }> => postJson('/artist/onboarding/dismiss', {}),
+  // REQ-043 I4: 平台公告（零主动打扰，登录态可读）
+  getAnnouncement: (): Promise<PlatformAnnouncement | null> => getJson('/artist/announcement'),
   // R51: 截稿日
   getUpcomingDeadlines: (): Promise<import('./types.js').DeadlineRow[]> => getJson('/artist/orders/upcoming-deadlines'),
   // D-1（R-5）: options.version 可选——时间条拖拽两步 PUT 用响应 version 接力
@@ -682,7 +690,10 @@ export const adminApi = {
   generateInviteCodes: (data: GenerateInviteCodesRequest): Promise<GenerateInviteCodesResult> =>
     postJson('/admin/invite-codes', data),
   getInviteCodes: (): Promise<AdminInviteCodesResult> => getJson('/admin/invite-codes'),
-  revokeInviteCode: (id: number): Promise<RevokeInviteCodeResult> => postJson(`/admin/invite-codes/${id}/revoke`)
+  revokeInviteCode: (id: number): Promise<RevokeInviteCodeResult> => postJson(`/admin/invite-codes/${id}/revoke`),
+  // REQ-043 I4: 平台公告编辑（内容消毒入库，step-up 由后端自动挂载）
+  saveAnnouncement: (data: SaveAnnouncementRequest): Promise<PlatformAnnouncement> =>
+    putJson('/admin/announcement', data)
 }
 
 // ─── REQ-042 合规与内容安全 ───

@@ -1855,6 +1855,38 @@ export default {
     revokeConfirm: 'Revoke invite code {code}? This cannot be undone.',
     revoked: 'Invite code revoked',
     empty: 'No invite codes yet. Generate a batch above.'
+  },
+
+  // ═══ REQ-043 I2: Onboarding card (hidden by backend markers, no localStorage) ═══
+  onboarding: {
+    title: 'Getting Started',
+    subtitle: 'Three steps to help clients get to know you',
+    progress: '{done} / {total} done',
+    artwork: 'Upload your first artwork',
+    tier: 'Set up styles & pricing',
+    share: 'Share your page',
+    gotoArtworks: 'Upload',
+    gotoTiers: 'Set up',
+    shareBtn: 'Copy page link',
+    copied: 'Copied',
+    dismiss: 'Dismiss'
+  },
+
+  // ═══ REQ-043 I4: Platform announcement (zero disturbance: no popup/banner, just a dot) ═══
+  announcement: {
+    entry: 'Announcement',
+    dialogTitle: 'Platform Announcement',
+    empty: 'No announcement yet',
+    updatedAt: 'Updated {time}',
+    admin: {
+      manage: 'Announcement Editor',
+      hint: 'Publish a single latest announcement; publishing with both fields empty clears it. Artists only see a small entry dot — no intrusive popups.',
+      titleLabel: 'Title',
+      titlePlaceholder: 'Announcement title (≤100 chars)',
+      contentLabel: 'Content',
+      contentPlaceholder: 'Announcement content (≤10000 chars)',
+      publish: 'Publish',
+      published: 'Announcement published'
+    }
   }
 }
-

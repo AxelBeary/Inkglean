@@ -4,7 +4,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
 vi.mock('../../stores/artist.js', () => ({
-  useArtistStore: () => ({ isAdmin: false })
+  // REQ-043 I6-e: 守卫只读 store；store 初始化时把 localStorage 标记作为快速路径读取（与生产语义一致）
+  useArtistStore: () => ({
+    loggedIn: (() => {
+      try { return window.localStorage.getItem('artist_logged_in') === '1' } catch { return false }
+    })(),
+    isAdmin: false
+  })
 }))
 vi.mock('../../stores/theme.js', () => ({
   useThemeStore: () => ({ enterArtistScope: vi.fn(), leaveArtistScope: vi.fn() })

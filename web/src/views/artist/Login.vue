@@ -179,7 +179,6 @@ import LoginBackdrop from '../../components/artist/login/LoginBackdrop.vue'
 import PaperCard from '../../components/artist/login/PaperCard.vue'
 import LoginPrefs from '../../components/artist/login/LoginPrefs.vue'
 import { inviteApi } from '../../api/index.js'
-import { safeSetItem } from '../../utils/storage.js'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
 import { Lock } from '@element-plus/icons-vue'
@@ -352,12 +351,8 @@ async function confirmInviteTotp() {
   inviteConfirming.value = true
   try {
     const res = await inviteApi.totpConfirm({ qqNumber: invQq.value.trim(), code })
-    // 会话 cookie 已由后端签发；本地只记录非敏感标记（与 store.login 同口径）
-    store.loggedIn = true
-    store.isAdmin = false
-    store.profile = res.artist
-    safeSetItem('artist_logged_in', '1')
-    safeSetItem('artist_is_admin', '0')
+    // 会话 cookie 已由后端签发；REQ-043 I6-e: 状态与标记统一走 store.applySession
+    store.applySession(res.artist, false)
     inviteTotpOk.value = true
     setTimeout(() => router.push('/dashboard'), 500)
   } catch (err) {
@@ -389,6 +384,8 @@ async function passkeyLogin() {
     const credential = await navigator.credentials.get({ publicKey: options })
     if (!credential) throw new Error('cancelled')
     const result = await webauthnApi.loginVerify(credential)
+    // REQ-043 I6-e: Passkey 登录同样走 store 会话落地（原实现漏同步 store，跳转会被守卫拦截）
+    store.applySession(result.artist, result.isAdmin)
     loginOk.value = true
     const redirect = route.query.redirect
     const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')

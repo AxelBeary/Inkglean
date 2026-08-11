@@ -213,3 +213,23 @@ docker compose up -d
   - 查询：`gh api repos/AxelBeary/Brushline-HuiYue/actions/permissions`
   - 修复：`gh api -X PUT .../actions/permissions --input '{"enabled":true,"allowed_actions":"selected"}'` + `PUT .../selected-actions --input '{"github_owned_allowed":true,"verified_allowed":false,"patterns_allowed":[]}'`
 - `startup_failure` 的 run 不可 rerun，须新提交触发。
+
+---
+## 11. 上线前恢复演练（强制 checklist，REQ-043 I5）
+
+> 执行时机：**每次部署上线前**；执行人：**一号 / 运维**。
+> 本项为强制项，未完成不得上线。演练走 `server/scripts/backup-db.ts`（DB）+ `backup-uploads.ts`（uploads）
+> + `restore-db.ts` 的真实链路（§1/§3），不依赖「假设可用」的备份；**本批只落 checklist，不实际执行删库恢复**。
+
+- [ ] ① 备份：`cd server && npm run backup && npm run backup:uploads` → 确认输出 `BACKUP_OK <文件路径> (<大小> bytes, <N> files)`
+- [ ] ② 留档基准：记录备份文件路径与当前 `PRAGMA user_version`（`sqlite3 data/commission.db "PRAGMA user_version"`）
+- [ ] ③ 删库：停服后把 `data/commission.db*`（含 `-wal`/`-shm`）移到临时目录（演练建议用临时目录而非物理删除，双保险）
+- [ ] ④ 恢复：`npm run restore`（或显式 `npm run restore -- <备份绝对路径>`）→ 确认输出 `RESTORE_OK <备份路径>`
+- [ ] ⑤ 验证数据完整：
+  - `sqlite3 data/commission.db "PRAGMA integrity_check"` 返回 `ok`
+  - `PRAGMA foreign_key_check` 无悬空行
+  - `user_version` 与 ② 一致（迁移链未回退）
+  - 抽查关键业务表行数（artists / orders / artworks / guestbook_messages 等）与备份前一致
+  - uploads 归档抽查：作品图 / 参考图 / 交付文件 URL 可访问（§3.2）
+- [ ] ⑥ 恢复后核对 GC 风险窗口（§4）：备份点之后新上传的文件重新关联/迁移后再开服，防止 72h 后进回收站
+- [ ] ⑦ 结论留档：演练日期、备份路径、验证结果写入交付记录；任一环节失败即阻塞上线并先修复备份链路

@@ -1580,4 +1580,31 @@ export interface RevokeInviteCodeResult {
   status: InviteCodeStatus
 }
 
+// ═══ REQ-043 I2/I4: 开张任务卡 + 平台公告 ═══
+
+/** GET /api/artist/onboarding 任务项（share=建议项，恒 false，不阻塞完成） */
+export interface OnboardingTask {
+  key: 'artwork' | 'tier' | 'share'
+  done: boolean
+}
+
+/** GET /api/artist/onboarding 响应 */
+export interface OnboardingState {
+  dismissed: boolean
+  tasks: OnboardingTask[]
+}
+
+/** GET /api/artist/announcement 响应（标题与内容均为空 = 无公告，返回 null） */
+export interface PlatformAnnouncement {
+  title: string
+  content: string
+  updatedAt: string | null
+}
+
+/** PUT /api/admin/announcement 请求体（标题+内容都为空 = 清空公告） */
+export interface SaveAnnouncementRequest {
+  title?: string | null
+  content?: string | null
+}
+
 

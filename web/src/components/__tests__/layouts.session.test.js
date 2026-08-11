@@ -48,6 +48,8 @@ vi.mock('../../api/index.js', () => ({
   artistApi: {
     getMe: h.getMe,
     getMessages: h.getMessages,
+    // REQ-043 I4: 公告入口数据（无公告 = 不显示入口）
+    getAnnouncement: vi.fn().mockResolvedValue(null),
     // I0（REQ-039）: 待确认订单角标轮询数据源
     getStats: h.getStats
   }
@@ -81,6 +83,7 @@ const EP_STUBS = {
   'el-icon': { template: '<i><slot /></i>' },
   'el-button': { template: '<button><slot /></button>' },
   'el-drawer': { template: '<div><slot /><slot name="header" /></div>' },
+  'el-dialog': { template: '<div><slot /></div>' },
   'el-header': { template: '<header><slot /></header>' },
   'router-view': { template: '<div />' },
   Teleport: { template: '<div><slot /></div>' }
@@ -154,7 +157,7 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
   })
 
-  it('isAdmin 与本地标记不符 → 以服务端为准修正标记', async () => {
+  it('isAdmin 与本地标记不符 → 以服务端为准修正 store（localStorage 不再镜像，I6-e）', async () => {
     localStorage.setItem('artist_logged_in', '1')
     localStorage.setItem('artist_is_admin', '0')
     h.getMe.mockResolvedValue({ isAdmin: true })
@@ -163,7 +166,8 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     await flushPromises()
 
     expect(h.artistStore.isAdmin).toBe(true)
-    expect(localStorage.getItem('artist_is_admin')).toBe('1')
+    // 单一数据源：localStorage 只由 store action 写，会话校验不再回写
+    expect(localStorage.getItem('artist_is_admin')).toBe('0')
     expect(h.push).not.toHaveBeenCalled()
   })
 
@@ -229,7 +233,7 @@ describe('AdminLayout 会话强校验（G-1）', () => {
     expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
   })
 
-  it('isAdmin 与本地标记不符 → 以服务端为准修正标记', async () => {
+  it('isAdmin 与本地标记不符 → 以服务端为准修正 store（localStorage 不再镜像，I6-e）', async () => {
     localStorage.setItem('artist_logged_in', '1')
     localStorage.setItem('artist_is_admin', '1')
     h.artistStore.isAdmin = true
@@ -239,7 +243,7 @@ describe('AdminLayout 会话强校验（G-1）', () => {
     await flushPromises()
 
     expect(h.artistStore.isAdmin).toBe(false)
-    expect(localStorage.getItem('artist_is_admin')).toBe('0')
+    expect(localStorage.getItem('artist_is_admin')).toBe('1')
     expect(h.logout).not.toHaveBeenCalled()
   })
 })

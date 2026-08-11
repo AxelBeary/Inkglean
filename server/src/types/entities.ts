@@ -51,6 +51,9 @@ export interface Artist {
   announcement_expires_at: string | null
   monthly_quota: number | null
   multi_style_enabled: number
+  // REQ-043（v60）: 开张任务卡后端标记（自然达成 / 主动「不再提示」）
+  onboarded_at: string | null
+  onboarding_dismissed_at: string | null
   created_at: string
 }
 

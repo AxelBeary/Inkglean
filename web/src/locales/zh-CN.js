@@ -1851,5 +1851,38 @@ export default {
     revokeConfirm: '确定吊销邀请码 {code}？吊销后不可恢复。',
     revoked: '邀请码已吊销',
     empty: '暂无邀请码，先在上方生成一批'
+  },
+
+  // ═══ REQ-043 I2: 开张任务卡（后端标记隐藏，前端不靠 localStorage） ═══
+  onboarding: {
+    title: '开张任务卡',
+    subtitle: '三步让客户更快认识你',
+    progress: '已完成 {done} / {total}',
+    artwork: '上传第一件作品',
+    tier: '设置画风与档位',
+    share: '分享我的主页',
+    gotoArtworks: '去传作品',
+    gotoTiers: '去设档位',
+    shareBtn: '复制主页链接',
+    copied: '已复制',
+    dismiss: '不再提示'
+  },
+
+  // ═══ REQ-043 I4: 平台公告（零打扰版：不弹窗不 banner，仅入口小圆点） ═══
+  announcement: {
+    entry: '公告',
+    dialogTitle: '平台公告',
+    empty: '暂无公告',
+    updatedAt: '更新于 {time}',
+    admin: {
+      manage: '公告编辑',
+      hint: '发布单条最新公告；标题与内容都留空并发布 = 清空公告。画师端只显示入口小圆点，不主动打扰。',
+      titleLabel: '标题',
+      titlePlaceholder: '公告标题（≤100 字）',
+      contentLabel: '内容',
+      contentPlaceholder: '公告内容（≤10000 字）',
+      publish: '发布',
+      published: '公告已发布'
+    }
   }
 }
