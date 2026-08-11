@@ -226,7 +226,7 @@ export default {
     source: { self: 'Self', manual: 'Manual', clientSelf: 'Client self-order', manualEntry: 'Manual entry' },
     custom: 'Custom', none: 'None',
     save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', download: 'Download',
-    confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add',
+    confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add', or: 'or',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
     confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
     footer: 'Inkglean · Artist Commission Platform'

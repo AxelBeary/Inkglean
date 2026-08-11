@@ -226,7 +226,7 @@ export default {
     source: { self: '自助', manual: '手动', clientSelf: '客户自助', manualEntry: '手动录入' },
     custom: '自定义', none: '无',
     save: '保存', cancel: '取消', delete: '删除', edit: '编辑', download: '下载',
-    confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加',
+    confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加', or: '或',
     saved: '保存成功', deleted: '已删除', removed: '已移除',
     confirmDeleteTitle: '确认删除', uploadFailed: '上传失败', networkError: '网络错误，请稍后重试', globalError: '页面出了点小问题，请刷新重试',
     footer: '拾绘 · 画师约稿平台'
