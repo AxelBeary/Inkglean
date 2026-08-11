@@ -57,6 +57,8 @@ const emit = defineEmits(['update:modelValue', 'change'])
 const trackEl = ref(null)
 // 拖动状态（pointer capture 期间）
 const isDragging = ref(false)
+// B8: 是否处于按下状态——pointermove 只响应按下后的拖动，纯悬停划过不得移动高亮块
+const isPointerDown = ref(false)
 const dragIndex = ref(-1)
 let pointerStartX = 0
 let moved = false
@@ -92,6 +94,7 @@ function select(i) {
 function onPointerDown(e) {
   e.preventDefault()
   trackEl.value?.setPointerCapture?.(e.pointerId)
+  isPointerDown.value = true
   pointerStartX = e.clientX
   moved = false
   isDragging.value = false
@@ -99,6 +102,8 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
+  // B8: 未按下直接忽略；setPointerCapture 生效时 move 也仅在按下期间派发，双保险
+  if (!isPointerDown.value) return
   if (!moved && Math.abs(e.clientX - pointerStartX) <= 4) return // 轻移阈值：防误触
   moved = true
   isDragging.value = true
@@ -106,6 +111,7 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
+  isPointerDown.value = false
   if (isDragging.value) {
     select(dragIndex.value >= 0 ? dragIndex.value : indexFromX(e.clientX))
   } else {

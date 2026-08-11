@@ -86,6 +86,40 @@ describe('SliderSwitch', () => {
     expect(wrapper.emitted('update:modelValue')[0]).toEqual(['timeline'])
   })
 
+  it('B8 悬停：未按下时 pointermove 不改变显示与值', async () => {
+    const wrapper = mountSwitch()
+    const track = wrapper.find('.sw-track')
+    // 无 pointerdown，直接划过轨道（旧缺陷：pointerStartX=0 越过 4px 阈值进入拖动态）
+    await track.trigger('pointermove', { clientX: X_THIRD, pointerId: 1 })
+    expect(track.attributes('style')).toContain('--sw-index: 0')
+    expect(track.classes()).not.toContain('sw-track--dragging')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
+
+  it('B8 拖动：pointerdown + move + up 正常切换', async () => {
+    const wrapper = mountSwitch()
+    const track = wrapper.find('.sw-track')
+    await track.trigger('pointerdown', { clientX: X_FIRST, pointerId: 1 })
+    await track.trigger('pointermove', { clientX: X_SECOND, pointerId: 1 })
+    expect(track.attributes('style')).toContain('--sw-index: 1')
+    await track.trigger('pointerup', { clientX: X_SECOND, pointerId: 1 })
+    expect(wrapper.emitted('update:modelValue')[0]).toEqual(['calendar'])
+    expect(wrapper.emitted('change')[0]).toEqual(['calendar'])
+  })
+
+  it('B8 纯点击：切换后悬停移动不回退', async () => {
+    const wrapper = mountSwitch()
+    const track = wrapper.find('.sw-track')
+    await track.trigger('pointerdown', { clientX: X_SECOND, pointerId: 1 })
+    await track.trigger('pointerup', { clientX: X_SECOND, pointerId: 1 })
+    expect(wrapper.emitted('update:modelValue')[0]).toEqual(['calendar'])
+    // 松手后（未再次按下）划过轨道，视觉不得跳到 index 2（父级未同步时仍显示 board）
+    await track.trigger('pointermove', { clientX: X_THIRD, pointerId: 1 })
+    expect(track.attributes('style')).toContain('--sw-index: 0')
+    expect(track.classes()).not.toContain('sw-track--dragging')
+    expect(wrapper.emitted('update:modelValue')).toHaveLength(1)
+  })
+
   it('轻移阈值：4px 以内不算拖动，pointerup 按落点处理', async () => {
     const wrapper = mountSwitch()
     const track = wrapper.find('.sw-track')
