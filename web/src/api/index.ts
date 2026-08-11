@@ -264,9 +264,9 @@ export const webauthnApi = {
   getCredentials: (): Promise<import('./types.js').WebAuthnCredentialsResult> =>
     getJson('/auth/webauthn/credentials'),
   updateCredential: (id: number, deviceName: string): Promise<import('./types.js').WebAuthnUpdateCredentialResult> =>
-    patchJson(/auth/webauthn/credentials/, { deviceName }),
+    patchJson(`/auth/webauthn/credentials/${id}`, { deviceName }),
   deleteCredential: (id: number): Promise<{ success: boolean }> =>
-    deleteJson(/auth/webauthn/credentials/)
+    deleteJson(`/auth/webauthn/credentials/${id}`)
 }
 
 export const totpRebindApi = {

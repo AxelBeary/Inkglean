@@ -12,7 +12,7 @@
         <div class="card-body">
           <div class="info-row">
             <span class="info-label">{{ t('account.qqLabel') }}</span>
-            <span class="info-value">{{ store.profile?.qq_number || '-' }}</span>
+            <span class="info-value">{{ profile?.qq_number || '-' }}</span>
           </div>
           <p class="info-hint">
             {{ t('account.profileHint') }}
@@ -93,7 +93,7 @@
     <section class="card-section">
       <div class="card">
         <div class="card-head">
-          <el-icon><Fingerprint /></el-icon>
+          <el-icon><Lock /></el-icon>
           <span>{{ t('account.passkeySection') }}</span>
         </div>
         <div class="card-body">
@@ -151,11 +151,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
 import { webauthnApi, totpRebindApi } from '../../api/index.js'
-import { Fingerprint, InfoFilled, Key, WarningFilled, Loading } from '@element-plus/icons-vue'
-import type { WebAuthnCredential, RebindInitResult } from '../../api/types.js'
+import { Lock, InfoFilled, Key, WarningFilled, Loading } from '@element-plus/icons-vue'
+import type { WebAuthnCredential, PublicArtistDTO } from '../../api/types.js'
 
 const { t } = useI18n()
 const store = useArtistStore()
+// JS store 无类型推导，收敛到 PublicArtistDTO（含 qq_number/totp_verified）——诚实断言非 any
+const profile = computed(() => (store.profile ?? null) as PublicArtistDTO | null)
 
 // ─── Passkey 支持检测 ───
 const passkeySupported = ref(window.PublicKeyCredential !== undefined && window.isSecureContext === true)
@@ -218,7 +220,7 @@ async function deleteCredential(id: number) {
 
 // ─── TOTP ───
 const totpVerified = computed(() => {
-  return store.profile?.totp_verified === 1
+  return profile.value?.totp_verified === 1
 })
 
 const rebindStep = ref<'idle' | 'verify' | 'scan' | 'done'>('idle')

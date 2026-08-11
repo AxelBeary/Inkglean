@@ -32,7 +32,7 @@
           <!-- REQ-040: Passkey login button -->
           <div v-if="passkeySupported" class="passkey-section">
             <button class="passkey-btn" type="button" :disabled="logging || loginOk" @click="passkeyLogin">
-              <el-icon><Fingerprint /></el-icon>
+              <el-icon><Lock /></el-icon>
               {{ passkeyLogging ? t('login.passkeyLogging') : t('login.passkeyLogin') }}
             </button>
             <div class="passkey-divider"><span>{{ t('common.or') }}</span></div>
@@ -95,7 +95,7 @@ import PaperCard from '../../components/artist/login/PaperCard.vue'
 import LoginPrefs from '../../components/artist/login/LoginPrefs.vue'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
-import { Fingerprint } from '@element-plus/icons-vue'
+import { Lock } from '@element-plus/icons-vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -114,7 +114,6 @@ const daypart = h >= 5 && h < 10 ? 'morning' : h >= 16 && h < 20 ? 'dusk' : (h >
 
 const passkeySupported = ref(window.PublicKeyCredential !== undefined && window.isSecureContext === true)
 const passkeyLogging = ref(false)
-const passkeyLoginOk = ref(false)
 const qqNumber = ref('')
 const code = ref('')
 const logging = ref(false)
