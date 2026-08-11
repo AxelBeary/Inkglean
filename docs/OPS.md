@@ -29,7 +29,7 @@ cd 仓库根目录 && cd server && npm run backup && npm run backup:uploads
 
 - 容器内：`/app/data/backups/`（宿主 `./data/backups/`）
 - 文件名：`commission.db.bak-<ISO时间戳>`（DB）+ `uploads-<ISO时间戳>.tar.gz`（文件），按文件名排序即时间序
-- 保留：**各最多 7 份**，超出自动删最旧（脚本内置，防磁盘撑爆）
+- 保留：**DB 最多 3 份 / uploads 最多 2 份**（2026-08-11 用户拍板），超出自动删最旧（脚本内置，防磁盘撑爆）
 - 建议：配合宿主机 cron 每日执行 + 定期把 data/backups 同步到异地（如网盘/对象存储）
 
 宿主机 cron 示例（每日 03:30，DB 与 uploads 都要备）：

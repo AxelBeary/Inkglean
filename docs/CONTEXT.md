@@ -69,7 +69,7 @@
 | 前端 i18n | vue-i18n@11 | zh-CN + en 双键，check-i18n 门禁 |
 | 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v55**（version 乐观锁/幂等键/参考图归属） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） | entrypoint 带 DB 损坏自愈（自动恢复最新备份） |
-| 备份 | DB 每日备份（7 份轮转）+ uploads tar 备份脚本 + restore-db 恢复脚本 | OPS.md「备份与恢复」章节 |
+| 备份 | DB 每日备份（3 份轮转）+ uploads tar 备份（2 份轮转）+ restore-db 恢复脚本 | OPS.md「备份与恢复」章节 |
 | 测试 | Vitest（后端 1213 + 前端 332）+ Playwright E2E（7 条，接入 CI） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 

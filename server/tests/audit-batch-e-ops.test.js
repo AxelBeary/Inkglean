@@ -66,7 +66,7 @@ describe('审计批E 运维脚本 (R-6)', () => {
     }
   })
 
-  it('TC-OPS-02: uploads 备份轮转——只保留最近 7 份，删最旧', async () => {
+  it('TC-OPS-02: uploads 备份轮转——只保留最近 2 份，删最旧（2026-08-11 拍板）', async () => {
     const uploadDir = tempDir('bkupload-')
     const backupDir = tempDir('bkbackup-')
     try {
@@ -81,10 +81,9 @@ describe('审计批E 运维脚本 (R-6)', () => {
       await backupUploads({ uploadDir, backupDir })
 
       const baks = readdirSync(backupDir).filter(f => f.startsWith('uploads-')).sort()
-      expect(baks).toHaveLength(7)
-      expect(baks[0]).toBe('uploads-2020-01-03T00-00-00-000Z.tar.gz') // 最早两份已删
-      expect(baks[6]).not.toBe('uploads-2020-01-08T00-00-00-000Z.tar.gz') // 最新一份是本次真实归档
-      expect(baks.some(f => f.startsWith('uploads-2026-'))).toBe(true)
+      expect(baks).toHaveLength(2) // keep=2：仅留最新两份（本次真实归档 + 最新假归档）
+      expect(baks[0]).toBe('uploads-2020-01-08T00-00-00-000Z.tar.gz')
+      expect(baks[1].startsWith('uploads-2026-')).toBe(true) // 最新一份是本次真实归档
     } finally {
       rmSync(uploadDir, { recursive: true, force: true })
       rmSync(backupDir, { recursive: true, force: true })

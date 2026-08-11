@@ -13,7 +13,7 @@
 // 用法：npm run backup             （容器 cron 每日执行）
 //       环境变量：DB_PATH / BACKUP_DIR（默认值见下，容器内由 compose 注入）
 //
-// 保留策略：备份目录内只保留最近 7 份（按文件名排序，删最旧），防磁盘撑爆。
+// 保留策略：备份目录内只保留最近 3 份（按文件名排序，删最旧），防磁盘撑爆（2026-08-11 用户拍板：DB 3 份 / uploads 2 份）。
 // ============================================
 import { mkdirSync, readdirSync, unlinkSync } from 'fs'
 import { resolve, dirname, join } from 'path'
@@ -27,7 +27,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..') // 仓库
 // 容器内由 compose 注入 DB_PATH=/app/data/commission.db；本地开发默认仓库根 data/
 const DB_PATH = process.env.DB_PATH || resolve(ROOT, 'data/commission.db')
 const BACKUP_DIR = process.env.BACKUP_DIR || resolve(ROOT, 'data/backups')
-const KEEP = 7
+const KEEP = 3 // 2026-08-11 拍板：DB 留存 3 份
 
 function main() {
   // ─── 1. 打开主库（只读验证 + 一致性快照）───

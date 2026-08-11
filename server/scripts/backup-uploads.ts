@@ -13,7 +13,7 @@
 // 用法：npm run backup:uploads      （容器 cron 每日执行）
 //       环境变量：UPLOAD_DIR / BACKUP_DIR（默认值见下，容器内由 compose 注入 UPLOAD_DIR）
 //
-// 保留策略：备份目录内只保留最近 7 份（按文件名排序，删最旧），防磁盘撑爆（与 backup-db.ts 同款）。
+// 保留策略：备份目录内只保留最近 2 份（按文件名排序，删最旧），防磁盘撑爆（2026-08-11 用户拍板：uploads 2 份 / DB 3 份）。
 // ============================================
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs'
 import { createGzip } from 'zlib'
@@ -27,7 +27,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..') // 仓库
 const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
 // 与 backup-db.ts 同一备份目录（容器内解析为 /app/data/backups），DB + uploads 备份放一起方便异地同步
 const BACKUP_DIR = process.env.BACKUP_DIR || resolve(ROOT, 'data/backups')
-const KEEP = 7
+const KEEP = 2 // 2026-08-11 拍板：uploads 留存 2 份
 
 /**
  * 递归收集 uploadDir 下全部文件相对路径（正斜杠归一，排序保证归档可复现）
