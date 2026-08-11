@@ -1,51 +1,48 @@
 ﻿<template>
-  <ArtistLayout>
-    <div class="deadline-page">
-      <h2 class="od-page-title">{{ $t('deadlineAdvice.title') }}</h2>
-      <p class="page-sub">{{ $t('deadlineAdvice.subtitle') }}</p>
+  <div class="deadline-page">
+    <h2 class="od-page-title">{{ $t('deadlineAdvice.title') }}</h2>
+    <p class="page-sub">{{ $t('deadlineAdvice.subtitle') }}</p>
 
-      <div class="deadline-form">
-        <div class="deadline-field">
-          <div class="deadline-field-label">{{ $t('deadlineAdvice.workDays') }}</div>
-          <el-input-number v-model="workDays" :min="1" :max="365" :step="1" style="width: 160px" />
-        </div>
-
-        <div class="deadline-field">
-          <div class="deadline-field-label">{{ $t('deadlineAdvice.queueMode') }}</div>
-          <el-switch v-model="includeQueue" active-text="" inactive-text="" />
-          <span class="deadline-field-hint">{{ $t('deadlineAdvice.queueHint', { n: queueDays }) }}</span>
-        </div>
-
-        <div class="deadline-field">
-          <el-button type="primary" @click="compute">{{ $t('deadlineAdvice.compute') }}</el-button>
-        </div>
+    <div class="deadline-form">
+      <div class="deadline-field">
+        <div class="deadline-field-label">{{ $t('deadlineAdvice.workDays') }}</div>
+        <el-input-number v-model="workDays" :min="1" :max="365" :step="1" style="width: 160px" />
       </div>
 
-      <!-- 结果 -->
-      <div v-if="result" class="deadline-result">
-        <div class="deadline-result-main">
-          <div class="deadline-result-label">{{ $t('deadlineAdvice.resultLabel') }}</div>
-          <div class="deadline-result-date">{{ result.date }}</div>
-          <div class="deadline-result-week">{{ result.week }}</div>
-        </div>
-        <div class="deadline-result-breakdown">
-          <div class="deadline-line"><span>{{ $t('deadlineAdvice.today') }}</span><span>{{ result.today }}</span></div>
-          <div class="deadline-line"><span>{{ $t('deadlineAdvice.workDaysShort') }}</span><span>{{ result.workDays }} {{ $t('deadlineAdvice.daysUnit') }}</span></div>
-          <div v-if="includeQueue" class="deadline-line">
-            <span>{{ $t('deadlineAdvice.queueBuffer') }}</span><span>{{ result.queueCount }} {{ $t('deadlineAdvice.ordersUnit') }} × {{ result.queueDays }} {{ $t('deadlineAdvice.daysUnit') }}</span>
-          </div>
-          <div class="deadline-line deadline-line--total"><span>{{ $t('deadlineAdvice.totalDays') }}</span><span>{{ result.totalDays }} {{ $t('deadlineAdvice.daysUnit') }}</span></div>
-        </div>
-        <p class="deadline-disclaimer">{{ $t('deadlineAdvice.disclaimer') }}</p>
+      <div class="deadline-field">
+        <div class="deadline-field-label">{{ $t('deadlineAdvice.queueMode') }}</div>
+        <el-switch v-model="includeQueue" active-text="" inactive-text="" />
+        <span class="deadline-field-hint">{{ $t('deadlineAdvice.queueHint', { n: queueDays }) }}</span>
+      </div>
+
+      <div class="deadline-field">
+        <el-button type="primary" @click="compute">{{ $t('deadlineAdvice.compute') }}</el-button>
       </div>
     </div>
-  </ArtistLayout>
+
+    <!-- 结果 -->
+    <div v-if="result" class="deadline-result">
+      <div class="deadline-result-main">
+        <div class="deadline-result-label">{{ $t('deadlineAdvice.resultLabel') }}</div>
+        <div class="deadline-result-date">{{ result.date }}</div>
+        <div class="deadline-result-week">{{ result.week }}</div>
+      </div>
+      <div class="deadline-result-breakdown">
+        <div class="deadline-line"><span>{{ $t('deadlineAdvice.today') }}</span><span>{{ result.today }}</span></div>
+        <div class="deadline-line"><span>{{ $t('deadlineAdvice.workDaysShort') }}</span><span>{{ result.workDays }} {{ $t('deadlineAdvice.daysUnit') }}</span></div>
+        <div v-if="includeQueue" class="deadline-line">
+          <span>{{ $t('deadlineAdvice.queueBuffer') }}</span><span>{{ result.queueCount }} {{ $t('deadlineAdvice.ordersUnit') }} × {{ result.queueDays }} {{ $t('deadlineAdvice.daysUnit') }}</span>
+        </div>
+        <div class="deadline-line deadline-line--total"><span>{{ $t('deadlineAdvice.totalDays') }}</span><span>{{ result.totalDays }} {{ $t('deadlineAdvice.daysUnit') }}</span></div>
+      </div>
+      <p class="deadline-disclaimer">{{ $t('deadlineAdvice.disclaimer') }}</p>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { artistApi } from '../../api/index.js'
 
 // 简单 MVP：建议日期 = 今天 + 工期天数 + 队列缓冲（正式队列每单 + 1 天）
@@ -133,4 +130,3 @@ onMounted(async () => {
 .deadline-line--total { font-weight: 600; color: var(--ink); }
 .deadline-disclaimer { margin-top: 14px; font-size: 12px; color: var(--ink3, #888); }
 </style>
-

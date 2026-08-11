@@ -1,94 +1,92 @@
 <template>
   <div class="dashboard">
-    <ArtistLayout>
-      <!-- v0.18 双栏布局（C58）：>768px 双栏（左 60% / 右 40%），≤768px 单列
+    <!-- v0.18 双栏布局（C58）：>768px 双栏（左 60% / 右 40%），≤768px 单列
            DOM 顺序 = 窄屏顺序（验收 6.6）；宽屏通过 grid-row/grid-column 显式分栏（验收 6.4/6.5）
            各模块独立加载/独立失败，互不阻塞（验收 §9.1） -->
-      <div class="dash-grid">
-        <!-- 左栏：问候区（含今日统计行）→ 收入统计 → 统计卡片 ×3 → 合并列表
+    <div class="dash-grid">
+      <!-- 左栏：问候区（含今日统计行）→ 收入统计 → 统计卡片 ×3 → 合并列表
              左栏独立 wrapper（flex 列紧凑堆叠，与右栏互不对齐行高） -->
-        <div class="area-left">
-          <div class="area area-greeting enter-stagger" :style="{ '--stagger': 0 }">
-            <GreetingHero :stats="stats" />
-          </div>
-          <div class="area area-revenue enter-stagger" :style="{ '--stagger': 1 }">
-            <RevenueChart />
-          </div>
-          <div class="area area-stats enter-stagger" :style="{ '--stagger': 2 }">
-            <StatCards :stats="stats" />
-          </div>
-          <div class="area area-todo enter-stagger" :style="{ '--stagger': 3 }">
-            <TodoList />
-          </div>
+      <div class="area-left">
+        <div class="area area-greeting enter-stagger" :style="{ '--stagger': 0 }">
+          <GreetingHero :stats="stats" />
         </div>
-
-        <!-- 右栏：名额概览卡（有则显示）→ 快捷操作区 → 状态切换 → 最近活动流
-             右栏独立 wrapper（flex 列紧凑堆叠，不与左栏行高对齐——避免左栏高卡片顶出大片空白） -->
-        <div class="area-right">
-          <div class="area area-slot enter-stagger" :style="{ '--stagger': 4 }">
-            <SlotOverview />
-          </div>
-          <div class="area area-quick enter-stagger" :style="{ '--stagger': 5 }">
-            <QuickActions />
-          </div>
-          <div class="area area-activity enter-stagger" :style="{ '--stagger': 6 }">
-            <ActivityFeed />
-          </div>
-
-          <!-- F4: 留言审核（右栏 row 5） -->
-          <div class="area area-guestbook enter-stagger" :style="{ '--stagger': 7 }">
-            <el-card v-loading="guestbookLoading">
-              <template #header>
-                <CardHead :title="$t('dashboard.guestbookTitle')">
-                  <template #extra>
-                    <StatusChip v-if="pendingCount > 0" type="pend">{{ pendingCount }}</StatusChip>
-                  </template>
-                </CardHead>
-              </template>
-              <div v-if="guestbookMessages.length" class="gb-mod-list">
-                <div
-                  v-for="m in guestbookMessages" :key="m.id"
-                  class="gb-mod-item" :class="{ 'gb-mod-item--pending': m.status === 'pending' }"
-                >
-                  <div class="gb-mod-head">
-                    <span class="gb-mod-nick">{{ m.nickname }}</span>
-                    <StatusChip :type="{ pending: 'pend', approved: 'done', rejected: 'cancel' }[m.status]">
-                      {{ $t(`dashboard.guestbook${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`) }}
-                    </StatusChip>
-                  </div>
-                  <p class="gb-mod-content">{{ m.content }}</p>
-                  <p class="gb-mod-time">{{ formatDateTime(m.created_at) }}</p>
-                  <!-- 已有回复：展示 -->
-                  <div class="gb-mod-reply" v-if="m.artist_reply">
-                    <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReply') }}：</span>{{ m.artist_reply }}
-                  </div>
-                  <!-- 操作区：pending 可通过/拒绝；所有未删除的可回复 -->
-                  <div class="gb-mod-actions" v-if="m.status === 'pending'">
-                    <el-button size="small" type="primary" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>
-                    <el-button size="small" @click="rejectMsg(m)">{{ $t('dashboard.guestbookReject') }}</el-button>
-                  </div>
-                  <div class="gb-mod-reply-box">
-                    <el-input
-                      v-model="replyDrafts[m.id]"
-                      type="textarea" :rows="2" maxlength="500"
-                      :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
-                    />
-                    <el-button
-                      size="small" style="margin-top: 6px"
-                      :disabled="!(replyDrafts[m.id] || '').trim()"
-                      @click="replyMsg(m)"
-                    >
-                      {{ $t('dashboard.guestbookReplySave') }}
-                    </el-button>
-                  </div>
-                </div>
-              </div>
-              <InkEmpty v-else :title="$t('dashboard.guestbookEmpty')" />
-            </el-card>
-          </div>
+        <div class="area area-revenue enter-stagger" :style="{ '--stagger': 1 }">
+          <RevenueChart />
+        </div>
+        <div class="area area-stats enter-stagger" :style="{ '--stagger': 2 }">
+          <StatCards :stats="stats" />
+        </div>
+        <div class="area area-todo enter-stagger" :style="{ '--stagger': 3 }">
+          <TodoList />
         </div>
       </div>
-    </ArtistLayout>
+
+      <!-- 右栏：名额概览卡（有则显示）→ 快捷操作区 → 状态切换 → 最近活动流
+             右栏独立 wrapper（flex 列紧凑堆叠，不与左栏行高对齐——避免左栏高卡片顶出大片空白） -->
+      <div class="area-right">
+        <div class="area area-slot enter-stagger" :style="{ '--stagger': 4 }">
+          <SlotOverview />
+        </div>
+        <div class="area area-quick enter-stagger" :style="{ '--stagger': 5 }">
+          <QuickActions />
+        </div>
+        <div class="area area-activity enter-stagger" :style="{ '--stagger': 6 }">
+          <ActivityFeed />
+        </div>
+
+        <!-- F4: 留言审核（右栏 row 5） -->
+        <div class="area area-guestbook enter-stagger" :style="{ '--stagger': 7 }">
+          <el-card v-loading="guestbookLoading">
+            <template #header>
+              <CardHead :title="$t('dashboard.guestbookTitle')">
+                <template #extra>
+                  <StatusChip v-if="pendingCount > 0" type="pend">{{ pendingCount }}</StatusChip>
+                </template>
+              </CardHead>
+            </template>
+            <div v-if="guestbookMessages.length" class="gb-mod-list">
+              <div
+                v-for="m in guestbookMessages" :key="m.id"
+                class="gb-mod-item" :class="{ 'gb-mod-item--pending': m.status === 'pending' }"
+              >
+                <div class="gb-mod-head">
+                  <span class="gb-mod-nick">{{ m.nickname }}</span>
+                  <StatusChip :type="{ pending: 'pend', approved: 'done', rejected: 'cancel' }[m.status]">
+                    {{ $t(`dashboard.guestbook${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`) }}
+                  </StatusChip>
+                </div>
+                <p class="gb-mod-content">{{ m.content }}</p>
+                <p class="gb-mod-time">{{ formatDateTime(m.created_at) }}</p>
+                <!-- 已有回复：展示 -->
+                <div class="gb-mod-reply" v-if="m.artist_reply">
+                  <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReply') }}：</span>{{ m.artist_reply }}
+                </div>
+                <!-- 操作区：pending 可通过/拒绝；所有未删除的可回复 -->
+                <div class="gb-mod-actions" v-if="m.status === 'pending'">
+                  <el-button size="small" type="primary" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>
+                  <el-button size="small" @click="rejectMsg(m)">{{ $t('dashboard.guestbookReject') }}</el-button>
+                </div>
+                <div class="gb-mod-reply-box">
+                  <el-input
+                    v-model="replyDrafts[m.id]"
+                    type="textarea" :rows="2" maxlength="500"
+                    :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
+                  />
+                  <el-button
+                    size="small" style="margin-top: 6px"
+                    :disabled="!(replyDrafts[m.id] || '').trim()"
+                    @click="replyMsg(m)"
+                  >
+                    {{ $t('dashboard.guestbookReplySave') }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
+            <InkEmpty v-else :title="$t('dashboard.guestbookEmpty')" />
+          </el-card>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -100,7 +98,6 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
 import { subscribeReconnect } from '../../utils/reconnect.js'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 // v0.38: 统一视觉组件（REQ-026 §二）
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'

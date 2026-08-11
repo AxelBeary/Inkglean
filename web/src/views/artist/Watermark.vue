@@ -1,167 +1,164 @@
 <template>
-  <ArtistLayout>
-    <div class="watermark-page">
-      <h2 class="od-page-title">{{ $t('watermark.title') }}</h2>
+  <div class="watermark-page">
+    <h2 class="od-page-title">{{ $t('watermark.title') }}</h2>
 
-      <div class="wm-grid">
-        <!-- 左区：图片来源 + 实时预览 -->
-        <section class="wm-panel">
-          <h3 class="wm-panel-title">{{ $t('watermark.sourceSection') }}</h3>
+    <div class="wm-grid">
+      <!-- 左区：图片来源 + 实时预览 -->
+      <section class="wm-panel">
+        <h3 class="wm-panel-title">{{ $t('watermark.sourceSection') }}</h3>
 
-          <el-radio-group v-model="sourceType" class="wm-source-tabs">
-            <el-radio-button value="new">{{ $t('watermark.sourceNew') }}</el-radio-button>
-            <el-radio-button value="artwork">{{ $t('watermark.sourceArtwork') }}</el-radio-button>
-            <el-radio-button value="deliverable">{{ $t('watermark.sourceDeliverable') }}</el-radio-button>
-          </el-radio-group>
+        <el-radio-group v-model="sourceType" class="wm-source-tabs">
+          <el-radio-button value="new">{{ $t('watermark.sourceNew') }}</el-radio-button>
+          <el-radio-button value="artwork">{{ $t('watermark.sourceArtwork') }}</el-radio-button>
+          <el-radio-button value="deliverable">{{ $t('watermark.sourceDeliverable') }}</el-radio-button>
+        </el-radio-group>
 
-          <!-- 新传图：拖入 / 点击选择（FileReader 本地读图，不发服务器） -->
-          <div
-            v-if="sourceType === 'new'"
-            class="wm-dropzone"
-            role="button"
-            tabindex="0"
-            @click="fileInput?.click()"
-            @keydown.enter="fileInput?.click()"
-            @dragover.prevent
-            @drop.prevent="onDrop"
+        <!-- 新传图：拖入 / 点击选择（FileReader 本地读图，不发服务器） -->
+        <div
+          v-if="sourceType === 'new'"
+          class="wm-dropzone"
+          role="button"
+          tabindex="0"
+          @click="fileInput?.click()"
+          @keydown.enter="fileInput?.click()"
+          @dragover.prevent
+          @drop.prevent="onDrop"
+        >
+          <input ref="fileInput" type="file" accept="image/*" class="wm-file-input" @change="onFileChange" />
+          <span class="wm-dropzone-text">{{ $t('watermark.chooseFile') }}</span>
+        </div>
+
+        <!-- 作品图：网格缩略图 -->
+        <div v-else-if="sourceType === 'artwork'" v-loading="artworksLoading" class="wm-grid-list">
+          <p v-if="!artworksLoading && artworks.length === 0" class="wm-empty">{{ $t('watermark.emptyArtworks') }}</p>
+          <button
+            v-for="art in artworks"
+            :key="art.id"
+            type="button"
+            class="wm-thumb"
+            :class="{ 'wm-thumb--active': src === artworkSrc(art) }"
+            :title="art.title || ''"
+            @click="pickArtwork(art)"
           >
-            <input ref="fileInput" type="file" accept="image/*" class="wm-file-input" @change="onFileChange" />
-            <span class="wm-dropzone-text">{{ $t('watermark.chooseFile') }}</span>
-          </div>
+            <img :src="artworkSrc(art)" :alt="art.title || ''" loading="lazy" />
+          </button>
+        </div>
 
-          <!-- 作品图：网格缩略图 -->
-          <div v-else-if="sourceType === 'artwork'" v-loading="artworksLoading" class="wm-grid-list">
-            <p v-if="!artworksLoading && artworks.length === 0" class="wm-empty">{{ $t('watermark.emptyArtworks') }}</p>
+        <!-- 完稿图：订单下拉 + 完稿图缩略图 -->
+        <div v-else class="wm-deliverable">
+          <el-select
+            v-model="selectedOrderId"
+            :placeholder="$t('watermark.selectOrder')"
+            :loading="ordersLoading"
+            filterable
+            class="wm-order-select"
+            @change="onOrderChange"
+          >
+            <el-option v-for="o in orders" :key="o.id" :label="orderLabel(o)" :value="o.id" />
+          </el-select>
+          <div v-loading="deliverablesLoading" class="wm-grid-list">
+            <p v-if="!deliverablesLoading && deliverables.length === 0" class="wm-empty">{{ $t('watermark.emptyDeliverables') }}</p>
             <button
-              v-for="art in artworks"
-              :key="art.id"
+              v-for="d in deliverables"
+              :key="d.id"
               type="button"
               class="wm-thumb"
-              :class="{ 'wm-thumb--active': src === artworkSrc(art) }"
-              :title="art.title || ''"
-              @click="pickArtwork(art)"
+              :class="{ 'wm-thumb--active': src === d.url }"
+              :title="d.original_name || ''"
+              @click="pickDeliverable(d)"
             >
-              <img :src="artworkSrc(art)" :alt="art.title || ''" loading="lazy" />
+              <img :src="d.url" :alt="d.original_name || ''" loading="lazy" />
             </button>
           </div>
+        </div>
 
-          <!-- 完稿图：订单下拉 + 完稿图缩略图 -->
-          <div v-else class="wm-deliverable">
-            <el-select
-              v-model="selectedOrderId"
-              :placeholder="$t('watermark.selectOrder')"
-              :loading="ordersLoading"
-              filterable
-              class="wm-order-select"
-              @change="onOrderChange"
-            >
-              <el-option v-for="o in orders" :key="o.id" :label="orderLabel(o)" :value="o.id" />
-            </el-select>
-            <div v-loading="deliverablesLoading" class="wm-grid-list">
-              <p v-if="!deliverablesLoading && deliverables.length === 0" class="wm-empty">{{ $t('watermark.emptyDeliverables') }}</p>
-              <button
-                v-for="d in deliverables"
-                :key="d.id"
-                type="button"
-                class="wm-thumb"
-                :class="{ 'wm-thumb--active': src === d.url }"
-                :title="d.original_name || ''"
-                @click="pickDeliverable(d)"
-              >
-                <img :src="d.url" :alt="d.original_name || ''" loading="lazy" />
-              </button>
-            </div>
+        <!-- 实时预览（canvas 合成结果） -->
+        <div class="wm-preview">
+          <h4 class="wm-preview-title">{{ $t('watermark.preview') }}</h4>
+          <div v-if="previewDataUrl" class="wm-preview-body">
+            <img :src="previewDataUrl" alt="watermarked preview" />
           </div>
+          <p v-else class="wm-empty">{{ $t('watermark.noImage') }}</p>
+        </div>
+      </section>
 
-          <!-- 实时预览（canvas 合成结果） -->
-          <div class="wm-preview">
-            <h4 class="wm-preview-title">{{ $t('watermark.preview') }}</h4>
-            <div v-if="previewDataUrl" class="wm-preview-body">
-              <img :src="previewDataUrl" alt="watermarked preview" />
-            </div>
-            <p v-else class="wm-empty">{{ $t('watermark.noImage') }}</p>
-          </div>
-        </section>
+      <!-- 右区：水印参数 + 导出 -->
+      <section class="wm-panel">
+        <h3 class="wm-panel-title">{{ $t('watermark.watermarkSection') }}</h3>
 
-        <!-- 右区：水印参数 + 导出 -->
-        <section class="wm-panel">
-          <h3 class="wm-panel-title">{{ $t('watermark.watermarkSection') }}</h3>
+        <div class="wm-field">
+          <span class="wm-label">{{ $t('watermark.watermarkType') }}</span>
+          <el-radio-group v-model="wmType">
+            <el-radio-button value="text">{{ $t('watermark.text') }}</el-radio-button>
+            <el-radio-button value="logo">{{ $t('watermark.logo') }}</el-radio-button>
+          </el-radio-group>
+        </div>
 
-          <div class="wm-field">
-            <span class="wm-label">{{ $t('watermark.watermarkType') }}</span>
-            <el-radio-group v-model="wmType">
-              <el-radio-button value="text">{{ $t('watermark.text') }}</el-radio-button>
-              <el-radio-button value="logo">{{ $t('watermark.logo') }}</el-radio-button>
-            </el-radio-group>
-          </div>
-
-          <template v-if="wmType === 'text'">
-            <el-input v-model="wmText" :maxlength="30" show-word-limit class="wm-text-input" />
-            <div class="wm-slider-row">
-              <span class="wm-label">{{ $t('watermark.fontSize') }}</span>
-              <el-slider v-model="fontSize" :min="16" :max="160" :step="2" class="wm-slider" />
-            </div>
-          </template>
-
-          <template v-else>
-            <div class="wm-logo-row">
-              <el-button size="small" @click="logoInput?.click()">{{ $t('watermark.uploadLogo') }}</el-button>
-              <input ref="logoInput" type="file" accept="image/png" class="wm-file-input" @change="onLogoChange" />
-              <img v-if="logoDataUrl" :src="logoDataUrl" class="wm-logo-preview" alt="logo" />
-            </div>
-            <div class="wm-slider-row">
-              <span class="wm-label">{{ $t('watermark.logoScale') }}</span>
-              <el-slider v-model="logoScale" :min="0.05" :max="0.5" :step="0.01" class="wm-slider" />
-            </div>
-          </template>
-
+        <template v-if="wmType === 'text'">
+          <el-input v-model="wmText" :maxlength="30" show-word-limit class="wm-text-input" />
           <div class="wm-slider-row">
-            <span class="wm-label">{{ $t('watermark.opacity') }}</span>
-            <el-slider v-model="opacity" :min="0.05" :max="1" :step="0.05" class="wm-slider" />
+            <span class="wm-label">{{ $t('watermark.fontSize') }}</span>
+            <el-slider v-model="fontSize" :min="16" :max="160" :step="2" class="wm-slider" />
           </div>
+        </template>
 
+        <template v-else>
+          <div class="wm-logo-row">
+            <el-button size="small" @click="logoInput?.click()">{{ $t('watermark.uploadLogo') }}</el-button>
+            <input ref="logoInput" type="file" accept="image/png" class="wm-file-input" @change="onLogoChange" />
+            <img v-if="logoDataUrl" :src="logoDataUrl" class="wm-logo-preview" alt="logo" />
+          </div>
+          <div class="wm-slider-row">
+            <span class="wm-label">{{ $t('watermark.logoScale') }}</span>
+            <el-slider v-model="logoScale" :min="0.05" :max="0.5" :step="0.01" class="wm-slider" />
+          </div>
+        </template>
+
+        <div class="wm-slider-row">
+          <span class="wm-label">{{ $t('watermark.opacity') }}</span>
+          <el-slider v-model="opacity" :min="0.05" :max="1" :step="0.05" class="wm-slider" />
+        </div>
+
+        <div class="wm-field">
+          <span class="wm-label">{{ $t('watermark.modeLabel') }}</span>
+          <el-radio-group v-model="mode">
+            <el-radio-button value="corner">{{ $t('watermark.modeCorner') }}</el-radio-button>
+            <el-radio-button value="stretch">{{ $t('watermark.modeStretch') }}</el-radio-button>
+            <el-radio-button value="tile">{{ $t('watermark.modeTile') }}</el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <!-- 四角模式：位置 + 边距 -->
+        <template v-if="mode === 'corner'">
           <div class="wm-field">
-            <span class="wm-label">{{ $t('watermark.modeLabel') }}</span>
-            <el-radio-group v-model="mode">
-              <el-radio-button value="corner">{{ $t('watermark.modeCorner') }}</el-radio-button>
-              <el-radio-button value="stretch">{{ $t('watermark.modeStretch') }}</el-radio-button>
-              <el-radio-button value="tile">{{ $t('watermark.modeTile') }}</el-radio-button>
+            <span class="wm-label">{{ $t('watermark.position') }}</span>
+            <el-radio-group v-model="position" class="wm-pos-group">
+              <el-radio-button value="corners">{{ $t('watermark.positionAll') }}</el-radio-button>
+              <el-radio-button v-for="p in WM_POSITIONS" :key="p" :value="p">{{ positionLabel(p) }}</el-radio-button>
             </el-radio-group>
           </div>
-
-          <!-- 四角模式：位置 + 边距 -->
-          <template v-if="mode === 'corner'">
-            <div class="wm-field">
-              <span class="wm-label">{{ $t('watermark.position') }}</span>
-              <el-radio-group v-model="position" class="wm-pos-group">
-                <el-radio-button value="corners">{{ $t('watermark.positionAll') }}</el-radio-button>
-                <el-radio-button v-for="p in WM_POSITIONS" :key="p" :value="p">{{ positionLabel(p) }}</el-radio-button>
-              </el-radio-group>
-            </div>
-            <div class="wm-slider-row">
-              <span class="wm-label">{{ $t('watermark.margin') }}</span>
-              <el-slider v-model="margin" :min="0" :max="200" :step="4" class="wm-slider" />
-            </div>
-          </template>
-
-          <!-- 平铺模式：间距 -->
-          <div v-if="mode === 'tile'" class="wm-slider-row">
-            <span class="wm-label">{{ $t('watermark.spacing') }}</span>
-            <el-slider v-model="spacing" :min="20" :max="400" :step="10" class="wm-slider" />
+          <div class="wm-slider-row">
+            <span class="wm-label">{{ $t('watermark.margin') }}</span>
+            <el-slider v-model="margin" :min="0" :max="200" :step="4" class="wm-slider" />
           </div>
+        </template>
 
-          <el-button type="primary" class="wm-export" :disabled="!src" :loading="exporting" @click="exportImage">
-            {{ exporting ? $t('watermark.exporting') : $t('watermark.export') }}
-          </el-button>
-        </section>
-      </div>
+        <!-- 平铺模式：间距 -->
+        <div v-if="mode === 'tile'" class="wm-slider-row">
+          <span class="wm-label">{{ $t('watermark.spacing') }}</span>
+          <el-slider v-model="spacing" :min="20" :max="400" :step="10" class="wm-slider" />
+        </div>
+
+        <el-button type="primary" class="wm-export" :disabled="!src" :loading="exporting" @click="exportImage">
+          {{ exporting ? $t('watermark.exporting') : $t('watermark.export') }}
+        </el-button>
+      </section>
     </div>
-  </ArtistLayout>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'

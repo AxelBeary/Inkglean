@@ -1,75 +1,73 @@
 <template>
-  <ArtistLayout>
-    <!-- v0.38: 纸墨 token（REQ-026）——H1 文楷 28/700，卡片 CardHead 朱砂 mark -->
-    <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
+  <!-- v0.38: 纸墨 token（REQ-026）——H1 文楷 28/700，卡片 CardHead 朱砂 mark -->
+  <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
 
-    <!-- F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效，无需 DB） -->
-    <el-card class="pref-card">
-      <template #header><CardHead :title="$t('preferences.fontSize')" /></template>
-      <el-form label-position="top" size="large">
-        <el-form-item>
-          <el-radio-group v-model="fontSize">
-            <el-radio value="normal">{{ $t('preferences.fontSizeNormal') }}</el-radio>
-            <el-radio value="large">{{ $t('preferences.fontSizeLarge') }}</el-radio>
-            <el-radio value="xlarge">{{ $t('preferences.fontSizeXLarge') }}</el-radio>
-          </el-radio-group>
-          <div class="form-hint">{{ $t('preferences.fontSizeHint') }}</div>
-        </el-form-item>
-      </el-form>
-    </el-card>
+  <!-- F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效，无需 DB） -->
+  <el-card class="pref-card">
+    <template #header><CardHead :title="$t('preferences.fontSize')" /></template>
+    <el-form label-position="top" size="large">
+      <el-form-item>
+        <el-radio-group v-model="fontSize">
+          <el-radio value="normal">{{ $t('preferences.fontSizeNormal') }}</el-radio>
+          <el-radio value="large">{{ $t('preferences.fontSizeLarge') }}</el-radio>
+          <el-radio value="xlarge">{{ $t('preferences.fontSizeXLarge') }}</el-radio>
+        </el-radio-group>
+        <div class="form-hint">{{ $t('preferences.fontSizeHint') }}</div>
+      </el-form-item>
+    </el-form>
+  </el-card>
 
-    <!-- 通知与面板偏好 -->
-    <el-card class="pref-card" v-loading="loading">
-      <template #header><CardHead :title="$t('settings.notifyPanelTitle')" /></template>
-      <el-form :model="form" label-position="top" size="large">
-        <el-form-item :label="$t('settings.notifyLabel')">
-          <el-switch
-            v-model="form.notifyEnabled"
-            :active-text="$t('settings.notifyText')"
-          />
-        </el-form-item>
-        <!-- R8: 默认面板 -->
-        <el-form-item :label="$t('settings.defaultPanelLabel')">
-          <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
-            <el-option value="queue" :label="$t('dashboard.panelQueue')" />
-            <el-option value="orders" :label="$t('dashboard.panelOrders')" />
-            <el-option value="manual" :label="$t('dashboard.panelManual')" />
-            <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
-          </el-select>
-          <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+  <!-- 通知与面板偏好 -->
+  <el-card class="pref-card" v-loading="loading">
+    <template #header><CardHead :title="$t('settings.notifyPanelTitle')" /></template>
+    <el-form :model="form" label-position="top" size="large">
+      <el-form-item :label="$t('settings.notifyLabel')">
+        <el-switch
+          v-model="form.notifyEnabled"
+          :active-text="$t('settings.notifyText')"
+        />
+      </el-form-item>
+      <!-- R8: 默认面板 -->
+      <el-form-item :label="$t('settings.defaultPanelLabel')">
+        <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
+          <el-option value="queue" :label="$t('dashboard.panelQueue')" />
+          <el-option value="orders" :label="$t('dashboard.panelOrders')" />
+          <el-option value="manual" :label="$t('dashboard.panelManual')" />
+          <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
+        </el-select>
+        <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+      </el-form-item>
+    </el-form>
+  </el-card>
 
-    <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
-    <el-card class="pref-card" v-loading="loading">
-      <template #header><CardHead :title="$t('settings.quickTitle')" /></template>
-      <el-form label-position="top" size="large">
-        <el-form-item :label="$t('settings.quickLabel')">
-          <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
-            <el-checkbox
-              v-for="opt in quickPoolOptions"
-              :key="opt.key"
-              :value="opt.key"
-              class="quick-config-item"
-            >
-              <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
-              {{ $t(opt.labelKey) }}<template v-if="opt.type === 'action'"> <span class="quick-action-badge">⚡动作</span></template>
-            </el-checkbox>
-          </el-checkbox-group>
-          <div class="quick-config-footer">
-            <div class="form-hint">{{ $t('settings.quickHint') }}</div>
-            <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving">
-              {{ $t('settings.quickSave') }}
-            </el-button>
-          </div>
-        </el-form-item>
-      </el-form>
-    </el-card>
-  </ArtistLayout>
+  <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
+  <el-card class="pref-card" v-loading="loading">
+    <template #header><CardHead :title="$t('settings.quickTitle')" /></template>
+    <el-form label-position="top" size="large">
+      <el-form-item :label="$t('settings.quickLabel')">
+        <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
+          <el-checkbox
+            v-for="opt in quickPoolOptions"
+            :key="opt.key"
+            :value="opt.key"
+            class="quick-config-item"
+          >
+            <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
+            {{ $t(opt.labelKey) }}<template v-if="opt.type === 'action'"> <span class="quick-action-badge">⚡动作</span></template>
+          </el-checkbox>
+        </el-checkbox-group>
+        <div class="quick-config-footer">
+          <div class="form-hint">{{ $t('settings.quickHint') }}</div>
+          <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving">
+            {{ $t('settings.quickSave') }}
+          </el-button>
+        </div>
+      </el-form-item>
+    </el-form>
+  </el-card>
 </template>
 
 <script setup>
@@ -77,7 +75,6 @@ import { ref, reactive, watch, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 // v0.38: 统一卡片头部（REQ-026 §二）
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickActionsConfig, parseQuickActions } from '../../components/artist/dashboard/QuickActions.vue'

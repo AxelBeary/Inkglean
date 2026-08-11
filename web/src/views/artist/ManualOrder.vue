@@ -1,110 +1,108 @@
 ﻿<template>
   <!-- REQ-015: 手动录单全屏双栏独立页面（原 560px 抽屉 → 独立路由 /orders/new） -->
   <!-- v0.42 拆分：双栏搬到 ManualOrderLeft/ManualOrderRight（props/emit + defineExpose），父组件保留表单骨架/初始化/QQ历史/草稿/结果 -->
-  <ArtistLayout>
-    <div class="manual-order-page">
-      <h2>{{ $t('manualOrder.title') }}</h2>
-      <p class="hint">{{ $t('manualOrder.hint') }}</p>
+  <div class="manual-order-page">
+    <h2>{{ $t('manualOrder.title') }}</h2>
+    <p class="hint">{{ $t('manualOrder.hint') }}</p>
 
-      <!-- REQ-035 §五 MVP-1: 粘贴消息解析入口（顶部） -->
-      <div class="mo-toolbar">
-        <el-button type="primary" plain :icon="ChatDotRound" @click="openParseDialog">
-          {{ $t('manualOrder.parseMessageTitle') }}
-        </el-button>
-      </div>
-
-      <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
-        <div class="mo-grid">
-          <!-- ═══ 左栏：客户说了什么（客户信息 + 参考图上传 + QQ 历史） ═══ -->
-          <ManualOrderLeft
-            v-model:clientQq="form.clientQq"
-            v-model:clientName="form.clientName"
-            v-model:description="form.description"
-            v-model:priority="form.priority"
-            v-model:deadline="form.deadline"
-            v-model:startDate="form.startDate"
-            v-model:clientNotify="form.clientNotify"
-            :qq-valid="qqValid"
-            :qq-history="qqHistory"
-            :qq-history-loading="qqHistoryLoading"
-            :qq-history-loaded="qqHistoryLoaded"
-            :client-profile="clientProfile"
-            :client-summary="clientSummary"
-            @update:uploaded-refs="uploadedRefs = $event"
-            ref="leftRef"
-          />
-          <!-- ═══ 右栏：怎么录（画风/尺寸/增项/价格/初始状态/提交 + 移动端价格条） ═══ -->
-          <ManualOrderRight
-            v-model:clientQq="form.clientQq"
-            v-model:clientName="form.clientName"
-            v-model:description="form.description"
-            v-model:priority="form.priority"
-            v-model:deadline="form.deadline"
-            v-model:startDate="form.startDate"
-            v-model:clientNotify="form.clientNotify"
-            :styles="styles"
-            :pricing-data="pricingData"
-            :subdomain="subdomain"
-            :workflow-stages="workflowStages"
-            :uploaded-refs="uploadedRefs"
-            :validate-form="validateForm"
-            @submit-success="onSubmitSuccess"
-            @dirty="scheduleDraftSave"
-            ref="rightRef"
-          />
-        </div>
-      </el-form>
-
-      <!-- REQ-035 §五 MVP-1: 粘贴消息解析弹窗（解析→确认→回填，不自动提交） -->
-      <el-dialog v-model="parseDialogVisible" :title="$t('manualOrder.parseDialogTitle')" width="480px">
-        <el-input
-          v-model="parseInput"
-          type="textarea"
-          :rows="6"
-          :placeholder="$t('manualOrder.parsePlaceholder')"
-          resize="vertical"
-        />
-        <div class="parse-result" v-if="parseResult">
-          <div class="parse-row">
-            <span class="parse-key">{{ $t('manualOrder.parseQqLabel') }}</span>
-            <el-tag v-if="parseResult.clientQq" type="success">{{ parseResult.clientQq }}</el-tag>
-            <span v-else class="parse-empty">{{ $t('manualOrder.parseQqEmpty') }}</span>
-          </div>
-          <div class="parse-row">
-            <span class="parse-key">{{ $t('manualOrder.parseAmountLabel') }}</span>
-            <span v-if="parseResult.hints.amount">{{ $t('manualOrder.parseAmountValue', { amount: parseResult.hints.amount }) }}</span>
-            <span v-else class="parse-empty">{{ $t('manualOrder.parseNone') }}</span>
-          </div>
-          <div class="parse-row">
-            <span class="parse-key">{{ $t('manualOrder.parseDeadlineLabel') }}</span>
-            <span v-if="parseResult.hints.deadline">{{ parseResult.hints.deadline }}</span>
-            <span v-else class="parse-empty">{{ $t('manualOrder.parseNone') }}</span>
-          </div>
-          <p class="parse-tip">{{ $t('manualOrder.parseConfirmTip') }}</p>
-        </div>
-        <template #footer>
-          <el-button @click="parseDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-          <el-button type="primary" :disabled="!parseInput.trim()" @click="doParseMessage">
-            {{ $t('manualOrder.parseBtn') }}
-          </el-button>
-          <el-button type="success" :disabled="!parseResult" @click="applyParseResult">
-            {{ $t('manualOrder.parseApply') }}
-          </el-button>
-        </template>
-      </el-dialog>
-
-      <!-- 录入成功 -->
-      <el-dialog v-model="showResult" :title="$t('manualOrder.resultTitle')" width="400px">
-        <el-result icon="success" :title="$t('manualOrder.orderNo', { no: resultNo })">
-          <template #sub-title>{{ $t('manualOrder.addedToQueue') }}</template>
-          <template #extra>
-            <el-button type="primary" @click="$router.push('/queue')">{{ $t('manualOrder.viewQueue') }}</el-button>
-            <el-button @click="resetForm">{{ $t('manualOrder.continueEntry') }}</el-button>
-          </template>
-        </el-result>
-      </el-dialog>
+    <!-- REQ-035 §五 MVP-1: 粘贴消息解析入口（顶部） -->
+    <div class="mo-toolbar">
+      <el-button type="primary" plain :icon="ChatDotRound" @click="openParseDialog">
+        {{ $t('manualOrder.parseMessageTitle') }}
+      </el-button>
     </div>
-  </ArtistLayout>
+
+    <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
+      <div class="mo-grid">
+        <!-- ═══ 左栏：客户说了什么（客户信息 + 参考图上传 + QQ 历史） ═══ -->
+        <ManualOrderLeft
+          v-model:clientQq="form.clientQq"
+          v-model:clientName="form.clientName"
+          v-model:description="form.description"
+          v-model:priority="form.priority"
+          v-model:deadline="form.deadline"
+          v-model:startDate="form.startDate"
+          v-model:clientNotify="form.clientNotify"
+          :qq-valid="qqValid"
+          :qq-history="qqHistory"
+          :qq-history-loading="qqHistoryLoading"
+          :qq-history-loaded="qqHistoryLoaded"
+          :client-profile="clientProfile"
+          :client-summary="clientSummary"
+          @update:uploaded-refs="uploadedRefs = $event"
+          ref="leftRef"
+        />
+        <!-- ═══ 右栏：怎么录（画风/尺寸/增项/价格/初始状态/提交 + 移动端价格条） ═══ -->
+        <ManualOrderRight
+          v-model:clientQq="form.clientQq"
+          v-model:clientName="form.clientName"
+          v-model:description="form.description"
+          v-model:priority="form.priority"
+          v-model:deadline="form.deadline"
+          v-model:startDate="form.startDate"
+          v-model:clientNotify="form.clientNotify"
+          :styles="styles"
+          :pricing-data="pricingData"
+          :subdomain="subdomain"
+          :workflow-stages="workflowStages"
+          :uploaded-refs="uploadedRefs"
+          :validate-form="validateForm"
+          @submit-success="onSubmitSuccess"
+          @dirty="scheduleDraftSave"
+          ref="rightRef"
+        />
+      </div>
+    </el-form>
+
+    <!-- REQ-035 §五 MVP-1: 粘贴消息解析弹窗（解析→确认→回填，不自动提交） -->
+    <el-dialog v-model="parseDialogVisible" :title="$t('manualOrder.parseDialogTitle')" width="480px">
+      <el-input
+        v-model="parseInput"
+        type="textarea"
+        :rows="6"
+        :placeholder="$t('manualOrder.parsePlaceholder')"
+        resize="vertical"
+      />
+      <div class="parse-result" v-if="parseResult">
+        <div class="parse-row">
+          <span class="parse-key">{{ $t('manualOrder.parseQqLabel') }}</span>
+          <el-tag v-if="parseResult.clientQq" type="success">{{ parseResult.clientQq }}</el-tag>
+          <span v-else class="parse-empty">{{ $t('manualOrder.parseQqEmpty') }}</span>
+        </div>
+        <div class="parse-row">
+          <span class="parse-key">{{ $t('manualOrder.parseAmountLabel') }}</span>
+          <span v-if="parseResult.hints.amount">{{ $t('manualOrder.parseAmountValue', { amount: parseResult.hints.amount }) }}</span>
+          <span v-else class="parse-empty">{{ $t('manualOrder.parseNone') }}</span>
+        </div>
+        <div class="parse-row">
+          <span class="parse-key">{{ $t('manualOrder.parseDeadlineLabel') }}</span>
+          <span v-if="parseResult.hints.deadline">{{ parseResult.hints.deadline }}</span>
+          <span v-else class="parse-empty">{{ $t('manualOrder.parseNone') }}</span>
+        </div>
+        <p class="parse-tip">{{ $t('manualOrder.parseConfirmTip') }}</p>
+      </div>
+      <template #footer>
+        <el-button @click="parseDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!parseInput.trim()" @click="doParseMessage">
+          {{ $t('manualOrder.parseBtn') }}
+        </el-button>
+        <el-button type="success" :disabled="!parseResult" @click="applyParseResult">
+          {{ $t('manualOrder.parseApply') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 录入成功 -->
+    <el-dialog v-model="showResult" :title="$t('manualOrder.resultTitle')" width="400px">
+      <el-result icon="success" :title="$t('manualOrder.orderNo', { no: resultNo })">
+        <template #sub-title>{{ $t('manualOrder.addedToQueue') }}</template>
+        <template #extra>
+          <el-button type="primary" @click="$router.push('/queue')">{{ $t('manualOrder.viewQueue') }}</el-button>
+          <el-button @click="resetForm">{{ $t('manualOrder.continueEntry') }}</el-button>
+        </template>
+      </el-result>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>
@@ -114,7 +112,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { trackEvent } from '../../utils/track.js'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import ManualOrderLeft from '../../components/artist/order/ManualOrderLeft.vue'
 import ManualOrderRight from '../../components/artist/order/ManualOrderRight.vue'
 import { parseMessage } from '../../utils/message-parser.js'

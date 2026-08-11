@@ -1,87 +1,85 @@
 <template>
-  <ArtistLayout>
-    <div class="puzzle-page">
-      <h2 class="od-page-title">{{ $t('puzzle.title') }}</h2>
-      <p class="puzzle-sub">{{ $t('puzzle.subtitle') }}</p>
+  <div class="puzzle-page">
+    <h2 class="od-page-title">{{ $t('puzzle.title') }}</h2>
+    <p class="puzzle-sub">{{ $t('puzzle.subtitle') }}</p>
 
-      <div class="puzzle-panel">
-        <!-- ① 选择订单 -->
+    <div class="puzzle-panel">
+      <!-- ① 选择订单 -->
+      <div class="puzzle-field">
+        <span class="puzzle-label">{{ $t('puzzle.selectOrder') }}</span>
+        <el-select
+          v-model="selectedOrderId"
+          filterable
+          :loading="ordersLoading"
+          :placeholder="$t('puzzle.selectOrder')"
+          class="puzzle-order-select"
+          @change="onOrderChange"
+        >
+          <el-option v-for="o in orders" :key="o.id" :value="o.id" :label="orderLabel(o)" />
+        </el-select>
+      </div>
+
+      <template v-if="order">
+        <!-- ② 勾选图片（完稿图 + 参考图，2~6 张） -->
         <div class="puzzle-field">
-          <span class="puzzle-label">{{ $t('puzzle.selectOrder') }}</span>
-          <el-select
-            v-model="selectedOrderId"
-            filterable
-            :loading="ordersLoading"
-            :placeholder="$t('puzzle.selectOrder')"
-            class="puzzle-order-select"
-            @change="onOrderChange"
-          >
-            <el-option v-for="o in orders" :key="o.id" :value="o.id" :label="orderLabel(o)" />
-          </el-select>
+          <span class="puzzle-label">
+            {{ $t('puzzle.selectImages') }}
+            <em v-if="picked.length" class="puzzle-count">{{ picked.length }}/6</em>
+          </span>
+          <div v-if="availableImages.length" class="puzzle-thumbs">
+            <div
+              v-for="img in availableImages"
+              :key="img.key"
+              class="puzzle-thumb"
+              :class="{ picked: pickedIndex(img) >= 0 }"
+              @click="togglePick(img)"
+            >
+              <img :src="img.url" :alt="img.name" loading="lazy" />
+              <span class="puzzle-thumb-badge" :class="img.kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
+              <span v-if="pickedIndex(img) >= 0" class="puzzle-thumb-order">{{ pickedIndex(img) + 1 }}</span>
+            </div>
+          </div>
+          <p v-else class="puzzle-empty">{{ $t('puzzle.noImages') }}</p>
         </div>
 
-        <template v-if="order">
-          <!-- ② 勾选图片（完稿图 + 参考图，2~6 张） -->
-          <div class="puzzle-field">
-            <span class="puzzle-label">
-              {{ $t('puzzle.selectImages') }}
-              <em v-if="picked.length" class="puzzle-count">{{ picked.length }}/6</em>
-            </span>
-            <div v-if="availableImages.length" class="puzzle-thumbs">
-              <div
-                v-for="img in availableImages"
-                :key="img.key"
-                class="puzzle-thumb"
-                :class="{ picked: pickedIndex(img) >= 0 }"
-                @click="togglePick(img)"
-              >
-                <img :src="img.url" :alt="img.name" loading="lazy" />
-                <span class="puzzle-thumb-badge" :class="img.kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
-                <span v-if="pickedIndex(img) >= 0" class="puzzle-thumb-order">{{ pickedIndex(img) + 1 }}</span>
-              </div>
-            </div>
-            <p v-else class="puzzle-empty">{{ $t('puzzle.noImages') }}</p>
-          </div>
-
-          <!-- ③ 调整顺序（上移/下移，不引拖拽库） -->
-          <div v-if="picked.length >= 2" class="puzzle-field">
-            <span class="puzzle-label">{{ $t('puzzle.arrange') }}</span>
-            <div class="puzzle-order-list">
-              <div v-for="(img, idx) in picked" :key="img.key" class="puzzle-order-item">
-                <el-tag size="small" class="puzzle-order-tag">{{ idx + 1 }}</el-tag>
-                <span class="puzzle-order-name">{{ img.name }}</span>
-                <span class="puzzle-order-kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
-                <div class="puzzle-order-actions">
-                  <el-button size="small" :disabled="idx === 0" @click="move(idx, -1)">{{ $t('puzzle.up') }}</el-button>
-                  <el-button size="small" :disabled="idx === picked.length - 1" @click="move(idx, 1)">{{ $t('puzzle.down') }}</el-button>
-                </div>
+        <!-- ③ 调整顺序（上移/下移，不引拖拽库） -->
+        <div v-if="picked.length >= 2" class="puzzle-field">
+          <span class="puzzle-label">{{ $t('puzzle.arrange') }}</span>
+          <div class="puzzle-order-list">
+            <div v-for="(img, idx) in picked" :key="img.key" class="puzzle-order-item">
+              <el-tag size="small" class="puzzle-order-tag">{{ idx + 1 }}</el-tag>
+              <span class="puzzle-order-name">{{ img.name }}</span>
+              <span class="puzzle-order-kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
+              <div class="puzzle-order-actions">
+                <el-button size="small" :disabled="idx === 0" @click="move(idx, -1)">{{ $t('puzzle.up') }}</el-button>
+                <el-button size="small" :disabled="idx === picked.length - 1" @click="move(idx, 1)">{{ $t('puzzle.down') }}</el-button>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- ④ 实时预览 + 导出 -->
-          <div class="puzzle-field">
-            <span class="puzzle-label">{{ $t('puzzle.preview') }}</span>
-            <div v-if="picked.length < 2" class="puzzle-preview-hint">{{ $t('puzzle.needTwo') }}</div>
-            <canvas v-show="previewReady" ref="previewCanvas" class="puzzle-canvas"></canvas>
-            <el-alert v-if="exportError" type="warning" :closable="false" show-icon class="puzzle-error">
-              {{ exportError }}
-            </el-alert>
-            <div class="puzzle-actions">
-              <el-button
-                type="primary"
-                :loading="exporting"
-                :disabled="picked.length < 2 || previewBusy"
-                @click="doExport"
-              >
-                {{ $t('puzzle.export') }}
-              </el-button>
-            </div>
+        <!-- ④ 实时预览 + 导出 -->
+        <div class="puzzle-field">
+          <span class="puzzle-label">{{ $t('puzzle.preview') }}</span>
+          <div v-if="picked.length < 2" class="puzzle-preview-hint">{{ $t('puzzle.needTwo') }}</div>
+          <canvas v-show="previewReady" ref="previewCanvas" class="puzzle-canvas"></canvas>
+          <el-alert v-if="exportError" type="warning" :closable="false" show-icon class="puzzle-error">
+            {{ exportError }}
+          </el-alert>
+          <div class="puzzle-actions">
+            <el-button
+              type="primary"
+              :loading="exporting"
+              :disabled="picked.length < 2 || previewBusy"
+              @click="doExport"
+            >
+              {{ $t('puzzle.export') }}
+            </el-button>
           </div>
-        </template>
-      </div>
+        </div>
+      </template>
     </div>
-  </ArtistLayout>
+  </div>
 </template>
 
 <script setup>
@@ -89,7 +87,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../api/index.js'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 
 const { t } = useI18n()
 

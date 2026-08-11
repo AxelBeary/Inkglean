@@ -1,129 +1,49 @@
 <template>
-  <ArtistLayout>
-    <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
-    <h2 class="font-display artwork-page-title">{{ $t('artworks.title') }}</h2>
+  <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
+  <h2 class="font-display artwork-page-title">{{ $t('artworks.title') }}</h2>
 
-    <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
-    <div class="artwork-toolbar">
-      <el-button :type="manageMode ? 'primary' : 'default'" @click="toggleManageMode">
-        {{ manageMode ? $t('artworks.manageDone') : $t('artworks.manage') }}
-      </el-button>
-    </div>
+  <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
+  <div class="artwork-toolbar">
+    <el-button :type="manageMode ? 'primary' : 'default'" @click="toggleManageMode">
+      {{ manageMode ? $t('artworks.manageDone') : $t('artworks.manage') }}
+    </el-button>
+  </div>
 
-    <!-- 上传区 -->
-    <el-card style="margin: 16px 0">
-      <el-upload
-        drag multiple :auto-upload="true" :http-request="handleUpload"
-        accept="image/*" :show-file-list="false"
-        @dragenter.capture="guardDragEnter"
-        @dragover.capture="guardDragOver"
-        @drop.capture="guardDrop"
-      >
-        <el-icon class="upload-icon"><Upload /></el-icon>
-        <p>{{ $t('artworks.dragUpload') }}</p>
-        <template #tip>
-          <p class="upload-tip">{{ $t('artworks.tip') }}</p>
-        </template>
-      </el-upload>
-      <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
-    </el-card>
+  <!-- 上传区 -->
+  <el-card style="margin: 16px 0">
+    <el-upload
+      drag multiple :auto-upload="true" :http-request="handleUpload"
+      accept="image/*" :show-file-list="false"
+      @dragenter.capture="guardDragEnter"
+      @dragover.capture="guardDragOver"
+      @drop.capture="guardDrop"
+    >
+      <el-icon class="upload-icon"><Upload /></el-icon>
+      <p>{{ $t('artworks.dragUpload') }}</p>
+      <template #tip>
+        <p class="upload-tip">{{ $t('artworks.tip') }}</p>
+      </template>
+    </el-upload>
+    <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
+  </el-card>
 
-    <!-- F7: 主图区（is_cover=1 单独展示，不在下方网格重复） -->
-    <div v-if="mainArtworks.length > 0" class="main-artwork-section">
-      <h3 class="section-label">{{ $t('artworks.mainImages') }}</h3>
-      <div class="main-artwork-row">
-        <div v-for="art in mainArtworks" :key="art.id" class="main-artwork-card">
-          <el-image
-            :src="`/uploads/${art.image_path}`" fit="cover" class="main-artwork-img"
-            :alt="art.title || $t('artworks.image')"
-            :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
-            :initial-index="artworks.indexOf(art)"
-            preview-teleported
-          />
-          <span class="main-artwork-tag">
-            {{ $t('artworks.mainTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
-          </span>
-          <!-- v0.31: 多封面排序按钮（≥2 张主图时显示，调整轮播顺序）——F7 去重后主图不进网格，排序入口必须在主图区 -->
-          <div v-if="coverCount > 1" class="artwork-cover-reorder">
-            <button
-              class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
-              :title="$t('artworks.coverMoveUp')"
-              @click.stop="moveCover(art, -1)"
-            >
-              ↑
-            </button>
-            <button
-              class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
-              :title="$t('artworks.coverMoveDown')"
-              @click.stop="moveCover(art, 1)"
-            >
-              ↓
-            </button>
-          </div>
-          <button
-            class="artwork-cover-star artwork-cover-star--on"
-            :disabled="coverBusyId === art.id"
-            :title="$t('artworks.coverUnset')"
-            @click="toggleCover(art)"
-          >
-            ★
-          </button>
-          <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">
-            <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
-              <span v-if="selectedIds.has(art.id)">✓</span>
-            </span>
-          </div>
-          <div v-else class="artwork-actions">
-            <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
-            <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
-            <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 作品网格（F7: 只显示非主图；去重后为空则兜底显示全部） -->
-    <div class="artwork-grid" v-loading="loading">
-      <div
-        v-for="art in gridArtworks" :key="art.id"
-        class="artwork-item"
-        :class="{ 'artwork-item--selected': manageMode && selectedIds.has(art.id) }"
-      >
+  <!-- F7: 主图区（is_cover=1 单独展示，不在下方网格重复） -->
+  <div v-if="mainArtworks.length > 0" class="main-artwork-section">
+    <h3 class="section-label">{{ $t('artworks.mainImages') }}</h3>
+    <div class="main-artwork-row">
+      <div v-for="art in mainArtworks" :key="art.id" class="main-artwork-card">
         <el-image
-          :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
+          :src="`/uploads/${art.image_path}`" fit="cover" class="main-artwork-img"
           :alt="art.title || $t('artworks.image')"
           :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
           :initial-index="artworks.indexOf(art)"
           preview-teleported
         />
-        <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
-        <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">
-          <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
-            <span v-if="selectedIds.has(art.id)">✓</span>
-          </span>
-        </div>
-        <!-- 普通模式：单条删除（悬停显示） -->
-        <div v-else class="artwork-actions">
-          <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
-          <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
-          <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
-        </div>
-        <!-- REQ-017: 封面星标（常驻右上角，不依赖 hover） -->
-        <button
-          class="artwork-cover-star"
-          :class="{ 'artwork-cover-star--on': art.is_cover }"
-          :disabled="coverBusyId === art.id"
-          :title="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
-          @click="toggleCover(art)"
-        >
-          {{ art.is_cover ? '★' : '☆' }}
-        </button>
-        <!-- REQ-017: 封面标签 + cover_order 序号（多封面时显示顺序） -->
-        <span v-if="art.is_cover" class="artwork-cover-tag">
-          {{ $t('artworks.coverTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
+        <span class="main-artwork-tag">
+          {{ $t('artworks.mainTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
         </span>
-        <!-- v0.31: 多封面排序按钮（≥2 张封面时显示，调整轮播顺序） -->
-        <div v-if="art.is_cover && coverCount > 1" class="artwork-cover-reorder">
+        <!-- v0.31: 多封面排序按钮（≥2 张主图时显示，调整轮播顺序）——F7 去重后主图不进网格，排序入口必须在主图区 -->
+        <div v-if="coverCount > 1" class="artwork-cover-reorder">
           <button
             class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
             :title="$t('artworks.coverMoveUp')"
@@ -139,77 +59,155 @@
             ↓
           </button>
         </div>
-      </div>
-    </div>
-
-    <!-- v0.42 Step 6: 分页器（>20 张时显示；封面置顶在后端排序已保证，前端勿重排） -->
-    <el-pagination
-      v-if="total > pageSize"
-      :current-page="page"
-      :page-size="pageSize"
-      :total="total"
-      layout="prev, pager, next"
-      @current-change="onPageChange"
-      style="margin-top: 16px; justify-content: center;"
-    />
-
-    <el-empty v-if="!loading && artworks.length === 0" :description="$t('artworks.empty')" />
-
-    <!-- R45: 批量操作栏（多选模式下固定底部） -->
-    <div v-if="manageMode" class="batch-bar">
-      <span class="batch-count">{{ $t('artworks.selected', { n: selectedIds.size }) }}</span>
-      <el-button size="small" @click="toggleManageMode">{{ $t('common.cancel') }}</el-button>
-      <el-button size="small" type="danger" :disabled="selectedIds.size === 0" :loading="batchDeleting" @click="startBatchDelete">
-        {{ $t('common.delete') }}
-      </el-button>
-    </div>
-
-    <!-- R45/C59: 批量删除 ≥3 条用滑块确认 -->
-    <el-dialog v-model="slideDialogVisible" :title="$t('artworks.batchDeleteTitle')" width="400px" @closed="slideProgress = 0">
-      <p class="batch-slide-hint">{{ $t('artworks.batchDeleteConfirm', { n: selectedIds.size }) }}</p>
-      <div class="slide-confirm">
-        <div class="slide-confirm-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
-        <span class="slide-confirm-label">{{ $t('artworks.slideToDelete') }}</span>
-        <div
-          class="slide-confirm-thumb"
-          :style="{ left: `calc(2px + ${slideProgress} * (100% - 40px))` }"
-          @pointerdown="onSlideStart"
-          @pointermove="onSlideMove"
-          @pointerup="onSlideEnd"
+        <button
+          class="artwork-cover-star artwork-cover-star--on"
+          :disabled="coverBusyId === art.id"
+          :title="$t('artworks.coverUnset')"
+          @click="toggleCover(art)"
         >
-          →
+          ★
+        </button>
+        <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">
+          <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
+            <span v-if="selectedIds.has(art.id)">✓</span>
+          </span>
+        </div>
+        <div v-else class="artwork-actions">
+          <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
+          <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
+          <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
         </div>
       </div>
-    </el-dialog>
+    </div>
+  </div>
 
-    <!-- v0.35 波3 (REQ-024 F6): 作品编辑弹窗 — 标题/自由描述/档位标注多选，保存即时 PUT -->
-    <el-dialog v-model="editDialogVisible" :title="$t('artworks.editTitle')" width="520px" destroy-on-close>
-      <el-form :model="editForm" label-position="top">
-        <el-form-item :label="$t('artworks.editTitleLabel')">
-          <el-input v-model="editForm.title" maxlength="100" show-word-limit />
-        </el-form-item>
-        <el-form-item :label="$t('artworks.editDescLabel')">
-          <el-input
-            v-model="editForm.description" type="textarea" :rows="4"
-            :placeholder="$t('artworks.editDescPlaceholder')" maxlength="2000" show-word-limit
-          />
-        </el-form-item>
-        <el-form-item :label="$t('artworks.editTagsLabel')">
-          <el-select
-            v-model="editForm.sizeIds" multiple clearable
-            :placeholder="$t('artworks.editTagsEmptyHint')" style="width: 100%"
-          >
-            <el-option v-for="opt in sizeOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-          </el-select>
-          <p class="edit-hint">{{ $t('artworks.editTagsHint') }}</p>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="editSaving" @click="saveArtworkEdit">{{ $t('common.save') }}</el-button>
-      </template>
-    </el-dialog>
-  </ArtistLayout>
+  <!-- 作品网格（F7: 只显示非主图；去重后为空则兜底显示全部） -->
+  <div class="artwork-grid" v-loading="loading">
+    <div
+      v-for="art in gridArtworks" :key="art.id"
+      class="artwork-item"
+      :class="{ 'artwork-item--selected': manageMode && selectedIds.has(art.id) }"
+    >
+      <el-image
+        :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
+        :alt="art.title || $t('artworks.image')"
+        :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
+        :initial-index="artworks.indexOf(art)"
+        preview-teleported
+      />
+      <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
+      <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">
+        <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
+          <span v-if="selectedIds.has(art.id)">✓</span>
+        </span>
+      </div>
+      <!-- 普通模式：单条删除（悬停显示） -->
+      <div v-else class="artwork-actions">
+        <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
+        <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
+        <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
+      </div>
+      <!-- REQ-017: 封面星标（常驻右上角，不依赖 hover） -->
+      <button
+        class="artwork-cover-star"
+        :class="{ 'artwork-cover-star--on': art.is_cover }"
+        :disabled="coverBusyId === art.id"
+        :title="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
+        @click="toggleCover(art)"
+      >
+        {{ art.is_cover ? '★' : '☆' }}
+      </button>
+      <!-- REQ-017: 封面标签 + cover_order 序号（多封面时显示顺序） -->
+      <span v-if="art.is_cover" class="artwork-cover-tag">
+        {{ $t('artworks.coverTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
+      </span>
+      <!-- v0.31: 多封面排序按钮（≥2 张封面时显示，调整轮播顺序） -->
+      <div v-if="art.is_cover && coverCount > 1" class="artwork-cover-reorder">
+        <button
+          class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
+          :title="$t('artworks.coverMoveUp')"
+          @click.stop="moveCover(art, -1)"
+        >
+          ↑
+        </button>
+        <button
+          class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
+          :title="$t('artworks.coverMoveDown')"
+          @click.stop="moveCover(art, 1)"
+        >
+          ↓
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- v0.42 Step 6: 分页器（>20 张时显示；封面置顶在后端排序已保证，前端勿重排） -->
+  <el-pagination
+    v-if="total > pageSize"
+    :current-page="page"
+    :page-size="pageSize"
+    :total="total"
+    layout="prev, pager, next"
+    @current-change="onPageChange"
+    style="margin-top: 16px; justify-content: center;"
+  />
+
+  <el-empty v-if="!loading && artworks.length === 0" :description="$t('artworks.empty')" />
+
+  <!-- R45: 批量操作栏（多选模式下固定底部） -->
+  <div v-if="manageMode" class="batch-bar">
+    <span class="batch-count">{{ $t('artworks.selected', { n: selectedIds.size }) }}</span>
+    <el-button size="small" @click="toggleManageMode">{{ $t('common.cancel') }}</el-button>
+    <el-button size="small" type="danger" :disabled="selectedIds.size === 0" :loading="batchDeleting" @click="startBatchDelete">
+      {{ $t('common.delete') }}
+    </el-button>
+  </div>
+
+  <!-- R45/C59: 批量删除 ≥3 条用滑块确认 -->
+  <el-dialog v-model="slideDialogVisible" :title="$t('artworks.batchDeleteTitle')" width="400px" @closed="slideProgress = 0">
+    <p class="batch-slide-hint">{{ $t('artworks.batchDeleteConfirm', { n: selectedIds.size }) }}</p>
+    <div class="slide-confirm">
+      <div class="slide-confirm-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
+      <span class="slide-confirm-label">{{ $t('artworks.slideToDelete') }}</span>
+      <div
+        class="slide-confirm-thumb"
+        :style="{ left: `calc(2px + ${slideProgress} * (100% - 40px))` }"
+        @pointerdown="onSlideStart"
+        @pointermove="onSlideMove"
+        @pointerup="onSlideEnd"
+      >
+        →
+      </div>
+    </div>
+  </el-dialog>
+
+  <!-- v0.35 波3 (REQ-024 F6): 作品编辑弹窗 — 标题/自由描述/档位标注多选，保存即时 PUT -->
+  <el-dialog v-model="editDialogVisible" :title="$t('artworks.editTitle')" width="520px" destroy-on-close>
+    <el-form :model="editForm" label-position="top">
+      <el-form-item :label="$t('artworks.editTitleLabel')">
+        <el-input v-model="editForm.title" maxlength="100" show-word-limit />
+      </el-form-item>
+      <el-form-item :label="$t('artworks.editDescLabel')">
+        <el-input
+          v-model="editForm.description" type="textarea" :rows="4"
+          :placeholder="$t('artworks.editDescPlaceholder')" maxlength="2000" show-word-limit
+        />
+      </el-form-item>
+      <el-form-item :label="$t('artworks.editTagsLabel')">
+        <el-select
+          v-model="editForm.sizeIds" multiple clearable
+          :placeholder="$t('artworks.editTagsEmptyHint')" style="width: 100%"
+        >
+          <el-option v-for="opt in sizeOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+        </el-select>
+        <p class="edit-hint">{{ $t('artworks.editTagsHint') }}</p>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="editDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="editSaving" @click="saveArtworkEdit">{{ $t('common.save') }}</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -218,7 +216,6 @@ import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'

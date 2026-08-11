@@ -1,60 +1,58 @@
 <template>
-  <ArtistLayout>
-    <h2>{{ $t('queue.title') }}</h2>
-    <p class="hint">{{ $t('queue.hint') }}</p>
+  <h2>{{ $t('queue.title') }}</h2>
+  <p class="hint">{{ $t('queue.hint') }}</p>
 
-    <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
-    <div class="view-switch">
-      <SliderSwitch v-model="viewMode" :options="viewOptions" @change="saveViewMode" />
-    </div>
+  <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
+  <div class="view-switch">
+    <SliderSwitch v-model="viewMode" :options="viewOptions" @change="saveViewMode" />
+  </div>
 
-    <!-- ═══ 列表视图（拆 QueueBoardList，v0.41 瘦身批） ═══ -->
-    <QueueBoardList
-      v-if="viewMode === 'board'"
-      :queue="queue"
-      :focus-display="focusDisplay"
-      :active-tab="activeTab"
-      :loading="loading"
-      :buffer-queue="bufferQueue"
-      :buffer-loading="bufferLoading"
-      :completed-queue="completedQueue"
-      :completed-loading="completedLoading"
-      :refresh-now="refreshNow"
-      @update:queue="queue = $event"
-      @update:focus-display="onFocusDisplayChange"
-      @update:active-tab="activeTab = $event"
-      @drag-end="onDragEnd"
-      @open-deliver="openDeliverFor"
-      @refresh-queue="loadQueue"
-      @refresh-all="refreshAll"
-    />
+  <!-- ═══ 列表视图（拆 QueueBoardList，v0.41 瘦身批） ═══ -->
+  <QueueBoardList
+    v-if="viewMode === 'board'"
+    :queue="queue"
+    :focus-display="focusDisplay"
+    :active-tab="activeTab"
+    :loading="loading"
+    :buffer-queue="bufferQueue"
+    :buffer-loading="bufferLoading"
+    :completed-queue="completedQueue"
+    :completed-loading="completedLoading"
+    :refresh-now="refreshNow"
+    @update:queue="queue = $event"
+    @update:focus-display="onFocusDisplayChange"
+    @update:active-tab="activeTab = $event"
+    @drag-end="onDragEnd"
+    @open-deliver="openDeliverFor"
+    @refresh-queue="loadQueue"
+    @refresh-all="refreshAll"
+  />
 
-    <!-- ═══ SPEC-005: 月历 / 时间条视图（拆 QueueBoardCalendar，v0.41 瘦身批） ═══ -->
-    <QueueBoardCalendar
-      v-else
-      :queue="queue"
-      :buffer-queue="bufferQueue"
-      :loading="loading"
-      :buffer-loading="bufferLoading"
-      :view-mode="viewMode"
-      @refresh-all="refreshAll"
-    />
-    <!-- 方案 B: 交付弹窗（看板直接弹，含无文件交付） -->
-    <DeliverDialog
-      v-if="deliverOrderId"
-      v-model="deliverDialogVisible"
-      :order-id="deliverOrderId"
-      @delivered="onDeliveredFromBoard"
-    />
-    <!-- REQ-037 C1: 拖拽排序成功撤销提示（5s 自动消失，UndoToast 组件） -->
-    <UndoToast
-      :visible="reorderToastVisible"
-      :message="$t('queue.reorderSuccess')"
-      :label="$t('queue.reorderUndo')"
-      @undo="undoReorder"
-      @timeout="reorderToastVisible = false"
-    />
-  </ArtistLayout>
+  <!-- ═══ SPEC-005: 月历 / 时间条视图（拆 QueueBoardCalendar，v0.41 瘦身批） ═══ -->
+  <QueueBoardCalendar
+    v-else
+    :queue="queue"
+    :buffer-queue="bufferQueue"
+    :loading="loading"
+    :buffer-loading="bufferLoading"
+    :view-mode="viewMode"
+    @refresh-all="refreshAll"
+  />
+  <!-- 方案 B: 交付弹窗（看板直接弹，含无文件交付） -->
+  <DeliverDialog
+    v-if="deliverOrderId"
+    v-model="deliverDialogVisible"
+    :order-id="deliverOrderId"
+    @delivered="onDeliveredFromBoard"
+  />
+  <!-- REQ-037 C1: 拖拽排序成功撤销提示（5s 自动消失，UndoToast 组件） -->
+  <UndoToast
+    :visible="reorderToastVisible"
+    :message="$t('queue.reorderSuccess')"
+    :label="$t('queue.reorderUndo')"
+    @undo="undoReorder"
+    @timeout="reorderToastVisible = false"
+  />
 </template>
 
 <script setup>
@@ -64,7 +62,6 @@ import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 import { subscribeReconnect } from '../../utils/reconnect.js'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import UndoToast from '../../components/artist/UndoToast.vue'
 import SliderSwitch from '../../components/artist/SliderSwitch.vue'

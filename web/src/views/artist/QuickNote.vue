@@ -1,50 +1,47 @@
 ﻿<template>
-  <ArtistLayout>
-    <div class="note-page">
-      <h2 class="od-page-title">{{ $t('note.title') }}</h2>
-      <p class="page-sub">{{ $t('note.subtitle') }}</p>
+  <div class="note-page">
+    <h2 class="od-page-title">{{ $t('note.title') }}</h2>
+    <p class="page-sub">{{ $t('note.subtitle') }}</p>
 
-      <!-- 新增表单 -->
-      <div class="note-form">
-        <input
-          v-model="newTitle" type="text" class="note-input"
-          :placeholder="$t('note.titlePlaceholder')" maxlength="40"
-        />
-        <textarea
-          v-model="newContent" class="note-textarea" rows="3"
-          :placeholder="$t('note.contentPlaceholder')" maxlength="1000"
-        ></textarea>
-        <div class="note-form-actions">
-          <el-button type="primary" :disabled="!newContent.trim()" @click="addNote">
-            {{ $t('note.add') }}
-          </el-button>
-        </div>
-      </div>
-
-      <!-- 条目列表 -->
-      <div v-if="notes.length === 0" class="note-empty">{{ $t('note.empty') }}</div>
-      <div v-else class="note-list">
-        <div v-for="n in notes" :key="n.id" class="note-item">
-          <div class="note-item-head">
-            <span class="note-item-title">{{ n.title || $t('note.untitled') }}</span>
-            <div class="note-item-actions">
-              <button type="button" class="note-mini-btn" @click="copyNote(n)">{{ $t('note.copy') }}</button>
-              <button type="button" class="note-mini-btn" @click="removeNote(n.id)">{{ $t('note.delete') }}</button>
-            </div>
-          </div>
-          <p class="note-item-content">{{ n.content }}</p>
-          <span class="note-item-time">{{ n.time }}</span>
-        </div>
+    <!-- 新增表单 -->
+    <div class="note-form">
+      <input
+        v-model="newTitle" type="text" class="note-input"
+        :placeholder="$t('note.titlePlaceholder')" maxlength="40"
+      />
+      <textarea
+        v-model="newContent" class="note-textarea" rows="3"
+        :placeholder="$t('note.contentPlaceholder')" maxlength="1000"
+      ></textarea>
+      <div class="note-form-actions">
+        <el-button type="primary" :disabled="!newContent.trim()" @click="addNote">
+          {{ $t('note.add') }}
+        </el-button>
       </div>
     </div>
-  </ArtistLayout>
+
+    <!-- 条目列表 -->
+    <div v-if="notes.length === 0" class="note-empty">{{ $t('note.empty') }}</div>
+    <div v-else class="note-list">
+      <div v-for="n in notes" :key="n.id" class="note-item">
+        <div class="note-item-head">
+          <span class="note-item-title">{{ n.title || $t('note.untitled') }}</span>
+          <div class="note-item-actions">
+            <button type="button" class="note-mini-btn" @click="copyNote(n)">{{ $t('note.copy') }}</button>
+            <button type="button" class="note-mini-btn" @click="removeNote(n.id)">{{ $t('note.delete') }}</button>
+          </div>
+        </div>
+        <p class="note-item-content">{{ n.content }}</p>
+        <span class="note-item-time">{{ n.time }}</span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
 const { t } = useI18n()

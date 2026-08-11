@@ -1,74 +1,71 @@
 ﻿<template>
-  <ArtistLayout>
-    <div class="tools-export-page">
-      <h2 class="od-page-title">{{ $t('toolsExport.title') }}</h2>
-      <p class="tools-export-sub">{{ $t('toolsExport.subtitle') }}</p>
+  <div class="tools-export-page">
+    <h2 class="od-page-title">{{ $t('toolsExport.title') }}</h2>
+    <p class="tools-export-sub">{{ $t('toolsExport.subtitle') }}</p>
 
-      <!-- 导出区：日期范围 + 导出按钮 -->
-      <div class="export-panel">
-        <el-form label-position="top" @submit.prevent="doExport">
-          <el-form-item :label="$t('toolsExport.rangeLabel')" required>
-            <el-date-picker
-              v-model="range"
-              type="daterange"
-              range-separator="—"
-              :start-placeholder="$t('toolsExport.startPlaceholder')"
-              :end-placeholder="$t('toolsExport.endPlaceholder')"
-              value-format="YYYY-MM-DD"
-              :clearable="false"
-              style="width: 100%"
-            />
-          </el-form-item>
-          <el-button
-            type="primary"
-            :loading="exporting"
-            :disabled="!range?.length"
-            @click="doExport"
-          >
-            {{ $t('toolsExport.exportBtn') }}
-          </el-button>
-        </el-form>
-
-        <!-- 收入概览区（日期范围选好后自动加载；订单/总收入待后端区间汇总端点） -->
-        <div class="income-overview" v-if="overview || overviewLoading">
-          <div class="income-overview-head">
-            <h3 class="income-overview-title">{{ $t('toolsExport.incomeOverview') }}</h3>
-            <span v-if="overviewLoading" class="income-overview-loading">{{ $t('toolsExport.incomeLoading') }}</span>
-          </div>
-          <div class="income-grid" v-if="overview">
-            <!-- 05D-E2: 订单收入/总收入两格无后端区间汇总端点，隐藏占位（保留 incomeNote 说明；后端端点预留不动） -->
-            <div class="income-cell">
-              <span class="income-label">{{ $t('toolsExport.incomeStandalone') }}</span>
-              <span class="income-value income-standalone">{{ formatYuan(overview.standaloneCents) }}</span>
-            </div>
-            <div class="income-cell">
-              <span class="income-label">{{ $t('toolsExport.incomeCount') }}</span>
-              <span class="income-value">{{ overview.standaloneCount }}{{ $t('toolsExport.incomeCountUnit') }}</span>
-            </div>
-          </div>
-          <p class="income-overview-note">{{ $t('toolsExport.incomeNote') }}</p>
-        </div>
-
-        <!-- 空数据提示（后端空 CSV 仅表头 → 前端检测行数） -->
-        <el-alert
-          v-if="emptyHint"
-          type="info"
-          :closable="false"
-          show-icon
-          class="export-empty-hint"
+    <!-- 导出区：日期范围 + 导出按钮 -->
+    <div class="export-panel">
+      <el-form label-position="top" @submit.prevent="doExport">
+        <el-form-item :label="$t('toolsExport.rangeLabel')" required>
+          <el-date-picker
+            v-model="range"
+            type="daterange"
+            range-separator="—"
+            :start-placeholder="$t('toolsExport.startPlaceholder')"
+            :end-placeholder="$t('toolsExport.endPlaceholder')"
+            value-format="YYYY-MM-DD"
+            :clearable="false"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-button
+          type="primary"
+          :loading="exporting"
+          :disabled="!range?.length"
+          @click="doExport"
         >
-          {{ $t('toolsExport.emptyHint') }}
-        </el-alert>
+          {{ $t('toolsExport.exportBtn') }}
+        </el-button>
+      </el-form>
 
-        <p class="tools-export-note">{{ $t('toolsExport.note') }}</p>
+      <!-- 收入概览区（日期范围选好后自动加载；订单/总收入待后端区间汇总端点） -->
+      <div class="income-overview" v-if="overview || overviewLoading">
+        <div class="income-overview-head">
+          <h3 class="income-overview-title">{{ $t('toolsExport.incomeOverview') }}</h3>
+          <span v-if="overviewLoading" class="income-overview-loading">{{ $t('toolsExport.incomeLoading') }}</span>
+        </div>
+        <div class="income-grid" v-if="overview">
+          <!-- 05D-E2: 订单收入/总收入两格无后端区间汇总端点，隐藏占位（保留 incomeNote 说明；后端端点预留不动） -->
+          <div class="income-cell">
+            <span class="income-label">{{ $t('toolsExport.incomeStandalone') }}</span>
+            <span class="income-value income-standalone">{{ formatYuan(overview.standaloneCents) }}</span>
+          </div>
+          <div class="income-cell">
+            <span class="income-label">{{ $t('toolsExport.incomeCount') }}</span>
+            <span class="income-value">{{ overview.standaloneCount }}{{ $t('toolsExport.incomeCountUnit') }}</span>
+          </div>
+        </div>
+        <p class="income-overview-note">{{ $t('toolsExport.incomeNote') }}</p>
       </div>
+
+      <!-- 空数据提示（后端空 CSV 仅表头 → 前端检测行数） -->
+      <el-alert
+        v-if="emptyHint"
+        type="info"
+        :closable="false"
+        show-icon
+        class="export-empty-hint"
+      >
+        {{ $t('toolsExport.emptyHint') }}
+      </el-alert>
+
+      <p class="tools-export-note">{{ $t('toolsExport.note') }}</p>
     </div>
-  </ArtistLayout>
+  </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'

@@ -19,45 +19,55 @@ const routes = [
 
   // ─── 画师后台 ───
   { path: '/login', name: 'ArtistLogin', component: () => import('../views/artist/Login.vue'), meta: { titleKey: 'pageTitle.login' } },
-  { path: '/dashboard', name: 'ArtistDashboard', component: () => import('../views/artist/Dashboard.vue'), meta: { titleKey: 'menu.dashboard', requiresAuth: true } },
-  { path: '/queue', name: 'ArtistQueue', component: () => import('../views/artist/QueueBoard.vue'), meta: { titleKey: 'menu.queue', requiresAuth: true } },
-  { path: '/orders', name: 'ArtistOrders', component: () => import('../views/artist/OrderList.vue'), meta: { titleKey: 'menu.orders', requiresAuth: true } },
-  { path: '/orders/new', name: 'ArtistManualOrder', component: () => import('../views/artist/ManualOrder.vue'), meta: { titleKey: 'menu.manualOrder', requiresAuth: true } },
-  { path: '/orders/:id', name: 'ArtistOrderDetail', component: () => import('../views/artist/OrderDetail.vue'), meta: { titleKey: 'common.detail', requiresAuth: true } },
+  // ─── 画师后台（REQ-037 批2 A1: 嵌套路由——ArtistLayout 经 ArtistLayoutRoute 载体全会话只挂载一次，
+  //     消除切页骨架重挂与 getMe/留言角标重复请求；路由 name/meta 逐字保留） ───
+  {
+    path: '/',
+    component: () => import('../components/ArtistLayoutRoute.vue'),
+    children: [
+      { path: 'dashboard', name: 'ArtistDashboard', component: () => import('../views/artist/Dashboard.vue'), meta: { titleKey: 'menu.dashboard', requiresAuth: true } },
+      { path: 'queue', name: 'ArtistQueue', component: () => import('../views/artist/QueueBoard.vue'), meta: { titleKey: 'menu.queue', requiresAuth: true } },
+      { path: 'orders', name: 'ArtistOrders', component: () => import('../views/artist/OrderList.vue'), meta: { titleKey: 'menu.orders', requiresAuth: true } },
+      { path: 'orders/new', name: 'ArtistManualOrder', component: () => import('../views/artist/ManualOrder.vue'), meta: { titleKey: 'menu.manualOrder', requiresAuth: true } },
+      { path: 'orders/:id', name: 'ArtistOrderDetail', component: () => import('../views/artist/OrderDetail.vue'), meta: { titleKey: 'common.detail', requiresAuth: true } },
+      { path: 'settings', name: 'ArtistSettings', component: () => import('../views/artist/Settings.vue'), meta: { titleKey: 'menu.settings', requiresAuth: true } },
+      // #44: 偏好独立页面（从主页设置拆出，主页对外/偏好对内）
+      { path: 'preferences', name: 'ArtistPreferences', component: () => import('../views/artist/Preferences.vue'), meta: { titleKey: 'menu.preferences', requiresAuth: true } },
+      // REQ-035 批D: 今天吃什么（工具页）
+      { path: 'tools/food', name: 'ArtistFoodMenu', component: () => import('../views/artist/FoodMenu.vue'), meta: { titleKey: 'menu.foodMenu', requiresAuth: true } },
+      // REQ-035 批D: 图片水印（工具页）
+      { path: 'tools/watermark', name: 'ArtistWatermark', component: () => import('../views/artist/Watermark.vue'), meta: { titleKey: 'menu.watermark', requiresAuth: true } },
+      // REQ-031 A1: 收入导出 CSV（工具页）
+      { path: 'tools/export', name: 'ArtistToolsExport', component: () => import('../views/artist/ToolsExport.vue'), meta: { titleKey: 'menu.toolsExport', requiresAuth: true } },
+      // REQ-035 批C: 散单记账（工具页）
+      { path: 'tools/income', name: 'ArtistStandaloneIncome', component: () => import('../views/artist/StandaloneIncome.vue'), meta: { titleKey: 'menu.standaloneIncome', requiresAuth: true } },
+      // REQ-035 批E: 进度对比拼图（工具页）
+      { path: 'tools/puzzle', name: 'ArtistPuzzlePage', component: () => import('../views/artist/PuzzlePage.vue'), meta: { titleKey: 'menu.puzzle', requiresAuth: true } },
+      // REQ-035 批E: 排期公示（工具页）
+      { path: 'tools/schedule', name: 'ArtistScheduleSharePage', component: () => import('../views/artist/ScheduleSharePage.vue'), meta: { titleKey: 'menu.scheduleShare', requiresAuth: true } },
+      { path: 'tools/clients', name: 'ArtistClientsPage', component: () => import('../views/artist/ClientsPage.vue'), meta: { titleKey: 'menu.clientTags', requiresAuth: true } },
+      { path: 'tools/returning', name: 'ArtistReturningClients', component: () => import('../views/artist/ReturningClients.vue'), meta: { titleKey: 'menu.returningClients', requiresAuth: true } },
+      // REQ-035 工具集后置: 稿价计算器（工具页）
+      { path: 'tools/price-calc', name: 'ArtistPriceCalculator', component: () => import('../views/artist/PriceCalculator.vue'), meta: { titleKey: 'menu.priceCalc', requiresAuth: true } },
+      // REQ-035 工具集后置: 社恐轻松回复（工具页）
+      { path: 'tools/reply', name: 'ArtistSocialReply', component: () => import('../views/artist/SocialReply.vue'), meta: { titleKey: 'menu.socialReply', requiresAuth: true } },
+      // REQ-035 工具集后置: 速记剪切板（工具页）
+      { path: 'tools/note', name: 'ArtistQuickNote', component: () => import('../views/artist/QuickNote.vue'), meta: { titleKey: 'menu.quickNote', requiresAuth: true } },
+      // REQ-035 工具集后置: 截稿日建议（工具页）
+      { path: 'tools/deadline', name: 'ArtistDeadlineAdvice', component: () => import('../views/artist/DeadlineAdvice.vue'), meta: { titleKey: 'menu.deadlineAdvice', requiresAuth: true } },
+      { path: 'stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
+      { path: 'artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
+      // #1: 留言管理独立页面（v0.24-C）
+      { path: 'guestbook', name: 'ArtistGuestbook', component: () => import('../views/artist/GuestbookManage.vue'), meta: { titleKey: 'menu.guestbook', requiresAuth: true } },
+      // v0.26 C: 开稿管理独立页（名额/额度/队列行为，从设置页移出）
+      { path: 'slots', name: 'ArtistSlots', component: () => import('../views/artist/SlotManage.vue'), meta: { titleKey: 'menu.slots', requiresAuth: true } }
+    ]
+  },
   // REQ-015: 旧手动录单链接重定向到新独立页面（不断链）
   { path: '/manual-order', redirect: '/orders/new' },
-  { path: '/settings', name: 'ArtistSettings', component: () => import('../views/artist/Settings.vue'), meta: { titleKey: 'menu.settings', requiresAuth: true } },
-  // #44: 偏好独立页面（从主页设置拆出，主页对外/偏好对内）
-  { path: '/preferences', name: 'ArtistPreferences', component: () => import('../views/artist/Preferences.vue'), meta: { titleKey: 'menu.preferences', requiresAuth: true } },
-  // REQ-035 批D: 今天吃什么（工具页）
-  { path: '/tools/food', name: 'ArtistFoodMenu', component: () => import('../views/artist/FoodMenu.vue'), meta: { titleKey: 'menu.foodMenu', requiresAuth: true } },
-  // REQ-035 批D: 图片水印（工具页）
-  { path: '/tools/watermark', name: 'ArtistWatermark', component: () => import('../views/artist/Watermark.vue'), meta: { titleKey: 'menu.watermark', requiresAuth: true } },
-  // REQ-031 A1: 收入导出 CSV（工具页）
-  { path: '/tools/export', name: 'ArtistToolsExport', component: () => import('../views/artist/ToolsExport.vue'), meta: { titleKey: 'menu.toolsExport', requiresAuth: true } },
-  // REQ-035 批C: 散单记账（工具页）
-  { path: '/tools/income', name: 'ArtistStandaloneIncome', component: () => import('../views/artist/StandaloneIncome.vue'), meta: { titleKey: 'menu.standaloneIncome', requiresAuth: true } },
-  // REQ-035 批E: 进度对比拼图（工具页）
-  { path: '/tools/puzzle', name: 'ArtistPuzzlePage', component: () => import('../views/artist/PuzzlePage.vue'), meta: { titleKey: 'menu.puzzle', requiresAuth: true } },
-  // REQ-035 批E: 排期公示（工具页）
-  { path: '/tools/schedule', name: 'ArtistScheduleSharePage', component: () => import('../views/artist/ScheduleSharePage.vue'), meta: { titleKey: 'menu.scheduleShare', requiresAuth: true } },
-  { path: '/tools/clients', name: 'ArtistClientsPage', component: () => import('../views/artist/ClientsPage.vue'), meta: { titleKey: 'menu.clientTags', requiresAuth: true } },
-  { path: '/tools/returning', name: 'ArtistReturningClients', component: () => import('../views/artist/ReturningClients.vue'), meta: { titleKey: 'menu.returningClients', requiresAuth: true } },
-  // REQ-035 工具集后置: 稿价计算器（工具页）
-  { path: '/tools/price-calc', name: 'ArtistPriceCalculator', component: () => import('../views/artist/PriceCalculator.vue'), meta: { titleKey: 'menu.priceCalc', requiresAuth: true } },
-  // REQ-035 工具集后置: 社恐轻松回复（工具页）
-  { path: '/tools/reply', name: 'ArtistSocialReply', component: () => import('../views/artist/SocialReply.vue'), meta: { titleKey: 'menu.socialReply', requiresAuth: true } },
-  // REQ-035 工具集后置: 速记剪切板（工具页）
-  { path: '/tools/note', name: 'ArtistQuickNote', component: () => import('../views/artist/QuickNote.vue'), meta: { titleKey: 'menu.quickNote', requiresAuth: true } },
-  // REQ-035 工具集后置: 截稿日建议（工具页）
-  { path: '/tools/deadline', name: 'ArtistDeadlineAdvice', component: () => import('../views/artist/DeadlineAdvice.vue'), meta: { titleKey: 'menu.deadlineAdvice', requiresAuth: true } },
-  { path: '/stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
+  // REQ-036 冻结区：/tiers 保持 flat（TierManage 内嵌自己的 ArtistLayout；嵌套化会双层布局）——
+  // 已知代价：/tiers 与其他后台页互切时布局重挂一次，待 REQ-036 收官后再归入嵌套
   { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
-  { path: '/artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
-  // #1: 留言管理独立页面（v0.24-C）
-  { path: '/guestbook', name: 'ArtistGuestbook', component: () => import('../views/artist/GuestbookManage.vue'), meta: { titleKey: 'menu.guestbook', requiresAuth: true } },
-  // v0.26 C: 开稿管理独立页（名额/额度/队列行为，从设置页移出）
-  { path: '/slots', name: 'ArtistSlots', component: () => import('../views/artist/SlotManage.vue'), meta: { titleKey: 'menu.slots', requiresAuth: true } },
   // R42b: 须知编辑合并进设置页（旧链接重定向，不 404）
   // REQ-016 A: 须知并入「主页展示」tab（showcase）
   { path: '/rules', redirect: '/settings?tab=showcase' },

@@ -1,56 +1,53 @@
 <template>
-  <ArtistLayout>
-    <div class="food-menu-page">
-      <h2 class="od-page-title">{{ $t('foodMenu.title') }}</h2>
-      <p class="food-menu-sub">{{ $t('foodMenu.subtitle') }}</p>
+  <div class="food-menu-page">
+    <h2 class="od-page-title">{{ $t('foodMenu.title') }}</h2>
+    <p class="food-menu-sub">{{ $t('foodMenu.subtitle') }}</p>
 
-      <!-- 四大类模式选择（REQ-035 四A：健康版/糖尿病版/痛风版/外卖版） -->
-      <div class="food-modes" role="radiogroup" :aria-label="$t('foodMenu.title')">
-        <button
-          v-for="mode in MODES"
-          :key="mode"
-          type="button"
-          class="food-mode"
-          :class="{ 'food-mode--active': currentMode === mode }"
-          role="radio"
-          :aria-checked="currentMode === mode"
-          @click="selectMode(mode)"
-        >
-          {{ $t('foodMenu.modes.' + mode) }}
-        </button>
-      </div>
-
-      <!-- 免责提示：糖尿病/痛风版固定显示 -->
-      <p v-if="showDisclaimer" class="food-disclaimer">{{ $t('foodMenu.disclaimer') }}</p>
-
-      <!-- 随机推荐 / 换一个（同按钮，有结果时文案切换） -->
-      <div class="food-actions">
-        <el-button type="primary" @click="pickRandom">
-          {{ $t(current ? 'foodMenu.again' : 'foodMenu.pick') }}
-        </el-button>
-      </div>
-
-      <!-- 结果卡片（随机推荐后展示） -->
-      <div v-if="current" class="food-card">
-        <div class="food-card-head">
-          <span class="food-card-name">{{ current.name }}</span>
-          <span class="food-card-mode">{{ $t('foodMenu.modes.' + currentMode) }}</span>
-        </div>
-        <div class="food-card-tags">
-          <span v-for="tag in current.tags" :key="tag" class="food-tag">{{ $t('foodMenu.modes.' + tag) }}</span>
-        </div>
-        <p class="food-card-note">{{ current.note }}</p>
-      </div>
-
-      <!-- 初始空态引导 -->
-      <div v-else class="food-empty">{{ $t('foodMenu.emptyHint') }}</div>
+    <!-- 四大类模式选择（REQ-035 四A：健康版/糖尿病版/痛风版/外卖版） -->
+    <div class="food-modes" role="radiogroup" :aria-label="$t('foodMenu.title')">
+      <button
+        v-for="mode in MODES"
+        :key="mode"
+        type="button"
+        class="food-mode"
+        :class="{ 'food-mode--active': currentMode === mode }"
+        role="radio"
+        :aria-checked="currentMode === mode"
+        @click="selectMode(mode)"
+      >
+        {{ $t('foodMenu.modes.' + mode) }}
+      </button>
     </div>
-  </ArtistLayout>
+
+    <!-- 免责提示：糖尿病/痛风版固定显示 -->
+    <p v-if="showDisclaimer" class="food-disclaimer">{{ $t('foodMenu.disclaimer') }}</p>
+
+    <!-- 随机推荐 / 换一个（同按钮，有结果时文案切换） -->
+    <div class="food-actions">
+      <el-button type="primary" @click="pickRandom">
+        {{ $t(current ? 'foodMenu.again' : 'foodMenu.pick') }}
+      </el-button>
+    </div>
+
+    <!-- 结果卡片（随机推荐后展示） -->
+    <div v-if="current" class="food-card">
+      <div class="food-card-head">
+        <span class="food-card-name">{{ current.name }}</span>
+        <span class="food-card-mode">{{ $t('foodMenu.modes.' + currentMode) }}</span>
+      </div>
+      <div class="food-card-tags">
+        <span v-for="tag in current.tags" :key="tag" class="food-tag">{{ $t('foodMenu.modes.' + tag) }}</span>
+      </div>
+      <p class="food-card-note">{{ current.note }}</p>
+    </div>
+
+    <!-- 初始空态引导 -->
+    <div v-else class="food-empty">{{ $t('foodMenu.emptyHint') }}</div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import ArtistLayout from '../../components/ArtistLayout.vue'
 import { FOOD_MENU, FOOD_CATEGORIES } from '../../utils/food-menu.js'
 
 // REQ-035 四A: 四大类 key（顺序 = 页面展示顺序，与 FOOD_CATEGORIES 对齐）
