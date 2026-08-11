@@ -818,6 +818,7 @@ export default {
     guestbookApprove: 'Approve', guestbookReject: 'Reject', guestbookReply: 'Reply',
     guestbookReplyPlaceholder: 'Reply to this visitor (≤500 chars)', guestbookReplySave: 'Save reply',
     guestbookApprovedMsg: 'Message approved', guestbookRejectedMsg: 'Message rejected', guestbookRepliedMsg: 'Reply saved',
+    guestbookError: 'Failed to load guestbook messages',
     // R52: today stats
     todayNewOrders: 'New orders today', todayRevenue: 'Revenue today',
     // R51: deadlines + today's todos
@@ -1522,3 +1523,4 @@ export default {
     }
   }
 }
+
