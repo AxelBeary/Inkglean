@@ -384,3 +384,12 @@ html[data-artist-theme] {
     --zs 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
     --sl 0.55s cubic-bezier(0.45, 0.05, 0.25, 1);
 }
+
+
+/* ═══ REQ-037 批4a A3: 键盘焦点环（focus-visible 定点清单——自研可点元素；EP 内部控件不碰） ═══ */
+html[data-artist-theme] .artist-scope a:focus-visible,
+html[data-artist-theme] .artist-scope button:focus-visible,
+html[data-artist-theme] .artist-scope [tabindex]:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: 2px;
+}
