@@ -99,6 +99,7 @@
                 v-model:client-name="form.clientName"
                 v-model:notify-enabled="form.notifyEnabled"
                 v-model:agreed="form.agreed"
+                v-model:terms-agreed="form.termsAgreed"
                 :notify-visible="!!artist?.notifyEnabled"
                 :has-rules="!!rulesContent"
                 :sanitized-rules="sanitizedRules"

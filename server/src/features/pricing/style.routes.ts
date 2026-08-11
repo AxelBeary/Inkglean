@@ -322,7 +322,7 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     guardRateLimit(`styles:${request.ip}`, 30, 5 * 60_000)
 
     const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    if (!artist || artist.status === 'hidden' || artist.is_banned) throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicStyles(artist.id)
   })
@@ -336,7 +336,7 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     guardRateLimit(`gallery:${request.ip}`, 30, 5 * 60_000)
 
     const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.status === 'hidden') throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    if (!artist || artist.status === 'hidden' || artist.is_banned) throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicGallery(artist.id)
   })

@@ -24,6 +24,8 @@ export const E = {
   SESSION_EXPIRED: 'SESSION_EXPIRED',
   ACCOUNT_NOT_FOUND: 'ACCOUNT_NOT_FOUND',
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
+  // REQ-042: 画师封禁独立态（登录拒绝）
+  ARTIST_BANNED: 'ARTIST_BANNED',
   TOKEN_REVOKED: 'TOKEN_REVOKED',
   ADMIN_REQUIRED: 'ADMIN_REQUIRED',
   // F-9（审计批F）: 旧登录码时代错误码 CODE_INVALID / CODE_EXPIRED / CODE_TOO_MANY_ATTEMPTS
@@ -257,6 +259,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   SESSION_EXPIRED: '登录已过期，请重新登录',
   ACCOUNT_NOT_FOUND: '账号不存在',
   ACCOUNT_DISABLED: '账号已被禁用',
+  ARTIST_BANNED: '账号已被封禁，如有疑问请联系管理员',
   TOKEN_REVOKED: '登录已失效，请重新登录',
   ADMIN_REQUIRED: '需要管理员权限',
   // F-9（审计批F）: 旧登录码时代错误码已退役删除（见 E 枚举同注释）

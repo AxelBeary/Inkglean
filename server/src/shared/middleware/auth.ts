@@ -52,6 +52,11 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
     return reply.code(401).send({ code: 'ACCOUNT_DISABLED', error: '账号已被停用' })
   }
 
+  // REQ-042: 封禁画师 token 立即失效（含已登录会话）
+  if (artist.is_banned) {
+    return reply.code(401).send({ code: 'ARTIST_BANNED', error: '账号已被封禁，如有疑问请联系管理员' })
+  }
+
   if (artist.token_version && session.v !== artist.token_version) {
     return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
   }
@@ -80,6 +85,11 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
 
   if (artist.deleted_at) {
     return reply.code(401).send({ code: 'ACCOUNT_DISABLED', error: '账号已被停用' })
+  }
+
+  // REQ-042: 防御性兜底（管理端封禁接口已禁止封管理员；此处双保险）
+  if (artist.is_banned) {
+    return reply.code(401).send({ code: 'ARTIST_BANNED', error: '账号已被封禁，如有疑问请联系管理员' })
   }
 
   if (artist.token_version && session.v !== artist.token_version) {

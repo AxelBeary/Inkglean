@@ -25,6 +25,9 @@ test('E1 客户下单完整流程', async ({ page }) => {
   await page.getByPlaceholder('画师会通过QQ联系你').fill('99999')
   // 勾选须知（Alice 有须知内容）
   await page.getByText('我已阅读并同意以上约稿须知').click() // locator-ok: agreeLabel 唯一（校验错误提示是「请勾选…」不同文案）
+  // REQ-042: 首单须勾选服务条款/隐私政策（新门禁，未勾不可提交）
+  // 点视觉方框而非标签文本（标签内含 router-link，点击链接会跳页）
+  await page.locator('.el-checkbox', { hasText: '隐私政策' }).locator('.el-checkbox__inner').click()
   await page.getByRole('button', { name: /提交约稿/ }).click()
 
   // ── 小票确认（CSS 类选择器，语言无关） ──

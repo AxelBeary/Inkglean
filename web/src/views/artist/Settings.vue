@@ -309,12 +309,16 @@ async function save() {
         }
         links.push({ url: res.url })
       }
-      await artistApi.updateProfile({
+      const res = await artistApi.updateProfile({
         customLinks: links,
         inspirationTags: form.inspirationTags.map(tag => tag.trim()).filter(Boolean),
         announcement: form.announcement.trim() || null,
         announcementExpiresAt: form.announcementExpiresAt || null
       })
+      // REQ-042: 主页公告命中敏感词 → 提示（不硬拦，先发后审）
+      if (res?.warning?.sensitiveWords?.length) {
+        ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+      }
     } else {
       await artistApi.updateProfile({
         name: form.name.trim(),

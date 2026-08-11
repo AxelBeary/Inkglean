@@ -296,6 +296,10 @@ export async function verifyLogin(
   if (!artist || artist.deleted_at) {
     throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
   }
+  // REQ-042: Passkey 登录同样拦截封禁画师（明确错误码，前端可读）
+  if (artist.is_banned) {
+    throw new AppError(E.ARTIST_BANNED, 403)
+  }
 
   // 验证认证响应
   const verificationOpts: VerifyAuthenticationResponseOpts = {

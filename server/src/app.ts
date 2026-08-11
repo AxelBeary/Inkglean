@@ -351,6 +351,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(import('./features/pricing/style.routes.js'))
   await app.register(import('./features/guestbook/guestbook.routes.js'))
   await app.register(import('./features/tracking/tracking.routes.js'))
+  await app.register(import('./features/compliance/compliance.routes.js'))  // REQ-042: 合规与内容安全
 
   // ─── 健康检查 ───
   app.get('/api/health', async (_request, reply) => {

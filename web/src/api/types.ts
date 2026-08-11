@@ -185,9 +185,14 @@ export interface Artwork {
 /** 画师端作品行（附带档位标注 ID） */
 export type ArtworkWithTags = Artwork & { size_tag_ids: number[] }
 
+/** REQ-042: 作品写路径回显（创建/编辑命中敏感词时附 warning） */
+export type ArtworkWithWarning = Artwork & { warning?: SensitiveWarning }
+
 /** POST /artist/orders/:id/publish-artwork 响应（201） */
 export interface PublishArtworkResult {
   artworks: Artwork[]
+  /** REQ-042: 敏感词命中提示（不硬拦，先发后审） */
+  warning?: SensitiveWarning
 }
 
 /** PUT /artist/artworks/:id/tags 响应 */
@@ -239,6 +244,8 @@ export interface PostMessageRequest {
 /** POST /public/artist/:subdomain/messages 响应（201） */
 export interface PostMessageResult {
   id: number | undefined
+  /** REQ-042: 敏感词命中提示（不硬拦，先发后审） */
+  warning?: SensitiveWarning
 }
 
 /** 画师/管理端留言行（snake_case 实体） */
@@ -1411,6 +1418,58 @@ export interface RebindConfirmResult {
   success: boolean
   message: string
 }
+
+// ─── REQ-042 合规与内容安全 ───
+
+/** 敏感词提示（作品/留言/主页公告命中；不硬拦） */
+export interface SensitiveWarning {
+  sensitiveWords: string[]
+}
+
+/** 举报目标类型 */
+export type ReportTargetType = 'artist_home' | 'artwork' | 'message' | 'other'
+
+/** POST /api/public/reports 请求体 */
+export interface SubmitReportRequest {
+  targetType: ReportTargetType
+  targetId?: number | null
+  description: string
+  contact?: string | null
+}
+
+/** POST /api/public/reports 响应（201） */
+export interface SubmitReportResult {
+  id: number | undefined
+}
+
+/** 举报行（管理端列表） */
+export interface ReportItem {
+  id: number
+  target_type: ReportTargetType
+  target_id: number | null
+  description: string
+  contact: string | null
+  status: 'pending' | 'resolved'
+  resolved_by: number | null
+  resolved_at: string | null
+  created_at: string
+}
+
+/** POST /api/admin/reports/:id/resolve 响应 */
+export interface ResolveReportResult {
+  success: boolean
+  report: ReportItem
+}
+
+/** POST /api/admin/content/:type/:id/remove 响应 */
+export interface RemoveContentResult {
+  success: boolean
+}
+
+/** POST /api/admin/artists/:id/ban | /unban 响应 */
+export interface BanArtistResult {
+  success: boolean
+  isBanned: 0 | 1}
 
 // ─── REQ-041: 管理后台二次验证（会话升级） ───
 

@@ -12,6 +12,9 @@ import { safeGetItem, safeSetItem } from '../utils/storage.js'
 const routes = [
   // ─── 客户端（公开） ───
   { path: '/', name: 'Landing', component: () => import('../views/client/LandingPage.vue'), meta: { titleKey: 'pageTitle.home' } },
+  // REQ-042: 合规静态页（隐私政策 / 服务条款，页脚可达）
+  { path: '/privacy', name: 'PrivacyPolicy', component: () => import('../views/client/LegalDoc.vue'), meta: { titleKey: 'compliance.privacy.pageTitle' } },
+  { path: '/terms', name: 'TermsOfService', component: () => import('../views/client/LegalDoc.vue'), meta: { titleKey: 'compliance.terms.pageTitle' } },
   { path: '/artist/:subdomain', name: 'ClientHome', component: () => import('../views/client/ArtistHome.vue'), meta: { titleKey: 'pageTitle.artistHome' } },
   { path: '/artist/:subdomain/order', name: 'ClientOrder', component: () => import('../views/client/OrderForm.vue'), meta: { titleKey: 'pageTitle.order' } },
   { path: '/artist/:subdomain/track', name: 'ClientTrack', component: () => import('../views/client/TrackOrder.vue'), meta: { titleKey: 'pageTitle.track' } },
@@ -93,7 +96,9 @@ const routes = [
       // HC: 系统自检
       { path: 'health', name: 'AdminHealthCheck', component: () => import('../views/admin/HealthCheck.vue'), meta: { titleKey: 'pageTitle.healthCheck', requiresAdmin: true } },
       // REQ-033 埋点看板
-      { path: 'analytics', name: 'AdminAnalytics', component: () => import('../views/admin/TrackingAnalytics.vue'), meta: { titleKey: 'admin.tracking.title', requiresAdmin: true } }
+      { path: 'analytics', name: 'AdminAnalytics', component: () => import('../views/admin/TrackingAnalytics.vue'), meta: { titleKey: 'admin.tracking.title', requiresAdmin: true } },
+      // REQ-042: 举报处理
+      { path: 'reports', name: 'AdminReports', component: () => import('../views/admin/ReportManage.vue'), meta: { titleKey: 'compliance.admin.reportManage', requiresAdmin: true } }
     ]
   },
 

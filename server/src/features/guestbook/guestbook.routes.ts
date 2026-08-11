@@ -1,6 +1,7 @@
 import { requireAuth, requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
+import { findSensitiveWords } from '../../shared/sensitive-words.js'
 import * as guestbookService from './guestbook.service.js'
 import * as artistService from '../artist/artist.service.js'
 import type { FastifyInstance } from 'fastify'
@@ -38,12 +39,16 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
-    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') {
+    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ error: '画师不存在' })
     }
     const body = request.body as { nickname: string; content: string; language?: string }
     const msg = guestbookService.createMessage(artist.id, body.nickname, body.content, body.language || 'zh-CN')
-    return reply.code(201).send({ id: msg?.id })
+    // REQ-042: 留言命中敏感词 → warning 提示（不硬拦，先发后审）
+    const sensitiveWords = findSensitiveWords(body.content)
+    return reply.code(201).send(
+      sensitiveWords.length ? { id: msg?.id, warning: { sensitiveWords } } : { id: msg?.id }
+    )
   })
 
   /** GET /api/public/artist/:subdomain/messages — 已审核留言（分页，v0.31: 可选 ?language= 过滤） */
@@ -53,7 +58,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
-    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden') {
+    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ error: '画师不存在' })
     }
     const query = request.query as { page?: string; pageSize?: string; language?: string }

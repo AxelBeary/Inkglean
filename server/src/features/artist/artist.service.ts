@@ -65,7 +65,7 @@ function readAdminQq(): string {
  */
 export function requireVisibleArtist(subdomain: string): Artist {
   const artist = getArtistBySubdomain(subdomain)
-  if (!artist || artist.qq_number === readAdminQq() || (artist as Artist).status === 'hidden') {
+  if (!artist || artist.qq_number === readAdminQq() || (artist as Artist).status === 'hidden' || artist.is_banned) {
     throw new AppError(E.ARTIST_NOT_FOUND, 404)
   }
   return artist
@@ -92,7 +92,7 @@ export function getAllArtists(): Artist[] {
            order_template_id, inspiration_tags, batch_limit, buffer_limit, auto_promote,
            hide_queue_position, hide_promote_notify, buffer_short_form, announcement,
            announcement_expires_at, monthly_quota, quick_actions, discount_enabled,
-           multi_style_enabled, totp_verified
+           multi_style_enabled, totp_verified, is_banned
     FROM artists WHERE deleted_at IS NULL AND subdomain != 'system' ORDER BY created_at ASC
   `).all() as Artist[]
 }
@@ -698,6 +698,7 @@ export function isArtistVisibleById(artistId: number): boolean {
   const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
   if (!artist || artist.deleted_at) return false
   if (artist.status === 'hidden') return false
+  if (artist.is_banned) return false
   if (artist.qq_number === readAdminQq()) return false
   return true
 }

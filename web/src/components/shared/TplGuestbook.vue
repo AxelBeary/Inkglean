@@ -120,7 +120,11 @@ async function submit() {
   if (!text) return ElMessage.warning(t('guestbook.contentRequired'))
   submitting.value = true
   try {
-    await artistPublicApi.postMessage(props.subdomain, { nickname: nick, content: text })
+    const res = await artistPublicApi.postMessage(props.subdomain, { nickname: nick, content: text })
+    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
+    if (res?.warning?.sensitiveWords?.length) {
+      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+    }
     justSubmitted.value = true
     content.value = ''
   } catch (err) {

@@ -458,7 +458,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (!entry) throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       tempStore.delete(tempKey) // 一次性消费
 
-      if (entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
+      if (!entry || entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
       newSecret = entry.newSecret

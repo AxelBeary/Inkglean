@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS artists (
   totp_verified INTEGER NOT NULL DEFAULT 0,
   totp_failed_attempts INTEGER NOT NULL DEFAULT 0,
   totp_locked_until INTEGER,
+  -- REQ-042（v59）: 封禁独立态——1=封禁（主页下架+登录拒绝），不动 status 三态
+  is_banned INTEGER NOT NULL DEFAULT 0,
   deleted_at DATETIME,
   weibo_url TEXT,
   bilibili_url TEXT,
@@ -334,6 +336,30 @@ CREATE TABLE IF NOT EXISTS guestbook_messages (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
+-- 举报表（REQ-042 v59：先发后审——匿名可提交，管理员处理）
+CREATE TABLE IF NOT EXISTS reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_type TEXT NOT NULL CHECK(target_type IN ('artist_home', 'artwork', 'message', 'other')),
+  target_id INTEGER NULL,
+  description TEXT NOT NULL,
+  contact TEXT NULL,
+  status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'resolved')),
+  resolved_by INTEGER NULL,
+  resolved_at TEXT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- 管理动作留痕表（REQ-042 v59：下架/封禁/举报处理全部登记）
+CREATE TABLE IF NOT EXISTS admin_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id INTEGER NULL,
+  reason TEXT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- 折扣码表（v32）
 CREATE TABLE IF NOT EXISTS discount_codes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -495,4 +521,6 @@ CREATE INDEX IF NOT EXISTS idx_size_addon_overrides_size ON size_addon_overrides
 CREATE INDEX IF NOT EXISTS idx_artwork_size_tags_size ON artwork_size_tags(style_size_id);
 CREATE INDEX IF NOT EXISTS idx_price_entries_order ON order_price_entries(order_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_totp_used_artist ON totp_used_codes(artist_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type, target_id);
 `

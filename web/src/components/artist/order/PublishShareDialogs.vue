@@ -133,6 +133,10 @@ async function submitPublish() {
       description: publishForm.description.trim() || null
     })
     publishDialogVisible.value = false
+    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
+    if (res?.warning?.sensitiveWords?.length) {
+      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+    }
     const n = res?.artworks?.length || 0
     ElMessage.success(t('orderDetail.publishSuccess', { n }))
     try {

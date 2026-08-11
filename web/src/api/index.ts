@@ -25,10 +25,12 @@ import type {
   ArtStyleInput,
   ArtStyleWithDetails,
   Artwork,
+  ArtworkWithWarning,
   ArtworkWithTags,
   AuthMeResult,
   AuthVerifyResult,
   AdminInviteCodesResult,
+  BanArtistResult,
   CommissionRule,
   CreateArtistRequest,
   CreateDiscountCodeRequest,
@@ -79,6 +81,9 @@ import type {
   OrderTrackResult,
   PagedResult,
   PaymentsResult,
+  RemoveContentResult,
+  ReportItem,
+  ResolveReportResult,
   PlatformDTO,
   PlatformInput,
   PostMessageRequest,
@@ -112,6 +117,8 @@ import type {
   StylePriceResult,
   StyleSize,
   StyleSizeInput,
+  SubmitReportRequest,
+  SubmitReportResult,
   TodoResult,
   ToggleDiscountResult,
   ToolsClientResult,
@@ -359,10 +366,11 @@ export const artistApi = {
   // v0.42 Step 6: 画师端作品分页（20/页 + el-pagination；封面置顶）
   getArtworksPaged: ({ page = 1, pageSize = 20 }: { page?: number; pageSize?: number } = {}): Promise<HasMoreResult<ArtworkWithTags>> =>
     getJson('/artist/artworks/paged', { params: { page, pageSize } }),
-  createArtwork: (data: Record<string, unknown>): Promise<Artwork> => postJson('/artist/artworks', data),
+  // REQ-042: 创建作品命中敏感词时响应附 warning（先发后审，不硬拦）
+  createArtwork: (data: Record<string, unknown>): Promise<ArtworkWithWarning> => postJson('/artist/artworks', data),
   deleteArtwork: (id: number): Promise<DeleteArtworkResult> => deleteJson(`/artist/artworks/${id}`),
   // v0.35 波3 (REQ-024 F6): 作品编辑（标题/自由描述）+ 档位标注（替换语义）
-  updateArtwork: (id: number, data: Record<string, unknown>): Promise<Artwork> => putJson(`/artist/artworks/${id}`, data),
+  updateArtwork: (id: number, data: Record<string, unknown>): Promise<ArtworkWithWarning> => putJson(`/artist/artworks/${id}`, data),
   setArtworkTags: (id: number, sizeIds: number[]): Promise<SetArtworkTagsResult> =>
     putJson(`/artist/artworks/${id}/tags`, { sizeIds }),
   // v0.25 A: 封面图（设为封面 / 取消封面；GET artworks 与公开主页返回 is_cover 字段）
@@ -675,6 +683,28 @@ export const adminApi = {
     postJson('/admin/invite-codes', data),
   getInviteCodes: (): Promise<AdminInviteCodesResult> => getJson('/admin/invite-codes'),
   revokeInviteCode: (id: number): Promise<RevokeInviteCodeResult> => postJson(`/admin/invite-codes/${id}/revoke`)
+}
+
+// ─── REQ-042 合规与内容安全 ───
+export const complianceApi = {
+  /** 页脚统一举报入口（公开，匿名可提交） */
+  submitReport: (data: SubmitReportRequest): Promise<SubmitReportResult> =>
+    postJson('/public/reports', data),
+  /** 举报列表（管理员；?status=pending|resolved 可选） */
+  getReports: (status?: 'pending' | 'resolved'): Promise<ReportItem[]> =>
+    getJson('/admin/reports', { params: status ? { status } : {} }),
+  /** 标记举报已处理（写 admin_actions 留痕） */
+  resolveReport: (id: number, reason?: string | null): Promise<ResolveReportResult> =>
+    postJson(`/admin/reports/${id}/resolve`, { reason: reason ?? null }),
+  /** 内容下架（artwork/message，写留痕） */
+  removeContent: (type: 'artwork' | 'message', id: number, reason?: string | null): Promise<RemoveContentResult> =>
+    postJson(`/admin/content/${type}/${id}/remove`, { reason: reason ?? null }),
+  /** 封禁画师（is_banned=1 + 踢下线 + 留痕） */
+  banArtist: (id: number, reason?: string | null): Promise<BanArtistResult> =>
+    postJson(`/admin/artists/${id}/ban`, { reason: reason ?? null }),
+  /** 解封画师（is_banned=0 + 留痕） */
+  unbanArtist: (id: number, reason?: string | null): Promise<BanArtistResult> =>
+    postJson(`/admin/artists/${id}/unban`, { reason: reason ?? null })
 }
 
 

@@ -48,6 +48,8 @@
     </main>
 
     <footer class="landing-footer">
+      <!-- REQ-042: 隐私/条款 + 举报入口（页脚底部） -->
+      <ComplianceFooterLinks />
       <p>{{ $t('common.footer') }}</p>
     </footer>
   </div>
@@ -61,6 +63,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
 import Disclaimer from '../../components/Disclaimer.vue'
+import ComplianceFooterLinks from '../../components/client/ComplianceFooterLinks.vue'
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 
 const { t } = useI18n()
