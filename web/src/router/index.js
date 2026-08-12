@@ -176,6 +176,14 @@ router.beforeEach(async (to, from, next) => {
     return next({ name: 'ArtistDashboard' })
   }
 
+  // 反向守卫：已登录访问 /login 直接回后台（不在登录页逗留）；
+  // 带 redirect 参数则回原目标（仅放行站内路径，防开放重定向）
+  if (to.name === 'ArtistLogin' && artistStore.loggedIn) {
+    const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : ''
+    if (redirect.startsWith('/') && !redirect.startsWith('//')) return next(redirect)
+    return next({ name: 'ArtistDashboard' })
+  }
+
   next()
 })
 

@@ -2,16 +2,16 @@
   <el-config-provider :locale="elLocale">
     <!-- 点名2: 路由切换 fade-slide（.18s 淡入 + 8px 上移，克制；out-in 避免新旧同帧）
          02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡由 ArtistLayout 内部处理；
-         客户端路由保留 fade-slide 整页过渡 -->
+         客户端路由保留 fade-slide 整页过渡
+         login-cross: 登录页↔后台专属过渡（纯透明度长缓动，不位移）——登录成功进后台「渡过去」而非硬切；
+         不带 path-key：后台页间同组件不触发过渡，ArtistLayout 全会话单挂载（REQ-037 A1）不破 -->
     <router-view v-slot="{ Component }">
-      <template v-if="noPageTransition">
+      <transition v-if="loginCross" name="login-cross" mode="out-in">
         <component :is="Component" />
-      </template>
-      <template v-else>
-        <transition name="fade-slide" mode="out-in">
-          <component :is="Component" :key="$route.path" />
-        </transition>
-      </template>
+      </transition>
+      <transition v-else name="fade-slide" mode="out-in">
+        <component :is="Component" :key="$route.path" />
+      </transition>
     </router-view>
   </el-config-provider>
 </template>
@@ -28,10 +28,10 @@ const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
 
 // 02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡在 ArtistLayout 内部；
 //      客户端路由保留 fade-slide 整页过渡。
-// 登录页一并豁免：自带入场编排（rise/山水墨晕染），且 fade-slide 的 translateY(8px)
-// 会把 100vh 页面推出视口，加载瞬间滚动条闪现、落定后消失（用户反馈）。
+// 登录页↔后台（requiresAuth/requiresAdmin）单独走 login-cross：登录成功进后台是一趟「渡过去」的
+// 仪式，纯透明度 0.5s 缓动不位移（translateY 会把 100vh 登录页推出视口闪滚动条，v0.46 教训）。
 const route = useRoute()
-const noPageTransition = computed(() => !!route.meta.requiresAuth || route.name === 'ArtistLogin')
+const loginCross = computed(() => route.name === 'ArtistLogin' || !!route.meta.requiresAuth || !!route.meta.requiresAdmin)
 </script>
 
 <style>
@@ -78,6 +78,18 @@ body {
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+/* ─── login-cross: 登录页↔后台专属过渡（丝滑不做作：纯透明度，离场略快入场略缓） ─── */
+.login-cross-enter-active {
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-cross-leave-active {
+  transition: opacity 0.4s ease-in;
+}
+.login-cross-enter-from,
+.login-cross-leave-to {
+  opacity: 0;
 }
 
 /* 移动端适配 */
