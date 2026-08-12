@@ -218,7 +218,9 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   }
   // 安全加固批 F3: 移除 script-src 'unsafe-eval'（Vue 3 生产构建模板预编译不需要 eval，
   // 删除可显著缩小 XSS 利用面；实测隔离实例无 CSP violation 后合入）
-  const cspHeader = `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ${cspConnectSrc}; font-src 'self'`
+  // 812-B4: 首帧主题防闪白——index.html 头部内联脚本（纯原生 JS）需要精确哈希白名单；
+  // 不放宽 'unsafe-inline'，脚本内容变更时需同步更新哈希（web/index.html 注释标有 CSP 锚点）
+  const cspHeader = `default-src 'self'; script-src 'self' 'sha256-jzYB8Dl3+AO/QlkS+Ln5a1NtuFOA9TBqLqSHu06N+p8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ${cspConnectSrc}; font-src 'self'`
 
   app.addHook('onRequest', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff')

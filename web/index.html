@@ -11,8 +11,44 @@
   <meta property="og:description" content="开源，自部署，易操作。" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="拾绘 Inkglean" />
-  <title>画师约稿平台</title>
+  <title>拾绘 Inkglean · 画师约稿平台</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <!-- 812-B4 CSP 锚点: 本内联脚本的 SHA-256 哈希已加白到 server/src/app.ts script-src；
+       改动脚本内容必须同步更新该哈希（node 计算 raw textContent，含首尾空白）。
+       首帧主题防闪白——在任何样式绘制前把持久化主题同步到 <html>
+       （生效方式与 web/src/stores/theme.js 完全一致：客户端 huiyue-theme-base→html.dark/data-accent，
+         后台 huiyue-artist-theme→data-artist-theme）；color-scheme 同步兜底浏览器控件层。
+       存储不可用/读不到键时保持默认，不阻断首帧。 -->
+  <style>
+    html[data-artist-theme='paper'] { color-scheme: light; }
+    html[data-artist-theme='ink'] { color-scheme: dark; }
+    html.dark { color-scheme: dark; }
+  </style>
+  <script>
+    (function () {
+      try {
+        var base = localStorage.getItem('huiyue-theme-base')
+        if (base === 'dark') {
+          document.documentElement.classList.add('dark')
+        } else if (base === 'light') {
+          document.documentElement.classList.remove('dark')
+        } else {
+          // store 默认 auto：跟随系统偏好（与 detectBase()/resolveDark() 一致）
+          var systemDark = typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches
+          document.documentElement.classList.toggle('dark', systemDark)
+        }
+        var accent = localStorage.getItem('huiyue-theme-accent')
+        if (accent) document.documentElement.setAttribute('data-accent', accent)
+        var artistTheme = localStorage.getItem('huiyue-artist-theme')
+        if (artistTheme === 'ink' || artistTheme === 'paper') {
+          document.documentElement.setAttribute('data-artist-theme', artistTheme)
+        }
+      } catch (err) {
+        // 存储不可用（隐私模式等）：保持默认主题，不阻断首帧
+      }
+    })()
+  </script>
 </head>
 <body>
   <div id="app"></div>
