@@ -44,16 +44,16 @@ if (-not $ok) {
 }
 Log 'STEP3 OK: commission-web healthy'
 
-# 4. 迁移回读（报当前 schema 版本，人工对照 STATUS 预期）
-$ver = docker compose exec -T web node -e "const db=require('better-sqlite3')('/app/data/commission.db');console.log(db.prepare('SELECT MAX(version) v FROM schema_migrations').get().v)" 2>$null
+# 4. 迁移回读（报当前 schema 版本，人工对照 STATUS 预期；-w 指到 /app/server 才能解析 better-sqlite3）
+$ver = docker compose exec -T -w /app/server web node -e "const db=require('better-sqlite3')('/app/data/commission.db');console.log(db.prepare('SELECT MAX(version) v FROM schema_migrations').get().v)" 2>$null
 Log "STEP4 迁移版本回读: v$ver"
 
-# 5. 登录页冒烟（https 走 Caddy 自签证书，跳过证书校验只验可达）
-try {
-  $code = (Invoke-WebRequest -Uri 'https://localhost/login' -SkipCertificateCheck -UseBasicParsing -TimeoutSec 10).StatusCode
+# 5. 登录页冒烟（https 走 Caddy 自签证书；用 curl.exe 避开 .NET HttpClient 的证书/超时怪癖）
+$code = curl.exe -k -s -o NUL -w '%{http_code}' --max-time 30 'https://localhost/login'
+if ($code -eq '200') {
   Log "STEP5 登录页冒烟: HTTP $code"
-} catch {
-  Log "STEP5 WARN: 登录页冒烟失败（$_）——请人工浏览器确认"
+} else {
+  Log "STEP5 WARN: 登录页冒烟返回 $code——请人工浏览器确认（Caddy 自签证书续签瞬间可能短暂抖动，可稍候重试）"
 }
 
 Log '=== post-merge-deploy done ==='
