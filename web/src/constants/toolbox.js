@@ -1,21 +1,24 @@
 // ─── 工具箱四分类注册表（纸墨提案 §5.5：导航一个把手 + 四个分类格子） ───
 // 单一事实源：ArtistLayout（侧栏把手/抽屉分类组）与 ToolsHome（工具箱首页）共用。
 // 路由与 i18n 键保持现状不变，本文件只定义导航归组。
-import { Wallet, Download, PriceTag, Document, Stamp, Grid, Calendar, RefreshRight, ScaleToOriginal, User, Connection, ChatLineRound, ForkSpoon, Notebook, AlarmClock, Box } from '@element-plus/icons-vue'
+import { Wallet, Download, PriceTag, Document, Stamp, Grid, Calendar, RefreshRight, ScaleToOriginal, User, Connection, ChatLineRound, ForkSpoon, Notebook, AlarmClock, Box, Postcard, Finished, Coin } from '@element-plus/icons-vue'
 
-/** 15 个小工具按用途归入四类（cat 对应 TOOL_BOX_CATEGORIES.key） */
+/** 19 个小工具按用途归入四类（cat 对应 TOOL_BOX_CATEGORIES.key） */
 export const TOOLS_MENU_ITEMS = [
-  // 钱袋子：记账/导出/算价
+  // 钱袋子：记账/导出/算价/报价单/价目卡/定金台账
   { index: '/tools/income', icon: Wallet, labelKey: 'menu.standaloneIncome', cat: 'money' },
   { index: '/tools/export', icon: Download, labelKey: 'menu.toolsExport', cat: 'money' },
   { index: '/tools/price-calc', icon: PriceTag, labelKey: 'menu.priceCalc', cat: 'money' },
   { index: '/tools/quote', icon: Document, labelKey: 'menu.quote', cat: 'money' },
-  // 交付：水印/拼图/排期公示/改稿计数/压图改尺寸
+  { index: '/tools/price-card', icon: Postcard, labelKey: 'menu.priceCard', cat: 'money' },
+  { index: '/tools/deposit', icon: Coin, labelKey: 'menu.deposit', cat: 'money' },
+  // 交付：水印/拼图/排期公示/改稿计数/压图改尺寸/交付清单
   { index: '/tools/watermark', icon: Stamp, labelKey: 'menu.watermark', cat: 'delivery' },
   { index: '/tools/puzzle', icon: Grid, labelKey: 'menu.puzzle', cat: 'delivery' },
   { index: '/tools/schedule', icon: Calendar, labelKey: 'menu.scheduleShare', cat: 'delivery' },
   { index: '/tools/revision-count', icon: RefreshRight, labelKey: 'menu.revisionCount', cat: 'delivery' },
   { index: '/tools/image-resize', icon: ScaleToOriginal, labelKey: 'menu.imageResize', cat: 'delivery' },
+  { index: '/tools/delivery-checklist', icon: Finished, labelKey: 'menu.deliveryChecklist', cat: 'delivery' },
   // 客户：标记/召回/回复
   { index: '/tools/clients', icon: User, labelKey: 'menu.clientTags', cat: 'clients' },
   { index: '/tools/returning', icon: Connection, labelKey: 'menu.returningClients', cat: 'clients' },
