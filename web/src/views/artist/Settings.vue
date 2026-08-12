@@ -49,6 +49,7 @@
         :rules-loaded="rulesLoaded"
         :sanitized-rules-preview="sanitizedRulesPreview"
         @save="save"
+        @update:status="form.status = $event"
         @add-link="addLink"
         @remove-link="removeLink"
         @move-link="moveLink"
@@ -165,6 +166,7 @@ function detectLinkPlatform(link) {
 
 const form = reactive({
   name: '', bio: '',
+  status: 'open',
   customLinks: [],
   inspirationTags: [],
   contactQq: '',
@@ -310,6 +312,7 @@ async function save() {
         links.push({ url: res.url })
       }
       const res = await artistApi.updateProfile({
+        status: form.status,
         customLinks: links,
         inspirationTags: form.inspirationTags.map(tag => tag.trim()).filter(Boolean),
         announcement: form.announcement.trim() || null,
@@ -343,6 +346,7 @@ const tabBaseline = { profile: null, showcase: null, template: null }
 function snapshotTab(tab) {
   if (tab === 'showcase') {
     return JSON.stringify({
+      status: form.status,
       links: form.customLinks.map(l => l.url || ''),
       tags: [...form.inspirationTags],
       announcement: form.announcement,
@@ -410,6 +414,7 @@ async function loadProfile() {
     Object.assign(form, {
       name: profile.name,
       bio: profile.bio || '',
+      status: profile.status || 'open',
       customLinks,
       inspirationTags,
       contactQq: profile.contact_qq || '',

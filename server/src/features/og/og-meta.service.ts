@@ -1,4 +1,3 @@
-import db from '../../db/connection.js'
 import { getArtistBySubdomain } from '../artist/artist.service.js'
 import type { Artist } from '../../types/entities.js'
 
@@ -52,15 +51,8 @@ function cleanBio(bio: string): string {
   return truncate(plain, 100)
 }
 
-/** 读取管理员 QQ（platform_config 优先，env 兜底）——与 artist.service 同口径，避免跨模块循环依赖 */
-function readAdminQq(): string {
-  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
-  return row?.value || process.env.ADMIN_QQ || ''
-}
-
-/** 公开页可见性判定（对齐公开 API：管理员/封禁/隐藏画师不注入个人 OG，回退默认） */
+/** 公开页可见性判定（对齐公开 API：封禁/隐藏画师不注入个人 OG，回退默认） */
 function isOgVisible(artist: Artist): boolean {
-  if (artist.qq_number === readAdminQq()) return false
   if (artist.is_banned) return false
   if (artist.status === 'hidden') return false
   return true

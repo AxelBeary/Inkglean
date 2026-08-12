@@ -1,6 +1,6 @@
 import * as artistService from './artist.service.js'
 import * as platformService from '../platform/platform.service.js'
-import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
+import { requireAuth } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 import { AppError, E } from '../../shared/errors.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -32,11 +32,11 @@ export default async function artistRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/artists
-   * 获取所有画师公开信息（首页列表，排除管理员账号）
+   * 获取所有画师公开信息（首页列表；hidden/封禁画师排除）
    */
   fastify.get('/api/artists', async () => {
     return artistService.getAllArtists()
-      .filter(a => a.qq_number !== getAdminQq() && a.status !== 'hidden' && !a.is_banned)
+      .filter(a => a.status !== 'hidden' && !a.is_banned)
       .map(a => ({
         id: a.id, name: a.name, subdomain: a.subdomain,
         avatar: a.avatar, bio: a.bio, status: a.status,
@@ -53,7 +53,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     guardRateLimit(`artist-profile:${request.ip}`, 30, 60_000)
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
     // REQ-042: 封禁画师与「不存在」同响应（目录/主页/工作流全链路隐身）
-    if (!artist || artist.qq_number === getAdminQq() || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
+    if (!artist || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
 
     // UI-8: hidden 状态 — 只返回最小信息，不暴露 bio/pricing/artworks/rules
     if (artist.status === 'hidden') {
@@ -529,12 +529,12 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     // audit-a P3-16: 公开工作流接口补 30次/分钟/IP 限流
     guardRateLimit(`artist-workflow:${request.ip}`, 30, 60_000)
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.qq_number === getAdminQq() || artist.status === 'hidden' || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
+    if (!artist || artist.status === 'hidden' || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }
   })
 
   /** GET /api/public/artworks/:artistId?page&pageSize — 公开作品分页（默认 10，clamp 1-30；封面置顶）
-   * 客户端画师主页「加载更多」用；hidden 画师/管理员账号 404，与公开 profile 一致不暴露
+   * 客户端画师主页「加载更多」用；hidden/封禁/已删除画师 404，与公开 profile 一致不暴露
    * 限流：同 IP 每分钟 30 次（用户红线：公开接口必须防刷）
    */
   fastify.get('/api/public/artworks/:artistId', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -546,7 +546,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ code: 'INVALID_PARAM', error: '画师 ID 无效' })
     }
     const artist = artistService.getArtistById(artistId)
-    if (!artist || artist.qq_number === getAdminQq() || artist.deleted_at || artist.status === 'hidden' || artist.is_banned) {
+    if (!artist || artist.deleted_at || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ code: 'NOT_FOUND', error: '画师不存在' })
     }
     const q = request.query as { page?: string; pageSize?: string }

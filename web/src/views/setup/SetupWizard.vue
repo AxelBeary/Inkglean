@@ -1,7 +1,12 @@
 <template>
   <div class="setup-page">
     <div class="setup-backdrop"></div>
-    <div class="setup-container">
+    <div ref="containerRef" class="setup-container">
+      <!-- B1: 向导头部文字按钮式中/EN 切换（对齐登录页 LoginPrefs 语言区：文字标签、aria-pressed） -->
+      <div class="setup-lang" role="group" :aria-label="$t('setup.step1Lang')">
+        <button type="button" :aria-pressed="locale === 'zh-CN'" @click="onSwitchLang('zh-CN')">中</button>
+        <button type="button" :aria-pressed="locale === 'en'" @click="onSwitchLang('en')">EN</button>
+      </div>
       <div class="setup-steps">
         <div
           v-for="(step, idx) in steps" :key="idx"
@@ -20,8 +25,8 @@
           <div class="field-group">
             <label class="field-label">{{ $t('setup.step1Lang') }}</label>
             <div class="lang-switch">
-              <button :class="{ active: locale === 'zh-CN' }" @click="switchLang('zh-CN')">{{ $t('setup.langZh') }}</button>
-              <button :class="{ active: locale === 'en' }" @click="switchLang('en')">{{ $t('setup.langEn') }}</button>
+              <button :class="{ active: locale === 'zh-CN' }" @click="onSwitchLang('zh-CN')">{{ $t('setup.langZh') }}</button>
+              <button :class="{ active: locale === 'en' }" @click="onSwitchLang('en')">{{ $t('setup.langEn') }}</button>
             </div>
           </div>
           <div v-if="setupStore.tokenRequired" class="field-group">
@@ -113,7 +118,9 @@ const setupStore = useSetupStore()
 const artistStore = useArtistStore()
 const themeStore = useThemeStore()
 
-const { switchLang } = useLocaleSwitch()
+const containerRef = ref(null)
+const { switchLang } = useLocaleSwitch(() => containerRef.value)
+const onSwitchLang = (next) => switchLang(next, locale.value)
 
 const steps = [
   { labelKey: 'setup.step1Title' },
@@ -186,7 +193,7 @@ async function submitAdmin() {
     }
     if (setupStore.createStudio) {
       params.studio = {
-        name: setupStore.studioName.trim() || adminName.value.trim() + '的工作室',
+        name: setupStore.studioName.trim() || t('setup.step2StudioNameDefault', { name: adminName.value.trim() }),
         subdomain: setupStore.studioSubdomain.trim()
       }
     }
@@ -275,6 +282,20 @@ onMounted(() => {
 }
 .setup-backdrop { position: fixed; inset: 0; z-index: 0; background: var(--setup-bg); }
 .setup-container { position: relative; z-index: 1; max-width: 520px; margin: 0 auto; padding: 48px 20px 64px; }
+.setup-lang { display: flex; justify-content: flex-end; gap: 4px; margin-bottom: 16px; }
+.setup-lang button {
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--setup-ink2);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.setup-lang button:hover { color: var(--setup-ink); }
+.setup-lang button:focus-visible { outline: 2px solid var(--setup-hq); outline-offset: 2px; }
+.setup-lang button[aria-pressed='true'] { color: var(--setup-hq); font-weight: 600; }
 .setup-steps { display: flex; justify-content: space-between; margin-bottom: 32px; position: relative; }
 .setup-steps::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 2px; background: var(--setup-line); z-index: 0; }
 .step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; position: relative; z-index: 1; }

@@ -31,6 +31,9 @@ Thumbs.db
 # Hermes Agent workspace
 .hermes/
 
+# Qoder 本地工具产物（better-harness 报告等，不入版本库）
+.qoder/
+
 # Logs
 *.log
 npm-debug.log*

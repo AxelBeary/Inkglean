@@ -152,6 +152,14 @@ import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
 import { webauthnApi, totpRebindApi } from '../../api/index.js'
 import { Lock, InfoFilled, Key, WarningFilled, Loading } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import {
+  toCredentialCreationOptions,
+  publicKeyCredentialToJSON,
+  isWebAuthnCancellation,
+  isWebAuthnUnsupported,
+  isBackendError
+} from '../../utils/webauthn.js'
 import type { WebAuthnCredential, PublicArtistDTO } from '../../api/types.js'
 
 const { t } = useI18n()
@@ -182,15 +190,32 @@ async function registerPasskey() {
   registering.value = true
   try {
     const options = await webauthnApi.registerOptions()
-    const credential = await navigator.credentials.create({ publicKey: options as any })
-    if (!credential) return
-    await webauthnApi.registerVerify(credential)
+    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/user.id/excludeCredentials[].id）
+    const credential = await navigator.credentials.create({ publicKey: toCredentialCreationOptions(options) })
+    if (!credential) {
+      ElMessage.info(t('common.passkeyCancelled'))
+      return
+    }
+    const pubCred = credential as PublicKeyCredential
+    // 812-B5: 上传侧统一转 base64url JSON（与后端 verifyRegistration 的 Base64URL 解码口径一致）
+    await webauthnApi.registerVerify(publicKeyCredentialToJSON(pubCred))
     await loadCredentials()
-  } catch (err: any) {
-    if (err.name === 'InvalidStateError') {
+  } catch (err) {
+    if (err instanceof Error && err.name === 'InvalidStateError') {
       // 设备已注册，刷新列表
       await loadCredentials()
+      return
     }
+    // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
+    if (isWebAuthnCancellation(err)) {
+      ElMessage.info(t('common.passkeyCancelled'))
+      return
+    }
+    if (isWebAuthnUnsupported(err)) {
+      ElMessage.warning(t('common.passkeyNotSupported'))
+      return
+    }
+    ElMessage.error(t('common.passkeyFailed'))
   } finally {
     registering.value = false
   }
@@ -244,10 +269,12 @@ async function startRebind() {
       rebindQrDataUrl.value = result.qrDataUrl
       rebindTempKey.value = result.tempKey
     }
-  } catch (err: any) {
-    if (err.code === 'REBIND_COOLDOWN') {
+  } catch (err) {
+    if (isBackendError(err) && err.code === 'REBIND_COOLDOWN') {
       rebindStep.value = 'idle'
-      rebindCooldownMs.value = err.detail?.remainingMs || 24 * 3600000
+      rebindCooldownMs.value = typeof err.detail?.remainingMs === 'number'
+        ? err.detail.remainingMs
+        : 24 * 3600000
     } else {
       rebindStep.value = 'idle'
     }
@@ -261,15 +288,29 @@ async function verifyWithPasskey() {
   try {
     // 使用 Passkey 认证
     const options = await webauthnApi.registerOptions()
-    const credential = await navigator.credentials.create({ publicKey: options as any })
-    if (!credential) return
-    await webauthnApi.registerVerify(credential)
+    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/user.id/excludeCredentials[].id）
+    const credential = await navigator.credentials.create({ publicKey: toCredentialCreationOptions(options) })
+    if (!credential) {
+      ElMessage.info(t('common.passkeyCancelled'))
+      return
+    }
+    const pubCred = credential as PublicKeyCredential
+    await webauthnApi.registerVerify(publicKeyCredentialToJSON(pubCred))
     // 初始化重绑（获取新二维码）
     const result = await totpRebindApi.rebindInit()
     rebindQrDataUrl.value = 'qrDataUrl' in result ? result.qrDataUrl : null
     rebindStep.value = 'scan'
-  } catch {
-    // 验证失败，停留在当前步骤
+  } catch (err) {
+    // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
+    if (isWebAuthnCancellation(err)) {
+      ElMessage.info(t('common.passkeyCancelled'))
+      return
+    }
+    if (isWebAuthnUnsupported(err)) {
+      ElMessage.warning(t('common.passkeyNotSupported'))
+      return
+    }
+    ElMessage.error(t('common.passkeyFailed'))
   } finally {
     rebindLoading.value = false
   }

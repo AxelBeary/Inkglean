@@ -139,7 +139,7 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
     guardRateLimit(`discount:${request.ip}`, 20, 5 * 60_000)
 
     const { subdomain, code } = request.body as { subdomain: string; code: string }
-    // BUG-3 修复：hidden 画师/管理员账号不允许验证折扣码（对照 GET pricing 范式）
+    // BUG-3 修复：hidden/封禁画师不允许验证折扣码（对照 GET pricing 范式）
     const artist = requireVisibleArtist(subdomain)
 
     const dc = discountService.validateDiscountCode(artist.id, code)

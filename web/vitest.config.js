@@ -7,7 +7,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'happy-dom',
-    include: ['src/**/__tests__/**/*.test.js'],
+    // 812-B5: 兼容 TS 迁移轨——webauthn.test.ts 等新单测走 .ts
+    include: ['src/**/__tests__/**/*.test.{js,ts}'],
     setupFiles: ['src/test-setup.js']
   }
 })

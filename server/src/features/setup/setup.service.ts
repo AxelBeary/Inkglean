@@ -13,6 +13,65 @@ import type { Artist } from '../../types/entities.js'
 /** 子域名保留词黑名单（与 admin.routes.ts 一致） */
 const RESERVED_SUBDOMAINS = ['admin', 'api', 'www', 'uploads', 'static', 'login', 'assets', 'dashboard', 'app']
 
+// ─── 812-B B7: 开箱预置基础增项 ───
+
+interface DefaultAddonSpec {
+  name: string
+  category: 'usage' | 'rush'
+  /** percent 计价：倍率 = (100 + percent) / 100（引擎口径，见 style-pricing.service.ts） */
+  default_price: number
+  sort_order: number
+}
+
+/** 默认增项（数值保守，管理员可在增项库修改）：
+ *  用途：个人 ×1.0（0%）、商业 ×1.5（+50%）；加急：标准 ×1.0（0%）、加急 ×1.3（+30%） */
+const DEFAULT_ADDON_TEMPLATES: DefaultAddonSpec[] = [
+  { name: '个人用途', category: 'usage', default_price: 0, sort_order: 0 },
+  { name: '商业用途', category: 'usage', default_price: 50, sort_order: 1 },
+  { name: '标准', category: 'rush', default_price: 0, sort_order: 2 },
+  { name: '加急', category: 'rush', default_price: 30, sort_order: 3 }
+]
+
+/**
+ * 幂等预置默认增项（仅当增项表为空时写入，写入后回读校验行数与字段）
+ * 系统预置模板（artist_id NULL）全画师共用，管理员可在增项库维护。
+ * 历史教训：INSERT OR IGNORE 会静默吞 CHECK 违约——插入后必须回读确认。
+ */
+export function seedDefaultAddonTemplates(): number {
+  const count = (db.prepare('SELECT COUNT(*) AS c FROM addon_templates').get() as { c: number }).c
+  if (count > 0) return count
+
+  const insert = db.prepare(`
+    INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity)
+    VALUES (NULL, ?, 'switch', 'percent', ?, NULL, ?, ?, NULL)
+  `)
+  for (const tpl of DEFAULT_ADDON_TEMPLATES) {
+    insert.run(tpl.name, tpl.default_price, tpl.sort_order, tpl.category)
+  }
+
+  // 回读验证：行数与每条字段必须与预置完全一致，否则整体抛错（事务回滚）
+  const rows = db.prepare(
+    'SELECT name, category, control_type, price_mode, default_price, sort_order FROM addon_templates ORDER BY sort_order ASC, id ASC'
+  ).all() as Array<{ name: string; category: string; control_type: string; price_mode: string; default_price: number; sort_order: number }>
+  if (rows.length !== DEFAULT_ADDON_TEMPLATES.length) {
+    throw new AppError('DEFAULT_ADDONS_SEED_FAILED', 500, `默认增项预置失败：回读行数 ${rows.length}，应为 ${DEFAULT_ADDON_TEMPLATES.length}`)
+  }
+  for (let i = 0; i < DEFAULT_ADDON_TEMPLATES.length; i++) {
+    const expected = DEFAULT_ADDON_TEMPLATES[i]
+    const row = rows[i]
+    const ok = row.name === expected.name
+      && row.category === expected.category
+      && row.control_type === 'switch'
+      && row.price_mode === 'percent'
+      && row.default_price === expected.default_price
+      && row.sort_order === expected.sort_order
+    if (!ok) {
+      throw new AppError('DEFAULT_ADDONS_SEED_FAILED', 500, `默认增项预置失败：第 ${i + 1} 条字段不符（${row.name}）`)
+    }
+  }
+  return rows.length
+}
+
 /**
  * 是否已完成初始化
  * 判据：platform_config.admin_qq 非空 且 对应管理员画师存在 且 已绑定 TOTP（能登录）。
@@ -244,10 +303,11 @@ export function confirmTotpAndComplete(params: TotpConfirmParams): TotpConfirmRe
     throw new AppError(E.TOTP_BIND_INVALID, 400, '该动态口令已使用，请使用最新动态口令')
   }
 
-  // 事务：标记已验证 + 完成设置
+  // 事务：标记已验证 + 完成设置 + 预置默认增项（812-B B7：仅空表时写入，失败整体回滚）
   db.transaction(() => {
     db.prepare('UPDATE artists SET totp_verified = 1, totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artist.id)
     db.prepare("UPDATE platform_config SET value = '1' WHERE key = 'setup_completed'").run()
+    seedDefaultAddonTemplates()
   })()
 
   // 签发会话
