@@ -21,11 +21,16 @@ function reqScheme(request: FastifyRequest): string {
 }
 
 /** 812-e2e 修复：带端口的 host（浏览器 origin 非默认端口含端口，request.hostname 会丢）——WebAuthn origin 校验用；
- *  rpId 侧由 webauthn.ts 自行剥端口，Caddy 443 默认端口场景 Host 头不带端口不受影响 */
+ *  默认端口（http:80/https:443）浏览器 origin 不带，需剥掉；非标端口保留。
+ *  rpId 侧由 webauthn.ts 自行剥端口 */
 function reqHost(request: FastifyRequest): string {
-  const host = request.headers['x-forwarded-host'] || request.headers.host
-  if (typeof host === 'string' && host.length > 0) return host.split(',')[0].trim()
-  return request.hostname
+  const scheme = reqScheme(request)
+  let host = request.headers['x-forwarded-host'] || request.headers.host
+  if (typeof host !== 'string' || host.length === 0) return request.hostname
+  host = host.split(',')[0].trim()
+  if (host.endsWith(':80') && scheme === 'http') return host.slice(0, -3)
+  if (host.endsWith(':443') && scheme === 'https') return host.slice(0, -4)
+  return host
 }
 
 /** REQ-040 TOTP 自助重绑：challenge 之外的临时新 secret 暂存（单实例内存） */
