@@ -616,7 +616,7 @@ export default {
     noSubdomain: '未设置主页域名，去设置'
   },
   landing: {
-    title: '画师约稿平台', subtitle: '找到你喜欢的画师，开始约稿',
+    title: '拾绘 Inkglean', subtitle: '找到你喜欢的画师，开始约稿',
     noBio: '这位画师还没有写简介',
     noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
   },
@@ -1585,7 +1585,7 @@ export default {
   },
   setup: {
     pageTitle: '开箱设置',
-    step1Title: '欢迎使用绘约',
+    step1Title: '欢迎使用拾绘',
     step1Desc: '首次使用需要先完成开箱设置，设置管理员账号后即可开始使用。',
     step1Lang: '选择语言',
     // 语言切换按钮固定显示各语言自身写法（跨语言常量）

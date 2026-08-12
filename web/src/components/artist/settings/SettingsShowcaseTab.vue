@@ -119,9 +119,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import ShopVisibilitySwitch from './ShopVisibilitySwitch.vue'
 
-defineProps<{
+const props = defineProps<{
   form: any
   loading: boolean
   saving: boolean
@@ -135,6 +136,13 @@ defineProps<{
   rulesLoaded: boolean
   sanitizedRulesPreview: string
 }>()
+
+// 812 debug 审计修复：记住隐藏前的营业状态（open/full/break），开关打开时恢复原状，
+// 避免覆写为 'open' 导致画师丢失满单/休息中状态
+const lastVisibleStatus = ref('open')
+watch(() => props.form?.status, (s) => {
+  if (s && s !== 'hidden') lastVisibleStatus.value = s
+}, { immediate: true })
 
 const emit = defineEmits<{
   save: []
@@ -153,7 +161,7 @@ const emit = defineEmits<{
 const disabledDate = (d: Date) => d < new Date()
 
 function onShopVisibleChange(value: boolean) {
-  emit('update:status', value ? 'open' : 'hidden')
+  emit('update:status', value ? lastVisibleStatus.value : 'hidden')
 }
 </script>
 

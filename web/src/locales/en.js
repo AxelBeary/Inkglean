@@ -617,7 +617,7 @@ export default {
     noSubdomain: 'No page domain set — go to settings'
   },
   landing: {
-    title: 'Artist Commission Platform', subtitle: 'Find your favorite artist and start commissioning',
+    title: 'Inkglean', subtitle: 'Find your favorite artist and start commissioning',
     noBio: 'This artist has not written a bio yet',
     noArtists: 'No artists have joined yet', loadFailed: 'Failed to load artist list',
   },
@@ -1588,7 +1588,7 @@ export default {
   },
   setup: {
     pageTitle: 'Setup Wizard',
-    step1Title: 'Welcome to HuiYue',
+    step1Title: 'Welcome to Inkglean',
     step1Desc: 'First-time setup is required. Create your admin account to get started.',
     step1Lang: 'Language',
     // Language switch buttons always show each language's own name (cross-locale constants)

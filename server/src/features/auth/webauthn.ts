@@ -119,7 +119,8 @@ function getRpId(requestHostname?: string): string {
 }
 
 function getRpName(): string {
-  return '绘约'
+  // 品牌名统一（拾绘 Inkglean）；rpName 仅影响系统弹窗显示文案，不影响凭据绑定（rpId 才绑定）
+  return '拾绘 Inkglean'
 }
 
 function getRpOrigin(requestHostname?: string): string {
