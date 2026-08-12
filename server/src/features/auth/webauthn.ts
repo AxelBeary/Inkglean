@@ -115,7 +115,9 @@ export function hasPasskeyCredentials(artistId: number): boolean {
 // ─── RP 配置 ───
 
 function getRpId(requestHostname?: string): string {
-  return process.env.WEBAUTHN_RP_ID || requestHostname || 'localhost'
+  // rpId 必须是裸域名（WebAuthn 规范不允许带端口），入参可能含端口，统一剥掉
+  const bare = (requestHostname || 'localhost').replace(/:\d+$/, '')
+  return process.env.WEBAUTHN_RP_ID || bare
 }
 
 function getRpName(): string {
@@ -129,6 +131,9 @@ function getRpOrigin(requestHostname?: string, requestScheme?: string): string {
   // 812 OOBE 实测修复：生产经 Caddy 反代以 https 提供，旧逻辑把 localhost 硬编码为 http
   // 导致 origin 校验失败（浏览器报 https://localhost）。协议以请求实际 scheme 为准（路由层传入，含 X-Forwarded-Proto）
   const scheme = requestScheme || ((hostname.includes('localhost') || hostname.includes('127.0.0.1')) ? 'http' : 'https')
+  // 812-e2e 验收抓出：浏览器 origin 非默认端口时带端口（http://localhost:3999），
+  // 而路由层 request.hostname 是裸域名，拼出的 origin 丢端口导致直连端口场景校验失配；
+  // hostname 保留入参原样（路由层改传带端口的 host），Caddy 443 默认端口场景不受影响
   return `${scheme}://${hostname}`
 }
 

@@ -20,6 +20,14 @@ function reqScheme(request: FastifyRequest): string {
   return request.protocol
 }
 
+/** 812-e2e 修复：带端口的 host（浏览器 origin 非默认端口含端口，request.hostname 会丢）——WebAuthn origin 校验用；
+ *  rpId 侧由 webauthn.ts 自行剥端口，Caddy 443 默认端口场景 Host 头不带端口不受影响 */
+function reqHost(request: FastifyRequest): string {
+  const host = request.headers['x-forwarded-host'] || request.headers.host
+  if (typeof host === 'string' && host.length > 0) return host.split(',')[0].trim()
+  return request.hostname
+}
+
 /** REQ-040 TOTP 自助重绑：challenge 之外的临时新 secret 暂存（单实例内存） */
 interface TotpRebindEntry {
   newSecret: string
@@ -139,7 +147,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
     }
     try {
-      const { artist } = await verifyLogin(credential, request.hostname, request.artist.id, reqScheme(request))
+      const { artist } = await verifyLogin(credential, reqHost(request), request.artist.id, reqScheme(request))
       const verifiedAt = new Date().toISOString()
       signSession(artist, reply, { authLevel: 'admin_verified', adminVerifiedAt: verifiedAt })
       return { success: true, verifiedAt }
@@ -220,7 +228,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    */
   fastify.post('/api/auth/webauthn/register-options', { preHandler: requireAuth }, async (request) => {
     const { generateRegisterOptions } = await import('./webauthn.js')
-    const options = generateRegisterOptions(request.artist, request.hostname)
+    const options = generateRegisterOptions(request.artist, reqHost(request))
     return options
   })
 
@@ -231,7 +239,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/api/auth/webauthn/register-verify', { preHandler: requireAuth }, async (request) => {
     const { verifyRegistration, generateDeviceNameFromUA } = await import('./webauthn.js')
     const credential = request.body as Record<string, unknown>
-    const credentialRow = await verifyRegistration(request.artist, credential, request.hostname, reqScheme(request))
+    const credentialRow = await verifyRegistration(request.artist, credential, reqHost(request), reqScheme(request))
 
     // 设置设备名（UA 摘要）
     if (credentialRow) {
@@ -268,7 +276,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     // 防枚举：login-options 不依赖 QQ 号是否注册，总是返回相同的 options 结构
     const { generateLoginOptions } = await import('./webauthn.js')
-    const options = generateLoginOptions(request.hostname)
+    const options = generateLoginOptions(reqHost(request))
     return options
   })
 
@@ -283,7 +291,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const credential = request.body as Record<string, unknown>
 
     try {
-      const { artist } = await verifyLogin(credential, request.hostname, undefined, reqScheme(request))
+      const { artist } = await verifyLogin(credential, reqHost(request), undefined, reqScheme(request))
       return signSession(artist, reply)
     } catch (err) {
       // 防枚举：统一认证失败响应
@@ -369,7 +377,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     if (hasPasskey) {
       // 有 Passkey：要求 Passkey 确认
       // 生成一个注册挑战（复用注册流程，但实际是验证现有 Passkey）
-      const options = generateRegisterOptions(artist, request.hostname)
+      const options = generateRegisterOptions(artist, reqHost(request))
       return {
         verifyMethod: 'passkey',
         options,
@@ -438,7 +446,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       const { verifyLogin } = await import('./webauthn.js')
       try {
-        await verifyLogin(credential, request.hostname, undefined, reqScheme(request))
+        await verifyLogin(credential, reqHost(request), undefined, reqScheme(request))
       } catch {
         throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
       }
