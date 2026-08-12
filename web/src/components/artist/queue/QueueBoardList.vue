@@ -489,6 +489,10 @@ onMounted(() => {
 <style scoped>
 .queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .toolbar-label { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); white-space: nowrap; }
+/* 812-C B9: 窄屏焦点图开关控件组可换行（间距对齐 4px 栅格；桌面不变） */
+@media (max-width: 768px) {
+  .queue-toolbar { flex-wrap: wrap; gap: 8px; }
+}
 
 /* 一行一条（用户决策：排期看板必须保持一行一条；宽屏空间由卡片内部横向展开消化） */
 .queue-list {

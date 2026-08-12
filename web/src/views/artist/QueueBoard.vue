@@ -245,4 +245,8 @@ onUnmounted(() => {
 
 /* ─── SPEC-005: 视图切换（列表 / 月历 / 时间条） ─── */
 .view-switch { margin-bottom: 16px; }
+/* 812-C B9: 窄屏头部控件组可换行排布（间距对齐 4px 栅格；桌面不变） */
+@media (max-width: 768px) {
+  .view-switch { display: flex; flex-wrap: wrap; gap: 8px; }
+}
 </style>
