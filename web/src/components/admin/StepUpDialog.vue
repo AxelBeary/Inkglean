@@ -51,6 +51,12 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Lock } from '@element-plus/icons-vue'
 import { stepUpApi, webauthnApi, authApi } from '../../api/index.js'
+import {
+  toCredentialRequestOptions,
+  arrayBufferToBase64Url,
+  isWebAuthnCancellation,
+  isWebAuthnUnsupported
+} from '../../utils/webauthn.js'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{
@@ -76,14 +82,6 @@ interface FlatPasskeyCredential {
   authenticatorData: string
   signature: string
   clientDataJSON: string
-}
-
-/** ArrayBuffer → base64url（旧浏览器无 credential.toJSON() 时兜底） */
-function bufToBase64Url(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf)
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
 /** 打开时重置状态 + 探测管理员 QQ 与 Passkey 凭据 */
@@ -139,21 +137,27 @@ async function verifyPasskey() {
     // 当前登录管理员 QQ（/api/auth/me 以服务端为准；profile 可能仍是登录响应的 camelCase 形状）
     const me = await authApi.me()
     const options = await webauthnApi.loginOptions(me.qq_number)
-    // 避免直接引用 DOM 类型名（eslint no-undef），从 navigator API 推导请求选项类型
-    type CredentialGetOptions = NonNullable<Parameters<typeof navigator.credentials.get>[0]>
-    const credential = await navigator.credentials.get({
-      publicKey: options as unknown as CredentialGetOptions['publicKey']
-    })
-    if (!credential) return // 用户取消
+    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/allowCredentials[].id）
+    const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
+    if (!credential) {
+      error.value = t('common.passkeyCancelled')
+      return
+    }
     const pubCred = credential as PublicKeyCredential
     const flat = credentialToFlat(pubCred)
     await stepUpApi.verify({ method: 'passkey', ...flat })
     onVerified()
   } catch (err) {
-    // 用户主动取消（NotAllowedError / AbortError）静默返回，其余展示错误
-    const name = (err as Error)?.name
-    if (name === 'NotAllowedError' || name === 'AbortError') return
-    error.value = (err as Error).message || t('stepup.error')
+    // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
+    if (isWebAuthnCancellation(err)) {
+      error.value = t('common.passkeyCancelled')
+      return
+    }
+    if (isWebAuthnUnsupported(err)) {
+      error.value = t('common.passkeyNotSupported')
+      return
+    }
+    error.value = t('common.passkeyFailed')
   } finally {
     passkeyLoading.value = false
   }
@@ -182,9 +186,9 @@ function credentialToFlat(credential: PublicKeyCredential): FlatPasskeyCredentia
   const response = credential.response as AuthenticatorAssertionResponse
   return {
     credentialId: credential.id,
-    authenticatorData: bufToBase64Url(response.authenticatorData),
-    signature: bufToBase64Url(response.signature),
-    clientDataJSON: bufToBase64Url(response.clientDataJSON)
+    authenticatorData: arrayBufferToBase64Url(response.authenticatorData),
+    signature: arrayBufferToBase64Url(response.signature),
+    clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON)
   }
 }
 </script>
