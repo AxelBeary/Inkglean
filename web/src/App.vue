@@ -81,11 +81,15 @@ body {
 }
 
 /* ─── login-cross: 登录页↔后台专属过渡（丝滑不做作：纯透明度，离场略快入场略缓） ─── */
+/* 登录页自带 240s light-drift 背景动画（scoped，特异性带 data-v 属性），Vue 过渡完成检测会把
+   animationTimeout 一并计入，不在此归零会导致离场永远不结束、新页面永不挂载（2026-08-12 E2E 抓出空白屏）；
+   !important 是为了压过 scoped 选择器特异性，跨层覆盖的正当用途 */
 .login-cross-enter-active {
   transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .login-cross-leave-active {
   transition: opacity 0.4s ease-in;
+  animation: none !important;
 }
 .login-cross-enter-from,
 .login-cross-leave-to {
