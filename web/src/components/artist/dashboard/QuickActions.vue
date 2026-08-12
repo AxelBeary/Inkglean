@@ -234,10 +234,9 @@ function go(action) {
 .quick-name { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 500; color: var(--ink); }
 /* 02B: 状态卡内嵌三态滑块（占满卡片宽度，直接点目标态） */
 .quick-status-slider { width: 100%; }
-@media (max-width: 768px) {
-  .quick-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 400px) {
+/* 812 追修（用户实测反馈：430px 手机屏仍三列硬挤、标签断行）：
+   2 列断点由 400px 提到 600px，覆盖主流手机竖屏；删除无效 768px 块（与基础规则重复） */
+@media (max-width: 600px) {
   .quick-grid { grid-template-columns: repeat(2, 1fr); }
 }
 /* 812-C B9: 窄屏状态卡独占整行，滑块不与操作按钮挤压（纵向堆叠；桌面不变） */
