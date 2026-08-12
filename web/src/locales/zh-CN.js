@@ -303,6 +303,10 @@ export default {
     // 工具箱收纳（纸墨提案 §5.5：导航一个把手 + 四个分类格子）
     toolbox: '工具箱', toolboxHint: '小工具都收在这里，按用途分了四格',
     toolboxCatMoney: '钱袋子', toolboxCatDelivery: '交付', toolboxCatClients: '客户', toolboxCatEfficiency: '效率',
+    // 812 工具波 B: 价目分享卡 / 交付检查清单 / 定金台账（工具组菜单项）
+    priceCard: '价目分享卡',
+    deliveryChecklist: '交付检查清单',
+    deposit: '定金台账',
   },
   // REQ-035 工具集后置: 稿价计算器（工具页文案）
   priceCalc: {
@@ -1897,5 +1901,80 @@ export default {
       publish: '发布',
       published: '公告已发布'
     }
+  },
+  // 812 工具波 B: 价目分享卡（REQ-014 F3 约稿条 Web 先行简版：模板填空，不做自由拖拽）
+  priceCard: {
+    title: '价目分享卡',
+    subtitle: '填好标题、档位与联系方式，一键生成竖版价目图或纯文字版，直接发给客户',
+    titleLabel: '卡片标题',
+    titlePlaceholder: '如：头像 · 立绘价目',
+    tiersLabel: '档位（3~6 行）',
+    tierNamePlaceholder: '档位名称，如：半身像',
+    tierPricePlaceholder: '价格（元）',
+    tierNotePlaceholder: '一句话说明（选填）',
+    addTier: '加一行',
+    removeTier: '删除',
+    tierMax: '最多 6 行',
+    contactLabel: '联系方式',
+    contactPlaceholder: '如：QQ 123456 · 私信请备注约稿',
+    exampleLabel: '例图（选填）',
+    exampleHint: '本地选图，自动缩成小图放进卡片',
+    chooseExample: '选择图片',
+    removeExample: '移除',
+    previewLabel: '卡片预览',
+    exportPng: '导出 PNG',
+    exporting: '生成中…',
+    copyText: '复制纯文字版',
+    copied: '已复制纯文字版',
+    titleRequired: '请先填写卡片标题',
+    tiersMinRequired: '至少填 3 行完整档位（名称 + 价格）',
+    exportFailed: '生成失败，请稍后重试',
+    fileTypeError: '请选择图片文件',
+    contactLine: '联系：{contact}',
+    signText: '拾绘',
+    sealText: '拾绘'
+  },
+  // 812 工具波 B: 交付检查清单（交稿前自查）
+  deliveryChecklist: {
+    title: '交付检查清单',
+    subtitle: '交稿前逐项自查，全勾即可安心交付',
+    progress: '已勾选 {done}/{total}',
+    allDone: '全部完成，可以安心交付',
+    defaults: {
+      finishWatermark: '终稿已去水印样图确认',
+      sourceExport: '源文件按约定格式导出',
+      signatureConfirmed: '署名约定已确认',
+      finalPayment: '尾款已收',
+      deliveryScript: '交付话术已准备'
+    },
+    addPlaceholder: '新增一条自查项…',
+    add: '添加',
+    remove: '删除'
+  },
+  // 812 工具波 B: 定金台账（轻量台账，与订单系统零联动）
+  deposit: {
+    title: '定金台账',
+    subtitle: '轻量记录每单定金：未收/已收一眼看清，仅保存在本机浏览器',
+    pendingTotal: '待收定金总额',
+    receivedTotal: '已收定金总额',
+    nameLabel: '单名',
+    namePlaceholder: '如：小林 · 立绘定金',
+    amountLabel: '定金金额（元）',
+    amountPlaceholder: '如 128.50',
+    statusLabel: '状态',
+    statusPending: '未收',
+    statusReceived: '已收',
+    dateLabel: '日期',
+    addBtn: '记一笔',
+    addSuccess: '已记入定金台账',
+    listTitle: '台账明细',
+    empty: '还没有定金记录，记下第一笔吧',
+    delete: '删除',
+    deleteConfirm: '确定删除这条定金记录吗？删除后不可恢复。',
+    deleteSuccess: '已删除',
+    nameRequired: '请填写单名',
+    amountRequired: '请输入定金金额',
+    amountPositive: '定金金额须大于 0',
+    dateRequired: '请选择日期'
   }
 }

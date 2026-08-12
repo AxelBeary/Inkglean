@@ -303,6 +303,10 @@ export default {
     // Toolbox reorganization (Paper-Ink proposal §5.5: one drawer handle + four category slots)
     toolbox: 'Toolbox', toolboxHint: 'All small tools live here, sorted into four drawers by purpose',
     toolboxCatMoney: 'Money', toolboxCatDelivery: 'Delivery', toolboxCatClients: 'Clients', toolboxCatEfficiency: 'Efficiency',
+    // 812 tools wave B: Price card / Delivery checklist / Deposit ledger (tools group menu items)
+    priceCard: 'Price Card',
+    deliveryChecklist: 'Delivery Checklist',
+    deposit: 'Deposit Ledger',
   },
   // REQ-035 postponed tools: Price calculator (tools page copy)
   priceCalc: {
@@ -1902,5 +1906,80 @@ export default {
       publish: 'Publish',
       published: 'Announcement published'
     }
+  },
+  // 812 tools wave B: Price card (Web simplified version of REQ-014 F3 commission slip: fill in the template, no free dragging)
+  priceCard: {
+    title: 'Price Card',
+    subtitle: 'Fill in the title, tiers and contact info, then generate a vertical price card PNG or plain text to send to clients',
+    titleLabel: 'Card title',
+    titlePlaceholder: 'e.g. Avatar · Illustration price list',
+    tiersLabel: 'Tiers (3-6 rows)',
+    tierNamePlaceholder: 'Tier name, e.g. Half body',
+    tierPricePlaceholder: 'Price (CNY)',
+    tierNotePlaceholder: 'One-line note (optional)',
+    addTier: 'Add row',
+    removeTier: 'Remove',
+    tierMax: 'Up to 6 rows',
+    contactLabel: 'Contact info',
+    contactPlaceholder: 'e.g. QQ 123456 · DM for commissions',
+    exampleLabel: 'Sample image (optional)',
+    exampleHint: 'Pick a local image; a small thumbnail will be placed on the card',
+    chooseExample: 'Choose image',
+    removeExample: 'Remove',
+    previewLabel: 'Preview',
+    exportPng: 'Export PNG',
+    exporting: 'Generating…',
+    copyText: 'Copy text version',
+    copied: 'Text version copied',
+    titleRequired: 'Enter a card title first',
+    tiersMinRequired: 'Fill in at least 3 complete tiers (name + price)',
+    exportFailed: 'Generation failed, please try again later',
+    fileTypeError: 'Please choose an image file',
+    contactLine: 'Contact: {contact}',
+    signText: 'Inkglean',
+    sealText: '拾绘'
+  },
+  // 812 tools wave B: Delivery checklist (self-check before handover)
+  deliveryChecklist: {
+    title: 'Delivery Checklist',
+    subtitle: 'Self-check each item before delivery; all checked means you are good to go',
+    progress: '{done}/{total} checked',
+    allDone: 'All done — ready to deliver',
+    defaults: {
+      finishWatermark: 'Final art confirmed via watermark-free preview',
+      sourceExport: 'Source file exported in the agreed format',
+      signatureConfirmed: 'Signature/credit terms confirmed',
+      finalPayment: 'Final payment received',
+      deliveryScript: 'Delivery message ready'
+    },
+    addPlaceholder: 'Add a custom item…',
+    add: 'Add',
+    remove: 'Delete'
+  },
+  // 812 tools wave B: Deposit ledger (lightweight ledger, zero linkage with the order system)
+  deposit: {
+    title: 'Deposit Ledger',
+    subtitle: 'Lightweight deposit tracking: pending vs received at a glance, saved only in this browser',
+    pendingTotal: 'Pending deposits',
+    receivedTotal: 'Received deposits',
+    nameLabel: 'Order name',
+    namePlaceholder: 'e.g. Xiao Lin · illustration deposit',
+    amountLabel: 'Deposit amount (CNY)',
+    amountPlaceholder: 'e.g. 128.50',
+    statusLabel: 'Status',
+    statusPending: 'Pending',
+    statusReceived: 'Received',
+    dateLabel: 'Date',
+    addBtn: 'Add record',
+    addSuccess: 'Deposit recorded',
+    listTitle: 'Ledger',
+    empty: 'No deposit records yet — add your first one',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this deposit record? This cannot be undone.',
+    deleteSuccess: 'Deleted',
+    nameRequired: 'Enter an order name',
+    amountRequired: 'Enter the deposit amount',
+    amountPositive: 'Amount must be greater than 0',
+    dateRequired: 'Pick a date'
   }
 }

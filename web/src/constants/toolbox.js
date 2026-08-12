@@ -2,6 +2,8 @@
 // 单一事实源：ArtistLayout（侧栏把手/抽屉分类组）与 ToolsHome（工具箱首页）共用。
 // 路由与 i18n 键保持现状不变，本文件只定义导航归组。
 import { Wallet, Download, PriceTag, Stamp, Grid, Calendar, User, Connection, ChatLineRound, ForkSpoon, Notebook, AlarmClock, Box } from '@element-plus/icons-vue'
+// 812 工具波 B 图标（独立 import，避免重排既有行；与上方同模块导入共存合法）
+import { Postcard, Finished, Coin } from '@element-plus/icons-vue'
 
 /** 13 个小工具按用途归入四类（cat 对应 TOOL_BOX_CATEGORIES.key） */
 export const TOOLS_MENU_ITEMS = [
@@ -20,6 +22,10 @@ export const TOOLS_MENU_ITEMS = [
   // 效率：吃什么/速记/截稿日
   { index: '/tools/food', icon: ForkSpoon, labelKey: 'menu.foodMenu', cat: 'efficiency' },
   { index: '/tools/note', icon: Notebook, labelKey: 'menu.quickNote', cat: 'efficiency' },
+  // 812 工具波 B: ④价目分享卡 / ⑤交付检查清单 / ⑥定金台账（只追加）
+  { index: '/tools/price-card', icon: Postcard, labelKey: 'menu.priceCard', cat: 'money' },
+  { index: '/tools/delivery-checklist', icon: Finished, labelKey: 'menu.deliveryChecklist', cat: 'delivery' },
+  { index: '/tools/deposit', icon: Coin, labelKey: 'menu.deposit', cat: 'money' },
   { index: '/tools/deadline', icon: AlarmClock, labelKey: 'menu.deadlineAdvice', cat: 'efficiency' }
 ]
 

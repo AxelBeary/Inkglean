@@ -60,6 +60,10 @@ const routes = [
       { path: 'tools/reply', name: 'ArtistSocialReply', component: () => import('../views/artist/SocialReply.vue'), meta: { titleKey: 'menu.socialReply', requiresAuth: true } },
       // REQ-035 工具集后置: 速记剪切板（工具页）
       { path: 'tools/note', name: 'ArtistQuickNote', component: () => import('../views/artist/QuickNote.vue'), meta: { titleKey: 'menu.quickNote', requiresAuth: true } },
+      // 812 工具波 B: ④价目分享卡 / ⑤交付检查清单 / ⑥定金台账（纯前端本地工具，只追加）
+      { path: 'tools/price-card', name: 'ArtistPriceCard', component: () => import('../views/artist/PriceCard.vue'), meta: { titleKey: 'menu.priceCard', requiresAuth: true } },
+      { path: 'tools/delivery-checklist', name: 'ArtistDeliveryChecklist', component: () => import('../views/artist/DeliveryChecklist.vue'), meta: { titleKey: 'menu.deliveryChecklist', requiresAuth: true } },
+      { path: 'tools/deposit', name: 'ArtistDepositLedger', component: () => import('../views/artist/DepositLedger.vue'), meta: { titleKey: 'menu.deposit', requiresAuth: true } },
       // REQ-035 工具集后置: 截稿日建议（工具页）
       { path: 'tools/deadline', name: 'ArtistDeadlineAdvice', component: () => import('../views/artist/DeadlineAdvice.vue'), meta: { titleKey: 'menu.deadlineAdvice', requiresAuth: true } },
       { path: 'stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
