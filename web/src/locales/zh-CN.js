@@ -298,6 +298,10 @@ export default {
     socialReply: '社恐轻松回复',
     quickNote: '速记剪切板',
     deadlineAdvice: '截稿日建议',
+    // 812-tools-a: 新工具波 A（报价单/改稿计数/压图改尺寸）
+    quote: '报价单',
+    revisionCount: '改稿计数',
+    imageResize: '压图改尺寸',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面',
     // 工具箱收纳（纸墨提案 §5.5：导航一个把手 + 四个分类格子）
@@ -474,6 +478,82 @@ export default {
     clientTooLong: '客户昵称不能超过 50 字',
     noteTooLong: '备注不能超过 200 字',
     dateRequired: '请选择日期'
+  },
+  // 812-tools-a: 报价单生成（工具页文案）
+  quote: {
+    title: '报价单',
+    subtitle: '把条目和金额填进模板，一键生成图片或文字报价，发给客户确认',
+    clientLabel: '客户称呼（选填）',
+    clientPlaceholder: '如：张三、XX 工作室',
+    itemsLabel: '条目列表',
+    itemNamePlaceholder: '条目名称，如：头像 · 半身',
+    itemAmountPlaceholder: '金额（元）',
+    addItem: '添加条目',
+    removeItem: '删除',
+    emptyItems: '还没有条目，先加一行',
+    noteLabel: '备注（选填）',
+    notePlaceholder: '如：含 3 次修改、商用授权等',
+    total: '合计',
+    exportPng: '生成图片',
+    copyText: '复制文字版',
+    copied: '已复制到剪贴板',
+    needItems: '请至少添加一条有效条目',
+    imageGenerated: '图片已生成',
+    imageFailed: '图片生成失败，请重试',
+    // 画布固定模板文案（单模板填空，随语言切换）
+    canvasTitle: '报价单',
+    canvasClient: '客户：',
+    canvasTotal: '合计：',
+    canvasNote: '备注：',
+    canvasFooter: '拾绘 Inkglean 生成',
+    // 纯文字版行模板
+    clientLine: '客户：{name}',
+    totalLine: '合计：{total}',
+    noteLine: '备注：{note}'
+  },
+  // 812-tools-a: 改稿计数器（工具页文案）
+  revisionCount: {
+    title: '改稿计数',
+    subtitle: '按条目记改稿次数，到约定上限自动标红提醒',
+    namePlaceholder: '如：张三-头像',
+    add: '添加条目',
+    addHint: '默认上限 3 次，可逐条调整',
+    empty: '还没有条目，添加一个开始计数',
+    plus: '+1',
+    undo: '撤销一次',
+    reset: '重置',
+    delete: '删除',
+    overLimit: '已达修改上限，注意与客户沟通',
+    limitLabel: '上限',
+    countUnit: '次'
+  },
+  // 812-tools-a: 压图改尺寸（工具页文案）
+  imageResize: {
+    title: '压图改尺寸',
+    subtitle: '本地缩放压缩图片，按平台预设导出 WebP，图片不出浏览器',
+    chooseFile: '拖入图片，或点击选择',
+    fileTypeError: '请选择图片文件',
+    presetsLabel: '尺寸预设',
+    presetXhs: '小红书 1242×1660',
+    presetWeibo: '微博 1080 宽',
+    presetAvatar: '头像 500×500',
+    presetCustom: '自定义宽高',
+    widthLabel: '宽',
+    heightLabel: '高',
+    widthPlaceholder: '宽度（px）',
+    heightPlaceholder: '高度（px，留空等比）',
+    qualityLabel: '质量',
+    qualityHint: '越高体积越大',
+    process: '开始压缩',
+    processing: '处理中…',
+    resultTitle: '压缩结果',
+    resultDims: '输出尺寸：{w} × {h}',
+    resultSize: '预估体积：{size}',
+    originalSize: '原图：{size}',
+    download: '下载 WebP',
+    noImage: '请先选择图片',
+    invalidDims: '宽高须为 1-10000 的整数',
+    processFailed: '压缩失败，请换一张图片重试'
   },
   // REQ-035 批D: 图片水印（工具页文案）
   watermark: {
