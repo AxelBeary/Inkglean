@@ -1,5 +1,9 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-12 v89（**竖屏布局追修两轮后用户拍板挂起；杂务批派工在途**）
+> ⏸️ **竖屏响应式挂起（用户拍板「算了，看起来修不好了」）**：812 两轮追修已合入（`f6da58d` StatCards 单列+QuickActions 断点 600 / `c18610c` 栅格对齐 / `675a16b` StatCards 横排修正至 el-card__body 层+模块间距 20px），用户对整体观感仍不满意，拍板挂起不再追。**教训入账：①el-card 内部布局须挂 :deep(.el-card__body) 层，外壳层 flex 不生效（首版未实测致二次报障）；②响应式观感类问题应以用户实机截图为准逐轮对齐预期，纯 CSS 数值修复难命中主观感受**。重启条件：用户主动重提，建议方向改为整页竖屏设计重做而非零散 CSS 补丁（可入视觉批统筹）。
+> 🔄 **杂务批在途**：worktree artist-commission-812-chores / 分支 812-chores，codex 无头施工：①README 测试数矛盾修复（better-harness 发现二，1213/332/1024 过时数字改指向命令+当日实测口径）；②README 新增「改动后最小验证」小节（better-harness 发现一，含 accept.ps1 一键入口）；③041 前端单测补齐（StepUpDialog/AdminLayout 守卫）。812-bugA/B/C 三个 worktree 已清理（分支保留）。
+
 > 最后更新：2026-08-12 v88（**812 bug 修复批三路全部合入；验收脚本首战；容器重建烘焙**）——master `6bf9174` 与 origin 同步。
 > ✅ **812 bug 修复批（用户 1.0 前实测抓9 条 bug，三路 codex 并行施工+一号逐路验收+合入）**：A 登录认证域（`61c0cedb` B4 深色闪白 index.html pre-paint 主题脚本+CSP SHA-256 / `682e24f4` B5 Passkey base64url→ArrayBuffer 四调用点+webauthn.ts 工具+单测+报错人话化，B6 管理员默认落地画师面板并入 B5 commit）；B 开箱与设置域（`c0253f2` B1 向导语言切换 / `7dd8f83` B2+B3 管理员账号公开端解禁（移除 qq_number===admin 硬规则，用户拍板完全放开）+画师设置页 ShopVisibilitySwitch 小店展示开关 / `3e03bc3` B7 开箱预置基础增项（用途/加急 4 条幂等种子，仅增项表为空时写入）/ `667505b` 测试修正）；C 滑块与响应式（`2e24e40a` B8 悬停误触发守卫（isPointerDown） / `2d12607d` B9 竖屏窄屏排版降级（锁 768/600 既有断点））。
 > ✅ **合入验收（accept.ps1 首战+手动补验）**：合入态全门禁实测 server **1340/1340** · web **373/373** · E2E **7/7** · lint 双侧 0 错 · i18n · build。**验收中抓到并裁决**：web vitest 3 例超时——根因=/dashboard 用例首载懒加载 Dashboard 链冷态 transform 实测 ~5.1s 恰好越过默认 5s 哨兵（非功能 bug），裁决=3 用例单列 20s 超时（`6bf9174`），其余用例仍受默认哨兵保护；教训入账：**测试超时报错先量实际耗时再定性，勿直接判功能 bug**。
