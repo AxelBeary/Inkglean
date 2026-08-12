@@ -38,7 +38,7 @@ const routes = [
       { path: 'settings', name: 'ArtistSettings', component: () => import('../views/artist/Settings.vue'), meta: { titleKey: 'menu.settings', requiresAuth: true } },
       // #44: 偏好独立页面（从主页设置拆出，主页对外/偏好对内）
       { path: 'preferences', name: 'ArtistPreferences', component: () => import('../views/artist/Preferences.vue'), meta: { titleKey: 'menu.preferences', requiresAuth: true } },
-      // 工具箱收纳（纸墨提案 §5.5）：首页四分类格，13 个子路由保持原路径不变
+      // 工具箱收纳（纸墨提案 §5.5）：首页四分类格，15 个子路由保持原路径不变
       { path: 'tools', name: 'ArtistToolbox', component: () => import('../views/artist/ToolsHome.vue'), meta: { titleKey: 'menu.toolbox', requiresAuth: true } },
       // REQ-035 批D: 今天吃什么（工具子页）
       { path: 'tools/food', name: 'ArtistFoodMenu', component: () => import('../views/artist/FoodMenu.vue'), meta: { titleKey: 'menu.foodMenu', requiresAuth: true } },
@@ -62,6 +62,12 @@ const routes = [
       { path: 'tools/note', name: 'ArtistQuickNote', component: () => import('../views/artist/QuickNote.vue'), meta: { titleKey: 'menu.quickNote', requiresAuth: true } },
       // REQ-035 工具集后置: 截稿日建议（工具页）
       { path: 'tools/deadline', name: 'ArtistDeadlineAdvice', component: () => import('../views/artist/DeadlineAdvice.vue'), meta: { titleKey: 'menu.deadlineAdvice', requiresAuth: true } },
+      // 812-tools-a: 报价单生成（工具页）
+      { path: 'tools/quote', name: 'ArtistQuote', component: () => import('../views/artist/Quote.vue'), meta: { titleKey: 'menu.quote', requiresAuth: true } },
+      // 812-tools-a: 改稿计数器（工具页）
+      { path: 'tools/revision-count', name: 'ArtistRevisionCount', component: () => import('../views/artist/RevisionCount.vue'), meta: { titleKey: 'menu.revisionCount', requiresAuth: true } },
+      // 812-tools-a: 压图改尺寸（工具页）
+      { path: 'tools/image-resize', name: 'ArtistImageResize', component: () => import('../views/artist/ImageResize.vue'), meta: { titleKey: 'menu.imageResize', requiresAuth: true } },
       { path: 'stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
       { path: 'artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
       // #1: 留言管理独立页面（v0.24-C）

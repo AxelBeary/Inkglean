@@ -59,4 +59,18 @@ describe('画师后台嵌套路由（REQ-037 批2 A1）', () => {
     expect(router.currentRoute.value.name).toBe('ArtistToolbox')
     expect(router.currentRoute.value.matched.length).toBe(2)
   })
+
+  // 812-tools-a: 新工具波 A 三个子路由（报价单/改稿计数/压图改尺寸）
+  it('新工具子路由解析正确（/tools/quote|revision-count|image-resize）', async () => {
+    const cases = [
+      { path: '/tools/quote', name: 'ArtistQuote' },
+      { path: '/tools/revision-count', name: 'ArtistRevisionCount' },
+      { path: '/tools/image-resize', name: 'ArtistImageResize' }
+    ]
+    for (const c of cases) {
+      await router.push(c.path)
+      expect(router.currentRoute.value.name).toBe(c.name)
+      expect(router.currentRoute.value.matched.length).toBe(2)
+    }
+  })
 })
