@@ -13,7 +13,8 @@ import {
   updateCredentialName,
   deleteCredential,
   hasPasskeyCredentials,
-  getExistingCredentialIds
+  getExistingCredentialIds,
+  isCounterRegression
 } from '../src/features/auth/webauthn.js'
 import { AppError, E } from '../src/shared/errors.js'
 
@@ -146,6 +147,22 @@ describe('WebAuthn Passkey (REQ-040)', () => {
       expect(options).toHaveProperty('challenge')
       expect(options).toHaveProperty('rpId')
       expect(options).toHaveProperty('userVerification')
+    })
+  })
+
+  describe('counter 防克隆回归判定（812 OOBE：Windows Hello 永远上报 0）', () => {
+    it('双侧均 0 = 平台验证器，不判回归', () => {
+      expect(isCounterRegression(0, 0)).toBe(false)
+    })
+    it('验证器有计数器且递增，不判回归', () => {
+      expect(isCounterRegression(5, 3)).toBe(false)
+    })
+    it('验证器有计数器但回退/重复，判回归（疑似克隆）', () => {
+      expect(isCounterRegression(3, 5)).toBe(true)
+      expect(isCounterRegression(5, 5)).toBe(true)
+    })
+    it('曾上报过非零后归零，判回归', () => {
+      expect(isCounterRegression(0, 5)).toBe(true)
     })
   })
 

@@ -231,6 +231,17 @@ export async function verifyRegistration(
 // ─── 认证流程（公开） ───
 
 /**
+ * counter 防克隆回归判定（812 OOBE 实测修复）：
+ * 平台验证器（Windows Hello TPM / 手机生物识别）按 WebAuthn 规范永远上报 counter=0，
+ * 若强制"新值必须大于旧值"则 0<=0 永久拒绝登录。规则：双侧均为 0 = 平台验证器，不判回归；
+ * 任一侧非零 = 验证器实现了计数器，强制递增（防克隆）。
+ */
+export function isCounterRegression(newCounter: number, storedCounter: number): boolean {
+  if (newCounter === 0 && storedCounter === 0) return false
+  return newCounter <= storedCounter
+}
+
+/**
  * 生成认证选项（POST /api/auth/webauthn/login-options）
  * 防枚举：未注册 QQ 与正常同响应结构（仅返回 options 骨架）
  */
@@ -324,8 +335,8 @@ export async function verifyLogin(
   }
 
   const { authenticationInfo } = verification
-  // counter 递增校验（防克隆）
-  if (authenticationInfo.newCounter <= credentialRow.counter) {
+  // counter 递增校验（防克隆）——平台验证器永远上报 0 时跳过（见 isCounterRegression 注释）
+  if (isCounterRegression(authenticationInfo.newCounter, credentialRow.counter)) {
     throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
   }
 
