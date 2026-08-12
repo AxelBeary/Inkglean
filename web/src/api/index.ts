@@ -178,6 +178,19 @@ api.interceptors.response.use(
     const code = data?.code
     let msg = data?.error || ''
 
+    // REQ-038 补牢（812 用户实测报障）：服务端判未初始化（如 DB 重置/全新部署）而本地缓存仍 setup_initialized=1 时，
+    // 路由守卫会信任缓存不跳转，用户卡死在裸 503 报错页。逃逸口：清陈旧缓存并跳开箱向导
+    if (err.response?.status === 503 && code === 'SETUP_REQUIRED') {
+      safeRemoveItem('setup_initialized')
+      try {
+        // 动态导入避免循环依赖（router 链依赖本模块）
+        const routerMod = await import('../router/index.js')
+        if (routerMod.default.currentRoute.value.name !== 'SetupWizard') {
+          routerMod.default.push({ name: 'SetupWizard' })
+        }
+      } catch { /* 跳转失败不吞错误，继续走下方错误提示链路 */ }
+    }
+
     // 尝试用 i18n 翻译错误码
     if (code) {
       try {
