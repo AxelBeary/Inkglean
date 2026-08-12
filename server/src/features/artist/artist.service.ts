@@ -50,22 +50,13 @@ export function getArtistBySubdomain(subdomain: string): Artist | undefined {
 }
 
 /**
- * BUG-3 修复：读取管理员 QQ（platform_config 优先，env 兜底）
- * 与 middleware/auth.ts getAdminQq 语义一致；本地实现避免 service ↔ middleware 循环依赖
- */
-function readAdminQq(): string {
-  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
-  return row?.value || process.env.ADMIN_QQ || ''
-}
-
-/**
  * BUG-3 修复：公开路由可见画师守卫
- * hidden 画师或管理员账号 → 抛 ARTIST_NOT_FOUND 404（对照 artist.routes.ts:35 范式）
+ * hidden/封禁画师 → 抛 ARTIST_NOT_FOUND 404（对照 artist.routes.ts 公开路由范式）
  * 供 /api/public/* 端点统一使用，防止 hidden 画师未完全隐身
  */
 export function requireVisibleArtist(subdomain: string): Artist {
   const artist = getArtistBySubdomain(subdomain)
-  if (!artist || artist.qq_number === readAdminQq() || (artist as Artist).status === 'hidden' || artist.is_banned) {
+  if (!artist || (artist as Artist).status === 'hidden' || artist.is_banned) {
     throw new AppError(E.ARTIST_NOT_FOUND, 404)
   }
   return artist
@@ -671,7 +662,7 @@ export function getAnnouncement(artist: Artist): { text: string; expiresAt: stri
 
 const LIKE_MAX = 99999
 
-/** 点赞 +1（上限保护）。BUG-3 修复：hidden 画师/管理员账号的作品拒绝点赞 */
+/** 点赞 +1（上限保护）。BUG-3 修复：hidden/封禁画师的作品拒绝点赞 */
 export function likeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
   if (!artwork || !isArtistVisibleById(artwork.artist_id)) return null
@@ -680,7 +671,7 @@ export function likeArtwork(artworkId: number): Artwork | null {
   return getArtworkById(artworkId) ?? null
 }
 
-/** 取消点赞 -1（不低于 0）。BUG-3 修复：hidden 画师/管理员账号的作品拒绝取消点赞 */
+/** 取消点赞 -1（不低于 0）。BUG-3 修复：hidden/封禁画师的作品拒绝取消点赞 */
 export function unlikeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
   if (!artwork || !isArtistVisibleById(artwork.artist_id)) return null
@@ -691,7 +682,7 @@ export function unlikeArtwork(artworkId: number): Artwork | null {
 
 /**
  * BUG-3 修复：按 artist_id 判断画师是否对公开端点可见
- * hidden 状态或管理员账号 → 不可见（对照 requireVisibleArtist 语义）
+ * hidden/封禁/已删除 → 不可见（对照 requireVisibleArtist 语义）
  * audit-a P2-7: 导出供订单公开路由（track）复用，避免复制隐藏逻辑
  */
 export function isArtistVisibleById(artistId: number): boolean {
@@ -699,6 +690,5 @@ export function isArtistVisibleById(artistId: number): boolean {
   if (!artist || artist.deleted_at) return false
   if (artist.status === 'hidden') return false
   if (artist.is_banned) return false
-  if (artist.qq_number === readAdminQq()) return false
   return true
 }

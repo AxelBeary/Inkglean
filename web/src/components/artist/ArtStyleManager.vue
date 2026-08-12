@@ -182,7 +182,15 @@
         </el-card>
       </template>
     </draggable>
-    <el-empty v-else-if="!loading" :description="$t('styleManage.styleEmpty')" :image-size="80" />
+    <!-- 812-B B7: 无画风空态引导 + 直达既有创建入口 -->
+    <el-empty v-else-if="!loading" :description="$t('styleManage.styleEmpty')" :image-size="80">
+      <div class="style-empty-guide">
+        <p class="style-empty-guide-text">{{ $t('styleManage.styleEmptyGuide') }}</p>
+        <el-button type="primary" class="style-empty-cta" @click="openCreateStyle">
+          {{ $t('styleManage.styleEmptyCta') }}
+        </el-button>
+      </div>
+    </el-empty>
 
     <!-- REQ-043 I6-a: 画风/尺寸/导入弹窗拆为子组件（纯搬移，零行为变化） -->
     <StyleEditDialog v-model="styleDialogVisible" :style="editingStyle" @saved="load" />
@@ -721,6 +729,11 @@ defineExpose({ reload: load })
 /* 新建画风：页面唯一最强主操作 */
 .create-style-btn { font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600; padding: 12px 24px; height: auto; }
 .toolbar-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 0 0 16px; line-height: 1.6; padding: 0 4px; }
+
+/* 812-B B7: 无画风空态引导 */
+.style-empty-guide { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.style-empty-guide-text { margin: 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); line-height: 1.5; }
+.style-empty-cta { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; }
 
 /* 分栏阈值 680px：宽屏才分两列，避免单块过窄 */
 .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(680px, 1fr)); gap: 20px; align-items: start; }

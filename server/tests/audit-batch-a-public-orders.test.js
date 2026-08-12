@@ -34,14 +34,56 @@ describe('audit-a P2-7 公开订单路由可见性', () => {
     expect((await app.inject({ method: 'GET', url: '/api/orders/track/HID-A-001?qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
   })
 
-  it('TC-P27-02: 管理员账号的 my/lookup/track 一律 404', async () => {
+  it('TC-P27-02: 管理员账号 status=open 时 my/lookup/track 公开可见（812-B 新语义）', async () => {
     db.prepare("UPDATE platform_config SET value = '77009' WHERE key = 'admin_qq'").run()
-    const artist = seedArtist({ qq_number: '77009', subdomain: 'admin-artist' })
+    const artist = seedArtist({ qq_number: '77009', subdomain: 'admin-artist', status: 'open' })
     seedOrder(artist.id, { order_no: 'ADM-001', client_qq: '66001', queue_position: 1 })
+
+    const my = await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })
+    expect(my.statusCode).toBe(200)
+    expect(my.json()).toHaveLength(1)
+
+    const lookup = await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })
+    expect(lookup.statusCode).toBe(200)
+    expect(lookup.json().hasOrders).toBe(true)
+
+    const track = await app.inject({ method: 'GET', url: '/api/orders/track/ADM-001?qq=66001', remoteAddress: uniqueIp() })
+    expect(track.statusCode).toBe(200)
+    expect(track.json().orderNo).toBe('ADM-001')
+  })
+
+  it('TC-P27-02b: 管理员账号 hidden 时 my/lookup/track 仍 404（回归）', async () => {
+    db.prepare("UPDATE platform_config SET value = '77009' WHERE key = 'admin_qq'").run()
+    const artist = seedArtist({ qq_number: '77009', subdomain: 'admin-artist', status: 'hidden' })
+    seedOrder(artist.id, { order_no: 'ADM-002', client_qq: '66001', queue_position: 1 })
 
     expect((await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
     expect((await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
-    expect((await app.inject({ method: 'GET', url: '/api/orders/track/ADM-001?qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
+    expect((await app.inject({ method: 'GET', url: '/api/orders/track/ADM-002?qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
+  })
+
+  it('TC-P27-06: 管理员账号 status=open 时目录/公开主页可见，hidden 时目录排除、主页 UI-8 最小信息', async () => {
+    db.prepare("UPDATE platform_config SET value = '77013' WHERE key = 'admin_qq'").run()
+    const admin = seedArtist({ qq_number: '77013', subdomain: 'admin-profile', status: 'open' })
+
+    const dir = await app.inject({ method: 'GET', url: '/api/artists' })
+    expect(dir.statusCode).toBe(200)
+    expect(dir.json().some(a => a.subdomain === 'admin-profile')).toBe(true)
+
+    const profile = await app.inject({ method: 'GET', url: '/api/artists/admin-profile' })
+    expect(profile.statusCode).toBe(200)
+    expect(profile.json().status).toBe('open')
+
+    db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(admin.id)
+
+    const dirHidden = await app.inject({ method: 'GET', url: '/api/artists' })
+    expect(dirHidden.statusCode).toBe(200)
+    expect(dirHidden.json().some(a => a.subdomain === 'admin-profile')).toBe(false)
+
+    // UI-8 既有语义保留：hidden 公开主页返回 200 + 最小信息（不暴露 bio/pricing/artworks），店主可见隐藏态提示
+    const profileHidden = await app.inject({ method: 'GET', url: '/api/artists/admin-profile' })
+    expect(profileHidden.statusCode).toBe(200)
+    expect(profileHidden.json()).toEqual({ id: admin.id, name: admin.name, subdomain: 'admin-profile', status: 'hidden' })
   })
 
   it('TC-P27-03: 可见画师 my/lookup/track 回归正常', async () => {

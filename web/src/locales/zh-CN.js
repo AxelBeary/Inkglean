@@ -630,7 +630,8 @@ export default {
     commission: '我要约稿', track: '查询进度',
     noWorks: '暂无作品，敬请期待',
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
-    aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败', hidden: '该画师暂未开放主页',
+    aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败',
+    hidden: '该画师暂未开放主页。如你是店主，请到「设置 → 主页展示」开启「小店展示」。',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     navPricing: '价格', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
     startCommission: '开始约稿 →', trackOrder: '查询进度',
@@ -1206,6 +1207,9 @@ export default {
     styleImportAddons: '从增项库一键导入', styleImportHint: '勾选后，增项库中所有增项将自动导入到该画风（默认启用，可逐个调整）',
     styleSaved: '画风已保存', styleDeleted: '画风已删除', styleDeleteConfirm: '确定删除画风「{name}」？其下所有尺寸、增项配置和覆盖将一并删除。',
     styleActive: '启用', styleEmpty: '还没有画风，点击"新建画风"开始配置',
+    // 812-B B7: 无画风空态引导
+    styleEmptyGuide: '创建你的第一个画风并添加尺寸，客户即可按画风约稿。',
+    styleEmptyCta: '创建我的第一个画风',
     // 尺寸
     sizeTitle: '尺寸与基础价', sizeName: '尺寸', sizePrice: '基础价',
     sizeNamePlaceholder: '如：头像、半身、全身', sizeNameRequired: '请输入尺寸名称',
@@ -1349,6 +1353,10 @@ export default {
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
     statusLabel: '主页状态', statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中', statusHidden: '已隐藏',
+    // 812-B B2+B3: 小店展示独立开关（语义 = status 是否 hidden）
+    shopVisibleLabel: '小店展示', shopVisibleOn: '展示中', shopVisibleOff: '已隐藏',
+    shopVisibleHint: '开启后，客户可在目录看到你的小店并访问主页；关闭后小店对外隐藏。',
+    shopHiddenNotice: '小店当前处于隐藏状态，客户无法在目录看到或访问主页。',
     linksLabel: '外链（客户主页展示）', addLink: '添加链接',
     linksHint: '最多 8 条，粘贴后自动识别平台，保存后客户主页立即生效。留空的行不会保存。',
     linksEmpty: '还没有添加链接', linkOther: '其他', linkUrlPlaceholder: 'https://',
@@ -1596,6 +1604,7 @@ export default {
     step2StudioLabel: '同时创建我的画师工作室',
     step2StudioNameLabel: '工作室名称',
     step2StudioNamePlaceholder: '输入工作室名称',
+    step2StudioNameDefault: '{name}的工作室',
     step2StudioSubdomainLabel: '工作室子域名',
     step2StudioSubdomainPlaceholder: '如 myart（小写字母/数字/连字符）',
     step2Submit: '创建管理员',

@@ -631,7 +631,8 @@ export default {
     commission: 'Commission me', track: 'Track order',
     noWorks: 'No artworks yet — stay tuned',
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
-    aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load', hidden: "This artist's page is currently unavailable",
+    aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load',
+    hidden: "This artist's page is currently unavailable. If you're the owner, enable \"Shop visibility\" under Settings → Public Page.",
     statusOpen: 'Open for commissions', statusFull: 'Fully booked', statusBreak: 'On break',
     navPricing: 'Pricing', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
     startCommission: 'Start a commission →', trackOrder: 'Track order',
@@ -1207,6 +1208,9 @@ export default {
     styleImportAddons: 'Import all addons from library', styleImportHint: 'When checked, every addon in the library is imported into this style (enabled by default, adjustable per item).',
     styleSaved: 'Style saved', styleDeleted: 'Style deleted', styleDeleteConfirm: 'Delete style "{name}"? All its sizes, addon configs and overrides will be removed too.',
     styleActive: 'Active', styleEmpty: 'No styles yet. Click "New Style" to start configuring.',
+    // 812-B B7: empty-state guidance for no styles
+    styleEmptyGuide: 'Create your first art style with sizes so clients can start commissioning.',
+    styleEmptyCta: 'Create my first style',
     // Sizes
     sizeTitle: 'Sizes & base prices', sizeName: 'Size', sizePrice: 'Base price',
     sizeNamePlaceholder: 'e.g. Avatar, Half-body, Full-body', sizeNameRequired: 'Please enter a size name',
@@ -1351,6 +1355,10 @@ export default {
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
     statusLabel: 'Page status', statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break', statusHidden: 'Hidden',
+    // 812-B B2+B3: standalone shop-visibility switch (semantics = whether status is hidden)
+    shopVisibleLabel: 'Shop visibility', shopVisibleOn: 'Visible', shopVisibleOff: 'Hidden',
+    shopVisibleHint: 'When on, clients can find your shop in the directory and visit your page. When off, your shop is hidden from the public.',
+    shopHiddenNotice: 'Your shop is currently hidden — clients cannot find it in the directory or visit your page.',
     linksLabel: 'Links (shown on public page)', addLink: 'Add link',
     linksHint: 'Up to 8 links. Platforms are auto-detected as you paste. Changes appear on your public page immediately after saving. Empty rows are not saved.',
     linksEmpty: 'No links added yet', linkOther: 'Other', linkUrlPlaceholder: 'https://',
@@ -1599,6 +1607,7 @@ export default {
     step2StudioLabel: 'Also create my artist studio',
     step2StudioNameLabel: 'Studio Name',
     step2StudioNamePlaceholder: 'Enter studio name',
+    step2StudioNameDefault: "{name}'s Studio",
     step2StudioSubdomainLabel: 'Studio Subdomain',
     step2StudioSubdomainPlaceholder: 'e.g. myart (lowercase letters/digits/hyphens)',
     step2Submit: 'Create Admin',

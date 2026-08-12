@@ -239,24 +239,32 @@ describe('SPEC-PRICE-2 用途/加急增项', () => {
 describe('REQ-036 内置模板种子', () => {
   beforeEach(() => { cleanDb() })
 
-  it('TC-R36-30: 迁移后系统预置 5 个模板，全画师可见', () => {
+  it('TC-R36-30: 迁移后系统预置 4 个基础增项（812-B B7），全画师可见', () => {
     const artist = seedArtist({ qq_number: '99002', subdomain: 'seed1' })
     const sys = styleService.getAddonTemplates(artist.id).filter(t => t.artist_id === null)
-    expect(sys).toHaveLength(5)
+    expect(sys).toHaveLength(4)
     const names = sys.map(t => t.name)
-    expect(names).toContain('加人物')
-    expect(names).toContain('背景')
-    expect(names).toContain('机甲')
-    expect(names).toContain('商用')
+    expect(names).toContain('个人用途')
+    expect(names).toContain('商业用途')
+    expect(names).toContain('标准')
     expect(names).toContain('加急')
-    // 用途/加急语义（SPEC-PRICE-2）：商用 +50% / 加急 +100%
-    const comm = sys.find(t => t.name === '商用')
+    // 用途/加急语义（SPEC-PRICE-2，812-B 保守值）：个人 ×1.0 / 商业 ×1.5 / 标准 ×1.0 / 加急 ×1.3
+    const personal = sys.find(t => t.name === '个人用途')
+    expect(personal.category).toBe('usage')
+    expect(personal.price_mode).toBe('percent')
+    expect(personal.default_price).toBe(0)
+    const comm = sys.find(t => t.name === '商业用途')
     expect(comm.category).toBe('usage')
     expect(comm.price_mode).toBe('percent')
     expect(comm.default_price).toBe(50)
+    const std = sys.find(t => t.name === '标准')
+    expect(std.category).toBe('rush')
+    expect(std.price_mode).toBe('percent')
+    expect(std.default_price).toBe(0)
     const rush = sys.find(t => t.name === '加急')
     expect(rush.category).toBe('rush')
-    expect(rush.default_price).toBe(100)
+    expect(rush.price_mode).toBe('percent')
+    expect(rush.default_price).toBe(30)
   })
 
   it('TC-R36-31: 数量型模板 max_quantity 生效（超出上限拒绝）', () => {
@@ -277,10 +285,10 @@ describe('REQ-036 内置模板种子', () => {
 
   it('TC-R36-32: 系统模板可被画师导入画风（setStyleAddons 允许）', () => {
     const { artist, style } = setupScene()
-    const sys = styleService.getAddonTemplates(artist.id).find(t => t.name === '机甲')
+    const sys = styleService.getAddonTemplates(artist.id).find(t => t.name === '商业用途')
     const result = styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: sys.id }])
     const added = result.find(a => a.addon_template_id === sys.id)
-    expect(added.template_name).toBe('机甲')
+    expect(added.template_name).toBe('商业用途')
   })
 })
 
@@ -337,9 +345,10 @@ describe('SPEC-PRICE-2 v51：控件约束与快照语义', () => {
   it('TC-V51-03: 绑定行脏快照不遮蔽模板真实值（v50 污染修复回归）', () => {
     const artist = seedArtist({ qq_number: '99012', subdomain: 'v51c' })
     seedWorkflowStages(artist.id)
-    // 系统种子「加急」= rush/percent/100
-    const rushTpl = styleService.getAddonTemplates(artist.id).find(t => t.category === 'rush')
+    // 系统种子「加急」= rush/percent/30（812-B B7：×1.3 保守值）
+    const rushTpl = styleService.getAddonTemplates(artist.id).find(t => t.name === '加急')
     expect(rushTpl).toBeTruthy()
+    expect(rushTpl.default_price).toBe(30)
     const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: false })
     const size = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: rushTpl.id }])
@@ -356,12 +365,12 @@ describe('SPEC-PRICE-2 v51：控件约束与快照语义', () => {
     expect(rushSa.template_category).toBe('rush')
     expect(rushSa.template_price_mode).toBe('percent')
 
-    // 算价：仍按加急倍率而非普通加法项（200 × 2 = 400）
+    // 算价：仍按加急倍率而非普通加法项（200 × 1.3 = 260）
     const result = stylePricingService.calculateStylePrice(artist.id, {
       styleSizeId: size.id,
       addons: [{ styleAddonId: rushSa.id }]
     })
-    expect(result.rush.percent).toBe(100)
-    expect(result.totalCents).toBe(40000)
+    expect(result.rush.percent).toBe(30)
+    expect(result.totalCents).toBe(26000)
   })
 })

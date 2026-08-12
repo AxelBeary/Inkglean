@@ -166,8 +166,8 @@ describe('增项库 CRUD (addon_templates)', () => {
     const detached = addons.find(a => a.detached)
     expect(detached).toBeTruthy()
     expect(detached.addon_template_id).toBeNull()
-    // 其余 = 系统用途/加急自动绑定（未解绑）
-    expect(addons.filter(a => !a.detached)).toHaveLength(2)
+    // 其余 = 系统用途/加急自动绑定（未解绑；812-B B7：用途×2 + 加急×2）
+    expect(addons.filter(a => !a.detached)).toHaveLength(4)
   })
 
   it('TC-AT-09: 获取不存在的模板 → 404', () => {
@@ -206,8 +206,8 @@ describe('画风 CRUD (art_styles)', () => {
     expect(style.sizes).toHaveLength(0)
     // SPEC-PRICE-2：新画风无条件自动绑定系统用途/加急；普通增项为空
     expect(style.addons.filter(a => a.template_category === 'add')).toHaveLength(0)
-    expect(style.addons.filter(a => a.template_category === 'usage')).toHaveLength(1)
-    expect(style.addons.filter(a => a.template_category === 'rush')).toHaveLength(1)
+    expect(style.addons.filter(a => a.template_category === 'usage')).toHaveLength(2)
+    expect(style.addons.filter(a => a.template_category === 'rush')).toHaveLength(2)
   })
 
   it('TC-AS-02: 新建画风 — importAddons 一键导入（仅普通增项；用途/加急自动绑定）', () => {
@@ -219,7 +219,7 @@ describe('画风 CRUD (art_styles)', () => {
     expect(regular).toHaveLength(2)
     expect(regular[0].template_name).toBe('加人')
     expect(regular[1].template_name).toBe('加背景')
-    expect(style.addons.filter(a => a.template_category !== 'add')).toHaveLength(2) // 系统用途/加急
+    expect(style.addons.filter(a => a.template_category !== 'add')).toHaveLength(4) // 系统用途/加急（812-B B7）
   })
 
   it('TC-AS-03: 新建画风 — 名称为空拒绝', () => {
@@ -456,10 +456,12 @@ describe('公开配置 (getPublicStyles)', () => {
     })
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
     const addons = styleService.getStyleAddons(style.id)
+    // 812-B B7：新种子下系统用途/加急自动绑定 4 条，按模板类别定位加人增项（不依赖数组顺序）
+    const personAddon = addons.find(a => a.template_category === 'add')
 
     // 全身尺寸下加人价格覆盖为 200
     styleService.setSizeOverrides(artist.id, style.id, s2.id, [
-      { style_addon_id: addons[0].id, price_override: 200 }
+      { style_addon_id: personAddon.id, price_override: 200 }
     ])
 
     const result = styleService.getPublicStyles(artist.id)
@@ -484,9 +486,9 @@ describe('公开配置 (getPublicStyles)', () => {
     const tpl = styleService.createAddonTemplate(artist.id, { name: '加背景', default_price: 150 })
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
     const addons = styleService.getStyleAddons(style.id)
-
+    // 812-B B7：隐藏的是加背景普通增项（按模板类别定位，不依赖数组顺序）
     styleService.setSizeOverrides(artist.id, style.id, size.id, [
-      { style_addon_id: addons[0].id, is_hidden: true }
+      { style_addon_id: addons.find(a => a.template_category === 'add').id, is_hidden: true }
     ])
 
     const result = styleService.getPublicStyles(artist.id)
@@ -521,7 +523,9 @@ describe('公开配置 (getPublicStyles)', () => {
     styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id, price_override: 120 }])
 
     const result = styleService.getPublicStyles(artist.id)
-    expect(result[0].sizes[0].addons[0].price).toBe(120)
+    // 812-B B7：按名称断言加人覆盖价（公开配置首位可能是系统用途/加急）
+    const pubPerson = result[0].sizes[0].addons.find(a => a.category === 'add')
+    expect(pubPerson.price).toBe(120)
   })
 })
 
@@ -557,9 +561,9 @@ describe('多画风路由层集成测试', () => {
     const tpl = createRes.json()
     expect(tpl.name).toBe('加背景')
 
-    // 列表（v49: 含 5 个系统预置模板 + 自建 1 = 6）
+    // 列表（v49: 含 4 个系统预置基础增项 + 自建 1 = 5；812-B B7）
     const listRes = await app.inject({ method: 'GET', url: '/api/artist/addon-templates', headers })
-    expect(listRes.json()).toHaveLength(6)
+    expect(listRes.json()).toHaveLength(5)
 
     // 更新
     const updateRes = await app.inject({
@@ -744,10 +748,10 @@ describe('SPEC-PRICE-2 画风增项解绑与覆盖读取', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().deleted).toBe(true)
-    // 目标增项已移除；其余 = 系统自动绑定的用途/加急
+    // 目标增项已移除；其余 = 系统自动绑定的用途×2/加急×2（812-B B7 新种子）
     const remaining = styleService.getStyleAddons(style.id)
     expect(remaining.find(a => a.id === sa.id)).toBeUndefined()
-    expect(remaining).toHaveLength(2)
+    expect(remaining).toHaveLength(4)
     // 尺寸覆盖随外键 CASCADE 清除
     expect(styleService.getSizeOverrides(artist.id, style.id, size.id)).toHaveLength(0)
     // 增项库模板保留（解绑不动库）
