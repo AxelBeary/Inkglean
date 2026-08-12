@@ -1,5 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-12 v92（**窗口交接版：环境大盘点已清零，下一窗口读本条即可接手**）
+> 🧹 **环境现状（已实测）**：master 干净无未提交；worktree 全部清理（含 811/w-* 历史残留目录，分支均已合入后删除，仅保留备份分支 backup/pre-squash-login-attempts）；容器 commission-web Healthy + commission-caddy Up；dev 服务器 3000 端口仍在跑（PID 1404，不需要时可 kill）；无活动定时任务（夜间巡逻已删）。
+> 💾 **生产库现状**：用户已亲走完 OOBE 全流程（新建管理员+绑 TOTP+绑 Passkey 均成功）；重置前旧库备份 data/commission.db.bak-pre-oobe-reset-20260812；uploads 未动。门禁基线：server **1344** · web **385** · E2E **7**。
+> 📌 **下一窗口接手指南**：①读本文件顶部 v89-v92 恢复近况；②待拍板清单见 v91（工作流改进①-⑥：关键路径冒烟已入纪律、Passkey E2E/登录 UI E2E/v50 迁移回读测试可打包派 codex、运营基建波待开工、新工具提案 6 项待用户挑）；③codex 派工注意：workspace-write 沙箱下 worktree 内无法自提交（结构性约束），提交收口由一号沙箱外执行；启动器须固化非商店版 pwsh 排 PATH 最前 + unelevated（见 docs/comms/812-chores-零提交根因-转交-20260812.md）；④关键路径改动合入后必须先浏览器冒烟预验再交用户终验（新纪律，已入记忆）。
+
 > 最后更新：2026-08-12 v91（**OOBE 全流程用户实测走通；Passkey 两坑修复终验通过；工作流改进清单待拍板**）——master `f902ec5` 与 origin 同步。
 > ✅ **用户 OOBE 实测战果（抓出 5 个真 bug 全修）**：①DB 重置后向导入口卡死（陈旧 setup_initialized 缓存）→ 503 SETUP_REQUIRED 逃逸口（`f1236f8`）；②向导第三步占位文案截断→中英改短（`28926bf`）；③Passkey 注册 origin 失配（Caddy https vs 硬编码 http）→ 协议感知推断（`2e6e042`）；④Windows Hello 登录被 counter 防克隆规则永久拒绝（平台验证器恒报 0）→ isCounterRegression 豁免规则+4 回归用例（`1b5afb0`）；⑤小店开关覆写营业状态（预验抓出，`d371bd6`）。**用户终验：Passkey 注册+登录全通。教训入账两条（WebAuthn 两大部署坑/关键路径合入后必须浏览器冒烟预验）**。基线：server **1344** · web 385 · E2E 7。
 > 📋 **工作流改进清单（待用户拍板）**：①关键路径浏览器冒烟预验机制化（已入纪律记忆，下次起执行）；②Passkey E2E 补齐（Playwright 虚拟验证器，机械防 counter/origin 类回归）；③登录 UI 旅程 E2E（检查体系审计 M4 缺口）；④检查体系审计建议动作（v50 迁移回读测试优先）；⑤新工具提案 6 项（报价单/改稿计数/压图等）；⑥运营基建波（post-merge 自动重建+守护循环+每日巡检）。
