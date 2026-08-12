@@ -1,5 +1,9 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-12 v91（**OOBE 全流程用户实测走通；Passkey 两坑修复终验通过；工作流改进清单待拍板**）——master `f902ec5` 与 origin 同步。
+> ✅ **用户 OOBE 实测战果（抓出 5 个真 bug 全修）**：①DB 重置后向导入口卡死（陈旧 setup_initialized 缓存）→ 503 SETUP_REQUIRED 逃逸口（`f1236f8`）；②向导第三步占位文案截断→中英改短（`28926bf`）；③Passkey 注册 origin 失配（Caddy https vs 硬编码 http）→ 协议感知推断（`2e6e042`）；④Windows Hello 登录被 counter 防克隆规则永久拒绝（平台验证器恒报 0）→ isCounterRegression 豁免规则+4 回归用例（`1b5afb0`）；⑤小店开关覆写营业状态（预验抓出，`d371bd6`）。**用户终验：Passkey 注册+登录全通。教训入账两条（WebAuthn 两大部署坑/关键路径合入后必须浏览器冒烟预验）**。基线：server **1344** · web 385 · E2E 7。
+> 📋 **工作流改进清单（待用户拍板）**：①关键路径浏览器冒烟预验机制化（已入纪律记忆，下次起执行）；②Passkey E2E 补齐（Playwright 虚拟验证器，机械防 counter/origin 类回归）；③登录 UI 旅程 E2E（检查体系审计 M4 缺口）；④检查体系审计建议动作（v50 迁移回读测试优先）；⑤新工具提案 6 项（报价单/改稿计数/压图等）；⑥运营基建波（post-merge 自动重建+守护循环+每日巡检）。
+
 > 最后更新：2026-08-12 v90（**杂务批合入；OOBE 预验五处修复；四路只读核查完成；生产库已重置待用户走 OOBE**）——master `b1a766c` 与 origin 同步。
 > ✅ **812-chores 杂务批合入**（`4a71f11d`）：C1+C2 README 测试数矛盾修复（统一"以实测为准+命令入口"口径）+「改动后最小验证」小节（含 accept.ps1 入口）；C3 REQ-041 前端单测补齐 12 例（StepUpDialog/AdminLayout 守卫/ArtistManage 换管理员自动重提交）。**R1 返工记录**：codex 首交 10 例失败（自报未实跑，沙箱拒起 node 子进程），一号打回返工单修复 mock（vue-i18n createI18n/EP 注册/prop 类型），返工后 12/12 实测全绿。**合并态全门禁实测：server 1340 · web 385 · E2E 7/7 · lint/i18n/build 全绿**（accept.ps1 基线判红机制首战生效——测试增长 365→385 正确触发提醒，基线已同步更新）。
 > ✅ **OOBE 预验五处修复**（`d371bd6`，浏览器代理预验抓出）：①向导标题品牌残留"绘约/HuiYue"→拾绘/Inkglean（zh/en）；②网页标题后缀"画师约稿平台"→拾绘 Inkglean（landing.title）；③小店展示开关关闭再打开会覆写 full/break 为 open → 改为记住隐藏前营业状态恢复；④Windows Hello 弹窗 rpName "绘约"→拾绘 Inkglean（仅显示文案不影响凭据）；⑤遗留疑似：登录页 QQ 框首屏即报错态（预验走 dev 3000 观察到，待用户实机复验确认）。
