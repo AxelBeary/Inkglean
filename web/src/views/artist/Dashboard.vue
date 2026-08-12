@@ -102,6 +102,10 @@ const guestbookCardRef = ref(null)
   flex-direction: column;
   gap: 16px;
 }
+/* 812 追修（用户二次报障"全部挤在一起"）：竖屏模块间节奏加大，给呼吸感 */
+@media (max-width: 600px) {
+  .dash-grid { gap: 20px; }
+}
 
 @media (min-width: 769px) {
   .dash-grid {
