@@ -33,12 +33,14 @@ describe('画师后台嵌套路由（REQ-037 批2 A1）', () => {
     window.localStorage.removeItem('artist_logged_in')
   })
 
+  // 812 裁决：本用例首载懒加载整条 Dashboard 组件链，本机冷态 transform 实测 ~5.1s
+  // 恰好越过默认 5s 哨兵（非功能 bug），故单列 20s 超时；其余用例仍受默认哨兵保护
   it('/dashboard 解析为 ArtistDashboard，matched = 父布局 + 子页面', async () => {
     await router.push('/dashboard')
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('ArtistDashboard')
     expect(router.currentRoute.value.matched.length).toBe(2)
-  })
+  }, 20000)
 
   it('/tiers 保持 flat（REQ-036 冻结区内嵌布局），matched = 1', async () => {
     await router.push('/tiers')

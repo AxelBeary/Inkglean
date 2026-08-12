@@ -39,6 +39,8 @@ describe('router guard 存储禁用降级（P3-10）', () => {
     getItemSpy?.mockRestore()
   })
 
+  // 812 裁决：两个用例都 push('/dashboard')，首载懒加载 Dashboard 链冷态 transform
+  // 实测 ~5.1s 越过默认 5s 哨兵（非功能 bug），单列 20s 超时
   it('localStorage.getItem 抛错 → 视为未登录，重定向登录页', async () => {
     getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('denied')
@@ -46,12 +48,12 @@ describe('router guard 存储禁用降级（P3-10）', () => {
     await router.push('/dashboard')
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('ArtistLogin')
-  })
+  }, 20000)
 
   it('已登录标记正常 → 放行后台路由', async () => {
     window.localStorage.setItem('artist_logged_in', '1')
     await router.push('/dashboard')
     expect(router.currentRoute.value.name).toBe('ArtistDashboard')
     window.localStorage.removeItem('artist_logged_in')
-  })
+  }, 20000)
 })
