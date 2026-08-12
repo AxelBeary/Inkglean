@@ -2,8 +2,8 @@ import { execSync, spawn } from 'child_process'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import crypto from 'crypto'
 import { createRequire } from 'module'
+import { E2E_TOTP_SECRET, currentTotp, nextStepTotp } from './totp-util.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const TEST_DB = resolve(ROOT, 'e2e/test.db')
@@ -11,60 +11,6 @@ const TEST_UPLOADS = resolve(ROOT, 'e2e/test-uploads')
 const PID_FILE = resolve(ROOT, 'e2e/.server-pid')
 const TOKENS_FILE = resolve(ROOT, 'e2e/.tokens.json')
 const PORT = 3999
-
-// ─── TOTP 预登录（REQ-027）：E2E 走真实动态口令登录链路，无开发后门 ───
-// 固定测试密钥（RFC 6238 文档示例密钥）——仅注入 e2e 独立测试库，与生产/开发数据完全隔离
-const E2E_TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
-
-/** Base32 解码（与 server/src/features/auth/totp.ts 的 base32Decode 一致） */
-function base32Decode(input) {
-  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
-  const cleaned = String(input).toUpperCase().replace(/[\s-]/g, '')
-  let bits = 0
-  let value = 0
-  const bytes = []
-  for (const ch of cleaned) {
-    if (ch === '=') break
-    const idx = ALPHABET.indexOf(ch)
-    if (idx === -1) return null
-    value = (value << 5) | idx
-    bits += 5
-    if (bits >= 8) {
-      bytes.push((value >>> (bits - 8)) & 0xff)
-      bits -= 8
-    }
-  }
-  return Buffer.from(bytes)
-}
-
-/** 计算指定时间步的 6 位动态码（RFC 6238：30s 步长 / HMAC-SHA1 / 动态截断，与 totp.ts 一致） */
-function totpForCounter(secretBase32, counter) {
-  const key = base32Decode(secretBase32)
-  const msg = Buffer.alloc(8)
-  msg.writeUInt32BE(Math.floor(counter / 0x100000000), 0)
-  msg.writeUInt32BE(counter >>> 0, 4)
-  const hash = crypto.createHmac('sha1', key).update(msg).digest()
-  const offset = hash[19] & 0x0f
-  const binary =
-    ((hash[offset] & 0x7f) << 24) |
-    (hash[offset + 1] << 16) |
-    (hash[offset + 2] << 8) |
-    hash[offset + 3]
-  return String(binary % 10 ** 6).padStart(6, '0')
-}
-
-/** 计算当前时刻的 6 位动态码 */
-function currentTotp(secretBase32) {
-  return totpForCounter(secretBase32, Math.floor(Date.now() / 1000 / 30))
-}
-
-/**
- * REQ-041：计算下一时间步的动态码——预登录已消费当前步的码（重放防护），
- * step-up 必须用下一个步的码（校验窗口 ±1 恒可命中，且不与登录码哈希冲突）
- */
-function nextStepTotp(secretBase32) {
-  return totpForCounter(secretBase32, Math.floor(Date.now() / 1000 / 30) + 1)
-}
 
 /** 给测试画师（Alice 10001 / 管理员 10003）注入已绑定状态的 TOTP 密钥，预登录走真实 /api/auth/verify */
 function seedTotpForE2e() {
