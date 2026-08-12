@@ -32,7 +32,7 @@
 | 后端 | Fastify 5 + better-sqlite3 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） |
 | 登录 | TOTP 动态口令（RFC 6238） |
-| 测试 | Vitest（后端 1213 + 前端 332 = 1545 用例）+ Playwright E2E（7 条） |
+| 测试 | Vitest（后端 `cd server && npm test`、前端 `cd web && npm run test:web`）+ Playwright E2E（根目录 `npm run test:e2e`）；用例数随开发增长，以实测为准（2026-08-12 参考：后端 1340 · 前端 373 · E2E 7） |
 | 类型 | TypeScript（后端 100% TS，strict 全开） |
 | 监控 | Sentry |
 
@@ -61,11 +61,22 @@ npm run dev        # http://localhost:3000
 cd web && npm install
 npm run dev        # http://localhost:5173
 
-# 测试
-cd server && npm test    # 1024 个用例
+# 测试（用例数随开发增长，以实测为准；2026-08-12 参考：后端 1340 · 前端 373 · E2E 7）
+cd server && npm test          # 后端 Vitest
 cd server && npm run lint
 cd web && npm run lint
+cd web && npm run test:web     # 前端 Vitest
+cd .. && npm run test:e2e      # E2E（仓库根目录）
 ```
+
+### 改动后最小验证
+
+按改动类型跑最小验证清单（命令均为仓库既有脚本，不引入新工具）：
+
+- 后端改动：`cd server && npm run typecheck && npm run lint && npm test`
+- 前端改动：`cd web && npm run lint && npm run test:web && npm run check:i18n && npm run build`
+- 涉及端到端流程：根目录 `npm run test:e2e`
+- 一键全量验收：`pwsh scripts/accept.ps1`（可加 `-Worktree <路径>` 验收指定 worktree，产出结构化报告于 `workspace/temp/`）
 
 ## 目录结构
 
