@@ -30,7 +30,7 @@ describe('WebAuthn Passkey (REQ-040)', () => {
       const options = await generateRegisterOptions(artist)
       expect(options).toHaveProperty('challenge')
       expect(options).toHaveProperty('rp')
-      expect(options.rp.name).toBe('绘约')
+      expect(options.rp.name).toBe('拾绘 Inkglean')
       expect(options).toHaveProperty('user')
       expect(options.user.name).toBe('12345')
     })

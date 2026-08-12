@@ -173,7 +173,9 @@ describe('REQ-041 管理后台二次验证（会话升级）', () => {
         })
       }),
       'localhost',
-      admin.id
+      admin.id,
+      // 812 OOBE 修复：verifyLogin 新增第四参请求协议（inject 无 X-Forwarded-Proto → http）
+      'http'
     )
 
     const upgradedToken = tokenFromCookie(res)

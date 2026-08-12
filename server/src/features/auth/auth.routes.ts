@@ -5,13 +5,20 @@ import { bumpTokenVersion } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
 // 认证路由 - TOTP 动态口令登录（REQ-027）+ WebAuthn Passkey（REQ-040）
 // + 管理后台二次验证（REQ-041）
 // ============================================
+
+/** 812 OOBE 修复：请求实际协议（反代下优先 X-Forwarded-Proto）——WebAuthn origin 校验用 */
+function reqScheme(request: FastifyRequest): string {
+  const fwd = request.headers['x-forwarded-proto']
+  if (typeof fwd === 'string' && fwd.length > 0) return fwd.split(',')[0].trim()
+  return request.protocol
+}
 
 /** REQ-040 TOTP 自助重绑：challenge 之外的临时新 secret 暂存（单实例内存） */
 interface TotpRebindEntry {
@@ -132,7 +139,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
     }
     try {
-      const { artist } = await verifyLogin(credential, request.hostname, request.artist.id)
+      const { artist } = await verifyLogin(credential, request.hostname, request.artist.id, reqScheme(request))
       const verifiedAt = new Date().toISOString()
       signSession(artist, reply, { authLevel: 'admin_verified', adminVerifiedAt: verifiedAt })
       return { success: true, verifiedAt }
@@ -224,7 +231,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/api/auth/webauthn/register-verify', { preHandler: requireAuth }, async (request) => {
     const { verifyRegistration, generateDeviceNameFromUA } = await import('./webauthn.js')
     const credential = request.body as Record<string, unknown>
-    const credentialRow = await verifyRegistration(request.artist, credential, request.hostname)
+    const credentialRow = await verifyRegistration(request.artist, credential, request.hostname, reqScheme(request))
 
     // 设置设备名（UA 摘要）
     if (credentialRow) {
@@ -276,7 +283,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const credential = request.body as Record<string, unknown>
 
     try {
-      const { artist } = await verifyLogin(credential, request.hostname)
+      const { artist } = await verifyLogin(credential, request.hostname, undefined, reqScheme(request))
       return signSession(artist, reply)
     } catch (err) {
       // 防枚举：统一认证失败响应
@@ -431,7 +438,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       const { verifyLogin } = await import('./webauthn.js')
       try {
-        await verifyLogin(credential, request.hostname)
+        await verifyLogin(credential, request.hostname, undefined, reqScheme(request))
       } catch {
         throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
       }

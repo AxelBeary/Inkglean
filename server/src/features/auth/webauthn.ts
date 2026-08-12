@@ -123,13 +123,13 @@ function getRpName(): string {
   return '拾绘 Inkglean'
 }
 
-function getRpOrigin(requestHostname?: string): string {
+function getRpOrigin(requestHostname?: string, requestScheme?: string): string {
   if (process.env.WEBAUTHN_ORIGIN) return process.env.WEBAUTHN_ORIGIN
   const hostname = requestHostname || 'localhost'
-  if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-    return `http://${hostname}`
-  }
-  return `https://${hostname}`
+  // 812 OOBE 实测修复：生产经 Caddy 反代以 https 提供，旧逻辑把 localhost 硬编码为 http
+  // 导致 origin 校验失败（浏览器报 https://localhost）。协议以请求实际 scheme 为准（路由层传入，含 X-Forwarded-Proto）
+  const scheme = requestScheme || ((hostname.includes('localhost') || hostname.includes('127.0.0.1')) ? 'http' : 'https')
+  return `${scheme}://${hostname}`
 }
 
 // ─── 注册流程（登录态） ───
@@ -171,10 +171,11 @@ export async function generateRegisterOptions(artist: Artist, requestHostname?: 
 export async function verifyRegistration(
   artist: Artist,
   credential: unknown,
-  requestHostname?: string
+  requestHostname?: string,
+  requestScheme?: string
 ): Promise<WebAuthnCredentialRow> {
   const rpId = getRpId(requestHostname)
-  const origin = getRpOrigin(requestHostname)
+  const origin = getRpOrigin(requestHostname, requestScheme)
 
   // 从 credential 提取 challenge
   const cred = credential as Record<string, unknown>
@@ -255,10 +256,11 @@ export async function generateLoginOptions(requestHostname?: string) {
 export async function verifyLogin(
   credential: unknown,
   requestHostname?: string,
-  expectedArtistId?: number
+  expectedArtistId?: number,
+  requestScheme?: string
 ): Promise<{ artist: Artist; credentialRow: WebAuthnCredentialRow }> {
   const rpId = getRpId(requestHostname)
-  const origin = getRpOrigin(requestHostname)
+  const origin = getRpOrigin(requestHostname, requestScheme)
 
   // 提取 credential_id
   const cred = credential as Record<string, unknown>
