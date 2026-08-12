@@ -1618,7 +1618,7 @@ export default {
     step3QrAlt: 'TOTP 二维码',
     step3QrRegenerate: '重新生成',
     step3CodeLabel: '6 位动态码',
-    step3CodePlaceholder: '输入验证器上显示的 6 位数字',
+    step3CodePlaceholder: '输入 6 位动态码',
     step3CodeRequired: '请输入 6 位动态码',
     step3CodeFormat: '动态码为 6 位数字',
     step3CodeError: '动态口令错误，请重试',

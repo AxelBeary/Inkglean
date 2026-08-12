@@ -1621,7 +1621,8 @@ export default {
     step3QrAlt: 'TOTP QR Code',
     step3QrRegenerate: 'Regenerate',
     step3CodeLabel: '6-digit Code',
-    step3CodePlaceholder: 'Enter the 6-digit code from your authenticator',
+    // 812 OOBE 实测：原文案太长在输入框内被截断，缩短（标签与上方说明已交代来源）
+    step3CodePlaceholder: 'Enter the 6-digit code',
     step3CodeRequired: 'Please enter the 6-digit code',
     step3CodeFormat: 'The code must be 6 digits',
     step3CodeError: 'Invalid code, please try again',
