@@ -226,7 +226,7 @@ async function handlePasteRefFiles(files) {
     }
     const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
     uploadedRefs.value.push(uploaded.filePath)
-    const uid = `paste-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const uid = `paste-${crypto.randomUUID()}`
     refUidMap.value.set(uid, uploaded.filePath)
     refFileList.value.push({ name: file.name || 'pasted-image.png', url: `/uploads/${uploaded.filePath}`, uid, status: 'success' })
   }

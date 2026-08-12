@@ -624,7 +624,7 @@ function setDraftState(state) {
   // 自定义增项（uid 重发，避免草稿残留 uid 冲突）
   customAddons.value = Array.isArray(ss.customAddons)
     ? ss.customAddons.map(a => ({
-        uid: `ca-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        uid: `ca-${crypto.randomUUID()}`,
         name: String(a.name || ''),
         priceYuan: Number(a.priceYuan) || 0
       }))

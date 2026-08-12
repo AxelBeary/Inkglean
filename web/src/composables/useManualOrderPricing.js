@@ -96,7 +96,7 @@ export function useManualOrderPricing({ styles, getSubdomain }) {
       ElMessage.warning(t('manualOrder.customAddonPriceRequired'))
       return
     }
-    customAddons.value.push({ uid: `ca-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name, priceYuan: price })
+    customAddons.value.push({ uid: `ca-${crypto.randomUUID()}`, name, priceYuan: price })
     customAddonName.value = ''
     customAddonPrice.value = null
     customAddonOpen.value = false
