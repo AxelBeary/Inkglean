@@ -152,10 +152,12 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // 后台 token 作用域统一由路由守卫管理（根治深色模式切页闪白）：
-  // 进入 requiresAuth/requiresAdmin 路由时提前挂 data-artist-theme，组件懒加载期间 token 不丢；
+  // 进入 requiresAuth/requiresAdmin/登录页时提前挂 data-artist-theme，组件懒加载期间 token 不丢；
   // 离开后台路由时摘除，客户端路由零影响（ArtistLayout/AdminLayout 不再自行摘除）。
+  // 登录页属后台作用域：与 dashboard 同域，login→后台过渡全程 attr 不摘，
+  // 否则 onUnmounted 摘除竞态会造成墨黑登录闪白（2026-08-12 用户实测抓出）
   const themeStore = useThemeStore()
-  if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+  if (to.meta.requiresAuth || to.meta.requiresAdmin || to.name === 'ArtistLogin') {
     themeStore.enterArtistScope()
   } else {
     themeStore.leaveArtistScope()

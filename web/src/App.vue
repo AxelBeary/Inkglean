@@ -47,7 +47,7 @@ body {
   background: var(--bg-page);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
-  transition: background 0.3s, color 0.3s;
+  /* 底色不挂 transition：主题切换即时生效（v0.54 教训——变量插值产生灰沼/闪白中间态） */
 }
 
 /* 展示字体工具类 */

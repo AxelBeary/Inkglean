@@ -169,11 +169,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
-import { useThemeStore } from '../../stores/theme.js'
 import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
 import LoginBackdrop from '../../components/artist/login/LoginBackdrop.vue'
 import PaperCard from '../../components/artist/login/PaperCard.vue'
@@ -193,11 +192,9 @@ const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useArtistStore()
-const themeStore = useThemeStore()
 
-// 登录是后台入口：挂载纸墨 token 作用域（客户端零影响）
-onMounted(() => themeStore.enterArtistScope())
-onUnmounted(() => themeStore.leaveArtistScope())
+// 纸墨 token 作用域由路由守卫统一接管（login/dashboard 同属后台作用域，
+// 过渡全程 attr 不摘——组件内 onUnmounted 摘除会与守卫竞态，造成墨黑登录闪白，已移除）
 
 /** 时辰底色：按真实时间定纸白底色的色温（晨微暖/午标准/暮暖深/夜微冷），
  *  配合 CSS light-drift 一次性超慢漂移（不循环，宪法动效纪律）；墨黑主题不参与 */
