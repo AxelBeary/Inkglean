@@ -1,5 +1,14 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
+> ✅ **812 四波合入（逐路独立复跑门禁验收，非 self-report）**：①hardening：CodeQL 16 条裁决（7 修/4 顺手/5 驳回）落地——CI 最小权限块、sanitize 循环清洗防嵌套绕过、OG 域名线性去斜杠、uid 换 randomUUID + v50/v52 迁移回读测试（TC-MV-04~10，审计缺口④销账）；②e2e：e7 登录 UI 旅程（渲染/错误码/全链路落地）+ e8 Passkey 虚拟验证器（注册→登出→免密登录，counter 恒 0 豁免链路），**E2E 7→11**；③tools-a：报价单/改稿计数/压图改尺寸；④tools-b：价目卡/交付清单/定金台账（提案落档 docs/comms/新工具提案-6项-重建落档-20260812.md，后三项为重建项已标注；①④是 REQ-014 F4/F3 先行简版，桌面端开工时升级共享组件）。**验收中一号抓出并修**：tools-a 三处测试侧问题（i18n mock 接真实 locale、重挂载补 tick——探针证明产品代码无碍）、toolbox.js 两波冲突手工归位（19 工具四分类）。
+> 🔴 **登录链路三连 bug 根治（用户报 1 个，顺藤摸出 3 个）**：①`/login` 已登录不跳回后台 → 反向守卫（带 redirect 参数回原目标，仅放行站内路径）；②**WebAuthn origin 丢端口**：浏览器 origin 非标端口含端口而服务端拿裸 hostname，直连端口场景 Passkey 注册/登录必 500/401（E2E e8 首抓；reqHost 传带端口 host + 默认端口 80/443 剥除 + rpId 剥端口）；③**login-cross 过渡卡死白屏**：登录页 240s light-drift 背景动画被 Vue 过渡完成检测计入 animationTimeout，离场永不结束、新页永不挂载（逐帧采样+DOM 转储定位，leave-active 强制 animation:none!important 压过 scoped 特异性）。登录动画本体=纯透明度渡过去（离场 .4s/入场 .55s，不位移防滚动条闪现）。**逐帧亮度采样实证：修复前底色 23→245→32 闪白，修复后全程恒定 23 零亮帧**；Passkey 注册+登录真链路实测全通。
+> 🎨 **Dashboard 原型 v0.3（挂牌立体化，用户点名重做）**：真实透视俯角/板材底边厚度侧切面/挂钉麻绳/投壁软影/翻转后阻尼钟摆；自审抓修一个 span 未 block 化文字竖排 bug；四帧截图在 workspace/temp/prototype-dashboard-v2/（shot-v03-*）。原型本体 workspace/temp/prototype-dashboard-v2/dashboard-v0.2.html（标题 v0.3）。**待用户终验拍板，拍板后进视觉批施工**。
+> 🛠️ **运营基建落地**：scripts/post-merge-deploy.ps1（备份→重建→健康→迁移回读 v60→登录页冒烟，本轮实战四次，首跑抓修两处脚本小 bug）+ server/scripts/patrol.sh（服务器侧 cron 每日巡检，纯脚本零 AI，部署搬家时挂上）。**守护循环（.done 自动验收）未建，如实记账**。
+> 📊 **门禁终态（master 实测）**：server **1351**（105 文件）· web **437**（56 文件）· E2E **11/11** · lint 双侧 0 错 · check-i18n · build；accept-baseline.json 已同步。容器已重建烘焙全部修复（healthy/登录页 200）。四个 worktree+分支已清。
+> ⚠️ **遗留**：①M4 支付形态文案核对未做；②登录页 QQ 框首屏报错疑似问题待实机复验；③部署搬家待用户拍板（海外服务器+域名，代码侧全就绪）；④竖屏响应式挂起中（用户拍板）；⑤登录动画/反向守卫/闪白修复待用户生产终验（https://localhost 已烘焙）。
+> 📌 **环境现状**：master 干净；worktree 全清；容器 Healthy；3000 端口当前无服务（验证用临时服务已停，需要时再起）；无活动定时任务。
+
 > 最后更新：2026-08-12 v92（**窗口交接版：环境大盘点已清零，下一窗口读本条即可接手**）
 > 🧹 **环境现状（已实测）**：master 干净无未提交；worktree 全部清理（含 811/w-* 历史残留目录，分支均已合入后删除，仅保留备份分支 backup/pre-squash-login-attempts）；容器 commission-web Healthy + commission-caddy Up；dev 服务器 3000 端口仍在跑（PID 1404，不需要时可 kill）；无活动定时任务（夜间巡逻已删）。
 > 💾 **生产库现状**：用户已亲走完 OOBE 全流程（新建管理员+绑 TOTP+绑 Passkey 均成功）；重置前旧库备份 data/commission.db.bak-pre-oobe-reset-20260812；uploads 未动。门禁基线：server **1344** · web **385** · E2E **7**。
