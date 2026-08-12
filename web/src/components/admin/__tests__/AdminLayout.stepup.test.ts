@@ -21,16 +21,26 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
 }))
 
-vi.mock('../../stores/theme.js', () => ({
+// 注意：__tests__ 在 admin/ 下，到 src 需三级 ../（上一轮两级 ../ 全部解析到不存在的
+// components/{stores,composables,api}，mock 未拦截 → 真实 theme store 报 getActivePinia 错误、
+// 真实 api 发出 HTTP 请求）
+vi.mock('../../../stores/theme.js', () => ({
   useThemeStore: () => ({ enterArtistScope: h.enterArtistScope })
 }))
 
-vi.mock('../../composables/useSessionGuard', () => ({
+vi.mock('../../../composables/useSessionGuard', () => ({
   useSessionGuard: () => ({ validateSession: h.validateSession })
 }))
 
-vi.mock('../../api/index.js', () => ({
+vi.mock('../../../api/index.js', () => ({
   stepUpApi: { status: h.status }
+}))
+
+// api 响应拦截器动态 import i18n/index.js（真实模块会调 createI18n）；
+// 按 layouts.session.test.js 先例 mock 实例模块，避免 vue-i18n mock 缺 createI18n 报错
+vi.mock('../../../i18n/index.js', () => ({
+  i18n: { global: { t: (key: string) => key } },
+  setLocale: vi.fn()
 }))
 
 vi.mock('../StepUpDialog.vue', () => ({

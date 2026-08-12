@@ -10,7 +10,9 @@ const h = vi.hoisted(() => ({
   getCredentials: vi.fn()
 }))
 
-vi.mock('../../api/index.js', () => ({
+// 注意：__tests__ 在 admin/ 下，到 src 需三级 ../（错误写成两级会让 mock 失效，
+// 真实 api 模块被加载并发出真实 HTTP 请求，上一轮 10 例失败的主根因）
+vi.mock('../../../api/index.js', () => ({
   stepUpApi: { verify: h.verify },
   webauthnApi: { getCredentials: h.getCredentials },
   authApi: {}
@@ -18,6 +20,13 @@ vi.mock('../../api/index.js', () => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
+}))
+
+// api 响应拦截器动态 import i18n/index.js（真实模块会调 createI18n）；
+// 按 layouts.session.test.js 先例 mock 实例模块，避免 vue-i18n mock 缺 createI18n 报错
+vi.mock('../../../i18n/index.js', () => ({
+  i18n: { global: { t: (key: string) => key } },
+  setLocale: vi.fn()
 }))
 
 const ElDialogStub = {
@@ -35,6 +44,8 @@ const ElInputStub = {
 
 const ElButtonStub = {
   name: 'ElButton',
+  // 防止父级 onClick 经 $attrs 透传到 stub 根按钮造成双触发（emit + 原生监听各一次）
+  inheritAttrs: false,
   template: '<button type="button" @click="$emit(\'click\')"><slot /></button>'
 }
 

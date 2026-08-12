@@ -14,7 +14,9 @@ const h = vi.hoisted(() => ({
   confirm: vi.fn()
 }))
 
-vi.mock('../../api/index.js', () => ({
+// 注意：__tests__ 在 views/admin/ 下，到 src 需三级 ../（上一轮两级 ../ 全部解析到不存在的
+// views/{api,components}，mock 未拦截 → 真实 api 发出 HTTP 请求，全部用例失败）
+vi.mock('../../../api/index.js', () => ({
   adminApi: {
     getArtists: h.getArtists,
     transferAdmin: h.transferAdmin
@@ -23,6 +25,13 @@ vi.mock('../../api/index.js', () => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
+}))
+
+// api 响应拦截器动态 import i18n/index.js（真实模块会调 createI18n）；
+// 按 layouts.session.test.js 先例 mock 实例模块，避免 vue-i18n mock 缺 createI18n 报错
+vi.mock('../../../i18n/index.js', () => ({
+  i18n: { global: { t: (key: string) => key } },
+  setLocale: vi.fn()
 }))
 
 vi.mock('element-plus', () => ({
@@ -38,11 +47,11 @@ vi.mock('../ArtistDetailDrawer.vue', () => ({
   default: { name: 'ArtistDetailDrawer', template: '<div />' }
 }))
 
-vi.mock('../../components/artist/visual/CardHead.vue', () => ({
+vi.mock('../../../components/artist/visual/CardHead.vue', () => ({
   default: { name: 'CardHead', template: '<div />' }
 }))
 
-vi.mock('../../components/admin/StepUpDialog.vue', () => ({
+vi.mock('../../../components/admin/StepUpDialog.vue', () => ({
   default: {
     name: 'StepUpDialog',
     props: ['modelValue'],
@@ -53,6 +62,8 @@ vi.mock('../../components/admin/StepUpDialog.vue', () => ({
 
 const EP_STUBS = {
   'el-button': {
+    // 防止父级 onClick 经 $attrs 透传到 stub 根按钮造成双触发（上一轮 confirmTransfer 被调 2 次）
+    inheritAttrs: false,
     template: '<button type="button" @click="$emit(\'click\')"><slot /></button>'
   },
   'el-table': { template: '<div class="table-stub"><slot /></div>' },
@@ -60,6 +71,8 @@ const EP_STUBS = {
   'el-select': { template: '<div />' },
   'el-option': { template: '<div />' },
   'el-tag': { template: '<span><slot /></span>' },
+  'el-pagination': { template: '<div class="pagination-stub" />' },
+  'el-input-number': { template: '<div class="input-number-stub" />' },
   'el-dialog': {
     props: ['modelValue'],
     template: '<div v-if="modelValue" class="dialog-stub"><slot /><slot name="footer" /></div>'
@@ -71,7 +84,8 @@ const EP_STUBS = {
   'el-form': { template: '<div><slot /></div>' },
   'el-form-item': { template: '<div><slot /></div>' },
   'el-card': { template: '<div><slot /></div>' },
-  'el-empty': { template: '<div />' }
+  'el-empty': { template: '<div />' },
+  'el-icon': { template: '<i><slot /></i>' }
 }
 
 const mountedWrappers: ReturnType<typeof mount>[] = []
