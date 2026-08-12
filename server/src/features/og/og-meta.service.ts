@@ -60,8 +60,8 @@ function isOgVisible(artist: Artist): boolean {
 
 /** HTTPS 绝对地址：DOMAIN env 优先，缺失时用请求 Host 兜底（开发环境可用） */
 function absoluteUrl(path: string, host: string | undefined): string {
-  const rawDomain = process.env.DOMAIN || host || 'localhost'
-  const domain = rawDomain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')
+  let domain = (process.env.DOMAIN || host || 'localhost').replace(/^https?:\/\//i, '')
+  while (domain.endsWith('/')) domain = domain.slice(0, -1)
   return `https://${domain}${path}`
 }
 

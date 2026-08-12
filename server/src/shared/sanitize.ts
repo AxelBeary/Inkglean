@@ -9,11 +9,21 @@
  * 渲染层消毒仍由前端 DOMPurify 负责（本函数不解析 DOM，不替代它）。
  */
 
-/** 去 <script>/<style> 标签对（含属性、大小写、换行），并补去自闭合标签 */
+/**
+ * 去 <script>/<style> 标签对（含属性、大小写、换行），并补去自闭合标签。
+ * 循环洗到不动点（上限 10 次）：`<scr<script></script>ipt>` 这类嵌套绕过单次替换会
+ * 还原出 `<script>`，必须重复清洗直至无剩余标签对；上限防恶意超长串卡死。
+ */
 function removeTagPairs(input: string): string {
-  return input
-    .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*(script|style)\s*>/gi, '')
-    .replace(/<\s*(script|style)\b[^>]*\/\s*>/gi, '')
+  let out = input
+  for (let i = 0; i < 10; i++) {
+    const next = out
+      .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*(script|style)\s*>/gi, '')
+      .replace(/<\s*(script|style)\b[^>]*\/\s*>/gi, '')
+    if (next === out) break
+    out = next
+  }
+  return out
 }
 
 /** 去内联事件属性（on*），保留属性名前的空白避免标签粘连 */
