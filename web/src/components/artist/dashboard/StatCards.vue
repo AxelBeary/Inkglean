@@ -88,7 +88,7 @@ function goOrders(status) {
 /* 竖屏/窄屏：三列硬挤会把标签挤断行（812 用户实测报障），≤600px 改单列堆叠；
    卡片改左对齐横排布局（数字在左、标签居中、箭头在右），避免堆叠后过高 */
 @media (max-width: 600px) {
-  .stat-grid { grid-template-columns: 1fr; gap: 10px; }
+  .stat-grid { grid-template-columns: 1fr; gap: 12px; }
   .artist-scope .stat-card { display: flex; align-items: center; gap: 12px; text-align: left; }
   .stat-num { font-size: calc(var(--font-scale, 1) * 26px); }
   .stat-label { margin-top: 0; }
