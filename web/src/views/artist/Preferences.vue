@@ -48,6 +48,16 @@
         </el-select>
         <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
       </el-form-item>
+      <!-- 视觉批 P2：看板显示开关（模块级隐藏，null/默认=全部显示） -->
+      <el-form-item :label="$t('settings.dashModulesLabel')">
+        <div class="dash-modules-switches">
+          <el-switch v-model="form.dashModules.schedule" :active-text="$t('settings.dashModuleSchedule')" />
+          <el-switch v-model="form.dashModules.guestbook" :active-text="$t('settings.dashModuleGuestbook')" />
+          <el-switch v-model="form.dashModules.activity" :active-text="$t('settings.dashModuleActivity')" />
+          <el-switch v-model="form.dashModules.onboarding" :active-text="$t('settings.dashModuleOnboarding')" />
+        </div>
+        <div class="form-hint">{{ $t('settings.dashModulesHint') }}</div>
+      </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="save" :loading="saving" :disabled="loadFailed">{{ $t('settings.save') }}</el-button>
       </el-form-item>
@@ -99,7 +109,9 @@ const loadFailed = ref(false)
 
 const form = reactive({
   notifyEnabled: true,
-  dashboardDefaultPanel: 'queue'
+  dashboardDefaultPanel: 'queue',
+  // 视觉批 P2：看板模块开关（全 true=全部显示）
+  dashModules: { schedule: true, guestbook: true, activity: true, onboarding: true }
 })
 
 // ─── F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效） ───
@@ -152,7 +164,8 @@ async function save() {
   try {
     await artistApi.updateProfile({
       notifyEnabled: form.notifyEnabled,
-      dashboardDefaultPanel: form.dashboardDefaultPanel
+      dashboardDefaultPanel: form.dashboardDefaultPanel,
+      dashboardModules: { ...form.dashModules }
     })
     ElMessage.success(t('settings.saved'))
   } catch (err) { ElMessage.error(err.message) }
@@ -166,6 +179,15 @@ async function loadPreferences() {
     const profile = await artistApi.getProfile()
     form.notifyEnabled = !!profile.notify_enabled
     form.dashboardDefaultPanel = profile.dashboard_default_panel || 'queue'
+    // 视觉批 P2：看板模块开关回读（JSON 串，null/坏值=全部显示）
+    let mods = null
+    if (profile.dashboard_modules) {
+      try { mods = JSON.parse(profile.dashboard_modules) } catch { mods = null }
+    }
+    form.dashModules.schedule = mods?.schedule ?? true
+    form.dashModules.guestbook = mods?.guestbook ?? true
+    form.dashModules.activity = mods?.activity ?? true
+    form.dashModules.onboarding = mods?.onboarding ?? true
 
     // v0.25: 快捷按钮从 DB 初始化（DB 有值→用 DB；DB 无值但 localStorage 有→一次性迁移到 DB）
     const dbQuick = parseQuickActions(profile.quick_actions)

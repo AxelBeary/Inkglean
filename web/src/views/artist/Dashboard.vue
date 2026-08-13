@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <div class="enter-stagger" :style="{ '--stagger': 2 }">
+    <div class="enter-stagger" :style="{ '--stagger': 2 }" v-if="dashModules.schedule">
       <ScheduleScroll />
     </div>
 
@@ -23,7 +23,7 @@
         <div class="area enter-stagger" :style="{ '--stagger': 3 }">
           <LedgerTodo :month-cents="stats?.monthRevenueCents ?? null" />
         </div>
-        <div class="area enter-stagger" :style="{ '--stagger': 4 }">
+        <div class="area enter-stagger" :style="{ '--stagger': 4 }" v-if="dashModules.guestbook">
           <el-card>
             <template #header>
               <CardHead :title="t('dashboard.guestbookTitle')">
@@ -35,14 +35,14 @@
             <GuestbookReviewCard ref="guestbookCardRef" />
           </el-card>
         </div>
-        <div class="area enter-stagger" :style="{ '--stagger': 5 }">
+        <div class="area enter-stagger" :style="{ '--stagger': 5 }" v-if="dashModules.activity">
           <ActivityFeed />
         </div>
       </div>
 
       <div class="area-right">
-        <!-- REQ-043 I2: 开张任务卡（后端标记隐藏） -->
-        <div class="area enter-stagger" :style="{ '--stagger': 6 }">
+        <!-- REQ-043 I2: 开张任务卡（后端标记隐藏）+ 视觉批 P2 模块开关 -->
+        <div class="area enter-stagger" :style="{ '--stagger': 6 }" v-if="dashModules.onboarding">
           <OnboardingCard />
         </div>
         <div class="area enter-stagger" :style="{ '--stagger': 7 }">
@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
 import { artistApi } from '../../api/index.js'
@@ -82,6 +82,24 @@ const stats = ref<ArtistStats | null>(null)
 
 // F4: 留言审核
 const guestbookCardRef = ref<{ pendingCount?: number; load: () => void } | null>(null)
+
+// 视觉批 P2：看板模块开关（profile.dashboard_modules JSON 串；null/坏值=全部显示）
+const dashModules = computed(() => {
+  const defaults = { schedule: true, guestbook: true, activity: true, onboarding: true }
+  const raw = (store.profile as { dashboard_modules?: string | null } | null)?.dashboard_modules
+  if (!raw) return defaults
+  try {
+    const m = JSON.parse(raw) as Partial<typeof defaults>
+    return {
+      schedule: m.schedule ?? true,
+      guestbook: m.guestbook ?? true,
+      activity: m.activity ?? true,
+      onboarding: m.onboarding ?? true
+    }
+  } catch {
+    return defaults
+  }
+})
 
 /** 仪表盘关键数据重拉 */
 async function refreshAll() {
