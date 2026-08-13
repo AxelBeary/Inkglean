@@ -82,6 +82,9 @@ export const E = {
   // 订单
   ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
   ORDER_NOT_OWNED: 'ORDER_NOT_OWNED',
+  // F1 围剿：客户凭 QQ+订单号查询已退役（高熵令牌取代）
+  MY_ORDERS_RETIRED: 'MY_ORDERS_RETIRED',
+  LOOKUP_RETIRED: 'LOOKUP_RETIRED',
   INVALID_TRANSITION: 'INVALID_TRANSITION',
   // P2-F9: 终态订单收款状态守卫（cancelled 仅冲正 / delivered 拒正收款）
   PAYMENT_STATUS_BLOCKED: 'PAYMENT_STATUS_BLOCKED',
@@ -318,6 +321,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 订单
   ORDER_NOT_FOUND: '订单不存在',
   ORDER_NOT_OWNED: '该订单不属于你，无权操作',
+  // F1 围剿：退役文案——指引客户使用保存的追踪链接或联系画师补发
+  MY_ORDERS_RETIRED: '「我的订单」查询已下线，请使用下单时保存的追踪链接，或联系画师补发',
+  LOOKUP_RETIRED: '「订单查询」已下线，请使用下单时保存的追踪链接，或联系画师补发',
   INVALID_TRANSITION: '不允许的状态变更',
   PAYMENT_STATUS_BLOCKED: '当前订单状态不允许该收款操作',
   ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',

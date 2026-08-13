@@ -823,6 +823,15 @@ export interface OrderCreateResult {
   orderNo: string
   totalPriceCents: number | null
   message: string
+  // F1 围剿：客户访问令牌明文（仅下单成功响应下发一次）+ 完整追踪 URL 片段
+  customerToken: string
+  trackUrl: string
+}
+
+/** 画师重新生成客户令牌响应（POST /artist/orders/:id/regenerate-token） */
+export interface CustomerTokenResult {
+  customerToken: string
+  trackUrl: string
 }
 
 /** GET /orders/track/:orderNo 响应 */
@@ -863,19 +872,6 @@ export interface OrderDeliveryResult {
     url: string
   }>
 }
-
-/** GET /orders/my 行（裸数组返回） */
-export interface MyOrderItem {
-  orderNo: string
-  status: string
-  tierName: string | null
-  createdAt: string
-}
-
-/** GET /orders/lookup 响应（联合：无订单 | 有订单附联系信息） */
-export type OrderLookupResult =
-  | { hasOrders: false }
-  | { hasOrders: true; contactQq: string | null; adminQq: string | null; artistName: string }
 
 // ─── 上传（upload.routes.ts） ───
 

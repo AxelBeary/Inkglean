@@ -168,7 +168,23 @@ export async function orderListRoutes(fastify: FastifyInstance) {
         styleSizeId: styleSizeId || null,
         styleAddons: styleAddons || []
       })
-      return { statusCode: 200, body: order }
+      // F1 围剿：手动录单同样生成令牌；响应一次下发明文 + 完整追踪 URL 片段
+      // （画师可立即复制链接发给客户）。customer_token_hash 不外泄（非明文但无需下发）。
+      const orderBody = { ...order }
+      delete (orderBody as { customerToken?: string }).customerToken
+      delete (orderBody as { customer_token_hash?: string }).customer_token_hash
+      return {
+        statusCode: 200,
+        body: {
+          ...orderBody,
+          customerToken: order.customerToken,
+          trackUrl: orderService.buildCustomerTrackUrl(
+            request.artist.subdomain,
+            order.order_no,
+            order.customerToken
+          )
+        }
+      }
     })
     return reply.code(result.statusCode).send(result.body)
   })

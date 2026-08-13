@@ -180,16 +180,16 @@ describe('SPEC-004 名额与缓冲系统', () => {
     setBatchLimit(artist.id, 0, 10)
 
     // 创建 2 个缓冲订单
-    makeOrder(artist.id, { status: 'pending', queue_zone: 'buffer', order_no: 'BT-001', client_qq: '99020' })
+    const bt1 = makeOrder(artist.id, { status: 'pending', queue_zone: 'buffer', order_no: 'BT-001', client_qq: '99020' })
     makeOrder(artist.id, { status: 'pending', queue_zone: 'buffer', order_no: 'BT-002', client_qq: '99021' })
 
     // 默认显示位次
-    let res = await app.inject({ method: 'GET', url: '/api/orders/track/BT-001?qq=99020' })
+    let res = await app.inject({ method: 'GET', url: `/api/orders/track/BT-001?token=${bt1.customerToken}` })
     expect(res.json().queueDisplay).toBe('排队中（第 1 位）')
 
     // 隐藏位次
     db.prepare('UPDATE artists SET hide_queue_position = 1 WHERE id = ?').run(artist.id)
-    res = await app.inject({ method: 'GET', url: '/api/orders/track/BT-001?qq=99020' })
+    res = await app.inject({ method: 'GET', url: `/api/orders/track/BT-001?token=${bt1.customerToken}` })
     expect(res.json().queueDisplay).toBe('排队中')
   })
 
@@ -251,13 +251,13 @@ describe('SPEC-004 名额与缓冲系统', () => {
     setBatchLimit(artist.id, 0, 10)
 
     makeOrder(artist.id, { status: 'pending', queue_zone: 'buffer', order_no: 'BT-010', client_qq: '99030', queue_position: 1 })
-    makeOrder(artist.id, { status: 'pending', queue_zone: 'buffer', order_no: 'BT-011', client_qq: '99031', queue_position: 2 })
+    const bt11 = makeOrder(artist.id, { status: 'pending', queue_zone: 'buffer', order_no: 'BT-011', client_qq: '99031', queue_position: 2 })
 
     // 取消第一个
     db.prepare("UPDATE orders SET status = 'cancelled' WHERE order_no = 'BT-010'").run()
 
     // 第二个位次查询
-    const res = await app.inject({ method: 'GET', url: '/api/orders/track/BT-011?qq=99031' })
+    const res = await app.inject({ method: 'GET', url: `/api/orders/track/BT-011?token=${bt11.customerToken}` })
     expect(res.json().queueDisplay).toBe('排队中（第 1 位）')
   })
 

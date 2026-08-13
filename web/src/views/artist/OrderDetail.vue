@@ -22,6 +22,10 @@
             <!-- R58-6: 客户 QQ 跳转 + 复制 -->
             <el-button size="small" text type="primary" @click="jumpToQq(order.client_qq)">{{ $t('orderDetail.jumpQq') }}</el-button>
             <el-button size="small" text @click="copyQq(order.client_qq)">{{ $t('orderDetail.copyQq') }}</el-button>
+            <!-- F1 围剿：补发客户追踪链接（重新生成令牌，旧链接立即失效） -->
+            <el-button size="small" text type="primary" :loading="regeneratingToken" @click="regenerateAndCopyLink">
+              {{ $t('orderDetail.copyTrackLink') }}
+            </el-button>
           </span>
         </el-descriptions-item>
         <el-descriptions-item :label="$t('orderDetail.colName')">{{ order.client_name || '-' }}</el-descriptions-item>
@@ -422,6 +426,31 @@ async function copyQq(qq) {
     ElMessage.success(t('orderDetail.qqCopied'))
   } catch {
     ElMessage.warning(qq) // 剪贴板不可用时直接展示 QQ 号供手动复制
+  }
+}
+
+// ─── F1 围剿：画师补发客户追踪链接（简化方案：新令牌作废旧令牌） ───
+const regeneratingToken = ref(false)
+async function regenerateAndCopyLink() {
+  try {
+    await ElMessageBox.confirm(t('orderDetail.regenerateTokenConfirm'), t('orderDetail.copyTrackLink'), {
+      type: 'warning',
+      confirmButtonText: t('orderDetail.regenerateTokenConfirmBtn'),
+      cancelButtonText: t('common.cancel')
+    })
+  } catch {
+    return // 用户取消
+  }
+  regeneratingToken.value = true
+  try {
+    const res = await artistApi.regenerateCustomerToken(route.params.id)
+    const full = new URL(res.trackUrl, window.location.origin).href
+    await navigator.clipboard.writeText(full)
+    ElMessage.success(t('orderDetail.regenerateTokenSuccess'))
+  } catch (err) {
+    ElMessage.error(err.message || t('orderDetail.regenerateTokenFailed'))
+  } finally {
+    regeneratingToken.value = false
   }
 }
 

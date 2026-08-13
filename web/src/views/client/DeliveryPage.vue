@@ -6,12 +6,13 @@
         <template #title><span aria-hidden="true">{{ $t('track.backHome') }}</span></template>
       </el-page-header>
 
-      <!-- 需要输入 QQ 验证 -->
+      <!-- F1 围剿：凭追踪链接验证（令牌承载身份，QQ 验证已退役） -->
       <el-card style="margin-top: 16px" v-if="!verified">
         <el-form @submit.prevent="verify" label-position="top">
-          <el-form-item :label="$t('track.qqLabel')">
-            <el-input v-model="qq" :placeholder="$t('track.qqPlaceholder')" clearable @keyup.enter="verify" />
+          <el-form-item :label="$t('track.linkLabel')">
+            <el-input v-model="linkInput" :placeholder="$t('track.linkPlaceholder')" clearable @keyup.enter="verify" />
           </el-form-item>
+          <p class="link-hint">{{ $t('track.pasteHint') }}</p>
           <el-button type="primary" @click="verify" :loading="verifying" style="width: 100%">
             {{ $t('track.search') }}
           </el-button>
@@ -64,7 +65,8 @@ const artist = ref(null)
 const paletteId = computed(() => artist.value?.paletteId || 'paper')
 usePalette(paletteId)
 
-const qq = ref('')
+const linkInput = ref('')
+const token = ref('')
 const verified = ref(false)
 const verifying = ref(false)
 const loading = ref(false)
@@ -94,12 +96,28 @@ async function downloadFile(url, fileName) {
 }
 
 async function verify() {
-  if (!qq.value.trim()) return ElMessage.warning(t('track.enterQq'))
+  // 支持直达（?token=）与粘贴完整链接两种入口
+  let no = orderNo
+  let tok = token.value
+  if (route.query.token) {
+    tok = route.query.token
+  } else if (linkInput.value.trim()) {
+    let url
+    try {
+      url = new URL(linkInput.value.trim(), window.location.origin)
+    } catch {
+      ElMessage.warning(t('track.linkInvalid'))
+      return
+    }
+    no = url.searchParams.get('no') || no
+    tok = url.searchParams.get('token') || tok
+  }
+  if (!tok) return ElMessage.warning(t('track.enterLink'))
 
   verifying.value = true
   verifyError.value = false
   try {
-    delivery.value = await orderApi.delivery(orderNo, qq.value.trim())
+    delivery.value = await orderApi.delivery(no, tok)
     verified.value = true
   } catch (err) {
     ElMessage.error(err.message)
@@ -109,12 +127,9 @@ async function verify() {
   }
 }
 
-// 如果 URL 带了 qq 参数（从 track 页跳转），自动验证
+// 如果 URL 带了 token 参数，自动验证
 onMounted(() => {
-  if (route.query.qq) {
-    qq.value = route.query.qq
-    verify()
-  }
+  if (route.query.token) verify()
   // M2: 轻量拉画师信息取 paletteId（失败静默回落 paper）；战役留账：in-flight 去重共享请求
   fetchArtistPublicProfile(subdomain).then((a) => { artist.value = a }).catch(() => {})
 })
@@ -133,6 +148,7 @@ onMounted(() => {
   margin: 12px 0 0; text-align: center;
   color: var(--el-color-danger); font-size: 13px;
 }
+.link-hint { margin: -6px 0 14px; font-size: 12px; color: var(--text-secondary); }
 .file-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 0; border-bottom: 1px solid var(--border-color);

@@ -6,7 +6,7 @@ import { buildApp } from '../src/app.js'
 
 // ============================================
 // track 接口补收款明细（payments）+ 截稿日（deadline）
-// GET /api/orders/track/:orderNo?qq=
+// GET /api/orders/track/:orderNo?token=
 // ============================================
 
 describe('track 接口收款明细与截稿日', () => {
@@ -41,7 +41,7 @@ describe('track 接口收款明细与截稿日', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/api/orders/track/TEST-TP01?qq=99011'
+      url: `/api/orders/track/TEST-TP01?token=${order.customerToken}`
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()
@@ -77,7 +77,7 @@ describe('track 接口收款明细与截稿日', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/api/orders/track/TEST-TP02?qq=99012'
+      url: `/api/orders/track/TEST-TP02?token=${order.customerToken}`
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()
@@ -85,7 +85,7 @@ describe('track 接口收款明细与截稿日', () => {
     expect(body.payments).toEqual([])
   })
 
-  it('TC-TP-03: 收款明细按客户订单隔离（订单号不匹配的 QQ 查不到）', async () => {
+  it('TC-TP-03: 收款明细按令牌隔离（错误令牌查不到，防枚举）', async () => {
     const artist = makeArtist('88013', 'track-pay3')
     seedArtistStages(artist.id)
     const order = seedOrder(artist.id, {
@@ -96,7 +96,7 @@ describe('track 接口收款明细与截稿日', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/api/orders/track/TEST-TP03?qq=99998'
+      url: `/api/orders/track/TEST-TP03?token=wrong-token`
     })
     expect(res.statusCode).toBe(404)
   })

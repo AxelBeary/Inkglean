@@ -7,33 +7,22 @@
         <template #title><span aria-hidden="true">{{ $t('track.backHome') }}</span></template>
       </el-page-header>
 
-      <!-- 查询表单 -->
+      <!-- F1 围剿：查询入口改为粘贴完整追踪链接（令牌承载身份，不再用 QQ+订单号表单） -->
       <el-card style="margin-top: 16px" v-if="!order">
-        <el-form @submit.prevent="search" label-position="top">
-          <el-form-item :label="$t('track.qqLabel')">
+        <el-form @submit.prevent="searchFromInput" label-position="top">
+          <el-form-item :label="$t('track.linkLabel')">
             <el-input
-              v-model="qq" :placeholder="$t('track.qqPlaceholder')" clearable
-              @keyup.enter="search"
+              v-model="linkInput" :placeholder="$t('track.linkPlaceholder')" clearable
+              @keyup.enter="searchFromInput"
             />
           </el-form-item>
-          <el-form-item :label="$t('track.orderNoLabel')">
-            <el-input
-              v-model="orderNo" :placeholder="$t('track.inputPlaceholder')" clearable
-              @keyup.enter="search"
-            />
-          </el-form-item>
+          <p class="link-hint">{{ $t('track.pasteHint') }}</p>
           <el-form-item>
-            <el-button type="primary" @click="search" :loading="searching" style="width: 100%">
+            <el-button type="primary" @click="searchFromInput" :loading="searching" style="width: 100%">
               {{ $t('track.search') }}
             </el-button>
           </el-form-item>
         </el-form>
-        <!-- A1: 只填 QQ 列出我的订单（不记得订单号场景） -->
-        <div class="my-orders-trigger">
-          <el-button size="small" text type="primary" :disabled="!qq.trim()" @click="loadMyOrders">
-            {{ $t('track.myOrdersBtn') }}
-          </el-button>
-        </div>
       </el-card>
 
       <!-- 波 M：查询失败页内错误态 + 重试（不再只弹 toast） -->
@@ -42,19 +31,19 @@
         <el-button type="primary" size="small" @click="search">{{ $t('common.loadRetry') }}</el-button>
       </div>
 
-      <!-- A1: 我的订单列表（T 波：v-if 切换补简单 fade，--dur-mid） -->
+      <!-- F1 围剿：已保存的追踪链接清单（多单可存多条，每行一键查询） -->
       <Transition name="my-orders-fade">
-        <el-card v-if="showMyOrders" class="my-orders-card" style="margin-top: 16px">
-          <template #header><span>{{ $t('track.myOrdersTitle') }}</span></template>
-          <el-empty v-if="!myOrders.length && !myOrdersLoading" :description="$t('track.myOrdersEmpty')" />
-          <div v-loading="myOrdersLoading">
+        <el-card v-if="savedLinks.length" class="my-orders-card" style="margin-top: 16px">
+          <template #header><span>{{ $t('track.savedTitle') }}</span></template>
+          <div>
             <button
-              v-for="o in myOrders" :key="o.orderNo"
+              v-for="item in savedLinks" :key="item.orderNo"
               type="button" class="my-order-item"
-              @click="fillAndSearch(o)"
+              @click="querySaved(item)"
             >
-              <div class="my-order-no">{{ o.orderNo }}</div>
-              <div class="my-order-meta">{{ o.tierName }} · {{ formatDate(o.createdAt) }}</div>
+              <div class="my-order-no">{{ item.orderNo }}</div>
+              <span v-if="item.invalid" class="link-expired">{{ $t('track.linkExpired') }}</span>
+              <span v-else class="my-order-meta">{{ $t('track.savedQuery') }}</span>
             </button>
           </div>
         </el-card>
@@ -190,28 +179,6 @@
         </div>
       </el-card>
 
-      <!-- 不记得订单号 → 联系引导弹窗 -->
-      <el-dialog v-model="showContact" :title="$t('track.contactTitle')" width="400px">
-        <p class="contact-desc">{{ $t('track.contactDesc') }}</p>
-        <div class="contact-list">
-          <!-- P3-14: 画师未设置展示 QQ 时隐藏整行（避免空 QQ + 无效复制按钮） -->
-          <div class="contact-item" v-if="contactInfo.artistName && contactInfo.contactQq">
-            <span class="contact-label">{{ $t('track.contactArtist') }}（{{ contactInfo.artistName }}）</span>
-            <div class="contact-value">
-              <code>{{ contactInfo.contactQq }}</code>
-              <el-button size="small" @click="copyText(contactInfo.contactQq)">{{ $t('track.copyQq') }}</el-button>
-            </div>
-          </div>
-          <div class="contact-item" v-if="contactInfo.adminQq">
-            <span class="contact-label">{{ $t('track.contactAdmin') }}</span>
-            <div class="contact-value">
-              <code>{{ contactInfo.adminQq }}</code>
-              <el-button size="small" @click="copyText(contactInfo.adminQq)">{{ $t('track.copyQq') }}</el-button>
-            </div>
-          </div>
-        </div>
-      </el-dialog>
-
       <!-- REQ-031 A2: 收据（delivered 只读凭证，只呈现事实流水） -->
       <el-dialog v-model="showReceipt" :title="$t('track.receiptTitle')" width="440px">
         <div class="receipt" v-if="order">
@@ -235,25 +202,12 @@
           <p class="receipt-note">{{ $t('track.receiptNote') }}</p>
         </div>
       </el-dialog>
-
-      <!-- 该QQ无订单 → 3秒不可关闭弹窗 -->
-      <el-dialog
-        v-model="showNoOrders" :title="$t('track.noOrdersTitle')" width="360px"
-        :close-on-click-modal="false" :close-on-press-escape="false" :show-close="noOrdersCountdown <= 0"
-      >
-        <p>{{ $t('track.noOrdersDesc') }}</p>
-        <template #footer>
-          <el-button :disabled="noOrdersCountdown > 0" @click="showNoOrders = false">
-            {{ noOrdersCountdown > 0 ? $t('track.noOrdersCountdown', { n: noOrdersCountdown }) : $t('common.confirm') }}
-          </el-button>
-        </template>
-      </el-dialog>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { orderApi } from '../../api/index.js'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
@@ -275,20 +229,16 @@ const paletteId = computed(() => artist.value?.paletteId || 'paper')
 usePalette(paletteId)
 
 const orderNo = ref('')
-const qq = ref('')
+const token = ref('')
+const linkInput = ref('')
 const order = ref(null)
 const searching = ref(false)
 // 波 M：查询失败页内错误态（区别于 toast，提供重试入口）
 const searchError = ref(false)
 
-// A1: 我的订单列表（只填 QQ 查询）
-const myOrders = ref([])
-const myOrdersLoading = ref(false)
-const showMyOrders = ref(false)
-
-// 联系引导弹窗
-const showContact = ref(false)
-const contactInfo = ref({ contactQq: '', adminQq: '', artistName: '' })
+// F1 围剿：已保存的追踪链接清单（localStorage 多单可存多条，上限 20 条自动去重）
+const SAVED_LINKS_KEY = 'huiyue_track_links'
+const savedLinks = ref([])
 
 // REQ-031 A2: 收据弹窗开关（delivered 只读凭证）
 const showReceipt = ref(false)
@@ -307,11 +257,6 @@ function formatBeijing(str) {
     hour: '2-digit', minute: '2-digit'
   })
 }
-
-// 无订单弹窗（3秒倒计时）
-const showNoOrders = ref(false)
-const noOrdersCountdown = ref(0)
-let countdownTimer = null
 
 import { ORDER_STATUS_TYPE } from '../../constants/order.js'
 
@@ -380,102 +325,107 @@ async function downloadFile(url, fileName) {
   }
 }
 
-async function copyText(text) {
+// ─── F1 围剿：令牌链接解析 / 查询 / 本地清单 ───
+
+/** 从粘贴文本解析出 { orderNo, token }（支持完整链接或纯 URL 片段） */
+function parseLink(text) {
+  const raw = (text || '').trim()
+  if (!raw) return null
+  let url
   try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success(t('track.copied'))
+    url = new URL(raw, window.location.origin)
   } catch {
-    ElMessage.warning(t('common.copyFailed'))
+    ElMessage.warning(t('track.linkInvalid'))
+    return null
   }
+  const no = url.searchParams.get('no')
+  const tok = url.searchParams.get('token')
+  if (!no || !tok) {
+    ElMessage.warning(t('track.linkInvalid'))
+    return null
+  }
+  return { orderNo: no, token: tok }
 }
 
-function startNoOrdersCountdown() {
-  noOrdersCountdown.value = 3
-  showNoOrders.value = true
-  clearInterval(countdownTimer)
-  countdownTimer = setInterval(() => {
-    noOrdersCountdown.value--
-    if (noOrdersCountdown.value <= 0) clearInterval(countdownTimer)
-  }, 1000)
-}
-
-async function loadMyOrders() {
-  if (!qq.value.trim()) return
-  myOrdersLoading.value = true
+function loadSavedLinks() {
   try {
-    const res = await orderApi.myOrders(subdomain, qq.value.trim())
-    // /orders/my 实测返回：直接数组 [{ orderNo, status, tierName, createdAt }]
-    myOrders.value = Array.isArray(res) ? res : (res?.orders || [])
-    showMyOrders.value = true
+    const raw = localStorage.getItem(SAVED_LINKS_KEY)
+    savedLinks.value = raw ? JSON.parse(raw) : []
   } catch {
-    ElMessage.warning(t('track.myOrdersFailed'))
-  } finally {
-    myOrdersLoading.value = false
+    savedLinks.value = []
   }
 }
 
-/** A1: 点列表条目 → 填订单号 → 复用既有查询流程 */
-function fillAndSearch(o) {
-  orderNo.value = o.orderNo
-  showMyOrders.value = false // 聚焦查询结果，隐藏列表
-  search()
+function persistSavedLinks() {
+  try {
+    localStorage.setItem(SAVED_LINKS_KEY, JSON.stringify(savedLinks.value.slice(0, 20)))
+  } catch {
+    // localStorage 不可用时静默降级（本次会话仍可查询）
+  }
 }
 
-async function search() {
-  if (!qq.value.trim()) return ElMessage.warning(t('track.enterQq'))
+function saveLink(orderNoToSave, tokenToSave) {
+  savedLinks.value = savedLinks.value.filter((i) => i.orderNo !== orderNoToSave)
+  savedLinks.value.unshift({ orderNo: orderNoToSave, token: tokenToSave, savedAt: Date.now(), invalid: false })
+  persistSavedLinks()
+}
 
-  // 有订单号 → 直接精确查询
-  if (orderNo.value.trim()) {
-    searching.value = true
-    try {
-      order.value = await orderApi.track(orderNo.value.trim(), qq.value.trim())
-      searchError.value = false
-    } catch (err) {
-      ElMessage.error(err.message)
-      searchError.value = true
-    } finally {
-      searching.value = false
-    }
-    return
+/** 核心查询：凭订单号 + 令牌；成功自动入本地清单 */
+async function search(no = orderNo.value, tok = token.value) {
+  if (!(no || '').trim() || !(tok || '').trim()) {
+    ElMessage.warning(t('track.enterLink'))
+    return false
   }
-
-  // 无订单号 → 检查该QQ是否有订单
   searching.value = true
+  searchError.value = false
   try {
-    const result = await orderApi.lookup(subdomain, qq.value.trim())
-    searchError.value = false
-    if (!result.hasOrders) {
-      startNoOrdersCountdown()
-    } else {
-      contactInfo.value = result
-      showContact.value = true
-    }
+    order.value = await orderApi.track(no.trim(), tok.trim())
+    orderNo.value = no.trim()
+    token.value = tok.trim()
+    saveLink(no.trim(), tok.trim())
+    return true
   } catch (err) {
     ElMessage.error(err.message)
     searchError.value = true
+    return false
   } finally {
     searching.value = false
   }
 }
 
-function resetSearch() {
-  order.value = null
-  orderNo.value = ''
-  qq.value = ''
-  searchError.value = false
+/** 粘贴完整链接 → 解析 → 查询 */
+function searchFromInput() {
+  const parsed = parseLink(linkInput.value)
+  if (!parsed) return
+  orderNo.value = parsed.orderNo
+  token.value = parsed.token
+  search(parsed.orderNo, parsed.token)
 }
 
-// 支持从下单成功页跳转过来时自动填充订单号
+/** 已保存清单行：一键查询；令牌失效（404）时明示「链接已失效，请联系画师补发」 */
+async function querySaved(item) {
+  const ok = await search(item.orderNo, item.token)
+  item.invalid = !ok
+  persistSavedLinks()
+}
+
+function resetSearch() {
+  order.value = null
+  searchError.value = false
+  linkInput.value = ''
+}
+
+// 支持从下单成功页跳转过来（?no=&token=）自动查询并保存
 onMounted(() => {
-  if (route.query.no) {
-    orderNo.value = route.query.no
+  loadSavedLinks()
+  const { no, token: routeToken } = route.query
+  if (typeof no === 'string' && no && typeof routeToken === 'string' && routeToken) {
+    orderNo.value = no
+    token.value = routeToken
+    search(no, routeToken)
   }
   // M2: 轻量拉画师信息取 paletteId（失败静默回落 paper）；战役留账：in-flight 去重共享请求
   fetchArtistPublicProfile(subdomain).then((a) => { artist.value = a }).catch(() => {})
-})
-
-onUnmounted(() => {
-  clearInterval(countdownTimer)
 })
 </script>
 
@@ -511,18 +461,9 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .deliverables { margin-top: 20px; }
 .deliverables h4 { margin-bottom: 8px; color: var(--text-primary); }
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
-.contact-desc { color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
-.contact-list { display: flex; flex-direction: column; gap: 12px; }
-.contact-item {
-  padding: 12px; border-radius: 8px;
-  background: var(--el-fill-color-light);
-}
-.contact-label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
-.contact-value { display: flex; align-items: center; gap: 8px; }
-.contact-value code {
-  font-size: 16px; font-weight: 600; color: var(--text-primary);
-  letter-spacing: 1px;
-}
+/* F1 围剿：粘贴链接入口 + 失效提示 */
+.link-hint { margin: -6px 0 14px; font-size: 12px; color: var(--text-secondary); }
+.link-expired { font-size: 12px; color: var(--el-color-danger); }
 
 /* ─── SPEC-003: 价格与付款 ─── */
 .price-block { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); }
@@ -548,8 +489,7 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 }
 .pay-progress-nums strong { color: var(--text-primary); font-size: 15px; }
 
-/* ─── A1: 我的订单列表 ─── */
-.my-orders-trigger { margin-top: 4px; }
+/* ─── F1 围剿：已保存追踪链接清单 ─── */
 /* T 波：列表 v-if 切换淡入淡出（--dur-mid） */
 .my-orders-fade-enter-active,
 .my-orders-fade-leave-active { transition: opacity var(--dur-mid); }

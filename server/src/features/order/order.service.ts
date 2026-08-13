@@ -9,7 +9,17 @@
 // 依赖方向单向（read ← fields ← pricing ← {status, create}），无循环。
 // ============================================
 
-export { getOrder, getOrderByNo, getArtistOrders, getClientQueuePosition, getClientOrdersByQq, hasClientOrders, getPlatformConfig } from './order-read.js'
+export {
+  getOrder,
+  getOrderByNo,
+  getArtistOrders,
+  getClientQueuePosition,
+  getClientOrderByToken,
+  generateCustomerToken,
+  hashCustomerToken,
+  buildCustomerTrackUrl,
+  getPlatformConfig
+} from './order-read.js'
 
 export { updateOrderChecked, updateDeadline, updateStartDate, addNote, deleteNote } from './order-fields.js'
 

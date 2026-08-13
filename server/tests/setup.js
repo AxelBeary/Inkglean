@@ -10,6 +10,7 @@
  */
 import db from '../src/db/connection.js'
 import { initDatabase } from '../src/db/init.js'
+import { createHash, randomBytes } from 'crypto'
 import { rmSync } from 'fs'
 import { afterAll } from 'vitest'
 
@@ -92,6 +93,8 @@ let seedOrderCounter = 0
 
 /**
  * 快速创建一个测试订单，返回完整行
+ * F1 围剿：默认同时生成客户令牌（哈希入库），返回对象附带 customerToken 明文，
+ * 供 track/delivery 令牌门禁用例直接使用；overrides.customerToken 可指定固定令牌。
  */
 export function seedOrder(artistId, overrides = {}) {
   const defaults = {
@@ -104,16 +107,19 @@ export function seedOrder(artistId, overrides = {}) {
     queue_zone: 'formal'
   }
   const data = { ...defaults, ...overrides }
+  const customerToken = data.customerToken || `test-${randomBytes(12).toString('base64url')}`
+  const customerTokenHash = createHash('sha256').update(customerToken).digest('hex')
 
   const result = db.prepare(`
-    INSERT INTO orders (order_no, artist_id, client_qq, client_name, description, priority, status, source, queue_position, queue_zone)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO orders (order_no, artist_id, client_qq, client_name, description, priority, status, source, queue_position, queue_zone, customer_token_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.order_no, artistId, data.client_qq,
     data.client_name || null, data.description || null,
     data.priority, data.status, data.source, data.queue_position,
-    data.queue_zone
+    data.queue_zone, customerTokenHash
   )
 
-  return db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid)
+  const row = db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid)
+  return { ...row, customerToken }
 }

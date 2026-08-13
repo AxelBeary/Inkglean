@@ -142,22 +142,22 @@ describe('订单服务 (Order Service)', () => {
     }).toThrow('INVALID_PRIORITY')
   })
 
-  // TC-O-09: 客户查询排队位置（需 QQ 验证）
+  // TC-O-09: 客户查询排队位置（F1 围剿：需订单号 + 客户令牌验证）
   it('TC-O-09: 客户查询返回正确位置', () => {
     orderService.createOrder({ artistId: artist.id, clientQq: '111' })
     const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
     orderService.createOrder({ artistId: artist.id, clientQq: '333' })
 
-    const result = orderService.getClientQueuePosition(o2.order_no, '222')
+    const result = orderService.getClientQueuePosition(o2.order_no, o2.customerToken)
     expect(result.position).toBe(2)
     expect(result.total).toBe(3)
   })
 
-  // TC-O-09b: QQ 不匹配时返回 null（防枚举）
-  it('TC-O-09b: QQ号不匹配返回 null', () => {
+  // TC-O-09b: 令牌不匹配时返回 null（防枚举）
+  it('TC-O-09b: 令牌不匹配返回 null', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
 
-    const result = orderService.getClientQueuePosition(order.order_no, '999')
+    const result = orderService.getClientQueuePosition(order.order_no, 'wrong-token')
     expect(result).toBeNull()
   })
 
@@ -169,7 +169,7 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(order.id, 'done')
     orderService.updateOrderStatus(order.id, 'delivered')
 
-    const result = orderService.getClientQueuePosition(order.order_no, '111')
+    const result = orderService.getClientQueuePosition(order.order_no, order.customerToken)
     expect(result.position).toBeNull()
     expect(result.total).toBeNull()
   })
@@ -222,16 +222,7 @@ describe('订单服务 (Order Service)', () => {
     expect(updated.deliverables[0].original_name).toBe('test.png')
   })
 
-  // TC-O-15: 凭 QQ 查询客户订单列表
-  it('TC-O-15: getClientOrdersByQq 返回该客户订单', () => {
-    orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    orderService.createOrder({ artistId: artist.id, clientQq: '222' })
-
-    const orders = orderService.getClientOrdersByQq(artist.id, '111')
-    expect(orders).toHaveLength(2)
-    expect(orders[0].order_no).toBe('ALICE-002') // 最新的在前
-  })
+  // TC-O-15: 已随 F1 围剿退役——getClientOrdersByQq（QQ 拉订单列表）不再存在
 
   // TC-O-16: v0.6.3 - 创建订单时快照价格
   it('TC-O-16: createOrder 快照 price_snapshot', () => {
@@ -407,7 +398,7 @@ describe('订单服务 (Order Service)', () => {
   // TC-O-24: getClientQueuePosition 返回的订单含 artist_id（供 track 查流程）
   it('TC-O-24: getClientQueuePosition 返回 artist_id 用于查流程', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
-    const result = orderService.getClientQueuePosition(order.order_no, '111')
+    const result = orderService.getClientQueuePosition(order.order_no, order.customerToken)
     expect(result).not.toBeNull()
     expect(result.order.artist_id).toBe(artist.id)
   })
@@ -487,7 +478,7 @@ describe('订单服务 (Order Service)', () => {
     orderGalleryService.addReference(order.id, 'references/1/client.png', 'client.png', 1024, 'client')
     orderGalleryService.addReference(order.id, 'references/1/artist.png', 'artist.png', 2048, 'artist')
 
-    const result = orderService.getClientQueuePosition(order.order_no, '111')
+    const result = orderService.getClientQueuePosition(order.order_no, order.customerToken)
     expect(result.order.references).toHaveLength(1)
     expect(result.order.references[0].source).toBe('client')
   })

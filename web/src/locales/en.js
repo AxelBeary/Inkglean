@@ -778,6 +778,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored',
     // R58-6: QQ jump + copy
     artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied',
+    // F1: success-page tracking link (full text + copy + QR)
+    saveTrackHint: 'Save this link — progress checks require it',
+    copyTrackLink: 'Copy link', trackLinkCopied: 'Tracking link copied', trackQrAlt: 'QR code of the tracking link',
     // R58-2: step-by-step guide
     step2: 'Details', step3: 'Contact',
     step2Title: 'Describe your request', step3Title: 'Contact details',
@@ -829,12 +832,19 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     }
   },
   track: {
-    backHome: 'Back to page', title: 'Track order', inputPlaceholder: 'Leave blank if you forgot it', search: 'Search',
-    orderNo: 'Order No.', orderNoLabel: 'Order number', qqLabel: 'Your QQ number', qqPlaceholder: 'The QQ you used when ordering',
+    backHome: 'Back to page', title: 'Track order', search: 'Search',
+    // F1: paste the full tracking link (the token is the identity)
+    linkLabel: 'Tracking link', linkPlaceholder: 'Paste the full tracking link saved after ordering',
+    pasteHint: 'Paste the link you saved on the success page to check progress',
+    enterLink: 'Please paste a tracking link first',
+    linkInvalid: 'Invalid link — paste the full tracking link saved after ordering',
+    linkExpired: 'This link is no longer valid — ask the artist to resend one',
+    savedTitle: 'Saved tracking links', savedQuery: 'Check',
+    orderNo: 'Order No.',
     artist: 'Artist', type: 'Type',
     positionText: '#{pos} of {total}', orderTime: 'Order time',
     stepSubmitted: 'Submitted', stepConfirmed: 'Confirmed', stepWip: 'In progress', stepDone: 'Done', stepDelivered: 'Delivered',
-    deliverables: 'Delivered files', otherOrder: 'Track another order', enterQq: 'Please enter your QQ number',
+    deliverables: 'Delivered files', otherOrder: 'Track another order',
     // SPEC-003: price & payments
     priceTitle: 'Price breakdown', finalPrice: 'Final price',
     // B7: quota-pool payment progress
@@ -842,13 +852,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // D-3（R-11）: explicit zero-price order
     zeroOrder: 'Free order',
     zeroOrderHint: 'This is a ¥0 order — no payment needed',
-    contactTitle: 'Forgot your order number?', contactDesc: 'Contact the admin or the artist with your QQ number to recover it.',
-    contactArtist: 'Artist QQ', contactAdmin: 'Admin QQ', copyQq: 'Copy', copied: 'Copied',
-    noOrdersTitle: 'No orders found', noOrdersDesc: 'This QQ number has no orders with this artist. Please double-check the number.',
-    noOrdersCountdown: 'Closes in {n}s',
-    // A1: my orders list
-    myOrdersBtn: 'My orders', myOrdersTitle: 'My orders',
-    myOrdersEmpty: 'No orders found for this QQ', myOrdersFailed: 'Failed to load orders, please retry', searchFailed: 'Search failed, please try again later',
+    searchFailed: 'Search failed, please try again later',
     // U1: brief recap
     briefTitle: 'Your brief', briefRefAlt: 'Reference image',
     timeline: {
@@ -1146,6 +1150,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     dateSyncNote: 'Date changes sync to the calendar and timeline views',
     // R58-6: QQ jump + copy
     jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'Client QQ copied',
+    // F1: artist resends the client tracking link (new token invalidates the old one)
+    copyTrackLink: 'Copy client tracking link',
+    regenerateTokenConfirm: 'Regenerating will immediately invalidate the old link the client saved. Generate a new link?',
+    regenerateTokenConfirmBtn: 'Generate new link',
+    regenerateTokenSuccess: 'New tracking link copied (old link is now invalid)',
+    regenerateTokenFailed: 'Failed to generate — please try again later',
     // plan-node-speech: client communication block
     commTitle: 'Client Communication',
     commPriceSummary: 'Price: total {total} / paid {paid} / due {unpaid}',
