@@ -292,7 +292,8 @@ function onStepUpCancel() {
   transform: rotate(-4deg);
   box-shadow: 2px 2px 0 var(--sb-seal-shadow);
   flex: none;
-  transition: transform var(--dur-fast) cubic-bezier(.3, 1.5, .4, 1), background-color var(--dur-fast);
+  /* T 波：弹性缓动 cubic-bezier(.3,1.5,.4,1) → --ease-out（印章 hover 旋转收敛，无视觉断裂） */
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast);
 }
 .brand:hover .brand-seal { transform: rotate(4deg) scale(1.06); background-color: var(--zs-d); }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
@@ -319,7 +320,8 @@ function onStepUpCancel() {
   cursor: pointer;
   position: relative;
   user-select: none;
-  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
+  /* T 波：ease-out 关键字 → --ease-out token */
+  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-out);
 }
 .nav-item:hover { color: var(--sb-text-on); background: var(--sb-hover); }
 .nav-item:active { transform: scale(0.98); }
@@ -335,9 +337,9 @@ function onStepUpCancel() {
   width: 3px;
   background: var(--hq);
   border-radius: 0 2px 2px 0;
-  /* 点名2: 激活竖条自上而下滑入（transform-origin top, .25s ease-out） */
+  /* 点名2: 激活竖条自上而下滑入（transform-origin top, --dur-mid） */
   transform-origin: top;
-  animation: nav-bar-in var(--dur-mid) ease-out;
+  animation: nav-bar-in var(--dur-mid) var(--ease-out);
 }
 @keyframes nav-bar-in {
   from { transform: scaleY(0); }
@@ -374,7 +376,8 @@ function onStepUpCancel() {
   color: var(--sb-text-dim);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
+  /* T 波：ease-out 关键字 → --ease-out token */
+  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-out);
 }
 .back-btn:hover { color: var(--sb-text-on); background: var(--sb-hover); }
 .back-btn:active { transform: scale(0.98); }
@@ -407,7 +410,8 @@ function onStepUpCancel() {
   cursor: pointer;
   flex: none;
   /* K1（波2，灰沼教训）：背景随主题即时切换，不插值 */
-  transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out;
+  /* T 波：ease-out 关键字 → --ease-out token */
+  transition: box-shadow var(--dur-fast), transform var(--dur-fast) var(--ease-out);
 }
 .mobile-menu-btn:hover { box-shadow: var(--sh-1); }
 .mobile-menu-btn:active { transform: scale(0.98); }
@@ -447,7 +451,7 @@ function onStepUpCancel() {
   display: flex; flex-direction: column; gap: 10px;
 }
 .mobile-drawer :deep(.el-drawer-fade-enter-active),
-.mobile-drawer :deep(.el-drawer-fade-leave-active) { transition: opacity 0.18s ease-out, transform 0.18s ease-out; }
+.mobile-drawer :deep(.el-drawer-fade-leave-active) { transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); /* T 波：0.18s → --dur-fast(.15s) 就近等值 */ }
 .mobile-drawer :deep(.el-drawer-fade-enter-from) { opacity: 0; }
 .mobile-drawer :deep(.el-drawer-fade-leave-to) { opacity: 0; }
 .mobile-drawer :deep(.el-drawer-fade-enter-from .ltr),

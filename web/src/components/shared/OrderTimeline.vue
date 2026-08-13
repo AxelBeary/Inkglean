@@ -121,8 +121,14 @@ function nodeState(stageId) {
   inset: 0;
   border-radius: 50%;
   background: color-mix(in srgb, var(--el-color-primary) 35%, transparent);
-  animation: tl-pulse 1.8s ease-in-out infinite;
+  /* T 波：循环动画清违——一次性脉冲（forwards），不再无限循环；reduced-motion 见下方豁免 */
+  animation: tl-pulse 1.8s ease-in-out forwards;
   pointer-events: none;
+}
+
+/* T 波：tl-pulse 一次性脉冲的 prefers-reduced-motion 豁免 */
+@media (prefers-reduced-motion: reduce) {
+  .tl-node.current .tl-dot::after { animation: none; }
 }
 
 /* 连接线 */

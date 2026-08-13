@@ -173,12 +173,14 @@ html.dark .el-tag.el-tag--dark.el-tag--success { --el-tag-text-color: #123D20; }
 html.dark .el-tag.el-tag--dark.el-tag--warning { --el-tag-text-color: #54370c; }
 html.dark .el-tag.el-tag--dark.el-tag--danger  { --el-tag-text-color: #6b1a1a; }
 
-/* ===== 02D P1-6: el-dialog 定制过渡（scale + fade，0.2s ease-out） =====
+/* ===== 02D P1-6: el-dialog 定制过渡（scale + fade） =====
+   T 波：0.2s→--dur-mid、0.15s→--dur-fast（前序波次已 token 化）；enter 的 ease-out 关键字
+   → --ease-out；leave 的 ease-in 无对应 token，原样保留（时长/曲线均不动）。
    只加过渡类，不影响功能/布局；reduced-motion 由上方全局兜底压缩。
    EP 默认 dialog-fade-in 仅 opacity+上移，此处覆写为 scale(0.96)+opacity，
    body 前缀提升特异性压过 EP 同特异性规则。 */
-body .dialog-fade-enter-active { animation: huiyue-modal-in var(--dur-mid) ease-out; }
-body .dialog-fade-enter-active .el-overlay-dialog { animation: huiyue-dialog-in var(--dur-mid) ease-out; }
+body .dialog-fade-enter-active { animation: huiyue-modal-in var(--dur-mid) var(--ease-out); }
+body .dialog-fade-enter-active .el-overlay-dialog { animation: huiyue-dialog-in var(--dur-mid) var(--ease-out); }
 body .dialog-fade-leave-active { animation: huiyue-modal-out var(--dur-fast) ease-in; }
 body .dialog-fade-leave-active .el-overlay-dialog { animation: huiyue-dialog-out var(--dur-fast) ease-in; }
 @keyframes huiyue-modal-in { from { opacity: 0; } to { opacity: 1; } }

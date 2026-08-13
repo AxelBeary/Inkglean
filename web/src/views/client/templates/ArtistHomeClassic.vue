@@ -242,11 +242,11 @@ useScrollReveal(rootEl)
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--dur-mid), transform var(--dur-mid);
+  /* T 波：hover 禁位移——位移换背景加深 */
+  transition: background var(--dur-mid);
 }
 .classic-cta:hover:not(:disabled) {
   background: var(--color-primary-hover);
-  transform: translateY(-2px);
 }
 .classic-cta:disabled {
   opacity: 0.35;
@@ -317,9 +317,10 @@ useScrollReveal(rootEl)
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--dur-mid), transform var(--dur-fast);
+  /* T 波：hover 禁位移——位移换背景加深 */
+  transition: background var(--dur-mid);
 }
-.classic-guestbook :deep(.gb-submit:hover:not(:disabled)) { transform: translateY(-1px); }
+.classic-guestbook :deep(.gb-submit:hover:not(:disabled)) { background: var(--color-primary-hover); }
 .classic-guestbook :deep(.gb-submit:disabled) { opacity: 0.5; cursor: default; }
 .classic-guestbook :deep(.gb-pending-hint) {
   margin: 0;

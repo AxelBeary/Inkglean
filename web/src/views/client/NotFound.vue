@@ -99,12 +99,13 @@ onMounted(async () => {
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity var(--dur-mid), transform var(--dur-fast);
+  /* T 波：active 禁位移——按压反馈换背景加深（brightness），不位移 */
+  transition: opacity var(--dur-mid), filter var(--dur-fast);
 }
 .not-found-home-btn:hover {
   opacity: 0.88;
 }
-.not-found-home-btn:active { transform: translateY(-2px); }
+.not-found-home-btn:active { filter: brightness(0.92); }
 /* 画师入口区 */
 .not-found-artists-divider {
   width: 48px;
@@ -135,13 +136,14 @@ onMounted(async () => {
   border-radius: 12px;
   cursor: pointer;
   font-family: inherit;
-  transition: transform var(--dur-fast), box-shadow var(--dur-fast), border-color var(--dur-fast);
+  /* T 波：active 禁位移——位移换背景加深 */
+  transition: background var(--dur-fast), box-shadow var(--dur-fast), border-color var(--dur-fast);
 }
 .not-found-artist-card:hover {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-card-hover);
 }
-.not-found-artist-card:active { transform: translateY(-2px); }
+.not-found-artist-card:active { background: var(--bg-hover); }
 .not-found-artist-name {
   font-size: 14px;
   font-weight: 600;

@@ -478,11 +478,11 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--dur-mid), transform var(--dur-mid);
+  /* T 波：hover 禁位移——位移换背景加深 */
+  transition: background var(--dur-mid);
 }
 .folio-cta-btn:hover:not(:disabled) {
   background: var(--color-primary-hover);
-  transform: translateY(-2px);
 }
 .folio-cta-btn:disabled {
   opacity: 0.35;
@@ -513,14 +513,15 @@ onUnmounted(() => {
   color: var(--pal-text-dim);
   text-decoration: none;
   font-size: 13px;
-  transition: color var(--dur-mid), border-color var(--dur-mid), background var(--dur-mid), transform var(--dur-mid);
+  /* T 波：active 禁位移——位移换阴影加深 */
+  transition: color var(--dur-mid), border-color var(--dur-mid), background var(--dur-mid), box-shadow var(--dur-mid);
 }
 .folio-link:hover {
   color: var(--color-primary);
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
 }
-.folio-link:active { transform: translateY(-2px); }
+.folio-link:active { box-shadow: var(--shadow-card-hover); }
 .folio-link-badge {
   display: inline-flex;
   align-items: center;

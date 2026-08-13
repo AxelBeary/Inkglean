@@ -20,6 +20,7 @@
   opacity: 0;
 }
 .tpl-reveal.tpl-visible {
+  /* T 波豁免：0.42s 为滚动渐入容器级节奏，保留原值（不归三档），仅补注释 */
   animation: tpl-fade-up 0.42s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
   animation-delay: calc(var(--i, 0) * 60ms);
 }
@@ -102,7 +103,8 @@
 
 /* 尊重系统"减少动态效果"偏好 */
 @media (prefers-reduced-motion: reduce) {
-  .tl-node.current .tl-dot { animation: none; }
+  /* T 波修正：动画挂在 ::after 上，选择器需指到伪元素才能真正豁免 */
+  .tl-node.current .tl-dot::after { animation: none; }
 }
 
 /* ===== 画册风模板（atelier）共享样式 ===== */
@@ -193,7 +195,7 @@
   background: transparent; color: #3a3a3a;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
-.receipt-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); }
-.receipt-btn:active:not(:disabled) { transform: translateY(0) scale(0.97); }
+.receipt-btn:hover:not(:disabled) { box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); /* T 波：hover 禁位移——只留阴影加深 */ }
+.receipt-btn:active:not(:disabled) { transform: scale(0.97); /* T 波：按压保留缩放，去掉 translateY(0) 位移残留 */ }
 .receipt-btn--primary { background: #3a3a3a; color: #fdfbf5; border-color: #3a3a3a; }
 .receipt-btn:disabled { opacity: 0.5; cursor: not-allowed; }

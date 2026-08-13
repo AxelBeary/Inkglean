@@ -121,7 +121,7 @@ defineExpose({ sentinelEl })
 }
 .tpl-btn--primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
-  transform: translateY(-2px);
+  /* T 波：hover 禁位移——保留背景加深反馈 */
 }
 .tpl-btn--primary:disabled {
   opacity: 0.35;

@@ -113,11 +113,12 @@ async function toggle() {
   fill: currentColor;
 }
 .like-btn--pop .like-heart {
-  animation: like-pop var(--dur-slow) cubic-bezier(0.22, 1, 0.36, 1);
+  /* T 波：like-pop 缓动 token 化（同曲线 --ease-out），弹跳幅度收敛至克制范围 */
+  animation: like-pop var(--dur-slow) var(--ease-out);
 }
 @keyframes like-pop {
   0% { transform: scale(1); }
-  40% { transform: scale(1.35); }
+  40% { transform: scale(1.12); }
   100% { transform: scale(1); }
 }
 </style>

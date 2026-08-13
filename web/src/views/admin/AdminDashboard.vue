@@ -102,26 +102,32 @@
               </div>
             </div>
           </template>
-          <el-table v-if="msgLoading || adminMessages.length" :data="adminMessages" v-loading="msgLoading" stripe max-height="400">
-            <el-table-column :label="$t('admin.guestbook.colArtist')" width="110">
-              <template #default="{ row }">{{ row.artist_name || `#${row.artist_id}` }}</template>
-            </el-table-column>
-            <el-table-column prop="nickname" :label="$t('admin.guestbook.colNickname')" width="100" />
-            <el-table-column prop="content" :label="$t('admin.guestbook.colContent')" min-width="160" show-overflow-tooltip />
-            <el-table-column :label="$t('admin.guestbook.colStatus')" width="80">
-              <template #default="{ row }">
-                <el-tag size="small" effect="light" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ $t(`admin.guestbook.status${row.status.charAt(0).toUpperCase()}${row.status.slice(1)}`) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column :label="$t('admin.guestbook.colTime')" width="150">
-              <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
-            </el-table-column>
-            <el-table-column width="90" align="right">
-              <template #default="{ row }">
-                <el-button size="small" type="danger" plain @click="handleDeleteMessage(row)">{{ $t('admin.guestbook.delete') }}</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <!-- T 波：el-table 行由 EP 内部渲染、无法挂 Vue 过渡，改等价 CSS 网格列表 +
+               TransitionGroup 行级淡出 var(--dur-mid)——删除留言不再瞬变 -->
+          <div v-if="msgLoading || adminMessages.length" class="gb-table-wrap">
+            <div class="gb-list-head">
+              <span class="gb-col gb-col--artist">{{ $t('admin.guestbook.colArtist') }}</span>
+              <span class="gb-col gb-col--nick">{{ $t('admin.guestbook.colNickname') }}</span>
+              <span class="gb-col gb-col--content">{{ $t('admin.guestbook.colContent') }}</span>
+              <span class="gb-col gb-col--status">{{ $t('admin.guestbook.colStatus') }}</span>
+              <span class="gb-col gb-col--time">{{ $t('admin.guestbook.colTime') }}</span>
+              <span class="gb-col gb-col--actions"></span>
+            </div>
+            <TransitionGroup tag="div" name="gb-row" class="gb-list" v-loading="msgLoading">
+              <div v-for="row in adminMessages" :key="row.id" class="gb-row">
+                <span class="gb-col gb-col--artist">{{ row.artist_name || `#${row.artist_id}` }}</span>
+                <span class="gb-col gb-col--nick">{{ row.nickname }}</span>
+                <span class="gb-col gb-col--content" :title="row.content">{{ row.content }}</span>
+                <span class="gb-col gb-col--status">
+                  <el-tag size="small" effect="light" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ $t(`admin.guestbook.status${row.status.charAt(0).toUpperCase()}${row.status.slice(1)}`) }}</el-tag>
+                </span>
+                <span class="gb-col gb-col--time">{{ formatDateTime(row.created_at) }}</span>
+                <span class="gb-col gb-col--actions">
+                  <el-button size="small" type="danger" plain @click="handleDeleteMessage(row)">{{ $t('admin.guestbook.delete') }}</el-button>
+                </span>
+              </div>
+            </TransitionGroup>
+          </div>
           <el-empty v-else :description="$t('admin.guestbook.empty')" />
         </el-card>
       </div>
@@ -243,6 +249,49 @@ onMounted(async () => {
 /* ─── 留言筛选行（右栏内换行不挤） ─── */
 .gb-filter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2, 8px); }
 .gb-filters { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+
+/* ─── T 波：留言表 el-table → 等价网格列表（列宽对齐原 small/stripe/max-height），TransitionGroup 行级淡出 ─── */
+.gb-list-head,
+.gb-row {
+  display: grid;
+  grid-template-columns: 110px 100px minmax(160px, 1fr) 80px 150px 90px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+.gb-list-head {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--r-m) var(--r-m) 0 0;
+}
+.gb-table-wrap { border-radius: var(--r-m); }
+.gb-list {
+  position: relative;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 0 0 var(--r-m) var(--r-m);
+}
+.gb-row {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink);
+}
+.gb-row:nth-child(even) { background: var(--paper2); }
+.gb-row:last-child { border-bottom: none; }
+.gb-col--content { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gb-col--actions { text-align: right; }
+.gb-row-enter-active,
+.gb-row-leave-active { transition: opacity var(--dur-mid); }
+.gb-row-enter-from,
+.gb-row-leave-to { opacity: 0; }
+.gb-row-leave-active { position: absolute; width: 100%; }
 
 @media (max-width: 768px) {
   .stat-grid { grid-template-columns: 1fr; }

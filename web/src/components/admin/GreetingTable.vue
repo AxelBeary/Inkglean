@@ -27,32 +27,31 @@
       {{ $t('admin.greetingPreview') }}：{{ previewText }}
     </p>
 
-    <!-- 列表 -->
-    <el-table :data="greetings" v-loading="loading" stripe size="small">
-      <el-table-column prop="text" :label="$t('admin.greetingColText')" min-width="200">
-        <template #default="{ row }">
-          <span :style="{ opacity: row.is_enabled ? 1 : 0.4 }">{{ row.text }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('admin.greetingColSlot')" width="90">
-        <template #default="{ row }">
+    <!-- 列表（T 波：el-table 行由 EP 内部渲染、无法挂 Vue 过渡，改等价 CSS 网格列表 +
+         TransitionGroup 行级淡出 var(--dur-mid)——删除/停用不再瞬变） -->
+    <div class="greeting-table-head">
+      <span class="g-col g-col--text">{{ $t('admin.greetingColText') }}</span>
+      <span class="g-col g-col--slot">{{ $t('admin.greetingColSlot') }}</span>
+      <span class="g-col g-col--enabled">{{ $t('admin.greetingColEnabled') }}</span>
+      <span class="g-col g-col--actions">{{ $t('common.actions') }}</span>
+    </div>
+    <TransitionGroup tag="div" name="greeting-row" class="greeting-table-list" v-loading="loading">
+      <div v-for="row in greetings" :key="row.id" class="greeting-row">
+        <span class="g-col g-col--text" :class="{ 'g-col--disabled': !row.is_enabled }">{{ row.text }}</span>
+        <span class="g-col g-col--slot">
           <el-tag :type="SLOT_TAG[row.time_slot] || 'info'" size="small">{{ slotLabel(row.time_slot) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('admin.greetingColEnabled')" width="70">
-        <template #default="{ row }">
+        </span>
+        <span class="g-col g-col--enabled">
           <el-switch
             v-model="row.is_enabled" :active-value="1" :inactive-value="0" size="small"
             @change="(val) => toggleEnabled(row, val)"
           />
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="70" fixed="right">
-        <template #default="{ row }">
+        </span>
+        <span class="g-col g-col--actions">
           <el-button size="small" type="danger" text @click="remove(row)">✕</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        </span>
+      </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -141,4 +140,47 @@ onMounted(load)
 .scope-hint { font-size: 12px; color: var(--ink2); margin-bottom: 12px; }
 .add-row { display: flex; gap: 8px; margin-bottom: 4px; }
 .preview-hint { font-size: 12px; color: var(--ink2); margin: 6px 0 10px; }
+
+/* ─── T 波：el-table → 等价网格列表（列宽对齐原 small/stripe 视觉），TransitionGroup 行级淡出 ─── */
+.greeting-table-head,
+.greeting-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 90px 70px 70px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+.greeting-table-head {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--r-m) var(--r-m) 0 0;
+}
+.greeting-table-list {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 0 0 var(--r-m) var(--r-m);
+  overflow: hidden;
+}
+.greeting-row {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink);
+}
+.greeting-row:nth-child(even) { background: var(--paper2); }
+.greeting-row:last-child { border-bottom: none; }
+.g-col--text { min-width: 0; word-break: break-word; }
+/* 暂停态透明度淡入淡出（原内联 opacity 瞬变 → --dur-mid 过渡） */
+.g-col--disabled { opacity: 0.4; transition: opacity var(--dur-mid); }
+.g-col--actions { text-align: right; }
+.greeting-row-enter-active,
+.greeting-row-leave-active { transition: opacity var(--dur-mid); }
+.greeting-row-enter-from,
+.greeting-row-leave-to { opacity: 0; }
+.greeting-row-leave-active { position: absolute; width: 100%; }
 </style>

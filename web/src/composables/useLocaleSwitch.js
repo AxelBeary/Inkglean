@@ -5,6 +5,13 @@
 // getContainerEl：返回需要淡变/锁高度的容器元素（函数形式，规避 ref 解包歧义）。
 import { setLocale } from '../i18n/index.js'
 
+// T 波：WAAPI 无法直接读 CSS token，抽为命名常量 + 注释对齐 artist-tokens.css。
+// 380ms 落在 --dur-mid(.25s) 与 --dur-slow(.35s) 之间，属容器级交叉淡化节奏，保持原值等值；
+// easing 为 WAAPI 专用字符串，无 --ease-* token 可引用，原曲线保留。
+const LANG_SWAP_DURATION_MS = 380
+const LANG_SWAP_EASING = 'cubic-bezier(.45, .05, .25, 1)'
+const LANG_SWAP_MIDPOINT_MS = 160
+
 export function useLocaleSwitch(getContainerEl) {
   let busy = false
 
@@ -21,14 +28,17 @@ export function useLocaleSwitch(getContainerEl) {
     el.style.overflow = 'hidden'
     const anim = el.animate(
       [{ opacity: 1 }, { opacity: 0.35, offset: 0.42 }, { opacity: 1 }],
-      { duration: 380, easing: 'cubic-bezier(.45, .05, .25, 1)' }
+      { duration: LANG_SWAP_DURATION_MS, easing: LANG_SWAP_EASING }
     )
-    setTimeout(() => setLocale(next), 160)
-    anim.onfinish = () => {
+    setTimeout(() => setLocale(next), LANG_SWAP_MIDPOINT_MS)
+    const release = () => {
       el.style.height = ''
       el.style.overflow = ''
       busy = false
     }
+    // T 波：anim 被取消（元素卸载/连续切换）时同样释放锁，防 busy 卡死
+    anim.onfinish = release
+    anim.oncancel = release
   }
 
   return { switchLang }
