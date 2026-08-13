@@ -11,6 +11,9 @@
     </template>
     <p class="ob-subtitle">{{ $t('onboarding.subtitle') }}</p>
     <p class="ob-progress" aria-live="polite">{{ $t('onboarding.progress', { done: doneCount, total: 3 }) }}</p>
+    <div class="ob-progress-bar" aria-hidden="true">
+      <span class="ob-progress-fill" :style="{ width: progressPct + '%' }"></span>
+    </div>
     <div class="ob-tasks">
       <button type="button" class="ob-task" :class="{ 'ob-task--done': done('artwork') }" @click="goTask('artwork')">
         <span class="ob-check" aria-hidden="true">{{ done('artwork') ? '✓' : '' }}</span>
@@ -68,6 +71,8 @@ const visible = computed(() => {
 })
 
 const doneCount = computed(() => state.value?.tasks.filter(task => task.done).length ?? 0)
+/** 进度条宽度（纯展示，不改判定逻辑） */
+const progressPct = computed(() => Math.round((doneCount.value / 3) * 100))
 
 function done(key: OnboardingState['tasks'][number]['key']): boolean {
   return state.value?.tasks.find(task => task.key === key)?.done ?? false
@@ -119,7 +124,10 @@ onUnmounted(() => {
 
 <style scoped>
 .onboarding-card {
-  border-radius: var(--r-l);
+  background: var(--card);
+  border: none;
+  border-radius: 6px 14px 7px 15px / 13px 7px 15px 6px;
+  box-shadow: var(--sh-2);
 }
 .ob-subtitle {
   margin: 0 0 8px;
@@ -132,31 +140,43 @@ onUnmounted(() => {
   font-size: calc(var(--font-scale, 1) * 11px);
   color: var(--ink3);
 }
+/* 墨线进度条：--line 底 + --sl 填充，宽度随任务数过渡 */
+.ob-progress-bar {
+  height: 7px; margin: 0 0 12px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ob-progress-fill {
+  display: block; height: 100%;
+  background: var(--sl);
+  border-radius: inherit;
+  transition: width var(--dur-slow) var(--ease-out);
+}
 .ob-tasks {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 .ob-task {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 9px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  background: var(--paper2);
+  padding: 11px 10px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
   color: var(--ink);
   font-family: var(--f-b);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
+  transition: background var(--dur-fast) var(--ease-out);
 }
-.ob-task:hover { border-color: var(--hq); }
-.ob-task:active { transform: scale(0.99); }
-.ob-task--done { opacity: 0.72; cursor: default; }
-.ob-task--done:hover { border-color: var(--line); }
+.ob-task:last-child { border-bottom: none; }
+.ob-task:hover { background: var(--paper2); }
+.ob-task--done { opacity: .45; cursor: default; }
 .ob-check {
   display: inline-flex;
   align-items: center;
@@ -184,6 +204,9 @@ onUnmounted(() => {
 .ob-dismiss {
   color: var(--ink3);
   font-size: calc(var(--font-scale, 1) * 11.5px);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ink3) 45%, transparent);
+  text-underline-offset: 3px;
   transition: color var(--dur-fast);
 }
 .ob-dismiss:hover { color: var(--ink); }
