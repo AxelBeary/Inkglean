@@ -34,7 +34,7 @@ export default {
     STAGE_NAME_EMPTY: '节点名称不能为空',
     FINAL_CANNOT_DISABLE: '尾款节点的收款不可关闭',
     FINAL_CANNOT_DELETE: '尾款节点不可删除',
-    TRACK_ALREADY_ON: '请勿重复启用流程跟踪，请刷新网页',
+    TRACK_ALREADY_ON: '流程跟踪已开启，请刷新页面查看',
     NO_WORKFLOW_TEMPLATE: '请先创建工作流模板（至少 1 个节点）',
     FINAL_READONLY: '不能直接修改尾款比例',
     MAX_INSTALLMENTS: '最多 20 期',
@@ -63,7 +63,7 @@ export default {
     CANCEL_WITH_PAYMENT: '该订单已收款，请先线下退还后再取消',
     DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
     TIER_NOT_FOUND: '价格档位不存在或不属于该画师',
-    ILLEGAL_PATH: '非法路径',
+    ILLEGAL_PATH: '文件路径无效，请重新选择',
     MISSING_FILE: '缺少文件路径',
     QUEUE_EMPTY: '排序列表不能为空',
     QUEUE_NOT_OWNED: '订单不属于当前队列',
@@ -88,7 +88,7 @@ export default {
     INVALID_ANNOUNCEMENT_DATE: '公告过期日不能早于今天',
 
     // 上传
-    ILLEGAL_FILE_TYPE: '非法文件类型',
+    ILLEGAL_FILE_TYPE: '不支持的文件类型',
     UNSUPPORTED_FORMAT: '不支持此文件格式',
 
     // 管理员
@@ -119,7 +119,7 @@ export default {
     // 输入校验（补充）
     QQ_REQUIRED: '请填写QQ号',
     QQ_FORMAT: 'QQ号格式不正确（5-15位数字）',
-    MISSING_CREDENTIALS: '请输入QQ号和登录码',
+    MISSING_CREDENTIALS: '请输入QQ号和动态口令',
 
     // 订单输入（补充）
     ARTIST_NOT_OPEN: '该画师当前不接受新约稿',
@@ -138,16 +138,16 @@ export default {
     PRICING_CALC_FAILED: '价格计算失败',
     INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
     // 计价引擎（补充，v0.37 REQ-025）
-    PRICING_CONSERVATION: '计价数据不守恒，操作已拒绝，请刷新后重试',
+    PRICING_CONSERVATION: '价格数据出现异常，操作未完成，请刷新后重试',
     PRICE_CHANGE_AFTER_DONE: '订单已完成，改价请通过增减附加项操作',
 
     // 焦点图（补充）
-    FOCUS_IMAGE_NOT_FOUND: '参考图不存在',
-    FOCUS_IMAGE_NOT_OWNED: '该参考图不属于此订单',
-    INVALID_FOCUS_MODE: '无效的焦点图模式（可选：off/small/large）',
+    FOCUS_IMAGE_NOT_FOUND: '焦点图不存在',
+    FOCUS_IMAGE_NOT_OWNED: '该焦点图不属于此订单',
+    INVALID_FOCUS_MODE: '焦点图模式无效（可选：关闭 / 小图 / 大图）',
 
     // 外链（补充）
-    LINKS_TOO_MANY: '外链数量不能超过6条',
+    LINKS_TOO_MANY: '外链数量不能超过8条',
     LINK_URL_INVALID: '外链地址格式不正确（须以 http:// 或 https:// 开头）',
 
     // 图库（补充）
@@ -453,7 +453,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     incomeStandalone: '散单收入',
     incomeCount: '收款笔数',
     incomeCountUnit: '笔',
-    incomeNote: '散单收入与笔数与导出 CSV 的散单行口径一致；订单收入与总收入需后端补充区间汇总端点后展示。',
+    incomeNote: '订单收入与总收入将在后续版本提供',
     incomeLoadFailed: '收入概览加载失败',
     downloaded: '已开始下载',
     failed: '导出失败，请稍后重试',
@@ -875,7 +875,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     receiptTotal: '合计金额',
     receiptPaid: '已付',
     receiptRemaining: '待付',
-    receiptNote: '本收据仅展示订单与付款节点信息；逐笔实收流水明细待后端开放客户可见字段后补充。'
+    receiptNote: '逐笔收款明细将在后续版本提供'
   },
   // F4: 留言板（客户端留言墙，共享组件 TplGuestbook）
   guestbook: {
@@ -1174,7 +1174,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     paymentRevertNote: '撤销 #{id}',
     // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
     payAmountInvalid: '收款金额须大于 0',
-    payAmountZero: '金额不能为 0', payRefundNoteRequired: '录入负数（退款/撤销）时必须填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
+    payAmountZero: '金额不能为 0', payRefundNoteRequired: '退款或撤销时请填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
     payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',

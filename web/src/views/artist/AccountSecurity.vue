@@ -245,7 +245,7 @@ const rebindTempKey = ref('')
 const currentCode = ref('')
 const newCode = ref('')
 const rebindCooldownMs = ref(0)
-// a1 猎杀修复：passkey 重绑 Step1 登录仪式产出的 assertion，confirm 时携带交后端 verifyLogin
+// passkey 重绑（a1 修复后）：Step1 走登录仪式——loginOptions 拿挑战 + credentials.get 产 assertion，暂存到 confirm 时交后端 verifyLogin
 const rebindPasskeyCredential = ref<unknown>(null)
 
 async function startRebind() {
@@ -317,7 +317,7 @@ async function confirmRebind() {
       body.tempKey = rebindTempKey.value
       body.code = currentCode.value
     } else {
-      // a1 猎杀修复：passkey 路携带 Step1 登录仪式凭据交后端 verifyLogin；此前不携带 → 后端 400 必断
+      // passkey 路：confirm 携带 Step1 登录仪式 assertion（loginOptions + credentials.get 产出）交后端 verifyLogin；init 不再签发注册挑战
       body.credential = rebindPasskeyCredential.value
     }
     await totpRebindApi.rebindConfirm(body)

@@ -364,8 +364,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/auth/totp/rebind-init
    * TOTP 自助重绑初始化（分层验证）
-   * 有 Passkey → 返回 Passkey challenge 要求确认
-   * 无 Passkey → 返回要求当前 6 位码
+   * 有 Passkey → 返回 verifyMethod: 'passkey'（init 不生成新 secret；身份验证由前端走登录仪式，
+   *               confirm 携带 credential 经 verifyLogin 校验后生成新 secret 写库）
+   * 无 Passkey → 生成新 secret 暂存 totpRebindStore（5 分钟过期），返回 tempKey + 二维码
    * 都无 → 拒绝
    * 冷却期 24h 内拒绝（管理员豁免）
    */
