@@ -63,6 +63,7 @@ import { migration as v57 } from './v57-totp-rebound-at.js'
 import { migration as v58 } from './v58-invite-codes.js'
 import { migration as v59 } from './v59-compliance.js'
 import { migration as v60 } from './v60-onboarding.js'
+import { migration as v61 } from './v61-dashboard-visual-prep.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -76,6 +77,7 @@ export const MIGRATIONS: Migration[] = [
   v58,
   v59,
   v60,
+  v61,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错
