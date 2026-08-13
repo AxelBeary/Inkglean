@@ -1,14 +1,14 @@
 ﻿<template>
   <div class="admin-page">
     <!-- 页头 -->
-    <div class="page-head">
+    <div class="admin-page-head">
       <div>
-        <h1 class="page-title font-display">{{ $t('admin.defaultWorkflow') }}</h1>
-        <p class="page-sub">{{ $t('admin.defaultWorkflowHint') }}</p>
+        <h1 class="admin-page-title font-display">{{ $t('admin.defaultWorkflow') }}</h1>
+        <p class="admin-page-sub">{{ $t('admin.defaultWorkflowHint') }}</p>
       </div>
     </div>
 
-    <el-card shadow="never" class="section-card">
+    <el-card shadow="never" class="admin-section-card admin-section-card--workflow">
       <WorkflowPaymentEditor mode="admin" ref="editorRef" />
     </el-card>
     <el-button class="reset-btn" @click="resetTemplate" :loading="resetting">
@@ -45,21 +45,6 @@ async function resetTemplate() {
 /* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807） ═══ */
 .admin-page { }
 
-/* 页头 */
-.page-head { margin-bottom: var(--sp-5, 24px); }
-.page-title {
-  font-size: var(--fs-page-title, 26px);
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 var(--sp-1, 4px);
-  letter-spacing: .02em;
-}
-.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
-
-.section-card {
-  max-width: 760px;
-  border-radius: var(--r-l, 11px);
-  border: 1px solid var(--line);
-}
+.admin-section-card--workflow { max-width: 760px; }
 .reset-btn { margin-top: var(--sp-4, 16px); }
 </style>

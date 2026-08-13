@@ -1,0 +1,53 @@
+/* ════════════════════════════════════════════════════════════════
+   管理后台公共样式（813-fq-admindedup 战役 P2：样式去重）
+   领地：web/src/views/admin/**、web/src/components/admin/**
+   引入：AdminLayout.vue 非 scoped 块统一引入一次（管理后台路由独占）。
+   纪律：像素级等价——取值逐项对齐各页原局部定义，原 token 保持 token；
+         仅负责去重，不新增任何视觉规则。
+   ════════════════════════════════════════════════════════════════ */
+
+/* ─── 页头（原各页 .page-head/.page-title/.page-sub 局部重复） ─── */
+.admin-page-head {
+  margin-bottom: var(--sp-5, 24px);
+}
+
+/* 带右侧操作区的页头（HealthCheck/PlatformManage 原 flex 版） */
+.admin-page-head--actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3, 12px);
+  flex-wrap: wrap;
+}
+
+.admin-page-title {
+  font-size: var(--fs-page-title, 26px);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--sp-1, 4px);
+  letter-spacing: .02em;
+}
+
+.admin-page-sub {
+  margin: 0;
+  font-size: var(--fs-aux, 12.5px);
+  color: var(--ink3);
+}
+
+/* ─── 分区卡（原各页 .section-card 局部重复） ─── */
+.admin-section-card {
+  border-radius: var(--r-l, 11px);
+  border: 1px solid var(--line);
+}
+
+/* ─── 统计卡（原 AdminDashboard/TrackingAnalytics 的 .stat-card 局部重复） ─── */
+.admin-stat-card {
+  border-radius: var(--r-l, 11px);
+  border: 1px solid var(--line);
+  transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out;
+}
+
+.admin-stat-card:hover {
+  box-shadow: var(--sh-2);
+  transform: translateY(-1px);
+}
