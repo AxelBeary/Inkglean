@@ -479,7 +479,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       const { verifyLogin } = await import('./webauthn.js')
       try {
-        await verifyLogin(credential, reqHost(request), undefined, reqScheme(request))
+        // d1-F2 猎杀修复：传 expectedArtistId 校验凭据归属——此前 undefined 导致任意 passkey
+        // 可冒充当前凭据完成重绑（受害 TOTP 被随机覆写+全端踢线，2FA 锁定 DoS）
+        await verifyLogin(credential, reqHost(request), artist.id, reqScheme(request))
       } catch {
         throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
       }
