@@ -139,21 +139,32 @@ $DOCKER_COMPOSE up -d --build
 
 echo -e "${GREEN}  ✓ 容器已启动，等待健康检查...${NC}"
 
-# 等待 healthy（最长 120 秒）
+# 等待健康（最长 120 秒）：以 /api/health 响应首行为准，不再只看进程/状态列。
+# 超时即 exit 1（P0-5：杜绝「超时仍打印开箱设置完成并退出 0」的假成功）。
+HEALTHY=false
 echo -n "  "
 for i in $(seq 1 60); do
   sleep 2
-  HEALTH_STATUS=$($DOCKER_COMPOSE ps --format '{{.Status}}' 2>/dev/null | head -1 || echo "")
-  if echo "$HEALTH_STATUS" | grep -q "healthy"; then
+  HEALTH_LINE=""
+  HEALTH_LINE=$($DOCKER_COMPOSE exec -T web node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1);return r.text()}).then(t=>{console.log(t.split('\n')[0])}).catch(()=>process.exit(1))" 2>/dev/null) || HEALTH_LINE=""
+  if [ -n "$HEALTH_LINE" ] && printf '%s' "$HEALTH_LINE" | grep -q '"status":"ok"'; then
+    HEALTHY=true
     echo -e "${GREEN}✓ 服务已就绪！${NC}"
+    echo -e "${GREEN}   health: ${HEALTH_LINE}${NC}"
     break
   fi
-  if [ $i -eq 60 ]; then
-    echo -e "${YELLOW}  ⚠ 健康检查超时，请手动检查容器状态：$DOCKER_COMPOSE ps${NC}"
-  else
-    echo -n "."
-  fi
+  echo -n "."
 done
+echo ""
+if [ "$HEALTHY" != true ]; then
+  echo -e "${RED}✗ 安装未成功：健康检查超时（120 秒），服务未就绪${NC}"
+  echo ""
+  echo "  下一步排查："
+  echo "  1. $DOCKER_COMPOSE logs --tail 200 web"
+  echo "  2. $DOCKER_COMPOSE ps"
+  echo "  3. 修复后重新运行 bash setup.sh（已有 .env 配置不会丢失）"
+  exit 1
+fi
 
 # ─── 步骤 7：打印完成信息 ───
 echo ""
