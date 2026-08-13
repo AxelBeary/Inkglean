@@ -40,6 +40,16 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * GET /api/artist/dashboard/schedule
+   * 近 7 日排期条（窗口 = 本地今日-1 天 ~ 本地今日+6 天）
+   */
+  fastify.get('/api/artist/dashboard/schedule', {
+    preHandler: requireAuth
+  }, async (request: FastifyRequest) => {
+    return { bars: dashboardService.getSchedule(request.artist.id) }
+  })
+
+  /**
    * GET /api/artist/dashboard/activity
    * 最近活动流（order_notes 前 10 条）
    */

@@ -1,7 +1,7 @@
 import db from '../../db/connection.js'
 import { PRICE_FALLBACK_SQL } from '../../utils/price.js'
 import { COMPLETED_ORDER_SQL } from '../../utils/order-status.js'
-import { toSqliteDate, localDayStartSqlite, localDayEndSqlite } from '../../utils/date.js'
+import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localDateRangeToUtc, toLocalDateString } from '../../utils/date.js'
 
 // ============================================
 // 仪表盘服务（v0.18 第二批）
@@ -274,6 +274,64 @@ export function getTodoList(artistId: number) {
       tag
     }
   })
+}
+
+// ─── 近 7 日排期 ───
+
+interface ScheduleOrderRow {
+  id: number
+  order_no: string
+  client_name: string | null
+  status: string
+  start_date: string | null
+  deadline: string | null
+  stage_name: string | null
+}
+
+/**
+ * 近 7 日排期条（视觉批备料）
+ * 窗口 = [本地今日-1 天, 本地今日+6 天]；
+ * start_date（本地日历日 YYYY-MM-DD）或 deadline（UTC 存储）落在窗口内即入选；
+ * delivered/cancelled 排除；按 startDate（空则 deadline）升序。
+ * 时区铁律：本地日历日换算全部走 date.ts 工具（localDateRangeToUtc），
+ * 禁用 SQLite strftime localtime（TZ 分叉事故教训）。
+ */
+export function getSchedule(artistId: number) {
+  const now = new Date()
+  const from = toLocalDateString(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
+  const to = toLocalDateString(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 6))
+  const { startUtc, endUtcExclusive } = localDateRangeToUtc(from, to)
+
+  const rows = db.prepare(`
+    SELECT o.id, o.order_no, o.client_name, o.status, o.start_date, o.deadline,
+           ws.name AS stage_name
+    FROM orders o
+    LEFT JOIN artist_workflow_stages ws ON ws.id = o.current_stage_id
+    WHERE o.artist_id = ?
+      AND o.status NOT IN ('delivered', 'cancelled')
+      AND (
+        -- start_date 为本地日历日字符串，直接按本地日期串比较（含窗口末日）
+        (o.start_date IS NOT NULL AND o.start_date >= ? AND o.start_date <= ?)
+        OR
+        -- deadline 存 UTC，用 localDateRangeToUtc 换算的 UTC 半开窗口 [startUtc, endUtcExclusive)
+        (o.deadline IS NOT NULL AND o.deadline >= ? AND o.deadline < ?)
+      )
+  `).all(artistId, from, to, startUtc, endUtcExclusive) as ScheduleOrderRow[]
+
+  // 排序：按 startDate（空则 deadline）升序
+  rows.sort((a, b) =>
+    (a.start_date ?? a.deadline ?? '').localeCompare(b.start_date ?? b.deadline ?? '')
+  )
+
+  return rows.map(o => ({
+    id: o.id,
+    orderNo: o.order_no,
+    clientName: o.client_name || null,
+    status: o.status,
+    startDate: o.start_date || null,
+    deadline: o.deadline || null,
+    stageName: o.stage_name || null
+  }))
 }
 
 // ─── 活动流 ───
