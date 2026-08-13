@@ -133,6 +133,19 @@ describe('REQ-038 开箱设置 (Setup)', () => {
     })).toThrow('SETUP_ALREADY_DONE')
   })
 
+  it('TC-SETUP-09b: d2 猎杀——admin_qq 已写入但未确认 TOTP 时重建管理员拒绝 403（防劫持窗口）', () => {
+    // 模拟合法方已调 setup/admin（admin_qq 已写、管理员存在但 TOTP 未确认）
+    db.prepare("UPDATE platform_config SET value = '10001' WHERE key = 'admin_qq'").run()
+    seedArtist({ qq_number: '10001', subdomain: 'admin' })
+    db.prepare("UPDATE artists SET totp_verified = 0 WHERE qq_number = '10001'").run()
+
+    // 攻击方换 QQ 重试必须被拒（此前窗口内仅靠 subdomain 占用偶然拦截）
+    expect(() => createAdminArtist({
+      qqNumber: '20002',
+      name: '劫持尝试'
+    })).toThrow('SETUP_ALREADY_DONE')
+  })
+
   it('TC-SETUP-10: 口令错误时创建管理员拒绝', () => {
     process.env.SETUP_TOKEN = 'validtoken'
     expect(() => createAdminArtist({

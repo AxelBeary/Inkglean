@@ -162,6 +162,13 @@ export function createAdminArtist(params: CreateAdminParams): CreateAdminResult 
     throw new AppError('SETUP_ALREADY_DONE', 403, '系统已完成初始化，开箱设置已禁用')
   }
 
+  // d2 猎杀修复（2026-08-13）：admin_qq 已写入即拒重建——堵住「已建管理员但 TOTP 未确认」窗口的劫持重试；
+  // 此前仅靠下游 subdomain='admin' 占用偶然拦截，脆弱；丢失密钥的恢复走 DB 级重置（见维护说明书）
+  const existingAdminQq = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
+  if (existingAdminQq?.value) {
+    throw new AppError('SETUP_ALREADY_DONE', 403, '')
+  }
+
   // 校验口令
   if (!validateSetupToken(params.token)) {
     throw new AppError('SETUP_TOKEN_INVALID', 403, '安装口令错误')
