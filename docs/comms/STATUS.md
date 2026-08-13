@@ -1,5 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-14 v97：**CI 报错修复+仓库改名 Inkglean+仓库整理收官**
+> ✅ **CI 报错根治（d2-3 加固连带适配）**：compliance/invite 测试会话升级 admin_verified（新 step-up 姿态下旧 basic 会话必 401，测试适配非回退安全）；本地此前门禁提取脚本吞了失败行导致漏检，CI 抓住——教训：门禁提取必须显式报 failed 行，已改用去 ANSI 全行提取。v-html 告警清零（SettingsShowcaseTab 改走 SanitizedRichText）。CI/E2E/CodeQL 三 job 全绿。
+> ✅ **CodeQL 加固**：sanitizeStoredText 全链路不动点循环（堵 javajavascript: 嵌套还原单次替换绕过）+TC-F5-13/14/15；server 1406/1406。code-scanning 剩余告警处置：dismiss 需 token 补 security_events 授权（gh auth refresh -s security_events 后重试，或 Web UI 逐条驳回，驳回理由已逐条拟好存对话记录）。
+> ✅ **仓库改名+整理（用户拍板）**：GitHub 仓库 Brushline-HuiYue → **AxelBeary/Inkglean**（旧地址自动重定向，本地 remote 已同步）；仓库描述改品牌名；入库垃圾核查：859 跟踪文件零二进制垃圾、零敏感信息（.env 从未入库，密钥扫描净），.workbuddy 通道日志移出跟踪，workspace/（施工台）入 ignore，dockerignore 补 workspace/.workbuddy/.qoder。备注：docs/soul（201 文件内部知识库）在库属有意保留，若不想公开可后续拍板移出。
+
 > 最后更新：2026-08-14 v96：**围剿漏网清零——复盘审计又抓 7 条 P1 全修（a2×3/d2×3/t1×1）+v49 迁移欠账补上；终态门禁 server 1403 / web 496 / E2E 11**
 > ✅ **漏网复盘（收官后自审，不信「已全清」自报）**：对照 17 路猎杀报告逐路核销，抓出未进任何波次的 7 条 P1，逐条核实后亲修：
 > ① a2-1 query 预选命中后刷新草稿增项全丢→增项/用途/加急恢复独立于尺寸块；② a2-2 草稿只防 JSON.parse 不防字段形状（非字符串致 .trim() 崩）→类型守卫；③ a2-3 QQ 协议跳转 _self 劫持当前页成死页→改新窗口+兜底提示键；④ d2-1 问候语全局 PUT 缺 artist_id IS NULL 归属校验（可越权改写画师专属模板）→对齐 DELETE 补校验；⑤ d2-2 埋点 token:IP 双因子配额可被跨分钟囤积 token 绕过→叠加纯 IP 总量闸 300/分钟；⑥ d2-3 compliance/invite 两插件漏挂 registerAdminStepUpHooks（运行时实证 basic 会话直取 200）→补挂，复验 401 STEP_UP_REQUIRED；⑦ t1 收入概览只统散单而 CSV 合并两源对不上账→改消费 income-summary 三格（订单/散单/总）。另补 v49 迁移 DROP-RENAME 崩溃恢复（v50 同款；v38 因单事务包裹无窗口，裁决在案）。防再犯：TC-D2-STEPUP/TC-D2-GREET。
