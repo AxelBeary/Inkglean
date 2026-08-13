@@ -2,95 +2,107 @@
   <h2 class="font-display slot-page-title">{{ $t('slots.title') }}</h2>
 
   <div v-loading="loading" class="slot-manage">
-    <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与开稿管理内联逻辑一致） -->
-    <el-card class="slot-card" shadow="never">
-      <template #header><CardHead :title="$t('slots.statusSection')" /></template>
-      <div class="status-row">
-        <el-radio-group v-model="currentStatus" @change="updateStatus" size="large">
-          <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
-          <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
-          <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
-        </el-radio-group>
-        <span class="status-desc">{{ statusDesc }}</span>
-      </div>
-    </el-card>
+    <!-- 加载失败错误态 + 重试（对齐 Settings profileLoadFailed 模式）；未加载成功不显默认表单值 -->
+    <el-alert
+      v-if="loadFailed"
+      type="error" :closable="false" show-icon
+      :title="$t('settings.loadFailedTitle')"
+    >
+      <div>{{ $t('settings.loadFailedDesc') }}</div>
+      <el-button size="small" type="primary" style="margin-top: 8px" @click="loadProfile">{{ $t('settings.retry') }}</el-button>
+    </el-alert>
 
-    <!-- 名额区 -->
-    <el-card class="slot-card" shadow="never">
-      <template #header><CardHead :title="$t('slots.slotSection')" /></template>
-      <el-form label-position="top" size="large">
-        <el-form-item :label="$t('settings.slotLabel')">
-          <div class="slot-config">
-            <div class="slot-row">
-              <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
-              <el-input-number
-                v-model="form.batchLimit" :min="0" :max="999"
-                :disabled="!form.batchLimitEnabled"
-                controls-position="right" class="slot-input"
-              />
-              <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
+    <template v-else>
+      <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与开稿管理内联逻辑一致） -->
+      <el-card class="slot-card" shadow="never">
+        <template #header><CardHead :title="$t('slots.statusSection')" /></template>
+        <div class="status-row">
+          <el-radio-group v-model="currentStatus" @change="updateStatus" size="large">
+            <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
+            <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
+            <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
+          </el-radio-group>
+          <span class="status-desc">{{ statusDesc }}</span>
+        </div>
+      </el-card>
+
+      <!-- 名额区 -->
+      <el-card class="slot-card" shadow="never">
+        <template #header><CardHead :title="$t('slots.slotSection')" /></template>
+        <el-form label-position="top" size="large">
+          <el-form-item :label="$t('settings.slotLabel')">
+            <div class="slot-config">
+              <div class="slot-row">
+                <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
+                <el-input-number
+                  v-model="form.batchLimit" :min="0" :max="999"
+                  :disabled="!form.batchLimitEnabled"
+                  controls-position="right" class="slot-input"
+                />
+                <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
+              </div>
+              <div class="form-hint">{{ $t('settings.slotHint') }}</div>
             </div>
-            <div class="form-hint">{{ $t('settings.slotHint') }}</div>
+          </el-form-item>
+          <el-form-item :label="$t('settings.bufferLabel')">
+            <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
+            <div class="form-hint">{{ $t('settings.bufferHint') }}</div>
+          </el-form-item>
+          <div v-if="form.batchLimitEnabled" class="slot-total">
+            {{ $t('slots.totalHint', { n: form.batchLimit, m: form.bufferLimit, sum: form.batchLimit + form.bufferLimit }) }}
           </div>
-        </el-form-item>
-        <el-form-item :label="$t('settings.bufferLabel')">
-          <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
-          <div class="form-hint">{{ $t('settings.bufferHint') }}</div>
-        </el-form-item>
-        <div v-if="form.batchLimitEnabled" class="slot-total">
-          {{ $t('slots.totalHint', { n: form.batchLimit, m: form.bufferLimit, sum: form.batchLimit + form.bufferLimit }) }}
-        </div>
-      </el-form>
-    </el-card>
+        </el-form>
+      </el-card>
 
-    <!-- 月度额度区 -->
-    <el-card class="slot-card" shadow="never">
-      <template #header><CardHead :title="$t('slots.quotaSection')" /></template>
-      <el-form label-position="top" size="large">
-        <el-form-item :label="$t('settings.quotaLabel')">
-          <div class="slot-config">
-            <div class="slot-row">
-              <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
-              <el-input-number
-                v-model="form.monthlyQuota" :min="0" :max="999"
-                :disabled="!form.quotaEnabled"
-                controls-position="right" class="slot-input"
-              />
-              <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
+      <!-- 月度额度区 -->
+      <el-card class="slot-card" shadow="never">
+        <template #header><CardHead :title="$t('slots.quotaSection')" /></template>
+        <el-form label-position="top" size="large">
+          <el-form-item :label="$t('settings.quotaLabel')">
+            <div class="slot-config">
+              <div class="slot-row">
+                <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
+                <el-input-number
+                  v-model="form.monthlyQuota" :min="0" :max="999"
+                  :disabled="!form.quotaEnabled"
+                  controls-position="right" class="slot-input"
+                />
+                <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
+              </div>
+              <div class="form-hint">{{ $t('settings.quotaHint') }}</div>
             </div>
-            <div class="form-hint">{{ $t('settings.quotaHint') }}</div>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
+      <!-- 队列行为区 -->
+      <el-card class="slot-card" shadow="never">
+        <template #header><CardHead :title="$t('slots.queueSection')" /></template>
+        <div class="switch-grid">
+          <div class="switch-row">
+            <el-switch v-model="form.autoPromote" />
+            <span>{{ $t('settings.autoPromote') }}</span>
           </div>
-        </el-form-item>
-      </el-form>
-    </el-card>
+          <div class="switch-row">
+            <el-switch v-model="form.hideQueuePosition" />
+            <span>{{ $t('settings.hideQueuePosition') }}</span>
+          </div>
+          <div class="switch-row">
+            <el-switch v-model="form.hidePromoteNotify" />
+            <span>{{ $t('settings.hidePromoteNotify') }}</span>
+          </div>
+          <div class="switch-row">
+            <el-switch v-model="form.bufferShortForm" />
+            <span>{{ $t('settings.bufferShortForm') }}</span>
+          </div>
+        </div>
+        <div class="form-hint">{{ $t('settings.bufferSwitchHint') }}</div>
+      </el-card>
 
-    <!-- 队列行为区 -->
-    <el-card class="slot-card" shadow="never">
-      <template #header><CardHead :title="$t('slots.queueSection')" /></template>
-      <div class="switch-grid">
-        <div class="switch-row">
-          <el-switch v-model="form.autoPromote" />
-          <span>{{ $t('settings.autoPromote') }}</span>
-        </div>
-        <div class="switch-row">
-          <el-switch v-model="form.hideQueuePosition" />
-          <span>{{ $t('settings.hideQueuePosition') }}</span>
-        </div>
-        <div class="switch-row">
-          <el-switch v-model="form.hidePromoteNotify" />
-          <span>{{ $t('settings.hidePromoteNotify') }}</span>
-        </div>
-        <div class="switch-row">
-          <el-switch v-model="form.bufferShortForm" />
-          <span>{{ $t('settings.bufferShortForm') }}</span>
-        </div>
-      </div>
-      <div class="form-hint">{{ $t('settings.bufferSwitchHint') }}</div>
-    </el-card>
-
-    <el-button type="primary" size="large" style="margin-top: 16px" @click="save" :loading="saving">
-      {{ $t('settings.save') }}
-    </el-button>
+      <el-button type="primary" size="large" style="margin-top: 16px" @click="save" :loading="saving">
+        {{ $t('settings.save') }}
+      </el-button>
+    </template>
   </div>
 </template>
 
@@ -105,6 +117,8 @@ import CardHead from '../../components/artist/visual/CardHead.vue'
 const { t } = useI18n()
 const loading = ref(true)
 const saving = ref(false)
+/** 开稿配置加载失败（未加载成功不显示默认值，对齐 Settings profileLoadFailed） */
+const loadFailed = ref(false)
 const profile = ref(null)
 // REQ-016 B: 接稿状态即时切换（与开稿管理内联逻辑一致）
 const currentStatus = ref('open')
@@ -167,7 +181,9 @@ async function save() {
   }
 }
 
-onMounted(async () => {
+async function loadProfile() {
+  loading.value = true
+  loadFailed.value = false
   try {
     const p = await artistApi.getProfile()
     profile.value = p
@@ -185,12 +201,14 @@ onMounted(async () => {
       hidePromoteNotify: !!p.hide_promote_notify,
       bufferShortForm: !!p.buffer_short_form
     })
-  } catch (err) {
-    ElMessage.error(err.message)
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadProfile)
 </script>
 
 <style scoped>

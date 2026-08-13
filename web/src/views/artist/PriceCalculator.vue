@@ -5,6 +5,12 @@
 
     <div v-if="loading" class="calc-empty">{{ $t('priceCalc.loading') }}</div>
 
+    <!-- 加载失败错误态 + 重试（区分"真没有画风"与"加载失败"，不再误显示无可用画风引导） -->
+    <div v-else-if="loadFailed" class="module-error">
+      <span>{{ $t('priceCalc.loadFailed') }}</span>
+      <el-button size="small" @click="load">{{ $t('dashboard.retry') }}</el-button>
+    </div>
+
     <template v-else-if="styles.length > 0">
       <!-- 步骤 1：选画风（多画风才显示；单画风自动选中） -->
       <div v-if="styles.length > 1" class="calc-step">
@@ -135,6 +141,8 @@ const { t } = useI18n()
 const styles = ref([])
 const pricing = ref(null)
 const loading = ref(true)
+/** 画风/费率加载失败（独立错误态 + 重试） */
+const loadFailed = ref(false)
 
 const selectedStyleId = ref(null)
 const selectedSizeId = ref(null)
@@ -238,7 +246,9 @@ function formatAddonPrice(a) {
   return formatYuanValue(a.price ?? 0) + (a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : '')
 }
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
+  loadFailed.value = false
   try {
     if (!store.subdomain) await store.fetchProfile()
     if (!store.subdomain) {
@@ -246,8 +256,8 @@ onMounted(async () => {
       store.profile = profile
     }
     const [styleList, pricingData] = await Promise.all([
-      artistPublicApi.getPublicStyles(store.subdomain).catch(() => []),
-      artistPublicApi.getPricing(store.subdomain).catch(() => null)
+      artistPublicApi.getPublicStyles(store.subdomain).catch(() => { loadFailed.value = true; return [] }),
+      artistPublicApi.getPricing(store.subdomain).catch(() => { loadFailed.value = true; return null })
     ])
     styles.value = styleList || []
     pricing.value = pricingData
@@ -260,10 +270,14 @@ onMounted(async () => {
         scheduleCalc()
       }
     }
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 
 onUnmounted(() => {
   // R-18: 卸载后 300ms 内 doCalc 仍会白发请求——清理防抖计时器（对齐 useManualOrderPricing.stopStyleCalc）
@@ -277,6 +291,11 @@ onUnmounted(() => {
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .page-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
 .calc-empty { margin-top: 24px; padding: 24px; text-align: center; color: var(--ink3, #888); background: var(--card, #fff); border: 1px dashed var(--line, #e5e5e5); border-radius: var(--r-m, 8px); }
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 
 .calc-step { margin-top: 22px; }
 .calc-step-label { font-size: 14px; font-weight: 600; color: var(--ink2, #555); margin-bottom: 10px; }
