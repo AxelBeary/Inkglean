@@ -1,9 +1,18 @@
 {
   "version": 1,
   "entries": [
-    "src/components/ArtistLayout.vue\u0000locale === 'zh-CN' ? 'English' : '中文'",
-    "src/components/ArtistLayout.vue\u0000locale === 'zh-CN' ? 'Switch to English' : '切换到中文'",
-    "src/main.js\u0000页面出了点小问题，请刷新重试",
-    "src/views/artist/ManualOrder.vue\u0000订单 ${order.order_no} 已创建，但${postCreateFailed}。请在订单详情中补充。"
+    "index.html\u0000开源，自部署，易操作。",
+    "index.html\u0000拾绘 Inkglean",
+    "index.html\u0000拾绘 Inkglean · 画师约稿平台",
+    "index.html\u0000拾绘 Inkglean — 画师约稿平台",
+    "index.html\u0000拾绘 Inkglean — 画师约稿平台。开源，自部署，易操作。",
+    "src/components/artist/WorkflowPaymentEditor.vue\u0000模板不支持删除",
+    "src/components/artist/WorkflowPaymentEditor.vue\u0000模板不支持排序",
+    "src/components/artist/WorkflowPaymentEditor.vue\u0000模板不支持添加",
+    "src/components/artist/WorkflowPaymentEditor.vue\u0000模板不支持编辑",
+    "src/components/artist/WorkflowPaymentEditor.vue\u0000管理员默认模板走本地编辑",
+    "src/views/admin/ArtistManage.vue\u0000TOTP QR",
+    "src/views/artist/AccountSecurity.vue\u0000TOTP QR",
+    "src/views/artist/Watermark.vue\u0000watermarked preview"
   ]
 }
