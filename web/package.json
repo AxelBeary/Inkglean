@@ -4,6 +4,9 @@
   "description": "画师约稿管理平台 - 前端",
   "license": "AGPL-3.0",
   "type": "module",
+  "overrides": {
+    "nanoid": "3.3.18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
