@@ -228,7 +228,8 @@ export default {
     save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', download: 'Download',
     confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add', or: 'or',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
-    confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
+    confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed',
+loadRetry: 'Try again', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
     // 812-B5: friendly Passkey interaction messages (unsupported / cancelled / failed)
     passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
     passkeyCancelled: 'Passkey verification cancelled.',

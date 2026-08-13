@@ -599,9 +599,12 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   }
 
   // ─── 初始化 ───
-  onMounted(async () => {
-    // R57: 表单有内容时拦截页面关闭/刷新
-    window.addEventListener('beforeunload', onBeforeUnload)
+  // P0 修复（前端质量战役 B 路审计）：画师信息加载失败不再只 toast 后留破页，
+  // 暴露 loadError + retryLoad，页面层显示错误态+重试；草稿恢复只在首次成功初始化时跑一次。
+  const loadError = ref(false)
+  let draftHandled = false
+
+  async function initForm() {
     try {
       const data = await artistPublicApi.getProfile(subdomain)
       artist.value = data
@@ -628,34 +631,51 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       // v0.34 任务B：URL query 预选（优先于草稿恢复，restoreDraft 里不覆盖已预选的项）
       applyQueryPreselect()
 
-      // R57: 草稿恢复（styles 加载后校验有效性）
-      let draft = null
-      try {
-        const raw = sessionStorage.getItem(DRAFT_KEY)
-        if (raw) draft = JSON.parse(raw)
-      } catch { /* 损坏的草稿直接丢弃 */ }
-      if (draft) {
+      // R57: 草稿恢复（styles 加载后校验有效性；仅首次成功初始化时执行）
+      if (!draftHandled) {
+        draftHandled = true
+        let draft = null
         try {
-          await ElMessageBox.confirm(
-            t('orderForm.draftFound'),
-            t('orderForm.draftTitle'),
-            {
-              confirmButtonText: t('orderForm.draftRestore'),
-              cancelButtonText: t('orderForm.draftDiscard'),
-              type: 'info'
-            }
-          )
-          restoreDraft(draft)
-          ElMessage.success(t('orderForm.draftRestored'))
-        } catch {
-          sessionStorage.removeItem(DRAFT_KEY)
+          const raw = sessionStorage.getItem(DRAFT_KEY)
+          if (raw) draft = JSON.parse(raw)
+        } catch { /* 损坏的草稿直接丢弃 */ }
+        if (draft) {
+          try {
+            await ElMessageBox.confirm(
+              t('orderForm.draftFound'),
+              t('orderForm.draftTitle'),
+              {
+                confirmButtonText: t('orderForm.draftRestore'),
+                cancelButtonText: t('orderForm.draftDiscard'),
+                type: 'info'
+              }
+            )
+            restoreDraft(draft)
+            ElMessage.success(t('orderForm.draftRestored'))
+          } catch {
+            sessionStorage.removeItem(DRAFT_KEY)
+          }
         }
       }
-    } catch (err) {
-      ElMessage.error(err.message || t('orderForm.loadFailed'))
+      loadError.value = false
+    } catch {
+      loadError.value = true
     } finally {
       loading.value = false
     }
+  }
+
+  /** 页面层重试入口：错误态点「再试一次」 */
+  async function retryLoad() {
+    loading.value = true
+    loadError.value = false
+    await initForm()
+  }
+
+  onMounted(async () => {
+    // R57: 表单有内容时拦截页面关闭/刷新
+    window.addEventListener('beforeunload', onBeforeUnload)
+    await initForm()
   })
 
   onUnmounted(() => {
@@ -666,7 +686,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   return {
     // 数据加载
-    artist, rulesContent, loading, workflowStages, pricingData,
+    artist, rulesContent, loading, loadError, retryLoad, workflowStages, pricingData,
     // 表单 + 校验
     form, rules,
     // R57 草稿状态（导出供测试验证状态是否算"有内容"）

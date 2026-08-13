@@ -7,6 +7,12 @@
         <template #title><span aria-hidden="true">{{ $t('orderForm.backHome') }}</span></template>
       </el-page-header>
 
+      <!-- P0 修复（前端质量战役 B 路审计）：画师信息加载失败明示错误态+重试，不再留破页 -->
+      <div v-if="loadError && !loading" class="load-error-banner">
+        <p>{{ $t('orderForm.loadFailed') }}</p>
+        <el-button type="primary" size="small" @click="retryLoad">{{ $t('orderForm.loadRetry') }}</el-button>
+      </div>
+
       <template v-if="artist">
         <!-- R58-2: 步骤指示器 + v0.35 F4 预选摘要横幅（拆分子组件） -->
         <StepIndicator
@@ -249,7 +255,7 @@ const formRef = ref(null)
 
 // R58-1: 表单业务逻辑全部由共享 composable 提供，页面只保留布局与样式
 const {
-  artist, rulesContent, loading, workflowStages,
+  artist, rulesContent, loading, loadError, retryLoad, workflowStages,
   form, rules,
   submitting, showSuccess, resultNo, submit,
   refFileList, handleRefUpload, handleRefRemove,
@@ -660,4 +666,10 @@ async function copyQq(qq) {
 .success-qq-actions { display: flex; gap: 8px; }
 /* R58-5: 成功弹窗按钮行 */
 .success-actions { display: flex; gap: 8px; justify-content: center; }
+/* P0 修复：加载失败错误横幅（克制居中，淡边框+主色重试） */
+.load-error-banner {
+  margin: 24px auto; max-width: 420px; padding: 28px 20px; text-align: center;
+  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--r-l);
+}
+.load-error-banner p { margin: 0 0 14px; color: var(--text-secondary); font-size: 14px; }
 </style>

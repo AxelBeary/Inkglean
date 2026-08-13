@@ -228,7 +228,8 @@ export default {
     save: '保存', cancel: '取消', delete: '删除', edit: '编辑', download: '下载',
     confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加', or: '或',
     saved: '保存成功', deleted: '已删除', removed: '已移除',
-    confirmDeleteTitle: '确认删除', uploadFailed: '上传失败', networkError: '网络错误，请稍后重试', globalError: '页面出了点小问题，请刷新重试',
+    confirmDeleteTitle: '确认删除', uploadFailed: '上传失败',
+loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globalError: '页面出了点小问题，请刷新重试',
     // 812-B5: Passkey 交互人话提示（浏览器不支持/被取消/验证失败）
     passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
     passkeyCancelled: '已取消 Passkey 验证',
