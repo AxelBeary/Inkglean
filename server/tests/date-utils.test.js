@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite } from '../src/utils/date.js'
+import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite, localDateRangeToUtc, isValidLocalDateString } from '../src/utils/date.js'
 
 // ============================================
 // 日期工具函数测试（技术债 B3）
@@ -53,5 +53,17 @@ describe('日期工具 (utils/date.js)', () => {
     const result = localMonthStartSqlite(now)
     const expected = toSqliteDate(new Date(2026, 0, 1, 0, 0, 0))
     expect(result).toBe(expected)
+  })
+
+  it('TC-DU-09: d3 P2——历法回读拒绝 2026-02-31，localDateRangeToUtc 同步抛 400', () => {
+    expect(isValidLocalDateString('2026-02-31')).toBe(false)
+    expect(() => localDateRangeToUtc('2026-02-31', '2026-03-01')).toThrow('VALIDATION')
+  })
+
+  it('TC-DU-10: d3 P2——0099 年不再被 JS 映射到 1999 年代', () => {
+    expect(isValidLocalDateString('0099-01-01')).toBe(true)
+    const r = localDateRangeToUtc('0099-01-01', '0099-01-02')
+    expect(r.startUtc.startsWith('1999-')).toBe(false)
+    expect(r.endUtcExclusive.startsWith('1999-')).toBe(false)
   })
 })

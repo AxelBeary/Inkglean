@@ -6,9 +6,21 @@ import db from './db/connection.js'
 // 服务器启动入口
 // ============================================
 
+// d3 P2: 启动前显式校验 PORT（parseInt NaN/越界不再拖到 listen 才暴露）
 const PORT = parseInt(process.env.PORT || '3000', 10)
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error(`PORT 配置无效: ${JSON.stringify(process.env.PORT)}（须为 1-65535 整数）`)
+  process.exit(1)
+}
 
-const app = await buildApp()
+// d3 P2: buildApp（迁移/DB 锁/坏 env）失败输出结构化 fatal 后退出，不再顶层裸堆栈
+let app: Awaited<ReturnType<typeof buildApp>>
+try {
+  app = await buildApp()
+} catch (err) {
+  console.error('应用启动失败（数据库迁移/初始化异常）', err)
+  process.exit(1)
+}
 
 // ─── 全局异常兜底 ───
 // 可靠性：未捕获异常 — 记录后强制退出（防止僵尸状态）
@@ -41,6 +53,12 @@ async function shutdown(signal: NodeJS.Signals) {
   try {
     await app.close()
     const { default: db } = await import('./db/connection.js')
+    // d3 P2: 优雅停机前 WAL checkpoint(TRUNCATE)，避免数据困在 WAL 文件
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)')
+    } catch (err) {
+      app.log.warn({ err }, 'WAL checkpoint 失败（继续关闭）')
+    }
     db.close()
     clearTimeout(forceTimer)
     process.exit(0)

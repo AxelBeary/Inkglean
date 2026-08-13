@@ -33,7 +33,8 @@ export function getPlatformAnnouncement(): PlatformAnnouncement | null {
   const content = readValue(CONTENT_KEY)
   if (!title && !content) return null
   return {
-    title: title || '',
+    // d2 P2: 读路径 title 与 content 同口径二次清洗（写路径已清洗，兜底 DB 脏数据/越权直写）
+    title: sanitizeStoredText(title || ''),
     content: sanitizeStoredText(content || ''),
     updatedAt: readValue(UPDATED_AT_KEY)
   }

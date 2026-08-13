@@ -152,20 +152,27 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
         app.log.info(`幂等键 TTL 清理: 删除 ${idemDeleted} 条`)
       }
 
+      let skippedFiles = 0
       for (const absPath of walk(UPLOAD_ROOT)) {
         const rel = relative(UPLOAD_ROOT, absPath).replace(/\\/g, '/')
         if (refs.has(rel)) continue
-        if (now - statSync(absPath).mtimeMs < MIN_AGE_MS) continue
-        const size = statSync(absPath).size
         try {
+          // d3 P2: 单文件瞬时错误（walk 期间被外部删除/权限）跳过并计数，不中止整轮回收
+          const st = statSync(absPath)
+          if (now - st.mtimeMs < MIN_AGE_MS) continue
+          const size = st.size
           // 移入回收站，保留原始相对路径结构
           const dest = join(recycleBinDay, rel)
           mkdirSync(join(dest, '..'), { recursive: true })
           renameSync(absPath, dest)
           freed += size; recycled++
         } catch (err) {
-          app.log.warn({ err }, '孤儿文件回收: 移入回收站失败')
+          skippedFiles++
+          app.log.warn({ err }, '孤儿文件回收: 单文件跳过（stat/迁移失败）')
         }
+      }
+      if (skippedFiles > 0) {
+        app.log.warn(`孤儿文件回收: ${skippedFiles} 个文件因瞬时错误跳过，下轮重试`)
       }
 
       const removeEmptyDirs = (dir: string) => {

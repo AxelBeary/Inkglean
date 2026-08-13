@@ -4,14 +4,12 @@
 import crypto from 'crypto'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import { generateSecret, buildOtpAuthUri, verifyTotpWithCounter, hashTotpCode } from '../auth/totp.js'
 import { bindTotpInit, createSession } from '../auth/auth.service.js'
 import type { Artist } from '../../types/entities.js'
 
 // ─── 初始化判定 ───
-
-/** 子域名保留词黑名单（与 admin.routes.ts 一致） */
-const RESERVED_SUBDOMAINS = ['admin', 'api', 'www', 'uploads', 'static', 'login', 'assets', 'dashboard', 'app']
 
 // ─── 812-B B7: 开箱预置基础增项 ───
 

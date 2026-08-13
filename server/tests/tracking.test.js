@@ -73,6 +73,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('INVALID_EVENT_NAME')
+    // d2 P2: 错误响应不回显用户输入（防换行/控制字符污染响应与日志）
+    expect(res.json().error).not.toContain('hacker_event')
     expect(db.prepare('SELECT COUNT(*) AS c FROM events').get().c).toBe(0)
   })
 
@@ -139,6 +141,21 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     const row = db.prepare('SELECT * FROM events').get()
     expect(row.artist_id).toBe(artist.id)
     expect(row.anon_id).toBeNull()
+  })
+
+  it('TC-TR-08b: 封禁画师的旧 token 不携带 artist_id（is_banned 与 requireAuth 语义对齐）', async () => {
+    const artist = seedArtist({ qq_number: '12346', subdomain: 'banned-track' })
+    const sessionToken = createSession(artist.id, artist.token_version)
+    db.prepare('UPDATE artists SET is_banned = 1 WHERE id = ?').run(artist.id)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      headers: { Authorization: `Bearer ${sessionToken}` },
+      payload: { events: [{ name: 'dashboard_view', ts: Date.now() }] }
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_ANON_TOKEN')
+    expect(db.prepare('SELECT COUNT(*) AS c FROM events').get().c).toBe(0)
   })
 
   it('TC-TR-09: 限流——同凭证每分钟第 101 个请求被 429 且不落库', async () => {

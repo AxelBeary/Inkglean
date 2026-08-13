@@ -1,5 +1,5 @@
 import { requireAuth } from '../../shared/middleware/auth.js'
-import { mkdirSync, existsSync, unlinkSync, statSync } from 'fs'
+import { mkdirSync, existsSync, unlinkSync, statSync, openSync, readSync, closeSync } from 'fs'
 import { join, extname, basename, resolve, sep } from 'path'
 import { pipeline } from 'stream/promises'
 import { createWriteStream } from 'fs'
@@ -74,6 +74,36 @@ interface SaveResult {
   size: number
 }
 
+/** 读取文件头部字节（避免把整文件读入内存） */
+function readHead(absPath: string, length: number): Buffer {
+  const fd = openSync(absPath, 'r')
+  try {
+    const buf = Buffer.alloc(length)
+    const bytes = readSync(fd, buf, 0, length, 0)
+    return buf.subarray(0, bytes)
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/** 图片魔数校验（d3 P2）：不信客户端 multipart 头，落库前核对真实文件头 */
+function sniffImageMagic(absPath: string): boolean {
+  const head = readHead(absPath, 12)
+  if (head.length < 8) return false
+  if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47 &&
+      head[4] === 0x0D && head[5] === 0x0A && head[6] === 0x1A && head[7] === 0x0A) return true
+  if (head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF) return true
+  const ascii = head.toString('latin1')
+  if (ascii.startsWith('GIF87a') || ascii.startsWith('GIF89a')) return true
+  return ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP'
+}
+
+/** 交付文件内容黑名单（d3 P2）：扩展名/MIME 之外的兜底，拦 HTML/SVG/XML 可脚本内容 */
+function looksLikeScriptableHead(absPath: string): boolean {
+  const head = readHead(absPath, 512).toString('utf8').replace(/^\uFEFF/, '').trimStart().toLowerCase()
+  return head.startsWith('<!doctype html') || head.startsWith('<html') || head.startsWith('<svg') || head.startsWith('<?xml')
+}
+
 /**
  * 保存上传文件，截断时自动清理残留
  * P0-B: 路径穿越纵深防御 — 最终路径必须在 uploadDir 内
@@ -95,11 +125,23 @@ async function saveUpload(data: MultipartFile, subDir: string, uploadDir: string
     throw new AppError(E.ILLEGAL_PATH)
   }
 
-  await pipeline(data.file, createWriteStream(absPath))
+  try {
+    await pipeline(data.file, createWriteStream(absPath))
+  } catch (err) {
+    // d3 P2: 写盘失败（ENOSPC/IO）清掉半文件，避免反复上传制造垃圾
+    try { unlinkSync(absPath) } catch { /* 文件可能未创建 */ }
+    throw err
+  }
 
   if (data.file.truncated) {
     try { unlinkSync(absPath) } catch { /* ignore */ }
     return null
+  }
+
+  // d3 P2: MIME 头可由客户端伪造——真实内容魔数不符即拒绝并清理，HTML 不能以图片身份进公开目录
+  if (!sniffImageMagic(absPath)) {
+    try { unlinkSync(absPath) } catch { /* ignore */ }
+    throw new AppError(E.ILLEGAL_FILE_TYPE)
   }
 
   const size = statSync(absPath).size
@@ -125,11 +167,23 @@ async function saveDeliverable(data: MultipartFile, subDir: string, uploadDir: s
     throw new AppError(E.ILLEGAL_PATH)
   }
 
-  await pipeline(data.file, createWriteStream(absPath))
+  try {
+    await pipeline(data.file, createWriteStream(absPath))
+  } catch (err) {
+    // d3 P2: 同 saveUpload——失败清理半文件
+    try { unlinkSync(absPath) } catch { /* 文件可能未创建 */ }
+    throw err
+  }
 
   if (data.file.truncated) {
     try { unlinkSync(absPath) } catch { /* ignore */ }
     return null
+  }
+
+  // d3 P2: 交付文件内容黑名单——绕过 MIME 头伪造的 HTML/SVG 内容同样拒绝
+  if (looksLikeScriptableHead(absPath)) {
+    try { unlinkSync(absPath) } catch { /* ignore */ }
+    throw new AppError(E.UNSUPPORTED_FORMAT, 400, '不支持此文件格式（SVG/HTML 不允许上传）')
   }
 
   const size = statSync(absPath).size

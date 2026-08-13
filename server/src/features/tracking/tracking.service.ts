@@ -138,6 +138,21 @@ function clampDays(days: number): number {
   return Math.min(Math.max(Number.isFinite(n) && n > 0 ? n : 30, 1), 90)
 }
 
+/** SQL 小时级聚合行 → 本地日历日分组（90 天最多 2160 行，替代逐行 SELECT） */
+interface HourCountRow {
+  hour: string
+  count: number
+}
+
+function byLocalDayFromHourRows(rows: HourCountRow[]): Array<{ day: string; count: number }> {
+  const byDayMap = new Map<string, number>()
+  for (const r of rows) {
+    const day = toLocalDateString(parseSqliteUtcDate(`${r.hour}:00:00`))
+    byDayMap.set(day, (byDayMap.get(day) ?? 0) + r.count)
+  }
+  return [...byDayMap.entries()].map(([day, count]) => ({ day, count })).sort((a, b) => a.day.localeCompare(b.day))
+}
+
 /**
  * 画师门面统计三态开关（用户 2026-08-07 拍板：关/不显/开，默认不显）
  * - 'on'    ：事件落库 + 画师端统计可见（等价旧 artist_stats_visible=true）
@@ -178,18 +193,15 @@ export function getTrackingSummary(days: number): TrackingSummary {
     WHERE created_at >= datetime('now', ?)
     GROUP BY name ORDER BY count DESC
   `).all(sinceParam) as Array<{ name: string; count: number }>
-  // 本地日分组在 JS 层完成（不用 SQLite date(...,'localtime')，避免 C 运行时 TZ 分叉，
-  // 与 tools/dashboard 口径一致）
+  // d3 P2: 本地日分组下推到 SQL 小时级聚合（90 天最多 2160 行），JS 只做时区换算——
+  // 仍不用 SQLite localtime，避免 C 运行时 TZ 分叉（与 tools/dashboard 口径一致）
   const dayRows = db.prepare(`
-    SELECT created_at FROM events
+    SELECT substr(created_at, 1, 13) AS hour, COUNT(*) AS count
+    FROM events
     WHERE created_at >= datetime('now', ?)
-  `).all(sinceParam) as Array<{ created_at: string }>
-  const byDayMap = new Map<string, number>()
-  for (const r of dayRows) {
-    const day = toLocalDateString(parseSqliteUtcDate(r.created_at))
-    byDayMap.set(day, (byDayMap.get(day) ?? 0) + 1)
-  }
-  const byDay = [...byDayMap.entries()].map(([day, count]) => ({ day, count })).sort((a, b) => a.day.localeCompare(b.day))
+    GROUP BY hour
+  `).all(sinceParam) as HourCountRow[]
+  const byDay = byLocalDayFromHourRows(dayRows)
   const funnelRows = db.prepare(`
     SELECT name, COUNT(*) AS count FROM events
     WHERE created_at >= datetime('now', ?) AND name IN (${FUNNEL_EVENT_NAMES.map(() => '?').join(',')})
@@ -212,17 +224,14 @@ export function getArtistTrackingSummary(artistId: number, days: number): Artist
     WHERE artist_id = ? AND created_at >= datetime('now', ?)
     GROUP BY name ORDER BY count DESC
   `).all(artistId, sinceParam) as Array<{ name: string; count: number }>
-  // 本地日分组同 getTrackingSummary（JS 层换算，不依赖 SQLite localtime）
+  // d3 P2: 与管理员 summary 同款小时级聚合（artist_id 过滤）
   const dayRows = db.prepare(`
-    SELECT created_at FROM events
+    SELECT substr(created_at, 1, 13) AS hour, COUNT(*) AS count
+    FROM events
     WHERE artist_id = ? AND created_at >= datetime('now', ?)
-  `).all(artistId, sinceParam) as Array<{ created_at: string }>
-  const byDayMap = new Map<string, number>()
-  for (const r of dayRows) {
-    const day = toLocalDateString(parseSqliteUtcDate(r.created_at))
-    byDayMap.set(day, (byDayMap.get(day) ?? 0) + 1)
-  }
-  const byDay = [...byDayMap.entries()].map(([day, count]) => ({ day, count })).sort((a, b) => a.day.localeCompare(b.day))
+    GROUP BY hour
+  `).all(artistId, sinceParam) as HourCountRow[]
+  const byDay = byLocalDayFromHourRows(dayRows)
   return { total, byName, byDay }
 }
 

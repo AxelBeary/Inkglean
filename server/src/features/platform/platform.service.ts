@@ -28,12 +28,19 @@ interface PlatformInput {
   enabled?: boolean | number | null
 }
 
-function rowToPlatform(row: SocialPlatform) {
-  let domains: string[] = []
+/** 解析 match_domains JSON 字符串；脏数据回退空数组（与 rowToPlatform/deletePlatform 同口径） */
+function parseMatchDomains(raw: string): string[] {
   try {
-    const parsed = JSON.parse(row.match_domains)
-    if (Array.isArray(parsed)) domains = parsed.filter((x): x is string => typeof x === 'string')
-  } catch (err) { console.warn('平台 match_domains 解析失败（视为空域名表）', err) }
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
+  } catch (err) {
+    console.warn('平台 match_domains 解析失败（视为空域名表）', err)
+    return []
+  }
+}
+
+function rowToPlatform(row: SocialPlatform) {
+  const domains = parseMatchDomains(row.match_domains)
   return {
     id: row.id,
     name: row.name,
@@ -96,12 +103,7 @@ function validatePlatformInput(input: PlatformInput, excludeId?: number) {
   ).all(...(excludeId ? [excludeId] : [])) as Array<{ match_domains: string }>
   const taken = new Set<string>()
   for (const r of conflictRows) {
-    try {
-      const parsed = JSON.parse(r.match_domains)
-      if (Array.isArray(parsed)) {
-        for (const d of parsed) if (typeof d === 'string') taken.add(d.toLowerCase())
-      }
-    } catch (err) { console.warn('平台 match_domains 解析失败（跳过冲突检测）', err) }
+    for (const d of parseMatchDomains(r.match_domains)) taken.add(d.toLowerCase())
   }
   for (const domain of domains) {
     if (taken.has(domain)) {
@@ -136,7 +138,8 @@ export function updatePlatform(id: number, input: PlatformInput) {
     name: input.name ?? existing.name,
     icon_key: input.icon_key !== undefined ? input.icon_key : existing.icon_key,
     fallback_char: input.fallback_char !== undefined ? input.fallback_char : existing.fallback_char,
-    match_domains: input.match_domains !== undefined ? input.match_domains : JSON.parse(existing.match_domains || '[]'),
+    // d3 P2: 存量脏 JSON 与 rowToPlatform 同口径回退 '[]'，不再让编辑平台 500
+    match_domains: input.match_domains !== undefined ? input.match_domains : parseMatchDomains(existing.match_domains || '[]'),
     sort_order: input.sort_order !== undefined ? input.sort_order : existing.sort_order,
     enabled: input.enabled !== undefined ? input.enabled : existing.enabled
   }

@@ -1,7 +1,7 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { logActivity } from './activity-log.service.js'
-import { toSqliteDate, toLocalDateString } from '../../utils/date.js'
+import { toSqliteDate, toLocalDateString, isValidLocalDateString } from '../../utils/date.js'
 import type { OrderDetail } from '../../types/entities.js'
 import { getOrder } from './order-read.js'
 
@@ -49,7 +49,18 @@ export function updateDeadline(orderId: number, deadline: string | null, expecte
 
   let normalized: string | null = null
   if (deadline !== null) {
-    // 校验 ISO 8601 格式
+    // d3 P2: 校验 ISO 8601（含前端 date-only YYYY-MM-DD 形态）+ 组件回读，拒绝非 ISO/越界日
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(deadline)
+    const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(deadline)
+    if ((!dateOnly && !iso) || !isValidLocalDateString(deadline.slice(0, 10))) {
+      throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
+    }
+    if (iso) {
+      const [, hh, mm, ss] = deadline.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})/) || []
+      if (Number(hh) > 23 || Number(mm) > 59 || Number(ss) > 59) {
+        throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
+      }
+    }
     const d = new Date(deadline)
     if (isNaN(d.getTime())) {
       throw new AppError(E.INVALID_DEADLINE, 400, { value: deadline })
@@ -82,12 +93,8 @@ export function updateStartDate(orderId: number, startDate: string | null, expec
 
   let normalized: string | null = null
   if (startDate !== null) {
-    // 校验日期格式（YYYY-MM-DD）
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
-      throw new AppError(E.INVALID_DEADLINE, 400, { value: startDate })
-    }
-    const d = new Date(startDate + 'T00:00:00')
-    if (isNaN(d.getTime())) {
+    // d3 P2: 正则之外补历法回读（'2026-02-31' 不再被 JS 静默归一化落库）
+    if (!isValidLocalDateString(startDate)) {
       throw new AppError(E.INVALID_DEADLINE, 400, { value: startDate })
     }
     normalized = startDate

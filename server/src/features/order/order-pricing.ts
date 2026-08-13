@@ -55,7 +55,7 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     )
 
     // manual_adjust 条目 delta = 新总价 − 当前总价；条目由 applyDeltaToInstallments 按去向落账；
-    // 节点联动只摊未锁节点（allocateDelta），已锁节点价不再变（R4/R5，替代 recalcInstallmentAmounts）
+    // 节点联动只摊未锁节点（allocateDelta），已锁节点价不再变（R4/R5；recalcInstallmentAmounts 已退役删除）
     const deltaCents = finalPriceCents - (oldCents ?? 0)
     if (deltaCents !== 0) {
       applyDeltaToInstallments(orderId, deltaCents, 'manual_adjust', '改价')
@@ -135,7 +135,7 @@ export function getOrderPayments(orderId: number): Array<{ id: number; amountCen
 }
 
 /**
- * 加减法调整订单最终价格（P0-2: 替代 recalcFinalPrice 重算）
+ * 加减法调整订单最终价格（P0-2；recalcFinalPrice 已退役删除，不再从快照整体重算）
  * 在当前 final_price_cents 基础上加减 delta，不从头重算
  * 手动改价不会被后续增项操作覆盖
  */
@@ -238,7 +238,7 @@ function getCompletedPaymentStageIndex(order: { artist_id: number; current_stage
 }
 
 /**
- * 把一笔价格 delta 应用到节点并落条目（替代 recalcInstallmentAmounts，R5/R6/R10）。
+ * 把一笔价格 delta 应用到节点并落条目（recalcInstallmentAmounts 已退役删除，R5/R6/R10）。
  *
  * 条目账本是总价真相源（Σ 条目 ≡ final_price_cents），因此条目由本函数统一写入，
  * 按 delta 去向决定类型，绝不双重记账：
@@ -359,7 +359,7 @@ interface ExtraItemParams {
  * 添加附加工作项
  * 校验：终态拒绝 + 数量上限 20
  * 事务：插入 → 重算 final_price → 系统备注
- * B7: 不再调 adjustInstallments（额度池模型不关心"计入哪个节点"）
+ * B7: 额度池模型不关心"计入哪个节点"（adjustInstallments 已退役删除）
  */
 export function addExtraItem(orderId: number, { name, description, priceCents }: ExtraItemParams): OrderDetail {
   const order = getOrder(orderId)
@@ -399,7 +399,7 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
 
       // 增项双写（R1/R2 入口 B）——order_extra_items 保留（UI 层）；
       // 条目账本由 applyDeltaToInstallments 按去向落账（正=extra_item / 负=refund_item / 全锁=额外项）；
-      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）
+      // 节点联动只摊未锁节点（recalcInstallmentAmounts 已退役删除）
       if (cents !== 0) {
         applyDeltaToInstallments(orderId, cents, cents > 0 ? 'extra_item' : 'refund_item', name)
       }
@@ -437,13 +437,13 @@ interface ExtraItemRow {
  * 删除附加工作项
  * 校验：归属（item.order_id === orderId）
  * 事务：删除 → 重算 final_price → 系统备注
- * B7: 不再调 adjustInstallments
+ * B7: adjustInstallments 已退役删除
  */
 export function deleteExtraItem(orderId: number, itemId: number): OrderDetail {
   const item = db.prepare('SELECT * FROM order_extra_items WHERE id = ? AND order_id = ?').get(itemId, orderId) as ExtraItemRow | undefined
   if (!item) throw new AppError(E.NOT_FOUND, 404)
 
-  // v0.37 终态守卫：delivered/cancelled 禁止删除附加项（对齐 addExtraItem；done 不拦——减价窗口期，待 REQ-025 第二阶段）
+  // v0.37 终态守卫 + R13：done 半终态允许增减附加项，delivered/cancelled 拒绝
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
   if (['delivered', 'cancelled'].includes(order.status)) {
@@ -471,7 +471,7 @@ export function deleteExtraItem(orderId: number, itemId: number): OrderDetail {
 
       // 删项 = 冲正条目（R1：条目只追加不物理删）；UI 层 order_extra_items 仍物理删
       // 条目账本由 applyDeltaToInstallments 按去向落账（refund_item / 全锁=额外应退）；
-      // 节点联动只摊未锁节点（替代 recalcInstallmentAmounts）
+      // 节点联动只摊未锁节点（recalcInstallmentAmounts 已退役删除）
       if (item.price_cents !== 0) {
         applyDeltaToInstallments(orderId, -item.price_cents, 'refund_item', `移除「${item.name}」`)
       }

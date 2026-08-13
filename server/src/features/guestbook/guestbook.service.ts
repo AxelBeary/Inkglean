@@ -27,9 +27,11 @@ export function getMessageById(id: number): GuestbookMessage | undefined {
 export function createMessage(artistId: number, nickname: string, content: string, language: string = 'zh-CN'): GuestbookMessage | undefined {
   // F-5（P3-18）: 留言内容入库前最小清洗（纵深防御，前端 DOMPurify 仍是渲染层主力）
   const safeContent = sanitizeStoredText(content)
+  // d2 P2: nickname 与 content 同口径清洗（公开留言列表原样出站，消毒不对称会留下存储型 XSS 升级面）
+  const safeNickname = sanitizeStoredText(nickname)
   const result = db.prepare(
     'INSERT INTO guestbook_messages (artist_id, nickname, content, language) VALUES (?, ?, ?, ?)'
-  ).run(artistId, nickname, safeContent, language)
+  ).run(artistId, safeNickname, safeContent, language)
   return getMessageById(result.lastInsertRowid as number)
 }
 

@@ -3,6 +3,7 @@ import { db, cleanDb, seedArtist } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
 import { pruneIdempotencyKeys } from '../src/shared/idempotency.js'
+import { withIdempotency } from '../src/shared/idempotency.js'
 
 /**
  * 审计批 D-2（R-9）：下单/收款幂等键
@@ -236,5 +237,22 @@ describe('审计批 D-2 幂等键', () => {
     } finally {
       await app.close()
     }
+  })
+
+  it('TC-D2-13: 损坏 response_json 缓存行被删除并按未命中重执行（不再同 key 永久 500）', () => {
+    const scope = 'corrupt-cache-test'
+    db.prepare(
+      "INSERT INTO idempotency_keys (scope, key, status_code, response_json) VALUES (?, 'bad', 200, 'not-json')"
+    ).run(scope)
+    let calls = 0
+    const result = withIdempotency(scope, 'bad', () => {
+      calls++
+      return { statusCode: 200, body: { ok: true } }
+    })
+    expect(result).toEqual({ statusCode: 200, body: { ok: true } })
+    expect(calls).toBe(1)
+    expect(db.prepare(
+      'SELECT response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
+    ).get(scope, 'bad').response_json).toBe('{"ok":true}')
   })
 })

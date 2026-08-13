@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
+import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import { seedArtistStages } from '../artist/workflow.service.js'
 import { bindTotpInit, createSession } from '../auth/auth.service.js'
 import { generateSecret, buildOtpAuthUri, verifyTotpWithCounter, hashTotpCode } from '../auth/totp.js'
@@ -21,9 +22,6 @@ export const INVITE_BATCH_MAX = 50
 export const INVITE_DEFAULT_VALID_DAYS = 3
 /** 有效期范围（1-30 天） */
 export const INVITE_VALID_DAYS_MAX = 30
-
-/** 子域名保留词黑名单（与 admin.routes.ts / setup.service.ts 一致，防系统路径冲突） */
-const RESERVED_SUBDOMAINS = ['admin', 'api', 'www', 'uploads', 'static', 'login', 'assets', 'dashboard', 'app']
 
 /** invite_codes 行（SQLite 实体列） */
 export interface InviteCodeRow {

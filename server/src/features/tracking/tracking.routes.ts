@@ -38,7 +38,8 @@ function getOptionalArtist(request: FastifyRequest): Artist | null {
   const session = verifySession(token)
   if (!session) return null
   const artist = getArtistById(session.id) as Artist | undefined
-  if (!artist || artist.deleted_at) return null
+  // d2 P2: 与 requireAuth 语义对齐——封禁画师的旧 token 不得携带 artist_id 上报
+  if (!artist || artist.deleted_at || artist.is_banned) return null
   if (artist.token_version && session.v !== artist.token_version) return null
   return artist
 }
@@ -113,7 +114,8 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
     // 白名单校验：只收白名单事件，其余 400（REQ-033 §2.2）
     for (const ev of body.events) {
       if (!WHITELIST_SET.has(String(ev.name))) {
-        return reply.code(400).send({ code: 'INVALID_EVENT_NAME', error: `事件名不在白名单: ${String(ev.name)}` })
+        // d2 P2: 不回显用户输入（name 可含换行/控制字符，防污染响应体与日志）
+        return reply.code(400).send({ code: 'INVALID_EVENT_NAME', error: '事件名不在白名单，请检查后重试' })
       }
     }
 

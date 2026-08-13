@@ -58,10 +58,12 @@ export function getOrderLogs(orderId: number, { page = 1, pageSize = 50, type }:
     `SELECT * FROM order_activity_logs ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
   ).all(...params, pageSize, offset) as ActivityLog[]
 
-  // 解析 detail_json 为对象（前端直接用）
+  // 解析 detail_json 为对象（前端直接用）；d3 P2: 任一行脏 JSON 不得拖垮整页日志，容错置 null
   const parsed = logs.map(l => ({
     ...l,
-    detail: l.detail_json ? JSON.parse(l.detail_json) : null
+    detail: l.detail_json ? (() => {
+      try { return JSON.parse(l.detail_json) } catch { return null }
+    })() : null
   }))
 
   return { logs: parsed, total, page, pageSize }
