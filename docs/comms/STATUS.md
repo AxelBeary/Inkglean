@@ -22,8 +22,9 @@
 > ✅ **容器重建+冒烟**：post-merge-deploy（Healthy/v61/200），公告行+P2 纸墨化全部上生产；Playwright 冒烟三帧自审过（公告行/点开/模块开关），截图 fq-batch/p2-*.png。
 > ✅ **E2E 终验 11/11 全绿**（20.6s，战役全量改动后首跑：下单/查进度/推节点/管理端/金钱链路/登录旅程/Passkey 全通）。
 > ✅ **收尾波 T 合入**（813-fq-tail-anim，20 文件 +230/-95）：12 处 hover/active 去位移、tl-pulse 循环改一次性+reduced-motion 豁免、状态徽标去光晕、like-pop 克制；fade-slide/TplGallery/AdminLayout/useLocaleSwitch（oncancel 防 busy 卡死）token 化；列表增删 TransitionGroup+TrackOrder fade；豁免 6 项原值保留注释在案；另自查发现 5 处清单外漏项已移交波 M。验收 436/436/build 0。
-> 🔜 **在途**：813-fq-tail-logic（波 M，12 项：客户端三态散项+a11y+useTouchSwipe.ts 抽公共+masonry 窄屏+波 T 移交漏项，codex 施工中）；813-fq-tail-shared（波 S，断点统一+窄屏挤压+共享层硬编码，codex 施工中）。
-> 🔜 **待办**：波 M/S 验收合入→容器重建+三域终局截图交用户终验→战役收官。
+> ✅ **收尾波 S 合入**（813-fq-tail-shared，18 文件）：管理后台断点统一 900/600 两档+侧栏尺寸抽 CSS 变量；画师管理/举报管理操作列 ≤760px 图标化防挤压；setup.js 文案/money.js 单位字（4 调用方同步）/image-resize 错误码化/accent 五色收拢 theme.css 单源；i18n 中英成对。与波 T 在 AdminDashboard.vue 冲突一处已解（保 T 波留言网格列表+采 S 波 900px 断点）；验收 436/436/build 0。留账：Settings.vue:185-189 另有一处 accent 副本待清。
+> 🔜 **在途**：813-fq-tail-logic（波 M，12 项，codex 施工中）。
+> 🔜 **待办**：波 M 验收合入→容器重建+三域终局截图交用户终验→战役收官。
 > 🧊 **环境**：master 干净已推（ae16bd5d+）；全部 worktree 已清理；容器 Healthy（新构建，含公告行+P2 全部）；E2E 11/11 基线未动。
 
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
