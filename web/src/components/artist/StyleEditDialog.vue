@@ -16,7 +16,7 @@
               {{ styleForm.cover_image ? $t('styleManage.styleCoverChange') : $t('styleManage.styleCoverUpload') }}
             </el-button>
           </el-upload>
-          <el-button v-if="styleForm.cover_image" size="small" text type="danger" @click="styleForm.cover_image = ''">{{ $t('common.remove') }}</el-button>
+          <el-button v-if="styleForm.cover_image" size="small" text type="danger" :loading="coverUploading" @click="removeCover">{{ $t('common.remove') }}</el-button>
         </div>
       </el-form-item>
       <!-- 新建时显示"从增项库导入"勾选 -->
@@ -91,6 +91,30 @@ async function uploadCover({ file }) {
       ElMessage({ type: 'warning', message: t('styleManage.sizeImageUploadHint'), duration: 5000 })
     }
   } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    coverUploading.value = false
+  }
+}
+
+/**
+ * 移除画风封面：与上传保持一致的「即时 PUT」语义（决策：选即时 PUT 而非显式提交——
+ * 上传示例图已是即时保存（R48 头像模式），移除若只改本地会出现"预览已移除、实际未移除"的不一致；
+ * 显式提交会引入第二个保存入口，与现有交互割裂）。PUT 失败回滚预览。
+ */
+async function removeCover() {
+  if (!editingStyleId.value) {
+    styleForm.cover_image = ''
+    return
+  }
+  coverUploading.value = true
+  const prevCover = styleForm.cover_image
+  try {
+    await artistApi.updateArtStyle(editingStyleId.value, { cover_image: null })
+    styleForm.cover_image = ''
+    ElMessage.success(t('common.saved'))
+  } catch (err) {
+    styleForm.cover_image = prevCover // 回滚：预览与实际存储保持一致
     ElMessage.error(err.message)
   } finally {
     coverUploading.value = false

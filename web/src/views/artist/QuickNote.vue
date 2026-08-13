@@ -43,6 +43,8 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+// 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
 const { t } = useI18n()
 const STORAGE_KEY = 'huiyue_quick_notes'
@@ -93,35 +95,13 @@ function removeNote(id) {
   saveNotes()
 }
 
-/** 复制条目内容（与社恐回复工具同款：clipboard 优先 + execCommand 回退） */
+/** 复制条目内容（公共 clipboard.copyText；成功提示 / 失败提示） */
 async function copyNote(n) {
-  const text = n.content
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      fallbackCopy(text)
-    }
+  if (await copyToClipboard(n.content)) {
     ElMessage.success(t('note.copied'))
-  } catch {
-    fallbackCopy(text)
-    ElMessage.success(t('note.copied'))
+  } else {
+    ElMessage.error(t('note.copyFailed'))
   }
-}
-
-function fallbackCopy(text) {
-  const ta = document.createElement('textarea')
-  ta.value = text
-  ta.style.position = 'fixed'
-  ta.style.opacity = '0'
-  document.body.appendChild(ta)
-  ta.select()
-  try {
-    document.execCommand('copy')
-  } catch {
-    /* ignore */
-  }
-  document.body.removeChild(ta)
 }
 
 onMounted(() => {

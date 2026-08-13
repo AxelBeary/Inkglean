@@ -52,25 +52,32 @@
   <!-- REQ-031 B1: 完稿分享弹窗（平台 + 文案模板；发布动作在第三方平台完成） -->
   <el-dialog v-model="shareDialogVisible" :title="$t('orderDetail.shareDialogTitle')" width="520px">
     <div v-loading="shareLoading">
-      <el-form label-position="top">
-        <el-form-item :label="$t('orderDetail.sharePlatformLabel')" required>
-          <el-select v-model="sharePlatformId" style="width: 100%">
-            <el-option v-for="p in sharePlatforms" :key="p.id" :value="p.id" :label="p.name" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('orderDetail.shareTextLabel')">
-          <el-input
-            v-model="shareText"
-            type="textarea" :rows="5"
-            maxlength="500" show-word-limit
-            :placeholder="$t('orderDetail.shareTextPlaceholder')"
-          />
-          <div class="share-placeholders">{{ $t('orderDetail.sharePlaceholders') }}: {orderNo} {homepage}</div>
-        </el-form-item>
-      </el-form>
-      <el-alert v-if="shareNoHomepage" type="warning" :closable="false" show-icon class="share-alert">
-        {{ $t('orderDetail.shareNoHomepage') }}
-      </el-alert>
+      <!-- 分享平台列表加载失败错误态 + 重试（不再静默显示空列表）；弹窗可关闭兜底 -->
+      <div v-if="shareLoadFailed" class="module-error">
+        <span>{{ $t('orderDetail.shareLoadFailed') }}</span>
+        <el-button size="small" @click="openShareDialog">{{ $t('dashboard.retry') }}</el-button>
+      </div>
+      <template v-else>
+        <el-form label-position="top">
+          <el-form-item :label="$t('orderDetail.sharePlatformLabel')" required>
+            <el-select v-model="sharePlatformId" style="width: 100%">
+              <el-option v-for="p in sharePlatforms" :key="p.id" :value="p.id" :label="p.name" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="$t('orderDetail.shareTextLabel')">
+            <el-input
+              v-model="shareText"
+              type="textarea" :rows="5"
+              maxlength="500" show-word-limit
+              :placeholder="$t('orderDetail.shareTextPlaceholder')"
+            />
+            <div class="share-placeholders">{{ $t('orderDetail.sharePlaceholders') }}: {orderNo} {homepage}</div>
+          </el-form-item>
+        </el-form>
+        <el-alert v-if="shareNoHomepage" type="warning" :closable="false" show-icon class="share-alert">
+          {{ $t('orderDetail.shareNoHomepage') }}
+        </el-alert>
+      </template>
     </div>
     <template #footer>
       <el-button @click="shareDialogVisible = false">{{ $t('common.cancel') }}</el-button>
@@ -157,6 +164,8 @@ async function submitPublish() {
 // ─── REQ-031 B1: 完稿分享（delivered；文案模板 localStorage 持久化） ───
 const shareDialogVisible = ref(false)
 const shareLoading = ref(false)
+/** 分享平台列表加载失败（独立错误态 + 重试；弹窗仍可关闭兜底） */
+const shareLoadFailed = ref(false)
 const shareOpening = ref(false)
 const sharePlatforms = ref([])
 const sharePlatformId = ref(null)
@@ -181,6 +190,7 @@ function defaultShareText() {
 async function openShareDialog() {
   shareDialogVisible.value = true
   shareLoading.value = true
+  shareLoadFailed.value = false
   shareNoHomepage.value = false
   try {
     const [plats, profile] = await Promise.all([
@@ -194,6 +204,7 @@ async function openShareDialog() {
   } catch {
     sharePlatforms.value = []
     shareProfile.value = null
+    shareLoadFailed.value = true
   } finally {
     shareLoading.value = false
   }
@@ -268,4 +279,9 @@ defineExpose({ openPublish: openPublishDialog, openShare: openShareDialog })
 /* ─── REQ-031 B1: 完稿分享 ─── */
 .share-placeholders { margin-top: 6px; font-size: 12px; color: var(--ink3, #888); }
 .share-alert { margin-top: 4px; }
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 </style>

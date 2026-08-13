@@ -182,7 +182,9 @@ async function loadCredentials() {
   try {
     const res = await webauthnApi.getCredentials()
     credentials.value = res.credentials
-  } catch { /* 静默 */ }
+  } catch {
+    ElMessage.error(t('account.passkeyLoadFailed'))
+  }
   finally { loading.value = false }
 }
 
@@ -233,14 +235,18 @@ async function saveName(id: number) {
     editingId.value = null
     editName.value = ''
     await loadCredentials()
-  } catch { /* 静默 */ }
+  } catch {
+    ElMessage.error(t('account.passkeyRenameFailed'))
+  }
 }
 
 async function deleteCredential(id: number) {
   try {
     await webauthnApi.deleteCredential(id)
     await loadCredentials()
-  } catch { /* 静默 */ }
+  } catch {
+    ElMessage.error(t('account.passkeyDeleteFailed'))
+  }
 }
 
 // ─── TOTP ───
@@ -277,6 +283,7 @@ async function startRebind() {
         : 24 * 3600000
     } else {
       rebindStep.value = 'idle'
+      ElMessage.error(t('account.totpRebindFailed'))
     }
   } finally {
     rebindLoading.value = false
@@ -345,7 +352,7 @@ async function confirmRebind() {
     // 刷新 store（踢下线后 store 会被清除）
     rebindCooldownMs.value = 24 * 3600000
   } catch {
-    // 错误显示
+    ElMessage.error(t('account.totpRebindFailed'))
   } finally {
     rebindLoading.value = false
   }

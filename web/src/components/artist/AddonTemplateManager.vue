@@ -35,7 +35,13 @@
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && templates.length === 0" :description="$t('styleManage.tplEmpty')" :image-size="60" />
+    <!-- 加载失败错误态（区分真空与加载失败，不再把失败误导成"没有模板"） -->
+    <div v-if="loadFailed" class="module-error">
+      <span>{{ $t('styleManage.tplLoadFailed') }}</span>
+      <el-button size="small" @click="load">{{ $t('dashboard.retry') }}</el-button>
+    </div>
+
+    <el-empty v-else-if="!loading && templates.length === 0" :description="$t('styleManage.tplEmpty')" :image-size="60" />
 
     <el-button type="primary" size="small" style="margin-top: 12px" @click="openCreate">{{ $t('styleManage.tplAdd') }}</el-button>
 
@@ -102,6 +108,8 @@ const { t } = useI18n()
 
 const templates = ref([])
 const loading = ref(true)
+/** 模板列表加载失败（独立错误态 + 重试；与"真没有模板"区分） */
+const loadFailed = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref(null)
@@ -226,10 +234,11 @@ async function confirmDelete(row) {
 
 async function load(silent = false) {
   if (!silent) loading.value = true
+  loadFailed.value = false
   try {
     templates.value = await artistApi.getAddonTemplates()
-  } catch (err) {
-    ElMessage.error(err.message)
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -253,4 +262,9 @@ onMounted(load)
 .tpl-na { color: var(--ink4); }
 .form-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2); margin: 4px 0 0; line-height: 1.6; }
 .unit-suffix { margin-left: 8px; color: var(--ink3); font-weight: 600; }
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 </style>

@@ -340,6 +340,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     subtitle: '预设话术一键复制，不好意思开口的场景照抄就行',
     copy: '复制',
     copied: '已复制到剪贴板',
+    copyFailed: '复制失败，请手动复制',
     cats: {
       remind: '催款',
       decline: '拒单',
@@ -360,6 +361,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     copy: '复制',
     delete: '删除',
     copied: '已复制',
+    copyFailed: '复制失败，请手动复制',
     saveFailed: '保存失败（浏览器可能处于隐私模式）'
   },
   // REQ-040: 账号与安全页
@@ -396,6 +398,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     passkeyDeleteConfirm: '确定删除此 Passkey 凭据？删除后该设备无法使用 Passkey 登录。',
     passkeyEmpty: '还没有注册设备，点击上方按钮注册',
     passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
+    // 波3-2: 凭据/重绑失败反馈（原静默失败补 ElMessage）
+    passkeyLoadFailed: 'Passkey 凭据加载失败，请重试',
+    passkeyRenameFailed: '设备名保存失败，请重试',
+    passkeyDeleteFailed: '删除 Passkey 失败，请重试',
+    totpRebindFailed: 'TOTP 重绑失败，请重试',
   },
   // REQ-035 工具集后置: 截稿日建议（工具页文案）
   deadlineAdvice: {
@@ -503,6 +510,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     exportPng: '生成图片',
     copyText: '复制文字版',
     copied: '已复制到剪贴板',
+    copyFailed: '复制失败，请手动复制',
     needItems: '请至少添加一条有效条目',
     imageGenerated: '图片已生成',
     imageFailed: '图片生成失败，请重试',
@@ -599,7 +607,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     preview: '预览',
     renderError: '图片合成失败，请换一张图片重试',
     fileTypeError: '请选择图片文件（LOGO 需 PNG）',
-    logoSaved: 'LOGO 已保存'
+    logoSaved: 'LOGO 已保存',
+    // 波3-2: 加载失败错误态（区分失败与空列表）
+    loadArtworksFailed: '作品列表加载失败，请重试',
+    loadOrdersFailed: '订单列表加载失败，请重试',
+    loadDeliverablesFailed: '完稿图加载失败，请重试'
   },
   // REQ-035 批E: 进度对比拼图（工具页文案）
   puzzle: {
@@ -1182,6 +1194,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     shareOpened: '已在新窗口打开发布页',
     shareCopied: '文案已复制，请在发布页粘贴',
     shareNoHomepage: '文案包含 {homepage}，但未找到该平台主页链接——请先在「主页设置」添加对应平台的链接',
+    // 波3-2: 分享平台列表加载失败错误态 + 重试
+    shareLoadFailed: '分享平台列表加载失败，请重试'
   },
   manualOrder: {
     title: '手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
@@ -1258,7 +1272,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     parseNone: '未识别',
     parseConfirmTip: '金额与日期仅作线索提示，不会自动填入，请人工核对后填写。',
     parseApply: '填入表单',
-    parseApplied: '已填入表单，请核对后提交'
+    parseApplied: '已填入表单，请核对后提交',
+    // 波3-2: 初始化失败错误态（subdomain/报价元数据失败时报价功能不可用要有感知）
+    initLoadFailed: '录单数据加载失败，报价与画风功能可能不可用，请重试'
   },
   tiers: {
     title: '价格管理',
@@ -1304,6 +1320,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     tplPriceLabel: '默认价格',
     tplUnitLabel: '单位标签', tplUnitPlaceholder: '如：人、张、个',
     tplSaved: '增项已保存', tplDeleted: '增项已删除', tplDeleteConfirm: '确定删除增项「{name}」？已引用它的画风会保留为独立增项（不再跟随库更新）。',
+    // 波3-2: 模板列表加载失败错误态（区分真空与失败，避免误导"没有模板"）
+    tplLoadFailed: '增项模板加载失败，请重试',
     unitDefault: '个',
     // 画风
     styleAddTitle: '新建画风', styleEditTitle: '编辑画风',
@@ -1576,6 +1594,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     maxInstallments: '收款节点已达上限',
     finalCannotDisable: '尾款节点不可关闭收款',
     finalCannotDelete: '尾款节点不可删除',
+    // 波3-2: 流程加载失败错误态 + 重试
+    loadFailed: '流程节点加载失败，请重试',
     helpBtn: '使用说明', helpTitle: '流程与比例使用说明',
     helpLines: [
       '每个节点代表约稿的一个阶段，客户会按顺序看到你的进度。',
@@ -2034,6 +2054,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     exporting: '生成中…',
     copyText: '复制纯文字版',
     copied: '已复制纯文字版',
+    copyFailed: '复制失败，请手动复制',
     titleRequired: '请先填写卡片标题',
     tiersMinRequired: '至少填 3 行完整档位（名称 + 价格）',
     exportFailed: '生成失败，请稍后重试',
