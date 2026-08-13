@@ -256,8 +256,6 @@ html[data-artist-theme="ink"] {
 html[data-artist-theme="ink"] .band-doing { background: #3E6285; color: #DCE9F5; }
 html[data-artist-theme="ink"] .band-over { background: #9E4437; color: #F6DDD7; }
 html[data-artist-theme="ink"] .band-done { background: #38735A; color: #D9EFE3; }
-html[data-artist-theme="ink"] .btn-pri-ink { background: #46708F; color: #EAF2F9; }
-html[data-artist-theme="ink"] .btn-pri-ink:hover { background: #3E6285; }
 
 /* K1（波2，灰沼教训）：换肤即时切换——删除主题变量插值过渡（含瞬态 .theme-animating
    的 background-color/border-color/color/box-shadow .35s），前景/背景不同步插值会

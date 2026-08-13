@@ -106,16 +106,6 @@
   /* T 波修正：动画挂在 ::after 上，选择器需指到伪元素才能真正豁免 */
   .tl-node.current .tl-dot::after { animation: none; }
 }
-
-/* ===== 画册风模板（atelier）共享样式 ===== */
-/* 结构色跟随 --pal-* 配色系统；装饰色（赭橙/苔绿）在模板 scoped 样式中定义 */
-.tpl-atelier-card {
-  background: var(--pal-bg-alt);
-  border: 1px solid var(--pal-border);
-  border-radius: 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
 /* ===== R58-3: 小票风格二次确认弹窗 =====
    el-dialog teleport 到 body，样式必须全局定义。
    锯齿边：conic-gradient 45° 斜纹条带，上下各一条。 */

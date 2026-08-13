@@ -103,14 +103,6 @@ export function resetTotp(artistId: number): void {
   ).run(artistId)
 }
 
-/** 读取已绑定画师的密钥（transfer 双码验证用；未绑定抛错） */
-export function getBoundTotpSecret(artist: Artist): string {
-  if (!artist.totp_secret || !artist.totp_verified) {
-    throw new AppError(E.TOTP_NOT_BOUND, 400)
-  }
-  return artist.totp_secret
-}
-
 // ============================================
 // 登录校验（含防爆破）
 // ============================================
