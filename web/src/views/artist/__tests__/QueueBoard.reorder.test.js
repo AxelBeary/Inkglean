@@ -16,21 +16,21 @@ vi.mock('element-plus', () => ({
   ElMessage: { error: h.msgError, success: vi.fn(), warning: vi.fn(), info: vi.fn() }
 }))
 
-vi.mock('../../api/index.js', () => ({
+vi.mock('../../../api/index.js', () => ({
   artistApi: {
     getQueue: h.getQueue,
     reorderQueue: h.reorderQueue
   }
 }))
 
-vi.mock('../../utils/storage.js', () => ({
+vi.mock('../../../utils/storage.js', () => ({
   safeGetItem: () => null,
   safeSetItem: () => {}
 }))
-vi.mock('../../utils/reconnect.js', () => ({
+vi.mock('../../../utils/reconnect.js', () => ({
   subscribeReconnect: () => () => {}
 }))
-vi.mock('../../composables/useSignatureRefresh.js', () => ({
+vi.mock('../../../composables/useSignatureRefresh.js', () => ({
   useSignatureRefresh: () => ({ refreshNow: () => {} })
 }))
 

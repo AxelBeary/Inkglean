@@ -5,30 +5,30 @@
 
     <!-- 顶部两数：待收 / 已收（formatYuan 展示，切换状态即重算） -->
     <div class="dp-summary">
-      <div class="dp-stat">
+      <div class="page-card dp-stat">
         <span class="dp-stat-label">{{ $t('deposit.pendingTotal') }}</span>
         <strong class="dp-stat-value">{{ formatYuan(pendingCents) }}</strong>
       </div>
-      <div class="dp-stat dp-stat--received">
+      <div class="page-card dp-stat dp-stat--received">
         <span class="dp-stat-label">{{ $t('deposit.receivedTotal') }}</span>
         <strong class="dp-stat-value">{{ formatYuan(receivedCents) }}</strong>
       </div>
     </div>
 
     <!-- 记一笔：单名 / 金额（元→分）/ 状态 / 日期（默认今天） -->
-    <form class="dp-form" @submit.prevent="submit">
+    <form class="page-card dp-form" @submit.prevent="submit">
       <div class="dp-form-grid">
         <label class="dp-field">
           <span class="dp-label">{{ $t('deposit.nameLabel') }}</span>
           <input
-            v-model="form.name" type="text" class="dp-input"
+            v-model="form.name" type="text" class="field dp-input"
             :placeholder="$t('deposit.namePlaceholder')" maxlength="50"
           />
         </label>
         <label class="dp-field">
           <span class="dp-label">{{ $t('deposit.amountLabel') }}</span>
           <input
-            v-model.number="form.amountYuan" type="number" min="0" step="0.01" class="dp-input"
+            v-model.number="form.amountYuan" type="number" min="0" step="0.01" class="field dp-input"
             :placeholder="$t('deposit.amountPlaceholder')"
           />
         </label>
@@ -48,16 +48,16 @@
         </label>
         <label class="dp-field">
           <span class="dp-label">{{ $t('deposit.dateLabel') }}</span>
-          <input v-model="form.date" type="date" class="dp-input" :aria-label="$t('deposit.dateLabel')" />
+          <input v-model="form.date" type="date" class="field dp-input" :aria-label="$t('deposit.dateLabel')" />
         </label>
         <div class="dp-field dp-field--action">
-          <button type="submit" class="dp-btn dp-btn--primary" :disabled="submitting">{{ $t('deposit.addBtn') }}</button>
+          <button type="submit" class="btn-primary dp-btn" :disabled="submitting">{{ $t('deposit.addBtn') }}</button>
         </div>
       </div>
     </form>
 
     <!-- 台账明细：状态可切换，切换即重算 -->
-    <section class="dp-list">
+    <section class="page-card dp-list">
       <h3 class="dp-list-title">{{ $t('deposit.listTitle') }}</h3>
       <p v-if="items.length === 0" class="dp-empty">{{ $t('deposit.empty') }}</p>
       <div v-for="item in items" :key="item.id" class="dp-row">
@@ -90,16 +90,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'
+import { todayStr } from '../../utils/datetime.js'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
 const { t } = useI18n()
 
 const STORAGE_KEY = 'huiyue_deposit_ledger'
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 const form = reactive({
   name: '',
@@ -218,15 +214,11 @@ onMounted(loadItems)
 /* 纸墨 token 体系（--paper/--ink/--hq/--sl/--card/--line），亮暗双主题自动适配 */
 .deposit-page { padding: 24px; max-width: 960px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 8px; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
+.page-sub { margin-top: 8px; }
 
 .dp-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 20px; }
 .dp-stat {
   padding: 16px 20px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  box-shadow: var(--sh-1);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -239,10 +231,6 @@ onMounted(loadItems)
 .dp-form {
   margin-top: 16px;
   padding: 20px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  box-shadow: var(--sh-1);
 }
 .dp-form-grid {
   display: grid;
@@ -259,42 +247,17 @@ onMounted(loadItems)
 .dp-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .dp-field--action { justify-content: end; }
 .dp-label { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink2); }
-.dp-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-m);
-  background: var(--paper2);
-  color: var(--ink);
-  font-size: calc(var(--font-scale, 1) * 14px);
-  transition: border-color var(--dur-fast);
-}
-.dp-input:focus { border-color: var(--hq); outline: none; }
 .dp-status-toggle { display: flex; align-items: center; min-height: 36px; }
 .dp-switch-label { display: inline-flex; align-items: center; gap: 8px; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink2); cursor: pointer; }
 .dp-switch { width: 16px; height: 16px; accent-color: var(--sl); cursor: pointer; }
 
 .dp-btn {
-  padding: 8px 16px;
-  border: 1px solid var(--hq);
-  border-radius: var(--r-m);
-  background: var(--hq);
-  color: #fff;
-  font-size: calc(var(--font-scale, 1) * 13px);
-  cursor: pointer;
   white-space: nowrap;
-  transition: background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
-.dp-btn:hover { background: var(--hq-d); border-color: var(--hq-d); }
-.dp-btn:active { transform: scale(0.98); }
 
 .dp-list {
   margin-top: 16px;
   padding: 16px 0 8px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  box-shadow: var(--sh-1);
 }
 .dp-list-title { margin: 0 20px 8px; font-size: calc(var(--font-scale, 1) * 15px); font-weight: 700; color: var(--ink); }
 .dp-empty { margin: 0; padding: 24px 20px; text-align: center; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }

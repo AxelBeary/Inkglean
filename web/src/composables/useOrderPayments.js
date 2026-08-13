@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { i18n } from '../i18n/index.js'
 import { artistApi } from '../api/index.js'
 
 /**
@@ -58,7 +59,7 @@ export function useOrderPayments() {
         orderId,
         {
           amountCents: -Math.abs(payment.amount_cents),
-          note: `撤销 #${payment.id}`
+          note: i18n.global.t('orderDetail.paymentRevertNote', { id: payment.id })
         },
         { headers: { 'idempotency-key': submitIdemKey } }
       )

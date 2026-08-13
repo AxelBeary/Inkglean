@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="price-calc-page">
     <h2 class="od-page-title">{{ $t('priceCalc.title') }}</h2>
     <p class="page-sub">{{ $t('priceCalc.subtitle') }}</p>
@@ -261,8 +261,8 @@ onUnmounted(() => {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .price-calc-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
-.calc-empty { margin-top: 24px; padding: 24px; text-align: center; color: var(--ink3, #888); background: var(--card, #fff); border: 1px dashed var(--line, #e5e5e5); border-radius: var(--r-m, 8px); }
+.page-sub { margin-top: 6px; }
+.calc-empty { margin-top: 24px; padding: 24px; text-align: center; color: var(--ink3); background: var(--card); border: 1px dashed var(--line); border-radius: var(--r-m, 8px); }
 /* 加载失败错误态（对齐 dashboard module-error） */
 .module-error {
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -270,15 +270,15 @@ onUnmounted(() => {
 }
 
 .calc-step { margin-top: 22px; }
-.calc-step-label { font-size: 14px; font-weight: 600; color: var(--ink2, #555); margin-bottom: 10px; }
+.calc-step-label { font-size: 14px; font-weight: 600; color: var(--ink2); margin-bottom: 10px; }
 
 .style-cards, .size-cards { display: flex; flex-wrap: wrap; gap: 10px; }
 .style-card, .size-card {
   padding: 10px 16px;
-  border: 1px solid var(--line2, #dcdcdc);
+  border: 1px solid var(--line2);
   border-radius: var(--r-m, 8px);
-  background: var(--card, #fff);
-  color: var(--ink2, #555);
+  background: var(--card);
+  color: var(--ink2);
   font-size: 14px;
   cursor: pointer;
   transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
@@ -286,7 +286,7 @@ onUnmounted(() => {
 .style-card:hover, .size-card:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--ink); }
 .style-card:active, .size-card:active { transform: scale(0.98); }
 .style-card--active, .size-card--active {
-  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 12%, var(--card, #fff));
+  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 12%, var(--card));
   border-color: var(--hq, var(--el-color-primary));
   color: var(--hq, var(--el-color-primary));
   font-weight: 600;
@@ -295,31 +295,31 @@ onUnmounted(() => {
 .size-card { display: flex; flex-direction: column; gap: 2px; min-width: 120px; text-align: left; }
 .size-card-name { font-weight: 600; }
 .size-card-price { font-size: 13px; }
-.size-card-days { font-size: 12px; color: var(--ink3, #888); }
+.size-card-days { font-size: 12px; color: var(--ink3); }
 
 .addon-list { display: flex; flex-direction: column; gap: 10px; }
 .addon-item {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 12px 16px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--r-m, 8px);
 }
 .addon-item-info { display: flex; flex-direction: column; gap: 2px; }
 .addon-item-name { font-size: 14px; color: var(--ink); }
-.addon-item-price { font-size: 12px; color: var(--ink3, #888); }
+.addon-item-price { font-size: 12px; color: var(--ink3); }
 
 
 .calc-result {
   margin-top: 24px; padding: 20px 24px;
-  background: var(--card, #fff);
+  background: var(--card);
   border: 1px solid var(--hq, var(--el-color-primary));
   border-radius: var(--r-m, 8px);
   box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
-.calc-result-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line, #e5e5e5); font-weight: 600; }
+.calc-result-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-weight: 600; }
 .calc-result-total { font-size: 22px; color: var(--hq, var(--el-color-primary)); font-weight: 700; }
-.calc-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; font-size: 14px; color: var(--ink2, #555); }
-.calc-line--dim { color: var(--ink3, #888); font-size: 13px; }
-.calc-disclaimer { margin-top: 12px; font-size: 12px; color: var(--ink3, #888); }
+.calc-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; font-size: 14px; color: var(--ink2); }
+.calc-line--dim { color: var(--ink3); font-size: 13px; }
+.calc-disclaimer { margin-top: 12px; font-size: 12px; color: var(--ink3); }
 </style>

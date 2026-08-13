@@ -197,6 +197,16 @@ const route = useRoute()
 const router = useRouter()
 const store = useArtistStore()
 
+/** 登录成功跳转：消费守卫带来的 ?redirect=（限站内路径，防开放跳转），兜底统一落地画师面板；停留 500ms 让用户看见成功反馈 */
+function goAfterLogin(route) {
+  const redirect = route.query.redirect
+  // 812-B6: 管理员与普通画师默认落地一致为画师面板；手动访问 /admin 由 requiresAdmin 守卫放行
+  const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
+    ? redirect
+    : '/dashboard'
+  setTimeout(() => router.push(target), 500)
+}
+
 // 纸墨 token 作用域由路由守卫统一接管（login/dashboard 同属后台作用域，
 // 过渡全程 attr 不摘——组件内 onUnmounted 摘除会与守卫竞态，造成墨黑登录闪白，已移除）
 
@@ -434,12 +444,7 @@ async function passkeyLogin() {
     // REQ-043 I6-e: Passkey 登录同样走 store 会话落地（原实现漏同步 store，跳转会被守卫拦截）
     store.applySession(result.artist, result.isAdmin)
     loginOk.value = true
-    const redirect = route.query.redirect
-    // 812-B6: 管理员与普通画师默认落地一致为画师面板；手动访问 /admin 由 requiresAdmin 守卫放行
-    const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
-      ? redirect
-      : '/dashboard'
-    setTimeout(() => router.push(target), 500)
+    goAfterLogin(route)
   } catch (err) {
     // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
     if (isWebAuthnCancellation(err) || (err instanceof Error && err.message === 'cancelled')) {
@@ -487,13 +492,7 @@ async function login() {
     await store.login(qq, cd)
     // 成功反馈落按钮（石绿 + 文案），停留 500ms 让用户看见再跳
     loginOk.value = true
-    // 消费守卫带来的 ?redirect=（限站内路径，防开放跳转），兜底统一落地画师面板（812-B6）
-    const redirect = route.query.redirect
-    // 812-B6: 管理员登录后默认落在画师面板（管理后台入口保留在侧栏，/admin 守卫不变）
-    const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
-      ? redirect
-      : '/dashboard'
-    setTimeout(() => router.push(target), 500)
+    goAfterLogin(route)
   } catch (err) {
     // 错误关联到具体字段；锁定类错误用后端 remainingLockMs 告知剩余时长
     // G-6（衔接批 F-9）: 旧登录码三码已退役，错误码按 REQ-027 TOTP 现状处理

@@ -19,7 +19,7 @@
           <el-input-number
             v-model="form.basePrice"
             :min="0"
-            :max="isPercent ? 1000 : 999999"
+            :max="isPercent ? ADDON_PERCENT_MAX : ADDON_FIXED_PRICE_MAX"
             :step="isPercent ? 5 : 10"
             :precision="isPercent ? 0 : undefined"
             style="width: 200px"
@@ -71,7 +71,7 @@
                   <el-input-number
                     v-model="row.diffPrice"
                     :min="0"
-                    :max="isPercent ? 1000 : 999999"
+                    :max="isPercent ? ADDON_PERCENT_MAX : ADDON_FIXED_PRICE_MAX"
                     :step="isPercent ? 5 : 10"
                     :precision="isPercent ? 0 : undefined"
                     size="small" style="width: 130px"
@@ -106,6 +106,7 @@
 import { reactive, computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX } from '../../constants/addon.js'
 import { artistApi } from '../../api/index.js'
 import { addonCategory, categoryLabel, addonPriceText } from './addon-utils.js'
 

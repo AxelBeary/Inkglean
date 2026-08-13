@@ -142,6 +142,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../../constants/pagination.js'
 // v0.38 第二批: 统一墨线空态（REQ-026 §二）
 import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
@@ -168,9 +169,9 @@ function onSearchClear() {
   loadOrders()
 }
 onUnmounted(() => clearTimeout(searchTimer))
-// #2: 复合筛选（active=非终态 / completed=done+delivered，客户端过滤）
+// #2: 复合筛选（active=非终态，过滤掉 done/delivered / completed=done+delivered，客户端过滤）
 const compositeFilter = ref('')
-const ACTIVE_STATUSES = ['pending', 'confirmed', 'wip', 'revision', 'done']
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'wip', 'revision']
 const COMPLETED_STATUSES = ['done', 'delivered']
 const displayedOrders = computed(() => {
   if (compositeFilter.value) {
@@ -189,7 +190,7 @@ function fullOrdersCacheKey() { return searchQuery.value.trim() || '' }
 function invalidateFullOrdersCache() { fullOrdersCache = null }
 const fetchProgress = ref(null) // { done, total } | null
 const page = ref(1)
-const pageSize = ref(50)
+const pageSize = ref(ORDER_LIST_UI_PAGE_SIZE)
 const total = ref(0)
 
 import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
@@ -221,7 +222,7 @@ async function fetchAllOrders() {
     return fullOrdersCache.items
   }
   const status = filter.value || undefined
-  const pageSize = 200
+  const pageSize = FETCH_ALL_PAGE_SIZE
   const all = []
   const first = await artistApi.getOrders(status, { page: 1, pageSize, q: q || undefined })
   const firstItems = first.items ?? first
@@ -339,14 +340,14 @@ onMounted(() => {
 @media (max-width: 768px) {
   .order-table-wrap { display: none; }
   .order-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
-  .order-card { display: block; background: var(--card, #fff); border: 1px solid var(--line, #e5e5e5); border-radius: 10px; padding: 12px 16px; cursor: pointer; text-decoration: none; color: inherit; }
+  .order-card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; cursor: pointer; text-decoration: none; color: inherit; }
   .order-card-top { display: flex; align-items: center; gap: 12px; }
   .order-card-thumb { width: 44px; height: 44px; border-radius: 6px; flex: none; }
   .order-card-main { flex: 1; min-width: 0; }
-  .order-card-no { font-weight: 700; color: var(--ink, #222); font-variant-numeric: tabular-nums; }
-  .order-card-sub { font-size: 12.5px; color: var(--ink3, #888); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .order-card-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .order-card-sub { font-size: 12.5px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .order-card-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-  .order-card-time { font-size: 12.5px; color: var(--ink3, #888); }
+  .order-card-time { font-size: 12.5px; color: var(--ink3); }
 }
 .no-thumb { color: var(--ink4); }
 @media (max-width: 600px) {

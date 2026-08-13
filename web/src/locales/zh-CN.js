@@ -434,7 +434,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     pick: '随机推荐',
     again: '换一个',
     disclaimer: '本推荐仅供参考，具体饮食请遵医嘱。',
-    emptyHint: '点上方「随机推荐」按钮，看看今天吃什么'
+    emptyHint: '点上方「随机推荐」按钮，看看今天吃什么',
+    // b4-6 保底方案：英文界面先说明菜名为中文原文（翻译量另行排期）
+    originalNamesNote: '当前为中文菜名，英文菜单制作中，敬请期待'
   },
   // REQ-031 A1: 收入导出 CSV（工具页文案）
   toolsExport: {
@@ -581,6 +583,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     textInputLabel: '水印文字',
     text: '文字水印',
     logo: 'LOGO 水印',
+    logoAlt: 'LOGO',
     uploadLogo: '上传透明底 LOGO',
     logoScale: 'LOGO 缩放',
     modeLabel: '水印模式',
@@ -724,6 +727,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   },
   artistHome: {
     commission: '我要约稿', track: '查询进度',
+    menuLabel: '菜单',
     noWorks: '暂无作品，敬请期待',
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败',
@@ -1157,12 +1161,14 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // REQ-025 二阶段: 负数（退款/撤销）时备注 label 切换（与提交强制校验一致）
     payRefundNoteLabel: '退款原因（必填）',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
+    paymentRevertNote: '撤销 #{id}',
     // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
     payAmountInvalid: '收款金额须大于 0',
     payAmountZero: '金额不能为 0', payRefundNoteRequired: '录入负数（退款/撤销）时必须填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
     payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',
+    nodePayNoteFallback: '{name}收款',
     // v0.31 F5 → REQ-025 二阶段: 待收横幅（主信息=订单级总待收，副信息=当前节点）
     totalDueLabel: '共待收 {amount}', currentDueSuffix: '当前：{name} {amount}',
     // v0.31 五号方案A：改价按钮
@@ -1477,6 +1483,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮（3-9 个）',
     quickHint: '勾选后点保存生效，仪表盘快捷区将按此显示。',
     quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存', quickLimitError: '请选择 3-9 个快捷按钮',
+    quickActionBadge: '⚡动作',
     quickLocalFallback: '已保存到本地（服务端暂不可用，下次打开自动同步）',
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
@@ -1583,7 +1590,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 批4 B10（方案 b）：活跃订单存在时后端附 appliesToNewOrdersOnly，提示仅影响新订单
     paymentNewOrdersOnly: '比例已保存，仅影响新订单（已有订单按下单时快照不变）',
     dragHandle: '拖拽调整比例', editPercent: '修改「{name}」收款比例', minPercent: '比例不能低于 5%', finalTooLow: '尾款比例不足，无法分配',
-    reorderLabel: '调整节点顺序', moveUp: '上移节点', moveDown: '下移节点', deleteStage: '删除节点',
+    reorderLabel: '调整节点顺序', moveUp: '上移节点', moveDown: '下移节点', deleteStage: '删除节点', dragSort: '拖拽排序',
     reset: '恢复默认模板', resetConfirm: '确定恢复默认模板？你当前的所有自定义节点和比例将被覆盖，此操作无法撤销。', resetDone: '已恢复默认模板',
     descPlaceholder: '点击添加说明',
     // plan-node-speech：节点话术（{客户名}等为后端变量契约，中英文界面均保持中文原文）
@@ -1593,6 +1600,18 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // #8: 话术界面改进（变量公共区 + 折叠预览）
     speechVarCommon: '话术变量（点下方编辑框后再点变量插入）', speechVarNoFocus: '先点击某个节点的话术编辑框',
     speechEmpty: '暂无话术',
+    // b4-11: 变量按钮显示名键化（插入仍走后端中文契约 token，见 StageListView SPEECH_VARS）
+    speechVar: {
+      clientName: "{'{'}客户名{'}'}",
+      clientQq: "{'{'}客户QQ{'}'}",
+      orderNo: "{'{'}订单号{'}'}",
+      tierName: "{'{'}档位名{'}'}",
+      stageName: "{'{'}节点名{'}'}",
+      deadline: "{'{'}截稿日{'}'}",
+      totalPrice: "{'{'}总价{'}'}",
+      paid: "{'{'}已付{'}'}",
+      unpaid: "{'{'}待付{'}'}"
+    },
     // v0.27: 多模板随机开关
     randomTemplate: '随机', randomTemplateHint: '多条话术时可开启，发送时随机选一条',
     // 05I: 管理员默认流程（默认模板无话术字段，保存话术时拦截提示）
@@ -2105,5 +2124,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     amountRequired: '请输入定金金额',
     amountPositive: '定金金额须大于 0',
     dateRequired: '请选择日期'
+  },
+  // b4-10: 消息解析线索显示（zh/en 各自日期格式）
+  messageParser: {
+    deadlineDay: '{day}号前',
+    deadlineDate: '{month}月{day}日'
   }
 }

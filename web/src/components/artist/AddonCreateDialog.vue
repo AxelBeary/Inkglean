@@ -45,7 +45,7 @@
         <el-input-number
           v-model="form.default_price"
           :min="0"
-          :max="form.price_mode === 'percent' ? 1000 : 999999"
+          :max="form.price_mode === 'percent' ? ADDON_PERCENT_MAX : ADDON_FIXED_PRICE_MAX"
           :step="form.price_mode === 'percent' ? 5 : 10"
           :precision="form.price_mode === 'percent' ? 0 : undefined"
           style="width: 200px"
@@ -79,6 +79,7 @@
 import { reactive, ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon.js'
 
 const { t } = useI18n()
 
@@ -98,7 +99,7 @@ const form = reactive({
   category: 'add',
   control_type: 'switch',
   price_mode: 'fixed',
-  default_price: 50,
+  default_price: ADDON_DEFAULT_PRICE,
   unit_label: '',
   max_quantity: 99
 })
@@ -108,7 +109,7 @@ function initForm() {
   form.category = 'add'
   form.control_type = 'switch'
   form.price_mode = 'fixed'
-  form.default_price = 50
+  form.default_price = ADDON_DEFAULT_PRICE
   form.unit_label = ''
   form.max_quantity = 99
 }
@@ -118,7 +119,7 @@ watch(() => form.category, (cat) => {
   if (cat !== 'add') {
     form.price_mode = 'percent'
     form.control_type = 'switch'
-    if (form.default_price > 1000) form.default_price = 50
+    if (form.default_price > ADDON_PERCENT_MAX) form.default_price = ADDON_DEFAULT_PRICE
   }
 })
 
@@ -159,7 +160,7 @@ async function submit() {
     ElMessage.warning(t('styleManage.createNameRequired'))
     return
   }
-  if (form.price_mode === 'percent' && (!Number.isInteger(form.default_price) || form.default_price > 1000)) {
+  if (form.price_mode === 'percent' && (!Number.isInteger(form.default_price) || form.default_price > ADDON_PERCENT_MAX)) {
     ElMessage.warning(t('styleManage.createPercentRangeHint'))
     return
   }

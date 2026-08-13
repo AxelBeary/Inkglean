@@ -1,9 +1,9 @@
 <template>
   <div class="puzzle-page">
     <h2 class="od-page-title">{{ $t('puzzle.title') }}</h2>
-    <p class="puzzle-sub">{{ $t('puzzle.subtitle') }}</p>
+    <p class="page-sub">{{ $t('puzzle.subtitle') }}</p>
 
-    <div class="puzzle-panel">
+    <div class="page-card puzzle-panel">
       <!-- ① 选择订单 -->
       <div class="puzzle-field">
         <span class="puzzle-label">{{ $t('puzzle.selectOrder') }}</span>
@@ -87,6 +87,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../api/index.js'
+import { INK_PALETTE } from '../../utils/ink-palette.js'
 
 const { t } = useI18n()
 
@@ -229,7 +230,7 @@ async function buildCanvas(imgs) {
   canvas.width = canvasW
   canvas.height = canvasH
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#FFFFFF'
+  ctx.fillStyle = INK_PALETTE.white
   ctx.fillRect(0, 0, canvasW, canvasH)
   rows.forEach((row, ri) => {
     const rowW = rowWidths[ri]
@@ -299,15 +300,11 @@ onMounted(loadOrders)
 /* 纸墨 token 体系（--paper/--ink/--hq/--card/--line），亮暗双主题自动适配 */
 .puzzle-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.puzzle-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+.page-sub { margin-top: 6px; }
 
 .puzzle-panel {
   margin-top: 20px;
   padding: 22px 24px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
 .puzzle-field { margin-top: 18px; }
 .puzzle-field:first-child { margin-top: 0; }
@@ -318,7 +315,7 @@ onMounted(loadOrders)
   font-weight: 600;
   color: var(--ink);
 }
-.puzzle-count { font-style: normal; font-size: 12px; color: var(--ink3, #888); margin-left: 4px; }
+.puzzle-count { font-style: normal; font-size: 12px; color: var(--ink3); margin-left: 4px; }
 .puzzle-order-select { width: 100%; }
 
 .puzzle-thumbs { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -326,15 +323,15 @@ onMounted(loadOrders)
   position: relative;
   width: 132px;
   height: 96px;
-  border: 2px solid var(--line, #e5e5e5);
+  border: 2px solid var(--line);
   border-radius: var(--r-s, 6px);
   overflow: hidden;
   cursor: pointer;
-  background: var(--paper, #faf8f2);
+  background: var(--paper);
   transition: border-color var(--dur-fast);
 }
-.puzzle-thumb:hover { border-color: var(--hq, #33526e); }
-.puzzle-thumb.picked { border-color: var(--hq, #33526e); box-shadow: 0 0 0 2px var(--hq-t, #e9eff4); }
+.puzzle-thumb:hover { border-color: var(--hq); }
+.puzzle-thumb.picked { border-color: var(--hq); box-shadow: 0 0 0 2px var(--hq-t); }
 .puzzle-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .puzzle-thumb-badge {
   position: absolute;
@@ -356,12 +353,12 @@ onMounted(loadOrders)
   line-height: 20px;
   text-align: center;
   border-radius: 10px;
-  background: var(--hq, #33526e);
+  background: var(--hq);
   color: #fff;
   font-size: 12px;
   font-weight: 700;
 }
-.puzzle-empty { margin: 0; font-size: 13px; color: var(--ink3, #888); }
+.puzzle-empty { margin: 0; font-size: 13px; color: var(--ink3); }
 
 .puzzle-order-list { display: flex; flex-direction: column; gap: 8px; }
 .puzzle-order-item {
@@ -369,24 +366,24 @@ onMounted(loadOrders)
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: var(--paper, #faf8f2);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: var(--r-s, 6px);
 }
 .puzzle-order-tag { flex: none; }
 .puzzle-order-name { flex: 1; font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.puzzle-order-kind { flex: none; font-size: 12px; color: var(--ink3, #888); }
+.puzzle-order-kind { flex: none; font-size: 12px; color: var(--ink3); }
 .puzzle-order-actions { flex: none; display: flex; gap: 6px; }
 
 .puzzle-canvas {
   display: block;
   max-width: 100%;
   height: auto;
-  border: 1px solid var(--line, #e5e5e5);
+  border: 1px solid var(--line);
   border-radius: var(--r-s, 6px);
   background: #fff;
 }
-.puzzle-preview-hint { font-size: 13px; color: var(--ink3, #888); }
+.puzzle-preview-hint { font-size: 13px; color: var(--ink3); }
 .puzzle-error { margin-top: 12px; }
 .puzzle-actions { margin-top: 14px; }
 </style>

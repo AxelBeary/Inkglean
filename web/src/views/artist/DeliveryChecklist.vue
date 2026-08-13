@@ -3,7 +3,7 @@
     <h2 class="od-page-title">{{ $t('deliveryChecklist.title') }}</h2>
     <p class="page-sub">{{ $t('deliveryChecklist.subtitle') }}</p>
 
-    <section class="cl-card">
+    <section class="page-card cl-card">
       <header class="cl-head">
         <span class="cl-progress">
           {{ $t('deliveryChecklist.progress', { done: doneCount, total: totalCount }) }}
@@ -35,11 +35,11 @@
 
       <div class="cl-add">
         <input
-          v-model="newText" type="text" class="cl-input"
+          v-model="newText" type="text" class="field cl-input"
           :placeholder="$t('deliveryChecklist.addPlaceholder')" maxlength="80"
           @keyup.enter="addItem"
         />
-        <button type="button" class="cl-btn" :disabled="!newText.trim()" @click="addItem">
+        <button type="button" class="btn-primary cl-btn" :disabled="!newText.trim()" @click="addItem">
           {{ $t('deliveryChecklist.add') }}
         </button>
       </div>
@@ -150,15 +150,11 @@ onMounted(loadState)
 /* 纸墨 token 体系（--paper/--ink/--hq/--sl/--card/--line），亮暗双主题自动适配 */
 .checklist-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 8px; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
+.page-sub { margin-top: 8px; }
 
 .cl-card {
   margin-top: 20px;
   padding: 20px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  box-shadow: var(--sh-1);
 }
 
 .cl-head { display: flex; align-items: center; gap: 12px; }
@@ -225,27 +221,8 @@ onMounted(loadState)
 .cl-input {
   flex: 1;
   min-width: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-m);
-  background: var(--paper2);
-  color: var(--ink);
-  font-size: calc(var(--font-scale, 1) * 14px);
-  transition: border-color var(--dur-fast);
 }
-.cl-input:focus { border-color: var(--hq); outline: none; }
 .cl-btn {
   flex: none;
-  padding: 8px 16px;
-  border: 1px solid var(--hq);
-  border-radius: var(--r-m);
-  background: var(--hq);
-  color: #fff;
-  font-size: calc(var(--font-scale, 1) * 13px);
-  cursor: pointer;
-  transition: background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
-.cl-btn:hover:not(:disabled) { background: var(--hq-d); border-color: var(--hq-d); }
-.cl-btn:active:not(:disabled) { transform: scale(0.98); }
-.cl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

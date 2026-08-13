@@ -16,7 +16,7 @@ vi.mock('element-plus', () => ({
   ElMessage: { error: h.msgError, success: vi.fn(), warning: vi.fn(), info: vi.fn() }
 }))
 
-vi.mock('../../api/index.js', () => ({
+vi.mock('../../../api/index.js', () => ({
   artistApi: {
     getAllOrders: h.getAllOrders,
     getOrder: h.getOrder

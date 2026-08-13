@@ -1,9 +1,9 @@
 <template>
   <div class="schedule-page">
     <h2 class="od-page-title">{{ $t('schedule.title') }}</h2>
-    <p class="schedule-sub">{{ $t('schedule.subtitle') }}</p>
+    <p class="page-sub">{{ $t('schedule.subtitle') }}</p>
 
-    <div class="schedule-panel">
+    <div class="page-card schedule-panel">
       <div v-if="loading" class="schedule-loading">{{ $t('schedule.loading') }}</div>
 
       <!-- 加载失败错误态 + 重试（失败时不渲染空数据档期卡） -->
@@ -17,7 +17,7 @@
         <div class="schedule-card">
           <div class="schedule-card-head">
             <span class="schedule-card-title">{{ $t('schedule.title') }}</span>
-            <span class="schedule-card-date">{{ todayText }}</span>
+            <span class="schedule-card-date">{{ todayStr }}</span>
           </div>
           <div class="schedule-card-artist">{{ artistName }}</div>
           <span class="schedule-card-status" :class="statusKey">{{ statusText }}</span>
@@ -54,6 +54,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../api/index.js'
+import { todayStr } from '../../utils/datetime.js'
+import { INK_PALETTE } from '../../utils/ink-palette.js'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
 import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
@@ -113,11 +115,6 @@ function fmtDate(v) {
   return s.slice(0, 10)
 }
 
-function todayText() {
-  const now = new Date()
-  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
-}
-
 // ─── 排期文本（复制用） ───
 const previewText = computed(() => {
   const lines = []
@@ -153,9 +150,9 @@ const CARD_W = 620
 const CARD_PAD = 36
 
 const STATUS_COLORS = {
-  busy: { bg: '#F8EAE6', fg: '#BC3A2B' },
-  normal: { bg: '#E9EFF4', fg: '#33526E' },
-  free: { bg: '#EAF3EC', fg: '#2F7D54' }
+  busy: { bg: INK_PALETTE.zsT, fg: INK_PALETTE.zs },
+  normal: { bg: INK_PALETTE.hqT, fg: INK_PALETTE.hq },
+  free: { bg: INK_PALETTE.slT, fg: INK_PALETTE.sl }
 }
 
 function roundRectPath(ctx, x, y, w, h, r) {
@@ -205,25 +202,25 @@ async function drawCard() {
   canvas.width = W
   canvas.height = H
   ctx.clearRect(0, 0, W, H)
-  ctx.fillStyle = '#F5F4EF'
+  ctx.fillStyle = INK_PALETTE.paper
   ctx.fillRect(0, 0, W, H)
 
   let y = pad
 
   // 标题 + 日期
   ctx.font = font('700', 28)
-  ctx.fillStyle = '#33526E'
+  ctx.fillStyle = INK_PALETTE.hq
   ctx.textBaseline = 'top'
   ctx.fillText(t('schedule.title'), pad, y)
   ctx.font = font('400', 13)
-  ctx.fillStyle = '#757062'
-  const dateW = ctx.measureText(todayText()).width
-  ctx.fillText(todayText(), W - pad - dateW, y + 10)
+  ctx.fillStyle = INK_PALETTE.ink3
+  const dateW = ctx.measureText(todayStr()).width
+  ctx.fillText(todayStr(), W - pad - dateW, y + 10)
   y += 40 + 8
 
   // 画师名
   ctx.font = font('700', 24)
-  ctx.fillStyle = '#262520'
+  ctx.fillStyle = INK_PALETTE.ink
   ctx.fillText(artistName.value || '-', pad, y)
   y += 40 + 8
 
@@ -242,14 +239,14 @@ async function drawCard() {
 
   // 队列概览
   ctx.font = font('400', 16)
-  ctx.fillStyle = '#5A564B'
+  ctx.fillStyle = INK_PALETTE.ink2
   ctx.fillText(t('schedule.queueFormal', { n: formalCount.value }), pad, y)
   y += 28
   ctx.fillText(t('schedule.queueBuffer', { n: bufferCount.value }), pad, y)
   y += 28 + 4
 
   // 分隔线
-  ctx.strokeStyle = '#E7E4D9'
+  ctx.strokeStyle = INK_PALETTE.line
   ctx.lineWidth = 1
   ctx.beginPath()
   ctx.moveTo(pad, y)
@@ -259,11 +256,11 @@ async function drawCard() {
 
   // 近期截稿
   ctx.font = font('700', 15)
-  ctx.fillStyle = '#262520'
+  ctx.fillStyle = INK_PALETTE.ink
   ctx.fillText(t('schedule.deadlineSoon'), pad, y)
   y += 26
   ctx.font = font('400', 15)
-  ctx.fillStyle = '#5A564B'
+  ctx.fillStyle = INK_PALETTE.ink2
   if (topDeadlines.value.length) {
     for (const d of topDeadlines.value) {
       ctx.fillText('· #' + d.order_no + '  ' + fmtDate(d.deadline), pad, y)
@@ -277,7 +274,7 @@ async function drawCard() {
   // 底部落款
   y += 16
   ctx.font = font('400', 12)
-  ctx.fillStyle = '#757062'
+  ctx.fillStyle = INK_PALETTE.ink3
   ctx.fillText(t('schedule.brandFooter'), pad, y)
 
   return canvas.toDataURL('image/png')
@@ -296,7 +293,7 @@ async function downloadImage() {
   try {
     const dataUrl = await drawCard()
     if (!dataUrl) throw new Error('empty')
-    downloadDataUrl(dataUrl, 'schedule-' + todayText().replace(/-/g, '') + '.png')
+    downloadDataUrl(dataUrl, 'schedule-' + todayStr().replace(/-/g, '') + '.png')
     ElMessage.success(t('schedule.exported'))
   } catch {
     ElMessage.error(t('schedule.exportFailed'))
@@ -317,17 +314,13 @@ onMounted(loadAll)
 /* 纸墨 token 体系（--paper/--ink/--hq/--card/--line），亮暗双主题自动适配 */
 .schedule-page { padding: 24px; max-width: 760px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.schedule-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+.page-sub { margin-top: 6px; }
 
 .schedule-panel {
   margin-top: 20px;
   padding: 22px 24px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
-.schedule-loading { font-size: 13px; color: var(--ink3, #888); padding: 20px 0; }
+.schedule-loading { font-size: 13px; color: var(--ink3); padding: 20px 0; }
 .module-error {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
@@ -335,14 +328,14 @@ onMounted(loadAll)
 
 /* 预览卡片（与导出图同构，双主题自适应） */
 .schedule-card {
-  background: var(--paper, #faf8f2);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: var(--r-m, 8px);
   padding: 24px 28px;
 }
 .schedule-card-head { display: flex; align-items: baseline; justify-content: space-between; }
-.schedule-card-title { font-size: calc(var(--font-scale, 1) * 20px); font-weight: 700; color: var(--hq, #33526e); }
-.schedule-card-date { font-size: 12px; color: var(--ink3, #888); }
+.schedule-card-title { font-size: calc(var(--font-scale, 1) * 20px); font-weight: 700; color: var(--hq); }
+.schedule-card-date { font-size: 12px; color: var(--ink3); }
 .schedule-card-artist { margin-top: 14px; font-size: calc(var(--font-scale, 1) * 18px); font-weight: 700; color: var(--ink); }
 .schedule-card-status {
   display: inline-block;
@@ -351,23 +344,23 @@ onMounted(loadAll)
   border-radius: 14px;
   font-size: 13px;
 }
-.schedule-card-status.busy { background: var(--zs-t, #f8eae6); color: var(--zs, #bc3a2b); }
-.schedule-card-status.normal { background: var(--hq-t, #e9eff4); color: var(--hq, #33526e); }
-.schedule-card-status.free { background: var(--sl-t, #eaf3ec); color: var(--sl, #2f7d54); }
+.schedule-card-status.busy { background: var(--zs-t); color: var(--zs); }
+.schedule-card-status.normal { background: var(--hq-t); color: var(--hq); }
+.schedule-card-status.free { background: var(--sl-t); color: var(--sl); }
 .schedule-card-rows { margin-top: 14px; }
-.schedule-card-row { font-size: 14px; color: var(--ink2, #5a564b); line-height: 1.9; }
-.schedule-card-divider { margin: 12px 0; border-top: 1px solid var(--line, #e7e4d9); }
+.schedule-card-row { font-size: 14px; color: var(--ink2); line-height: 1.9; }
+.schedule-card-divider { margin: 12px 0; border-top: 1px solid var(--line); }
 .schedule-card-dl-title { font-size: 14px; font-weight: 700; color: var(--ink); }
 .schedule-card-dl { margin-top: 6px; }
-.schedule-card-dl-row { font-size: 14px; color: var(--ink2, #5a564b); line-height: 1.8; }
-.schedule-card-footer { margin-top: 16px; font-size: 12px; color: var(--ink3, #888); }
+.schedule-card-dl-row { font-size: 14px; color: var(--ink2); line-height: 1.8; }
+.schedule-card-footer { margin-top: 16px; font-size: 12px; color: var(--ink3); }
 
 .schedule-actions { margin-top: 16px; display: flex; gap: 10px; }
 .schedule-img {
   display: block;
   margin-top: 16px;
   max-width: 100%;
-  border: 1px solid var(--line, #e5e5e5);
+  border: 1px solid var(--line);
   border-radius: var(--r-s, 6px);
 }
 </style>

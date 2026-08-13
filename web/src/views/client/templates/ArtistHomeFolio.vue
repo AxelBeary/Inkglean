@@ -3,7 +3,7 @@
     <!-- 固定导航（滚动侦测高亮 + 移动端汉堡） -->
     <nav class="folio-nav">
       <span class="folio-nav-brand">{{ artist.name }}</span>
-      <button class="folio-nav-burger" @click="menuOpen = !menuOpen" aria-label="menu">
+      <button class="folio-nav-burger" @click="menuOpen = !menuOpen" :aria-label="t('artistHome.menuLabel')">
         <span></span><span></span><span></span>
       </button>
       <div class="folio-nav-links" :class="{ open: menuOpen }">

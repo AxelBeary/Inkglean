@@ -6,6 +6,9 @@
 //   FOOD_MENU     菜品数组，每条 { name: 菜名, tags: [分类key数组], note: 一句话点评 }
 //   FOOD_CATEGORIES 四类分类key -> 中文名（页面展示用）
 //
+// b4-6 结构预留：每条可追加 en 字段（英文菜名，翻译量另行排期）；
+// 当前英文界面由 FoodMenu.vue 顶部说明「菜名为中文原文」兜底。
+//
 // 四类 key：
 //   healthy  健康版（低卡/清淡/营养均衡家常菜）
 //   diabetes 糖尿病版（低GI/控糖友好）

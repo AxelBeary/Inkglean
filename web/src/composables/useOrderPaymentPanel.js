@@ -105,7 +105,7 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }) {
     try {
       await addPayment(routeId, {
         amountCents: cents,
-        note: nodePayForm.value.note || `${nodePayTarget.value.name}收款`,
+        note: nodePayForm.value.note || t('orderDetail.nodePayNoteFallback', { name: nodePayTarget.value.name }),
         installmentId: nodePayTarget.value.id
       })
       ElMessage.success(t('orderDetail.paySuccess'))

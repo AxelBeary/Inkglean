@@ -704,33 +704,8 @@ onUnmounted(() => {
 
 /* 滑块确认（与 QueueBoard R30e 视觉一致，朱砂=危险操作） */
 .slide-confirm-row { display: flex; align-items: center; gap: 8px; }
-.slide-confirm {
-  position: relative; flex: 1; height: 40px;
-  border-radius: 999px; overflow: hidden; user-select: none;
-  background: var(--zs-t);
-  border: 1px solid color-mix(in srgb, var(--zs) 45%, transparent);
-}
-.slide-confirm-fill {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  background: color-mix(in srgb, var(--zs) 28%, transparent);
-  transition: width 0.05s linear;
-}
-.slide-confirm-label {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--zs);
-  pointer-events: none;
-}
-.slide-confirm-thumb {
-  position: absolute; top: 2px; left: 2px;
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--zs); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700;
-  cursor: grab; touch-action: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-.slide-confirm-thumb:active { cursor: grabbing; }
+/* flex:1 仅 OrderDetail（行动条内撑满剩余宽度）；其余由 artist-tokens.css 公共 .slide-confirm 提供 */
+.slide-confirm { flex: 1; }
 
 /* ─── R30d: 流程进度 ─── */
 .stage-progress-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin: 12px 0 0; }

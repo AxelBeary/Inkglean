@@ -57,8 +57,10 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { artistApi } from '../../../api/index.js'
+import type { GuestbookMessage } from '../../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { UI_PAGE_SIZE } from '../../../constants/pagination.js'
 import { formatDateTime } from '../../../utils/datetime.js'
 import StatusChip from '../visual/StatusChip.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
@@ -66,10 +68,10 @@ import InkEmpty from '../visual/InkEmpty.vue'
 const { t } = useI18n()
 
 const state = ref<'loading' | 'ok' | 'error'>('loading')
-const guestbookMessages = ref<any[]>([])
+const guestbookMessages = ref<GuestbookMessage[]>([])
 const replyDrafts = reactive<Record<string, string>>({})
 
-const pendingCount = computed(() => guestbookMessages.value.filter((m: any) => m.status === 'pending').length)
+const pendingCount = computed(() => guestbookMessages.value.filter((m: GuestbookMessage) => m.status === 'pending').length)
 
 function chipType(status: string): string {
   const map: Record<string, string> = { pending: 'pend', approved: 'done', rejected: 'cancel' }
@@ -83,31 +85,31 @@ function statusLabel(status: string): string {
 async function load() {
   state.value = 'loading'
   try {
-    const res = await artistApi.getMessages({ pageSize: 20 })
-    guestbookMessages.value = (res.items || []).filter((m: any) => !m.deleted_by_admin)
+    const res = await artistApi.getMessages({ pageSize: UI_PAGE_SIZE })
+    guestbookMessages.value = (res.items || []).filter((m: GuestbookMessage) => !m.deleted_by_admin)
     state.value = 'ok'
   } catch {
     state.value = 'error'
   }
 }
 
-async function approveMsg(m: any) {
+async function approveMsg(m: GuestbookMessage) {
   try {
     const updated = await artistApi.approveMessage(m.id)
     Object.assign(m, updated)
     ElMessage.success(t('dashboard.guestbookApprovedMsg'))
-  } catch (err: any) { ElMessage.error(err.message) }
+  } catch (err: unknown) { ElMessage.error(err instanceof Error ? err.message : '') }
 }
 
-async function rejectMsg(m: any) {
+async function rejectMsg(m: GuestbookMessage) {
   try {
     await artistApi.rejectMessage(m.id)
     m.status = 'rejected'
     ElMessage.success(t('dashboard.guestbookRejectedMsg'))
-  } catch (err: any) { ElMessage.error(err.message) }
+  } catch (err: unknown) { ElMessage.error(err instanceof Error ? err.message : '') }
 }
 
-async function replyMsg(m: any) {
+async function replyMsg(m: GuestbookMessage) {
   const reply = (replyDrafts[m.id] || '').trim()
   if (!reply) return
   try {
@@ -115,7 +117,7 @@ async function replyMsg(m: any) {
     Object.assign(m, updated)
     replyDrafts[m.id] = ''
     ElMessage.success(t('dashboard.guestbookRepliedMsg'))
-  } catch (err: any) { ElMessage.error(err.message) }
+  } catch (err: unknown) { ElMessage.error(err instanceof Error ? err.message : '') }
 }
 
 onMounted(() => load())

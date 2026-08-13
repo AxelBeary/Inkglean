@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="note-page">
     <h2 class="od-page-title">{{ $t('note.title') }}</h2>
     <p class="page-sub">{{ $t('note.subtitle') }}</p>
@@ -23,7 +23,7 @@
     <!-- 条目列表 -->
     <div v-if="notes.length === 0" class="note-empty">{{ $t('note.empty') }}</div>
     <div v-else class="note-list">
-      <div v-for="n in notes" :key="n.id" class="note-item">
+      <div v-for="n in notes" :key="n.id" class="page-card note-item">
         <div class="note-item-head">
           <span class="note-item-title">{{ n.title || $t('note.untitled') }}</span>
           <div class="note-item-actions">
@@ -113,20 +113,20 @@ onMounted(() => {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .note-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+.page-sub { margin-top: 6px; }
 
 .note-form {
   margin-top: 20px; padding: 18px 20px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--r-m, 8px);
   display: flex; flex-direction: column; gap: 10px;
 }
 .note-input {
   padding: 9px 12px;
-  border: 1px solid var(--line2, #dcdcdc);
+  border: 1px solid var(--line2);
   border-radius: var(--r-m, 8px);
-  background: var(--paper, #faf9f6);
+  background: var(--paper);
   color: var(--ink);
   font-size: 14px;
   /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
@@ -135,9 +135,9 @@ onMounted(() => {
 .note-input:focus { border-color: var(--hq, var(--el-color-primary)); }
 .note-textarea {
   padding: 9px 12px;
-  border: 1px solid var(--line2, #dcdcdc);
+  border: 1px solid var(--line2);
   border-radius: var(--r-m, 8px);
-  background: var(--paper, #faf9f6);
+  background: var(--paper);
   color: var(--ink);
   font-size: 14px;
   line-height: 1.6;
@@ -149,25 +149,21 @@ onMounted(() => {
 .note-textarea:focus { border-color: var(--hq, var(--el-color-primary)); }
 .note-form-actions { display: flex; justify-content: flex-end; }
 
-.note-empty { margin-top: 20px; padding: 28px; text-align: center; color: var(--ink3, #888); background: var(--card, #fff); border: 1px dashed var(--line, #e5e5e5); border-radius: var(--r-m, 8px); }
+.note-empty { margin-top: 20px; padding: 28px; text-align: center; color: var(--ink3); background: var(--card); border: 1px dashed var(--line); border-radius: var(--r-m, 8px); }
 
 .note-list { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
 .note-item {
   padding: 16px 20px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
 .note-item-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .note-item-title { font-size: 14px; font-weight: 600; color: var(--ink); }
 .note-item-actions { display: flex; gap: 8px; }
 .note-mini-btn {
   padding: 4px 12px;
-  border: 1px solid var(--line2, #dcdcdc);
+  border: 1px solid var(--line2);
   border-radius: var(--r-m, 8px);
-  background: var(--paper, #faf9f6);
-  color: var(--ink2, #555);
+  background: var(--paper);
+  color: var(--ink2);
   font-size: 13px;
   cursor: pointer;
   /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
@@ -175,6 +171,6 @@ onMounted(() => {
 }
 .note-mini-btn:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--hq, var(--el-color-primary)); }
 .note-mini-btn:active { transform: scale(0.98); }
-.note-item-content { margin-top: 8px; font-size: 14px; line-height: 1.7; color: var(--ink2, #555); white-space: pre-wrap; }
-.note-item-time { display: block; margin-top: 8px; font-size: 12px; color: var(--ink3, #888); }
+.note-item-content { margin-top: 8px; font-size: 14px; line-height: 1.7; color: var(--ink2); white-space: pre-wrap; }
+.note-item-time { display: block; margin-top: 8px; font-size: 12px; color: var(--ink3); }
 </style>

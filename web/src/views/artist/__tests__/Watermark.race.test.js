@@ -18,11 +18,11 @@ const h = vi.hoisted(() => ({
   loadImage: vi.fn()
 }))
 
-vi.mock('../../stores/artist.js', () => ({
+vi.mock('../../../stores/artist.js', () => ({
   useArtistStore: () => ({ profile: { id: 1 }, artistName: '画师A' })
 }))
 
-vi.mock('../../api/index.js', () => ({
+vi.mock('../../../api/index.js', () => ({
   artistApi: {
     getOrder: h.getOrder,
     getAllOrders: h.getAllOrders,
@@ -30,14 +30,14 @@ vi.mock('../../api/index.js', () => ({
   }
 }))
 
-vi.mock('../../utils/watermark.js', () => ({
+vi.mock('../../../utils/watermark.js', () => ({
   WM_POSITIONS: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'],
   WM_POSITION_CORNERS: 'corners',
   loadImage: h.loadImage,
   composeWatermarked: h.compose
 }))
 
-vi.mock('../../utils/storage.js', () => ({
+vi.mock('../../../utils/storage.js', () => ({
   safeGetItem: () => null,
   safeSetItem: () => {}
 }))

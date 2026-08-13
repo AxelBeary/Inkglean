@@ -14,6 +14,9 @@ export const DESCRIPTION_MAX_LEN = 2000
 export const QQ_MIN_LEN = 5
 export const QQ_MAX_LEN = 15
 
+// b4-10: 线索显示文案走 i18n（zh/en 各自日期格式；解析正则仍是中文形态，保持后端/输入口径不变）
+import { i18n } from '../i18n/index.js'
+
 // 金额线索：预算 200 元 / 200元 / 预算1000元（允许 1-2 位小数）
 const AMOUNT_RE = /(?:预算\s*)?(\d{1,9}(?:\.\d{1,2})?)\s*元/g
 // 日期线索：x号前 / x月x日（x 为 1-2 位）
@@ -35,14 +38,14 @@ function collectAmounts(text) {
   return hints
 }
 
-/** 收集日期线索：规范化串（5号前 / 8月20日），未命中 null */
+/** 收集日期线索：按 locale 格式化（zh: 5号前 / 8月20日；en: before 5 / 8/20），未命中 null */
 function collectDeadline(text) {
   DEADLINE_DAY_RE.lastIndex = 0
   let m = DEADLINE_DAY_RE.exec(text)
-  if (m) return `${m[1]}号前`
+  if (m) return i18n.global.t('messageParser.deadlineDay', { day: m[1] })
   DEADLINE_DATE_RE.lastIndex = 0
   m = DEADLINE_DATE_RE.exec(text)
-  if (m) return `${m[1]}月${m[2]}日`
+  if (m) return i18n.global.t('messageParser.deadlineDate', { month: m[1], day: m[2] })
   return null
 }
 

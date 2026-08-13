@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <el-card style="max-width: 700px" v-loading="loading">
     <el-form :model="form" label-position="top" size="large">
@@ -12,21 +11,11 @@
       </el-form-item>
 
       <el-form-item :label="$t('settings.announcementLabel')">
-        <el-input
-          v-model="form.announcement" type="textarea" :rows="3"
-          :placeholder="$t('settings.announcementPlaceholder')"
-          maxlength="500" show-word-limit
-        />
+        <!-- eslint-disable-next-line vue/no-mutating-props -->
+        <el-input v-model="form.announcement" type="textarea" :rows="3" :placeholder="$t('settings.announcementPlaceholder')" maxlength="500" show-word-limit />
         <div class="form-hint">{{ $t('settings.announcementHint') }}</div>
-        <el-date-picker
-          v-model="form.announcementExpiresAt"
-          type="date"
-          value-format="YYYY-MM-DD"
-          :placeholder="$t('settings.announcementExpiresLabel')"
-          :disabled-date="disabledDate"
-          clearable
-          style="margin-top: 8px; width: 220px"
-        />
+        <!-- eslint-disable-next-line vue/no-mutating-props -->
+        <el-date-picker v-model="form.announcementExpiresAt" type="date" value-format="YYYY-MM-DD" :placeholder="$t('settings.announcementExpiresLabel')" :disabled-date="disabledDate" clearable style="margin-top: 8px; width: 220px" />
         <div class="form-hint">{{ $t('settings.announcementExpiresHint') }}</div>
       </el-form-item>
 
@@ -121,9 +110,25 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import ShopVisibilitySwitch from './ShopVisibilitySwitch.vue'
+import type { ArtistStatus } from '../../../api/types.js'
+
+/** 主页展示表单（对齐 Settings.vue form 形状；__k 为父级本地行标识） */
+interface ShowcaseLink {
+  url: string
+  platformId: number | null
+  __k?: number | string
+}
+
+interface ShowcaseForm {
+  status: ArtistStatus
+  announcement: string
+  announcementExpiresAt: string | null
+  customLinks: ShowcaseLink[]
+  inspirationTags: string[]
+}
 
 const props = defineProps<{
-  form: any
+  form: ShowcaseForm
   loading: boolean
   saving: boolean
   profileLoadFailed: boolean

@@ -17,9 +17,14 @@ const h = vi.hoisted(() => ({
   getOrders: vi.fn(() => Promise.resolve({ items: [] }))
 }))
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({ t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key) })
-}))
+// 部分 mock：保留真实 createI18n（stores/artist 顶层 import i18n/index 需初始化），仅覆写 useI18n
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    useI18n: () => ({ t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key) })
+  }
+})
 
 vi.mock('element-plus', async () => {
   const actual = await vi.importActual('element-plus')

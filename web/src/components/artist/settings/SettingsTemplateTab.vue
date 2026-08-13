@@ -88,15 +88,49 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
+import type { Artwork } from '../../../api/types.js'
+
+/** 模板与风格表单（对齐 Settings.vue form 的 template 域） */
+interface TemplateForm {
+  templateId: string
+  paletteId: string
+  accentColor: string | null
+  subdomain: string
+}
+
+/** 主题模板 DTO（Settings.vue templates computed 项） */
+interface TemplateOption {
+  id: string
+  name: string
+  desc: string
+  preview: Component[]
+}
+
+/** 色板 DTO（Settings.vue palettes computed 项） */
+interface PaletteOption {
+  id: string
+  name: string
+  desc: string
+  light: string
+  dark: string
+}
+
+/** 强调色预设（Settings.vue ACCENT_PRESETS 项） */
+interface AccentPreset {
+  color: string
+  nameKey: string
+}
+
 defineProps<{
-  form: any
+  form: TemplateForm
   loading: boolean
   saving: boolean
   profileLoadFailed: boolean
-  templates: any[]
-  palettes: any[]
-  accentPresets: any[]
-  coverPreview: any
+  templates: TemplateOption[]
+  palettes: PaletteOption[]
+  accentPresets: AccentPreset[]
+  coverPreview: Artwork | null
   coverLoading: boolean
 }>()
 
@@ -174,4 +208,3 @@ defineEmits<{
 }
 .cover-manage-link:hover { opacity: 0.75; text-decoration: underline; }
 </style>
-

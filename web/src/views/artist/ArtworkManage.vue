@@ -30,10 +30,10 @@
   </el-card>
 
   <!-- F7: 主图区（is_cover=1 单独展示，不在下方网格重复） -->
-  <div v-if="mainArtworks.length > 0" class="main-artwork-section">
+  <div v-if="covers.length > 0" class="main-artwork-section">
     <h3 class="section-label">{{ $t('artworks.mainImages') }}</h3>
     <div class="main-artwork-row">
-      <div v-for="art in mainArtworks" :key="art.id" class="main-artwork-card">
+      <div v-for="art in covers" :key="art.id" class="main-artwork-card">
         <el-image
           :src="`/uploads/${art.image_path}`" fit="cover" class="main-artwork-img"
           :alt="art.title || $t('artworks.image')"
@@ -238,6 +238,7 @@ import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { trackEvent } from '../../utils/track.js'
+import { UI_PAGE_SIZE } from '../../constants/pagination.js'
 
 const { t } = useI18n()
 
@@ -255,12 +256,12 @@ const artworks = ref([])
 const loading = ref(true)
 // v0.42 Step 6: 作品分页（20/页；封面置顶由后端排序保证，前端勿重排）
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(UI_PAGE_SIZE)
 const total = ref(0)
 
 // ─── F7: 主图去重（主图单独展示，网格只显示非主图） ───
-/** 主图列表（is_cover=1，按 cover_order 排序） */
-const mainArtworks = computed(() =>
+/** 封面列表单源（is_cover=1，按 cover_order 排序；字段缺失 fallback 0 保持后端原序） */
+const covers = computed(() =>
   artworks.value
     .filter(a => a.is_cover)
     .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
@@ -350,24 +351,37 @@ async function doBatchDelete() {
   }
 }
 
-async function handleUpload({ file }) {
-  // 05D-A2: 上传前校验（与粘贴路径一致：仅图片 + ≤10MB；超限不发送）
-  if (!file.type.startsWith('image/')) {
-    ElMessage.warning(t('upload.fileNotImage'))
-    return
-  }
-  if (file.size > 10 * 1024 * 1024) {
-    const sizeMB = (file.size / 1024 / 1024).toFixed(1)
-    ElMessage.warning(t('upload.fileTooBig', { name: file.name, size: sizeMB, max: 10 }))
-    return
-  }
-  try {
-    const uploaded = await uploadApi.image(file)
-    const res = await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName })
-    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
-    if (res?.warning?.sensitiveWords?.length) {
-      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+/**
+ * 单文件 上传 → createArtwork → 敏感词提示 共用链。
+ * 05D-A2 校验仅上传入口持有（validate=true）；粘贴路径维持现状不校验。
+ * @returns {Promise<{ filePath: string, originalName: string } | null>} 校验拦截返回 null；失败抛错由调用方处理
+ */
+async function publishArtworkFile(file, { validate = false } = {}) {
+  if (validate) {
+    // 05D-A2: 上传前校验（仅图片 + ≤10MB；超限不发送）
+    if (!file.type.startsWith('image/')) {
+      ElMessage.warning(t('upload.fileNotImage'))
+      return null
     }
+    if (file.size > 10 * 1024 * 1024) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1)
+      ElMessage.warning(t('upload.fileTooBig', { name: file.name, size: sizeMB, max: 10 }))
+      return null
+    }
+  }
+  const uploaded = await uploadApi.image(file)
+  const res = await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName || file.name })
+  // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
+  if (res?.warning?.sensitiveWords?.length) {
+    ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
+  }
+  return uploaded
+}
+
+async function handleUpload({ file }) {
+  try {
+    const uploaded = await publishArtworkFile(file, { validate: true })
+    if (!uploaded) return
     ElMessage.success(t('artworks.uploaded'))
     trackEvent('artist_action', { action: 'artwork_publish', source: 'upload' })
     await loadArtworks()
@@ -396,14 +410,11 @@ async function remove(art) {
 const coverBusyId = ref(null)
 
 /** 封面总数（多封面时卡片显示 cover_order 序号） */
-const coverCount = computed(() => artworks.value.filter(a => a.is_cover).length)
+const coverCount = computed(() => covers.value.length)
 
 /** 作品在封面序列中的序号（按 cover_order 排序，字段缺失 fallback 0 保持后端原序） */
 function coverOrderOf(art) {
-  const covers = artworks.value
-    .filter(a => a.is_cover)
-    .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
-  return covers.findIndex(a => a.id === art.id) + 1
+  return covers.value.findIndex(a => a.id === art.id) + 1
 }
 
 async function toggleCover(art) {
@@ -433,15 +444,13 @@ async function toggleCover(art) {
 const coverReordering = ref(false)
 
 async function moveCover(art, direction) {
-  const covers = artworks.value
-    .filter(a => a.is_cover)
-    .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
-  const idx = covers.findIndex(a => a.id === art.id)
+  const coverList = covers.value
+  const idx = coverList.findIndex(a => a.id === art.id)
   const swapIdx = idx + direction
-  if (swapIdx < 0 || swapIdx >= covers.length) return
+  if (swapIdx < 0 || swapIdx >= coverList.length) return
 
   // 交换位置
-  const orderedIds = covers.map(a => a.id)
+  const orderedIds = coverList.map(a => a.id)
   ;[orderedIds[idx], orderedIds[swapIdx]] = [orderedIds[swapIdx], orderedIds[idx]]
 
   coverReordering.value = true
@@ -541,12 +550,7 @@ async function saveArtworkEdit() {
 
 async function handlePasteArtworkFiles(files) {
   for (const file of files) {
-    const uploaded = await uploadApi.image(file)
-    const res = await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName || file.name })
-    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
-    if (res?.warning?.sensitiveWords?.length) {
-      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
-    }
+    await publishArtworkFile(file)
   }
   ElMessage.success(t('artworks.uploaded'))
   await loadArtworks()
@@ -692,32 +696,5 @@ onMounted(async () => {
 
 /* 滑块确认（与 OrderDetail/QueueBoard 视觉一致，朱砂=危险操作） */
 .batch-slide-hint { font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); margin-bottom: 16px; }
-.slide-confirm {
-  position: relative; height: 40px;
-  border-radius: 999px; overflow: hidden; user-select: none;
-  background: var(--zs-t);
-  border: 1px solid color-mix(in srgb, var(--zs) 45%, transparent);
-}
-.slide-confirm-fill {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  background: color-mix(in srgb, var(--zs) 28%, transparent);
-  transition: width 0.05s linear;
-}
-.slide-confirm-label {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--zs);
-  pointer-events: none;
-}
-.slide-confirm-thumb {
-  position: absolute; top: 2px; left: 2px;
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--zs); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700;
-  cursor: grab; touch-action: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-.slide-confirm-thumb:active { cursor: grabbing; }
 .batch-slide-alt { margin-top: 12px; display: flex; justify-content: center; }
 </style>
