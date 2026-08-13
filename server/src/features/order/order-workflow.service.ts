@@ -221,7 +221,8 @@ export function getStageInfo(order: OrderDetail): { currentStageId: number; curr
 /** 截稿日格式化为 X月X日（无则空串） */
 function formatDeadline(deadline: string | null): string {
   if (!deadline) return ''
-  const d = new Date(deadline.replace(' ', 'T'))
+  // d3 P2: 存储串为 UTC，解析必须补 Z（同 order-fields 正确写法），否则本地时区差一天
+  const d = new Date(deadline.replace(' ', 'T') + 'Z')
   if (isNaN(d.getTime())) return ''
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }

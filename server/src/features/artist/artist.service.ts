@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { isValidArtistCode } from '../../shared/validate.js'
+import { isValidArtistCode, RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import { normalizeLinkUrl, assertLinkLengthLimits, MAX_LINK_COUNT } from '../../shared/utils/platform.js'
 import { rederivePlatformId } from '../platform/platform.service.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
@@ -101,6 +101,11 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
   if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
     throw new AppError(E.SUBDOMAIN_FORMAT)
   }
+  // d2 P2: 服务层兜底保留词（路由黑名单可能被未来新调用方绕过；与 getAllArtists
+  // 的 subdomain != 'system' 隐身排除同语义，防抢注系统保留标识）
+  if (RESERVED_SUBDOMAINS.includes(subdomain as (typeof RESERVED_SUBDOMAINS)[number])) {
+    throw new AppError(E.SUBDOMAIN_FORMAT, 400, { hint: `子域名「${subdomain}」为系统保留词，请换一个` })
+  }
 
   // 身份码：默认用子域名大写，可自定义
   const code = (artistCode || subdomain.toUpperCase()).toUpperCase()
@@ -127,11 +132,13 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
   // audit-a P2-5: 三步写入（artists + commission_rules + seedArtistStages）包进同一事务，
   // 任一步失败整体回滚，杜绝半建画师（有主行无须知/无流程）；唯一性预检保留在事务外（错误码语义不变）
   const { seedArtistStages } = await import('./workflow.service.js')
+  // d2 P2: createArtist 与 updateArtist 的 bio 写入口消毒口径对齐（纵深防御）
+  const safeBio = bio ? sanitizeStoredText(String(bio)) : null
   const createTx = db.transaction((): number => {
     const result = db.prepare(`
       INSERT INTO artists (qq_number, name, subdomain, artist_code, bio)
       VALUES (?, ?, ?, ?, ?)
-    `).run(qqNumber, name, subdomain, code, bio || null)
+    `).run(qqNumber, name, subdomain, code, safeBio)
     const artistId = Number(result.lastInsertRowid)
 
     // 初始化空的约稿须知
@@ -420,10 +427,11 @@ export async function createArtwork(artistId: number, { imagePath, title, descri
 
   // REQ-022 F1: description 入列（发布为作品携带自由描述；旧调用不传 → null）
   // F-5（P3-18）: 作品描述入库前最小清洗（纵深防御）
+  // d2 P2: title 与 description 同口径清洗（此前仅 description 消毒，写入口不对称）
   // F7: sourceDeliverableId 可选——发布为作品时写入发布源，普通上传不传 → NULL（不受唯一索引约束）
   const result = db.prepare(
     'INSERT INTO artworks (artist_id, image_path, title, description, sort_order, width, height, source_deliverable_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(artistId, imagePath, title || null, description ? sanitizeStoredText(String(description)) : null, sortOrder, width, height, sourceDeliverableId ?? null)
+  ).run(artistId, imagePath, title ? sanitizeStoredText(String(title)) : null, description ? sanitizeStoredText(String(description)) : null, sortOrder, width, height, sourceDeliverableId ?? null)
 
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(Number(result.lastInsertRowid)) as Artwork | undefined
 }
@@ -439,7 +447,8 @@ export function deleteArtwork(artworkId: number): void {
 /** 更新作品（标题/自由描述）— 归属校验在路由层 */
 export function updateArtwork(artworkId: number, fields: { title?: string | null; description?: string | null }): Artwork | undefined {
   if (fields.title !== undefined) {
-    db.prepare('UPDATE artworks SET title = ? WHERE id = ?').run(fields.title || null, artworkId)
+    // d2 P2: title 与 description 同口径清洗（纵深防御，避免公开画廊原样出站脏数据）
+    db.prepare('UPDATE artworks SET title = ? WHERE id = ?').run(fields.title ? sanitizeStoredText(String(fields.title)) : null, artworkId)
   }
   if (fields.description !== undefined) {
     // F-5（P3-18）: 作品描述入库前最小清洗（纵深防御）

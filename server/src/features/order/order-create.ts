@@ -13,7 +13,11 @@ import { appendPriceEntry, checkOrderConservation } from './order-pricing.js'
 // 订单服务 - 下单子域（从 order.service.ts 拆出）
 // ============================================
 
-/** audit-a R-10: 下单总价封顶 = 99999999 元（分），与 updateFinalPrice 上限同量级 */
+/**
+ * audit-a R-10: 下单总价封顶 99,999,999 元 = 9,999,999,900 分。
+ * 注：updateFinalPrice 上限为 99,999,999 分（约 100 万元），两者量级不同、属各自独立校验；
+ * 是否统一为产品决策，本 P2 仅修正注释不改变行为。
+ */
 const MAX_ORDER_TOTAL_CENTS = 9_999_999_900
 
 // ─── 报价快照字符串生成（v0.11 R2） ───

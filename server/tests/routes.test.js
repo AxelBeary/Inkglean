@@ -816,20 +816,23 @@ describe('路由层测试 (Route Integration)', () => {
   // ─── 补充：note-image 上传测试（五号审计） ───
 
   describe('备注附图上传 (note-image)', () => {
+    const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+
     /** 构造 multipart/form-data 请求体 */
     function multipartBody(filename, contentType, content) {
       const boundary = '----TestBoundary' + Date.now()
-      const parts = [
-        '--' + boundary,
-        'Content-Disposition: form-data; name="file"; filename="' + filename + '"',
-        'Content-Type: ' + contentType,
-        '',
-        content,
-        '--' + boundary + '--'
-      ]
+      const head = Buffer.from(
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="file"; filename="' + filename + '"\r\n' +
+        'Content-Type: ' + contentType + '\r\n' +
+        '\r\n',
+        'utf8'
+      )
+      const body = Buffer.isBuffer(content) ? content : Buffer.from(content)
+      const tail = Buffer.from('\r\n--' + boundary + '--\r\n')
       return {
         boundary,
-        body: parts.join('\r\n')
+        body: Buffer.concat([head, body, tail])
       }
     }
 
@@ -837,7 +840,7 @@ describe('路由层测试 (Route Integration)', () => {
       const artist = seedArtist({ qq_number: '77820', subdomain: 'note-img' })
       const token = createSession(artist.id, artist.token_version)
 
-      const { boundary, body } = multipartBody('test.png', 'image/png', 'fake-png-data')
+      const { boundary, body } = multipartBody('test.png', 'image/png', PNG_1PX)
       const res = await app.inject({
         method: 'POST',
         url: '/api/upload/note-image',

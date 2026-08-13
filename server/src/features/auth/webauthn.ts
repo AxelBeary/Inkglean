@@ -28,7 +28,7 @@ interface ChallengeEntry {
   /** 关联的画师 ID（注册流程必填，认证流程可空） */
   artistId?: number
   /** challenge 用途 */
-  purpose: 'register' | 'login' | 'rebind-passkey'
+  purpose: 'register' | 'login'
   /** 过期时间戳 */
   expiresAt: number
   /** 附加数据（如 TOTP 重绑新 secret） */

@@ -11,6 +11,7 @@ import { publicArtistDTO } from '../../shared/dto.js'
 import QRCode from 'qrcode'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { clamp } from '../../shared/validate.js'
+import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -76,9 +77,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { qqNumber, name, subdomain, bio, artistCode } = (request.body as { qqNumber: string; name: string; subdomain: string; bio?: string | null; artistCode?: string | null }) || {}
 
-    // 子域名保留词黑名单（防止与系统路径冲突）
-    const RESERVED = ['admin', 'api', 'www', 'uploads', 'static', 'login', 'assets', 'dashboard', 'app']
-    if (RESERVED.includes(subdomain)) {
+    // 子域名保留词黑名单（防止与系统路径冲突；与 setup/invite 共用 validate.ts 常量）
+    if (RESERVED_SUBDOMAINS.includes(subdomain)) {
       return reply.code(400).send({ error: `子域名「${subdomain}」为系统保留词，请换一个` })
     }
 

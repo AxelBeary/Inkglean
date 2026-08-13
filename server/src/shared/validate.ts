@@ -16,6 +16,14 @@ const LIMITS: Record<string, number> = {
 }
 
 /**
+ * 画师子域名保留词（与 admin 建号 / setup / invite 三处共用，防系统路径与
+ * getAllArtists 的 subdomain='system' 隐身行冲突）。改动后三处写入口同步生效。
+ */
+export const RESERVED_SUBDOMAINS: readonly string[] = [
+  'admin', 'api', 'www', 'uploads', 'static', 'login', 'assets', 'dashboard', 'app', 'system'
+]
+
+/**
  * P1-B: 按 code point 截断字符串（避免 emoji/中文 surrogate pair 被切半）
  */
 function countCodePoints(str: string): number {

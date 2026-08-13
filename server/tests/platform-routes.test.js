@@ -298,6 +298,21 @@ describe('外链重做 + 社交平台 CRUD (REQ-022 F2)', () => {
       expect(res.json().enabled).toBe(false)
     })
 
+    it('TC-PL2-21b: PUT 存量脏 match_domains JSON 回退空域名表，不 500（d3 P2）', async () => {
+      const admin = setAdmin('77106')
+      const r = db.prepare(`
+        INSERT INTO social_platforms (name, icon_key, match_domains, sort_order, enabled)
+        VALUES ('脏平台', 'x', 'not-json', 1, 1)
+      `).run()
+      const res = await app.inject({
+        method: 'PUT', url: `/api/admin/platforms/${r.lastInsertRowid}`, headers: authHeader(admin),
+        payload: { name: '修复后' }
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().name).toBe('修复后')
+      expect(res.json().matchDomains).toEqual([])
+    })
+
     it('TC-PL2-22: PUT 不存在的平台 404', async () => {
       const admin = setAdmin('77107')
       const res = await app.inject({

@@ -48,7 +48,12 @@ export function withIdempotency(
     'SELECT status_code, response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
   ).get(scope, key) as { status_code: number; response_json: string } | undefined
   if (cached) {
-    return { statusCode: cached.status_code, body: JSON.parse(cached.response_json) }
+    // d3 P2: 缓存行损坏/被手工篡改 → 删掉坏行按未命中重执行，避免同 key 永久 500
+    try {
+      return { statusCode: cached.status_code, body: JSON.parse(cached.response_json) }
+    } catch {
+      db.prepare('DELETE FROM idempotency_keys WHERE scope = ? AND key = ?').run(scope, key)
+    }
   }
 
   const result = exec()

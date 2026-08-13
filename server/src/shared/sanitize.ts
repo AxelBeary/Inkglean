@@ -26,9 +26,9 @@ function removeTagPairs(input: string): string {
   return out
 }
 
-/** 去内联事件属性（on*），保留属性名前的空白避免标签粘连 */
+/** 去内联事件属性（on*），保留属性名前的空白/斜杠避免标签粘连 */
 function removeInlineEventAttributes(input: string): string {
-  return input.replace(/(\s)on[a-z][a-z0-9_]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '$1')
+  return input.replace(/([\s/])on[a-z][a-z0-9_]*(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '$1')
 }
 
 /** 去 javascript: 协议（大小写、字母间空白混淆均命中；保留其余文本） */

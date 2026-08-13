@@ -52,6 +52,13 @@ describe('REQ-043 I4 平台公告（服务层）', () => {
     expect(ann.title).not.toContain('<script')
   })
 
+  it('TC-ANN-03b: 读路径对 DB 脏 title 二次清洗（写路径已清洗，兜底直写/历史脏数据）', () => {
+    savePlatformAnnouncement({ title: '正常标题', content: '正常内容' })
+    db.prepare("UPDATE platform_config SET value = '<img src=x onerror=alert(1)>坏标题' WHERE key = 'announcement_title'").run()
+    const ann = getPlatformAnnouncement()
+    expect(ann.title).toBe('<img src=x >坏标题')
+  })
+
   it('TC-ANN-04: 标题/内容超长截断（schema 限长之外的纵深防御）', () => {
     savePlatformAnnouncement({ title: '题'.repeat(500), content: '文'.repeat(20000) })
     const ann = getPlatformAnnouncement()

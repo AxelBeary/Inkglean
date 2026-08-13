@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { parseSqliteUtcDate, localDateRangeToUtc, toLocalDateString } from '../../utils/date.js'
+import { parseSqliteUtcDate, localDateRangeToUtc, toLocalDateString, assertLocalDateString } from '../../utils/date.js'
 
 // ============================================
 // 画师工具服务（REQ-035 批A/批C + REQ-031 A1）
@@ -218,18 +218,9 @@ function toStandaloneIncome(row: StandaloneIncomeDbRow): StandaloneIncomeRow {
   return { id: row.id, amountCents: row.amount_cents, clientName: row.client_name, note: row.note, incomeDate: row.income_date }
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
 /** 校验 incomeDate 格式 + 真实日期（UTC 严格校验，避免本地时区偏移误判） */
 function assertIncomeDate(incomeDate: string): void {
-  if (!DATE_RE.test(incomeDate)) {
-    throw new AppError(E.VALIDATION, 400, { field: 'incomeDate', message: '日期格式须为 YYYY-MM-DD' })
-  }
-  const [y, m, d] = incomeDate.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d))
-  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
-    throw new AppError(E.VALIDATION, 400, { field: 'incomeDate', message: '日期无效' })
-  }
+  assertLocalDateString(incomeDate, 'incomeDate')
 }
 
 /** 列表（按 income_date 倒序；可选 from/to 时间段过滤） */

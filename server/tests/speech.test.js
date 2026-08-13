@@ -115,6 +115,13 @@ describe('话术变量替换 (replaceSpeechVars)', () => {
     expect(result).toBe('张三(123456789)，订单ALICE-001，档位半身像，已草稿确认。截稿8月5日，总价¥500，已付¥150，待付¥350。')
   })
 
+  it('TC-SP-07b: d3 P2——UTC 存储串补 Z 解析，UTC+8 夜间不差一天', () => {
+    const order = seedOrder(artist.id, { client_name: '夜班', client_qq: '888' })
+    order.deadline = '2026-08-12 20:00:00' // UTC 20:00 = 本地 8/13 04:00
+    const result = replaceSpeechVars('截稿{截稿日}', order, '')
+    expect(result).toBe('截稿8月13日')
+  })
+
   it('TC-SP-08: 空值替换为空字符串', () => {
     const order = seedOrder(artist.id, {
       client_name: null,

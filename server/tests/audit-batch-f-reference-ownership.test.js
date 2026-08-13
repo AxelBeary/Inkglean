@@ -10,22 +10,28 @@ import { join, resolve } from 'path'
 // A token 上传的文件 B token 挂不上；绑定后不可二次使用；存量未登记路径放行
 // ============================================
 
-/** 构造 multipart/form-data 请求体 */
+/** 构造 multipart/form-data 请求体（Buffer 拼装：d3 图片魔数校验要求真实文件头） */
 function multipartBody(filename, contentType, content) {
   const boundary = '----F10Boundary' + Date.now() + Math.random().toString(36).slice(2)
-  const parts = [
+  const head = Buffer.from([
     '--' + boundary,
     'Content-Disposition: form-data; name="file"; filename="' + filename + '"',
     'Content-Type: ' + contentType,
-    '',
-    content,
-    '--' + boundary + '--'
-  ]
-  return { boundary, body: parts.join('\r\n') }
+    ''
+  ].join('\r\n') + '\r\n')
+  const tail = Buffer.from('\r\n--' + boundary + '--')
+  const mid = Buffer.isBuffer(content) ? content : Buffer.from(String(content))
+  return { boundary, body: Buffer.concat([head, mid, tail]) }
 }
 
+/** 1x1 透明 PNG（真实魔数，过 d3 图片魔数校验） */
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64'
+)
+
 async function uploadReference(app, anonToken) {
-  const { boundary, body } = multipartBody('ref.png', 'image/png', 'fake-png-' + Date.now())
+  const { boundary, body } = multipartBody('ref.png', 'image/png', PNG_1X1)
   const headers = { 'content-type': 'multipart/form-data; boundary=' + boundary }
   if (anonToken) headers['x-anon-token'] = anonToken
   return app.inject({ method: 'POST', url: '/api/upload/reference', headers, payload: body })

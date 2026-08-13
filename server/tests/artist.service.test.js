@@ -258,4 +258,11 @@ describe('画师服务 (Artist Service)', () => {
       artistService.createArtist({ qqNumber: '77003', name: 'B', subdomain: 'dupsub', artistCode: 'OTHER' })
     ).rejects.toThrow('SUBDOMAIN_TAKEN')
   })
+
+  // d2 P2: 保留词 system 与 getAllArtists 的隐身排除冲突，服务层兜底拒绝
+  it('TC-R-10c: 保留词 system 被服务层兜底拒绝', async () => {
+    await expect(
+      artistService.createArtist({ qqNumber: '77004', name: '系统', subdomain: 'system' })
+    ).rejects.toThrow('SUBDOMAIN_FORMAT')
+  })
 })

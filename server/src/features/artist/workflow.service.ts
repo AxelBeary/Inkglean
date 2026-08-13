@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 import type { WorkflowStage } from '../../types/entities.js'
 
 // ============================================
@@ -162,7 +163,13 @@ export function addStage(artistId: number, { name, description }: { name: string
     ).run(artistId, insertAt)
     const result = db.prepare(
       "INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points, speech_template) VALUES (?, ?, ?, ?, 0, NULL, '{客户名}，你的订单已{节点名}。')"
-    ).run(artistId, name, description || null, insertAt)
+    ).run(
+      artistId,
+      // d2 P2: 流程节点名称/描述与 description/rules 同口径清洗（公开 workflow 原样出站）
+      sanitizeStoredText(name),
+      description ? sanitizeStoredText(String(description)) : null,
+      insertAt
+    )
     return toCamel(getStageById(Number(result.lastInsertRowid)))
   })()
 }
@@ -182,16 +189,16 @@ export function updateStage(artistId: number, stageId: number, fields: Record<st
     if (fields.name !== undefined) {
       if (!String(fields.name || '').trim()) throw new AppError(E.STAGE_NAME_EMPTY)
       db.prepare('UPDATE artist_workflow_stages SET name = ? WHERE id = ?')
-        .run(String(fields.name).trim(), stageId)
+        .run(sanitizeStoredText(String(fields.name).trim()), stageId)
     }
     if (fields.description !== undefined) {
       db.prepare('UPDATE artist_workflow_stages SET description = ? WHERE id = ?')
-        .run(fields.description || null, stageId)
+        .run(fields.description ? sanitizeStoredText(String(fields.description)) : null, stageId)
     }
     // plan-node-speech: 话术模板（可选，不传则不改）
     if (fields.speechTemplate !== undefined) {
       db.prepare('UPDATE artist_workflow_stages SET speech_template = ? WHERE id = ?')
-        .run(fields.speechTemplate || null, stageId)
+        .run(fields.speechTemplate ? sanitizeStoredText(String(fields.speechTemplate)) : null, stageId)
     }
     // v0.25 #8: 多模板随机开关
     if (fields.randomTemplate !== undefined) {
@@ -365,7 +372,15 @@ export function seedArtistStages(artistId: number): void {
     'INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points, speech_template) VALUES (?, ?, ?, ?, ?, ?, ?)'
   )
   for (const t of source) {
-    insert.run(artistId, t.name, t.description || null, t.sort_order, t.takes_payment ? 1 : 0, t.basis_points, DEFAULT_SPEECH)
+    insert.run(
+      artistId,
+      sanitizeStoredText(t.name),
+      t.description ? sanitizeStoredText(String(t.description)) : null,
+      t.sort_order,
+      t.takes_payment ? 1 : 0,
+      t.basis_points,
+      DEFAULT_SPEECH
+    )
   }
 }
 
@@ -386,7 +401,15 @@ export function resetArtistStages(artistId: number): StageCamel[] {
       'INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points, speech_template) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
     for (const t of tpl) {
-      insert.run(artistId, t.name, t.description || null, t.sort_order, t.takes_payment ? 1 : 0, t.basis_points, DEFAULT_SPEECH)
+      insert.run(
+        artistId,
+        sanitizeStoredText(t.name),
+        t.description ? sanitizeStoredText(String(t.description)) : null,
+        t.sort_order,
+        t.takes_payment ? 1 : 0,
+        t.basis_points,
+        DEFAULT_SPEECH
+      )
     }
     assertInvariants(artistId)
     return listCamel(artistId)
@@ -411,7 +434,13 @@ export function updateDefaultTemplate(nodes: Array<{ name: string; description?:
       const bp = n.takesPayment ? (n.basisPoints || 0) : null
       // P1-1: 收款节点必须满足最低比例
       if (n.takesPayment && bp! < MIN_BP) throw new AppError(E.BP_TOO_LOW, 400, { name: n.name })
-      insert.run(n.name, n.description || null, i + 1, n.takesPayment ? 1 : 0, bp)
+      insert.run(
+        sanitizeStoredText(n.name),
+        n.description ? sanitizeStoredText(String(n.description)) : null,
+        i + 1,
+        n.takesPayment ? 1 : 0,
+        bp
+      )
       if (n.takesPayment) { paySum += bp!; payCount++ }
     })
     // 校验
@@ -429,7 +458,13 @@ export function resetDefaultTemplate(): DefaultTemplateRow[] {
       'INSERT INTO default_workflow_template (name, description, sort_order, takes_payment, basis_points) VALUES (?, ?, ?, ?, ?)'
     )
     for (const t of DEFAULT_TEMPLATE) {
-      insert.run(t.name, t.description, t.sort_order, t.takes_payment, t.basis_points)
+      insert.run(
+        sanitizeStoredText(t.name),
+        t.description ? sanitizeStoredText(String(t.description)) : null,
+        t.sort_order,
+        t.takes_payment,
+        t.basis_points
+      )
     }
     return getDefaultTemplate()
   })()

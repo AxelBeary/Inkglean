@@ -557,5 +557,6 @@ export default async function authRoutes(fastify: FastifyInstance) {
   })
 }
 
-// 在外部引用 db（用于 TOTP rebind）
+// TOTP 重绑的重放防护需要直接写 totp_used_codes，故在本文件底部保留 db 引用
+//（该写路径与 top-level 认证流程无共用，独立注释便于后续维护时收敛）
 import db from '../../db/connection.js'

@@ -15,7 +15,7 @@ interface RateBucket {
 const buckets = new Map<string, RateBucket>()
 
 /**
- * @param {string} key - 限流键（如 `send-code:1.2.3.4`）
+ * @param {string} key - 限流键（如 `verify:1.2.3.4`）
  * @param {number} maxHits - 窗口内最大请求数
  * @param {number} windowMs - 窗口时长（毫秒）
  * @param {number} maxBuckets - 桶数量上限（默认 100_000；测试可传小值验证淘汰）
@@ -95,5 +95,12 @@ export function resetRateLimitBuckets(): void {
 
 // 定期清理过期桶（unref 避免阻止进程退出 / 测试挂起）
 // 保留：LRU 只处理「超上限」；「不活跃但未超上限」的 key 仍靠定时清理空桶/过期桶
-const _cleanup = setInterval(() => cleanupExpiredBuckets(), 60_000)
+// d3 P2: 定时器回调包 try/catch——清理器异常不得变成 uncaughtException 杀死进程
+const _cleanup = setInterval(() => {
+  try {
+    cleanupExpiredBuckets()
+  } catch (err) {
+    console.error('限流桶清理异常（已忽略，下一轮重试）', err)
+  }
+}, 60_000)
 _cleanup.unref()

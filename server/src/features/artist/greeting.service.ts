@@ -1,4 +1,5 @@
 import db from '../../db/connection.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 问候语服务
@@ -56,16 +57,17 @@ export function getGlobalGreetings(slot?: string): GreetingTemplate[] {
 
 export function createGlobalGreeting({ text, timeSlot }: { text: string; timeSlot?: string }): GreetingTemplate | undefined {
   const slot = SLOTS.includes(timeSlot || '') ? timeSlot : 'any'
+  // d2 P2: 问候语 text 写路径最小清洗（读路径保持原样，纯文本语义）
   const result = db.prepare(
     'INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, ?, ?)'
-  ).run(text, slot)
+  ).run(sanitizeStoredText(text), slot)
   return db.prepare('SELECT * FROM greeting_templates WHERE id = ?').get(Number(result.lastInsertRowid)) as GreetingTemplate | undefined
 }
 
 export function updateGreeting(id: number, { text, timeSlot, isEnabled }: { text?: string; timeSlot?: string; isEnabled?: boolean }): GreetingTemplate | undefined | null {
   const updates: string[] = []
   const values: unknown[] = []
-  if (text !== undefined) { updates.push('text = ?'); values.push(text) }
+  if (text !== undefined) { updates.push('text = ?'); values.push(sanitizeStoredText(String(text))) }
   if (timeSlot !== undefined && SLOTS.includes(timeSlot)) { updates.push('time_slot = ?'); values.push(timeSlot) }
   if (isEnabled !== undefined) { updates.push('is_enabled = ?'); values.push(isEnabled ? 1 : 0) }
   if (updates.length === 0) return null
@@ -86,8 +88,9 @@ export function getArtistGreetings(artistId: number): GreetingTemplate[] {
 
 export function createArtistGreeting(artistId: number, { text, timeSlot }: { text: string; timeSlot?: string }): GreetingTemplate | undefined {
   const slot = SLOTS.includes(timeSlot || '') ? timeSlot : 'any'
+  // d2 P2: 与全局问候语同口径清洗（专属库同样会投放到画师后台）
   const result = db.prepare(
     'INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (?, ?, ?)'
-  ).run(artistId, text, slot)
+  ).run(artistId, sanitizeStoredText(text), slot)
   return db.prepare('SELECT * FROM greeting_templates WHERE id = ?').get(Number(result.lastInsertRowid)) as GreetingTemplate | undefined
 }

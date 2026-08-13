@@ -58,14 +58,44 @@ export function parseSqliteUtcDate(sqliteUtc: string): Date {
 }
 
 /**
+ * 校验本地日期字符串（YYYY-MM-DD）为真实日历日（组件回读，避免 JS Date 静默归一化）。
+ * 用 setFullYear 显式构造，避免 0-99 年被 JS 映射到 1900 年代。
+ */
+export function isValidLocalDateString(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [y, m, d] = value.split('-').map(Number)
+  const dt = new Date(0)
+  dt.setFullYear(y, m - 1, d)
+  dt.setHours(0, 0, 0, 0)
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+}
+
+/** 校验并抛 400 VALIDATION（供 tools/order 写入口复用） */
+export function assertLocalDateString(value: string, field = 'date'): void {
+  if (!isValidLocalDateString(value)) {
+    throw new AppError(E.VALIDATION, 400, { field, message: '日期无效（须为真实存在的 YYYY-MM-DD）' })
+  }
+}
+
+/**
  * 本地日期区间 [from, to]（YYYY-MM-DD）→ SQLite UTC 半开窗口 [startUtc, endUtc)
  * 用于 created_at（UTC）按本地日历日过滤：字符串比较即可，无需 SQLite 时区函数
  */
 export function localDateRangeToUtc(from: string, to: string): { startUtc: string; endUtcExclusive: string } {
+  // d3 P2: 入口统一校验（路由 pattern 只验形态，这里补历法），并显式 setFullYear 防世纪漂移
+  assertLocalDateString(from, 'from')
+  assertLocalDateString(to, 'to')
   const [fy, fm, fd] = from.split('-').map(Number)
   const [ty, tm, td] = to.split('-').map(Number)
+  const start = new Date(0)
+  start.setFullYear(fy, fm - 1, fd)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(0)
+  end.setFullYear(ty, tm - 1, td + 1)
+  end.setHours(0, 0, 0, 0)
   return {
-    startUtc: toSqliteDate(new Date(fy, fm - 1, fd)),
-    endUtcExclusive: toSqliteDate(new Date(ty, tm - 1, td + 1))
+    startUtc: toSqliteDate(start),
+    endUtcExclusive: toSqliteDate(end)
   }
 }
+import { AppError, E } from '../shared/errors.js'

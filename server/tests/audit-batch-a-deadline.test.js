@@ -61,4 +61,14 @@ describe('audit-a P2-2 截稿日交叉校验', () => {
 
     expect(() => orderService.updateStartDate(order.id, localDateStr(twoDaysLater))).toThrow('INVALID_START_DATE')
   })
+
+  it('TC-P22-05: d3 P2——updateDeadline 拒绝越界 ISO 日与非 ISO 串（不再静默归一化）', () => {
+    expect(() => orderService.updateDeadline(order.id, '2026-02-31T00:00:00Z')).toThrow('INVALID_DEADLINE')
+    expect(() => orderService.updateDeadline(order.id, '31 Feb 2026')).toThrow('INVALID_DEADLINE')
+    expect(() => orderService.updateDeadline(order.id, '2026/02/31')).toThrow('INVALID_DEADLINE')
+  })
+
+  it('TC-P22-06: d3 P2——updateStartDate 拒绝 2026-02-31（历法回读）', () => {
+    expect(() => orderService.updateStartDate(order.id, '2026-02-31')).toThrow('INVALID_DEADLINE')
+  })
 })

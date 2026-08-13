@@ -12,19 +12,26 @@ import { buildApp } from '../src/app.js'
 /** 构造 multipart/form-data 请求体 */
 function multipartBody(filename, contentType, content) {
   const boundary = '----TestBoundary' + Date.now() + Math.random().toString(36).slice(2)
-  const parts = [
-    '--' + boundary,
-    'Content-Disposition: form-data; name="file"; filename="' + filename + '"',
-    'Content-Type: ' + contentType,
-    '',
-    content,
-    '--' + boundary + '--'
-  ]
+  const head = Buffer.from(
+    '--' + boundary + '\r\n' +
+    'Content-Disposition: form-data; name="file"; filename="' + filename + '"\r\n' +
+    'Content-Type: ' + contentType + '\r\n' +
+    '\r\n',
+    'utf8'
+  )
+  const body = Buffer.isBuffer(content) ? content : Buffer.from(content)
+  const tail = Buffer.from('\r\n--' + boundary + '--\r\n')
   return {
     boundary,
-    body: parts.join('\r\n')
+    body: Buffer.concat([head, body, tail])
   }
 }
+
+// d3 P2: 图片魔数校验后，成功用例必须用真实最小图片（不再用伪造字节）
+const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+const JPEG_1PX = Buffer.from('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==', 'base64')
+const GIF_1PX = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
+const WEBP_1PX = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEALmk0mk0iIiIiIgBoSygABc6zbAAA', 'base64')
 
 /** 快捷上传 */
 async function uploadFile(app, url, filename, contentType, content, token, anonToken) {
@@ -58,7 +65,7 @@ describe('上传路由 (Upload Routes)', () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
 
-      const res = await uploadFile(app, '/api/upload/image', 'test.png', 'image/png', 'fake-png', token)
+      const res = await uploadFile(app, '/api/upload/image', 'test.png', 'image/png', PNG_1PX, token)
       expect(res.statusCode).toBe(200)
       const json = res.json()
       expect(json.filePath).toContain('images/' + artist.id + '/')
@@ -74,7 +81,7 @@ describe('上传路由 (Upload Routes)', () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
 
-      const res = await uploadFile(app, '/api/upload/image', 'photo.jpg', 'image/jpeg', 'fake-jpg', token)
+      const res = await uploadFile(app, '/api/upload/image', 'photo.jpg', 'image/jpeg', JPEG_1PX, token)
       expect(res.statusCode).toBe(200)
       expect(res.json().mimeType).toBe('image/jpeg')
       expect(res.json().typeWarning).toBeNull()
@@ -84,7 +91,7 @@ describe('上传路由 (Upload Routes)', () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
 
-      const res = await uploadFile(app, '/api/upload/image', 'img.webp', 'image/webp', 'fake-webp', token)
+      const res = await uploadFile(app, '/api/upload/image', 'img.webp', 'image/webp', WEBP_1PX, token)
       expect(res.statusCode).toBe(200)
       expect(res.json().typeWarning).toBeNull()
     })
@@ -93,7 +100,7 @@ describe('上传路由 (Upload Routes)', () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
 
-      const res = await uploadFile(app, '/api/upload/image', 'anim.gif', 'image/gif', 'fake-gif', token)
+      const res = await uploadFile(app, '/api/upload/image', 'anim.gif', 'image/gif', GIF_1PX, token)
       expect(res.statusCode).toBe(200)
       // GIF 不在 RECOMMENDED_TYPES 中，应返回 typeWarning
       expect(res.json().typeWarning).toContain('建议转换')
@@ -163,7 +170,7 @@ describe('上传路由 (Upload Routes)', () => {
   describe('POST /api/upload/reference', () => {
     it('TC-U-11: 匿名凭证上传参考图成功（无需登录，F-10 需 x-anon-token）', async () => {
       const anonToken = await issueAnonToken(app)
-      const res = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref', null, anonToken)
+      const res = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', PNG_1PX, null, anonToken)
       expect(res.statusCode).toBe(200)
       const json = res.json()
       expect(json.filePath).toContain('references/')
@@ -181,7 +188,7 @@ describe('上传路由 (Upload Routes)', () => {
 
     it('TC-U-13: 参考图 GIF 返回格式建议', async () => {
       const anonToken = await issueAnonToken(app)
-      const res = await uploadFile(app, '/api/upload/reference', 'anim.gif', 'image/gif', 'gif-data', null, anonToken)
+      const res = await uploadFile(app, '/api/upload/reference', 'anim.gif', 'image/gif', GIF_1PX, null, anonToken)
       expect(res.statusCode).toBe(200)
       expect(res.json().typeWarning).toContain('建议转换')
     })
@@ -274,6 +281,15 @@ describe('上传路由 (Upload Routes)', () => {
       expect(res.statusCode).toBe(400)
     })
 
+    it('TC-U-21b: 交付文件内容为 HTML（绕过 MIME 头声明）→ 400（内容黑名单）', async () => {
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await uploadFile(app, '/api/upload/deliverable', 'fake.psd', 'application/octet-stream', '<!DOCTYPE html><html><script>alert(1)</script></html>', token)
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('UNSUPPORTED_FORMAT')
+    })
+
     it('TC-U-22: 无 token 返回 401', async () => {
       const res = await uploadFile(app, '/api/upload/deliverable', 'art.psd', 'image/vnd.adobe.photoshop', 'data', null)
       expect(res.statusCode).toBe(401)
@@ -322,9 +338,18 @@ describe('上传路由 (Upload Routes)', () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
 
-      const res = await uploadFile(app, '/api/upload/image', 'PHOTO.PNG', 'image/png', 'data', token)
+      const res = await uploadFile(app, '/api/upload/image', 'PHOTO.PNG', 'image/png', PNG_1PX, token)
       expect(res.statusCode).toBe(200)
       expect(res.json().filePath).toMatch(/\.png$/) // 小写化
+    })
+
+    it('TC-U-26b: 伪造图片内容（HTML 正文 + image/jpeg + .jpg）→ 400（魔数校验）', async () => {
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+
+      const res = await uploadFile(app, '/api/upload/image', 'evil.jpg', 'image/jpeg', '<!DOCTYPE html><html><body>pwn</body></html>', token)
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toBeTruthy()
     })
 
     it('TC-U-27: 空文件名被拒绝', async () => {
@@ -367,7 +392,7 @@ describe('上传路由 (Upload Routes)', () => {
     it('TC-ENV-01: 公开图片（images/）→ inline + 可缓存，无强制下载头', async () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
-      const up = await uploadFile(app, '/api/upload/image', 'public.png', 'image/png', 'fake-png', token)
+      const up = await uploadFile(app, '/api/upload/image', 'public.png', 'image/png', PNG_1PX, token)
       expect(up.statusCode).toBe(200)
       const url = up.json().url // /uploads/images/{id}/{nanoid}.png
 
@@ -380,7 +405,7 @@ describe('上传路由 (Upload Routes)', () => {
 
     it('TC-ENV-02: 参考图（references/）→ attachment + no-store', async () => {
       const anonToken = await issueAnonToken(app)
-      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref', null, anonToken)
+      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', PNG_1PX, null, anonToken)
       expect(up.statusCode).toBe(200)
       const url = up.json().url // 签名 URL，可直接 GET
 
@@ -405,7 +430,7 @@ describe('上传路由 (Upload Routes)', () => {
 
     it('TC-ENV-03b: 参考图签名 URL 拒绝无签名访问（F-10 归属登记后行为不变）', async () => {
       const anonToken = await issueAnonToken(app)
-      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref', null, anonToken)
+      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', PNG_1PX, null, anonToken)
       expect(up.statusCode).toBe(200)
       const filePath = up.json().filePath
       const raw = await app.inject({ method: 'GET', url: `/uploads/${filePath}` })
@@ -415,7 +440,7 @@ describe('上传路由 (Upload Routes)', () => {
     it('TC-ENV-04: 公开图片路径无签名也可访问（保持现状）', async () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
-      const up = await uploadFile(app, '/api/upload/image', 'public.png', 'image/png', 'fake-png', token)
+      const up = await uploadFile(app, '/api/upload/image', 'public.png', 'image/png', PNG_1PX, token)
       expect(up.statusCode).toBe(200)
       const url = up.json().url
 
@@ -424,7 +449,7 @@ describe('上传路由 (Upload Routes)', () => {
     })
 
     it('TC-ENV-05: 签名路径无有效签名 → 403', async () => {
-      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', 'fake-ref')
+      const up = await uploadFile(app, '/api/upload/reference', 'ref.png', 'image/png', PNG_1PX)
       const filePath = up.json().filePath
       const res = await app.inject({ method: 'GET', url: '/uploads/' + filePath })
       expect(res.statusCode).toBe(403)
