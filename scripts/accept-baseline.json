@@ -1,7 +1,7 @@
 {
   "server": 1367,
-  "web": 438,
+  "web": 436,
   "e2e": 11,
   "updatedAt": "2026-08-13",
-  "note": "验收基线用例数（813 战役合入后 master 实测：server 1367（verify-current +1 / dashboard-modules +2）/ web 438 / E2E 11）。测试用例增长合入后须同步更新本文件；accept.ps1 检测到实测数低于此基线即判红（防删测试凑绿）。"
+  "note": "验收基线用例数（813 战役合入后 master 实测：server 1367 / web 436（-2：RevenueChart 死测试随组件清退）/ E2E 11）。测试用例增长合入后须同步更新本文件；有意删死测试须同步降基线并在 note 说明；accept.ps1 检测到实测数低于此基线即判红（防删测试凑绿）。"
 }
