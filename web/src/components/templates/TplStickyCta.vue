@@ -65,7 +65,7 @@ defineProps({
 }
 .tpl-sticky-btn:hover:not(:disabled) {
   background: var(--color-primary-hover);
-  transform: translateY(-1px);
+  /* T 波：hover 禁位移——保留背景加深反馈 */
 }
 .tpl-sticky-btn:disabled {
   opacity: 0.35;

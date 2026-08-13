@@ -480,7 +480,8 @@ function ratioStyle(art) {
 /* 筛选切换淡出淡入 */
 .tpl-gallery-swap-enter-active,
 .tpl-gallery-swap-leave-active {
-  transition: opacity 0.22s var(--ease-out);
+  /* T 波：0.22s → --dur-mid(.25s) 就近等值 */
+  transition: opacity var(--dur-mid) var(--ease-out);
 }
 .tpl-gallery-swap-enter-from,
 .tpl-gallery-swap-leave-to {
@@ -592,7 +593,8 @@ function ratioStyle(art) {
 /* 切页过渡：淡入 + 微位移（克制，不做翻页翻转） */
 .tpl-album-swap-enter-active,
 .tpl-album-swap-leave-active {
-  transition: opacity 0.28s var(--ease-out), transform 0.28s var(--ease-out);
+  /* T 波：0.28s → --dur-mid(.25s) 就近等值 */
+  transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out);
 }
 .tpl-album-swap-enter-from {
   opacity: 0;
@@ -715,6 +717,7 @@ function ratioStyle(art) {
   inset: 0;
   background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--pal-border) 55%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
+  /* T 波豁免：1.5s 骨架 shimmer 循环为加载占位节奏，保留原值（不归三档） */
   animation: tpl-gallery-shimmer 1.5s ease-in-out infinite;
 }
 @keyframes tpl-gallery-shimmer {

@@ -34,15 +34,16 @@ const { statusText } = useArtistData({ artist: null })
 }
 .tpl-status.open .tpl-status-dot {
   background: var(--color-success);
-  box-shadow: 0 0 8px var(--color-success);
+  /* T 波：光晕清违——0 0 8px 发光改 --sh-1（客户端作用域无 --sh-1 → 自然无阴影，后台作用域回落纸墨浅影） */
+  box-shadow: var(--sh-1);
 }
 .tpl-status.full .tpl-status-dot {
   background: var(--color-warning);
-  box-shadow: 0 0 8px var(--color-warning);
+  box-shadow: var(--sh-1);
 }
 .tpl-status.break .tpl-status-dot {
   background: var(--color-danger);
-  box-shadow: 0 0 8px var(--color-danger);
+  box-shadow: var(--sh-1);
 }
 .tpl-status-text {
   font-size: 13px;

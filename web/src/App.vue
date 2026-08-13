@@ -1,6 +1,6 @@
 <template>
   <el-config-provider :locale="elLocale">
-    <!-- 点名2: 路由切换 fade-slide（.18s 淡入 + 8px 上移，克制；out-in 避免新旧同帧）
+    <!-- 点名2: 路由切换 fade-slide（--dur-fast 淡入 + 8px 上移，克制；out-in 避免新旧同帧）
          02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡由 ArtistLayout 内部处理；
          客户端路由保留 fade-slide 整页过渡
          login-cross: 登录页↔后台专属过渡（纯透明度长缓动，不位移）——登录成功进后台「渡过去」而非硬切；
@@ -90,7 +90,8 @@ body {
 /* ─── 点名2: 路由切换动效（全局，画师后台/管理后台/客户端通用；克制 .18s 淡入+8px） ─── */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+  /* T 波：0.18s → --dur-fast(.15s) 就近等值；ease-out 关键字 → --ease-out token */
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 .fade-slide-enter-from {
   opacity: 0;
@@ -106,9 +107,11 @@ body {
    animationTimeout 一并计入，不在此归零会导致离场永远不结束、新页面永不挂载（2026-08-12 E2E 抓出空白屏）；
    !important 是为了压过 scoped 选择器特异性，跨层覆盖的正当用途 */
 .login-cross-enter-active {
-  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  /* T 波：登录关键路径——0.55s 原时长保留；cubic-bezier(.22,1,.36,1) 与 --ease-out 同值，token 化 */
+  transition: opacity 0.55s var(--ease-out);
 }
 .login-cross-leave-active {
+  /* T 波：登录关键路径——0.4s 原时长保留；无 --ease-in token，ease-in 原样保留 */
   transition: opacity 0.4s ease-in;
   animation: none !important;
 }

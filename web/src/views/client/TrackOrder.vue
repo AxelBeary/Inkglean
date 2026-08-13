@@ -36,17 +36,19 @@
         </div>
       </el-card>
 
-      <!-- A1: 我的订单列表 -->
-      <el-card v-if="showMyOrders" class="my-orders-card" style="margin-top: 16px">
-        <template #header><span>{{ $t('track.myOrdersTitle') }}</span></template>
-        <el-empty v-if="!myOrders.length && !myOrdersLoading" :description="$t('track.myOrdersEmpty')" />
-        <div v-loading="myOrdersLoading">
-          <div v-for="o in myOrders" :key="o.orderNo" class="my-order-item" @click="fillAndSearch(o)">
-            <div class="my-order-no">{{ o.orderNo }}</div>
-            <div class="my-order-meta">{{ o.tierName }} · {{ formatDate(o.createdAt) }}</div>
+      <!-- A1: 我的订单列表（T 波：v-if 切换补简单 fade，--dur-mid） -->
+      <Transition name="my-orders-fade">
+        <el-card v-if="showMyOrders" class="my-orders-card" style="margin-top: 16px">
+          <template #header><span>{{ $t('track.myOrdersTitle') }}</span></template>
+          <el-empty v-if="!myOrders.length && !myOrdersLoading" :description="$t('track.myOrdersEmpty')" />
+          <div v-loading="myOrdersLoading">
+            <div v-for="o in myOrders" :key="o.orderNo" class="my-order-item" @click="fillAndSearch(o)">
+              <div class="my-order-no">{{ o.orderNo }}</div>
+              <div class="my-order-meta">{{ o.tierName }} · {{ formatDate(o.createdAt) }}</div>
+            </div>
           </div>
-        </div>
-      </el-card>
+        </el-card>
+      </Transition>
 
       <!-- 查询结果 -->
       <el-card style="margin-top: 16px" v-if="order">
@@ -523,6 +525,11 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 
 /* ─── A1: 我的订单列表 ─── */
 .my-orders-trigger { margin-top: 4px; }
+/* T 波：列表 v-if 切换淡入淡出（--dur-mid） */
+.my-orders-fade-enter-active,
+.my-orders-fade-leave-active { transition: opacity var(--dur-mid); }
+.my-orders-fade-enter-from,
+.my-orders-fade-leave-to { opacity: 0; }
 .my-order-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 12px; border-radius: 8px; cursor: pointer;
