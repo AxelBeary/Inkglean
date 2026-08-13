@@ -29,6 +29,7 @@
  */
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { artistPublicApi, orderApi, uploadApi } from '../api/index.js'
+import { fetchArtistPublicProfile } from './useArtistPublicProfile.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize.js'
@@ -607,7 +608,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   async function initForm() {
     try {
-      const data = await artistPublicApi.getProfile(subdomain)
+      const data = await fetchArtistPublicProfile(subdomain)
       artist.value = data
       rulesContent.value = data.rules || ''
       // 加载流程（静默失败不阻塞下单）

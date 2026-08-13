@@ -251,7 +251,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { orderApi, artistPublicApi } from '../../api/index.js'
+import { orderApi } from '../../api/index.js'
+import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
@@ -465,8 +466,8 @@ onMounted(() => {
   if (route.query.no) {
     orderNo.value = route.query.no
   }
-  // M2: 轻量拉画师信息取 paletteId（失败静默回落 paper）
-  artistPublicApi.getProfile(subdomain).then((a) => { artist.value = a }).catch(() => {})
+  // M2: 轻量拉画师信息取 paletteId（失败静默回落 paper）；战役留账：in-flight 去重共享请求
+  fetchArtistPublicProfile(subdomain).then((a) => { artist.value = a }).catch(() => {})
 })
 
 onUnmounted(() => {

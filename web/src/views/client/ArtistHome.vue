@@ -39,6 +39,7 @@
 import { ref, reactive, computed, provide, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
+import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../../utils/sanitize.js'
@@ -151,7 +152,7 @@ const templateComponent = computed(() => {
 
 onMounted(async () => {
   try {
-    const data = await artistPublicApi.getProfile(subdomain)
+    const data = await fetchArtistPublicProfile(subdomain)
     artist.value = data
     tiers.value = data.tiers || []
     artworks.value = data.artworks || []
