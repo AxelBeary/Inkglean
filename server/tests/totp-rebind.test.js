@@ -10,6 +10,7 @@ import { bumpTokenVersion } from '../src/features/artist/artist.service.js'
 import { generateSecret, computeTotp, verifyTotp } from '../src/features/auth/totp.js'
 import { afterEach } from 'vitest'
 import { hasPasskeyCredentials } from '../src/features/auth/webauthn.js'
+import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 
 describe('TOTP 自助重绑 (REQ-040)', () => {
   let artist
@@ -202,5 +203,149 @@ describe('verify-current 端点（前端质量战役审计修复：Step1 验证�
     const token2 = createSession(fresh.id, fresh.token_version)
     const unbound = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers: { authorization: 'Bearer ' + token2 }, payload: { code: right } })
     expect(unbound.statusCode).toBe(400)
+  })
+})
+
+// P2-F6: 重绑链路限流 + rebind-confirm 旧码重放消费
+describe('P2-F6 重绑链路安全加固', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    resetRateLimitBuckets()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+  })
+
+  /** 建号 + 绑定 TOTP（无 passkey），返回 { artist, secret } */
+  function bindArtist(qq, subdomain) {
+    const artist = seedArtist({ qq_number: qq, subdomain })
+    const secret = generateSecret()
+    bindTotpInit(artist.id, secret)
+    confirmTotpBind(artist.id, computeTotp(secret, Date.now()))
+    return { artist, secret }
+  }
+
+  /** rebind-init → 返回 { tempKey, newSecret } */
+  async function rebindInit(token) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-init',
+      headers: { Authorization: 'Bearer ' + token }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.verifyMethod).toBe('code')
+    const newSecret = body.otpauthUri.match(/secret=([A-Z2-7]+)/)[1]
+    return { tempKey: body.tempKey, newSecret }
+  }
+
+  it('TC-F6-01: verify-current 超过 10 次/5 分钟 → 429 RATE_LIMITED', async () => {
+    const { artist } = bindArtist('88801', 'f6-vc-limit')
+    const token = createSession(artist.id, artist.token_version)
+    const headers = { Authorization: 'Bearer ' + token }
+
+    for (let i = 0; i < 10; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/totp/verify-current',
+        headers,
+        payload: { code: '000000' }
+      })
+      expect([200, 401]).toContain(res.statusCode)
+    }
+    const blocked = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/verify-current',
+      headers,
+      payload: { code: '000000' }
+    })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
+  })
+
+  it('TC-F6-02: rebind-init 超过 10 次/5 分钟 → 429 RATE_LIMITED', async () => {
+    const { artist } = bindArtist('88802', 'f6-init-limit')
+    const token = createSession(artist.id, artist.token_version)
+
+    for (let i = 0; i < 10; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/totp/rebind-init',
+        headers: { Authorization: 'Bearer ' + token }
+      })
+      expect(res.statusCode).toBe(200)
+    }
+    const blocked = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-init',
+      headers: { Authorization: 'Bearer ' + token }
+    })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
+  })
+
+  it('TC-F6-03: rebind-confirm 超过 10 次/5 分钟 → 429 RATE_LIMITED', async () => {
+    const { artist } = bindArtist('88803', 'f6-confirm-limit')
+    const token = createSession(artist.id, artist.token_version)
+
+    for (let i = 0; i < 10; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/totp/rebind-confirm',
+        headers: { Authorization: 'Bearer ' + token },
+        payload: {}
+      })
+      expect(res.statusCode).toBe(400)
+    }
+    const blocked = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-confirm',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: {}
+    })
+    expect(blocked.statusCode).toBe(429)
+    expect(blocked.json().code).toBe('RATE_LIMITED')
+  })
+
+  it('TC-F6-04: rebind-confirm 旧码一次性消费——成功后重放同码 → 401 TOTP_INVALID', async () => {
+    const { artist, secret } = bindArtist('88804', 'f6-replay')
+    const token = createSession(artist.id, artist.token_version)
+    const { tempKey, newSecret } = await rebindInit(token)
+    const oldCode = computeTotp(secret, Date.now())
+    const newCode = computeTotp(newSecret, Date.now())
+    const payload = { code: oldCode, tempKey, newCode }
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-confirm',
+      headers: { Authorization: 'Bearer ' + token },
+      payload
+    })
+    expect(first.statusCode).toBe(200)
+
+    // 重放同一旧码 → 已消费，拒绝（即使 tempKey 已被消费，重放防护先于 tempKey 校验命中）。
+    // 注意：首次重绑成功会 bumpTokenVersion 踢掉旧 token，这里用新版本重签 token 再重放
+    const freshArtist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artist.id)
+    const freshToken = createSession(freshArtist.id, freshArtist.token_version)
+    const replay = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-confirm',
+      headers: { Authorization: 'Bearer ' + freshToken },
+      payload
+    })
+    expect(replay.statusCode).toBe(401)
+    expect(replay.json().code).toBe('TOTP_INVALID')
+
+    // 新密钥已生效，旧密钥失效
+    const row = db.prepare('SELECT totp_secret, totp_verified FROM artists WHERE id = ?').get(artist.id)
+    expect(row.totp_secret).toBe(newSecret)
+    expect(row.totp_verified).toBe(1)
+    const used = db.prepare('SELECT COUNT(*) AS c FROM totp_used_codes WHERE artist_id = ?').get(artist.id)
+    expect(used.c).toBeGreaterThanOrEqual(1)
   })
 })

@@ -83,6 +83,8 @@ export const E = {
   ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
   ORDER_NOT_OWNED: 'ORDER_NOT_OWNED',
   INVALID_TRANSITION: 'INVALID_TRANSITION',
+  // P2-F9: 终态订单收款状态守卫（cancelled 仅冲正 / delivered 拒正收款）
+  PAYMENT_STATUS_BLOCKED: 'PAYMENT_STATUS_BLOCKED',
   // D-1（R-5/P3-1）: 订单 version 乐观锁冲突（旧快照写入被拒）
   ORDER_CONFLICT: 'ORDER_CONFLICT',
   DELIVER_WRONG_STATUS: 'DELIVER_WRONG_STATUS',
@@ -317,6 +319,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   ORDER_NOT_FOUND: '订单不存在',
   ORDER_NOT_OWNED: '该订单不属于你，无权操作',
   INVALID_TRANSITION: '不允许的状态变更',
+  PAYMENT_STATUS_BLOCKED: '当前订单状态不允许该收款操作',
   ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
   DELIVER_WRONG_STATUS: '当前状态不允许交付',
   TIER_NOT_FOUND: '价格档位不存在',

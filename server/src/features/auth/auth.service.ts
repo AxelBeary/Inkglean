@@ -160,8 +160,9 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
     return { valid: true, artist }
   }
 
-  // 失败：计数 +1，达到阈值触发锁定
-  const attempts = (artist.totp_failed_attempts || 0) + 1
+  // 失败：原子计数 +1 后回读判定（P2-F3：消除 read-modify-write 并发丢失更新）
+  db.prepare('UPDATE artists SET totp_failed_attempts = totp_failed_attempts + 1 WHERE id = ?').run(artist.id)
+  const attempts = (db.prepare('SELECT totp_failed_attempts FROM artists WHERE id = ?').get(artist.id) as { totp_failed_attempts: number }).totp_failed_attempts || 0
   if (attempts >= TOTP_MAX_ATTEMPTS) {
     const lockedUntil = Date.now() + TOTP_LOCK_DURATION_MS
     db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = ? WHERE id = ?').run(lockedUntil, artist.id)
@@ -172,7 +173,6 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
       remainingLockMs: TOTP_LOCK_DURATION_MS
     }
   }
-  db.prepare('UPDATE artists SET totp_failed_attempts = ? WHERE id = ?').run(attempts, artist.id)
   return {
     valid: false,
     code: E.TOTP_INVALID,

@@ -6,6 +6,8 @@ import * as orderWorkflowService from '../src/features/order/order-workflow.serv
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
+import { mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
 
 /**
  * 审计批 D-1（R-5 + P3-1）：订单 version 乐观锁
@@ -34,6 +36,14 @@ function seedOrder(artistId, overrides = {}) {
 function staleVersionOf(orderId) {
   const row = db.prepare('SELECT version FROM orders WHERE id = ?').get(orderId)
   return row.version - 1
+}
+
+/** P2-F8: 交付前校验文件真实存在——旧 version 用例需先落盘真文件才能走到版本守卫 */
+function ensureDeliverable(artistId, relName) {
+  const absDir = join(process.env.UPLOAD_DIR, 'deliverables', String(artistId))
+  mkdirSync(absDir, { recursive: true })
+  writeFileSync(join(absDir, relName), 'd1 test file')
+  return `deliverables/${artistId}/${relName}`
 }
 
 describe('审计批 D-1 订单 version 乐观锁', () => {
@@ -113,7 +123,7 @@ describe('审计批 D-1 订单 version 乐观锁', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '123456' })
     orderService.updateOrderStatus(order.id, 'confirmed')
     orderService.updateOrderStatus(order.id, 'wip')
-    expect(() => orderGalleryService.deliverOrder(order.id, 'deliverables/1/x.png', 'x.png', 100, staleVersionOf(order.id))).toThrow('ORDER_CONFLICT')
+    expect(() => orderGalleryService.deliverOrder(order.id, ensureDeliverable(artist.id, 'x.png'), 'x.png', 100, staleVersionOf(order.id))).toThrow('ORDER_CONFLICT')
     expect(() => orderGalleryService.deliverOrderWithoutFile(order.id, staleVersionOf(order.id))).toThrow('ORDER_CONFLICT')
   })
 

@@ -105,19 +105,24 @@ describe('认证服务 (Auth Service) — REQ-027 TOTP', () => {
     authService.bindTotpInit(artist.id, secret)
     authService.confirmTotpBind(artist.id, computeTotp(secret, Date.now()))
 
+    // P2-F3: 每次失败后计数应原子递增且与 DB 一致（防 read-modify-write 丢失更新回归）
     for (let i = 1; i <= 4; i++) {
       const r = authService.verifyTotpLogin('12345', '000000')
       expect(r.valid).toBe(false)
       expect(r.code).toBe('TOTP_INVALID')
+      const mid = db.prepare('SELECT totp_failed_attempts FROM artists WHERE id = ?').get(artist.id)
+      expect(mid.totp_failed_attempts).toBe(i)
     }
     // 第 5 次错误 → 锁定
     const locked = authService.verifyTotpLogin('12345', '000000')
     expect(locked.valid).toBe(false)
     expect(locked.code).toBe('TOTP_LOCKED')
 
-    // 查库验证锁定时间已写入
+    // 查库验证锁定时间已写入、计数已归零（触发锁定时清零）
     const row = db.prepare('SELECT totp_locked_until FROM artists WHERE id = ?').get(artist.id)
     expect(row.totp_locked_until).toBeGreaterThan(Date.now())
+    const after = db.prepare('SELECT totp_failed_attempts FROM artists WHERE id = ?').get(artist.id)
+    expect(after.totp_failed_attempts).toBe(0)
   })
 
   it('TC-A-12: 锁定期间正确码也拒绝', () => {

@@ -15,8 +15,18 @@ import * as orderService from '../src/features/order/order.service.js'
 import { advanceStage, rollbackStage } from '../src/features/order/order-workflow.service.js'
 import { deliverOrder, deliverOrderWithoutFile } from '../src/features/order/order-gallery.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
+import { mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
 
 beforeEach(() => cleanDb())
+
+/** P2-F8: 在临时上传目录真实落盘交付文件，返回相对路径（交付前校验文件存在） */
+function ensureDeliverable(artistId, relName) {
+  const absDir = join(process.env.UPLOAD_DIR, 'deliverables', String(artistId))
+  mkdirSync(absDir, { recursive: true })
+  writeFileSync(join(absDir, relName), 'b1 test file')
+  return `deliverables/${artistId}/${relName}`
+}
 
 /**
  * 造两节点工作流画师（节点1 定稿 → pending；节点2 交付 → done）。
@@ -77,7 +87,7 @@ describe('批1 状态机修复（R1/R2/R3）', () => {
 
     // 带文件交付（audit-a P2-1）：wip 直接交付 → delivered + 落文件
     const wipOrder = seedOrder(artist.id, { status: 'wip', order_no: 'B1-DEL-FILE' })
-    const withFile = deliverOrder(wipOrder.id, 'deliverables/1/art.png', 'art.png', 100)
+    const withFile = deliverOrder(wipOrder.id, ensureDeliverable(artist.id, 'art.png'), 'art.png', 100)
     expect(withFile.statusChanged).toBe(true)
     expect(withFile.order.status).toBe('delivered')
     const file = db.prepare('SELECT * FROM deliverables WHERE order_id = ?').get(wipOrder.id)

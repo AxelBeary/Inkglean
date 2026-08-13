@@ -108,13 +108,16 @@ export function updateStartDate(orderId: number, startDate: string | null, expec
  * R19: 支持可选附图 imagePath（notes/{artistId}/ 目录）
  */
 export function addNote(orderId: number, content: string, createdBy: string = 'artist', imagePath: string | null = null): OrderDetail {
-  db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
-    .run(orderId, content, createdBy, imagePath)
-  // v0.31 REQ-021 F1: 操作日志（仅画师备注，系统备注不记）
-  if (createdBy !== 'system') {
-    logActivity(orderId, 'note_update', createdBy, { action: 'add', hasImage: !!imagePath })
-  }
-  return getOrder(orderId)!
+  // P2-F10: 备注 + 操作日志包同一事务（此前先写备注再写日志，中途失败会留半截脏数据）
+  return db.transaction(() => {
+    db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
+      .run(orderId, content, createdBy, imagePath)
+    // v0.31 REQ-021 F1: 操作日志（仅画师备注，系统备注不记）
+    if (createdBy !== 'system') {
+      logActivity(orderId, 'note_update', createdBy, { action: 'add', hasImage: !!imagePath })
+    }
+    return getOrder(orderId)!
+  })()
 }
 
 /**
@@ -123,12 +126,15 @@ export function addNote(orderId: number, content: string, createdBy: string = 'a
  * 带图备注删除后，图片由 GC 孤儿回收机制自动清理（app.js gcUploads 已收集 order_notes.image_path）
  */
 export function deleteNote(orderId: number, noteId: number): OrderDetail {
-  const note = db.prepare('SELECT * FROM order_notes WHERE id = ? AND order_id = ?').get(noteId, orderId) as { created_by: string } | undefined
-  if (!note) throw new AppError(E.NOTE_NOT_FOUND, 404)
-  if (note.created_by === 'system') throw new AppError(E.SYSTEM_NOTE_PROTECTED, 403)
+  // P2-F10: 删除 + 操作日志包同一事务
+  return db.transaction(() => {
+    const note = db.prepare('SELECT * FROM order_notes WHERE id = ? AND order_id = ?').get(noteId, orderId) as { created_by: string } | undefined
+    if (!note) throw new AppError(E.NOTE_NOT_FOUND, 404)
+    if (note.created_by === 'system') throw new AppError(E.SYSTEM_NOTE_PROTECTED, 403)
 
-  db.prepare('DELETE FROM order_notes WHERE id = ?').run(noteId)
-  // v0.31 REQ-021 F1: 操作日志
-  logActivity(orderId, 'note_update', 'artist', { action: 'delete', noteId })
-  return getOrder(orderId)!
+    db.prepare('DELETE FROM order_notes WHERE id = ?').run(noteId)
+    // v0.31 REQ-021 F1: 操作日志
+    logActivity(orderId, 'note_update', 'artist', { action: 'delete', noteId })
+    return getOrder(orderId)!
+  })()
 }

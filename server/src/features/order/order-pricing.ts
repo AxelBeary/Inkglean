@@ -527,9 +527,20 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
     throw new AppError(E.VALIDATION, 400, { field: 'note', message: '撤销/退款必须填写原因' })
   }
 
-  const currentPaid = order.paid_total_cents ?? 0
-  if (currentPaid + amountCents < 0) {
-    throw new AppError(E.INVALID_PRICE, 400, { value: amountCents, message: '撤销金额不能超过已收金额' })
+  // P2-F9: 终态状态守卫——cancelled 仅允许负数冲正；delivered 不再允许正数收款
+  if (order.status === 'cancelled' && amountCents > 0) {
+    throw new AppError(E.PAYMENT_STATUS_BLOCKED, 400, {
+      status: order.status,
+      direction: 'credit',
+      message: '已取消订单仅允许负数冲正'
+    })
+  }
+  if (order.status === 'delivered' && amountCents > 0) {
+    throw new AppError(E.PAYMENT_STATUS_BLOCKED, 400, {
+      status: order.status,
+      direction: 'credit',
+      message: '已交付订单不再允许正数收款'
+    })
   }
 
   // v0.31 F4: 校验节点归属
@@ -543,10 +554,15 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
       'INSERT INTO order_payments (order_id, installment_id, amount_cents, note, created_by) VALUES (?, ?, ?, ?, ?)'
     ).run(orderId, installmentId || null, amountCents, note || null, createdBy || 'artist')
 
-    // D-1: paid_total_cents 走相对增量（paid_total_cents + ?）本就无丢失更新问题，
-    // 不需要 WHERE version 条件；但同属订单写，version 照常 +1 让其他绝对写路径感知本次变更
-    db.prepare('UPDATE orders SET paid_total_cents = paid_total_cents + ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(amountCents, orderId)
+    // P2-F4: 退款下限校验移入事务内，并改为原子条件更新——
+    // 防止基于事务外快照判定（并发撤销可把 paid_total_cents 推到负数）；
+    // changes=0（paid_total_cents + amountCents < 0）即拒绝并整笔回滚。
+    const updateResult = db.prepare(
+      'UPDATE orders SET paid_total_cents = paid_total_cents + ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND paid_total_cents + ? >= 0'
+    ).run(amountCents, orderId, amountCents)
+    if (updateResult.changes === 0) {
+      throw new AppError(E.INVALID_PRICE, 400, { value: amountCents, message: '撤销金额不能超过已收金额' })
+    }
 
     // REQ-025 R4: 付清即锁——收款后按 paid_total 推导刷新节点锁定状态
     //（R7/批4B：节点实收一律从 paid_total 顺序推导，不写已随 v52 退役的 paid_cents/status/paid_at）

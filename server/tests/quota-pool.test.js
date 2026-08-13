@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import * as orderService from '../src/features/order/order.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
+import { createSession } from '../src/features/auth/auth.service.js'
+import { buildApp } from '../src/app.js'
 
 describe('B7 额度池（v0.23）', () => {
   beforeEach(() => {
@@ -44,13 +46,17 @@ describe('B7 额度池（v0.23）', () => {
 
     orderService.addPayment(order.id, { amountCents: 10000, note: '收款' })
 
+    // P2-F4: 原子条件更新（事务内）拒绝超额撤销
     expect(() => {
       orderService.addPayment(order.id, { amountCents: -20000, note: '超额撤销' })
-    }).toThrow()
+    }).toThrow('INVALID_PRICE')
 
     // paid_total_cents 不变
     const fresh = orderService.getOrder(order.id)
     expect(fresh.paid_total_cents).toBe(10000)
+    // 且不落任何流水（事务整体回滚）
+    const rows = db.prepare('SELECT COUNT(*) AS c FROM order_payments WHERE order_id = ?').get(order.id)
+    expect(rows.c).toBe(1)
   })
 
   it('TC-PAY-04: 负数必须带 note', () => {
@@ -92,6 +98,78 @@ describe('B7 额度池（v0.23）', () => {
     expect(payments[0].amount_cents).toBe(10000)
     expect(payments[1].amount_cents).toBe(20000)
     expect(payments[2].amount_cents).toBe(-5000)
+  })
+
+  // ─── P2-F9: 终态订单收款状态守卫 ───
+
+  it('TC-PAY-08: cancelled 订单拒绝正数收款、允许负数冲正', () => {
+    const artist = seedArtist({ qq_number: '88108', subdomain: 'pay8' })
+    const order = seedOrder(artist.id, {
+      status: 'cancelled',
+      total_price_cents: 50000,
+      final_price_cents: 50000
+    })
+    db.prepare('UPDATE orders SET paid_total_cents = 30000 WHERE id = ?').run(order.id)
+
+    expect(() => {
+      orderService.addPayment(order.id, { amountCents: 10000, note: '补收' })
+    }).toThrow('PAYMENT_STATUS_BLOCKED')
+
+    // 负数冲正仍允许
+    const refund = orderService.addPayment(order.id, { amountCents: -10000, note: '取消后退款' })
+    expect(refund.amount_cents).toBe(-10000)
+    const fresh = orderService.getOrder(order.id)
+    expect(fresh.paid_total_cents).toBe(20000)
+  })
+
+  it('TC-PAY-09: delivered 订单拒绝正数收款、允许负数退款', () => {
+    const artist = seedArtist({ qq_number: '88109', subdomain: 'pay9' })
+    const order = seedOrder(artist.id, {
+      status: 'delivered',
+      total_price_cents: 50000,
+      final_price_cents: 50000
+    })
+    db.prepare('UPDATE orders SET paid_total_cents = 50000 WHERE id = ?').run(order.id)
+
+    expect(() => {
+      orderService.addPayment(order.id, { amountCents: 10000, note: '交付后补收' })
+    }).toThrow('PAYMENT_STATUS_BLOCKED')
+
+    // 负数退款仍允许（终态只禁正收款，不堵冲正）
+    const refund = orderService.addPayment(order.id, { amountCents: -20000, note: '交付后退款' })
+    expect(refund.amount_cents).toBe(-20000)
+    const fresh = orderService.getOrder(order.id)
+    expect(fresh.paid_total_cents).toBe(30000)
+  })
+
+  it('TC-PAY-10: 路由层 cancelled/delivered 正数收款 → 400 PAYMENT_STATUS_BLOCKED', async () => {
+    const artist = seedArtist({ qq_number: '88110', subdomain: 'pay10' })
+    const cancelled = seedOrder(artist.id, { status: 'cancelled' })
+    db.prepare('UPDATE orders SET paid_total_cents = 30000 WHERE id = ?').run(cancelled.id)
+    const delivered = seedOrder(artist.id, { status: 'delivered' })
+    db.prepare('UPDATE orders SET paid_total_cents = 50000 WHERE id = ?').run(delivered.id)
+    const app = await buildApp({ logger: false })
+    const token = createSession(artist.id, artist.token_version)
+    const headers = { Authorization: 'Bearer ' + token }
+
+    const r1 = await app.inject({
+      method: 'POST',
+      url: `/api/artist/orders/${cancelled.id}/payments`,
+      headers,
+      payload: { amountCents: 10000, note: '补收' }
+    })
+    expect(r1.statusCode).toBe(400)
+    expect(r1.json().code).toBe('PAYMENT_STATUS_BLOCKED')
+
+    const r2 = await app.inject({
+      method: 'POST',
+      url: `/api/artist/orders/${delivered.id}/payments`,
+      headers,
+      payload: { amountCents: 10000, note: '交付后补收' }
+    })
+    expect(r2.statusCode).toBe(400)
+    expect(r2.json().code).toBe('PAYMENT_STATUS_BLOCKED')
+    await app.close()
   })
 
   // ─── v0.36 BUG-1 方案 b: getOrderInstallments 池子推算 ───

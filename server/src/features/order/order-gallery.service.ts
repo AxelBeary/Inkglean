@@ -4,7 +4,7 @@ import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition, updateO
 import { logActivity } from './activity-log.service.js'
 import { createArtwork } from '../artist/artist.service.js'
 import type { OrderDetail } from '../../types/entities.js'
-import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs'
 import { join, resolve, sep, extname, basename } from 'path'
 import { nanoid } from 'nanoid'
 
@@ -31,6 +31,14 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
     assertStatusTransition(order.status, 'delivered')
+
+    // P2-F8: 交付前校验文件真实存在（对齐 assertReferenceFileExists/publishArtwork 模式），
+    // 防止提交不存在路径仍被推入 delivered 状态
+    const uploadDir = resolve(process.env.UPLOAD_DIR || './uploads')
+    const abs = resolve(join(uploadDir, filePath))
+    if (!abs.startsWith(uploadDir + sep) || !existsSync(abs) || !statSync(abs).isFile()) {
+      throw new AppError(E.MISSING_FILE, 400)
+    }
 
     addDeliverable(orderId, filePath, fileName, fileSize)
 

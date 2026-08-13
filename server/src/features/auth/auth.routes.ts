@@ -370,6 +370,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * 冷却期 24h 内拒绝（管理员豁免）
    */
   fastify.post('/api/auth/totp/rebind-init', { preHandler: requireAuth }, async (request) => {
+    // P2-F6: 补限流（同 step-up 同款：10 次/5 分钟）
+    guardRateLimit(`totp-rebind-init:${request.ip}`, 10, 5 * 60_000)
+
     const artist = request.artist
     const isAdmin = artist.qq_number === getAdminQq()
 
@@ -442,6 +445,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * 只验证不发放任何凭据；真实换绑仍由 rebind-confirm 强制复核。
    */
   fastify.post('/api/auth/totp/verify-current', { preHandler: requireAuth }, async (request) => {
+    // P2-F6: 补限流（同 step-up 同款：10 次/5 分钟）
+    guardRateLimit(`totp-verify-current:${request.ip}`, 10, 5 * 60_000)
+
     const artist = request.artist
     if (!artist.totp_secret || !artist.totp_verified) {
       throw new AppError(E.TOTP_NOT_BOUND, 400)
@@ -462,10 +468,13 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * 验证凭据 + 新码 → 生效 + bumpTokenVersion + 写冷却期
    */
   fastify.post('/api/auth/totp/rebind-confirm', { preHandler: requireAuth }, async (request) => {
+    // P2-F6: 补限流（同 step-up 同款：10 次/5 分钟）
+    guardRateLimit(`totp-rebind-confirm:${request.ip}`, 10, 5 * 60_000)
+
     const artist = request.artist
     const body = request.body as Record<string, unknown>
 
-    const { verifyTotp } = await import('./totp.js')
+    const { verifyTotp, verifyTotpWithCounter, hashTotpCode } = await import('./totp.js')
     const { hasPasskeyCredentials } = await import('./webauthn.js')
 
     const hasPasskey = hasPasskeyCredentials(artist.id)
@@ -494,7 +503,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
       const code = body.code as string | undefined
       if (!code || !/^\d{6}$/.test(code)) throw new AppError(E.VALIDATION, 400, { field: 'code' })
 
-      if (!verifyTotp(artist.totp_secret, code, Date.now())) {
+      // P2-F6: 旧码复用登录同款重放防护——验证通过即消费写 totp_used_codes，
+      // 唯一约束冲突 = 该码已被用过 = 拒绝（不再允许同一旧码反复重放重绑）
+      const hitCounter = verifyTotpWithCounter(artist.totp_secret, code, Date.now())
+      if (hitCounter === null) {
+        throw new AppError(E.TOTP_INVALID, 401)
+      }
+      const codeHash = hashTotpCode(artist.id, code, hitCounter)
+      try {
+        db.prepare('INSERT INTO totp_used_codes (artist_id, code_hash) VALUES (?, ?)').run(artist.id, codeHash)
+      } catch {
         throw new AppError(E.TOTP_INVALID, 401)
       }
 

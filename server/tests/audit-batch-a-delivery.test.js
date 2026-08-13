@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { deliverOrder, deliverOrderWithoutFile } from '../src/features/order/order-gallery.service.js'
+import { mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
+
+/** P2-F8: 在临时上传目录真实落盘交付文件，返回相对路径 */
+function ensureDeliverable(artistId, relName) {
+  const absDir = join(process.env.UPLOAD_DIR, 'deliverables', String(artistId))
+  mkdirSync(absDir, { recursive: true })
+  const abs = join(absDir, relName)
+  writeFileSync(abs, 'p2-f8 test file')
+  return `deliverables/${artistId}/${relName}`
+}
 
 /**
  * audit-a P2-1: 带文件交付状态迁移条件与无文件交付对齐
@@ -18,8 +29,9 @@ describe('audit-a P2-1 带文件交付', () => {
     const o1 = seedOrder(artist.id, { status: 'wip', order_no: 'P21-001', queue_position: 1 })
     seedOrder(artist.id, { status: 'wip', order_no: 'P21-002', queue_position: 2 })
     seedOrder(artist.id, { status: 'wip', order_no: 'P21-003', queue_position: 3 })
+    const filePath = ensureDeliverable(artist.id, 'art.png')
 
-    const result = deliverOrder(o1.id, 'deliverables/1/art.png', 'art.png', 1024)
+    const result = deliverOrder(o1.id, filePath, 'art.png', 1024)
     expect(result.statusChanged).toBe(true)
     expect(result.order.status).toBe('delivered')
     expect(result.order.completed_at).not.toBeNull()
@@ -36,12 +48,12 @@ describe('audit-a P2-1 带文件交付', () => {
     const o1 = seedOrder(artist.id, { status: 'delivered', order_no: 'P21-010', queue_position: 1 })
     db.prepare("UPDATE orders SET completed_at = '2026-08-01 10:00:00' WHERE id = ?").run(o1.id)
 
-    const first = deliverOrder(o1.id, 'deliverables/1/a.png', 'a.png', 100)
+    const first = deliverOrder(o1.id, ensureDeliverable(artist.id, 'a.png'), 'a.png', 100)
     expect(first.statusChanged).toBe(false)
     expect(first.order.status).toBe('delivered')
     expect(first.order.completed_at).toBe('2026-08-01 10:00:00')
 
-    const second = deliverOrder(o1.id, 'deliverables/1/b.png', 'b.png', 200)
+    const second = deliverOrder(o1.id, ensureDeliverable(artist.id, 'b.png'), 'b.png', 200)
     expect(second.statusChanged).toBe(false)
     expect(second.order.status).toBe('delivered')
     const files = db.prepare('SELECT original_name FROM deliverables WHERE order_id = ? ORDER BY id').all(o1.id)
