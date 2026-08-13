@@ -450,10 +450,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     note: '导出的 CSV 包含：日期、客户、金额（分）、类型（订单收款/散单收入）、订单号。数据与后端一致，不包含画师私有备注。',
     incomeOverview: '收入概览',
     incomeLoading: '加载中…',
+    incomeOrder: '订单收款',
     incomeStandalone: '散单收入',
-    incomeCount: '收款笔数',
-    incomeCountUnit: '笔',
-    incomeNote: '订单收入与总收入将在后续版本提供',
+    incomeTotal: '总收入',
+    incomeNote: '口径与导出 CSV 一致（订单收款 + 散单收入）',
     incomeLoadFailed: '收入概览加载失败',
     downloaded: '已开始下载',
     failed: '导出失败，请稍后重试',
@@ -776,7 +776,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
     draftRestore: '恢复', draftDiscard: '丢弃', draftRestored: '草稿已恢复',
     // R58-6: QQ 跳转 + 复制
-    artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制',
+    artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制', qqJumpHint: '正在唤起 QQ…若未打开，请复制 QQ 号手动添加好友',
     // F1 围剿：成功态追踪链接（全文 + 复制 + 二维码）
     saveTrackHint: '请保存此链接，查询进度凭此链接',
     copyTrackLink: '复制链接', trackLinkCopied: '追踪链接已复制', trackQrAlt: '追踪链接二维码',

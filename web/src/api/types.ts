@@ -1048,6 +1048,15 @@ export interface CreateStandaloneIncomeResult {
   item: StandaloneIncome
 }
 
+/** GET /artist/tools/income-summary 响应（t1 围剿：概览口径对齐导出 CSV——订单收款+散单） */
+export interface IncomeSummaryResult {
+  orderIncomeCents: number
+  standaloneIncomeCents: number
+  totalCents: number
+  from: string
+  to: string
+}
+
 // ─── 管理员（admin.routes.ts / admin.service.ts） ───
 
 /** GET /admin/artists 行（publicArtistDTO + isAdmin） */

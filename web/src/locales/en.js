@@ -450,10 +450,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     note: 'The exported CSV includes: date, client, amount (cents), type (order payment / standalone income), order id. Data matches the backend and never includes private artist notes.',
     incomeOverview: 'Income Overview',
     incomeLoading: 'Loading…',
+    incomeOrder: 'Order Payments',
     incomeStandalone: 'Standalone Income',
-    incomeCount: 'Transactions',
-    incomeCountUnit: '',
-    incomeNote: 'Order and total income are coming in a later version.',
+    incomeTotal: 'Total',
+    incomeNote: 'Matches the exported CSV (order payments + standalone income)',
     incomeLoadFailed: 'Failed to load income overview',
     downloaded: 'Download started',
     failed: 'Export failed, please try again later',
@@ -777,7 +777,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
     draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored',
     // R58-6: QQ jump + copy
-    artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied',
+    artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied', qqJumpHint: 'Opening QQ… If nothing happens, copy the QQ number and add the artist manually',
     // F1: success-page tracking link (full text + copy + QR)
     saveTrackHint: 'Save this link — progress checks require it',
     copyTrackLink: 'Copy link', trackLinkCopied: 'Tracking link copied', trackQrAlt: 'QR code of the tracking link',

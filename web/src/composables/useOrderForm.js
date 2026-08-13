@@ -449,33 +449,36 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       const size = currentStyle && ss.sizeId != null
         ? (currentStyle.sizes || []).find(sz => sz.id === ss.sizeId && sz.display_status !== 'showcase')
         : null
-      if (size) {
-        selectedSizeId.value = ss.sizeId
-        // 普通增项勾选只恢复当前尺寸可用普通增项中存在的键（其余可能已删/已隐藏）
-        const validIds = new Set(regularAddons.value.map(a => a.id))
-        const saved = ss.addonSelections || {}
-        for (const key of Object.keys(saved)) {
-          const id = Number(key)
-          if (validIds.has(id)) {
-            styleAddonSelections[id] = { toggled: false, quantity: 0, ...saved[key], optionLabel: undefined }
-          }
+      if (size) selectedSizeId.value = ss.sizeId
+    }
+    // a2 猎杀修复：增项/用途/加急恢复独立于尺寸恢复块——query 只预选画风+尺寸，
+    // 增项不在预选范围，不该随尺寸块整体跳过（此前带 query 刷新后已填增项全部丢失）；
+    // 按当前选中尺寸的可用增项过滤恢复（validIds/usageIds/rushIds 同原口径）
+    if (selectedSizeId.value) {
+      // 普通增项勾选只恢复当前尺寸可用普通增项中存在的键（其余可能已删/已隐藏）
+      const validIds = new Set(regularAddons.value.map(a => a.id))
+      const saved = ss.addonSelections || {}
+      for (const key of Object.keys(saved)) {
+        const id = Number(key)
+        if (validIds.has(id)) {
+          styleAddonSelections[id] = { toggled: false, quantity: 0, ...saved[key], optionLabel: undefined }
         }
-        // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
-        initStyleAddonDefaults()
-        // 用途/加急单选只恢复仍在可选项中的 ID
-        const usageIds = new Set(usageAddons.value.map(a => a.id))
-        const rushIds = new Set(rushAddons.value.map(a => a.id))
-        selectedUsageId.value = usageIds.has(ss.usageId) ? ss.usageId : null
-        selectedRushId.value = rushIds.has(ss.rushId) ? ss.rushId : null
       }
+      // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
+      initStyleAddonDefaults()
+      // 用途/加急单选只恢复仍在可选项中的 ID
+      const usageIds = new Set(usageAddons.value.map(a => a.id))
+      const rushIds = new Set(rushAddons.value.map(a => a.id))
+      selectedUsageId.value = usageIds.has(ss.usageId) ? ss.usageId : null
+      selectedRushId.value = rushIds.has(ss.rushId) ? ss.rushId : null
     }
     // 尺寸有效 → 重算价格预览（防抖，多次触发合并为一次）
     if (selectedSizeId.value) scheduleStyleCalc()
 
-    // ── 文本字段 ──
-    form.description = f.description || ''
-    form.clientQq = f.clientQq || ''
-    form.clientName = f.clientName || ''
+    // ── 文本字段（a2 猎杀修复：形状校验——sessionStorage 被旧版本/篡改写入非字符串时不再致下游 .trim() 崩溃） ──
+    form.description = typeof f.description === 'string' ? f.description : ''
+    form.clientQq = typeof f.clientQq === 'string' ? f.clientQq : ''
+    form.clientName = typeof f.clientName === 'string' ? f.clientName : ''
     form.notifyEnabled = f.notifyEnabled !== false
   }
 

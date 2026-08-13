@@ -113,6 +113,7 @@ import type {
   SizeAddonOverride,
   SizeOverrideSetItem,
   StandaloneIncomesResult,
+  IncomeSummaryResult,
   StatsMode,
   StyleAddonSetItem,
   StyleAddonWithTemplate,
@@ -420,6 +421,9 @@ export const artistApi = {
   createStandaloneIncome: (data: CreateStandaloneIncomeRequest): Promise<CreateStandaloneIncomeResult> =>
     postJson('/artist/tools/standalone-incomes', data),
   deleteStandaloneIncome: (id: number): Promise<OkResult> => deleteJson(`/artist/tools/standalone-incomes/${id}`),
+  // t1 围剿：收入汇总（订单收款+散单，口径与导出 CSV 一致）
+  getIncomeSummary: (params: { from: string; to: string }): Promise<IncomeSummaryResult> =>
+    getJson('/artist/tools/income-summary', { params }),
   // 订单
   getOrders: (status: string | undefined, { page, pageSize, q }: { page?: number; pageSize?: number; q?: string } = {}): Promise<ArtistOrdersResult> =>
     getJson('/artist/orders', { params: { status, page, pageSize, q } }),

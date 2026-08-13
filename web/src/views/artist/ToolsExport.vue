@@ -28,21 +28,24 @@
         </el-button>
       </el-form>
 
-      <!-- 收入概览区（日期范围选好后自动加载；订单/总收入待后端区间汇总端点） -->
+      <!-- 收入概览区（日期范围选好后自动加载；t1 围剿：消费 income-summary，口径对齐导出 CSV） -->
       <div class="income-overview" v-if="overview || overviewLoading">
         <div class="income-overview-head">
           <h3 class="income-overview-title">{{ $t('toolsExport.incomeOverview') }}</h3>
           <span v-if="overviewLoading" class="income-overview-loading">{{ $t('toolsExport.incomeLoading') }}</span>
         </div>
         <div class="income-grid" v-if="overview">
-          <!-- 05D-E2: 订单收入/总收入两格无后端区间汇总端点，隐藏占位（保留 incomeNote 说明；后端端点预留不动） -->
           <div class="income-cell">
-            <span class="income-label">{{ $t('toolsExport.incomeStandalone') }}</span>
-            <span class="income-value income-standalone">{{ formatYuan(overview.standaloneCents) }}</span>
+            <span class="income-label">{{ $t('toolsExport.incomeOrder') }}</span>
+            <span class="income-value">{{ formatYuan(overview.orderIncomeCents) }}</span>
           </div>
           <div class="income-cell">
-            <span class="income-label">{{ $t('toolsExport.incomeCount') }}</span>
-            <span class="income-value">{{ overview.standaloneCount }}{{ $t('toolsExport.incomeCountUnit') }}</span>
+            <span class="income-label">{{ $t('toolsExport.incomeStandalone') }}</span>
+            <span class="income-value income-standalone">{{ formatYuan(overview.standaloneIncomeCents) }}</span>
+          </div>
+          <div class="income-cell">
+            <span class="income-label">{{ $t('toolsExport.incomeTotal') }}</span>
+            <span class="income-value">{{ formatYuan(overview.totalCents) }}</span>
           </div>
         </div>
         <p class="income-overview-note">{{ $t('toolsExport.incomeNote') }}</p>
@@ -88,8 +91,8 @@ const range = ref(defaultRange())
 const exporting = ref(false)
 const emptyHint = ref(false)
 
-// 收入概览：散单数据来自 /api/artist/tools/standalone-incomes（口径与导出 CSV 的散单行一致）；
-// 订单/总收入无区间 JSON 汇总端点（后端缺口，见交付报告），暂不展示
+// t1 围剿修复：收入概览改消费 /api/artist/tools/income-summary（订单收款+散单，与导出 CSV 同源同口径）；
+// 此前只统散单而 CSV 合并两源，对账时概览数字与 CSV 明显不一致
 const overview = ref(null)
 const overviewLoading = ref(false)
 
@@ -99,12 +102,7 @@ async function loadOverview() {
   overviewLoading.value = true
   try {
     // 05D-I1: 收口进 artistApi（401 自动登出/15s 超时/i18n 翻译走统一拦截器）
-    const data = await artistApi.getStandaloneIncomes({ from, to })
-    const items = data?.items || []
-    overview.value = {
-      standaloneCents: items.reduce((s, it) => s + (it.amountCents || 0), 0),
-      standaloneCount: items.length
-    }
+    overview.value = await artistApi.getIncomeSummary({ from, to })
   } catch (err) {
     overview.value = null
     ElMessage.error(err.message || t('toolsExport.incomeLoadFailed'))

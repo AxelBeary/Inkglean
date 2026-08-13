@@ -539,7 +539,9 @@ async function copyOrderSummary() {
 
 // ─── R58-6: QQ 跳转 + 复制（提交成功后联系画师） ───
 function jumpToQq(qq) {
-  window.open(`tencent://message/?uin=${encodeURIComponent(qq)}`, '_self')
+  // a2 猎杀修复：协议唤起改新窗口——无 QQ 客户端/协议处理器时原页保留不被劫持（此前 _self 会把当前页带走成死页），复制按钮兜底
+  window.open(`tencent://message/?uin=${encodeURIComponent(qq)}`, '_blank', 'noopener')
+  ElMessage.info(t('orderForm.qqJumpHint'))
 }
 async function copyQq(qq) {
   try {
