@@ -76,30 +76,8 @@
         </div>
       </div>
 
-      <!-- 步骤 4：倍率（可选，选完尺寸后出现） -->
-      <div v-if="selectedSizeId && (usageMultipliers.length > 0 || rushMultipliers.length > 0)" class="calc-step">
-        <div class="calc-step-label">{{ $t('priceCalc.stepMultipliers') }}</div>
-        <div class="multiplier-section">
-          <div v-if="usageMultipliers.length > 0" class="multiplier-row">
-            <span class="multiplier-label">{{ $t('priceCalc.usage') }}：</span>
-            <el-radio-group size="small" :model-value="usageMultiplierId" @change="(v) => { usageMultiplierId = v; scheduleCalc() }">
-              <el-radio-button :value="null">{{ $t('priceCalc.none') }}</el-radio-button>
-              <el-radio-button v-for="m in usageMultipliers" :key="m.id" :value="m.id">
-                {{ m.name }} ×{{ m.multiplier }}
-              </el-radio-button>
-            </el-radio-group>
-          </div>
-          <div v-if="rushMultipliers.length > 0" class="multiplier-row">
-            <span class="multiplier-label">{{ $t('priceCalc.rush') }}：</span>
-            <el-radio-group size="small" :model-value="rushMultiplierId" @change="(v) => { rushMultiplierId = v; scheduleCalc() }">
-              <el-radio-button :value="null">{{ $t('priceCalc.none') }}</el-radio-button>
-              <el-radio-button v-for="m in rushMultipliers" :key="m.id" :value="m.id">
-                {{ m.name }} ×{{ m.multiplier }}
-              </el-radio-button>
-            </el-radio-group>
-          </div>
-        </div>
-      </div>
+      <!-- t1 猎杀修复：倍率（用途/加急）已随 SPEC-PRICE-2 退役为画风增项（v50 迁移 DROP price_multipliers），
+           旧 multiplier UI 与请求字段移除，避免每次算价必 400（schema additionalProperties:false 拒收退役字段） -->
 
       <!-- 估算结果 -->
       <div v-if="preview" class="calc-result">
@@ -147,16 +125,12 @@ const loadFailed = ref(false)
 const selectedStyleId = ref(null)
 const selectedSizeId = ref(null)
 const addonSel = reactive({})
-const usageMultiplierId = ref(null)
-const rushMultiplierId = ref(null)
 const preview = ref(null)
 
 const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
 /** 当前尺寸下可用增项（后端已按尺寸覆盖过滤 hidden） */
 const availableAddons = computed(() => selectedSize.value?.addons || [])
 const selectedSize = computed(() => selectedStyle.value?.sizes.find(sz => sz.id === selectedSizeId.value) || null)
-const usageMultipliers = computed(() => (pricing.value?.multipliers || []).filter(m => m.type === 'usage'))
-const rushMultipliers = computed(() => (pricing.value?.multipliers || []).filter(m => m.type === 'rush'))
 
 function selectStyle(id) {
   selectedStyleId.value = id
@@ -217,9 +191,7 @@ async function doCalc() {
     const res = await artistPublicApi.calculateStylePrice({
       subdomain: store.subdomain,
       styleSizeId: selectedSizeId.value,
-      addons: buildAddons(),
-      usageMultiplierId: usageMultiplierId.value,
-      rushMultiplierId: rushMultiplierId.value
+      addons: buildAddons()
     })
     if (mySeq !== calcSeq) return
     preview.value = res
@@ -337,9 +309,6 @@ onUnmounted(() => {
 .addon-item-name { font-size: 14px; color: var(--ink); }
 .addon-item-price { font-size: 12px; color: var(--ink3, #888); }
 
-.multiplier-section { display: flex; flex-direction: column; gap: 10px; }
-.multiplier-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.multiplier-label { font-size: 13px; color: var(--ink2, #555); }
 
 .calc-result {
   margin-top: 24px; padding: 20px 24px;
