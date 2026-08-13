@@ -13,7 +13,11 @@
 > ✅ **波2 动效 token 合入**（813-fq-anim，87 文件）：--dur-fast/mid/slow 三档入 artist-tokens.css + 全库微交互硬编码时长/缓动统一（仪式动画/linear/EP 内部按铁律豁免，23 处豁免逐条列明）；K1 亮暗即时切换（删 @property 色值 0.55s 插值/.theme-animating/11 客户端页+双 Layout 背景过渡，灰沼教训注释）；K3 中英切换容器级 .locale-swap 单属性 opacity 淡入+reduced-motion 豁免。独立验收 lint 0 错/438/438/build 0/i18n 过+抽查三处 diff 属实。
 > ✅ **P2 看板模块开关全链路**（一号亲做）：服务端 PUT profile 增 dashboardModules（键白名单 schedule/guestbook/activity/onboarding+布尔硬校验，JSON 存储 null=全显，schema removeAdditional+service 白名单双保险）+2 端点用例；偏好设置四开关 UI+Dashboard v-if 消费+i18n 六键中英成对；web 438/server 1367 全绿。
 > ✅ **波3-2 合入**（813-fq-states2，codex 交付一号独立验收）：三态簇二批 7 文件（水印/手动录单/分享对话框/画风编辑/流程编辑/增项模板/账号安全，含按需加载去重复请求）；clipboard.ts 抽公共替 7 处重复（lang=ts，失败路径统一提示）；死码清理 GreetingHero/TodoList/SlotOverview（-402 行；RevenueChart 因有测试引用按施工图铁律保留待下批）。验收 worktree+合并态 lint 0 错/438/438/build 0/i18n 过。
-> 🔜 **待办**：P2 纸墨化续建（留言/动态/开张/百眼柜四模块视觉对齐新组件体系+公告行入问候贴纸）；RevenueChart+其测试一并清退；管理后台样式去重（C 路 P2 簇）；容器重建+模块开关浏览器冒烟。
+> ✅ **P2 公告行入问候贴纸**（一号亲做）：GreetingNote 底部淡墨一行（店公告前缀+标题省略），点开看全文，看过即消（按 updatedAt 记 localStorage 已读，零打扰）；i18n annPrefix 中英成对；浏览器冒烟实证（公告显示/点开两帧）。
+> ✅ **RevenueChart 死码清退**：组件+竞态测试一并删除（-317 行，收入走势按提案归工具域 StandaloneIncome）；基线 web 438→436 已降并 note 记明。
+> ✅ **看板模块开关浏览器冒烟实证**：API 关排期+动态+开张三模块→刷新后三者消失、其余保留→恢复全显；截图 workspace/temp/fq-batch/p2-*.png。
+> ✅ **容器重建**：post-merge-deploy（Healthy/v61 回读/登录页 200）。
+> 🔜 **待办**：P2 纸墨化续建（留言/动态/开张/百眼柜四模块视觉对齐新组件体系）；管理后台样式去重（C 路 P2 簇：page-head/stat-card 抽公共）；客户端与管理后台三档视口截图自审（画师后台已验）；公告行需容器重建后在生产可见（本轮容器重建早于公告行提交，下次重建即含）。
 > 🧊 **环境**：master 干净；三个已合入 worktree 已清理（visual 目录仅 build 产物，--force 删，分支已合入）；容器 Healthy（旧构建）；E2E 11/11 基线未动。
 
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
