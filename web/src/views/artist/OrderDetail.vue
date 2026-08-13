@@ -152,7 +152,10 @@
             →
           </div>
         </div>
-        <el-button text size="small" @click="closeSlideCancel">✕</el-button>
+        <el-button text size="small" :aria-label="$t('common.close')" @click="closeSlideCancel">✕</el-button>
+        <el-button text size="small" type="danger" @click="confirmCancelOrder">
+          {{ $t('orderDetail.confirmCancel') }}
+        </el-button>
       </div>
 
       <!-- 常规操作按钮 -->
@@ -485,12 +488,18 @@ const { pasteError } = usePasteUpload({
 })
 
 // ─── R17: 优先级（点击即保存，失败回滚） ───
+// 围剿 a1-3: 请求序号守卫——快切优先级时仅最新序号可写 prevPriority/回滚（对齐 changeStatus 的 statusAction 模式），
+// 旧响应不得用过期快照覆盖已确认的优先级
+let prioritySeq = 0
 async function changePriority(priority) {
+  const mySeq = ++prioritySeq
   try {
     await artistApi.updatePriority(route.params.id, priority)
+    if (mySeq !== prioritySeq) return
     prevPriority.value = priority
     ElMessage.success(t('orderDetail.priorityUpdated'))
   } catch (err) {
+    if (mySeq !== prioritySeq) return
     order.value.priority = prevPriority.value
     ElMessage.error(err.message)
   }
@@ -515,6 +524,36 @@ async function changeStatus(status) {
 }
 
 // ─── R39：取消订单滑块确认（R30e 交互，C59 高代价操作用滑块） ───
+/** 取消订单提交（滑块滑到底与键盘替代按钮共用） */
+async function confirmCancelOrder() {
+  try {
+    order.value = await artistApi.updateStatus(route.params.id, 'cancelled')
+    ElMessage.success(t('orderDetail.statusUpdated'))
+  } catch (err) {
+    // R-2: 已收款订单取消被后端拦截（409 CANCEL_WITH_PAYMENT，Batch A 契约）——
+    // 二次确认「已收 ¥X、资金需线下退还」，确认后带 confirmPaidCancel 重发
+    if (err.code === 'CANCEL_WITH_PAYMENT' && err.detail?.paidCents != null) {
+      try {
+        await ElMessageBox.confirm(
+          t('orderDetail.cancelPaidConfirm', { amount: formatCents(err.detail.paidCents) }),
+          t('orderDetail.confirmTitle'),
+          { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+        )
+      } catch {
+        return // 用户取消二次确认：不取消订单
+      }
+      try {
+        order.value = await artistApi.updateStatus(route.params.id, 'cancelled', { confirmPaidCancel: true })
+        ElMessage.success(t('orderDetail.statusUpdated'))
+      } catch (err) {
+        ElMessage.error(err.message)
+      }
+    } else {
+      ElMessage.error(err.message)
+    }
+  }
+}
+
 const {
   active: slideCancelActive,
   progress: slideCancelProgress,
@@ -524,34 +563,7 @@ const {
   onMove: onSlideMove,
   onEnd: onSlideEnd
 } = useSlideConfirm({
-  onConfirm: async () => {
-    try {
-      order.value = await artistApi.updateStatus(route.params.id, 'cancelled')
-      ElMessage.success(t('orderDetail.statusUpdated'))
-    } catch (err) {
-      // R-2: 已收款订单取消被后端拦截（409 CANCEL_WITH_PAYMENT，Batch A 契约）——
-      // 二次确认「已收 ¥X、资金需线下退还」，确认后带 confirmPaidCancel 重发
-      if (err.code === 'CANCEL_WITH_PAYMENT' && err.detail?.paidCents != null) {
-        try {
-          await ElMessageBox.confirm(
-            t('orderDetail.cancelPaidConfirm', { amount: formatCents(err.detail.paidCents) }),
-            t('orderDetail.confirmTitle'),
-            { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
-          )
-        } catch {
-          return // 用户取消二次确认：不取消订单
-        }
-        try {
-          order.value = await artistApi.updateStatus(route.params.id, 'cancelled', { confirmPaidCancel: true })
-          ElMessage.success(t('orderDetail.statusUpdated'))
-        } catch (err) {
-          ElMessage.error(err.message)
-        }
-      } else {
-        ElMessage.error(err.message)
-      }
-    }
-  }
+  onConfirm: confirmCancelOrder
 })
 
 // ─── R19: 备注附图/时间线逻辑已随 NotesPanel 拆出（2026-08-10）；粘贴经 expose 调用 ───

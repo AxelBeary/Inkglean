@@ -40,7 +40,12 @@
             'cal-cell--weekend': cell.weekend,
             'cal-cell--free': cell.free
           }"
+          role="button"
+          :tabindex="cell.bands.length ? 0 : -1"
+          :aria-label="$t('queue.calDayViewTitle', { d: `${calYear}/${calMonth + 1}/${cell.day}`, n: cell.bands.length })"
           @click="openDayView(cell)"
+          @keydown.enter.prevent="openDayView(cell)"
+          @keydown.space.prevent="openDayView(cell)"
         >
           <div class="cal-day-head">
             <span class="cal-day-num">{{ cell.day }}</span>
@@ -54,16 +59,23 @@
               v-for="band in cell.bands.slice(0, 3)" :key="band.order.id + '-' + idx"
               :content="bandTooltip(band.order)" placement="top" :show-after="300"
             >
-              <div
+              <button
+                type="button"
                 class="cal-band"
                 :class="bandClass(band.order)"
                 :data-order-id="band.order.id"
                 @click.stop="goOrder(band.order)"
               >
                 <span class="cal-band-text">{{ bandLabel(band.order) }}</span>
-              </div>
+              </button>
             </el-tooltip>
-            <div v-if="cell.bands.length > 3" class="cal-band-more" @click.stop="openDayView(cell)">+{{ cell.bands.length - 3 }}</div>
+            <button
+              v-if="cell.bands.length > 3" type="button" class="cal-band-more"
+              :aria-label="$t('queue.calMoreOrders', { n: cell.bands.length - 3 })"
+              @click.stop="openDayView(cell)"
+            >
+              +{{ cell.bands.length - 3 }}
+            </button>
           </div>
         </div>
       </div>
@@ -76,15 +88,16 @@
         class="cal-day-dialog"
       >
         <div class="cal-day-list">
-          <div
+          <button
             v-for="order in dayDialogOrders" :key="order.id"
+            type="button"
             class="cal-day-item"
             @click="goDayOrder(order)"
           >
             <span class="cal-day-item-band" :class="bandClass(order)">{{ bandLabel(order) }}</span>
             <span class="cal-day-item-no">#{{ order.order_no }}</span>
             <span class="cal-day-item-status">{{ t(`common.orderStatus.${order.status}`) }}</span>
-          </div>
+          </button>
         </div>
       </el-dialog>
 
@@ -147,6 +160,15 @@
               <div class="tl-row-label" :title="bandLabel(row.order)">
                 <span class="tl-row-no">#{{ row.order.order_no }}</span>
                 <span class="tl-row-name">{{ bandLabel(row.order) }}</span>
+                <!-- 键盘等价：时间条拖拽改期的替代路径 -->
+                <button
+                  v-if="!['done', 'delivered', 'cancelled'].includes(row.order.status)"
+                  type="button" class="tl-edit-btn"
+                  :aria-label="$t('queue.tlEditDates')" :title="$t('queue.tlEditDates')"
+                  @click.stop="openDateEdit(row.order)"
+                >
+                  ✎
+                </button>
               </div>
               <el-tooltip :content="bandTooltip(row.order)" placement="top" :show-after="300" :disabled="tlDrag != null">
                 <div
@@ -207,6 +229,35 @@
           {{ tlDragLabelText }}
         </div>
       </Teleport>
+
+      <!-- 键盘等价：时间条改期对话框（替代拖拽 handle） -->
+      <el-dialog
+        v-model="dateEditVisible"
+        :title="$t('queue.tlEditDates')"
+        width="min(92vw, 420px)"
+        :close-on-click-modal="false"
+      >
+        <el-form label-position="top">
+          <el-form-item :label="$t('queue.tlEditStart')">
+            <el-date-picker
+              v-model="dateEditStart" type="date" value-format="YYYY-MM-DD"
+              style="width: 100%" :disabled-date="dateEditStartDisabled"
+            />
+          </el-form-item>
+          <el-form-item :label="$t('queue.tlEditDeadline')">
+            <el-date-picker
+              v-model="dateEditDeadline" type="date" value-format="YYYY-MM-DD"
+              clearable style="width: 100%" :disabled-date="dateEditDeadlineDisabled"
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="dateEditVisible = false">{{ $t('common.cancel') }}</el-button>
+          <el-button type="primary" :loading="dateEditSaving" @click="saveDateEdit">
+            {{ $t('common.save') }}
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </template>
 
@@ -223,6 +274,8 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
+import { artistApi } from '../../../api/index.js'
 import UndoToast from '../UndoToast.vue'
 // v0.38: 统一墨线空状态（REQ-026 §二）
 import InkEmpty from '../visual/InkEmpty.vue'
@@ -287,6 +340,75 @@ function goDayOrder(order) {
   router.push(`/orders/${order.id}?from=queue`)
 }
 
+// ─── 时间条改期对话框（键盘等价：替代拖拽 handle；与 onTlHandleUp 同 API/乐观锁） ───
+const dateEditVisible = ref(false)
+const dateEditOrder = ref(null)
+const dateEditStart = ref('')
+const dateEditDeadline = ref('')
+const dateEditSaving = ref(false)
+
+function openDateEdit(order) {
+  dateEditOrder.value = order
+  dateEditStart.value = order.startDate || ''
+  dateEditDeadline.value = order.deadline || ''
+  dateEditVisible.value = true
+}
+function dateEditStartDisabled(d) {
+  if (dateEditDeadline.value) return d > new Date(dateEditDeadline.value + 'T00:00:00')
+  return false
+}
+function dateEditDeadlineDisabled(d) {
+  if (dateEditStart.value) return d < new Date(dateEditStart.value + 'T00:00:00')
+  return false
+}
+async function saveDateEdit() {
+  const order = dateEditOrder.value
+  if (!order) return
+  const start = dateEditStart.value || null
+  const deadline = dateEditDeadline.value || null
+  if (start && deadline && start > deadline) {
+    ElMessage.warning(t('queue.tlDragDeadlineBeforeStart'))
+    return
+  }
+  dateEditSaving.value = true
+  try {
+    const src = props.queue.find(o => o.id === order.id) || props.bufferQueue.find(o => o.id === order.id)
+    let version = src?.version
+    const oldStart = src?.startDate || null
+    const oldDeadline = src?.deadline || null
+    // 两步 PUT 带乐观锁，顺序避开后端交叉校验 400（与拖拽 onTlHandleUp 同款）
+    if (start && deadline && oldDeadline && start > oldDeadline) {
+      const first = await artistApi.updateDeadline(order.id, deadline, { version })
+      version = first?.version
+      const second = await artistApi.updateStartDate(order.id, start, { version })
+      version = second?.version
+    } else if (start && deadline && oldStart && deadline < oldStart) {
+      const first = await artistApi.updateStartDate(order.id, start, { version })
+      version = first?.version
+      const second = await artistApi.updateDeadline(order.id, deadline, { version })
+      version = second?.version
+    } else {
+      if (start && start !== oldStart) {
+        const res = await artistApi.updateStartDate(order.id, start, { version })
+        version = res?.version
+      }
+      if (deadline !== oldDeadline) {
+        const res = await artistApi.updateDeadline(order.id, deadline, { version })
+        version = res?.version
+      }
+    }
+    dateEditVisible.value = false
+    ElMessage.success(t('queue.tlDateSaved'))
+    emit('refresh-all')
+  } catch (err) {
+    if (err?.code === 'ORDER_CONFLICT') ElMessage.warning(t('queue.tlOrderConflict'))
+    else ElMessage.error(err.message)
+    emit('refresh-all')
+  } finally {
+    dateEditSaving.value = false
+  }
+}
+
 /** 月份选择器（el-date-picker 月粒度，值 'YYYY-MM'；翻月头时联动） */
 const calMonthPicker = ref(`${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}`)
 watch(calCursor, (c) => {
@@ -348,6 +470,9 @@ const calCells = computed(() => {
   const gridStart = new Date(first.getFullYear(), first.getMonth(), 1 - lead)
 
   const todayKey = dateKey(new Date())
+  // 围剿 a1-6: 今天本地零点——已过去的无单日期不得标记为可接单
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
   const monthEnd = new Date(first.getFullYear(), first.getMonth() + 1, 0)
 
   // 预计算每个订单的带区间（截断到可见范围）
@@ -380,7 +505,7 @@ const calCells = computed(() => {
       weekend: d.getDay() === 0 || d.getDay() === 6,
       bands,
       // 批G: 可接单 = 当月无任何订单覆盖（formal + buffer 均算）
-      free: d.getMonth() === first.getMonth() && bands.length === 0
+      free: d.getMonth() === first.getMonth() && d >= todayStart && bands.length === 0
     })
   }
   return cells
@@ -404,7 +529,11 @@ function bandClass(order) {
   }
   if (['delivered', 'done'].includes(order.status)) return ['cal-band--done', 'band-done']
   const deadline = parseDate(order.deadline)
-  if (deadline && deadline < new Date() && !['delivered', 'done'].includes(order.status)) {
+  // 围剿 a1-7: 逾期判定按本地日归零比较（parseDate('YYYY-MM-DD') 是 UTC 零点，UTC+8 下今天截稿当天不应显逾期；
+  // 同 OrderDetail daysLeft 写法）
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  if (deadline && deadline < todayStart && !['delivered', 'done'].includes(order.status)) {
     return ['cal-band--overdue', 'band-over']
   }
   const base = order._zone === 'buffer' ? 'cal-band--buffer' : 'cal-band--formal'
@@ -483,6 +612,10 @@ const {
   display: flex; flex-direction: column; gap: 3px;
   transition: border-color var(--dur-fast);
 }
+.cal-cell:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: -2px;
+}
 .cal-cell--other { opacity: 0.4; background: transparent; }
 .cal-cell--weekend { background: color-mix(in srgb, var(--paper2) 70%, var(--card)); }
 /* 今天：花青软底 + 墨色日期圆（提案 v2 .day.today） */
@@ -522,6 +655,11 @@ const {
   padding: 6px 10px;
   border: 1px solid var(--line); border-radius: var(--r-m);
   cursor: pointer;
+  width: 100%;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
   transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 .cal-day-item:hover { border-color: var(--hq); background: var(--hq-t); }
@@ -548,6 +686,12 @@ const {
   cursor: pointer;
   transition: filter var(--dur-fast);
   overflow: hidden;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  width: 100%;
 }
 .cal-band:hover { filter: brightness(1.08); }
 .cal-band-text {
@@ -591,6 +735,7 @@ const {
 .cal-band-more {
   font-size: calc(var(--font-scale, 1) * 10px); color: var(--ink3); text-align: center;
   padding: 1px 0;
+  border: none; background: none; font: inherit; cursor: pointer;
 }
 
 /* 图例 */
@@ -682,6 +827,17 @@ const {
   border-right: 1px solid var(--line);
   overflow: hidden;
 }
+.tl-edit-btn {
+  margin-left: auto;
+  flex: none;
+  width: 22px; height: 22px; padding: 0;
+  border: none; border-radius: var(--r-s);
+  background: none; color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 12px); line-height: 1;
+  cursor: pointer;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.tl-edit-btn:hover { color: var(--hq); background: var(--hq-t); }
 .tl-row-no { font-size: calc(var(--font-scale, 1) * 11px); font-weight: 700; color: var(--ink3); white-space: nowrap; font-family: var(--f-d); }
 .tl-row-name {
   font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink);

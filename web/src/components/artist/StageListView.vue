@@ -13,25 +13,49 @@
       <span v-if="!focusedSpeechId" class="speech-vars-hint">{{ $t('workflow.speechVarNoFocus') }}</span>
     </div>
     <draggable v-model="localStages" item-key="id" handle=".drag-handle" @end="onDragEnd">
-      <template #item="{ element: s }">
+      <template #item="{ element: s, index }">
         <div class="stage-item">
           <div class="stage-row" :class="{ 'is-final': s.isFinal }">
             <span v-if="!readonly" class="drag-handle" title="拖拽排序">⠿</span>
+            <!-- 键盘等价：上移/下移（拖拽排序的可达替代） -->
+            <span v-if="!readonly" class="stage-move" role="group" :aria-label="$t('workflow.reorderLabel')">
+              <button
+                type="button" class="stage-move-btn" :disabled="index === 0"
+                :aria-label="$t('workflow.moveUp')" :title="$t('workflow.moveUp')"
+                @click.stop="moveStage(s, -1)"
+              >
+                ↑
+              </button>
+              <button
+                type="button" class="stage-move-btn" :disabled="index === localStages.length - 1"
+                :aria-label="$t('workflow.moveDown')" :title="$t('workflow.moveDown')"
+                @click.stop="moveStage(s, 1)"
+              >
+                ↓
+              </button>
+            </span>
 
             <!-- 名称（点击内联编辑） -->
-            <span v-if="editingId !== s.id" class="stage-name" @click="startEdit(s)">{{ s.name }}</span>
+            <button
+              v-if="editingId !== s.id" type="button" class="stage-name"
+              @click="startEdit(s)"
+            >
+              {{ s.name }}
+            </button>
             <el-input
               v-else v-model="editName" size="small" class="name-input"
               @keyup.enter="commitEdit(s)" @blur="commitEdit(s)" ref="editInput"
             />
 
             <!-- 说明（点击编辑，始终占位保证对齐） -->
-            <span
-              v-if="descEditId !== s.id" class="stage-desc" :class="{ empty: !s.description && !readonly }"
-              @click="!readonly && startDescEdit(s)"
+            <button
+              v-if="descEditId !== s.id" type="button" class="stage-desc"
+              :class="{ empty: !s.description && !readonly }"
+              :disabled="readonly"
+              @click="startDescEdit(s)"
             >
               {{ s.description || (readonly ? '' : $t('workflow.descPlaceholder')) }}
-            </span>
+            </button>
             <el-input
               v-else v-model="descEditVal" size="small" class="desc-input"
               :placeholder="$t('workflow.descPlaceholder')"
@@ -59,7 +83,7 @@
                 @confirm="$emit('delete', s.id)"
               >
                 <template #reference>
-                  <el-button text size="small" type="danger" class="del-btn">✕</el-button>
+                  <el-button text size="small" type="danger" class="del-btn" :aria-label="$t('workflow.deleteStage')">✕</el-button>
                 </template>
               </el-popconfirm>
               <el-tag v-else-if="s.isFinal" size="small" type="warning" effect="plain">{{ $t('workflow.final') }}</el-tag>
@@ -68,14 +92,18 @@
 
           <!-- #8: 话术编辑区（节点≥3 默认折叠，显示节点名+前20字预览；变量按钮已移到顶部公共区） -->
           <div v-if="!readonly" class="stage-speech" :class="{ 'stage-speech--collapsed': isSpeechCollapsed(s) }">
-            <div class="speech-head" @click="toggleSpeech(s.id)">
+            <button
+              type="button" class="speech-head"
+              :aria-expanded="!isSpeechCollapsed(s)"
+              @click="toggleSpeech(s.id)"
+            >
               <span class="speech-toggle">{{ isSpeechCollapsed(s) ? '▸' : '▾' }}</span>
               <span class="speech-head-label">{{ $t('workflow.speechLabel') }}</span>
               <span v-if="isSpeechCollapsed(s) && s.speechTemplate" class="speech-preview">
                 {{ speechPreview(s.speechTemplate) }}
               </span>
               <span v-else-if="isSpeechCollapsed(s)" class="speech-preview speech-preview--empty">{{ $t('workflow.speechEmpty') }}</span>
-            </div>
+            </button>
             <div v-show="!isSpeechCollapsed(s)" class="speech-editor">
               <el-input
                 v-model="s.speechTemplate" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }"
@@ -223,6 +251,17 @@ function onDragEnd() {
   emit('reorder', localStages.value.map(s => s.id))
 }
 
+/** 键盘上移/下移（拖拽排序的键盘等价；完成后走同一条 reorder 持久化） */
+function moveStage(s, direction) {
+  const idx = localStages.value.findIndex(st => st.id === s.id)
+  const target = idx + direction
+  if (idx < 0 || target < 0 || target >= localStages.value.length) return
+  const next = localStages.value.slice()
+  ;[next[idx], next[target]] = [next[target], next[idx]]
+  localStages.value = next
+  emit('reorder', next.map(st => st.id))
+}
+
 function addStage() {
   if (!newName.value.trim()) return
   emit('add', { name: newName.value.trim() })
@@ -274,14 +313,30 @@ function onTogglePay(s, val) {
 /* 终态节点：赭石=客户/完结语义（原 color-gold） */
 .stage-row.is-final { border-color: var(--zhe); background: var(--zhe-t); }
 .drag-handle { cursor: grab; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 14px); user-select: none; flex-shrink: 0; }
-.stage-name { font-weight: 600; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); cursor: pointer; flex-shrink: 0; }
+.stage-move { display: inline-flex; gap: 1px; flex-shrink: 0; }
+.stage-move-btn {
+  width: 20px; height: 20px; padding: 0;
+  border: none; border-radius: var(--r-s);
+  background: none; color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 11px); font-weight: 700; line-height: 1;
+  cursor: pointer;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.stage-move-btn:hover:not(:disabled) { color: var(--hq); background: var(--hq-t); }
+.stage-move-btn:disabled { opacity: 0.35; cursor: default; }
+.stage-name {
+  font-weight: 600; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); cursor: pointer; flex-shrink: 0;
+  padding: 0; border: none; background: none; font-family: inherit; text-align: inherit;
+}
 .stage-name:hover { color: var(--hq); }
 .name-input { width: 120px; flex-shrink: 0; }
 .stage-desc {
   font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2);
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   cursor: pointer; padding: 2px 4px; border-radius: var(--r-s);
+  border: none; background: none; font-family: inherit; text-align: inherit;
 }
+.stage-desc:disabled { cursor: default; }
 .stage-desc:hover { background: var(--hq-t); }
 .stage-desc.empty { color: var(--ink3); opacity: 0; transition: opacity var(--dur-fast); font-style: italic; }
 .stage-row:hover .stage-desc.empty { opacity: 0.7; }
@@ -328,6 +383,7 @@ function onTogglePay(s, val) {
   display: flex; align-items: center; gap: 6px;
   cursor: pointer; user-select: none;
   padding: 2px 0;
+  border: none; background: none; font-family: inherit; color: inherit; text-align: inherit;
 }
 .speech-toggle { font-size: calc(var(--font-scale, 1) * 10px); color: var(--ink3); width: 12px; flex-shrink: 0; }
 .speech-head-label { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink2); flex-shrink: 0; }

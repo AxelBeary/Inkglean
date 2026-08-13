@@ -510,6 +510,9 @@ onUnmounted(() => {
   window.removeEventListener('beforeunload', onBeforeUnload)
   window.removeEventListener('storage', onDraftStorage) // G-4: 成对清理
   if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
+  // 围剿 a1-2: QQ 历史防抖定时器离页清理 + 在途请求作废（卸载递增序号）
+  if (qqTimer) { clearTimeout(qqTimer); qqTimer = null }
+  qqSeq++
 })
 </script>
 

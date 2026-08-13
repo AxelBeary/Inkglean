@@ -18,7 +18,9 @@
       @dragover.capture="guardDragOver"
       @drop.capture="guardDrop"
     >
-      <el-icon class="upload-icon"><Upload /></el-icon>
+      <button type="button" class="upload-trigger-btn" :aria-label="$t('artworks.dragUpload')">
+        <el-icon class="upload-icon"><Upload /></el-icon>
+      </button>
       <p>{{ $t('artworks.dragUpload') }}</p>
       <template #tip>
         <p class="upload-tip">{{ $t('artworks.tip') }}</p>
@@ -67,11 +69,16 @@
         >
           ★
         </button>
-        <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">
+        <button
+          v-if="manageMode" type="button" class="artwork-select-layer"
+          role="checkbox" :aria-checked="selectedIds.has(art.id)"
+          :aria-label="art.title || $t('artworks.image')"
+          @click="toggleSelect(art.id)"
+        >
           <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
             <span v-if="selectedIds.has(art.id)">✓</span>
           </span>
-        </div>
+        </button>
         <div v-else class="artwork-actions">
           <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
           <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
@@ -96,11 +103,16 @@
         preview-teleported
       />
       <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
-      <div v-if="manageMode" class="artwork-select-layer" @click="toggleSelect(art.id)">
+      <button
+        v-if="manageMode" type="button" class="artwork-select-layer"
+        role="checkbox" :aria-checked="selectedIds.has(art.id)"
+        :aria-label="art.title || $t('artworks.image')"
+        @click="toggleSelect(art.id)"
+      >
         <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
           <span v-if="selectedIds.has(art.id)">✓</span>
         </span>
-      </div>
+      </button>
       <!-- 普通模式：单条删除（悬停显示） -->
       <div v-else class="artwork-actions">
         <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
@@ -178,6 +190,12 @@
       >
         →
       </div>
+    </div>
+    <!-- 键盘等价：滑块确认的替代按钮路径（滑块保持可用） -->
+    <div class="batch-slide-alt">
+      <el-button type="danger" size="small" @click="confirmBatchDelete">
+        {{ $t('artworks.batchDeleteBtn') }}
+      </el-button>
     </div>
   </el-dialog>
 
@@ -300,6 +318,12 @@ const {
   }
 })
 
+/** 键盘替代路径：直接确认批量删除（与滑块滑到底行为一致） */
+async function confirmBatchDelete() {
+  slideDialogVisible.value = false
+  await doBatchDelete()
+}
+
 /** 逐条删除（无批量接口），完成后退出多选模式并刷新 */
 async function doBatchDelete() {
   batchDeleting.value = true
@@ -355,10 +379,17 @@ async function handleUpload({ file }) {
 async function remove(art) {
   try {
     await ElMessageBox.confirm(t('artworks.confirmDelete'), t('common.confirmDeleteTitle'), { type: 'warning' })
+  } catch {
+    return // 用户取消
+  }
+  try {
     await artistApi.deleteArtwork(art.id)
     ElMessage.success(t('common.deleted'))
     await loadArtworks()
-  } catch { /* cancelled */ }
+  } catch (err) {
+    // 围剿 a1-12: API 删除失败与用户取消分开处理——失败必须明示，不得当取消吞掉
+    ElMessage.error(err.message)
+  }
 }
 
 // ─── REQ-017: 封面操作（星标切换，复用 v0.25 API） ───
@@ -427,10 +458,14 @@ async function moveCover(art, direction) {
   }
 }
 
+// 围剿 a1-13: 作品分页/上传刷新请求序号——上传后的刷新与翻页并发时，旧页响应不得覆盖新页
+let loadSeq = 0
 async function loadArtworks() {
+  const mySeq = ++loadSeq
   loading.value = true
   try {
     const res = await artistApi.getArtworksPaged({ page: page.value, pageSize: pageSize.value })
+    if (mySeq !== loadSeq) return
     artworks.value = res.items
     total.value = res.total
     // 删除/批量删除当前页最后一条后回退一页，避免空白页
@@ -440,9 +475,10 @@ async function loadArtworks() {
       return
     }
   } catch (err) {
+    if (mySeq !== loadSeq) return
     ElMessage.error(err.message)
   } finally {
-    loading.value = false
+    if (mySeq === loadSeq) loading.value = false
   }
 }
 
@@ -536,6 +572,11 @@ onMounted(async () => {
 
 /* 上传区图标与提示（原 inline style 旧变量，改走 class） */
 .upload-icon { font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink3); }
+.upload-trigger-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; cursor: pointer;
+  color: inherit; font: inherit;
+}
 .upload-tip { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); }
 
 /* ─── F7: 主图区（单独展示，不在网格重复） ─── */
@@ -627,6 +668,7 @@ onMounted(async () => {
 .artwork-select-layer {
   position: absolute; inset: 0;
   cursor: pointer; background: rgba(0, 0, 0, 0.08);
+  padding: 0; border: none; font: inherit; color: inherit;
 }
 .artwork-checkbox {
   position: absolute; top: 8px; left: 8px;
@@ -677,4 +719,5 @@ onMounted(async () => {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 .slide-confirm-thumb:active { cursor: grabbing; }
+.batch-slide-alt { margin-top: 12px; display: flex; justify-content: center; }
 </style>

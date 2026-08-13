@@ -3,9 +3,13 @@
   <div>
     <h3 class="step-title">{{ t('orderForm.styleStepTitle') }}</h3>
     <div class="style-pick-grid">
-      <div
+      <button
         v-for="s in styles" :key="s.id"
         class="style-pick" :class="{ 'style-pick--on': selectedStyleId === s.id }"
+        type="button"
+        role="radio"
+        :aria-checked="selectedStyleId === s.id"
+        :aria-label="s.name"
         @click="emit('select', s.id)"
       >
         <span v-if="selectedStyleId === s.id" class="style-pick-stamp">✓</span>
@@ -15,7 +19,7 @@
         <div v-else class="style-pick-img-empty">{{ s.name?.charAt(0) }}</div>
         <div class="style-pick-name">{{ s.name }}</div>
         <div v-if="s.description" class="style-pick-desc">{{ s.description }}</div>
-      </div>
+      </button>
     </div>
     <div class="step-nav step-nav--end">
       <el-button type="primary" :disabled="!selectedStyleId" @click="emit('next')">{{ t('orderForm.nextStep') }}</el-button>
@@ -66,6 +70,8 @@ const { t } = useI18n()
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 12px;
   overflow: hidden;
+  font: inherit;
+  color: inherit;
   transition: border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-mid);
 }
 .style-pick:hover { box-shadow: var(--shadow-card-hover); }

@@ -4,27 +4,41 @@
        v0.38: 大数字文楷墨色不上色 + 顶部 3px 状态色条 + hover 跳转箭头（REQ §1.1/验收 4）
        02D P1-1: 计数从 0 滚动到目标（加载期保持 -，数据到达后滚动） -->
   <div class="stat-grid">
-    <el-card shadow="hover" class="stat-card stat-card--pending" @click="goOrders('pending')">
-      <div class="stat-num">{{ stats?.pendingCount != null ? pendingCount.display : '-' }}</div>
-      <div class="stat-label">{{ $t('dashboard.pendingNew') }}</div>
-      <span class="stat-go" aria-hidden="true">→</span>
-    </el-card>
-    <el-card shadow="hover" class="stat-card stat-card--active" @click="goOrders('active')">
-      <div class="stat-num">{{ stats?.activeCount != null ? activeCount.display : '-' }}</div>
-      <div class="stat-label">{{ $t('dashboard.activeOrders') }}</div>
-      <span class="stat-go" aria-hidden="true">→</span>
-    </el-card>
-    <el-card shadow="hover" class="stat-card stat-card--completed" @click="goOrders('completed')">
-      <div class="stat-num">{{ stats?.totalCompleted != null ? totalCompleted.display : '-' }}</div>
-      <div class="stat-label">{{ $t('dashboard.totalCompleted') }}</div>
-      <span class="stat-go" aria-hidden="true">→</span>
-    </el-card>
+    <router-link
+      :to="{ path: '/orders', query: { status: 'pending' } }"
+      class="stat-link" :aria-label="$t('dashboard.pendingNew')"
+    >
+      <el-card shadow="hover" class="stat-card stat-card--pending">
+        <div class="stat-num">{{ stats?.pendingCount != null ? pendingCount.display : '-' }}</div>
+        <div class="stat-label">{{ $t('dashboard.pendingNew') }}</div>
+        <span class="stat-go" aria-hidden="true">→</span>
+      </el-card>
+    </router-link>
+    <router-link
+      :to="{ path: '/orders', query: { status: 'active' } }"
+      class="stat-link" :aria-label="$t('dashboard.activeOrders')"
+    >
+      <el-card shadow="hover" class="stat-card stat-card--active">
+        <div class="stat-num">{{ stats?.activeCount != null ? activeCount.display : '-' }}</div>
+        <div class="stat-label">{{ $t('dashboard.activeOrders') }}</div>
+        <span class="stat-go" aria-hidden="true">→</span>
+      </el-card>
+    </router-link>
+    <router-link
+      :to="{ path: '/orders', query: { status: 'completed' } }"
+      class="stat-link" :aria-label="$t('dashboard.totalCompleted')"
+    >
+      <el-card shadow="hover" class="stat-card stat-card--completed">
+        <div class="stat-num">{{ stats?.totalCompleted != null ? totalCompleted.display : '-' }}</div>
+        <div class="stat-label">{{ $t('dashboard.totalCompleted') }}</div>
+        <span class="stat-go" aria-hidden="true">→</span>
+      </el-card>
+    </router-link>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useCountUp } from '../../../utils/useCountUp.js'
 
 const props = defineProps({
@@ -32,21 +46,16 @@ const props = defineProps({
   stats: { type: Object, default: null }
 })
 
-const router = useRouter()
-
 // 02D P1-1: 计数滚动（整数；加载期显示 -，数据到达后从 0 滚动到目标）
 const pendingCount = useCountUp(computed(() => props.stats?.pendingCount ?? 0))
 const activeCount = useCountUp(computed(() => props.stats?.activeCount ?? 0))
 const totalCompleted = useCountUp(computed(() => props.stats?.totalCompleted ?? 0))
-
-/** #2: 跳转订单列表并带状态筛选（OrderList 读 query.status 初始化 filter） */
-function goOrders(status) {
-  router.push({ path: '/orders', query: { status } })
-}
 </script>
 
 <style scoped>
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-link { display: block; text-decoration: none; color: inherit; border-radius: var(--r-l); }
+.stat-link:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; }
 .artist-scope .stat-card {
   position: relative;
   overflow: hidden;

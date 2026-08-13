@@ -226,7 +226,8 @@ export default {
     source: { self: 'Self', manual: 'Manual', clientSelf: 'Client self-order', manualEntry: 'Manual entry' },
     custom: 'Custom', none: 'None',
     save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', download: 'Download',
-    confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add', or: 'or',
+    confirm: 'Confirm', close: 'Close', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add', or: 'or',
+    like: 'Like', unlike: 'Unlike',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
     confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed', copyFailed: 'Copy failed, please copy manually',
 loadRetry: 'Try again', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
@@ -578,6 +579,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     emptyArtworks: 'No artworks',
     emptyDeliverables: 'No deliverables',
     watermarkType: 'Watermark type',
+    textInputLabel: 'Watermark text',
     text: 'Text',
     logo: 'Logo',
     uploadLogo: 'Upload logo (PNG)',
@@ -755,6 +757,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
+    refUpload: 'Upload reference image',
     qqLabel: 'Your QQ number', qqPlaceholder: 'The artist will contact you via QQ',
     nameLabel: 'Nickname (optional)', namePlaceholder: 'What should we call you',
     notifyLabel: 'Notify me on QQ when my turn comes', agreeLabel: 'I have read and agree to the guidelines above',
@@ -1011,7 +1014,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
     promote: 'Promote', promoted: 'Promoted to formal queue',
-    slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
+    slideToCancel: 'Slide to confirm cancellation', slideCancelConfirm: 'Confirm cancellation', statusUpdated: 'Status updated',
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
     workflowLoadFailed: 'Failed to load workflow stages. The advance button is hidden. Please retry.',
     // P0-3b: tab labels
@@ -1021,8 +1024,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     completedTitle: 'Recently delivered', completedHint: 'Delivered orders stay here for 7 days then hide automatically',
     completedEmpty: 'No recently delivered orders',
     dragHint: 'Drag to reorder',
+    reorderLabel: 'Reorder queue', moveUp: 'Move order up', moveDown: 'Move order down',
     focusDisplay: 'Focus image', focusOff: 'Off', focusLarge: 'Large',
     uploadFocus: 'Upload focus image',
+    replaceFocus: 'Replace focus image',
     // R53: focus image replacement
     dropToReplace: 'Drop to replace focus image',
     // SPEC-005: calendar view
@@ -1048,6 +1053,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // Batch G (2026-08-08): calendar optimizations (MVP)
     calAvailable: 'Available',
     calDayViewTitle: '{d} · {n} order(s)',
+    calMoreOrders: '{n} more order(s)',
+    tlEditDates: 'Reschedule', tlEditStart: 'Start date', tlEditDeadline: 'Deadline', tlDateSaved: 'Dates updated',
     calSelectMonth: 'Select month'
   },
   orderList: {
@@ -1065,6 +1072,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     colPriority: 'Priority', colSource: 'Source', colTime: 'Order time', colDesc: 'Description',
     confirmOrder: 'Accept order', startWip: 'Start work',
     needRevision: 'Needs revision', markDone: '✔ Mark done', uploadDeliver: 'Upload delivery', cancelOrder: 'Cancel order',
+    confirmCancel: 'Confirm order cancellation',
     // R-2: second confirmation for cancelling a paid order (amount from backend detail.paidCents)
     cancelPaidConfirm: 'This order has received ¥{amount}. Cancel anyway? Funds must be refunded offline',
     noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
@@ -1096,10 +1104,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     stageOffDone: 'Stage tracking turned off',
     gallery: 'Order gallery', galleryUpload: 'Upload', galleryUploadSuccess: 'Image added',
     setFocus: 'Set as focus image',
+    openViewer: 'View reference image {n}',
     galleryHint: 'Click an image to preview · Click ✓ to set focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
     galleryNotImage: 'Only image files are supported', galleryTooBig: 'Image exceeds the 10MB limit',
     uploading: 'Uploading...', sourceClient: 'Client', sourceArtist: 'Artist',
     noteImage: 'Note attachment', noteImageSingle: 'Notes support only 1 attachment. The first image was used.',
+    noteImageUpload: 'Upload note attachment', viewNoteImage: 'View enlarged note attachment',
     // R39: status area rework (plan B)
     lastActivity: 'Last activity: {time}',
     noteCount: '{n} notes', refCount: '{n} references',
@@ -1236,6 +1246,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     customAddonPricePlaceholder: 'Amount (negative allowed)',
     customAddonNameRequired: 'Please enter a custom add-on name',
     customAddonPriceRequired: 'Please enter a custom add-on amount',
+    removeCustomAddon: 'Remove custom add-on',
     customAddonMax: 'Up to 20 custom add-ons allowed',
     selectSizeOrPrice: 'Select a style and size first, or enter a custom final price',
     // F6: manual order draft (localStorage + restore prompt)
@@ -1429,7 +1440,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     selected: '{n} selected',
     batchDeleteTitle: 'Batch delete', batchDeleteConfirm: 'Delete {n} selected artworks? This cannot be undone.',
     batchDeleted: '{n} artworks deleted', batchPartial: 'Delete finished: {ok} succeeded, {failed} failed',
-    slideToDelete: 'Slide to confirm deletion',
+    slideToDelete: 'Slide to confirm deletion', batchDeleteBtn: 'Confirm deletion of selected artworks',
     // REQ-017: cover operations
     coverSet: 'Set as cover', coverUnset: 'Remove cover',
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
@@ -1478,6 +1489,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     shopVisibleHint: 'When on, clients can find your shop in the directory and visit your page. When off, your shop is hidden from the public.',
     shopHiddenNotice: 'Your shop is currently hidden — clients cannot find it in the directory or visit your page.',
     linksLabel: 'Links (shown on public page)', addLink: 'Add link',
+    moveLinkUp: 'Move link up', moveLinkDown: 'Move link down', removeLink: 'Remove link',
     linksHint: 'Up to 8 links. Platforms are auto-detected as you paste. Changes appear on your public page immediately after saving. Empty rows are not saved.',
     linksEmpty: 'No links added yet', linkOther: 'Other', linkUrlPlaceholder: 'https://',
     linkInvalid: 'Invalid link format (http/https only, or paste a bare URL)', linkTooLong: 'Link is too long (domain ≤253 / path ≤1500 / total ≤1800)',
@@ -1572,7 +1584,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     saved: 'Payment split saved', detached: 'Payment node removed, % merged into final',
     // Batch 4 B10 (option b): backend appends appliesToNewOrdersOnly when active orders exist
     paymentNewOrdersOnly: 'Payment split saved — applies to new orders only (existing orders keep their snapshot)',
-    dragHandle: 'Drag to adjust ratio', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate',
+    dragHandle: 'Drag to adjust ratio', editPercent: 'Edit payment % for "{name}"', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate',
+    reorderLabel: 'Reorder stages', moveUp: 'Move stage up', moveDown: 'Move stage down', deleteStage: 'Delete stage',
     reset: 'Reset to Default', resetConfirm: 'Reset to default template? All custom stages and payment splits will be overwritten. This cannot be undone.', resetDone: 'Reset to default template',
     descPlaceholder: 'Click to add a note',
     // plan-node-speech: node speech ({客户名} etc. are backend variable tokens — kept in Chinese in both locales)

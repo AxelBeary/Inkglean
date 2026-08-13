@@ -162,18 +162,23 @@ async function undoReorder() {
  * P1-2: 拖拽结束 — 发送完整排序后的 ID 数组
  * vuedraggable 已就地移动数组，直接把新顺序的 ID 列表发给后端
  */
+// 围剿 a1-5: 拖拽排序请求序号——两次快速拖拽时仅最新序号写 queue/lastServerOrder，防旧响应乱序覆盖
+let reorderSeq = 0
 async function onDragEnd(evt) {
   const { oldIndex, newIndex } = evt
   if (oldIndex === newIndex) return
 
   reorderUndoTarget = lastServerOrder.value // REQ-037 C1: 撤销目标 = 拖拽前的服务端顺序
+  const mySeq = ++reorderSeq
   try {
     const orderedIds = queue.value.map(item => item.id)
     const newQueue = await artistApi.reorderQueue(orderedIds)
+    if (mySeq !== reorderSeq) return
     queue.value = newQueue
     lastServerOrder.value = newQueue.map(o => o.id)
     reorderToastVisible.value = true
   } catch (err) {
+    if (mySeq !== reorderSeq) return
     ElMessage.error(err.message)
     // 回滚：重新加载
     await loadQueue()

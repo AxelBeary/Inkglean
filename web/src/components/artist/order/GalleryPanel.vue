@@ -13,7 +13,13 @@
         v-for="(reference, index) in order.references" :key="reference.id"
         class="ref-item" :class="{ 'ref-item--focus': order.focus_image_path === reference.file_path }"
       >
-        <div class="ref-img-wrap" @click="emit('open-viewer', index)">
+        <div
+          class="ref-img-wrap" role="button" tabindex="0"
+          :aria-label="$t('orderDetail.openViewer', { n: index + 1 })"
+          @click="emit('open-viewer', index)"
+          @keydown.enter.prevent="emit('open-viewer', index)"
+          @keydown.space.prevent="emit('open-viewer', index)"
+        >
           <!-- R43: placeholder 骨架屏防首屏白闪 -->
           <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="emit('refresh')">
             <template #placeholder>
@@ -35,7 +41,8 @@
       </div>
 
       <!-- R18: 上传入口（拖拽/点击/Ctrl+V） -->
-      <div
+      <button
+        type="button"
         class="ref-upload-tile"
         :class="{ 'ref-upload-tile--active': isGalleryDragOver }"
         @dragenter.capture="emit('dragenter', $event)"
@@ -47,7 +54,7 @@
       >
         <el-icon :size="24"><Plus /></el-icon>
         <span class="ref-upload-text">{{ $t('orderDetail.galleryUpload') }}</span>
-      </div>
+      </button>
       <input
         ref="galleryInputEl" type="file" accept="image/*" multiple hidden
         @change="emit('file-select', $event)"
@@ -100,6 +107,10 @@ function handleDragLeave(event) {
   cursor: pointer;
   border-radius: var(--r-m);
   overflow: hidden;
+}
+.ref-img-wrap:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: 2px;
 }
 .ref-img { height: 120px; width: 100%; border-radius: var(--r-m); display: block; background: var(--paper2); }
 /* R43: 加载骨架屏（防首屏多图白闪） */
@@ -165,7 +176,16 @@ function handleDragLeave(event) {
   gap: 6px;
   cursor: pointer;
   color: var(--ink2);
+  padding: 0;
+  border: 2px dashed var(--line2);
+  background: none;
+  font: inherit;
+  text-align: inherit;
   transition: border-color var(--dur-mid), background var(--dur-mid), color var(--dur-mid);
+}
+.ref-upload-tile:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: 2px;
 }
 .ref-upload-tile:hover, .ref-upload-tile--active {
   border-color: var(--hq);

@@ -34,7 +34,11 @@
         v-for="c in checks" :key="c.id" shadow="never"
         class="health-card" :class="`health-card--${c.status}`"
       >
-        <div class="health-card-head" @click="toggleExpand(c.id)">
+        <button
+          type="button" class="health-card-head"
+          :aria-expanded="isExpanded(c.id)"
+          @click="toggleExpand(c.id)"
+        >
           <span class="health-status" aria-hidden="true">
             <el-icon><component :is="statusIcon(c.status)" /></el-icon>
           </span>
@@ -45,7 +49,7 @@
           <el-tag v-if="c.id === 'disk'" size="small" type="info">{{ $t('admin.health.diskNote') }}</el-tag>
           <span class="health-summary">{{ c.summary }}</span>
           <el-icon class="health-caret" :class="{ 'health-caret--open': isExpanded(c.id) }"><ArrowDown /></el-icon>
-        </div>
+        </button>
         <el-collapse-transition>
           <div v-show="isExpanded(c.id)" class="health-detail-wrap">
             <pre class="health-detail">{{ JSON.stringify(c.detail, null, 2) }}</pre>
@@ -122,7 +126,10 @@ function downloadReport() {
   display: flex; align-items: center; gap: var(--sp-2, 8px);
   cursor: pointer; user-select: none;
   padding: var(--sp-1, 4px) 0;
+  width: 100%;
+  border: none; background: none; font: inherit; color: inherit; text-align: inherit;
 }
+.health-card-head:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; }
 .health-status { font-size: 18px; flex: none; }
 /* 状态语义色（石绿/藤黄/朱砂） */
 .health-status--ok { color: var(--sl); }

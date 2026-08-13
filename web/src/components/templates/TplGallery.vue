@@ -78,7 +78,7 @@
           <!-- 当前页：key 变化触发淡入+微位移过渡 -->
           <Transition name="tpl-album-swap" mode="out-in">
             <figure v-if="currentArt" class="tpl-album-page" :key="currentArt.id">
-              <div class="tpl-album-frame" @click="openLightbox(currentIndex)">
+              <button type="button" class="tpl-album-frame" @click="openLightbox(currentIndex)">
                 <el-image
                   :src="imgUrl(currentArt.image_path)"
                   fit="contain"
@@ -90,7 +90,7 @@
                     <div class="tpl-gallery-skeleton" aria-hidden="true" />
                   </template>
                 </el-image>
-              </div>
+              </button>
               <figcaption class="tpl-album-meta">
                 <p class="tpl-gallery-caption" v-if="currentArt.title">{{ currentArt.title }}</p>
                 <!-- F1: 点赞（颜色/大小由模板 class 覆盖） -->
@@ -147,7 +147,14 @@
           :style="{ '--i': index }"
         >
           <!-- #15: aspect-ratio 占位——有 width/height 时精确预留高度，lazy 加载零跳动 -->
-          <div class="tpl-gallery-img-wrap" :style="ratioStyle(art)" @click="openLightbox(index)">
+          <div
+            class="tpl-gallery-img-wrap" :style="ratioStyle(art)"
+            role="button" tabindex="0"
+            :aria-label="art.title || $t('artistHome.artworks')"
+            @click="openLightbox(index)"
+            @keydown.enter.prevent="openLightbox(index)"
+            @keydown.space.prevent="openLightbox(index)"
+          >
             <el-image
               :src="imgUrl(art.image_path)"
               fit="cover"
@@ -529,6 +536,16 @@ function ratioStyle(art) {
   align-items: center;
   justify-content: center;
   cursor: zoom-in;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.tpl-album-frame:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 .tpl-album-img {
   height: 100%;
@@ -709,6 +726,14 @@ function ratioStyle(art) {
   .tpl-gallery-img-wrap:hover .tpl-gallery-hover {
     display: flex;
   }
+}
+.tpl-gallery-img-wrap:focus-within .tpl-gallery-hover,
+.tpl-gallery-img-wrap:focus .tpl-gallery-hover {
+  display: flex;
+}
+.tpl-gallery-img-wrap:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* ===== 通用 ===== */

@@ -82,14 +82,18 @@
         <!-- REQ-039: 邀请码入驻入口（onboarding_mode=invite 时显示；纯增量，不动登录结构） -->
         <button
           v-if="inviteEnabled && !inviteView"
-          class="invite-entry rise rise-4" type="button"
+          ref="inviteEntryRef" class="invite-entry rise rise-4" type="button"
           @click="openInvite"
         >
           {{ t('invite.entry') }}
         </button>
 
         <!-- REQ-039: 入驻叠加层（两步：信息表单 → TOTP 首绑；覆盖卡片，v0.49 冻结页最小增量） -->
-        <div v-if="inviteView" class="invite-overlay" role="dialog" aria-modal="true" :aria-label="t('invite.title')">
+        <div
+          v-if="inviteView" ref="inviteOverlayRef"
+          class="invite-overlay" role="dialog" aria-modal="true" :aria-label="t('invite.title')"
+          @keydown.tab="onInviteKeydown"
+        >
           <div class="invite-overlay-inner">
             <button class="invite-back" type="button" @click="closeInvite">← {{ t('invite.back') }}</button>
             <h2 class="invite-title">{{ t('invite.title') }}</h2>
@@ -169,7 +173,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, nextTick, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
@@ -212,6 +216,8 @@ const errQq = ref(false)
 const errCode = ref(false)
 const noticeError = ref('')
 const paperCardRef = ref(null)
+const inviteEntryRef = ref(null)
+const inviteOverlayRef = ref(null)
 
 // ─── REQ-039: 邀请码入驻叠加层 ───
 const inviteEnabled = ref(false)
@@ -248,6 +254,11 @@ function openInvite() {
   inviteView.value = true
   inviteStep.value = 1
   inviteError.value = ''
+  // 初始聚焦：进入叠加层后聚焦第一个可输入控件
+  nextTick(() => {
+    const codeInput = inviteOverlayRef.value?.querySelector('#invite-code')
+    ;(codeInput || inviteOverlayRef.value?.querySelector('input, button'))?.focus()
+  })
 }
 
 function closeInvite() {
@@ -266,7 +277,38 @@ function closeInvite() {
   inviteErrSub.value = false
   inviteErrTotp.value = false
   inviteTotpOk.value = false
+  // 回焦：关闭叠加层后焦点还给「邀请码入驻」入口按钮
+  inviteEntryRef.value?.focus()
 }
+
+/** 焦点圈闭：Tab 不离开叠加层（首尾循环） */
+function onInviteKeydown(e) {
+  if (e.key !== 'Tab') return
+  const overlay = inviteOverlayRef.value
+  if (!overlay) return
+  const focusables = [...overlay.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  )].filter(el => !el.disabled && el.offsetParent !== null)
+  if (!focusables.length) return
+  const first = focusables[0]
+  const last = focusables[focusables.length - 1]
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+/** 两步表单切换后聚焦对应输入框 */
+watch(inviteStep, (step) => {
+  if (!inviteView.value) return
+  nextTick(() => {
+    const sel = step === 1 ? '#invite-code' : '#invite-totp'
+    inviteOverlayRef.value?.querySelector(sel)?.focus()
+  })
+})
 
 async function generateInviteQr(otpauthUri) {
   try {

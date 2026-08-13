@@ -7,7 +7,13 @@
         :style="{ width: seg.width + '%', '--seg-hue': seg.hue }"
       >
         <span class="seg-label">{{ seg.name }}</span>
-        <span class="seg-pct" @click="!seg.isFinal && startInput(seg)">
+        <span
+          class="seg-pct" role="button" :tabindex="seg.isFinal ? -1 : 0"
+          :aria-label="$t('workflow.editPercent', { name: seg.name })"
+          @click="!seg.isFinal && startInput(seg)"
+          @keydown.enter.prevent="!seg.isFinal && startInput(seg)"
+          @keydown.space.prevent="!seg.isFinal && startInput(seg)"
+        >
           <template v-if="inputId !== seg.id">{{ seg.pct }}%</template>
           <el-input-number
             v-else ref="inputRef" v-model="inputVal" :min="5" :max="95" :step="1" size="small"

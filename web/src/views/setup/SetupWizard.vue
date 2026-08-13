@@ -8,15 +8,18 @@
         <button type="button" :aria-pressed="locale === 'en'" @click="onSwitchLang('en')">EN</button>
       </div>
       <div class="setup-steps">
-        <div
+        <button
           v-for="(step, idx) in steps" :key="idx"
           class="step-item"
           :class="{ active: currentStep === idx + 1, done: currentStep > idx + 1 }"
+          type="button"
+          :disabled="idx + 1 > currentStep"
+          :aria-current="currentStep === idx + 1 ? 'step' : undefined"
           @click="goStep(idx + 1)"
         >
           <div class="step-circle">{{ currentStep > idx + 1 ? '\u2713' : idx + 1 }}</div>
           <div class="step-label">{{ $t(step.labelKey) }}</div>
-        </div>
+        </button>
       </div>
       <div class="setup-card">
         <div v-if="currentStep === 1" class="step-panel">
@@ -78,7 +81,7 @@
           <div class="qr-section">
             <div class="qr-wrap">
               <img v-if="qrDataUrl" :src="qrDataUrl" :alt="$t('setup.step3QrAlt')" class="qr-image" />
-              <div v-else class="qr-placeholder" @click="regenerateQr">{{ $t('setup.step3QrRegenerate') }}</div>
+              <button v-else type="button" class="qr-placeholder" @click="regenerateQr">{{ $t('setup.step3QrRegenerate') }}</button>
             </div>
           </div>
           <div class="field-group">
@@ -298,11 +301,13 @@ onMounted(() => {
 .setup-lang button[aria-pressed='true'] { color: var(--setup-hq); font-weight: 600; }
 .setup-steps { display: flex; justify-content: space-between; margin-bottom: 32px; position: relative; }
 .setup-steps::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 2px; background: var(--setup-line); z-index: 0; }
-.step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; position: relative; z-index: 1; }
+.step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; position: relative; z-index: 1; border: 0; background: none; padding: 0; font: inherit; color: inherit; }
+.step-item:disabled { cursor: default; }
+.step-item:focus-visible { outline: 2px solid var(--setup-hq); outline-offset: 2px; }
 .step-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--setup-line); color: var(--setup-ink2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; transition: all var(--dur-slow) var(--ease-out); }
 .step-item.active .step-circle { background: var(--setup-hq); color: #fff; }
 .step-item.done .step-circle { background: var(--setup-sl); color: #fff; }
-.step-label { font-size: 12px; color: var(--setup-ink2); text-align: center; white-space: nowrap; }
+.step-label { font-size: 12px; color: var(--setup-ink); text-align: center; white-space: nowrap; }
 .step-item.active .step-label { color: var(--setup-hq); font-weight: 600; }
 .setup-card { background: var(--setup-card); border: 1px solid var(--setup-line); border-radius: var(--setup-r-paper); padding: 36px 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .step-panel { animation: fadeIn var(--dur-slow) var(--ease-out); }
@@ -332,7 +337,8 @@ onMounted(() => {
 .qr-section { display: flex; justify-content: center; margin: 16px 0 24px; }
 .qr-wrap { display: flex; justify-content: center; align-items: center; }
 .qr-image { width: 200px; height: 200px; border: 1px solid var(--setup-line); border-radius: 8px; }
-.qr-placeholder { width: 200px; height: 200px; border: 2px dashed var(--setup-line); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--setup-ink2); cursor: pointer; font-size: 14px; }
+.qr-placeholder { width: 200px; height: 200px; border: 2px dashed var(--setup-line); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--setup-ink2); cursor: pointer; font-size: 14px; background: transparent; font-family: inherit; }
+.qr-placeholder:focus-visible { outline: 2px solid var(--setup-hq); outline-offset: 2px; }
 .error-banner { margin: 12px 0 0; padding: 10px 14px; background: rgba(168, 79, 79, 0.08); border: 1px solid rgba(168, 79, 79, 0.2); border-radius: 8px; color: var(--setup-zs); font-size: 13px; }
 .done-icon { font-size: 48px; text-align: center; margin-bottom: 16px; color: var(--setup-sl); }
 .done-actions { margin-top: 28px; }

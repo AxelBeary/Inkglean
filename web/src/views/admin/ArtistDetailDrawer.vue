@@ -54,7 +54,7 @@
               :preview-src-list="artworkUrls" :initial-index="artworks.indexOf(a)"
               preview-teleported
             />
-            <el-button text size="small" type="danger" @click="removeArtwork(a.id)">✕</el-button>
+            <el-button text size="small" type="danger" :aria-label="$t('common.delete')" @click="removeArtwork(a.id)">✕</el-button>
           </div>
         </div>
         <el-empty v-if="!artworksLoading && artworks.length === 0" :image-size="40" />

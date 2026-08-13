@@ -35,6 +35,7 @@
                 <router-link
                   class="nav-item" :class="{ 'nav-item--active': activeMenu === item.index }"
                   :to="item.index"
+                  :aria-label="$t(item.labelKey)"
                 >
                   <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="nav-badge">
                     <el-icon><component :is="item.icon" /></el-icon>

@@ -31,14 +31,19 @@
           </div>
           <div class="tl-content">{{ note.content }}</div>
           <!-- R19: 带图备注显示缩略图，点击看大图 -->
-          <img
+          <button
             v-if="note.imageUrl"
-            :src="note.imageUrl"
-            class="note-thumb"
-            :alt="$t('orderDetail.noteImage')"
+            type="button" class="note-thumb-btn"
+            :aria-label="$t('orderDetail.viewNoteImage')"
             @click="openNoteImage(note.imageUrl)"
-            @error="emit('refresh')"
-          />
+          >
+            <img
+              :src="note.imageUrl"
+              class="note-thumb"
+              :alt="$t('orderDetail.noteImage')"
+              @error="emit('refresh')"
+            />
+          </button>
         </div>
       </el-timeline-item>
     </el-timeline>
@@ -55,7 +60,10 @@
     >
       <el-input v-model="newNote" :placeholder="$t('orderDetail.notePlaceholder')" @keyup.enter="addNote" />
       <!-- R19: 附图按钮（上传/粘贴 1 张） -->
-      <el-button @click="triggerNoteImageUpload" :disabled="!!pendingNoteImage">
+      <el-button
+        :aria-label="$t('orderDetail.noteImageUpload')"
+        @click="triggerNoteImageUpload" :disabled="!!pendingNoteImage"
+      >
         <el-icon><Picture /></el-icon>
       </el-button>
       <input
@@ -222,6 +230,13 @@ defineExpose({ uploadNoteImage })
   transition: box-shadow var(--dur-fast);
 }
 .note-thumb:hover { box-shadow: var(--sh-2); }
+.note-thumb-btn {
+  display: block; margin-top: 6px;
+  padding: 0; border: none; background: none;
+  border-radius: var(--r-m); cursor: zoom-in;
+}
+.note-thumb-btn:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; }
+.note-thumb-btn:hover .note-thumb { box-shadow: var(--sh-2); }
 .note-input { display: flex; gap: 8px; border-radius: var(--r-m); transition: outline var(--dur-fast); }
 /* R41: 拖拽进入高亮 */
 .note-input--drag-over { outline: 2px dashed var(--hq); outline-offset: 4px; }

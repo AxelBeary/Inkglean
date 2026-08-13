@@ -20,8 +20,9 @@
 
     <!-- 活动流（最多 10 条，C54；不自动刷新，C55） -->
     <div v-else class="activity-list">
-      <div
+      <button
         v-for="item in items" :key="item.id"
+        type="button"
         class="activity-item"
         @click="$router.push(`/orders/${item.orderId}`)"
       >
@@ -33,7 +34,7 @@
             <span class="activity-time">· {{ fmtRelativeTime(item.createdAt) }}</span>
           </span>
         </div>
-      </div>
+      </button>
     </div>
   </el-card>
 </template>
@@ -85,6 +86,8 @@ onMounted(() => load())
   display: flex; gap: 10px; padding: 10px 4px;
   border-bottom: 1px solid var(--line);
   border-radius: 4px; cursor: pointer;
+  width: 100%; border-left: none; border-right: none; border-top: none;
+  background: none; font: inherit; color: inherit; text-align: inherit;
   transition: background var(--dur-fast) var(--ease-out);
 }
 .activity-item:last-child { border-bottom: none; }

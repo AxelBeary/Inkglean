@@ -48,10 +48,14 @@
           <template #header><span>{{ $t('track.myOrdersTitle') }}</span></template>
           <el-empty v-if="!myOrders.length && !myOrdersLoading" :description="$t('track.myOrdersEmpty')" />
           <div v-loading="myOrdersLoading">
-            <div v-for="o in myOrders" :key="o.orderNo" class="my-order-item" @click="fillAndSearch(o)">
+            <button
+              v-for="o in myOrders" :key="o.orderNo"
+              type="button" class="my-order-item"
+              @click="fillAndSearch(o)"
+            >
               <div class="my-order-no">{{ o.orderNo }}</div>
               <div class="my-order-meta">{{ o.tierName }} · {{ formatDate(o.createdAt) }}</div>
-            </div>
+            </button>
           </div>
         </el-card>
       </Transition>
@@ -554,6 +558,7 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .my-order-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  width: 100%; border: none; background: none; font: inherit; color: inherit; text-align: inherit;
   transition: background var(--dur-fast);
 }
 .my-order-item:hover { background: var(--el-fill-color-light); }

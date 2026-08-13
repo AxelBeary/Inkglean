@@ -14,9 +14,13 @@
     <div v-if="isStyleMode && isMultiStyle" class="mo-field">
       <div class="mo-field-label">{{ $t('manualOrder.styleTitle') }}</div>
       <div class="tier-cards">
-        <div
+        <button
           v-for="s in styles" :key="s.id"
           class="tier-card" :class="{ 'tier-card--active': selectedStyleId === s.id }"
+          type="button"
+          role="radio"
+          :aria-checked="selectedStyleId === s.id"
+          :aria-label="s.name"
           @click="selectStyle(s.id)"
         >
           <span v-if="selectedStyleId === s.id" class="tier-card-check">✓</span>
@@ -26,7 +30,7 @@
             <div class="tier-card-name">{{ s.name }}</div>
             <div v-if="s.description" class="tier-card-desc">{{ s.description }}</div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 
@@ -38,9 +42,13 @@
       <div class="mo-field-label">{{ $t('manualOrder.sizeTitle') }}</div>
       <div v-if="selectedStyle.sizes.length === 0" class="mo-empty-tiers">{{ $t('manualOrder.noSizes') }}</div>
       <div v-else class="tier-cards">
-        <div
+        <button
           v-for="sz in selectedStyle.sizes" :key="sz.id"
           class="tier-card" :class="{ 'tier-card--active': selectedSizeId === sz.id }"
+          type="button"
+          role="radio"
+          :aria-checked="selectedSizeId === sz.id"
+          :aria-label="sz.name"
           @click="selectSize(sz.id)"
         >
           <span v-if="selectedSizeId === sz.id" class="tier-card-check">✓</span>
@@ -54,7 +62,7 @@
             <div class="tier-card-price">{{ formatYuanValue(sz.base_price) }}</div>
             <div v-if="sz.work_days" class="tier-card-days">{{ $t('manualOrder.sizeDays', { n: sz.work_days }) }}</div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 
@@ -200,7 +208,7 @@
             :placeholder="$t('manualOrder.customAddonPricePlaceholder')"
           />
           <el-button type="primary" size="small" @click="addCustomAddon">✓</el-button>
-          <el-button size="small" @click="customAddonOpen = false">✕</el-button>
+          <el-button size="small" :aria-label="$t('common.cancel')" @click="customAddonOpen = false">✕</el-button>
         </div>
         <div v-if="customAddons.length > 0" class="custom-addon-list">
           <div v-for="(item, idx) in customAddons" :key="item.uid" class="custom-addon-item">
@@ -208,7 +216,7 @@
             <span class="custom-addon-price" :class="{ 'custom-addon-price--neg': item.priceYuan < 0 }">
               {{ formatCustomAddonPrice(item) }}
             </span>
-            <el-button size="small" text type="danger" @click="removeCustomAddon(idx)">✕</el-button>
+            <el-button size="small" text type="danger" :aria-label="$t('manualOrder.removeCustomAddon')" @click="removeCustomAddon(idx)">✕</el-button>
           </div>
         </div>
       </div>
@@ -301,7 +309,7 @@
               :placeholder="$t('manualOrder.customAddonPricePlaceholder')"
             />
             <el-button type="primary" size="small" @click="addCustomAddon">✓</el-button>
-            <el-button size="small" @click="customAddonOpen = false">✕</el-button>
+            <el-button size="small" :aria-label="$t('common.cancel')" @click="customAddonOpen = false">✕</el-button>
           </div>
           <div v-if="customAddons.length > 0" class="custom-addon-list">
             <div v-for="(item, idx) in customAddons" :key="item.uid" class="custom-addon-item">
@@ -309,7 +317,7 @@
               <span class="custom-addon-price" :class="{ 'custom-addon-price--neg': item.priceYuan < 0 }">
                 {{ formatCustomAddonPrice(item) }}
               </span>
-              <el-button size="small" text type="danger" @click="removeCustomAddon(idx)">✕</el-button>
+              <el-button size="small" text type="danger" :aria-label="$t('manualOrder.removeCustomAddon')" @click="removeCustomAddon(idx)">✕</el-button>
             </div>
           </div>
         </div>
@@ -326,13 +334,18 @@
     </transition>
     <!-- 底栏：价格 + 提交 -->
     <div class="mo-mobile-actions">
-      <div class="mo-mobile-price" @click="mobileDetailOpen = !mobileDetailOpen">
+      <button
+        type="button"
+        class="mo-mobile-price"
+        :aria-expanded="mobileDetailOpen"
+        @click="mobileDetailOpen = !mobileDetailOpen"
+      >
         <span class="mo-mobile-total">{{ displayPrice ? formatYuanValue(displayPrice) : '—' }}</span>
         <span class="mo-mobile-detail-link">
           {{ $t('manualOrder.priceDetail') }}
           <el-icon :size="12"><ArrowUp v-if="mobileDetailOpen" /><ArrowDown v-else /></el-icon>
         </span>
-      </div>
+      </button>
       <el-button type="primary" @click="submit" :loading="submitting" class="mo-mobile-submit">
         {{ $t('manualOrder.submit') }}
       </el-button>
@@ -734,6 +747,9 @@ onUnmounted(() => {
   overflow: hidden;
   cursor: pointer;
   background: var(--card);
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .tier-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); box-shadow: var(--sh-1); }
@@ -864,6 +880,12 @@ onUnmounted(() => {
   .mo-mobile-price {
     flex: 1; cursor: pointer;
     display: flex; flex-direction: column; gap: 2px;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+    background: none;
+    border: none;
+    padding: 0;
   }
   /* 总价文楷（REQ §1.3 数字用文楷），墨色不上色 */
   .mo-mobile-total { font-size: calc(var(--font-scale, 1) * 20px); font-weight: 700; color: var(--ink); font-family: var(--f-d); font-variant-numeric: tabular-nums; }

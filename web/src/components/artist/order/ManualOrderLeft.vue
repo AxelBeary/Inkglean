@@ -27,7 +27,9 @@
         @dragover.capture="guardDragOver"
         @drop.capture="guardDrop"
       >
-        <el-icon :size="24" :aria-label="$t('manualOrder.uploadRefLabel')"><Plus /></el-icon>
+        <button type="button" class="upload-trigger-btn" :aria-label="$t('manualOrder.uploadRefLabel')">
+          <el-icon :size="24"><Plus /></el-icon>
+        </button>
         <template #tip>
           <span class="drag-hint">{{ $t('manualOrder.dragHint') }}</span>
         </template>
@@ -316,6 +318,14 @@ defineExpose({ reset })
 /* F2: 拖拽提示 */
 .drag-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 .paste-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 6px; }
+
+/* 键盘可达：el-upload dragger 内包真实按钮（点击冒泡到 EP 触发文件选择） */
+.upload-trigger-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; cursor: pointer;
+  color: inherit; font: inherit;
+}
+.upload-trigger-btn:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; }
 
 /* ─── QQ 历史订单面板 ─── */
 .mo-history {

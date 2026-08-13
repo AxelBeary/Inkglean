@@ -333,7 +333,9 @@ async function save() {
       })
     }
     ElMessage.success(t('settings.saved'))
-    markTabSaved(activeTab.value)
+    // 围剿 a1-10: showcase 保存只落 profile 字段——rulesContent 未随本次保存入库，
+    // 不得把未保存的规则计入基线（否则规则脏标记被误清）；规则自身保存仍走 saveRules 全量基线
+    markTabSaved(activeTab.value, activeTab.value !== 'showcase')
     trackEvent('artist_action', { action: 'settings_save', tab: activeTab.value })
   } catch (err) { ElMessage.error(err.message) }
   finally { saving.value = false }
@@ -345,7 +347,7 @@ const TAB_BASELINE_FIELDS = {
 }
 const tabBaseline = { profile: null, showcase: null, template: null }
 
-function snapshotTab(tab) {
+function snapshotTab(tab, includeRules = true) {
   if (tab === 'showcase') {
     return JSON.stringify({
       status: form.status,
@@ -353,13 +355,14 @@ function snapshotTab(tab) {
       tags: [...form.inspirationTags],
       announcement: form.announcement,
       announcementExpiresAt: form.announcementExpiresAt,
-      rules: rulesContent.value
+      // 仅规则保存/加载时把 rulesContent 计入基线（见 save() 的 a1-10 注释）
+      ...(includeRules ? { rules: rulesContent.value } : {})
     })
   }
   return JSON.stringify(TAB_BASELINE_FIELDS[tab].map(k => form[k]))
 }
-function markTabSaved(tab) {
-  tabBaseline[tab] = snapshotTab(tab)
+function markTabSaved(tab, includeRules = true) {
+  tabBaseline[tab] = snapshotTab(tab, includeRules)
 }
 function isTabDirty(tab) {
   if (tabBaseline[tab] === null) return false

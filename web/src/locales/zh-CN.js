@@ -226,7 +226,8 @@ export default {
     source: { self: '自助', manual: '手动', clientSelf: '客户自助', manualEntry: '手动录入' },
     custom: '自定义', none: '无',
     save: '保存', cancel: '取消', delete: '删除', edit: '编辑', download: '下载',
-    confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加', or: '或',
+    confirm: '确认', close: '关闭', detail: '详情', actions: '操作', remove: '移除', add: '添加', or: '或',
+    like: '点赞', unlike: '取消点赞',
     saved: '保存成功', deleted: '已删除', removed: '已移除',
     confirmDeleteTitle: '确认删除', uploadFailed: '上传失败', copyFailed: '复制失败，请手动复制',
 loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globalError: '页面出了点小问题，请刷新重试',
@@ -577,6 +578,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     emptyArtworks: '暂无作品',
     emptyDeliverables: '该订单暂无完稿图',
     watermarkType: '水印类型',
+    textInputLabel: '水印文字',
     text: '文字水印',
     logo: 'LOGO 水印',
     uploadLogo: '上传透明底 LOGO',
@@ -754,6 +756,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     descSoftContinue: '继续',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
     refTip: '下单后画师也可在订单图库中补充参考图，订单图库合计上限 20 张。',
+    refUpload: '上传参考图',
     qqLabel: '你的QQ号', qqPlaceholder: '画师会通过QQ联系你',
     nameLabel: '昵称（可选）', namePlaceholder: '怎么称呼你',
     notifyLabel: '排到我的时候通过QQ通知我', agreeLabel: '我已阅读并同意以上约稿须知',
@@ -1010,7 +1013,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     bufferHint: '正式位满后新订单在此候补，递补后移入正式队列',
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
     promote: '递补', promoted: '已递补到正式队列',
-    slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
+    slideToCancel: '滑动确认取消订单', slideCancelConfirm: '确认取消订单', statusUpdated: '状态已更新',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
     workflowLoadFailed: '工作流节点加载失败，推进按钮已隐藏，请重试',
     // P0-3b: 标签切换
@@ -1020,8 +1023,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     completedTitle: '近期已交付', completedHint: '已交付订单在此保留 7 天后自动隐藏',
     completedEmpty: '近期无已交付订单',
     dragHint: '拖拽排序',
+    reorderLabel: '调整队列顺序', moveUp: '上移订单', moveDown: '下移订单',
     focusDisplay: '焦点图显示', focusOff: '关', focusLarge: '大',
     uploadFocus: '上传焦点图',
+    replaceFocus: '替换焦点图',
     // R53: 焦点图替换
     dropToReplace: '拖入替换焦点图',
     // SPEC-005: 月历视图
@@ -1047,6 +1052,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 批G(2026-08-08): 月历优化（MVP）
     calAvailable: '可接单',
     calDayViewTitle: '{d} · {n} 单',
+    calMoreOrders: '还有 {n} 个订单',
+    tlEditDates: '改期', tlEditStart: '开工日', tlEditDeadline: '截稿日', tlDateSaved: '日期已更新',
     calSelectMonth: '选择月份'
   },
   orderList: {
@@ -1064,6 +1071,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     colPriority: '优先级', colSource: '来源', colTime: '下单时间', colDesc: '需求描述',
     confirmOrder: '确认接单', startWip: '开始制作',
     needRevision: '需要修改', markDone: '✔ 标记完成', uploadDeliver: '上传交付', cancelOrder: '取消订单',
+    confirmCancel: '确认取消订单',
     // R-2: 已收款订单取消的二次确认（金额来自后端 detail.paidCents）
     cancelPaidConfirm: '该订单已收 ¥{amount}，确认取消？资金需线下退还',
     noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
@@ -1095,10 +1103,12 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     stageOffDone: '已关闭流程跟踪',
     gallery: '订单图库', galleryUpload: '上传图片', galleryUploadSuccess: '图片已添加',
     setFocus: '设为焦点图',
+    openViewer: '查看参考图 {n}',
     galleryHint: '点击图片放大预览 · 点 ✓ 设为焦点图 · 支持拖拽 / 点击 / Ctrl+V 上传 · 客户图 + 画师图合计最多 20 张',
     galleryNotImage: '仅支持图片文件', galleryTooBig: '图片超过 10MB 限制',
     uploading: '上传中...', sourceClient: '客户', sourceArtist: '画师',
     noteImage: '备注附图', noteImageSingle: '备注仅支持 1 张附图，已使用第一张',
+    noteImageUpload: '上传备注附图', viewNoteImage: '查看备注附图大图',
     // R39: 状态区重构（方案B）
     lastActivity: '最后活动：{time}',
     noteCount: '备注 {n} 条', refCount: '参考图 {n} 张',
@@ -1235,6 +1245,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     customAddonPricePlaceholder: '金额（可为负）',
     customAddonNameRequired: '请填写自定义增项名称',
     customAddonPriceRequired: '请填写自定义增项金额',
+    removeCustomAddon: '删除自定义增项',
     customAddonMax: '最多添加 20 条自定义增项',
     selectSizeOrPrice: '请先选择画风和尺寸，或手动填写最终价格',
     // F6: 录单草稿（localStorage 暂存 + 恢复提示）
@@ -1428,7 +1439,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     selected: '已选 {n} 项',
     batchDeleteTitle: '批量删除', batchDeleteConfirm: '确定删除选中的 {n} 张作品？删除后不可恢复。',
     batchDeleted: '已删除 {n} 张作品', batchPartial: '删除完成：成功 {ok} 张，失败 {failed} 张',
-    slideToDelete: '滑动到底部确认删除',
+    slideToDelete: '滑动到底部确认删除', batchDeleteBtn: '确认删除选中作品',
     // REQ-017: 封面操作
     coverSet: '设为封面', coverUnset: '取消封面',
     coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
@@ -1476,6 +1487,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     shopVisibleHint: '开启后，客户可在目录看到你的小店并访问主页；关闭后小店对外隐藏。',
     shopHiddenNotice: '小店当前处于隐藏状态，客户无法在目录看到或访问主页。',
     linksLabel: '外链（客户主页展示）', addLink: '添加链接',
+    moveLinkUp: '上移外链', moveLinkDown: '下移外链', removeLink: '删除外链',
     linksHint: '最多 8 条，粘贴后自动识别平台，保存后客户主页立即生效。留空的行不会保存。',
     linksEmpty: '还没有添加链接', linkOther: '其他', linkUrlPlaceholder: 'https://',
     linkInvalid: '链接格式不正确（仅支持 http/https，或直接粘贴网址）', linkTooLong: '链接过长（域名≤253 / 路径≤1500 / 总长≤1800）',
@@ -1570,7 +1582,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     saved: '比例已保存', detached: '已移除该收款节点，比例已并入尾款',
     // 批4 B10（方案 b）：活跃订单存在时后端附 appliesToNewOrdersOnly，提示仅影响新订单
     paymentNewOrdersOnly: '比例已保存，仅影响新订单（已有订单按下单时快照不变）',
-    dragHandle: '拖拽调整比例', minPercent: '比例不能低于 5%', finalTooLow: '尾款比例不足，无法分配',
+    dragHandle: '拖拽调整比例', editPercent: '修改「{name}」收款比例', minPercent: '比例不能低于 5%', finalTooLow: '尾款比例不足，无法分配',
+    reorderLabel: '调整节点顺序', moveUp: '上移节点', moveDown: '下移节点', deleteStage: '删除节点',
     reset: '恢复默认模板', resetConfirm: '确定恢复默认模板？你当前的所有自定义节点和比例将被覆盖，此操作无法撤销。', resetDone: '已恢复默认模板',
     descPlaceholder: '点击添加说明',
     // plan-node-speech：节点话术（{客户名}等为后端变量契约，中英文界面均保持中文原文）

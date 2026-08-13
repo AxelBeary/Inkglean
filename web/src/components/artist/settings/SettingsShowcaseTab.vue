@@ -48,9 +48,9 @@
               class="link-url-input"
             />
             <div class="link-actions">
-              <el-button text size="small" :disabled="index === 0" @click="$emit('move-link', index, -1)">↑</el-button>
-              <el-button text size="small" :disabled="index === form.customLinks.length - 1" @click="$emit('move-link', index, 1)">↓</el-button>
-              <el-button text size="small" type="danger" @click="$emit('remove-link', index)">✕</el-button>
+              <el-button text size="small" :disabled="index === 0" :aria-label="$t('settings.moveLinkUp')" @click="$emit('move-link', index, -1)">↑</el-button>
+              <el-button text size="small" :disabled="index === form.customLinks.length - 1" :aria-label="$t('settings.moveLinkDown')" @click="$emit('move-link', index, 1)">↓</el-button>
+              <el-button text size="small" type="danger" :aria-label="$t('settings.removeLink')" @click="$emit('remove-link', index)">✕</el-button>
             </div>
           </div>
           <p v-if="!form.customLinks.length" class="link-empty">{{ $t('settings.linksEmpty') }}</p>

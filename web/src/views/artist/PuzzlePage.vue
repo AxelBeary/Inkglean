@@ -114,13 +114,19 @@ async function loadOrders() {
   }
 }
 
+// 围剿 a1-15: 订单切换请求序号——慢的旧订单响应不得覆盖新选中订单
+let orderSeq = 0
 async function onOrderChange(id) {
+  const mySeq = ++orderSeq
   order.value = null
   picked.value = []
   if (!id) return
   try {
-    order.value = await artistApi.getOrder(id)
+    const data = await artistApi.getOrder(id)
+    if (mySeq !== orderSeq) return
+    order.value = data
   } catch (err) {
+    if (mySeq !== orderSeq) return
     ElMessage.error(err.message || t('puzzle.loadOrderFailed'))
   }
 }

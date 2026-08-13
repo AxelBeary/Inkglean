@@ -91,4 +91,23 @@ describe('DepositLedger 定金台账', () => {
     expect(wrapper.findAll('.dp-row')).toHaveLength(0)
     expect(wrapper.find('.dp-empty').exists()).toBe(true)
   })
+
+  it('a1-17: submitting 在途时二次 submit 被拦截，且按钮禁用', async () => {
+    const wrapper = mountDeposit()
+    wrapper.vm.form.name = '小林'
+    wrapper.vm.form.amountYuan = 100
+
+    // 模拟在途（第一次提交尚未结束）
+    wrapper.vm.submitting = true
+    wrapper.vm.submit()
+    expect(wrapper.findAll('.dp-row')).toHaveLength(0)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.dp-btn--primary').attributes('disabled')).toBeDefined()
+
+    // 提交期结束可正常记账
+    wrapper.vm.submitting = false
+    wrapper.vm.submit()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findAll('.dp-row')).toHaveLength(1)
+  })
 })

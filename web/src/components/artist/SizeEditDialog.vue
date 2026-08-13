@@ -38,10 +38,15 @@
   <el-dialog v-model="pickDialogVisible" :title="$t('styleManage.sizePickTitle')" width="640px">
     <p class="pick-hint">{{ $t('styleManage.sizePickHint') }}</p>
     <div v-if="artworks.length" class="pick-grid">
-      <div v-for="art in artworks" :key="art.id" class="pick-item" @click="onPickArtwork(art)">
+      <button
+        v-for="art in artworks" :key="art.id"
+        type="button" class="pick-item"
+        :aria-label="art.title || $t('styleManage.sizePickTitle')"
+        @click="onPickArtwork(art)"
+      >
         <el-image :src="`/uploads/${art.image_path}`" fit="cover" class="pick-img" />
         <span v-if="art.title" class="pick-title">{{ art.title }}</span>
-      </div>
+      </button>
     </div>
     <el-empty v-else :description="$t('styleManage.sizePickEmpty')" :image-size="60" />
   </el-dialog>
@@ -233,7 +238,9 @@ function openPickDialog() {
 .pick-item {
   position: relative; border-radius: var(--r-m); overflow: hidden; cursor: pointer;
   border: 2px solid transparent; transition: border-color var(--dur-mid), transform var(--dur-mid);
+  padding: 0; background: none; font: inherit; color: inherit; text-align: inherit; display: block;
 }
+.pick-item:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; }
 .pick-item:hover { border-color: var(--hq); box-shadow: var(--sh-1); }
 .pick-item:active { transform: translateY(-2px); }
 .pick-img { width: 100%; height: 100px; display: block; }

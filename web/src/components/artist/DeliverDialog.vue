@@ -30,7 +30,12 @@
         @dragover.capture="guardDragOver"
         @drop.capture="guardDrop"
       >
-        <el-icon style="font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink3)"><Upload /></el-icon>
+        <button
+          type="button" class="deliver-upload-btn"
+          :aria-label="$t('orderDetail.dragUpload')"
+        >
+          <el-icon style="font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink3)"><Upload /></el-icon>
+        </button>
         <p>{{ $t('orderDetail.dragUpload') }}</p>
         <template #tip>
           <div class="el-upload__tip">{{ $t('orderDetail.uploadTip') }}</div>
@@ -158,3 +163,13 @@ async function submitDeliver() {
   }
 }
 </script>
+
+<style scoped>
+/* 键盘可达：el-upload dragger 内包真实按钮（点击冒泡到 EP 触发文件选择） */
+.deliver-upload-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; cursor: pointer;
+  color: inherit; font: inherit;
+}
+.deliver-upload-btn:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; }
+</style>

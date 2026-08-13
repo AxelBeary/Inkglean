@@ -160,9 +160,10 @@
                 <div v-for="grp in poolGroups(style)" :key="grp.cat" class="pool-row">
                   <span class="pool-row-label" :class="`pool-label-${grp.cat}`">{{ categoryLabel($t, grp.cat) }}</span>
                   <div class="pool-row-chips">
-                    <span
+                    <button
                       v-for="sa in grp.items" :key="sa.id"
                       class="addon-cap" :class="`cap-cat-${addonCategory(sa)}`"
+                      type="button"
                       draggable="true"
                       :title="$t('styleManage.addonCapHint')"
                       @dragstart="onCapDragStart(style, sa, $event)"
@@ -172,7 +173,7 @@
                       <span class="cap-name">{{ sa.template_name }}</span>
                       <span class="cap-price">{{ capPriceText(sa) }}</span>
                       <span v-if="sa.template_control_type === 'quantity'" class="cap-tag cap-tag-quantity">{{ controlLabel(sa.template_control_type) }}</span>
-                    </span>
+                    </button>
                     <span v-if="!grp.items.length" class="pool-row-empty">{{ $t('styleManage.poolRowEmpty') }}</span>
                   </div>
                 </div>
@@ -621,11 +622,16 @@ async function onDropToSize(style, size, _e) {
     ElMessage.info(t('styleManage.addonAlreadyEnabled', { name: sa.template_name, size: size.name }))
     return
   }
+  let mutexRestore = null
   try {
     // 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（顾客每单各选一个，后端兜底互斥）
     const mutex = mutexAddonItems(style, sa)
     if (mutex) {
       await artistApi.setStyleAddons(style.id, mutex)
+      // 围剿 a1-14: 记录反向恢复载荷——若后续尺寸覆盖写失败，把这些刚停用的同类项重新启用
+      mutexRestore = mutex
+        .filter(m => m.addon_template_id !== sa.addon_template_id)
+        .map(m => ({ addon_template_id: m.addon_template_id, is_enabled: true }))
       for (const m of mutex) {
         const other = style.addons.find(x => x.addon_template_id === m.addon_template_id)
         if (other) other.is_enabled = !!m.is_enabled
@@ -636,6 +642,15 @@ async function onDropToSize(style, size, _e) {
     size._overrides[sa.id] = { price_override: ov[sa.id]?.price_override ?? null, is_hidden: false }
     ElMessage.success(t('styleManage.addonEnabled', { size: size.name, name: sa.template_name }))
   } catch (err) {
+    // 围剿 a1-14: mutex 已生效而后一步 setSizeOverrides 失败 → 反向恢复互斥项，再重载保证本地与后端一致
+    if (mutexRestore?.length) {
+      try {
+        await artistApi.setStyleAddons(style.id, mutexRestore)
+      } catch {
+        // 反向恢复失败：交给重载兜底，仍提示原始错误
+      }
+    }
+    await load()
     ElMessage.error(err.message)
   } finally {
     dragPayload.value = null
@@ -817,6 +832,7 @@ defineExpose({ reload: load })
   padding: 4px 12px; border-radius: var(--r-pill);
   background: var(--card); border: 1px solid var(--line); box-shadow: var(--sh-1);
   cursor: pointer; user-select: none; transition: border-color var(--dur-fast), transform var(--dur-fast);
+  font: inherit; color: inherit; text-align: inherit;
 }
 .addon-cap:hover { border-color: var(--hq); }
 .addon-cap:active { transform: scale(0.97); }

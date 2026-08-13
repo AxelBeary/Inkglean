@@ -24,6 +24,7 @@
                 <div
                   class="nav-item" :class="{ 'nav-item--active': activePath === item.path }"
                   role="link" tabindex="0" @click="go(item.path)" @keydown.enter="go(item.path)"
+                  :aria-label="$t(item.labelKey)"
                 >
                   <el-icon><component :is="item.icon" /></el-icon>
                 </div>

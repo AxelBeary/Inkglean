@@ -78,6 +78,7 @@ describe('报价单生成（812-tools-a）', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
     if (originalClipboard !== undefined) {
       Object.defineProperty(navigator, 'clipboard', { value: originalClipboard, configurable: true })
     }
@@ -171,5 +172,14 @@ describe('报价单生成（812-tools-a）', () => {
       expect(buttons[0].attributes('disabled')).toBeDefined()
       expect(buttons[1].attributes('disabled')).toBeDefined()
     }
+  })
+
+  it('a1-11: today() 用本地时区拼 YYYY-MM-DD（UTC+8 凌晨不差一天）', () => {
+    // 本地 2026-08-13 01:00（Asia/Shanghai）→ toISOString 会落在 08-12
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 13, 1, 0, 0))
+    const wrapper = mountQuote()
+    expect(wrapper.vm.today()).toBe('2026-08-13')
+    vi.useRealTimers()
   })
 })

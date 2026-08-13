@@ -30,7 +30,7 @@
           @end="(evt) => emit('drag-end', evt)"
           class="queue-list"
         >
-          <template #item="{ element }">
+          <template #item="{ element, index }">
             <div
               class="queue-item"
               :class="`priority-${element.priority}`"
@@ -38,14 +38,33 @@
               @pointerup="(e) => onCardPointerUp(e, element)"
             >
               <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
+              <!-- 键盘等价：上移/下移（拖拽排序的可达替代，走同一条 drag-end 持久化） -->
+              <div class="queue-move" role="group" :aria-label="$t('queue.reorderLabel')">
+                <button
+                  type="button" class="queue-move-btn" :disabled="index === 0"
+                  :aria-label="$t('queue.moveUp')" :title="$t('queue.moveUp')"
+                  @click.stop="moveQueueItem(element, -1)"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button" class="queue-move-btn" :disabled="index === queue.length - 1"
+                  :aria-label="$t('queue.moveDown')" :title="$t('queue.moveDown')"
+                  @click.stop="moveQueueItem(element, 1)"
+                >
+                  ↓
+                </button>
+              </div>
               <!-- 焦点图区域：大图模式显示焦点图，无焦点图时显示空态上传入口 -->
               <div v-if="focusDisplay === 'large'" class="focus-area">
                 <!-- R53: 已有焦点图 — 点击选文件 / 拖拽图片替换（复用 uploadAndSetFocus；
                    移除 preview-src-list 避免 el-image 内置预览吞掉点击，R18 同款陷阱） -->
-                <div
+                <button
                   v-if="element.focus_image_path"
+                  type="button"
                   class="focus-img-wrap"
                   :class="{ 'focus-img-wrap--active': focusDragId === element.id }"
+                  :aria-label="$t('queue.replaceFocus')"
                   @click="triggerFocusUpload(element)"
                   @dragenter.capture="guardDragEnter"
                   @dragover.capture="guardDragOver"
@@ -62,12 +81,14 @@
                   <div v-if="focusDragId === element.id" class="focus-replace-overlay">
                     <span>{{ $t('queue.dropToReplace') }}</span>
                   </div>
-                </div>
+                </button>
                 <!-- 空态上传：点击选文件 / 拖拽图片放入，上传后直接设为焦点图 -->
-                <div
+                <button
                   v-else
+                  type="button"
                   class="focus-empty"
                   :class="{ 'focus-empty--active': focusDragId === element.id }"
+                  :aria-label="$t('queue.uploadFocus')"
                   @click="triggerFocusUpload(element)"
                   @dragenter.capture="guardDragEnter"
                   @dragover.capture="guardDragOver"
@@ -77,7 +98,7 @@
                 >
                   <el-icon :size="20"><Plus /></el-icon>
                   <span class="focus-empty-text">{{ $t('queue.uploadFocus') }}</span>
-                </div>
+                </button>
               </div>
               <div class="item-body">
                 <div class="item-header">
@@ -159,7 +180,10 @@
                     →
                   </div>
                 </div>
-                <el-button text size="small" @click="closeSlideCancel">✕</el-button>
+                <el-button text size="small" type="danger" @click="confirmSlideCancel(element)">
+                  {{ $t('queue.slideCancelConfirm') }}
+                </el-button>
+                <el-button text size="small" :aria-label="$t('common.close')" @click="closeSlideCancel">✕</el-button>
               </div>
             </div>
           </template>
@@ -299,6 +323,17 @@ const queueModel = computed({
   get: () => props.queue,
   set: (val) => emit('update:queue', val)
 })
+
+/** 键盘等价：上移/下移队列顺序（vuedraggable 拖拽结束同款持久化路径） */
+function moveQueueItem(order, direction) {
+  const idx = props.queue.findIndex(o => o.id === order.id)
+  const target = idx + direction
+  if (idx < 0 || target < 0 || target >= props.queue.length) return
+  const next = props.queue.slice()
+  ;[next[idx], next[target]] = [next[target], next[idx]]
+  queueModel.value = next
+  emit('drag-end', { oldIndex: idx, newIndex: target })
+}
 const focusDisplayModel = computed({
   get: () => props.focusDisplay,
   set: (val) => emit('update:focus-display', val)
@@ -462,6 +497,18 @@ async function onSlideEnd(e, order) {
   }
 }
 
+/** 键盘等价：滑块取消的替代按钮路径（与滑到底行为一致） */
+async function confirmSlideCancel(order) {
+  closeSlideCancel()
+  try {
+    await artistApi.updateStatus(order.id, 'cancelled')
+    ElMessage.success(t('queue.statusUpdated'))
+    emit('refresh-queue')
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
+}
+
 // ─── R30c: 手机端左滑进详情（触屏专属，C43 桌面不做等效） ───
 let swipeStart = null
 function onCardPointerDown(e) {
@@ -535,6 +582,17 @@ onMounted(() => {
 
 .drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 20px); color: var(--ink3); user-select: none; }
 .drag-handle:active { cursor: grabbing; }
+.queue-move { display: inline-flex; gap: 1px; flex-shrink: 0; }
+.queue-move-btn {
+  width: 24px; height: 24px; padding: 0;
+  border: none; border-radius: var(--r-s);
+  background: none; color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 700; line-height: 1;
+  cursor: pointer;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.queue-move-btn:hover:not(:disabled) { color: var(--hq); background: var(--hq-t); }
+.queue-move-btn:disabled { opacity: 0.35; cursor: default; }
 .ghost { opacity: 0.4; }
 
 .item-body { flex: 1; min-width: 0; }
@@ -552,6 +610,7 @@ onMounted(() => {
   position: relative; width: 160px; height: 120px;
   border-radius: var(--r-m); overflow: hidden; cursor: pointer;
   background: var(--card);
+  padding: 0; border: none; font: inherit; color: inherit; text-align: inherit;
   transition: box-shadow var(--dur-fast);
 }
 .focus-img-wrap:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--hq) 45%, transparent); }
@@ -569,6 +628,7 @@ onMounted(() => {
   border: 2px dashed var(--line2); border-radius: var(--r-m);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; cursor: pointer; color: var(--ink3);
+  padding: 0; font: inherit; text-align: inherit;
   transition: border-color var(--dur-mid), background var(--dur-mid), color var(--dur-mid);
 }
 .focus-empty:hover, .focus-empty--active {

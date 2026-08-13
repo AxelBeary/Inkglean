@@ -36,7 +36,9 @@
         @dragover.capture="guardDragOver"
         @drop.capture="guardDrop"
       >
-        <el-icon aria-label="上传参考图"><Plus /></el-icon>
+        <button type="button" class="upload-trigger-btn" :aria-label="t('orderForm.refUpload')">
+          <el-icon><Plus /></el-icon>
+        </button>
       </el-upload>
       <p class="paste-hint">{{ t('upload.pasteHint') }}</p>
     </el-form-item>
@@ -143,4 +145,12 @@ function onExceed() {
   background: var(--color-primary-soft);
 }
 .inspire-tag:active { transform: translateY(0) scale(0.96); }
+
+/* 键盘可达：el-upload picture-card 触发区包真实按钮（点击冒泡到 EP 触发文件选择） */
+.upload-trigger-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; cursor: pointer;
+  color: inherit; font: inherit;
+}
+.upload-trigger-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 </style>

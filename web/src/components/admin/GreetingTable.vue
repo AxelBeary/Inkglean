@@ -48,7 +48,7 @@
           />
         </span>
         <span class="g-col g-col--actions">
-          <el-button size="small" type="danger" text @click="remove(row)">✕</el-button>
+          <el-button size="small" type="danger" text :aria-label="$t('common.delete')" @click="remove(row)">✕</el-button>
         </span>
       </div>
     </TransitionGroup>

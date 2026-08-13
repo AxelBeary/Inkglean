@@ -14,6 +14,7 @@
     class="like-btn"
     :class="{ 'like-btn--liked': isLiked, 'like-btn--pop': popping }"
     :aria-pressed="isLiked"
+    :aria-label="isLiked ? t('common.unlike') : t('common.like')"
     :disabled="busy"
     @click="toggle"
   >
@@ -26,8 +27,11 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { artistPublicApi } from '../../api/index.js'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   artworkId: { type: Number, required: true },

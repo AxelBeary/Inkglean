@@ -51,7 +51,7 @@
           <input v-model="form.date" type="date" class="dp-input" :aria-label="$t('deposit.dateLabel')" />
         </label>
         <div class="dp-field dp-field--action">
-          <button type="submit" class="dp-btn dp-btn--primary">{{ $t('deposit.addBtn') }}</button>
+          <button type="submit" class="dp-btn dp-btn--primary" :disabled="submitting">{{ $t('deposit.addBtn') }}</button>
         </div>
       </div>
     </form>
@@ -109,6 +109,8 @@ const form = reactive({
 })
 
 const items = ref([])
+// 围剿 a1-17: 记账提交在途守卫——双击/连点不得重复插入（对齐 StandaloneIncome saving）
+const submitting = ref(false)
 
 // ─── 顶部两数：待收 / 已收（分口径求和，formatYuan 展示） ───
 const pendingCents = computed(() =>
@@ -166,21 +168,27 @@ function validate() {
 }
 
 function submit() {
+  if (submitting.value) return
   if (!validate()) return
-  items.value.unshift({
-    id: 'deposit-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
-    name: form.name.trim(),
-    // 元 → 整数分（口径：整数分）
-    amountCents: Math.round(form.amountYuan * 100),
-    status: form.status,
-    date: form.date
-  })
-  saveItems()
-  ElMessage.success(t('deposit.addSuccess'))
-  form.name = ''
-  form.amountYuan = null
-  form.status = 'pending'
-  form.date = todayStr()
+  submitting.value = true
+  try {
+    items.value.unshift({
+      id: 'deposit-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      name: form.name.trim(),
+      // 元 → 整数分（口径：整数分）
+      amountCents: Math.round(form.amountYuan * 100),
+      status: form.status,
+      date: form.date
+    })
+    saveItems()
+    ElMessage.success(t('deposit.addSuccess'))
+    form.name = ''
+    form.amountYuan = null
+    form.status = 'pending'
+    form.date = todayStr()
+  } finally {
+    submitting.value = false
+  }
 }
 
 function toggleStatus(item, e) {

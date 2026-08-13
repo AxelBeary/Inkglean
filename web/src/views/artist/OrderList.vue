@@ -36,7 +36,11 @@
 
   <!-- P0-3: 移动端卡片视图（≤768px 替代表格；点击进详情） -->
   <div class="order-cards">
-    <div v-for="row in displayedOrders" :key="row.id" class="order-card" @click="$router.push(`/orders/${row.id}?from=orders`)">
+    <router-link
+      v-for="row in displayedOrders" :key="row.id"
+      class="order-card"
+      :to="{ path: `/orders/${row.id}`, query: { from: 'orders' } }"
+    >
       <div class="order-card-top">
         <el-image v-if="row.focus_image_path" :src="row.focusImageUrl" fit="cover" class="order-card-thumb" :alt="$t('orderDetail.referenceImage')" />
         <div class="order-card-main">
@@ -49,7 +53,7 @@
         <span class="order-card-time">{{ formatDate(row.created_at) }}</span>
         <el-tag size="small" :class="`prio-tag prio-tag--${row.priority}`">{{ $t(`common.priority.${row.priority}`) }}</el-tag>
       </div>
-    </div>
+    </router-link>
   </div>
 
   <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
@@ -223,7 +227,8 @@ async function fetchAllOrders() {
   const firstItems = first.items ?? first
   all.push(...firstItems)
   const totalCount = first.total ?? firstItems.length
-  const pages = Math.ceil(totalCount / pageSize)
+  // 围剿 a1-4: totalCount===0 时 pages=0 会让进度条 done/total 出现 NaN/Infinity——下限兜底为 1
+  const pages = Math.max(1, Math.ceil(totalCount / pageSize))
   fetchProgress.value = { done: 1, total: pages }
   for (let p = 2; p <= pages; p++) {
     const res = await artistApi.getOrders(status, { page: p, pageSize, q: q || undefined })
@@ -334,7 +339,7 @@ onMounted(() => {
 @media (max-width: 768px) {
   .order-table-wrap { display: none; }
   .order-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
-  .order-card { background: var(--card, #fff); border: 1px solid var(--line, #e5e5e5); border-radius: 10px; padding: 12px 16px; cursor: pointer; }
+  .order-card { display: block; background: var(--card, #fff); border: 1px solid var(--line, #e5e5e5); border-radius: 10px; padding: 12px 16px; cursor: pointer; text-decoration: none; color: inherit; }
   .order-card-top { display: flex; align-items: center; gap: 12px; }
   .order-card-thumb { width: 44px; height: 44px; border-radius: 6px; flex: none; }
   .order-card-main { flex: 1; min-width: 0; }

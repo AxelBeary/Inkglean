@@ -114,7 +114,10 @@
         </div>
 
         <template v-if="wmType === 'text'">
-          <el-input v-model="wmText" :maxlength="30" show-word-limit class="wm-text-input" />
+          <el-input
+            v-model="wmText" :maxlength="30" show-word-limit class="wm-text-input"
+            :aria-label="$t('watermark.textInputLabel')"
+          />
           <div class="wm-slider-row">
             <span class="wm-label">{{ $t('watermark.fontSize') }}</span>
             <el-slider v-model="fontSize" :min="16" :max="160" :step="2" class="wm-slider" />
@@ -223,6 +226,9 @@ const previewDataUrl = ref('')
 const exporting = ref(false)
 const fileInput = ref(null)
 const logoInput = ref(null)
+// 围剿 a1-8/9: 完稿图切换与预览合成共用的请求/合成序号（卸载递增使在途响应作废）
+let deliverablesSeq = 0
+let previewSeq = 0
 
 // LOGO 画师级持久化：key = huiyue_wm_logo_<artistId>（下次进入自动加载）
 const LOGO_KEY_PREFIX = 'huiyue_wm_logo_'
@@ -343,6 +349,8 @@ function orderLabel(o) {
 }
 
 async function onOrderChange(orderId) {
+  // 围剿 a1-8: 订单下拉切换取号——慢响应不得覆盖新选中的订单完稿图
+  const mySeq = ++deliverablesSeq
   if (!orderId) {
     deliverables.value = []
     src.value = ''
@@ -354,12 +362,14 @@ async function onOrderChange(orderId) {
   src.value = ''
   try {
     const detail = await artistApi.getOrder(orderId)
+    if (mySeq !== deliverablesSeq) return
     deliverables.value = detail?.deliverables || []
   } catch {
+    if (mySeq !== deliverablesSeq) return
     deliverablesError.value = true
     deliverables.value = []
   } finally {
-    deliverablesLoading.value = false
+    if (mySeq === deliverablesSeq) deliverablesLoading.value = false
   }
 }
 
@@ -413,6 +423,8 @@ function currentOptions(logo) {
 }
 
 async function renderPreview() {
+  // 围剿 a1-9: 预览合成取号——慢合成不得覆盖新预览
+  const mySeq = ++previewSeq
   if (!src.value) return
   try {
     let logo = null
@@ -421,8 +433,11 @@ async function renderPreview() {
       logo = await loadImage(logoDataUrl.value)
       if (!logo) return
     }
-    previewDataUrl.value = await composeWatermarked(src.value, currentOptions(logo))
+    const dataUrl = await composeWatermarked(src.value, currentOptions(logo))
+    if (mySeq !== previewSeq) return
+    previewDataUrl.value = dataUrl
   } catch {
+    if (mySeq !== previewSeq) return
     // 合成失败（如画布被污染/图片加载失败）：清空预览并提示，不静默
     previewDataUrl.value = ''
     ElMessage.error(t('watermark.renderError'))
@@ -438,7 +453,11 @@ watch(
   }
 )
 
-onUnmounted(() => clearTimeout(previewTimer))
+onUnmounted(() => {
+  clearTimeout(previewTimer)
+  deliverablesSeq++
+  previewSeq++
+})
 
 // ─── 导出（逐张下载 PNG，不打包） ───
 async function exportImage() {

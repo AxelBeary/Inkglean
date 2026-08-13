@@ -12,9 +12,13 @@
     </div>
     <template v-else>
       <div class="size-pick-list">
-        <div
+        <button
           v-for="sz in sizes" :key="sz.id"
           class="size-pick" :class="{ 'size-pick--on': selectedSizeId === sz.id, 'size-pick--showcase': sz.display_status === 'showcase' }"
+          type="button"
+          role="radio"
+          :aria-checked="selectedSizeId === sz.id"
+          :aria-label="sz.name"
           @click="emit('select', sz.id)"
         >
           <span class="size-pick-name">{{ sz.name }}</span>
@@ -22,7 +26,7 @@
           <span v-if="sz.display_status === 'showcase'" class="size-pick-showcase">{{ t('orderForm.sizeShowcaseTag') }}</span>
           <span class="size-pick-price">{{ formatYuanValue(sz.base_price) }}</span>
           <span v-if="selectedSizeId === sz.id" class="size-pick-check">✓</span>
-        </div>
+        </button>
       </div>
       <div class="step-nav" :class="{ 'step-nav--end': !isMultiStyle }">
         <el-button v-if="isMultiStyle" @click="emit('prev')">{{ t('orderForm.prevStep') }}</el-button>
@@ -78,6 +82,9 @@ const { t } = useI18n()
   padding: 14px 18px; cursor: pointer;
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 10px;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
   transition: border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out);
 }
 .size-pick:hover { border-color: var(--color-primary-light-5); }

@@ -145,6 +145,25 @@ describe('OrderList 复合筛选缓存 + 进度（REQ-037 批3 D1）', () => {
     expect(wrapper.find('.fetch-progress').exists()).toBe(false)
   })
 
+  it('a1-4: 复合筛选 totalCount=0 时进度分母不小于 1（防 NaN/Infinity）', async () => {
+    // 首页挂起 → 中途观察 fetchAllOrders 写入的进度
+    let resolveFirst
+    h.getOrders.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+    const wrapper = await mountOrderList()
+
+    resolveFirst({ items: [], total: 0 })
+    // 只推一个微任务：fetchAllOrders 已写进度，loadOrders 收尾（清 null）尚未执行
+    await Promise.resolve()
+
+    expect(wrapper.vm.fetchProgress).not.toBeNull()
+    expect(wrapper.vm.fetchProgress.total).toBeGreaterThanOrEqual(1)
+    // 分母兜底后百分比不出现 NaN/Infinity
+    expect(Number.isFinite(wrapper.vm.fetchProgress.done / wrapper.vm.fetchProgress.total)).toBe(true)
+
+    await flushPromises()
+    expect(wrapper.vm.fetchProgress).toBeNull()
+  })
+
   it('复合筛选 active 仅拉取 wip/pending 等非终态订单', async () => {
     // 5 条订单，其中 3 条 active（wip/pending/pending），2 条 completed（done/delivered）
     const orders = [
