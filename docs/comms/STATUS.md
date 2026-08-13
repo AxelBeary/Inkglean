@@ -1,5 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-14 v96：**围剿漏网清零——复盘审计又抓 7 条 P1 全修（a2×3/d2×3/t1×1）+v49 迁移欠账补上；终态门禁 server 1403 / web 496 / E2E 11**
+> ✅ **漏网复盘（收官后自审，不信「已全清」自报）**：对照 17 路猎杀报告逐路核销，抓出未进任何波次的 7 条 P1，逐条核实后亲修：
+> ① a2-1 query 预选命中后刷新草稿增项全丢→增项/用途/加急恢复独立于尺寸块；② a2-2 草稿只防 JSON.parse 不防字段形状（非字符串致 .trim() 崩）→类型守卫；③ a2-3 QQ 协议跳转 _self 劫持当前页成死页→改新窗口+兜底提示键；④ d2-1 问候语全局 PUT 缺 artist_id IS NULL 归属校验（可越权改写画师专属模板）→对齐 DELETE 补校验；⑤ d2-2 埋点 token:IP 双因子配额可被跨分钟囤积 token 绕过→叠加纯 IP 总量闸 300/分钟；⑥ d2-3 compliance/invite 两插件漏挂 registerAdminStepUpHooks（运行时实证 basic 会话直取 200）→补挂，复验 401 STEP_UP_REQUIRED；⑦ t1 收入概览只统散单而 CSV 合并两源对不上账→改消费 income-summary 三格（订单/散单/总）。另补 v49 迁移 DROP-RENAME 崩溃恢复（v50 同款；v38 因单事务包裹无窗口，裁决在案）。防再犯：TC-D2-STEPUP/TC-D2-GREET。
+> ✅ **终态门禁**：server **1403/1403** · web **496/496**（vue-tsc/eslint/check-i18n/build 全过）· E2E **11/11**；基线已同步；至此 P0/P1 隐患逐路核销完毕（P2 ~180 条按纪律只报不修，清单在各 hunt 报告尾部）。
+
 > 最后更新：2026-08-14 v95：**1.0 围剿收官——隐患全清（P0/P1 全修+GitHub 安全告警清零）；终态门禁 server 1401 / web 496 / E2E 11；master 已推**
 > ✅ **围剿七波全部合入（逐波一号独立复跑门禁，非 self-report）**：①d1-P2 后端加固（TOTP 计数原子/重绑限流+重放/退款原子/终态收款守卫/交付文件存在性/备注事务，含一号补两处旧用例漏账）②a1 竞态+b5 键盘可达性（15 处 seq 守卫+P0/P1 a11y，新增 11 防再犯测试，其中 4 件返工后归零）③P1-A 前端汇总（b1×22+b4×14，todayStr/passkeyCreateFlow/slideConfirm/pageCard 单源化+魔数常量+CSS token 化+i18n 键化，check-i18n 豁免 9→4；一号验收补 6 处测试侧）④P1-B（b2×3 四模板重复收敛 TplPricingSection/TplShowcase/TplGuestbook theme+b3×7 管理后台三态/确认/390px，返工单修 16 例 i18n mock）⑤d1-F5/F7（orders 全写路径 version 链连通+发布作品幂等 v62 部分唯一索引）⑥V1 部署链路 P0 加固（备份 VERIFY/迁移回读 fail-fast/冒烟清单制/prev tag+rollback.ps1/setup.sh 超时不假成功/发布前置门禁；沙箱拒写两文件一号补落）⑦V3 注释×3+文案 P1×16。
 > ✅ **d1-F1 客户侧弱双因子根治（用户拍板：最安全+客户最方便，无存量包袱）**：客户访问令牌化——下单发高熵令牌（哈希入库，明文仅一次下发）、track/delivery/lookup 凭令牌常量时间校验（错误同形 404）、my 端点退役 410、画师端重新生成令牌补发、迁移 v63；客户端成功页链接+复制+二维码、TrackOrder 链接直达+本地清单、画师订单详情补发按钮；E2E 适配（订单号 CODE-xxx 保留人类友好，安全由令牌承担——裁决在案）。
