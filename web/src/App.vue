@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
@@ -25,6 +25,27 @@ import en from 'element-plus/es/locale/lang/en'
 
 const { locale } = useI18n()
 const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
+
+// K3（波2）：中英切换容器级短淡入——只给根容器 #app 挂一次性 .locale-swap，
+// CSS 侧单属性 opacity（.55→1，var(--dur-mid) ease-out），禁止多颜色变量插值；
+// 动画结束移除（animationend），300ms 兜底防 reduced-motion 下无事件残留。
+let localeSwapTimer
+watch(locale, async () => {
+  const root = document.getElementById('app')
+  if (!root) return
+  await nextTick()
+  const onSwapEnd = () => {
+    root.classList.remove('locale-swap')
+    root.removeEventListener('animationend', onSwapEnd)
+    clearTimeout(localeSwapTimer)
+  }
+  root.classList.remove('locale-swap')
+  void root.offsetWidth // 连续切换时强制重排，重新触发动画
+  root.classList.add('locale-swap')
+  root.addEventListener('animationend', onSwapEnd)
+  clearTimeout(localeSwapTimer)
+  localeSwapTimer = window.setTimeout(onSwapEnd, 300)
+})
 
 // 02C: 后台路由（requiresAuth）整页不过渡——布局含侧边栏保持稳定，内容区过渡在 ArtistLayout 内部；
 //      客户端路由保留 fade-slide 整页过渡。
@@ -94,6 +115,19 @@ body {
 .login-cross-enter-from,
 .login-cross-leave-to {
   opacity: 0;
+}
+
+/* K3（波2）：中英切换容器级短淡入——根容器单属性 opacity，禁止多颜色变量插值；
+   prefers-reduced-motion 下不播（class 移除由 JS animationend/300ms 兜底） */
+.locale-swap {
+  animation: locale-swap-in var(--dur-mid) var(--ease-out);
+}
+@keyframes locale-swap-in {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .locale-swap { animation: none; }
 }
 
 /* 移动端适配 */
