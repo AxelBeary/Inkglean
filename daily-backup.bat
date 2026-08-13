@@ -41,7 +41,7 @@ rem ---- 2) SQLite integrity verification (VERIFY_OK required, else abort) ----
 where node >nul 2>&1
 if errorlevel 1 (
   echo VERIFY_SKIPPED_NODE_MISSING %time%: node not found on host, cannot verify backup, aborting >> "%BACKUP_LOG%"
-  echo - Next: install Node.js (>=22.6) or run from a machine with node on PATH, then re-run >> "%BACKUP_LOG%"
+  echo - Next: install Node.js 22.6+ or run from a machine with node on PATH, then re-run >> "%BACKUP_LOG%"
   del "%TMP_OUT%" >nul 2>&1
   exit /b 1
 )
