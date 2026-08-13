@@ -26,6 +26,7 @@
 > ✅ **收尾波 M 合入**（813-fq-tail-logic，16 文件 +251/-128）：客户端三态散项（ArtistHome 5 接口失败占位+重试/TrackOrder+DeliveryPage 页内错误态/复制失败统一 copyFailed/Gallery 去重复分页请求+补骨架）+a11y（空格键/tab 语义/≤480 单列）+useTouchSwipe.ts 抽公共（B 路最后一个 P1）+波 T 移交漏项清违。**一号验收抓错并亲修**：波 M 给 v-show 步骤面板包 Transition 无效且破 10 例测试——撤包装改 class 重触发淡入（opacity 单属性+reduced-motion 豁免），测试还原，复验 436/436/build 0。
 > ✅ **战役终验**：容器重建（Healthy/v61/200，终态构建）；三域浏览器冒烟 12 帧自审过（dashboard 公告行/模块开关 3 帧+客户端/管理后台 9 帧，归档 fq-batch/）；**E2E 终态复跑 11/11 全绿（18.4s）**。战役主体收官，等用户终验。
 > 🔜 **待用户终验**：打开 https://localhost 看新看板（问候贴纸/挂牌/卷轴/账本+公告行+偏好设置模块开关）；战役总结账 docs/comms/前端质量战役-总结账-20260813.md。
+> 🔴 **1.0 发版前围剿阶段开工**（2026-08-13 用户授权无限派工）：①线二质量围剿——12 路 codex 只读猎杀并行派出（A1-A3 Bug 猎杀/B1-B3 屎山检测/B4 i18n/B5 a11y/C1 前端安全/D1-D3 后端三视角），产出「文件:行号:问题:严重度:建议」清单，P0/P1 发现即修+复跑门禁，P2 汇总给用户；日志 workspace/temp/hunt-*-codex.log。②线一体验增量——E1-E15 清单已落档 docs/comms/1.0体验增量探索清单-待拍板-20260813.md，等用户拍板（建议 1.0 携带 P1 集：E1 卷轴浮层/E2 已排满牌/E3 节点动词/E7 QueueBoard 卷轴化/E8 工具抽屉/E14 管理搜索）。
 > ✅ **尾巴清收（战役零留账）**：①getProfile 四处重复请求改 in-flight 去重共享（useArtistPublicProfile.ts，只做并发期 Promise 共享，无长期缓存、paletteId 时序不变）；②v-html 抽 SanitizedRichText 统一渲染入口（lang=ts，消毒契约注释在案，TplRules/ContactStep 改用，消除散落 eslint-disable）。复验 lint 0 错回基线 1 已知警告/436/436/build 0。**至此战役无挂起项，主体+尾巴全部收官**，等用户终验。
 > 🧊 **环境**：master 干净已推（2cef4f2a）；全部 worktree 已清理；容器 Healthy（终态构建，含战役全部改动；尾巴两提交尚未进容器，下次重建即含，纯重构无行为变化）；基线 server 1367/web 436/E2E 11。
 
