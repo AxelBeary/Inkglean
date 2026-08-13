@@ -6,7 +6,7 @@ import { validateDiscountCode, computeDiscountCents, incrementUsage } from '../p
 import { allocateInitial } from '../pricing/pricing-engine.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import type { Artist, OrderDetail } from '../../types/entities.js'
-import { getOrder } from './order-read.js'
+import { generateCustomerToken, getOrder, hashCustomerToken } from './order-read.js'
 import { appendPriceEntry, checkOrderConservation } from './order-pricing.js'
 
 // ============================================
@@ -98,14 +98,20 @@ export interface CreateOrderParams {
  * 创建订单（客户自助 或 画师手动录入）
  * 事务包裹，防止订单号竞态
  * SPEC-PRICE-2：价格全链路唯一引擎 calculateStylePrice（整数分）；折扣最后应用
+ * F1 围剿：事务内生成客户访问令牌（144bit，一次下发），只存 sha256 哈希。
+ * 返回对象附带 customerToken 明文（仅调用方可拿到一次）；订单号保持 CODE-xxx
+ * 人类友好，安全由令牌承担（用户拍板）。
  */
-export function createOrder({ artistId, clientQq, clientName, description, priority, source, clientNotify, references, discountCode, styleSizeId, styleAddons, anonId }: CreateOrderParams): OrderDetail {
+export function createOrder({ artistId, clientQq, clientName, description, priority, source, clientNotify, references, discountCode, styleSizeId, styleAddons, anonId }: CreateOrderParams): OrderDetail & { customerToken: string } {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
 
     const code = artist.artist_code || artist.subdomain.toUpperCase()
     const orderNo = generateOrderNo(artistId, code)
+    // F1 围剿：令牌在事务内生成并哈希入库；明文仅随本次返回值出现一次
+    const customerToken = generateCustomerToken()
+    const customerTokenHash = hashCustomerToken(customerToken)
 
     // ─── SPEC-004: 名额分区 ───
     let queueZone = 'formal'
@@ -169,8 +175,8 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       : null
 
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, style_size_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (order_no, artist_id, style_size_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents, customer_token_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       orderNo, artistId, styleSizeId || null, clientQq, clientName || null,
       description || null, priority || 'medium', source || 'self',
@@ -181,7 +187,8 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       totalPriceCents, // R3: 有价格计算时，最终价格初始 = 折后总价
       queueZone,
       discountCodeId,
-      discountAmountCents
+      discountAmountCents,
+      customerTokenHash
     )
 
     const orderId = Number(result.lastInsertRowid)
@@ -280,6 +287,6 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
     // REQ-025 R11: 守恒自检（初始分配后 Σ节点价 ≡ base 条目，Σbp≠100% 由守卫跳过）
     checkOrderConservation(orderId)
 
-    return getOrder(orderId)!
+    return { ...getOrder(orderId)!, customerToken }
   })()
 }

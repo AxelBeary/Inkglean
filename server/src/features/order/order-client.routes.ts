@@ -3,7 +3,7 @@ import * as orderWorkflowService from './order-workflow.service.js'
 import { assertReferenceFileExists, guardRateLimit } from './order-route-utils.js'
 import { getRules, requireVisibleArtist, isArtistVisibleById } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
-import { clamp, isValidQq } from '../../shared/validate.js'
+import { clamp } from '../../shared/validate.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import { withIdempotency, readIdempotencyKey } from '../../shared/idempotency.js'
@@ -111,7 +111,10 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
         body: {
           orderNo: order.order_no,
           totalPriceCents: order.total_price_cents,
-          message: '下单成功！请添加画师QQ沟通细节。'
+          message: '下单成功！请添加画师QQ沟通细节。',
+          // F1 围剿：客户访问令牌明文仅本次下发一次 + 完整追踪 URL 片段
+          customerToken: order.customerToken,
+          trackUrl: orderService.buildCustomerTrackUrl(artist.subdomain, order.order_no, order.customerToken)
         }
       }
     })
@@ -120,16 +123,16 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/orders/track/:orderNo
-   * 客户凭订单号 + QQ号查询进度（限流：同IP 20次/5分钟）
+   * F1 围剿：客户凭订单号 + 高熵令牌查询进度（限流：同IP 20次/5分钟）
+   * 令牌不符/缺失/订单不存在一律 404 ORDER_NOT_FOUND（不暴露订单存在性）
+   * logLevel=silent：令牌明文在 query 中，禁止进入访问日志/错误日志（纪律：日志不打印令牌）
    */
-  fastify.get('/api/orders/track/:orderNo', async (request: FastifyRequest) => {
+  fastify.get('/api/orders/track/:orderNo', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`track:${request.ip}`, 20, 5 * 60_000)
 
-    const { qq } = (request.query || {}) as { qq?: string }
-    if (!qq) throw new AppError(E.QQ_REQUIRED)
-    if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
+    const { token } = (request.query || {}) as { token?: string }
 
-    const result = orderService.getClientQueuePosition((request.params as { orderNo: string }).orderNo, qq)
+    const result = orderService.getClientQueuePosition((request.params as { orderNo: string }).orderNo, token || '')
     if (!result) throw new AppError(E.ORDER_NOT_FOUND, 404)
 
     const { order, position, total } = result
@@ -197,71 +200,40 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
   })
 
   /**
-     * GET /api/orders/my
-     * 客户凭 QQ号 + 画师子域名 查询自己的所有订单（"不知道订单号"场景）
-     * P2-#19: 限流收紧为每 IP 每分钟 10 次（防 QQ 枚举）
-     */
-    fastify.get('/api/orders/my', async (request: FastifyRequest) => {
-      guardRateLimit(`my-orders:${request.ip}`, 10, 60_000)
-
-    const { subdomain, qq } = (request.query || {}) as { subdomain?: string; qq?: string }
-    if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
-    if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
-
-    // audit-a P2-7: 与 lookup/track 同口径——hidden/封禁/不存在统一 404
-    const artist = requireVisibleArtist(subdomain)
-
-    const orders = orderService.getClientOrdersByQq(artist.id, qq)
-    return orders.map((o: { order_no: string; status: string; tier_name: string | null; created_at: string }) => ({
-      orderNo: o.order_no,
-      status: o.status,
-      tierName: o.tier_name,
-      createdAt: o.created_at
-    }))
+   * GET /api/orders/my
+   * F1 围剿：退役——QQ+订单号弱双因子已由高熵令牌取代，本端点不再提供。
+   * 路由保留但返回 410 + MY_ORDERS_RETIRED，文案指引使用保存的追踪链接或联系画师补发。
+   */
+  fastify.get('/api/orders/my', async (request: FastifyRequest) => {
+    guardRateLimit(`my-orders:${request.ip}`, 10, 60_000)
+    throw new AppError(E.MY_ORDERS_RETIRED, 410)
   })
 
   /**
    * GET /api/orders/lookup
-   * 客户凭 QQ号 查询在某画师处是否有订单（不记得订单号场景）
-   * 限流：同IP 10次/5分钟
+   * F1 围剿：退役——原用途「不记得订单号时凭 QQ 查单」已被令牌链接取代
+   * （持有令牌即持有完整追踪链接，含订单号），继续提供只会保留 QQ 枚举面。
+   * 返回 410 + LOOKUP_RETIRED。
    */
   fastify.get('/api/orders/lookup', async (request: FastifyRequest) => {
     guardRateLimit(`lookup:${request.ip}`, 10, 5 * 60_000)
-
-    const { subdomain, qq } = (request.query || {}) as { subdomain?: string; qq?: string }
-    if (!subdomain || !qq) throw new AppError(E.MISSING_PARAMS)
-    if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
-
-    // audit-a P2-7: 与 my/track 同口径——hidden/封禁/不存在统一 404
-    const artist = requireVisibleArtist(subdomain)
-
-    const hasOrders = orderService.hasClientOrders(artist.id, qq)
-    if (!hasOrders) {
-      return { hasOrders: false }
-    }
-
-    return {
-      hasOrders: true,
-      // P3-14: 与公开主页同口径——不兜底登录账号 QQ（lookup 也是公开接口）
-      contactQq: artist.contact_qq || null,
-      adminQq: orderService.getPlatformConfig('admin_qq'),
-      artistName: artist.name
-    }
+    throw new AppError(E.LOOKUP_RETIRED, 410)
   })
 
   /**
    * GET /api/orders/delivery/:orderNo
-   * 交付文件下载页数据（需 QQ 验证）
+   * F1 围剿：交付文件下载页数据（需订单号 + 高熵令牌；不符一律 404）
+   * logLevel=silent：令牌明文在 query 中，禁止进入访问日志/错误日志
    */
-  fastify.get('/api/orders/delivery/:orderNo', async (request: FastifyRequest) => {
+  fastify.get('/api/orders/delivery/:orderNo', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery:${request.ip}`, 20, 5 * 60_000)
 
-    const { qq } = (request.query || {}) as { qq?: string }
-    if (!qq) throw new AppError(E.QQ_REQUIRED)
-    if (!isValidQq(qq)) throw new AppError(E.QQ_FORMAT)
-
-    const order = orderService.getOrderByNo((request.params as { orderNo: string }).orderNo)
-    if (!order || order.client_qq !== qq) {
+    const { token } = (request.query || {}) as { token?: string }
+    const order = orderService.getClientOrderByToken(
+      (request.params as { orderNo: string }).orderNo,
+      token || ''
+    )
+    if (!order) {
       throw new AppError(E.ORDER_NOT_FOUND, 404)
     }
 

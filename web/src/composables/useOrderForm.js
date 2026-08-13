@@ -140,6 +140,9 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const submitting = ref(false)
   const showSuccess = ref(false)
   const resultNo = ref('')
+  // F1 围剿：下单成功响应一次下发客户令牌 + 完整追踪 URL（成功态展示/扫码/复制）
+  const customerToken = ref('')
+  const trackUrl = ref('')
   // D-2（R-9）: 下单幂等键——同一次提交意图（失败重试）复用同 key，
   // 提交成功后置空（下一次提交 = 新意图，换新 key）。后端按 scope+key 去重，
   // 防双标签页/慢渲染双击产生两个订单；服务端错误不缓存，重试不受影响。
@@ -589,6 +592,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       })
       submitIdemKey = null
       resultNo.value = order.orderNo
+      customerToken.value = order.customerToken || ''
+      trackUrl.value = order.trackUrl || ''
       showSuccess.value = true
       // R57: 提交成功清除草稿 + 解除离开拦截
       sessionStorage.removeItem(DRAFT_KEY)
@@ -694,7 +699,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     // R57 草稿状态（导出供测试验证状态是否算"有内容"）
     hasDraftContent,
     // 提交状态
-    submitting, showSuccess, resultNo, submit,
+    submitting, showSuccess, resultNo, customerToken, trackUrl, submit,
     // 参考图
     refFileList, handleRefUpload, handleRefRemove,
     // 须知预览

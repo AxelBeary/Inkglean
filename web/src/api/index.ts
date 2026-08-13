@@ -38,6 +38,7 @@ import type {
   CreateOrderRequest,
   CreateStandaloneIncomeRequest,
   CreateStandaloneIncomeResult,
+  CustomerTokenResult,
   DefaultWorkflowNode,
   DeleteAddonTemplateResult,
   DeleteArtistResult,
@@ -69,7 +70,6 @@ import type {
   InviteTotpConfirmResult,
   LikeArtworkResult,
   LogoutResult,
-  MyOrderItem,
   OkResult,
   OnboardingState,
   PlatformAnnouncement,
@@ -77,7 +77,6 @@ import type {
   OrderDeliveryResult,
   OrderDetail,
   OrderLogsResult,
-  OrderLookupResult,
   OrderPriority,
   OrderStatus,
   OrderTrackResult,
@@ -467,6 +466,9 @@ export const artistApi = {
   // D-1（R-5）: options.version 可选（递补/交付同为订单写路径）
   promoteOrder: (id: number, options: VersionedOptions = {}): Promise<EnrichedOrderDetail> =>
     postJson(`/artist/orders/${id}/promote`, options),
+  // F1 围剿：画师补发客户追踪链接（重新生成令牌，旧链接立即失效）
+  regenerateCustomerToken: (id: number): Promise<CustomerTokenResult> =>
+    postJson(`/artist/orders/${id}/regenerate-token`, {}),
   deliver: (id: number, data: DeliverRequest): Promise<DeliverResult> => postJson(`/artist/orders/${id}/deliver`, data), // data.version 可选
   // 方案 B: 无文件交付（修复工作流订单最后节点交付卡死）
   deliverNoFile: (id: number, options: VersionedOptions = {}): Promise<DeliverResult> =>
@@ -581,13 +583,11 @@ export const orderApi = {
   // D-2（R-9）: options 透传幂等键 header（同一次提交重试复用同 key）
   create: (data: CreateOrderRequest, options: AxiosRequestConfig = {}): Promise<OrderCreateResult> =>
     postJson('/orders', data, options),
-  track: (orderNo: string, qq: string): Promise<OrderTrackResult> => getJson(`/orders/track/${orderNo}`, { params: { qq } }),
-  delivery: (orderNo: string, qq: string): Promise<OrderDeliveryResult> =>
-    getJson(`/orders/delivery/${orderNo}`, { params: { qq } }),
-  /** 凭 QQ 号查询在某画师处的所有订单（"不知道订单号"场景） */
-  myOrders: (subdomain: string, qq: string): Promise<MyOrderItem[]> => getJson('/orders/my', { params: { subdomain, qq } }),
-  /** 凭 QQ 号检查是否有订单（不记得订单号场景），返回联系信息 */
-  lookup: (subdomain: string, qq: string): Promise<OrderLookupResult> => getJson('/orders/lookup', { params: { subdomain, qq } })
+  // F1 围剿：客户访问凭高熵令牌（QQ+订单号弱双因子已退役）
+  track: (orderNo: string, token: string): Promise<OrderTrackResult> =>
+    getJson(`/orders/track/${orderNo}`, { params: { token } }),
+  delivery: (orderNo: string, token: string): Promise<OrderDeliveryResult> =>
+    getJson(`/orders/delivery/${orderNo}`, { params: { token } })
 }
 
 // ─── 上传 ───

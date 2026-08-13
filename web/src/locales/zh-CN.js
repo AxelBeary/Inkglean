@@ -777,6 +777,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     draftRestore: '恢复', draftDiscard: '丢弃', draftRestored: '草稿已恢复',
     // R58-6: QQ 跳转 + 复制
     artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制',
+    // F1 围剿：成功态追踪链接（全文 + 复制 + 二维码）
+    saveTrackHint: '请保存此链接，查询进度凭此链接',
+    copyTrackLink: '复制链接', trackLinkCopied: '追踪链接已复制', trackQrAlt: '追踪链接二维码',
     // R58-2: 分步引导
     step2: '写需求', step3: '联系方式',
     step2Title: '描述你的需求', step3Title: '留下联系方式',
@@ -828,12 +831,19 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     }
   },
   track: {
-    backHome: '返回主页', title: '查询进度', inputPlaceholder: '如果不记得请留空', search: '查询',
-    orderNo: '订单号', orderNoLabel: '订单号', qqLabel: '你的QQ号', qqPlaceholder: '下单时填写的QQ号',
+    backHome: '返回主页', title: '查询进度', search: '查询',
+    // F1 围剿：粘贴完整追踪链接（令牌承载身份）
+    linkLabel: '追踪链接', linkPlaceholder: '粘贴下单时保存的完整追踪链接',
+    pasteHint: '把下单成功页保存的链接粘贴到这里，即可查询进度',
+    enterLink: '请先粘贴追踪链接',
+    linkInvalid: '链接格式不正确，请粘贴下单时保存的完整追踪链接',
+    linkExpired: '链接已失效，请联系画师补发',
+    savedTitle: '已保存的追踪链接', savedQuery: '点击查询',
+    orderNo: '订单号',
     artist: '画师', type: '类型',
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
     stepSubmitted: '已提交', stepConfirmed: '已确认', stepWip: '制作中', stepDone: '已完成', stepDelivered: '已交付',
-    deliverables: '交付文件', otherOrder: '查询其他订单', enterQq: '请输入QQ号',
+    deliverables: '交付文件', otherOrder: '查询其他订单',
     // SPEC-003: 价格与付款
     priceTitle: '价格明细', finalPrice: '最终价格',
     // B7: 额度池付款进度
@@ -841,13 +851,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // D-3（R-11）: 零元订单显式化
     zeroOrder: '0 元订单',
     zeroOrderHint: '本订单为 0 元，无需收款',
-    contactTitle: '不记得订单号？', contactDesc: '请联系管理员或画师，报上你的QQ号即可找回订单。',
-    contactArtist: '画师QQ', contactAdmin: '管理员QQ', copyQq: '复制', copied: '已复制',
-    noOrdersTitle: '未找到订单', noOrdersDesc: '该QQ号在本画师处没有订单记录，请核对QQ号是否正确。',
-    noOrdersCountdown: '{n} 秒后可关闭',
-    // A1: 我的订单列表
-    myOrdersBtn: '我的订单', myOrdersTitle: '我的订单',
-    myOrdersEmpty: '该 QQ 暂无订单', myOrdersFailed: '加载订单失败，请重试', searchFailed: '查询失败，请稍后重试',
+    searchFailed: '查询失败，请稍后重试',
     // U1: 需求回顾
     briefTitle: '需求回顾', briefRefAlt: '参考图',
     timeline: {
@@ -1145,6 +1149,12 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     dateSyncNote: '改期会自动同步到月历与时间条视图',
     // R58-6: QQ 跳转 + 复制
     jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: '客户QQ已复制',
+    // F1 围剿：画师补发客户追踪链接（新令牌作废旧令牌，旧链接失效）
+    copyTrackLink: '复制客户追踪链接',
+    regenerateTokenConfirm: '重新生成后，客户保存的旧链接将立即失效。确认生成新链接？',
+    regenerateTokenConfirmBtn: '生成新链接',
+    regenerateTokenSuccess: '新追踪链接已复制（旧链接已失效）',
+    regenerateTokenFailed: '生成失败，请稍后重试',
     // plan-node-speech：客户沟通小块
     commTitle: '客户沟通',
     commPriceSummary: '价格小结：总价{total} / 已付{paid} / 待付{unpaid}',

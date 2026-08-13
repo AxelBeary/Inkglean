@@ -253,7 +253,7 @@ describe('SPEC-003 附加工作项 (Extra Items)', () => {
     // 客户查询
     const res = await app.inject({
       method: 'GET',
-      url: '/api/orders/track/TEST-EI10?qq=99001'
+      url: `/api/orders/track/TEST-EI10?token=${order.customerToken}`
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()

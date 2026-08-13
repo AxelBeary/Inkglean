@@ -6,6 +6,7 @@ import { requireAuth } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 import { AppError, E } from '../../shared/errors.js'
 import { withIdempotency, readIdempotencyKey } from '../../shared/idempotency.js'
+import db from '../../db/connection.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
@@ -295,5 +296,31 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
     return enrichOrderForArtist(orderService.promoteOrder(request.order.id, parseOptionalVersion(request.body)))
+  })
+
+  // ─── F1 围剿：客户追踪令牌补发 ───
+
+  /**
+   * POST /api/artist/orders/:id/regenerate-token
+   * 画师补发客户追踪链接（用户拍板简化方案）：
+   * 生成新令牌 → 覆盖旧哈希（旧令牌立即失效）→ 返回新明文一次。
+   * 不引入明文存储/加密列——实现最简单，代价是客户旧链接失效。
+   * 明文只出现在本响应（一次）；日志不得打印令牌。
+   */
+  fastify.post('/api/artist/orders/:id/regenerate-token', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request: FastifyRequest) => {
+    const customerToken = orderService.generateCustomerToken()
+    const tokenHash = orderService.hashCustomerToken(customerToken)
+    db.prepare('UPDATE orders SET customer_token_hash = ? WHERE id = ?')
+      .run(tokenHash, request.order.id)
+    return {
+      customerToken,
+      trackUrl: orderService.buildCustomerTrackUrl(
+        request.artist.subdomain,
+        request.order.order_no,
+        customerToken
+      )
+    }
   })
 }

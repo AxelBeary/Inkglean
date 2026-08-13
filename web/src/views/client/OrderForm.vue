@@ -208,6 +208,22 @@
       <el-result icon="success" :title="$t('orderForm.orderNoIs') + resultNo">
         <template #sub-title>{{ $t('orderForm.addQqHint') }}</template>
         <template #extra>
+          <!-- F1 围剿：追踪链接一次展示（全文 + 复制 + 二维码），提示客户保存 -->
+          <div v-if="fullTrackUrl" class="success-track">
+            <p class="success-track-hint">{{ $t('orderForm.saveTrackHint') }}</p>
+            <div class="success-track-link">
+              <code>{{ fullTrackUrl }}</code>
+              <el-button size="small" @click="copyTrackLink">{{ $t('orderForm.copyTrackLink') }}</el-button>
+            </div>
+            <img
+              v-if="trackQrDataUrl"
+              :src="trackQrDataUrl"
+              class="success-track-qr"
+              :alt="$t('orderForm.trackQrAlt')"
+              :aria-label="$t('orderForm.trackQrAlt')"
+              width="160" height="160"
+            />
+          </div>
           <!-- R58-6: 画师 QQ 跳转 + 复制 -->
           <div v-if="artist?.contactQq" class="success-qq">
             <span class="success-qq-label">{{ $t('orderForm.artistQqLabel') }}</span>
@@ -220,7 +236,7 @@
           <div class="success-actions">
             <!-- R58-5: 复制约稿信息 -->
             <el-button @click="copyOrderSummary">{{ $t('orderForm.copySummary') }}</el-button>
-            <el-button type="primary" @click="$router.push(`/artist/${subdomain}/track?no=${resultNo}`)">
+            <el-button type="primary" @click="goTrack">
               {{ $t('orderForm.viewProgress') }}
             </el-button>
           </div>
@@ -232,9 +248,10 @@
 
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { useRoute, onBeforeRouteLeave } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import QRCode from 'qrcode'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import StepIndicator from './order-form/StepIndicator.vue'
 import StylePickStep from './order-form/StylePickStep.vue'
@@ -250,6 +267,7 @@ import { trackEvent, flushNow } from '../../utils/track.js'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const subdomain = route.params.subdomain
 const formRef = ref(null)
 
@@ -257,7 +275,7 @@ const formRef = ref(null)
 const {
   artist, rulesContent, loading, loadError, retryLoad, workflowStages,
   form, rules,
-  submitting, showSuccess, resultNo, submit,
+  submitting, showSuccess, resultNo, trackUrl, submit,
   refFileList, handleRefUpload, handleRefRemove,
   sanitizedRules,
   // 折扣码
@@ -414,6 +432,12 @@ watch(showSuccess, (v) => {
   }
   trackEvent('order_form_submit_success', payload)
   trackEvent('order_submit_success', payload)
+  // F1 围剿：成功态生成追踪链接二维码（绝对 URL，供扫码直达）
+  if (fullTrackUrl.value) {
+    QRCode.toDataURL(fullTrackUrl.value, { width: 160, margin: 1, errorCorrectionLevel: 'M' })
+      .then((dataUrl) => { trackQrDataUrl.value = dataUrl })
+      .catch(() => { trackQrDataUrl.value = '' })
+  }
 })
 function trackingEmitAbandon() {
   if (showSuccess.value || trackingLastStep == null) return
@@ -523,6 +547,29 @@ async function copyQq(qq) {
     ElMessage.success(t('orderForm.qqCopied'))
   } catch {
     ElMessage.warning(t('common.copyFailed')) // 波 M：统一 i18n 文案
+  }
+}
+
+// ─── F1 围剿：追踪链接（全文 + 复制 + 二维码 + 直达） ───
+const fullTrackUrl = computed(() =>
+  trackUrl.value ? new URL(trackUrl.value, window.location.origin).href : ''
+)
+const trackQrDataUrl = ref('')
+
+async function copyTrackLink() {
+  try {
+    await navigator.clipboard.writeText(fullTrackUrl.value)
+    ElMessage.success(t('orderForm.trackLinkCopied'))
+  } catch {
+    ElMessage.warning(t('common.copyFailed'))
+  }
+}
+
+function goTrack() {
+  if (trackUrl.value) {
+    router.push(trackUrl.value)
+  } else {
+    router.push(`/artist/${subdomain}/track?no=${resultNo.value}`)
   }
 }
 </script>
@@ -675,6 +722,25 @@ async function copyQq(qq) {
   font-variant-numeric: tabular-nums;
 }
 .success-qq-actions { display: flex; gap: 8px; }
+/* F1 围剿：成功态追踪链接区（克制居中） */
+.success-track {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  margin-bottom: 16px; padding: 12px; border-radius: 10px;
+  background: var(--el-fill-color-light);
+}
+.success-track-hint { margin: 0; font-size: 13px; color: var(--text-secondary); }
+.success-track-link {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%;
+}
+.success-track-link code {
+  font-size: 11px; color: var(--text-primary); word-break: break-all;
+  background: var(--bg-inset); border: 1px solid var(--border-color);
+  border-radius: 8px; padding: 6px 10px; line-height: 1.5;
+}
+.success-track-qr {
+  border-radius: 8px; border: 1px solid var(--border-color);
+  background: #fff;
+}
 /* R58-5: 成功弹窗按钮行 */
 .success-actions { display: flex; gap: 8px; justify-content: center; }
 /* P0 修复：加载失败错误横幅（克制居中，淡边框+主色重试） */

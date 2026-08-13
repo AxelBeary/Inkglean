@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { createHash, randomBytes } from 'crypto'
 import { db, cleanDb, seedArtist } from './setup.js'
 import * as orderService from '../src/features/order/order.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
@@ -18,11 +19,14 @@ function seedOrder(artistId, overrides = {}) {
     queue_zone: 'formal'
   }
   const data = { ...defaults, ...overrides }
+  const customerToken = data.customerToken || `test-${randomBytes(12).toString('base64url')}`
+  const customerTokenHash = createHash('sha256').update(customerToken).digest('hex')
   const result = db.prepare(`
-    INSERT INTO orders (order_no, artist_id, client_qq, priority, status, source, queue_position, queue_zone)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(data.order_no, artistId, data.client_qq, data.priority, data.status, data.source, data.queue_position, data.queue_zone)
-  return db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(result.lastInsertRowid))
+    INSERT INTO orders (order_no, artist_id, client_qq, priority, status, source, queue_position, queue_zone, customer_token_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(data.order_no, artistId, data.client_qq, data.priority, data.status, data.source, data.queue_position, data.queue_zone, customerTokenHash)
+  const row = db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(result.lastInsertRowid))
+  return { ...row, customerToken }
 }
 
 describe('audit-a R-7 queue_position 分区重排', () => {
@@ -71,11 +75,11 @@ describe('audit-a R-7 queue_position 分区重排', () => {
 
   it('TC-R7-03: 客户排队位置按订单自身分区计算（formal 不被 buffer 干扰）', () => {
     seedOrder(artist.id, { order_no: 'Q-F1', queue_zone: 'formal', queue_position: 1, status: 'wip', client_qq: '66001' })
-    seedOrder(artist.id, { order_no: 'Q-F2', queue_zone: 'formal', queue_position: 2, status: 'wip', client_qq: '66002' })
+    const qf2 = seedOrder(artist.id, { order_no: 'Q-F2', queue_zone: 'formal', queue_position: 2, status: 'wip', client_qq: '66002' })
     seedOrder(artist.id, { order_no: 'Q-B1', queue_zone: 'buffer', queue_position: 1, status: 'pending', client_qq: '66003' })
     seedOrder(artist.id, { order_no: 'Q-B2', queue_zone: 'buffer', queue_position: 2, status: 'pending', client_qq: '66004' })
 
-    const result = orderService.getClientQueuePosition('Q-F2', '66002')
+    const result = orderService.getClientQueuePosition('Q-F2', qf2.customerToken)
     expect(result.position).toBe(2)
     expect(result.total).toBe(2)
   })

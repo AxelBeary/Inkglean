@@ -36,4 +36,6 @@ test('E1 客户下单完整流程', async ({ page }) => {
 
   // ── 成功 ──
   await expect(page.getByText('约稿提交成功！')).toBeVisible({ timeout: 10_000 }) // locator-ok: successTitle 唯一（dialog 懒渲染）
+  // F1 围剿：成功页展示追踪链接保存提示（凭链接查进度）
+  await expect(page.getByText('请保存此链接，查询进度凭此链接')).toBeVisible() // locator-ok: saveTrackHint 仅在成功弹窗出现一次
 })

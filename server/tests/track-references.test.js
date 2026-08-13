@@ -39,7 +39,7 @@ describe('U1 track 接口透出需求描述与参考图', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/api/orders/track/TEST-TR01?qq=99001'
+      url: `/api/orders/track/TEST-TR01?token=${order.customerToken}`
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()
@@ -59,14 +59,14 @@ describe('U1 track 接口透出需求描述与参考图', () => {
   it('TC-TR-02: 无需求订单 → description null + references 空数组', async () => {
     const artist = makeArtist('88002', 'track-refs2')
     seedArtistStages(artist.id)
-    seedOrder(artist.id, {
+    const order = seedOrder(artist.id, {
       order_no: 'TEST-TR02',
       client_qq: '99002'
     })
 
     const res = await app.inject({
       method: 'GET',
-      url: '/api/orders/track/TEST-TR02?qq=99002'
+      url: `/api/orders/track/TEST-TR02?token=${order.customerToken}`
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()

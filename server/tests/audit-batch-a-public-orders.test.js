@@ -24,42 +24,44 @@ describe('audit-a P2-7 公开订单路由可见性', () => {
     return `10.9.${++ipCounter}.${ipCounter * 3}`
   }
 
-  it('TC-P27-01: hidden 画师的 my/lookup/track 一律 404', async () => {
+  it('TC-P27-01: hidden 画师 my/lookup 退役 410；track 令牌正确仍 404（不泄露画师）', async () => {
     const artist = seedArtist({ qq_number: '77001', subdomain: 'hidden-a', status: 'hidden' })
-    seedOrder(artist.id, { order_no: 'HID-A-001', client_qq: '66001', queue_position: 1 })
+    const order = seedOrder(artist.id, { order_no: 'HID-A-001', client_qq: '66001', queue_position: 1 })
     seedOrder(artist.id, { order_no: 'HID-A-002', client_qq: '66002', queue_position: 2 })
 
-    expect((await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=hidden-a&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
-    expect((await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=hidden-a&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
-    expect((await app.inject({ method: 'GET', url: '/api/orders/track/HID-A-001?qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
+    // F1 围剿：my/lookup 已整体退役（410），与画师可见性无关
+    expect((await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=hidden-a&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(410)
+    expect((await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=hidden-a&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(410)
+    // track 令牌门禁通过后仍受画师可见性门禁约束
+    expect((await app.inject({ method: 'GET', url: `/api/orders/track/HID-A-001?token=${order.customerToken}`, remoteAddress: uniqueIp() })).statusCode).toBe(404)
   })
 
-  it('TC-P27-02: 管理员账号 status=open 时 my/lookup/track 公开可见（812-B 新语义）', async () => {
+  it('TC-P27-02: 管理员账号 status=open 时 my/lookup 退役 410；track 凭令牌 200', async () => {
     db.prepare("UPDATE platform_config SET value = '77009' WHERE key = 'admin_qq'").run()
     const artist = seedArtist({ qq_number: '77009', subdomain: 'admin-artist', status: 'open' })
-    seedOrder(artist.id, { order_no: 'ADM-001', client_qq: '66001', queue_position: 1 })
+    const order = seedOrder(artist.id, { order_no: 'ADM-001', client_qq: '66001', queue_position: 1 })
 
     const my = await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })
-    expect(my.statusCode).toBe(200)
-    expect(my.json()).toHaveLength(1)
+    expect(my.statusCode).toBe(410)
+    expect(my.json().code).toBe('MY_ORDERS_RETIRED')
 
     const lookup = await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })
-    expect(lookup.statusCode).toBe(200)
-    expect(lookup.json().hasOrders).toBe(true)
+    expect(lookup.statusCode).toBe(410)
+    expect(lookup.json().code).toBe('LOOKUP_RETIRED')
 
-    const track = await app.inject({ method: 'GET', url: '/api/orders/track/ADM-001?qq=66001', remoteAddress: uniqueIp() })
+    const track = await app.inject({ method: 'GET', url: `/api/orders/track/ADM-001?token=${order.customerToken}`, remoteAddress: uniqueIp() })
     expect(track.statusCode).toBe(200)
     expect(track.json().orderNo).toBe('ADM-001')
   })
 
-  it('TC-P27-02b: 管理员账号 hidden 时 my/lookup/track 仍 404（回归）', async () => {
+  it('TC-P27-02b: 管理员账号 hidden 时 my/lookup 退役 410；track 凭令牌仍 404（回归）', async () => {
     db.prepare("UPDATE platform_config SET value = '77009' WHERE key = 'admin_qq'").run()
     const artist = seedArtist({ qq_number: '77009', subdomain: 'admin-artist', status: 'hidden' })
-    seedOrder(artist.id, { order_no: 'ADM-002', client_qq: '66001', queue_position: 1 })
+    const order = seedOrder(artist.id, { order_no: 'ADM-002', client_qq: '66001', queue_position: 1 })
 
-    expect((await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
-    expect((await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
-    expect((await app.inject({ method: 'GET', url: '/api/orders/track/ADM-002?qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(404)
+    expect((await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(410)
+    expect((await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=admin-artist&qq=66001', remoteAddress: uniqueIp() })).statusCode).toBe(410)
+    expect((await app.inject({ method: 'GET', url: `/api/orders/track/ADM-002?token=${order.customerToken}`, remoteAddress: uniqueIp() })).statusCode).toBe(404)
   })
 
   it('TC-P27-06: 管理员账号 status=open 时目录/公开主页可见，hidden 时目录排除、主页 UI-8 最小信息', async () => {
@@ -86,20 +88,20 @@ describe('audit-a P2-7 公开订单路由可见性', () => {
     expect(profileHidden.json()).toEqual({ id: admin.id, name: admin.name, subdomain: 'admin-profile', status: 'hidden' })
   })
 
-  it('TC-P27-03: 可见画师 my/lookup/track 回归正常', async () => {
+  it('TC-P27-03: 可见画师 my/lookup 退役 410；track 凭令牌回归正常', async () => {
     const artist = seedArtist({ qq_number: '77010', subdomain: 'visible-a' })
-    seedOrder(artist.id, { order_no: 'VIS-001', client_qq: '66001', queue_position: 1 })
+    const vis1 = seedOrder(artist.id, { order_no: 'VIS-001', client_qq: '66001', queue_position: 1 })
     seedOrder(artist.id, { order_no: 'VIS-002', client_qq: '66001', queue_position: 2 })
 
     const my = await app.inject({ method: 'GET', url: '/api/orders/my?subdomain=visible-a&qq=66001', remoteAddress: uniqueIp() })
-    expect(my.statusCode).toBe(200)
-    expect(my.json()).toHaveLength(2)
+    expect(my.statusCode).toBe(410)
+    expect(my.json().code).toBe('MY_ORDERS_RETIRED')
 
     const lookup = await app.inject({ method: 'GET', url: '/api/orders/lookup?subdomain=visible-a&qq=66001', remoteAddress: uniqueIp() })
-    expect(lookup.statusCode).toBe(200)
-    expect(lookup.json().hasOrders).toBe(true)
+    expect(lookup.statusCode).toBe(410)
+    expect(lookup.json().code).toBe('LOOKUP_RETIRED')
 
-    const track = await app.inject({ method: 'GET', url: '/api/orders/track/VIS-001?qq=66001', remoteAddress: uniqueIp() })
+    const track = await app.inject({ method: 'GET', url: `/api/orders/track/VIS-001?token=${vis1.customerToken}`, remoteAddress: uniqueIp() })
     expect(track.statusCode).toBe(200)
     expect(track.json().orderNo).toBe('VIS-001')
   })

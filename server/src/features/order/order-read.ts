@@ -1,3 +1,4 @@
+import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 import db from '../../db/connection.js'
 import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import type { ArtistOrderRow, OrderDetail } from '../../types/entities.js'
@@ -5,6 +6,47 @@ import type { ArtistOrderRow, OrderDetail } from '../../types/entities.js'
 // ============================================
 // 订单服务 - 只读查询子域（从 order.service.ts 拆出）
 // ============================================
+
+// ─── F1 围剿：客户访问令牌工具 ───
+// 放在 order-read.ts 的原因：order-create.ts 已依赖本模块（getOrder），
+// 把工具放这里可避免新增模块/循环依赖；生成/校验语义都围绕「客户访问」。
+// 订单号 CODE-xxx 保持人类友好，安全由 144bit 高熵令牌承担（用户拍板）。
+
+/** 生成客户访问令牌：crypto 强随机 18 字节 → base64url（熵 144bit） */
+export function generateCustomerToken(): string {
+  return randomBytes(18).toString('base64url')
+}
+
+/** 令牌 → sha256 hex（库中只存哈希，不存明文） */
+export function hashCustomerToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex')
+}
+
+/** 追踪页 URL 片段（完整路径，前端拼 origin 后可展示/扫码/复制） */
+export function buildCustomerTrackUrl(subdomain: string, orderNo: string, token: string): string {
+  return `/artist/${encodeURIComponent(subdomain)}/track?no=${encodeURIComponent(orderNo)}&token=${encodeURIComponent(token)}`
+}
+
+/**
+ * 客户令牌校验：订单号 + token → 订单（clientOnly 视图）
+ * 常量时间比较（timingSafeEqual）；不存在/缺令牌/哈希不符一律返回 null，
+ * 路由层统一 404 ORDER_NOT_FOUND——不暴露订单存在性。
+ */
+export function getClientOrderByToken(orderNo: string, customerToken: string | undefined | null): OrderDetail | null {
+  if (typeof customerToken !== 'string' || !customerToken) return null
+  const row = db.prepare(
+    'SELECT customer_token_hash FROM orders WHERE order_no = ?'
+  ).get(orderNo) as { customer_token_hash: string | null } | undefined
+  if (!row?.customer_token_hash) return null
+
+  const provided = Buffer.from(hashCustomerToken(customerToken), 'hex')
+  const stored = Buffer.from(row.customer_token_hash, 'hex')
+  // timingSafeEqual 要求等长；不等长直接视为不符（同样返回 null）
+  if (provided.length === 0 || provided.length !== stored.length) return null
+  return timingSafeEqual(provided, stored)
+    ? getOrderByNo(orderNo, { clientOnly: true })
+    : null
+}
 
 /**
  * 获取单个订单（含关联数据）
@@ -84,15 +126,13 @@ export function getArtistOrders(artistId: number, status: string | undefined, { 
 }
 
 /**
- * 客户查询排队位置（需同时提供订单号和QQ号验证身份）
+ * 客户查询排队位置（F1 围剿：需订单号 + 高熵客户令牌验证身份）
  * R18: clientOnly=true，客户只看自己上传的参考图
  */
-export function getClientQueuePosition(orderNo: string, clientQq: string): { order: OrderDetail; description: string | null; references: Array<{ file_path: string; original_name?: string | null }>; position: number | null; total: number | null } | null {
-  const order = getOrderByNo(orderNo, { clientOnly: true })
+export function getClientQueuePosition(orderNo: string, customerToken: string): { order: OrderDetail; description: string | null; references: Array<{ file_path: string; original_name?: string | null }>; position: number | null; total: number | null } | null {
+  // F1 围剿：身份验证改为高熵令牌（QQ 不再作为查询凭据）
+  const order = getClientOrderByToken(orderNo, customerToken)
   if (!order) return null
-
-  // QQ 号不匹配 → 视为不存在（防枚举）
-  if (order.client_qq !== clientQq) return null
 
   // U1: 客户回顾需求描述 + 参考图（getOrder 的 clientOnly 已过滤 source='client'）
   const base = {
@@ -114,32 +154,6 @@ export function getClientQueuePosition(orderNo: string, clientQq: string): { ord
   const position = queue.findIndex(o => o.id === order.id) + 1
 
   return { ...base, position, total: queue.length }
-}
-
-/**
- * 客户凭 QQ 号查询在某画师处的所有订单（"不知道订单号"场景）
- */
-export function getClientOrdersByQq(artistId: number, clientQq: string): Array<{ order_no: string; status: string; created_at: string; updated_at: string; tier_name: string | null }> {
-  return db.prepare(`
-    SELECT o.order_no, o.status, o.created_at, o.updated_at,
-           (ast.name || ' / ' || ss.name) as tier_name
-    FROM orders o
-    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
-    LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
-    WHERE o.artist_id = ? AND o.client_qq = ?
-    ORDER BY o.id DESC
-    LIMIT 20
-  `).all(artistId, clientQq) as Array<{ order_no: string; status: string; created_at: string; updated_at: string; tier_name: string | null }>
-}
-
-/**
- * 检查客户QQ在某画师处是否有订单
- */
-export function hasClientOrders(artistId: number, clientQq: string): boolean {
-  const row = db.prepare(
-    'SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND client_qq = ?'
-  ).get(artistId, clientQq) as { c: number }
-  return row.c > 0
 }
 
 /**
