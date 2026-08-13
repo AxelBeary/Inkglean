@@ -1,11 +1,12 @@
 @echo off
 rem ============================================
-rem 每日备份：DB + uploads（2026-08-11 用户拍板：DB 留存 3 份 / uploads 留存 2 份，轮转在脚本内置）
-rem P0-1（2026-08-13）：DB 备份后追加 SQLite 完整性校验（scripts/verify-backup.mjs），
-rem 未出 VERIFY_OK 即 exit 1，防止「备份了但产物损坏」继续往下走。
-rem 由 Windows 计划任务 CommissionDailyBackup 每日 03:30 调用；日志追加到 data/backups/daily-backup.log
-rem 容器 WORKDIR=/app，--prefix 指向 /app/server（批 E 审计修复交付）
-rem 宿主需有 node（>=22.6）且 server/ 依赖已安装（better-sqlite3 供校验用）
+rem Daily backup: DB + uploads (2026-08-11 user decision: keep 3 DB / 2 uploads, rotation built-in)
+rem P0-1 (2026-08-13): after DB backup run SQLite integrity check (scripts/verify-backup.mjs);
+rem abort (exit 1) unless VERIFY_OK, so a corrupted artifact never passes downstream.
+rem Invoked by Windows scheduled task CommissionDailyBackup at 03:30 daily; log appended to data/backups/daily-backup.log
+rem Container WORKDIR=/app, --prefix points to /app/server (batch E audit fix)
+rem Host needs node (>=22.6) and server/ deps installed (better-sqlite3 for verification)
+rem NOTE: keep this file ASCII-only; non-ASCII bytes break cmd.exe batch parsing under GBK codepage
 rem ============================================
 setlocal EnableExtensions
 cd /d "%~dp0"
