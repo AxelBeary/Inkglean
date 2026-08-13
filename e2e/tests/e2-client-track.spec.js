@@ -20,11 +20,12 @@ test('E2 客户查进度', async ({ page }) => {
 
   // 带 no+token 直达进度页（自动查询并保存到本地清单）
   await page.goto(`/artist/alice/track?no=${encodeURIComponent(orderNo)}&token=${encodeURIComponent(customerToken)}`)
-  await expect(page.getByText('查询进度')).toBeVisible({ timeout: 10_000 })
+  // exact:true：F1 令牌化后页内 link-hint 文案含「查询进度」子串，防 strict 双命中
+  await expect(page.getByText('查询进度', { exact: true })).toBeVisible({ timeout: 10_000 })
 
   // 看到订单信息
-  // 动态订单号：scope 到查询结果卡片（防未来双布局/重复文本 strict；桌面无移动卡片时仍安全）
-  await expect(page.locator('.el-card', { hasText: orderNo }).getByText(orderNo)).toBeVisible({ timeout: 10_000 })
+  // 锁定结果卡内 .my-order-no 单元素（F1 令牌化后卡内另有「订单号: xxx」 span，防 strict 双命中）
+  await expect(page.locator('.el-card', { hasText: orderNo }).locator('.my-order-no')).toBeVisible({ timeout: 10_000 })
   // 新订单自动接入工作流（R30d），应显示流程进度
   await expect(page.locator('.timeline-block')).toBeVisible({ timeout: 10_000 })
   // 已保存的追踪链接清单应包含该订单

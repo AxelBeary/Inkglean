@@ -17,10 +17,11 @@ test('E5 管理员配置画师流程', async ({ adminPage: page }) => {
   const drawer = page.locator('.el-drawer')
   await expect(drawer.getByText('流程节点')).toBeVisible({ timeout: 10_000 })
 
-  // 添加新阶段（限定在抽屉内，避免匹配页面上的"+ 添加画师"按钮）
+  // 添加新阶段（限定在抽屉内，避免匹配页面上的“+ 添加画师”按钮）
+  // b5 无障碍化后阶段说明也是真按钮（.stage-desc，含「添加」字样），限 el-button 防 strict 多命中
   const stageName = `E2E阶段-${Date.now().toString().slice(-4)}`
   await drawer.getByPlaceholder('新节点名称，如「细化确认」').fill(stageName)
-  await drawer.getByRole('button', { name: /添加/ }).click()
+  await drawer.locator('button.el-button').filter({ hasText: '添加' }).click()
 
   // 新阶段出现在流程节点列表中（.stage-name 避免匹配流程全览的 .strip-name）
   await expect(drawer.locator('.stage-name', { hasText: stageName })).toBeVisible({ timeout: 10_000 })
