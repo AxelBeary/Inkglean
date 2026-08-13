@@ -981,6 +981,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     scheduleExpand: '展开看板 →',
     scheduleEmpty: '近 7 日暂无排期',
     greetSign: '—— 拾绘',
+    annPrefix: '店公告',
     slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
     // F4: 留言审核

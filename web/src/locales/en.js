@@ -982,6 +982,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     scheduleExpand: 'Open board →',
     scheduleEmpty: 'Nothing scheduled in the next 7 days',
     greetSign: '— Inkglean',
+    annPrefix: 'Notice',
     slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
     // F4: guestbook moderation
