@@ -340,6 +340,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     subtitle: 'Copy-paste replies for the moments you hate speaking up',
     copy: 'Copy',
     copied: 'Copied to clipboard',
+    copyFailed: 'Copy failed, please copy manually',
     cats: {
       remind: 'Payment Reminders',
       decline: 'Declining',
@@ -360,6 +361,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     copy: 'Copy',
     delete: 'Delete',
     copied: 'Copied',
+    copyFailed: 'Copy failed, please copy manually',
     saveFailed: 'Save failed (the browser may be in private mode)'
   },
   // REQ-040: Account & Security page
@@ -396,6 +398,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     passkeyDeleteConfirm: 'Delete this Passkey credential? This device will no longer be able to log in with Passkey.',
     passkeyEmpty: 'No devices registered yet. Click the button above to register.',
     passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
+    // Wave 3-2: credential/rebind failure feedback (was silent)
+    passkeyLoadFailed: 'Failed to load passkey credentials. Please retry.',
+    passkeyRenameFailed: 'Failed to save device name. Please retry.',
+    passkeyDeleteFailed: 'Failed to delete passkey. Please retry.',
+    totpRebindFailed: 'Failed to rebind TOTP. Please retry.',
   },
   // REQ-035 postponed tools: Deadline advice (tools page copy)
   deadlineAdvice: {
@@ -504,6 +511,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     exportPng: 'Generate image',
     copyText: 'Copy text',
     copied: 'Copied to clipboard',
+    copyFailed: 'Copy failed, please copy manually',
     needItems: 'Add at least one valid item first',
     imageGenerated: 'Image generated',
     imageFailed: 'Failed to generate image, please try again',
@@ -600,7 +608,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     preview: 'Preview',
     renderError: 'Image compositing failed, please try another image',
     fileTypeError: 'Please choose an image file (LOGO must be PNG)',
-    logoSaved: 'Logo saved'
+    logoSaved: 'Logo saved',
+    // Wave 3-2: load-failure error states (distinguish failure from empty list)
+    loadArtworksFailed: 'Failed to load artworks. Please retry.',
+    loadOrdersFailed: 'Failed to load orders. Please retry.',
+    loadDeliverablesFailed: 'Failed to load deliverables. Please retry.'
   },
   // REQ-035 batch E: Progress comparison puzzle (tool page copy)
   puzzle: {
@@ -1183,6 +1195,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     shareOpened: 'Publish page opened in a new tab',
     shareCopied: 'Text copied — paste it on the publish page',
     shareNoHomepage: 'Text contains {homepage} but no homepage link for this platform was found — add one in Page Settings first',
+    // Wave 3-2: share platform list load-failure error state + retry
+    shareLoadFailed: 'Failed to load share platforms. Please retry.'
   },
   manualOrder: {
     title: 'Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -1259,7 +1273,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     parseNone: 'None',
     parseConfirmTip: 'Amount and deadline are hints only — never auto-filled. Please review before filling in.',
     parseApply: 'Fill into form',
-    parseApplied: 'Filled into the form — please review before submitting'
+    parseApplied: 'Filled into the form — please review before submitting',
+    // Wave 3-2: init failure error state (pricing unavailable when subdomain is missing)
+    initLoadFailed: 'Failed to load order-entry data. Pricing and style features may be unavailable. Please retry.'
   },
   tiers: {
     title: 'Pricing',
@@ -1305,6 +1321,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     tplPriceLabel: 'Default price',
     tplUnitLabel: 'Unit label', tplUnitPlaceholder: 'e.g. person, sheet, item',
     tplSaved: 'Addon saved', tplDeleted: 'Addon deleted', tplDeleteConfirm: 'Delete addon "{name}"? Styles using it keep it as a standalone addon (no longer follows library updates).',
+    // Wave 3-2: template list load-failure error state (don't mislead as "no templates")
+    tplLoadFailed: 'Failed to load add-on templates. Please retry.',
     unitDefault: 'item',
     // Art styles
     styleAddTitle: 'New Style', styleEditTitle: 'Edit Style',
@@ -1573,6 +1591,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     maxInstallments: 'Payment stage limit reached',
     finalCannotDisable: 'The final payment stage cannot disable payment',
     finalCannotDelete: 'The final payment stage cannot be deleted',
+    // Wave 3-2: workflow load-failure error state + retry
+    loadFailed: 'Failed to load workflow stages. Please retry.',
     helpBtn: 'How it works', helpTitle: 'Workflow & Payment Guide',
     helpLines: [
       'Each stage is a step in your commission process; clients see progress in order.',
@@ -2033,6 +2053,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     exporting: 'Generating…',
     copyText: 'Copy text version',
     copied: 'Text version copied',
+    copyFailed: 'Copy failed, please copy manually',
     titleRequired: 'Enter a card title first',
     tiersMinRequired: 'Fill in at least 3 complete tiers (name + price)',
     exportFailed: 'Generation failed, please try again later',
