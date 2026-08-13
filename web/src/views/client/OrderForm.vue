@@ -10,7 +10,7 @@
       <!-- P0 修复（前端质量战役 B 路审计）：画师信息加载失败明示错误态+重试，不再留破页 -->
       <div v-if="loadError && !loading" class="load-error-banner">
         <p>{{ $t('orderForm.loadFailed') }}</p>
-        <el-button type="primary" size="small" @click="retryLoad">{{ $t('orderForm.loadRetry') }}</el-button>
+        <el-button type="primary" size="small" @click="retryLoad">{{ $t('common.loadRetry') }}</el-button>
       </div>
 
       <template v-if="artist">
