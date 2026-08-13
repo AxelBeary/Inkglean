@@ -12,6 +12,18 @@
       </el-button>
     </div>
 
+    <!-- 初始化失败错误态 + 重试（subdomain/报价/画风/工作流任一失败都明示；报价功能失效要有感知） -->
+    <el-alert
+      v-if="initFailed || stylesFailed || pricingFailed || workflowFailed"
+      type="error" :closable="false" show-icon
+      style="margin-bottom: 16px"
+      :title="$t('manualOrder.initLoadFailed')"
+    >
+      <el-button size="small" type="primary" style="margin-top: 8px" :loading="initLoading" @click="init">
+        {{ $t('dashboard.retry') }}
+      </el-button>
+    </el-alert>
+
     <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
       <div class="mo-grid">
         <!-- ═══ 左栏：客户说了什么（客户信息 + 参考图上传 + QQ 历史） ═══ -->
@@ -133,6 +145,12 @@ const subdomain = ref('')
 const pricingData = ref(null)
 const styles = ref([])
 const workflowStages = ref([])
+/** 录单初始化（getProfile/getPricing/getPublicStyles/getWorkflow）失败明示 + 重试 */
+const initLoading = ref(false)
+const initFailed = ref(false)
+const stylesFailed = ref(false)
+const pricingFailed = ref(false)
+const workflowFailed = ref(false)
 
 const form = reactive({
   clientQq: '',
@@ -448,28 +466,44 @@ function onBeforeUnload() {
 }
 
 // ─── 初始化 ───
-onMounted(async () => {
-  window.addEventListener('beforeunload', onBeforeUnload)
-  window.addEventListener('storage', onDraftStorage) // G-4: 多标签草稿同步/清除广播
+/** 加载录单所需元数据（subdomain + 报价 + 画风 + 工作流）；失败明示 + 可重试 */
+async function init() {
+  initLoading.value = true
+  initFailed.value = false
+  stylesFailed.value = false
+  pricingFailed.value = false
+  workflowFailed.value = false
   try {
     const profile = await artistApi.getProfile()
     subdomain.value = profile.subdomain
-    // 加载价格元数据（分期比例/折扣开关）——右栏使用
-    artistPublicApi.getPricing(profile.subdomain)
-      .then(res => { pricingData.value = res })
-      .catch(() => {})
-    // 加载画风列表（单画风自动选中在右栏 watch 处理）
-    const stylesPromise = artistPublicApi.getPublicStyles(profile.subdomain)
-      .then(res => { styles.value = res || [] })
-      .catch(() => {})
-    // F4: 加载工作流节点（判断初始状态可达性）——右栏使用
-    artistApi.getWorkflow()
-      .then(res => { workflowStages.value = res.stages || [] })
-      .catch(() => {})
+    // 三路并行；任一路失败各自置位（错误横幅统一展示 + 重试入口）
+    await Promise.all([
+      // 加载价格元数据（分期比例/折扣开关）——右栏使用
+      artistPublicApi.getPricing(profile.subdomain)
+        .then(res => { pricingData.value = res })
+        .catch(() => { pricingFailed.value = true }),
+      // 加载画风列表（单画风自动选中在右栏 watch 处理）
+      artistPublicApi.getPublicStyles(profile.subdomain)
+        .then(res => { styles.value = res || [] })
+        .catch(() => { stylesFailed.value = true }),
+      // F4: 加载工作流节点（判断初始状态可达性）——右栏使用
+      artistApi.getWorkflow()
+        .then(res => { workflowStages.value = res.stages || [] })
+        .catch(() => { workflowFailed.value = true })
+    ])
     // F6: 画风数据就绪后检查本地草稿——恢复回填需要 styles 已加载才能匹配画风/尺寸
-    await stylesPromise
     await restoreDraft()
-  } catch { /* ignore */ }
+  } catch {
+    initFailed.value = true
+  } finally {
+    initLoading.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', onBeforeUnload)
+  window.addEventListener('storage', onDraftStorage) // G-4: 多标签草稿同步/清除广播
+  init()
 })
 
 onUnmounted(() => {

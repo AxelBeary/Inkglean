@@ -1,44 +1,51 @@
 <template>
   <div class="workflow-editor" v-loading="loading">
-    <!-- 流程列表 -->
-    <div class="list-header">
-      <h4 class="section-title">{{ $t('workflow.stageList') }}</h4>
-      <el-button text size="small" @click="showHelp = true">{{ $t('workflow.helpBtn') }}</el-button>
+    <!-- 加载失败错误态 + 重试（不再 toast 后显示空列表） -->
+    <div v-if="loadFailed" class="module-error">
+      <span>{{ $t('workflow.loadFailed') }}</span>
+      <el-button size="small" @click="load">{{ $t('dashboard.retry') }}</el-button>
     </div>
-    <StageListView
-      :stages="stages" :readonly="mode === 'template'"
-      @reorder="onReorder" @add="onAdd" @rename="onRename"
-      @update-desc="onUpdateDesc" @update-speech="onUpdateSpeech"
-      @toggle-pay="onTogglePay" @delete="onDelete"
-    />
+    <template v-else>
+      <!-- 流程列表 -->
+      <div class="list-header">
+        <h4 class="section-title">{{ $t('workflow.stageList') }}</h4>
+        <el-button text size="small" @click="showHelp = true">{{ $t('workflow.helpBtn') }}</el-button>
+      </div>
+      <StageListView
+        :stages="stages" :readonly="mode === 'template'"
+        @reorder="onReorder" @add="onAdd" @rename="onRename"
+        @update-desc="onUpdateDesc" @update-speech="onUpdateSpeech"
+        @toggle-pay="onTogglePay" @delete="onDelete"
+      />
 
-    <!-- 比例条 -->
-    <h4 class="section-title" style="margin-top: 20px">{{ $t('workflow.paymentBar') }}</h4>
-    <PaymentBar :stages="stages" @change="onBarChange" @detach="onDetach" />
+      <!-- 比例条 -->
+      <h4 class="section-title" style="margin-top: 20px">{{ $t('workflow.paymentBar') }}</h4>
+      <PaymentBar :stages="stages" @change="onBarChange" @detach="onDetach" />
 
-    <!-- 保存比例 -->
-    <div class="save-row" v-if="dirtyNodes.length > 0">
-      <el-button type="primary" size="small" @click="savePayment" :loading="saving">
-        {{ $t('workflow.savePayment') }}
-      </el-button>
-      <span class="dirty-hint">{{ $t('workflow.unsaved') }}</span>
-    </div>
+      <!-- 保存比例 -->
+      <div class="save-row" v-if="dirtyNodes.length > 0">
+        <el-button type="primary" size="small" @click="savePayment" :loading="saving">
+          {{ $t('workflow.savePayment') }}
+        </el-button>
+        <span class="dirty-hint">{{ $t('workflow.unsaved') }}</span>
+      </div>
 
-    <!-- 流程全览 -->
-    <h4 class="section-title" style="margin-top: 20px">{{ $t('workflow.overview') }}</h4>
-    <WorkflowOverviewStrip :stages="stages" />
+      <!-- 流程全览 -->
+      <h4 class="section-title" style="margin-top: 20px">{{ $t('workflow.overview') }}</h4>
+      <WorkflowOverviewStrip :stages="stages" />
 
-    <!-- 恢复默认（仅画师端） -->
-    <div v-if="mode === 'artist'" class="reset-row">
-      <el-button size="small" type="danger" plain @click="onReset">{{ $t('workflow.reset') }}</el-button>
-    </div>
+      <!-- 恢复默认（仅画师端） -->
+      <div v-if="mode === 'artist'" class="reset-row">
+        <el-button size="small" type="danger" plain @click="onReset">{{ $t('workflow.reset') }}</el-button>
+      </div>
 
-    <!-- 使用说明弹窗 -->
-    <el-dialog v-model="showHelp" :title="$t('workflow.helpTitle')" width="480px">
-      <ul class="help-body">
-        <li v-for="(line, i) in $tm('workflow.helpLines')" :key="i">{{ line }}</li>
-      </ul>
-    </el-dialog>
+      <!-- 使用说明弹窗 -->
+      <el-dialog v-model="showHelp" :title="$t('workflow.helpTitle')" width="480px">
+        <ul class="help-body">
+          <li v-for="(line, i) in $tm('workflow.helpLines')" :key="i">{{ line }}</li>
+        </ul>
+      </el-dialog>
+    </template>
   </div>
 </template>
 
@@ -60,6 +67,8 @@ const props = defineProps({
 
 const { t } = useI18n()
 const loading = ref(false)
+/** 流程加载失败（独立错误态 + 重试，不再 toast 后显示空列表） */
+const loadFailed = ref(false)
 const saving = ref(false)
 const stages = ref([])
 const dirtyNodes = ref([])
@@ -185,10 +194,13 @@ const api = computed(() => {
 
 async function load() {
   loading.value = true
+  loadFailed.value = false
   try {
     const res = await api.value.get()
     stages.value = res.stages || res
-  } catch (err) { ElMessage.error(err.message) }
+  } catch {
+    loadFailed.value = true
+  }
   finally { loading.value = false }
 }
 
@@ -422,4 +434,9 @@ defineExpose({ load })
 .list-header .section-title { margin: 0; }
 .help-body { line-height: 1.9; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); margin: 0; padding-left: 20px; }
 .help-body li { margin-bottom: 6px; }
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 </style>

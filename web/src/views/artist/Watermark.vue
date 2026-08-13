@@ -29,47 +29,66 @@
         </div>
 
         <!-- 作品图：网格缩略图 -->
-        <div v-else-if="sourceType === 'artwork'" v-loading="artworksLoading" class="wm-grid-list">
-          <p v-if="!artworksLoading && artworks.length === 0" class="wm-empty">{{ $t('watermark.emptyArtworks') }}</p>
-          <button
-            v-for="art in artworks"
-            :key="art.id"
-            type="button"
-            class="wm-thumb"
-            :class="{ 'wm-thumb--active': src === artworkSrc(art) }"
-            :title="art.title || ''"
-            @click="pickArtwork(art)"
-          >
-            <img :src="artworkSrc(art)" :alt="art.title || ''" loading="lazy" />
-          </button>
+        <div v-else-if="sourceType === 'artwork'">
+          <!-- 加载失败错误态 + 重试（不再与"暂无作品"混淆） -->
+          <div v-if="artworksError" class="module-error">
+            <span>{{ $t('watermark.loadArtworksFailed') }}</span>
+            <el-button size="small" @click="loadArtworks">{{ $t('dashboard.retry') }}</el-button>
+          </div>
+          <div v-else v-loading="artworksLoading" class="wm-grid-list">
+            <p v-if="!artworksLoading && artworks.length === 0" class="wm-empty">{{ $t('watermark.emptyArtworks') }}</p>
+            <button
+              v-for="art in artworks"
+              :key="art.id"
+              type="button"
+              class="wm-thumb"
+              :class="{ 'wm-thumb--active': src === artworkSrc(art) }"
+              :title="art.title || ''"
+              @click="pickArtwork(art)"
+            >
+              <img :src="artworkSrc(art)" :alt="art.title || ''" loading="lazy" />
+            </button>
+          </div>
         </div>
 
         <!-- 完稿图：订单下拉 + 完稿图缩略图 -->
         <div v-else class="wm-deliverable">
-          <el-select
-            v-model="selectedOrderId"
-            :placeholder="$t('watermark.selectOrder')"
-            :loading="ordersLoading"
-            filterable
-            class="wm-order-select"
-            @change="onOrderChange"
-          >
-            <el-option v-for="o in orders" :key="o.id" :label="orderLabel(o)" :value="o.id" />
-          </el-select>
-          <div v-loading="deliverablesLoading" class="wm-grid-list">
-            <p v-if="!deliverablesLoading && deliverables.length === 0" class="wm-empty">{{ $t('watermark.emptyDeliverables') }}</p>
-            <button
-              v-for="d in deliverables"
-              :key="d.id"
-              type="button"
-              class="wm-thumb"
-              :class="{ 'wm-thumb--active': src === d.url }"
-              :title="d.original_name || ''"
-              @click="pickDeliverable(d)"
-            >
-              <img :src="d.url" :alt="d.original_name || ''" loading="lazy" />
-            </button>
+          <!-- 订单列表加载失败错误态 + 重试 -->
+          <div v-if="ordersError" class="module-error">
+            <span>{{ $t('watermark.loadOrdersFailed') }}</span>
+            <el-button size="small" @click="loadOrders">{{ $t('dashboard.retry') }}</el-button>
           </div>
+          <template v-else>
+            <el-select
+              v-model="selectedOrderId"
+              :placeholder="$t('watermark.selectOrder')"
+              :loading="ordersLoading"
+              filterable
+              class="wm-order-select"
+              @change="onOrderChange"
+            >
+              <el-option v-for="o in orders" :key="o.id" :label="orderLabel(o)" :value="o.id" />
+            </el-select>
+            <!-- 完稿图加载失败错误态 + 重试 -->
+            <div v-if="deliverablesError" class="module-error">
+              <span>{{ $t('watermark.loadDeliverablesFailed') }}</span>
+              <el-button size="small" @click="retryDeliverables">{{ $t('dashboard.retry') }}</el-button>
+            </div>
+            <div v-else v-loading="deliverablesLoading" class="wm-grid-list">
+              <p v-if="!deliverablesLoading && deliverables.length === 0" class="wm-empty">{{ $t('watermark.emptyDeliverables') }}</p>
+              <button
+                v-for="d in deliverables"
+                :key="d.id"
+                type="button"
+                class="wm-thumb"
+                :class="{ 'wm-thumb--active': src === d.url }"
+                :title="d.original_name || ''"
+                @click="pickDeliverable(d)"
+              >
+                <img :src="d.url" :alt="d.original_name || ''" loading="lazy" />
+              </button>
+            </div>
+          </template>
         </div>
 
         <!-- 实时预览（canvas 合成结果） -->
@@ -174,10 +193,16 @@ const sourceType = ref('new') // new | artwork | deliverable
 const src = ref('')
 const artworks = ref([])
 const artworksLoading = ref(false)
+/** 作品列表加载失败（独立错误态 + 重试，不再静默） */
+const artworksError = ref(false)
 const orders = ref([])
 const ordersLoading = ref(false)
+/** 订单列表加载失败（独立错误态 + 重试，不再静默） */
+const ordersError = ref(false)
 const deliverables = ref([])
 const deliverablesLoading = ref(false)
+/** 完稿图加载失败（独立错误态 + 重试，不再静默） */
+const deliverablesError = ref(false)
 const selectedOrderId = ref(null)
 
 // ─── 水印素材 ───
@@ -226,9 +251,20 @@ onMounted(async () => {
   }
   wmText.value = store.artistName
   loadLogo()
-  loadArtworks()
-  loadOrders()
+  // 按 sourceType 按需加载（默认"新传图"不发全量作品/订单请求）
+  syncSourceData()
 })
+
+/** sourceType 切换 → 按需加载对应数据（进入作品/完稿页签才发对应请求） */
+watch(sourceType, (val) => {
+  if (val === 'artwork') loadArtworks()
+  else if (val === 'deliverable') loadOrders()
+})
+
+function syncSourceData() {
+  if (sourceType.value === 'artwork') loadArtworks()
+  else if (sourceType.value === 'deliverable') loadOrders()
+}
 
 function loadLogo() {
   const key = logoKey.value
@@ -265,11 +301,13 @@ function acceptImageFile(file) {
 // ─── 作品图 ───
 async function loadArtworks() {
   artworksLoading.value = true
+  artworksError.value = false
   try {
     const res = await artistApi.getArtworks()
     artworks.value = Array.isArray(res) ? res : (res?.items || [])
   } catch {
-    // 错误提示由 axios 拦截器统一处理
+    artworksError.value = true
+    artworks.value = []
   } finally {
     artworksLoading.value = false
   }
@@ -286,12 +324,14 @@ function pickArtwork(art) {
 // ─── 完稿图 ───
 async function loadOrders() {
   ordersLoading.value = true
+  ordersError.value = false
   try {
     // 05D-W1: 拉全量（原来 100 条上限 → 订单多时选不到早期完稿图）
     const all = await artistApi.getAllOrders()
     orders.value = all ?? []
   } catch {
-    // 同上
+    ordersError.value = true
+    orders.value = []
   } finally {
     ordersLoading.value = false
   }
@@ -303,17 +343,29 @@ function orderLabel(o) {
 }
 
 async function onOrderChange(orderId) {
+  if (!orderId) {
+    deliverables.value = []
+    src.value = ''
+    return
+  }
   deliverablesLoading.value = true
+  deliverablesError.value = false
   deliverables.value = []
   src.value = ''
   try {
     const detail = await artistApi.getOrder(orderId)
     deliverables.value = detail?.deliverables || []
   } catch {
-    // 同上
+    deliverablesError.value = true
+    deliverables.value = []
   } finally {
     deliverablesLoading.value = false
   }
+}
+
+/** 完稿图加载失败重试（沿用当前选中的订单） */
+function retryDeliverables() {
+  if (selectedOrderId.value) onOrderChange(selectedOrderId.value)
 }
 
 function pickDeliverable(d) {
@@ -472,6 +524,12 @@ async function exportImage() {
 
 .wm-order-select { width: 100%; margin-bottom: 4px; }
 .wm-empty { color: var(--ink3, #888); font-size: 13px; margin: 8px 0; }
+
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 
 .wm-preview { margin-top: 16px; }
 .wm-preview-title { font-size: 13px; color: var(--ink2, #555); margin: 0 0 8px; }
