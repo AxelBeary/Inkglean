@@ -32,7 +32,7 @@
 | 后端 | Fastify 5 + better-sqlite3 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） |
 | 登录 | TOTP 动态口令（RFC 6238） |
-| 测试 | Vitest（后端 `cd server && npm test`、前端 `cd web && npm run test:web`）+ Playwright E2E（根目录 `npm run test:e2e`）；用例数随开发增长，以实测为准（2026-08-12 参考：后端 1340 · 前端 373 · E2E 7） |
+| 测试 | Vitest（后端 `cd server && npm test`、前端 `cd web && npm run test:web`）+ Playwright E2E（根目录 `npm run test:e2e`）；用例数随开发增长，以实测为准（2026-08-13 参考：后端 1369 · 前端 436 · E2E 11） |
 | 类型 | TypeScript（后端 100% TS，strict 全开） |
 | 监控 | Sentry |
 
@@ -42,10 +42,11 @@
 
 ```bash
 cp .env.example .env
-# 编辑 .env：修改 SESSION_SECRET、COOKIE_SECRET、ADMIN_QQ
+# 编辑 .env：至少修改 SESSION_SECRET、COOKIE_SECRET、ADMIN_QQ；生产再设置 DOMAIN（Caddy 域名）
+# 默认 NODE_ENV=production、AUTH_DEV_MODE=false；开发本地调试按需改
 
 docker compose up -d
-# 生产：通过 Caddy 访问（80/443）；开发调试：docker compose exec web curl localhost:3000/api/health
+# 访问：统一走 Caddy（80/443）；v0.42 起 compose 默认不把 3000 映射到宿主机，仅 expose（容器内自检：docker compose exec web curl localhost:3000/api/health）
 ```
 
 ### 方式二：本地开发
@@ -61,7 +62,7 @@ npm run dev        # http://localhost:3000
 cd web && npm install
 npm run dev        # http://localhost:5173
 
-# 测试（用例数随开发增长，以实测为准；2026-08-12 参考：后端 1340 · 前端 373 · E2E 7）
+# 测试（用例数随开发增长，以实测为准；2026-08-13 参考：后端 1369 · 前端 436 · E2E 11）
 cd server && npm test          # 后端 Vitest
 cd server && npm run lint
 cd web && npm run lint
@@ -84,7 +85,7 @@ cd .. && npm run test:e2e      # E2E（仓库根目录）
 server/                 # 后端（Fastify，按业务域分目录）
   src/
     app.ts              # 应用工厂（cookie、CORS、安全头）
-    features/           # auth / artist / order / upload / pricing / admin
+    features/           # admin / announcement / artist / auth / compliance / guestbook / invite / og / order / platform / pricing / setup / tracking / upload
     shared/             # 错误码、校验、中间件、文件签名
     db/                 # 连接、建表、迁移、种子
 web/                    # 前端（Vue 3）

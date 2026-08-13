@@ -91,4 +91,4 @@ cd server && npx license-checker --json > /tmp/server-licenses.json
 
 ---
 
-*最后更新：2026-08-06*
+*最后更新：2026-08-13*

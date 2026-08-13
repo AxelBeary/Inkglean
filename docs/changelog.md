@@ -1,8 +1,16 @@
 # 变更日志
 
-## v0.46+（未发版累积）— 2026-08-11 ~ 2026-08-12
+## v0.46+（未发版累积）— 2026-08-11 ~ 2026-08-13
 
-> 1.0 上线需求波（REQ-038~043 全部合入）+ 品牌改名（拾绘/Inkglean）+ 结构债清偿批 + 容器重建烘焙 v56-v60。
+> 1.0 上线需求波（REQ-038~043 全部合入）+ 品牌改名（拾绘/Inkglean）+ 结构债清偿批 + 容器重建烘焙 v56-v60 + 2026-08-13 前端质量战役与围剿。
+
+### 🎨 2026-08-13 前端质量战役与围剿（迁移 v61）
+
+- **Dashboard 纸墨重构**（`813-dash-visual`）：问候贴纸 GreetingNote（每天一次逐字洇墨演绎、点文字换一句、日期时段行、今日统计行、公告行）、挂牌 PlaqueStatus（可约稿⇄休息中真实切换 + 名额条满额藤黄）、排期卷轴 ScheduleScroll（近 7 日纸签五色条 + 今日笔触线）、账本待办 LedgerTodo（一行一个动词 + 5s 冷却 + 清账撕页 + 月度小结一行）；**收入走势移出仪表盘**（归工具域 StandaloneIncome）。
+- **v61 迁移 + 后端配套**：`last_login_at` / `last_greeting_shown_at` / `dashboard_modules` 双轨一致；新增 `GET /artist/dashboard/schedule`（近 7 日排期条，时区铁律走 date.ts）；偏好设置新增看板模块开关（排期卷轴/留言审核/订单动态/开张任务四开关，null=全显）。
+- **Passkey 旁路修复**：step-up passkey 拼装漏 `rawId`/`type` 必 500 → 补字段 + 验证库非受控异常兜 401（`52abed6`，防再犯 TC-SU-04b/04c）；TOTP 重绑 Passkey 链全断修复（注册仪式改登录仪式 / confirm 补带 credential / rebind-init 不发无效挑战，`95a13b3`）+ rebind-confirm 凭据归属校验（`681fdbc`）。
+- **围剿战果**：P0 七项全修（b4 i18n 键误引 / a1 Passkey 链 / a2 尺寸步 null / t1 稿价计算器 v50 字段 / d2 setup 劫持 / d3 v50 重建崩溃恢复 / b1 报价单日期 UTC→本地）；T2 死码清退（37 个零引用 i18n 死键 + 死类型 + 死 CSS）；三态修复两批 + 动效 token 波 + 收尾波 T/S/M 全量合入。
+- **基线刷新**：后端 **1369** · 前端 **436** · E2E **11/11**（终态复跑全绿）；accept-baseline.json 已同步。
 
 ### 🏷️ 品牌
 
