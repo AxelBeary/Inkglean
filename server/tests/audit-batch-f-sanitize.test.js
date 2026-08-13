@@ -104,3 +104,21 @@ describe('sanitizeStoredText 写入口挂接', () => {
     expect(rules.content).toBe(rich)
   })
 })
+
+// CodeQL 告警防再犯（2026-08-14，js/incomplete-multi-character-sanitization）：
+// 全链路不动点循环——嵌套还原绕过单次替换的构造必须被洗净
+describe('sanitizeStoredText 不动点循环（CodeQL 防再犯）', () => {
+  it('TC-F5-13: javajavascript:script: 嵌套还原不得重新拼出可执行协议', () => {
+    expect(sanitizeStoredText('javajavascript:script:alert(1)')).not.toMatch(/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i)
+  })
+
+  it('TC-F5-14: 双层嵌套 script 标签嵌套还原不得残留可执行对', () => {
+    const out = sanitizeStoredText('<scr<script></script>ipt src=x>ok</scr<script></script>ipt>')
+    expect(out).not.toMatch(/<\s*script\b/i)
+  })
+
+  it('TC-F5-15: 正常文本与排版 HTML 不受不动点循环影响', () => {
+    const rich = '<p>说明：<em>斜体</em> 与 <a href="https://a.b">链接</a></p>'
+    expect(sanitizeStoredText(rich)).toBe(rich)
+  })
+})

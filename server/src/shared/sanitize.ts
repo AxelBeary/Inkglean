@@ -36,8 +36,19 @@ function removeJavascriptProtocol(input: string): string {
   return input.replace(/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/gi, '')
 }
 
-/** 最小入库清洗（只清理脚本/事件/危险协议，保留排版 HTML） */
+/**
+ * 最小入库清洗（只清理脚本/事件/危险协议，保留排版 HTML）。
+ * CodeQL 告警修复（2026-08-14，js/incomplete-multi-character-sanitization）：
+ * 全链路循环洗到不动点（上限 10 次）——单次替换存在嵌套还原绕过：
+ * `javajavascript:script:` 内层被删后外层重新拼出可执行协议，必须重复清洗直至无变化。
+ */
 export function sanitizeStoredText(input: unknown): string {
   if (typeof input !== 'string') return ''
-  return removeJavascriptProtocol(removeInlineEventAttributes(removeTagPairs(input)))
+  let out = input
+  for (let i = 0; i < 10; i++) {
+    const next = removeJavascriptProtocol(removeInlineEventAttributes(removeTagPairs(out)))
+    if (next === out) break
+    out = next
+  }
+  return out
 }

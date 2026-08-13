@@ -28,7 +28,8 @@ describe('REQ-042 合规与内容安全', () => {
   }
 
   function authH(artist) {
-    return { authorization: AUTH_PREFIX + createSession(artist.id, artist.token_version) }
+    // d2-3 加固后 /api/admin/compliance 路由受 step-up 入口闸：管理员会话需 admin_verified 级（对齐新安全姿态；非管理员仍由 requireAdmin 403 拦截）
+    return { authorization: AUTH_PREFIX + createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() }) }
   }
 
   /** 管理员绑定画师 TOTP，返回密钥 */

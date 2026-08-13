@@ -26,9 +26,9 @@ function setAdmin(qqNumber = '10001') {
   return seedArtist({ qq_number: qqNumber, subdomain: 'admin-1' })
 }
 
-/** 管理员 token */
+/** 管理员 token（d2-3 加固后邀请码管理端点受 step-up 入口闸：需 admin_verified 级会话；非管理员仍由 requireAdmin 403 拦截） */
 function adminToken(artist) {
-  return createSession(artist.id, artist.token_version)
+  return createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
 }
 
 describe('REQ-039 邀请码注册（invite）', () => {
