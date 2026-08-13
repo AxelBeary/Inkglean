@@ -17,34 +17,24 @@
       <div class="atelier-empty">{{ $t('artistHome.noWorks') }}</div>
     </section>
 
-    <!-- 价格档位 + 流程（R1 整合） -->
-    <section class="atelier-section atelier-section--alt tpl-reveal" v-if="styles.length || tiers.length || workflowStages.length">
-      <div class="atelier-inner">
-        <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
-        <template v-if="styles.length">
-          <p class="tpl-section-label atelier-label">{{ $t('artistHome.priceList') }}</p>
-          <TplStyleGrid :styles="styles" :subdomain="subdomain" :artist="artist" />
-        </template>
-        <template v-else-if="tiers.length">
-          <p class="tpl-section-label atelier-label">{{ $t('artistHome.priceList') }}</p>
-          <TplTierGrid :tiers="tiers" :subdomain="subdomain" :artist="artist">
-            <template #addons="{ tier }">
-              <slot name="addons" :tier="tier"></slot>
-            </template>
-          </TplTierGrid>
-        </template>
-        <div v-if="workflowStages.length" class="tpl-workflow-inline">
-          <p class="tpl-workflow-inline-label">{{ $t('artistHome.workflow') }}</p>
-          <WorkflowOverviewStrip :stages="workflowStages" vertical />
-        </div>
-        <div v-if="artist.revisionNote" class="tpl-revision-note">
-          <span>
-            <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
-            {{ artist.revisionNote }}
-          </span>
-        </div>
-      </div>
-    </section>
+    <!-- P1-B 收敛：价格档位 + 流程 + 修改说明 → 共享 TplPricingSection（外观零变） -->
+    <TplPricingSection
+      class="atelier-section atelier-section--alt tpl-reveal"
+      inner-class="atelier-inner"
+      :styles="styles"
+      :tiers="tiers"
+      :workflow-stages="workflowStages"
+      :revision-note="artist.revisionNote"
+      :subdomain="subdomain"
+      :artist="artist"
+    >
+      <template #title>
+        <p class="tpl-section-label atelier-label">{{ $t('artistHome.priceList') }}</p>
+      </template>
+      <template #addons="{ tier }">
+        <slot name="addons" :tier="tier" />
+      </template>
+    </TplPricingSection>
 
     <!-- 约稿须知 -->
     <section class="atelier-section atelier-section--alt tpl-reveal" v-if="rules">
@@ -54,7 +44,7 @@
     <!-- F4: 留言板 -->
     <section class="atelier-section tpl-reveal">
       <p class="tpl-section-label atelier-label">{{ $t('guestbook.title') }}</p>
-      <TplGuestbook :subdomain="subdomain" class="atelier-guestbook" />
+      <TplGuestbook :subdomain="subdomain" theme="note" />
     </section>
 
     <!-- 页脚 -->
@@ -91,14 +81,12 @@ import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
-import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
-import TplStyleGrid from '../../../components/templates/TplStyleGrid.vue'
+import TplPricingSection from '../../../components/templates/TplPricingSection.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
 import TplPlatformIcon from '../../../components/shared/TplPlatformIcon.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
 import ComplianceFooterLinks from '../../../components/client/ComplianceFooterLinks.vue'
-import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({
   artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
@@ -187,11 +175,6 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   z-index: 1;
   padding: 96px 24px;
 }
-.atelier-inner {
-  max-width: 860px;
-  margin: 0 auto;
-}
-
 /* 标题：思源宋体 + 手绘笔触下划线（装饰色） */
 .atelier-empty { text-align: center; color: var(--pal-text-dim); font-size: 15px; letter-spacing: 0.03em; padding: 40px 0 64px; }
 .atelier-label {
@@ -256,130 +239,6 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   font-family: var(--font-display);
   color: var(--atelier-accent);
   opacity: 0.85;
-}
-
-/* F4: 留言板 — atelier：纸面留言条（宋体、米色卡片、微旋转，手账感） */
-.atelier-guestbook { max-width: 600px; margin: 0 auto; }
-.atelier-guestbook :deep(.gb-form) {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 36px;
-}
-.atelier-guestbook :deep(.gb-input),
-.atelier-guestbook :deep(.gb-textarea) {
-  padding: 12px 14px;
-  border: 1px solid var(--pal-border);
-  background: var(--pal-surface);
-  color: var(--pal-text);
-  font-family: var(--font-display);
-  font-size: 14px;
-  resize: vertical;
-  transition: border-color var(--dur-mid);
-}
-.atelier-guestbook :deep(.gb-input:focus),
-.atelier-guestbook :deep(.gb-textarea:focus) {
-  outline: none;
-  border-color: var(--atelier-accent);
-}
-.atelier-guestbook :deep(.gb-input:focus-visible),
-.atelier-guestbook :deep(.gb-textarea:focus-visible) {
-  outline: 2px solid var(--atelier-accent);
-  outline-offset: 2px;
-}
-.atelier-guestbook :deep(.gb-submit) {
-  align-self: flex-start;
-  padding: 10px 30px;
-  border: 1px solid var(--atelier-accent);
-  background: transparent;
-  color: var(--atelier-accent);
-  font-family: var(--font-display);
-  font-size: 14px;
-  cursor: pointer;
-  transition: background var(--dur-mid), color var(--dur-mid);
-}
-.atelier-guestbook :deep(.gb-submit:hover:not(:disabled)) { background: var(--atelier-accent); color: var(--pal-bg); }
-.atelier-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
-.atelier-guestbook :deep(.gb-pending-hint) { margin: 0; font-size: 13px; color: var(--atelier-accent); }
-.atelier-guestbook :deep(.gb-item) {
-  padding: 18px 20px;
-  background: var(--pal-surface);
-  border: 1px solid var(--pal-border);
-  border-top: 3px solid var(--atelier-accent);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--pal-text) 10%, transparent);
-  margin-bottom: 16px;
-  transform: rotate(-0.4deg);
-  transition: transform var(--dur-mid) var(--ease-out);
-}
-.atelier-guestbook :deep(.gb-item:nth-child(even)) { transform: rotate(0.4deg); }
-.atelier-guestbook :deep(.gb-item:hover) { transform: rotate(0deg); }
-.atelier-guestbook :deep(.gb-item-head) {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 8px;
-}
-.atelier-guestbook :deep(.gb-nickname) {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--pal-text);
-}
-.atelier-guestbook :deep(.gb-time) { font-size: 11px; color: var(--pal-text-dim); }
-.atelier-guestbook :deep(.gb-content) {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 14px;
-  line-height: 1.9;
-  color: var(--pal-text);
-  word-break: break-word;
-}
-.atelier-guestbook :deep(.gb-reply) {
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--atelier-accent) 8%, transparent);
-  border-left: 2px solid var(--atelier-accent);
-}
-.atelier-guestbook :deep(.gb-reply-tag) {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--atelier-accent);
-  margin-bottom: 4px;
-}
-.atelier-guestbook :deep(.gb-reply-content) {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 13px;
-  line-height: 1.8;
-  color: var(--pal-text);
-}
-.atelier-guestbook :deep(.gb-empty) {
-  color: var(--pal-text-dim);
-  font-family: var(--font-display);
-  font-size: 14px;
-  text-align: center;
-  padding: 28px 0;
-}
-.atelier-guestbook :deep(.gb-load-more) {
-  display: block;
-  margin: 8px auto 0;
-  padding: 8px 26px;
-  border: 1px solid var(--pal-border);
-  background: transparent;
-  color: var(--pal-text-dim);
-  font-family: var(--font-display);
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color var(--dur-mid), color var(--dur-mid);
-}
-.atelier-guestbook :deep(.gb-load-more:hover:not(:disabled)) { border-color: var(--atelier-accent); color: var(--atelier-accent); }
-.atelier-guestbook :deep(.gb-no-more) {
-  text-align: center;
-  font-size: 12px;
-  color: var(--pal-text-dim);
-  font-family: var(--font-display);
-  margin-top: 8px;
 }
 
 /* 页脚 */

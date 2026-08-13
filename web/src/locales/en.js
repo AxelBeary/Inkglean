@@ -1681,6 +1681,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     resetTemplate: 'Reset to factory default', resetConfirm: 'Restore factory default template? Your custom template will be overwritten.', resetDone: 'Factory default restored',
     manage: 'Manage', artistDetail: 'Artist Detail', pricingHint: 'Pricing is managed by the artist on the Styles & Pricing page; this is a read-only overview',
     artworkHint: 'Artwork images must be uploaded via the artist dashboard. Here you can only view and delete.',
+    // P1-B: artwork delete confirmation (includes artwork name)
+    artworkDeleteConfirm: 'Delete artwork "{name}"? This cannot be undone.',
+    artworkUntitled: 'Untitled artwork',
     greetingTab: 'Greetings',
     greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',
     greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.',

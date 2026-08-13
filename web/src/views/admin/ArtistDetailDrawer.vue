@@ -1,8 +1,13 @@
 ﻿<template>
-  <el-drawer v-model="visible" :title="`${artist?.name || ''} — ${$t('admin.artistDetail')}`" size="560px" destroy-on-close>
+  <el-drawer v-model="visible" :title="`${artist?.name || ''} — ${$t('admin.artistDetail')}`" size="560px" destroy-on-close class="detail-drawer">
     <el-tabs v-model="tab" v-if="artist" class="detail-tabs">
       <!-- 基本资料 -->
       <el-tab-pane :label="$t('settings.tabProfile')" name="profile">
+        <!-- P1-B：资料加载失败不再静默——错误横幅 + 重试 + 禁用保存（复用公告页 P0 模式） -->
+        <div v-if="profileLoadFailed" class="load-error-banner" role="alert">
+          <span>{{ t('common.networkError') }}</span>
+          <el-button size="small" @click="loadProfile">{{ t('dashboard.retry') }}</el-button>
+        </div>
         <el-form label-position="top" size="default" v-loading="profileLoading">
           <el-form-item :label="$t('settings.nameLabel')">
             <el-input v-model="profile.name" />
@@ -24,7 +29,7 @@
           <el-form-item :label="$t('settings.contactQqLabel')">
             <el-input v-model="profile.contact_qq" maxlength="15" />
           </el-form-item>
-          <el-button type="primary" @click="saveProfile" :loading="saving">{{ $t('settings.save') }}</el-button>
+          <el-button type="primary" @click="saveProfile" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
         </el-form>
       </el-tab-pane>
 
@@ -54,7 +59,15 @@
               :preview-src-list="artworkUrls" :initial-index="artworks.indexOf(a)"
               preview-teleported
             />
-            <el-button text size="small" type="danger" :aria-label="$t('common.delete')" @click="removeArtwork(a.id)">✕</el-button>
+            <el-button
+              text size="small" type="danger"
+              :aria-label="$t('common.delete')"
+              :loading="removingArtworkId === a.id"
+              :disabled="removingArtworkId !== null"
+              @click="removeArtwork(a)"
+            >
+              ✕
+            </el-button>
           </div>
         </div>
         <el-empty v-if="!artworksLoading && artworks.length === 0" :image-size="40" />
@@ -73,8 +86,13 @@
 
       <!-- 约稿须知 -->
       <el-tab-pane :label="$t('menu.rules')" name="rules" lazy>
+        <!-- P1-B：须知加载失败不再静默——错误横幅 + 重试 + 禁用保存 -->
+        <div v-if="rulesLoadFailed" class="load-error-banner" role="alert">
+          <span>{{ t('common.networkError') }}</span>
+          <el-button size="small" @click="loadRules">{{ t('dashboard.retry') }}</el-button>
+        </div>
         <el-input v-model="rulesContent" type="textarea" :rows="10" v-loading="rulesLoading" />
-        <el-button type="primary" size="small" style="margin-top: 8px" @click="saveRules" :loading="savingRules">
+        <el-button type="primary" size="small" style="margin-top: 8px" @click="saveRules" :loading="savingRules" :disabled="rulesLoadFailed">
           {{ $t('settings.save') }}
         </el-button>
       </el-tab-pane>
@@ -85,7 +103,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { adminApi } from '../../api/index.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import GreetingTable from '../../components/admin/GreetingTable.vue'
@@ -100,6 +118,7 @@ const saving = ref(false)
 
 // 资料
 const profileLoading = ref(false)
+const profileLoadFailed = ref(false)
 const profile = ref({})
 const originalProfile = ref({}) // M-2: 记录初始值，只发送有变化的字段
 // 价格概览（SPEC-PRICE-2：画风/尺寸只读）
@@ -111,23 +130,35 @@ const artworks = ref([])
 const artworkUrls = computed(() => artworks.value.map(a => `/uploads/${a.image_path}`))
 // 须知
 const rulesLoading = ref(false)
+const rulesLoadFailed = ref(false)
 const rulesContent = ref('')
 const savingRules = ref(false)
+// P1-B：删除作品行级 loading/禁用（防连点）
+const removingArtworkId = ref(null)
 
 watch(() => props.artist, async (a) => {
   if (!a) return
   tab.value = 'profile'
   // 加载资料
-  profileLoading.value = true
-  try {
-    const p = await adminApi.getArtistProfile(a.id)
-    profile.value = { name: p.name, bio: p.bio || '', status: p.status, artist_code: p.artist_code || '', contact_qq: p.contact_qq || '' }
-    originalProfile.value = { ...profile.value } // M-2: 快照初始值
-  } catch (err) { ElMessage.error(err.message) }
-  finally { profileLoading.value = false }
+  await loadProfile()
   // 预加载价格概览
   loadPricing()
 }, { immediate: true })
+
+async function loadProfile() {
+  if (!props.artist) return
+  profileLoading.value = true
+  profileLoadFailed.value = false
+  try {
+    const p = await adminApi.getArtistProfile(props.artist.id)
+    if (!props.artist) return
+    profile.value = { name: p.name, bio: p.bio || '', status: p.status, artist_code: p.artist_code || '', contact_qq: p.contact_qq || '' }
+    originalProfile.value = { ...profile.value } // M-2: 快照初始值
+  } catch {
+    profileLoadFailed.value = true
+  }
+  finally { profileLoading.value = false }
+}
 
 watch(tab, (tabName) => {
   if (tabName === 'pricing') loadPricing()
@@ -164,14 +195,22 @@ async function loadArtworks() {
 async function loadRules() {
   if (!props.artist) return
   rulesLoading.value = true
+  rulesLoadFailed.value = false
   try {
     const r = await adminApi.getArtistRules(props.artist.id)
     rulesContent.value = r?.content || ''
-  } catch (err) { ElMessage.error(err.message) }
+  } catch {
+    rulesLoadFailed.value = true
+  }
   finally { rulesLoading.value = false }
 }
 
 async function saveProfile() {
+  // P1-B：未加载成功禁止保存（防止空表单覆盖现有资料）
+  if (profileLoadFailed.value) {
+    ElMessage.error(t('common.networkError'))
+    return
+  }
   saving.value = true
   try {
     // M-2 修复：只发送有变化的字段，避免未修改的 bio 被空字符串覆盖
@@ -192,12 +231,31 @@ async function saveProfile() {
   finally { saving.value = false }
 }
 
-async function removeArtwork(aid) {
-  try { await adminApi.deleteArtistArtwork(props.artist.id, aid); await loadArtworks() }
-  catch (err) { ElMessage.error(err.message) }
+async function removeArtwork(a) {
+  const name = a.title?.trim() || a.description?.trim() || t('admin.artworkUntitled')
+  try {
+    await ElMessageBox.confirm(
+      t('admin.artworkDeleteConfirm', { name }),
+      t('common.confirmDeleteTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return } // 用户取消，非错误
+  if (removingArtworkId.value === a.id) return
+  removingArtworkId.value = a.id
+  try {
+    await adminApi.deleteArtistArtwork(props.artist.id, a.id)
+    ElMessage.success(t('common.deleted'))
+    await loadArtworks()
+  } catch (err) { ElMessage.error(err.message) }
+  finally { removingArtworkId.value = null }
 }
 
 async function saveRules() {
+  // P1-B：未加载成功禁止保存（防止覆盖现有须知）
+  if (rulesLoadFailed.value) {
+    ElMessage.error(t('common.networkError'))
+    return
+  }
   savingRules.value = true
   try {
     await adminApi.updateArtistRules(props.artist.id, rulesContent.value)
@@ -232,4 +290,19 @@ async function saveRules() {
 .artwork-img { width: 100%; height: 120px; border-radius: 6px; }
 .artwork-item .el-button { position: absolute; top: 4px; right: 4px; }
 .hint { font-size: 12px; color: var(--ink2); margin-top: 8px; }
+
+/* P1-B：加载失败横幅（复用公告页 P0 同款模式） */
+.load-error-banner {
+  padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* P1-B：≤600px 抽屉占满宽度（左右各留 12px），防 390px 窄屏挤出视口 */
+@media (max-width: 600px) {
+  .detail-drawer {
+    width: calc(100% - 24px) !important;
+  }
+}
 </style>

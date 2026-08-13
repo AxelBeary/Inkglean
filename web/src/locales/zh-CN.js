@@ -1678,6 +1678,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     resetTemplate: '重置为出厂默认', resetConfirm: '确定恢复出厂默认模板？当前自定义模板将被覆盖。', resetDone: '已恢复出厂默认',
     manage: '管理', artistDetail: '画师详情', pricingHint: '价格由画师在「画风与价格」页维护，此处仅展示概览',
     artworkHint: '作品图片需通过画师后台上传，此处仅支持查看和删除。',
+    // P1-B：删除作品二次确认（含作品名）
+    artworkDeleteConfirm: '确定删除作品「{name}」？删除后不可恢复。',
+    artworkUntitled: '未命名作品',
     greetingTab: '问候语',
     greetingGlobalHint: '通用库条目对所有画师生效，与画师专属库混合抽取。',
     greetingArtistHint: '专属库条目仅对该画师生效，与通用库混合抽取。',

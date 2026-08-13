@@ -107,46 +107,53 @@
 
     <!-- 订单记录弹窗 -->
     <el-dialog v-model="ordersVisible" :title="`${ordersArtist?.name} - ${$t('admin.artistOrders')}`" width="700px">
-      <el-table :data="orders" v-loading="ordersLoading" stripe max-height="400" row-key="id">
-        <el-table-column type="expand">
-          <template #default="{ row }">
-            <div class="order-expand-pay">
-              <!-- B7: 付款进度摘要 -->
-              <div class="expand-pay-summary" v-if="row.final_price_cents != null || row.finalPriceCents != null">
-                <span>{{ $t('admin.payPaid') }} <strong>¥{{ formatCents(row.paidTotalCents ?? row.paid_total_cents ?? 0) }}</strong></span>
-                <span>/ {{ $t('admin.payFinal') }} <strong>¥{{ formatCents(row.finalPriceCents ?? row.final_price_cents ?? 0) }}</strong></span>
-                <span>{{ $t('admin.payRemaining') }} <strong>¥{{ formatCents(Math.max(0, (row.finalPriceCents ?? row.final_price_cents ?? 0) - (row.paidTotalCents ?? row.paid_total_cents ?? 0))) }}</strong></span>
-              </div>
-              <!-- 分期三态参考 -->
-              <div class="expand-pay-insts" v-if="row.installments?.length">
-                <div v-for="(inst, idx) in row.installments" :key="idx" class="expand-inst-row">
-                  <span>{{ inst.status === 'paid' ? '✓' : inst.status === 'partial' ? '◐' : '○' }}</span>
-                  <span>{{ inst.name }}</span>
-                  <span>¥{{ formatCents(inst.amountCents || inst.amount_cents || 0) }}</span>
-                  <el-tag :type="inst.status === 'paid' ? 'success' : inst.status === 'partial' ? 'warning' : 'info'" size="small">
-                    {{ inst.status === 'paid' ? $t('admin.payRefPaid') : inst.status === 'partial' ? $t('admin.payRefPartial') : $t('admin.payRefPending') }}
-                  </el-tag>
+      <!-- P1-B：加载失败不再静默——错误横幅 + 重试（张冠李戴防护：打开即清旧数据） -->
+      <div v-if="ordersFailed && !ordersLoading" class="orders-error load-error-banner" role="alert">
+        <span>{{ t('common.networkError') }}</span>
+        <el-button size="small" @click="retryOrders">{{ t('dashboard.retry') }}</el-button>
+      </div>
+      <template v-else>
+        <el-table :data="orders" v-loading="ordersLoading" stripe max-height="400" row-key="id">
+          <el-table-column type="expand">
+            <template #default="{ row }">
+              <div class="order-expand-pay">
+                <!-- B7: 付款进度摘要 -->
+                <div class="expand-pay-summary" v-if="row.final_price_cents != null || row.finalPriceCents != null">
+                  <span>{{ $t('admin.payPaid') }} <strong>¥{{ formatCents(row.paidTotalCents ?? row.paid_total_cents ?? 0) }}</strong></span>
+                  <span>/ {{ $t('admin.payFinal') }} <strong>¥{{ formatCents(row.finalPriceCents ?? row.final_price_cents ?? 0) }}</strong></span>
+                  <span>{{ $t('admin.payRemaining') }} <strong>¥{{ formatCents(Math.max(0, (row.finalPriceCents ?? row.final_price_cents ?? 0) - (row.paidTotalCents ?? row.paid_total_cents ?? 0))) }}</strong></span>
                 </div>
+                <!-- 分期三态参考 -->
+                <div class="expand-pay-insts" v-if="row.installments?.length">
+                  <div v-for="(inst, idx) in row.installments" :key="idx" class="expand-inst-row">
+                    <span>{{ inst.status === 'paid' ? '✓' : inst.status === 'partial' ? '◐' : '○' }}</span>
+                    <span>{{ inst.name }}</span>
+                    <span>¥{{ formatCents(inst.amountCents || inst.amount_cents || 0) }}</span>
+                    <el-tag :type="inst.status === 'paid' ? 'success' : inst.status === 'partial' ? 'warning' : 'info'" size="small">
+                      {{ inst.status === 'paid' ? $t('admin.payRefPaid') : inst.status === 'partial' ? $t('admin.payRefPartial') : $t('admin.payRefPending') }}
+                    </el-tag>
+                  </div>
+                </div>
+                <p v-else class="expand-no-data">{{ $t('admin.payNoData') }}</p>
               </div>
-              <p v-else class="expand-no-data">{{ $t('admin.payNoData') }}</p>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="order_no" :label="$t('admin.orderColNo')" width="120" />
-        <el-table-column prop="client_qq" :label="$t('admin.orderColQq')" width="120" />
-        <el-table-column prop="tier_name" :label="$t('admin.orderColType')" width="100">
-          <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('admin.orderColStatus')" width="100">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" :label="$t('admin.orderColTime')">
-          <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
-        </el-table-column>
-      </el-table>
-      <el-empty v-if="!ordersLoading && orders.length === 0" :description="$t('admin.noOrders')" :image-size="60" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="order_no" :label="$t('admin.orderColNo')" width="120" />
+          <el-table-column prop="client_qq" :label="$t('admin.orderColQq')" width="120" />
+          <el-table-column prop="tier_name" :label="$t('admin.orderColType')" width="100">
+            <template #default="{ row }">{{ row.tier_name || $t('common.custom') }}</template>
+          </el-table-column>
+          <el-table-column :label="$t('admin.orderColStatus')" width="100">
+            <template #default="{ row }">
+              <el-tag :type="statusType(row.status)" size="small">{{ $t(`common.orderStatus.${row.status}`) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="created_at" :label="$t('admin.orderColTime')">
+            <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-if="!ordersLoading && orders.length === 0" :description="$t('admin.noOrders')" :image-size="60" />
+      </template>
     </el-dialog>
 
     <!-- 更换管理员弹窗（两步 TOTP 验证，REQ-027） -->
@@ -446,6 +453,9 @@ const ordersVisible = ref(false)
 const ordersLoading = ref(false)
 const ordersArtist = ref(null)
 const orders = ref([])
+const ordersFailed = ref(false)
+// P1-B：请求序号门闩——先发请求晚到不覆盖后发结果（张冠李戴防护）
+const ordersReqSeq = ref(0)
 
 // 更换管理员（REQ-027: 双 TOTP 动态码）
 const transferVisible = ref(false)
@@ -522,18 +532,34 @@ async function changeStatus(row, status) {
   }
 }
 
-async function viewOrders(row) {
+function viewOrders(row) {
   ordersArtist.value = row
+  orders.value = []
+  ordersFailed.value = false
   ordersVisible.value = true
+  loadOrders(row.id)
+}
+
+async function loadOrders(artistId) {
   ordersLoading.value = true
+  const seq = ++ordersReqSeq.value
   try {
-    const res = await adminApi.getArtistOrders(row.id)
+    const res = await adminApi.getArtistOrders(artistId)
+    if (seq !== ordersReqSeq.value) return // 过期响应丢弃
     orders.value = res.items ?? res
   } catch (err) {
+    if (seq !== ordersReqSeq.value) return
+    ordersFailed.value = true
     ElMessage.error(err.message)
   } finally {
-    ordersLoading.value = false
+    if (seq === ordersReqSeq.value) ordersLoading.value = false
   }
+}
+
+function retryOrders() {
+  if (!ordersArtist.value) return
+  ordersFailed.value = false
+  loadOrders(ordersArtist.value.id)
 }
 
 // ─── 更换管理员（REQ-027: 双 TOTP 动态码验证） ───
@@ -766,4 +792,12 @@ onMounted(loadArtists)
 }
 .invite-copy { margin-left: 8px; }
 .invite-unused { color: var(--ink3); }
+
+/* P1-B：订单弹窗加载失败横幅（复用公告页 P0 同款模式） */
+.orders-error { margin-bottom: var(--sp-3, 12px); }
+.load-error-banner {
+  padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
+}
 </style>
