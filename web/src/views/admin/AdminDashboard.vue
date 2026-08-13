@@ -102,9 +102,14 @@
               </div>
             </div>
           </template>
+          <!-- P1-B：留言加载失败不再静默——错误横幅 + 重试；失败不显示「暂无留言」空态 -->
+          <div v-if="msgLoadFailed" class="load-error-banner gb-error" role="alert">
+            <span>{{ t('common.networkError') }}</span>
+            <el-button size="small" @click="loadAdminMessages">{{ t('dashboard.retry') }}</el-button>
+          </div>
           <!-- T 波：el-table 行由 EP 内部渲染、无法挂 Vue 过渡，改等价 CSS 网格列表 +
                TransitionGroup 行级淡出 var(--dur-mid)——删除留言不再瞬变 -->
-          <div v-if="msgLoading || adminMessages.length" class="gb-table-wrap">
+          <div v-else-if="msgLoading || adminMessages.length" class="gb-table-wrap">
             <div class="gb-list-head">
               <span class="gb-col gb-col--artist">{{ $t('admin.guestbook.colArtist') }}</span>
               <span class="gb-col gb-col--nick">{{ $t('admin.guestbook.colNickname') }}</span>
@@ -115,20 +120,20 @@
             </div>
             <TransitionGroup tag="div" name="gb-row" class="gb-list" v-loading="msgLoading">
               <div v-for="row in adminMessages" :key="row.id" class="gb-row">
-                <span class="gb-col gb-col--artist">{{ row.artist_name || `#${row.artist_id}` }}</span>
-                <span class="gb-col gb-col--nick">{{ row.nickname }}</span>
-                <span class="gb-col gb-col--content" :title="row.content">{{ row.content }}</span>
-                <span class="gb-col gb-col--status">
+                <span class="gb-col gb-col--artist" :data-label="$t('admin.guestbook.colArtist')">{{ row.artist_name || `#${row.artist_id}` }}</span>
+                <span class="gb-col gb-col--nick" :data-label="$t('admin.guestbook.colNickname')">{{ row.nickname }}</span>
+                <span class="gb-col gb-col--content" :title="row.content" :data-label="$t('admin.guestbook.colContent')">{{ row.content }}</span>
+                <span class="gb-col gb-col--status" :data-label="$t('admin.guestbook.colStatus')">
                   <el-tag size="small" effect="light" :type="{ pending: 'warning', approved: 'success', rejected: 'info' }[row.status]">{{ $t(`admin.guestbook.status${row.status.charAt(0).toUpperCase()}${row.status.slice(1)}`) }}</el-tag>
                 </span>
-                <span class="gb-col gb-col--time">{{ formatDateTime(row.created_at) }}</span>
+                <span class="gb-col gb-col--time" :data-label="$t('admin.guestbook.colTime')">{{ formatDateTime(row.created_at) }}</span>
                 <span class="gb-col gb-col--actions">
                   <el-button size="small" type="danger" plain @click="handleDeleteMessage(row)">{{ $t('admin.guestbook.delete') }}</el-button>
                 </span>
               </div>
             </TransitionGroup>
           </div>
-          <el-empty v-else :description="$t('admin.guestbook.empty')" />
+          <el-empty v-else-if="!msgLoadFailed" :description="$t('admin.guestbook.empty')" />
         </el-card>
       </div>
     </div>
@@ -150,19 +155,25 @@ const loading = ref(true)
 // ─── F4: 留言管理（跨画师）；REQ-022 F5: 三维筛选（画师/审核状态/是否已回复） ───
 const adminMessages = ref([])
 const msgLoading = ref(true)
+const msgLoadFailed = ref(false)
 const filterArtistId = ref(null)
 const filterStatus = ref(null)
 const filterReplied = ref(null)
 
 async function loadAdminMessages() {
   msgLoading.value = true
+  msgLoadFailed.value = false
   try {
     adminMessages.value = (await adminApi.getMessages({
       artistId: filterArtistId.value,
       status: filterStatus.value,
       replied: filterReplied.value
     })) || []
-  } catch { /* 留言加载失败不阻塞其他模块 */ }
+  } catch {
+    // P1-B：筛选/加载失败清旧数据（防张冠李戴），明示错误 + 重试
+    adminMessages.value = []
+    msgLoadFailed.value = true
+  }
   finally { msgLoading.value = false }
 }
 
@@ -242,6 +253,13 @@ onMounted(async () => {
 /* ─── 快捷操作：卡片内按钮组（wrap 等宽节奏） ─── */
 .quick-list { display: flex; flex-wrap: wrap; gap: var(--sp-2, 8px); }
 
+/* ─── P1-B：留言加载失败横幅（复用公告页 P0 同款模式，朱砂浸染克制） ─── */
+.load-error-banner {
+  padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
+}
+
 /* ─── 表格单元格细节 ─── */
 .cell-name { font-weight: 600; color: var(--ink); }
 .cell-tag { margin-left: var(--sp-1, 4px); }
@@ -297,5 +315,38 @@ onMounted(async () => {
 /* 波 S：断点统一 768→900 */
 @media (max-width: 900px) {
   .stat-grid { grid-template-columns: 1fr; }
+}
+
+/* P1-B：≤600px 留言纵向卡片（文本行 + 操作行），防 390px 横向溢出；
+   桌面端（≥901px）零变 */
+@media (max-width: 600px) {
+  .gb-list-head { display: none; }
+  .gb-row {
+    grid-template-columns: 1fr auto;
+    row-gap: 6px;
+    padding: 10px 12px;
+    align-items: start;
+  }
+  .gb-col--artist,
+  .gb-col--nick,
+  .gb-col--content,
+  .gb-col--actions {
+    grid-column: 1 / -1;
+  }
+  .gb-col--status { grid-column: 1; }
+  .gb-col--time { grid-column: 2; text-align: right; }
+  .gb-col--content { white-space: normal; overflow: visible; text-overflow: clip; }
+  .gb-col--actions { text-align: right; }
+  .gb-col--artist::before,
+  .gb-col--nick::before,
+  .gb-col--content::before,
+  .gb-col--status::before,
+  .gb-col--time::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    color: var(--ink3);
+    margin-bottom: 2px;
+  }
 }
 </style>

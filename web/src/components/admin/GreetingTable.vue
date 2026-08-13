@@ -37,11 +37,11 @@
     </div>
     <TransitionGroup tag="div" name="greeting-row" class="greeting-table-list" v-loading="loading">
       <div v-for="row in greetings" :key="row.id" class="greeting-row">
-        <span class="g-col g-col--text" :class="{ 'g-col--disabled': !row.is_enabled }">{{ row.text }}</span>
-        <span class="g-col g-col--slot">
+        <span class="g-col g-col--text" :class="{ 'g-col--disabled': !row.is_enabled }" :data-label="$t('admin.greetingColText')">{{ row.text }}</span>
+        <span class="g-col g-col--slot" :data-label="$t('admin.greetingColSlot')">
           <el-tag :type="SLOT_TAG[row.time_slot] || 'info'" size="small">{{ slotLabel(row.time_slot) }}</el-tag>
         </span>
-        <span class="g-col g-col--enabled">
+        <span class="g-col g-col--enabled" :data-label="$t('admin.greetingColEnabled')">
           <el-switch
             v-model="row.is_enabled" :active-value="1" :inactive-value="0" size="small"
             @change="(val) => toggleEnabled(row, val)"
@@ -183,4 +183,28 @@ onMounted(load)
 .greeting-row-enter-from,
 .greeting-row-leave-to { opacity: 0; }
 .greeting-row-leave-active { position: absolute; width: 100%; }
+
+/* P1-B：≤600px 单列布局（文本行 + 操作行），操作列不再被裁；
+   桌面端（≥901px）零变 */
+@media (max-width: 600px) {
+  .greeting-table-head { display: none; }
+  .greeting-row {
+    grid-template-columns: 1fr auto auto;
+    gap: 8px 12px;
+    padding: 10px 12px;
+    align-items: center;
+  }
+  .g-col--text { grid-column: 1 / -1; }
+  .g-col--slot { grid-column: 1; }
+  .g-col--enabled { grid-column: 2; }
+  .g-col--actions { grid-column: 3; text-align: right; }
+  .g-col--slot::before,
+  .g-col--enabled::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    color: var(--ink3);
+    margin-bottom: 2px;
+  }
+}
 </style>

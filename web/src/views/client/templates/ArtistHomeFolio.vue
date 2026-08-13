@@ -48,34 +48,25 @@
       </div>
     </section>
 
-    <!-- 价格 + 流程（R1 整合） -->
-    <section id="pricing" class="folio-section folio-section--alt tpl-reveal" v-if="styles.length || tiers.length || workflowStages.length">
-      <div class="folio-inner">
-        <!-- v0.32 REQ-023 Phase3: 有画风数据 → TplStyleGrid；无画风 → 现有 TplTierGrid 兜底 -->
-        <template v-if="styles.length">
-          <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
-          <TplStyleGrid :styles="styles" :subdomain="subdomain" :artist="artist" />
-        </template>
-        <template v-else-if="tiers.length">
-          <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
-          <TplTierGrid :tiers="tiers" :subdomain="subdomain" :artist="artist">
-            <template #addons="{ tier }">
-              <slot name="addons" :tier="tier"></slot>
-            </template>
-          </TplTierGrid>
-        </template>
-        <div v-if="workflowStages.length" class="tpl-workflow-inline">
-          <p class="tpl-workflow-inline-label">{{ $t('artistHome.workflow') }}</p>
-          <WorkflowOverviewStrip :stages="workflowStages" vertical />
-        </div>
-        <div v-if="artist.revisionNote" class="tpl-revision-note">
-          <span>
-            <strong class="tpl-revision-note-label">{{ $t('artistHome.revisionNote') }}</strong>
-            {{ artist.revisionNote }}
-          </span>
-        </div>
-      </div>
-    </section>
+    <!-- P1-B 收敛：价格档位 + 流程 + 修改说明 → 共享 TplPricingSection（外观零变） -->
+    <TplPricingSection
+      section-id="pricing"
+      class="folio-section folio-section--alt tpl-reveal"
+      inner-class="folio-inner"
+      :styles="styles"
+      :tiers="tiers"
+      :workflow-stages="workflowStages"
+      :revision-note="artist.revisionNote"
+      :subdomain="subdomain"
+      :artist="artist"
+    >
+      <template #title>
+        <h2 class="folio-title">{{ $t('artistHome.priceList') }}</h2>
+      </template>
+      <template #addons="{ tier }">
+        <slot name="addons" :tier="tier" />
+      </template>
+    </TplPricingSection>
 
     <!-- 须知 -->
     <section id="rules" class="folio-section folio-section--alt tpl-reveal" v-if="rules">
@@ -86,7 +77,7 @@
     <section id="guestbook" class="folio-section tpl-reveal">
       <div class="folio-inner">
         <h2 class="folio-title">{{ $t('guestbook.title') }}</h2>
-        <TplGuestbook :subdomain="subdomain" class="folio-guestbook" />
+        <TplGuestbook :subdomain="subdomain" theme="inline" />
       </div>
     </section>
 
@@ -138,14 +129,12 @@ import TplHero from '../../../components/templates/TplHero.vue'
 import TplGallery from '../../../components/templates/TplGallery.vue'
 import TplAnnouncement from '../../../components/shared/TplAnnouncement.vue'
 import TplGuestbook from '../../../components/shared/TplGuestbook.vue'
-import TplTierGrid from '../../../components/templates/TplTierGrid.vue'
-import TplStyleGrid from '../../../components/templates/TplStyleGrid.vue'
+import TplPricingSection from '../../../components/templates/TplPricingSection.vue'
 import TplRules from '../../../components/templates/TplRules.vue'
 import TplStickyCta from '../../../components/templates/TplStickyCta.vue'
 import TplPlatformIcon from '../../../components/shared/TplPlatformIcon.vue'
 import Disclaimer from '../../../components/Disclaimer.vue'
 import ComplianceFooterLinks from '../../../components/client/ComplianceFooterLinks.vue'
-import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 
 const props = defineProps({
   artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
@@ -357,94 +346,6 @@ onUnmounted(() => {
   font-size: 12px;
   letter-spacing: 0.05em;
 }
-
-/* F4: 留言板 — folio：内联文字块（极简编辑感，无边框，留白分隔） */
-.folio-guestbook { max-width: 560px; }
-.folio-guestbook :deep(.gb-form) {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 40px;
-}
-.folio-guestbook :deep(.gb-input),
-.folio-guestbook :deep(.gb-textarea) {
-  padding: 12px 16px;
-  border: 1px solid var(--pal-border);
-  border-radius: 2px;
-  background: transparent;
-  color: var(--pal-text);
-  font-size: 15px;
-  font-family: inherit;
-  resize: vertical;
-  transition: border-color var(--dur-mid);
-}
-.folio-guestbook :deep(.gb-input:focus),
-.folio-guestbook :deep(.gb-textarea:focus) {
-  outline: none;
-  border-color: var(--pal-text);
-}
-.folio-guestbook :deep(.gb-input:focus-visible),
-.folio-guestbook :deep(.gb-textarea:focus-visible) {
-  outline: 2px solid var(--pal-text);
-  outline-offset: 2px;
-}
-.folio-guestbook :deep(.gb-submit) {
-  align-self: flex-start;
-  padding: 12px 36px;
-  border: none;
-  border-radius: 2px;
-  background: var(--pal-text);
-  color: var(--pal-bg);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity var(--dur-mid);
-}
-.folio-guestbook :deep(.gb-submit:hover:not(:disabled)) { opacity: 0.85; }
-.folio-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
-.folio-guestbook :deep(.gb-pending-hint) { margin: 0; font-size: 13px; color: var(--pal-text-dim); font-style: italic; }
-.folio-guestbook :deep(.gb-item) { padding: 24px 0; border-top: 1px solid var(--pal-border); }
-.folio-guestbook :deep(.gb-item:first-child) { border-top: none; padding-top: 0; }
-.folio-guestbook :deep(.gb-item-head) {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 8px;
-}
-.folio-guestbook :deep(.gb-nickname) {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--pal-text);
-}
-.folio-guestbook :deep(.gb-time) { font-size: 12px; color: var(--pal-text-dim); }
-.folio-guestbook :deep(.gb-content) { margin: 0; font-size: 15px; line-height: 1.8; color: var(--pal-text-dim); word-break: break-word; }
-.folio-guestbook :deep(.gb-reply) { margin-top: 14px; padding-left: 18px; border-left: 2px solid var(--pal-border); }
-.folio-guestbook :deep(.gb-reply-tag) {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--pal-text-dim);
-  margin-bottom: 4px;
-}
-.folio-guestbook :deep(.gb-reply-content) { margin: 0; font-size: 14px; line-height: 1.7; color: var(--pal-text); font-style: italic; }
-.folio-guestbook :deep(.gb-empty) { color: var(--pal-text-dim); font-size: 15px; font-style: italic; padding: 24px 0; }
-.folio-guestbook :deep(.gb-load-more) {
-  display: block;
-  margin: 12px 0 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--pal-text-dim);
-  font-size: 13px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-  transition: color var(--dur-mid);
-}
-.folio-guestbook :deep(.gb-load-more:hover:not(:disabled)) { color: var(--pal-text); }
-.folio-guestbook :deep(.gb-no-more) { font-size: 12px; color: var(--pal-text-dim); margin-top: 12px; }
 
 /* ===== CTA 区 ===== */
 .folio-cta {
