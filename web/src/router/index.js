@@ -2,7 +2,7 @@
 import i18n from '../i18n/index.js'
 import { useArtistStore } from '../stores/artist.js'
 import { useThemeStore } from '../stores/theme.js'
-import { safeGetItem, safeSetItem } from '../utils/storage.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
 
 // ============================================
 // 路由配置
@@ -124,6 +124,26 @@ const routes = [
 
 const router = createRouter({ history: createWebHistory(), routes })
 
+/**
+ * 站内重定向白名单（a3 防御加固）：仅放行同源 http(s) 路径。
+ * `/\evil.com`、`//evil.com` 等经 URL 解析会落跨源 origin，一律拒绝；
+ * 防未来把 redirect 交给 window.location 赋值时开出开放重定向。
+ */
+function isSafeInternalRedirect(raw) {
+  if (typeof raw !== 'string' || !raw.startsWith('/')) return false
+  try {
+    const url = new URL(raw, window.location.origin)
+    if (url.origin !== window.location.origin) return false
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+    // 编码斜杠兜底：解码后仍以 // 或 /\ 开头的一律拒绝
+    const decoded = decodeURIComponent(url.pathname + url.search)
+    if (decoded.startsWith('//') || decoded.startsWith('/\\')) return false
+  } catch {
+    return false
+  }
+  return true
+}
+
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   // REQ-038: 开箱设置初始化守卫
@@ -133,7 +153,17 @@ router.beforeEach(async (to, from, next) => {
     if (setupDone !== '1') {
       try {
         const res = await fetch('/api/setup/status')
-        // res.ok 守卫：404/5xx 的 JSON 不带 initialized，不得误触重定向
+        if (!res.ok && res.status === 503) {
+          // a3: 服务端重置后（503 SETUP_REQUIRED）清陈旧缓存并跳开箱向导，与 api 拦截器行为对齐
+          try {
+            const data = await res.json()
+            if (data?.code === 'SETUP_REQUIRED') {
+              safeRemoveItem('setup_initialized')
+              return next({ name: 'SetupWizard' })
+            }
+          } catch { /* 非 JSON 错误体，按放行处理 */ }
+        }
+        // res.ok 守卫：其余 404/5xx 的 JSON 不带 initialized，不得误触重定向
         if (res.ok) {
           const data = await res.json()
           if (data.initialized === false) {
@@ -192,7 +222,7 @@ router.beforeEach(async (to, from, next) => {
   // 带 redirect 参数则回原目标（仅放行站内路径，防开放重定向）
   if (to.name === 'ArtistLogin' && artistStore.loggedIn) {
     const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : ''
-    if (redirect.startsWith('/') && !redirect.startsWith('//')) return next(redirect)
+    if (isSafeInternalRedirect(redirect)) return next(redirect)
     return next({ name: 'ArtistDashboard' })
   }
 

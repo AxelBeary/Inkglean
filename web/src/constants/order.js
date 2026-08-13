@@ -21,6 +21,11 @@ export const PRIORITY_TYPE = {
   low: 'success'
 }
 
+/** 订单状态 → EP tag type（b1: 各文件本地包装函数收口，含未知状态兜底） */
+export const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
+/** 优先级 → EP tag type（b1: 同上） */
+export const priorityType = (p) => PRIORITY_TYPE[p] || 'info'
+
 /** 画师主页状态 → Element Plus tag type */
 export const ARTIST_STATUS_TYPE = {
   open: 'success',

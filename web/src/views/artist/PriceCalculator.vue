@@ -54,6 +54,7 @@
             </div>
             <el-switch
               v-if="a.control_type === 'switch'" size="small"
+              :aria-label="a.name"
               :model-value="addonSel[a.id]?.toggled || false"
               @change="(val) => setAddon(a.id, { toggled: !!val })"
             />
@@ -254,6 +255,7 @@ onMounted(load)
 onUnmounted(() => {
   // R-18: 卸载后 300ms 内 doCalc 仍会白发请求——清理防抖计时器（对齐 useManualOrderPricing.stopStyleCalc）
   if (calcTimer) clearTimeout(calcTimer)
+  calcSeq++ // a1: 已在途的 doCalc 响应随卸载作废，不再写 preview
 })
 </script>
 

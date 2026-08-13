@@ -370,6 +370,7 @@ function onBarChange(nodes) {
 
 async function savePayment() {
   if (dirtyNodes.value.length === 0) return true
+  if (saving.value) return false // a1: 重入守卫——比例保存/结构操作并发时不再乱序覆盖 stages
   saving.value = true
   try {
     const res = await api.value.save(dirtyNodes.value)

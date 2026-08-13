@@ -52,6 +52,7 @@
         v-for="a in accentPresets" :key="a.color"
         class="accent-swatch-btn" :class="{ active: form.accentColor === a.color }"
         :style="{ background: a.color }"
+        :aria-label="$t(a.nameKey)"
         :title="$t(a.nameKey)"
         @click="$emit('pick-accent', a.color)"
       >

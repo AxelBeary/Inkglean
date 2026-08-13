@@ -22,8 +22,11 @@ export function useActivityLog(orderId) {
   const loading = ref(false)
   /** 加载失败标记（面板据此显示错误态 + 重试） */
   const error = ref(false)
+  /** a3: 请求序号——快速翻页/切订单时旧响应晚到不得覆盖新数据 */
+  let loadSeq = 0
 
   async function loadLogs() {
+    const mySeq = ++loadSeq
     loading.value = true
     error.value = false
     try {
@@ -32,14 +35,16 @@ export function useActivityLog(orderId) {
         pageSize: pageSize.value,
         type: typeFilter.value || undefined
       })
+      if (mySeq !== loadSeq) return
       logs.value = res.logs || []
       total.value = res.total || 0
     } catch {
+      if (mySeq !== loadSeq) return
       logs.value = []
       total.value = 0
       error.value = true
     } finally {
-      loading.value = false
+      if (mySeq === loadSeq) loading.value = false
     }
   }
 

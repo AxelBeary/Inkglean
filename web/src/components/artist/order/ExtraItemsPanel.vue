@@ -20,6 +20,7 @@
         <el-button
           v-if="!isTerminal"
           class="extra-delete" size="small" circle type="danger"
+          :aria-label="$t('orderDetail.extraDelete')"
           :title="$t('orderDetail.extraDelete')"
           @click="deleteExtraItem(item)"
         >

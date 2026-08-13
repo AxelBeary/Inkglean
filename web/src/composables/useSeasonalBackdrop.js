@@ -16,7 +16,7 @@ export function useSeasonalBackdrop() {
   const backdropUrl = ref(null)
   const backdropAlt = ref('')
 
-  // TODO(节日/自定义背景立项后)：在此拉取数据源并赋值；保持 null = 默认山水
+  // 数据源接入点见文件头注释；立项后在此拉取并赋值，保持 null = 默认山水（无独立未完成项）
 
   return { backdropUrl, backdropAlt }
 }

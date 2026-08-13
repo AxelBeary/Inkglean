@@ -80,19 +80,19 @@
         <template #header><CardHead :title="$t('slots.queueSection')" /></template>
         <div class="switch-grid">
           <div class="switch-row">
-            <el-switch v-model="form.autoPromote" />
+            <el-switch v-model="form.autoPromote" :aria-label="$t('settings.autoPromote')" />
             <span>{{ $t('settings.autoPromote') }}</span>
           </div>
           <div class="switch-row">
-            <el-switch v-model="form.hideQueuePosition" />
+            <el-switch v-model="form.hideQueuePosition" :aria-label="$t('settings.hideQueuePosition')" />
             <span>{{ $t('settings.hideQueuePosition') }}</span>
           </div>
           <div class="switch-row">
-            <el-switch v-model="form.hidePromoteNotify" />
+            <el-switch v-model="form.hidePromoteNotify" :aria-label="$t('settings.hidePromoteNotify')" />
             <span>{{ $t('settings.hidePromoteNotify') }}</span>
           </div>
           <div class="switch-row">
-            <el-switch v-model="form.bufferShortForm" />
+            <el-switch v-model="form.bufferShortForm" :aria-label="$t('settings.bufferShortForm')" />
             <span>{{ $t('settings.bufferShortForm') }}</span>
           </div>
         </div>

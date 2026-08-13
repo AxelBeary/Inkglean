@@ -164,6 +164,9 @@ interface ApiErrorBody {
   detail?: Record<string, unknown>
 }
 
+/** getAllOrders in-flight 去重槽（同 q 共享一次全量分页循环） */
+let allOrdersInflight: { key: string; promise: Promise<ArtistOrderItem[]> } | null = null
+
 /** 错误拦截器抛出的错误对象（附加 status/code，调用方可特判 404 等场景） */
 export interface ApiError extends Error {
   status?: number
@@ -429,19 +432,28 @@ export const artistApi = {
     getJson('/artist/orders', { params: { status, page, pageSize, q } }),
   // 05D-W1/P1: 拉全量订单（下拉选择用；pageSize 上限 200 循环，订单多时稍慢但可选到任意早期订单）
   getAllOrders: async (q?: string): Promise<ArtistOrderItem[]> => {
-    const pageSize = 200
-    const all: ArtistOrderItem[] = []
-    const first = await getJson<ArtistOrdersResult | ArtistOrderItem[]>('/artist/orders', { params: { page: 1, pageSize, q } })
-    const firstItems = Array.isArray(first) ? first : first.items
-    all.push(...firstItems)
-    const totalCount = Array.isArray(first) ? firstItems.length : (first.total ?? firstItems.length)
-    const pages = Math.ceil(totalCount / pageSize)
-    for (let p = 2; p <= pages; p++) {
-      const res = await getJson<ArtistOrdersResult | ArtistOrderItem[]>('/artist/orders', { params: { page: p, pageSize, q } })
-      const items = Array.isArray(res) ? res : res.items
-      if (items.length) all.push(...items)
-    }
-    return all
+    // a3: in-flight 去重——并发触发（组件重挂载/多消费者）共享同一次分页循环，避免重复请求与乱序返回
+    const key = q ?? ''
+    if (allOrdersInflight && allOrdersInflight.key === key) return allOrdersInflight.promise
+    const promise = (async () => {
+      const pageSize = 200
+      const all: ArtistOrderItem[] = []
+      const first = await getJson<ArtistOrdersResult | ArtistOrderItem[]>('/artist/orders', { params: { page: 1, pageSize, q } })
+      const firstItems = Array.isArray(first) ? first : first.items
+      all.push(...firstItems)
+      const totalCount = Array.isArray(first) ? firstItems.length : (first.total ?? firstItems.length)
+      const pages = Math.ceil(totalCount / pageSize)
+      for (let p = 2; p <= pages; p++) {
+        const res = await getJson<ArtistOrdersResult | ArtistOrderItem[]>('/artist/orders', { params: { page: p, pageSize, q } })
+        const items = Array.isArray(res) ? res : res.items
+        if (items.length) all.push(...items)
+      }
+      return all
+    })().finally(() => {
+      if (allOrdersInflight?.key === key) allOrdersInflight = null
+    })
+    allOrdersInflight = { key, promise }
+    return promise
   },
   getQueue: (zone?: string): Promise<QueueOrderItem[]> =>
     getJson('/artist/queue', zone ? { params: { zone } } : undefined),

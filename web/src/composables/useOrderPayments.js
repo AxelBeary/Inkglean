@@ -16,19 +16,24 @@ export function useOrderPayments() {
   // 成功后置空（下一次提交 = 新意图，换新 key）。后端按 payment:orderId + key 去重，
   // 防双标签页/脚本双击重复入账；服务端错误不缓存，修正后重试可成功。
   let submitIdemKey = null
+  /** a3: 请求序号——切订单/快速刷新时旧响应晚到不得覆盖新流水 */
+  let loadSeq = 0
 
   /** 加载收款流水 */
   async function loadPayments(orderId) {
+    const mySeq = ++loadSeq
     loading.value = true
     loadError.value = false
     try {
       const res = await artistApi.getPayments(orderId)
+      if (mySeq !== loadSeq) return
       payments.value = res.payments || []
     } catch {
+      if (mySeq !== loadSeq) return
       payments.value = []
       loadError.value = true
     } finally {
-      loading.value = false
+      if (mySeq === loadSeq) loading.value = false
     }
   }
 

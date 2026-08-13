@@ -1,5 +1,5 @@
 ﻿<template>
-  <!-- ═══ 左栏：客户说了什么（v0.42 拆分：自 ManualOrder.vue L11-107 原样搬移，零行为变化） ═══ -->
+  <!-- ═══ 左栏：客户说了什么（v0.42 拆分：自 ManualOrder.vue 拆分搬移，零行为变化） ═══ -->
   <section class="mo-col">
     <h3 class="mo-section">{{ $t('manualOrder.leftTitle') }}</h3>
 
@@ -124,8 +124,9 @@ import { usePasteUpload } from '../../../composables/usePasteUpload.js'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
 import { formatDateTimeShort } from '../../../utils/datetime.js'
 import { formatCents } from '../../../utils/money.js'
-import { ORDER_STATUS_TYPE } from '../../../constants/order.js'
+import { statusType } from '../../../constants/order.js'
 import { getAnonToken } from '../../../utils/track.js'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload.js'
 
 defineProps({
   qqValid: Boolean,
@@ -169,15 +170,15 @@ function disableStartDateDate(d) {
 }
 
 // ─── 辅助函数（QQ 历史面板展示） ───
-const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 const formatDate = (str) => formatDateTimeShort(str)
 
 // ─── 参考图上传（随卡移入） ───
 async function handleRefUpload({ file }) {
-  if (file.size > 10 * 1024 * 1024) {
+  if (file.size > MAX_IMAGE_BYTES) {
     const sizeMB = (file.size / 1024 / 1024).toFixed(1)
     ElMessage.warning(t('manualOrder.fileTooBig', { name: file.name, size: sizeMB }))
-    return
+    // a1: 超限不得按成功处理——throw 让 EP http-request 标记失败，文件不显示为已上传
+    throw new Error(t('manualOrder.fileTooBig', { name: file.name, size: sizeMB }))
   }
   // G-7（P2-13 前端侧）: 参考图上传需匿名归属凭证（后端 F-10 契约）
   const anonToken = await getAnonToken()
@@ -207,8 +208,8 @@ function handleRefRemove(file) {
 // ─── 粘贴上传（R5 复用） ───
 const { pasteError } = usePasteUpload({
   onFiles: handlePasteRefFiles,
-  maxCount: 5,
-  maxSizeMB: 10
+  maxCount: MAX_IMAGE_COUNT,
+  maxSizeMB: MAX_IMAGE_MB
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
@@ -222,15 +223,20 @@ async function handlePasteRefFiles(files) {
     return
   }
   for (const file of files) {
-    if (refFileList.value.length >= 5) {
+    if (refFileList.value.length >= MAX_IMAGE_COUNT) {
       ElMessage.warning(t('manualOrder.refExceed'))
-      return
+      break // a1: 已达上限提示后跳过剩余，不再中断已上传列表
     }
-    const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
-    uploadedRefs.value.push(uploaded.filePath)
-    const uid = `paste-${crypto.randomUUID()}`
-    refUidMap.value.set(uid, uploaded.filePath)
-    refFileList.value.push({ name: file.name || 'pasted-image.png', url: `/uploads/${uploaded.filePath}`, uid, status: 'success' })
+    // a1: 逐张 catch——单张失败不中断后续，失败有明确提示；成功后才 push 列表
+    try {
+      const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
+      const uid = `paste-${crypto.randomUUID()}`
+      uploadedRefs.value.push(uploaded.filePath)
+      refUidMap.value.set(uid, uploaded.filePath)
+      refFileList.value.push({ name: file.name || 'pasted-image.png', url: `/uploads/${uploaded.filePath}`, uid, status: 'success' })
+    } catch (err) {
+      ElMessage.error(err.message || t('common.uploadFailed'))
+    }
   }
 }
 

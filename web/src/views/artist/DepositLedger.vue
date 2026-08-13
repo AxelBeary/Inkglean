@@ -89,7 +89,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatYuan } from '../../utils/money.js'
+import { formatYuan, yuanToCents } from '../../utils/money.js'
 import { todayStr } from '../../utils/datetime.js'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
@@ -172,7 +172,7 @@ function submit() {
       id: 'deposit-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       name: form.name.trim(),
       // 元 → 整数分（口径：整数分）
-      amountCents: Math.round(form.amountYuan * 100),
+      amountCents: yuanToCents(form.amountYuan),
       status: form.status,
       date: form.date
     })

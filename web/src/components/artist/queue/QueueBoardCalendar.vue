@@ -271,7 +271,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -549,10 +549,13 @@ function bandTooltip(order) {
 }
 
 let tlDragHappened = false // 拖拽刚结束，抑制 click 跳转
+let tlDragResetTimer = null
 function goOrder(order) {
   if (tlDragHappened) return // 拖拽松手不跳转
   router.push(`/orders/${order.id}?from=queue`)
 }
+
+onUnmounted(() => { if (tlDragResetTimer) clearTimeout(tlDragResetTimer) }) // a1: 50ms 复位定时器随组件卸载清理
 
 // ─── v0.25 D: 时间条视图状态机装配（2026-08-10 拆分：useQueueTimeline，纯搬移零行为变化） ───
 const {
@@ -573,7 +576,7 @@ const {
   // 拖拽松手抑制 click 跳转：标记宿主持有（上方 goOrder 消费），composable 经此回写
   markDragHappened: () => {
     tlDragHappened = true
-    setTimeout(() => { tlDragHappened = false }, 50)
+    tlDragResetTimer = setTimeout(() => { tlDragHappened = false }, 50)
   }
 })
 </script>

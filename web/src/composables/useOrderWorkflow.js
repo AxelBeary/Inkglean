@@ -97,11 +97,16 @@ export function useOrderWorkflow({ order, routeId, statusAction }) {
         { type: 'warning' }
       )
     } catch { return }
+    // a3: 与 advanceStage/backStage 共用 statusAction 锁，防止关闭跟踪与推进/打回并发写
+    if (statusAction.value) return
+    statusAction.value = 'off'
     try {
       order.value = await artistApi.stageOff(routeId)
       ElMessage.success(t('orderDetail.stageOffDone'))
     } catch (err) {
       ElMessage.error(err.message)
+    } finally {
+      statusAction.value = ''
     }
   }
 

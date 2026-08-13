@@ -422,17 +422,20 @@ function currentOptions(logo) {
   }
 }
 
+/** b1: 加载 logo 位图（renderPreview/exportImage 共用；非 logo 模式或未设图返回 null） */
+async function loadLogoForRender() {
+  if (wmType.value !== 'logo') return null
+  if (!logoDataUrl.value) return null
+  return loadImage(logoDataUrl.value)
+}
+
 async function renderPreview() {
   // 围剿 a1-9: 预览合成取号——慢合成不得覆盖新预览
   const mySeq = ++previewSeq
   if (!src.value) return
   try {
-    let logo = null
-    if (wmType.value === 'logo') {
-      if (!logoDataUrl.value) return
-      logo = await loadImage(logoDataUrl.value)
-      if (!logo) return
-    }
+    const logo = wmType.value === 'logo' ? await loadLogoForRender() : null
+    if (wmType.value === 'logo' && !logo) return
     const dataUrl = await composeWatermarked(src.value, currentOptions(logo))
     if (mySeq !== previewSeq) return
     previewDataUrl.value = dataUrl
@@ -464,12 +467,8 @@ async function exportImage() {
   if (!src.value || exporting.value) return
   exporting.value = true
   try {
-    let logo = null
-    if (wmType.value === 'logo') {
-      if (!logoDataUrl.value) return
-      logo = await loadImage(logoDataUrl.value)
-      if (!logo) return
-    }
+    const logo = wmType.value === 'logo' ? await loadLogoForRender() : null
+    if (wmType.value === 'logo' && !logo) return
     const dataUrl = await composeWatermarked(src.value, currentOptions(logo))
     const a = document.createElement('a')
     a.href = dataUrl

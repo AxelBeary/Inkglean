@@ -103,7 +103,7 @@ defineProps({
 })
 const emit = defineEmits(['open-pay', 'revoke', 'collect', 'retry-payments'])
 
-/** 金额分 → 元（与 OrderDetail.vue 本地 formatCents 同款，纯函数两处一致） */
+/** 日期格式化（b1: 注释原误写为 formatCents 同款，实为 formatDateTime 包装） */
 function formatDate(str) {
   return formatDateTime(str)
 }

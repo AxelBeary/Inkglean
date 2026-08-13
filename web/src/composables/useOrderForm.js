@@ -34,8 +34,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize.js'
 import { usePasteUpload } from './usePasteUpload.js'
-import { formatAddonPrice } from '../utils/money.js'
+import { formatAddonPrice, yuanToCents } from '../utils/money.js'
 import { getAnonToken } from '../utils/track.js'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload.js'
 
 export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const { t } = useI18n()
@@ -169,23 +170,28 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const discountResult = ref(null)
   const discountError = ref('')
   const discountValidating = ref(false)
+  // a3: 验证序号——A 码在途时改输入为 B 码，A 的晚到响应不得回写旧折扣结果
+  let discountValidationSeq = 0
 
   /** 验证折扣码（公开 API，需 subdomain） */
   async function validateDiscountCode() {
     const code = form.discountCode.trim()
     if (!code) return
+    const mySeq = ++discountValidationSeq
     discountValidating.value = true
     discountError.value = ''
     try {
       const res = await artistPublicApi.validateDiscount({ subdomain, code })
+      if (mySeq !== discountValidationSeq) return
       discountResult.value = { discountType: res.discountType, discountValue: res.discountValue }
       // 验证通过后立即重算价格（calculate-style-price 含折扣）
       if (selectedSizeId.value) scheduleStyleCalc()
     } catch (err) {
+      if (mySeq !== discountValidationSeq) return
       discountResult.value = null
       discountError.value = err.message
     } finally {
-      discountValidating.value = false
+      if (mySeq === discountValidationSeq) discountValidating.value = false
     }
   }
 
@@ -208,7 +214,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     if (!discountResult.value || baseCents == null || baseCents <= 0) return 0
     const { discountType, discountValue } = discountResult.value
     if (discountType === 'percent') return Math.floor(baseCents * discountValue / 100)
-    if (discountType === 'fixed') return Math.min(Math.round(discountValue * 100), baseCents)
+    if (discountType === 'fixed') return Math.min(yuanToCents(discountValue), baseCents)
     return 0
   })
 
@@ -491,7 +497,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   // ─── 参考图上传（文件选择） ───
   async function handleRefUpload({ file }) {
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_BYTES) {
       const sizeMB = (file.size / 1024 / 1024).toFixed(1)
       ElMessage.warning(t('orderForm.fileTooBig', { name: file.name, size: sizeMB }))
       return
@@ -551,8 +557,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   const { pasteError } = usePasteUpload({
     onFiles: handlePasteRefFiles,
-    maxCount: 5,
-    maxSizeMB: 10
+    maxCount: MAX_IMAGE_COUNT,
+    maxSizeMB: MAX_IMAGE_MB
   })
   watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
@@ -692,6 +698,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     window.removeEventListener('beforeunload', onBeforeUnload)
     if (draftTimer) clearTimeout(draftTimer)
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
+    discountValidationSeq++ // a3: 卸载后在途验证响应作废
   })
 
   return {

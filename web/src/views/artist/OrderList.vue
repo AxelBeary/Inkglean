@@ -168,7 +168,10 @@ function onSearchClear() {
   page.value = 1
   loadOrders()
 }
-onUnmounted(() => clearTimeout(searchTimer))
+onUnmounted(() => {
+  clearTimeout(searchTimer)
+  loadSeq++ // a1: 卸载后慢响应/剩余分页不得继续写 refs（seq 作废）
+})
 // #2: 复合筛选（active=非终态，过滤掉 done/delivered / completed=done+delivered，客户端过滤）
 const compositeFilter = ref('')
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'wip', 'revision']
@@ -193,11 +196,7 @@ const page = ref(1)
 const pageSize = ref(ORDER_LIST_UI_PAGE_SIZE)
 const total = ref(0)
 
-import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../constants/order.js'
-
-// (本地别名保持模板兼容)
-const priorityType = (p) => PRIORITY_TYPE[p] || 'info'
-const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
+import { statusType, priorityType } from '../../constants/order.js'
 
 function formatDate(str) {
   return formatDateTimeShort(str)

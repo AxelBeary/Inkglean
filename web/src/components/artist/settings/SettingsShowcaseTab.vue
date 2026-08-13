@@ -26,6 +26,7 @@
               v-model="link.platformId"
               class="link-platform-select"
               disabled
+              :aria-label="$t('settings.linksLabel')"
               :placeholder="$t('settings.linkOther')"
             >
               <el-option :value="null" :label="$t('settings.linkOther')" />
@@ -33,6 +34,7 @@
             </el-select>
             <el-input
               v-model="link.url"
+              :aria-label="$t('settings.linkUrlPlaceholder')"
               :placeholder="$t('settings.linkUrlPlaceholder')"
               class="link-url-input"
             />
@@ -111,7 +113,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import ShopVisibilitySwitch from './ShopVisibilitySwitch.vue'
-import type { ArtistStatus } from '../../../api/types.js'
+import type { ArtistStatus, PlatformDTO } from '../../../api/types.js'
 
 /** 主页展示表单（对齐 Settings.vue form 形状；__k 为父级本地行标识） */
 interface ShowcaseLink {
@@ -133,7 +135,7 @@ const props = defineProps<{
   loading: boolean
   saving: boolean
   profileLoadFailed: boolean
-  platforms: any[]
+  platforms: PlatformDTO[]
   newTag: string
   rulesContent: string
   rulesLoading: boolean

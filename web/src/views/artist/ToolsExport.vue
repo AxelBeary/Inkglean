@@ -68,7 +68,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'
@@ -95,19 +95,25 @@ const emptyHint = ref(false)
 // 此前只统散单而 CSV 合并两源，对账时概览数字与 CSV 明显不一致
 const overview = ref(null)
 const overviewLoading = ref(false)
+/** a1: 请求序号——快速切换日期范围时旧响应不得覆盖新概览 */
+let overviewSeq = 0
 
 async function loadOverview() {
   if (!range.value?.length) return
   const [from, to] = range.value
+  const mySeq = ++overviewSeq
   overviewLoading.value = true
   try {
     // 05D-I1: 收口进 artistApi（401 自动登出/15s 超时/i18n 翻译走统一拦截器）
-    overview.value = await artistApi.getIncomeSummary({ from, to })
+    const res = await artistApi.getIncomeSummary({ from, to })
+    if (mySeq !== overviewSeq) return
+    overview.value = res
   } catch (err) {
+    if (mySeq !== overviewSeq) return
     overview.value = null
     ElMessage.error(err.message || t('toolsExport.incomeLoadFailed'))
   } finally {
-    overviewLoading.value = false
+    if (mySeq === overviewSeq) overviewLoading.value = false
   }
 }
 
@@ -115,6 +121,8 @@ async function loadOverview() {
 watch(range, () => {
   if (range.value?.length) loadOverview()
 }, { immediate: true })
+
+onUnmounted(() => { overviewSeq++ }) // a1: 卸载后在途概览响应作废
 
 /** 从 Content-Disposition 解析下载文件名（后端返回 income-YYYYMMDD-YYYYMMDD.csv） */
 function filenameFromDisposition(header, fallback) {

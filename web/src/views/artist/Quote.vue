@@ -48,7 +48,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { formatYuan } from '../../utils/money.js'
+import { formatYuan, yuanToCents } from '../../utils/money.js'
 import { todayStr } from '../../utils/datetime.js'
 import { quoteTotalCents, buildQuoteText, renderQuoteCanvas } from '../../utils/quote.js'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
@@ -76,7 +76,7 @@ function removeItem(idx) {
 function centsOf(text) {
   const v = Number(String(text ?? '').trim())
   if (!Number.isFinite(v) || v <= 0) return null
-  return Math.round(v * 100)
+  return yuanToCents(v)
 }
 
 /** 有效条目 = 名称非空 + 金额合法为正 */

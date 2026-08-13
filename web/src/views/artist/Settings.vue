@@ -98,6 +98,7 @@ import { Notebook, Brush, Picture, Sunny, Collection, Moon, Document, MagicStick
 import SettingsProfileTab from '../../components/artist/settings/SettingsProfileTab.vue'
 import SettingsShowcaseTab from '../../components/artist/settings/SettingsShowcaseTab.vue'
 import SettingsTemplateTab from '../../components/artist/settings/SettingsTemplateTab.vue'
+import { MAX_IMAGE_BYTES } from '../../constants/upload.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -199,7 +200,7 @@ async function handleAvatarSelect(file) {
     ElMessage.error(t('settings.avatarNotImage'))
     return
   }
-  if (file.size > 10 * 1024 * 1024) {
+  if (file.size > MAX_IMAGE_BYTES) {
     ElMessage.error(t('settings.avatarTooBig'))
     return
   }

@@ -16,6 +16,10 @@ const ANON_TOKEN_KEY = 'huiyue_anon_token'
 const FLUSH_INTERVAL_MS = 5000
 const FLUSH_BATCH_MAX = 10
 const SEND_BATCH_MAX = 50
+// a3: 队列上限——离线持续重试时事件对象不无限堆积（超限丢最旧批次）
+const MAX_QUEUE_SIZE = 200
+/** 匿名凭证获取失败标记：5xx/断网可重试；4xx 属后端明确拒绝 */
+const TOKEN_NETWORK_FAIL = Symbol('anon-token-network-fail')
 
 let queue = []
 let flushTimer = null
@@ -23,25 +27,31 @@ let flushBusy = false
 // G-5: 裸读换 safeGetItem（存储禁用时按无凭证降级，不抛错）
 let anonToken = safeGetItem(ANON_TOKEN_KEY) || null
 
-/** 获取当前匿名凭证（无则签发一次；失败返回 null）。G-7: 参考图上传/下单归属校验复用此链路 */
-export async function getAnonToken() {
-  return ensureAnonToken()
-}
-
 async function ensureAnonToken() {
   if (anonToken) return anonToken
   try {
     const res = await fetch('/api/anon-token', { method: 'POST' })
-    if (!res.ok) return null
+    if (!res.ok) {
+      // 4xx = 后端明确拒绝（白名单外/端点停用）：按无凭证处理，不回队
+      if (res.status >= 400 && res.status < 500) return null
+      return TOKEN_NETWORK_FAIL
+    }
     const data = await res.json()
     anonToken = data.token
     safeSetItem(ANON_TOKEN_KEY, anonToken)
-  } catch { /* 网络失败：静默，不打断用户 */ }
+  } catch { /* 网络失败：静默，不打断用户 */ return TOKEN_NETWORK_FAIL }
   return anonToken
+}
+
+/** 获取当前匿名凭证（无则签发一次；网络/服务端失败返回 null）。G-7: 参考图上传/下单归属校验复用此链路 */
+export async function getAnonToken() {
+  const token = await ensureAnonToken()
+  return token === TOKEN_NETWORK_FAIL ? null : token
 }
 
 export function trackEvent(name, payload = {}) {
   queue.push({ name, ts: Date.now(), version: EVENT_VERSION, ...payload })
+  if (queue.length > MAX_QUEUE_SIZE) queue.splice(0, queue.length - MAX_QUEUE_SIZE)
   if (queue.length >= FLUSH_BATCH_MAX) flush()
   else if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS)
   return queue[queue.length - 1]
@@ -59,8 +69,14 @@ async function flush() {
   try {
     const events = queue.splice(0, SEND_BATCH_MAX)
     const token = await ensureAnonToken()
-    if (!token) {
-      // 拿不到凭证（网络失败/后端异常）：丢弃本批，不阻塞用户（REQ-033 §2.2 兜底）
+    if (token == null) {
+      // 后端明确拒绝（4xx）：丢弃本批（REQ-033 §2.2 兜底）
+      return
+    }
+    if (token === TOKEN_NETWORK_FAIL) {
+      // 网络失败/5xx：拿不到凭证 → 回队下次重试（对齐文件头「网络错误回队」承诺）
+      queue.unshift(...events)
+      if (queue.length > MAX_QUEUE_SIZE) queue.splice(MAX_QUEUE_SIZE)
       return
     }
     let res

@@ -32,8 +32,8 @@
           </span>
           <!-- R44: 悬停操作组——✓设焦点（C56 手机端常驻）+ 删除；预览按钮已移除（单击图片即预览） -->
           <span class="ref-hover-actions">
-            <el-button size="small" circle :title="$t('orderDetail.setFocus')" @click.stop="emit('select-focus', reference)">✓</el-button>
-            <el-button size="small" circle type="danger" :title="$t('orderDetail.deleteRef')" @click.stop="emit('delete', reference)">✕</el-button>
+            <el-button size="small" circle :aria-label="$t('orderDetail.setFocus')" :title="$t('orderDetail.setFocus')" @click.stop="emit('select-focus', reference)">✓</el-button>
+            <el-button size="small" circle type="danger" :aria-label="$t('orderDetail.deleteRef')" :title="$t('orderDetail.deleteRef')" @click.stop="emit('delete', reference)">✕</el-button>
           </span>
           <!-- 焦点指示 -->
           <span v-if="order.focus_image_path === reference.file_path" class="ref-focus-indicator">✓</span>

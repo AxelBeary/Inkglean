@@ -4,11 +4,12 @@
     <p class="page-sub">{{ $t('reply.subtitle') }}</p>
 
     <!-- 分类 tab -->
-    <div class="reply-tabs" role="tablist" :aria-label="$t('reply.title')">
+    <div class="reply-tabs" role="tablist" :aria-label="$t('reply.title')" @keydown="onReplyTabKeydown">
       <button
         v-for="cat in REPLY_CATEGORIES" :key="cat" type="button"
         class="reply-tab" :class="{ 'reply-tab--active': currentCat === cat }"
-        role="tab" :aria-selected="currentCat === cat"
+        role="tab" :aria-selected="currentCat === cat" :tabindex="currentCat === cat ? 0 : -1"
+        :ref="(el) => { if (el) replyTabEls[cat] = el }"
         @click="selectCategory(cat)"
       >
         {{ $t('reply.cats.' + cat) }}
@@ -41,6 +42,20 @@ import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 const { t, locale } = useI18n()
 const currentCat = ref(REPLY_CATEGORIES[0])
 const templates = computed(() => REPLY_TEMPLATES[currentCat.value] || [])
+/** b5: 分类 tab roving tabindex + 方向键（ARIA APG Tabs） */
+const replyTabEls = {}
+function onReplyTabKeydown(e) {
+  const idx = REPLY_CATEGORIES.indexOf(currentCat.value)
+  let next = null
+  if (e.key === 'ArrowRight') next = REPLY_CATEGORIES[(idx + 1) % REPLY_CATEGORIES.length]
+  else if (e.key === 'ArrowLeft') next = REPLY_CATEGORIES[(idx - 1 + REPLY_CATEGORIES.length) % REPLY_CATEGORIES.length]
+  else if (e.key === 'Home') next = REPLY_CATEGORIES[0]
+  else if (e.key === 'End') next = REPLY_CATEGORIES[REPLY_CATEGORIES.length - 1]
+  if (next == null) return
+  e.preventDefault()
+  selectCategory(next)
+  replyTabEls[next]?.focus()
+}
 /** b4-5: 按 locale 取话术（中文走 text，英文走 textEn，缺英文时回退中文） */
 function displayText(item) {
   return locale.value === 'en' ? (item.textEn || item.text) : item.text

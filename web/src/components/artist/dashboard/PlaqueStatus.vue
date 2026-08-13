@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -158,6 +158,8 @@ async function toggleStatus() {
 }
 
 function goSlots() { router.push('/slots') }
+
+onUnmounted(() => cancelAnimationFrame(syncRaf)) // a1: 卸载后 rAF 循环不得继续写已脱离 DOM 的 ref 样式
 
 onMounted(() => {
   loadSlots()

@@ -6,7 +6,7 @@
 // style_addons 返回 template_* 快照字段（template_price_mode / template_category / ...）
 // 铁律：分类只读后端真实字段，禁止任何名称约定推导。
 // 仅放纯函数；组件状态留在各组件内。
-import { formatAddonPrice } from '../../utils/money.js'
+import { formatAddonPrice, yuanToCents } from '../../utils/money.js'
 
 /** 控件类型中文标签 */
 export function controlLabel(t, type) {
@@ -98,7 +98,7 @@ export function computeSizePreview(style, size) {
       percentItems.push({ id: sa.id, name: sa.template_name, percent, amountCents })
     } else {
       // 数量型预估按 ×1（顾客下单时选数量）；开关型恒 ×1
-      const unitCents = Math.round(price * 100)
+      const unitCents = yuanToCents(price)
       fixedCents += unitCents
       fixedItems.push({
         id: sa.id,

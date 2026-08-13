@@ -200,10 +200,11 @@ async function act(item: TodoItem) {
 }
 
 /** 清账·撕页：整叠沉底区撕走（两段式动画） */
+let settleTimer: ReturnType<typeof setTimeout> | null = null
 function settle() {
   if (!sunkRows.value.length || tearing.value) return
   tearing.value = true
-  setTimeout(() => {
+  settleTimer = setTimeout(() => {
     sunkRows.value = []
     tearing.value = false
     settledNote.value = true
@@ -215,7 +216,10 @@ function goDetail(item: TodoItem) {
 }
 
 onMounted(() => load())
-onUnmounted(() => timers.forEach(clearInterval))
+onUnmounted(() => {
+  timers.forEach(clearInterval)
+  if (settleTimer) clearTimeout(settleTimer) // a1: 卸载后 820ms 定时器不得再改 sunkRows/tearing/settledNote
+})
 </script>
 
 <style scoped>

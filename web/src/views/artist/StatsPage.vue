@@ -9,9 +9,9 @@
     </div>
 
     <!-- 总览卡：总事件数 -->
-    <div class="stats-overview" v-if="!loadFailed && data">
+    <div class="stats-overview" v-if="!loadFailed && statsOverview">
       <div class="stats-overview-item">
-        <div class="stats-overview-num">{{ data.total }}</div>
+        <div class="stats-overview-num">{{ statsOverview.total }}</div>
         <div class="stats-overview-label">{{ $t('stats.totalEvents') }}</div>
       </div>
     </div>
@@ -57,7 +57,7 @@ import { artistApi } from '../../api/index.js'
 const loading = ref(true)
 /** 统计加载失败（独立错误态，不再静默降级成 mode=hidden） */
 const loadFailed = ref(false)
-const data = ref(null)
+const statsOverview = ref(null)
 const mode = ref('')
 const byDay = ref([])
 const byName = ref([])
@@ -80,7 +80,7 @@ async function loadStats() {
     const res = await artistApi.getMyTrackingSummary(14)
     mode.value = res.mode
     if (res.enabled) {
-      data.value = { total: res.total }
+      statsOverview.value = { total: res.total }
       byDay.value = res.byDay || []
       byName.value = res.byName || []
     }

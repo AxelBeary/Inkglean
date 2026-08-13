@@ -13,6 +13,8 @@ import { onMounted, onUnmounted, nextTick } from 'vue'
 export function useScrollReveal(containerRef) {
   let io = null
   let mo = null
+  // a3: 卸载标记——onMounted 在 nextTick 前卸载时，续建前先检查，避免 observer 挂在 document 上永不清理
+  let disposed = false
 
   const observe = (el) => {
     if (el.classList.contains('tpl-visible')) return
@@ -25,6 +27,7 @@ export function useScrollReveal(containerRef) {
 
   onMounted(async () => {
     await nextTick()
+    if (disposed) return
     const root = containerRef?.value || document
 
     io = new IntersectionObserver(
@@ -47,6 +50,7 @@ export function useScrollReveal(containerRef) {
   })
 
   onUnmounted(() => {
+    disposed = true
     io?.disconnect()
     mo?.disconnect()
   })

@@ -23,6 +23,7 @@
             <el-button
               v-if="note.created_by !== 'system'"
               class="tl-delete" size="small" circle type="danger"
+              :aria-label="$t('orderDetail.deleteNote')"
               :title="$t('orderDetail.deleteNote')"
               @click="deleteNote(note)"
             >

@@ -36,6 +36,8 @@ export const useArtistStore = defineStore('artist', {
       this.loggedIn = true
       this.isAdmin = !!isAdmin
       this.profile = profile || null
+      // a3: 换会话时清掉上一画师的统计残留（B 登录后 fetchStats 返回前不闪 A 的数据）
+      this.stats = null
       safeSetItem('artist_logged_in', '1')
       safeSetItem('artist_is_admin', this.isAdmin ? '1' : '0')
     },
@@ -53,7 +55,10 @@ export const useArtistStore = defineStore('artist', {
       if (!this.loggedIn) return
       this.loading = true
       try {
-        this.profile = await artistApi.getProfile()
+        const profile = await artistApi.getProfile()
+        // a3: 登出竞态守卫——在途 200 晚到时状态已清空，不得回写旧画师数据
+        if (!this.loggedIn) return
+        this.profile = profile
       } catch (err) {
         // 仅 Token 失效（401）登出；其余异常原样抛出，由调用方决定兜底
         if (err.status === 401) this.logout()
@@ -66,7 +71,10 @@ export const useArtistStore = defineStore('artist', {
     // 获取统计数据
     async fetchStats() {
       if (!this.loggedIn) return
-      this.stats = await artistApi.getStats()
+      const stats = await artistApi.getStats()
+      // a3: 同 fetchProfile——登出后在途响应不得回写 stats
+      if (!this.loggedIn) return
+      this.stats = stats
     },
 
     // 登出

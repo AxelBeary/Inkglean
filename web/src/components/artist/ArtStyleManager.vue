@@ -4,7 +4,7 @@
     <div class="style-toolbar">
       <div class="toolbar-left">
         <span class="toolbar-title">{{ $t('styleManage.multiStyle') }}</span>
-        <el-switch v-model="multiStyleEnabled" :loading="switchSaving" @change="onMultiStyleChange" />
+        <el-switch v-model="multiStyleEnabled" :loading="switchSaving" :aria-label="$t('styleManage.multiStyle')" @change="onMultiStyleChange" />
         <span class="toolbar-status" :class="multiStyleEnabled ? 'status-on' : 'status-off'">
           {{ multiStyleEnabled ? $t('styleManage.toolbarStatusOn') : $t('styleManage.toolbarStatusOff') }}
         </span>
