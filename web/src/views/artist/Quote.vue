@@ -91,7 +91,11 @@ const totalCents = computed(() => quoteTotalCents(validItems.value))
 const totalText = computed(() => formatYuan(totalCents.value))
 
 function today() {
-  return new Date().toISOString().slice(0, 10)
+  // b1 猎杀修复：本地日期——toISOString 是 UTC，东八区 0~8 点必差一天（报价单日期错一天）
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
 }
 
 function canvasLabels() {
