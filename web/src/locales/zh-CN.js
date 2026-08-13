@@ -701,6 +701,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {
+    title: '设置',
     rules: '约稿须知编辑',
     share: '分享接稿页',
     quickconfig: '快捷入口设置',

@@ -48,6 +48,8 @@ export function readQuickActionsConfig() {
 
 <template>
   <div class="quick-actions-wrap">
+    <!-- 百眼柜 → 命名说人话：分组标题「设置」（提案 §6.3） -->
+    <h3 class="quick-title">{{ $t('quickAction.title') }}</h3>
     <!-- 快捷入口网格（2026-08-07 用户反馈批：常驻虚线块并入「快速发作品」卡片；
          02B：状态卡内嵌三态滑块，直接点目标态） -->
     <div class="quick-grid">
@@ -210,22 +212,28 @@ function go(action) {
 
 <style scoped>
 /* v0.38 第二批: 纸墨 token（第一批白名单内补漏） */
+.quick-actions-wrap { display: flex; flex-direction: column; gap: 10px; }
+.quick-title {
+  margin: 0;
+  font-size: calc(var(--font-scale, 1) * 14px);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .18em;
+}
 .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .artist-scope .quick-card {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 14px 8px;
-  border: 1px solid var(--line); border-radius: var(--r-l);
+  border: none;
+  border-radius: 3px 8px 4px 9px / 8px 4px 9px 3px;   /* 手剪不规则角（同新组件） */
   background: var(--card); cursor: pointer; user-select: none;
-  transition: border-color var(--dur-mid), transform var(--dur-fast) ease-out, box-shadow var(--dur-mid);
+  box-shadow: var(--sh-1);
+  transition: background var(--dur-mid) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out);
 }
-.quick-card:hover {
-  border-color: color-mix(in srgb, var(--hq) 50%, transparent);
-  box-shadow: var(--sh-2);
-}
-.quick-card:active { transform: translateY(-2px) scale(0.98); }
+/* hover 仅背景/描边加深，无位移无缩放 */
+.quick-card:hover { background: var(--paper2); box-shadow: var(--sh-2); }
 /* 快速发作品：拖图悬停/发布中高亮（2026-08-07 用户反馈批） */
 .quick-card--publish-active {
-  border-color: var(--hq);
   background: color-mix(in srgb, var(--hq) 10%, var(--card));
   box-shadow: var(--sh-1);
 }
@@ -243,6 +251,4 @@ function go(action) {
 @media (max-width: 600px) {
   .quick-card--status { grid-column: 1 / -1; }
 }
-/* 快捷区纵向容器 */
-.quick-actions-wrap { display: flex; flex-direction: column; gap: 10px; }
 </style>
