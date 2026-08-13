@@ -228,7 +228,7 @@ export default {
     save: '保存', cancel: '取消', delete: '删除', edit: '编辑', download: '下载',
     confirm: '确认', detail: '详情', actions: '操作', remove: '移除', add: '添加', or: '或',
     saved: '保存成功', deleted: '已删除', removed: '已移除',
-    confirmDeleteTitle: '确认删除', uploadFailed: '上传失败',
+    confirmDeleteTitle: '确认删除', uploadFailed: '上传失败', copyFailed: '复制失败，请手动复制',
 loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globalError: '页面出了点小问题，请刷新重试',
     // 812-B5: Passkey 交互人话提示（浏览器不支持/被取消/验证失败）
     passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
@@ -747,7 +747,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // v0.32 REQ-023 Phase3: 多画风价格表
     styleOrderBtn: '选择此画风约稿',
     // v0.34 任务B：尺寸选中后下单引导
-    styleSizeHint: '已选 {size} · ¥{price}，点击下方按钮带此选择进入约稿'
+    styleSizeHint: '已选 {size} · ¥{price}，点击下方按钮带此选择进入约稿',
+    // 波 M：主页分块接口失败统一占位
+    sectionLoadFailed: '部分内容加载失败'
   },
   orderForm: {
     backHome: '返回主页', title: '我要约稿',
@@ -844,7 +846,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     noOrdersCountdown: '{n} 秒后可关闭',
     // A1: 我的订单列表
     myOrdersBtn: '我的订单', myOrdersTitle: '我的订单',
-    myOrdersEmpty: '该 QQ 暂无订单', myOrdersFailed: '加载订单失败，请重试',
+    myOrdersEmpty: '该 QQ 暂无订单', myOrdersFailed: '加载订单失败，请重试', searchFailed: '查询失败，请稍后重试',
     // U1: 需求回顾
     briefTitle: '需求回顾', briefRefAlt: '参考图',
     timeline: {
@@ -906,7 +908,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
     orderInfo: '订单号：{no} | 画师：{artist}', download: '下载',
-    downloadFailed: '下载失败，请重试或联系画师'
+    downloadFailed: '下载失败，请重试或联系画师', verifyFailed: '验证失败，请稍后重试'
   },
   login: {
     // REQ-040: Passkey 登录按钮

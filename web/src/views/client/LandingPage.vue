@@ -20,6 +20,7 @@
           :aria-label="artist.name"
           @click="enterArtist(artist)"
           @keyup.enter="enterArtist(artist)"
+          @keyup.space.prevent="enterArtist(artist)"
         >
           <div class="artist-avatar">
             <!-- U3: 原生 img + loading="lazy"（el-avatar 不透传 attrs 到 img，改用等价圆形头像） -->

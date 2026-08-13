@@ -44,10 +44,10 @@
 .admin-stat-card {
   border-radius: var(--r-l, 11px);
   border: 1px solid var(--line);
-  transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out;
+  transition: box-shadow var(--dur-fast);
 }
 
 .admin-stat-card:hover {
+  /* T 波移交 M：hover 禁位移——阴影加深反馈 */
   box-shadow: var(--sh-2);
-  transform: translateY(-1px);
 }

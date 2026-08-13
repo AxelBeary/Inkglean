@@ -20,7 +20,13 @@
       :pricing="pricing"
       :gallery="galleryData"
       :platforms="platforms"
+      :gallery-loading="galleryLoading"
     />
+    <!-- 波 M：分块接口失败统一占位（淡墨提示 + 重试，不整页破） -->
+    <div v-if="hasSectionErrors" class="section-error-banner" role="alert">
+      <p>{{ $t('artistHome.sectionLoadFailed') }}</p>
+      <el-button type="primary" size="small" @click="retryFailedSections">{{ $t('common.loadRetry') }}</el-button>
+    </div>
     <div v-else-if="!loading" class="empty-state">
       <p>{{ $t('artistHome.loadFailed') }}</p>
     </div>
@@ -30,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, computed, provide, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
+import { ref, reactive, computed, provide, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -53,11 +59,17 @@ const pricing = ref(null)
 // v0.35 联调：画廊数据走独立端点 GET /public/gallery/:subdomain
 // （artworks 带 size_tags/description + filterSizes 筛选档位；F6 真实数据源）
 const galleryData = ref({ artworks: [], filterSizes: [] })
+// 波 M：画廊端点请求中标记（Gallery 模板首载骨架占位用；失败/成功均复位）
+const galleryLoading = ref(true)
 // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染用；静默失败走「其他」兜底）
 const platforms = ref([])
 const loading = ref(true)
 
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
+
+// 波 M：workflow/pricing/styles/gallery/platforms 各自失败标记（统一占位 + 可重试）
+const sectionErrors = reactive({ workflow: false, pricing: false, styles: false, gallery: false, platforms: false })
+const hasSectionErrors = computed(() => Object.values(sectionErrors).some(Boolean))
 
 // #54: effectiveStatus 适配——额度耗尽时后端返回 effectiveStatus='full'，前端覆盖 status
 // 向后兼容：字段缺失时 fallback 原始 status，4 模板零改动
@@ -138,35 +150,53 @@ onMounted(async () => {
     tiers.value = data.tiers || []
     artworks.value = data.artworks || []
     rules.value = data.rules || ''
-    artistPublicApi.getWorkflow(subdomain)
-      .then(res => { workflowStages.value = res.stages || [] })
-      .catch(() => {})
-    // 加载价格数据（增项+倍率，静默失败不阻塞主页）
-    artistPublicApi.getPricing(subdomain)
-      .then(res => { pricing.value = res })
-      .catch(() => {})
-    // v0.32 REQ-023 Phase3: 加载画风列表（静默失败走旧模型兜底）
-    // v0.35 联调：sizes 已自带 image/artwork_image_path/description/work_days（F3 真实数据源），直读
-    artistPublicApi.getPublicStyles(subdomain)
-      .then(res => { styles.value = res || [] })
-      .catch(() => {})
-    // v0.35 联调 F6: 画廊专用端点（artworks 带 size_tags/description + filterSizes 筛选档位）。
-    // 静默失败 → galleryData 保持空，TplGallery 回退 artworks prop 且隐藏筛选行（向后兼容）
-    artistPublicApi.getPublicGallery(subdomain)
-      .then(res => {
-        galleryData.value = { artworks: res?.artworks || [], filterSizes: res?.filterSizes || [] }
-      })
-      .catch(() => {})
-    // REQ-022 F2: 平台列表（页脚渲染用，静默失败 → footerLinks 走「其他」兜底）
-    artistPublicApi.getPlatforms()
-      .then(res => { platforms.value = Array.isArray(res) ? res : [] })
-      .catch(() => {})
+    // 波 M：5 个分块接口并行加载，各自失败标记 + 统一占位（不整页破）
+    loadSection('workflow')
+    loadSection('pricing')
+    loadSection('styles')
+    loadSection('gallery')
+    loadSection('platforms')
   } catch (err) {
     ElMessage.error(err.message || t('artistHome.loadFailed'))
   } finally {
     loading.value = false
   }
 })
+
+/** 波 M：单个分块接口加载（成功清失败标记；失败仅标记，由占位条提供重试） */
+async function loadSection(key) {
+  sectionErrors[key] = false
+  try {
+    if (key === 'workflow') {
+      const res = await artistPublicApi.getWorkflow(subdomain)
+      workflowStages.value = res.stages || []
+    } else if (key === 'pricing') {
+      // 加载价格数据（增项+倍率，失败不阻塞主页）
+      pricing.value = await artistPublicApi.getPricing(subdomain)
+    } else if (key === 'styles') {
+      // v0.32 REQ-023 Phase3: 加载画风列表（失败走旧模型兜底）
+      // v0.35 联调：sizes 已自带 image/artwork_image_path/description/work_days（F3 真实数据源），直读
+      styles.value = (await artistPublicApi.getPublicStyles(subdomain)) || []
+    } else if (key === 'gallery') {
+      // v0.35 联调 F6: 画廊专用端点（artworks 带 size_tags/description + filterSizes 筛选档位）
+      const res = await artistPublicApi.getPublicGallery(subdomain)
+      galleryData.value = { artworks: res?.artworks || [], filterSizes: res?.filterSizes || [] }
+    } else if (key === 'platforms') {
+      // REQ-022 F2: 平台列表（页脚渲染用，失败 → footerLinks 走「其他」兜底）
+      const res = await artistPublicApi.getPlatforms()
+      platforms.value = Array.isArray(res) ? res : []
+    }
+  } catch {
+    sectionErrors[key] = true
+  } finally {
+    if (key === 'gallery') galleryLoading.value = false
+  }
+}
+
+/** 波 M：重试所有失败的分块接口（并行） */
+function retryFailedSections() {
+  Object.keys(sectionErrors).filter(k => sectionErrors[k]).forEach(loadSection)
+}
 </script>
 
 <style scoped>
@@ -179,6 +209,13 @@ onMounted(async () => {
   display: flex; align-items: center; justify-content: center;
   min-height: 50vh; color: var(--text-secondary); font-size: 16px;
 }
+/* 波 M：分块接口失败占位（淡墨提示，克制居中，不整页破） */
+.section-error-banner {
+  margin: 24px auto; max-width: 480px; padding: 16px 20px; text-align: center;
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: var(--el-border-radius-base);
+}
+.section-error-banner p { margin: 0 0 12px; color: var(--text-secondary); font-size: 13px; }
 /* UI-8: hidden 状态提示 */
 .hidden-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

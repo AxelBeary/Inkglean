@@ -66,10 +66,11 @@ const { t } = useI18n()
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 12px;
   overflow: hidden;
-  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-mid);
 }
 .style-pick:hover { box-shadow: var(--shadow-card-hover); }
-.style-pick:active { transform: translateY(-2px); }
+/* T 波移交 M：active 禁位移——位移换背景加深+阴影加深 */
+.style-pick:active { background: var(--bg-hover); box-shadow: var(--shadow-card-hover); }
 .style-pick--on { border-color: var(--color-primary); }
 .style-pick-stamp {
   position: absolute; top: 8px; right: 8px; z-index: 2;

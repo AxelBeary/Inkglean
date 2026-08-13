@@ -6,6 +6,8 @@
         type="button"
         class="tpl-gallery-filter"
         :class="{ 'tpl-gallery-filter--on': activeSizeId == null }"
+        role="tab"
+        :aria-selected="activeSizeId == null"
         @click="setFilter(null)"
       >
         {{ $t('gallery.filterAll') }}
@@ -15,6 +17,8 @@
         type="button"
         class="tpl-gallery-filter"
         :class="{ 'tpl-gallery-filter--on': activeSizeId === f.sizeId }"
+        role="tab"
+        :aria-selected="activeSizeId === f.sizeId"
         @click="setFilter(activeSizeId === f.sizeId ? null : f.sizeId)"
       >
         {{ f.label }}
@@ -631,6 +635,12 @@ function ratioStyle(art) {
 .tpl-gallery--masonry {
   columns: 2;
   column-gap: 20px;
+}
+/* 波 M：窄屏瀑布流切单列（≤480px，避免两列卡片过窄） */
+@media (max-width: 480px) {
+  .tpl-gallery--masonry {
+    columns: 1;
+  }
 }
 .tpl-gallery--masonry .tpl-gallery-item {
   break-inside: avoid;

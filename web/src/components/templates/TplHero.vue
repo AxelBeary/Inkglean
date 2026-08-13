@@ -112,7 +112,8 @@ defineExpose({ sentinelEl })
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform var(--dur-fast) cubic-bezier(0.22, 1, 0.36, 1), box-shadow var(--dur-fast) cubic-bezier(0.22, 1, 0.36, 1), background-color var(--dur-fast) cubic-bezier(0.22, 1, 0.36, 1);
+  /* T 波移交 M：内联 cubic-bezier(0.22,1,0.36,1) → --ease-out（同值 token） */
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   border: 1px solid transparent;
 }
 .tpl-btn--primary {
