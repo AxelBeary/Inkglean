@@ -97,7 +97,8 @@
       <div class="preview" v-if="rulesContent">
         <h4 class="preview-section-title">{{ $t('rules.preview') }}</h4>
         <el-card shadow="never" class="preview-card">
-          <div v-html="sanitizedRulesPreview"></div>
+          <!-- CI/CodeQL v-html 告警清零：改走统一消毒渲染入口（入参已在 Settings.vue 经 sanitizeHtml 消毒，契约在案） -->
+          <SanitizedRichText :html="sanitizedRulesPreview" />
         </el-card>
       </div>
       <el-button type="primary" style="margin-top: 16px" @click="$emit('save-rules')" :loading="rulesSaving" :disabled="rulesLoadFailed || !rulesLoaded">
@@ -141,6 +142,9 @@ const props = defineProps<{
   rulesLoaded: boolean
   sanitizedRulesPreview: string
 }>()
+
+// CI v-html 告警清零：统一消毒渲染入口（与 TplRules/ContactStep 同款）
+import SanitizedRichText from '../../shared/SanitizedRichText.vue'
 
 // 812 debug 审计修复：记住隐藏前的营业状态（open/full/break），开关打开时恢复原状，
 // 避免覆写为 'open' 导致画师丢失满单/休息中状态
