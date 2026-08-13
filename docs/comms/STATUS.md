@@ -1,5 +1,13 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最后更新：2026-08-14 v95：**1.0 围剿收官——隐患全清（P0/P1 全修+GitHub 安全告警清零）；终态门禁 server 1401 / web 496 / E2E 11；master 已推**
+> ✅ **围剿七波全部合入（逐波一号独立复跑门禁，非 self-report）**：①d1-P2 后端加固（TOTP 计数原子/重绑限流+重放/退款原子/终态收款守卫/交付文件存在性/备注事务，含一号补两处旧用例漏账）②a1 竞态+b5 键盘可达性（15 处 seq 守卫+P0/P1 a11y，新增 11 防再犯测试，其中 4 件返工后归零）③P1-A 前端汇总（b1×22+b4×14，todayStr/passkeyCreateFlow/slideConfirm/pageCard 单源化+魔数常量+CSS token 化+i18n 键化，check-i18n 豁免 9→4；一号验收补 6 处测试侧）④P1-B（b2×3 四模板重复收敛 TplPricingSection/TplShowcase/TplGuestbook theme+b3×7 管理后台三态/确认/390px，返工单修 16 例 i18n mock）⑤d1-F5/F7（orders 全写路径 version 链连通+发布作品幂等 v62 部分唯一索引）⑥V1 部署链路 P0 加固（备份 VERIFY/迁移回读 fail-fast/冒烟清单制/prev tag+rollback.ps1/setup.sh 超时不假成功/发布前置门禁；沙箱拒写两文件一号补落）⑦V3 注释×3+文案 P1×16。
+> ✅ **d1-F1 客户侧弱双因子根治（用户拍板：最安全+客户最方便，无存量包袱）**：客户访问令牌化——下单发高熵令牌（哈希入库，明文仅一次下发）、track/delivery/lookup 凭令牌常量时间校验（错误同形 404）、my 端点退役 410、画师端重新生成令牌补发、迁移 v63；客户端成功页链接+复制+二维码、TrackOrder 链接直达+本地清单、画师订单详情补发按钮；E2E 适配（订单号 CODE-xxx 保留人类友好，安全由令牌承担——裁决在案）。
+> ✅ **GitHub 安全清零**：Dependabot 3 PR 合入（dompurify 3.4.13 富文本消毒防线/fast-uri 3.1.5 GHSA-7p8r-x3mc-p8w7/brace-expansion 5.0.9）+ nanoid 3.3.18 overrides（GHSA-2v37-7h3g-55p8，vite→postcss 传递依赖）；open alerts 4→0，PR 自动关闭。**遗留备忘：仓库名仍为 Brushline-HuiYue（旧品牌），是否改名待用户拍板**。
+> ✅ **终态门禁（master 实测）**：server **1401/1401**（114 文件）· web **496/496**（72 文件）· E2E **11/11**（18.8s，两处 strict 适配：e2 锚 my-order-no/e5 限 el-button）· lint 0 错 · check-i18n（豁免 4）· build 0；accept-baseline.json 已同步（1369→1401 / 436→496）。
+> 📋 **P2 汇总（~180 条，按纪律不修只报）**：原始清单在 workspace/temp/hunt-{a1,a2,a3,b1,b2,b3,b4,b5,c1,d1,d2,d3,t1,t2,v1,v2,v3}-codex.log 各报告尾部，1.0 后按需排期。
+> 🧊 **环境**：master 干净已推；worktree 待清（813-hunt-* 五路+813-fq-* 四路历史）；容器尚未重建（F1 令牌化/V1 脚本/依赖升级未进生产，下次重建即含——V1 新脚本首实战）。
+
 > 最新更新：2026-08-13 v94：**前端质量全面战役开工（用户拍板）：三路审计 197 条 / P0 三条全修 / 三波合入 / 视觉批 P1 上 master；容器重建+浏览器冒烟待下轮**——master `dd99316` 待推送。
 > ✅ **战役结构**：施工图两份落档——docs/comms/前端质量战役-施工图-20260813.md（五波：审计/动效 token/三态交互/视觉纸墨化/TS 死码）+ docs/comms/视觉批-Dashboard纸墨化-施工图-20260813.md（模块映射/响应式三档/分期/验收口径）。杂活走 codex 无头不限量，审美决策一号亲做。
 > ✅ **波1 审计（三路只读无头）**：A 画师后台 81 条（P1 33/P2 48）、B 客户端 53 条（P0 1/P1 13/P2 39）、C 管理后台+共享 63 条（P0 2/P1 14/P2 47），合计 197。原始清单 workspace/temp/813-fq-audit-{A,B,C}-codex.log。最大簇=「加载失败静默吞掉」约 20 处。
