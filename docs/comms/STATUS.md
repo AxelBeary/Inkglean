@@ -30,12 +30,12 @@
 > ✅ **围剿 T2 死码清完**：37 个零引用 i18n 死键（zh/en 同步逐键唯一性保护）+getBoundTotpSecret/getAdminActions+AdminActionRow 孤儿类型/.tpl-atelier-card/.btn-pri-ink 死 CSS（全验零引用，7348747/d712c1c）。
 > ✅ **围剿 d1-F2 P1 修复**：rebind-confirm passkey 补凭据归属校验（expectedArtistId 此前 undefined，任意 passkey 可冒充重绑致 2FA 锁定 DoS；我 a1 修复的残留缺口，681fdbc）。
 > ⚠️ **待用户拍板（威胁模型）**：d1-F1 客户侧弱双因子（QQ+订单号可枚举，知 QQ 可拉订单列表/收款明细/交付物签名 URL）。修复需产品决策：订单号加不可枚举随机段或客户访问令牌化；若 QQ 视为非秘密则升 P0。
-> 🔜 **围剿三波并行在途**（2026-08-13）：①b5-P0 键盘可达性修复（a11y P0×15+P1×17，worktree 813-fq-b5a11y）②d1-P2 后端加固（F3 计数原子/F4 退款事务/F6 试探限流/F8 交付存校/F9 终态收款/F10 备注事务，worktree 813-fq-d1p2）③V2 文档修复（README/使用说明书/维护说明书/品牌名/基线数字，worktree 813-fq-v2docs）。
-> 🔜 **围剿剩余**：前端 P1 汇总波（a1×16 竞态/b1×22/b2×3/b3×7/b4×14）；d1-F5 version 覆盖/F7 发布幂等（独立波）；P2 汇总给用户（~180 条）。
+> 🔜 **围剿四波并行在途**（2026-08-13）：①b5-P0 键盘可达性（813-fq-b5a11y）②d1-P2 后端加固（813-fq-d1p2）③V2 文档修复（813-fq-v2docs）④a1 竞态/边界修复（813-fq-a1race，#16 GreetingNote 已一号亲修 6794abc，余 15 条）。
+> 🔜 **围剿剩余**：前端 P1 汇总波（b1×22/b2×3/b3×7/b4×14，待 a1 合入后排）；d1-F5 version 覆盖/F7 发布幂等（独立波）；P2 汇总给用户（~180 条）。
 > 🔴 **1.0 发版前围剿阶段开工**（2026-08-13 用户授权无限派工）：①线二质量围剿——12+2 路 codex 只读猎杀并行派出（A1-A3 Bug 猎杀/B1-B3 屎山检测/B4 i18n/B5 a11y/C1 前端安全/D1-D3 后端三视角/T1 工具箱 19 工具功能专查/T2 死键死码技术债深查），产出「文件:行号:问题:严重度:建议」清单，P0/P1 发现即修+复跑门禁，P2 汇总给用户；日志 workspace/temp/hunt-*-codex.log。②线一体验增量——E1-E15 清单已落档 docs/comms/1.0体验增量探索清单-待拍板-20260813.md，等用户拍板（建议 1.0 携带 P1 集：E1 卷轴浮层/E2 已排满牌/E3 节点动词/E7 QueueBoard 卷轴化/E8 工具抽屉/E14 管理搜索）。
 > ✅ **旁路报告 Passkey 二次验证 500 修复**（逐条核实属实后修）：step-up passkey 拼装漏 rawId/type 致 verifyAuthenticationResponse 首道检查必抛错→裸 500；补字段+验证库非受控异常兜 401（防裸 500 穿透）；防再犯 TC-SU-04b（拼装形状断言走真实拼装路径，直击漏点）/TC-SU-04c（库异常 401）两用例；顺带暴露同进程多用例共享限流窗口干扰问题，加 resetRateLimitBuckets 测试函数；server 1369/1369 全绿已推（52abed6）。教训：mock 掉关键依赖的测试必须补参数形状断言。
 > ✅ **尾巴清收（战役零留账）**：①getProfile 四处重复请求改 in-flight 去重共享（useArtistPublicProfile.ts，只做并发期 Promise 共享，无长期缓存、paletteId 时序不变）；②v-html 抽 SanitizedRichText 统一渲染入口（lang=ts，消毒契约注释在案，TplRules/ContactStep 改用，消除散落 eslint-disable）。复验 lint 0 错回基线 1 已知警告/436/436/build 0。**至此战役无挂起项，主体+尾巴全部收官**，等用户终验。
-> 🧊 **环境**：master 干净已推（ccf51a8）；全部 worktree 已清理；容器 Healthy（尾巴重构+passkey 修复尚未进容器，下次重建即含，passkey 修复建议尽快重建生效）；基线 server 1369/web 436/E2E 11。
+> 🧊 **环境**：master 干净已推（c37a6b67）；全部 worktree 已清理；容器 Healthy（尾巴重构+passkey 修复尚未进容器，下次重建即含，passkey 修复建议尽快重建生效）；基线 server 1369/web 436/E2E 11。
 
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
 > ✅ **812 四波合入（逐路独立复跑门禁验收，非 self-report）**：①hardening：CodeQL 16 条裁决（7 修/4 顺手/5 驳回）落地——CI 最小权限块、sanitize 循环清洗防嵌套绕过、OG 域名线性去斜杠、uid 换 randomUUID + v50/v52 迁移回读测试（TC-MV-04~10，审计缺口④销账）；②e2e：e7 登录 UI 旅程（渲染/错误码/全链路落地）+ e8 Passkey 虚拟验证器（注册→登出→免密登录，counter 恒 0 豁免链路），**E2E 7→11**；③tools-a：报价单/改稿计数/压图改尺寸；④tools-b：价目卡/交付清单/定金台账（提案落档 docs/comms/新工具提案-6项-重建落档-20260812.md，后三项为重建项已标注；①④是 REQ-014 F4/F3 先行简版，桌面端开工时升级共享组件）。**验收中一号抓出并修**：tools-a 三处测试侧问题（i18n mock 接真实 locale、重挂载补 tick——探针证明产品代码无碍）、toolbox.js 两波冲突手工归位（19 工具四分类）。
