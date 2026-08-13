@@ -23,9 +23,11 @@
 > ✅ **E2E 终验 11/11 全绿**（20.6s，战役全量改动后首跑：下单/查进度/推节点/管理端/金钱链路/登录旅程/Passkey 全通）。
 > ✅ **收尾波 T 合入**（813-fq-tail-anim，20 文件 +230/-95）：12 处 hover/active 去位移、tl-pulse 循环改一次性+reduced-motion 豁免、状态徽标去光晕、like-pop 克制；fade-slide/TplGallery/AdminLayout/useLocaleSwitch（oncancel 防 busy 卡死）token 化；列表增删 TransitionGroup+TrackOrder fade；豁免 6 项原值保留注释在案；另自查发现 5 处清单外漏项已移交波 M。验收 436/436/build 0。
 > ✅ **收尾波 S 合入**（813-fq-tail-shared，18 文件）：管理后台断点统一 900/600 两档+侧栏尺寸抽 CSS 变量；画师管理/举报管理操作列 ≤760px 图标化防挤压；setup.js 文案/money.js 单位字（4 调用方同步）/image-resize 错误码化/accent 五色收拢 theme.css 单源；i18n 中英成对。与波 T 在 AdminDashboard.vue 冲突一处已解（保 T 波留言网格列表+采 S 波 900px 断点）；验收 436/436/build 0。留账：Settings.vue:185-189 另有一处 accent 副本待清。
-> 🔜 **在途**：813-fq-tail-logic（波 M，12 项，codex 施工中）。
-> 🔜 **待办**：波 M 验收合入→容器重建+三域终局截图交用户终验→战役收官。
-> 🧊 **环境**：master 干净已推（ae16bd5d+）；全部 worktree 已清理；容器 Healthy（新构建，含公告行+P2 全部）；E2E 11/11 基线未动。
+> ✅ **收尾波 M 合入**（813-fq-tail-logic，16 文件 +251/-128）：客户端三态散项（ArtistHome 5 接口失败占位+重试/TrackOrder+DeliveryPage 页内错误态/复制失败统一 copyFailed/Gallery 去重复分页请求+补骨架）+a11y（空格键/tab 语义/≤480 单列）+useTouchSwipe.ts 抽公共（B 路最后一个 P1）+波 T 移交漏项清违。**一号验收抓错并亲修**：波 M 给 v-show 步骤面板包 Transition 无效且破 10 例测试——撤包装改 class 重触发淡入（opacity 单属性+reduced-motion 豁免），测试还原，复验 436/436/build 0。
+> ✅ **战役终验**：容器重建（Healthy/v61/200，终态构建）；三域浏览器冒烟 12 帧自审过（dashboard 公告行/模块开关 3 帧+客户端/管理后台 9 帧，归档 fq-batch/）；**E2E 终态复跑 11/11 全绿（18.4s）**。战役主体收官，等用户终验。
+> 🔜 **待用户终验**：打开 https://localhost 看新看板（问候贴纸/挂牌/卷轴/账本+公告行+偏好设置模块开关）；战役总结账 docs/comms/前端质量战役-总结账-20260813.md。
+> 🔜 **尾巴（不阻塞终验）**：挂起两项低风险（getProfile 多页重复请求 composable 化涉 palette 时序/v-html 抽组件收益低）；E2E 基线 11 未动。
+> 🧊 **环境**：master 干净已推（a15b96d1+）；全部 worktree 已清理；容器 Healthy（终态构建，含战役全部改动）；基线 server 1367/web 436/E2E 11。
 
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
 > ✅ **812 四波合入（逐路独立复跑门禁验收，非 self-report）**：①hardening：CodeQL 16 条裁决（7 修/4 顺手/5 驳回）落地——CI 最小权限块、sanitize 循环清洗防嵌套绕过、OG 域名线性去斜杠、uid 换 randomUUID + v50/v52 迁移回读测试（TC-MV-04~10，审计缺口④销账）；②e2e：e7 登录 UI 旅程（渲染/错误码/全链路落地）+ e8 Passkey 虚拟验证器（注册→登出→免密登录，counter 恒 0 豁免链路），**E2E 7→11**；③tools-a：报价单/改稿计数/压图改尺寸；④tools-b：价目卡/交付清单/定金台账（提案落档 docs/comms/新工具提案-6项-重建落档-20260812.md，后三项为重建项已标注；①④是 REQ-014 F4/F3 先行简版，桌面端开工时升级共享组件）。**验收中一号抓出并修**：tools-a 三处测试侧问题（i18n mock 接真实 locale、重挂载补 tick——探针证明产品代码无碍）、toolbox.js 两波冲突手工归位（19 工具四分类）。
