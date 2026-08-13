@@ -218,7 +218,7 @@ onUnmounted(() => {
 .folio {
   min-height: 100vh;
   background: var(--pal-bg);
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 
 /* F3: Hero wrapper — 公告内联于分屏左栏（左文字区底部，简介/按钮之下，首屏可见） */
@@ -269,7 +269,7 @@ onUnmounted(() => {
   color: var(--pal-text-dim);
   text-decoration: none;
   font-size: 14px;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
   position: relative;
 }
 .folio-nav-link:hover,
@@ -294,7 +294,7 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--dur-mid);
 }
 .folio-nav-cta:hover:not(:disabled) {
   background: var(--color-primary-hover);
@@ -316,7 +316,7 @@ onUnmounted(() => {
   width: 22px;
   height: 2px;
   background: var(--pal-text);
-  transition: 0.3s;
+  transition: var(--dur-slow);
 }
 
 /* ===== 区块 ===== */
@@ -376,7 +376,7 @@ onUnmounted(() => {
   font-size: 15px;
   font-family: inherit;
   resize: vertical;
-  transition: border-color 0.2s;
+  transition: border-color var(--dur-mid);
 }
 .folio-guestbook :deep(.gb-input:focus),
 .folio-guestbook :deep(.gb-textarea:focus) {
@@ -398,7 +398,7 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity var(--dur-mid);
 }
 .folio-guestbook :deep(.gb-submit:hover:not(:disabled)) { opacity: 0.85; }
 .folio-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
@@ -441,7 +441,7 @@ onUnmounted(() => {
   text-decoration: underline;
   text-underline-offset: 4px;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
 }
 .folio-guestbook :deep(.gb-load-more:hover:not(:disabled)) { color: var(--pal-text); }
 .folio-guestbook :deep(.gb-no-more) { font-size: 12px; color: var(--pal-text-dim); margin-top: 12px; }
@@ -478,7 +478,7 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
+  transition: background var(--dur-mid), transform var(--dur-mid);
 }
 .folio-cta-btn:hover:not(:disabled) {
   background: var(--color-primary-hover);
@@ -513,7 +513,7 @@ onUnmounted(() => {
   color: var(--pal-text-dim);
   text-decoration: none;
   font-size: 13px;
-  transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.2s;
+  transition: color var(--dur-mid), border-color var(--dur-mid), background var(--dur-mid), transform var(--dur-mid);
 }
 .folio-link:hover {
   color: var(--color-primary);
@@ -535,7 +535,7 @@ onUnmounted(() => {
   line-height: 1;
   flex-shrink: 0;
   color: var(--pal-text);
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color var(--dur-mid), background var(--dur-mid);
 }
 .folio-link:hover .folio-link-badge {
   border-color: var(--color-primary);
@@ -561,7 +561,7 @@ onUnmounted(() => {
     background: var(--pal-surface);
     border-bottom: 1px solid var(--pal-border);
     transform: translateY(-120%);
-    transition: transform 0.3s;
+    transition: transform var(--dur-slow);
   }
   .folio-nav-links.open {
     transform: translateY(0);

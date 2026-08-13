@@ -61,7 +61,7 @@ defineProps({
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.2s, transform 0.2s;
+  transition: background var(--dur-mid), transform var(--dur-mid);
 }
 .tpl-sticky-btn:hover:not(:disabled) {
   background: var(--color-primary-hover);

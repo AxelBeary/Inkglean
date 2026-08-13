@@ -481,7 +481,7 @@ const {
   background: var(--card);
   padding: 4px;
   display: flex; flex-direction: column; gap: 3px;
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .cal-cell--other { opacity: 0.4; background: transparent; }
 .cal-cell--weekend { background: color-mix(in srgb, var(--paper2) 70%, var(--card)); }
@@ -522,7 +522,7 @@ const {
   padding: 6px 10px;
   border: 1px solid var(--line); border-radius: var(--r-m);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 .cal-day-item:hover { border-color: var(--hq); background: var(--hq-t); }
 .cal-day-item-band {
@@ -546,7 +546,7 @@ const {
   border-radius: 4px;
   font-size: calc(var(--font-scale, 1) * 11px); line-height: 1.4;
   cursor: pointer;
-  transition: filter 0.15s;
+  transition: filter var(--dur-fast);
   overflow: hidden;
 }
 .cal-band:hover { filter: brightness(1.08); }
@@ -692,7 +692,7 @@ const {
   border-radius: 4px; cursor: pointer;
   display: flex; align-items: center;
   padding: 0 6px; overflow: hidden;
-  transition: filter 0.15s;
+  transition: filter var(--dur-fast);
   touch-action: none; /* 重做：移动端拖拽改期不被浏览器滚动接管 */
 }
 .tl-bar:hover { filter: brightness(1.1); }
@@ -718,7 +718,7 @@ const {
   width: 2px; border-radius: 1px;
   background: rgba(255, 255, 255, 0.85);
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity var(--dur-fast);
 }
 .tl-handle--start::after { left: 3px; }
 .tl-handle--end::after { right: 3px; }

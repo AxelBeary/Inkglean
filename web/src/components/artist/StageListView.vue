@@ -268,7 +268,7 @@ function onTogglePay(s, val) {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px; border-radius: var(--r-m);
   background: var(--card); border: 1px solid var(--line);
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
 }
 .stage-row:hover { border-color: var(--hq); }
 /* 终态节点：赭石=客户/完结语义（原 color-gold） */
@@ -283,7 +283,7 @@ function onTogglePay(s, val) {
   cursor: pointer; padding: 2px 4px; border-radius: var(--r-s);
 }
 .stage-desc:hover { background: var(--hq-t); }
-.stage-desc.empty { color: var(--ink3); opacity: 0; transition: opacity 0.15s; font-style: italic; }
+.stage-desc.empty { color: var(--ink3); opacity: 0; transition: opacity var(--dur-fast); font-style: italic; }
 .stage-row:hover .stage-desc.empty { opacity: 0.7; }
 .desc-input { flex: 1; min-width: 0; }
 .stage-pay {
@@ -319,7 +319,7 @@ function onTogglePay(s, val) {
   padding: 8px 10px;
   border-radius: var(--r-m);
   background: var(--paper2);
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 /* #8: 折叠态更紧凑 */
 .stage-speech--collapsed { padding: 4px 10px; }
@@ -343,7 +343,7 @@ function onTogglePay(s, val) {
   font-size: calc(var(--font-scale, 1) * 11px); padding: 1px 6px; border-radius: var(--r-s);
   background: var(--hq-t);
   color: var(--hq); border: 1px solid transparent;
-  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  cursor: pointer; transition: border-color var(--dur-fast), background var(--dur-fast);
   line-height: 1.6;
 }
 .speech-var:hover { border-color: var(--hq); background: color-mix(in srgb, var(--hq) 14%, transparent); }

@@ -174,7 +174,7 @@ onMounted(() => {
   background: var(--paper2);
   border: 1px solid var(--line);
   border-radius: var(--r-l);
-  transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+  transition: border-color var(--dur-mid) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out);
 }
 .rc-card--over { border-color: var(--zs); box-shadow: var(--sh-1); }
 
@@ -199,7 +199,8 @@ onMounted(() => {
   color: var(--ink2);
   font-size: 13px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background-color 0.35s, transform 0.15s ease-out;
+  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
+  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .rc-mini-btn:hover:not(:disabled) { border-color: var(--hq); color: var(--hq); }
 .rc-mini-btn:active:not(:disabled) { transform: scale(0.98); }

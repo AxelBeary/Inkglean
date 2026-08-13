@@ -183,7 +183,7 @@ onMounted(async () => {
   100% { opacity: 1; transform: none; filter: blur(0); }
 }
 /* 换句淡入（greetKey 变化触发重渲染） */
-.g-text.swap-in { animation: greet-fade-in .25s ease both; }
+.g-text.swap-in { animation: greet-fade-in var(--dur-mid) var(--ease-out) both; }
 @keyframes greet-fade-in {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: none; }

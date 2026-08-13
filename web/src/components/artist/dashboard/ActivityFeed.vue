@@ -74,7 +74,7 @@ onMounted(() => load())
 .activity-item {
   display: flex; gap: 10px; padding: 8px 4px;
   border-radius: var(--r-m); cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 .activity-item:hover { background: var(--sb-hover); }
 .activity-dot {

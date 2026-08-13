@@ -571,7 +571,7 @@ async function login() {
   font-size: calc(var(--font-scale, 1) * 12px);
   letter-spacing: 1px;
   color: var(--ink3);
-  transition: color 0.2s ease;
+  transition: color var(--dur-mid) var(--ease-out);
 }
 
 .field:focus-within .field-label { color: var(--hq); }
@@ -592,7 +592,7 @@ async function login() {
   font-size: calc(var(--font-scale, 1) * 16px);
   color: var(--ink);
   caret-color: var(--hq);
-  transition: background-size 0.35s var(--ease-out);
+  transition: background-size var(--dur-slow) var(--ease-out);
 }
 
 .field-input::placeholder { color: var(--ink3); }
@@ -637,7 +637,7 @@ async function login() {
   font-family: inherit;
   font-size: calc(var(--font-scale, 1) * 14px);
   cursor: pointer;
-  transition: background-color 0.15s, box-shadow 0.15s;
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .passkey-btn:hover:not(:disabled) {
   background: var(--hq-bg);
@@ -685,7 +685,7 @@ async function login() {
   letter-spacing: 4px;
   text-indent: 4px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--dur-mid) var(--ease-out);
 }
 
 :global(html[data-artist-theme='ink'] .login-btn) { color: #171611; }
@@ -729,7 +729,7 @@ async function login() {
   margin: 16px 0 0;
   font-size: calc(var(--font-scale, 1) * 13px);
   line-height: 1.6;
-  animation: note-in 0.3s var(--ease-out);
+  animation: note-in var(--dur-slow) var(--ease-out);
 }
 
 .notice-error { color: var(--zs); }
@@ -763,7 +763,7 @@ async function login() {
   color: var(--ink2);
   cursor: pointer;
   text-align: center;
-  transition: color 0.2s ease;
+  transition: color var(--dur-mid) var(--ease-out);
 }
 
 .help-toggle:hover { color: var(--ink); }
@@ -793,7 +793,7 @@ async function login() {
   overflow: hidden;
   min-height: 0;
   opacity: 0;
-  transition: opacity 0.28s ease;
+  transition: opacity 0.28s var(--ease-out);
   font-size: calc(var(--font-scale, 1) * 12px);
   color: var(--ink2);
   line-height: 1.8;
@@ -821,7 +821,7 @@ async function login() {
   font-size: calc(var(--font-scale, 1) * 13px);
   color: var(--hq);
   cursor: pointer;
-  transition: background-color 0.15s, box-shadow 0.15s;
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .invite-entry:hover {
   background: var(--hq-bg);
@@ -840,7 +840,7 @@ async function login() {
   background: var(--card);
   border-radius: var(--r-paper);
   overflow-y: auto;
-  animation: note-in 0.3s var(--ease-out);
+  animation: note-in var(--dur-slow) var(--ease-out);
 }
 .invite-overlay-inner { padding: 34px 44px 40px; }
 .invite-back {
@@ -854,7 +854,7 @@ async function login() {
   font-size: calc(var(--font-scale, 1) * 12px);
   color: var(--ink2);
   cursor: pointer;
-  transition: color 0.15s;
+  transition: color var(--dur-fast);
 }
 .invite-back:hover { color: var(--ink); }
 .invite-title {

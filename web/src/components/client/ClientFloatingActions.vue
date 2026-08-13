@@ -24,7 +24,7 @@ defineProps({
   background: var(--bg-card);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  transition: box-shadow 0.2s, bottom 0.3s;
+  transition: box-shadow var(--dur-mid), bottom var(--dur-slow);
 }
 .client-fab:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); }
 .client-fab--raised { bottom: 72px; }

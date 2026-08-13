@@ -124,7 +124,7 @@ function onExceed() {
   color: var(--text-secondary);
   cursor: help;
   vertical-align: middle;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
 }
 .ref-tip-icon:hover { color: var(--color-primary); }
 
@@ -136,7 +136,7 @@ function onExceed() {
   padding: 5px 14px; font-size: 13px; cursor: pointer;
   background: var(--bg-card); color: var(--text-secondary);
   border: 1px dashed var(--border-color-strong); border-radius: 999px;
-  transition: transform 0.15s ease, color 0.2s, border-color 0.2s, background 0.2s;
+  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-mid), border-color var(--dur-mid), background var(--dur-mid);
 }
 .inspire-tag:hover {
   color: var(--color-primary); border-color: var(--color-primary);

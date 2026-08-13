@@ -49,9 +49,9 @@ function toolsOf(catKey: string) {
   padding: 8px 10px; border-radius: var(--r-m);
   color: var(--ink2); text-decoration: none;
   font-size: calc(var(--font-scale, 1) * 13px);
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
 }
 .tool-link:hover { background: var(--paper2); color: var(--ink); }
-.tool-link-icon { font-size: calc(var(--font-scale, 1) * 16px); color: var(--ink3); flex: none; transition: color 0.15s; }
+.tool-link-icon { font-size: calc(var(--font-scale, 1) * 16px); color: var(--ink3); flex: none; transition: color var(--dur-fast); }
 .tool-link:hover .tool-link-icon { color: var(--hq); }
 </style>

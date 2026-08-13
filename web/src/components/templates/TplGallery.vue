@@ -458,7 +458,7 @@ function ratioStyle(art) {
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  transition: border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out), background-color var(--dur-mid) var(--ease-out);
 }
 .tpl-gallery-filter:hover {
   border-color: var(--color-primary);
@@ -480,7 +480,7 @@ function ratioStyle(art) {
 /* 筛选切换淡出淡入 */
 .tpl-gallery-swap-enter-active,
 .tpl-gallery-swap-leave-active {
-  transition: opacity 0.22s ease;
+  transition: opacity 0.22s var(--ease-out);
 }
 .tpl-gallery-swap-enter-from,
 .tpl-gallery-swap-leave-to {
@@ -556,7 +556,7 @@ function ratioStyle(art) {
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
 }
 .tpl-album-arrow:hover:not(:disabled) {
   border-color: var(--color-primary);
@@ -578,7 +578,7 @@ function ratioStyle(art) {
   opacity: 0.5;
   cursor: pointer;
   overflow: hidden;
-  transition: opacity 0.25s ease;
+  transition: opacity var(--dur-mid) var(--ease-out);
 }
 .tpl-album-peek:hover { opacity: 0.85; }
 .tpl-album-peek-img {
@@ -592,7 +592,7 @@ function ratioStyle(art) {
 /* 切页过渡：淡入 + 微位移（克制，不做翻页翻转） */
 .tpl-album-swap-enter-active,
 .tpl-album-swap-leave-active {
-  transition: opacity 0.28s ease, transform 0.28s ease;
+  transition: opacity 0.28s var(--ease-out), transform 0.28s var(--ease-out);
 }
 .tpl-album-swap-enter-from {
   opacity: 0;
@@ -733,7 +733,7 @@ function ratioStyle(art) {
   font-size: 14px;
   color: var(--pal-text-dim);
   flex-shrink: 0;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
 }
 .tpl-gallery-like:hover { color: var(--color-primary); }
 
@@ -747,7 +747,7 @@ function ratioStyle(art) {
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
 }
 .tpl-gallery-tag:hover {
   background: #fff;
@@ -787,7 +787,7 @@ function ratioStyle(art) {
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
 }
 .tpl-lb-arrow:hover {
   border-color: var(--color-primary);

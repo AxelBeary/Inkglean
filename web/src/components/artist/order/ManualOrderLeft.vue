@@ -267,7 +267,7 @@ defineExpose({ reset })
   padding: 16px;
   background: var(--paper2);
   margin-bottom: 20px;
-  transition: border-color 0.2s;
+  transition: border-color var(--dur-mid);
 }
 .mo-ref-section:hover, .mo-ref-section:focus-within {
   border-color: var(--hq);
@@ -280,7 +280,7 @@ defineExpose({ reset })
 }
 .ref-tip-icon {
   color: var(--ink3); cursor: help;
-  vertical-align: middle; transition: color 0.2s;
+  vertical-align: middle; transition: color var(--dur-mid);
 }
 .ref-tip-icon:hover { color: var(--hq); }
 .mo-ref-upload :deep(.el-upload--picture-card) {

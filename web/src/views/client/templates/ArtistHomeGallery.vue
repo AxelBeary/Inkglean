@@ -192,7 +192,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 .gallery {
   min-height: 100vh;
   background: var(--pal-bg);
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 
 /* F3: Hero wrapper (relative container for announcement overlay) */
@@ -297,7 +297,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   font-family: inherit;
   letter-spacing: 0.03em;
   resize: vertical;
-  transition: border-color 0.25s;
+  transition: border-color var(--dur-mid);
 }
 .gallery-guestbook :deep(.gb-input:focus),
 .gallery-guestbook :deep(.gb-textarea:focus) {
@@ -319,7 +319,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   letter-spacing: 0.15em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.25s, color 0.25s;
+  transition: background var(--dur-mid), color var(--dur-mid);
 }
 .gallery-guestbook :deep(.gb-submit:hover:not(:disabled)) { background: var(--pal-text); color: var(--pal-bg); }
 .gallery-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
@@ -363,7 +363,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   letter-spacing: 0.15em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: border-color 0.25s, color 0.25s;
+  transition: border-color var(--dur-mid), color var(--dur-mid);
 }
 .gallery-guestbook :deep(.gb-load-more:hover:not(:disabled)) { border-color: var(--pal-text); color: var(--pal-text); }
 .gallery-guestbook :deep(.gb-no-more) { text-align: center; font-size: 11px; letter-spacing: 0.1em; color: var(--pal-text-dim); margin-top: 16px; }
@@ -396,7 +396,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  transition: color var(--dur-mid), border-color var(--dur-mid), background var(--dur-mid);
 }
 .gallery-link:hover {
   color: var(--color-primary);
@@ -415,7 +415,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   line-height: 1;
   flex-shrink: 0;
   color: var(--pal-text);
-  transition: border-color 0.2s;
+  transition: border-color var(--dur-mid);
 }
 .gallery-link:hover .gallery-link-badge { border-color: var(--color-primary); }
 

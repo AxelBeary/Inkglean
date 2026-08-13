@@ -261,7 +261,7 @@ onMounted(() => load())
   overflow: hidden; white-space: nowrap; z-index: 1;
   background: var(--paper2); border: 1px solid var(--line); border-left: 3px solid var(--hq);
   color: var(--ink2);
-  transition: background .15s ease, box-shadow .15s ease;
+  transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .tl-bar:hover { background: var(--card); box-shadow: var(--sh-1); }
 .tl-wip { border-left-color: var(--hq); }

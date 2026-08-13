@@ -464,7 +464,7 @@ onUnmounted(() => {
   min-height: 100vh;
   background: var(--pal-bg, var(--bg-page));
   padding: 16px;
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
   position: relative;
 }
 /* 打磨批 C：调深输入框 placeholder——EP 默认 #a8abb2 白底约 2.5:1，
@@ -526,7 +526,7 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .my-order-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 12px; border-radius: 8px; cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 .my-order-item:hover { background: var(--el-fill-color-light); }
 .my-order-no { font-weight: 600; color: var(--text-primary); }

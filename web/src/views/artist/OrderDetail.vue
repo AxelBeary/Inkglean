@@ -678,7 +678,7 @@ onUnmounted(() => {
   padding: 12px 16px; border-radius: var(--r-m);
   background: var(--th-t);
   border: 1px solid color-mix(in srgb, var(--th) 45%, transparent);
-  cursor: pointer; transition: background 0.15s;
+  cursor: pointer; transition: background var(--dur-fast);
 }
 .next-due-banner:hover { background: color-mix(in srgb, var(--th) 18%, transparent); }
 .next-due-text { flex: 1; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--th); }

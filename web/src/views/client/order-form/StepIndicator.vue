@@ -75,7 +75,7 @@ const { t } = useI18n()
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color var(--dur-mid), background var(--dur-mid);
 }
 .preselect-banner-btn:hover {
   border-color: var(--color-primary);
@@ -88,7 +88,7 @@ const { t } = useI18n()
   font-weight: 700; font-size: 14px;
   border: 2px solid var(--border-color-strong);
   color: var(--text-muted); background: var(--bg-card);
-  transition: transform 0.15s ease, background 0.2s, border-color 0.2s, color 0.2s;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-mid), border-color var(--dur-mid), color var(--dur-mid);
 }
 .step-dot--active {
   border-color: var(--color-primary); color: var(--color-primary);
@@ -97,12 +97,12 @@ const { t } = useI18n()
 .step-dot--done {
   background: var(--color-primary); border-color: var(--color-primary); color: #fff;
 }
-.step-label { font-size: 13px; color: var(--text-muted); transition: color 0.2s; }
+.step-label { font-size: 13px; color: var(--text-muted); transition: color var(--dur-mid); }
 .step-label--on { color: var(--text-primary); font-weight: 600; }
 .step-connector {
   width: 48px; height: 2px; margin: 0 10px;
   background: var(--border-color-strong);
-  transition: background 0.3s;
+  transition: background var(--dur-slow);
 }
 .step-connector--done { background: var(--color-primary); }
 

@@ -125,7 +125,7 @@ function downloadReport() {
 .health-card {
   border-radius: var(--r-l, 11px);
   border: 1px solid var(--line);
-  transition: box-shadow .15s, border-color .15s;
+  transition: box-shadow var(--dur-fast), border-color var(--dur-fast);
 }
 .health-card--ok:hover { box-shadow: var(--sh-2); }
 .health-card--warn { border-left: 3px solid var(--th); }
@@ -145,7 +145,7 @@ function downloadReport() {
 .health-card :deep(.el-card__body) { padding: var(--sp-4, 16px); }
 .health-name { font-weight: 700; color: var(--ink); flex: none; }
 .health-summary { margin-left: auto; font-size: 13px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
-.health-caret { color: var(--ink3); font-size: 14px; flex: none; transition: transform 0.15s ease-out; }
+.health-caret { color: var(--ink3); font-size: 14px; flex: none; transition: transform var(--dur-fast) ease-out; }
 .health-caret--open { transform: rotate(180deg); }
 
 /* 详情面板（跟随主题底色，不硬编码白底灰字） */

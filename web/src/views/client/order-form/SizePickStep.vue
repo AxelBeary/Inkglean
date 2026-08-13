@@ -78,7 +78,7 @@ const { t } = useI18n()
   padding: 14px 18px; cursor: pointer;
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 10px;
-  transition: border-color 0.2s, box-shadow 0.15s ease;
+  transition: border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out);
 }
 .size-pick:hover { border-color: var(--color-primary-light-5); }
 .size-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }

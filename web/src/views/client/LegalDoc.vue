@@ -56,7 +56,7 @@ const sections = computed(() =>
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
-  transition: background 0.3s, color 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换——前景/背景不同步插值会致对比度塌陷（灰沼） */
 }
 .legal-header {
   padding: 48px 24px 32px;
@@ -71,7 +71,7 @@ const sections = computed(() =>
   color: var(--text-footer, #606266);
   text-decoration: none;
   font-size: 13px;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
 }
 .legal-back:hover { color: var(--color-primary); }
 .legal-title {

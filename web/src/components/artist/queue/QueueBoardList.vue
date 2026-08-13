@@ -525,7 +525,7 @@ onMounted(() => {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   background: var(--card); border-radius: var(--r-l); padding: 12px 16px;
   border-left: 4px solid var(--line); box-shadow: var(--sh-1);
-  cursor: default; transition: box-shadow 0.2s;
+  cursor: default; transition: box-shadow var(--dur-mid);
 }
 .queue-item:hover { box-shadow: var(--sh-2); }
 /* 优先级色条（REQ §1.1 语义：高优先=赭石 / 中=藤黄提醒 / 低=安静中性） */
@@ -552,7 +552,7 @@ onMounted(() => {
   position: relative; width: 160px; height: 120px;
   border-radius: var(--r-m); overflow: hidden; cursor: pointer;
   background: var(--card);
-  transition: box-shadow 0.15s;
+  transition: box-shadow var(--dur-fast);
 }
 .focus-img-wrap:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--hq) 45%, transparent); }
 .focus-replace-overlay {
@@ -569,7 +569,7 @@ onMounted(() => {
   border: 2px dashed var(--line2); border-radius: var(--r-m);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; cursor: pointer; color: var(--ink3);
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  transition: border-color var(--dur-mid), background var(--dur-mid), color var(--dur-mid);
 }
 .focus-empty:hover, .focus-empty--active {
   border-color: var(--hq);

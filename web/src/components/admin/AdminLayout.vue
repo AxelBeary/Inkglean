@@ -268,7 +268,8 @@ function onStepUpCancel() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.2s ease, background-color 0.35s, border-color 0.35s;
+  /* K1（波2，灰沼教训）：侧栏底色/边框随主题即时切换，不插值；仅折叠宽度保留微交互过渡 */
+  transition: width var(--dur-mid) var(--ease-out);
 }
 
 /* 品牌区：朱砂印章「绘」 */
@@ -291,7 +292,7 @@ function onStepUpCancel() {
   transform: rotate(-4deg);
   box-shadow: 2px 2px 0 var(--sb-seal-shadow);
   flex: none;
-  transition: transform .15s cubic-bezier(.3, 1.5, .4, 1), background-color .15s;
+  transition: transform var(--dur-fast) cubic-bezier(.3, 1.5, .4, 1), background-color var(--dur-fast);
 }
 .brand:hover .brand-seal { transform: rotate(4deg) scale(1.06); background-color: var(--zs-d); }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
@@ -318,7 +319,7 @@ function onStepUpCancel() {
   cursor: pointer;
   position: relative;
   user-select: none;
-  transition: color .15s, background-color .15s, transform .15s ease-out;
+  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .nav-item:hover { color: var(--sb-text-on); background: var(--sb-hover); }
 .nav-item:active { transform: scale(0.98); }
@@ -336,7 +337,7 @@ function onStepUpCancel() {
   border-radius: 0 2px 2px 0;
   /* 点名2: 激活竖条自上而下滑入（transform-origin top, .25s ease-out） */
   transform-origin: top;
-  animation: nav-bar-in 0.25s ease-out;
+  animation: nav-bar-in var(--dur-mid) ease-out;
 }
 @keyframes nav-bar-in {
   from { transform: scaleY(0); }
@@ -373,7 +374,7 @@ function onStepUpCancel() {
   color: var(--sb-text-dim);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  transition: color .15s, background-color .15s, transform .15s ease-out;
+  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .back-btn:hover { color: var(--sb-text-on); background: var(--sb-hover); }
 .back-btn:active { transform: scale(0.98); }
@@ -405,7 +406,8 @@ function onStepUpCancel() {
   color: var(--ink);
   cursor: pointer;
   flex: none;
-  transition: box-shadow 0.15s, background-color 0.35s, transform 0.15s ease-out;
+  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值 */
+  transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .mobile-menu-btn:hover { box-shadow: var(--sh-1); }
 .mobile-menu-btn:active { transform: scale(0.98); }
@@ -414,7 +416,7 @@ function onStepUpCancel() {
 .main-content {
   background: var(--paper);
   padding: 24px 28px;
-  transition: background-color 0.35s;
+  /* K1（波2，灰沼教训）：主内容区底色随主题即时切换，不插值 */
 }
 /* 内容容器：max-width 1280 居中（页面组件内部只写 .admin-page 语义类） */
 .main-content :deep(.admin-page) {

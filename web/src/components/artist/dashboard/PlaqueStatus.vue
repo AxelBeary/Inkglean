@@ -234,12 +234,12 @@ onMounted(() => {
   margin-top: 8px; padding: 11px 10px 10px; border-top: 1px solid var(--line);
   display: block; width: 100%; font: inherit; text-align: left; cursor: pointer;
   background: none; border-left: none; border-right: none; border-bottom: none;
-  border-radius: 0 0 6px 6px; transition: background .2s ease;
+  border-radius: 0 0 6px 6px; transition: background var(--dur-mid) var(--ease-out);
 }
 .slot-block:hover { background: var(--hq-t); }
 .slot-block:hover .slot-arrow { transform: translateX(3px); color: var(--hq); }
 .slot-top { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin-bottom: 8px; }
-.slot-arrow { color: var(--ink4); transition: transform .2s var(--ease-out), color .2s; }
+.slot-arrow { color: var(--ink4); transition: transform var(--dur-mid) var(--ease-out), color var(--dur-mid); }
 .slot-full-tag {
   font-size: 11px; color: var(--th); background: var(--th-t);
   padding: 1px 8px; border-radius: 3px 6px 4px 5px / 5px 4px 6px 3px; margin-left: 8px;

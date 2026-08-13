@@ -148,7 +148,7 @@ async function submit() {
   background: none;
   border: none;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
 }
 .compliance-link:hover { color: var(--color-primary, var(--pal-text, #333)); }
 .compliance-link--button { font-family: inherit; }

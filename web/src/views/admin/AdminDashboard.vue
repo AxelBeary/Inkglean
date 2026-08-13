@@ -232,7 +232,7 @@ onMounted(async () => {
 
 /* ─── 统计卡 ─── */
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4, 16px); }
-.stat-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); transition: box-shadow .15s, transform .15s ease-out; }
+.stat-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out; }
 .stat-card:hover { box-shadow: var(--sh-2); transform: translateY(-1px); }
 .stat-num {
   font-size: 30px; font-weight: bold; color: var(--ink);

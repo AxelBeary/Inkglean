@@ -232,7 +232,7 @@ function openPickDialog() {
 }
 .pick-item {
   position: relative; border-radius: var(--r-m); overflow: hidden; cursor: pointer;
-  border: 2px solid transparent; transition: border-color 0.2s, transform 0.2s;
+  border: 2px solid transparent; transition: border-color var(--dur-mid), transform var(--dur-mid);
 }
 .pick-item:hover { border-color: var(--hq); box-shadow: var(--sh-1); }
 .pick-item:active { transform: translateY(-2px); }

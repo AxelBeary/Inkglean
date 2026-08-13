@@ -519,7 +519,7 @@ onBeforeUnmount(() => {
   background: var(--paper2);
   color: var(--ink);
   font-size: calc(var(--font-scale, 1) * 14px);
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .pc-input:focus { border-color: var(--hq); outline: none; }
 
@@ -550,7 +550,7 @@ onBeforeUnmount(() => {
   color: var(--ink2);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background-color 0.15s, transform 0.15s ease-out;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .pc-btn:hover:not(:disabled) { border-color: var(--hq); color: var(--hq); }
 .pc-btn:active:not(:disabled) { transform: scale(0.98); }
@@ -567,7 +567,7 @@ onBeforeUnmount(() => {
   color: var(--ink3);
   font-size: calc(var(--font-scale, 1) * 12px);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, transform 0.15s ease-out;
+  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .pc-mini-btn:hover:not(:disabled) { border-color: var(--zs); color: var(--zs); }
 .pc-mini-btn:active:not(:disabled) { transform: scale(0.98); }

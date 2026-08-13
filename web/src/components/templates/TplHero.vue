@@ -112,7 +112,7 @@ defineExpose({ sentinelEl })
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--dur-fast) cubic-bezier(0.22, 1, 0.36, 1), box-shadow var(--dur-fast) cubic-bezier(0.22, 1, 0.36, 1), background-color var(--dur-fast) cubic-bezier(0.22, 1, 0.36, 1);
   border: 1px solid transparent;
 }
 .tpl-btn--primary {
@@ -273,7 +273,7 @@ defineExpose({ sentinelEl })
   color: var(--pal-text-dim);
   text-decoration: none;
   font-size: 14px;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
 }
 .tpl-hero-links a:hover {
   color: var(--color-primary);

@@ -309,7 +309,7 @@ onUnmounted(() => {
   color: var(--ink2, #555);
   font-size: 14px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background-color 0.35s, transform 0.15s ease-out;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
 }
 .style-card:hover, .size-card:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--ink); }
 .style-card:active, .size-card:active { transform: scale(0.98); }

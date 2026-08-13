@@ -163,7 +163,7 @@ onUnmounted(() => {
   to { opacity: 1; transform: none; }
 }
 .enter-stagger {
-  animation: dash-enter 0.3s var(--ease-out) both;
+  animation: dash-enter var(--dur-slow) var(--ease-out) both;
   animation-delay: calc(var(--stagger, 0) * 60ms);
 }
 @media (prefers-reduced-motion: reduce) {
