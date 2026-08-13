@@ -18,9 +18,10 @@
 > ✅ **看板模块开关浏览器冒烟实证**：API 关排期+动态+开张三模块→刷新后三者消失、其余保留→恢复全显；截图 workspace/temp/fq-batch/p2-*.png。
 > ✅ **容器重建**：post-merge-deploy（Healthy/v61 回读/登录页 200）。
 > ✅ **客户端+管理后台三档视口自审完成**（9 帧 ca-*.png）：客户端主页/下单/追踪/落地（1440+390）无白屏无塌，价格表+流程时间线+平台职责说明完整；管理后台仪表盘/画师管理（1440+390）单列堆叠正常。**抓坐并修**：dev 环境 SESSION_SECRET 逐进程随机（P1-3 加固），手工造 admin token 跨进程必失效——冒烟脚本固定共享密钥解决（教训已记，生产无此问题因 SESSION_SECRET 必设）。
-> 🔜 **在途**：813-fq-p2visual（留言/动态/开张/百眼柜纸墨化对齐）+ 813-fq-admindedup（管理后台 page-head/stat-card 抽公共）双波 codex 施工中，完工后独立验收合入。
-> 🔜 **待办**：两波验收合入后容器重建（带上公告行）交用户终验；剩余审计尾巴（B/C 路 P2 散项）清点排波。
-> 🧊 **环境**：master 干净；三个已合入 worktree 已清理（visual 目录仅 build 产物，--force 删，分支已合入）；容器 Healthy（旧构建）；E2E 11/11 基线未动。
+> ✅ **双波验收合入**：①813-fq-p2visual 四模块纸墨化（留言审核账本风+墨线按钮/订单动态纸墨行/开张任务墨线进度/百眼柜边框降级手剪圆角+hover 去位移，零行为变更，含单测 436/436 全绿+i18n quickAction.title 中英补全）；②813-fq-admindedup 管理后台去重（新建 admin-common.css，7 页页头/副标题+stat-card 抽公共，+63/-138 像素级等价，AdminLayout 单点引入）。两波均一号独立复跑门禁验收（lint 0 错/436/436/build 0）。
+> ✅ **容器重建+冒烟**：post-merge-deploy（Healthy/v61/200），公告行+P2 纸墨化全部上生产；Playwright 冒烟三帧自审过（公告行/点开/模块开关），截图 fq-batch/p2-*.png。
+> 🔜 **待办**：剩余审计尾巴清点（B 路 P2 散项：客户端 touch 滑动抽 useTouchSwipe/ThemePicker 五色重复抽单一来源；C 路 P2：setup.js 硬编码文案/i18n 杂项/utils 硬编码位字等）排一波 codex 收尾；交用户终验新看板。
+> 🧊 **环境**：master 干净已推（ae16bd5d+）；全部 worktree 已清理；容器 Healthy（新构建，含公告行+P2 全部）；E2E 11/11 基线未动。
 
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
 > ✅ **812 四波合入（逐路独立复跑门禁验收，非 self-report）**：①hardening：CodeQL 16 条裁决（7 修/4 顺手/5 驳回）落地——CI 最小权限块、sanitize 循环清洗防嵌套绕过、OG 域名线性去斜杠、uid 换 randomUUID + v50/v52 迁移回读测试（TC-MV-04~10，审计缺口④销账）；②e2e：e7 登录 UI 旅程（渲染/错误码/全链路落地）+ e8 Passkey 虚拟验证器（注册→登出→免密登录，counter 恒 0 豁免链路），**E2E 7→11**；③tools-a：报价单/改稿计数/压图改尺寸；④tools-b：价目卡/交付清单/定金台账（提案落档 docs/comms/新工具提案-6项-重建落档-20260812.md，后三项为重建项已标注；①④是 REQ-014 F4/F3 先行简版，桌面端开工时升级共享组件）。**验收中一号抓出并修**：tools-a 三处测试侧问题（i18n mock 接真实 locale、重挂载补 tick——探针证明产品代码无碍）、toolbox.js 两波冲突手工归位（19 工具四分类）。
