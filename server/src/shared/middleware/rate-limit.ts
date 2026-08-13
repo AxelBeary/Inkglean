@@ -88,6 +88,11 @@ export function cleanupExpiredBuckets(now: number = Date.now()): void {
   if (buckets.size > MAX_BUCKETS) evictOldest(MAX_BUCKETS)
 }
 
+/** 仅供测试：清空全部限流桶，避免同进程多用例共享窗口计数相互干扰（生产勿用） */
+export function resetRateLimitBuckets(): void {
+  buckets.clear()
+}
+
 // 定期清理过期桶（unref 避免阻止进程退出 / 测试挂起）
 // 保留：LRU 只处理「超上限」；「不活跃但未超上限」的 key 仍靠定时清理空桶/过期桶
 const _cleanup = setInterval(() => cleanupExpiredBuckets(), 60_000)

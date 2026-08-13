@@ -142,9 +142,13 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     // passkey 分支：flat body → simplewebauthn credential 形状（verifyLogin 内部消费 challenge + 递增 counter）
+    // 旁路报告修复（2026-08-13）：verifyAuthenticationResponse 首道检查 id===rawId 且 type 必为 'public-key'，
+    // 此前拼装漏 rawId/type 导致该分支必 500；WebAuthn 规范中 rawId 与 id 为同一份数据（base64url）
     const { verifyLogin } = await import('./webauthn.js')
     const credential = {
       id: body.credentialId,
+      rawId: body.credentialId,
+      type: 'public-key',
       response: {
         authenticatorData: body.authenticatorData,
         clientDataJSON: body.clientDataJSON,
@@ -161,6 +165,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (err instanceof AppError && (
         err.code === E.WEBAUTHN_AUTHENTICATION_FAILED || err.code === E.WEBAUTHN_CHALLENGE_INVALID
       )) {
+        return reply.code(401).send({ code: E.WEBAUTHN_AUTHENTICATION_FAILED, error: '身份验证失败，请重试' })
+      }
+      // 加固（旁路报告）：验证库抛出的非受控错误（如凭据形状异常）兼容为 401，避免裸 500 穿透
+      if (!(err instanceof AppError)) {
+        request.log.warn({ err }, 'step-up passkey 验证库异常，已兼容为 401')
         return reply.code(401).send({ code: E.WEBAUTHN_AUTHENTICATION_FAILED, error: '身份验证失败，请重试' })
       }
       throw err

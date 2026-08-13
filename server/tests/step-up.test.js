@@ -8,6 +8,7 @@ import { generateSecret, computeTotp } from '../src/features/auth/totp.js'
 import { verifyLogin } from '../src/features/auth/webauthn.js'
 import { STEP_UP_REQUIRED } from '../src/shared/middleware/step-up.js'
 import { AppError, E } from '../src/shared/errors.js'
+import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 import { buildApp } from '../src/app.js'
 
 // REQ-041：Passkey 分支 mock webauthn 校验（真实校验链路已由 webauthn.test.js 覆盖）
@@ -43,6 +44,8 @@ describe('REQ-041 管理后台二次验证（会话升级）', () => {
 
   beforeEach(async () => {
     cleanDb()
+    // 同进程多用例共享限流窗口（step-up:IP 10 次/5min），每例前清零防相互干扰
+    resetRateLimitBuckets()
     app = await buildApp({ logger: false })
     await app.ready()
   })
@@ -214,6 +217,61 @@ describe('REQ-041 管理后台二次验证（会话升级）', () => {
     })
     expect(after.statusCode).toBe(401)
     expect(after.json().code).toBe(STEP_UP_REQUIRED)
+  })
+
+  // 旁路报告防再犯（2026-08-13）：拼装真实执行，断言传给 verifyLogin 的凭据形状完整（rawId===id 且 type='public-key'，
+  // verifyAuthenticationResponse 首道检查）——此前漏 rawId/type 导致该分支必 500，TC-SU-04 只 mock 未断言形状故漏检
+  it('TC-SU-04b: passkey 拼装形状完整 — rawId===id 且 type=public-key（防漏字段再犯）', async () => {
+    const admin = setAdmin()
+    const basicToken = createSession(admin.id, admin.token_version)
+    verifyLogin.mockClear()
+    verifyLogin.mockRejectedValue(new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401))
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/step-up',
+      headers: { Authorization: `Bearer ${basicToken}` },
+      payload: {
+        method: 'passkey',
+        credentialId: 'cred-shape-check',
+        authenticatorData: 'auth-data',
+        signature: 'sig',
+        clientDataJSON: 'client-data'
+      }
+    })
+
+    expect(verifyLogin).toHaveBeenCalledTimes(1)
+    const credential = verifyLogin.mock.calls[0][0]
+    expect(credential.id).toBe('cred-shape-check')
+    expect(credential.rawId).toBe(credential.id)
+    expect(credential.type).toBe('public-key')
+    expect(credential.response).toMatchObject({
+      authenticatorData: 'auth-data',
+      clientDataJSON: 'client-data',
+      signature: 'sig'
+    })
+  })
+
+  // 旁路报告加固：验证库抛出的非受控错误（非 AppError）兼容为 401，不再裸 500 穿透
+  it('TC-SU-04c: 验证库非受控异常 → 401 友好语义而非 500', async () => {
+    const admin = setAdmin()
+    const basicToken = createSession(admin.id, admin.token_version)
+    verifyLogin.mockRejectedValue(new Error('Credential ID was not base64url-encoded'))
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/step-up',
+      headers: { Authorization: `Bearer ${basicToken}` },
+      payload: {
+        method: 'passkey',
+        credentialId: 'cred-err',
+        authenticatorData: 'auth-data',
+        signature: 'sig',
+        clientDataJSON: 'client-data'
+      }
+    })
+    expect(res.statusCode).toBe(401)
+    expect(res.json().code).toBe('WEBAUTHN_AUTHENTICATION_FAILED')
   })
 
   it('TC-SU-05: 非管理员无 step-up 能力 → 403', async () => {
