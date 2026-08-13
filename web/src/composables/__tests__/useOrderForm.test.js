@@ -175,7 +175,7 @@ describe('数据加载', () => {
     expect(of.isMultiStyle.value).toBe(true)
   })
 
-  it('加载失败：loading 变 false，错误消息提示', async () => {
+  it('加载失败：loading 变 false，loadError=true，不再 toast（页面层错误态接管，P0 修复）', async () => {
     artistPublicApi.getProfile.mockRejectedValueOnce(new Error('网络错误'))
     setupMocks({ styles: MOCK_STYLES })
     artistPublicApi.getProfile.mockRejectedValue(new Error('网络错误'))
@@ -190,7 +190,30 @@ describe('数据加载', () => {
     })
     await flushPromises()
     expect(composable.loading.value).toBe(false)
-    expect(ElMessage.error).toHaveBeenCalled()
+    expect(composable.loadError.value).toBe(true)
+    expect(ElMessage.error).not.toHaveBeenCalled()
+  })
+
+  it('retryLoad：失败后重试成功 → loadError 清零，artist 到位', async () => {
+    setupMocks({ styles: MOCK_STYLES })
+    artistPublicApi.getProfile.mockRejectedValueOnce(new Error('网络错误'))
+    const formRef = ref({ validate: vi.fn() })
+    let composable
+    mount({
+      setup() {
+        composable = useOrderForm('alice', formRef)
+        return {}
+      },
+      template: '<div />'
+    })
+    await flushPromises()
+    expect(composable.loadError.value).toBe(true)
+    // 重试时 getProfile 恢复正常（mockRejectedValueOnce 只生效一次）
+    await composable.retryLoad()
+    await flushPromises()
+    expect(composable.loadError.value).toBe(false)
+    expect(composable.loading.value).toBe(false)
+    expect(composable.artist.value.name).toBe('Alice')
   })
 
   it('无画风配置：isStyleMode=false（页面显示空态）', async () => {
