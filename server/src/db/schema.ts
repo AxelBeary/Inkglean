@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS artists (
   -- REQ-043（v60）: 开张任务卡后端标记——自然达成/画师主动「不再提示」都写这里，前端不靠 localStorage
   onboarded_at TEXT NULL,
   onboarding_dismissed_at TEXT NULL,
+  -- 视觉批备料（v61）: 登录时间/问候展示时间/仪表盘模块显隐（NULL=全部模块显示）
+  last_login_at TEXT,
+  last_greeting_shown_at TEXT,
+  dashboard_modules TEXT DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
