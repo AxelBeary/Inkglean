@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { authApi, artistApi } from '../api/index.js'
+import { i18n } from '../i18n/index.js'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
 
 // ============================================
@@ -22,7 +23,7 @@ export const useArtistStore = defineStore('artist', {
 
   getters: {
     isLoggedIn: (state) => state.loggedIn,
-    artistName: (state) => state.profile?.name || '画师',
+    artistName: (state) => state.profile?.name || i18n.global.t('common.artist'),
     subdomain: (state) => state.profile?.subdomain || ''
   },
 

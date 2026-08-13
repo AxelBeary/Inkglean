@@ -1,10 +1,10 @@
-﻿<template>
+<template>
   <div class="tools-export-page">
     <h2 class="od-page-title">{{ $t('toolsExport.title') }}</h2>
-    <p class="tools-export-sub">{{ $t('toolsExport.subtitle') }}</p>
+    <p class="page-sub">{{ $t('toolsExport.subtitle') }}</p>
 
     <!-- 导出区：日期范围 + 导出按钮 -->
-    <div class="export-panel">
+    <div class="page-card export-panel">
       <el-form label-position="top" @submit.prevent="doExport">
         <el-form-item :label="$t('toolsExport.rangeLabel')" required>
           <el-date-picker
@@ -69,6 +69,7 @@ import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'
+import { todayStr } from '../../utils/datetime.js'
 import { artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
 
@@ -80,7 +81,7 @@ function defaultRange() {
   const now = new Date()
   const first = new Date(now.getFullYear(), now.getMonth(), 1)
   const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return [fmt(first), fmt(now)]
+  return [fmt(first), todayStr()]
 }
 
 const range = ref(defaultRange())
@@ -181,29 +182,25 @@ async function doExport() {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .tools-export-page { padding: 24px; max-width: 760px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.tools-export-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+.page-sub { margin-top: 6px; }
 
 .export-panel {
   margin-top: 20px;
   padding: 22px 24px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
 .export-empty-hint { margin-top: 16px; }
-.tools-export-note { margin-top: 16px; font-size: 12px; color: var(--ink3, #888); line-height: 1.6; }
+.tools-export-note { margin-top: 16px; font-size: 12px; color: var(--ink3); line-height: 1.6; }
 /* 收入概览：纸墨 token 卡片（--card/--ink/--hq），亮暗双主题自动适配 */
 .income-overview {
   margin-top: 20px;
   padding: 18px 20px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--r-m, 8px);
 }
 .income-overview-head { display: flex; align-items: baseline; justify-content: space-between; }
 .income-overview-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
-.income-overview-loading { font-size: 12px; color: var(--ink3, #888); }
+.income-overview-loading { font-size: 12px; color: var(--ink3); }
 .income-grid {
   margin-top: 14px;
   display: grid;
@@ -212,13 +209,13 @@ async function doExport() {
 }
 .income-cell {
   padding: 12px 14px;
-  background: var(--paper, #faf8f2);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: var(--r-s, 6px);
 }
-.income-label { display: block; font-size: 12px; color: var(--ink3, #888); margin-bottom: 6px; }
+.income-label { display: block; font-size: 12px; color: var(--ink3); margin-bottom: 6px; }
 .income-value { display: block; font-size: 20px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-.income-total { color: var(--ink3, #888); font-weight: 600; font-size: 14px; }
-.income-standalone { color: var(--hq, #b4532a); }
-.income-overview-note { margin-top: 12px; font-size: 12px; color: var(--ink3, #888); line-height: 1.6; }
+.income-total { color: var(--ink3); font-weight: 600; font-size: 14px; }
+.income-standalone { color: var(--hq); }
+.income-overview-note { margin-top: 12px; font-size: 12px; color: var(--ink3); line-height: 1.6; }
 </style>

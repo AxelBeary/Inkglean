@@ -1,7 +1,13 @@
 // message-parser 纯函数单测（REQ-035 §五 MVP-1）
 // 覆盖：QQ 识别（独立数字串/边界/排除金额）、金额线索、日期线索、description 截断、解析不出不猜
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { parseMessage, DESCRIPTION_MAX_LEN } from '../message-parser.js'
+import { i18n, setLocale } from '../../i18n/index.js'
+
+beforeEach(() => {
+  // b4-10: 线索显示按 locale 格式化——测试固定 zh-CN 断言中文形态
+  i18n.global.locale.value = 'zh-CN'
+})
 
 describe('parseMessage 基础结构', () => {
   it('返回 { clientQq, description, hints:{amount,deadline} }', () => {
@@ -111,6 +117,14 @@ describe('日期线索 hints.deadline（识别提示，不自动填）', () => {
 
   it('无日期 → null', () => {
     expect(parseMessage('QQ 12345678 想要一张半身像').hints.deadline).toBeNull()
+  })
+
+  it('b4-10: en locale 下按英文日期格式显示', async () => {
+    // en 消息懒加载：直改 locale.value 不载入 en 包，须走 setLocale（与真实切语言链路同口径）
+    await setLocale('en')
+    expect(parseMessage('5号前要，QQ 12345678').hints.deadline).toBe('before 5')
+    expect(parseMessage('QQ 12345678 8月20日交付').hints.deadline).toBe('8/20')
+    await setLocale('zh-CN')
   })
 })
 

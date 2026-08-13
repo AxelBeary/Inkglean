@@ -363,3 +363,104 @@ html[data-artist-theme] .artist-scope [tabindex]:focus-visible {
   outline: 2px solid var(--hq);
   outline-offset: 2px;
 }
+
+/* ═══ 公共组件基线（P1 汇总波 B7/B12/B13：跨页同款卡片壳/副标题/输入框/主按钮/滑块确认）═══
+   页面级局部差异（padding/margin/flex/圆角等）保留在各页 scoped 层：
+   - :where() 零特异性 → 页面 scoped 覆写可正常生效（如 r-l 圆角、margin-top 8px）
+   - .btn-primary 保持普通特异性 → 可覆盖页面级基础按钮类（如 PriceCard .pc-btn）
+   默认外观与各页原样式逐像素等价。 */
+html[data-artist-theme] :where(.artist-scope .page-card) {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  box-shadow: var(--sh-1);
+}
+html[data-artist-theme] :where(.artist-scope .page-sub) {
+  color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 13px);
+}
+html[data-artist-theme] :where(.artist-scope .field) {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-m);
+  background: var(--paper2);
+  color: var(--ink);
+  font-size: calc(var(--font-scale, 1) * 14px);
+  transition: border-color var(--dur-fast);
+}
+html[data-artist-theme] :where(.artist-scope .field:focus) {
+  border-color: var(--hq);
+  outline: none;
+}
+html[data-artist-theme] .artist-scope .btn-primary {
+  padding: 8px 16px;
+  border: 1px solid var(--hq);
+  border-radius: var(--r-m);
+  background: var(--hq);
+  color: #fff;
+  font-size: calc(var(--font-scale, 1) * 13px);
+  cursor: pointer;
+  transition: background-color var(--dur-fast), transform var(--dur-fast) ease-out;
+}
+html[data-artist-theme] .artist-scope .btn-primary:hover:not(:disabled) {
+  background: var(--hq-d);
+  border-color: var(--hq-d);
+}
+html[data-artist-theme] .artist-scope .btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+html[data-artist-theme] .artist-scope .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* 滑块确认（ArtworkManage/OrderDetail 同款；朱砂=危险操作；flex:1 由页面按需叠加） */
+html[data-artist-theme] :where(.artist-scope .slide-confirm) {
+  position: relative;
+  height: 40px;
+  border-radius: 999px;
+  overflow: hidden;
+  user-select: none;
+  background: var(--zs-t);
+  border: 1px solid color-mix(in srgb, var(--zs) 45%, transparent);
+}
+html[data-artist-theme] :where(.artist-scope .slide-confirm-fill) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--zs) 28%, transparent);
+  transition: width 0.05s linear;
+}
+html[data-artist-theme] :where(.artist-scope .slide-confirm-label) {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--font-scale, 1) * 13px);
+  font-weight: 600;
+  color: var(--zs);
+  pointer-events: none;
+}
+html[data-artist-theme] :where(.artist-scope .slide-confirm-thumb) {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--zs);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--font-scale, 1) * 16px);
+  font-weight: 700;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+html[data-artist-theme] :where(.artist-scope .slide-confirm-thumb:active) {
+  cursor: grabbing;
+}

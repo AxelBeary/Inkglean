@@ -72,7 +72,7 @@
           <el-input-number
             v-model="form.default_price"
             :min="0"
-            :max="form.price_mode === 'percent' ? 1000 : 999999"
+            :max="form.price_mode === 'percent' ? ADDON_PERCENT_MAX : ADDON_FIXED_PRICE_MAX"
             :step="form.price_mode === 'percent' ? 5 : 10"
             :precision="form.price_mode === 'percent' ? 0 : undefined"
             style="width: 200px"
@@ -102,6 +102,7 @@ import { ref, computed, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon.js'
 import { formatAddonPrice } from '../../utils/money.js'
 import { controlLabel, controlTagType, categoryLabel } from './addon-utils.js'
 
@@ -153,7 +154,7 @@ function categoryTagType(cat) {
 function onCategoryChange(cat) {
   if (cat !== 'add' && form.value.price_mode !== 'percent') {
     form.value.price_mode = 'percent'
-    if (form.value.default_price > 1000) form.value.default_price = 50
+    if (form.value.default_price > ADDON_PERCENT_MAX) form.value.default_price = ADDON_DEFAULT_PRICE
   }
 }
 
@@ -183,7 +184,7 @@ async function save() {
     ElMessage.warning(t('styleManage.tplNameRequired'))
     return
   }
-  if (form.value.price_mode === 'percent' && (!Number.isInteger(form.value.default_price) || form.value.default_price > 1000)) {
+  if (form.value.price_mode === 'percent' && (!Number.isInteger(form.value.default_price) || form.value.default_price > ADDON_PERCENT_MAX)) {
     ElMessage.warning(t('styleManage.createPercentRangeHint'))
     return
   }

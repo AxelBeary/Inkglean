@@ -144,7 +144,7 @@ onMounted(() => {
 /* 纸墨 token（--card/--line/--ink/--zs），亮暗双主题自动适配 */
 .revision-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 8px; color: var(--ink3); font-size: 13px; }
+.page-sub { margin-top: 8px; }
 
 .rc-panel {
   margin-top: 20px;

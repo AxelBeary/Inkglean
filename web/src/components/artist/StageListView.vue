@@ -4,11 +4,11 @@
     <div v-if="!readonly" class="speech-vars-common">
       <span class="speech-vars-label">{{ $t('workflow.speechVarCommon') }}</span>
       <button
-        v-for="v in SPEECH_VARS" :key="v" type="button" class="speech-var"
+        v-for="v in SPEECH_VARS" :key="v.token" type="button" class="speech-var"
         :title="$t('workflow.speechVarHint')"
-        @click="insertSpeechVarToFocused(v)"
+        @click="insertSpeechVarToFocused(v.token)"
       >
-        {{ v }}
+        {{ $t(v.labelKey) }}
       </button>
       <span v-if="!focusedSpeechId" class="speech-vars-hint">{{ $t('workflow.speechVarNoFocus') }}</span>
     </div>
@@ -16,7 +16,7 @@
       <template #item="{ element: s, index }">
         <div class="stage-item">
           <div class="stage-row" :class="{ 'is-final': s.isFinal }">
-            <span v-if="!readonly" class="drag-handle" title="拖拽排序">⠿</span>
+            <span v-if="!readonly" class="drag-handle" :title="$t('workflow.dragSort')">⠿</span>
             <!-- 键盘等价：上移/下移（拖拽排序的可达替代） -->
             <span v-if="!readonly" class="stage-move" role="group" :aria-label="$t('workflow.reorderLabel')">
               <button
@@ -160,8 +160,18 @@ const localStages = ref([...props.stages])
 watch(() => props.stages, (v) => { localStages.value = [...v] }, { deep: true })
 
 // ─── plan-node-speech：话术编辑 ───
-/** 变量标签列表（后端契约，中英文界面均保持中文原文） */
-const SPEECH_VARS = ['{客户名}', '{客户QQ}', '{订单号}', '{档位名}', '{节点名}', '{截稿日}', '{总价}', '{已付}', '{待付}']
+/** 变量按钮列表：labelKey 为显示名（b4-11 键化），token 为后端契约中文原文（插入时不变） */
+const SPEECH_VARS = [
+  { token: '{客户名}', labelKey: 'workflow.speechVar.clientName' },
+  { token: '{客户QQ}', labelKey: 'workflow.speechVar.clientQq' },
+  { token: '{订单号}', labelKey: 'workflow.speechVar.orderNo' },
+  { token: '{档位名}', labelKey: 'workflow.speechVar.tierName' },
+  { token: '{节点名}', labelKey: 'workflow.speechVar.stageName' },
+  { token: '{截稿日}', labelKey: 'workflow.speechVar.deadline' },
+  { token: '{总价}', labelKey: 'workflow.speechVar.totalPrice' },
+  { token: '{已付}', labelKey: 'workflow.speechVar.paid' },
+  { token: '{待付}', labelKey: 'workflow.speechVar.unpaid' }
+]
 const speechDirtyId = ref(null)
 const speechRefs = new Map()
 

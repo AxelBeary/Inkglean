@@ -102,7 +102,8 @@ describe('DepositLedger 定金台账', () => {
     wrapper.vm.submit()
     expect(wrapper.findAll('.dp-row')).toHaveLength(0)
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.dp-btn--primary').attributes('disabled')).toBeDefined()
+    // b1-C12 CSS 收敛后主按钮类名 btn-primary dp-btn（原 dp-btn--primary 已并入公共类）
+    expect(wrapper.find('button.dp-btn').attributes('disabled')).toBeDefined()
 
     // 提交期结束可正常记账
     wrapper.vm.submitting = false

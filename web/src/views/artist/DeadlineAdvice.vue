@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="deadline-page">
     <h2 class="od-page-title">{{ $t('deadlineAdvice.title') }}</h2>
     <p class="page-sub">{{ $t('deadlineAdvice.subtitle') }}</p>
@@ -100,33 +100,33 @@ onMounted(async () => {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .deadline-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+.page-sub { margin-top: 6px; color: var(--ink3); font-size: 13px; }
 
 .deadline-form {
   margin-top: 20px; padding: 18px 20px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--r-m, 8px);
   display: flex; flex-direction: column; gap: 16px;
 }
 .deadline-field { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.deadline-field-label { font-size: 14px; font-weight: 600; color: var(--ink2, #555); min-width: 110px; }
-.deadline-field-hint { font-size: 12px; color: var(--ink3, #888); }
+.deadline-field-label { font-size: 14px; font-weight: 600; color: var(--ink2); min-width: 110px; }
+.deadline-field-hint { font-size: 12px; color: var(--ink3); }
 
 .deadline-result {
   margin-top: 20px; padding: 22px 24px;
-  background: var(--card, #fff);
+  background: var(--card);
   border: 1px solid var(--hq, var(--el-color-primary));
   border-radius: var(--r-m, 8px);
   box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
-.deadline-result-main { text-align: center; padding-bottom: 16px; border-bottom: 1px solid var(--line, #e5e5e5); }
-.deadline-result-label { font-size: 13px; color: var(--ink3, #888); }
+.deadline-result-main { text-align: center; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.deadline-result-label { font-size: 13px; color: var(--ink3); }
 .deadline-result-date { margin-top: 6px; font-size: 32px; font-weight: 700; color: var(--hq, var(--el-color-primary)); letter-spacing: .02em; }
-.deadline-result-week { margin-top: 4px; font-size: 14px; color: var(--ink2, #555); }
+.deadline-result-week { margin-top: 4px; font-size: 14px; color: var(--ink2); }
 
 .deadline-result-breakdown { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-.deadline-line { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--ink2, #555); }
+.deadline-line { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--ink2); }
 .deadline-line--total { font-weight: 600; color: var(--ink); }
-.deadline-disclaimer { margin-top: 14px; font-size: 12px; color: var(--ink3, #888); }
+.deadline-disclaimer { margin-top: 14px; font-size: 12px; color: var(--ink3); }
 </style>

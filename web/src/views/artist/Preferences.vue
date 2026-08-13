@@ -77,7 +77,7 @@
             class="quick-config-item"
           >
             <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
-            {{ $t(opt.labelKey) }}<template v-if="opt.type === 'action'"> <span class="quick-action-badge">⚡动作</span></template>
+            {{ $t(opt.labelKey) }}<template v-if="opt.type === 'action'"> <span class="quick-action-badge">{{ $t('settings.quickActionBadge') }}</span></template>
           </el-checkbox>
         </el-checkbox-group>
         <div class="quick-config-footer">

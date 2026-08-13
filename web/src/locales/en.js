@@ -434,7 +434,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     pick: 'Random pick',
     again: 'Another one',
     disclaimer: 'For reference only. Please consult your doctor for specific dietary advice.',
-    emptyHint: 'Click "Random pick" to see what to eat today'
+    emptyHint: 'Click "Random pick" to see what to eat today',
+    // b4-6 fallback plan: en UI shows a notice that dish names remain in Chinese (translation scheduled separately)
+    originalNamesNote: 'Dish names are shown in Chinese for now; the English menu is being prepared.'
   },
   // REQ-031 A1: Income export CSV (tools page copy)
   toolsExport: {
@@ -582,6 +584,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     textInputLabel: 'Watermark text',
     text: 'Text',
     logo: 'Logo',
+    logoAlt: 'Logo',
     uploadLogo: 'Upload logo (PNG)',
     logoScale: 'Logo scale',
     modeLabel: 'Watermark mode',
@@ -725,6 +728,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   },
   artistHome: {
     commission: 'Commission me', track: 'Track order',
+    menuLabel: 'Menu',
     noWorks: 'No artworks yet — stay tuned',
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load',
@@ -1158,12 +1162,14 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // REQ-025 phase 2: negative (refund) switches the note label (matches the mandatory submit validation)
     payRefundNoteLabel: 'Refund reason (required)',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
+    paymentRevertNote: 'Revoke #{id}',
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
     payAmountInvalid: 'Payment amount must be greater than 0',
     payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'A reason is required when entering a negative amount (refund)', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',
+    nodePayNoteFallback: '{name} payment',
     // v0.31 F5 → REQ-025 phase 2: due banner (primary = order-level total due, secondary = current node)
     totalDueLabel: 'Total due {amount}', currentDueSuffix: 'Now due: {name} {amount}',
     // v0.31: price edit button
@@ -1479,6 +1485,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons (3-9)',
     quickHint: 'Check the buttons you want, then save. The dashboard quick area will follow.',
     quickSave: 'Save quick actions', quickSaved: 'Quick actions saved', quickLimitError: 'Please select 3-9 quick actions',
+    quickActionBadge: '⚡Action',
     quickLocalFallback: 'Saved locally (server unavailable, will sync on next visit)',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
@@ -1585,7 +1592,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // Batch 4 B10 (option b): backend appends appliesToNewOrdersOnly when active orders exist
     paymentNewOrdersOnly: 'Payment split saved — applies to new orders only (existing orders keep their snapshot)',
     dragHandle: 'Drag to adjust ratio', editPercent: 'Edit payment % for "{name}"', minPercent: 'Ratio cannot be below 5%', finalTooLow: 'Final payment too low to allocate',
-    reorderLabel: 'Reorder stages', moveUp: 'Move stage up', moveDown: 'Move stage down', deleteStage: 'Delete stage',
+    reorderLabel: 'Reorder stages', moveUp: 'Move stage up', moveDown: 'Move stage down', deleteStage: 'Delete stage', dragSort: 'Drag to reorder',
     reset: 'Reset to Default', resetConfirm: 'Reset to default template? All custom stages and payment splits will be overwritten. This cannot be undone.', resetDone: 'Reset to default template',
     descPlaceholder: 'Click to add a note',
     // plan-node-speech: node speech ({客户名} etc. are backend variable tokens — kept in Chinese in both locales)
@@ -1596,6 +1603,18 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     speechVarCommon: 'Speech variables (click a speech box below, then click a variable to insert)',
     speechVarNoFocus: 'Click a speech editor first',
     speechEmpty: 'No speech yet',
+    // b4-11: variable button labels are localized; inserting still writes the backend Chinese token (see StageListView SPEECH_VARS)
+    speechVar: {
+      clientName: "{'{'}clientName{'}'}",
+      clientQq: "{'{'}clientQQ{'}'}",
+      orderNo: "{'{'}orderNo{'}'}",
+      tierName: "{'{'}tierName{'}'}",
+      stageName: "{'{'}stageName{'}'}",
+      deadline: "{'{'}deadline{'}'}",
+      totalPrice: "{'{'}totalPrice{'}'}",
+      paid: "{'{'}paid{'}'}",
+      unpaid: "{'{'}unpaid{'}'}"
+    },
     // v0.27: random template toggle
     randomTemplate: 'Random', randomTemplateHint: 'Available with multiple speech lines — picks one at random when sending',
     // 05I: admin default workflow (default template has no speech field — block speech save with clear hint)
@@ -2110,5 +2129,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     amountRequired: 'Enter the deposit amount',
     amountPositive: 'Amount must be greater than 0',
     dateRequired: 'Pick a date'
+  },
+  // b4-10: message parsing hint display (locale-specific date formats)
+  messageParser: {
+    deadlineDay: 'before {day}',
+    deadlineDate: '{month}/{day}'
   }
 }

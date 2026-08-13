@@ -15,9 +15,14 @@ if (!window.ResizeObserver) {
 }
 
 // ─── Mocks（vi.mock 自动提升） ───
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({ t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key) })
-}))
+// 部分 mock：保留真实 createI18n（stores/artist 顶层 import i18n/index 需初始化），仅覆写 useI18n
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    useI18n: () => ({ t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key) })
+  }
+})
 
 // 挂载容器：每个用例 mount 前设置 h.state
 const h = vi.hoisted(() => ({

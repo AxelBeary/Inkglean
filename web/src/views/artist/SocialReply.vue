@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="reply-page">
     <h2 class="od-page-title">{{ $t('reply.title') }}</h2>
     <p class="page-sub">{{ $t('reply.subtitle') }}</p>
@@ -17,14 +17,14 @@
 
     <!-- 话术列表 -->
     <div class="reply-list">
-      <div v-for="(item, i) in templates" :key="catKey(item, i)" class="reply-item">
+      <div v-for="(item, i) in templates" :key="catKey(item, i)" class="page-card reply-item">
         <div class="reply-item-head">
           <span class="reply-item-name">{{ item.name }}</span>
           <button type="button" class="reply-copy-btn" @click="copyText(item)">
             {{ $t('reply.copy') }}
           </button>
         </div>
-        <p class="reply-item-text">{{ item.text }}</p>
+        <p class="reply-item-text">{{ displayText(item) }}</p>
       </div>
     </div>
   </div>
@@ -38,9 +38,13 @@ import { REPLY_CATEGORIES, REPLY_TEMPLATES } from '../../utils/reply-templates.j
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
 import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const currentCat = ref(REPLY_CATEGORIES[0])
 const templates = computed(() => REPLY_TEMPLATES[currentCat.value] || [])
+/** b4-5: 按 locale 取话术（中文走 text，英文走 textEn，缺英文时回退中文） */
+function displayText(item) {
+  return locale.value === 'en' ? (item.textEn || item.text) : item.text
+}
 
 function selectCategory(cat) {
   currentCat.value = cat
@@ -53,7 +57,7 @@ function catKey(item, i) {
 
 /** 复制到剪贴板（公共 clipboard.copyText；成功提示 / 失败提示） */
 async function copyText(item) {
-  if (await copyToClipboard(item.text)) {
+  if (await copyToClipboard(displayText(item))) {
     ElMessage.success(t('reply.copied'))
   } else {
     ElMessage.error(t('reply.copyFailed'))
@@ -65,15 +69,15 @@ async function copyText(item) {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .reply-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+.page-sub { margin-top: 6px; }
 
 .reply-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
 .reply-tab {
   padding: 8px 16px;
-  border: 1px solid var(--line2, #dcdcdc);
+  border: 1px solid var(--line2);
   border-radius: var(--r-m, 8px);
-  background: var(--card, #fff);
-  color: var(--ink2, #555);
+  background: var(--card);
+  color: var(--ink2);
   font-size: 14px;
   cursor: pointer;
   transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
@@ -81,7 +85,7 @@ async function copyText(item) {
 .reply-tab:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--ink); }
 .reply-tab:active { transform: scale(0.98); }
 .reply-tab--active {
-  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 12%, var(--card, #fff));
+  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 12%, var(--card));
   border-color: var(--hq, var(--el-color-primary));
   color: var(--hq, var(--el-color-primary));
   font-weight: 600;
@@ -90,10 +94,6 @@ async function copyText(item) {
 .reply-list { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
 .reply-item {
   padding: 16px 20px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
 .reply-item-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .reply-item-name { font-size: 14px; font-weight: 600; color: var(--ink); }
@@ -101,13 +101,13 @@ async function copyText(item) {
   padding: 5px 14px;
   border: 1px solid var(--hq, var(--el-color-primary));
   border-radius: var(--r-m, 8px);
-  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 8%, var(--card, #fff));
+  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 8%, var(--card));
   color: var(--hq, var(--el-color-primary));
   font-size: 13px;
   cursor: pointer;
   transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
 }
-.reply-copy-btn:hover { background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 18%, var(--card, #fff)); }
+.reply-copy-btn:hover { background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 18%, var(--card)); }
 .reply-copy-btn:active { transform: scale(0.98); }
-.reply-item-text { margin-top: 10px; font-size: 14px; line-height: 1.7; color: var(--ink2, #555); white-space: pre-wrap; }
+.reply-item-text { margin-top: 10px; font-size: 14px; line-height: 1.7; color: var(--ink2); white-space: pre-wrap; }
 </style>

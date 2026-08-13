@@ -34,3 +34,14 @@ export function formatDateTime(str, options) {
 export function formatDateTimeShort(str) {
   return formatDateTime(str, { year: undefined })
 }
+
+/**
+ * 本地日期 YYYY-MM-DD（b1 猎杀修复：禁止 toISOString——UTC 在东八区 0~8 点会差一天）
+ * 单源：DepositLedger/StandaloneIncome/ScheduleSharePage/ToolsExport/Quote 曾各持一份本地实现
+ */
+export function todayStr() {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}

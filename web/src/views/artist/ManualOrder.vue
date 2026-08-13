@@ -121,6 +121,7 @@
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { artistApi, artistPublicApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { FETCH_ALL_PAGE_SIZE } from '../../constants/pagination.js'
 import { useI18n } from 'vue-i18n'
 import { trackEvent } from '../../utils/track.js'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js'
@@ -201,7 +202,7 @@ const QQ_ORDERS_CACHE_TTL = 60_000
 function invalidateQqOrdersCache() { qqOrdersCache = null }
 async function getQqOrdersSource() {
   if (qqOrdersCache && Date.now() - qqOrdersCache.at < QQ_ORDERS_CACHE_TTL) return qqOrdersCache.items
-  const res = await artistApi.getOrders(undefined, { page: 1, pageSize: 200 })
+  const res = await artistApi.getOrders(undefined, { page: 1, pageSize: FETCH_ALL_PAGE_SIZE })
   const items = res.items ?? res
   qqOrdersCache = { items, at: Date.now() }
   return items

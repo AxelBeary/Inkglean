@@ -164,7 +164,7 @@ describe('OrderList 复合筛选缓存 + 进度（REQ-037 批3 D1）', () => {
     expect(wrapper.vm.fetchProgress).toBeNull()
   })
 
-  it('复合筛选 active 仅拉取 wip/pending 等非终态订单', async () => {
+  it('复合筛选 active 仅拉取 wip/pending 等非终态订单（done 视为终态）', async () => {
     // 5 条订单，其中 3 条 active（wip/pending/pending），2 条 completed（done/delivered）
     const orders = [
       buildOrder(1, { status: 'wip' }),
@@ -176,11 +176,15 @@ describe('OrderList 复合筛选缓存 + 进度（REQ-037 批3 D1）', () => {
     h.getOrders
       .mockResolvedValueOnce({ items: orders, total: 5 })
 
-    await mountOrderList()
+    const wrapper = await mountOrderList()
 
-    // 复合筛选 active 过滤掉 done/delivered，保留 3 条
     expect(h.getOrders).toHaveBeenCalledTimes(1)
     expect(h.msgError).not.toHaveBeenCalled()
+    // 渲染结果：active 过滤掉 done/delivered，保留 3 条非终态
+    expect(wrapper.vm.orders.map(o => o.status)).toEqual(['wip', 'pending', 'pending'])
+    expect(wrapper.vm.orders.some(o => o.status === 'done')).toBe(false)
+    expect(wrapper.vm.orders.some(o => o.status === 'delivered')).toBe(false)
+    expect(wrapper.vm.total).toBe(3)
   })
 
   it('搜索词变化时 invalidate 缓存', async () => {

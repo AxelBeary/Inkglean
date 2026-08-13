@@ -22,7 +22,7 @@ vi.mock('element-plus', () => ({
   ElMessageBox: { confirm: h.confirm }
 }))
 
-vi.mock('../../api/index.js', () => ({
+vi.mock('../../../api/index.js', () => ({
   artistApi: {
     getArtworksPaged: h.getArtworksPaged,
     getArtStyles: h.getArtStyles,
@@ -37,17 +37,21 @@ vi.mock('../../api/index.js', () => ({
   uploadApi: { image: vi.fn() }
 }))
 
-vi.mock('../../composables/usePasteUpload.js', () => ({
+vi.mock('../../../utils/track.js', () => ({
+  trackEvent: vi.fn()
+}))
+
+vi.mock('../../../composables/usePasteUpload.js', () => ({
   usePasteUpload: () => ({ pasteError: ref(null) })
 }))
-vi.mock('../../composables/useDropGuard.js', () => ({
+vi.mock('../../../composables/useDropGuard.js', () => ({
   useDropGuard: () => ({
     guardDragEnter: () => true,
     guardDragOver: () => true,
     guardDrop: () => true
   })
 }))
-vi.mock('../../composables/useSlideConfirm.js', () => ({
+vi.mock('../../../composables/useSlideConfirm.js', () => ({
   useSlideConfirm: () => ({
     progress: ref(0),
     onStart: () => {},
@@ -127,5 +131,26 @@ describe('ArtworkManage 删除错误分支 + 分页守卫（a1-12/a1-13）', () 
     await flushPromises()
     expect(wrapper.vm.artworks.map(a => a.id)).toEqual([2])
     expect(wrapper.vm.total).toBe(1)
+  })
+
+  it('b1-B9: covers 封面列表单源（按 cover_order 排序，主图区/计数/序号共用）', async () => {
+    const wrapper = await mountArtwork()
+    h.getArtworksPaged.mockReset()
+    h.getArtworksPaged.mockResolvedValueOnce({
+      items: [
+        { id: 1, image_path: 'a.png', is_cover: 1, cover_order: 2 },
+        { id: 2, image_path: 'b.png', is_cover: 0 },
+        { id: 3, image_path: 'c.png', is_cover: 1, cover_order: 1 }
+      ],
+      total: 3
+    })
+    await wrapper.vm.loadArtworks()
+    await flushPromises()
+
+    expect(wrapper.vm.covers.map(a => a.id)).toEqual([3, 1])
+    expect(wrapper.vm.coverCount).toBe(2)
+    expect(wrapper.vm.coverOrderOf({ id: 1 })).toBe(2)
+    // 封面只进主图区，网格排除主图
+    expect(wrapper.vm.gridArtworks.map(a => a.id)).toEqual([2])
   })
 })

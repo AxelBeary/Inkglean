@@ -54,6 +54,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { artistApi, adminApi } from '../../api/index.js'
+import { MIN_BP, TOTAL_BP, MAX_INSTALLMENTS, NEW_BP } from '../../constants/workflow.js'
 import StageListView from './StageListView.vue'
 import PaymentBar from './PaymentBar.vue'
 import WorkflowOverviewStrip from '../shared/WorkflowOverviewStrip.vue'
@@ -92,12 +93,6 @@ function mapTemplateRows(rows) {
 // 由后端 updateDefaultTemplate 校验兜底（SUM_NOT_100 / BP_TOO_LOW / NO_PAYMENT_NODE）。
 const isTemplateAdmin = computed(() => props.mode === 'admin' && !props.artistId)
 
-// 与 server workflow.service.ts 常量保持一致
-const TPL_MIN_BP = 500
-const TPL_TOTAL_BP = 10000
-const TPL_MAX_INSTALLMENTS = 20
-const TPL_NEW_BP = 1000
-
 // 本地临时 id（保存成功后由后端真实 id 覆盖）
 let tplTempId = 0
 function nextTplId() { return --tplTempId }
@@ -108,7 +103,7 @@ function recalcFinalLocal() {
   const final = pays[pays.length - 1]
   if (!final) return
   const othersSum = pays.filter(s => s.id !== final.id).reduce((sum, s) => sum + (s.basisPoints || 0), 0)
-  final.basisPoints = TPL_TOTAL_BP - othersSum
+  final.basisPoints = TOTAL_BP - othersSum
 }
 
 // 重算 isFinal（最后一个收款节点）——对齐后端 findFinal
@@ -292,10 +287,10 @@ async function onTogglePay(id, val) {
       const final = pays[pays.length - 1]
       if (val) {
         if (s.isFinal) return // 尾款已是收款节点
-        if (pays.length >= TPL_MAX_INSTALLMENTS) { ElMessage.warning(t('workflow.maxInstallments')); return }
-        let newBp = TPL_NEW_BP
-        if (final && final.basisPoints - newBp < TPL_MIN_BP) newBp = final.basisPoints - TPL_MIN_BP
-        if (newBp < TPL_MIN_BP) { ElMessage.warning(t('workflow.finalTooLow')); return }
+        if (pays.length >= MAX_INSTALLMENTS) { ElMessage.warning(t('workflow.maxInstallments')); return }
+        let newBp = NEW_BP
+        if (final && final.basisPoints - newBp < MIN_BP) newBp = final.basisPoints - MIN_BP
+        if (newBp < MIN_BP) { ElMessage.warning(t('workflow.finalTooLow')); return }
         s.takesPayment = true
         s.basisPoints = newBp
         if (final) final.basisPoints -= newBp

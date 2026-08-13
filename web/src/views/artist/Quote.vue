@@ -49,6 +49,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { formatYuan } from '../../utils/money.js'
+import { todayStr } from '../../utils/datetime.js'
 import { quoteTotalCents, buildQuoteText, renderQuoteCanvas } from '../../utils/quote.js'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
 import { copyText as copyToClipboard } from '../../utils/clipboard.js'
@@ -90,18 +91,10 @@ const hasValidItems = computed(() =>
 const totalCents = computed(() => quoteTotalCents(validItems.value))
 const totalText = computed(() => formatYuan(totalCents.value))
 
-function today() {
-  // b1 猎杀修复：本地日期——toISOString 是 UTC，东八区 0~8 点必差一天（报价单日期错一天）
-  const d = new Date()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
-
 function canvasLabels() {
   return {
     title: t('quote.canvasTitle'),
-    date: today(),
+    date: todayStr(),
     clientLabel: t('quote.canvasClient'),
     totalLabel: t('quote.canvasTotal'),
     noteLabel: t('quote.canvasNote'),
@@ -132,7 +125,7 @@ function exportPng() {
     })
     const a = document.createElement('a')
     a.href = canvas.toDataURL('image/png')
-    a.download = `quote-${today()}.png`
+    a.download = `quote-${todayStr()}.png`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -163,7 +156,7 @@ async function copyText() {
 /* 纸墨 token（--card/--line/--ink/--zs），亮暗双主题自动适配 */
 .quote-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 8px; color: var(--ink3); font-size: 13px; }
+.page-sub { margin-top: 8px; }
 
 .quote-panel {
   margin-top: 20px;

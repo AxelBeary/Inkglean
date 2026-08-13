@@ -42,14 +42,12 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { MIN_BP, TOTAL_BP, SNAP } from '../../constants/workflow.js'
 
 const { t } = useI18n()
 const props = defineProps({ stages: { type: Array, default: () => [] } })
 const emit = defineEmits(['change', 'detach'])
 
-const MIN_BP = 500
-const TOTAL_BP = 10000
-const SNAP = 100
 const ELASTIC_THRESHOLD = 150
 
 const trackRef = ref(null)

@@ -5,11 +5,11 @@
 
     <div class="pc-grid">
       <!-- 编辑区：标题 / 档位 / 联系方式 / 例图 -->
-      <section class="pc-panel">
+      <section class="page-card pc-panel">
         <div class="pc-field">
           <label class="pc-label" for="pc-title">{{ $t('priceCard.titleLabel') }}</label>
           <input
-            id="pc-title" v-model="form.title" type="text" class="pc-input"
+            id="pc-title" v-model="form.title" type="text" class="field pc-input"
             :placeholder="$t('priceCard.titlePlaceholder')" maxlength="40"
           />
         </div>
@@ -23,11 +23,11 @@
             <div v-for="(tier, i) in form.tiers" :key="tier.id" class="pc-tier">
               <div class="pc-tier-main">
                 <input
-                  v-model="tier.name" type="text" class="pc-input"
+                  v-model="tier.name" type="text" class="field pc-input"
                   :placeholder="$t('priceCard.tierNamePlaceholder')" maxlength="24"
                 />
                 <input
-                  v-model.number="tier.priceYuan" type="number" min="0" step="0.01" class="pc-input pc-price"
+                  v-model.number="tier.priceYuan" type="number" min="0" step="0.01" class="field pc-input pc-price"
                   :placeholder="$t('priceCard.tierPricePlaceholder')"
                 />
                 <button
@@ -38,7 +38,7 @@
                 </button>
               </div>
               <input
-                v-model="tier.note" type="text" class="pc-input pc-note"
+                v-model="tier.note" type="text" class="field pc-input pc-note"
                 :placeholder="$t('priceCard.tierNotePlaceholder')" maxlength="40"
                 :aria-label="$t('priceCard.tierNotePlaceholder') + ' ' + (i + 1)"
               />
@@ -58,7 +58,7 @@
         <div class="pc-field">
           <label class="pc-label" for="pc-contact">{{ $t('priceCard.contactLabel') }}</label>
           <input
-            id="pc-contact" v-model="form.contact" type="text" class="pc-input"
+            id="pc-contact" v-model="form.contact" type="text" class="field pc-input"
             :placeholder="$t('priceCard.contactPlaceholder')" maxlength="60"
           />
         </div>
@@ -81,7 +81,7 @@
         </div>
 
         <div class="pc-actions">
-          <button type="button" class="pc-btn pc-btn--primary" :disabled="exporting" @click="doExport">
+          <button type="button" class="btn-primary pc-btn pc-btn--primary" :disabled="exporting" @click="doExport">
             {{ exporting ? $t('priceCard.exporting') : $t('priceCard.exportPng') }}
           </button>
           <button type="button" class="pc-btn" @click="copyText">
@@ -91,7 +91,7 @@
       </section>
 
       <!-- 预览区：canvas 实时绘制 -->
-      <section class="pc-panel pc-preview-panel">
+      <section class="page-card pc-panel pc-preview-panel">
         <label class="pc-label">{{ $t('priceCard.previewLabel') }}</label>
         <canvas ref="previewCanvas" class="pc-canvas"></canvas>
       </section>
@@ -105,6 +105,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { formatYuan } from '../../utils/money.js'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { INK_PALETTE } from '../../utils/ink-palette.js'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
 import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
@@ -253,13 +254,7 @@ async function copyText() {
 
 // ─── 竖版长图 PNG：纸墨风简版（米白底 + 墨线分栏 + 朱砂「拾绘」落款） ───
 const CARD_W = 900
-const PAPER = '#F5F4EF'
-const INK = '#262520'
-const INK2 = '#5A564B'
-const INK3 = '#757062'
-const LINE = '#E7E4D9'
-const LINE2 = '#DAD6C8'
-const ZS = '#BC3A2B'
+const { paper: PAPER, ink: INK, ink2: INK2, ink3: INK3, line: LINE, line2: LINE2, zs: ZS, white: WHITE } = INK_PALETTE
 const FONT_DISPLAY = '"LXGW WenKai","Kaiti SC","STKaiti",serif'
 const FONT_BODY = '"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif'
 
@@ -384,7 +379,7 @@ function drawCard(ctx, canvas, img) {
   ctx.rotate(-4 * Math.PI / 180)
   ctx.fillStyle = ZS
   ctx.fillRect(-sealSize / 2, -sealSize / 2, sealSize, sealSize)
-  ctx.fillStyle = '#FFFFFF'
+  ctx.fillStyle = WHITE
   ctx.font = `22px ${FONT_DISPLAY}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -461,7 +456,7 @@ onBeforeUnmount(() => {
 /* 纸墨 token 体系（--paper/--ink/--hq/--card/--line），亮暗双主题自动适配 */
 .price-card-page { padding: 24px; max-width: 1080px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 8px; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
+.page-sub { margin-top: 8px; }
 
 .pc-grid {
   display: grid;
@@ -475,10 +470,6 @@ onBeforeUnmount(() => {
 
 .pc-panel {
   padding: 20px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  box-shadow: var(--sh-1);
 }
 .pc-field { margin-top: 16px; }
 .pc-field:first-child { margin-top: 0; }
@@ -491,18 +482,6 @@ onBeforeUnmount(() => {
 }
 .pc-count { margin-left: 4px; font-style: normal; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 .pc-hint { margin: 0 0 8px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
-
-.pc-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-m);
-  background: var(--paper2);
-  color: var(--ink);
-  font-size: calc(var(--font-scale, 1) * 14px);
-  transition: border-color var(--dur-fast);
-}
-.pc-input:focus { border-color: var(--hq); outline: none; }
 
 .pc-tiers { display: flex; flex-direction: column; gap: 8px; }
 .pc-tier {
@@ -536,8 +515,6 @@ onBeforeUnmount(() => {
 .pc-btn:hover:not(:disabled) { border-color: var(--hq); color: var(--hq); }
 .pc-btn:active:not(:disabled) { transform: scale(0.98); }
 .pc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.pc-btn--primary { background: var(--hq); border-color: var(--hq); color: #fff; }
-.pc-btn--primary:hover:not(:disabled) { background: var(--hq-d); border-color: var(--hq-d); color: #fff; }
 .pc-btn--ghost { padding: 4px 12px; }
 .pc-btn--file { display: inline-block; position: relative; cursor: pointer; }
 .pc-mini-btn {

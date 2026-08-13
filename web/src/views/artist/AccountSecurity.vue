@@ -157,13 +157,14 @@ import {
   toCredentialCreationOptions,
   toCredentialRequestOptions,
   publicKeyCredentialToJSON,
-  isWebAuthnCancellation,
-  isWebAuthnUnsupported,
   isBackendError
 } from '../../utils/webauthn.js'
+import { usePasskeyCreate, PASSKEY_FLOW_HANDLED } from '../../composables/usePasskeyCreate.js'
+import { REBIND_COOLDOWN_DEFAULT_MS } from '../../constants/account.js'
 import type { WebAuthnCredential, PublicArtistDTO } from '../../api/types.js'
 
 const { t } = useI18n()
+const { passkeyCreateFlow } = usePasskeyCreate()
 const store = useArtistStore()
 // JS store 无类型推导，收敛到 PublicArtistDTO（含 qq_number/totp_verified）——诚实断言非 any
 const profile = computed(() => (store.profile ?? null) as PublicArtistDTO | null)
@@ -190,38 +191,19 @@ async function loadCredentials() {
 }
 
 async function registerPasskey() {
-  registering.value = true
-  try {
+  await passkeyCreateFlow(async () => {
     const options = await webauthnApi.registerOptions()
-    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/user.id/excludeCredentials[].id）
     const credential = await navigator.credentials.create({ publicKey: toCredentialCreationOptions(options) })
-    if (!credential) {
-      ElMessage.info(t('common.passkeyCancelled'))
-      return
-    }
+    if (!credential) return null
     const pubCred = credential as PublicKeyCredential
-    // 812-B5: 上传侧统一转 base64url JSON（与后端 verifyRegistration 的 Base64URL 解码口径一致）
     await webauthnApi.registerVerify(publicKeyCredentialToJSON(pubCred))
     await loadCredentials()
-  } catch (err) {
-    if (err instanceof Error && err.name === 'InvalidStateError') {
-      // 设备已注册，刷新列表
-      await loadCredentials()
-      return
-    }
-    // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
-    if (isWebAuthnCancellation(err)) {
-      ElMessage.info(t('common.passkeyCancelled'))
-      return
-    }
-    if (isWebAuthnUnsupported(err)) {
-      ElMessage.warning(t('common.passkeyNotSupported'))
-      return
-    }
-    ElMessage.error(t('common.passkeyFailed'))
-  } finally {
-    registering.value = false
-  }
+    return credential
+  }, {
+    setBusy: (busy) => { registering.value = busy },
+    // 812-B5: 设备已注册 → 刷新列表
+    onInvalidState: async () => { await loadCredentials() }
+  })
 }
 
 function startEdit(row: WebAuthnCredential) {
@@ -283,7 +265,7 @@ async function startRebind() {
       rebindStep.value = 'idle'
       rebindCooldownMs.value = typeof err.detail?.remainingMs === 'number'
         ? err.detail.remainingMs
-        : 24 * 3600000
+        : REBIND_COOLDOWN_DEFAULT_MS
     } else {
       rebindStep.value = 'idle'
       ElMessage.error(t('account.totpRebindFailed'))
@@ -294,41 +276,23 @@ async function startRebind() {
 }
 
 async function verifyWithPasskey() {
-  rebindLoading.value = true
-  try {
-    // a1 猎杀修复：身份验证走登录仪式（credentials.get），与后端 rebind-confirm 的 verifyLogin 链路匹配；
-    // 此前误走注册仪式（registerOptions/create/registerVerify）会误注册新凭据且与后端不匹配
+  await passkeyCreateFlow(async () => {
     const qq = profile.value?.qq_number
     if (!qq) {
       ElMessage.error(t('account.totpRebindFailed'))
-      return
+      return PASSKEY_FLOW_HANDLED
     }
     const options = await webauthnApi.loginOptions(qq)
-    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/allowCredentials[].id）
     const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
-    if (!credential) {
-      ElMessage.info(t('common.passkeyCancelled'))
-      return
-    }
+    if (!credential) return null
     rebindPasskeyCredential.value = publicKeyCredentialToJSON(credential as PublicKeyCredential)
-    // 初始化重绑（获取新二维码）
     const result = await totpRebindApi.rebindInit()
     rebindQrDataUrl.value = 'qrDataUrl' in result ? result.qrDataUrl : null
     rebindStep.value = 'scan'
-  } catch (err) {
-    // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
-    if (isWebAuthnCancellation(err)) {
-      ElMessage.info(t('common.passkeyCancelled'))
-      return
-    }
-    if (isWebAuthnUnsupported(err)) {
-      ElMessage.warning(t('common.passkeyNotSupported'))
-      return
-    }
-    ElMessage.error(t('common.passkeyFailed'))
-  } finally {
-    rebindLoading.value = false
-  }
+    return credential
+  }, {
+    setBusy: (busy) => { rebindLoading.value = busy }
+  })
 }
 
 async function verifyWithCode() {
@@ -359,7 +323,7 @@ async function confirmRebind() {
     await totpRebindApi.rebindConfirm(body)
     rebindStep.value = 'done'
     // 刷新 store（踢下线后 store 会被清除）
-    rebindCooldownMs.value = 24 * 3600000
+    rebindCooldownMs.value = REBIND_COOLDOWN_DEFAULT_MS
   } catch {
     ElMessage.error(t('account.totpRebindFailed'))
   } finally {

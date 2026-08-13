@@ -128,7 +128,7 @@
           <div class="wm-logo-row">
             <el-button size="small" @click="logoInput?.click()">{{ $t('watermark.uploadLogo') }}</el-button>
             <input ref="logoInput" type="file" accept="image/png" class="wm-file-input" @change="onLogoChange" />
-            <img v-if="logoDataUrl" :src="logoDataUrl" class="wm-logo-preview" alt="logo" />
+            <img v-if="logoDataUrl" :src="logoDataUrl" class="wm-logo-preview" :alt="$t('watermark.logoAlt')" />
           </div>
           <div class="wm-slider-row">
             <span class="wm-label">{{ $t('watermark.logoScale') }}</span>
@@ -494,8 +494,8 @@ async function exportImage() {
 @media (max-width: 900px) { .wm-grid { grid-template-columns: 1fr; } }
 
 .wm-panel {
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--r-m, 8px);
   padding: 20px;
   box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
@@ -504,7 +504,7 @@ async function exportImage() {
 
 .wm-source-tabs { margin-bottom: 14px; }
 .wm-field { margin-bottom: 16px; }
-.wm-label { display: block; font-size: 13px; color: var(--ink2, #555); margin-bottom: 8px; }
+.wm-label { display: block; font-size: 13px; color: var(--ink2); margin-bottom: 8px; }
 .wm-text-input { margin-bottom: 16px; }
 .wm-slider-row { margin-bottom: 16px; }
 .wm-slider { margin-left: 8px; }
@@ -514,15 +514,15 @@ async function exportImage() {
   align-items: center;
   justify-content: center;
   min-height: 96px;
-  border: 1.5px dashed var(--line2, #dcdcdc);
+  border: 1.5px dashed var(--line2);
   border-radius: var(--r-m, 8px);
-  background: color-mix(in srgb, var(--card, #fff) 92%, transparent);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
   cursor: pointer;
   /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（无拖拽高亮状态，hover 只动边框） */
   transition: border-color var(--dur-fast);
 }
 .wm-dropzone:hover { border-color: var(--hq, var(--el-color-primary)); }
-.wm-dropzone-text { color: var(--ink3, #888); font-size: 14px; }
+.wm-dropzone-text { color: var(--ink3); font-size: 14px; }
 .wm-file-input { display: none; }
 
 .wm-grid-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
@@ -542,7 +542,7 @@ async function exportImage() {
 .wm-thumb img { width: 100%; height: 72px; object-fit: cover; display: block; }
 
 .wm-order-select { width: 100%; margin-bottom: 4px; }
-.wm-empty { color: var(--ink3, #888); font-size: 13px; margin: 8px 0; }
+.wm-empty { color: var(--ink3); font-size: 13px; margin: 8px 0; }
 
 /* 加载失败错误态（对齐 dashboard module-error） */
 .module-error {
@@ -551,18 +551,18 @@ async function exportImage() {
 }
 
 .wm-preview { margin-top: 16px; }
-.wm-preview-title { font-size: 13px; color: var(--ink2, #555); margin: 0 0 8px; }
+.wm-preview-title { font-size: 13px; color: var(--ink2); margin: 0 0 8px; }
 .wm-preview-body {
   max-height: 320px;
   overflow: auto;
-  border: 1px solid var(--line, #e5e5e5);
+  border: 1px solid var(--line);
   border-radius: var(--r-s, 6px);
-  background: color-mix(in srgb, var(--card, #fff) 96%, #000 4%);
+  background: color-mix(in srgb, var(--card) 96%, #000 4%);
 }
 .wm-preview-body img { display: block; max-width: 100%; }
 
 .wm-logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.wm-logo-preview { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--line, #e5e5e5); border-radius: 6px; }
+.wm-logo-preview { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; }
 
 .wm-pos-group { display: flex; flex-wrap: wrap; gap: 4px; }
 

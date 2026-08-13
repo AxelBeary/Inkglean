@@ -21,6 +21,8 @@ vi.mock('vue-i18n', () => ({
 vi.mock('element-plus', () => ({ ElMessage }))
 
 import Quote from '../Quote.vue'
+// a1-11: today() 已收编入 utils/datetime.todayStr（b1-P1#11 单源化），断言对象同步迁移
+import { todayStr } from '../../../utils/datetime.js'
 
 const ElInputStub = {
   props: ['modelValue', 'placeholder', 'type', 'maxlength', 'clearable'],
@@ -174,12 +176,11 @@ describe('报价单生成（812-tools-a）', () => {
     }
   })
 
-  it('a1-11: today() 用本地时区拼 YYYY-MM-DD（UTC+8 凌晨不差一天）', () => {
+  it('a1-11: todayStr() 用本地时区拼 YYYY-MM-DD（UTC+8 凌晨不差一天）', () => {
     // 本地 2026-08-13 01:00（Asia/Shanghai）→ toISOString 会落在 08-12
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 13, 1, 0, 0))
-    const wrapper = mountQuote()
-    expect(wrapper.vm.today()).toBe('2026-08-13')
+    expect(todayStr()).toBe('2026-08-13')
     vi.useRealTimers()
   })
 })

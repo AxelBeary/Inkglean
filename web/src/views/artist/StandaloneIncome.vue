@@ -1,7 +1,7 @@
 <template>
   <div class="standalone-income-page">
     <h2 class="od-page-title">{{ $t('standaloneIncome.title') }}</h2>
-    <p class="si-sub">{{ $t('standaloneIncome.subtitle') }}</p>
+    <p class="page-sub">{{ $t('standaloneIncome.subtitle') }}</p>
 
     <!-- 记一笔：金额（元→分）/ 日期（默认今天）/ 客户昵称 / 备注 -->
     <el-form
@@ -9,7 +9,7 @@
       :model="form"
       :rules="rules"
       label-position="top"
-      class="si-form"
+      class="page-card si-form"
       @submit.prevent="submit"
     >
       <div class="si-form-grid">
@@ -57,7 +57,7 @@
     </el-form>
 
     <!-- 记账明细（按日期倒序：日期 / 客户 / 金额 / 备注） -->
-    <div class="si-list">
+    <div class="page-card si-list">
       <h3 class="si-list-title">{{ $t('standaloneIncome.listTitle') }}</h3>
       <div v-loading="loading" class="si-list-body">
         <p v-if="!loading && items.length === 0" class="si-empty">{{ $t('standaloneIncome.empty') }}</p>
@@ -88,15 +88,10 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan } from '../../utils/money.js'
+import { todayStr } from '../../utils/datetime.js'
 import { artistApi } from '../../api/index.js'
 
 const { t } = useI18n()
-
-// ─── 表单：金额按「元」输入，提交 ×100 转「分」；日期默认今天 ───
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 const formRef = ref(null)
 const form = reactive({ amount: null, clientName: '', note: '', incomeDate: todayStr() })
@@ -204,16 +199,12 @@ onMounted(loadItems)
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .standalone-income-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.si-sub { margin-top: 6px; color: var(--ink3, #888); font-size: 13px; }
+.page-sub { margin-top: 6px; }
 
 /* 记一笔表单卡片 */
 .si-form {
   margin-top: 20px;
   padding: 22px 24px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
 .si-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
 .si-amount-input { width: 100%; }
@@ -222,14 +213,10 @@ onMounted(loadItems)
 .si-list {
   margin-top: 20px;
   padding: 18px 0 8px;
-  background: var(--card, #fff);
-  border: 1px solid var(--line, #e5e5e5);
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
 .si-list-title { margin: 0 24px 6px; font-size: 15px; font-weight: 700; color: var(--ink); }
 .si-list-body { min-height: 64px; }
-.si-empty { margin: 0; padding: 28px 24px; text-align: center; color: var(--ink3, #888); font-size: 13px; }
+.si-empty { margin: 0; padding: 28px 24px; text-align: center; color: var(--ink3); font-size: 13px; }
 
 .si-row {
   display: grid;
@@ -238,12 +225,12 @@ onMounted(loadItems)
   align-items: center;
   padding: 12px 24px;
 }
-.si-row + .si-row { border-top: 1px dashed var(--line2, #dcdcdc); }
-.si-row-date { font-size: 12px; color: var(--ink3, #888); font-variant-numeric: tabular-nums; }
+.si-row + .si-row { border-top: 1px dashed var(--line2); }
+.si-row-date { font-size: 12px; color: var(--ink3); font-variant-numeric: tabular-nums; }
 .si-row-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .si-row-client { font-size: 14px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
-.si-row-note { font-size: 12px; color: var(--ink2, #555); overflow-wrap: anywhere; }
-.si-row-amount { font-size: 16px; font-weight: 700; color: var(--hq, #b4532a); font-variant-numeric: tabular-nums; text-align: right; }
+.si-row-note { font-size: 12px; color: var(--ink2); overflow-wrap: anywhere; }
+.si-row-amount { font-size: 16px; font-weight: 700; color: var(--hq); font-variant-numeric: tabular-nums; text-align: right; }
 .si-row-delete { flex: none; }
 
 @media (max-width: 600px) {

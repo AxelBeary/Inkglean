@@ -104,6 +104,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
 import { trackEvent } from '../../utils/track.js'
+import { UI_PAGE_SIZE, GUESTBOOK_FETCH_ALL_PAGE_SIZE } from '../../constants/pagination.js'
 
 const { t } = useI18n()
 
@@ -112,7 +113,7 @@ const loading = ref(true)
 const statusFilter = ref('')
 const languageFilter = ref('')
 const page = ref(1)
-const pageSize = 20
+const pageSize = UI_PAGE_SIZE
 
 // 回复状态
 const replyingId = ref(null)
@@ -174,7 +175,7 @@ const statusLabel = (s) => STATUS_LABEL[s] || 'Pending'
 async function load() {
   loading.value = true
   try {
-    const PAGE_SIZE = 100 // 后端单页上限（F-2 clamp 1-100）
+    const PAGE_SIZE = GUESTBOOK_FETCH_ALL_PAGE_SIZE // 后端单页上限（F-2 clamp 1-100）
     const first = await artistApi.getMessages({ page: 1, pageSize: PAGE_SIZE })
     const total = first.total ?? (first.items || []).length
     let all = [...(first.items || [])]
