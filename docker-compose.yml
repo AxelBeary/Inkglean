@@ -5,6 +5,7 @@
 services:
   # Web 应用（前端 + 后端）
   web:
+    image: commission-web:latest
     build:
       context: .
       dockerfile: Dockerfile
