@@ -6,7 +6,8 @@
 > ✅ **GitHub 安全清零**：Dependabot 3 PR 合入（dompurify 3.4.13 富文本消毒防线/fast-uri 3.1.5 GHSA-7p8r-x3mc-p8w7/brace-expansion 5.0.9）+ nanoid 3.3.18 overrides（GHSA-2v37-7h3g-55p8，vite→postcss 传递依赖）；open alerts 4→0，PR 自动关闭。**遗留备忘：仓库名仍为 Brushline-HuiYue（旧品牌），是否改名待用户拍板**。
 > ✅ **终态门禁（master 实测）**：server **1401/1401**（114 文件）· web **496/496**（72 文件）· E2E **11/11**（18.8s，两处 strict 适配：e2 锚 my-order-no/e5 限 el-button）· lint 0 错 · check-i18n（豁免 4）· build 0；accept-baseline.json 已同步（1369→1401 / 436→496）。
 > 📋 **P2 汇总（~180 条，按纪律不修只报）**：原始清单在 workspace/temp/hunt-{a1,a2,a3,b1,b2,b3,b4,b5,c1,d1,d2,d3,t1,t2,v1,v2,v3}-codex.log 各报告尾部，1.0 后按需排期。
-> 🧊 **环境**：master 干净已推；worktree 待清（813-hunt-* 五路+813-fq-* 四路历史）；容器尚未重建（F1 令牌化/V1 脚本/依赖升级未进生产，下次重建即含——V1 新脚本首实战）。
+> ✅ **容器重建（V1 新脚本首实战，抓修两处后全绿）**：post-merge-deploy exit=0——前置门禁（master/干净/SHA 落 deploy.log）+备份 VERIFY_OK+构建 Healthy+迁移回读 **v63=预期**（F1 令牌化进生产）+冒烟清单 PASS×4/WARN×1（公开画师主页探测口径小瑕，不阻断，待后续打磨）。**首实战抓修两处（均入 commit）**：①daily-backup.bat 头注释 UTF-8 中文在 GBK 码页碎行致备份链中断→改 ASCII；②if 块内 echo 文本含 `(>=22.6)` 括号被 cmd 当块结束符→改文案。教训：Windows bat 必须 ASCII-only+块内 echo 禁括号。
+> 🧊 **环境**：master 干净已推；worktree 待清（813-hunt-* 五路+813-fq-* 四路历史）；容器 Healthy（v63/含 F1 令牌化+依赖安全升级）。
 
 > 最新更新：2026-08-13 v94：**前端质量全面战役开工（用户拍板）：三路审计 197 条 / P0 三条全修 / 三波合入 / 视觉批 P1 上 master；容器重建+浏览器冒烟待下轮**——master `dd99316` 待推送。
 > ✅ **战役结构**：施工图两份落档——docs/comms/前端质量战役-施工图-20260813.md（五波：审计/动效 token/三态交互/视觉纸墨化/TS 死码）+ docs/comms/视觉批-Dashboard纸墨化-施工图-20260813.md（模块映射/响应式三档/分期/验收口径）。杂活走 codex 无头不限量，审美决策一号亲做。
