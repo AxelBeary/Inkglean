@@ -1,4 +1,4 @@
-# Multi-Agent Collaboration Rules (绘约 / Brushline-HuiYue)
+# Multi-Agent Collaboration Rules (拾绘 / Inkglean)
 
 Established 2026-07-29. Canonical source: `docs/soul/soul-*.md` (5 files) in the project repo.
 Supplementary: `docs/协作规则.md`, `docs/templates/submit-*.md`.

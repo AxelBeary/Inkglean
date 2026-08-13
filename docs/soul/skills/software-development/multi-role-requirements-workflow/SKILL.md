@@ -784,7 +784,7 @@ Distinct from all other workflows: the user gives you a batch of **AI-generated 
 ### Document structure
 
 ```markdown
-# 绘约平台 · AI 生成设计原型深度分析
+# 拾绘平台 · AI 生成设计原型深度分析
 
 ## 一、分析方法
 ## 二、按页面类型分类分析

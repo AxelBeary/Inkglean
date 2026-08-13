@@ -1,4 +1,4 @@
-// SQLite 生产库诊断脚本（绘约平台）
+// SQLite 生产库诊断脚本（拾绘平台）
 // 用途：怀疑数据丢失时，对 live DB 与各 .bak.vN 备份做统一体检。
 //
 // 用法（容器内，server 是 ESM 包，故必须用 .cjs + 从 /app/server 运行）：

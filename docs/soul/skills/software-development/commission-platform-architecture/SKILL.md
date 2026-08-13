@@ -673,7 +673,7 @@ When receiving an external code audit report for this project:
 
 ## See Also
 
-- `references/multi-agent-collaboration.md` — 5-role AI collaboration rules for 绘约 (roles 一号–五号, branch naming, file ownership boundaries, risk levels, hard rules, 一号's structured review format). READ THIS before reviewing/merging/releasing in this project. Updated 2026-07-29 with soul-audit fixes (shared file ownership, hard rules, plan-*.md reassignment).
+- `references/multi-agent-collaboration.md` — 5-role AI collaboration rules for 拾绘 (roles 一号–五号, branch naming, file ownership boundaries, risk levels, hard rules, 一号's structured review format). READ THIS before reviewing/merging/releasing in this project. Updated 2026-07-29 with soul-audit fixes (shared file ownership, hard rules, plan-*.md reassignment).
 - `references/soul-audit-methodology.md` — How to audit soul/role-definition files against project reality: extract rules from changelog → cross-reference soul files → find ownership gaps → verify safety completeness. Run on handoff or after major releases.
 - `references/artist-website-benchmarks.md` — 10 curated real-artist website cases with URLs, color schemes, and design analysis
 - `references/file-integrity-audit.md` — post-restore file-integrity audit: walk every file-path column and confirm each file exists (records restored ≠ files present). Run after ANY DB restore or when images show 加载失败.

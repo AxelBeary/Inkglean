@@ -1,6 +1,6 @@
 ---
 name: huiyue-browser-regression-testing
-description: "绘约(artist-commission)浏览器回归实测方法：Browserbase 崩→本地 Playwright 降级、e2e 认证配方、合成拖拽测 drop 守卫、造单/stageOff/取消清理、双布局选择器陷阱。触发：二号/五号在 artist-commission 做 UI 实测或交互诊断。"
+description: "拾绘(artist-commission)浏览器回归实测方法：Browserbase 崩→本地 Playwright 降级、e2e 认证配方、合成拖拽测 drop 守卫、造单/stageOff/取消清理、双布局选择器陷阱。触发：二号/五号在 artist-commission 做 UI 实测或交互诊断。"
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -10,7 +10,7 @@ metadata:
     related_skills: [playwright-ui-diagnosis, multi-role-client-frontend-workflow]
 ---
 
-# 绘约浏览器回归实测配方（v0.36 六路回归踩坑总结）
+# 拾绘浏览器回归实测配方（v0.36 六路回归踩坑总结）
 
 ## 通道选择
 

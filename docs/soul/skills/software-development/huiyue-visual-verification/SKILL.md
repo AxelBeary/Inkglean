@@ -1,9 +1,9 @@
 ---
 name: huiyue-visual-verification
-description: 绘约(artist-commission)视觉修复/打磨的验证工作流——EP 组件视觉变量覆盖法、before/after 截图纪律（git stash 生成真实 before）、PIL diff 量化对比（明度/avgRGB 数字证据）。触发：五号/二号做视觉类修复（插画偏亮、颜色协调、空态视觉）需要前后对比证据时。
+description: 拾绘(artist-commission)视觉修复/打磨的验证工作流——EP 组件视觉变量覆盖法、before/after 截图纪律（git stash 生成真实 before）、PIL diff 量化对比（明度/avgRGB 数字证据）。触发：五号/二号做视觉类修复（插画偏亮、颜色协调、空态视觉）需要前后对比证据时。
 ---
 
-# 绘约视觉验证配方（v0.39 打磨批实证）
+# 拾绘视觉验证配方（v0.39 打磨批实证）
 
 视觉类修复的验证核心：**用数字证据替代「看起来协调了」**。流程：隔离实例+登录 → 截 before → 修复 → build → 截 after → 量化对比 → 清理。
 
