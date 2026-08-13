@@ -38,10 +38,11 @@ import { artistApi } from '../../../api/index.js'
 import { formatCents } from '../../../utils/money.js'
 import { useCountUp } from '../../../utils/useCountUp.js'
 import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
+import type { ArtistStats } from '../../../api/types.js'
 
 const props = defineProps<{
   /** getStats 返回（含 todayNewOrderCents / todayRevenueCents），可空 */
-  stats?: Record<string, number | null> | null
+  stats?: ArtistStats | null
 }>()
 
 const { t, locale } = useI18n()
