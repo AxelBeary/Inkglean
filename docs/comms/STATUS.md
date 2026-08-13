@@ -8,7 +8,7 @@
 > ✅ **后端波合入**：v61 迁移（last_login_at/last_greeting_shown_at/dashboard_modules 双轨一致）+ GET /artist/dashboard/schedule（近 7 日排期条，时区铁律走 date.ts）；server 1351→1364。
 > ✅ **视觉批 P1 合入**（813-dash-visual）：四新组件全 lang=ts——GreetingNote（问候贴纸：固定容器/逐字洇墨/每天一次演绎/换一句/日期时段行/今日统计行/落款）、PlaqueStatus（可约稿⇄休息中真实切换，Y 轴翻牌+绳随翻 rAF+钟摆+光带+名额满额藤黄）、LedgerTodo（一行一个动词+5s 墨线冷却+笔点沉底+清账撕页+三态+月度小结一行）、ScheduleScroll（真数据卷轴：纸签五色条+纸卷轴头+今日笔触线+三态+≤600 隔日显示）；Dashboard 按原型 v0.9 重排（顶排问候+统计｜挂牌→卷轴全宽→账本/留言/动态｜开张/快捷；收入走势移出本页）；i18n 16 键中英成对；验收 lint 0 错/438/438/build 0/check-i18n 过。
 > 📦 **基线**：server 1364 / web 438 / E2E 11；accept-baseline.json 已同步。master 门禁合并态实测全绿（lint 0 错 1 已知警告/check-i18n/vitest 438）。
-> ⚠️ **容器重建+浏览器冒烟未做**（关键路径纪律）：视觉批已合入但容器还是旧构建；下轮先跑 scripts/post-merge-deploy.ps1 重建，再 Playwright 三档视口（1440/768/390）截图自审新 Dashboard，交用户终验后再继续派工。
+> ✅ **容器重建+浏览器冒烟完成**：post-merge-deploy 重建（Healthy/迁移 v61 回读/登录页 200）；Playwright 测试库起服冒烟四帧全过自审——1440 纸白/1440 墨黑/768/390：问候贴纸+统计三卡+挂牌+卷轴+账本+留言+动态+开张+快捷全渲染，无白屏无塌；390 单列顺序与卷轴隔日显示生效。截图归档 workspace/temp/fq-batch/v94-dash-*.png。
 > 🔜 **待办**：波2 动效 token 统一（--dur-* token + 全库硬编码时长替换 + 亮暗即时切换 K1 + 中英切换过渡 K3）；波3-2 八组（AccountSecurity/Watermark/ManualOrder/PublishShareDialogs/StyleEditDialog/WorkflowPaymentEditor/AddonTemplateManager/GreetingHero）；clipboard 8+ 处重复抽 utils/clipboard.js；P2 留言/动态/开张/百眼柜纸墨化+公告行+模块开关 UI（字段已备）+管理后台样式去重（C 路 P2 簇）。
 > 🧊 **环境**：master 干净；三个已合入 worktree 已清理（visual 目录仅 build 产物，--force 删，分支已合入）；容器 Healthy（旧构建）；E2E 11/11 基线未动。
 
