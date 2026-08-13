@@ -9,7 +9,8 @@
           </el-checkbox>
           <el-tag size="small" :type="controlTagType(tpl.control_type)">{{ controlLabel(tpl.control_type) }}</el-tag>
           <el-tag size="small" effect="plain" :type="tplCategoryTagType(tpl.category)">{{ categoryLabel($t, tpl.category || 'add') }}</el-tag>
-          <span class="import-price">{{ formatAddonPrice(tpl.default_price, tpl.price_mode, { controlType: tpl.control_type, unitLabel: tpl.unit_label }) }}</span>
+          <!-- 813-fq-tail-shared 战役 S：单位缺省走 i18n（styleManage.unitFallback），不再依赖 money.js 内置「位」 -->
+          <span class="import-price">{{ formatAddonPrice(tpl.default_price, tpl.price_mode, { controlType: tpl.control_type, unitLabel: tpl.unit_label || t('styleManage.unitFallback') }) }}</span>
         </div>
       </el-checkbox-group>
     </div>

@@ -182,7 +182,8 @@ export function useManualOrderPricing({ styles, getSubdomain }) {
 
   /** 画风增项价格文案（¥50 / ¥80/位 / +50%，读真实 price_mode） */
   function formatStyleAddonPrice(a) {
-    return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
+    // 813-fq-tail-shared 战役 S：单位缺省改走 i18n（styleManage.unitFallback），不再依赖 money.js 内置「位」
+    return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label || t('styleManage.unitFallback') })
   }
 
   /** 画风价格计算（防抖 300ms，与旧档位 doCalc 同一模式） */

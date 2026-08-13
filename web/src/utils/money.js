@@ -29,13 +29,14 @@ export function formatYuanValue(yuan) {
 /**
  * 增项价格展示文本（自 addon-utils.formatPrice 迁入，命名 formatAddonPrice）
  * - percent: +N%（整数百分比）
- * - quantity: ¥N/位
+ * - quantity: ¥N/单位（813-fq-tail-shared 战役 S：单位文案由调用方按 i18n 传入，
+ *   保持纯函数、不再内置中文「位」；unitLabel 缺省为 '' 时省略斜杠单位，避免「¥80/」半截）
  * - fixed: ¥N
  */
-export function formatAddonPrice(price, priceMode, { controlType = null, unitLabel = null } = {}) {
+export function formatAddonPrice(price, priceMode, { controlType = null, unitLabel = '' } = {}) {
   const n = price ?? 0
   if (priceMode === 'percent') return `+${n}%`
-  if (controlType === 'quantity') return `¥${n}/${unitLabel || '位'}`
+  if (controlType === 'quantity') return unitLabel ? `¥${n}/${unitLabel}` : `¥${n}`
   return `¥${n}`
 }
 

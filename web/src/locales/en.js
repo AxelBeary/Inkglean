@@ -1326,6 +1326,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // Wave 3-2: template list load-failure error state (don't mislead as "no templates")
     tplLoadFailed: 'Failed to load add-on templates. Please retry.',
     unitDefault: 'item',
+    // 813-fq-tail-shared wave S: fallback unit label for quantity add-ons without a unit (replaces the hardcoded Chinese in money.js)
+    unitFallback: 'unit',
     // Art styles
     styleAddTitle: 'New Style', styleEditTitle: 'Edit Style',
     styleNameLabel: 'Style name', styleNamePlaceholder: 'e.g. Anime, Painterly, Pixel art', styleNameRequired: 'Please enter a style name',
@@ -1767,6 +1769,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     step4Login: 'Go to Login',
     step4TokenNote: 'Keep your setup token safe — it will be needed for future resets.',
     error: 'Something went wrong. Please try again.',
+    // 813-fq-tail-shared wave S: store fallback error copy i18n (replaces hardcoded Chinese)
+    submitAdminFailed: 'Failed to create admin account',
+    confirmTotpFailed: 'Verification failed',
     retry: 'Retry',
     prevStep: 'Previous',
     nextStep: 'Next'

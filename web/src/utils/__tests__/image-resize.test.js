@@ -7,7 +7,8 @@ import {
   coverRect,
   formatBytes,
   isValidCustomDims,
-  resizeImageToBlob
+  resizeImageToBlob,
+  IMAGE_RESIZE_ERROR
 } from '../image-resize.js'
 
 describe('targetSize 预设与自定义解析', () => {
@@ -92,6 +93,6 @@ describe('resizeImageToBlob canvas 压缩链路', () => {
   })
 
   it('目标尺寸非法时拒绝（不高不低）', async () => {
-    await expect(resizeImageToBlob(img, { width: 0, height: 100, quality: 0.8 })).rejects.toThrow('invalid target size')
+    await expect(resizeImageToBlob(img, { width: 0, height: 100, quality: 0.8 })).rejects.toThrow(IMAGE_RESIZE_ERROR.INVALID_TARGET_SIZE)
   })
 })
