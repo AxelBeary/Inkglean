@@ -56,3 +56,7 @@ e2e/test.db*
 e2e/test-uploads/
 e2e/.server-pid
 e2e/.tokens.json
+
+# 冒烟/测试库迁移快照（可再生，勿入库）
+e2e/smoke.db*
+server/data/d3-verify.tmp.db
