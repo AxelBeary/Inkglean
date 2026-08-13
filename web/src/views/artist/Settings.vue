@@ -181,13 +181,15 @@ const form = reactive({
 })
 
 
-const ACCENT_PRESETS = [
-  { color: '#356B69', nameKey: 'pref.accentNames.teal' },
-  { color: '#3F5E80', nameKey: 'pref.accentNames.turquoise' },
-  { color: '#5E5494', nameKey: 'pref.accentNames.blue' },
-  { color: '#346edb', nameKey: 'pref.accentNames.indigo' },
-  { color: '#3445db', nameKey: 'pref.accentNames.violet' }
-]
+// 战役波 S 留账清收：accent 五色单一来源 = theme.css 的 --accent-1..5，运行时读 hex（不再硬编码副本；DB 需存 hex 值故取计算值）
+const ACCENT_PRESETS = (() => {
+  const style = getComputedStyle(document.documentElement)
+  const names = ['teal', 'turquoise', 'blue', 'indigo', 'violet']
+  return names.map((n, i) => ({
+    color: style.getPropertyValue(`--accent-${i + 1}`).trim(),
+    nameKey: `pref.accentNames.${n}`
+  }))
+})()
 
 
 
