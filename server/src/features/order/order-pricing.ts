@@ -143,7 +143,8 @@ function adjustFinalPrice(orderId: number, deltaCents: number): number {
   const order = db.prepare('SELECT final_price_cents, total_price_cents, price_snapshot FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null; price_snapshot: number | null } | undefined
   const currentFinal = order ? (resolvePriceCents(order) ?? 0) : 0
   const newFinal = currentFinal + deltaCents
-  db.prepare('UPDATE orders SET final_price_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  // F5: 金额加减写路径递增 version（对齐 addPayment 相对增量写法，行为其余不变）
+  db.prepare('UPDATE orders SET final_price_cents = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(newFinal, orderId)
   return newFinal
 }

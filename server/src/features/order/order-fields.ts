@@ -14,6 +14,9 @@ import { getOrder } from './order-read.js'
  * expectedVersion 为空（兼容期调用方未传）时先读当前版本——better-sqlite3 单进程同步下
  * 读-写之间无 await，天然原子，行为与旧版一致；双标签页/撤销重放则由调用方传入的
  * 版本号兜住：受影响行数 0 = 版本已被他人推进 → ORDER_CONFLICT（409，防静默覆盖）。
+ * F5: undefined = 读当前版本覆盖（兼容路径保留）；版本链由所有 orders 写路径递增
+ * （version = version + 1）保证——任何写路径（含队列/优先级/金额/焦点图等直写）
+ * 都会推进版本，带 version 的调用方因此能感知一切变更。
  * sets 不含 updated_at/version（由本函数统一追加），调用方只需传业务列 SET 片段。
  */
 export function updateOrderChecked(

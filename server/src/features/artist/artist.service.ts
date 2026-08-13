@@ -36,6 +36,8 @@ interface Artwork {
   description: string | null
   width: number | null
   height: number | null
+  // F7（v62）: 发布来源交付物 id——普通上传为 NULL，发布为作品时记录，唯一索引兜一图一作品
+  source_deliverable_id: number | null
 }
 
 /** 约稿须知（entities.ts 未定义，内联） */
@@ -394,7 +396,12 @@ export function getArtworkById(artworkId: number): Artwork | undefined {
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(artworkId) as Artwork | undefined
 }
 
-export async function createArtwork(artistId: number, { imagePath, title, description }: { imagePath: string; title?: string | null; description?: string | null }): Promise<Artwork | undefined> {
+export async function createArtwork(artistId: number, { imagePath, title, description, sourceDeliverableId }: {
+  imagePath: string
+  title?: string | null
+  description?: string | null
+  sourceDeliverableId?: number | null
+}): Promise<Artwork | undefined> {
   const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM artworks WHERE artist_id = ?').get(artistId) as { m: number | null } | undefined
   const sortOrder = (maxOrder?.m ?? 0) + 1
 
@@ -413,8 +420,10 @@ export async function createArtwork(artistId: number, { imagePath, title, descri
 
   // REQ-022 F1: description 入列（发布为作品携带自由描述；旧调用不传 → null）
   // F-5（P3-18）: 作品描述入库前最小清洗（纵深防御）
-  const result = db.prepare('INSERT INTO artworks (artist_id, image_path, title, description, sort_order, width, height) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(artistId, imagePath, title || null, description ? sanitizeStoredText(String(description)) : null, sortOrder, width, height)
+  // F7: sourceDeliverableId 可选——发布为作品时写入发布源，普通上传不传 → NULL（不受唯一索引约束）
+  const result = db.prepare(
+    'INSERT INTO artworks (artist_id, image_path, title, description, sort_order, width, height, source_deliverable_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(artistId, imagePath, title || null, description ? sanitizeStoredText(String(description)) : null, sortOrder, width, height, sourceDeliverableId ?? null)
 
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(Number(result.lastInsertRowid)) as Artwork | undefined
 }

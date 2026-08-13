@@ -74,7 +74,9 @@ export function reorderQueue(artistId: number, orderedIds: number[]): ArtistOrde
     throw new AppError(E.QUEUE_DUPLICATE)
   }
 
-  const updatePos = db.prepare('UPDATE orders SET queue_position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  // F5: 批量重排同属 orders 写路径——逐行递增 version，让带 version 的写路径
+  // 能感知队列变更（D-1 版本链一致性，行为其余不变）
+  const updatePos = db.prepare('UPDATE orders SET queue_position = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
   db.transaction(() => {
     orderedIds.forEach((id, index) => updatePos.run(index + 1, id))
   })()
@@ -112,7 +114,8 @@ export function updatePriority(orderId: number, priority: string): OrderDetail {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
-  db.prepare('UPDATE orders SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  // F5: 优先级写路径递增 version（对齐 reorderQueue/addPayment 相对增量写法）
+  db.prepare('UPDATE orders SET priority = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(priority, orderId)
 
   return getOrder(orderId)!

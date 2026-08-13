@@ -129,7 +129,8 @@ export function setFocusImage(orderId: number, imagePath: string | null, mode: s
   }
 
   if (mode === 'off') {
-    db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+    // F5: 焦点图写路径递增 version（含 off 清空分支）
+    db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
       .run(orderId)
     return getOrder(orderId)!
   }
@@ -139,7 +140,7 @@ export function setFocusImage(orderId: number, imagePath: string | null, mode: s
   const ref = db.prepare('SELECT id FROM order_references WHERE order_id = ? AND file_path = ?').get(orderId, imagePath)
   if (!ref) throw new AppError(E.FOCUS_IMAGE_NOT_OWNED, 400, { path: imagePath })
 
-  db.prepare('UPDATE orders SET focus_image_path = ?, focus_image_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  db.prepare('UPDATE orders SET focus_image_path = ?, focus_image_mode = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(imagePath, mode, orderId)
 
   return getOrder(orderId)!
@@ -171,7 +172,8 @@ export function removeReference(orderId: number, referenceId: number): OrderDeta
 
     // 如果删除的是焦点图，清理焦点图字段
     if (order.focus_image_path === ref.file_path) {
-      db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      // F5: 删参考图连带清焦点图也是 orders 直写路径，同样递增 version
+      db.prepare("UPDATE orders SET focus_image_path = NULL, focus_image_mode = 'off', version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         .run(orderId)
     }
 
@@ -203,6 +205,9 @@ interface PublishedArtwork {
  * 3. 每张图：deliverables/{artistId}/xxx（签名私有）复制（非移动）→ images/{artistId}/yyy（公开）
  *    原交付物保留不动（客户交付页仍可下载）
  * 4. 一图一条 artworks：title/description 各条共用同一入参，is_cover 默认 0
+ * F7 幂等：交付物行校验后先按 source_deliverable_id 查已发布——已发布直接返回既有
+ * artwork（不复制文件不插行）；混合请求部分已发布时取现有行 + 未发布正常发布；
+ * 并发双发触发唯一约束时按幂等命中回查返回，不报 500。
  *
  * 回滚策略：文件复制阶段中途失败 → 删除已复制文件；
  * DB 插入阶段中途失败 → 删除已插入 artworks + 已复制文件（GC 24h 兜底）
@@ -248,14 +253,52 @@ export async function publishArtwork(
     }
   }
 
-  // ── 文件复制阶段：deliverables/（签名私有）→ images/（公开目录，同作品上传约定）──
+  /** artworks 行中发布结果所需的字段 */
+  interface PublishedArtworkRow {
+    id: number
+    image_path: string
+    title: string | null
+    description: string | null
+  }
+
+  const toPublished = (row: PublishedArtworkRow): PublishedArtwork => ({
+    id: row.id,
+    imagePath: row.image_path,
+    title: row.title,
+    description: row.description
+  })
+
+  /** 幂等命中：该交付物已发布 → 返回既有 artwork 行 */
+  const findPublished = (deliverableId: number): PublishedArtwork | undefined => {
+    const row = db.prepare(
+      'SELECT id, image_path, title, description FROM artworks WHERE source_deliverable_id = ?'
+    ).get(deliverableId) as PublishedArtworkRow | undefined
+    return row ? toPublished(row) : undefined
+  }
+
+  /** 唯一索引冲突识别（F7 并发双发兜底，只吞 source_deliverable_id 约束，不吞其他错误） */
+  const isSourceDeliverableUniqueError = (err: unknown): boolean => {
+    if (!(err instanceof Error)) return false
+    return (err as { code?: string }).code === 'SQLITE_CONSTRAINT_UNIQUE'
+      && String(err.message).includes('artworks.source_deliverable_id')
+  }
+
   const uploadDir = resolve(process.env.UPLOAD_DIR || './uploads')
-  const copiedAbs: string[] = []
-  const targets: string[] = []
+  const results: PublishedArtwork[] = []       // 本次发布返回（既有命中 + 新建）
+  const insertedIds: number[] = []             // 本次调用新建的 artworks 行（回滚用）
+  const copiedAbs: string[] = []               // 本次调用已复制的文件（回滚/冲突清理用）
+
+  // ── 发布阶段：逐交付物 幂等命中 → 复制（deliverables/ 签名私有 → images/ 公开）→ 建行 ──
   try {
-    const destDirAbs = resolve(join(uploadDir, 'images', String(artistId)))
-    mkdirSync(destDirAbs, { recursive: true })
+    mkdirSync(resolve(join(uploadDir, 'images', String(artistId))), { recursive: true })
     for (const d of deliverables) {
+      // 幂等命中：已发布的 deliverable 直接返回既有 artwork，不复制文件不插行
+      const hit = findPublished(d.id)
+      if (hit) {
+        results.push(hit)
+        continue
+      }
+
       const srcAbs = resolve(join(uploadDir, d.file_path))
       // P0-B 纵深防御：源/目标必须都在 uploads 子树内
       if (!srcAbs.startsWith(uploadDir + sep)) throw new AppError(E.ILLEGAL_PATH)
@@ -266,34 +309,36 @@ export async function publishArtwork(
       if (!destAbs.startsWith(uploadDir + sep)) throw new AppError(E.ILLEGAL_PATH)
       copyFileSync(srcAbs, destAbs)
       copiedAbs.push(destAbs)
-      targets.push(destRel)
-    }
-  } catch (err) {
-    // 复制中途失败：清理已复制文件，不留脏数据
-    for (const f of copiedAbs) { try { unlinkSync(f) } catch { /* 忽略 */ } }
-    throw err
-  }
 
-  // ── DB 插入阶段：一图一作品行（createArtwork 内 sharp 读宽高，故为 async，不走 db.transaction）──
-  const created: PublishedArtwork[] = []
-  try {
-    for (const destRel of targets) {
-      const artwork = await createArtwork(artistId, {
-        imagePath: destRel,
-        title,
-        description: description ?? null
-      })
-      if (!artwork) throw new AppError(E.ARTWORK_NOT_FOUND)
-      created.push({
-        id: artwork.id,
-        imagePath: artwork.image_path,
-        title: artwork.title,
-        description: artwork.description
-      })
+      // createArtwork 内 sharp 读宽高，故为 async，不走 db.transaction
+      try {
+        const artwork = await createArtwork(artistId, {
+          imagePath: destRel,
+          title,
+          description: description ?? null,
+          sourceDeliverableId: d.id
+        })
+        if (!artwork) throw new AppError(E.ARTWORK_NOT_FOUND)
+        insertedIds.push(artwork.id)
+        results.push(toPublished(artwork))
+      } catch (err) {
+        // 并发双发兜底：唯一约束冲突 = 对方已发布 → 幂等回查返回，删除本次多余副本
+        if (isSourceDeliverableUniqueError(err)) {
+          const existing = findPublished(d.id)
+          if (existing) {
+            const idx = copiedAbs.indexOf(destAbs)
+            if (idx >= 0) copiedAbs.splice(idx, 1)
+            try { unlinkSync(destAbs) } catch { /* 忽略 */ }
+            results.push(existing)
+            continue
+          }
+        }
+        throw err
+      }
     }
   } catch (err) {
-    // 插入中途失败：删除已插入 artworks + 已复制文件（GC 24h 兜底）
-    for (const a of created) db.prepare('DELETE FROM artworks WHERE id = ?').run(a.id)
+    // 回滚策略不变：插入失败清已插入行 + 已复制文件；复制失败清已复制文件（GC 24h 兜底）
+    for (const id of insertedIds) db.prepare('DELETE FROM artworks WHERE id = ?').run(id)
     for (const f of copiedAbs) { try { unlinkSync(f) } catch { /* 忽略 */ } }
     throw err
   }
@@ -301,5 +346,5 @@ export async function publishArtwork(
   // 注：发布为作品不写 order_activity_logs——action_type 列有 DB CHECK 约束
   // （6 值枚举，加 'publish_artwork' 需重建表迁移，属结构变更，本批派工禁止动 init.js）。
   // 留痕由 artworks 行本身承担（created_at + image_path 可追溯交付来源）。
-  return created
+  return results
 }
