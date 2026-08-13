@@ -35,6 +35,8 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { REPLY_CATEGORIES, REPLY_TEMPLATES } from '../../utils/reply-templates.js'
+// 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
 const { t } = useI18n()
 const currentCat = ref(REPLY_CATEGORIES[0])
@@ -49,36 +51,13 @@ function catKey(item, i) {
   return currentCat.value + '_' + item.name + '_' + i
 }
 
-/** 复制到剪贴板（优先 navigator.clipboard，失败回退 execCommand） */
+/** 复制到剪贴板（公共 clipboard.copyText；成功提示 / 失败提示） */
 async function copyText(item) {
-  const text = item.text
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      fallbackCopy(text)
-    }
+  if (await copyToClipboard(item.text)) {
     ElMessage.success(t('reply.copied'))
-  } catch {
-    fallbackCopy(text)
-    ElMessage.success(t('reply.copied'))
+  } else {
+    ElMessage.error(t('reply.copyFailed'))
   }
-}
-
-/** 旧浏览器回退：隐藏 textarea + execCommand */
-function fallbackCopy(text) {
-  const ta = document.createElement('textarea')
-  ta.value = text
-  ta.style.position = 'fixed'
-  ta.style.opacity = '0'
-  document.body.appendChild(ta)
-  ta.select()
-  try {
-    document.execCommand('copy')
-  } catch {
-    /* ignore */
-  }
-  document.body.removeChild(ta)
 }
 </script>
 

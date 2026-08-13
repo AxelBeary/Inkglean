@@ -17,7 +17,7 @@
       <el-table v-if="codes.length" :data="codes" size="small" stripe>
         <el-table-column :label="$t('discount.colCode')" width="150">
           <template #default="{ row }">
-            <!-- 05D-T2: 行内复制（clipboard API + execCommand 兜底，照 ScheduleSharePage 模式） -->
+            <!-- 05D-T2: 行内复制（走公共 clipboard.copyText） -->
             <span class="discount-code-text">{{ row.code }}</span>
             <el-button size="small" text type="primary" @click="copyCode(row.code)">{{ $t('discount.copyCode') }}</el-button>
           </template>
@@ -113,6 +113,8 @@ import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuanValue } from '../../utils/money.js'
+// 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
 const { t } = useI18n()
 
@@ -128,29 +130,12 @@ const submitting = ref(false)
 const editingId = ref(null)
 const form = ref({ code: '', discountType: 'percent', discountValue: 10, maxUses: null, expiresAt: null })
 
-// 05D-T2: 复制折扣码（clipboard API + execCommand 兜底）
+// 05D-T2: 复制折扣码（公共 clipboard.copyText；成功提示 / 失败提示）
 async function copyCode(code) {
-  try {
-    await navigator.clipboard.writeText(code)
+  if (await copyToClipboard(code)) {
     ElMessage.success(t('discount.copied'))
-  } catch {
-    copyCodeFallback(code)
-  }
-}
-function copyCodeFallback(code) {
-  const ta = document.createElement('textarea')
-  ta.value = code
-  ta.style.position = 'fixed'
-  ta.style.opacity = '0'
-  document.body.appendChild(ta)
-  ta.select()
-  try {
-    document.execCommand('copy')
-    ElMessage.success(t('discount.copied'))
-  } catch {
+  } else {
     ElMessage.error(t('discount.copyFailed'))
-  } finally {
-    document.body.removeChild(ta)
   }
 }
 

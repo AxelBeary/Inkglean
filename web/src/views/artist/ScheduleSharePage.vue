@@ -54,6 +54,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../api/index.js'
+// 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
 const { t } = useI18n()
 
@@ -134,30 +136,13 @@ const previewText = computed(() => {
   return lines.join('\n')
 })
 
-// ─── 复制文本（clipboard API + 兜底 execCommand） ───
+// ─── 复制文本（公共 clipboard.copyText；成功提示 / 失败提示） ───
 async function copyText() {
-  try {
-    await navigator.clipboard.writeText(previewText.value)
+  if (await copyToClipboard(previewText.value)) {
     ElMessage.success(t('schedule.copied'))
-  } catch {
-    copyFallback()
-  }
-}
-
-function copyFallback() {
-  const ta = document.createElement('textarea')
-  ta.value = previewText.value
-  ta.style.position = 'fixed'
-  ta.style.opacity = '0'
-  document.body.appendChild(ta)
-  ta.select()
-  try {
-    document.execCommand('copy')
-    ElMessage.success(t('schedule.copied'))
-  } catch {
+  } else {
     ElMessage.error(t('schedule.copyFailed'))
   }
-  document.body.removeChild(ta)
 }
 
 // ─── 图片卡片（canvas 绘制，纸墨风格固定配色，导出图清晰可分享） ───

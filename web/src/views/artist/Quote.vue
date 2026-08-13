@@ -50,6 +50,8 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { formatYuan } from '../../utils/money.js'
 import { quoteTotalCents, buildQuoteText, renderQuoteCanvas } from '../../utils/quote.js'
+// 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
 const { t } = useI18n()
 
@@ -136,7 +138,7 @@ function exportPng() {
   }
 }
 
-/** 纯文字版一键复制（clipboard 优先 + execCommand 回退，同速记剪切板） */
+/** 纯文字版一键复制（公共 clipboard.copyText；成功提示 / 失败提示） */
 async function copyText() {
   if (!hasValidItems.value) return
   const text = buildQuoteText({
@@ -145,32 +147,11 @@ async function copyText() {
     note: note.value,
     labels: textLabels()
   })
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      fallbackCopy(text)
-    }
+  if (await copyToClipboard(text)) {
     ElMessage.success(t('quote.copied'))
-  } catch {
-    fallbackCopy(text)
-    ElMessage.success(t('quote.copied'))
+  } else {
+    ElMessage.error(t('quote.copyFailed'))
   }
-}
-
-function fallbackCopy(text) {
-  const ta = document.createElement('textarea')
-  ta.value = text
-  ta.style.position = 'fixed'
-  ta.style.opacity = '0'
-  document.body.appendChild(ta)
-  ta.select()
-  try {
-    document.execCommand('copy')
-  } catch {
-    /* ignore */
-  }
-  document.body.removeChild(ta)
 }
 </script>
 

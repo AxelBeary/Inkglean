@@ -105,6 +105,8 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { formatYuan } from '../../utils/money.js'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+// 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
 const { t } = useI18n()
 
@@ -228,7 +230,7 @@ function validate() {
   return true
 }
 
-// ─── 纯文字版 ───
+// ─── 纯文字版（公共 clipboard.copyText；成功提示 / 失败提示） ───
 async function copyText() {
   if (!validate()) return
   const lines = [form.title.trim(), '']
@@ -242,32 +244,11 @@ async function copyText() {
   }
   lines.push('', `—— ${t('priceCard.signText')}`)
   const text = lines.join('\n')
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      fallbackCopy(text)
-    }
+  if (await copyToClipboard(text)) {
     ElMessage.success(t('priceCard.copied'))
-  } catch {
-    fallbackCopy(text)
-    ElMessage.success(t('priceCard.copied'))
+  } else {
+    ElMessage.error(t('priceCard.copyFailed'))
   }
-}
-
-function fallbackCopy(text) {
-  const ta = document.createElement('textarea')
-  ta.value = text
-  ta.style.position = 'fixed'
-  ta.style.opacity = '0'
-  document.body.appendChild(ta)
-  ta.select()
-  try {
-    document.execCommand('copy')
-  } catch {
-    /* 忽略 */
-  }
-  document.body.removeChild(ta)
 }
 
 // ─── 竖版长图 PNG：纸墨风简版（米白底 + 墨线分栏 + 朱砂「拾绘」落款） ───

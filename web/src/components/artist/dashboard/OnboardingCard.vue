@@ -44,6 +44,8 @@ import { artistApi } from '../../../api/index.js'
 import type { OnboardingState } from '../../../api/types.js'
 import { useArtistStore } from '../../../stores/artist.js'
 import { trackEvent } from '../../../utils/track.js'
+// 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
+import { copyText } from '../../../utils/clipboard.js'
 
 const router = useRouter()
 const store = useArtistStore()
@@ -96,25 +98,6 @@ async function sharePage() {
   copied.value = true
   if (copiedTimer) clearTimeout(copiedTimer)
   copiedTimer = setTimeout(() => { copied.value = false }, 2000)
-}
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      return ok
-    } catch {
-      return false
-    }
-  }
 }
 
 async function dismiss() {
