@@ -362,14 +362,12 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     delete: '删除',
     copied: '已复制',
     copyFailed: '复制失败，请手动复制',
-    saveFailed: '保存失败（浏览器可能处于隐私模式）'
   },
   // REQ-040: 账号与安全页
   account: {
     title: '账号与安全',
     accountInfo: '账号信息',
     qqLabel: 'QQ 号',
-    qqHint: 'QQ 号是登录标识，不可修改',
     profileHint: '修改昵称、头像等个人资料请前往',
     profileLink: '主页设置',
     totpSection: '动态口令（TOTP）',
@@ -378,7 +376,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpRebind: '自助重绑',
     totpRebindStep1: '验证身份',
     totpRebindStep2: '扫描新二维码',
-    totpRebindStep3: '确认新码',
     totpRebindDone: '重绑完成',
     totpRebindPasskeyHint: '使用 Passkey 验证身份',
     totpRebindCodeHint: '输入当前验证器上的 6 位码',
@@ -386,7 +383,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpRebindNewCodePlaceholder: '新验证器上的 6 位数字',
     totpRebindConfirm: '确认重绑',
     totpRebindCooldown: '重绑过于频繁，剩余 {hours} 小时后可再次操作',
-    totpRebindAdminExempt: '管理员操作不受限制',
     totpRebindSuccess: 'TOTP 已重绑成功，所有设备已强制登出，请重新登录',
     passkeySection: 'Passkey 登录设备',
     passkeyRegister: '注册本设备',
@@ -557,7 +553,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     widthPlaceholder: '宽度（px）',
     heightPlaceholder: '高度（px，留空等比）',
     qualityLabel: '质量',
-    qualityHint: '越高体积越大',
     process: '开始压缩',
     processing: '处理中…',
     resultTitle: '压缩结果',
@@ -731,7 +726,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败',
     hidden: '该画师暂未开放主页。如你是店主，请到「设置 → 主页展示」开启「小店展示」。',
-    statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     navPricing: '价格', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
     startCommission: '开始约稿 →', trackOrder: '查询进度',
     ctaSubtitle: '期待与你一起创作出好作品。',
@@ -914,7 +908,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // REQ-040: Passkey 登录按钮
     passkeyLogin: '使用 Windows Hello / 指纹登录',
     passkeyLogging: '正在验证身份…',
-    passkeyError: 'Passkey 验证失败，请重试或使用动态码登录',
 
     // v0.46 纸墨登录页：品牌区（朱砂印 + 拾绘 + 副标）
     brandTitle: '拾绘', subtitle: '画师后台',
@@ -965,7 +958,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   dashboard: {
     pendingNew: '待处理新单', activeOrders: '进行中订单',
     totalCompleted: '累计完成',
-    currentStatus: '当前主页状态', statusUpdated: '状态已更新',
+    statusUpdated: '状态已更新',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     anotherOne: '换一句',
     plaqueHintOpen: '点一下 · 休息中',
@@ -998,23 +991,19 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     todayNewOrders: '今日新增订单', todayRevenue: '今日收入',
     // R51: 截稿日 + 今日待办
     // v0.18 仪表盘重构
-    revenueTitle: '收入统计', periodMonth: '月', periodQuarter: '季', periodYear: '年',
-    revenueOrderCount: '{n} 单完成', revenueVs: 'vs {label}', revenueError: '收入数据加载失败',
     retry: '重试',
-    todoTitle: '现在要干什么', todoError: '待办列表加载失败', todoEmpty: '当前没有待办，休息一下',
+    todoTitle: '现在要干什么',
     tag_overdue: '逾期', tag_dueToday: '截稿', tag_pending: '新单', tag_revision: '修改', tag_inProgress: '进行中',
     activityTitle: '最近活动', activityError: '活动记录加载失败', activityEmpty: '暂无最近活动',
     timeJustNow: '刚刚', timeMinutesAgo: '{n} 分钟前', timeHoursAgo: '{n} 小时前', timeDaysAgo: '{n} 天前',
-    slotTitle: '名额概览',
-    slotNext: '下一位候补：{name}（QQ: {qq}）',
     // #4: 名额概览改版
-    slotCombined: '已接 {used}/{total}', slotNotEnabled: '未开启名额限制，去设置 →', slotDisplayFallback: '—',
+    slotCombined: '已接 {used}/{total}',
   },
   queue: {
     title: '排期看板',
     hint: '拖拽卡片调整顺序，顺序立即保存。优先级仅作标记，不影响排列顺序。',
     confirm: '确认', startWip: '开始制作', done: '✔ 完成', deliver: '交付', cancel: '取消',
-    empty: '队列空空，暂无订单', orderUpdated: '排序已更新',
+    empty: '队列空空，暂无订单',
     // REQ-037 C1: 拖拽排序成功提示 + 撤销
     reorderSuccess: '已调整顺序', reorderUndo: '撤销',
     // SPEC-004: 缓冲区
@@ -1206,7 +1195,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     leftTitle: '客户说了什么', rightTitle: '怎么录',
     clientQq: '客户QQ号', clientQqPlaceholder: '客户的QQ号',
     clientName: '客户昵称（可选）', clientNamePlaceholder: '怎么称呼客户',
-    tier: '档位',
     addons: '可选增项',
     usage: '用途', rush: '加急',
     totalPrice: '总价', finalPrice: '最终价格（元）', finalPriceHint: '可手动修改，留空则使用计算价',
@@ -1522,7 +1510,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     announcementHint: '显示在客户主页首屏，最多 500 字。留空则不显示。',
     announcementExpiresLabel: '自动隐藏日期（可选）', announcementExpiresHint: '到期后公告自动消失，不设置则长期显示',
     // REQ-018: 公告过期日快捷预设
-    shortcut7d: '近 7 天', shortcut30d: '近 30 天', shortcutMonthEnd: '本月底',
     save: '保存设置', saved: '设置已保存',
     noChanges: '没有修改',
     // R48: 头像上传
@@ -1730,7 +1717,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     langZh: '中文', langEn: 'English',
     step1TokenLabel: '安装口令',
     step1TokenPlaceholder: '请输入安装口令',
-    step1TokenRequired: '请先输入安装口令',
     step1TokenError: '安装口令错误',
     step1Start: '开始设置',
     step2Title: '创建管理员账号',
@@ -1746,7 +1732,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step2StudioSubdomainLabel: '工作室子域名',
     step2StudioSubdomainPlaceholder: '如 myart（小写字母/数字/连字符）',
     step2Submit: '创建管理员',
-    step2Success: '管理员账号已创建',
     step2QqRequired: '请填写QQ号',
     step2NameRequired: '请填写显示名称',
     step2SubdomainRequired: '请填写工作室子域名',
@@ -1761,18 +1746,14 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step3CodeFormat: '动态码为 6 位数字',
     step3CodeError: '动态口令错误，请重试',
     step3Confirm: '验证并完成设置',
-    step3Success: '动态口令绑定成功！',
     step4Title: '设置完成',
     step4Desc: '开箱设置已完成，现在可以登录使用了。',
     step4Login: '去登录',
-    step4TokenNote: '请妥善保管安装口令，后续重置需要用到。',
     error: '设置过程出错，请重试',
     // 813-fq-tail-shared 战役 S：store 兜底错误文案 i18n 化（替代硬编码中文）
     submitAdminFailed: '创建管理员失败',
     confirmTotpFailed: '验证失败',
-    retry: '重试',
     prevStep: '上一步',
-    nextStep: '下一步'
   },
   // ═══ REQ-042 合规与内容安全（2026-08-11 拍板：隐私权利实现路径 A 联系管理员处理） ═══
   compliance: {
@@ -1949,7 +1930,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     title: '邀请码入驻',
     subtitle: '填写管理员发放的邀请码，创建你的画师账号',
     back: '返回登录',
-    step1Title: '填写入驻信息',
     codeLabel: '邀请码',
     codePlaceholder: '8 位邀请码',
     qqLabel: 'QQ 号',
@@ -1969,7 +1949,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpConfirm: '验证并进入后台',
     confirming: '正在验证…',
     success: '绑定成功，即将进入后台',
-    requiredFields: '请填写完整入驻信息',
     codeRequired: '请输入邀请码',
     codeFormat: '邀请码为 8 位字母或数字',
     qqRequired: '请填写 QQ 号',
@@ -1989,7 +1968,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     validDaysLabel: '有效期（天）',
     validDaysHint: '1-30 天',
     generateBtn: '生成',
-    generating: '生成中…',
     generated: '已生成 {count} 个邀请码',
     colCode: '邀请码',
     colStatus: '状态',

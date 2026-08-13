@@ -362,14 +362,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     delete: 'Delete',
     copied: 'Copied',
     copyFailed: 'Copy failed, please copy manually',
-    saveFailed: 'Save failed (the browser may be in private mode)'
   },
   // REQ-040: Account & Security page
   account: {
     title: 'Account & Security',
     accountInfo: 'Account Info',
     qqLabel: 'QQ Number',
-    qqHint: 'Your QQ number is your login ID and cannot be changed',
     profileHint: 'Edit your name, avatar and other profile info at',
     profileLink: 'Page Settings',
     totpSection: 'Authenticator (TOTP)',
@@ -378,7 +376,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpRebind: 'Rebind',
     totpRebindStep1: 'Verify Identity',
     totpRebindStep2: 'Scan New QR Code',
-    totpRebindStep3: 'Confirm New Code',
     totpRebindDone: 'Rebind Complete',
     totpRebindPasskeyHint: 'Verify with Passkey',
     totpRebindCodeHint: 'Enter the current 6-digit code from your authenticator',
@@ -386,7 +383,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpRebindNewCodePlaceholder: '6-digit code from new authenticator',
     totpRebindConfirm: 'Confirm Rebind',
     totpRebindCooldown: 'Rebind too frequent. Please wait {hours} hours before retrying.',
-    totpRebindAdminExempt: 'Admin operations are not restricted',
     totpRebindSuccess: 'TOTP rebound successfully. All devices have been logged out. Please log in again.',
     passkeySection: 'Passkey Devices',
     passkeyRegister: 'Register This Device',
@@ -558,7 +554,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     widthPlaceholder: 'Width (px)',
     heightPlaceholder: 'Height (px, blank = auto)',
     qualityLabel: 'Quality',
-    qualityHint: 'Higher means larger file',
     process: 'Compress',
     processing: 'Processing…',
     resultTitle: 'Result',
@@ -732,7 +727,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load',
     hidden: "This artist's page is currently unavailable. If you're the owner, enable \"Shop visibility\" under Settings → Public Page.",
-    statusOpen: 'Open for commissions', statusFull: 'Fully booked', statusBreak: 'On break',
     navPricing: 'Pricing', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
     startCommission: 'Start a commission →', trackOrder: 'Track order',
     ctaSubtitle: "Ready to work together? Let's create something amazing.",
@@ -916,7 +910,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // REQ-040: Passkey login button
     passkeyLogin: 'Sign in with Windows Hello / Fingerprint',
     passkeyLogging: 'Verifying identity…',
-    passkeyError: 'Passkey verification failed. Please try again or use an auth code.',
     // v0.46 paper-ink login page: brand block (seal + Inkglean + subtitle)
     brandTitle: 'Inkglean', subtitle: 'Artist Studio',
     // Preferences: theme + language (same logic as the studio)
@@ -966,7 +959,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   dashboard: {
     pendingNew: 'New pending', activeOrders: 'Active orders',
     totalCompleted: 'Total completed',
-    currentStatus: 'Current page status', statusUpdated: 'Status updated',
+    statusUpdated: 'Status updated',
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     anotherOne: 'Another',
     plaqueHintOpen: 'Tap · Take a break',
@@ -999,23 +992,19 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     todayNewOrders: 'New orders today', todayRevenue: 'Revenue today',
     // R51: deadlines + today's todos
     // v0.18 dashboard rebuild
-    revenueTitle: 'Revenue', periodMonth: 'Month', periodQuarter: 'Quarter', periodYear: 'Year',
-    revenueOrderCount: '{n} completed', revenueVs: 'vs {label}', revenueError: 'Failed to load revenue data',
     retry: 'Retry',
-    todoTitle: "What's next", todoError: 'Failed to load todo list', todoEmpty: 'Nothing pending — take a break',
+    todoTitle: "What's next",
     tag_overdue: 'Overdue', tag_dueToday: 'Due today', tag_pending: 'New', tag_revision: 'Revision', tag_inProgress: 'In progress',
     activityTitle: 'Recent activity', activityError: 'Failed to load activity', activityEmpty: 'No recent activity',
     timeJustNow: 'just now', timeMinutesAgo: '{n}m ago', timeHoursAgo: '{n}h ago', timeDaysAgo: '{n}d ago',
-    slotTitle: 'Slot overview',
-    slotNext: 'Next in buffer: {name} (QQ: {qq})',
     // #4: slot overview revamp
-    slotCombined: '{used}/{total} filled', slotNotEnabled: 'Slot limit is off — set it up →', slotDisplayFallback: '—',
+    slotCombined: '{used}/{total} filled',
   },
   queue: {
     title: 'Queue Board',
     hint: 'Drag cards to reorder. Order is saved immediately. Priority is a label only and does not affect sorting.',
     confirm: 'Confirm', startWip: 'Start work', done: '✔ Complete', deliver: 'Deliver', cancel: 'Cancel',
-    empty: 'Queue is empty — no orders yet', orderUpdated: 'Order updated',
+    empty: 'Queue is empty — no orders yet',
     // REQ-037 C1: drag reorder success + undo
     reorderSuccess: 'Order updated', reorderUndo: 'Undo',
     // SPEC-004: buffer zone
@@ -1207,7 +1196,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     leftTitle: 'What the client said', rightTitle: 'How to record',
     clientQq: 'Client QQ', clientQqPlaceholder: "Client's QQ number",
     clientName: 'Client nickname (optional)', clientNamePlaceholder: 'What to call the client',
-    tier: 'Tier',
     addons: 'Add-ons',
     usage: 'Usage', rush: 'Rush',
     totalPrice: 'Total', finalPrice: 'Final price (CNY)', finalPriceHint: 'Editable; leave blank to use calculated price',
@@ -1524,7 +1512,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     announcementHint: 'Shown above the fold on your public page (max 500 chars). Leave empty to hide.',
     announcementExpiresLabel: 'Auto-hide date (optional)', announcementExpiresHint: 'The announcement disappears automatically after this date. Leave unset to keep it indefinitely.',
     // REQ-018: announcement expiry shortcuts
-    shortcut7d: 'Next 7 days', shortcut30d: 'Next 30 days', shortcutMonthEnd: 'End of month',
     save: 'Save settings', saved: 'Settings saved',
     noChanges: 'No changes',
     // R48: avatar upload
@@ -1733,7 +1720,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     langZh: '中文', langEn: 'English',
     step1TokenLabel: 'Setup Token',
     step1TokenPlaceholder: 'Enter the setup token',
-    step1TokenRequired: 'Please enter the setup token',
     step1TokenError: 'Invalid setup token',
     step1Start: 'Get Started',
     step2Title: 'Create Admin Account',
@@ -1749,7 +1735,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     step2StudioSubdomainLabel: 'Studio Subdomain',
     step2StudioSubdomainPlaceholder: 'e.g. myart (lowercase letters/digits/hyphens)',
     step2Submit: 'Create Admin',
-    step2Success: 'Admin account created',
     step2QqRequired: 'Please enter your QQ number',
     step2NameRequired: 'Please enter your display name',
     step2SubdomainRequired: 'Please enter a studio subdomain',
@@ -1765,18 +1750,14 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     step3CodeFormat: 'The code must be 6 digits',
     step3CodeError: 'Invalid code, please try again',
     step3Confirm: 'Verify & Complete Setup',
-    step3Success: 'Authenticator bound successfully!',
     step4Title: 'Setup Complete',
     step4Desc: 'Setup is complete! You can now log in and start using the platform.',
     step4Login: 'Go to Login',
-    step4TokenNote: 'Keep your setup token safe — it will be needed for future resets.',
     error: 'Something went wrong. Please try again.',
     // 813-fq-tail-shared wave S: store fallback error copy i18n (replaces hardcoded Chinese)
     submitAdminFailed: 'Failed to create admin account',
     confirmTotpFailed: 'Verification failed',
-    retry: 'Retry',
     prevStep: 'Previous',
-    nextStep: 'Next'
   },
   // ═══ REQ-042 Compliance & Content Safety (2026-08-11 decision: privacy rights path A — contact the admin) ═══
   compliance: {
@@ -1954,7 +1935,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     title: 'Invite Onboarding',
     subtitle: 'Enter the invite code issued by the admin to create your artist account',
     back: 'Back to Login',
-    step1Title: 'Onboarding Details',
     codeLabel: 'Invite Code',
     codePlaceholder: '8-character invite code',
     qqLabel: 'QQ Number',
@@ -1974,7 +1954,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpConfirm: 'Verify & Enter Studio',
     confirming: 'Verifying…',
     success: 'Bound successfully, entering studio…',
-    requiredFields: 'Please fill in all onboarding fields',
     codeRequired: 'Please enter the invite code',
     codeFormat: 'Invite code must be 8 letters or digits',
     qqRequired: 'Please enter your QQ number',
@@ -1994,7 +1973,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     validDaysLabel: 'Valid Days',
     validDaysHint: '1-30 days',
     generateBtn: 'Generate',
-    generating: 'Generating…',
     generated: '{count} invite codes generated',
     colCode: 'Invite Code',
     colStatus: 'Status',
