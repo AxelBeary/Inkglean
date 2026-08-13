@@ -1,5 +1,17 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 最新更新：2026-08-13 v94：**前端质量全面战役开工（用户拍板）：三路审计 197 条 / P0 三条全修 / 三波合入 / 视觉批 P1 上 master；容器重建+浏览器冒烟待下轮**——master `dd99316` 待推送。
+> ✅ **战役结构**：施工图两份落档——docs/comms/前端质量战役-施工图-20260813.md（五波：审计/动效 token/三态交互/视觉纸墨化/TS 死码）+ docs/comms/视觉批-Dashboard纸墨化-施工图-20260813.md（模块映射/响应式三档/分期/验收口径）。杂活走 codex 无头不限量，审美决策一号亲做。
+> ✅ **波1 审计（三路只读无头）**：A 画师后台 81 条（P1 33/P2 48）、B 客户端 53 条（P0 1/P1 13/P2 39）、C 管理后台+共享 63 条（P0 2/P1 14/P2 47），合计 197。原始清单 workspace/temp/813-fq-audit-{A,B,C}-codex.log。最大簇=「加载失败静默吞掉」约 20 处。
+> ✅ **P0 三条全修已合入**：①公告回显失败静默→明示错误+重试+未加载成功禁止发布（防空表单覆盖现有公告）；②画师删除 API 失败被取消分支吞→拆开必有反馈；③OrderForm 画师信息加载失败只剩页头死路→loadError+retryLoad（草稿恢复仅首次成功跑）+新增 retryLoad 测试用例。
+> ✅ **波3-1 三态修复合入**（813-fq-states1，14 文件）：订单日志/收款流水/偏好/名额/统计/排期公示/稿价计算器/排期看板节点加载失败全改明示错误态+重试；i18n 9 键中英成对；合并态 web 437/437 无回归。
+> ✅ **后端波合入**：v61 迁移（last_login_at/last_greeting_shown_at/dashboard_modules 双轨一致）+ GET /artist/dashboard/schedule（近 7 日排期条，时区铁律走 date.ts）；server 1351→1364。
+> ✅ **视觉批 P1 合入**（813-dash-visual）：四新组件全 lang=ts——GreetingNote（问候贴纸：固定容器/逐字洇墨/每天一次演绎/换一句/日期时段行/今日统计行/落款）、PlaqueStatus（可约稿⇄休息中真实切换，Y 轴翻牌+绳随翻 rAF+钟摆+光带+名额满额藤黄）、LedgerTodo（一行一个动词+5s 墨线冷却+笔点沉底+清账撕页+三态+月度小结一行）、ScheduleScroll（真数据卷轴：纸签五色条+纸卷轴头+今日笔触线+三态+≤600 隔日显示）；Dashboard 按原型 v0.9 重排（顶排问候+统计｜挂牌→卷轴全宽→账本/留言/动态｜开张/快捷；收入走势移出本页）；i18n 16 键中英成对；验收 lint 0 错/438/438/build 0/check-i18n 过。
+> 📦 **基线**：server 1364 / web 438 / E2E 11；accept-baseline.json 已同步。master 门禁合并态实测全绿（lint 0 错 1 已知警告/check-i18n/vitest 438）。
+> ⚠️ **容器重建+浏览器冒烟未做**（关键路径纪律）：视觉批已合入但容器还是旧构建；下轮先跑 scripts/post-merge-deploy.ps1 重建，再 Playwright 三档视口（1440/768/390）截图自审新 Dashboard，交用户终验后再继续派工。
+> 🔜 **待办**：波2 动效 token 统一（--dur-* token + 全库硬编码时长替换 + 亮暗即时切换 K1 + 中英切换过渡 K3）；波3-2 八组（AccountSecurity/Watermark/ManualOrder/PublishShareDialogs/StyleEditDialog/WorkflowPaymentEditor/AddonTemplateManager/GreetingHero）；clipboard 8+ 处重复抽 utils/clipboard.js；P2 留言/动态/开张/百眼柜纸墨化+公告行+模块开关 UI（字段已备）+管理后台样式去重（C 路 P2 簇）。
+> 🧊 **环境**：master 干净；三个已合入 worktree 已清理（visual 目录仅 build 产物，--force 删，分支已合入）；容器 Healthy（旧构建）；E2E 11/11 基线未动。
+
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
 > ✅ **812 四波合入（逐路独立复跑门禁验收，非 self-report）**：①hardening：CodeQL 16 条裁决（7 修/4 顺手/5 驳回）落地——CI 最小权限块、sanitize 循环清洗防嵌套绕过、OG 域名线性去斜杠、uid 换 randomUUID + v50/v52 迁移回读测试（TC-MV-04~10，审计缺口④销账）；②e2e：e7 登录 UI 旅程（渲染/错误码/全链路落地）+ e8 Passkey 虚拟验证器（注册→登出→免密登录，counter 恒 0 豁免链路），**E2E 7→11**；③tools-a：报价单/改稿计数/压图改尺寸；④tools-b：价目卡/交付清单/定金台账（提案落档 docs/comms/新工具提案-6项-重建落档-20260812.md，后三项为重建项已标注；①④是 REQ-014 F4/F3 先行简版，桌面端开工时升级共享组件）。**验收中一号抓出并修**：tools-a 三处测试侧问题（i18n mock 接真实 locale、重挂载补 tick——探针证明产品代码无碍）、toolbox.js 两波冲突手工归位（19 工具四分类）。
 > 🔴 **登录链路三连 bug 根治（用户报 1 个，顺藤摸出 3 个）**：①`/login` 已登录不跳回后台 → 反向守卫（带 redirect 参数回原目标，仅放行站内路径）；②**WebAuthn origin 丢端口**：浏览器 origin 非标端口含端口而服务端拿裸 hostname，直连端口场景 Passkey 注册/登录必 500/401（E2E e8 首抓；reqHost 传带端口 host + 默认端口 80/443 剥除 + rpId 剥端口）；③**login-cross 过渡卡死白屏**：登录页 240s light-drift 背景动画被 Vue 过渡完成检测计入 animationTimeout，离场永不结束、新页永不挂载（逐帧采样+DOM 转储定位，leave-active 强制 animation:none!important 压过 scoped 特异性）。登录动画本体=纯透明度渡过去（离场 .4s/入场 .55s，不位移防滚动条闪现）。**逐帧亮度采样实证：修复前底色 23→245→32 闪白，修复后全程恒定 23 零亮帧**；Passkey 注册+登录真链路实测全通。
