@@ -33,8 +33,8 @@
         <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReply') }}：</span>{{ m.artist_reply }}
       </div>
       <div class="gb-mod-actions" v-if="m.status === 'pending'">
-        <el-button size="small" type="primary" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>
-        <el-button size="small" @click="rejectMsg(m)">{{ $t('dashboard.guestbookReject') }}</el-button>
+        <el-button size="small" class="gb-btn gb-btn--approve" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>
+        <el-button size="small" class="gb-btn gb-btn--reject" @click="rejectMsg(m)">{{ $t('dashboard.guestbookReject') }}</el-button>
       </div>
       <div class="gb-mod-reply-box">
         <el-input
@@ -124,17 +124,18 @@ defineExpose({ load, pendingCount })
 </script>
 
 <style scoped>
-.gb-mod-list { display: flex; flex-direction: column; gap: 12px; max-height: 480px; overflow-y: auto; }
+/* 账本式列表（参照 LedgerTodo .row：行间 --line 分隔，hover 只加深纸底） */
+.gb-mod-list { display: flex; flex-direction: column; max-height: 480px; overflow-y: auto; }
 .gb-mod-item {
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  background: var(--card);
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 4px;
+  transition: background var(--dur-fast) var(--ease-out);
 }
-.gb-mod-item--pending {
-  background: var(--th-t);
-  border-color: color-mix(in srgb, var(--th) 45%, transparent);
-}
+.gb-mod-item:last-child { border-bottom: none; }
+.gb-mod-item:hover { background: var(--paper2); }
+/* 待审 = 账本里的藤黄墨线（同 LedgerTodo 逾期行的左线标记） */
+.gb-mod-item--pending { border-left: 3px solid var(--th); }
 .gb-mod-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .gb-mod-nick { font-weight: 700; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); }
 .gb-mod-content { margin: 0 0 4px; font-size: calc(var(--font-scale, 1) * 13px); line-height: 1.6; word-break: break-word; color: var(--ink2); }
@@ -150,9 +151,21 @@ defineExpose({ load, pendingCount })
 }
 .gb-mod-reply-label { font-weight: 700; color: var(--hq-d); }
 .gb-mod-actions { margin-bottom: 8px; }
-.artist-scope .gb-mod-actions :deep(.el-button) { transition: color var(--dur-mid), background-color var(--dur-mid), border-color var(--dur-mid), transform var(--dur-fast) ease-out; }
-.artist-scope .gb-mod-actions :deep(.el-button:active),
-.artist-scope .gb-mod-reply-box :deep(.el-button:active) { transform: scale(0.98); }
+/* 通过/拒绝 = 墨线描边按钮（参照 LedgerTodo .r-btn：1px color-mix + 手剪圆角） */
+.artist-scope .gb-mod-actions :deep(.el-button) {
+  font: inherit;
+  font-size: calc(var(--font-scale, 1) * 12px);
+  cursor: pointer;
+  background: none;
+  padding: 3px 11px;
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  border-radius: 3px 6px 4px 6px / 6px 4px 6px 3px;
+  transition: background var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out), border-color var(--dur-mid) var(--ease-out);
+}
+.artist-scope .gb-mod-actions :deep(.gb-btn--approve) { color: var(--sl); border-color: color-mix(in srgb, var(--sl) 40%, transparent); }
+.artist-scope .gb-mod-actions :deep(.gb-btn--approve:hover) { background: var(--sl-t); }
+.artist-scope .gb-mod-actions :deep(.gb-btn--reject) { color: var(--zs); border-color: color-mix(in srgb, var(--zs) 40%, transparent); }
+.artist-scope .gb-mod-actions :deep(.gb-btn--reject:hover) { background: var(--zs-t); }
 .gb-skeleton { display: flex; flex-direction: column; gap: 8px; }
 .gb-skeleton-row {
   height: 80px; border-radius: var(--r-m);

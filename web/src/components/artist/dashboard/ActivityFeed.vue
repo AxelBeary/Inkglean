@@ -28,7 +28,10 @@
         <span class="activity-dot"></span>
         <div class="activity-body">
           <span class="activity-desc">{{ item.description }}</span>
-          <span class="activity-meta">#{{ item.orderNo }} · {{ fmtRelativeTime(item.createdAt) }}</span>
+          <span class="activity-meta">
+            <span class="activity-no">#{{ item.orderNo }}</span>
+            <span class="activity-time">· {{ fmtRelativeTime(item.createdAt) }}</span>
+          </span>
         </div>
       </div>
     </div>
@@ -68,15 +71,24 @@ onMounted(() => load())
 
 <style scoped>
 /* v0.38 第二批: 纸墨 token（第一批白名单内补漏） */
-.activity-card { background: var(--card); }
+.activity-card {
+  background: var(--card);
+  border: none;
+  border-radius: 6px 14px 7px 15px / 13px 7px 15px 6px;
+  box-shadow: var(--sh-2);
+}
+/* hover 只加深纸底阴影，不抬升（参照 GreetingNote/LedgerTodo 卡片） */
+.activity-card.is-hover-shadow:hover { box-shadow: var(--sh-2); }
 
 .activity-list { display: flex; flex-direction: column; }
 .activity-item {
-  display: flex; gap: 10px; padding: 8px 4px;
-  border-radius: var(--r-m); cursor: pointer;
-  transition: background var(--dur-fast);
+  display: flex; gap: 10px; padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 4px; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
 }
-.activity-item:hover { background: var(--sb-hover); }
+.activity-item:last-child { border-bottom: none; }
+.activity-item:hover { background: var(--paper2); }
 .activity-dot {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--hq); flex-shrink: 0;
@@ -84,10 +96,15 @@ onMounted(() => load())
 }
 .activity-body { min-width: 0; }
 .activity-desc {
-  display: block; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink);
+  display: block; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.activity-meta { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); }
+.activity-meta {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4);
+}
+.activity-no { font-family: var(--f-d); font-variant-numeric: tabular-nums; }
+.activity-time { white-space: nowrap; }
 
 .activity-empty { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 0; }
 

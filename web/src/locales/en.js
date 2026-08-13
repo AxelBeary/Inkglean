@@ -702,6 +702,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     script: 'Long time no see! I am your artist and I just opened a new slot. Your last commission was {days} days ago. Care to take a look? (Client QQ: {qq})'
   },
   quickAction: {
+    title: 'Settings',
     rules: 'Edit Guidelines',
     share: 'Share Page',
     quickconfig: 'Quick Action Settings',
