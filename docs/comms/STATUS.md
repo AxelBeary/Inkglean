@@ -4,6 +4,7 @@
 > ✅ **战役结构**：施工图两份落档——docs/comms/前端质量战役-施工图-20260813.md（五波：审计/动效 token/三态交互/视觉纸墨化/TS 死码）+ docs/comms/视觉批-Dashboard纸墨化-施工图-20260813.md（模块映射/响应式三档/分期/验收口径）。杂活走 codex 无头不限量，审美决策一号亲做。
 > ✅ **波1 审计（三路只读无头）**：A 画师后台 81 条（P1 33/P2 48）、B 客户端 53 条（P0 1/P1 13/P2 39）、C 管理后台+共享 63 条（P0 2/P1 14/P2 47），合计 197。原始清单 workspace/temp/813-fq-audit-{A,B,C}-codex.log。最大簇=「加载失败静默吞掉」约 20 处。
 > ✅ **P0 三条全修已合入**：①公告回显失败静默→明示错误+重试+未加载成功禁止发布（防空表单覆盖现有公告）；②画师删除 API 失败被取消分支吞→拆开必有反馈；③OrderForm 画师信息加载失败只剩页头死路→loadError+retryLoad（草稿恢复仅首次成功跑）+新增 retryLoad 测试用例。
+> ✅ **auth 域审计项一号亲审亲修（半实裁决）**：TOTP 重绑 Step1 verifyWithCode 虚实现——审计半实（后端 rebind-confirm 强制校验旧码无安全洞，但 Step1 不校验的 UX 属实）→新增 POST /auth/totp/verify-current 轻量校验端点+前端接线（错码 Step1 即报错停留）+4 断言用例；server tsc 0 + totp-rebind 13/13；已推 master。
 > ✅ **波3-1 三态修复合入**（813-fq-states1，14 文件）：订单日志/收款流水/偏好/名额/统计/排期公示/稿价计算器/排期看板节点加载失败全改明示错误态+重试；i18n 9 键中英成对；合并态 web 437/437 无回归。
 > ✅ **后端波合入**：v61 迁移（last_login_at/last_greeting_shown_at/dashboard_modules 双轨一致）+ GET /artist/dashboard/schedule（近 7 日排期条，时区铁律走 date.ts）；server 1351→1364。
 > ✅ **视觉批 P1 合入**（813-dash-visual）：四新组件全 lang=ts——GreetingNote（问候贴纸：固定容器/逐字洇墨/每天一次演绎/换一句/日期时段行/今日统计行/落款）、PlaqueStatus（可约稿⇄休息中真实切换，Y 轴翻牌+绳随翻 rAF+钟摆+光带+名额满额藤黄）、LedgerTodo（一行一个动词+5s 墨线冷却+笔点沉底+清账撕页+三态+月度小结一行）、ScheduleScroll（真数据卷轴：纸签五色条+纸卷轴头+今日笔触线+三态+≤600 隔日显示）；Dashboard 按原型 v0.9 重排（顶排问候+统计｜挂牌→卷轴全宽→账本/留言/动态｜开张/快捷；收入走势移出本页）；i18n 16 键中英成对；验收 lint 0 错/438/438/build 0/check-i18n 过。
