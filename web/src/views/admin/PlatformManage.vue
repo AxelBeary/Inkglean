@@ -1,15 +1,15 @@
 ﻿<template>
   <div class="platform-manage">
     <!-- 页头 -->
-    <div class="page-head">
+    <div class="admin-page-head admin-page-head--actions">
       <div>
-        <h1 class="page-title font-display">{{ $t('admin.platformManage') }}</h1>
-        <p class="page-sub">{{ $t('admin.platformManageSubtitle') }}</p>
+        <h1 class="admin-page-title font-display">{{ $t('admin.platformManage') }}</h1>
+        <p class="admin-page-sub">{{ $t('admin.platformManageSubtitle') }}</p>
       </div>
       <el-button type="primary" @click="openDialog()">{{ $t('admin.platform.add') }}</el-button>
     </div>
 
-    <el-card shadow="never" class="section-card" v-loading="loading">
+    <el-card shadow="never" class="admin-section-card" v-loading="loading">
       <el-table :data="platforms" style="width: 100%">
         <el-table-column :label="$t('admin.platform.colName')" min-width="140">
           <template #default="{ row }">
@@ -214,22 +214,6 @@ onMounted(load)
 /* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807） ═══ */
 .platform-manage { }
 
-/* 页头 */
-.page-head {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: var(--sp-3, 12px); flex-wrap: wrap;
-  margin-bottom: var(--sp-5, 24px);
-}
-.page-title {
-  font-size: var(--fs-page-title, 26px);
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 var(--sp-1, 4px);
-  letter-spacing: .02em;
-}
-.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
-
-.section-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); }
 .pm-name-cell { display: inline-flex; align-items: center; gap: 8px; }
 .pm-name { font-weight: 600; color: var(--ink); }
 .pm-icon { display: inline-flex; align-items: center; color: var(--ink); font-size: 16px; }

@@ -1,10 +1,10 @@
 ﻿<template>
   <div class="admin-page">
     <!-- 页头 -->
-    <div class="page-head">
+    <div class="admin-page-head">
       <div>
-        <h1 class="page-title font-display">{{ $t('admin.artistManage') }}</h1>
-        <p class="page-sub">{{ $t('admin.artistManageSubtitle') }}</p>
+        <h1 class="admin-page-title font-display">{{ $t('admin.artistManage') }}</h1>
+        <p class="admin-page-sub">{{ $t('admin.artistManageSubtitle') }}</p>
       </div>
     </div>
 
@@ -20,7 +20,7 @@
       </div>
     </div>
 
-    <el-card shadow="never" class="section-card">
+    <el-card shadow="never" class="admin-section-card">
       <el-table :data="artists" v-loading="loading" stripe>
         <el-table-column prop="name" :label="$t('admin.colName')" min-width="140">
           <template #default="{ row }">
@@ -683,17 +683,6 @@ onMounted(loadArtists)
 /* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807） ═══ */
 .admin-page { }
 
-/* 页头 */
-.page-head { margin-bottom: var(--sp-5, 24px); }
-.page-title {
-  font-size: var(--fs-page-title, 26px);
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 var(--sp-1, 4px);
-  letter-spacing: .02em;
-}
-.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
-
 /* 操作条 */
 .action-bar {
   display: flex; align-items: center; justify-content: space-between;
@@ -707,7 +696,6 @@ onMounted(loadArtists)
 .action-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
 .action-buttons { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; }
 
-.section-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); }
 .cell-name { font-weight: 600; color: var(--ink); }
 .cell-tag { margin-left: var(--sp-1, 4px); }
 .cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 1px 6px; border-radius: var(--r-s, 4px); }

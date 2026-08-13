@@ -10,10 +10,10 @@
 <template>
   <div class="health-page">
     <!-- 页头 -->
-    <div class="page-head">
+    <div class="admin-page-head admin-page-head--actions">
       <div>
-        <h1 class="page-title font-display">{{ $t('admin.health.title') }}</h1>
-        <p class="page-sub">{{ $t('admin.health.refresh') }}</p>
+        <h1 class="admin-page-title font-display">{{ $t('admin.health.title') }}</h1>
+        <p class="admin-page-sub">{{ $t('admin.health.refresh') }}</p>
       </div>
       <div class="health-actions">
         <el-button type="primary" :loading="checking" @click="runChecks">
@@ -101,20 +101,6 @@ function downloadReport() {
 /* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807）——状态卡片化 ═══ */
 .health-page { }
 
-/* 页头 */
-.page-head {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: var(--sp-3, 12px); flex-wrap: wrap;
-  margin-bottom: var(--sp-5, 24px);
-}
-.page-title {
-  font-size: var(--fs-page-title, 26px);
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 var(--sp-1, 4px);
-  letter-spacing: .02em;
-}
-.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
 .health-actions { display: flex; gap: var(--sp-2, 8px); }
 
 /* 检查结果卡片网格（2 列） */

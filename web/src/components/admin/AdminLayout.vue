@@ -470,3 +470,8 @@ function onStepUpCancel() {
   color: var(--ink3);
 }
 </style>
+
+<style>
+/* 管理后台公共样式（813-fq-admindedup 战役 P2 去重）：AdminLayout 统一引入一次 */
+@import '../../styles/admin-common.css';
+</style>

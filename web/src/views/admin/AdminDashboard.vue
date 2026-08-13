@@ -1,10 +1,10 @@
 ﻿<template>
   <div class="admin-page">
     <!-- 页头：标题 + 说明 -->
-    <div class="page-head">
+    <div class="admin-page-head">
       <div>
-        <h1 class="page-title font-display">{{ $t('admin.panelTitle') }}</h1>
-        <p class="page-sub">{{ $t('admin.dashboardSubtitle') }}</p>
+        <h1 class="admin-page-title font-display">{{ $t('admin.panelTitle') }}</h1>
+        <p class="admin-page-sub">{{ $t('admin.dashboardSubtitle') }}</p>
       </div>
     </div>
 
@@ -14,22 +14,22 @@
       <div class="area-left">
         <!-- 统计卡（画师数/总订单/活跃订单） -->
         <div class="stat-grid">
-          <el-card shadow="never" class="stat-card">
+          <el-card shadow="never" class="admin-stat-card">
             <div class="stat-num">{{ stats?.artistCount ?? '-' }}</div>
             <div class="stat-label">{{ $t('admin.artistCount') }}</div>
           </el-card>
-          <el-card shadow="never" class="stat-card">
+          <el-card shadow="never" class="admin-stat-card">
             <div class="stat-num">{{ stats?.orderCount ?? '-' }}</div>
             <div class="stat-label">{{ $t('admin.totalOrders') }}</div>
           </el-card>
-          <el-card shadow="never" class="stat-card">
+          <el-card shadow="never" class="admin-stat-card">
             <div class="stat-num">{{ stats?.activeOrders ?? '-' }}</div>
             <div class="stat-label">{{ $t('admin.activeOrders') }}</div>
           </el-card>
         </div>
 
         <!-- 画师列表（保留全列表，管理后台画师量小，信息完整优先） -->
-        <el-card shadow="never" class="section-card">
+        <el-card shadow="never" class="admin-section-card">
           <template #header>
             <div class="card-head">
               <span class="card-title">{{ $t('admin.artistList') }}</span>
@@ -66,7 +66,7 @@
       <!-- 右栏：快捷操作 + 留言管理（运营功能，独立分组不再堆叠） -->
       <div class="area-right">
         <!-- 快捷操作 -->
-        <el-card shadow="never" class="section-card">
+        <el-card shadow="never" class="admin-section-card">
           <template #header>
             <div class="card-head">
               <span class="card-title">{{ $t('admin.quickActions') }}</span>
@@ -81,7 +81,7 @@
         </el-card>
 
         <!-- F4: 留言管理（跨画师，强制删除） -->
-        <el-card shadow="never" class="section-card gb-card">
+        <el-card shadow="never" class="admin-section-card gb-card">
           <template #header>
             <div class="gb-filter-header">
               <span class="card-title">{{ $t('admin.guestbook.title') }}</span>
@@ -200,17 +200,6 @@ onMounted(async () => {
    ═══ 2026-08-08 派工：主页重排为仪表盘（对标画师后台 .dash-grid 双栏节奏）──
    回收站迁出到画师管理页（ArtistManage），主页不再出现回收站 */
 
-/* ─── 页头 ─── */
-.page-head { margin-bottom: var(--sp-5, 24px); }
-.page-title {
-  font-size: var(--fs-page-title, 26px);
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 var(--sp-1, 4px);
-  letter-spacing: .02em;
-}
-.page-sub { margin: 0; font-size: var(--fs-aux, 12.5px); color: var(--ink3); }
-
 /* ─── 双栏仪表盘（对齐画师后台 Dashboard：宽屏 3fr/2fr，窄屏单列） ─── */
 .dash-grid { display: flex; flex-direction: column; gap: var(--sp-4, 16px); }
 
@@ -232,8 +221,6 @@ onMounted(async () => {
 
 /* ─── 统计卡 ─── */
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4, 16px); }
-.stat-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out; }
-.stat-card:hover { box-shadow: var(--sh-2); transform: translateY(-1px); }
 .stat-num {
   font-size: 30px; font-weight: bold; color: var(--ink);
   font-family: var(--f-d); text-align: center;
@@ -242,7 +229,6 @@ onMounted(async () => {
 .stat-label { color: var(--ink2); font-size: 13px; text-align: center; margin-bottom: var(--sp-2, 8px); }
 
 /* ─── 区块卡 ─── */
-.section-card { border-radius: var(--r-l, 11px); border: 1px solid var(--line); }
 .card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-2, 8px); }
 .card-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
 
