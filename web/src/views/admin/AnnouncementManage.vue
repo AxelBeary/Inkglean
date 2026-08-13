@@ -4,6 +4,12 @@
     <h2 class="font-display page-title">{{ $t('announcement.admin.manage') }}</h2>
     <p class="page-subtitle">{{ $t('announcement.admin.hint') }}</p>
 
+    <!-- P0 修复（前端质量战役审计）：回显失败不再静默——明示错误+重试，未加载成功禁止发布（防空公告覆盖现有公告） -->
+    <div v-if="loadFailed" class="load-error-banner">
+      <span>{{ t('common.networkError') }}</span>
+      <el-button size="small" @click="load">{{ t('dashboard.retry') }}</el-button>
+    </div>
+
     <el-card class="announcement-form-card">
       <el-form :model="form" label-position="top">
         <el-form-item :label="$t('announcement.admin.titleLabel')">
@@ -44,20 +50,28 @@ const { t } = useI18n()
 const form = reactive<{ title: string; content: string }>({ title: '', content: '' })
 const saving = ref(false)
 const publishedAt = ref<string | null>(null)
+const loadFailed = ref(false)
 
-/** 回显当前公告（管理员也是画师登录态，复用画师侧 GET） */
+/** 回显当前公告（管理员也是画师登录态，复用画师侧 GET）；失败明示+重试，不静默 */
 async function load() {
   try {
     const current: PlatformAnnouncement | null = await artistApi.getAnnouncement()
     form.title = current?.title ?? ''
     form.content = current?.content ?? ''
     publishedAt.value = current?.updatedAt ?? null
+    loadFailed.value = false
   } catch {
-    /* 回显失败静默：表单留空，保存时后端校验 */
+    loadFailed.value = true
   }
 }
 
 async function publish() {
+  // 未加载成功禁止发布：否则可能用空表单覆盖现有公告
+  if (loadFailed.value) {
+    ElMessage.error(t('common.networkError'))
+    await load()
+    return
+  }
   saving.value = true
   try {
     const saved = await adminApi.saveAnnouncement({
@@ -89,6 +103,12 @@ onMounted(load)
   margin: 0 0 16px;
   font-size: calc(var(--font-scale, 1) * 12.5px);
   color: var(--ink2);
+}
+/* P0 修复：回显失败横幅（朱砂浸染，克制不刺眼） */
+.load-error-banner {
+  max-width: 720px; margin: 0 0 14px; padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
 }
 .announcement-form-card { max-width: 720px; border-radius: var(--r-l); }
 .form-actions {

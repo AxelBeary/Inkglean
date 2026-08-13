@@ -475,10 +475,17 @@ async function remove(row) {
       t('admin.confirmRemove', { name: row.name }),
       t('admin.confirmRemoveTitle'), { type: 'error', confirmButtonText: t('admin.confirmRemoveBtn') }
     )
+  } catch {
+    return // 用户取消，非错误
+  }
+  // P0 修复（前端质量战役审计）：API 失败不再被取消分支吞掉，删除失败必有反馈
+  try {
     await adminApi.deleteArtist(row.id)
     ElMessage.success(t('common.removed'))
     await loadArtists()
-  } catch { /* cancelled */ }
+  } catch (err) {
+    ElMessage.error(err.message)
+  }
 }
 
 async function changeStatus(row, status) {
