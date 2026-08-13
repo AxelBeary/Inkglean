@@ -1,12 +1,13 @@
 <template>
   <section class="tpl-rules" v-if="rules">
     <p class="tpl-section-label tpl-rules-label">{{ $t('artistHome.rules') }}</p>
-    <!-- eslint-disable-next-line vue/no-v-html -->
-    <div class="tpl-rules-body tpl-body-text" v-html="sanitizedRules"></div>
+    <SanitizedRichText :html="sanitizedRules" class="tpl-rules-body tpl-body-text" />
   </section>
 </template>
 
 <script setup>
+import SanitizedRichText from '../shared/SanitizedRichText.vue'
+
 defineProps({
   rules: { type: String, default: '' },
   sanitizedRules: { type: String, default: '' }

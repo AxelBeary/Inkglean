@@ -21,8 +21,7 @@
     <!-- 须知确认（消毒后渲染） -->
     <el-form-item v-if="hasRules" prop="agreed">
       <el-card shadow="never" class="rules-preview">
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <div v-html="sanitizedRules" class="rules-html"></div>
+        <SanitizedRichText :html="sanitizedRules" class="rules-html" />
       </el-card>
       <el-checkbox v-model="agreed" style="margin-top: 8px">
         {{ t('orderForm.agreeLabel') }}
@@ -59,6 +58,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import Disclaimer from '../../../components/Disclaimer.vue'
+import SanitizedRichText from '../../../components/shared/SanitizedRichText.vue'
 
 defineProps<{
   /** 画师开启 QQ 通知（artist.notifyEnabled） */
