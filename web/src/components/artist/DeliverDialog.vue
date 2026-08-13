@@ -71,6 +71,7 @@ import { Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
+import { DELIVER_MAX_BYTES as DELIVER_MAX_SIZE } from '../../constants/upload.js' // b1: 50MB 上限单源
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -89,7 +90,6 @@ const deliverFileList = ref([])
 const delivering = ref(false)
 
 // P2-12: 交付文件前端校验（对齐 OrderDetail / 后端 upload.routes DELIVER_ALLOWED）
-const DELIVER_MAX_SIZE = 50 * 1024 * 1024 // 50MB
 const DELIVER_ALLOWED_EXT = [
   '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp',
   '.psd', '.ai', '.tiff', '.pdf',

@@ -36,6 +36,12 @@ export const useSetupStore = defineStore('setup', () => {
     checking.value = true
     try {
       const res = await fetch('/api/setup/status')
+      // a3: res.ok 守卫——503/HTML 错误体直接 res.json() 会抛 SyntaxError，与路由守卫分支处理对齐
+      if (!res.ok) {
+        initialized.value = false
+        tokenRequired.value = false
+        return { initialized: false, tokenRequired: false }
+      }
       const data = await res.json()
       initialized.value = data.initialized
       tokenRequired.value = data.tokenRequired

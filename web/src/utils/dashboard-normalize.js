@@ -128,8 +128,8 @@ export function normalizeActivity(raw) {
  */
 export function relativeTime(isoStr, t, locale) {
   if (!isoStr) return ''
-  // P2-#15: SQLite 空格格式补 T，避免浏览器当本地时间解析（时区偏差 8h）
-  const normalized = isoStr.includes('T') ? isoStr : isoStr.replace(' ', 'T')
+  // P2-#15 / a3: SQLite 空格格式补 T 并追加 Z（与 datetime.js 对齐），避免浏览器当本地时间解析（时区偏差 8h）
+  const normalized = isoStr.includes('T') ? isoStr : isoStr.replace(' ', 'T') + 'Z'
   const diffMs = Date.now() - new Date(normalized).getTime()
   const mins = Math.floor(diffMs / 60000)
   if (mins < 1) return t('dashboard.timeJustNow')
@@ -139,5 +139,5 @@ export function relativeTime(isoStr, t, locale) {
   const days = Math.floor(hours / 24)
   if (days < 30) return t('dashboard.timeDaysAgo', { n: days })
   // 超过 30 天显示日期
-  return new Date(isoStr).toLocaleDateString(locale === 'zh-CN' ? 'zh-CN' : 'en-US')
+  return new Date(normalized).toLocaleDateString(locale === 'zh-CN' ? 'zh-CN' : 'en-US')
 }

@@ -13,7 +13,9 @@
  */
 export function formatDateTime(str, options) {
   if (!str) return ''
-  const normalized = str.includes('T') ? str : str.replace(' ', 'T') + 'Z'
+  // a3: 空格格式若已带时区后缀（'...Z' / '...+08:00'），先剥离再补 Z，避免拼出 '...ZZ' 解析失败
+  const trimmed = str.includes('T') ? str : str.replace(/[zZ]$/, '').replace(/([+-]\d{2}:?\d{2})$/, '')
+  const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T') + 'Z'
   const date = new Date(normalized)
   if (isNaN(date.getTime())) return str
 

@@ -96,6 +96,7 @@ import { useArtistStore } from '../../../stores/artist.js'
 import { artistApi, uploadApi } from '../../../api/index.js'
 import { usePasteUpload } from '../../../composables/usePasteUpload.js'
 import { trackEvent } from '../../../utils/track.js'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload.js'
 import SliderSwitch from '../SliderSwitch.vue'
 
 const router = useRouter()
@@ -153,8 +154,8 @@ const publishActive = ref(false)
 const publishUploading = ref(false)
 const { pasteError } = usePasteUpload({
   onFiles: async (files) => { await doPublish(files) },
-  maxCount: 5,
-  maxSizeMB: 10,
+  maxCount: MAX_IMAGE_COUNT,
+  maxSizeMB: MAX_IMAGE_MB,
   enabled: true
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
@@ -169,11 +170,13 @@ function onCardDragLeave(action) {
 }
 async function onCardDrop(action, e) {
   if (action.key !== 'publish') return
-  const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'))
+  const files = Array.from(e.dataTransfer?.files || [])
+    .filter(f => f.type.startsWith('image/') && f.size <= MAX_IMAGE_BYTES) // a1: 拖拽路径补大小校验（对齐粘贴路径）
   if (!files.length) { ElMessage.warning(t('quickAction.notImage')); return }
   await doPublish(files)
 }
 async function doPublish(files) {
+  if (publishUploading.value) return // a1: busy 入口守卫——粘贴与拖拽并发时忽略后续批次
   publishUploading.value = true
   try {
     for (const file of files) {

@@ -11,8 +11,8 @@
 
       <div class="deadline-field">
         <div class="deadline-field-label">{{ $t('deadlineAdvice.queueMode') }}</div>
-        <el-switch v-model="includeQueue" active-text="" inactive-text="" />
-        <span class="deadline-field-hint">{{ $t('deadlineAdvice.queueHint', { n: queueDays }) }}</span>
+        <el-switch v-model="includeQueue" active-text="" inactive-text="" :aria-label="$t('deadlineAdvice.queueMode')" />
+        <span class="deadline-field-hint">{{ $t('deadlineAdvice.queueHint', { n: BUFFER_DAYS_PER_ORDER }) }}</span>
       </div>
 
       <div class="deadline-field">
@@ -51,8 +51,6 @@ const workDays = ref(3)
 const includeQueue = ref(true)
 const queueCount = ref(0)
 const result = ref(null)
-
-const queueDays = BUFFER_DAYS_PER_ORDER
 
 /** 周几文案（走 i18n，weekdays.0=周日 … 6=周六） */
 const WEEK_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']

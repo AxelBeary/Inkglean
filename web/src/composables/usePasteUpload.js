@@ -24,8 +24,9 @@
  */
 import { ref, onMounted, onUnmounted, unref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload.js'
 
-export function usePasteUpload({ onFiles, maxCount = 5, maxSizeMB = 10, enabled = true }) {
+export function usePasteUpload({ onFiles, maxCount = MAX_IMAGE_COUNT, maxSizeMB = MAX_IMAGE_MB, enabled = true }) {
   const { t } = useI18n()
   const isPasteUploading = ref(false)
   const pasteError = ref('')
@@ -33,6 +34,8 @@ export function usePasteUpload({ onFiles, maxCount = 5, maxSizeMB = 10, enabled 
   async function handlePaste(event) {
     // enabled 为 false 时不响应（如对话框未打开）
     if (!unref(enabled)) return
+    // a3: busy 互斥——上传在途时再次粘贴直接忽略，防止并发进入 onFiles 超限重复上传
+    if (isPasteUploading.value) return
 
     const items = event.clipboardData?.items
     if (!items) return

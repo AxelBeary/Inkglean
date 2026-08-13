@@ -48,14 +48,14 @@
         <div v-if="coverCount > 1" class="artwork-cover-reorder">
           <button
             class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
-            :title="$t('artworks.coverMoveUp')"
+            :aria-label="$t('artworks.coverMoveUp')" :title="$t('artworks.coverMoveUp')"
             @click.stop="moveCover(art, -1)"
           >
             ↑
           </button>
           <button
             class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
-            :title="$t('artworks.coverMoveDown')"
+            :aria-label="$t('artworks.coverMoveDown')" :title="$t('artworks.coverMoveDown')"
             @click.stop="moveCover(art, 1)"
           >
             ↓
@@ -64,7 +64,7 @@
         <button
           class="artwork-cover-star artwork-cover-star--on"
           :disabled="coverBusyId === art.id"
-          :title="$t('artworks.coverUnset')"
+          :aria-label="$t('artworks.coverUnset')" :title="$t('artworks.coverUnset')"
           @click="toggleCover(art)"
         >
           ★
@@ -124,6 +124,7 @@
         class="artwork-cover-star"
         :class="{ 'artwork-cover-star--on': art.is_cover }"
         :disabled="coverBusyId === art.id"
+        :aria-label="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
         :title="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
         @click="toggleCover(art)"
       >
@@ -137,14 +138,14 @@
       <div v-if="art.is_cover && coverCount > 1" class="artwork-cover-reorder">
         <button
           class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
-          :title="$t('artworks.coverMoveUp')"
+          :aria-label="$t('artworks.coverMoveUp')" :title="$t('artworks.coverMoveUp')"
           @click.stop="moveCover(art, -1)"
         >
           ↑
         </button>
         <button
           class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
-          :title="$t('artworks.coverMoveDown')"
+          :aria-label="$t('artworks.coverMoveDown')" :title="$t('artworks.coverMoveDown')"
           @click.stop="moveCover(art, 1)"
         >
           ↓
@@ -239,14 +240,15 @@ import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { trackEvent } from '../../utils/track.js'
 import { UI_PAGE_SIZE } from '../../constants/pagination.js'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../constants/upload.js'
 
 const { t } = useI18n()
 
 // ─── 粘贴上传（作品） ───
 const { pasteError } = usePasteUpload({
   onFiles: handlePasteArtworkFiles,
-  maxCount: 5,
-  maxSizeMB: 10
+  maxCount: MAX_IMAGE_COUNT,
+  maxSizeMB: MAX_IMAGE_MB
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
@@ -363,9 +365,9 @@ async function publishArtworkFile(file, { validate = false } = {}) {
       ElMessage.warning(t('upload.fileNotImage'))
       return null
     }
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_BYTES) {
       const sizeMB = (file.size / 1024 / 1024).toFixed(1)
-      ElMessage.warning(t('upload.fileTooBig', { name: file.name, size: sizeMB, max: 10 }))
+      ElMessage.warning(t('upload.fileTooBig', { name: file.name, size: sizeMB, max: MAX_IMAGE_MB }))
       return null
     }
   }
@@ -599,7 +601,8 @@ onMounted(async () => {
   border: 2px solid color-mix(in srgb, var(--th) 45%, transparent);
 }
 .main-artwork-img { width: 100%; height: 160px; display: block; }
-.main-artwork-tag {
+.main-artwork-tag,
+.artwork-cover-tag {
   position: absolute; top: 6px; left: 6px; z-index: 2;
   padding: 2px 8px; border-radius: 999px;
   background: var(--th);
@@ -643,14 +646,6 @@ onMounted(async () => {
 .artwork-cover-star:disabled { cursor: wait; opacity: 0.6; }
 /* 封面星：藤黄=待确认/封面标记语义 */
 .artwork-cover-star--on { color: var(--th); }
-.artwork-cover-tag {
-  position: absolute; top: 6px; left: 6px; z-index: 2;
-  padding: 2px 8px; border-radius: 999px;
-  background: var(--th);
-  color: #fff; font-size: calc(var(--font-scale, 1) * 11px); font-weight: 600; letter-spacing: 0.5px;
-  pointer-events: none;
-}
-
 /* ─── v0.31: 多封面排序按钮 ─── */
 .artwork-cover-reorder {
   position: absolute; bottom: 6px; right: 6px; z-index: 2;

@@ -5,7 +5,19 @@
  * @returns {string} 两位小数字符串
  */
 export function formatCents(cents) {
-  return ((cents || 0) / 100).toFixed(2)
+  // a3: Number 归一化——'abc'/NaN 等非法输入统一按 0 处理，不再输出 'NaN'
+  const n = Number(cents)
+  return ((Number.isNaN(n) ? 0 : n) / 100).toFixed(2)
+}
+
+/**
+ * 元 → 分（b1: 各组件散落的 Math.round(x*100) 收口；非法输入按 0）
+ * @param {number|string|null|undefined} yuan 金额（元）
+ * @returns {number} 分（整数）
+ */
+export function yuanToCents(yuan) {
+  const n = Number(yuan)
+  return Math.round((Number.isNaN(n) ? 0 : n) * 100)
 }
 
 /** 金额分 → 「¥元」字符串（¥ 前缀 + formatCents；负数输出 ¥-12.00，与旧各点 `¥{{ (x/100).toFixed(2) }}` 等价） */

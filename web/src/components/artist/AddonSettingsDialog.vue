@@ -65,7 +65,7 @@
           <tbody>
             <tr v-for="row in form.sizeRows" :key="row.sizeId">
               <td class="row-name">{{ row.sizeName }}</td>
-              <td><el-switch v-model="row.enabled" size="small" /></td>
+              <td><el-switch v-model="row.enabled" size="small" :aria-label="$t('styleManage.addonEnableCol')" /></td>
               <td>
                 <div class="diff-cell">
                   <el-input-number

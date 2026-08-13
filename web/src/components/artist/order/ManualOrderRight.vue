@@ -1,12 +1,12 @@
 ﻿<template>
-  <!-- ═══ 右栏：怎么录（v0.42 拆分：自 ManualOrder.vue L110-491 原样搬移，零行为变化） ═══ -->
+  <!-- ═══ 右栏：怎么录（v0.42 拆分：自 ManualOrder.vue 拆分搬移，零行为变化） ═══ -->
   <section class="mo-col">
     <h3 class="mo-section">{{ $t('manualOrder.rightTitle') }}</h3>
 
     <!-- R6 (REQ-029): 图片显示开关——右栏所有卡片图片一起藏，localStorage 记忆 -->
     <div class="mo-show-images">
       <span>{{ $t('manualOrder.showImages') }}</span>
-      <el-switch v-model="showImages" size="small" />
+      <el-switch v-model="showImages" size="small" :aria-label="$t('manualOrder.showImages')" />
     </div>
 
     <!-- ─── SPEC-PRICE-2：画风模式唯一（画风→尺寸→增项三区选择，交互对齐 OrderForm） ─── -->
@@ -173,7 +173,7 @@
         <div class="price-divider"></div>
         <div class="price-line total">
           <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + Math.round(customAddonsTotal * 100)) }}</span>
+          <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + yuanToCents(customAddonsTotal)) }}</span>
         </div>
       </div>
       <!-- R5: 自定义单（什么都不选）时无计算明细，自定义增项独立成块 -->
@@ -185,7 +185,7 @@
         <div class="price-divider"></div>
         <div class="price-line total">
           <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">{{ formatYuan(Math.round(customAddonsTotal * 100)) }}</span>
+          <span class="price-amount">{{ formatYuan(yuanToCents(customAddonsTotal)) }}</span>
         </div>
       </div>
 
@@ -275,7 +275,7 @@
           <div class="price-divider"></div>
           <div class="price-line total">
             <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + Math.round(customAddonsTotal * 100)) }}</span>
+            <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + yuanToCents(customAddonsTotal)) }}</span>
           </div>
         </div>
         <div v-else-if="customAddons.length > 0" class="price-preview">
@@ -286,7 +286,7 @@
           <div class="price-divider"></div>
           <div class="price-line total">
             <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">{{ formatYuan(Math.round(customAddonsTotal * 100)) }}</span>
+            <span class="price-amount">{{ formatYuan(yuanToCents(customAddonsTotal)) }}</span>
           </div>
         </div>
 
@@ -362,12 +362,10 @@ import { useI18n } from 'vue-i18n'
 import { useStageStatus } from '../../../composables/useStageStatus.js'
 // 2026-08-10 拆分批：价格状态机抽 composable（纯搬移零行为变化）
 import { useManualOrderPricing } from '../../../composables/useManualOrderPricing.js'
-import { formatCents, formatYuan, formatYuanValue } from '../../../utils/money.js'
+import { formatCents, formatYuan, formatYuanValue, yuanToCents } from '../../../utils/money.js'
 import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
 
 const props = defineProps({
-  // 表单字段（父组件 reactive form 对象——v-model 绑定同一对象）
-  form: { type: Object, required: true },
   styles: { type: Array, default: () => [] },
   // 价格元数据（分期比例等，父组件初始化加载）
   pricingData: { type: Object, default: null },
@@ -431,9 +429,9 @@ const { initialStatus, options: initialStatusOptions, findTarget: findTargetStag
 
 /** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（含 R5 自定义增项合计） */
 const displayPrice = computed(() => {
-  if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return formatCents(Math.round(finalPriceYuan.value * 100))
-  if (stylePricePreview.value) return formatCents((stylePricePreview.value.totalCents ?? 0) + Math.round(customAddonsTotal.value * 100))
-  if (customAddonsTotal.value !== 0) return formatCents(Math.round(customAddonsTotal.value * 100))
+  if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return formatCents(yuanToCents(finalPriceYuan.value))
+  if (stylePricePreview.value) return formatCents((stylePricePreview.value.totalCents ?? 0) + yuanToCents(customAddonsTotal.value))
+  if (customAddonsTotal.value !== 0) return formatCents(yuanToCents(customAddonsTotal.value))
   return ''
 })
 
@@ -496,7 +494,7 @@ async function submit() {
     let postCreateFailed = null
     if (order.id && priceTouched.value && finalPriceYuan.value != null) {
       const calcCents = stylePricePreview.value?.totalCents ?? null
-      const manualCents = Math.round(finalPriceYuan.value * 100)
+      const manualCents = yuanToCents(finalPriceYuan.value)
       if (manualCents > 0 && manualCents !== calcCents) {
         try {
           await artistApi.updatePrice(order.id, {

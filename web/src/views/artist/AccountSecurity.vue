@@ -129,11 +129,11 @@
               </el-table-column>
               <el-table-column :label="t('common.actions')" width="140">
                 <template #default="{ row }">
-                  <el-button v-if="editingId === row.id" text size="small" @click="saveName(row.id)">{{ t('common.save') }}</el-button>
+                  <el-button v-if="editingId === row.id" text size="small" :loading="savingNameId === row.id" :disabled="savingNameId != null" @click="saveName(row.id)">{{ t('common.save') }}</el-button>
                   <el-button v-else text size="small" @click="startEdit(row)">{{ t('common.edit') }}</el-button>
                   <el-popconfirm :title="t('account.passkeyDeleteConfirm')" @confirm="deleteCredential(row.id)">
                     <template #reference>
-                      <el-button text size="small" type="danger">{{ t('account.passkeyDelete') }}</el-button>
+                      <el-button text size="small" type="danger" :loading="deletingId === row.id" :disabled="deletingId != null">{{ t('account.passkeyDelete') }}</el-button>
                     </template>
                   </el-popconfirm>
                 </template>
@@ -177,6 +177,9 @@ const credentials = ref<WebAuthnCredential[]>([])
 const loading = ref(false)
 const registering = ref(false)
 const editingId = ref<number | null>(null)
+/** a1: 改名/删除在途标记——双击/连点防重复请求 */
+const savingNameId = ref<number | null>(null)
+const deletingId = ref<number | null>(null)
 const editName = ref('')
 
 async function loadCredentials() {
@@ -212,7 +215,8 @@ function startEdit(row: WebAuthnCredential) {
 }
 
 async function saveName(id: number) {
-  if (!editName.value.trim()) return
+  if (!editName.value.trim() || savingNameId.value != null) return
+  savingNameId.value = id
   try {
     await webauthnApi.updateCredential(id, editName.value.trim())
     editingId.value = null
@@ -220,15 +224,21 @@ async function saveName(id: number) {
     await loadCredentials()
   } catch {
     ElMessage.error(t('account.passkeyRenameFailed'))
+  } finally {
+    savingNameId.value = null
   }
 }
 
 async function deleteCredential(id: number) {
+  if (deletingId.value != null) return
+  deletingId.value = id
   try {
     await webauthnApi.deleteCredential(id)
     await loadCredentials()
   } catch {
     ElMessage.error(t('account.passkeyDeleteFailed'))
+  } finally {
+    deletingId.value = null
   }
 }
 

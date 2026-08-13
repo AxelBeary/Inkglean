@@ -212,8 +212,8 @@ function goAfterLogin(route) {
 
 /** 时辰底色：按真实时间定纸白底色的色温（晨微暖/午标准/暮暖深/夜微冷），
  *  配合 CSS light-drift 一次性超慢漂移（不循环，宪法动效纪律）；墨黑主题不参与 */
-const h = new Date().getHours()
-const daypart = h >= 5 && h < 10 ? 'morning' : h >= 16 && h < 20 ? 'dusk' : (h >= 20 || h < 5) ? 'night' : 'noon'
+const hours = new Date().getHours()
+const daypart = hours >= 5 && hours < 10 ? 'morning' : hours >= 16 && hours < 20 ? 'dusk' : (hours >= 20 || hours < 5) ? 'night' : 'noon'
 
 const passkeySupported = ref(window.PublicKeyCredential !== undefined && window.isSecureContext === true)
 const passkeyLogging = ref(false)
@@ -263,7 +263,7 @@ onMounted(async () => {
 function openInvite() {
   inviteView.value = true
   inviteStep.value = 1
-  inviteError.value = ''
+  resetInviteErrors()
   // 初始聚焦：进入叠加层后聚焦第一个可输入控件
   nextTick(() => {
     const codeInput = inviteOverlayRef.value?.querySelector('#invite-code')
@@ -280,15 +280,20 @@ function closeInvite() {
   inviteQr.value = ''
   inviteTotpCode.value = ''
   inviteStep.value = 1
+  resetInviteErrors()
+  inviteTotpOk.value = false
+  // 回焦：关闭叠加层后焦点还给「邀请码入驻」入口按钮
+  inviteEntryRef.value?.focus()
+}
+
+/** b1: 邀请流程错误状态清零（openInvite/closeInvite/两步提交共用） */
+function resetInviteErrors() {
   inviteError.value = ''
   inviteErrCode.value = false
   inviteErrQq.value = false
   inviteErrName.value = false
   inviteErrSub.value = false
   inviteErrTotp.value = false
-  inviteTotpOk.value = false
-  // 回焦：关闭叠加层后焦点还给「邀请码入驻」入口按钮
-  inviteEntryRef.value?.focus()
 }
 
 /** 焦点圈闭：Tab 不离开叠加层（首尾循环） */
@@ -328,16 +333,12 @@ async function generateInviteQr(otpauthUri) {
 }
 
 async function submitInvite() {
-  inviteError.value = ''
-  inviteErrCode.value = false
-  inviteErrQq.value = false
-  inviteErrName.value = false
-  inviteErrSub.value = false
+  resetInviteErrors()
 
   const code = invCode.value.trim()
   const qq = invQq.value.trim()
   const name = invName.value.trim()
-  const sub = invSubdomain.value.trim().toLowerCase()
+  const subdomain = invSubdomain.value.trim().toLowerCase()
 
   if (!code) {
     inviteErrCode.value = true
@@ -364,12 +365,12 @@ async function submitInvite() {
     inviteError.value = t('invite.nameRequired')
     return
   }
-  if (!sub) {
+  if (!subdomain) {
     inviteErrSub.value = true
     inviteError.value = t('invite.subdomainRequired')
     return
   }
-  if (!/^[a-z0-9-]{2,20}$/.test(sub)) {
+  if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
     inviteErrSub.value = true
     inviteError.value = t('invite.subdomainFormat')
     return
@@ -377,7 +378,7 @@ async function submitInvite() {
 
   inviteSubmitting.value = true
   try {
-    const res = await inviteApi.register({ code, qqNumber: qq, name, subdomain: sub })
+    const res = await inviteApi.register({ code, qqNumber: qq, name, subdomain })
     inviteQr.value = await generateInviteQr(res.otpauthUri)
     inviteStep.value = 2
   } catch (err) {
@@ -388,8 +389,7 @@ async function submitInvite() {
 }
 
 async function confirmInviteTotp() {
-  inviteError.value = ''
-  inviteErrTotp.value = false
+  resetInviteErrors()
 
   const code = inviteTotpCode.value.trim()
   if (!code) {
@@ -464,7 +464,7 @@ async function passkeyLogin() {
 async function login() {
   noticeError.value = ''
   const qq = qqNumber.value.trim()
-  const cd = code.value.trim()
+  const loginCode = code.value.trim()
 
   if (!qq) {
     errQq.value = true
@@ -476,12 +476,12 @@ async function login() {
     noticeError.value = t('login.qqInvalid')
     return
   }
-  if (!cd) {
+  if (!loginCode) {
     errCode.value = true
     noticeError.value = t('login.enterCode')
     return
   }
-  if (!/^\d{6}$/.test(cd)) {
+  if (!/^\d{6}$/.test(loginCode)) {
     errCode.value = true
     noticeError.value = t('login.codeInvalid')
     return
@@ -489,7 +489,7 @@ async function login() {
 
   logging.value = true
   try {
-    await store.login(qq, cd)
+    await store.login(qq, loginCode)
     // 成功反馈落按钮（石绿 + 文案），停留 500ms 让用户看见再跳
     loginOk.value = true
     goAfterLogin(route)

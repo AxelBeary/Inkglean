@@ -128,7 +128,7 @@
                 <!-- R30d: 接入流程的订单 → "推进到下一节点"（替代固定状态按钮） -->
                 <el-button
                   v-if="!workflowLoadFailed && element.currentStageId != null && canAdvance(element)"
-                  size="small" type="primary"
+                  size="small" type="primary" :loading="busyOrderIds.has(element.id)"
                   @click="advanceOrderStage(element)"
                 >
                   {{ $t('queue.advanceStage') }}
@@ -144,7 +144,7 @@
                 <!-- R30b: 未接入流程的订单 → 固定状态主操作外露（Bug 4: 工作流订单不穿透到此按钮） -->
                 <el-button
                   v-else-if="element.currentStageId == null && nextAction(element.status)"
-                  size="small"
+                  size="small" :loading="busyOrderIds.has(element.id)"
                   :type="nextAction(element.status).type"
                   @click="quickAction(nextAction(element.status).command, element)"
                 >
@@ -297,7 +297,8 @@ import SliderSwitch from '../SliderSwitch.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
 import HySkeleton from '../../shared/HySkeleton.vue'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
-import { ORDER_STATUS_TYPE, PRIORITY_TYPE } from '../../../constants/order.js'
+import { statusType, priorityType } from '../../../constants/order.js'
+import { MAX_IMAGE_BYTES } from '../../../constants/upload.js'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -358,11 +359,11 @@ const NEXT_ACTION = {
   done: { command: 'delivered', labelKey: 'queue.deliver', type: 'success' }
 }
 const nextAction = (status) => NEXT_ACTION[status] || null
-const priorityType = (p) => PRIORITY_TYPE[p] || 'info'
-const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
 // ─── R30d: 流程状态机（看板推进） ───
 const workflowStages = ref([])
+/** a1: 逐订单在途集合——连点/下拉与主按钮并发时不再重复发状态请求 */
+const busyOrderIds = ref(new Set())
 /** 工作流节点加载失败（失败时隐藏推进按钮，给出错误提示 + 重试入口） */
 const workflowLoadFailed = ref(false)
 async function loadWorkflowStages() {
@@ -381,15 +382,19 @@ function canAdvance(order) {
   return idx !== -1 && idx < workflowStages.value.length - 1
 }
 async function advanceOrderStage(order) {
+  if (busyOrderIds.value.has(order.id)) return
   const idx = workflowStages.value.findIndex(s => s.id === order.currentStageId)
   const next = workflowStages.value[idx + 1]
   if (!next) return
+  busyOrderIds.value.add(order.id)
   try {
     await artistApi.advanceStage(order.id, next.id)
     ElMessage.success(t('queue.stageAdvanced'))
     emit('refresh-queue')
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    busyOrderIds.value.delete(order.id)
   }
 }
 
@@ -398,12 +403,16 @@ async function quickAction(command, order) {
   if (command === 'cancelled') { openSlideCancel(order); return }
   // H1: 交付统一走交付弹窗（防手滑一步点成已交付）
   if (command === 'delivered') { emit('open-deliver', order); return }
+  if (busyOrderIds.value.has(order.id)) return
+  busyOrderIds.value.add(order.id)
   try {
     await artistApi.updateStatus(order.id, command)
     ElMessage.success(t('queue.statusUpdated'))
     emit('refresh-queue')
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    busyOrderIds.value.delete(order.id)
   }
 }
 
@@ -445,7 +454,7 @@ async function handleFocusDrop(event, order) {
 /** 上传图片 → 设为该订单焦点图（复用 reference 上传 + setFocusImage 接口） */
 async function uploadAndSetFocus(file, order) {
   if (!file.type.startsWith('image/')) { ElMessage.error(t('orderDetail.galleryNotImage')); return }
-  if (file.size > 10 * 1024 * 1024) { ElMessage.error(t('orderDetail.galleryTooBig')); return }
+  if (file.size > MAX_IMAGE_BYTES) { ElMessage.error(t('orderDetail.galleryTooBig')); return }
   try {
     const uploaded = await uploadApi.reference(file)
     // 必须先关联到订单（写入 order_references），否则 setFocusImage 校验归属失败

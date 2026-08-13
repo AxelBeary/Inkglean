@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onScopeDispose } from 'vue'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
 
 const BASE_KEY = 'huiyue-theme-base'
@@ -64,9 +64,12 @@ export const useThemeStore = defineStore('theme', () => {
 
   // 监听系统主题变化（仅 auto 模式生效）
   const mq = window.matchMedia('(prefers-color-scheme: dark)')
-  mq.addEventListener('change', () => {
+  const onMqChange = () => {
     if (base.value === 'auto') applyTheme(base.value, accent.value)
-  })
+  }
+  mq.addEventListener('change', onMqChange)
+  // a3: store 销毁（$dispose/HMR/测试重建）时移除监听，避免累积
+  onScopeDispose(() => mq.removeEventListener('change', onMqChange))
 
   // 持久化 + 应用
   watch(base, (b) => {

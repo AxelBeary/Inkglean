@@ -167,6 +167,12 @@ watch(languageOptions, (opts) => {
   }
 })
 
+// a1: 批准/删除留言使过滤集收缩时，页码钳回有效范围（避免短暂空页）
+watch(() => filteredMessages.value.length, (len) => {
+  const maxPage = Math.max(1, Math.ceil(len / pageSize))
+  if (page.value > maxPage) page.value = maxPage
+})
+
 const STATUS_TYPE = { pending: 'warning', approved: 'success', rejected: 'info' }
 const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }
 const statusType = (s) => STATUS_TYPE[s] || 'info'
@@ -261,7 +267,11 @@ onMounted(load)
 .gm-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); box-shadow: var(--sh-1); }
 /* 待审核留言：藤黄=待确认（语义一对一） */
 .gm-card--pending { border-left: 3px solid var(--th); }
-.gm-card--rejected { opacity: 0.7; }
+.gm-card--rejected {
+  /* b5: 已拒卡片不再整卡稀释文字透明度——改用边框/底色区分 */
+  border-color: var(--line2, #ddd);
+  background: var(--paper2, #fafafa);
+}
 
 .gm-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .gm-nickname { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }

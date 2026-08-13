@@ -4,7 +4,7 @@
     <div class="discount-toggle">
       <span class="discount-toggle-label">{{ $t('discount.enableLabel') }}</span>
       <!-- G-2（R-22）: 在途时 disabled——连点不重复发送；末态以最后一次点击为准（见 toggleDiscount） -->
-      <el-switch v-model="enabled" :loading="toggling" :disabled="toggling" @change="toggleDiscount" />
+      <el-switch v-model="enabled" :loading="toggling" :disabled="toggling" :aria-label="$t('discount.enableLabel')" @change="toggleDiscount" />
       <span class="discount-toggle-hint">{{ enabled ? $t('discount.enabledHint') : $t('discount.disabledHint') }}</span>
     </div>
 

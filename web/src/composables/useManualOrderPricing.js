@@ -131,6 +131,8 @@ export function useManualOrderPricing({ styles, getSubdomain }) {
     selectedRushId.value = null
     stylePricePreview.value = null
     priceTouched.value = false
+    // a1: 取消/切换画风时清旧价——不清的话按钮仍显示已失效价格
+    finalPriceYuan.value = null
   }
 
   /** 选择尺寸（步骤 2）：切换时重置增项选择（不同尺寸可用增项不同）并重算 */
@@ -198,7 +200,11 @@ export function useManualOrderPricing({ styles, getSubdomain }) {
 
   async function doStyleCalc() {
     const mySeq = ++styleCalcSeq
-    if (!selectedSizeId.value) { stylePricePreview.value = null; return }
+    if (!selectedSizeId.value) {
+      stylePricePreview.value = null
+      if (!priceTouched.value) finalPriceYuan.value = null
+      return
+    }
     try {
       const res = await artistPublicApi.calculateStylePrice({
         subdomain: getSubdomain(),
@@ -215,6 +221,8 @@ export function useManualOrderPricing({ styles, getSubdomain }) {
     } catch {
       if (mySeq !== styleCalcSeq) return
       stylePricePreview.value = null
+      // a1: 算价失败同步清 finalPriceYuan（未手输时）；手输价保留，尊重画师输入
+      if (!priceTouched.value) finalPriceYuan.value = null
     }
   }
 

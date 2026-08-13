@@ -5,7 +5,7 @@
     <p v-if="locale === 'en'" class="food-original-note">{{ $t('foodMenu.originalNamesNote') }}</p>
 
     <!-- 四大类模式选择（REQ-035 四A：健康版/糖尿病版/痛风版/外卖版） -->
-    <div class="food-modes" role="radiogroup" :aria-label="$t('foodMenu.title')">
+    <div class="food-modes" role="radiogroup" :aria-label="$t('foodMenu.title')" @keydown="onModeKeydown">
       <button
         v-for="mode in MODES"
         :key="mode"
@@ -14,6 +14,8 @@
         :class="{ 'food-mode--active': currentMode === mode }"
         role="radio"
         :aria-checked="currentMode === mode"
+        :tabindex="currentMode === mode ? 0 : -1"
+        :ref="(el) => { if (el) modeEls[mode] = el }"
         @click="selectMode(mode)"
       >
         {{ $t('foodMenu.modes.' + mode) }}
@@ -58,6 +60,20 @@ const { locale } = useI18n()
 const MODES = Object.keys(FOOD_CATEGORIES)
 const currentMode = ref(MODES[0])
 const current = ref(null)
+/** b5: radio 组 roving tabindex + 方向键 */
+const modeEls = {}
+function onModeKeydown(e) {
+  const idx = MODES.indexOf(currentMode.value)
+  let next = null
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = MODES[(idx + 1) % MODES.length]
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = MODES[(idx - 1 + MODES.length) % MODES.length]
+  else if (e.key === 'Home') next = MODES[0]
+  else if (e.key === 'End') next = MODES[MODES.length - 1]
+  if (next == null) return
+  e.preventDefault()
+  selectMode(next)
+  modeEls[next]?.focus()
+}
 
 /** 糖尿病/痛风版显示免责提示（一行小字） */
 const showDisclaimer = computed(() => currentMode.value === 'diabetes' || currentMode.value === 'gout')

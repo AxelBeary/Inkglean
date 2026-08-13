@@ -128,7 +128,15 @@
 
     <!-- v0.31 F5 + REQ-025 二阶段: 待收横幅——主信息订单级总待收(remainingCents=总价−已收)，
            副信息当前节点（第一个 remaining>0 的节点，无节点订单则只显示总额）；点击跳转收款区 -->
-    <div v-if="!isTerminal && remainingCents > 0" class="next-due-banner" @click="scrollToPayment">
+    <div
+      v-if="!isTerminal && remainingCents > 0"
+      class="next-due-banner"
+      role="button" tabindex="0"
+      :aria-label="$t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` })"
+      @click="scrollToPayment"
+      @keydown.enter.prevent="scrollToPayment"
+      @keydown.space.prevent="scrollToPayment"
+    >
       <span class="next-due-text">
         {{ $t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` }) }}
       </span>
@@ -378,6 +386,7 @@ import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
 import { formatDateTime } from '../../utils/datetime.js'
 import { formatCents } from '../../utils/money.js'
+import { MAX_IMAGE_COUNT } from '../../constants/upload.js'
 import { trackEvent } from '../../utils/track.js'
 import { subscribeReconnect } from '../../utils/reconnect.js'
 // v0.40 瘦身批：script 4 区块抽 composable（零行为变化）
@@ -412,9 +421,8 @@ function goBack() {
   else router.push('/orders')
 }
 
-import { ORDER_STATUS_TYPE } from '../../constants/order.js'
+import { statusType } from '../../constants/order.js'
 
-const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
 // ─── R58-6: 客户 QQ 跳转 + 复制 ───
 function jumpToQq(qq) {
@@ -481,7 +489,7 @@ async function loadOrder() {
 }
 
 // ─── 瘦身批装配（v0.40）：4 区块抽 composable，零行为变化 ───
-const statusAction = ref('')  // 从 L1051 提前，workflow/changeStatus 共享
+const statusAction = ref('')  // 自原大文件提前，workflow/changeStatus 共享
 const { hasWorkflow, isTerminal, workflowStages, stageProgress, nextStageName,
   canAdvanceStage, canBackStage, advanceStage, backStage, turnOffStageTracking,
   trackOnLoading, enableTracking, loadWorkflowStages } =
@@ -512,7 +520,7 @@ const { pasteError } = usePasteUpload({
       await uploadGalleryFiles(files)
     }
   },
-  maxCount: 5,
+  maxCount: MAX_IMAGE_COUNT,
   maxSizeMB: 10
 })
 

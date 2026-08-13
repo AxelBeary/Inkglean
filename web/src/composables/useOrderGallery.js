@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi, uploadApi } from '../api/index.js'
 import { useDropGuard } from './useDropGuard.js'
+import { MAX_IMAGE_BYTES } from '../constants/upload.js'
 
 /**
  * 订单图库（从 OrderDetail.vue 拆分，纯搬移零行为变化）
@@ -39,7 +40,7 @@ export function useOrderGallery({ order, routeId, onRefresh }) {
       ElMessage.error(t('orderDetail.galleryNotImage'))
       return false
     }
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_BYTES) {
       ElMessage.error(t('orderDetail.galleryTooBig'))
       return false
     }
@@ -59,7 +60,7 @@ export function useOrderGallery({ order, routeId, onRefresh }) {
 
   /** 批量上传（拖拽/多选/粘贴共用） */
   async function uploadGalleryFiles(files) {
-    if (!files.length) return
+    if (!files.length || galleryUploading.value) return // a3: busy 互斥——拖拽+粘贴并发时第二批直接忽略
     galleryUploading.value = true
     try {
       for (const file of files) {
