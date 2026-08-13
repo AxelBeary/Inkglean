@@ -70,7 +70,19 @@ export const migration: Migration = {
           database.exec('DROP TABLE orders')
           database.exec('ALTER TABLE orders_new RENAME TO orders')
         } else {
-          database.exec('DROP TABLE IF EXISTS orders_new')
+          // d3 猎杀修复（2026-08-13）：崩溃恢复——若进程在 DROP orders 后、RENAME 前崩溃，orders_new 持唯一数据副本；
+                // 重启后主表已被 schema 建空壳，须 DROP 空壳续 RENAME 恢复数据，严禁删 orders_new
+                const hasNew_orders = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='orders_new'").get()
+                if (hasNew_orders) {
+                  const mainCount_orders = (database.prepare('SELECT COUNT(*) AS n FROM orders').get() as { n: number }).n
+                  const newCount_orders = (database.prepare('SELECT COUNT(*) AS n FROM orders_new').get() as { n: number }).n
+                  if (mainCount_orders === 0 && newCount_orders > 0) {
+                    database.exec('DROP TABLE orders')
+                    database.exec('ALTER TABLE orders_new RENAME TO orders')
+                  } else {
+                    database.exec('DROP TABLE IF EXISTS orders_new')
+                  }
+                }
         }
 
         // ─── 2. order_price_breakdown 重建（幂等守卫：sqlite_master 中已含新口径则跳过） ───
@@ -100,7 +112,19 @@ export const migration: Migration = {
           database.exec('DROP TABLE order_price_breakdown')
           database.exec('ALTER TABLE order_price_breakdown_new RENAME TO order_price_breakdown')
         } else {
-          database.exec('DROP TABLE IF EXISTS order_price_breakdown_new')
+          // d3 猎杀修复（2026-08-13）：崩溃恢复——若进程在 DROP order_price_breakdown 后、RENAME 前崩溃，order_price_breakdown_new 持唯一数据副本；
+                // 重启后主表已被 schema 建空壳，须 DROP 空壳续 RENAME 恢复数据，严禁删 order_price_breakdown_new
+                const hasNew_order_price_breakdown = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='order_price_breakdown_new'").get()
+                if (hasNew_order_price_breakdown) {
+                  const mainCount_order_price_breakdown = (database.prepare('SELECT COUNT(*) AS n FROM order_price_breakdown').get() as { n: number }).n
+                  const newCount_order_price_breakdown = (database.prepare('SELECT COUNT(*) AS n FROM order_price_breakdown_new').get() as { n: number }).n
+                  if (mainCount_order_price_breakdown === 0 && newCount_order_price_breakdown > 0) {
+                    database.exec('DROP TABLE order_price_breakdown')
+                    database.exec('ALTER TABLE order_price_breakdown_new RENAME TO order_price_breakdown')
+                  } else {
+                    database.exec('DROP TABLE IF EXISTS order_price_breakdown_new')
+                  }
+                }
         }
 
         // ─── 3. addon_templates 重建（幂等守卫：已含 category 则跳过） ───
@@ -139,7 +163,19 @@ export const migration: Migration = {
           database.exec('DROP TABLE addon_templates')
           database.exec('ALTER TABLE addon_templates_new RENAME TO addon_templates')
         } else {
-          database.exec('DROP TABLE IF EXISTS addon_templates_new')
+          // d3 猎杀修复（2026-08-13）：崩溃恢复——若进程在 DROP addon_templates 后、RENAME 前崩溃，addon_templates_new 持唯一数据副本；
+                // 重启后主表已被 schema 建空壳，须 DROP 空壳续 RENAME 恢复数据，严禁删 addon_templates_new
+                const hasNew_addon_templates = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='addon_templates_new'").get()
+                if (hasNew_addon_templates) {
+                  const mainCount_addon_templates = (database.prepare('SELECT COUNT(*) AS n FROM addon_templates').get() as { n: number }).n
+                  const newCount_addon_templates = (database.prepare('SELECT COUNT(*) AS n FROM addon_templates_new').get() as { n: number }).n
+                  if (mainCount_addon_templates === 0 && newCount_addon_templates > 0) {
+                    database.exec('DROP TABLE addon_templates')
+                    database.exec('ALTER TABLE addon_templates_new RENAME TO addon_templates')
+                  } else {
+                    database.exec('DROP TABLE IF EXISTS addon_templates_new')
+                  }
+                }
         }
 
         // ─── 4. style_addons 重建（幂等守卫：已含 tpl_price_mode 则跳过） ───
@@ -179,7 +215,19 @@ export const migration: Migration = {
           database.exec('DROP TABLE style_addons')
           database.exec('ALTER TABLE style_addons_new RENAME TO style_addons')
         } else {
-          database.exec('DROP TABLE IF EXISTS style_addons_new')
+          // d3 猎杀修复（2026-08-13）：崩溃恢复——若进程在 DROP style_addons 后、RENAME 前崩溃，style_addons_new 持唯一数据副本；
+                // 重启后主表已被 schema 建空壳，须 DROP 空壳续 RENAME 恢复数据，严禁删 style_addons_new
+                const hasNew_style_addons = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='style_addons_new'").get()
+                if (hasNew_style_addons) {
+                  const mainCount_style_addons = (database.prepare('SELECT COUNT(*) AS n FROM style_addons').get() as { n: number }).n
+                  const newCount_style_addons = (database.prepare('SELECT COUNT(*) AS n FROM style_addons_new').get() as { n: number }).n
+                  if (mainCount_style_addons === 0 && newCount_style_addons > 0) {
+                    database.exec('DROP TABLE style_addons')
+                    database.exec('ALTER TABLE style_addons_new RENAME TO style_addons')
+                  } else {
+                    database.exec('DROP TABLE IF EXISTS style_addons_new')
+                  }
+                }
         }
 
         // ─── 5. 旧模型表清退（用户拍板：均为测试垃圾数据；0 订单引用旧倍率） ───
