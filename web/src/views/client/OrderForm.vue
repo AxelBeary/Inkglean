@@ -329,7 +329,12 @@ function onMobileNext() {
     if (!selectedSize.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
     step.value = addonStep.value; return
   }
-  if (step.value === sizeStep.value) { step.value = addonStep.value; return }
+  if (step.value === sizeStep.value) {
+    // a2 猎杀修复：移动端底部 CTA 此前无 selectedSize 校验直跳增项步（卡内按钮有 :disabled 但 CTA 绕过），
+    // 可一路提交 styleSizeId=null 致后端拒单/异常订单；补校验对齐卡内按钮语义
+    if (!selectedSize.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
+    step.value = addonStep.value; return
+  }
   if (step.value === addonStep.value) { step.value = detailStep.value }
 }
 
