@@ -23,33 +23,58 @@
         <template #default="{ row }">{{ row.contact || '—' }}</template>
       </el-table-column>
       <el-table-column prop="created_at" :label="$t('compliance.admin.colCreatedAt')" width="168" />
-      <el-table-column :label="$t('compliance.admin.colActions')" width="240" fixed="right">
+      <!-- 813-fq-tail-shared 战役 S：≤760px 操作列收成图标按钮（aria-label/title 保留文案），
+           防止 240px 固定列在窄屏挤压、横向溢出 -->
+      <el-table-column :label="$t('compliance.admin.colActions')" :width="compactActions ? 128 : 240" fixed="right">
         <template #default="{ row }">
           <template v-if="row.status === 'pending'">
-            <el-button size="small" type="primary" plain @click="resolveReport(row)">
-              {{ $t('compliance.admin.resolve') }}
-            </el-button>
-            <el-button
-              v-if="row.target_type === 'artwork' && row.target_id"
-              size="small" type="danger" plain
-              @click="removeContent('artwork', row)"
-            >
-              {{ $t('compliance.admin.removeArtwork') }}
-            </el-button>
-            <el-button
-              v-if="row.target_type === 'message' && row.target_id"
-              size="small" type="danger" plain
-              @click="removeContent('message', row)"
-            >
-              {{ $t('compliance.admin.removeMessage') }}
-            </el-button>
-            <el-button
-              v-if="row.target_type === 'artist_home' && row.target_id"
-              size="small" type="warning" plain
-              @click="banArtist(row)"
-            >
-              {{ $t('compliance.admin.ban') }}
-            </el-button>
+            <template v-if="compactActions">
+              <el-button size="small" circle :icon="CircleCheck" :title="$t('compliance.admin.resolve')" :aria-label="$t('compliance.admin.resolve')" @click="resolveReport(row)" />
+              <el-button
+                v-if="row.target_type === 'artwork' && row.target_id"
+                size="small" circle type="danger" plain :icon="Delete"
+                :title="$t('compliance.admin.removeArtwork')" :aria-label="$t('compliance.admin.removeArtwork')"
+                @click="removeContent('artwork', row)"
+              />
+              <el-button
+                v-if="row.target_type === 'message' && row.target_id"
+                size="small" circle type="danger" plain :icon="ChatDotRound"
+                :title="$t('compliance.admin.removeMessage')" :aria-label="$t('compliance.admin.removeMessage')"
+                @click="removeContent('message', row)"
+              />
+              <el-button
+                v-if="row.target_type === 'artist_home' && row.target_id"
+                size="small" circle type="warning" plain :icon="Warning"
+                :title="$t('compliance.admin.ban')" :aria-label="$t('compliance.admin.ban')"
+                @click="banArtist(row)"
+              />
+            </template>
+            <template v-else>
+              <el-button size="small" type="primary" plain @click="resolveReport(row)">
+                {{ $t('compliance.admin.resolve') }}
+              </el-button>
+              <el-button
+                v-if="row.target_type === 'artwork' && row.target_id"
+                size="small" type="danger" plain
+                @click="removeContent('artwork', row)"
+              >
+                {{ $t('compliance.admin.removeArtwork') }}
+              </el-button>
+              <el-button
+                v-if="row.target_type === 'message' && row.target_id"
+                size="small" type="danger" plain
+                @click="removeContent('message', row)"
+              >
+                {{ $t('compliance.admin.removeMessage') }}
+              </el-button>
+              <el-button
+                v-if="row.target_type === 'artist_home' && row.target_id"
+                size="small" type="warning" plain
+                @click="banArtist(row)"
+              >
+                {{ $t('compliance.admin.ban') }}
+              </el-button>
+            </template>
           </template>
           <span v-else class="report-resolved-text">{{ $t('compliance.admin.resolved') }}</span>
         </template>
@@ -65,9 +90,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { CircleCheck, Delete, ChatDotRound, Warning } from '@element-plus/icons-vue'
 import { complianceApi } from '../../api/index.js'
 import type { ReportItem, ReportTargetType } from '../../api/types.js'
 
@@ -76,6 +102,13 @@ const { t } = useI18n()
 const statusTab = ref<'pending' | 'resolved'>('pending')
 const reports = ref<ReportItem[]>([])
 const loading = ref(false)
+
+// 813-fq-tail-shared 战役 S：≤760px 行操作按钮收成图标（防窄屏 240px 固定列挤压）
+const compactActions = ref(window.matchMedia('(max-width: 760px)').matches)
+const mqCompactActions = window.matchMedia('(max-width: 760px)')
+function onCompactActionsChange(e: MediaQueryListEvent) { compactActions.value = e.matches }
+onMounted(() => mqCompactActions.addEventListener('change', onCompactActionsChange))
+onUnmounted(() => mqCompactActions.removeEventListener('change', onCompactActionsChange))
 
 function typeLabel(type: ReportTargetType): string {
   return t(`compliance.report.types.${type}`)

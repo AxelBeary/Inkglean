@@ -46,16 +46,32 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('common.actions')" width="360" fixed="right">
+        <!-- 813-fq-tail-shared 战役 S：≤760px 操作列收成图标按钮（aria-label/title 保留文案），
+             防止 360px 固定列在窄屏挤压、横向溢出 -->
+        <el-table-column :label="$t('common.actions')" :width="compactActions ? 144 : 360" fixed="right">
           <template #default="{ row }">
             <div class="row-actions">
-              <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
-              <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
-              <!-- REQ-027: TOTP 绑定入口 -->
-              <el-button size="small" type="success" plain @click="openTotpBind(row)">
-                {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
-              </el-button>
-              <el-button size="small" type="danger" plain @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
+              <template v-if="compactActions">
+                <el-button size="small" circle :icon="View" :title="$t('admin.manage')" :aria-label="$t('admin.manage')" @click="openDetail(row)" />
+                <el-button size="small" circle :icon="Tickets" :title="$t('admin.artistOrders')" :aria-label="$t('admin.artistOrders')" @click="viewOrders(row)" />
+                <!-- REQ-027: TOTP 绑定入口 -->
+                <el-button
+                  size="small" circle type="success" plain :icon="Key"
+                  :title="row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind')"
+                  :aria-label="row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind')"
+                  @click="openTotpBind(row)"
+                />
+                <el-button size="small" circle type="danger" plain :icon="Delete" :title="$t('common.remove')" :aria-label="$t('common.remove')" @click="remove(row)" :disabled="row.isAdmin" />
+              </template>
+              <template v-else>
+                <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
+                <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
+                <!-- REQ-027: TOTP 绑定入口 -->
+                <el-button size="small" type="success" plain @click="openTotpBind(row)">
+                  {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
+                </el-button>
+                <el-button size="small" type="danger" plain @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
+              </template>
             </div>
           </template>
         </el-table-column>
@@ -309,10 +325,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { adminApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { View, Tickets, Key, Delete } from '@element-plus/icons-vue'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
 // REQ-041 集成接线：更换管理员动作级再验对话框（后端 requireAdminReauth 已就位）
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'
@@ -324,6 +341,13 @@ const artists = ref([])
 const loading = ref(true)
 const dialogVisible = ref(false)
 const saving = ref(false)
+
+// 813-fq-tail-shared 战役 S：≤760px 行操作按钮收成图标（防窄屏 360px 固定列挤压）
+const compactActions = ref(window.matchMedia('(max-width: 760px)').matches)
+const mqCompactActions = window.matchMedia('(max-width: 760px)')
+function onCompactActionsChange(e) { compactActions.value = e.matches }
+onMounted(() => mqCompactActions.addEventListener('change', onCompactActionsChange))
+onUnmounted(() => mqCompactActions.removeEventListener('change', onCompactActionsChange))
 
 const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
 
