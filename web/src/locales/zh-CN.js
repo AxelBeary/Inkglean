@@ -23,11 +23,11 @@ export default {
     // 画师
     ARTIST_NOT_FOUND: '画师不存在',
     NAME_EMPTY: '昵称不能为空',
-    CODE_FORMAT: '身份码只能包含大写字母和数字，2-10个字符',
+    CODE_FORMAT: '身份码只能包含大写字母和数字，2-10 个字符',
     CODE_TAKEN: '身份码已被使用，请换一个',
     INVALID_STATUS: '无效的主页状态',
     INVALID_URL: '链接必须以 http:// 或 https:// 开头',
-    SUBDOMAIN_FORMAT: '子域名只能包含小写字母、数字和连字符，2-20个字符',
+    SUBDOMAIN_FORMAT: '子域名只能包含小写字母、数字和连字符，2-20 个字符',
 
     // 流程
     STAGE_NOT_FOUND: '节点不存在',
@@ -83,7 +83,7 @@ export default {
     INVALID_ACCENT_COLOR: '无效的强调色',
 
     // 截稿日（v0.15 R51）
-    INVALID_DEADLINE: '截稿日格式无效（须为 ISO 8601）',
+    INVALID_DEADLINE: '截稿日格式无效，请重新选择日期',
     INVALID_START_DATE: '开工日不能晚于截稿日',
     INVALID_ANNOUNCEMENT_DATE: '公告过期日不能早于今天',
 
@@ -95,8 +95,8 @@ export default {
     ADMIN_VERIFY_FAILED: '管理员验证失败',
 
     // 通用
-    NOT_FOUND: '资源不存在',
-    VALIDATION: '请求参数格式不正确',
+    NOT_FOUND: '内容不存在',
+    VALIDATION: '提交的信息格式有误，请检查后重试',
     INTERNAL: '服务器内部错误',
     UNKNOWN: '请求错误',
 
@@ -118,7 +118,7 @@ export default {
 
     // 输入校验（补充）
     QQ_REQUIRED: '请填写QQ号',
-    QQ_FORMAT: 'QQ号格式不正确（5-15位数字）',
+    QQ_FORMAT: 'QQ号格式不正确（5-15 位数字）',
     MISSING_CREDENTIALS: '请输入QQ号和动态口令',
 
     // 订单输入（补充）
@@ -126,7 +126,7 @@ export default {
     RULES_NOT_AGREED: '请先阅读并同意约稿须知',
     STATUS_REQUIRED: '请指定状态',
     NOTE_EMPTY: '备注内容不能为空',
-    ORDER_INVALID_ID: '无效的订单ID',
+    ORDER_INVALID_ID: '订单号无效',
 
     // 增项（补充）
     // 增项选择（补充，SPEC-PRICE-2：用途/加急各只生效一个）
@@ -136,7 +136,7 @@ export default {
 
     // 计算（补充）
     PRICING_CALC_FAILED: '价格计算失败',
-    INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
+    INVALID_PRICE: '价格无效（须为大于 0 的金额）',
     // 计价引擎（补充，v0.37 REQ-025）
     PRICING_CONSERVATION: '价格数据出现异常，操作未完成，请刷新后重试',
     PRICE_CHANGE_AFTER_DONE: '订单已完成，改价请通过增减附加项操作',
@@ -216,7 +216,7 @@ export default {
     artistToastInk: '已切换 · 墨黑', artistToastPaper: '已切换 · 宣纸'
   },
   common: {
-    status: { open: '可约稿', full: '已排满', break: '休息中' },
+    status: { open: '可约稿', full: '已排满', break: '休息中', hidden: '隐藏' },
     statusShort: { open: '可约', full: '排满', break: '休息', hidden: '隐藏' },
     priority: { high: '高', medium: '中', low: '低' },
     orderStatus: {
@@ -383,7 +383,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpRebindNewCodeHint: '输入新绑定验证器上的 6 位码',
     totpRebindNewCodePlaceholder: '新验证器上的 6 位数字',
     totpRebindConfirm: '确认重绑',
-    totpRebindCooldown: '重绑过于频繁，剩余 {hours} 小时后可再次操作',
+    totpRebindCooldown: '重绑太频繁，{hours} 小时后再试',
     totpRebindSuccess: 'TOTP 已重绑成功，所有设备已强制登出，请重新登录',
     passkeySection: 'Passkey 登录设备',
     passkeyRegister: '注册本设备',
@@ -732,6 +732,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败',
     hidden: '该画师暂未开放主页。如你是店主，请到「设置 → 主页展示」开启「小店展示」。',
+    // 状态文字（useArtistData.statusText 动态键，模板不直写）
+    statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中', statusHidden: '已隐藏',
     navPricing: '价格', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
     startCommission: '开始约稿 →', trackOrder: '查询进度',
     ctaSubtitle: '期待与你一起创作出好作品。',
@@ -774,7 +776,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     loadFailed: '加载画师信息失败',
     // R57: 草稿恢复
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
-    draftRestore: '恢复', draftDiscard: '丢弃', draftRestored: '草稿已恢复',
+    draftRestore: '恢复', draftDiscard: '丢弃草稿', draftRestored: '草稿已恢复',
     // R58-6: QQ 跳转 + 复制
     artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制', qqJumpHint: '正在唤起 QQ…若未打开，请复制 QQ 号手动添加好友',
     // F1 围剿：成功态追踪链接（全文 + 复制 + 二维码）
@@ -784,7 +786,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step2: '写需求', step3: '联系方式',
     step2Title: '描述你的需求', step3Title: '留下联系方式',
     nextStep: '下一步', prevStep: '上一步',
-    stepProgress: '第 {cur} / {total} 步',
+    stepProgress: '第 {cur} 步，共 {total} 步',
     summaryTitle: '约稿摘要',
     // W3: 画风模式未选尺寸的空态引导
     summaryNoSize: '选好尺寸后这里会显示价格',
@@ -1258,7 +1260,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     showImages: '显示图片',
     customAddons: '自定义增项', addCustomAddon: '添加',
     customAddonNamePlaceholder: '名称（必填，≤50字）',
-    customAddonPricePlaceholder: '金额（可为负）',
+    customAddonPricePlaceholder: '金额（可填负数作为优惠）',
     customAddonNameRequired: '请填写自定义增项名称',
     customAddonPriceRequired: '请填写自定义增项金额',
     removeCustomAddon: '删除自定义增项',
@@ -1594,7 +1596,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   workflow: {
     stageList: '流程节点', paymentBar: '收款比例', overview: '流程全览',
     addPlaceholder: '新节点名称，如「细化确认」', final: '尾款', auto: '自动',
-    deleteHint: '确定删除此节点？', deletePayHint: '此节点收款比例将并入尾款，确定删除？',
+    deleteHint: '确定删除此节点？', deletePayHint: '此节点收款比例 {pct}% 将并入尾款，确定删除？',
     savePayment: '保存比例', unsaved: '有未保存的比例变更',
     saved: '比例已保存', detached: '已移除该收款节点，比例已并入尾款',
     // 批4 B10（方案 b）：活跃订单存在时后端附 appliesToNewOrdersOnly，提示仅影响新订单
@@ -1671,7 +1673,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // REQ-027: TOTP 绑定/重置
     totpBind: '绑定', totpRebind: '重绑',
     totpBindTitle: '绑定动态口令 - {name}',
-    totpStep1: '① 让画师用手机验证器App扫描下方二维码（腾讯身份验证器小程序 / Aegis / 2FAS / 微软Authenticator）',
+    totpStep1: '① 让画师用手机验证器App扫描下方二维码（腾讯身份验证器小程序 / Aegis / 2FAS / Microsoft Authenticator（微软验证器））',
     totpStep2: '② 画师把App上当前显示的6位码告诉你，输入下方并确认',
     totpCodeLabel: '6位动态码', totpCodePlaceholder: '输入验证器上显示的6位动态码',
     totpBindConfirm: '确认绑定', totpBindSuccess: '已绑定动态口令',
@@ -1706,7 +1708,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       title: '回收站', empty: '清空回收站',
       colFile: '文件名', colPath: '原始路径', colSize: '大小', colMovedAt: '移入时间',
       emptyTitle: '清空回收站', emptyConfirm: '回收站中的文件将被永久删除，不可恢复。确定清空？',
-      emptied: '已清空，删除 {n} 个文件', emptyHint: '回收站是空的'
+      emptied: '已清空，永久删除 {n} 个文件', emptyHint: '回收站是空的'
     },
     // F4: 留言管理（跨画师）；REQ-022 F5: 三维筛选
     guestbook: {
@@ -1927,7 +1929,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       }
     },
     warning: {
-      hit: '内容可能包含敏感词（{words}），已按先发后审发布，管理员可能审核下架'
+      hit: '内容可能包含敏感词（{words}），已先发布、后审核，管理员可能下架'
     },
     admin: {
       reportManage: '举报处理',

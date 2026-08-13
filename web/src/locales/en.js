@@ -95,10 +95,10 @@ export default {
     ADMIN_VERIFY_FAILED: 'Admin verification failed',
 
     // General
-    NOT_FOUND: 'Resource not found',
+    NOT_FOUND: 'Content not found',
     VALIDATION: 'Invalid request parameters',
     INTERNAL: 'Internal server error',
-    UNKNOWN: 'Request error',
+    UNKNOWN: 'The request could not be completed. Please try again.',
 
     // Discount codes (v0.31 F3)
     DISCOUNT_DISABLED: 'This artist has not enabled discount codes',
@@ -216,7 +216,7 @@ export default {
     artistToastInk: 'Switched · Ink', artistToastPaper: 'Switched · Paper'
   },
   common: {
-    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break' },
+    status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', hidden: 'Hidden' },
     statusShort: { open: 'Open', full: 'Full', break: 'Break', hidden: 'Hidden' },
     priority: { high: 'High', medium: 'Med', low: 'Low' },
     orderStatus: {
@@ -252,7 +252,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     pasteHint: 'Paste images with Ctrl+V',
     pasteNotImage: 'Only image files can be pasted',
     pasteTooMany: 'You can paste up to {max} images at a time',
-    pasteTooBig: 'File "{name}" exceeds the {max}MB limit ({size}MB), please compress and try again',
+    pasteTooBig: 'File "{name}" exceeds the {max}MB limit ({size}MB). Please compress and try again.',
     dragFromPage: 'Images on this page can\'t be dragged into the upload area (they\'re rendered copies, not the original files). Drag files from your file manager, or paste with Ctrl+V',
     // 05D-A2: upload (non-paste) path validation messages
     fileNotImage: 'Only image files are supported',
@@ -263,7 +263,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     artistHome: 'Artist Home',
     order: 'Commission',
     track: 'Track Order',
-    delivery: 'Download',
+    delivery: 'Download Artwork',
     login: 'Artist Login',
     healthCheck: 'System Health',
     notFound: 'Page Not Found'
@@ -641,8 +641,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     loading: 'Loading schedule…',
     copyText: 'Copy text',
     downloadImage: 'Download image',
-    queueFormal: '{n} formal',
-    queueBuffer: '{n} buffer',
+    queueFormal: '{n} in formal queue',
+    queueBuffer: '{n} in buffer',
     deadlineSoon: 'Upcoming deadlines',
     statusBusy: 'Busy',
     statusNormal: 'Normal',
@@ -699,7 +699,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     copyFailed: 'Copy failed, please copy manually',
     empty: 'No matching clients',
     loadFailed: 'Failed to load, please retry',
-    script: 'Long time no see! I am your artist and I just opened a new slot. Your last commission was {days} days ago. Care to take a look? (Client QQ: {qq})'
+    script: 'Long time no see! It\'s me, your artist — I just opened a new slot. Your last commission was {days} days ago. Care to take a look? (Client QQ: {qq})'
   },
   quickAction: {
     title: 'Settings',
@@ -733,9 +733,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load',
     hidden: "This artist's page is currently unavailable. If you're the owner, enable \"Shop visibility\" under Settings → Public Page.",
+    // Status text (dynamic keys from useArtistData.statusText; templates must not hardcode)
+    statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break', statusHidden: 'Hidden',
     navPricing: 'Pricing', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
     startCommission: 'Start a commission →', trackOrder: 'Track order',
-    ctaSubtitle: "Ready to work together? Let's create something amazing.",
+    ctaSubtitle: 'Looking forward to creating something great with you.',
     // v0.42 Step 6: client gallery "load more"
     loadMore: 'Load more',
     otherLink: 'Link',
@@ -786,7 +788,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     step2Title: 'Describe your request', step3Title: 'Contact details',
     nextStep: 'Next', prevStep: 'Back',
     stepProgress: 'Step {cur} / {total}',
-    summaryTitle: 'SUMMARY',
+    summaryTitle: 'Order Summary',
     // W3: empty-state hint when no size selected in style mode
     summaryNoSize: 'Pick a size to see the price here',
     // REQ-022 F3: client info echo in summary card
@@ -1017,7 +1019,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     confirm: 'Confirm', startWip: 'Start work', done: '✔ Complete', deliver: 'Deliver', cancel: 'Cancel',
     empty: 'Queue is empty — no orders yet',
     // REQ-037 C1: drag reorder success + undo
-    reorderSuccess: 'Order updated', reorderUndo: 'Undo',
+    reorderSuccess: 'Order reordered', reorderUndo: 'Undo',
     // SPEC-004: buffer zone
     bufferHint: 'When formal slots are full, new orders wait here. Promoted orders move to the formal queue',
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
@@ -1124,7 +1126,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     enableTrackingHint: 'Enable workflow tracking for fine-grained progress management',
     enableTracking: 'Enable', trackingEnabled: 'Workflow tracking enabled',
     slideToCancel: 'Slide to cancel order',
-    completedAt: 'Completed {time}',
+    completedAt: 'Completed at {time}',
     // R40: activity timeline
     activityTitle: 'Order status', timelineTitle: 'Activity timeline',
     tlTypeSystem: 'Status change', tlTypeNote: 'Note', tlTypeImage: 'Note with image',
@@ -1455,7 +1457,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     manage: 'Manage', manageDone: 'Done',
     selected: '{n} selected',
     batchDeleteTitle: 'Batch delete', batchDeleteConfirm: 'Delete {n} selected artworks? This cannot be undone.',
-    batchDeleted: '{n} artworks deleted', batchPartial: 'Delete finished: {ok} succeeded, {failed} failed',
+    batchDeleted: '{n} artworks deleted', batchPartial: 'Deletion complete: {ok} deleted, {failed} failed',
     slideToDelete: 'Slide to confirm deletion', batchDeleteBtn: 'Confirm deletion of selected artworks',
     // REQ-017: cover operations
     coverSet: 'Set as cover', coverUnset: 'Remove cover',
@@ -1596,7 +1598,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   workflow: {
     stageList: 'Workflow Stages', paymentBar: 'Payment Split', overview: 'Full Workflow',
     addPlaceholder: 'New stage name, e.g. "Detailing"', final: 'Final', auto: 'Auto',
-    deleteHint: 'Delete this stage?', deletePayHint: 'This stage\'s payment % will merge into the final payment. Delete?',
+    deleteHint: 'Delete this stage?', deletePayHint: 'This stage\'s {pct}% payment will merge into the final payment. Delete?',
     savePayment: 'Save Split', unsaved: 'Unsaved payment changes',
     saved: 'Payment split saved', detached: 'Payment node removed, % merged into final',
     // Batch 4 B10 (option b): backend appends appliesToNewOrdersOnly when active orders exist
@@ -1607,7 +1609,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     descPlaceholder: 'Click to add a note',
     // plan-node-speech: node speech ({客户名} etc. are backend variable tokens — kept in Chinese in both locales)
     // Bug 1: braces are parsed as ICU placeholders by vue-i18n (Chinese is not a valid identifier → crash); escape with {'{'} literals
-    speechLabel: 'Speech', speechPlaceholder: "{'{'}客户名{'}'}，你的订单已{'{'}节点名{'}'}。",
+    speechLabel: 'Speech', speechPlaceholder: "{'{'}客户名{'}'}, your order has reached {'{'}节点名{'}'}.",
     speechSave: 'Save speech', speechSaved: 'Speech saved', speechVarHint: 'Click to insert variable',
     // #8: speech UI improvements (shared variable bar + collapsible preview)
     speechVarCommon: 'Speech variables (click a speech box below, then click a variable to insert)',
@@ -1931,7 +1933,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       }
     },
     warning: {
-      hit: 'The content may contain sensitive words ({words}). It has been published under publish-first review and may be removed by moderators'
+      hit: 'The content may contain sensitive words ({words}). It was published before review, and moderators may remove it.'
     },
     admin: {
       reportManage: 'Reports',
