@@ -7,7 +7,7 @@
     <div class="top-grid">
       <div class="top-left enter-stagger" :style="{ '--stagger': 0 }">
         <GreetingNote :stats="stats" />
-        <StatCards :stats="stats" />
+        <StatCards :stats="stats ?? undefined" />
       </div>
       <div class="top-right enter-stagger" :style="{ '--stagger': 1 }">
         <PlaqueStatus />
