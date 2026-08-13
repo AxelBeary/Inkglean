@@ -57,6 +57,17 @@ export function isValidCustomDims(width, height) {
 }
 
 /**
+ * 813-fq-tail-shared 战役 S：canvas 链路错误码化（不再内置英文用户文案）。
+ * 调用方 ElMessage 统一走 i18n（当前统一映射 imageResize.processFailed）；
+ * 需要细分时可把 IMAGE_RESIZE_ERROR.* 映射到对应 i18n 键。
+ */
+export const IMAGE_RESIZE_ERROR = Object.freeze({
+  INVALID_TARGET_SIZE: 'INVALID_TARGET_SIZE',
+  CANVAS_2D_UNAVAILABLE: 'CANVAS_2D_UNAVAILABLE',
+  WEBP_ENCODE_FAILED: 'WEBP_ENCODE_FAILED'
+})
+
+/**
  * 完整压缩链路：canvas 缩放 → WebP 导出（质量联动；PNG 透明通道天然保留，
  * 不铺底不填色，alpha 原样进入 WebP）。
  * @param {HTMLImageElement} image 已加载的原图
@@ -68,7 +79,7 @@ export function resizeImageToBlob(image, { width, height, quality }) {
     const dstW = Math.round(width)
     const dstH = height ? Math.round(height) : autoHeight(image.naturalWidth, image.naturalHeight, dstW)
     if (!Number.isInteger(dstW) || dstW < 1 || dstW > 10000 || !dstH || !Number.isInteger(dstH) || dstH < 1 || dstH > 10000) {
-      reject(new Error('invalid target size'))
+      reject(new Error(IMAGE_RESIZE_ERROR.INVALID_TARGET_SIZE))
       return
     }
     const canvas = document.createElement('canvas')
@@ -76,13 +87,13 @@ export function resizeImageToBlob(image, { width, height, quality }) {
     canvas.height = dstH
     const ctx = canvas.getContext('2d')
     if (!ctx) {
-      reject(new Error('canvas 2d unavailable'))
+      reject(new Error(IMAGE_RESIZE_ERROR.CANVAS_2D_UNAVAILABLE))
       return
     }
     const { dw, dh, dx, dy } = coverRect(image.naturalWidth, image.naturalHeight, dstW, dstH)
     ctx.drawImage(image, dx, dy, dw, dh)
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('webp encode failed'))),
+      (blob) => (blob ? resolve(blob) : reject(new Error(IMAGE_RESIZE_ERROR.WEBP_ENCODE_FAILED))),
       'image/webp',
       quality
     )

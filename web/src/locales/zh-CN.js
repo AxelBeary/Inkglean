@@ -1325,6 +1325,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 波3-2: 模板列表加载失败错误态（区分真空与失败，避免误导"没有模板"）
     tplLoadFailed: '增项模板加载失败，请重试',
     unitDefault: '个',
+    // 813-fq-tail-shared 战役 S：数量型增项未填单位时的兜底文案（替代 money.js 硬编码「位」）
+    unitFallback: '位',
     // 画风
     styleAddTitle: '新建画风', styleEditTitle: '编辑画风',
     styleNameLabel: '画风名称', styleNamePlaceholder: '如：日系、厚涂、像素风', styleNameRequired: '请输入画风名称',
@@ -1763,6 +1765,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step4Login: '去登录',
     step4TokenNote: '请妥善保管安装口令，后续重置需要用到。',
     error: '设置过程出错，请重试',
+    // 813-fq-tail-shared 战役 S：store 兜底错误文案 i18n 化（替代硬编码中文）
+    submitAdminFailed: '创建管理员失败',
+    confirmTotpFailed: '验证失败',
     retry: '重试',
     prevStep: '上一步',
     nextStep: '下一步'

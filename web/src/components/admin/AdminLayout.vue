@@ -4,7 +4,7 @@
          由顶部 Tab 改为左侧导航（对齐 ArtistLayout 视觉语义：品牌区/导航/底部操作），
          主内容区 max-width 1280 居中；窄屏自动收窄为图标条，移动端汉堡抽屉 -->
     <el-container style="min-height: 100vh">
-      <!-- 侧边栏（≤900px 自动收窄 64px 图标条，≤600px 隐藏走抽屉） -->
+      <!-- 侧边栏（≤900px 自动收窄为 --sb-w-collapsed 图标条，≤600px 隐藏走抽屉） -->
       <el-aside v-show="!isMobile" :width="asideWidth" class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
         <!-- 品牌区：朱砂印章「绘」+ 拾绘（文楷）+ ADMIN 副标 -->
         <div class="brand" :class="{ 'brand--collapsed': collapsed }">
@@ -203,7 +203,8 @@ onUnmounted(() => {
 watch(isMobile, (mobile) => { if (!mobile) drawerVisible.value = false })
 
 const collapsed = computed(() => isNarrow.value)
-const asideWidth = computed(() => collapsed.value ? '64px' : '230px')
+// 813-fq-tail-shared 战役 S：侧栏宽度走 CSS 变量单源（--sb-w-collapsed/--sb-w），数值见下方 scoped 样式
+const asideWidth = computed(() => collapsed.value ? 'var(--sb-w-collapsed)' : 'var(--sb-w)')
 
 function go(path) {
   if (route.path !== path) router.push(path)
@@ -254,10 +255,16 @@ function onStepUpCancel() {
 <style scoped>
 /* ═══ 骨架（token 全部走 artist-tokens.css；主内容区 1280 居中） ═══ */
 .admin-layout {
+  /* 813-fq-tail-shared 战役 S：侧栏折叠/展开宽度与辅助字号抽为内联 CSS 变量
+     （--sb-w-collapsed/--sb-w/--fs-aux 本文件单源；如需并入 theme.css 管理台区，
+      平移下面三行即可，勿再写回字面量） */
+  --sb-w-collapsed: 64px;
+  --sb-w: 230px;
+  --fs-aux: 13.5px;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--f-b);
-  font-size: 13.5px;
+  font-size: var(--fs-aux);
   min-height: 100vh;
 }
 

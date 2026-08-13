@@ -58,12 +58,16 @@ import { trackEvent } from '../utils/track.js'
 const { t, locale } = useI18n()
 const themeStore = useThemeStore()
 
+// 813-fq-tail-shared 战役 S：五色单源 = theme.css --accent-1..5（色值不在 JS 重复，防三处漂移）
+function accentColor(id) {
+  return getComputedStyle(document.documentElement).getPropertyValue(`--accent-${id}`).trim()
+}
 const accents = [
-  { id: '1', color: '#356B69', nameKey: 'pref.accentNames.teal' },
-  { id: '2', color: '#3F5E80', nameKey: 'pref.accentNames.turquoise' },
-  { id: '3', color: '#5E5494', nameKey: 'pref.accentNames.blue' },
-  { id: '4', color: '#346edb', nameKey: 'pref.accentNames.indigo' },
-  { id: '5', color: '#3445db', nameKey: 'pref.accentNames.violet' },
+  { id: '1', color: accentColor('1'), nameKey: 'pref.accentNames.teal' },
+  { id: '2', color: accentColor('2'), nameKey: 'pref.accentNames.turquoise' },
+  { id: '3', color: accentColor('3'), nameKey: 'pref.accentNames.blue' },
+  { id: '4', color: accentColor('4'), nameKey: 'pref.accentNames.indigo' },
+  { id: '5', color: accentColor('5'), nameKey: 'pref.accentNames.violet' },
 ]
 
 const baseOptions = [
@@ -72,7 +76,8 @@ const baseOptions = [
   { value: 'dark', label: 'pref.dark' },
 ]
 
-const currentColor = computed(() => accents.find(a => a.id === themeStore.accent)?.color || '#356B69')
+// 兜底只取 accents[0]（即 --accent-1），不再出现硬编码色值
+const currentColor = computed(() => accents.find(a => a.id === themeStore.accent)?.color || accents[0]?.color || '')
 
 function toggleLang() {
   setLocale(locale.value === 'zh-CN' ? 'en' : 'zh-CN')

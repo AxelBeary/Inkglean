@@ -154,7 +154,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   /** 增项单价展示文本（¥50 / ¥80/位 / +50%；读公开接口真实 price_mode/category） */
   function styleAddonPriceText(a) {
-    return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label })
+    // 813-fq-tail-shared 战役 S：单位缺省改走 i18n（styleManage.unitFallback），不再依赖 money.js 内置「位」
+    return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label || t('styleManage.unitFallback') })
   }
 
   // ─── 折扣码（验证 → 预估折扣展示 → 提交时传码，后端真正扣减） ───

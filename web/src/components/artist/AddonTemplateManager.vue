@@ -18,7 +18,8 @@
       </el-table-column>
       <el-table-column :label="$t('styleManage.tplDefaultPrice')" min-width="130">
         <template #default="{ row }">
-          <span class="tpl-price">{{ formatAddonPrice(row.default_price, row.price_mode, { controlType: row.control_type, unitLabel: row.unit_label }) }}</span>
+          <!-- 813-fq-tail-shared 战役 S：单位缺省走 i18n（styleManage.unitFallback），不再依赖 money.js 内置「位」 -->
+          <span class="tpl-price">{{ formatAddonPrice(row.default_price, row.price_mode, { controlType: row.control_type, unitLabel: row.unit_label || t('styleManage.unitFallback') }) }}</span>
         </template>
       </el-table-column>
       <el-table-column :label="$t('styleManage.tplMaxQty')" width="90">

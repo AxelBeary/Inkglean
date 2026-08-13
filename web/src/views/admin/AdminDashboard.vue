@@ -206,10 +206,11 @@ onMounted(async () => {
    ═══ 2026-08-08 派工：主页重排为仪表盘（对标画师后台 .dash-grid 双栏节奏）──
    回收站迁出到画师管理页（ArtistManage），主页不再出现回收站 */
 
-/* ─── 双栏仪表盘（对齐画师后台 Dashboard：宽屏 3fr/2fr，窄屏单列） ─── */
+/* ─── 双栏仪表盘（对齐画师后台 Dashboard：宽屏 3fr/2fr，窄屏单列） ───
+   813-fq-tail-shared 战役 S：全站管理后台统一两档断点——≤900px 紧凑 / >900px 宽屏 */
 .dash-grid { display: flex; flex-direction: column; gap: var(--sp-4, 16px); }
 
-@media (min-width: 769px) {
+@media (min-width: 901px) {
   .dash-grid {
     display: grid;
     grid-template-columns: 3fr 2fr;
@@ -293,7 +294,8 @@ onMounted(async () => {
 .gb-row-leave-to { opacity: 0; }
 .gb-row-leave-active { position: absolute; width: 100%; }
 
-@media (max-width: 768px) {
+/* 波 S：断点统一 768→900 */
+@media (max-width: 900px) {
   .stat-grid { grid-template-columns: 1fr; }
 }
 </style>

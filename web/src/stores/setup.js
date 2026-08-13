@@ -3,6 +3,8 @@
 // ============================================
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+// 813-fq-tail-shared 战役 S：错误兜底文案走 i18n（setup 命名空间），随当前 locale 即时翻译
+import { i18n } from '../i18n/index.js'
 
 export const useSetupStore = defineStore('setup', () => {
   // 初始化状态
@@ -54,7 +56,7 @@ export const useSetupStore = defineStore('setup', () => {
     })
     const data = await res.json()
     if (!res.ok) {
-      const err = new Error(data.error || '创建管理员失败')
+      const err = new Error(data.error || i18n.global.t('setup.submitAdminFailed'))
       err.code = data.code
       err.status = res.status
       throw err
@@ -77,7 +79,7 @@ export const useSetupStore = defineStore('setup', () => {
     })
     const data = await res.json()
     if (!res.ok) {
-      const err = new Error(data.error || '验证失败')
+      const err = new Error(data.error || i18n.global.t('setup.confirmTotpFailed'))
       err.code = data.code
       err.status = res.status
       throw err
