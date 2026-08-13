@@ -931,6 +931,21 @@ export interface TodoResult {
   items: TodoItem[]
 }
 
+/** GET /artist/dashboard/schedule 近 7 日排期条（视觉批卷轴数据源） */
+export interface ScheduleBar {
+  id: number
+  orderNo: string
+  clientName: string | null
+  status: string
+  startDate: string | null
+  deadline: string | null
+  stageName: string | null
+}
+
+export interface ScheduleResult {
+  bars: ScheduleBar[]
+}
+
 /** GET /artist/dashboard/activity 活动项 */
 export interface ActivityItem {
   id: number

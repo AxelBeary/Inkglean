@@ -123,6 +123,7 @@ import type {
   SubmitReportRequest,
   SubmitReportResult,
   TodoResult,
+  ScheduleResult,
   ToggleDiscountResult,
   ToolsClientResult,
   ToolsClientsResult,
@@ -505,6 +506,8 @@ export const artistApi = {
   getDashboardRevenue: (period: string): Promise<RevenueResult> => getJson('/artist/dashboard/revenue', { params: { period } }),
   getDashboardTodo: (): Promise<TodoResult> => getJson('/artist/dashboard/todo'),
   getDashboardActivity: (): Promise<ActivityResult> => getJson('/artist/dashboard/activity'),
+  /** 近 7 日排期条（视觉批：排期卷轴数据源） */
+  getDashboardSchedule: (): Promise<ScheduleResult> => getJson('/artist/dashboard/schedule'),
   // REQ-043 I2: 开张任务卡（后端标记，前端不靠 localStorage）
   getOnboarding: (): Promise<OnboardingState> => getJson('/artist/onboarding'),
   dismissOnboarding: (): Promise<{ dismissed: true }> => postJson('/artist/onboarding/dismiss', {}),
