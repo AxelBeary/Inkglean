@@ -209,7 +209,8 @@ function fallbackCopy(text) {
   color: var(--ink2);
   font-size: 13px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background-color 0.35s, transform 0.15s ease-out;
+  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
+  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .quote-mini-btn:hover { border-color: var(--zs); color: var(--zs); }
 .quote-mini-btn:active { transform: scale(0.98); }

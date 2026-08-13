@@ -816,7 +816,7 @@ defineExpose({ reload: load })
   display: inline-flex; align-items: center; gap: 8px;
   padding: 4px 12px; border-radius: var(--r-pill);
   background: var(--card); border: 1px solid var(--line); box-shadow: var(--sh-1);
-  cursor: pointer; user-select: none; transition: border-color 0.15s, transform 0.15s;
+  cursor: pointer; user-select: none; transition: border-color var(--dur-fast), transform var(--dur-fast);
 }
 .addon-cap:hover { border-color: var(--hq); }
 .addon-cap:active { transform: scale(0.97); }
@@ -838,7 +838,7 @@ defineExpose({ reload: load })
 .seg-btn {
   border: none; background: transparent; padding: 4px 12px; font-size: calc(var(--font-scale, 1) * 11.5px);
   border-radius: var(--r-s); color: var(--ink2); cursor: pointer; font-family: var(--f-b);
-  display: inline-flex; align-items: center; gap: 4px; transition: 0.15s;
+  display: inline-flex; align-items: center; gap: 4px; transition: var(--dur-fast);
 }
 .seg-btn i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; background: var(--ink4); }
 .seg-btn:disabled { cursor: not-allowed; opacity: 0.5; }
@@ -861,7 +861,7 @@ defineExpose({ reload: load })
 .sum-chip {
   font-size: calc(var(--font-scale, 1) * 11px); padding: 2px 8px; border-radius: var(--r-pill);
   background: var(--hq-t); color: var(--hq); border: 1px solid transparent; cursor: grab;
-  animation: chipIn 0.25s ease backwards;
+  animation: chipIn var(--dur-mid) var(--ease-out) backwards;
 }
 .sum-chip.add { background: var(--paper2); color: var(--ink2); border: 1px solid var(--line); }
 .sum-chip.qty { background: var(--sl-t); color: var(--sl); }

@@ -218,7 +218,7 @@ const { t } = useI18n()
   border: 1px solid var(--border-color-strong, #c0c4cc);
   background: var(--bg-card, #fff); color: var(--text-primary);
   font-size: 13px; font-family: inherit; cursor: pointer; user-select: none;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
 }
 .mult-chip:hover { border-color: var(--color-primary); }
 .mult-chip-pct { font-weight: 700; font-variant-numeric: tabular-nums; }

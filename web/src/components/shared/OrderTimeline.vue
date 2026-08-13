@@ -94,7 +94,7 @@ function nodeState(stageId) {
   font-size: 13px;
   flex-shrink: 0;
   z-index: 1;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 
 /* 未开始：灰色空心 */
@@ -134,7 +134,7 @@ function nodeState(stageId) {
   height: 2px;
   background: var(--border-color, #dcdcdc);
   z-index: 0;
-  transition: background 0.3s;
+  transition: background var(--dur-slow);
 }
 .tl-line--done { background: var(--el-color-primary); }
 

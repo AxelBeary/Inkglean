@@ -66,7 +66,7 @@ const { t } = useI18n()
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 12px;
   overflow: hidden;
-  transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.15s ease;
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out);
 }
 .style-pick:hover { box-shadow: var(--shadow-card-hover); }
 .style-pick:active { transform: translateY(-2px); }
@@ -77,7 +77,7 @@ const { t } = useI18n()
   background: var(--color-primary); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700;
-  animation: tier-stamp-in 0.35s var(--ease-bounce);
+  animation: tier-stamp-in var(--dur-slow) var(--ease-bounce);
 }
 @keyframes tier-stamp-in {
   from { transform: scale(0) rotate(-30deg); }

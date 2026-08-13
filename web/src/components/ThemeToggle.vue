@@ -21,15 +21,13 @@ const { t } = useI18n()
 const themeStore = useThemeStore()
 
 /** 切换宣纸/墨黑 + toast「已切换 · 宣纸/墨黑」（REQ §1.2 切换交互）
- *  主题切换平滑过渡 = 瞬态挂 .theme-animating（artist-tokens.css 仅在瞬态挂 4 条 transition，
- *  日常 hover 不背；400ms 后移除，与 .35s 过渡时长余量一致） */
+ *  K1（波2，灰沼教训）：换肤即时切换，不再挂 .theme-animating 瞬态过渡——
+ *  颜色变量各自插值会致前景/背景不同步，产生不可读中间态（artist-tokens.css 已同步拆除） */
 function onToggle() {
-  document.documentElement.classList.add('theme-animating')
   themeStore.toggleArtistTheme()
   ElMessage.success(
     themeStore.isArtistInk ? t('pref.artistToastInk') : t('pref.artistToastPaper')
   )
-  setTimeout(() => document.documentElement.classList.remove('theme-animating'), 400)
 }
 </script>
 
@@ -43,7 +41,8 @@ function onToggle() {
   display: grid; place-items: center;
   cursor: pointer;
   color: var(--ink2, var(--text-secondary));
-  transition: color .15s, box-shadow .15s, transform .15s ease-out, background-color .35s, border-color .35s;
+  /* K1（波2，灰沼教训）：按钮自身背景/边框随主题即时切换，不插值；仅 hover/按压微交互保留 */
+  transition: color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 /* 点名1: 主题开关按钮按压反馈（克制动效批同款 0.15s ease-out） */
 .artist-theme-btn:active { transform: scale(0.98); }

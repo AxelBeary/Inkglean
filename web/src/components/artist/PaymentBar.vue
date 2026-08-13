@@ -262,7 +262,7 @@ function commitInput(seg) {
   gap: 2px;
   position: relative; min-width: 0; overflow: hidden;
   background: hsl(var(--seg-hue, 210) 55% var(--seg-light));
-  transition: width 0.15s ease, opacity 0.2s, background 0.3s;
+  transition: width var(--dur-fast) var(--ease-out), opacity var(--dur-mid), background var(--dur-slow);
   border-right: 1px solid var(--line);
 }
 .bar-seg:first-child { border-radius: 9px 0 0 9px; }
@@ -291,11 +291,11 @@ function commitInput(seg) {
   position: absolute; right: -6px; top: 4px; bottom: 4px; width: 12px;
   cursor: col-resize; z-index: 2;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 4px; transition: background 0.15s;
+  border-radius: 4px; transition: background var(--dur-fast);
 }
 .bar-handle .grip {
   width: 3px; height: 20px; border-radius: 2px;
-  background: var(--line2); transition: background 0.15s, height 0.15s;
+  background: var(--line2); transition: background var(--dur-fast), height var(--dur-fast);
 }
 .bar-handle:hover, .bar-handle:focus {
   background: hsl(var(--seg-hue, 210) 50% 50% / 0.15);

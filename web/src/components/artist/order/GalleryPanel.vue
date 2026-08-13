@@ -146,7 +146,7 @@ function handleDragLeave(event) {
 .ref-hover-actions {
   position: absolute; top: 4px; right: 4px;
   display: flex; gap: 4px;
-  opacity: 0; transition: opacity 0.15s;
+  opacity: 0; transition: opacity var(--dur-fast);
 }
 .ref-img-wrap:hover .ref-hover-actions { opacity: 1; }
 /* R44/C56: 触屏无悬停，✓ 设焦点按钮常驻 */
@@ -165,7 +165,7 @@ function handleDragLeave(event) {
   gap: 6px;
   cursor: pointer;
   color: var(--ink2);
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  transition: border-color var(--dur-mid), background var(--dur-mid), color var(--dur-mid);
 }
 .ref-upload-tile:hover, .ref-upload-tile--active {
   border-color: var(--hq);

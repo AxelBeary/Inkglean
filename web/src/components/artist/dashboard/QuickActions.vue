@@ -216,7 +216,7 @@ function go(action) {
   padding: 14px 8px;
   border: 1px solid var(--line); border-radius: var(--r-l);
   background: var(--card); cursor: pointer; user-select: none;
-  transition: border-color 0.2s, transform 0.15s ease-out, box-shadow 0.2s;
+  transition: border-color var(--dur-mid), transform var(--dur-fast) ease-out, box-shadow var(--dur-mid);
 }
 .quick-card:hover {
   border-color: color-mix(in srgb, var(--hq) 50%, transparent);

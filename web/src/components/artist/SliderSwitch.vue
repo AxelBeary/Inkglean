@@ -158,7 +158,7 @@ function onKeydown(e) {
   top: 3px; bottom: 3px; left: 3px;
   width: calc((100% - 6px) / var(--sw-count));
   transform: translateX(calc(var(--sw-index) * 100%));
-  transition: transform 0.28s var(--ease-out), background-color 0.2s var(--ease-out);
+  transition: transform 0.28s var(--ease-out), background-color var(--dur-mid) var(--ease-out);
   border-radius: 999px;
   background: var(--hq-t);
   border: 1px solid var(--hq-t2);
@@ -178,7 +178,7 @@ function onKeydown(e) {
   gap: 5px;
   white-space: nowrap;
   color: var(--ink2);
-  transition: color 0.2s var(--ease-out);
+  transition: color var(--dur-mid) var(--ease-out);
 }
 .sw-option--active { color: var(--hq-d); font-weight: 600; }
 

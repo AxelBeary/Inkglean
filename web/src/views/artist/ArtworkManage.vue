@@ -572,7 +572,7 @@ onMounted(async () => {
 .artwork-actions {
   position: absolute; bottom: 0; left: 0; right: 0;
   background: var(--overlay-bg, rgba(0,0,0,0.5)); padding: 8px; text-align: center;
-  opacity: 0; transition: opacity 0.2s;
+  opacity: 0; transition: opacity var(--dur-mid);
 }
 .artwork-item:hover .artwork-actions,
 .artwork-item:focus-within .artwork-actions { opacity: 1; }
@@ -593,7 +593,7 @@ onMounted(async () => {
   backdrop-filter: blur(4px);
   color: var(--ink2); font-size: calc(var(--font-scale, 1) * 18px); line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: color 0.15s;
+  cursor: pointer; transition: color var(--dur-fast);
 }
 .artwork-cover-star:disabled { cursor: wait; opacity: 0.6; }
 /* 封面星：藤黄=待确认/封面标记语义 */
@@ -617,7 +617,7 @@ onMounted(async () => {
   backdrop-filter: blur(4px);
   color: var(--ink); font-size: calc(var(--font-scale, 1) * 12px); font-weight: 700;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 .cover-reorder-btn:hover:not(:disabled) { background: var(--hq-t); }
 .cover-reorder-btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -634,7 +634,7 @@ onMounted(async () => {
   border: 2px solid #fff; background: rgba(0, 0, 0, 0.35);
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 700;
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 .artwork-checkbox--on { background: var(--hq); border-color: var(--hq); }
 

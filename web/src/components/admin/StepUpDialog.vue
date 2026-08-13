@@ -240,7 +240,7 @@ function credentialToFlat(credential: PublicKeyCredential): FlatPasskeyCredentia
   color: var(--ink);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s, transform 0.15s ease-out;
+  transition: border-color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .stepup-passkey-btn:hover:not(:disabled) {
   border-color: var(--hq);

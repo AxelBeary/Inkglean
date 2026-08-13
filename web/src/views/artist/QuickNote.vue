@@ -150,7 +150,7 @@ onMounted(() => {
   color: var(--ink);
   font-size: 14px;
   /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .note-input:focus { border-color: var(--hq, var(--el-color-primary)); }
 .note-textarea {
@@ -164,7 +164,7 @@ onMounted(() => {
   resize: vertical;
   /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
   font-family: inherit;
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .note-textarea:focus { border-color: var(--hq, var(--el-color-primary)); }
 .note-form-actions { display: flex; justify-content: flex-end; }
@@ -190,7 +190,8 @@ onMounted(() => {
   color: var(--ink2, #555);
   font-size: 13px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background-color 0.35s, transform 0.15s ease-out;
+  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
+  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .note-mini-btn:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--hq, var(--el-color-primary)); }
 .note-mini-btn:active { transform: scale(0.98); }

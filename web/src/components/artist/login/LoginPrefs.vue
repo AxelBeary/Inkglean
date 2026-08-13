@@ -56,7 +56,7 @@ function setTheme(name) {
   font-size: calc(var(--font-scale, 1) * 12px);
   color: var(--ink3);
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--dur-mid) var(--ease-out);
 }
 
 .pref-group button:hover { color: var(--ink); }
@@ -89,7 +89,7 @@ function setTheme(name) {
 }
 
 .pref-group button[aria-pressed='true']::after {
-  animation: dot-pop 0.3s var(--ease-out);
+  animation: dot-pop var(--dur-slow) var(--ease-out);
   opacity: 1;
   transform: translateX(-50%) scale(1);
 }

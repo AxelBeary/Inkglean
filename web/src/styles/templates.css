@@ -37,7 +37,7 @@
 /* ===== 吸底 CTA 过渡 ===== */
 .tpl-cta-enter-active,
 .tpl-cta-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out);
 }
 .tpl-cta-enter-from,
 .tpl-cta-leave-to {
@@ -191,7 +191,7 @@
   cursor: pointer;
   border: 1px solid #b8b8b0;
   background: transparent; color: #3a3a3a;
-  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .receipt-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); }
 .receipt-btn:active:not(:disabled) { transform: translateY(0) scale(0.97); }

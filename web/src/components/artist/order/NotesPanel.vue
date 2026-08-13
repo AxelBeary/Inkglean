@@ -204,7 +204,7 @@ defineExpose({ uploadNoteImage })
 .tl-item--system .tl-content { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); }
 .tl-content { font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); line-height: 1.6; word-break: break-word; }
 /* R46: 删除按钮悬停显示（触屏常驻，与参考图 .ref-hover-actions 交互一致 C56） */
-.tl-delete { opacity: 0; transition: opacity 0.15s; margin-left: auto; }
+.tl-delete { opacity: 0; transition: opacity var(--dur-fast); margin-left: auto; }
 .tl-item:hover .tl-delete { opacity: 1; }
 @media (hover: none) {
   .tl-delete { opacity: 1; }
@@ -219,10 +219,10 @@ defineExpose({ uploadNoteImage })
   cursor: zoom-in;
   border: 1px solid var(--line);
   background: var(--paper2);
-  transition: box-shadow 0.15s;
+  transition: box-shadow var(--dur-fast);
 }
 .note-thumb:hover { box-shadow: var(--sh-2); }
-.note-input { display: flex; gap: 8px; border-radius: var(--r-m); transition: outline 0.15s; }
+.note-input { display: flex; gap: 8px; border-radius: var(--r-m); transition: outline var(--dur-fast); }
 /* R41: 拖拽进入高亮 */
 .note-input--drag-over { outline: 2px dashed var(--hq); outline-offset: 4px; }
 .note-input .el-input { flex: 1; }

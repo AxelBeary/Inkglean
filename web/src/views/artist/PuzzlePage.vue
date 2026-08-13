@@ -325,7 +325,7 @@ onMounted(loadOrders)
   overflow: hidden;
   cursor: pointer;
   background: var(--paper, #faf8f2);
-  transition: border-color .15s;
+  transition: border-color var(--dur-fast);
 }
 .puzzle-thumb:hover { border-color: var(--hq, #33526e); }
 .puzzle-thumb.picked { border-color: var(--hq, #33526e); box-shadow: 0 0 0 2px var(--hq-t, #e9eff4); }

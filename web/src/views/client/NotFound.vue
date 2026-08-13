@@ -63,7 +63,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   padding: 48px 16px;
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 .not-found-main {
   width: 100%;
@@ -99,7 +99,7 @@ onMounted(async () => {
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity 0.2s, transform 0.15s;
+  transition: opacity var(--dur-mid), transform var(--dur-fast);
 }
 .not-found-home-btn:hover {
   opacity: 0.88;
@@ -135,7 +135,7 @@ onMounted(async () => {
   border-radius: 12px;
   cursor: pointer;
   font-family: inherit;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition: transform var(--dur-fast), box-shadow var(--dur-fast), border-color var(--dur-fast);
 }
 .not-found-artist-card:hover {
   border-color: var(--color-primary);

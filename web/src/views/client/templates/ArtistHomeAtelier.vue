@@ -127,7 +127,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   min-height: 100vh;
   background: var(--pal-bg);
   font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
   /* 品牌装饰色（与 --color-primary 正交：主色管按钮/CTA，装饰色管品牌识别） */
   --atelier-accent: #d96c4f;   /* 赭橙 */
   --atelier-accent-2: #7c8a6e; /* 苔绿 */
@@ -167,7 +167,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   font-size: 13px;
   line-height: 1.7;
   color: var(--pal-text);
-  transition: transform 0.25s ease;
+  transition: transform var(--dur-mid) var(--ease-out);
 }
 .atelier-announcement:hover { box-shadow: 0 12px 28px color-mix(in srgb, var(--pal-text) 24%, transparent); }
 .atelier-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
@@ -231,7 +231,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   border: 1px solid var(--pal-border);
   box-shadow: 0 20px 48px color-mix(in srgb, var(--pal-text) 16%, transparent);
   transform: rotate(-0.8deg);
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s;
+  transition: transform var(--dur-slow) cubic-bezier(0.22, 1, 0.36, 1), box-shadow var(--dur-slow);
 }
 .atelier :deep(.tpl-album-frame:hover) {
   transform: rotate(0deg);
@@ -275,7 +275,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   font-family: var(--font-display);
   font-size: 14px;
   resize: vertical;
-  transition: border-color 0.2s;
+  transition: border-color var(--dur-mid);
 }
 .atelier-guestbook :deep(.gb-input:focus),
 .atelier-guestbook :deep(.gb-textarea:focus) {
@@ -296,7 +296,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   font-family: var(--font-display);
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.25s, color 0.25s;
+  transition: background var(--dur-mid), color var(--dur-mid);
 }
 .atelier-guestbook :deep(.gb-submit:hover:not(:disabled)) { background: var(--atelier-accent); color: var(--pal-bg); }
 .atelier-guestbook :deep(.gb-submit:disabled) { opacity: 0.4; cursor: default; }
@@ -309,7 +309,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   box-shadow: 0 4px 16px color-mix(in srgb, var(--pal-text) 10%, transparent);
   margin-bottom: 16px;
   transform: rotate(-0.4deg);
-  transition: transform 0.25s ease;
+  transition: transform var(--dur-mid) var(--ease-out);
 }
 .atelier-guestbook :deep(.gb-item:nth-child(even)) { transform: rotate(0.4deg); }
 .atelier-guestbook :deep(.gb-item:hover) { transform: rotate(0deg); }
@@ -371,7 +371,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   font-family: var(--font-display);
   font-size: 13px;
   cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color var(--dur-mid), color var(--dur-mid);
 }
 .atelier-guestbook :deep(.gb-load-more:hover:not(:disabled)) { border-color: var(--atelier-accent); color: var(--atelier-accent); }
 .atelier-guestbook :deep(.gb-no-more) {
@@ -411,7 +411,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   text-decoration: none;
   font-size: 13px;
   position: relative;
-  transition: color 0.2s;
+  transition: color var(--dur-mid);
 }
 .atelier-link::after {
   content: '';
@@ -423,7 +423,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   border-radius: 2px;
   background: linear-gradient(90deg, transparent, var(--atelier-accent), transparent);
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--dur-mid);
 }
 .atelier-link:hover { color: var(--pal-text); }
 .atelier-link:hover::after { opacity: 0.7; }
@@ -442,7 +442,7 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   flex-shrink: 0;
   color: var(--pal-text);
   transform: rotate(-3deg);
-  transition: transform 0.2s, border-color 0.2s;
+  transition: transform var(--dur-mid), border-color var(--dur-mid);
 }
 .atelier-link:hover .atelier-link-badge {
   transform: rotate(0deg);

@@ -447,7 +447,8 @@ async function exportImage() {
   border-radius: var(--r-m, 8px);
   background: color-mix(in srgb, var(--card, #fff) 92%, transparent);
   cursor: pointer;
-  transition: border-color 0.15s, background-color 0.35s;
+  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（无拖拽高亮状态，hover 只动边框） */
+  transition: border-color var(--dur-fast);
 }
 .wm-dropzone:hover { border-color: var(--hq, var(--el-color-primary)); }
 .wm-dropzone-text { color: var(--ink3, #888); font-size: 14px; }
@@ -463,7 +464,7 @@ async function exportImage() {
   background: none;
   cursor: pointer;
   line-height: 0;
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .wm-thumb:hover { border-color: var(--hq, var(--el-color-primary)); }
 .wm-thumb--active { border-color: var(--hq, var(--el-color-primary)); }

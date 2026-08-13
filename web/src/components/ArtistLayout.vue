@@ -546,7 +546,8 @@ const { validateSession } = useSessionGuard()
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.2s ease, background-color 0.35s, border-color 0.35s;
+  /* K1（波2，灰沼教训）：侧栏底色/边框随主题即时切换，不插值；仅折叠宽度保留微交互过渡 */
+  transition: width var(--dur-mid) var(--ease-out);
 }
 
 /* 品牌区：朱砂印章「绘」 */
@@ -570,7 +571,7 @@ const { validateSession } = useSessionGuard()
   box-shadow: 2px 2px 0 var(--sb-seal-shadow);
   flex: none;
   /* F5a 批4: hover 微效收紧到 150ms 纪律，hover 时印章加深（可点 logo 感） */
-  transition: transform .15s cubic-bezier(.3, 1.5, .4, 1), background-color .15s;
+  transition: transform var(--dur-fast) cubic-bezier(.3, 1.5, .4, 1), background-color var(--dur-fast);
 }
 .brand:hover .brand-seal { transform: rotate(4deg) scale(1.06); background-color: var(--zs-d); }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
@@ -592,7 +593,7 @@ const { validateSession } = useSessionGuard()
   background: transparent; color: var(--sb-text-dim);
   cursor: pointer; flex-shrink: 0;
   margin-left: auto;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
 }
 .collapse-btn:hover { background: var(--sb-hover); color: var(--sb-text-on); }
 .sidebar--collapsed .collapse-btn { margin-left: 0; }
@@ -617,7 +618,7 @@ const { validateSession } = useSessionGuard()
   cursor: pointer;
   position: relative;
   user-select: none;
-  transition: color .15s, background-color .15s;
+  transition: color var(--dur-fast), background-color var(--dur-fast);
 }
 .nav-item:hover { color: var(--sb-text-on); background: var(--sb-hover); }
 .nav-item--active {
@@ -634,7 +635,7 @@ const { validateSession } = useSessionGuard()
   border-radius: 0 2px 2px 0;
   /* 点名2: 激活竖条自上而下滑入（transform-origin top, .25s ease-out） */
   transform-origin: top;
-  animation: nav-bar-in 0.25s ease-out;
+  animation: nav-bar-in var(--dur-mid) ease-out;
 }
 @keyframes nav-bar-in {
   from { transform: scaleY(0); }
@@ -668,7 +669,7 @@ const { validateSession } = useSessionGuard()
   font-size: calc(var(--font-scale, 1) * 15px);
   flex-shrink: 0;
 }
-.avatar--mini { cursor: pointer; transition: box-shadow 0.15s; }
+.avatar--mini { cursor: pointer; transition: box-shadow var(--dur-fast); }
 .avatar--mini:hover { box-shadow: var(--sh-1); }
 .avatar--img { object-fit: cover; }
 /* F5a 批4: 未传头像兜底 = 品牌印章（SealStamp 默认 44px 过大，包一层适配 32px 头像格） */
@@ -698,7 +699,7 @@ const { validateSession } = useSessionGuard()
 .dot-warning { background: var(--th); }
 .dot-danger { background: var(--zs); }
 .footer-actions { display: flex; align-items: center; justify-content: space-between; }
-.logout-btn { color: var(--sb-text-dim); font-size: calc(var(--font-scale, 1) * 12px); transition: color .15s, background-color .15s; }
+.logout-btn { color: var(--sb-text-dim); font-size: calc(var(--font-scale, 1) * 12px); transition: color var(--dur-fast), background-color var(--dur-fast); }
 .logout-btn:hover { color: var(--sb-text-on); }
 
 /* ─── 顶栏（含主题切换按钮，REQ §三.1） ─── */
@@ -728,7 +729,8 @@ const { validateSession } = useSessionGuard()
   color: var(--ink2);
   font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600;
   cursor: pointer;
-  transition: color .15s, transform .15s, box-shadow .15s, background-color .35s, border-color .35s;
+  /* K1（波2，灰沼教训）：背景/边框随主题即时切换，不插值；仅 hover/按压微交互保留 */
+  transition: color var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
 }
 .lang-btn:hover { color: var(--ink); box-shadow: var(--sh-1); }
 
@@ -743,7 +745,8 @@ const { validateSession } = useSessionGuard()
   color: var(--ink2);
   cursor: pointer;
   flex: none;
-  transition: color .15s, box-shadow .15s, transform .15s ease-out, background-color .35s, border-color .35s;
+  /* K1（波2，灰沼教训）：背景/边框随主题即时切换，不插值；仅 hover/按压微交互保留 */
+  transition: color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .announce-btn:hover { color: var(--ink); box-shadow: var(--sh-1); }
 .announce-btn:active { transform: scale(0.98); }
@@ -788,7 +791,8 @@ const { validateSession } = useSessionGuard()
   color: var(--ink);
   cursor: pointer;
   flex: none;
-  transition: box-shadow 0.15s, background-color 0.35s;
+  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值 */
+  transition: box-shadow var(--dur-fast);
 }
 .mobile-menu-btn:hover { box-shadow: var(--sh-1); }
 
@@ -796,7 +800,7 @@ const { validateSession } = useSessionGuard()
 .main-content {
   background: var(--paper);
   padding: 24px 28px;
-  transition: background-color 0.35s;
+  /* K1（波2，灰沼教训）：主内容区底色随主题即时切换，不插值 */
 }
 @media (max-width: 600px) {
   .main-content { padding: 16px 14px; }
@@ -821,17 +825,17 @@ const { validateSession } = useSessionGuard()
 .footer-tools { display: flex; align-items: center; gap: 8px; }
 .collapsed-tools { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px; }
 /* ─── 克制动效批（2026-08-07 用户反馈批：按钮按压 ≤0.2s ease-out；
-     注：html[data-artist-theme] .artist-scope * 全局规则（主题切换 0.35s）特异性更高，
-     会覆盖 scoped transition —— 此处动效规则加 .artist-scope 前缀提升特异性恢复过渡） ─── */
-.artist-scope .collapse-btn { transition: background-color 0.15s, color 0.15s, transform 0.15s ease-out; }
+     注：波2 K1 已移除 html[data-artist-theme] .artist-scope * 全局主题切换过渡
+     （0.35s 颜色插值，灰沼教训），此处 .artist-scope 前缀保留仅作 scoped 覆盖约定） ─── */
+.artist-scope .collapse-btn { transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) ease-out; }
 .artist-scope .collapse-btn:active { transform: scale(0.98); }
-.artist-scope .lang-btn { transition: color .15s, transform .15s ease-out, box-shadow .15s, background-color .35s, border-color .35s; }
+.artist-scope .lang-btn { transition: color var(--dur-fast), transform var(--dur-fast) ease-out, box-shadow var(--dur-fast); }
 .artist-scope .lang-btn:active { transform: scale(0.98); }
-.artist-scope .mobile-menu-btn { transition: box-shadow 0.15s, background-color 0.35s, transform 0.15s ease-out; }
+.artist-scope .mobile-menu-btn { transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out; }
 .artist-scope .mobile-menu-btn:active { transform: scale(0.98); }
-.artist-scope .nav-item { transition: color 0.15s, background-color 0.2s ease-out, transform 0.15s ease-out; }
+.artist-scope .nav-item { transition: color var(--dur-fast), background-color var(--dur-mid) ease-out, transform var(--dur-fast) ease-out; }
 .artist-scope .nav-item:active { transform: scale(0.98); }
-.artist-scope .logout-btn { transition: color 0.15s, background-color 0.15s, transform 0.15s ease-out; }
+.artist-scope .logout-btn { transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out; }
 .artist-scope .logout-btn:active { transform: scale(0.98); }
 /* 移动端抽屉进场：淡入 + 轻微上移（0.18s ease-out，替代 EP 默认侧滑，禁弹跳旋转） */
 .artist-scope .mobile-drawer :deep(.el-drawer-fade-enter-active),

@@ -255,7 +255,7 @@ onUnmounted(() => timers.forEach(clearInterval))
 .row {
   display: flex; align-items: center; gap: 11px; padding: 13px 10px;
   border-bottom: 1px solid var(--line); font-size: calc(var(--font-scale, 1) * 14.5px);
-  flex-wrap: wrap; cursor: pointer; border-radius: 4px; transition: background .15s ease; position: relative;
+  flex-wrap: wrap; cursor: pointer; border-radius: 4px; transition: background var(--dur-fast) var(--ease-out); position: relative;
 }
 .ledger-rows .row:last-child { border-bottom: none; }
 .row:hover { background: var(--paper2); }
@@ -279,7 +279,7 @@ onUnmounted(() => timers.forEach(clearInterval))
   font: inherit; font-size: calc(var(--font-scale, 1) * 12px); cursor: pointer; flex: none; position: relative; overflow: hidden;
   color: var(--sl); background: none; border: 1px solid color-mix(in srgb, var(--sl) 40%, transparent);
   padding: 3px 11px; border-radius: 3px 6px 4px 6px / 6px 4px 6px 3px;
-  transition: background .2s ease, color .2s ease;
+  transition: background var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
 }
 .r-btn:hover:not(:disabled) { background: var(--sl-t); }
 .r-btn--deliver { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 55%, transparent); }

@@ -255,7 +255,7 @@ onMounted(load)
   border: 1px solid var(--line);
   border-radius: var(--r-l);
   background: var(--card);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--dur-mid), box-shadow var(--dur-mid);
 }
 .gm-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); box-shadow: var(--sh-1); }
 /* 待审核留言：藤黄=待确认（语义一对一） */

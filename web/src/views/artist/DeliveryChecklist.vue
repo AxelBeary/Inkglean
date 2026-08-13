@@ -175,7 +175,7 @@ onMounted(loadState)
   height: 100%;
   background: var(--sl);
   border-radius: var(--r-pill);
-  transition: width 0.2s ease-out;
+  transition: width var(--dur-mid) ease-out;
 }
 
 .cl-done {
@@ -203,7 +203,7 @@ onMounted(loadState)
   font-size: calc(var(--font-scale, 1) * 14px);
   color: var(--ink);
   overflow-wrap: anywhere;
-  transition: color 0.15s;
+  transition: color var(--dur-fast);
 }
 .cl-item--done .cl-text { color: var(--ink3); text-decoration: line-through; }
 
@@ -216,7 +216,7 @@ onMounted(loadState)
   color: var(--ink3);
   font-size: calc(var(--font-scale, 1) * 12px);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, transform 0.15s ease-out;
+  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .cl-mini-btn:hover { border-color: var(--zs); color: var(--zs); }
 .cl-mini-btn:active { transform: scale(0.98); }
@@ -231,7 +231,7 @@ onMounted(loadState)
   background: var(--paper2);
   color: var(--ink);
   font-size: calc(var(--font-scale, 1) * 14px);
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .cl-input:focus { border-color: var(--hq); outline: none; }
 .cl-btn {
@@ -243,7 +243,7 @@ onMounted(loadState)
   color: #fff;
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  transition: background-color 0.15s, transform 0.15s ease-out;
+  transition: background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .cl-btn:hover:not(:disabled) { background: var(--hq-d); border-color: var(--hq-d); }
 .cl-btn:active:not(:disabled) { transform: scale(0.98); }

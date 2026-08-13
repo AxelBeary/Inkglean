@@ -187,7 +187,7 @@ async function submitPriceChange() {
   gap: 12px;
   padding: 8px 10px;
   border-radius: var(--r-m);
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 .extra-item:hover { background: var(--paper2); }
 .extra-info { flex: 1; min-width: 0; }
@@ -196,7 +196,7 @@ async function submitPriceChange() {
 /* 金额等宽（REQ §二：金额右对齐等宽字体） */
 .extra-price { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 /* 悬停显示删除（触屏常驻，与 .tl-delete 交互一致 C56） */
-.extra-delete { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+.extra-delete { opacity: 0; transition: opacity var(--dur-fast); flex-shrink: 0; }
 .extra-item:hover .extra-delete { opacity: 1; }
 @media (hover: none) { .extra-delete { opacity: 1; } }
 .extra-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }

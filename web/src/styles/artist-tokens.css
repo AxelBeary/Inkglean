@@ -11,7 +11,20 @@
      变量经 DOM 继承自然生效，无需额外处理。
    - 附「旧变量兼容映射」：后台作用域内把 --bg-page/--text-* 等旧语义变量
      映射到新 token，让第二批尚未换肤的页面自动跟随主题底色，避免中间态割裂。
+   - 波2（前端质量战役）：动效时长三档（--dur-fast/mid/slow）与 --ease-out 提升到
+     :root 供全库（客户端 + 双主题后台）统一使用——纯时长/缓动变量不含主题色值，
+     客户端路由可用且零视觉泄漏；这是对「不声明在 :root」的唯一例外。
    ============================================ */
+
+/* ===== 动效 token（波2：全库微交互统一；双主题共用 :root 层） ===== */
+:root {
+  /* 微交互时长三档（战役波2）：fast=hover/按压反馈，mid=淡入淡出/展开，slow=容器级过渡 */
+  --dur-fast: 0.15s;
+  --dur-mid: 0.25s;
+  --dur-slow: 0.35s;
+  /* --ease-out 提升到 :root：客户端页替换独立 ease 关键字时可用（与主题块取值一致） */
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+}
 
 /* ===== 宣纸主题（默认） ===== */
 html[data-artist-theme="paper"] {
@@ -246,29 +259,20 @@ html[data-artist-theme="ink"] .band-done { background: #38735A; color: #D9EFE3; 
 html[data-artist-theme="ink"] .btn-pri-ink { background: #46708F; color: #EAF2F9; }
 html[data-artist-theme="ink"] .btn-pri-ink:hover { background: #3E6285; }
 
-/* 主题切换平滑过渡（仅切换瞬态挂载，日常 hover 不背 4 条 transition） */
-html[data-artist-theme].theme-animating .artist-scope,
-html[data-artist-theme].theme-animating .artist-scope * {
-  transition: background-color .35s, border-color .35s, color .35s, box-shadow .35s;
-}
+/* K1（波2，灰沼教训）：换肤即时切换——删除主题变量插值过渡（含瞬态 .theme-animating
+   的 background-color/border-color/color/box-shadow .35s），前景/背景不同步插值会
+   产生不可读中间态；日常 hover/按压微交互不受影响（各自保留短过渡 token）。 */
 /* 点名1: 关键切换态统一快动效（订单状态/筛选项/侧边栏激活项）——background .2s ease-out + transform .15s；
    与克制动效批按钮按压(0.15s)互补：按压=按下反馈，切换=状态落定反馈 */
 html[data-artist-theme] .artist-scope .nav-item--active,
 html[data-artist-theme] .artist-scope .status-tag,
 html[data-artist-theme] .artist-scope .el-radio-button__inner,
 html[data-artist-theme] .artist-scope .el-segmented__item {
-  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.15s var(--ease-out), box-shadow 0.2s var(--ease-out);
+  transition: background-color var(--dur-mid) var(--ease-out), border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out);
 }
 html[data-artist-theme] .artist-scope .el-radio-button__inner:active,
 html[data-artist-theme] .artist-scope .el-segmented__item:active {
   transform: scale(0.98);
-}
-
-/* 过渡会干扰拖拽/动画性能的元素豁免 */
-html[data-artist-theme].theme-animating .artist-scope .tl-bar,
-html[data-artist-theme].theme-animating .artist-scope .cal-band,
-html[data-artist-theme].theme-animating .artist-scope .queue-item {
-  transition: none;
 }
 
 /* ═══ F1 批4: 后台字号档位（无障碍）═══
@@ -350,41 +354,9 @@ html[data-artist-theme] {
   --r-s-hand: 2px 3px 2px 3px / 3px 2px 3px 2px;
 }
 
-/* 主题 token 注册为可动画属性：切换时变量本身 550ms 缓动，
-   所有下游颜色/渐变/纹理同时间轴重绘——材质连续「纸还是那张纸」 */
-@property --paper   { syntax: '<color>'; inherits: true; initial-value: #F5F4EF; }
-@property --paper2  { syntax: '<color>'; inherits: true; initial-value: #FBFAF6; }
-@property --card    { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
-@property --ink     { syntax: '<color>'; inherits: true; initial-value: #262520; }
-@property --ink2    { syntax: '<color>'; inherits: true; initial-value: #5A564B; }
-@property --ink3    { syntax: '<color>'; inherits: true; initial-value: #757062; }
-@property --ink4    { syntax: '<color>'; inherits: true; initial-value: #807B6C; }
-@property --line    { syntax: '<color>'; inherits: true; initial-value: #E7E4D9; }
-@property --line2   { syntax: '<color>'; inherits: true; initial-value: #DAD6C8; }
-@property --hq      { syntax: '<color>'; inherits: true; initial-value: #33526E; }
-@property --hq-d    { syntax: '<color>'; inherits: true; initial-value: #28425B; }
-@property --hq-t    { syntax: '<color>'; inherits: true; initial-value: #E9EFF4; }
-@property --zs      { syntax: '<color>'; inherits: true; initial-value: #BC3A2B; }
-@property --sl      { syntax: '<color>'; inherits: true; initial-value: #2F7D54; }
-
-html[data-artist-theme] {
-  transition:
-    --paper 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --paper2 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --card 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --ink 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --ink2 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --ink3 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --ink4 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --line 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --line2 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --hq 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --hq-d 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --hq-t 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --zs 0.55s cubic-bezier(0.45, 0.05, 0.25, 1),
-    --sl 0.55s cubic-bezier(0.45, 0.05, 0.25, 1);
-}
-
+/* K1（波2，灰沼教训）：换肤即时切换——删除 html[data-artist-theme] 上的 14 条
+   @property 颜色变量 0.55s 插值过渡及其 @property 注册；主题色切换不再逐变量
+   插值（前景/背景不同步会致对比度塌陷成灰沼/闪白中间态）。 */
 
 /* ═══ REQ-037 批4a A3: 键盘焦点环（focus-visible 定点清单——自研可点元素；EP 内部控件不碰） ═══ */
 html[data-artist-theme] .artist-scope a:focus-visible,

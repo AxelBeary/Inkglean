@@ -523,7 +523,7 @@ async function copyQq(qq) {
   min-height: 100vh;
   background: var(--pal-bg, var(--bg-page));
   padding: 16px;
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
   position: relative;
 }
 /* R58-2: 加宽容器容纳 主区 + 摘要卡 双栏 */
@@ -555,7 +555,7 @@ async function copyQq(qq) {
   padding: 18px 14px; text-align: center; cursor: pointer;
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 12px;
-  transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.15s ease, background 0.2s;
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-mid);
 }
 .tier-pick:hover { box-shadow: var(--shadow-card-hover); }
 .tier-pick:active { transform: translateY(-2px); }
@@ -566,7 +566,7 @@ async function copyQq(qq) {
   background: var(--color-primary); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700;
-  animation: tier-stamp-in 0.35s var(--ease-bounce);
+  animation: tier-stamp-in var(--dur-slow) var(--ease-bounce);
 }
 @keyframes tier-stamp-in {
   from { transform: scale(0) rotate(-30deg); }
@@ -619,10 +619,10 @@ async function copyQq(qq) {
   margin-left: auto; padding: 4px 10px;
   background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
   font-size: 12px; color: var(--text-secondary); cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  transition: color var(--dur-mid), border-color var(--dur-mid);
 }
 .pricing-expand-btn:hover { color: var(--el-color-primary); border-color: var(--el-color-primary); }
-.pricing-expand-enter-active, .pricing-expand-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.pricing-expand-enter-active, .pricing-expand-leave-active { transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out); }
 .pricing-expand-enter-from, .pricing-expand-leave-to { opacity: 0; transform: translateY(-8px); }
 
 /* 增项分组（旧折叠式残留；.addon-group 级联样式已随区块迁入 AddonStep.vue） */

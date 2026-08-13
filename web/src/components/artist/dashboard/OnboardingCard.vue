@@ -168,7 +168,7 @@ onUnmounted(() => {
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s, background-color 0.15s, transform 0.15s ease-out;
+  transition: border-color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .ob-task:hover { border-color: var(--hq); }
 .ob-task:active { transform: scale(0.99); }
@@ -201,7 +201,7 @@ onUnmounted(() => {
 .ob-dismiss {
   color: var(--ink3);
   font-size: calc(var(--font-scale, 1) * 11.5px);
-  transition: color 0.15s;
+  transition: color var(--dur-fast);
 }
 .ob-dismiss:hover { color: var(--ink); }
 </style>

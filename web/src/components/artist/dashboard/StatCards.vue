@@ -52,7 +52,8 @@ function goOrders(status) {
   overflow: hidden;
   cursor: pointer;
   text-align: center;
-  transition: transform 0.18s ease-out, box-shadow 0.2s, background-color 0.35s;
+  /* K1（波2，灰沼教训）：卡片底色随主题即时切换，不插值（hover/按压只动阴影/位移） */
+  transition: transform 0.18s ease-out, box-shadow var(--dur-mid);
 }
 .stat-card:hover { box-shadow: var(--sh-2); }
 .stat-card:active { transform: translateY(-2px) scale(0.98); }
@@ -79,7 +80,7 @@ function goOrders(status) {
   color: var(--ink4);
   font-size: calc(var(--font-scale, 1) * 14px);
   opacity: 0;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity var(--dur-fast), transform var(--dur-fast);
 }
 .stat-card:hover .stat-go { opacity: 1; transform: translateX(3px); }
 .stat-card--pending:hover .stat-go { color: var(--th); }

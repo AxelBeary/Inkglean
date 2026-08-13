@@ -118,7 +118,7 @@ onMounted(() => {
   min-height: 100vh;
   background: var(--pal-bg, var(--bg-page));
   padding: 16px;
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 .delivery-container { max-width: 600px; margin: 0 auto; }
 .file-item {

@@ -81,6 +81,6 @@ onBeforeUnmount(clearTimer)
 }
 .undo-toast-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
 .undo-toast-btn:disabled { opacity: 0.5; cursor: default; }
-.undo-toast-enter-active, .undo-toast-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.undo-toast-enter-active, .undo-toast-leave-active { transition: opacity var(--dur-mid), transform var(--dur-mid); }
 .undo-toast-enter-from, .undo-toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 </style>

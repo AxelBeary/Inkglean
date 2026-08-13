@@ -85,7 +85,7 @@ function toggleLang() {
 .accent-dot {
   width: 20px; height: 20px; border-radius: 50%;
   border: 2px solid var(--border-color);
-  cursor: pointer; transition: border-color 0.15s;
+  cursor: pointer; transition: border-color var(--dur-fast);
 }
 .accent-dot:hover { border-color: var(--color-primary); }
 
@@ -97,7 +97,7 @@ function toggleLang() {
   flex: 1; padding: 4px 0; border: 1px solid var(--border-color);
   border-radius: 6px; background: transparent; cursor: pointer;
   font-size: calc(var(--font-scale, 1) * 12px); color: var(--text-secondary);
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 .picker-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .picker-btn.active {
@@ -109,7 +109,7 @@ function toggleLang() {
   width: 28px; height: 28px; border-radius: 50%;
   border: 2px solid transparent; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .accent-swatch.active { border-color: var(--text-primary); }
 .swatch-check { color: #fff; font-size: calc(var(--font-scale, 1) * 12px); font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
@@ -119,7 +119,7 @@ function toggleLang() {
   width: 30px; height: 30px; border: 1px solid var(--border-color);
   border-radius: 6px; background: transparent; cursor: pointer;
   font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--text-secondary);
-  transition: background 0.2s, border-color 0.2s;
+  transition: background var(--dur-mid), border-color var(--dur-mid);
 }
 .lang-btn:hover { background: var(--bg-hover); border-color: var(--color-primary); }
 </style>

@@ -95,7 +95,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   background: var(--bg-page);
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 .landing-header {
   text-align: center;
@@ -120,7 +120,7 @@ onMounted(async () => {
 .artist-card {
   text-align: center;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, background 0.3s;
+  transition: transform var(--dur-fast), box-shadow var(--dur-fast), background var(--dur-slow);
   background: var(--bg-card);
 }
 .artist-card:hover { box-shadow: var(--shadow-card-hover); }

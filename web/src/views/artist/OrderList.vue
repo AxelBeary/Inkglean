@@ -318,7 +318,7 @@ onMounted(() => {
   background: var(--paper2);
 }
 .el-table :deep(.el-table__row td) { color: var(--ink); }
-.el-table :deep(.el-table__body tr) { transition: background 0.15s; cursor: pointer; }
+.el-table :deep(.el-table__body tr) { transition: background var(--dur-fast); cursor: pointer; }
 /* 斑马纹用极浅纸色（密集界面保持安静） */
 .el-table :deep(.el-table__row--striped td) { background: color-mix(in srgb, var(--paper2) 55%, transparent); }
 

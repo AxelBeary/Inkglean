@@ -107,13 +107,13 @@ async function toggle() {
   fill: transparent;
   stroke: currentColor;
   stroke-width: 2;
-  transition: fill 0.25s ease, stroke 0.25s ease;
+  transition: fill var(--dur-mid) var(--ease-out), stroke var(--dur-mid) var(--ease-out);
 }
 .like-btn--liked .like-heart path {
   fill: currentColor;
 }
 .like-btn--pop .like-heart {
-  animation: like-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: like-pop var(--dur-slow) cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes like-pop {
   0% { transform: scale(1); }

@@ -173,7 +173,7 @@ onMounted(async () => {
 .artist-home {
   min-height: 100vh;
   background: var(--bg-page);
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 .empty-state {
   display: flex; align-items: center; justify-content: center;

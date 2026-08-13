@@ -218,7 +218,8 @@ onUnmounted(releaseResult)
   border-radius: var(--r-m);
   background: var(--paper2);
   cursor: pointer;
-  transition: border-color 0.15s, background-color 0.35s;
+  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（无拖拽高亮状态，hover 只动边框） */
+  transition: border-color var(--dur-fast);
 }
 .ir-dropzone:hover { border-color: var(--hq); }
 .ir-dropzone-text { color: var(--ink3); font-size: 14px; }

@@ -134,7 +134,7 @@ useScrollReveal(rootEl)
 .classic {
   min-height: 100vh;
   background: var(--pal-bg);
-  transition: background 0.3s;
+  /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 
 .classic-body {
@@ -202,7 +202,7 @@ useScrollReveal(rootEl)
   font-size: 13px;
   padding: 6px 0;
   border-radius: 8px;
-  transition: color 0.2s, background 0.2s;
+  transition: color var(--dur-mid), background var(--dur-mid);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -226,7 +226,7 @@ useScrollReveal(rootEl)
   line-height: 1;
   flex-shrink: 0;
   color: var(--pal-text);
-  transition: background 0.2s, border-color 0.2s;
+  transition: background var(--dur-mid), border-color var(--dur-mid);
 }
 .classic-side-link:hover .classic-link-badge {
   background: var(--color-primary-soft);
@@ -242,7 +242,7 @@ useScrollReveal(rootEl)
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
+  transition: background var(--dur-mid), transform var(--dur-mid);
 }
 .classic-cta:hover:not(:disabled) {
   background: var(--color-primary-hover);
@@ -295,7 +295,7 @@ useScrollReveal(rootEl)
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
-  transition: border-color 0.2s;
+  transition: border-color var(--dur-mid);
 }
 .classic-guestbook :deep(.gb-input:focus),
 .classic-guestbook :deep(.gb-textarea:focus) {
@@ -317,7 +317,7 @@ useScrollReveal(rootEl)
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition: background var(--dur-mid), transform var(--dur-fast);
 }
 .classic-guestbook :deep(.gb-submit:hover:not(:disabled)) { transform: translateY(-1px); }
 .classic-guestbook :deep(.gb-submit:disabled) { opacity: 0.5; cursor: default; }
@@ -367,7 +367,7 @@ useScrollReveal(rootEl)
   color: var(--pal-text-dim);
   font-size: 13px;
   cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color var(--dur-mid), color var(--dur-mid);
 }
 .classic-guestbook :deep(.gb-load-more:hover:not(:disabled)) { border-color: var(--color-primary); color: var(--color-primary); }
 .classic-guestbook :deep(.gb-no-more) { text-align: center; font-size: 12px; color: var(--pal-text-dim); margin-top: 8px; }

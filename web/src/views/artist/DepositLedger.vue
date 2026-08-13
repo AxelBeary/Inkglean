@@ -259,7 +259,7 @@ onMounted(loadItems)
   background: var(--paper2);
   color: var(--ink);
   font-size: calc(var(--font-scale, 1) * 14px);
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 .dp-input:focus { border-color: var(--hq); outline: none; }
 .dp-status-toggle { display: flex; align-items: center; min-height: 36px; }
@@ -275,7 +275,7 @@ onMounted(loadItems)
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s, transform 0.15s ease-out;
+  transition: background-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .dp-btn:hover { background: var(--hq-d); border-color: var(--hq-d); }
 .dp-btn:active { transform: scale(0.98); }
@@ -313,7 +313,7 @@ onMounted(loadItems)
   color: var(--ink3);
   font-size: calc(var(--font-scale, 1) * 12px);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, transform 0.15s ease-out;
+  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
 }
 .dp-mini-btn:hover { border-color: var(--zs); color: var(--zs); }
 .dp-mini-btn:active { transform: scale(0.98); }

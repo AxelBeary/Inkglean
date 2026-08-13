@@ -734,7 +734,7 @@ onUnmounted(() => {
   overflow: hidden;
   cursor: pointer;
   background: var(--card);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .tier-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); box-shadow: var(--sh-1); }
 .tier-card--active {
@@ -802,7 +802,7 @@ onUnmounted(() => {
   padding: 5px 12px; border-radius: var(--r-pill);
   border: 1px solid var(--line2); background: var(--card); color: var(--ink2);
   font-size: calc(var(--font-scale, 1) * 12.5px); font-family: var(--f-b);
-  cursor: pointer; user-select: none; transition: border-color 0.15s, background 0.15s, color 0.15s;
+  cursor: pointer; user-select: none; transition: border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
 }
 .mult-chip:hover { border-color: var(--hq); }
 .mult-chip-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -875,6 +875,6 @@ onUnmounted(() => {
 }
 
 /* ─── 明细展开动画 ─── */
-.mo-slide-enter-active, .mo-slide-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.mo-slide-enter-active, .mo-slide-leave-active { transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out); }
 .mo-slide-enter-from, .mo-slide-leave-to { opacity: 0; transform: translateY(8px); }
 </style>

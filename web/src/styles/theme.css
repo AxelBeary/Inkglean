@@ -139,9 +139,9 @@ html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #6
 /* ===== 全局按钮三态（hover 浮起 / active 按下） ===== */
 /* 双类 .el-button.el-button 提升特异性，压过 EP button.css 的 .el-button（后者定义更晚） */
 .el-button.el-button {
-  transition: transform 0.15s ease,
-              box-shadow 0.15s ease,
-              background-color 0.15s, border-color 0.15s, color 0.15s;
+  transition: transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
 }
 .el-button.el-button:hover:not(:disabled):not(.is-loading) {
   transform: translateY(-2px);
@@ -177,10 +177,10 @@ html.dark .el-tag.el-tag--dark.el-tag--danger  { --el-tag-text-color: #6b1a1a; }
    只加过渡类，不影响功能/布局；reduced-motion 由上方全局兜底压缩。
    EP 默认 dialog-fade-in 仅 opacity+上移，此处覆写为 scale(0.96)+opacity，
    body 前缀提升特异性压过 EP 同特异性规则。 */
-body .dialog-fade-enter-active { animation: huiyue-modal-in 0.2s ease-out; }
-body .dialog-fade-enter-active .el-overlay-dialog { animation: huiyue-dialog-in 0.2s ease-out; }
-body .dialog-fade-leave-active { animation: huiyue-modal-out 0.15s ease-in; }
-body .dialog-fade-leave-active .el-overlay-dialog { animation: huiyue-dialog-out 0.15s ease-in; }
+body .dialog-fade-enter-active { animation: huiyue-modal-in var(--dur-mid) ease-out; }
+body .dialog-fade-enter-active .el-overlay-dialog { animation: huiyue-dialog-in var(--dur-mid) ease-out; }
+body .dialog-fade-leave-active { animation: huiyue-modal-out var(--dur-fast) ease-in; }
+body .dialog-fade-leave-active .el-overlay-dialog { animation: huiyue-dialog-out var(--dur-fast) ease-in; }
 @keyframes huiyue-modal-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes huiyue-modal-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes huiyue-dialog-in {

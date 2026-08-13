@@ -79,7 +79,7 @@ function onAvatarPick(event: Event) {
   outline: none;
 }
 .avatar-upload:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; border-radius: var(--r-m); }
-.avatar-preview { transition: transform 0.15s, box-shadow 0.15s; }
+.avatar-preview { transition: transform var(--dur-fast), box-shadow var(--dur-fast); }
 .avatar-upload:hover .avatar-preview { transform: scale(1.05); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hq) 50%, transparent); }
 .avatar-upload-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
 </style>
