@@ -13,29 +13,36 @@
       </CardHead>
     </template>
     <div v-loading="logLoading">
-      <el-timeline v-if="logs.length" class="activity-timeline">
-        <el-timeline-item
-          v-for="log in logs" :key="log.id"
-          :type="logTagType(log.action_type)"
-          :timestamp="formatDate(log.created_at)" placement="top"
-        >
-          <div class="log-item">
-            <div class="log-head">
-              <el-tag :type="logTagType(log.action_type)" size="small">{{ $t(`orderDetail.logType.${log.action_type}`) }}</el-tag>
-              <span class="log-actor">{{ logActorName(log.actor) }}</span>
-            </div>
-            <div class="log-detail">{{ formatLogDetail(log) }}</div>
-          </div>
-        </el-timeline-item>
-      </el-timeline>
-      <InkEmpty v-else-if="!logLoading" :title="$t('orderDetail.logEmpty')" />
-      <div v-if="logTotal > logPageSize" class="log-pagination">
-        <el-pagination
-          :current-page="logPage" :page-size="logPageSize" :total="logTotal"
-          layout="total, prev, pager, next" small
-          @current-change="onLogPageChange"
-        />
+      <!-- 加载失败错误态 + 重试（对齐 dashboard module-error 模式） -->
+      <div v-if="logError" class="module-error">
+        <span>{{ $t('orderDetail.logLoadFailed') }}</span>
+        <el-button size="small" @click="loadLogs">{{ $t('dashboard.retry') }}</el-button>
       </div>
+      <template v-else>
+        <el-timeline v-if="logs.length" class="activity-timeline">
+          <el-timeline-item
+            v-for="log in logs" :key="log.id"
+            :type="logTagType(log.action_type)"
+            :timestamp="formatDate(log.created_at)" placement="top"
+          >
+            <div class="log-item">
+              <div class="log-head">
+                <el-tag :type="logTagType(log.action_type)" size="small">{{ $t(`orderDetail.logType.${log.action_type}`) }}</el-tag>
+                <span class="log-actor">{{ logActorName(log.actor) }}</span>
+              </div>
+              <div class="log-detail">{{ formatLogDetail(log) }}</div>
+            </div>
+          </el-timeline-item>
+        </el-timeline>
+        <InkEmpty v-else-if="!logLoading" :title="$t('orderDetail.logEmpty')" />
+        <div v-if="logTotal > logPageSize" class="log-pagination">
+          <el-pagination
+            :current-page="logPage" :page-size="logPageSize" :total="logTotal"
+            layout="total, prev, pager, next" small
+            @current-change="onLogPageChange"
+          />
+        </div>
+      </template>
     </div>
   </el-card>
 </template>
@@ -61,7 +68,7 @@ function formatDate(str) {
 
 const {
   logs, total: logTotal, page: logPage, pageSize: logPageSize,
-  typeFilter: logTypeFilter, loading: logLoading,
+  typeFilter: logTypeFilter, loading: logLoading, error: logError,
   loadLogs, onPageChange: onLogPageChange, onTypeChange: onLogTypeChange
 } = useActivityLog(props.routeId)
 
@@ -140,4 +147,9 @@ onMounted(() => {
 .log-actor { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
 .log-detail { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); line-height: 1.6; word-break: break-word; }
 .log-pagination { display: flex; justify-content: center; margin-top: 12px; }
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 </style>

@@ -9,6 +9,8 @@ export function useOrderPayments() {
   const payments = ref([])
   const loading = ref(false)
   const submitting = ref(false)
+  /** 流水加载失败标记（面板据此显示错误态 + 重试） */
+  const loadError = ref(false)
   // D-2（R-9）: 收款/撤销幂等键——同一次提交意图（失败重试）复用同 key，
   // 成功后置空（下一次提交 = 新意图，换新 key）。后端按 payment:orderId + key 去重，
   // 防双标签页/脚本双击重复入账；服务端错误不缓存，修正后重试可成功。
@@ -17,11 +19,13 @@ export function useOrderPayments() {
   /** 加载收款流水 */
   async function loadPayments(orderId) {
     loading.value = true
+    loadError.value = false
     try {
       const res = await artistApi.getPayments(orderId)
       payments.value = res.payments || []
     } catch {
       payments.value = []
+      loadError.value = true
     } finally {
       loading.value = false
     }
@@ -70,5 +74,5 @@ export function useOrderPayments() {
     payments.value.reduce((sum, p) => sum + (p.amount_cents || 0), 0)
   )
 
-  return { payments, loading, submitting, loadPayments, addPayment, revokePayment, netPaidCents }
+  return { payments, loading, submitting, loadError, loadPayments, addPayment, revokePayment, netPaidCents }
 }
