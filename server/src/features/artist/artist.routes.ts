@@ -179,6 +179,17 @@ export default async function artistRoutes(fastify: FastifyInstance) {
           monthlyQuota: { type: ['integer', 'null'], minimum: 0, maximum: 999 },
           // v0.25 C: 快捷按钮（DB 持久化，数组→JSON 字符串存储）
           quickActions: { type: ['array', 'null'], maxItems: 9, items: { type: 'string', maxLength: 30 } },
+          // 视觉批 P2：看板模块开关（键白名单+布尔，service 层硬校验）
+          dashboardModules: {
+            type: ['object', 'null'],
+            properties: {
+              schedule: { type: 'boolean' },
+              guestbook: { type: 'boolean' },
+              activity: { type: 'boolean' },
+              onboarding: { type: 'boolean' }
+            },
+            additionalProperties: false
+          },
           // v0.37 (REQ-024 F2): 多画风开关（关=客户端只见默认画风）
           multiStyleEnabled: { type: 'boolean' }
         },
@@ -210,6 +221,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
         announcementExpiresAt: 'announcement_expires_at',
         monthlyQuota: 'monthly_quota',
         quickActions: 'quick_actions',
+        dashboardModules: 'dashboard_modules',
         multiStyleEnabled: 'multi_style_enabled'
       }
       const CLAMP_MAP = { artist_code: 'artistCode', contact_qq: 'contactQq' }

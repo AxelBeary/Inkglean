@@ -148,7 +148,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 export function updateArtist(id: number, fields: Record<string, unknown>): Artist | undefined {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
   // REQ-022 F2: platform_urls 写入分支已删除（列弃用，读路径全部移除）
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled', 'dashboard_modules']
   const updates: string[] = []
   const values: unknown[] = []
 
@@ -273,6 +273,24 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
           const keys = Array.isArray(arr) ? arr.map((k: unknown) => typeof k === 'string' ? k.trim() : JSON.stringify(k)).filter(Boolean).slice(0, 9) : []
           updates.push('quick_actions = ?')
           values.push(JSON.stringify(keys))
+        }
+      } else if (key === 'dashboard_modules') {
+        // 视觉批 P2：看板模块开关——JSON 对象存储（null=全部显示）；键白名单+布尔值硬校验
+        if (value === null) {
+          updates.push('dashboard_modules = ?')
+          values.push(null)
+        } else {
+          const MODULE_KEYS = ['schedule', 'guestbook', 'activity', 'onboarding']
+          let obj = value
+          if (typeof obj === 'string') { try { obj = JSON.parse(obj) } catch { obj = {} } }
+          const clean: Record<string, boolean> = {}
+          if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+            for (const k of MODULE_KEYS) {
+              if (typeof (obj as Record<string, unknown>)[k] === 'boolean') clean[k] = (obj as Record<string, boolean>)[k]
+            }
+          }
+          updates.push('dashboard_modules = ?')
+          values.push(JSON.stringify(clean))
         }
       } else if (['auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'multi_style_enabled'].includes(key)) {
         // SPEC-004: 布尔开关 — 强制转整数（v0.37: 多画风开关同组）
