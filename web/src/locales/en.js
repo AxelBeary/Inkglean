@@ -13,7 +13,7 @@ export default {
     QQ_NOT_REGISTERED: 'This QQ number is not registered as an artist',
     TOTP_NOT_BOUND: 'This artist has not bound an authenticator yet. Please contact the admin',
     TOTP_INVALID: 'Incorrect QQ number or one-time password',
-    TOTP_LOCKED: 'Too many attempts. Account temporarily locked, please try again later',
+    TOTP_LOCKED: 'Too many attempts. Your account is temporarily locked. Please try again later.',
     TOTP_BIND_INVALID: 'Incorrect one-time password. Ask the artist to check the 6-digit code on their authenticator',
     // REQ-039: Invite registration
     INVITE_INVALID: 'Invite code is invalid, already used, or expired',
@@ -34,7 +34,7 @@ export default {
     STAGE_NAME_EMPTY: 'Stage name cannot be empty',
     FINAL_CANNOT_DISABLE: 'Cannot disable payment on final stage',
     FINAL_CANNOT_DELETE: 'Cannot delete final payment stage',
-    TRACK_ALREADY_ON: 'Please refresh the page — tracking is already enabled for this order',
+    TRACK_ALREADY_ON: 'Process tracking is already enabled. Please refresh the page to view it.',
     NO_WORKFLOW_TEMPLATE: 'Please create a workflow template first (at least 1 stage)',
     FINAL_READONLY: 'Cannot modify final payment ratio directly',
     MAX_INSTALLMENTS: 'Maximum 20 installments',
@@ -63,7 +63,7 @@ export default {
     CANCEL_WITH_PAYMENT: 'This order has received payment. Please refund offline before cancelling',
     DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
     TIER_NOT_FOUND: 'Price tier not found or does not belong to this artist',
-    ILLEGAL_PATH: 'Illegal path',
+    ILLEGAL_PATH: 'Invalid file path',
     MISSING_FILE: 'Missing file path',
     QUEUE_EMPTY: 'Reorder list cannot be empty',
     QUEUE_NOT_OWNED: 'Order does not belong to current queue',
@@ -88,7 +88,7 @@ export default {
     INVALID_ANNOUNCEMENT_DATE: 'Announcement expiry cannot be earlier than today',
 
     // Upload
-    ILLEGAL_FILE_TYPE: 'Illegal file type',
+    ILLEGAL_FILE_TYPE: 'Unsupported file type',
     UNSUPPORTED_FORMAT: 'Unsupported file format',
 
     // Admin
@@ -119,7 +119,7 @@ export default {
     // Input validation (supplement)
     QQ_REQUIRED: 'Please enter your QQ number',
     QQ_FORMAT: 'Invalid QQ format (5-15 digits)',
-    MISSING_CREDENTIALS: 'Please enter QQ number and login code',
+    MISSING_CREDENTIALS: 'Please enter your QQ number and authenticator code',
 
     // Order input (supplement)
     ARTIST_NOT_OPEN: 'This artist is not accepting new commissions',
@@ -138,16 +138,16 @@ export default {
     PRICING_CALC_FAILED: 'Price calculation failed',
     INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 99999999)',
     // Pricing engine (supplement, v0.37 REQ-025)
-    PRICING_CONSERVATION: 'Pricing data is inconsistent; operation rejected. Please refresh and retry',
+    PRICING_CONSERVATION: 'Pricing data looks inconsistent. The change was not applied. Please refresh and retry.',
     PRICE_CHANGE_AFTER_DONE: 'Order is complete; adjust the price by adding or removing extra items',
 
     // Focus image (supplement)
-    FOCUS_IMAGE_NOT_FOUND: 'Reference image not found',
-    FOCUS_IMAGE_NOT_OWNED: 'This reference image does not belong to this order',
-    INVALID_FOCUS_MODE: 'Invalid focus image mode (options: off/small/large)',
+    FOCUS_IMAGE_NOT_FOUND: 'Focus image not found',
+    FOCUS_IMAGE_NOT_OWNED: 'This focus image does not belong to this order',
+    INVALID_FOCUS_MODE: 'Invalid focus image mode (options: Off / Small / Large)',
 
     // Custom links (supplement)
-    LINKS_TOO_MANY: 'Cannot have more than 6 custom links',
+    LINKS_TOO_MANY: 'Cannot have more than 8 custom links',
     LINK_URL_INVALID: 'Invalid link format (must start with http:// or https://)',
 
     // Gallery (supplement)
@@ -453,7 +453,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     incomeStandalone: 'Standalone Income',
     incomeCount: 'Transactions',
     incomeCountUnit: '',
-    incomeNote: 'Standalone income and count match the standalone rows of the exported CSV. Order and total income will appear once a backend range-summary endpoint is added.',
+    incomeNote: 'Order and total income are coming in a later version.',
     incomeLoadFailed: 'Failed to load income overview',
     downloaded: 'Download started',
     failed: 'Export failed, please try again later',
@@ -876,7 +876,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     receiptTotal: 'Total',
     receiptPaid: 'Paid',
     receiptRemaining: 'Remaining',
-    receiptNote: 'This receipt shows order and payment-node info only; per-payment records will be added once the backend exposes customer-visible fields.'
+    receiptNote: 'Per-payment details are coming soon.'
   },
 
   // F4: guestbook (client-facing message wall, shared component TplGuestbook)
@@ -1175,7 +1175,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     paymentRevertNote: 'Revoke #{id}',
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
     payAmountInvalid: 'Payment amount must be greater than 0',
-    payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'A reason is required when entering a negative amount (refund)', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
+    payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'Please enter a reason when refunding or revoking a payment.', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',

@@ -49,7 +49,7 @@ export function getArtistQueue(artistId: number, options: { limit?: number; offs
 /**
  * 拖拽排序（重写）
  * 前端传入完整的排序后 ID 数组，后端按序分配 queue_position
- * 拖拽不改变优先级，只改变同优先级内的位置
+ * 拖拽按绝对顺序重排队列；priority 仅为展示标签（对齐 getArtistQueue 的 N1-1 口径）
  */
 export function reorderQueue(artistId: number, orderedIds: number[]): ArtistOrderRow[] {
   if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
