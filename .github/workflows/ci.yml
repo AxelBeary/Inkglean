@@ -55,3 +55,12 @@ jobs:
       - run: npm run build
       # 源头防屎门禁：硬编码中文增量拦截（存量已进 baseline）
       - run: npm run check:i18n
+
+  # P2-E：Dockerfile 门禁——Dockerfile 层问题（路径/权限/依赖）在合入前暴露
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Docker image build gate
+        run: docker build -t commission-ci .

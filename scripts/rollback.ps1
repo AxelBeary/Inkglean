@@ -7,6 +7,8 @@
 #   ③ docker tag 切回 prev → force-recreate 重建 web 容器
 #   ④ 健康检查 + 登录页冒烟
 #   ⑤ 全程写 data/backups/rollback.log，摘要写 deploy.log
+#   注意：本脚本只恢复 DB；uploads 文件恢复不自动执行（避免覆盖式副作用），
+#         需要时单独运行  pwsh scripts/restore-uploads.ps1
 #
 # 用法：
 #   pwsh scripts/rollback.ps1
@@ -36,6 +38,13 @@ function LogR($msg) {
   $line = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $msg"
   Write-Host $line
   Add-Content -Path $RBLOG -Value $line -Encoding utf8
+}
+
+# deploy.log 轮转（5MB x 3，best-effort：轮转失败不阻塞回滚）
+try {
+  & (Join-Path $ROOT 'scripts\rotate-log.ps1') -Path $LOG
+} catch {
+  LogR "WARN: deploy.log 轮转失败（$($_.Exception.Message)），继续（日志仍可追加）"
 }
 
 LogR '=== rollback start ==='
@@ -119,6 +128,7 @@ if ($restoreCode -ne 0 -or $restoreText -notmatch 'RESTORE_OK') {
   exit 1
 }
 LogR "STEP4 OK: RESTORE_OK $($backup.FullName)"
+LogR '提示：uploads 文件恢复不在本脚本内；需要时运行 pwsh scripts/restore-uploads.ps1（可选 -Archive 指定归档）'
 
 # ─── ⑤ 切回 prev tag 并重建容器 ───
 LogR "STEP5 切换镜像 tag: $PrevTag -> commission-web:latest"
