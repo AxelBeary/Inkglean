@@ -21,8 +21,9 @@
 > ✅ **双波验收合入**：①813-fq-p2visual 四模块纸墨化（留言审核账本风+墨线按钮/订单动态纸墨行/开张任务墨线进度/百眼柜边框降级手剪圆角+hover 去位移，零行为变更，含单测 436/436 全绿+i18n quickAction.title 中英补全）；②813-fq-admindedup 管理后台去重（新建 admin-common.css，7 页页头/副标题+stat-card 抽公共，+63/-138 像素级等价，AdminLayout 单点引入）。两波均一号独立复跑门禁验收（lint 0 错/436/436/build 0）。
 > ✅ **容器重建+冒烟**：post-merge-deploy（Healthy/v61/200），公告行+P2 纸墨化全部上生产；Playwright 冒烟三帧自审过（公告行/点开/模块开关），截图 fq-batch/p2-*.png。
 > ✅ **E2E 终验 11/11 全绿**（20.6s，战役全量改动后首跑：下单/查进度/推节点/管理端/金钱链路/登录旅程/Passkey 全通）。
-> 🔜 **在途**：813-fq-tail-anim（收尾波 T，codex 施工中）。波 M（客户端三态散项+a11y，813-fq-tail-logic-task.md）与波 S（断点统一+窄屏挤压+共享层硬编码清扫，813-fq-tail-shared-task.md）任务书均就绪——与波 T 同文件交叉，按 T→M→S 顺序串行派防冲突。
-> 🔜 **待办**：波 T 验收合入→派波 M→验收→派波 S→验收→容器重建+三域终局截图交用户终验。
+> ✅ **收尾波 T 合入**（813-fq-tail-anim，20 文件 +230/-95）：12 处 hover/active 去位移、tl-pulse 循环改一次性+reduced-motion 豁免、状态徽标去光晕、like-pop 克制；fade-slide/TplGallery/AdminLayout/useLocaleSwitch（oncancel 防 busy 卡死）token 化；列表增删 TransitionGroup+TrackOrder fade；豁免 6 项原值保留注释在案；另自查发现 5 处清单外漏项已移交波 M。验收 436/436/build 0。
+> 🔜 **在途**：813-fq-tail-logic（波 M，12 项：客户端三态散项+a11y+useTouchSwipe.ts 抽公共+masonry 窄屏+波 T 移交漏项，codex 施工中）；813-fq-tail-shared（波 S，断点统一+窄屏挤压+共享层硬编码，codex 施工中）。
+> 🔜 **待办**：波 M/S 验收合入→容器重建+三域终局截图交用户终验→战役收官。
 > 🧊 **环境**：master 干净已推（ae16bd5d+）；全部 worktree 已清理；容器 Healthy（新构建，含公告行+P2 全部）；E2E 11/11 基线未动。
 
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
