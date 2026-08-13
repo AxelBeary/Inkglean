@@ -4,8 +4,11 @@
 // ============================================
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
+import { buildApp } from '../src/app.js'
+import { createSession, bindTotpInit, confirmTotpBind } from '../src/features/auth/auth.service.js'
 import { bumpTokenVersion } from '../src/features/artist/artist.service.js'
 import { generateSecret, computeTotp, verifyTotp } from '../src/features/auth/totp.js'
+import { afterEach } from 'vitest'
 import { hasPasskeyCredentials } from '../src/features/auth/webauthn.js'
 
 describe('TOTP 自助重绑 (REQ-040)', () => {
@@ -160,5 +163,44 @@ describe('TOTP 自助重绑 (REQ-040)', () => {
       const newSecret = generateSecret()
       expect(verifyTotp(newSecret, '000000', Date.now())).toBe(false)
     })
+  })
+})
+
+describe('verify-current 端点（前端质量战役审计修复：Step1 验证虚实现）', () => {
+  let app
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+  })
+  afterEach(async () => { await app.close() })
+
+  function bindTotp(artistRow) {
+    const secret = generateSecret()
+    bindTotpInit(artistRow.id, secret)
+    confirmTotpBind(artistRow.id, computeTotp(secret, Date.now()))
+    return secret
+  }
+
+  it('正确码 200 / 错码 401 / 非六位 400 / 未绑定 400', async () => {
+    const artist = seedArtist({ qq_number: '777', subdomain: 'vc-test' })
+    const secret = bindTotp(artist)
+    const token = createSession(artist.id, artist.token_version)
+    const auth = { authorization: 'Bearer ' + token }
+    const right = computeTotp(secret, Date.now())
+    const wrong = String((parseInt(right, 10) + 1) % 1000000).padStart(6, '0')
+
+    const ok = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers: auth, payload: { code: right } })
+    expect(ok.statusCode).toBe(200)
+
+    const bad = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers: auth, payload: { code: wrong } })
+    expect(bad.statusCode).toBe(401)
+
+    const malformed = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers: auth, payload: { code: '12ab' } })
+    expect(malformed.statusCode).toBe(400)
+
+    const fresh = seedArtist({ qq_number: '778', subdomain: 'vc-nobind' })
+    const token2 = createSession(fresh.id, fresh.token_version)
+    const unbound = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers: { authorization: 'Bearer ' + token2 }, payload: { code: right } })
+    expect(unbound.statusCode).toBe(400)
   })
 })

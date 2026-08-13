@@ -317,10 +317,14 @@ async function verifyWithPasskey() {
 }
 
 async function verifyWithCode() {
+  if (currentCode.value.length !== 6) return
   rebindLoading.value = true
   try {
-    // 验证当前码通过后，init 已返回二维码，进入 scan 步骤
+    // 战役审计修复：Step1「验证」真实校验当前码（原虚实现直接进步骤，错码要到 confirm 才暴露）
+    await totpRebindApi.verifyCurrent(currentCode.value)
     rebindStep.value = 'scan'
+  } catch (err) {
+    ElMessage.error((err as Error).message)
   } finally {
     rebindLoading.value = false
   }

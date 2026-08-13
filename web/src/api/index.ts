@@ -306,6 +306,9 @@ export const webauthnApi = {
 }
 
 export const totpRebindApi = {
+  /** 战役审计修复：Step1 验证当前码（轻量校验，不发放凭据） */
+  verifyCurrent: (code: string): Promise<{ ok: boolean }> =>
+    postJson('/auth/totp/verify-current', { code }),
   rebindInit: (): Promise<import('./types.js').RebindInitResult> =>
     postJson('/auth/totp/rebind-init'),
   rebindConfirm: (data: Record<string, unknown>): Promise<import('./types.js').RebindConfirmResult> =>

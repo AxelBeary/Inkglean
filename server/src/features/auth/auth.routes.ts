@@ -429,6 +429,27 @@ export default async function authRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * POST /api/auth/totp/verify-current
+   * 轻量校验当前 6 位码（重绑流程 Step1「验证」按钮用，前端质量战役审计修复：
+   * 原 verifyWithCode 虚实现直接进步骤，错码要到最终 confirm 才暴露）。
+   * 只验证不发放任何凭据；真实换绑仍由 rebind-confirm 强制复核。
+   */
+  fastify.post('/api/auth/totp/verify-current', { preHandler: requireAuth }, async (request) => {
+    const artist = request.artist
+    if (!artist.totp_secret || !artist.totp_verified) {
+      throw new AppError(E.TOTP_NOT_BOUND, 400)
+    }
+    const body = request.body as { code?: string }
+    const code = body.code
+    if (!code || !/^\d{6}$/.test(code)) throw new AppError(E.VALIDATION, 400, { field: 'code' })
+    const { verifyTotp } = await import('./totp.js')
+    if (!verifyTotp(artist.totp_secret, code, Date.now())) {
+      throw new AppError(E.TOTP_INVALID, 401)
+    }
+    return { ok: true }
+  })
+
+  /**
    * POST /api/auth/totp/rebind-confirm
    * TOTP 自助重绑确认
    * 验证凭据 + 新码 → 生效 + bumpTokenVersion + 写冷却期
