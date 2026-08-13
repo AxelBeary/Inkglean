@@ -36,6 +36,12 @@
         </div>
       </el-card>
 
+      <!-- 波 M：查询失败页内错误态 + 重试（不再只弹 toast） -->
+      <div v-if="searchError" class="search-error" role="alert">
+        <p>{{ $t('track.searchFailed') }}</p>
+        <el-button type="primary" size="small" @click="search">{{ $t('common.loadRetry') }}</el-button>
+      </div>
+
       <!-- A1: 我的订单列表（T 波：v-if 切换补简单 fade，--dur-mid） -->
       <Transition name="my-orders-fade">
         <el-card v-if="showMyOrders" class="my-orders-card" style="margin-top: 16px">
@@ -267,6 +273,8 @@ const orderNo = ref('')
 const qq = ref('')
 const order = ref(null)
 const searching = ref(false)
+// 波 M：查询失败页内错误态（区别于 toast，提供重试入口）
+const searchError = ref(false)
 
 // A1: 我的订单列表（只填 QQ 查询）
 const myOrders = ref([])
@@ -372,12 +380,12 @@ async function copyText(text) {
     await navigator.clipboard.writeText(text)
     ElMessage.success(t('track.copied'))
   } catch {
-    ElMessage.warning(text)
+    ElMessage.warning(t('common.copyFailed'))
   }
 }
 
 function startNoOrdersCountdown() {
-  noOrdersCountdown.value = 2
+  noOrdersCountdown.value = 3
   showNoOrders.value = true
   clearInterval(countdownTimer)
   countdownTimer = setInterval(() => {
@@ -416,8 +424,10 @@ async function search() {
     searching.value = true
     try {
       order.value = await orderApi.track(orderNo.value.trim(), qq.value.trim())
+      searchError.value = false
     } catch (err) {
       ElMessage.error(err.message)
+      searchError.value = true
     } finally {
       searching.value = false
     }
@@ -428,6 +438,7 @@ async function search() {
   searching.value = true
   try {
     const result = await orderApi.lookup(subdomain, qq.value.trim())
+    searchError.value = false
     if (!result.hasOrders) {
       startNoOrdersCountdown()
     } else {
@@ -436,6 +447,7 @@ async function search() {
     }
   } catch (err) {
     ElMessage.error(err.message)
+    searchError.value = true
   } finally {
     searching.value = false
   }
@@ -445,6 +457,7 @@ function resetSearch() {
   order.value = null
   orderNo.value = ''
   qq.value = ''
+  searchError.value = false
 }
 
 // 支持从下单成功页跳转过来时自动填充订单号
@@ -473,6 +486,13 @@ onUnmounted(() => {
    #6c6e72 ≈ 5.1:1 达 WCAG AA。仅亮色生效，暗色模式不动 */
 html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .track-container { max-width: 600px; margin: 0 auto; }
+/* 波 M：查询失败页内错误态（克制居中，淡边框+主色重试） */
+.search-error {
+  margin-top: 16px; padding: 16px 20px; text-align: center;
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: var(--el-border-radius-base);
+}
+.search-error p { margin: 0 0 12px; color: var(--text-secondary); font-size: 13px; }
 .result-header { display: flex; justify-content: space-between; align-items: center; }
 .position-info { margin-top: 16px; }
 .timeline-block { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); }

@@ -148,16 +148,15 @@ html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #6
 /* ===== 全局按钮三态（hover 浮起 / active 按下） ===== */
 /* 双类 .el-button.el-button 提升特异性，压过 EP button.css 的 .el-button（后者定义更晚） */
 .el-button.el-button {
-  transition: transform var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out),
+  transition: box-shadow var(--dur-fast) var(--ease-out),
               background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
 }
 .el-button.el-button:hover:not(:disabled):not(.is-loading) {
-  transform: translateY(-2px);
+  /* T 波移交 M：hover 禁位移——阴影加深反馈 */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 .el-button.el-button:active:not(:disabled):not(.is-loading) {
-  transform: translateY(-1px) scale(0.98);
+  /* T 波移交 M：active 禁位移——阴影反馈 */
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
 }
 

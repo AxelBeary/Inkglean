@@ -24,7 +24,7 @@
 
         <div class="step-layout">
           <el-card class="step-main">
-            <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
+            <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large" :class="stepFadeClass">
               <!-- P0-2: 当前步眉题（第 X / Y 步） -->
               <p class="step-eyebrow">{{ $t('orderForm.stepProgress', { cur: step, total: stepDefs.length }) }}</p>
 
@@ -389,8 +389,12 @@ watch(loading, (v) => {
   trackEvent('order_form_start', { pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
   trackingEmitStep(step.value, null)
 }, { once: true })
+// 战役波 M 修正：步骤切换淡入——v-show 面板包 Transition 不触发且破测试，改 class 重触发（动画只走 opacity，克制）
+const stepFadeClass = ref('')
 // 步骤变化统一收口（覆盖模板各处 @click="step = N" 与预选横幅跳步）
 watch(step, (v, old) => {
+  stepFadeClass.value = ''
+  requestAnimationFrame(() => { stepFadeClass.value = 'step-fade-run' })
   if (trackingLastStep == null) trackingLastStep = old
   if (v === trackingLastStep) return
   trackingEmitStep(v, trackingLastStep)
@@ -500,7 +504,7 @@ async function copyOrderSummary() {
     await navigator.clipboard.writeText(text)
     ElMessage.success(t('orderForm.summaryCopied'))
   } catch {
-    ElMessage.warning(text) // 剪贴板不可用时直接展示摘要供手动复制
+    ElMessage.warning(t('common.copyFailed')) // 波 M：统一 i18n 文案，不再泄漏原始内容
   }
 }
 
@@ -513,7 +517,7 @@ async function copyQq(qq) {
     await navigator.clipboard.writeText(qq)
     ElMessage.success(t('orderForm.qqCopied'))
   } catch {
-    ElMessage.warning(qq) // 剪贴板不可用时直接展示 QQ 号供手动复制
+    ElMessage.warning(t('common.copyFailed')) // 波 M：统一 i18n 文案
   }
 }
 </script>
@@ -542,6 +546,7 @@ async function copyQq(qq) {
 }
 .step-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .step-nav--end { justify-content: flex-end; }
+/* 波 M：步骤切换淡入淡出（--dur-mid，禁位移，保持 v-show 现状） */
 
 /* ─── R58-2: 档位卡片选择（选中态弹性动画） ─── */
 .tier-pick-grid {
@@ -555,10 +560,11 @@ async function copyQq(qq) {
   padding: 18px 14px; text-align: center; cursor: pointer;
   background: var(--bg-card);
   border: 2px solid var(--border-color); border-radius: 12px;
-  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-mid);
+  transition: border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-mid);
 }
 .tier-pick:hover { box-shadow: var(--shadow-card-hover); }
-.tier-pick:active { transform: translateY(-2px); }
+/* T 波移交 M：active 禁位移——位移换背景加深+阴影加深 */
+.tier-pick:active { background: var(--bg-hover); box-shadow: var(--shadow-card-hover); }
 .tier-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .tier-pick-stamp {
   position: absolute; top: -9px; right: -9px;
@@ -672,4 +678,10 @@ async function copyQq(qq) {
   background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--r-l);
 }
 .load-error-banner p { margin: 0 0 14px; color: var(--text-secondary); font-size: 14px; }
+/* 战役波 M：步骤切换淡入（class 重触发；v-show 隐藏面板 display:none 不参与，仅当前步可见） */
+.step-fade-run > *:not(.step-eyebrow) { animation: step-fade-in var(--dur-mid) var(--ease-out); }
+@keyframes step-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .step-fade-run > * { animation: none; }
+}
 </style>

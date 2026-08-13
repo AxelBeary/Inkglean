@@ -228,7 +228,7 @@ export default {
     save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', download: 'Download',
     confirm: 'Confirm', detail: 'Details', actions: 'Actions', remove: 'Remove', add: 'Add', or: 'or',
     saved: 'Saved', deleted: 'Deleted', removed: 'Removed',
-    confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed',
+    confirmDeleteTitle: 'Confirm deletion', uploadFailed: 'Upload failed', copyFailed: 'Copy failed, please copy manually',
 loadRetry: 'Try again', networkError: 'Network error, please try again later', globalError: 'Something went wrong. Please refresh and try again.',
     // 812-B5: friendly Passkey interaction messages (unsupported / cancelled / failed)
     passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
@@ -748,7 +748,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // v0.32 REQ-023 Phase3: multi-style price table
     styleOrderBtn: 'Commission in this style',
     // v0.34 task B: order hint after size selected
-    styleSizeHint: '{size} selected · ¥{price} — click below to start with this choice'
+    styleSizeHint: '{size} selected · ¥{price} — click below to start with this choice',
+    // Wave M: unified placeholder when a homepage section fails
+    sectionLoadFailed: 'Some content failed to load'
   },
   orderForm: {
     backHome: 'Back to page', title: 'Commission me',
@@ -845,7 +847,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     noOrdersCountdown: 'Closes in {n}s',
     // A1: my orders list
     myOrdersBtn: 'My orders', myOrdersTitle: 'My orders',
-    myOrdersEmpty: 'No orders found for this QQ', myOrdersFailed: 'Failed to load orders, please retry',
+    myOrdersEmpty: 'No orders found for this QQ', myOrdersFailed: 'Failed to load orders, please retry', searchFailed: 'Search failed, please try again later',
     // U1: brief recap
     briefTitle: 'Your brief', briefRefAlt: 'Reference image',
     timeline: {
@@ -908,7 +910,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
     orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download',
-    downloadFailed: 'Download failed, please retry or contact the artist'
+    downloadFailed: 'Download failed, please retry or contact the artist', verifyFailed: 'Verification failed, please try again later'
   },
   login: {
     // REQ-040: Passkey login button

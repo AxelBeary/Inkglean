@@ -16,6 +16,8 @@
             {{ $t('track.search') }}
           </el-button>
         </el-form>
+        <!-- 波 M：验证失败页内错误态（不再只弹 toast） -->
+        <p v-if="verifyError" class="verify-error" role="alert">{{ $t('delivery.verifyFailed') }}</p>
       </el-card>
 
       <!-- 交付内容 -->
@@ -66,6 +68,8 @@ const verified = ref(false)
 const verifying = ref(false)
 const loading = ref(false)
 const delivery = ref(null)
+// 波 M：验证失败页内错误态
+const verifyError = ref(false)
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
@@ -92,11 +96,13 @@ async function verify() {
   if (!qq.value.trim()) return ElMessage.warning(t('track.enterQq'))
 
   verifying.value = true
+  verifyError.value = false
   try {
     delivery.value = await orderApi.delivery(orderNo, qq.value.trim())
     verified.value = true
   } catch (err) {
     ElMessage.error(err.message)
+    verifyError.value = true
   } finally {
     verifying.value = false
   }
@@ -121,6 +127,11 @@ onMounted(() => {
   /* K1（波2，灰沼教训）：换肤即时切换，页面根不挂主题变量过渡 */
 }
 .delivery-container { max-width: 600px; margin: 0 auto; }
+/* 波 M：验证失败页内错误态 */
+.verify-error {
+  margin: 12px 0 0; text-align: center;
+  color: var(--el-color-danger); font-size: 13px;
+}
 .file-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 0; border-bottom: 1px solid var(--border-color);
