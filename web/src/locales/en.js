@@ -318,6 +318,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     title: 'Price Calculator',
     subtitle: 'Quick estimate when a client asks about price; matches what the client sees',
     loading: 'Loading…',
+    loadFailed: 'Failed to load styles and pricing. Please retry.',
     stepStyle: 'Pick a style',
     stepSize: 'Pick a size',
     stepAddons: 'Add-ons (optional)',
@@ -932,6 +933,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     byName: 'Events',
     disabledHint: 'Statistics are off. Enable them in the admin console.',
     empty: 'No event data',
+    loadFailed: 'Failed to load statistics. Please retry.',
     events: {
       dashboard_view: 'Dashboard views', queue_view: 'Queue views', orders_view: 'Order list views',
       manual_view: 'Manual entry', artworks_view: 'Artwork management', settings_view: 'Settings',
@@ -990,6 +992,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', statusUpdated: 'Status updated',
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
+    workflowLoadFailed: 'Failed to load workflow stages. The advance button is hidden. Please retry.',
     // P0-3b: tab labels
     tabFormal: 'Formal', tabBuffer: 'Buffer',
     // REQ-013 #7: workflow done order delivery entry + completed zone
@@ -1049,6 +1052,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     statusUpdated: 'Status updated', priorityUpdated: 'Priority updated', noteAdded: 'Note added', deliverSuccess: 'Delivered!',
     // REQ-037 F1: initial load failure error state (self-service retry)
     loadFailed: 'Failed to load order. Please retry.', loadFailedRetry: 'Retry',
+    logLoadFailed: 'Failed to load activity log. Please retry.',
+    payLoadFailed: 'Failed to load payment records. Please retry.',
     // REQ-022 F1: Publish as artwork
     publishArtwork: 'Publish as artwork', publishDialogTitle: 'Publish as artwork',
     publishHint: 'Select deliverables to publish as artworks (copied to public portfolio; originals are kept).',

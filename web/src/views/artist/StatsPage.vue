@@ -2,8 +2,14 @@
   <div class="stats-page" v-loading="loading">
     <h2 class="od-page-title">{{ $t('stats.title') }}</h2>
 
+    <!-- 加载失败错误态 + 重试（不再误渲染"未开启/去管理后台"提示） -->
+    <div v-if="loadFailed" class="module-error">
+      <span>{{ $t('stats.loadFailed') }}</span>
+      <el-button size="small" @click="loadStats">{{ $t('dashboard.retry') }}</el-button>
+    </div>
+
     <!-- 总览卡：总事件数 -->
-    <div class="stats-overview" v-if="data">
+    <div class="stats-overview" v-if="!loadFailed && data">
       <div class="stats-overview-item">
         <div class="stats-overview-num">{{ data.total }}</div>
         <div class="stats-overview-label">{{ $t('stats.totalEvents') }}</div>
@@ -11,7 +17,7 @@
     </div>
 
     <!-- 按日趋势：柱状图（纯 CSS/div 实现，不引图表库） -->
-    <div class="stats-section" v-if="byDay.length">
+    <div class="stats-section" v-if="!loadFailed && byDay.length">
       <h3 class="od-section-title">{{ $t('stats.byDay') }}</h3>
       <div class="stats-bars">
         <div v-for="d in byDay" :key="d.day" class="stats-bar-col">
@@ -22,7 +28,7 @@
     </div>
 
     <!-- 事件明细：byName 列表 -->
-    <div class="stats-section" v-if="byName.length">
+    <div class="stats-section" v-if="!loadFailed && byName.length">
       <h3 class="od-section-title">{{ $t('stats.byName') }}</h3>
       <div class="stats-list">
         <div v-for="e in byName" :key="e.name" class="stats-list-row">
@@ -33,12 +39,12 @@
     </div>
 
     <!-- 已开启但暂无数据 -->
-    <div v-if="mode === 'on' && !byDay.length && !byName.length" class="stats-disabled">
+    <div v-if="!loadFailed && mode === 'on' && !byDay.length && !byName.length" class="stats-disabled">
       {{ $t('stats.empty') }}
     </div>
 
     <!-- 未开启/不显示：提示去管理后台开启 -->
-    <div v-if="mode !== 'on'" class="stats-disabled">
+    <div v-if="!loadFailed && mode !== 'on'" class="stats-disabled">
       {{ $t('stats.disabledHint') }}
     </div>
   </div>
@@ -49,6 +55,8 @@ import { ref, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 
 const loading = ref(true)
+/** 统计加载失败（独立错误态，不再静默降级成 mode=hidden） */
+const loadFailed = ref(false)
 const data = ref(null)
 const mode = ref('')
 const byDay = ref([])
@@ -64,7 +72,9 @@ function shortDay(day) {
   return String(day).slice(5) // 'YYYY-MM-DD' → 'MM-DD'
 }
 
-onMounted(async () => {
+async function loadStats() {
+  loading.value = true
+  loadFailed.value = false
   try {
     // REQ-033: 画师自己的事件统计（管理员三态控制：off 关 / hidden 不显 / on 开）
     const res = await artistApi.getMyTrackingSummary(14)
@@ -75,12 +85,13 @@ onMounted(async () => {
       byName.value = res.byName || []
     }
   } catch {
-    // 静默失败，展示 disabled 提示即可
-    mode.value = 'hidden'
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadStats)
 </script>
 
 <style scoped>
@@ -104,4 +115,9 @@ onMounted(async () => {
 .stats-list-name { color: var(--ink, #222); }
 .stats-list-count { color: var(--hq, var(--el-color-primary)); font-weight: 600; font-variant-numeric: tabular-nums; }
 .stats-disabled { margin-top: 24px; padding: 16px; border: 1px dashed var(--line, #ccc); border-radius: 8px; color: var(--ink3, #888); text-align: center; }
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 </style>

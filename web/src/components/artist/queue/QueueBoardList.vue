@@ -10,6 +10,12 @@
     <SliderSwitch v-model="focusDisplayModel" size="small" :options="focusDisplayOptions" />
   </div>
 
+  <!-- 工作流节点加载失败：隐藏推进按钮 + 错误提示 + 重试（不再静默无固定态） -->
+  <div v-if="workflowLoadFailed" class="module-error">
+    <span>{{ $t('queue.workflowLoadFailed') }}</span>
+    <el-button size="small" @click="loadWorkflowStages">{{ $t('dashboard.retry') }}</el-button>
+  </div>
+
   <!-- P0-3b: 标签切换（正式区 / 缓冲区） -->
   <el-tabs v-model="activeTabModel" class="queue-tabs">
     <el-tab-pane :label="$t('queue.tabFormal')" name="formal">
@@ -100,7 +106,7 @@
               <div class="item-actions">
                 <!-- R30d: 接入流程的订单 → "推进到下一节点"（替代固定状态按钮） -->
                 <el-button
-                  v-if="element.currentStageId != null && canAdvance(element)"
+                  v-if="!workflowLoadFailed && element.currentStageId != null && canAdvance(element)"
                   size="small" type="primary"
                   @click="advanceOrderStage(element)"
                 >
@@ -322,6 +328,17 @@ const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
 // ─── R30d: 流程状态机（看板推进） ───
 const workflowStages = ref([])
+/** 工作流节点加载失败（失败时隐藏推进按钮，给出错误提示 + 重试入口） */
+const workflowLoadFailed = ref(false)
+async function loadWorkflowStages() {
+  workflowLoadFailed.value = false
+  try {
+    const res = await artistApi.getWorkflow()
+    workflowStages.value = res.stages || []
+  } catch {
+    workflowLoadFailed.value = true
+  }
+}
 function canAdvance(order) {
   if (order.currentStageId == null) return false
   if (['delivered', 'cancelled'].includes(order.status)) return false
@@ -480,15 +497,18 @@ async function promoteOrder(order) {
 
 onMounted(() => {
   // R30d: 加载工作流节点（看板推进需要知道"下一节点"）
-  artistApi.getWorkflow()
-    .then(res => { workflowStages.value = res.stages || [] })
-    .catch(() => { /* 巡检修复批 D17: 加载失败不阻塞看板——无工作流时走无节点分支 */ })
+  loadWorkflowStages()
 })
 </script>
 
 <style scoped>
 .queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .toolbar-label { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); white-space: nowrap; }
+/* 工作流节点加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 /* 812-C B9: 窄屏焦点图开关控件组可换行（间距对齐 4px 栅格；桌面不变） */
 @media (max-width: 768px) {
   .queue-toolbar { flex-wrap: wrap; gap: 8px; }

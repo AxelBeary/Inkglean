@@ -24,26 +24,33 @@
       </div>
 
       <!-- 收款流水 -->
-      <div class="pool-flow" v-if="payments.length">
-        <h4 class="pool-flow-title">{{ $t('orderDetail.payFlowTitle') }}</h4>
-        <div v-for="p in payments" :key="p.id" class="pool-flow-row">
-          <span class="pool-flow-date">{{ formatDate(p.created_at) }}</span>
-          <span class="pool-flow-amount" :class="p.amount_cents < 0 ? 'is-negative' : 'is-positive'">
-            {{ p.amount_cents < 0 ? '-' : '+' }}¥{{ formatCents(Math.abs(p.amount_cents)) }}
-          </span>
-          <span class="pool-flow-note">{{ p.note || '' }}</span>
-          <el-button
-            v-if="p.amount_cents > 0"
-            text size="small" type="danger"
-            :loading="revokeSubmitting"
-            :disabled="revokeSubmitting"
-            @click="emit('revoke', p)"
-          >
-            {{ $t('orderDetail.payRevoke') }}
-          </el-button>
-        </div>
+      <!-- 加载失败错误态 + 重试（对齐 dashboard module-error 模式） -->
+      <div v-if="paymentsError" class="module-error">
+        <span>{{ $t('orderDetail.payLoadFailed') }}</span>
+        <el-button size="small" @click="emit('retry-payments')">{{ $t('dashboard.retry') }}</el-button>
       </div>
-      <InkEmpty v-else-if="!paymentsLoading" :title="$t('orderDetail.payEmpty')" />
+      <template v-else>
+        <div class="pool-flow" v-if="payments.length">
+          <h4 class="pool-flow-title">{{ $t('orderDetail.payFlowTitle') }}</h4>
+          <div v-for="p in payments" :key="p.id" class="pool-flow-row">
+            <span class="pool-flow-date">{{ formatDate(p.created_at) }}</span>
+            <span class="pool-flow-amount" :class="p.amount_cents < 0 ? 'is-negative' : 'is-positive'">
+              {{ p.amount_cents < 0 ? '-' : '+' }}¥{{ formatCents(Math.abs(p.amount_cents)) }}
+            </span>
+            <span class="pool-flow-note">{{ p.note || '' }}</span>
+            <el-button
+              v-if="p.amount_cents > 0"
+              text size="small" type="danger"
+              :loading="revokeSubmitting"
+              :disabled="revokeSubmitting"
+              @click="emit('revoke', p)"
+            >
+              {{ $t('orderDetail.payRevoke') }}
+            </el-button>
+          </div>
+        </div>
+        <InkEmpty v-else-if="!paymentsLoading" :title="$t('orderDetail.payEmpty')" />
+      </template>
 
       <!-- v0.31 F4: 节点收款（每节点已收/应收/差额 + 快捷收款） -->
       <div class="pool-ref" v-if="installmentRefs.length">
@@ -83,6 +90,7 @@ import { formatCents } from '../../../utils/money.js'
 defineProps({
   payments: { type: Array, default: () => [] },
   paymentsLoading: Boolean,
+  paymentsError: Boolean,
   poolPaidCents: Number,
   poolFinalCents: Number,
   poolRemainingCents: Number,
@@ -93,7 +101,7 @@ defineProps({
   // R-4: 撤销请求在途时禁用全部撤销按钮（防连击直接伤钱；父级传 paymentSubmitting）
   revokeSubmitting: Boolean
 })
-const emit = defineEmits(['open-pay', 'revoke', 'collect'])
+const emit = defineEmits(['open-pay', 'revoke', 'collect', 'retry-payments'])
 
 /** 金额分 → 元（与 OrderDetail.vue 本地 formatCents 同款，纯函数两处一致） */
 function formatDate(str) {
@@ -127,4 +135,9 @@ function formatDate(str) {
 .pool-ref-icon { width: 18px; text-align: center; flex-shrink: 0; }
 .pool-ref-name { flex: 1; color: var(--ink); }
 .pool-ref-amount { color: var(--ink2); flex-shrink: 0; }
+/* 加载失败错误态（对齐 dashboard module-error） */
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 </style>

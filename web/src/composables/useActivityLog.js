@@ -20,9 +20,12 @@ export function useActivityLog(orderId) {
   /** 筛选类型（'' = 全部） */
   const typeFilter = ref('')
   const loading = ref(false)
+  /** 加载失败标记（面板据此显示错误态 + 重试） */
+  const error = ref(false)
 
   async function loadLogs() {
     loading.value = true
+    error.value = false
     try {
       const res = await artistApi.getOrderLogs(orderId, {
         page: page.value,
@@ -34,6 +37,7 @@ export function useActivityLog(orderId) {
     } catch {
       logs.value = []
       total.value = 0
+      error.value = true
     } finally {
       loading.value = false
     }
@@ -52,7 +56,7 @@ export function useActivityLog(orderId) {
   }
 
   return {
-    logs, total, page, pageSize, typeFilter, loading,
+    logs, total, page, pageSize, typeFilter, loading, error,
     loadLogs, onPageChange, onTypeChange
   }
 }

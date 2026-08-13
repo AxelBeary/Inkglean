@@ -2,6 +2,17 @@
   <!-- v0.38: 纸墨 token（REQ-026）——H1 文楷 28/700，卡片 CardHead 朱砂 mark -->
   <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
 
+  <!-- 加载失败错误态 + 重试（对齐 Settings profileLoadFailed 模式） -->
+  <el-alert
+    v-if="loadFailed"
+    type="error" :closable="false" show-icon
+    style="margin-top: 16px"
+    :title="$t('settings.loadFailedTitle')"
+  >
+    <div>{{ $t('settings.loadFailedDesc') }}</div>
+    <el-button size="small" type="primary" style="margin-top: 8px" @click="loadPreferences">{{ $t('settings.retry') }}</el-button>
+  </el-alert>
+
   <!-- F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效，无需 DB） -->
   <el-card class="pref-card">
     <template #header><CardHead :title="$t('preferences.fontSize')" /></template>
@@ -38,7 +49,7 @@
         <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="save" :loading="saving">{{ $t('settings.save') }}</el-button>
+        <el-button type="primary" @click="save" :loading="saving" :disabled="loadFailed">{{ $t('settings.save') }}</el-button>
       </el-form-item>
     </el-form>
   </el-card>
@@ -61,7 +72,7 @@
         </el-checkbox-group>
         <div class="quick-config-footer">
           <div class="form-hint">{{ $t('settings.quickHint') }}</div>
-          <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving">
+          <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving" :disabled="loadFailed">
             {{ $t('settings.quickSave') }}
           </el-button>
         </div>
@@ -83,6 +94,8 @@ import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js
 const { t } = useI18n()
 const loading = ref(true)
 const saving = ref(false)
+/** 偏好加载失败（防止默认值覆盖真实设置，对齐 Settings profileLoadFailed） */
+const loadFailed = ref(false)
 
 const form = reactive({
   notifyEnabled: true,
@@ -146,7 +159,9 @@ async function save() {
   finally { saving.value = false }
 }
 
-onMounted(async () => {
+async function loadPreferences() {
+  loading.value = true
+  loadFailed.value = false
   try {
     const profile = await artistApi.getProfile()
     form.notifyEnabled = !!profile.notify_enabled
@@ -166,9 +181,13 @@ onMounted(async () => {
         artistApi.updateProfile({ quickActions: localKeys }).catch(() => { /* 迁移失败静默，下次再试 */ })
       }
     }
-  } catch (err) { ElMessage.error(err.message) }
+  } catch {
+    loadFailed.value = true
+  }
   finally { loading.value = false }
-})
+}
+
+onMounted(loadPreferences)
 </script>
 
 <style scoped>

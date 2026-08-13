@@ -6,6 +6,12 @@
     <div class="schedule-panel">
       <div v-if="loading" class="schedule-loading">{{ $t('schedule.loading') }}</div>
 
+      <!-- 加载失败错误态 + 重试（失败时不渲染空数据档期卡） -->
+      <div v-else-if="loadFailed" class="module-error">
+        <span>{{ $t('schedule.loadFailed') }}</span>
+        <el-button size="small" @click="loadAll">{{ $t('dashboard.retry') }}</el-button>
+      </div>
+
       <template v-else>
         <!-- 预览卡片（CSS 渲染，纸墨 token 双主题自适应） -->
         <div class="schedule-card">
@@ -53,6 +59,8 @@ const { t } = useI18n()
 
 // ─── 数据 ───
 const loading = ref(true)
+/** 排期数据加载失败（独立错误态，不再渲染空数据卡片） */
+const loadFailed = ref(false)
 const profile = ref(null)
 const formalQueue = ref([])
 const bufferQueue = ref([])
@@ -60,6 +68,7 @@ const deadlines = ref([])
 
 async function loadAll() {
   loading.value = true
+  loadFailed.value = false
   try {
     const [p, fq, bq, dl] = await Promise.all([
       artistApi.getProfile(),
@@ -71,8 +80,8 @@ async function loadAll() {
     formalQueue.value = Array.isArray(fq) ? fq : []
     bufferQueue.value = Array.isArray(bq) ? bq : []
     deadlines.value = Array.isArray(dl) ? dl : []
-  } catch (err) {
-    ElMessage.error(err.message || t('schedule.loadFailed'))
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -334,6 +343,10 @@ onMounted(loadAll)
   box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
 }
 .schedule-loading { font-size: 13px; color: var(--ink3, #888); padding: 20px 0; }
+.module-error {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
 
 /* 预览卡片（与导出图同构，双主题自适应） */
 .schedule-card {

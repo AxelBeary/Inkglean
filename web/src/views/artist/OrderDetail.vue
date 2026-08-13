@@ -230,6 +230,7 @@
     <PaymentPanel
       :payments="payments"
       :payments-loading="paymentsLoading"
+      :payments-error="paymentsError"
       :pool-paid-cents="poolPaidCents"
       :pool-final-cents="poolFinalCents"
       :pool-remaining-cents="poolRemainingCents"
@@ -241,6 +242,7 @@
       @open-pay="payDialogVisible = true"
       @revoke="handleRevokePayment"
       @collect="openNodePayDialog"
+      @retry-payments="loadPayments(route.params.id)"
     />
 
     <!-- 交付文件 -->
@@ -460,7 +462,7 @@ const {
 const { deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
   useOrderDeadline({ order, routeId: route.params.id })
 const {
-  payments, paymentsLoading, paymentSubmitting, loadPayments,
+  payments, paymentsLoading, paymentsError, paymentSubmitting, loadPayments,
   payDialogVisible, payForm, submitPayment, nodePayDialogVisible, nodePayTarget, nodePayForm,
   openNodePayDialog, submitNodePayment, handleRevokePayment,
   poolPaidCents, poolFinalCents, poolRemainingCents, poolPercent, poolOverpaidCents,

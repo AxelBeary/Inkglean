@@ -20,7 +20,7 @@ import { formatCents } from '../utils/money.js'
  */
 export function useOrderPaymentPanel({ order, routeId, onRefresh }) {
   const { t } = useI18n()
-  const { payments, loading: paymentsLoading, submitting: paymentSubmitting, loadPayments, addPayment, revokePayment } = useOrderPayments()
+  const { payments, loading: paymentsLoading, submitting: paymentSubmitting, loadError: paymentsError, loadPayments, addPayment, revokePayment } = useOrderPayments()
 
   /** 金额分 → 元（后端返分，前端 /100；与 OrderDetail.vue 本地 formatCents 同款） */
   // ─── B7: 额度池收款区 ───
@@ -135,7 +135,7 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }) {
   }
 
   return {
-    payments, paymentsLoading, paymentSubmitting, loadPayments,
+    payments, paymentsLoading, paymentsError, paymentSubmitting, loadPayments,
     payDialogVisible, payForm, submitPayment,
     nodePayDialogVisible, nodePayTarget, nodePayForm, openNodePayDialog, submitNodePayment, handleRevokePayment,
     poolPaidCents, poolFinalCents, poolRemainingCents, poolPercent, poolOverpaidCents,
