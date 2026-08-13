@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../../api/index.js'
 import { formatCents } from '../../../utils/money.js'
@@ -175,6 +175,9 @@ onMounted(async () => {
   if (safeGetItem(PLAYED_KEY) === today) settleNow()   // 当日已演过 → 正常态
   else playSequence()                                  // 每天第一次 → 演绎态
 })
+
+// a1 猎杀修复：离页清理演绎序列定时器，防卸载后仍写 ref/localStorage
+onUnmounted(() => clearTimers())
 </script>
 
 <style scoped>
