@@ -92,13 +92,22 @@ html.dark {
 
 /* ===== 主色覆写（5 色 × 2 模式） ===== */
 /* 注：--color-primary-rgb 同步维护，供 EP rgba 场景（--el-color-primary-rgb）使用 */
+/* 813-fq-tail-shared 战役 S：五色 accent 单源 --accent-1..5——ThemePicker/ArtistHome 均经
+   CSS 变量读取，禁止在 JS 侧重复硬编码色值；下方亮色规则直接引用，暗色提亮为独立变体 */
+:root {
+  --accent-1: #356B69;
+  --accent-2: #3F5E80;
+  --accent-3: #5E5494;
+  --accent-4: #346edb;
+  --accent-5: #3445db;
+}
 
 /* 亮色 */
-html[data-accent="1"] { --color-primary: #356B69; --color-primary-hover: #2d5a58; --color-primary-soft: rgba(53, 107, 105, 0.10); --color-primary-rgb: 53, 107, 105; }
-html[data-accent="2"] { --color-primary: #3F5E80; --color-primary-hover: #354f6d; --color-primary-soft: rgba(63, 94, 128, 0.10); --color-primary-rgb: 63, 94, 128; }
-html[data-accent="3"] { --color-primary: #5E5494; --color-primary-hover: #50487e; --color-primary-soft: rgba(94, 84, 148, 0.10); --color-primary-rgb: 94, 84, 148; }
-html[data-accent="4"] { --color-primary: #346edb; --color-primary-hover: #2e62c4; --color-primary-soft: rgba(52, 110, 219, 0.10); --color-primary-rgb: 52, 110, 219; }
-html[data-accent="5"] { --color-primary: #3445db; --color-primary-hover: #2e3ec4; --color-primary-soft: rgba(52, 69, 219, 0.10); --color-primary-rgb: 52, 69, 219; }
+html[data-accent="1"] { --color-primary: var(--accent-1); --color-primary-hover: #2d5a58; --color-primary-soft: rgba(53, 107, 105, 0.10); --color-primary-rgb: 53, 107, 105; }
+html[data-accent="2"] { --color-primary: var(--accent-2); --color-primary-hover: #354f6d; --color-primary-soft: rgba(63, 94, 128, 0.10); --color-primary-rgb: 63, 94, 128; }
+html[data-accent="3"] { --color-primary: var(--accent-3); --color-primary-hover: #50487e; --color-primary-soft: rgba(94, 84, 148, 0.10); --color-primary-rgb: 94, 84, 148; }
+html[data-accent="4"] { --color-primary: var(--accent-4); --color-primary-hover: #2e62c4; --color-primary-soft: rgba(52, 110, 219, 0.10); --color-primary-rgb: 52, 110, 219; }
+html[data-accent="5"] { --color-primary: var(--accent-5); --color-primary-hover: #2e3ec4; --color-primary-soft: rgba(52, 69, 219, 0.10); --color-primary-rgb: 52, 69, 219; }
 
 /* 暗色（提亮） */
 html.dark[data-accent="1"] { --color-primary: #8FBDBA; --color-primary-hover: #a3cbc9; --color-primary-soft: rgba(143, 189, 186, 0.12); --color-primary-rgb: 143, 189, 186; }

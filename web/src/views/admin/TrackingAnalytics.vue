@@ -168,8 +168,9 @@ onMounted(async () => {
 .admin-section-card--stack { margin-top: var(--sp-5, 24px); }
 .card-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
 
+/* 813-fq-tail-shared 战役 S：断点 768 → 900，对齐全站管理后台两档（≤900px 紧凑） */
 .track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4, 16px); margin-top: var(--sp-5, 24px); }
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .stat-grid { grid-template-columns: 1fr; }
   .track-grid { grid-template-columns: 1fr; }
 }
