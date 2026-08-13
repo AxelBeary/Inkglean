@@ -950,6 +950,8 @@ export default {
     currentStatus: '当前主页状态', statusUpdated: '状态已更新',
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中',
     anotherOne: '换一句',
+    plaqueHintOpen: '点一下 · 休息中',
+    plaqueHintBreak: '点一下 · 可约稿',
     greetSign: '—— 拾绘',
     slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',

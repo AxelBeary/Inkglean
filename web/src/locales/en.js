@@ -951,6 +951,8 @@ export default {
     currentStatus: 'Current page status', statusUpdated: 'Status updated',
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break',
     anotherOne: 'Another',
+    plaqueHintOpen: 'Tap · Take a break',
+    plaqueHintBreak: 'Tap · Open for commissions',
     greetSign: '— Inkglean',
     slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
