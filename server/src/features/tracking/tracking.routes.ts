@@ -18,6 +18,10 @@ const MAX_EVENTS_PER_REQUEST = 50
 /** 限流：同凭证（或同 IP）每分钟最多 100 条 */
 const EVENTS_RATE_MAX = 100
 const EVENTS_RATE_WINDOW_MS = 60_000
+/** d2 猎杀修复（2026-08-14）：IP 总量封顶——token:IP 双因子配额可被「跨分钟囤积 anon-token」绕过
+ *（签发 10 个/分钟，囤一天后每个 token 各持 100 条/分钟配额，单 IP 写入量无总上限），
+ * 叠加纯 IP 维总量 300 条/分钟：正常单客/小店远低于此，刷量者无论囤多少 token 都被此闸按住 */
+const EVENTS_IP_RATE_MAX = 300
 
 const WHITELIST_SET = new Set<string>(trackingService.EVENT_WHITELIST)
 
@@ -97,6 +101,10 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
 
     // 限流：同凭证 + 同 IP 双因子每分钟 100 条，防刷库（REQ-033 §2.2 + 巡检 R1 修复）
     // 双因子 key 保留 token 维度（正常用户独立配额），并绑定 IP——配合 anon-token 签发限流堵住轮换 token 刷量
+    // d2 猎杀修复：叠加纯 IP 总量闸（囤积 token 绕不过），双层先 IP 后凭证
+    if (!rateLimit(`events-ip:${request.ip}`, EVENTS_IP_RATE_MAX, EVENTS_RATE_WINDOW_MS)) {
+      return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
+    }
     const limitKey = body.token ? `${body.token}:${request.ip}` : request.ip
     if (!rateLimit(`events:${limitKey}`, EVENTS_RATE_MAX, EVENTS_RATE_WINDOW_MS)) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })

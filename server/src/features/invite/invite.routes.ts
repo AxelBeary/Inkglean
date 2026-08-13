@@ -1,4 +1,5 @@
 import { requireAdmin } from '../../shared/middleware/auth.js'
+import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import {
@@ -22,6 +23,10 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
 }
 
 export default async function inviteRoutes(fastify: FastifyInstance) {
+
+  // REQ-041 + d2 猎杀修复（2026-08-14）：本插件内 /api/admin/invite-codes* 补挂 step-up 入口级守卫
+  //（onRoute 按 url 前缀过滤，/api/invite/* 公开端点不受影响）；此前漏挂致 basic 会话可直操邀请码
+  registerAdminStepUpHooks(fastify)
 
   /**
    * GET /api/invite/status

@@ -30,6 +30,21 @@ export const migration: Migration = {
         throw new Error('迁移 v49: foreign_keys 未能关闭（值=' + String(fkState) + '），中止重建以防 CASCADE 清空子表')
       }
       try {
+        // d3 欠账补账（2026-08-14，v50 同款崩溃恢复模式）：DROP 主表后、RENAME 前进程崩溃时 _new 持唯一数据副本，
+        // 重启后主表已不存在，若直接走重建分支 CREATE _new 会报表已存在卡死——先续 RENAME 恢复数据
+        for (const t of ['addon_templates', 'style_addons']) {
+          const hasMain = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(t)
+          const hasNew = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(t + '_new')
+          if (!hasMain && hasNew) {
+            console.warn('⚠️ 迁移 v49: 检测到 ' + t + ' 崩溃残留（主表缺失、_new 持数据），续 RENAME 恢复')
+            database.exec(`ALTER TABLE ${t}_new RENAME TO ${t}`)
+          } else if (hasMain && hasNew) {
+            // CREATE+INSERT 后、DROP 主表前崩溃：主表完好，_new 为陈旧副本，丢弃重走重建
+            console.warn('⚠️ 迁移 v49: 清理 ' + t + '_new 陈旧残留（主表完好）')
+            database.exec(`DROP TABLE ${t}_new`)
+          }
+        }
+
         // 幂等守卫：已含 kind 列（旧形已迁移）或 category 列（新库直接新形，v50 SPEC-PRICE-2）则跳过；清理上次失败残留的临时表
         const atCols = (database.prepare('PRAGMA table_info(addon_templates)').all() as ColumnInfo[]).map(c => c.name)
         if (!atCols.includes('kind') && !atCols.includes('category')) {

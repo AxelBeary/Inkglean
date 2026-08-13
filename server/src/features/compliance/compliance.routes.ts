@@ -1,5 +1,6 @@
 import * as complianceService from './compliance.service.js'
 import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
+import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { E } from '../../shared/errors.js'
 import * as artistService from '../artist/artist.service.js'
@@ -12,6 +13,10 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 // ============================================
 
 export default async function complianceRoutes(fastify: FastifyInstance) {
+
+  // REQ-041 + d2 猎杀修复（2026-08-14）：本插件内 /api/admin/reports、/api/admin/content/* 补挂 step-up 入口级守卫
+  //（onRoute 按 url 前缀过滤，/api/public/reports 不受影响）；此前漏挂致 basic 会话可直操举报处理/内容下架
+  registerAdminStepUpHooks(fastify)
 
   /** 举报类型白名单 */
   const REPORT_TYPES = ['artist_home', 'artwork', 'message', 'other']

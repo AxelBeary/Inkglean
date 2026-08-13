@@ -418,7 +418,12 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const result = greetingService.updateGreeting(Number((request.params as { id: string }).id), request.body as { text?: string; timeSlot?: string; isEnabled?: boolean })
+    // d2 猎杀修复（2026-08-14）：归属校验对齐同文件 DELETE——全局端点只许改通用模板（artist_id IS NULL），
+    // 此前缺失导致可绕过归属直接改画师专属模板（画师级 PUT /api/admin/artists/:id/greetings/:gid 另有归属链）
+    const id = Number((request.params as { id: string }).id)
+    const existing = db.prepare('SELECT id FROM greeting_templates WHERE id = ? AND artist_id IS NULL').get(id)
+    if (!existing) return reply.code(404).send({ error: '模板不存在' })
+    const result = greetingService.updateGreeting(id, request.body as { text?: string; timeSlot?: string; isEnabled?: boolean })
     if (!result) return reply.code(404).send({ error: '模板不存在' })
     return result
   })

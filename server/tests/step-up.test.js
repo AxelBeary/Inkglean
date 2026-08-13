@@ -440,3 +440,59 @@ describe('REQ-041 管理后台二次验证（会话升级）', () => {
     expect(blocked.json().code).toBe('RATE_LIMITED')
   })
 })
+
+// d2 猎杀防再犯（2026-08-14）：compliance/invite 插件曾漏挂 registerAdminStepUpHooks，
+// basic 会话可直操举报处理/邀请码——回归断言：未升级会话打这些端点必 401 STEP_UP_REQUIRED
+describe('d2 防再犯：compliance/invite admin 端点 step-up 覆盖', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    resetRateLimitBuckets()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  it('TC-D2-STEPUP：basic 会话访问 /api/admin/reports 与 /api/admin/invite-codes 必 401 STEP_UP_REQUIRED', async () => {
+    const admin = setAdmin()
+    const basicToken = createSession(admin.id, admin.token_version)
+    for (const url of ['/api/admin/reports', '/api/admin/invite-codes']) {
+      const res = await app.inject({ method: 'GET', url, headers: { Authorization: `Bearer ${basicToken}` } })
+      expect(res.statusCode).toBe(401)
+      expect(res.json().code).toBe(STEP_UP_REQUIRED)
+    }
+  })
+})
+
+// d2-1 防再犯：全局问候语 PUT 只许改通用模板（artist_id IS NULL），画师专属模板必 404
+describe('d2 防再犯：全局问候语 PUT 归属校验', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    resetRateLimitBuckets()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  it('TC-D2-GREET：PUT /api/admin/greetings/:id 改画师专属模板 → 404（不被全局端点越权改写）', async () => {
+    const admin = setAdmin()
+    // 升级到 admin_verified（过 step-up 入口闸，验的是归属闸）
+    const verifiedToken = createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })
+    const artist = seedArtist({ qq_number: '20002', subdomain: 'greet-owner' })
+    const gid = db.prepare(
+      "INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (?, '画师专属问候', 'any')"
+    ).run(artist.id).lastInsertRowid
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/greetings/${Number(gid)}`,
+      headers: { Authorization: `Bearer ${verifiedToken}` },
+      payload: { text: '被越权改写' }
+    })
+    expect(res.statusCode).toBe(404)
+    // 原文案未被改动
+    const row = db.prepare('SELECT text FROM greeting_templates WHERE id = ?').get(Number(gid))
+    expect(row.text).toBe('画师专属问候')
+  })
+})
