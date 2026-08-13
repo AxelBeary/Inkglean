@@ -317,6 +317,7 @@ export default {
     title: '稿价计算器',
     subtitle: '客户询价时快速算个参考价，结果与客户看到的报价一致',
     loading: '加载中…',
+    loadFailed: '画风与费率加载失败，请重试',
     stepStyle: '选画风',
     stepSize: '选尺寸',
     stepAddons: '增项（选填）',
@@ -930,6 +931,7 @@ export default {
     byName: '事件明细',
     disabledHint: '统计未开启，请在管理后台开启',
     empty: '暂无事件数据',
+    loadFailed: '统计加载失败，请重试',
     events: {
       dashboard_view: '工作台访问', queue_view: '排期看板', orders_view: '订单列表',
       manual_view: '手动录单', artworks_view: '作品管理', settings_view: '设置',
@@ -988,6 +990,7 @@ export default {
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', statusUpdated: '状态已更新',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
+    workflowLoadFailed: '工作流节点加载失败，推进按钮已隐藏，请重试',
     // P0-3b: 标签切换
     tabFormal: '正式区', tabBuffer: '缓冲区',
     // REQ-013 #7: 工作流 done 订单交付入口 + 完成区
@@ -1047,6 +1050,8 @@ export default {
     statusUpdated: '状态已更新', priorityUpdated: '优先级已更新', noteAdded: '备注已添加', deliverSuccess: '交付成功！',
     // REQ-037 F1: 首载失败错误态（自助重试）
     loadFailed: '订单加载失败，请重试', loadFailedRetry: '重试',
+    logLoadFailed: '操作记录加载失败，请重试',
+    payLoadFailed: '收款流水加载失败，请重试',
     // REQ-022 F1: 发布为作品
     publishArtwork: '发布为作品', publishDialogTitle: '发布为作品',
     publishHint: '勾选交付图发布为作品（复制到公开作品区，原交付文件保留）。',
