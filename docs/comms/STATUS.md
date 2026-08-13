@@ -10,7 +10,8 @@
 > ✅ **视觉批 P1 合入**（813-dash-visual）：四新组件全 lang=ts——GreetingNote（问候贴纸：固定容器/逐字洇墨/每天一次演绎/换一句/日期时段行/今日统计行/落款）、PlaqueStatus（可约稿⇄休息中真实切换，Y 轴翻牌+绳随翻 rAF+钟摆+光带+名额满额藤黄）、LedgerTodo（一行一个动词+5s 墨线冷却+笔点沉底+清账撕页+三态+月度小结一行）、ScheduleScroll（真数据卷轴：纸签五色条+纸卷轴头+今日笔触线+三态+≤600 隔日显示）；Dashboard 按原型 v0.9 重排（顶排问候+统计｜挂牌→卷轴全宽→账本/留言/动态｜开张/快捷；收入走势移出本页）；i18n 16 键中英成对；验收 lint 0 错/438/438/build 0/check-i18n 过。
 > 📦 **基线**：server 1364 / web 438 / E2E 11；accept-baseline.json 已同步。master 门禁合并态实测全绿（lint 0 错 1 已知警告/check-i18n/vitest 438）。
 > ✅ **容器重建+浏览器冒烟完成**：post-merge-deploy 重建（Healthy/迁移 v61 回读/登录页 200）；Playwright 测试库起服冒烟四帧全过自审——1440 纸白/1440 墨黑/768/390：问候贴纸+统计三卡+挂牌+卷轴+账本+留言+动态+开张+快捷全渲染，无白屏无塌；390 单列顺序与卷轴隔日显示生效。截图归档 workspace/temp/fq-batch/v94-dash-*.png。
-> 🔜 **待办**：波2 动效 token 统一（--dur-* token + 全库硬编码时长替换 + 亮暗即时切换 K1 + 中英切换过渡 K3）；波3-2 八组（AccountSecurity/Watermark/ManualOrder/PublishShareDialogs/StyleEditDialog/WorkflowPaymentEditor/AddonTemplateManager/GreetingHero）；clipboard 8+ 处重复抽 utils/clipboard.js；P2 留言/动态/开张/百眼柜纸墨化+公告行+模块开关 UI（字段已备）+管理后台样式去重（C 路 P2 簇）。
+> ✅ **波2 动效 token 合入**（813-fq-anim，87 文件）：--dur-fast/mid/slow 三档入 artist-tokens.css + 全库微交互硬编码时长/缓动统一（仪式动画/linear/EP 内部按铁律豁免，23 处豁免逐条列明）；K1 亮暗即时切换（删 @property 色值 0.55s 插值/.theme-animating/11 客户端页+双 Layout 背景过渡，灰沼教训注释）；K3 中英切换容器级 .locale-swap 单属性 opacity 淡入+reduced-motion 豁免。独立验收 lint 0 错/438/438/build 0/i18n 过+抽查三处 diff 属实。
+> 🔜 **待办**：波3-2 施工中（813-fq-states2 已派：三态簇 7 文件+clipboard.ts 抽公共替 7 处重复+死码四组件清理）；P2 留言/动态/开张/百眼柜纸墨化+公告行+模块开关 UI（字段已备）+管理后台样式去重（C 路 P2 簇）。
 > 🧊 **环境**：master 干净；三个已合入 worktree 已清理（visual 目录仅 build 产物，--force 删，分支已合入）；容器 Healthy（旧构建）；E2E 11/11 基线未动。
 
 > 最后更新：2026-08-12 v93（**812 四波全部合入；登录链路三连 bug 根治；挂牌立体化原型 v0.3 待终验**）——master `a5d9177` 与 origin 同步。
