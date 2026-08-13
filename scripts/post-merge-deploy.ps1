@@ -146,7 +146,12 @@ $code = Get-HttpCode 'https://localhost/login'
 Add-Smoke '登录页 /login' $(if ($code -eq '200') { 'PASS' } else { 'FAIL' }) "HTTP $code（必过）"
 
 # 公开画师主页：口径=公开目录取首个画师 subdomain → 探测其公开 API；目录为空/不可解析则 WARN（口径不可用，不阻断）
-$dirBody = (curl.exe -k -s --max-time 30 'https://localhost/api/artists' 2>$null | Out-String).Trim()
+# V1 首实战抓修③（2026-08-14）：curl 输出经管道会被控制台码页（GBK）解码坏 UTF-8 中文致 JSON 解析失败——
+# 改落盘临时文件后按 UTF-8 读回
+$dirTmp = Join-Path $env:TEMP "commission-artists-$PID.json"
+curl.exe -k -s --max-time 30 -o $dirTmp 'https://localhost/api/artists' 2>$null
+$dirBody = if (Test-Path $dirTmp) { (Get-Content -Raw -Encoding utf8 $dirTmp).Trim() } else { '' }
+Remove-Item $dirTmp -ErrorAction SilentlyContinue
 try {
   $artists = @($dirBody | ConvertFrom-Json)
   if ($artists.Count -gt 0) {
