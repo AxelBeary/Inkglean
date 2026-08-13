@@ -155,6 +155,7 @@ import { Lock, InfoFilled, Key, WarningFilled, Loading } from '@element-plus/ico
 import { ElMessage } from 'element-plus'
 import {
   toCredentialCreationOptions,
+  toCredentialRequestOptions,
   publicKeyCredentialToJSON,
   isWebAuthnCancellation,
   isWebAuthnUnsupported,
@@ -262,6 +263,8 @@ const rebindTempKey = ref('')
 const currentCode = ref('')
 const newCode = ref('')
 const rebindCooldownMs = ref(0)
+// a1 猎杀修复：passkey 重绑 Step1 登录仪式产出的 assertion，confirm 时携带交后端 verifyLogin
+const rebindPasskeyCredential = ref<unknown>(null)
 
 async function startRebind() {
   rebindStep.value = 'verify'
@@ -293,16 +296,21 @@ async function startRebind() {
 async function verifyWithPasskey() {
   rebindLoading.value = true
   try {
-    // 使用 Passkey 认证
-    const options = await webauthnApi.registerOptions()
-    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/user.id/excludeCredentials[].id）
-    const credential = await navigator.credentials.create({ publicKey: toCredentialCreationOptions(options) })
+    // a1 猎杀修复：身份验证走登录仪式（credentials.get），与后端 rebind-confirm 的 verifyLogin 链路匹配；
+    // 此前误走注册仪式（registerOptions/create/registerVerify）会误注册新凭据且与后端不匹配
+    const qq = profile.value?.qq_number
+    if (!qq) {
+      ElMessage.error(t('account.totpRebindFailed'))
+      return
+    }
+    const options = await webauthnApi.loginOptions(qq)
+    // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/allowCredentials[].id）
+    const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
     if (!credential) {
       ElMessage.info(t('common.passkeyCancelled'))
       return
     }
-    const pubCred = credential as PublicKeyCredential
-    await webauthnApi.registerVerify(publicKeyCredentialToJSON(pubCred))
+    rebindPasskeyCredential.value = publicKeyCredentialToJSON(credential as PublicKeyCredential)
     // 初始化重绑（获取新二维码）
     const result = await totpRebindApi.rebindInit()
     rebindQrDataUrl.value = 'qrDataUrl' in result ? result.qrDataUrl : null
@@ -345,7 +353,8 @@ async function confirmRebind() {
       body.tempKey = rebindTempKey.value
       body.code = currentCode.value
     } else {
-      // passkey 路径：重新验证一次
+      // a1 猎杀修复：passkey 路携带 Step1 登录仪式凭据交后端 verifyLogin；此前不携带 → 后端 400 必断
+      body.credential = rebindPasskeyCredential.value
     }
     await totpRebindApi.rebindConfirm(body)
     rebindStep.value = 'done'

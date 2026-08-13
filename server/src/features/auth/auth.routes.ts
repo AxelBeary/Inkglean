@@ -383,20 +383,18 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
     }
 
-    const { hasPasskeyCredentials, generateRegisterOptions } = await import('./webauthn.js')
+    const { hasPasskeyCredentials } = await import('./webauthn.js')
     const { generateSecret, buildOtpAuthUri } = await import('./totp.js')
 
     const hasPasskey = hasPasskeyCredentials(artist.id)
 
     if (hasPasskey) {
-      // 有 Passkey：要求 Passkey 确认
-      // 生成一个注册挑战（复用注册流程，但实际是验证现有 Passkey）
-      const options = generateRegisterOptions(artist, reqHost(request))
+      // a1 猎杀修复（2026-08-13）：身份验证走登录仪式——前端自行 loginOptions+credentials.get，
+      // confirm 携带 credential 由 verifyLogin 校验（新 secret 由 confirm 时生成写库）。
+      // 此前此处返回注册挑战（generateRegisterOptions），与 confirm 的登录验证链路不匹配、
+      // 遗留无效注册挑战，前端还误走注册仪式多注凭据（安全风险）。
       return {
-        verifyMethod: 'passkey',
-        options,
-        // 暂存新 secret（不落库，等 confirm 时验证通过再写入）
-        // 新 secret 已随 challenge 存储
+        verifyMethod: 'passkey'
       }
     }
 

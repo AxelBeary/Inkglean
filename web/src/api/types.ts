@@ -1412,10 +1412,12 @@ export interface WebAuthnUpdateCredentialResult {
 
 // ─── REQ-040: TOTP 自助重绑 ───
 
-/** POST /api/auth/totp/rebind-init 响应（有 Passkey 路径） */
+/** POST /api/auth/totp/rebind-init 响应（有 Passkey 路径）
+ * a1 猎杀修复：后端不再返回注册挑战，身份验证走登录仪式（前端自行 loginOptions+credentials.get）；
+ * options 保留可选仅为旧响应兼容 */
 export interface RebindInitPasskeyResult {
   verifyMethod: 'passkey'
-  options: WebAuthnRegisterOptions
+  options?: WebAuthnRegisterOptions
 }
 
 /** POST /api/auth/totp/rebind-init 响应（无 Passkey 路径） */
