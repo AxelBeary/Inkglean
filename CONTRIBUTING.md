@@ -35,7 +35,7 @@
 
 ## 安全问题
 
-发现安全漏洞（如越权、注入、密钥泄露）**请勿公开发布**。请使用 GitHub 的「私有漏洞报告」功能（仓库页面 → Security → Report a vulnerability）。我们会在收到后尽快确认与修复。
+发现安全漏洞（如越权、注入、密钥泄露、认证绕过等）**请勿公开发布**。请使用 GitHub 的「私密漏洞报告」功能（仓库页面 → Security → Report a vulnerability）。哪些算安全漏洞、处理流程与响应约定，详见 [SECURITY.md](SECURITY.md)。
 
 ## 不接受什么
 
