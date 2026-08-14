@@ -793,6 +793,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     summaryNoSize: 'Pick a size to see the price here',
     // REQ-022 F3: client info echo in summary card
     summaryNickname: 'Nickname', summaryDescription: 'Request details',
+    // E13: size description / work days / preview image in summary card
+    summaryWorkDays: '~{n} days', summarySizeImgAlt: 'Size preview image',
     // R58-3: receipt confirmation
     receiptSub: '· COMMISSION SLIP ·', receiptTotal: 'Total', receiptConfirm: 'Confirm order', submitting: 'Submitting…',
     // R58-4: inspiration tags

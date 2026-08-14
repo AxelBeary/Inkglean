@@ -34,6 +34,11 @@ export interface StyleSize {
   /** showcase = 展示态（可见不可约） */
   display_status?: string | null
   addons?: StyleAddon[] | null
+  /** E13: 档位描述/工期/示意图（公开契约可选字段，缺失=摘要卡对应块不渲染） */
+  description?: string | null
+  work_days?: number | null
+  image?: string | null
+  artwork_image_path?: string | null
 }
 
 /** 公开画风 */

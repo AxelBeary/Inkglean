@@ -22,6 +22,18 @@
           <span>{{ selectedSize.name }}</span>
           <span class="summary-amt">{{ formatYuanValue(selectedSize.base_price) }}</span>
         </div>
+        <!-- E13: 尺寸行下方补显档位描述/工期/示意图（字段为空则对应块不渲染） -->
+        <div v-if="sizeDescription || sizeWorkDays != null || sizeImageUrl" class="summary-size-detail">
+          <img
+            v-if="sizeImageUrl"
+            class="summary-size-img"
+            :src="sizeImageUrl"
+            :alt="t('orderForm.summarySizeImgAlt')"
+            loading="lazy"
+          />
+          <p v-if="sizeDescription" class="summary-size-desc">{{ sizeDescription }}</p>
+          <p v-if="sizeWorkDays != null" class="summary-size-days">{{ t('orderForm.summaryWorkDays', { n: sizeWorkDays }) }}</p>
+        </div>
         <template v-if="preview">
           <div v-for="(item, idx) in preview.fixedAddonItems" :key="'f' + idx" class="summary-line">
             <span>{{ item.name }}{{ (item.quantity || 0) > 1 ? ` ×${item.quantity}` : '' }}</span>
@@ -61,11 +73,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatYuan, formatYuanValue } from '../../../utils/money.js'
+// E13: 尺寸图路径解析复用客户端先例（artwork_image_path > image，见 useArtistData 三号契约）
+import { resolveSizeImagePath } from '../../../composables/useArtistData.js'
 import type { ArtistStyle, InstallmentItem, StylePricePreview, StyleSize } from './types'
 
-defineProps<{
+const props = defineProps<{
   /** 客户昵称回显（原样展示，判空用 trim） */
   clientName: string
   /** 需求描述回显（3 行截断由 CSS 完成） */
@@ -79,6 +94,14 @@ defineProps<{
   /** 展示价（元；SPEC-PRICE-2 唯一引擎总价，未计价回退尺寸基础价） */
   displayPrice: number
 }>()
+
+// ─── E13: 档位描述/工期/示意图（字段为空则摘要卡对应块不渲染） ───
+const sizeDescription = computed(() => props.selectedSize?.description?.trim() || '')
+const sizeWorkDays = computed(() => props.selectedSize?.work_days ?? null)
+const sizeImageUrl = computed(() => {
+  const path = resolveSizeImagePath(props.selectedSize)
+  return path ? `/uploads/${path}` : ''
+})
 
 const { t } = useI18n()
 </script>
@@ -122,6 +145,19 @@ const { t } = useI18n()
 }
 .summary-empty { font-size: 13px; color: var(--text-muted); }
 .summary-line--discount .summary-amt { color: var(--color-danger, #f56c6c); }
+/* ─── E13: 档位描述/工期/示意图（移动端友好：宽度受限 + 圆角纸边） ─── */
+.summary-size-detail { display: flex; flex-direction: column; gap: 6px; padding: 2px 0 4px; }
+.summary-size-img {
+  display: block; width: 100%; max-width: 180px;
+  aspect-ratio: 4 / 3; object-fit: cover;
+  border: 1px solid var(--border-color);
+  border-radius: 6px 10px 7px 9px / 9px 7px 10px 6px;
+}
+.summary-size-desc {
+  margin: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.6;
+  word-break: break-word;
+}
+.summary-size-days { margin: 0; font-size: 12px; color: var(--text-muted); }
 /* ─── REQ-022 F3: 客户信息回显（昵称 + 需求描述） ─── */
 .summary-client { margin-bottom: 4px; }
 .summary-client-value { font-weight: 600; color: var(--text-primary); }

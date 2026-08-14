@@ -792,6 +792,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     summaryNoSize: '选好尺寸后这里会显示价格',
     // REQ-022 F3: 摘要卡客户信息回显
     summaryNickname: '昵称', summaryDescription: '需求描述',
+    // E13: 摘要卡档位描述/工期/示意图
+    summaryWorkDays: '约 {n} 天', summarySizeImgAlt: '尺寸示意图',
     // R58-3: 小票二次确认
     receiptSub: '· 约稿确认单 ·', receiptTotal: '合计', receiptConfirm: '确认下单', submitting: '提交中…',
     // R58-4: 灵感标签
