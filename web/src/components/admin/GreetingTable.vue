@@ -86,7 +86,7 @@ const togglingId = ref(null)
 const newText = ref('')
 const newSlot = ref('any')
 
-const SLOT_TAG = { morning: 'success', afternoon: 'warning', evening: '', night: 'info', any: 'info' }
+const SLOT_TAG = { morning: 'success', afternoon: 'warning', evening: '', night: 'info', latenight: 'danger', any: 'info' }
 
 const slots = computed(() => [
   { value: 'any', label: t('admin.slotAny') },
@@ -94,6 +94,7 @@ const slots = computed(() => [
   { value: 'afternoon', label: t('admin.slotAfternoon') },
   { value: 'evening', label: t('admin.slotEvening') },
   { value: 'night', label: t('admin.slotNight') },
+  { value: 'latenight', label: t('admin.slotLatenight') },
 ])
 
 const slotLabel = (s) => slots.value.find(o => o.value === s)?.label || s

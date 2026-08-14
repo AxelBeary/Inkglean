@@ -64,6 +64,9 @@ import type {
   HasMoreResult,
   HealthResult,
   InviteRegisterRequest,
+  SpecialDay,
+  SpecialDayInput,
+  SpecialDayListItem,
   InviteRegisterResult,
   InviteStatusResult,
   InviteTotpConfirmRequest,
@@ -671,6 +674,13 @@ export const adminApi = {
     putJson(`/admin/artists/${artistId}/greetings/${gid}`, data),
   deleteArtistGreeting: (artistId: number, gid: number): Promise<SimpleSuccessResult> =>
     deleteJson(`/admin/artists/${artistId}/greetings/${gid}`),
+  // 问候语 — 特别日（E5 波 4）
+  getSpecialDays: (): Promise<SpecialDayListItem[]> => getJson('/admin/special-days'),
+  createSpecialDay: (data: SpecialDayInput): Promise<SpecialDay> => postJson('/admin/special-days', data),
+  updateSpecialDay: (id: number, data: { isEnabled: boolean }): Promise<SpecialDay> =>
+    putJson(`/admin/special-days/${id}`, data),
+  deleteSpecialDay: (id: number): Promise<SimpleSuccessResult> => deleteJson(`/admin/special-days/${id}`),
+  getSpecialDayGreetings: (id: number): Promise<GreetingTemplate[]> => getJson(`/admin/special-days/${id}/greetings`),
   // 流程与比例 — 默认模板
   getDefaultWorkflow: (): Promise<DefaultWorkflowNode[]> => getJson('/admin/default-workflow'),
   updateDefaultWorkflow: (nodes: Array<Record<string, unknown>>): Promise<DefaultWorkflowNode[]> =>
