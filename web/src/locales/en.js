@@ -977,6 +977,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     anotherOne: 'Another',
     plaqueHintOpen: 'Tap · Take a break',
     plaqueHintBreak: 'Tap · Open for commissions',
+    // E2: plaque full state — display variant of the open face
+    plaqueFullChar: 'Full',
     ledgerEmpty: 'All settled for today',
     ledgerSunk: 'Settled · Archived',
     ledgerSettle: 'Settle · Tear away',

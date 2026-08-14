@@ -976,6 +976,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     anotherOne: '换一句',
     plaqueHintOpen: '点一下 · 休息中',
     plaqueHintBreak: '点一下 · 可约稿',
+    // E2: 挂牌满态——开稿面显示变体单字（藤黄点缀）
+    plaqueFullChar: '满',
     ledgerEmpty: '今天账清了',
     ledgerSunk: '已了 · 沉底',
     ledgerSettle: '清账 · 撕页',

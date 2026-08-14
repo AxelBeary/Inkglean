@@ -1,6 +1,8 @@
 <template>
   <!-- 挂牌+名额（视觉批 P1，提案 §5.3）：可约稿⇄休息中 Y 轴翻牌（绳不离钉），
-       牌下名额条（满额藤黄）。整块名额点击进开稿管理。 -->
+       牌下名额条（满额藤黄）。整块名额点击进开稿管理。
+       E2：名额满时开稿面直接显「满」（藤黄点缀）——满态是开稿面的显示变体，
+       不新增第三面牌，翻面开关逻辑不变。 -->
   <div class="plaque-card">
     <div class="plaque-nail" aria-hidden="true"></div>
     <div class="plaque-hang" :class="{ swinging: swingOn }">
@@ -16,9 +18,9 @@
         @click="toggleStatus"
       >
         <span class="plaque-3d" ref="plaque3d">
-          <span class="plaque-face face-open">
+          <span class="plaque-face face-open" :class="{ 'face-full': isFull }">
             <span class="p-dot" aria-hidden="true"></span>
-            <span class="p-main f-kai">{{ t('dashboard.statusOpen') }}</span>
+            <span class="p-main f-kai">{{ isFull ? t('dashboard.plaqueFullChar') : t('dashboard.statusOpen') }}</span>
             <span class="p-sub">{{ t('dashboard.plaqueHintOpen') }}</span>
           </span>
           <span class="plaque-face face-closed">
@@ -228,6 +230,9 @@ onMounted(() => {
 .p-sub { font-size: calc(var(--font-scale, 1) * 12px); letter-spacing: .1em; color: var(--ink3); display: block; white-space: nowrap; }
 .face-open { color: var(--sl); }
 .face-closed { color: var(--zs); }
+/* E2：满态=开稿面显示变体（藤黄点缀，语义对齐名额条 slot-full-tag） */
+.face-open.face-full { color: var(--th); }
+.face-open.face-full .p-dot { background: var(--th); box-shadow: 0 0 0 4px var(--th-t); }
 .p-dot { width: 8px; height: 8px; border-radius: 50%; position: absolute; top: 12px; right: 15px; display: block; }
 .face-open .p-dot { background: var(--sl); box-shadow: 0 0 0 4px var(--sl-t); }
 .face-closed .p-dot { background: var(--zs); box-shadow: 0 0 0 4px var(--zs-t); }
