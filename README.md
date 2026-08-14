@@ -38,7 +38,18 @@
 
 ## 快速开始
 
-### 方式一：Docker
+### 方式一：一键安装（推荐，全平台）
+
+需要先装好 [Node.js](https://nodejs.org) **22~26 版**（推荐 22 版，与 Docker 生产环境一致；下载地址 https://nodejs.org/dist/latest-v22.x/，选 x64 的 .msi/.pkg 一路下一步即可）。
+
+- **Windows**：双击仓库里的 `install.bat`
+- **Linux / macOS**：终端里执行 `node install.mjs`
+
+跟着提示一路按回车即可完成安装（自动安装 Docker 容器版或直接装到本机，二选一）。需要自选参数时见 `node install.mjs --help`。
+
+> 裸 Linux 服务器还没装 Node.js？先执行 `bash setup.sh`（Docker 兜底安装）。
+
+### 方式二：手动 Docker
 
 ```bash
 cp .env.example .env
@@ -49,7 +60,7 @@ docker compose up -d
 # 访问：统一走 Caddy（80/443）；v0.42 起 compose 默认不把 3000 映射到宿主机，仅 expose（容器内自检：docker compose exec web curl localhost:3000/api/health）
 ```
 
-### 方式二：本地开发
+### 方式三：本地开发
 
 ```bash
 # 后端
