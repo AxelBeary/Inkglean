@@ -45,6 +45,7 @@ export function cleanDb() {
     DELETE FROM artworks;
     DELETE FROM artist_workflow_stages;
     DELETE FROM greeting_templates;
+    DELETE FROM greeting_special_days;
     DELETE FROM guestbook_messages;
     DELETE FROM reports;
     DELETE FROM admin_actions;
