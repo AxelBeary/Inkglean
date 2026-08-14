@@ -18,6 +18,12 @@
  * ——浏览器容错解析会把 `</script foo="bar">`、`</script/foo>` 当作 script 结束
  * 标签，旧正则 `\s*>` 匹配不到，导致 `<script>alert(1)</script foo="bar">` 整对
  * 残留入库。放宽后与开始标签同样允许属性/斜杠，实测不再残留。
+ *
+ * CodeQL #21 修复（2026-08-14，js/incomplete-multi-character-sanitization）：
+ * 再补删「孤立开始标签」——`<scr<script></script>ipt>` 嵌套删除后拼出无闭合的
+ * `<script>`，标签对正则要求成对匹配不到；`<script>alert(1)`（无闭合）同样残留，
+ * 浏览器会把后续内容当脚本直到文档尾，比成对标签更危险。加一条 `<\s*(script|style)\b[^>]*>`
+ * 兜底删除所有残留开始标签（此时只剩无闭合的，正常富文本不含 script/style 字样不受影响）。
  */
 function removeTagPairs(input: string): string {
   let out = input
@@ -25,6 +31,8 @@ function removeTagPairs(input: string): string {
     const next = out
       .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*(script|style)\b[^>]*>/gi, '')
       .replace(/<\s*(script|style)\b[^>]*\/\s*>/gi, '')
+      .replace(/<\s*(script|style)\b[^>]*>/gi, '')
+      .replace(/<\s*\/\s*(script|style)\b[^>]*>/gi, '')
     if (next === out) break
     out = next
   }
