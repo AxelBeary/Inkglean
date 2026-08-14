@@ -6,8 +6,8 @@
 > ✅ **施工实录（新会话接手 v103 后单轮完成）**：①冒烟实证 isomorphic-dompurify 在 server 环境可用（上次转义失败的冒烟补跑成功）②**施工中新发现并处置一个拍板未覆盖的风险**：白名单序列化会把纯文本「价格<100」变成「价格&lt;100」，经 {{ }} 插值双重转义直接显示实体——而 5 个调用方里只有须知 rules 走 v-html 富文本，留言/昵称/bio/公告/节点/话术/作品标题描述全是 {{ }} 插值纯文本。处置（方案 B 内的分档细化，未偏离拍板方向）：拆双通道——`sanitizeStoredHtml`（新）=富文本白名单重建，完全镜像前端 web/src/utils/sanitize.js（ALLOWED_TAGS/ATTR + ALLOW_DATA_ATTR:false + 链接 _blank/noopener 钩子），仅 rules 挂此档；`sanitizeStoredText`=纯文本零标签提取（ALLOWED_TAGS 空集消毒后取 textContent），script/style 连内容整体移除，& < > 零实体化零误伤（实测「R&D」「价格<100」「<3 小明」原样保留）。五号两风险点均实测过关：div/table 不误删（jsdom 规范化补 tbody 属正常）；已入库富文本渲染输出语义不变（渲染层本就 sanitizeHtml 同口径）。③测试重写 audit-batch-f-sanitize 23 例双通道契约（TC-F5-R1~R6 富文本档 + TC-F5-24 纯文本零误伤防再犯）+ TC-ANN-03b 断言适配。提交 3c0e92e7。
 > ✅ **终态门禁（accept 流水线全绿）**：server **1428/1428**（115 文件，不减）· web **500/500** · E2E **11/11** · typecheck/lint/check-i18n/build 全过。
 > ✅ **容器已重建烘焙**：post-merge-deploy 全绿（Healthy/迁移回读 v63/冒烟 PASS×5 零 WARN），生产已跑 DOMPurify 引擎。
-> 🧊 **环境**：master 3c0e92e7 已推；CodeQL 重扫 success，`gh api code-scanning/alerts?state=open` 返回**空**——sanitize 同源 #21/22/23 自动销账，连 #11（SPA 限流设计豁免）也不在开放列表（状态待下轮确认是自动关还是已驳回）；CI/E2E 本轮全绿。遗留人工项仅剩：P2「转 1.0 后」结构项在报告 + 等用户终验 https://localhost。
-> 🔑 **新会话接手指南**：读本文件（v95 起）即可接手，无在途施工；更早历史见 STATUS-archive-20260814.md。下一轮可做：①确认 #11 告警最终状态（若仍 open 需 Web UI 驳回，理由已拟好在案）②v100 遗留三项人工拍板项（部署搬家/竖屏响应式/E1-E15 体验增量清单）。
+> 🧊 **环境**：master 3c0e92e7 已推；CodeQL 重扫 success，`gh api code-scanning/alerts?state=open` 返回**空**——sanitize 同源 #21/22/23 自动销账；#11（SPA 限流设计豁免）已确认 dismissed/won't fix（驳回理由与我们拟好口径一致）。**至此安全线全清：CodeQL 开放告警 0 + Dependabot 0 + 真漏洞清零**。CI/E2E 本轮全绿。遗留人工项仅剩：P2「转 1.0 后」结构项在报告 + 等用户终验 https://localhost。
+> 🔑 **新会话接手指南**：读本文件（v95 起）即可接手，无在途施工；更早历史见 STATUS-archive-20260814.md。下一轮可做：v100 遗留三项人工拍板项（部署搬家/竖屏响应式/E1-E15 体验增量清单）——均在等操作人拍板，无拍板前无在途施工项。
 
 > 🔴 **最后更新：2026-08-14 v103（开工前存档）：CodeQL sanitize 根治轮（方案 B）进行中——isomorphic-dompurify 已装，sanitize.ts 重写未开始**
 > 📋 **一号拍板（五号转交件裁决）**：①B 为主方案采纳（服务端换 isomorphic-dompurify，与前端同引擎白名单重建，mutation XSS 从原理消失，CodeQL 不触发）；A（手动扫描替代）不做（warning 不阻断，做 A 等于重写两遍测试零收益）②单一专注轮立即执行③白名单一号定：完全镜像前端 web/src/utils/sanitize.js（ALLOWED_TAGS/ALLOWED_ATTR/ALLOW_DATA_ATTR:false+链接 _blank noopener 钩子），单一事实源两层同口径。
