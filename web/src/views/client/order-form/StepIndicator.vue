@@ -95,7 +95,7 @@ const { t } = useI18n()
   transform: scale(1.15);
 }
 .step-dot--done {
-  background: var(--color-primary); border-color: var(--color-primary); color: #fff;
+  background: var(--color-primary); border-color: var(--color-primary); color: var(--pal-bg, #fff);
 }
 .step-label { font-size: 13px; color: var(--text-muted); transition: color var(--dur-mid); }
 .step-label--on { color: var(--text-primary); font-weight: 600; }

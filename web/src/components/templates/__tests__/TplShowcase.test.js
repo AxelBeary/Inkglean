@@ -147,4 +147,28 @@ describe('TplShowcase style 形态（画风柜）', () => {
     expect(wrapper.find('.tpl-style-menu').exists()).toBe(false)
     expect(wrapper.findAll('.tpl-style-size-row')).toHaveLength(2)
   })
+
+  it('展示态（showcase）尺寸不可选中：不高亮、无提示、下单 query 不含该尺寸', async () => {
+    const showcaseStyles = [
+      {
+        id: 20,
+        name: '厚涂',
+        sizes: [
+          { id: 201, name: '半身', base_price: 200, display_status: 'showcase' },
+          { id: 202, name: '全身', base_price: 400 }
+        ]
+      }
+    ]
+    const wrapper = mountShowcase({ mode: 'style', styles: showcaseStyles, subdomain: 'alice', artist: { status: 'open' } })
+
+    await wrapper.findAll('.tpl-style-size-row')[0].trigger('click')
+    expect(wrapper.find('.tpl-style-size-row--active').exists()).toBe(false)
+    expect(wrapper.find('.tpl-style-order-hint').exists()).toBe(false)
+
+    // 正常尺寸仍可选并携带进下单 query
+    await wrapper.findAll('.tpl-style-size-row')[1].trigger('click')
+    expect(wrapper.find('.tpl-style-size-row--active').exists()).toBe(true)
+    await wrapper.find('.tpl-style-order-btn').trigger('click')
+    expect(h.push).toHaveBeenCalledWith({ path: '/artist/alice/order', query: { styleId: 20, sizeId: 202 } })
+  })
 })

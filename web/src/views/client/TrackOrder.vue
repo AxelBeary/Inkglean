@@ -64,7 +64,7 @@
           <el-descriptions-item :label="$t('track.orderTime')">
             <div class="time-cell">
               <div>{{ formatBeijing(order.createdAt) }}<span class="tz-tag">{{ $t('track.tzBeijing') }}</span></div>
-              <div v-if="localTz !== 'Asia/Shanghai'" class="tz-local">{{ formatDate(order.createdAt) }}<span class="tz-tag tz-tag--local">{{ $t('track.tzLocal') }}</span></div>
+              <div v-if="localTz !== 'Asia/Shanghai'" class="tz-local">{{ formatDateTime(order.createdAt) }}<span class="tz-tag tz-tag--local">{{ $t('track.tzLocal') }}</span></div>
             </div>
           </el-descriptions-item>
         </el-descriptions>
@@ -108,7 +108,7 @@
             ↩ {{ $t('track.timeline.revisionAt', { name: stageProgress?.name || order.currentStageName || '' }) }}
           </p>
           <p class="timeline-hint" v-if="order.currentStageId == null">{{ $t('track.timeline.notStarted') }}</p>
-          <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDate(order.createdAt) }}</p>
+          <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDateTime(order.createdAt) }}</p>
         </div>
 
         <!-- U1: 需求回顾（后端补字段前不显示，v-if 守卫） -->
@@ -215,6 +215,8 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
 import { formatCents } from '../../utils/money.js'
+import { ORDER_STATUS_TYPE } from '../../constants/order.js'
+import { downloadAsset } from '../../utils/download.js'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePalette } from '../../composables/usePalette.js'
@@ -257,8 +259,6 @@ function formatBeijing(str) {
     hour: '2-digit', minute: '2-digit'
   })
 }
-
-import { ORDER_STATUS_TYPE } from '../../constants/order.js'
 
 const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
 
@@ -305,21 +305,9 @@ const trackNextDueCents = computed(() => {
   return 0 // 全部覆盖
 })
 
-function formatDate(str) {
-  return formatDateTime(str)
-}
-
-/** 金额分 → 元（后端返分，前端 /100） */
 async function downloadFile(url, fileName) {
   try {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = fileName || 'download'
-    a.click()
-    URL.revokeObjectURL(a.href)
+    await downloadAsset(url, fileName)
   } catch {
     ElMessage.error(t('delivery.downloadFailed'))
   }

@@ -26,7 +26,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistPublicApi } from '../../api/index.js'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
@@ -47,11 +47,14 @@ const count = ref(props.initialCount)
 const busy = ref(false)
 const popping = ref(false)
 
-const STORAGE_KEY = `huiyue_liked_${props.subdomain}`
+/** b3 猎杀：props 变化（父级切换作品/数据刷新）时同步本地状态，storage key 随 subdomain 响应式 */
+const storageKey = computed(() => `huiyue_liked_${props.subdomain}`)
+watch(() => props.liked, (v) => { if (!busy.value) isLiked.value = v })
+watch(() => props.initialCount, (v) => { if (!busy.value) count.value = v })
 
 function readIds() {
   // G-5: 裸读写换 safe 封装（存储禁用/损坏 JSON 均按未点赞降级）
-  const raw = safeGetItem(STORAGE_KEY)
+  const raw = safeGetItem(storageKey.value)
   if (!raw) return []
   try {
     const ids = JSON.parse(raw)
@@ -63,7 +66,7 @@ function persist() {
   const ids = new Set(readIds())
   if (isLiked.value) ids.add(props.artworkId)
   else ids.delete(props.artworkId)
-  safeSetItem(STORAGE_KEY, JSON.stringify([...ids]))
+  safeSetItem(storageKey.value, JSON.stringify([...ids]))
 }
 
 async function toggle() {

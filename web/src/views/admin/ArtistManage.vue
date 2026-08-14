@@ -37,6 +37,7 @@
           <template #default="{ row }">
             <el-select
               v-model="row.status" size="small" style="width: 100px"
+              :disabled="statusUpdatingId === row.id"
               @change="(val) => changeStatus(row, val)"
             >
               <el-option value="open" :label="$t('common.statusShort.open')" />
@@ -113,7 +114,7 @@
         <el-button size="small" @click="retryOrders">{{ t('dashboard.retry') }}</el-button>
       </div>
       <template v-else>
-        <el-table :data="orders" v-loading="ordersLoading" stripe max-height="400" row-key="id">
+        <el-table :data="pagedOrders" v-loading="ordersLoading" stripe max-height="400" row-key="id">
           <el-table-column type="expand">
             <template #default="{ row }">
               <div class="order-expand-pay">
@@ -153,6 +154,15 @@
           </el-table-column>
         </el-table>
         <el-empty v-if="!ordersLoading && orders.length === 0" :description="$t('admin.noOrders')" :image-size="60" />
+        <!-- b3 清扫：订单弹窗客户端分页（全量已拉取，仅限制 DOM 渲染量；打开/重试时重置页码） -->
+        <div v-if="orders.length > ORDERS_PAGE_SIZE" class="pager">
+          <el-pagination
+            v-model:current-page="ordersPage"
+            :page-size="ORDERS_PAGE_SIZE"
+            :total="orders.length"
+            layout="total, prev, pager, next"
+          />
+        </div>
       </template>
     </el-dialog>
 
@@ -332,11 +342,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { adminApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { View, Tickets, Key, Delete } from '@element-plus/icons-vue'
+import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+import { formatDateTime } from '../../utils/datetime.js'
+import { formatCents } from '../../utils/money.js'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
 // REQ-041 集成接线：更换管理员动作级再验对话框（后端 requireAdminReauth 已就位）
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'
@@ -348,6 +361,8 @@ const artists = ref([])
 const loading = ref(true)
 const dialogVisible = ref(false)
 const saving = ref(false)
+// b3 清扫：行内状态切换期间禁用下拉，防连续触发
+const statusUpdatingId = ref(null)
 
 // 813-fq-tail-shared 战役 S：≤760px 行操作按钮收成图标（防窄屏 360px 固定列挤压）
 const compactActions = ref(window.matchMedia('(max-width: 760px)').matches)
@@ -441,19 +456,20 @@ function openDetail(row) {
   detailVisible.value = true
 }
 
-import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
-import { formatDateTime } from '../../utils/datetime.js'
-import { formatCents } from '../../utils/money.js'
-
 const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 
-/** 金额分 → 元（B7 行展开始用） */
 // 订单弹窗
 const ordersVisible = ref(false)
 const ordersLoading = ref(false)
 const ordersArtist = ref(null)
 const orders = ref([])
 const ordersFailed = ref(false)
+const ordersPage = ref(1)
+/** b3 清扫：订单弹窗客户端分页（全量已拉取，仅限制 DOM 渲染量） */
+const ORDERS_PAGE_SIZE = 10
+const pagedOrders = computed(() =>
+  orders.value.slice((ordersPage.value - 1) * ORDERS_PAGE_SIZE, ordersPage.value * ORDERS_PAGE_SIZE)
+)
 // P1-B：请求序号门闩——先发请求晚到不覆盖后发结果（张冠李戴防护）
 const ordersReqSeq = ref(0)
 
@@ -523,18 +539,23 @@ async function remove(row) {
 }
 
 async function changeStatus(row, status) {
+  if (statusUpdatingId.value === row.id) return
+  statusUpdatingId.value = row.id
   try {
     await adminApi.updateArtistStatus(row.id, status)
     ElMessage.success(t('admin.statusUpdated'))
   } catch (err) {
     ElMessage.error(err.message)
     await loadArtists()
+  } finally {
+    statusUpdatingId.value = null
   }
 }
 
 function viewOrders(row) {
   ordersArtist.value = row
   orders.value = []
+  ordersPage.value = 1
   ordersFailed.value = false
   ordersVisible.value = true
   loadOrders(row.id)
@@ -547,6 +568,7 @@ async function loadOrders(artistId) {
     const res = await adminApi.getArtistOrders(artistId)
     if (seq !== ordersReqSeq.value) return // 过期响应丢弃
     orders.value = res.items ?? res
+    if (ordersPage.value > 1 && pagedOrders.value.length === 0) ordersPage.value = 1
   } catch (err) {
     if (seq !== ordersReqSeq.value) return
     ordersFailed.value = true

@@ -8,7 +8,6 @@
   - 内层包裹类（gallery-inner / folio-inner / atelier-inner）经 inner-class prop 传入，
     内层宽度在本组件 scoped 样式内等价迁移；Classic 不传则为无样式 div（视觉零差）；
   - 标题走 title slot（各模板 p.tpl-section-label 变体 / h2.folio-title）；
-  - Classic 的 TplTierGrid featured 变体经 featured prop 保留；
   - addons 插槽原样透传给 TplTierGrid（价格计算器扩展点）。
 -->
 <template>
@@ -25,7 +24,7 @@
       </template>
       <template v-else-if="tiers.length">
         <slot name="title" />
-        <TplShowcase :mode="'tier'" :tiers="tiers" :featured="featured" :subdomain="subdomain" :artist="artist">
+        <TplShowcase :mode="'tier'" :tiers="tiers" :subdomain="subdomain" :artist="artist">
           <template #addons="{ tier }">
             <slot name="addons" :tier="tier" />
           </template>
@@ -55,8 +54,6 @@ defineProps({
   tiers: { type: Array, default: () => [] },
   workflowStages: { type: Array, default: () => [] },
   revisionNote: { type: String, default: '' },
-  /** Classic 档位柜 featured 变体（旧兼容 prop） */
-  featured: { type: Boolean, default: false },
   /** 画师子域名（跳转下单用） */
   subdomain: { type: String, default: '' },
   /** 画师信息（status 决定约稿按钮是否禁用） */

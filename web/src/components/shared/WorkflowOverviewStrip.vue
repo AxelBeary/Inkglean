@@ -31,6 +31,8 @@ defineProps({
 
 /** 收款比例标签（basisPoints → 百分比，去掉无意义的 .0） */
 function bpLabel(s) {
+  // b3 猎杀修复：takesPayment=true 但无比例时不渲染 NaN%（OrderTimeline 同场景有守卫）
+  if (!s.basisPoints) return '—'
   return `${(s.basisPoints / 100).toFixed(1).replace(/\.0$/, '')}%`
 }
 </script>
@@ -88,7 +90,7 @@ function bpLabel(s) {
 .strip-node.payment .strip-dot {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #fff;
+  color: var(--pal-bg, #fff);
 }
 .strip-node.payment .strip-name {
   color: var(--text-primary);
@@ -97,7 +99,7 @@ function bpLabel(s) {
 .strip-node.final .strip-dot {
   background: var(--color-gold);
   border-color: var(--color-gold);
-  color: #fff;
+  color: var(--pal-bg, #fff);
 }
 
 /* 收款徽章（百分比 + 尾款标签） */

@@ -199,11 +199,6 @@
       {{ currentIndex + 1 }} / {{ filteredArtworks.length }}
     </p>
 
-    <!-- v0.42 Step 6: 客户端「加载更多」（仅分页数据源传入 total 时显示；其他模板不传 → 零影响） -->
-    <div v-if="hasMore" class="tpl-gallery-loadmore">
-      <el-button :loading="loadingMore" @click="emit('load-more')">{{ $t('artistHome.loadMore') }}</el-button>
-    </div>
-
     <!-- v0.35 F6: 大图 lightbox（画册是浏览，灯箱是细看，两层并存） -->
     <!-- v0.36 热修: append-to-body——画廊容器带 .tpl-reveal 渐入动画(transform)，
          祖先 transform 会劫持 fixed 定位基准导致弹窗飘出窗口，teleport 到 body 规避 -->
@@ -280,8 +275,6 @@ import { useArtistData, buildGalleryFilters, filterArtworksBySize } from '../../
 import ArtworkLikeButton from '../shared/ArtworkLikeButton.vue'
 import { safeGetItem } from '../../utils/storage.js'
 
-const emit = defineEmits(['load-more'])
-
 const props = defineProps({
   /** 兜底数据源（gallery 端点不可用时回退，无筛选行） */
   artworks: { type: Array, default: () => [] },
@@ -293,29 +286,19 @@ const props = defineProps({
    */
   gallery: { type: Object, default: null },
   /**
-   * v0.36 修正: 画廊布局模式——album 画册翻页 / masonry 瀑布流 / grid 等高网格。
+   * v0.36 修正: 画廊布局模式——album 画册翻页 / masonry 瀑布流。
    * 默认 masonry（稳定不闪的 v0.35 行为）；Gallery/Atelier 模板显式传 album。
+   * （P2-B 清扫：grid 变体无任何调用方，已删除）
    */
-  layout: { type: String, default: 'masonry', validator: v => ['album', 'masonry', 'grid'].includes(v) },
+  layout: { type: String, default: 'masonry', validator: v => ['album', 'masonry'].includes(v) },
   /**
    * v0.36: 侧露页开关——相邻页缩小露出在当前页两侧（Gallery 模板启用的大小交错节奏）。
    * 其他模板不传，保持单张大图居中翻页。
    */
   peek: { type: Boolean, default: false },
-  /**
-   * v0.42 Step 6: 公开分页总数（加载更多）。父组件传 total 才启用「加载更多」按钮；
-   * 其他模板不传（默认 0）→ hasMore=false 不显示，行为与现状一致。
-   */
-  total: { type: Number, default: 0 },
-  /** v0.42 Step 6: 加载更多进行中（按钮 loading 态） */
-  loadingMore: { type: Boolean, default: false },
   /** F1: 点赞 localStorage 按画师隔离（huiyue_liked_${subdomain}） */
   subdomain: { type: String, default: '' }
 })
-
-// v0.42 Step 6: 还有更多——按父组件累积的原始条数（含封面）与后端 total 比较，
-// 口径一致（后端 total 含封面）；不能用 filteredArtworks（封面被过滤后永远不足 total）
-const hasMore = computed(() => props.total > 0 && props.artworks.length < props.total)
 
 const { imgUrl } = useArtistData(props)
 const router = useRouter()
@@ -446,12 +429,6 @@ function ratioStyle(art) {
 
 <style scoped>
 /* ===== v0.35 F6: 筛选行（全部 + 对外档位；视觉用设计系统变量，4 模板自动适配） ===== */
-/* v0.42 Step 6: 加载更多按钮容器 */
-.tpl-gallery-loadmore {
-  display: flex;
-  justify-content: center;
-  margin-top: 32px;
-}
 
 .tpl-gallery-filters {
   display: flex;
@@ -633,19 +610,6 @@ function ratioStyle(art) {
   letter-spacing: 0.12em;
   color: var(--pal-text-dim);
   margin: 16px 0 0;
-}
-
-/* ===== grid：等高网格（classic 瀑布流变体）===== */
-.tpl-gallery--grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
-}
-.tpl-gallery--grid .tpl-gallery-img {
-  width: 100%;
-  height: auto;
-  border-radius: 10px;
-  cursor: zoom-in;
 }
 
 /* ===== masonry：瀑布流（folio，v0.36 恢复——稳定不闪）===== */

@@ -15,7 +15,7 @@
     <el-form-item :label="t('orderForm.descLabel')" prop="description">
       <el-input
         v-model="description" type="textarea" :rows="5"
-        :placeholder="t('orderForm.descPlaceholder')" maxlength="2000" show-word-limit
+        :placeholder="t('orderForm.descPlaceholder')" :maxlength="MAX_DESC_LEN" show-word-limit
       />
     </el-form-item>
 
@@ -89,16 +89,19 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+/** 需求描述上限（模板 maxlength 与 appendTag 截断共用单一魔数来源） */
+const MAX_DESC_LEN = 2000
+
 /** 需求描述（v-model 上报父层 form.description） */
 const description = defineModel<string>('description', { default: '' })
 
 // G1: 页内拖拽守卫（参考图上传区统一防御；捕获阶段挂在 el-upload 上）
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
-// R58-4: 灵感标签快捷注入（追加到描述尾，中文标点分隔，2000 字截断）
+// R58-4: 灵感标签快捷注入（追加到描述尾，中文标点分隔，MAX_DESC_LEN 截断）
 function appendTag(tag: string) {
   const sep = description.value && !/[，。、\s]$/.test(description.value) ? '，' : ''
-  description.value = `${description.value}${sep}${tag}`.slice(0, 2000)
+  description.value = `${description.value}${sep}${tag}`.slice(0, MAX_DESC_LEN)
 }
 
 /** 超出 5 张限制提示（i18n 文案，与原内联写法一致） */

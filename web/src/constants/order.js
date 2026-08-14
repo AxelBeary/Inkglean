@@ -25,5 +25,6 @@ export const PRIORITY_TYPE = {
 export const ARTIST_STATUS_TYPE = {
   open: 'success',
   full: 'warning',
-  break: 'danger'
+  break: 'danger',
+  hidden: 'info'
 }

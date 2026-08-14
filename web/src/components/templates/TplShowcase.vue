@@ -177,8 +177,6 @@ const props = defineProps({
   styles: { type: Array, default: () => [] },
   /** 档位列表（旧模型，展示柜交互：桌面左菜单 / 移动端滑动） */
   tiers: { type: Array, default: () => [] },
-  /** featured: 保留兼容（展示柜模式下不使用） */
-  featured: { type: Boolean, default: false },
   /** 画师子域名（跳转下单用） */
   subdomain: { type: String, default: '' },
   /** 画师信息（status 决定约稿按钮是否禁用） */
@@ -247,8 +245,10 @@ const displayDesc = computed(() => {
 /** v0.35 F3: 工作天数联动——仅选中尺寸带天数时显示 */
 const displayWorkDays = computed(() => (props.mode === 'style' ? (selectedSize.value?.work_days ?? null) : null))
 
-/** 尺寸行点击：选中/取消选择（toggle） */
+/** 尺寸行点击：选中/取消选择（toggle）；展示态（showcase）尺寸不可选（与 OrderForm 后端拒单口径一致） */
 function toggleSize(sizeId) {
+  const size = (currentStyle.value?.sizes || []).find(sz => sz.id === sizeId)
+  if (!size || size.display_status === 'showcase') return
   selectedSizeId.value = selectedSizeId.value === sizeId ? null : sizeId
 }
 
@@ -266,11 +266,11 @@ function onStyleChange() {
   selectedSizeId.value = null
 }
 
-/** 菜单项选中（与旧实现一致：菜单点击不清尺寸选择，仅滑动清空） */
+/** 菜单项选中：画风柜切换画风时清空尺寸选择（与滑动切换同口径，杜绝旧画风 sizeId 随 goOrder 下发） */
 function selectItem(idx) {
+  if (idx === activeIndex.value) return
   activeIndex.value = idx
-  // 行为等价保留：旧 TplStyleGrid 菜单点击不清 selectedSizeId（仅滑动清空）；
-  // 残留 id 在新画风尺寸列表中不匹配，高亮/提示/下单提示均无差异。
+  if (props.mode === 'style') onStyleChange()
 }
 
 /** 起步价标签（¥最低尺寸基础价起） */
@@ -511,7 +511,7 @@ function goOrder() {
   border: none;
   border-radius: 8px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--pal-bg, #fff);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;

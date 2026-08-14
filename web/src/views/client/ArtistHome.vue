@@ -17,7 +17,6 @@
       :workflow-stages="workflowStages"
       :subdomain="subdomain"
       :sanitized-rules="sanitizedRules"
-      :pricing="pricing"
       :gallery="galleryData"
       :platforms="platforms"
       :gallery-loading="galleryLoading"
@@ -56,7 +55,6 @@ const styles = ref([]) // v0.32 REQ-023 Phase3: 画风列表（GET /public/style
 const artworks = ref([])
 const rules = ref('')
 const workflowStages = ref([])
-const pricing = ref(null)
 // v0.35 联调：画廊数据走独立端点 GET /public/gallery/:subdomain
 // （artworks 带 size_tags/description + filterSizes 筛选档位；F6 真实数据源）
 const galleryData = ref({ artworks: [], filterSizes: [] })
@@ -69,7 +67,7 @@ const loading = ref(true)
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
 
 // 波 M：workflow/pricing/styles/gallery/platforms 各自失败标记（统一占位 + 可重试）
-const sectionErrors = reactive({ workflow: false, pricing: false, styles: false, gallery: false, platforms: false })
+const sectionErrors = reactive({ workflow: false, styles: false, gallery: false, platforms: false })
 const hasSectionErrors = computed(() => Object.values(sectionErrors).some(Boolean))
 
 // #54: effectiveStatus 适配——额度耗尽时后端返回 effectiveStatus='full'，前端覆盖 status
@@ -159,7 +157,6 @@ onMounted(async () => {
     rules.value = data.rules || ''
     // 波 M：5 个分块接口并行加载，各自失败标记 + 统一占位（不整页破）
     loadSection('workflow')
-    loadSection('pricing')
     loadSection('styles')
     loadSection('gallery')
     loadSection('platforms')
@@ -177,9 +174,6 @@ async function loadSection(key) {
     if (key === 'workflow') {
       const res = await artistPublicApi.getWorkflow(subdomain)
       workflowStages.value = res.stages || []
-    } else if (key === 'pricing') {
-      // 加载价格数据（增项+倍率，失败不阻塞主页）
-      pricing.value = await artistPublicApi.getPricing(subdomain)
     } else if (key === 'styles') {
       // v0.32 REQ-023 Phase3: 加载画风列表（失败走旧模型兜底）
       // v0.35 联调：sizes 已自带 image/artwork_image_path/description/work_days（F3 真实数据源），直读

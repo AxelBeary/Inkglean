@@ -22,7 +22,8 @@ vi.mock('../../../i18n/index.js', () => ({
 }))
 
 vi.mock('element-plus', () => ({
-  ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() }
+  ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+  ElMessageBox: { confirm: vi.fn(() => Promise.resolve('confirm')) }
 }))
 
 const EP_STUBS = {
@@ -38,7 +39,8 @@ const EP_STUBS = {
     template: '<button type="button" @click="$emit(\'click\')"><slot /></button>'
   },
   'el-tag': { template: '<span><slot /></span>' },
-  'el-switch': { template: '<input type="checkbox" />' }
+  'el-switch': { template: '<input type="checkbox" />' },
+  'el-empty': { template: '<div class="empty-stub" />' }
 }
 
 const mountedWrappers = []

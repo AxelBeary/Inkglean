@@ -76,7 +76,10 @@ const loading = ref(true)
 const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
 
 function enterArtist(artist) {
-  router.push(`/artist/${artist.subdomain}`)
+  // a2 猎杀修复：数据异常时拒绝拼 /artist/undefined 死链（与后端创建口径一致）
+  const sub = artist?.subdomain
+  if (typeof sub !== 'string' || !/^[a-z0-9-]{2,20}$/i.test(sub)) return
+  router.push(`/artist/${sub}`)
 }
 
 onMounted(async () => {

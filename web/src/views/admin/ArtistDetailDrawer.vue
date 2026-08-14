@@ -284,7 +284,6 @@ async function saveRules() {
 .pricing-style-name { font-weight: 700; padding: 4px 0; }
 .pricing-inactive { font-weight: 400; color: var(--el-text-color-secondary); margin-left: 4px; }
 .pricing-empty { color: var(--el-text-color-secondary); font-size: 12px; padding: 4px 0; }
-.add-row { display: flex; gap: 8px; margin-top: 12px; }
 .artwork-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .artwork-item { position: relative; }
 .artwork-img { width: 100%; height: 120px; border-radius: 6px; }
