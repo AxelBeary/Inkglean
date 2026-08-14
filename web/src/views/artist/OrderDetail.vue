@@ -101,7 +101,8 @@
 
       <!-- 有工作流：工作流进度条为唯一状态展示（C52：固定状态条隐藏） -->
       <template v-else-if="hasWorkflow">
-        <OrderTimeline :stages="workflowStages" :current-stage-id="order.currentStageId" />
+        <!-- E10: 节点推进时间线纸墨化——竖向淡墨线 + 墨点（vertical），数据/交互不变 -->
+        <OrderTimeline vertical :stages="workflowStages" :current-stage-id="order.currentStageId" />
         <p class="stage-progress-text">
           {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
           <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
