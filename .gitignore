@@ -31,6 +31,10 @@ Thumbs.db
 # Hermes Agent workspace
 .hermes/
 
+# 施工台与通道残留（codex 任务书/日志/补丁脚本/截图全在 workspace/temp，永不入库；814 整理）
+workspace/
+.workbuddy/
+
 # Qoder 本地工具产物（better-harness 报告等，不入版本库）
 .qoder/
 

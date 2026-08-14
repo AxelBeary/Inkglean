@@ -13,3 +13,6 @@ temp
 *.db-shm
 .git
 docs
+workspace
+.workbuddy
+.qoder

@@ -1,5 +1,16 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 🔴 **最后更新：2026-08-14 v98.1（会话刷新快照）：P2 五波收割 4/5 已合入，仅剩 P2-B 待验收**
+> ✅ **已合入（均一号独立复跑门禁全绿）**：P2-E 部署链路加固（683b7181，CI docker build 门禁/accept 联动/失败告警/日志轮转/uploads 恢复）· P2-C 后端清扫（a490e92f，上传魔数校验等，server 1424/1424，含一号适配 F-10 测试真实 PNG）· P2-A 画师域+共享层（1203753f，web 496/496，含一号抓修 Watermark 微任务时序回归：loadLogoForRender 的 await 破坏竞态测试同步假设，改三元短路修复）· P2-D i18n（f2760e84，check-i18n 加固+baseline 核减审计通过，web 496/496）。以上均已推 origin（AxelBeary/Inkglean）。
+> ⏳ **在途：P2-B（worktree 813-hunt-p2b，未提交）**：门禁 vue-tsc/eslint 已过，73 文件中 1 例失败：SanitizedRichText.contract.test.js 断言 sanitizeHtml 拦 script 失败——**疑似 DOMPurify 在 happy-dom 下不工作（isSupported 探针文件已删，待重验）**；若实证为环境限制，裁决方向：测试内 vi.mock('dompurify') 换真实行为的最小忠实 fake 或改断言策略，不得削弱契约语义。合入前还欠：master locales 补 p2b 所需三键（admin.platform.empty/admin.greetingEmpty/admin.greetingDeleteConfirm，代码已引用）→ 合入 → 全门禁+E2E → 容器重建 → 冒烟。
+> ⏳ **其他待办**：①code-scanning 5 条设计告警驳回仍需 token security_events 授权（用户称 cmd 已验证但实测 scope 未变，需重跑 gh auth refresh -s security_events 完成浏览器确认，或 Web UI 逐条 dismiss，理由已拟好）②P2 全绿后给用户的收官汇报（含 P2 裁决明细）。
+> 🧊 **环境**：master=f2760e84 已推；worktree 存 813-hunt-p2b（在途）+813-hunt-p2a/c/d/e（已合入待清）；容器未含 P2 波（合完后重建）。
+
+> 🔴 **最后更新：2026-08-14 v98：P2 约 240 条五波并行清扫在途（用户拍板：P2 也派掉，红线=不引发连环 bug/不新增连环屎山）**
+> 📦 **五波分工（worktree 隔离，领地互斥）**：P2-A 画师域前端+共享逻辑层（813-hunt-p2a，a1/a3/b1/b5 P2+v3 web 注释）· P2-B 客户端+管理后台+共享组件+c1 纵深（813-hunt-p2b）· P2-C 后端域+v3 server 注释（813-hunt-p2c）· P2-D i18n 死键/文案/check-i18n 加固（813-hunt-p2d，与 T2 已清 37 键去重纪律在单）· P2-E 部署链路遗留（813-hunt-p2e）。任务源清单 workspace/temp/p2-src-*.md（自动抽取）+任务书 hunt-p2{a..e}-task.md。
+> 📋 **施工纪律（入任务书）**：逐条裁决（修/不修+理由，清单是 813 快照严禁硬修）；防连环 bug（改前 grep 全调用方/不改契约/每条跑相关测试）；防连环屎山（禁 any/ts-ignore/新 disable/>300 行/第三份复制）；locales 由 D 波统一管闸（A/B 波新键需求走「待 D 波键清单」）；一号合入时全门禁复跑+连环风险抽查。
+> ⏳ **待办**：五波收割验收合入 → 全门禁终验 → E2E → 容器重建 → 冒烟。另：code-scanning 5 条设计告警驳回仍需 token 补 security_events 授权（gh auth refresh -s security_events，上次刷新未生效，scope 仍缺）。
+
 > 最后更新：2026-08-14 v97：**CI 报错修复+仓库改名 Inkglean+仓库整理收官**
 > ✅ **CI 报错根治（d2-3 加固连带适配）**：compliance/invite 测试会话升级 admin_verified（新 step-up 姿态下旧 basic 会话必 401，测试适配非回退安全）；本地此前门禁提取脚本吞了失败行导致漏检，CI 抓住——教训：门禁提取必须显式报 failed 行，已改用去 ANSI 全行提取。v-html 告警清零（SettingsShowcaseTab 改走 SanitizedRichText）。CI/E2E/CodeQL 三 job 全绿。
 > ✅ **CodeQL 加固**：sanitizeStoredText 全链路不动点循环（堵 javajavascript: 嵌套还原单次替换绕过）+TC-F5-13/14/15；server 1406/1406。code-scanning 剩余告警处置：dismiss 需 token 补 security_events 授权（gh auth refresh -s security_events 后重试，或 Web UI 逐条驳回，驳回理由已逐条拟好存对话记录）。
