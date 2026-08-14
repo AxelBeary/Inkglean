@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { cleanDb, seedArtist } from './setup.js'
-import { sanitizeStoredText } from '../src/shared/sanitize.js'
+import { sanitizeStoredText, sanitizeStoredHtml } from '../src/shared/sanitize.js'
 import * as guestbookService from '../src/features/guestbook/guestbook.service.js'
 import * as artistService from '../src/features/artist/artist.service.js'
 import * as workflowService from '../src/features/artist/workflow.service.js'
@@ -8,43 +8,52 @@ import * as greetingService from '../src/features/artist/greeting.service.js'
 
 // ============================================
 // 审计批 F-5（P3-18）: 存储型 XSS 纵深防御
-// sanitizeStoredText 只做三件事：去 <script>/<style> 标签对、去内联事件属性（on*）、
-// 去 javascript: 协议；不动正常文本/HTML 排版（富文本须知必须保留）
+// CodeQL 根治轮·方案 B（2026-08-14）：手写正则清洗整体换 DOMPurify 真引擎
+// （isomorphic-dompurify），按渲染路径分两档：
+//   - sanitizeStoredHtml：富文本（须知 rules，唯一 v-html 字段），白名单镜像前端
+//   - sanitizeStoredText：纯文本（{{ }} 插值字段），零标签提取，& < > 零实体化
 // ============================================
 
-describe('sanitizeStoredText 最小入库清洗', () => {
-  it('TC-F5-01: 去除 script 标签对（含属性、大小写、换行）', () => {
+describe('sanitizeStoredText 纯文本零标签提取', () => {
+  it('TC-F5-01: script 连标签带内容整体移除（含属性、大小写、换行、无闭合）', () => {
     expect(sanitizeStoredText('<script>alert(1)</script>hello')).toBe('hello')
     expect(sanitizeStoredText('a<SCRIPT src="https://evil/x.js">alert(1)</SCRIPT>b')).toBe('ab')
     expect(sanitizeStoredText('<script\n>alert(1)</script>')).toBe('')
-    expect(sanitizeStoredText('x<script src=x/>y')).toBe('xy')
+    // 无闭合 script 吞到文档尾——比旧正则「删标签留残文」更彻底
+    expect(sanitizeStoredText('<script>alert(1)')).toBe('')
+    expect(sanitizeStoredText('x<script src="https://evil/x.js">y')).toBe('x')
   })
 
-  it('TC-F5-02: 去除 style 标签对', () => {
+  it('TC-F5-02: style 连标签带内容整体移除', () => {
     expect(sanitizeStoredText('<style>body{display:none}</style>内容')).toBe('内容')
     expect(sanitizeStoredText('<STYLE type="text/css">.x{}</STYLE>')).toBe('')
   })
 
-  it('TC-F5-03: 去除内联事件属性（on*，保留属性名前的空白不粘连）', () => {
-    expect(sanitizeStoredText('<img src=x onerror=alert(1)>')).toBe('<img src=x >')
-    // d2 P2: 斜杠分隔属性（<img/src=x/onerror=...>）此前正则要求前置空白漏网
-    expect(sanitizeStoredText('<img/src=x/onerror=alert(1)>')).toBe('<img/src=x/>')
-    expect(sanitizeStoredText('<img onerror="alert(1)" src=x>')).toBe('<img  src=x>')
-    expect(sanitizeStoredText('<div onclick=\'evil()\'>点</div>')).toBe('<div >点</div>')
-    // 大小写不敏感
-    expect(sanitizeStoredText('<a OnClick="x">y</a>')).toBe('<a >y</a>')
+  it('TC-F5-03: 标签剥掉只留文本内容（img 无内容直接消失，div/a 留内文）', () => {
+    expect(sanitizeStoredText('<img src=x onerror=alert(1)>')).toBe('')
+    // d2 P2: 斜杠分隔属性（<img/src=x/onerror=...>）同样整标签剥离
+    expect(sanitizeStoredText('<img/src=x/onerror=alert(1)>')).toBe('')
+    expect(sanitizeStoredText('<img onerror="alert(1)" src=x>')).toBe('')
+    expect(sanitizeStoredText('<div onclick=\'evil()\'>点</div>')).toBe('点')
+    expect(sanitizeStoredText('<a OnClick="x">y</a>')).toBe('y')
   })
 
-  it('TC-F5-04: 去除 javascript: 协议（大小写/空白混淆）', () => {
-    expect(sanitizeStoredText('<a href="javascript:alert(1)">x</a>')).toBe('<a href="alert(1)">x</a>')
-    expect(sanitizeStoredText('<a href="JAVASCRIPT:alert(1)">x</a>')).toBe('<a href="alert(1)">x</a>')
-    expect(sanitizeStoredText('j a v a s c r i p t:alert(1)')).toBe('alert(1)')
+  it('TC-F5-04: 危险协议随标签一起消失（纯文本输出无标签无属性，不可执行）', () => {
+    expect(sanitizeStoredText('<a href="javascript:alert(1)">x</a>')).toBe('x')
+    expect(sanitizeStoredText('<a href="JAVASCRIPT:alert(1)">x</a>')).toBe('x')
+    // 纯文本形态的「j a v a s c r i p t:」无标签无属性，{{ }} 插值渲染不可执行，原样保留
+    expect(sanitizeStoredText('j a v a s c r i p t:alert(1)')).toBe('j a v a s c r i p t:alert(1)')
   })
 
-  it('TC-F5-05: 正常富文本原样保留（加粗/链接/列表/中文）', () => {
-    const rich = '<p>约稿须知：<strong>定金不退</strong>，请见 <a href="https://example.com/faq">FAQ</a></p><ul><li>工期 30 天</li></ul>'
-    expect(sanitizeStoredText(rich)).toBe(rich)
-    expect(sanitizeStoredText('普通文本 &lt;script&gt; 原样（实体形式不动）')).toBe('普通文本 &lt;script&gt; 原样（实体形式不动）')
+  it('TC-F5-05: 纯文本零误伤（& < > 不实体化、不丢失——{{ }} 插值字段防双重转义）', () => {
+    expect(sanitizeStoredText('R&D')).toBe('R&D')
+    expect(sanitizeStoredText('Tom & Jerry')).toBe('Tom & Jerry')
+    expect(sanitizeStoredText('价格<100')).toBe('价格<100')
+    expect(sanitizeStoredText('<3 小明')).toBe('<3 小明')
+    expect(sanitizeStoredText('5<6 折')).toBe('5<6 折')
+    expect(sanitizeStoredText('普通文本无标签原样')).toBe('普通文本无标签原样')
+    // 实体形式输入解码为文本，渲染层 {{ }} 惰性展示，不可执行
+    expect(sanitizeStoredText('实体 &lt;script&gt; 解码为纯文本')).toBe('实体 <script> 解码为纯文本')
   })
 
   it('TC-F5-06: 非字符串输入安全返回空串（类型兜底）', () => {
@@ -54,7 +63,56 @@ describe('sanitizeStoredText 最小入库清洗', () => {
   })
 })
 
-describe('sanitizeStoredText 写入口挂接', () => {
+describe('sanitizeStoredHtml 富文本白名单重建（镜像前端 web/src/utils/sanitize.js）', () => {
+  it('TC-F5-R1: script/style 整体移除，事件属性剥离', () => {
+    expect(sanitizeStoredHtml('<script>alert(1)</script>hello')).toBe('hello')
+    expect(sanitizeStoredHtml('<style>body{display:none}</style>内容')).toBe('内容')
+    expect(sanitizeStoredHtml('<img src=x onerror=alert(1)>')).toBe('<img src="x">')
+    expect(sanitizeStoredHtml('<div onclick="evil()">点</div>')).toBe('<div>点</div>')
+    // CodeQL #18/19/21/22/23 全部构造：畸形闭合/孤立标签由真解析引擎归零
+    expect(sanitizeStoredHtml('<script>alert(1)</script foo="bar">')).toBe('')
+    expect(sanitizeStoredHtml('<script>alert(1)</script/foo>')).toBe('')
+    expect(sanitizeStoredHtml('<script>alert(1)')).toBe('')
+    expect(sanitizeStoredHtml('<scr<script></script>ipt>')).not.toMatch(/<\s*script/i)
+    expect(sanitizeStoredHtml('<scr<script></script>ipt>')).not.toContain('alert')
+  })
+
+  it('TC-F5-R2: javascript: 协议整属性移除（不是剥前缀留残文）', () => {
+    expect(sanitizeStoredHtml('<a href="javascript:alert(1)">x</a>')).not.toContain('href')
+    expect(sanitizeStoredHtml('<a href="javascript:alert(1)">x</a>')).toContain('>x</a>')
+    expect(sanitizeStoredHtml('<a href="https://ok.com">链接</a>')).toContain('href="https://ok.com"')
+  })
+
+  it('TC-F5-R3: 链接钩子——强制 target=_blank + noopener（与前端同款）', () => {
+    const out = sanitizeStoredHtml('<a href="https://ok.com">链接</a>')
+    expect(out).toBe('<a href="https://ok.com" target="_blank" rel="noopener noreferrer">链接</a>')
+  })
+
+  it('TC-F5-R4: 正常富文本排版保留（含 div/table 不误删——五号风险点实测）', () => {
+    expect(sanitizeStoredHtml('<div>块级保留</div>')).toBe('<div>块级保留</div>')
+    // jsdom 规范化会补 tbody，属正常序列化，结构语义不变
+    expect(sanitizeStoredHtml('<table><tr><td>表</td></tr></table>'))
+      .toBe('<table><tbody><tr><td>表</td></tr></tbody></table>')
+    const rich = '<p>须知：<strong>加粗</strong> 与 <em>斜体</em></p><ul><li>一</li><li>二</li></ul>'
+    expect(sanitizeStoredHtml(rich)).toBe(rich)
+    expect(sanitizeStoredHtml('<h2>标题</h2><blockquote>引用</blockquote><pre><code>code</code></pre>'))
+      .toBe('<h2>标题</h2><blockquote>引用</blockquote><pre><code>code</code></pre>')
+  })
+
+  it('TC-F5-R5: 白名单外标签剥离留内文，data-* 属性移除（ALLOW_DATA_ATTR:false）', () => {
+    expect(sanitizeStoredHtml('<iframe src="https://evil"></iframe>尾')).toBe('尾')
+    expect(sanitizeStoredHtml('<form action="/x"><input></form>文')).toBe('文')
+    expect(sanitizeStoredHtml('<p data-foo="1">x</p>')).toBe('<p>x</p>')
+  })
+
+  it('TC-F5-R6: 非字符串输入安全返回空串（类型兜底）', () => {
+    expect(sanitizeStoredHtml(undefined)).toBe('')
+    expect(sanitizeStoredHtml(null)).toBe('')
+    expect(sanitizeStoredHtml(123)).toBe('')
+  })
+})
+
+describe('写入口挂接（纯文本字段走 sanitizeStoredText）', () => {
   let artist
 
   beforeEach(() => {
@@ -64,19 +122,19 @@ describe('sanitizeStoredText 写入口挂接', () => {
 
   it('TC-F5-07: 留言 content 入库前清洗', () => {
     const msg = guestbookService.createMessage(artist.id, '小明', '<script>alert(1)</script><img src=x onerror=alert(2)>画得真好')
-    expect(msg.content).toBe('<img src=x >画得真好')
+    expect(msg.content).toBe('画得真好')
   })
 
   it('TC-F5-08: 画师回复入库前清洗', () => {
     const msg = guestbookService.createMessage(artist.id, '小明', '你好')
     guestbookService.replyMessage(artist.id, msg.id, '谢谢<a href="javascript:alert(1)">点我</a>')
     const after = guestbookService.getMessageById(msg.id)
-    expect(after.artist_reply).toBe('谢谢<a href="alert(1)">点我</a>')
+    expect(after.artist_reply).toBe('谢谢点我')
   })
 
-  it('TC-F5-09: 须知入库前清洗（富文本排版保留）', () => {
+  it('TC-F5-09: 须知入库前走富文本白名单（排版保留+链接钩子固化）', () => {
     const rules = artistService.updateRules(artist.id, '<p><strong>重要</strong></p><script>alert(1)</script><a href="https://ok.com">链接</a>')
-    expect(rules.content).toBe('<p><strong>重要</strong></p><a href="https://ok.com">链接</a>')
+    expect(rules.content).toBe('<p><strong>重要</strong></p><a href="https://ok.com" target="_blank" rel="noopener noreferrer">链接</a>')
   })
 
   it('TC-F5-10: 画师 bio / announcement 入库前清洗', () => {
@@ -85,7 +143,7 @@ describe('sanitizeStoredText 写入口挂接', () => {
       announcement: '公告<img src=x onerror=alert(1)>'
     })
     expect(updated.bio).toBe('简介正文')
-    expect(updated.announcement).toBe('公告<img src=x >')
+    expect(updated.announcement).toBe('公告')
   })
 
   it('TC-F5-11: 作品描述入库前清洗（创建 + 编辑）', async () => {
@@ -101,8 +159,8 @@ describe('sanitizeStoredText 写入口挂接', () => {
       title: '新图<img src=x onerror=alert(1)>',
       description: '<a href="javascript:void(0)">坏</a>好'
     })
-    expect(edited.title).toBe('新图<img src=x >')
-    expect(edited.description).toBe('<a href="void(0)">坏</a>好')
+    expect(edited.title).toBe('新图')
+    expect(edited.description).toBe('坏好')
   })
 
   it('TC-F5-16: createArtist bio 与 updateArtist 同口径清洗', async () => {
@@ -120,82 +178,38 @@ describe('sanitizeStoredText 写入口挂接', () => {
       description: '<img src=x onerror=alert(1)>描述'
     })
     expect(stage.name).toBe('细化')
-    expect(stage.description).toBe('<img src=x >描述')
+    expect(stage.description).toBe('描述')
 
     const updated = workflowService.updateStage(artist.id, stage.id, {
       speechTemplate: '<a href="javascript:alert(1)">话术</a>'
     })
-    expect(updated.speechTemplate).toBe('<a href="alert(1)">话术</a>')
+    expect(updated.speechTemplate).toBe('话术')
   })
 
   it('TC-F5-18: 问候语 text 写入口清洗（全局/专属/更新）', () => {
     const g = greetingService.createGlobalGreeting({ text: '<script>alert(1)</script>早上好' })
     expect(g.text).toBe('早上好')
     const a = greetingService.createArtistGreeting(artist.id, { text: '<img src=x onerror=alert(1)>专属' })
-    expect(a.text).toBe('<img src=x >专属')
+    expect(a.text).toBe('专属')
     const updated = greetingService.updateGreeting(g.id, { text: '<a href="javascript:alert(1)">新问候</a>' })
-    expect(updated.text).toBe('<a href="alert(1)">新问候</a>')
+    expect(updated.text).toBe('新问候')
   })
 
   it('TC-F5-19: 留言 nickname 与 content 同口径清洗', () => {
     const msg = guestbookService.createMessage(artist.id, '<img src=x onerror=alert(1)>访客', '你好')
-    expect(msg.nickname).toBe('<img src=x >访客')
+    expect(msg.nickname).toBe('访客')
   })
 
-  it('TC-F5-12: 正常富文本经写入口完整保留', () => {
-    const rich = '<p>须知：<strong>加粗</strong> <a href="https://example.com">链接</a></p>'
-    const rules = artistService.updateRules(artist.id, rich)
-    expect(rules.content).toBe(rich)
-  })
-})
-
-// CodeQL 告警防再犯（2026-08-14，js/incomplete-multi-character-sanitization）：
-// 全链路不动点循环——嵌套还原绕过单次替换的构造必须被洗净
-describe('sanitizeStoredText 不动点循环（CodeQL 防再犯）', () => {
-  it('TC-F5-13: javajavascript:script: 嵌套还原不得重新拼出可执行协议', () => {
-    expect(sanitizeStoredText('javajavascript:script:alert(1)')).not.toMatch(/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i)
+  it('TC-F5-12: 正常富文本须知经写入口完整保留（链接钩子固化 _blank/noopener）', () => {
+    const rules = artistService.updateRules(artist.id, '<p>须知：<strong>加粗</strong> <a href="https://example.com">链接</a></p>')
+    expect(rules.content).toBe('<p>须知：<strong>加粗</strong> <a href="https://example.com" target="_blank" rel="noopener noreferrer">链接</a></p>')
   })
 
-  it('TC-F5-14: 双层嵌套 script 标签嵌套还原不得残留可执行对', () => {
-    const out = sanitizeStoredText('<scr<script></script>ipt src=x>ok</scr<script></script>ipt>')
-    expect(out).not.toMatch(/<\s*script\b/i)
-  })
-
-  it('TC-F5-15: 正常文本与排版 HTML 不受不动点循环影响', () => {
-    const rich = '<p>说明：<em>斜体</em> 与 <a href="https://a.b">链接</a></p>'
-    expect(sanitizeStoredText(rich)).toBe(rich)
-  })
-
-  it('TC-F5-20: 结束标签带属性（</script foo="bar">，浏览器容错视为闭合）不得残留', () => {
-    // CodeQL #19 js/bad-tag-filter：旧正则 `\s*>` 匹配不到带属性的结束标签，
-    // `<script>alert(1)</script foo="bar">` 整对残留入库。
-    expect(sanitizeStoredText('<script>alert(1)</script foo="bar">')).toBe('')
-    expect(sanitizeStoredText('x<script>alert(1)</script foo="bar">y')).toBe('xy')
-    expect(sanitizeStoredText('<STYLE>body{display:none}</STYLE type="text/css">')).toBe('')
-  })
-
-  it('TC-F5-21: 结束标签带斜杠（</script/foo>）不得残留', () => {
-    // CodeQL #18 js/incomplete-multi-character-sanitization 变体：`</script/foo>` 同样被
-    // 浏览器当作 script 结束标签，旧正则匹配不到 → 残留 `<script>`。
-    expect(sanitizeStoredText('<script>alert(1)</script/foo>')).toBe('')
-    expect(sanitizeStoredText('<script>alert(1)</script/ >')).toBe('')
-  })
-
-  it('TC-F5-22: 嵌套拼出的孤立开始标签（CodeQL #21）不得残留', () => {
-    // CodeQL #21 js/incomplete-multi-character-sanitization：`<scr<script></script>ipt>`
-    // 删除内层标签对后拼出无闭合的 `<script>`，标签对正则匹配不到，旧版残留。
-    // 兜底删除残留开始标签后应为空。
-    expect(sanitizeStoredText('<scr<script></script>ipt>')).toBe('')
-    expect(sanitizeStoredText('<scr<script></script>ipt src=x>')).toBe('')
-  })
-
-  it('TC-F5-23: 无闭合开始标签（<script>alert(1)）不得残留 script 标签', () => {
-    // 无闭合 `<script>` 浏览器会把后续内容当脚本直到文档尾，比成对标签更危险。
-    // 删除开始标签后剩余内容为纯文本（不执行）。
-    expect(sanitizeStoredText('<script>alert(1)')).toBe('alert(1)')
-    expect(sanitizeStoredText('x<script src="https://evil/x.js">y')).toBe('xy')
-    expect(sanitizeStoredText('<style>body{display:none}')).toBe('body{display:none}')
-    // 孤立结束标签也清理（无开始标签，浏览器忽略，但保持干净）
-    expect(sanitizeStoredText('a</script>b')).toBe('ab')
+  it('TC-F5-24: 纯文本字段含 & < 特殊字符零误伤（{{ }} 插值防双重转义回归）', () => {
+    const msg = guestbookService.createMessage(artist.id, 'R&D 粉', '价格<100 吗？5<6 折')
+    expect(msg.nickname).toBe('R&D 粉')
+    expect(msg.content).toBe('价格<100 吗？5<6 折')
+    const updated = artistService.updateArtist(artist.id, { bio: 'Tom & Jerry 同人社' })
+    expect(updated.bio).toBe('Tom & Jerry 同人社')
   })
 })

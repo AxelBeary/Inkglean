@@ -4,7 +4,7 @@ import { isValidArtistCode, RESERVED_SUBDOMAINS } from '../../shared/validate.js
 import { normalizeLinkUrl, assertLinkLengthLimits, MAX_LINK_COUNT } from '../../shared/utils/platform.js'
 import { rederivePlatformId } from '../platform/platform.service.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
-import { sanitizeStoredText } from '../../shared/sanitize.js'
+import { sanitizeStoredText, sanitizeStoredHtml } from '../../shared/sanitize.js'
 import type { Artist } from '../../types/entities.js'
 import sharp from 'sharp'
 import { resolve, join } from 'path'
@@ -548,8 +548,9 @@ export function getRules(artistId: number): CommissionRule | undefined {
 }
 
 export function updateRules(artistId: number, content: string): CommissionRule | undefined {
-  // F-5（P3-18）: 须知入库前最小清洗——富文本排版保留，仅去脚本/事件/危险协议（纵深防御）
-  const safeContent = sanitizeStoredText(content)
+  // F-5（P3-18）: 须知入库前清洗——唯一走 v-html/SanitizedRichText 的富文本字段，
+  // 走白名单重建（sanitizeStoredHtml，镜像前端渲染层口径，纵深防御）
+  const safeContent = sanitizeStoredHtml(content)
   db.prepare('UPDATE commission_rules SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE artist_id = ?')
     .run(safeContent, artistId)
   return getRules(artistId)

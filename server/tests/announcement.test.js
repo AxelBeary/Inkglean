@@ -56,7 +56,8 @@ describe('REQ-043 I4 平台公告（服务层）', () => {
     savePlatformAnnouncement({ title: '正常标题', content: '正常内容' })
     db.prepare("UPDATE platform_config SET value = '<img src=x onerror=alert(1)>坏标题' WHERE key = 'announcement_title'").run()
     const ann = getPlatformAnnouncement()
-    expect(ann.title).toBe('<img src=x >坏标题')
+    // CodeQL 根治轮·方案 B：公告标题/内容走 {{ }} 插值渲染 = 纯文本档，零标签提取只留内文
+    expect(ann.title).toBe('坏标题')
   })
 
   it('TC-ANN-04: 标题/内容超长截断（schema 限长之外的纵深防御）', () => {
