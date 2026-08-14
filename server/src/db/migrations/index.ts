@@ -66,6 +66,7 @@ import { migration as v60 } from './v60-onboarding.js'
 import { migration as v61 } from './v61-dashboard-visual-prep.js'
 import { migration as v62 } from './v62-artworks-source-deliverable-id.js'
 import { migration as v63 } from './v63-orders-customer-token.js'
+import { migration as v64 } from './v64-greeting-special-days.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -82,6 +83,7 @@ export const MIGRATIONS: Migration[] = [
   v61,
   v62,
   v63,
+  v64,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错
