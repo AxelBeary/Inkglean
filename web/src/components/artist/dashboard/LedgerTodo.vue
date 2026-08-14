@@ -94,6 +94,7 @@ import { ElMessage } from 'element-plus'
 import { artistApi } from '../../../api/index.js'
 import { formatCents } from '../../../utils/money.js'
 import { formatDateTime } from '../../../utils/datetime.js'
+import { tagKey } from '../../../utils/dashboard-normalize.js'
 import type { TodoItem } from '../../../api/types.js'
 
 // monthCents 经 defineProps 直接在模板使用（不做 const 绑定，避免 TS 未用警告）
@@ -147,7 +148,9 @@ async function load() {
   state.value = 'loading'
   try {
     const res = await artistApi.getDashboardTodo()
-    items.value = res.items || []
+    // I3 抓修：后端 tag 为中文（新单/逾期…），需经 tagKey 映射成枚举（pending/overdue…），
+    // 否则模板 t('dashboard.tag_'+中文) 命中不了键，标签渲染成原始键名
+    items.value = (res.items || []).map(o => ({ ...o, tag: tagKey(o.tag) }))
     state.value = 'ok'
   } catch {
     state.value = 'error'
