@@ -20,6 +20,8 @@ const IS_WIN = process.platform === 'win32'
 const IS_LINUX = process.platform === 'linux'
 const PID_FILE = join(ROOT, 'data', 'server.pid')
 const LOG_FILE = join(ROOT, 'data', 'server.log')
+// 本次新生成的安装口令（REQ-038：开箱向导第一步需要），完成时打印给用户
+let newSetupToken = null
 
 // ─── 颜色（非 TTY 自动关闭）───
 const useColor = process.stdout.isTTY === true
@@ -299,6 +301,10 @@ async function launchNativeSite(port) {
   ok('网站已就绪')
 
   const extra = []
+  if (newSetupToken) {
+    extra.push('')
+    extra.push(`  安装口令：${yellow(newSetupToken)}（开箱向导第一步要输入，请妥善保管）`)
+  }
   if (IS_WIN) {
     extra.push('')
     extra.push(yellow('  注意：请不要关闭这个窗口——关掉窗口网站就会停止。'))
@@ -452,6 +458,8 @@ async function main() {
   const envUpdates = {
     SESSION_SECRET: sessionSecret,
     COOKIE_SECRET: cookieSecret,
+    // 安装口令（REQ-038）：保护未初始化系统的 /setup 向导，防未授权访问
+    SETUP_TOKEN: randomBytes(4).toString('hex'),
   }
 
   let domain = getArg('--domain')
@@ -474,6 +482,7 @@ async function main() {
   }
 
   const added = ensureEnv(envUpdates)
+  if (added.includes('SETUP_TOKEN')) newSetupToken = envUpdates.SETUP_TOKEN
   if (added.length > 0) ok(`配置已写入 .env（${added.join('、')}）`)
   else ok('配置齐全，无需补充')
   console.log('')
@@ -502,7 +511,10 @@ async function main() {
     }
     ok('网站已就绪')
     const url = domain && domain !== 'localhost' ? `https://${domain}` : 'https://localhost（浏览器若提示"不安全"，点"继续访问"即可）'
-    printDone(url)
+    const extras = newSetupToken
+      ? ['', `  安装口令：${yellow(newSetupToken)}（开箱向导第一步要输入，请妥善保管）`]
+      : []
+    printDone(url, extras)
   } else {
     // ── 原生模式 ──
     if (!runStream('npm', ['ci'], { cwd: join(ROOT, 'server') })) {

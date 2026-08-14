@@ -49,6 +49,9 @@ DOMAIN="${DOMAIN:-localhost}"
 
 SESSION_SECRET=$(openssl rand -hex 32)
 COOKIE_SECRET=$(openssl rand -hex 32)
+# 安装口令（REQ-038）：保护未初始化系统的 /setup 向导，开箱第一步要输入
+SETUP_TOKEN=$(openssl rand -hex 4)
+SETUP_TOKEN_IS_NEW=""
 
 ENV_FILE=".env"
 set_env_if_missing() {
@@ -66,6 +69,10 @@ set_env_if_missing "DOMAIN" "$DOMAIN"
 set_env_if_missing "NODE_ENV" "production"
 set_env_if_missing "SESSION_SECRET" "$SESSION_SECRET"
 set_env_if_missing "COOKIE_SECRET" "$COOKIE_SECRET"
+if ! grep -q "^SETUP_TOKEN=" "$ENV_FILE" 2>/dev/null; then
+  SETUP_TOKEN_IS_NEW="yes"
+fi
+set_env_if_missing "SETUP_TOKEN" "$SETUP_TOKEN"
 
 read -r -p "  你的 QQ 号（用于管理员账号，也可以按回车跳过）： " ADMIN_QQ
 if [ -n "$ADMIN_QQ" ]; then
@@ -119,3 +126,8 @@ echo "  1. 用浏览器打开上面的地址"
 echo "  2. 跟随开箱设置向导，设置管理员账号"
 echo "  3. 开始使用拾绘！"
 echo ""
+if [ -n "$SETUP_TOKEN_IS_NEW" ]; then
+  echo -e "  ${YELLOW}安装口令：${SETUP_TOKEN}${NC}"
+  echo -e "  ${YELLOW}（开箱向导第一步要输入，请妥善保管）${NC}"
+  echo ""
+fi
