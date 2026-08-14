@@ -26,7 +26,10 @@
       <p>{{ $t('artistHome.sectionLoadFailed') }}</p>
       <el-button type="primary" size="small" @click="retryFailedSections">{{ $t('common.loadRetry') }}</el-button>
     </div>
-    <div v-else-if="!loading" class="empty-state">
+    <!-- 波 M 空态限定修复（v104 竖屏实测抓修）：条件链被上方独立 v-if（分块占位）打断，
+         v-else-if 只接 hasSectionErrors；异步模板数据晚于 loading=false 到达时，
+         空态与已渲染模板会同时出现。补全「无画师且非隐藏」限定，只在真失败时显示 -->
+    <div v-if="!loading && !artist && artist?.status !== 'hidden' && !hasSectionErrors" class="empty-state">
       <p>{{ $t('artistHome.loadFailed') }}</p>
     </div>
     <!-- #55/61: 客户端统一浮窗（4 模板共用，CTA 避让由模板 inject 同步） -->
