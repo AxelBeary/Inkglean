@@ -24,7 +24,7 @@
     </div>
 
     <!-- 未检查：空状态 -->
-    <el-card shadow="never" class="section-card" v-if="!checks.length && !checking">
+    <el-card shadow="never" class="admin-section-card" v-if="!checks.length && !checking">
       <el-empty :description="$t('admin.health.emptyHint')" />
     </el-card>
 
@@ -39,7 +39,8 @@
           :aria-expanded="isExpanded(c.id)"
           @click="toggleExpand(c.id)"
         >
-          <span class="health-status" aria-hidden="true">
+          <!-- b3 清扫：状态 class 补挂，语义色（ok/warn/fail）随状态生效 -->
+          <span class="health-status" :class="`health-status--${c.status}`" aria-hidden="true">
             <el-icon><component :is="statusIcon(c.status)" /></el-icon>
           </span>
           <span class="health-name">{{ c.name }}</span>

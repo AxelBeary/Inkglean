@@ -3,17 +3,11 @@
 // SPEC-PRICE-2：画风模型唯一，复用 stepnav 同款 mock 方案
 import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { nextTick, ref, reactive, computed } from 'vue'
+import { nextTick } from 'vue'
 import ElementPlus from 'element-plus'
+import { polyfillResizeObserver, buildMockComposable } from './helpers/orderFormMock.js'
 
-// happy-dom 无 ResizeObserver，Element Plus 内部可能用到，补齐
-if (!window.ResizeObserver) {
-  window.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-}
+polyfillResizeObserver()
 
 // ─── Mocks（vi.mock 自动提升） ───
 vi.mock('vue-router', () => ({
@@ -40,71 +34,6 @@ vi.mock('../../../composables/useOrderForm.js', () => ({
 
 import OrderForm from '../OrderForm.vue'
 
-const STYLE_A = {
-  id: 11, name: '厚涂', description: null, cover_image: null, sort_order: 1,
-  sizes: [{ id: 111, name: '头像', base_price: 80, sort_order: 1, addons: [] }]
-}
-
-/** 构造 useOrderForm 可控 mock（SPEC-PRICE-2 新 API 面） */
-function buildMockComposable(mode) {
-  const styleMode = mode !== 'empty'
-  const form = reactive({
-    description: '', clientQq: '', clientName: '',
-    notifyEnabled: false, discountCode: '', agreed: false
-  })
-  const styles = ref(styleMode ? [STYLE_A] : [])
-  const selectedStyleId = ref(styleMode ? STYLE_A.id : null)
-  const selectedSizeId = ref(null)
-  const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
-  const selectedSize = computed(() => selectedStyle.value?.sizes?.find(sz => sz.id === selectedSizeId.value) || null)
-  const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
-
-  return {
-    artist: ref({ name: 'Alice', notifyEnabled: false, revisionNote: '' }),
-    rulesContent: ref(''),
-    loading: ref(false),
-    workflowStages: ref([]),
-    form,
-    rules: {},
-    submitting: ref(false),
-    showSuccess: ref(false),
-    resultNo: ref(''),
-    submit: vi.fn(),
-    refFileList: ref([]),
-    handleRefUpload: vi.fn(),
-    handleRefRemove: vi.fn(),
-    sanitizedRules: ref(''),
-    discountEnabled: ref(false),
-    discountResult: ref(null),
-    discountError: ref(''),
-    discountValidating: ref(false),
-    validateDiscountCode: vi.fn(),
-    styles,
-    isStyleMode: computed(() => styleMode),
-    isMultiStyle: computed(() => false),
-    selectedStyleId,
-    selectedStyle,
-    selectedSizeId,
-    selectedSize,
-    availableStyleAddons,
-    regularAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'add')),
-    usageAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'usage')),
-    rushAddons: computed(() => availableStyleAddons.value.filter(a => a.category === 'rush')),
-    styleAddonSelections: reactive({}),
-    selectedUsageId: ref(null),
-    selectedRushId: ref(null),
-    selectStyle: vi.fn(),
-    selectSize: vi.fn(),
-    toggleUsage: vi.fn(),
-    toggleRush: vi.fn(),
-    styleAddonPriceText: (a) => `¥${a.price}`,
-    stylePricePreview: ref(null),
-    styleDisplayPrice: ref(0),
-    installmentPreview: ref([]),
-    queryPreselect: reactive({ styleId: null, sizeId: null }),
-    preselectBannerText: computed(() => '')
-  }
-}
 h.build = buildMockComposable
 
 async function mountForm(mode) {

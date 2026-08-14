@@ -49,7 +49,7 @@
             <el-table-column prop="qq_number" :label="$t('admin.colQq')" width="110" />
             <el-table-column :label="$t('admin.colStatus')" width="110">
               <template #default="{ row }">
-                <el-tag :type="{ open: 'success', full: 'warning', break: 'danger', hidden: 'info' }[row.status]" effect="light">
+                <el-tag :type="ARTIST_STATUS_TYPE[row.status] || 'info'" effect="light">
                   {{ $t(`common.statusShort.${row.status}`) }}
                 </el-tag>
               </template>
@@ -119,7 +119,7 @@
               <span class="gb-col gb-col--actions"></span>
             </div>
             <TransitionGroup tag="div" name="gb-row" class="gb-list" v-loading="msgLoading">
-              <div v-for="row in adminMessages" :key="row.id" class="gb-row">
+              <div v-for="row in pagedAdminMessages" :key="row.id" class="gb-row">
                 <span class="gb-col gb-col--artist" :data-label="$t('admin.guestbook.colArtist')">{{ row.artist_name || `#${row.artist_id}` }}</span>
                 <span class="gb-col gb-col--nick" :data-label="$t('admin.guestbook.colNickname')">{{ row.nickname }}</span>
                 <span class="gb-col gb-col--content" :title="row.content" :data-label="$t('admin.guestbook.colContent')">{{ row.content }}</span>
@@ -132,6 +132,15 @@
                 </span>
               </div>
             </TransitionGroup>
+            <!-- b3 清扫：留言列表客户端分页（全量已拉取，仅限制 DOM 渲染量；筛选切换重置页码） -->
+            <div v-if="adminMessages.length > GB_PAGE_SIZE" class="pager">
+              <el-pagination
+                v-model:current-page="messagesPage"
+                :page-size="GB_PAGE_SIZE"
+                :total="adminMessages.length"
+                layout="total, prev, pager, next"
+              />
+            </div>
           </div>
           <el-empty v-else-if="!msgLoadFailed" :description="$t('admin.guestbook.empty')" />
         </el-card>
@@ -141,11 +150,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
+import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 
 const { t } = useI18n()
 const stats = ref(null)
@@ -156,11 +166,18 @@ const loading = ref(true)
 const adminMessages = ref([])
 const msgLoading = ref(true)
 const msgLoadFailed = ref(false)
+const messagesPage = ref(1)
+/** b3 清扫：留言列表分页大小（客户端截断，防全量渲染） */
+const GB_PAGE_SIZE = 10
+const pagedAdminMessages = computed(() =>
+  adminMessages.value.slice((messagesPage.value - 1) * GB_PAGE_SIZE, messagesPage.value * GB_PAGE_SIZE)
+)
 const filterArtistId = ref(null)
 const filterStatus = ref(null)
 const filterReplied = ref(null)
 
 async function loadAdminMessages() {
+  messagesPage.value = 1
   msgLoading.value = true
   msgLoadFailed.value = false
   try {
@@ -311,6 +328,8 @@ onMounted(async () => {
 .gb-row-enter-from,
 .gb-row-leave-to { opacity: 0; }
 .gb-row-leave-active { position: absolute; width: 100%; }
+/* b3 清扫：留言分页（与 ArtistManage 回收站分页同款右对齐） */
+.pager { display: flex; justify-content: flex-end; margin-top: var(--sp-4, 16px); }
 
 /* 波 S：断点统一 768→900 */
 @media (max-width: 900px) {

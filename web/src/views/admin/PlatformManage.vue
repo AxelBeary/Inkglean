@@ -35,6 +35,7 @@
           <template #default="{ row }">
             <el-switch
               :model-value="!!row.enabled"
+              :disabled="togglingId === row.id"
               @change="(val) => toggleEnabled(row, val)"
             />
           </template>
@@ -48,7 +49,8 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!loading && !platforms.length" :description="$t('admin.platform.colName')" />
+      <!-- b3 清扫：空态误用「平台名」列名键；admin.platform.empty 键由 D 波补齐 -->
+      <el-empty v-if="!loading && !platforms.length" :description="$t('admin.platform.empty')" />
     </el-card>
 
     <!-- 新增/编辑弹窗 -->
@@ -108,6 +110,8 @@ const ICON_OPTIONS = PLATFORM_ICON_NAMES
 const platforms = ref([])
 const loading = ref(false)
 const saving = ref(false)
+// b3 清扫：启用开关切换期间禁用，防连续触发
+const togglingId = ref(null)
 const dialogVisible = ref(false)
 const editing = ref(false)
 const editId = ref(null)
@@ -141,6 +145,8 @@ function openDialog(row) {
 }
 
 async function toggleEnabled(row, val) {
+  if (togglingId.value === row.id) return
+  togglingId.value = row.id
   try {
     await adminApi.updatePlatform(row.id, { enabled: !!val })
     row.enabled = !!val
@@ -148,6 +154,8 @@ async function toggleEnabled(row, val) {
   } catch (err) {
     ElMessage.error(err.message)
     row.enabled = !val
+  } finally {
+    togglingId.value = null
   }
 }
 

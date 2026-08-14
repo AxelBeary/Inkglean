@@ -164,7 +164,8 @@ const groupedNav = computed(() =>
   }))
 )
 
-// 子路由（如 /admin/artists 详情）归属父级高亮；无匹配时管理员面板
+// 导航高亮：精确命中导航项 → 该路径；其余 /admin/*（含详情子路由）统一归管理员面板
+// （路由层已把未知 /admin 路径 redirect 回 /admin，故不在此做前缀归属）
 const activePath = computed(() => {
   const p = route.path
   const exact = navItems.find(item => item.path === p)

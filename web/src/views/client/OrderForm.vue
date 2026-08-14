@@ -42,7 +42,7 @@
                 :styles="styles"
                 :selected-style-id="selectedStyleId"
                 @select="selectStyle"
-                @next="step = 2"
+                @next="step = sizeStep"
               />
 
               <!-- ── v0.32: 选尺寸（画风模式步骤 2 / 单画风步骤 1） ── -->
@@ -125,15 +125,17 @@
             :selected-size="selectedSize"
             :preview="stylePricePreview"
             :installments="installmentPreview"
-            :display-price="displayPrice"
+            :display-price="styleDisplayPrice"
           />
         </div>
 
         <!-- P0-1: 移动端底部粘性操作条（桌面隐藏；与原按钮并存） -->
-        <div class="mobile-cta-bar" v-if="artist">
+        <!-- a2 猎杀修复：无画风配置（!isStyleMode）时只渲染「返回主页」空态，
+             移动端 CTA 若仍显示会陷入「下一步→selectSizeFirst 警告」死循环，故一并隐藏 -->
+        <div class="mobile-cta-bar" v-if="artist && isStyleMode">
           <div class="mobile-cta-price">
             <span class="mobile-cta-label">{{ $t('orderForm.receiptTotal') }}</span>
-            <span class="mobile-cta-amt">{{ formatYuanValue(displayPrice) }}</span>
+            <span class="mobile-cta-amt">{{ formatYuanValue(styleDisplayPrice) }}</span>
           </div>
           <el-button type="primary" class="mobile-cta-btn" @click="onMobileNext">
             {{ step === contactStep ? $t('orderForm.submit') : $t('orderForm.nextStep') }}
@@ -186,7 +188,7 @@
         <div class="receipt-dashed"></div>
         <div class="receipt-total">
           <span>{{ $t('orderForm.receiptTotal') }}</span>
-          <span>{{ formatYuanValue(displayPrice) }}</span>
+          <span>{{ formatYuanValue(styleDisplayPrice) }}</span>
         </div>
         <div v-if="installmentPreview.length > 1" class="receipt-installments">
           <span v-for="inst in installmentPreview" :key="inst.label" class="receipt-inst">
@@ -247,7 +249,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, h } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -467,12 +469,9 @@ watch(loading, (v) => {
   }
 }, { once: true })
 
-/** 摘要卡/小票/提交按钮展示价（SPEC-PRICE-2 唯一引擎总价） */
-const displayPrice = computed(() => styleDisplayPrice.value)
-
 /** 联系方式步提交按钮价格后缀（已选画风+尺寸时显示，否则不拼） */
 const submitPriceText = computed(() =>
-  (isStyleMode.value && selectedSize.value) ? formatYuanValue(displayPrice.value) : null
+  (isStyleMode.value && selectedSize.value) ? formatYuanValue(styleDisplayPrice.value) : null
 )
 
 // ─── R58-4: 灵感标签快捷注入（R58-8: 从 API 读取画师自定义标签，未设置时不显示，不 fallback 硬编码） ───
@@ -491,11 +490,11 @@ async function openReceipt() {
         .map(err => err.message)
         .filter(Boolean)
       if (items.length) {
-        // 内容全部来自 i18n 翻译文案，无用户输入，无 XSS 风险
-        const html = items.map(msg => `<p style="margin:4px 0">• ${msg}</p>`).join('')
-        await ElMessageBox.alert(html, t('order.validation.title'), {
+        // c1 猎杀修复：校验消息全部来自 i18n 翻译文案（无用户输入），但仍去掉
+        // dangerouslyUseHTMLString 危险模式——改 VNode 逐条渲染（视觉与旧 HTML 段落一致，零注入面）
+        const message = h('div', items.map(msg => h('p', { style: 'margin:4px 0' }, `• ${msg}`)))
+        await ElMessageBox.alert(message, t('order.validation.title'), {
           confirmButtonText: t('order.validation.confirm'),
-          dangerouslyUseHTMLString: true
         }).catch(() => {})
       }
       // 弹窗关闭后滚动到第一个未通过字段
@@ -527,7 +526,7 @@ async function copyOrderSummary() {
     if (p.rush) lines.push(`- ${p.rush.name} +${p.rush.percent}%: +${formatYuan(p.rush.incrementCents)}`)
     if (p.discount) lines.push(`- ${t('orderForm.discountEstimate')}: -${formatYuan(p.discount.amountCents)}`)
   }
-  lines.push(`${t('orderForm.receiptTotal')}: ${formatYuanValue(displayPrice.value)}`)
+  lines.push(`${t('orderForm.receiptTotal')}: ${formatYuanValue(styleDisplayPrice.value)}`)
   const text = lines.join('\n')
   try {
     await navigator.clipboard.writeText(text)
@@ -602,47 +601,6 @@ function goTrack() {
 .step-nav--end { justify-content: flex-end; }
 /* 波 M：步骤切换淡入淡出（--dur-mid，禁位移，保持 v-show 现状） */
 
-/* ─── R58-2: 档位卡片选择（选中态弹性动画） ─── */
-.tier-pick-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.tier-pick {
-  position: relative;
-  padding: 18px 14px; text-align: center; cursor: pointer;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color); border-radius: 12px;
-  transition: border-color var(--dur-mid), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-mid);
-}
-.tier-pick:hover { box-shadow: var(--shadow-card-hover); }
-/* T 波移交 M：active 禁位移——位移换背景加深+阴影加深 */
-.tier-pick:active { background: var(--bg-hover); box-shadow: var(--shadow-card-hover); }
-.tier-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
-.tier-pick-stamp {
-  position: absolute; top: -9px; right: -9px;
-  width: 26px; height: 26px; border-radius: 50%;
-  background: var(--color-primary); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700;
-  animation: tier-stamp-in var(--dur-slow) var(--ease-bounce);
-}
-@keyframes tier-stamp-in {
-  from { transform: scale(0) rotate(-30deg); }
-  to { transform: scale(1) rotate(0deg); }
-}
-.tier-pick-name {
-  font-family: var(--font-display);
-  font-size: 15px; font-weight: 600; color: var(--text-primary);
-  margin-bottom: 6px;
-}
-.tier-pick-price {
-  font-size: 20px; font-weight: 700; color: var(--color-primary);
-  font-variant-numeric: tabular-nums;
-}
-.tier-pick-days { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-
 /* ─── R58-2: 移动端——单栏 ─── */
 @media (max-width: 860px) {
   .step-layout { grid-template-columns: 1fr; }
@@ -666,50 +624,6 @@ function goTrack() {
 @media (max-width: 860px) {
   .step-nav { padding-bottom: 64px; }
 }
-
-/* R14: 紧凑计价摘要 + 渐进展开 */
-.pricing-summary {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px; margin-bottom: 12px;
-  background: var(--bg-inset); border: 1px solid var(--border-color); border-radius: 8px;
-}
-.pricing-summary-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.pricing-summary-price { font-size: 16px; font-weight: 700; color: var(--el-color-primary); }
-.pricing-expand-btn {
-  margin-left: auto; padding: 4px 10px;
-  background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
-  font-size: 12px; color: var(--text-secondary); cursor: pointer;
-  transition: color var(--dur-mid), border-color var(--dur-mid);
-}
-.pricing-expand-btn:hover { color: var(--el-color-primary); border-color: var(--el-color-primary); }
-.pricing-expand-enter-active, .pricing-expand-leave-active { transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out); }
-.pricing-expand-enter-from, .pricing-expand-leave-to { opacity: 0; transform: translateY(-8px); }
-
-/* 增项分组（旧折叠式残留；.addon-group 级联样式已随区块迁入 AddonStep.vue） */
-.addon-groups { width: 100%; }
-.addon-group-title {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; background: var(--bg-inset); cursor: pointer;
-  font-size: 14px; font-weight: 600; color: var(--text-primary);
-  user-select: none;
-}
-.addon-group-title:hover { background: var(--bg-hover); }
-.collapse-arrow { color: var(--text-muted); font-size: 12px; }
-.addon-items { padding: 8px 14px; }
-.addon-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 0; border-bottom: 1px solid var(--border-color);
-}
-.addon-item:last-child { border-bottom: none; }
-.addon-item-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.addon-item-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
-.addon-item-price { font-size: 12px; color: var(--el-color-primary); font-weight: 600; }
-.addon-item-desc { font-size: 11px; color: var(--text-secondary); }
-
-/* 倍率 */
-.multiplier-section { width: 100%; }
-.multiplier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.multiplier-label { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
 
 /* R58-6: 成功弹窗画师 QQ 区 */
 .success-qq {

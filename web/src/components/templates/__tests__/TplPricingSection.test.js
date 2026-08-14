@@ -11,7 +11,7 @@ vi.mock('vue-i18n', () => ({
 
 const ShowcaseStub = {
   name: 'TplShowcase',
-  props: ['mode', 'styles', 'tiers', 'featured', 'subdomain', 'artist'],
+  props: ['mode', 'styles', 'tiers', 'subdomain', 'artist'],
   template: '<div class="showcase-stub"><slot name="addons" :tier="(tiers || [])[0]" /></div>'
 }
 
@@ -51,17 +51,16 @@ describe('TplPricingSection（价格+流程+修改说明共享区块）', () => 
     expect(wrapper.findAll('p.tpl-section-label').length).toBe(1)
   })
 
-  it('无画风有档位 → 走 tier 展示柜；featured 透传；addons 收到档位数据', () => {
+  it('无画风有档位 → 走 tier 展示柜；addons 收到档位数据', () => {
     const tier = { id: 2, name: 'T1', price: 100 }
     const wrapper = mountSection(
-      { tiers: [tier], featured: true },
+      { tiers: [tier] },
       {
         addons: '<span class="addons-stub" v-if="tier">{{ tier.name }}</span>'
       }
     )
     const showcase = wrapper.getComponent({ name: 'TplShowcase' })
     expect(showcase.props('mode')).toBe('tier')
-    expect(showcase.props('featured')).toBe(true)
     expect(showcase.props('tiers')).toEqual([tier])
     expect(wrapper.find('.addons-stub').text()).toBe('T1')
   })

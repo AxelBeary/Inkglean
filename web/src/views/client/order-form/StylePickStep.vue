@@ -81,7 +81,7 @@ const { t } = useI18n()
 .style-pick-stamp {
   position: absolute; top: 8px; right: 8px; z-index: 2;
   width: 24px; height: 24px; border-radius: 50%;
-  background: var(--color-primary); color: #fff;
+  background: var(--color-primary); color: var(--pal-bg, #fff);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700;
   animation: tier-stamp-in var(--dur-slow) var(--ease-bounce);

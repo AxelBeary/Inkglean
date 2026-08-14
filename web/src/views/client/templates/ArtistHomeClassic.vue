@@ -1,7 +1,7 @@
 <template>
   <div v-if="artist" class="classic" ref="rootEl">
     <!-- 开场：代表作横幅 -->
-    <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" :platforms="platforms" variant="banner" ref="heroRef" />
+    <TplHero :artist="artist" :artworks="artworks" :subdomain="subdomain" :platforms="platforms" variant="banner" />
 
     <!-- 主体：桌面双栏，移动端单栏 -->
     <div class="classic-body">
@@ -52,13 +52,9 @@
           :revision-note="artist.revisionNote"
           :subdomain="subdomain"
           :artist="artist"
-          featured
         >
           <template #title>
             <p class="tpl-section-label classic-label">{{ $t('artistHome.priceList') }}</p>
-          </template>
-          <template #addons="{ tier }">
-            <slot name="addons" :tier="tier" />
           </template>
         </TplPricingSection>
 
@@ -107,16 +103,21 @@ import Disclaimer from '../../../components/Disclaimer.vue'
 import ComplianceFooterLinks from '../../../components/client/ComplianceFooterLinks.vue'
 
 const props = defineProps({
-  artist: Object, tiers: Array, styles: Array, artworks: Array, rules: String,
-  workflowStages: Array, subdomain: String, sanitizedRules: String, pricing: Object,
-  gallery: Object, // v0.35 联调：画廊端点数据（size_tags/filterSizes）
-  platforms: Array // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
+  artist: { type: Object, default: null },
+  tiers: { type: Array, default: () => [] },
+  styles: { type: Array, default: () => [] },
+  artworks: { type: Array, default: () => [] },
+  rules: { type: String, default: '' },
+  workflowStages: { type: Array, default: () => [] },
+  subdomain: { type: String, default: '' },
+  sanitizedRules: { type: String, default: '' },
+  gallery: { type: Object, default: null }, // v0.35 联调：画廊端点数据（size_tags/filterSizes）
+  platforms: { type: Array, default: () => [] } // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
 })
 
 const { imgUrl, footerLinks, galleryArtworks } = useArtistData(props)
 
 const rootEl = ref(null)
-const heroRef = ref(null)
 useScrollReveal(rootEl)
 </script>
 

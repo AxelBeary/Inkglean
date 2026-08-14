@@ -63,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { artistPublicApi } from '../../api/index.js'
 import { formatDateTime } from '../../utils/datetime.js'
 import { ElMessage } from 'element-plus'
@@ -86,9 +86,20 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const submitting = ref(false)
 const justSubmitted = ref(false)
+let pendingHintTimer = null
+
+/** 复位「已提交待审核」提示：输入新内容立即清除；5s 无人操作兜底清除（b3 猎杀） */
+function clearPendingHint() {
+  if (pendingHintTimer) clearTimeout(pendingHintTimer)
+  pendingHintTimer = null
+  justSubmitted.value = false
+}
 
 const nickname = ref('')
 const content = ref('')
+watch(content, (v) => {
+  if (justSubmitted.value && v) clearPendingHint()
+})
 
 const PAGE_SIZE = 20
 const hasMore = computed(() => messages.value.length < total.value)
@@ -131,8 +142,9 @@ async function submit() {
     if (res?.warning?.sensitiveWords?.length) {
       ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
     }
-    justSubmitted.value = true
     content.value = ''
+    justSubmitted.value = true
+    pendingHintTimer = setTimeout(() => { justSubmitted.value = false; pendingHintTimer = null }, 5000)
   } catch (err) {
     // 429 限流：后端返回 code=RATE_LIMITED
     if (err.response?.status === 429) {
@@ -144,6 +156,10 @@ async function submit() {
     submitting.value = false
   }
 }
+
+onUnmounted(() => {
+  if (pendingHintTimer) clearTimeout(pendingHintTimer)
+})
 </script>
 
 <style scoped>

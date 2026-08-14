@@ -20,7 +20,7 @@
             v-for="artist in artists" :key="artist.id"
             class="not-found-artist-card"
             :aria-label="artist.name"
-            @click="$router.push(`/artist/${artist.subdomain}`)"
+            @click="enterArtist(artist)"
           >
             <el-avatar :size="56" :src="artist.avatar ? `/uploads/${artist.avatar}` : undefined">
               {{ artist.name?.charAt(0) }}
@@ -38,12 +38,21 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 
+const router = useRouter()
 const artists = ref([])
 const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
+
+/** a2 猎杀修复：与 LandingPage 同口径，subdomain 非法时不生成 /artist/undefined 死链 */
+function enterArtist(artist) {
+  const sub = artist?.subdomain
+  if (typeof sub !== 'string' || !/^[a-z0-9-]{2,20}$/i.test(sub)) return
+  router.push(`/artist/${sub}`)
+}
 
 onMounted(async () => {
   // 404 页画师入口是锦上添花：加载失败静默隐藏，不影响主信息

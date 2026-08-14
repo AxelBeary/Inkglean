@@ -250,7 +250,6 @@ const { t } = useI18n()
 .discount-ok { font-size: 13px; font-weight: 600; color: var(--el-color-success); }
 .discount-error { font-size: 12px; color: var(--el-color-danger); margin: 2px 0 0; }
 .price-line.discount .discount-amount { color: var(--el-color-danger); font-weight: 600; }
-.price-line.discounted-total { font-size: 15px; font-weight: 700; color: var(--el-color-danger); }
 .price-amount { font-variant-numeric: tabular-nums; }
 .price-divider { border-top: 1px dashed var(--border-color); margin: 6px 0; }
 .installment-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }

@@ -1,8 +1,11 @@
 <template>
   <!-- REQ-043 I4: 平台公告编辑（标题 + 内容 + 发布；内容消毒由后端入库时完成） -->
   <div class="admin-page announcement-manage">
-    <h2 class="font-display page-title">{{ $t('announcement.admin.manage') }}</h2>
-    <p class="page-subtitle">{{ $t('announcement.admin.hint') }}</p>
+    <!-- b3 清扫：页头并入公共 admin-page-head 体系（字体 22px→26px 口径统一） -->
+    <div class="admin-page-head">
+      <h1 class="admin-page-title font-display">{{ $t('announcement.admin.manage') }}</h1>
+      <p class="admin-page-sub">{{ $t('announcement.admin.hint') }}</p>
+    </div>
 
     <!-- P0 修复（前端质量战役审计）：回显失败不再静默——明示错误+重试，未加载成功禁止发布（防空公告覆盖现有公告） -->
     <div v-if="loadFailed" class="load-error-banner">
@@ -93,17 +96,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page-title {
-  margin: 0 0 4px;
-  font-size: calc(var(--font-scale, 1) * 22px);
-  font-weight: 700;
-  color: var(--ink);
-}
-.page-subtitle {
-  margin: 0 0 16px;
-  font-size: calc(var(--font-scale, 1) * 12.5px);
-  color: var(--ink2);
-}
 /* P0 修复：回显失败横幅（朱砂浸染，克制不刺眼） */
 .load-error-banner {
   max-width: 720px; margin: 0 0 14px; padding: 10px 14px;

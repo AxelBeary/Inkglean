@@ -31,7 +31,7 @@
           <div v-for="d in delivery.deliverables" :key="d.id" class="file-item">
             <div class="file-info">
               <span class="file-name">{{ d.fileName }}</span>
-              <span class="file-size" v-if="d.fileSize">{{ formatSize(d.fileSize) }}</span>
+              <span class="file-size" v-if="d.fileSize">{{ formatBytes(d.fileSize) }}</span>
             </div>
             <el-button type="primary" size="small" @click="downloadFile(d.url, d.fileName)">{{ $t('delivery.download') }}</el-button>
           </div>
@@ -54,6 +54,8 @@ import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfi
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { usePalette } from '../../composables/usePalette.js'
+import { formatBytes } from '../../utils/image-resize.js'
+import { downloadAsset } from '../../utils/download.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -74,22 +76,9 @@ const delivery = ref(null)
 // 波 M：验证失败页内错误态
 const verifyError = ref(false)
 
-function formatSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
 async function downloadFile(url, fileName) {
   try {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = fileName || 'download'
-    a.click()
-    URL.revokeObjectURL(a.href)
+    await downloadAsset(url, fileName)
   } catch {
     ElMessage.error(t('delivery.downloadFailed'))
   }

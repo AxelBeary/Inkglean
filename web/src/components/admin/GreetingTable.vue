@@ -44,21 +44,29 @@
         <span class="g-col g-col--enabled" :data-label="$t('admin.greetingColEnabled')">
           <el-switch
             v-model="row.is_enabled" :active-value="1" :inactive-value="0" size="small"
+            :loading="togglingId === row.id" :disabled="togglingId === row.id || removingId != null"
             @change="(val) => toggleEnabled(row, val)"
           />
         </span>
         <span class="g-col g-col--actions">
-          <el-button size="small" type="danger" text :aria-label="$t('common.delete')" @click="remove(row)">✕</el-button>
+          <el-button
+            size="small" type="danger" text
+            :aria-label="$t('common.delete')"
+            :loading="removingId === row.id" :disabled="removingId != null"
+            @click="remove(row)"
+          >✕</el-button>
         </span>
       </div>
     </TransitionGroup>
+    <!-- b3 清扫：空列表不再只剩表头；文案键 admin.greetingEmpty 由 D 波补齐 -->
+    <el-empty v-if="!loading && greetings.length === 0" :description="$t('admin.greetingEmpty')" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
@@ -72,6 +80,9 @@ const { t } = useI18n()
 const greetings = ref([])
 const loading = ref(false)
 const saving = ref(false)
+// b3 清扫：行级操作挂起 id（删除/启停期间禁用该行控件，防连续触发）
+const removingId = ref(null)
+const togglingId = ref(null)
 const newText = ref('')
 const newSlot = ref('any')
 
@@ -124,13 +135,31 @@ async function addGreeting() {
 }
 
 async function toggleEnabled(row, val) {
+  if (togglingId.value === row.id) return
+  togglingId.value = row.id
   try { await api.value.update(row.id, { isEnabled: !!val }) }
-  catch (err) { ElMessage.error(err.message); await load() }
+  catch (err) {
+    ElMessage.error(err.message)
+    await load()
+  } finally {
+    togglingId.value = null
+  }
 }
 
 async function remove(row) {
+  // b3 清扫：删除加确认（防误删）+ 行级 loading
+  try {
+    await ElMessageBox.confirm(
+      t('admin.greetingDeleteConfirm'),
+      t('common.confirmDeleteTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  if (removingId.value === row.id) return
+  removingId.value = row.id
   try { await api.value.remove(row.id); await load() }
   catch (err) { ElMessage.error(err.message) }
+  finally { removingId.value = null }
 }
 
 onMounted(load)

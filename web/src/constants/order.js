@@ -30,5 +30,6 @@ export const priorityType = (p) => PRIORITY_TYPE[p] || 'info'
 export const ARTIST_STATUS_TYPE = {
   open: 'success',
   full: 'warning',
-  break: 'danger'
+  break: 'danger',
+  hidden: 'info'
 }
