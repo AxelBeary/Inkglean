@@ -5,8 +5,8 @@
 > ✅ **一号验收抓修三处（用户红线「不引发连环 bug」落地）**：①P2-C F-10 上传用例适配真实 PNG 魔数（上传魔数校验是真加固，旧测试传假内容被拦属预期）②P2-A Watermark 微任务时序回归（loadLogoForRender 的 await 破坏竞态测试同步假设，改三元短路，文本路径时序对齐 master）③P2-B DOMPurify×happy-dom 兼容缺口实证（isSupported=true 但 onerror 拦不住，FORBID_ATTR/ALLOWED_ATTR 均无效，真实浏览器无此问题）→安全契约测试切 jsdom 环境真实验证（新增 devDep jsdom）。
 > ✅ **jsdom junction 坑（教训在案）**：worktree 的 node_modules junction 会被 npm install 替换成真实目录——jsdom 只落在 p2b worktree，主仓补装后 master 500/500；后续派工若需装新包，一律在主仓装。
 > ✅ **终态门禁（master 合入态实测）**：server **1424/1424**（115 文件）· web **500/500**（73 文件，vue-tsc/eslint/check-i18n/build 全过）· E2E **11/11**；基线已同步（server 1403→1424 / web 496→500）。
-> ⏳ **遗留待办**：①code-scanning 5 条设计告警驳回需 token security_events 授权（gh auth refresh -s security_events 完成浏览器确认，或 Web UI 逐条 dismiss，驳回理由已拟好在案）②P2 各波裁决为「转 1.0 后」的结构项（b2 模板大拆分/b3 长文件拆分等）已在各位报告列明。③容器重建：P2 五波未进生产，需 post-merge-deploy（V1 新脚本二实战）。
-> 🧊 **环境**：master 已推（含 P2 全量）；worktree 813-hunt-p2a/b/c/d/e 待清。
+> ⏳ **遗留待办**：①code-scanning 5 条设计告警驳回需 token security_events 授权（gh auth refresh -s security_events 完成浏览器确认，或 Web UI 逐条 dismiss，驳回理由已拟好在案）②P2 各波裁决为「转 1.0 后」的结构项（b2 模板大拆分/b3 长文件拆分等）已在各位报告列明。
+> 🧊 **环境**：master 7be8786e 已推（含 P2 全量）；容器已重建 Healthy（v63 回读+冒烟 PASS×5 零 WARN；首次构建挂在 better-sqlite3 预编译下载超时，重试成功，网络抖动实锤）；accept 报告 accept-master-20260814-112159.md 全绿；worktree/历史分支已清（仅留 master+backup）。
 
 > 🔴 **最后更新：2026-08-14 v98.1（会话刷新快照）：P2 五波收割 4/5 已合入，仅剩 P2-B 待验收**
 > ✅ **已合入（均一号独立复跑门禁全绿）**：P2-E 部署链路加固（683b7181，CI docker build 门禁/accept 联动/失败告警/日志轮转/uploads 恢复）· P2-C 后端清扫（a490e92f，上传魔数校验等，server 1424/1424，含一号适配 F-10 测试真实 PNG）· P2-A 画师域+共享层（1203753f，web 496/496，含一号抓修 Watermark 微任务时序回归：loadLogoForRender 的 await 破坏竞态测试同步假设，改三元短路修复）· P2-D i18n（f2760e84，check-i18n 加固+baseline 核减审计通过，web 496/496）。以上均已推 origin（AxelBeary/Inkglean）。
