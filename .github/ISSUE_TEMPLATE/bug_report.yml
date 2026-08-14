@@ -1,0 +1,70 @@
+name: 问题反馈
+description: 安装失败、页面报错、功能不正常——都填这个
+title: "[问题] "
+labels: ["bug", "待确认"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢你花时间反馈问题！填得越具体，修得越快。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么事？
+      description: 你本来想做什么、实际发生了什么。如果有报错文字，请完整粘贴（黑窗口里的英文也照抄，别只截图一半）。
+      placeholder: 我双击了 install.bat，滚了一堆字之后显示……
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从哪一步开始，按顺序列出你点过的按钮 / 输入过的命令。
+      placeholder: |
+        1. 解压安装包到桌面
+        2. 双击 install.bat
+        3. ……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你期望看到什么？
+      description: 如果一切正常，这一步应该是什么结果。
+    validations:
+      required: false
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: 安装方式
+      options:
+        - Windows 双击 install.bat
+        - node install.mjs（原生）
+        - node install.mjs（Docker 模式）
+        - bash setup.sh
+        - docker compose 手动部署
+        - 其他 / 还没到安装这一步
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统
+      placeholder: 例如 Windows 10 / Ubuntu 24.04 / macOS 15
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js 版本
+      description: 终端执行 node -v 查看；没装过就写"没装"。
+      placeholder: 例如 v22.23.2
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图 / 日志
+      description: 可以直接把截图拖进这个框。安装问题请附上 data/server.log 的内容（如有）。
+    validations:
+      required: false

@@ -1,0 +1,34 @@
+name: 功能建议
+description: 想要新功能、或者觉得哪里不好用
+title: "[建议] "
+labels: ["enhancement", "待讨论"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        拾绘服务对象是画师，功能取舍以画师真实场景为准。描述一下你的场景，比直接给方案更好。
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 你的使用场景
+      description: 你在做什么事情的时候遇到了不便？（例如：我是画师，每周要手动统计……）
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你的想法（可选）
+      description: 如果有具体方案可以写在这里；没有也没关系，场景说清楚即可。
+    validations:
+      required: false
+  - type: dropdown
+    id: role
+    attributes:
+      label: 你的身份
+      options:
+        - 画师（本平台用户）
+        - 画师的客户
+        - 开发者
+        - 其他
+    validations:
+      required: false
