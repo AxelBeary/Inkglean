@@ -63,4 +63,6 @@ e2e/.tokens.json
 
 # 冒烟/测试库迁移快照（可再生，勿入库）
 e2e/smoke.db*
+e2e/smoke-*.db*
+e2e/smoke-*uploads*/
 server/data/d3-verify.tmp.db
