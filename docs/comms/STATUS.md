@@ -1,5 +1,11 @@
 # 全局状态（一号维护，其他角色只读）
 
+> 🔴 **最后更新：2026-08-14 v103（开工前存档）：CodeQL sanitize 根治轮（方案 B）进行中——isomorphic-dompurify 已装，sanitize.ts 重写未开始**
+> 📋 **一号拍板（五号转交件裁决）**：①B 为主方案采纳（服务端换 isomorphic-dompurify，与前端同引擎白名单重建，mutation XSS 从原理消失，CodeQL 不触发）；A（手动扫描替代）不做（warning 不阻断，做 A 等于重写两遍测试零收益）②单一专注轮立即执行③白名单一号定：完全镜像前端 web/src/utils/sanitize.js（ALLOWED_TAGS/ALLOWED_ATTR/ALLOW_DATA_ATTR:false+链接 _blank noopener 钩子），单一事实源两层同口径。
+> 📦 **已装依赖**：server/package.json + isomorphic-dompurify@^3.22.0（含 jsdom，37 包）——已提交防断档。**下一步**：重写 sanitizeStoredText 为 DOMPurify → 重写 audit-batch-f-sanitize.test.js 21 例 → server 全门禁 → 推送等 CodeQL 重扫确认 #21/22/23 清零。
+> ⚠️ **风险点（五号提醒，施工时验证）**：白名单需实测防误删 div/table；已入库富文本经 DOMPurify 规范化后渲染输出可能变化（需冒烟对比）。
+> 🧊 **环境**：master c555145d；CodeQL open 4 条（#21/22/23 sanitize 同源误报待 B 根治、#11 SPA 限流设计豁免待驳回）。
+
 > ✅ **最后更新：2026-08-14 v102：CodeQL #21 sanitize 孤立开始标签修复合入——一号独立复跑 server 1428/1428 全绿**
 > ✅ **CodeQL #21 修复（五号施工，一号独立复跑验证）**：sanitize 补删孤立开始/结束标签，堵嵌套删除拼出的无闭合 `<script>`（`<scr<script></script>ipt>` 拼出无闭合、`<script>alert(1)` 无闭合残留，比成对标签更危险，浏览器会拿后续内容当脚本直到文档尾）。新增 TC-F5-22/23。分支 fix/codeql21-lone-opentag @ 2314b03b，合入 293e8569。**一号独立复跑：server 1428/1428 全绿 + tsc 0，sanitize 23/23，与五号声明一致**。交付文档 docs/comms/CodeQL21修复-交付-20260814.md。基线 server 1426→1428。
 > ✅ **CodeQL 告警处置进度**：#18/#19（结束标签绕过）已修自动销账；#21（孤立开始标签）已修待重扫销账；余 #11（SPA 静态限流设计豁免）待驳回。真漏洞已清零。
