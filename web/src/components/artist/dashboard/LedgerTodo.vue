@@ -51,13 +51,13 @@
           <span v-if="item.deadline" class="r-meta">{{ formatDate(item.deadline) }}</span>
           <button
             class="r-btn"
-            :class="{ 'r-btn--deliver': verbOf(item.status).key === 'deliver' }"
+            :class="{ 'r-btn--deliver': verbOf(item).key === 'deliver' }"
             type="button"
             :disabled="busy || cooldowns[item.id] > 0"
             @click.stop="act(item)"
           >
             <template v-if="cooldowns[item.id] > 0">{{ t('dashboard.ledgerCooldown', { n: cooldowns[item.id] }) }}</template>
-            <template v-else>{{ verbOf(item.status).label }}</template>
+            <template v-else>{{ verbOf(item).label }}</template>
             <span v-if="cooldowns[item.id] > 0" class="inkline" aria-hidden="true"></span>
           </button>
         </div>
@@ -125,8 +125,13 @@ const VERBS = {
 } as const
 type VerbKey = (typeof VERBS)[keyof typeof VERBS] | 'none'
 
-function verbOf(status: string): { key: VerbKey; label: string } {
-  const key = (VERBS as Record<string, VerbKey>)[status] ?? 'none'
+function verbOf(item: TodoItem): { key: VerbKey; label: string } {
+  const key = (VERBS as Record<string, VerbKey>)[item.status] ?? 'none'
+  // E3: wip 订单若有当前工作流节点（后端 stageName），动词换成真实节点名；
+  // 点击语义不变（仍推进到 done）；字段缺失/为空时降级为既有“完成”措辞
+  if (key === 'done' && item.status === 'wip' && item.stageName) {
+    return { key, label: t('dashboard.ledgerVerbAdvance', { stage: item.stageName }) }
+  }
   const labelMap: Record<string, string> = {
     confirm: t('dashboard.ledgerVerbConfirm'),
     start: t('dashboard.ledgerVerbStart'),
@@ -177,7 +182,7 @@ function sinkRow(item: TodoItem) {
 }
 
 async function act(item: TodoItem) {
-  const verb = verbOf(item.status)
+  const verb = verbOf(item)
   if (verb.key === 'none' || busy.value || cooldowns[item.id] > 0) return
   // 交付动词：交付流在订单详情页，行体直达详情（不是原地动作）
   if (verb.key === 'deliver') {
