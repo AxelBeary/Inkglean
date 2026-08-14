@@ -165,4 +165,19 @@ describe('sanitizeStoredText 不动点循环（CodeQL 防再犯）', () => {
     const rich = '<p>说明：<em>斜体</em> 与 <a href="https://a.b">链接</a></p>'
     expect(sanitizeStoredText(rich)).toBe(rich)
   })
+
+  it('TC-F5-20: 结束标签带属性（</script foo="bar">，浏览器容错视为闭合）不得残留', () => {
+    // CodeQL #19 js/bad-tag-filter：旧正则 `\s*>` 匹配不到带属性的结束标签，
+    // `<script>alert(1)</script foo="bar">` 整对残留入库。
+    expect(sanitizeStoredText('<script>alert(1)</script foo="bar">')).toBe('')
+    expect(sanitizeStoredText('x<script>alert(1)</script foo="bar">y')).toBe('xy')
+    expect(sanitizeStoredText('<STYLE>body{display:none}</STYLE type="text/css">')).toBe('')
+  })
+
+  it('TC-F5-21: 结束标签带斜杠（</script/foo>）不得残留', () => {
+    // CodeQL #18 js/incomplete-multi-character-sanitization 变体：`</script/foo>` 同样被
+    // 浏览器当作 script 结束标签，旧正则匹配不到 → 残留 `<script>`。
+    expect(sanitizeStoredText('<script>alert(1)</script/foo>')).toBe('')
+    expect(sanitizeStoredText('<script>alert(1)</script/ >')).toBe('')
+  })
 })

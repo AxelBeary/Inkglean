@@ -13,12 +13,17 @@
  * 去 <script>/<style> 标签对（含属性、大小写、换行），并补去自闭合标签。
  * 循环洗到不动点（上限 10 次）：`<scr<script></script>ipt>` 这类嵌套绕过单次替换会
  * 还原出 `<script>`，必须重复清洗直至无剩余标签对；上限防恶意超长串卡死。
+ *
+ * CodeQL 告警修复（2026-08-14，js/bad-tag-filter）：结束标签放宽为 `\b[^>]*>`
+ * ——浏览器容错解析会把 `</script foo="bar">`、`</script/foo>` 当作 script 结束
+ * 标签，旧正则 `\s*>` 匹配不到，导致 `<script>alert(1)</script foo="bar">` 整对
+ * 残留入库。放宽后与开始标签同样允许属性/斜杠，实测不再残留。
  */
 function removeTagPairs(input: string): string {
   let out = input
   for (let i = 0; i < 10; i++) {
     const next = out
-      .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*(script|style)\s*>/gi, '')
+      .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*(script|style)\b[^>]*>/gi, '')
       .replace(/<\s*(script|style)\b[^>]*\/\s*>/gi, '')
     if (next === out) break
     out = next
