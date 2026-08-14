@@ -180,4 +180,22 @@ describe('sanitizeStoredText 不动点循环（CodeQL 防再犯）', () => {
     expect(sanitizeStoredText('<script>alert(1)</script/foo>')).toBe('')
     expect(sanitizeStoredText('<script>alert(1)</script/ >')).toBe('')
   })
+
+  it('TC-F5-22: 嵌套拼出的孤立开始标签（CodeQL #21）不得残留', () => {
+    // CodeQL #21 js/incomplete-multi-character-sanitization：`<scr<script></script>ipt>`
+    // 删除内层标签对后拼出无闭合的 `<script>`，标签对正则匹配不到，旧版残留。
+    // 兜底删除残留开始标签后应为空。
+    expect(sanitizeStoredText('<scr<script></script>ipt>')).toBe('')
+    expect(sanitizeStoredText('<scr<script></script>ipt src=x>')).toBe('')
+  })
+
+  it('TC-F5-23: 无闭合开始标签（<script>alert(1)）不得残留 script 标签', () => {
+    // 无闭合 `<script>` 浏览器会把后续内容当脚本直到文档尾，比成对标签更危险。
+    // 删除开始标签后剩余内容为纯文本（不执行）。
+    expect(sanitizeStoredText('<script>alert(1)')).toBe('alert(1)')
+    expect(sanitizeStoredText('x<script src="https://evil/x.js">y')).toBe('xy')
+    expect(sanitizeStoredText('<style>body{display:none}')).toBe('body{display:none}')
+    // 孤立结束标签也清理（无开始标签，浏览器忽略，但保持干净）
+    expect(sanitizeStoredText('a</script>b')).toBe('ab')
+  })
 })
