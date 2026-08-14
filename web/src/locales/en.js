@@ -1688,6 +1688,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",
     greetingPreview: 'Preview',
     greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
+    greetingEmpty: 'No greetings yet',
+    greetingDeleteConfirm: 'Delete this greeting?',
     slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
     defaultWorkflow: 'Default Workflow Template', defaultWorkflowHint: 'Changes only affect newly registered artists. Existing artists are not affected.',
     resetTemplate: 'Reset to factory default', resetConfirm: 'Restore factory default template? Your custom template will be overwritten.', resetDone: 'Factory default restored',
@@ -1734,6 +1736,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     platform: {
       colName: 'Platform', colIcon: 'Icon', colDomains: 'Match domains', colOrder: 'Order', colEnabled: 'Enabled',
       add: 'Add platform', edit: 'Edit platform', delete: 'Delete',
+      empty: 'No platforms yet',
       nameLabel: 'Platform name', namePlaceholder: 'e.g. Weibo',
       iconLabel: 'Icon (simple-icons whitelist)', iconNone: 'None (use fallback char)',
       fallbackLabel: 'Fallback char', fallbackPlaceholder: 'e.g. 米 (used when simple-icons has no icon)',

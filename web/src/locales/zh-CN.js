@@ -1685,6 +1685,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",
     greetingPreview: '预览',
     greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
+    greetingEmpty: '暂无问候语',
+    greetingDeleteConfirm: '确定删除这条问候语吗？',
     slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
     defaultWorkflow: '默认流程模板', defaultWorkflowHint: '修改后仅影响新注册画师，已有画师不受影响。',
     resetTemplate: '重置为出厂默认', resetConfirm: '确定恢复出厂默认模板？当前自定义模板将被覆盖。', resetDone: '已恢复出厂默认',
@@ -1731,6 +1733,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     platform: {
       colName: '平台名', colIcon: '图标', colDomains: '匹配域名', colOrder: '排序', colEnabled: '启用',
       add: '新增平台', edit: '编辑平台', delete: '删除',
+      empty: '暂无平台',
       nameLabel: '平台名称', namePlaceholder: '如：微博',
       iconLabel: '图标（simple-icons 白名单）', iconNone: '无（用单字兜底）',
       fallbackLabel: '单字兜底', fallbackPlaceholder: '如：米（simple-icons 无此平台图标时）',
