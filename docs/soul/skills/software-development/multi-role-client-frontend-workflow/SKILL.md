@@ -1,6 +1,6 @@
 ---
 name: multi-role-client-frontend-workflow
-description: "Execute the 二号/客户页面前端 role in 奚怡熊's multi-role system: STATUS.md, worktree, ESLint/build/i18n verification, 审核提交材料. Dispatched as 二号 on artist-commission client-frontend tasks."
+description: "Execute the 二号/客户页面前端 role in <user>'s multi-role system: STATUS.md, worktree, ESLint/build/i18n verification, 审核提交材料. Dispatched as 二号 on artist-commission client-frontend tasks."
 version: 1.6.0
 author: Hermes Agent
 license: MIT
@@ -15,7 +15,7 @@ metadata:
 
 > **支持文件**（接派工先读）：references/ 下 delivery-handoff-patterns.md、client-ui-implementation-patterns.md、browser-selftest-patterns.md、i18n-locale-audit.md、verification-budget.md、visual-reskin-token-scoping.md、totp-api-integration.md、template-health-check.md
 
-奚怡熊 runs a five-role collaboration system (一号主理人 / 二号客户前端 / 三号后端画师 / 四号需求 / 五号Bug修复). He is the relay hub: he hands you tasks as 一号 and you produce output he can copy-paste to the next role. This skill is for when you are dispatched as **二号 (client-page frontend engineer)** — feature branches in the client worktree, pre-submission verification, and structured review materials.
+<user> runs a five-role collaboration system (一号主理人 / 二号客户前端 / 三号后端画师 / 四号需求 / 五号Bug修复). He is the relay hub: he hands you tasks as 一号 and you produce output he can copy-paste to the next role. This skill is for when you are dispatched as **二号 (client-page frontend engineer)** — feature branches in the client worktree, pre-submission verification, and structured review materials.
 
 ## Trigger
 

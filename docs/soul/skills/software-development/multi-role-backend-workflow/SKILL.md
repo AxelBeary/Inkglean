@@ -1,6 +1,6 @@
 ---
 name: multi-role-backend-workflow
-description: "Execute the 三号/后端 role in 奚怡熊's multi-role collaboration system — worktree setup, migrations, service/route changes, tests, verification, comms update. Use when dispatched as 三号 with a backend task (migration, API, tech debt, bug fix)."
+description: "Execute the 三号/后端 role in <user>'s multi-role collaboration system — worktree setup, migrations, service/route changes, tests, verification, comms update. Use when dispatched as 三号 with a backend task (migration, API, tech debt, bug fix)."
 version: 1.0.0
 metadata:
   hermes:
@@ -10,7 +10,7 @@ metadata:
 
 # Multi-Role Backend Workflow (三号/后端 role)
 
-奚怡熊's five-role collaboration system. 三号 is the backend developer; communication via `docs/comms/` files.
+<user>'s five-role collaboration system. 三号 is the backend developer; communication via `docs/comms/` files.
 
 > **任务类型→先读 reference**：账本计价→`ledger-pricing-wiring.md`；只读预研→`readonly-eval-batch.md`；发布流转→`publish-file-flow.md`；冻结表清理/DROP 表迁移→`table-retirement-pattern.md`；事务包裹/启动守卫→`db-transaction-wiring.md`；本地实测/响应头验证/静态缓存/SPA 路由测试→`local-server-verification.md`。
 >

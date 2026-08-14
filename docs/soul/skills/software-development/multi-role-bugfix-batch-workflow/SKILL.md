@@ -1,6 +1,6 @@
 ---
 name: multi-role-bugfix-batch-workflow
-description: Execute a numbered bug-fix batch or research task as the "五号/fixer" role in 奚怡熊's multi-role system — worktree setup, stay within authorized files, fix per-item or produce root-cause analysis, verify (vitest+eslint+build), commit with the submit-bugfix template. Use when the user dispatches a fix batch with an authorized-file list, or a "排查研究" task.
+description: Execute a numbered bug-fix batch or research task as the "五号/fixer" role in <user>'s multi-role system — worktree setup, stay within authorized files, fix per-item or produce root-cause analysis, verify (vitest+eslint+build), commit with the submit-bugfix template. Use when the user dispatches a fix batch with an authorized-file list, or a "排查研究" task.
 metadata:
   hermes:
     related_skills: [multi-role-requirements-workflow]
@@ -26,7 +26,7 @@ metadata:
 
 > **踩坑速查**：`references/batch-fix-pitfalls-0802.md`（worktree 装依赖、路由路径确认、createSession 认证、校验破坏旧测试、变量重名、i18n 转义、Playwright UI 诊断）；`references/diagnosis-pitfalls-0803.md`（诊断类任务：docker cp 诊断脚本、容器内 1:1 复刻前端逻辑做决定性复现、demo 数据缺字段先查数据层、合成 PointerEvent 验证拖拽、bundle 抠函数对比、git quotepath 中文转义）
 
-奚怡熊 runs a five-role collaboration system (一号主理人 / 二号客户前端 / 三号后端画师 / 四号需求 / 五号Bug修复). Communication happens via `docs/comms/` files (协作规则 §12): each role writes `<NN>-to-01-<topic>-<date>.md` reports, 一号 writes `01-to-<NN>-*.md` instructions, and everyone reads `STATUS.md` at session start. The user should NOT have to relay messages verbally — if he's copy-pasting your output to another agent, the comms system has failed. This skill is for when you are dispatched as **五号 (the fixer)** with a batch of numbered fixes.
+<user> runs a five-role collaboration system (一号主理人 / 二号客户前端 / 三号后端画师 / 四号需求 / 五号Bug修复). Communication happens via `docs/comms/` files (协作规则 §12): each role writes `<NN>-to-01-<topic>-<date>.md` reports, 一号 writes `01-to-<NN>-*.md` instructions, and everyone reads `STATUS.md` at session start. The user should NOT have to relay messages verbally — if he's copy-pasting your output to another agent, the comms system has failed. This skill is for when you are dispatched as **五号 (the fixer)** with a batch of numbered fixes.
 
 ## Trigger
 

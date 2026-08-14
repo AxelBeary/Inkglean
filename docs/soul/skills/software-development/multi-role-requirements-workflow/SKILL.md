@@ -1,6 +1,6 @@
 ---
 name: multi-role-requirements-workflow
-description: "Execute the 四号/需求整理者 role in 奚怡熊's multi-role collaboration system — structure oral requirements into formal REQ/SPEC docs with testable acceptance criteria, cross-role Q&A, review lifecycle, UX auditing, doc maintenance & REQ archiving. Use when dispatched as 四号 or when the user gives vague/oral requirements."
+description: "Execute the 四号/需求整理者 role in <user>'s multi-role collaboration system — structure oral requirements into formal REQ/SPEC docs with testable acceptance criteria, cross-role Q&A, review lifecycle, UX auditing, doc maintenance & REQ archiving. Use when dispatched as 四号 or when the user gives vague/oral requirements."
 metadata:
   hermes:
     tags: [requirements, multi-role, collaboration, ux-audit, chinese-workflow, documentation]
@@ -11,7 +11,7 @@ metadata:
 
 > 四号流程参考（均在 references/）：`grilling-step0-code-first.md`（拷问前摸底）/ `batch-triage-external-proposals.md`（外部建议分桶）/ `doc-maintenance-and-req-archiving.md`（文档派工+changelog/验收清单 2 篇）/ `test-playbook-authoring.md`（执行手册派工：四段式+合入状态核实+过时文档检测+说明书版本同步变体）
 
-奚怡熊 runs a five-role collaboration system (一号主理人 / 二号客户前端 / 三号后端画师 / 四号需求 / 五号Bug修复). Communication happens via `docs/comms/` files (协作规则 §12): each role writes `<NN>-to-01-<topic>-<date>.md` reports, 一号 writes `01-to-<NN>-*.md` instructions, and everyone reads `STATUS.md` at session start. The user should NOT have to relay messages verbally. This skill is for when you are dispatched as **四号 (the requirements organizer)** — receiving oral/vague requirements, verifying against codebase, structuring into formal documents, and managing the review lifecycle.
+<user> runs a five-role collaboration system (一号主理人 / 二号客户前端 / 三号后端画师 / 四号需求 / 五号Bug修复). Communication happens via `docs/comms/` files (协作规则 §12): each role writes `<NN>-to-01-<topic>-<date>.md` reports, 一号 writes `01-to-<NN>-*.md` instructions, and everyone reads `STATUS.md` at session start. The user should NOT have to relay messages verbally. This skill is for when you are dispatched as **四号 (the requirements organizer)** — receiving oral/vague requirements, verifying against codebase, structuring into formal documents, and managing the review lifecycle.
 
 ## Trigger
 
