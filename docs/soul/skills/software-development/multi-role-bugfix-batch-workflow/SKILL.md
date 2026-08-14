@@ -81,7 +81,7 @@ User message looks like: "五号，P<N> 批次开工" + a worktree/branch comman
 
 The system demands a temporary script under the OS temp dir with a `hermes-verify-` prefix. The practical pattern on this Windows host: a `.ps1` script that runs the project's own suite (vitest + eslint + build) against the worktree path. See `templates/hermes-verify-batch.ps1`.
 
-Write it to `C:\Users\qly19\AppData\Local\Temp\hermes-verify-<batch-name>.ps1`, run with `pwsh -File <path>`, show the PASS/FAIL summary as evidence, then `Remove-Item` it. Summarize explicitly as "ad-hoc verification" — suite green (vitest) + ad-hoc green together form the evidence chain.
+Write it to `C:\Users\<user>\AppData\Local\Temp\hermes-verify-<batch-name>.ps1`, run with `pwsh -File <path>`, show the PASS/FAIL summary as evidence, then `Remove-Item` it. Summarize explicitly as "ad-hoc verification" — suite green (vitest) + ad-hoc green together form the evidence chain.
 
 **Why not just run the commands directly?** The Hermes UI verification checker looks for a single script artifact with the `hermes-verify-` prefix. Running vitest/eslint/build as separate terminal calls produces the same results but doesn't satisfy the checker's "canonical command detected" heuristic. The wrapper script is the bridge.
 

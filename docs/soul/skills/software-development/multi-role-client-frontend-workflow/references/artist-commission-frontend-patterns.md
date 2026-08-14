@@ -26,7 +26,7 @@
 
 ## Git / worktree 工作流
 
-- **新 worktree 先 `npm install`**：`web/node_modules` 不跨 worktree 共享，ESLint/build 前必须在 worktree 的 `web/` 里装依赖。
+- **新 worktree 先跑 `scripts/new-worktree.ps1`（读仓库根 `.worktreeinclude`）**：`web/node_modules` 不跨 worktree 共享，建 worktree 后用它自动复制依赖，ESLint/build 前必须确认 `web/` 里有依赖（手动装用 `npm install`）。
 - **commit 拆分与共享 i18n 键**：locale 键无法按组件拆进不同 commit。把共享 locale 改动放进第一个 commit，保证每个 commit 独立可 build（后续 commit 引用的键已存在）。
 - 验证以终端为准：`npx eslint .`（零错误零警告）+ `npm run build`。patch/write_file 工具内联的 lint 输出在本机常因路径转译报假的 MODULE_NOT_FOUND，**不要**据此判断代码有问题。
 

@@ -68,6 +68,8 @@ git worktree add <path> -b <branch> master
 
 node_modules is NOT shared between worktrees and disappears between tasks. This is a **recurring cost** — budget 30s every task:
 
+**优先：建 worktree 时用 `scripts/new-worktree.ps1`（读仓库根 `.worktreeinclude` 自动复制 server/web 依赖，替代手动 robocopy；详见 `multi-role-lead-review-workflow/references/git-worktree-dependency-strategy.md`）。** 若 worktree 已存在但缺依赖，再手动装：
+
 ```powershell
 cd "<worktree>/server"; npm install 2>&1
 npm approve-scripts better-sqlite3 esbuild 2>&1
@@ -373,7 +375,7 @@ try {
 } catch (e) { console.log(e.stdout); if (e.status !== 0) process.exit(1) }
 console.log('\nVERIFY: PASS')
 ```
-Run: `node "C:\Users\qly19\AppData\Local\Temp\hermes-verify-<task>.mjs"` then `Remove-Item` after.
+Run: `node "C:\Users\<user>\AppData\Local\Temp\hermes-verify-<task>.mjs"` then `Remove-Item` after.
 
 **🔴 Always end with a full `npx vitest run`** — the verification checker may not auto-clear a prior failed ad-hoc record. A passing full-suite run overwrites the evidence state.
 

@@ -45,7 +45,7 @@ OrderDetail 和 QueueBoard 共用交付弹窗的抽法：`v-model`（显隐）+ 
 
 ## 8. 验证证据惯例（本项目已定型）
 
-ad-hoc 聚焦验证脚本写 `C:\Users\qly19\AppData\Local\Temp\hermes-verify-<主题>.cjs`（静态检查改动点 + git 状态），跑完全过后删除；套件结果（tsc/vitest/eslint/build 数字）写进 comms 交付报告。verification hook 要的是"有证据"，不是"只跑套件"。
+ad-hoc 聚焦验证脚本写 `C:\Users\<user>\AppData\Local\Temp\hermes-verify-<主题>.cjs`（静态检查改动点 + git 状态），跑完全过后删除；套件结果（tsc/vitest/eslint/build 数字）写进 comms 交付报告。verification hook 要的是"有证据"，不是"只跑套件"。
 
 ## 9. 可直接复跑的审计脚本（别手写临时脚本）
 
