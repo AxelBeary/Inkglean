@@ -2,6 +2,15 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
+> ✅ **最后更新：2026-08-15 v108：一键安装脚本全家桶交付 + better-sqlite3 升 v12 + v1.0.0-beta.1 发版上 GitHub + 贡献/安全规则体系落地，B 测就绪**
+> ✅ **一键安装全家桶（用户亲测验收）**：install.mjs（Win/Linux/macOS 通用，原生/Docker 双模式，Node 22~26 检测，超限查编译工具并自动开下载页）+ install.bat（双击安装）+ 启动网站.bat（日常启动，--start 模式）+ setup.sh 重写为裸 Linux Docker 兜底 + 安装口令 SETUP_TOKEN 自动生成打印（REQ-038 回归修复）。**小白角色扮演全流程实测**（Win10 干净虚机）抓修七坑：bat 中文须 GBK（UTF-8 致 CMD 解析截断）/ nodejs.org 改版默认 Docker 误导（改自动开下载页指明按钮）/ Node 24 无预编译撞 node-gyp（v12 根治+版本墙）/ 防火墙弹窗致体检超时误判（120s+预告+超时提示）/ Docker bind mount root 属主（compose up 前自建目录）/ bat 被单独拷出（完整性检查）/ spawn cwd 小写盘符致 vite html-proxy 失配（盘符大写化）。Ubuntu 裸机 Docker 分支实测全绿。
+> ✅ **better-sqlite3 11→12.11.1**：预编译覆盖 Node 22~26，普通电脑免编译工具安装；worktree 隔离验证+主仓复跑双绿（116 文件/1462 测试）；accept 全绿（1462+540+11）；post-merge-deploy 生产重建全绿（备份 VERIFY/迁移回读 v64/冒烟 5 PASS）。
+> ✅ **v1.0.0-beta.1 发版**：tag + gh release（预发布标记，人话版发版说明）+ 附件 inkglean-installer-v1.0.0-b1.zip（622 文件完整安装包，中文名用 .NET 打包避 tar 乱码）。发布前 L3 安全扫描开关未启用，按规程静默放行。
+> ✅ **贡献与安全规则体系**：CONTRIBUTING.md（报 bug/贡献流程/门禁/AGPL 声明）+ Issue 表单模板（问题反馈/功能建议）+ PR 模板 + 标签（待确认/待讨论）；SECURITY.md（私密漏洞报告通道/漏洞范围/坦白版无时限承诺）；用户已在 GitHub 启用 Private Vulnerability Reporting；README 互链。
+> ✅ **CodeQL 处置**：查实仓库早有 CodeQL 默认配置（无文件模式，已跑 240 轮）——误加的文件配置版已删（00123d4d），保留默认配置周扫；其余 76+ 工作流模板全部裁决不开（账号类/语言不符/功能重复）；Dependabot alerts 建议开启（待用户确认）。
+> ⚠️ **编码事故实录（已恢复，教训在案）**：误判 changelog.md 为 GBK 实为 UTF-8，读写往返损坏全文；未推送前从 git 对象（blob 9cba9e69）按字节还原重做，远端零污染。教训：改中文文档前必须用证据确认编码（U+FFFD 计数），目测乱码必误判。
+> 🔑 **新会话接手指南**：无在途施工。**下一轮待办**：①用户海外服务器安装实测（node install.mjs 或 bash setup.sh，装完记安装口令）→ B 测开启②Dependabot alerts 开启待用户确认（Settings → Security）③v107 遗留三小尾巴（E2 月度额度轴/E1 摘要浮层画风字段/E5 深夜档文案验收）④E15 举报证据抽屉（1.0 后排期）⑤桌面端 HOLD（v1.0 稳定后再评估）。master HEAD 00123d4d。
+
 > ✅ **最后更新：2026-08-14 v107：E 清单 8 项全部完工——波 2/3/4 三路并行派工合入，迁移 v64 进生产，1.0 开发侧清零**
 > ✅ **三路派工实录（worktree 隔离+领地互斥，逐路门禁复验非 self-report）**：波2（E2/E10/E13）挂牌满态不开第三面牌（名额满时开稿面显「满」藤黄点缀，isFull 口径）+ 订单时间线纸墨化（shared OrderTimeline，TrackOrder 同步受益）+ 下单摘要卡补档位描述/工期/示意图；波3（E1/E3）卷轴纸签点击弹订单摘要浮层（Esc/点外关闭、键盘可达、画风字段接口缺失不硬凑）+ 账本待办动词接真实节点（todo 接口只增 stageName，缺字段降级回「完成」）；波4（E5）迁移 v64：greeting_special_days 表 + greeting_templates 重建补 latenight CHECK/special_day_id 级联；抽取链=特别日→深夜池(23~05)→时段池→any；管理端特别日 CRUD + 前端管理区块。新增测试 34（server）+ 30（web）。
 > ✅ **合入验收（一号合并态全量复跑）**：三波 merge 零冲突；server **1462/1462** · web **540/540** · E2E **11/11** · lint/tsc/check-i18n/build 全过；基线 1428→1462 / 510→540。
