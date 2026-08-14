@@ -21,7 +21,25 @@
     </div>
 
     <el-card shadow="never" class="admin-section-card">
-      <el-table :data="artists" v-loading="loading" stripe>
+      <!-- E14（2026-08-14）: 画师搜索 + 状态筛选（全量已拉取，客户端过滤，后端契约不动） -->
+      <div class="artist-filter-bar">
+        <el-input
+          v-model="artistQuery"
+          :placeholder="$t('admin.artistSearchPlaceholder')"
+          clearable
+          prefix-icon="Search"
+          style="max-width: 280px"
+        />
+        <el-select v-model="artistStatusFilter" :placeholder="$t('admin.artistStatusAll')" style="width: 140px">
+          <el-option value="" :label="$t('admin.artistStatusAll')" />
+          <el-option value="open" :label="$t('common.statusShort.open')" />
+          <el-option value="full" :label="$t('common.statusShort.full')" />
+          <el-option value="break" :label="$t('common.statusShort.break')" />
+          <el-option value="hidden" :label="$t('common.statusShort.hidden')" />
+        </el-select>
+        <span v-if="isArtistFiltering" class="artist-filter-count">{{ $t('admin.artistFilterCount', { n: filteredArtists.length }) }}</span>
+      </div>
+      <el-table :data="filteredArtists" v-loading="loading" stripe>
         <el-table-column prop="name" :label="$t('admin.colName')" min-width="140">
           <template #default="{ row }">
             <span class="cell-name">{{ row.name }}</span>
@@ -359,6 +377,21 @@ import CardHead from '../../components/artist/visual/CardHead.vue'
 const { t } = useI18n()
 const artists = ref([])
 const loading = ref(true)
+
+// ─── E14（2026-08-14）: 画师搜索 + 状态筛选 ───
+// 列表全量一次拉取（画师量小），过滤纯客户端：昵称/子域名/QQ/简介模糊匹配（大小写不敏感）+ 状态精确匹配
+const artistQuery = ref('')
+const artistStatusFilter = ref('')
+const isArtistFiltering = computed(() => !!artistQuery.value.trim() || !!artistStatusFilter.value)
+const filteredArtists = computed(() => {
+  const q = artistQuery.value.trim().toLowerCase()
+  const st = artistStatusFilter.value
+  return artists.value.filter(a => {
+    if (st && a.status !== st) return false
+    if (!q) return true
+    return [a.name, a.subdomain, a.qq_number, a.bio].some(v => String(v ?? '').toLowerCase().includes(q))
+  })
+})
 const dialogVisible = ref(false)
 const saving = ref(false)
 // b3 清扫：行内状态切换期间禁用下拉，防连续触发
@@ -771,6 +804,10 @@ onMounted(loadArtists)
 .cell-name { font-weight: 600; color: var(--ink); }
 .cell-tag { margin-left: var(--sp-1, 4px); }
 .cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 1px 6px; border-radius: var(--r-s, 4px); }
+
+/* E14: 画师搜索/筛选条 */
+.artist-filter-bar { display: flex; align-items: center; gap: var(--sp-2, 8px); flex-wrap: wrap; margin-bottom: var(--sp-3, 12px); }
+.artist-filter-count { font-size: 12px; color: var(--ink3); }
 
 /* 行操作按钮组（统一间距） */
 .row-actions { display: flex; gap: var(--sp-1, 4px); flex-wrap: nowrap; }

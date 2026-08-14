@@ -148,6 +148,7 @@ import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
 import HySkeleton from '../../components/shared/HySkeleton.vue'
 import { formatDateTimeShort } from '../../utils/datetime.js'
+import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -206,7 +207,30 @@ function onFilterChange() {
   page.value = 1
   compositeFilter.value = '' // 手动切筛选时清除复合过滤
   invalidateFullOrdersCache()
+  rememberFilterState() // E9: 筛选记忆
   loadOrders()
+}
+
+// ─── E9（2026-08-14）: 筛选记忆——筛选条件存 localStorage，回来不重置 ───
+// URL ?status=（统计卡跳转）优先级高于记忆值；存储只存白名单内枚举，脏值不信任。
+// 只记状态筛选（单选/复合），搜索词属临时输入不记。
+const FILTER_MEMORY_KEY = 'orderlist_filter_memory'
+const FILTER_MEMORY_STATUSES = ['', 'pending', 'confirmed', 'wip', 'revision', 'done', 'delivered', 'cancelled']
+const FILTER_MEMORY_COMPOSITES = ['', 'active', 'completed']
+function rememberFilterState() {
+  safeSetItem(FILTER_MEMORY_KEY, JSON.stringify({ filter: filter.value, composite: compositeFilter.value }))
+}
+function restoreFilterState() {
+  try {
+    const raw = safeGetItem(FILTER_MEMORY_KEY)
+    if (!raw) return
+    const saved = JSON.parse(raw)
+    const f = typeof saved?.filter === 'string' && FILTER_MEMORY_STATUSES.includes(saved.filter) ? saved.filter : ''
+    const c = typeof saved?.composite === 'string' && FILTER_MEMORY_COMPOSITES.includes(saved.composite) ? saved.composite : ''
+    // 单选筛选与复合互斥（与手动切换行为同口径）：有单选则复合作废
+    filter.value = f
+    compositeFilter.value = f ? '' : c
+  } catch { /* 存储形状损坏：静默忽略，回落全部 */ }
 }
 
 // 竞态保护：请求序号（搜索/翻页快速切换时慢请求不得覆盖新结果）
@@ -283,7 +307,7 @@ function onRowClick(row) {
 }
 
 onMounted(() => {
-  // #2: 统计卡跳转带 ?status= 时初始化筛选
+  // #2: 统计卡跳转带 ?status= 时初始化筛选（优先级高于 E9 记忆值）
   const q = route.query.status
   if (q && typeof q === 'string') {
     if (['pending', 'confirmed', 'wip', 'done', 'delivered', 'cancelled'].includes(q)) {
@@ -291,6 +315,9 @@ onMounted(() => {
     } else if (q === 'active' || q === 'completed') {
       compositeFilter.value = q // 复合值走客户端过滤，不设 filter（加载全量）
     }
+    rememberFilterState() // E9: URL 带来的筛选同样写入记忆
+  } else {
+    restoreFilterState() // E9: 无 URL 意图时恢复上次筛选
   }
   loadOrders()
 })
