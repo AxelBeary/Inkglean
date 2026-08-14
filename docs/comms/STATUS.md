@@ -5,8 +5,9 @@
 > ✅ **I5 备份恢复演练（成功，副本演练不动生产库）**：verify-backup VERIFY_OK（integrity=ok/FK 违规=0）→ restore-db RESTORE_OK（旧库安全挪为 .bak-pre-restore）→ 产物核对无误；全链路真跑一遍，生产库零触碰。
 > ✅ **I6 技术债收尾核销（五项全在）**：状态机统一断言 9 处/幂等键前端 useOrderForm 发 idempotency-key+后端 v54+readIdempotencyKey/yuanToCents 收口 20 处/会话强校验 verifySession 8 处；811 实施+围剿加固，无回归无缺口。
 > ✅ **I3 移动端 375px 实测（REQ-043 I3 补做，截图真落盘 workspace/temp/i3-mobile/ 9 帧）**：画师高频路径（登录/仪表盘/订单/录单/看板/设置）+客户端（主页/下单/追踪）逐页核查；**抓修真 bug 已修**：账本待办标签经 tagKey 映射（后端回中文标签，此前直怼 i18n 键渲染成原始键名 dashboard_tag_新单，d89da1ea）；其余错误态均为冒烟库少数据的正常三态呈现，布局无溢出。
-> ✅ **终态门禁**：server **1424/1424** · web **500/500**（vue-tsc/eslint/check-i18n/build 全过）· E2E **11/11**；master d89da1ea 已推；容器已含 P2 全量。
-> ⏳ **遗留待办**：①code-scanning 5 条设计告警驳回需 token security_events 授权（gh auth refresh -s security_events 浏览器确认，或 Web UI 逐条 dismiss，理由已拟好）②P2 各波「转 1.0 后」结构项在报告③等用户终验 https://localhost。
+> ✅ **终态门禁**：server **1426/1426** · web **500/500**（vue-tsc/eslint/check-i18n/build 全过）· E2E **11/11**；master d6c18d9f 已推；容器已含 P2 全量。
+> ✅ **CodeQL #18/#19 sanitize 结束标签绕过修复（收尾盘点抓回的漏收项）**：w-sanitize-codeql worktree 里有未提交的修复（结束标签放宽为 \b[^>]*>，堵 `</script foo=bar>`/`</script/foo>` 浏览器容错闭合绕过），验证 21/21 已合入推送 d6c18d9f，下次 CodeQL 扫描自动销账。基线 server 1424→1426。
+> ⏳ **遗留待办（均为人工拍板/操作项，非代码隐患）**：①code-scanning 剩 5 条设计/开发脚本告警（#9/10/11 限流设计、#12/#20 开发脚本）驳回需 token security_events 授权或 Web UI 逐条 dismiss，理由已拟好；#18/#19 已真修待扫描自动销②P2 各波「转 1.0 后」结构项在报告③等用户终验 https://localhost。
 
 > ✅ **最后更新：2026-08-14 v99：P2 围剿五波全部合入收官——P0/P1/P2 隐患逐路核销完毕，终态门禁 server 1424 / web 500 / E2E 11**
 > ✅ **P2 五波合入（逐波一号独立复跑门禁，非 self-report）**：P2-E 部署链路（683b7181）· P2-C 后端（a490e92f，server 1424）· P2-A 画师域+共享层（1203753f，Watermark 微任务时序回归一号抓修：三元短路）· P2-D i18n（f2760e84，check-i18n 加固+baseline 核减审计通过）· P2-B 客户端+管理后台+共享（cbcb6bd7，web 500）。逐条裁决制（修/不修+理由，清单是 813 快照严禁硬修）+连环风险自检在各位交付报告。
