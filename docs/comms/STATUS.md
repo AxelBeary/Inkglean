@@ -1,5 +1,13 @@
 # 全局状态（一号维护，其他角色只读）
 
+> ✅ **最后更新：2026-08-14 v100：1.0 收尾四项全绿——M4 支付文案/I5 恢复演练/I6 技术债/I3 移动端实测，隐患清零**
+> ✅ **M4 支付形态文案核对（通过，无需改）**：全量扫描下单/约稿/收据/追踪文案，危险误导词（立即支付/去支付/支付宝/微信支付等）零命中；「确认下单」非支付用语；连接免责「所有后续沟通、支付与交付均在平台外进行」+已收款取消「线下退还」提示齐备。
+> ✅ **I5 备份恢复演练（成功，副本演练不动生产库）**：verify-backup VERIFY_OK（integrity=ok/FK 违规=0）→ restore-db RESTORE_OK（旧库安全挪为 .bak-pre-restore）→ 产物核对无误；全链路真跑一遍，生产库零触碰。
+> ✅ **I6 技术债收尾核销（五项全在）**：状态机统一断言 9 处/幂等键前端 useOrderForm 发 idempotency-key+后端 v54+readIdempotencyKey/yuanToCents 收口 20 处/会话强校验 verifySession 8 处；811 实施+围剿加固，无回归无缺口。
+> ✅ **I3 移动端 375px 实测（REQ-043 I3 补做，截图真落盘 workspace/temp/i3-mobile/ 9 帧）**：画师高频路径（登录/仪表盘/订单/录单/看板/设置）+客户端（主页/下单/追踪）逐页核查；**抓修真 bug 已修**：账本待办标签经 tagKey 映射（后端回中文标签，此前直怼 i18n 键渲染成原始键名 dashboard_tag_新单，d89da1ea）；其余错误态均为冒烟库少数据的正常三态呈现，布局无溢出。
+> ✅ **终态门禁**：server **1424/1424** · web **500/500**（vue-tsc/eslint/check-i18n/build 全过）· E2E **11/11**；master d89da1ea 已推；容器已含 P2 全量。
+> ⏳ **遗留待办**：①code-scanning 5 条设计告警驳回需 token security_events 授权（gh auth refresh -s security_events 浏览器确认，或 Web UI 逐条 dismiss，理由已拟好）②P2 各波「转 1.0 后」结构项在报告③等用户终验 https://localhost。
+
 > ✅ **最后更新：2026-08-14 v99：P2 围剿五波全部合入收官——P0/P1/P2 隐患逐路核销完毕，终态门禁 server 1424 / web 500 / E2E 11**
 > ✅ **P2 五波合入（逐波一号独立复跑门禁，非 self-report）**：P2-E 部署链路（683b7181）· P2-C 后端（a490e92f，server 1424）· P2-A 画师域+共享层（1203753f，Watermark 微任务时序回归一号抓修：三元短路）· P2-D i18n（f2760e84，check-i18n 加固+baseline 核减审计通过）· P2-B 客户端+管理后台+共享（cbcb6bd7，web 500）。逐条裁决制（修/不修+理由，清单是 813 快照严禁硬修）+连环风险自检在各位交付报告。
 > ✅ **一号验收抓修三处（用户红线「不引发连环 bug」落地）**：①P2-C F-10 上传用例适配真实 PNG 魔数（上传魔数校验是真加固，旧测试传假内容被拦属预期）②P2-A Watermark 微任务时序回归（loadLogoForRender 的 await 破坏竞态测试同步假设，改三元短路，文本路径时序对齐 master）③P2-B DOMPurify×happy-dom 兼容缺口实证（isSupported=true 但 onerror 拦不住，FORBID_ATTR/ALLOWED_ATTR 均无效，真实浏览器无此问题）→安全契约测试切 jsdom 环境真实验证（新增 devDep jsdom）。
