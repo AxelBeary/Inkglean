@@ -1,7 +1,9 @@
 <template>
   <!-- 排期卷轴（视觉批 P1，提案 §5.6 已拍板器物）：两端纸卷+轴头 / 宣纸长卷 /
        纸签式五色条（花青进行中/浅花青未开工/朱砂逾期/藤黄待确认）+ 今日笔触线。
-       数据源 /artist/dashboard/schedule（近 7 日窗口），点击进订单详情。 -->
+       数据源 /artist/dashboard/schedule（近 7 日窗口）。
+       E1：纸签悬停 title 含阶段名；点击弹订单摘要浮层（只用接口已返回字段，
+       画风/档位接口未返回故不展示）；Esc/点外部关闭，焦点回退纸签。 -->
   <section class="scroll-strip" :aria-label="t('dashboard.scheduleTitle')">
     <div class="scroll-roll" aria-hidden="true"><i class="axis axis-top"></i><i class="axis axis-bot"></i></div>
     <div class="scroll-paper">
@@ -43,12 +45,54 @@
             :title="`${p.bar.orderNo}${p.bar.clientName ? ' · ' + p.bar.clientName : ''}${p.bar.stageName ? ' · ' + p.bar.stageName : ''}`"
             role="button"
             tabindex="0"
-            @click="goDetail(p.bar)"
-            @keydown.enter="goDetail(p.bar)"
+            @click="openSummary(p.bar, $event)"
+            @keydown.enter="openSummary(p.bar, $event)"
           >
             <span>{{ p.bar.clientName || p.bar.orderNo }}</span>
           </div>
         </div>
+
+        <!-- E1：纸签点击弹订单摘要浮层（纸墨体系）。
+             只消费 /artist/dashboard/schedule 已返回字段：客户名/当前节点/开工/截稿/状态；
+             画风/档位接口未返回 → 缺项不硬凑，浮层省略。 -->
+        <template v-if="popBar">
+          <div class="tl-pop-backdrop" aria-hidden="true" @click="closeSummary"></div>
+          <div
+            ref="popRef"
+            class="tl-pop"
+            role="dialog"
+            tabindex="-1"
+            :aria-label="t('dashboard.scheduleSummaryTitle')"
+          >
+            <div class="tl-pop-head">
+              <span class="tl-pop-title f-kai">{{ t('dashboard.scheduleSummaryTitle') }} · #{{ popBar.orderNo }}</span>
+              <button class="tl-pop-close" type="button" :aria-label="t('common.close')" @click="closeSummary">×</button>
+            </div>
+            <dl class="tl-pop-body">
+              <div class="tl-pop-row">
+                <dt>{{ t('dashboard.scheduleSummaryClient') }}</dt>
+                <dd>{{ popBar.clientName || popBar.orderNo }}</dd>
+              </div>
+              <div v-if="popBar.stageName" class="tl-pop-row">
+                <dt>{{ t('dashboard.scheduleSummaryStage') }}</dt>
+                <dd>{{ popBar.stageName }}</dd>
+              </div>
+              <div v-if="popBar.startDate" class="tl-pop-row">
+                <dt>{{ t('dashboard.scheduleSummaryStart') }}</dt>
+                <dd>{{ popBar.startDate }}</dd>
+              </div>
+              <div v-if="popBar.deadline" class="tl-pop-row">
+                <dt>{{ t('dashboard.scheduleSummaryDeadline') }}</dt>
+                <dd>{{ formatDateTime(popBar.deadline) }}</dd>
+              </div>
+              <div class="tl-pop-row">
+                <dt>{{ t('dashboard.scheduleSummaryStatus') }}</dt>
+                <dd>{{ t(`common.orderStatus.${popBar.status}`) }}</dd>
+              </div>
+            </dl>
+            <button class="tl-pop-detail" type="button" @click="goDetailFromPop">{{ t('dashboard.scheduleSummaryDetail') }} →</button>
+          </div>
+        </template>
       </template>
     </div>
     <div class="scroll-roll" aria-hidden="true"><i class="axis axis-top"></i><i class="axis axis-bot"></i></div>
@@ -56,10 +100,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { artistApi } from '../../../api/index.js'
+import { formatDateTime } from '../../../utils/datetime.js'
 import type { ScheduleBar } from '../../../api/types.js'
 
 const { t, locale } = useI18n()
@@ -148,14 +193,43 @@ async function load() {
   }
 }
 
-function goDetail(bar: ScheduleBar) {
-  router.push(`/orders/${bar.id}?from=dashboard`)
-}
 function goQueue() {
   router.push('/queue')
 }
 
-onMounted(() => load())
+// ─── E1：纸签点击订单摘要浮层 ───
+// 只用接口已返回字段；浮层内“进订单详情”承接原点击跳转语义。
+const popBar = ref<ScheduleBar | null>(null)
+const popRef = ref<HTMLElement | null>(null)
+let lastFocused: HTMLElement | null = null
+
+function openSummary(bar: ScheduleBar, ev: Event) {
+  lastFocused = (ev.currentTarget as HTMLElement) ?? null
+  popBar.value = bar
+  nextTick(() => popRef.value?.focus())
+}
+function closeSummary() {
+  if (!popBar.value) return
+  popBar.value = null
+  // 键盘可达：关闭后焦点回退到触发纸签
+  nextTick(() => lastFocused?.focus())
+}
+function goDetailFromPop() {
+  const bar = popBar.value
+  popBar.value = null
+  if (bar) router.push(`/orders/${bar.id}?from=dashboard`)
+}
+function onWindowKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeSummary()
+}
+
+onMounted(() => {
+  load()
+  window.addEventListener('keydown', onWindowKeydown)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onWindowKeydown)
+})
 </script>
 
 <style scoped>
@@ -268,6 +342,42 @@ onMounted(() => load())
 .tl-wip2 { border-left-color: var(--line2); color: var(--ink4); }
 .tl-over { background: var(--zs-t); border-color: color-mix(in srgb, var(--zs) 28%, transparent); border-left-color: var(--zs); color: var(--zs); }
 .tl-pend { background: var(--th-t); border-color: color-mix(in srgb, var(--th) 28%, transparent); border-left-color: var(--th); color: var(--th); }
+/* E1：订单摘要浮层（纸面 var(--paper2)/墨字/细边 var(--line)/圆角/轻投影；入场一次性淡入不循环） */
+.tl-pop-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+.tl-pop {
+  position: fixed; z-index: 61; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(320px, calc(100vw - 32px));
+  background: var(--paper2); color: var(--ink);
+  border: 1px solid var(--line); box-shadow: var(--sh-2);
+  border-radius: 6px 13px 7px 12px / 11px 7px 13px 6px;
+  padding: 12px 16px 14px; outline: none;
+  animation: tl-pop-in var(--dur-mid, .18s) var(--ease-out, ease-out) both;
+}
+@keyframes tl-pop-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+.tl-pop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.tl-pop-title { font-size: calc(var(--font-scale, 1) * 14px); letter-spacing: .12em; color: var(--ink); }
+.tl-pop-close {
+  font: inherit; line-height: 1; flex: none; cursor: pointer;
+  color: var(--ink3); background: none; border: 1px solid var(--line);
+  width: 22px; height: 22px; border-radius: 4px 7px 5px 6px / 6px 5px 7px 4px;
+}
+.tl-pop-close:hover { color: var(--ink); background: var(--card); }
+.tl-pop-body { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.tl-pop-row { display: flex; gap: 10px; font-size: calc(var(--font-scale, 1) * 13px); }
+.tl-pop-row dt { flex: none; width: 62px; color: var(--ink4); }
+.tl-pop-row dd { margin: 0; min-width: 0; color: var(--ink2); overflow-wrap: anywhere; }
+.tl-pop-detail {
+  font: inherit; font-size: calc(var(--font-scale, 1) * 12px); cursor: pointer;
+  color: var(--hq); background: none; border: 1px solid color-mix(in srgb, var(--hq) 40%, transparent);
+  margin-top: 11px; padding: 3px 12px; border-radius: 3px 6px 4px 6px / 6px 4px 6px 3px;
+}
+.tl-pop-detail:hover { background: var(--hq-t); }
 /* 响应式：≤600 隔日显示防挤（偶数序号日隐藏），纸卷收窄 */
 @media (max-width: 960px) {
   .scroll-roll { width: 20px; margin: -7px 0; }
@@ -282,5 +392,6 @@ onMounted(() => load())
 }
 @media (prefers-reduced-motion: reduce) {
   .scroll-skeleton-row { animation: none; }
+  .tl-pop { animation: none; }
 }
 </style>
