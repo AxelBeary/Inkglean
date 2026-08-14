@@ -338,6 +338,31 @@ export interface GreetingTemplate {
   text: string
   time_slot: string
   is_enabled: number
+  /** 关联特别日（E5 波 4）；null=普通时段池文案 */
+  special_day_id: number | null
+}
+
+/** 特别日行（/admin/special-days） */
+export interface SpecialDay {
+  id: number
+  name: string
+  /** 'MM-DD' 年重复日期 */
+  date_key: string
+  /** null=全平台，否则指定画师 */
+  artist_id: number | null
+  is_enabled: number
+}
+
+/** 特别日列表行（附带关联文案数） */
+export interface SpecialDayListItem extends SpecialDay {
+  greeting_count: number
+}
+
+/** 特别日创建请求 */
+export interface SpecialDayInput {
+  name: string
+  dateKey: string
+  artistId?: number | null
 }
 
 /** GET /artist/greeting 响应 */
@@ -1261,10 +1286,12 @@ export interface SavePaymentNode {
   basisPoints: number
 }
 
-/** 问候语模板写请求（通用库/画师专属库共用） */
+/** 问候语模板写请求（通用库/画师专属库共用；E5：可挂特别日） */
 export interface GreetingInput {
   text: string
-  timeSlot?: 'morning' | 'afternoon' | 'evening' | 'night' | 'any'
+  timeSlot?: 'morning' | 'afternoon' | 'evening' | 'night' | 'latenight' | 'any'
+  /** 关联特别日；null=解除关联 */
+  specialDayId?: number | null
 }
 
 /** POST /admin/artists 请求体 */

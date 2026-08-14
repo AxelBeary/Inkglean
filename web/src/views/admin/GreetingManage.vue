@@ -11,11 +11,17 @@
     <el-card shadow="never" class="admin-section-card">
       <GreetingTable :artist-id="null" />
     </el-card>
+
+    <!-- E5 波 4：特别日池（命中当天优先投放，miss 回落深夜池/时段池） -->
+    <el-card shadow="never" class="admin-section-card">
+      <SpecialDayManage />
+    </el-card>
   </div>
 </template>
 
 <script setup>
 import GreetingTable from '../../components/admin/GreetingTable.vue'
+import SpecialDayManage from '../../components/admin/SpecialDayManage.vue'
 </script>
 
 <style scoped>
