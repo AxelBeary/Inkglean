@@ -384,7 +384,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     return greetingService.getGlobalGreetings((request.query as { slot?: string }).slot)
   })
 
-  /** POST /api/admin/greetings — 添加通用模板 */
+  /** POST /api/admin/greetings — 添加通用模板（E5：可挂特别日 specialDayId） */
   fastify.post('/api/admin/greetings', {
     preHandler: requireAdmin,
     schema: {
@@ -394,12 +394,18 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] }
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          specialDayId: { type: 'integer' }
         }
       }
     }
-  }, async (request: FastifyRequest) => {
-    return greetingService.createGlobalGreeting(request.body as { text: string; timeSlot?: string })
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { text: string; timeSlot?: string; specialDayId?: number }
+    // E5：特别日存在性校验（不存在 404，防 FK 裸抛 500）
+    if (body.specialDayId !== undefined && !greetingService.getSpecialDay(body.specialDayId)) {
+      return reply.code(404).send({ error: '特别日不存在' })
+    }
+    return greetingService.createGlobalGreeting(body)
   })
 
   /** PUT /api/admin/greetings/:id — 编辑通用模板 */
@@ -412,8 +418,9 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] },
-          isEnabled: { type: 'boolean' }
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          isEnabled: { type: 'boolean' },
+          specialDayId: { type: ['integer', 'null'] }
         }
       }
     }
@@ -423,7 +430,12 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     const id = Number((request.params as { id: string }).id)
     const existing = db.prepare('SELECT id FROM greeting_templates WHERE id = ? AND artist_id IS NULL').get(id)
     if (!existing) return reply.code(404).send({ error: '模板不存在' })
-    const result = greetingService.updateGreeting(id, request.body as { text?: string; timeSlot?: string; isEnabled?: boolean })
+    const body = request.body as { text?: string; timeSlot?: string; isEnabled?: boolean; specialDayId?: number | null }
+    // E5：换挂/清挂特别日前的存在性校验（null=解除关联）
+    if (typeof body.specialDayId === 'number' && !greetingService.getSpecialDay(body.specialDayId)) {
+      return reply.code(404).send({ error: '特别日不存在' })
+    }
+    const result = greetingService.updateGreeting(id, body)
     if (!result) return reply.code(404).send({ error: '模板不存在' })
     return result
   })
@@ -444,7 +456,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     return greetingService.getArtistGreetings(Number((request.params as { id: string }).id))
   })
 
-  /** POST /api/admin/artists/:id/greetings — 为画师添加专属模板 */
+  /** POST /api/admin/artists/:id/greetings — 为画师添加专属模板（E5：可挂特别日 specialDayId） */
   fastify.post('/api/admin/artists/:id/greetings', {
     preHandler: [requireAdmin, requireExistingArtist],
     schema: {
@@ -455,12 +467,17 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] }
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          specialDayId: { type: 'integer' }
         }
       }
     }
-  }, async (request: FastifyRequest) => {
-    return greetingService.createArtistGreeting(Number((request.params as { id: string }).id), request.body as { text: string; timeSlot?: string })
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { text: string; timeSlot?: string; specialDayId?: number }
+    if (body.specialDayId !== undefined && !greetingService.getSpecialDay(body.specialDayId)) {
+      return reply.code(404).send({ error: '特别日不存在' })
+    }
+    return greetingService.createArtistGreeting(Number((request.params as { id: string }).id), body)
   })
 
   /** PUT /api/admin/artists/:id/greetings/:gid — 编辑专属模板 */
@@ -473,8 +490,9 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'any'] },
-          isEnabled: { type: 'boolean' }
+          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          isEnabled: { type: 'boolean' },
+          specialDayId: { type: ['integer', 'null'] }
         }
       }
     }
@@ -486,7 +504,11 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     if (!existing || existing.artist_id !== artistId) {
       return reply.code(404).send({ error: '模板不存在或不属于该画师' })
     }
-    const result = greetingService.updateGreeting(gid, request.body as { text?: string; timeSlot?: string; isEnabled?: boolean })
+    const body = request.body as { text?: string; timeSlot?: string; isEnabled?: boolean; specialDayId?: number | null }
+    if (typeof body.specialDayId === 'number' && !greetingService.getSpecialDay(body.specialDayId)) {
+      return reply.code(404).send({ error: '特别日不存在' })
+    }
+    const result = greetingService.updateGreeting(gid, body)
     if (!result) return reply.code(404).send({ error: '模板不存在' })
     return result
   })
@@ -502,6 +524,77 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     }
     greetingService.deleteGreeting(gid)
     return { success: true }
+  })
+
+  // ─── 问候特别日管理（E5 波 4；step-up 由 registerAdminStepUpHooks onRoute 自动覆盖） ───
+
+  /** GET /api/admin/special-days — 特别日列表（含关联文案数） */
+  fastify.get('/api/admin/special-days', { preHandler: requireAdmin }, async () => {
+    return greetingService.listSpecialDays()
+  })
+
+  /** POST /api/admin/special-days — 创建特别日（name/dateKey 必填，artistId 空=全平台） */
+  fastify.post('/api/admin/special-days', {
+    preHandler: requireAdmin,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name', 'dateKey'],
+        additionalProperties: false,
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 50 },
+          dateKey: { type: 'string', pattern: '^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$' },
+          artistId: { type: ['integer', 'null'] }
+        }
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { name, dateKey, artistId } = (request.body as { name: string; dateKey: string; artistId?: number | null }) || {}
+    const scope = artistId ?? null
+    // 指定画师范围时校验画师存在（不存在 404，防 FK 裸抛 500）
+    if (scope !== null && !artistService.getArtistById(scope)) {
+      return reply.code(404).send({ error: '画师不存在' })
+    }
+    const day = greetingService.createSpecialDay({ name, dateKey, artistId: scope })
+    if (!day) return reply.code(400).send({ error: '日期格式无效（需 MM-DD）' })
+    return day
+  })
+
+  /** PUT /api/admin/special-days/:id — 启停特别日（停用当天即退出抽取链） */
+  fastify.put('/api/admin/special-days/:id', {
+    preHandler: requireAdmin,
+    schema: {
+      ...intId,
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['isEnabled'],
+        properties: {
+          isEnabled: { type: 'boolean' }
+        }
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const id = Number((request.params as { id: string }).id)
+    const { isEnabled } = (request.body as { isEnabled: boolean }) || {}
+    const day = greetingService.setSpecialDayEnabled(id, isEnabled)
+    if (!day) return reply.code(404).send({ error: '特别日不存在' })
+    return day
+  })
+
+  /** DELETE /api/admin/special-days/:id — 删除特别日（关联文案 FK 级联删除） */
+  fastify.delete('/api/admin/special-days/:id', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const id = Number((request.params as { id: string }).id)
+    if (!greetingService.getSpecialDay(id)) return reply.code(404).send({ error: '特别日不存在' })
+    greetingService.deleteSpecialDay(id)
+    return { success: true }
+  })
+
+  /** GET /api/admin/special-days/:id/greetings — 某特别日关联文案列表 */
+  fastify.get('/api/admin/special-days/:id/greetings', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const id = Number((request.params as { id: string }).id)
+    if (!greetingService.getSpecialDay(id)) return reply.code(404).send({ error: '特别日不存在' })
+    return greetingService.getSpecialDayGreetings(id)
   })
 
   // ─── 流程与比例管理 ───
