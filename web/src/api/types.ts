@@ -921,6 +921,8 @@ export interface TodoItem {
   status: string
   deadline: string | null
   tag: string
+  /** E3: 当前工作流节点名（后端增补字段；旧服务端/无节点时缺失或 null，前端降级为既有措辞） */
+  stageName?: string | null
 }
 
 export interface TodoResult {

@@ -193,6 +193,8 @@ interface TodoOrder {
   deadline: string | null
   created_at: string
   updated_at: string
+  /** E3: 当前工作流节点名（LEFT JOIN，无节点为 null，前端降级为既有措辞） */
+  stage_name: string | null
 }
 
 /**
@@ -206,10 +208,13 @@ export function getTodoList(artistId: number) {
   const todayEnd = localDayEndSqlite(now)
 
   // 一次查出所有非终态订单（done 不算终态，仍有交付待办）
+  // E3: 增补 stage_name（当前工作流节点名，只增字段不改语义；无节点为 null）
   const orders = db.prepare(`
     SELECT o.id, o.order_no, o.client_name, o.status, o.deadline,
-           o.created_at, o.updated_at
+           o.created_at, o.updated_at,
+           ws.name AS stage_name
     FROM orders o
+    LEFT JOIN artist_workflow_stages ws ON ws.id = o.current_stage_id
     WHERE o.artist_id = ?
       AND o.status NOT IN ('delivered', 'cancelled')
     ORDER BY o.created_at DESC
@@ -271,7 +276,8 @@ export function getTodoList(artistId: number) {
       clientName: o.client_name || null,
       status: o.status,
       deadline: o.deadline || null,
-      tag
+      tag,
+      stageName: o.stage_name || null
     }
   })
 }

@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
+import { buildApp } from '../src/app.js'
+import { createSession } from '../src/features/auth/auth.service.js'
 import { toSqliteDate } from '../src/utils/date.js'
 import * as dashboard from '../src/features/artist/dashboard.service.js'
 
@@ -322,4 +324,123 @@ describe('时区口径（P2-1）：季度周分组与本地日期一致', () => 
     expect(result.bars[1].cents).toBe(0)
   })
 })
+})
+
+// ============================================
+// E3: 账本待办动词接真实工作流节点——todo 接口增补 stageName
+// 只增字段不改语义；无工作流节点的订单降级为 null
+// ============================================
+
+/** 给画师建一个工作流节点并挂到订单上 */
+function bindStage(artistId, orderId, name, sortOrder = 1) {
+  const stage = db.prepare(
+    'INSERT INTO artist_workflow_stages (artist_id, name, sort_order) VALUES (?, ?, ?)'
+  ).run(artistId, name, sortOrder)
+  db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(stage.lastInsertRowid, orderId)
+}
+
+describe('合并待办列表 stageName（E3）', () => {
+  let artist
+
+  beforeEach(() => {
+    cleanDb()
+    artist = seedArtist()
+  })
+
+  it('TC-DASH-21: wip 订单有工作流节点 → stageName 返回节点名', () => {
+    const o = seedOrder(artist.id, { order_no: 'E3-001', status: 'wip' })
+    bindStage(artist.id, o.id, '细化')
+
+    const result = dashboard.getTodoList(artist.id)
+    expect(result).toHaveLength(1)
+    expect(result[0].orderNo).toBe('E3-001')
+    expect(result[0].stageName).toBe('细化')
+  })
+
+  it('TC-DASH-22: 无工作流节点的订单 → stageName 为 null（降级不报错）', () => {
+    seedOrder(artist.id, { order_no: 'E3-002', status: 'wip' })
+
+    const result = dashboard.getTodoList(artist.id)
+    expect(result).toHaveLength(1)
+    expect(result[0].stageName).toBeNull()
+  })
+
+  it('TC-DASH-23: current_stage_id 指向不存在的节点（脏数据）→ stageName 为 null', () => {
+    const o = seedOrder(artist.id, { order_no: 'E3-003', status: 'wip' })
+    db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(999999, o.id)
+
+    const result = dashboard.getTodoList(artist.id)
+    expect(result).toHaveLength(1)
+    expect(result[0].stageName).toBeNull()
+  })
+
+  it('TC-DASH-24: stageName 不影响既有字段与排序（只增不改）', () => {
+    const o1 = seedOrder(artist.id, { order_no: 'E3-004', status: 'wip' })
+    db.prepare("UPDATE orders SET deadline = '2020-01-01 00:00:00' WHERE id = ?").run(o1.id)
+    bindStage(artist.id, o1.id, '线稿')
+    seedOrder(artist.id, { order_no: 'E3-005', status: 'pending' })
+
+    const result = dashboard.getTodoList(artist.id)
+    expect(result.map(r => r.orderNo)).toEqual(['E3-004', 'E3-005'])
+    expect(result[0].tag).toBe('逾期')
+    expect(result[0]).toEqual({
+      id: o1.id,
+      orderNo: 'E3-004',
+      clientName: null,
+      status: 'wip',
+      deadline: '2020-01-01 00:00:00',
+      tag: '逾期',
+      stageName: '线稿'
+    })
+  })
+})
+
+describe('账本待办接口路由层（E3）', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+  })
+
+  it('TC-DASH-25: GET /api/artist/dashboard/todo 返回含 stageName 的 items 契约', async () => {
+    const artist = seedArtist()
+    const o = seedOrder(artist.id, { order_no: 'E3-010', status: 'wip' })
+    bindStage(artist.id, o.id, '上色')
+    const token = createSession(artist.id, artist.token_version)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/artist/dashboard/todo',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0]).toMatchObject({
+      id: o.id,
+      orderNo: 'E3-010',
+      status: 'wip',
+      stageName: '上色'
+    })
+  })
+
+  it('TC-DASH-26: 无节点订单路由层 stageName 为 null（降级契约）', async () => {
+    const artist = seedArtist()
+    seedOrder(artist.id, { order_no: 'E3-011', status: 'wip' })
+    const token = createSession(artist.id, artist.token_version)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/artist/dashboard/todo',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().items[0].stageName).toBeNull()
+  })
 })
