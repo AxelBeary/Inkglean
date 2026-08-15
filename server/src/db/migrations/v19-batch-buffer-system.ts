@@ -6,7 +6,7 @@ export const migration: Migration = {
     name: 'batch_buffer_system',
     up(database) {
       // SPEC-004: 名额与缓冲系统
-      backupDbBeforeMigration(19)
+      backupDbBeforeMigration(19, database)
       // artists 表：6 个新字段
       const artistCols = database.prepare('PRAGMA table_info(artists)').all() as ColumnInfo[]
       if (!artistCols.some(c => c.name === 'batch_limit')) {

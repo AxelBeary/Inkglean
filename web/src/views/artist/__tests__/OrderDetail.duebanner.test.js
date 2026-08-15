@@ -29,6 +29,8 @@ const h = vi.hoisted(() => ({
   order: null,
   getOrder: vi.fn(() => Promise.resolve(h.order)),
   updateStatus: vi.fn(() => Promise.resolve({})),
+  cancelOrder: vi.fn(() => Promise.resolve({})),
+  undoCancelOrder: vi.fn(() => Promise.resolve({})),
   confirm: vi.fn(() => Promise.resolve('confirm')),
   msgSuccess: vi.fn(),
   msgError: vi.fn(),
@@ -45,6 +47,8 @@ vi.mock('../../../api/index.js', () => ({
     getOrder: h.getOrder,
     getWorkflow: () => Promise.resolve({ stages: [] }),
     updateStatus: h.updateStatus,
+    cancelOrder: h.cancelOrder,
+    undoCancelOrder: h.undoCancelOrder,
     updatePriority: () => Promise.resolve(h.order),
     updateDeadline: () => Promise.resolve(h.order),
     updateStartDate: () => Promise.resolve(h.order),
@@ -303,6 +307,8 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
   beforeEach(() => {
     h.updateStatus.mockReset()
     h.updateStatus.mockResolvedValue({})
+    h.cancelOrder.mockReset()
+    h.cancelOrder.mockResolvedValue({})
     h.confirm.mockReset()
     h.confirm.mockResolvedValue('confirm')
     h.msgSuccess.mockClear()
@@ -312,14 +318,14 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
   it('未收款订单直接取消：一次请求、不带 confirmPaidCancel、不走二次确认', async () => {
     const order = buildOrder({ paidTotalCents: 0, remainingCents: 0 })
     const updated = { ...order, status: 'cancelled' }
-    h.updateStatus.mockResolvedValue(updated)
+    h.cancelOrder.mockResolvedValue(updated)
     await mountDetail(order)
 
     await h.slideConfirm.trigger()
     await flushPromises()
 
-    expect(h.updateStatus).toHaveBeenCalledTimes(1)
-    expect(h.updateStatus).toHaveBeenCalledWith('806', 'cancelled')
+    expect(h.cancelOrder).toHaveBeenCalledTimes(1)
+    expect(h.cancelOrder).toHaveBeenCalledWith(806)
     expect(h.confirm).not.toHaveBeenCalled()
     expect(h.msgSuccess).toHaveBeenCalled()
   })
@@ -327,7 +333,7 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
   it('已收款订单：第一次 409 → 弹确认（金额=detail.paidCents）→ 确认后带 confirmPaidCancel 重发成功', async () => {
     const order = buildOrder({ paidTotalCents: 17640 })
     const updated = { ...order, status: 'cancelled' }
-    h.updateStatus
+    h.cancelOrder
       .mockRejectedValueOnce(Object.assign(new Error('blocked'), {
         code: 'CANCEL_WITH_PAYMENT',
         status: 409,
@@ -345,15 +351,15 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
     expect(h.confirm.mock.calls[0][0]).toContain('"amount":"176.40"')
 
     // 用户点确认 → 第二次带 confirmPaidCancel
-    expect(h.updateStatus).toHaveBeenCalledTimes(2)
-    expect(h.updateStatus).toHaveBeenLastCalledWith('806', 'cancelled', { confirmPaidCancel: true })
+    expect(h.cancelOrder).toHaveBeenCalledTimes(2)
+    expect(h.cancelOrder).toHaveBeenLastCalledWith(806, { confirmPaidCancel: true })
     expect(wrapper.vm.order.status).toBe('cancelled')
     expect(h.msgSuccess).toHaveBeenCalled()
   })
 
   it('二次确认取消 → 不重发取消请求', async () => {
     const order = buildOrder({ paidTotalCents: 17640 })
-    h.updateStatus.mockRejectedValueOnce(Object.assign(new Error('blocked'), {
+    h.cancelOrder.mockRejectedValueOnce(Object.assign(new Error('blocked'), {
       code: 'CANCEL_WITH_PAYMENT',
       detail: { paidCents: 17640 }
     }))
@@ -364,13 +370,13 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
     await flushPromises()
 
     expect(h.confirm).toHaveBeenCalledTimes(1)
-    expect(h.updateStatus).toHaveBeenCalledTimes(1) // 没有第二次重发
+    expect(h.cancelOrder).toHaveBeenCalledTimes(1) // 没有第二次重发
     expect(h.msgSuccess).not.toHaveBeenCalled()
   })
 
   it('非 CANCEL_WITH_PAYMENT 错误 → 直接报错，不弹二次确认', async () => {
     const order = buildOrder({ paidTotalCents: 0 })
-    h.updateStatus.mockRejectedValueOnce(new Error('其他错误'))
+    h.cancelOrder.mockRejectedValueOnce(new Error('其他错误'))
     await mountDetail(order)
 
     await h.slideConfirm.trigger()
@@ -378,7 +384,7 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
 
     expect(h.confirm).not.toHaveBeenCalled()
     expect(h.msgError).toHaveBeenCalledWith('其他错误')
-    expect(h.updateStatus).toHaveBeenCalledTimes(1)
+    expect(h.cancelOrder).toHaveBeenCalledTimes(1)
   })
 })
 

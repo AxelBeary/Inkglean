@@ -6,7 +6,7 @@ export const migration: Migration = {
     name: 'order_extra_items',
     up(database) {
       // SPEC-003: 订单附加工作项（下单后追加需求）
-      backupDbBeforeMigration(18)
+      backupDbBeforeMigration(18, database)
       // 纯新表，无 ALTER TABLE，无存量数据影响
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_extra_items (

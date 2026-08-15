@@ -8,17 +8,14 @@ import { ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import type { Artist, OrderDetail } from '../../types/entities.js'
 import { generateCustomerToken, getOrder, hashCustomerToken } from './order-read.js'
 import { appendPriceEntry, checkOrderConservation } from './order-pricing.js'
+import { MAX_MONEY_CENTS } from './order-limits.js'
 
 // ============================================
 // 订单服务 - 下单子域（从 order.service.ts 拆出）
 // ============================================
 
-/**
- * audit-a R-10: 下单总价封顶 99,999,999 元 = 9,999,999,900 分。
- * 注：updateFinalPrice 上限为 99,999,999 分（约 100 万元），两者量级不同、属各自独立校验；
- * 是否统一为产品决策，本 P2 仅修正注释不改变行为。
- */
-const MAX_ORDER_TOTAL_CENTS = 9_999_999_900
+// 815 审计拍板 #2（用户亲裁 2026-08-15）：下单总价上限统一为 100 万元，
+// 与改价/增项/收款共用 MAX_MONEY_CENTS（order-limits.ts）；此前下单约 1 亿、其余约 100 万。
 
 // ─── 报价快照字符串生成（v0.11 R2） ───
 
@@ -169,7 +166,7 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
 
     // audit-a R-10: 计价结果封顶——引擎返回后、落库前校验，防止极端组合
     // （超大基础价 × 超高百分比 × 大数量）击穿 MAX_SAFE_INTEGER 造成负数/失真总价
-    if (totalPriceCents != null && totalPriceCents > MAX_ORDER_TOTAL_CENTS) {
+    if (totalPriceCents != null && totalPriceCents > MAX_MONEY_CENTS) {
       throw new AppError(E.INVALID_PRICE, 400, { value: totalPriceCents, message: '订单总价超出上限' })
     }
 

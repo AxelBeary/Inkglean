@@ -8,10 +8,12 @@ import ArtistManage from '../ArtistManage.vue'
 const h = vi.hoisted(() => ({
   getArtists: vi.fn(),
   transferAdmin: vi.fn(),
+  unbanArtist: vi.fn(),
   msgSuccess: vi.fn(),
   msgError: vi.fn(),
   msgWarning: vi.fn(),
-  confirm: vi.fn()
+  confirm: vi.fn(),
+  prompt: vi.fn()
 }))
 
 // 注意：__tests__ 在 views/admin/ 下，到 src 需三级 ../（上一轮两级 ../ 全部解析到不存在的
@@ -20,6 +22,9 @@ vi.mock('../../../api/index.js', () => ({
   adminApi: {
     getArtists: h.getArtists,
     transferAdmin: h.transferAdmin
+  },
+  complianceApi: {
+    unbanArtist: h.unbanArtist
   }
 }))
 
@@ -40,7 +45,7 @@ vi.mock('element-plus', () => ({
     error: h.msgError,
     warning: h.msgWarning
   },
-  ElMessageBox: { confirm: h.confirm }
+  ElMessageBox: { confirm: h.confirm, prompt: h.prompt }
 }))
 
 vi.mock('../ArtistDetailDrawer.vue', () => ({
@@ -67,7 +72,9 @@ const EP_STUBS = {
     template: '<button type="button" @click="$emit(\'click\')"><slot /></button>'
   },
   'el-table': { template: '<div class="table-stub"><slot /></div>' },
-  'el-table-column': { template: '<div />' },
+  'el-table-column': {
+    template: '<div class="col-stub"><slot :row="{ id: 2, name: \'Bob\', subdomain: \'bob\', isAdmin: false, is_banned: 1 }" /></div>'
+  },
   'el-select': { template: '<div />' },
   'el-option': { template: '<div />' },
   'el-tag': { template: '<span><slot /></span>' },
@@ -132,10 +139,12 @@ beforeEach(() => {
     { id: 1, name: 'Alice', subdomain: 'alice', qq_number: '10001', isAdmin: true, status: 'open', totp_verified: true }
   ])
   h.transferAdmin.mockReset().mockResolvedValue({ newAdminName: 'Bob' })
+  h.unbanArtist.mockReset().mockResolvedValue({ success: true, isBanned: 0 })
   h.msgSuccess.mockReset()
   h.msgError.mockReset()
   h.msgWarning.mockReset()
   h.confirm.mockReset().mockResolvedValue('confirm')
+  h.prompt.mockReset().mockResolvedValue({ value: '已处理' })
 })
 
 afterEach(() => {
@@ -187,5 +196,26 @@ describe('ArtistManage 更换管理员动作级再验（REQ-041）', () => {
     expect(wrapper.find('.stepup-stub').exists()).toBe(false)
     // 更换管理员弹窗保持打开，用户可改后再试
     expect(wrapper.find('.dialog-stub').exists()).toBe(true)
+  })
+
+  it('被封禁画师解封：填原因 → STEP_UP_REQUIRED → 弹 StepUpDialog；验证通过自动重提交', async () => {
+    h.unbanArtist.mockRejectedValueOnce(stepUpRequiredError())
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await clickButtonByText(wrapper, 'compliance.admin.unban')
+    await flushPromises()
+
+    expect(h.prompt).toHaveBeenCalled()
+    expect(h.unbanArtist).toHaveBeenCalledWith(2, '已处理')
+    expect(h.unbanArtist).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.stepup-stub').exists()).toBe(true)
+
+    wrapper.getComponent({ name: 'StepUpDialog' }).vm.$emit('verified')
+    await flushPromises()
+
+    expect(h.unbanArtist).toHaveBeenCalledTimes(2)
+    expect(h.msgSuccess).toHaveBeenCalledWith('compliance.admin.unbannedToast')
+    expect(wrapper.find('.stepup-stub').exists()).toBe(false)
   })
 })

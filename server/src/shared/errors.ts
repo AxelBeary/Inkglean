@@ -204,6 +204,11 @@ export const E = {
   ORDER_FINAL_STATE: 'ORDER_FINAL_STATE',
   // audit-a R-2: 取消已收款订单需确认
   CANCEL_WITH_PAYMENT: 'CANCEL_WITH_PAYMENT',
+  // 815 拍板 #1：取消撤销窗口过期
+  CANCEL_UNDO_EXPIRED: 'CANCEL_UNDO_EXPIRED',
+  // 815 拍板 #4：交付文件一次性下载
+  DOWNLOAD_LOCKED: 'DOWNLOAD_LOCKED',
+  DOWNLOAD_COOLDOWN: 'DOWNLOAD_COOLDOWN',
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: 'BATCH_FULL',
@@ -376,7 +381,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PRICING_CALC_FAILED: '价格计算失败',
 
   // 价格（v0.11）
-  INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
+  INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 100000000 分 = 100 万元）',
 
   // 焦点图（v0.11）
   FOCUS_IMAGE_NOT_FOUND: '参考图不存在',
@@ -435,6 +440,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   EXTRA_ITEM_LIMIT: '附加工作项数量不能超过20条',
   ORDER_FINAL_STATE: '已交付或已取消的订单不能添加附加项',
   CANCEL_WITH_PAYMENT: '订单已有收款，取消前请确认退款安排',
+  // 815 拍板 #1
+  CANCEL_UNDO_EXPIRED: '撤销窗口已过（取消后 5 秒内可撤销）',
+  // 815 拍板 #4
+  DOWNLOAD_LOCKED: '该交付文件已下载过并被锁定，需画师再许可后才能再次下载',
+  DOWNLOAD_COOLDOWN: '下载尝试过于频繁，请稍后重试',
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: '该画师已接满，暂时无法下单',

@@ -66,3 +66,6 @@ e2e/smoke.db*
 e2e/smoke-*.db*
 e2e/smoke-*uploads*/
 server/data/d3-verify.tmp.db
+
+# 本机配置备份（含密钥，严禁入库）
+.env.bak*

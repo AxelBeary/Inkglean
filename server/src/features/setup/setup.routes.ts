@@ -1,7 +1,7 @@
 // ============================================
 // 开箱设置路由（REQ-038）
 // ============================================
-import { getSetupStatus, createAdminArtist, confirmTotpAndComplete } from './setup.service.js'
+import { getSetupStatus, createAdminArtist, confirmTotpAndComplete, isSetupCompleted } from './setup.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -9,6 +9,14 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 // 限流守卫
 function guardRateLimit(key: string, max: number, windowMs: number): void {
   if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
+}
+
+// 815 拍板 #6（A2 物理销毁）：向导完成后写端点永久 410 Gone，不再只是 403；
+// status 保留为只读探测（前端路由守卫靠它判初始化状态）
+function guardSetupGone(): void {
+  if (isSetupCompleted()) {
+    throw new AppError('SETUP_GONE', 410, '开箱向导已销毁（系统已完成初始化）')
+  }
 }
 
 export default async function setupRoutes(fastify: FastifyInstance) {
@@ -49,6 +57,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    guardSetupGone()
     guardRateLimit(`setup-admin:${request.ip}`, 5, 5 * 60_000)
 
     const { token, qqNumber, name, studio } = request.body as {
@@ -101,6 +110,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    guardSetupGone()
     guardRateLimit(`setup-totp:${request.ip}`, 10, 5 * 60_000)
 
     const { qqNumber, code } = request.body as { qqNumber: string; code: string }

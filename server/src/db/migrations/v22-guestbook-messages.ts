@@ -6,7 +6,7 @@ export const migration: Migration = {
     name: 'guestbook_messages',
     up(database) {
       // F4: 留言板
-      backupDbBeforeMigration(22)
+      backupDbBeforeMigration(22, database)
       database.exec(`
         CREATE TABLE IF NOT EXISTS guestbook_messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,

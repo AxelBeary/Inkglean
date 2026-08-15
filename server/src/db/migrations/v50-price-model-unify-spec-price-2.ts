@@ -15,7 +15,7 @@ export const migration: Migration = {
       //  3. style_addons 重建：快照列对齐（tpl_price_mode/tpl_category，options 退役）
       //  4. order_price_breakdown 重建：新 item_type 口径（旧 tier→base / addon→addon_fixed 映射，数据不丢）
       //  5. DROP price_tiers / price_multipliers（用户拍板：均为测试垃圾数据；备份 bak-pre-v050-pricemodel-20260809）
-      backupDbBeforeMigration(50)
+      backupDbBeforeMigration(50, database)
 
       database.pragma('foreign_keys = OFF')
       // 事故教训双保险：确认 FK 真的关了（事务内 PRAGMA 是 no-op，此处若仍在事务内会返回 ON → 直接中止）

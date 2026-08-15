@@ -169,7 +169,8 @@ const emit = defineEmits<{
   'update:rulesContent': [value: string]
 }>()
 
-const disabledDate = (d: Date) => d < new Date()
+// #8（拍板 2026-08-15）: 按当日零点比较——"今天"仍可选，昨天起才不可选
+const disabledDate = (d: Date) => d < new Date(new Date().setHours(0, 0, 0, 0))
 
 function onShopVisibleChange(value: boolean) {
   emit('update:status', value ? lastVisibleStatus.value : 'hidden')

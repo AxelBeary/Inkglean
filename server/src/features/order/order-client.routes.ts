@@ -1,5 +1,6 @@
 import * as orderService from './order.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
+import * as orderGalleryService from './order-gallery.service.js'
 import { assertReferenceFileExists, guardRateLimit } from './order-route-utils.js'
 import { getRules, requireVisibleArtist, isArtistVisibleById } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
@@ -241,12 +242,58 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
       orderNo: order.order_no,
       status: order.status,
       artistName: order.artist_name,
-      deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_size?: number | null; file_path: string }) => ({
+      deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_size?: number | null; file_path: string; download_locked?: number }) => ({
         id: d.id,
         fileName: d.original_name,
         fileSize: d.file_size,
-        url: signedUrl(d.file_path)
+        url: signedUrl(d.file_path),
+        // 815 拍板 #4：一次性下载状态（前端据此禁用下载按钮并提示联系画师再许可）
+        downloadLocked: d.download_locked === 1
       }))
     }
+  })
+
+  /**
+   * POST /api/orders/delivery/:orderNo/file/:fileId/download-start
+   * 815 拍板 #4：客户开始下载——结算上次尝试后签发一次性下载 URL；
+   * 锁定/冷却/半途防护逻辑在服务层（startDeliverableDownload）。
+   * logLevel=silent：令牌明文在 query 中，禁止进日志
+   */
+  fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-start', { logLevel: 'silent' }, async (request: FastifyRequest) => {
+    guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)
+
+    const { token } = (request.query || {}) as { token?: string }
+    const order = orderService.getClientOrderByToken(
+      (request.params as { orderNo: string }).orderNo,
+      token || ''
+    )
+    if (!order) throw new AppError(E.ORDER_NOT_FOUND, 404)
+
+    const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
+    if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
+
+    const { filePath } = orderGalleryService.startDeliverableDownload(order.id, fileId)
+    return { url: signedUrl(filePath) }
+  })
+
+  /**
+   * POST /api/orders/delivery/:orderNo/file/:fileId/download-confirm
+   * 815 拍板 #4：客户确认完整接收（web fetch 全量收到后上报）→ 锁定 + IP/时间留痕
+   */
+  fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-confirm', { logLevel: 'silent' }, async (request: FastifyRequest) => {
+    guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)
+
+    const { token } = (request.query || {}) as { token?: string }
+    const order = orderService.getClientOrderByToken(
+      (request.params as { orderNo: string }).orderNo,
+      token || ''
+    )
+    if (!order) throw new AppError(E.ORDER_NOT_FOUND, 404)
+
+    const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
+    if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
+
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, request.ip)
+    return { locked: true }
   })
 }

@@ -9,6 +9,13 @@ import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
 // P2-C: meta.titleKey 使用 i18n key，不再硬编码中文
 // ============================================
 
+/**
+ * REQ-038 开箱向导路由定义（独立导出）：
+ * 815 拍板 #6（A2 物理销毁）——初始化完成后从路由表移除；
+ * 服务端判未初始化的逃逸口（api/index.ts 503 SETUP_REQUIRED）会重新注册回来。
+ */
+export const SETUP_ROUTE = { path: '/setup', name: 'SetupWizard', component: () => import('../views/setup/SetupWizard.vue'), meta: { titleKey: 'setup.pageTitle' } }
+
 const routes = [
   // ─── 客户端（公开） ───
   { path: '/', name: 'Landing', component: () => import('../views/client/LandingPage.vue'), meta: { titleKey: 'pageTitle.home' } },
@@ -23,7 +30,7 @@ const routes = [
   // ─── 画师后台 ───
   { path: '/login', name: 'ArtistLogin', component: () => import('../views/artist/Login.vue'), meta: { titleKey: 'pageTitle.login' } },
   // REQ-038: 开箱设置向导（未初始化时由守卫重定向进入；完成后永久失效跳登录）
-  { path: '/setup', name: 'SetupWizard', component: () => import('../views/setup/SetupWizard.vue'), meta: { titleKey: 'setup.pageTitle' } },
+  SETUP_ROUTE,
   // ─── 画师后台（REQ-037 批2 A1: 嵌套路由——ArtistLayout 经 ArtistLayoutRoute 载体全会话只挂载一次，
   //     消除切页骨架重挂与 getMe/留言角标重复请求；路由 name/meta 逐字保留） ───
   {
@@ -103,6 +110,8 @@ const routes = [
       { path: 'default-workflow', name: 'AdminDefaultWorkflow', component: () => import('../views/admin/DefaultWorkflowEditor.vue'), meta: { titleKey: 'admin.defaultWorkflow', requiresAdmin: true } },
       // REQ-022 F2: 社交平台管理
       { path: 'platforms', name: 'AdminPlatforms', component: () => import('../views/admin/PlatformManage.vue'), meta: { titleKey: 'admin.platformManage', requiresAdmin: true } },
+      // 815 第三批 I 路: 系统增项模板管理
+      { path: 'addon-templates', name: 'AdminAddonTemplates', component: () => import('../views/admin/AddonTemplateManage.vue'), meta: { titleKey: 'admin.addonTemplates', requiresAdmin: true } },
       // HC: 系统自检
       { path: 'health', name: 'AdminHealthCheck', component: () => import('../views/admin/HealthCheck.vue'), meta: { titleKey: 'pageTitle.healthCheck', requiresAdmin: true } },
       // REQ-033 埋点看板
@@ -123,6 +132,12 @@ const routes = [
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
+
+// 815 拍板 #6（A2 物理销毁）：已初始化的系统启动即移除 /setup 路由（直访落 NotFound）；
+// 源码保留定义，服务端重置后由逃逸口 addRoute 自动回归
+if (safeGetItem('setup_initialized') === '1') {
+  router.removeRoute('SetupWizard')
+}
 
 /**
  * 站内重定向白名单（a3 防御加固）：仅放行同源 http(s) 路径。

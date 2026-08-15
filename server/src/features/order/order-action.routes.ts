@@ -6,6 +6,7 @@ import { requireAuth } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 import { AppError, E } from '../../shared/errors.js'
 import { withIdempotency, readIdempotencyKey } from '../../shared/idempotency.js'
+import { MAX_MONEY_CENTS } from './order-limits.js'  // 815 拍板 #2：金额上限统一 100 万
 import db from '../../db/connection.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
@@ -47,6 +48,38 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
     }
     const { status, confirmPaidCancel, version } = request.body as { status: string; confirmPaidCancel?: boolean; version?: number }
     return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, status, !!confirmPaidCancel, version))
+  })
+
+  /**
+   * POST /api/artist/orders/:id/cancel
+   * 815 拍板 #1：带 5 秒撤销窗口的取消（画师端取消入口）——队列重排/递补延迟到窗口过期结算
+   */
+  fastify.post('/api/artist/orders/:id/cancel', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          confirmPaidCancel: { type: 'boolean' },
+          version: { type: 'integer', minimum: 1 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const { confirmPaidCancel, version } = (request.body ?? {}) as { confirmPaidCancel?: boolean; version?: number }
+    const order = orderService.cancelOrderWithUndo(request.order.id, !!confirmPaidCancel, version)
+    return { ...enrichOrderForArtist(order), undoWindowMs: orderService.CANCEL_UNDO_WINDOW_MS }
+  })
+
+  /**
+   * POST /api/artist/orders/:id/cancel-undo
+   * 815 拍板 #1：撤销取消（窗口内）；窗口过期 410
+   */
+  fastify.post('/api/artist/orders/:id/cancel-undo', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request: FastifyRequest) => {
+    return enrichOrderForArtist(orderService.undoCancelOrder(request.order.id, request.artist.id))
   })
 
   /**
@@ -171,7 +204,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['finalPriceCents'],
         properties: {
-          finalPriceCents: { type: 'integer', minimum: 1, maximum: 99999999 },
+          finalPriceCents: { type: 'integer', minimum: 1, maximum: MAX_MONEY_CENTS },
           quoteSnapshot: { type: ['string', 'null'], maxLength: 500 },
           // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
           version: { type: 'integer', minimum: 1 }
@@ -201,7 +234,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
           name: { type: 'string', minLength: 1, maxLength: 100 },
           description: { type: ['string', 'null'], maxLength: 500 },
           // REQ-025 R13: done 半终态减价路径——放开负数（负增项走 refund_item 冲正条目）
-          priceCents: { type: 'integer', minimum: -99999999, maximum: 99999999 }
+          priceCents: { type: 'integer', minimum: -MAX_MONEY_CENTS, maximum: MAX_MONEY_CENTS }
         },
         additionalProperties: false
       }
@@ -236,7 +269,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['amountCents'],
         properties: {
-          amountCents: { type: 'integer', minimum: -99999999, maximum: 99999999 },
+          amountCents: { type: 'integer', minimum: -MAX_MONEY_CENTS, maximum: MAX_MONEY_CENTS },
           note: { type: ['string', 'null'], maxLength: 200 },
           installmentId: { type: ['integer', 'null'] }
         },

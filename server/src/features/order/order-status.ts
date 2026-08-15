@@ -216,3 +216,92 @@ export function tryAutoPromote(artistId: number): void {
     }
   }
 }
+
+// ─── 815 拍板 #1：取消 5 秒撤销（窗口存 DB 刷新不丢） ───
+
+export const CANCEL_UNDO_WINDOW_MS = 5_000
+
+interface UndoWindowRow {
+  id: number
+  order_id: number
+  artist_id: number
+  prev_status: string
+  expires_at: number
+  consumed: number
+}
+
+/**
+ * 带撤销窗口的取消（画师端取消入口）：
+ * ① 队列重排/递补延迟执行（窗口过后由 settleExpiredUndoWindows 结算）——避免撤销前后反复动其他单位置；
+ * ② 新取消作废该画师旧窗口（只撤最近一次）；
+ * ③ 窗口与状态变更同事务，留痕 status_change + undoWindow 标记。
+ */
+export function cancelOrderWithUndo(orderId: number, confirmPaidCancel: boolean = false, expectedVersion?: number): OrderDetail {
+  const order = getOrder(orderId)
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+  // audit-a R-2 同款：已收款取消必须显式确认
+  if ((order.paid_total_cents ?? 0) > 0 && !confirmPaidCancel) {
+    throw new AppError(E.CANCEL_WITH_PAYMENT, 409, { paidCents: order.paid_total_cents })
+  }
+  assertStatusTransition(order.status, 'cancelled')
+
+  return db.transaction(() => {
+    // 只撤最近一次：作废该画师全部未消费旧窗口（consumed=2 过期结算语义，队列本就没动无需补结算）
+    db.prepare('UPDATE cancel_undo_windows SET consumed = 2 WHERE artist_id = ? AND consumed = 0').run(order.artist_id)
+
+    updateOrderChecked(orderId, expectedVersion, 'status = ?', 'cancelled')
+    logActivity(orderId, 'status_change', 'artist', { from: order.status, to: 'cancelled', undoWindow: true })
+
+    db.prepare('INSERT INTO cancel_undo_windows (order_id, artist_id, prev_status, expires_at) VALUES (?, ?, ?, ?)')
+      .run(orderId, order.artist_id, order.status, Date.now() + CANCEL_UNDO_WINDOW_MS)
+
+    // 有意不执行 compactQueue/tryAutoPromote：窗口过期后结算（见 settleExpiredUndoWindows）
+    return getOrder(orderId)!
+  })()
+}
+
+/**
+ * 撤销取消：窗口未过期且未消费 → 恢复原状态（队列本就没动，无需重排）；
+ * 留痕 cancel_undo；窗口过期/不存在 → 410。
+ */
+export function undoCancelOrder(orderId: number, artistId: number): OrderDetail {
+  return db.transaction(() => {
+    const order = getOrder(orderId)
+    if (!order || order.artist_id !== artistId) throw new AppError(E.ORDER_NOT_FOUND)
+    if (order.status !== 'cancelled') {
+      throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: '撤销取消' })
+    }
+    const win = db.prepare(
+      'SELECT * FROM cancel_undo_windows WHERE order_id = ? AND consumed = 0 ORDER BY id DESC LIMIT 1'
+    ).get(orderId) as UndoWindowRow | undefined
+    if (!win || win.expires_at <= Date.now()) {
+      throw new AppError(E.CANCEL_UNDO_EXPIRED, 410)
+    }
+
+    // 恢复原状态：撤销是回滚操作，不走 STATUS_TRANSITIONS 前向断言（cancelled 无前向出路）；
+    // version 不带守卫（窗口同事务新写入，无并发覆盖面）
+    updateOrderChecked(orderId, undefined, 'status = ?', win.prev_status)
+    db.prepare('UPDATE cancel_undo_windows SET consumed = 1 WHERE id = ?').run(win.id)
+    // 留痕：action_type 白名单无 cancel_undo，复用 status_change + undo 标记（避免 CHECK 重建表）
+    logActivity(orderId, 'status_change', 'artist', { from: 'cancelled', to: win.prev_status, undo: true })
+
+    return getOrder(orderId)!
+  })()
+}
+
+/**
+ * 过期窗口结算：标记 consumed=2 + 补执行队列重排/递补。
+ * 两个触发点：队列读入口懒清理（传 artistId）与启动时全局扫描（拍板⑥，复用迁移崩溃恢复思路）。
+ */
+export function settleExpiredUndoWindows(artistId?: number): void {
+  const now = Date.now()
+  const rows = artistId === undefined
+    ? db.prepare('SELECT DISTINCT artist_id FROM cancel_undo_windows WHERE consumed = 0 AND expires_at <= ?').all(now) as Array<{ artist_id: number }>
+    : db.prepare('SELECT DISTINCT artist_id FROM cancel_undo_windows WHERE consumed = 0 AND expires_at <= ? AND artist_id = ?').all(now, artistId) as Array<{ artist_id: number }>
+  for (const row of rows) {
+    db.prepare('UPDATE cancel_undo_windows SET consumed = 2 WHERE artist_id = ? AND consumed = 0 AND expires_at <= ?').run(row.artist_id, now)
+    compactQueue(row.artist_id)
+    // SPEC-004: 名额释放后的自动递补在窗口过后才发生（撤销期内不动队列）
+    tryAutoPromote(row.artist_id)
+  }
+}

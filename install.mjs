@@ -303,7 +303,9 @@ async function launchNativeSite(port) {
   const extra = []
   if (newSetupToken) {
     extra.push('')
-    extra.push(`  安装口令：${yellow(newSetupToken)}（开箱向导第一步要输入，请妥善保管）`)
+    extra.push(`  安装口令：${yellow(newSetupToken)}（请妥善保管）`)
+    // 815 拍板 #3（方案 C）：直达链接——点开直达开箱向导，免手动输入口令
+    extra.push(`  直达链接：http://localhost:${port}/setup?token=${newSetupToken}`)
   }
   if (IS_WIN) {
     extra.push('')
@@ -459,7 +461,9 @@ async function main() {
     SESSION_SECRET: sessionSecret,
     COOKIE_SECRET: cookieSecret,
     // 安装口令（REQ-038）：保护未初始化系统的 /setup 向导，防未授权访问
-    SETUP_TOKEN: randomBytes(4).toString('hex'),
+    // 815 拍板 #3（方案 C）：32 位升 128 位（randomBytes(16)），配合直达链接免手输；
+    // 硬约束：该口令唯一用途 = 开箱向导鉴权，禁止其他位置复用
+    SETUP_TOKEN: randomBytes(16).toString('hex'),
   }
 
   let domain = getArg('--domain')
@@ -511,8 +515,10 @@ async function main() {
     }
     ok('网站已就绪')
     const url = domain && domain !== 'localhost' ? `https://${domain}` : 'https://localhost（浏览器若提示"不安全"，点"继续访问"即可）'
+    // 815 拍板 #3（方案 C）：直达链接免手输口令
+    const setupBase = domain && domain !== 'localhost' ? `https://${domain}` : 'https://localhost'
     const extras = newSetupToken
-      ? ['', `  安装口令：${yellow(newSetupToken)}（开箱向导第一步要输入，请妥善保管）`]
+      ? ['', `  安装口令：${yellow(newSetupToken)}（请妥善保管）`, `  直达链接：${setupBase}/setup?token=${newSetupToken}`]
       : []
     printDone(url, extras)
   } else {

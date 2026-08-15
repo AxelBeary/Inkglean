@@ -586,6 +586,29 @@ export interface DeleteAddonTemplateResult {
   referenced: boolean
 }
 
+// ─── 系统增项模板（815 第三批 I 路，管理端） ───
+
+/** 管理端系统增项模板行（仅 artist_id IS NULL；referenced = 被画风引用数） */
+export interface AdminAddonTemplate extends AddonTemplate {
+  referenced: number
+}
+
+/** 管理端新建/编辑系统模板写请求（对齐画师侧字段 + sort_order） */
+export interface AdminAddonTemplateInput extends AddonTemplateInput {
+  sort_order?: number
+}
+
+/** 管理端更新系统模板写请求（sync=true 同步 / false 或缺省=冻结） */
+export interface AdminAddonTemplateUpdate extends AdminAddonTemplateInput {
+  sync?: boolean
+}
+
+/** DELETE /api/admin/addon-templates/:id 响应 */
+export interface DeleteAdminAddonTemplateResult {
+  deleted: boolean
+  referenced: number
+}
+
 // ─── 画风管理（画师端） ───
 
 export interface ArtStyle {
@@ -895,6 +918,8 @@ export interface OrderDeliveryResult {
     fileName: string | null | undefined
     fileSize: number | null | undefined
     url: string
+    /** 815 拍板 #4：一次性下载锁定状态（已下载过，需画师再许可） */
+    downloadLocked?: boolean
   }>
 }
 

@@ -10,6 +10,7 @@ import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
 import { pruneIdempotencyKeys } from './shared/idempotency.js'
+import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
 import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
@@ -195,10 +196,24 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   const _gcTimer = setInterval(gcUploads, 24 * 60 * 60 * 1000)
   _gcTimer.unref()
 
+  // 815 拍板 #1⑥：启动时扫描已过期的取消撤销窗口并补执行队列重排/递补
+  //（复用迁移崩溃恢复思路：宕机/重启期间过期的窗口不丢结算）
+  try {
+    const { settleExpiredUndoWindows } = await import('./features/order/order-status.js')
+    settleExpiredUndoWindows()
+  } catch (err) {
+    app.log.warn({ err }, '启动扫描撤销窗口失败（不阻断启动）')
+  }
+
   // ─── 全局插件 ───
   // Cookie 支持（httpOnly token 存储）
+  const cookieSecret = process.env.COOKIE_SECRET || process.env.SESSION_SECRET || 'dev-cookie-secret-change-in-production'
+  // 815 审计拍板 #12：生产环境 cookie 密钥同样拒绝弱值（兜底链落到 dev 默认值 = 带病上线）
+  if (process.env.NODE_ENV === 'production' && isWeakSessionSecret(cookieSecret)) {
+    throw new Error('COOKIE_SECRET/SESSION_SECRET 为弱值——生产环境拒绝启动，请配置强随机值')
+  }
   await app.register(fastifyCookie, {
-    secret: process.env.COOKIE_SECRET || process.env.SESSION_SECRET || 'dev-cookie-secret-change-in-production',
+    secret: cookieSecret,
     parseOptions: {}
   })
 
@@ -267,6 +282,11 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
 
     const sig = (request.query as { sig?: string } | undefined)?.sig
     const filePath = decodeURIComponent(request.url.slice('/uploads/'.length).split('?')[0])
+    // 815 拍板 #4：交付文件不支持分段下载（防多线程下载器乱序绕过一次性下载）；
+    // 下载器场景由服务层 60 秒兜底锁定兼顾
+    if (filePath.startsWith('deliverables/') && request.headers.range) {
+      return reply.code(416).send({ error: '交付文件不支持分段下载' })
+    }
     const verified = verifyFileToken(sig)
     if (verified !== filePath) {
       return reply.code(403).send({ error: '文件链接无效或已过期' })

@@ -136,7 +136,7 @@ export default {
 
     // Pricing (supplement)
     PRICING_CALC_FAILED: 'Price calculation failed',
-    INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 99999999)',
+    INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 100,000,000 = ¥1,000,000)',
     // Pricing engine (supplement, v0.37 REQ-025)
     PRICING_CONSERVATION: 'Pricing data looks inconsistent. The change was not applied. Please refresh and retry.',
     PRICE_CHANGE_AFTER_DONE: 'Order is complete; adjust the price by adding or removing extra items',
@@ -925,7 +925,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
     orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download',
-    downloadFailed: 'Download failed, please retry or contact the artist', verifyFailed: 'Verification failed, please try again later'
+    downloadFailed: 'Download failed, please retry or contact the artist', verifyFailed: 'Verification failed, please try again later',
+    // 815 decision #4: one-time download
+    downloadLocked: 'Downloaded',
+    downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission'
   },
   login: {
     // REQ-040: Passkey login button
@@ -1043,6 +1046,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', slideCancelConfirm: 'Confirm cancellation', statusUpdated: 'Status updated',
+    // 815 decision #1: paid-order cancel on queue side redirects to detail page for confirmation
+    cancelPaidGoDetail: 'This order has payments. Please cancel from the order detail page after confirmation',
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
     workflowLoadFailed: 'Failed to load workflow stages. The advance button is hidden. Please retry.',
     // P0-3b: tab labels
@@ -1103,6 +1108,15 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     confirmCancel: 'Confirm order cancellation',
     // R-2: second confirmation for cancelling a paid order (amount from backend detail.paidCents)
     cancelPaidConfirm: 'This order has received ¥{amount}. Cancel anyway? Funds must be refunded offline',
+    // 815 拍板 #1: cancel with 5-second undo window
+    cancelUndoHint: 'Order {label} cancelled. Undo within {s}s',
+    cancelUndoBtn: 'Undo',
+    cancelUndone: 'Cancellation undone. Order restored',
+    cancelUndoExpired: 'Undo window has passed. The order cannot be restored',
+    // 815 decision #4: one-time download — artist re-permission
+    deliverableLocked: 'Download locked',
+    deliverableRepermit: 'Re-permit download',
+    deliverableRepermitted: 'Re-permitted. The client can download again',
     noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', confirmTitle: 'Confirm',
@@ -1770,6 +1784,27 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     },
     // REQ-022 F2: social platform management
     platformManage: 'Platform management',
+    // 815 batch 3 Route I: system addon templates (artist_id IS NULL)
+    addonTemplates: 'System addon templates',
+    addonTemplatesSubtitle: 'Manage shared system templates (commercial use / rush, etc.); choose sync or freeze when changing prices',
+    addonTemplatesAdd: 'New system template',
+    addonTemplatesEdit: 'Edit system template',
+    addonTemplatesEmpty: 'No system templates yet',
+    addonTemplatesSaved: 'System template saved',
+    addonTemplatesDeleted: 'System template deleted',
+    addonTemplatesColName: 'Name',
+    addonTemplatesColCategory: 'Category',
+    addonTemplatesColControl: 'Control',
+    addonTemplatesColPricing: 'Pricing',
+    addonTemplatesColPrice: 'Price',
+    addonTemplatesColSort: 'Order',
+    addonTemplatesColReferenced: 'Styles using it',
+    addonTemplatesSortLabel: 'Sort order (lower first)',
+    addonTemplatesDeleteConfirm: 'Delete system template “{name}”?',
+    addonTemplatesDeleteRefConfirm: '{count} style(s) are using this template. After deletion they remain as independent addons (name/price preserved) but no longer follow the template. Delete “{name}”?',
+    addonTemplatesSyncLabel: 'Sync to imported artists',
+    addonTemplatesSyncHint: 'Unchecked = freeze: imported styles that have not overridden the price get the current template price written to themselves and stop following the template; checked = follow platform-wide: styles without an override automatically use the new price. Rows the artist changed are never touched.',
+    addonTemplatesFreezeNote: 'Note: once frozen, that artist’s price no longer follows the template; v1 cannot distinguish a freeze write from an artist’s own change. To restore, ask the artist to edit the price manually in “Styles & Pricing”.',
     platform: {
       colName: 'Platform', colIcon: 'Icon', colDomains: 'Match domains', colOrder: 'Order', colEnabled: 'Enabled',
       add: 'Add platform', edit: 'Edit platform', delete: 'Delete',
@@ -1859,7 +1894,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     },
     privacy: {
       pageTitle: 'Privacy Policy',
-      updated: '2026-08-11',
+      updated: '2026-08-15',
       note: 'This policy is a standard template (human-reviewed), not legal advice. The platform will update it when business changes materially.',
       sections: [
         {
@@ -1871,7 +1906,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
             'Order requirements, notes and reference images (required to complete commissions)',
             'Artwork images and final deliverables (artist showcase and delivery)',
             'Browsing behavior (tracking, can be disabled in preferences; logs retained for 180 days)',
-            'Passkey public key (for passwordless login; only the public credential is stored)'
+            'Passkey public key (for passwordless login; only the public credential is stored)',
+            'Deliverable download records (IP and timestamp at download, for dispute evidence of one-time downloads)'
           ]
         },
         {
@@ -1997,6 +2033,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       ban: 'Ban artist',
       banConfirm: 'Add a ban reason (optional)',
       bannedToast: 'Artist banned',
+      unban: 'Unban artist',
+      unbanConfirm: 'Add an unban reason (optional)',
+      unbannedToast: 'Artist unbanned',
+      bannedTag: 'Banned',
       reasonPlaceholder: 'Reason (optional)',
       empty: 'No reports',
       loadFailed: 'Failed to load reports'

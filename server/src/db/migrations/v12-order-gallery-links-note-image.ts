@@ -5,7 +5,7 @@ export const migration: Migration = {
   version: 12,
   name: 'order_gallery_links_note_image',
   up(database) {
-    backupDbBeforeMigration(12)
+    backupDbBeforeMigration(12, database)
 
     // R15: artists.custom_links（JSON TEXT 列）
     const artistCols = database.prepare('PRAGMA table_info(artists)').all() as ColumnInfo[]

@@ -24,6 +24,10 @@ function getSecret(): string {
     console.warn('⚠️  SESSION_SECRET 未设置，文件签名已生成随机开发密钥（每次启动变化，仅限开发环境）')
     return devSecret
   }
+  // 815 审计拍板 #12：与 auth.service 同款弱值 fail-fast（dev 前缀/默认值/过短拒绝启动）
+  if (process.env.NODE_ENV === 'production' && (secret.startsWith('dev-') || secret.length < 32)) {
+    throw new Error('SESSION_SECRET 为弱值 — 生产环境拒绝启动，请更换为强随机值')
+  }
   return secret
 }
 

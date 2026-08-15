@@ -923,7 +923,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
     orderInfo: '订单号：{no} | 画师：{artist}', download: '下载',
-    downloadFailed: '下载失败，请重试或联系画师', verifyFailed: '验证失败，请稍后重试'
+    downloadFailed: '下载失败，请重试或联系画师', verifyFailed: '验证失败，请稍后重试',
+    // 815 拍板 #4：一次性下载
+    downloadLocked: '已下载',
+    downloadLockedMsg: '该文件已下载过并被锁定，如需再次下载请联系画师再许可'
   },
   login: {
     // REQ-040: Passkey 登录按钮
@@ -1042,6 +1045,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', slideCancelConfirm: '确认取消订单', statusUpdated: '状态已更新',
+    // 815 拍板 #1：队列侧已收款取消引导去详情页二次确认
+    cancelPaidGoDetail: '该订单已有收款，请到订单详情页确认后取消',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
     workflowLoadFailed: '工作流节点加载失败，推进按钮已隐藏，请重试',
     // P0-3b: 标签切换
@@ -1102,6 +1107,15 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     confirmCancel: '确认取消订单',
     // R-2: 已收款订单取消的二次确认（金额来自后端 detail.paidCents）
     cancelPaidConfirm: '该订单已收 ¥{amount}，确认取消？资金需线下退还',
+    // 815 拍板 #1：取消 5 秒撤销
+    cancelUndoHint: '订单 {label} 已取消，{s} 秒内可撤销',
+    cancelUndoBtn: '撤销',
+    cancelUndone: '已撤销取消，订单已恢复',
+    cancelUndoExpired: '撤销窗口已过，无法恢复该订单',
+    // 815 拍板 #4：交付文件一次性下载——画师再许可
+    deliverableLocked: '下载已锁定',
+    deliverableRepermit: '再许可下载',
+    deliverableRepermitted: '已再许可，客户可再次下载',
     noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', confirmTitle: '确认',
@@ -1767,6 +1781,27 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     },
     // REQ-022 F2: 社交平台管理
     platformManage: '社交平台管理',
+    // 815 第三批 I 路: 系统增项模板（artist_id IS NULL）
+    addonTemplates: '系统增项模板',
+    addonTemplatesSubtitle: '管理全画师共用的系统模板（商业用途/加急等）；改价时可选择同步或冻结已导入画师的价格',
+    addonTemplatesAdd: '新建系统模板',
+    addonTemplatesEdit: '编辑系统模板',
+    addonTemplatesEmpty: '暂无系统模板',
+    addonTemplatesSaved: '系统模板已保存',
+    addonTemplatesDeleted: '系统模板已删除',
+    addonTemplatesColName: '名称',
+    addonTemplatesColCategory: '类别',
+    addonTemplatesColControl: '控件',
+    addonTemplatesColPricing: '计价',
+    addonTemplatesColPrice: '价格',
+    addonTemplatesColSort: '排序',
+    addonTemplatesColReferenced: '引用画风',
+    addonTemplatesSortLabel: '排序（小的在前）',
+    addonTemplatesDeleteConfirm: '确定删除系统模板「{name}」？',
+    addonTemplatesDeleteRefConfirm: '该模板正被 {count} 个画风使用。删除后这些画风会保留为独立增项（名称/价格不丢），但不再跟随模板更新。确定删除「{name}」？',
+    addonTemplatesSyncLabel: '同步到已导入画师',
+    addonTemplatesSyncHint: '不勾选 = 冻结：已导入且未改过价的画风会把当前模板价格写入自身，之后不再跟随模板；勾选 = 全平台跟随：未改过价的画风自动采用新价。画师自行改过价的行一律不受影响。',
+    addonTemplatesFreezeNote: '注意：冻结后该画师的价格不再跟随模板；v1 无法区分冻结写入与画师自定义，如需恢复请让画师在「画风与价格」面板手动改价。',
     platform: {
       colName: '平台名', colIcon: '图标', colDomains: '匹配域名', colOrder: '排序', colEnabled: '启用',
       add: '新增平台', edit: '编辑平台', delete: '删除',
@@ -1855,7 +1890,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     },
     privacy: {
       pageTitle: '隐私政策',
-      updated: '2026-08-11',
+      updated: '2026-08-15',
       note: '本政策为平台标准版模板文案（人工审校），非法律意见；业务重大变化时平台将更新条款。',
       sections: [
         {
@@ -1867,7 +1902,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
             '订单需求、备注与参考图（完成约稿必需）',
             '作品图与交付完稿（画师展示与交付）',
             '浏览行为（埋点，可在偏好中关闭；日志保留 180 天）',
-            'Passkey 公钥（用于免密登录，仅存公钥凭证）'
+            'Passkey 公钥（用于免密登录，仅存公钥凭证）',
+            '交付文件下载记录（下载时的 IP 与时间，用于一次性下载的纠纷取证）'
           ]
         },
         {
@@ -1993,6 +2029,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       ban: '封禁画师',
       banConfirm: '填写封禁原因（可选）',
       bannedToast: '画师已封禁',
+      unban: '解封画师',
+      unbanConfirm: '填写解封原因（可选）',
+      unbannedToast: '画师已解封',
+      bannedTag: '已封禁',
       reasonPlaceholder: '原因（可留空）',
       empty: '暂无举报',
       loadFailed: '举报列表加载失败'

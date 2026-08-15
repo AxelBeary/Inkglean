@@ -5,7 +5,7 @@ export const migration: Migration = {
   version: 11,
   name: 'order_quote_focus_and_artist_prefs',
   up(database) {
-    backupDbBeforeMigration(11)
+    backupDbBeforeMigration(11, database)
 
     // ─── orders 表新增 4 字段 ───
     const orderCols = database.prepare('PRAGMA table_info(orders)').all() as ColumnInfo[]

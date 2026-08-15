@@ -9,6 +9,9 @@ import type {
   AddPaymentRequest,
   AddPaymentResult,
   AddReferenceRequest,
+  AdminAddonTemplate,
+  AdminAddonTemplateInput,
+  AdminAddonTemplateUpdate,
   AdminArtistItem,
   AdminGuestbookMessage,
   AdminMessageFilters,
@@ -40,6 +43,7 @@ import type {
   CreateStandaloneIncomeResult,
   CustomerTokenResult,
   DefaultWorkflowNode,
+  DeleteAdminAddonTemplateResult,
   DeleteAddonTemplateResult,
   DeleteArtistResult,
   DeleteArtworkResult,
@@ -192,6 +196,10 @@ api.interceptors.response.use(
       try {
         // 动态导入避免循环依赖（router 链依赖本模块）
         const routerMod = await import('../router/index.js')
+        // 815 拍板 #6：向导路由可能已被物理销毁（已初始化后启动移除），逃逸口重新注册回来
+        if (!routerMod.default.hasRoute('SetupWizard')) {
+          routerMod.default.addRoute(routerMod.SETUP_ROUTE)
+        }
         if (routerMod.default.currentRoute.value.name !== 'SetupWizard') {
           routerMod.default.push({ name: 'SetupWizard' })
         }
@@ -469,6 +477,12 @@ export const artistApi = {
   // D-1（R-5）: options.version 可选——乐观锁版本，旧快照写入后端 409 ORDER_CONFLICT
   updateStatus: (id: number, status: OrderStatus | string, options: UpdateStatusOptions = {}): Promise<EnrichedOrderDetail> =>
     putJson(`/artist/orders/${id}/status`, { status, ...options }),
+  /** 815 拍板 #1：带 5 秒撤销窗口的取消（队列重排延迟结算），返回含 undoWindowMs */
+  cancelOrder: (id: number, options: UpdateStatusOptions = {}): Promise<EnrichedOrderDetail & { undoWindowMs: number }> =>
+    postJson(`/artist/orders/${id}/cancel`, { ...options }),
+  /** 815 拍板 #1：撤销取消（窗口内；过期 410 CANCEL_UNDO_EXPIRED） */
+  undoCancelOrder: (id: number): Promise<EnrichedOrderDetail> =>
+    postJson(`/artist/orders/${id}/cancel-undo`),
   updatePriority: (id: number, priority: OrderPriority): Promise<EnrichedOrderDetail> =>
     putJson(`/artist/orders/${id}/priority`, { priority }),
   reorderQueue: (orderedIds: number[]): Promise<QueueOrderItem[]> =>
@@ -492,6 +506,9 @@ export const artistApi = {
   // 方案 B: 无文件交付（修复工作流订单最后节点交付卡死）
   deliverNoFile: (id: number, options: VersionedOptions = {}): Promise<DeliverResult> =>
     postJson(`/artist/orders/${id}/deliver-no-file`, options),
+  /** 815 拍板 #4：画师再许可交付文件下载（清零锁定与防护计数） */
+  repermitDeliverable: (id: number, fileId: number): Promise<EnrichedOrderDetail> =>
+    postJson(`/artist/orders/${id}/deliverables/${fileId}/repermit`),
   addReference: (id: number, data: AddReferenceRequest): Promise<EnrichedOrderDetail> =>
     postJson(`/artist/orders/${id}/references`, data),
   deleteReference: (id: number, refId: number): Promise<EnrichedOrderDetail> =>
@@ -606,7 +623,12 @@ export const orderApi = {
   track: (orderNo: string, token: string): Promise<OrderTrackResult> =>
     getJson(`/orders/track/${orderNo}`, { params: { token } }),
   delivery: (orderNo: string, token: string): Promise<OrderDeliveryResult> =>
-    getJson(`/orders/delivery/${orderNo}`, { params: { token } })
+    getJson(`/orders/delivery/${orderNo}`, { params: { token } }),
+  /** 815 拍板 #4：一次性下载——开始（签发一次性 URL）与确认（完整接收后锁定） */
+  deliveryDownloadStart: (orderNo: string, fileId: number, token: string): Promise<{ url: string }> =>
+    postJson(`/orders/delivery/${orderNo}/file/${fileId}/download-start?token=${encodeURIComponent(token)}`),
+  deliveryDownloadConfirm: (orderNo: string, fileId: number, token: string): Promise<{ locked: boolean }> =>
+    postJson(`/orders/delivery/${orderNo}/file/${fileId}/download-confirm?token=${encodeURIComponent(token)}`)
 }
 
 // ─── 上传 ───
@@ -657,6 +679,14 @@ export const adminApi = {
     postJson(`/admin/artists/${id}/totp/bind-confirm`, { code }),
   totpReset: (id: number): Promise<TotpActionResult> => postJson(`/admin/artists/${id}/totp/reset`),
   getStats: (): Promise<GlobalStats> => getJson('/admin/stats'),
+  // 815 第三批 I 路: 系统增项模板（artist_id IS NULL，全画师共用）
+  getAddonTemplates: (): Promise<AdminAddonTemplate[]> => getJson('/admin/addon-templates'),
+  createAddonTemplate: (data: AdminAddonTemplateInput): Promise<AddonTemplate> =>
+    postJson('/admin/addon-templates', data),
+  updateAddonTemplate: (id: number, data: AdminAddonTemplateUpdate): Promise<AddonTemplate> =>
+    putJson(`/admin/addon-templates/${id}`, data),
+  deleteAddonTemplate: (id: number): Promise<DeleteAdminAddonTemplateResult> =>
+    deleteJson(`/admin/addon-templates/${id}`),
   getArtistOrders: (id: number): Promise<AdminOrdersResult> => getJson(`/admin/artists/${id}/orders`),
   updateArtistStatus: (id: number, status: ArtistStatus): Promise<PublicArtistDTO> =>
     putJson(`/admin/artists/${id}/status`, { status }),

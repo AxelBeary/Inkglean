@@ -70,7 +70,7 @@ export function getOrder(orderId: number, { clientOnly = false }: { clientOnly?:
   const referencesAll = db.prepare('SELECT id, order_id, file_path, original_name, source FROM order_references WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; source: string }>
   order.references = clientOnly ? references : referencesAll
   order.notes = db.prepare('SELECT id, order_id, content, created_by, image_path, created_at FROM order_notes WHERE order_id = ? ORDER BY created_at ASC').all(orderId) as Array<{ id: number; order_id: number; content: string; created_by: string; image_path: string | null; created_at: string }>
-  order.deliverables = db.prepare('SELECT id, order_id, file_path, original_name, file_size, created_at FROM deliverables WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; file_size: number | null; created_at: string }>
+  order.deliverables = db.prepare('SELECT id, order_id, file_path, original_name, file_size, created_at, download_locked FROM deliverables WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; file_size: number | null; created_at: string; download_locked: number }>
   // SPEC-003: 附加工作项
   order.extraItems = db.prepare('SELECT id, order_id, name, description, price_cents, created_at FROM order_extra_items WHERE order_id = ? ORDER BY created_at ASC').all(orderId) as Array<{ id: number; order_id: number; name: string; description: string | null; price_cents: number; created_at: string }>
 

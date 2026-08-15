@@ -7,7 +7,7 @@ export const migration: Migration = {
     up(database) {
       // F3: 画师小公告（announcement + 过期时间）
       // F1: 作品点赞计数
-      backupDbBeforeMigration(21)
+      backupDbBeforeMigration(21, database)
       // artists: announcement + announcement_expires_at
       const artistCols = database.prepare('PRAGMA table_info(artists)').all() as ColumnInfo[]
       if (!artistCols.some(c => c.name === 'announcement')) {

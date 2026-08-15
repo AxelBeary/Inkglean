@@ -124,7 +124,7 @@ import { useSessionGuard } from '../../composables/useSessionGuard'
 // REQ-041: 管理后台二次验证对话框（入口级守卫）
 import StepUpDialog from './StepUpDialog.vue'
 import { stepUpApi } from '../../api/index.js'
-import { Management, User, ChatLineSquare, SetUp, Share, Monitor, TrendCharts, Operation, Back, Warning, Bell } from '@element-plus/icons-vue'
+import { Management, User, ChatLineSquare, SetUp, Share, Files, Monitor, TrendCharts, Operation, Back, Warning, Bell } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -152,6 +152,8 @@ const navItems = [
   { path: '/admin/greetings', icon: ChatLineSquare, labelKey: 'admin.greetingManage', group: 'ops' },
   { path: '/admin/default-workflow', icon: SetUp, labelKey: 'admin.defaultWorkflow', group: 'ops' },
   { path: '/admin/platforms', icon: Share, labelKey: 'admin.platformManage', group: 'config' },
+  // 815 第三批 I 路: 系统增项模板管理
+  { path: '/admin/addon-templates', icon: Files, labelKey: 'admin.addonTemplates', group: 'config' },
   { path: '/admin/health', icon: Monitor, labelKey: 'admin.health.title', group: 'config' },
   { path: '/admin/analytics', icon: TrendCharts, labelKey: 'admin.tracking.title', group: 'config' }
 ]
