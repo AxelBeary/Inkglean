@@ -1,10 +1,11 @@
 import { test, expect } from '../fixtures/auth.js'
+import { E2E_BASE_URL } from '../../playwright.config.js'
 
 // E6: 金钱链路（报价→定金→尾款→退款→对账）
 // 全部走 API：客户下单（公开）→ 画师改价/收款/推进节点（artist_token cookie）
 // 金额一律用整数分，避免浮点误差
 test('E6 金钱链路完整流程', async ({ page, artistPage }) => {
-  const base = 'http://localhost:3999'
+  const base = E2E_BASE_URL
 
   // ── 1. 客户下单（公开 API，无需登录）──
   const createRes = await page.request.post(base + '/api/orders', {
@@ -87,7 +88,7 @@ test('E6 金钱链路完整流程', async ({ page, artistPage }) => {
 
 // E6b: SPEC-PRICE-2 风格模式计价链路（公式铁律：(基础价+Σ固定增项+Σ百分比增项[只按基础价])×用途×加急−折扣，全程整数分）
 test('E6b SPEC-PRICE-2 风格模式算价+下单+收款', async ({ page, artistPage }) => {
-  const base = 'http://localhost:3999'
+  const base = E2E_BASE_URL
 
   // ── 1. 建画风 + 尺寸（基础价 600 元）──
   const styleRes = await artistPage.request.post(base + '/api/artist/art-styles', {

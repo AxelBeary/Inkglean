@@ -23,7 +23,7 @@ cd 仓库根目录 && cd server && npm run backup && npm run backup:uploads
 - 脚本：`server/scripts/backup-db.ts`（DB）+ `server/scripts/backup-uploads.ts`（uploads）
 - DB 原理：SQLite `VACUUM INTO` 一致性快照——运行中的库直接出完整独立 .db 文件，WAL 安全，不停服。
 - uploads 原理：Node 原生 zlib + tar 流打包（ustar），含 `.recycle-bin`（回收站内仍是用户数据），零新依赖。
-- 成功输出：`BACKUP_OK <文件路径> (<大小> bytes, <N> files)`；失败输出 `BACKUP_FAILED <原因>` 并退出码 1（cron 可据此告警）。
+- 成功输出：DB 为 `BACKUP_OK <文件路径>`，uploads 为 `BACKUP_OK <文件路径> (<大小> bytes, <N> files)`；失败输出均为 `BACKUP_FAILED <原因>` 并退出码 1（cron 可据此告警）。
 
 ## 2. 备份存放位置与保留策略
 
@@ -37,6 +37,19 @@ cd 仓库根目录 && cd server && npm run backup && npm run backup:uploads
 ```cron
 30 3 * * * cd /path/to/artist-commission && docker compose exec -T web npm --prefix /app/server run backup && docker compose exec -T web npm --prefix /app/server run backup:uploads >> /var/log/commission-backup.log 2>&1   # 容器 WORKDIR=/app，--prefix 指向 /app/server
 ```
+
+### Windows 计划任务（实际在用）
+
+Windows 宿主的每日备份由计划任务 `CommissionDailyBackup` 在 03:30 触发仓库根目录 `daily-backup.bat`，日志统一追加到 `data/backups/daily-backup.log`（`daily-backup.bat:6,16`）。
+
+- **依赖**：Docker Compose 服务可用（脚本调用 `docker compose exec -T web ...`）；宿主机 `node` ≥ 22.6 且在 PATH（校验阶段执行 `node scripts/verify-backup.mjs`）；仓库根/server 依赖已安装（校验使用 `better-sqlite3`）——见 `daily-backup.bat:7-8`。
+- **执行内容**（按 `daily-backup.bat` 实际步骤）：
+  1. 脚本先 `cd /d "%~dp0"` 定位仓库根，确保 `data/backups/` 存在；先用 `scripts/rotate-log.ps1` 按 5MB × 3 份轮转日志（best-effort），再用 `scripts/backup-log.ps1` 写 UTF-8 时间戳起始标记；
+  2. `docker compose exec -T web npm --prefix /app/server run backup` 产出 DB 快照，解析 `BACKUP_OK <路径>`；
+  3. `node scripts/verify-backup.mjs <路径>` 执行 SQLite `integrity_check` + `foreign_key_check`，未得到 `VERIFY_OK` 即退出 1（损坏产物不放行）；
+  4. `docker compose exec -T web npm --prefix /app/server run backup:uploads` 备份 uploads；DB/校验/uploads 任一步失败写 `DB_BACKUP_FAILED` / `BACKUP_ARTIFACT_NOT_FOUND` / `VERIFY_FAILED` / `UPLOADS_BACKUP_FAILED` 标记并以退出码 1 结束（日志轮转失败仅记 `ROTATE_LOG_WARN`，不阻断）。
+- **日志**：`data/backups/daily-backup.log`，超过 5MB 由 `rotate-log.ps1` 轮转为 `.1`/`.2`/`.3`（最多 3 份，best-effort）。
+- **换机重建**：新机满足上述依赖后，把 Windows 计划任务指向新仓库根 `daily-backup.bat`，沿用任务名 `CommissionDailyBackup` 与 03:30 时间，手工触发一次并核对 `daily-backup.log` 出现 `BACKUP_OK` 与 `VERIFY_OK` 后再放行。仓库内没有创建/迁移计划任务的脚本，任务本身需在 Windows 计划任务中配置。
 
 ## 3. 恢复方式（备份文件 → 回滚）
 
@@ -144,12 +157,12 @@ docker compose exec web ls /app/web/dist/assets/ | tail            # ③ 前端�
 
 ## 9. 数据库迁移与回滚
 
-> 本节补充迁移（schema 变更）的运维口径（P2-4，外部研判项）。迁移代码在 `server/src/db/init.js`。
+> 本节补充迁移（schema 变更）的运维口径（P2-4，外部研判项）。迁移代码已拆分：`server/src/db/schema.ts`（建表/索引）+ `server/src/db/migrate.ts`（执行器）+ `server/src/db/migrations/`（版本化 TS）；`server/src/db/init.ts` 为门面导出。
 
 ### 当前机制（单机小项目取舍）
 
-- 迁移均为 **up-only**：`MIGRATIONS` 共 48 条（version 1~48），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
-- 每次迁移执行前自动备份：`init.js` 的 `backupDbBeforeMigration` 会复制 `commission.db` → `commission.db.bak.v<N>`（仅文件数据库；`:memory:` 跳过）。
+- 迁移均为 **up-only**：`MIGRATIONS` 共 64 条（version 1~64，最新 v64 `greeting_special_days`），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
+- 每次迁移执行前自动备份：`server/src/db/migrate.ts` 的 `backupDbBeforeMigration` 会复制 `commission.db` → `commission.db.bak.v<N>`（仅文件数据库；`:memory:` 跳过）。
 - 采用该取舍的原因：单机小项目、单部署点，schema 变更频率低，写 `down()` 的维护成本高于收益；错误回滚用备份恢复兜底（见 §3）。
 
 ### 回滚方式
@@ -165,14 +178,14 @@ cp ./data/commission.db.bak.v<N> ./data/commission.db
 docker compose up -d
 ```
 
-- 迁移前自动备份文件名含目标版本号（如 `commission.db.bak.v45`），按需选择。
-- 恢复后确认数据完整：`sqlite3 ./data/commission.db "PRAGMA user_version"` 应与目标版本一致（`user_version` 由 init.js 维护）。
+- 迁移前自动备份文件名含目标版本号（如 `commission.db.bak.v64`），按需选择。
+- 恢复后确认数据完整：`sqlite3 ./data/commission.db "SELECT MAX(version) FROM schema_migrations"` 应与目标版本一致（已应用版本记录在 `schema_migrations` 表，由 `migrate.ts` 维护）。
 
 ### 建议（技术债登记）
 
 - 未来新迁移若涉及**破坏性变更**（删除/改约束/改数据语义），建议补充 `down()`；非破坏性变更（加列/建索引）可继续 up-only。
 - 若补充 `down()`，命名与 `up()` 同构（`down(database)`），并在迁移对象内注释回滚动作与数据影响。
-- 上线前执行 `npm run db:init` 验证迁移链可用，确认 `user_version` 前进到目标值。
+- 上线前执行 `npm run db:init` 验证迁移链可用，确认 `schema_migrations` 最高 version 前进到目标值。
 
 ---
 ## 10. GitHub Actions CI/CD（批7 事故教训，2026-08-09）
@@ -191,14 +204,14 @@ docker compose up -d
 > 本项为强制项，未完成不得上线。演练走 `server/scripts/backup-db.ts`（DB）+ `backup-uploads.ts`（uploads）
 > + `restore-db.ts` 的真实链路（§1/§3），不依赖「假设可用」的备份；**本批只落 checklist，不实际执行删库恢复**。
 
-- [ ] ① 备份：`cd server && npm run backup && npm run backup:uploads` → 确认输出 `BACKUP_OK <文件路径> (<大小> bytes, <N> files)`
-- [ ] ② 留档基准：记录备份文件路径与当前 `PRAGMA user_version`（`sqlite3 data/commission.db "PRAGMA user_version"`）
+- [ ] ① 备份：`cd server && npm run backup && npm run backup:uploads` → 确认 DB 输出 `BACKUP_OK <文件路径>`、uploads 输出 `BACKUP_OK <文件路径> (<大小> bytes, <N> files)`
+- [ ] ② 留档基准：记录备份文件路径与当前已应用迁移版本（`sqlite3 data/commission.db "SELECT MAX(version) FROM schema_migrations"`）
 - [ ] ③ 删库：停服后把 `data/commission.db*`（含 `-wal`/`-shm`）移到临时目录（演练建议用临时目录而非物理删除，双保险）
 - [ ] ④ 恢复：`npm run restore`（或显式 `npm run restore -- <备份绝对路径>`）→ 确认输出 `RESTORE_OK <备份路径>`
 - [ ] ⑤ 验证数据完整：
   - `sqlite3 data/commission.db "PRAGMA integrity_check"` 返回 `ok`
   - `PRAGMA foreign_key_check` 无悬空行
-  - `user_version` 与 ② 一致（迁移链未回退）
+  - `schema_migrations` 最高 version 与 ② 一致（迁移链未回退）
   - 抽查关键业务表行数（artists / orders / artworks / guestbook_messages 等）与备份前一致
   - uploads 归档抽查：作品图 / 参考图 / 交付文件 URL 可访问（§3.2）
 - [ ] ⑥ 恢复后核对 GC 风险窗口（§4）：备份点之后新上传的文件重新关联/迁移后再开服，防止 72h 后进回收站

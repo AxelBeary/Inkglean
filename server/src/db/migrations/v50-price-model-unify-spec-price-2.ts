@@ -25,7 +25,26 @@ export const migration: Migration = {
       }
       try {
         // ─── 1. orders 重建（幂等守卫：已无 tier_id 则跳过） ───
-        const oCols = (database.prepare('PRAGMA table_info(orders)').all() as ColumnInfo[]).map(c => c.name)
+        let oCols = (database.prepare('PRAGMA table_info(orders)').all() as ColumnInfo[]).map(c => c.name)
+        if (oCols.includes('tier_id')) {
+          // 815 审计 P1-4 修复：崩溃残留检测——若上次在 DROP orders 后、RENAME 前被杀，
+          // orders_new 持全量数据，而 schema 重建的空壳 orders 自带 tier_id（基线含该列）会误入本重建分支；
+          // 此时裸 CREATE orders_new 撞已存在表名死循环。须先识别残留并恢复数据
+          const leftover = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='orders_new'").get()
+          if (leftover) {
+            const mainCount = (database.prepare('SELECT COUNT(*) AS n FROM orders').get() as { n: number }).n
+            const newCount = (database.prepare('SELECT COUNT(*) AS n FROM orders_new').get() as { n: number }).n
+            if (mainCount === 0 && newCount > 0) {
+              database.exec('DROP TABLE orders')
+              database.exec('ALTER TABLE orders_new RENAME TO orders')
+              // 恢复后的 orders 已是新结构：重取列快照，下方重建守卫自然跳过（若用旧快照会误重建并把 style_size_id 清成 NULL）
+              oCols = (database.prepare('PRAGMA table_info(orders)').all() as ColumnInfo[]).map(c => c.name)
+            } else {
+              // 主表有数据（异常半态）：绝不删任一方，抛错交人工处置（迁移前备份 bak-pre-v050 可回滚）
+              throw new Error(`迁移 v50: 检测到崩溃残留半态（orders ${mainCount} 行 / orders_new ${newCount} 行），已中止以防丢数据，请用 bak-pre-v050 备份人工恢复`)
+            }
+          }
+        }
         if (oCols.includes('tier_id')) {
           database.exec(`
             CREATE TABLE orders_new (

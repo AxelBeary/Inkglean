@@ -25,4 +25,14 @@ test('E5 管理员配置画师流程', async ({ adminPage: page }) => {
 
   // 新阶段出现在流程节点列表中（.stage-name 避免匹配流程全览的 .strip-name）
   await expect(drawer.locator('.stage-name', { hasText: stageName })).toBeVisible({ timeout: 10_000 })
+
+  // E2 加固：reload 后重进管理后台 + 画师流程标签，断言新阶段已持久化（非仅即时渲染）
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '画师管理' })).toBeVisible({ timeout: 10_000 })
+  const aliceRowAfterReload = page.locator('tr', { hasText: 'Alice' })
+  await aliceRowAfterReload.getByRole('button', { name: '管理' }).click()
+  await page.getByRole('tab', { name: '流程与比例' }).click()
+  const drawerAfterReload = page.locator('.el-drawer')
+  await expect(drawerAfterReload.getByText('流程节点')).toBeVisible({ timeout: 10_000 })
+  await expect(drawerAfterReload.locator('.stage-name', { hasText: stageName })).toBeVisible({ timeout: 10_000 })
 })

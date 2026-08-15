@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/auth.js'
 import { refreshArtistTokenCache } from '../global-setup.js'
 import { writeArtistToken } from '../token-store.js'
+import { E2E_BASE_URL } from '../../playwright.config.js'
 
 // 补登可能遇到“同窗口 TOTP 全被消费→等下一时间步”的重试路径（最多 ~30s），放宽单用例超时
 test.setTimeout(60_000)
@@ -47,7 +48,7 @@ test('TC-PK-01/02 Passkey 注册 → 登出 → 免密登录（counter 恒 0 豁
   // 先等服务端登出响应落库（bumpTokenVersion 完成），再用真实 TOTP 登录重签并写回共享缓存，
   // 保证本用例失败重试及后续复用 tokens.artist 的用例不再 401
   await logoutDone
-  await refreshArtistTokenCache('http://localhost:3999')
+  await refreshArtistTokenCache(E2E_BASE_URL)
   await expect(page).toHaveURL(/\/login/, { timeout: 10_000 })
 
   await page.locator('#login-qq').fill('10001')

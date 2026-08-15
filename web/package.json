@@ -1,6 +1,6 @@
 {
   "name": "artist-commission-web",
-  "version": "0.45.0",
+  "version": "1.0.0-beta.1",
   "description": "画师约稿管理平台 - 前端",
   "license": "AGPL-3.0",
   "type": "module",

@@ -5,12 +5,12 @@ import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
 import { E2E_TOTP_SECRET, currentTotp, nextLoginTotp, nextStepTotp, noteTotpLogin } from './totp-util.js'
 import { writeArtistToken, writeTokens } from './token-store.js'
+import { E2E_BASE_URL, E2E_PORT } from '../playwright.config.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const TEST_DB = resolve(ROOT, 'e2e/test.db')
 const TEST_UPLOADS = resolve(ROOT, 'e2e/test-uploads')
 const PID_FILE = resolve(ROOT, 'e2e/.server-pid')
-const PORT = 3999
 
 /** 给测试画师（Alice 10001 / 管理员 10003）注入已绑定状态的 TOTP 密钥，预登录走真实 /api/auth/verify */
 function seedTotpForE2e() {
@@ -119,7 +119,7 @@ export default async function globalSetup() {
   }
   console.log('🌱 E2E: 初始化测试数据库...')
   const tsxCli = resolve(ROOT, 'server/node_modules/tsx/dist/cli.mjs')
-  execSync(`"${process.execPath}" "${tsxCli}" src/db/seed.js`, {
+  execSync(`"${process.execPath}" "${tsxCli}" src/db/seed.ts`, {
     cwd: resolve(ROOT, 'server'),
     env: { ...process.env, DB_PATH: TEST_DB, ADMIN_QQ: '10003' },
     stdio: 'pipe',
@@ -131,12 +131,12 @@ export default async function globalSetup() {
   seedTotpForE2e()
 
   // 4. 启动服务器
-  console.log(`🚀 E2E: 启动服务器 (port ${PORT})...`)
-  const server = spawn(process.execPath, [tsxCli, 'src/index.js'], {
+  console.log(`🚀 E2E: 启动服务器 (port ${E2E_PORT})...`)
+  const server = spawn(process.execPath, [tsxCli, 'src/index.ts'], {
     cwd: resolve(ROOT, 'server'),
     env: {
       ...process.env,
-      PORT: String(PORT),
+      PORT: String(E2E_PORT),
       DB_PATH: TEST_DB,
       UPLOAD_DIR: TEST_UPLOADS,
       AUTH_DEV_MODE: 'true',
@@ -149,7 +149,7 @@ export default async function globalSetup() {
   writeFileSync(PID_FILE, String(server.pid))
 
   // 5. 等待健康检查
-  const baseURL = `http://localhost:${PORT}`
+  const baseURL = E2E_BASE_URL
   const deadline = Date.now() + 30_000
   while (Date.now() < deadline) {
     try {
