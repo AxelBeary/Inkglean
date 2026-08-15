@@ -1993,6 +1993,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       ban: '封禁画师',
       banConfirm: '填写封禁原因（可选）',
       bannedToast: '画师已封禁',
+      unban: '解封画师',
+      unbanConfirm: '填写解封原因（可选）',
+      unbannedToast: '画师已解封',
+      bannedTag: '已封禁',
       reasonPlaceholder: '原因（可留空）',
       empty: '暂无举报',
       loadFailed: '举报列表加载失败'
