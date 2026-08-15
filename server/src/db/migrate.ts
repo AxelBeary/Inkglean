@@ -1,6 +1,8 @@
 /* eslint-disable no-console -- 迁移脚本按约定豁免（CLI 输出是脚本本职，源头防屎门禁豁免项） */
 import { copyFileSync, existsSync, unlinkSync } from 'fs'
+import { resolve } from 'path'
 import type Database from 'better-sqlite3'
+import { REPO_ROOT } from './connection.js'
 import { schema, schemaIndexes } from './schema.js'
 import { MIGRATIONS } from './migrations/index.js'
 import type { IdRow } from './migrations/types.js'
@@ -14,7 +16,8 @@ import type { IdRow } from './migrations/types.js'
  * 文件名沿用 dbPath.bak.vN 不变（回滚脚本/测试依赖此命名）。
  */
 export function backupDbBeforeMigration(version: number, database: Database.Database) {
-  const dbPath = process.env.DB_PATH || './data/commission.db'
+  // 815 审计 P1-8：默认路径钉在仓库根（不依赖 cwd，与 connection.ts 同口径）
+  const dbPath = process.env.DB_PATH || resolve(REPO_ROOT, 'data/commission.db')
   if (dbPath === ':memory:' || !existsSync(dbPath)) return
   const bakPath = `${dbPath}.bak.v${version}`
   try {

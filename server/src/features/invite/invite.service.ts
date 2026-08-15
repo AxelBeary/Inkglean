@@ -4,7 +4,7 @@ import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
 import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import { seedArtistStages } from '../artist/workflow.service.js'
-import { bindTotpInit, createSession } from '../auth/auth.service.js'
+import { bindTotpInit, createSession, checkTotpLocked, registerTotpFailure } from '../auth/auth.service.js'
 import { generateSecret, buildOtpAuthUri, verifyTotpWithCounter, hashTotpCode } from '../auth/totp.js'
 import type { Artist } from '../../types/entities.js'
 
@@ -270,8 +270,12 @@ export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpCo
     throw new AppError(E.TOTP_NOT_BOUND, 400)
   }
 
+  // 815 审计 P1-5：防爆破对齐登录路径——锁定期内任何尝试都拒绝；失败计数达阈值锁定
+  checkTotpLocked(artist)
+
   const hitCounter = verifyTotpWithCounter(artist.totp_secret, code, Date.now())
   if (hitCounter === null) {
+    registerTotpFailure(artist.id) // 计数 +1，达阈值抛 TOTP_LOCKED
     throw new AppError(E.TOTP_BIND_INVALID, 400)
   }
 

@@ -1,4 +1,11 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
+
+// 815 审计 P1-8：显式载入仓库根 .env（不依赖 cwd，与 connection.ts 同口径）
+const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))))
+dotenv.config({ path: resolve(REPO_ROOT, '.env') })
+
 import { buildApp } from './app.js'
 import db from './db/connection.js'
 

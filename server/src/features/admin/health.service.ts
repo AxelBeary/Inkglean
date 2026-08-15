@@ -1,4 +1,4 @@
-import db from '../../db/connection.js'
+import db, { REPO_ROOT } from '../../db/connection.js'
 import { constants, readdirSync, statSync } from 'fs'
 import { access, statfs } from 'fs/promises'
 import { resolve, join } from 'path'
@@ -8,8 +8,9 @@ import { resolve, join } from 'path'
 // 按需触发，不存数据库，不写文件
 // ============================================
 
-const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
-const DATA_DIR = resolve(process.env.DB_PATH || './data/commission.db').replace(/[/\\][^/\\]+$/, '')
+// 815 审计 P1-8：默认路径钉在仓库根（不依赖 cwd）
+const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || join(REPO_ROOT, 'uploads'))
+const DATA_DIR = resolve(process.env.DB_PATH || join(REPO_ROOT, 'data/commission.db')).replace(/[/\\][^/\\]+$/, '')
 
 /** 单项检查结果 */
 interface HealthCheckResult {
@@ -196,8 +197,9 @@ export async function buildDiagnosticReport(latestVersion: number) {
     checks,
     env: {
       NODE_ENV: process.env.NODE_ENV || 'development',
-      DB_PATH: process.env.DB_PATH || './data/commission.db',
-      UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
+      // 815 审计 P1-8：诊断包路径口径与运行时一致（钉仓库根）
+      DB_PATH: process.env.DB_PATH || join(REPO_ROOT, 'data/commission.db'),
+      UPLOAD_DIR: process.env.UPLOAD_DIR || join(REPO_ROOT, 'uploads'),
       PORT: process.env.PORT || '3000'
     }
   }

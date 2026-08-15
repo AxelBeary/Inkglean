@@ -8,6 +8,9 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
+  // 815 审计 P1-7：envDir 指向仓库根——原生部署时 VITE_SENTRY_DSN 写在根 .env，
+  // 默认 envDir=web/ 导致构建读不到，前端报错监控静默关闭；仅 VITE_ 前缀变量会暴露，安全。
+  envDir: resolve(__dirname, '..'),
   // v0.20: EP 按需引入 — el-* 组件自动解析注册，JS 从全量 1.29MB 降至按需
   // v0.22 A4: importStyle 'css' — el-* 组件样式随注册自动注入，去掉全量 index.css（470kB→按需）
   // base.css（:root 变量）经 JS API 组件的 css.mjs 依赖链自动引入，位于 theme.css 之前

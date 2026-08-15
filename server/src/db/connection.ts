@@ -1,9 +1,15 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import Database from 'better-sqlite3'
 import { mkdirSync, existsSync } from 'fs'
-import { dirname } from 'path'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 
-const DB_PATH = process.env.DB_PATH || './data/commission.db'
+// 815 审计 P1-8：dotenv 与 DB 默认路径一律按本文件位置推导仓库根，不再依赖 cwd——
+// 此前从 server/ 目录启动读不到根 .env 且会在 server/data 开出第二套库（双库分裂事故）
+export const REPO_ROOT = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))))
+dotenv.config({ path: resolve(REPO_ROOT, '.env') })
+
+const DB_PATH = process.env.DB_PATH || resolve(REPO_ROOT, 'data/commission.db')
 
 // 确保数据目录存在（:memory: 模式跳过）
 if (DB_PATH !== ':memory:') {

@@ -113,6 +113,34 @@ export function resetTotp(artistId: number): void {
 // ============================================
 
 /**
+ * 815 审计 P1-5：绑定/确认类 TOTP 路径共用防爆破（对齐登录路径口径）。
+ * 验证前检查锁定期：锁定期内任何尝试（含正确码）都拒绝。
+ */
+export function checkTotpLocked(artist: { totp_locked_until: string | number | null }): void {
+  if (artist.totp_locked_until == null) return
+  const until = typeof artist.totp_locked_until === 'number'
+    ? artist.totp_locked_until
+    : new Date(artist.totp_locked_until).getTime()
+  if (Number.isFinite(until) && until > Date.now()) {
+    throw new AppError(E.TOTP_LOCKED, 429, { remainingLockMs: until - Date.now() })
+  }
+}
+
+/**
+ * 815 审计 P1-5：验证失败原子计数 +1 后回读判定；达 TOTP_MAX_ATTEMPTS 锁定
+ * TOTP_LOCK_DURATION_MS 并抛 TOTP_LOCKED；未达阈值不抛（由调用方抛具体错码）。
+ */
+export function registerTotpFailure(artistId: number): void {
+  db.prepare('UPDATE artists SET totp_failed_attempts = totp_failed_attempts + 1 WHERE id = ?').run(artistId)
+  const attempts = (db.prepare('SELECT totp_failed_attempts FROM artists WHERE id = ?').get(artistId) as { totp_failed_attempts: number }).totp_failed_attempts || 0
+  if (attempts >= TOTP_MAX_ATTEMPTS) {
+    const lockedUntil = Date.now() + TOTP_LOCK_DURATION_MS
+    db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = ? WHERE id = ?').run(lockedUntil, artistId)
+    throw new AppError(E.TOTP_LOCKED, 429, { remainingLockMs: TOTP_LOCK_DURATION_MS })
+  }
+}
+
+/**
  * QQ 号 + TOTP 动态码登录校验
  * 安全对齐旧机制：未注册 QQ 返回与「码错误」相同响应（防枚举）
  * 防爆破：连续错 TOTP_MAX_ATTEMPTS 次 → 锁定 TOTP_LOCK_DURATION_MS，锁定期间任何尝试（含正确码）都拒绝

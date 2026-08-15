@@ -8,13 +8,18 @@
  * 删除超过 72h 未被引用的孤儿文件（窗口说明见下方 MIN_AGE_MS 注释）。
  * 建议通过 cron 每天执行一次。
  */
-import { resolve, join, relative } from 'path'
+import { resolve, join, relative, dirname } from 'path'
 import { existsSync, readdirSync, statSync, renameSync, mkdirSync, rmdirSync } from 'fs'
+import { fileURLToPath } from 'url'
 import Database from 'better-sqlite3'
-import 'dotenv/config'
+import dotenv from 'dotenv'
 
-const DB_PATH = process.env.DB_PATH || './data/commission.db'
-const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
+// 815 审计 P1-8：dotenv 与默认路径按脚本位置推导仓库根（不依赖 cwd）
+const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))))
+dotenv.config({ path: resolve(REPO_ROOT, '.env') })
+
+const DB_PATH = process.env.DB_PATH || resolve(REPO_ROOT, 'data/commission.db')
+const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || resolve(REPO_ROOT, 'uploads'))
 const DRY_RUN = process.argv.includes('--dry-run')
 // R-6（审计批E）：孤儿回收窗口 24h → 72h（与 app.ts gcUploads 同款）。
 // 复合炸弹：手工恢复旧 DB 备份后，备份时点之后新上传且已关联订单的文件在新 DB 里「无引用」，

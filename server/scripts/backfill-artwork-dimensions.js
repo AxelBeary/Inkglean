@@ -7,11 +7,16 @@
  */
 import Database from 'better-sqlite3'
 import sharp from 'sharp'
-import { resolve, join } from 'path'
-import 'dotenv/config'
+import { resolve, join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import dotenv from 'dotenv'
 
-const DB_PATH = process.env.DB_PATH || './data/commission.db'
-const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './uploads')
+// 815 审计 P1-8：dotenv 与默认路径按脚本位置推导仓库根（不依赖 cwd）
+const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))))
+dotenv.config({ path: resolve(REPO_ROOT, '.env') })
+
+const DB_PATH = process.env.DB_PATH || resolve(REPO_ROOT, 'data/commission.db')
+const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || resolve(REPO_ROOT, 'uploads'))
 
 const db = new Database(DB_PATH)
 
