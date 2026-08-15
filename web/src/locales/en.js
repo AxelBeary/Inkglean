@@ -1997,6 +1997,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       ban: 'Ban artist',
       banConfirm: 'Add a ban reason (optional)',
       bannedToast: 'Artist banned',
+      unban: 'Unban artist',
+      unbanConfirm: 'Add an unban reason (optional)',
+      unbannedToast: 'Artist unbanned',
+      bannedTag: 'Banned',
       reasonPlaceholder: 'Reason (optional)',
       empty: 'No reports',
       loadFailed: 'Failed to load reports'

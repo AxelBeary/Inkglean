@@ -44,6 +44,8 @@
           <template #default="{ row }">
             <span class="cell-name">{{ row.name }}</span>
             <el-tag v-if="row.isAdmin" type="danger" size="small" class="cell-tag">{{ $t('admin.adminTag') }}</el-tag>
+            <!-- 815-b3-ban：被封禁画师行显式标识（解封入口可定位） -->
+            <el-tag v-if="row.is_banned" type="warning" size="small" class="cell-tag">{{ $t('compliance.admin.bannedTag') }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="140">
@@ -66,13 +68,21 @@
           </template>
         </el-table-column>
         <!-- 813-fq-tail-shared 战役 S：≤760px 操作列收成图标按钮（aria-label/title 保留文案），
-             防止 360px 固定列在窄屏挤压、横向溢出 -->
-        <el-table-column :label="$t('common.actions')" :width="compactActions ? 144 : 360" fixed="right">
+             防止 360px 固定列在窄屏挤压、横向溢出；815-b3-ban 增解封按钮后窄屏宽度 144→176（4px 倍数） -->
+        <el-table-column :label="$t('common.actions')" :width="compactActions ? 176 : 360" fixed="right">
           <template #default="{ row }">
             <div class="row-actions">
               <template v-if="compactActions">
                 <el-button size="small" circle :icon="View" :title="$t('admin.manage')" :aria-label="$t('admin.manage')" @click="openDetail(row)" />
                 <el-button size="small" circle :icon="Tickets" :title="$t('admin.artistOrders')" :aria-label="$t('admin.artistOrders')" @click="viewOrders(row)" />
+                <!-- 815-b3-ban：被封禁画师行解封入口（与举报管理页同款两步确认） -->
+                <el-button
+                  v-if="row.is_banned && !row.isAdmin"
+                  size="small" circle type="success" plain :icon="Unlock"
+                  :title="$t('compliance.admin.unban')" :aria-label="$t('compliance.admin.unban')"
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="unbanArtist(row)"
+                />
                 <!-- REQ-027: TOTP 绑定入口 -->
                 <el-button
                   size="small" circle type="success" plain :icon="Key"
@@ -85,6 +95,14 @@
               <template v-else>
                 <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
                 <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
+                <el-button
+                  v-if="row.is_banned && !row.isAdmin"
+                  size="small" type="success" plain
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="unbanArtist(row)"
+                >
+                  {{ $t('compliance.admin.unban') }}
+                </el-button>
                 <!-- REQ-027: TOTP 绑定入口 -->
                 <el-button size="small" type="success" plain @click="openTotpBind(row)">
                   {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
@@ -226,7 +244,7 @@
     </el-dialog>
 
     <!-- REQ-041 集成接线：更换管理员动作级再验（提交遇 STEP_UP_REQUIRED 弹窗，验证通过自动重提交） -->
-    <StepUpDialog v-model="actionStepUpVisible" @verified="onActionStepUpVerified" @cancel="actionStepUpVisible = false" />
+    <StepUpDialog v-model="actionStepUpVisible" @verified="onActionStepUpVerified" @cancel="onActionStepUpCancel" />
 
     <!-- TOTP 绑定弹窗（REQ-027 R2：管理员协助画师扫码绑定） -->
     <el-dialog v-model="totpVisible" :title="$t('admin.totpBindTitle', { name: totpArtist?.name || '' })" width="420px" :close-on-click-modal="false">
@@ -361,10 +379,10 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { adminApi } from '../../api/index.js'
+import { adminApi, complianceApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { View, Tickets, Key, Delete } from '@element-plus/icons-vue'
+import { View, Tickets, Key, Delete, Unlock } from '@element-plus/icons-vue'
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 import { formatDateTime } from '../../utils/datetime.js'
 import { formatCents } from '../../utils/money.js'
@@ -396,6 +414,8 @@ const dialogVisible = ref(false)
 const saving = ref(false)
 // b3 清扫：行内状态切换期间禁用下拉，防连续触发
 const statusUpdatingId = ref(null)
+// 815-b3-ban：封禁/解封行级操作挂起 id（prompt/请求期间按钮 loading，防重复提交）
+const banUpdatingId = ref(null)
 
 // 813-fq-tail-shared 战役 S：≤760px 行操作按钮收成图标（防窄屏 360px 固定列挤压）
 const compactActions = ref(window.matchMedia('(max-width: 760px)').matches)
@@ -686,6 +706,8 @@ function openTransfer() {
 
 // REQ-041 集成接线：动作级再验对话框状态（仅更换管理员提交链路使用，与 AdminLayout 入口级守卫互不干扰）
 const actionStepUpVisible = ref(false)
+// 815-b3-ban：被 STEP_UP_REQUIRED 拦下的动作重试队列（更换管理员走 confirmTransfer 自身重试，此处仅封禁/解封使用）
+let pendingStepUpAction = null
 
 async function confirmTransfer() {
   transferring.value = true
@@ -710,10 +732,69 @@ async function confirmTransfer() {
   }
 }
 
-/** 动作级验证通过：admin_verified_at 刚刷新（满足 ≤60s 窗口），自动重提交更换管理员 */
+/** 动作级验证通过：admin_verified_at 刚刷新；优先重提交被拦下的封禁/解封，否则自动重提交更换管理员 */
 function onActionStepUpVerified() {
   actionStepUpVisible.value = false
-  confirmTransfer()
+  const retry = pendingStepUpAction
+  pendingStepUpAction = null
+  if (retry) retry()
+  else confirmTransfer()
+}
+
+/** 取消验证：关闭对话框并释放挂起的封禁/解封重试 */
+function onActionStepUpCancel() {
+  actionStepUpVisible.value = false
+  pendingStepUpAction = null
+  if (banUpdatingId.value != null) banUpdatingId.value = null
+}
+
+/** 可选原因输入（与举报管理页同款 prompt；取消=中止，空值=不带原因直接操作） */
+async function askReason(title, message) {
+  try {
+    const { value } = await ElMessageBox.prompt(message, title, {
+      inputPlaceholder: t('compliance.admin.reasonPlaceholder'),
+      inputValidator: () => true,
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      inputValue: ''
+    })
+    return { cancelled: false, reason: (value || '').trim() || null }
+  } catch {
+    return { cancelled: true, reason: null }
+  }
+}
+
+/** 解封画师（与封禁对称的两步确认：填原因 → 必要时 StepUpDialog 升级 → 调接口） */
+async function unbanArtist(row) {
+  if (banUpdatingId.value != null) return
+  banUpdatingId.value = row.id
+  const { cancelled, reason } = await askReason(
+    t('compliance.admin.unban'),
+    t('compliance.admin.unbanConfirm')
+  )
+  if (!cancelled) {
+    await submitUnban(Number(row.id), reason)
+    return
+  }
+  banUpdatingId.value = null
+}
+
+/** 解封提交（遇 STEP_UP_REQUIRED → 弹 StepUpDialog，验证通过后由 pendingStepUpAction 自动重提交） */
+async function submitUnban(artistId, reason) {
+  try {
+    await complianceApi.unbanArtist(artistId, reason)
+    ElMessage.success(t('compliance.admin.unbannedToast'))
+    await loadArtists()
+    banUpdatingId.value = null
+  } catch (err) {
+    if (err && err.code === 'STEP_UP_REQUIRED') {
+      pendingStepUpAction = () => submitUnban(artistId, reason)
+      actionStepUpVisible.value = true
+      return // 保持行级 loading，验证通过后自动重提交
+    }
+    ElMessage.error(err.message)
+    banUpdatingId.value = null
+  }
 }
 
 // ─── TOTP 绑定/重置（REQ-027 R2/R5） ───

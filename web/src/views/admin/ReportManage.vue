@@ -53,11 +53,18 @@
                 @click="removeContent('message', row)"
               />
               <el-button
-                v-if="row.target_type === 'artist_home' && row.target_id"
+                v-if="row.target_type === 'artist_home' && row.target_id && !bannedArtistIds.has(Number(row.target_id))"
                 size="small" circle type="warning" plain :icon="Warning"
                 :title="$t('compliance.admin.ban')" :aria-label="$t('compliance.admin.ban')"
                 :loading="pendingId === row.id" :disabled="pendingId != null"
                 @click="banArtist(row)"
+              />
+              <el-button
+                v-else-if="row.target_type === 'artist_home' && row.target_id && bannedArtistIds.has(Number(row.target_id))"
+                size="small" circle type="success" plain :icon="Unlock"
+                :title="$t('compliance.admin.unban')" :aria-label="$t('compliance.admin.unban')"
+                :loading="pendingId === row.id" :disabled="pendingId != null"
+                @click="unbanArtist(row)"
               />
             </template>
             <template v-else>
@@ -85,12 +92,20 @@
                 {{ $t('compliance.admin.removeMessage') }}
               </el-button>
               <el-button
-                v-if="row.target_type === 'artist_home' && row.target_id"
+                v-if="row.target_type === 'artist_home' && row.target_id && !bannedArtistIds.has(Number(row.target_id))"
                 size="small" type="warning" plain
                 :loading="pendingId === row.id" :disabled="pendingId != null"
                 @click="banArtist(row)"
               >
                 {{ $t('compliance.admin.ban') }}
+              </el-button>
+              <el-button
+                v-else-if="row.target_type === 'artist_home' && row.target_id && bannedArtistIds.has(Number(row.target_id))"
+                size="small" type="success" plain
+                :loading="pendingId === row.id" :disabled="pendingId != null"
+                @click="unbanArtist(row)"
+              >
+                {{ $t('compliance.admin.unban') }}
               </el-button>
             </template>
           </template>
@@ -104,6 +119,9 @@
       :description="$t('compliance.admin.empty')"
       class="report-empty"
     />
+
+    <!-- 815-b3-ban：封禁/解封动作级再验（对齐更换管理员 StepUpDialog 同款接线） -->
+    <StepUpDialog v-model="actionStepUpVisible" @verified="onActionStepUpVerified" @cancel="onActionStepUpCancel" />
   </div>
 </template>
 
@@ -111,17 +129,26 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { CircleCheck, Delete, ChatDotRound, Warning } from '@element-plus/icons-vue'
-import { complianceApi } from '../../api/index.js'
-import type { ReportItem, ReportTargetType } from '../../api/types.js'
+import { CircleCheck, Delete, ChatDotRound, Warning, Unlock } from '@element-plus/icons-vue'
+import { complianceApi, adminApi } from '../../api/index.js'
+import type { AdminArtistItem, ReportItem, ReportTargetType } from '../../api/types.js'
+import StepUpDialog from '../../components/admin/StepUpDialog.vue'
 
 const { t } = useI18n()
 
+/** /admin/artists 行实际含 is_banned（AdminArtistItem 类型未声明；本地交集补齐，不做 any） */
+type ArtistWithBanState = AdminArtistItem & { is_banned: number }
+
 const statusTab = ref<'pending' | 'resolved'>('pending')
 const reports = ref<ReportItem[]>([])
+// 815-b3-ban：被封禁画师 id 集合（复用 /admin/artists 的 is_banned；举报行据此切换封禁/解封入口）
+const bannedArtistIds = ref(new Set<number>())
 const loading = ref(false)
 // b3 清扫：行级操作挂起 id（prompt/请求期间按钮 loading，防重复提交）
 const pendingId = ref<number | null>(null)
+// 815-b3-ban：动作级再验对话框状态（提交遇 STEP_UP_REQUIRED 弹出，验证通过自动重提交）
+const actionStepUpVisible = ref(false)
+let pendingStepUpAction: (() => void) | null = null
 
 // 813-fq-tail-shared 战役 S：≤760px 行操作按钮收成图标（防窄屏 240px 固定列挤压）
 const compactActions = ref(window.matchMedia('(max-width: 760px)').matches)
@@ -137,10 +164,17 @@ function typeLabel(type: ReportTargetType): string {
 async function load() {
   loading.value = true
   try {
-    reports.value = await complianceApi.getReports(statusTab.value)
+    const [reportRows, artistRows] = await Promise.all([
+      complianceApi.getReports(statusTab.value),
+      // 画师列表失败不阻塞举报列表；封禁态未知时按未封禁展示（解封入口仍在画师管理页可用）
+      adminApi.getArtists().catch(() => [] as never[]) as Promise<ArtistWithBanState[]>
+    ])
+    reports.value = reportRows
+    bannedArtistIds.value = new Set(artistRows.filter(a => a.is_banned).map(a => a.id))
   } catch (err) {
     // b3 清扫：tab 切换加载失败清空旧 tab 数据，避免残留上一 tab 的举报行
     reports.value = []
+    bannedArtistIds.value = new Set()
     ElMessage.error((err as { message?: string }).message || t('compliance.admin.loadFailed'))
   } finally {
     loading.value = false
@@ -200,21 +234,79 @@ async function removeContent(type: 'artwork' | 'message', row: ReportItem) {
   pendingId.value = null
 }
 
-/** 封禁画师（is_banned=1 + 踢下线，写留痕） */
+/** 封禁画师（第一步：填写原因；第二步：必要时 StepUpDialog 升级确认后调接口） */
 async function banArtist(row: ReportItem) {
   if (pendingId.value != null) return
   pendingId.value = row.id
   const { cancelled, reason } = await askReason(t('compliance.admin.ban'), t('compliance.admin.banConfirm'))
   if (!cancelled) {
-    try {
-      await complianceApi.banArtist(Number(row.target_id), reason)
-      ElMessage.success(t('compliance.admin.bannedToast'))
-      await load()
-    } catch (err) {
-      ElMessage.error((err as { message?: string }).message)
-    }
+    await submitBan(Number(row.target_id), reason)
+    return
   }
   pendingId.value = null
+}
+
+/** 封禁提交（遇 STEP_UP_REQUIRED → 弹 StepUpDialog，验证通过后由 pendingStepUpAction 自动重提交） */
+async function submitBan(artistId: number, reason: string | null) {
+  try {
+    await complianceApi.banArtist(artistId, reason)
+    ElMessage.success(t('compliance.admin.bannedToast'))
+    await load()
+    pendingId.value = null
+  } catch (err) {
+    if ((err as { code?: string }).code === 'STEP_UP_REQUIRED') {
+      pendingStepUpAction = () => submitBan(artistId, reason)
+      actionStepUpVisible.value = true
+      return // 保持行级 loading，验证通过后自动重提交
+    }
+    ElMessage.error((err as { message?: string }).message)
+    pendingId.value = null
+  }
+}
+
+/** 解封画师（与封禁对称：第一步填原因，第二步必要时 StepUpDialog 升级确认） */
+async function unbanArtist(row: ReportItem) {
+  if (pendingId.value != null) return
+  pendingId.value = row.id
+  const { cancelled, reason } = await askReason(t('compliance.admin.unban'), t('compliance.admin.unbanConfirm'))
+  if (!cancelled) {
+    await submitUnban(Number(row.target_id), reason)
+    return
+  }
+  pendingId.value = null
+}
+
+/** 解封提交（与 submitBan 同款 step-up 接线） */
+async function submitUnban(artistId: number, reason: string | null) {
+  try {
+    await complianceApi.unbanArtist(artistId, reason)
+    ElMessage.success(t('compliance.admin.unbannedToast'))
+    await load()
+    pendingId.value = null
+  } catch (err) {
+    if ((err as { code?: string }).code === 'STEP_UP_REQUIRED') {
+      pendingStepUpAction = () => submitUnban(artistId, reason)
+      actionStepUpVisible.value = true
+      return
+    }
+    ElMessage.error((err as { message?: string }).message)
+    pendingId.value = null
+  }
+}
+
+/** 动作级验证通过：自动重提交被 step-up 拦下的封禁/解封请求 */
+function onActionStepUpVerified() {
+  actionStepUpVisible.value = false
+  const retry = pendingStepUpAction
+  pendingStepUpAction = null
+  if (retry) retry()
+}
+
+/** 取消验证：关闭对话框并释放挂起的封禁/解封请求与行级 loading */
+function onActionStepUpCancel() {
+  actionStepUpVisible.value = false
+  pendingStepUpAction = null
+  if (pendingId.value != null) pendingId.value = null
 }
 
 onMounted(load)
