@@ -287,14 +287,16 @@ describe('订单服务 (Order Service)', () => {
     expect(note.content).toContain('¥600.00')
   })
 
-  // TC-O-19b: 最终价格校验 — 拒绝非法值
+  // TC-O-19b: 最终价格校验 — 拒绝非法值（815 拍板 #2：上限统一 100 万元 = 100000000 分）
   it('TC-O-19b: updateFinalPrice 拒绝零/负数/超限', () => {
     const order = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
 
     expect(() => orderService.updateFinalPrice(order.id, 0)).toThrow('INVALID_PRICE')
     expect(() => orderService.updateFinalPrice(order.id, -100)).toThrow('INVALID_PRICE')
-    expect(() => orderService.updateFinalPrice(order.id, 100000000)).toThrow('INVALID_PRICE')
+    expect(() => orderService.updateFinalPrice(order.id, 100000001)).toThrow('INVALID_PRICE')
     expect(() => orderService.updateFinalPrice(order.id, 99.5)).toThrow('INVALID_PRICE')
+    // 边界值合法：恰好 100 万元放行
+    expect(() => orderService.updateFinalPrice(order.id, 100000000)).not.toThrow()
   })
 
   // TC-O-20: 焦点图设置与关闭

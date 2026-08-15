@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { getArtistByQq } from '../artist/artist.service.js'
 import { verifyTotp, verifyTotpWithCounter, hashTotpCode } from './totp.js'
 import { AppError, E } from '../../shared/errors.js'
+import { isWeakSessionSecret } from '../../shared/secrets.js'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
@@ -27,6 +28,10 @@ function getSecret(): string {
     const devSecret = crypto.randomBytes(32).toString('hex')
     console.warn('⚠️  SESSION_SECRET 未设置，已生成随机开发密钥（每次启动变化，仅限开发环境）')
     return devSecret
+  }
+  // 815 审计拍板 #12：生产弱值 fail-fast——dev- 前缀/已知默认值/过短一律拒绝启动，防忘换弱值上线
+  if (process.env.NODE_ENV === 'production' && isWeakSessionSecret(secret)) {
+    throw new Error('SESSION_SECRET 为弱值（dev 前缀/默认值/长度不足 32）——生产环境拒绝启动，请更换为强随机值（如 openssl rand -hex 32）')
   }
   return secret
 }

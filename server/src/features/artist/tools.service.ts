@@ -194,7 +194,8 @@ export function listReturningClients(artistId: number, days: number): ReturningC
 /**
  * P2-11: 散单单笔金额上限（单位分）。
  * 100_000_000_00 分 = 1e8 元（1 亿元）——防 1e15 量级金额逼近 MAX_SAFE_INTEGER
- * 污染收入统计；量级与订单金额上限（99999999 分）同档。
+ * 污染收入统计。注：订单域金额上限已于 815 拍板 #2 统一为 100 万元（order-limits.ts），
+ * 散单属收入统计域，保留本上限不变。
  */
 export const MAX_STANDALONE_INCOME_CENTS = 100_000_000_00
 

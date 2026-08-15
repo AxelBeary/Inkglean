@@ -10,6 +10,7 @@ import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
 import { pruneIdempotencyKeys } from './shared/idempotency.js'
+import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
 import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
@@ -197,8 +198,13 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
 
   // ─── 全局插件 ───
   // Cookie 支持（httpOnly token 存储）
+  const cookieSecret = process.env.COOKIE_SECRET || process.env.SESSION_SECRET || 'dev-cookie-secret-change-in-production'
+  // 815 审计拍板 #12：生产环境 cookie 密钥同样拒绝弱值（兜底链落到 dev 默认值 = 带病上线）
+  if (process.env.NODE_ENV === 'production' && isWeakSessionSecret(cookieSecret)) {
+    throw new Error('COOKIE_SECRET/SESSION_SECRET 为弱值——生产环境拒绝启动，请配置强随机值')
+  }
   await app.register(fastifyCookie, {
-    secret: process.env.COOKIE_SECRET || process.env.SESSION_SECRET || 'dev-cookie-secret-change-in-production',
+    secret: cookieSecret,
     parseOptions: {}
   })
 

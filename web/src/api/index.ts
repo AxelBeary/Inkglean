@@ -192,6 +192,10 @@ api.interceptors.response.use(
       try {
         // 动态导入避免循环依赖（router 链依赖本模块）
         const routerMod = await import('../router/index.js')
+        // 815 拍板 #6：向导路由可能已被物理销毁（已初始化后启动移除），逃逸口重新注册回来
+        if (!routerMod.default.hasRoute('SetupWizard')) {
+          routerMod.default.addRoute(routerMod.SETUP_ROUTE)
+        }
         if (routerMod.default.currentRoute.value.name !== 'SetupWizard') {
           routerMod.default.push({ name: 'SetupWizard' })
         }

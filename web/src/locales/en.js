@@ -136,7 +136,7 @@ export default {
 
     // Pricing (supplement)
     PRICING_CALC_FAILED: 'Price calculation failed',
-    INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 99999999)',
+    INVALID_PRICE: 'Invalid price (must be a positive integer in cents, max 100,000,000 = ¥1,000,000)',
     // Pricing engine (supplement, v0.37 REQ-025)
     PRICING_CONSERVATION: 'Pricing data looks inconsistent. The change was not applied. Please refresh and retry.',
     PRICE_CHANGE_AFTER_DONE: 'Order is complete; adjust the price by adding or removing extra items',

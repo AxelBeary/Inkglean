@@ -376,7 +376,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PRICING_CALC_FAILED: '价格计算失败',
 
   // 价格（v0.11）
-  INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 99999999）',
+  INVALID_PRICE: '价格无效（须为正整数，单位：分，上限 100000000 分 = 100 万元）',
 
   // 焦点图（v0.11）
   FOCUS_IMAGE_NOT_FOUND: '参考图不存在',

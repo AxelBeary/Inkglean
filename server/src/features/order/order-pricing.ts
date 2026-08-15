@@ -7,6 +7,7 @@ import { resolvePriceCents } from '../../utils/price.js'
 import type { OrderDetail } from '../../types/entities.js'
 import { getOrder } from './order-read.js'
 import { updateOrderChecked } from './order-fields.js'
+import { MAX_MONEY_CENTS } from './order-limits.js'
 
 // ============================================
 // 订单服务 - 计价/增项/收款子域（从 order.service.ts 拆出）
@@ -16,7 +17,7 @@ import { updateOrderChecked } from './order-fields.js'
 
 /**
  * 修改订单最终价格
- * 校验：正整数（分），上限 99999999（999999.99 元）
+ * 校验：正整数（分），上限 MAX_MONEY_CENTS（100 万元，815 拍板 #2 统一口径）
  * 改价时自动追加订单备注 "最终价格从 ¥A 改为 ¥B"
  */
 export function updateFinalPrice(orderId: number, finalPriceCents: number, quoteSnapshot?: string | null, expectedVersion?: number): OrderDetail {
@@ -33,8 +34,8 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
     throw new AppError(E.PRICE_CHANGE_AFTER_DONE)
   }
 
-  // 校验：正整数，1 ~ 99999999
-  if (!Number.isInteger(finalPriceCents) || finalPriceCents < 1 || finalPriceCents > 99999999) {
+  // 校验：正整数，1 ~ MAX_MONEY_CENTS（100 万元）
+  if (!Number.isInteger(finalPriceCents) || finalPriceCents < 1 || finalPriceCents > MAX_MONEY_CENTS) {
     throw new AppError(E.INVALID_PRICE, 400, { value: finalPriceCents })
   }
 
