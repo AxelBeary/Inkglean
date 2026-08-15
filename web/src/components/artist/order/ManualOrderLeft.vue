@@ -20,7 +20,7 @@
       <el-upload
         drag multiple
         :auto-upload="true" :http-request="handleRefUpload"
-        accept="image/*" list-type="picture-card" :limit="5"
+        accept="image/*" list-type="picture-card" :limit="MAX_IMAGE_COUNT"
         :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
         :on-remove="handleRefRemove" class="mo-ref-upload"
         @dragenter.capture="guardDragEnter"

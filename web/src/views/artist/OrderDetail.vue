@@ -377,7 +377,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -469,8 +469,20 @@ async function regenerateAndCopyLink() {
   try {
     const res = await artistApi.regenerateCustomerToken(route.params.id)
     const full = new URL(res.trackUrl, window.location.origin).href
-    await navigator.clipboard.writeText(full)
-    ElMessage.success(t('orderDetail.regenerateTokenSuccess'))
+    // K1-2：令牌重生成成功即为成功；剪贴板失败单独提示手动复制，不回滚不作废
+    try {
+      await navigator.clipboard.writeText(full)
+      ElMessage.success(t('orderDetail.regenerateTokenSuccess'))
+    } catch {
+      ElMessageBox.alert(
+        h('div', [
+          h('p', { style: 'margin:0 0 8px' }, t('orderDetail.regenerateTokenManualHint')),
+          h('code', { style: 'word-break:break-all;font-size:12px;line-height:1.6' }, full)
+        ]),
+        t('orderDetail.regenerateTokenManualTitle'),
+        { confirmButtonText: t('common.confirm'), dangerouslyUseHTMLString: false }
+      ).catch(() => {})
+    }
   } catch (err) {
     ElMessage.error(err.message || t('orderDetail.regenerateTokenFailed'))
   } finally {

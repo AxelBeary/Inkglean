@@ -80,6 +80,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const selectedRushId = ref(null)
   /** 画风价格预览（calculate-style-price 响应，全整数分口径） */
   const stylePricePreview = ref(null)
+  /** K1-3：计价失败错误文案（走 discountError 同款页内错误态，禁止静默消失） */
+  const styleCalcError = ref('')
   const stylePricingExpanded = ref(false)
 
   // ─── v0.34 任务B：URL query 预选（主页选画风+尺寸后跳转带入） ───
@@ -234,6 +236,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     selectedSizeId.value = null
     resetAddonSelections()
     stylePricePreview.value = null
+    styleCalcError.value = ''
     stylePricingExpanded.value = false
   }
 
@@ -256,6 +259,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     // 切换尺寸时重置增项选择（不同尺寸可用增项不同）
     resetAddonSelections()
     stylePricePreview.value = null
+    styleCalcError.value = ''
     initStyleAddonDefaults()
     scheduleStyleCalc()
   }
@@ -332,7 +336,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   async function doStyleCalc() {
     const mySeq = ++styleCalcSeq
-    if (!selectedSizeId.value) { stylePricePreview.value = null; return }
+    if (!selectedSizeId.value) { stylePricePreview.value = null; styleCalcError.value = ''; return }
+    styleCalcError.value = ''
     try {
       const res = await artistPublicApi.calculateStylePrice({
         subdomain,
@@ -342,9 +347,10 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       })
       if (mySeq !== styleCalcSeq) return
       stylePricePreview.value = res
-    } catch {
+    } catch (err) {
       if (mySeq !== styleCalcSeq) return
       stylePricePreview.value = null
+      styleCalcError.value = err?.message || t('orderForm.priceCalcFailed')
     }
   }
 
@@ -539,7 +545,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       return
     }
     for (const file of files) {
-      if (refFileList.value.length >= 5) {
+      if (refFileList.value.length >= MAX_IMAGE_COUNT) {
         ElMessage.warning(t('orderForm.refExceed'))
         return
       }
@@ -724,7 +730,7 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     styleAddonSelections, selectedUsageId, selectedRushId,
     selectStyle, selectSize, toggleUsage, toggleRush,
     buildStyleAddons, styleAddonPriceText,
-    stylePricePreview, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras,
+    stylePricePreview, styleCalcError, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras,
     installmentPreview,
     // v0.34 任务B：URL query 预选命中记录
     queryPreselect,

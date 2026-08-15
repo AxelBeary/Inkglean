@@ -29,7 +29,7 @@
       </template>
       <el-upload
         :auto-upload="true" :http-request="uploadRequest"
-        accept="image/*" list-type="picture-card" :limit="5"
+        accept="image/*" list-type="picture-card" :limit="MAX_IMAGE_COUNT"
         :file-list="refFileList" :on-exceed="onExceed"
         :on-remove="uploadRemove"
         @dragenter.capture="guardDragEnter"
@@ -67,6 +67,7 @@ import { ElMessage } from 'element-plus'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
+import { MAX_IMAGE_COUNT } from '../../../constants/upload.js'
 import type { RefFileItem, WorkflowStageItem } from './types'
 
 defineProps<{
