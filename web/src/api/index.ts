@@ -9,6 +9,9 @@ import type {
   AddPaymentRequest,
   AddPaymentResult,
   AddReferenceRequest,
+  AdminAddonTemplate,
+  AdminAddonTemplateInput,
+  AdminAddonTemplateUpdate,
   AdminArtistItem,
   AdminGuestbookMessage,
   AdminMessageFilters,
@@ -40,6 +43,7 @@ import type {
   CreateStandaloneIncomeResult,
   CustomerTokenResult,
   DefaultWorkflowNode,
+  DeleteAdminAddonTemplateResult,
   DeleteAddonTemplateResult,
   DeleteArtistResult,
   DeleteArtworkResult,
@@ -657,6 +661,14 @@ export const adminApi = {
     postJson(`/admin/artists/${id}/totp/bind-confirm`, { code }),
   totpReset: (id: number): Promise<TotpActionResult> => postJson(`/admin/artists/${id}/totp/reset`),
   getStats: (): Promise<GlobalStats> => getJson('/admin/stats'),
+  // 815 第三批 I 路: 系统增项模板（artist_id IS NULL，全画师共用）
+  getAddonTemplates: (): Promise<AdminAddonTemplate[]> => getJson('/admin/addon-templates'),
+  createAddonTemplate: (data: AdminAddonTemplateInput): Promise<AddonTemplate> =>
+    postJson('/admin/addon-templates', data),
+  updateAddonTemplate: (id: number, data: AdminAddonTemplateUpdate): Promise<AddonTemplate> =>
+    putJson(`/admin/addon-templates/${id}`, data),
+  deleteAddonTemplate: (id: number): Promise<DeleteAdminAddonTemplateResult> =>
+    deleteJson(`/admin/addon-templates/${id}`),
   getArtistOrders: (id: number): Promise<AdminOrdersResult> => getJson(`/admin/artists/${id}/orders`),
   updateArtistStatus: (id: number, status: ArtistStatus): Promise<PublicArtistDTO> =>
     putJson(`/admin/artists/${id}/status`, { status }),
