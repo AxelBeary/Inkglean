@@ -2,6 +2,12 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
+> ✅ **最后更新：2026-08-16 v111：beta.2 部署进生产（迁移回读 v66 全绿）+ gh release 材料备妥（安装包 640 文件/5.0MB + 人话版说明）**
+> ✅ **部署实录（post-merge-deploy 全绿）**：accept 前置两遍实测全绿（server 1521 / web 545 / E2E 13，第二遍对齐文档提交后的 HEAD aa260a62）；容器重建 Healthy，**迁移回读 v66 = 期望**，冒烟 5/5 PASS 零 WARN；prev tag commission-web:prev-20260816-014948。**抓修一处首部署鸡生蛋**：在跑容器还是 815 前旧镜像，容器内旧版 backup-db.ts 不识 --tier，产出每日档命名被部署脚本 fail-fast 拦——备份本体成功且 VERIFY_OK，将产物改名部署档（commission.db.bak-deploy-2026-08-15T17-39-36-264Z）重跑即过；新镜像已烘焙档位代码，下次部署链路自然闭环。教训在案：档位类新功能首次部署需预期旧容器不识别新参数。
+> 📦 **gh release 材料（待用户手动一键创建——沙箱拦写操作 HTTP 403，读操作正常）**：安装包 workspace/temp/inkglean-installer-v1.0.0-b2.zip（640 文件，.NET 打包中文名正常）+ 人话版说明 workspace/temp/release-notes-v1.0.0-beta.2.md（四新功能/审计收口/安装方式/升级需重登一次）。命令：`gh release create v1.0.0-beta.2 "workspace\temp\inkglean-installer-v1.0.0-b2.zip" --title "v1.0.0-beta.2 — 审计修复收口版" --notes-file "workspace\temp\release-notes-v1.0.0-beta.2.md" --prerelease`。
+> 📝 **顺手修正**：changelog beta.2 段「P1 剩余 5 项未修」旧况口径改为已全销（提交 aa260a62）。
+> 🔑 **新会话接手指南**：无在途施工。**下一轮待办**：①用户手动跑上方 gh release 命令（或新会话重试，沙箱对写操作偶发放行）②用户终验新功能（取消撤销/一次性下载/模板管理/封禁解封，https://localhost）③本地 master 领先远端 2 个文档提交（ca254298/aa260a62），随下次推送带上（本条 v111 未提交，一并带上）④桌面端 HOLD。
+
 > ✅ **最后更新：2026-08-16 v110：v1.0.0-beta.2 推送收口——远端 master/tag 全部对齐**
 > ✅ **推送实录（用户手动执行；沙箱仍拦网络推送，本会话实测确认 git push 报 remote-https Permission denied）**：远端 master 已到 **4681ac4f**（与本地一致，815 收口全量 13 提交）；tag **v1.0.0-beta.2** 已 force 移至发版收口提交 **ee841505**（新 tag 对象 5cbd6272，forced update 确认）。插曲：fetch 同步时远端旧 tag（指早期发版提交 e250ec1e）回写覆盖了本地 tag，致首次 force-push 报 Everything up-to-date——重建本地 tag（tag -f -a 指回 ee841505）后再推即成。教训在案：移动 tag 的推送须在 fetch 旧 tag 回写之前完成，或退 tag→重打→推一气呵成。
 > 🔑 **新会话接手指南**：无在途施工。**下一轮待办**：①部署到生产（scripts/post-merge-deploy.ps1，迁移回读应见 v66）②用户终验新功能（取消撤销/一次性下载/模板管理/封禁解封）③桌面端 HOLD。本条 v110 因网络拦截暂未提交，随下次提交带上。
