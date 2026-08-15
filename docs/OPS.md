@@ -161,8 +161,8 @@ docker compose exec web ls /app/web/dist/assets/ | tail            # ③ 前端�
 
 ### 当前机制（单机小项目取舍）
 
-- 迁移均为 **up-only**：`MIGRATIONS` 共 64 条（version 1~64，最新 v64 `greeting_special_days`），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
-- 每次迁移执行前自动备份：`server/src/db/migrate.ts` 的 `backupDbBeforeMigration` 会复制 `commission.db` → `commission.db.bak.v<N>`（仅文件数据库；`:memory:` 跳过）。
+- 迁移均为 **up-only**：`MIGRATIONS` 共 66 条（version 1~66，最新 v66 deliverables 一次性下载状态列），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
+- 每次迁移执行前自动备份：`server/src/db/migrate.ts` 的 `backupDbBeforeMigration` 产出一致性快照 `commission.db.bak.v<N>`（事务外 VACUUM INTO / 事务内 checkpoint 后复制；仅文件数据库，`:memory:` 跳过；**备份失败即中止迁移**，815 审计加固）。
 - 采用该取舍的原因：单机小项目、单部署点，schema 变更频率低，写 `down()` 的维护成本高于收益；错误回滚用备份恢复兜底（见 §3）。
 
 ### 回滚方式
@@ -193,7 +193,7 @@ docker compose up -d
 - 两个工作流：`.github/workflows/ci.yml`（server/web 门禁）与 `e2e.yml`（Playwright）。push 到 master 即触发。
 - **仓库 Actions 权限必须保持 `selected`（仅 GitHub 官方行动）**，勿改成 `local_only`。
   - 2026-08-08 18:28 起因权限被设为 `local_only`，checkout/setup-node 等全部外部 actions 被拦，CI/E2E 连续 `startup_failure`（0 jobs），但本地测试全绿——**排查 CI 红先看仓库设置，再看代码**。
-  - 查询：`gh api repos/AxelBeary/Brushline-HuiYue/actions/permissions`
+  - 查询：`gh api repos/AxelBeary/Inkglean/actions/permissions`
   - 修复：`gh api -X PUT .../actions/permissions --input '{"enabled":true,"allowed_actions":"selected"}'` + `PUT .../selected-actions --input '{"github_owned_allowed":true,"verified_allowed":false,"patterns_allowed":[]}'`
 - `startup_failure` 的 run 不可 rerun，须新提交触发。
 
