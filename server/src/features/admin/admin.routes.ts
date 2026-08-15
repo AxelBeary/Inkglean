@@ -222,6 +222,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const artist = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
+    // L-12（审计 九#5）: 与 bind-init 同款软删除检查——已移除画师不得走绑定确认
+    if (artist.deleted_at) return reply.code(400).send({ error: '画师已移除，无法绑定' })
     if (!artist.totp_secret) return reply.code(400).send({ error: '请先生成绑定二维码' })
 
     try {
@@ -243,6 +245,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   fastify.post('/api/admin/artists/:id/totp/reset', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
     const artist = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
+    // L-12（审计 九#5）: 与 bind-init 同款软删除检查——已移除画师不得重置 TOTP
+    if (artist.deleted_at) return reply.code(400).send({ error: '画师已移除，无法绑定' })
 
     resetTotp(artist.id)
     return { success: true, message: `已重置画师「${artist.name}」的动态口令绑定，画师需重新绑定才能登录` }
@@ -695,7 +699,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
                 name: { type: 'string', minLength: 1, maxLength: 50 },
                 description: { type: 'string', maxLength: 200 },
                 takesPayment: { type: 'boolean' },
-                basisPoints: { type: 'integer', minimum: 500, maximum: 10000 }
+                // L-11（审计 九#4）: 与 savePayment 严格口径统一（尾款保留 ≥500，单节点 ≤9500）
+                basisPoints: { type: 'integer', minimum: 500, maximum: workflowService.MAX_NON_FINAL_BP }
               }
             }
           }
@@ -787,7 +792,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
               type: 'object', required: ['id', 'basisPoints'], additionalProperties: false,
               properties: {
                 id: { type: 'integer' },
-                basisPoints: { type: 'integer', minimum: 500, maximum: 9500 }
+                basisPoints: { type: 'integer', minimum: 500, maximum: workflowService.MAX_NON_FINAL_BP }
               }
             }
           }

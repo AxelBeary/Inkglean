@@ -15,6 +15,11 @@ import type { WorkflowStage } from '../../types/entities.js'
 const MIN_BP = 500
 const MAX_BP = 10000
 const TOTAL_BP = 10000
+/**
+ * L-11（审计 九#4）: 非尾款收款节点上限——尾款须保留 MIN_BP，故单节点最多 9500。
+ * 管理端默认模板与画师比例保存共用此常量（宽松处收紧到严格处），避免两处口径漂移。
+ */
+export const MAX_NON_FINAL_BP = MAX_BP - MIN_BP
 const MAX_INSTALLMENTS = 20
 const DEFAULT_NEW_BP = 1000
 const DEFAULT_SPEECH = '{客户名}，你的订单已{节点名}。'
@@ -54,12 +59,15 @@ function getStages(artistId: number): WorkflowStage[] {
   ).all(artistId) as WorkflowStage[]
 }
 
-/** 统计画师存在分期快照的活跃订单数（批4 B10：收款结构变更守卫的命中条件） */
+/**
+ * 统计画师活跃订单数（批4 B10：收款结构变更守卫的命中条件）
+ * L-1（审计 三#1）：口径从「存在分期快照」放宽为「全部活跃订单」——缓冲区订单
+ * 不生成分期、0 价单无分期行，但递补/后续计价仍依赖当前收款结构，同样须拦结构变更。
+ */
 function countActivePaymentOrders(artistId: number): number {
   return (db.prepare(`
     SELECT COUNT(DISTINCT o.id) AS c
     FROM orders o
-    JOIN order_payment_installments i ON i.order_id = o.id
     WHERE o.artist_id = ? AND o.status NOT IN ('delivered', 'cancelled')
   `).get(artistId) as { c: number }).c
 }
@@ -263,6 +271,13 @@ export function deleteStage(artistId: number, stageId: number): { success: boole
     const final = findFinal(stages)
     if (final && final.id === stageId) throw new AppError(E.FINAL_CANNOT_DELETE)
 
+    // 批4 B10 + L-1（审计 三#1）: 删除收款节点会改变收款结构（比例并入尾款）——
+    // 有活跃订单（含缓冲区/0 价无分期单）引用当前结构时禁止，与 updateStage/reorderStages 同款守卫
+    if (stage.takes_payment) {
+      const active = countActivePaymentOrders(artistId)
+      if (active > 0) throw new AppError(E.WORKFLOW_PAYMENT_IN_USE, 400, { count: active })
+    }
+
     // P1-5: 有活跃订单引用该节点时阻止删除
     const activeCount = (db.prepare(
       "SELECT COUNT(*) as c FROM orders WHERE current_stage_id = ? AND status NOT IN ('delivered', 'cancelled')"
@@ -329,7 +344,7 @@ export function savePayment(artistId: number, nodes: Array<{ id: number; basisPo
       if (stage.id === final.id) throw new AppError(E.FINAL_READONLY)
       if (!stage.takes_payment) throw new AppError(E.NOT_PAYMENT_STAGE, 400, { name: stage.name })
       if (n.basisPoints < MIN_BP) throw new AppError(E.BP_TOO_LOW, 400, { name: stage.name })
-      if (n.basisPoints > MAX_BP - MIN_BP) throw new AppError(E.BP_TOO_HIGH, 400, { name: stage.name })
+      if (n.basisPoints > MAX_NON_FINAL_BP) throw new AppError(E.BP_TOO_HIGH, 400, { name: stage.name })
     }
 
     // 批4 B10（方案 b）：有活跃订单时放行，但标注仅影响新订单（快照不变，不破坏既有订单）

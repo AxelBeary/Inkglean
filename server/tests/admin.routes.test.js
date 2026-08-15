@@ -452,6 +452,35 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(res.statusCode).toBe(404)
   })
 
+  // L-12（审计 九#5）: bind-confirm/reset 补软删除检查（bind-init 已有同款）
+  it('TC-AR-24: 软删除画师 bind-confirm/reset 被拒（L-12）', async () => {
+    const admin = setAdmin('10001')
+    const target = seedArtist({ qq_number: '77008', subdomain: 'totp-removed' })
+    bindArtistTotp(target)
+    db.prepare("UPDATE artists SET deleted_at = datetime('now') WHERE id = ?").run(target.id)
+
+    const confirm = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${target.id}/totp/bind-confirm`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { code: '123456' }
+    })
+    expect(confirm.statusCode).toBe(400)
+    expect(confirm.json().error).toContain('已移除')
+
+    const reset = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${target.id}/totp/reset`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+    expect(reset.statusCode).toBe(400)
+    expect(reset.json().error).toContain('已移除')
+
+    // 绑定状态未被触碰
+    const row = db.prepare('SELECT totp_secret FROM artists WHERE id = ?').get(target.id)
+    expect(row.totp_secret).not.toBeNull()
+  })
+
   // ─── 订单列表付款字段（B7 补字段） ───
 
   it('TC-AR-16: 订单列表含 paidTotalCents / finalPriceCents / installments', async () => {
@@ -757,5 +786,30 @@ describe('管理员路由 (Admin Routes)', () => {
 
     expect(res.statusCode).toBe(403)
     expect(res.json().code).toBe('ADMIN_REQUIRED')
+  })
+
+  // L-11（审计 九#4）: 默认模板 basisPoints 上限与保存口径统一为 9500（宽松处收紧到严格处）
+  it('TC-AR-WFBP: 默认模板单节点 basisPoints 超 9500 被 schema 拒绝（L-11）', async () => {
+    const admin = setAdmin('10001')
+
+    const over = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/default-workflow',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { nodes: [{ name: '全款', takesPayment: true, basisPoints: 10000 }] }
+    })
+    expect(over.statusCode).toBe(400)
+
+    // 9500 以内的合法模板仍可保存成功，验证统一后的上限未被误收
+    const ok = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/default-workflow',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { nodes: [
+        { name: '定金', takesPayment: true, basisPoints: 5000 },
+        { name: '尾款', takesPayment: true, basisPoints: 5000 }
+      ] }
+    })
+    expect(ok.statusCode).toBe(200)
   })
 })

@@ -364,7 +364,7 @@ describe('流程与比例服务 (Workflow Service)', () => {
     expect(wf.updateStage(artist.id, s.id, { speechTemplate: '新的话术' }).speechTemplate).toBe('新的话术')
   })
 
-  it('TC-WF-G5: 活跃订单仅缓冲/0价（无分期行）时三处均放行', () => {
+  it('TC-WF-G5: 活跃订单仅缓冲/0价（无分期行）时三处均拦截（L-1 统计口径覆盖全部活跃订单）', () => {
     const stages = seed(artist.id)
     // 缓冲单：不生成分期
     seedOrder(artist.id, { status: 'wip', queue_zone: 'buffer' })
@@ -372,14 +372,32 @@ describe('流程与比例服务 (Workflow Service)', () => {
     const zero = seedOrder(artist.id, { status: 'wip' })
     db.prepare('UPDATE orders SET total_price_cents = 0, final_price_cents = 0 WHERE id = ?').run(zero.id)
     const pay = stages.find(s => s.takesPayment && !s.isFinal)
-    // savePayment 放行且无活跃订单标注
+    // savePayment 标注仅影响新订单（存在活跃订单）
     const result = wf.savePayment(artist.id, [{ id: pay.id, basisPoints: 2000 }])
-    expect(result.appliesToNewOrdersOnly).toBe(false)
-    // reorder 放行
-    expect(() => wf.reorderStages(artist.id, stages.map(s => s.id))).not.toThrow()
-    // takesPayment 切换放行（开启草稿确认收款）
+    expect(result.appliesToNewOrdersOnly).toBe(true)
+    // reorder 拦截（count = 缓冲 1 + 0 价 1）
+    expectBlocked(() => wf.reorderStages(artist.id, stages.map(s => s.id)), 2)
+    // takesPayment 切换拦截（开启草稿确认收款）
     const draft = stages.find(s => s.name === '草稿确认')
-    expect(() => wf.updateStage(artist.id, draft.id, { takesPayment: true })).not.toThrow()
+    expectBlocked(() => wf.updateStage(artist.id, draft.id, { takesPayment: true }), 2)
+  })
+
+  it('TC-WF-G8: deleteStage 收款节点补 B10 守卫——缓冲活跃单拦截，终态不拦，非收款节点不受影响', () => {
+    const stages = seed(artist.id)
+    const pay = stages.find(s => s.takesPayment && !s.isFinal)
+    // 缓冲单（无分期行）→ 删除收款节点拦截
+    seedOrder(artist.id, { status: 'wip', queue_zone: 'buffer' })
+    expectBlocked(() => wf.deleteStage(artist.id, pay.id), 1)
+    // 清掉缓冲单后，终态订单不拦（B10 口径排除 delivered/cancelled）
+    db.prepare('DELETE FROM orders WHERE artist_id = ?').run(artist.id)
+    seedOrderWithInstallments(artist.id, { status: 'delivered' })
+    seedOrderWithInstallments(artist.id, { status: 'cancelled' })
+    expect(wf.deleteStage(artist.id, pay.id).success).toBe(true)
+    // 非收款节点不受 B10 拦截（有活跃订单时仍可删；STAGE_IN_USE 仅拦 current_stage_id 命中）
+    const after = wf.getWorkflow(artist.id)
+    const nonPay = after.find(s => !s.takesPayment)
+    seedOrder(artist.id, { status: 'wip' })
+    expect(wf.deleteStage(artist.id, nonPay.id).success).toBe(true)
   })
 
   it('TC-WF-G6: 已交付/已取消订单不拦截（终态排除）', () => {

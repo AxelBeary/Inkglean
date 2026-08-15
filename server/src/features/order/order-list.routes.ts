@@ -103,7 +103,7 @@ export async function orderListRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/api/artist/orders/:id', { preHandler: [requireAuth, requireOwnOrder] }, async (request: FastifyRequest) => {
     // B1 修复：增强逻辑抽至 enrichOrderForArtist，与所有变更端点统一
-    return enrichOrderForArtist(request.order)
+    return enrichOrderForArtist(request.order, request.artist.id)
   })
 
   /**

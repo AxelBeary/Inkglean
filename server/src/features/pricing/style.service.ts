@@ -481,42 +481,46 @@ interface UpdateStyleSizeFields {
 
 /** 更新尺寸 */
 export function updateStyleSize(artistId: number, styleId: number, sizeId: number, fields: UpdateStyleSizeFields): StyleSize {
-  getStyleSize(artistId, styleId, sizeId) // 归属校验
+  // L-10（审计 九#2）: 校验与写入同事务（F-1 模式）——display_status 等后置校验失败
+  // 整体回滚，杜绝「name 先落库、后校验失败返回 404」的半态更新
+  return db.transaction(() => {
+    getStyleSize(artistId, styleId, sizeId) // 归属校验
 
-  if (fields.name !== undefined) {
-    if (!fields.name.trim()) throw new AppError(E.STYLE_SIZE_NAME_EMPTY)
-    db.prepare('UPDATE style_sizes SET name = ? WHERE id = ?').run(sanitizeStoredText(fields.name).trim(), sizeId)
-  }
-  if (fields.base_price !== undefined) {
-    if (fields.base_price < 0) throw new AppError(E.STYLE_SIZE_INVALID_PRICE)
-    db.prepare('UPDATE style_sizes SET base_price = ? WHERE id = ?').run(fields.base_price, sizeId)
-  }
-  if (fields.sort_order !== undefined) {
-    db.prepare('UPDATE style_sizes SET sort_order = ? WHERE id = ?').run(fields.sort_order, sizeId)
-  }
-  // v0.37 F1: 图片字段 — 任一传入即整组重算（image_artwork_id 优先，另一个清空）
-  if (fields.image !== undefined || fields.image_artwork_id !== undefined) {
-    const img = validateSizeImageFields(artistId, {
-      image_artwork_id: fields.image_artwork_id ?? undefined,
-      image: fields.image ?? undefined
-    })
-    db.prepare('UPDATE style_sizes SET image = ?, image_artwork_id = ? WHERE id = ?')
-      .run(img.image, img.image_artwork_id, sizeId)
-  }
-  if (fields.description !== undefined) {
-    db.prepare('UPDATE style_sizes SET description = ? WHERE id = ?').run(sanitizeStoredText(fields.description) || null, sizeId)
-  }
-  if (fields.work_days !== undefined) {
-    db.prepare('UPDATE style_sizes SET work_days = ? WHERE id = ?').run(fields.work_days, sizeId)
-  }
-  if (fields.display_status !== undefined) {
-    if (!VALID_DISPLAY_STATUS.includes(fields.display_status as typeof VALID_DISPLAY_STATUS[number])) {
-      throw new AppError(E.VALIDATION, 400, { field: 'display_status', hint: 'display_status 只能是 available/showcase/closed' })
+    if (fields.name !== undefined) {
+      if (!fields.name.trim()) throw new AppError(E.STYLE_SIZE_NAME_EMPTY)
+      db.prepare('UPDATE style_sizes SET name = ? WHERE id = ?').run(sanitizeStoredText(fields.name).trim(), sizeId)
     }
-    db.prepare('UPDATE style_sizes SET display_status = ? WHERE id = ?').run(fields.display_status, sizeId)
-  }
+    if (fields.base_price !== undefined) {
+      if (fields.base_price < 0) throw new AppError(E.STYLE_SIZE_INVALID_PRICE)
+      db.prepare('UPDATE style_sizes SET base_price = ? WHERE id = ?').run(fields.base_price, sizeId)
+    }
+    if (fields.sort_order !== undefined) {
+      db.prepare('UPDATE style_sizes SET sort_order = ? WHERE id = ?').run(fields.sort_order, sizeId)
+    }
+    // v0.37 F1: 图片字段 — 任一传入即整组重算（image_artwork_id 优先，另一个清空）
+    if (fields.image !== undefined || fields.image_artwork_id !== undefined) {
+      const img = validateSizeImageFields(artistId, {
+        image_artwork_id: fields.image_artwork_id ?? undefined,
+        image: fields.image ?? undefined
+      })
+      db.prepare('UPDATE style_sizes SET image = ?, image_artwork_id = ? WHERE id = ?')
+        .run(img.image, img.image_artwork_id, sizeId)
+    }
+    if (fields.description !== undefined) {
+      db.prepare('UPDATE style_sizes SET description = ? WHERE id = ?').run(sanitizeStoredText(fields.description) || null, sizeId)
+    }
+    if (fields.work_days !== undefined) {
+      db.prepare('UPDATE style_sizes SET work_days = ? WHERE id = ?').run(fields.work_days, sizeId)
+    }
+    if (fields.display_status !== undefined) {
+      if (!VALID_DISPLAY_STATUS.includes(fields.display_status as typeof VALID_DISPLAY_STATUS[number])) {
+        throw new AppError(E.VALIDATION, 400, { field: 'display_status', hint: 'display_status 只能是 available/showcase/closed' })
+      }
+      db.prepare('UPDATE style_sizes SET display_status = ? WHERE id = ?').run(fields.display_status, sizeId)
+    }
 
-  return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(sizeId) as StyleSize
+    return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(sizeId) as StyleSize
+  })()
 }
 
 /** 删除尺寸（级联删 size_addon_overrides） */

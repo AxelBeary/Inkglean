@@ -77,10 +77,11 @@
           </el-alert>
         </div>
 
-        <!-- SPEC-004: 缓冲订单排队位置（正式订单 queueDisplay 为 null，不显示） -->
-        <div class="position-info" v-if="order.queueDisplay">
+        <!-- L-5: 缓冲订单由 queueStatus 状态键驱动（queuePosition 为 null = 画师隐藏位次），文案走 i18n -->
+        <div class="position-info" v-if="order.queueStatus === 'queued'">
           <el-alert type="warning" :closable="false" show-icon>
-            {{ order.queueDisplay }}
+            <template v-if="order.queuePosition">{{ $t('track.queuedPosition', { pos: order.queuePosition }) }}</template>
+            <template v-else>{{ $t('track.queued') }}</template>
           </el-alert>
         </div>
 

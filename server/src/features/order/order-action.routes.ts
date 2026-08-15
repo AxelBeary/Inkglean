@@ -47,7 +47,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
       throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
     }
     const { status, confirmPaidCancel, version } = request.body as { status: string; confirmPaidCancel?: boolean; version?: number }
-    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, status, !!confirmPaidCancel, version))
+    return enrichOrderForArtist(orderService.updateOrderStatus(request.order.id, status, !!confirmPaidCancel, version), request.artist.id)
   })
 
   /**
@@ -69,7 +69,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     const { confirmPaidCancel, version } = (request.body ?? {}) as { confirmPaidCancel?: boolean; version?: number }
     const order = orderService.cancelOrderWithUndo(request.order.id, !!confirmPaidCancel, version)
-    return { ...enrichOrderForArtist(order), undoWindowMs: orderService.CANCEL_UNDO_WINDOW_MS }
+    return { ...enrichOrderForArtist(order, request.artist.id), undoWindowMs: orderService.CANCEL_UNDO_WINDOW_MS }
   })
 
   /**
@@ -79,7 +79,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   fastify.post('/api/artist/orders/:id/cancel-undo', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: FastifyRequest) => {
-    return enrichOrderForArtist(orderService.undoCancelOrder(request.order.id, request.artist.id))
+    return enrichOrderForArtist(orderService.undoCancelOrder(request.order.id, request.artist.id), request.artist.id)
   })
 
   /**
@@ -99,7 +99,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest) => {
-    return enrichOrderForArtist(orderQueueService.updatePriority(request.order.id, (request.body as { priority: string }).priority))
+    return enrichOrderForArtist(orderQueueService.updatePriority(request.order.id, (request.body as { priority: string }).priority), request.artist.id)
   })
 
   /**
@@ -122,7 +122,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
     }
   }, async (request: FastifyRequest) => {
     const { deadline, version } = request.body as { deadline: string | null; version?: number }
-    return enrichOrderForArtist(orderService.updateDeadline(request.order.id, deadline, version))
+    return enrichOrderForArtist(orderService.updateDeadline(request.order.id, deadline, version), request.artist.id)
   })
 
   /**
@@ -145,7 +145,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
     }
   }, async (request: FastifyRequest) => {
     const { startDate, version } = request.body as { startDate: string | null; version?: number }
-    return enrichOrderForArtist(orderService.updateStartDate(request.order.id, startDate, version))
+    return enrichOrderForArtist(orderService.updateStartDate(request.order.id, startDate, version), request.artist.id)
   })
 
   /**
@@ -176,7 +176,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
       }
     }
 
-    return enrichOrderForArtist(orderService.addNote(request.order.id, clamp(content, 'note')!, 'artist', imagePath || null))
+    return enrichOrderForArtist(orderService.addNote(request.order.id, clamp(content, 'note')!, 'artist', imagePath || null), request.artist.id)
   })
 
   /**
@@ -188,7 +188,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     const noteId = parseInt((request.params as { noteId: string }).noteId, 10)
     if (isNaN(noteId)) throw new AppError(E.ORDER_INVALID_ID)
-    return enrichOrderForArtist(orderService.deleteNote(request.order.id, noteId))
+    return enrichOrderForArtist(orderService.deleteNote(request.order.id, noteId), request.artist.id)
   })
 
   // ─── v0.11 R2: 最终价格修改 ───
@@ -215,7 +215,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     const { finalPriceCents, quoteSnapshot, version } = request.body as { finalPriceCents: number; quoteSnapshot?: string | null; version?: number }
     // R19 + B1: 改价返回的订单统一增强（与 GET orders/:id 一致）
-    return enrichOrderForArtist(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot, version))
+    return enrichOrderForArtist(orderService.updateFinalPrice(request.order.id, finalPriceCents, quoteSnapshot, version), request.artist.id)
   })
 
   // ─── SPEC-003: 附加工作项 ───
@@ -241,7 +241,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
     }
   }, async (request: FastifyRequest) => {
     const { name, description, priceCents } = request.body as { name: string; description?: string | null; priceCents?: number }
-    return enrichOrderForArtist(orderService.addExtraItem(request.order.id, { name, description, priceCents }))
+    return enrichOrderForArtist(orderService.addExtraItem(request.order.id, { name, description, priceCents }), request.artist.id)
   })
 
   /**
@@ -253,7 +253,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     const itemId = parseInt((request.params as { itemId: string }).itemId, 10)
     if (isNaN(itemId)) throw new AppError(E.ORDER_INVALID_ID)
-    return enrichOrderForArtist(orderService.deleteExtraItem(request.order.id, itemId))
+    return enrichOrderForArtist(orderService.deleteExtraItem(request.order.id, itemId), request.artist.id)
   })
 
   // ─── B7: 额度池收款 ───
@@ -332,7 +332,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: FastifyRequest) => {
     // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
-    return enrichOrderForArtist(orderService.promoteOrder(request.order.id, parseOptionalVersion(request.body)))
+    return enrichOrderForArtist(orderService.promoteOrder(request.order.id, parseOptionalVersion(request.body)), request.artist.id)
   })
 
   // ─── F1 围剿：客户追踪令牌补发 ───
@@ -349,8 +349,14 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest) => {
     const customerToken = orderService.generateCustomerToken()
     const tokenHash = orderService.hashCustomerToken(customerToken)
-    db.prepare('UPDATE orders SET customer_token_hash = ? WHERE id = ?')
-      .run(tokenHash, request.order.id)
+    // L-2（审计 三#5）: 令牌补发属订单写路径——走 updateOrderChecked 递增 version（
+    // 带 version 的写路径能感知此变更）+ 活动日志留痕，与订单其余写操作同款事务原子性。
+    // 活动日志沿用既有 note_update 类型（order_activity_logs CHECK 只允许六类，迁移禁改），
+    // detail.action=token_regenerate 承载语义
+    db.transaction(() => {
+      orderService.updateOrderChecked(request.order.id, undefined, 'customer_token_hash = ?', tokenHash)
+      activityLogService.logActivity(request.order.id, 'note_update', 'artist', { action: 'token_regenerate' })
+    })()
     return {
       customerToken,
       trackUrl: orderService.buildCustomerTrackUrl(

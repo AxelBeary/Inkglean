@@ -183,6 +183,31 @@ describe('F1 客户访问令牌化', () => {
     expect(newLink.json().orderNo).toBe('CT-REGEN-01')
   })
 
+  it('TC-CT-05b: regenerate-token 递增 version 并写活动日志（L-2 审计 三#5）', async () => {
+    const artist = seedArtist({ qq_number: '88006', subdomain: 'ct-regen-v' })
+    const order = seedOrder(artist.id, { order_no: 'CT-REGEN-V1', client_qq: '99006' })
+    const versionBefore = order.version
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/artist/orders/${order.id}/regenerate-token`,
+      headers: authH(artist)
+    })
+    expect(res.statusCode).toBe(200)
+
+    // version 递增（写路径可感知令牌补发）
+    const row = db.prepare('SELECT version FROM orders WHERE id = ?').get(order.id)
+    expect(row.version).toBe(versionBefore + 1)
+
+    // 活动日志留痕（沿用既有 note_update 类型 + detail.action 标记；DB CHECK 六类、迁移禁改）
+    const logs = db.prepare(
+      "SELECT action_type, actor, detail_json FROM order_activity_logs WHERE order_id = ? ORDER BY id DESC"
+    ).all(order.id)
+    expect(logs[0].action_type).toBe('note_update')
+    expect(logs[0].actor).toBe('artist')
+    expect(JSON.parse(logs[0].detail_json)).toEqual({ action: 'token_regenerate' })
+  })
+
   it('TC-CT-06: 令牌校验实现引用 crypto.timingSafeEqual（常量时间比较）', () => {
     const src = readFileSync(
       new URL('../src/features/order/order-read.ts', import.meta.url),

@@ -857,6 +857,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     orderNo: '订单号',
     artist: '画师', type: '类型',
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
+    // L-5（审计 七#1）: 缓冲队列文案由状态键驱动（后端不再硬编码中文）
+    queued: '排队中', queuedPosition: '排队中（第 {pos} 位）',
     stepSubmitted: '已提交', stepConfirmed: '已确认', stepWip: '制作中', stepDone: '已完成', stepDelivered: '已交付',
     deliverables: '交付文件', otherOrder: '查询其他订单',
     // SPEC-003: 价格与付款

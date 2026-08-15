@@ -4,6 +4,7 @@ import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import * as Sentry from '@sentry/node'
+import crypto from 'crypto'
 import { resolve, join, relative, sep } from 'path'
 import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync, rmSync } from 'fs'
 import { initDatabase } from './db/init.js'
@@ -207,13 +208,25 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
 
   // ─── 全局插件 ───
   // Cookie 支持（httpOnly token 存储）
-  const cookieSecret = process.env.COOKIE_SECRET || process.env.SESSION_SECRET || 'dev-cookie-secret-change-in-production'
-  // 815 审计拍板 #12：生产环境 cookie 密钥同样拒绝弱值（兜底链落到 dev 默认值 = 带病上线）
-  if (process.env.NODE_ENV === 'production' && isWeakSessionSecret(cookieSecret)) {
+  // L-9（审计 五#8）: 删除弱默认字符串——COOKIE_SECRET 未设时回落 SESSION_SECRET；
+  // 两者都无：生产环境抛错（fail-fast），开发环境生成随机密钥并 warn（与 auth.service 同款口径）
+  const cookieSecret = process.env.COOKIE_SECRET || process.env.SESSION_SECRET
+  let resolvedCookieSecret: string
+  if (!cookieSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('COOKIE_SECRET/SESSION_SECRET 未设置——生产环境拒绝启动，请配置强随机值')
+    }
+    resolvedCookieSecret = crypto.randomBytes(32).toString('hex')
+    console.warn('⚠️  COOKIE_SECRET/SESSION_SECRET 未设置，已生成随机开发密钥（每次启动变化，仅限开发环境）')
+  } else {
+    resolvedCookieSecret = cookieSecret
+  }
+  // 815 审计拍板 #12：生产环境 cookie 密钥同样拒绝弱值（兜底链末端已无 dev 默认值，同款强校验）
+  if (process.env.NODE_ENV === 'production' && isWeakSessionSecret(resolvedCookieSecret)) {
     throw new Error('COOKIE_SECRET/SESSION_SECRET 为弱值——生产环境拒绝启动，请配置强随机值')
   }
   await app.register(fastifyCookie, {
-    secret: cookieSecret,
+    secret: resolvedCookieSecret,
     parseOptions: {}
   })
 

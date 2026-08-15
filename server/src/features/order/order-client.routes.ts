@@ -146,7 +146,8 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     const workflowStages = getWorkflow(order.artist_id)
 
     // R30d: 客户只显示当前节点名（不显示进度数字）
-    const stageInfo = orderWorkflowService.getStageInfo(order)
+    // L-4（审计 三#10）: 公开追踪端无 request.artist，用订单归属作为过滤条件
+    const stageInfo = orderWorkflowService.getStageInfo(order, order.artist_id)
 
     // 只返回客户需要看到的信息
     return {
@@ -183,17 +184,20 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
       deadline: order.deadline ?? null,
       // SPEC-004: 排队分区信息
       queueZone: order.queue_zone || 'formal',
-      queueDisplay: (() => {
+      // L-5（审计 七#1）: 后端不再硬编码「排队中」中文绕过 i18n——只下发状态键与位次，
+      // 文案由前端 TrackOrder 按键走 $t 渲染
+      queueStatus: order.queue_zone === 'buffer' ? 'queued' : null,
+      queuePosition: (() => {
         if (order.queue_zone !== 'buffer') return null
         const artist = db.prepare('SELECT hide_queue_position FROM artists WHERE id = ?').get(order.artist_id) as { hide_queue_position: number } | undefined
-        if (artist?.hide_queue_position) return '排队中'
+        if (artist?.hide_queue_position) return null
         // 计算缓冲区位次
         const bufferQueue = db.prepare(`
           SELECT id FROM orders WHERE artist_id = ? AND queue_zone = 'buffer' AND status NOT IN ('delivered', 'cancelled')
           ORDER BY queue_position ASC
         `).all(order.artist_id) as Array<{ id: number }>
         const pos = bufferQueue.findIndex(o => o.id === order.id) + 1
-        return pos > 0 ? `排队中（第 ${pos} 位）` : '排队中'
+        return pos > 0 ? pos : null
       })(),
       createdAt: order.created_at,
       updatedAt: order.updated_at
