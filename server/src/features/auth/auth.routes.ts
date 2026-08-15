@@ -364,8 +364,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/auth/totp/rebind-init
    * TOTP 自助重绑初始化（分层验证）
-   * 有 Passkey → 返回 verifyMethod: 'passkey'（init 不生成新 secret；身份验证由前端走登录仪式，
-   *               confirm 携带 credential 经 verifyLogin 校验后生成新 secret 写库）
+   * 有 Passkey → 返回 verifyMethod: 'passkey' + tempKey + 二维码（init 阶段即生成新 secret 暂存，
+   *               身份验证仍由前端走登录仪式，confirm 携带 credential 经 verifyLogin 校验后消费暂存 secret）
    * 无 Passkey → 生成新 secret 暂存 totpRebindStore（5 分钟过期），返回 tempKey + 二维码
    * 都无 → 拒绝
    * 冷却期 24h 内拒绝（管理员豁免）
@@ -390,15 +390,43 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const { hasPasskeyCredentials } = await import('./webauthn.js')
     const { generateSecret, buildOtpAuthUri } = await import('./totp.js')
 
+    // 生成新 secret + 二维码并暂存（两条验证路径共用；challenge store 存的是 webauthn challenge，
+    // 此处单独存 totp secret；5 分钟过期、一次性消费）
+    const stageNewSecret = async () => {
+      const newSecret = generateSecret()
+      const otpauthUri = buildOtpAuthUri(newSecret, artist.qq_number, '拾绘')
+      const { default: crypto } = await import('crypto')
+      const tempKey = 'rebind:' + crypto.randomUUID()
+      getTotpRebindStore().set(tempKey, {
+        newSecret,
+        artistId: artist.id,
+        expiresAt: Date.now() + 5 * 60 * 1000
+      })
+      return {
+        tempKey,
+        otpauthUri,
+        qrDataUrl: await (async () => {
+          // 生成二维码 data URL
+          try {
+            const QRCode = await import('qrcode')
+            return await QRCode.default.toDataURL(otpauthUri)
+          } catch {
+            return null
+          }
+        })()
+      }
+    }
+
     const hasPasskey = hasPasskeyCredentials(artist.id)
 
     if (hasPasskey) {
       // a1 猎杀修复（2026-08-13）：身份验证走登录仪式——前端自行 loginOptions+credentials.get，
-      // confirm 携带 credential 由 verifyLogin 校验（新 secret 由 confirm 时生成写库）。
-      // 此前此处返回注册挑战（generateRegisterOptions），与 confirm 的登录验证链路不匹配、
-      // 遗留无效注册挑战，前端还误走注册仪式多注凭据（安全风险）。
+      // confirm 携带 credential 由 verifyLogin 校验。
+      // 815 审计 P1-1 修复：新 secret 改在 init 阶段生成并下发二维码——此前 confirm 才现场生成，
+      // passkey 用户永远拿不到二维码、任何新码都无法匹配，重绑 100% 不可用。
       return {
-        verifyMethod: 'passkey'
+        verifyMethod: 'passkey',
+        ...(await stageNewSecret())
       }
     }
 
@@ -409,33 +437,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
       throw new AppError(E.REBIND_NO_CREDENTIAL, 400)
     }
 
-    // 生成新 secret 并暂存
-    const newSecret = generateSecret()
-    const otpauthUri = buildOtpAuthUri(newSecret, artist.qq_number, '拾绘')
-
-    // 用临时映射存储新 secret（challenge store 存的是 webauthn challenge，此处单独存 totp secret）
-    const { default: crypto } = await import('crypto')
-    const tempKey = 'rebind:' + crypto.randomUUID()
-    // 存入临时映射（5 分钟过期，一次性消费）
-    getTotpRebindStore().set(tempKey, {
-      newSecret,
-      artistId: artist.id,
-      expiresAt: Date.now() + 5 * 60 * 1000
-    })
-
     return {
       verifyMethod: 'code',
-      tempKey,
-      qrDataUrl: await (async () => {
-        // 生成二维码 data URL
-        try {
-          const QRCode = await import('qrcode')
-          return await QRCode.default.toDataURL(otpauthUri)
-        } catch {
-          return null
-        }
-      })(),
-      otpauthUri
+      ...(await stageNewSecret())
     }
   })
 
@@ -496,8 +500,19 @@ export default async function authRoutes(fastify: FastifyInstance) {
         throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
       }
 
-      // 生成新 secret
-      newSecret = (await import('./totp.js')).generateSecret()
+      // 815 审计 P1-1 修复：消费 init 阶段暂存的新 secret（与旧码路径同款校验）——
+      // 此前 confirm 才现场生成，前端无码可扫、任何新码都无法匹配
+      const tempKey = body.tempKey as string | undefined
+      const tempStore = getTotpRebindStore()
+      if (!tempKey || !tempStore.has(tempKey)) {
+        throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
+      }
+      const entry = tempStore.get(tempKey) as TotpRebindEntry | undefined
+      tempStore.delete(tempKey) // 一次性消费
+      if (!entry || entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
+        throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
+      }
+      newSecret = entry.newSecret
     } else {
       // 旧码路径：验证当前 6 位码
       if (!artist.totp_secret) throw new AppError(E.TOTP_NOT_BOUND, 400)
