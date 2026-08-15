@@ -10,9 +10,21 @@ import { trackEvent } from '../utils/track.js'
  * @param {import('vue').Ref} ctx.order - 订单 ref（父组件持有，内部改 value 外部可见）
  * @param {string} ctx.routeId - 订单 id（route.params.id）
  * @param {import('vue').Ref<string>} ctx.statusAction - 防连点锁 ref（父组件持有）
+ * @param {() => Promise<void>} [ctx.onConflict] - 815 审计 P1-3：乐观锁冲突（409）后的重拉回调（可选）
  */
-export function useOrderWorkflow({ order, routeId, statusAction }) {
+export function useOrderWorkflow({ order, routeId, statusAction, onConflict }) {
   const { t } = useI18n()
+
+  // 815 审计 P1-3：乐观锁接线——写请求携带当前 version，冲突（409 ORDER_CONFLICT）时提示并重拉服务端真相
+  const versionOpt = () => (order.value?.version != null ? { version: order.value.version } : {})
+  async function handleConflict(err) {
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      if (onConflict) await onConflict()
+      return true
+    }
+    return false
+  }
 
   // ─── R39 方案B：状态区派生状态 ───
   const hasWorkflow = computed(() => order.value?.currentStageId != null)
@@ -55,11 +67,11 @@ export function useOrderWorkflow({ order, routeId, statusAction }) {
     if (!nextStage.value || statusAction.value) return
     statusAction.value = 'advance'
     try {
-      order.value = await artistApi.advanceStage(routeId, nextStage.value.id)
+      order.value = await artistApi.advanceStage(routeId, nextStage.value.id, versionOpt())
       ElMessage.success(t('orderDetail.stageUpdated'))
       trackEvent('artist_action', { action: 'order_status_change', stage: 'advance' })
     } catch (err) {
-      ElMessage.error(err.message)
+      if (!(await handleConflict(err))) ElMessage.error(err.message)
     } finally {
       statusAction.value = ''
     }
@@ -79,11 +91,11 @@ export function useOrderWorkflow({ order, routeId, statusAction }) {
     if (statusAction.value) return
     statusAction.value = 'back'
     try {
-      order.value = await artistApi.stageBack(routeId, prev.id)
+      order.value = await artistApi.stageBack(routeId, prev.id, versionOpt())
       ElMessage.success(t('orderDetail.stageUpdated'))
       trackEvent('artist_action', { action: 'order_status_change', stage: 'back' })
     } catch (err) {
-      ElMessage.error(err.message)
+      if (!(await handleConflict(err))) ElMessage.error(err.message)
     } finally {
       statusAction.value = ''
     }
@@ -101,10 +113,10 @@ export function useOrderWorkflow({ order, routeId, statusAction }) {
     if (statusAction.value) return
     statusAction.value = 'off'
     try {
-      order.value = await artistApi.stageOff(routeId)
+      order.value = await artistApi.stageOff(routeId, versionOpt())
       ElMessage.success(t('orderDetail.stageOffDone'))
     } catch (err) {
-      ElMessage.error(err.message)
+      if (!(await handleConflict(err))) ElMessage.error(err.message)
     } finally {
       statusAction.value = ''
     }
@@ -115,10 +127,10 @@ export function useOrderWorkflow({ order, routeId, statusAction }) {
   async function enableTracking() {
     trackOnLoading.value = true
     try {
-      order.value = await artistApi.trackOn(routeId)
+      order.value = await artistApi.trackOn(routeId, versionOpt())
       ElMessage.success(t('orderDetail.trackingEnabled'))
     } catch (err) {
-      ElMessage.error(err.message)
+      if (!(await handleConflict(err))) ElMessage.error(err.message)
     } finally {
       trackOnLoading.value = false
     }

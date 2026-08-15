@@ -99,7 +99,7 @@ const props = defineProps({
   isTerminal: { type: Boolean, default: false },
   routeId: { type: [String, Number], required: true }
 })
-const emit = defineEmits(['order-updated'])
+const emit = defineEmits(['order-updated', 'conflict'])
 
 const { t } = useI18n()
 
@@ -164,14 +164,23 @@ async function submitPriceChange() {
   if (cents <= 0) return
   priceSubmitting.value = true
   try {
+    // 815 审计 P1-3：乐观锁接线——改价携带当前 version，双开旧快照写入会被 409 拦下
+    const versionOpt = props.order?.version != null ? { version: props.order.version } : {}
     emit('order-updated', await artistApi.updatePrice(props.routeId, {
       finalPriceCents: cents,
-      quoteSnapshot: priceForm.value.note.trim() || null
+      quoteSnapshot: priceForm.value.note.trim() || null,
+      ...versionOpt
     }))
     priceDialogVisible.value = false
     ElMessage.success(t('orderDetail.priceUpdated'))
   } catch (err) {
-    ElMessage.error(err.message)
+    // 815 审计 P1-3：冲突不关弹窗，通知父组件重拉订单后用户可重试
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      emit('conflict')
+    } else {
+      ElMessage.error(err.message)
+    }
   } finally {
     priceSubmitting.value = false
   }

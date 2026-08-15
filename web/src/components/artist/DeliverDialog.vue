@@ -75,9 +75,11 @@ import { DELIVER_MAX_BYTES as DELIVER_MAX_SIZE } from '../../constants/upload.js
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  orderId: { type: [Number, String], required: true }
+  orderId: { type: [Number, String], required: true },
+  // 815 审计 P1-3：乐观锁接线——交付携带当前订单 version（父组件传入）
+  orderVersion: { type: Number, default: null }
 })
-const emit = defineEmits(['update:modelValue', 'delivered'])
+const emit = defineEmits(['update:modelValue', 'delivered', 'conflict'])
 
 const { t } = useI18n()
 
@@ -143,21 +145,30 @@ async function submitDeliver() {
 
   delivering.value = true
   try {
+    // 815 审计 P1-3：携带当前 version，双开标签页旧快照交付会被后端 409 拦下
+    const versionOpt = props.orderVersion != null ? { version: props.orderVersion } : {}
     let updated
     if (mode.value === 'file') {
       const uploaded = await uploadApi.deliverable(deliverFile.value)
       updated = await artistApi.deliver(props.orderId, {
         filePath: uploaded.filePath,
-        fileName: uploaded.originalName
+        fileName: uploaded.originalName,
+        ...versionOpt
       })
     } else {
-      updated = await artistApi.deliverNoFile(props.orderId)
+      updated = await artistApi.deliverNoFile(props.orderId, versionOpt)
     }
     emit('update:modelValue', false)
     emit('delivered', updated)
     ElMessage.success(t('orderDetail.deliverSuccess'))
   } catch (err) {
-    ElMessage.error(err.message)
+    // 815 审计 P1-3：冲突不关弹窗（用户可重拉后重试），通知父组件重拉订单
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      emit('conflict')
+    } else {
+      ElMessage.error(err.message)
+    }
   } finally {
     delivering.value = false
   }

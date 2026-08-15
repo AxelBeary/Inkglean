@@ -232,6 +232,7 @@
       :is-terminal="isTerminal"
       :route-id="route.params.id"
       @order-updated="onOrderUpdated"
+      @conflict="loadOrder"
     />
 
     <!-- plan-node-speech：客户沟通（卡内容已拆 CommPanel，2026-08-10 拆分） -->
@@ -306,7 +307,7 @@
   <HySkeleton v-else count="4" />
 
   <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
-  <DeliverDialog v-model="showDeliver" :order-id="route.params.id" @delivered="onOrderUpdated" />
+  <DeliverDialog v-model="showDeliver" :order-id="route.params.id" :order-version="order?.version" @delivered="onOrderUpdated" @conflict="loadOrder" />
 
   <!-- 815 拍板 #1：取消后 5 秒撤销提示 -->
   <CancelUndoToast
@@ -509,7 +510,7 @@ const statusAction = ref('')  // 自原大文件提前，workflow/changeStatus �
 const { hasWorkflow, isTerminal, workflowStages, stageProgress, nextStageName,
   canAdvanceStage, canBackStage, advanceStage, backStage, turnOffStageTracking,
   trackOnLoading, enableTracking, loadWorkflowStages } =
-  useOrderWorkflow({ order, routeId: route.params.id, statusAction })
+  useOrderWorkflow({ order, routeId: route.params.id, statusAction, onConflict: loadOrder })
 const {
   galleryUploading, isGalleryDragOver, galleryViewerVisible, galleryViewerIndex,
   openGalleryViewer, handleGalleryFileSelect, handleGalleryDrop,
@@ -566,11 +567,19 @@ async function changeStatus(status) {
   if (statusAction.value) return
   statusAction.value = status
   try {
-    order.value = await artistApi.updateStatus(route.params.id, status)
+    // 815 审计 P1-3：乐观锁接线——携带当前 version，双开标签页旧快照写入会被后端 409 拦下
+    const opts = order.value?.version != null ? { version: order.value.version } : {}
+    order.value = await artistApi.updateStatus(route.params.id, status, opts)
     ElMessage.success(t('orderDetail.statusUpdated'))
     trackEvent('artist_action', { action: 'order_status_change', status })
   } catch (err) {
-    ElMessage.error(err.message)
+    // 815 审计 P1-3：冲突时提示并重拉服务端真相，不再静默覆盖
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      await loadOrder()
+    } else {
+      ElMessage.error(err.message)
+    }
   } finally {
     statusAction.value = ''
   }

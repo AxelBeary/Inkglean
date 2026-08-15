@@ -398,11 +398,17 @@ async function advanceOrderStage(order) {
   if (!next) return
   busyOrderIds.value.add(order.id)
   try {
-    await artistApi.advanceStage(order.id, next.id)
+    // 815 审计 P1-3：乐观锁接线——携带当前 version，冲突时提示并重拉队列
+    await artistApi.advanceStage(order.id, next.id, order.version != null ? { version: order.version } : {})
     ElMessage.success(t('queue.stageAdvanced'))
     emit('refresh-queue')
   } catch (err) {
-    ElMessage.error(err.message)
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      emit('refresh-queue')
+    } else {
+      ElMessage.error(err.message)
+    }
   } finally {
     busyOrderIds.value.delete(order.id)
   }
@@ -416,11 +422,17 @@ async function quickAction(command, order) {
   if (busyOrderIds.value.has(order.id)) return
   busyOrderIds.value.add(order.id)
   try {
-    await artistApi.updateStatus(order.id, command)
+    // 815 审计 P1-3：乐观锁接线——携带当前 version，冲突时提示并重拉队列
+    await artistApi.updateStatus(order.id, command, order.version != null ? { version: order.version } : {})
     ElMessage.success(t('queue.statusUpdated'))
     emit('refresh-queue')
   } catch (err) {
-    ElMessage.error(err.message)
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      emit('refresh-queue')
+    } else {
+      ElMessage.error(err.message)
+    }
   } finally {
     busyOrderIds.value.delete(order.id)
   }
@@ -576,11 +588,17 @@ const promotingId = ref(null)
 async function promoteOrder(order) {
   promotingId.value = order.id
   try {
-    await artistApi.promoteOrder(order.id)
+    // 815 审计 P1-3：乐观锁接线——递补同为订单写路径，携带 version，冲突重拉
+    await artistApi.promoteOrder(order.id, order.version != null ? { version: order.version } : {})
     ElMessage.success(t('queue.promoted'))
     emit('refresh-all')
   } catch (err) {
-    ElMessage.error(err.message)
+    if (err?.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      emit('refresh-all')
+    } else {
+      ElMessage.error(err.message)
+    }
   } finally {
     promotingId.value = null
   }

@@ -216,6 +216,8 @@ export default {
     artistToastInk: 'Switched · Ink', artistToastPaper: 'Switched · Paper'
   },
   common: {
+    // 815 audit P1-3: optimistic lock conflict (stale snapshot write rejected by backend 409)
+    orderConflict: 'This order was just updated by another action. Refreshed for you, please retry',
     status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', hidden: 'Hidden' },
     statusShort: { open: 'Open', full: 'Full', break: 'Break', hidden: 'Hidden' },
     priority: { high: 'High', medium: 'Med', low: 'Low' },

@@ -216,6 +216,8 @@ export default {
     artistToastInk: '已切换 · 墨黑', artistToastPaper: '已切换 · 宣纸'
   },
   common: {
+    // 815 审计 P1-3：乐观锁冲突提示（双开标签页/旧快照写入被后端 409 拦下）
+    orderConflict: '该订单刚被其他操作更新过，已为你刷新，请重试',
     status: { open: '可约稿', full: '已排满', break: '休息中', hidden: '隐藏' },
     statusShort: { open: '可约', full: '排满', break: '休息', hidden: '隐藏' },
     priority: { high: '高', medium: '中', low: '低' },
