@@ -6,7 +6,7 @@ export const migration: Migration = {
     name: 'quota_pool_paid_total',
     up(database) {
       // B7: 额度池 — orders.paid_total_cents + order_payments 表 + 存量换算
-      backupDbBeforeMigration(24)
+      backupDbBeforeMigration(24, database)
       // 1. orders 加 paid_total_cents
       const cols = database.prepare('PRAGMA table_info(orders)').all() as ColumnInfo[]
       if (!cols.some(c => c.name === 'paid_total_cents')) {

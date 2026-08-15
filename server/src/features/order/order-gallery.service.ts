@@ -15,8 +15,12 @@ import { nanoid } from 'nanoid'
 
 /**
  * 添加交付文件
+ * 815 审计：同 order + 同文件幂等去重——重复交付同一文件不重复落行，
+ * 防恶意/误操作重复调用无限累积 deliverables 刷爆表
  */
 export function addDeliverable(orderId: number, filePath: string, fileName: string | null, fileSize: number | null): void {
+  const dup = db.prepare('SELECT 1 FROM deliverables WHERE order_id = ? AND file_path = ?').get(orderId, filePath)
+  if (dup) return
   db.prepare('INSERT INTO deliverables (order_id, file_path, original_name, file_size) VALUES (?, ?, ?, ?)')
     .run(orderId, filePath, fileName || '交付文件', fileSize || 0)
 }
@@ -68,17 +72,20 @@ export function deliverOrderWithoutFile(orderId: number, expectedVersion?: numbe
   return db.transaction(() => {
     const order = getOrder(orderId)
     if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+    // 815 审计：幂等短路——已交付订单重复调用直接返回成功，
+    // 不再无限追加系统备注与活动日志（此前 from===to 断言放行导致刷备注）
+    if (order.status === 'delivered') {
+      return { order, statusChanged: false }
+    }
     assertStatusTransition(order.status, 'delivered')
 
-    let statusChanged = false
-    if (order.status !== 'delivered') {
-      // D-1: 交付状态迁移带版本守卫（与 deliverOrder 同款）
-      updateOrderChecked(orderId, expectedVersion, "status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP)", 'delivered')
-      compactQueue(order.artist_id)
-      // SPEC-004: 交付释放名额后尝试自动递补
-      tryAutoPromote(order.artist_id)
-      statusChanged = true
-    }
+    // 已交付短路后此处 status 必非 delivered：状态迁移 + 队列压缩 + 自动递补
+    // D-1: 交付状态迁移带版本守卫（与 deliverOrder 同款）
+    updateOrderChecked(orderId, expectedVersion, "status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP)", 'delivered')
+    compactQueue(order.artist_id)
+    // SPEC-004: 交付释放名额后尝试自动递补
+    tryAutoPromote(order.artist_id)
+    const statusChanged = true
 
     // 系统备注留痕（客户与画师双方可见交付方式）
     db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")

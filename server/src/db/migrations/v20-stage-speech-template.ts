@@ -6,7 +6,7 @@ export const migration: Migration = {
     name: 'stage_speech_template',
     up(database) {
       // plan-node-speech: 节点话术模板
-      backupDbBeforeMigration(20)
+      backupDbBeforeMigration(20, database)
       const cols = database.prepare('PRAGMA table_info(artist_workflow_stages)').all() as ColumnInfo[]
       if (!cols.some(c => c.name === 'speech_template')) {
         database.exec("ALTER TABLE artist_workflow_stages ADD COLUMN speech_template TEXT DEFAULT '{客户名}，你的订单已{节点名}。'")

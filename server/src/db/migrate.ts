@@ -1,5 +1,5 @@
 /* eslint-disable no-console -- 迁移脚本按约定豁免（CLI 输出是脚本本职，源头防屎门禁豁免项） */
-import { copyFileSync, existsSync } from 'fs'
+import { existsSync, unlinkSync } from 'fs'
 import type Database from 'better-sqlite3'
 import { schema, schemaIndexes } from './schema.js'
 import { MIGRATIONS } from './migrations/index.js'
@@ -7,17 +7,22 @@ import type { IdRow } from './migrations/types.js'
 
 /**
  * 迁移前自动备份（仅文件数据库）— P0-10: 抽取自 13 处复制粘贴的迁移备份逻辑
- * 行为与原实现完全一致：备份文件名 dbPath.bak.vN、成功/失败日志格式不变
+ * 815 审计修复：裸 copyFileSync 改 VACUUM INTO（一致性快照，WAL 下不丢最新数据，
+ * 对齐 backup-db.ts 日常备份口径）；备份失败不再“警告后继续破坏性迁移”，改为抛错中止。
+ * 文件名沿用 dbPath.bak.vN 不变（回滚脚本/测试依赖此命名）。
  */
-export function backupDbBeforeMigration(version: number) {
+export function backupDbBeforeMigration(version: number, database: Database.Database) {
   const dbPath = process.env.DB_PATH || './data/commission.db'
-  if (dbPath !== ':memory:' && existsSync(dbPath)) {
-    try {
-      copyFileSync(dbPath, `${dbPath}.bak.v${version}`)
-      console.log(`📦 迁移 v${version}: 已备份 ${dbPath} → ${dbPath}.bak.v${version}`)
-    } catch (err) {
-      console.warn(`⚠️ 迁移 v${version}: 备份失败（${err instanceof Error ? err.message : String(err)}），继续执行迁移`)
-    }
+  if (dbPath === ':memory:' || !existsSync(dbPath)) return
+  const bakPath = `${dbPath}.bak.v${version}`
+  try {
+    // VACUUM INTO 要求目标不存在；同名旧备份先移除（只删本函数产出的 .bak.vN 命名）
+    if (existsSync(bakPath)) unlinkSync(bakPath)
+    database.prepare(`VACUUM INTO '${bakPath.replaceAll("'", "''")}'`).run()
+    console.log(`📦 迁移 v${version}: 已备份 ${dbPath} → ${bakPath}`)
+  } catch (err) {
+    // 815 审计：备份失败即中止——没有可回滚快照就不允许跑破坏性迁移
+    throw new Error(`迁移 v${version}: 迁移前备份失败，已中止以防无法回滚（${err instanceof Error ? err.message : String(err)}）`)
   }
 }
 

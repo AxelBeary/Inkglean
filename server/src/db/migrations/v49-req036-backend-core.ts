@@ -14,7 +14,7 @@ export const migration: Migration = {
       //  2. addon_templates 重建：artist_id 可空（NULL=系统预置）+ kind 维度（add/multiply）+ max_quantity 数量上限
       //  3. style_addons 重建：addon_template_id 可空 + 外键 ON DELETE SET NULL（删除策略 C'）+ 模板快照列
       //  4. 内置模板种子 4 个（系统预置 artist_id NULL，全画师共用；812-B B7 用户拍板口径）
-      backupDbBeforeMigration(49)
+      backupDbBeforeMigration(49, database)
 
       // ─── 1. style_sizes 加 display_status（ADD COLUMN 事务内安全，对照 v37） ───
       const sizeCols = database.prepare('PRAGMA table_info(style_sizes)').all() as ColumnInfo[]

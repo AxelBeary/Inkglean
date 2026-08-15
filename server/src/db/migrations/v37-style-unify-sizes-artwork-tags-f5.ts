@@ -6,7 +6,7 @@ export const migration: Migration = {
     name: 'style_unify_sizes_artwork_tags_f5',
     up(database) {
       // REQ-024 画风档位统一（F1/F2/F5/F6 数据层，一次建全避免二次迁移）
-      backupDbBeforeMigration(37)
+      backupDbBeforeMigration(37, database)
 
       // ─── 1. style_sizes: 尺寸带图/描述/天数（F1） ───
       // image: 独立上传路径；image_artwork_id: 从作品集挑（删作品自动置空）

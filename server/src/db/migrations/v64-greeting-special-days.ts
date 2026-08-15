@@ -50,7 +50,7 @@ export const migration: Migration = {
       return
     }
 
-    backupDbBeforeMigration(64)
+    backupDbBeforeMigration(64, database)
 
     database.pragma('foreign_keys = OFF')
     // 事故教训双保险：确认 FK 真的关了（事务内 PRAGMA 是 no-op，此处若仍返回 ON → 直接中止，绝不 DROP）

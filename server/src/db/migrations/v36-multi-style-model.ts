@@ -6,7 +6,7 @@ export const migration: Migration = {
     name: 'multi_style_model',
     up(database) {
       // REQ-023 Phase 1: 多画风模型——5 表 + 老数据迁移
-      backupDbBeforeMigration(36)
+      backupDbBeforeMigration(36, database)
 
       // ─── 建表（IF NOT EXISTS 幂等） ───
       database.exec(`

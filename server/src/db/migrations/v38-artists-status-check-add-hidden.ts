@@ -23,7 +23,7 @@ export const migration: Migration = {
         return
       }
 
-      backupDbBeforeMigration(38)
+      backupDbBeforeMigration(38, database)
 
       const cols = (database.prepare('PRAGMA table_info(artists)').all() as ColumnInfo[]).map(c => c.name)
       const colList = cols.join(', ')

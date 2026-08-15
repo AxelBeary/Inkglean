@@ -7,7 +7,7 @@ export const migration: Migration = {
     up(database) {
       // REQ-025 动态节点计价 第一阶段：价格条目账本表（总价 = Σ 条目 delta）
       // 只追加不删不改（服务层不提供 UPDATE/DELETE 路径）；纯建表，事务内安全（无 DROP/RENAME 父表）
-      backupDbBeforeMigration(39)
+      backupDbBeforeMigration(39, database)
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_price_entries (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
