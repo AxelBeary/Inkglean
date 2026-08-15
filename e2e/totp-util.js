@@ -53,3 +53,30 @@ export function currentTotp(secretBase32) {
 export function nextStepTotp(secretBase32) {
   return totpForCounter(secretBase32, Math.floor(Date.now() / 1000 / 30) + 1)
 }
+
+// E8 登出后需补登写回共享 token；服务端对同一 (画师, 时间步, 码) 有重放防护，
+// 这里记录本进程已成功消费的时间步，重试时自动避开，避免“补登成功→用例失败→重试补登被拒”。
+const usedLoginCounters = new Map()
+
+/**
+ * 生成一次“刷新登录”可用的 TOTP 候选（±1 窗口，跳过本进程已消费的时间步）。
+ * 返回 [{ counter, code }]，调用方逐个尝试，命中后须调用 noteTotpLogin 记录。
+ */
+export function nextLoginTotp(qqNumber) {
+  const now = Math.floor(Date.now() / 1000 / 30)
+  const used = usedLoginCounters.get(qqNumber) ?? new Set()
+  const candidates = []
+  for (const offset of [-1, 0, 1]) {
+    const counter = now + offset
+    if (used.has(counter)) continue
+    candidates.push({ counter, code: totpForCounter(E2E_TOTP_SECRET, counter) })
+  }
+  return candidates
+}
+
+/** 记录某个 QQ 已成功消费的 TOTP 时间步，供后续重试避开 */
+export function noteTotpLogin(qqNumber, counter) {
+  const used = usedLoginCounters.get(qqNumber) ?? new Set()
+  used.add(counter)
+  usedLoginCounters.set(qqNumber, used)
+}

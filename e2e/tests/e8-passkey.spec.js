@@ -1,4 +1,9 @@
 import { test, expect } from '../fixtures/auth.js'
+import { refreshArtistTokenCache } from '../global-setup.js'
+import { writeArtistToken } from '../token-store.js'
+
+// 补登可能遇到“同窗口 TOTP 全被消费→等下一时间步”的重试路径（最多 ~30s），放宽单用例超时
+test.setTimeout(60_000)
 
 // e8: Passkey 虚拟验证器（CDP WebAuthn，仅 chromium；internal=平台验证器画像，对齐 Windows Hello）
 // TC-PK-01 注册 + TC-PK-02 登出后免密登录合为一个用例：
@@ -34,7 +39,15 @@ test('TC-PK-01/02 Passkey 注册 → 登出 → 免密登录（counter 恒 0 豁
   await expect(credTable.getByText(/Chrome/)).toBeVisible()
 
   // ── TC-PK-02 登出（真实 UI 退出登录）→ Passkey 登录 ──
+  const logoutDone = page.waitForResponse(
+    res => res.url().includes('/api/auth/logout') && res.request().method() === 'POST',
+    { timeout: 10_000 }
+  ).catch(() => {})
   await page.getByRole('button', { name: '退出登录' }).click()
+  // 先等服务端登出响应落库（bumpTokenVersion 完成），再用真实 TOTP 登录重签并写回共享缓存，
+  // 保证本用例失败重试及后续复用 tokens.artist 的用例不再 401
+  await logoutDone
+  await refreshArtistTokenCache('http://localhost:3999')
   await expect(page).toHaveURL(/\/login/, { timeout: 10_000 })
 
   await page.locator('#login-qq').fill('10001')
@@ -46,4 +59,10 @@ test('TC-PK-01/02 Passkey 注册 → 登出 → 免密登录（counter 恒 0 豁
   // 服务端 isCounterRegression 双侧 0 豁免，验证器断言必须被响应）
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 })
   await expect(page.locator('.stat-card--pending .stat-label')).toHaveText('待处理新单', { timeout: 10_000 })
+
+  // 把 Passkey 重登实际签发的新 token 写回共享缓存（与 global-setup 产出结构一致）
+  const cookies = await context.cookies()
+  const passkeyToken = cookies.find(c => c.name === 'artist_token')?.value
+  if (!passkeyToken) throw new Error('Passkey 重登后未取得 artist_token，无法写回共享 token 缓存')
+  await writeArtistToken(passkeyToken)
 })

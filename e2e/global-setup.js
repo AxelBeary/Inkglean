@@ -3,13 +3,13 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
-import { E2E_TOTP_SECRET, currentTotp, nextStepTotp } from './totp-util.js'
+import { E2E_TOTP_SECRET, currentTotp, nextLoginTotp, nextStepTotp, noteTotpLogin } from './totp-util.js'
+import { writeArtistToken, writeTokens } from './token-store.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const TEST_DB = resolve(ROOT, 'e2e/test.db')
 const TEST_UPLOADS = resolve(ROOT, 'e2e/test-uploads')
 const PID_FILE = resolve(ROOT, 'e2e/.server-pid')
-const TOKENS_FILE = resolve(ROOT, 'e2e/.tokens.json')
 const PORT = 3999
 
 /** 给测试画师（Alice 10001 / 管理员 10003）注入已绑定状态的 TOTP 密钥，预登录走真实 /api/auth/verify */
@@ -28,8 +28,7 @@ function seedTotpForE2e() {
 }
 
 /** 通过真实 TOTP 登录接口拿 token（httpOnly cookie），失败抛错含状态码与响应体 */
-async function apiLogin(baseURL, qqNumber) {
-  const code = currentTotp(E2E_TOTP_SECRET)
+export async function apiLogin(baseURL, qqNumber, code = currentTotp(E2E_TOTP_SECRET)) {
   const verifyRes = await fetch(`${baseURL}/api/auth/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,13 +36,44 @@ async function apiLogin(baseURL, qqNumber) {
   })
   if (!verifyRes.ok) {
     const detail = await verifyRes.text().catch(() => '')
-    throw new Error(`预登录失败 (QQ: ${qqNumber}): ${verifyRes.status} ${detail}`)
+    const err = new Error(`预登录失败 (QQ: ${qqNumber}): ${verifyRes.status} ${detail}`)
+    err.status = verifyRes.status
+    err.detail = detail
+    throw err
   }
 
   const setCookie = verifyRes.headers.getSetCookie?.() || []
   const tokenCookie = setCookie.find(c => c.startsWith('artist_token='))
   if (!tokenCookie) throw new Error('预登录成功但未收到 artist_token cookie')
   return tokenCookie.split(';')[0].split('=').slice(1).join('=')
+}
+
+/**
+ * E8 登出后解毒：用真实 TOTP 登录重签 artist token 并写回 .tokens.json。
+ * 逐个尝试 ±1 窗口内未被本进程消费的时间步；若同一窗口内的候选全部命中重放防护
+ * （如 E7 已消费 current+1、global-setup 已消费 current），则等到下一时间步再试，
+ * 保证用例失败重试时共享缓存仍持有有效 token。
+ */
+export async function refreshArtistTokenCache(baseURL, qqNumber = '10001') {
+  const attempt = async () => {
+    let lastError = null
+    for (const { counter, code } of nextLoginTotp(qqNumber)) {
+      try {
+        const token = await apiLogin(baseURL, qqNumber, code)
+        noteTotpLogin(qqNumber, counter)
+        writeArtistToken(token)
+        return token
+      } catch (err) {
+        lastError = err
+        // 只有“该动态口令已使用”才换下一个候选；其余错误（网络/锁定/校验失败）直接抛
+        if (!(err?.status === 401 && /已使用/.test(err?.detail || ''))) throw err
+      }
+    }
+    const waitMs = 30_000 - (Date.now() % 30_000) + 100
+    await new Promise(r => setTimeout(r, waitMs))
+    return attempt()
+  }
+  return attempt()
 }
 
 /** REQ-041：管理员二次验证（step-up），返回升级后的 token（httpOnly cookie 同域名可覆盖） */
@@ -136,7 +166,7 @@ export default async function globalSetup() {
   // REQ-041：管理后台已挂 step-up 入口级守卫——管理员会话必须升级后缓存，
   // 否则既有 admin E2E 用例会被 401 STEP_UP_REQUIRED 拦截
   const adminUpgradedToken = await apiStepUp(baseURL, adminToken, '10003')
-  writeFileSync(TOKENS_FILE, JSON.stringify({ artist: artistToken, admin: adminUpgradedToken }))
+  writeTokens({ artist: artistToken, admin: adminUpgradedToken })
 
   console.log('✅ E2E: 服务器就绪，token 已缓存')
 }

@@ -1,11 +1,10 @@
 import { test as base } from '@playwright/test'
-import { readFileSync } from 'fs'
+import { readTokens } from '../token-store.js'
 
 // v0.21: 共享登录 fixture（P3）
-// token 由 globalSetup 预登录写入 .tokens.json，fixture 只读文件（不网络请求，不触发限流）
+// token 由 globalSetup 预登录写入 .tokens.json；fixture 每次使用时重读文件
+//（不网络请求，不触发限流）——E8 登出后写回的新 token 可立即被重试/后续用例读到
 // 所有上下文强制 zh-CN + 注入 localStorage 标记
-
-const tokens = JSON.parse(readFileSync(new URL('../.tokens.json', import.meta.url), 'utf8'))
 
 async function createAuthedContext(browser, token, isAdmin = false) {
   const context = await browser.newContext()
@@ -29,6 +28,7 @@ export const test = base.extend({
 
   /** 画师登录（Alice, QQ 10001） */
   artistPage: async ({ browser }, use) => {
+    const tokens = readTokens()
     const context = await createAuthedContext(browser, tokens.artist)
     const page = await context.newPage()
     await use(page)
@@ -37,6 +37,7 @@ export const test = base.extend({
 
   /** 管理员登录（Admin, QQ 10003） */
   adminPage: async ({ browser }, use) => {
+    const tokens = readTokens()
     const context = await createAuthedContext(browser, tokens.admin, true)
     const page = await context.newPage()
     await use(page)
