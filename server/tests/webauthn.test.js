@@ -131,12 +131,8 @@ describe('WebAuthn Passkey (REQ-040)', () => {
           userHandle: ''
         }
       }
-      try {
-        await verifyLogin(fakeCredential)
-      } catch (e) {
-        // 不存在的凭据应返回 WEBAUTHN_AUTHENTICATION_FAILED（与认证失败同响应，防枚举）
-        expect(e.code).toBe(E.WEBAUTHN_AUTHENTICATION_FAILED)
-      }
+      // 不存在的凭据应返回 WEBAUTHN_AUTHENTICATION_FAILED（与认证失败同响应，防枚举）
+      await expect(verifyLogin(fakeCredential)).rejects.toMatchObject({ code: E.WEBAUTHN_AUTHENTICATION_FAILED })
     })
   })
 
@@ -179,9 +175,7 @@ describe('WebAuthn Passkey (REQ-040)', () => {
           userHandle: ''
         }
       }
-      try { await verifyLogin(fakeCredential) } catch (e) {
-        expect(e.code).toBe(E.WEBAUTHN_CHALLENGE_INVALID)
-      }
+      await expect(verifyLogin(fakeCredential)).rejects.toMatchObject({ code: E.WEBAUTHN_CHALLENGE_INVALID })
     })
   })
 })
