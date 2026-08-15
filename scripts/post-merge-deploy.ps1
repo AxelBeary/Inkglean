@@ -4,7 +4,7 @@
 #      紧急场景可加 -Force 绕过发布门禁（会记录 WARN）
 #      未跑/未过 accept 时可加 -SkipAccept 跳过 accept 报告联动（会记录 WARN）
 # 流程：门禁+accept 联动 → 备份+VERIFY → prev tag → 重建 → 等健康 → 迁移回读断言 → 冒烟清单
-# 纪律：备份是强制前置；任一 FAIL 即停；回滚统一走 scripts/rollback.ps1
+# 纪律：备份是强制前置；任一 FAIL 即停；回滚统一走 scripts/rollback.ps1（本次部署前快照用 -Tier deploy）
 # ============================================
 param(
   [switch]$Force,
@@ -128,18 +128,20 @@ if (-not $SkipAccept) {
 }
 
 # ─── STEP1 强制备份 + 备份产物 VERIFY（fail-fast） ───
-Log 'STEP1 备份 DB + uploads + VERIFY ...'
-& (Join-Path $ROOT 'daily-backup.bat')
+# 部署前快照走 A 档 deploy（commission.db.bak-deploy-<ISO>，保留 2 份），
+# daily-backup.bat 内部同时完成 uploads 备份与产物校验。
+Log 'STEP1 备份 DB（--tier deploy）+ uploads + VERIFY ...'
+& (Join-Path $ROOT 'daily-backup.bat') --tier deploy
 if ($LASTEXITCODE -ne 0) {
-  Stop-Fail 'ABORT: 备份失败或备份校验未过，不重建（详见 data/backups/daily-backup.log）'
+  Stop-Fail 'ABORT: 备份失败或备份校验未过（--tier deploy），不重建（详见 data/backups/daily-backup.log）'
 }
-# P0-1 双入口：daily-backup.bat 已校验，此处按施工图再显式校验一次（幂等）
-# 与 restore-db.ts / backup-db.ts 等价：只匹配正式备份
-# commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>（例：commission.db.bak-2026-08-15T04-12-34-567Z）
-$backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter 'commission.db.bak-????-??-??T??-??-??-???Z' -File -ErrorAction SilentlyContinue |
+# P0-1 双入口：daily-backup.bat（--tier deploy）已校验，此处按施工图再显式校验一次（幂等）
+# 与 restore-db.ts / backup-db.ts 等价：只匹配部署档正式备份
+# commission.db.bak-deploy-<YYYY-MM-DDTHH-MM-SS-mmmZ>（例：commission.db.bak-deploy-2026-08-15T04-12-34-567Z）
+$backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter 'commission.db.bak-deploy-????-??-??T??-??-??-???Z' -File -ErrorAction SilentlyContinue |
   Sort-Object Name | Select-Object -Last 1
 if (-not $backup) {
-  Stop-Fail 'ABORT: 备份命令成功但未找到正式备份（commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>）产物'
+  Stop-Fail 'ABORT: 备份命令成功但未找到部署档正式备份（commission.db.bak-deploy-<YYYY-MM-DDTHH-MM-SS-mmmZ>）产物'
 }
 $verifyOut = & node (Join-Path $ROOT 'scripts\verify-backup.mjs') $backup.FullName 2>&1
 $verifyText = ($verifyOut | Out-String).Trim()
@@ -164,11 +166,11 @@ if ($LASTEXITCODE -eq 0 -and $imageId) {
 }
 docker compose build web
 if ($LASTEXITCODE -ne 0) {
-  Stop-Fail "ABORT: 构建失败（旧容器若仍在运行则不受影响；上一版镜像 tag：$prevTag）。下一步：修复后重试，或回滚：pwsh scripts/rollback.ps1"
+  Stop-Fail "ABORT: 构建失败（旧容器若仍在运行则不受影响；上一版镜像 tag：$prevTag）。下一步：修复后重试，或回滚：pwsh scripts/rollback.ps1 -Tier deploy"
 }
 docker compose up -d
 if ($LASTEXITCODE -ne 0) {
-  Stop-Fail 'ABORT: 启动失败。下一步：docker compose logs --tail 200 web；或回滚：pwsh scripts/rollback.ps1'
+  Stop-Fail 'ABORT: 启动失败。下一步：docker compose logs --tail 200 web；或回滚：pwsh scripts/rollback.ps1 -Tier deploy'
 }
 
 # ─── STEP3 等健康（最多 90s） ───
@@ -180,7 +182,7 @@ for ($i = 0; $i -lt 18; $i++) {
   if ($status -eq 'healthy') { $ok = $true; break }
 }
 if (-not $ok) {
-  Stop-Fail 'FAIL: 容器未 healthy。回滚指引：pwsh scripts/rollback.ps1（自动恢复上一版 DB + prev 镜像）'
+  Stop-Fail 'FAIL: 容器未 healthy。回滚指引：pwsh scripts/rollback.ps1 -Tier deploy（自动恢复部署前 DB + prev 镜像）'
 }
 Log 'STEP3 OK: commission-web healthy'
 
@@ -198,7 +200,7 @@ $dbVerInt = 0
 if ($dbVer -match '^\d+$') { $dbVerInt = [int]$dbVer }
 if ($dbVerInt -ne $expectedVersion) {
   Log "STEP4 FAIL: 迁移回读失败——期望 v$expectedVersion，容器内 schema_migrations 实际 v$dbVerInt（原始输出：$dbVer）"
-  Log '  下一步：docker compose logs --tail 200 web 看迁移错误；或回滚：pwsh scripts/rollback.ps1'
+  Log '  下一步：docker compose logs --tail 200 web 看迁移错误；或回滚：pwsh scripts/rollback.ps1 -Tier deploy'
   Write-FailureAlert 'STEP4 迁移回读' "期望 v$expectedVersion，实际 v$dbVerInt"
   exit 1
 }
@@ -245,7 +247,7 @@ $code = Get-HttpCode 'https://localhost/api/artists'
 Add-Smoke '只读 API /api/artists' $(if ($code -eq '200') { 'PASS' } else { 'FAIL' }) "HTTP $code（必过）"
 
 if ($script:smokeFail -gt 0) {
-  Stop-Fail "FAIL: 冒烟未过（$script:smokeFail 项 FAIL），考虑回滚：pwsh scripts/rollback.ps1"
+  Stop-Fail "FAIL: 冒烟未过（$script:smokeFail 项 FAIL），考虑回滚：pwsh scripts/rollback.ps1 -Tier deploy"
 }
 Log 'STEP5 OK: 冒烟清单全过（可含 WARN）'
 Log '=== post-merge-deploy done ==='
