@@ -92,10 +92,10 @@ export function registerAdminStepUpHooks(fastify: FastifyInstance): void {
       // 契约：step-up 必须紧随 requireAdmin（在现有 requireAdmin 之后）
       list.splice(adminIdx + 1, 0, extra)
     } else {
-      // L-8（审计 五#5）: 未挂 requireAdmin 的 /api/admin 路由说明接线错误——开发期用
-      // console.warn 暴露问题；保持不阻断（生产兼容：不得因 onRoute 批量挂载而改变
-      // 既有路由的鉴权语义，也不在启动期抛错炸掉整个应用）
-      console.warn(`[step-up] ${routeOptions.method ?? ''} ${routeOptions.url} 未挂 requireAdmin——step-up 钩子未追加，请检查接线`)
+      // L-8（审计 五#5）：未挂 requireAdmin 的 /api/admin 路由用 console.warn 暴露接线问题；
+      // 但守卫本身必须照挂（纵深防御不得因告警而削弱——step-up 端点自身就靠这个兜底）
+      console.warn(`[step-up] ${routeOptions.method ?? ''} ${routeOptions.url} 未挂 requireAdmin——step-up 守卫已兜底追加，请检查接线`)
+      list.push(extra)
     }
     routeOptions.preHandler = list as typeof routeOptions.preHandler
   })
