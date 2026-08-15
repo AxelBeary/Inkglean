@@ -1,6 +1,9 @@
 {
   "name": "artist-commission",
   "private": true,
+  "engines": {
+    "node": ">=22 <=26"
+  },
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
