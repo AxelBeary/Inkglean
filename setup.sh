@@ -50,7 +50,8 @@ DOMAIN="${DOMAIN:-localhost}"
 SESSION_SECRET=$(openssl rand -hex 32)
 COOKIE_SECRET=$(openssl rand -hex 32)
 # 安装口令（REQ-038）：保护未初始化系统的 /setup 向导，开箱第一步要输入
-SETUP_TOKEN=$(openssl rand -hex 4)
+# 815 拍板 #3（方案 C）：32 位升 128 位，配合直达链接免手输；唯一用途 = 向导鉴权
+SETUP_TOKEN=$(openssl rand -hex 16)
 SETUP_TOKEN_IS_NEW=""
 
 ENV_FILE=".env"
@@ -131,6 +132,12 @@ echo "  3. 开始使用拾绘！"
 echo ""
 if [ -n "$SETUP_TOKEN_IS_NEW" ]; then
   echo -e "  ${YELLOW}安装口令：${SETUP_TOKEN}${NC}"
-  echo -e "  ${YELLOW}（开箱向导第一步要输入，请妥善保管）${NC}"
+  echo -e "  ${YELLOW}（请妥善保管）${NC}"
+  # 815 拍板 #3（方案 C）：直达链接免手输口令
+  if [ "$DOMAIN" = "localhost" ]; then
+    echo -e "  ${GREEN}直达链接：https://localhost/setup?token=${SETUP_TOKEN}${NC}"
+  else
+    echo -e "  ${GREEN}直达链接：https://${DOMAIN}/setup?token=${SETUP_TOKEN}${NC}"
+  fi
   echo ""
 fi

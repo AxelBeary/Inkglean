@@ -110,6 +110,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSetupStore } from '../../stores/setup.js'
 import { useArtistStore } from '../../stores/artist.js'
@@ -117,6 +118,7 @@ import { useThemeStore } from '../../stores/theme.js'
 import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 const setupStore = useSetupStore()
 const artistStore = useArtistStore()
 const themeStore = useThemeStore()
@@ -262,6 +264,15 @@ function goStep(step) {
 
 onMounted(() => {
   themeStore.enterArtistScope()
+  // 815 拍板 #3（方案 C）：直达链接 /setup?token=xxx——自动填充安装口令免手输；
+  // 口令已在第一步则直接进步骤（真实校验仍在第二步后端，错口令会被拒）
+  const qToken = route.query.token
+  if (typeof qToken === 'string' && qToken.length > 0) {
+    setupStore.setupToken = qToken
+    if (setupStore.tokenRequired && setupStore.currentStep === 1) {
+      setupStore.currentStep = 2
+    }
+  }
 })
 </script>
 
