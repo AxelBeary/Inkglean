@@ -81,9 +81,11 @@ async function publish() {
       title: form.title.trim() || null,
       content: form.content || null
     })
-    form.title = saved.title
-    form.content = saved.content
-    publishedAt.value = saved.updatedAt
+    // A1: 标题+内容双空时后端返回 null（清空公告），兜底回填保证表单永远是字符串
+    const s = saved ?? { title: '', content: '' }
+    form.title = s.title
+    form.content = s.content
+    publishedAt.value = saved?.updatedAt ?? null
     ElMessage.success(t('announcement.admin.published'))
   } catch (err) {
     ElMessage.error((err as Error).message)

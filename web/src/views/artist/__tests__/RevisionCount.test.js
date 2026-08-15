@@ -34,7 +34,12 @@ function mountCounter() {
       stubs: {
         'el-input': ElInputStub,
         'el-input-number': ElInputNumberStub,
-        'el-button': ElButtonStub
+        'el-button': ElButtonStub,
+        // A4: 删除按钮包了二次确认，测试桩点击即确认
+        'el-popconfirm': {
+          emits: ['confirm'],
+          template: '<span @click="$emit(\'confirm\')"><slot name="reference" /></span>'
+        }
       }
     }
   })

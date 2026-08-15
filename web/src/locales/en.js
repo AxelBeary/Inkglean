@@ -361,6 +361,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     untitled: 'Untitled',
     copy: 'Copy',
     delete: 'Delete',
+    // A5: localStorage data cannot be recovered after deletion
+    deleteConfirm: 'Delete this note? This cannot be undone.',
     copied: 'Copied',
     copyFailed: 'Copy failed, please copy manually',
   },
@@ -537,6 +539,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     undo: 'Undo',
     reset: 'Reset',
     delete: 'Delete',
+    // A4: localStorage data cannot be recovered after deletion
+    deleteConfirm: 'Delete this entry? This cannot be undone.',
     overLimit: 'Revision limit reached — keep the client in the loop',
     limitLabel: 'Limit',
     countUnit: ''
@@ -609,6 +613,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     renderError: 'Image compositing failed, please try another image',
     fileTypeError: 'Please choose an image file (LOGO must be PNG)',
     logoSaved: 'Logo saved',
+    // A8: logo mode requires an uploaded logo before preview/export
+    logoRequired: 'Please upload a LOGO first before previewing or exporting',
     // Wave 3-2: load-failure error states (distinguish failure from empty list)
     loadArtworksFailed: 'Failed to load artworks. Please retry.',
     loadOrdersFailed: 'Failed to load orders. Please retry.',

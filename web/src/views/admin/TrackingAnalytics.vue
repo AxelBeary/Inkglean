@@ -16,7 +16,8 @@
       </el-card>
       <el-card shadow="never" class="admin-stat-card stat-card-center">
         <div class="stat-label">{{ $t('admin.tracking.visibleLabel') }}</div>
-        <el-radio-group v-model="statsMode" :disabled="savingVisible" @change="onModeChange">
+        <!-- A2: 受控绑定：切换前 statsMode 仍为旧值，onModeChange 内取 prev 才是真正的回滚目标 -->
+        <el-radio-group :model-value="statsMode" :disabled="savingVisible" @change="onModeChange">
           <el-radio value="off">{{ $t('tracking.modeOff') }}</el-radio>
           <el-radio value="hidden">{{ $t('tracking.modeHidden') }}</el-radio>
           <el-radio value="on">{{ $t('tracking.modeOn') }}</el-radio>
