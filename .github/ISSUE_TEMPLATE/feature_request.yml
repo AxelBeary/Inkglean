@@ -7,6 +7,7 @@ body:
     attributes:
       value: |
         拾绘服务对象是画师，功能取舍以画师真实场景为准。描述一下你的场景，比直接给方案更好。
+        如果是 AI 帮你写的建议，请先确认这个功能还不存在、且符合画师真实场景，再提交。
   - type: textarea
     id: scenario
     attributes:

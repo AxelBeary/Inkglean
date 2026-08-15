@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用疑问 / 不会装 / 想聊聊
+    url: https://github.com/AxelBeary/Inkglean/discussions
+    about: 求助和闲聊请去讨论区，那边怎么问都行；Issue 只留给有复现的 bug 和功能建议

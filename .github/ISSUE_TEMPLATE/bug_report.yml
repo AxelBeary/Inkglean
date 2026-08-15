@@ -7,32 +7,44 @@ body:
     attributes:
       value: |
         谢谢你花时间反馈问题！填得越具体，修得越快。
+        不会填？遇到安装/使用上的疑问，欢迎去 [讨论区](https://github.com/AxelBeary/Inkglean/discussions) 提问，那边怎么问都行。
   - type: textarea
     id: what-happened
     attributes:
-      label: 发生了什么事？
-      description: 你本来想做什么、实际发生了什么。如果有报错文字，请完整粘贴（黑窗口里的英文也照抄，别只截图一半）。
+      label: 发生了什么？
+      description: 你本来想做什么、实际发生了什么。有报错文字请完整粘贴（黑窗口里的英文也照抄，别只截图一半）。
       placeholder: 我双击了 install.bat，滚了一堆字之后显示……
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: 复现步骤
-      description: 从哪一步开始，按顺序列出你点过的按钮 / 输入过的命令。
+      label: 你点了什么 / 做了什么
+      description: 从哪一步开始，按顺序写。写大白话就行，比如「双击 install.bat → 滚字 → 卡住」。
       placeholder: |
         1. 解压安装包到桌面
         2. 双击 install.bat
-        3. ……
+        3. 滚了一堆字，最后显示……
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: 你用的是哪个版本？
+      description: 不确定就选「不确定」，别猜。
+      options:
+        - v1.0.0-beta.1
+        - 最新 master（自己部署的）
+        - 不确定
     validations:
       required: true
   - type: textarea
-    id: expected
+    id: logs
     attributes:
-      label: 你期望看到什么？
-      description: 如果一切正常，这一步应该是什么结果。
+      label: 日志 / 截图
+      description: 把截图直接拖进这个框，或贴 data/server.log 的内容（黑窗口里的英文照抄）。这是定位问题最快的信息。
     validations:
-      required: false
+      required: true
   - type: dropdown
     id: install-method
     attributes:
@@ -46,25 +58,34 @@ body:
         - 其他 / 还没到安装这一步
     validations:
       required: true
-  - type: input
+  - type: dropdown
     id: os
     attributes:
-      label: 操作系统
-      placeholder: 例如 Windows 10 / Ubuntu 24.04 / macOS 15
+      label: 操作系统（可选）
+      description: 没有你的选项就选「其他」。
+      options:
+        - Windows 10
+        - Windows 11
+        - Ubuntu 24.04
+        - macOS
+        - 其他
     validations:
-      required: true
+      required: false
   - type: input
     id: node-version
     attributes:
-      label: Node.js 版本
+      label: Node.js 版本（可选）
       description: 终端执行 node -v 查看；没装过就写"没装"。
       placeholder: 例如 v22.23.2
     validations:
       required: false
-  - type: textarea
-    id: screenshots
+  - type: dropdown
+    id: verify
     attributes:
-      label: 截图 / 日志
-      description: 可以直接把截图拖进这个框。安装问题请附上 data/server.log 的内容（如有）。
+      label: 确认一下（必选）
+      description: 为了确保反馈真实有效，请选一项。选哪个都不影响处理。
+      options:
+        - 我实际运行过，上面的内容是真实的
+        - AI 辅助写的，但我已按真实运行情况逐条核对
     validations:
-      required: false
+      required: true
