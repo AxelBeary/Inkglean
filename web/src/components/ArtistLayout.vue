@@ -518,7 +518,8 @@ function applyFontSizeFromStorage() {
 
 const statusClass = computed(() => {
   const s = store.profile?.status || 'open'
-  return { open: 'dot-success', full: 'dot-warning', break: 'dot-danger' }[s] || 'dot-success'
+  // A6: hidden（已隐藏）≈ 离线，用灰点，不再误显示绿灯
+  return { open: 'dot-success', full: 'dot-warning', break: 'dot-danger', hidden: 'dot-hidden' }[s] || 'dot-success'
 })
 
 function logout() {
@@ -699,6 +700,8 @@ const { validateSession } = useSessionGuard()
 .dot-success { background: var(--sl); }
 .dot-warning { background: var(--th); }
 .dot-danger { background: var(--zs); }
+/* A6: 隐藏≈离线：灰点（侧栏 dim 灰，与 identity-status 文字同色系） */
+.dot-hidden { background: var(--sb-text-dim); }
 .footer-actions { display: flex; align-items: center; justify-content: space-between; }
 .logout-btn { color: var(--sb-text-dim); font-size: calc(var(--font-scale, 1) * 12px); transition: color var(--dur-fast), background-color var(--dur-fast); }
 .logout-btn:hover { color: var(--sb-text-on); }

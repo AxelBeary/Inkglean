@@ -25,9 +25,14 @@
             <span class="rc-card-name">{{ e.name }}</span>
             <span class="rc-card-limit">{{ $t('revisionCount.limitLabel') }} {{ e.limit }}{{ $t('revisionCount.countUnit') }}</span>
             <el-input-number v-model="e.limit" :min="1" :max="99" size="small" class="rc-limit-edit" @change="saveEntries" />
-            <button type="button" class="rc-mini-btn" :aria-label="$t('revisionCount.delete')" @click="removeEntry(e.id)">
-              {{ $t('revisionCount.delete') }}
-            </button>
+            <!-- A4: 删除不可恢复，先二次确认（localStorage 数据） -->
+            <el-popconfirm :title="$t('revisionCount.deleteConfirm')" @confirm="removeEntry(e.id)">
+              <template #reference>
+                <button type="button" class="rc-mini-btn" :aria-label="$t('revisionCount.delete')">
+                  {{ $t('revisionCount.delete') }}
+                </button>
+              </template>
+            </el-popconfirm>
           </div>
           <div class="rc-card-body">
             <div class="rc-count" :class="{ 'rc-count--over': isOver(e) }">

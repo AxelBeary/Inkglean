@@ -361,6 +361,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     untitled: '无标题',
     copy: '复制',
     delete: '删除',
+    // A5: localStorage 数据删除后不可恢复
+    deleteConfirm: '删除这条速记？删除后不可恢复。',
     copied: '已复制',
     copyFailed: '复制失败，请手动复制',
   },
@@ -536,6 +538,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     undo: '撤销一次',
     reset: '重置',
     delete: '删除',
+    // A4: localStorage 数据删除后不可恢复
+    deleteConfirm: '删除该条目？删除后不可恢复。',
     overLimit: '已达修改上限，注意与客户沟通',
     limitLabel: '上限',
     countUnit: '次'
@@ -608,6 +612,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     renderError: '图片合成失败，请换一张图片重试',
     fileTypeError: '请选择图片文件（LOGO 需 PNG）',
     logoSaved: 'LOGO 已保存',
+    // A8: logo 模式需先上传 LOGO 再预览/导出
+    logoRequired: 'LOGO 模式下请先上传 LOGO，再预览或导出',
     // 波3-2: 加载失败错误态（区分失败与空列表）
     loadArtworksFailed: '作品列表加载失败，请重试',
     loadOrdersFailed: '订单列表加载失败，请重试',

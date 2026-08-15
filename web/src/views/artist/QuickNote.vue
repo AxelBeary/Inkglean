@@ -28,7 +28,12 @@
           <span class="note-item-title">{{ n.title || $t('note.untitled') }}</span>
           <div class="note-item-actions">
             <button type="button" class="note-mini-btn" @click="copyNote(n)">{{ $t('note.copy') }}</button>
-            <button type="button" class="note-mini-btn" @click="removeNote(n.id)">{{ $t('note.delete') }}</button>
+            <!-- A5: 删除不可恢复，先二次确认（localStorage 数据） -->
+            <el-popconfirm :title="$t('note.deleteConfirm')" @confirm="removeNote(n.id)">
+              <template #reference>
+                <button type="button" class="note-mini-btn">{{ $t('note.delete') }}</button>
+              </template>
+            </el-popconfirm>
           </div>
         </div>
         <p class="note-item-content">{{ n.content }}</p>

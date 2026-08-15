@@ -60,7 +60,7 @@
       <div class="gm-actions">
         <el-button
           v-if="msg.status !== 'approved'"
-          size="small" type="success"
+          size="small" type="success" :loading="actionBusy"
           @click="approve(msg)"
         >
           {{ $t('dashboard.guestbookApprove') }}
@@ -71,7 +71,7 @@
           @confirm="reject(msg)"
         >
           <template #reference>
-            <el-button size="small" type="danger">{{ $t('dashboard.guestbookReject') }}</el-button>
+            <el-button size="small" type="danger" :disabled="actionBusy">{{ $t('dashboard.guestbookReject') }}</el-button>
           </template>
         </el-popconfirm>
         <el-button
@@ -119,6 +119,8 @@ const pageSize = UI_PAGE_SIZE
 const replyingId = ref(null)
 const replyText = ref('')
 const replySaving = ref(false)
+// A3: 审核动作防连点（approve/reject 共用，请求期间禁用）
+const actionBusy = ref(false)
 
 // ─── F8: 语言筛选 ───
 
@@ -199,22 +201,28 @@ async function load() {
 }
 
 async function approve(msg) {
+  actionBusy.value = true
   try {
     await artistApi.approveMessage(msg.id)
     ElMessage.success(t('dashboard.guestbookApprovedMsg'))
     msg.status = 'approved'
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    actionBusy.value = false
   }
 }
 
 async function reject(msg) {
+  actionBusy.value = true
   try {
     await artistApi.rejectMessage(msg.id)
     ElMessage.success(t('dashboard.guestbookRejectedMsg'))
     msg.status = 'rejected'
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    actionBusy.value = false
   }
 }
 

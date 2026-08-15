@@ -435,7 +435,11 @@ async function renderPreview() {
   if (!src.value) return
   try {
     const logo = wmType.value === 'logo' ? await loadLogoForRender() : null
-    if (wmType.value === 'logo' && !logo) return
+    if (wmType.value === 'logo' && !logo) {
+      // A8: logo 模式未选 logo 时明示，不静默产出无 logo 结果
+      ElMessage.warning(t('watermark.logoRequired'))
+      return
+    }
     const dataUrl = await composeWatermarked(src.value, currentOptions(logo))
     if (mySeq !== previewSeq) return
     previewDataUrl.value = dataUrl
@@ -468,7 +472,11 @@ async function exportImage() {
   exporting.value = true
   try {
     const logo = wmType.value === 'logo' ? await loadLogoForRender() : null
-    if (wmType.value === 'logo' && !logo) return
+    if (wmType.value === 'logo' && !logo) {
+      // A8: logo 模式未选 logo 时明示，不静默导出
+      ElMessage.warning(t('watermark.logoRequired'))
+      return
+    }
     const dataUrl = await composeWatermarked(src.value, currentOptions(logo))
     const a = document.createElement('a')
     a.href = dataUrl
