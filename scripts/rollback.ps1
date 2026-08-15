@@ -1,7 +1,7 @@
 # ============================================
 # rollback.ps1 —— 发布失败回滚（P0-4，2026-08-13）
 #
-# 配合 post-merge-deploy.ps1 的 prev tag + 每日备份使用：
+# 配合 post-merge-deploy.ps1 的 prev tag + 三档备份使用（默认每日档；-Tier deploy/weekly 取部署/每周档）：
 #   ① 解析上一版镜像 tag（deploy.log 的 PREV_TAG=，或现存 commission-web:prev-*）
 #   ② 停 web → 用 restore-db.ts 恢复上一版 DB（自带 integrity+FK 校验与失败回滚）
 #   ③ docker tag 切回 prev → force-recreate 重建 web 容器
@@ -12,6 +12,8 @@
 #
 # 用法：
 #   pwsh scripts/rollback.ps1
+#   pwsh scripts/rollback.ps1 -Tier deploy
+#   pwsh scripts/rollback.ps1 -Tier weekly
 #   pwsh scripts/rollback.ps1 -PrevTag commission-web:prev-20260813-103000 -BackupFile C:\...\commission.db.bak-2026-...
 #
 # 依赖：宿主 node（>=22.6，推荐 >=23.6 可直接跑 restore-db.ts；本机实测 node 24 可用）
@@ -19,7 +21,9 @@
 # ============================================
 param(
   [string]$PrevTag,
-  [string]$BackupFile
+  [string]$BackupFile,
+  [ValidateSet('daily', 'deploy', 'weekly')]
+  [string]$Tier = 'daily'
 )
 $ErrorActionPreference = 'Stop'
 $ROOT = Split-Path -Parent $PSScriptRoot
@@ -80,23 +84,37 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ─── ② 定位上一版 DB 备份（与 restore-db.ts 的 pickLatestBackup 同规则：文件名序取最新） ───
+# 默认取每日档（commission.db.bak-<ISO>）；-Tier deploy/weekly 取对应档最新，
+# 轮转与匹配均严格按档位，绝不跨档误选。
+$tierPattern = switch ($Tier) {
+  'weekly' { 'commission.db.bak-weekly-????-??-??T??-??-??-???Z' }
+  'deploy' { 'commission.db.bak-deploy-????-??-??T??-??-??-???Z' }
+  default  { 'commission.db.bak-????-??-??T??-??-??-???Z' }
+}
+$tierLabel = switch ($Tier) {
+  'weekly' { '每周档（commission.db.bak-weekly-<ISO>，跨周回滚最后手段）' }
+  'deploy' { '部署档（commission.db.bak-deploy-<ISO>）' }
+  default  { '每日档（commission.db.bak-<ISO>）' }
+}
 $backup = $null
 if ($BackupFile) {
   $backup = Get-Item -Path $BackupFile -ErrorAction SilentlyContinue
   if (-not $backup) { LogR "FAIL: 指定的备份文件不存在: $BackupFile"; exit 1 }
 } else {
-  # 与 restore-db.ts 的 OFFICIAL_BACKUP_RE 等价：只匹配 backup-db.ts 正式产物
-  # commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>（例：commission.db.bak-2026-08-15T04-12-34-567Z）
-  $backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter 'commission.db.bak-????-??-??T??-??-??-???Z' -File -ErrorAction SilentlyContinue |
+  $backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter $tierPattern -File -ErrorAction SilentlyContinue |
     Sort-Object Name | Select-Object -Last 1
 }
 if (-not $backup) {
-  LogR 'FAIL: data/backups 下没有正式备份（commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>）。'
-  LogR '  异名备份（bak.vN、bak-pre-*、bak.empty-* 等）不会被视为恢复源。'
-  LogR '  下一步：先执行  daily-backup.bat  （或 pwsh scripts/post-merge-deploy.ps1 的备份步骤），再重试本脚本。'
+  LogR "FAIL: data/backups 下没有$tierLabel 备份。"
+  LogR '  异名备份（bak.vN、bak-pre-*、bak.empty-* 等）不会被视为恢复源；其他档位也不会被交叉选取。'
+  LogR '  下一步：先执行 daily-backup.bat（默认每日档）；部署前快照用 pwsh scripts/post-merge-deploy.ps1（--tier deploy）；'
+  LogR '         每周档需在周日每日备份成功后自动生成，或用 backup-db.ts --tier weekly 手工生成；再重试本脚本。'
   exit 1
 }
-LogR "STEP2 使用备份: $($backup.FullName)"
+LogR "STEP2 使用备份（档位=$Tier）: $($backup.FullName)"
+if ($Tier -eq 'weekly') {
+  LogR '提示：weekly 为跨周回滚的最后手段，请确认没有更近的每日/部署档可用。'
+}
 
 # ─── ③ 停 web，避免恢复期间业务进程写库 ───
 $webRunning = docker inspect commission-web *> $null
@@ -171,5 +189,5 @@ if ($code -eq '200') {
   exit 1
 }
 
-LogR "ROLLBACK_DONE tag=$PrevTag backup=$($backup.Name)"
-Log "ROLLBACK_DONE tag=$PrevTag backup=$($backup.Name)"
+LogR "ROLLBACK_DONE tag=$PrevTag tier=$Tier backup=$($backup.Name)"
+Log "ROLLBACK_DONE tag=$PrevTag tier=$Tier backup=$($backup.Name)"
