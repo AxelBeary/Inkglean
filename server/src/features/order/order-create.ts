@@ -9,6 +9,7 @@ import type { Artist, OrderDetail } from '../../types/entities.js'
 import { generateCustomerToken, getOrder, hashCustomerToken } from './order-read.js'
 import { appendPriceEntry, checkOrderConservation } from './order-pricing.js'
 import { MAX_MONEY_CENTS } from './order-limits.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 订单服务 - 下单子域（从 order.service.ts 拆出）
@@ -179,8 +180,10 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       INSERT INTO orders (order_no, artist_id, style_size_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents, customer_token_hash)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      orderNo, artistId, styleSizeId || null, clientQq, clientName || null,
-      description || null, priority || 'medium', source || 'self',
+      orderNo, artistId, styleSizeId || null, clientQq,
+      sanitizeStoredText(clientName) || null,
+      sanitizeStoredText(description) || null,
+      priority || 'medium', source || 'self',
       clientNotify ? 1 : 0, queuePosition,
       styleCalc ? styleCalc.baseCents / 100 : null,
       totalPriceCents,

@@ -4,6 +4,7 @@ import { logActivity } from './activity-log.service.js'
 import { toSqliteDate, toLocalDateString, isValidLocalDateString } from '../../utils/date.js'
 import type { OrderDetail } from '../../types/entities.js'
 import { getOrder } from './order-read.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 订单服务 - 单字段/备注更新子域（从 order.service.ts 拆出）
@@ -121,7 +122,7 @@ export function addNote(orderId: number, content: string, createdBy: string = 'a
   // P2-F10: 备注 + 操作日志包同一事务（此前先写备注再写日志，中途失败会留半截脏数据）
   return db.transaction(() => {
     db.prepare('INSERT INTO order_notes (order_id, content, created_by, image_path) VALUES (?, ?, ?, ?)')
-      .run(orderId, content, createdBy, imagePath)
+      .run(orderId, sanitizeStoredText(content), createdBy, imagePath)
     // v0.31 REQ-021 F1: 操作日志（仅画师备注，系统备注不记）
     if (createdBy !== 'system') {
       logActivity(orderId, 'note_update', createdBy, { action: 'add', hasImage: !!imagePath })
