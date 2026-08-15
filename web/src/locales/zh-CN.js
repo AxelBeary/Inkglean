@@ -1042,6 +1042,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', slideCancelConfirm: '确认取消订单', statusUpdated: '状态已更新',
+    // 815 拍板 #1：队列侧已收款取消引导去详情页二次确认
+    cancelPaidGoDetail: '该订单已有收款，请到订单详情页确认后取消',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
     workflowLoadFailed: '工作流节点加载失败，推进按钮已隐藏，请重试',
     // P0-3b: 标签切换
@@ -1102,6 +1104,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     confirmCancel: '确认取消订单',
     // R-2: 已收款订单取消的二次确认（金额来自后端 detail.paidCents）
     cancelPaidConfirm: '该订单已收 ¥{amount}，确认取消？资金需线下退还',
+    // 815 拍板 #1：取消 5 秒撤销
+    cancelUndoHint: '订单 {label} 已取消，{s} 秒内可撤销',
+    cancelUndoBtn: '撤销',
+    cancelUndone: '已撤销取消，订单已恢复',
+    cancelUndoExpired: '撤销窗口已过，无法恢复该订单',
     noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', confirmTitle: '确认',

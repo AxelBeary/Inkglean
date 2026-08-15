@@ -282,6 +282,15 @@
     ref="focusInputEl" type="file" accept="image/*" hidden
     @change="handleFocusFileSelect"
   />
+
+  <!-- 815 拍板 #1：取消后 5 秒撤销提示 -->
+  <CancelUndoToast
+    v-if="cancelUndo.visible"
+    :label="cancelUndo.label"
+    :window-ms="cancelUndo.windowMs"
+    @undo="onUndoCancel"
+    @expire="cancelUndo.visible = false"
+  />
 </template>
 
 <script setup>
@@ -294,6 +303,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import InkEmpty from '../visual/InkEmpty.vue'
 import SliderSwitch from '../SliderSwitch.vue'
+import CancelUndoToast from '../CancelUndoToast.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
 import HySkeleton from '../../shared/HySkeleton.vue'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
@@ -494,13 +504,7 @@ async function onSlideEnd(e, order) {
   slideRect = null
   if (slideProgress.value >= 0.9) {
     closeSlideCancel()
-    try {
-      await artistApi.updateStatus(order.id, 'cancelled')
-      ElMessage.success(t('queue.statusUpdated'))
-      emit('refresh-queue')
-    } catch (err) {
-      ElMessage.error(err.message)
-    }
+    await doCancelWithUndo(order)
   } else {
     slideProgress.value = 0
   }
@@ -509,13 +513,44 @@ async function onSlideEnd(e, order) {
 /** 键盘等价：滑块取消的替代按钮路径（与滑到底行为一致） */
 async function confirmSlideCancel(order) {
   closeSlideCancel()
+  await doCancelWithUndo(order)
+}
+
+// 815 拍板 #1：取消走带 5 秒撤销窗口的新端点（队列重排延迟结算）
+const cancelUndo = ref({ visible: false, orderId: null, label: '', windowMs: 5000 })
+
+async function doCancelWithUndo(order) {
   try {
-    await artistApi.updateStatus(order.id, 'cancelled')
+    const res = await artistApi.cancelOrder(order.id)
+    cancelUndo.value = {
+      visible: true,
+      orderId: order.id,
+      label: res.order_no || order.orderNo || String(order.id),
+      windowMs: res.undoWindowMs ?? 5000
+    }
     ElMessage.success(t('queue.statusUpdated'))
     emit('refresh-queue')
   } catch (err) {
-    ElMessage.error(err.message)
+    // 已收款取消：详情页有二次确认链路，队列侧提示去详情页处理
+    if (err.code === 'CANCEL_WITH_PAYMENT') {
+      ElMessage.warning(t('queue.cancelPaidGoDetail'))
+    } else {
+      ElMessage.error(err.message)
+    }
   }
+}
+
+async function onUndoCancel() {
+  const id = cancelUndo.value.orderId
+  cancelUndo.value.visible = false
+  if (id == null) return
+  try {
+    await artistApi.undoCancelOrder(id)
+    ElMessage.success(t('orderDetail.cancelUndone'))
+  } catch (err) {
+    ElMessage.error(err.code === 'CANCEL_UNDO_EXPIRED' ? t('orderDetail.cancelUndoExpired') : err.message)
+  }
+  emit('refresh-queue')
 }
 
 // ─── R30c: 手机端左滑进详情（触屏专属，C43 桌面不做等效） ───

@@ -477,6 +477,12 @@ export const artistApi = {
   // D-1（R-5）: options.version 可选——乐观锁版本，旧快照写入后端 409 ORDER_CONFLICT
   updateStatus: (id: number, status: OrderStatus | string, options: UpdateStatusOptions = {}): Promise<EnrichedOrderDetail> =>
     putJson(`/artist/orders/${id}/status`, { status, ...options }),
+  /** 815 拍板 #1：带 5 秒撤销窗口的取消（队列重排延迟结算），返回含 undoWindowMs */
+  cancelOrder: (id: number, options: UpdateStatusOptions = {}): Promise<EnrichedOrderDetail & { undoWindowMs: number }> =>
+    postJson(`/artist/orders/${id}/cancel`, { ...options }),
+  /** 815 拍板 #1：撤销取消（窗口内；过期 410 CANCEL_UNDO_EXPIRED） */
+  undoCancelOrder: (id: number): Promise<EnrichedOrderDetail> =>
+    postJson(`/artist/orders/${id}/cancel-undo`),
   updatePriority: (id: number, priority: OrderPriority): Promise<EnrichedOrderDetail> =>
     putJson(`/artist/orders/${id}/priority`, { priority }),
   reorderQueue: (orderedIds: number[]): Promise<QueueOrderItem[]> =>

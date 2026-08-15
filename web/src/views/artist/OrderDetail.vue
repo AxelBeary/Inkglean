@@ -303,6 +303,15 @@
   <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
   <DeliverDialog v-model="showDeliver" :order-id="route.params.id" @delivered="onOrderUpdated" />
 
+  <!-- 815 拍板 #1：取消后 5 秒撤销提示 -->
+  <CancelUndoToast
+    v-if="cancelUndo.visible"
+    :label="cancelUndo.label"
+    :window-ms="cancelUndo.windowMs"
+    @undo="onUndoCancel"
+    @expire="cancelUndo.visible = false"
+  />
+
   <!-- REQ-022 F1 + REQ-031 B1: 发布为作品/完稿分享弹窗（已拆 PublishShareDialogs，2026-08-10 拆分） -->
   <PublishShareDialogs ref="publishShareRef" :order="order" :route-id="route.params.id" />
 
@@ -371,6 +380,7 @@ import { useI18n } from 'vue-i18n'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import HySkeleton from '../../components/shared/HySkeleton.vue'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
+import CancelUndoToast from '../../components/artist/CancelUndoToast.vue'
 import PaymentPanel from '../../components/artist/order/PaymentPanel.vue'
 import GalleryPanel from '../../components/artist/order/GalleryPanel.vue'
 // 2026-08-10 拆分批：五面板抽出（零行为变化）
@@ -562,10 +572,39 @@ async function changeStatus(status) {
 }
 
 // ─── R39：取消订单滑块确认（R30e 交互，C59 高代价操作用滑块） ───
+// 815 拍板 #1：取消走带 5 秒撤销窗口的新端点（队列重排延迟结算）
+const cancelUndo = ref({ visible: false, orderId: null, label: '', windowMs: 5000 })
+
+/** 取消成功后亮撤销提示 */
+function showCancelUndo(updated, windowMs) {
+  cancelUndo.value = {
+    visible: true,
+    orderId: updated.id ?? route.params.id,
+    label: updated.order_no || String(route.params.id),
+    windowMs: windowMs ?? 5000
+  }
+}
+
+/** 撤销取消：成功恢复订单；窗口已过（410）提示 */
+async function onUndoCancel() {
+  const id = cancelUndo.value.orderId
+  cancelUndo.value.visible = false
+  if (id == null) return
+  try {
+    order.value = await artistApi.undoCancelOrder(Number(id))
+    ElMessage.success(t('orderDetail.cancelUndone'))
+  } catch (err) {
+    ElMessage.error(err.code === 'CANCEL_UNDO_EXPIRED' ? t('orderDetail.cancelUndoExpired') : err.message)
+    await loadOrder()
+  }
+}
+
 /** 取消订单提交（滑块滑到底与键盘替代按钮共用） */
 async function confirmCancelOrder() {
   try {
-    order.value = await artistApi.updateStatus(route.params.id, 'cancelled')
+    const res = await artistApi.cancelOrder(Number(route.params.id))
+    order.value = res
+    showCancelUndo(res, res.undoWindowMs)
     ElMessage.success(t('orderDetail.statusUpdated'))
   } catch (err) {
     // R-2: 已收款订单取消被后端拦截（409 CANCEL_WITH_PAYMENT，Batch A 契约）——
@@ -581,7 +620,9 @@ async function confirmCancelOrder() {
         return // 用户取消二次确认：不取消订单
       }
       try {
-        order.value = await artistApi.updateStatus(route.params.id, 'cancelled', { confirmPaidCancel: true })
+        const res = await artistApi.cancelOrder(Number(route.params.id), { confirmPaidCancel: true })
+        order.value = res
+        showCancelUndo(res, res.undoWindowMs)
         ElMessage.success(t('orderDetail.statusUpdated'))
       } catch (err) {
         ElMessage.error(err.message)

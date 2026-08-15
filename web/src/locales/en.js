@@ -1043,6 +1043,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', slideCancelConfirm: 'Confirm cancellation', statusUpdated: 'Status updated',
+    // 815 decision #1: paid-order cancel on queue side redirects to detail page for confirmation
+    cancelPaidGoDetail: 'This order has payments. Please cancel from the order detail page after confirmation',
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
     workflowLoadFailed: 'Failed to load workflow stages. The advance button is hidden. Please retry.',
     // P0-3b: tab labels
@@ -1103,6 +1105,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     confirmCancel: 'Confirm order cancellation',
     // R-2: second confirmation for cancelling a paid order (amount from backend detail.paidCents)
     cancelPaidConfirm: 'This order has received ¥{amount}. Cancel anyway? Funds must be refunded offline',
+    // 815 拍板 #1: cancel with 5-second undo window
+    cancelUndoHint: 'Order {label} cancelled. Undo within {s}s',
+    cancelUndoBtn: 'Undo',
+    cancelUndone: 'Cancellation undone. Order restored',
+    cancelUndoExpired: 'Undo window has passed. The order cannot be restored',
     noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', confirmTitle: 'Confirm',
