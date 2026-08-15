@@ -20,12 +20,17 @@ import { createRequire } from 'module'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..') // 仓库根目录
 const DEFAULT_BACKUP_DIR = join(ROOT, 'data', 'backups')
 
+// 正式备份命名：backup-db.ts 产出 commission.db.bak-<ISO 时间戳>（冒号和点替换为 -），
+// 例：commission.db.bak-2026-08-15T04-12-34-567Z。--latest 只认该格式，
+// 异名备份（bak.vN、bak-pre-*、bak.empty-* 等）不会被选为校验/恢复候选。
+const OFFICIAL_BACKUP_RE = /^commission\.db\.bak-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/
+
 function fail(message) {
   console.error(`VERIFY_FAILED ${message}`)
   process.exit(1)
 }
 
-/** 解析入参：显式路径优先；--latest 取目录内文件名序最新的 commission.db.bak-* */
+/** 解析入参：显式路径优先；--latest 取目录内文件名序最新的正式备份（commission.db.bak-<ISO 时间戳>） */
 function resolveTarget(argv) {
   if (argv.length === 0) return null
   const first = argv[0]
@@ -39,7 +44,7 @@ function resolveTarget(argv) {
     const dir = dirIdx >= 0 && argv[dirIdx + 1] ? argv[dirIdx + 1] : DEFAULT_BACKUP_DIR
     try {
       const baks = readdirSync(dir)
-        .filter(f => f.startsWith('commission.db.bak-'))
+        .filter(f => OFFICIAL_BACKUP_RE.test(f))
         .sort()
       if (baks.length === 0) return null
       return join(dir, baks[baks.length - 1])
@@ -61,7 +66,7 @@ function toHostPath(target) {
 function main() {
   const target = resolveTarget(process.argv.slice(2))
   if (!target) {
-    fail('未指定备份文件（用法见 --help），且 --latest 未找到 commission.db.bak-*')
+    fail('未指定备份文件（用法见 --help），且 --latest 未找到正式备份（commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>）')
   }
   const dbPath = toHostPath(target)
   if (!isAbsolute(dbPath)) {

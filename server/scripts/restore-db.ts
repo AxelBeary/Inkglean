@@ -6,7 +6,7 @@
 // 本脚本补齐：目标库若存在先移为 .bak-pre-restore-<ts> → 复制备份 → PRAGMA 双重校验
 // （integrity_check + foreign_key_check）→ 校验失败自动回滚（恢复原库）并退出码 1。
 //
-// 用法：npm run restore [备份文件]   （缺省取 data/backups/ 最新 commission.db.bak-*）
+// 用法：npm run restore [备份文件]   （缺省取 data/backups/ 最新正式备份 commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>）
 //       环境变量：DB_PATH / BACKUP_DIR（默认值见下，容器内由 compose 注入 DB_PATH）
 //
 // 成功输出：RESTORE_OK <备份路径>；失败输出：RESTORE_FAILED <原因>（entrypoint 自愈据此中止启动）
@@ -23,14 +23,19 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..') // 仓库
 const DB_PATH = process.env.DB_PATH || resolve(ROOT, 'data/commission.db')
 const BACKUP_DIR = process.env.BACKUP_DIR || resolve(ROOT, 'data/backups')
 
+// 正式备份命名：backup-db.ts 产出 commission.db.bak-<ISO 时间戳>（冒号和点替换为 -），
+// 例：commission.db.bak-2026-08-15T04-12-34-567Z。只把这种命名纳入候选，
+// 历史异名备份（bak.vN、bak-pre-*、bak.empty-* 等）不会被选为恢复源。
+const OFFICIAL_BACKUP_RE = /^commission\.db\.bak-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/
+
 /**
- * 取最新 DB 备份：backup-db.ts 产物命名 commission.db.bak-<ISO时间>，字典序 = 时间序。
- * 目录不存在/无匹配 → null（不抛错，由 restoreDb 统一报「无可用备份」）
+ * 取最新 DB 备份：backup-db.ts 正式产物命名 commission.db.bak-<ISO 时间戳>，字典序 = 时间序。
+ * 只匹配 OFFICIAL_BACKUP_RE；目录不存在/无匹配 → null（不抛错，由 restoreDb 统一报「无正式备份」）
  */
 export function pickLatestBackup(backupDir: string): string | null {
   try {
     const baks = readdirSync(backupDir)
-      .filter(f => f.startsWith('commission.db.bak-'))
+      .filter(f => OFFICIAL_BACKUP_RE.test(f))
       .sort()
     return baks.length > 0 ? join(backupDir, baks[baks.length - 1]) : null
   } catch {
@@ -67,8 +72,11 @@ export interface RestoreDbResult {
  */
 export function restoreDb(opts: { dbPath: string; backupDir: string; backupFile?: string }): RestoreDbResult {
   const backupPath = opts.backupFile || pickLatestBackup(opts.backupDir)
-  if (!backupPath || !existsSync(backupPath)) {
-    throw new Error(`未找到可用备份（backupDir: ${opts.backupDir}）`)
+  if (!backupPath) {
+    throw new Error(`未找到正式备份（命名 commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>，backupDir: ${opts.backupDir}）`)
+  }
+  if (!existsSync(backupPath)) {
+    throw new Error(`指定的备份文件不存在: ${backupPath}`)
   }
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')

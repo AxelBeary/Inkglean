@@ -85,11 +85,14 @@ if ($BackupFile) {
   $backup = Get-Item -Path $BackupFile -ErrorAction SilentlyContinue
   if (-not $backup) { LogR "FAIL: 指定的备份文件不存在: $BackupFile"; exit 1 }
 } else {
-  $backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter 'commission.db.bak-*' -File -ErrorAction SilentlyContinue |
+  # 与 restore-db.ts 的 OFFICIAL_BACKUP_RE 等价：只匹配 backup-db.ts 正式产物
+  # commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>（例：commission.db.bak-2026-08-15T04-12-34-567Z）
+  $backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter 'commission.db.bak-????-??-??T??-??-??-???Z' -File -ErrorAction SilentlyContinue |
     Sort-Object Name | Select-Object -Last 1
 }
 if (-not $backup) {
-  LogR 'FAIL: data/backups 下没有 commission.db.bak-* 备份。'
+  LogR 'FAIL: data/backups 下没有正式备份（commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>）。'
+  LogR '  异名备份（bak.vN、bak-pre-*、bak.empty-* 等）不会被视为恢复源。'
   LogR '  下一步：先执行  daily-backup.bat  （或 pwsh scripts/post-merge-deploy.ps1 的备份步骤），再重试本脚本。'
   exit 1
 }
