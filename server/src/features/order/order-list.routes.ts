@@ -44,6 +44,8 @@ export async function orderListRoutes(fastify: FastifyInstance) {
    * SPEC-004: zone=buffer 返回缓冲区列表
    */
   fastify.get('/api/artist/queue', { preHandler: requireAuth }, async (request: FastifyRequest) => {
+      // 815 拍板 #1：懒结算过期撤销窗口（队列重排/递补在窗口过后才发生）
+      orderService.settleExpiredUndoWindows(request.artist.id)
       const { zone } = (request.query || {}) as { zone?: string }
       if (zone === 'buffer') {
         // 缓冲区列表

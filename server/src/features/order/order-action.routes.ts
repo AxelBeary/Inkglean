@@ -51,6 +51,38 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * POST /api/artist/orders/:id/cancel
+   * 815 拍板 #1：带 5 秒撤销窗口的取消（画师端取消入口）——队列重排/递补延迟到窗口过期结算
+   */
+  fastify.post('/api/artist/orders/:id/cancel', {
+    preHandler: [requireAuth, requireOwnOrder],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          confirmPaidCancel: { type: 'boolean' },
+          version: { type: 'integer', minimum: 1 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const { confirmPaidCancel, version } = (request.body ?? {}) as { confirmPaidCancel?: boolean; version?: number }
+    const order = orderService.cancelOrderWithUndo(request.order.id, !!confirmPaidCancel, version)
+    return { ...enrichOrderForArtist(order), undoWindowMs: orderService.CANCEL_UNDO_WINDOW_MS }
+  })
+
+  /**
+   * POST /api/artist/orders/:id/cancel-undo
+   * 815 拍板 #1：撤销取消（窗口内）；窗口过期 410
+   */
+  fastify.post('/api/artist/orders/:id/cancel-undo', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request: FastifyRequest) => {
+    return enrichOrderForArtist(orderService.undoCancelOrder(request.order.id, request.artist.id))
+  })
+
+  /**
    * PUT /api/artist/orders/:id/priority
    * JSON Schema 输入校验
    */

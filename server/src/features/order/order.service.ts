@@ -24,6 +24,8 @@ export {
 export { updateOrderChecked, updateDeadline, updateStartDate, addNote, deleteNote } from './order-fields.js'
 
 export { STATUS_TRANSITIONS, assertStatusTransition, updateOrderStatus, compactQueue, generateInstallmentsForOrder, promoteOrder, tryAutoPromote } from './order-status.js'
+// 815 拍板 #1：取消 5 秒撤销
+export { cancelOrderWithUndo, undoCancelOrder, settleExpiredUndoWindows, CANCEL_UNDO_WINDOW_MS } from './order-status.js'
 
 export { generateOrderNo, createOrder } from './order-create.js'
 

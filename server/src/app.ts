@@ -196,6 +196,15 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   const _gcTimer = setInterval(gcUploads, 24 * 60 * 60 * 1000)
   _gcTimer.unref()
 
+  // 815 拍板 #1⑥：启动时扫描已过期的取消撤销窗口并补执行队列重排/递补
+  //（复用迁移崩溃恢复思路：宕机/重启期间过期的窗口不丢结算）
+  try {
+    const { settleExpiredUndoWindows } = await import('./features/order/order-status.js')
+    settleExpiredUndoWindows()
+  } catch (err) {
+    app.log.warn({ err }, '启动扫描撤销窗口失败（不阻断启动）')
+  }
+
   // ─── 全局插件 ───
   // Cookie 支持（httpOnly token 存储）
   const cookieSecret = process.env.COOKIE_SECRET || process.env.SESSION_SECRET || 'dev-cookie-secret-change-in-production'
