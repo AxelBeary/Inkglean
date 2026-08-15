@@ -333,7 +333,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     basePrice: '基础价',
     multiplierNote: '倍率合计',
     optionPrice: '按选项计价',
-    disclaimer: '仅供参考，以实际报价为准'
+    disclaimer: '仅供参考，以实际报价为准',
+    // 815 K2-5: 算价失败保留上次结果并明示（禁止静默清空）
+    calcFailed: '算价失败，已保留上次结果'
   },
   // REQ-035 工具集后置: 社恐轻松回复（工具页文案）
   reply: {
@@ -1045,7 +1047,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     bufferTag: '候补', bufferEmpty: '缓冲区暂无候补订单',
     promote: '递补', promoted: '已递补到正式队列',
     slideToCancel: '滑动确认取消订单', slideCancelConfirm: '确认取消订单', statusUpdated: '状态已更新',
-    // 815 拍板 #1：队列侧已收款取消引导去详情页二次确认
+    // 815 拍板 #1：已收款取消走内联二次确认（详见 QueueBoardList doCancelWithUndo；本键保留兼容）
     cancelPaidGoDetail: '该订单已有收款，请到订单详情页确认后取消',
     advanceStage: '推进到下一节点', stageAdvanced: '已推进到下一节点',
     workflowLoadFailed: '工作流节点加载失败，推进按钮已隐藏，请重试',
@@ -1503,7 +1505,15 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     editDescPlaceholder: '谁的设定、画了多少小时、用了什么技法……自由填写',
     editTagsLabel: '档位标注', editTagsEmptyHint: '选择该作品所属的尺寸',
     editTagsHint: '可多选；客户可在画廊按档位筛选，点大图标签可带预选跳下单',
-    editSaved: '作品已保存'
+    editSaved: '作品已保存',
+    // 815 K2-8: 两步保存任一步失败都明确提示（不再笼统吞错）
+    editInfoSaveFailed: '作品信息保存失败：{reason}',
+    editTagsSaveFailed: '档位标注保存失败：{reason}',
+    // 815 K2-3: 批量粘贴上传逐文件隔离汇总
+    pastePartial: '粘贴上传完成：成功 {ok} 张，失败 {failed} 张',
+    pasteFailedAll: '粘贴上传失败：{failed} 张未上传',
+    pasteFailTitle: '以下文件上传失败',
+    pasteFailLine: '文件「{name}」：{reason}'
   },
   rules: {
     hint: '编辑客户下单前必须阅读的约稿须知。支持 HTML 标签。',
@@ -1775,6 +1785,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     health: {
       title: '系统自检', start: '开始检查', checking: '检查中…',
       download: '下载诊断包', refresh: '刷新后结果不保留',
+      downloaded: '诊断包已下载', downloadFailed: '诊断包下载失败', downloadTimeout: '下载超时，请重试',
       diskNote: '仅供参考',
       statusOk: '正常', statusWarn: '警告', statusFail: '异常',
       emptyHint: '点击「开始检查」运行 8 项系统检查'

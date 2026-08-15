@@ -112,6 +112,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistPublicApi, artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
+import { ElMessage } from 'element-plus'
 import { formatYuanValue } from '../../utils/money.js'
 
 // 数据：画风（含尺寸+增项）+ 倍率
@@ -198,7 +199,8 @@ async function doCalc() {
     preview.value = res
   } catch {
     if (mySeq !== calcSeq) return
-    preview.value = null
+    // 请求失败：保留上次结果并明示错误，禁止静默清空预览
+    ElMessage.error(t('priceCalc.calcFailed'))
   }
 }
 

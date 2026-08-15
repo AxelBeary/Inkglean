@@ -180,7 +180,11 @@
                     →
                   </div>
                 </div>
-                <el-button text size="small" type="danger" @click="confirmSlideCancel(element)">
+                <el-button
+                  text size="small" type="danger"
+                  :disabled="cancellingBusyId === element.id"
+                  @click="confirmSlideCancel(element)"
+                >
                   {{ $t('queue.slideCancelConfirm') }}
                 </el-button>
                 <el-button text size="small" :aria-label="$t('common.close')" @click="closeSlideCancel">✕</el-button>
@@ -298,7 +302,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { artistApi, uploadApi } from '../../../api/index.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import InkEmpty from '../visual/InkEmpty.vue'
@@ -309,6 +313,7 @@ import HySkeleton from '../../shared/HySkeleton.vue'
 import { useDropGuard } from '../../../composables/useDropGuard.js'
 import { statusType, priorityType } from '../../../constants/order.js'
 import { MAX_IMAGE_BYTES } from '../../../constants/upload.js'
+import { formatCents } from '../../../utils/money.js'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -479,9 +484,12 @@ async function uploadAndSetFocus(file, order) {
 
 // ─── R30e: 滑块确认取消（拖到底触发，防误触） ───
 const cancellingId = ref(null)
+/** 取消请求在途锁（防滑块/按钮重复触发；409 二次确认期间同样上锁） */
+const cancellingBusyId = ref(null)
 const slideProgress = ref(0)
 let slideRect = null
 function openSlideCancel(order) {
+  if (cancellingBusyId.value !== null) return
   cancellingId.value = order.id
   slideProgress.value = 0
 }
@@ -490,16 +498,19 @@ function closeSlideCancel() {
   slideProgress.value = 0
 }
 function onSlideStart(e) {
+  if (cancellingBusyId.value !== null) return
   const track = e.currentTarget.closest('.slide-cancel')
   slideRect = track.getBoundingClientRect()
   e.currentTarget.setPointerCapture(e.pointerId)
 }
 function onSlideMove(e) {
+  if (cancellingBusyId.value !== null) return
   if (!slideRect) return
   const x = e.clientX - slideRect.left - 20
   slideProgress.value = Math.max(0, Math.min(1, x / (slideRect.width - 40)))
 }
 async function onSlideEnd(e, order) {
+  if (cancellingBusyId.value !== null) return
   if (!slideRect) return
   slideRect = null
   if (slideProgress.value >= 0.9) {
@@ -520,6 +531,8 @@ async function confirmSlideCancel(order) {
 const cancelUndo = ref({ visible: false, orderId: null, label: '', windowMs: 5000 })
 
 async function doCancelWithUndo(order) {
+  if (cancellingBusyId.value === order.id) return
+  cancellingBusyId.value = order.id
   try {
     const res = await artistApi.cancelOrder(order.id)
     cancelUndo.value = {
@@ -531,12 +544,35 @@ async function doCancelWithUndo(order) {
     ElMessage.success(t('queue.statusUpdated'))
     emit('refresh-queue')
   } catch (err) {
-    // 已收款取消：详情页有二次确认链路，队列侧提示去详情页处理
-    if (err.code === 'CANCEL_WITH_PAYMENT') {
-      ElMessage.warning(t('queue.cancelPaidGoDetail'))
+    // 已收款取消：后端 409 CANCEL_WITH_PAYMENT + detail.paidCents → 二次确认后带 confirmPaidCancel 重发
+    if (err.code === 'CANCEL_WITH_PAYMENT' && err.detail?.paidCents != null) {
+      try {
+        await ElMessageBox.confirm(
+          t('orderDetail.cancelPaidConfirm', { amount: formatCents(err.detail.paidCents) }),
+          t('orderDetail.confirmTitle'),
+          { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+        )
+      } catch {
+        return // 用户取消二次确认：不取消订单
+      }
+      try {
+        const res = await artistApi.cancelOrder(order.id, { confirmPaidCancel: true })
+        cancelUndo.value = {
+          visible: true,
+          orderId: order.id,
+          label: res.order_no || order.orderNo || String(order.id),
+          windowMs: res.undoWindowMs ?? 5000
+        }
+        ElMessage.success(t('queue.statusUpdated'))
+        emit('refresh-queue')
+      } catch (err) {
+        ElMessage.error(err.message)
+      }
     } else {
       ElMessage.error(err.message)
     }
+  } finally {
+    cancellingBusyId.value = null
   }
 }
 

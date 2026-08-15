@@ -157,16 +157,16 @@
           <div
             class="slide-confirm-thumb"
             :style="{ left: `calc(2px + ${slideCancelProgress} * (100% - 40px))` }"
-            @pointerdown="onSlideStart"
-            @pointermove="onSlideMove"
-            @pointerup="onSlideEnd"
+            @pointerdown="handleSlideStart"
+            @pointermove="handleSlideMove"
+            @pointerup="handleSlideEnd"
             @pointercancel="closeSlideCancel"
           >
             →
           </div>
         </div>
         <el-button text size="small" :aria-label="$t('common.close')" @click="closeSlideCancel">✕</el-button>
-        <el-button text size="small" type="danger" @click="confirmCancelOrder">
+        <el-button text size="small" type="danger" :disabled="cancelSubmitting" @click="confirmCancelOrder">
           {{ $t('orderDetail.confirmCancel') }}
         </el-button>
       </div>
@@ -620,8 +620,12 @@ async function repermitDeliverable(d) {
   }
 }
 
-/** 取消订单提交（滑块滑到底与键盘替代按钮共用） */
+/** 取消订单提交（滑块滑到底与键盘替代按钮共用）；提交期间锁住滑块/按钮，防重复触发 */
+const cancelSubmitting = ref(false)
+
 async function confirmCancelOrder() {
+  if (cancelSubmitting.value) return
+  cancelSubmitting.value = true
   try {
     const res = await artistApi.cancelOrder(Number(route.params.id))
     order.value = res
@@ -651,6 +655,8 @@ async function confirmCancelOrder() {
     } else {
       ElMessage.error(err.message)
     }
+  } finally {
+    cancelSubmitting.value = false
   }
 }
 
@@ -659,12 +665,28 @@ const {
   progress: slideCancelProgress,
   open: openSlideCancel,
   close: closeSlideCancel,
-  onStart: onSlideStart,
-  onMove: onSlideMove,
-  onEnd: onSlideEnd
+  onStart: slideOnStart,
+  onMove: slideOnMove,
+  onEnd: slideOnEnd
 } = useSlideConfirm({
   onConfirm: confirmCancelOrder
 })
+
+/** 提交在途时滑块不再响应（防拖拽路径二次触发） */
+function handleSlideStart(e) {
+  if (cancelSubmitting.value) return
+  slideOnStart(e)
+}
+
+function handleSlideMove(e) {
+  if (cancelSubmitting.value) return
+  slideOnMove(e)
+}
+
+async function handleSlideEnd() {
+  if (cancelSubmitting.value) return
+  await slideOnEnd()
+}
 
 // ─── R19: 备注附图/时间线逻辑已随 NotesPanel 拆出（2026-08-10）；粘贴经 expose 调用 ───
 

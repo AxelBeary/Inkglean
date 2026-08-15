@@ -17,7 +17,7 @@
       <el-card class="slot-card" shadow="never">
         <template #header><CardHead :title="$t('slots.statusSection')" /></template>
         <div class="status-row">
-          <el-radio-group v-model="currentStatus" @change="updateStatus" size="large">
+          <el-radio-group :model-value="currentStatus" :disabled="statusUpdating" @change="updateStatus" size="large">
             <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
             <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
             <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
@@ -123,16 +123,24 @@ const profile = ref(null)
 // REQ-016 B: 接稿状态即时切换（与开稿管理内联逻辑一致）
 const currentStatus = ref('open')
 const lastKnownStatus = ref('open')
+/** 状态切换请求在途锁（受控绑定 + 禁用，防快速切换时旧请求覆盖/回滚基准错乱） */
+const statusUpdating = ref(false)
 
 async function updateStatus(val) {
+  if (statusUpdating.value) return
+  // 受控绑定：请求发出前 currentStatus 仍是旧值，prev 即回滚基准（对齐 PlatformManage 正确模式）
+  const prev = currentStatus.value
+  statusUpdating.value = true
   try {
     await artistApi.updateProfile({ status: val })
     lastKnownStatus.value = val
     currentStatus.value = val
     ElMessage.success(t('dashboard.statusUpdated'))
   } catch (err) {
-    currentStatus.value = lastKnownStatus.value
+    currentStatus.value = prev
     ElMessage.error(err.message)
+  } finally {
+    statusUpdating.value = false
   }
 }
 
