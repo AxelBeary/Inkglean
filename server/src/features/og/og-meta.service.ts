@@ -15,7 +15,11 @@ export interface OgData {
   imageAlt: string
 }
 
-/** 缓存窗口：subdomain OG 数据内存缓存 5 分钟（Map + 时间戳），降低公开页 DB 压力 */
+/**
+ * 缓存窗口：subdomain OG 数据内存缓存 5 分钟（Map + 时间戳），降低公开页 DB 压力。
+ * 815 M-4：只有 DOMAIN 配置态（canonical 固定域）才允许进缓存；Host 回落值
+ * 随请求变化，若入缓存会把首个来访者的 Host 投毒给 5 分钟内的所有访问者。
+ */
 const OG_CACHE_TTL_MS = 5 * 60 * 1000
 const ogCache = new Map<string, { fetchedAt: number; data: OgData }>()
 
@@ -58,7 +62,7 @@ function isOgVisible(artist: Artist): boolean {
   return true
 }
 
-/** HTTPS 绝对地址：DOMAIN env 优先，缺失时用请求 Host 兜底（开发环境可用） */
+/** HTTPS 绝对地址：DOMAIN env 优先（canonical），缺失时用请求 Host 兜底（开发环境可用；回落值不进缓存） */
 function absoluteUrl(path: string, host: string | undefined): string {
   let domain = (process.env.DOMAIN || host || 'localhost').replace(/^https?:\/\//i, '')
   while (domain.endsWith('/')) domain = domain.slice(0, -1)
@@ -82,7 +86,9 @@ function defaultOg(subdomain: string, host: string | undefined): OgData {
  * 未找到/不可见画师 → 默认 OG（不抛错）
  */
 export function buildOgMeta(subdomain: string, host?: string): OgData {
-  const cached = ogCache.get(subdomain)
+  // 815 M-4：Host 反射投毒面关闭——仅 DOMAIN 固定域可缓存，回落值逐请求重算
+  const useHostFallback = !process.env.DOMAIN
+  const cached = useHostFallback ? undefined : ogCache.get(subdomain)
   if (cached && Date.now() - cached.fetchedAt < OG_CACHE_TTL_MS) {
     return cached.data
   }
@@ -92,7 +98,9 @@ export function buildOgMeta(subdomain: string, host?: string): OgData {
     ? defaultOg(subdomain, host)
     : buildArtistOg(artist, host)
 
-  ogCache.set(subdomain, { fetchedAt: Date.now(), data })
+  if (!useHostFallback) {
+    ogCache.set(subdomain, { fetchedAt: Date.now(), data })
+  }
   return data
 }
 

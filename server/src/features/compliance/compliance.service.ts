@@ -1,6 +1,7 @@
 import db from '../../db/connection.js'
 import * as artistService from '../artist/artist.service.js'
 import * as guestbookService from '../guestbook/guestbook.service.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 合规与内容安全服务（REQ-042）
@@ -36,14 +37,15 @@ export interface AdminActionRow {
 export function createReport(
   input: { targetType: string; targetId?: number | null; description: string; contact?: string | null }
 ): ReportRow | undefined {
+  const safeContact = sanitizeStoredText(input.contact)
   const result = db.prepare(`
     INSERT INTO reports (target_type, target_id, description, contact)
     VALUES (?, ?, ?, ?)
   `).run(
     input.targetType,
     input.targetId ?? null,
-    input.description,
-    input.contact?.trim() ? input.contact.trim().slice(0, 100) : null
+    sanitizeStoredText(input.description),
+    safeContact.trim() ? safeContact.trim().slice(0, 100) : null
   )
   return db.prepare('SELECT * FROM reports WHERE id = ?').get(Number(result.lastInsertRowid)) as ReportRow | undefined
 }
@@ -122,10 +124,11 @@ export function writeAdminAction(
   targetId: number,
   reason?: string | null
 ): void {
+  const safeReason = sanitizeStoredText(reason)
   db.prepare(`
     INSERT INTO admin_actions (admin_id, action, target_type, target_id, reason)
     VALUES (?, ?, ?, ?, ?)
-  `).run(adminId, action, targetType, targetId, reason?.trim() ? reason.trim().slice(0, 500) : null)
+  `).run(adminId, action, targetType, targetId, safeReason.trim() ? safeReason.trim().slice(0, 500) : null)
 }
 
 /** 查询处理留痕（管理端审计/排查用；时间倒序） */

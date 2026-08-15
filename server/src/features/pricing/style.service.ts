@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 多画风服务 - 增项库 / 画风 / 尺寸 / 覆盖 CRUD + 公开配置
@@ -97,11 +98,11 @@ export function createAddonTemplate(artistId: number, input: CreateAddonTemplate
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     artistId,
-    input.name.trim(),
+    sanitizeStoredText(input.name).trim(),
     controlType,
     priceMode,
     defaultPrice,
-    input.unit_label || null,
+    sanitizeStoredText(input.unit_label) || null,
     maxOrder + 1,
     category,
     input.max_quantity ?? null
@@ -130,7 +131,7 @@ export function updateAddonTemplate(artistId: number, templateId: number, fields
 
     if (fields.name !== undefined) {
       if (!fields.name.trim()) throw new AppError(E.ADDON_TEMPLATE_NAME_EMPTY)
-      db.prepare('UPDATE addon_templates SET name = ? WHERE id = ?').run(fields.name.trim(), templateId)
+      db.prepare('UPDATE addon_templates SET name = ? WHERE id = ?').run(sanitizeStoredText(fields.name).trim(), templateId)
     }
     if (fields.control_type !== undefined) {
       if (!VALID_CONTROL_TYPES.includes(fields.control_type as typeof VALID_CONTROL_TYPES[number])) {
@@ -149,7 +150,7 @@ export function updateAddonTemplate(artistId: number, templateId: number, fields
       db.prepare('UPDATE addon_templates SET default_price = ? WHERE id = ?').run(fields.default_price, templateId)
     }
     if (fields.unit_label !== undefined) {
-      db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(fields.unit_label || null, templateId)
+      db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(sanitizeStoredText(fields.unit_label) || null, templateId)
     }
     if (fields.category !== undefined) {
       if (!VALID_CATEGORIES.includes(fields.category as typeof VALID_CATEGORIES[number])) throw new AppError(E.VALIDATION, 400, { field: 'category', hint: 'category 只能是 add/usage/rush' })
@@ -203,8 +204,8 @@ export function deleteAddonTemplate(artistId: number, templateId: number): { del
         tpl_unit_label = ?, tpl_category = ?, tpl_max_quantity = ?
       WHERE addon_template_id = ?
     `).run(
-      tpl.name, tpl.control_type, tpl.price_mode, tpl.default_price,
-      tpl.unit_label, tpl.category, tpl.max_quantity, templateId
+      sanitizeStoredText(tpl.name), tpl.control_type, tpl.price_mode, tpl.default_price,
+      sanitizeStoredText(tpl.unit_label), tpl.category, tpl.max_quantity, templateId
     )
     // 解除引用（外键 ON DELETE SET NULL 双保险，此处显式置空保证快照一致性）
     db.prepare('UPDATE style_addons SET addon_template_id = NULL WHERE addon_template_id = ?').run(templateId)
@@ -275,7 +276,7 @@ export function createArtStyle(artistId: number, input: CreateArtStyleInput): Ar
   const result = db.prepare(`
     INSERT INTO art_styles (artist_id, name, description, cover_image, sort_order, is_active)
     VALUES (?, ?, ?, ?, ?, 1)
-  `).run(artistId, input.name.trim(), input.description || null, input.cover_image || null, maxOrder + 1)
+  `).run(artistId, sanitizeStoredText(input.name).trim(), sanitizeStoredText(input.description) || null, input.cover_image || null, maxOrder + 1)
 
   const styleId = Number(result.lastInsertRowid)
 
@@ -331,10 +332,10 @@ export function updateArtStyle(artistId: number, styleId: number, fields: Update
 
     if (fields.name !== undefined) {
       if (!fields.name.trim()) throw new AppError(E.STYLE_NAME_EMPTY)
-      db.prepare('UPDATE art_styles SET name = ? WHERE id = ?').run(fields.name.trim(), styleId)
+      db.prepare('UPDATE art_styles SET name = ? WHERE id = ?').run(sanitizeStoredText(fields.name).trim(), styleId)
     }
     if (fields.description !== undefined) {
-      db.prepare('UPDATE art_styles SET description = ? WHERE id = ?').run(fields.description || null, styleId)
+      db.prepare('UPDATE art_styles SET description = ? WHERE id = ?').run(sanitizeStoredText(fields.description) || null, styleId)
     }
     if (fields.cover_image !== undefined) {
       // M1 修复：封面图路径校验（对照 avatar 写法）— 必须在 images/ 目录下，拒绝路径穿越
@@ -458,9 +459,9 @@ export function createStyleSize(artistId: number, styleId: number, input: Create
     INSERT INTO style_sizes (art_style_id, name, base_price, sort_order, image, image_artwork_id, description, work_days, display_status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    styleId, input.name.trim(), input.base_price, maxOrder + 1,
+    styleId, sanitizeStoredText(input.name).trim(), input.base_price, maxOrder + 1,
     img.image, img.image_artwork_id,
-    input.description || null, input.work_days ?? null,
+    sanitizeStoredText(input.description) || null, input.work_days ?? null,
     input.display_status && VALID_DISPLAY_STATUS.includes(input.display_status as typeof VALID_DISPLAY_STATUS[number]) ? input.display_status : 'available'
   )
 
@@ -484,7 +485,7 @@ export function updateStyleSize(artistId: number, styleId: number, sizeId: numbe
 
   if (fields.name !== undefined) {
     if (!fields.name.trim()) throw new AppError(E.STYLE_SIZE_NAME_EMPTY)
-    db.prepare('UPDATE style_sizes SET name = ? WHERE id = ?').run(fields.name.trim(), sizeId)
+    db.prepare('UPDATE style_sizes SET name = ? WHERE id = ?').run(sanitizeStoredText(fields.name).trim(), sizeId)
   }
   if (fields.base_price !== undefined) {
     if (fields.base_price < 0) throw new AppError(E.STYLE_SIZE_INVALID_PRICE)
@@ -503,7 +504,7 @@ export function updateStyleSize(artistId: number, styleId: number, sizeId: numbe
       .run(img.image, img.image_artwork_id, sizeId)
   }
   if (fields.description !== undefined) {
-    db.prepare('UPDATE style_sizes SET description = ? WHERE id = ?').run(fields.description || null, sizeId)
+    db.prepare('UPDATE style_sizes SET description = ? WHERE id = ?').run(sanitizeStoredText(fields.description) || null, sizeId)
   }
   if (fields.work_days !== undefined) {
     db.prepare('UPDATE style_sizes SET work_days = ? WHERE id = ?').run(fields.work_days, sizeId)
