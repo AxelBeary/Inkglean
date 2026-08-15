@@ -110,6 +110,8 @@ const routes = [
       { path: 'default-workflow', name: 'AdminDefaultWorkflow', component: () => import('../views/admin/DefaultWorkflowEditor.vue'), meta: { titleKey: 'admin.defaultWorkflow', requiresAdmin: true } },
       // REQ-022 F2: 社交平台管理
       { path: 'platforms', name: 'AdminPlatforms', component: () => import('../views/admin/PlatformManage.vue'), meta: { titleKey: 'admin.platformManage', requiresAdmin: true } },
+      // 815 第三批 I 路: 系统增项模板管理
+      { path: 'addon-templates', name: 'AdminAddonTemplates', component: () => import('../views/admin/AddonTemplateManage.vue'), meta: { titleKey: 'admin.addonTemplates', requiresAdmin: true } },
       // HC: 系统自检
       { path: 'health', name: 'AdminHealthCheck', component: () => import('../views/admin/HealthCheck.vue'), meta: { titleKey: 'pageTitle.healthCheck', requiresAdmin: true } },
       // REQ-033 埋点看板
