@@ -3,7 +3,7 @@
 // 规则：
 //   1. [ERROR] getByText(动态变量/模板) 未 scope——未来双布局/重复文本必然 strict
 //   2. [WARN]  getByText('静态文本') 未 scope 且无豁免注释——人工确认过唯一的加 // locator-ok
-//   3. [WARN]  getByRole('button', { name: 动态 }) 未 scope
+//   3. [TODO]  getByRole('button', { name: 动态 }) 未 scope——本脚本暂未实现扫描，列为待办
 // 运行：node e2e/scripts/check-locators.js（在 CI e2e.yml 前置步骤跑）
 
 import { readFileSync, readdirSync } from 'fs'
@@ -76,4 +76,3 @@ if (errors > 0) {
   console.error('存在 ERROR 级定位器风险——请按施工图加固（scope 到 tbody/卡片/组件）')
   process.exit(1)
 }
-

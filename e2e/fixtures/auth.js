@@ -1,5 +1,6 @@
 import { test as base } from '@playwright/test'
 import { readTokens } from '../token-store.js'
+import { E2E_HOST } from '../../playwright.config.js'
 
 // v0.21: 共享登录 fixture（P3）
 // token 由 globalSetup 预登录写入 .tokens.json；fixture 每次使用时重读文件
@@ -9,7 +10,7 @@ import { readTokens } from '../token-store.js'
 async function createAuthedContext(browser, token, isAdmin = false) {
   const context = await browser.newContext()
   await context.addCookies([
-    { name: 'artist_token', value: token, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' }
+    { name: 'artist_token', value: token, domain: E2E_HOST, path: '/', httpOnly: true, sameSite: 'Lax' }
   ])
   await context.addInitScript((admin) => {
     localStorage.setItem('artist_logged_in', '1')
