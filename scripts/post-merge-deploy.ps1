@@ -134,10 +134,12 @@ if ($LASTEXITCODE -ne 0) {
   Stop-Fail 'ABORT: 备份失败或备份校验未过，不重建（详见 data/backups/daily-backup.log）'
 }
 # P0-1 双入口：daily-backup.bat 已校验，此处按施工图再显式校验一次（幂等）
-$backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter 'commission.db.bak-*' -File -ErrorAction SilentlyContinue |
+# 与 restore-db.ts / backup-db.ts 等价：只匹配正式备份
+# commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>（例：commission.db.bak-2026-08-15T04-12-34-567Z）
+$backup = Get-ChildItem -Path (Join-Path $ROOT 'data\backups') -Filter 'commission.db.bak-????-??-??T??-??-??-???Z' -File -ErrorAction SilentlyContinue |
   Sort-Object Name | Select-Object -Last 1
 if (-not $backup) {
-  Stop-Fail 'ABORT: 备份命令成功但未找到 commission.db.bak-* 产物'
+  Stop-Fail 'ABORT: 备份命令成功但未找到正式备份（commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>）产物'
 }
 $verifyOut = & node (Join-Path $ROOT 'scripts\verify-backup.mjs') $backup.FullName 2>&1
 $verifyText = ($verifyOut | Out-String).Trim()

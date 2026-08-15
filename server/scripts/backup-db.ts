@@ -14,6 +14,7 @@
 //       环境变量：DB_PATH / BACKUP_DIR（默认值见下，容器内由 compose 注入）
 //
 // 保留策略：备份目录内只保留最近 3 份（按文件名排序，删最旧），防磁盘撑爆（2026-08-11 用户拍板：DB 3 份 / uploads 2 份）。
+// 只认本脚本正式产物（commission.db.bak-<ISO 时间戳>），异名备份（bak.vN、bak-pre-*、bak.empty-* 等）一律不纳入轮转、绝不删除。
 // ============================================
 import { mkdirSync, readdirSync, unlinkSync } from 'fs'
 import { resolve, dirname, join } from 'path'
@@ -28,6 +29,11 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..') // 仓库
 const DB_PATH = process.env.DB_PATH || resolve(ROOT, 'data/commission.db')
 const BACKUP_DIR = process.env.BACKUP_DIR || resolve(ROOT, 'data/backups')
 const KEEP = 3 // 2026-08-11 拍板：DB 留存 3 份
+
+// 正式备份命名：commission.db.bak-<ISO 时间戳>，其中冒号和点替换为 -，
+// 例：commission.db.bak-2026-08-15T04-12-34-567Z。restore-db.ts / verify-backup.mjs /
+// rollback.ps1 / post-merge-deploy.ps1 的取最新与轮转均须与此模式等价。
+const OFFICIAL_BACKUP_RE = /^commission\.db\.bak-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/
 
 function main() {
   // ─── 1. 打开主库（只读验证 + 一致性快照）───
@@ -44,10 +50,15 @@ function main() {
   db.prepare(`VACUUM INTO '${escaped}'`).run()
   db.close()
 
-  // ─── 3. 保留策略：只留最近 KEEP 份 ───
-  const baks = readdirSync(BACKUP_DIR).filter(f => f.startsWith('commission.db.bak-')).sort()
-  while (baks.length > KEEP) {
-    unlinkSync(join(BACKUP_DIR, baks.shift()!))
+  // ─── 3. 保留策略：只留最近 KEEP 份（只匹配正式命名，绝不删除异名备份）───
+  const baks = readdirSync(BACKUP_DIR).filter(f => OFFICIAL_BACKUP_RE.test(f)).sort()
+  if (baks.length === 0) {
+    // 安全回退：读不到正式候选时跳过轮转，不删除任何文件（刚产出的 dst 正常情况下必在候选内）
+    console.warn('BACKUP_ROTATE skip: 未读取到正式备份候选，跳过轮转（不删除任何文件）')
+  } else {
+    while (baks.length > KEEP) {
+      unlinkSync(join(BACKUP_DIR, baks.shift()!))
+    }
   }
 
   console.log('BACKUP_OK', dst)
