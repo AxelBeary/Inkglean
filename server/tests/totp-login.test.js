@@ -2,7 +2,7 @@
 // 管理员建号 → 生成二维码 → 模拟绑定 → QQ+动态码登录成功；输错 5 次锁定；重置后旧密钥失效
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist } from './setup.js'
-import { createSession } from '../src/features/auth/auth.service.js'
+import { createSession, TOTP_LOCK_DURATION_MS } from '../src/features/auth/auth.service.js'
 import { computeTotp } from '../src/features/auth/totp.js'
 import { buildApp } from '../src/app.js'
 
@@ -83,16 +83,26 @@ describe('TOTP 登录端到端 (REQ-027)', () => {
     const secret = await bindInit(token, artist.id)
     await bindConfirm(token, artist.id, computeTotp(secret, Date.now()))
 
-    // 错 5 次
-    for (let i = 0; i < 5; i++) {
+    // 连续错 5 次：前 4 次普通失败（401 TOTP_INVALID），第 5 次触发锁定
+    for (let i = 0; i < 4; i++) {
       const res = await app.inject({
         method: 'POST',
         url: '/api/auth/verify',
         payload: { qqNumber: '77112', code: '000000' }
       })
-      // 前 4 次 TOTP_INVALID，第 5 次触发锁定
-      expect([401, 401]).toContain(res.statusCode)
+      expect(res.statusCode).toBe(401)
+      expect(res.json().code).toBe('TOTP_INVALID')
     }
+
+    // 第 5 次：登录路径锁定语义（路由对 !valid 固定 401，锁定以 code + remainingLockMs 区分）
+    const fifth = await app.inject({
+      method: 'POST',
+      url: '/api/auth/verify',
+      payload: { qqNumber: '77112', code: '000000' }
+    })
+    expect(fifth.statusCode).toBe(401)
+    expect(fifth.json().code).toBe('TOTP_LOCKED')
+    expect(fifth.json().detail.remainingLockMs).toBe(TOTP_LOCK_DURATION_MS)
 
     // 锁定后正确码也被拒
     const locked = await app.inject({
