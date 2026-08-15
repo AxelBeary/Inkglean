@@ -753,13 +753,26 @@ export function getPublicGallery(artistId: number): {
   }
 
   // 2. 可见画风下的尺寸 → 筛选标签 + 标注过滤集
+  // 815 P-1: N+1 → 按 art_style_id IN (...) 一次预取，内存分组（每组内保持 sort_order 排序）
   const filterSizes: PublicGallerySize[] = []
   const visibleSizeMap = new Map<number, PublicGalleryTag>()
+  const sizesByStyle = new Map<number, Array<{ id: number; name: string; sort_order: number }>>()
+  const styleIds = styles.map(s => s.id)
+  if (styleIds.length > 0) {
+    const sizePlaceholders = styleIds.map(() => '?').join(',')
+    const sizeRows = db.prepare(
+      `SELECT id, name, sort_order, art_style_id FROM style_sizes
+       WHERE art_style_id IN (${sizePlaceholders})
+       ORDER BY art_style_id ASC, sort_order ASC`
+    ).all(...styleIds) as Array<{ id: number; name: string; sort_order: number; art_style_id: number }>
+    for (const size of sizeRows) {
+      const list = sizesByStyle.get(size.art_style_id) ?? []
+      list.push(size)
+      sizesByStyle.set(size.art_style_id, list)
+    }
+  }
   for (const style of styles) {
-    const sizes = db.prepare(
-      'SELECT id, name, sort_order FROM style_sizes WHERE art_style_id = ? ORDER BY sort_order ASC'
-    ).all(style.id) as Array<{ id: number; name: string; sort_order: number }>
-    for (const size of sizes) {
+    for (const size of sizesByStyle.get(style.id) ?? []) {
       filterSizes.push({ id: size.id, name: size.name, style_id: style.id, style_name: style.name, sort_order: size.sort_order })
       visibleSizeMap.set(size.id, {
         style_size_id: size.id, size_name: size.name, style_id: style.id, style_name: style.name
@@ -779,11 +792,24 @@ export function getPublicGallery(artistId: number): {
     like_count: number; is_cover: number; width: number | null; height: number | null
   }>
 
-  const tagStmt = db.prepare(
-    'SELECT style_size_id FROM artwork_size_tags WHERE artwork_id = ?'
-  )
+  // 815 P-1: 标注子查询 → artwork_id IN (...) 一次预取，内存按作品分组
+  const tagRowsByArtwork = new Map<number, Array<{ style_size_id: number }>>()
+  const artworkIds = rows.map(r => r.id)
+  if (artworkIds.length > 0) {
+    const tagPlaceholders = artworkIds.map(() => '?').join(',')
+    const tagRows = db.prepare(
+      `SELECT artwork_id, style_size_id FROM artwork_size_tags
+       WHERE artwork_id IN (${tagPlaceholders})
+       ORDER BY artwork_id ASC, rowid ASC`
+    ).all(...artworkIds) as Array<{ artwork_id: number; style_size_id: number }>
+    for (const tag of tagRows) {
+      const list = tagRowsByArtwork.get(tag.artwork_id) ?? []
+      list.push({ style_size_id: tag.style_size_id })
+      tagRowsByArtwork.set(tag.artwork_id, list)
+    }
+  }
   const artworks: PublicGalleryArtwork[] = rows.map(row => {
-    const tagRows = tagStmt.all(row.id) as Array<{ style_size_id: number }>
+    const tagRows = tagRowsByArtwork.get(row.id) ?? []
     const sizeTags = tagRows
       .map(t => visibleSizeMap.get(t.style_size_id))
       .filter((t): t is PublicGalleryTag => !!t)
@@ -803,11 +829,20 @@ export function getPublicGallery(artistId: number): {
   return { artworks, filterSizes }
 }
 
-/** 解析作品引用图路径（v0.37 F1：image_artwork_id → artworks.image_path 实时引用） */
-function resolveArtworkImagePath(artworkId: number | null): string | null {
-  if (artworkId == null) return null
-  const row = db.prepare('SELECT image_path FROM artworks WHERE id = ?').get(artworkId) as { image_path: string } | undefined
-  return row?.image_path ?? null
+/**
+ * 批量解析作品引用图路径（v0.37 F1：image_artwork_id → artworks.image_path 实时引用）
+ * 815 P-1: 逐尺寸单查 → 一次 IN 预取，内存 Map 回查
+ */
+function resolveArtworkImagePaths(artworkIds: Array<number | null>): Map<number, string> {
+  const ids = [...new Set(artworkIds.filter((id): id is number => id != null))]
+  const map = new Map<number, string>()
+  if (ids.length === 0) return map
+  const placeholders = ids.map(() => '?').join(',')
+  const rows = db.prepare(
+    `SELECT id, image_path FROM artworks WHERE id IN (${placeholders})`
+  ).all(...ids) as Array<{ id: number; image_path: string }>
+  for (const row of rows) map.set(row.id, row.image_path)
+  return map
 }
 
 export interface PublicStyleAddon {
@@ -869,14 +904,36 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
     styles = styles.slice(0, 1)
   }
 
-  return styles.map(style => {
+  // 815 P-1: N+1 → 尺寸/增项/覆盖/引用图路径全部 IN 批量预取，内存分组组装
+  const styleIds = styles.map(s => s.id)
+  const sizesByStyle = new Map<number, StyleSize[]>()
+  const styleAddonsByStyle = new Map<number, Array<{
+    id: number; addon_template_id: number | null; price_override: number | null
+    tpl_name: string; tpl_control_type: string; tpl_price_mode: string
+    tpl_default_price: number; tpl_unit_label: string | null
+    tpl_category: string; tpl_max_quantity: number | null
+  }>>()
+  const overridesBySize = new Map<number, SizeAddonOverride[]>()
+  const allSizeRows: StyleSize[] = []
+
+  if (styleIds.length > 0) {
+    const stylePlaceholders = styleIds.map(() => '?').join(',')
+
     // v49 (REQ-036): 三态——closed 完全隐藏不返回；showcase 返回（带状态，前端禁「去约稿」）
-    const sizes = db.prepare(
-      "SELECT * FROM style_sizes WHERE art_style_id = ? AND display_status != 'closed' ORDER BY sort_order ASC"
-    ).all(style.id) as StyleSize[]
+    const sizeRows = db.prepare(
+      `SELECT * FROM style_sizes
+       WHERE art_style_id IN (${stylePlaceholders}) AND display_status != 'closed'
+       ORDER BY art_style_id ASC, sort_order ASC`
+    ).all(...styleIds) as StyleSize[]
+    allSizeRows.push(...sizeRows)
+    for (const size of sizeRows) {
+      const list = sizesByStyle.get(size.art_style_id) ?? []
+      list.push(size)
+      sizesByStyle.set(size.art_style_id, list)
+    }
 
     // 画风级增项（启用的；SPEC-PRICE-2 新维度；快照语义 v51：仅解绑行生效，绑定行以模板为权威）
-    const styleAddons = db.prepare(`
+    const addonRows = db.prepare(`
       SELECT sa.*,
              CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_name ELSE at.name END AS tpl_name,
              CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_control_type ELSE at.control_type END AS tpl_control_type,
@@ -887,20 +944,45 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
              CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_max_quantity ELSE at.max_quantity END AS tpl_max_quantity
       FROM style_addons sa
       LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
-      WHERE sa.art_style_id = ? AND sa.is_enabled = 1
-      ORDER BY (sa.addon_template_id IS NOT NULL) DESC, at.sort_order ASC, sa.id ASC
-    `).all(style.id) as Array<{
-      id: number; addon_template_id: number | null; price_override: number | null
+      WHERE sa.art_style_id IN (${stylePlaceholders}) AND sa.is_enabled = 1
+      ORDER BY sa.art_style_id ASC, (sa.addon_template_id IS NOT NULL) DESC, at.sort_order ASC, sa.id ASC
+    `).all(...styleIds) as Array<{
+      id: number; art_style_id: number; addon_template_id: number | null; price_override: number | null
       tpl_name: string; tpl_control_type: string; tpl_price_mode: string
       tpl_default_price: number; tpl_unit_label: string | null
       tpl_category: string; tpl_max_quantity: number | null
     }>
+    for (const addon of addonRows) {
+      const list = styleAddonsByStyle.get(addon.art_style_id) ?? []
+      list.push(addon)
+      styleAddonsByStyle.set(addon.art_style_id, list)
+    }
+  }
+
+  const allSizeIds = allSizeRows.map(s => s.id)
+  if (allSizeIds.length > 0) {
+    const sizePlaceholders = allSizeIds.map(() => '?').join(',')
+    const overrideRows = db.prepare(
+      `SELECT * FROM size_addon_overrides
+       WHERE style_size_id IN (${sizePlaceholders})
+       ORDER BY style_size_id ASC, id ASC`
+    ).all(...allSizeIds) as SizeAddonOverride[]
+    for (const override of overrideRows) {
+      const list = overridesBySize.get(override.style_size_id) ?? []
+      list.push(override)
+      overridesBySize.set(override.style_size_id, list)
+    }
+  }
+
+  const artworkPathMap = resolveArtworkImagePaths(allSizeRows.map(s => s.image_artwork_id))
+
+  return styles.map(style => {
+    const sizes = sizesByStyle.get(style.id) ?? []
+    const styleAddons = styleAddonsByStyle.get(style.id) ?? []
 
     const publicSizes: PublicStyleSize[] = sizes.map(size => {
       // 该尺寸下的覆盖
-      const overrides = db.prepare(
-        'SELECT * FROM size_addon_overrides WHERE style_size_id = ?'
-      ).all(size.id) as SizeAddonOverride[]
+      const overrides = overridesBySize.get(size.id) ?? []
       const overrideMap = new Map(overrides.map(o => [o.style_addon_id, o]))
 
       const addons: PublicStyleAddon[] = styleAddons
@@ -935,7 +1017,7 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
         // v0.37 F1: 尺寸图（image_artwork_id 有值时解析出作品图路径——实时引用，作品删了字段自动置空）
         image: size.image,
         image_artwork_id: size.image_artwork_id,
-        artwork_image_path: resolveArtworkImagePath(size.image_artwork_id),
+        artwork_image_path: size.image_artwork_id != null ? (artworkPathMap.get(size.image_artwork_id) ?? null) : null,
         description: size.description,
         work_days: size.work_days,
         display_status: size.display_status,
