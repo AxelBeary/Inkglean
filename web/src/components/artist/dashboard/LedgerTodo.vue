@@ -191,6 +191,18 @@ async function act(item: TodoItem) {
   }
   busy.value = true
   try {
+    if (verb.key === 'done' && item.nextStageId) {
+      // 815 审计 P1-2 修复：工作流单的"完成"=推进到下一节点（后端 R30d 拦直接改 done）；
+      // 推到末节点时后端自动置 done → 行沉底；未到底则重载拿新节点名
+      const updated = await artistApi.advanceStage(item.id, item.nextStageId)
+      if (updated.status === 'done') {
+        sinkRow(item)
+      } else {
+        await load()
+        startCooldown(item.id)
+      }
+      return
+    }
     const nextStatus = verb.key === 'confirm' ? 'confirmed' : verb.key === 'start' ? 'wip' : 'done'
     await artistApi.updateStatus(item.id, nextStatus)
     if (nextStatus === 'done') {

@@ -390,8 +390,96 @@ describe('合并待办列表 stageName（E3）', () => {
       status: 'wip',
       deadline: '2020-01-01 00:00:00',
       tag: '逾期',
-      stageName: '线稿'
+      stageName: '线稿',
+      // 815 审计 P1-2: 新增字段，单节点时 nextStageId 为 null
+      currentStageId: expect.any(Number),
+      nextStageId: null
     })
+  })
+})
+
+// ============================================
+// 815 审计 P1-2: 待办清单推进工作流单——todo 接口增补 currentStageId/nextStageId，
+// R30d 放行 confirmed/wip 纯状态流转；done 仍须走节点推进
+// ============================================
+
+describe('待办清单工作流字段（815 审计 P1-2）', () => {
+  let artist
+
+  beforeEach(() => {
+    cleanDb()
+    artist = seedArtist()
+  })
+
+  /** 建两个节点（草稿→线稿），订单挂到第一节点 */
+  function bindTwoStages(artistId, orderId) {
+    const s1 = db.prepare('INSERT INTO artist_workflow_stages (artist_id, name, sort_order) VALUES (?, ?, ?)').run(artistId, '草稿', 1)
+    const s2 = db.prepare('INSERT INTO artist_workflow_stages (artist_id, name, sort_order) VALUES (?, ?, ?)').run(artistId, '线稿', 2)
+    db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(s1.lastInsertRowid, orderId)
+    return { s1: Number(s1.lastInsertRowid), s2: Number(s2.lastInsertRowid) }
+  }
+
+  it('TC-DASH-26: 多节点工作流单 → currentStageId/nextStageId 正确下发；已是末节点 → nextStageId 为 null', () => {
+    const o = seedOrder(artist.id, { order_no: 'P12-001', status: 'wip' })
+    const { s1, s2 } = bindTwoStages(artist.id, o.id)
+
+    let result = dashboard.getTodoList(artist.id)
+    expect(result[0].currentStageId).toBe(s1)
+    expect(result[0].nextStageId).toBe(s2)
+
+    // 推到末节点后无下一节点
+    db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(s2, o.id)
+    result = dashboard.getTodoList(artist.id)
+    expect(result[0].currentStageId).toBe(s2)
+    expect(result[0].nextStageId).toBeNull()
+  })
+
+  it('TC-DASH-27: 无工作流单 → currentStageId/nextStageId 均为 null', () => {
+    seedOrder(artist.id, { order_no: 'P12-002', status: 'wip' })
+    const result = dashboard.getTodoList(artist.id)
+    expect(result[0].currentStageId).toBeNull()
+    expect(result[0].nextStageId).toBeNull()
+  })
+})
+
+describe('R30d 放行矩阵（815 审计 P1-2：工作流单纯状态流转）', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+  })
+
+  it('TC-DASH-28: 工作流单 confirmed/wip 放行、done 仍拦截', async () => {
+    const artist = seedArtist()
+    const o = seedOrder(artist.id, { order_no: 'P12-010', status: 'pending' })
+    const stage = db.prepare('INSERT INTO artist_workflow_stages (artist_id, name, sort_order) VALUES (?, ?, ?)').run(artist.id, '草稿', 1)
+    db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(stage.lastInsertRowid, o.id)
+    const token = createSession(artist.id, artist.token_version)
+    const put = (status) => app.inject({
+      method: 'PUT',
+      url: `/api/artist/orders/${o.id}/status`,
+      headers: { Authorization: `Bearer ${token}` },
+      payload: { status }
+    })
+
+    // pending → confirmed：纯状态流转，放行
+    const r1 = await put('confirmed')
+    expect(r1.statusCode).toBe(200)
+    // confirmed → wip：纯状态流转，放行
+    const r2 = await put('wip')
+    expect(r2.statusCode).toBe(200)
+    // wip → done：绕过节点推进，仍拦
+    const r3 = await put('done')
+    expect(r3.statusCode).toBe(400)
+    // 状态未被 r3 污染
+    const row = db.prepare('SELECT status FROM orders WHERE id = ?').get(o.id)
+    expect(row.status).toBe('wip')
   })
 })
 

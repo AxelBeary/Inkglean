@@ -38,7 +38,11 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
     }
   }, async (request: FastifyRequest) => {
     // R30d: 有 current_stage_id 的订单必须走 stage 接口（cancelled 除外）
-    if (request.order.current_stage_id && (request.body as { status: string }).status !== 'cancelled') {
+    // 815 审计 P1-2 修复：confirmed/wip 是纯状态流转（不触碰节点，状态机断言仍在服务层），
+    // 放行以支持仪表盘待办清单的轻量动作；done/delivered/revision 等仍须走 stage 接口
+    const body = request.body as { status: string }
+    const statusRouteAllowed = ['cancelled', 'confirmed', 'wip']
+    if (request.order.current_stage_id && !statusRouteAllowed.includes(body.status)) {
       throw new AppError(E.INVALID_TRANSITION, 400, { from: '流程模式', to: '请使用 PUT stage 接口' })
     }
     const { status, confirmPaidCancel, version } = request.body as { status: string; confirmPaidCancel?: boolean; version?: number }

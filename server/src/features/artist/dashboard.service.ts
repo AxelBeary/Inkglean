@@ -195,6 +195,10 @@ interface TodoOrder {
   updated_at: string
   /** E3: 当前工作流节点名（LEFT JOIN，无节点为 null，前端降级为既有措辞） */
   stage_name: string | null
+  /** 815 审计 P1-2: 当前工作流节点 id（无节点为 null，前端据此判流程单） */
+  current_stage_id: number | null
+  /** 815 审计 P1-2: 下一节点 id（已是末节点/无流程时为 null，前端推进用） */
+  next_stage_id: number | null
 }
 
 /**
@@ -209,10 +213,17 @@ export function getTodoList(artistId: number) {
 
   // 一次查出所有非终态订单（done 不算终态，仍有交付待办）
   // E3: 增补 stage_name（当前工作流节点名，只增字段不改语义；无节点为 null）
+  // 815 审计 P1-2: 增补 current_stage_id + next_stage_id（待办清单推进流程单需要下一节点 id）
   const orders = db.prepare(`
     SELECT o.id, o.order_no, o.client_name, o.status, o.deadline,
            o.created_at, o.updated_at,
-           ws.name AS stage_name
+           o.current_stage_id,
+           ws.name AS stage_name,
+           (SELECT s2.id FROM artist_workflow_stages s2
+            WHERE s2.artist_id = o.artist_id
+              AND o.current_stage_id IS NOT NULL
+              AND s2.sort_order > (SELECT s1.sort_order FROM artist_workflow_stages s1 WHERE s1.id = o.current_stage_id)
+            ORDER BY s2.sort_order ASC LIMIT 1) AS next_stage_id
     FROM orders o
     LEFT JOIN artist_workflow_stages ws ON ws.id = o.current_stage_id
     WHERE o.artist_id = ?
@@ -277,7 +288,9 @@ export function getTodoList(artistId: number) {
       status: o.status,
       deadline: o.deadline || null,
       tag,
-      stageName: o.stage_name || null
+      stageName: o.stage_name || null,
+      currentStageId: o.current_stage_id ?? null,
+      nextStageId: o.next_stage_id ?? null
     }
   })
 }

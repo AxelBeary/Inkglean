@@ -948,6 +948,10 @@ export interface TodoItem {
   tag: string
   /** E3: 当前工作流节点名（后端增补字段；旧服务端/无节点时缺失或 null，前端降级为既有措辞） */
   stageName?: string | null
+  /** 815 审计 P1-2: 当前工作流节点 id（无节点/旧服务端时缺失或 null） */
+  currentStageId?: number | null
+  /** 815 审计 P1-2: 下一节点 id（已是末节点/无流程时为 null，待办推进用） */
+  nextStageId?: number | null
 }
 
 export interface TodoResult {
