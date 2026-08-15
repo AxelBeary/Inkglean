@@ -685,7 +685,9 @@ export function getAnnouncement(artist: Artist): { text: string; expiresAt: stri
   if (!artist.announcement) return null
   if (artist.announcement_expires_at) {
     const expires = new Date(artist.announcement_expires_at)
-    if (expires.getTime() <= Date.now()) return null
+    // #8（拍板 2026-08-15）: 按日比较——到期日当天仍有效，过今天才算过期（零点数值比较，勿用日期字符串比大小）
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+    if (expires.getTime() < todayStart.getTime()) return null
   }
   return {
     text: artist.announcement,
