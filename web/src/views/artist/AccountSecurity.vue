@@ -297,7 +297,13 @@ async function verifyWithPasskey() {
     if (!credential) return null
     rebindPasskeyCredential.value = publicKeyCredentialToJSON(credential as PublicKeyCredential)
     const result = await totpRebindApi.rebindInit()
-    rebindQrDataUrl.value = 'qrDataUrl' in result ? result.qrDataUrl : null
+    // 815 审计 P1-1 修复：无二维码时明示错误，不再渲染残缺表单让用户盲输
+    if (result.verifyMethod !== 'passkey' || !result.qrDataUrl) {
+      ElMessage.error(t('account.totpRebindFailed'))
+      return PASSKEY_FLOW_HANDLED
+    }
+    rebindQrDataUrl.value = result.qrDataUrl
+    rebindTempKey.value = result.tempKey
     rebindStep.value = 'scan'
     return credential
   }, {
@@ -327,8 +333,10 @@ async function confirmRebind() {
       body.tempKey = rebindTempKey.value
       body.code = currentCode.value
     } else {
-      // passkey 路：confirm 携带 Step1 登录仪式 assertion（loginOptions + credentials.get 产出）交后端 verifyLogin；init 不再签发注册挑战
+      // passkey 路：confirm 携带 Step1 登录仪式 assertion（loginOptions + credentials.get 产出）交后端 verifyLogin；
+      // 815 审计 P1-1 修复：同时携带 init 阶段下发的 tempKey，后端消费暂存新密钥
       body.credential = rebindPasskeyCredential.value
+      body.tempKey = rebindTempKey.value
     }
     await totpRebindApi.rebindConfirm(body)
     rebindStep.value = 'done'

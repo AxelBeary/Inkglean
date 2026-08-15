@@ -256,7 +256,7 @@ describe('P2-F6 重绑链路安全加固', () => {
         headers,
         payload: { code: '000000' }
       })
-      expect([200, 401]).toContain(res.statusCode)
+      expect(res.statusCode).toBe(401)
     }
     const blocked = await app.inject({
       method: 'POST',
@@ -347,5 +347,56 @@ describe('P2-F6 重绑链路安全加固', () => {
     expect(row.totp_verified).toBe(1)
     const used = db.prepare('SELECT COUNT(*) AS c FROM totp_used_codes WHERE artist_id = ?').get(artist.id)
     expect(used.c).toBeGreaterThanOrEqual(1)
+  })
+})
+
+// 815 审计 P1-1 回归：有 Passkey 的画师 rebind-init 必须下发新密钥二维码（此前只回 verifyMethod，重绑 100% 不可用）
+describe('P1-1 回归：Passkey 用户重绑 init 下发新密钥', () => {
+  let app
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+  })
+  afterEach(async () => { await app.close() })
+
+  it('rebind-init 应返回 tempKey + otpauthUri，且密钥可算出合法 6 位码', async () => {
+    const artist = seedArtist({ qq_number: '99901', subdomain: 'p1-1-passkey', name: 'P1-1 回归画师' })
+    db.prepare(`
+      INSERT INTO webauthn_credentials (artist_id, credential_id, public_key, counter, device_name)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(artist.id, 'p1-1-cred', 'test-public-key', 0, 'P1-1 设备')
+    const token = createSession(artist.id, artist.token_version)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-init',
+      headers: { Authorization: 'Bearer ' + token }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.verifyMethod).toBe('passkey')
+    expect(typeof body.tempKey).toBe('string')
+    expect(body.tempKey.length).toBeGreaterThan(0)
+    expect(typeof body.otpauthUri).toBe('string')
+    const newSecret = body.otpauthUri.match(/secret=([A-Z2-7]+)/)[1]
+    expect(/^\d{6}$/.test(computeTotp(newSecret, Date.now()))).toBe(true)
+  })
+
+  it('confirm 无 tempKey 时不得现场生成密钥放行（passkey 校验失败 → 401）', async () => {
+    const artist = seedArtist({ qq_number: '99902', subdomain: 'p1-1-nokey', name: 'P1-1 无 tempKey 画师' })
+    db.prepare(`
+      INSERT INTO webauthn_credentials (artist_id, credential_id, public_key, counter, device_name)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(artist.id, 'p1-1-cred-2', 'test-public-key', 0, 'P1-1 设备 2')
+    const token = createSession(artist.id, artist.token_version)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-confirm',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: { credential: { id: 'fake' }, newCode: '123456' }
+    })
+    // 伪造 credential 过不了 verifyLogin；关键是不得 200（旧实现会现场生成密钥继续往下走）
+    expect(res.statusCode).not.toBe(200)
   })
 })
