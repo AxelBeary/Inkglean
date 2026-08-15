@@ -19,7 +19,7 @@
         <el-button type="primary" :loading="checking" @click="runChecks">
           {{ checking ? $t('admin.health.checking') : $t('admin.health.start') }}
         </el-button>
-        <el-button v-if="checks.length" @click="downloadReport">{{ $t('admin.health.download') }}</el-button>
+        <el-button v-if="checks.length" :loading="downloading" @click="downloadReport">{{ $t('admin.health.download') }}</el-button>
       </div>
     </div>
 
@@ -65,11 +65,16 @@
 import { ref, markRaw } from 'vue'
 import { adminApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import { useArtistStore } from '../../stores/artist.js'
 // v0.34 任务3：状态 emoji 改 SVG（保留状态语义色）
 import { CircleCheck, Warning, CircleClose, QuestionFilled, ArrowDown } from '@element-plus/icons-vue'
 
+const store = useArtistStore()
+const { t } = useI18n()
 const checks = ref([])
 const checking = ref(false)
+const downloading = ref(false)
 const expanded = ref([])
 
 const STATUS_ICON = { ok: markRaw(CircleCheck), warn: markRaw(Warning), fail: markRaw(CircleClose) }
@@ -96,9 +101,56 @@ async function runChecks() {
   }
 }
 
-function downloadReport() {
-  // httpOnly cookie 随同源 GET 请求自动携带，浏览器直接触发下载
-  window.location = '/api/admin/health/download'
+/** 从 Content-Disposition 解析下载文件名（后端返回 health-report-YYYY-MM-DD.json） */
+function filenameFromDisposition(header, fallback) {
+  const m = /filename="?([^";]+)"?/.exec(header || '')
+  return m ? m[1] : fallback
+}
+
+async function downloadReport() {
+  if (downloading.value) return
+  downloading.value = true
+  // 诊断包走 fetch+blob：失败仅页内报错，不再整页导航（参照 ToolsExport 下载实现）
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
+  try {
+    // httpOnly cookie 随同源 GET 请求自动携带；带 credentials 与拦截器语义一致
+    const res = await fetch('/api/admin/health/download', { credentials: 'include', signal: controller.signal })
+    if (!res.ok) {
+      // 401 → 与 axios 拦截器一致：清会话并跳登录
+      if (res.status === 401) {
+        store.logout()
+        window.location.href = '/login'
+        return
+      }
+      let msg = `HTTP ${res.status}`
+      try {
+        const data = await res.json()
+        if (data?.error) msg = data.error
+      } catch { /* 非 JSON 错误体，用状态码兜底 */ }
+      throw new Error(msg)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filenameFromDisposition(
+      res.headers.get('Content-Disposition'),
+      `health-report-${new Date().toISOString().slice(0, 10)}.json`
+    )
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(t('admin.health.downloaded'))
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      ElMessage.error(t('admin.health.downloadTimeout'))
+      return
+    }
+    ElMessage.error(err.message || t('admin.health.downloadFailed'))
+  } finally {
+    clearTimeout(timer)
+    downloading.value = false
+  }
 }
 </script>
 

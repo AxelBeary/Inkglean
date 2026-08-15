@@ -44,7 +44,13 @@
           <template #default="{ row }">
             <div class="row-actions">
               <el-button size="small" @click="openDialog(row)">{{ $t('admin.platform.edit') }}</el-button>
-              <el-button size="small" type="danger" plain @click="remove(row)">{{ $t('admin.platform.delete') }}</el-button>
+              <el-button
+                size="small" type="danger" plain
+                :loading="deletingId === row.id" :disabled="deletingId !== null"
+                @click="remove(row)"
+              >
+                {{ $t('admin.platform.delete') }}
+              </el-button>
             </div>
           </template>
         </el-table-column>
@@ -112,6 +118,8 @@ const loading = ref(false)
 const saving = ref(false)
 // b3 清扫：启用开关切换期间禁用，防连续触发
 const togglingId = ref(null)
+/** 删除请求在途锁（确认后行级 loading，防重复触发） */
+const deletingId = ref(null)
 const dialogVisible = ref(false)
 const editing = ref(false)
 const editId = ref(null)
@@ -206,12 +214,16 @@ async function remove(row) {
       { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
     )
   } catch { return }
+  if (deletingId.value !== null) return
+  deletingId.value = row.id
   try {
     const res = await adminApi.deletePlatform(row.id)
     ElMessage.success(t('admin.platform.deleted', { n: res?.reattributed ?? 0 }))
     await load()
   } catch (err) {
     ElMessage.error(err.message)
+  } finally {
+    deletingId.value = null
   }
 }
 

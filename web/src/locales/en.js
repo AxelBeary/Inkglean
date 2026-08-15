@@ -335,7 +335,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     basePrice: 'Base price',
     multiplierNote: 'Multipliers',
     optionPrice: 'Priced per option',
-    disclaimer: 'For reference only. Final price is based on the actual quote'
+    disclaimer: 'For reference only. Final price is based on the actual quote',
+    // 815 K2-5: keep the last result and surface the error instead of silently clearing
+    calcFailed: 'Price calculation failed. Keeping the last result'
   },
   // REQ-035 postponed tools: Social reply (tools page copy)
   reply: {
@@ -1049,7 +1051,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     bufferTag: 'Waitlist', bufferEmpty: 'No waitlist orders in the buffer zone',
     promote: 'Promote', promoted: 'Promoted to formal queue',
     slideToCancel: 'Slide to confirm cancellation', slideCancelConfirm: 'Confirm cancellation', statusUpdated: 'Status updated',
-    // 815 decision #1: paid-order cancel on queue side redirects to detail page for confirmation
+    // 815 decision #1: paid-order cancel now uses an inline second confirmation (see QueueBoardList doCancelWithUndo; key kept for compatibility)
     cancelPaidGoDetail: 'This order has payments. Please cancel from the order detail page after confirmation',
     advanceStage: 'Advance to next stage', stageAdvanced: 'Advanced to next stage',
     workflowLoadFailed: 'Failed to load workflow stages. The advance button is hidden. Please retry.',
@@ -1510,7 +1512,15 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     editDescPlaceholder: "Whose design, hours spent, techniques used… write freely",
     editTagsLabel: 'Size tags', editTagsEmptyHint: 'Pick the sizes this artwork belongs to',
     editTagsHint: 'Multi-select; clients can filter the gallery by size, and tags on the enlarged view preselect the order form',
-    editSaved: 'Artwork saved'
+    editSaved: 'Artwork saved',
+    // 815 K2-8: both serial saves must succeed; failures name the exact step
+    editInfoSaveFailed: 'Failed to save artwork info: {reason}',
+    editTagsSaveFailed: 'Failed to save size tags: {reason}',
+    // 815 K2-3: paste-upload isolation summary
+    pastePartial: 'Paste upload complete: {ok} uploaded, {failed} failed',
+    pasteFailedAll: 'Paste upload failed: {failed} file(s) not uploaded',
+    pasteFailTitle: 'These files failed to upload',
+    pasteFailLine: 'File "{name}": {reason}'
   },
   rules: {
     hint: 'Edit the commission guidelines clients must read before ordering. HTML tags supported.',
@@ -1784,6 +1794,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     health: {
       title: 'System Health', start: 'Run checks', checking: 'Checking…',
       download: 'Download diagnostic report', refresh: 'Results are not persisted after refresh',
+      downloaded: 'Diagnostic report downloaded', downloadFailed: 'Failed to download diagnostic report', downloadTimeout: 'Download timed out. Please retry.',
       diskNote: 'for reference only',
       statusOk: 'OK', statusWarn: 'Warning', statusFail: 'Failed',
       emptyHint: 'Click “Run checks” to execute the 8 system checks'

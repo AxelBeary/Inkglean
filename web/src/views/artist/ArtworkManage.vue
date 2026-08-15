@@ -527,7 +527,9 @@ async function openEditDialog(art) {
   editDialogVisible.value = true
 }
 
-/** 保存：两个 PUT 串行（后端无合并端点）；任一失败提示并刷新回显 */
+/** 保存：两个 PUT 串行（后端无合并端点）；两请求均成功才算成功。
+ *  第一步（标题/描述）失败 → 明确提示信息保存失败；
+ *  第一步成功但第二步（档位标注）失败 → 明确提示标注保存失败，并刷新回显已保存的信息（弹窗保持打开便于重试）。 */
 async function saveArtworkEdit() {
   editSaving.value = true
   try {
@@ -539,24 +541,54 @@ async function saveArtworkEdit() {
     if (res?.warning?.sensitiveWords?.length) {
       ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
     }
-    await artistApi.setArtworkTags(editingArtworkId.value, editForm.sizeIds)
+    try {
+      await artistApi.setArtworkTags(editingArtworkId.value, editForm.sizeIds)
+    } catch (err) {
+      ElMessage.error(t('artworks.editTagsSaveFailed', { reason: err.message }))
+      await loadArtworks() // 半成功不回显：信息已保存，刷新后如实回显
+      return
+    }
     ElMessage.success(t('artworks.editSaved'))
     editDialogVisible.value = false
     await loadArtworks()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error(t('artworks.editInfoSaveFailed', { reason: err.message }))
   } finally {
     editSaving.value = false
   }
 }
 
 async function handlePasteArtworkFiles(files) {
+  // 逐文件隔离：单个失败不中断后续文件；成功照常入库，失败列出文件名+原因
+  const failedLines = []
+  let okCount = 0
   for (const file of files) {
-    await publishArtworkFile(file)
+    try {
+      await publishArtworkFile(file)
+      okCount += 1
+    } catch (err) {
+      failedLines.push(t('artworks.pasteFailLine', {
+        name: file.name,
+        reason: err.message || t('common.uploadFailed')
+      }))
+    }
   }
-  ElMessage.success(t('artworks.uploaded'))
-  await loadArtworks()
-  trackEvent('artist_action', { action: 'artwork_publish', source: 'paste' })
+  if (okCount > 0) {
+    await loadArtworks()
+    trackEvent('artist_action', { action: 'artwork_publish', source: 'paste' })
+  }
+  if (failedLines.length === 0) {
+    ElMessage.success(t('artworks.uploaded'))
+    return
+  }
+  // 结束汇总：全部失败 / 部分失败均列出原因
+  const title = okCount > 0
+    ? t('artworks.pastePartial', { ok: okCount, failed: failedLines.length })
+    : t('artworks.pasteFailedAll', { failed: failedLines.length })
+  await ElMessageBox.alert(failedLines.join('\n'), title, {
+    type: 'warning',
+    confirmButtonText: t('common.confirm')
+  })
 }
 
 onMounted(async () => {

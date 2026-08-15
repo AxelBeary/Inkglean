@@ -107,17 +107,6 @@ function dayRatio(count) {
   return Math.round((count / total) * 100)
 }
 
-async function loadSummary() {
-  loading.value = true
-  try {
-    summary.value = await adminApi.getTrackingSummary(days.value)
-  } catch (err) {
-    ElMessage.error(err.message)
-  } finally {
-    loading.value = false
-  }
-}
-
 async function onModeChange(v) {
   const prev = statsMode.value
   savingVisible.value = true
@@ -134,19 +123,39 @@ async function onModeChange(v) {
   }
 }
 
+// 天数快切竞态守卫：仅最新一次请求可写 summary/loading（对齐项目 seq 模式）
+let summarySeq = 0
+async function loadSummary() {
+  const mySeq = ++summarySeq
+  loading.value = true
+  try {
+    const res = await adminApi.getTrackingSummary(days.value)
+    if (mySeq !== summarySeq) return
+    summary.value = res
+  } catch (err) {
+    if (mySeq !== summarySeq) return
+    ElMessage.error(err.message)
+  } finally {
+    if (mySeq === summarySeq) loading.value = false
+  }
+}
+
 onMounted(async () => {
+  const mySeq = ++summarySeq
   loading.value = true
   try {
     const [s, cfg] = await Promise.all([
       adminApi.getTrackingSummary(days.value),
       adminApi.getTrackingConfig()
     ])
+    if (mySeq !== summarySeq) return
     summary.value = s
     statsMode.value = cfg.statsMode || 'hidden'
   } catch (err) {
+    if (mySeq !== summarySeq) return
     ElMessage.error(err.message)
   } finally {
-    loading.value = false
+    if (mySeq === summarySeq) loading.value = false
   }
 })
 </script>

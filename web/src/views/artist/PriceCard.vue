@@ -103,7 +103,7 @@
 import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { formatYuan } from '../../utils/money.js'
+import { formatYuan, yuanToCents } from '../../utils/money.js'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 import { INK_PALETTE } from '../../utils/ink-palette.js'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
@@ -236,7 +236,7 @@ async function copyText() {
   if (!validate()) return
   const lines = [form.title.trim(), '']
   filledTiers().forEach((tier) => {
-    const price = formatYuan(Math.round(Number(tier.priceYuan) * 100))
+    const price = formatYuan(yuanToCents(tier.priceYuan))
     const note = tier.note.trim()
     lines.push(note ? `${tier.name.trim()}  ${price}  ${note}` : `${tier.name.trim()}  ${price}`)
   })
@@ -333,7 +333,7 @@ function drawCard(ctx, canvas, img) {
 
   filledTiers().forEach((tier, i) => {
     const name = tier.name.trim()
-    const price = formatYuan(Math.round(Number(tier.priceYuan) * 100))
+    const price = formatYuan(yuanToCents(tier.priceYuan))
     const note = tier.note.trim()
     ctx.fillStyle = INK
     ctx.textAlign = 'left'

@@ -435,14 +435,6 @@ onMounted(() => {
   // I0: 待确认订单角标轮询（5 分钟；页面隐藏暂停，可见立即刷新——visibilitychange）
   startPendingOrderPolling()
   document.addEventListener('visibilitychange', onVisibilityChange)
-  // #1: 侧边栏待审核留言角标（调一次 messages，失败静默——角标非关键路径）
-  if (store.loggedIn) {
-    // G-8（F-2 适配）: 后端改分页响应 { items, total, page, pageSize }；
-    // 角标取最新一页（pageSize=100 为后端上限），超量时可能低估——角标非关键路径可接受
-    artistApi.getMessages({ pageSize: 100 })
-      .then(res => { pendingMsgCount.value = (res.items || []).filter(m => m.status === 'pending').length })
-      .catch(() => {})
-  }
 })
 onUnmounted(() => {
   mqNarrow.removeEventListener('change', onNarrowChange)
@@ -465,10 +457,25 @@ async function refreshPendingOrderCount() {
   } catch { /* 轮询失败静默，下次再试 */ }
 }
 
+/** 留言待审角标：与订单角标同款轮询（同频率、同可见性暂停），口径对齐 */
+async function refreshPendingMsgCount() {
+  if (!store.loggedIn) return
+  try {
+    // G-8（F-2 适配）: 后端改分页响应 { items, total, page, pageSize }；
+    // 角标取最新一页（pageSize=100 为后端上限），超量时可能低估——角标非关键路径可接受
+    const res = await artistApi.getMessages({ pageSize: 100 })
+    pendingMsgCount.value = (res.items || []).filter(m => m.status === 'pending').length
+  } catch { /* 轮询失败静默，下次再试 */ }
+}
+
 function startPendingOrderPolling() {
   stopPendingOrderPolling()
   refreshPendingOrderCount()
-  pendingOrderTimer = setInterval(refreshPendingOrderCount, PENDING_ORDER_POLL_MS)
+  refreshPendingMsgCount()
+  pendingOrderTimer = setInterval(() => {
+    refreshPendingOrderCount()
+    refreshPendingMsgCount()
+  }, PENDING_ORDER_POLL_MS)
 }
 
 function stopPendingOrderPolling() {

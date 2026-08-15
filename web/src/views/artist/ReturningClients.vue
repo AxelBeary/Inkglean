@@ -51,16 +51,21 @@ const loading = ref(false)
 
 const formatDate = (str) => formatDateTimeShort(str)
 
+// 天数快切竞态守卫：仅最新一次请求可写 items/loading（对齐项目 seq 模式）
+let clientsSeq = 0
 async function loadClients() {
+  const mySeq = ++clientsSeq
   loading.value = true
   try {
     const res = await artistApi.getReturningClients(days.value)
+    if (mySeq !== clientsSeq) return
     items.value = res.items || []
   } catch (err) {
+    if (mySeq !== clientsSeq) return
     items.value = []
     ElMessage.error(err.message || t('returning.loadFailed'))
   } finally {
-    loading.value = false
+    if (mySeq === clientsSeq) loading.value = false
   }
 }
 
