@@ -1,12 +1,32 @@
 ﻿/* eslint-disable no-console -- 种子脚本按约定豁免（CLI 输出是脚本本职，源头防屎门禁豁免项） */
 import db from './connection.js'
 import { initDatabase } from './init.js'
+import { pathToFileURL } from 'url'
 
 // ============================================
 // 种子数据 - 用于开发测试
 // ============================================
 
-const seed = async () => {
+/**
+ * L-6（审计 四#3）: 环境守卫——误跑生产会删除演示价格数据并 REPLACE 覆盖管理员配置。
+ * NODE_ENV=production 默认拒绝；显式 --force-production 才放行（console 警告说明后果）。
+ * 独立函数便于回归测试注入 env/argv。
+ */
+export function assertSeedAllowed(env: NodeJS.ProcessEnv = process.env, argv: string[] = process.argv): void {
+  if (env.NODE_ENV !== 'production') return
+  if (argv.includes('--force-production')) {
+    console.warn('⚠️  生产环境显式 --force-production：seed 将删除演示画师价格数据并覆盖 platform_config.admin_qq，请确认这是有意操作')
+    return
+  }
+  console.warn('🚫 NODE_ENV=production 下拒绝执行 seed：该脚本会删除/覆盖生产价格数据与管理员配置（审计 四#3），已中止')
+  console.warn('   如确需执行，请显式追加 --force-production 参数')
+  throw new Error('SEED_BLOCKED_IN_PRODUCTION')
+}
+
+export const seed = async () => {
+  // 守卫必须在任何数据库写入之前执行
+  assertSeedAllowed()
+
   // 确保表结构存在（seed 可独立运行，无需先手动 db:init）
   initDatabase(db)
 
@@ -80,4 +100,17 @@ const seed = async () => {
   console.log('✅ 种子数据插入完成')
 }
 
-seed()
+// CLI 直接执行时自动运行（tsx 转发脚本时脚本路径可能落在 argv[1] 或 argv[2]）
+const isMain = process.argv.slice(1).some((a) => {
+  try {
+    return pathToFileURL(a).href === import.meta.url
+  } catch {
+    return false
+  }
+})
+if (isMain) {
+  seed().catch((err: unknown) => {
+    console.error(err instanceof Error ? err.message : err)
+    process.exit(1)
+  })
+}

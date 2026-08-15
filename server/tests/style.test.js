@@ -301,6 +301,19 @@ describe('尺寸 CRUD (style_sizes)', () => {
     expect(updated.base_price).toBe(300)
   })
 
+  // L-10（审计 九#2）: 校验与写入同事务——name 先写、后置校验失败须整体回滚，不留半态
+  it('TC-SS-03b: 后置校验失败时 name 变更一并回滚（L-10）', () => {
+    const size = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
+    expect(() => styleService.updateStyleSize(artist.id, style.id, size.id, {
+      name: '半态新名',
+      display_status: 'bogus'
+    })).toThrow('VALIDATION')
+
+    const row = db.prepare('SELECT name, display_status FROM style_sizes WHERE id = ?').get(size.id)
+    expect(row.name).toBe('头像')
+    expect(row.display_status).toBe('available')
+  })
+
   it('TC-SS-04: 删除尺寸 — 级联删覆盖', () => {
     const size = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
     const tpl = styleService.createAddonTemplate(artist.id, { name: '加人', default_price: 100 })

@@ -932,16 +932,16 @@ describe('订单服务 (Order Service)', () => {
     expect(completed[0].status).toBe('delivered')
   })
 
-  // TC-O-36b: 超过 N 天的 delivered 订单不出现
-  it('TC-O-36b: getCompletedQueue 过滤超期订单', () => {
+  // TC-O-36b: 超过 N 天的 delivered 订单不出现（L-13 口径：completed_at 判定）
+  it('TC-O-36b: getCompletedQueue 过滤超期订单（completed_at 超窗）', () => {
     const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
     orderService.updateOrderStatus(o1.id, 'confirmed')
     orderService.updateOrderStatus(o1.id, 'wip')
     orderService.updateOrderStatus(o1.id, 'done')
     orderService.updateOrderStatus(o1.id, 'delivered')
 
-    // 手动把 updated_at 改到 8 天前
-    db.prepare("UPDATE orders SET updated_at = datetime('now', '-8 days') WHERE id = ?").run(o1.id)
+    // 手动把 completed_at 改到 8 天前（旧口径曾以 updated_at 判定，任意写操作会复活展示）
+    db.prepare("UPDATE orders SET completed_at = datetime('now', '-8 days'), updated_at = datetime('now') WHERE id = ?").run(o1.id)
 
     const completed = orderQueueService.getCompletedQueue(artist.id, 7)
     expect(completed).toHaveLength(0)
@@ -968,6 +968,51 @@ describe('订单服务 (Order Service)', () => {
 
     const completed = orderQueueService.getCompletedQueue(artist.id)
     expect(completed).toHaveLength(0)
+  })
+
+  // L-13（审计 九#7）: 沉底窗口以 completed_at 判定——任意写操作刷新 updated_at 不再复活展示
+  it('TC-O-36e: 完成区沉底以 completed_at 判定，updated_at 被刷新不复活（L-13）', () => {
+    const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.updateOrderStatus(o1.id, 'confirmed')
+    orderService.updateOrderStatus(o1.id, 'wip')
+    orderService.updateOrderStatus(o1.id, 'done')
+    orderService.updateOrderStatus(o1.id, 'delivered')
+    // completed_at 已超过窗口，但 updated_at 被后续写操作刷新到今天
+    db.prepare("UPDATE orders SET completed_at = datetime('now', '-8 days'), updated_at = datetime('now') WHERE id = ?").run(o1.id)
+
+    const completed = orderQueueService.getCompletedQueue(artist.id, 7)
+    expect(completed).toHaveLength(0)
+
+    // 无 completed_at 的存量订单回落 updated_at（兼容口径）
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
+    orderService.updateOrderStatus(o2.id, 'confirmed')
+    orderService.updateOrderStatus(o2.id, 'wip')
+    orderService.updateOrderStatus(o2.id, 'done')
+    orderService.updateOrderStatus(o2.id, 'delivered')
+    db.prepare('UPDATE orders SET completed_at = NULL, updated_at = datetime(\'now\') WHERE id = ?').run(o2.id)
+    const completed2 = orderQueueService.getCompletedQueue(artist.id, 7)
+    expect(completed2.map(o => o.id)).toEqual([o2.id])
+  })
+
+  // L-3（审计 三#6）: 终态订单拒绝调优先级（防 updated_at 复活完成区沉底窗口）
+  it('TC-O-36f: delivered/cancelled 订单 updatePriority 拒绝（L-3）', () => {
+    const o1 = orderService.createOrder({ artistId: artist.id, clientQq: '111' })
+    orderService.updateOrderStatus(o1.id, 'confirmed')
+    orderService.updateOrderStatus(o1.id, 'wip')
+    orderService.updateOrderStatus(o1.id, 'done')
+    orderService.updateOrderStatus(o1.id, 'delivered')
+    const o2 = orderService.createOrder({ artistId: artist.id, clientQq: '222' })
+    orderService.updateOrderStatus(o2.id, 'cancelled')
+
+    const v1 = db.prepare('SELECT version, priority, updated_at FROM orders WHERE id = ?').get(o1.id)
+    const v2 = db.prepare('SELECT version, priority, updated_at FROM orders WHERE id = ?').get(o2.id)
+    expect(() => orderQueueService.updatePriority(o1.id, 'high')).toThrow('INVALID_TRANSITION')
+    expect(() => orderQueueService.updatePriority(o2.id, 'high')).toThrow('INVALID_TRANSITION')
+    // 拒绝后无任何写痕迹（version/updated_at 不变，不会重置沉底窗口）
+    const a1 = db.prepare('SELECT version, priority, updated_at FROM orders WHERE id = ?').get(o1.id)
+    const a2 = db.prepare('SELECT version, priority, updated_at FROM orders WHERE id = ?').get(o2.id)
+    expect(a1).toEqual(v1)
+    expect(a2).toEqual(v2)
   })
 
   // ─── P0-3a: 正式队列不含缓冲订单 ───

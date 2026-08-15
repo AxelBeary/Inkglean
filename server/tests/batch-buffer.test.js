@@ -185,12 +185,15 @@ describe('SPEC-004 名额与缓冲系统', () => {
 
     // 默认显示位次
     let res = await app.inject({ method: 'GET', url: `/api/orders/track/BT-001?token=${bt1.customerToken}` })
-    expect(res.json().queueDisplay).toBe('排队中（第 1 位）')
+    // L-5（审计 七#1）: 后端只下发状态键+位次，文案由前端 i18n 渲染
+    expect(res.json().queueStatus).toBe('queued')
+    expect(res.json().queuePosition).toBe(1)
 
     // 隐藏位次
     db.prepare('UPDATE artists SET hide_queue_position = 1 WHERE id = ?').run(artist.id)
     res = await app.inject({ method: 'GET', url: `/api/orders/track/BT-001?token=${bt1.customerToken}` })
-    expect(res.json().queueDisplay).toBe('排队中')
+    expect(res.json().queueStatus).toBe('queued')
+    expect(res.json().queuePosition).toBeNull()
   })
 
   // ─── 9. 画师调大 N ───
@@ -258,7 +261,8 @@ describe('SPEC-004 名额与缓冲系统', () => {
 
     // 第二个位次查询
     const res = await app.inject({ method: 'GET', url: `/api/orders/track/BT-011?token=${bt11.customerToken}` })
-    expect(res.json().queueDisplay).toBe('排队中（第 1 位）')
+    expect(res.json().queueStatus).toBe('queued')
+    expect(res.json().queuePosition).toBe(1)
   })
 
   // ─── 12. 画师直接接缓冲单 ───

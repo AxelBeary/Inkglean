@@ -54,14 +54,15 @@ function signOrderUrls(order: OrderDetail): OrderDetail {
  * 所有返回单个订单的画师端点必须走本函数，否则前端 order.value 覆盖后
  * paidTotalCents 变 undefined → 收款区归零、installments 丢失。
  */
-export function enrichOrderForArtist(order: OrderDetail): OrderDetail {
+export function enrichOrderForArtist(order: OrderDetail, artistId?: number): OrderDetail {
   // H-1 修复：画师端也返回签名 URL（references + deliverables 非公开目录）
   const signed = signOrderUrls(order)
   // R30d: 附加流程进度信息
-  const stageInfo = orderWorkflowService.getStageInfo(signed)
+  // L-4（审计 三#10）: 路由层显式透传画师归属，服务层按归属过滤节点
+  const stageInfo = orderWorkflowService.getStageInfo(signed, artistId)
   if (stageInfo) Object.assign(signed, stageInfo)
   // plan-node-speech: 话术 + 客户沟通数据
-  const speechInfo = orderWorkflowService.getSpeechInfo(signed)
+  const speechInfo = orderWorkflowService.getSpeechInfo(signed, artistId)
   Object.assign(signed, speechInfo)
   // B7: 额度池 — 已付/待收 + 分期推算状态
   const finalCents = signed.final_price_cents ?? signed.total_price_cents ?? null

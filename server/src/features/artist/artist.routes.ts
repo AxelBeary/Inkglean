@@ -516,7 +516,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
               type: 'object', required: ['id', 'basisPoints'], additionalProperties: false,
               properties: {
                 id: { type: 'integer' },
-                basisPoints: { type: 'integer', minimum: 500, maximum: 9500 }
+                // L-11（审计 九#4）: 与 savePayment/默认模板共用同一上限常量
+                basisPoints: { type: 'integer', minimum: 500, maximum: workflowService.MAX_NON_FINAL_BP }
               }
             }
           }

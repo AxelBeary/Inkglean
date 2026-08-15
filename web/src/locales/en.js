@@ -853,6 +853,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     orderNo: 'Order No.',
     artist: 'Artist', type: 'Type',
     positionText: '#{pos} of {total}', orderTime: 'Order time',
+    // L-5 (audit 7#1): buffer-queue copy driven by queueStatus key (no hardcoded text from API)
+    queued: 'In queue', queuedPosition: 'In queue (#{pos})',
     stepSubmitted: 'Submitted', stepConfirmed: 'Confirmed', stepWip: 'In progress', stepDone: 'Done', stepDelivered: 'Delivered',
     deliverables: 'Delivered files', otherOrder: 'Track another order',
     // SPEC-003: price & payments

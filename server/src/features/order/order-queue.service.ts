@@ -92,14 +92,16 @@ export function getCompletedQueue(artistId: number, days: number = 7): ArtistOrd
   // SQLite 日期用空格格式（YYYY-MM-DD HH:MM:SS），ISO 的 T 致比较错误
   const cutoff = new Date(Date.now() - days * 86_400_000)
     .toISOString().replace('T', ' ').slice(0, 19)
+  // L-13（审计 九#7）: 沉底窗口以 completed_at 判定（任意写操作不再刷新 updated_at 复活展示），
+  // 无 completed_at 的存量订单回落 updated_at
   return db.prepare(`
     SELECT o.*, (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
     LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     WHERE o.artist_id = ? AND o.status = 'delivered'
-      AND o.updated_at >= ?
-    ORDER BY o.updated_at DESC
+      AND COALESCE(o.completed_at, o.updated_at) >= ?
+    ORDER BY COALESCE(o.completed_at, o.updated_at) DESC
   `).all(artistId, cutoff) as ArtistOrderRow[]
 }
 
@@ -113,6 +115,11 @@ export function updatePriority(orderId: number, priority: string): OrderDetail {
 
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
+
+  // L-3（审计 三#6）: 终态订单不可调优先级——否则刷新 updated_at 会重置完成区 7 天沉底窗口
+  if (['delivered', 'cancelled'].includes(order.status)) {
+    throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: 'priority' })
+  }
 
   // F5: 优先级写路径递增 version（对齐 reorderQueue/addPayment 相对增量写法）
   db.prepare('UPDATE orders SET priority = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')

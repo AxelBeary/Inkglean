@@ -200,12 +200,15 @@ export function enableTracking(orderId: number, expectedVersion?: number): Order
 /**
  * 获取订单的流程进度信息（供路由层拼装响应）
  */
-export function getStageInfo(order: OrderDetail): { currentStageId: number; currentStageName: string; stageProgress: { current: number; total: number } } | null {
+export function getStageInfo(order: OrderDetail, artistId?: number): { currentStageId: number; currentStageName: string; stageProgress: { current: number; total: number } } | null {
   if (!order.current_stage_id) return null
 
+  // L-4（审计 三#10）: 归属过滤纵深防御——调用方显式传 artistId（路由层 request.artist.id），
+  // 缺省回落 order.artist_id，杜绝按 stage id 直查跨画师节点
+  const ownerId = artistId ?? order.artist_id
   const stages = db.prepare(
     'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
-  ).all(order.artist_id) as WorkflowStage[]
+  ).all(ownerId) as WorkflowStage[]
   const currentIdx = stages.findIndex(s => s.id === order.current_stage_id)
   if (currentIdx === -1) return null
 
@@ -280,7 +283,7 @@ interface SpeechInfoResult {
  * 返回：{ speechText, clientQq, totalPriceCents, paidCents, unpaidCents }
  * 无 current_stage_id 时 speechText 为 null
  */
-export function getSpeechInfo(order: OrderDetail): SpeechInfoResult {
+export function getSpeechInfo(order: OrderDetail, artistId?: number): SpeechInfoResult {
   // B7: 已付金额改读 paid_total_cents
   const paidCents = order.paid_total_cents ?? 0
 
@@ -299,9 +302,11 @@ export function getSpeechInfo(order: OrderDetail): SpeechInfoResult {
     return { ...base, speechText: null }
   }
 
+  // L-4（审计 三#10）: 归属过滤纵深防御——stage id 查询必须同时匹配画师归属
+  const ownerId = artistId ?? order.artist_id
   const stage = db.prepare(
-    'SELECT name, speech_template, random_template FROM artist_workflow_stages WHERE id = ?'
-  ).get(order.current_stage_id) as { name: string; speech_template: string | null; random_template: number } | undefined
+    'SELECT name, speech_template, random_template FROM artist_workflow_stages WHERE id = ? AND artist_id = ?'
+  ).get(order.current_stage_id, ownerId) as { name: string; speech_template: string | null; random_template: number } | undefined
   if (!stage) {
     return { ...base, speechText: null }
   }

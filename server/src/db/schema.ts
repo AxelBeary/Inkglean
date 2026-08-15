@@ -265,15 +265,29 @@ CREATE TABLE IF NOT EXISTS order_payments (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
--- 问候语模板表（v6）
+-- 问候特别日表（v64；date_key 形如 'MM-DD' 年重复，artist_id NULL=全平台）
+CREATE TABLE IF NOT EXISTS greeting_special_days (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  date_key   TEXT NOT NULL CHECK(date_key GLOB '[0-1][0-9]-[0-3][0-9]'),
+  artist_id  INTEGER,
+  is_enabled INTEGER NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+);
+
+-- 问候语模板表（v6；v64 重建后基线：time_slot CHECK 含 latenight + special_day_id 列与外键）
 CREATE TABLE IF NOT EXISTS greeting_templates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   artist_id INTEGER,
   text TEXT NOT NULL,
-  time_slot TEXT NOT NULL DEFAULT 'any' CHECK(time_slot IN ('morning','afternoon','evening','night','any')),
+  time_slot TEXT NOT NULL DEFAULT 'any'
+             CHECK(time_slot IN ('morning','afternoon','evening','night','latenight','any')),
   is_enabled INTEGER NOT NULL DEFAULT 1,
+  special_day_id INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
+  FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
+  FOREIGN KEY (special_day_id) REFERENCES greeting_special_days(id) ON DELETE CASCADE
 );
 
 -- 价格倍率表（历史遗留：迁移 v9-v49 依赖此表存在；v50（SPEC-PRICE-2）DROP 移除，

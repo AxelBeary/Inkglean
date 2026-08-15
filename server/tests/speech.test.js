@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import * as wf from '../src/features/artist/workflow.service.js'
-import { replaceSpeechVars, getSpeechInfo } from '../src/features/order/order-workflow.service.js'
+import { replaceSpeechVars, getSpeechInfo, getStageInfo } from '../src/features/order/order-workflow.service.js'
 
 // ============================================
 // plan-node-speech: 节点话术 + 变量替换 + 客户沟通数据
@@ -241,5 +241,23 @@ describe('客户沟通数据 (getSpeechInfo)', () => {
 
     const info = getSpeechInfo(order)
     expect(info.speechText).toBe('嗨赵六！ALICE-099已到定稿阶段，预计9月15日前完成~')
+  })
+
+  // L-4（审计 三#10）: stage id 查询必须带画师归属过滤（纵深防御）
+  it('TC-SP-16: 跨画师 stage id 按 artistId 过滤为不存在（L-4）', () => {
+    seed(artist.id)
+    const other = seedArtist({ qq_number: '22333', subdomain: 'other-speech' })
+    seed(other.id)
+    const otherStage = wf.getWorkflow(other.id)[0]
+
+    const order = seedOrder(artist.id)
+    order.current_stage_id = otherStage.id
+
+    // 显式传本画师 id → 跨画师节点视为不存在（话术与进度都按归属过滤）
+    const info = getSpeechInfo(order, artist.id)
+    expect(info.speechText).toBeNull()
+    expect(getStageInfo(order, artist.id)).toBeNull()
+    // 缺省回落 order.artist_id，同口径
+    expect(getSpeechInfo(order).speechText).toBeNull()
   })
 })

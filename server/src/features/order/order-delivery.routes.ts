@@ -46,7 +46,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
 
     const result = orderGalleryService.deliverOrder(request.order.id, filePath, fileName ?? null, fileSize ?? null, version)
     // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
-    return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
+    return { ...enrichOrderForArtist(result.order, request.artist.id), statusChanged: result.statusChanged }
   })
 
   /**
@@ -60,7 +60,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
     const result = orderGalleryService.deliverOrderWithoutFile(request.order.id, parseOptionalVersion(request.body))
     // R19 + B1: 交付返回的订单统一增强（含 notes 签名 + 收款字段）
-    return { ...enrichOrderForArtist(result.order), statusChanged: result.statusChanged }
+    return { ...enrichOrderForArtist(result.order, request.artist.id), statusChanged: result.statusChanged }
   })
 
   /**
@@ -73,7 +73,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
     if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
     orderGalleryService.repermitDeliverable(request.order.id, fileId)
-    return enrichOrderForArtist(orderService.getOrder(request.order.id)!)
+    return enrichOrderForArtist(orderService.getOrder(request.order.id)!, request.artist.id)
   })
 
   /**
@@ -135,7 +135,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
 
     // R18: 画师加图标记 source='artist'（显式传值，不依赖 DEFAULT）
     orderGalleryService.addReference(request.order.id, filePath, fileName ?? null, fileSize ?? null, 'artist')
-    return enrichOrderForArtist(orderService.getOrder(request.order.id) as OrderDetail)
+    return enrichOrderForArtist(orderService.getOrder(request.order.id) as OrderDetail, request.artist.id)
   })
 
   // ─── v0.11 R4: 焦点图 ───
@@ -166,7 +166,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     }
     const order = orderGalleryService.setFocusImage(request.order.id, imagePath ?? null, mode)
     // Bug fix + B1: setFocusImage 返回的订单统一增强（与 GET orders/:id 一致）
-    return enrichOrderForArtist(order)
+    return enrichOrderForArtist(order, request.artist.id)
   })
 
   /**
@@ -179,7 +179,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     const refId = parseInt((request.params as { refId: string }).refId, 10)
     if (isNaN(refId)) throw new AppError(E.ORDER_INVALID_ID)
     // B1: 统一增强（此前连签名都没有，删图后前端直接覆盖 → 同样丢字段）
-    return enrichOrderForArtist(orderGalleryService.removeReference(request.order.id, refId))
+    return enrichOrderForArtist(orderGalleryService.removeReference(request.order.id, refId), request.artist.id)
   })
 
   // ─── R30d: 流程状态机 ───
@@ -206,7 +206,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     const { stageId, version } = request.body as { stageId: number | null; version?: number }
     const order = orderWorkflowService.advanceStage(request.order.id, stageId, version)
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
-    return enrichOrderForArtist(order)
+    return enrichOrderForArtist(order, request.artist.id)
   })
 
   /**
@@ -219,7 +219,7 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     // D-1（R-5）: 乐观锁版本（不传 = 兼容期服务层取当前版本，行为不变）
     const order = orderWorkflowService.enableTracking(request.order.id, parseOptionalVersion(request.body))
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
-    return enrichOrderForArtist(order)
+    return enrichOrderForArtist(order, request.artist.id)
   })
 
   /**
@@ -244,6 +244,6 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
     const { stageId, version } = request.body as { stageId: number; version?: number }
     const order = orderWorkflowService.rollbackStage(request.order.id, stageId, version)
     // B1: 统一增强（stageInfo 已含于 enrichOrderForArtist）
-    return enrichOrderForArtist(order)
+    return enrichOrderForArtist(order, request.artist.id)
   })
 }
