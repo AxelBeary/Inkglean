@@ -25,7 +25,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('compliance.report.targetId')">
+        <el-form-item :label="$t('compliance.report.targetId')" prop="targetId">
           <el-input
             v-model="form.targetId"
             type="number"
@@ -63,6 +63,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormItemRule } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { complianceApi } from '../../api/index.js'
 import type { ReportTargetType } from '../../api/types.js'
@@ -95,6 +96,20 @@ const targetTypeOptions = computed(() => ({
 
 const rules = {
   targetType: [{ required: true, message: () => t('compliance.report.targetTypeRequired'), trigger: 'change' }],
+  // K1-10: 对象编号须为大于 0 的整数（拦截负数/小数/科学计数，空白允许）
+  targetId: [{
+    validator: (_rule: FormItemRule, value: unknown, callback: (error?: string | Error) => void) => {
+      const raw = value == null ? '' : String(value).trim()
+      if (!raw) { callback(); return }
+      const n = Number(raw)
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(n) || n <= 0) {
+        callback(new Error(t('compliance.report.targetIdInvalid')))
+      } else {
+        callback()
+      }
+    },
+    trigger: 'blur'
+  }],
   description: [
     { required: true, message: () => t('compliance.report.descriptionRequired'), trigger: 'blur' },
     { min: 1, max: 1000, message: () => t('compliance.report.descriptionLength'), trigger: 'blur' }

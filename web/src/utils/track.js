@@ -98,7 +98,9 @@ async function flush() {
           anonToken = null
           safeRemoveItem(ANON_TOKEN_KEY)
           const newToken = await ensureAnonToken()
-          if (newToken) {
+          // K1-7：重取仍网络失败时返回 TOKEN_NETWORK_FAIL 哨兵（Symbol），
+          // 直接 JSON.stringify 会把该键丢弃——先判哨兵，不发无 token 的请求
+          if (newToken && newToken !== TOKEN_NETWORK_FAIL) {
             await fetch('/api/events', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -115,7 +117,8 @@ async function flush() {
   }
 }
 
-// 页面关闭/跳转：sendBeacon 带走剩余（beforeunload 无法发普通 fetch）
+// 页面关闭/跳转：sendBeacon 最多带走前 50 条（SEND_BATCH_MAX，sendBeacon 体积限制）；
+// 超出部分留在内存、关页即丢；离线/无凭证积压同样不会在关页时补发（beforeunload 无法发普通 fetch）
 window.addEventListener('pagehide', () => {
   if (!queue.length) return
   if (!anonToken) return // 无凭证（首次即关页/禁存）：丢弃，不阻塞关闭

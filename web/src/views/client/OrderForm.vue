@@ -69,6 +69,7 @@
                 :selected-rush-id="selectedRushId"
                 :price-text="styleAddonPriceText"
                 :preview="stylePricePreview"
+                :style-calc-error="styleCalcError"
                 :installments="installmentPreview"
                 :discount-enabled="discountEnabled"
                 :discount-validating="discountValidating"
@@ -289,7 +290,7 @@ const {
   availableStyleAddons, regularAddons, usageAddons, rushAddons,
   styleAddonSelections, selectedUsageId, selectedRushId,
   selectStyle, selectSize, toggleUsage, toggleRush, styleAddonPriceText,
-  stylePricePreview, styleDisplayPrice, installmentPreview,
+  stylePricePreview, styleCalcError, styleDisplayPrice, installmentPreview,
   // v0.34 任务B：URL query 预选命中记录
   queryPreselect,
   // v0.35 F4: 预选摘要横幅文案（入口 A 预选可见，可回上一步改）

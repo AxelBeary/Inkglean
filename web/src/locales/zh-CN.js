@@ -826,6 +826,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     sizeShowcaseTag: '展示中 · 暂不可约',
     sizeShowcaseBlocked: '该尺寸展示中，暂不可约稿',
     pctOfBase: '按基础价计算',
+    priceCalcFailed: '价格计算失败，请稍后重试',
     priceSubtotal: '小计（基础价 + 增项）',
     previewBaseLine: '基础价（{size}）',
     // v0.35 F4: 入口 A 预选可见横幅（展示柜带选择进来）
@@ -1191,6 +1192,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     regenerateTokenConfirmBtn: '生成新链接',
     regenerateTokenSuccess: '新追踪链接已复制（旧链接已失效）',
     regenerateTokenFailed: '生成失败，请稍后重试',
+    // K1-2: 令牌重生成成功但剪贴板不可用——单独提示手动复制
+    regenerateTokenManualTitle: '新链接已生成，请手动复制',
+    regenerateTokenManualHint: '剪贴板不可用；以下为新追踪链接（旧链接已失效）：',
     // plan-node-speech：客户沟通小块
     commTitle: '客户沟通',
     commPriceSummary: '价格小结：总价{total} / 已付{paid} / 待付{unpaid}',
@@ -1989,6 +1993,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       targetTypeRequired: '请选择举报类型',
       targetId: '对象编号（可选）',
       targetIdPlaceholder: '如作品/留言/画师 ID，不知道可留空',
+      targetIdInvalid: '对象编号须为大于 0 的整数（不能是负数、小数或科学计数法）',
       description: '描述',
       descriptionPlaceholder: '请描述问题内容（最多 1000 字）',
       descriptionRequired: '请填写举报描述',

@@ -827,6 +827,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     sizeShowcaseTag: 'Showcase · not bookable',
     sizeShowcaseBlocked: 'This size is on display and not bookable right now',
     pctOfBase: 'of base price',
+    priceCalcFailed: 'Price calculation failed — please try again later',
     priceSubtotal: 'Subtotal (base + add-ons)',
     previewBaseLine: 'Base price ({size})',
     // v0.35 F4: Entry A preselection banner (coming from the showcase with a choice)
@@ -1192,6 +1193,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     regenerateTokenConfirmBtn: 'Generate new link',
     regenerateTokenSuccess: 'New tracking link copied (old link is now invalid)',
     regenerateTokenFailed: 'Failed to generate — please try again later',
+    // K1-2: token regenerated but clipboard unavailable — prompt for manual copy
+    regenerateTokenManualTitle: 'New link generated — please copy it manually',
+    regenerateTokenManualHint: 'Clipboard unavailable. New tracking link (the old link is now invalid):',
     // plan-node-speech: client communication block
     commTitle: 'Client Communication',
     commPriceSummary: 'Price: total {total} / paid {paid} / due {unpaid}',
@@ -1993,6 +1997,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       targetTypeRequired: 'Please choose a report type',
       targetId: 'Target ID (optional)',
       targetIdPlaceholder: 'e.g. artwork/message/artist ID; leave blank if unknown',
+      targetIdInvalid: 'Target ID must be a positive whole number (no negatives, decimals, or scientific notation)',
       description: 'Description',
       descriptionPlaceholder: 'Describe the issue (up to 1000 characters)',
       descriptionRequired: 'Please describe the issue',

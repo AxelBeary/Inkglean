@@ -42,7 +42,7 @@
           @click="emit('toggleUsage', a.id)"
         >
           <span class="mult-chip-name">{{ a.name }}</span>
-          <span class="mult-chip-pct">+{{ a.price }}%</span>
+          <span class="mult-chip-pct">{{ priceText(a) }}</span>
         </button>
       </div>
     </div>
@@ -60,7 +60,7 @@
           @click="emit('toggleRush', a.id)"
         >
           <span class="mult-chip-name">{{ a.name }}</span>
-          <span class="mult-chip-pct">+{{ a.price }}%</span>
+          <span class="mult-chip-pct">{{ priceText(a) }}</span>
         </button>
       </div>
     </div>
@@ -131,6 +131,9 @@
       </div>
     </div>
 
+    <!-- K1-3: 计价失败页内错误态（保留 discountError 同款视觉；预览清空不再静默） -->
+    <p v-if="styleCalcError" class="price-calc-error">✕ {{ styleCalcError }}</p>
+
     <div class="step-nav">
       <el-button @click="emit('prev')">{{ t('orderForm.prevStep') }}</el-button>
       <el-button type="primary" @click="emit('next')">{{ t('orderForm.nextStep') }}</el-button>
@@ -157,6 +160,8 @@ defineProps<{
   priceText: (addon: StyleAddon) => string
   /** 画风价格预览（calculate-style-price 响应；未计价为 null） */
   preview: StylePricePreview | null
+  /** 计价失败错误文案（空串 = 无错误；K1-3 禁止失败静默） */
+  styleCalcError: string
   installments: InstallmentItem[]
   discountEnabled: boolean
   discountValidating: boolean
@@ -249,6 +254,7 @@ const { t } = useI18n()
 .discount-input { width: 140px; }
 .discount-ok { font-size: 13px; font-weight: 600; color: var(--el-color-success); }
 .discount-error { font-size: 12px; color: var(--el-color-danger); margin: 2px 0 0; }
+.price-calc-error { font-size: 12px; color: var(--el-color-danger); margin: 4px 0 0; }
 .price-line.discount .discount-amount { color: var(--el-color-danger); font-weight: 600; }
 .price-amount { font-variant-numeric: tabular-nums; }
 .price-divider { border-top: 1px dashed var(--border-color); margin: 6px 0; }

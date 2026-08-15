@@ -28,7 +28,7 @@
       <!-- 波 M：查询失败页内错误态 + 重试（不再只弹 toast） -->
       <div v-if="searchError" class="search-error" role="alert">
         <p>{{ $t('track.searchFailed') }}</p>
-        <el-button type="primary" size="small" @click="search">{{ $t('common.loadRetry') }}</el-button>
+        <el-button type="primary" size="small" :disabled="searching" @click="search">{{ $t('common.loadRetry') }}</el-button>
       </div>
 
       <!-- F1 围剿：已保存的追踪链接清单（多单可存多条，每行一键查询） -->
@@ -39,6 +39,7 @@
             <button
               v-for="item in savedLinks" :key="item.orderNo"
               type="button" class="my-order-item"
+              :disabled="searching"
               @click="querySaved(item)"
             >
               <div class="my-order-no">{{ item.orderNo }}</div>
@@ -298,7 +299,9 @@ const trackNextDueCents = computed(() => {
   if (!insts?.length) return trackRemainingCents.value
   let covered = order.value?.paidTotalCents || 0
   for (const inst of insts) {
-    const amt = inst.amountCents || inst.amount_cents || 0
+    // K1-6：GET /orders/track 的 installments 来自 getOrderInstallments（order-pricing.ts），
+    // 后端只返回 camelCase amountCents，snake_case 分支为死代码
+    const amt = inst.amountCents || 0
     if (covered >= amt) { covered -= amt; continue }
     return amt - covered // partial 或 pending：返回剩余
   }
@@ -359,25 +362,31 @@ function saveLink(orderNoToSave, tokenToSave) {
 }
 
 /** 核心查询：凭订单号 + 令牌；成功自动入本地清单 */
+// K1-1：查询竞态守卫（同款 seq 模式，对齐 OrderDetail.loadOrderSeq/useOrderForm.doStyleCalc）
+let searchSeq = 0
 async function search(no = orderNo.value, tok = token.value) {
   if (!(no || '').trim() || !(tok || '').trim()) {
     ElMessage.warning(t('track.enterLink'))
     return false
   }
+  const mySeq = ++searchSeq
   searching.value = true
   searchError.value = false
   try {
-    order.value = await orderApi.track(no.trim(), tok.trim())
+    const data = await orderApi.track(no.trim(), tok.trim())
+    if (mySeq !== searchSeq) return null // 晚到旧响应：丢弃，不覆盖新查询结果
+    order.value = data
     orderNo.value = no.trim()
     token.value = tok.trim()
     saveLink(no.trim(), tok.trim())
     return true
   } catch (err) {
+    if (mySeq !== searchSeq) return null
     ElMessage.error(err.message)
     searchError.value = true
     return false
   } finally {
-    searching.value = false
+    if (mySeq === searchSeq) searching.value = false
   }
 }
 
@@ -393,7 +402,8 @@ function searchFromInput() {
 /** 已保存清单行：一键查询；令牌失效（404）时明示「链接已失效，请联系画师补发」 */
 async function querySaved(item) {
   const ok = await search(item.orderNo, item.token)
-  item.invalid = !ok
+  // null = 已被更新的查询取代（竞态晚到），不据此标记失效
+  if (typeof ok === 'boolean') item.invalid = !ok
   persistSavedLinks()
 }
 
