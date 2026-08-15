@@ -22,7 +22,9 @@ COPY server/package.json server/package-lock.json* ./server/
 RUN cd server && npm ci --omit=dev
 
 # CVE 修复：升级 npm 工具链（消除 tar/brace-expansion/picomatch/sigstore 已知漏洞）
-RUN npm install -g npm@latest
+# F1 可复现构建：npm@latest 每次构建浮动；pin 到 npm 10.x 最新补丁 10.9.9（与 node:22-slim
+# 自带 npm 同主版本，npm ci / npx 兼容不变），既保留上述修复又保证每次构建取同一版本。
+RUN npm install -g npm@10.9.9
 
 # 后端源码
 COPY server/ ./server/
