@@ -923,7 +923,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   delivery: {
     delivered: '作品已交付', notDelivered: '作品尚未交付',
     orderInfo: '订单号：{no} | 画师：{artist}', download: '下载',
-    downloadFailed: '下载失败，请重试或联系画师', verifyFailed: '验证失败，请稍后重试'
+    downloadFailed: '下载失败，请重试或联系画师', verifyFailed: '验证失败，请稍后重试',
+    // 815 拍板 #4：一次性下载
+    downloadLocked: '已下载',
+    downloadLockedMsg: '该文件已下载过并被锁定，如需再次下载请联系画师再许可'
   },
   login: {
     // REQ-040: Passkey 登录按钮
@@ -1109,6 +1112,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     cancelUndoBtn: '撤销',
     cancelUndone: '已撤销取消，订单已恢复',
     cancelUndoExpired: '撤销窗口已过，无法恢复该订单',
+    // 815 拍板 #4：交付文件一次性下载——画师再许可
+    deliverableLocked: '下载已锁定',
+    deliverableRepermit: '再许可下载',
+    deliverableRepermitted: '已再许可，客户可再次下载',
     noNotes: '暂无备注', notePlaceholder: '添加备注...', addNote: '添加',
     deliverFiles: '交付文件', deliverTitle: '上传交付文件', dragUpload: '拖拽文件到此处，或点击上传',
     confirmDeliver: '确认交付', confirmTitle: '确认',
@@ -1883,7 +1890,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     },
     privacy: {
       pageTitle: '隐私政策',
-      updated: '2026-08-11',
+      updated: '2026-08-15',
       note: '本政策为平台标准版模板文案（人工审校），非法律意见；业务重大变化时平台将更新条款。',
       sections: [
         {
@@ -1895,7 +1902,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
             '订单需求、备注与参考图（完成约稿必需）',
             '作品图与交付完稿（画师展示与交付）',
             '浏览行为（埋点，可在偏好中关闭；日志保留 180 天）',
-            'Passkey 公钥（用于免密登录，仅存公钥凭证）'
+            'Passkey 公钥（用于免密登录，仅存公钥凭证）',
+            '交付文件下载记录（下载时的 IP 与时间，用于一次性下载的纠纷取证）'
           ]
         },
         {

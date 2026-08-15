@@ -64,6 +64,19 @@ export async function orderDeliveryRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * POST /api/artist/orders/:id/deliverables/:fileId/repermit
+   * 815 拍板 #4：画师再许可交付文件下载（清零锁定与防护计数，留痕系统备注）
+   */
+  fastify.post('/api/artist/orders/:id/deliverables/:fileId/repermit', {
+    preHandler: [requireAuth, requireOwnOrder]
+  }, async (request: FastifyRequest) => {
+    const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
+    if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
+    orderGalleryService.repermitDeliverable(request.order.id, fileId)
+    return enrichOrderForArtist(orderService.getOrder(request.order.id)!)
+  })
+
+  /**
    * POST /api/artist/orders/:id/publish-artwork
    * REQ-022 F1: 发布为作品（用户拍板：delivered 门槛 + 一图一作品）
    * 勾选的交付图复制（非移动）到公开目录，一图建一条 artworks 行；原交付物保留

@@ -206,6 +206,9 @@ export const E = {
   CANCEL_WITH_PAYMENT: 'CANCEL_WITH_PAYMENT',
   // 815 拍板 #1：取消撤销窗口过期
   CANCEL_UNDO_EXPIRED: 'CANCEL_UNDO_EXPIRED',
+  // 815 拍板 #4：交付文件一次性下载
+  DOWNLOAD_LOCKED: 'DOWNLOAD_LOCKED',
+  DOWNLOAD_COOLDOWN: 'DOWNLOAD_COOLDOWN',
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: 'BATCH_FULL',
@@ -439,6 +442,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   CANCEL_WITH_PAYMENT: '订单已有收款，取消前请确认退款安排',
   // 815 拍板 #1
   CANCEL_UNDO_EXPIRED: '撤销窗口已过（取消后 5 秒内可撤销）',
+  // 815 拍板 #4
+  DOWNLOAD_LOCKED: '该交付文件已下载过并被锁定，需画师再许可后才能再次下载',
+  DOWNLOAD_COOLDOWN: '下载尝试过于频繁，请稍后重试',
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: '该画师已接满，暂时无法下单',

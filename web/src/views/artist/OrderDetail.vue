@@ -287,7 +287,12 @@
       </template>
       <div v-for="d in order.deliverables" :key="d.id" class="file-item">
         <span>{{ d.original_name }}</span>
-        <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
+        <span>
+          <!-- 815 拍板 #4：一次性下载锁定状态 + 画师再许可 -->
+          <el-tag v-if="d.download_locked === 1" type="info" size="small" style="margin-right: 8px">{{ $t('orderDetail.deliverableLocked') }}</el-tag>
+          <el-button v-if="d.download_locked === 1" size="small" :loading="repermittingId === d.id" @click="repermitDeliverable(d)">{{ $t('orderDetail.deliverableRepermit') }}</el-button>
+          <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
+        </span>
       </div>
     </el-card>
   </div>
@@ -596,6 +601,22 @@ async function onUndoCancel() {
   } catch (err) {
     ElMessage.error(err.code === 'CANCEL_UNDO_EXPIRED' ? t('orderDetail.cancelUndoExpired') : err.message)
     await loadOrder()
+  }
+}
+
+// ─── 815 拍板 #4：画师再许可交付文件下载 ───
+const repermittingId = ref(null)
+
+async function repermitDeliverable(d) {
+  if (repermittingId.value !== null) return
+  repermittingId.value = d.id
+  try {
+    order.value = await artistApi.repermitDeliverable(Number(route.params.id), d.id)
+    ElMessage.success(t('orderDetail.deliverableRepermitted'))
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    repermittingId.value = null
   }
 }
 

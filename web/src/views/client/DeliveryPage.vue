@@ -33,7 +33,9 @@
               <span class="file-name">{{ d.fileName }}</span>
               <span class="file-size" v-if="d.fileSize">{{ formatBytes(d.fileSize) }}</span>
             </div>
-            <el-button type="primary" size="small" @click="downloadFile(d.url, d.fileName)">{{ $t('delivery.download') }}</el-button>
+            <!-- 815 拍板 #4：一次性下载——已锁定显示提示，需画师再许可 -->
+            <el-tag v-if="d.downloadLocked" type="info" size="small">{{ $t('delivery.downloadLocked') }}</el-tag>
+            <el-button v-else type="primary" size="small" :loading="downloadingId === d.id" :disabled="downloadingId !== null && downloadingId !== d.id" @click="downloadFile(d)">{{ $t('delivery.download') }}</el-button>
           </div>
         </div>
       </el-card>
@@ -75,12 +77,27 @@ const loading = ref(false)
 const delivery = ref(null)
 // 波 M：验证失败页内错误态
 const verifyError = ref(false)
+// 815 拍板 #4：一次性下载进行中文件 id（防连点）
+const downloadingId = ref(null)
 
-async function downloadFile(url, fileName) {
+async function downloadFile(d) {
+  if (downloadingId.value !== null) return
+  downloadingId.value = d.id
   try {
-    await downloadAsset(url, fileName)
-  } catch {
-    ElMessage.error(t('delivery.downloadFailed'))
+    // 一次性下载链路：start 签发 → fetch 全量接收 → confirm 锁定（IP/时间留痕）
+    const { url } = await orderApi.deliveryDownloadStart(delivery.value.orderNo, d.id, token.value)
+    await downloadAsset(url, d.fileName)
+    await orderApi.deliveryDownloadConfirm(delivery.value.orderNo, d.id, token.value)
+    d.downloadLocked = true
+  } catch (err) {
+    if (err?.code === 'DOWNLOAD_LOCKED') {
+      d.downloadLocked = true
+      ElMessage.warning(t('delivery.downloadLockedMsg'))
+    } else {
+      ElMessage.error(t('delivery.downloadFailed'))
+    }
+  } finally {
+    downloadingId.value = null
   }
 }
 

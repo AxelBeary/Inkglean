@@ -925,7 +925,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
     orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download',
-    downloadFailed: 'Download failed, please retry or contact the artist', verifyFailed: 'Verification failed, please try again later'
+    downloadFailed: 'Download failed, please retry or contact the artist', verifyFailed: 'Verification failed, please try again later',
+    // 815 decision #4: one-time download
+    downloadLocked: 'Downloaded',
+    downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission'
   },
   login: {
     // REQ-040: Passkey login button
@@ -1110,6 +1113,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     cancelUndoBtn: 'Undo',
     cancelUndone: 'Cancellation undone. Order restored',
     cancelUndoExpired: 'Undo window has passed. The order cannot be restored',
+    // 815 decision #4: one-time download — artist re-permission
+    deliverableLocked: 'Download locked',
+    deliverableRepermit: 'Re-permit download',
+    deliverableRepermitted: 'Re-permitted. The client can download again',
     noNotes: 'No notes yet', notePlaceholder: 'Add a note...', addNote: 'Add',
     deliverFiles: 'Delivered files', deliverTitle: 'Upload delivery file', dragUpload: 'Drag a file here, or click to upload',
     confirmDeliver: 'Confirm delivery', confirmTitle: 'Confirm',
@@ -1887,7 +1894,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     },
     privacy: {
       pageTitle: 'Privacy Policy',
-      updated: '2026-08-11',
+      updated: '2026-08-15',
       note: 'This policy is a standard template (human-reviewed), not legal advice. The platform will update it when business changes materially.',
       sections: [
         {
@@ -1899,7 +1906,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
             'Order requirements, notes and reference images (required to complete commissions)',
             'Artwork images and final deliverables (artist showcase and delivery)',
             'Browsing behavior (tracking, can be disabled in preferences; logs retained for 180 days)',
-            'Passkey public key (for passwordless login; only the public credential is stored)'
+            'Passkey public key (for passwordless login; only the public credential is stored)',
+            'Deliverable download records (IP and timestamp at download, for dispute evidence of one-time downloads)'
           ]
         },
         {

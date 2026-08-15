@@ -355,3 +355,126 @@ export async function publishArtwork(
   // 留痕由 artworks 行本身承担（created_at + image_path 可追溯交付来源）。
   return results
 }
+
+// ─── 815 拍板 #4：交付文件一次性下载（客户凭查单令牌下载一次后锁定，画师可再许可） ───
+
+/** 下载器兜底窗口：开始后超过此时长未回报确认，视为下载器已完成下载 → 锁定 */
+export const DOWNLOAD_GRACE_MS = 60_000
+/** 防恶意半途下载：未完整下载尝试达此次数 → 防护锁定 */
+export const MAX_PARTIAL_ATTEMPTS = 3
+/** 防护锁定冷却时长（5 分钟） */
+export const DOWNLOAD_COOLDOWN_MS = 5 * 60_000
+
+interface DeliverableDownloadRow {
+  id: number
+  order_id: number
+  file_path: string
+  original_name: string
+  download_locked: number
+  download_attempts: number
+  last_started_at: number | null
+  cooldown_until: number | null
+}
+
+function getDeliverableDownloadRow(orderId: number, fileId: number): DeliverableDownloadRow {
+  const row = db.prepare(
+    'SELECT id, order_id, file_path, original_name, download_locked, download_attempts, last_started_at, cooldown_until FROM deliverables WHERE id = ? AND order_id = ?'
+  ).get(fileId, orderId) as DeliverableDownloadRow | undefined
+  if (!row) throw new AppError(E.ORDER_NOT_FOUND)
+  return row
+}
+
+type DownloadStartOutcome =
+  | { outcome: 'ok'; filePath: string }
+  | { outcome: 'locked' }
+  | { outcome: 'grace-locked' }
+  | { outcome: 'attempts-locked' }
+  | { outcome: 'cooldown'; retryAfterMs: number }
+
+/**
+ * 客户开始下载（start）：结算上次未确认的尝试后返回文件路径（路由层再签名）。
+ * ① 已锁定 → 410；② 冷却期内 → 423；
+ * ③ 上次开始超过 60 秒未确认 → 下载器场景视为已完成 → 锁定；
+ * ④ 上次开始未超兜底且未确认 → 半途尝试 +1，达 3 次 → 防护锁定 + 5 分钟冷却。
+ * 注：锁定状态在事务内提交后才抛错（事务内抛错会回滚锁定写入）。
+ */
+export function startDeliverableDownload(orderId: number, fileId: number): { filePath: string } {
+  const result = db.transaction((): DownloadStartOutcome => {
+    const d = getDeliverableDownloadRow(orderId, fileId)
+    const now = Date.now()
+
+    if (d.download_locked) return { outcome: 'locked' }
+    if (d.cooldown_until && d.cooldown_until > now) {
+      return { outcome: 'cooldown', retryAfterMs: d.cooldown_until - now }
+    }
+
+    if (d.last_started_at) {
+      if (now - d.last_started_at >= DOWNLOAD_GRACE_MS) {
+        // 下载器兜底：上次开始超过 60 秒未回报确认，按已发出锁定（拍板②）
+        db.prepare(
+          'UPDATE deliverables SET download_locked = 1, downloaded_at = CURRENT_TIMESTAMP, last_started_at = NULL WHERE id = ?'
+        ).run(d.id)
+        db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+          .run(orderId, `🔒 交付文件「${d.original_name}」下载窗口已过（下载器兜底），已锁定；如需再次下载请画师再许可`)
+        return { outcome: 'grace-locked' }
+      }
+      // 半途尝试（拍板⑤）：未完整下载 +1，达 3 次防护锁定 + 冷却 + 留痕
+      const attempts = d.download_attempts + 1
+      if (attempts >= MAX_PARTIAL_ATTEMPTS) {
+        db.prepare(
+          'UPDATE deliverables SET download_locked = 1, download_attempts = ?, cooldown_until = ?, last_started_at = NULL WHERE id = ?'
+        ).run(attempts, now + DOWNLOAD_COOLDOWN_MS, d.id)
+        db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+          .run(orderId, `🔒 交付文件「${d.original_name}」连续 ${attempts} 次未完成下载，已防护锁定；如需再次下载请画师再许可`)
+        return { outcome: 'attempts-locked' }
+      }
+      db.prepare('UPDATE deliverables SET download_attempts = ? WHERE id = ?').run(attempts, d.id)
+    }
+
+    db.prepare('UPDATE deliverables SET last_started_at = ? WHERE id = ?').run(now, d.id)
+    return { outcome: 'ok', filePath: d.file_path }
+  })()
+
+  // 事务已提交，锁定/留痕已落库，此处抛错不影响状态
+  switch (result.outcome) {
+    case 'locked':
+    case 'grace-locked':
+    case 'attempts-locked':
+      throw new AppError(E.DOWNLOAD_LOCKED, 410)
+    case 'cooldown':
+      throw new AppError(E.DOWNLOAD_COOLDOWN, 423, { retryAfterMs: result.retryAfterMs })
+    case 'ok':
+      return { filePath: result.filePath }
+  }
+}
+
+/**
+ * 客户确认下载完整接收（web fetch 全量收到后上报）→ 锁定 + IP/时间留痕（纠纷取证，隐私政策已披露）。
+ * 幂等：已锁定直接返回。
+ */
+export function confirmDeliverableDownload(orderId: number, fileId: number, ip: string): void {
+  db.transaction(() => {
+    const d = getDeliverableDownloadRow(orderId, fileId)
+    if (d.download_locked) return
+    db.prepare(
+      'UPDATE deliverables SET download_locked = 1, downloaded_at = CURRENT_TIMESTAMP, download_ip = ?, last_started_at = NULL WHERE id = ?'
+    ).run(ip, d.id)
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+      .run(orderId, `🔒 交付文件「${d.original_name}」已完成下载并锁定；如需再次下载请画师再许可`)
+  })()
+}
+
+/**
+ * 画师再许可（拍板③）：清零锁定与防护计数，留痕系统备注；
+ * 历史 downloaded_at/download_ip 保留（取证链不断）。
+ */
+export function repermitDeliverable(orderId: number, fileId: number): void {
+  db.transaction(() => {
+    const d = getDeliverableDownloadRow(orderId, fileId)
+    db.prepare(
+      'UPDATE deliverables SET download_locked = 0, download_attempts = 0, cooldown_until = NULL, last_started_at = NULL WHERE id = ?'
+    ).run(d.id)
+    db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+      .run(orderId, `🔓 画师已再许可交付文件「${d.original_name}」的下载`)
+  })()
+}

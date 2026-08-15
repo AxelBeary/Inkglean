@@ -282,6 +282,11 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
 
     const sig = (request.query as { sig?: string } | undefined)?.sig
     const filePath = decodeURIComponent(request.url.slice('/uploads/'.length).split('?')[0])
+    // 815 拍板 #4：交付文件不支持分段下载（防多线程下载器乱序绕过一次性下载）；
+    // 下载器场景由服务层 60 秒兜底锁定兼顾
+    if (filePath.startsWith('deliverables/') && request.headers.range) {
+      return reply.code(416).send({ error: '交付文件不支持分段下载' })
+    }
     const verified = verifyFileToken(sig)
     if (verified !== filePath) {
       return reply.code(403).send({ error: '文件链接无效或已过期' })

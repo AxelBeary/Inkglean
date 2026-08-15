@@ -506,6 +506,9 @@ export const artistApi = {
   // 方案 B: 无文件交付（修复工作流订单最后节点交付卡死）
   deliverNoFile: (id: number, options: VersionedOptions = {}): Promise<DeliverResult> =>
     postJson(`/artist/orders/${id}/deliver-no-file`, options),
+  /** 815 拍板 #4：画师再许可交付文件下载（清零锁定与防护计数） */
+  repermitDeliverable: (id: number, fileId: number): Promise<EnrichedOrderDetail> =>
+    postJson(`/artist/orders/${id}/deliverables/${fileId}/repermit`),
   addReference: (id: number, data: AddReferenceRequest): Promise<EnrichedOrderDetail> =>
     postJson(`/artist/orders/${id}/references`, data),
   deleteReference: (id: number, refId: number): Promise<EnrichedOrderDetail> =>
@@ -620,7 +623,12 @@ export const orderApi = {
   track: (orderNo: string, token: string): Promise<OrderTrackResult> =>
     getJson(`/orders/track/${orderNo}`, { params: { token } }),
   delivery: (orderNo: string, token: string): Promise<OrderDeliveryResult> =>
-    getJson(`/orders/delivery/${orderNo}`, { params: { token } })
+    getJson(`/orders/delivery/${orderNo}`, { params: { token } }),
+  /** 815 拍板 #4：一次性下载——开始（签发一次性 URL）与确认（完整接收后锁定） */
+  deliveryDownloadStart: (orderNo: string, fileId: number, token: string): Promise<{ url: string }> =>
+    postJson(`/orders/delivery/${orderNo}/file/${fileId}/download-start?token=${encodeURIComponent(token)}`),
+  deliveryDownloadConfirm: (orderNo: string, fileId: number, token: string): Promise<{ locked: boolean }> =>
+    postJson(`/orders/delivery/${orderNo}/file/${fileId}/download-confirm?token=${encodeURIComponent(token)}`)
 }
 
 // ─── 上传 ───

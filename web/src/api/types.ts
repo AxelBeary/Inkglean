@@ -918,6 +918,8 @@ export interface OrderDeliveryResult {
     fileName: string | null | undefined
     fileSize: number | null | undefined
     url: string
+    /** 815 拍板 #4：一次性下载锁定状态（已下载过，需画师再许可） */
+    downloadLocked?: boolean
   }>
 }
 
