@@ -121,7 +121,9 @@ export default async function globalSetup() {
   const tsxCli = resolve(ROOT, 'server/node_modules/tsx/dist/cli.mjs')
   execSync(`"${process.execPath}" "${tsxCli}" src/db/seed.ts`, {
     cwd: resolve(ROOT, 'server'),
-    env: { ...process.env, DB_PATH: TEST_DB, ADMIN_QQ: '10003' },
+    // 815 审计 L-6 适配：测试库播种显式声明非生产环境（seed 生产守卫会拦 NODE_ENV=production；
+    // 根 .env 的 NODE_ENV 经 P1-8 会被 dotenv 载入，故此处显式覆盖为 test）
+    env: { ...process.env, NODE_ENV: 'test', DB_PATH: TEST_DB, ADMIN_QQ: '10003' },
     stdio: 'pipe',
     timeout: 30_000
   })
@@ -136,6 +138,9 @@ export default async function globalSetup() {
     cwd: resolve(ROOT, 'server'),
     env: {
       ...process.env,
+      // 815 审计 L-6/P1-8 适配：测试服务器显式声明非生产（根 .env 的 NODE_ENV=production 经
+      // dotenv 载入后会使 cookie 走 secure 标志，http 测试会话会丢；测试环境恒为 test）
+      NODE_ENV: 'test',
       PORT: String(E2E_PORT),
       DB_PATH: TEST_DB,
       UPLOAD_DIR: TEST_UPLOADS,
