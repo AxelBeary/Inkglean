@@ -82,6 +82,9 @@ echo ""
 
 # ─── [3/4] 构建并启动 ───
 echo -e "${YELLOW}[3/4] 正在安装，请稍等（首次需要几分钟）...${NC}"
+# 815 审计 P1-9 修复：先建挂载目录（对齐 install.mjs 同款防护）——
+# 否则容器以 root 创建目录后宿主侧挂载可能因权限打不开库，首装崩溃循环
+mkdir -p data uploads
 $COMPOSE up -d --build
 
 echo -e "${GREEN}✓ 打包完成，正在等待网站就绪${NC}"
