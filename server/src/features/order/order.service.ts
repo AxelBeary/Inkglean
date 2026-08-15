@@ -32,6 +32,7 @@ export { generateOrderNo, createOrder } from './order-create.js'
 export {
   updateFinalPrice,
   getOrderInstallments,
+  getOrdersInstallments,
   getOrderPayments,
   getPriceEntries,
   refreshInstallmentLocks,

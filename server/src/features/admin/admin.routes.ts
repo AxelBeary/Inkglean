@@ -140,11 +140,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       pageSize: pageSize ?? 50
     })
     // B7: 补充 camelCase 付款字段 + 分期三态（管理端行展开用）
+    // 815 P-2: 批量预取分期——一次 IN 取全部分期/已付额度，内存按 order_id 分组，替代逐单 N+1
+    const installmentsByOrder = orderService.getOrdersInstallments(result.items.map((o: ArtistOrderRow) => o.id))
     result.items = result.items.map((o: ArtistOrderRow) => ({
       ...o,
       paidTotalCents: o.paid_total_cents ?? 0,
       finalPriceCents: o.final_price_cents ?? 0,
-      installments: orderService.getOrderInstallments(o.id)
+      installments: installmentsByOrder.get(o.id) ?? []
     }))
     return result
   })

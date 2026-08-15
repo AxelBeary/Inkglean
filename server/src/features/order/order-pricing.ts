@@ -80,6 +80,17 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
 
 // ─── SPEC-003: 附加工作项 ───
 
+export interface OrderInstallment {
+  id: number
+  name: string
+  amountCents: number
+  paidCents: number
+  remainingCents: number
+  status: string
+  locked: boolean
+  lockedReason: string | null
+}
+
 /**
  * 获取订单付款节点（客户进度页 + 画师端节点收款）
  * v0.36 BUG-1 方案 b: 改读额度池 orders.paid_total_cents，按节点金额顺序推算每期状态，
@@ -87,36 +98,69 @@ export function updateFinalPrice(orderId: number, finalPriceCents: number, quote
  * paid: 完全覆盖 | partial: 部分覆盖 | pending: 未覆盖
  * 撤销回冲自然生效：负流水 → paid_total_cents 减少 → 状态自动回退，无需额外代码
  */
-export function getOrderInstallments(orderId: number): Array<{ id: number; name: string; amountCents: number; paidCents: number; remainingCents: number; status: string; locked: boolean; lockedReason: string | null }> {
+export function getOrderInstallments(orderId: number): OrderInstallment[] {
+  return getOrdersInstallments([orderId]).get(orderId) ?? []
+}
+
+/**
+ * 批量获取多个订单的付款节点（815 P-2：admin 订单列表逐单 N+1 → 2 条 IN 查询内存分组）
+ * 每单算法与 getOrderInstallments 完全一致：读额度池 paid_total_cents，按节点金额顺序推算每期状态。
+ */
+export function getOrdersInstallments(orderIds: number[]): Map<number, OrderInstallment[]> {
+  const result = new Map<number, OrderInstallment[]>()
+  if (orderIds.length === 0) return result
+
+  const placeholders = orderIds.map(() => '?').join(',')
   const rows = db.prepare(
-    'SELECT id, label as name, amount_cents as amountCents, locked, locked_reason as lockedReason FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order ASC'
-  ).all(orderId) as Array<{ id: number; name: string; amountCents: number; locked: number; lockedReason: string | null }>
-  const orderRow = db.prepare('SELECT paid_total_cents FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null } | undefined
-  let covered = orderRow?.paid_total_cents ?? 0
-  return rows.map(r => {
-    const amt = r.amountCents || 0
-    let paidCents = 0
-    let status = 'pending'
-    if (covered >= amt) {
-      covered -= amt
-      paidCents = amt
-      status = 'paid'
-    } else if (covered > 0) {
-      paidCents = covered
-      covered = 0
-      status = 'partial'
+    `SELECT id, order_id, label as name, amount_cents as amountCents, locked, locked_reason as lockedReason
+     FROM order_payment_installments
+     WHERE order_id IN (${placeholders})
+     ORDER BY order_id ASC, sort_order ASC`
+  ).all(...orderIds) as Array<{ id: number; order_id: number; name: string; amountCents: number; locked: number; lockedReason: string | null }>
+
+  const orderRows = db.prepare(
+    `SELECT id, paid_total_cents FROM orders WHERE id IN (${placeholders})`
+  ).all(...orderIds) as Array<{ id: number; paid_total_cents: number | null }>
+  const coveredByOrder = new Map(orderRows.map(r => [r.id, r.paid_total_cents ?? 0]))
+
+  const rowsByOrder = new Map<number, Array<{ id: number; name: string; amountCents: number; locked: number; lockedReason: string | null }>>()
+  for (const r of rows) {
+    const list = rowsByOrder.get(r.order_id)
+    if (list) list.push(r)
+    else rowsByOrder.set(r.order_id, [r])
+  }
+
+  for (const [orderId, list] of rowsByOrder) {
+    let covered = coveredByOrder.get(orderId) ?? 0
+    const installments: OrderInstallment[] = []
+    for (const r of list) {
+      const amt = r.amountCents || 0
+      let paidCents = 0
+      let status = 'pending'
+      if (covered >= amt) {
+        covered -= amt
+        paidCents = amt
+        status = 'paid'
+      } else if (covered > 0) {
+        paidCents = covered
+        covered = 0
+        status = 'partial'
+      }
+      installments.push({
+        id: r.id,
+        name: r.name,
+        amountCents: amt,
+        paidCents,
+        remainingCents: Math.max(0, amt - paidCents),
+        status,
+        locked: r.locked === 1,
+        lockedReason: r.lockedReason ?? null
+      })
     }
-    return {
-      id: r.id,
-      name: r.name,
-      amountCents: amt,
-      paidCents,
-      remainingCents: Math.max(0, amt - paidCents),
-      status,
-      locked: r.locked === 1,
-      lockedReason: r.lockedReason ?? null
-    }
-  })
+    result.set(orderId, installments)
+  }
+
+  return result
 }
 
 /**
