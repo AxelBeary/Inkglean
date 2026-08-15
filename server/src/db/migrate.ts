@@ -1,5 +1,5 @@
 /* eslint-disable no-console -- 迁移脚本按约定豁免（CLI 输出是脚本本职，源头防屎门禁豁免项） */
-import { existsSync, unlinkSync } from 'fs'
+import { copyFileSync, existsSync, unlinkSync } from 'fs'
 import type Database from 'better-sqlite3'
 import { schema, schemaIndexes } from './schema.js'
 import { MIGRATIONS } from './migrations/index.js'
@@ -7,8 +7,10 @@ import type { IdRow } from './migrations/types.js'
 
 /**
  * 迁移前自动备份（仅文件数据库）— P0-10: 抽取自 13 处复制粘贴的迁移备份逻辑
- * 815 审计修复：裸 copyFileSync 改 VACUUM INTO（一致性快照，WAL 下不丢最新数据，
- * 对齐 backup-db.ts 日常备份口径）；备份失败不再“警告后继续破坏性迁移”，改为抛错中止。
+ * 815 审计修复：裸 copyFileSync 改一致性快照（对齐 backup-db.ts 日常备份口径）；
+ * 备份失败不再“警告后继续破坏性迁移”，改为抛错中止。
+ * 事务外走 VACUUM INTO；事务内（常规迁移包在 sqliteTransaction 里，VACUUM 禁用）
+ * 先 wal_checkpoint(TRUNCATE) 把 WAL 全部写回主库再复制，快照同样一致。
  * 文件名沿用 dbPath.bak.vN 不变（回滚脚本/测试依赖此命名）。
  */
 export function backupDbBeforeMigration(version: number, database: Database.Database) {
@@ -16,9 +18,15 @@ export function backupDbBeforeMigration(version: number, database: Database.Data
   if (dbPath === ':memory:' || !existsSync(dbPath)) return
   const bakPath = `${dbPath}.bak.v${version}`
   try {
-    // VACUUM INTO 要求目标不存在；同名旧备份先移除（只删本函数产出的 .bak.vN 命名）
+    // 同名旧备份先移除（只删本函数产出的 .bak.vN 命名；VACUUM INTO 要求目标不存在）
     if (existsSync(bakPath)) unlinkSync(bakPath)
-    database.prepare(`VACUUM INTO '${bakPath.replaceAll("'", "''")}'`).run()
+    if (database.inTransaction) {
+      // 事务内：VACUUM 不可用——checkpoint(TRUNCATE) 把 WAL 全部写回主库后复制，快照一致
+      database.pragma('wal_checkpoint(TRUNCATE)')
+      copyFileSync(dbPath, bakPath)
+    } else {
+      database.prepare(`VACUUM INTO '${bakPath.replaceAll("'", "''")}'`).run()
+    }
     console.log(`📦 迁移 v${version}: 已备份 ${dbPath} → ${bakPath}`)
   } catch (err) {
     // 815 审计：备份失败即中止——没有可回滚快照就不允许跑破坏性迁移
