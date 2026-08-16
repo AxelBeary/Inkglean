@@ -612,7 +612,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     control_type: { type: 'string', enum: ['switch', 'quantity'] },
     price_mode: { type: 'string', enum: ['fixed', 'percent'] },
     // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
-    default_price: { type: 'number', minimum: 0, maximum: 999999, multipleOf: 0.01 },
+    default_price: { type: 'number', minimum: 0, maximum: 999999, moneyPrecision: true },
     unit_label: { type: ['string', 'null'], maxLength: 20 },
     sort_order: { type: 'integer', minimum: 0, maximum: 9999 },
     category: { type: 'string', enum: ['add', 'usage', 'rush'] },

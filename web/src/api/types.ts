@@ -992,6 +992,9 @@ export interface ScheduleBar {
   startDate: string | null
   deadline: string | null
   stageName: string | null
+  /** E1 补全（清扫批）：画风/尺寸名，旧单无 style_size_id 时为 null */
+  styleName: string | null
+  sizeName: string | null
 }
 
 export interface ScheduleResult {

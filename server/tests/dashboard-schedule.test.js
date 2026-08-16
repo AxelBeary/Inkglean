@@ -54,7 +54,9 @@ describe('近 7 日排期 (getSchedule)', () => {
       status: 'wip',
       startDate: localDateStr(0),
       deadline: null,
-      stageName: null
+      stageName: null,
+      styleName: null,
+      sizeName: null
     })
   })
 
@@ -130,6 +132,29 @@ describe('近 7 日排期 (getSchedule)', () => {
     expect(result).toHaveLength(1)
     expect(result[0].orderNo).toBe('SCH-012')
   })
+
+  it('TC-SCHED-12: 画风/尺寸名随 style_size_id 下发；无关联时为 null（E1 补全，清扫批）', () => {
+    const style = db.prepare(
+      'INSERT INTO art_styles (artist_id, name, sort_order) VALUES (?, ?, ?)'
+    ).run(artist.id, '日系', 1)
+    const size = db.prepare(
+      'INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, ?, ?, ?)'
+    ).run(style.lastInsertRowid, '头像', 5000, 1)
+
+    const withStyle = seedOrder(artist.id, { order_no: 'SCH-014', status: 'wip' })
+    setDates(withStyle, { startDate: localDateStr(0) })
+    db.prepare('UPDATE orders SET style_size_id = ? WHERE id = ?').run(size.lastInsertRowid, withStyle.id)
+    const plain = seedOrder(artist.id, { order_no: 'SCH-015', status: 'wip' })
+    setDates(plain, { startDate: localDateStr(1) })
+
+    const result = dashboard.getSchedule(artist.id)
+    const styled = result.find(r => r.orderNo === 'SCH-014')
+    const bare = result.find(r => r.orderNo === 'SCH-015')
+    expect(styled.styleName).toBe('日系')
+    expect(styled.sizeName).toBe('头像')
+    expect(bare.styleName).toBeNull()
+    expect(bare.sizeName).toBeNull()
+  })
 })
 
 describe('近 7 日排期接口（路由层）', () => {
@@ -173,7 +198,9 @@ describe('近 7 日排期接口（路由层）', () => {
         status: 'wip',
         startDate: localDateStr(0),
         deadline: null,
-        stageName: null
+        stageName: null,
+        styleName: null,
+        sizeName: null
       }]
     })
   })

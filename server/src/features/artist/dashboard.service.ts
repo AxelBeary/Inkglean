@@ -305,6 +305,8 @@ interface ScheduleOrderRow {
   start_date: string | null
   deadline: string | null
   stage_name: string | null
+  style_name: string | null
+  size_name: string | null
 }
 
 /**
@@ -323,9 +325,12 @@ export function getSchedule(artistId: number) {
 
   const rows = db.prepare(`
     SELECT o.id, o.order_no, o.client_name, o.status, o.start_date, o.deadline,
-           ws.name AS stage_name
+           ws.name AS stage_name,
+           ast.name AS style_name, ss.name AS size_name
     FROM orders o
     LEFT JOIN artist_workflow_stages ws ON ws.id = o.current_stage_id
+    LEFT JOIN style_sizes ss ON ss.id = o.style_size_id
+    LEFT JOIN art_styles ast ON ast.id = ss.art_style_id
     WHERE o.artist_id = ?
       AND o.status NOT IN ('delivered', 'cancelled')
       AND (
@@ -349,7 +354,10 @@ export function getSchedule(artistId: number) {
     status: o.status,
     startDate: o.start_date || null,
     deadline: o.deadline || null,
-    stageName: o.stage_name || null
+    stageName: o.stage_name || null,
+    // E1 补全（清扫批）：画风/尺寸名只增字段，旧单无 style_size_id 时为 null（浮层缺项不展示）
+    styleName: o.style_name || null,
+    sizeName: o.size_name || null
   }))
 }
 

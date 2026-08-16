@@ -532,3 +532,49 @@ describe('账本待办接口路由层（E3）', () => {
     expect(res.json().items[0].stageName).toBeNull()
   })
 })
+
+// ============================================
+// E2 补全（清扫批）：画师 profile 端点下发 quotaInfo，仪表盘满态牌额度轴数据源
+// ============================================
+
+describe('画师 profile quotaInfo（E2 额度轴数据源）', () => {
+  let app
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+  })
+
+  it('TC-DASH-27: 未启用月度额度 → quotaInfo 为 null', async () => {
+    const artist = seedArtist()
+    const token = createSession(artist.id, artist.token_version)
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/artist/profile',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().quotaInfo).toBeNull()
+  })
+
+  it('TC-DASH-28: 启用月度额度 → quotaInfo 含 used/quota/remaining（本月未取消单计入）', async () => {
+    const artist = seedArtist()
+    db.prepare('UPDATE artists SET monthly_quota = 2 WHERE id = ?').run(artist.id)
+    seedOrder(artist.id, { order_no: 'E2-001', status: 'wip' })
+    seedOrder(artist.id, { order_no: 'E2-002', status: 'cancelled' }) // 取消不计入
+    const token = createSession(artist.id, artist.token_version)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/artist/profile',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().quotaInfo).toEqual({ used: 1, quota: 2, remaining: 1 })
+  })
+})

@@ -1015,6 +1015,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     scheduleSummaryTitle: '订单摘要',
     scheduleSummaryClient: '客户',
     scheduleSummaryStage: '当前节点',
+    scheduleSummaryStyle: '画风/尺寸',
     scheduleSummaryStart: '开工',
     scheduleSummaryDeadline: '截稿',
     scheduleSummaryStatus: '状态',

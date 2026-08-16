@@ -113,7 +113,9 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       tiers: [], // SPEC-PRICE-2（v50）：旧档位已清退，空数组过渡兼容
       artworks: artistService.getArtworks(artist.id),
       rules: artistService.getRules(artist.id),
-      slotDisplay: artistService.computeSlotDisplay(artist)
+      slotDisplay: artistService.computeSlotDisplay(artist),
+      // E2 补全（清扫批）：月度额度用量下发（与公开主页端点同口径），仪表盘满态牌据此覆盖额度耗尽轴
+      quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null
     }
   })
 

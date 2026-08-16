@@ -2,8 +2,8 @@
   <!-- 排期卷轴（视觉批 P1，提案 §5.6 已拍板器物）：两端纸卷+轴头 / 宣纸长卷 /
        纸签式五色条（花青进行中/浅花青未开工/朱砂逾期/藤黄待确认）+ 今日笔触线。
        数据源 /artist/dashboard/schedule（近 7 日窗口）。
-       E1：纸签悬停 title 含阶段名；点击弹订单摘要浮层（只用接口已返回字段，
-       画风/档位接口未返回故不展示）；Esc/点外部关闭，焦点回退纸签。 -->
+       E1：纸签悬停 title 含阶段名；点击弹订单摘要浮层（客户/节点/画风/尺寸/开工/截稿/状态，
+       缺项不硬凑）；Esc/点外部关闭，焦点回退纸签。 -->
   <section class="scroll-strip" :aria-label="t('dashboard.scheduleTitle')">
     <div class="scroll-roll" aria-hidden="true"><i class="axis axis-top"></i><i class="axis axis-bot"></i></div>
     <div class="scroll-paper">
@@ -53,8 +53,8 @@
         </div>
 
         <!-- E1：纸签点击弹订单摘要浮层（纸墨体系）。
-             只消费 /artist/dashboard/schedule 已返回字段：客户名/当前节点/开工/截稿/状态；
-             画风/档位接口未返回 → 缺项不硬凑，浮层省略。 -->
+             消费 /artist/dashboard/schedule 返回字段：客户名/当前节点/画风/尺寸/开工/截稿/状态；
+             画风/尺寸为清扫批补全的只增字段，旧单无值时缺项不展示。 -->
         <template v-if="popBar">
           <div class="tl-pop-backdrop" aria-hidden="true" @click="closeSummary"></div>
           <div
@@ -76,6 +76,10 @@
               <div v-if="popBar.stageName" class="tl-pop-row">
                 <dt>{{ t('dashboard.scheduleSummaryStage') }}</dt>
                 <dd>{{ popBar.stageName }}</dd>
+              </div>
+              <div v-if="popBar.styleName || popBar.sizeName" class="tl-pop-row">
+                <dt>{{ t('dashboard.scheduleSummaryStyle') }}</dt>
+                <dd>{{ [popBar.styleName, popBar.sizeName].filter(Boolean).join(' · ') }}</dd>
               </div>
               <div v-if="popBar.startDate" class="tl-pop-row">
                 <dt>{{ t('dashboard.scheduleSummaryStart') }}</dt>

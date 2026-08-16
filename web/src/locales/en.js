@@ -1016,6 +1016,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     scheduleSummaryTitle: 'Order summary',
     scheduleSummaryClient: 'Client',
     scheduleSummaryStage: 'Current stage',
+    scheduleSummaryStyle: 'Style / Size',
     scheduleSummaryStart: 'Start',
     scheduleSummaryDeadline: 'Deadline',
     scheduleSummaryStatus: 'Status',

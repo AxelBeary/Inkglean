@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import type { FastifyInstance, FastifyError, FastifyRequest } from 'fastify'
+import Ajv from 'ajv'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
@@ -31,10 +32,33 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     : trustProxyEnv === 'false'
       ? false
       : (trustProxyEnv || ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16'])
+  // 815-P2 金额#7（清扫批实测坐实）：ajv 的 multipleOf: 0.01 因浮点误差误拒合法金额
+  //（8.21/0.01 = 821.0000000000001 → 判非整倍数拒收）。显式传入与 fastify 默认同配置的
+  // ajv 实例并注册浮点安全关键字 moneyPrecision 替代（四舍五入后整数比对，语义不变）。
+  // Fastify 5 无 app.ajv 属性，必须在工厂入参处传入。
+  const ajv = new Ajv({
+    removeAdditional: true,
+    useDefaults: true,
+    coerceTypes: true,
+    allErrors: false
+  })
+  ajv.addKeyword({
+    keyword: 'moneyPrecision',
+    type: 'number',
+    validate: (_schema: unknown, data: number): boolean => {
+      if (!Number.isFinite(data)) return false
+      const scaled = data * 100
+      return Math.abs(scaled - Math.round(scaled)) < 1e-6
+    }
+  })
+
   const app = Fastify({
     logger: opts.logger ?? true,
     trustProxy
   })
+  // 自定义校验编译器：用带 moneyPrecision 关键字的独立 ajv 实例（配置与 fastify 默认同款；
+  // 仓库 schema 零 format 使用，无需 ajv-formats）
+  app.setValidatorCompiler(({ schema }) => ajv.compile(schema))
 
   // ─── 数据库初始化 ───
   initDatabase(db)

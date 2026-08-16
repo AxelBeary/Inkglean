@@ -42,8 +42,9 @@
         <span class="slot-arrow" aria-hidden="true">→</span>
       </span>
       <span v-if="limitEnabled" class="slot-row">
-        <span>{{ usedCount }} / {{ totalCapacity }}</span>
-        <span class="slot-bar"><span class="slot-fill" :class="{ 'slot-fill--full': isFull }" :style="{ width: usedPct + '%' }"></span></span>
+        <span v-if="quotaOnly">{{ quotaUsed }} / {{ quotaTotal }}</span>
+        <span v-else>{{ usedCount }} / {{ totalCapacity }}</span>
+        <span class="slot-bar"><span class="slot-fill" :class="{ 'slot-fill--full': isFull }" :style="{ width: (quotaOnly ? quotaPct : usedPct) + '%' }"></span></span>
       </span>
     </button>
   </div>
@@ -61,12 +62,18 @@ const { t } = useI18n()
 const router = useRouter()
 
 // artist store 尚为 JS（增量迁移中），此处以轻量接口桥接，不引入 any
+interface QuotaInfoLite {
+  used: number
+  quota: number | null
+  remaining: number | null
+}
 interface ArtistProfileLite {
   status?: string
   batch_limit?: number | null
   buffer_limit?: number | null
   monthly_quota?: number | null
   slotDisplay?: string | null
+  quotaInfo?: QuotaInfoLite | null
 }
 const store = useArtistStore() as { profile: ArtistProfileLite | null }
 
@@ -94,7 +101,22 @@ const limitEnabled = computed(() =>
 )
 const usedCount = computed(() => formalCount.value + bufferCount.value)
 const totalCapacity = computed(() => batchLimit.value + bufferLimit.value)
-const isFull = computed(() => totalCapacity.value > 0 && usedCount.value >= totalCapacity.value)
+// E2 补全（清扫批）：满态双轴——席位满（旧口径）或月度额度耗尽（quotaInfo 为 profile 端点清扫批补发，
+// 与公开主页 getMonthlyUsage 同口径）；仅启用额度未启用席位时名额条改显额度用量
+const quotaInfo = computed(() => store.profile?.quotaInfo ?? null)
+const quotaOnly = computed(() => store.profile?.batch_limit == null && quotaInfo.value != null)
+const quotaUsed = computed(() => quotaInfo.value?.used ?? 0)
+const quotaTotal = computed(() => quotaInfo.value?.quota ?? 0)
+const quotaPct = computed(() => {
+  if (!quotaTotal.value) return 0
+  return Math.min(100, Math.round((quotaUsed.value / quotaTotal.value) * 100))
+})
+const seatFull = computed(() => totalCapacity.value > 0 && usedCount.value >= totalCapacity.value)
+const quotaFull = computed(() => {
+  const q = quotaInfo.value
+  return q != null && q.remaining != null && q.remaining <= 0
+})
+const isFull = computed(() => seatFull.value || quotaFull.value)
 const usedPct = computed(() => {
   if (!totalCapacity.value) return 0
   return Math.min(100, Math.round((usedCount.value / totalCapacity.value) * 100))
