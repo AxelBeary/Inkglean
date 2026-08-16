@@ -3,10 +3,15 @@
   <section class="mo-col">
     <h3 class="mo-section">{{ $t('manualOrder.leftTitle') }}</h3>
 
-    <!-- 客户QQ -->
-    <el-form-item :label="$t('manualOrder.clientQq')" prop="clientQq">
-      <el-input v-model="clientQq" :placeholder="$t('manualOrder.clientQqPlaceholder')" />
-    </el-form-item>
+    <!-- 客户信息：QQ + 昵称相邻（画师试用反馈①；≥600px 同一行，<600px 自动叠为两行不破版） -->
+    <div class="mo-client-row">
+      <el-form-item :label="$t('manualOrder.clientQq')" prop="clientQq" class="mo-client-field">
+        <el-input v-model="clientQq" :placeholder="$t('manualOrder.clientQqPlaceholder')" />
+      </el-form-item>
+      <el-form-item :label="$t('manualOrder.clientName')" class="mo-client-field">
+        <el-input v-model="clientName" :placeholder="$t('manualOrder.clientNamePlaceholder')" />
+      </el-form-item>
+    </div>
 
     <!-- 参考图上传（大块粘贴区，左栏最显眼位置——画师流程：QQ收图→粘贴→再填其他） -->
     <div class="mo-ref-section">
@@ -36,11 +41,6 @@
       </el-upload>
       <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
     </div>
-
-    <!-- 客户昵称 -->
-    <el-form-item :label="$t('manualOrder.clientName')">
-      <el-input v-model="clientName" :placeholder="$t('manualOrder.clientNamePlaceholder')" />
-    </el-form-item>
 
     <!-- 需求描述 -->
     <el-form-item :label="$t('manualOrder.desc')">
@@ -266,6 +266,13 @@ defineExpose({ reset })
   background: var(--zs);
   border-radius: 2px 1px 2px 1px;
   flex: none;
+}
+
+/* ─── 画师试用反馈①: 客户QQ/昵称同排相邻（≥600px 两列；<600px 单列） ─── */
+.mo-client-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+
+@media (max-width: 599px) {
+  .mo-client-row { grid-template-columns: 1fr; }
 }
 
 /* ─── 参考图粘贴区（大块显眼） ─── */
