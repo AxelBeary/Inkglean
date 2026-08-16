@@ -509,6 +509,11 @@ async function main() {
     // 容器内非 root 用户将写不进去（SQLite 打不开库）——所以先自己建好
     mkdirSync(join(ROOT, 'data'), { recursive: true })
     mkdirSync(join(ROOT, 'uploads'), { recursive: true })
+    // 清扫批（首台公网服务器实测踩坑）：Linux 下 root 身份建目录后容器内 node 用户（uid 1000）
+    // 写不进去（SQLITE_CANTOPEN 反复重启）——递归纠正属主对齐容器运行用户
+    if (!IS_WIN && process.getuid?.() === 0) {
+      spawnSync('chown', ['-R', '1000:1000', join(ROOT, 'data'), join(ROOT, 'uploads')])
+    }
     if (!runStream(composeCmd[0], [...composeCmd.slice(1), 'up', '-d', '--build'])) {
       fail('Docker 构建或启动失败')
       console.log('  排查办法：在终端执行 ' + [...composeCmd, 'logs', '--tail', '100', 'web'].join(' ') + ' 查看日志')

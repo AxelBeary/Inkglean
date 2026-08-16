@@ -91,6 +91,11 @@ echo -e "${YELLOW}[3/4] 正在安装，请稍等（首次需要几分钟）...${
 # 815 审计 P1-9 修复：先建挂载目录（对齐 install.mjs 同款防护）——
 # 否则容器以 root 创建目录后宿主侧挂载可能因权限打不开库，首装崩溃循环
 mkdir -p data uploads
+# 清扫批（首台公网服务器实测踩坑）：root 身份建目录后容器内 node 用户（uid 1000）写不进去，
+# SQLite 直接 SQLITE_CANTOPEN 反复重启；递归纠正属主对齐容器运行用户
+if [ "$(id -u)" = "0" ]; then
+  chown -R 1000:1000 data uploads
+fi
 $COMPOSE up -d --build
 
 echo -e "${GREEN}✓ 打包完成，正在等待网站就绪${NC}"

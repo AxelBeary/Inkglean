@@ -2,6 +2,11 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
+> ✅ **最后更新：2026-08-16 v116：公网部署实战经验回收——安装脚本再修 root 权限坑 + 部署变体教程入《维护说明书》，release 安装包三度重打**
+> 🔧 **安装脚本第三修（公网实战踩坑）**：root 身份安装时 data/uploads 目录属主自动纠正为容器运行用户（uid 1000）——mkdir 只解决「目录存在」，root 建的目录容器内普通用户仍写不进（SQLITE_CANTOPEN），setup.sh/install.mjs 双补 chown；经验已升级入记忆库（bind mount 坑两级修复缺一不可）。release 安装包已第三次重打替换（含空值密钥修复 + 失败告知口令 + root 属主修复三项）。
+> 📖 **部署变体教程落档**：《维护说明书》新增「变体：宿主机已有反代 / 套 Cloudflare」节（compose 两处改法/宿主机 Caddy 站点块含 request_body 55MB 必配/Cloudflare 源站证书签法/四条卡点速查表）；README 快速开始补指引；changelog 补记。来源：用户首台公网服务器（Cloudflare 橙云 + Origin CA）部署全程实测。
+> 🔑 **新会话接手指南**：无在途施工。开放项：用户终验新功能（公网环境现在可以直接用真实域名验）/B 测/E5 文案/防火墙 Cloudflare IP 白名单（待用户确认 80/443 无其他服务）/桌面端 HOLD。
+
 > ✅ **最后更新：2026-08-16 v115：拾绘首次上公网——外部服务器部署成功（Cloudflare 代理 + 宿主机 Caddy 外部反代模式），等用户完成开箱初始化**
 > 🌐 **部署实录（用户主导 + 一号远程排障）**：服务器 cute-goose-1，域名 shihui.hornywerewolf.click，Cloudflare 橙色云 + Full(Strict) + Origin CA 源站证书；宿主机 Caddy → 127.0.0.1:3000 → commission-web（compose 仅 web，孤儿 caddy 容器已清）。排障历程抓四坑：①安装脚本空值密钥误判（setup.sh/install.mjs 已修并重打 release 附件）②root 建 data 目录致 SQLITE_CANTOPEN（chown 1000:1000 解）③compose caddy 段未删致双 Caddy 抢端口④Cloudflare 挡 Let's Encrypt 签发——改用 Origin CA 源站证书根治（经验已入记忆库）。另修体验缺陷：安装失败时也告知口令下落（旧逻辑失败提前退出致口令从不展示）；Caddyfile 补 request_body 55MB（默认 10MB 截断交付上传）。
 > ⏳ **等用户**：开箱向导初始化（口令 docker compose exec web printenv SETUP_TOKEN）+ 备份 crontab；80/443 防火墙只放行 Cloudflare IP 段待用户确认 80/443 无其他服务后给命令。

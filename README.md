@@ -48,6 +48,8 @@
 跟着提示一路按回车即可完成安装（自动安装 Docker 容器版或直接装到本机，二选一）。需要自选参数时见 `node install.mjs --help`。
 
 > 裸 Linux 服务器还没装 Node.js？先执行 `bash setup.sh`（Docker 兜底安装）。
+>
+> 服务器上已有 Caddy/Nginx，或域名要走 Cloudflare 代理？见《维护说明书》「变体：宿主机已有反代 / 套 Cloudflare」节（首台公网服务器实战总结）。
 
 ### 方式二：手动 Docker
 
