@@ -84,7 +84,7 @@ function onUndo() {
 .cut-btn {
   flex-shrink: 0;
   padding: 4px 14px;
-  font-size: 13px;
+  font-size: calc(var(--font-scale, 1) * 13px);
   color: var(--sb-text-on, #fff);
   background: var(--hq, #2D5F5B);
   border: none;

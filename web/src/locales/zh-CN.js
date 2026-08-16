@@ -216,6 +216,8 @@ export default {
     artistToastInk: '已切换 · 墨黑', artistToastPaper: '已切换 · 宣纸'
   },
   common: {
+    // 画师占位名（817 修复：原缺失键致 profile 未就绪时顶栏直显原始键 common.artist）
+    artist: '画师',
     // 815 审计 P1-3：乐观锁冲突提示（双开标签页/旧快照写入被后端 409 拦下）
     orderConflict: '该订单刚被其他操作更新过，已为你刷新，请重试',
     status: { open: '可约稿', full: '已排满', break: '休息中', hidden: '隐藏' },
@@ -715,7 +717,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     rules: '约稿须知编辑',
     share: '分享接稿页',
     quickconfig: '快捷入口设置',
-    status: '状态切换',
     publish: '快速发作品',
     uploading: '发布中…',
     published: '作品已发布',

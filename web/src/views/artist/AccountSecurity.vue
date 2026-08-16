@@ -356,6 +356,12 @@ function formatDate(dateStr: string): string {
 }
 
 onMounted(() => {
+  // 817 修复：直链/刷新进入账号页时 store 可能尚无 profile（登录标记在 localStorage，
+  // profile 只在登录/仪表盘等路径加载）；补齐拉取，避免账号信息行（如 QQ）误显「-」。
+  // Passkey 取消路径本身不触碰 profile，此处只保证展示数据存在，不覆盖既有值。
+  if (!store.profile) {
+    store.fetchProfile().catch(() => { /* 拉取失败不阻塞页面，行内仍以「-」兜底 */ })
+  }
   if (passkeySupported.value) {
     loadCredentials()
   }

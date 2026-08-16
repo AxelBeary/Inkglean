@@ -6,7 +6,8 @@
 
     <el-table :data="templates" stripe style="width: 100%">
       <el-table-column prop="name" :label="$t('styleManage.tplName')" min-width="110" />
-      <el-table-column :label="$t('styleManage.tplCategory')" width="90">
+      <!-- 817 B测反馈3：类别列加宽，字号档位放大后标签不再被 90px 挤换行 -->
+      <el-table-column :label="$t('styleManage.tplCategory')" width="120">
         <template #default="{ row }">
           <el-tag size="small" effect="plain" :type="categoryTagType(row.category)">{{ categoryLabel($t, row.category || 'add') }}</el-tag>
         </template>
@@ -22,7 +23,8 @@
           <span class="tpl-price">{{ formatAddonPrice(row.default_price, row.price_mode, { controlType: row.control_type, unitLabel: row.unit_label || t('styleManage.unitFallback') }) }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('styleManage.tplMaxQty')" width="90">
+      <!-- 817 B测反馈3：数量上限列加宽，表头「数量上限」保持单行 -->
+      <el-table-column :label="$t('styleManage.tplMaxQty')" width="110">
         <template #default="{ row }">
           <span v-if="row.control_type === 'quantity'">{{ row.max_quantity ?? '—' }}</span>
           <span v-else class="tpl-na">—</span>
@@ -268,5 +270,9 @@ onMounted(load)
 .module-error {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
+}
+/* 817 B测反馈3：表头白名单强制单行（字号档位放大后不换行） */
+.tpl-manager :deep(.el-table__header th) {
+  white-space: nowrap;
 }
 </style>

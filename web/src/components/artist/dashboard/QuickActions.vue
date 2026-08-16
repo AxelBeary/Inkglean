@@ -2,7 +2,7 @@
 // #3: 快捷按钮候选池常量（命名导出，供 Settings.vue 配置区共用）
 // v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
 import { markRaw } from 'vue'
-import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, Refresh, UploadFilled } from '@element-plus/icons-vue'
+import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled } from '@element-plus/icons-vue'
 import { safeGetItem } from '../../../utils/storage.js'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
@@ -22,12 +22,11 @@ export const QUICK_ACTION_POOL = [
   { key: 'rules', type: 'route', icon: markRaw(EditPen), labelKey: 'quickAction.rules', route: '/settings?tab=rules' },
   { key: 'share', type: 'action', icon: markRaw(Share), labelKey: 'quickAction.share', route: null, action: 'share' },
   { key: 'quickconfig', type: 'route', icon: markRaw(Setting), labelKey: 'quickAction.quickconfig', route: '/preferences' },
-  { key: 'status', type: 'action', icon: markRaw(Refresh), labelKey: 'quickAction.status', route: null, action: 'status' },
   { key: 'publish', type: 'action', icon: markRaw(UploadFilled), labelKey: 'quickAction.publish', route: null, action: 'publish' }
 ]
 
-/** 默认（2026-08-07 用户拍板）：动作型为主，移除导航镜像冗余项 */
-export const QUICK_ACTIONS_DEFAULT = ['manual', 'preview', 'rules', 'share', 'quickconfig', 'status']
+/** 默认（2026-08-07 用户拍板）：动作型为主，移除导航镜像冗余项；817 拍板：移除「状态切换」 */
+export const QUICK_ACTIONS_DEFAULT = ['manual', 'preview', 'rules', 'share', 'quickconfig']
 
 /** 解析 quickActions 值（DB 返回 JSON 字符串或数组，统一为合法 key 数组） */
 export function parseQuickActions(raw) {
@@ -109,6 +108,8 @@ const activeActions = computed(() => {
   const keys = dbKeys || readQuickActionsConfig()
   return keys
     .map(k => QUICK_ACTION_POOL.find(a => a.key === k))
+    // 817 拍板：删除「状态切换」——已保存的旧值渲染时一并过滤，不再出现状态卡
+    .filter(a => a && a.key !== 'status')
     .filter(Boolean)
 })
 

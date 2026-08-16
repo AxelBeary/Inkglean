@@ -80,6 +80,8 @@ const routes = [
       // 812-tools-a: 压图改尺寸（工具页）
       { path: 'tools/image-resize', name: 'ArtistImageResize', component: () => import('../views/artist/ImageResize.vue'), meta: { titleKey: 'menu.imageResize', requiresAuth: true } },
       { path: 'stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
+      // 817 修复：价格管理归入嵌套路由（TierManage 不再内嵌 ArtistLayout，布局单实例不重挂）
+      { path: 'tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
       { path: 'artworks', name: 'ArtistArtworks', component: () => import('../views/artist/ArtworkManage.vue'), meta: { titleKey: 'menu.artworks', requiresAuth: true } },
       // #1: 留言管理独立页面（v0.24-C）
       { path: 'guestbook', name: 'ArtistGuestbook', component: () => import('../views/artist/GuestbookManage.vue'), meta: { titleKey: 'menu.guestbook', requiresAuth: true } },
@@ -91,9 +93,6 @@ const routes = [
   },
   // REQ-015: 旧手动录单链接重定向到新独立页面（不断链）
   { path: '/manual-order', redirect: '/orders/new' },
-  // REQ-036 冻结区：/tiers 保持 flat（TierManage 内嵌自己的 ArtistLayout；嵌套化会双层布局）——
-  // 已知代价：/tiers 与其他后台页互切时布局重挂一次，待 REQ-036 收官后再归入嵌套
-  { path: '/tiers', name: 'ArtistTiers', component: () => import('../views/artist/TierManage.vue'), meta: { titleKey: 'menu.tiers', requiresAuth: true } },
   // R42b: 须知编辑合并进设置页（旧链接重定向，不 404）
   // REQ-016 A: 须知并入「主页展示」tab（showcase）
   { path: '/rules', redirect: '/settings?tab=showcase' },

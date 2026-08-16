@@ -19,9 +19,10 @@
   <!-- P0-3b: 标签切换（正式区 / 缓冲区） -->
   <el-tabs v-model="activeTabModel" class="queue-tabs">
     <el-tab-pane :label="$t('queue.tabFormal')" name="formal">
-      <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），正式区列表 v-if="!loading" -->
-      <HySkeleton v-if="loading" count="6" />
-      <div class="queue-container" v-if="!loading">
+      <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容）；817 修复：仅首载（无旧数据）显示骨架，
+           刷新期间保留旧数据渲染，新数据到达后原子替换，避免点操作后整块闪没 -->
+      <HySkeleton v-if="loading && queue.length === 0" count="6" />
+      <div class="queue-container" v-if="!loading || queue.length > 0">
         <draggable
           v-model="queueModel"
           item-key="id"
