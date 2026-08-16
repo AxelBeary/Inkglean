@@ -784,6 +784,8 @@ export type DeliverResult = EnrichedOrderDetail & { statusChanged: boolean }
 export type ArtistOrderItem = Order & {
   tier_name: string | null
   tier_price: number | null
+  /** 817-D 7-7：焦点参考图路径（orders 表列，nullable；前端 OrderList/QueueBoard 直接读该字段） */
+  focus_image_path?: string | null
   focusImageUrl?: string
 }
 

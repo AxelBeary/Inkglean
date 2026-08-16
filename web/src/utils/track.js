@@ -16,6 +16,8 @@ const ANON_TOKEN_KEY = 'huiyue_anon_token'
 const FLUSH_INTERVAL_MS = 5000
 const FLUSH_BATCH_MAX = 10
 const SEND_BATCH_MAX = 50
+// 817-D 10-4：sendBeacon 单次负载体积上限（浏览器实现普遍按 64KB 建议，留头尾余量）
+const MAX_BEACON_BYTES = 60 * 1024
 // a3: 队列上限——离线持续重试时事件对象不无限堆积（超限丢最旧批次）
 const MAX_QUEUE_SIZE = 200
 /** 匿名凭证获取失败标记：5xx/断网可重试；4xx 属后端明确拒绝 */
@@ -117,14 +119,38 @@ async function flush() {
   }
 }
 
-// 页面关闭/跳转：sendBeacon 最多带走前 50 条（SEND_BATCH_MAX，sendBeacon 体积限制）；
-// 超出部分留在内存、关页即丢；离线/无凭证积压同样不会在关页时补发（beforeunload 无法发普通 fetch）
+/**
+ * 把剩余事件切成 sendBeacon 可发的 JSON 分片（每片 ≤ SEND_BATCH_MAX 条且 ≤ MAX_BEACON_BYTES）。
+ * 单条事件本身超限时仍整条发出（尽力而为，不拆事件对象）。导出供单测直接验证分片契约。
+ */
+export function buildBeaconBodies(events, token) {
+  const bodies = []
+  let slice = []
+  for (const ev of events) {
+    const trial = JSON.stringify({ token, events: [...slice, ev] })
+    const overCount = slice.length >= SEND_BATCH_MAX
+    const overBytes = slice.length > 0 && new Blob([trial]).size > MAX_BEACON_BYTES
+    if (overCount || overBytes) {
+      bodies.push(JSON.stringify({ token, events: slice }))
+      slice = [ev]
+    } else {
+      slice.push(ev)
+    }
+  }
+  if (slice.length) bodies.push(JSON.stringify({ token, events: slice }))
+  return bodies
+}
+
+// 页面关闭/跳转：sendBeacon 分片带走全部积压（每片 ≤ SEND_BATCH_MAX 条且 ≤ 60KB 体积上限）；
+// 离线/无凭证积压同样不会在关页时补发（beforeunload 无法发普通 fetch）
 window.addEventListener('pagehide', () => {
   if (!queue.length) return
   if (!anonToken) return // 无凭证（首次即关页/禁存）：丢弃，不阻塞关闭
   try {
-    const body = JSON.stringify({ token: anonToken, events: queue.splice(0, SEND_BATCH_MAX) })
-    // Blob 指定 application/json：sendBeacon 默认 text/plain 后端不会按 JSON 解析
-    navigator.sendBeacon?.('/api/events', new Blob([body], { type: 'application/json' }))
+    const remaining = queue.splice(0)
+    for (const body of buildBeaconBodies(remaining, anonToken)) {
+      // Blob 指定 application/json：sendBeacon 默认 text/plain 后端不会按 JSON 解析
+      navigator.sendBeacon?.('/api/events', new Blob([body], { type: 'application/json' }))
+    }
   } catch { /* 静默 */ }
 })

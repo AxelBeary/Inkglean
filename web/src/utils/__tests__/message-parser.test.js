@@ -119,6 +119,31 @@ describe('日期线索 hints.deadline（识别提示，不自动填）', () => {
     expect(parseMessage('QQ 12345678 想要一张半身像').hints.deadline).toBeNull()
   })
 
+  it('817-D 体验12: 非法月（22月31日）不采纳 → null', () => {
+    expect(parseMessage('QQ 12345678 22月31日交付').hints.deadline).toBeNull()
+  })
+
+  it('817-D 体验12: 非法月（13月1日）不采纳 → null', () => {
+    expect(parseMessage('QQ 12345678 13月1日交付').hints.deadline).toBeNull()
+  })
+
+  it('817-D 体验12: 日超该月上限（2月30日 / 4月31日）不采纳 → null', () => {
+    expect(parseMessage('QQ 12345678 2月30日交付').hints.deadline).toBeNull()
+    expect(parseMessage('QQ 12345678 4月31日交付').hints.deadline).toBeNull()
+  })
+
+  it('817-D 体验12: 无年份的 2月29日 按宽容口径采纳（闰年不可判）', () => {
+    expect(parseMessage('QQ 12345678 2月29日交付').hints.deadline).toBe('2月29日')
+  })
+
+  it('817-D 体验12: 非法日期在前时跳过，取后续合法日期', () => {
+    expect(parseMessage('QQ 12345678 22月31日交付，8月20日结稿').hints.deadline).toBe('8月20日')
+  })
+
+  it('817-D 体验12: 非法「32号前」不采纳 → null', () => {
+    expect(parseMessage('QQ 12345678 32号前交付').hints.deadline).toBeNull()
+  })
+
   it('b4-10: en locale 下按英文日期格式显示', async () => {
     // en 消息懒加载：直改 locale.value 不载入 en 包，须走 setLocale（与真实切语言链路同口径）
     await setLocale('en')
