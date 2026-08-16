@@ -257,6 +257,18 @@ html[data-artist-theme="ink"] .band-doing { background: #3E6285; color: #DCE9F5;
 html[data-artist-theme="ink"] .band-over { background: #9E4437; color: #F6DDD7; }
 html[data-artist-theme="ink"] .band-done { background: #38735A; color: #D9EFE3; }
 
+/* 817 B测反馈5：墨黑主题实心主按钮白字对比度不足（--hq #8FB2D1/#fff ≈ 2.1:1，不达 4.5:1）。
+   只调文字对比度不改色相——文字改深墨（--paper #171611），与浅色纸墨颜料达成 AA/AAA。
+   仅覆盖实心按钮；plain/text/link 形态本就用主色文字，不误伤。 */
+html[data-artist-theme="ink"] .artist-scope .el-button--primary:not(.is-plain):not(.is-text):not(.is-link),
+html[data-artist-theme="ink"] .artist-scope .el-button--success:not(.is-plain):not(.is-text):not(.is-link),
+html[data-artist-theme="ink"] .artist-scope .el-button--warning:not(.is-plain):not(.is-text):not(.is-link),
+html[data-artist-theme="ink"] .artist-scope .el-button--danger:not(.is-plain):not(.is-text):not(.is-link) {
+  --el-button-text-color: var(--paper);
+  --el-button-hover-text-color: var(--paper);
+  --el-button-active-text-color: var(--paper);
+}
+
 /* K1（波2，灰沼教训）：换肤即时切换——删除主题变量插值过渡（含瞬态 .theme-animating
    的 background-color/border-color/color/box-shadow .35s），前景/背景不同步插值会
    产生不可读中间态；日常 hover/按压微交互不受影响（各自保留短过渡 token）。 */
@@ -340,6 +352,14 @@ html[data-artist-theme][data-font-size] .artist-scope :is(
   .el-form-item__error
 ) {
   font-size: calc(var(--font-scale, 1) * 14px);
+}
+
+/* ═══ 817 B测反馈4：EP 小按钮字号硬编码 12px，不随档位 ═══
+   EP el-button.css 的 .el-button--small { font-size: 12px } 是固定值，
+   不走 --el-font-size-* 变量（默认/large 档走 base 变量已随档位）。
+   用 --font-scale 统一放大；默认档 scale=1 零影响，客户端路由无 data-artist-theme 零影响。 */
+html[data-artist-theme][data-font-size] .artist-scope .el-button--small {
+  font-size: calc(var(--font-scale, 1) * 12px);
 }
 
 /* ═══ 纸艺基线（2026-08-10 登录页重构迁入，兑现 Login.vue v0.46 注释承诺）═══

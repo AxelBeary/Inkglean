@@ -1,5 +1,5 @@
 // REQ-037 批2 A1: 画师后台嵌套路由解析测试
-// 覆盖：子路由经父布局解析（matched=2）；/tiers 冻结区保持 flat（matched=1）；tools 子路径解析
+// 覆盖：子路由经父布局解析（matched=2）；/tiers 817 修复后同归嵌套（matched=2）；tools 子路径解析
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
@@ -42,10 +42,10 @@ describe('画师后台嵌套路由（REQ-037 批2 A1）', () => {
     expect(router.currentRoute.value.matched.length).toBe(2)
   }, 20000)
 
-  it('/tiers 保持 flat（REQ-036 冻结区内嵌布局），matched = 1', async () => {
+  it('/tiers 归入嵌套路由（817 修复：布局单实例，侧边栏不重挂），matched = 2', async () => {
     await router.push('/tiers')
     expect(router.currentRoute.value.name).toBe('ArtistTiers')
-    expect(router.currentRoute.value.matched.length).toBe(1)
+    expect(router.currentRoute.value.matched.length).toBe(2)
   })
 
   it('tools 子路径解析正确（/tools/note → ArtistQuickNote）', async () => {

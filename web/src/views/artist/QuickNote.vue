@@ -169,7 +169,7 @@ onMounted(() => {
   border-radius: var(--r-m, 8px);
   background: var(--paper);
   color: var(--ink2);
-  font-size: 13px;
+  font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
   /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
   transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;

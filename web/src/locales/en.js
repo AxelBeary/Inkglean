@@ -216,6 +216,8 @@ export default {
     artistToastInk: 'Switched · Ink', artistToastPaper: 'Switched · Paper'
   },
   common: {
+    // Artist fallback name（817 修复：同 zh-CN 成对补齐，避免原始键泄漏）
+    artist: 'Artist',
     // 815 audit P1-3: optimistic lock conflict (stale snapshot write rejected by backend 409)
     orderConflict: 'This order was just updated by another action. Refreshed for you, please retry',
     status: { open: 'Open for commissions', full: 'Fully booked', break: 'On break', hidden: 'Hidden' },
@@ -716,7 +718,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     rules: 'Edit Guidelines',
     share: 'Share Page',
     quickconfig: 'Quick Action Settings',
-    status: 'Status',
     publish: 'Quick Publish',
     uploading: 'Uploading…',
     published: 'Artwork published',

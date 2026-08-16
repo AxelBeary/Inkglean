@@ -118,7 +118,7 @@ async function copyText(item) {
   border-radius: var(--r-m, 8px);
   background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 8%, var(--card));
   color: var(--hq, var(--el-color-primary));
-  font-size: 13px;
+  font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
   transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
 }

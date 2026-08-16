@@ -28,9 +28,11 @@ defineProps({
   display: flex;
   gap: 14px;
   padding: 14px;
-  border: 1px solid var(--border-color, #e5e5e5);
+  /* 817 修复：骨架底色/描边接入主题 token——旧代码 var(--bg-color) 无映射时回退 #fff，
+     暗色模式下整块白色闪烁；链式回退保证画师后台（--card/--line）与旧环境均不白 */
+  border: 1px solid var(--line, var(--border-color, #e5e5e5));
   border-radius: 8px;
-  background: var(--bg-color, #fff);
+  background: var(--card, var(--bg-color, #fff));
 }
 .hy-skeleton-thumb {
   position: relative;
@@ -38,7 +40,7 @@ defineProps({
   height: 56px;
   border-radius: 6px;
   overflow: hidden;
-  background: var(--border-color, #e5e5e5);
+  background: var(--line, var(--border-color, #e5e5e5));
 }
 .hy-skeleton-thumb::after,
 .hy-skeleton-line::after {
@@ -62,7 +64,7 @@ defineProps({
   height: 12px;
   border-radius: 4px;
   overflow: hidden;
-  background: var(--border-color, #e5e5e5);
+  background: var(--line, var(--border-color, #e5e5e5));
 }
 .hy-skeleton-line--title { width: 55%; height: 14px; }
 .hy-skeleton-line--sub { width: 75%; }
