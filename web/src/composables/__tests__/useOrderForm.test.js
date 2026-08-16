@@ -43,7 +43,8 @@ vi.mock('../../utils/sanitize.js', () => ({
 
 // G-7: useOrderForm 依赖匿名凭证链路，测试统一走固定 token
 vi.mock('../../utils/track.js', () => ({
-  getAnonToken: () => Promise.resolve('anon-token-test')
+  getAnonToken: () => Promise.resolve('anon-token-test'),
+  getFreshAnonToken: () => Promise.resolve('anon-token-fresh-test')
 }))
 
 import { useOrderForm } from '../useOrderForm.js'

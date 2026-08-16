@@ -28,7 +28,7 @@
  * @param {import('vue').Ref} formRef 页面模板中 el-form 的 ref（提交时校验用）
  */
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
-import { artistPublicApi, orderApi, uploadApi } from '../api/index.js'
+import { artistPublicApi, orderApi } from '../api/index.js'
 import { fetchArtistPublicProfile } from './useArtistPublicProfile.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -36,6 +36,7 @@ import { sanitizeHtml } from '../utils/sanitize.js'
 import { usePasteUpload } from './usePasteUpload.js'
 import { formatAddonPrice, yuanToCents } from '../utils/money.js'
 import { getAnonToken } from '../utils/track.js'
+import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload.js'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload.js'
 
 export function useOrderForm(subdomain, formRef, initialQuery = {}) {
@@ -155,6 +156,8 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
   const refFileList = ref([])
   const uploadedRefs = ref([])
   const refUidMap = ref(new Map())
+  /** 本次会话成功上传参考图时实际使用的匿名凭证——下单提交必须与上传同源（F-10 归属校验） */
+  let refUploadToken = null
 
   // ─── 计算属性 ───
   const sanitizedRules = computed(() => sanitizeHtml(rulesContent.value))
@@ -512,17 +515,18 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
       ElMessage.info(t('orderForm.typeWarning'))
     }
-    // G-7（P2-13 前端侧）: 上传参考图需携带匿名归属凭证（后端 F-10 契约，与下单同 token）
-    const anonToken = await getAnonToken()
-    if (!anonToken) {
-      ElMessage.error(t('orderForm.anonTokenRequired'))
-      throw new Error(t('orderForm.anonTokenRequired'))
-    }
     try {
-      const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
+      // G-7（P2-13 前端侧）: 上传前 await 凭证；缓存凭证失效（INVALID_ANON_TOKEN）时
+      // anonUpload 内部换新重试一次，避免公网用户被旧凭证卡死
+      const { uploaded, token } = await uploadReferenceWithAnonToken(file)
+      refUploadToken = token
       uploadedRefs.value.push(uploaded.filePath)
       refUidMap.value.set(file.uid, uploaded.filePath)
     } catch (err) {
+      if (err instanceof AnonTokenUnavailableError) {
+        ElMessage.error(t('orderForm.anonTokenRequired'))
+        throw new Error(t('orderForm.anonTokenRequired'), { cause: err })
+      }
       ElMessage.error(err.message || t('common.uploadFailed'))
       throw err
     }
@@ -539,11 +543,6 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
 
   // ─── 粘贴上传（参考图） ───
   async function handlePasteRefFiles(files) {
-    const anonToken = await getAnonToken()
-    if (!anonToken) {
-      ElMessage.error(t('orderForm.anonTokenRequired'))
-      return
-    }
     for (const file of files) {
       if (refFileList.value.length >= MAX_IMAGE_COUNT) {
         ElMessage.warning(t('orderForm.refExceed'))
@@ -553,11 +552,20 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
       if (ext && !['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
         ElMessage.info(t('orderForm.typeWarning'))
       }
-      const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
-      uploadedRefs.value.push(uploaded.filePath)
-      const uid = `paste-${crypto.randomUUID()}`
-      refUidMap.value.set(uid, uploaded.filePath)
-      refFileList.value.push({ name: file.name || 'pasted-image.png', url: uploaded.url, uid, status: 'success' })
+      try {
+        const { uploaded, token } = await uploadReferenceWithAnonToken(file)
+        refUploadToken = token
+        uploadedRefs.value.push(uploaded.filePath)
+        const uid = `paste-${crypto.randomUUID()}`
+        refUidMap.value.set(uid, uploaded.filePath)
+        refFileList.value.push({ name: file.name || 'pasted-image.png', url: uploaded.url, uid, status: 'success' })
+      } catch (err) {
+        if (err instanceof AnonTokenUnavailableError) {
+          ElMessage.error(t('orderForm.anonTokenRequired'))
+        } else {
+          ElMessage.error(err.message || t('common.uploadFailed'))
+        }
+      }
     }
   }
 
@@ -578,7 +586,9 @@ export function useOrderForm(subdomain, formRef, initialQuery = {}) {
     // G-7: 有参考图时必须携带与上传同源的 x-anon-token（无参考图下单不带 token 照常）
     let anonToken = null
     if (uploadedRefs.value.length > 0) {
-      anonToken = await getAnonToken()
+      // 优先用上传成功时记录的凭证（即使期间埋点链路换过 token，下单仍与参考图同源）；
+      // 兜底再取一次当前缓存
+      anonToken = refUploadToken || await getAnonToken()
       if (!anonToken) {
         ElMessage.error(t('orderForm.anonTokenRequired'))
         submitting.value = false

@@ -7,7 +7,8 @@
  *  - 失败策略：网络错误回队下次重试；400 INVALID_ANON_TOKEN 静默重取后重试一次；
  *    其余 4xx（白名单外/限流）丢弃该批——埋点永不打断用户、不影响业务
  *  - 与 Sentry 分工：Sentry=错误监控，本文件=业务埋点，不混用
- *  - G-7（P2-13 前端侧）: 匿名凭证同时供参考图上传/下单归属校验使用（getAnonToken）
+ *  - G-7（P2-13 前端侧）: 匿名凭证同时供参考图上传/下单归属校验使用
+ *    （getAnonToken 取缓存/签发；getFreshAnonToken 强制换新，供上传遇 INVALID 时重试）
  */
 import { safeGetItem, safeSetItem, safeRemoveItem } from './storage.js'
 
@@ -29,8 +30,8 @@ let flushBusy = false
 // G-5: 裸读换 safeGetItem（存储禁用时按无凭证降级，不抛错）
 let anonToken = safeGetItem(ANON_TOKEN_KEY) || null
 
-async function ensureAnonToken() {
-  if (anonToken) return anonToken
+async function ensureAnonToken(force = false) {
+  if (!force && anonToken) return anonToken
   try {
     const res = await fetch('/api/anon-token', { method: 'POST' })
     if (!res.ok) {
@@ -48,6 +49,18 @@ async function ensureAnonToken() {
 /** 获取当前匿名凭证（无则签发一次；网络/服务端失败返回 null）。G-7: 参考图上传/下单归属校验复用此链路 */
 export async function getAnonToken() {
   const token = await ensureAnonToken()
+  return token === TOKEN_NETWORK_FAIL ? null : token
+}
+
+/**
+ * 强制换新匿名凭证（清缓存后重新签发一次）。
+ * G-7 上传链路专用：本地缓存的凭证可能已过期/被服务端回收（GC/库重建），
+ * 上传遇 INVALID_ANON_TOKEN 时由调用方用本函数换新并重试；网络/服务端失败返回 null。
+ */
+export async function getFreshAnonToken() {
+  anonToken = null
+  safeRemoveItem(ANON_TOKEN_KEY)
+  const token = await ensureAnonToken(true)
   return token === TOKEN_NETWORK_FAIL ? null : token
 }
 

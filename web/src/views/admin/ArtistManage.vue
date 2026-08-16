@@ -68,21 +68,14 @@
           </template>
         </el-table-column>
         <!-- 813-fq-tail-shared 战役 S：≤760px 操作列收成图标按钮（aria-label/title 保留文案），
-             防止 360px 固定列在窄屏挤压、横向溢出；815-b3-ban 增解封按钮后窄屏宽度 144→176（4px 倍数） -->
-        <el-table-column :label="$t('common.actions')" :width="compactActions ? 176 : 360" fixed="right">
+             防止 360px 固定列在窄屏挤压、横向溢出；817-B2：封禁/解封/移除集中同一操作区（分隔片 4px），
+             窄屏宽度 176→180、宽屏 360→364（均 4px 倍数） -->
+        <el-table-column :label="$t('common.actions')" :width="compactActions ? 180 : 364" fixed="right">
           <template #default="{ row }">
             <div class="row-actions">
               <template v-if="compactActions">
                 <el-button size="small" circle :icon="View" :title="$t('admin.manage')" :aria-label="$t('admin.manage')" @click="openDetail(row)" />
                 <el-button size="small" circle :icon="Tickets" :title="$t('admin.artistOrders')" :aria-label="$t('admin.artistOrders')" @click="viewOrders(row)" />
-                <!-- 815-b3-ban：被封禁画师行解封入口（与举报管理页同款两步确认） -->
-                <el-button
-                  v-if="row.is_banned && !row.isAdmin"
-                  size="small" circle type="success" plain :icon="Unlock"
-                  :title="$t('compliance.admin.unban')" :aria-label="$t('compliance.admin.unban')"
-                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
-                  @click="unbanArtist(row)"
-                />
                 <!-- REQ-027: TOTP 绑定入口 -->
                 <el-button
                   size="small" circle type="success" plain :icon="Key"
@@ -90,22 +83,48 @@
                   :aria-label="row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind')"
                   @click="openTotpBind(row)"
                 />
+                <!-- 817-B2：封禁/解封/移除统一操作区（分隔片后三键相邻；封禁参照举报管理页两步确认） -->
+                <span class="row-action-divider" aria-hidden="true" />
+                <el-button
+                  v-if="!row.is_banned && !row.isAdmin"
+                  size="small" circle type="danger" plain :icon="Lock"
+                  :title="$t('compliance.admin.ban')" :aria-label="$t('compliance.admin.ban')"
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="banArtist(row)"
+                />
+                <el-button
+                  v-else-if="row.is_banned && !row.isAdmin"
+                  size="small" circle type="success" plain :icon="Unlock"
+                  :title="$t('compliance.admin.unban')" :aria-label="$t('compliance.admin.unban')"
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="unbanArtist(row)"
+                />
                 <el-button size="small" circle type="danger" plain :icon="Delete" :title="$t('common.remove')" :aria-label="$t('common.remove')" @click="remove(row)" :disabled="row.isAdmin" />
               </template>
               <template v-else>
                 <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
                 <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
+                <!-- REQ-027: TOTP 绑定入口 -->
+                <el-button size="small" type="success" plain @click="openTotpBind(row)">
+                  {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
+                </el-button>
+                <!-- 817-B2：封禁/解封/移除统一操作区（分隔片后三键相邻；封禁两步确认） -->
+                <span class="row-action-divider" aria-hidden="true" />
                 <el-button
-                  v-if="row.is_banned && !row.isAdmin"
+                  v-if="!row.is_banned && !row.isAdmin"
+                  size="small" type="danger" plain
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="banArtist(row)"
+                >
+                  {{ $t('compliance.admin.ban') }}
+                </el-button>
+                <el-button
+                  v-else-if="row.is_banned && !row.isAdmin"
                   size="small" type="success" plain
                   :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
                   @click="unbanArtist(row)"
                 >
                   {{ $t('compliance.admin.unban') }}
-                </el-button>
-                <!-- REQ-027: TOTP 绑定入口 -->
-                <el-button size="small" type="success" plain @click="openTotpBind(row)">
-                  {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
                 </el-button>
                 <el-button size="small" type="danger" plain @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
               </template>
@@ -382,7 +401,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { adminApi, complianceApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { View, Tickets, Key, Delete, Unlock } from '@element-plus/icons-vue'
+import { View, Tickets, Key, Delete, Unlock, Lock } from '@element-plus/icons-vue'
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 import { formatDateTime } from '../../utils/datetime.js'
 import { formatCents } from '../../utils/money.js'
@@ -764,6 +783,39 @@ async function askReason(title, message) {
   }
 }
 
+/** 封禁画师（与解封对称的两步确认：填原因 → 必要时 StepUpDialog 升级 → 调接口；禁止单步直接封禁） */
+async function banArtist(row) {
+  if (banUpdatingId.value != null) return
+  banUpdatingId.value = row.id
+  const { cancelled, reason } = await askReason(
+    t('compliance.admin.ban'),
+    t('compliance.admin.banConfirm')
+  )
+  if (!cancelled) {
+    await submitBan(Number(row.id), reason)
+    return
+  }
+  banUpdatingId.value = null
+}
+
+/** 封禁提交（遇 STEP_UP_REQUIRED → 弹 StepUpDialog，验证通过后由 pendingStepUpAction 自动重提交） */
+async function submitBan(artistId, reason) {
+  try {
+    await complianceApi.banArtist(artistId, reason)
+    ElMessage.success(t('compliance.admin.bannedToast'))
+    await loadArtists()
+    banUpdatingId.value = null
+  } catch (err) {
+    if (err && err.code === 'STEP_UP_REQUIRED') {
+      pendingStepUpAction = () => submitBan(artistId, reason)
+      actionStepUpVisible.value = true
+      return // 保持行级 loading，验证通过后自动重提交
+    }
+    ElMessage.error(err.message)
+    banUpdatingId.value = null
+  }
+}
+
 /** 解封画师（与封禁对称的两步确认：填原因 → 必要时 StepUpDialog 升级 → 调接口） */
 async function unbanArtist(row) {
   if (banUpdatingId.value != null) return
@@ -894,6 +946,8 @@ onMounted(loadArtists)
 
 /* 行操作按钮组（统一间距） */
 .row-actions { display: flex; gap: var(--sp-1, 4px); flex-wrap: nowrap; }
+/* 817-B2：封禁/解封/移除统一操作区分隔片（4px 宽，保持 4px 栅格） */
+.row-action-divider { flex: none; width: 4px; }
 /* 回收站分页 */
 .pager { display: flex; justify-content: flex-end; margin-top: var(--sp-4, 16px); }
 

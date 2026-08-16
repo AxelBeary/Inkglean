@@ -121,6 +121,37 @@ describe('REQ-038 开箱设置 (Setup)', () => {
     expect(artist.subdomain).toBe('myart')
   })
 
+  // ─── 817-B #1: 开箱后管理员小店需载入默认工作流节点模板 ───
+
+  it('TC-SETUP-08b: 创建管理员后默认工作流节点模板已载入（与邀请/管理端建号同口径）', () => {
+    const result = createAdminArtist({
+      qqNumber: '10002',
+      name: '测试管理员'
+    })
+
+    const stages = db.prepare(
+      'SELECT name, sort_order, takes_payment, basis_points FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+    ).all(result.artist.id)
+
+    expect(stages).toHaveLength(7)
+    expect(stages.map(s => s.name)).toEqual(['定稿', '排期确认', '草稿确认', '线稿确认', '上色确认', '完稿确认', '交付'])
+    expect(stages.map(s => s.sort_order)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(stages.filter(s => s.takes_payment === 1).map(s => s.basis_points)).toEqual([3000, 7000])
+  })
+
+  it('TC-SETUP-08c: 开箱完成后节点模板保持 7 条不重复（seedArtistStages 幂等）', () => {
+    const result = createAdminArtist({
+      qqNumber: '10002',
+      name: '测试管理员'
+    })
+    const code = computeTotp(result.totpSecret, Date.now())
+    confirmTotpAndComplete({ qqNumber: '10002', code })
+
+    const count = db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?')
+      .get(result.artist.id)
+    expect(count.c).toBe(7)
+  })
+
   it('TC-SETUP-09: 已初始化后创建管理员返回 403', () => {
     // 模拟已完成初始化（管理员存在且已绑 TOTP）
     db.prepare("UPDATE platform_config SET value = '10001' WHERE key = 'admin_qq'").run()

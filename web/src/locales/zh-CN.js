@@ -1158,6 +1158,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     openViewer: '查看参考图 {n}',
     galleryHint: '点击图片放大预览 · 点 ✓ 设为焦点图 · 支持拖拽 / 点击 / Ctrl+V 上传 · 客户图 + 画师图合计最多 20 张',
     galleryNotImage: '仅支持图片文件', galleryTooBig: '图片超过 10MB 限制',
+    anonTokenRequired: '参考图凭证获取失败，请检查网络后重试',
     uploading: '上传中...', sourceClient: '客户', sourceArtist: '画师',
     noteImage: '备注附图', noteImageSingle: '备注仅支持 1 张附图，已使用第一张',
     noteImageUpload: '上传备注附图', viewNoteImage: '查看备注附图大图',

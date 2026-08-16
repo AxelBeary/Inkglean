@@ -1159,6 +1159,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     openViewer: 'View reference image {n}',
     galleryHint: 'Click an image to preview · Click ✓ to set focus · Drag / click / Ctrl+V to upload · Up to 20 images total (client + artist)',
     galleryNotImage: 'Only image files are supported', galleryTooBig: 'Image exceeds the 10MB limit',
+    anonTokenRequired: 'Failed to obtain the upload credential. Please check your network and retry.',
     uploading: 'Uploading...', sourceClient: 'Client', sourceArtist: 'Artist',
     noteImage: 'Note attachment', noteImageSingle: 'Notes support only 1 attachment. The first image was used.',
     noteImageUpload: 'Upload note attachment', viewNoteImage: 'View enlarged note attachment',
