@@ -7,7 +7,7 @@
 > 🔧 **三项真修（均带回归）**：①金额浮点误拒根治——自注册浮点安全关键字 moneyPrecision 替换 7 处 multipleOf:0.01（四舍五入后整数比对语义不变，Fastify 5 无 app.ajv 需显式传编译器），ajv 从幻影依赖升为显式依赖；②E1 排期卷轴浮层补画风/尺寸（schedule 接口只增 styleName/sizeName）；③E2 满态牌补额度耗尽轴（profile 下发 quotaInfo，满态=席位满或额度耗尽，额度 only 模式名额条改显额度用量）。
 > 🧹 **整理实录**：16 REQ + 2 spec 归档带索引；开发自参考/OPS/切换指南/README/说明书口径刷新；changelog 补清扫批章节；AGENTS.md 入库。
 > ✅ **终态门禁**：accept 全绿（server 1525→1532，新增 7 条回归；web 545 / E2E 13，tsc/vue-tsc/eslint/check-i18n/build 全过），基线已同步。
-> 🔜 **进行中**：部署进生产（post-merge-deploy，无新迁移，纯代码烘焙）。
+> ✅ **部署进生产全绿**：post-merge-deploy 一次过（备份档位链路正常、prev tag commission-web:prev-20260816-135425、Healthy、迁移回读 v66、冒烟 5/5 PASS 零 WARN）。
 > 📋 **用户决策清单**：本轮清扫后仍开放的项已汇总成表交付用户（终验/B 测/E5 文案/部署搬家/soul 公开/桌面端/剩余 P2P3 约 40 项去留）。
 > 🔑 **新会话接手指南**：部署完成后无在途施工。开放项全部在用户侧（清单见 v114）；开发侧无排队项（巨型组件拆分/P2P3 打磨等用户发话）。
 
