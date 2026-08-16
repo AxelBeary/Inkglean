@@ -290,6 +290,21 @@ describe('流程与比例服务 (Workflow Service)', () => {
     const result = wf.deleteStage(artist.id, stages[2].id)
     expect(result.success).toBe(true)
     expect(wf.getWorkflow(artist.id)).toHaveLength(6)
+    // 815-P2 状态机#9：终态订单的悬空引用同步置空（不残留指向已删节点的 current_stage_id）
+    const row = db.prepare('SELECT current_stage_id FROM orders WHERE id = ?').get(order.id)
+    expect(row.current_stage_id).toBeNull()
+  })
+
+  it('TC-W-P15c: resetArtistStages 清理终态订单悬空引用（815-P2 状态机#9）', () => {
+    const stages = seed(artist.id)
+    const order = seedOrder(artist.id, { status: 'delivered' })
+    db.prepare('UPDATE orders SET current_stage_id = ? WHERE id = ?').run(stages[2].id, order.id)
+
+    wf.resetArtistStages(artist.id)
+
+    // 重置后旧节点已删，终态订单引用不应悬空指向新模板的碰巧 id，而应置空
+    const row = db.prepare('SELECT current_stage_id FROM orders WHERE id = ?').get(order.id)
+    expect(row.current_stage_id).toBeNull()
   })
 
   // ─── P0-1: resetArtistStages 有活跃订单时禁止重置 ───

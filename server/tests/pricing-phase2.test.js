@@ -372,6 +372,31 @@ describe('R11 守恒拒绝', () => {
     }
   })
 
+  it('TC-P2-R11d: 总价列与账本漂移（final_price≠Σ条目）→ checkOrderConservation 抛 LEDGER_DRIFT（815-P2 金额#6）', () => {
+    const { artist } = seedFourStageArtist('88211', 'p2-r11d')
+    const r = db.prepare(`
+      INSERT INTO orders (order_no, artist_id, client_qq, status, queue_zone, total_price_cents, final_price_cents)
+      VALUES (?, ?, '88311', 'pending', 'formal', 30000, 30000)
+    `).run('P2-R11D', artist.id)
+    const orderId = Number(r.lastInsertRowid)
+    orderService.generateInstallmentsForOrder(orderId)
+    db.prepare('INSERT INTO order_price_entries (order_id, type, delta_cents, created_by) VALUES (?, ?, ?, ?)').run(orderId, 'base', 30000, 'system')
+
+    // 带病改价：绕过引擎直接篡改总价列（不写条目），模拟漂移脏数据
+    db.prepare('UPDATE orders SET final_price_cents = 99999 WHERE id = ?').run(orderId)
+
+    try {
+      orderService.checkOrderConservation(orderId)
+      expect.unreachable('漂移应被拒绝')
+    } catch (err) {
+      expect(err).toBeInstanceOf(AppError)
+      expect(err.code).toBe(E.PRICING_CONSERVATION)
+      expect(err.detail.assertion).toBe('LEDGER_DRIFT')
+      expect(err.detail.finalPriceCents).toBe(99999)
+      expect(err.detail.entrySumCents).toBe(30000)
+    }
+  })
+
   it('TC-P2-R11b: Σbp≠100% 订单跳过守恒（守卫）', () => {
     const artist = seedArtist({ qq_number: '88209', subdomain: 'p2-r11b' })
     db.prepare('INSERT INTO artist_workflow_stages (artist_id, name, sort_order, takes_payment, basis_points) VALUES (?, ?, 1, 1, 3000)').run(artist.id, '定金')

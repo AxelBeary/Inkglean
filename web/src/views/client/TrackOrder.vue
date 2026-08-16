@@ -157,6 +157,8 @@
               <span>{{ $t('track.payTotal') }} <strong>¥{{ formatCents(order.finalPriceCents) }}</strong></span>
             </div>
             <el-progress :percentage="trackPayPercent" :stroke-width="10" :color="trackPayPercent >= 100 ? 'var(--el-color-success)' : 'var(--el-color-primary)'" style="margin-top: 8px" />
+            <!-- 815-P2 金额#2：收款后降价/多收场景，客户端显式提示多付差额（对齐画师端 PaymentPanel「多收」口径） -->
+            <p v-if="trackOverpaidCents > 0" class="overpaid-hint">{{ $t('track.overpaid', { amount: formatCents(trackOverpaidCents) }) }}</p>
           </div>
         </div>
 
@@ -288,6 +290,10 @@ const stageProgress = computed(() => {
 // B7: 额度池——客户端付款进度（四项数据 + 进度条）
 const trackRemainingCents = computed(() =>
   Math.max(0, (order.value?.finalPriceCents || 0) - (order.value?.paidTotalCents || 0))
+)
+// 815-P2 金额#2：多付差额（收款后降价/客户多付时 > 0；与画师端 poolOverpaidCents 同口径）
+const trackOverpaidCents = computed(() =>
+  Math.max(0, (order.value?.paidTotalCents || 0) - (order.value?.finalPriceCents || 0))
 )
 const trackPayPercent = computed(() => {
   const total = order.value?.finalPriceCents || 0
@@ -487,6 +493,8 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
   font-size: 13px; color: var(--text-secondary);
 }
 .pay-progress-nums strong { color: var(--text-primary); font-size: 15px; }
+/* 815-P2 金额#2：多付提示（警示色，区别于正常进度文案） */
+.overpaid-hint { margin: 8px 0 0; font-size: 13px; color: var(--el-color-warning); }
 
 /* ─── F1 围剿：已保存追踪链接清单 ─── */
 /* T 波：列表 v-if 切换淡入淡出（--dur-mid） */

@@ -866,6 +866,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     priceTitle: 'Price breakdown', finalPrice: 'Final price',
     // B7: quota-pool payment progress
     payPaid: 'Paid', payNext: 'Next Due', payRemaining: 'Outstanding', payTotal: 'Total',
+    // 815-P2 money#2: overpayment hint (price cut after payment / overpaid)
+    overpaid: 'Overpaid by ¥{amount}; the artist will refund the difference offline',
     // D-3（R-11）: explicit zero-price order
     zeroOrder: 'Free order',
     zeroOrderHint: 'This is a ¥0 order — no payment needed',

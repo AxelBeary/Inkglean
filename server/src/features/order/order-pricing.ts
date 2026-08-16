@@ -368,6 +368,16 @@ export function checkOrderConservation(orderId: number): void {
   if (!order) return
   const entries = getPriceEntries(orderId)
   const totalCents = entries.length > 0 ? sumEntryDeltas(entries) : (resolvePriceCents(order) ?? 0)
+  // 815-P2 金额#6：账本 ↔ 总价对账——有条目时 final_price 必须 ≡ Σ条目，
+  // 否则断言只拿条目总额自检，总价列漂移静默（改价/增项全路径都双写，不等即脏数据）
+  const orderPriceCents = resolvePriceCents(order)
+  if (entries.length > 0 && orderPriceCents != null && orderPriceCents !== totalCents) {
+    throw new AppError(E.PRICING_CONSERVATION, 500, {
+      assertion: 'LEDGER_DRIFT',
+      finalPriceCents: orderPriceCents,
+      entrySumCents: totalCents
+    })
+  }
   const nodeAmountsCents = insts.map(i => i.amountCents)
   const sumAmounts = nodeAmountsCents.reduce((s, v) => s + v, 0)
   const extraChargeCents = entries.filter(e => e.type === 'extra_charge_after_close').reduce((s, e) => s + e.deltaCents, 0)

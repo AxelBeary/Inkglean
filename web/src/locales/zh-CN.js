@@ -865,6 +865,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     priceTitle: '价格明细', finalPrice: '最终价格',
     // B7: 额度池付款进度
     payPaid: '已付', payNext: '下期应付', payRemaining: '待付', payTotal: '总额',
+    // 815-P2 金额#2：收款后降价/多收场景的多付提示
+    overpaid: '已多付 ¥{amount}，差额将由画师线下退还',
     // D-3（R-11）: 零元订单显式化
     zeroOrder: '0 元订单',
     zeroOrderHint: '本订单为 0 元，无需收款',

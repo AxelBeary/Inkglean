@@ -177,4 +177,45 @@ describe('审计批E 运维脚本 (R-6)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('TC-OPS-07: 最新备份损坏时自动降级到更早一份（815-P2 部署#4 自愈多候选）', () => {
+    const dir = tempDir('restore-fallback-')
+    try {
+      // 旧备份（有效 sqlite）+ 新备份（垃圾字节），字典序新 > 旧
+      const olderPath = join(dir, 'commission.db.bak-2026-08-15T00-00-00-000Z')
+      const good = new Database(olderPath)
+      good.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)')
+      good.prepare('INSERT INTO t (v) VALUES (?)').run('older-backup')
+      good.close()
+      const newerPath = join(dir, 'commission.db.bak-2026-08-16T00-00-00-000Z')
+      writeFileSync(newerPath, 'garbage newest backup')
+      const dbPath = join(dir, 'commission.db')
+      writeFileSync(dbPath, 'corrupted target')
+
+      const result = restoreDb({ dbPath, backupDir: dir })
+
+      expect(result.restoredFrom).toBe(olderPath)
+      const check = new Database(dbPath, { readonly: true })
+      expect(check.prepare('SELECT v FROM t').get().v).toBe('older-backup')
+      check.close()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('TC-OPS-08: 全部候选备份均损坏 → 报错退出（不隐式降级到异名备份）', () => {
+    const dir = tempDir('restore-allbad-')
+    try {
+      writeFileSync(join(dir, 'commission.db.bak-2026-08-15T00-00-00-000Z'), 'garbage-a')
+      writeFileSync(join(dir, 'commission.db.bak-2026-08-16T00-00-00-000Z'), 'garbage-b')
+      const dbPath = join(dir, 'commission.db')
+      writeFileSync(dbPath, 'corrupted target')
+
+      expect(() => restoreDb({ dbPath, backupDir: dir })).toThrow(/全部候选备份均不可用/)
+      // 原库保持不动（未被坏备份覆盖）
+      expect(readFileSync(dbPath, 'utf8')).toBe('corrupted target')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

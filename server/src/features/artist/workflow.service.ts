@@ -292,6 +292,13 @@ export function deleteStage(artistId: number, stageId: number): { success: boole
         .run(stage.basis_points, final.id)
     }
 
+    // 815-P2 状态机#9：终态订单的悬空引用清理——守卫只拦活跃订单，
+    // delivered/cancelled 单引用被删节点后 current_stage_id 悬空（详情页 stageInfo 丢失），
+    // 删除前同步置空（节点行即将不存在，引用语义自然消亡）
+    db.prepare(
+      "UPDATE orders SET current_stage_id = NULL, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE current_stage_id = ? AND status IN ('delivered', 'cancelled')"
+    ).run(stageId)
+
     db.prepare('DELETE FROM artist_workflow_stages WHERE id = ?').run(stageId)
     // 压缩 sort_order
     const remaining = getStages(artistId)
@@ -410,6 +417,11 @@ export function resetArtistStages(artistId: number): StageCamel[] {
   }
 
   return db.transaction(() => {
+    // 815-P2 状态机#9：重置会删除全部旧节点——终态订单引用旧节点的 current_stage_id
+    // 会悬空（新节点 id 不同），删除前同步置空
+    db.prepare(
+      "UPDATE orders SET current_stage_id = NULL, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE artist_id = ? AND status IN ('delivered', 'cancelled') AND current_stage_id IS NOT NULL"
+    ).run(artistId)
     db.prepare('DELETE FROM artist_workflow_stages WHERE artist_id = ?').run(artistId)
     const tpl = getDefaultTemplate()
     const insert = db.prepare(
