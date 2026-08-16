@@ -117,4 +117,28 @@ describe('审计批 F-2 画师端留言分页', () => {
       await app.close()
     }
   })
+
+  it('TC-F2-07: 提交留言 language 写端校验与读端同口径（非法 400，合法可提交）', async () => {
+    const app = await buildApp({ logger: false })
+    await app.ready()
+    try {
+      const base = `/api/public/artist/${artist.subdomain}/messages`
+      const bad = await app.inject({
+        method: 'POST',
+        url: base,
+        payload: { nickname: '甲', content: '测试留言', language: 'zh-CN_' }
+      })
+      expect(bad.statusCode).toBe(400)
+
+      const ok = await app.inject({
+        method: 'POST',
+        url: base,
+        payload: { nickname: '甲', content: '测试留言', language: 'en-US' }
+      })
+      expect(ok.statusCode).toBe(201)
+      expect(ok.json().id).toBeDefined()
+    } finally {
+      await app.close()
+    }
+  })
 })

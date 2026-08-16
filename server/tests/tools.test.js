@@ -457,7 +457,7 @@ describe('tools 路由层（鉴权 + schema + CSV）', () => {
   })
 
   it('TC-TL-30: P2-9 export.csv 公式注入值前置单引号；逗号/引号转义不变', async () => {
-    const injections = ["=cmd|'/C calc'!A0", '+1', '-1', '@SUM(A1)']
+    const injections = ["=cmd|'/C calc'!A0", '+1', '-1+cmd', '@SUM(A1)']
     injections.forEach((name, i) => {
       tools.createStandaloneIncome(artist.id, { amountCents: 100 + i, clientName: name, note: '', incomeDate: '2026-08-01' })
     })
@@ -471,13 +471,31 @@ describe('tools 路由层（鉴权 + schema + CSV）', () => {
     expect(res.statusCode).toBe(200)
     const body = res.body.replace(/^\uFEFF/, '')
 
-    // 公式注入防护：值以 = + - @ 开头时前置单引号（单引号本身不触发 CSV 双引号包裹）
+    // 公式注入防护：非纯数字的 = + - @ 前缀值前置单引号（单引号本身不触发 CSV 双引号包裹）
     expect(body).toContain(`'=cmd|'/C calc'!A0`)
     expect(body).toContain(`'+1`)
-    expect(body).toContain(`'-1`)
+    expect(body).toContain(`'-1+cmd`)
     expect(body).toContain(`'@SUM(A1)`)
     // 正常含逗号/引号值转义行为不变
     expect(body).toContain('"张""客户,老"')
+  })
+
+  it('TC-TL-31: export.csv 退款负数用双引号包裹，保留 Excel 数值求和语义', async () => {
+    const o1 = seedOrder(artist.id, { order_no: 'R-100', client_qq: '10001' })
+    db.prepare("INSERT INTO order_payments (order_id, amount_cents, created_at, created_by) VALUES (?, ?, ?, ?)")
+      .run(o1.id, -5000, '2026-08-01 08:00:00', 'artist')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/artist/tools/export.csv?from=2026-08-01&to=2026-08-31',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.body.replace(/^\uFEFF/, '')
+
+    // 负退款必须是双引号包裹的数值（Excel 按数字求和），而不是单引号文本
+    expect(body).toContain(`10001,"-5000",order,${o1.id}`)
+    expect(body).not.toContain(`'-5000`)
   })
 
   it('TC-TL-29: export.csv 缺 from/to → 400', async () => {

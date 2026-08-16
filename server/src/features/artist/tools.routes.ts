@@ -14,10 +14,18 @@ const DATE_PATTERN = '^\\d{4}-\\d{2}-\\d{2}$'
  * CSV 字段转义（P2-9）：
  * 1) 公式注入——值以 = + - @ 或 \t \r 开头时前置单引号，Excel 按纯文本显示；
  * 2) 含逗号/引号/换行时用双引号包裹，内部引号翻倍。
+ * 3) 9-8：负退款（-<整数>）是合法数值——用双引号包裹而非前置单引号，
+ *    Excel 打开 CSV 时仍按数字解析可求和，同时不进入公式执行路径。
  */
+const SAFE_NUMERIC_RE = /^-?\d+(?:\.\d+)?$/
+
 function csvEscape(value: string): string {
   let out = value
   if (/^[=+\-@\t\r]/.test(out)) {
+    // 纯数字（含负数）用双引号包住保留数值语义；非数字公式前缀仍前置单引号
+    if (SAFE_NUMERIC_RE.test(out)) {
+      return `"${out}"`
+    }
     out = `'${out}`
   }
   if (/[",\n\r]/.test(out)) {

@@ -17,8 +17,8 @@ export interface OgData {
 
 /**
  * 缓存窗口：subdomain OG 数据内存缓存 5 分钟（Map + 时间戳），降低公开页 DB 压力。
- * 815 M-4：只有 DOMAIN 配置态（canonical 固定域）才允许进缓存；Host 回落值
- * 随请求变化，若入缓存会把首个来访者的 Host 投毒给 5 分钟内的所有访问者。
+ * 815 M-4：分享卡 URL 只以 DOMAIN 配置为来源，Host 头完全不参与；
+ * 未配置 DOMAIN 时固定降级 localhost，且不启用缓存（防运行时改配置读到旧域）。
  */
 const OG_CACHE_TTL_MS = 5 * 60 * 1000
 const ogCache = new Map<string, { fetchedAt: number; data: OgData }>()
@@ -62,21 +62,21 @@ function isOgVisible(artist: Artist): boolean {
   return true
 }
 
-/** HTTPS 绝对地址：DOMAIN env 优先（canonical），缺失时用请求 Host 兜底（开发环境可用；回落值不进缓存） */
-function absoluteUrl(path: string, host: string | undefined): string {
-  let domain = (process.env.DOMAIN || host || 'localhost').replace(/^https?:\/\//i, '')
+/** HTTPS 绝对地址：DOMAIN env 是唯一来源；缺失时如实降级为 localhost（绝不反射 Host 头） */
+function absoluteUrl(path: string): string {
+  let domain = (process.env.DOMAIN || 'localhost').replace(/^https?:\/\//i, '')
   while (domain.endsWith('/')) domain = domain.slice(0, -1)
   return `https://${domain}${path}`
 }
 
 /** 平台默认 OG（未找到画师/不可见画师时返回，不报错） */
-function defaultOg(subdomain: string, host: string | undefined): OgData {
-  const pageUrl = absoluteUrl(`/artist/${subdomain}`, host)
+function defaultOg(subdomain: string): OgData {
+  const pageUrl = absoluteUrl(`/artist/${subdomain}`)
   return {
     title: '拾绘 Inkglean — 画师约稿平台',
     description: '开源，自部署，易操作。',
     url: pageUrl,
-    image: absoluteUrl('/assets/logo.webp', host),
+    image: absoluteUrl('/assets/logo.webp'),
     imageAlt: '拾绘 Inkglean'
   }
 }
@@ -85,27 +85,27 @@ function defaultOg(subdomain: string, host: string | undefined): OgData {
  * 构建画师主页 OG 数据（subdomain → 内存缓存 5 分钟）
  * 未找到/不可见画师 → 默认 OG（不抛错）
  */
-export function buildOgMeta(subdomain: string, host?: string): OgData {
-  // 815 M-4：Host 反射投毒面关闭——仅 DOMAIN 固定域可缓存，回落值逐请求重算
-  const useHostFallback = !process.env.DOMAIN
-  const cached = useHostFallback ? undefined : ogCache.get(subdomain)
+export function buildOgMeta(subdomain: string): OgData {
+  // 815 M-4：Host 反射投毒面关闭——DOMAIN 未配置时固定降级 localhost，且不缓存
+  const useCache = !!process.env.DOMAIN
+  const cached = useCache ? ogCache.get(subdomain) : undefined
   if (cached && Date.now() - cached.fetchedAt < OG_CACHE_TTL_MS) {
     return cached.data
   }
 
   const artist = getArtistBySubdomain(subdomain)
   const data = !artist || !isOgVisible(artist)
-    ? defaultOg(subdomain, host)
-    : buildArtistOg(artist, host)
+    ? defaultOg(subdomain)
+    : buildArtistOg(artist)
 
-  if (!useHostFallback) {
+  if (useCache) {
     ogCache.set(subdomain, { fetchedAt: Date.now(), data })
   }
   return data
 }
 
 /** 画师 OG 数据：标题 = 画师名｜拾绘；描述 = 简介截断 100 字（附接单状态）；图 = 头像（无头像用 logo 兜底） */
-function buildArtistOg(artist: Artist, host: string | undefined): OgData {
+function buildArtistOg(artist: Artist): OgData {
   const bioText = cleanBio(artist.bio || '')
   const statusSuffix = artist.status === 'full'
     ? ' · 档期已满'
@@ -120,8 +120,8 @@ function buildArtistOg(artist: Artist, host: string | undefined): OgData {
   return {
     title: `${artist.name}｜拾绘`,
     description,
-    url: absoluteUrl(`/artist/${artist.subdomain}`, host),
-    image: absoluteUrl(imagePath, host),
+    url: absoluteUrl(`/artist/${artist.subdomain}`),
+    image: absoluteUrl(imagePath),
     imageAlt: `${artist.name}头像`
   }
 }
