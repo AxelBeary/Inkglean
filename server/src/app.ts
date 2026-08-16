@@ -482,7 +482,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
       if (OG_ARTIST_ROUTE_RE.test(urlPath) && wantsHtml(request)) {
         const subdomain = urlPath.slice('/artist/'.length)
         const html = readFileSync(resolve(WEB_DIST, 'index.html'), 'utf8')
-        return reply.send(injectOgMeta(html, buildOgMeta(subdomain, request.headers.host)))
+        return reply.send(injectOgMeta(html, buildOgMeta(subdomain)))
       }
       return reply.send(createReadStream(resolve(WEB_DIST, 'index.html')))
     })

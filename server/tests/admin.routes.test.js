@@ -788,6 +788,29 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(res.json().code).toBe('ADMIN_REQUIRED')
   })
 
+  it('TC-RB-13: 多日期同名文件恢复目标确定化——取最新日期目录', async () => {
+    const admin = setAdmin('10001')
+    const oldDir = join(rbBinRoot, '2026-08-04', 'images', '1')
+    const newDir = join(rbBinRoot, '2026-08-05', 'images', '2')
+    mkdirSync(oldDir, { recursive: true })
+    mkdirSync(newDir, { recursive: true })
+    writeFileSync(join(oldDir, 'dup.png'), 'old-data')
+    writeFileSync(join(newDir, 'dup.png'), 'new-data')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/recycle-bin/restore',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { fileName: 'dup.png' }
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().restoredPath).toBe('images/2/dup.png')
+    expect(readFileSync(join(rbUploadRoot, 'images', '2', 'dup.png'), 'utf8')).toBe('new-data')
+    expect(existsSync(join(oldDir, 'dup.png'))).toBe(true)
+    expect(existsSync(join(newDir, 'dup.png'))).toBe(false)
+  })
+
   // L-11（审计 九#4）: 默认模板 basisPoints 上限与保存口径统一为 9500（宽松处收紧到严格处）
   it('TC-AR-WFBP: 默认模板单节点 basisPoints 超 9500 被 schema 拒绝（L-11）', async () => {
     const admin = setAdmin('10001')

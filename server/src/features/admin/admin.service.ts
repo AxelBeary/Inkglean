@@ -111,6 +111,8 @@ export type RestoreRecycleBinResult =
 /**
  * 恢复回收站文件到原始路径（R-21，审计批E）
  * - 在各日期子目录中按 fileName（文件名）精确查找（回收站不保留原文件名映射以外的信息）
+ * - 多日期/多路径同名：按回收站内绝对路径字典序倒序取最新日期目录（与列表 movedAt 倒序一致），
+ *   消除 readdir 顺序对恢复目标的影响
  * - 目标已存在 → conflict（绝不覆盖，误恢复也不丢现有文件）
  * - 找不到 → not_found（含目标越界等异常结构，按不可恢复处理）
  */
@@ -133,6 +135,8 @@ export function restoreRecycleBinFile(fileName: string): RestoreRecycleBinResult
   walk(binRoot)
   if (matches.length === 0) return { status: 'not_found' }
 
+  // 确定化排序：YYYY-MM-DD 日期目录字典序 = 时间序，倒序取最新；同名同日期多路径也稳定取最大路径
+  matches.sort((a, b) => (b.abs < a.abs ? -1 : b.abs > a.abs ? 1 : 0))
   const src = matches[0]
   const target = resolve(join(uploadRoot, src.originalPath))
   const resolvedRoot = resolve(uploadRoot)

@@ -19,8 +19,10 @@ else
   echo "$STAMP OK container: healthy"
 fi
 
-# 2. 备份新鲜度：最新 DB 备份必须是 36 小时内
-NEWEST=$(ls -t data/backups/commission.db.bak-* 2>/dev/null | head -n 1)
+# 2. 备份新鲜度：最新每日档正式备份必须是 36 小时内
+# 只匹配 commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>（与 restore-db.ts 同口径），
+# 不把 deploy/weekly 档或异名备份误当每日档候选。
+NEWEST=$(ls -t data/backups/commission.db.bak-????-??-??T??-??-??-???Z 2>/dev/null | head -n 1)
 if [ -z "$NEWEST" ]; then
   echo "$STAMP PATROL_ALERT backup: 没有任何 DB 备份"
   ALERT=1

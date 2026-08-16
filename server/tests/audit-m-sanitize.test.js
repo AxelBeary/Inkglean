@@ -213,36 +213,38 @@ describe('M-4 OG meta：Host 反射投毒面关闭', () => {
     process.env.DOMAIN = 'inkglean.example'
     seedArtist({ qq_number: '815401', subdomain: 'm4-canonical', name: '墨鱼' })
 
-    const first = buildOgMeta('m4-canonical', 'evil.example')
+    const first = buildOgMeta('m4-canonical')
     expect(first.url).toBe('https://inkglean.example/artist/m4-canonical')
     expect(first.image).toBe('https://inkglean.example/assets/logo.webp')
 
     // DOMAIN 配置态仍走缓存（与既有缓存语义一致）
     db.prepare("UPDATE artists SET name = '新名' WHERE subdomain = 'm4-canonical'").run()
-    const second = buildOgMeta('m4-canonical', 'evil.example')
+    const second = buildOgMeta('m4-canonical')
     expect(second).toEqual(first)
   })
 
-  it('TC-M4-02: 不设 DOMAIN 时回落 request.host，但回落值不缓存', () => {
+  it('TC-M4-02: 不设 DOMAIN 时固定降级 localhost，Host 头不参与、回落值不缓存', () => {
     delete process.env.DOMAIN
     seedArtist({ qq_number: '815402', subdomain: 'm4-fallback', name: '回落画师' })
 
-    const poisoned = buildOgMeta('m4-fallback', 'evil.example')
-    expect(poisoned.url).toBe('https://evil.example/artist/m4-fallback')
+    const first = buildOgMeta('m4-fallback', 'evil.example')
+    expect(first.url).toBe('https://localhost/artist/m4-fallback')
+    expect(first.image).toBe('https://localhost/assets/logo.webp')
 
-    // 第二次用不同 Host：若回落值被缓存会复读 evil.example（投毒），正确行为是逐请求重算
-    const clean = buildOgMeta('m4-fallback', 'good.example')
-    expect(clean.url).toBe('https://good.example/artist/m4-fallback')
-    expect(clean).not.toEqual(poisoned)
+    // 第二次即使传不同 Host 也不反射；同时无 DOMAIN 时不启用缓存
+    const second = buildOgMeta('m4-fallback', 'good.example')
+    expect(second.url).toBe('https://localhost/artist/m4-fallback')
+    expect(second).toEqual(first)
   })
 
-  it('TC-M4-03: 不设 DOMAIN 时默认 OG 的回落值同样不缓存', () => {
+  it('TC-M4-03: 不设 DOMAIN 时默认 OG 同样固定 localhost、不缓存', () => {
     delete process.env.DOMAIN
 
-    const poisoned = buildOgMeta('ghost', 'evil.example')
-    expect(poisoned.url).toBe('https://evil.example/artist/ghost')
+    const first = buildOgMeta('ghost', 'evil.example')
+    expect(first.url).toBe('https://localhost/artist/ghost')
 
-    const clean = buildOgMeta('ghost', 'good.example')
-    expect(clean.url).toBe('https://good.example/artist/ghost')
+    const second = buildOgMeta('ghost', 'good.example')
+    expect(second.url).toBe('https://localhost/artist/ghost')
+    expect(second).toEqual(first)
   })
 })

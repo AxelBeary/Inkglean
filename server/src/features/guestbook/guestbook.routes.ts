@@ -28,7 +28,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
         properties: {
           nickname: { type: 'string', minLength: 1, maxLength: 20 },
           content: { type: 'string', minLength: 1, maxLength: 200 },
-          language: { type: 'string', maxLength: 10, default: 'zh-CN' }
+          language: { type: 'string', pattern: '^[a-zA-Z-]{2,10}$', default: 'zh-CN' }
         },
         additionalProperties: false
       }
