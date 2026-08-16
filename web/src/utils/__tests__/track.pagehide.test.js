@@ -30,21 +30,30 @@ describe('track pagehide 分片（817-D 10-4）', () => {
     vi.useRealTimers()
   })
 
-  it('积压 120 条：pagehide 全部带走（3 片 50/50/20），不再只发前 50 条', async () => {
+  it('积压 120 条：pagehide 分片带走全部未发事件，不再只发前 50 条', async () => {
     for (let i = 0; i < 120; i++) trackEvent('t', { i })
-    // 自动 flush 在首个满批时已同步取走 50 条并挂在 pending fetch 上，剩余 70 条走 pagehide
     window.dispatchEvent(new Event('pagehide'))
 
-    expect(navigator.sendBeacon).toHaveBeenCalledTimes(2)
+    // 不变量断言（不依赖自动 flush 与 pagehide 的时序竞态）：
+    // beacon 分片每片 ≤ 50 条、都带 token；beacon 带走的 + pending fetch 在途的 = 120 条零丢失
+    expect(navigator.sendBeacon.mock.calls.length).toBeGreaterThanOrEqual(2)
     const bodies = []
     for (const [, blob] of navigator.sendBeacon.mock.calls) {
       bodies.push(JSON.parse(await blob.text()))
     }
-    expect(bodies.map(b => b.events.length)).toEqual([50, 20])
+    let beaconTotal = 0
     for (const body of bodies) {
+      expect(body.events.length).toBeLessThanOrEqual(50)
       expect(body.token).toBe('anon-token-test')
       for (const ev of body.events) expect(ev.name).toBe('t')
+      beaconTotal += body.events.length
     }
+    expect(beaconTotal).toBeGreaterThanOrEqual(70) // 旧行为上限只发 50，新行为必须远超
+    const inFlight = globalThis.fetch.mock.calls.reduce((sum, call) => {
+      const body = JSON.parse(call[1].body)
+      return sum + body.events.length
+    }, 0)
+    expect(beaconTotal + inFlight).toBe(120) // 零丢失
   })
 
   it('buildBeaconBodies：55 条切 50+5 两片，token 每片携带', () => {
