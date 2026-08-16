@@ -6,7 +6,7 @@
 > 🔧 **四项真修（用户拍板「必要修的都修」，一号直修）**：①客户端多付提示——收款后降价/多收时 TrackOrder 显式提示「已多付 ¥X，差额由画师线下退还」（对齐画师端 PaymentPanel 多收口径，zh/en 双键）；②守恒断言补 LEDGER_DRIFT 对账——有条目时 final_price 必须 ≡ Σ条目，总价列漂移不再静默；③entrypoint 自愈恢复从「只试最新一份」升级为「新→旧逐份预校验+尝试」+ SQLite 魔数头预检（垃圾文件不进打开流程，顺手根治 Windows 句柄残留坑）；④终态订单 stage 悬空清理——deleteStage/resetArtistStages 删节点前同步置空 delivered/cancelled 单引用（带 version 递增）。新增回归 4 条，基线 1521→1525。
 > ✅ **五项核实销账（审计快照过时，当前代码已有防护，未硬修）**：确认/取消防连点（815 取消撤销批 + statusAction 锁）/ 举报 targetId 校验（K1-10）/ ArtistHome 死分支（K1-11）/ trackNextDueCents 死代码（K1-6 如实注释）/ 下单计价失败静默（K1-3 styleCalcError）。教训再验证：审计清单是快照，逐条对照代码裁决不硬修。
 > ✅ **终态门禁**：accept 全绿（server 1525 / web 545 / E2E 13，tsc/vue-tsc/eslint/check-i18n/build 全过）；AGENTS.md（AI 代理入口文件，早前会话产物）随本批入库。
-> 🔜 **进行中**：部署进生产（post-merge-deploy，预期 v66 不变无新迁移，纯代码烘焙）。
+> ✅ **部署进生产全绿**：post-merge-deploy 一次过（插曲：Docker Desktop 未运行致首次备份失败，启动后重跑即过）——备份档位链路自然闭环（新容器产出 bak-deploy-2026-08-16T05-08-40-300Z VERIFY_OK，昨日鸡生蛋问题如预期自愈）、prev tag commission-web:prev-20260816-130843、Healthy、迁移回读 v66、冒烟 5/5 PASS 零 WARN。
 > 🔑 **新会话接手指南**：部署完成后无在途施工。**剩余待办**：①用户终验新功能（https://localhost 重登后看：取消撤销/一次性下载/模板管理/封禁解封/多付提示）②B 测开启③P2/P3 其余约 40 项低危打磨项挂着（清单在审计报告与 hunt 报告尾部）④桌面端 HOLD。
 
 > ✅ **最后更新：2026-08-16 v112：beta.2 发版全链路收口——推送 + gh release 均由一号自行完成（沙箱拦截之谜定位）**
