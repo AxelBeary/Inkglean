@@ -97,6 +97,8 @@ export interface OrderInstallment {
  * 不再读 order_payment_installments.paid_cents（旧节点模型残留，列已随 v52 退役删除）。
  * paid: 完全覆盖 | partial: 部分覆盖 | pending: 未覆盖
  * 撤销回冲自然生效：负流水 → paid_total_cents 减少 → 状态自动回退，无需额外代码
+ * 2-1（审计 二#1）: 与引擎视图 readInstallmentState 同口径——已收先封顶到 Σ节点价、
+ * 每节点已收钳制到 [0, 节点价]，收款后大幅降价时节点级已付/待付不再出现负数错乱
  */
 export function getOrderInstallments(orderId: number): OrderInstallment[] {
   return getOrdersInstallments([orderId]).get(orderId) ?? []
@@ -131,20 +133,24 @@ export function getOrdersInstallments(orderIds: number[]): Map<number, OrderInst
   }
 
   for (const [orderId, list] of rowsByOrder) {
-    let covered = coveredByOrder.get(orderId) ?? 0
+    // 2-1（审计 二#1）: 已收封顶到 Σ节点价，逐节点 take 钳制到 [0, amt]——
+    // 与 readInstallmentState（引擎视图）同口径；负价/零价节点视为已结清，
+    // 杜绝大幅降价至已收之下时出现负「已付」/「待付」展示错乱
+    const sumAmounts = list.reduce((s, r) => s + (r.amountCents || 0), 0)
+    let covered = Math.min(coveredByOrder.get(orderId) ?? 0, sumAmounts)
     const installments: OrderInstallment[] = []
     for (const r of list) {
       const amt = r.amountCents || 0
       let paidCents = 0
       let status = 'pending'
-      if (covered >= amt) {
-        covered -= amt
-        paidCents = amt
+      if (amt > 0 && covered > 0) {
+        const take = Math.min(covered, amt)
+        covered -= take
+        paidCents = take
+        status = take >= amt ? 'paid' : 'partial'
+      } else if (amt <= 0) {
+        // 无待收节点（0 价/负价尾款）：不产生已付，也绝不显示负待付
         status = 'paid'
-      } else if (covered > 0) {
-        paidCents = covered
-        covered = 0
-        status = 'partial'
       }
       installments.push({
         id: r.id,

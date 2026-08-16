@@ -284,6 +284,33 @@ describe('B7 额度池（v0.23）', () => {
     expect(after[2]).toMatchObject({ paidCents: 10000, remainingCents: 10000 })
   })
 
+  // 2-1（审计 二#1）: 收款后大幅降价——尾款被 R8 压成负价时，
+  // 节点级已付/待付推导必须与引擎视图 readInstallmentState 同口径（封顶 + 钳制），不得出现负数
+  it('TC-INST-07: 收款后大幅降价 → 节点级已付/待付不出现负数（2-1）', () => {
+    const artist = seedArtist({ qq_number: '88116', subdomain: 'inst7' })
+    db.prepare('INSERT INTO artist_workflow_stages (artist_id, name, sort_order, takes_payment, basis_points) VALUES (?, ?, 1, 1, 3000)')
+      .run(artist.id, '定金')
+    db.prepare('INSERT INTO artist_workflow_stages (artist_id, name, sort_order, takes_payment, basis_points) VALUES (?, ?, 2, 1, 7000)')
+      .run(artist.id, '尾款')
+    const order = seedOrder(artist.id, { order_no: 'INST-007' })
+    db.prepare('UPDATE orders SET total_price_cents = 50000, final_price_cents = 50000 WHERE id = ?').run(order.id)
+    orderService.generateInstallmentsForOrder(order.id)
+    db.prepare('INSERT INTO order_price_entries (order_id, type, delta_cents, created_by) VALUES (?, ?, ?, ?)')
+      .run(order.id, 'base', 50000, 'system')
+
+    // 收 30000（定金 15000 付清即锁）→ 降价到 10000：delta −40000 全摊未锁尾款 → 尾款 −5000
+    orderService.addPayment(order.id, { amountCents: 30000, note: '定金+部分' })
+    orderService.updateFinalPrice(order.id, 10000)
+
+    const insts = orderService.getOrderInstallments(order.id)
+    expect(insts.map(i => i.amountCents)).toEqual([15000, -5000])
+    // 已收封顶到 Σ节点价（10000）后顺序填充：定金收满 10000（partial）、负价尾款视为已结清
+    expect(insts.map(i => i.paidCents)).toEqual([10000, 0])
+    expect(insts.map(i => i.remainingCents)).toEqual([5000, 0])
+    expect(insts.map(i => i.status)).toEqual(['partial', 'paid'])
+    expect(insts.every(i => i.paidCents >= 0 && i.remainingCents >= 0)).toBe(true)
+  })
+
   // ─── 话术变量修复（T3 BUG） ───
 
   it('TC-SPEECH-01: {已付} 读 paid_total_cents 而非 SUM installments', async () => {
