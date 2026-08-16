@@ -1,13 +1,45 @@
 // 巡检修复批 D14: 金额分 → 元 统一工具（原 7 处组件内重复实现，抽为单一来源）
+// 817 科学计数法消毒（用户反馈「到处都有」）：全部展示函数内部统一消毒，
+// 非法/非有限输入归 0，极大值不输出 e+ 形态（一处修全局受益）
+
+/** 非有限值（NaN/±Infinity/非法字符串）→ 0，否则归一化为数值 */
+function toFiniteNumber(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 /**
- * 金额分 → 元字符串（后端返分，前端 /100；与旧各组件本地 formatCents 同款，零行为变化）
+ * 数值 → 普通定点字符串（绝不输出 e/E）：先 toFixed 定精度，
+ * 极大值（≥1e21）toFixed 自身会退化为科学计数法，此处手动展开兜底
+ */
+function toPlainFixed(n, decimals) {
+  const s = n.toFixed(decimals)
+  if (!s.includes('e') && !s.includes('E')) return s
+  const sign = s.startsWith('-') ? '-' : ''
+  const [mantissa, expStr] = (sign ? s.slice(1) : s).split(/[eE]/)
+  const exp = Number(expStr)
+  const [intPart, fracPart = ''] = mantissa.split('.')
+  const digits = intPart + fracPart
+  const pointPos = intPart.length + exp
+  if (pointPos >= digits.length) return sign + digits + '0'.repeat(pointPos - digits.length)
+  if (pointPos <= 0) return sign + '0'
+  return sign + digits.slice(0, pointPos) + '.' + digits.slice(pointPos)
+}
+
+/** 整数裁剪输出：整数不带小数、非整数保留两位（均为普通定点，无科学计数法） */
+function toPlainTrimmed(n) {
+  return Number.isInteger(n) ? toPlainFixed(n, 0) : toPlainFixed(n, 2)
+}
+
+/**
+ * 金额分 → 元字符串（后端返分，前端 /100；与旧各组件本地 formatCents 同款）
  * @param {number|string|null|undefined} cents 金额（分）
  * @returns {string} 两位小数字符串
  */
 export function formatCents(cents) {
   // a3: Number 归一化——'abc'/NaN 等非法输入统一按 0 处理，不再输出 'NaN'
-  const n = Number(cents)
-  return ((Number.isNaN(n) ? 0 : n) / 100).toFixed(2)
+  // 817: 极大分值（≥1e23）toFixed 退化科学计数法，走普通定点展开
+  return toPlainFixed(toFiniteNumber(cents) / 100, 2)
 }
 
 /**
@@ -32,10 +64,9 @@ export function formatYuan(cents) {
  * @returns {string}
  */
 export function formatYuanValue(yuan) {
-  const n = Number(yuan ?? 0)
-  const v = Number.isNaN(n) ? 0 : n
-  if (v < 0) return `¥${v.toFixed(2)}`
-  return Number.isInteger(v) ? `¥${v}` : `¥${v.toFixed(2)}`
+  const v = toFiniteNumber(yuan ?? 0)
+  if (v < 0) return `¥${toPlainFixed(v, 2)}`
+  return `¥${toPlainTrimmed(v)}`
 }
 
 /**
@@ -46,10 +77,10 @@ export function formatYuanValue(yuan) {
  * - fixed: ¥N
  */
 export function formatAddonPrice(price, priceMode, { controlType = null, unitLabel = '' } = {}) {
-  const n = price ?? 0
-  if (priceMode === 'percent') return `+${n}%`
-  if (controlType === 'quantity') return unitLabel ? `¥${n}/${unitLabel}` : `¥${n}`
-  return `¥${n}`
+  const n = toFiniteNumber(price ?? 0)
+  if (priceMode === 'percent') return `+${toPlainTrimmed(n)}%`
+  if (controlType === 'quantity') return unitLabel ? `¥${toPlainTrimmed(n)}/${unitLabel}` : `¥${toPlainTrimmed(n)}`
+  return `¥${toPlainTrimmed(n)}`
 }
 
 /**
@@ -57,6 +88,6 @@ export function formatAddonPrice(price, priceMode, { controlType = null, unitLab
  * 整数不带小数（¥80），非整数保留两位（¥80.50）；与 formatCents（裸两位小数）语义不同，勿互替
  */
 export function formatYuanTrimmed(cents) {
-  const yuan = (cents ?? 0) / 100
-  return Number.isInteger(yuan) ? `¥${yuan}` : `¥${yuan.toFixed(2)}`
+  const yuan = toFiniteNumber(cents ?? 0) / 100
+  return `¥${toPlainTrimmed(yuan)}`
 }
