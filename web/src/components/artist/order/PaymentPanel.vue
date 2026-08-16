@@ -61,7 +61,8 @@
           <span class="pool-ref-amounts">
             <span class="pool-ref-paid">{{ $t('orderDetail.payNodePaid') }} ¥{{ formatCents(inst.paidCents) }}</span>
             <span class="pool-ref-sep">/</span>
-            <span>{{ $t('orderDetail.payNodeDue') }} ¥{{ formatCents(inst.amountCents) }}</span>
+            <!-- 2-1（审计二章1）：降价压负节点金额展示钳制到 0；paid/remaining 已由服务端同口径钳制 -->
+            <span>{{ $t('orderDetail.payNodeDue') }} ¥{{ formatCents(Math.max(0, inst.amountCents || 0)) }}</span>
             <span v-if="inst.remainingCents > 0" class="pool-ref-remain">（{{ $t('orderDetail.payNodeRemain') }} ¥{{ formatCents(inst.remainingCents) }}）</span>
           </span>
           <el-tag v-if="inst.status === 'paid'" type="success" size="small">{{ $t('orderDetail.payRefPaid') }}</el-tag>

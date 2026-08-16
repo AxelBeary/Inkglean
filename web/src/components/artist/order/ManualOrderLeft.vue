@@ -13,7 +13,15 @@
       </el-form-item>
     </div>
 
-    <!-- 参考图上传（大块粘贴区，左栏最显眼位置——画师流程：QQ收图→粘贴→再填其他） -->
+    <!-- 需求描述（画师试用反馈②：提到参考图之前，先文字后图） -->
+    <el-form-item :label="$t('manualOrder.desc')">
+      <el-input
+        v-model="description" type="textarea" :rows="4"
+        :placeholder="$t('manualOrder.descPlaceholder')" maxlength="2000" show-word-limit
+      />
+    </el-form-item>
+
+    <!-- 参考图上传（画师试用反馈②：移到需求描述板块下面；大块粘贴区，拖拽/点击/页内粘贴） -->
     <div class="mo-ref-section">
       <div class="mo-ref-label">
         <span>{{ $t('manualOrder.references') }}</span>
@@ -41,14 +49,6 @@
       </el-upload>
       <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
     </div>
-
-    <!-- 需求描述 -->
-    <el-form-item :label="$t('manualOrder.desc')">
-      <el-input
-        v-model="description" type="textarea" :rows="4"
-        :placeholder="$t('manualOrder.descPlaceholder')" maxlength="2000" show-word-limit
-      />
-    </el-form-item>
 
     <!-- 优先级 -->
     <el-form-item :label="$t('manualOrder.priority')">

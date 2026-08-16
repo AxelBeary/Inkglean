@@ -196,7 +196,8 @@
             <div class="receipt-section-title">{{ $t('track.receiptItems') }}</div>
             <div v-for="inst in order.installments" :key="inst.id" class="receipt-item">
               <span class="receipt-item-name">{{ inst.name }}</span>
-              <span class="receipt-item-amount">¥{{ formatCents(inst.amountCents) }}</span>
+              <!-- 2-1（审计二章1）：降价压负节点金额展示钳制到 0，不向客户显示负数 -->
+              <span class="receipt-item-amount">¥{{ formatCents(Math.max(0, inst.amountCents || 0)) }}</span>
             </div>
           </div>
           <div class="receipt-divider"></div>
@@ -300,17 +301,21 @@ const trackPayPercent = computed(() => {
   if (total <= 0) return 0
   return Math.min(100, Math.round((order.value?.paidTotalCents || 0) / total * 100))
 })
-/** 下期应付：下一个未覆盖分期节点的金额（partial 时显示剩余） */
+/** 下期应付：下一个未覆盖分期节点的金额（partial 时显示剩余）
+ * 2-1（审计二章1）：与服务端 getOrderInstallments 同口径——已收封顶到 Σ节点价，
+ * 零/负价节点视为已结清不参与吞并，大幅降价后不再算出负数下期 */
 const trackNextDueCents = computed(() => {
   const insts = order.value?.installments
   if (!insts?.length) return trackRemainingCents.value
-  let covered = order.value?.paidTotalCents || 0
+  const sumPositive = insts.reduce((s, i) => s + Math.max(0, i.amountCents || 0), 0)
+  let covered = Math.min(order.value?.paidTotalCents || 0, sumPositive)
   for (const inst of insts) {
     // K1-6：GET /orders/track 的 installments 来自 getOrderInstallments（order-pricing.ts），
     // 后端只返回 camelCase amountCents，snake_case 分支为死代码
     const amt = inst.amountCents || 0
+    if (amt <= 0) continue // 零/负价节点：已结清，跳过
     if (covered >= amt) { covered -= amt; continue }
-    return amt - covered // partial 或 pending：返回剩余
+    return amt - covered // partial：返回剩余
   }
   return 0 // 全部覆盖
 })
