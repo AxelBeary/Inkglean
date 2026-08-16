@@ -10,5 +10,10 @@
 	# 环境批 B1: 启用压缩（zstd 优先，回退 gzip；Caddy 2 内置编码器，无需插件）
 	encode zstd gzip
 
+	# 清扫批：Caddy 默认请求体上限 10MB，交付文件上限 50MB 会被截断 413——放宽到 55MB
+	request_body {
+		max_size 55MB
+	}
+
 	reverse_proxy web:3000
 }
