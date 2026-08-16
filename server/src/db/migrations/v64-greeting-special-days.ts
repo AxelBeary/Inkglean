@@ -45,7 +45,8 @@ export const migration: Migration = {
     const tableSql = database.prepare(
       "SELECT sql FROM sqlite_master WHERE type='table' AND name='greeting_templates'"
     ).get() as MasterSqlRow | undefined
-    if (cols.some(c => c.name === 'special_day_id') && tableSql && tableSql.sql.includes("'latenight'")) {
+    if (cols.some(c => c.name === 'special_day_id') && tableSql && (tableSql.sql.includes("'latenight'") || tableSql.sql.includes("'midnight'"))) {
+      // 817 注：midnight 分支为 v67 重构后基线形态（新装库直接落终态），同样跳过
       database.exec('DROP TABLE IF EXISTS greeting_templates_new')
       return
     }

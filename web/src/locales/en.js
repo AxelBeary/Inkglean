@@ -1023,7 +1023,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     scheduleSummaryDetail: 'Open order detail',
     greetSign: '— Inkglean',
     annPrefix: 'Notice',
-    slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
+    slotEarly: 'Early morning', slotMorning: 'Morning', slotNoon: 'Midday', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotMidnight: 'Late night',
     panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
     // F4: guestbook moderation
     guestbookTitle: 'Guestbook moderation', guestbookEmpty: 'No messages',
@@ -1743,11 +1743,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
     greetingEmpty: 'No greetings yet',
     greetingDeleteConfirm: 'Delete this greeting?',
-    slotAny: 'All day', slotMorning: 'Morning', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotNight: 'Late night',
-    // E5 wave 4: latenight pool + configurable special-day pool
-    slotLatenight: 'Midnight',
+    slotAny: 'All day', slotEarly: 'Early morning', slotMorning: 'Morning', slotNoon: 'Midday', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotMidnight: 'Late night',
+    // 817 greeting rework: 7 slots (night/latenight merged into one late-night slot)
     specialDayTitle: 'Special days',
-    specialDayHint: 'On a matching date, greetings bound to that day are drawn first (platform-wide or artist-specific); falls back to the late-night/slot pools when empty or disabled.',
+    specialDayHint: 'On a matching date, greetings bound to that day are drawn first (platform-wide or artist-specific); falls back through the time-slot and all-day pools when empty or disabled.',
     specialDayColName: 'Name', specialDayColDate: 'Date', specialDayColScope: 'Scope', specialDayColCount: 'Texts',
     specialDayScopeGlobal: 'All artists', specialDayScopeArtist: 'Specific artist',
     specialDayAdd: 'New special day',

@@ -276,13 +276,13 @@ CREATE TABLE IF NOT EXISTS greeting_special_days (
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
--- 问候语模板表（v6；v64 重建后基线：time_slot CHECK 含 latenight + special_day_id 列与外键）
+-- 问候语模板表（v6；v67 重建后基线：7 档时段 CHECK（early/morning/noon/afternoon/evening/midnight/any）+ special_day_id 列与外键）
 CREATE TABLE IF NOT EXISTS greeting_templates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   artist_id INTEGER,
   text TEXT NOT NULL,
   time_slot TEXT NOT NULL DEFAULT 'any'
-             CHECK(time_slot IN ('morning','afternoon','evening','night','latenight','any')),
+             CHECK(time_slot IN ('early','morning','noon','afternoon','evening','midnight','any')),
   is_enabled INTEGER NOT NULL DEFAULT 1,
   special_day_id INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

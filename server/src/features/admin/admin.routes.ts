@@ -401,7 +401,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          timeSlot: { type: 'string', enum: ['early', 'morning', 'noon', 'afternoon', 'evening', 'midnight', 'any'] },
           specialDayId: { type: 'integer' }
         }
       }
@@ -425,7 +425,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          timeSlot: { type: 'string', enum: ['early', 'morning', 'noon', 'afternoon', 'evening', 'midnight', 'any'] },
           isEnabled: { type: 'boolean' },
           specialDayId: { type: ['integer', 'null'] }
         }
@@ -474,7 +474,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          timeSlot: { type: 'string', enum: ['early', 'morning', 'noon', 'afternoon', 'evening', 'midnight', 'any'] },
           specialDayId: { type: 'integer' }
         }
       }
@@ -497,7 +497,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 200 },
-          timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any'] },
+          timeSlot: { type: 'string', enum: ['early', 'morning', 'noon', 'afternoon', 'evening', 'midnight', 'any'] },
           isEnabled: { type: 'boolean' },
           specialDayId: { type: ['integer', 'null'] }
         }

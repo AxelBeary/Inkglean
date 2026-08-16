@@ -4,7 +4,7 @@ import * as greetingService from '../src/features/artist/greeting.service.js'
 
 /**
  * 问候语服务测试
- * 覆盖：getCurrentSlot / drawGreeting / 通用库 CRUD / 画师专属库 CRUD
+ * 817 重构：7 档时段边界 / 加权抽取（40/40/20 骰子注入）/ 回落链 / 通用库 CRUD / 专属库 CRUD
  */
 
 // 清空问候语表（setup.js 的 cleanDb 不含此表，此处自行清理）
@@ -25,36 +25,65 @@ describe('问候语服务 (Greeting Service)', () => {
   // ─── getCurrentSlot 时段判断 ───
 
   describe('getCurrentSlot()', () => {
-    function mockHour(h) {
+    function mockTime(h, m = 0) {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date(2026, 6, 30, h, 0, 0))
+      vi.setSystemTime(new Date(2026, 6, 30, h, m, 0))
     }
 
-    it('TC-G-01: 5~10 点返回 morning', () => {
-      for (const h of [5, 7, 10]) {
-        mockHour(h)
+    it('TC-G-01: 4~6 点返回 early（清晨）', () => {
+      for (const h of [4, 5, 6]) {
+        mockTime(h)
+        expect(greetingService.getCurrentSlot()).toBe('early')
+      }
+    })
+
+    it('TC-G-02: 7~11 点返回 morning（上午）', () => {
+      for (const h of [7, 9, 11]) {
+        mockTime(h)
         expect(greetingService.getCurrentSlot()).toBe('morning')
       }
     })
 
-    it('TC-G-02: 11~17 点返回 afternoon', () => {
-      for (const h of [11, 14, 17]) {
-        mockHour(h)
+    it('TC-G-03: 12~13 点返回 noon（午后）', () => {
+      for (const h of [12, 13]) {
+        mockTime(h)
+        expect(greetingService.getCurrentSlot()).toBe('noon')
+      }
+    })
+
+    it('TC-G-04: 14~17 点返回 afternoon（下午）', () => {
+      for (const h of [14, 16, 17]) {
+        mockTime(h)
         expect(greetingService.getCurrentSlot()).toBe('afternoon')
       }
     })
 
-    it('TC-G-03: 18~22 点返回 evening', () => {
-      for (const h of [18, 20, 22]) {
-        mockHour(h)
+    it('TC-G-41: 18~21 点返回 evening（夜晚）', () => {
+      for (const h of [18, 20, 21]) {
+        mockTime(h)
         expect(greetingService.getCurrentSlot()).toBe('evening')
       }
     })
 
-    it('TC-G-04: 23~4 点返回 night', () => {
-      for (const h of [23, 0, 2, 4]) {
-        mockHour(h)
-        expect(greetingService.getCurrentSlot()).toBe('night')
+    it('TC-G-42: 22~3 点返回 midnight（深夜，跨午夜）', () => {
+      for (const h of [22, 23, 0, 2, 3]) {
+        mockTime(h)
+        expect(greetingService.getCurrentSlot()).toBe('midnight')
+      }
+    })
+
+    it('TC-G-43: 验收边界时刻逐刻归属（4:00/6:59/7:00/12:00/14:00/18:00/22:00/3:59）', () => {
+      const cases = [
+        [[4, 0], 'early'], [[6, 59], 'early'],
+        [[7, 0], 'morning'], [[11, 59], 'morning'],
+        [[12, 0], 'noon'], [[13, 59], 'noon'],
+        [[14, 0], 'afternoon'], [[17, 59], 'afternoon'],
+        [[18, 0], 'evening'], [[21, 59], 'evening'],
+        [[22, 0], 'midnight'], [[3, 59], 'midnight']
+      ]
+      for (const [[h, m], expected] of cases) {
+        mockTime(h, m)
+        expect(greetingService.getCurrentSlot()).toBe(expected)
       }
     })
   })
@@ -103,14 +132,70 @@ describe('问候语服务 (Greeting Service)', () => {
       }
     })
 
-    it('TC-G-10: 画师专属模板优先于通用（合并查询）', () => {
+    it('TC-G-10: 加权分层——骰子 40~79 落画师时段专属池，0~39 落系统时段池', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(2026, 6, 30, 8, 0, 0)) // morning
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
-      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (?, '专属问候{name}', 'any')").run(artist.id)
-      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, '通用问候{name}', 'any')").run()
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (?, '专属问候{name}', 'morning')").run(artist.id)
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, '通用问候{name}', 'morning')").run()
 
-      // 抽取结果可能是专属或通用（SQL 用 OR 合并 + RANDOM），但不应报错
-      const result = greetingService.drawGreeting(artist.id, '画师A')
-      expect(['专属问候画师A', '通用问候画师A']).toContain(result.text)
+      expect(greetingService.drawGreeting(artist.id, '画师A', { roll: 40 }).text).toBe('专属问候画师A')
+      expect(greetingService.drawGreeting(artist.id, '画师A', { roll: 79 }).text).toBe('专属问候画师A')
+      expect(greetingService.drawGreeting(artist.id, '画师A', { roll: 0 }).text).toBe('通用问候画师A')
+      expect(greetingService.drawGreeting(artist.id, '画师A', { roll: 39 }).text).toBe('通用问候画师A')
+    })
+
+    it('TC-G-44: 骰子 80~99 落全天池（不分归属）', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(2026, 6, 30, 8, 0, 0))
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, '系统上午', 'morning')").run()
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (?, '专属全天{name}', 'any')").run(artist.id)
+
+      const r1 = greetingService.drawGreeting(artist.id, '甲', { roll: 80 })
+      expect(r1.text).toBe('专属全天甲')
+      expect(r1.slot).toBe('any')
+      const r2 = greetingService.drawGreeting(artist.id, '甲', { roll: 99 })
+      expect(r2.text).toBe('专属全天甲')
+    })
+
+    it('TC-G-45: 回落链——画师专属池空→时段池；时段池空→全天池；全天池空→默认', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(2026, 6, 30, 8, 0, 0)) // morning
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+
+      // ① 骰子落专属池但无专属文案 → 掉入系统时段池
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, '系统上午{name}', 'morning')").run()
+      expect(greetingService.drawGreeting(artist.id, '甲', { roll: 50 }).text).toBe('系统上午甲')
+
+      // ② 时段池也空 → 掉入全天池
+      db.exec("DELETE FROM greeting_templates")
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, '全天文案{name}', 'any')").run()
+      expect(greetingService.drawGreeting(artist.id, '甲', { roll: 50 }).text).toBe('全天文案甲')
+      expect(greetingService.drawGreeting(artist.id, '甲', { roll: 10 }).text).toBe('全天文案甲')
+
+      // ③ 全空 → 默认问候（含 80~99 档）
+      db.exec("DELETE FROM greeting_templates")
+      expect(greetingService.drawGreeting(artist.id, '甲', { roll: 50 }).text).toBe('你好，甲')
+      expect(greetingService.drawGreeting(artist.id, '甲', { roll: 90 }).text).toBe('你好，甲')
+    })
+
+    it('TC-G-46: 加权分布近似 40/40/20（三池都有时按骰子分层）', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(2026, 6, 30, 8, 0, 0))
+      const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, 'S', 'morning')").run()
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (?, 'A', 'morning')").run(artist.id)
+      db.prepare("INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, 'D', 'any')").run()
+
+      const counts = { S: 0, A: 0, D: 0 }
+      for (let roll = 0; roll < 100; roll++) {
+        const { text } = greetingService.drawGreeting(artist.id, 'x', { roll })
+        counts[text] += 1
+      }
+      expect(counts.S).toBe(40)
+      expect(counts.A).toBe(40)
+      expect(counts.D).toBe(20)
     })
 
     it('TC-G-11: 禁用模板不被抽取', () => {
@@ -183,8 +268,8 @@ describe('问候语服务 (Greeting Service)', () => {
 
     it('TC-G-19: updateGreeting 更新时段', () => {
       const row = greetingService.createGlobalGreeting({ text: '测试', timeSlot: 'any' })
-      const updated = greetingService.updateGreeting(row.id, { timeSlot: 'night' })
-      expect(updated.time_slot).toBe('night')
+      const updated = greetingService.updateGreeting(row.id, { timeSlot: 'midnight' })
+      expect(updated.time_slot).toBe('midnight')
     })
 
     it('TC-G-20: updateGreeting 禁用/启用', () => {

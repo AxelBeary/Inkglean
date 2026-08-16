@@ -1022,7 +1022,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     scheduleSummaryDetail: '进订单详情',
     greetSign: '—— 拾绘',
     annPrefix: '店公告',
-    slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
+    slotEarly: '清晨', slotMorning: '上午', slotNoon: '午后', slotAfternoon: '下午', slotEvening: '夜晚', slotMidnight: '深夜',
     panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
     // F4: 留言审核
     guestbookTitle: '留言审核', guestbookEmpty: '暂无留言',
@@ -1740,11 +1740,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
     greetingEmpty: '暂无问候语',
     greetingDeleteConfirm: '确定删除这条问候语吗？',
-    slotAny: '全天', slotMorning: '清晨', slotAfternoon: '午后', slotEvening: '傍晚', slotNight: '深夜',
-    // E5 波 4：深夜池（latenight）+ 可配置特别日池
-    slotLatenight: '午夜',
+    slotAny: '全天', slotEarly: '清晨', slotMorning: '上午', slotNoon: '午后', slotAfternoon: '下午', slotEvening: '夜晚', slotMidnight: '深夜',
+    // 817 问候重构：7 档时段（旧 night/latenight 双档合并为深夜；深夜池概念消除）
     specialDayTitle: '特别日',
-    specialDayHint: '命中日期当天优先投放该日文案（全平台或指定画师）；文案未配置或全部停用时自动回落深夜池/时段池。',
+    specialDayHint: '命中日期当天优先投放该日文案（全平台或指定画师）；文案未配置或全部停用时自动按时段池/全天池回落。',
     specialDayColName: '名称', specialDayColDate: '日期', specialDayColScope: '范围', specialDayColCount: '文案',
     specialDayScopeGlobal: '全平台', specialDayScopeArtist: '指定画师',
     specialDayAdd: '新建特别日',

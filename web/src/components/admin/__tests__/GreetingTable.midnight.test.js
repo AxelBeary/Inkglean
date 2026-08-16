@@ -1,5 +1,5 @@
-// E5 波 4：GreetingTable 深夜档（latenight）数据钩子
-// 覆盖：latenight 行时段标签走 admin.slotLatenight 键
+// 817 问候重构：GreetingTable 深夜档（midnight）数据钩子
+// 覆盖：midnight 行时段标签走 admin.slotMidnight 键（旧 slotLatenight 已清理）
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import GreetingTable from '../GreetingTable.vue'
@@ -45,10 +45,10 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('GreetingTable 深夜档（E5）', () => {
-  it('latenight 行渲染 slotLatenight 标签', async () => {
+describe('GreetingTable 深夜档（817 七档）', () => {
+  it('midnight 行渲染 slotMidnight 标签', async () => {
     h.getGreetings.mockResolvedValue([
-      { id: 1, text: '午夜好 {name}', time_slot: 'latenight', is_enabled: 1, special_day_id: null }
+      { id: 1, text: '深夜好 {name}', time_slot: 'midnight', is_enabled: 1, special_day_id: null }
     ])
     const wrapper = mount(GreetingTable, {
       props: { artistId: null },
@@ -62,6 +62,25 @@ describe('GreetingTable 深夜档（E5）', () => {
     await flushPromises()
 
     const row = wrapper.find('.greeting-row')
-    expect(row.find('.g-col--slot').text()).toBe('admin.slotLatenight')
+    expect(row.find('.g-col--slot').text()).toBe('admin.slotMidnight')
+  })
+
+  it('early 行渲染 slotEarly 标签（新增清晨档）', async () => {
+    h.getGreetings.mockResolvedValue([
+      { id: 2, text: '清晨好 {name}', time_slot: 'early', is_enabled: 1, special_day_id: null }
+    ])
+    const wrapper = mount(GreetingTable, {
+      props: { artistId: null },
+      global: {
+        mocks: { $t: (key) => key },
+        stubs: EP_STUBS,
+        directives: { loading: {} }
+      }
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+
+    const row = wrapper.find('.greeting-row')
+    expect(row.find('.g-col--slot').text()).toBe('admin.slotEarly')
   })
 })

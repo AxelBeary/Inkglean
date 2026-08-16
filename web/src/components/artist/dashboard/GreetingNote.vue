@@ -85,10 +85,12 @@ const dateLine = computed(() => {
     month: 'long', day: 'numeric', weekday: 'long'
   })
   const slotNames: Record<string, string> = {
+    early: t('dashboard.slotEarly'),
     morning: t('dashboard.slotMorning'),
+    noon: t('dashboard.slotNoon'),
     afternoon: t('dashboard.slotAfternoon'),
     evening: t('dashboard.slotEvening'),
-    night: t('dashboard.slotNight'),
+    midnight: t('dashboard.slotMidnight'),
     any: ''
   }
   const slotName = slotNames[greeting.value.slot] || ''

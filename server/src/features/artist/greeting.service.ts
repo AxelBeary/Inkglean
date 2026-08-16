@@ -3,11 +3,13 @@ import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 问候语服务
-// E5（814 波 4）：池扩展——深夜池（latenight）+ 可配置特别日池
-// 抽取优先级链：特别日命中 → 深夜池 → 普通时段池 → any → 默认兜底
+// 817 重构（用户拍板终稿 2026-08-16）：7 档时段全覆盖 + 加权随机抽取
+// 抽取优先级链：特别日命中 → 加权随机（时段池40%/画师时段专属40%/全天20%）→ 默认兜底
+// 回落链：画师专属池空→时段池；时段池空→全天池；全天池空→默认问候
 // ============================================
 
-const SLOTS = ['morning', 'afternoon', 'evening', 'night', 'latenight', 'any']
+/** 7 档时段（v67 重构；旧 6 档 morning/afternoon/evening/night/latenight/any 已由迁移 v67 搬家） */
+export const SLOTS = ['early', 'morning', 'noon', 'afternoon', 'evening', 'midnight', 'any']
 
 /** 问候语模板行 */
 interface GreetingTemplate {
@@ -40,21 +42,19 @@ interface TemplateDrawRow {
 }
 
 /**
- * 获取当前时段
- * 注意：23~4 点返回 'night'（既有划分不动）；深夜池 latenight 由 isLatenightHour
- * 在同区间内优先抽取，池空再回落到 night/any——边界处理与既有划分一致。
+ * 获取当前时段（7 档全覆盖无空档，用户拍板终稿）：
+ * 清晨 4:00~6:59 ｜ 上午 7:00~11:59 ｜ 午后 12:00~13:59 ｜ 下午 14:00~17:59
+ * 夜晚 18:00~21:59 ｜ 深夜 22:00~3:59 ｜ 全天（任意时刻万能兜底，非时段判定值）
+ * 时区铁律：取本机本地时间（部署强制 TZ=Asia/Shanghai）。
  */
-export function getCurrentSlot(): string {
-  const h = new Date().getHours()
-  if (h >= 5 && h <= 10) return 'morning'
-  if (h >= 11 && h <= 17) return 'afternoon'
-  if (h >= 18 && h <= 22) return 'evening'
-  return 'night'
-}
-
-/** 深夜窗口：23:00~次日 04:59（与 getCurrentSlot 的 night 区间一致） */
-export function isLatenightHour(hour: number): boolean {
-  return hour >= 23 || hour < 5
+export function getCurrentSlot(now: Date = new Date()): string {
+  const h = now.getHours()
+  if (h >= 4 && h <= 6) return 'early'
+  if (h >= 7 && h <= 11) return 'morning'
+  if (h >= 12 && h <= 13) return 'noon'
+  if (h >= 14 && h <= 17) return 'afternoon'
+  if (h >= 18 && h <= 21) return 'evening'
+  return 'midnight'
 }
 
 /**
@@ -80,33 +80,64 @@ function fillName(text: string, artistName: string): string {
 }
 
 /**
- * 时段池抽取：只抽未挂特别日的启用文案（通用 + 该画师专属），随机一条。
+ * 时段池抽取（只抽未挂特别日的启用文案，随机一条）。
  * 特别日文案（special_day_id 非空）不参与普通投放，只在特别日链命中。
  */
-function drawFromPool(artistId: number, slots: string[]): TemplateDrawRow | undefined {
-  const placeholders = slots.map(() => '?').join(', ')
-  return db.prepare(`
+function drawRandom(sql: string, ...params: unknown[]): TemplateDrawRow | undefined {
+  return db.prepare(sql).get(...params) as TemplateDrawRow | undefined
+}
+
+/** 时段池：系统通用（artist_id 为空）且 time_slot=当前时段 */
+function drawSystemSlotPool(slot: string): TemplateDrawRow | undefined {
+  return drawRandom(`
     SELECT text, time_slot FROM greeting_templates
-    WHERE is_enabled = 1
-      AND special_day_id IS NULL
-      AND (artist_id IS NULL OR artist_id = ?)
-      AND time_slot IN (${placeholders})
-    ORDER BY RANDOM()
-    LIMIT 1
-  `).get(artistId, ...slots) as TemplateDrawRow | undefined
+    WHERE is_enabled = 1 AND special_day_id IS NULL
+      AND artist_id IS NULL AND time_slot = ?
+    ORDER BY RANDOM() LIMIT 1
+  `, slot)
+}
+
+/** 画师时段专属池：artist_id=该画师 且 time_slot=当前时段 */
+function drawArtistSlotPool(artistId: number, slot: string): TemplateDrawRow | undefined {
+  return drawRandom(`
+    SELECT text, time_slot FROM greeting_templates
+    WHERE is_enabled = 1 AND special_day_id IS NULL
+      AND artist_id = ? AND time_slot = ?
+    ORDER BY RANDOM() LIMIT 1
+  `, artistId, slot)
+}
+
+/** 全天池：time_slot='any'（不分归属） */
+function drawAnyPool(artistId: number): TemplateDrawRow | undefined {
+  return drawRandom(`
+    SELECT text, time_slot FROM greeting_templates
+    WHERE is_enabled = 1 AND special_day_id IS NULL
+      AND (artist_id IS NULL OR artist_id = ?) AND time_slot = 'any'
+    ORDER BY RANDOM() LIMIT 1
+  `, artistId)
+}
+
+/** 抽取选项（测试可注入骰子与时钟，生产缺省随机） */
+export interface DrawOptions {
+  /** 加权骰子 0~99（测试注入；缺省 Math.random） */
+  roll?: number
+  /** 当前时刻（测试注入；缺省 new Date()） */
+  now?: Date
 }
 
 /**
- * 为画师抽取一条问候语
+ * 为画师抽取一条问候语（用户拍板终稿：「节日>（时段40%、画师时段专属40%、全天20%）随机>兜底」）
  * 优先级链：
- *   1. 特别日池（最高）：当天 date_key 命中、启用的特别日（全平台或该画师专属）
- *      → 从该日关联的启用文案随机一条；miss 继续
- *   2. 深夜池：23:00~次日 04:59 优先抽 latenight 池；池空回落
- *   3. 普通时段池 + any 兜底
- *   4. 全空 → 默认问候
+ *   1. 节日层：当天 date_key 命中、启用的特别日（全平台或该画师专属）
+ *      → 从该日关联的启用文案随机一条，结束
+ *   2. 加权随机层：掷骰子 0~99
+ *      - 0~39  → 时段池（系统通用+当前时段）；池空 → 全天池
+ *      - 40~79 → 画师时段专属池；池空 → 时段池 → 全天池
+ *      - 80~99 → 全天池（time_slot='any' 不分归属）
+ *   3. 兜底层：全空 → 默认问候「你好，{name}」
  */
-export function drawGreeting(artistId: number, artistName: string): { text: string; slot: string } {
-  const now = new Date()
+export function drawGreeting(artistId: number, artistName: string, opts: DrawOptions = {}): { text: string; slot: string } {
+  const now = opts.now ?? new Date()
   const name = artistName || '画师'
 
   // 1) 特别日池：日期命中 + 日启用 + 文案启用（范围：全平台 OR 该画师专属）
@@ -124,17 +155,22 @@ export function drawGreeting(artistId: number, artistName: string): { text: stri
     return { text: fillName(special.text, name), slot: 'special' }
   }
 
-  // 2) 深夜池：窗口内优先 latenight（不含 any），池空回落普通链
-  if (isLatenightHour(now.getHours())) {
-    const late = drawFromPool(artistId, ['latenight'])
-    if (late) {
-      return { text: fillName(late.text, name), slot: late.time_slot }
-    }
+  // 2) 加权随机层：时段池 40% / 画师时段专属池 40% / 全天池 20%
+  const roll = opts.roll ?? Math.floor(Math.random() * 100)
+  const slot = getCurrentSlot(now)
+
+  let row: TemplateDrawRow | undefined
+  if (roll < 40) {
+    // 时段池；池空 → 全天池（用户确认回落规则）
+    row = drawSystemSlotPool(slot) ?? drawAnyPool(artistId)
+  } else if (roll < 80) {
+    // 画师时段专属池；池空 → 时段池 → 全天池
+    row = drawArtistSlotPool(artistId, slot) ?? drawSystemSlotPool(slot) ?? drawAnyPool(artistId)
+  } else {
+    // 全天池；池空 → 默认问候
+    row = drawAnyPool(artistId)
   }
 
-  // 3) 普通时段池 + any 兜底（合并查询随机，保持既有行为）
-  const slot = getCurrentSlot()
-  const row = drawFromPool(artistId, [slot, 'any'])
   const text = row ? fillName(row.text, name) : `你好，${name}`
   return { text, slot: row?.time_slot || 'any' }
 }

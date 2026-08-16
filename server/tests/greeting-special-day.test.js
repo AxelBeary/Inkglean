@@ -3,9 +3,11 @@ import { db, cleanDb, seedArtist } from './setup.js'
 import * as greetingService from '../src/features/artist/greeting.service.js'
 
 /**
- * E5 波 4：问候系统池扩展测试
- * 覆盖：抽取优先级链（特别日命中/miss 回落/深夜池/普通池/any 兜底）、
+ * E5 波 4 + 817 重构：问候系统特别日池测试
+ * 覆盖：抽取优先级链（特别日命中/miss 回落/时段池/全天池/默认兜底）、
  *       范围隔离、日期格式校验、写入口消毒同口径、删除级联
+ * 817 注：旧 latenight/night 双档已合并为 midnight；抽取走加权骰子，
+ *       确定性用例经 drawGreeting 第三参注入 roll。
  */
 
 // 清空问候相关表（setup.js 的 cleanDb 不含 greeting_special_days，此处自行清理）
@@ -67,32 +69,31 @@ describe('E5 问候池扩展：深夜池 + 特别日池', () => {
   // ─── 抽取优先级链 ───
 
   describe('drawGreeting 优先级链', () => {
-    it('TC-E5-04: 特别日命中优先于深夜池/时段池/any', () => {
+    it('TC-E5-04: 特别日命中优先于一切（时段池/全天池）', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date(2026, 7, 14, 23, 30, 0)) // 深夜时段
       const dayId = seedDay({ dateKey: '08-14' })
       seedTemplate({ text: '特别日文案{name}', specialDayId: dayId })
-      seedTemplate({ text: '深夜池文案', slot: 'latenight' })
-      seedTemplate({ text: '夜间文案', slot: 'night' })
+      seedTemplate({ text: '深夜池文案', slot: 'midnight' })
       seedTemplate({ text: '全天文案', slot: 'any' })
 
-      for (let i = 0; i < 10; i++) {
-        const result = greetingService.drawGreeting(1, '小明')
+      for (const roll of [0, 50, 90]) {
+        const result = greetingService.drawGreeting(1, '小明', { roll })
         expect(result.text).toBe('特别日文案小明')
         expect(result.slot).toBe('special')
       }
     })
 
-    it('TC-E5-05: 特别日停用 → 退出抽取链回落深夜池', () => {
+    it('TC-E5-05: 特别日停用 → 退出抽取链回落时段池', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date(2026, 7, 14, 23, 30, 0))
       const dayId = seedDay({ dateKey: '08-14', enabled: 0 })
       seedTemplate({ text: '特别日文案', specialDayId: dayId })
-      seedTemplate({ text: '深夜池文案{name}', slot: 'latenight' })
+      seedTemplate({ text: '深夜池文案{name}', slot: 'midnight' })
 
-      const result = greetingService.drawGreeting(1, '小明')
+      const result = greetingService.drawGreeting(1, '小明', { roll: 0 })
       expect(result.text).toBe('深夜池文案小明')
-      expect(result.slot).toBe('latenight')
+      expect(result.slot).toBe('midnight')
     })
 
     it('TC-E5-06: 特别日关联文案全部停用 → 回落普通链', () => {
@@ -102,7 +103,7 @@ describe('E5 问候池扩展：深夜池 + 特别日池', () => {
       seedTemplate({ text: '特别日文案', specialDayId: dayId, enabled: 0 })
       seedTemplate({ text: '早安文案{name}', slot: 'morning' })
 
-      const result = greetingService.drawGreeting(1, '小明')
+      const result = greetingService.drawGreeting(1, '小明', { roll: 0 })
       expect(result.text).toBe('早安文案小明')
     })
 
@@ -113,7 +114,7 @@ describe('E5 问候池扩展：深夜池 + 特别日池', () => {
       seedTemplate({ text: '特别日文案', specialDayId: dayId })
       seedTemplate({ text: '早安文案{name}', slot: 'morning' })
 
-      const result = greetingService.drawGreeting(1, '小明')
+      const result = greetingService.drawGreeting(1, '小明', { roll: 0 })
       expect(result.text).toBe('早安文案小明')
     })
 
@@ -144,44 +145,46 @@ describe('E5 问候池扩展：深夜池 + 特别日池', () => {
       expect(greetingService.drawGreeting(9999, '乙').text).toBe('平台节日乙')
     })
 
-    it('TC-E5-10: 深夜池优先——23:00~04:59 命中 latenight 池', () => {
+    it('TC-E5-10: 深夜档 22:00~3:59 命中 midnight 池（骰子落时段池/专属池均回落午夜文案）', () => {
       vi.useFakeTimers()
-      for (const h of [23, 0, 4]) {
+      for (const h of [22, 23, 0, 3]) {
         vi.setSystemTime(new Date(2026, 7, 14, h, 30, 0))
-        seedTemplate({ text: '深夜池{name}', slot: 'latenight' })
-        seedTemplate({ text: '夜间池', slot: 'night' })
+        seedTemplate({ text: '深夜池{name}', slot: 'midnight' })
         seedTemplate({ text: '全天池', slot: 'any' })
-
-        for (let i = 0; i < 5; i++) {
-          const result = greetingService.drawGreeting(1, '夜猫')
+    
+        for (const roll of [0, 50]) {
+          const result = greetingService.drawGreeting(1, '夜猫', { roll })
           expect(result.text).toBe('深夜池夜猫')
-          expect(result.slot).toBe('latenight')
+          expect(result.slot).toBe('midnight')
         }
         db.exec('DELETE FROM greeting_templates')
       }
     })
-
-    it('TC-E5-11: 深夜池空 → 回落普通时段池（night）与 any', () => {
+    
+    it('TC-E5-11: 深夜时段无 midnight 文案 → 回落全天池；无全天 → 默认', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date(2026, 7, 14, 23, 30, 0))
-      seedTemplate({ text: '夜间池{name}', slot: 'night' })
+    
+      // ① 有全天文案 → 各档骰子均落全天池
       seedTemplate({ text: '全天池{name}', slot: 'any' })
-
-      const seen = new Set()
-      for (let i = 0; i < 20; i++) {
-        const result = greetingService.drawGreeting(1, '夜猫')
-        expect(['夜间池夜猫', '全天池夜猫']).toContain(result.text)
-        seen.add(result.text)
+      for (const roll of [0, 50, 90]) {
+        const result = greetingService.drawGreeting(1, '夜猫', { roll })
+        expect(result.text).toBe('全天池夜猫')
       }
-      expect(seen.size).toBeGreaterThanOrEqual(1)
+    
+      // ② 只有别的时段文案（evening）→ 当前 midnight 时段不命中 → 默认
+      db.exec('DELETE FROM greeting_templates')
+      seedTemplate({ text: '夜晚池{name}', slot: 'evening' })
+      const result = greetingService.drawGreeting(1, '夜猫', { roll: 0 })
+      expect(result.text).toBe('你好，夜猫')
     })
-
-    it('TC-E5-12: 白天不抽深夜池（latenight 文案只在深夜窗口投放）', () => {
+    
+    it('TC-E5-12: 白天不抽深夜档（midnight 文案只在 22:00~3:59 投放）', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date(2026, 7, 14, 10, 0, 0)) // morning
-      seedTemplate({ text: '深夜池文案', slot: 'latenight' })
-
-      const result = greetingService.drawGreeting(1, '测试')
+      seedTemplate({ text: '深夜池文案', slot: 'midnight' })
+    
+      const result = greetingService.drawGreeting(1, '测试', { roll: 0 })
       expect(result.text).toBe('你好，测试') // 无可用文案 → 默认兜底
     })
 
@@ -317,10 +320,10 @@ describe('E5 问候池扩展：深夜池 + 特别日池', () => {
       expect(greetingService.getGlobalGreetings()).toHaveLength(1)
     })
 
-    it('TC-E5-28: latenight 档可正常创建/过滤（SLOTS 扩展）', () => {
-      const row = greetingService.createGlobalGreeting({ text: '午夜好', timeSlot: 'latenight' })
-      expect(row?.time_slot).toBe('latenight')
-      expect(greetingService.getGlobalGreetings('latenight')).toHaveLength(1)
+    it('TC-E5-28: midnight 档可正常创建/过滤（817 七档 SLOTS）', () => {
+      const row = greetingService.createGlobalGreeting({ text: '深夜好', timeSlot: 'midnight' })
+      expect(row?.time_slot).toBe('midnight')
+      expect(greetingService.getGlobalGreetings('midnight')).toHaveLength(1)
     })
   })
 })

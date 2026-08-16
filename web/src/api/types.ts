@@ -1321,7 +1321,7 @@ export interface SavePaymentNode {
 /** 问候语模板写请求（通用库/画师专属库共用；E5：可挂特别日） */
 export interface GreetingInput {
   text: string
-  timeSlot?: 'morning' | 'afternoon' | 'evening' | 'night' | 'latenight' | 'any'
+  timeSlot?: 'early' | 'morning' | 'noon' | 'afternoon' | 'evening' | 'midnight' | 'any'
   /** 关联特别日；null=解除关联 */
   specialDayId?: number | null
 }

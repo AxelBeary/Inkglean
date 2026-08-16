@@ -1,4 +1,4 @@
-import type { CountRow, Migration } from './types.js'
+import type { CountRow, MasterSqlRow, Migration } from './types.js'
 
 export const migration: Migration = {
   version: 6,
@@ -18,8 +18,15 @@ export const migration: Migration = {
     `)
     database.exec('CREATE INDEX IF NOT EXISTS idx_greeting_artist ON greeting_templates(artist_id, time_slot)')
     // 种子：通用库（artist_id = NULL）
+    // 817 问候重构：深夜档种子按现存表 CHECK 形态动态选档——
+    //   新装库：基线 schema 已是 v67 形态（含 midnight），直接种 midnight；
+    //   v1 基线升级路径：本迁移先建旧形表（只认 night），种 night，由 v67 搬家到 midnight。
     const count = (database.prepare('SELECT COUNT(*) AS c FROM greeting_templates').get() as CountRow).c
     if (count === 0) {
+      const tableSql = database.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='greeting_templates'"
+      ).get() as MasterSqlRow | undefined
+      const nightSlot = tableSql && tableSql.sql.includes("'midnight'") ? 'midnight' : 'night'
       const insert = database.prepare(
         'INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, ?, ?)'
       )
@@ -30,8 +37,8 @@ export const migration: Migration = {
         ['记得多喝水，{name}', 'afternoon'],
         ['{name}，画画别忘了活动手腕', 'any'],
         ['晚上好，{name}，今天辛苦了', 'evening'],
-        ['夜深了，{name}，早点休息', 'night'],
-        ['{name}，熬夜伤身，画可以明天再画', 'night'],
+        ['夜深了，{name}，早点休息', nightSlot],
+        ['{name}，熬夜伤身，画可以明天再画', nightSlot],
       ]
       for (const [text, slot] of seeds) insert.run(text, slot)
     }
