@@ -1,7 +1,7 @@
 {
-  "server": 1532,
-  "web": 545,
+  "server": 1549,
+  "web": 577,
   "e2e": 13,
-  "updatedAt": "2026-08-16",
-  "note": "验收基线用例数（待办清扫批后终态实测：server 1532（新增 7 条：TC-MP×4 moneyPrecision 浮点安全 + TC-SCHED-12 排期画风/尺寸字段 + TC-DASH-27/28 profile quotaInfo）/ web 545 / E2E 13。此前：P2 必要修复批后 server 1525。测试用例增长合入后须同步更新本文件；有意删死测试须同步降基线并在 note 说明；accept.ps1 检测到实测数低于此基线即判红（防删测试凑绿）。"
+  "updatedAt": "2026-08-17",
+  "note": "817批六路合入终态实测：server 1549（+17：TC-INST-07/TC-SETUP-08b/c/TC-RB-13/TC-F2-07/TC-TL-31/anonUpload等）/ web 577（+32：money消毒6/pagehide2/AddonStep行序2/message-parser日期6/ArtistManage封禁6/anonUpload5/passkey取消1/midnight2等）/ E2E 13。前基线 1532/545/13。"
 }
