@@ -461,10 +461,11 @@ async function submit() {
   }
 
   submitting.value = true
-  // G-4（R-17）: 幂等键契约核对——批 D（D-2）已给客户下单 /api/orders 与收款接 idempotency-key；
-  // 手动录单端点未消费该 header（后端零改动约束下不重复实现），此处仍按提交意图生成
-  // crypto.randomUUID() 随 header 携带（服务端当前忽略，契约升级后自动生效）；
-  // 双标签页重复提交主要防线 = 草稿清除广播（ManualOrder.vue storage 事件）+ 提交按钮 loading。
+  // G-4（R-17）: 幂等键契约核对——批 D（D-2）给客户下单 /api/orders 与收款接幂等键，
+  // 手动录单端点（POST /api/artist/orders/manual，I6-d）已消费同一 header：
+  // scope = manual-order:{artistId}，同 key 重放原样返回首单结果、不重复建单（shared/idempotency.ts）。
+  // 此处按提交意图生成 crypto.randomUUID() 随 header 携带（提交成功后置空 = 新意图换新 key）；
+  // 双标签页重复提交的界面层防线 = 草稿清除广播（ManualOrder.vue storage 事件）+ 提交按钮 loading。
   if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
   try {
     // SPEC-PRICE-2：传 styleSizeId + styleAddons（含用途/加急单选），后端唯一引擎自动算价；
