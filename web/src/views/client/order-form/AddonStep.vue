@@ -116,13 +116,15 @@
         </span>
       </div>
       <p v-if="discountError" class="discount-error">✕ {{ discountError }}</p>
-      <div class="price-line total">
-        <span>{{ t('orderForm.receiptTotal') }}</span>
-        <span class="price-amount">{{ formatYuan(preview.totalCents) }}</span>
-      </div>
+      <!-- 817-D 10-2：合计行移到折扣行之后（后端 totalCents 为折后价，先减后合计，
+           与 OrderSummaryCard/小票弹窗口径一致，避免「先合计再减折扣」的假折前行序） -->
       <div v-if="preview.discount" class="price-line discount">
         <span>{{ t('orderForm.discountEstimate') }}（{{ preview.discount.code }}）</span>
         <span class="price-amount discount-amount">-{{ formatYuan(preview.discount.amountCents) }}</span>
+      </div>
+      <div class="price-line total">
+        <span>{{ t('orderForm.receiptTotal') }}</span>
+        <span class="price-amount">{{ formatYuan(preview.totalCents) }}</span>
       </div>
       <div v-if="installments.length > 1" class="installment-row">
         <span v-for="inst in installments" :key="inst.label" class="installment-chip">

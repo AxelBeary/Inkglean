@@ -9,6 +9,7 @@
  *   - description : 全文（trim），截断到 2000（对齐后端 order create maxLength）。
  *   - hints.amount   : 「预算 x 元」/「x 元」识别为线索提示，不自动填；未识别为 null。
  *   - hints.deadline : 「x号前」/「x月x日」识别为线索提示，不自动填；未识别为 null。
+ *                      月/日须合法（月 1-12、日按该月上限），非法值跳过不采纳。
  */
 export const DESCRIPTION_MAX_LEN = 2000
 export const QQ_MIN_LEN = 5
@@ -22,6 +23,17 @@ const AMOUNT_RE = /(?:预算\s*)?(\d{1,9}(?:\.\d{1,2})?)\s*元/g
 // 日期线索：x号前 / x月x日（x 为 1-2 位）
 const DEADLINE_DAY_RE = /(\d{1,2})\s*号\s*前/g
 const DEADLINE_DATE_RE = /(\d{1,2})\s*月\s*(\d{1,2})\s*日/g
+// 817-D 体验12：各月最大日（2 月按 29 天宽松处理——粘贴文本无年份，闰年与否不可判，
+// 只拦「22月31日」这类明显非法值；月 1-12、日按该月上限）
+const MONTH_DAYS = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+/** 月/日合法性：月 1-12，日 1 到该月上限；非法直接不采纳（解析不出不猜） */
+function isValidMonthDay(month, day) {
+  const m = Number(month)
+  const d = Number(day)
+  return Number.isInteger(m) && m >= 1 && m <= 12 &&
+    Number.isInteger(d) && d >= 1 && d <= MONTH_DAYS[m]
+}
 
 /** 收集金额线索：数值 + 命中区间（区间用于排除「预算数字冒充 QQ」） */
 function collectAmounts(text) {
@@ -42,10 +54,23 @@ function collectAmounts(text) {
 function collectDeadline(text) {
   DEADLINE_DAY_RE.lastIndex = 0
   let m = DEADLINE_DAY_RE.exec(text)
-  if (m) return i18n.global.t('messageParser.deadlineDay', { day: m[1] })
+  // 号前：先命中且合法的日（1-31）才采纳，非法跳过继续找
+  while (m) {
+    const day = Number(m[1])
+    if (Number.isInteger(day) && day >= 1 && day <= 31) {
+      return i18n.global.t('messageParser.deadlineDay', { day: m[1] })
+    }
+    m = DEADLINE_DAY_RE.exec(text)
+  }
   DEADLINE_DATE_RE.lastIndex = 0
   m = DEADLINE_DATE_RE.exec(text)
-  if (m) return i18n.global.t('messageParser.deadlineDate', { month: m[1], day: m[2] })
+  // 月日：先命中且合法的月/日才采纳（22月31日 → 跳过，继续找后续合法日期）
+  while (m) {
+    if (isValidMonthDay(m[1], m[2])) {
+      return i18n.global.t('messageParser.deadlineDate', { month: m[1], day: m[2] })
+    }
+    m = DEADLINE_DATE_RE.exec(text)
+  }
   return null
 }
 
