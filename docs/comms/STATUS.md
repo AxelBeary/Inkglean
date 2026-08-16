@@ -2,6 +2,11 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
+> ✅ **最后更新：2026-08-16 v115：拾绘首次上公网——外部服务器部署成功（Cloudflare 代理 + 宿主机 Caddy 外部反代模式），等用户完成开箱初始化**
+> 🌐 **部署实录（用户主导 + 一号远程排障）**：服务器 cute-goose-1，域名 shihui.hornywerewolf.click，Cloudflare 橙色云 + Full(Strict) + Origin CA 源站证书；宿主机 Caddy → 127.0.0.1:3000 → commission-web（compose 仅 web，孤儿 caddy 容器已清）。排障历程抓四坑：①安装脚本空值密钥误判（setup.sh/install.mjs 已修并重打 release 附件）②root 建 data 目录致 SQLITE_CANTOPEN（chown 1000:1000 解）③compose caddy 段未删致双 Caddy 抢端口④Cloudflare 挡 Let's Encrypt 签发——改用 Origin CA 源站证书根治（经验已入记忆库）。另修体验缺陷：安装失败时也告知口令下落（旧逻辑失败提前退出致口令从不展示）；Caddyfile 补 request_body 55MB（默认 10MB 截断交付上传）。
+> ⏳ **等用户**：开箱向导初始化（口令 docker compose exec web printenv SETUP_TOKEN）+ 备份 crontab；80/443 防火墙只放行 Cloudflare IP 段待用户确认 80/443 无其他服务后给命令。
+> 🔑 **新会话接手指南**：无在途施工。公网环境详情见记忆库（拾绘首个公网生产环境条目）。开放项：用户终验新功能/B 测/E5 文案/桌面端 HOLD/剩余 P2P3 约 40 项。
+
 > ✅ **最后更新：2026-08-16 v114：全面待办清扫收口——三项真修落地（含坐实的金额浮点误拒）+ v107 三尾巴销二 + 安全线/断链核实清白，终态门禁 server 1532 / web 545 / E2E 13**
 > 🔍 **核查结论（不信文档声称，逐项对代码/实测）**：①Dependabot alerts 已开启且零 open（v108 待确认项销账，用户无需再动手）；CodeQL 零开放告警；②v107 三尾巴：E1/E2 属实未修（本批修掉），E5 属用户验收项；③审计待实测项#2 multipleOf:0.01 **坐实为真 bug**（8.21/19.99/0.07 实测被 ajv 拒 400，画师定价 8.21 元会被拦）；④docs 122 条链接断链扫描零真断链（42 处假阳性=模板占位/GitHub 相对链接/归档叙述）。
 > 🔧 **三项真修（均带回归）**：①金额浮点误拒根治——自注册浮点安全关键字 moneyPrecision 替换 7 处 multipleOf:0.01（四舍五入后整数比对语义不变，Fastify 5 无 app.ajv 需显式传编译器），ajv 从幻影依赖升为显式依赖；②E1 排期卷轴浮层补画风/尺寸（schedule 接口只增 styleName/sizeName）；③E2 满态牌补额度耗尽轴（profile 下发 quotaInfo，满态=席位满或额度耗尽，额度 only 模式名额条改显额度用量）。
