@@ -301,7 +301,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
-import { artistApi, uploadApi } from '../../../api/index.js'
+import { artistApi } from '../../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -314,6 +314,7 @@ import { useDropGuard } from '../../../composables/useDropGuard.js'
 import { statusType, priorityType } from '../../../constants/order.js'
 import { MAX_IMAGE_BYTES } from '../../../constants/upload.js'
 import { formatCents } from '../../../utils/money.js'
+import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../../../utils/anonUpload.js'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -483,14 +484,16 @@ async function uploadAndSetFocus(file, order) {
   if (!file.type.startsWith('image/')) { ElMessage.error(t('orderDetail.galleryNotImage')); return }
   if (file.size > MAX_IMAGE_BYTES) { ElMessage.error(t('orderDetail.galleryTooBig')); return }
   try {
-    const uploaded = await uploadApi.reference(file)
+    // G-7（P2-13 前端侧）: 参考图接口强制 x-anon-token——上传前 await 凭证，
+    // 失效凭证由 anonUpload 换新重试一次（与订单图库同链路）
+    const { uploaded } = await uploadReferenceWithAnonToken(file)
     // 必须先关联到订单（写入 order_references），否则 setFocusImage 校验归属失败
     await artistApi.addReference(order.id, { filePath: uploaded.filePath })
     await artistApi.setFocusImage(order.id, { imagePath: uploaded.filePath, mode: 'large' })
     ElMessage.success(t('orderDetail.focusUpdated'))
     emit('refresh-queue')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error(err instanceof AnonTokenUnavailableError ? t('orderDetail.anonTokenRequired') : err.message)
   }
 }
 

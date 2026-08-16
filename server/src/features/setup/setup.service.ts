@@ -7,6 +7,7 @@ import { AppError, E } from '../../shared/errors.js'
 import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import { generateSecret, buildOtpAuthUri, verifyTotpWithCounter, hashTotpCode } from '../auth/totp.js'
 import { bindTotpInit, createSession, checkTotpLocked, registerTotpFailure } from '../auth/auth.service.js'
+import { seedArtistStages } from '../artist/workflow.service.js'
 import type { Artist } from '../../types/entities.js'
 
 // ─── 初始化判定 ───
@@ -209,6 +210,9 @@ export function createAdminArtist(params: CreateAdminParams): CreateAdminResult 
 
     // 初始化须知
     db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)').run(artistId, '')
+
+    // 初始化默认工作流节点模板（与邀请建号/管理端建号同口径，817-B #1：开箱后管理员小店缺节点模板）
+    seedArtistStages(artistId)
 
     // 2. 写入 platform_config.admin_qq
     db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(qqNumber)

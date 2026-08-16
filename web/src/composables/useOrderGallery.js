@@ -1,8 +1,9 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi, uploadApi } from '../api/index.js'
+import { artistApi } from '../api/index.js'
 import { useDropGuard } from './useDropGuard.js'
+import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload.js'
 import { MAX_IMAGE_BYTES } from '../constants/upload.js'
 
 /**
@@ -50,7 +51,9 @@ export function useOrderGallery({ order, routeId, onRefresh }) {
   /** 上传单张图并关联到订单（画师加图，后端自动标 source='artist'） */
   async function uploadAndAttachReference(file) {
     if (!validateImageFile(file)) return
-    const uploaded = await uploadApi.reference(file)
+    // G-7（P2-13 前端侧）: 与下单/手动录单同口径——上传前 await 凭证，
+    // 失效凭证由 anonUpload 换新重试一次（815 起参考图接口强制要求 x-anon-token）
+    const { uploaded } = await uploadReferenceWithAnonToken(file)
     order.value = await artistApi.addReference(routeId, {
       filePath: uploaded.filePath,
       fileName: uploaded.originalName,
@@ -68,7 +71,7 @@ export function useOrderGallery({ order, routeId, onRefresh }) {
       }
       ElMessage.success(t('orderDetail.galleryUploadSuccess'))
     } catch (err) {
-      ElMessage.error(err.message)
+      ElMessage.error(err instanceof AnonTokenUnavailableError ? t('orderDetail.anonTokenRequired') : err.message)
       await onRefresh() // 部分成功时刷新到最新状态
     } finally {
       galleryUploading.value = false

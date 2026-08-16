@@ -116,7 +116,6 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { uploadApi } from '../../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -125,7 +124,7 @@ import { useDropGuard } from '../../../composables/useDropGuard.js'
 import { formatDateTimeShort } from '../../../utils/datetime.js'
 import { formatCents } from '../../../utils/money.js'
 import { statusType } from '../../../constants/order.js'
-import { getAnonToken } from '../../../utils/track.js'
+import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../../../utils/anonUpload.js'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload.js'
 
 defineProps({
@@ -180,17 +179,17 @@ async function handleRefUpload({ file }) {
     // a1: 超限不得按成功处理——throw 让 EP http-request 标记失败，文件不显示为已上传
     throw new Error(t('manualOrder.fileTooBig', { name: file.name, size: sizeMB }))
   }
-  // G-7（P2-13 前端侧）: 参考图上传需匿名归属凭证（后端 F-10 契约）
-  const anonToken = await getAnonToken()
-  if (!anonToken) {
-    ElMessage.error(t('manualOrder.anonTokenRequired'))
-    throw new Error(t('manualOrder.anonTokenRequired'))
-  }
   try {
-    const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
+    // G-7（P2-13 前端侧）: 上传前 await 凭证；缓存凭证失效（INVALID_ANON_TOKEN）时
+    // anonUpload 内部换新重试一次（与客户端下单链路同口径）
+    const { uploaded } = await uploadReferenceWithAnonToken(file)
     uploadedRefs.value.push(uploaded.filePath)
     refUidMap.value.set(file.uid, uploaded.filePath)
   } catch (err) {
+    if (err instanceof AnonTokenUnavailableError) {
+      ElMessage.error(t('manualOrder.anonTokenRequired'))
+      throw new Error(t('manualOrder.anonTokenRequired'), { cause: err })
+    }
     ElMessage.error(err.message || t('common.uploadFailed'))
     throw err
   }
@@ -217,11 +216,6 @@ watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 async function handlePasteRefFiles(files) {
-  const anonToken = await getAnonToken()
-  if (!anonToken) {
-    ElMessage.error(t('manualOrder.anonTokenRequired'))
-    return
-  }
   for (const file of files) {
     if (refFileList.value.length >= MAX_IMAGE_COUNT) {
       ElMessage.warning(t('manualOrder.refExceed'))
@@ -229,13 +223,17 @@ async function handlePasteRefFiles(files) {
     }
     // a1: 逐张 catch——单张失败不中断后续，失败有明确提示；成功后才 push 列表
     try {
-      const uploaded = await uploadApi.reference(file, { headers: { 'x-anon-token': anonToken } })
+      const { uploaded } = await uploadReferenceWithAnonToken(file)
       const uid = `paste-${crypto.randomUUID()}`
       uploadedRefs.value.push(uploaded.filePath)
       refUidMap.value.set(uid, uploaded.filePath)
       refFileList.value.push({ name: file.name || 'pasted-image.png', url: `/uploads/${uploaded.filePath}`, uid, status: 'success' })
     } catch (err) {
-      ElMessage.error(err.message || t('common.uploadFailed'))
+      if (err instanceof AnonTokenUnavailableError) {
+        ElMessage.error(t('manualOrder.anonTokenRequired'))
+      } else {
+        ElMessage.error(err.message || t('common.uploadFailed'))
+      }
     }
   }
 }
