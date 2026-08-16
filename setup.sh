@@ -56,9 +56,14 @@ SETUP_TOKEN_IS_NEW=""
 
 ENV_FILE=".env"
 set_env_if_missing() {
-  local key="$1" value="$2"
-  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+  local key="$1" value="${2//&/\\&}"
+  if grep -q "^${key}=." "$ENV_FILE" 2>/dev/null; then
     echo -e "  ${key} 已存在，跳过"
+  elif grep -q "^${key}=$" "$ENV_FILE" 2>/dev/null; then
+    # 清扫批（实测踩坑）：从 .env.example 复制来的空行（KEY=）会被旧逻辑误判为已配置，
+    # 致密钥空着起不了服。空值就地填入（不追加新行，dotenv 以首行为准，追加会被空行赢过）
+    sed -i "s|^${key}=$|${key}=${value}|" "$ENV_FILE"
+    echo -e "  ${GREEN}${key} 原为空值，已自动填入${NC}"
   else
     [ -f "$ENV_FILE" ] || echo "# 拾绘 Inkglean 环境配置（由 setup.sh 自动生成）" > "$ENV_FILE"
     echo "${key}=${value}" >> "$ENV_FILE"
@@ -70,7 +75,7 @@ set_env_if_missing "DOMAIN" "$DOMAIN"
 set_env_if_missing "NODE_ENV" "production"
 set_env_if_missing "SESSION_SECRET" "$SESSION_SECRET"
 set_env_if_missing "COOKIE_SECRET" "$COOKIE_SECRET"
-if ! grep -q "^SETUP_TOKEN=" "$ENV_FILE" 2>/dev/null; then
+if ! grep -q "^SETUP_TOKEN=." "$ENV_FILE" 2>/dev/null; then
   SETUP_TOKEN_IS_NEW="yes"
 fi
 set_env_if_missing "SETUP_TOKEN" "$SETUP_TOKEN"

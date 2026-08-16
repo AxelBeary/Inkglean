@@ -131,16 +131,26 @@ function runStream(cmd, args, opts = {}) {
   return r.status === 0
 }
 
-// ─── .env 工具：只补缺失项，绝不覆盖已有值 ───
+// ─── .env 工具：只补缺失项，绝不覆盖已有非空值 ───
 function envHasKey(content, key) {
   return new RegExp(`^${key}=`, 'm').test(content)
+}
+// 清扫批（实测踩坑）：.env.example 的空行（KEY=）不能算已配置，否则密钥空着起不了服
+function envHasValue(content, key) {
+  return new RegExp(`^${key}=.`, 'm').test(content)
 }
 function ensureEnv(updates) {
   let content = existsSync(ENV_FILE) ? readFileSync(ENV_FILE, 'utf8') : '# 拾绘 Inkglean 环境配置（由 install.mjs 自动生成）\n'
   const added = []
   for (const [key, value] of Object.entries(updates)) {
     if (value == null) continue
-    if (envHasKey(content, key)) continue
+    if (envHasValue(content, key)) continue
+    if (envHasKey(content, key)) {
+      // 空值就地填入（不追加新行：dotenv 以首行为准，追加会被空行赢过）
+      content = content.replace(new RegExp(`^${key}=$`, 'm'), `${key}=${value}`)
+      added.push(key)
+      continue
+    }
     if (!content.endsWith('\n')) content += '\n'
     content += `${key}=${value}\n`
     added.push(key)
