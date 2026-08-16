@@ -114,6 +114,11 @@ if [ "$HEALTHY" != true ]; then
   echo "  1. $COMPOSE logs --tail 100 web"
   echo "  2. $COMPOSE ps"
   echo "  3. 修复后重新运行 bash setup.sh（已有配置不会丢）"
+  echo ""
+  # 清扫批（实测踩坑）：失败退出时也必须告知口令下落，否则用户以为口令丢了要重来
+  echo -e "  ${YELLOW}你的配置都已保存在 .env，不会丢失：${NC}"
+  echo -e "  ${YELLOW}・安装口令：grep SETUP_TOKEN .env 可查看${NC}"
+  echo -e "  ${YELLOW}・密钥/QQ 等：nano .env 检查是否有空值未填${NC}"
   exit 1
 fi
 echo -e "${GREEN}✓ 网站已就绪${NC}"
