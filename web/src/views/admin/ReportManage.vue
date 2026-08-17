@@ -4,12 +4,22 @@
     <!-- b3 清扫：页头并入公共 admin-page-head 体系（字体 24px→26px 口径统一） -->
     <div class="admin-page-head">
       <h1 class="admin-page-title font-display">{{ $t('compliance.admin.reportManage') }}</h1>
+      <p class="admin-page-sub">{{ $t('compliance.admin.reportManageSubtitle') }}</p>
     </div>
 
-    <el-tabs v-model="statusTab" class="report-tabs" @tab-change="load">
-      <el-tab-pane :label="$t('compliance.admin.tabPending')" name="pending" />
-      <el-tab-pane :label="$t('compliance.admin.tabResolved')" name="resolved" />
-    </el-tabs>
+    <!-- 819-I：一行一事——说明在左、筛选控件（处理状态 Tab）在右 -->
+    <div class="group report-filter-group">
+      <div class="row">
+        <div class="report-filter-text">
+          <div class="lab">{{ $t('compliance.admin.filterLabel') }}</div>
+          <div class="desc">{{ $t('compliance.admin.filterDesc') }}</div>
+        </div>
+        <el-tabs v-model="statusTab" class="report-tabs" @tab-change="load">
+          <el-tab-pane :label="$t('compliance.admin.tabPending')" name="pending" />
+          <el-tab-pane :label="$t('compliance.admin.tabResolved')" name="resolved" />
+        </el-tabs>
+      </div>
+    </div>
 
     <el-table :data="reports" v-loading="loading" class="report-table" empty-text="">
       <el-table-column prop="id" :label="$t('compliance.admin.colId')" width="72" />
@@ -315,8 +325,29 @@ onMounted(load)
 <style scoped>
 /* 纸墨 token（admin 布局已挂 artist-tokens）；间距 4px 倍数 */
 .report-manage { padding: 8px 0 32px; }
-.report-tabs { margin-bottom: 16px; }
+.report-filter-group { margin-bottom: 16px; }
+.report-tabs { margin-bottom: 0; }
 .report-table { width: 100%; }
 .report-resolved-text { color: var(--ink3, #888); font-size: 13px; }
 .report-empty { margin-top: 24px; }
+
+/* 819-I：分组卡片 + 一行一事（对齐 QuickNote 基准） */
+.group {
+  padding: 4px 24px 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.report-filter-text { min-width: 0; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+}
 </style>

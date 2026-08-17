@@ -1,8 +1,8 @@
 <template>
   <div class="special-day">
-    <!-- 区块标题 + 新建按钮 -->
-    <div class="sd-head">
-      <div>
+    <!-- 819-I：组头朱砂小印点 + 新建按钮在右 -->
+    <div class="group-head sd-head">
+      <div class="sd-head-text">
         <h2 class="sd-title font-display">{{ $t('admin.specialDayTitle') }}</h2>
         <p class="scope-hint">{{ $t('admin.specialDayHint') }}</p>
       </div>
@@ -58,17 +58,24 @@
         <h3 class="sd-greetings-title">{{ $t('admin.specialDayGreetingsTitle', { name: selected.name }) }}</h3>
         <el-button size="small" text @click="selected = null">{{ $t('admin.specialDayCollapse') }}</el-button>
       </div>
-      <div class="add-row">
-        <el-input
-          v-model="newText" :placeholder="$t('admin.specialDayGreetingPh')" size="small"
-          @keyup.enter="addGreeting" style="flex: 1; min-width: 160px"
-        />
-        <el-button
-          type="primary" size="small" @click="addGreeting" :loading="saving"
-          :disabled="!newText.trim()"
-        >
-          ＋ {{ $t('common.add') }}
-        </el-button>
+      <!-- 819-I：一行一事——说明在左、添加控件在右 -->
+      <div class="row add-row">
+        <div class="sd-greeting-add-text">
+          <div class="lab">{{ $t('admin.specialDayGreetingAddLabel') }}</div>
+          <div class="desc">{{ $t('admin.specialDayGreetingAddDesc') }}</div>
+        </div>
+        <div class="sd-greeting-add-controls">
+          <el-input
+            v-model="newText" :placeholder="$t('admin.specialDayGreetingPh')" size="small"
+            @keyup.enter="addGreeting" class="sd-greeting-input"
+          />
+          <el-button
+            type="primary" size="small" @click="addGreeting" :loading="saving"
+            :disabled="!newText.trim()"
+          >
+            ＋ {{ $t('common.add') }}
+          </el-button>
+        </div>
       </div>
       <TransitionGroup tag="div" name="sd-row" class="sd-greeting-list" v-loading="greetingsLoading">
         <div v-for="row in greetings" :key="row.id" class="sd-greeting-row">
@@ -92,29 +99,44 @@
     </div>
 
     <!-- 新建特别日弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="$t('admin.specialDayAdd')" width="420px" append-to-body>
-      <el-form label-position="top">
-        <el-form-item :label="$t('admin.specialDayNameLabel')">
-          <el-input v-model="form.name" :placeholder="$t('admin.specialDayNamePh')" maxlength="50" />
-        </el-form-item>
-        <el-form-item :label="$t('admin.specialDayDateLabel')">
-          <el-date-picker
-            v-model="form.dateKey" type="date" value-format="MM-DD"
-            :placeholder="$t('admin.specialDayDatePh')" style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item :label="$t('admin.specialDayColScope')">
-          <el-radio-group v-model="form.scope">
-            <el-radio value="global">{{ $t('admin.specialDayScopeGlobal') }}</el-radio>
-            <el-radio value="artist">{{ $t('admin.specialDayScopeArtist') }}</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item v-if="form.scope === 'artist'" :label="$t('admin.specialDayArtistLabel')">
-          <el-select v-model="form.artistId" :placeholder="$t('admin.specialDayArtistPh')" style="width: 100%">
-            <el-option v-for="a in artists" :key="a.id" :value="a.id" :label="a.name" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="dialogVisible" :title="$t('admin.specialDayAdd')" width="560px" append-to-body>
+      <!-- 819-I：一行一事——说明在左、控件在右 -->
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.specialDayNameLabel') }}</div>
+          <div class="desc">{{ $t('admin.specialDayNameHint') }}</div>
+        </div>
+        <el-input v-model="form.name" :placeholder="$t('admin.specialDayNamePh')" maxlength="50" class="sd-name-input" />
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.specialDayDateLabel') }}</div>
+          <div class="desc">{{ $t('admin.specialDayDateHint') }}</div>
+        </div>
+        <el-date-picker
+          v-model="form.dateKey" type="date" value-format="MM-DD"
+          :placeholder="$t('admin.specialDayDatePh')" class="sd-date-input"
+        />
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.specialDayColScope') }}</div>
+          <div class="desc">{{ $t('admin.specialDayScopeHint') }}</div>
+        </div>
+        <el-radio-group v-model="form.scope">
+          <el-radio value="global">{{ $t('admin.specialDayScopeGlobal') }}</el-radio>
+          <el-radio value="artist">{{ $t('admin.specialDayScopeArtist') }}</el-radio>
+        </el-radio-group>
+      </div>
+      <div class="row" v-if="form.scope === 'artist'">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.specialDayArtistLabel') }}</div>
+          <div class="desc">{{ $t('admin.specialDayArtistHint') }}</div>
+        </div>
+        <el-select v-model="form.artistId" :placeholder="$t('admin.specialDayArtistPh')" class="sd-artist-input">
+          <el-option v-for="a in artists" :key="a.id" :value="a.id" :label="a.name" />
+        </el-select>
+      </div>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" :loading="creating" :disabled="!canSubmit" @click="submitCreate">{{ $t('common.confirm') }}</el-button>
@@ -283,7 +305,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.sd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+/* 819-I：组头带朱砂小印点（对齐 QuickNote 基准） */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.sd-head { justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.sd-head-text { min-width: 0; }
 .sd-title { font-size: 16px; color: var(--ink); margin: 0 0 4px; }
 .scope-hint { font-size: 12px; color: var(--ink2); margin: 0; }
 
@@ -333,7 +366,22 @@ onMounted(() => {
 .sd-greetings { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .sd-greetings-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .sd-greetings-title { font-size: 14px; color: var(--ink); margin: 0; }
-.add-row { display: flex; gap: 8px; margin-bottom: 10px; }
+
+/* 819-I：一行一事（说明在左、控件在右） */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.sd-greeting-add-text { min-width: 0; }
+.sd-greeting-add-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.sd-greeting-input { width: 320px; flex: none; }
+.add-row { margin-bottom: 12px; }
+.form-text { min-width: 0; }
+.sd-name-input { width: 280px; flex: none; }
+.sd-date-input { width: 200px; flex: none; }
+.sd-artist-input { width: 280px; flex: none; }
 .sd-greeting-list {
   display: flex;
   flex-direction: column;
@@ -362,7 +410,7 @@ onMounted(() => {
   .sd-row {
     grid-template-columns: 1fr auto auto;
     gap: 8px 12px;
-    padding: 10px 12px;
+    padding: 12px;
   }
   .sd-col--name { grid-column: 1 / -1; }
   .sd-col--date { grid-column: 1; }
@@ -374,8 +422,12 @@ onMounted(() => {
     display: block;
     font-size: 11px;
     color: var(--ink3);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
   .sd-greeting-row { grid-template-columns: 1fr auto auto; }
+  .row { grid-template-columns: 1fr; }
+  .sd-greeting-add-controls { justify-content: flex-start; }
+  .sd-greeting-input { width: 100%; }
+  .sd-name-input, .sd-date-input, .sd-artist-input { width: 100%; }
 }
 </style>

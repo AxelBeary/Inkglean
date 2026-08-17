@@ -8,29 +8,52 @@
           <span>{{ t('common.networkError') }}</span>
           <el-button size="small" @click="loadProfile">{{ t('dashboard.retry') }}</el-button>
         </div>
-        <el-form label-position="top" size="default" v-loading="profileLoading">
-          <el-form-item :label="$t('settings.nameLabel')">
-            <el-input v-model="profile.name" />
-          </el-form-item>
-          <el-form-item :label="$t('settings.codeLabel')">
-            <el-input v-model="profile.artist_code" maxlength="10" />
-          </el-form-item>
-          <el-form-item :label="$t('settings.bioLabel')">
-            <el-input v-model="profile.bio" type="textarea" :rows="3" />
-          </el-form-item>
-          <el-form-item :label="$t('settings.statusLabel')">
+        <!-- 819-I：一行一事——说明在左、控件在右（结构微调，交互与保存逻辑不动） -->
+        <div class="group detail-group" v-loading="profileLoading">
+          <div class="row">
+            <div class="field-text">
+              <div class="lab">{{ $t('settings.nameLabel') }}</div>
+              <div class="desc">{{ $t('admin.detailNameHint') }}</div>
+            </div>
+            <el-input v-model="profile.name" class="field-input" />
+          </div>
+          <div class="row">
+            <div class="field-text">
+              <div class="lab">{{ $t('settings.codeLabel') }}</div>
+              <div class="desc">{{ $t('settings.codeHint') }}</div>
+            </div>
+            <el-input v-model="profile.artist_code" maxlength="10" class="field-input" />
+          </div>
+          <div class="row">
+            <div class="field-text">
+              <div class="lab">{{ $t('settings.bioLabel') }}</div>
+              <div class="desc">{{ $t('admin.detailBioHint') }}</div>
+            </div>
+            <el-input v-model="profile.bio" type="textarea" :rows="3" class="field-textarea" />
+          </div>
+          <div class="row">
+            <div class="field-text">
+              <div class="lab">{{ $t('settings.statusLabel') }}</div>
+              <div class="desc">{{ $t('admin.detailStatusHint') }}</div>
+            </div>
             <el-radio-group v-model="profile.status">
               <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
               <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
               <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
               <el-radio-button value="hidden">{{ $t('settings.statusHidden') }}</el-radio-button>
             </el-radio-group>
-          </el-form-item>
-          <el-form-item :label="$t('settings.contactQqLabel')">
-            <el-input v-model="profile.contact_qq" maxlength="15" />
-          </el-form-item>
-          <el-button type="primary" @click="saveProfile" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
-        </el-form>
+          </div>
+          <div class="row">
+            <div class="field-text">
+              <div class="lab">{{ $t('settings.contactQqLabel') }}</div>
+              <div class="desc">{{ $t('settings.contactQqHint') }}</div>
+            </div>
+            <el-input v-model="profile.contact_qq" maxlength="15" class="field-input" />
+          </div>
+          <div class="form-actions">
+            <el-button type="primary" @click="saveProfile" :loading="saving" :disabled="profileLoadFailed">{{ $t('settings.save') }}</el-button>
+          </div>
+        </div>
       </el-tab-pane>
 
       <!-- 价格概览（SPEC-PRICE-2：画风/尺寸只读；价格由画师在「画风与价格」页维护） -->
@@ -91,10 +114,21 @@
           <span>{{ t('common.networkError') }}</span>
           <el-button size="small" @click="loadRules">{{ t('dashboard.retry') }}</el-button>
         </div>
-        <el-input v-model="rulesContent" type="textarea" :rows="10" v-loading="rulesLoading" />
-        <el-button type="primary" size="small" style="margin-top: 8px" @click="saveRules" :loading="savingRules" :disabled="rulesLoadFailed">
-          {{ $t('settings.save') }}
-        </el-button>
+        <!-- 819-I：一行一事——说明在左、正文编辑在右 -->
+        <div class="group detail-group">
+          <div class="row">
+            <div class="field-text">
+              <div class="lab">{{ $t('menu.rules') }}</div>
+              <div class="desc">{{ $t('admin.detailRulesHint') }}</div>
+            </div>
+            <el-input v-model="rulesContent" type="textarea" :rows="10" v-loading="rulesLoading" class="rules-input" />
+          </div>
+          <div class="form-actions">
+            <el-button type="primary" size="small" @click="saveRules" :loading="savingRules" :disabled="rulesLoadFailed">
+              {{ $t('settings.save') }}
+            </el-button>
+          </div>
+        </div>
       </el-tab-pane>
     </el-tabs>
   </el-drawer>
@@ -277,7 +311,28 @@ async function saveRules() {
 .detail-tabs :deep(.el-tabs__active-bar) {
   background-color: var(--hq);
 }
-.tier-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+
+/* 819-I：分组卡片 + 一行一事（对齐 QuickNote 基准） */
+.group {
+  padding: 4px 16px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.field-text { min-width: 0; }
+.field-input { width: 240px; }
+.field-textarea { width: 300px; }
+.rules-input { width: 300px; }
+.form-actions { display: flex; justify-content: flex-end; padding-top: 12px; }
+
+.tier-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .tier-name { font-weight: 600; }
 .tier-price { margin-left: auto; font-weight: 700; }
 .pricing-style { margin-bottom: 12px; }
@@ -286,16 +341,21 @@ async function saveRules() {
 .pricing-empty { color: var(--el-text-color-secondary); font-size: 12px; padding: 4px 0; }
 .artwork-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .artwork-item { position: relative; }
-.artwork-img { width: 100%; height: 120px; border-radius: 6px; }
+.artwork-img { width: 100%; height: 120px; border-radius: var(--r-m); }
 .artwork-item .el-button { position: absolute; top: 4px; right: 4px; }
 .hint { font-size: 12px; color: var(--ink2); margin-top: 8px; }
 
 /* P1-B：加载失败横幅（复用公告页 P0 同款模式） */
 .load-error-banner {
-  padding: 10px 14px;
+  padding: 12px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
   margin-bottom: 12px;
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .field-input, .field-textarea, .rules-input { width: 100%; }
 }
 
 /* P1-B：≤600px 抽屉占满宽度（左右各留 12px），防 390px 窄屏挤出视口 */
