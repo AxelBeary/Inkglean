@@ -1,7 +1,7 @@
 {
-  "server": 1549,
-  "web": 644,
+  "server": 1566,
+  "web": 651,
   "e2e": 13,
   "updatedAt": "2026-08-17",
-  "note": "819批四路合入终态实测：server 1549 / web 644（+28：animSpeed/quickactions池/reorder二期refs/H-I扫平测试）/ E2E 13。前基线 web 616。"
+  "note": "820批三路合入+v68修复终态实测：server 1566（+17：guestbook/stats开关测试）/ web 651（+7：StatsPage/TplGuestbook/layouts过滤测试）/ E2E 13。前基线 1549/644。"
 }
