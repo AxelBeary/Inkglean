@@ -1587,9 +1587,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   },
   artworks: {
     title: 'Portfolio', dragUpload: 'Drag images here, or click to upload',
-    tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet — upload some!',
-    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image',
-    // 818-H: toolbar row structure
+    tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet',
+    emptyHint: 'Uploaded images will appear here',
+    uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image', untitled: 'Untitled artwork',
+    // 820-K: toolbar row structure
+    manageGroup: 'Manage',
     manageLabel: 'Bulk Manage', manageDesc: 'Enter multi-select mode to delete multiple artworks at once',
     uploadTitle: 'Upload Images',
     // R45: multi-select delete
@@ -1603,7 +1605,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
     coverTag: 'Cover',
     // F7: 主图去重
-    mainImages: 'Main images', mainTag: 'Main',
+    mainImages: 'Main images', mainTag: 'Main', galleryTitle: 'Artworks',
     // v0.31: multi-cover reorder
     coverMoveUp: 'Move up', coverMoveDown: 'Move down', coverReordered: 'Cover order updated',
     // v0.35 wave 3 (REQ-024 F6): artwork edit (size tags + free description)
