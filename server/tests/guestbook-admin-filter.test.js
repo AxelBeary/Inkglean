@@ -108,4 +108,20 @@ describe('REQ-022 F5: GET /api/admin/messages 筛选参数', () => {
     })
     expect(res.statusCode).toBe(403)
   })
+
+  it('TC-GBF-09: 强制删除后刷新列表不再回显（0817 用户报障口径，接口层回归）', async () => {
+    const head = { Authorization: `Bearer ${createSession(admin.id, admin.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() })}` }
+    const before = await get('/api/admin/messages')
+    const target = before.json().find(m => m.nickname === '乙客')
+    expect(target).toBeDefined()
+
+    const del = await app.inject({ method: 'DELETE', url: `/api/admin/messages/${target.id}`, headers: head })
+    expect(del.statusCode).toBe(200)
+
+    // 刷新（重新 GET）：被删条目不再出现，其余两条保留
+    const after = await get('/api/admin/messages')
+    const list = after.json()
+    expect(list).toHaveLength(2)
+    expect(list.some(m => m.id === target.id)).toBe(false)
+  })
 })

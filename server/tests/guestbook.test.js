@@ -71,6 +71,27 @@ describe('F4 留言板 (Guestbook)', () => {
     expect(raw).toBeDefined()
   })
 
+  it('TC-GB-07a: 管理员删除后管理端列表不再返回（0817 报障：强删后刷新回显）', () => {
+    const msg = guestbookService.createMessage(artist.id, '回显', '删了不该再出现')
+    guestbookService.createMessage(artist.id, '留存', '这条还在')
+    guestbookService.adminDeleteMessage(msg.id)
+
+    const list = guestbookService.getAdminMessages()
+    expect(list).toHaveLength(1)
+    expect(list[0].nickname).toBe('留存')
+  })
+
+  it('TC-GB-07b: 管理员删除后画师端列表与总数同步隐藏', () => {
+    const msg = guestbookService.createMessage(artist.id, '被强删', '画师端也不该看到')
+    guestbookService.createMessage(artist.id, '正常', '这条画师可见')
+    guestbookService.adminDeleteMessage(msg.id)
+
+    const result = guestbookService.getArtistMessages(artist.id)
+    expect(result.total).toBe(1)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0].nickname).toBe('正常')
+  })
+
   // ─── 归属校验 ───
 
   it('TC-GB-08: 不能通过别人的留言', () => {

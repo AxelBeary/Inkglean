@@ -1134,6 +1134,22 @@ export interface DeleteArtistResult {
   message: string
 }
 
+/** GET /admin/artists/deleted 行（0817：已移除画师清单，软删兜底可恢复） */
+export interface DeletedArtistItem {
+  id: number
+  name: string
+  subdomain: string
+  qqNumber: string
+  isBanned: boolean
+  deletedAt: string
+}
+
+/** POST /admin/artists/:id/restore 响应 */
+export interface RestoreArtistResult {
+  success: boolean
+  message: string
+}
+
 /** GET /admin/stats 响应 */
 export interface GlobalStats {
   artistCount: number

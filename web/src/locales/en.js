@@ -1132,7 +1132,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     completedEmpty: 'No recently delivered orders',
     dragHint: 'Drag to reorder',
     reorderLabel: 'Reorder queue', moveUp: 'Move order up', moveDown: 'Move order down',
-    focusDisplay: 'Focus image', focusOff: 'Off', focusLarge: 'Large',
+    focusDisplay: 'Focus image',
     focusDisplayDesc: 'Show or hide the large focus image on formal and buffer orders',
     uploadFocus: 'Upload focus image',
     replaceFocus: 'Replace focus image',
@@ -1936,6 +1936,13 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       colFile: 'File', colPath: 'Original path', colSize: 'Size', colMovedAt: 'Moved at',
       emptyTitle: 'Empty recycle bin', emptyConfirm: 'Files in the recycle bin will be permanently deleted and cannot be recovered. Empty it?',
       emptied: '{n} files permanently deleted', emptyHint: 'Recycle bin is empty'
+    },
+    // 0817: removed artists (soft-delete safety net: listable + restorable)
+    deletedArtists: {
+      title: 'Removed artists', empty: 'No removed artists',
+      colDeletedAt: 'Removed at', restore: 'Restore',
+      restored: 'Restored. The artist is back on the roster',
+      restoreConfirm: 'Restore artist "{name}"? They will return to the roster and must log in again. If still banned, the ban stays.'
     },
     // F4: guestbook management (cross-artist); REQ-022 F5: three-way filters
     guestbook: {

@@ -351,6 +351,37 @@ export function deleteArtist(id: number): void {
 }
 
 /**
+ * 已移除画师清单（deleted_at 非空），按移除时间倒序。
+ * 0817 用户拍板：删除是软删，但此前无任何入口可见/可恢复——补清单+恢复闭环
+ */
+export function getDeletedArtists(): Artist[] {
+  return db.prepare(
+    "SELECT * FROM artists WHERE deleted_at IS NOT NULL AND subdomain != 'system' ORDER BY deleted_at DESC"
+  ).all() as Artist[]
+}
+
+/**
+ * 恢复已移除画师：清空 deleted_at 回到在册。
+ * 安全口径与移除对称：token_version 不回退（移除时已递增），恢复后需重新登录；
+ * 若子域名/QQ 已被在册画师占用（UNIQUE 约束）则拒绝恢复，防 500 冲突
+ * @returns 恢复后的画师行；不存在或未处于移除态返回 undefined
+ */
+export function restoreArtist(id: number): Artist | undefined {
+  const artist = getArtistById(id)
+  if (!artist || !artist.deleted_at) return undefined
+  const subdomainTaken = db.prepare(
+    'SELECT id FROM artists WHERE subdomain = ? AND deleted_at IS NULL AND id != ?'
+  ).get(artist.subdomain, id)
+  if (subdomainTaken) throw new AppError(E.SUBDOMAIN_TAKEN)
+  const qqTaken = db.prepare(
+    'SELECT id FROM artists WHERE qq_number = ? AND deleted_at IS NULL AND id != ?'
+  ).get(artist.qq_number, id)
+  if (qqTaken) throw new AppError(E.QQ_TAKEN)
+  db.prepare('UPDATE artists SET deleted_at = NULL WHERE id = ?').run(id)
+  return getArtistById(id)
+}
+
+/**
  * 递增 token_version，使该画师所有已签发的 token 失效
  * 用于：登出、权限变更、管理员强制下线
  */

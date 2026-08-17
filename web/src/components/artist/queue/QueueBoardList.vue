@@ -12,7 +12,8 @@
       <div class="desc">{{ $t('queue.focusDisplayDesc') }}</div>
     </div>
     <div class="ctrl">
-      <SliderSwitch v-model="focusDisplayModel" size="small" :options="focusDisplayOptions" />
+      <!-- 0817：两态滑块改开关（用户反馈滑块拥挤）——语义不变：开=显示焦点大图，关=隐藏 -->
+      <el-switch :model-value="focusDisplay === 'large'" @change="onFocusDisplayToggle" />
     </div>
   </div>
 
@@ -313,7 +314,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import InkEmpty from '../visual/InkEmpty.vue'
-import SliderSwitch from '../SliderSwitch.vue'
 import CancelUndoToast from '../CancelUndoToast.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
 import HySkeleton from '../../shared/HySkeleton.vue'
@@ -358,16 +358,10 @@ function moveQueueItem(order, direction) {
   queueModel.value = next
   emit('drag-end', { oldIndex: idx, newIndex: target })
 }
-const focusDisplayModel = computed({
-  get: () => props.focusDisplay,
-  set: (val) => emit('update:focus-display', val)
-})
-
-// 05B: 焦点图显示模式两态滑块选项
-const focusDisplayOptions = [
-  { value: 'off', label: t('queue.focusOff') },
-  { value: 'large', label: t('queue.focusLarge') }
-]
+/** 0817：焦点图显示改开关——开=大图（large），关=隐藏（off）；持久化链路不变（父级写 localStorage） */
+function onFocusDisplayToggle(val) {
+  emit('update:focus-display', val ? 'large' : 'off')
+}
 const activeTabModel = computed({
   get: () => props.activeTab,
   set: (val) => emit('update:active-tab', val)
@@ -663,8 +657,9 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 .field-text { min-width: 0; }
-.lab { font-size: 15px; color: var(--ink); }
-.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+/* 0817 报障：工具条说明文字未随字号缩放——对齐全站 calc(--font-scale) 口径 */
+.lab { font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink); }
+.desc { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
 .ctrl { min-width: 0; }
 /* 工作流节点加载失败错误态（对齐 dashboard module-error） */
 .module-error {

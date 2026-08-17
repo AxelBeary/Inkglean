@@ -43,6 +43,7 @@ import type {
   CreateStandaloneIncomeResult,
   CustomerTokenResult,
   DefaultWorkflowNode,
+  DeletedArtistItem,
   DeleteAdminAddonTemplateResult,
   DeleteAddonTemplateResult,
   DeleteArtistResult,
@@ -92,6 +93,7 @@ import type {
   RemoveContentResult,
   ReportItem,
   ResolveReportResult,
+  RestoreArtistResult,
   PlatformDTO,
   PlatformInput,
   PostMessageRequest,
@@ -673,6 +675,9 @@ export const adminApi = {
   getArtists: (): Promise<AdminArtistItem[]> => getJson('/admin/artists'),
   createArtist: (data: CreateArtistRequest): Promise<PublicArtistDTO> => postJson('/admin/artists', data),
   deleteArtist: (id: number): Promise<DeleteArtistResult> => deleteJson(`/admin/artists/${id}`),
+  // 0817：已移除画师清单 + 恢复（软删兜底闭环，用户拍板）
+  getDeletedArtists: (): Promise<DeletedArtistItem[]> => getJson('/admin/artists/deleted'),
+  restoreArtist: (id: number): Promise<RestoreArtistResult> => postJson(`/admin/artists/${id}/restore`),
   // REQ-027: TOTP 绑定/重置
   totpBindInit: (id: number): Promise<TotpBindInitResult> => postJson(`/admin/artists/${id}/totp/bind-init`),
   totpBindConfirm: (id: number, code: string): Promise<TotpActionResult> =>

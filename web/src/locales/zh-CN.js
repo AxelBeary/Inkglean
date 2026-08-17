@@ -1131,7 +1131,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     completedEmpty: '近期无已交付订单',
     dragHint: '拖拽排序',
     reorderLabel: '调整队列顺序', moveUp: '上移订单', moveDown: '下移订单',
-    focusDisplay: '焦点图显示', focusOff: '关', focusLarge: '大',
+    focusDisplay: '焦点图显示',
     focusDisplayDesc: '控制正式区与缓冲区订单是否显示焦点大图',
     uploadFocus: '上传焦点图',
     replaceFocus: '替换焦点图',
@@ -1933,6 +1933,13 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       colFile: '文件名', colPath: '原始路径', colSize: '大小', colMovedAt: '移入时间',
       emptyTitle: '清空回收站', emptyConfirm: '回收站中的文件将被永久删除，不可恢复。确定清空？',
       emptied: '已清空，永久删除 {n} 个文件', emptyHint: '回收站是空的'
+    },
+    // 0817：已移除画师（软删兜底：清单可见+可恢复）
+    deletedArtists: {
+      title: '已移除画师', empty: '没有已移除的画师',
+      colDeletedAt: '移除时间', restore: '恢复',
+      restored: '已恢复，该画师回到在册列表',
+      restoreConfirm: '恢复画师「{name}」？恢复后回到在册列表，本人需重新登录；若该画师还在封禁中，恢复后仍保持封禁。'
     },
     // F4: 留言管理（跨画师）；REQ-022 F5: 三维筛选
     guestbook: {

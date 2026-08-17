@@ -54,16 +54,18 @@ export function getPublicMessages(artistId: number, page: number = 1, pageSize: 
 }
 
 /**
- * 画师查询：自己所有留言（含 pending/rejected/管理员软删），按 created_at DESC 分页
+ * 画师查询：自己所有留言（含 pending/rejected），按 created_at DESC 分页
  * F-2（P3-21）: 由全量数组改为分页结构 { items, total, page, pageSize }（对齐公开端分页风格）
+ * 0817 报障修复：管理员强制删除（deleted_by_admin=1）的留言同步从画师列表消失——
+ * 「强制删」语义 = 两端都不可见；物理行保留作审计留痕，COUNT 与列表同口径过滤防分页错位
  */
 export function getArtistMessages(artistId: number, page: number = 1, pageSize: number = 20): { items: GuestbookMessage[]; total: number; page: number; pageSize: number } {
   const offset = (page - 1) * pageSize
   const total = (db.prepare(
-    'SELECT COUNT(*) AS c FROM guestbook_messages WHERE artist_id = ?'
+    'SELECT COUNT(*) AS c FROM guestbook_messages WHERE artist_id = ? AND deleted_by_admin = 0'
   ).get(artistId) as { c: number }).c
   const items = db.prepare(
-    'SELECT * FROM guestbook_messages WHERE artist_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?'
+    'SELECT * FROM guestbook_messages WHERE artist_id = ? AND deleted_by_admin = 0 ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?'
   ).all(artistId, pageSize, offset) as GuestbookMessage[]
   return { items, total, page, pageSize }
 }
@@ -113,7 +115,9 @@ export interface AdminMessageFilters {
 
 /** 管理员查询：跨画师全部留言（含 artist_name），按 created_at DESC；可选 artistId/status/replied 筛选 */
 export function getAdminMessages(filters: AdminMessageFilters = {}): Array<GuestbookMessage & { artist_name: string | null }> {
-  const clauses: string[] = []
+  // 0817 报障修复：已强制删除（deleted_by_admin=1）的留言不再回显——
+  // 此前漏过滤导致管理员删完刷新又出现，「强制删」形同失效
+  const clauses: string[] = ['m.deleted_by_admin = 0']
   const params: Array<string | number> = []
   if (filters.artistId !== undefined) {
     clauses.push('m.artist_id = ?')

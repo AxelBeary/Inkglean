@@ -116,6 +116,36 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * GET /api/admin/artists/deleted
+   * 0817 用户拍板：已移除画师清单（软删兜底，可恢复）——仅回管理所需字段，DTO 口径同列表
+   */
+  fastify.get('/api/admin/artists/deleted', { preHandler: requireAdmin }, async () => {
+    return artistService.getDeletedArtists().map(a => ({
+      id: a.id,
+      name: a.name,
+      subdomain: a.subdomain,
+      qqNumber: a.qq_number,
+      isBanned: !!a.is_banned,
+      deletedAt: a.deleted_at
+    }))
+  })
+
+  /**
+   * POST /api/admin/artists/:id/restore
+   * 恢复已移除画师（子域名/QQ 被占用时 400 拒绝；恢复后需重新登录）
+   */
+  fastify.post('/api/admin/artists/:id/restore', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const artist = artistService.restoreArtist(Number((request.params as { id: string }).id))
+      if (!artist) return reply.code(404).send({ error: '画师不存在或未被移除' })
+      return { success: true, message: `已恢复画师 ${artist.name}` }
+    } catch (err) {
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
+    }
+  })
+
+  /**
    * GET /api/admin/artists/:id/orders
    * 查看指定画师的订单列表（支持分页）
    */

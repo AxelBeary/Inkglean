@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   getMe: vi.fn(),
   getMessages: vi.fn(),
   getStats: vi.fn(),
+  fetchProfile: vi.fn(),
   logout: vi.fn(),
   push: vi.fn(),
   routeName: 'ArtistDashboard',
@@ -99,7 +100,9 @@ function freshStores() {
     profile: null,
     loggedIn: true,
     isAdmin: false,
-    logout: h.logout
+    logout: h.logout,
+    // 0817：布局 onMounted 预拉 profile（导航开关判定依赖）
+    fetchProfile: h.fetchProfile
   }
   h.themeStore = { enterArtistScope: vi.fn(), leaveArtistScope: vi.fn() }
 }
@@ -125,6 +128,7 @@ beforeEach(() => {
   h.getMe.mockReset()
   h.getMessages.mockReset().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 100 })
   h.getStats.mockReset().mockResolvedValue({ pendingCount: 0 })
+  h.fetchProfile.mockReset().mockResolvedValue(undefined)
   h.logout.mockReset()
   h.push.mockReset()
   h.routeName = 'ArtistDashboard'
@@ -245,6 +249,22 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     await flushPromises()
     const paths2 = wrapper2.vm.menuGroups.flatMap(g => g.items.map(i => i.index))
     expect(paths2).toContain('/stats')
+  })
+
+  it('0817 报障：profile 未加载（未知态）→ /stats 按「未开」隐藏且预拉 profile', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockResolvedValue({ isAdmin: false })
+    // freshStores 默认 profile: null —— 刷新/直达首载的真实形态
+
+    const wrapper = await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    const paths = wrapper.vm.menuGroups.flatMap(g => g.items.map(i => i.index))
+    expect(paths).not.toContain('/stats')
+    // 留言默认开：未知态维持显示（两向各自对齐默认值口径）
+    expect(paths).toContain('/guestbook')
+    // 布局预拉 profile 缩短未知窗口期
+    expect(h.fetchProfile).toHaveBeenCalled()
   })
 
   it('待确认订单角标轮询读取 getStats.pendingCount（I0/REQ-039）', async () => {

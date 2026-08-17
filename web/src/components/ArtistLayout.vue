@@ -380,7 +380,9 @@ const MENU_GROUPS = [
 const menuGroups = computed(() => {
   // 820-L：留言关闭 → 隐藏「留言审核」导航与角标；统计未开（管理员默认关闭）→ 隐藏整个 /stats 导航
   const guestbookOff = store.profile?.guestbook_enabled === 0
-  const statsOff = store.profile?.statsEnabled === false
+  // 0817 报障修复：统计开关默认关，profile 未加载完的窗口期（刷新/直达首载）按「未知=未开」隐藏，
+  // 不再先显示后消失；留言默认开，未知时维持显示（两向各自对齐默认值口径）
+  const statsOff = store.profile?.statsEnabled !== true
   const items = BASE_MENU_ITEMS.filter(item => {
     if (item.index === '/guestbook' && guestbookOff) return false
     if (item.index === '/stats' && statsOff) return false
@@ -450,6 +452,9 @@ onMounted(() => {
   applyAnimSpeedFromStorage()
   applyReduceMotionFromStorage()
   validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
+  // 0817 报障配套：刷新/直达时 store 尚无 profile，导航开关（统计/留言）判定依赖它——
+  // 预拉一次让「未知」窗口期尽量短（失败静默，fetchProfile 内部已有 401 登出守卫）
+  if (store.loggedIn && !store.profile) store.fetchProfile().catch(() => {})
   loadAnnouncement() // REQ-043 I4: 公告入口数据（登录态接口，失败静默）
   // I0: 待确认订单角标轮询（5 分钟；页面隐藏暂停，可见立即刷新——visibilitychange）
   startPendingOrderPolling()
@@ -822,6 +827,10 @@ const { validateSession } = useSessionGuard()
   line-height: 1.8;
   white-space: pre-wrap;
   word-break: break-word;
+  /* 0817 报障：长公告撑爆弹窗挤作一团——内容区限高内滚，弹窗本身不超屏 */
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .announcement-empty { margin: 0; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
 

@@ -17,6 +17,8 @@
         <!-- REQ-039: 邀请码管理入口 -->
         <el-button plain @click="openInviteCodes">{{ $t('invite.manageTitle') }}</el-button>
         <el-button plain @click="openRecycleBin">{{ $t('admin.recycleBin.title') }}</el-button>
+        <!-- 0817：已移除画师清单（软删兜底可恢复；回收站收文件，这里收画师） -->
+        <el-button plain @click="openDeletedArtists">{{ $t('admin.deletedArtists.title') }}</el-button>
       </div>
     </div>
 
@@ -329,6 +331,42 @@
         <el-button v-if="recycleTotal > 0" type="danger" plain :loading="emptying" @click="handleEmptyRecycleBin">
           {{ $t('admin.recycleBin.empty') }}
         </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 0817：已移除画师（软删兜底：清单可见+可恢复；恢复后需重新登录） -->
+    <el-dialog v-model="deletedVisible" :title="$t('admin.deletedArtists.title')" width="720px" :close-on-click-modal="false">
+      <div class="recycle-body">
+        <el-table v-if="deletedLoading || deletedItems.length > 0" :data="deletedItems" v-loading="deletedLoading" stripe max-height="420">
+          <el-table-column prop="name" :label="$t('admin.colName')" min-width="120">
+            <template #default="{ row }">
+              <span>{{ row.name }}</span>
+              <el-tag v-if="row.isBanned" type="warning" size="small" class="cell-tag">{{ $t('compliance.admin.bannedTag') }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="140">
+            <template #default="{ row }"><code class="cell-code">{{ row.subdomain }}{{ $t('admin.domainSuffix') }}</code></template>
+          </el-table-column>
+          <el-table-column prop="qqNumber" :label="$t('admin.colQq')" width="120" />
+          <el-table-column :label="$t('admin.deletedArtists.colDeletedAt')" width="170">
+            <template #default="{ row }">{{ formatDateTime(row.deletedAt) }}</template>
+          </el-table-column>
+          <el-table-column :label="$t('common.actions')" width="110" align="right">
+            <template #default="{ row }">
+              <el-button
+                size="small" type="primary" plain
+                :loading="restoringId === row.id" :disabled="restoringId != null"
+                @click="restoreDeletedArtist(row)"
+              >
+                {{ $t('admin.deletedArtists.restore') }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-else :description="$t('admin.deletedArtists.empty')" />
+      </div>
+      <template #footer>
+        <el-button @click="deletedVisible = false">{{ $t('common.cancel') }}</el-button>
       </template>
     </el-dialog>
 
@@ -720,6 +758,50 @@ async function handleEmptyRecycleBin() {
     ElMessage.error(err.message)
   } finally {
     emptying.value = false
+  }
+}
+
+// ─── 0817：已移除画师（软删兜底：清单可见+可恢复） ───
+const deletedVisible = ref(false)
+const deletedItems = ref([])
+const deletedLoading = ref(false)
+/** 恢复在途锁（单飞：一次只恢复一个，防并发双击） */
+const restoringId = ref(null)
+
+async function openDeletedArtists() {
+  deletedVisible.value = true
+  await loadDeletedArtists()
+}
+
+async function loadDeletedArtists() {
+  deletedLoading.value = true
+  try {
+    deletedItems.value = await adminApi.getDeletedArtists()
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    deletedLoading.value = false
+  }
+}
+
+async function restoreDeletedArtist(row) {
+  try {
+    await ElMessageBox.confirm(
+      t('admin.deletedArtists.restoreConfirm', { name: row.name }),
+      t('admin.deletedArtists.title'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return }
+  restoringId.value = row.id
+  try {
+    await adminApi.restoreArtist(row.id)
+    ElMessage.success(t('admin.deletedArtists.restored'))
+    await loadDeletedArtists()
+    await loadArtists() // 回到在册 → 主列表同步刷新
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    restoringId.value = null
   }
 }
 function openTransfer() {
