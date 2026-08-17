@@ -2144,16 +2144,31 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   // ═══ REQ-043 I2: Onboarding card (hidden by backend markers, no localStorage) ═══
   onboarding: {
     title: 'Getting Started',
-    subtitle: 'Three steps to help clients get to know you',
-    progress: '{done} / {total} done',
-    artwork: 'Upload your first artwork',
-    tier: 'Set up styles & pricing',
-    share: 'Share your page',
-    gotoArtworks: 'Upload',
-    gotoTiers: 'Set up',
-    shareBtn: 'Copy page link',
-    copied: 'Copied',
+    subtitle: 'Before you open shop, let us walk you around — it will make every day easier',
+    tourBtn: 'Show me around the studio',
     dismiss: 'Dismiss'
+  },
+
+  // ═══ 818-E: Guided studio tour ═══
+  tour: {
+    title: 'Studio Tour',
+    step: 'Step {current} / {total}',
+    skip: 'Skip',
+    prev: 'Back',
+    next: 'Next',
+    done: 'Done',
+    welcome: 'This is your little front desk: today’s greeting, new orders and income live here. Tap the text to switch the mood.',
+    todo: 'The ledger to-dos line up what to do next as one-tap buttons, so you can move an order forward without hunting around.',
+    queue: 'The queue board is your order timeline — drag to reorder who comes first.',
+    manual: 'A client ordered in chat? Paste the message here and turn their QQ, needs and price into an order.',
+    orders: 'All orders live here: search, filter, open details, find the one you want at a glance.',
+    pricing: 'Pricing is your price list: styles, sizes and base prices, plus workflow and discount codes.',
+    addons: 'The add-on library is the extras menu: rush, commercial use and add-ons become templates clients tick at checkout.',
+    toolbox: 'The toolbox keeps every little tool in one drawer: bookkeeping, export, watermark, price calculator and more.',
+    watermark: 'Watermark: stamp your name or logo on showcase images before they leave your hands.',
+    priceCalc: 'Price calculator: run a quick estimate when a client asks — same math the client sees.',
+    preferences: 'Preferences are your just-the-way-I-like-it corner: font size, dashboard switches and quick buttons.',
+    settings: 'Page settings shape the storefront clients see: profile, showcase content and template style.'
   },
 
   // ═══ REQ-043 I4: Platform announcement (zero disturbance: no popup/banner, just a dot) ═══
