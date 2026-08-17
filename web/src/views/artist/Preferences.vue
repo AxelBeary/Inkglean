@@ -16,170 +16,161 @@
       <el-button size="small" type="primary" style="margin-top: 8px" @click="loadPreferences">{{ $t('settings.retry') }}</el-button>
     </el-alert>
 
-    <!-- 顶部导航条：选中态花青下划线 + 朱砂小印点 -->
-    <nav class="pref-nav" role="tablist">
-      <button
-        v-for="tab in TABS" :key="tab.key" type="button" role="tab"
-        class="pref-nav-item" :class="{ on: activeTab === tab.key }"
-        :aria-selected="activeTab === tab.key"
-        @click="activeTab = tab.key"
-      >
-        {{ $t(tab.labelKey) }}
-        <span v-if="activeTab === tab.key" class="pref-nav-mark" aria-hidden="true"></span>
-      </button>
-    </nav>
+    <!-- 820-M: 自绘顶部导航改 el-tabs（对齐价格管理 tab-change + EP 自带切换过渡）。
+         三面板含表单状态，故不设 lazy：非 lazy 下全部面板保持挂载（等价原 v-show），切换不丢状态 -->
+    <el-tabs v-model="activeTab" style="margin-top: 16px">
+      <!-- ── Tab 通用：通知 / 仪表盘（保留现有数据流） ── -->
+      <el-tab-pane :label="$t('preferences.tabGeneral')" name="general">
+        <div class="pref-group">
+          <div class="pref-group-head">{{ $t('preferences.groupNotify') }}</div>
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.notifyLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.notifyDesc') }}</div>
+            </div>
+            <div class="pref-row-control">
+              <el-switch v-model="form.notifyEnabled" />
+            </div>
+          </div>
+        </div>
 
-    <!-- ── Tab 通用：通知 / 仪表盘（保留现有数据流） ── -->
-    <section v-show="activeTab === 'general'" class="pref-panel" role="tabpanel">
-      <div class="pref-group">
-        <div class="pref-group-head">{{ $t('preferences.groupNotify') }}</div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.notifyLabel') }}</div>
-            <div class="pref-row-desc">{{ $t('preferences.notifyDesc') }}</div>
+        <div class="pref-group">
+          <div class="pref-group-head">{{ $t('preferences.groupDashboard') }}</div>
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.defaultPanelLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.defaultPanelDesc') }}</div>
+            </div>
+            <div class="pref-row-control">
+              <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
+                <el-option value="queue" :label="$t('dashboard.panelQueue')" />
+                <el-option value="orders" :label="$t('dashboard.panelOrders')" />
+                <el-option value="manual" :label="$t('dashboard.panelManual')" />
+                <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
+              </el-select>
+            </div>
           </div>
-          <div class="pref-row-control">
-            <el-switch v-model="form.notifyEnabled" />
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.dashModulesLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('settings.dashModulesHint') }}</div>
+            </div>
+            <div class="pref-row-control pref-switch-cluster">
+              <el-switch v-model="form.dashModules.schedule" :active-text="$t('settings.dashModuleSchedule')" />
+              <el-switch v-model="form.dashModules.guestbook" :active-text="$t('settings.dashModuleGuestbook')" />
+              <el-switch v-model="form.dashModules.activity" :active-text="$t('settings.dashModuleActivity')" />
+              <el-switch v-model="form.dashModules.onboarding" :active-text="$t('settings.dashModuleOnboarding')" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="pref-group">
-        <div class="pref-group-head">{{ $t('preferences.groupDashboard') }}</div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.defaultPanelLabel') }}</div>
-            <div class="pref-row-desc">{{ $t('preferences.defaultPanelDesc') }}</div>
-          </div>
-          <div class="pref-row-control">
-            <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
-              <el-option value="queue" :label="$t('dashboard.panelQueue')" />
-              <el-option value="orders" :label="$t('dashboard.panelOrders')" />
-              <el-option value="manual" :label="$t('dashboard.panelManual')" />
-              <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
-            </el-select>
-          </div>
+        <div class="pref-save-bar">
+          <el-button type="primary" @click="save" :loading="saving" :disabled="loadFailed">{{ $t('settings.save') }}</el-button>
+          <span class="form-hint">{{ $t('preferences.saveHint') }}</span>
         </div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.dashModulesLabel') }}</div>
-            <div class="pref-row-desc">{{ $t('settings.dashModulesHint') }}</div>
-          </div>
-          <div class="pref-row-control pref-switch-cluster">
-            <el-switch v-model="form.dashModules.schedule" :active-text="$t('settings.dashModuleSchedule')" />
-            <el-switch v-model="form.dashModules.guestbook" :active-text="$t('settings.dashModuleGuestbook')" />
-            <el-switch v-model="form.dashModules.activity" :active-text="$t('settings.dashModuleActivity')" />
-            <el-switch v-model="form.dashModules.onboarding" :active-text="$t('settings.dashModuleOnboarding')" />
-          </div>
-        </div>
-      </div>
+      </el-tab-pane>
 
-      <div class="pref-save-bar">
-        <el-button type="primary" @click="save" :loading="saving" :disabled="loadFailed">{{ $t('settings.save') }}</el-button>
-        <span class="form-hint">{{ $t('preferences.saveHint') }}</span>
-      </div>
-    </section>
+      <!-- ── Tab 显示与字号：字号（818-A 保留不动）/ 暗色模式 / 动画速度 + 减少动效 ── -->
+      <el-tab-pane :label="$t('preferences.tabDisplay')" name="display">
+        <div class="pref-group">
+          <div class="pref-group-head">{{ $t('preferences.groupFont') }}</div>
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.fontSize') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.fontSizeHint') }}</div>
+            </div>
+            <div class="pref-row-control font-size-row">
+              <el-slider
+                v-model="fontSize"
+                :min="FONT_SIZE_MIN" :max="FONT_SIZE_MAX" :step="1" show-stops
+                class="font-size-slider"
+                :aria-label="$t('preferences.fontSize')"
+              />
+              <span class="font-size-value">{{ fontSize }}px</span>
+            </div>
+          </div>
+        </div>
 
-    <!-- ── Tab 显示与字号：字号（818-A 保留不动）/ 暗色模式 / 动画速度 + 减少动效 ── -->
-    <section v-show="activeTab === 'display'" class="pref-panel" role="tabpanel">
-      <div class="pref-group">
-        <div class="pref-group-head">{{ $t('preferences.groupFont') }}</div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.fontSize') }}</div>
-            <div class="pref-row-desc">{{ $t('preferences.fontSizeHint') }}</div>
-          </div>
-          <div class="pref-row-control font-size-row">
-            <el-slider
-              v-model="fontSize"
-              :min="FONT_SIZE_MIN" :max="FONT_SIZE_MAX" :step="1" show-stops
-              class="font-size-slider"
-              :aria-label="$t('preferences.fontSize')"
-            />
-            <span class="font-size-value">{{ fontSize }}px</span>
+        <div class="pref-group">
+          <div class="pref-group-head">{{ $t('preferences.groupAppearance') }}</div>
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.darkModeLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.darkModeDesc') }}</div>
+            </div>
+            <div class="pref-row-control">
+              <!-- 与 ThemeToggle 同一口径：theme store 宣纸/墨黑切换 -->
+              <el-switch :model-value="themeStore.isArtistInk" @change="toggleDarkMode" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="pref-group">
-        <div class="pref-group-head">{{ $t('preferences.groupAppearance') }}</div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.darkModeLabel') }}</div>
-            <div class="pref-row-desc">{{ $t('preferences.darkModeDesc') }}</div>
+        <div class="pref-group">
+          <div class="pref-group-head">{{ $t('preferences.groupAnimation') }}</div>
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.animSpeedLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.animSpeedDesc') }}</div>
+            </div>
+            <div class="pref-row-control anim-speed-row">
+              <el-slider
+                v-model="animSpeed"
+                :min="ANIM_SPEED_MIN" :max="ANIM_SPEED_MAX" :step="ANIM_SPEED_STEP" show-stops
+                class="font-size-slider"
+                :aria-label="$t('preferences.animSpeedLabel')"
+              />
+              <span class="anim-speed-value">{{ formatSpeed(animSpeed) }}</span>
+            </div>
           </div>
-          <div class="pref-row-control">
-            <!-- 与 ThemeToggle 同一口径：theme store 宣纸/墨黑切换 -->
-            <el-switch :model-value="themeStore.isArtistInk" @change="toggleDarkMode" />
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.reduceMotionLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.reduceMotionDesc') }}</div>
+            </div>
+            <div class="pref-row-control">
+              <el-switch v-model="reduceMotion" />
+            </div>
+          </div>
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.animPreviewLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.animPreviewDesc') }}</div>
+            </div>
+            <div class="pref-row-control anim-preview-control">
+              <button type="button" class="anim-demo-btn" @click="runAnimDemo">{{ $t('preferences.animPreviewBtn') }}</button>
+              <span class="anim-demo-track" aria-hidden="true"><span class="anim-demo-bar" :class="{ on: animDemoOn }"></span></span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="pref-group">
-        <div class="pref-group-head">{{ $t('preferences.groupAnimation') }}</div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.animSpeedLabel') }}</div>
-            <div class="pref-row-desc">{{ $t('preferences.animSpeedDesc') }}</div>
-          </div>
-          <div class="pref-row-control anim-speed-row">
-            <el-slider
-              v-model="animSpeed"
-              :min="ANIM_SPEED_MIN" :max="ANIM_SPEED_MAX" :step="ANIM_SPEED_STEP" show-stops
-              class="font-size-slider"
-              :aria-label="$t('preferences.animSpeedLabel')"
-            />
-            <span class="anim-speed-value">{{ formatSpeed(animSpeed) }}</span>
-          </div>
+        <div class="pref-save-bar">
+          <span class="form-hint">{{ $t('preferences.displayHint') }}</span>
         </div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.reduceMotionLabel') }}</div>
-            <div class="pref-row-desc">{{ $t('preferences.reduceMotionDesc') }}</div>
-          </div>
-          <div class="pref-row-control">
-            <el-switch v-model="reduceMotion" />
-          </div>
-        </div>
-        <div class="pref-row">
-          <div class="pref-row-text">
-            <div class="pref-row-label">{{ $t('preferences.animPreviewLabel') }}</div>
-            <div class="pref-row-desc">{{ $t('preferences.animPreviewDesc') }}</div>
-          </div>
-          <div class="pref-row-control anim-preview-control">
-            <button type="button" class="anim-demo-btn" @click="runAnimDemo">{{ $t('preferences.animPreviewBtn') }}</button>
-            <span class="anim-demo-track" aria-hidden="true"><span class="anim-demo-bar" :class="{ on: animDemoOn }"></span></span>
-          </div>
-        </div>
-      </div>
+      </el-tab-pane>
 
-      <div class="pref-save-bar">
-        <span class="form-hint">{{ $t('preferences.displayHint') }}</span>
-      </div>
-    </section>
-
-    <!-- ── Tab 快捷入口：数量不限，0 个=隐藏仪表盘快捷区 ── -->
-    <section v-show="activeTab === 'quick'" class="pref-panel" role="tabpanel">
-      <div class="pref-group">
-        <div class="pref-group-head">{{ $t('preferences.groupQuick') }}</div>
-        <el-checkbox-group v-model="quickSelected" class="quick-config">
-          <el-checkbox
-            v-for="opt in quickPoolOptions" :key="opt.key" :value="opt.key"
-            class="quick-config-item"
-          >
-            <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
-            <span class="quick-config-name">{{ $t(opt.labelKey) }}</span>
-            <template v-if="opt.type === 'action'"><span class="quick-action-badge">{{ $t('settings.quickActionBadge') }}</span></template>
-          </el-checkbox>
-        </el-checkbox-group>
-        <div class="quick-config-footer">
-          <div class="form-hint">{{ $t('settings.quickHint') }}</div>
-          <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving" :disabled="loadFailed">
-            {{ $t('settings.quickSave') }}
-          </el-button>
+      <!-- ── Tab 快捷入口：数量不限，0 个=隐藏仪表盘快捷区 ── -->
+      <el-tab-pane :label="$t('preferences.tabQuick')" name="quick">
+        <div class="pref-group">
+          <div class="pref-group-head">{{ $t('preferences.groupQuick') }}</div>
+          <el-checkbox-group v-model="quickSelected" class="quick-config">
+            <el-checkbox
+              v-for="opt in quickPoolOptions" :key="opt.key" :value="opt.key"
+              class="quick-config-item"
+            >
+              <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
+              <span class="quick-config-name">{{ $t(opt.labelKey) }}</span>
+              <template v-if="opt.type === 'action'"><span class="quick-action-badge">{{ $t('settings.quickActionBadge') }}</span></template>
+            </el-checkbox>
+          </el-checkbox-group>
+          <div class="quick-config-footer">
+            <div class="form-hint">{{ $t('settings.quickHint') }}</div>
+            <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving" :disabled="loadFailed">
+              {{ $t('settings.quickSave') }}
+            </el-button>
+          </div>
         </div>
-      </div>
-    </section>
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
@@ -204,16 +195,10 @@ const saving = ref(false)
 const quickSaving = ref(false)
 /** 偏好加载失败（防止默认值覆盖真实设置，对齐 Settings profileLoadFailed） */
 const loadFailed = ref(false)
-/** 顶部导航当前 tab（v-show 切换，表单状态不丢） */
+/** 顶部导航当前 tab（el-tabs 非 lazy：面板保持挂载，表单状态不丢） */
 const activeTab = ref('general')
 /** 「点我看速度」演示条（一次性切换，无循环无位移） */
 const animDemoOn = ref(false)
-
-const TABS = [
-  { key: 'general', labelKey: 'preferences.tabGeneral' },
-  { key: 'display', labelKey: 'preferences.tabDisplay' },
-  { key: 'quick', labelKey: 'preferences.tabQuick' }
-]
 
 const form = reactive({
   notifyEnabled: true,
@@ -338,27 +323,7 @@ onMounted(loadPreferences)
 .pref-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .pref-sub { margin-top: 4px; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
 
-/* 顶部导航条：对齐原型（花青下划线 + 朱砂小印点） */
-.pref-nav { display: flex; gap: 4px; margin-top: 20px; border-bottom: 1px solid var(--line2); }
-.pref-nav-item {
-  position: relative; padding: 12px 20px;
-  font: inherit; font-size: calc(var(--font-scale, 1) * 15px);
-  color: var(--ink3); background: none; border: none; cursor: pointer;
-  transition: color var(--dur-fast);
-}
-.pref-nav-item:hover { color: var(--ink); }
-.pref-nav-item.on { color: var(--ink); font-weight: 600; }
-.pref-nav-item.on::after {
-  content: ""; position: absolute; left: 16px; right: 16px; bottom: -1px; height: 3px;
-  background: var(--hq); border-radius: var(--r-paper);
-}
-.pref-nav-mark {
-  display: inline-block; width: 6px; height: 6px; margin-left: 4px;
-  background: var(--zs); border-radius: var(--r-paper); vertical-align: 2px;
-}
-
-/* 内容区：分组卡片 + 组头朱砂小印点 + 统一行 */
-.pref-panel { margin-top: 24px; }
+/* 内容区：分组卡片 + 组头朱砂小印点 + 统一行（页签间距由 el-tabs 自带头部留白承担，对齐价格管理） */
 .pref-group {
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--r-l); box-shadow: var(--sh-1);
