@@ -101,9 +101,10 @@ if [ "$STATUS" != "healthy" ]; then
 fi
 ok "容器已健康"
 
-# ── 7) 体检 ──
-HEALTH=$(curl -s --max-time 10 http://localhost:3000/api/health 2>/dev/null || true)
-echo "$HEALTH" | grep -q '"status":"ok"' && ok "健康检查通过" || warn "健康检查响应异常：$HEALTH"
+# ── 7) 体检（容器内探测优先：默认 compose 不映射 3000 端口，宿主机 curl 会假警报） ──
+HEALTH=$(docker compose exec -T web node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>r.text()).then(console.log).catch(()=>{})" 2>/dev/null || true)
+[ -z "$HEALTH" ] && HEALTH=$(curl -s --max-time 10 http://localhost:3000/api/health 2>/dev/null || true)
+echo "$HEALTH" | grep -q '"status":"ok"' && ok "健康检查通过" || warn "健康检查响应异常：$HEALTH（容器状态以上方 healthy 为准）"
 DBVER=$(docker compose exec -T -w /app/server web node -e "console.log(require('better-sqlite3')('/app/data/commission.db').prepare('SELECT MAX(version) v FROM schema_migrations').get().v)" 2>/dev/null || echo "?")
 
 echo ""

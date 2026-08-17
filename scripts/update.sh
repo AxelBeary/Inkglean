@@ -78,8 +78,9 @@ if [ "$STATUS" != "healthy" ]; then
 fi
 ok "容器已健康"
 
-# ── 6) 体检：健康接口 + 迁移版本 ──
-HEALTH=$(curl -s --max-time 10 http://localhost:3000/api/health 2>/dev/null || true)
+# ── 6) 体检：健康接口 + 迁移版本（容器内探测优先：默认 compose 不映射 3000 端口，宿主机 curl 会假警报） ──
+HEALTH=$(docker compose exec -T web node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>r.text()).then(console.log).catch(()=>{})" 2>/dev/null || true)
+[ -z "$HEALTH" ] && HEALTH=$(curl -s --max-time 10 http://localhost:3000/api/health 2>/dev/null || true)
 if echo "$HEALTH" | grep -q '"status":"ok"'; then
   ok "健康检查通过"
 else
