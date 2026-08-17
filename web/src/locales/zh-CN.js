@@ -322,6 +322,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   priceCalc: {
     title: '稿价计算器',
     subtitle: '客户询价时快速算个参考价，结果与客户看到的报价一致',
+    // 818-B 布局打磨：分组卡片 + 组头描述（同类成组）
+    stepStyleDesc: '画风不同价格不同，先选画风',
+    stepSizeDesc: '尺寸影响价格和工期',
+    stepAddonsDesc: '按需勾选，选完自动估算',
     loading: '加载中…',
     loadFailed: '画风与费率加载失败，请重试',
     stepStyle: '选画风',
@@ -345,6 +349,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   reply: {
     title: '社恐轻松回复',
     subtitle: '预设话术一键复制，不好意思开口的场景照抄就行',
+    // 818-B 布局打磨：组头 + 描述（同类成组）
+    listTitle: '常用话术',
+    listDesc: '点击复制，粘贴到聊天窗口直接发给客户',
     copy: '复制',
     copied: '已复制到剪贴板',
     copyFailed: '复制失败，请手动复制',
@@ -360,6 +367,14 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   note: {
     title: '速记剪切板',
     subtitle: '随手记灵感、客户要求、待办，自动保存在本机浏览器',
+    // 818-B 布局打磨：分组卡片 + 一行一事（说明在左，控件在右）
+    formTitle: '新增速记',
+    titleLabel: '标题（选填）',
+    titleDesc: '给速记起个名字，方便之后查找',
+    contentLabel: '内容',
+    contentDesc: '记下灵感、客户要求或待办事项',
+    listTitle: '全部速记',
+    listDesc: '记录保存在本机浏览器，复制后可粘贴到任意聊天窗口',
     titlePlaceholder: '标题（选填）',
     contentPlaceholder: '记点什么…',
     add: '记一条',
@@ -503,6 +518,13 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   quote: {
     title: '报价单',
     subtitle: '把条目和金额填进模板，一键生成图片或文字报价，发给客户确认',
+    // 818-B 布局打磨：分组卡片 + 一行一事（说明在左，控件在右）
+    groupContent: '报价内容',
+    clientDesc: '显示在报价单顶部，方便客户确认',
+    itemsDesc: '填条目名称与金额，至少一条有效条目才能生成',
+    noteDesc: '补充修改次数、授权范围等说明',
+    groupExport: '生成与复制',
+    totalDesc: '全部条目金额合计',
     clientLabel: '客户称呼（选填）',
     clientPlaceholder: '如：张三、XX 工作室',
     itemsLabel: '条目列表',
@@ -536,6 +558,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   revisionCount: {
     title: '改稿计数',
     subtitle: '按条目记改稿次数，到约定上限自动标红提醒',
+    // 818-B 布局打磨：分组卡片 + 一行一事（说明在左，控件在右）
+    groupTitle: '计数条目',
+    groupDesc: '每个条目独立计数，到达约定上限自动标红',
+    addLabel: '新增计数条目',
     namePlaceholder: '如：张三-头像',
     add: '添加条目',
     addHint: '默认上限 3 次，可逐条调整',
@@ -582,6 +608,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     title: '图片水印工具',
     sourceSection: '图片来源',
     watermarkSection: '水印设置',
+    // 818-B 布局打磨：面板组头 + 描述，参数行一行一事
+    sourceDesc: '选择图片来源，预览会实时更新',
+    watermarkDesc: '调节文字、位置与透明度后导出',
+    logoLabel: '水印图片',
     sourceNew: '新传图',
     sourceArtwork: '作品图',
     sourceDeliverable: '完稿图',

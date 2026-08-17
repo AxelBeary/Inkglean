@@ -3,29 +3,35 @@
     <h2 class="od-page-title">{{ $t('reply.title') }}</h2>
     <p class="page-sub">{{ $t('reply.subtitle') }}</p>
 
-    <!-- 分类 tab -->
-    <div class="reply-tabs" role="tablist" :aria-label="$t('reply.title')" @keydown="onReplyTabKeydown">
-      <button
-        v-for="cat in REPLY_CATEGORIES" :key="cat" type="button"
-        class="reply-tab" :class="{ 'reply-tab--active': currentCat === cat }"
-        role="tab" :aria-selected="currentCat === cat" :tabindex="currentCat === cat ? 0 : -1"
-        :ref="(el) => { if (el) replyTabEls[cat] = el }"
-        @click="selectCategory(cat)"
-      >
-        {{ $t('reply.cats.' + cat) }}
-      </button>
-    </div>
+    <!-- 818-B：同类成组 + 组头带朱砂小印点 -->
+    <div class="reply-group">
+      <div class="group-head">{{ $t('reply.listTitle') }}</div>
+      <p class="reply-group-hint">{{ $t('reply.listDesc') }}</p>
 
-    <!-- 话术列表 -->
-    <div class="reply-list">
-      <div v-for="(item, i) in templates" :key="catKey(item, i)" class="page-card reply-item">
-        <div class="reply-item-head">
-          <span class="reply-item-name">{{ item.name }}</span>
-          <button type="button" class="reply-copy-btn" @click="copyText(item)">
-            {{ $t('reply.copy') }}
-          </button>
+      <!-- 分类 tab -->
+      <div class="reply-tabs" role="tablist" :aria-label="$t('reply.title')" @keydown="onReplyTabKeydown">
+        <button
+          v-for="cat in REPLY_CATEGORIES" :key="cat" type="button"
+          class="reply-tab" :class="{ 'reply-tab--active': currentCat === cat }"
+          role="tab" :aria-selected="currentCat === cat" :tabindex="currentCat === cat ? 0 : -1"
+          :ref="(el) => { if (el) replyTabEls[cat] = el }"
+          @click="selectCategory(cat)"
+        >
+          {{ $t('reply.cats.' + cat) }}
+        </button>
+      </div>
+
+      <!-- 话术列表 -->
+      <div class="reply-list">
+        <div v-for="(item, i) in templates" :key="catKey(item, i)" class="page-card reply-item">
+          <div class="reply-item-head">
+            <span class="reply-item-name">{{ item.name }}</span>
+            <button type="button" class="reply-copy-btn" @click="copyText(item)">
+              {{ $t('reply.copy') }}
+            </button>
+          </div>
+          <p class="reply-item-text">{{ displayText(item) }}</p>
         </div>
-        <p class="reply-item-text">{{ displayText(item) }}</p>
       </div>
     </div>
   </div>
@@ -84,45 +90,56 @@ async function copyText(item) {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .reply-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 6px; }
+.page-sub { margin-top: 8px; }
 
-.reply-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+/* 818-B 三原则：同类成组 + 组头带朱砂小印点（对齐原型 .group-head） */
+.reply-group { margin-top: 20px; }
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.reply-group-hint { margin: 4px 0 0; font-size: 12px; color: var(--ink3); }
+
+.reply-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .reply-tab {
   padding: 8px 16px;
   border: 1px solid var(--line2);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
   background: var(--card);
   color: var(--ink2);
   font-size: 14px;
   cursor: pointer;
-  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
+  /* 818-B 克制动效：过渡只动颜色/边框，按压不位移 */
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow);
 }
-.reply-tab:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--ink); }
-.reply-tab:active { transform: scale(0.98); }
+.reply-tab:hover { border-color: var(--hq); color: var(--ink); }
 .reply-tab--active {
-  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 12%, var(--card));
-  border-color: var(--hq, var(--el-color-primary));
-  color: var(--hq, var(--el-color-primary));
+  background: color-mix(in srgb, var(--hq) 12%, var(--card));
+  border-color: var(--hq);
+  color: var(--hq);
   font-weight: 600;
 }
 
-.reply-list { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+.reply-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .reply-item {
   padding: 16px 20px;
 }
 .reply-item-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .reply-item-name { font-size: 14px; font-weight: 600; color: var(--ink); }
 .reply-copy-btn {
-  padding: 5px 14px;
-  border: 1px solid var(--hq, var(--el-color-primary));
-  border-radius: var(--r-m, 8px);
-  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 8%, var(--card));
-  color: var(--hq, var(--el-color-primary));
+  padding: 8px 16px;
+  border: 1px solid var(--hq);
+  border-radius: var(--r-m);
+  background: color-mix(in srgb, var(--hq) 8%, var(--card));
+  color: var(--hq);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow);
 }
-.reply-copy-btn:hover { background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 18%, var(--card)); }
-.reply-copy-btn:active { transform: scale(0.98); }
-.reply-item-text { margin-top: 10px; font-size: 14px; line-height: 1.7; color: var(--ink2); white-space: pre-wrap; }
+.reply-copy-btn:hover { background: color-mix(in srgb, var(--hq) 18%, var(--card)); }
+.reply-item-text { margin-top: 12px; font-size: 14px; line-height: 1.7; color: var(--ink2); white-space: pre-wrap; }
 </style>

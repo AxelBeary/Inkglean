@@ -14,65 +14,74 @@
     <template v-else-if="styles.length > 0">
       <!-- 步骤 1：选画风（多画风才显示；单画风自动选中） -->
       <div v-if="styles.length > 1" class="calc-step">
-        <div class="calc-step-label">{{ $t('priceCalc.stepStyle') }}</div>
-        <div class="style-cards">
-          <button
-            v-for="s in styles" :key="s.id" type="button"
-            class="style-card" :class="{ 'style-card--active': selectedStyleId === s.id }"
-            @click="selectStyle(s.id)"
-          >
-            {{ s.name }}
-          </button>
+        <div class="group calc-group">
+          <div class="group-head">{{ $t('priceCalc.stepStyle') }}</div>
+          <p class="calc-group-hint">{{ $t('priceCalc.stepStyleDesc') }}</p>
+          <div class="style-cards">
+            <button
+              v-for="s in styles" :key="s.id" type="button"
+              class="style-card" :class="{ 'style-card--active': selectedStyleId === s.id }"
+              @click="selectStyle(s.id)"
+            >
+              {{ s.name }}
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- 步骤 2：选尺寸 -->
       <div v-if="selectedStyle" class="calc-step">
-        <div class="calc-step-label">{{ $t('priceCalc.stepSize') }}</div>
-        <div v-if="selectedStyle.sizes.length === 0" class="calc-empty">{{ $t('priceCalc.noSizes') }}</div>
-        <div v-else class="size-cards">
-          <button
-            v-for="sz in selectedStyle.sizes" :key="sz.id" type="button"
-            class="size-card" :class="{ 'size-card--active': selectedSizeId === sz.id }"
-            @click="selectSize(sz.id)"
-          >
-            <span class="size-card-name">{{ sz.name }}</span>
-            <span class="size-card-price">{{ formatYuanValue(sz.base_price) }}</span>
-            <span v-if="sz.work_days" class="size-card-days">{{ $t('priceCalc.workDays', { n: sz.work_days }) }}</span>
-          </button>
+        <div class="group calc-group">
+          <div class="group-head">{{ $t('priceCalc.stepSize') }}</div>
+          <p class="calc-group-hint">{{ $t('priceCalc.stepSizeDesc') }}</p>
+          <div v-if="selectedStyle.sizes.length === 0" class="calc-empty">{{ $t('priceCalc.noSizes') }}</div>
+          <div v-else class="size-cards">
+            <button
+              v-for="sz in selectedStyle.sizes" :key="sz.id" type="button"
+              class="size-card" :class="{ 'size-card--active': selectedSizeId === sz.id }"
+              @click="selectSize(sz.id)"
+            >
+              <span class="size-card-name">{{ sz.name }}</span>
+              <span class="size-card-price">{{ formatYuanValue(sz.base_price) }}</span>
+              <span v-if="sz.work_days" class="size-card-days">{{ $t('priceCalc.workDays', { n: sz.work_days }) }}</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- 步骤 3：增项（选完尺寸后出现） -->
       <div v-if="selectedSizeId && availableAddons.length > 0" class="calc-step">
-        <div class="calc-step-label">{{ $t('priceCalc.stepAddons') }}</div>
-        <div class="addon-list">
-          <div v-for="a in availableAddons" :key="a.id" class="addon-item">
-            <div class="addon-item-info">
-              <span class="addon-item-name">{{ a.name }}</span>
-              <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
+        <div class="group calc-group">
+          <div class="group-head">{{ $t('priceCalc.stepAddons') }}</div>
+          <p class="calc-group-hint">{{ $t('priceCalc.stepAddonsDesc') }}</p>
+          <div class="addon-list">
+            <div v-for="a in availableAddons" :key="a.id" class="addon-item">
+              <div class="addon-item-info">
+                <span class="addon-item-name">{{ a.name }}</span>
+                <span class="addon-item-price">{{ formatAddonPrice(a) }}</span>
+              </div>
+              <el-switch
+                v-if="a.control_type === 'switch'" size="small"
+                :aria-label="a.name"
+                :model-value="addonSel[a.id]?.toggled || false"
+                @change="(val) => setAddon(a.id, { toggled: !!val })"
+              />
+              <el-input-number
+                v-else-if="a.control_type === 'quantity'" size="small"
+                :model-value="addonSel[a.id]?.quantity || 0" :min="0" :max="99" :step="1"
+                style="width: 112px"
+                @change="(val) => setAddon(a.id, { quantity: val ?? 0 })"
+              />
+              <el-radio-group
+                v-else-if="a.control_type === 'radio'" size="small"
+                :model-value="addonSel[a.id]?.optionLabel || null"
+                @change="(val) => setAddon(a.id, { optionLabel: val })"
+              >
+                <el-radio-button v-for="opt in parseOptions(a.options)" :key="opt.label" :value="opt.label">
+                  {{ opt.label }} {{ formatYuanValue(opt.price) }}
+                </el-radio-button>
+              </el-radio-group>
             </div>
-            <el-switch
-              v-if="a.control_type === 'switch'" size="small"
-              :aria-label="a.name"
-              :model-value="addonSel[a.id]?.toggled || false"
-              @change="(val) => setAddon(a.id, { toggled: !!val })"
-            />
-            <el-input-number
-              v-else-if="a.control_type === 'quantity'" size="small"
-              :model-value="addonSel[a.id]?.quantity || 0" :min="0" :max="99" :step="1"
-              style="width: 110px"
-              @change="(val) => setAddon(a.id, { quantity: val ?? 0 })"
-            />
-            <el-radio-group
-              v-else-if="a.control_type === 'radio'" size="small"
-              :model-value="addonSel[a.id]?.optionLabel || null"
-              @change="(val) => setAddon(a.id, { optionLabel: val })"
-            >
-              <el-radio-button v-for="opt in parseOptions(a.options)" :key="opt.label" :value="opt.label">
-                {{ opt.label }} {{ formatYuanValue(opt.price) }}
-              </el-radio-button>
-            </el-radio-group>
           </div>
         </div>
       </div>
@@ -81,9 +90,9 @@
            旧 multiplier UI 与请求字段移除，避免每次算价必 400（schema additionalProperties:false 拒收退役字段） -->
 
       <!-- 估算结果 -->
-      <div v-if="preview" class="calc-result">
+      <div v-if="preview" class="group calc-group calc-result">
         <div class="calc-result-head">
-          <span>{{ preview.styleName }} · {{ preview.sizeName }}</span>
+          <span class="calc-result-title">{{ preview.styleName }} · {{ preview.sizeName }}</span>
           <span class="calc-result-total">{{ formatYuanValue(preview.totalPrice) }}</span>
         </div>
         <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanValue(preview.basePrice) }}</span></div>
@@ -265,64 +274,87 @@ onUnmounted(() => {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .price-calc-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 6px; }
-.calc-empty { margin-top: 24px; padding: 24px; text-align: center; color: var(--ink3); background: var(--card); border: 1px dashed var(--line); border-radius: var(--r-m, 8px); }
+.page-sub { margin-top: 8px; }
+.calc-empty { margin-top: 16px; padding: 24px; text-align: center; color: var(--ink3); background: var(--card); border: 1px dashed var(--line); border-radius: var(--r-m); }
 /* 加载失败错误态（对齐 dashboard module-error） */
 .module-error {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
   padding: 24px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
 }
 
-.calc-step { margin-top: 22px; }
-.calc-step-label { font-size: 14px; font-weight: 600; color: var(--ink2); margin-bottom: 10px; }
+/* 818-B 三原则：分组卡片收纳，组头带朱砂小印点（对齐原型 .group-head） */
+.calc-step { margin-top: 16px; }
+.group {
+  padding: 4px 24px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.calc-group-hint { margin: 0 0 12px; font-size: 12px; color: var(--ink3); }
 
-.style-cards, .size-cards { display: flex; flex-wrap: wrap; gap: 10px; }
+.style-cards, .size-cards { display: flex; flex-wrap: wrap; gap: 12px; }
 .style-card, .size-card {
-  padding: 10px 16px;
+  padding: 12px 16px;
   border: 1px solid var(--line2);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
   background: var(--card);
   color: var(--ink2);
   font-size: 14px;
   cursor: pointer;
-  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
+  /* 818-B 克制动效：过渡只动颜色/边框，按压不位移 */
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow);
 }
-.style-card:hover, .size-card:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--ink); }
-.style-card:active, .size-card:active { transform: scale(0.98); }
+.style-card:hover, .size-card:hover { border-color: var(--hq); color: var(--ink); }
 .style-card--active, .size-card--active {
-  background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 12%, var(--card));
-  border-color: var(--hq, var(--el-color-primary));
-  color: var(--hq, var(--el-color-primary));
+  background: color-mix(in srgb, var(--hq) 12%, var(--card));
+  border-color: var(--hq);
+  color: var(--hq);
   font-weight: 600;
 }
 
-.size-card { display: flex; flex-direction: column; gap: 2px; min-width: 120px; text-align: left; }
+.size-card { display: flex; flex-direction: column; gap: 4px; min-width: 120px; text-align: left; }
 .size-card-name { font-weight: 600; }
 .size-card-price { font-size: 13px; }
 .size-card-days { font-size: 12px; color: var(--ink3); }
 
-.addon-list { display: flex; flex-direction: column; gap: 10px; }
+.addon-list { display: flex; flex-direction: column; gap: 12px; }
 .addon-item {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 12px 16px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
 }
-.addon-item-info { display: flex; flex-direction: column; gap: 2px; }
+.addon-item-info { display: flex; flex-direction: column; gap: 4px; }
 .addon-item-name { font-size: 14px; color: var(--ink); }
 .addon-item-price { font-size: 12px; color: var(--ink3); }
 
-
 .calc-result {
-  margin-top: 24px; padding: 20px 24px;
-  background: var(--card);
-  border: 1px solid var(--hq, var(--el-color-primary));
-  border-radius: var(--r-m, 8px);
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
+  margin-top: 16px;
+  border: 1px solid var(--hq);
 }
-.calc-result-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-weight: 600; }
-.calc-result-total { font-size: 22px; color: var(--hq, var(--el-color-primary)); font-weight: 700; }
+.calc-result-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+}
+.calc-result-title { display: flex; align-items: center; gap: 8px; }
+.calc-result-title::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.calc-result-total { font-size: 22px; color: var(--hq); font-weight: 700; }
 .calc-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; font-size: 14px; color: var(--ink2); }
 .calc-line--dim { color: var(--ink3); font-size: 13px; }
 .calc-disclaimer { margin-top: 12px; font-size: 12px; color: var(--ink3); }

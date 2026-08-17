@@ -6,6 +6,7 @@
       <!-- 左区：图片来源 + 实时预览 -->
       <section class="wm-panel">
         <h3 class="wm-panel-title">{{ $t('watermark.sourceSection') }}</h3>
+        <p class="wm-panel-desc">{{ $t('watermark.sourceDesc') }}</p>
 
         <el-radio-group v-model="sourceType" class="wm-source-tabs">
           <el-radio-button value="new">{{ $t('watermark.sourceNew') }}</el-radio-button>
@@ -104,6 +105,7 @@
       <!-- 右区：水印参数 + 导出 -->
       <section class="wm-panel">
         <h3 class="wm-panel-title">{{ $t('watermark.watermarkSection') }}</h3>
+        <p class="wm-panel-desc">{{ $t('watermark.watermarkDesc') }}</p>
 
         <div class="wm-field">
           <span class="wm-label">{{ $t('watermark.watermarkType') }}</span>
@@ -114,10 +116,13 @@
         </div>
 
         <template v-if="wmType === 'text'">
-          <el-input
-            v-model="wmText" :maxlength="30" show-word-limit class="wm-text-input"
-            :aria-label="$t('watermark.textInputLabel')"
-          />
+          <div class="wm-field">
+            <span class="wm-label">{{ $t('watermark.textInputLabel') }}</span>
+            <el-input
+              v-model="wmText" :maxlength="30" show-word-limit class="wm-text-input"
+              :aria-label="$t('watermark.textInputLabel')"
+            />
+          </div>
           <div class="wm-slider-row">
             <span class="wm-label">{{ $t('watermark.fontSize') }}</span>
             <el-slider v-model="fontSize" :min="16" :max="160" :step="2" class="wm-slider" />
@@ -125,10 +130,13 @@
         </template>
 
         <template v-else>
-          <div class="wm-logo-row">
-            <el-button size="small" @click="logoInput?.click()">{{ $t('watermark.uploadLogo') }}</el-button>
-            <input ref="logoInput" type="file" accept="image/png" class="wm-file-input" @change="onLogoChange" />
-            <img v-if="logoDataUrl" :src="logoDataUrl" class="wm-logo-preview" :alt="$t('watermark.logoAlt')" />
+          <div class="wm-field">
+            <span class="wm-label">{{ $t('watermark.logoLabel') }}</span>
+            <div class="wm-logo-row">
+              <el-button size="small" @click="logoInput?.click()">{{ $t('watermark.uploadLogo') }}</el-button>
+              <input ref="logoInput" type="file" accept="image/png" class="wm-file-input" @change="onLogoChange" />
+              <img v-if="logoDataUrl" :src="logoDataUrl" class="wm-logo-preview" :alt="$t('watermark.logoAlt')" />
+            </div>
           </div>
           <div class="wm-slider-row">
             <span class="wm-label">{{ $t('watermark.logoScale') }}</span>
@@ -503,18 +511,30 @@ async function exportImage() {
 .wm-panel {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-l);
   padding: 20px;
-  box-shadow: var(--sh-1, 0 1px 3px rgba(0, 0, 0, 0.06));
+  box-shadow: var(--sh-1);
 }
-.wm-panel-title { font-size: 16px; font-weight: 600; color: var(--ink); margin: 0 0 14px; }
 
-.wm-source-tabs { margin-bottom: 14px; }
-.wm-field { margin-bottom: 16px; }
-.wm-label { display: block; font-size: 13px; color: var(--ink2); margin-bottom: 8px; }
-.wm-text-input { margin-bottom: 16px; }
-.wm-slider-row { margin-bottom: 16px; }
-.wm-slider { margin-left: 8px; }
+/* 818-B 三原则：面板组头带朱砂小印点 + 参数行一行一事（说明在左，控件在右） */
+.wm-panel-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 4px;
+}
+.wm-panel-title::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.wm-panel-desc { margin: 0 0 16px; font-size: 12px; color: var(--ink3); }
+
+.wm-source-tabs { margin-bottom: 16px; }
+.wm-field, .wm-slider-row {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: center;
+  margin-bottom: 16px;
+}
+.wm-label { margin: 0; font-size: 13px; color: var(--ink2); }
+.wm-text-input { margin-bottom: 0; }
+.wm-slider { margin-left: 0; }
 
 .wm-dropzone {
   display: flex;
@@ -522,7 +542,7 @@ async function exportImage() {
   justify-content: center;
   min-height: 96px;
   border: 1.5px dashed var(--line2);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
   background: color-mix(in srgb, var(--card) 92%, transparent);
   cursor: pointer;
   /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（无拖拽高亮状态，hover 只动边框） */
@@ -537,7 +557,7 @@ async function exportImage() {
 .wm-thumb {
   padding: 0;
   border: 2px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--r-s);
   overflow: hidden;
   background: none;
   cursor: pointer;
@@ -553,7 +573,7 @@ async function exportImage() {
 
 /* 加载失败错误态（对齐 dashboard module-error） */
 .module-error {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
   padding: 16px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2);
 }
 
@@ -563,13 +583,13 @@ async function exportImage() {
   max-height: 320px;
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: var(--r-s, 6px);
+  border-radius: var(--r-s);
   background: color-mix(in srgb, var(--card) 96%, #000 4%);
 }
 .wm-preview-body img { display: block; max-width: 100%; }
 
-.wm-logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.wm-logo-preview { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; }
+.wm-logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 0; }
+.wm-logo-preview { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--line); border-radius: var(--r-s); }
 
 .wm-pos-group { display: flex; flex-wrap: wrap; gap: 4px; }
 

@@ -3,35 +3,55 @@
     <h2 class="od-page-title">{{ $t('quote.title') }}</h2>
     <p class="page-sub">{{ $t('quote.subtitle') }}</p>
 
-    <div class="quote-panel">
+    <!-- 818-B：同类成组 + 一行一事（说明在左，控件在右） -->
+    <div class="group">
+      <div class="group-head">{{ $t('quote.groupContent') }}</div>
+
       <!-- 客户称呼 -->
-      <div class="quote-field">
-        <label class="quote-label" for="quote-client">{{ $t('quote.clientLabel') }}</label>
-        <el-input id="quote-client" v-model="clientName" :placeholder="$t('quote.clientPlaceholder')" maxlength="50" clearable />
+      <div class="row">
+        <div class="quote-field-text">
+          <div class="lab">{{ $t('quote.clientLabel') }}</div>
+          <div class="desc">{{ $t('quote.clientDesc') }}</div>
+        </div>
+        <el-input id="quote-client" v-model="clientName" :placeholder="$t('quote.clientPlaceholder')" maxlength="50" clearable class="quote-client-input" />
       </div>
 
       <!-- 条目列表（单模板填空：名称 + 金额，金额内部以分计） -->
-      <div class="quote-field">
-        <span class="quote-label">{{ $t('quote.itemsLabel') }}</span>
-        <div v-if="items.length === 0" class="quote-empty">{{ $t('quote.emptyItems') }}</div>
-        <div v-for="(item, idx) in items" :key="item.id" class="quote-item-row">
-          <el-input v-model="item.name" :placeholder="$t('quote.itemNamePlaceholder')" maxlength="60" class="quote-item-name" />
-          <el-input v-model="item.amountText" :placeholder="$t('quote.itemAmountPlaceholder')" class="quote-item-amount" />
-          <button type="button" class="quote-mini-btn" :aria-label="$t('quote.removeItem')" @click="removeItem(idx)">
-            {{ $t('quote.removeItem') }}
-          </button>
+      <div class="row">
+        <div class="quote-field-text">
+          <div class="lab">{{ $t('quote.itemsLabel') }}</div>
+          <div class="desc">{{ $t('quote.itemsDesc') }}</div>
         </div>
-        <el-button text type="primary" class="quote-add" @click="addItem">＋ {{ $t('quote.addItem') }}</el-button>
+        <div class="quote-items">
+          <div v-if="items.length === 0" class="quote-empty">{{ $t('quote.emptyItems') }}</div>
+          <div v-for="(item, idx) in items" :key="item.id" class="quote-item-row">
+            <el-input v-model="item.name" :placeholder="$t('quote.itemNamePlaceholder')" maxlength="60" class="quote-item-name" />
+            <el-input v-model="item.amountText" :placeholder="$t('quote.itemAmountPlaceholder')" class="quote-item-amount" />
+            <button type="button" class="quote-mini-btn" :aria-label="$t('quote.removeItem')" @click="removeItem(idx)">
+              {{ $t('quote.removeItem') }}
+            </button>
+          </div>
+          <el-button text type="primary" class="quote-add" @click="addItem">＋ {{ $t('quote.addItem') }}</el-button>
+        </div>
       </div>
 
       <!-- 备注 -->
-      <div class="quote-field">
-        <label class="quote-label" for="quote-note">{{ $t('quote.noteLabel') }}</label>
-        <el-input id="quote-note" v-model="note" type="textarea" :rows="2" :placeholder="$t('quote.notePlaceholder')" maxlength="200" />
+      <div class="row">
+        <div class="quote-field-text">
+          <div class="lab">{{ $t('quote.noteLabel') }}</div>
+          <div class="desc">{{ $t('quote.noteDesc') }}</div>
+        </div>
+        <el-input id="quote-note" v-model="note" type="textarea" :rows="2" :placeholder="$t('quote.notePlaceholder')" maxlength="200" class="quote-note-input" />
       </div>
+    </div>
 
-      <div class="quote-total-row">
-        <span class="quote-total-label">{{ $t('quote.total') }}</span>
+    <div class="group">
+      <div class="group-head">{{ $t('quote.groupExport') }}</div>
+      <div class="row">
+        <div class="quote-field-text">
+          <div class="lab">{{ $t('quote.total') }}</div>
+          <div class="desc">{{ $t('quote.totalDesc') }}</div>
+        </div>
         <span class="quote-total-value">{{ totalText }}</span>
       </div>
 
@@ -158,20 +178,40 @@ async function copyText() {
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .page-sub { margin-top: 8px; }
 
-.quote-panel {
-  margin-top: 20px;
-  padding: 20px 24px;
+/* 818-B 三原则：分组卡片收纳，组头带朱砂小印点（对齐原型 .group-head） */
+.group {
+  margin-top: 16px;
+  padding: 4px 24px 16px;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r-l);
   box-shadow: var(--sh-1);
 }
-.quote-field { margin-bottom: 20px; }
-.quote-label { display: block; font-size: 13px; color: var(--ink2); margin-bottom: 8px; }
+
+/* 818-B 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+.quote-client-input { width: 320px; }
+.quote-items { width: 460px; min-width: 0; }
 .quote-empty {
   padding: 16px;
   text-align: center;
-  color: var(--ink3);
+  color: var(--ink3); background: var(--paper2);
   border: 1px dashed var(--line);
   border-radius: var(--r-m);
 }
@@ -187,22 +227,20 @@ async function copyText() {
   color: var(--ink2);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
-  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
+  /* 818-B 克制动效：过渡只动颜色/边框，按压不位移 */
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
 .quote-mini-btn:hover { border-color: var(--zs); color: var(--zs); }
-.quote-mini-btn:active { transform: scale(0.98); }
 .quote-add { padding: 0; margin-top: 4px; }
+.quote-note-input { width: 360px; }
 
-.quote-total-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
-}
-.quote-total-label { font-size: 14px; color: var(--ink2); }
 .quote-total-value { font-size: 22px; font-weight: 700; color: var(--zs); }
-.quote-hint { margin: 0 0 12px; font-size: 12px; color: var(--zs); }
-.quote-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.quote-hint { margin: 4px 0 0; font-size: 12px; color: var(--zs); }
+.quote-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 12px; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .quote-client-input, .quote-note-input { width: 100%; }
+  .quote-items { width: 100%; }
+}
 </style>
