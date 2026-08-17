@@ -1263,7 +1263,15 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     shareCopied: '文案已复制，请在发布页粘贴',
     shareNoHomepage: '文案包含 {homepage}，但未找到该平台主页链接——请先在「主页设置」添加对应平台的链接',
     // 波3-2: 分享平台列表加载失败错误态 + 重试
-    shareLoadFailed: '分享平台列表加载失败，请重试'
+    shareLoadFailed: '分享平台列表加载失败，请重试',
+    // 818-D: 再来一单（基于历史订单一键复用信息开新单）
+    reorderBtn: '再来一单',
+    reorderDialogTitle: '再来一单',
+    reorderDialogHint: '客户QQ与昵称将无条件带入；其余按勾选回填，进入录单页后全部可改。',
+    reorderFillDesc: '需求描述',
+    reorderFillStyle: '款式尺寸',
+    reorderFillNote: '备注',
+    reorderConfirm: '去录新单'
   },
   manualOrder: {
     title: '手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
@@ -1275,6 +1283,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totalPrice: '总价', finalPrice: '最终价格（元）', finalPriceHint: '可手动修改，留空则使用计算价',
     priceDetail: '明细',
     desc: '需求描述', descPlaceholder: '从QQ聊天中复制客户的需求描述',
+    // 818-D: 备注（再来一单回填源单备注；创建后写入新单）
+    note: '备注（选填）', notePlaceholder: '需要跟单记录的备注信息（如沟通要点、线下约定）',
     references: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图', fileTooBig: '{name} 过大（{size}MB），上限10MB',
     refTip: '录单后仍可在订单图库中补充参考图，订单图库合计上限 20 张。',
     // G-7（P2-13）: 参考图归属凭证获取失败（匿名凭证签发链路网络异常时提示）
@@ -1325,8 +1335,12 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       deadline: '截稿日写入失败：{message}',
       startDate: '开稿日写入失败：{message}',
       initialStatus: '初始状态设置失败：{message}',
+      note: '备注写入失败：{message}',
       summary: '订单 {orderNo} 已创建，但{reason}。请在订单详情中补充。'
     },
+    // 818-D: 再来一单预填
+    reorderSourceFailed: '读取原订单失败：{message}',
+    reorderPrefilled: '已带入订单 {no} 的信息，可修改',
     // REQ-035 §五 MVP-1: 粘贴消息解析
     parseMessageTitle: '粘贴消息解析',
     parseDialogTitle: '粘贴消息解析',

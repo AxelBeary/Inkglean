@@ -28,6 +28,11 @@ const h = vi.hoisted(() => ({
   createdOptions: null
 }))
 
+// 818-D: ManualOrder 新增 useRoute（读 /orders/new?from=&fill= 预填）；测试默认无回填 query
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: {}, query: {} })
+}))
+
 // 部分 mock：保留真实 createI18n（stores/artist 顶层 import i18n/index 需初始化），仅覆写 useI18n
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal()

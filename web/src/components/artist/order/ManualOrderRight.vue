@@ -382,6 +382,7 @@ const emit = defineEmits(['submit-success', 'dirty'])
 const clientQq = defineModel('clientQq', { type: String, default: '' })
 const clientName = defineModel('clientName', { type: String, default: '' })
 const description = defineModel('description', { type: String, default: '' })
+const note = defineModel('note', { type: String, default: '' })
 const priority = defineModel('priority', { type: String, default: 'medium' })
 const deadline = defineModel('deadline', { type: String, default: null })
 const startDate = defineModel('startDate', { type: String, default: null })
@@ -545,6 +546,13 @@ async function submit() {
           await artistApi.updateStatus(order.id, initialStatus.value)
         }
       } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.initialStatus', { message: e.message }) }
+    }
+
+    // 818-D: 备注（再来一单回填源单备注；创建后经既有 addNote 接口写入新单，单条上限 1000 字）
+    if (order.id && note.value.trim()) {
+      try {
+        await artistApi.addNote(order.id, { content: note.value.trim() })
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.note', { message: e.message }) }
     }
 
     emit('submit-success', { order, postCreateFailed })

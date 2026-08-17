@@ -1264,7 +1264,15 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     shareCopied: 'Text copied — paste it on the publish page',
     shareNoHomepage: 'Text contains {homepage} but no homepage link for this platform was found — add one in Page Settings first',
     // Wave 3-2: share platform list load-failure error state + retry
-    shareLoadFailed: 'Failed to load share platforms. Please retry.'
+    shareLoadFailed: 'Failed to load share platforms. Please retry.',
+    // 818-D: reorder from a past order (reuse info for a new order)
+    reorderBtn: 'Reorder',
+    reorderDialogTitle: 'Reorder',
+    reorderDialogHint: 'Client QQ and nickname are always carried over. Check what else to reuse — everything stays editable on the entry page.',
+    reorderFillDesc: 'Description',
+    reorderFillStyle: 'Style & size',
+    reorderFillNote: 'Notes',
+    reorderConfirm: 'Create new order'
   },
   manualOrder: {
     title: 'Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
@@ -1276,6 +1284,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totalPrice: 'Total', finalPrice: 'Final price (CNY)', finalPriceHint: 'Editable; leave blank to use calculated price',
     priceDetail: 'Details',
     desc: 'Description', descPlaceholder: "Paste the client's request from the QQ chat",
+    // 818-D: notes (prefilled from the source order; written after creation)
+    note: 'Notes (optional)', notePlaceholder: 'Notes to carry along (e.g. communication points, off-platform agreements)',
     references: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Max 5 reference images', fileTooBig: '{name} too large ({size}MB), max 10MB',
     refTip: 'You can add more references to the order gallery after creation. Gallery total limit: 20 images.',
     // G-7 (P2-13): reference upload credential unavailable (anon-token issuance network failure)
@@ -1326,8 +1336,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       deadline: 'Failed to write deadline: {message}',
       startDate: 'Failed to write start date: {message}',
       initialStatus: 'Failed to set initial stage: {message}',
+      note: 'Failed to save notes: {message}',
       summary: 'Order {orderNo} was created, but {reason}. Please complete it in the order details.'
     },
+    // 818-D: reorder prefill
+    reorderSourceFailed: 'Failed to load source order: {message}',
+    reorderPrefilled: 'Prefilled from order {no} — everything is editable',
     // REQ-035 §五 MVP-1: paste message parser
     parseMessageTitle: 'Paste Message to Parse',
     parseDialogTitle: 'Paste Message to Parse',
