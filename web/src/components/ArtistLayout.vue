@@ -236,6 +236,10 @@
       </template>
       <p v-else class="announcement-empty">{{ $t('announcement.empty') }}</p>
     </el-dialog>
+
+    <!-- 818-E: 分步高亮导览浮层——挂在 ArtistLayout 单根内（全会话单挂载即常驻）；
+         不能挂 ArtistLayoutRoute 并列根：fragment 会破坏 App.vue 顶层 Transition 致白屏（e8 教训） -->
+    <TourOverlay />
   </div>
 </template>
 
@@ -255,6 +259,8 @@ import { artistApi } from '../api/index.js'
 import { useSessionGuard } from '../composables/useSessionGuard'
 import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools, UserFilled, Bell } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
+// 818-E: 新手导览浮层（Teleport 到 body，挂单根内仅为避免 fragment）
+import TourOverlay from './artist/tour/TourOverlay.vue'
 // 工具箱四分类注册表（纸墨提案 §5.5；单一事实源，ArtistLayout/ToolsHome 共用）
 import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../constants/toolbox.js'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
