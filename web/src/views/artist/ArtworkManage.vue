@@ -2,32 +2,48 @@
   <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
   <h2 class="font-display artwork-page-title">{{ $t('artworks.title') }}</h2>
 
-  <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
-  <div class="artwork-toolbar">
-    <el-button :type="manageMode ? 'primary' : 'default'" @click="toggleManageMode">
-      {{ manageMode ? $t('artworks.manageDone') : $t('artworks.manage') }}
-    </el-button>
+  <!-- 818-H：工具条按行结构整理（说明在左、控件在右） -->
+  <div class="group artwork-toolbar">
+    <div class="group-head">{{ $t('artworks.manageLabel') }}</div>
+    <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
+    <div class="row">
+      <div class="field-text">
+        <div class="lab">{{ $t('artworks.manageLabel') }}</div>
+        <div class="desc">{{ $t('artworks.manageDesc') }}</div>
+      </div>
+      <div class="ctrl">
+        <el-button :type="manageMode ? 'primary' : 'default'" @click="toggleManageMode">
+          {{ manageMode ? $t('artworks.manageDone') : $t('artworks.manage') }}
+        </el-button>
+      </div>
+    </div>
   </div>
 
   <!-- 上传区 -->
-  <el-card style="margin: 16px 0">
-    <el-upload
-      drag multiple :auto-upload="true" :http-request="handleUpload"
-      accept="image/*" :show-file-list="false"
-      @dragenter.capture="guardDragEnter"
-      @dragover.capture="guardDragOver"
-      @drop.capture="guardDrop"
-    >
-      <button type="button" class="upload-trigger-btn" :aria-label="$t('artworks.dragUpload')">
-        <el-icon class="upload-icon"><Upload /></el-icon>
-      </button>
-      <p>{{ $t('artworks.dragUpload') }}</p>
-      <template #tip>
-        <p class="upload-tip">{{ $t('artworks.tip') }}</p>
-      </template>
-    </el-upload>
-    <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
-  </el-card>
+  <div class="group upload-group">
+    <div class="group-head">{{ $t('artworks.uploadTitle') }}</div>
+    <div class="row">
+      <div class="field-text">
+        <div class="lab">{{ $t('artworks.dragUpload') }}</div>
+        <div class="desc">{{ $t('artworks.tip') }}</div>
+      </div>
+      <div class="ctrl ctrl--upload">
+        <el-upload
+          drag multiple :auto-upload="true" :http-request="handleUpload"
+          accept="image/*" :show-file-list="false"
+          @dragenter.capture="guardDragEnter"
+          @dragover.capture="guardDragOver"
+          @drop.capture="guardDrop"
+        >
+          <button type="button" class="upload-trigger-btn" :aria-label="$t('artworks.dragUpload')">
+            <el-icon class="upload-icon"><Upload /></el-icon>
+          </button>
+          <p>{{ $t('artworks.dragUpload') }}</p>
+        </el-upload>
+        <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
+      </div>
+    </div>
+  </div>
 
   <!-- F7: 主图区（is_cover=1 单独展示，不在下方网格重复） -->
   <div v-if="covers.length > 0" class="main-artwork-section">
@@ -605,8 +621,35 @@ onMounted(async () => {
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .artwork-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 
-/* R45: 工具栏 */
-.artwork-toolbar { margin: 12px 0; }
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group {
+  margin: 16px 0;
+  padding: 4px 24px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 560px); gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.ctrl--upload { width: 100%; }
 
 /* 上传区图标与提示（原 inline style 旧变量，改走 class） */
 .upload-icon { font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink3); }
@@ -615,7 +658,6 @@ onMounted(async () => {
   padding: 0; border: none; background: none; cursor: pointer;
   color: inherit; font: inherit;
 }
-.upload-tip { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); }
 
 /* ─── F7: 主图区（单独展示，不在网格重复） ─── */
 .main-artwork-section { margin: 16px 0 8px; }
@@ -661,6 +703,10 @@ onMounted(async () => {
   .artwork-actions { opacity: 1; }
 }
 .paste-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 8px; text-align: center; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+}
 
 /* v0.35 波3: 作品编辑弹窗提示 */
 .edit-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); margin: 4px 0 0; line-height: 1.5; }

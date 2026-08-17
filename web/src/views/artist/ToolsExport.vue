@@ -3,29 +3,44 @@
     <h2 class="od-page-title">{{ $t('toolsExport.title') }}</h2>
     <p class="page-sub">{{ $t('toolsExport.subtitle') }}</p>
 
-    <!-- 导出区：日期范围 + 导出按钮 -->
+    <!-- 818-H：导出区按行结构整理（说明在左、控件在右） -->
     <div class="page-card export-panel">
-      <el-form label-position="top" @submit.prevent="doExport">
-        <el-form-item :label="$t('toolsExport.rangeLabel')" required>
-          <el-date-picker
-            v-model="range"
-            type="daterange"
-            range-separator="—"
-            :start-placeholder="$t('toolsExport.startPlaceholder')"
-            :end-placeholder="$t('toolsExport.endPlaceholder')"
-            value-format="YYYY-MM-DD"
-            :clearable="false"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-button
-          type="primary"
-          :loading="exporting"
-          :disabled="!range?.length"
-          @click="doExport"
-        >
-          {{ $t('toolsExport.exportBtn') }}
-        </el-button>
+      <div class="group-head">{{ $t('toolsExport.groupRange') }}</div>
+      <el-form @submit.prevent="doExport">
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('toolsExport.rangeLabel') }}</div>
+            <div class="desc">{{ $t('toolsExport.rangeDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-date-picker
+              v-model="range"
+              type="daterange"
+              range-separator="—"
+              :start-placeholder="$t('toolsExport.startPlaceholder')"
+              :end-placeholder="$t('toolsExport.endPlaceholder')"
+              value-format="YYYY-MM-DD"
+              :clearable="false"
+              class="te-range"
+            />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('toolsExport.exportBtn') }}</div>
+            <div class="desc">{{ $t('toolsExport.exportDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-button
+              type="primary"
+              :loading="exporting"
+              :disabled="!range?.length"
+              @click="doExport"
+            >
+              {{ $t('toolsExport.exportBtn') }}
+            </el-button>
+          </div>
+        </div>
       </el-form>
 
       <!-- 收入概览区（日期范围选好后自动加载；t1 围剿：消费 income-summary，口径对齐导出 CSV） -->
@@ -192,8 +207,30 @@ async function doExport() {
 
 .export-panel {
   margin-top: 20px;
-  padding: 22px 24px;
+  padding: 4px 24px 16px;
 }
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.te-range { width: 100%; max-width: 420px; }
 .export-empty-hint { margin-top: 16px; }
 .tools-export-note { margin-top: 16px; font-size: 12px; color: var(--ink3); line-height: 1.6; }
 /* 收入概览：纸墨 token 卡片（--card/--ink/--hq），亮暗双主题自动适配 */
@@ -224,4 +261,8 @@ async function doExport() {
 .income-total { color: var(--ink3); font-weight: 600; font-size: 14px; }
 .income-standalone { color: var(--hq); }
 .income-overview-note { margin-top: 12px; font-size: 12px; color: var(--ink3); line-height: 1.6; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+}
 </style>

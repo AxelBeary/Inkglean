@@ -4,33 +4,51 @@
     <p class="page-sub">{{ $t('foodMenu.subtitle') }}</p>
     <p v-if="locale === 'en'" class="food-original-note">{{ $t('foodMenu.originalNamesNote') }}</p>
 
-    <!-- 四大类模式选择（REQ-035 四A：健康版/糖尿病版/痛风版/外卖版） -->
-    <div class="food-modes" role="radiogroup" :aria-label="$t('foodMenu.title')" @keydown="onModeKeydown">
-      <button
-        v-for="mode in MODES"
-        :key="mode"
-        type="button"
-        class="food-mode"
-        :class="{ 'food-mode--active': currentMode === mode }"
-        role="radio"
-        :aria-checked="currentMode === mode"
-        :tabindex="currentMode === mode ? 0 : -1"
-        :ref="(el) => { if (el) modeEls[mode] = el }"
-        @click="selectMode(mode)"
-      >
-        {{ $t('foodMenu.modes.' + mode) }}
-      </button>
+    <!-- 818-H：控制区按行结构整理（说明在左、控件在右） -->
+    <div class="group food-controls">
+      <div class="group-head">{{ $t('foodMenu.groupChoose') }}</div>
+      <!-- 四大类模式选择（REQ-035 四A：健康版/糖尿病版/痛风版/外卖版） -->
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('foodMenu.modeLabel') }}</div>
+          <div class="desc">{{ $t('foodMenu.modeDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <div class="food-modes" role="radiogroup" :aria-label="$t('foodMenu.title')" @keydown="onModeKeydown">
+            <button
+              v-for="mode in MODES"
+              :key="mode"
+              type="button"
+              class="food-mode"
+              :class="{ 'food-mode--active': currentMode === mode }"
+              role="radio"
+              :aria-checked="currentMode === mode"
+              :tabindex="currentMode === mode ? 0 : -1"
+              :ref="(el) => { if (el) modeEls[mode] = el }"
+              @click="selectMode(mode)"
+            >
+              {{ $t('foodMenu.modes.' + mode) }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 随机推荐 / 换一个（同按钮，有结果时文案切换） -->
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('foodMenu.pickLabel') }}</div>
+          <div class="desc">{{ $t('foodMenu.pickDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <el-button type="primary" @click="pickRandom">
+            {{ $t(current ? 'foodMenu.again' : 'foodMenu.pick') }}
+          </el-button>
+        </div>
+      </div>
     </div>
 
     <!-- 免责提示：糖尿病/痛风版固定显示 -->
     <p v-if="showDisclaimer" class="food-disclaimer">{{ $t('foodMenu.disclaimer') }}</p>
-
-    <!-- 随机推荐 / 换一个（同按钮，有结果时文案切换） -->
-    <div class="food-actions">
-      <el-button type="primary" @click="pickRandom">
-        {{ $t(current ? 'foodMenu.again' : 'foodMenu.pick') }}
-      </el-button>
-    </div>
 
     <!-- 结果卡片（随机推荐后展示） -->
     <div v-if="current" class="page-card food-card">
@@ -103,19 +121,47 @@ function pickRandom() {
 .page-sub { margin-top: 6px; }
 .food-original-note { margin-top: 8px; font-size: 12px; color: var(--ink3); }
 
-.food-modes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group {
+  margin-top: 20px;
+  padding: 4px 24px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+
+.food-modes { display: flex; flex-wrap: wrap; gap: 12px; }
 .food-mode {
-  padding: 10px 18px;
+  padding: 12px 20px;
   border: 1px solid var(--line2);
   border-radius: var(--r-m, 8px);
   background: var(--card);
   color: var(--ink2);
   font-size: 14px;
   cursor: pointer;
-  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow), transform var(--dur-fast) ease-out;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-slow);
 }
 .food-mode:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--ink); }
-.food-mode:active { transform: scale(0.98); }
 .food-mode--active {
   background: color-mix(in srgb, var(--hq, var(--el-color-primary)) 12%, var(--card));
   border-color: var(--hq, var(--el-color-primary));
@@ -124,8 +170,6 @@ function pickRandom() {
 }
 
 .food-disclaimer { margin-top: 12px; font-size: 12px; color: var(--ink3); }
-
-.food-actions { margin-top: 20px; }
 
 .food-card {
   margin-top: 20px;
@@ -150,5 +194,9 @@ function pickRandom() {
   margin-top: 20px; padding: 24px; text-align: center;
   color: var(--ink3);
   border: 1px dashed var(--line2); border-radius: var(--r-m, 8px);
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

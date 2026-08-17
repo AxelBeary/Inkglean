@@ -4,77 +4,99 @@
     <p class="page-sub">{{ $t('puzzle.subtitle') }}</p>
 
     <div class="page-card puzzle-panel">
+      <!-- 818-H：步骤控制按行结构整理（说明在左、控件在右） -->
+      <div class="group-head">{{ $t('puzzle.groupSteps') }}</div>
       <!-- ① 选择订单 -->
-      <div class="puzzle-field">
-        <span class="puzzle-label">{{ $t('puzzle.selectOrder') }}</span>
-        <el-select
-          v-model="selectedOrderId"
-          filterable
-          :loading="ordersLoading"
-          :placeholder="$t('puzzle.selectOrder')"
-          class="puzzle-order-select"
-          @change="onOrderChange"
-        >
-          <el-option v-for="o in orders" :key="o.id" :value="o.id" :label="orderLabel(o)" />
-        </el-select>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('puzzle.selectOrder') }}</div>
+          <div class="desc">{{ $t('puzzle.orderDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <el-select
+            v-model="selectedOrderId"
+            filterable
+            :loading="ordersLoading"
+            :placeholder="$t('puzzle.selectOrder')"
+            class="puzzle-order-select"
+            @change="onOrderChange"
+          >
+            <el-option v-for="o in orders" :key="o.id" :value="o.id" :label="orderLabel(o)" />
+          </el-select>
+        </div>
       </div>
 
       <template v-if="order">
         <!-- ② 勾选图片（完稿图 + 参考图，2~6 张） -->
-        <div class="puzzle-field">
-          <span class="puzzle-label">
-            {{ $t('puzzle.selectImages') }}
-            <em v-if="picked.length" class="puzzle-count">{{ picked.length }}/6</em>
-          </span>
-          <div v-if="availableImages.length" class="puzzle-thumbs">
-            <div
-              v-for="img in availableImages"
-              :key="img.key"
-              class="puzzle-thumb"
-              :class="{ picked: pickedIndex(img) >= 0 }"
-              @click="togglePick(img)"
-            >
-              <img :src="img.url" :alt="img.name" loading="lazy" />
-              <span class="puzzle-thumb-badge" :class="img.kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
-              <span v-if="pickedIndex(img) >= 0" class="puzzle-thumb-order">{{ pickedIndex(img) + 1 }}</span>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">
+              {{ $t('puzzle.selectImages') }}
+              <em v-if="picked.length" class="puzzle-count">{{ picked.length }}/6</em>
             </div>
+            <div class="desc">{{ $t('puzzle.imagesDesc') }}</div>
           </div>
-          <p v-else class="puzzle-empty">{{ $t('puzzle.noImages') }}</p>
+          <div class="ctrl ctrl--thumbs">
+            <div v-if="availableImages.length" class="puzzle-thumbs">
+              <div
+                v-for="img in availableImages"
+                :key="img.key"
+                class="puzzle-thumb"
+                :class="{ picked: pickedIndex(img) >= 0 }"
+                @click="togglePick(img)"
+              >
+                <img :src="img.url" :alt="img.name" loading="lazy" />
+                <span class="puzzle-thumb-badge" :class="img.kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
+                <span v-if="pickedIndex(img) >= 0" class="puzzle-thumb-order">{{ pickedIndex(img) + 1 }}</span>
+              </div>
+            </div>
+            <p v-else class="puzzle-empty">{{ $t('puzzle.noImages') }}</p>
+          </div>
         </div>
 
         <!-- ③ 调整顺序（上移/下移，不引拖拽库） -->
-        <div v-if="picked.length >= 2" class="puzzle-field">
-          <span class="puzzle-label">{{ $t('puzzle.arrange') }}</span>
-          <div class="puzzle-order-list">
-            <div v-for="(img, idx) in picked" :key="img.key" class="puzzle-order-item">
-              <el-tag size="small" class="puzzle-order-tag">{{ idx + 1 }}</el-tag>
-              <span class="puzzle-order-name">{{ img.name }}</span>
-              <span class="puzzle-order-kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
-              <div class="puzzle-order-actions">
-                <el-button size="small" :disabled="idx === 0" @click="move(idx, -1)">{{ $t('puzzle.up') }}</el-button>
-                <el-button size="small" :disabled="idx === picked.length - 1" @click="move(idx, 1)">{{ $t('puzzle.down') }}</el-button>
+        <div v-if="picked.length >= 2" class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('puzzle.arrange') }}</div>
+            <div class="desc">{{ $t('puzzle.arrangeDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <div class="puzzle-order-list">
+              <div v-for="(img, idx) in picked" :key="img.key" class="puzzle-order-item">
+                <el-tag size="small" class="puzzle-order-tag">{{ idx + 1 }}</el-tag>
+                <span class="puzzle-order-name">{{ img.name }}</span>
+                <span class="puzzle-order-kind">{{ img.kind === 'deliverable' ? $t('puzzle.kindDeliverable') : $t('puzzle.kindReference') }}</span>
+                <div class="puzzle-order-actions">
+                  <el-button size="small" :disabled="idx === 0" @click="move(idx, -1)">{{ $t('puzzle.up') }}</el-button>
+                  <el-button size="small" :disabled="idx === picked.length - 1" @click="move(idx, 1)">{{ $t('puzzle.down') }}</el-button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- ④ 实时预览 + 导出 -->
-        <div class="puzzle-field">
-          <span class="puzzle-label">{{ $t('puzzle.preview') }}</span>
-          <div v-if="picked.length < 2" class="puzzle-preview-hint">{{ $t('puzzle.needTwo') }}</div>
-          <canvas v-show="previewReady" ref="previewCanvas" class="puzzle-canvas"></canvas>
-          <el-alert v-if="exportError" type="warning" :closable="false" show-icon class="puzzle-error">
-            {{ exportError }}
-          </el-alert>
-          <div class="puzzle-actions">
-            <el-button
-              type="primary"
-              :loading="exporting"
-              :disabled="picked.length < 2 || previewBusy"
-              @click="doExport"
-            >
-              {{ $t('puzzle.export') }}
-            </el-button>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('puzzle.preview') }}</div>
+            <div class="desc">{{ $t('puzzle.previewDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <div v-if="picked.length < 2" class="puzzle-preview-hint">{{ $t('puzzle.needTwo') }}</div>
+            <canvas v-show="previewReady" ref="previewCanvas" class="puzzle-canvas"></canvas>
+            <el-alert v-if="exportError" type="warning" :closable="false" show-icon class="puzzle-error">
+              {{ exportError }}
+            </el-alert>
+            <div class="puzzle-actions">
+              <el-button
+                type="primary"
+                :loading="exporting"
+                :disabled="picked.length < 2 || previewBusy"
+                @click="doExport"
+              >
+                {{ $t('puzzle.export') }}
+              </el-button>
+            </div>
           </div>
         </div>
       </template>
@@ -304,19 +326,37 @@ onMounted(loadOrders)
 
 .puzzle-panel {
   margin-top: 20px;
-  padding: 22px 24px;
+  padding: 4px 24px 16px;
 }
-.puzzle-field { margin-top: 18px; }
-.puzzle-field:first-child { margin-top: 0; }
-.puzzle-label {
-  display: block;
-  margin-bottom: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 520px); gap: 16px; align-items: start;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.ctrl--thumbs { width: 100%; }
+.puzzle-order-select { width: 100%; }
+.puzzle-actions { margin-top: 16px; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 .puzzle-count { font-style: normal; font-size: 12px; color: var(--ink3); margin-left: 4px; }
-.puzzle-order-select { width: 100%; }
 
 .puzzle-thumbs { display: flex; flex-wrap: wrap; gap: 12px; }
 .puzzle-thumb {
@@ -339,8 +379,8 @@ onMounted(loadOrders)
   bottom: 4px;
   font-size: 11px;
   line-height: 1;
-  padding: 3px 6px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: var(--r-s);
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
 }
@@ -352,7 +392,7 @@ onMounted(loadOrders)
   height: 20px;
   line-height: 20px;
   text-align: center;
-  border-radius: 10px;
+  border-radius: var(--r-pill);
   background: var(--hq);
   color: #fff;
   font-size: 12px;
@@ -364,7 +404,7 @@ onMounted(loadOrders)
 .puzzle-order-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 8px 12px;
   background: var(--paper);
   border: 1px solid var(--line);
@@ -373,7 +413,7 @@ onMounted(loadOrders)
 .puzzle-order-tag { flex: none; }
 .puzzle-order-name { flex: 1; font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .puzzle-order-kind { flex: none; font-size: 12px; color: var(--ink3); }
-.puzzle-order-actions { flex: none; display: flex; gap: 6px; }
+.puzzle-order-actions { flex: none; display: flex; gap: 8px; }
 
 .puzzle-canvas {
   display: block;
@@ -385,5 +425,4 @@ onMounted(loadOrders)
 }
 .puzzle-preview-hint { font-size: 13px; color: var(--ink3); }
 .puzzle-error { margin-top: 12px; }
-.puzzle-actions { margin-top: 14px; }
 </style>

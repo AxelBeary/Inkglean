@@ -1,27 +1,37 @@
 <template>
   <h2 class="font-display gb-page-title">{{ $t('guestbookManage.title') }}</h2>
 
-  <!-- 状态筛选 + F8 语言筛选 -->
-  <div class="gm-filter">
-    <el-radio-group v-model="statusFilter" size="default" @change="onFilterChange">
-      <el-radio-button value="">{{ $t('guestbookManage.all') }}</el-radio-button>
-      <el-radio-button value="pending">
-        {{ $t('dashboard.guestbookPending') }}
-        <el-badge v-if="pendingCount > 0" :value="pendingCount" class="gm-badge" />
-      </el-radio-button>
-      <el-radio-button value="approved">{{ $t('dashboard.guestbookApproved') }}</el-radio-button>
-      <el-radio-button value="rejected">{{ $t('dashboard.guestbookRejected') }}</el-radio-button>
-    </el-radio-group>
-    <el-select
-      v-model="languageFilter" size="default" class="gm-language-select"
-      @change="onFilterChange"
-    >
-      <el-option value="" :label="$t('guestbookManage.languageAll')" />
-      <el-option
-        v-for="lang in languageOptions" :key="lang.value"
-        :value="lang.value" :label="lang.label"
-      />
-    </el-select>
+  <!-- 818-H：筛选行按行结构整理（说明在左、控件在右） -->
+  <div class="group gm-filter">
+    <div class="group-head">{{ $t('guestbookManage.filterLabel') }}</div>
+    <!-- 状态筛选 + F8 语言筛选 -->
+    <div class="row">
+      <div class="field-text">
+        <div class="lab">{{ $t('guestbookManage.filterLabel') }}</div>
+        <div class="desc">{{ $t('guestbookManage.filterDesc') }}</div>
+      </div>
+      <div class="ctrl">
+        <el-radio-group v-model="statusFilter" size="default" @change="onFilterChange">
+          <el-radio-button value="">{{ $t('guestbookManage.all') }}</el-radio-button>
+          <el-radio-button value="pending">
+            {{ $t('dashboard.guestbookPending') }}
+            <el-badge v-if="pendingCount > 0" :value="pendingCount" class="gm-badge" />
+          </el-radio-button>
+          <el-radio-button value="approved">{{ $t('dashboard.guestbookApproved') }}</el-radio-button>
+          <el-radio-button value="rejected">{{ $t('dashboard.guestbookRejected') }}</el-radio-button>
+        </el-radio-group>
+        <el-select
+          v-model="languageFilter" size="default" class="gm-language-select"
+          @change="onFilterChange"
+        >
+          <el-option value="" :label="$t('guestbookManage.languageAll')" />
+          <el-option
+            v-for="lang in languageOptions" :key="lang.value"
+            :value="lang.value" :label="lang.label"
+          />
+        </el-select>
+      </div>
+    </div>
   </div>
 
   <!-- 留言列表 -->
@@ -255,7 +265,35 @@ onMounted(load)
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .gb-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.gm-filter { margin: 16px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group {
+  margin: 16px 0;
+  padding: 4px 24px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
 .gm-language-select { width: 140px; }
 .gm-badge { margin-left: 6px; }
 .gm-lang-badge {
@@ -314,5 +352,9 @@ onMounted(load)
 @keyframes huiyue-empty-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

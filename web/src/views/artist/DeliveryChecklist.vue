@@ -33,15 +33,24 @@
         </li>
       </ul>
 
-      <div class="cl-add">
-        <input
-          v-model="newText" type="text" class="field cl-input"
-          :placeholder="$t('deliveryChecklist.addPlaceholder')" maxlength="80"
-          @keyup.enter="addItem"
-        />
-        <button type="button" class="btn-primary cl-btn" :disabled="!newText.trim()" @click="addItem">
-          {{ $t('deliveryChecklist.add') }}
-        </button>
+      <!-- 818-H：添加控件按行结构整理（说明在左、控件在右） -->
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('deliveryChecklist.addLabel') }}</div>
+          <div class="desc">{{ $t('deliveryChecklist.addDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <div class="cl-add">
+            <input
+              v-model="newText" type="text" class="field cl-input"
+              :placeholder="$t('deliveryChecklist.addPlaceholder')" maxlength="80"
+              @keyup.enter="addItem"
+            />
+            <button type="button" class="btn-primary cl-btn" :disabled="!newText.trim()" @click="addItem">
+              {{ $t('deliveryChecklist.add') }}
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   </div>
@@ -224,5 +233,20 @@ onMounted(loadState)
 }
 .cl-btn {
   flex: none;
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 16px; align-items: center;
+  padding: 12px 0; margin-top: 16px; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.row .cl-add { margin-top: 0; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

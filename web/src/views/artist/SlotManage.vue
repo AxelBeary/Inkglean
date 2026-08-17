@@ -13,95 +13,125 @@
     </el-alert>
 
     <template v-else>
-      <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与开稿管理内联逻辑一致） -->
-      <el-card class="slot-card" shadow="never">
-        <template #header><CardHead :title="$t('slots.statusSection')" /></template>
-        <div class="status-row">
-          <el-radio-group :model-value="currentStatus" :disabled="statusUpdating" @change="updateStatus" size="large">
-            <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
-            <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
-            <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
-          </el-radio-group>
-          <span class="status-desc">{{ statusDesc }}</span>
+      <!-- 818-H：同类设置收进分组卡片（组头朱砂小印点），一行一事（说明在左、控件在右） -->
+      <div class="group">
+        <div class="group-head">{{ $t('slots.statusSection') }}</div>
+        <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与开稿管理内联逻辑一致） -->
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.statusLabel') }}</div>
+            <div class="desc">{{ $t('slots.statusSectionDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-radio-group :model-value="currentStatus" :disabled="statusUpdating" @change="updateStatus" size="large">
+              <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
+              <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
+              <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
+            </el-radio-group>
+            <span class="status-desc">{{ statusDesc }}</span>
+          </div>
         </div>
-      </el-card>
+      </div>
 
       <!-- 名额区 -->
-      <el-card class="slot-card" shadow="never">
-        <template #header><CardHead :title="$t('slots.slotSection')" /></template>
-        <el-form label-position="top" size="large">
-          <el-form-item :label="$t('settings.slotLabel')">
-            <div class="slot-config">
-              <div class="slot-row">
-                <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
-                <el-input-number
-                  v-model="form.batchLimit" :min="0" :max="999"
-                  :disabled="!form.batchLimitEnabled"
-                  controls-position="right" class="slot-input"
-                />
-                <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
-              </div>
-              <div class="form-hint">{{ $t('settings.slotHint') }}</div>
+      <div class="group">
+        <div class="group-head">{{ $t('slots.slotSection') }}</div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.slotLabel') }}</div>
+            <div class="desc">{{ $t('settings.slotHint') }}</div>
+          </div>
+          <div class="ctrl">
+            <div class="slot-row">
+              <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
+              <el-input-number
+                v-model="form.batchLimit" :min="0" :max="999"
+                :disabled="!form.batchLimitEnabled"
+                controls-position="right" class="slot-input"
+              />
+              <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
             </div>
-          </el-form-item>
-          <el-form-item :label="$t('settings.bufferLabel')">
-            <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
-            <div class="form-hint">{{ $t('settings.bufferHint') }}</div>
-          </el-form-item>
-          <div v-if="form.batchLimitEnabled" class="slot-total">
-            {{ $t('slots.totalHint', { n: form.batchLimit, m: form.bufferLimit, sum: form.batchLimit + form.bufferLimit }) }}
-          </div>
-        </el-form>
-      </el-card>
-
-      <!-- 月度额度区 -->
-      <el-card class="slot-card" shadow="never">
-        <template #header><CardHead :title="$t('slots.quotaSection')" /></template>
-        <el-form label-position="top" size="large">
-          <el-form-item :label="$t('settings.quotaLabel')">
-            <div class="slot-config">
-              <div class="slot-row">
-                <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
-                <el-input-number
-                  v-model="form.monthlyQuota" :min="0" :max="999"
-                  :disabled="!form.quotaEnabled"
-                  controls-position="right" class="slot-input"
-                />
-                <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
-              </div>
-              <div class="form-hint">{{ $t('settings.quotaHint') }}</div>
-            </div>
-          </el-form-item>
-        </el-form>
-      </el-card>
-
-      <!-- 队列行为区 -->
-      <el-card class="slot-card" shadow="never">
-        <template #header><CardHead :title="$t('slots.queueSection')" /></template>
-        <div class="switch-grid">
-          <div class="switch-row">
-            <el-switch v-model="form.autoPromote" :aria-label="$t('settings.autoPromote')" />
-            <span>{{ $t('settings.autoPromote') }}</span>
-          </div>
-          <div class="switch-row">
-            <el-switch v-model="form.hideQueuePosition" :aria-label="$t('settings.hideQueuePosition')" />
-            <span>{{ $t('settings.hideQueuePosition') }}</span>
-          </div>
-          <div class="switch-row">
-            <el-switch v-model="form.hidePromoteNotify" :aria-label="$t('settings.hidePromoteNotify')" />
-            <span>{{ $t('settings.hidePromoteNotify') }}</span>
-          </div>
-          <div class="switch-row">
-            <el-switch v-model="form.bufferShortForm" :aria-label="$t('settings.bufferShortForm')" />
-            <span>{{ $t('settings.bufferShortForm') }}</span>
           </div>
         </div>
-        <div class="form-hint">{{ $t('settings.bufferSwitchHint') }}</div>
-      </el-card>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.bufferLabel') }}</div>
+            <div class="desc">{{ $t('settings.bufferHint') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
+          </div>
+        </div>
+        <div v-if="form.batchLimitEnabled" class="slot-total">
+          {{ $t('slots.totalHint', { n: form.batchLimit, m: form.bufferLimit, sum: form.batchLimit + form.bufferLimit }) }}
+        </div>
+      </div>
 
-      <el-button type="primary" size="large" style="margin-top: 16px" @click="save" :loading="saving">
-        {{ $t('settings.save') }}
-      </el-button>
+      <!-- 月度额度区 -->
+      <div class="group">
+        <div class="group-head">{{ $t('slots.quotaSection') }}</div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.quotaLabel') }}</div>
+            <div class="desc">{{ $t('settings.quotaHint') }}</div>
+          </div>
+          <div class="ctrl">
+            <div class="slot-row">
+              <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
+              <el-input-number
+                v-model="form.monthlyQuota" :min="0" :max="999"
+                :disabled="!form.quotaEnabled"
+                controls-position="right" class="slot-input"
+              />
+              <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 队列行为区 -->
+      <div class="group">
+        <div class="group-head">{{ $t('slots.queueSection') }}</div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.autoPromote') }}</div>
+          </div>
+          <div class="ctrl ctrl--switch">
+            <el-switch v-model="form.autoPromote" :aria-label="$t('settings.autoPromote')" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.hideQueuePosition') }}</div>
+          </div>
+          <div class="ctrl ctrl--switch">
+            <el-switch v-model="form.hideQueuePosition" :aria-label="$t('settings.hideQueuePosition')" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.hidePromoteNotify') }}</div>
+          </div>
+          <div class="ctrl ctrl--switch">
+            <el-switch v-model="form.hidePromoteNotify" :aria-label="$t('settings.hidePromoteNotify')" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('settings.bufferShortForm') }}</div>
+          </div>
+          <div class="ctrl ctrl--switch">
+            <el-switch v-model="form.bufferShortForm" :aria-label="$t('settings.bufferShortForm')" />
+          </div>
+        </div>
+        <p class="group-hint">{{ $t('settings.bufferSwitchHint') }}</p>
+      </div>
+
+      <div class="slot-actions">
+        <el-button type="primary" size="large" @click="save" :loading="saving">
+          {{ $t('settings.save') }}
+        </el-button>
+      </div>
     </template>
   </div>
 </template>
@@ -111,8 +141,6 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-// v0.38 第二批: 统一卡片头部（REQ-026 §二）
-import CardHead from '../../components/artist/visual/CardHead.vue'
 
 const { t } = useI18n()
 const loading = ref(true)
@@ -223,16 +251,46 @@ onMounted(loadProfile)
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .slot-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.slot-manage { max-width: 640px; margin-top: 16px; display: flex; flex-direction: column; gap: 14px; }
-.slot-card { border-radius: var(--r-l); }
-.status-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.slot-manage { max-width: 760px; margin-top: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group {
+  padding: 4px 24px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.group-hint { margin: 0; padding-top: 12px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.ctrl--switch { width: 72px; }
 .status-desc { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 14px); }
-.slot-config { display: flex; flex-direction: column; gap: 8px; }
 .slot-row { display: flex; align-items: center; gap: 12px; }
 .slot-input { width: 120px; }
 .slot-unit { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 14px); }
 .slot-total { margin-top: 8px; padding: 8px 12px; background: var(--paper2); border-radius: var(--r-m); font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
-.form-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 4px; }
-.switch-grid { display: flex; flex-direction: column; gap: 12px; }
-.switch-row { display: flex; align-items: center; gap: 12px; }
+.slot-actions { display: flex; justify-content: flex-end; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .ctrl--switch { width: auto; }
+}
 </style>
