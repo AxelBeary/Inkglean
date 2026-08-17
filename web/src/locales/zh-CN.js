@@ -1586,9 +1586,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   },
   artworks: {
     title: '作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
-    tip: '支持 JPG / PNG / WebP，建议尺寸 ≥ 800px', empty: '还没有作品，上传一些吧',
-    uploaded: '上传成功', confirmDelete: '确定删除这张作品？', image: '作品图片',
-    // 818-H：工具条按行结构整理
+    tip: '支持 JPG / PNG / WebP，建议尺寸 ≥ 800px', empty: '暂无作品',
+    emptyHint: '上传图片后，作品会展示在这里',
+    uploaded: '上传成功', confirmDelete: '确定删除这张作品？', image: '作品图片', untitled: '未命名作品',
+    // 820-K：工具条按行结构整理
+    manageGroup: '管理工具',
     manageLabel: '批量管理', manageDesc: '进入多选模式，可一次删除多张作品',
     uploadTitle: '图片上传',
     // R45: 多选删除
@@ -1602,7 +1604,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
     coverTag: '封面',
     // F7: 主图去重
-    mainImages: '主图', mainTag: '主图',
+    mainImages: '主图', mainTag: '主图', galleryTitle: '作品列表',
     // v0.31: 多封面排序
     coverMoveUp: '前移', coverMoveDown: '后移', coverReordered: '封面顺序已更新',
     // v0.35 波3 (REQ-024 F6): 作品编辑（档位标注+自由描述）

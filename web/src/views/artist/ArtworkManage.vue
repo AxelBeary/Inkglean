@@ -4,7 +4,7 @@
 
   <!-- 818-H：工具条按行结构整理（说明在左、控件在右） -->
   <div class="group artwork-toolbar">
-    <div class="group-head">{{ $t('artworks.manageLabel') }}</div>
+    <div class="group-head">{{ $t('artworks.manageGroup') }}</div>
     <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
     <div class="row">
       <div class="field-text">
@@ -29,6 +29,7 @@
       </div>
       <div class="ctrl ctrl--upload">
         <el-upload
+          class="artwork-upload"
           drag multiple :auto-upload="true" :http-request="handleUpload"
           accept="image/*" :show-file-list="false"
           @dragenter.capture="guardDragEnter"
@@ -36,17 +37,19 @@
           @drop.capture="guardDrop"
         >
           <button type="button" class="upload-trigger-btn" :aria-label="$t('artworks.dragUpload')">
-            <el-icon class="upload-icon"><Upload /></el-icon>
+            <span class="upload-icon-wrap">
+              <el-icon class="upload-icon"><Upload /></el-icon>
+            </span>
           </button>
-          <p>{{ $t('artworks.dragUpload') }}</p>
+          <p class="upload-main-text">{{ $t('artworks.dragUpload') }}</p>
+          <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
         </el-upload>
-        <p class="paste-hint">{{ $t('upload.pasteHint') }}</p>
       </div>
     </div>
   </div>
 
   <!-- F7: 主图区（is_cover=1 单独展示，不在下方网格重复） -->
-  <div v-if="covers.length > 0" class="main-artwork-section">
+  <section v-if="covers.length > 0" class="artwork-section">
     <h3 class="section-label">{{ $t('artworks.mainImages') }}</h3>
     <div class="main-artwork-row">
       <div v-for="art in covers" :key="art.id" class="main-artwork-card">
@@ -100,88 +103,98 @@
           <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
           <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
         </div>
+        <p class="artwork-title">{{ art.title || $t('artworks.untitled') }}</p>
       </div>
     </div>
-  </div>
+  </section>
 
   <!-- 作品网格（F7: 只显示非主图；去重后为空则兜底显示全部） -->
-  <div class="artwork-grid" v-loading="loading">
-    <div
-      v-for="art in gridArtworks" :key="art.id"
-      class="artwork-item"
-      :class="{ 'artwork-item--selected': manageMode && selectedIds.has(art.id) }"
-    >
-      <el-image
-        :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
-        :alt="art.title || $t('artworks.image')"
-        :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
-        :initial-index="artworks.indexOf(art)"
-        preview-teleported
-      />
-      <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
-      <button
-        v-if="manageMode" type="button" class="artwork-select-layer"
-        role="checkbox" :aria-checked="selectedIds.has(art.id)"
-        :aria-label="art.title || $t('artworks.image')"
-        @click="toggleSelect(art.id)"
-      >
-        <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
-          <span v-if="selectedIds.has(art.id)">✓</span>
-        </span>
-      </button>
-      <!-- 普通模式：单条删除（悬停显示） -->
-      <div v-else class="artwork-actions">
-        <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
-        <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
-        <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
+  <section class="artwork-section">
+    <h3 class="section-label">{{ $t('artworks.galleryTitle') }}</h3>
+    <div class="artwork-gallery" :class="{ 'artwork-gallery--loading': loading }" v-loading="loading">
+      <div v-if="!loading && artworks.length === 0" class="artwork-empty">
+        <el-icon class="artwork-empty-icon"><Picture /></el-icon>
+        <p class="artwork-empty-title">{{ $t('artworks.empty') }}</p>
+        <p class="artwork-empty-hint">{{ $t('artworks.emptyHint') }}</p>
       </div>
-      <!-- REQ-017: 封面星标（常驻右上角，不依赖 hover） -->
-      <button
-        class="artwork-cover-star"
-        :class="{ 'artwork-cover-star--on': art.is_cover }"
-        :disabled="coverBusyId === art.id"
-        :aria-label="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
-        :title="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
-        @click="toggleCover(art)"
-      >
-        {{ art.is_cover ? '★' : '☆' }}
-      </button>
-      <!-- REQ-017: 封面标签 + cover_order 序号（多封面时显示顺序） -->
-      <span v-if="art.is_cover" class="artwork-cover-tag">
-        {{ $t('artworks.coverTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
-      </span>
-      <!-- v0.31: 多封面排序按钮（≥2 张封面时显示，调整轮播顺序） -->
-      <div v-if="art.is_cover && coverCount > 1" class="artwork-cover-reorder">
-        <button
-          class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
-          :aria-label="$t('artworks.coverMoveUp')" :title="$t('artworks.coverMoveUp')"
-          @click.stop="moveCover(art, -1)"
+      <div v-else class="artwork-grid">
+        <div
+          v-for="art in gridArtworks" :key="art.id"
+          class="artwork-item"
+          :class="{ 'artwork-item--selected': manageMode && selectedIds.has(art.id) }"
         >
-          ↑
-        </button>
-        <button
-          class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
-          :aria-label="$t('artworks.coverMoveDown')" :title="$t('artworks.coverMoveDown')"
-          @click.stop="moveCover(art, 1)"
-        >
-          ↓
-        </button>
+          <el-image
+            :src="`/uploads/${art.image_path}`" fit="cover" class="artwork-img"
+            :alt="art.title || $t('artworks.image')"
+            :preview-src-list="manageMode ? [] : artworks.map(a => `/uploads/${a.image_path}`)"
+            :initial-index="artworks.indexOf(art)"
+            preview-teleported
+          />
+          <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
+          <button
+            v-if="manageMode" type="button" class="artwork-select-layer"
+            role="checkbox" :aria-checked="selectedIds.has(art.id)"
+            :aria-label="art.title || $t('artworks.image')"
+            @click="toggleSelect(art.id)"
+          >
+            <span class="artwork-checkbox" :class="{ 'artwork-checkbox--on': selectedIds.has(art.id) }">
+              <span v-if="selectedIds.has(art.id)">✓</span>
+            </span>
+          </button>
+          <!-- 普通模式：单条删除（悬停显示） -->
+          <div v-else class="artwork-actions">
+            <!-- v0.35 波3 (REQ-024 F6): 作品编辑入口（档位标注+自由描述） -->
+            <el-button size="small" @click="openEditDialog(art)">{{ $t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="remove(art)">{{ $t('common.delete') }}</el-button>
+          </div>
+          <!-- REQ-017: 封面星标（常驻右上角，不依赖 hover） -->
+          <button
+            class="artwork-cover-star"
+            :class="{ 'artwork-cover-star--on': art.is_cover }"
+            :disabled="coverBusyId === art.id"
+            :aria-label="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
+            :title="art.is_cover ? $t('artworks.coverUnset') : $t('artworks.coverSet')"
+            @click="toggleCover(art)"
+          >
+            {{ art.is_cover ? '★' : '☆' }}
+          </button>
+          <!-- REQ-017: 封面标签 + cover_order 序号（多封面时显示顺序） -->
+          <span v-if="art.is_cover" class="artwork-cover-tag">
+            {{ $t('artworks.coverTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
+          </span>
+          <!-- v0.31: 多封面排序按钮（≥2 张封面时显示，调整轮播顺序） -->
+          <div v-if="art.is_cover && coverCount > 1" class="artwork-cover-reorder">
+            <button
+              class="cover-reorder-btn" :disabled="coverOrderOf(art) <= 1 || coverReordering"
+              :aria-label="$t('artworks.coverMoveUp')" :title="$t('artworks.coverMoveUp')"
+              @click.stop="moveCover(art, -1)"
+            >
+              ↑
+            </button>
+            <button
+              class="cover-reorder-btn" :disabled="coverOrderOf(art) >= coverCount || coverReordering"
+              :aria-label="$t('artworks.coverMoveDown')" :title="$t('artworks.coverMoveDown')"
+              @click.stop="moveCover(art, 1)"
+            >
+              ↓
+            </button>
+          </div>
+          <p class="artwork-title">{{ art.title || $t('artworks.untitled') }}</p>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- v0.42 Step 6: 分页器（>20 张时显示；封面置顶在后端排序已保证，前端勿重排） -->
-  <el-pagination
-    v-if="total > pageSize"
-    :current-page="page"
-    :page-size="pageSize"
-    :total="total"
-    layout="prev, pager, next"
-    @current-change="onPageChange"
-    style="margin-top: 16px; justify-content: center;"
-  />
-
-  <el-empty v-if="!loading && artworks.length === 0" :description="$t('artworks.empty')" />
+    <!-- v0.42 Step 6: 分页器（>20 张时显示；封面置顶在后端排序已保证，前端勿重排） -->
+    <el-pagination
+      v-if="total > pageSize"
+      :current-page="page"
+      :page-size="pageSize"
+      :total="total"
+      layout="prev, pager, next"
+      @current-change="onPageChange"
+      class="artwork-pager"
+    />
+  </section>
 
   <!-- R45: 批量操作栏（多选模式下固定底部） -->
   <div v-if="manageMode" class="batch-bar">
@@ -193,7 +206,7 @@
   </div>
 
   <!-- R45/C59: 批量删除 ≥3 条用滑块确认 -->
-  <el-dialog v-model="slideDialogVisible" :title="$t('artworks.batchDeleteTitle')" width="400px" @closed="slideProgress = 0">
+  <el-dialog v-model="slideDialogVisible" :title="$t('artworks.batchDeleteTitle')" width="400px" class="artwork-dialog" @closed="slideProgress = 0">
     <p class="batch-slide-hint">{{ $t('artworks.batchDeleteConfirm', { n: selectedIds.size }) }}</p>
     <div class="slide-confirm">
       <div class="slide-confirm-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
@@ -217,8 +230,8 @@
   </el-dialog>
 
   <!-- v0.35 波3 (REQ-024 F6): 作品编辑弹窗 — 标题/自由描述/档位标注多选，保存即时 PUT -->
-  <el-dialog v-model="editDialogVisible" :title="$t('artworks.editTitle')" width="520px" destroy-on-close>
-    <el-form :model="editForm" label-position="top">
+  <el-dialog v-model="editDialogVisible" :title="$t('artworks.editTitle')" width="520px" class="artwork-dialog" destroy-on-close>
+    <el-form :model="editForm" label-position="left" label-width="96px">
       <el-form-item :label="$t('artworks.editTitleLabel')">
         <el-input v-model="editForm.title" maxlength="100" show-word-limit />
       </el-form-item>
@@ -249,7 +262,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
+import { Picture, Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
 import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
@@ -621,7 +634,7 @@ onMounted(async () => {
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .artwork-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 
-/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+/* 820-K：分组卡片收纳，组头带朱砂小印点（对齐 QuickNote/Watermark） */
 .group {
   margin: 16px 0;
   padding: 4px 24px 16px;
@@ -640,7 +653,7 @@ onMounted(async () => {
   background: var(--zs); border-radius: var(--r-paper);
 }
 
-/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+/* 820-K：一行一事，说明在左控件在右，栅格对齐 */
 .row {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 560px); gap: 16px; align-items: center;
   padding: 12px 0; border-top: 1px solid var(--line);
@@ -651,49 +664,107 @@ onMounted(async () => {
 .ctrl { min-width: 0; }
 .ctrl--upload { width: 100%; }
 
-/* 上传区图标与提示（原 inline style 旧变量，改走 class） */
-.upload-icon { font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink3); }
+/* ─── 上传区：EP dragger 纸墨化（虚线卡 + 圆图标 + 文案居中） ─── */
+.artwork-upload { display: block; width: 100%; }
+.artwork-upload :deep(.el-upload-dragger) {
+  width: 100%;
+  min-height: 148px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: var(--paper2);
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-m);
+  transition: border-color var(--dur-fast), background-color var(--dur-fast);
+}
+.artwork-upload :deep(.el-upload-dragger:hover),
+.artwork-upload :deep(.el-upload-dragger.is-dragover) {
+  border-color: var(--hq);
+  background-color: var(--card);
+}
+.upload-icon-wrap {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--hq-t); color: var(--hq);
+}
+.upload-icon { font-size: calc(var(--font-scale, 1) * 24px); }
 .upload-trigger-btn {
   display: inline-flex; align-items: center; justify-content: center;
   padding: 0; border: none; background: none; cursor: pointer;
   color: inherit; font: inherit;
 }
+.upload-main-text { margin-top: 12px; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink2); }
+.paste-hint { margin-top: 4px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+
+/* ─── 分区标题（与组头同语言：朱砂小印点） ─── */
+.artwork-section { margin: 16px 0 4px; }
+.section-label {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 12px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.section-label::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
 
 /* ─── F7: 主图区（单独展示，不在网格重复） ─── */
-.main-artwork-section { margin: 16px 0 8px; }
-.section-label {
-  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 10px;
-}
-.main-artwork-row {
-  display: flex; gap: 12px; flex-wrap: wrap;
-}
+.main-artwork-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .main-artwork-card {
-  position: relative; border-radius: var(--r-m); overflow: hidden;
+  position: relative;
   width: 220px; flex-shrink: 0;
-  border: 2px solid color-mix(in srgb, var(--th) 45%, transparent);
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--th) 55%, var(--line));
+  border-radius: var(--r-m);
+  box-shadow: var(--sh-1);
+  transition: border-color var(--dur-fast);
 }
-.main-artwork-img { width: 100%; height: 160px; display: block; }
+.main-artwork-card:hover { border-color: var(--th); }
+.main-artwork-img { width: 100%; aspect-ratio: 4 / 3; display: block; object-fit: cover; border-radius: var(--r-s); }
 .main-artwork-tag,
 .artwork-cover-tag {
-  position: absolute; top: 6px; left: 6px; z-index: 2;
-  padding: 2px 8px; border-radius: 999px;
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  padding: 4px 12px; border-radius: var(--r-pill);
   background: var(--th);
   color: #fff; font-size: calc(var(--font-scale, 1) * 11px); font-weight: 600; letter-spacing: 0.5px;
   pointer-events: none;
 }
-.main-artwork-card:hover .artwork-actions { opacity: 1; }
+.main-artwork-card:hover .artwork-actions,
+.main-artwork-card:focus-within .artwork-actions { opacity: 1; }
 
+/* ─── 作品网格：卡片视觉（圆角/阴影/间距；hover 只动边框颜色） ─── */
+.artwork-gallery { margin-top: 16px; }
+.artwork-gallery--loading { min-height: 220px; }
+.artwork-gallery :deep(.el-loading-mask) { background-color: color-mix(in srgb, var(--paper) 84%, transparent); }
+.artwork-gallery :deep(.el-loading-spinner .circular) { color: var(--hq); }
 .artwork-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px; margin-top: 16px;
+  gap: 16px;
 }
-.artwork-item { position: relative; border-radius: var(--r-m); overflow: hidden; }
-.artwork-img { width: 100%; height: 180px; display: block; }
+.artwork-item {
+  position: relative;
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  box-shadow: var(--sh-1);
+  transition: border-color var(--dur-fast);
+}
+.artwork-item:hover { border-color: var(--hq); }
+.artwork-img { width: 100%; aspect-ratio: 1 / 1; display: block; object-fit: cover; border-radius: var(--r-s); }
+.artwork-title {
+  margin: 8px 4px 0;
+  font-size: calc(var(--font-scale, 1) * 13px);
+  color: var(--ink2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .artwork-actions {
-  position: absolute; bottom: 0; left: 0; right: 0;
+  position: absolute; bottom: 8px; left: 8px; right: 8px;
   background: var(--overlay-bg, rgba(0,0,0,0.5)); padding: 8px; text-align: center;
+  border-radius: var(--r-s);
   opacity: 0; transition: opacity var(--dur-mid);
 }
 .artwork-item:hover .artwork-actions,
@@ -702,18 +773,34 @@ onMounted(async () => {
 @media (hover: none) {
   .artwork-actions { opacity: 1; }
 }
-.paste-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 8px; text-align: center; }
+
+/* 空态纸墨化（与卡片同族，虚线区分） */
+.artwork-empty {
+  padding: 40px 24px;
+  background: var(--card);
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-l);
+  text-align: center;
+}
+.artwork-empty-icon { font-size: calc(var(--font-scale, 1) * 40px); color: var(--ink4); }
+.artwork-empty-title { margin-top: 12px; font-size: 15px; color: var(--ink2); }
+.artwork-empty-hint { margin-top: 4px; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink3); }
+
+.artwork-pager { margin-top: 16px; display: flex; justify-content: center; }
 
 @media (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
+  .main-artwork-card { width: 100%; }
 }
 
 /* v0.35 波3: 作品编辑弹窗提示 */
 .edit-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); margin: 4px 0 0; line-height: 1.5; }
+.artwork-dialog :deep(.el-dialog) { border-radius: var(--r-l); }
+.artwork-dialog :deep(.el-dialog__title) { font-weight: 700; color: var(--ink); }
 
 /* ─── REQ-017: 封面星标 + 标签 ─── */
 .artwork-cover-star {
-  position: absolute; top: 6px; right: 6px; z-index: 2;
+  position: absolute; top: 8px; right: 8px; z-index: 2;
   width: 30px; height: 30px; border-radius: 50%; border: none;
   background: color-mix(in srgb, var(--card) 75%, transparent);
   backdrop-filter: blur(4px);
@@ -726,8 +813,8 @@ onMounted(async () => {
 .artwork-cover-star--on { color: var(--th); }
 /* ─── v0.31: 多封面排序按钮 ─── */
 .artwork-cover-reorder {
-  position: absolute; bottom: 6px; right: 6px; z-index: 2;
-  display: flex; gap: 2px;
+  position: absolute; bottom: 8px; right: 8px; z-index: 2;
+  display: flex; gap: 4px;
 }
 .cover-reorder-btn {
   width: 24px; height: 24px; border-radius: var(--r-s); border: none;
@@ -741,7 +828,7 @@ onMounted(async () => {
 .cover-reorder-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ─── R45: 多选模式 ─── */
-.artwork-item--selected { outline: 3px solid var(--hq); outline-offset: -3px; }
+.artwork-item--selected { outline: 2px solid var(--hq); outline-offset: -2px; }
 .artwork-select-layer {
   position: absolute; inset: 0;
   cursor: pointer; background: rgba(0, 0, 0, 0.08);
@@ -757,15 +844,19 @@ onMounted(async () => {
 }
 .artwork-checkbox--on { background: var(--hq); border-color: var(--hq); }
 
-/* 批量操作栏（固定底部） */
+/* 批量操作栏（固定底部，纸墨化：卡片底 + 描边 + 胶囊） */
 .batch-bar {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 20px; border-radius: 999px;
-  background: var(--card); box-shadow: var(--sh-3);
+  padding: 8px 16px; border-radius: var(--r-pill);
+  background: var(--card); border: 1px solid var(--line2); box-shadow: var(--sh-2);
   z-index: 100;
 }
-.batch-count { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); white-space: nowrap; }
+.batch-count {
+  padding: 4px 12px; border-radius: var(--r-pill);
+  background: var(--hq-t); color: var(--hq);
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; white-space: nowrap;
+}
 
 /* 滑块确认（与 OrderDetail/QueueBoard 视觉一致，朱砂=危险操作） */
 .batch-slide-hint { font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); margin-bottom: 16px; }
