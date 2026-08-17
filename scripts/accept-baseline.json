@@ -1,7 +1,7 @@
 {
   "server": 1549,
-  "web": 577,
+  "web": 616,
   "e2e": 13,
   "updatedAt": "2026-08-17",
-  "note": "817批六路合入终态实测：server 1549（+17：TC-INST-07/TC-SETUP-08b/c/TC-RB-13/TC-F2-07/TC-TL-31/anonUpload等）/ web 577（+32：money消毒6/pagehide2/AddonStep行序2/message-parser日期6/ArtistManage封禁6/anonUpload5/passkey取消1/midnight2等）/ E2E 13。前基线 1532/545/13。"
+  "note": "818批四路合入终态实测：server 1549 / web 616（+39：fontSize 16+reorder 21+tour 10-重叠）/ E2E 13。前基线 1549/577/13。"
 }
