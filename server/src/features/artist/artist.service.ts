@@ -79,7 +79,7 @@ export function getAllArtists(): Artist[] {
   // 保留 totp_verified：管理后台画师列表据此显示「绑定/重绑」按钮（ArtistManage.vue）。
   // 保留 quick_actions：画师 profile 消费（Preferences.vue/QuickActions.vue）。
   return db.prepare(`
-    SELECT id, qq_number, name, subdomain, avatar, bio, status, contact_qq, notify_enabled,
+    SELECT id, qq_number, name, subdomain, avatar, bio, status, contact_qq, notify_enabled, guestbook_enabled,
            created_at, artist_code, template_id, custom_page_path, palette_id,
            dashboard_default_panel, revision_note, custom_links, accent_color,
            order_template_id, inspiration_tags, batch_limit, buffer_limit, auto_promote,
@@ -157,7 +157,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 export function updateArtist(id: number, fields: Record<string, unknown>): Artist | undefined {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
   // REQ-022 F2: platform_urls 写入分支已删除（列弃用，读路径全部移除）
-  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled', 'dashboard_modules']
+  const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'guestbook_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled', 'dashboard_modules']
   const updates: string[] = []
   const values: unknown[] = []
 
@@ -184,9 +184,9 @@ export function updateArtist(id: number, fields: Record<string, unknown>): Artis
         }
         updates.push('status = ?')
         values.push(value)
-      } else if (key === 'notify_enabled') {
-        // P1-D: 强制转整数，防止字符串被 SQLite 类型亲和性吞掉
-        updates.push('notify_enabled = ?')
+      } else if (key === 'notify_enabled' || key === 'guestbook_enabled') {
+        // P1-D: 强制转整数，防止字符串被 SQLite 类型亲和性吞掉（notify 与 guestbook 同口径布尔列）
+        updates.push(`${key} = ?`)
         values.push(value ? 1 : 0)
       } else if (key === 'custom_links') {
         // REQ-022 F2: 外链列表重做 — 单一结构 [{platformId, url}]

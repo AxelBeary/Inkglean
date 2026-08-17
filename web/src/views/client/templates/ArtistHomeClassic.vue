@@ -74,9 +74,9 @@
         </section>
 
         <!-- F4: 留言板 -->
-        <section class="classic-section tpl-reveal">
+        <section class="classic-section tpl-reveal" v-if="artist.guestbookEnabled !== false">
           <p class="tpl-section-label classic-label">{{ $t('guestbook.title') }}</p>
-          <TplGuestbook :subdomain="subdomain" theme="card" />
+          <TplGuestbook :subdomain="subdomain" theme="card" :enabled="artist.guestbookEnabled !== false" />
         </section>
 
         <Disclaimer class="classic-disclaimer" />

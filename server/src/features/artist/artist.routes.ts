@@ -1,5 +1,6 @@
 import * as artistService from './artist.service.js'
 import * as platformService from '../platform/platform.service.js'
+import * as trackingService from '../tracking/tracking.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 import { AppError, E } from '../../shared/errors.js'
@@ -75,6 +76,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       // REQ-022 F2: 外链新结构 [{platformId, url}]；weiboUrl/bilibiliUrl/platformUrls 已移除
       customLinks: artistService.getCustomLinks(artist),
       notifyEnabled: !!artist.notify_enabled,
+      // 820-L（v68）: 留言功能开关——关闭时客户端隐藏留言板块（前端据此渲染）
+      guestbookEnabled: !!artist.guestbook_enabled,
       // P3-14: 不再兜底登录账号 QQ——未设置展示联系 QQ 时公开接口返回 null
       contactQq: artist.contact_qq || null,
       revisionNote: artist.revision_note || null,
@@ -114,6 +117,9 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       artworks: artistService.getArtworks(artist.id),
       rules: artistService.getRules(artist.id),
       slotDisplay: artistService.computeSlotDisplay(artist),
+      // 820-L（v68）: 留言开关（对齐 notify_enabled 口径）；统计功能管理员开关（默认关闭=隐藏导航）
+      guestbookEnabled: !!artist.guestbook_enabled,
+      statsEnabled: trackingService.getStatsEnabled(),
       // E2 补全（清扫批）：月度额度用量下发（与公开主页端点同口径），仪表盘满态牌据此覆盖额度耗尽轴
       quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null
     }
@@ -157,6 +163,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
             }
           },
           notifyEnabled: { type: 'boolean' },
+          guestbookEnabled: { type: 'boolean' },
           artistCode: { type: 'string', maxLength: 10 },
           contactQq: { type: ['string', 'null'], maxLength: 15 },
           templateId: { type: 'string', maxLength: 50 },
@@ -205,6 +212,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       const keyMap = {
         customLinks: 'custom_links',
         notifyEnabled: 'notify_enabled',
+        guestbookEnabled: 'guestbook_enabled',
         artistCode: 'artist_code',
         contactQq: 'contact_qq',
         templateId: 'template_id',

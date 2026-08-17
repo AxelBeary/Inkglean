@@ -53,9 +53,9 @@
     </section>
 
     <!-- F4: 留言板 -->
-    <section class="gallery-section tpl-reveal">
+    <section class="gallery-section tpl-reveal" v-if="artist.guestbookEnabled !== false">
       <p class="tpl-section-label gallery-label">{{ $t('guestbook.title') }}</p>
-      <TplGuestbook :subdomain="subdomain" theme="plaque" />
+      <TplGuestbook :subdomain="subdomain" theme="plaque" :enabled="artist.guestbookEnabled !== false" />
     </section>
 
     <!-- 页脚 -->

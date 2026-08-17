@@ -39,9 +39,9 @@
     </section>
 
     <!-- F4: 留言板 -->
-    <section class="atelier-section tpl-reveal">
+    <section class="atelier-section tpl-reveal" v-if="artist.guestbookEnabled !== false">
       <p class="tpl-section-label atelier-label">{{ $t('guestbook.title') }}</p>
-      <TplGuestbook :subdomain="subdomain" theme="note" />
+      <TplGuestbook :subdomain="subdomain" theme="note" :enabled="artist.guestbookEnabled !== false" />
     </section>
 
     <!-- 页脚 -->

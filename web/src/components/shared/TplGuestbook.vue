@@ -12,7 +12,8 @@
   - POST /api/public/artist/:subdomain/messages → { id } (201)；429 = 限流
 -->
 <template>
-  <div class="tpl-guestbook" :class="themeClass">
+  <!-- 820-L：留言功能关闭时整个板块隐藏（不渲染表单与历史，父级模板同条件包裹，双保险） -->
+  <div v-if="enabled" class="tpl-guestbook" :class="themeClass">
     <!-- 提交表单 -->
     <form class="gb-form" @submit.prevent="submit">
       <input
@@ -72,7 +73,9 @@ import { useI18n } from 'vue-i18n'
 const props = defineProps({
   subdomain: { type: String, required: true },
   /** 视觉变体：''（无装饰）/ card / plaque / inline / note */
-  theme: { type: String, default: '' }
+  theme: { type: String, default: '' },
+  /** 820-L：留言功能开关（false=关闭，隐藏整个板块） */
+  enabled: { type: Boolean, default: true }
 })
 
 const themeClass = computed(() => (props.theme ? `tpl-guestbook--${props.theme}` : ''))

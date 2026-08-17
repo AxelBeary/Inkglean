@@ -179,11 +179,17 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
   /** GET /api/admin/tracking-config — 读管理员开关（画师门面统计显隐） */
   fastify.get('/api/admin/tracking-config', { preHandler: requireAdmin }, async () => {
     const mode = trackingService.getStatsMode()
-    return { statsMode: mode, artistStatsVisible: trackingService.getArtistStatsVisible() }
+    return {
+      statsMode: mode,
+      artistStatsVisible: trackingService.getArtistStatsVisible(),
+      // 820-L（v68）: 统计功能总开关（默认关闭；关闭时画师后台隐藏整个统计导航）
+      statsEnabled: trackingService.getStatsEnabled()
+    }
   })
 
   /** PUT /api/admin/tracking-config — 写管理员三态开关
-   * 新 body { statsMode: 'off'|'hidden'|'on' }；旧 body { artistStatsVisible: boolean } 兼容（true→on / false→hidden）
+   * 新 body { statsMode: 'off'|'hidden'|'on' }；旧 body { artistStatsVisible: boolean } 兼容（true→on / false→hidden）；
+   * 820-L 追加 { statsEnabled: boolean }（统计功能总开关，与三态独立）
    */
   fastify.put('/api/admin/tracking-config', {
     preHandler: requireAdmin,
@@ -192,22 +198,33 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
         type: 'object',
         properties: {
           statsMode: { type: 'string', enum: ['off', 'hidden', 'on'] },
-          artistStatsVisible: { type: 'boolean' }
+          artistStatsVisible: { type: 'boolean' },
+          statsEnabled: { type: 'boolean' }
         },
         additionalProperties: false
       }
     }
   }, async (request, reply) => {
-    const body = request.body as { statsMode?: trackingService.StatsMode; artistStatsVisible?: boolean }
-    if (body.statsMode !== undefined) {
+    const body = request.body as {
+      statsMode?: trackingService.StatsMode
+      artistStatsVisible?: boolean
+      statsEnabled?: boolean
+    }
+    if (body.statsEnabled !== undefined) {
+      trackingService.setStatsEnabled(body.statsEnabled)
+    } else if (body.statsMode !== undefined) {
       trackingService.setStatsMode(body.statsMode)
     } else if (body.artistStatsVisible !== undefined) {
       // 兼容旧前端：true→on（可见+收集）；false→hidden（仅隐藏显示）
       trackingService.setArtistStatsVisible(body.artistStatsVisible)
     } else {
-      return reply.code(400).send({ code: 'INVALID_PARAM', error: '缺少 statsMode 或 artistStatsVisible' })
+      return reply.code(400).send({ code: 'INVALID_PARAM', error: '缺少 statsMode、artistStatsVisible 或 statsEnabled' })
     }
     const mode = trackingService.getStatsMode()
-    return { statsMode: mode, artistStatsVisible: trackingService.getArtistStatsVisible() }
+    return {
+      statsMode: mode,
+      artistStatsVisible: trackingService.getArtistStatsVisible(),
+      statsEnabled: trackingService.getStatsEnabled()
+    }
   })
 }

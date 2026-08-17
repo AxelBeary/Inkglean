@@ -15,6 +15,19 @@
         <div class="stat-label">{{ $t('admin.tracking.total') }}</div>
       </el-card>
       <el-card shadow="never" class="admin-section-card track-config-card">
+        <!-- 820-L：统计功能管理员总开关（默认关闭；关闭时画师后台隐藏整个统计导航） -->
+        <div class="row">
+          <div class="tc-text">
+            <div class="lab">{{ $t('admin.tracking.enabledLabel') }}</div>
+            <div class="desc">{{ $t('admin.tracking.enabledHint') }}</div>
+          </div>
+          <el-switch
+            :model-value="statsEnabled"
+            :loading="savingEnabled"
+            :disabled="savingEnabled"
+            @change="onEnabledChange"
+          />
+        </div>
         <div class="row">
           <div class="tc-text">
             <div class="lab">{{ $t('admin.tracking.visibleLabel') }}</div>
@@ -96,6 +109,9 @@ const loading = ref(true)
 const summary = ref(null)
 const statsMode = ref('hidden')
 const savingVisible = ref(false)
+/** 820-L：统计功能总开关（默认关闭） */
+const statsEnabled = ref(false)
+const savingEnabled = ref(false)
 const days = ref(30)
 const dayOptions = [7, 14, 30, 90]
 
@@ -131,6 +147,22 @@ async function onModeChange(v) {
   }
 }
 
+/** 820-L：总开关切换（失败回滚，与三态开关同口径） */
+async function onEnabledChange(v) {
+  const prev = statsEnabled.value
+  savingEnabled.value = true
+  try {
+    const res = await adminApi.setStatsEnabled(!!v)
+    statsEnabled.value = res.statsEnabled
+    ElMessage.success(t('tracking.saved'))
+  } catch (err) {
+    ElMessage.error(err.message)
+    statsEnabled.value = prev
+  } finally {
+    savingEnabled.value = false
+  }
+}
+
 // 天数快切竞态守卫：仅最新一次请求可写 summary/loading（对齐项目 seq 模式）
 let summarySeq = 0
 async function loadSummary() {
@@ -159,6 +191,7 @@ onMounted(async () => {
     if (mySeq !== summarySeq) return
     summary.value = s
     statsMode.value = cfg.statsMode || 'hidden'
+    statsEnabled.value = !!cfg.statsEnabled
   } catch (err) {
     if (mySeq !== summarySeq) return
     ElMessage.error(err.message)

@@ -211,6 +211,42 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     expect(wrapper.exists()).toBe(true)
   })
 
+  it('820-L：留言关闭 → 菜单过滤 /guestbook 且角标不发请求', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockResolvedValue({ isAdmin: false })
+    h.artistStore.profile = { guestbook_enabled: 0, statsEnabled: true }
+
+    const wrapper = await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    const paths = wrapper.vm.menuGroups.flatMap(g => g.items.map(i => i.index))
+    expect(paths).not.toContain('/guestbook')
+    expect(paths).toContain('/stats')
+    // 关闭时角标轮询直接短路，不请求留言列表
+    expect(h.getMessages).not.toHaveBeenCalled()
+    expect(wrapper.vm.pendingMsgCount).toBe(0)
+  })
+
+  it('820-L：统计未开（默认）→ 菜单过滤 /stats；开启后恢复', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockResolvedValue({ isAdmin: false })
+    h.artistStore.profile = { guestbook_enabled: 1, statsEnabled: false }
+
+    const wrapper = await mountLayout(ArtistLayout)
+    await flushPromises()
+
+    const paths = wrapper.vm.menuGroups.flatMap(g => g.items.map(i => i.index))
+    expect(paths).not.toContain('/stats')
+    expect(paths).toContain('/guestbook')
+
+    // 管理员开启后导航恢复（mock store 为普通对象无响应式，重挂载验证）
+    h.artistStore.profile = { guestbook_enabled: 1, statsEnabled: true }
+    const wrapper2 = await mountLayout(ArtistLayout)
+    await flushPromises()
+    const paths2 = wrapper2.vm.menuGroups.flatMap(g => g.items.map(i => i.index))
+    expect(paths2).toContain('/stats')
+  })
+
   it('待确认订单角标轮询读取 getStats.pendingCount（I0/REQ-039）', async () => {
     localStorage.setItem('artist_logged_in', '1')
     h.getMe.mockResolvedValue({ isAdmin: false })

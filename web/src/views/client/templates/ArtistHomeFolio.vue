@@ -71,10 +71,10 @@
     </section>
 
     <!-- F4: 留言板 -->
-    <section id="guestbook" class="folio-section tpl-reveal">
+    <section id="guestbook" class="folio-section tpl-reveal" v-if="artist.guestbookEnabled !== false">
       <div class="folio-inner">
         <h2 class="folio-title">{{ $t('guestbook.title') }}</h2>
-        <TplGuestbook :subdomain="subdomain" theme="inline" />
+        <TplGuestbook :subdomain="subdomain" theme="inline" :enabled="artist.guestbookEnabled !== false" />
       </div>
     </section>
 
@@ -167,7 +167,8 @@ const navItems = computed(() => {
   if (galleryArtworks.value.length) items.push({ id: 'gallery', label: t('artistHome.navWork') })
   if (props.styles.length || props.tiers.length || props.workflowStages.length) items.push({ id: 'pricing', label: t('artistHome.navPricing') })
   if (props.rules) items.push({ id: 'rules', label: t('artistHome.navRules') })
-  items.push({ id: 'guestbook', label: t('artistHome.navGuestbook') })
+  // 820-L：留言功能关闭时导航不出现留言锚点
+  if (props.artist?.guestbookEnabled !== false) items.push({ id: 'guestbook', label: t('artistHome.navGuestbook') })
   return items
 })
 

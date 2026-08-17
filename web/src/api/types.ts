@@ -57,6 +57,8 @@ export interface PublicArtistDTO {
   contact_qq: string | null
   totp_verified: number
   notify_enabled: number
+  /** 820-L（v68）: 留言功能画师手动开关——0=关闭（客户主页隐藏留言板块+暂停接收） */
+  guestbook_enabled: number
   template_id: string
   palette_id: string
   custom_page_path: string | null
@@ -143,6 +145,8 @@ export interface VisibleArtistProfile {
   paletteId: string
   customLinks: CustomLink[]
   notifyEnabled: boolean
+  /** 820-L（v68）: 留言功能开关——false 时客户端隐藏整个留言板块 */
+  guestbookEnabled: boolean
   contactQq: string | null
   revisionNote: string | null
   accentColor: string | null
@@ -1047,6 +1051,8 @@ export type ArtistTrackingResult =
 export interface TrackingConfig {
   statsMode: StatsMode
   artistStatsVisible: boolean
+  /** 820-L: 统计功能管理员总开关（默认 false=关闭，画师后台隐藏整个统计导航） */
+  statsEnabled: boolean
 }
 
 // ─── 画师工具（tools.service.ts） ───
@@ -1202,6 +1208,10 @@ export type ArtistProfileResult = PublicArtistDTO & {
   artworks: Artwork[]
   rules: CommissionRule | null
   slotDisplay: string | null
+  /** 820-L（v68）: 留言开关（对齐 notify_enabled 口径） */
+  guestbookEnabled: boolean
+  /** 820-L: 统计功能管理员开关（默认 false=关闭，画师后台隐藏整个统计导航） */
+  statsEnabled: boolean
 }
 
 // ─── 请求体类型（对照后端 JSON Schema） ───

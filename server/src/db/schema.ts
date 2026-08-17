@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS artists (
   weibo_url TEXT,
   bilibili_url TEXT,
   notify_enabled INTEGER DEFAULT 1,
+  -- 820-L（v68）: 留言功能画师手动开关——1=开启（默认）0=关闭（客户主页隐藏留言板块+暂停接收）
+  guestbook_enabled INTEGER NOT NULL DEFAULT 1,
   quick_actions TEXT DEFAULT NULL,
   template_id TEXT DEFAULT 'default',
   palette_id TEXT DEFAULT 'paper',

@@ -980,7 +980,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     editReply: 'Edit reply',
     rejectConfirm: 'Reject this message? It will no longer appear on your public page.',
     // F8: language filter
-    languageAll: 'All languages'
+    languageAll: 'All languages',
+    // 820-L: guestbook disabled empty state
+    disabled: 'The guestbook is disabled. Clients can leave messages again after you re-enable it.'
   },
   // v0.35 F6: client gallery filter + lightbox tags (shared component TplGallery)
   gallery: {
@@ -1035,6 +1037,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     disabledHint: 'Statistics are off. Enable them in the admin console.',
     empty: 'No event data',
     loadFailed: 'Failed to load statistics. Please retry.',
+    // 820-L: statistics feature disabled by admin (default)
+    featureDisabled: 'Statistics are not enabled. Ask the admin to turn them on.',
     events: {
       dashboard_view: 'Dashboard views', queue_view: 'Queue views', orders_view: 'Order list views',
       manual_view: 'Manual entry', artworks_view: 'Artwork management', settings_view: 'Settings',
@@ -1679,6 +1683,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     profileBioDesc: 'The first thing clients read about you',
     codeLabel: 'Artist code (order prefix)', codePlaceholder: 'e.g. ALICE, QY (2-10 uppercase letters/digits)',
     codeHint: 'Used as the order number prefix (e.g. ALICE-001). Changes apply to new orders only.',
+    // 820-L: artist-side guestbook switch (account settings, same style as notification switches)
+    guestbookLabel: 'Guestbook',
+    guestbookDesc: 'When off, the guestbook is hidden on your public page and clients cannot leave messages. Existing messages are kept and restored when re-enabled.',
     statusLabel: 'Page status', statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break', statusHidden: 'Hidden',
     // 812-B B2+B3: standalone shop-visibility switch (semantics = whether status is hidden)
     shopVisibleLabel: 'Shop visibility', shopVisibleOn: 'Visible', shopVisibleOff: 'Hidden',
@@ -2000,6 +2007,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // REQ-033: analytics dashboard
     tracking: {
       title: 'Analytics', total: 'Total events', visibleLabel: 'Artist stats visible',
+      enabledLabel: 'Artist statistics menu',
+      enabledHint: 'When off, the statistics entry is hidden in the artist back office. When on, the three-state switch below controls artist visibility.',
       daysLabel: 'Range', funnelTitle: 'Order funnel',
       byNameTitle: 'By event', byDayTitle: 'By day',
       visibleHint: 'When off, artist pages do not show visit stats',
