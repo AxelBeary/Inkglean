@@ -1,87 +1,175 @@
 <template>
-  <!-- v0.38: 纸墨 token（REQ-026）——H1 文楷 28/700，卡片 CardHead 朱砂 mark -->
-  <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
+  <!-- 819-G: 偏好设置重构——顶部导航三 tab（通用 / 显示与字号 / 快捷入口），
+       分组卡片 + 统一行结构「说明在左 / 控件在右」，结构与视觉对齐 proto-preferences-818 -->
+  <div class="pref-page" v-loading="loading">
+    <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
+    <p class="pref-sub">{{ $t('preferences.subtitle') }}</p>
 
-  <!-- 加载失败错误态 + 重试（对齐 Settings profileLoadFailed 模式） -->
-  <el-alert
-    v-if="loadFailed"
-    type="error" :closable="false" show-icon
-    style="margin-top: 16px"
-    :title="$t('settings.loadFailedTitle')"
-  >
-    <div>{{ $t('settings.loadFailedDesc') }}</div>
-    <el-button size="small" type="primary" style="margin-top: 8px" @click="loadPreferences">{{ $t('settings.retry') }}</el-button>
-  </el-alert>
+    <!-- 加载失败错误态 + 重试（对齐 Settings profileLoadFailed 模式） -->
+    <el-alert
+      v-if="loadFailed"
+      type="error" :closable="false" show-icon
+      style="margin-top: 16px"
+      :title="$t('settings.loadFailedTitle')"
+    >
+      <div>{{ $t('settings.loadFailedDesc') }}</div>
+      <el-button size="small" type="primary" style="margin-top: 8px" @click="loadPreferences">{{ $t('settings.retry') }}</el-button>
+    </el-alert>
 
-  <!-- 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px；localStorage 持久化，watch 即时生效） -->
-  <el-card class="pref-card">
-    <template #header><CardHead :title="$t('preferences.fontSize')" /></template>
-    <el-form label-position="top" size="large">
-      <el-form-item>
-        <div class="font-size-row">
-          <el-slider
-            v-model="fontSize"
-            :min="FONT_SIZE_MIN" :max="FONT_SIZE_MAX" :step="1" show-stops
-            class="font-size-slider"
-            :aria-label="$t('preferences.fontSize')"
-          />
-          <span class="font-size-value">{{ fontSize }}px</span>
+    <!-- 顶部导航条：选中态花青下划线 + 朱砂小印点 -->
+    <nav class="pref-nav" role="tablist">
+      <button
+        v-for="tab in TABS" :key="tab.key" type="button" role="tab"
+        class="pref-nav-item" :class="{ on: activeTab === tab.key }"
+        :aria-selected="activeTab === tab.key"
+        @click="activeTab = tab.key"
+      >
+        {{ $t(tab.labelKey) }}
+        <span v-if="activeTab === tab.key" class="pref-nav-mark" aria-hidden="true"></span>
+      </button>
+    </nav>
+
+    <!-- ── Tab 通用：通知 / 仪表盘（保留现有数据流） ── -->
+    <section v-show="activeTab === 'general'" class="pref-panel" role="tabpanel">
+      <div class="pref-group">
+        <div class="pref-group-head">{{ $t('preferences.groupNotify') }}</div>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.notifyLabel') }}</div>
+            <div class="pref-row-desc">{{ $t('preferences.notifyDesc') }}</div>
+          </div>
+          <div class="pref-row-control">
+            <el-switch v-model="form.notifyEnabled" />
+          </div>
         </div>
-        <div class="form-hint">{{ $t('preferences.fontSizeHint') }}</div>
-      </el-form-item>
-    </el-form>
-  </el-card>
+      </div>
 
-  <!-- 通知与面板偏好 -->
-  <el-card class="pref-card" v-loading="loading">
-    <template #header><CardHead :title="$t('settings.notifyPanelTitle')" /></template>
-    <el-form :model="form" label-position="top" size="large">
-      <el-form-item :label="$t('settings.notifyLabel')">
-        <el-switch
-          v-model="form.notifyEnabled"
-          :active-text="$t('settings.notifyText')"
-        />
-      </el-form-item>
-      <!-- R8: 默认面板 -->
-      <el-form-item :label="$t('settings.defaultPanelLabel')">
-        <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
-          <el-option value="queue" :label="$t('dashboard.panelQueue')" />
-          <el-option value="orders" :label="$t('dashboard.panelOrders')" />
-          <el-option value="manual" :label="$t('dashboard.panelManual')" />
-          <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
-        </el-select>
-        <div class="form-hint">{{ $t('settings.defaultPanelHint') }}</div>
-      </el-form-item>
-      <!-- 视觉批 P2：看板显示开关（模块级隐藏，null/默认=全部显示） -->
-      <el-form-item :label="$t('settings.dashModulesLabel')">
-        <div class="dash-modules-switches">
-          <el-switch v-model="form.dashModules.schedule" :active-text="$t('settings.dashModuleSchedule')" />
-          <el-switch v-model="form.dashModules.guestbook" :active-text="$t('settings.dashModuleGuestbook')" />
-          <el-switch v-model="form.dashModules.activity" :active-text="$t('settings.dashModuleActivity')" />
-          <el-switch v-model="form.dashModules.onboarding" :active-text="$t('settings.dashModuleOnboarding')" />
+      <div class="pref-group">
+        <div class="pref-group-head">{{ $t('preferences.groupDashboard') }}</div>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.defaultPanelLabel') }}</div>
+            <div class="pref-row-desc">{{ $t('preferences.defaultPanelDesc') }}</div>
+          </div>
+          <div class="pref-row-control">
+            <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
+              <el-option value="queue" :label="$t('dashboard.panelQueue')" />
+              <el-option value="orders" :label="$t('dashboard.panelOrders')" />
+              <el-option value="manual" :label="$t('dashboard.panelManual')" />
+              <el-option value="tiers" :label="$t('dashboard.panelTiers')" />
+            </el-select>
+          </div>
         </div>
-        <div class="form-hint">{{ $t('settings.dashModulesHint') }}</div>
-      </el-form-item>
-      <el-form-item>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.dashModulesLabel') }}</div>
+            <div class="pref-row-desc">{{ $t('settings.dashModulesHint') }}</div>
+          </div>
+          <div class="pref-row-control pref-switch-cluster">
+            <el-switch v-model="form.dashModules.schedule" :active-text="$t('settings.dashModuleSchedule')" />
+            <el-switch v-model="form.dashModules.guestbook" :active-text="$t('settings.dashModuleGuestbook')" />
+            <el-switch v-model="form.dashModules.activity" :active-text="$t('settings.dashModuleActivity')" />
+            <el-switch v-model="form.dashModules.onboarding" :active-text="$t('settings.dashModuleOnboarding')" />
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-save-bar">
         <el-button type="primary" @click="save" :loading="saving" :disabled="loadFailed">{{ $t('settings.save') }}</el-button>
-      </el-form-item>
-    </el-form>
-  </el-card>
+        <span class="form-hint">{{ $t('preferences.saveHint') }}</span>
+      </div>
+    </section>
 
-  <!-- #3: 快捷按钮配置（v0.25: DB 持久化，独立保存） -->
-  <el-card class="pref-card" v-loading="loading">
-    <template #header><CardHead :title="$t('settings.quickTitle')" /></template>
-    <el-form label-position="top" size="large">
-      <el-form-item :label="$t('settings.quickLabel')">
-        <el-checkbox-group v-model="quickSelected" :min="3" :max="9" class="quick-config">
+    <!-- ── Tab 显示与字号：字号（818-A 保留不动）/ 暗色模式 / 动画速度 + 减少动效 ── -->
+    <section v-show="activeTab === 'display'" class="pref-panel" role="tabpanel">
+      <div class="pref-group">
+        <div class="pref-group-head">{{ $t('preferences.groupFont') }}</div>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.fontSize') }}</div>
+            <div class="pref-row-desc">{{ $t('preferences.fontSizeHint') }}</div>
+          </div>
+          <div class="pref-row-control font-size-row">
+            <el-slider
+              v-model="fontSize"
+              :min="FONT_SIZE_MIN" :max="FONT_SIZE_MAX" :step="1" show-stops
+              class="font-size-slider"
+              :aria-label="$t('preferences.fontSize')"
+            />
+            <span class="font-size-value">{{ fontSize }}px</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-group">
+        <div class="pref-group-head">{{ $t('preferences.groupAppearance') }}</div>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.darkModeLabel') }}</div>
+            <div class="pref-row-desc">{{ $t('preferences.darkModeDesc') }}</div>
+          </div>
+          <div class="pref-row-control">
+            <!-- 与 ThemeToggle 同一口径：theme store 宣纸/墨黑切换 -->
+            <el-switch :model-value="themeStore.isArtistInk" @change="toggleDarkMode" />
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-group">
+        <div class="pref-group-head">{{ $t('preferences.groupAnimation') }}</div>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.animSpeedLabel') }}</div>
+            <div class="pref-row-desc">{{ $t('preferences.animSpeedDesc') }}</div>
+          </div>
+          <div class="pref-row-control anim-speed-row">
+            <el-slider
+              v-model="animSpeed"
+              :min="ANIM_SPEED_MIN" :max="ANIM_SPEED_MAX" :step="ANIM_SPEED_STEP" show-stops
+              class="font-size-slider"
+              :aria-label="$t('preferences.animSpeedLabel')"
+            />
+            <span class="anim-speed-value">{{ formatSpeed(animSpeed) }}</span>
+          </div>
+        </div>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.reduceMotionLabel') }}</div>
+            <div class="pref-row-desc">{{ $t('preferences.reduceMotionDesc') }}</div>
+          </div>
+          <div class="pref-row-control">
+            <el-switch v-model="reduceMotion" />
+          </div>
+        </div>
+        <div class="pref-row">
+          <div class="pref-row-text">
+            <div class="pref-row-label">{{ $t('preferences.animPreviewLabel') }}</div>
+            <div class="pref-row-desc">{{ $t('preferences.animPreviewDesc') }}</div>
+          </div>
+          <div class="pref-row-control anim-preview-control">
+            <button type="button" class="anim-demo-btn" @click="runAnimDemo">{{ $t('preferences.animPreviewBtn') }}</button>
+            <span class="anim-demo-track" aria-hidden="true"><span class="anim-demo-bar" :class="{ on: animDemoOn }"></span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-save-bar">
+        <span class="form-hint">{{ $t('preferences.displayHint') }}</span>
+      </div>
+    </section>
+
+    <!-- ── Tab 快捷入口：数量不限，0 个=隐藏仪表盘快捷区 ── -->
+    <section v-show="activeTab === 'quick'" class="pref-panel" role="tabpanel">
+      <div class="pref-group">
+        <div class="pref-group-head">{{ $t('preferences.groupQuick') }}</div>
+        <el-checkbox-group v-model="quickSelected" class="quick-config">
           <el-checkbox
-            v-for="opt in quickPoolOptions"
-            :key="opt.key"
-            :value="opt.key"
+            v-for="opt in quickPoolOptions" :key="opt.key" :value="opt.key"
             class="quick-config-item"
           >
             <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
-            {{ $t(opt.labelKey) }}<template v-if="opt.type === 'action'"> <span class="quick-action-badge">{{ $t('settings.quickActionBadge') }}</span></template>
+            <span class="quick-config-name">{{ $t(opt.labelKey) }}</span>
+            <template v-if="opt.type === 'action'"><span class="quick-action-badge">{{ $t('settings.quickActionBadge') }}</span></template>
           </el-checkbox>
         </el-checkbox-group>
         <div class="quick-config-footer">
@@ -90,9 +178,9 @@
             {{ $t('settings.quickSave') }}
           </el-button>
         </div>
-      </el-form-item>
-    </el-form>
-  </el-card>
+      </div>
+    </section>
+  </div>
 </template>
 
 <script setup>
@@ -100,18 +188,32 @@ import { ref, reactive, watch, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-// v0.38: 统一卡片头部（REQ-026 §二）
-import CardHead from '../../components/artist/visual/CardHead.vue'
+import { useThemeStore } from '../../stores/theme.js'
+// 819-G: 快捷按钮候选池（与 Dashboard QuickActions 共用）
 import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickActionsConfig, parseQuickActions } from '../../components/artist/dashboard/QuickActions.vue'
 import { safeSetItem } from '../../utils/storage.js'
 // 818-A: 字号滑块共享 util（Preferences 与 ArtistLayout 同一映射/读写口径）
 import { FONT_SIZE_MIN, FONT_SIZE_MAX, readFontSize, applyFontSize, writeFontSize } from '../../utils/fontSize.js'
+// 819-G: 动画速度 + 减少动效共享 util（Preferences 与 ArtistLayout 同一映射/应用口径）
+import { ANIM_SPEED_MIN, ANIM_SPEED_MAX, ANIM_SPEED_STEP, readAnimSpeed, applyAnimSpeed, writeAnimSpeed, readReduceMotion, applyReduceMotion, writeReduceMotion } from '../../utils/animSpeed.js'
 
 const { t } = useI18n()
+const themeStore = useThemeStore()
 const loading = ref(true)
 const saving = ref(false)
+const quickSaving = ref(false)
 /** 偏好加载失败（防止默认值覆盖真实设置，对齐 Settings profileLoadFailed） */
 const loadFailed = ref(false)
+/** 顶部导航当前 tab（v-show 切换，表单状态不丢） */
+const activeTab = ref('general')
+/** 「点我看速度」演示条（一次性切换，无循环无位移） */
+const animDemoOn = ref(false)
+
+const TABS = [
+  { key: 'general', labelKey: 'preferences.tabGeneral' },
+  { key: 'display', labelKey: 'preferences.tabDisplay' },
+  { key: 'quick', labelKey: 'preferences.tabQuick' }
+]
 
 const form = reactive({
   notifyEnabled: true,
@@ -128,17 +230,40 @@ watch(fontSize, (val) => {
   writeFontSize(size)
 })
 
+// ─── 819-G: 动画速度（0.5×~2× 七档，默认 1×，localStorage 持久化，拖动即时生效） ───
+const animSpeed = ref(readAnimSpeed())
+watch(animSpeed, (val) => {
+  const speed = applyAnimSpeed(val)
+  writeAnimSpeed(speed)
+})
+
+// ─── 819-G: 减少动效开关（localStorage 持久化，即时生效；减少动效优先于动画速度） ───
+const reduceMotion = ref(readReduceMotion())
+watch(reduceMotion, (on) => {
+  applyReduceMotion(on)
+  writeReduceMotion(on)
+})
+
+function formatSpeed(v) {
+  return `${v}×`
+}
+
+/** 暗色模式：与 ThemeToggle 同一口径（theme store 宣纸/墨黑切换 + toast） */
+function toggleDarkMode() {
+  themeStore.toggleArtistTheme()
+  ElMessage.success(themeStore.isArtistInk ? t('pref.artistToastInk') : t('pref.artistToastPaper'))
+}
+
+function runAnimDemo() {
+  animDemoOn.value = !animDemoOn.value
+}
+
 // ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存） ───
 // #45: 过滤掉 dashboard（在仪表盘上加去仪表盘的按钮无意义）
 const quickPoolOptions = QUICK_ACTION_POOL.filter(a => a.key !== 'dashboard')
 const quickSelected = ref(readQuickActionsConfig())
-const quickSaving = ref(false)
 
 async function saveQuickActions() {
-  if (quickSelected.value.length < 3 || quickSelected.value.length > 9) {
-    ElMessage.warning(t('settings.quickLimitError'))
-    return
-  }
   quickSaving.value = true
   try {
     await artistApi.updateProfile({ quickActions: quickSelected.value })
@@ -208,32 +333,126 @@ onMounted(loadPreferences)
 </script>
 
 <style scoped>
-/* ═══ v0.38: 纸墨 token（REQ-026） ═══ */
+/* ═══ 819-G: 顶部导航 + 分组卡片 + 统一行结构（4px 栅格，圆角走 token） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .pref-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.pref-card { max-width: 600px; margin-top: 16px; }
+.pref-sub { margin-top: 4px; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
+
+/* 顶部导航条：对齐原型（花青下划线 + 朱砂小印点） */
+.pref-nav { display: flex; gap: 4px; margin-top: 20px; border-bottom: 1px solid var(--line2); }
+.pref-nav-item {
+  position: relative; padding: 12px 20px;
+  font: inherit; font-size: calc(var(--font-scale, 1) * 15px);
+  color: var(--ink3); background: none; border: none; cursor: pointer;
+  transition: color var(--dur-fast);
+}
+.pref-nav-item:hover { color: var(--ink); }
+.pref-nav-item.on { color: var(--ink); font-weight: 600; }
+.pref-nav-item.on::after {
+  content: ""; position: absolute; left: 16px; right: 16px; bottom: -1px; height: 3px;
+  background: var(--hq); border-radius: var(--r-paper);
+}
+.pref-nav-mark {
+  display: inline-block; width: 6px; height: 6px; margin-left: 4px;
+  background: var(--zs); border-radius: var(--r-paper); vertical-align: 2px;
+}
+
+/* 内容区：分组卡片 + 组头朱砂小印点 + 统一行 */
+.pref-panel { margin-top: 24px; }
+.pref-group {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-l); box-shadow: var(--sh-1);
+  padding: 8px 24px; margin-bottom: 16px;
+}
+.pref-group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 12px;
+  font-family: var(--f-d); font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700; color: var(--ink);
+}
+.pref-group-head::before { content: ""; width: 8px; height: 8px; background: var(--zs); border-radius: var(--r-paper); }
+.pref-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.pref-row-text { min-width: 0; }
+.pref-row-label { font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink); }
+.pref-row-desc { margin-top: 2px; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink3); max-width: 520px; }
+.pref-row-control { display: flex; align-items: center; }
+.pref-switch-cluster { flex-wrap: wrap; gap: 12px 16px; justify-content: flex-end; }
+
 .form-hint { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); margin-top: 4px; }
-/* 818-A: 字号滑块（左侧滑杆 + 右侧当前值） */
-.font-size-row { display: flex; align-items: center; gap: 16px; width: 100%; }
-.font-size-slider { flex: 1; max-width: 340px; }
+.pref-save-bar { margin-top: 20px; display: flex; gap: 12px; align-items: center; }
+.pref-save-bar .form-hint { margin-top: 0; }
+
+/* 818-A: 字号滑块（左侧滑杆 + 右侧当前值，保留不动） */
+.font-size-row { gap: 16px; }
+.font-size-slider { width: 260px; }
 .font-size-value {
   flex: none; min-width: 46px;
   font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600;
   color: var(--ink); font-variant-numeric: tabular-nums;
 }
-/* #3: 快捷按钮配置区 */
-.quick-config { display: flex; flex-direction: column; gap: 8px; }
-.quick-config-item { margin-right: 0; height: auto; }
-.quick-config-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 8px; flex-basis: 100%; }
-.quick-config-footer .form-hint { margin-top: 0; }
-/* v0.34 任务3：icon 改 SVG 后与文字对齐 */
+
+/* 819-G: 动画速度滑块（0.5×~2×，step 0.25） */
+.anim-speed-row { gap: 16px; }
+.anim-speed-value {
+  flex: none; min-width: 56px; text-align: right;
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600;
+  color: var(--hq); font-variant-numeric: tabular-nums;
+}
+
+/* 819-G: 速度预览（点按钮触发一次淡入/淡出，无循环无位移） */
+.anim-preview-control { gap: 12px; }
+.anim-demo-btn {
+  font: inherit; font-size: calc(var(--font-scale, 1) * 13px);
+  color: var(--hq); background: var(--hq-t);
+  border: 1px solid var(--hq); border-radius: var(--r-m);
+  padding: 8px 12px; cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.anim-demo-btn:hover { background: var(--hq); color: var(--paper); }
+.anim-demo-track { width: 120px; height: 8px; border-radius: var(--r-pill); background: var(--line2); overflow: hidden; }
+.anim-demo-bar {
+  display: block; width: 100%; height: 100%; border-radius: var(--r-pill);
+  background: var(--hq); opacity: 0;
+  transition: opacity var(--dur-mid) var(--ease-out);
+}
+.anim-demo-bar.on { opacity: 1; }
+
+/* #3: 快捷按钮勾选区（卡片化网格，数量不限，自动换行） */
+.quick-config {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.quick-config :deep(.el-checkbox) {
+  display: flex; align-items: center; margin-right: 0; height: auto;
+  padding: 12px; border: 1px solid var(--line); border-radius: var(--r-m);
+  background: var(--paper2); cursor: pointer;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.quick-config :deep(.el-checkbox.is-checked) { border-color: var(--hq); background: var(--hq-t); }
+.quick-config :deep(.el-checkbox__label) {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); white-space: normal;
+}
+.quick-config-item { margin-right: 0; }
 .quick-config-icon { font-size: calc(var(--font-scale, 1) * 15px); vertical-align: -2px; color: var(--hq); }
-/* F3: 动作型候选标记 */
+.quick-config-name { line-height: 1.4; }
+/* 动作型候选标记（F3） */
 .quick-action-badge {
-  display: inline-block; margin-left: 4px; padding: 0 5px;
+  display: inline-block; margin-left: 4px; padding: 0 4px;
   font-size: calc(var(--font-scale, 1) * 10px); line-height: 16px;
-  border-radius: 4px;
+  border-radius: var(--r-s);
   color: var(--hq-d, #b45309);
   background: var(--hq-t, rgba(180, 83, 9, 0.12));
+}
+.quick-config-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 0 0 12px; }
+.quick-config-footer .form-hint { margin-top: 0; }
+
+/* 窄屏：快捷网格两列，行结构上下堆叠（控件回左） */
+@media (max-width: 600px) {
+  .quick-config { grid-template-columns: repeat(2, 1fr); }
+  .pref-row { grid-template-columns: 1fr; }
+  .pref-row-control { justify-content: flex-start; }
 }
 </style>

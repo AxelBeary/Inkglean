@@ -26,6 +26,41 @@
   --ease-out: cubic-bezier(.22, 1, .36, 1);
 }
 
+/* ═══ 819-G: 后台动画速度（0.5×~2× 七档，step 0.25，默认 1×）+ 减少动效开关 ═══
+   档位由 Preferences 页 el-slider 写入 localStorage `huiyue_admin_anim_speed`
+   （'0.5'~'2'，共享 util 归一化，旧值/无值→1），ArtistLayout 挂载时设置
+   document.documentElement.dataset.animSpeed='N'。
+   每档覆写 --dur-fast/mid/slow = 基准 0.15s/0.25s/0.35s ÷ 速度系数（速度快时长缩短）。
+   选择器统一锁 html[data-artist-theme]——客户端路由与登录页无该属性，零影响
+   （问候逐字洇墨走 GreetingNote JS 逐字时序、登录天光漂移走 Login.vue 硬编码 240s，
+   均不依赖 --dur-*）。 */
+html[data-artist-theme][data-anim-speed='0.5'] { --dur-fast: 0.30s; --dur-mid: 0.50s; --dur-slow: 0.70s; }
+html[data-artist-theme][data-anim-speed='0.75'] { --dur-fast: 0.20s; --dur-mid: 0.3333s; --dur-slow: 0.4667s; }
+html[data-artist-theme][data-anim-speed='1'] { --dur-fast: 0.15s; --dur-mid: 0.25s; --dur-slow: 0.35s; }
+html[data-artist-theme][data-anim-speed='1.25'] { --dur-fast: 0.12s; --dur-mid: 0.20s; --dur-slow: 0.28s; }
+html[data-artist-theme][data-anim-speed='1.5'] { --dur-fast: 0.10s; --dur-mid: 0.1667s; --dur-slow: 0.2333s; }
+html[data-artist-theme][data-anim-speed='1.75'] { --dur-fast: 0.0857s; --dur-mid: 0.1429s; --dur-slow: 0.20s; }
+html[data-artist-theme][data-anim-speed='2'] { --dur-fast: 0.075s; --dur-mid: 0.125s; --dur-slow: 0.175s; }
+
+/* 减少动效：Preferences 开关写入 html[data-reduce-motion]（localStorage 持久化）时，
+   --dur-* 全压到 0.01s，且关键过渡/动画时长压到 0.01ms（既有
+   @media (prefers-reduced-motion) 规则保持不动）。
+   与动画速度互不干扰——本块声明在速度档位之后，同特异性下后声明胜出：减少动效优先。 */
+html[data-artist-theme][data-reduce-motion] {
+  --dur-fast: 0.01s;
+  --dur-mid: 0.01s;
+  --dur-slow: 0.01s;
+}
+html[data-artist-theme][data-reduce-motion] *,
+html[data-artist-theme][data-reduce-motion] *::before,
+html[data-artist-theme][data-reduce-motion] *::after {
+  transition-duration: 0.01ms !important;
+  transition-delay: 0s !important;
+  animation-duration: 0.01ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+}
+
 /* ===== 宣纸主题（默认） ===== */
 html[data-artist-theme="paper"] {
   color-scheme: light;

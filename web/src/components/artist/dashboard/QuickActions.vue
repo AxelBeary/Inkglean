@@ -1,8 +1,8 @@
 <script>
-// #3: 快捷按钮候选池常量（命名导出，供 Settings.vue 配置区共用）
+// #3: 快捷按钮候选池常量（命名导出，供 Preferences.vue 配置区共用）
 // v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
 import { markRaw } from 'vue'
-import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled } from '@element-plus/icons-vue'
+import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled, Wallet, Document, RefreshLeft, ChatLineRound, Notebook, Brush, Calculator } from '@element-plus/icons-vue'
 import { safeGetItem } from '../../../utils/storage.js'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
@@ -18,6 +18,14 @@ export const QUICK_ACTION_POOL = [
   { key: 'artworks', type: 'route', icon: markRaw(Picture), labelKey: 'menu.artworks', route: '/artworks' },
   { key: 'settings', type: 'route', icon: markRaw(Setting), labelKey: 'menu.settings', route: '/settings' },
   { key: 'preview', type: 'link', icon: markRaw(View), labelKey: 'menu.preview', route: null },
+  // ── 819-G: 后台已有但未入池的真实页面（逐一核实 router/index.js 路由存在才加） ──
+  { key: 'income', type: 'route', icon: markRaw(Wallet), labelKey: 'menu.standaloneIncome', route: '/tools/income' },
+  { key: 'quote', type: 'route', icon: markRaw(Document), labelKey: 'menu.quote', route: '/tools/quote' },
+  { key: 'revision-count', type: 'route', icon: markRaw(RefreshLeft), labelKey: 'menu.revisionCount', route: '/tools/revision-count' },
+  { key: 'reply', type: 'route', icon: markRaw(ChatLineRound), labelKey: 'menu.socialReply', route: '/tools/reply' },
+  { key: 'note', type: 'route', icon: markRaw(Notebook), labelKey: 'menu.quickNote', route: '/tools/note' },
+  { key: 'watermark', type: 'route', icon: markRaw(Brush), labelKey: 'menu.watermark', route: '/tools/watermark' },
+  { key: 'price-calc', type: 'route', icon: markRaw(Calculator), labelKey: 'menu.priceCalc', route: '/tools/price-calc' },
   // ── F3 新增动作（2026-08-07 用户拍板）──
   { key: 'rules', type: 'route', icon: markRaw(EditPen), labelKey: 'quickAction.rules', route: '/settings?tab=rules' },
   { key: 'share', type: 'action', icon: markRaw(Share), labelKey: 'quickAction.share', route: null, action: 'share' },
@@ -28,11 +36,13 @@ export const QUICK_ACTION_POOL = [
 /** 默认（2026-08-07 用户拍板）：动作型为主，移除导航镜像冗余项；817 拍板：移除「状态切换」 */
 export const QUICK_ACTIONS_DEFAULT = ['manual', 'preview', 'rules', 'share', 'quickconfig']
 
-/** 解析 quickActions 值（DB 返回 JSON 字符串或数组，统一为合法 key 数组） */
+/** 解析 quickActions 值（DB 返回 JSON 字符串或数组，统一为合法 key 数组；
+    819-G: 空数组 [] 是合法配置=全部隐藏，返回 [] 而非 null） */
 export function parseQuickActions(raw) {
   try {
     const keys = typeof raw === 'string' ? JSON.parse(raw) : raw
-    if (!Array.isArray(keys) || keys.length === 0) return null
+    if (!Array.isArray(keys)) return null
+    if (keys.length === 0) return []
     const valid = QUICK_ACTION_POOL.filter(a => keys.includes(a.key)).map(a => a.key)
     return valid.length ? valid : null
   } catch { return null }
@@ -46,7 +56,8 @@ export function readQuickActionsConfig() {
 </script>
 
 <template>
-  <div class="quick-actions-wrap">
+  <!-- 819-G: 0 个快捷按钮 = 隐藏整个快捷区（含标题），空态不渲染不崩 -->
+  <div v-if="activeActions.length" class="quick-actions-wrap">
     <!-- 百眼柜 → 命名说人话：分组标题「设置」（提案 §6.3） -->
     <h3 class="quick-title">{{ $t('quickAction.title') }}</h3>
     <!-- 快捷入口网格（2026-08-07 用户反馈批：常驻虚线块并入「快速发作品」卡片；

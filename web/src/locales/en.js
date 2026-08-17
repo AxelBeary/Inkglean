@@ -1581,9 +1581,37 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   // #44: Preferences standalone page (split from Page Settings)
   preferences: {
     title: 'Preferences',
+    // 819-G: top-nav three tabs + grouped card row copy
+    subtitle: 'Font size, notifications, and quick buttons — all in one place.',
+    tabGeneral: 'General',
+    tabDisplay: 'Display & Font',
+    tabQuick: 'Quick Access',
+    groupNotify: 'Notifications',
+    groupDashboard: 'Dashboard',
+    groupFont: 'Font size',
+    groupAppearance: 'Appearance',
+    groupAnimation: 'Motion',
+    groupQuick: 'Dashboard quick buttons',
+    notifyLabel: 'New message notifications',
+    notifyDesc: 'Alerts you about new orders, messages, and stage updates.',
+    defaultPanelLabel: 'Open by default',
+    defaultPanelDesc: 'Choose the panel shown by default when you enter the back office.',
+    dashModulesLabel: 'Dashboard modules',
+    saveHint: 'Changes apply immediately after saving.',
     // 818-A: back-office font size slider (14–20px, 7 stops, default 15px)
     fontSize: 'Back-office font size',
-    fontSizeHint: 'Drag to adjust — applies immediately and saves automatically. Range 14–20px, default 15px'
+    fontSizeHint: 'Drag to adjust — applies immediately and saves automatically. Range 14–20px, default 15px',
+    // 819-G: dark mode / animation speed / reduce motion
+    darkModeLabel: 'Dark mode',
+    darkModeDesc: 'Switches the back office between paper and ink themes.',
+    animSpeedLabel: 'Animation speed',
+    animSpeedDesc: 'Adjusts how fast interface transitions play; applies immediately.',
+    reduceMotionLabel: 'Reduce motion',
+    reduceMotionDesc: 'Shortens interface transitions to almost zero.',
+    animPreviewLabel: 'Speed preview',
+    animPreviewDesc: 'Click the button to watch a single transition.',
+    animPreviewBtn: 'Click to preview',
+    displayHint: 'Font size, animation speed, and reduce motion apply immediately — no save needed.'
   },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
@@ -1593,9 +1621,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     loadFailedHint: 'Settings have not loaded yet. Please retry before saving.',
     rulesLoadFailed: 'Failed to load rules. Saving is disabled to avoid overwriting existing rules.', retry: 'Retry',
     // #3: quick actions config
-    quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons (3-9)',
-    quickHint: 'Check the buttons you want, then save. The dashboard quick area will follow.',
-    quickSave: 'Save quick actions', quickSaved: 'Quick actions saved', quickLimitError: 'Please select 3-9 quick actions',
+    quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons',
+    quickHint: 'Check the buttons you want, then save. No limit — clear all to hide the quick area on the dashboard.',
+    quickSave: 'Save quick actions', quickSaved: 'Quick actions saved',
     quickActionBadge: '⚡Action',
     quickLocalFallback: 'Saved locally (server unavailable, will sync on next visit)',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',

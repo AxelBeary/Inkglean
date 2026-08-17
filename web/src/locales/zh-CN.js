@@ -1580,9 +1580,37 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   // #44: 偏好设置独立页面（从主页设置拆出）
   preferences: {
     title: '偏好设置',
+    // 819-G: 顶部导航三 tab + 分组卡片行结构文案
+    subtitle: '字号、通知、快捷按钮，都在这里设置。',
+    tabGeneral: '通用',
+    tabDisplay: '显示与字号',
+    tabQuick: '快捷入口',
+    groupNotify: '通知',
+    groupDashboard: '仪表盘',
+    groupFont: '字号',
+    groupAppearance: '外观',
+    groupAnimation: '动画',
+    groupQuick: '仪表盘快捷按钮',
+    notifyLabel: '新消息通知',
+    notifyDesc: '有新订单、留言或节点推进时提醒你。',
+    defaultPanelLabel: '进入后台时先打开',
+    defaultPanelDesc: '选择进入后台时默认打开的面板。',
+    dashModulesLabel: '看板显示的模块',
+    saveHint: '改动保存后立即生效。',
     // 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px）
     fontSize: '后台字号',
-    fontSizeHint: '拖拽调节，即时生效并自动保存。范围 14~20px，默认 15px'
+    fontSizeHint: '拖拽调节，即时生效并自动保存。范围 14~20px，默认 15px',
+    // 819-G: 暗色模式 / 动画速度 / 减少动效
+    darkModeLabel: '暗色模式',
+    darkModeDesc: '后台配色在宣纸与墨黑之间切换。',
+    animSpeedLabel: '动画速度',
+    animSpeedDesc: '调整界面过渡动画的快慢，拖动即时生效。',
+    reduceMotionLabel: '减少动效',
+    reduceMotionDesc: '将界面过渡动画压到最短。',
+    animPreviewLabel: '速度预览',
+    animPreviewDesc: '点击按钮观察一次过渡的时长。',
+    animPreviewBtn: '点我看速度',
+    displayHint: '字号、动画速度与减少动效即时生效，无需保存。'
   },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
@@ -1591,9 +1619,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     loadFailedTitle: '设置加载失败', loadFailedDesc: '表单当前是默认值，保存会覆盖你的真实设置。请重试加载成功后再编辑保存。',
     loadFailedHint: '设置尚未加载成功，无法保存，请先重试',
     rulesLoadFailed: '须知内容加载失败，保存已禁用以防止覆盖现有须知', retry: '重试加载',
-    quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮（3-9 个）',
-    quickHint: '勾选后点保存生效，仪表盘快捷区将按此显示。',
-    quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存', quickLimitError: '请选择 3-9 个快捷按钮',
+    quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮',
+    quickHint: '勾选后点保存生效；数量不限，可全部取消（全部取消后仪表盘快捷区隐藏）。',
+    quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存',
     quickActionBadge: '⚡动作',
     quickLocalFallback: '已保存到本地（服务端暂不可用，下次打开自动同步）',
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',

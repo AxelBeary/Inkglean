@@ -254,6 +254,8 @@ import { trackEvent } from '../utils/track.js'
 import { safeGetItem, safeSetItem } from '../utils/storage.js'
 // 818-A: 字号滑块共享 util（与 Preferences 同一映射/应用口径）
 import { applyFontSize, readFontSize } from '../utils/fontSize.js'
+// 819-G: 动画速度 + 减少动效共享 util（与 Preferences 同一映射/应用口径）
+import { applyAnimSpeed, readAnimSpeed, applyReduceMotion, readReduceMotion } from '../utils/animSpeed.js'
 import { artistApi } from '../api/index.js'
 // REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
 import { useSessionGuard } from '../composables/useSessionGuard'
@@ -438,6 +440,8 @@ onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
   mqMobile.addEventListener('change', onMobileChange)
   applyFontSizeFromStorage()
+  applyAnimSpeedFromStorage()
+  applyReduceMotionFromStorage()
   validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
   loadAnnouncement() // REQ-043 I4: 公告入口数据（登录态接口，失败静默）
   // I0: 待确认订单角标轮询（5 分钟；页面隐藏暂停，可见立即刷新——visibilitychange）
@@ -528,6 +532,16 @@ const avatarUrl = computed(() => store.profile?.avatar ? `/uploads/${store.profi
 // 默认 15 也显式设 dataset.fontSize='15'（15≠14 基线，不设会回退旧默认）
 function applyFontSizeFromStorage() {
   applyFontSize(readFontSize())
+}
+
+// ─── 819-G: 后台动画速度 + 减少动效（Preferences 页写入 localStorage，挂载时应用；
+//     刷新/重进后台保持；dataset 选择器锁 html[data-artist-theme]，客户端零影响） ───
+function applyAnimSpeedFromStorage() {
+  applyAnimSpeed(readAnimSpeed())
+}
+
+function applyReduceMotionFromStorage() {
+  applyReduceMotion(readReduceMotion())
 }
 
 const statusClass = computed(() => {
