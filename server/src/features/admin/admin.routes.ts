@@ -18,6 +18,7 @@ import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import type { ArtistOrderRow } from '../../types/entities.js'
 import { savePlatformAnnouncement } from '../announcement/announcement.service.js'
+import * as versionService from './version.service.js'
 
 // ============================================
 // 管理员路由 - 多画师管理
@@ -41,6 +42,23 @@ export default async function adminRoutes(fastify: FastifyInstance) {
    * 未升级/超时由 requireAdminStepUp 返回 401 STEP_UP_REQUIRED（前端据此弹 StepUpDialog）
    */
   fastify.get('/api/admin/stepup-status', { preHandler: requireAdmin }, async () => ({ verified: true }))
+
+  /**
+   * GET /api/admin/system/version
+   * 0818 拍板方案 A：更新检查只读面板——当前版本 vs GitHub 最新 commit；
+   * upToDate=null 表示无法对比（本地 commit 未知或 GitHub 拉取失败），前端据此显示「无法对比」
+   */
+  fastify.get('/api/admin/system/version', { preHandler: requireAdmin }, async (request: FastifyRequest) => {
+    const force = (request.query as { force?: string }).force === '1'
+    const current = versionService.getCurrentVersion()
+    const latest = await versionService.getLatestCommit(force)
+    return {
+      current,
+      latest,
+      upToDate: latest.ok && current.commit !== 'unknown' && latest.sha ? latest.sha === current.commit : null,
+      repoUrl: versionService.REPO_URL
+    }
+  })
 
   /**
    * GET /api/admin/artists

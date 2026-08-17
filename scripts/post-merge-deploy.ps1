@@ -150,6 +150,17 @@ if ($LASTEXITCODE -ne 0 -or $verifyText -notmatch 'VERIFY_OK') {
 }
 Log "STEP1 OK: $($backup.Name) VERIFY_OK"
 
+# ─── STEP1.5 写部署版本标记（0818 方案 A：管理端「系统更新」面板据此显示当前运行的 commit） ───
+# data/ 为 bind mount，容器内 /app/data/version.json 可读；缺失/损坏时面板降级显示 unknown，不阻塞部署
+try {
+  $verObj = @{ commit = $sha; deployedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
+  $verJson = $verObj | ConvertTo-Json -Compress
+  Set-Content -Path (Join-Path $ROOT 'data\version.json') -Value $verJson -Encoding ascii
+  Log "STEP1.5 OK: data/version.json 已写入（commit=$shortSha）"
+} catch {
+  Log "WARN: 版本标记写入失败（$($_.Exception.Message)），继续（面板显示 unknown）"
+}
+
 # ─── STEP2 打 prev tag（回滚用）→ 重建容器 ───
 Log 'STEP2 打 prev tag + docker compose build ...'
 $imageId = docker inspect --format '{{.Image}}' commission-web 2>$null

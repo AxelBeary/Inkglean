@@ -1965,6 +1965,17 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       statusOk: 'OK', statusWarn: 'Warning', statusFail: 'Failed',
       emptyHint: 'Click “Run checks” to execute the 8 system checks'
     },
+    // 0818 Plan A: system update check (read-only panel)
+    update: {
+      title: 'System update', recheck: 'Recheck',
+      current: 'Current version', currentHint: 'The version running on this server (version · commit · deploy time)',
+      latest: 'Latest on GitHub', latestHint: 'The latest commit on the master branch',
+      status: 'Update status', statusHint: 'Compares the current version with the latest GitHub commit',
+      statusUpToDate: 'Up to date', statusBehind: 'New commits available', statusUnknown: 'Cannot compare (local version unknown)',
+      statusFetchFailed: 'Cannot reach GitHub', loadFailed: 'Failed to load version info', commitUnknown: 'unknown',
+      cmd: 'Update command', cmdHint: 'Log in to the server and run this command in the project directory to update (pull code and rebuild)',
+      copy: 'Copy command', copied: 'Command copied', copyFailed: 'Copy failed. Please select and copy manually.'
+    },
     // REQ-022 F2: social platform management
     platformManage: 'Platform management',
     // 815 batch 3 Route I: system addon templates (artist_id IS NULL)

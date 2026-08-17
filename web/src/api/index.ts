@@ -119,6 +119,7 @@ import type {
   SetArtworkTagsResult,
   SetFocusImageRequest,
   SimpleSuccessResult,
+  SystemVersionResult,
   SizeAddonOverride,
   SizeOverrideSetItem,
   StandaloneIncomesResult,
@@ -678,6 +679,9 @@ export const adminApi = {
   // 0817：已移除画师清单 + 恢复（软删兜底闭环，用户拍板）
   getDeletedArtists: (): Promise<DeletedArtistItem[]> => getJson('/admin/artists/deleted'),
   restoreArtist: (id: number): Promise<RestoreArtistResult> => postJson(`/admin/artists/${id}/restore`),
+  // 0818 方案 A：系统更新检查（只读；force=1 绕过服务端 15 分钟缓存）
+  getSystemVersion: (force = false): Promise<SystemVersionResult> =>
+    getJson('/admin/system/version', { params: force ? { force: 1 } : {} }),
   // REQ-027: TOTP 绑定/重置
   totpBindInit: (id: number): Promise<TotpBindInitResult> => postJson(`/admin/artists/${id}/totp/bind-init`),
   totpBindConfirm: (id: number, code: string): Promise<TotpActionResult> =>

@@ -1962,6 +1962,17 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       statusOk: '正常', statusWarn: '警告', statusFail: '异常',
       emptyHint: '点击「开始检查」运行 8 项系统检查'
     },
+    // 0818 拍板方案 A：系统更新检查（只读面板）
+    update: {
+      title: '系统更新', recheck: '重新检查',
+      current: '当前版本', currentHint: '这台服务器正在运行的版本（版本号 · 提交 · 部署时间）',
+      latest: 'GitHub 最新版', latestHint: '代码仓库 master 分支的最新提交',
+      status: '更新状态', statusHint: '对比当前版本与 GitHub 最新提交',
+      statusUpToDate: '已是最新', statusBehind: '有新提交，可以更新', statusUnknown: '无法对比（本机版本未知）',
+      statusFetchFailed: '连接不上 GitHub', loadFailed: '版本信息加载失败', commitUnknown: '未知',
+      cmd: '更新命令', cmdHint: '登录服务器，在项目目录里运行这条命令即可更新（拉代码并重建容器）',
+      copy: '复制命令', copied: '命令已复制', copyFailed: '复制失败，请手动选中复制'
+    },
     // REQ-022 F2: 社交平台管理
     platformManage: '社交平台管理',
     // 815 第三批 I 路: 系统增项模板（artist_id IS NULL）

@@ -56,7 +56,10 @@
 | 幂等键 | idempotency-key | 下单/收款提交的防重放 header（同 key 重放返回首次结果） |
 | 管理后台 | admin panel | 画师/管理员使用的运营管理界面 |
 | 快捷按钮 | quick_actions | 画师自定义的常用操作入口（DB 字段 + localStorage 回退缓存） |
-| 留言 | message / guestbook | 客户在画师主页的公开留言，画师后台分页管理（服务端分页，画师端拉全量本地筛选） |
+| 留言 | message / guestbook | 客户在画师主页的公开留言，画师后台分页管理（服务端分页）；画师可手动开关留言功能（guestbook_enabled，v68） |
+| 功能开关 | feature toggles | 管理员级开关两层：留言开关（画师级，默认开）与统计开关（stats_enabled 平台级，默认关，未开时画师后台隐藏统计导航） |
+| 封禁 / 移除 | ban / delete | 封禁=冻结（is_banned，登录拒绝+公开页隐身，随时可解封）；移除=软删（deleted_at，从在册列表消失，可在「已移除画师」清单恢复） |
+| 更新检查 | system update | 管理端系统自检页只读面板：当前版本 vs GitHub 最新 commit + 更新命令复制（方案 A，只读不代执行） |
 | 动态口令 | TOTP | RFC 6238 登录认证（REQ-027 起取代旧登录码），开发模式 AUTH_DEV_MODE=true 时绑定接口返回密钥明文 |
 
 ## 技术栈速查
@@ -67,10 +70,10 @@
 | 后端运行时 | tsx | 支持 .ts/.js 混存，零配置；TS 覆盖率 100%（strict，any 清零） |
 | 前端 | Vue 3 + Element Plus + Pinia | SPA；api 层已全量 TS（161 DTO，2026-08-12 结构债清偿批）；tsconfig strict + allowJs 增量轨（新文件一律 TS，存量谁触碰谁迁移，vue-tsc 进 lint/CI） |
 | 前端 i18n | vue-i18n@11 | zh-CN + en 双键，check-i18n 门禁 |
-| 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v66**（v61 dashboard 视觉备料 / v62 artworks source_deliverable_id / v63 orders customer_token / v64 greeting 特别日 / v65 cancel_undo_windows 取消撤销窗口 / v66 deliverables 一次性下载状态列） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
+| 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v68**（v65 cancel_undo_windows 取消撤销窗口 / v66 deliverables 一次性下载状态列 / v67 greeting_slot_rework 问候档位重构 / v68 artists 留言开关+统计开关默认值） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） | entrypoint 带 DB 损坏自愈（自动恢复最新备份）；生产弱会话密钥拒绝启动（815 拍板 #12） |
 | 备份 | DB 三档分层（每日 7 份 / 部署前 2 份 / 每周 4 份，815 拍板 #10）+ uploads tar 备份（2 份轮转）+ restore-db/rollback 恢复脚本（支持 -Tier 选档） | OPS.md「备份与恢复」章节 |
-| 测试 | Vitest（后端 1521/126 文件 + 前端 545/82 文件）+ Playwright E2E（13 条，接入 CI；global-setup 含管理员 step-up） | |
+| 测试 | Vitest（后端 1581/133 文件 + 前端 658/99 文件，2026-08-18 实测，基线随批次变动以 STATUS 最新条目为准）+ Playwright E2E（13 条，接入 CI；global-setup 含管理员 step-up） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则

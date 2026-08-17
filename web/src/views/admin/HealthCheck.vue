@@ -17,6 +17,47 @@
       </div>
     </div>
 
+    <!-- 0818 用户拍板方案 A：系统更新检查（只读信息；更新需在服务器上跑命令，面板不代执行） -->
+    <el-card shadow="never" class="admin-section-card update-card">
+      <template #header>
+        <div class="update-head">
+          <span class="card-title">{{ $t('admin.update.title') }}</span>
+          <el-button size="small" text :loading="updateLoading" @click="loadVersion(true)">{{ $t('admin.update.recheck') }}</el-button>
+        </div>
+      </template>
+      <div class="row">
+        <div class="health-action-text">
+          <div class="lab">{{ $t('admin.update.current') }}</div>
+          <div class="desc">{{ $t('admin.update.currentHint') }}</div>
+        </div>
+        <span class="update-val">{{ versionText }}</span>
+      </div>
+      <div class="row">
+        <div class="health-action-text">
+          <div class="lab">{{ $t('admin.update.latest') }}</div>
+          <div class="desc">{{ $t('admin.update.latestHint') }}</div>
+        </div>
+        <span class="update-val">{{ latestText }}</span>
+      </div>
+      <div class="row">
+        <div class="health-action-text">
+          <div class="lab">{{ $t('admin.update.status') }}</div>
+          <div class="desc">{{ $t('admin.update.statusHint') }}</div>
+        </div>
+        <el-tag size="small" effect="light" :type="statusTagType">{{ statusText }}</el-tag>
+      </div>
+      <div class="row">
+        <div class="health-action-text">
+          <div class="lab">{{ $t('admin.update.cmd') }}</div>
+          <div class="desc">{{ $t('admin.update.cmdHint') }}</div>
+        </div>
+        <div class="update-cmd">
+          <code>{{ UPDATE_CMD }}</code>
+          <el-button size="small" @click="copyUpdateCmd">{{ $t('admin.update.copy') }}</el-button>
+        </div>
+      </div>
+    </el-card>
+
     <!-- 819-I：一行一事——说明在左、操作按钮在右 -->
     <div class="group health-actions-group">
       <div class="row">
@@ -76,11 +117,14 @@
 </template>
 
 <script setup>
-import { ref, markRaw } from 'vue'
+import { ref, markRaw, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
+// 0818 方案 A：更新命令复制走公共剪贴板封装（同 ScheduleSharePage 口径）
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { formatDateTime } from '../../utils/datetime.js'
 // v0.34 任务3：状态 emoji 改 SVG（保留状态语义色）
 import { CircleCheck, Warning, CircleClose, QuestionFilled, ArrowDown } from '@element-plus/icons-vue'
 
@@ -90,6 +134,66 @@ const checks = ref([])
 const checking = ref(false)
 const downloading = ref(false)
 const expanded = ref([])
+
+// ─── 0818 方案 A：系统更新检查（进页自动拉一次；重新检查走 force 绕缓存） ───
+const UPDATE_CMD = 'git pull && docker compose up -d --build'
+const versionInfo = ref(null)
+const updateLoading = ref(false)
+const updateFailed = ref(false)
+
+const versionText = computed(() => {
+  if (updateFailed.value) return t('admin.update.loadFailed')
+  if (!versionInfo.value) return '—'
+  const { version, commit, deployedAt } = versionInfo.value.current
+  const commitShort = commit && commit !== 'unknown' ? commit.slice(0, 7) : t('admin.update.commitUnknown')
+  return deployedAt
+    ? `${version} · ${commitShort} · ${formatDateTime(deployedAt)}`
+    : `${version} · ${commitShort}`
+})
+const latestText = computed(() => {
+  if (updateFailed.value || !versionInfo.value) return '—'
+  const { latest } = versionInfo.value
+  if (!latest.ok) return t('admin.update.statusFetchFailed')
+  return latest.date ? `${latest.sha.slice(0, 7)} · ${formatDateTime(latest.date)}` : latest.sha.slice(0, 7)
+})
+const statusText = computed(() => {
+  if (updateFailed.value) return t('admin.update.loadFailed')
+  if (!versionInfo.value) return '—'
+  const { upToDate, latest } = versionInfo.value
+  if (!latest.ok) return t('admin.update.statusFetchFailed')
+  if (upToDate === true) return t('admin.update.statusUpToDate')
+  if (upToDate === false) return t('admin.update.statusBehind')
+  return t('admin.update.statusUnknown')
+})
+const statusTagType = computed(() => {
+  if (!versionInfo.value || updateFailed.value || !versionInfo.value.latest.ok) return 'info'
+  if (versionInfo.value.upToDate === true) return 'success'
+  if (versionInfo.value.upToDate === false) return 'warning'
+  return 'info'
+})
+
+async function loadVersion(force = false) {
+  updateLoading.value = true
+  updateFailed.value = false
+  try {
+    versionInfo.value = await adminApi.getSystemVersion(force)
+  } catch {
+    updateFailed.value = true
+  } finally {
+    updateLoading.value = false
+  }
+}
+
+async function copyUpdateCmd() {
+  if (await copyToClipboard(UPDATE_CMD)) {
+    ElMessage.success(t('admin.update.copied'))
+  } else {
+    ElMessage.error(t('admin.update.copyFailed'))
+  }
+}
+
+// 进页自动拉一次版本信息（失败静默降级为错误态文案，不打断自检页主体）
+onMounted(() => loadVersion())
 
 const STATUS_ICON = { ok: markRaw(CircleCheck), warn: markRaw(Warning), fail: markRaw(CircleClose) }
 function statusIcon(status) { return STATUS_ICON[status] || QuestionFilled }
@@ -180,6 +284,17 @@ async function downloadReport() {
   border: 1px solid var(--line);
   border-radius: var(--r-l);
   box-shadow: var(--sh-1);
+}
+
+/* 0818 方案 A：更新检查卡片（一行一事：说明在左，值/控件在右） */
+.update-card { margin-bottom: 16px; }
+.update-head { display: flex; align-items: center; justify-content: space-between; }
+.update-val { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); font-variant-numeric: tabular-nums; text-align: right; }
+.update-cmd { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.update-cmd code {
+  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink);
+  background: var(--paper2); border: 1px solid var(--line); border-radius: var(--r-m);
+  padding: 4px 8px; white-space: nowrap;
 }
 .row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;

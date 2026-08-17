@@ -1150,6 +1150,15 @@ export interface RestoreArtistResult {
   message: string
 }
 
+/** GET /admin/system/version 响应（0818 拍板方案 A：更新检查只读面板） */
+export interface SystemVersionResult {
+  current: { version: string; commit: string; deployedAt: string | null }
+  latest: { ok: boolean; sha: string | null; date: string | null }
+  /** true=已是最新；false=有新提交；null=无法对比（本地 commit 未知或 GitHub 拉取失败） */
+  upToDate: boolean | null
+  repoUrl: string
+}
+
 /** GET /admin/stats 响应 */
 export interface GlobalStats {
   artistCount: number

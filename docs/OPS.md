@@ -161,7 +161,7 @@ docker compose exec web ls /app/web/dist/assets/ | tail            # ③ 前端�
 
 ### 当前机制（单机小项目取舍）
 
-- 迁移均为 **up-only**：`MIGRATIONS` 共 66 条（version 1~66，最新 v66 deliverables 一次性下载状态列），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
+- 迁移均为 **up-only**：`MIGRATIONS` 共 68 条（version 1~68，最新 v68 artists 留言开关 + 统计开关默认值，2026-08-18 刷新），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
 - 每次迁移执行前自动备份：`server/src/db/migrate.ts` 的 `backupDbBeforeMigration` 产出一致性快照 `commission.db.bak.v<N>`（事务外 VACUUM INTO / 事务内 checkpoint 后复制；仅文件数据库，`:memory:` 跳过；**备份失败即中止迁移**，815 审计加固）。
 - 采用该取舍的原因：单机小项目、单部署点，schema 变更频率低，写 `down()` 的维护成本高于收益；错误回滚用备份恢复兜底（见 §3）。
 
