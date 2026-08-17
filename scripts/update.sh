@@ -26,6 +26,8 @@ CID=$(docker compose ps -q web 2>/dev/null || true)
 # ── 1) 更新前备份（容器在跑才做；VACUUM INTO 不停服也安全） ──
 # 注：-w /app/server 必须带——better-sqlite3 装在 /app/server/node_modules，默认工作目录 /app 找不到模块
 mkdir -p data/backups
+# 属主必须是容器运行用户（uid 1000）：root 建的目录容器内 node 用户写不进（每日备份会遭 SQLITE_CANTOPEN）
+chown 1000:1000 data/backups 2>/dev/null || true
 if [ -n "$CID" ] && docker inspect --format '{{.State.Running}}' "$CID" 2>/dev/null | grep -q true; then
   TS=$(date +%Y%m%d-%H%M%S)
   BACKUP_OUT=$(docker compose exec -T -w /app/server web node -e "require('better-sqlite3')('/app/data/commission.db').prepare('VACUUM INTO ?').run('/app/data/commission.db.bak-pre-update-$TS')" 2>&1)

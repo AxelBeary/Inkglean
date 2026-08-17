@@ -12,6 +12,8 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || { echo "无法定位项
 TS=$(date +%Y%m%d-%H%M%S)
 BK=data/backups
 mkdir -p "$BK"
+# 属主必须是容器运行用户（uid 1000）：root 建的目录容器内 node 用户写不进（SQLITE_CANTOPEN，首装同款坑）
+chown 1000:1000 "$BK" 2>/dev/null || true
 
 CID=$(docker compose ps -q web 2>/dev/null || true)
 if [ -z "$CID" ] || ! docker inspect --format '{{.State.Running}}' "$CID" 2>/dev/null | grep -q true; then
