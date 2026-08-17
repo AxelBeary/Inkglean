@@ -355,12 +355,51 @@ async function launchNativeSite(port) {
 // ============================================
 // 主流程
 // ============================================
+// 0818 拍板 C：Linux root 全新安装时建议搬到 /opt/inkglean（触发条件见调用处注释）
+async function maybeRelocateToOpt() {
+  const isRoot = typeof process.getuid === 'function' && process.getuid() === 0
+  if (!IS_LINUX || !isRoot) return
+  if (hasFlag('--start') || hasFlag('--relocated')) return
+  if (existsSync(ENV_FILE)) return           // 已配置过 = 不是全新安装，不动
+  if (ROOT.startsWith('/opt')) return        // 已在规范位置
+  const target = '/opt/inkglean'
+  if (existsSync(target)) return             // 目标已被占用，绝不覆盖
+
+  console.log(yellow('  检测到你在 Linux 服务器上用 root 全新安装。'))
+  console.log(`  建议把网站装到更规范的 ${target}（以后维护、更新都更清爽）。`)
+  const ans = AUTO_YES ? 'yes' : await ask(`把安装目录挪到 ${target} 吗？`, 'yes')
+  if (String(ans).toLowerCase() !== 'yes') {
+    console.log('  好的，就装在当前位置。')
+    return
+  }
+  mkdirSync(dirname(target), { recursive: true })
+  const mv = spawnSync('mv', [ROOT, target], { stdio: 'inherit' })
+  if (mv.status !== 0) {
+    warn('挪动失败，继续在当前位置安装')
+    return
+  }
+  ok(`已挪到 ${target}，从新位置继续安装…`)
+  // 从新位置重新执行本脚本（带上原有参数 + --relocated 防二次触发）
+  const rerun = spawnSync(
+    process.execPath,
+    [join(target, 'install.mjs'), ...process.argv.slice(2), '--relocated'],
+    { stdio: 'inherit', cwd: target }
+  )
+  process.exit(rerun.status ?? 0)
+}
+
 async function main() {
   console.log('')
   console.log(cyan('╔════════════════════════════════════════╗'))
   console.log(cyan('║   拾绘 Inkglean · 安装向导             ║'))
   console.log(cyan('╚════════════════════════════════════════╝'))
   console.log('')
+
+  // ─── 0818 拍板 C：Linux root 全新安装时，建议把安装目录挪到规范的 /opt/inkglean ───
+  // 触发条件刻意收紧，只在「Linux + root + 还没装过（无 .env）+ 当前不在 /opt」时开口；
+  // Windows/Mac、重复安装、已配置过、--start 启动模式一律不触发，影响面最小。
+  // 搬家后从新位置重新执行本脚本（--relocated 防止二次触发）。
+  await maybeRelocateToOpt()
 
   // ─── 启动模式：日常开门营业，跳过安装直接启动（启动网站.bat 用）───
   if (hasFlag('--start')) {
