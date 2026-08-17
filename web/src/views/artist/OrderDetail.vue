@@ -380,13 +380,15 @@
     @close="galleryViewerVisible = false"
   />
 
-  <!-- 818-D: 再来一单回填选项对话框（QQ/昵称必带不设选项；参考图二期再做不放选项） -->
+  <!-- 818-D + 819-J: 再来一单回填选项对话框（QQ/昵称必带不设选项；参考图按勾选路径复用） -->
   <el-dialog v-model="reorderDialogVisible" :title="$t('orderDetail.reorderDialogTitle')" width="420px">
     <p class="reorder-dialog-hint">{{ $t('orderDetail.reorderDialogHint') }}</p>
     <el-checkbox-group v-model="reorderFill" class="reorder-fill-group">
       <el-checkbox value="desc">{{ $t('orderDetail.reorderFillDesc') }}</el-checkbox>
       <el-checkbox value="style">{{ $t('orderDetail.reorderFillStyle') }}</el-checkbox>
       <el-checkbox value="note">{{ $t('orderDetail.reorderFillNote') }}</el-checkbox>
+      <!-- 819-J 二期: 参考图（勾选后源单参考图路径引用复用，不重复上传） -->
+      <el-checkbox value="refs">{{ $t('orderDetail.reorderFillRefs') }}</el-checkbox>
     </el-checkbox-group>
     <template #footer>
       <el-button @click="reorderDialogVisible = false">{{ $t('common.cancel') }}</el-button>
@@ -434,9 +436,10 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const order = ref(null)
-// 818-D: 再来一单回填选项（默认勾选描述 + 款式尺寸；备注默认不勾——备注常含内部沟通，画师按需勾选）
+// 818-D + 819-J: 再来一单回填选项（默认勾选描述 + 款式尺寸 + 参考图；备注默认不勾——
+// 备注常含内部沟通，画师按需勾选；参考图为客户需求图，随单复用默认带上）
 const reorderDialogVisible = ref(false)
-const reorderFill = ref(['desc', 'style'])
+const reorderFill = ref(['desc', 'style', 'refs'])
 // REQ-037 F1: 加载失败错误态（对齐 Settings profileLoadFailed 模式：页面内横幅+重试，不再白屏死局）
 const loadError = ref(false)
 const prevPriority = ref(null)
@@ -462,7 +465,7 @@ function goBack() {
 // ─── 818-D: 再来一单（订单详情 → 手动录单预填草稿） ───
 function openReorderDialog() {
   // 每次打开重置为默认勾选（避免上次选择残留）
-  reorderFill.value = ['desc', 'style']
+  reorderFill.value = ['desc', 'style', 'refs']
   reorderDialogVisible.value = true
 }
 

@@ -1342,6 +1342,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     reorderFillDesc: 'Description',
     reorderFillStyle: 'Style & size',
     reorderFillNote: 'Notes',
+    // 819-J phase 2: reference images (reused by path reference, not re-uploaded)
+    reorderFillRefs: 'Reference images',
     reorderConfirm: 'Create new order'
   },
   manualOrder: {
@@ -1412,6 +1414,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // 818-D: reorder prefill
     reorderSourceFailed: 'Failed to load source order: {message}',
     reorderPrefilled: 'Prefilled from order {no} — everything is editable',
+    // 819-J phase 2: reference image prefill fallback/truncation
+    reorderNoRefs: 'The source order has no reference images',
+    reorderRefsTruncated: 'Reference images exceed {count}; only the first {count} were carried over',
     // REQ-035 §五 MVP-1: paste message parser
     parseMessageTitle: 'Paste Message to Parse',
     parseDialogTitle: 'Paste Message to Parse',

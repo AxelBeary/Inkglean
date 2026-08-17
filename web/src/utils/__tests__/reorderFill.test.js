@@ -6,8 +6,10 @@ import {
   parseReorderFill,
   buildReorderNoteText,
   buildReorderTextPrefill,
+  buildReorderRefs,
   findReorderStyleTarget
 } from '../reorderFill.js'
+import { MAX_IMAGE_COUNT } from '../../constants/upload.js'
 
 describe('parseReorderFill', () => {
   it('空/缺省 → 空集合', () => {
@@ -16,7 +18,7 @@ describe('parseReorderFill', () => {
   })
 
   it('逗号分隔按白名单解析，未知项/空白静默忽略', () => {
-    expect([...parseReorderFill('desc,style,note')].sort()).toEqual(['desc', 'note', 'style'])
+    expect([...parseReorderFill('desc,style,note,refs')].sort()).toEqual(['desc', 'note', 'refs', 'style'])
     expect([...parseReorderFill('desc, images, style,,note')].sort()).toEqual(['desc', 'note', 'style'])
     expect([...parseReorderFill('ref')]).toEqual([])
   })
@@ -79,6 +81,68 @@ describe('buildReorderTextPrefill', () => {
   it('源单为空/缺字段不抛错', () => {
     const p = buildReorderTextPrefill(null, 'desc,style,note')
     expect(p).toEqual({ clientQq: '', clientName: '', description: '', note: '' })
+  })
+})
+
+describe('buildReorderRefs（819-J 二期）', () => {
+  const sourceRefs = [
+    { id: 1, file_path: 'references/alice/a.png', original_name: 'a.png', url: '/signed/a' },
+    { id: 2, file_path: '  references/alice/b.png  ', original_name: 'b.png', url: '/signed/b' },
+    { id: 3, file_path: '', original_name: 'empty.png', url: '/signed/c' },
+    { id: 4, file_path: 'references/alice/artist-shot.png', original_name: 'artist-shot.png', url: '/signed/d', source: 'artist' }
+  ]
+
+  it('只取有 file_path 的条目并 trim，保留原字段', () => {
+    const { refs, truncated } = buildReorderRefs({ references: sourceRefs })
+    expect(truncated).toBe(false)
+    expect(refs).toEqual([
+      { id: 1, file_path: 'references/alice/a.png', original_name: 'a.png', url: '/signed/a' },
+      { id: 2, file_path: 'references/alice/b.png', original_name: 'b.png', url: '/signed/b' }
+    ])
+  })
+
+  it('排除画师加图（source=artist，客户追踪页不可见，不随单带走）', () => {
+    const { refs, truncated } = buildReorderRefs({
+      references: [
+        { id: 1, file_path: 'references/alice/c.png', source: 'client' },
+        { id: 2, file_path: 'references/alice/artist.png', source: 'artist' },
+        { id: 3, file_path: 'references/alice/legacy.png' }
+      ]
+    })
+    expect(truncated).toBe(false)
+    expect(refs.map(r => r.file_path)).toEqual([
+      'references/alice/c.png',
+      'references/alice/legacy.png'
+    ])
+  })
+
+  it('源单无参考图/缺字段 → 空数组且不截断', () => {
+    expect(buildReorderRefs(null)).toEqual({ refs: [], truncated: false })
+    expect(buildReorderRefs({ references: [] })).toEqual({ refs: [], truncated: false })
+    expect(buildReorderRefs({})).toEqual({ refs: [], truncated: false })
+  })
+
+  it(`超出上限截断为 ${MAX_IMAGE_COUNT} 张并标记 truncated`, () => {
+    const many = Array.from({ length: MAX_IMAGE_COUNT + 3 }, (_, i) => ({
+      id: i,
+      file_path: `references/alice/f${i}.png`,
+      original_name: `f${i}.png`
+    }))
+    const { refs, truncated } = buildReorderRefs({ references: many })
+    expect(truncated).toBe(true)
+    expect(refs).toHaveLength(MAX_IMAGE_COUNT)
+    expect(refs[0].file_path).toBe('references/alice/f0.png')
+    expect(refs[refs.length - 1].file_path).toBe(`references/alice/f${MAX_IMAGE_COUNT - 1}.png`)
+  })
+
+  it('非法 maxCount 回落默认上限', () => {
+    const many = Array.from({ length: MAX_IMAGE_COUNT + 2 }, (_, i) => ({
+      id: i,
+      file_path: `references/alice/f${i}.png`
+    }))
+    const { refs, truncated } = buildReorderRefs({ references: many }, 0)
+    expect(truncated).toBe(true)
+    expect(refs).toHaveLength(MAX_IMAGE_COUNT)
   })
 })
 

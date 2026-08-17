@@ -131,7 +131,8 @@ import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js
 import ManualOrderLeft from '../../components/artist/order/ManualOrderLeft.vue'
 import ManualOrderRight from '../../components/artist/order/ManualOrderRight.vue'
 import { parseMessage } from '../../utils/message-parser.js'
-import { parseReorderFill, buildReorderTextPrefill, findReorderStyleTarget } from '../../utils/reorderFill.js'
+import { parseReorderFill, buildReorderTextPrefill, buildReorderRefs, findReorderStyleTarget } from '../../utils/reorderFill.js'
+import { MAX_IMAGE_COUNT } from '../../constants/upload.js'
 import { ChatDotRound } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -421,9 +422,10 @@ function applyDraft(draft) {
   markRemoteApply()
 }
 
-// ─── 818-D: 再来一单预填（读 /orders/new?from=<orderId>&fill=desc,style,note） ───
+// ─── 818-D + 819-J: 再来一单预填（读 /orders/new?from=<orderId>&fill=desc,style,note,refs） ───
 // 契约：QQ/昵称无条件带上；描述/款式尺寸/备注按勾选；deadline/startDate/priority/收款/节点
-// 一律不带（新单从零）。预填即新草稿起点，清除旧草稿避免恢复弹窗覆盖本次回填。
+// 一律不带（新单从零）；参考图勾选时走路径引用复用（不重复上传），数量受 MAX_IMAGE_COUNT
+// 约束。预填即新草稿起点，清除旧草稿避免恢复弹窗覆盖本次回填。
 async function applyReorderPrefill() {
   const fromId = Number(route.query.from)
   if (!Number.isInteger(fromId) || fromId <= 0) return
@@ -455,6 +457,19 @@ async function applyReorderPrefill() {
         finalPriceYuan: null,
         priceTouched: false
       })
+    }
+  }
+  // 819-J 二期：参考图——源单参考图路径引用灌入左栏（与新上传同一提交链路）；
+  // 超上限截断轻提示；源单无参考图提示降级，其余预填不受影响
+  if (fillSet.has('refs')) {
+    const { refs, truncated } = buildReorderRefs(source)
+    if (truncated) {
+      ElMessage.warning(t('manualOrder.reorderRefsTruncated', { count: MAX_IMAGE_COUNT }))
+    }
+    if (refs.length > 0) {
+      leftRef.value?.setReorderRefs(refs)
+    } else {
+      ElMessage.info(t('manualOrder.reorderNoRefs'))
     }
   }
   markRemoteApply()
