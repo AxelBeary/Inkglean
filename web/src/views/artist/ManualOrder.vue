@@ -31,6 +31,7 @@
           v-model:clientQq="form.clientQq"
           v-model:clientName="form.clientName"
           v-model:description="form.description"
+          v-model:note="form.note"
           v-model:priority="form.priority"
           v-model:deadline="form.deadline"
           v-model:startDate="form.startDate"
@@ -49,6 +50,7 @@
           v-model:clientQq="form.clientQq"
           v-model:clientName="form.clientName"
           v-model:description="form.description"
+          v-model:note="form.note"
           v-model:priority="form.priority"
           v-model:deadline="form.deadline"
           v-model:startDate="form.startDate"
@@ -119,6 +121,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { artistApi, artistPublicApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { FETCH_ALL_PAGE_SIZE } from '../../constants/pagination.js'
@@ -128,9 +131,11 @@ import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js
 import ManualOrderLeft from '../../components/artist/order/ManualOrderLeft.vue'
 import ManualOrderRight from '../../components/artist/order/ManualOrderRight.vue'
 import { parseMessage } from '../../utils/message-parser.js'
+import { parseReorderFill, buildReorderTextPrefill, findReorderStyleTarget } from '../../utils/reorderFill.js'
 import { ChatDotRound } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const formRef = ref(null)
 // REQ-035 §五 MVP-1: 粘贴消息解析（弹窗状态）
 const parseDialogVisible = ref(false)
@@ -157,6 +162,8 @@ const form = reactive({
   clientQq: '',
   clientName: '',
   description: '',
+  // 818-D: 备注（源单备注回填；提交后经既有 addNote 接口写入新单）
+  note: '',
   priority: 'medium',
   deadline: null,
   startDate: null,
@@ -282,6 +289,7 @@ function resetForm() {
   form.clientQq = ''
   form.clientName = ''
   form.description = ''
+  form.note = ''
   form.priority = 'medium'
   form.deadline = null
   form.startDate = null
@@ -311,6 +319,7 @@ function hasDraftContent() {
   return (isMultiStyle.value && r.styleId != null)
     || r.sizeId != null
     || !!form.description.trim()
+    || !!form.note.trim()
     || !!form.clientQq.trim()
     || !!form.clientName.trim()
     || !!form.deadline
@@ -338,6 +347,7 @@ function saveDraft() {
       clientQq: form.clientQq,
       clientName: form.clientName,
       description: form.description,
+      note: form.note,
       priority: form.priority,
       deadline: form.deadline,
       startDate: form.startDate,
@@ -365,7 +375,7 @@ function scheduleDraftSave() {
   draftTimer = setTimeout(saveDraft, 800)
 }
 
-watch([() => form.clientQq, () => form.clientName, () => form.description,
+watch([() => form.clientQq, () => form.clientName, () => form.description, () => form.note,
   () => form.priority, () => form.deadline, () => form.startDate, () => form.clientNotify], scheduleDraftSave)
 // 三步走/增项/自定义增项/手输价变化由 ManualOrderRight emit('dirty') 触发 scheduleDraftSave
 
@@ -390,6 +400,7 @@ function applyDraft(draft) {
   form.clientQq = f.clientQq || ''
   form.clientName = f.clientName || ''
   form.description = f.description || ''
+  form.note = f.note || ''
   form.priority = f.priority || 'medium'
   form.deadline = f.deadline || null
   form.startDate = f.startDate || null
@@ -408,6 +419,46 @@ function applyDraft(draft) {
     priceTouched: draft.priceTouched
   })
   markRemoteApply()
+}
+
+// ─── 818-D: 再来一单预填（读 /orders/new?from=<orderId>&fill=desc,style,note） ───
+// 契约：QQ/昵称无条件带上；描述/款式尺寸/备注按勾选；deadline/startDate/priority/收款/节点
+// 一律不带（新单从零）。预填即新草稿起点，清除旧草稿避免恢复弹窗覆盖本次回填。
+async function applyReorderPrefill() {
+  const fromId = Number(route.query.from)
+  if (!Number.isInteger(fromId) || fromId <= 0) return
+  const fillSet = parseReorderFill(route.query.fill)
+  let source
+  try {
+    source = await artistApi.getOrder(fromId)
+  } catch (err) {
+    ElMessage.error(t('manualOrder.reorderSourceFailed', { message: err.message }))
+    return
+  }
+  if (!source) return
+  const text = buildReorderTextPrefill(source, fillSet)
+  form.clientQq = text.clientQq
+  form.clientName = text.clientName
+  form.description = text.description
+  form.note = text.note
+  // 款式尺寸：源单尺寸仍存在于当前画风列表才回填（增项选择接口无结构化数据，留给画师重选）
+  if (fillSet.has('style')) {
+    const target = findReorderStyleTarget(source, styles.value)
+    if (target) {
+      rightRef.value?.setDraftState({
+        styleId: target.styleId,
+        sizeId: target.sizeId,
+        addonSelections: {},
+        usageId: null,
+        rushId: null,
+        customAddons: [],
+        finalPriceYuan: null,
+        priceTouched: false
+      })
+    }
+  }
+  markRemoteApply()
+  ElMessage.success(t('manualOrder.reorderPrefilled', { no: source.order_no || String(fromId) }))
 }
 
 /** 恢复提示：mounted 且画风/档位数据就绪后调用；确认回填，取消/关闭清空草稿键 */
@@ -492,8 +543,14 @@ async function init() {
         .then(res => { workflowStages.value = res.stages || [] })
         .catch(() => { workflowFailed.value = true })
     ])
-    // F6: 画风数据就绪后检查本地草稿——恢复回填需要 styles 已加载才能匹配画风/尺寸
-    await restoreDraft()
+    // 818-D: 有再来一单预填时优先走预填（预填即新草稿起点，不再弹旧草稿恢复）；
+    // 否则按 F6 原逻辑检查本地草稿（恢复回填需要 styles 已加载才能匹配画风/尺寸）
+    if (route.query.from != null) {
+      await applyReorderPrefill()
+      clearDraft()
+    } else {
+      await restoreDraft()
+    }
   } catch {
     initFailed.value = true
   } finally {

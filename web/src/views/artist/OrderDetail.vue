@@ -7,6 +7,10 @@
       <template #header>
         <CardHead :title="$t('orderDetail.orderInfo')">
           <template #extra>
+            <!-- 818-D: 再来一单（终态/非终态订单均可用，回填选项弹窗） -->
+            <el-button size="small" type="primary" plain @click="openReorderDialog">
+              {{ $t('orderDetail.reorderBtn') }}
+            </el-button>
             <el-tag :type="statusType(order.status)">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
           </template>
         </CardHead>
@@ -375,6 +379,20 @@
     :initial-index="galleryViewerIndex"
     @close="galleryViewerVisible = false"
   />
+
+  <!-- 818-D: 再来一单回填选项对话框（QQ/昵称必带不设选项；参考图二期再做不放选项） -->
+  <el-dialog v-model="reorderDialogVisible" :title="$t('orderDetail.reorderDialogTitle')" width="420px">
+    <p class="reorder-dialog-hint">{{ $t('orderDetail.reorderDialogHint') }}</p>
+    <el-checkbox-group v-model="reorderFill" class="reorder-fill-group">
+      <el-checkbox value="desc">{{ $t('orderDetail.reorderFillDesc') }}</el-checkbox>
+      <el-checkbox value="style">{{ $t('orderDetail.reorderFillStyle') }}</el-checkbox>
+      <el-checkbox value="note">{{ $t('orderDetail.reorderFillNote') }}</el-checkbox>
+    </el-checkbox-group>
+    <template #footer>
+      <el-button @click="reorderDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="confirmReorder">{{ $t('orderDetail.reorderConfirm') }}</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -416,6 +434,9 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const order = ref(null)
+// 818-D: 再来一单回填选项（默认勾选描述 + 款式尺寸；备注默认不勾——备注常含内部沟通，画师按需勾选）
+const reorderDialogVisible = ref(false)
+const reorderFill = ref(['desc', 'style'])
 // REQ-037 F1: 加载失败错误态（对齐 Settings profileLoadFailed 模式：页面内横幅+重试，不再白屏死局）
 const loadError = ref(false)
 const prevPriority = ref(null)
@@ -436,6 +457,21 @@ function goBack() {
   if (fromSource === 'queue') router.push('/queue')
   else if (fromSource === 'dashboard') router.push('/dashboard')
   else router.push('/orders')
+}
+
+// ─── 818-D: 再来一单（订单详情 → 手动录单预填草稿） ───
+function openReorderDialog() {
+  // 每次打开重置为默认勾选（避免上次选择残留）
+  reorderFill.value = ['desc', 'style']
+  reorderDialogVisible.value = true
+}
+
+function confirmReorder() {
+  const fill = reorderFill.value.join(',')
+  reorderDialogVisible.value = false
+  // 埋点（REQ-033 §4.2 口径）：再来一单流程启动
+  trackEvent('artist_action', { action: 'reorder_start', fromOrderId: order.value?.id, fill })
+  router.push({ path: '/orders/new', query: { from: order.value?.id, fill } })
 }
 
 import { statusType } from '../../constants/order.js'
@@ -878,4 +914,17 @@ onUnmounted(() => {
   padding: 56px 0; color: var(--ink2); font-size: calc(var(--font-scale, 1) * 14px);
 }
 .od-load-failed p { margin: 0; }
+
+/* 818-D: 再来一单回填选项对话框 */
+.reorder-dialog-hint {
+  margin: 0 0 12px;
+  font-size: calc(var(--font-scale, 1) * 13px);
+  color: var(--ink2);
+  line-height: 1.6;
+}
+.reorder-fill-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 </style>

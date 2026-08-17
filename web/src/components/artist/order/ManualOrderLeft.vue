@@ -21,6 +21,14 @@
       />
     </el-form-item>
 
+    <!-- 818-D: 备注（选填；再来一单回填源单备注，提交后写入新单） -->
+    <el-form-item :label="$t('manualOrder.note')">
+      <el-input
+        v-model="note" type="textarea" :rows="3"
+        :placeholder="$t('manualOrder.notePlaceholder')" maxlength="1000" show-word-limit
+      />
+    </el-form-item>
+
     <!-- 参考图上传（画师试用反馈②：移到需求描述板块下面；大块粘贴区，拖拽/点击/页内粘贴） -->
     <div class="mo-ref-section">
       <div class="mo-ref-label">
@@ -142,6 +150,7 @@ const emit = defineEmits(['update:uploadedRefs'])
 const clientQq = defineModel('clientQq', { type: String, default: '' })
 const clientName = defineModel('clientName', { type: String, default: '' })
 const description = defineModel('description', { type: String, default: '' })
+const note = defineModel('note', { type: String, default: '' })
 const priority = defineModel('priority', { type: String, default: 'medium' })
 const deadline = defineModel('deadline', { type: String, default: null })
 const startDate = defineModel('startDate', { type: String, default: null })
