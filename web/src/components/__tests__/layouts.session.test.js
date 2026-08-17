@@ -44,6 +44,10 @@ vi.mock('../../utils/track.js', () => ({
   trackEvent: vi.fn()
 }))
 
+// 818-E: ArtistLayout 内挂了 TourOverlay（其 useTour 依赖真 router 实例），
+// 布局会话测试不关心导览，stub 掉避免 vue-router mock 缺 createRouter
+vi.mock('../artist/tour/TourOverlay.vue', () => ({ default: { name: 'TourOverlayStub', template: '<div />' } }))
+
 vi.mock('../../api/index.js', () => ({
   artistApi: {
     getMe: h.getMe,
