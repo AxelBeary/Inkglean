@@ -1,7 +1,7 @@
 {
-  "server": 1566,
-  "web": 651,
+  "server": 1573,
+  "web": 658,
   "e2e": 13,
   "updatedAt": "2026-08-17",
-  "note": "820批三路合入+v68修复终态实测：server 1566（+17：guestbook/stats开关测试）/ web 651（+7：StatsPage/TplGuestbook/layouts过滤测试）/ E2E 13。前基线 1549/644。"
+  "note": "0817用户反馈批终态实测：server 1573（+7：留言强删回归3+已移除画师4）/ web 658（+7：layouts首载隐藏1+焦点开关2+已移除画师4）/ E2E 13。前基线 1566/651。"
 }
