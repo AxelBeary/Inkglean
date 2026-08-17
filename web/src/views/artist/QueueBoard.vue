@@ -1,53 +1,58 @@
 <template>
-  <h2>{{ $t('queue.title') }}</h2>
+  <h2 class="font-display queue-page-title">{{ $t('queue.title') }}</h2>
   <p class="hint">{{ $t('queue.hint') }}</p>
 
-  <!-- 818-H：视图切换按行结构整理（说明在左、控件在右） -->
-  <div class="group view-switch">
-    <div class="group-head">{{ $t('queue.viewSwitchLabel') }}</div>
-    <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
-    <div class="row">
-      <div class="field-text">
-        <div class="lab">{{ $t('queue.viewSwitchLabel') }}</div>
-        <div class="desc">{{ $t('queue.viewSwitchDesc') }}</div>
-      </div>
-      <div class="ctrl">
-        <SliderSwitch v-model="viewMode" :options="viewOptions" @change="saveViewMode" />
-      </div>
-    </div>
-  </div>
+  <!-- 820-M: 视图切换改 el-tabs（对齐价格管理 tab-change + EP 自带切换过渡）。
+       三页签全部非 lazy 保活：队列数据在父级 ref，月历月份/时间条缩放与滚动/列表滚动各自实例内保存，
+       切视图不丢已加载数据与视图状态 -->
+  <el-tabs v-model="viewMode" style="margin-top: 16px" @tab-change="saveViewMode">
+    <!-- ═══ 列表视图（拆 QueueBoardList，v0.41 瘦身批） ═══ -->
+    <el-tab-pane :label="$t('queue.viewBoard')" name="board">
+      <QueueBoardList
+        :queue="queue"
+        :focus-display="focusDisplay"
+        :active-tab="activeTab"
+        :loading="loading"
+        :buffer-queue="bufferQueue"
+        :buffer-loading="bufferLoading"
+        :completed-queue="completedQueue"
+        :completed-loading="completedLoading"
+        :refresh-now="refreshNow"
+        @update:queue="queue = $event"
+        @update:focus-display="onFocusDisplayChange"
+        @update:active-tab="activeTab = $event"
+        @drag-end="onDragEnd"
+        @open-deliver="openDeliverFor"
+        @refresh-queue="loadQueue"
+        @refresh-all="refreshAll"
+      />
+    </el-tab-pane>
 
-  <!-- ═══ 列表视图（拆 QueueBoardList，v0.41 瘦身批） ═══ -->
-  <QueueBoardList
-    v-if="viewMode === 'board'"
-    :queue="queue"
-    :focus-display="focusDisplay"
-    :active-tab="activeTab"
-    :loading="loading"
-    :buffer-queue="bufferQueue"
-    :buffer-loading="bufferLoading"
-    :completed-queue="completedQueue"
-    :completed-loading="completedLoading"
-    :refresh-now="refreshNow"
-    @update:queue="queue = $event"
-    @update:focus-display="onFocusDisplayChange"
-    @update:active-tab="activeTab = $event"
-    @drag-end="onDragEnd"
-    @open-deliver="openDeliverFor"
-    @refresh-queue="loadQueue"
-    @refresh-all="refreshAll"
-  />
+    <!-- ═══ SPEC-005: 月历 / 时间条视图（拆 QueueBoardCalendar，v0.41 瘦身批） ═══
+         月历与时间条各挂一个固定 viewMode 的实例：各自实例独立保活，月份/缩放/滚动状态互不丢失 -->
+    <el-tab-pane :label="$t('queue.viewCalendar')" name="calendar">
+      <QueueBoardCalendar
+        :queue="queue"
+        :buffer-queue="bufferQueue"
+        :loading="loading"
+        :buffer-loading="bufferLoading"
+        :view-mode="'calendar'"
+        @refresh-all="refreshAll"
+      />
+    </el-tab-pane>
 
-  <!-- ═══ SPEC-005: 月历 / 时间条视图（拆 QueueBoardCalendar，v0.41 瘦身批） ═══ -->
-  <QueueBoardCalendar
-    v-else
-    :queue="queue"
-    :buffer-queue="bufferQueue"
-    :loading="loading"
-    :buffer-loading="bufferLoading"
-    :view-mode="viewMode"
-    @refresh-all="refreshAll"
-  />
+    <el-tab-pane :label="$t('queue.viewTimeline')" name="timeline">
+      <QueueBoardCalendar
+        :queue="queue"
+        :buffer-queue="bufferQueue"
+        :loading="loading"
+        :buffer-loading="bufferLoading"
+        :view-mode="'timeline'"
+        @refresh-all="refreshAll"
+      />
+    </el-tab-pane>
+  </el-tabs>
+
   <!-- 方案 B: 交付弹窗（看板直接弹，含无文件交付） -->
   <DeliverDialog
     v-if="deliverOrderId"
@@ -67,22 +72,17 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 import { subscribeReconnect } from '../../utils/reconnect.js'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import UndoToast from '../../components/artist/UndoToast.vue'
-import SliderSwitch from '../../components/artist/SliderSwitch.vue'
-import { Odometer, Calendar, Clock } from '@element-plus/icons-vue'
 // v0.41 瘦身批：列表视图 → QueueBoardList，月历/时间条 → QueueBoardCalendar（零行为变化）
 import QueueBoardList from '../../components/artist/queue/QueueBoardList.vue'
 import QueueBoardCalendar from '../../components/artist/queue/QueueBoardCalendar.vue'
 // v0.38: 统一墨线空状态（REQ-026 §二）
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
-
-const { t } = useI18n()
 
 const queue = ref([])
 const loading = ref(true)
@@ -119,7 +119,8 @@ function onFocusDisplayChange(val) {
   saveFocusDisplay(val)
 }
 
-// ─── SPEC-005: 视图切换（列表 / 月历 / 时间条）+ 默认视图（localStorage，复用"默认面板"模式） ───
+// ─── SPEC-005: 视图切换（列表 / 月历 / 时间条）+ 默认视图（localStorage，复用"默认面板"模式）。
+//    820-M: 自绘切换控件改 el-tabs，viewMode 即页签 v-model，切换时持久化 ───
 const VIEW_MODE_KEY = 'queue_view_mode'
 const VALID_VIEW_MODES = ['board', 'calendar', 'timeline']
 const viewMode = ref(
@@ -128,13 +129,6 @@ const viewMode = ref(
 function saveViewMode(val) {
   safeSetItem(VIEW_MODE_KEY, val)
 }
-
-// 05B: 三视图滑块选项（radiogroup 语义等价 el-radio-button）
-const viewOptions = [
-  { value: 'board', label: t('queue.viewBoard'), icon: Odometer },
-  { value: 'calendar', label: t('queue.viewCalendar'), icon: Calendar },
-  { value: 'timeline', label: t('queue.viewTimeline'), icon: Clock }
-]
 
 async function loadQueue() {
   loading.value = true
@@ -256,38 +250,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；旧变量不残留——派工 §二.3） ═══ */
-.hint { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 8px 0 16px; }
-
-/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
-.group {
-  margin: 0 0 16px;
-  padding: 4px 24px 16px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-l);
-  box-shadow: var(--sh-1);
-}
-.group-head {
-  display: flex; align-items: center; gap: 8px;
-  padding: 16px 0 8px;
-  font-size: 16px; font-weight: 700; color: var(--ink);
-}
-.group-head::before {
-  content: ""; width: 8px; height: 8px; flex: none;
-  background: var(--zs); border-radius: var(--r-paper);
-}
-
-/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
-.row {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
-  padding: 12px 0; border-top: 1px solid var(--line);
-}
-.field-text { min-width: 0; }
-.lab { font-size: 15px; color: var(--ink); }
-.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
-.ctrl { min-width: 0; }
-
-@media (max-width: 720px) {
-  .row { grid-template-columns: 1fr; }
-}
+/* H1 页面标题：文楷 28/700（REQ §1.3，对齐价格管理页标题语言） */
+.queue-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.hint { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 8px 0 0; }
 </style>

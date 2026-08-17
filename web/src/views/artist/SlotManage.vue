@@ -13,119 +13,132 @@
     </el-alert>
 
     <template v-else>
-      <!-- 818-H：同类设置收进分组卡片（组头朱砂小印点），一行一事（说明在左、控件在右） -->
-      <div class="group">
-        <div class="group-head">{{ $t('slots.statusSection') }}</div>
-        <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与开稿管理内联逻辑一致） -->
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.statusLabel') }}</div>
-            <div class="desc">{{ $t('slots.statusSectionDesc') }}</div>
-          </div>
-          <div class="ctrl">
-            <el-radio-group :model-value="currentStatus" :disabled="statusUpdating" @change="updateStatus" size="large">
-              <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
-              <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
-              <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
-            </el-radio-group>
-            <span class="status-desc">{{ statusDesc }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 名额区 -->
-      <div class="group">
-        <div class="group-head">{{ $t('slots.slotSection') }}</div>
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.slotLabel') }}</div>
-            <div class="desc">{{ $t('settings.slotHint') }}</div>
-          </div>
-          <div class="ctrl">
-            <div class="slot-row">
-              <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
-              <el-input-number
-                v-model="form.batchLimit" :min="0" :max="999"
-                :disabled="!form.batchLimitEnabled"
-                controls-position="right" class="slot-input"
-              />
-              <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
+      <!-- 820-M: 分组卡片改 el-tabs（对齐价格管理结构与动画口径）。
+           接稿状态/名额/月度额度/队列行为各作一页签；表单字段跨页签，
+           不设 lazy 保持全部挂载，切页签不丢未保存状态；保存条统一留在页签外 -->
+      <el-tabs v-model="activeTab">
+        <!-- 接稿状态 -->
+        <el-tab-pane :label="$t('slots.statusSection')" name="status">
+          <div class="group">
+            <div class="group-head">{{ $t('slots.statusSection') }}</div>
+            <!-- REQ-016 B: 接稿状态可操作（原只读卡片 → 即时切换，与开稿管理内联逻辑一致） -->
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.statusLabel') }}</div>
+                <div class="desc">{{ $t('slots.statusSectionDesc') }}</div>
+              </div>
+              <div class="ctrl">
+                <el-radio-group :model-value="currentStatus" :disabled="statusUpdating" @change="updateStatus" size="large">
+                  <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
+                  <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
+                  <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
+                </el-radio-group>
+                <span class="status-desc">{{ statusDesc }}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.bufferLabel') }}</div>
-            <div class="desc">{{ $t('settings.bufferHint') }}</div>
-          </div>
-          <div class="ctrl">
-            <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
-          </div>
-        </div>
-        <div v-if="form.batchLimitEnabled" class="slot-total">
-          {{ $t('slots.totalHint', { n: form.batchLimit, m: form.bufferLimit, sum: form.batchLimit + form.bufferLimit }) }}
-        </div>
-      </div>
+        </el-tab-pane>
 
-      <!-- 月度额度区 -->
-      <div class="group">
-        <div class="group-head">{{ $t('slots.quotaSection') }}</div>
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.quotaLabel') }}</div>
-            <div class="desc">{{ $t('settings.quotaHint') }}</div>
-          </div>
-          <div class="ctrl">
-            <div class="slot-row">
-              <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
-              <el-input-number
-                v-model="form.monthlyQuota" :min="0" :max="999"
-                :disabled="!form.quotaEnabled"
-                controls-position="right" class="slot-input"
-              />
-              <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
+        <!-- 名额区 -->
+        <el-tab-pane :label="$t('slots.slotSection')" name="slots">
+          <div class="group">
+            <div class="group-head">{{ $t('slots.slotSection') }}</div>
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.slotLabel') }}</div>
+                <div class="desc">{{ $t('settings.slotHint') }}</div>
+              </div>
+              <div class="ctrl">
+                <div class="slot-row">
+                  <el-switch v-model="form.batchLimitEnabled" :active-text="$t('settings.slotEnable')" />
+                  <el-input-number
+                    v-model="form.batchLimit" :min="0" :max="999"
+                    :disabled="!form.batchLimitEnabled"
+                    controls-position="right" class="slot-input"
+                  />
+                  <span class="slot-unit">{{ $t('settings.slotUnit') }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.bufferLabel') }}</div>
+                <div class="desc">{{ $t('settings.bufferHint') }}</div>
+              </div>
+              <div class="ctrl">
+                <el-input-number v-model="form.bufferLimit" :min="0" :max="999" controls-position="right" class="slot-input" />
+              </div>
+            </div>
+            <div v-if="form.batchLimitEnabled" class="slot-total">
+              {{ $t('slots.totalHint', { n: form.batchLimit, m: form.bufferLimit, sum: form.batchLimit + form.bufferLimit }) }}
             </div>
           </div>
-        </div>
-      </div>
+        </el-tab-pane>
 
-      <!-- 队列行为区 -->
-      <div class="group">
-        <div class="group-head">{{ $t('slots.queueSection') }}</div>
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.autoPromote') }}</div>
+        <!-- 月度额度区 -->
+        <el-tab-pane :label="$t('slots.quotaSection')" name="quota">
+          <div class="group">
+            <div class="group-head">{{ $t('slots.quotaSection') }}</div>
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.quotaLabel') }}</div>
+                <div class="desc">{{ $t('settings.quotaHint') }}</div>
+              </div>
+              <div class="ctrl">
+                <div class="slot-row">
+                  <el-switch v-model="form.quotaEnabled" :active-text="$t('settings.quotaEnable')" />
+                  <el-input-number
+                    v-model="form.monthlyQuota" :min="0" :max="999"
+                    :disabled="!form.quotaEnabled"
+                    controls-position="right" class="slot-input"
+                  />
+                  <span class="slot-unit">{{ $t('settings.quotaUnit') }}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="ctrl ctrl--switch">
-            <el-switch v-model="form.autoPromote" :aria-label="$t('settings.autoPromote')" />
+        </el-tab-pane>
+
+        <!-- 队列行为区 -->
+        <el-tab-pane :label="$t('slots.queueSection')" name="queue">
+          <div class="group">
+            <div class="group-head">{{ $t('slots.queueSection') }}</div>
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.autoPromote') }}</div>
+              </div>
+              <div class="ctrl ctrl--switch">
+                <el-switch v-model="form.autoPromote" :aria-label="$t('settings.autoPromote')" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.hideQueuePosition') }}</div>
+              </div>
+              <div class="ctrl ctrl--switch">
+                <el-switch v-model="form.hideQueuePosition" :aria-label="$t('settings.hideQueuePosition')" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.hidePromoteNotify') }}</div>
+              </div>
+              <div class="ctrl ctrl--switch">
+                <el-switch v-model="form.hidePromoteNotify" :aria-label="$t('settings.hidePromoteNotify')" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field-text">
+                <div class="lab">{{ $t('settings.bufferShortForm') }}</div>
+              </div>
+              <div class="ctrl ctrl--switch">
+                <el-switch v-model="form.bufferShortForm" :aria-label="$t('settings.bufferShortForm')" />
+              </div>
+            </div>
+            <p class="group-hint">{{ $t('settings.bufferSwitchHint') }}</p>
           </div>
-        </div>
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.hideQueuePosition') }}</div>
-          </div>
-          <div class="ctrl ctrl--switch">
-            <el-switch v-model="form.hideQueuePosition" :aria-label="$t('settings.hideQueuePosition')" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.hidePromoteNotify') }}</div>
-          </div>
-          <div class="ctrl ctrl--switch">
-            <el-switch v-model="form.hidePromoteNotify" :aria-label="$t('settings.hidePromoteNotify')" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="field-text">
-            <div class="lab">{{ $t('settings.bufferShortForm') }}</div>
-          </div>
-          <div class="ctrl ctrl--switch">
-            <el-switch v-model="form.bufferShortForm" :aria-label="$t('settings.bufferShortForm')" />
-          </div>
-        </div>
-        <p class="group-hint">{{ $t('settings.bufferSwitchHint') }}</p>
-      </div>
+        </el-tab-pane>
+      </el-tabs>
 
       <div class="slot-actions">
         <el-button type="primary" size="large" @click="save" :loading="saving">
@@ -145,6 +158,8 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const loading = ref(true)
 const saving = ref(false)
+/** 页签当前项（el-tabs 非 lazy：四面板保持挂载，切页签不丢未保存表单状态） */
+const activeTab = ref('status')
 /** 开稿配置加载失败（未加载成功不显示默认值，对齐 Settings profileLoadFailed） */
 const loadFailed = ref(false)
 const profile = ref(null)
