@@ -5,6 +5,7 @@
 > ✅ **最后更新：2026-08-18 v125：B+C 目录规范化完工——搬家脚本 move-to-opt.sh + 安装脚本全新安装询问装 /opt/inkglean；用户提供临时 Hyper-V 虚拟机（Ubuntu 26.04）完成全链路实测：全新安装自动搬家→装机→健康 ✅ / 搬家→拒绝覆盖 ✅ / 更新脚本 ✅，抓修一体检假警报（默认 compose 不映射 3000 端口，改容器内探测优先）；VM 已清理还原**
 > 🧪 **VM 实测实录（用户提供的临时机，非生产）**：①install.mjs C 逻辑：克隆到 /home/a/inkglean-test → root 全新安装自动搬至 /opt/inkglean → 完整 Docker 安装 → healthy + health 200；②move-to-opt.sh：/opt/inkglean→inkglean2 搬家成功（备份/改 crontab/重启/体检全走通），目标已存在时拒绝覆盖；③update.sh 在新装环境全绿；④抓修：双脚本体检原用宿主机 curl :3000，默认 compose（B3 决策不映射端口仅走 Caddy）下必假警报——改容器内 node fetch 探测优先+curl 兑底（eab7b0f7）；⑤compose down --quiet 参数不存在（清理时踩到，脚本未用该参数不受影响）。VM 测试后容器/网络/卷/镜像/目录全部清理还原。
 > 📦 **交付物（提交 8ca9ba4e/eab7b0f7）**：scripts/move-to-opt.sh（搬家前备份→停容器→整目录搬→改 crontab→重启→体检；/tmp 自副本防搬自己断档；目标拒覆盖）；install.mjs maybeRelocateToOpt（仅 Linux+root+无 .env+非 /opt 触发，--relocated 防二次）；维护说明书补搬家章节。生产服务器（cute-goose-1）已先于此批由用户手动搬至 /opt/inkglean 并确认正常。
+> 🚀 **v1.0.0-beta.3 发版（用户拍板临收工加发）**：版本号 server/web 升 1.0.0-beta.3（提交 1a85305a）+ tag 已推；release 已建（prerelease，人话版说明：体验大修+运营省心版）+ 附件 inkglean-installer-v1.0.0-b3.zip（676 文件/5.1MB，b2 配方+新增三个运营脚本）。插曲：gh release create 带附件连遭 GitHub 503，改「先建 release 再 upload 附件」分步成功。地址：github.com/AxelBeary/Inkglean/releases/tag/v1.0.0-beta.3。
 > 🔑 **新会话接手指南**：无在途施工。开放项：首页原型挂起（重开从 I 续编）；公网旧 /root 残留代码一周后收拾（需列可删清单经用户确认）；防火墙 Cloudflare IP 白名单待确认；一次性下载/多付提示挂起；B测继续；桌面端HOLD。worktree 无。
 
 > ✅ **历史：2026-08-18 v124：公网服务器切换 git 部署成功（ZIP 安装包路线退役）——v67/v68 迁移补上公网、健康检查与迁移回读实测通过；运营双脚本交付（update.sh 一键更新 + server-backup.sh 每日备份），待用户演练确认；安装脚本 git 化改造记入下一批**
