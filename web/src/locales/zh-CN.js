@@ -1536,9 +1536,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   // #44: 偏好设置独立页面（从主页设置拆出）
   preferences: {
     title: '偏好设置',
-    // F1 批4: 后台字号档位（无障碍）
-    fontSize: '后台字号', fontSizeNormal: '标准', fontSizeLarge: '大', fontSizeXLarge: '特大',
-    fontSizeHint: '即时生效，刷新后保持。大 15px、特大 17px（默认 14px）'
+    // 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px）
+    fontSize: '后台字号',
+    fontSizeHint: '拖拽调节，即时生效并自动保存。范围 14~20px，默认 15px'
   },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',

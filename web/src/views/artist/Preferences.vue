@@ -13,16 +13,20 @@
     <el-button size="small" type="primary" style="margin-top: 8px" @click="loadPreferences">{{ $t('settings.retry') }}</el-button>
   </el-alert>
 
-  <!-- F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效，无需 DB） -->
+  <!-- 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px；localStorage 持久化，watch 即时生效） -->
   <el-card class="pref-card">
     <template #header><CardHead :title="$t('preferences.fontSize')" /></template>
     <el-form label-position="top" size="large">
       <el-form-item>
-        <el-radio-group v-model="fontSize">
-          <el-radio value="normal">{{ $t('preferences.fontSizeNormal') }}</el-radio>
-          <el-radio value="large">{{ $t('preferences.fontSizeLarge') }}</el-radio>
-          <el-radio value="xlarge">{{ $t('preferences.fontSizeXLarge') }}</el-radio>
-        </el-radio-group>
+        <div class="font-size-row">
+          <el-slider
+            v-model="fontSize"
+            :min="FONT_SIZE_MIN" :max="FONT_SIZE_MAX" :step="1" show-stops
+            class="font-size-slider"
+            :aria-label="$t('preferences.fontSize')"
+          />
+          <span class="font-size-value">{{ fontSize }}px</span>
+        </div>
         <div class="form-hint">{{ $t('preferences.fontSizeHint') }}</div>
       </el-form-item>
     </el-form>
@@ -99,7 +103,9 @@ import { useI18n } from 'vue-i18n'
 // v0.38: 统一卡片头部（REQ-026 §二）
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickActionsConfig, parseQuickActions } from '../../components/artist/dashboard/QuickActions.vue'
-import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js'
+import { safeSetItem } from '../../utils/storage.js'
+// 818-A: 字号滑块共享 util（Preferences 与 ArtistLayout 同一映射/读写口径）
+import { FONT_SIZE_MIN, FONT_SIZE_MAX, readFontSize, applyFontSize, writeFontSize } from '../../utils/fontSize.js'
 
 const { t } = useI18n()
 const loading = ref(true)
@@ -114,23 +120,12 @@ const form = reactive({
   dashModules: { schedule: true, guestbook: true, activity: true, onboarding: true }
 })
 
-// ─── F1 批4: 后台字号档位（localStorage 持久化，watch 即时生效） ───
-// 与 ArtistLayout.vue 的 FONT_SIZE_KEY 一致；normal 清除 dataset，恢复默认 14px
-const FONT_SIZE_KEY = 'huiyue_admin_font_size'
-function readFontSize() {
-  // G-5: 裸读写换 safe 封装（存储禁用时按默认档降级）
-  const v = safeGetItem(FONT_SIZE_KEY)
-  return v === 'large' || v === 'xlarge' ? v : 'normal'
-}
+// ─── 818-A: 后台字号滑块（localStorage 持久化，watch 即时生效，默认 15px） ───
+// 旧值（large/xlarge/normal/非法/无值）由共享 util 归一化到 14~20 数字档
 const fontSize = ref(readFontSize())
 watch(fontSize, (val) => {
-  if (val === 'normal') {
-    safeRemoveItem(FONT_SIZE_KEY)
-    delete document.documentElement.dataset.fontSize
-  } else {
-    safeSetItem(FONT_SIZE_KEY, val)
-    document.documentElement.dataset.fontSize = val
-  }
+  const size = applyFontSize(val)
+  writeFontSize(size)
 })
 
 // ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存） ───
@@ -218,6 +213,14 @@ onMounted(loadPreferences)
 .pref-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .pref-card { max-width: 600px; margin-top: 16px; }
 .form-hint { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); margin-top: 4px; }
+/* 818-A: 字号滑块（左侧滑杆 + 右侧当前值） */
+.font-size-row { display: flex; align-items: center; gap: 16px; width: 100%; }
+.font-size-slider { flex: 1; max-width: 340px; }
+.font-size-value {
+  flex: none; min-width: 46px;
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
 /* #3: 快捷按钮配置区 */
 .quick-config { display: flex; flex-direction: column; gap: 8px; }
 .quick-config-item { margin-right: 0; height: auto; }
