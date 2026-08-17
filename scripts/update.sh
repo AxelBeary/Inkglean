@@ -24,15 +24,17 @@ OLD_HEAD=$(git rev-parse --short HEAD)
 CID=$(docker compose ps -q web 2>/dev/null || true)
 
 # ── 1) 更新前备份（容器在跑才做；VACUUM INTO 不停服也安全） ──
+# 注：-w /app/server 必须带——better-sqlite3 装在 /app/server/node_modules，默认工作目录 /app 找不到模块
 mkdir -p data/backups
 if [ -n "$CID" ] && docker inspect --format '{{.State.Running}}' "$CID" 2>/dev/null | grep -q true; then
   TS=$(date +%Y%m%d-%H%M%S)
-  if docker compose exec -T web node -e "require('better-sqlite3')('/app/data/commission.db').prepare('VACUUM INTO ?').run('/app/data/commission.db.bak-pre-update-$TS')" >/dev/null 2>&1; then
+  BACKUP_OUT=$(docker compose exec -T -w /app/server web node -e "require('better-sqlite3')('/app/data/commission.db').prepare('VACUUM INTO ?').run('/app/data/commission.db.bak-pre-update-$TS')" 2>&1)
+  if [ $? -eq 0 ]; then
     ok "更新前备份完成（commission.db.bak-pre-update-$TS）"
     # 轮转：更新前备份只留最近 2 份
     docker compose exec -T web sh -c "ls -t /app/data/commission.db.bak-pre-update-* 2>/dev/null | tail -n +3 | xargs -r rm -f" >/dev/null 2>&1 || true
   else
-    warn "备份失败（不阻断更新；如不放心，5 秒内 Ctrl+C 取消）"
+    warn "备份失败：$(echo "$BACKUP_OUT" | head -1)（不阻断更新；如不放心，5 秒内 Ctrl+C 取消）"
     sleep 5
   fi
 else

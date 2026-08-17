@@ -20,7 +20,8 @@ if [ -z "$CID" ] || ! docker inspect --format '{{.State.Running}}' "$CID" 2>/dev
 fi
 
 # 1) 数据库：VACUUM INTO 一致性快照（不停服安全；产物经 bind mount 落在宿主机 data/backups/）
-if docker compose exec -T web node -e "require('better-sqlite3')('/app/data/commission.db').prepare('VACUUM INTO ?').run('/app/data/backups/commission.db.bak-daily-$TS')"; then
+# 注：-w /app/server 必须带——better-sqlite3 装在 /app/server/node_modules，默认工作目录 /app 找不到模块
+if docker compose exec -T -w /app/server web node -e "require('better-sqlite3')('/app/data/commission.db').prepare('VACUUM INTO ?').run('/app/data/backups/commission.db.bak-daily-$TS')"; then
   echo "[$TS] OK DB 备份：commission.db.bak-daily-$TS"
 else
   echo "[$TS] FAIL DB 备份失败"
