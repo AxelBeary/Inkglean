@@ -322,6 +322,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   priceCalc: {
     title: 'Price Calculator',
     subtitle: 'Quick estimate when a client asks about price; matches what the client sees',
+    // 818-B layout polish: grouped cards + group head description (similar items grouped)
+    stepStyleDesc: 'Prices vary by style — pick one first',
+    stepSizeDesc: 'Size affects the price and turnaround time',
+    stepAddonsDesc: 'Toggle what you need; the estimate updates automatically',
     loading: 'Loading…',
     loadFailed: 'Failed to load styles and pricing. Please retry.',
     stepStyle: 'Pick a style',
@@ -345,6 +349,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   reply: {
     title: 'Social Reply',
     subtitle: 'Copy-paste replies for the moments you hate speaking up',
+    // 818-B layout polish: group head + description (similar items grouped)
+    listTitle: 'Common Replies',
+    listDesc: 'Click to copy, then paste it into your chat window',
     copy: 'Copy',
     copied: 'Copied to clipboard',
     copyFailed: 'Copy failed, please copy manually',
@@ -360,6 +367,14 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   note: {
     title: 'Quick Notes',
     subtitle: 'Jot down ideas, client notes and to-dos; saved locally in this browser',
+    // 818-B layout polish: grouped cards + one-row-one-item (label left, control right)
+    formTitle: 'New Note',
+    titleLabel: 'Title (optional)',
+    titleDesc: 'Give the note a name so you can find it later',
+    contentLabel: 'Content',
+    contentDesc: 'Jot down ideas, client requests or to-dos',
+    listTitle: 'All Notes',
+    listDesc: 'Notes are saved in this browser; copy one to paste it anywhere',
     titlePlaceholder: 'Title (optional)',
     contentPlaceholder: 'Write something…',
     add: 'Add note',
@@ -504,6 +519,13 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   quote: {
     title: 'Quote',
     subtitle: 'Fill items and amounts into the template, then generate an image or text quote to send to clients',
+    // 818-B layout polish: grouped cards + one-row-one-item (label left, control right)
+    groupContent: 'Quote Content',
+    clientDesc: 'Shown at the top of the quote so the client can confirm',
+    itemsDesc: 'Add item names and amounts; at least one valid item is required',
+    noteDesc: 'Add revision counts, license scope or other notes',
+    groupExport: 'Generate & Copy',
+    totalDesc: 'Total of all items',
     clientLabel: 'Client name (optional)',
     clientPlaceholder: 'e.g. Alice, XX Studio',
     itemsLabel: 'Items',
@@ -537,6 +559,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   revisionCount: {
     title: 'Revision Counter',
     subtitle: 'Track revision rounds per entry; entries at the limit turn vermilion as a reminder',
+    // 818-B layout polish: grouped cards + one-row-one-item (label left, control right)
+    groupTitle: 'Counter Entries',
+    groupDesc: 'Each entry counts independently; entries at the limit are highlighted',
+    addLabel: 'New Counter Entry',
     namePlaceholder: 'e.g. Alice-Avatar',
     add: 'Add entry',
     addHint: 'Default limit is 3, adjustable per entry',
@@ -583,6 +609,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     title: 'Watermark Tool',
     sourceSection: 'Image source',
     watermarkSection: 'Watermark settings',
+    // 818-B layout polish: panel group heads + descriptions, one-row-one-item parameters
+    sourceDesc: 'Pick the source image; the preview updates live',
+    watermarkDesc: 'Adjust text, position and opacity, then export',
+    logoLabel: 'Watermark Logo',
     sourceNew: 'New image',
     sourceArtwork: 'Artwork',
     sourceDeliverable: 'Deliverable',

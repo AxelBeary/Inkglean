@@ -4,19 +4,27 @@
     <p class="page-sub">{{ $t('revisionCount.subtitle') }}</p>
 
     <div class="rc-panel">
-      <!-- 新增条目：名称 + 上限（默认 3，可逐条改） -->
-      <div class="rc-add-row">
-        <el-input
-          v-model="newName"
-          :placeholder="$t('revisionCount.namePlaceholder')"
-          maxlength="60"
-          class="rc-name-input"
-          @keyup.enter="addEntry"
-        />
-        <el-input-number v-model="newLimit" :min="1" :max="99" :aria-label="$t('revisionCount.limitLabel')" class="rc-limit-input" />
-        <el-button type="primary" :disabled="!newName.trim()" @click="addEntry">{{ $t('revisionCount.add') }}</el-button>
+      <!-- 818-B：组头带朱砂小印点 + 新增条目一行一事（说明在左，控件在右） -->
+      <div class="group-head">{{ $t('revisionCount.groupTitle') }}</div>
+      <p class="rc-group-hint">{{ $t('revisionCount.groupDesc') }}</p>
+
+      <div class="row rc-add-row">
+        <div class="rc-add-text">
+          <div class="lab">{{ $t('revisionCount.addLabel') }}</div>
+          <div class="desc">{{ $t('revisionCount.addHint') }}</div>
+        </div>
+        <div class="rc-add-controls">
+          <el-input
+            v-model="newName"
+            :placeholder="$t('revisionCount.namePlaceholder')"
+            maxlength="60"
+            class="rc-name-input"
+            @keyup.enter="addEntry"
+          />
+          <el-input-number v-model="newLimit" :min="1" :max="99" :aria-label="$t('revisionCount.limitLabel')" class="rc-limit-input" />
+          <el-button type="primary" :disabled="!newName.trim()" @click="addEntry">{{ $t('revisionCount.add') }}</el-button>
+        </div>
       </div>
-      <p class="rc-hint">{{ $t('revisionCount.addHint') }}</p>
 
       <div v-if="entries.length === 0" class="rc-empty">{{ $t('revisionCount.empty') }}</div>
       <div v-else class="rc-list">
@@ -153,33 +161,53 @@ onMounted(() => {
 
 .rc-panel {
   margin-top: 20px;
-  padding: 20px 24px;
+  padding: 4px 24px 20px;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r-l);
   box-shadow: var(--sh-1);
 }
-.rc-add-row { display: flex; align-items: center; gap: 12px; }
-.rc-name-input { flex: 1; }
+
+/* 818-B 三原则：组头带朱砂小印点 + 一行一事（说明在左，控件在右） */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.rc-group-hint { margin: 0 0 4px; font-size: 12px; color: var(--ink3); }
+
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+
+.rc-add-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 12px; }
+.rc-name-input { width: 240px; flex: none; }
 .rc-limit-input { width: 120px; flex: none; }
-.rc-hint { margin: 8px 0 0; font-size: 12px; color: var(--ink3); }
 
 .rc-empty {
-  margin-top: 20px;
+  margin-top: 16px;
   padding: 28px;
   text-align: center;
-  color: var(--ink3);
+  color: var(--ink3); background: var(--paper2);
   border: 1px dashed var(--line);
   border-radius: var(--r-m);
 }
 
-.rc-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.rc-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .rc-card {
   padding: 16px 20px;
   background: var(--paper2);
   border: 1px solid var(--line);
   border-radius: var(--r-l);
-  transition: border-color var(--dur-mid) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out);
+  /* 818-B 克制动效：过渡只动颜色/边框 */
+  transition: border-color var(--dur-mid) var(--ease-out);
 }
 .rc-card--over { border-color: var(--zs); box-shadow: var(--sh-1); }
 
@@ -204,12 +232,17 @@ onMounted(() => {
   color: var(--ink2);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
-  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
+  /* 818-B 克制动效：过渡只动颜色/边框，按压不位移 */
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
 .rc-mini-btn:hover:not(:disabled) { border-color: var(--hq); color: var(--hq); }
-.rc-mini-btn:active:not(:disabled) { transform: scale(0.98); }
 .rc-mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .rc-over-hint { margin: 12px 0 0; font-size: 12px; color: var(--zs); }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .rc-add-controls { justify-content: flex-start; }
+  .rc-name-input { width: 100%; }
+}
 </style>

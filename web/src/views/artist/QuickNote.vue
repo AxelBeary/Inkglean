@@ -3,16 +3,29 @@
     <h2 class="od-page-title">{{ $t('note.title') }}</h2>
     <p class="page-sub">{{ $t('note.subtitle') }}</p>
 
-    <!-- 新增表单 -->
-    <div class="note-form">
-      <input
-        v-model="newTitle" type="text" class="note-input"
-        :placeholder="$t('note.titlePlaceholder')" maxlength="40"
-      />
-      <textarea
-        v-model="newContent" class="note-textarea" rows="3"
-        :placeholder="$t('note.contentPlaceholder')" maxlength="1000"
-      ></textarea>
+    <!-- 新增表单（818-B：同类成组 + 一行一事，说明在左控件在右） -->
+    <div class="group">
+      <div class="group-head">{{ $t('note.formTitle') }}</div>
+      <div class="row">
+        <div class="note-field-text">
+          <div class="lab">{{ $t('note.titleLabel') }}</div>
+          <div class="desc">{{ $t('note.titleDesc') }}</div>
+        </div>
+        <input
+          v-model="newTitle" type="text" class="note-input"
+          :placeholder="$t('note.titlePlaceholder')" maxlength="40"
+        />
+      </div>
+      <div class="row">
+        <div class="note-field-text">
+          <div class="lab">{{ $t('note.contentLabel') }}</div>
+          <div class="desc">{{ $t('note.contentDesc') }}</div>
+        </div>
+        <textarea
+          v-model="newContent" class="note-textarea" rows="3"
+          :placeholder="$t('note.contentPlaceholder')" maxlength="1000"
+        ></textarea>
+      </div>
       <div class="note-form-actions">
         <el-button type="primary" :disabled="!newContent.trim()" @click="addNote">
           {{ $t('note.add') }}
@@ -20,24 +33,28 @@
       </div>
     </div>
 
-    <!-- 条目列表 -->
-    <div v-if="notes.length === 0" class="note-empty">{{ $t('note.empty') }}</div>
-    <div v-else class="note-list">
-      <div v-for="n in notes" :key="n.id" class="page-card note-item">
-        <div class="note-item-head">
-          <span class="note-item-title">{{ n.title || $t('note.untitled') }}</span>
-          <div class="note-item-actions">
-            <button type="button" class="note-mini-btn" @click="copyNote(n)">{{ $t('note.copy') }}</button>
-            <!-- A5: 删除不可恢复，先二次确认（localStorage 数据） -->
-            <el-popconfirm :title="$t('note.deleteConfirm')" @confirm="removeNote(n.id)">
-              <template #reference>
-                <button type="button" class="note-mini-btn">{{ $t('note.delete') }}</button>
-              </template>
-            </el-popconfirm>
+    <!-- 条目列表（同类成组收纳） -->
+    <div class="group">
+      <div class="group-head">{{ $t('note.listTitle') }}</div>
+      <p class="note-list-hint">{{ $t('note.listDesc') }}</p>
+      <div v-if="notes.length === 0" class="note-empty">{{ $t('note.empty') }}</div>
+      <div v-else class="note-list">
+        <div v-for="n in notes" :key="n.id" class="page-card note-item">
+          <div class="note-item-head">
+            <span class="note-item-title">{{ n.title || $t('note.untitled') }}</span>
+            <div class="note-item-actions">
+              <button type="button" class="note-mini-btn" @click="copyNote(n)">{{ $t('note.copy') }}</button>
+              <!-- A5: 删除不可恢复，先二次确认（localStorage 数据） -->
+              <el-popconfirm :title="$t('note.deleteConfirm')" @confirm="removeNote(n.id)">
+                <template #reference>
+                  <button type="button" class="note-mini-btn">{{ $t('note.delete') }}</button>
+                </template>
+              </el-popconfirm>
+            </div>
           </div>
+          <p class="note-item-content">{{ n.content }}</p>
+          <span class="note-item-time">{{ n.time }}</span>
         </div>
-        <p class="note-item-content">{{ n.content }}</p>
-        <span class="note-item-time">{{ n.time }}</span>
       </div>
     </div>
   </div>
@@ -118,45 +135,73 @@ onMounted(() => {
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
 .note-page { padding: 24px; max-width: 860px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.page-sub { margin-top: 6px; }
+.page-sub { margin-top: 8px; }
 
-.note-form {
-  margin-top: 20px; padding: 18px 20px;
+/* 818-B 三原则：分组卡片收纳，组头带朱砂小印点（对齐原型 .group-head） */
+.group {
+  margin-top: 16px;
+  padding: 4px 24px 16px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--r-m, 8px);
-  display: flex; flex-direction: column; gap: 10px;
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
 }
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-B 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+
 .note-input {
-  padding: 9px 12px;
+  width: 320px;
+  padding: 8px 12px;
   border: 1px solid var(--line2);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
   background: var(--paper);
   color: var(--ink);
   font-size: 14px;
   /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
   transition: border-color var(--dur-fast);
 }
-.note-input:focus { border-color: var(--hq, var(--el-color-primary)); }
+.note-input:focus { border-color: var(--hq); }
 .note-textarea {
-  padding: 9px 12px;
+  width: 360px;
+  padding: 8px 12px;
   border: 1px solid var(--line2);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
   background: var(--paper);
   color: var(--ink);
   font-size: 14px;
   line-height: 1.6;
   resize: vertical;
-  /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
   font-family: inherit;
+  /* REQ-037 批4a 补漏：去 outline:none，键盘焦点环由 artist-tokens.css 全局 :focus-visible 提供 */
   transition: border-color var(--dur-fast);
 }
-.note-textarea:focus { border-color: var(--hq, var(--el-color-primary)); }
-.note-form-actions { display: flex; justify-content: flex-end; }
+.note-textarea:focus { border-color: var(--hq); }
+.note-form-actions { display: flex; justify-content: flex-end; padding: 4px 0 0; }
 
-.note-empty { margin-top: 20px; padding: 28px; text-align: center; color: var(--ink3); background: var(--card); border: 1px dashed var(--line); border-radius: var(--r-m, 8px); }
+.note-list-hint { margin: 0 0 4px; font-size: 12px; color: var(--ink3); }
 
-.note-list { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+.note-empty {
+  margin-top: 16px; padding: 28px; text-align: center;
+  color: var(--ink3); background: var(--paper2);
+  border: 1px dashed var(--line); border-radius: var(--r-m);
+}
+
+.note-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .note-item {
   padding: 16px 20px;
 }
@@ -166,16 +211,20 @@ onMounted(() => {
 .note-mini-btn {
   padding: 4px 12px;
   border: 1px solid var(--line2);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
   background: var(--paper);
   color: var(--ink2);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
-  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值（hover/按压只动边框/文字/位移） */
-  transition: color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) ease-out;
+  /* 818-B 克制动效：过渡只动颜色/边框，按压不位移 */
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
-.note-mini-btn:hover { border-color: var(--hq, var(--el-color-primary)); color: var(--hq, var(--el-color-primary)); }
-.note-mini-btn:active { transform: scale(0.98); }
+.note-mini-btn:hover { border-color: var(--hq); color: var(--hq); }
 .note-item-content { margin-top: 8px; font-size: 14px; line-height: 1.7; color: var(--ink2); white-space: pre-wrap; }
 .note-item-time { display: block; margin-top: 8px; font-size: 12px; color: var(--ink3); }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .note-input, .note-textarea { width: 100%; }
+}
 </style>
