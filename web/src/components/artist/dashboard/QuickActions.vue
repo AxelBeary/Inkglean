@@ -2,7 +2,7 @@
 // #3: 快捷按钮候选池常量（命名导出，供 Preferences.vue 配置区共用）
 // v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
 import { markRaw } from 'vue'
-import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled, Wallet, Document, RefreshLeft, ChatLineRound, Notebook, Brush, Calculator } from '@element-plus/icons-vue'
+import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled, Wallet, Document, RefreshLeft, ChatLineRound, Notebook, Brush, PriceTag } from '@element-plus/icons-vue'
 import { safeGetItem } from '../../../utils/storage.js'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
@@ -25,7 +25,7 @@ export const QUICK_ACTION_POOL = [
   { key: 'reply', type: 'route', icon: markRaw(ChatLineRound), labelKey: 'menu.socialReply', route: '/tools/reply' },
   { key: 'note', type: 'route', icon: markRaw(Notebook), labelKey: 'menu.quickNote', route: '/tools/note' },
   { key: 'watermark', type: 'route', icon: markRaw(Brush), labelKey: 'menu.watermark', route: '/tools/watermark' },
-  { key: 'price-calc', type: 'route', icon: markRaw(Calculator), labelKey: 'menu.priceCalc', route: '/tools/price-calc' },
+  { key: 'price-calc', type: 'route', icon: markRaw(PriceTag), labelKey: 'menu.priceCalc', route: '/tools/price-calc' },
   // ── F3 新增动作（2026-08-07 用户拍板）──
   { key: 'rules', type: 'route', icon: markRaw(EditPen), labelKey: 'quickAction.rules', route: '/settings?tab=rules' },
   { key: 'share', type: 'action', icon: markRaw(Share), labelKey: 'quickAction.share', route: null, action: 'share' },
