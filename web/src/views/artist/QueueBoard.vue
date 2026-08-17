@@ -2,9 +2,19 @@
   <h2>{{ $t('queue.title') }}</h2>
   <p class="hint">{{ $t('queue.hint') }}</p>
 
-  <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
-  <div class="view-switch">
-    <SliderSwitch v-model="viewMode" :options="viewOptions" @change="saveViewMode" />
+  <!-- 818-H：视图切换按行结构整理（说明在左、控件在右） -->
+  <div class="group view-switch">
+    <div class="group-head">{{ $t('queue.viewSwitchLabel') }}</div>
+    <!-- SPEC-005: 视图切换（列表 / 月历 / 时间条），默认视图存 localStorage -->
+    <div class="row">
+      <div class="field-text">
+        <div class="lab">{{ $t('queue.viewSwitchLabel') }}</div>
+        <div class="desc">{{ $t('queue.viewSwitchDesc') }}</div>
+      </div>
+      <div class="ctrl">
+        <SliderSwitch v-model="viewMode" :options="viewOptions" @change="saveViewMode" />
+      </div>
+    </div>
   </div>
 
   <!-- ═══ 列表视图（拆 QueueBoardList，v0.41 瘦身批） ═══ -->
@@ -248,10 +258,36 @@ onUnmounted(() => {
 /* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；旧变量不残留——派工 §二.3） ═══ */
 .hint { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 8px 0 16px; }
 
-/* ─── SPEC-005: 视图切换（列表 / 月历 / 时间条） ─── */
-.view-switch { margin-bottom: 16px; }
-/* 812-C B9: 窄屏头部控件组可换行排布（间距对齐 4px 栅格；桌面不变） */
-@media (max-width: 768px) {
-  .view-switch { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group {
+  margin: 0 0 16px;
+  padding: 4px 24px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

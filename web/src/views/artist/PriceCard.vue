@@ -6,93 +6,116 @@
     <div class="pc-grid">
       <!-- 编辑区：标题 / 档位 / 联系方式 / 例图 -->
       <section class="page-card pc-panel">
-        <div class="pc-field">
-          <label class="pc-label" for="pc-title">{{ $t('priceCard.titleLabel') }}</label>
-          <input
-            id="pc-title" v-model="form.title" type="text" class="field pc-input"
-            :placeholder="$t('priceCard.titlePlaceholder')" maxlength="40"
-          />
+        <!-- 818-H：编辑区按行结构整理（说明在左、控件在右） -->
+        <div class="group-head">{{ $t('priceCard.groupEdit') }}</div>
+        <div class="row">
+          <div class="field-text">
+            <div class="lab"><label for="pc-title">{{ $t('priceCard.titleLabel') }}</label></div>
+            <div class="desc">{{ $t('priceCard.titleDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <input
+              id="pc-title" v-model="form.title" type="text" class="field pc-input"
+              :placeholder="$t('priceCard.titlePlaceholder')" maxlength="40"
+            />
+          </div>
         </div>
 
-        <div class="pc-field">
-          <label class="pc-label">
-            {{ $t('priceCard.tiersLabel') }}
-            <em class="pc-count">{{ form.tiers.length }}/6</em>
-          </label>
-          <div class="pc-tiers">
-            <div v-for="(tier, i) in form.tiers" :key="tier.id" class="pc-tier">
-              <div class="pc-tier-main">
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">
+              {{ $t('priceCard.tiersLabel') }}
+              <em class="pc-count">{{ form.tiers.length }}/6</em>
+            </div>
+            <div class="desc">{{ $t('priceCard.tiersDesc') }}</div>
+          </div>
+          <div class="ctrl ctrl--tiers">
+            <div class="pc-tiers">
+              <div v-for="(tier, i) in form.tiers" :key="tier.id" class="pc-tier">
+                <div class="pc-tier-main">
+                  <input
+                    v-model="tier.name" type="text" class="field pc-input"
+                    :placeholder="$t('priceCard.tierNamePlaceholder')" maxlength="24"
+                  />
+                  <input
+                    v-model.number="tier.priceYuan" type="number" min="0" step="0.01" class="field pc-input pc-price"
+                    :placeholder="$t('priceCard.tierPricePlaceholder')"
+                  />
+                  <button
+                    type="button" class="pc-mini-btn" :disabled="form.tiers.length <= 3"
+                    :aria-label="$t('priceCard.removeTier')" @click="removeTier(i)"
+                  >
+                    {{ $t('priceCard.removeTier') }}
+                  </button>
+                </div>
                 <input
-                  v-model="tier.name" type="text" class="field pc-input"
-                  :placeholder="$t('priceCard.tierNamePlaceholder')" maxlength="24"
+                  v-model="tier.note" type="text" class="field pc-input pc-note"
+                  :placeholder="$t('priceCard.tierNotePlaceholder')" maxlength="40"
+                  :aria-label="$t('priceCard.tierNotePlaceholder') + ' ' + (i + 1)"
                 />
-                <input
-                  v-model.number="tier.priceYuan" type="number" min="0" step="0.01" class="field pc-input pc-price"
-                  :placeholder="$t('priceCard.tierPricePlaceholder')"
-                />
+              </div>
+              <div class="pc-tier-actions">
                 <button
-                  type="button" class="pc-mini-btn" :disabled="form.tiers.length <= 3"
-                  :aria-label="$t('priceCard.removeTier')" @click="removeTier(i)"
+                  type="button" class="pc-btn pc-btn--ghost"
+                  :disabled="form.tiers.length >= 6" @click="addTier"
                 >
-                  {{ $t('priceCard.removeTier') }}
+                  {{ $t('priceCard.addTier') }}
+                </button>
+                <span class="pc-hint">{{ $t('priceCard.tierMax') }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field-text">
+            <div class="lab"><label for="pc-contact">{{ $t('priceCard.contactLabel') }}</label></div>
+            <div class="desc">{{ $t('priceCard.contactDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <input
+              id="pc-contact" v-model="form.contact" type="text" class="field pc-input"
+              :placeholder="$t('priceCard.contactPlaceholder')" maxlength="60"
+            />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('priceCard.exampleLabel') }}</div>
+            <div class="desc">{{ $t('priceCard.exampleHint') }}</div>
+          </div>
+          <div class="ctrl">
+            <div class="pc-example">
+              <label class="pc-btn pc-btn--file">
+                {{ $t('priceCard.chooseExample') }}
+                <input type="file" accept="image/*" class="pc-file" @change="onPickExample" />
+              </label>
+              <div v-if="exampleThumb" class="pc-thumb">
+                <img :src="exampleThumb" alt="" class="pc-thumb-img" />
+                <button type="button" class="pc-mini-btn" @click="removeExample">
+                  {{ $t('priceCard.removeExample') }}
                 </button>
               </div>
-              <input
-                v-model="tier.note" type="text" class="field pc-input pc-note"
-                :placeholder="$t('priceCard.tierNotePlaceholder')" maxlength="40"
-                :aria-label="$t('priceCard.tierNotePlaceholder') + ' ' + (i + 1)"
-              />
-            </div>
-            <div class="pc-tier-actions">
-              <button
-                type="button" class="pc-btn pc-btn--ghost"
-                :disabled="form.tiers.length >= 6" @click="addTier"
-              >
-                {{ $t('priceCard.addTier') }}
-              </button>
-              <span class="pc-hint">{{ $t('priceCard.tierMax') }}</span>
             </div>
           </div>
         </div>
 
-        <div class="pc-field">
-          <label class="pc-label" for="pc-contact">{{ $t('priceCard.contactLabel') }}</label>
-          <input
-            id="pc-contact" v-model="form.contact" type="text" class="field pc-input"
-            :placeholder="$t('priceCard.contactPlaceholder')" maxlength="60"
-          />
-        </div>
-
-        <div class="pc-field">
-          <label class="pc-label">{{ $t('priceCard.exampleLabel') }}</label>
-          <p class="pc-hint">{{ $t('priceCard.exampleHint') }}</p>
-          <div class="pc-example">
-            <label class="pc-btn pc-btn--file">
-              {{ $t('priceCard.chooseExample') }}
-              <input type="file" accept="image/*" class="pc-file" @change="onPickExample" />
-            </label>
-            <div v-if="exampleThumb" class="pc-thumb">
-              <img :src="exampleThumb" alt="" class="pc-thumb-img" />
-              <button type="button" class="pc-mini-btn" @click="removeExample">
-                {{ $t('priceCard.removeExample') }}
-              </button>
-            </div>
+        <div class="form-actions">
+          <div class="pc-actions">
+            <button type="button" class="btn-primary pc-btn pc-btn--primary" :disabled="exporting" @click="doExport">
+              {{ exporting ? $t('priceCard.exporting') : $t('priceCard.exportPng') }}
+            </button>
+            <button type="button" class="pc-btn" @click="copyText">
+              {{ $t('priceCard.copyText') }}
+            </button>
           </div>
-        </div>
-
-        <div class="pc-actions">
-          <button type="button" class="btn-primary pc-btn pc-btn--primary" :disabled="exporting" @click="doExport">
-            {{ exporting ? $t('priceCard.exporting') : $t('priceCard.exportPng') }}
-          </button>
-          <button type="button" class="pc-btn" @click="copyText">
-            {{ $t('priceCard.copyText') }}
-          </button>
         </div>
       </section>
 
       <!-- 预览区：canvas 实时绘制 -->
       <section class="page-card pc-panel pc-preview-panel">
-        <label class="pc-label">{{ $t('priceCard.previewLabel') }}</label>
+        <div class="group-head">{{ $t('priceCard.previewLabel') }}</div>
         <canvas ref="previewCanvas" class="pc-canvas"></canvas>
       </section>
     </div>
@@ -469,19 +492,34 @@ onBeforeUnmount(() => {
 }
 
 .pc-panel {
-  padding: 20px;
+  padding: 4px 24px 16px;
 }
-.pc-field { margin-top: 16px; }
-.pc-field:first-child { margin-top: 0; }
-.pc-label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: calc(var(--font-scale, 1) * 14px);
-  font-weight: 600;
-  color: var(--ink);
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
 }
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 560px); gap: 16px; align-items: start;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.ctrl--tiers { width: 100%; }
+.ctrl > .pc-input { width: 100%; max-width: 420px; }
+.form-actions { display: flex; justify-content: flex-end; padding: 12px 0 0; }
 .pc-count { margin-left: 4px; font-style: normal; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
-.pc-hint { margin: 0 0 8px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+.pc-hint { margin: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 
 .pc-tiers { display: flex; flex-direction: column; gap: 8px; }
 .pc-tier {
@@ -501,7 +539,7 @@ onBeforeUnmount(() => {
 .pc-thumb { display: flex; align-items: center; gap: 8px; }
 .pc-thumb-img { width: 96px; height: 96px; object-fit: cover; border: 1px solid var(--line2); border-radius: var(--r-s); background: var(--paper2); }
 
-.pc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.pc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .pc-btn {
   padding: 8px 16px;
   border: 1px solid var(--line2);
@@ -539,5 +577,9 @@ onBeforeUnmount(() => {
   border: 1px solid var(--line);
   border-radius: var(--r-m);
   background: var(--paper2);
+}
+
+@media (max-width: 960px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

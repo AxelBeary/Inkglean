@@ -114,15 +114,21 @@
   <!-- ═══ v0.25 D: 时间条视图（SPEC-005 §3） ═══ -->
   <template v-else>
     <div class="tl" v-loading="loading || bufferLoading">
-      <!-- 工具栏：缩放 + 回到今天 -->
+      <!-- 818-H：工具栏按行结构整理（说明在左、控件在右） -->
       <div class="tl-toolbar">
-        <el-radio-group :model-value="tlZoom" size="small" @update:model-value="changeTlZoom">
-          <el-radio-button value="2w">{{ $t('queue.tlZoom2w') }}</el-radio-button>
-          <el-radio-button value="1m">{{ $t('queue.tlZoom1m') }}</el-radio-button>
-          <el-radio-button value="3m">{{ $t('queue.tlZoom3m') }}</el-radio-button>
-          <el-radio-button value="6m">{{ $t('queue.tlZoom6m') }}</el-radio-button>
-        </el-radio-group>
-        <el-button v-if="!tlIsTodayVisible" text size="small" @click="tlGoToday">{{ $t('queue.calToday') }}</el-button>
+        <div class="field-text">
+          <div class="lab">{{ $t('queue.tlZoomLabel') }}</div>
+          <div class="desc">{{ $t('queue.tlZoomDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <el-radio-group :model-value="tlZoom" size="small" @update:model-value="changeTlZoom">
+            <el-radio-button value="2w">{{ $t('queue.tlZoom2w') }}</el-radio-button>
+            <el-radio-button value="1m">{{ $t('queue.tlZoom1m') }}</el-radio-button>
+            <el-radio-button value="3m">{{ $t('queue.tlZoom3m') }}</el-radio-button>
+            <el-radio-button value="6m">{{ $t('queue.tlZoom6m') }}</el-radio-button>
+          </el-radio-group>
+          <el-button v-if="!tlIsTodayVisible" text size="small" @click="tlGoToday">{{ $t('queue.calToday') }}</el-button>
+        </div>
       </div>
 
       <div class="tl-scroll" ref="tlScrollEl" @scroll="onTlScroll">
@@ -769,8 +775,16 @@ const {
 /* ─── v0.25 D: 时间条视图（v0.38 换肤；今天线朱砂 = REQ §二） ─── */
 .tl { min-height: 300px; }
 .tl-toolbar {
-  display: flex; align-items: center; gap: 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
   margin-bottom: 12px;
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .tl-toolbar { grid-template-columns: 1fr; }
 }
 .tl-scroll {
   overflow-x: auto; overflow-y: auto;

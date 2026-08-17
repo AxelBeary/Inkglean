@@ -34,12 +34,20 @@
           <div class="schedule-card-footer">{{ $t('schedule.brandFooter') }}</div>
         </div>
 
-        <!-- 导出操作 -->
-        <div class="schedule-actions">
-          <el-button :disabled="!previewText" @click="copyText">{{ $t('schedule.copyText') }}</el-button>
-          <el-button type="primary" :loading="exporting" :disabled="!previewText" @click="downloadImage">
-            {{ $t('schedule.downloadImage') }}
-          </el-button>
+        <!-- 818-H：导出操作按行结构整理（说明在左、控件在右） -->
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('schedule.shareLabel') }}</div>
+            <div class="desc">{{ $t('schedule.shareDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <div class="schedule-actions">
+              <el-button :disabled="!previewText" @click="copyText">{{ $t('schedule.copyText') }}</el-button>
+              <el-button type="primary" :loading="exporting" :disabled="!previewText" @click="downloadImage">
+                {{ $t('schedule.downloadImage') }}
+              </el-button>
+            </div>
+          </div>
         </div>
 
         <!-- 生成的图片预览（与下载内容完全一致） -->
@@ -355,12 +363,25 @@ onMounted(loadAll)
 .schedule-card-dl-row { font-size: 14px; color: var(--ink2); line-height: 1.8; }
 .schedule-card-footer { margin-top: 16px; font-size: 12px; color: var(--ink3); }
 
-.schedule-actions { margin-top: 16px; display: flex; gap: 10px; }
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; margin-top: 16px; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.schedule-actions { display: flex; gap: 12px; }
 .schedule-img {
   display: block;
   margin-top: 16px;
   max-width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--r-s, 6px);
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

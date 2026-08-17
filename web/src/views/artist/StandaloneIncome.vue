@@ -3,57 +3,89 @@
     <h2 class="od-page-title">{{ $t('standaloneIncome.title') }}</h2>
     <p class="page-sub">{{ $t('standaloneIncome.subtitle') }}</p>
 
-    <!-- 记一笔：金额（元→分）/ 日期（默认今天）/ 客户昵称 / 备注 -->
+    <!-- 818-H：记一笔表单按行结构整理（说明在左、控件在右） -->
     <el-form
       ref="formRef"
       :model="form"
       :rules="rules"
-      label-position="top"
       class="page-card si-form"
       @submit.prevent="submit"
     >
-      <div class="si-form-grid">
-        <el-form-item :label="$t('standaloneIncome.amountLabel')" prop="amount" class="si-field">
-          <el-input-number
-            v-model="form.amount"
-            :min="0"
-            :precision="2"
-            :controls="false"
-            :placeholder="$t('standaloneIncome.amountPlaceholder')"
-            class="si-amount-input"
-          />
-        </el-form-item>
-        <el-form-item :label="$t('standaloneIncome.dateLabel')" prop="incomeDate" class="si-field">
-          <el-date-picker
-            v-model="form.incomeDate"
-            type="date"
-            value-format="YYYY-MM-DD"
-            :placeholder="$t('standaloneIncome.datePlaceholder')"
-            style="width: 100%"
-          />
-        </el-form-item>
+      <div class="group-head">{{ $t('standaloneIncome.groupAdd') }}</div>
+      <el-form-item prop="amount" class="si-item">
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('standaloneIncome.amountLabel') }}</div>
+            <div class="desc">{{ $t('standaloneIncome.amountDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-input-number
+              v-model="form.amount"
+              :min="0"
+              :precision="2"
+              :controls="false"
+              :placeholder="$t('standaloneIncome.amountPlaceholder')"
+              class="si-amount-input"
+            />
+          </div>
+        </div>
+      </el-form-item>
+      <el-form-item prop="incomeDate" class="si-item">
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('standaloneIncome.dateLabel') }}</div>
+            <div class="desc">{{ $t('standaloneIncome.dateDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-date-picker
+              v-model="form.incomeDate"
+              type="date"
+              value-format="YYYY-MM-DD"
+              :placeholder="$t('standaloneIncome.datePlaceholder')"
+              class="si-date-input"
+            />
+          </div>
+        </div>
+      </el-form-item>
+      <el-form-item prop="clientName" class="si-item">
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('standaloneIncome.clientLabel') }}</div>
+            <div class="desc">{{ $t('standaloneIncome.clientDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-input
+              v-model="form.clientName"
+              :maxlength="50"
+              show-word-limit
+              :placeholder="$t('standaloneIncome.clientPlaceholder')"
+            />
+          </div>
+        </div>
+      </el-form-item>
+      <el-form-item prop="note" class="si-item">
+        <div class="row">
+          <div class="field-text">
+            <div class="lab">{{ $t('standaloneIncome.noteLabel') }}</div>
+            <div class="desc">{{ $t('standaloneIncome.noteDesc') }}</div>
+          </div>
+          <div class="ctrl">
+            <el-input
+              v-model="form.note"
+              type="textarea"
+              :rows="3"
+              :maxlength="200"
+              show-word-limit
+              :placeholder="$t('standaloneIncome.notePlaceholder')"
+            />
+          </div>
+        </div>
+      </el-form-item>
+      <div class="form-actions">
+        <el-button type="primary" :loading="saving" @click="submit">
+          {{ saving ? $t('standaloneIncome.adding') : $t('standaloneIncome.addBtn') }}
+        </el-button>
       </div>
-      <el-form-item :label="$t('standaloneIncome.clientLabel')" prop="clientName">
-        <el-input
-          v-model="form.clientName"
-          :maxlength="50"
-          show-word-limit
-          :placeholder="$t('standaloneIncome.clientPlaceholder')"
-        />
-      </el-form-item>
-      <el-form-item :label="$t('standaloneIncome.noteLabel')" prop="note">
-        <el-input
-          v-model="form.note"
-          type="textarea"
-          :rows="3"
-          :maxlength="200"
-          show-word-limit
-          :placeholder="$t('standaloneIncome.notePlaceholder')"
-        />
-      </el-form-item>
-      <el-button type="primary" :loading="saving" @click="submit">
-        {{ saving ? $t('standaloneIncome.adding') : $t('standaloneIncome.addBtn') }}
-      </el-button>
     </el-form>
 
     <!-- 记账明细（按日期倒序：日期 / 客户 / 金额 / 备注） -->
@@ -204,10 +236,34 @@ onMounted(loadItems)
 /* 记一笔表单卡片 */
 .si-form {
   margin-top: 20px;
-  padding: 22px 24px;
+  padding: 4px 24px 16px;
 }
-.si-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.si-item { margin-bottom: 0; }
+.si-form :deep(.el-form-item__error) { position: static; padding-top: 4px; }
+.form-actions { display: flex; justify-content: flex-end; padding: 12px 0 0; }
 .si-amount-input { width: 100%; }
+.si-date-input { width: 100%; }
 
 /* 记账明细卡片 */
 .si-list {
@@ -234,6 +290,7 @@ onMounted(loadItems)
 .si-row-delete { flex: none; }
 
 @media (max-width: 600px) {
+  .row { grid-template-columns: 1fr; }
   .si-row { grid-template-columns: 1fr auto auto; }
   .si-row-date { grid-column: 1 / -1; }
 }

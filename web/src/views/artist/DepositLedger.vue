@@ -15,25 +15,39 @@
       </div>
     </div>
 
-    <!-- 记一笔：单名 / 金额（元→分）/ 状态 / 日期（默认今天） -->
+    <!-- 818-H：记一笔按行结构整理（说明在左、控件在右） -->
     <form class="page-card dp-form" @submit.prevent="submit">
-      <div class="dp-form-grid">
-        <label class="dp-field">
-          <span class="dp-label">{{ $t('deposit.nameLabel') }}</span>
+      <div class="group-head">{{ $t('deposit.groupAdd') }}</div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('deposit.nameLabel') }}</div>
+          <div class="desc">{{ $t('deposit.nameDesc') }}</div>
+        </div>
+        <div class="ctrl">
           <input
             v-model="form.name" type="text" class="field dp-input"
             :placeholder="$t('deposit.namePlaceholder')" maxlength="50"
           />
-        </label>
-        <label class="dp-field">
-          <span class="dp-label">{{ $t('deposit.amountLabel') }}</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('deposit.amountLabel') }}</div>
+          <div class="desc">{{ $t('deposit.amountDesc') }}</div>
+        </div>
+        <div class="ctrl">
           <input
             v-model.number="form.amountYuan" type="number" min="0" step="0.01" class="field dp-input"
             :placeholder="$t('deposit.amountPlaceholder')"
           />
-        </label>
-        <label class="dp-field">
-          <span class="dp-label">{{ $t('deposit.statusLabel') }}</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('deposit.statusLabel') }}</div>
+          <div class="desc">{{ $t('deposit.statusDesc') }}</div>
+        </div>
+        <div class="ctrl">
           <span class="dp-status-toggle">
             <input
               id="dp-status" type="checkbox" class="dp-switch"
@@ -45,14 +59,19 @@
               {{ form.status === 'received' ? $t('deposit.statusReceived') : $t('deposit.statusPending') }}
             </label>
           </span>
-        </label>
-        <label class="dp-field">
-          <span class="dp-label">{{ $t('deposit.dateLabel') }}</span>
-          <input v-model="form.date" type="date" class="field dp-input" :aria-label="$t('deposit.dateLabel')" />
-        </label>
-        <div class="dp-field dp-field--action">
-          <button type="submit" class="btn-primary dp-btn" :disabled="submitting">{{ $t('deposit.addBtn') }}</button>
         </div>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('deposit.dateLabel') }}</div>
+          <div class="desc">{{ $t('deposit.dateDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <input v-model="form.date" type="date" class="field dp-input" :aria-label="$t('deposit.dateLabel')" />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary dp-btn" :disabled="submitting">{{ $t('deposit.addBtn') }}</button>
       </div>
     </form>
 
@@ -230,23 +249,31 @@ onMounted(loadItems)
 
 .dp-form {
   margin-top: 16px;
-  padding: 20px;
+  padding: 4px 24px 16px;
 }
-.dp-form-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 132px 104px 156px auto;
-  gap: 16px;
-  align-items: end;
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
 }
-@media (max-width: 900px) {
-  .dp-form-grid { grid-template-columns: repeat(2, 1fr); }
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
 }
-@media (max-width: 560px) {
-  .dp-form-grid { grid-template-columns: 1fr; }
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
 }
-.dp-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.dp-field--action { justify-content: end; }
-.dp-label { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink2); }
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.form-actions { display: flex; justify-content: flex-end; padding: 12px 0 0; }
+.dp-input { width: 100%; max-width: 360px; }
 .dp-status-toggle { display: flex; align-items: center; min-height: 36px; }
 .dp-switch-label { display: inline-flex; align-items: center; gap: 8px; font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink2); cursor: pointer; }
 .dp-switch { width: 16px; height: 16px; accent-color: var(--sl); cursor: pointer; }
@@ -290,6 +317,7 @@ onMounted(loadItems)
 .dp-mini-btn:active { transform: scale(0.98); }
 
 @media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
   .dp-summary { grid-template-columns: 1fr; }
   .dp-row { grid-template-columns: minmax(0, 1fr) auto auto; }
   .dp-row-date { grid-column: 1 / -1; }

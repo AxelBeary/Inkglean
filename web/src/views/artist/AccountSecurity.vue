@@ -3,106 +3,107 @@
     <h1 class="page-title">{{ t('account.title') }}</h1>
 
     <!-- ═══ 账号信息 ═══ -->
-    <section class="card-section">
-      <div class="card">
-        <div class="card-head">
-          <el-icon><InfoFilled /></el-icon>
-          <span>{{ t('account.accountInfo') }}</span>
-        </div>
-        <div class="card-body">
-          <div class="info-row">
-            <span class="info-label">{{ t('account.qqLabel') }}</span>
-            <span class="info-value">{{ profile?.qq_number || '-' }}</span>
-          </div>
-          <p class="info-hint">
+    <div class="group">
+      <div class="group-head">
+        <span>{{ t('account.accountInfo') }}</span>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ t('account.qqLabel') }}</div>
+          <div class="desc">
             {{ t('account.profileHint') }}
             <router-link to="/settings" class="link">{{ t('account.profileLink') }}</router-link>
-          </p>
+          </div>
         </div>
+        <div class="ctrl"><span class="info-value">{{ profile?.qq_number || '-' }}</span></div>
       </div>
-    </section>
+    </div>
 
     <!-- ═══ TOTP ═══ -->
-    <section class="card-section">
-      <div class="card">
-        <div class="card-head">
-          <el-icon><Key /></el-icon>
-          <span>{{ t('account.totpSection') }}</span>
-          <el-tag v-if="totpVerified" type="success" size="small">{{ t('account.totpBound') }}</el-tag>
-          <el-tag v-else type="info" size="small">{{ t('account.totpNotBound') }}</el-tag>
+    <div class="group">
+      <div class="group-head">
+        <span>{{ t('account.totpSection') }}</span>
+        <el-tag v-if="totpVerified" type="success" size="small">{{ t('account.totpBound') }}</el-tag>
+        <el-tag v-else type="info" size="small">{{ t('account.totpNotBound') }}</el-tag>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ t('account.totpSection') }}</div>
+          <div class="desc">{{ t('account.totpRowDesc') }}</div>
         </div>
-        <div class="card-body">
+        <div class="ctrl">
           <!-- 已绑定：显示重绑按钮 -->
-          <div v-if="totpVerified">
+          <template v-if="totpVerified">
             <el-button v-if="rebindStep === 'idle'" type="primary" size="small" @click="startRebind" :disabled="rebindCooldownMs > 0">
               {{ t('account.totpRebind') }}
             </el-button>
             <p v-if="rebindCooldownMs > 0" class="cooldown-hint">
               {{ t('account.totpRebindCooldown', { hours: Math.ceil(rebindCooldownMs / 3600000) }) }}
             </p>
-
-            <!-- 重绑流程 -->
-            <div v-if="rebindStep !== 'idle'" class="rebind-flow">
-              <!-- Step 1: 验证身份 -->
-              <div v-if="rebindStep === 'verify'" class="rebind-step">
-                <h3>{{ t('account.totpRebindStep1') }}</h3>
-                <p v-if="rebindMethod === 'passkey'" class="step-hint">{{ t('account.totpRebindPasskeyHint') }}</p>
-                <p v-else class="step-hint">{{ t('account.totpRebindCodeHint') }}</p>
-
-                <template v-if="rebindMethod === 'passkey'">
-                  <el-button type="primary" @click="verifyWithPasskey" :loading="rebindLoading">
-                    {{ t('account.passkeyRegister') }}
-                  </el-button>
-                </template>
-                <template v-else>
-                  <el-input v-model="currentCode" :placeholder="t('login.codePlaceholder')" maxlength="6" class="code-input" />
-                  <el-button type="primary" @click="verifyWithCode" :loading="rebindLoading" :disabled="currentCode.length !== 6">
-                    {{ t('common.confirm') }}
-                  </el-button>
-                </template>
-              </div>
-
-              <!-- Step 2: 扫码 -->
-              <div v-if="rebindStep === 'scan'" class="rebind-step">
-                <h3>{{ t('account.totpRebindStep2') }}</h3>
-                <div v-if="rebindQrDataUrl" class="qr-wrapper">
-                  <img :src="rebindQrDataUrl" alt="TOTP QR" class="qr-img" />
-                </div>
-                <p class="step-hint">{{ t('account.totpRebindNewCodeHint') }}</p>
-                <el-input v-model="newCode" :placeholder="t('account.totpRebindNewCodePlaceholder')" maxlength="6" class="code-input" />
-                <el-button type="primary" @click="confirmRebind" :loading="rebindLoading" :disabled="newCode.length !== 6">
-                  {{ t('account.totpRebindConfirm') }}
-                </el-button>
-              </div>
-
-              <!-- Step 3: 完成 -->
-              <div v-if="rebindStep === 'done'" class="rebind-step">
-                <h3>{{ t('account.totpRebindDone') }}</h3>
-                <el-alert type="success" :title="t('account.totpRebindSuccess')" :closable="false" show-icon />
-              </div>
-            </div>
-          </div>
-          <div v-else>
-            <p class="hint-text">{{ t('errors.TOTP_NOT_BOUND') }}</p>
-          </div>
+          </template>
+          <p v-else class="hint-text">{{ t('errors.TOTP_NOT_BOUND') }}</p>
         </div>
       </div>
-    </section>
+
+      <!-- 重绑流程 -->
+      <div v-if="totpVerified && rebindStep !== 'idle'" class="rebind-flow">
+        <!-- Step 1: 验证身份 -->
+        <div v-if="rebindStep === 'verify'" class="rebind-step">
+          <h3>{{ t('account.totpRebindStep1') }}</h3>
+          <p v-if="rebindMethod === 'passkey'" class="step-hint">{{ t('account.totpRebindPasskeyHint') }}</p>
+          <p v-else class="step-hint">{{ t('account.totpRebindCodeHint') }}</p>
+
+          <template v-if="rebindMethod === 'passkey'">
+            <el-button type="primary" @click="verifyWithPasskey" :loading="rebindLoading">
+              {{ t('account.passkeyRegister') }}
+            </el-button>
+          </template>
+          <template v-else>
+            <el-input v-model="currentCode" :placeholder="t('login.codePlaceholder')" maxlength="6" class="code-input" />
+            <el-button type="primary" @click="verifyWithCode" :loading="rebindLoading" :disabled="currentCode.length !== 6">
+              {{ t('common.confirm') }}
+            </el-button>
+          </template>
+        </div>
+
+        <!-- Step 2: 扫码 -->
+        <div v-if="rebindStep === 'scan'" class="rebind-step">
+          <h3>{{ t('account.totpRebindStep2') }}</h3>
+          <div v-if="rebindQrDataUrl" class="qr-wrapper">
+            <img :src="rebindQrDataUrl" alt="TOTP QR" class="qr-img" />
+          </div>
+          <p class="step-hint">{{ t('account.totpRebindNewCodeHint') }}</p>
+          <el-input v-model="newCode" :placeholder="t('account.totpRebindNewCodePlaceholder')" maxlength="6" class="code-input" />
+          <el-button type="primary" @click="confirmRebind" :loading="rebindLoading" :disabled="newCode.length !== 6">
+            {{ t('account.totpRebindConfirm') }}
+          </el-button>
+        </div>
+
+        <!-- Step 3: 完成 -->
+        <div v-if="rebindStep === 'done'" class="rebind-step">
+          <h3>{{ t('account.totpRebindDone') }}</h3>
+          <el-alert type="success" :title="t('account.totpRebindSuccess')" :closable="false" show-icon />
+        </div>
+      </div>
+    </div>
 
     <!-- ═══ Passkey ═══ -->
-    <section class="card-section">
-      <div class="card">
-        <div class="card-head">
-          <el-icon><Lock /></el-icon>
-          <span>{{ t('account.passkeySection') }}</span>
+    <div class="group">
+      <div class="group-head">
+        <span>{{ t('account.passkeySection') }}</span>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ t('account.passkeySection') }}</div>
+          <div class="desc">{{ t('account.passkeyRowDesc') }}</div>
         </div>
-        <div class="card-body">
+        <div class="ctrl">
           <div v-if="!passkeySupported" class="unsupported-hint">
             <el-icon><WarningFilled /></el-icon>
             <span>{{ t('account.passkeyNotSupported') }}</span>
           </div>
 
-          <div v-else>
+          <template v-else>
             <el-button type="primary" size="small" @click="registerPasskey" :loading="registering" :disabled="registering">
               {{ registering ? t('account.passkeyRegistering') : t('account.passkeyRegister') }}
             </el-button>
@@ -110,39 +111,39 @@
             <div v-if="credentials.length === 0 && !loading" class="empty-hint">
               {{ t('account.passkeyEmpty') }}
             </div>
-
-            <div v-if="loading" class="loading-hint">
-              <el-icon class="loading-icon"><Loading /></el-icon>
-            </div>
-
-            <el-table v-if="credentials.length > 0" :data="credentials" class="cred-table" size="small">
-              <el-table-column :label="t('account.passkeyDeviceName')" min-width="140">
-                <template #default="{ row }">
-                  <el-input v-if="editingId === row.id" v-model="editName" size="small" class="edit-name-input" @keyup.enter="saveName(row.id)" />
-                  <span v-else>{{ row.device_name || '-' }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column :label="t('account.passkeyLastUsed')" width="150">
-                <template #default="{ row }">
-                  {{ row.last_used_at ? formatDate(row.last_used_at) : t('account.passkeyNeverUsed') }}
-                </template>
-              </el-table-column>
-              <el-table-column :label="t('common.actions')" width="140">
-                <template #default="{ row }">
-                  <el-button v-if="editingId === row.id" text size="small" :loading="savingNameId === row.id" :disabled="savingNameId != null" @click="saveName(row.id)">{{ t('common.save') }}</el-button>
-                  <el-button v-else text size="small" @click="startEdit(row)">{{ t('common.edit') }}</el-button>
-                  <el-popconfirm :title="t('account.passkeyDeleteConfirm')" @confirm="deleteCredential(row.id)">
-                    <template #reference>
-                      <el-button text size="small" type="danger" :loading="deletingId === row.id" :disabled="deletingId != null">{{ t('account.passkeyDelete') }}</el-button>
-                    </template>
-                  </el-popconfirm>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
+          </template>
         </div>
       </div>
-    </section>
+
+      <div v-if="loading" class="loading-hint">
+        <el-icon class="loading-icon"><Loading /></el-icon>
+      </div>
+
+      <el-table v-if="credentials.length > 0" :data="credentials" class="cred-table" size="small">
+        <el-table-column :label="t('account.passkeyDeviceName')" min-width="140">
+          <template #default="{ row }">
+            <el-input v-if="editingId === row.id" v-model="editName" size="small" class="edit-name-input" @keyup.enter="saveName(row.id)" />
+            <span v-else>{{ row.device_name || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('account.passkeyLastUsed')" width="150">
+          <template #default="{ row }">
+            {{ row.last_used_at ? formatDate(row.last_used_at) : t('account.passkeyNeverUsed') }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('common.actions')" width="140">
+          <template #default="{ row }">
+            <el-button v-if="editingId === row.id" text size="small" :loading="savingNameId === row.id" :disabled="savingNameId != null" @click="saveName(row.id)">{{ t('common.save') }}</el-button>
+            <el-button v-else text size="small" @click="startEdit(row)">{{ t('common.edit') }}</el-button>
+            <el-popconfirm :title="t('account.passkeyDeleteConfirm')" @confirm="deleteCredential(row.id)">
+              <template #reference>
+                <el-button text size="small" type="danger" :loading="deletingId === row.id" :disabled="deletingId != null">{{ t('account.passkeyDelete') }}</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
   </div>
 </template>
 
@@ -151,7 +152,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
 import { webauthnApi, totpRebindApi } from '../../api/index.js'
-import { Lock, InfoFilled, Key, WarningFilled, Loading } from '@element-plus/icons-vue'
+import { WarningFilled, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   toCredentialCreationOptions,
@@ -380,52 +381,47 @@ onMounted(() => {
   margin: 0 0 24px;
   color: var(--ink);
 }
-.card-section {
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group {
   margin-bottom: 20px;
-}
-.card {
+  padding: 4px 24px 16px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  overflow: hidden;
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
 }
-.card-head {
+.group-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-  font-size: calc(var(--font-scale, 1) * 14px);
-  font-weight: 600;
+  padding: 16px 0 8px;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--ink);
 }
-.card-head .el-icon {
-  font-size: 18px;
-  color: var(--hq);
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
 }
-.card-body {
-  padding: 16px;
-}
-.info-row {
-  display: flex;
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
 }
-.info-label {
-  font-size: calc(var(--font-scale, 1) * 13px);
-  color: var(--ink3);
-  min-width: 60px;
-}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
 .info-value {
   font-size: calc(var(--font-scale, 1) * 15px);
   color: var(--ink);
   font-weight: 600;
-}
-.info-hint {
-  margin: 0;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  color: var(--ink3);
 }
 .link {
   color: var(--hq);
@@ -507,5 +503,9 @@ onMounted(() => {
 }
 .edit-name-input {
   max-width: 160px;
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

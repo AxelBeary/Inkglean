@@ -5,9 +5,15 @@
   交互逻辑随卡移入（焦点图上传/滑块取消/左滑详情/递补），API 变更后 emit(refresh-queue|refresh-all) 由父重拉队列
 -->
   <!-- R20: 焦点图显示模式（全局设置，存 localStorage；仅 无/大 两态） -->
+  <!-- 818-H：工具条按行结构整理（说明在左、控件在右） -->
   <div class="queue-toolbar">
-    <span class="toolbar-label">{{ $t('queue.focusDisplay') }}</span>
-    <SliderSwitch v-model="focusDisplayModel" size="small" :options="focusDisplayOptions" />
+    <div class="field-text">
+      <div class="lab">{{ $t('queue.focusDisplay') }}</div>
+      <div class="desc">{{ $t('queue.focusDisplayDesc') }}</div>
+    </div>
+    <div class="ctrl">
+      <SliderSwitch v-model="focusDisplayModel" size="small" :options="focusDisplayOptions" />
+    </div>
   </div>
 
   <!-- 工作流节点加载失败：隐藏推进按钮 + 错误提示 + 重试（不再静默无固定态） -->
@@ -651,8 +657,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.queue-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.toolbar-label { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); white-space: nowrap; }
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.queue-toolbar {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  margin-bottom: 16px;
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
 /* 工作流节点加载失败错误态（对齐 dashboard module-error） */
 .module-error {
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -660,7 +673,7 @@ onMounted(() => {
 }
 /* 812-C B9: 窄屏焦点图开关控件组可换行（间距对齐 4px 栅格；桌面不变） */
 @media (max-width: 768px) {
-  .queue-toolbar { flex-wrap: wrap; gap: 8px; }
+  .queue-toolbar { grid-template-columns: 1fr; }
 }
 
 /* 一行一条（用户决策：排期看板必须保持一行一条；宽屏空间由卡片内部横向展开消化） */

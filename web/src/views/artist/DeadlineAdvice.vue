@@ -3,19 +3,30 @@
     <h2 class="od-page-title">{{ $t('deadlineAdvice.title') }}</h2>
     <p class="page-sub">{{ $t('deadlineAdvice.subtitle') }}</p>
 
-    <div class="deadline-form">
-      <div class="deadline-field">
-        <div class="deadline-field-label">{{ $t('deadlineAdvice.workDays') }}</div>
-        <el-input-number v-model="workDays" :min="1" :max="365" :step="1" style="width: 160px" />
+    <!-- 818-H：计算控制按行结构整理（说明在左、控件在右） -->
+    <div class="group deadline-form">
+      <div class="group-head">{{ $t('deadlineAdvice.groupCalc') }}</div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('deadlineAdvice.workDays') }}</div>
+          <div class="desc">{{ $t('deadlineAdvice.workDaysDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <el-input-number v-model="workDays" :min="1" :max="365" :step="1" class="da-input" />
+        </div>
       </div>
 
-      <div class="deadline-field">
-        <div class="deadline-field-label">{{ $t('deadlineAdvice.queueMode') }}</div>
-        <el-switch v-model="includeQueue" active-text="" inactive-text="" :aria-label="$t('deadlineAdvice.queueMode')" />
-        <span class="deadline-field-hint">{{ $t('deadlineAdvice.queueHint', { n: BUFFER_DAYS_PER_ORDER }) }}</span>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('deadlineAdvice.queueMode') }}</div>
+          <div class="desc">{{ $t('deadlineAdvice.queueHint', { n: queueCount }) }}</div>
+        </div>
+        <div class="ctrl ctrl--switch">
+          <el-switch v-model="includeQueue" active-text="" inactive-text="" :aria-label="$t('deadlineAdvice.queueMode')" />
+        </div>
       </div>
 
-      <div class="deadline-field">
+      <div class="form-actions">
         <el-button type="primary" @click="compute">{{ $t('deadlineAdvice.compute') }}</el-button>
       </div>
     </div>
@@ -101,15 +112,37 @@ onMounted(async () => {
 .page-sub { margin-top: 6px; color: var(--ink3); font-size: 13px; }
 
 .deadline-form {
-  margin-top: 20px; padding: 18px 20px;
+  margin-top: 20px;
+  padding: 4px 24px 16px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--r-m, 8px);
-  display: flex; flex-direction: column; gap: 16px;
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
 }
-.deadline-field { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.deadline-field-label { font-size: 14px; font-weight: 600; color: var(--ink2); min-width: 110px; }
-.deadline-field-hint { font-size: 12px; color: var(--ink3); }
+
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+
+/* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.field-text { min-width: 0; }
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+.ctrl { min-width: 0; }
+.ctrl--switch { width: 72px; }
+.da-input { width: 160px; }
+.form-actions { display: flex; justify-content: flex-end; padding: 12px 0 0; }
 
 .deadline-result {
   margin-top: 20px; padding: 22px 24px;
@@ -127,4 +160,9 @@ onMounted(async () => {
 .deadline-line { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--ink2); }
 .deadline-line--total { font-weight: 600; color: var(--ink); }
 .deadline-disclaimer { margin-top: 14px; font-size: 12px; color: var(--ink3); }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .ctrl--switch { width: auto; }
+}
 </style>
