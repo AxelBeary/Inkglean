@@ -2,7 +2,12 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
-> ✅ **最后更新：2026-08-18 v124：公网服务器切换 git 部署成功（ZIP 安装包路线退役）——v67/v68 迁移补上公网、健康检查与迁移回读实测通过；运营双脚本交付（update.sh 一键更新 + server-backup.sh 每日备份），待用户演练确认；安装脚本 git 化改造记入下一批**
+> ✅ **最后更新：2026-08-18 v125：B+C 目录规范化完工——搬家脚本 move-to-opt.sh + 安装脚本全新安装询问装 /opt/inkglean；用户提供临时 Hyper-V 虚拟机（Ubuntu 26.04）完成全链路实测：全新安装自动搬家→装机→健康 ✅ / 搬家→拒绝覆盖 ✅ / 更新脚本 ✅，抓修一体检假警报（默认 compose 不映射 3000 端口，改容器内探测优先）；VM 已清理还原**
+> 🧪 **VM 实测实录（用户提供的临时机，非生产）**：①install.mjs C 逻辑：克隆到 /home/a/inkglean-test → root 全新安装自动搬至 /opt/inkglean → 完整 Docker 安装 → healthy + health 200；②move-to-opt.sh：/opt/inkglean→inkglean2 搬家成功（备份/改 crontab/重启/体检全走通），目标已存在时拒绝覆盖；③update.sh 在新装环境全绿；④抓修：双脚本体检原用宿主机 curl :3000，默认 compose（B3 决策不映射端口仅走 Caddy）下必假警报——改容器内 node fetch 探测优先+curl 兑底（eab7b0f7）；⑤compose down --quiet 参数不存在（清理时踩到，脚本未用该参数不受影响）。VM 测试后容器/网络/卷/镜像/目录全部清理还原。
+> 📦 **交付物（提交 8ca9ba4e/eab7b0f7）**：scripts/move-to-opt.sh（搬家前备份→停容器→整目录搬→改 crontab→重启→体检；/tmp 自副本防搬自己断档；目标拒覆盖）；install.mjs maybeRelocateToOpt（仅 Linux+root+无 .env+非 /opt 触发，--relocated 防二次）；维护说明书补搬家章节。生产服务器（cute-goose-1）已先于此批由用户手动搬至 /opt/inkglean 并确认正常。
+> 🔑 **新会话接手指南**：无在途施工。开放项：首页原型挂起（重开从 I 续编）；公网旧 /root 残留代码一周后收拾（需列可删清单经用户确认）；防火墙 Cloudflare IP 白名单待确认；一次性下载/多付提示挂起；B测继续；桌面端HOLD。worktree 无。
+
+> ✅ **历史：2026-08-18 v124：公网服务器切换 git 部署成功（ZIP 安装包路线退役）——v67/v68 迁移补上公网、健康检查与迁移回读实测通过；运营双脚本交付（update.sh 一键更新 + server-backup.sh 每日备份），待用户演练确认；安装脚本 git 化改造记入下一批**
 > 🌐 **公网迁移实录（用户手动执行+一号给命令）**：公网原为 ZIP 安装包部署（无 .git，git pull 报 not a repository）；按指南克隆 inkglean-git 新目录 → 搬迁 .env/data/uploads+改过的 compose（外部反代版，避免内置 Caddy 抢端口）→ 抓修两坑：①root 复制致 data 属主 root、容器 uid 1000 写不进（chown -R 1000:1000 解，首装同款坑）②迁移前备份因属主失败触发 fail-fast 中止（保护生效数据无损，修属主后重试干净补上 v67/v68）；终验健康 ok + 迁移回读 68。旧 /root 代码暂留作备份，稳定一周后收拾。
 > 🛠️ **运营双脚本（提交 025e0f16，bash -n 语法验过，LF 行尾核实）**：update.sh 一键更新（VACUUM INTO 更新前备份留 2 份→git pull→写版本标记→重建→等 healthy→体检汇报，失败即停给回滚命令）；server-backup.sh 每日备份（DB 快照留 7 份+uploads 留 2 份，crontab 03:30 挂用）；维护说明书补两章节；切换指南迁移回读命令修正（原 ORDER BY id 列不存在，改 MAX(version)）。待用户在公网跑 update.sh 演练+挂 crontab 确认。
 > ✅ **本机生产**：v123 批已部署（容器 healthy/迁移回读 v68/冒烟全过），版本标记机制实测写入可读。
