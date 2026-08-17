@@ -378,7 +378,14 @@ const MENU_GROUPS = [
   { key: 'front', labelKey: 'menu.groupFront' }
 ]
 const menuGroups = computed(() => {
-  const items = BASE_MENU_ITEMS.map(item => {
+  // 820-L：留言关闭 → 隐藏「留言审核」导航与角标；统计未开（管理员默认关闭）→ 隐藏整个 /stats 导航
+  const guestbookOff = store.profile?.guestbook_enabled === 0
+  const statsOff = store.profile?.statsEnabled === false
+  const items = BASE_MENU_ITEMS.filter(item => {
+    if (item.index === '/guestbook' && guestbookOff) return false
+    if (item.index === '/stats' && statsOff) return false
+    return true
+  }).map(item => {
     if (item.hasBadge) return { ...item, badge: pendingMsgCount.value }
     if (item.hasOrderBadge) return { ...item, badge: pendingOrderCount.value }
     return item
@@ -472,6 +479,11 @@ async function refreshPendingOrderCount() {
 /** 留言待审角标：与订单角标同款轮询（同频率、同可见性暂停），口径对齐 */
 async function refreshPendingMsgCount() {
   if (!store.loggedIn) return
+  // 820-L：留言关闭时角标恒 0（导航已隐藏，也不发后台请求）
+  if (store.profile?.guestbook_enabled === 0) {
+    pendingMsgCount.value = 0
+    return
+  }
   try {
     // G-8（F-2 适配）: 后端改分页响应 { items, total, page, pageSize }；
     // 角标取最新一页（pageSize=100 为后端上限），超量时可能低估——角标非关键路径可接受

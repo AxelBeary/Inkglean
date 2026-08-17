@@ -31,6 +31,8 @@ export interface Artist {
   weibo_url: string | null
   bilibili_url: string | null
   notify_enabled: number
+  // 820-L（v68）: 留言功能画师手动开关——1=开启 0=关闭（隐藏客户主页留言板块+暂停接收，历史不删）
+  guestbook_enabled: number
   template_id: string
   palette_id: string
   custom_page_path: string | null

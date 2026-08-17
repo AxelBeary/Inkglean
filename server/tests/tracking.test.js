@@ -336,7 +336,8 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     // 默认 hidden（用户 08-07 拍板：默认不显）
     const initial = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
     expect(initial.statusCode).toBe(200)
-    expect(initial.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false })
+    // 820-L：tracking-config 追加 statsEnabled（统计功能总开关，默认 false）
+    expect(initial.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false, statsEnabled: false })
 
     // PUT false → GET false
     const off = await app.inject({
@@ -347,9 +348,9 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     })
     expect(off.statusCode).toBe(200)
     // 旧字段兼容：false → hidden（事件仍收集，仅隐藏显示）
-    expect(off.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false })
+    expect(off.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false, statsEnabled: false })
     const afterOff = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
-    expect(afterOff.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false })
+    expect(afterOff.json()).toEqual({ statsMode: 'hidden', artistStatsVisible: false, statsEnabled: false })
 
     // 画师侧 enabled 同步为 false
     const artist = seedArtist({ qq_number: '40004', subdomain: 'carl' })
@@ -368,9 +369,9 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
       headers: auth,
       payload: { artistStatsVisible: true }
     })
-    expect(on.json()).toEqual({ statsMode: 'on', artistStatsVisible: true })
+    expect(on.json()).toEqual({ statsMode: 'on', artistStatsVisible: true, statsEnabled: false })
     const afterOn = await app.inject({ method: 'GET', url: '/api/admin/tracking-config', headers: auth })
-    expect(afterOn.json()).toEqual({ statsMode: 'on', artistStatsVisible: true })
+    expect(afterOn.json()).toEqual({ statsMode: 'on', artistStatsVisible: true, statsEnabled: false })
   })
 
   it('TC-TR-14: 开关 PUT 空 body / 非布尔被拒 400', async () => {

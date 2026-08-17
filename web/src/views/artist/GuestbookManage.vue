@@ -1,115 +1,123 @@
 <template>
   <h2 class="font-display gb-page-title">{{ $t('guestbookManage.title') }}</h2>
 
-  <!-- 818-H：筛选行按行结构整理（说明在左、控件在右） -->
-  <div class="group gm-filter">
-    <div class="group-head">{{ $t('guestbookManage.filterLabel') }}</div>
-    <!-- 状态筛选 + F8 语言筛选 -->
-    <div class="row">
-      <div class="field-text">
-        <div class="lab">{{ $t('guestbookManage.filterLabel') }}</div>
-        <div class="desc">{{ $t('guestbookManage.filterDesc') }}</div>
-      </div>
-      <div class="ctrl">
-        <el-radio-group v-model="statusFilter" size="default" @change="onFilterChange">
-          <el-radio-button value="">{{ $t('guestbookManage.all') }}</el-radio-button>
-          <el-radio-button value="pending">
-            {{ $t('dashboard.guestbookPending') }}
-            <el-badge v-if="pendingCount > 0" :value="pendingCount" class="gm-badge" />
-          </el-radio-button>
-          <el-radio-button value="approved">{{ $t('dashboard.guestbookApproved') }}</el-radio-button>
-          <el-radio-button value="rejected">{{ $t('dashboard.guestbookRejected') }}</el-radio-button>
-        </el-radio-group>
-        <el-select
-          v-model="languageFilter" size="default" class="gm-language-select"
-          @change="onFilterChange"
-        >
-          <el-option value="" :label="$t('guestbookManage.languageAll')" />
-          <el-option
-            v-for="lang in languageOptions" :key="lang.value"
-            :value="lang.value" :label="lang.label"
-          />
-        </el-select>
-      </div>
-    </div>
+  <!-- 820-L：留言功能关闭 → 直接访问给空态（导航与角标已隐藏，此处兜底） -->
+  <div v-if="featureDisabled" class="gb-disabled">
+    <el-empty :description="$t('guestbookManage.disabled')" />
   </div>
 
-  <!-- 留言列表 -->
-  <div v-loading="loading" class="gm-list">
-    <div v-for="msg in pagedMessages" :key="msg.id" class="gm-card" :class="`gm-card--${msg.status}`">
-      <div class="gm-card-head">
-        <span class="gm-nickname">{{ msg.nickname }}</span>
-        <span v-if="msg.language" class="gm-lang-badge">{{ languageLabel(msg.language) }}</span>
-        <el-tag :type="statusType(msg.status)" size="small">{{ $t(`dashboard.guestbook${statusLabel(msg.status)}`) }}</el-tag>
-        <span class="gm-time">{{ formatDateTime(msg.created_at) }}</span>
+  <template v-else>
+    <!-- 818-H：筛选行按行结构整理（说明在左、控件在右） -->
+    <div class="group gm-filter">
+      <div class="group-head">{{ $t('guestbookManage.filterLabel') }}</div>
+      <!-- 状态筛选 + F8 语言筛选 -->
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('guestbookManage.filterLabel') }}</div>
+          <div class="desc">{{ $t('guestbookManage.filterDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <el-radio-group v-model="statusFilter" size="default" @change="onFilterChange">
+            <el-radio-button value="">{{ $t('guestbookManage.all') }}</el-radio-button>
+            <el-radio-button value="pending">
+              {{ $t('dashboard.guestbookPending') }}
+              <el-badge v-if="pendingCount > 0" :value="pendingCount" class="gm-badge" />
+            </el-radio-button>
+            <el-radio-button value="approved">{{ $t('dashboard.guestbookApproved') }}</el-radio-button>
+            <el-radio-button value="rejected">{{ $t('dashboard.guestbookRejected') }}</el-radio-button>
+          </el-radio-group>
+          <el-select
+            v-model="languageFilter" size="default" class="gm-language-select"
+            @change="onFilterChange"
+          >
+            <el-option value="" :label="$t('guestbookManage.languageAll')" />
+            <el-option
+              v-for="lang in languageOptions" :key="lang.value"
+              :value="lang.value" :label="lang.label"
+            />
+          </el-select>
+        </div>
       </div>
-      <p class="gm-content">{{ msg.content }}</p>
+    </div>
 
-      <!-- 已有回复 -->
-      <div v-if="msg.artist_reply" class="gm-reply">
-        <span class="gm-reply-label">{{ $t('guestbookManage.replyLabel') }}</span>
-        <p class="gm-reply-text">{{ msg.artist_reply }}</p>
-      </div>
+    <!-- 留言列表 -->
+    <div v-loading="loading" class="gm-list">
+      <div v-for="msg in pagedMessages" :key="msg.id" class="gm-card" :class="`gm-card--${msg.status}`">
+        <div class="gm-card-head">
+          <span class="gm-nickname">{{ msg.nickname }}</span>
+          <span v-if="msg.language" class="gm-lang-badge">{{ languageLabel(msg.language) }}</span>
+          <el-tag :type="statusType(msg.status)" size="small">{{ $t(`dashboard.guestbook${statusLabel(msg.status)}`) }}</el-tag>
+          <span class="gm-time">{{ formatDateTime(msg.created_at) }}</span>
+        </div>
+        <p class="gm-content">{{ msg.content }}</p>
 
-      <!-- 回复编辑区（展开时） -->
-      <div v-if="replyingId === msg.id" class="gm-reply-editor">
-        <el-input
-          v-model="replyText" type="textarea" :rows="2"
-          :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
-          maxlength="500" show-word-limit
-        />
-        <div class="gm-reply-actions">
-          <el-button size="small" @click="replyingId = null">{{ $t('common.cancel') }}</el-button>
-          <el-button size="small" type="primary" :loading="replySaving" :disabled="!replyText.trim()" @click="submitReply(msg)">
-            {{ $t('dashboard.guestbookReplySave') }}
+        <!-- 已有回复 -->
+        <div v-if="msg.artist_reply" class="gm-reply">
+          <span class="gm-reply-label">{{ $t('guestbookManage.replyLabel') }}</span>
+          <p class="gm-reply-text">{{ msg.artist_reply }}</p>
+        </div>
+
+        <!-- 回复编辑区（展开时） -->
+        <div v-if="replyingId === msg.id" class="gm-reply-editor">
+          <el-input
+            v-model="replyText" type="textarea" :rows="2"
+            :placeholder="$t('dashboard.guestbookReplyPlaceholder')"
+            maxlength="500" show-word-limit
+          />
+          <div class="gm-reply-actions">
+            <el-button size="small" @click="replyingId = null">{{ $t('common.cancel') }}</el-button>
+            <el-button size="small" type="primary" :loading="replySaving" :disabled="!replyText.trim()" @click="submitReply(msg)">
+              {{ $t('dashboard.guestbookReplySave') }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="gm-actions">
+          <el-button
+            v-if="msg.status !== 'approved'"
+            size="small" type="success" :loading="actionBusyId === msg.id"
+            @click="approve(msg)"
+          >
+            {{ $t('dashboard.guestbookApprove') }}
+          </el-button>
+          <el-popconfirm
+            v-if="msg.status !== 'rejected'"
+            :title="$t('guestbookManage.rejectConfirm')"
+            @confirm="reject(msg)"
+          >
+            <template #reference>
+              <el-button size="small" type="danger" :disabled="actionBusyId === msg.id">{{ $t('dashboard.guestbookReject') }}</el-button>
+            </template>
+          </el-popconfirm>
+          <el-button
+            size="small"
+            @click="openReply(msg)"
+          >
+            {{ msg.artist_reply ? $t('guestbookManage.editReply') : $t('dashboard.guestbookReply') }}
           </el-button>
         </div>
       </div>
 
-      <!-- 操作按钮 -->
-      <div class="gm-actions">
-        <el-button
-          v-if="msg.status !== 'approved'"
-          size="small" type="success" :loading="actionBusyId === msg.id"
-          @click="approve(msg)"
-        >
-          {{ $t('dashboard.guestbookApprove') }}
-        </el-button>
-        <el-popconfirm
-          v-if="msg.status !== 'rejected'"
-          :title="$t('guestbookManage.rejectConfirm')"
-          @confirm="reject(msg)"
-        >
-          <template #reference>
-            <el-button size="small" type="danger" :disabled="actionBusyId === msg.id">{{ $t('dashboard.guestbookReject') }}</el-button>
-          </template>
-        </el-popconfirm>
-        <el-button
-          size="small"
-          @click="openReply(msg)"
-        >
-          {{ msg.artist_reply ? $t('guestbookManage.editReply') : $t('dashboard.guestbookReply') }}
-        </el-button>
-      </div>
+      <el-empty v-if="!loading && filteredMessages.length === 0" :description="$t('dashboard.guestbookEmpty')" />
     </div>
 
-    <el-empty v-if="!loading && filteredMessages.length === 0" :description="$t('dashboard.guestbookEmpty')" />
-  </div>
-
-  <!-- 分页（后端返回全量，前端本地分页） -->
-  <div v-if="filteredMessages.length > pageSize" class="gm-pagination">
-    <el-pagination
-      v-model:current-page="page"
-      :page-size="pageSize"
-      :total="filteredMessages.length"
-      layout="total, prev, pager, next"
-    />
-  </div>
+    <!-- 分页（后端返回全量，前端本地分页） -->
+    <div v-if="filteredMessages.length > pageSize" class="gm-pagination">
+      <el-pagination
+        v-model:current-page="page"
+        :page-size="pageSize"
+        :total="filteredMessages.length"
+        layout="total, prev, pager, next"
+      />
+    </div>
+  </template>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { artistApi } from '../../api/index.js'
+import { useArtistStore } from '../../stores/artist.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
@@ -117,9 +125,12 @@ import { trackEvent } from '../../utils/track.js'
 import { UI_PAGE_SIZE, GUESTBOOK_FETCH_ALL_PAGE_SIZE } from '../../constants/pagination.js'
 
 const { t } = useI18n()
+const store = useArtistStore()
 
 const messages = ref([])
 const loading = ref(true)
+/** 820-L：留言功能关闭标记（profile 未加载时先取，取不到按开启处理，由后端守卫兜底） */
+const featureDisabled = ref(false)
 const statusFilter = ref('')
 const languageFilter = ref('')
 const page = ref(1)
@@ -191,6 +202,7 @@ const statusType = (s) => STATUS_TYPE[s] || 'info'
 const statusLabel = (s) => STATUS_LABEL[s] || 'Pending'
 
 async function load() {
+  if (featureDisabled.value) return
   loading.value = true
   try {
     const PAGE_SIZE = GUESTBOOK_FETCH_ALL_PAGE_SIZE // 后端单页上限（F-2 clamp 1-100）
@@ -258,13 +270,29 @@ async function submitReply(msg) {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  // 直接访问 /guestbook（刷新后 profile 可能未加载）：先补拉 profile 再判定开关
+  if (store.profile?.guestbook_enabled === undefined) {
+    try {
+      await store.fetchProfile()
+    } catch { /* profile 拉取失败不阻塞页面，按开启处理（后端仍会正常返回数据） */ }
+  }
+  featureDisabled.value = store.profile?.guestbook_enabled === 0
+  if (featureDisabled.value) {
+    loading.value = false
+    return
+  }
+  await load()
+})
 </script>
 
 <style scoped>
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .gb-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+
+/* 820-L：功能关闭空态 */
+.gb-disabled { padding: 48px 0; }
 
 /* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
 .group {

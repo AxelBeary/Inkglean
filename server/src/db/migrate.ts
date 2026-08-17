@@ -128,6 +128,11 @@ export function initDatabase(database: Database.Database) {
     INSERT OR IGNORE INTO platform_config (key, value) VALUES ('admin_qq', '')
   `)
 
+  // 820-L（v68）: 统计功能管理员总开关——默认 0=关闭（用户语义「没开就隐藏」，画师后台隐藏整个统计导航）
+  database.exec(`
+    INSERT OR IGNORE INTO platform_config (key, value) VALUES ('stats_enabled', '0')
+  `)
+
   // ─── REQ-038: 开箱设置模式 — 不再自举管理员，运行时由 setup 守卫决定 ───
   // setup_completed（空=未完成，1=已完成）、onboarding_mode（invite=邀请制）
   database.exec(`

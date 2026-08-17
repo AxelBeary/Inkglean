@@ -77,6 +77,20 @@
       </div>
     </div>
 
+    <!-- 820-L：留言功能开关（说明在左控件在右；与通知类开关同口径） -->
+    <div class="row">
+      <div class="field-text">
+        <div class="lab">{{ $t('settings.guestbookLabel') }}</div>
+        <div class="desc">{{ $t('settings.guestbookDesc') }}</div>
+      </div>
+      <div class="ctrl">
+        <el-switch
+          :model-value="guestbookEnabled"
+          @update:model-value="$emit('update:guestbookEnabled', $event)"
+        />
+      </div>
+    </div>
+
     <div class="form-actions">
       <el-button type="primary" @click="$emit('save')" :loading="saving" :disabled="profileLoadFailed">
         {{ $t('settings.save') }}
@@ -93,6 +107,7 @@ const props = defineProps<{
   artistCode: string
   bio: string
   contactQq: string
+  guestbookEnabled: boolean
   avatar: string
   loading: boolean
   saving: boolean
@@ -105,6 +120,7 @@ const emit = defineEmits<{
   'update:artistCode': [value: string]
   'update:bio': [value: string]
   'update:contactQq': [value: string]
+  'update:guestbookEnabled': [value: boolean]
   'avatar-pick': [file: File]
 }>()
 

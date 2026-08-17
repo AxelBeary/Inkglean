@@ -42,6 +42,10 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     if (!artist || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ error: '画师不存在' })
     }
+    // 820-L（v68）: 留言功能关闭 = 暂停接收，客户提交一律拒绝（历史留言不删）
+    if (!artist.guestbook_enabled) {
+      return reply.code(403).send({ code: 'GUESTBOOK_DISABLED', error: '留言功能已关闭' })
+    }
     const body = request.body as { nickname: string; content: string; language?: string }
     const msg = guestbookService.createMessage(artist.id, body.nickname, body.content, body.language || 'zh-CN')
     // REQ-042: 留言命中敏感词 → warning 提示（不硬拦，先发后审）
@@ -60,6 +64,13 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
     if (!artist || artist.status === 'hidden' || artist.is_banned) {
       return reply.code(404).send({ error: '画师不存在' })
+    }
+    // 820-L（v68）: 留言功能关闭 = 公开数据隐藏，读接口返回空（不暴露历史留言）
+    if (!artist.guestbook_enabled) {
+      const query = request.query as { page?: string; pageSize?: string }
+      const page = Math.max(parseInt(query.page as string, 10) || 1, 1)
+      const pageSize = Math.min(Math.max(parseInt(query.pageSize as string, 10) || 20, 1), 50)
+      return { messages: [], total: 0, page, pageSize }
     }
     const query = request.query as { page?: string; pageSize?: string; language?: string }
     const page = Math.max(parseInt(query.page as string, 10) || 1, 1)

@@ -978,7 +978,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     editReply: '编辑回复',
     rejectConfirm: '确定拒绝这条留言？拒绝后客户主页将不显示。',
     // F8: 语言筛选
-    languageAll: '全部语言'
+    languageAll: '全部语言',
+    // 820-L：留言功能关闭空态
+    disabled: '留言功能已关闭，重新开启后客户可继续留言。'
   },
   // v0.35 F6: 客户端画廊筛选 + 大图标签（共享组件 TplGallery）
   gallery: {
@@ -1034,6 +1036,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     disabledHint: '统计未开启，请在管理后台开启',
     empty: '暂无事件数据',
     loadFailed: '统计加载失败，请重试',
+    // 820-L：统计功能管理员未开（默认关闭）
+    featureDisabled: '统计功能未开启，请管理员开启后使用。',
     events: {
       dashboard_view: '工作台访问', queue_view: '排期看板', orders_view: '订单列表',
       manual_view: '手动录单', artworks_view: '作品管理', settings_view: '设置',
@@ -1679,6 +1683,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     profileBioDesc: '客户了解你的第一段话',
     codeLabel: '身份码（订单号前缀）', codePlaceholder: '如 ALICE、QY（2-10位大写字母/数字）',
     codeHint: '身份码用于生成订单号前缀（如 ALICE-001），修改后新订单生效，已有订单号不变',
+    // 820-L：留言功能画师手动开关（放账号设置「基本资料」，与通知开关同口径）
+    guestbookLabel: '留言功能',
+    guestbookDesc: '关闭后客户主页隐藏留言板块，也无法提交新留言；历史留言保留，重新开启即恢复。',
     statusLabel: '主页状态', statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中', statusHidden: '已隐藏',
     // 812-B B2+B3: 小店展示独立开关（语义 = status 是否 hidden）
     shopVisibleLabel: '小店展示', shopVisibleOn: '展示中', shopVisibleOff: '已隐藏',
@@ -1999,6 +2006,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // REQ-033: 埋点看板
     tracking: {
       title: '埋点看板', total: '总事件数', visibleLabel: '画师门面统计可见',
+      enabledLabel: '画师端统计导航',
+      enabledHint: '关闭后画师后台隐藏整个统计导航；开启后由下方三态开关控制画师可见性。',
       daysLabel: '统计天数', funnelTitle: '下单漏斗',
       byNameTitle: '事件分布', byDayTitle: '按日趋势',
       visibleHint: '关闭后画师主页不显示访问统计',

@@ -6,7 +6,11 @@ import { mount, flushPromises } from '@vue/test-utils'
 
 const h = vi.hoisted(() => ({
   getMessages: vi.fn(),
-  msgError: vi.fn()
+  msgError: vi.fn(),
+  store: {
+    profile: { guestbook_enabled: 1 },
+    fetchProfile: vi.fn(() => Promise.resolve())
+  }
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -28,6 +32,11 @@ vi.mock('../../../api/index.js', () => ({
 
 vi.mock('../../../utils/track.js', () => ({
   trackEvent: vi.fn()
+}))
+
+// 820-L：页面直接访问需读 store profile 判定留言开关（默认开启）
+vi.mock('../../../stores/artist.js', () => ({
+  useArtistStore: () => h.store
 }))
 
 vi.mock('../../../components/ArtistLayout.vue', () => ({
@@ -74,6 +83,7 @@ function mountPage() {
 beforeEach(() => {
   h.getMessages.mockReset()
   h.msgError.mockClear()
+  h.store.profile = { guestbook_enabled: 1 }
 })
 
 describe('GuestbookManage 分页消费（G-8）', () => {
@@ -118,6 +128,16 @@ describe('GuestbookManage 分页消费（G-8）', () => {
     expect(wrapper.vm.filteredMessages.every(m => m.status === 'pending')).toBe(true)
     // 45 条中 pending 约 15 条 → 不足一页仍展示
     expect(wrapper.vm.filteredMessages.length).toBeGreaterThan(0)
+  })
+
+  it('820-L：留言关闭 → 空态提示且不发列表请求', async () => {
+    h.store.profile = { guestbook_enabled: 0 }
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(h.getMessages).not.toHaveBeenCalled()
+    expect(wrapper.find('.gb-disabled').exists()).toBe(true)
   })
 
   it('翻页：pagedMessages 按页码切片', async () => {

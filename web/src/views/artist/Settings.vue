@@ -20,6 +20,7 @@
         :artist-code="form.artistCode"
         :bio="form.bio"
         :contact-qq="form.contactQq"
+        :guestbook-enabled="form.guestbookEnabled"
         :avatar="form.avatar"
         :loading="loading"
         :saving="saving"
@@ -29,6 +30,7 @@
         @update:artist-code="form.artistCode = $event"
         @update:bio="form.bio = $event"
         @update:contact-qq="form.contactQq = $event"
+        @update:guestbook-enabled="form.guestbookEnabled = $event"
         @avatar-pick="handleAvatarSelect"
       />
     </el-tab-pane>
@@ -171,6 +173,8 @@ const form = reactive({
   customLinks: [],
   inspirationTags: [],
   contactQq: '',
+  // 820-L：留言功能画师手动开关（与「新消息通知」同类的账号设置项，默认开启）
+  guestbookEnabled: true,
   artistCode: '',
   templateId: 'classic',
   paletteId: 'paper',
@@ -330,7 +334,8 @@ async function save() {
         name: form.name.trim(),
         bio: form.bio.trim(),
         artistCode: form.artistCode.trim(),
-        contactQq: form.contactQq.trim()
+        contactQq: form.contactQq.trim(),
+        guestbookEnabled: form.guestbookEnabled
       })
     }
     ElMessage.success(t('settings.saved'))
@@ -343,7 +348,7 @@ async function save() {
 }
 
 const TAB_BASELINE_FIELDS = {
-  profile: ['name', 'bio', 'artistCode', 'contactQq'],
+  profile: ['name', 'bio', 'artistCode', 'contactQq', 'guestbookEnabled'],
   template: ['templateId', 'paletteId', 'accentColor']
 }
 const tabBaseline = { profile: null, showcase: null, template: null }
@@ -424,6 +429,7 @@ async function loadProfile() {
       customLinks,
       inspirationTags,
       contactQq: profile.contact_qq || '',
+      guestbookEnabled: profile.guestbook_enabled !== 0,
       artistCode: profile.artist_code || '',
       templateId: LEGACY[rawTpl] || rawTpl,
       paletteId: profile.palette_id || 'paper',

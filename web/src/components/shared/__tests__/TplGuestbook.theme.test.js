@@ -61,4 +61,11 @@ describe('TplGuestbook 主题变体', () => {
     expect(wrapper.find('.gb-submit').exists()).toBe(true)
     expect(wrapper.find('.gb-empty').exists()).toBe(true)
   })
+
+  it('820-L：enabled=false 时整个板块不渲染（客户端隐藏留言）', async () => {
+    const wrapper = mountGuestbook({ enabled: false })
+    await flushPromises()
+    expect(wrapper.find('.tpl-guestbook').exists()).toBe(false)
+    expect(wrapper.find('.gb-form').exists()).toBe(false)
+  })
 })

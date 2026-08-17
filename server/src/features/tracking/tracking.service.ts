@@ -162,6 +162,8 @@ function byLocalDayFromHourRows(rows: HourCountRow[]): Array<{ day: string; coun
  */
 const STATS_MODE_KEY = 'stats_mode'
 const ARTIST_STATS_VISIBLE_KEY = 'artist_stats_visible'
+/** 820-L（v68）: 统计功能管理员总开关——0=关闭（默认，画师后台隐藏整个统计导航）1=开启 */
+const STATS_ENABLED_KEY = 'stats_enabled'
 
 export type StatsMode = 'off' | 'hidden' | 'on'
 const STATS_MODE_VALUES: StatsMode[] = ['off', 'hidden', 'on']
@@ -267,4 +269,22 @@ export function getArtistStatsVisible(): boolean {
 export function setArtistStatsVisible(visible: boolean): boolean {
   setStatsMode(visible ? 'on' : 'hidden')
   return visible
+}
+
+/**
+ * 统计功能总开关（820-L 需求二）：管理员未开则画师后台隐藏整个 /stats 导航。
+ * 与 stats_mode（画师门面三态显隐）分层：stats_enabled 决定功能入口是否存在，
+ * stats_mode 决定开启后画师是否可见统计内容。
+ * 默认 0=关闭（用户语义「没开就隐藏」）；存量库由 initDatabase INSERT OR IGNORE 补齐默认值。
+ */
+export function getStatsEnabled(): boolean {
+  const row = db.prepare('SELECT value FROM platform_config WHERE key = ?').get(STATS_ENABLED_KEY) as { value: string } | undefined
+  return row?.value === '1'
+}
+
+/** 写统计功能总开关（'1'/'0' 落库，读回口径见 getStatsEnabled） */
+export function setStatsEnabled(enabled: boolean): boolean {
+  db.prepare('INSERT INTO platform_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+    .run(STATS_ENABLED_KEY, enabled ? '1' : '0')
+  return enabled
 }

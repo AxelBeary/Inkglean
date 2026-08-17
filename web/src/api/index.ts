@@ -761,6 +761,9 @@ export const adminApi = {
   getTrackingSummary: (days = 30): Promise<TrackingSummary> => getJson('/admin/tracking/summary', { params: { days } }),
   getTrackingConfig: (): Promise<TrackingConfig> => getJson('/admin/tracking-config'),
   setTrackingConfig: (statsMode: StatsMode): Promise<TrackingConfig> => putJson('/admin/tracking-config', { statsMode }),
+  /** 820-L: 统计功能管理员总开关（未开则画师后台隐藏整个统计导航，默认关闭） */
+  setStatsEnabled: (statsEnabled: boolean): Promise<TrackingConfig> =>
+    putJson('/admin/tracking-config', { statsEnabled }),
   // REQ-039: 邀请码管理（生成/列表/吊销）
   generateInviteCodes: (data: GenerateInviteCodesRequest): Promise<GenerateInviteCodesResult> =>
     postJson('/admin/invite-codes', data),

@@ -2,6 +2,11 @@
   <div class="stats-page" v-loading="loading">
     <h2 class="od-page-title">{{ $t('stats.title') }}</h2>
 
+    <!-- 820-L：统计功能管理员未开 → 直接访问给空态（导航已隐藏，此处兜底） -->
+    <div v-if="featureDisabled" class="stats-disabled">
+      {{ $t('stats.featureDisabled') }}
+    </div>
+
     <!-- 加载失败错误态 + 重试（不再误渲染"未开启/去管理后台"提示） -->
     <div v-if="loadFailed" class="module-error">
       <span>{{ $t('stats.loadFailed') }}</span>
@@ -53,8 +58,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
+import { useArtistStore } from '../../stores/artist.js'
 
+const store = useArtistStore()
 const loading = ref(true)
+/** 820-L：统计功能管理员开关（默认关闭；profile 未加载时先补拉） */
+const featureDisabled = ref(false)
 /** 统计加载失败（独立错误态，不再静默降级成 mode=hidden） */
 const loadFailed = ref(false)
 const statsOverview = ref(null)
@@ -73,6 +82,7 @@ function shortDay(day) {
 }
 
 async function loadStats() {
+  if (featureDisabled.value) return
   loading.value = true
   loadFailed.value = false
   try {
@@ -91,7 +101,21 @@ async function loadStats() {
   }
 }
 
-onMounted(loadStats)
+onMounted(async () => {
+  // 直接访问 /stats（刷新后 profile 可能未加载）：先补拉 profile 再判定开关
+  if (store.profile?.statsEnabled === undefined) {
+    try {
+      await store.fetchProfile()
+    } catch { /* profile 拉取失败按默认口径处理（后端 statsEnabled 默认 false=关闭） */ }
+  }
+  featureDisabled.value = store.profile?.statsEnabled === false
+  // 关闭态不再拉统计：先结束 loading，避免遮罩盖住空态文案
+  if (featureDisabled.value) {
+    loading.value = false
+    return
+  }
+  await loadStats()
+})
 </script>
 
 <style scoped>

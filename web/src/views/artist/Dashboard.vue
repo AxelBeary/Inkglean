@@ -86,6 +86,10 @@ const guestbookCardRef = ref<{ pendingCount?: number; load: () => void } | null>
 // 视觉批 P2：看板模块开关（profile.dashboard_modules JSON 串；null/坏值=全部显示）
 const dashModules = computed(() => {
   const defaults = { schedule: true, guestbook: true, activity: true, onboarding: true }
+  // 820-L：留言功能整体关闭时，仪表盘留言模块强制隐藏（个人模块开关之外的总闸）
+  if ((store.profile as { guestbook_enabled?: number } | null)?.guestbook_enabled === 0) {
+    return { ...defaults, guestbook: false }
+  }
   const raw = (store.profile as { dashboard_modules?: string | null } | null)?.dashboard_modules
   if (!raw) return defaults
   try {
