@@ -13,32 +13,42 @@
       <el-button size="small" @click="load">{{ t('dashboard.retry') }}</el-button>
     </div>
 
-    <el-card class="announcement-form-card">
-      <el-form :model="form" label-position="top">
-        <el-form-item :label="$t('announcement.admin.titleLabel')">
-          <el-input
-            v-model="form.title"
-            :placeholder="$t('announcement.admin.titlePlaceholder')"
-            maxlength="100"
-            show-word-limit
-          />
-        </el-form-item>
-        <el-form-item :label="$t('announcement.admin.contentLabel')">
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="10"
-            :placeholder="$t('announcement.admin.contentPlaceholder')"
-            maxlength="10000"
-            show-word-limit
-          />
-        </el-form-item>
-        <div class="form-actions">
-          <el-button type="primary" :loading="saving" @click="publish">{{ $t('announcement.admin.publish') }}</el-button>
-          <span v-if="publishedAt" class="published-at">{{ $t('announcement.updatedAt', { time: publishedAt }) }}</span>
+    <!-- 819-I：分组卡片 + 一行一事（说明在左、控件在右） -->
+    <div class="group announcement-form-card">
+      <div class="group-head">{{ $t('announcement.admin.manage') }}</div>
+      <div class="row">
+        <div class="ann-text">
+          <div class="lab">{{ $t('announcement.admin.titleLabel') }}</div>
+          <div class="desc">{{ $t('announcement.admin.titleDesc') }}</div>
         </div>
-      </el-form>
-    </el-card>
+        <el-input
+          v-model="form.title"
+          :placeholder="$t('announcement.admin.titlePlaceholder')"
+          maxlength="100"
+          show-word-limit
+          class="ann-title-input"
+        />
+      </div>
+      <div class="row">
+        <div class="ann-text">
+          <div class="lab">{{ $t('announcement.admin.contentLabel') }}</div>
+          <div class="desc">{{ $t('announcement.admin.contentDesc') }}</div>
+        </div>
+        <el-input
+          v-model="form.content"
+          type="textarea"
+          :rows="10"
+          :placeholder="$t('announcement.admin.contentPlaceholder')"
+          maxlength="10000"
+          show-word-limit
+          class="ann-content-input"
+        />
+      </div>
+      <div class="form-actions">
+        <el-button type="primary" :loading="saving" @click="publish">{{ $t('announcement.admin.publish') }}</el-button>
+        <span v-if="publishedAt" class="published-at">{{ $t('announcement.updatedAt', { time: publishedAt }) }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -100,18 +110,52 @@ onMounted(load)
 <style scoped>
 /* P0 修复：回显失败横幅（朱砂浸染，克制不刺眼） */
 .load-error-banner {
-  max-width: 720px; margin: 0 0 14px; padding: 10px 14px;
+  max-width: 860px; margin: 0 0 16px; padding: 12px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
 }
-.announcement-form-card { max-width: 720px; border-radius: var(--r-l); }
+
+/* 819-I：分组卡片 + 一行一事（对齐 QuickNote 基准） */
+.group {
+  max-width: 860px;
+  padding: 4px 24px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.ann-text { min-width: 0; }
+.ann-title-input { width: 320px; flex: none; }
+.ann-content-input { width: 480px; flex: none; }
 .form-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  padding-top: 12px;
 }
 .published-at {
   font-size: calc(var(--font-scale, 1) * 11px);
   color: var(--ink3);
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .ann-title-input, .ann-content-input { width: 100%; }
 }
 </style>

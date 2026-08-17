@@ -72,6 +72,7 @@
               <span class="card-title">{{ $t('admin.quickActions') }}</span>
             </div>
           </template>
+          <!-- 819-I：控件在右（快捷入口按按钮组右对齐，不做逐行说明） -->
           <div class="quick-list">
             <el-button type="primary" plain @click="$router.push('/admin/artists')">{{ $t('admin.manageArtists') }}</el-button>
             <el-button plain @click="$router.push('/admin/greetings')">{{ $t('admin.greetingManage') }}</el-button>
@@ -83,25 +84,31 @@
         <!-- F4: 留言管理（跨画师，强制删除） -->
         <el-card shadow="never" class="admin-section-card gb-card">
           <template #header>
-            <div class="gb-filter-header">
+            <div class="card-head">
               <span class="card-title">{{ $t('admin.guestbook.title') }}</span>
-              <!-- REQ-022 F5: 画师 / 审核状态 / 是否已回复 三维筛选（清空即全部） -->
-              <div class="gb-filters">
-                <el-select v-model="filterArtistId" size="small" clearable style="width: 130px" :placeholder="$t('admin.guestbook.colArtist')" @change="loadAdminMessages">
-                  <el-option v-for="a in artists" :key="a.id" :label="a.name" :value="a.id" />
-                </el-select>
-                <el-select v-model="filterStatus" size="small" clearable style="width: 110px" :placeholder="$t('admin.guestbook.colStatus')" @change="loadAdminMessages">
-                  <el-option :label="$t('admin.guestbook.statusPending')" value="pending" />
-                  <el-option :label="$t('admin.guestbook.statusApproved')" value="approved" />
-                  <el-option :label="$t('admin.guestbook.statusRejected')" value="rejected" />
-                </el-select>
-                <el-select v-model="filterReplied" size="small" clearable style="width: 110px" :placeholder="$t('admin.guestbook.filterByReplied')" @change="loadAdminMessages">
-                  <el-option :label="$t('admin.guestbook.repliedYes')" :value="1" />
-                  <el-option :label="$t('admin.guestbook.repliedNo')" :value="0" />
-                </el-select>
-              </div>
             </div>
           </template>
+          <!-- 819-I：一行一事——说明在左、筛选控件在右（REQ-022 F5 三维筛选结构不动） -->
+          <div class="row gb-filter-row">
+            <div class="gb-filter-text">
+              <div class="lab">{{ $t('admin.guestbook.filterLabel') }}</div>
+              <div class="desc">{{ $t('admin.guestbook.filterDesc') }}</div>
+            </div>
+            <div class="gb-filters">
+              <el-select v-model="filterArtistId" size="small" clearable style="width: 132px" :placeholder="$t('admin.guestbook.colArtist')" @change="loadAdminMessages">
+                <el-option v-for="a in artists" :key="a.id" :label="a.name" :value="a.id" />
+              </el-select>
+              <el-select v-model="filterStatus" size="small" clearable style="width: 112px" :placeholder="$t('admin.guestbook.colStatus')" @change="loadAdminMessages">
+                <el-option :label="$t('admin.guestbook.statusPending')" value="pending" />
+                <el-option :label="$t('admin.guestbook.statusApproved')" value="approved" />
+                <el-option :label="$t('admin.guestbook.statusRejected')" value="rejected" />
+              </el-select>
+              <el-select v-model="filterReplied" size="small" clearable style="width: 112px" :placeholder="$t('admin.guestbook.filterByReplied')" @change="loadAdminMessages">
+                <el-option :label="$t('admin.guestbook.repliedYes')" :value="1" />
+                <el-option :label="$t('admin.guestbook.repliedNo')" :value="0" />
+              </el-select>
+            </div>
+          </div>
           <!-- P1-B：留言加载失败不再静默——错误横幅 + 重试；失败不显示「暂无留言」空态 -->
           <div v-if="msgLoadFailed" class="load-error-banner gb-error" role="alert">
             <span>{{ t('common.networkError') }}</span>
@@ -268,11 +275,12 @@ onMounted(async () => {
 .card-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
 
 /* ─── 快捷操作：卡片内按钮组（wrap 等宽节奏） ─── */
-.quick-list { display: flex; flex-wrap: wrap; gap: var(--sp-2, 8px); }
+/* 819-I：控件在右——按钮组整体右对齐 */
+.quick-list { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-2, 8px); }
 
 /* ─── P1-B：留言加载失败横幅（复用公告页 P0 同款模式，朱砂浸染克制） ─── */
 .load-error-banner {
-  padding: 10px 14px;
+  padding: 12px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
 }
@@ -280,11 +288,17 @@ onMounted(async () => {
 /* ─── 表格单元格细节 ─── */
 .cell-name { font-weight: 600; color: var(--ink); }
 .cell-tag { margin-left: var(--sp-1, 4px); }
-.cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 1px 6px; border-radius: var(--r-s, 4px); }
+.cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 4px 8px; border-radius: var(--r-s); }
 
-/* ─── 留言筛选行（右栏内换行不挤） ─── */
-.gb-filter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2, 8px); }
-.gb-filters { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+/* ─── 819-I：一行一事（说明在左、控件在右，对齐 QuickNote 基准） ─── */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.gb-filter-text { min-width: 0; }
+.gb-filters { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; justify-content: flex-end; }
 
 /* ─── T 波：留言表 el-table → 等价网格列表（列宽对齐原 small/stripe/max-height），TransitionGroup 行级淡出 ─── */
 .gb-list-head,
@@ -338,12 +352,16 @@ onMounted(async () => {
 
 /* P1-B：≤600px 留言纵向卡片（文本行 + 操作行），防 390px 横向溢出；
    桌面端（≥901px）零变 */
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .gb-filters { justify-content: flex-start; }
+}
 @media (max-width: 600px) {
   .gb-list-head { display: none; }
   .gb-row {
     grid-template-columns: 1fr auto;
-    row-gap: 6px;
-    padding: 10px 12px;
+    row-gap: 8px;
+    padding: 12px;
     align-items: start;
   }
   .gb-col--artist,
@@ -365,7 +383,7 @@ onMounted(async () => {
     display: block;
     font-size: 11px;
     color: var(--ink3);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
 }
 </style>

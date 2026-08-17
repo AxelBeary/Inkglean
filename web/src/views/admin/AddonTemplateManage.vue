@@ -54,65 +54,100 @@
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? $t('admin.addonTemplatesEdit') : $t('admin.addonTemplatesAdd')"
-      width="520px"
+      width="680px"
       destroy-on-close
     >
-      <el-form :model="form" label-position="top" @submit.prevent>
-        <el-form-item :label="$t('styleManage.tplNameLabel')" required>
-          <el-input v-model="form.name" :placeholder="$t('styleManage.tplNamePlaceholder')" maxlength="50" show-word-limit />
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.tplCategoryLabel')" required>
-          <el-radio-group v-model="form.category" @change="onCategoryChange">
-            <el-radio-button value="add">{{ $t('styleManage.catAdd') }}</el-radio-button>
-            <el-radio-button value="usage">{{ $t('styleManage.catUsage') }}</el-radio-button>
-            <el-radio-button value="rush">{{ $t('styleManage.catRush') }}</el-radio-button>
-          </el-radio-group>
-          <p class="form-hint">{{ categoryHint }}</p>
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.tplControlLabel')" required>
-          <el-radio-group v-model="form.control_type">
-            <el-radio-button value="switch">{{ $t('styleManage.tplControlSwitch') }}</el-radio-button>
-            <el-radio-button value="quantity" :disabled="form.category !== 'add'">{{ $t('styleManage.tplControlQuantity') }}</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.tplPricingLabel')" required>
-          <el-radio-group v-model="form.price_mode">
-            <el-radio-button value="fixed">{{ $t('styleManage.tplPricingFixed') }}</el-radio-button>
-            <el-radio-button value="percent">{{ $t('styleManage.tplPricingPercent') }}</el-radio-button>
-          </el-radio-group>
-          <p class="form-hint">{{ pricingHint }}</p>
-        </el-form-item>
-        <el-form-item :label="$t('styleManage.tplPriceLabel')" required>
+      <!-- 819-I：一行一事——说明在左、控件在右 -->
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('styleManage.tplNameLabel') }}</div>
+          <div class="desc">{{ $t('admin.addonTemplatesNameHint') }}</div>
+        </div>
+        <el-input v-model="form.name" :placeholder="$t('styleManage.tplNamePlaceholder')" maxlength="50" show-word-limit class="at-name-input" />
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('styleManage.tplCategoryLabel') }}</div>
+          <div class="desc">{{ categoryHint }}</div>
+        </div>
+        <el-radio-group v-model="form.category" @change="onCategoryChange">
+          <el-radio-button value="add">{{ $t('styleManage.catAdd') }}</el-radio-button>
+          <el-radio-button value="usage">{{ $t('styleManage.catUsage') }}</el-radio-button>
+          <el-radio-button value="rush">{{ $t('styleManage.catRush') }}</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('styleManage.tplControlLabel') }}</div>
+          <div class="desc">{{ $t('admin.addonTemplatesControlHint') }}</div>
+        </div>
+        <el-radio-group v-model="form.control_type">
+          <el-radio-button value="switch">{{ $t('styleManage.tplControlSwitch') }}</el-radio-button>
+          <el-radio-button value="quantity" :disabled="form.category !== 'add'">{{ $t('styleManage.tplControlQuantity') }}</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('styleManage.tplPricingLabel') }}</div>
+          <div class="desc">{{ pricingHint }}</div>
+        </div>
+        <el-radio-group v-model="form.price_mode">
+          <el-radio-button value="fixed">{{ $t('styleManage.tplPricingFixed') }}</el-radio-button>
+          <el-radio-button value="percent">{{ $t('styleManage.tplPricingPercent') }}</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('styleManage.tplPriceLabel') }}</div>
+          <div class="desc">{{ $t('admin.addonTemplatesPriceHint') }}</div>
+        </div>
+        <div class="at-price-control">
           <el-input-number
             v-model="form.default_price"
             :min="0"
             :max="form.price_mode === 'percent' ? ADDON_PERCENT_MAX : ADDON_FIXED_PRICE_MAX"
             :step="form.price_mode === 'percent' ? 5 : 10"
             :precision="form.price_mode === 'percent' ? 0 : undefined"
-            style="width: 200px"
+            class="at-price-input"
           />
           <span class="price-suffix">{{ form.price_mode === 'percent' ? '%' : '¥' }}</span>
-        </el-form-item>
-        <template v-if="form.control_type === 'quantity'">
-          <el-form-item :label="$t('styleManage.tplUnitLabel')">
-            <el-input v-model="form.unit_label" :placeholder="$t('styleManage.tplUnitPlaceholder')" maxlength="20" style="width: 200px" />
-          </el-form-item>
-          <el-form-item :label="$t('styleManage.tplMaxQtyLabel')">
-            <el-input-number v-model="form.max_quantity" :min="1" :max="999" :step="1" style="width: 200px" />
-            <p class="form-hint">{{ $t('styleManage.createMaxQtyHint') }}</p>
-          </el-form-item>
-        </template>
-        <el-form-item :label="$t('admin.addonTemplatesSortLabel')">
-          <el-input-number v-model="form.sort_order" :min="0" :max="9999" controls-position="right" style="width: 160px" />
-        </el-form-item>
+        </div>
+      </div>
+      <template v-if="form.control_type === 'quantity'">
+        <div class="row">
+          <div class="form-text">
+            <div class="lab">{{ $t('styleManage.tplUnitLabel') }}</div>
+            <div class="desc">{{ $t('admin.addonTemplatesUnitHint') }}</div>
+          </div>
+          <el-input v-model="form.unit_label" :placeholder="$t('styleManage.tplUnitPlaceholder')" maxlength="20" class="at-unit-input" />
+        </div>
+        <div class="row">
+          <div class="form-text">
+            <div class="lab">{{ $t('styleManage.tplMaxQtyLabel') }}</div>
+            <div class="desc">{{ $t('styleManage.createMaxQtyHint') }}</div>
+          </div>
+          <el-input-number v-model="form.max_quantity" :min="1" :max="999" :step="1" class="at-qty-input" />
+        </div>
+      </template>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.addonTemplatesSortLabel') }}</div>
+          <div class="desc">{{ $t('admin.addonTemplatesSortHint') }}</div>
+        </div>
+        <el-input-number v-model="form.sort_order" :min="0" :max="9999" controls-position="right" class="at-sort-input" />
+      </div>
 
-        <!-- 编辑时：同步/冻结开关（默认不勾选 = 冻结） -->
-        <el-form-item v-if="editingId" :label="$t('admin.addonTemplatesSyncLabel')">
-          <el-switch v-model="form.sync" />
-          <p class="form-hint">{{ $t('admin.addonTemplatesSyncHint') }}</p>
-          <p class="form-hint form-hint--warn">{{ $t('admin.addonTemplatesFreezeNote') }}</p>
-        </el-form-item>
-      </el-form>
+      <!-- 编辑时：同步/冻结开关（默认不勾选 = 冻结） -->
+      <div class="row" v-if="editingId">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.addonTemplatesSyncLabel') }}</div>
+          <div class="desc">
+            {{ $t('admin.addonTemplatesSyncHint') }}
+            <span class="sync-warn">{{ $t('admin.addonTemplatesFreezeNote') }}</span>
+          </div>
+        </div>
+        <el-switch v-model="form.sync" />
+      </div>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" :loading="saving" @click="submit">{{ $t('common.confirm') }}</el-button>
@@ -278,6 +313,25 @@ onMounted(load)
 <style scoped>
 .at-price { font-weight: 600; color: var(--ink); }
 .price-suffix { margin-left: 8px; color: var(--ink3); font-weight: 600; }
-.form-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink2); margin: 4px 0 0; line-height: 1.6; width: 100%; }
-.form-hint--warn { color: var(--warn, #b7791f); }
+
+/* 819-I：一行一事（说明在左、控件在右，对齐 QuickNote 基准） */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.6; }
+.form-text { min-width: 0; }
+.sync-warn { display: block; color: var(--warn, #b7791f); margin-top: 4px; }
+.at-name-input { width: 320px; flex: none; }
+.at-price-control { display: flex; align-items: center; }
+.at-price-input { width: 200px; flex: none; }
+.at-unit-input { width: 200px; flex: none; }
+.at-qty-input { width: 200px; flex: none; }
+.at-sort-input { width: 160px; flex: none; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .at-name-input { width: 100%; }
+}
 </style>

@@ -10,16 +10,30 @@
 <template>
   <div class="health-page">
     <!-- 页头 -->
-    <div class="admin-page-head admin-page-head--actions">
+    <div class="admin-page-head">
       <div>
         <h1 class="admin-page-title font-display">{{ $t('admin.health.title') }}</h1>
         <p class="admin-page-sub">{{ $t('admin.health.refresh') }}</p>
       </div>
-      <div class="health-actions">
+    </div>
+
+    <!-- 819-I：一行一事——说明在左、操作按钮在右 -->
+    <div class="group health-actions-group">
+      <div class="row">
+        <div class="health-action-text">
+          <div class="lab">{{ $t('admin.health.start') }}</div>
+          <div class="desc">{{ $t('admin.health.startHint') }}</div>
+        </div>
         <el-button type="primary" :loading="checking" @click="runChecks">
           {{ checking ? $t('admin.health.checking') : $t('admin.health.start') }}
         </el-button>
-        <el-button v-if="checks.length" :loading="downloading" @click="downloadReport">{{ $t('admin.health.download') }}</el-button>
+      </div>
+      <div class="row">
+        <div class="health-action-text">
+          <div class="lab">{{ $t('admin.health.download') }}</div>
+          <div class="desc">{{ $t('admin.health.downloadHint') }}</div>
+        </div>
+        <el-button :loading="downloading" :disabled="!checks.length" @click="downloadReport">{{ $t('admin.health.download') }}</el-button>
       </div>
     </div>
 
@@ -158,7 +172,22 @@ async function downloadReport() {
 /* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807）——状态卡片化 ═══ */
 .health-page { }
 
-.health-actions { display: flex; gap: var(--sp-2, 8px); }
+/* 819-I：分组卡片 + 一行一事（对齐 QuickNote 基准） */
+.group {
+  margin-bottom: 16px;
+  padding: 4px 24px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
+}
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.health-action-text { min-width: 0; }
 
 /* 检查结果卡片网格（2 列） */
 .health-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-4, 16px); }
@@ -166,7 +195,7 @@ async function downloadReport() {
   .health-grid { grid-template-columns: 1fr; }
 }
 .health-card {
-  border-radius: var(--r-l, 11px);
+  border-radius: var(--r-l);
   border: 1px solid var(--line);
   transition: box-shadow var(--dur-fast), border-color var(--dur-fast);
 }
@@ -207,5 +236,9 @@ async function downloadReport() {
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>

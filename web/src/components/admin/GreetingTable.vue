@@ -5,21 +5,27 @@
       {{ artistId ? $t('admin.greetingArtistHint') : $t('admin.greetingGlobalHint') }}
     </p>
 
-    <!-- 添加行 -->
-    <div class="add-row">
-      <el-input
-        v-model="newText" :placeholder="$t('admin.greetingPlaceholder')" size="small"
-        @keyup.enter="addGreeting" style="flex: 1; min-width: 160px"
-      />
-      <el-select v-model="newSlot" size="small" style="width: 100px">
-        <el-option v-for="s in slots" :key="s.value" :value="s.value" :label="s.label" />
-      </el-select>
-      <el-button
-        type="primary" size="small" @click="addGreeting" :loading="saving"
-        :disabled="!newText.trim()"
-      >
-        ＋ {{ $t('common.add') }}
-      </el-button>
+    <!-- 819-I：一行一事——说明在左、添加控件在右（7 档时段下拉结构不动） -->
+    <div class="row add-row">
+      <div class="greeting-add-text">
+        <div class="lab">{{ $t('admin.greetingAddLabel') }}</div>
+        <div class="desc">{{ $t('admin.greetingAddDesc') }}</div>
+      </div>
+      <div class="greeting-add-controls">
+        <el-input
+          v-model="newText" :placeholder="$t('admin.greetingPlaceholder')" size="small"
+          @keyup.enter="addGreeting" class="greeting-text-input"
+        />
+        <el-select v-model="newSlot" size="small" style="width: 100px">
+          <el-option v-for="s in slots" :key="s.value" :value="s.value" :label="s.label" />
+        </el-select>
+        <el-button
+          type="primary" size="small" @click="addGreeting" :loading="saving"
+          :disabled="!newText.trim()"
+        >
+          ＋ {{ $t('common.add') }}
+        </el-button>
+      </div>
     </div>
 
     <!-- 实时预览 -->
@@ -170,8 +176,19 @@ onMounted(load)
 
 <style scoped>
 .scope-hint { font-size: 12px; color: var(--ink2); margin-bottom: 12px; }
-.add-row { display: flex; gap: 8px; margin-bottom: 4px; }
-.preview-hint { font-size: 12px; color: var(--ink2); margin: 6px 0 10px; }
+
+/* 819-I：一行一事（说明在左、控件在右，对齐 QuickNote 基准） */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.greeting-add-text { min-width: 0; }
+.greeting-add-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.greeting-text-input { width: 320px; flex: none; }
+.add-row { margin-bottom: 4px; }
+.preview-hint { font-size: 12px; color: var(--ink2); margin: 8px 0 12px; }
 
 /* ─── T 波：el-table → 等价网格列表（列宽对齐原 small/stripe 视觉），TransitionGroup 行级淡出 ─── */
 .greeting-table-head,
@@ -223,7 +240,7 @@ onMounted(load)
   .greeting-row {
     grid-template-columns: 1fr auto auto;
     gap: 8px 12px;
-    padding: 10px 12px;
+    padding: 12px;
     align-items: center;
   }
   .g-col--text { grid-column: 1 / -1; }
@@ -236,7 +253,10 @@ onMounted(load)
     display: block;
     font-size: 11px;
     color: var(--ink3);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
+  .row { grid-template-columns: 1fr; }
+  .greeting-add-controls { justify-content: flex-start; }
+  .greeting-text-input { width: 100%; }
 }
 </style>

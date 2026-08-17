@@ -60,36 +60,57 @@
     </el-card>
 
     <!-- 新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editing ? $t('admin.platform.edit') : $t('admin.platform.add')" width="520px">
-      <el-form :model="form" label-position="top">
-        <el-form-item :label="$t('admin.platform.nameLabel')" required>
-          <el-input v-model="form.name" :placeholder="$t('admin.platform.namePlaceholder')" maxlength="30" show-word-limit />
-        </el-form-item>
-        <el-form-item :label="$t('admin.platform.iconLabel')">
-          <el-select v-model="form.iconKey" clearable :placeholder="$t('admin.platform.iconNone')" style="width: 100%">
-            <el-option v-for="(label, key) in ICON_OPTIONS" :key="key" :value="key" :label="label" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('admin.platform.fallbackLabel')">
-          <el-input v-model="form.fallbackChar" :placeholder="$t('admin.platform.fallbackPlaceholder')" maxlength="4" style="width: 160px" />
-          <div class="form-hint">{{ $t('admin.platform.iconFallbackHint') }}</div>
-        </el-form-item>
-        <el-form-item :label="$t('admin.platform.domainsLabel')">
-          <el-input
-            v-model="domainsText"
-            type="textarea" :rows="4"
-            :placeholder="$t('admin.platform.domainsPlaceholder')"
-          />
-          <div class="form-hint">{{ $t('admin.platform.domainsHint') }}</div>
-        </el-form-item>
-        <el-form-item :label="$t('admin.platform.orderLabel')">
-          <el-input-number v-model="form.sortOrder" :min="0" :max="9999" controls-position="right" style="width: 160px" />
-        </el-form-item>
-        <el-form-item :label="$t('admin.platform.enabledLabel')">
-          <el-switch v-model="form.enabled" />
-          <div class="form-hint">{{ $t('admin.platform.enabledHint') }}</div>
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="dialogVisible" :title="editing ? $t('admin.platform.edit') : $t('admin.platform.add')" width="680px">
+      <!-- 819-I：一行一事——说明在左、控件在右 -->
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.platform.nameLabel') }}</div>
+          <div class="desc">{{ $t('admin.platform.nameHint') }}</div>
+        </div>
+        <el-input v-model="form.name" :placeholder="$t('admin.platform.namePlaceholder')" maxlength="30" show-word-limit class="pm-name-input" />
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.platform.iconLabel') }}</div>
+          <div class="desc">{{ $t('admin.platform.iconHint') }}</div>
+        </div>
+        <el-select v-model="form.iconKey" clearable :placeholder="$t('admin.platform.iconNone')" class="pm-icon-select">
+          <el-option v-for="(label, key) in ICON_OPTIONS" :key="key" :value="key" :label="label" />
+        </el-select>
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.platform.fallbackLabel') }}</div>
+          <div class="desc">{{ $t('admin.platform.iconFallbackHint') }}</div>
+        </div>
+        <el-input v-model="form.fallbackChar" :placeholder="$t('admin.platform.fallbackPlaceholder')" maxlength="4" class="pm-fallback-input" />
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.platform.domainsLabel') }}</div>
+          <div class="desc">{{ $t('admin.platform.domainsHint') }}</div>
+        </div>
+        <el-input
+          v-model="domainsText"
+          type="textarea" :rows="4"
+          :placeholder="$t('admin.platform.domainsPlaceholder')"
+          class="pm-domains-input"
+        />
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.platform.orderLabel') }}</div>
+          <div class="desc">{{ $t('admin.platform.orderHint') }}</div>
+        </div>
+        <el-input-number v-model="form.sortOrder" :min="0" :max="9999" controls-position="right" class="pm-order-input" />
+      </div>
+      <div class="row">
+        <div class="form-text">
+          <div class="lab">{{ $t('admin.platform.enabledLabel') }}</div>
+          <div class="desc">{{ $t('admin.platform.enabledHint') }}</div>
+        </div>
+        <el-switch v-model="form.enabled" />
+      </div>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ $t('admin.platform.cancel') }}</el-button>
         <el-button type="primary" :loading="saving" :disabled="!form.name.trim()" @click="submit">
@@ -238,8 +259,26 @@ onMounted(load)
 .pm-name { font-weight: 600; color: var(--ink); }
 .pm-icon { display: inline-flex; align-items: center; color: var(--ink); font-size: 16px; }
 .pm-code { font-size: 12px; color: var(--ink2); }
-.pm-fallback { margin-left: 6px; font-size: 12px; color: var(--ink3); }
+.pm-fallback { margin-left: 8px; font-size: 12px; color: var(--ink3); }
 .pm-domains { font-size: 12px; color: var(--ink2); }
 .row-actions { display: flex; gap: var(--sp-1, 4px); }
-.form-hint { color: var(--ink2); font-size: 12px; margin-top: 4px; }
+
+/* 819-I：一行一事（说明在左、控件在右，对齐 QuickNote 基准） */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 480px; }
+.form-text { min-width: 0; }
+.pm-name-input { width: 320px; flex: none; }
+.pm-icon-select { width: 320px; flex: none; }
+.pm-fallback-input { width: 160px; flex: none; }
+.pm-domains-input { width: 380px; flex: none; }
+.pm-order-input { width: 160px; flex: none; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .pm-name-input, .pm-icon-select, .pm-domains-input { width: 100%; }
+}
 </style>

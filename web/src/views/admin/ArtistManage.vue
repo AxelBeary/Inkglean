@@ -8,9 +8,9 @@
       </div>
     </div>
 
-    <!-- 操作条 -->
-    <div class="action-bar">
-      <span class="action-title">{{ $t('admin.artistActions') }}</span>
+    <!-- 819-I：画师操作收进分组卡片（组头朱砂小印点，按钮右对齐） -->
+    <div class="group">
+      <div class="group-head">{{ $t('admin.artistActions') }}</div>
       <div class="action-buttons">
         <el-button type="primary" @click="dialogVisible = true">{{ $t('admin.addArtist') }}</el-button>
         <el-button type="warning" plain @click="openTransfer">{{ $t('admin.transferAdmin') }}</el-button>
@@ -22,22 +22,29 @@
 
     <el-card shadow="never" class="admin-section-card">
       <!-- E14（2026-08-14）: 画师搜索 + 状态筛选（全量已拉取，客户端过滤，后端契约不动） -->
-      <div class="artist-filter-bar">
-        <el-input
-          v-model="artistQuery"
-          :placeholder="$t('admin.artistSearchPlaceholder')"
-          clearable
-          prefix-icon="Search"
-          style="max-width: 280px"
-        />
-        <el-select v-model="artistStatusFilter" :placeholder="$t('admin.artistStatusAll')" style="width: 140px">
-          <el-option value="" :label="$t('admin.artistStatusAll')" />
-          <el-option value="open" :label="$t('common.statusShort.open')" />
-          <el-option value="full" :label="$t('common.statusShort.full')" />
-          <el-option value="break" :label="$t('common.statusShort.break')" />
-          <el-option value="hidden" :label="$t('common.statusShort.hidden')" />
-        </el-select>
-        <span v-if="isArtistFiltering" class="artist-filter-count">{{ $t('admin.artistFilterCount', { n: filteredArtists.length }) }}</span>
+      <!-- 819-I：一行一事——说明在左、筛选控件在右 -->
+      <div class="row artist-filter-row">
+        <div class="artist-filter-text">
+          <div class="lab">{{ $t('admin.artistFilterLabel') }}</div>
+          <div class="desc">{{ $t('admin.artistFilterDesc') }}</div>
+        </div>
+        <div class="artist-filter-controls">
+          <el-input
+            v-model="artistQuery"
+            :placeholder="$t('admin.artistSearchPlaceholder')"
+            clearable
+            prefix-icon="Search"
+            class="artist-search-input"
+          />
+          <el-select v-model="artistStatusFilter" :placeholder="$t('admin.artistStatusAll')" style="width: 140px">
+            <el-option value="" :label="$t('admin.artistStatusAll')" />
+            <el-option value="open" :label="$t('common.statusShort.open')" />
+            <el-option value="full" :label="$t('common.statusShort.full')" />
+            <el-option value="break" :label="$t('common.statusShort.break')" />
+            <el-option value="hidden" :label="$t('common.statusShort.hidden')" />
+          </el-select>
+          <span v-if="isArtistFiltering" class="artist-filter-count">{{ $t('admin.artistFilterCount', { n: filteredArtists.length }) }}</span>
+        </div>
       </div>
       <el-table :data="filteredArtists" v-loading="loading" stripe>
         <el-table-column prop="name" :label="$t('admin.colName')" min-width="140">
@@ -923,25 +930,39 @@ onMounted(loadArtists)
 /* ═══ v0.45: 管理后台重设计（02-派工-管理后台重设计-20260807） ═══ */
 .admin-page { }
 
-/* 操作条 */
-.action-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--sp-3, 12px); flex-wrap: wrap;
+/* ─── 819-I：分组卡片 + 一行一事（对齐 QuickNote 基准） ─── */
+.group {
   margin-bottom: var(--sp-4, 16px);
-  padding: var(--sp-3, 12px) var(--sp-4, 16px);
-  background: var(--paper2);
+  padding: 4px 24px 16px;
+  background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--r-l, 11px);
+  border-radius: var(--r-l);
+  box-shadow: var(--sh-1);
 }
-.action-title { font-size: var(--fs-section, 17px); font-weight: 600; color: var(--ink); }
-.action-buttons { display: flex; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+}
+.group-head::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  background: var(--zs); border-radius: var(--r-paper);
+}
+.action-buttons { display: flex; justify-content: flex-end; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.artist-filter-text { min-width: 0; }
+.artist-filter-controls { display: flex; align-items: center; gap: var(--sp-2, 8px); flex-wrap: wrap; justify-content: flex-end; }
+.artist-search-input { width: 280px; flex: none; }
 
 .cell-name { font-weight: 600; color: var(--ink); }
 .cell-tag { margin-left: var(--sp-1, 4px); }
-.cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 1px 6px; border-radius: var(--r-s, 4px); }
-
-/* E14: 画师搜索/筛选条 */
-.artist-filter-bar { display: flex; align-items: center; gap: var(--sp-2, 8px); flex-wrap: wrap; margin-bottom: var(--sp-3, 12px); }
+.cell-code { font-size: 12px; color: var(--ink2); background: var(--paper2); padding: 4px 8px; border-radius: var(--r-s); }
 .artist-filter-count { font-size: 12px; color: var(--ink3); }
 
 /* 行操作按钮组（统一间距） */
@@ -955,7 +976,7 @@ onMounted(loadArtists)
 .order-expand-pay { padding: 8px 16px; }
 .expand-pay-summary { display: flex; gap: 12px; font-size: 13px; color: var(--ink2); margin-bottom: 8px; flex-wrap: wrap; }
 .expand-pay-summary strong { color: var(--ink); }
-.expand-inst-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
+.expand-inst-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
 .expand-no-data { font-size: 12px; color: var(--ink3); margin: 4px 0; }
 /* REQ-027: TOTP 绑定弹窗 + transfer 提示 */
 .dialog-h4 { margin: 0 0 var(--sp-3, 12px); font-size: var(--fs-body, 14px); color: var(--ink); }
@@ -967,10 +988,10 @@ onMounted(loadArtists)
 /* ─── REQ-039: 邀请码弹窗（纸墨 token） ─── */
 .invite-body { display: flex; flex-direction: column; gap: 12px; }
 .invite-gen {
-  padding: 12px 14px;
+  padding: 12px 16px;
   background: var(--paper2);
   border: 1px solid var(--line);
-  border-radius: var(--r-m, 8px);
+  border-radius: var(--r-m);
 }
 .invite-form { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .invite-form :deep(.el-form-item) { margin-bottom: 0; }
@@ -983,8 +1004,8 @@ onMounted(loadArtists)
   letter-spacing: 0.08em;
   color: var(--ink);
   background: var(--paper2);
-  padding: 2px 6px;
-  border-radius: var(--r-s, 4px);
+  padding: 4px 8px;
+  border-radius: var(--r-s);
 }
 .invite-copy { margin-left: 8px; }
 .invite-unused { color: var(--ink3); }
@@ -992,8 +1013,14 @@ onMounted(loadArtists)
 /* P1-B：订单弹窗加载失败横幅（复用公告页 P0 同款模式） */
 .orders-error { margin-bottom: var(--sp-3, 12px); }
 .load-error-banner {
-  padding: 10px 14px;
+  padding: 12px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .artist-filter-controls { justify-content: flex-start; }
+  .artist-search-input { width: 100%; }
 }
 </style>

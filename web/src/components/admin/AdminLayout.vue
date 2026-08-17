@@ -285,7 +285,7 @@ function onStepUpCancel() {
 
 /* 品牌区：朱砂印章「绘」 */
 .brand {
-  display: flex; align-items: center; gap: 11px;
+  display: flex; align-items: center; gap: 12px;
   padding: 20px 16px 16px;
 }
 .brand--collapsed {
@@ -299,7 +299,7 @@ function onStepUpCancel() {
   font-family: var(--f-d);
   display: grid; place-items: center;
   font-size: calc(var(--font-scale, 1) * 19px);
-  border-radius: 8px;
+  border-radius: var(--r-m);
   transform: rotate(-4deg);
   box-shadow: 2px 2px 0 var(--sb-seal-shadow);
   flex: none;
@@ -321,10 +321,10 @@ function onStepUpCancel() {
 
 /* ─── 导航（激活态花青软底 + 左侧 3px 竖条，与 ArtistLayout 一致） ─── */
 .nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 12px; }
-.nav--collapsed { padding: 4px 10px; }
+.nav--collapsed { padding: 4px 12px; }
 .nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px;
   border-radius: var(--r-m);
   font-size: calc(var(--font-scale, 1) * 13px);
   color: var(--sb-text);
@@ -347,7 +347,7 @@ function onStepUpCancel() {
   left: -12px; top: 7px; bottom: 7px;
   width: 3px;
   background: var(--hq);
-  border-radius: 0 2px 2px 0;
+  border-radius: 0;
   /* 点名2: 激活竖条自上而下滑入（transform-origin top, --dur-mid） */
   transform-origin: top;
   animation: nav-bar-in var(--dur-mid) var(--ease-out);
@@ -356,14 +356,14 @@ function onStepUpCancel() {
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
 }
-.nav--collapsed .nav-item { justify-content: center; padding: 9px 0; }
+.nav--collapsed .nav-item { justify-content: center; padding: 8px 0; }
 .nav--collapsed .nav-item--active::before { left: -10px; }
 .nav-item .el-icon { font-size: calc(var(--font-scale, 1) * 16px); flex: none; }
 .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 分组标题：低饱和小字（--ink3），与激活项花青软底不抢视觉；折叠态由模板 v-if 隐藏 */
 .nav-group-title {
-  padding: 14px 16px 6px;
+  padding: 12px 16px 8px;
   font-size: 11px;
   color: var(--ink3);
   letter-spacing: .08em;
@@ -375,13 +375,13 @@ function onStepUpCancel() {
 .sidebar-footer {
   padding: 12px 16px;
   border-top: 1px solid var(--sb-border);
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; flex-direction: column; gap: 12px;
 }
 .sidebar-footer--collapsed { align-items: center; padding: 12px 8px; }
 .back-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: none; border-radius: var(--r-m);
   background: transparent;
   color: var(--sb-text-dim);
@@ -400,7 +400,7 @@ function onStepUpCancel() {
   height: 54px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px;
-  padding: 0 26px;
+  padding: 0 28px;
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
@@ -415,7 +415,7 @@ function onStepUpCancel() {
   display: flex; align-items: center; justify-content: center;
   width: 36px; height: 36px;
   border: 1px solid var(--line2);
-  border-radius: 9px;
+  border-radius: var(--r-m);
   background: var(--card);
   color: var(--ink);
   cursor: pointer;
@@ -444,8 +444,8 @@ function onStepUpCancel() {
   margin: 0 auto;
 }
 @media (max-width: 600px) {
-  .main-content { padding: 16px 14px; }
-  .topbar { padding: 0 14px; }
+  .main-content { padding: 16px; }
+  .topbar { padding: 0 16px; }
 }
 
 /* ─── 移动端抽屉 ─── */
@@ -454,12 +454,12 @@ function onStepUpCancel() {
   padding: 0;
   background: var(--sb-bg);
 }
-.drawer-header { display: flex; align-items: center; gap: 10px; }
+.drawer-header { display: flex; align-items: center; gap: 12px; }
 .nav--drawer { flex: 1; }
 .drawer-footer {
   padding: 16px;
   border-top: 1px solid var(--sb-border);
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; flex-direction: column; gap: 12px;
 }
 .mobile-drawer :deep(.el-drawer-fade-enter-active),
 .mobile-drawer :deep(.el-drawer-fade-leave-active) { transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); /* T 波：0.18s → --dur-fast(.15s) 就近等值 */ }

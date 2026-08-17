@@ -8,26 +8,34 @@
       </div>
     </div>
 
-    <!-- 顶部：总事件数 / 画师门面可见开关 / 天数选择 -->
+    <!-- 819-I：总事件数统计卡 + 设置分组卡（说明在左、控件在右） -->
     <div class="stat-grid">
       <el-card shadow="never" class="admin-stat-card">
         <div class="stat-num">{{ summary?.total ?? '-' }}</div>
         <div class="stat-label">{{ $t('admin.tracking.total') }}</div>
       </el-card>
-      <el-card shadow="never" class="admin-stat-card stat-card-center">
-        <div class="stat-label">{{ $t('admin.tracking.visibleLabel') }}</div>
-        <!-- A2: 受控绑定：切换前 statsMode 仍为旧值，onModeChange 内取 prev 才是真正的回滚目标 -->
-        <el-radio-group :model-value="statsMode" :disabled="savingVisible" @change="onModeChange">
-          <el-radio value="off">{{ $t('tracking.modeOff') }}</el-radio>
-          <el-radio value="hidden">{{ $t('tracking.modeHidden') }}</el-radio>
-          <el-radio value="on">{{ $t('tracking.modeOn') }}</el-radio>
-        </el-radio-group>
-      </el-card>
-      <el-card shadow="never" class="admin-stat-card stat-card-center">
-        <div class="stat-label">{{ $t('admin.tracking.daysLabel') }}</div>
-        <el-select v-model="days" size="small" style="width: 120px" @change="loadSummary">
-          <el-option v-for="d in dayOptions" :key="d" :label="$t(`admin.tracking.days${d}`)" :value="d" />
-        </el-select>
+      <el-card shadow="never" class="admin-section-card track-config-card">
+        <div class="row">
+          <div class="tc-text">
+            <div class="lab">{{ $t('admin.tracking.visibleLabel') }}</div>
+            <div class="desc">{{ $t('admin.tracking.visibleHint') }}</div>
+          </div>
+          <!-- A2: 受控绑定：切换前 statsMode 仍为旧值，onModeChange 内取 prev 才是真正的回滚目标 -->
+          <el-radio-group :model-value="statsMode" :disabled="savingVisible" @change="onModeChange">
+            <el-radio value="off">{{ $t('tracking.modeOff') }}</el-radio>
+            <el-radio value="hidden">{{ $t('tracking.modeHidden') }}</el-radio>
+            <el-radio value="on">{{ $t('tracking.modeOn') }}</el-radio>
+          </el-radio-group>
+        </div>
+        <div class="row">
+          <div class="tc-text">
+            <div class="lab">{{ $t('admin.tracking.daysLabel') }}</div>
+            <div class="desc">{{ $t('admin.tracking.daysHint') }}</div>
+          </div>
+          <el-select v-model="days" size="small" style="width: 128px" @change="loadSummary">
+            <el-option v-for="d in dayOptions" :key="d" :label="$t(`admin.tracking.days${d}`)" :value="d" />
+          </el-select>
+        </div>
       </el-card>
     </div>
 
@@ -172,7 +180,16 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums; margin-top: var(--sp-2, 8px);
 }
 .stat-label { color: var(--ink2); font-size: 13px; text-align: center; margin-bottom: var(--sp-2, 8px); }
-.stat-card-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2, 8px); padding: var(--sp-3, 12px) 0; }
+.track-config-card { grid-column: span 2; }
+
+/* 819-I：一行一事（说明在左、控件在右，对齐 QuickNote 基准） */
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--line);
+}
+.lab { font-size: 15px; color: var(--ink); }
+.desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; }
+.tc-text { min-width: 0; }
 
 /* 区块卡 */
 .admin-section-card--stack { margin-top: var(--sp-5, 24px); }
@@ -182,6 +199,11 @@ onMounted(async () => {
 .track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4, 16px); margin-top: var(--sp-5, 24px); }
 @media (max-width: 900px) {
   .stat-grid { grid-template-columns: 1fr; }
+  .track-config-card { grid-column: auto; }
   .track-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
 }
 </style>
