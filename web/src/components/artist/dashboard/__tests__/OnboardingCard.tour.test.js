@@ -11,18 +11,18 @@ const h = vi.hoisted(() => ({
   active: { value: false }
 }))
 
-vi.mock('../../../api/index.js', () => ({
+vi.mock('../../../../api/index.js', () => ({
   artistApi: {
     getOnboarding: h.getOnboarding,
     dismissOnboarding: h.dismissOnboarding
   }
 }))
 
-vi.mock('../../../utils/track.js', () => ({
+vi.mock('../../../../utils/track.js', () => ({
   trackEvent: h.track
 }))
 
-vi.mock('../../../composables/useTour', () => ({
+vi.mock('../../../../composables/useTour', () => ({
   useTour: () => ({
     start: h.start,
     hasSeen: h.hasSeen,
