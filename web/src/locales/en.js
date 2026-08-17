@@ -1537,9 +1537,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   // #44: Preferences standalone page (split from Page Settings)
   preferences: {
     title: 'Preferences',
-    // F1 batch4: back-office font size tiers (accessibility)
-    fontSize: 'Back-office font size', fontSizeNormal: 'Standard', fontSizeLarge: 'Large', fontSizeXLarge: 'Extra large',
-    fontSizeHint: 'Applies immediately and persists across refreshes. Large = 15px, Extra large = 17px (default 14px)'
+    // 818-A: back-office font size slider (14–20px, 7 stops, default 15px)
+    fontSize: 'Back-office font size',
+    fontSizeHint: 'Drag to adjust — applies immediately and saves automatically. Range 14–20px, default 15px'
   },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',

@@ -285,33 +285,50 @@ html[data-artist-theme] .artist-scope .el-segmented__item:active {
   transform: scale(0.98);
 }
 
-/* ═══ F1 批4: 后台字号档位（无障碍）═══
-   档位由 Preferences 页写入 localStorage `huiyue_admin_font_size`，
-   ArtistLayout 挂载时设置 document.documentElement.dataset.fontSize。
-   客户端路由 html 无 data-font-size 属性，以下规则不生效（零影响）。 */
-html[data-font-size='large'] .artist-layout { font-size: 15px; }
-html[data-font-size='xlarge'] .artist-layout { font-size: 17px; }
+/* ═══ 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px，用户拍板 2026-08-17）═══
+   档位由 Preferences 页 el-slider 写入 localStorage `huiyue_admin_font_size`
+   （数字字符串 '14'~'20'；旧 large/xlarge 由共享 util 读时映射），
+   ArtistLayout 挂载时设置 document.documentElement.dataset.fontSize='N'。
+   选择器统一锁 html[data-artist-theme]——客户端路由无该属性，以下规则零影响。
+   --font-scale = N/14（四位小数），供 calc(var(--font-scale, 1) * Npx) 跟随档位；
+   --el-font-size-small/large 按 N-2 / N+2 缩放。 */
+html[data-artist-theme][data-font-size='14'] .artist-layout { font-size: 14px; }
+html[data-artist-theme][data-font-size='15'] .artist-layout { font-size: 15px; }
+html[data-artist-theme][data-font-size='16'] .artist-layout { font-size: 16px; }
+html[data-artist-theme][data-font-size='17'] .artist-layout { font-size: 17px; }
+html[data-artist-theme][data-font-size='18'] .artist-layout { font-size: 18px; }
+html[data-artist-theme][data-font-size='19'] .artist-layout { font-size: 19px; }
+html[data-artist-theme][data-font-size='20'] .artist-layout { font-size: 20px; }
 /* EP 组件字号变量跟随档位（仅后台作用域）；EP 硬编码固定 px 的区域不受控，见交付报告 */
-html[data-artist-theme][data-font-size='large'] {
-  --el-font-size-base: 15px;
-  --el-font-size-small: 13px;
-  --el-font-size-large: 17px;
+html[data-artist-theme][data-font-size='14'] {
+  --el-font-size-base: 14px; --el-font-size-small: 12px; --el-font-size-large: 16px;
 }
-html[data-artist-theme][data-font-size='xlarge'] {
-  --el-font-size-base: 17px;
-  --el-font-size-small: 14px;
-  --el-font-size-large: 19px;
+html[data-artist-theme][data-font-size='15'] {
+  --el-font-size-base: 15px; --el-font-size-small: 13px; --el-font-size-large: 17px;
 }
-/* ═══ F1 批 4 补充（A 方案，2026-08-07）：--font-scale 全局缩放 ═══
-   硬编码 font-size: Npx 的样式通过 calc(var(--font-scale, 1) * Npx) 跟随档位。
-   --font-scale 默认 1（无档位/客户端 = 零影响）；large=15/14≈1.0714, xlarge=17/14≈1.2143。
-   与上方 .artist-layout font-size 15px/17px 及 --el-font-size-* 保持一致。 */
-html[data-artist-theme][data-font-size='large'] {
-  --font-scale: 1.0714;
+html[data-artist-theme][data-font-size='16'] {
+  --el-font-size-base: 16px; --el-font-size-small: 14px; --el-font-size-large: 18px;
 }
-html[data-artist-theme][data-font-size='xlarge'] {
-  --font-scale: 1.2143;
+html[data-artist-theme][data-font-size='17'] {
+  --el-font-size-base: 17px; --el-font-size-small: 15px; --el-font-size-large: 19px;
 }
+html[data-artist-theme][data-font-size='18'] {
+  --el-font-size-base: 18px; --el-font-size-small: 16px; --el-font-size-large: 20px;
+}
+html[data-artist-theme][data-font-size='19'] {
+  --el-font-size-base: 19px; --el-font-size-small: 17px; --el-font-size-large: 21px;
+}
+html[data-artist-theme][data-font-size='20'] {
+  --el-font-size-base: 20px; --el-font-size-small: 18px; --el-font-size-large: 22px;
+}
+/* --font-scale 全局缩放（默认 1：无档位/客户端 = 零影响） */
+html[data-artist-theme][data-font-size='14'] { --font-scale: 1; }
+html[data-artist-theme][data-font-size='15'] { --font-scale: 1.0714; }
+html[data-artist-theme][data-font-size='16'] { --font-scale: 1.1429; }
+html[data-artist-theme][data-font-size='17'] { --font-scale: 1.2143; }
+html[data-artist-theme][data-font-size='18'] { --font-scale: 1.2857; }
+html[data-artist-theme][data-font-size='19'] { --font-scale: 1.3571; }
+html[data-artist-theme][data-font-size='20'] { --font-scale: 1.4286; }
 
 /* ═══ F1 批 4 补充二（2026-08-07 用户反馈：EP 硬编码组件不随档位）═══
    EP dist CSS 内 150 处硬编码 font-size:14px（el-form-item/el-switch/el-radio/

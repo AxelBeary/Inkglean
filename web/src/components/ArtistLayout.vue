@@ -248,6 +248,8 @@ import { useThemeStore } from '../stores/theme.js'
 import { setLocale } from '../i18n/index.js'
 import { trackEvent } from '../utils/track.js'
 import { safeGetItem, safeSetItem } from '../utils/storage.js'
+// 818-A: 字号滑块共享 util（与 Preferences 同一映射/应用口径）
+import { applyFontSize, readFontSize } from '../utils/fontSize.js'
 import { artistApi } from '../api/index.js'
 // REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
 import { useSessionGuard } from '../composables/useSessionGuard'
@@ -516,11 +518,10 @@ function toggleLang() {
 /** 画师上传头像优先显示，未设置时回退品牌印章（SealStamp，F5a 批4） */
 const avatarUrl = computed(() => store.profile?.avatar ? `/uploads/${store.profile.avatar}` : '')
 
-// ─── F1 批4: 后台字号档位（Preferences 页写入 localStorage，挂载时应用；刷新/重进后台保持） ───
-const FONT_SIZE_KEY = 'huiyue_admin_font_size'
+// ─── 818-A: 后台字号滑块（Preferences 页写入 localStorage，挂载时应用；刷新/重进后台保持） ───
+// 默认 15 也显式设 dataset.fontSize='15'（15≠14 基线，不设会回退旧默认）
 function applyFontSizeFromStorage() {
-  const size = safeGetItem(FONT_SIZE_KEY)
-  if (size === 'large' || size === 'xlarge') document.documentElement.dataset.fontSize = size
+  applyFontSize(readFontSize())
 }
 
 const statusClass = computed(() => {
