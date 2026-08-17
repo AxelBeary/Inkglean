@@ -1,6 +1,6 @@
-// 818-D「同信息再来一单」一期：订单详情入口 + 回填选项对话框契约
-// 覆盖：终态/非终态按钮都在；弹窗三个选项（描述/款式尺寸/备注，无参考图）；
-//       默认勾选 desc+style；确认按勾选跳转 /orders/new?from=&fill=；埋点 reorder_start；取消不跳转
+// 818-D + 819-J「同信息再来一单」：订单详情入口 + 回填选项对话框契约
+// 覆盖：终态/非终态按钮都在；弹窗四个选项（描述/款式尺寸/备注/参考图）；
+//       默认勾选 desc+style+refs；确认按勾选跳转 /orders/new?from=&fill=；埋点 reorder_start；取消不跳转
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
@@ -216,7 +216,7 @@ describe('OrderDetail 再来一单（818-D）', () => {
     }
   })
 
-  it('点击按钮弹出回填选项对话框：默认勾选描述+款式尺寸，含三个选项且无参考图选项', async () => {
+  it('点击按钮弹出回填选项对话框：默认勾选描述+款式尺寸+参考图，含四个选项', async () => {
     const wrapper = await mountDetail(buildOrder())
     await buttonByText(wrapper, 'orderDetail.reorderBtn').trigger('click')
     const dialog = wrapper.find('.el-dialog')
@@ -224,15 +224,14 @@ describe('OrderDetail 再来一单（818-D）', () => {
     expect(dialog.text()).toContain('orderDetail.reorderDialogHint')
 
     const checks = dialog.findAll('.el-checkbox')
-    expect(checks.length).toBe(3)
+    expect(checks.length).toBe(4)
     expect(dialog.text()).toContain('orderDetail.reorderFillDesc')
     expect(dialog.text()).toContain('orderDetail.reorderFillStyle')
     expect(dialog.text()).toContain('orderDetail.reorderFillNote')
-    // 一期不放参考图选项
-    expect(dialog.text()).not.toContain('reference')
+    expect(dialog.text()).toContain('orderDetail.reorderFillRefs')
 
     const group = dialog.findComponent({ name: 'ElCheckboxGroupStub' })
-    expect(group.props('modelValue')).toEqual(['desc', 'style'])
+    expect(group.props('modelValue')).toEqual(['desc', 'style', 'refs'])
   })
 
   it('确认后按默认勾选跳转录单页（from+fill），并埋点 reorder_start', async () => {
@@ -242,12 +241,12 @@ describe('OrderDetail 再来一单（818-D）', () => {
 
     expect(h.push).toHaveBeenCalledWith({
       path: '/orders/new',
-      query: { from: 806, fill: 'desc,style' }
+      query: { from: 806, fill: 'desc,style,refs' }
     })
     expect(h.track).toHaveBeenCalledWith('artist_action', {
       action: 'reorder_start',
       fromOrderId: 806,
-      fill: 'desc,style'
+      fill: 'desc,style,refs'
     })
   })
 
@@ -261,6 +260,24 @@ describe('OrderDetail 再来一单（818-D）', () => {
     expect(h.push).toHaveBeenCalledWith({
       path: '/orders/new',
       query: { from: 806, fill: 'note' }
+    })
+  })
+
+  it('只勾参考图 → fill=refs（819-J 二期）', async () => {
+    const wrapper = await mountDetail(buildOrder())
+    await buttonByText(wrapper, 'orderDetail.reorderBtn').trigger('click')
+    const group = wrapper.findComponent({ name: 'ElCheckboxGroupStub' })
+    await group.vm.$emit('update:modelValue', ['refs'])
+    await buttonByText(wrapper, 'orderDetail.reorderConfirm').trigger('click')
+
+    expect(h.push).toHaveBeenCalledWith({
+      path: '/orders/new',
+      query: { from: 806, fill: 'refs' }
+    })
+    expect(h.track).toHaveBeenCalledWith('artist_action', {
+      action: 'reorder_start',
+      fromOrderId: 806,
+      fill: 'refs'
     })
   })
 

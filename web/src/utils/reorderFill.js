@@ -6,10 +6,16 @@
  * - QQ/昵称无条件带上；描述/款式尺寸/备注按 fill 勾选；全部可改
  * - 新单从零：deadline/startDate/priority/收款/节点一律不带
  * - 备注只回填文字（备注时间线中非系统备注正文，系统备注如「改价」「0 元单」不带走）
+ *
+ * 819-J 二期：新增 refs——源单参考图走路径引用复用（不重新上传），数量按
+ * MAX_IMAGE_COUNT 截断；源单无参考图时 refs 为空数组，由调用方提示降级。
+ * 只复用客户参考图（source !== 'artist'）：画师加图属内部图库，客户追踪页不展示，
+ * 若当作新单参考图提交会变成 source='client' 泄漏给客户。
  */
+import { MAX_IMAGE_COUNT } from '../constants/upload.js'
 
-/** 可回填字段白名单（一期：参考图二期再做，不放选项） */
-export const REORDER_FILL_KEYS = ['desc', 'style', 'note']
+/** 可回填字段白名单（819-J 二期：+refs 参考图） */
+export const REORDER_FILL_KEYS = ['desc', 'style', 'note', 'refs']
 
 /** 单条备注写入上限（后端 POST /artist/orders/:id/notes content maxLength=1000） */
 export const REORDER_NOTE_MAX = 1000
@@ -42,6 +48,24 @@ export function buildReorderNoteText(sourceOrder) {
     .map(n => String(n.content).trim())
     .filter(Boolean)
   return texts.join('\n').slice(0, REORDER_NOTE_MAX)
+}
+
+/**
+ * 源单参考图 → 可复用的路径引用（819-J 二期）
+ * 只取客户参考图（source !== 'artist'）且有 file_path 的条目，按后端返回顺序截断到
+ * maxCount（默认 MAX_IMAGE_COUNT）；
+ * truncated=true 表示源单超出上限已被截断（调用方轻提示）。
+ * 返回条目保留原字段（url/original_name/source 等），缩略图与删除沿用上传链路。
+ * @param {object|null|undefined} sourceOrder
+ * @param {number} [maxCount]
+ * @returns {{ refs: Array<object>, truncated: boolean }}
+ */
+export function buildReorderRefs(sourceOrder, maxCount = MAX_IMAGE_COUNT) {
+  const cap = Number.isInteger(maxCount) && maxCount > 0 ? maxCount : MAX_IMAGE_COUNT
+  const refs = (sourceOrder?.references || [])
+    .filter(r => r && r.source !== 'artist' && String(r.file_path || '').trim())
+    .map(r => ({ ...r, file_path: String(r.file_path).trim() }))
+  return { refs: refs.slice(0, cap), truncated: refs.length > cap }
 }
 
 /**

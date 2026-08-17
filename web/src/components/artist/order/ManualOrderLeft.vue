@@ -253,7 +253,26 @@ function reset() {
   uploadedRefs.value = []
   refUidMap.value.clear()
 }
-defineExpose({ reset })
+
+// ─── 819-J 二期：再来一单预填参考图（路径引用复用，不重新上传） ───
+// 入参来自源订单详情 references（含签名 url 与 original_name），数量已由父组件
+// 按 MAX_IMAGE_COUNT 截断；这里再防御性截断一次，并与新上传共用同一展示/删除/提交链路。
+function setReorderRefs(sourceRefs) {
+  const refs = Array.isArray(sourceRefs) ? sourceRefs.slice(0, MAX_IMAGE_COUNT) : []
+  refFileList.value = refs.map((r, idx) => {
+    const filePath = String(r.file_path || '').trim()
+    const uid = `reorder-${crypto.randomUUID()}`
+    refUidMap.value.set(uid, filePath)
+    return {
+      uid,
+      name: r.original_name || filePath.split('/').pop() || `reference-${idx + 1}.png`,
+      url: r.url || '',
+      status: 'success'
+    }
+  })
+  uploadedRefs.value = refs.map(r => String(r.file_path || '').trim()).filter(Boolean)
+}
+defineExpose({ reset, setReorderRefs })
 </script>
 
 <style scoped>

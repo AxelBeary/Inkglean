@@ -24,7 +24,9 @@ const h = vi.hoisted(() => ({
   deadlineCalls: 0,
   startDateCalls: 0,
   msgSuccess: vi.fn(),
-  msgError: vi.fn()
+  msgError: vi.fn(),
+  msgWarning: vi.fn(),
+  msgInfo: vi.fn()
 }))
 
 // 818-D: ManualOrder 读 /orders/new?from=&fill= 预填；每用例改 h.routeQuery 即可
@@ -44,7 +46,7 @@ vi.mock('element-plus', async () => {
   const actual = await vi.importActual('element-plus')
   return {
     ...actual,
-    ElMessage: { success: h.msgSuccess, error: h.msgError, warning: vi.fn(), info: vi.fn() },
+    ElMessage: { success: h.msgSuccess, error: h.msgError, warning: h.msgWarning, info: h.msgInfo },
     ElMessageBox: { confirm: vi.fn(() => Promise.resolve('confirm')) }
   }
 })
@@ -117,6 +119,11 @@ const SOURCE_ORDER = {
     { id: 1, content: '系统备注：改价', created_by: 'system' },
     { id: 2, content: '客户喜欢暖色调', created_by: 'artist' },
     { id: 3, content: '线下已谈好加急', created_by: 'artist' }
+  ],
+  // 819-J 二期: 源单参考图（详情接口返回签名 url + file_path）
+  references: [
+    { id: 11, file_path: 'references/alice/a.png', original_name: 'a.png', url: '/signed/a' },
+    { id: 12, file_path: 'references/alice/b.png', original_name: 'b.png', url: '/signed/b' }
   ]
 }
 
@@ -130,6 +137,8 @@ function setup({ styles = MOCK_STYLES, sourceOrder = SOURCE_ORDER, query = { fro
   h.startDateCalls = 0
   h.msgSuccess.mockReset()
   h.msgError.mockReset()
+  h.msgWarning.mockReset()
+  h.msgInfo.mockReset()
   h.getOrder.mockClear()
 }
 
@@ -237,5 +246,65 @@ describe('ManualOrder 再来一单预填（818-D）', () => {
     expect(wrapper.find('textarea[placeholder="manualOrder.descPlaceholder"]').element.value).toBe('')
     expect(wrapper.find('textarea[placeholder="manualOrder.notePlaceholder"]').element.value).toBe('')
     expect(wrapper.find('.tier-card--active').exists()).toBe(false)
+  })
+
+  it('勾选参考图：源单参考图路径引用灌入并随新单提交（819-J 二期）', async () => {
+    setup({ query: { from: '806', fill: 'desc,style,note,refs' } })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('.mo-submit-btn').trigger('click')
+    await flushPromises()
+
+    // 参考图走既有 references 提交链路（路径引用，非重复上传产物）
+    expect(h.created.references).toEqual([
+      'references/alice/a.png',
+      'references/alice/b.png'
+    ])
+    expect(h.msgWarning).not.toHaveBeenCalled()
+    expect(h.msgInfo).not.toHaveBeenCalled()
+  })
+
+  it('源单参考图超上限：截断到 MAX_IMAGE_COUNT 并轻提示，提交只带前 N 张', async () => {
+    const manyRefs = Array.from({ length: 7 }, (_, i) => ({
+      id: 100 + i,
+      file_path: `references/alice/f${i}.png`,
+      original_name: `f${i}.png`,
+      url: `/signed/f${i}`
+    }))
+    setup({ query: { from: '806', fill: 'desc,style,refs' }, sourceOrder: { ...SOURCE_ORDER, references: manyRefs } })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(h.msgWarning).toHaveBeenCalledWith('manualOrder.reorderRefsTruncated:{"count":5}')
+
+    await wrapper.find('.mo-submit-btn').trigger('click')
+    await flushPromises()
+
+    expect(h.created.references).toEqual([
+      'references/alice/f0.png',
+      'references/alice/f1.png',
+      'references/alice/f2.png',
+      'references/alice/f3.png',
+      'references/alice/f4.png'
+    ])
+  })
+
+  it('源单无参考图：选项仍可勾但提示降级，不崩溃、不预填参考图', async () => {
+    setup({
+      query: { from: '806', fill: 'desc,style,note,refs' },
+      sourceOrder: { ...SOURCE_ORDER, references: [] }
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(h.msgInfo).toHaveBeenCalledWith('manualOrder.reorderNoRefs')
+    // 文字预填不受参考图降级影响
+    expect(wrapper.find('textarea[placeholder="manualOrder.descPlaceholder"]').element.value).toBe('全身立绘 双人')
+
+    await wrapper.find('.mo-submit-btn').trigger('click')
+    await flushPromises()
+
+    expect(h.created.references).toEqual([])
   })
 })

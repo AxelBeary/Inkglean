@@ -1301,6 +1301,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     reorderFillDesc: '需求描述',
     reorderFillStyle: '款式尺寸',
     reorderFillNote: '备注',
+    // 819-J 二期: 参考图（勾选后源单参考图路径引用复用，不重复上传）
+    reorderFillRefs: '参考图',
     reorderConfirm: '去录新单'
   },
   manualOrder: {
@@ -1371,6 +1373,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 818-D: 再来一单预填
     reorderSourceFailed: '读取原订单失败：{message}',
     reorderPrefilled: '已带入订单 {no} 的信息，可修改',
+    // 819-J 二期: 参考图预填降级/截断
+    reorderNoRefs: '源单没有参考图',
+    reorderRefsTruncated: '参考图超过 {count} 张，仅带入前 {count} 张',
     // REQ-035 §五 MVP-1: 粘贴消息解析
     parseMessageTitle: '粘贴消息解析',
     parseDialogTitle: '粘贴消息解析',
