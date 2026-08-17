@@ -536,14 +536,14 @@ async function login() {
    ① 按 JS 算出的 data-daypart 定色温起点（偏移仅 ±2 级亮度，不破坏七色锁死的纸色家族）
    ② 停留期间一次性超慢漂移（240s，如天光缓缓西沉，不循环=宪法动效纪律）
    ③ 仅纸白主题参与；墨黑主题底色仍走 --paper */
-@property --lg-drift { syntax: '<color>'; inherits: true; initial-value: #F5F4EF; }
+@property --lg-drift { syntax: '<color>'; inherits: true; initial-value: #F0E6CF; }
 
-.login-page { --lg-drift: #F5F4EF; }
-.login-page[data-daypart='morning'] { --lg-drift: #F6F3EC; }
-.login-page[data-daypart='dusk'] { --lg-drift: #F4F0E5; }
-.login-page[data-daypart='night'] { --lg-drift: #F2F2EF; }
+.login-page { --lg-drift: #F0E6CF; }
+.login-page[data-daypart='morning'] { --lg-drift: #F2E9D4; }
+.login-page[data-daypart='dusk'] { --lg-drift: #EFE4C9; }
+.login-page[data-daypart='night'] { --lg-drift: #EDE4CE; }
 
-@keyframes lg-light-drift { to { --lg-drift: #F3EEE2; } }
+@keyframes lg-light-drift { to { --lg-drift: #EEE2C4; } }
 
 :global(html[data-artist-theme='paper'] .login-page) {
   background: var(--lg-drift);

@@ -30,17 +30,18 @@
 html[data-artist-theme="paper"] {
   color-scheme: light;
 
-  /* 底色与墨色层次（提案 v2 L12-36 直接采用） */
-  --paper: #F5F4EF;
-  --paper2: #FBFAF6;
-  --card: #fff;
+  /* 底色与墨色层次（818 W5 米色宣纸：用户拍板加深向，纯白太素；
+     伴生色同步暖化：paper2/line/line2/侧栏/ink3/ink4 保持层次与对比度） */
+  --paper: #F0E6CF;
+  --paper2: #F5EFDF;
+  --card: #FFFDF7;
   --ink: #262520;
   --ink2: #5A564B;
-  /* F2 批4: ink3/ink4 调深——实测对比度 ink3 on paper2 3.39→4.73:1 / on #FFF 3.54→4.94:1；ink4 on #FFF 2.22→4.23:1 */
-  --ink3: #757062;
-  --ink4: #807B6C;
-  --line: #E7E4D9;
-  --line2: #DAD6C8;
+  /* 818 W5：底色加深后 ink3/ink4 同步加深一档，维持 F2 批4 对比度口径（≥ 4.5:1） */
+  --ink3: #6A6455;
+  --ink4: #77705E;
+  --line: #DCD0B4;
+  --line2: #CFC1A0;
 
   /* 国画颜料盘 7 色（语义一对一，REQ §1.1） */
   --hq: #33526E;            /* 花青：品牌 · 进行中 · 主操作 */
@@ -70,12 +71,12 @@ html[data-artist-theme="paper"] {
   --f-b: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --ease-out: cubic-bezier(.22, 1, .36, 1); /* 点名1: 切换态快动效（按钮/筛选/激活项） */
 
-  /* 侧栏（REQ §三.1：宣纸主题 = 纸色侧栏） */
+  /* 侧栏（REQ §三.1：宣纸主题 = 纸色侧栏；818 W5 随 paper2/line 伴生暖化） */
   --sb-w: 230px;
-  --sb-bg: #FBFAF6;
-  --sb-border: #E7E4D9;
+  --sb-bg: #F5EFDF;
+  --sb-border: #DCD0B4;
   --sb-text: #5A564B;
-  --sb-text-dim: #8D887A;
+  --sb-text-dim: #837C69;
   --sb-text-on: #262520;
   --sb-hover: rgba(38, 37, 32, .05);
   --sb-active-bg: #E9EFF4;
@@ -137,7 +138,14 @@ html[data-artist-theme="paper"] {
   --el-font-family: var(--f-b);
   --el-box-shadow: var(--sh-3);
   --el-box-shadow-light: var(--sh-2);
-  --el-mask-color: rgba(245, 244, 239, 0.82);
+  --el-mask-color: rgba(240, 230, 207, 0.82);
+}
+
+/* ═══ 818 W5 米色宣纸：大面积背景铺极淡纸纹（只铺布局底，卡片内不铺）═══
+   :where() 零特异性：页面 scoped 背景写法不受影响；background-color 仍由
+   各处 var(--paper) 提供，此处只叠 background-image 纹理层。 */
+html[data-artist-theme="paper"] :where(.artist-layout, .admin-layout, .main-content, .login-page) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .40 0 0 0 0 .34 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ===== 墨黑主题 ===== */

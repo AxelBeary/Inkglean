@@ -278,7 +278,7 @@ onMounted(() => {
 
 <style scoped>
 .setup-page {
-  --setup-bg: var(--paper, #F5F4EF);
+  --setup-bg: var(--paper, #F0E6CF);
   --setup-card: var(--paper2, #FFFFFF);
   --setup-line: var(--line, #E5E2DA);
   --setup-ink: var(--ink, #1F1E19);
