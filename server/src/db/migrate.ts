@@ -1,5 +1,5 @@
 /* eslint-disable no-console -- 迁移脚本按约定豁免（CLI 输出是脚本本职，源头防屎门禁豁免项） */
-import { existsSync, unlinkSync } from 'fs'
+import { copyFileSync, existsSync, unlinkSync } from 'fs'
 import { resolve } from 'path'
 import type Database from 'better-sqlite3'
 import { REPO_ROOT } from './connection.js'
@@ -24,10 +24,12 @@ export function backupDbBeforeMigration(version: number, database: Database.Data
     // 同名旧备份先移除（只删本函数产出的 .bak.vN 命名；VACUUM INTO 要求目标不存在）
     if (existsSync(bakPath)) unlinkSync(bakPath)
     if (database.inTransaction) {
-      // 事务内备份不可用：VACUUM INTO 与 wal_checkpoint(TRUNCATE) 在事务内均报
-      // "database table is locked"（v68 生产首部署实测抓出）——显式抛错指引：
-      // 需要迁移前备份的迁移必须声明 noTransaction: true（v64/v67/v68 同口径）
-      throw new Error(`迁移 v${version}: 备份无法在事务内执行，该迁移必须声明 noTransaction: true`)
+      // 事务内：VACUUM 不可用——checkpoint(TRUNCATE) 把 WAL 尽量写回主库后复制（busy 时
+      // 返回行不抛错，快照可能不含未 checkpoint 的 WAL 尾部，属既有妥协口径）。
+      // v68 生产首部署实测：此分支在真实库上可能报 database table is locked——
+      // 需要迁移前备份的迁移首选声明 noTransaction: true 走 VACUUM INTO（v64/v67/v68 同口径）。
+      database.pragma('wal_checkpoint(TRUNCATE)')
+      copyFileSync(dbPath, bakPath)
     } else {
       database.prepare(`VACUUM INTO '${bakPath.replaceAll("'", "''")}'`).run()
     }
