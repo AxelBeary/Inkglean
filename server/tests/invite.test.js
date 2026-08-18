@@ -308,6 +308,48 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(again.json().code).toBe('TOTP_NOT_BOUND')
   })
 
+  it('TC-INV-14b (v126): 错码拒绝携带剩余次数；刚轮换的旧码判 stale（仅文案分流，不放宽校验）', async () => {
+    setAdmin()
+    const [invite] = generateInviteCodes(1, 3, 1)
+    const reg = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '20014', name: '分流', subdomain: 'splitmsg' }
+    })
+    const secret = secretFromUri(reg.json().otpauthUri)
+
+    // 第一错：纯错码（不在 ±3 窗口）→ stale=false，剩余 4 次
+    const wrong = await app.inject({
+      method: 'POST',
+      url: '/api/invite/totp-confirm',
+      payload: { qqNumber: '20014', code: '000000' }
+    })
+    expect(wrong.statusCode).toBe(400)
+    expect(wrong.json().code).toBe('TOTP_BIND_INVALID')
+    expect(wrong.json().detail).toMatchObject({ stale: false, remainingAttempts: 4 })
+
+    // 第二错：两个时间步前的旧码（不在有效窗 ±1，落在 ±3）→ stale=true，剩余 3 次
+    const staleCode = computeTotp(secret, Date.now() - 2 * 30_000)
+    const stale = await app.inject({
+      method: 'POST',
+      url: '/api/invite/totp-confirm',
+      payload: { qqNumber: '20014', code: staleCode }
+    })
+    expect(stale.statusCode).toBe(400)
+    expect(stale.json().code).toBe('TOTP_BIND_INVALID')
+    expect(stale.json().detail).toMatchObject({ stale: true, remainingAttempts: 3 })
+
+    // 分流仅改文案不改拦截：两次失败后仍未绑定，正确码仍可完成首绑
+    const artist = db.prepare("SELECT * FROM artists WHERE qq_number = '20014'").get()
+    expect(artist.totp_verified).toBe(0)
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/api/invite/totp-confirm',
+      payload: { qqNumber: '20014', code: computeTotp(secret, Date.now()) }
+    })
+    expect(ok.statusCode).toBe(200)
+  })
+
   // ─── 管理端 ───
 
   it('TC-INV-15: 管理端生成/列表/吊销全链路', async () => {

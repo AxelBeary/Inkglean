@@ -4,7 +4,7 @@ import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
 import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import { seedArtistStages } from '../artist/workflow.service.js'
-import { bindTotpInit, createSession, checkTotpLocked, registerTotpFailure } from '../auth/auth.service.js'
+import { bindTotpInit, createSession, checkTotpLocked, registerTotpFailure, TOTP_MAX_ATTEMPTS } from '../auth/auth.service.js'
 import { generateSecret, buildOtpAuthUri, verifyTotpWithCounter, hashTotpCode } from '../auth/totp.js'
 import type { Artist } from '../../types/entities.js'
 
@@ -276,7 +276,13 @@ export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpCo
   const hitCounter = verifyTotpWithCounter(artist.totp_secret, code, Date.now())
   if (hitCounter === null) {
     registerTotpFailure(artist.id) // 计数 +1，达阈值抛 TOTP_LOCKED
-    throw new AppError(E.TOTP_BIND_INVALID, 400)
+    // v126②：区分「码刚轮换」（落在 ±3 但不在有效窗 ±1）与「码输错」——只影响提示文案，不放宽校验；
+    // 新手常见因不熟 30 秒轮换机制报旧码，明示「等它转完再试」降低恐慌
+    const stale = verifyTotpWithCounter(artist.totp_secret, code, Date.now(), 3) !== null
+    // v126③：锁定前失败提示携带剩余次数（registerTotpFailure 未达阈值不抛，此处回读计数）
+    const attempts = (db.prepare('SELECT totp_failed_attempts FROM artists WHERE id = ?').get(artist.id) as { totp_failed_attempts: number }).totp_failed_attempts || 0
+    const remainingAttempts = Math.max(0, TOTP_MAX_ATTEMPTS - attempts)
+    throw new AppError(E.TOTP_BIND_INVALID, 400, { stale, remainingAttempts })
   }
 
   // 重放防护：同一 (画师, 时间步, 码) 只准成功一次（v48 totp_used_codes 唯一索引）
