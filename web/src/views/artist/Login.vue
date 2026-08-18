@@ -155,6 +155,8 @@
                   maxlength="6" autocomplete="one-time-code" :placeholder="t('invite.totpCodePlaceholder')"
                   :disabled="inviteConfirming || inviteTotpOk" @input="inviteErrTotp = false"
                 >
+                <!-- v126①：新手引导——码 30 秒轮换机制人话说明，降低「超时」错觉 -->
+                <p class="invite-totp-guide">{{ t('invite.totpGuide') }}</p>
               </div>
               <button
                 class="login-btn" :class="{ 'is-ok': inviteTotpOk }" type="button"
@@ -412,10 +414,25 @@ async function confirmInviteTotp() {
     setTimeout(() => router.push('/dashboard'), 500)
   } catch (err) {
     inviteErrTotp.value = true
-    inviteError.value = err.message || t('invite.totpError')
+    inviteError.value = mapInviteTotpErr(err)
   } finally {
     inviteConfirming.value = false
   }
+}
+
+/** v126②③：首绑确认失败文案分流（detail 由后端 invite/totp-confirm 提供，与登录锁定提示同口径）：
+ *  码刚轮换 → 等它转完再试；码输错 → 带剩余次数；锁定 → 带剩余分钟数（均只写可验证事实） */
+function mapInviteTotpErr(err) {
+  if (err?.code === 'TOTP_BIND_INVALID' && err.detail && typeof err.detail === 'object') {
+    if (err.detail.stale) return t('invite.totpStale')
+    if (typeof err.detail.remainingAttempts === 'number') {
+      return t('invite.totpWrong', { n: err.detail.remainingAttempts })
+    }
+  }
+  if (err?.code === 'TOTP_LOCKED' && err.detail?.remainingLockMs) {
+    return t('invite.totpLockedMin', { minutes: Math.ceil(err.detail.remainingLockMs / 60000) })
+  }
+  return err.message || t('invite.totpError')
 }
 
 async function passkeyLogin() {
@@ -913,6 +930,8 @@ async function login() {
   line-height: 1.7;
 }
 .field-hint { margin: 6px 0 0; font-size: 11px; color: var(--ink3); }
+/* v126①：首绑动态码轮换机制引导（与 step-desc 同色调，只写功能性陈述） */
+.invite-totp-guide { margin: 6px 0 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); line-height: 1.6; }
 .invite-step-title { margin: 20px 0 6px; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
 .invite-step-desc { margin: 0 0 14px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.7; }
 .invite-qr-wrap { display: flex; justify-content: center; margin: 4px 0 18px; }

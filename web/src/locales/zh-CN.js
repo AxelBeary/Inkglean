@@ -1351,7 +1351,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   },
   manualOrder: {
     title: '手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
-    leftTitle: '客户说了什么', rightTitle: '怎么录',
+    leftTitle: '客户信息', rightTitle: '价格信息',
     clientQq: '客户QQ号', clientQqPlaceholder: '客户的QQ号',
     clientName: '客户昵称（可选）', clientNamePlaceholder: '怎么称呼客户',
     addons: '可选增项',
@@ -2296,6 +2296,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpRequired: '请输入 6 位动态码',
     totpFormat: '动态码为 6 位数字',
     totpError: '动态口令错误，请重试',
+    // v126: 2FAS 新手引导（码 30 秒轮换机制人话说明 + 错误分流文案，只写可验证事实）
+    totpGuide: '动态码每 30 秒换一次，报验证器上最新显示的那组；进度条快走完时，等它刷新出新码再报。',
+    totpStale: '这组码可能刚刚刷新了——等验证器转出新码，报最新那组再试。',
+    totpWrong: '码对不上——请核对验证器上当前显示的 6 位数字。还可以试 {n} 次。',
+    totpLockedMin: '试错次数用完，先锁定约 {minutes} 分钟——入驻信息已保存，稍后回来输新码即可，不用重新注册。',
     // 管理端
     manageTitle: '邀请码管理',
     manageHint: '邀请码默认 3 天有效（可调 1-30 天），每个码只能用一次；把码发给画师即可入驻。',

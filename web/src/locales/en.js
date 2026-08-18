@@ -1352,7 +1352,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   },
   manualOrder: {
     title: 'Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
-    leftTitle: 'What the client said', rightTitle: 'How to record',
+    leftTitle: 'Client info', rightTitle: 'Pricing',
     clientQq: 'Client QQ', clientQqPlaceholder: "Client's QQ number",
     clientName: 'Client nickname (optional)', clientNamePlaceholder: 'What to call the client',
     addons: 'Add-ons',
@@ -2301,6 +2301,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpRequired: 'Please enter the 6-digit code',
     totpFormat: 'The code must be 6 digits',
     totpError: 'Incorrect one-time password, please try again',
+    // v126: 2FAS onboarding hints (plain facts about the 30s rotation + split error copy)
+    totpGuide: 'The code changes every 30 seconds — enter the latest one shown. If it is about to refresh, wait for the new code first.',
+    totpStale: 'That code may have just refreshed — wait for the new code and enter the latest one.',
+    totpWrong: 'That code does not match — check the 6 digits currently shown. {n} attempts left.',
+    totpLockedMin: 'Too many attempts — locked for about {minutes} min. Your registration is saved; come back and enter a fresh code later.',
     // Admin
     manageTitle: 'Invite Codes',
     manageHint: 'Invite codes are valid for 3 days by default (1-30 days configurable) and can be used once. Share them with artists to onboard.',

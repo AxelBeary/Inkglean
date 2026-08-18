@@ -1,21 +1,13 @@
 <template>
-  <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3） -->
-  <h2 class="font-display artwork-page-title">{{ $t('artworks.title') }}</h2>
-
-  <!-- 818-H：工具条按行结构整理（说明在左、控件在右） -->
-  <div class="group artwork-toolbar">
-    <div class="group-head">{{ $t('artworks.manageGroup') }}</div>
-    <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
-    <div class="row">
-      <div class="field-text">
-        <div class="lab">{{ $t('artworks.manageLabel') }}</div>
-        <div class="desc">{{ $t('artworks.manageDesc') }}</div>
-      </div>
-      <div class="ctrl">
-        <el-button :type="manageMode ? 'primary' : 'default'" @click="toggleManageMode">
-          {{ manageMode ? $t('artworks.manageDone') : $t('artworks.manage') }}
-        </el-button>
-      </div>
+  <!-- v0.38 第二批: H1 文楷 28/700（REQ §1.3）；v127⑤：标题与管理入口同行，顺带收纳原工具栏卡片，顶部不再吃一整块卡 -->
+  <div class="page-head">
+    <h2 class="font-display artwork-page-title">{{ $t('artworks.title') }}</h2>
+    <div class="page-head-ctrl">
+      <span class="page-head-hint">{{ $t('artworks.manageDesc') }}</span>
+      <!-- R45: 工具栏——"管理"按钮切换多选模式（C58） -->
+      <el-button :type="manageMode ? 'primary' : 'default'" @click="toggleManageMode">
+        {{ manageMode ? $t('artworks.manageDone') : $t('artworks.manage') }}
+      </el-button>
     </div>
   </div>
 
@@ -631,6 +623,13 @@ onMounted(async () => {
 
 <style scoped>
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
+/* v127⑤：标题行——标题在左、批量管理入口在右，省掉独立工具栏卡片，顶部空间收紧 */
+.page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.page-head-ctrl { display: flex; align-items: center; gap: 12px; }
+.page-head-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .artwork-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 
@@ -668,12 +667,12 @@ onMounted(async () => {
 .artwork-upload { display: block; width: 100%; }
 .artwork-upload :deep(.el-upload-dragger) {
   width: 100%;
-  min-height: 148px;
+  min-height: 112px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 16px;
+  padding: 12px 16px;
   background: var(--paper2);
   border: 1px dashed var(--line2);
   border-radius: var(--r-m);
@@ -695,7 +694,7 @@ onMounted(async () => {
   padding: 0; border: none; background: none; cursor: pointer;
   color: inherit; font: inherit;
 }
-.upload-main-text { margin-top: 12px; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink2); }
+.upload-main-text { margin-top: 8px; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink2); }
 .paste-hint { margin-top: 4px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 
 /* ─── 分区标题（与组头同语言：朱砂小印点） ─── */

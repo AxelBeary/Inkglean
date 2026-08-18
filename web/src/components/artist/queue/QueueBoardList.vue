@@ -109,8 +109,9 @@
                 </button>
               </div>
               <div class="item-body">
+                <!-- v127①：客户身份（名字优先，无则 QQ）主显示；单号降为下方小字 -->
                 <div class="item-header">
-                  <span class="order-no">#{{ element.order_no }}</span>
+                  <span class="client-id">{{ element.client_name || element.client_qq }}</span>
                   <el-tag :type="priorityType(element.priority)" size="small" effect="dark">
                     {{ $t(`common.priority.${element.priority}`) }}
                   </el-tag>
@@ -123,10 +124,13 @@
                   </el-tag>
                 </div>
                 <div class="item-info">
-                  <span>{{ element.tier_name || $t('common.custom') }}</span>
+                  <span class="order-no-sub">#{{ element.order_no }}</span>
                   <span>·</span>
-                  <span>QQ: {{ element.client_qq }}</span>
-                  <span v-if="element.client_name">· {{ element.client_name }}</span>
+                  <span>{{ element.tier_name || $t('common.custom') }}</span>
+                  <template v-if="element.client_name">
+                    <span>·</span>
+                    <span>QQ: {{ element.client_qq }}</span>
+                  </template>
                 </div>
                 <div class="item-desc" v-if="element.description">
                   {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
@@ -215,18 +219,22 @@
               class="queue-item completed-item"
             >
               <div class="item-body">
+                <!-- v127①：客户身份主显示，单号降小字（已交付区同口径） -->
                 <div class="item-header">
-                  <span class="order-no">#{{ element.order_no }}</span>
+                  <span class="client-id">{{ element.client_name || element.client_qq }}</span>
                   <el-tag type="success" size="small">{{ $t('common.orderStatus.delivered') }}</el-tag>
                   <el-tag v-if="element.currentStageId != null" type="info" size="small" effect="plain" class="stage-tag">
                     {{ element.currentStageName }}
                   </el-tag>
                 </div>
                 <div class="item-info">
-                  <span>{{ element.tier_name || $t('common.custom') }}</span>
+                  <span class="order-no-sub">#{{ element.order_no }}</span>
                   <span>·</span>
-                  <span>QQ: {{ element.client_qq }}</span>
-                  <span v-if="element.client_name">· {{ element.client_name }}</span>
+                  <span>{{ element.tier_name || $t('common.custom') }}</span>
+                  <template v-if="element.client_name">
+                    <span>·</span>
+                    <span>QQ: {{ element.client_qq }}</span>
+                  </template>
                 </div>
               </div>
               <div class="item-actions">
@@ -262,18 +270,22 @@
               </div>
             </div>
             <div class="item-body">
+              <!-- v127①：客户身份主显示，单号降小字（缓冲区同口径） -->
               <div class="item-header">
-                <span class="order-no">#{{ element.order_no }}</span>
+                <span class="client-id">{{ element.client_name || element.client_qq }}</span>
                 <el-tag type="warning" size="small" effect="dark">{{ $t('queue.bufferTag') }}</el-tag>
                 <el-tag :type="statusType(element.status)" size="small">
                   {{ $t(`common.orderStatus.${element.status}`) }}
                 </el-tag>
               </div>
               <div class="item-info">
-                <span>{{ element.tier_name || $t('common.custom') }}</span>
+                <span class="order-no-sub">#{{ element.order_no }}</span>
                 <span>·</span>
-                <span>QQ: {{ element.client_qq }}</span>
-                <span v-if="element.client_name">· {{ element.client_name }}</span>
+                <span>{{ element.tier_name || $t('common.custom') }}</span>
+                <template v-if="element.client_name">
+                  <span>·</span>
+                  <span>QQ: {{ element.client_qq }}</span>
+                </template>
               </div>
             </div>
             <div class="item-actions">
@@ -707,6 +719,13 @@ onMounted(() => {
 
 .item-body { flex: 1; min-width: 0; }
 .item-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* v127①：客户身份主显示（名字优先，无则 QQ），接替原 .order-no 的主视觉位 */
+.client-id {
+  font-weight: bold; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink);
+  max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* v127①：单号降为小字次要信息 */
+.order-no-sub { color: var(--ink3); font-family: var(--f-d); }
 .order-no { font-weight: bold; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink); font-family: var(--f-d); }
 /* R30d: 流程节点标签 */
 .stage-tag { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

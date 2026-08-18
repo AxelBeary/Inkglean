@@ -1,5 +1,5 @@
 ﻿<template>
-  <!-- ═══ 右栏：怎么录（v0.42 拆分：自 ManualOrder.vue 拆分搬移，零行为变化） ═══ -->
+  <!-- ═══ 右栏：价格信息（v0.42 拆分：自 ManualOrder.vue 拆分搬移，零行为变化；v127⑥ 改名） ═══ -->
   <section class="mo-col">
     <h3 class="mo-section">{{ $t('manualOrder.rightTitle') }}</h3>
 

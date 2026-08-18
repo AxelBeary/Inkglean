@@ -164,8 +164,9 @@
           <div class="tl-rows">
             <div v-for="row in tlRows" :key="row.order.id" class="tl-row">
               <div class="tl-row-label" :title="bandLabel(row.order)">
-                <span class="tl-row-no">#{{ row.order.order_no }}</span>
+                <!-- v127①：客户身份主显示，单号降为前置小字 -->
                 <span class="tl-row-name">{{ bandLabel(row.order) }}</span>
+                <span class="tl-row-no">#{{ row.order.order_no }}</span>
                 <!-- 键盘等价：时间条拖拽改期的替代路径 -->
                 <button
                   v-if="!['done', 'delivered', 'cancelled'].includes(row.order.status)"

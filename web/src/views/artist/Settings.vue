@@ -1,5 +1,6 @@
 <template>
-  <h2 class="font-display">{{ $t('settings.title') }}</h2>
+  <!-- v127④：标题补全站口径样式（文楷 28/700，与作品管理/账号安全一致） -->
+  <h2 class="font-display settings-page-title">{{ $t('settings.title') }}</h2>
 
   <!-- BUG-7 修复：profile 加载失败横幅 -->
   <el-alert
@@ -461,3 +462,13 @@ onMounted(() => {
   loadPlatforms()
 })
 </script>
+
+<style scoped>
+/* v127④：页题口径与作品管理/账号安全拉齐（文楷 28/700） */
+.settings-page-title {
+  font-size: calc(var(--font-scale, 1) * 28px);
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+</style>

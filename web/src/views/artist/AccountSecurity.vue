@@ -1,6 +1,7 @@
 <template>
   <div class="account-security artist-scope">
-    <h1 class="page-title">{{ t('account.title') }}</h1>
+    <!-- v127④：标题对齐全站口径（文楷 28/700，同作品管理/主页设置） -->
+    <h2 class="font-display page-title">{{ t('account.title') }}</h2>
 
     <!-- ═══ 账号信息 ═══ -->
     <div class="group">
@@ -370,21 +371,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* v127④：去居中窄列（原 640px + margin auto），改与主页设置同口径的左对齐 860px 内容带 */
 .account-security {
-  max-width: 640px;
-  margin: 0 auto;
+  max-width: 860px;
 }
 .page-title {
-  font-family: var(--f-d);
-  font-size: calc(var(--font-scale, 1) * 22px);
-  font-weight: 400;
-  margin: 0 0 24px;
+  font-size: calc(var(--font-scale, 1) * 28px);
+  font-weight: 700;
+  margin: 0;
   color: var(--ink);
+  letter-spacing: .02em;
 }
 
-/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
+/* 818-H 三原则：分组卡片收纳，组头带朱砂小印点（v127④：margin 口径对齐其他页 16px 上下） */
 .group {
-  margin-bottom: 20px;
+  margin: 16px 0;
   padding: 4px 24px 16px;
   background: var(--card);
   border: 1px solid var(--line);

@@ -191,20 +191,37 @@
         </div>
       </template>
       <nav class="nav nav--drawer">
-        <!-- 工具箱收纳：四分类组展开（纸墨提案 §5.5，drawerMenuGroups） -->
-        <div v-for="group in drawerMenuGroups" :key="group.key" class="nav-group">
+        <!-- 工具箱收纳：四分类组展开（纸墨提案 §5.5，drawerMenuGroups）；
+             v127⑨：工具分类改三列格（图标在上文字在下），与普通单列菜单拉开层级，不再三十条糊成一列 -->
+        <div
+          v-for="group in drawerMenuGroups" :key="group.key"
+          class="nav-group" :class="{ 'nav-group--tools': group.key.startsWith('tools-') }"
+        >
           <div class="nav-title">{{ $t(group.labelKey) }}</div>
-          <router-link
-            v-for="item in group.items" :key="item.index"
-            class="nav-item" :class="{ 'nav-item--active': activeMenu === item.index }"
-            :to="item.index"
-            @click="drawerVisible = false"
-          >
-            <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="nav-badge">
+          <div v-if="group.key.startsWith('tools-')" class="tool-grid">
+            <router-link
+              v-for="item in group.items" :key="item.index"
+              class="nav-item tool-cell" :class="{ 'nav-item--active': activeMenu === item.index }"
+              :to="item.index"
+              @click="drawerVisible = false"
+            >
               <el-icon><component :is="item.icon" /></el-icon>
-            </el-badge>
-            <span class="nav-label">{{ $t(item.labelKey) }}</span>
-          </router-link>
+              <span class="tool-cell-label">{{ $t(item.labelKey) }}</span>
+            </router-link>
+          </div>
+          <template v-else>
+            <router-link
+              v-for="item in group.items" :key="item.index"
+              class="nav-item" :class="{ 'nav-item--active': activeMenu === item.index }"
+              :to="item.index"
+              @click="drawerVisible = false"
+            >
+              <el-badge :value="item.badge" :hidden="!item.badge" :max="99" class="nav-badge">
+                <el-icon><component :is="item.icon" /></el-icon>
+              </el-badge>
+              <span class="nav-label">{{ $t(item.labelKey) }}</span>
+            </router-link>
+          </template>
         </div>
       </nav>
       <div class="drawer-footer">
@@ -690,6 +707,19 @@ const { validateSession } = useSessionGuard()
 }
 .nav--collapsed .nav-item { justify-content: center; padding: 9px 0; }
 .nav--collapsed .nav-item--active::before { left: -10px; }
+/* v127⑨：抽屉内工具分类三列格——图标在上文字在下，单列长队改短队，分组层级清晰 */
+.tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.tool-cell {
+  flex-direction: column; gap: 4px;
+  padding: 8px 4px;
+  text-align: center;
+}
+.tool-cell .el-icon { font-size: calc(var(--font-scale, 1) * 18px); }
+.tool-cell-label {
+  white-space: normal; line-height: 1.25;
+  font-size: calc(var(--font-scale, 1) * 12px);
+}
+.nav-group--tools { margin-bottom: 12px; }
 .nav-item .el-icon { font-size: calc(var(--font-scale, 1) * 16px); flex: none; }
 .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* #1: 留言角标（朱砂底白字胶囊——EP badge 主色已覆写为花青，此处显式朱砂：角标=警示语义） */

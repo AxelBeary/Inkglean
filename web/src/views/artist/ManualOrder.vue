@@ -26,7 +26,7 @@
 
     <el-form :model="form" :rules="rules" ref="formRef" label-position="top" size="large">
       <div class="mo-grid">
-        <!-- ═══ 左栏：客户说了什么（客户信息 + 参考图上传 + QQ 历史） ═══ -->
+        <!-- ═══ 左栏：客户信息（客户信息 + 参考图上传 + QQ 历史） ═══ -->
         <ManualOrderLeft
           v-model:clientQq="form.clientQq"
           v-model:clientName="form.clientName"
@@ -45,7 +45,7 @@
           @update:uploaded-refs="uploadedRefs = $event"
           ref="leftRef"
         />
-        <!-- ═══ 右栏：怎么录（画风/尺寸/增项/价格/初始状态/提交 + 移动端价格条） ═══ -->
+        <!-- ═══ 右栏：价格信息（画风/尺寸/增项/价格/初始状态/提交 + 移动端价格条） ═══ -->
         <ManualOrderRight
           v-model:clientQq="form.clientQq"
           v-model:clientName="form.clientName"

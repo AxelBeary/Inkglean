@@ -1,5 +1,5 @@
 ﻿<template>
-  <!-- ═══ 左栏：客户说了什么（v0.42 拆分：自 ManualOrder.vue 拆分搬移，零行为变化） ═══ -->
+  <!-- ═══ 左栏：客户信息（v0.42 拆分：自 ManualOrder.vue 拆分搬移，零行为变化；v127⑥ 改名） ═══ -->
   <section class="mo-col">
     <h3 class="mo-section">{{ $t('manualOrder.leftTitle') }}</h3>
 

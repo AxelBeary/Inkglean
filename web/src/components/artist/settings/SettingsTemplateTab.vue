@@ -197,8 +197,9 @@ defineEmits<{
 .group-desc { margin: 0 0 4px; font-size: 12px; color: var(--ink3); line-height: 1.6; }
 
 /* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+/* v127⑧：右列最小宽 420→280，窄窗下左列说明不再被挤成竖排细线（卡片 auto-fill 180 基线不破） */
 .row {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 640px); gap: 16px; align-items: start;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 640px); gap: 16px; align-items: start;
   padding: 12px 0; border-top: 1px solid var(--line);
 }
 .field-text { min-width: 0; }
@@ -269,7 +270,8 @@ defineEmits<{
 }
 .cover-manage-link:hover { opacity: 0.75; text-decoration: underline; }
 
-@media (max-width: 720px) {
+/* v127⑧：单列断点 720→860，对齐侧栏 900px 折叠口径——侧栏展开的窄窗（901~1100px）内容区不再硬塞两列 */
+@media (max-width: 860px) {
   .row { grid-template-columns: 1fr; }
 }
 </style>
