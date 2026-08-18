@@ -111,6 +111,26 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     return msg
   })
 
+  /** POST /api/artist/messages/bulk — v130 批量审核（批准/婉拒，归属条件内置，跨画师 id 不命中） */
+  fastify.post('/api/artist/messages/bulk', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['action', 'ids'],
+        properties: {
+          action: { type: 'string', enum: ['approve', 'reject'] },
+          ids: { type: 'array', items: { type: 'integer', minimum: 1 }, minItems: 1, maxItems: 500 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request) => {
+    const { action, ids } = request.body as { action: 'approve' | 'reject'; ids: number[] }
+    const updated = guestbookService.bulkUpdateMessages(request.artist.id, action, ids)
+    return { success: true, updated }
+  })
+
   /** PUT /api/artist/messages/:id/reject — 拒绝（静默） */
   fastify.put('/api/artist/messages/:id/reject', { preHandler: requireAuth }, async (request, reply) => {
     const msg = guestbookService.rejectMessage(request.artist.id, parseInt((request.params as { id: string }).id, 10))

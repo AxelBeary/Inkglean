@@ -78,6 +78,20 @@ export function approveMessage(artistId: number, messageId: number): GuestbookMe
   return getMessageById(messageId)
 }
 
+/**
+ * v130: 批量审核（批准/婉拒）——归属条件下单条 UPDATE 原子执行，
+ * 跨画师的 id 自然不命中；返回实际影响行数（前端按实报数提示）
+ */
+export function bulkUpdateMessages(artistId: number, action: 'approve' | 'reject', ids: number[]): number {
+  if (!ids.length) return 0
+  const status = action === 'approve' ? 'approved' : 'rejected'
+  const placeholders = ids.map(() => '?').join(',')
+  const res = db.prepare(
+    `UPDATE guestbook_messages SET status = ? WHERE artist_id = ? AND id IN (${placeholders})`
+  ).run(status, artistId, ...ids)
+  return res.changes
+}
+
 /** 拒绝留言（静默，归属校验） */
 export function rejectMessage(artistId: number, messageId: number): GuestbookMessage | null | undefined {
   const msg = getMessageById(messageId)

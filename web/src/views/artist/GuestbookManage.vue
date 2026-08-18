@@ -40,10 +40,36 @@
       </div>
     </div>
 
+    <!-- v130: 批量审核操作条（勾选后出现；回复仍逐条，审核可批量） -->
+    <div v-if="selectedIds.size > 0" class="gm-batch-bar">
+      <el-checkbox
+        :model-value="isAllFilteredSelected"
+        :indeterminate="selectedIds.size > 0 && !isAllFilteredSelected"
+        @change="toggleSelectAll"
+      >
+        {{ $t('guestbookManage.selectAll') }}
+      </el-checkbox>
+      <span class="gm-batch-count">{{ $t('guestbookManage.selectedCount', { n: selectedIds.size }) }}</span>
+      <el-button size="small" type="success" :loading="bulkBusy" @click="bulkDo('approve')">
+        {{ $t('guestbookManage.bulkApprove') }}
+      </el-button>
+      <el-popconfirm :title="$t('guestbookManage.bulkRejectConfirm', { n: selectedIds.size })" @confirm="bulkDo('reject')">
+        <template #reference>
+          <el-button size="small" type="danger" :disabled="bulkBusy">{{ $t('guestbookManage.bulkReject') }}</el-button>
+        </template>
+      </el-popconfirm>
+      <el-button size="small" text :disabled="bulkBusy" @click="selectedIds = new Set()">{{ $t('common.cancel') }}</el-button>
+    </div>
+
     <!-- 留言列表 -->
     <div v-loading="loading" class="gm-list">
-      <div v-for="msg in pagedMessages" :key="msg.id" class="gm-card" :class="`gm-card--${msg.status}`">
+      <div v-for="msg in pagedMessages" :key="msg.id" class="gm-card" :class="[`gm-card--${msg.status}`, { 'gm-card--selected': selectedIds.has(msg.id) }]">
         <div class="gm-card-head">
+          <el-checkbox
+            class="gm-select" :model-value="selectedIds.has(msg.id)"
+            :aria-label="`${$t('guestbookManage.selectAll')} - ${msg.nickname}`"
+            @change="toggleSelect(msg.id)"
+          />
           <span class="gm-nickname">{{ msg.nickname }}</span>
           <span v-if="msg.language" class="gm-lang-badge">{{ languageLabel(msg.language) }}</span>
           <el-tag :type="statusType(msg.status)" size="small">{{ $t(`dashboard.guestbook${statusLabel(msg.status)}`) }}</el-tag>
@@ -143,6 +169,48 @@ const replySaving = ref(false)
 // A3: 审核动作行级 pending 锁（approve/reject 请求期间仅锁定当前行，防连点不阻塞其他行）
 const actionBusyId = ref(null)
 
+// ─── v130: 批量审核（批准/婉拒；选择范围=当前筛选集，跨页可全选） ───
+const selectedIds = ref(new Set())
+const bulkBusy = ref(false)
+
+function toggleSelect(id) {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+
+const isAllFilteredSelected = computed(() =>
+  filteredMessages.value.length > 0 && filteredMessages.value.every(m => selectedIds.value.has(m.id))
+)
+function toggleSelectAll(checked) {
+  const next = new Set(selectedIds.value)
+  for (const m of filteredMessages.value) {
+    if (checked) next.add(m.id)
+    else next.delete(m.id)
+  }
+  selectedIds.value = next
+}
+
+async function bulkDo(action) {
+  const ids = [...selectedIds.value]
+  if (!ids.length || bulkBusy.value) return
+  bulkBusy.value = true
+  try {
+    const res = await artistApi.bulkMessages(action, ids)
+    const st = action === 'approve' ? 'approved' : 'rejected'
+    for (const m of messages.value) {
+      if (selectedIds.value.has(m.id)) m.status = st
+    }
+    ElMessage.success(t('guestbookManage.bulkDone', { n: res.updated ?? ids.length }))
+    selectedIds.value = new Set()
+  } catch (err) {
+    ElMessage.error(err.message)
+  } finally {
+    bulkBusy.value = false
+  }
+}
+
 // ─── F8: 语言筛选 ───
 
 /** 语言代码 → 显示标签（语言名用原文显示是惯例；未知语言直接显示代码） */
@@ -181,7 +249,7 @@ const pagedMessages = computed(() =>
 )
 const pendingCount = computed(() => messages.value.filter(m => m.status === 'pending').length)
 
-function onFilterChange() { page.value = 1 }
+function onFilterChange() { page.value = 1; selectedIds.value = new Set() }
 
 /** 数据刷新后当前语言筛选值已不存在时自动重置（如该语言留言全部删除） */
 watch(languageOptions, (opts) => {
@@ -333,6 +401,19 @@ onMounted(async () => {
 }
 
 .gm-list { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
+/* v130: 批量操作条（纸墨化：卡片底+描边，与批量栏同族） */
+.gm-batch-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 12px; padding: 8px 16px;
+  background: var(--card); border: 1px solid var(--line2);
+  border-radius: var(--r-m); box-shadow: var(--sh-1);
+}
+.gm-batch-count {
+  padding: 4px 12px; border-radius: var(--r-pill);
+  background: var(--hq-t); color: var(--hq);
+  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600;
+}
+.gm-select { flex: none; height: auto; }
 .gm-card {
   padding: 16px 20px;
   border: 1px solid var(--line);
@@ -341,6 +422,8 @@ onMounted(async () => {
   transition: border-color var(--dur-mid), box-shadow var(--dur-mid);
 }
 .gm-card:hover { border-color: color-mix(in srgb, var(--hq) 50%, transparent); box-shadow: var(--sh-1); }
+/* v130: 选中态花青描边（与多选选中语义一致） */
+.gm-card--selected { border-color: var(--hq); }
 /* 待审核留言：藤黄=待确认（语义一对一） */
 .gm-card--pending { border-left: 3px solid var(--th); }
 .gm-card--rejected {

@@ -55,6 +55,24 @@ describe('F4 留言板 (Guestbook)', () => {
     expect(rejected.status).toBe('rejected')
   })
 
+  it('TC-GB-08 (v130): 批量批准/婉拒——只命中自己名下留言，跨画师 id 不计不改', () => {
+    const m1 = guestbookService.createMessage(artist.id, 'A', '留言一')
+    const m2 = guestbookService.createMessage(artist.id, 'B', '留言二')
+    const other = guestbookService.createMessage(otherArtist.id, 'C', '别家留言')
+    // 批量批准：混入别家 id 不命中，返回实报数 2
+    const n = guestbookService.bulkUpdateMessages(artist.id, 'approve', [m1.id, m2.id, other.id])
+    expect(n).toBe(2)
+    expect(guestbookService.getMessageById(m1.id).status).toBe('approved')
+    expect(guestbookService.getMessageById(m2.id).status).toBe('approved')
+    expect(guestbookService.getMessageById(other.id).status).toBe('pending')
+    // 批量婉拒
+    const n2 = guestbookService.bulkUpdateMessages(artist.id, 'reject', [m1.id])
+    expect(n2).toBe(1)
+    expect(guestbookService.getMessageById(m1.id).status).toBe('rejected')
+    // 空数组不抛错计 0
+    expect(guestbookService.bulkUpdateMessages(artist.id, 'approve', [])).toBe(0)
+  })
+
   it('TC-GB-06: 画师回复', () => {
     const msg = guestbookService.createMessage(artist.id, 'F', '加油！')
     const replied = guestbookService.replyMessage(artist.id, msg.id, '谢谢～')
