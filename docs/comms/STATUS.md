@@ -2,11 +2,20 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
-> ✅ **最后更新：2026-08-18 v125：B+C 目录规范化完工——搬家脚本 move-to-opt.sh + 安装脚本全新安装询问装 /opt/inkglean；用户提供临时 Hyper-V 虚拟机（Ubuntu 26.04）完成全链路实测：全新安装自动搬家→装机→健康 ✅ / 搬家→拒绝覆盖 ✅ / 更新脚本 ✅，抓修一体检假警报（默认 compose 不映射 3000 端口，改容器内探测优先）；VM 已清理还原**
+> 🔴 **最后更新：2026-08-18 v127（反馈批待办单，只落档不修）：用户转来 1 条需求 + 8 条反馈（排期看板信息层级/详细订单丑/流程图丑/两页风格不一致/作品管理顶部浪费/手动录单两栏改名/作品管理进页闪屏/主页设置窄窗挤压丑+工具箱挤成一团），新会话接手先逐条核实再统一修**
+> 📋 **逐条清单（含一号预定位文件线索，接手先核实再动手）**：①需求：排期看板订单卡片 QQ 号或名字放前面主显示、单号降为下方小字（QueueBoard.vue + QueueBoardList.vue / QueueBoardCalendar.vue，走 huiyue-layout-audit）；②反馈：「详细订单功能」不好看太丑——具体指哪页待确认（候选：画师端 OrderDetail.vue / 客户端 TrackOrder.vue），修前问清或两处都查；③反馈：订单流程图太丑（候选：shared/WorkflowOverviewStrip.vue 或 OrderTimeline.vue，先确认是哪个）；④反馈：账号与安全页（AccountSecurity.vue）+ 主页设置页（Settings.vue）风格与其他页不一致（对照 818-b/819-h 已拉齐页面的「一行一事+分组卡片」口径）；⑤反馈：作品管理页（ArtworkManage.vue）顶部空间浪费太多；⑥反馈：手动录单页左栏「客户说了什么」改「客户信息」、右栏改「价格信息」（ManualOrder.vue + ManualOrderLeft.vue / ManualOrderRight.vue，zh/en i18n 成对改）；⑦bug：进作品管理页屏幕总闪一下（同⑤页面，疑似重渲染/骨架屏闪现/主题作用域切换，先公网复现定位）；⑧反馈：主页设置页「模板与风格」窄窗下极端丑——高亮选中卡片被挤成一条细线、左侧竖排侧栏（templates.layoutDesc「选择主页的页面结构」）被压成窄条（SettingsShowcaseTab.vue，截图在案：用户机 C:\Users\qly19\AppData\Roaming\QoderCN\SharedClientCache\cache\images\task-95d\cwz3dz8h-8e2be97b.png；疑似卡片横排无 flex-wrap/min-width 保护+侧栏竖排文字列无最小宽，窄窗下无降级）；⑨反馈：工具箱挤成一团需优化——用户已确认指**侧菜单点开后的工具抽屉**（ArtistLayout.vue drawerMenuGroups，工具分类数据在 constants/toolbox.js），修前实测抽屉内四分类排版找挤压点。
+> ⚠️ **接手须知**：②③两条「丑」类反馈太笼统，施工前先确认具体页面与不满意点（或出原型给用户拍板）；⑧有截图可对照，窄窗响应式问题按 Dashboard 三档断点口径修（1440/768/390 三档自审）；④⑤⑥⑧属布局改动走 huiyue-layout-audit 自检；⑦是唯一的真 bug 优先级最高；批量核实后统一门禁（accept）+部署（post-merge-deploy）+公网复验，修完主动告知用户复验不等报障第二次；上条 v126 已拍板 1+2+3（2FAS 新手引导）可随本批一起施工。
+
+> 🔴 **历史：2026-08-18 v126（已拍板待施工）：邀请码（激活码）入驻报障一条——小画师注册时不会用 2FAS 验证器，操作太慢导致「超时」感。用户已确认发生路径并拍板修法 1+2+3（先记录，随下一批施工）**
+> 🔍 **一号定性（已核代码）**：系统本身无故障——邀请码入驻链路无服务端时限（密钥不过期、确认接口无超时）；真凶是**新手不熟 TOTP 机制**：动态码每 30 秒轮换一次，服务端容忍窗口仅 ±1 步（±30 秒，代码核实 TOTP_DEFAULT_WINDOW=1），新手扫码装 App 研究半天、报码时码已过期 → 报「动态口令错误」→ 反复试错 → 触发防爆破锁定（连错 5 次锁 15 分钟），体感即「超时」。非 bug，属新手引导缺口。
+> 📋 **修法拍板（用户 2026-08-18 拍 1+2+3，第 4 条现状已具备不动）**：①入驻绑定页补人话引导（码每 30 秒变一次、报最新那组、倒计时快到头等它刷新再报，文案只写可验证事实不臆断第三方 App）；②错误提示升级——码过期与错码区分提示（如「码可能刚刷新了，等它转完再试」）；③锁定前的失败提示里写明剩余机会，降低新手恐慌；④二维码重发机制现有 bind-init 覆盖重生已具备，不做。
+> ⚠️ **接手须知**：已拍板待施工，随下一批落地不等催；门禁照旧；施工时文案纪律（禁说教腔、只写功能性陈述、不臆断第三方兼容性）照旧适用；②③涉及后端错误码/锁定状态回传，需前后端配套改+回归。
+
+> ✅ **历史：2026-08-18 v125：B+C 目录规范化完工——搬家脚本 move-to-opt.sh + 安装脚本全新安装询问装 /opt/inkglean；用户提供临时 Hyper-V 虚拟机（Ubuntu 26.04）完成全链路实测：全新安装自动搬家→装机→健康 ✅ / 搬家→拒绝覆盖 ✅ / 更新脚本 ✅，抓修一体检假警报（默认 compose 不映射 3000 端口，改容器内探测优先）；VM 已清理还原**
 > 🧪 **VM 实测实录（用户提供的临时机，非生产）**：①install.mjs C 逻辑：克隆到 /home/a/inkglean-test → root 全新安装自动搬至 /opt/inkglean → 完整 Docker 安装 → healthy + health 200；②move-to-opt.sh：/opt/inkglean→inkglean2 搬家成功（备份/改 crontab/重启/体检全走通），目标已存在时拒绝覆盖；③update.sh 在新装环境全绿；④抓修：双脚本体检原用宿主机 curl :3000，默认 compose（B3 决策不映射端口仅走 Caddy）下必假警报——改容器内 node fetch 探测优先+curl 兑底（eab7b0f7）；⑤compose down --quiet 参数不存在（清理时踩到，脚本未用该参数不受影响）。VM 测试后容器/网络/卷/镜像/目录全部清理还原。
 > 📦 **交付物（提交 8ca9ba4e/eab7b0f7）**：scripts/move-to-opt.sh（搬家前备份→停容器→整目录搬→改 crontab→重启→体检；/tmp 自副本防搬自己断档；目标拒覆盖）；install.mjs maybeRelocateToOpt（仅 Linux+root+无 .env+非 /opt 触发，--relocated 防二次）；维护说明书补搬家章节。生产服务器（cute-goose-1）已先于此批由用户手动搬至 /opt/inkglean 并确认正常。
 > 🚀 **v1.0.0-beta.3 发版（用户拍板临收工加发）**：版本号 server/web 升 1.0.0-beta.3（提交 1a85305a）+ tag 已推；release 已建（prerelease，人话版说明：体验大修+运营省心版）+ 附件 inkglean-installer-v1.0.0-b3.zip（676 文件/5.1MB，b2 配方+新增三个运营脚本）。插曲：gh release create 带附件连遭 GitHub 503，改「先建 release 再 upload 附件」分步成功。地址：github.com/AxelBeary/Inkglean/releases/tag/v1.0.0-beta.3。
-> 🔑 **新会话接手指南**：无在途施工。开放项：首页原型挂起（重开从 I 续编）；公网旧 /root 残留代码一周后收拾（需列可删清单经用户确认）；防火墙 Cloudflare IP 白名单待确认；一次性下载/多付提示挂起；B测继续；桌面端HOLD。worktree 无。
+> 🔑 **新会话接手指南**：无在途施工。开放项：**v127 反馈批 9 条待查修（⑦闪屏 bug 优先，⑧有截图）+ v126 已拍板 2FAS 引导 1+2+3 待施工（可同批）**；首页原型挂起（重开从 I 续编）；公网旧 /root 残留代码一周后收拾（需列可删清单经用户确认）；防火墙 Cloudflare IP 白名单待确认；一次性下载/多付提示挂起；B测继续；桌面端HOLD。worktree 无。
 
 > ✅ **历史：2026-08-18 v124：公网服务器切换 git 部署成功（ZIP 安装包路线退役）——v67/v68 迁移补上公网、健康检查与迁移回读实测通过；运营双脚本交付（update.sh 一键更新 + server-backup.sh 每日备份），待用户演练确认；安装脚本 git 化改造记入下一批**
 > 🌐 **公网迁移实录（用户手动执行+一号给命令）**：公网原为 ZIP 安装包部署（无 .git，git pull 报 not a repository）；按指南克隆 inkglean-git 新目录 → 搬迁 .env/data/uploads+改过的 compose（外部反代版，避免内置 Caddy 抢端口）→ 抓修两坑：①root 复制致 data 属主 root、容器 uid 1000 写不进（chown -R 1000:1000 解，首装同款坑）②迁移前备份因属主失败触发 fail-fast 中止（保护生效数据无损，修属主后重试干净补上 v67/v68）；终验健康 ok + 迁移回读 68。旧 /root 代码暂留作备份，稳定一周后收拾。
