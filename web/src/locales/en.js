@@ -306,7 +306,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     deadlineAdvice: 'Deadline Advice',
     // 812-tools-a: new tools wave A (quote / revision counter / image resize)
     quote: 'Quote',
-    revisionCount: 'Revision Counter',
     imageResize: 'Image Resize',
     // REQ-016 C: sidebar group titles
     groupWork: 'Work', groupBiz: 'Business', groupTools: 'Tools', groupFront: 'Storefront',
@@ -572,28 +571,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     clientLine: 'Client: {name}',
     totalLine: 'Total: {total}',
     noteLine: 'Note: {note}'
-  },
-  // 812-tools-a: Revision counter (tools page copy)
-  revisionCount: {
-    title: 'Revision Counter',
-    subtitle: 'Track revision rounds per entry; entries at the limit turn vermilion as a reminder',
-    // 818-B layout polish: grouped cards + one-row-one-item (label left, control right)
-    groupTitle: 'Counter Entries',
-    groupDesc: 'Each entry counts independently; entries at the limit are highlighted',
-    addLabel: 'New Counter Entry',
-    namePlaceholder: 'e.g. Alice-Avatar',
-    add: 'Add entry',
-    addHint: 'Default limit is 3, adjustable per entry',
-    empty: 'No entries yet — add one to start counting',
-    plus: '+1',
-    undo: 'Undo',
-    reset: 'Reset',
-    delete: 'Delete',
-    // A4: localStorage data cannot be recovered after deletion
-    deleteConfirm: 'Delete this entry? This cannot be undone.',
-    overLimit: 'Revision limit reached — keep the client in the loop',
-    limitLabel: 'Limit',
-    countUnit: ''
   },
   // 812-tools-a: Image resize (tools page copy)
   imageResize: {
@@ -1225,6 +1202,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     deleteRef: 'Delete reference', deleteRefConfirm: 'Delete this reference image? This cannot be undone.', deleteRefSuccess: 'Reference image deleted',
     stageOff: 'Turn off stage tracking',
     stageProgress: 'Progress {current}/{total}', stageRevision: 'Sent back for revision',
+    // v128: revision records (manual revision + send-back each count once)
+    revisionTitle: 'Revision Records', revisionTotal: '{n} rounds',
+    revisionManual: 'Manual revision', revisionRollback: 'Sent back',
     advanceTo: 'Advance to: ', stageBack: '↩ Send back', stageUpdated: 'Workflow updated',
     stageBackConfirm: 'Send back to "{name}"? The order will be marked as in revision.',
     stageOffConfirm: 'This order will stop following your workflow and fall back to fixed statuses. Continue?',

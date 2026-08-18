@@ -198,6 +198,25 @@
       </div>
     </el-card>
 
+    <!-- v128: 修改记录（手动修改+打回均计一次，口径用户拍板；从操作流水推导，无记录不显卡） -->
+    <el-card v-if="revisionRecords.length > 0" class="od-card">
+      <template #header>
+        <CardHead :title="$t('orderDetail.revisionTitle')">
+          <template #extra>
+            <StatusChip type="pend">{{ $t('orderDetail.revisionTotal', { n: revisionRecords.length }) }}</StatusChip>
+          </template>
+        </CardHead>
+      </template>
+      <ul class="revision-list">
+        <li v-for="(r, i) in revisionRecords" :key="i" class="revision-row">
+          <span class="revision-icon" :class="`revision-icon--${r.type}`" aria-hidden="true">{{ r.type === 'rollback' ? '↩' : '✎' }}</span>
+          <span class="revision-type">{{ r.type === 'rollback' ? $t('orderDetail.revisionRollback') : $t('orderDetail.revisionManual') }}</span>
+          <span v-if="r.type === 'rollback' && r.fromStage" class="revision-stages">「{{ r.fromStage }}」→「{{ r.toStage }}」</span>
+          <span class="revision-time">{{ formatDate(r.at) }}</span>
+        </li>
+      </ul>
+    </el-card>
+
     <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点；卡内容已拆 GalleryPanel，v0.40 拆分） -->
     <GalleryPanel
       :order="order"
@@ -436,6 +455,8 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const order = ref(null)
+// v128: 修改记录（后端从操作流水推导，随所有单订单端点下发，order.value 覆盖不丢）
+const revisionRecords = computed(() => order.value?.revisionRecords ?? [])
 // 818-D + 819-J: 再来一单回填选项（默认勾选描述 + 款式尺寸 + 参考图；备注默认不勾——
 // 备注常含内部沟通，画师按需勾选；参考图为客户需求图，随单复用默认带上）
 const reorderDialogVisible = ref(false)
@@ -892,6 +913,26 @@ onUnmounted(() => {
 /* ─── R30d: 流程进度 ─── */
 .stage-progress-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin: 12px 0 0; }
 .stage-revision-mark { color: var(--th); font-weight: 600; margin-left: 8px; }
+
+/* ─── v128: 修改记录（一行一次：类型标记 + 打回节点 + 时间） ─── */
+.revision-list { list-style: none; margin: 0; padding: 0; }
+.revision-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 0; border-top: 1px solid var(--line);
+}
+.revision-row:first-child { border-top: none; }
+.revision-icon {
+  width: 24px; height: 24px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-s);
+  font-size: calc(var(--font-scale, 1) * 13px);
+}
+/* 手动修改 = 花青（进行中语义）；打回 = 藤黄（待确认语义） */
+.revision-icon--manual { background: var(--hq-t); color: var(--hq-d); }
+.revision-icon--rollback { background: var(--th-t); color: var(--th); }
+.revision-type { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); font-weight: 600; }
+.revision-stages { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
+.revision-time { margin-left: auto; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 
 
 /* R17: 优先级分段按钮配色（选中态由 Element Plus 内部 is-checked 控制） */

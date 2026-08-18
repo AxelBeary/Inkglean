@@ -304,9 +304,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     socialReply: '社恐轻松回复',
     quickNote: '速记剪切板',
     deadlineAdvice: '截稿日建议',
-    // 812-tools-a: 新工具波 A（报价单/改稿计数/压图改尺寸）
+    // 812-tools-a: 新工具波 A（报价单/压图改尺寸；改稿计数已随 v128 下架，订单详情改用真实修改记录）
     quote: '报价单',
-    revisionCount: '改稿计数',
     imageResize: '压图改尺寸',
     // REQ-016 C: 侧边栏分组标题
     groupWork: '工作', groupBiz: '经营', groupTools: '工具', groupFront: '门面',
@@ -571,28 +570,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     clientLine: '客户：{name}',
     totalLine: '合计：{total}',
     noteLine: '备注：{note}'
-  },
-  // 812-tools-a: 改稿计数器（工具页文案）
-  revisionCount: {
-    title: '改稿计数',
-    subtitle: '按条目记改稿次数，到约定上限自动标红提醒',
-    // 818-B 布局打磨：分组卡片 + 一行一事（说明在左，控件在右）
-    groupTitle: '计数条目',
-    groupDesc: '每个条目独立计数，到达约定上限自动标红',
-    addLabel: '新增计数条目',
-    namePlaceholder: '如：张三-头像',
-    add: '添加条目',
-    addHint: '默认上限 3 次，可逐条调整',
-    empty: '还没有条目，添加一个开始计数',
-    plus: '+1',
-    undo: '撤销一次',
-    reset: '重置',
-    delete: '删除',
-    // A4: localStorage 数据删除后不可恢复
-    deleteConfirm: '删除该条目？删除后不可恢复。',
-    overLimit: '已达修改上限，注意与客户沟通',
-    limitLabel: '上限',
-    countUnit: '次'
   },
   // 812-tools-a: 压图改尺寸（工具页文案）
   imageResize: {
@@ -1224,6 +1201,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     deleteRef: '删除参考图', deleteRefConfirm: '确定删除这张参考图？删除后不可恢复。', deleteRefSuccess: '参考图已删除',
     stageOff: '关闭流程跟踪',
     stageProgress: '进度 {current}/{total}', stageRevision: '已打回修改',
+    // v128: 修改记录（手动修改+打回均计一次，口径用户拍板）
+    revisionTitle: '修改记录', revisionTotal: '共 {n} 次',
+    revisionManual: '手动修改', revisionRollback: '打回',
     advanceTo: '推进到：', stageBack: '↩ 打回上一节点', stageUpdated: '流程已更新',
     stageBackConfirm: '确定打回到「{name}」？订单状态将标记为修改中。',
     stageOffConfirm: '关闭后此订单不再跟随工作流程，回到固定状态流转。确定关闭？',
