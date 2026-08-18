@@ -3,7 +3,7 @@
 
   <div v-if="order" class="order-detail">
     <!-- 基本信息（v0.38: CardHead 朱砂 mark 卡头） -->
-    <el-card class="od-card">
+    <el-card class="od-card od-head-info">
       <template #header>
         <CardHead :title="$t('orderDetail.orderInfo')">
           <template #extra>
@@ -49,7 +49,7 @@
 
     <!-- v0.38: 日期卡二合一（REQ-026 §四）——开工日/截稿日两字段一卡，即时保存逻辑不变（changeStartDate/changeDeadline），
            卡头右侧剩余天数 chip：剩 N 天(花青) / 今天截稿(藤黄) / 逾期 N 天(朱砂) -->
-    <el-card class="od-card date-card">
+    <el-card class="od-card date-card od-head-date">
       <template #header>
         <CardHead :title="$t('orderDetail.dateCardTitle')">
           <template #extra>
@@ -83,6 +83,9 @@
       </div>
       <p class="date-card-note">{{ $t('orderDetail.dateSyncNote') }}</p>
     </el-card>
+
+    <!-- v129: 宽屏双列——主列（进度/图库/备注/增项/交付）与侧列（修改记录/收款/沟通/日志），窄屏回落单列 -->
+    <div class="od-main">
 
     <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
     <el-card class="od-card">
@@ -189,32 +192,14 @@
         <template v-else>
           <el-button v-if="order.status === 'pending'" type="primary" :loading="statusAction === 'confirmed'" :disabled="statusAction !== '' && statusAction !== 'confirmed'" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
           <el-button v-if="order.status === 'confirmed'" type="warning" :loading="statusAction === 'wip'" :disabled="statusAction !== '' && statusAction !== 'wip'" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
-          <el-button v-if="order.status === 'wip'" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
+          <!-- v129: revision 态下保留入口——「需修改」可反复点击，每点一轮计一次修改（后端 revision→revision 合法留痕） -->
+          <el-button v-if="['wip', 'revision'].includes(order.status)" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
           <el-button v-if="['wip','revision'].includes(order.status)" type="success" :loading="statusAction === 'done'" :disabled="statusAction !== '' && statusAction !== 'done'" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
           <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
         </template>
         <!-- 取消订单：固定在右侧 -->
         <el-button type="danger" plain class="action-cancel" @click="openSlideCancel">{{ $t('orderDetail.cancelOrder') }}</el-button>
       </div>
-    </el-card>
-
-    <!-- v128: 修改记录（手动修改+打回均计一次，口径用户拍板；从操作流水推导，无记录不显卡） -->
-    <el-card v-if="revisionRecords.length > 0" class="od-card">
-      <template #header>
-        <CardHead :title="$t('orderDetail.revisionTitle')">
-          <template #extra>
-            <StatusChip type="pend">{{ $t('orderDetail.revisionTotal', { n: revisionRecords.length }) }}</StatusChip>
-          </template>
-        </CardHead>
-      </template>
-      <ul class="revision-list">
-        <li v-for="(r, i) in revisionRecords" :key="i" class="revision-row">
-          <span class="revision-icon" :class="`revision-icon--${r.type}`" aria-hidden="true">{{ r.type === 'rollback' ? '↩' : '✎' }}</span>
-          <span class="revision-type">{{ r.type === 'rollback' ? $t('orderDetail.revisionRollback') : $t('orderDetail.revisionManual') }}</span>
-          <span v-if="r.type === 'rollback' && r.fromStage" class="revision-stages">「{{ r.fromStage }}」→「{{ r.toStage }}」</span>
-          <span class="revision-time">{{ formatDate(r.at) }}</span>
-        </li>
-      </ul>
     </el-card>
 
     <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点；卡内容已拆 GalleryPanel，v0.40 拆分） -->
@@ -246,9 +231,6 @@
       @refresh="refreshNow"
     />
 
-    <!-- v0.31 REQ-021 F1: 操作记录（卡内容已拆 LogPanel，2026-08-10 拆分） -->
-    <LogPanel :route-id="route.params.id" />
-
     <!-- SPEC-003: 附加工作项 + 改价（卡内容已拆 ExtraItemsPanel，2026-08-10 拆分） -->
     <ExtraItemsPanel
       :order="order"
@@ -256,33 +238,6 @@
       :route-id="route.params.id"
       @order-updated="onOrderUpdated"
       @conflict="loadOrder"
-    />
-
-    <!-- plan-node-speech：客户沟通（卡内容已拆 CommPanel，2026-08-10 拆分） -->
-    <CommPanel
-      :order="order"
-      :pool-final-cents="poolFinalCents"
-      :pool-paid-cents="poolPaidCents"
-      :pool-remaining-cents="poolRemainingCents"
-    />
-
-    <!-- B7: 额度池收款记录（卡内容已拆 PaymentPanel，v0.40 拆分） -->
-    <PaymentPanel
-      :payments="payments"
-      :payments-loading="paymentsLoading"
-      :payments-error="paymentsError"
-      :pool-paid-cents="poolPaidCents"
-      :pool-final-cents="poolFinalCents"
-      :pool-remaining-cents="poolRemainingCents"
-      :pool-overpaid-cents="poolOverpaidCents"
-      :pool-percent="poolPercent"
-      :installment-refs="installmentRefs"
-      :is-terminal="isTerminal"
-      :revoke-submitting="paymentSubmitting"
-      @open-pay="payDialogVisible = true"
-      @revoke="handleRevokePayment"
-      @collect="openNodePayDialog"
-      @retry-payments="loadPayments(route.params.id)"
     />
 
     <!-- 交付文件 -->
@@ -319,6 +274,61 @@
         </span>
       </div>
     </el-card>
+
+    </div><!-- /.od-main -->
+
+    <div class="od-side">
+
+      <!-- v128: 修改记录（手动修改+打回均计一次，口径用户拍板；从操作流水推导，无记录不显卡） -->
+      <el-card v-if="revisionRecords.length > 0" class="od-card">
+        <template #header>
+          <CardHead :title="$t('orderDetail.revisionTitle')">
+            <template #extra>
+              <StatusChip type="pend">{{ $t('orderDetail.revisionTotal', { n: revisionRecords.length }) }}</StatusChip>
+            </template>
+          </CardHead>
+        </template>
+        <ul class="revision-list">
+          <li v-for="(r, i) in revisionRecords" :key="i" class="revision-row">
+            <span class="revision-icon" :class="`revision-icon--${r.type}`" aria-hidden="true">{{ r.type === 'rollback' ? '↩' : '✎' }}</span>
+            <span class="revision-type">{{ r.type === 'rollback' ? $t('orderDetail.revisionRollback') : $t('orderDetail.revisionManual') }}</span>
+            <span v-if="r.type === 'rollback' && r.fromStage" class="revision-stages">「{{ r.fromStage }}」→「{{ r.toStage }}」</span>
+            <span class="revision-time">{{ formatDate(r.at) }}</span>
+          </li>
+        </ul>
+      </el-card>
+
+      <!-- B7: 额度池收款记录（卡内容已拆 PaymentPanel，v0.40 拆分；v129 移入侧列） -->
+      <PaymentPanel
+        :payments="payments"
+        :payments-loading="paymentsLoading"
+        :payments-error="paymentsError"
+        :pool-paid-cents="poolPaidCents"
+        :pool-final-cents="poolFinalCents"
+        :pool-remaining-cents="poolRemainingCents"
+        :pool-overpaid-cents="poolOverpaidCents"
+        :pool-percent="poolPercent"
+        :installment-refs="installmentRefs"
+        :is-terminal="isTerminal"
+        :revoke-submitting="paymentSubmitting"
+        @open-pay="payDialogVisible = true"
+        @revoke="handleRevokePayment"
+        @collect="openNodePayDialog"
+        @retry-payments="loadPayments(route.params.id)"
+      />
+
+      <!-- plan-node-speech：客户沟通（卡内容已拆 CommPanel，2026-08-10 拆分；v129 移入侧列） -->
+      <CommPanel
+        :order="order"
+        :pool-final-cents="poolFinalCents"
+        :pool-paid-cents="poolPaidCents"
+        :pool-remaining-cents="poolRemainingCents"
+      />
+
+      <!-- v0.31 REQ-021 F1: 操作记录（卡内容已拆 LogPanel，2026-08-10 拆分；v129 移入侧列） -->
+      <LogPanel :route-id="route.params.id" />
+
+    </div><!-- /.od-side -->
   </div>
 
   <!-- REQ-037 F1: 首载失败错误态（自助重试，不白屏死局） -->
@@ -851,8 +861,15 @@ onUnmounted(() => {
 
 <style scoped>
 /* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；旧变量不残留——派工 §二.3） ═══ */
-/* 页面结构：卡片间距 14px（REQ §1.4） */
-.order-detail { display: flex; flex-direction: column; gap: 14px; }
+/* v129: 页面结构重做——宽屏（≥1280px）双列：主列（进度/图库/备注/增项/交付）+ 侧列（修改记录/收款/沟通/日志），
+   头部基本信息与日期分居两列顶端；窄屏回落单列（主列在前）。卡片间距 14px（REQ §1.4） */
+.order-detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.od-main, .od-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; min-width: 0; }
+@media (min-width: 1280px) {
+  .order-detail { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); max-width: 1680px; }
+  .od-head-info, .od-main { grid-column: 1; }
+  .od-head-date, .od-side { grid-column: 2; }
+}
 
 /* 订单号文楷——落款感（REQ §1.3：数字/单号用文楷） */
 .od-order-no { font-family: var(--f-d); font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600; letter-spacing: .02em; }
