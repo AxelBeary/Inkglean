@@ -2,7 +2,7 @@
 // #3: 快捷按钮候选池常量（命名导出，供 Preferences.vue 配置区共用）
 // v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
 import { markRaw } from 'vue'
-import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled, Wallet, Document, RefreshLeft, ChatLineRound, Notebook, Brush, PriceTag } from '@element-plus/icons-vue'
+import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled, Wallet, Document, ChatLineRound, Notebook, Brush, PriceTag } from '@element-plus/icons-vue'
 import { safeGetItem } from '../../../utils/storage.js'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
@@ -21,7 +21,7 @@ export const QUICK_ACTION_POOL = [
   // ── 819-G: 后台已有但未入池的真实页面（逐一核实 router/index.js 路由存在才加） ──
   { key: 'income', type: 'route', icon: markRaw(Wallet), labelKey: 'menu.standaloneIncome', route: '/tools/income' },
   { key: 'quote', type: 'route', icon: markRaw(Document), labelKey: 'menu.quote', route: '/tools/quote' },
-  { key: 'revision-count', type: 'route', icon: markRaw(RefreshLeft), labelKey: 'menu.revisionCount', route: '/tools/revision-count' },
+  // 改稿计数器已随 v128 下架（订单详情改用真实修改记录）
   { key: 'reply', type: 'route', icon: markRaw(ChatLineRound), labelKey: 'menu.socialReply', route: '/tools/reply' },
   { key: 'note', type: 'route', icon: markRaw(Notebook), labelKey: 'menu.quickNote', route: '/tools/note' },
   { key: 'watermark', type: 'route', icon: markRaw(Brush), labelKey: 'menu.watermark', route: '/tools/watermark' },

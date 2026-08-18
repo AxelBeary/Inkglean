@@ -69,11 +69,11 @@ describe('QUICK_ACTION_POOL 扩充（819-G）', () => {
     }
   })
 
-  it('补入后台已有但未入池的真实页面（收支记录/报价单/改稿次数/回复模板/速记/水印/算价器）', () => {
+  it('补入后台已有但未入池的真实页面（收支记录/报价单/回复模板/速记/水印/算价器；改稿计数随 v128 下架）', () => {
     const byKey = Object.fromEntries(QUICK_ACTION_POOL.map(a => [a.key, a]))
     expect(byKey.income.route).toBe('/tools/income')
     expect(byKey.quote.route).toBe('/tools/quote')
-    expect(byKey['revision-count'].route).toBe('/tools/revision-count')
+    expect(byKey['revision-count']).toBeUndefined()
     expect(byKey.reply.route).toBe('/tools/reply')
     expect(byKey.note.route).toBe('/tools/note')
     expect(byKey.watermark.route).toBe('/tools/watermark')

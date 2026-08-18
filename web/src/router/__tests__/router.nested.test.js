@@ -60,11 +60,10 @@ describe('画师后台嵌套路由（REQ-037 批2 A1）', () => {
     expect(router.currentRoute.value.matched.length).toBe(2)
   })
 
-  // 812-tools-a: 新工具波 A 三个子路由（报价单/改稿计数/压图改尺寸）
-  it('新工具子路由解析正确（/tools/quote|revision-count|image-resize）', async () => {
+  // 812-tools-a: 新工具波 A 子路由（报价单/压图改尺寸；改稿计数随 v128 下架）
+  it('新工具子路由解析正确（/tools/quote|image-resize）；改稿计数已下架', async () => {
     const cases = [
       { path: '/tools/quote', name: 'ArtistQuote' },
-      { path: '/tools/revision-count', name: 'ArtistRevisionCount' },
       { path: '/tools/image-resize', name: 'ArtistImageResize' }
     ]
     for (const c of cases) {
@@ -72,5 +71,7 @@ describe('画师后台嵌套路由（REQ-037 批2 A1）', () => {
       expect(router.currentRoute.value.name).toBe(c.name)
       expect(router.currentRoute.value.matched.length).toBe(2)
     }
+    // 改稿计数路由已移除：不再存在该命名路由
+    expect(router.getRoutes().find(r => r.name === 'ArtistRevisionCount')).toBeUndefined()
   })
 })

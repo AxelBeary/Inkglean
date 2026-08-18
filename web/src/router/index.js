@@ -75,8 +75,7 @@ const routes = [
       { path: 'tools/deadline', name: 'ArtistDeadlineAdvice', component: () => import('../views/artist/DeadlineAdvice.vue'), meta: { titleKey: 'menu.deadlineAdvice', requiresAuth: true } },
       // 812-tools-a: 报价单生成（工具页）
       { path: 'tools/quote', name: 'ArtistQuote', component: () => import('../views/artist/Quote.vue'), meta: { titleKey: 'menu.quote', requiresAuth: true } },
-      // 812-tools-a: 改稿计数器（工具页）
-      { path: 'tools/revision-count', name: 'ArtistRevisionCount', component: () => import('../views/artist/RevisionCount.vue'), meta: { titleKey: 'menu.revisionCount', requiresAuth: true } },
+      // 812-tools-a: 改稿计数器已随 v128 下架（订单详情改用真实修改记录）
       // 812-tools-a: 压图改尺寸（工具页）
       { path: 'tools/image-resize', name: 'ArtistImageResize', component: () => import('../views/artist/ImageResize.vue'), meta: { titleKey: 'menu.imageResize', requiresAuth: true } },
       { path: 'stats', name: 'ArtistStats', component: () => import('../views/artist/StatsPage.vue'), meta: { titleKey: 'menu.stats', requiresAuth: true } },
