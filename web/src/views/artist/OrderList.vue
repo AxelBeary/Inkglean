@@ -80,7 +80,7 @@
   <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
   <HySkeleton v-if="loading" count="6" />
   <div class="order-table-wrap" v-if="!loading">
-    <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px" @row-click="onRowClick">
+    <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px" @row-click="onRowClick" @sort-change="onSortChange">
       <!-- R16: 缩略图列（焦点图优先，无则 —） -->
       <el-table-column :label="$t('orderList.colImage')" width="64" class-name="thumb-col">
         <template #default="{ row }">
@@ -110,7 +110,7 @@
       </el-table-column>
       <el-table-column prop="client_qq" :label="$t('orderList.colQq')" width="120" />
       <el-table-column prop="client_name" :label="$t('orderList.colName')" width="100" />
-      <el-table-column :label="$t('orderList.colPriority')" width="80">
+      <el-table-column prop="priority" :label="$t('orderList.colPriority')" width="80" sortable="custom">
         <template #default="{ row }">
           <el-tag :type="priorityType(row.priority)" size="small" :class="`prio-tag prio-tag--${row.priority}`">
             {{ $t(`common.priority.${row.priority}`) }}
@@ -129,7 +129,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" :label="$t('orderList.colTime')" min-width="160">
+      <el-table-column prop="created_at" :label="$t('orderList.colTime')" min-width="160" sortable="custom">
         <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
       </el-table-column>
       <el-table-column :label="$t('orderList.colActions')" fixed="right" width="100">
@@ -177,6 +177,17 @@ const loading = ref(true)
 const filter = ref('')
 // REQ-020 F1: 搜索（300ms debounce）
 const searchQuery = ref('')
+// v130: 排序口径（''=默认时间倒序 / time_asc 时间正序 / priority 优先级高→低，后端白名单）
+const sortMode = ref('')
+function onSortChange({ prop, order }) {
+  if (!order) sortMode.value = ''
+  else if (prop === 'created_at') sortMode.value = order === 'ascending' ? 'time_asc' : ''
+  else if (prop === 'priority') sortMode.value = order === 'ascending' ? 'priority' : ''
+  else return
+  invalidateFullOrdersCache()
+  page.value = 1
+  loadOrders()
+}
 let searchTimer = null
 function onSearchInput() {
   clearTimeout(searchTimer)
@@ -210,7 +221,8 @@ const displayedOrders = computed(() => {
 // 订单列表页无写操作，TTL 到期自然失效即可
 let fullOrdersCache = null // { key, items, at }
 const FULL_ORDERS_CACHE_TTL = 60_000
-function fullOrdersCacheKey() { return searchQuery.value.trim() || '' }
+// v130: 缓存键含排序口径，切排序不复用旧序结果
+function fullOrdersCacheKey() { return (searchQuery.value.trim() || '') + '|' + sortMode.value }
 function invalidateFullOrdersCache() { fullOrdersCache = null }
 const fetchProgress = ref(null) // { done, total } | null
 const page = ref(1)
@@ -267,7 +279,7 @@ async function fetchAllOrders() {
   const status = filter.value || undefined
   const pageSize = FETCH_ALL_PAGE_SIZE
   const all = []
-  const first = await artistApi.getOrders(status, { page: 1, pageSize, q: q || undefined })
+  const first = await artistApi.getOrders(status, { page: 1, pageSize, q: q || undefined, sort: sortMode.value || undefined })
   const firstItems = first.items ?? first
   all.push(...firstItems)
   const totalCount = first.total ?? firstItems.length
@@ -275,7 +287,7 @@ async function fetchAllOrders() {
   const pages = Math.max(1, Math.ceil(totalCount / pageSize))
   fetchProgress.value = { done: 1, total: pages }
   for (let p = 2; p <= pages; p++) {
-    const res = await artistApi.getOrders(status, { page: p, pageSize, q: q || undefined })
+    const res = await artistApi.getOrders(status, { page: p, pageSize, q: q || undefined, sort: sortMode.value || undefined })
     const items = res.items ?? res
     if (items.length) all.push(...items)
     fetchProgress.value = { done: p, total: pages }
@@ -300,7 +312,7 @@ async function loadOrders() {
       return
     }
     const q = searchQuery.value.trim() || undefined
-    const res = await artistApi.getOrders(filter.value || undefined, { page: page.value, pageSize: pageSize.value, q })
+    const res = await artistApi.getOrders(filter.value || undefined, { page: page.value, pageSize: pageSize.value, q, sort: sortMode.value || undefined })
     if (mySeq !== loadSeq) return
     orders.value = res.items ?? res
     total.value = res.total ?? orders.value.length

@@ -88,9 +88,10 @@ export function getOrderByNo(orderNo: string, { clientOnly = false }: { clientOn
 }
 
 /**
- * 获取画师的订单列表（支持状态筛选 + 关键字搜索 + 分页）
+ * 获取画师的订单列表（支持状态筛选 + 关键字搜索 + 排序 + 分页）
+ * v130: sort 白名单——''/缺省=时间倒序；time_asc=时间正序；priority=优先级高→低（同级按时间倒序）
  */
-export function getArtistOrders(artistId: number, status: string | undefined, { page = 1, pageSize = 50, q }: { page?: number; pageSize?: number; q?: string } = {}): { items: ArtistOrderRow[]; total: number; page: number; pageSize: number } {
+export function getArtistOrders(artistId: number, status: string | undefined, { page = 1, pageSize = 50, q, sort }: { page?: number; pageSize?: number; q?: string; sort?: string } = {}): { items: ArtistOrderRow[]; total: number; page: number; pageSize: number } {
   let where = 'WHERE o.artist_id = ?'
   const params: Array<string | number> = [artistId]
   if (status) {
@@ -112,13 +113,17 @@ export function getArtistOrders(artistId: number, status: string | undefined, { 
   `).get(...params) as { c: number }).c
 
   const offset = (Math.max(1, page) - 1) * pageSize
+  // v130: 排序口径（白名单枚举，非拼接用户输入，无注入面）
+  let orderBy = 'ORDER BY o.created_at DESC'
+  if (sort === 'time_asc') orderBy = 'ORDER BY o.created_at ASC'
+  else if (sort === 'priority') orderBy = "ORDER BY CASE o.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC, o.created_at DESC"
   const items = db.prepare(`
     SELECT o.*, (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
     LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
     ${where}
-    ORDER BY o.created_at DESC
+    ${orderBy}
     LIMIT ? OFFSET ?
   `).all(...params, pageSize, offset) as ArtistOrderRow[]
 

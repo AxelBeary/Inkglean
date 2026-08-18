@@ -430,6 +430,9 @@ export const artistApi = {
     getJson('/artist/messages', { params }),
   approveMessage: (id: number): Promise<GuestbookMessage> => putJson(`/artist/messages/${id}/approve`),
   rejectMessage: (id: number): Promise<SimpleSuccessResult> => putJson(`/artist/messages/${id}/reject`),
+  // v130: 批量审核（批准/婉拒，单次上限 500 条与后端 schema 对齐）
+  bulkMessages: (action: 'approve' | 'reject', ids: number[]): Promise<{ success: boolean; updated: number }> =>
+    postJson('/artist/messages/bulk', { action, ids }),
   replyMessage: (id: number, reply: string): Promise<GuestbookMessage> => putJson(`/artist/messages/${id}/reply`, { reply }),
   updateRules: (content: string): Promise<CommissionRule | null> => putJson('/artist/rules', { content }),
   // 05D-I1: 散单记账（原裸 fetch 收口 → 401 自动登出/15s 超时/i18n 翻译统一走拦截器）
@@ -442,8 +445,8 @@ export const artistApi = {
   getIncomeSummary: (params: { from: string; to: string }): Promise<IncomeSummaryResult> =>
     getJson('/artist/tools/income-summary', { params }),
   // 订单
-  getOrders: (status: string | undefined, { page, pageSize, q }: { page?: number; pageSize?: number; q?: string } = {}): Promise<ArtistOrdersResult> =>
-    getJson('/artist/orders', { params: { status, page, pageSize, q } }),
+  getOrders: (status: string | undefined, { page, pageSize, q, sort }: { page?: number; pageSize?: number; q?: string; sort?: string } = {}): Promise<ArtistOrdersResult> =>
+    getJson('/artist/orders', { params: { status, page, pageSize, q, sort } }),
   // 05D-W1/P1: 拉全量订单（下拉选择用；pageSize 上限 200 循环，订单多时稍慢但可选到任意早期订单）
   getAllOrders: async (q?: string): Promise<ArtistOrderItem[]> => {
     // a3: in-flight 去重——并发触发（组件重挂载/多消费者）共享同一次分页循环，避免重复请求与乱序返回

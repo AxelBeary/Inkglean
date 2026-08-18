@@ -21,11 +21,13 @@ export async function orderListRoutes(fastify: FastifyInstance) {
    * GET /api/artist/orders
    */
   fastify.get('/api/artist/orders', { preHandler: requireAuth }, async (request: FastifyRequest) => {
-    const { status, page, pageSize, q } = (request.query || {}) as { status?: string; page?: string; pageSize?: string; q?: string }
+    const { status, page, pageSize, q, sort } = (request.query || {}) as { status?: string; page?: string; pageSize?: string; q?: string; sort?: string }
     const result = orderService.getArtistOrders(request.artist.id, status, {
       page: Math.max(1, parseInt(page ?? '', 10) || 1),
       pageSize: Math.max(1, Math.min(parseInt(pageSize ?? '', 10) || 50, 200)),
-      q: typeof q === 'string' ? q.slice(0, 100) : undefined
+      q: typeof q === 'string' ? q.slice(0, 100) : undefined,
+      // v130: 排序白名单（非法值回落默认时间倒序）
+      sort: sort === 'time_asc' || sort === 'priority' ? sort : undefined
     })
     // Bug fix: 焦点图在 references/ 目录，裸路径 403，需签名 URL
     if (result.items) {
