@@ -5,6 +5,7 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import * as orderService from './order.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
+import { getRevisionRecords } from './activity-log.service.js'
 import type { OrderDetail } from '../../types/entities.js'
 import type { FastifyRequest } from 'fastify'
 
@@ -71,7 +72,9 @@ export function enrichOrderForArtist(order: OrderDetail, artistId?: number): Ord
     remainingCents: finalCents != null ? Math.max(0, finalCents - (signed.paid_total_cents ?? 0)) : null,
     installments: orderService.getOrderInstallments(signed.id),
     // v0.26 B: snake_case → camelCase 映射（对照 currentStageId 模式）
-    startDate: signed.start_date ?? null
+    startDate: signed.start_date ?? null,
+    // v128: 修改记录（手动修改+打回均计一次，口径用户拍板）——随所有单订单端点下发，前端覆盖不丢
+    revisionRecords: getRevisionRecords(signed.id)
   })
   return signed
 }

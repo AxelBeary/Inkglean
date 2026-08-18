@@ -172,6 +172,8 @@ export interface OrderDetail extends Order {
   deliverables?: Array<{ id: number; file_path: string; original_name?: string | null; file_size?: number | null }>
   notes?: Array<{ id?: number; image_path: string | null }>
   extraItems?: Array<{ name: string; price_cents: number }>
+  /** v128: 修改记录（画师端 enrich 下发；手动修改+打回均计一次，口径用户拍板） */
+  revisionRecords?: Array<{ type: 'manual' | 'rollback'; at: string; fromStage?: string; toStage?: string }>
 }
 /** 订单列表/队列行（o.* + 画风尺寸关联字段；字段名 tier_* 为过渡兼容；order.routes 与 admin.routes 共用） */
 export interface ArtistOrderRow {

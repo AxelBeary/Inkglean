@@ -49,6 +49,8 @@ describe('B1 订单响应增强统一 (enrichOrderForArtist)', () => {
     expect(body.remainingCents).toBeDefined()
     expect(body.installments).toBeDefined()
     expect('startDate' in body).toBe(true) // null 也必须在（前端直接读）
+    // v128: 修改记录随所有单订单端点下发（前端 order.value 覆盖后修改次数不丢）
+    expect(Array.isArray(body.revisionRecords)).toBe(true)
   }
 
   // ─── 0. GET /:id 基准（对照锚点） ───

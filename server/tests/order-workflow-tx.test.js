@@ -104,3 +104,46 @@ describe('订单流程事务包裹 (P0-1)', () => {
     expect(logs.c).toBe(1)
   })
 })
+
+// ─────────────────────────────────────────────────────────
+// v128: 修改记录推导（getRevisionRecords）
+// 口径用户拍板：手动点「需修改」与流程「打回」均计一次修改。
+// ─────────────────────────────────────────────────────────
+describe('v128 修改记录推导 (getRevisionRecords)', () => {
+  let artist, order, stages
+
+  beforeEach(() => {
+    cleanDb()
+    artist = seedArtist({ qq_number: '11112', subdomain: 'revrec' })
+    seedArtistStages(artist.id)
+    order = orderService.createOrder({ artistId: artist.id, clientQq: '112' })
+    stages = db.prepare(
+      'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+    ).all(artist.id)
+  })
+
+  it('TC-REV-01: 打回计一次（带前后节点名），手动修改计一次，两路合计', () => {
+    // 打回路径：推进到节点3（wip 态，confirmed→revision 非法故须过收款节点）再打回节点2
+    advanceStage(order.id, stages[1].id)
+    advanceStage(order.id, stages[2].id)
+    rollbackStage(order.id, stages[1].id)
+    // 手动路径：状态已为 revision，先转 wip 再转 revision 记第二次
+    orderService.updateOrderStatus(order.id, 'wip')
+    orderService.updateOrderStatus(order.id, 'revision')
+
+    const records = activityLogService.getRevisionRecords(order.id)
+    expect(records).toHaveLength(2)
+    expect(records[0]).toMatchObject({ type: 'rollback', fromStage: stages[2].name, toStage: stages[1].name })
+    expect(records[0].at).toBeTruthy()
+    expect(records[1]).toMatchObject({ type: 'manual' })
+  })
+
+  it('TC-REV-02: 无修改动作返回空数组；取消撤销恢复到 revision 的 undo 日志不计次', () => {
+    expect(activityLogService.getRevisionRecords(order.id)).toHaveLength(0)
+    // 模拟取消撤销恢复：undo=true 的 status_change 不算新一轮修改
+    db.prepare(
+      "INSERT INTO order_activity_logs (order_id, action_type, actor, detail_json) VALUES (?, 'status_change', 'artist', ?)"
+    ).run(order.id, JSON.stringify({ from: 'cancelled', to: 'revision', undo: true }))
+    expect(activityLogService.getRevisionRecords(order.id)).toHaveLength(0)
+  })
+})

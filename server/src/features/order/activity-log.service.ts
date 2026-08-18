@@ -68,3 +68,49 @@ export function getOrderLogs(orderId: number, { page = 1, pageSize = 50, type }:
 
   return { logs: parsed, total, page, pageSize }
 }
+
+/** v128: 修改记录条（订单详情「修改次数」展示用，口径用户拍板：手动修改与打回均计一次） */
+export interface RevisionRecord {
+  /** manual=手动点「需修改」（状态转 revision）；rollback=流程节点打回 */
+  type: 'manual' | 'rollback'
+  at: string
+  /** 仅 rollback：打回前/后节点名 */
+  fromStage?: string
+  toStage?: string
+}
+
+/**
+ * v128: 从操作流水推导修改记录（不加存储/不动表结构）：
+ * 手动路径 = status_change 且 to='revision'（排除取消撤销恢复的 undo 日志）；
+ * 打回路径 = stage_advance 且 detail.action='rollback'（rollbackStageTx 不另记 status_change，两路不重叠）。
+ * 日志自 v0.31 起存在，更早的历史订单无法追溯，如实计 0。
+ */
+export function getRevisionRecords(orderId: number): RevisionRecord[] {
+  const rows = db.prepare(
+    `SELECT action_type, detail_json, created_at FROM order_activity_logs
+     WHERE order_id = ? AND action_type IN ('status_change', 'stage_advance')
+     ORDER BY id ASC`
+  ).all(orderId) as Array<{ action_type: string; detail_json: string | null; created_at: string }>
+
+  const records: RevisionRecord[] = []
+  for (const row of rows) {
+    let detail: Record<string, unknown> | null = null
+    if (row.detail_json) {
+      try { detail = JSON.parse(row.detail_json) } catch { detail = null }
+    }
+    if (!detail) continue
+    if (row.action_type === 'status_change') {
+      if (detail.to === 'revision' && !detail.undo) {
+        records.push({ type: 'manual', at: row.created_at })
+      }
+    } else if (detail.action === 'rollback') {
+      records.push({
+        type: 'rollback',
+        at: row.created_at,
+        fromStage: typeof detail.from === 'string' ? detail.from : '',
+        toStage: typeof detail.to === 'string' ? detail.to : ''
+      })
+    }
+  }
+  return records
+}
