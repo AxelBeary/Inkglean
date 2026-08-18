@@ -25,7 +25,8 @@ export const STATUS_TRANSITIONS: Record<string, string[]> = {
   confirmed: ['wip', 'cancelled'],
   // delivered 本就是交付合法路径（wip/revision 可交付），显式化而非绕过
   wip:       ['revision', 'done', 'delivered', 'cancelled'],
-  revision:  ['wip', 'done', 'delivered', 'cancelled'],
+  // v129（用户拍板）：revision → revision 合法——「需修改」可反复点击，每点一轮计一次修改（流水留痕）
+  revision:  ['revision', 'wip', 'done', 'delivered', 'cancelled'],
   done:      ['delivered', 'cancelled'],
   delivered: [],
   cancelled: []

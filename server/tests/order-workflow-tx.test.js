@@ -146,4 +146,21 @@ describe('v128 修改记录推导 (getRevisionRecords)', () => {
     ).run(order.id, JSON.stringify({ from: 'cancelled', to: 'revision', undo: true }))
     expect(activityLogService.getRevisionRecords(order.id)).toHaveLength(0)
   })
+
+  it('TC-REV-03 (v129): 「需修改」可反复点击——revision→revision 合法，每点一轮计一次修改', () => {
+    orderService.updateOrderStatus(order.id, 'wip')
+    // 连点三轮：wip→revision、revision→revision、revision→revision
+    orderService.updateOrderStatus(order.id, 'revision')
+    orderService.updateOrderStatus(order.id, 'revision')
+    orderService.updateOrderStatus(order.id, 'revision')
+
+    const after = db.prepare('SELECT status FROM orders WHERE id = ?').get(order.id)
+    expect(after.status).toBe('revision')
+    const records = activityLogService.getRevisionRecords(order.id)
+    expect(records).toHaveLength(3)
+    expect(records.every(r => r.type === 'manual')).toBe(true)
+    // 计次后可照常推进完成：revision→done 不受影响
+    orderService.updateOrderStatus(order.id, 'done')
+    expect(db.prepare('SELECT status FROM orders WHERE id = ?').get(order.id).status).toBe('done')
+  })
 })
