@@ -93,6 +93,12 @@ body {
   /* T 波：0.18s → --dur-fast(.15s) 就近等值；ease-out 关键字 → --ease-out token */
   transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
+/* v127⑦：leave 阶段即时退场（时长归零）——out-in 模式下旧页淡出结束后新页才开始淡入，
+   双 150ms 串联致内容区约 120ms 全空白，视觉上即「进页闪一下」（帧抓拍实测坐实，全后台通病）；
+   旧页瞬退后新页照常柔和淡入，空白间隙消失，克制动效纪律不变 */
+.fade-slide-leave-active {
+  transition-duration: 0s;
+}
 .fade-slide-enter-from {
   opacity: 0;
   transform: translateY(8px);
