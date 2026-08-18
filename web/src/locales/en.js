@@ -956,6 +956,13 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     replyLabel: 'Artist reply',
     editReply: 'Edit reply',
     rejectConfirm: 'Reject this message? It will no longer appear on your public page.',
+    // v130: bulk review (approve / reject)
+    selectAll: 'Select all',
+    selectedCount: '{n} selected',
+    bulkApprove: 'Approve selected',
+    bulkReject: 'Reject selected',
+    bulkRejectConfirm: 'Reject the {n} selected messages? They will no longer appear on your public page.',
+    bulkDone: '{n} processed',
     // F8: language filter
     languageAll: 'All languages',
     // 820-L: guestbook disabled empty state
@@ -1151,14 +1158,14 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // 818-H: filter toolbar row structure
     filterTitle: 'Filter Orders',
     searchLabel: 'Search Orders',
-    searchDesc: 'Filter by nickname, order number or tier',
+    searchDesc: 'Filter by nickname, QQ number, order number or tier',
     filterLabel: 'Status Filter',
     filterDesc: 'Filter the list by order status',
     colOrderNo: 'Order No.', colType: 'Type', colQq: 'Client QQ', colName: 'Nickname',
     colPriority: 'Priority', colStatus: 'Status', colSource: 'Source', colTime: 'Order time', colActions: 'Actions',
     colImage: 'Image',
     // REQ-020 F1: order search
-    searchPlaceholder: 'Search name / order no. / tier', noSearchResult: 'No matching orders',
+    searchPlaceholder: 'Search name / QQ / order no. / tier', noSearchResult: 'No matching orders',
     fetchAllProgress: 'Loading all orders ({done}/{total})…'
   },
   orderDetail: {

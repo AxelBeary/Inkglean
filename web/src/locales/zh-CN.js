@@ -954,6 +954,13 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     replyLabel: '画师回复',
     editReply: '编辑回复',
     rejectConfirm: '确定拒绝这条留言？拒绝后客户主页将不显示。',
+    // v130: 批量审核（批准/婉拒）
+    selectAll: '全选',
+    selectedCount: '已选 {n} 条',
+    bulkApprove: '批量批准',
+    bulkReject: '批量婉拒',
+    bulkRejectConfirm: '婉拒选中的 {n} 条留言？客户主页将不再显示它们。',
+    bulkDone: '已处理 {n} 条',
     // F8: 语言筛选
     languageAll: '全部语言',
     // 820-L：留言功能关闭空态
@@ -1150,14 +1157,14 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 818-H：筛选工具条按行结构整理
     filterTitle: '筛选订单',
     searchLabel: '搜索订单',
-    searchDesc: '按昵称、订单号或档位名过滤',
+    searchDesc: '按昵称、QQ号、订单号或档位名过滤',
     filterLabel: '状态筛选',
     filterDesc: '按订单状态筛选列表',
     colOrderNo: '订单号', colType: '类型', colQq: '客户QQ', colName: '昵称',
     colPriority: '优先级', colStatus: '状态', colSource: '来源', colTime: '下单时间', colActions: '操作',
     colImage: '图片',
     // REQ-020 F1: 订单搜索
-    searchPlaceholder: '搜索昵称 / 订单号 / 档位名', noSearchResult: '无匹配订单',
+    searchPlaceholder: '搜索昵称 / QQ号 / 订单号 / 档位名', noSearchResult: '无匹配订单',
     fetchAllProgress: '正在拉取全部订单（{done}/{total}）…'
   },
   orderDetail: {
