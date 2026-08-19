@@ -1,5 +1,28 @@
 # 变更日志
 
+## TypeScript 全仓收尾迁移 + 隐性 bug 修复 + 文档大修（2026-08-19，未发版）
+
+> 用户拍板推翻原「谁触碰谁迁移」增量策略，一次性完成全仓 TS 收尾；行为零变更，门禁全绿（server 1589 / web 651 / E2E 13）。详见 STATUS v132。
+
+### 🔧 TypeScript 收尾（约 470 个单元）
+
+- **server**：tests 134 个 .test.js→.test.ts + 运维脚本 3 个（check-db/gc-uploads/backfill）；新增 tsconfig.tests.json 把测试纳入 strict 类型门禁；entrypoint.sh 改 npx tsx 直跑 check-db.ts。
+- **web**：src 153 个 .js→.ts + 136 个 vue script 块 lang="ts"；allowJs 关闭；vite/vitest/eslint 配置与 check-i18n/compress-paper-tex 转 TS（新增 tsconfig.scripts.json）。
+- **e2e**：16 个 .js→.ts + playwright.config.ts；新增 e2e/tsconfig.json 与 npm run typecheck:e2e / check:e2e。
+- **纪律**：断言/测试名/用例数/注释/路由表/SQL/部署流程零变更；全仓零 any/@ts-ignore；测试数与基线逐一吻合。保留未迁：install.mjs、根 scripts/*.mjs/.ps1/.sh（裸 node/系统脚本直跑入口）。
+
+### 🐛 修复（迁移暴露 + 用户拍板）
+
+- **GreetingNote「今日统计」滚动数字空白**：旧 JS 的 .value 访问在 reactive 解包后运行时实为 undefined；去掉 .value 直读 display，数字恢复显示。
+- **web eslint 180 条警告清零**：查实为 v129 双列排布批遗留缩进债（全部在 OrderDetail.vue），eslint --fix 纯格式修复；lint 首次 0 errors 0 warnings。
+- **GH E2E 工作流修复**：e2e.yml 定位器扫描改走 npm run check:e2e（tsx）——迁移改名后工作流引用漏同步致 MODULE_NOT_FOUND。
+
+### 📚 文档大修（2026-08-19）
+
+- 全部 docs/README 刷新至全仓 TS 现状（README/CONTEXT/开发自参考/维护说明书/开发→生产切换指南/CONTRIBUTING）。
+- OPS.md 新增 §0 版本更新章节：用户须及时 `bash scripts/update.sh`（首选，自动备份+拉码+重建+体检+回滚预案）；手工流程降为底线方案。
+- comms 旧批次交付件归档；STATUS 过期待办消账。
+
 ## 0817 用户反馈批 + 系统更新面板 + 文档大扫除（2026-08-17 ~ 08-18，未发版）
 
 > 用户 B 测反馈逐条消化 + 管理端「系统更新」检查面板（拍板方案 A：只读不代执行）+ 全库文档过时点刷新。

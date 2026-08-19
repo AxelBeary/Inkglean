@@ -32,8 +32,8 @@
 | 后端 | Fastify 5 + better-sqlite3 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） |
 | 登录 | TOTP 动态口令（RFC 6238） |
-| 测试 | Vitest（后端 `cd server && npm test`、前端 `cd web && npm run test:web`）+ Playwright E2E（根目录 `npm run test:e2e`）；用例数随开发增长，以实测为准（2026-08-15 参考：后端 1521 · 前端 545 · E2E 13） |
-| 类型 | TypeScript（后端 100% TS，strict 全开） |
+| 测试 | Vitest（后端 `cd server && npm test`、前端 `cd web && npm run test:web`）+ Playwright E2E（根目录 `npm run test:e2e`）；用例数随开发增长，以实测为准（2026-08-19 参考：后端 1589 · 前端 651 · E2E 13） |
+| 类型 | TypeScript（2026-08-19 起全仓 TS：后端/前端/测试/脚本/配置全部 strict 受检，零 any） |
 | 监控 | Sentry |
 
 ## 快速开始
@@ -75,7 +75,7 @@ npm run dev        # http://localhost:3000
 cd web && npm install
 npm run dev        # http://localhost:5173
 
-# 测试（用例数随开发增长，以实测为准；2026-08-15 参考：后端 1521 · 前端 545 · E2E 13）
+# 测试（用例数随开发增长，以实测为准；2026-08-19 参考：后端 1589 · 前端 651 · E2E 13）
 cd server && npm test          # 后端 Vitest
 cd server && npm run lint
 cd web && npm run lint

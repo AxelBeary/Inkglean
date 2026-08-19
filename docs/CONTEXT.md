@@ -67,13 +67,14 @@
 | 层 | 技术 | 备注 |
 |----|------|------|
 | 后端 | Fastify 5 + better-sqlite3 | 单体，非微服务 |
-| 后端运行时 | tsx | 支持 .ts/.js 混存，零配置；TS 覆盖率 100%（strict，any 清零） |
-| 前端 | Vue 3 + Element Plus + Pinia | SPA；api 层已全量 TS（161 DTO，2026-08-12 结构债清偿批）；tsconfig strict + allowJs 增量轨（新文件一律 TS，存量谁触碰谁迁移，vue-tsc 进 lint/CI） |
+| 后端运行时 | tsx | 支持 .ts 直跑；全仓 TS 收尾后已无 .js 混存 |
+| 类型系统 | TypeScript strict（全仓） | 2026-08-19 一次性收尾：后端/前端/测试/脚本/配置全 TS，allowJs 已关；测试与脚本分别经 tsconfig.tests.json / tsconfig.scripts.json / e2e/tsconfig.json 纳入类型门禁；禁 any/@ts-ignore，类型缺口用局部 interface + as 断言 |
+| 前端 | Vue 3 + Element Plus + Pinia | SPA；api 层 161 DTO；全量 .ts + vue script lang="ts"，vue-tsc 进 lint/CI |
 | 前端 i18n | vue-i18n@11 | zh-CN + en 双键，check-i18n 门禁 |
 | 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v68**（v65 cancel_undo_windows 取消撤销窗口 / v66 deliverables 一次性下载状态列 / v67 greeting_slot_rework 问候档位重构 / v68 artists 留言开关+统计开关默认值） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） | entrypoint 带 DB 损坏自愈（自动恢复最新备份）；生产弱会话密钥拒绝启动（815 拍板 #12） |
 | 备份 | DB 三档分层（每日 7 份 / 部署前 2 份 / 每周 4 份，815 拍板 #10）+ uploads tar 备份（2 份轮转）+ restore-db/rollback 恢复脚本（支持 -Tier 选档） | OPS.md「备份与恢复」章节 |
-| 测试 | Vitest（后端 1581/133 文件 + 前端 658/99 文件，2026-08-18 实测，基线随批次变动以 STATUS 最新条目为准）+ Playwright E2E（13 条，接入 CI；global-setup 含管理员 step-up） | |
+| 测试 | Vitest（后端 1589/134 文件 + 前端 651/98 文件，2026-08-19 实测，基线随批次变动以 STATUS 最新条目为准）+ Playwright E2E（13 条，接入 CI；global-setup 含管理员 step-up） | |
 | 监控 | Sentry（后端+前端均已接入） | sentry.io 免费版，DSN 环境变量开关 |
 
 ## 使用规则

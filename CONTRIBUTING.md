@@ -24,7 +24,7 @@
 
 ## 代码风格
 
-- 后端 TypeScript（strict 全开），禁止用 `any` / `@ts-ignore` 糊弄类型检查
+- 全仓 TypeScript（server/web/e2e 含测试/脚本/配置，无 .js 源码）；后端 strict 全开，禁止用 `any` / `@ts-ignore` 糊弄类型检查
 - 前端 Vue 3 + Element Plus，遵循既有 eslint 配置
 - 注释写"为什么"，不写"是什么"；与周边代码风格保持一致
 - 用户可见文案必须走 i18n（中英文语言包同步补键）
