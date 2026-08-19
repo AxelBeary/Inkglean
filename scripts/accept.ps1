@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# accept.ps1 — 一号独立验收流水线（v1，2026-08-12）
+# accept.ps1 — 一号独立验收流水线（v2，2026-08-19：新增 test-tamper 测试同改标红闸门）
 #
 # 目的：把「合入前复跑全门禁」固化为零遗漏的机械流程，产出结构化验收报告。
 # 纪律出处：STATUS v82 教训（合入门禁漏跑致结构污染流入 master）；
@@ -19,7 +19,9 @@
 
 param(
   [string]$Worktree = '',
-  [switch]$SkipE2E
+  [switch]$SkipE2E,
+  # test-tamper 闸门裁决理由：业务代码与测试同改时必须显式给出，否则该道门禁失败
+  [string]$TestTamperAck = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -83,6 +85,11 @@ if (-not $SkipE2E) {
   $gates += @{ id = 'e2e'; label = 'Playwright E2E'; dir = ''; npmArgs = @('run', 'test:e2e'); countKey = 'e2e' }
   $gates += @{ id = 'e2e-locators'; label = 'E2E check-locators'; dir = ''; npmArgs = @('run', 'check:e2e') }
 }
+
+# test-tamper 闸门：业务+测试同改须带裁决理由（防改测试凑绿；用例数基线防的是删测试，此处防改软断言）
+$tamperArgs = @('scripts/check-test-tamper.mjs', '--base', 'master')
+if ($TestTamperAck) { $tamperArgs += @('--ack-reason', $TestTamperAck) }
+$gates += @{ id = 'test-tamper'; label = '测试同改标红（check-test-tamper）'; dir = ''; npmArgs = @('exec', '--no', '--', 'node') + $tamperArgs }
 
 # ---------- 基线（用例数只增不减；增长后同步更新本文件） ----------
 $baselinePath = Join-Path $repo 'scripts/accept-baseline.json'
@@ -153,6 +160,12 @@ $report = [System.Text.StringBuilder]::new()
 if ($preCheckNotes) {
   [void]$report.AppendLine('## 前置检查')
   foreach ($n in $preCheckNotes) { [void]$report.AppendLine("- $n") }
+  [void]$report.AppendLine('')
+}
+if ($TestTamperAck) {
+  [void]$report.AppendLine('## 测试同改裁决（test-tamper）')
+  [void]$report.AppendLine('')
+  [void]$report.AppendLine("业务代码与测试同改，一号已裁决理由：$TestTamperAck")
   [void]$report.AppendLine('')
 }
 [void]$report.AppendLine('## 门禁明细')
