@@ -86,199 +86,196 @@
 
     <!-- v129: 宽屏双列——主列（进度/图库/备注/增项/交付）与侧列（修改记录/收款/沟通/日志），窄屏回落单列 -->
     <div class="od-main">
-
-    <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
-    <el-card class="od-card">
-      <template #header>
-        <CardHead :title="$t('orderDetail.activityTitle')">
-          <template #extra>
-            <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
-            <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
-          </template>
-        </CardHead>
-      </template>
-
-      <!-- 终态：只读横幅，无操作 -->
-      <div v-if="isTerminal" class="status-banner" :class="`status-banner--${order.status}`">
-        <span class="status-banner-text">
-          {{ $t(`common.orderStatus.${order.status}`) }}
-          <template v-if="order.status === 'delivered' && order.completed_at"> · {{ $t('orderDetail.completedAt', { time: formatDate(order.completed_at) }) }}</template>
-        </span>
-      </div>
-
-      <!-- 有工作流：工作流进度条为唯一状态展示（C52：固定状态条隐藏） -->
-      <template v-else-if="hasWorkflow">
-        <!-- E10: 节点推进时间线纸墨化——竖向淡墨线 + 墨点（vertical），数据/交互不变 -->
-        <OrderTimeline vertical :stages="workflowStages" :current-stage-id="order.currentStageId" />
-        <p class="stage-progress-text">
-          {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
-          <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
-        </p>
-        <p class="status-last-active">{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</p>
-      </template>
-
-      <!-- 无工作流：固定状态兜底 + 上下文信息 + 启用跟踪引导（C53） -->
-      <template v-else>
-        <div class="status-fallback">
-          <el-tag :type="statusType(order.status)" size="large">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
-          <div class="status-context">
-            <span>{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</span>
-            <span>{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
-            <span>{{ $t('orderDetail.refCount', { n: order.references?.length || 0 }) }}</span>
-          </div>
-        </div>
-        <div class="track-on-hint">
-          <span class="track-on-hint-text">{{ $t('orderDetail.enableTrackingHint') }}</span>
-          <el-button size="small" type="primary" plain :loading="trackOnLoading" @click="enableTracking">{{ $t('orderDetail.enableTracking') }}</el-button>
-        </div>
-      </template>
-    </el-card>
-
-    <!-- v0.31 F5 + REQ-025 二阶段: 待收横幅——主信息订单级总待收(remainingCents=总价−已收)，
-           副信息当前节点（第一个 remaining>0 的节点，无节点订单则只显示总额）；点击跳转收款区 -->
-    <div
-      v-if="!isTerminal && remainingCents > 0"
-      class="next-due-banner"
-      role="button" tabindex="0"
-      :aria-label="$t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` })"
-      @click="scrollToPayment"
-      @keydown.enter.prevent="scrollToPayment"
-      @keydown.space.prevent="scrollToPayment"
-    >
-      <span class="next-due-text">
-        {{ $t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` }) }}
-      </span>
-      <span v-if="nextDueInstallment" class="next-due-sub">
-        {{ $t('orderDetail.currentDueSuffix', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
-      </span>
-      <span class="next-due-arrow">→</span>
-    </div>
-
-    <!-- R39 方案B：操作条（固定位置——不随状态区内容跳动，画师永远知道按钮在哪） -->
-    <el-card v-if="!isTerminal" class="action-bar-card">
-      <!-- 取消订单：滑块确认行（R30e，C59 高代价操作用滑块） -->
-      <div v-if="slideCancelActive" class="slide-confirm-row">
-        <div class="slide-confirm">
-          <div class="slide-confirm-fill" :style="{ width: `calc(${slideCancelProgress} * 100%)` }"></div>
-          <span class="slide-confirm-label">{{ $t('orderDetail.slideToCancel') }}</span>
-          <div
-            class="slide-confirm-thumb"
-            :style="{ left: `calc(2px + ${slideCancelProgress} * (100% - 40px))` }"
-            @pointerdown="handleSlideStart"
-            @pointermove="handleSlideMove"
-            @pointerup="handleSlideEnd"
-            @pointercancel="closeSlideCancel"
-          >
-            →
-          </div>
-        </div>
-        <el-button text size="small" :aria-label="$t('common.close')" @click="closeSlideCancel">✕</el-button>
-        <el-button text size="small" type="danger" :disabled="cancelSubmitting" @click="confirmCancelOrder">
-          {{ $t('orderDetail.confirmCancel') }}
-        </el-button>
-      </div>
-
-      <!-- 常规操作按钮 -->
-      <div v-else class="action-bar">
-        <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死）；T3: 飞行中本按钮 loading、兄弟按钮 disabled -->
-        <template v-if="hasWorkflow">
-          <el-button v-if="canAdvanceStage" type="primary" :loading="statusAction === 'advance'" :disabled="statusAction !== '' && statusAction !== 'advance'" @click="advanceStage">
-            {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
-          </el-button>
-          <el-button v-if="canBackStage && order.status !== 'done'" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
-          <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
+      <!-- R40: 活动时间线（状态区 + 备注区合并，C54 展示层合并；操作条保持独立不合并） -->
+      <el-card class="od-card">
+        <template #header>
+          <CardHead :title="$t('orderDetail.activityTitle')">
+            <template #extra>
+              <!-- 关闭跟踪属设置型操作，保留在卡头（状态推进操作收敛到下方操作条） -->
+              <el-button v-if="hasWorkflow" text size="small" type="info" @click="turnOffStageTracking">{{ $t('orderDetail.stageOff') }}</el-button>
+            </template>
+          </CardHead>
         </template>
-        <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛）；T3: 飞行中目标按钮 loading，其余 disabled -->
+
+        <!-- 终态：只读横幅，无操作 -->
+        <div v-if="isTerminal" class="status-banner" :class="`status-banner--${order.status}`">
+          <span class="status-banner-text">
+            {{ $t(`common.orderStatus.${order.status}`) }}
+            <template v-if="order.status === 'delivered' && order.completed_at"> · {{ $t('orderDetail.completedAt', { time: formatDate(order.completed_at) }) }}</template>
+          </span>
+        </div>
+
+        <!-- 有工作流：工作流进度条为唯一状态展示（C52：固定状态条隐藏） -->
+        <template v-else-if="hasWorkflow">
+          <!-- E10: 节点推进时间线纸墨化——竖向淡墨线 + 墨点（vertical），数据/交互不变 -->
+          <OrderTimeline vertical :stages="workflowStages" :current-stage-id="order.currentStageId" />
+          <p class="stage-progress-text">
+            {{ $t('orderDetail.stageProgress', { current: stageProgress.current, total: stageProgress.total }) }}
+            <span v-if="order.status === 'revision'" class="stage-revision-mark">↩ {{ $t('orderDetail.stageRevision') }}</span>
+          </p>
+          <p class="status-last-active">{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</p>
+        </template>
+
+        <!-- 无工作流：固定状态兜底 + 上下文信息 + 启用跟踪引导（C53） -->
         <template v-else>
-          <el-button v-if="order.status === 'pending'" type="primary" :loading="statusAction === 'confirmed'" :disabled="statusAction !== '' && statusAction !== 'confirmed'" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
-          <el-button v-if="order.status === 'confirmed'" type="warning" :loading="statusAction === 'wip'" :disabled="statusAction !== '' && statusAction !== 'wip'" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
-          <!-- v129: revision 态下保留入口——「需修改」可反复点击，每点一轮计一次修改（后端 revision→revision 合法留痕） -->
-          <el-button v-if="['wip', 'revision'].includes(order.status)" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
-          <el-button v-if="['wip','revision'].includes(order.status)" type="success" :loading="statusAction === 'done'" :disabled="statusAction !== '' && statusAction !== 'done'" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
-          <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
+          <div class="status-fallback">
+            <el-tag :type="statusType(order.status)" size="large">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
+            <div class="status-context">
+              <span>{{ $t('orderDetail.lastActivity', { time: formatDate(order.updated_at) }) }}</span>
+              <span>{{ $t('orderDetail.noteCount', { n: order.notes?.length || 0 }) }}</span>
+              <span>{{ $t('orderDetail.refCount', { n: order.references?.length || 0 }) }}</span>
+            </div>
+          </div>
+          <div class="track-on-hint">
+            <span class="track-on-hint-text">{{ $t('orderDetail.enableTrackingHint') }}</span>
+            <el-button size="small" type="primary" plain :loading="trackOnLoading" @click="enableTracking">{{ $t('orderDetail.enableTracking') }}</el-button>
+          </div>
         </template>
-        <!-- 取消订单：固定在右侧 -->
-        <el-button type="danger" plain class="action-cancel" @click="openSlideCancel">{{ $t('orderDetail.cancelOrder') }}</el-button>
-      </div>
-    </el-card>
+      </el-card>
 
-    <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点；卡内容已拆 GalleryPanel，v0.40 拆分） -->
-    <GalleryPanel
-      :order="order"
-      :gallery-uploading="galleryUploading"
-      v-model:is-gallery-drag-over="isGalleryDragOver"
-      :paste-error="pasteError"
-      @open-viewer="openGalleryViewer"
-      @refresh="refreshNow"
-      @select-focus="selectFocusImage"
-      @delete="deleteReference"
-      @dragenter="guardDragEnter"
-      @dragover="guardDragOver"
-      @drop="handleGalleryDrop"
-      @file-select="handleGalleryFileSelect"
-    />
-
-    <!-- R40: 备注时间线（卡内容已拆 NotesPanel，2026-08-10 拆分） -->
-    <NotesPanel
-      ref="notesPanelRef"
-      :order="order"
-      :route-id="routeId"
-      :guard-drop="guardDrop"
-      :guard-drag-enter="guardDragEnter"
-      :guard-drag-over="guardDragOver"
-      :validate-image-file="validateImageFile"
-      @order-updated="onOrderUpdated"
-      @refresh="refreshNow"
-    />
-
-    <!-- SPEC-003: 附加工作项 + 改价（卡内容已拆 ExtraItemsPanel，2026-08-10 拆分） -->
-    <ExtraItemsPanel
-      :order="extraPanelOrder"
-      :is-terminal="isTerminal"
-      :route-id="routeId"
-      @order-updated="onOrderUpdated"
-      @conflict="loadOrder"
-    />
-
-    <!-- 交付文件 -->
-    <el-card class="od-card" v-if="order.deliverables?.length">
-      <template #header>
-        <CardHead :title="$t('orderDetail.deliverFiles')">
-          <template #extra>
-            <!-- REQ-022 F1: 发布为作品入口（仅 delivered 显示；done=半终态无入口） -->
-            <el-button
-              v-if="order.status === 'delivered'"
-              size="small" type="primary" plain
-              @click="publishShareRef?.openPublish()"
-            >
-              {{ $t('orderDetail.publishArtwork') }}
-            </el-button>
-            <!-- REQ-031 B1: 完稿分享（delivered；F2 域名校验复用 linkValidation） -->
-            <el-button
-              v-if="order.status === 'delivered'"
-              size="small" type="primary" plain
-              @click="publishShareRef?.openShare()"
-            >
-              {{ $t('orderDetail.shareBtn') }}
-            </el-button>
-          </template>
-        </CardHead>
-      </template>
-      <div v-for="d in order.deliverables" :key="d.id" class="file-item">
-        <span>{{ d.original_name }}</span>
-        <span>
-          <!-- 815 拍板 #4：一次性下载锁定状态 + 画师再许可 -->
-          <el-tag v-if="d.download_locked === 1" type="info" size="small" style="margin-right: 8px">{{ $t('orderDetail.deliverableLocked') }}</el-tag>
-          <el-button v-if="d.download_locked === 1" size="small" :loading="repermittingId === d.id" @click="repermitDeliverable(d)">{{ $t('orderDetail.deliverableRepermit') }}</el-button>
-          <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
+      <!-- v0.31 F5 + REQ-025 二阶段: 待收横幅——主信息订单级总待收(remainingCents=总价−已收)，
+           副信息当前节点（第一个 remaining>0 的节点，无节点订单则只显示总额）；点击跳转收款区 -->
+      <div
+        v-if="!isTerminal && remainingCents > 0"
+        class="next-due-banner"
+        role="button" tabindex="0"
+        :aria-label="$t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` })"
+        @click="scrollToPayment"
+        @keydown.enter.prevent="scrollToPayment"
+        @keydown.space.prevent="scrollToPayment"
+      >
+        <span class="next-due-text">
+          {{ $t('orderDetail.totalDueLabel', { amount: `¥${formatCents(remainingCents)}` }) }}
         </span>
+        <span v-if="nextDueInstallment" class="next-due-sub">
+          {{ $t('orderDetail.currentDueSuffix', { name: nextDueInstallment.name, amount: `¥${formatCents(nextDueInstallment.remainingCents)}` }) }}
+        </span>
+        <span class="next-due-arrow">→</span>
       </div>
-    </el-card>
 
+      <!-- R39 方案B：操作条（固定位置——不随状态区内容跳动，画师永远知道按钮在哪） -->
+      <el-card v-if="!isTerminal" class="action-bar-card">
+        <!-- 取消订单：滑块确认行（R30e，C59 高代价操作用滑块） -->
+        <div v-if="slideCancelActive" class="slide-confirm-row">
+          <div class="slide-confirm">
+            <div class="slide-confirm-fill" :style="{ width: `calc(${slideCancelProgress} * 100%)` }"></div>
+            <span class="slide-confirm-label">{{ $t('orderDetail.slideToCancel') }}</span>
+            <div
+              class="slide-confirm-thumb"
+              :style="{ left: `calc(2px + ${slideCancelProgress} * (100% - 40px))` }"
+              @pointerdown="handleSlideStart"
+              @pointermove="handleSlideMove"
+              @pointerup="handleSlideEnd"
+              @pointercancel="closeSlideCancel"
+            >
+              →
+            </div>
+          </div>
+          <el-button text size="small" :aria-label="$t('common.close')" @click="closeSlideCancel">✕</el-button>
+          <el-button text size="small" type="danger" :disabled="cancelSubmitting" @click="confirmCancelOrder">
+            {{ $t('orderDetail.confirmCancel') }}
+          </el-button>
+        </div>
+
+        <!-- 常规操作按钮 -->
+        <div v-else class="action-bar">
+          <!-- 有工作流：推进 / 打回 / 交付（方案 B：done 状态补交付入口，修复卡死）；T3: 飞行中本按钮 loading、兄弟按钮 disabled -->
+          <template v-if="hasWorkflow">
+            <el-button v-if="canAdvanceStage" type="primary" :loading="statusAction === 'advance'" :disabled="statusAction !== '' && statusAction !== 'advance'" @click="advanceStage">
+              {{ $t('orderDetail.advanceTo') }}{{ nextStageName }}
+            </el-button>
+            <el-button v-if="canBackStage && order.status !== 'done'" type="warning" plain :loading="statusAction === 'back'" :disabled="statusAction !== '' && statusAction !== 'back'" @click="backStage">{{ $t('orderDetail.stageBack') }}</el-button>
+            <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
+          </template>
+          <!-- 无工作流：固定状态按钮（原逻辑不变，仅位置收敛）；T3: 飞行中目标按钮 loading，其余 disabled -->
+          <template v-else>
+            <el-button v-if="order.status === 'pending'" type="primary" :loading="statusAction === 'confirmed'" :disabled="statusAction !== '' && statusAction !== 'confirmed'" @click="changeStatus('confirmed')">{{ $t('orderDetail.confirmOrder') }}</el-button>
+            <el-button v-if="order.status === 'confirmed'" type="warning" :loading="statusAction === 'wip'" :disabled="statusAction !== '' && statusAction !== 'wip'" @click="changeStatus('wip')">{{ $t('orderDetail.startWip') }}</el-button>
+            <!-- v129: revision 态下保留入口——「需修改」可反复点击，每点一轮计一次修改（后端 revision→revision 合法留痕） -->
+            <el-button v-if="['wip', 'revision'].includes(order.status)" :loading="statusAction === 'revision'" :disabled="statusAction !== '' && statusAction !== 'revision'" @click="changeStatus('revision')">{{ $t('orderDetail.needRevision') }}</el-button>
+            <el-button v-if="['wip','revision'].includes(order.status)" type="success" :loading="statusAction === 'done'" :disabled="statusAction !== '' && statusAction !== 'done'" @click="changeStatus('done')">{{ $t('orderDetail.markDone') }}</el-button>
+            <el-button v-if="order.status === 'done'" type="success" @click="openDeliverDialog">{{ $t('orderDetail.uploadDeliver') }}</el-button>
+          </template>
+          <!-- 取消订单：固定在右侧 -->
+          <el-button type="danger" plain class="action-cancel" @click="openSlideCancel">{{ $t('orderDetail.cancelOrder') }}</el-button>
+        </div>
+      </el-card>
+
+      <!-- R18: 订单图库（参考图 + 画师加图，点击设焦点；卡内容已拆 GalleryPanel，v0.40 拆分） -->
+      <GalleryPanel
+        :order="order"
+        :gallery-uploading="galleryUploading"
+        v-model:is-gallery-drag-over="isGalleryDragOver"
+        :paste-error="pasteError"
+        @open-viewer="openGalleryViewer"
+        @refresh="refreshNow"
+        @select-focus="selectFocusImage"
+        @delete="deleteReference"
+        @dragenter="guardDragEnter"
+        @dragover="guardDragOver"
+        @drop="handleGalleryDrop"
+        @file-select="handleGalleryFileSelect"
+      />
+
+      <!-- R40: 备注时间线（卡内容已拆 NotesPanel，2026-08-10 拆分） -->
+      <NotesPanel
+        ref="notesPanelRef"
+        :order="order"
+        :route-id="routeId"
+        :guard-drop="guardDrop"
+        :guard-drag-enter="guardDragEnter"
+        :guard-drag-over="guardDragOver"
+        :validate-image-file="validateImageFile"
+        @order-updated="onOrderUpdated"
+        @refresh="refreshNow"
+      />
+
+      <!-- SPEC-003: 附加工作项 + 改价（卡内容已拆 ExtraItemsPanel，2026-08-10 拆分） -->
+      <ExtraItemsPanel
+        :order="extraPanelOrder"
+        :is-terminal="isTerminal"
+        :route-id="routeId"
+        @order-updated="onOrderUpdated"
+        @conflict="loadOrder"
+      />
+
+      <!-- 交付文件 -->
+      <el-card class="od-card" v-if="order.deliverables?.length">
+        <template #header>
+          <CardHead :title="$t('orderDetail.deliverFiles')">
+            <template #extra>
+              <!-- REQ-022 F1: 发布为作品入口（仅 delivered 显示；done=半终态无入口） -->
+              <el-button
+                v-if="order.status === 'delivered'"
+                size="small" type="primary" plain
+                @click="publishShareRef?.openPublish()"
+              >
+                {{ $t('orderDetail.publishArtwork') }}
+              </el-button>
+              <!-- REQ-031 B1: 完稿分享（delivered；F2 域名校验复用 linkValidation） -->
+              <el-button
+                v-if="order.status === 'delivered'"
+                size="small" type="primary" plain
+                @click="publishShareRef?.openShare()"
+              >
+                {{ $t('orderDetail.shareBtn') }}
+              </el-button>
+            </template>
+          </CardHead>
+        </template>
+        <div v-for="d in order.deliverables" :key="d.id" class="file-item">
+          <span>{{ d.original_name }}</span>
+          <span>
+            <!-- 815 拍板 #4：一次性下载锁定状态 + 画师再许可 -->
+            <el-tag v-if="d.download_locked === 1" type="info" size="small" style="margin-right: 8px">{{ $t('orderDetail.deliverableLocked') }}</el-tag>
+            <el-button v-if="d.download_locked === 1" size="small" :loading="repermittingId === d.id" @click="repermitDeliverable(d)">{{ $t('orderDetail.deliverableRepermit') }}</el-button>
+            <el-button size="small" @click="openFile(d.url)">{{ $t('common.download') }}</el-button>
+          </span>
+        </div>
+      </el-card>
     </div><!-- /.od-main -->
 
     <div class="od-side">
-
       <!-- v128: 修改记录（手动修改+打回均计一次，口径用户拍板；从操作流水推导，无记录不显卡） -->
       <el-card v-if="revisionRecords.length > 0" class="od-card">
         <template #header>
@@ -327,7 +324,6 @@
 
       <!-- v0.31 REQ-021 F1: 操作记录（卡内容已拆 LogPanel，2026-08-10 拆分；v129 移入侧列） -->
       <LogPanel :route-id="routeId" />
-
     </div><!-- /.od-side -->
   </div>
 

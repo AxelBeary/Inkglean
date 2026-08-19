@@ -74,11 +74,11 @@ const hasStats = computed(() => props.stats != null)
 
 // 今日统计金额滚动（分→元在外层）
 // TS 收尾迁移注：useCountUp 返回 reactive({ display })，display 已被解包为 number；
-// 旧 JS 的 .value 访问运行时实际得到 undefined（隐性 bug，待拍板修复）——此处保运行时原样
+// 旧 JS 的 .value 访问运行时得到 undefined 致统计数字显示空白（隐性 bug，2026-08-19 用户拍板修复）
 const todayNewOrder = useCountUp(computed(() => Number(props.stats?.todayNewOrderCents ?? 0)))
 const todayRevenue = useCountUp(computed(() => Number(props.stats?.todayRevenueCents ?? 0)))
-const newOrderDisplay = computed(() => (todayNewOrder.display as unknown as { value: number }).value)
-const revenueDisplay = computed(() => (todayRevenue.display as unknown as { value: number }).value)
+const newOrderDisplay = computed(() => todayNewOrder.display)
+const revenueDisplay = computed(() => todayRevenue.display)
 
 const dateLine = computed(() => {
   const now = new Date()
