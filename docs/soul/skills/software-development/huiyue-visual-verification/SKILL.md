@@ -138,6 +138,6 @@ EP 组件（el-empty 等）内部 SVG 用组件级变量（`--el-empty-fill-colo
 
 - **`Select-Object -Last N` 管道缓冲**：`node ... 2>&1 | Select-Object -Last 30` 会让 server 日志全部缓冲到进程结束才输出，且进程退出时管道把子进程也带走——**起长驻 server 直接重定向到日志文件**（`*> "e2e\server-3999.log"`），health check 用单独 terminal 轮询
 - health 轮询循环**单次 Invoke-WebRequest 每次等满 -TimeoutSec**（连 fail 也会等满 2s×25 次 = 超时）——先 `Start-Sleep 3` 再单次请求更可靠，或直接 `Get-NetTCPConnection -LocalPort` 查监听
-- server 起在 127.0.0.1:3999 监听即算 OK（日志显示 `Server listening at http://127.0.0.1:3999`），不必等 SPA fallback 验证
+- server 起在 127.0.0.1:3999 监听即算 OK（日志显示 `Server listening at http://127.0.0.1:3999`），不必等 SPA fallback 验证（2026-08-19 注：E2E 默认端口已迁 4999，本节 3999 为旧时代快照；手动起探针服选任何空闲端口均可）
 - 临时 seed 脚本（造画风/尺寸/增项）写 `.cjs` 放 server/ 下跑完即删；**PowerShell `node -e` 内嵌 SQL 单引号必炸**（同 §7），一律写文件再跑
 - better-sqlite3 临时脚本 require 绝对路径（`require('D:/.../server/node_modules/better-sqlite3')`），别依赖 cwd

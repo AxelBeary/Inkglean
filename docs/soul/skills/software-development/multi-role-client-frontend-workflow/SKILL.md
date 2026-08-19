@@ -279,7 +279,7 @@ When dispatched to build E2E tests (e.g. "搭建 Playwright 框架 + 编写 N �
 4. **Build the framework** (see `references/playwright-e2e-patterns.md` for known-good file templates):
    - Root `package.json`: `"type": "module"` + `"test:e2e": "playwright test"` + `@playwright/test` devDep
    - `playwright.config.js`: chromium only, `workers: 1`, `globalSetup`/`globalTeardown`, 30s timeout, `retry: 1`
-   - `e2e/global-setup.js`: clean old data → install deps if missing (new worktrees have no node_modules) → build frontend → seed DB → spawn server (port 3999, isolated DB_PATH + UPLOAD_DIR + AUTH_DEV_MODE) → health-check poll → **pre-login and write tokens to `.tokens.json`**
+   - `e2e/global-setup.js`: clean old data → install deps if missing (new worktrees have no node_modules) → build frontend → seed DB → spawn server (port 3999, isolated DB_PATH + UPLOAD_DIR + AUTH_DEV_MODE) → health-check poll → **pre-login and write tokens to `.tokens.json`** (2026-08-19 note: E2E default port moved 3999 → 4999 — proxy software listened on 3999 and the machine's dynamic port range (1024-15000) collided with high fixed ports; E2E_PORT env still overrides)
    - `e2e/global-teardown.js`: kill server → delete test DB + uploads + tokens
    - `e2e/fixtures/auth.js`: read `.tokens.json` (no network calls in fixtures), inject httpOnly cookie via `context.addCookies` + localStorage markers (`artist_logged_in`, `artist_is_admin`, `huiyue-locale=zh-CN`) via `addInitScript`
    - `.gitignore`: `test-results/`, `playwright-report/`, `playwright/.cache/`, `e2e/test.db*`, `e2e/test-uploads/`, `e2e/.server-pid`, `e2e/.tokens.json`

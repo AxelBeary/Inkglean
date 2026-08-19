@@ -66,9 +66,9 @@ if ($behind -and [int]$behind -gt 0) {
   $preCheckNotes += "⚠️ 当前分支落后 master $behind 个提交——合入前由一号手工 merge master 并复跑"
 }
 
-$portBusy = Get-NetTCPConnection -LocalPort 3999 -State Listen -ErrorAction SilentlyContinue
+$portBusy = Get-NetTCPConnection -LocalPort 4999 -State Listen -ErrorAction SilentlyContinue
 if ($portBusy -and -not $SkipE2E) {
-  $preCheckNotes += "⚠️ 端口 3999 被占用（E2E 专用端口）——v85 教训：E2E 失败先查端口占用再疑代码"
+  $preCheckNotes += "⚠️ 端口 4999 被占用（E2E 专用端口，2026-08-19 由 3999 迁来：本机端口占用程序监听 3999 + 本机动态端口范围 1024-15000 撞口）——v85 教训：E2E 失败先查端口占用再疑代码"
 }
 
 # ---------- 门禁清单（唯一事实源，新增门禁项在此追加） ----------
