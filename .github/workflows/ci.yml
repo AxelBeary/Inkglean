@@ -48,7 +48,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npx eslint .
-      # TS 增量迁移纪律（2026-08-11）：新增 TS 文件/组件受 vue-tsc strict 全量把关
+      # TS 收尾迁移（2026-08-19）：vue-tsc strict 全量 + scripts 独立 tsconfig 把关
       - run: npm run typecheck
       # 清扫批#4: web 单测进 CI（此前只跑 lint+build，224 用例仅本地验证）
       - run: npx vitest run

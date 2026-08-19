@@ -42,9 +42,9 @@ jobs:
         run: npm ci
         working-directory: server
 
-      # 03C 防回归：E2E 定位器静态扫描（strict-mode 复发门禁）
+      # 03C 防回归：E2E 定位器静态扫描（strict-mode 复发门禁）；TS 收尾迁移后走 tsx（根 devDeps 已含）
       - name: Check E2E locators
-        run: node e2e/scripts/check-locators.js
+        run: npm run check:e2e
 
       # Playwright 浏览器缓存（03C：Chromium 下载 20s→缓存命中约 2s；key 随 package-lock 失效自动重装）
       - name: Cache Playwright browsers
