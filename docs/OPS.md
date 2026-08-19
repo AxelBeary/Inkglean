@@ -237,3 +237,46 @@ docker compose up -d
   - uploads 归档抽查：作品图 / 参考图 / 交付文件 URL 可访问（§3.2）
 - [ ] ⑥ 恢复后核对 GC 风险窗口（§4）：备份点之后新上传的文件重新关联/迁移后再开服，防止 72h 后进回收站
 - [ ] ⑦ 结论留档：演练日期、备份路径、验证结果写入交付记录；任一环节失败即阻塞上线并先修复备份链路
+
+---
+## 12. Cloudflare 代理下的真实 IP 透传与源站认证（2026-08-19 拍板落地）
+
+> 背景：域名套 CF 橙色云时，若不做本节配置，后端限流拿到的是 **CF 边缘节点 IP**（同地区大量用户共享）而非用户真实 IP——限流配额被全站共享，正常用户可能被误伤 429。本方案 2026-08-19 用户拍板（方案 A）。
+
+### 12.1 真实 IP 透传（必做）
+
+入口反代的 reverse_proxy 块加一行（宿主机 Caddy 与仓库内 docker 版 Caddyfile 均已含）：
+
+```
+reverse_proxy 127.0.0.1:3000 {
+    header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+}
+```
+
+原理：CF-Connecting-IP 是 Cloudflare 写入的用户真实 IP；后端 trustProxy 默认只信内网代理（172.16/10.0/192.168 三段），会自动采纳这个唯一值作为 request.ip。不经 CF 直连时该头为空被删，后端回退用连接地址。**改完需重载反代**（`systemctl reload caddy`）。
+
+### 12.2 Authenticated Origin Pulls（推荐加固，防绕 CF 伪造）
+
+风险场景：源站真实 IP 泄露后，攻击者绕过 CF 直连源站并自己带一个假 CF-Connecting-IP 头，即可伪造任意 IP 绕过限流。两步堵死：
+
+1. **Cloudflare 控制台**：域名 → SSL/TLS → Origin Server → 打开 **Authenticated Origin Pulls** 开关。开启后 CF 回源会出示官方客户端证书。
+2. **源站 Caddy 验证该证书**：下载 CF 官方 CA（https://developers.cloudflare.com/ssl/static/authenticated_origin_pull_ca.pem，存如 /etc/caddy/certs/authenticated-origin-pull-ca.pem），站点块的 tls 指令扩展为：
+
+```
+tls /etc/caddy/certs/你的域名.crt /etc/caddy/certs/你的域名.key {
+    client_auth {
+        mode require_and_verify
+        trusted_ca_cert_file /etc/caddy/certs/authenticated-origin-pull-ca.pem
+    }
+}
+```
+
+改完 `caddy validate && systemctl reload caddy`。此后非 CF 的直连（无客户端证书）在 TLS 层即被拒，伪造头无从谈起。
+
+> 注意：开启 AOOP 前先确认 Caddy 端配置已生效再开 CF 开关，顺序反了会导致 CF 回源被源站拒绝（站点短暂不可用）。
+> 不想配客户端证书验证的替代：防火墙 80/443 只放行 CF IP 段（前提该端口无其他直连服务）。
+
+### 12.3 验证方法
+
+- 部署后从外网访问任一限流接口（如反复刷新公开主页），观察是否按真实 IP 计数：不同设备/网络交替访问不应互相挤占配额；同一设备狂刷应在阈值处收到 429。
+- 后端日志里的请求 IP 应为真实公网 IP（而非 172.68.x.x/162.158.x.x 等 CF 边缘段）。

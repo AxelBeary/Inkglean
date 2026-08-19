@@ -15,5 +15,10 @@
 		max_size 55MB
 	}
 
-	reverse_proxy web:3000
+	# CF 代理场景：用 Cloudflare 提供的真实用户 IP 覆盖 X-Forwarded-For（限流按人计，防边缘节点共享配额误伤）；
+	# 无 CF-Connecting-IP（直连/本地）时占位符为空该头被删，后端回退用连接地址，行为仍真实。
+	# 配套：开启 CF Authenticated Origin Pulls 防源站 IP 泄露后被绕 CF 伪造此头（见 OPS §12）。
+	reverse_proxy web:3000 {
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
 }
