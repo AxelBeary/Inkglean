@@ -159,7 +159,10 @@ export async function generateRegisterOptions(artist: Artist, requestHostname?: 
     })),
     attestationType: 'none',
     authenticatorSelection: {
-      userVerification: 'preferred',
+      // 公网 Passkey 报障修复（2026-08-19）：验证侧 requireUserVerification 默认强制，
+      // 下发侧却写 preferred（可做可不做）——无 UV 能力的验证器下发侧放行、验证侧拒绝。
+      // 两侧统一 required：浏览器提前拦截给出明确失败，不再往返服务器才报错。
+      userVerification: 'required',
       residentKey: 'preferred',
     }
   }
@@ -204,6 +207,9 @@ export async function verifyRegistration(
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,
+    // 显式声明（库默认即 true）：Passkey 登录/注册替代 QQ+TOTP 强因子，必须用户验证；
+    // 与下发侧 authenticatorSelection.userVerification='required' 两侧一致
+    requireUserVerification: true,
   }
 
   const verification = await verifyRegistrationResponse(verificationOpts)
@@ -255,7 +261,8 @@ export async function generateLoginOptions(requestHostname?: string) {
 
   const opts: GenerateAuthenticationOptionsOpts = {
     rpID: rpId,
-    userVerification: 'preferred',
+    // 与验证侧 requireUserVerification:true 一致（见 generateRegisterOptions 同批修复注释）
+    userVerification: 'required',
   }
 
   const options = await generateAuthenticationOptions(opts)
@@ -326,6 +333,8 @@ export async function verifyLogin(
     expectedChallenge: challengeFromClient,
     expectedOrigin: origin,
     expectedRPID: rpId,
+    // 显式声明（库默认即 true）：与下发侧 userVerification='required' 两侧一致
+    requireUserVerification: true,
     credential: {
       id: credentialRow.credential_id,
       publicKey: Buffer.from(credentialRow.public_key, 'base64url'),

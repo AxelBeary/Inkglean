@@ -2,7 +2,13 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/archive-20260819/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
-> ✅ **最后更新：2026-08-19 v132：TypeScript 一次性收尾迁移全量完工——推翻原「谁触碰谁迁移」增量策略（用户拍板），全仓 JS 清零（保留安装/运维入口脚本），测试与脚本全量纳入 strict 类型门禁，终态门禁 server 1589 / web 651 / E2E 13 全绿，行为零变更**
+> ✅ **最后更新：2026-08-19 v134：公网 Passkey 登录/注册报障真修——下发侧 userVerification preferred→required 与验证侧强制对齐（两侧口径不一致，无 UV 能力验证器下发放行、验证拒绝），终态门禁 server 1590 全绿；本机部署待跑、公网待同步，用户原凭据已自删待重新注册**
+> 🐛 **真凶（公网容器日志实测坐实）**：login-verify 与 register-verify 双双抛 "User verification required, but user could not be verified"（验证库读 authenticatorData 的 UV 标志，设备实际未做用户验证）。根因非设备非网络：generateRegisterOptions/generateLoginOptions 下发 userVerification='preferred'（可做可不做），而验证侧 @simplewebauthn/server 默认 requireUserVerification=true 且项目未显式声明——两侧口径矛盾。812 本机 Windows Hello 恒做 UV 从未触发，公网换无 UV 路径的验证器即中。修法：两处 options 改 'required'（浏览器提前拦截给明确失败）+ 两处验证显式 requireUserVerification:true（不放宽安全口径，Passkey 替代 QQ+TOTP 强因子）；回归 TC 两条钉住两侧契约（基线 1589→1590）。同批 v133 test-tamper 闸门首战：本批业务+测试同改，验收须带 -TestTamperAck。
+> 📋 **现场遗留**：用户排障时已自行删除公网凭据 id 1，修复上线后需重新注册；用户当时所用验证器未做用户验证（具体设备待确认）——若其设备本就不支持 UV，修复后浏览器会提前明确拒绝，属预期行为（换 Windows Hello/手机生物识别即可）。
+> 🔧 **同批 v133（test-tamper 闸门）**：scripts/check-test-tamper.mjs + accept.ps1 v2（-TestTamperAck 裁决理由参数，第十道门禁，理由落报告）；实测三态全验 + gate 行 npm exec 调用形式实测通过；CI 不接入（push 触发无 diff 上下文，真正合闸在 accept.ps1）。
+> 🔑 **新会话接手指南**：无在途施工。开放项：本批（v133 闸门 + v134 Passkey 修复）待提交，提交时跑 accept.ps1 全门禁并带 -TestTamperAck（本批业务+测试同改，理由：Passkey UV 口径修复随附两条契约断言）；部署后进公网前用户需重注册 Passkey 并告知所用设备；用户复验 v131 三项 + GreetingNote 统计数字；首页原型挂起；公网同步待部署后用户验证；B测继续；桌面端HOLD。worktree 无。
+
+> ✅ **历史：2026-08-19 v132：TypeScript 一次性收尾迁移全量完工——推翻原「谁触碰谁迁移」增量策略（用户拍板），全仓 JS 清零（保留安装/运维入口脚本），测试与脚本全量纳入 strict 类型门禁，终态门禁 server 1589 / web 651 / E2E 13 全绿，行为零变更**
 > 🔧 **迁移范围（约 470 个单元）**：①server tests 134 个 .test.js→.test.ts（新增 tsconfig.tests.json strict 检查接入 npm run typecheck）+ 运维脚本 3 个（check-db/gc-uploads/backfill，entrypoint.sh 改 npx tsx 直跑，OPS.md 同步）；②web/src 153 个 .js→.ts + 136 个 .vue 的 script 块加 lang="ts"（App.vue 含内）+ allowJs 关闭；③web 配置与脚本：vite/vitest/eslint 配置转 .ts（eslint.config.ts 需 jiti，已入 devDeps），check-i18n/compress-paper-tex 转 .ts 走 tsx（新增 tsconfig.scripts.json）；④e2e 16 个 .js→.ts + playwright.config.ts（新增 e2e/tsconfig.json、npm run typecheck:e2e）。
 > 🛡️ **纪律执行**：断言/测试名/用例数/注释/路由表/SQL/部署流程零变更；全仓 grep 零 any、零 @ts-ignore/@ts-expect-error（类型缺口一律局部 interface + as 断言，沿用 src 既有模式）；测试数逐一与基线对账吻合。
 > ✅ **遗留两项当日收口（用户拍板）**：①GreetingNote「今日统计」滚动数字隐性 bug（旧 JS .value 访问运行时实为 undefined 致显示空白）已修：去掉 .value 直读解包后的 display；②web eslint 180 条警告已清零——查实为 v129 双列排布批遗留缩进债（非迁移引入，此前门禁只报 0 errors 未核对警告基线，如实更正），全部集中在 OrderDetail.vue，eslint --fix 自动修复（纯缩进+4 处多余空行，git diff -w 实证零逻辑变更）。lint 首次完全零告警。另如实补记：迁移批扫描漏了 .github/workflows——e2e.yml 仍指 check-locators.js 致 GH E2E 工作流 25s 挂（MODULE_NOT_FOUND），已改走 npm run check:e2e（tsx）修复。

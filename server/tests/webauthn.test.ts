@@ -36,6 +36,11 @@ describe('WebAuthn Passkey (REQ-040)', () => {
       expect(options.user.name).toBe('12345')
     })
 
+    it('注册选项应强制用户验证（公网报障修复：下发侧与验证侧两侧一致 required）', async () => {
+      const options = await generateRegisterOptions(artist)
+      expect(options.authenticatorSelection?.userVerification).toBe('required')
+    })
+
     it('注册验证应拒绝无效 challenge', async () => {
       const fakeCredential = {
         id: 'fake-id',
@@ -106,6 +111,8 @@ describe('WebAuthn Passkey (REQ-040)', () => {
       const options = await generateLoginOptions()
       expect(options).toHaveProperty('challenge')
       expect(options).toHaveProperty('rpId')
+      // 与验证侧 requireUserVerification:true 一致；无 UV 能力设备由浏览器提前拦截
+      expect(options.userVerification).toBe('required')
     })
 
     it('登录验证应拒绝无效 challenge', async () => {
