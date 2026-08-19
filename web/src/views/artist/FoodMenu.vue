@@ -67,22 +67,25 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FOOD_MENU, FOOD_CATEGORIES } from '../../utils/food-menu.js'
+
+/** 菜谱条目（类型由单一事实源推导） */
+type FoodDish = (typeof FOOD_MENU)[number]
 
 const { locale } = useI18n()
 
 // REQ-035 四A: 四大类 key（顺序 = 页面展示顺序，与 FOOD_CATEGORIES 对齐）
 const MODES = Object.keys(FOOD_CATEGORIES)
 const currentMode = ref(MODES[0])
-const current = ref(null)
+const current = ref<FoodDish | null>(null)
 /** b5: radio 组 roving tabindex + 方向键 */
-const modeEls = {}
-function onModeKeydown(e) {
+const modeEls: Record<string, unknown> = {}
+function onModeKeydown(e: KeyboardEvent) {
   const idx = MODES.indexOf(currentMode.value)
-  let next = null
+  let next: string | null = null
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = MODES[(idx + 1) % MODES.length]
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = MODES[(idx - 1 + MODES.length) % MODES.length]
   else if (e.key === 'Home') next = MODES[0]
@@ -90,13 +93,13 @@ function onModeKeydown(e) {
   if (next == null) return
   e.preventDefault()
   selectMode(next)
-  modeEls[next]?.focus()
+  ;(modeEls[next] as HTMLElement | undefined)?.focus()
 }
 
 /** 糖尿病/痛风版显示免责提示（一行小字） */
 const showDisclaimer = computed(() => currentMode.value === 'diabetes' || currentMode.value === 'gout')
 
-function selectMode(mode) {
+function selectMode(mode: string) {
   currentMode.value = mode
   current.value = null
 }

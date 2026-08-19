@@ -6,7 +6,7 @@
     :title="$t('styleManage.createTitle')"
     width="520px"
     destroy-on-close
-    @update:model-value="(v) => emit('update:modelValue', v)"
+    @update:model-value="(v: boolean) => emit('update:modelValue', v)"
     @open="initForm"
   >
     <el-form :model="form" label-position="top" @submit.prevent>
@@ -75,20 +75,22 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, ref, computed, watch } from 'vue'
+import type { PropType } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon.js'
+import type { AddonTemplate } from '../../api/types.js'
 
 const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   /** 当前画风 id（挂载目标） */
-  styleId: { type: Number, required: true },
+  styleId: { type: Number, default: null },
   /** 增项库现有模板（同名检测用：name -> id） */
-  templates: { type: Array, default: () => [] }
+  templates: { type: Array as PropType<AddonTemplate[]>, default: () => [] }
 })
 
 const emit = defineEmits(['update:modelValue', 'created', 'attached'])
@@ -139,8 +141,17 @@ const priceLabel = computed(() =>
 )
 
 /** 后端 payload（与 v50 schema 一一对应） */
-function toPayload() {
-  const payload = {
+interface CreateAddonPayload {
+  name: string
+  control_type: string
+  price_mode: string
+  default_price: number
+  category: string
+  unit_label?: string | null
+  max_quantity?: number | null
+}
+function toPayload(): CreateAddonPayload {
+  const payload: CreateAddonPayload = {
     name: form.name.trim(),
     control_type: form.control_type,
     price_mode: form.price_mode,
@@ -197,7 +208,7 @@ async function submit() {
     emit('created', toPayload())
     emit('update:modelValue', false)
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     saving.value = false
   }

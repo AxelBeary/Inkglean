@@ -9,9 +9,9 @@ cd /app/server
 # depends_on service_healthy 永远等不到健康实例，全站宕机。探测失败 → 用 restore-db.ts
 # 自动恢复最近备份；恢复失败才退出（宁可退出告警，也不带坏库继续跑）。
 # 仅当 DB 文件存在时探测：全新部署无文件 = 首启建库（initDatabase 负责），
-# 避免无备份可恢复时误退出。check-db.js 抽为独立脚本以便单测（替代内联 node -e）。
+# 避免无备份可恢复时误退出。check-db.ts 抽为独立脚本以便单测（替代内联 node -e）。
 if [ -n "$DB_PATH" ] && [ -f "$DB_PATH" ]; then
-  if ! node scripts/check-db.js; then
+  if ! npx tsx scripts/check-db.ts; then
     echo "SELF-HEAL: 数据库损坏或不可打开（$DB_PATH），尝试从最近备份恢复..." >&2
     if ! npx tsx scripts/restore-db.ts; then
       echo "SELF-HEAL: 备份恢复失败，启动中止（避免 DB 损坏下崩溃循环）" >&2

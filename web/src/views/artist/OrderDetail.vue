@@ -222,7 +222,7 @@
     <NotesPanel
       ref="notesPanelRef"
       :order="order"
-      :route-id="route.params.id"
+      :route-id="routeId"
       :guard-drop="guardDrop"
       :guard-drag-enter="guardDragEnter"
       :guard-drag-over="guardDragOver"
@@ -233,9 +233,9 @@
 
     <!-- SPEC-003: 附加工作项 + 改价（卡内容已拆 ExtraItemsPanel，2026-08-10 拆分） -->
     <ExtraItemsPanel
-      :order="order"
+      :order="extraPanelOrder"
       :is-terminal="isTerminal"
-      :route-id="route.params.id"
+      :route-id="routeId"
       @order-updated="onOrderUpdated"
       @conflict="loadOrder"
     />
@@ -314,7 +314,7 @@
         @open-pay="payDialogVisible = true"
         @revoke="handleRevokePayment"
         @collect="openNodePayDialog"
-        @retry-payments="loadPayments(route.params.id)"
+        @retry-payments="loadPayments(routeId)"
       />
 
       <!-- plan-node-speech：客户沟通（卡内容已拆 CommPanel，2026-08-10 拆分；v129 移入侧列） -->
@@ -326,7 +326,7 @@
       />
 
       <!-- v0.31 REQ-021 F1: 操作记录（卡内容已拆 LogPanel，2026-08-10 拆分；v129 移入侧列） -->
-      <LogPanel :route-id="route.params.id" />
+      <LogPanel :route-id="routeId" />
 
     </div><!-- /.od-side -->
   </div>
@@ -340,7 +340,7 @@
   <HySkeleton v-else count="4" />
 
   <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
-  <DeliverDialog v-model="showDeliver" :order-id="route.params.id" :order-version="order?.version" @delivered="onOrderUpdated" @conflict="loadOrder" />
+  <DeliverDialog v-model="showDeliver" :order-id="routeId" :order-version="order?.version" @delivered="onOrderUpdated" @conflict="loadOrder" />
 
   <!-- 815 拍板 #1：取消后 5 秒撤销提示 -->
   <CancelUndoToast
@@ -352,7 +352,7 @@
   />
 
   <!-- REQ-022 F1 + REQ-031 B1: 发布为作品/完稿分享弹窗（已拆 PublishShareDialogs，2026-08-10 拆分） -->
-  <PublishShareDialogs ref="publishShareRef" :order="order" :route-id="route.params.id" />
+  <PublishShareDialogs ref="publishShareRef" :order="publishShareOrder" :route-id="routeId" />
 
   <!-- B7: 记录收款弹窗 -->
   <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
@@ -404,7 +404,7 @@
   <!-- R18: 图库大图预览（悬停放大镜打开，支持左右切换） -->
   <el-image-viewer
     v-if="galleryViewerVisible"
-    :url-list="order.references?.map(r => r.url) || []"
+    :url-list="(order?.references?.map(r => r.url) || []) as string[]"
     :initial-index="galleryViewerIndex"
     @close="galleryViewerVisible = false"
   />
@@ -426,10 +426,11 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
+import type { EnrichedOrderDetail, OrderStatus, OrderPriority } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
@@ -461,10 +462,27 @@ import { useOrderGallery } from '../../composables/useOrderGallery.js'
 import { useOrderDeadline } from '../../composables/useOrderDeadline.js'
 import { useOrderPaymentPanel } from '../../composables/useOrderPaymentPanel.js'
 
+// 运行时附带字段：签名 URL/参考图主键/下载锁/修改记录等（类型库未声明）
+type DetailReferenceRow = { file_path: string; original_name?: string | null; source?: string; id?: number; url?: string }
+type DetailNoteRow = { id?: number; image_path: string | null; imageUrl?: string }
+type DetailDeliverableRow = { id: number; file_path: string; original_name?: string | null; file_size?: number | null; url?: string; download_locked?: number }
+type RevisionRecordRow = { type: string; fromStage?: string | null; toStage?: string | null; at: string }
+type OrderDetailState = Omit<EnrichedOrderDetail, 'references' | 'notes' | 'deliverables'> & {
+  references?: DetailReferenceRow[]
+  notes?: DetailNoteRow[]
+  deliverables?: DetailDeliverableRow[]
+  revisionRecords?: RevisionRecordRow[]
+}
+interface ApiErrShape { code?: string; message: string; detail?: { paidCents?: number } }
+// 面板 Lite 类型为组件私有接口（字段全可选，口径与本页面运行时对象不完全重合），经 unknown 中转断言为空结构传入，运行时引用不变
+const extraPanelOrder = computed(() => order.value as unknown as {})
+const publishShareOrder = computed(() => order.value as unknown as {})
+
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const order = ref(null)
+const routeId = route.params.id as unknown as number
+const order = ref<OrderDetailState | null>(null)
 // v128: 修改记录（后端从操作流水推导，随所有单订单端点下发，order.value 覆盖不丢）
 const revisionRecords = computed(() => order.value?.revisionRecords ?? [])
 // 818-D + 819-J: 再来一单回填选项（默认勾选描述 + 款式尺寸 + 参考图；备注默认不勾——
@@ -473,10 +491,10 @@ const reorderDialogVisible = ref(false)
 const reorderFill = ref(['desc', 'style', 'refs'])
 // REQ-037 F1: 加载失败错误态（对齐 Settings profileLoadFailed 模式：页面内横幅+重试，不再白屏死局）
 const loadError = ref(false)
-const prevPriority = ref(null)
+const prevPriority = ref<OrderPriority | null>(null)
 // 拆分批面板 ref：备注粘贴焦点路由 + 发布/分享弹窗开关
-const notesPanelRef = ref(null)
-const publishShareRef = ref(null)
+const notesPanelRef = ref<InstanceType<typeof NotesPanel> | null>(null)
+const publishShareRef = ref<InstanceType<typeof PublishShareDialogs> | null>(null)
 // 交付弹窗显隐（方案 B：文件上传/校验逻辑已迁入 DeliverDialog 组件）
 const showDeliver = ref(false)
 
@@ -512,10 +530,10 @@ import { statusType } from '../../constants/order.js'
 
 
 // ─── R58-6: 客户 QQ 跳转 + 复制 ───
-function jumpToQq(qq) {
+function jumpToQq(qq: string) {
   window.open(`tencent://message/?uin=${encodeURIComponent(qq)}`, '_self')
 }
-async function copyQq(qq) {
+async function copyQq(qq: string) {
   try {
     await navigator.clipboard.writeText(qq)
     ElMessage.success(t('orderDetail.qqCopied'))
@@ -538,7 +556,7 @@ async function regenerateAndCopyLink() {
   }
   regeneratingToken.value = true
   try {
-    const res = await artistApi.regenerateCustomerToken(route.params.id)
+    const res = await artistApi.regenerateCustomerToken(routeId)
     const full = new URL(res.trackUrl, window.location.origin).href
     // K1-2：令牌重生成成功即为成功；剪贴板失败单独提示手动复制，不回滚不作废
     try {
@@ -555,14 +573,14 @@ async function regenerateAndCopyLink() {
       ).catch(() => {})
     }
   } catch (err) {
-    ElMessage.error(err.message || t('orderDetail.regenerateTokenFailed'))
+    ElMessage.error((err as ApiErrShape).message || t('orderDetail.regenerateTokenFailed'))
   } finally {
     regeneratingToken.value = false
   }
 }
 
-function formatDate(str) {
-  return formatDateTime(str)
+function formatDate(str: string | null | undefined) {
+  return formatDateTime(str || '')
 }
 
 // ─── R-14: loadOrder 竞态守卫 ───
@@ -573,14 +591,14 @@ async function loadOrder() {
   const mySeq = ++loadOrderSeq
   try {
     loadError.value = false
-    const data = await artistApi.getOrder(route.params.id)
+    const data = await artistApi.getOrder(routeId)
     if (mySeq !== loadOrderSeq) return
     order.value = data
     prevPriority.value = data?.priority || 'medium'
   } catch (err) {
     if (mySeq !== loadOrderSeq) return
     if (order.value) {
-      ElMessage.error(err.message)
+      ElMessage.error((err as ApiErrShape).message)
     } else {
       loadError.value = true // F1: 首载失败 → 页内错误态+重试入口
     }
@@ -592,21 +610,21 @@ const statusAction = ref('')  // 自原大文件提前，workflow/changeStatus �
 const { hasWorkflow, isTerminal, workflowStages, stageProgress, nextStageName,
   canAdvanceStage, canBackStage, advanceStage, backStage, turnOffStageTracking,
   trackOnLoading, enableTracking, loadWorkflowStages } =
-  useOrderWorkflow({ order, routeId: route.params.id, statusAction, onConflict: loadOrder })
+  useOrderWorkflow({ order, routeId, statusAction, onConflict: loadOrder })
 const {
   galleryUploading, isGalleryDragOver, galleryViewerVisible, galleryViewerIndex,
   openGalleryViewer, handleGalleryFileSelect, handleGalleryDrop,
   guardDragEnter, guardDragOver, guardDrop, selectFocusImage, uploadGalleryFiles, validateImageFile
-} = useOrderGallery({ order, routeId: route.params.id, onRefresh: loadOrder })
+} = useOrderGallery({ order, routeId, onRefresh: loadOrder })
 const { deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
-  useOrderDeadline({ order, routeId: route.params.id })
+  useOrderDeadline({ order, routeId })
 const {
   payments, paymentsLoading, paymentsError, paymentSubmitting, loadPayments,
   payDialogVisible, payForm, submitPayment, nodePayDialogVisible, nodePayTarget, nodePayForm,
   openNodePayDialog, submitNodePayment, handleRevokePayment,
   poolPaidCents, poolFinalCents, poolRemainingCents, poolPercent, poolOverpaidCents,
   installmentRefs, nextDueInstallment, remainingCents, scrollToPayment
-} = useOrderPaymentPanel({ order, routeId: route.params.id, onRefresh: loadOrder })
+} = useOrderPaymentPanel({ order, routeId, onRefresh: loadOrder })
 
 // R18/R19: Ctrl+V 粘贴上传（复用 usePasteUpload，焦点路由：
 // 备注输入框聚焦时 → 备注附图（单张，经 NotesPanel expose）；否则 → 订单图库（多张））
@@ -627,17 +645,17 @@ const { pasteError } = usePasteUpload({
 // 围剿 a1-3: 请求序号守卫——快切优先级时仅最新序号可写 prevPriority/回滚（对齐 changeStatus 的 statusAction 模式），
 // 旧响应不得用过期快照覆盖已确认的优先级
 let prioritySeq = 0
-async function changePriority(priority) {
+async function changePriority(priority: string | number | boolean | undefined) {
   const mySeq = ++prioritySeq
   try {
-    await artistApi.updatePriority(route.params.id, priority)
+    await artistApi.updatePriority(routeId, priority as OrderPriority)
     if (mySeq !== prioritySeq) return
-    prevPriority.value = priority
+    prevPriority.value = priority as OrderPriority
     ElMessage.success(t('orderDetail.priorityUpdated'))
   } catch (err) {
     if (mySeq !== prioritySeq) return
-    order.value.priority = prevPriority.value
-    ElMessage.error(err.message)
+    order.value!.priority = prevPriority.value!
+    ElMessage.error((err as ApiErrShape).message)
   }
 }
 
@@ -645,22 +663,23 @@ async function changePriority(priority) {
 // statusAction 记录飞行动作（''=空闲；'advance'/'back'/目标状态值），精准控制哪个按钮转 loading
 // （statusAction ref 定义已提前到瘦身批装配处，workflow composable 与 changeStatus 共享）
 
-async function changeStatus(status) {
+async function changeStatus(status: OrderStatus) {
   if (statusAction.value) return
   statusAction.value = status
   try {
     // 815 审计 P1-3：乐观锁接线——携带当前 version，双开标签页旧快照写入会被后端 409 拦下
     const opts = order.value?.version != null ? { version: order.value.version } : {}
-    order.value = await artistApi.updateStatus(route.params.id, status, opts)
+    order.value = await artistApi.updateStatus(routeId, status, opts)
     ElMessage.success(t('orderDetail.statusUpdated'))
     trackEvent('artist_action', { action: 'order_status_change', status })
   } catch (err) {
     // 815 审计 P1-3：冲突时提示并重拉服务端真相，不再静默覆盖
-    if (err?.code === 'ORDER_CONFLICT') {
+    const e = err as ApiErrShape
+    if (e?.code === 'ORDER_CONFLICT') {
       ElMessage.warning(t('common.orderConflict'))
       await loadOrder()
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error(e.message)
     }
   } finally {
     statusAction.value = ''
@@ -669,13 +688,13 @@ async function changeStatus(status) {
 
 // ─── R39：取消订单滑块确认（R30e 交互，C59 高代价操作用滑块） ───
 // 815 拍板 #1：取消走带 5 秒撤销窗口的新端点（队列重排延迟结算）
-const cancelUndo = ref({ visible: false, orderId: null, label: '', windowMs: 5000 })
+const cancelUndo = ref<{ visible: boolean; orderId: number | string | null; label: string; windowMs: number }>({ visible: false, orderId: null, label: '', windowMs: 5000 })
 
 /** 取消成功后亮撤销提示 */
-function showCancelUndo(updated, windowMs) {
+function showCancelUndo(updated: { id?: number; order_no?: string }, windowMs: number | undefined) {
   cancelUndo.value = {
     visible: true,
-    orderId: updated.id ?? route.params.id,
+    orderId: updated.id ?? routeId,
     label: updated.order_no || String(route.params.id),
     windowMs: windowMs ?? 5000
   }
@@ -690,22 +709,23 @@ async function onUndoCancel() {
     order.value = await artistApi.undoCancelOrder(Number(id))
     ElMessage.success(t('orderDetail.cancelUndone'))
   } catch (err) {
-    ElMessage.error(err.code === 'CANCEL_UNDO_EXPIRED' ? t('orderDetail.cancelUndoExpired') : err.message)
+    const e = err as ApiErrShape
+    ElMessage.error(e.code === 'CANCEL_UNDO_EXPIRED' ? t('orderDetail.cancelUndoExpired') : e.message)
     await loadOrder()
   }
 }
 
 // ─── 815 拍板 #4：画师再许可交付文件下载 ───
-const repermittingId = ref(null)
+const repermittingId = ref<number | null>(null)
 
-async function repermitDeliverable(d) {
+async function repermitDeliverable(d: DetailDeliverableRow) {
   if (repermittingId.value !== null) return
   repermittingId.value = d.id
   try {
     order.value = await artistApi.repermitDeliverable(Number(route.params.id), d.id)
     ElMessage.success(t('orderDetail.deliverableRepermitted'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as ApiErrShape).message)
   } finally {
     repermittingId.value = null
   }
@@ -725,10 +745,11 @@ async function confirmCancelOrder() {
   } catch (err) {
     // R-2: 已收款订单取消被后端拦截（409 CANCEL_WITH_PAYMENT，Batch A 契约）——
     // 二次确认「已收 ¥X、资金需线下退还」，确认后带 confirmPaidCancel 重发
-    if (err.code === 'CANCEL_WITH_PAYMENT' && err.detail?.paidCents != null) {
+    const e = err as ApiErrShape
+    if (e.code === 'CANCEL_WITH_PAYMENT' && e.detail?.paidCents != null) {
       try {
         await ElMessageBox.confirm(
-          t('orderDetail.cancelPaidConfirm', { amount: formatCents(err.detail.paidCents) }),
+          t('orderDetail.cancelPaidConfirm', { amount: formatCents(e.detail.paidCents) }),
           t('orderDetail.confirmTitle'),
           { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
         )
@@ -741,10 +762,10 @@ async function confirmCancelOrder() {
         showCancelUndo(res, res.undoWindowMs)
         ElMessage.success(t('orderDetail.statusUpdated'))
       } catch (err) {
-        ElMessage.error(err.message)
+        ElMessage.error((err as ApiErrShape).message)
       }
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error((err as ApiErrShape).message)
     }
   } finally {
     cancelSubmitting.value = false
@@ -764,12 +785,12 @@ const {
 })
 
 /** 提交在途时滑块不再响应（防拖拽路径二次触发） */
-function handleSlideStart(e) {
+function handleSlideStart(e: PointerEvent) {
   if (cancelSubmitting.value) return
   slideOnStart(e)
 }
 
-function handleSlideMove(e) {
+function handleSlideMove(e: PointerEvent) {
   if (cancelSubmitting.value) return
   slideOnMove(e)
 }
@@ -781,7 +802,7 @@ async function handleSlideEnd() {
 
 // ─── R19: 备注附图/时间线逻辑已随 NotesPanel 拆出（2026-08-10）；粘贴经 expose 调用 ───
 
-function openFile(url) {
+function openFile(url: string | undefined) {
   // H-1 修复：使用后端返回的签名 URL（references/deliverables 非公开目录）
   window.open(url, '_blank', 'noopener')
 }
@@ -789,7 +810,7 @@ function openFile(url) {
 // ─── SPEC-003 附加工作项 + 改价已随 ExtraItemsPanel 拆出（2026-08-10） ───
 
 // UI-1: 删除参考图（悬停显示，确认后删除，焦点图由后端自动清理）
-async function deleteReference(reference) {
+async function deleteReference(reference: DetailReferenceRow) {
   try {
     await ElMessageBox.confirm(
       t('orderDetail.deleteRefConfirm'),
@@ -798,11 +819,11 @@ async function deleteReference(reference) {
     )
   } catch { return }
   try {
-    await artistApi.deleteReference(route.params.id, reference.id)
+    await artistApi.deleteReference(routeId, reference.id!)
     await loadOrder()
     ElMessage.success(t('orderDetail.deleteRefSuccess'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as ApiErrShape).message)
   }
 }
 
@@ -815,7 +836,7 @@ function openDeliverDialog() {
 
 // 交付成功回调（DeliverDialog emit delivered，回传最新订单）；
 // 面板类组件统一走 order-updated 事件同款写回（拆分后与原 order.value= 赋值行为一致）
-function onOrderUpdated(updated) {
+function onOrderUpdated(updated: EnrichedOrderDetail) {
   order.value = updated
 }
 
@@ -830,7 +851,7 @@ const { refreshNow } = useSignatureRefresh({
       ...(o.references || []).map(r => r.file_path),
       ...(o.notes || []).filter(n => n.image_path).map(n => n.image_path),
       ...(o.deliverables || []).map(d => d.file_path)
-    ].filter(Boolean)
+    ].filter((p): p is string => Boolean(p))
   },
   apply: (urlMap) => {
     const o = order.value
@@ -843,15 +864,15 @@ const { refreshNow } = useSignatureRefresh({
 
 // ─── v0.31 REQ-021 F1: 操作记录已随 LogPanel 拆出（含 useActivityLog 装配，2026-08-10） ───
 
-let unsubscribeReconnect = null
+let unsubscribeReconnect: (() => void) | null = null
 onMounted(() => {
   loadOrder()
   loadWorkflowStages() // R30d: 流程进度条需要节点列表
-  loadPayments(route.params.id) // B7: 额度池收款流水
+  loadPayments(routeId) // B7: 额度池收款流水
   // G-3（R-16）: 断网重连后重拉订单 + 收款流水（复用既有刷新函数）
   unsubscribeReconnect = subscribeReconnect(() => {
     loadOrder()
-    loadPayments(route.params.id)
+    loadPayments(routeId)
   })
 })
 onUnmounted(() => {

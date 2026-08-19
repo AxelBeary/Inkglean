@@ -80,13 +80,13 @@
             v-if="a.control_type === 'switch'"
             :model-value="styleAddonSelections[a.id]?.toggled || false"
             size="small"
-            @change="(val) => setStyleAddon(a.id, { toggled: !!val })"
+            @change="(val: boolean | string | number) => setStyleAddon(a.id, { toggled: !!val })"
           />
           <el-input-number
             v-else
             :model-value="styleAddonSelections[a.id]?.quantity || 0"
             :min="0" :max="a.max_quantity || 99" :step="1" size="small" style="width: 110px"
-            @change="(val) => setStyleAddon(a.id, { quantity: val ?? 0 })"
+            @change="(val: number | undefined) => setStyleAddon(a.id, { quantity: val ?? 0 })"
           />
         </div>
       </div>
@@ -353,28 +353,43 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
+import type { PropType } from 'vue'
 import { artistApi } from '../../../api/index.js'
+import type { PublicArtStyle, OrderPriority } from '../../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import { useStageStatus } from '../../../composables/useStageStatus.js'
+import { useStageStatus, type StageLike } from '../../../composables/useStageStatus.js'
 // 2026-08-10 拆分批：价格状态机抽 composable（纯搬移零行为变化）
 import { useManualOrderPricing } from '../../../composables/useManualOrderPricing.js'
 import { formatCents, formatYuan, formatYuanValue, yuanToCents } from '../../../utils/money.js'
 import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
 
+/** 草稿快照（F6 草稿回填消费的右栏状态） */
+interface DraftAddonSelLite { toggled?: boolean | null; quantity?: number | null }
+interface DraftStateLite {
+  styleId?: number | null
+  sizeId?: number | null
+  addonSelections?: Record<string, DraftAddonSelLite | null> | null
+  usageId?: number | null
+  rushId?: number | null
+  customAddons?: Array<{ name?: string | null; priceYuan?: number | string | null }> | null
+  finalPriceYuan?: number | null
+  priceTouched?: boolean | null
+}
+
 const props = defineProps({
-  styles: { type: Array, default: () => [] },
+  styles: { type: Array as PropType<PublicArtStyle[]>, default: () => [] },
   // 价格元数据（分期比例等，父组件初始化加载）
   pricingData: { type: Object, default: null },
   subdomain: { type: String, default: '' },
-  workflowStages: { type: Array, default: () => [] },
+  workflowStages: { type: Array as PropType<StageLike[]>, default: () => [] },
   // 参考图路径数组（左栏上传后经父组件同步回传，提交时使用）
-  uploadedRefs: { type: Array, default: () => [] },
+  uploadedRefs: { type: Array as PropType<string[]>, default: () => [] },
   // 父 el-form 校验函数（() => Promise<boolean>；函数 prop 取最新引用，避免 ref 对象被模板解包成 null 快照）
-  validateForm: { type: Function, default: null }
+  validateForm: { type: Function as unknown as PropType<(() => Promise<boolean>) | null>, default: null }
 })
 const emit = defineEmits(['submit-success', 'dirty'])
 
@@ -392,7 +407,7 @@ const { t } = useI18n()
 
 const submitting = ref(false)
 /** G-4: 提交意图幂等键（同一次意图失败重试复用；提交成功后置空 = 新意图换新 key） */
-let submitIdemKey = null
+let submitIdemKey: string | null = null
 
 // ─── 价格状态机装配（2026-08-10 拆分：useManualOrderPricing，纯搬移零行为变化） ───
 const {
@@ -478,7 +493,7 @@ async function submit() {
         clientQq: clientQq.value.trim(),
         clientName: clientName.value.trim() || null,
         description: description.value.trim() || null,
-        priority: priority.value,
+        priority: priority.value as OrderPriority,
         clientNotify: clientNotify.value,
         references: props.uploadedRefs,
         // 画风结构化字段（后端验证+算价+创建）
@@ -493,7 +508,7 @@ async function submit() {
     // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
     // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，
     // updatePrice 连带抹掉增项。手输价 ≠ 计算价（含无尺寸无计算价）时写入。
-    let postCreateFailed = null
+    let postCreateFailed: string | null = null
     if (order.id && priceTouched.value && finalPriceYuan.value != null) {
       const calcCents = stylePricePreview.value?.totalCents ?? null
       const manualCents = yuanToCents(finalPriceYuan.value)
@@ -503,7 +518,7 @@ async function submit() {
             finalPriceCents: manualCents,
             quoteSnapshot: order.quote_snapshot || null
           })
-        } catch (e) { postCreateFailed = t('manualOrder.postCreateFailed.price', { message: e.message }) }
+        } catch (e) { postCreateFailed = t('manualOrder.postCreateFailed.price', { message: (e as Error).message }) }
       }
     }
 
@@ -517,7 +532,7 @@ async function submit() {
             priceCents: Math.round((Number(item.priceYuan) || 0) * 100)
           })
         } catch (e) {
-          postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.extraItem', { name: item.name, message: e.message })
+          postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.extraItem', { name: item.name, message: (e as Error).message })
         }
       }
     }
@@ -526,14 +541,14 @@ async function submit() {
     if (order.id && deadline.value) {
       try {
         await artistApi.updateDeadline(order.id, deadline.value)
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.deadline', { message: e.message }) }
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.deadline', { message: (e as Error).message }) }
     }
 
     // F3: 开稿日（同截稿日，创建后单独写入）
     if (order.id && startDate.value) {
       try {
         await artistApi.updateStartDate(order.id, startDate.value)
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.startDate', { message: e.message }) }
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.startDate', { message: (e as Error).message }) }
     }
 
     // F4: 初始节点状态（非默认时推进到目标节点；R30d 有工作流的订单不能直接改 status）
@@ -541,24 +556,24 @@ async function submit() {
       try {
         if (workflowStagesRef.value.length > 0) {
           const target = findTargetStage()
-          if (target) await artistApi.advanceStage(order.id, target.id)
+          if (target) await artistApi.advanceStage(order.id, target.id as number)
         } else {
           await artistApi.updateStatus(order.id, initialStatus.value)
         }
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.initialStatus', { message: e.message }) }
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.initialStatus', { message: (e as Error).message }) }
     }
 
     // 818-D: 备注（再来一单回填源单备注；创建后经既有 addNote 接口写入新单，单条上限 1000 字）
     if (order.id && note.value.trim()) {
       try {
         await artistApi.addNote(order.id, { content: note.value.trim() })
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.note', { message: e.message }) }
+      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.note', { message: (e as Error).message }) }
     }
 
     emit('submit-success', { order, postCreateFailed })
     submitIdemKey = null
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     submitting.value = false
   }
@@ -603,7 +618,7 @@ function getDraftState() {
 }
 
 /** 草稿回填（父组件 applyDraft 调用；画风/尺寸/增项若已被画师删除则逐项丢弃） */
-function setDraftState(state) {
+function setDraftState(state: DraftStateLite | null | undefined) {
   const ss = state || {}
   // 恢复三步走状态
   if (ss.styleId != null) {
@@ -625,7 +640,7 @@ function setDraftState(state) {
           const savedSel = saved[key] || {}
           styleAddonSelections[id] = {
             toggled: !!savedSel.toggled,
-            quantity: savedSel.quantity > 0 ? savedSel.quantity : 0
+            quantity: (savedSel.quantity ?? 0) > 0 ? (savedSel.quantity as number) : 0
           }
         }
       }
@@ -634,8 +649,8 @@ function setDraftState(state) {
       // 用途/加急单选只恢复仍在可选项中的 ID
       const usageIds = new Set(usageAddons.value.map(a => a.id))
       const rushIds = new Set(rushAddons.value.map(a => a.id))
-      selectedUsageId.value = usageIds.has(ss.usageId) ? ss.usageId : null
-      selectedRushId.value = rushIds.has(ss.rushId) ? ss.rushId : null
+      selectedUsageId.value = usageIds.has(ss.usageId as number) ? (ss.usageId as number) : null
+      selectedRushId.value = rushIds.has(ss.rushId as number) ? (ss.rushId as number) : null
       // 尺寸有效 → 重算价格预览（防抖，与手动选择同路径）
       scheduleStyleCalc()
     }

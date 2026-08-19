@@ -16,7 +16,7 @@
   </el-config-provider>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -29,7 +29,7 @@ const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
 // K3（波2）：中英切换容器级短淡入——只给根容器 #app 挂一次性 .locale-swap，
 // CSS 侧单属性 opacity（.55→1，var(--dur-mid) ease-out），禁止多颜色变量插值；
 // 动画结束移除（animationend），300ms 兜底防 reduced-motion 下无事件残留。
-let localeSwapTimer
+let localeSwapTimer: number | undefined
 watch(locale, async () => {
   const root = document.getElementById('app')
   if (!root) return

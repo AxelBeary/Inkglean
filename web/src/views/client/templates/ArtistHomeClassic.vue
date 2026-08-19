@@ -87,8 +87,11 @@
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import type { PropType } from 'vue'
+import type { PlatformDTO } from '../../../api/types.js'
+import type { HeroArtworkLike, GalleryArtworkLike, PricingStyleLike, PricingTierLike, WorkflowStageLike } from './types.js'
 import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import TplHero from '../../../components/templates/TplHero.vue'
@@ -104,20 +107,24 @@ import ComplianceFooterLinks from '../../../components/client/ComplianceFooterLi
 
 const props = defineProps({
   artist: { type: Object, default: null },
-  tiers: { type: Array, default: () => [] },
-  styles: { type: Array, default: () => [] },
-  artworks: { type: Array, default: () => [] },
+  tiers: { type: Array as PropType<PricingTierLike[]>, default: () => [] },
+  styles: { type: Array as PropType<PricingStyleLike[]>, default: () => [] },
+  artworks: { type: Array as PropType<HeroArtworkLike[]>, default: () => [] },
   rules: { type: String, default: '' },
-  workflowStages: { type: Array, default: () => [] },
+  workflowStages: { type: Array as PropType<WorkflowStageLike[]>, default: () => [] },
   subdomain: { type: String, default: '' },
   sanitizedRules: { type: String, default: '' },
   gallery: { type: Object, default: null }, // v0.35 联调：画廊端点数据（size_tags/filterSizes）
-  platforms: { type: Array, default: () => [] } // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
+  platforms: { type: Array as PropType<PlatformDTO[]>, default: () => [] } // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
 })
 
-const { imgUrl, footerLinks, galleryArtworks } = useArtistData(props)
+const { imgUrl, footerLinks: rawFooterLinks, galleryArtworks: rawGalleryArtworks } = useArtistData(props as unknown as Parameters<typeof useArtistData>[0])
+// TplGallery 兜底 artworks prop 为含 id 形状；useArtistData 宽松形状未声明 id，实际数据（Artwork 行）恒有 id，断言收窄
+const galleryArtworks = computed(() => rawGalleryArtworks.value as GalleryArtworkLike[])
+// TplPlatformIcon 的 iconKey prop 推导为 string | undefined，此处 null → undefined（prop default null 兜底，行为不变）
+const footerLinks = computed(() => rawFooterLinks.value.map((link) => ({ ...link, iconKey: link.iconKey ?? undefined })))
 
-const rootEl = ref(null)
+const rootEl = ref<HTMLElement | null>(null)
 useScrollReveal(rootEl)
 </script>
 

@@ -31,8 +31,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
+import type { PropType, Component } from 'vue'
 
 /**
  * SliderSwitch —— 滑块式切换器（radiogroup 语义）
@@ -44,17 +45,20 @@ import { ref, computed } from 'vue'
  * @example
  * <SliderSwitch v-model="viewMode" :options="[{ value: 'board', label: '看板', icon: Odometer }]" />
  */
+/** 选项项（value/label/icon?；icon 为 @element-plus/icons-vue 组件引用） */
+interface SliderOption { value: string | number; label: string; icon?: Component }
+
 const props = defineProps({
   /** 当前选中值（options 内某项的 value） */
   modelValue: { type: [String, Number], default: '' },
   /** 选项数组：{ value, label, icon? }，icon 为 @element-plus/icons-vue 组件引用 */
-  options: { type: Array, default: () => [] },
+  options: { type: Array as PropType<SliderOption[]>, default: () => [] },
   /** 尺寸：default(高36px) | small(高28px) */
   size: { type: String, default: 'default' }
 })
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const trackEl = ref(null)
+const trackEl = ref<HTMLElement | null>(null)
 // 拖动状态（pointer capture 期间）
 const isDragging = ref(false)
 // B8: 是否处于按下状态——pointermove 只响应按下后的拖动，纯悬停划过不得移动高亮块
@@ -75,8 +79,8 @@ const displayIndex = computed(() => (isDragging.value && dragIndex.value >= 0 ? 
 const iconSize = computed(() => (props.size === 'small' ? 13 : 15))
 
 /** 由 x 坐标算选项下标（含两侧 padding 3px 修正） */
-function indexFromX(clientX) {
-  const rect = trackEl.value.getBoundingClientRect()
+function indexFromX(clientX: number) {
+  const rect = trackEl.value!.getBoundingClientRect()
   if (!rect.width) return 0
   const innerW = rect.width - 6
   const per = innerW / swCount.value
@@ -84,14 +88,14 @@ function indexFromX(clientX) {
   return Math.min(Math.max(i, 0), swCount.value - 1)
 }
 
-function select(i) {
+function select(i: number) {
   const opt = props.options[i]
   if (!opt || opt.value === props.modelValue) return
   emit('update:modelValue', opt.value)
   emit('change', opt.value)
 }
 
-function onPointerDown(e) {
+function onPointerDown(e: PointerEvent) {
   e.preventDefault()
   trackEl.value?.setPointerCapture?.(e.pointerId)
   isPointerDown.value = true
@@ -101,7 +105,7 @@ function onPointerDown(e) {
   dragIndex.value = -1
 }
 
-function onPointerMove(e) {
+function onPointerMove(e: PointerEvent) {
   // B8: 未按下直接忽略；setPointerCapture 生效时 move 也仅在按下期间派发，双保险
   if (!isPointerDown.value) return
   if (!moved && Math.abs(e.clientX - pointerStartX) <= 4) return // 轻移阈值：防误触
@@ -110,7 +114,7 @@ function onPointerMove(e) {
   dragIndex.value = indexFromX(e.clientX)
 }
 
-function onPointerUp(e) {
+function onPointerUp(e: PointerEvent) {
   isPointerDown.value = false
   if (isDragging.value) {
     select(dragIndex.value >= 0 ? dragIndex.value : indexFromX(e.clientX))
@@ -123,7 +127,7 @@ function onPointerUp(e) {
   moved = false
 }
 
-function onKeydown(e) {
+function onKeydown(e: KeyboardEvent) {
   const i = swIndex.value
   if (e.key === 'ArrowLeft') {
     e.preventDefault()

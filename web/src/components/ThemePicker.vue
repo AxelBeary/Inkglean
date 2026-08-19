@@ -48,7 +48,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useThemeStore } from '../stores/theme.js'
@@ -59,7 +59,7 @@ const { t, locale } = useI18n()
 const themeStore = useThemeStore()
 
 // 813-fq-tail-shared 战役 S：五色单源 = theme.css --accent-1..5（色值不在 JS 重复，防三处漂移）
-function accentColor(id) {
+function accentColor(id: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(`--accent-${id}`).trim()
 }
 const accents = [

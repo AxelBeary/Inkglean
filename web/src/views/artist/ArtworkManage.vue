@@ -250,10 +250,12 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index.js'
+import type { ArtworkWithTags, ArtStyleWithDetails } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 import { Picture, Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload.js'
@@ -275,7 +277,9 @@ watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
 // G1: 页内拖拽守卫（捕获阶段挂在 el-upload 上，抢在 EP dragger 之前拦截）
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
-const artworks = ref([])
+/** 作品行（cover_order 运行时附带，类型库未声明） */
+type ArtworkRow = ArtworkWithTags & { cover_order?: number }
+const artworks = ref<ArtworkRow[]>([])
 const loading = ref(true)
 // v0.42 Step 6: 作品分页（20/页；封面置顶由后端排序保证，前端勿重排）
 const page = ref(1)
@@ -297,14 +301,14 @@ const gridArtworks = computed(() => {
 
 // ─── R45: 多选模式（C58：工具栏"管理"按钮切换） ───
 const manageMode = ref(false)
-const selectedIds = ref(new Set())
+const selectedIds = ref(new Set<number>())
 
 function toggleManageMode() {
   manageMode.value = !manageMode.value
-  selectedIds.value = new Set() // 进入/退出都清空选中
+  selectedIds.value = new Set<number>() // 进入/退出都清空选中
 }
 
-function toggleSelect(id) {
+function toggleSelect(id: number) {
   const next = new Set(selectedIds.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
@@ -367,7 +371,7 @@ async function doBatchDelete() {
       ElMessage.warning(t('artworks.batchPartial', { ok: ids.length - failed, failed }))
     }
     manageMode.value = false
-    selectedIds.value = new Set()
+    selectedIds.value = new Set<number>()
     await loadArtworks()
   } finally {
     batchDeleting.value = false
@@ -379,7 +383,7 @@ async function doBatchDelete() {
  * 05D-A2 校验仅上传入口持有（validate=true）；粘贴路径维持现状不校验。
  * @returns {Promise<{ filePath: string, originalName: string } | null>} 校验拦截返回 null；失败抛错由调用方处理
  */
-async function publishArtworkFile(file, { validate = false } = {}) {
+async function publishArtworkFile(file: File, { validate = false }: { validate?: boolean } = {}) {
   if (validate) {
     // 05D-A2: 上传前校验（仅图片 + ≤10MB；超限不发送）
     if (!file.type.startsWith('image/')) {
@@ -401,7 +405,7 @@ async function publishArtworkFile(file, { validate = false } = {}) {
   return uploaded
 }
 
-async function handleUpload({ file }) {
+async function handleUpload({ file }: UploadRequestOptions) {
   try {
     const uploaded = await publishArtworkFile(file, { validate: true })
     if (!uploaded) return
@@ -409,11 +413,11 @@ async function handleUpload({ file }) {
     trackEvent('artist_action', { action: 'artwork_publish', source: 'upload' })
     await loadArtworks()
   } catch (err) {
-    ElMessage.error(err.message || t('common.uploadFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('common.uploadFailed'))
   }
 }
 
-async function remove(art) {
+async function remove(art: ArtworkRow) {
   try {
     await ElMessageBox.confirm(t('artworks.confirmDelete'), t('common.confirmDeleteTitle'), { type: 'warning' })
   } catch {
@@ -424,23 +428,23 @@ async function remove(art) {
     ElMessage.success(t('common.deleted'))
     await loadArtworks()
   } catch (err) {
-    // 围剿 a1-12: API 删除失败与用户取消分开处理——失败必须明示，不得当取消吞掉
-    ElMessage.error(err.message)
+    // 围殲 a1-12: API 删除失败与用户取消分开处理——失败必须明示，不得当取消吞掉
+    ElMessage.error(err instanceof Error ? err.message : String(err))
   }
 }
 
 // ─── REQ-017: 封面操作（星标切换，复用 v0.25 API） ───
-const coverBusyId = ref(null)
+const coverBusyId = ref<number | null>(null)
 
 /** 封面总数（多封面时卡片显示 cover_order 序号） */
 const coverCount = computed(() => covers.value.length)
 
 /** 作品在封面序列中的序号（按 cover_order 排序，字段缺失 fallback 0 保持后端原序） */
-function coverOrderOf(art) {
+function coverOrderOf(art: ArtworkRow) {
   return covers.value.findIndex(a => a.id === art.id) + 1
 }
 
-async function toggleCover(art) {
+async function toggleCover(art: ArtworkRow) {
   coverBusyId.value = art.id
   try {
     if (art.is_cover) {
@@ -457,7 +461,7 @@ async function toggleCover(art) {
     }
     await loadArtworks()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error(err instanceof Error ? err.message : String(err))
   } finally {
     coverBusyId.value = null
   }
@@ -466,7 +470,7 @@ async function toggleCover(art) {
 // ─── v0.31: 多封面排序（↑↓ 按钮调整轮播顺序） ───
 const coverReordering = ref(false)
 
-async function moveCover(art, direction) {
+async function moveCover(art: ArtworkRow, direction: number) {
   const coverList = covers.value
   const idx = coverList.findIndex(a => a.id === art.id)
   const swapIdx = idx + direction
@@ -483,7 +487,7 @@ async function moveCover(art, direction) {
     // 分页后勿用全量数组覆盖（会破坏分页语义），统一走分页刷新
     await loadArtworks()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error(err instanceof Error ? err.message : String(err))
     await loadArtworks()
   } finally {
     coverReordering.value = false
@@ -508,24 +512,24 @@ async function loadArtworks() {
     }
   } catch (err) {
     if (mySeq !== loadSeq) return
-    ElMessage.error(err.message)
+    ElMessage.error(err instanceof Error ? err.message : String(err))
   } finally {
     if (mySeq === loadSeq) loading.value = false
   }
 }
 
 /** v0.42 Step 6: 分页器翻页 */
-function onPageChange(p) {
+function onPageChange(p: number) {
   page.value = p
   loadArtworks()
 }
 
 // ─── v0.35 波3 (REQ-024 F6): 作品编辑 — 档位标注多选 + 自由描述 ───
-const artStyles = ref([]) // 档位标注选项来源（仅取启用画风，排序沿用后端返回序）
+const artStyles = ref<ArtStyleWithDetails[]>([]) // 档位标注选项来源（仅取启用画风，排序沿用后端返回序）
 const editDialogVisible = ref(false)
 const editSaving = ref(false)
-const editingArtworkId = ref(null)
-const editForm = reactive({ title: '', description: '', sizeIds: [] })
+const editingArtworkId = ref<number | null>(null)
+const editForm = reactive({ title: '', description: '', sizeIds: [] as number[] })
 
 /** 档位选项：启用画风×尺寸展平；多画风时「画风 · 尺寸」防歧义（派工要求） */
 const sizeOptions = computed(() => {
@@ -538,7 +542,7 @@ const sizeOptions = computed(() => {
   )
 })
 
-async function openEditDialog(art) {
+async function openEditDialog(art: ArtworkRow) {
   editingArtworkId.value = art.id
   Object.assign(editForm, {
     title: art.title || '',
@@ -554,7 +558,7 @@ async function openEditDialog(art) {
 async function saveArtworkEdit() {
   editSaving.value = true
   try {
-    const res = await artistApi.updateArtwork(editingArtworkId.value, {
+    const res = await artistApi.updateArtwork(editingArtworkId.value!, {
       title: editForm.title.trim() || null,
       description: editForm.description.trim() || null
     })
@@ -563,9 +567,9 @@ async function saveArtworkEdit() {
       ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
     }
     try {
-      await artistApi.setArtworkTags(editingArtworkId.value, editForm.sizeIds)
+      await artistApi.setArtworkTags(editingArtworkId.value!, editForm.sizeIds)
     } catch (err) {
-      ElMessage.error(t('artworks.editTagsSaveFailed', { reason: err.message }))
+      ElMessage.error(t('artworks.editTagsSaveFailed', { reason: err instanceof Error ? err.message : String(err) }))
       await loadArtworks() // 半成功不回显：信息已保存，刷新后如实回显
       return
     }
@@ -573,15 +577,15 @@ async function saveArtworkEdit() {
     editDialogVisible.value = false
     await loadArtworks()
   } catch (err) {
-    ElMessage.error(t('artworks.editInfoSaveFailed', { reason: err.message }))
+    ElMessage.error(t('artworks.editInfoSaveFailed', { reason: err instanceof Error ? err.message : String(err) }))
   } finally {
     editSaving.value = false
   }
 }
 
-async function handlePasteArtworkFiles(files) {
+async function handlePasteArtworkFiles(files: File[]) {
   // 逐文件隔离：单个失败不中断后续文件；成功照常入库，失败列出文件名+原因
-  const failedLines = []
+  const failedLines: string[] = []
   let okCount = 0
   for (const file of files) {
     try {
@@ -590,7 +594,7 @@ async function handlePasteArtworkFiles(files) {
     } catch (err) {
       failedLines.push(t('artworks.pasteFailLine', {
         name: file.name,
-        reason: err.message || t('common.uploadFailed')
+        reason: (err instanceof Error ? err.message : '') || t('common.uploadFailed')
       }))
     }
   }

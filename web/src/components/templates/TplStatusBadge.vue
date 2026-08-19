@@ -7,13 +7,14 @@
   </span>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
 import { useArtistData } from '../../composables/useArtistData.js'
 
 defineProps({
   status: { type: String, default: 'open' },
   /** SPEC-004: 名额显示文案（开放中·剩N席 / 可候补 / 已接满 / 休息中），null 时不显示 */
-  slotDisplay: { type: String, default: null }
+  slotDisplay: { type: String as PropType<string | null>, default: null }
 })
 
 // 复用适配层的 i18n 状态文字（无需 artist 数据，仅用 statusText）

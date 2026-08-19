@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // 815 拍板 #1：取消后 5 秒撤销提示（右下角，倒计时 + 撤销按钮；与账本"墨迹未干"同节奏）
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,7 +14,7 @@ const emit = defineEmits(['undo', 'expire'])
 const { t } = useI18n()
 
 const remainMs = ref(props.windowMs)
-let timer = null
+let timer: ReturnType<typeof setInterval> | null = null
 
 const seconds = computed(() => Math.max(0, Math.ceil(remainMs.value / 1000)))
 const progress = computed(() => Math.max(0, Math.min(1, remainMs.value / props.windowMs)))
@@ -24,7 +24,7 @@ onMounted(() => {
   timer = setInterval(() => {
     remainMs.value = props.windowMs - (Date.now() - startedAt)
     if (remainMs.value <= 0) {
-      clearInterval(timer)
+      clearInterval(timer!)
       timer = null
       emit('expire')
     }

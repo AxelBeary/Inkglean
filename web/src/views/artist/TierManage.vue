@@ -27,7 +27,7 @@
   </el-tabs>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import DiscountCodeManager from '../../components/artist/DiscountCodeManager.vue'
@@ -41,8 +41,8 @@ const activeTab = ref('artStyles')
 // 背景: el-tab-pane lazy 首次激活后保持挂载，切回「画风与价格」不会重新 onMounted
 // 表现: 画师在「增项库」新建模板后切回，看不到新模板（旧代码必须手动刷新页面）
 // 修复: 切回 artStyles 时调用子组件暴露的 reload() 重新拉取
-const styleManagerRef = ref(null)
-function onTabChange(name) {
+const styleManagerRef = ref<{ reload: () => void } | null>(null)
+function onTabChange(name: string | number) {
   if (name === 'artStyles') {
     styleManagerRef.value?.reload()
   }

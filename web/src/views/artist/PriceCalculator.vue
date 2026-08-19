@@ -64,18 +64,18 @@
                 v-if="a.control_type === 'switch'" size="small"
                 :aria-label="a.name"
                 :model-value="addonSel[a.id]?.toggled || false"
-                @change="(val) => setAddon(a.id, { toggled: !!val })"
+                @change="(val: string | number | boolean) => setAddon(a.id, { toggled: !!val })"
               />
               <el-input-number
                 v-else-if="a.control_type === 'quantity'" size="small"
                 :model-value="addonSel[a.id]?.quantity || 0" :min="0" :max="99" :step="1"
                 style="width: 112px"
-                @change="(val) => setAddon(a.id, { quantity: val ?? 0 })"
+                @change="(val: number | undefined) => setAddon(a.id, { quantity: val ?? 0 })"
               />
               <el-radio-group
                 v-else-if="a.control_type === 'radio'" size="small"
                 :model-value="addonSel[a.id]?.optionLabel || null"
-                @change="(val) => setAddon(a.id, { optionLabel: val })"
+                @change="(val: string | number | boolean | undefined) => setAddon(a.id, { optionLabel: val as string | null })"
               >
                 <el-radio-button v-for="opt in parseOptions(a.options)" :key="opt.label" :value="opt.label">
                   {{ opt.label }} {{ formatYuanValue(opt.price) }}
@@ -116,8 +116,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import type { PublicArtStyle, PublicPricingResult, PublicStyleAddon, StyleAddonSelection } from '../../api/types.js'
 import { useI18n } from 'vue-i18n'
 import { artistPublicApi, artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
@@ -127,30 +128,60 @@ import { formatYuanValue } from '../../utils/money.js'
 // 数据：画风（含尺寸+增项）+ 倍率
 const store = useArtistStore()
 const { t } = useI18n()
-const styles = ref([])
-const pricing = ref(null)
+
+/** 公开增项运行时附带 radio 选项 JSON（类型库未声明 options），局部扩展 */
+interface CalcAddon extends PublicStyleAddon {
+  options?: string | null
+}
+
+/** 增项选择态（每个增项一条，按 id 索引） */
+interface AddonSelState {
+  toggled: boolean
+  quantity: number
+  optionLabel: string | null
+}
+
+/** 算价请求增项载荷（radio 附 optionLabel，运行时随请求下发） */
+interface AddonSelectionPayload extends StyleAddonSelection {
+  optionLabel?: string | null
+}
+
+/** 算价预览（模板展示字段随响应附带） */
+interface CalcPreview {
+  styleName: string
+  sizeName: string
+  totalPrice: number
+  basePrice: number
+  addonItems: Array<{ name: string; quantity: number; amount: number }>
+  usageMultiplier: { name: string; factor: number } | null
+  rushMultiplier: { name: string; factor: number } | null
+  multiplierTotal: number
+}
+
+const styles = ref<PublicArtStyle[]>([])
+const pricing = ref<PublicPricingResult | null>(null)
 const loading = ref(true)
 /** 画风/费率加载失败（独立错误态 + 重试） */
 const loadFailed = ref(false)
 
-const selectedStyleId = ref(null)
-const selectedSizeId = ref(null)
-const addonSel = reactive({})
-const preview = ref(null)
+const selectedStyleId = ref<number | null>(null)
+const selectedSizeId = ref<number | null>(null)
+const addonSel = reactive<Record<string, AddonSelState>>({})
+const preview = ref<CalcPreview | null>(null)
 
 const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
 /** 当前尺寸下可用增项（后端已按尺寸覆盖过滤 hidden） */
-const availableAddons = computed(() => selectedSize.value?.addons || [])
+const availableAddons = computed(() => (selectedSize.value?.addons || []) as CalcAddon[])
 const selectedSize = computed(() => selectedStyle.value?.sizes.find(sz => sz.id === selectedSizeId.value) || null)
 
-function selectStyle(id) {
+function selectStyle(id: number) {
   selectedStyleId.value = id
   selectedSizeId.value = null
   clearAddons()
   preview.value = null
 }
 
-function selectSize(id) {
+function selectSize(id: number) {
   selectedSizeId.value = id
   clearAddons()
   preview.value = null
@@ -168,15 +199,15 @@ function initAddonDefaults() {
   }
 }
 
-function setAddon(id, patch) {
+function setAddon(id: number, patch: Partial<AddonSelState>) {
   if (!addonSel[id]) addonSel[id] = { toggled: false, quantity: 0, optionLabel: null }
   Object.assign(addonSel[id], patch)
   scheduleCalc()
 }
 
 /** 构建已选增项（与后端 calculate-style-price 契约一致） */
-function buildAddons() {
-  const list = []
+function buildAddons(): AddonSelectionPayload[] {
+  const list: AddonSelectionPayload[] = []
   for (const a of availableAddons.value) {
     const sel = addonSel[a.id]
     if (!sel) continue
@@ -188,7 +219,7 @@ function buildAddons() {
 }
 
 /** 算价（防抖 300ms + 竞态保护），复用后端 calculate-style-price，前端不复制算价逻辑 */
-let calcTimer = null
+let calcTimer: ReturnType<typeof setTimeout> | null = null
 let calcSeq = 0
 function scheduleCalc() {
   if (calcTimer) clearTimeout(calcTimer)
@@ -205,7 +236,7 @@ async function doCalc() {
       addons: buildAddons()
     })
     if (mySeq !== calcSeq) return
-    preview.value = res
+    preview.value = res as unknown as CalcPreview
   } catch {
     if (mySeq !== calcSeq) return
     // 请求失败：保留上次结果并明示错误，禁止静默清空预览
@@ -214,18 +245,18 @@ async function doCalc() {
 }
 
 /** radio 选项 JSON 解析（安全回退） */
-function parseOptions(optionsJson) {
+function parseOptions(optionsJson: string | null | undefined): Array<{ label: string; price: number }> {
   if (!optionsJson) return []
   try {
-    const parsed = JSON.parse(optionsJson)
-    return Array.isArray(parsed) ? parsed : []
+    const parsed: unknown = JSON.parse(optionsJson)
+    return Array.isArray(parsed) ? (parsed as Array<{ label: string; price: number }>) : []
   } catch {
     return []
   }
 }
 
 /** 增项价格文案：radio 按选项计价，其余显示单价（quantity 带单位） */
-function formatAddonPrice(a) {
+function formatAddonPrice(a: CalcAddon) {
   if (a.control_type === 'radio') return t('priceCalc.optionPrice')
   return formatYuanValue(a.price ?? 0) + (a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : '')
 }

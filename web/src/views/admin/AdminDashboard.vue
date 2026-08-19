@@ -156,21 +156,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { GlobalStats, AdminArtistItem, AdminGuestbookMessage, AdminMessageFilters } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime.js'
 import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 
 const { t } = useI18n()
-const stats = ref(null)
-const artists = ref([])
+const stats = ref<GlobalStats | null>(null)
+const artists = ref<AdminArtistItem[]>([])
 const loading = ref(true)
 
 // ─── F4: 留言管理（跨画师）；REQ-022 F5: 三维筛选（画师/审核状态/是否已回复） ───
-const adminMessages = ref([])
+const adminMessages = ref<AdminGuestbookMessage[]>([])
 const msgLoading = ref(true)
 const msgLoadFailed = ref(false)
 const messagesPage = ref(1)
@@ -179,9 +180,9 @@ const GB_PAGE_SIZE = 10
 const pagedAdminMessages = computed(() =>
   adminMessages.value.slice((messagesPage.value - 1) * GB_PAGE_SIZE, messagesPage.value * GB_PAGE_SIZE)
 )
-const filterArtistId = ref(null)
-const filterStatus = ref(null)
-const filterReplied = ref(null)
+const filterArtistId = ref<number | null>(null)
+const filterStatus = ref<AdminMessageFilters['status'] | null>(null)
+const filterReplied = ref<AdminMessageFilters['replied'] | null>(null)
 
 async function loadAdminMessages() {
   messagesPage.value = 1
@@ -189,9 +190,9 @@ async function loadAdminMessages() {
   msgLoadFailed.value = false
   try {
     adminMessages.value = (await adminApi.getMessages({
-      artistId: filterArtistId.value,
-      status: filterStatus.value,
-      replied: filterReplied.value
+      artistId: filterArtistId.value ?? undefined,
+      status: filterStatus.value ?? undefined,
+      replied: filterReplied.value ?? undefined
     })) || []
   } catch {
     // P1-B：筛选/加载失败清旧数据（防张冠李戴），明示错误 + 重试
@@ -201,7 +202,7 @@ async function loadAdminMessages() {
   finally { msgLoading.value = false }
 }
 
-async function handleDeleteMessage(row) {
+async function handleDeleteMessage(row: AdminGuestbookMessage) {
   try {
     await ElMessageBox.confirm(
       t('admin.guestbook.deleteConfirm'),
@@ -214,7 +215,7 @@ async function handleDeleteMessage(row) {
     ElMessage.success(t('admin.guestbook.deleted'))
     adminMessages.value = adminMessages.value.filter(m => m.id !== row.id)
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
@@ -227,7 +228,7 @@ onMounted(async () => {
     stats.value = s
     artists.value = a
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     loading.value = false
   }

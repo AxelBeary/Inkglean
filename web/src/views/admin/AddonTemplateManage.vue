@@ -156,9 +156,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { AdminAddonTemplate } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon.js'
@@ -167,13 +168,26 @@ import { controlLabel, controlTagType, categoryLabel } from '../../components/ar
 
 const { t } = useI18n()
 
-const templates = ref([])
+const templates = ref<AdminAddonTemplate[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
-const editingId = ref(null)
+const editingId = ref<number | null>(null)
 
-const form = reactive({
+/** 弹窗表单状态（字段字面量联合与后端写请求口径一致） */
+interface AddonFormState {
+  name: string
+  category: 'add' | 'usage' | 'rush'
+  control_type: 'switch' | 'quantity'
+  price_mode: 'fixed' | 'percent'
+  default_price: number
+  unit_label: string
+  max_quantity: number | null
+  sort_order: number
+  sync: boolean
+}
+
+const form = reactive<AddonFormState>({
   name: '',
   category: 'add',
   control_type: 'switch',
@@ -192,12 +206,12 @@ const pricingHint = computed(() =>
   form.price_mode === 'percent' ? t('styleManage.pricingHintPercent') : t('styleManage.pricingHintFixed')
 )
 
-function categoryTagType(cat) {
-  return { usage: 'warning', rush: 'danger', add: 'info' }[cat] || 'info'
+function categoryTagType(cat: string) {
+  return ({ usage: 'warning', rush: 'danger', add: 'info' } as Record<string, string>)[cat] || 'info'
 }
 
 /** 用途/加急必须百分比计价 + 开关控件（后端铁律）→ 自动切并锁定 */
-function onCategoryChange(cat) {
+function onCategoryChange(cat: string | number | boolean) {
   if (cat !== 'add') {
     form.price_mode = 'percent'
     form.control_type = 'switch'
@@ -221,7 +235,7 @@ function openCreate() {
   dialogVisible.value = true
 }
 
-function openEdit(row) {
+function openEdit(row: AdminAddonTemplate) {
   editingId.value = row.id
   Object.assign(form, {
     name: row.name,
@@ -270,13 +284,13 @@ async function submit() {
     ElMessage.success(t('admin.addonTemplatesSaved'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     saving.value = false
   }
 }
 
-async function confirmDelete(row) {
+async function confirmDelete(row: AdminAddonTemplate) {
   const message = row.referenced > 0
     ? t('admin.addonTemplatesDeleteRefConfirm', { name: row.name, count: row.referenced })
     : t('admin.addonTemplatesDeleteConfirm', { name: row.name })
@@ -292,7 +306,7 @@ async function confirmDelete(row) {
     ElMessage.success(t('admin.addonTemplatesDeleted'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
@@ -301,7 +315,7 @@ async function load() {
   try {
     templates.value = await adminApi.getAddonTemplates()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     loading.value = false
   }

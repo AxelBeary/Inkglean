@@ -6,7 +6,7 @@
   </span>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   /** 印章文字（如：已交付 / 已录入） */
   text: { type: String, required: true },

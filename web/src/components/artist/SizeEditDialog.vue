@@ -52,20 +52,39 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi, uploadApi } from '../../api/index.js'
+
+/** 编辑中的尺寸行（父级列表行结构的最小子集） */
+interface SizeEditTarget {
+  id: number
+  name: string
+  base_price: number
+  image?: string | null
+  image_artwork_id?: number | null
+  description?: string | null
+  work_days?: number | null
+}
+/** 作品集条目（挑选尺寸图用） */
+interface ArtworkLite {
+  id: number
+  image_path: string
+  title?: string | null
+}
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   /** 尺寸所属画风 id（弹窗保存目标） */
   styleId: { type: Number, default: null },
   /** 编辑对象；null = 新建 */
-  size: { type: Object, default: null },
+  size: { type: Object as PropType<SizeEditTarget | null>, default: null },
   /** 作品集（"从作品集挑" + 缩略图解析） */
-  artworks: { type: Array, default: () => [] }
+  artworks: { type: Array as PropType<ArtworkLite[]>, default: () => [] }
 })
 const emit = defineEmits(['update:modelValue', 'saved', 'rowPatch'])
 const { t } = useI18n()
@@ -78,7 +97,7 @@ const visible = computed({
 const editingSizeId = computed(() => props.size?.id ?? null)
 const sizeSaving = ref(false)
 const sizeUploading = ref(false)
-const sizeForm = reactive({ name: '', base_price: 0, image: '', image_artwork_id: null, description: '', work_days: null })
+const sizeForm = reactive({ name: '', base_price: 0, image: '', image_artwork_id: null as number | null, description: '', work_days: null as number | null })
 const pickDialogVisible = ref(false)
 
 /** 弹窗内当前预览图 */
@@ -109,7 +128,7 @@ watch(() => props.modelValue, (open) => {
 })
 
 /** 即时保存成功后通知父组件同步列表行（避免整体重载，与原 patchSizeRow 同口径） */
-function patchRow(patch) {
+function patchRow(patch: Record<string, unknown>) {
   if (!editingSizeId.value) return
   emit('rowPatch', { styleId: props.styleId, sizeId: editingSizeId.value, patch })
 }
@@ -118,7 +137,7 @@ function patchRow(patch) {
  * 尺寸图上传（v0.34 即时保存模式）
  * 编辑已有尺寸：上传成功立即 PUT——失败回滚预览；新建尺寸：只写表单 + 提示「点保存后生效」
  */
-async function uploadSizeImage({ file }) {
+async function uploadSizeImage({ file }: UploadRequestOptions) {
   sizeUploading.value = true
   const prev = { image: sizeForm.image, image_artwork_id: sizeForm.image_artwork_id }
   try {
@@ -127,39 +146,39 @@ async function uploadSizeImage({ file }) {
     sizeForm.image_artwork_id = null
     if (editingSizeId.value) {
       try {
-        await artistApi.updateStyleSize(props.styleId, editingSizeId.value, { image: uploaded.filePath })
+        await artistApi.updateStyleSize(props.styleId as number, editingSizeId.value, { image: uploaded.filePath })
         patchRow({ image: uploaded.filePath, image_artwork_id: null })
         ElMessage.success(t('styleManage.sizeImageSavedMsg'))
       } catch (putErr) {
         sizeForm.image = prev.image
         sizeForm.image_artwork_id = prev.image_artwork_id
-        ElMessage.error(putErr.message)
+        ElMessage.error((putErr as Error).message)
       }
     } else {
       ElMessage({ type: 'warning', message: t('styleManage.sizeImageUploadHint'), duration: 5000 })
     }
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     sizeUploading.value = false
   }
 }
 
 /** 从作品集挑选（点击选择器内的作品） */
-async function onPickArtwork(art) {
+async function onPickArtwork(art: ArtworkLite) {
   pickDialogVisible.value = false
   const prev = { image: sizeForm.image, image_artwork_id: sizeForm.image_artwork_id }
   sizeForm.image = ''
   sizeForm.image_artwork_id = art.id
   if (editingSizeId.value) {
     try {
-      await artistApi.updateStyleSize(props.styleId, editingSizeId.value, { image_artwork_id: art.id })
+      await artistApi.updateStyleSize(props.styleId as number, editingSizeId.value, { image_artwork_id: art.id })
       patchRow({ image: null, image_artwork_id: art.id })
       ElMessage.success(t('styleManage.sizeImageSavedMsg'))
     } catch (err) {
       sizeForm.image = prev.image
       sizeForm.image_artwork_id = prev.image_artwork_id
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   } else {
     ElMessage({ type: 'warning', message: t('styleManage.sizeImageUploadHint'), duration: 5000 })
@@ -173,13 +192,13 @@ async function removeSizeImage() {
   sizeForm.image_artwork_id = null
   if (editingSizeId.value) {
     try {
-      await artistApi.updateStyleSize(props.styleId, editingSizeId.value, { image: null })
+      await artistApi.updateStyleSize(props.styleId as number, editingSizeId.value, { image: null })
       patchRow({ image: null, image_artwork_id: null })
       ElMessage.success(t('styleManage.sizeImageSavedMsg'))
     } catch (err) {
       sizeForm.image = prev.image
       sizeForm.image_artwork_id = prev.image_artwork_id
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   }
 }
@@ -192,7 +211,14 @@ async function saveSize() {
   sizeSaving.value = true
   try {
     // 图片字段互斥：image_artwork_id 优先；都没有则显式清空（后端"传一清一"）
-    const payload = {
+    const payload: {
+      name: string
+      base_price: number
+      description: string | null
+      work_days: number | null
+      image_artwork_id?: number | null
+      image?: string | null
+    } = {
       name: sizeForm.name.trim(),
       base_price: sizeForm.base_price,
       description: sizeForm.description.trim() || null,
@@ -202,16 +228,16 @@ async function saveSize() {
     else payload.image = sizeForm.image || null
 
     if (editingSizeId.value) {
-      await artistApi.updateStyleSize(props.styleId, editingSizeId.value, payload)
+      await artistApi.updateStyleSize(props.styleId as number, editingSizeId.value, payload)
       ElMessage.success(t('styleManage.sizeSaved'))
     } else {
-      await artistApi.createStyleSize(props.styleId, payload)
+      await artistApi.createStyleSize(props.styleId as number, payload)
       ElMessage.success(t('styleManage.sizeAdded'))
     }
     visible.value = false
     emit('saved')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     sizeSaving.value = false
   }

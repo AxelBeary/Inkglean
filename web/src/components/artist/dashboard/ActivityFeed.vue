@@ -39,7 +39,7 @@
   </el-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../../api/index.js'
@@ -47,13 +47,16 @@ import { artistApi } from '../../../api/index.js'
 import CardHead from '../visual/CardHead.vue'
 import { normalizeActivity, relativeTime } from '../../../utils/dashboard-normalize.js'
 
+/** normalizeActivity 返回条目类型（随工具函数推断，不重复手写） */
+type FeedItem = ReturnType<typeof normalizeActivity>[number]
+
 const { t, locale } = useI18n()
 const state = ref('loading') // loading | ok | error
-const items = ref([])
+const items = ref<FeedItem[]>([])
 
 /** 相对时间包装（传入 i18n 上下文） */
-function fmtRelativeTime(isoStr) {
-  return relativeTime(isoStr, t, locale.value)
+function fmtRelativeTime(isoStr: string | null) {
+  return relativeTime(isoStr ?? '', t, locale.value)
 }
 
 async function load() {

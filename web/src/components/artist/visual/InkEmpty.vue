@@ -23,7 +23,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   /** 空状态标题（楷体） */
   title: { type: String, required: true },

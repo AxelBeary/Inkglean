@@ -64,12 +64,15 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadFile, UploadUserFile } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi, uploadApi } from '../../api/index.js'
+import type { ApiError } from '../../api/index.js'
+import type { DeliverResult } from '../../api/types.js'
 import { useDropGuard } from '../../composables/useDropGuard.js'
 import { DELIVER_MAX_BYTES as DELIVER_MAX_SIZE } from '../../constants/upload.js' // b1: 50MB 上限单源
 
@@ -87,8 +90,8 @@ const { t } = useI18n()
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 const mode = ref('file') // 'file' | 'noFile'
-const deliverFile = ref(null)
-const deliverFileList = ref([])
+const deliverFile = ref<File | null>(null)
+const deliverFileList = ref<UploadUserFile[]>([])
 const delivering = ref(false)
 
 // P2-12: 交付文件前端校验（对齐 OrderDetail / 后端 upload.routes DELIVER_ALLOWED）
@@ -110,17 +113,17 @@ watch(() => props.modelValue, (open) => {
   }
 })
 
-function handleDeliverFile(file) {
+function handleDeliverFile(file: UploadFile) {
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
   if (!DELIVER_ALLOWED_EXT.includes(ext)) {
     ElMessage.error(t('orderDetail.invalidFileType'))
     return
   }
-  if (file.size > DELIVER_MAX_SIZE) {
+  if ((file.size ?? 0) > DELIVER_MAX_SIZE) {
     ElMessage.error(t('orderDetail.fileTooLarge'))
     return
   }
-  deliverFile.value = file.raw
+  deliverFile.value = file.raw ?? null
 }
 
 function handleDeliverRemove() {
@@ -147,27 +150,27 @@ async function submitDeliver() {
   try {
     // 815 审计 P1-3：携带当前 version，双开标签页旧快照交付会被后端 409 拦下
     const versionOpt = props.orderVersion != null ? { version: props.orderVersion } : {}
-    let updated
+    let updated: DeliverResult
     if (mode.value === 'file') {
-      const uploaded = await uploadApi.deliverable(deliverFile.value)
-      updated = await artistApi.deliver(props.orderId, {
+      const uploaded = await uploadApi.deliverable(deliverFile.value as File)
+      updated = await artistApi.deliver(props.orderId as number, {
         filePath: uploaded.filePath,
         fileName: uploaded.originalName,
         ...versionOpt
       })
     } else {
-      updated = await artistApi.deliverNoFile(props.orderId, versionOpt)
+      updated = await artistApi.deliverNoFile(props.orderId as number, versionOpt)
     }
     emit('update:modelValue', false)
     emit('delivered', updated)
     ElMessage.success(t('orderDetail.deliverSuccess'))
   } catch (err) {
     // 815 审计 P1-3：冲突不关弹窗（用户可重拉后重试），通知父组件重拉订单
-    if (err?.code === 'ORDER_CONFLICT') {
+    if ((err as ApiError)?.code === 'ORDER_CONFLICT') {
       ElMessage.warning(t('common.orderConflict'))
       emit('conflict')
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   } finally {
     delivering.value = false

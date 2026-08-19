@@ -39,7 +39,7 @@
     <!-- REQ-016 A: 主页展示 -->
     <el-tab-pane :label="$t('settings.tabShowcase')" name="showcase" lazy>
       <SettingsShowcaseTab
-        :form="form"
+        :form="showcaseForm"
         :loading="loading"
         :saving="saving"
         :profile-load-failed="profileLoadFailed"
@@ -88,8 +88,9 @@
   </el-tabs>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch, markRaw } from 'vue'
+import type { ArtistStatus, ArtworkWithTags, PlatformDTO, PublicArtistDTO, SensitiveWarning } from '../../api/types.js'
 import { useRoute } from 'vue-router'
 import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -106,8 +107,8 @@ import { MAX_IMAGE_BYTES } from '../../constants/upload.js'
 const { t } = useI18n()
 const route = useRoute()
 const VALID_TABS = ['profile', 'showcase', 'template']
-const TAB_ALIASES = { rules: 'showcase' }
-const rawTab = route.query.tab
+const TAB_ALIASES: Record<string, string> = { rules: 'showcase' }
+const rawTab = typeof route.query.tab === 'string' ? route.query.tab : ''
 if (rawTab === 'prefs' || rawTab === 'commission') {
   window.location.replace('/preferences')
 }
@@ -150,7 +151,7 @@ async function saveRules() {
     markTabSaved('showcase')
     trackEvent('artist_action', { action: 'settings_save', tab: 'rules' })
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     rulesSaving.value = false
   }
@@ -159,9 +160,16 @@ async function saveRules() {
 watch(activeTab, (tab) => { if (tab === 'showcase') loadRules() }, { immediate: true })
 
 // Platforms
-const platforms = ref([])
+const platforms = ref<PlatformDTO[]>([])
 
-function detectLinkPlatform(link) {
+/** 表单自定义链接行（__k = 排序/复用键） */
+interface CustomLinkRow {
+  url: string
+  platformId: number | null
+  __k?: number
+}
+
+function detectLinkPlatform(link: CustomLinkRow) {
   const raw = String(link.url || '').trim()
   if (!raw) { link.platformId = null; return }
   const res = validateLink(raw, platforms.value)
@@ -171,19 +179,19 @@ function detectLinkPlatform(link) {
 const form = reactive({
   name: '', bio: '',
   status: 'open',
-  customLinks: [],
-  inspirationTags: [],
+  customLinks: [] as CustomLinkRow[],
+  inspirationTags: [] as string[],
   contactQq: '',
   // 820-L：留言功能画师手动开关（与「新消息通知」同类的账号设置项，默认开启）
   guestbookEnabled: true,
   artistCode: '',
   templateId: 'classic',
   paletteId: 'paper',
-  accentColor: null,
+  accentColor: null as string | null,
   avatar: '',
   subdomain: '',
   announcement: '',
-  announcementExpiresAt: null
+  announcementExpiresAt: null as string | null
 })
 
 
@@ -199,7 +207,7 @@ const ACCENT_PRESETS = (() => {
 
 
 
-async function handleAvatarSelect(file) {
+async function handleAvatarSelect(file: File | null) {
   if (!file) return
   if (!file.type.startsWith('image/')) {
     ElMessage.error(t('settings.avatarNotImage'))
@@ -215,7 +223,7 @@ async function handleAvatarSelect(file) {
     form.avatar = uploaded.filePath
     ElMessage.success(t('settings.avatarUpdated'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   }
 }
 
@@ -228,7 +236,7 @@ function openPreview() {
   window.open(`/artist/${form.subdomain}?${params.toString()}`, '_blank', 'noopener')
 }
 
-const coverArtworks = ref([])
+const coverArtworks = ref<ArtworkWithTags[]>([])
 const coverLoading = ref(false)
 let coverLoaded = false
 
@@ -251,13 +259,22 @@ function addLink() {
   if (form.customLinks.length >= MAX_LINKS) return
   form.customLinks.push({ url: '', platformId: null, __k: linkKey++ })
 }
-function removeLink(index) {
-  form.customLinks.splice(index, 1)
+/** 主页展示 Tab 表单投影（子组件 ShowcaseForm 私有类型 status 收 ArtistStatus；经 unknown 中转断言，运行时引用不变） */
+const showcaseForm = computed(() => form as unknown as {
+  status: ArtistStatus
+  announcement: string
+  announcementExpiresAt: string | null
+  customLinks: CustomLinkRow[]
+  inspirationTags: string[]
+})
+
+function removeLink(index: string | number) {
+  form.customLinks.splice(Number(index), 1)
 }
-function moveLink(index, direction) {
-  const target = index + direction
+function moveLink(index: string | number, direction: number) {
+  const target = Number(index) + direction
   if (target < 0 || target >= form.customLinks.length) return
-  const [item] = form.customLinks.splice(index, 1)
+  const [item] = form.customLinks.splice(Number(index), 1)
   form.customLinks.splice(target, 0, item)
 }
 
@@ -280,8 +297,8 @@ function addTag() {
   form.inspirationTags.push(tag)
   newTag.value = ''
 }
-function removeTag(index) {
-  form.inspirationTags.splice(index, 1)
+function removeTag(index: string | number) {
+  form.inspirationTags.splice(Number(index), 1)
 }
 
 const templates = computed(() => [
@@ -308,7 +325,7 @@ async function save() {
     if (activeTab.value === 'template') {
       await artistApi.updateProfile({ templateId: form.templateId, paletteId: form.paletteId, accentColor: form.accentColor })
     } else if (activeTab.value === 'showcase') {
-      const links = []
+      const links: Array<{ url: string }> = []
       for (const l of form.customLinks) {
         const url = String(l.url || '').trim()
         if (!url) continue
@@ -325,7 +342,7 @@ async function save() {
         inspirationTags: form.inspirationTags.map(tag => tag.trim()).filter(Boolean),
         announcement: form.announcement.trim() || null,
         announcementExpiresAt: form.announcementExpiresAt || null
-      })
+      }) as PublicArtistDTO & { warning?: SensitiveWarning }
       // REQ-042: 主页公告命中敏感词 → 提示（不硬拦，先发后审）
       if (res?.warning?.sensitiveWords?.length) {
         ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
@@ -342,9 +359,9 @@ async function save() {
     ElMessage.success(t('settings.saved'))
     // 围剿 a1-10: showcase 保存只落 profile 字段——rulesContent 未随本次保存入库，
     // 不得把未保存的规则计入基线（否则规则脏标记被误清）；规则自身保存仍走 saveRules 全量基线
-    markTabSaved(activeTab.value, activeTab.value !== 'showcase')
+    markTabSaved(activeTab.value as SettingsTab, activeTab.value !== 'showcase')
     trackEvent('artist_action', { action: 'settings_save', tab: activeTab.value })
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err instanceof Error ? err.message : '') || String(err)) }
   finally { saving.value = false }
 }
 
@@ -352,9 +369,10 @@ const TAB_BASELINE_FIELDS = {
   profile: ['name', 'bio', 'artistCode', 'contactQq', 'guestbookEnabled'],
   template: ['templateId', 'paletteId', 'accentColor']
 }
-const tabBaseline = { profile: null, showcase: null, template: null }
+type SettingsTab = 'profile' | 'showcase' | 'template'
+const tabBaseline: Record<SettingsTab, string | null> = { profile: null, showcase: null, template: null }
 
-function snapshotTab(tab, includeRules = true) {
+function snapshotTab(tab: SettingsTab, includeRules = true): string {
   if (tab === 'showcase') {
     return JSON.stringify({
       status: form.status,
@@ -366,17 +384,17 @@ function snapshotTab(tab, includeRules = true) {
       ...(includeRules ? { rules: rulesContent.value } : {})
     })
   }
-  return JSON.stringify(TAB_BASELINE_FIELDS[tab].map(k => form[k]))
+  return JSON.stringify(TAB_BASELINE_FIELDS[tab].map(k => form[k as keyof typeof form]))
 }
-function markTabSaved(tab, includeRules = true) {
+function markTabSaved(tab: SettingsTab, includeRules = true) {
   tabBaseline[tab] = snapshotTab(tab, includeRules)
 }
-function isTabDirty(tab) {
+function isTabDirty(tab: SettingsTab) {
   if (tabBaseline[tab] === null) return false
   return snapshotTab(tab) !== tabBaseline[tab]
 }
-async function beforeTabLeave(newName, oldName) {
-  if (!isTabDirty(oldName)) return true
+async function beforeTabLeave(_newName: string, oldName: string) {
+  if (!isTabDirty(oldName as SettingsTab)) return true
   try {
     await ElMessageBox.confirm(t('settings.unsavedLeaveTip'), t('settings.unsavedLeaveTitle'), {
       type: 'warning',
@@ -396,27 +414,27 @@ async function loadProfile() {
   profileLoadFailed.value = false
   try {
     const profile = await artistApi.getProfile()
-    const LEGACY = { 'default': 'classic', 'dark-gallery': 'gallery', 'single-page': 'folio' }
+    const LEGACY: Record<string, string> = { 'default': 'classic', 'dark-gallery': 'gallery', 'single-page': 'folio' }
     const rawTpl = profile.template_id || 'classic'
 
-    let customLinks = []
+    let customLinks: CustomLinkRow[] = []
     if (profile.custom_links) {
       try {
-        const parsed = JSON.parse(profile.custom_links)
+        const parsed: unknown = JSON.parse(profile.custom_links)
         if (Array.isArray(parsed)) {
-          customLinks = parsed
+          customLinks = (parsed as Array<string | { url?: string; platformId?: number | null }>)
             .map(item => typeof item === 'string' ? { url: item, platformId: null } : { url: item.url || '', platformId: item.platformId ?? null })
-            .filter(item => item.url)
+            .filter((item): item is CustomLinkRow => Boolean(item.url))
             .map(l => ({ ...l, __k: linkKey++ }))
         }
       } catch { customLinks = [] }
     }
 
-    let inspirationTags = []
+    let inspirationTags: string[] = []
     if (profile.inspiration_tags) {
       try {
-        const parsed = JSON.parse(profile.inspiration_tags)
-        if (Array.isArray(parsed)) inspirationTags = parsed.filter(tag => typeof tag === 'string' && tag)
+        const parsed: unknown = JSON.parse(profile.inspiration_tags)
+        if (Array.isArray(parsed)) inspirationTags = parsed.filter((tag): tag is string => typeof tag === 'string' && tag !== '')
       } catch { inspirationTags = [] }
     }
 
@@ -444,7 +462,7 @@ async function loadProfile() {
     markTabSaved('showcase')
     markTabSaved('template')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
     profileLoadFailed.value = true
   }
   finally { loading.value = false }

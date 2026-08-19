@@ -49,7 +49,7 @@
                   :model-value="!!style.is_active" size="small"
                   :disabled="isLocked(style)"
                   :active-text="$t('styleManage.styleActive')"
-                  @change="(val) => toggleActive(style, val)"
+                  @change="(val: boolean | string | number) => toggleActive(style, val)"
                 />
                 <el-button text size="small" :disabled="isLocked(style)" @click="openEditStyle(style)">{{ $t('common.edit') }}</el-button>
                 <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteStyle(style)">{{ $t('common.delete') }}</el-button>
@@ -222,10 +222,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import draggable from 'vuedraggable'
 import { artistApi } from '../../api/index.js'
+import type { AddonTemplate } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 // REQ-036 批A: 增项直觉化子组件（新建/预览/三层设置）+ SPEC-PRICE-2 共享纯函数
@@ -241,9 +242,61 @@ import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLab
 
 const { t } = useI18n()
 
-const styles = ref([])
-const artworks = ref([]) // 作品集（尺寸图"从作品集挑" + 缩略图解析）
-const addonTemplates = ref([]) // 增项库全量（A4 导入弹窗候选）
+/** 增项胶囊行（StyleAddonWithTemplate 消费子集） */
+interface ManagerSa {
+  id: number
+  addon_template_id: number
+  is_enabled: number | boolean
+  template_name: string
+  template_control_type: string
+  template_price_mode: string
+  template_default_price: number
+  template_category: string
+  price_override?: number | null
+}
+/** 尺寸行（StyleSize 消费子集 + 前端挂载的 _overrides 缓存） */
+interface ManagerSizeRow {
+  id: number
+  name: string
+  base_price: number
+  sort_order: number
+  image?: string | null
+  image_artwork_id?: number | null
+  description?: string | null
+  work_days?: number | null
+  display_status?: string | null
+  _overrides?: Record<number, { price_override: number | null; is_hidden: boolean }>
+}
+/** 画风卡片行（ArtStyleWithDetails 消费子集） */
+interface ManagerStyleRow {
+  id: number
+  name: string
+  description?: string | null
+  cover_image?: string | null
+  sort_order: number
+  is_active: number
+  sizes: ManagerSizeRow[]
+  addons: ManagerSa[]
+}
+/** 作品集条目（缩略图解析用） */
+interface ManagerArtwork {
+  id: number
+  image_path: string
+}
+/** AddonCreateDialog created 事件载荷 */
+interface AddonCreatedPayload {
+  name: string
+  control_type: 'switch' | 'quantity'
+  price_mode: 'fixed' | 'percent'
+  default_price: number
+  category: 'add' | 'usage' | 'rush'
+  unit_label?: string | null
+  max_quantity?: number | null
+}
+
+const styles = ref<ManagerStyleRow[]>([])
+const artworks = ref<ManagerArtwork[]>([]) // 作品集（尺寸图"从作品集挑" + 缩略图解析）
+const addonTemplates = ref<AddonTemplate[]>([]) // 增项库全量（A4 导入弹窗候选）
 const loading = ref(true)
 
 // ─── v0.35 波1 (F2): 多画风开关 ───
@@ -254,7 +307,7 @@ const switchSaving = ref(false)
 const defaultStyleId = computed(() => styles.value.find(s => s.is_active)?.id ?? null)
 
 /** 开关关闭时，非默认画风灰色不可编辑（F2 验收 2） */
-function isLocked(style) {
+function isLocked(style: ManagerStyleRow) {
   return !multiStyleEnabled.value && style.id !== defaultStyleId.value
 }
 
@@ -263,7 +316,7 @@ function isLocked(style) {
  * - 关闭时若只剩最后一个启用画风 → 拦截（关了也没有可切换的默认，徒增困惑）
  * - 关闭成功后默认画风（首个启用）自动置顶
  */
-async function onMultiStyleChange(val) {
+async function onMultiStyleChange(val: string | number | boolean) {
   if (!val) {
     const enabled = styles.value.filter(s => !!s.is_active)
     if (enabled.length <= 1) {
@@ -281,14 +334,14 @@ async function onMultiStyleChange(val) {
     }
   } catch (err) {
     multiStyleEnabled.value = !val // 回滚开关
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     switchSaving.value = false
   }
 }
 
 /** 把指定画风移到数组首位并持久化 sort_order（设为默认 / 默认自动置顶共用） */
-async function bringToFront(style) {
+async function bringToFront(style: ManagerStyleRow) {
   const idx = styles.value.findIndex(s => s.id === style.id)
   if (idx <= 0) return
   const [moved] = styles.value.splice(idx, 1)
@@ -301,13 +354,13 @@ async function bringToFront(style) {
       }
     }
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     await load() // 回滚前端顺序
   }
 }
 
 /** 设为默认（仅多画风关闭时可见）：置顶后它即默认（首个启用画风） */
-async function setAsDefault(style) {
+async function setAsDefault(style: ManagerStyleRow) {
   await bringToFront(style)
   ElMessage.success(t('styleManage.defaultChanged'))
 }
@@ -325,13 +378,13 @@ async function onStyleDragEnd() {
     }
     ElMessage.success(t('tiers.reorderSaved'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     await load() // 回滚前端顺序
   }
 }
 
 /** 尺寸行拖拽结束 — 逐条 PUT sort_order */
-async function onSizeDragEnd(style) {
+async function onSizeDragEnd(style: ManagerStyleRow) {
   try {
     for (let i = 0; i < style.sizes.length; i++) {
       if (style.sizes[i].sort_order !== i) {
@@ -341,40 +394,40 @@ async function onSizeDragEnd(style) {
     }
     ElMessage.success(t('tiers.reorderSaved'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     await load()
   }
 }
 
 // ─── 控件类型标签（addon-utils 单一来源，不再本地重复定义） ───
-function controlLabel(type) {
+function controlLabel(type: string) {
   return controlLabelText(t, type)
 }
 
 // ─── 画风 CRUD（表单/封面上传/保存已拆入 StyleEditDialog，此处只保留弹窗开关） ───
 const styleDialogVisible = ref(false)
-const editingStyle = ref(null) // 编辑对象；null = 新建
+const editingStyle = ref<ManagerStyleRow | null>(null) // 编辑对象；null = 新建
 
 function openCreateStyle() {
   editingStyle.value = null
   styleDialogVisible.value = true
 }
 
-function openEditStyle(style) {
+function openEditStyle(style: ManagerStyleRow) {
   editingStyle.value = style
   styleDialogVisible.value = true
 }
 
-async function toggleActive(style, val) {
+async function toggleActive(style: ManagerStyleRow, val: boolean | string | number) {
   try {
-    await artistApi.updateArtStyle(style.id, { is_active: val })
+    await artistApi.updateArtStyle(style.id, { is_active: val as boolean })
     style.is_active = val ? 1 : 0
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
-async function confirmDeleteStyle(style) {
+async function confirmDeleteStyle(style: ManagerStyleRow) {
   try {
     await ElMessageBox.confirm(
       t('styleManage.styleDeleteConfirm', { name: style.name }),
@@ -387,17 +440,17 @@ async function confirmDeleteStyle(style) {
     ElMessage.success(t('styleManage.styleDeleted'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
 // ─── v0.35 波1 (F1): 尺寸 CRUD（表单/图上传/作品集挑选/保存已拆入 SizeEditDialog） ───
 const sizeDialogVisible = ref(false)
-const editingSizeStyleId = ref(null) // 尺寸弹窗所属画风（与画风弹窗的 editingStyle 区分）
-const editingSize = ref(null) // 编辑对象；null = 新建
+const editingSizeStyleId = ref<number | undefined>(undefined) // 尺寸弹窗所属画风（与画风弹窗的 editingStyle 区分）
+const editingSize = ref<ManagerSizeRow | null>(null) // 编辑对象；null = 新建
 
 /** 尺寸缩略图：image_artwork_id 有值 → 作品集实图；否则独立上传图（渲染优先级与客户端一致） */
-function sizeThumb(size) {
+function sizeThumb(size: ManagerSizeRow) {
   if (size.image_artwork_id) {
     const art = artworks.value.find(a => a.id === size.image_artwork_id)
     if (art) return art.image_path
@@ -405,14 +458,14 @@ function sizeThumb(size) {
   return size.image || null
 }
 
-function openSizeDialog(style, size) {
+function openSizeDialog(style: ManagerStyleRow, size?: ManagerSizeRow) {
   editingSizeStyleId.value = style.id
   editingSize.value = size || null
   sizeDialogVisible.value = true
 }
 
 /** 把即时保存的结果同步到列表（避免整体重载） */
-function patchSizeRow(styleId, sizeId, patch) {
+function patchSizeRow(styleId: number, sizeId: number, patch: Record<string, unknown>) {
   const style = styles.value.find(s => s.id === styleId)
   if (!style) return
   const size = style.sizes.find(s => s.id === sizeId)
@@ -420,11 +473,11 @@ function patchSizeRow(styleId, sizeId, patch) {
 }
 
 /** SizeEditDialog 即时保存（上传/挑图/移除）成功后回写列表行，避免整体重载 */
-function onRowPatch({ styleId, sizeId, patch }) {
+function onRowPatch({ styleId, sizeId, patch }: { styleId: number; sizeId: number; patch: Record<string, unknown> }) {
   patchSizeRow(styleId, sizeId, patch)
 }
 
-async function confirmDeleteSize(style, size) {
+async function confirmDeleteSize(style: ManagerStyleRow, size: ManagerSizeRow) {
   try {
     await ElMessageBox.confirm(
       t('styleManage.sizeDeleteConfirm', { name: size.name }),
@@ -437,15 +490,15 @@ async function confirmDeleteSize(style, size) {
     ElMessage.success(t('styleManage.sizeDeleted'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
 // ─── v0.35 补漏 A4: 从增项库导入（已拆入 AddonImportDialog，此处只保留弹窗开关） ───
 const importDialogVisible = ref(false)
-const importStyle = ref(null)
+const importStyle = ref<ManagerStyleRow | null>(null)
 
-function openImportDialog(style) {
+function openImportDialog(style: ManagerStyleRow) {
   importStyle.value = style
   importDialogVisible.value = true
 }
@@ -453,14 +506,14 @@ function openImportDialog(style) {
 // ─── REQ-036 批A: 加购项池 + 拖拽 + 三态 + 摘要 + 弹窗（直觉化重构，替换 v0.35 A4/A5 行内交互） ───
 
 /** 尺寸三态选项（SPEC-PRICE-2：后端真实枚举 available/showcase/closed，落库持久化） */
-const statusOptions = computed(() => [
+const statusOptions = computed<Array<{ value: 'available' | 'showcase' | 'closed'; label: string }>>(() => [
   { value: 'available', label: t('styleManage.sizeStatusOpen') },
   { value: 'showcase', label: t('styleManage.sizeStatusShow') },
   { value: 'closed', label: t('styleManage.sizeStatusClose') }
 ])
 
 /** 三态切换：即时 PUT display_status 落库；失败回滚显示 */
-async function setSizeStatus(style, size, value) {
+async function setSizeStatus(style: ManagerStyleRow, size: ManagerSizeRow, value: 'available' | 'showcase' | 'closed') {
   const prev = size.display_status
   size.display_status = value // 乐观更新
   try {
@@ -468,18 +521,18 @@ async function setSizeStatus(style, size, value) {
     ElMessage.success(t('common.saved'))
   } catch (err) {
     size.display_status = prev
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
 /** 池子三类分组（增项/用途/加急，顺序固定）——读后端真实 category 字段 */
-function poolGroups(style) {
+function poolGroups(style: ManagerStyleRow) {
   return ['add', 'usage', 'rush'].map(cat => ({ cat, items: style.addons.filter(sa => addonCategory(sa) === cat) }))
 }
 
 /** 02H 单选约束（用户原话「用途、加急分别只能选一个」）：启用目标 usage/rush 时，同画风其他同类项 is_enabled=false
  * 返回 setStyleAddons items（含目标项 is_enabled=true + 其他同类 false）；增项类(add)不互斥 */
-function mutexAddonItems(style, targetSa) {
+function mutexAddonItems(style: ManagerStyleRow, targetSa: { id: number; addon_template_id: number; template_category?: string | null; is_enabled?: number | boolean }) {
   const cat = addonCategory(targetSa)
   if (cat === 'add') return null
   const items = style.addons.filter(sa => sa.id !== targetSa.id && addonCategory(sa) === cat && !!sa.is_enabled)
@@ -489,7 +542,7 @@ function mutexAddonItems(style, targetSa) {
 }
 
 /** 画风级生效价文本（池子胶囊 / 摘要 chip）：本身价 or 画风覆盖价 */
-function capPriceText(sa) {
+function capPriceText(sa: ManagerSa) {
   return addonPriceText(sa, null, t)
 }
 
@@ -497,7 +550,7 @@ function capPriceText(sa) {
  * 某尺寸已启用增项摘要（实时更新）：画风级启用 && 尺寸级未隐藏
  * 返回 [{ id, name, kind, priceText }] — kind: add/qty/pct（三种计价形态视觉区分）
  */
-function sizeSummary(style, size) {
+function sizeSummary(style: ManagerStyleRow, size: ManagerSizeRow) {
   const ov = size._overrides || {}
   return style.addons
     .filter(sa => !!sa.is_enabled && !(ov[sa.id]?.is_hidden))
@@ -511,15 +564,15 @@ function sizeSummary(style, size) {
 
 // ─── 新建增项（任务2）：表单 created → 建模板 + 挂本画风；attached → 直接挂载同名库模板 ───
 const createDialogVisible = ref(false)
-const createDialogStyleId = ref(null)
+const createDialogStyleId = ref<number | undefined>(undefined)
 
-function openCreateAddon(style) {
+function openCreateAddon(style: ManagerStyleRow) {
   createDialogStyleId.value = style.id
   createDialogVisible.value = true
 }
 
 /** created：库中无同名 → 新建模板并挂到本画风（自动沉淀） */
-async function onAddonCreated(payload) {
+async function onAddonCreated(payload: AddonCreatedPayload) {
   const styleId = createDialogStyleId.value
   if (!styleId || !payload?.name) return
   try {
@@ -532,12 +585,12 @@ async function onAddonCreated(payload) {
     ElMessage.success(t('styleManage.addonCreatedAttached'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
 /** attached：库中已有同名 → 直接挂载该模板 */
-async function onAddonAttached({ templateId }) {
+async function onAddonAttached({ templateId }: { templateId: number }) {
   const styleId = createDialogStyleId.value
   if (!styleId || !templateId) return
   try {
@@ -545,16 +598,16 @@ async function onAddonAttached({ templateId }) {
     ElMessage.success(t('styleManage.addonAttached'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
 // ─── 预览弹窗（任务5）：顾客视角只读 ───
 const previewVisible = ref(false)
-const previewStyle = ref(null)
-const previewSize = ref(null)
+const previewStyle = ref<ManagerStyleRow | null>(null)
+const previewSize = ref<ManagerSizeRow | null>(null)
 
-function openPreview(style, size) {
+function openPreview(style: ManagerStyleRow, size: ManagerSizeRow) {
   previewStyle.value = style
   previewSize.value = size
   previewVisible.value = true
@@ -562,10 +615,10 @@ function openPreview(style, size) {
 
 // ─── 三层设置弹窗（任务4）───
 const settingsVisible = ref(false)
-const settingsStyle = ref(null)
-const settingsSa = ref(null)
+const settingsStyle = ref<ManagerStyleRow | null>(null)
+const settingsSa = ref<ManagerSa | null>(null)
 
-function openAddonSettings(style, sa) {
+function openAddonSettings(style: ManagerStyleRow, sa: ManagerSa) {
   settingsStyle.value = style
   settingsSa.value = sa
   settingsVisible.value = true
@@ -576,21 +629,21 @@ function onSettingsSaved() {
 }
 
 // ─── 拖拽（任务3，原生 HTML5 drag）：池 → 尺寸行 = 启用；摘要 chip → 池 = 停用 ───
-const dragPayload = ref(null) // { styleId, saId, fromSizeId|null }
+const dragPayload = ref<{ styleId: number; saId: number; fromSizeId: number | null } | null>(null) // { styleId, saId, fromSizeId|null }
 const poolDragOver = ref(false)
 const DRAG_MIME = 'text/x-addon-sa'
 
-function onCapDragStart(style, sa, e) {
+function onCapDragStart(style: ManagerStyleRow, sa: ManagerSa, e: DragEvent) {
   dragPayload.value = { styleId: style.id, saId: sa.id, fromSizeId: null }
-  e.dataTransfer.effectAllowed = 'copy'
-  e.dataTransfer.setData(DRAG_MIME, String(sa.id))
+  e.dataTransfer!.effectAllowed = 'copy'
+  e.dataTransfer!.setData(DRAG_MIME, String(sa.id))
 }
 
 /** 摘要 chip 拖拽：记录来源尺寸，drop 到池 = 停用该尺寸 */
-function onChipDragStart(style, size, chip, e) {
+function onChipDragStart(style: ManagerStyleRow, size: ManagerSizeRow, chip: { id: number }, e: DragEvent) {
   dragPayload.value = { styleId: style.id, saId: chip.id, fromSizeId: size.id }
-  e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData(DRAG_MIME, String(chip.id))
+  e.dataTransfer!.effectAllowed = 'move'
+  e.dataTransfer!.setData(DRAG_MIME, String(chip.id))
 }
 
 function onCapDragEnd() {
@@ -598,12 +651,12 @@ function onCapDragEnd() {
 }
 
 /** 尺寸行 dragover：仅接受增项拖拽（避免干扰 vuedraggable 排序） */
-function onSizeDragOver(e) {
-  if (e.dataTransfer.types.includes(DRAG_MIME)) e.preventDefault()
+function onSizeDragOver(e: DragEvent) {
+  if (e.dataTransfer!.types.includes(DRAG_MIME)) e.preventDefault()
 }
 
-function onPoolDragOver(e) {
-  if (e.dataTransfer.types.includes(DRAG_MIME)) {
+function onPoolDragOver(e: DragEvent) {
+  if (e.dataTransfer!.types.includes(DRAG_MIME)) {
     e.preventDefault()
     poolDragOver.value = true
   }
@@ -611,7 +664,7 @@ function onPoolDragOver(e) {
 function onPoolDragLeave() { poolDragOver.value = false }
 
 /** 拖到尺寸行 = 启用该尺寸（仅决定启用，不动价格；已启用 → 提示不重复） */
-async function onDropToSize(style, size, _e) {
+async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: DragEvent) {
   const payload = dragPayload.value
   if (!payload || payload.styleId !== style.id) return
   if (payload.fromSizeId === size.id) return // 从本尺寸拖回 → 无操作
@@ -622,7 +675,7 @@ async function onDropToSize(style, size, _e) {
     ElMessage.info(t('styleManage.addonAlreadyEnabled', { name: sa.template_name, size: size.name }))
     return
   }
-  let mutexRestore = null
+  let mutexRestore: Array<{ addon_template_id: number; is_enabled: boolean }> | null = null
   try {
     // 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（顾客每单各选一个，后端兜底互斥）
     const mutex = mutexAddonItems(style, sa)
@@ -651,7 +704,7 @@ async function onDropToSize(style, size, _e) {
       }
     }
     await load()
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     dragPayload.value = null
     poolDragOver.value = false
@@ -659,7 +712,7 @@ async function onDropToSize(style, size, _e) {
 }
 
 /** 拖回池 = 停用（来源尺寸记录在 fromSizeId） */
-async function onDropToPool(style, _e) {
+async function onDropToPool(style: ManagerStyleRow, _e: DragEvent) {
   const payload = dragPayload.value
   if (!payload || payload.styleId !== style.id) return
   if (!payload.fromSizeId) { dragPayload.value = null; return } // 池 → 池 = 无操作
@@ -673,7 +726,7 @@ async function onDropToPool(style, _e) {
     size._overrides[sa.id] = { price_override: ov[sa.id]?.price_override ?? null, is_hidden: true }
     ElMessage.success(t('styleManage.addonDisabled', { size: size.name, name: sa.template_name }))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     dragPayload.value = null
     poolDragOver.value = false
@@ -681,7 +734,7 @@ async function onDropToPool(style, _e) {
 }
 
 /** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } }（GET 只读端点） */
-async function preloadOverrides(styleList) {
+async function preloadOverrides(styleList: ManagerStyleRow[]) {
   await Promise.all(styleList.map(async style => {
     await Promise.all((style.sizes || []).map(async size => {
       try {
@@ -707,13 +760,13 @@ async function load() {
       artistApi.getArtworks(),
       artistApi.getAddonTemplates()
     ])
-    styles.value = styleList
+    styles.value = styleList as unknown as ManagerStyleRow[]
     multiStyleEnabled.value = !!profile.multi_style_enabled
     artworks.value = artworkList
     addonTemplates.value = templates
     await preloadOverrides(styles.value) // REQ-036: 预载覆盖（池/摘要/弹窗依赖 size._overrides）
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     loading.value = false
   }

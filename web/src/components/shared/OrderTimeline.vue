@@ -26,7 +26,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * OrderTimeline — 订单进度时间线（R11）
  *
@@ -38,10 +38,20 @@
  * 完成日期：当前 API 不返回每阶段完成时间，已完成阶段只显示 ✓。
  */
 import { computed } from 'vue'
+import type { PropType } from 'vue'
+
+/** 流程阶段（订单时间线节点） */
+interface TimelineStage {
+  id: number
+  name?: string
+  sortOrder?: number | null
+  takesPayment?: boolean | number | null
+  basisPoints?: number | null
+}
 
 const props = defineProps({
   /** 流程阶段列表：{ id, name, sortOrder, takesPayment, basisPoints } */
-  stages: { type: Array, default: () => [] },
+  stages: { type: Array as PropType<TimelineStage[]>, default: () => [] },
   /** 当前阶段 ID（整数或 null） */
   currentStageId: { type: Number, default: null },
   /** 强制纵向（默认桌面横向、移动纵向） */
@@ -53,12 +63,12 @@ const sortedStages = computed(() =>
   [...props.stages].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 )
 
-function isCurrent(stageId) {
+function isCurrent(stageId: number) {
   return props.currentStageId != null && stageId === props.currentStageId
 }
 
 /** 节点状态：done / current / pending */
-function nodeState(stageId) {
+function nodeState(stageId: number) {
   if (props.currentStageId == null) return 'pending'
   if (stageId === props.currentStageId) return 'current'
   const currentIdx = sortedStages.value.findIndex(s => s.id === props.currentStageId)

@@ -157,10 +157,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index.js'
+import type { ArtistOrderItem } from '../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../../constants/pagination.js'
 // v0.38 第二批: 统一墨线空态（REQ-026 §二）
@@ -172,14 +173,14 @@ import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 
 const route = useRoute()
 const router = useRouter()
-const orders = ref([])
+const orders = ref<ArtistOrderItem[]>([])
 const loading = ref(true)
 const filter = ref('')
 // REQ-020 F1: 搜索（300ms debounce）
 const searchQuery = ref('')
 // v130: 排序口径（''=默认时间倒序 / time_asc 时间正序 / priority 优先级高→低，后端白名单）
 const sortMode = ref('')
-function onSortChange({ prop, order }) {
+function onSortChange({ prop, order }: { prop?: string | null; order?: string | null }) {
   if (!order) sortMode.value = ''
   else if (prop === 'created_at') sortMode.value = order === 'ascending' ? 'time_asc' : ''
   else if (prop === 'priority') sortMode.value = order === 'ascending' ? 'priority' : ''
@@ -188,20 +189,20 @@ function onSortChange({ prop, order }) {
   page.value = 1
   loadOrders()
 }
-let searchTimer = null
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 function onSearchInput() {
-  clearTimeout(searchTimer)
+  clearTimeout(searchTimer ?? undefined)
   invalidateFullOrdersCache()
   searchTimer = setTimeout(() => { page.value = 1; loadOrders() }, 300)
 }
 function onSearchClear() {
-  clearTimeout(searchTimer)
+  clearTimeout(searchTimer ?? undefined)
   invalidateFullOrdersCache()
   page.value = 1
   loadOrders()
 }
 onUnmounted(() => {
-  clearTimeout(searchTimer)
+  clearTimeout(searchTimer ?? undefined)
   loadSeq++ // a1: 卸载后慢响应/剩余分页不得继续写 refs（seq 作废）
 })
 // #2: 复合筛选（active=非终态，过滤掉 done/delivered / completed=done+delivered，客户端过滤）
@@ -219,19 +220,21 @@ const displayedOrders = computed(() => {
 // ─── REQ-037 批3 D1: 复合筛选全量数据会话内缓存 ───
 // active/completed 复合筛选需拉全量客户端过滤；同会话短时缓存避免统计卡来回跳转重复拉；
 // 订单列表页无写操作，TTL 到期自然失效即可
-let fullOrdersCache = null // { key, items, at }
+/** 会话内全量订单缓存形状 */
+interface FullOrdersCacheShape { key: string; items: ArtistOrderItem[]; at: number }
+let fullOrdersCache: FullOrdersCacheShape | null = null // { key, items, at }
 const FULL_ORDERS_CACHE_TTL = 60_000
 // v130: 缓存键含排序口径，切排序不复用旧序结果
 function fullOrdersCacheKey() { return (searchQuery.value.trim() || '') + '|' + sortMode.value }
 function invalidateFullOrdersCache() { fullOrdersCache = null }
-const fetchProgress = ref(null) // { done, total } | null
+const fetchProgress = ref<{ done: number; total: number } | null>(null) // { done, total } | null
 const page = ref(1)
 const pageSize = ref(ORDER_LIST_UI_PAGE_SIZE)
 const total = ref(0)
 
 import { statusType, priorityType } from '../../constants/order.js'
 
-function formatDate(str) {
+function formatDate(str: string) {
   return formatDateTimeShort(str)
 }
 
@@ -278,7 +281,7 @@ async function fetchAllOrders() {
   }
   const status = filter.value || undefined
   const pageSize = FETCH_ALL_PAGE_SIZE
-  const all = []
+  const all: ArtistOrderItem[] = []
   const first = await artistApi.getOrders(status, { page: 1, pageSize, q: q || undefined, sort: sortMode.value || undefined })
   const firstItems = first.items ?? first
   all.push(...firstItems)
@@ -318,7 +321,7 @@ async function loadOrders() {
     total.value = res.total ?? orders.value.length
   } catch (err) {
     if (mySeq !== loadSeq) return
-    ElMessage.error(err.message)
+    ElMessage.error(err instanceof Error ? err.message : String(err))
   } finally {
     if (mySeq === loadSeq) loading.value = false
   }
@@ -334,7 +337,7 @@ function onSizeChange() {
 }
 
 // 05D-O2: 桌面整行点击进详情（移动端卡片原本就可点；详情按钮保留兼容）
-function onRowClick(row) {
+function onRowClick(row: ArtistOrderItem) {
   router.push(`/orders/${row.id}?from=orders`)
 }
 

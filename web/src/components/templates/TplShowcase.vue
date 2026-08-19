@@ -161,8 +161,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
+import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 // v0.35 联调：resolveSizeImagePath 尺寸图解析纯函数（artwork_image_path > image > 封面兜底由 displayImageUrl 处理）
@@ -170,20 +171,62 @@ import { useArtistData, resolveSizeImagePath } from '../../composables/useArtist
 import { useTouchSwipe } from '../../composables/useTouchSwipe.js'
 import { formatYuanValue } from '../../utils/money.js'
 
+/** 档位（旧模型）宽松形状 */
+interface TierLike {
+  id: number
+  name: string
+  price: number
+  description?: string | null
+  work_days?: number | null
+  example_image?: string | null
+  visibility?: string | null
+}
+
+/** 画风尺寸宽松形状 */
+interface StyleSizeLike {
+  id: number
+  name: string
+  base_price: number
+  description?: string | null
+  work_days?: number | null
+  display_status?: string | null
+  artwork_image_path?: string | null
+  image?: string | null
+}
+
+/** 画风宽松形状 */
+interface StyleLike {
+  id: number
+  name: string
+  description?: string | null
+  cover_image?: string | null
+  sizes?: StyleSizeLike[] | null
+}
+
+/** 统一左菜单条目（style/tier 形态适配） */
+interface MenuItem {
+  key: number
+  name: string
+  priceLabel: string
+  badge: string
+  isShowcase?: boolean
+}
+
 const props = defineProps({
   /** 展示形态：'style' = 画风柜（新模型）；'tier' = 档位柜（旧模型兜底） */
   mode: { type: String, default: 'style' },
   /** 画风列表（GET /api/public/styles/:subdomain，只含 is_active=1，按 sort_order 排序） */
-  styles: { type: Array, default: () => [] },
+  styles: { type: Array as PropType<StyleLike[]>, default: () => [] },
   /** 档位列表（旧模型，展示柜交互：桌面左菜单 / 移动端滑动） */
-  tiers: { type: Array, default: () => [] },
+  tiers: { type: Array as PropType<TierLike[]>, default: () => [] },
   /** 画师子域名（跳转下单用） */
   subdomain: { type: String, default: '' },
   /** 画师信息（status 决定约稿按钮是否禁用） */
-  artist: { type: Object, default: null }
+  artist: { type: Object as PropType<{ status?: string | null } | null>, default: null }
 })
 
-const { imgUrl } = useArtistData(props)
+// 只取 imgUrl（不读 artist 数据，与 TplStatusBadge 同款传 null）
+const { imgUrl } = useArtistData({ artist: null })
 const router = useRouter()
 const { t } = useI18n()
 
@@ -199,7 +242,7 @@ const singleStyle = computed(() => props.styles[0] || null)
  * 数据适配器：style/tier 形态 → 统一左菜单条目
  * （名称 + 价格标签 + 可选徽标；展示区差异仍按 mode 分支保留）
  */
-const menuItems = computed(() => {
+const menuItems = computed<MenuItem[]>(() => {
   if (props.mode === 'tier') {
     return props.tiers.map((tier) => ({
       key: tier.id,
@@ -218,7 +261,7 @@ const menuItems = computed(() => {
 })
 
 /** v0.34 任务B：当前展示柜已选尺寸（点选高亮，再点取消；切换画风/滑动切换时清空） */
-const selectedSizeId = ref(null)
+const selectedSizeId = ref<number | null>(null)
 
 /** v0.35 F3: 当前选中尺寸对象（多画风=activeStyle 下；单画风=singleStyle 下） */
 const currentStyle = computed(() => (props.styles.length > 1 ? activeStyle.value : singleStyle.value))
@@ -246,7 +289,7 @@ const displayDesc = computed(() => {
 const displayWorkDays = computed(() => (props.mode === 'style' ? (selectedSize.value?.work_days ?? null) : null))
 
 /** 尺寸行点击：选中/取消选择（toggle）；展示态（showcase）尺寸不可选（与 OrderForm 后端拒单口径一致） */
-function toggleSize(sizeId) {
+function toggleSize(sizeId: number) {
   const size = (currentStyle.value?.sizes || []).find(sz => sz.id === sizeId)
   if (!size || size.display_status === 'showcase') return
   selectedSizeId.value = selectedSizeId.value === sizeId ? null : sizeId
@@ -267,14 +310,14 @@ function onStyleChange() {
 }
 
 /** 菜单项选中：画风柜切换画风时清空尺寸选择（与滑动切换同口径，杜绝旧画风 sizeId 随 goOrder 下发） */
-function selectItem(idx) {
+function selectItem(idx: number) {
   if (idx === activeIndex.value) return
   activeIndex.value = idx
   if (props.mode === 'style') onStyleChange()
 }
 
 /** 起步价标签（¥最低尺寸基础价起） */
-function fromLabel(style) {
+function fromLabel(style: StyleLike) {
   const prices = (style.sizes || []).map(s => s.base_price)
   if (!prices.length) return '—'
   return formatYuanValue(Math.min(...prices)) + '+'
@@ -282,7 +325,7 @@ function fromLabel(style) {
 
 // 波 M：触摸滑动抽公共（阈值 50px，行为与旧 TplStyleGrid/TplTierGrid 一致）
 const { onTouchStart, onTouchEnd: onSwipeEnd } = useTouchSwipe({ threshold: 50 })
-function onTouchEnd(e) {
+function onTouchEnd(e: TouchEvent) {
   const dir = onSwipeEnd(e)
   const last = props.mode === 'tier' ? props.tiers.length - 1 : props.styles.length - 1
   if (dir === 'left' && activeIndex.value < last) {
@@ -297,7 +340,7 @@ function onTouchEnd(e) {
 /** 跳转下单流程：style 带画风/尺寸 query（OrderForm 读 query 预选）；tier 保持原路径 */
 function goOrder() {
   if (props.mode === 'style') {
-    const query = {}
+    const query: Record<string, string | number> = {}
     const style = activeStyle.value || singleStyle.value
     if (style) query.styleId = style.id
     if (selectedSizeId.value != null) query.sizeId = selectedSizeId.value

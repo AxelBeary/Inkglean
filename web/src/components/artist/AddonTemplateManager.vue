@@ -99,9 +99,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
+import type { AddonTemplate } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon.js'
@@ -110,13 +111,13 @@ import { controlLabel, controlTagType, categoryLabel } from './addon-utils.js'
 
 const { t } = useI18n()
 
-const templates = ref([])
+const templates = ref<AddonTemplate[]>([])
 const loading = ref(true)
 /** 模板列表加载失败（独立错误态 + 重试；与"真没有模板"区分） */
 const loadFailed = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
-const editingId = ref(null)
+const editingId = ref<number | null>(null)
 const pendingReload = ref(false)
 
 const form = ref({
@@ -148,12 +149,13 @@ const categoryHint = computed(() =>
   form.value.category === 'add' ? t('styleManage.createCatHintAdd') : t('styleManage.createCatHintMultiplier')
 )
 
-function categoryTagType(cat) {
-  return { usage: 'warning', rush: 'danger', add: 'info' }[cat] || 'info'
+function categoryTagType(cat: string): 'warning' | 'danger' | 'info' {
+  const map: Record<string, 'warning' | 'danger' | 'info'> = { usage: 'warning', rush: 'danger', add: 'info' }
+  return map[cat] || 'info'
 }
 
 /** 用途/加急必须百分比计价（后端铁律）→ 自动切 percent */
-function onCategoryChange(cat) {
+function onCategoryChange(cat: string) {
   if (cat !== 'add' && form.value.price_mode !== 'percent') {
     form.value.price_mode = 'percent'
     if (form.value.default_price > ADDON_PERCENT_MAX) form.value.default_price = ADDON_DEFAULT_PRICE
@@ -167,7 +169,7 @@ function openCreate() {
   dialogVisible.value = true
 }
 
-function openEdit(row) {
+function openEdit(row: AddonTemplate) {
   editingId.value = row.id
   form.value = {
     name: row.name,
@@ -194,9 +196,9 @@ async function save() {
   try {
     const payload = {
       name: form.value.name.trim(),
-      category: form.value.category,
-      control_type: form.value.control_type,
-      price_mode: form.value.price_mode,
+      category: form.value.category as 'add' | 'usage' | 'rush',
+      control_type: form.value.control_type as 'switch' | 'quantity',
+      price_mode: form.value.price_mode as 'fixed' | 'percent',
       default_price: form.value.default_price,
       unit_label: form.value.control_type === 'quantity' ? (form.value.unit_label.trim() || null) : null,
       max_quantity: form.value.control_type === 'quantity' ? (form.value.max_quantity ?? null) : null
@@ -213,13 +215,13 @@ async function save() {
     pendingReload.value = true
     await load(true)
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     saving.value = false
   }
 }
 
-async function confirmDelete(row) {
+async function confirmDelete(row: AddonTemplate) {
   try {
     await ElMessageBox.confirm(
       t('styleManage.tplDeleteConfirm', { name: row.name }),
@@ -232,7 +234,7 @@ async function confirmDelete(row) {
     ElMessage.success(t('styleManage.tplDeleted'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 

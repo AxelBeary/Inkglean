@@ -90,7 +90,7 @@ docker compose up -d
 
 ## 4. GC 风险窗口（审计批E R-6，务必阅读）
 
-孤儿文件 GC（app.ts `gcUploads` / `scripts/gc-uploads.js`）把「DB 无引用」文件移入回收站，
+孤儿文件 GC（app.ts `gcUploads` / `scripts/gc-uploads.ts`）把「DB 无引用」文件移入回收站，
 回收窗口已从 **24h 提升到 72h**。原因（复合炸弹）：
 
 - 手工恢复旧 DB 备份后，**备份时点之后新上传且已关联订单的文件**在新 DB 里「无引用」；
@@ -102,7 +102,7 @@ docker compose up -d
 
 ## 5. DB 损坏自愈（entrypoint.sh，审计批E）
 
-`entrypoint.sh` 在起服前调用 `node scripts/check-db.js`（better-sqlite3 readonly 打开 +
+`entrypoint.sh` 在起服前调用 `npx tsx scripts/check-db.ts`（better-sqlite3 readonly 打开 +
 `integrity_check` + `foreign_key_check`）：
 
 - 探测通过 → 正常启动；

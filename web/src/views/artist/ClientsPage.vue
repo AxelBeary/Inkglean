@@ -64,25 +64,26 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
+import type { ClientProfile } from '../../api/types.js'
 
 const { t } = useI18n()
-const items = ref([])
+const items = ref<ClientProfile[]>([])
 const loading = ref(false)
 const searchQq = ref('')
 
 // 搜索防抖 + 竞态保护（300ms；慢请求不得覆盖快请求）
-let searchTimer = null
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 let searchSeq = 0
 function onSearchInput() {
-  clearTimeout(searchTimer)
+  clearTimeout(searchTimer ?? undefined)
   searchTimer = setTimeout(loadClients, 300)
 }
-onUnmounted(() => clearTimeout(searchTimer))
+onUnmounted(() => clearTimeout(searchTimer ?? undefined))
 
 async function loadClients() {
   const mySeq = ++searchSeq
@@ -94,7 +95,7 @@ async function loadClients() {
   } catch (err) {
     if (mySeq !== searchSeq) return
     items.value = []
-    ElMessage.error(err.message || t('clients.loadFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('clients.loadFailed'))
   } finally {
     if (mySeq === searchSeq) loading.value = false
   }
@@ -103,9 +104,9 @@ async function loadClients() {
 // ─── 编辑弹窗 ───
 const editVisible = ref(false)
 const saving = ref(false)
-const editForm = reactive({ qq: '', tags: [], note: '' })
+const editForm = reactive({ qq: '', tags: [] as string[], note: '' })
 
-function openEdit(row) {
+function openEdit(row: ClientProfile) {
   editForm.qq = row.clientQq
   editForm.tags = Array.isArray(row.tags) ? row.tags.slice() : []
   editForm.note = row.note || ''
@@ -144,13 +145,13 @@ async function saveEdit() {
     ElMessage.success(t('clients.saveSuccess'))
     await loadClients()
   } catch (err) {
-    ElMessage.error(err.message || t('clients.saveFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('clients.saveFailed'))
   } finally {
     saving.value = false
   }
 }
 
-async function removeClient(row) {
+async function removeClient(row: ClientProfile) {
   try {
     await ElMessageBox.confirm(t('clients.deleteConfirm'), t('common.confirmDeleteTitle'), {
       confirmButtonText: t('clients.delete'),
@@ -165,7 +166,7 @@ async function removeClient(row) {
     ElMessage.success(t('clients.deleteSuccess'))
     await loadClients()
   } catch (err) {
-    ElMessage.error(err.message || t('clients.deleteFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('clients.deleteFailed'))
   }
 }
 

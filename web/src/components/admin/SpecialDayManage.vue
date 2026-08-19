@@ -34,7 +34,7 @@
           <el-switch
             v-model="day.is_enabled" :active-value="1" :inactive-value="0" size="small"
             :loading="togglingId === day.id" :disabled="togglingId === day.id || removingId != null"
-            @change="(val) => toggleEnabled(day, val)"
+            @change="(val: number) => toggleEnabled(day, val)"
           />
         </span>
         <span class="sd-col sd-col--actions">
@@ -83,7 +83,7 @@
           <el-switch
             v-model="row.is_enabled" :active-value="1" :inactive-value="0" size="small"
             :loading="greetingTogglingId === row.id" :disabled="greetingTogglingId === row.id || greetingRemovingId != null"
-            @change="(val) => toggleGreetingEnabled(row, val)"
+            @change="(val: number) => toggleGreetingEnabled(row, val)"
           />
           <el-button
             size="small" type="danger" text
@@ -145,31 +145,39 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { SpecialDayListItem, GreetingTemplate, AdminArtistItem } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const days = ref([])
-const artists = ref([])
+const days = ref<SpecialDayListItem[]>([])
+const artists = ref<AdminArtistItem[]>([])
 const loading = ref(false)
-const selected = ref(null)
-const greetings = ref([])
+const selected = ref<SpecialDayListItem | null>(null)
+const greetings = ref<GreetingTemplate[]>([])
 const greetingsLoading = ref(false)
 const newText = ref('')
 const saving = ref(false)
-const togglingId = ref(null)
-const removingId = ref(null)
-const greetingTogglingId = ref(null)
-const greetingRemovingId = ref(null)
+const togglingId = ref<number | null>(null)
+const removingId = ref<number | null>(null)
+const greetingTogglingId = ref<number | null>(null)
+const greetingRemovingId = ref<number | null>(null)
 
 // 新建弹窗状态
 const dialogVisible = ref(false)
 const creating = ref(false)
-const form = ref({ name: '', dateKey: '', scope: 'global', artistId: null })
+/** 新建特别日表单（scope: global=全平台 / artist=指定画师） */
+interface SpecialDayForm {
+  name: string
+  dateKey: string
+  scope: string
+  artistId: number | null
+}
+const form = ref<SpecialDayForm>({ name: '', dateKey: '', scope: 'global', artistId: null })
 
 const canSubmit = computed(() =>
   form.value.name.trim() !== ''
@@ -177,12 +185,12 @@ const canSubmit = computed(() =>
   && (form.value.scope === 'global' || form.value.artistId != null)
 )
 
-const artistName = (id) => artists.value.find(a => a.id === id)?.name || `#${id}`
+const artistName = (id: number) => artists.value.find(a => a.id === id)?.name || `#${id}`
 
 async function load() {
   loading.value = true
   try { days.value = await adminApi.getSpecialDays() }
-  catch (err) { ElMessage.error(err.message) }
+  catch (err) { ElMessage.error((err as Error).message) }
   finally { loading.value = false }
 }
 
@@ -207,23 +215,23 @@ async function submitCreate() {
     })
     dialogVisible.value = false
     await load()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { creating.value = false }
 }
 
-async function toggleEnabled(day, val) {
+async function toggleEnabled(day: SpecialDayListItem, val: unknown) {
   if (togglingId.value === day.id) return
   togglingId.value = day.id
   try { await adminApi.updateSpecialDay(day.id, { isEnabled: !!val }) }
   catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     await load()
   } finally {
     togglingId.value = null
   }
 }
 
-async function removeDay(day) {
+async function removeDay(day: SpecialDayListItem) {
   try {
     await ElMessageBox.confirm(
       t('admin.specialDayDeleteConfirm', { name: day.name }),
@@ -237,13 +245,13 @@ async function removeDay(day) {
     await adminApi.deleteSpecialDay(day.id)
     if (selected.value?.id === day.id) { selected.value = null; greetings.value = [] }
     await load()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { removingId.value = null }
 }
 
 // ─── 当日文案编辑 ───
 
-async function selectDay(day) {
+async function selectDay(day: SpecialDayListItem) {
   selected.value = day
   newText.value = ''
   await loadGreetings()
@@ -253,7 +261,7 @@ async function loadGreetings() {
   if (!selected.value) return
   greetingsLoading.value = true
   try { greetings.value = await adminApi.getSpecialDayGreetings(selected.value.id) }
-  catch (err) { ElMessage.error(err.message) }
+  catch (err) { ElMessage.error((err as Error).message) }
   finally { greetingsLoading.value = false }
 }
 
@@ -265,23 +273,23 @@ async function addGreeting() {
     await adminApi.createGreeting({ text: newText.value.trim(), timeSlot: 'any', specialDayId: selected.value.id })
     newText.value = ''
     await Promise.all([loadGreetings(), load()])
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { saving.value = false }
 }
 
-async function toggleGreetingEnabled(row, val) {
+async function toggleGreetingEnabled(row: GreetingTemplate, val: unknown) {
   if (greetingTogglingId.value === row.id) return
   greetingTogglingId.value = row.id
   try { await adminApi.updateGreeting(row.id, { isEnabled: !!val }) }
   catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     await loadGreetings()
   } finally {
     greetingTogglingId.value = null
   }
 }
 
-async function removeGreeting(row) {
+async function removeGreeting(row: GreetingTemplate) {
   try {
     await ElMessageBox.confirm(
       t('admin.greetingDeleteConfirm'),
@@ -294,7 +302,7 @@ async function removeGreeting(row) {
   try {
     await adminApi.deleteGreeting(row.id)
     await Promise.all([loadGreetings(), load()])
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { greetingRemovingId.value = null }
 }
 

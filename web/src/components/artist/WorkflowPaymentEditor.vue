@@ -49,15 +49,29 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { artistApi, adminApi } from '../../api/index.js'
+import type { DefaultWorkflowNode, WorkflowResult, SavePaymentResult } from '../../api/types.js'
 import { MIN_BP, TOTAL_BP, MAX_INSTALLMENTS, NEW_BP } from '../../constants/workflow.js'
 import StageListView from './StageListView.vue'
 import PaymentBar from './PaymentBar.vue'
 import WorkflowOverviewStrip from '../shared/WorkflowOverviewStrip.vue'
+
+/** 编辑器内流程节点（前端 camelCase 形态；basisPoints 非收款节点为 null） */
+interface EditorStage {
+  id: number
+  name: string
+  description: string | null
+  sortOrder: number
+  takesPayment: boolean
+  basisPoints: number | null
+  isFinal: boolean
+  speechTemplate: string | null
+  randomTemplate?: boolean
+}
 
 const props = defineProps({
   /** null = 画师自己; 数字 = 管理员编辑该画师 */
@@ -71,16 +85,16 @@ const loading = ref(false)
 /** 流程加载失败（独立错误态 + 重试，不再 toast 后显示空列表） */
 const loadFailed = ref(false)
 const saving = ref(false)
-const stages = ref([])
-const dirtyNodes = ref([])
+const stages = ref<EditorStage[]>([])
+const dirtyNodes = ref<Array<{ id: number; basisPoints: number }>>([])
 const showHelp = ref(false)
 
 // API 分发：画师端 / 管理员端 / 默认模板
 // 默认模板行 → 前端 stages 映射（P1-7: isFinal = 最后一个收款节点）
-function mapTemplateRows(rows) {
+function mapTemplateRows(rows: Array<DefaultWorkflowNode & { speech_template?: string | null }> | null | undefined) {
   const list = (rows || []).map(x => ({
     id: x.id, name: x.name, description: x.description, sortOrder: x.sort_order,
-    takesPayment: !!x.takes_payment, basisPoints: x.basis_points, isFinal: false,
+    takesPayment: !!x.takes_payment, basisPoints: x.basis_points as number | null, isFinal: false,
     speechTemplate: x.speech_template ?? ''
   }))
   const payNodes = list.filter(s => s.takesPayment)
@@ -138,30 +152,40 @@ function templateSpeechBlocked() {
   ElMessage.info(t('workflow.templateNoSpeech'))
 }
 
-const api = computed(() => {
+/** API 适配器统一形状（模板/管理员默认/管理员代编/画师端四分支） */
+interface EditorApi {
+  get: () => Promise<{ stages: EditorStage[] } | WorkflowResult>
+  add: (d: { name: string }) => Promise<unknown>
+  update: (id: number, d: { name?: string; description?: string | null; speechTemplate?: string | null; randomTemplate?: boolean; takesPayment?: boolean | string | number }) => Promise<unknown>
+  del: (id: number) => Promise<unknown>
+  reorder: (ids: number[]) => Promise<WorkflowResult>
+  save: (nodes: Array<{ id: number; basisPoints: number }>) => Promise<SavePaymentResult | DefaultWorkflowNode[] | EditorStage[]>
+}
+
+const api = computed<EditorApi>(() => {
   if (props.mode === 'template') {
     return {
       get: () => adminApi.getDefaultWorkflow().then(mapTemplateRows),
-      add: (_d) => Promise.reject(new Error('模板不支持添加')),
-      update: () => Promise.reject(new Error('模板不支持编辑')),
-      del: () => Promise.reject(new Error('模板不支持删除')),
-      reorder: () => Promise.reject(new Error('模板不支持排序')),
-      save: (nodes) => adminApi.updateDefaultWorkflow(nodes)
+      add: (_d: { name: string }) => Promise.reject(new Error('模板不支持添加')),
+      update: (_id: number, _d: Record<string, unknown>) => Promise.reject(new Error('模板不支持编辑')),
+      del: (_id: number) => Promise.reject(new Error('模板不支持删除')),
+      reorder: (_ids: number[]) => Promise.reject(new Error('模板不支持排序')),
+      save: (nodes: Array<{ id: number; basisPoints: number }>) => adminApi.updateDefaultWorkflow(nodes)
     }
   }
   if (props.mode === 'admin' && !props.artistId) {
     // 仅 get/save 供 load()/savePayment 复用；结构操作走 handler 的本地分支
     return {
       get: () => adminApi.getDefaultWorkflow().then(mapTemplateRows),
-      add: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
-      update: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
-      del: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
-      reorder: () => Promise.reject(new Error('管理员默认模板走本地编辑')),
-      save: (dirtyNodes) => {
+      add: (_d: { name: string }) => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      update: (_id: number, _d: Record<string, unknown>) => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      del: (_id: number) => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      reorder: (_ids: number[]) => Promise.reject(new Error('管理员默认模板走本地编辑')),
+      save: (dirtyNodes: Array<{ id: number; basisPoints: number }>) => {
         // 比例条：用 dirtyNodes 覆盖本地比例后整体保存
         const overrides = new Map((dirtyNodes || []).map(n => [n.id, n.basisPoints]))
         for (const s of stages.value) {
-          if (s.takesPayment && overrides.has(s.id)) s.basisPoints = overrides.get(s.id)
+          if (s.takesPayment && overrides.has(s.id)) s.basisPoints = overrides.get(s.id) as number | null
         }
         return saveTemplateAll()
       }
@@ -169,21 +193,21 @@ const api = computed(() => {
   }
   if (props.artistId) {
     return {
-      get: () => adminApi.getArtistWorkflow(props.artistId),
-      add: (d) => adminApi.adminAddStage(props.artistId, d),
-      update: (id, d) => adminApi.adminUpdateStage(props.artistId, id, d),
-      del: (id) => adminApi.adminDeleteStage(props.artistId, id),
-      reorder: (ids) => adminApi.adminReorderStages(props.artistId, ids),
-      save: (nodes) => adminApi.adminSavePayment(props.artistId, nodes)
+      get: () => adminApi.getArtistWorkflow(props.artistId as number),
+      add: (d: { name: string }) => adminApi.adminAddStage(props.artistId as number, d),
+      update: (id: number, d: Record<string, unknown>) => adminApi.adminUpdateStage(props.artistId as number, id, d),
+      del: (id: number) => adminApi.adminDeleteStage(props.artistId as number, id),
+      reorder: (ids: number[]) => adminApi.adminReorderStages(props.artistId as number, ids),
+      save: (nodes: Array<{ id: number; basisPoints: number }>) => adminApi.adminSavePayment(props.artistId as number, nodes)
     }
   }
   return {
     get: () => artistApi.getWorkflow(),
-    add: (d) => artistApi.addStage(d),
-    update: (id, d) => artistApi.updateStage(id, d),
-    del: (id) => artistApi.deleteStage(id),
-    reorder: (ids) => artistApi.reorderStages(ids),
-    save: (nodes) => artistApi.savePayment(nodes)
+    add: (d: { name: string }) => artistApi.addStage(d),
+    update: (id: number, d: Record<string, unknown>) => artistApi.updateStage(id, d),
+    del: (id: number) => artistApi.deleteStage(id),
+    reorder: (ids: number[]) => artistApi.reorderStages(ids),
+    save: (nodes: Array<{ id: number; basisPoints: number }>) => artistApi.savePayment(nodes)
   }
 })
 
@@ -192,7 +216,7 @@ async function load() {
   loadFailed.value = false
   try {
     const res = await api.value.get()
-    stages.value = res.stages || res
+    stages.value = res.stages
   } catch {
     loadFailed.value = true
   }
@@ -201,81 +225,81 @@ async function load() {
 
 // ─── 即时操作 ───
 
-async function onReorder(orderedIds) {
+async function onReorder(orderedIds: number[]) {
   if (isTemplateAdmin.value) {
     try {
       // 本地重排 + 尾款可能易主 → 重算
       const map = new Map(stages.value.map(s => [s.id, s]))
-      stages.value = orderedIds.map(id => map.get(id)).filter(Boolean)
+      stages.value = orderedIds.map(id => map.get(id)).filter(Boolean) as EditorStage[]
       recalcFinalLocal()
       refreshIsFinalLocal()
       await saveTemplateAll()
-    } catch (err) { ElMessage.error(err.message); await load() }
+    } catch (err) { ElMessage.error((err as Error).message); await load() }
     return
   }
   try {
     const res = await api.value.reorder(orderedIds)
-    stages.value = res.stages || res
-  } catch (err) { ElMessage.error(err.message); await load() }
+    stages.value = res.stages
+  } catch (err) { ElMessage.error((err as Error).message); await load() }
 }
 
-async function onAdd({ name }) {
+async function onAdd({ name }: { name: string }) {
   if (isTemplateAdmin.value) {
     try {
       // 本地新增：默认不收款，插入到列表末尾（保存后由后端排序）
       stages.value.push({ id: nextTplId(), name, description: '', sortOrder: stages.value.length + 1, takesPayment: false, basisPoints: null, isFinal: false, speechTemplate: '' })
       await saveTemplateAll()
-    } catch (err) { ElMessage.error(err.message); await load() }
+    } catch (err) { ElMessage.error((err as Error).message); await load() }
     return
   }
   try {
     await api.value.add({ name })
     await load()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
 }
 
-async function onRename(id, name) {
+async function onRename(id: number, name: string) {
   if (isTemplateAdmin.value) {
     try {
       const s = stages.value.find(x => x.id === id)
       if (s) s.name = name
       await saveTemplateAll()
-    } catch (err) { ElMessage.error(err.message); await load() }
+    } catch (err) { ElMessage.error((err as Error).message); await load() }
     return
   }
   try {
     await api.value.update(id, { name })
     await load()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
 }
 
-async function onUpdateDesc(id, description) {
+async function onUpdateDesc(id: number, description: string) {
   if (isTemplateAdmin.value) {
     try {
       const s = stages.value.find(x => x.id === id)
       if (s) s.description = description
       await saveTemplateAll()
-    } catch (err) { ElMessage.error(err.message); await load() }
+    } catch (err) { ElMessage.error((err as Error).message); await load() }
     return
   }
   try {
     await api.value.update(id, { description })
     await load()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
 }
 
 // plan-node-speech：保存节点话术（PUT 时附带 speechTemplate + randomTemplate 字段，v0.27）
-async function onUpdateSpeech(id, { speechTemplate, randomTemplate }) {
+async function onUpdateSpeech(id: number, { speechTemplate, randomTemplate }: { speechTemplate: string; randomTemplate: boolean }) {
   // 管理员默认流程：模板无话术字段（后端表无列 + PUT schema 拒收）→ 诚实拦截
   if (isTemplateAdmin.value) { templateSpeechBlocked(); return }
   try {
     await api.value.update(id, { speechTemplate, randomTemplate })
     await load()
     ElMessage.success(t('workflow.speechSaved'))
-  } catch (err) { ElMessage.error(err.message); await load() }
+  } catch (err) { ElMessage.error((err as Error).message); await load() }
 }
 
-async function onTogglePay(id, val) {
+async function onTogglePay(id: number, val: boolean | string | number) {
   // R22: 有未保存比例时先自动保存
   if (dirtyNodes.value.length > 0 && !await savePayment()) return
   if (isTemplateAdmin.value) {
@@ -289,29 +313,29 @@ async function onTogglePay(id, val) {
         if (s.isFinal) return // 尾款已是收款节点
         if (pays.length >= MAX_INSTALLMENTS) { ElMessage.warning(t('workflow.maxInstallments')); return }
         let newBp = NEW_BP
-        if (final && final.basisPoints - newBp < MIN_BP) newBp = final.basisPoints - MIN_BP
+        if (final && (final.basisPoints as number) - newBp < MIN_BP) newBp = (final.basisPoints as number) - MIN_BP
         if (newBp < MIN_BP) { ElMessage.warning(t('workflow.finalTooLow')); return }
         s.takesPayment = true
         s.basisPoints = newBp
-        if (final) final.basisPoints -= newBp
+        if (final) final.basisPoints = (final.basisPoints as number) - newBp
       } else {
         if (s.isFinal) { ElMessage.warning(t('workflow.finalCannotDisable')); return }
-        if (final && final.id !== s.id) final.basisPoints += s.basisPoints
+        if (final && final.id !== s.id) final.basisPoints = (final.basisPoints as number) + (s.basisPoints as number)
         s.takesPayment = false
         s.basisPoints = null
       }
       refreshIsFinalLocal()
       await saveTemplateAll()
-    } catch (err) { ElMessage.error(err.message); await load() }
+    } catch (err) { ElMessage.error((err as Error).message); await load() }
     return
   }
   try {
     await api.value.update(id, { takesPayment: val })
     await load()
-  } catch (err) { ElMessage.error(err.message); await load() }
+  } catch (err) { ElMessage.error((err as Error).message); await load() }
 }
 
-async function onDelete(id) {
+async function onDelete(id: number) {
   if (dirtyNodes.value.length > 0 && !await savePayment()) return
   if (isTemplateAdmin.value) {
     try {
@@ -322,21 +346,21 @@ async function onDelete(id) {
       if (s.takesPayment) {
         const pays = stages.value.filter(x => x.takesPayment && x.id !== id)
         const final = pays[pays.length - 1]
-        if (final) final.basisPoints += s.basisPoints
+        if (final) final.basisPoints = (final.basisPoints as number) + (s.basisPoints as number)
       }
       stages.value = stages.value.filter(x => x.id !== id)
       refreshIsFinalLocal()
       await saveTemplateAll()
-    } catch (err) { ElMessage.error(err.message); await load() }
+    } catch (err) { ElMessage.error((err as Error).message); await load() }
     return
   }
   try {
     await api.value.del(id)
     await load()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
 }
 
-async function onDetach(id) {
+async function onDetach(id: number) {
   // Q弹拖离 = 关闭收款
   if (dirtyNodes.value.length > 0 && !await savePayment()) return
   if (isTemplateAdmin.value) {
@@ -346,25 +370,25 @@ async function onDetach(id) {
       if (s.isFinal) { ElMessage.warning(t('workflow.finalCannotDisable')); return }
       const pays = stages.value.filter(x => x.takesPayment && x.id !== id)
       const final = pays[pays.length - 1]
-      if (final) final.basisPoints += s.basisPoints
+      if (final) final.basisPoints = (final.basisPoints as number) + (s.basisPoints as number)
       s.takesPayment = false
       s.basisPoints = null
       refreshIsFinalLocal()
       await saveTemplateAll()
       ElMessage.info(t('workflow.detached'))
-    } catch (err) { ElMessage.error(err.message); await load() }
+    } catch (err) { ElMessage.error((err as Error).message); await load() }
     return
   }
   try {
     await api.value.update(id, { takesPayment: false })
     ElMessage.info(t('workflow.detached'))
     await load()
-  } catch (err) { ElMessage.error(err.message); await load() }
+  } catch (err) { ElMessage.error((err as Error).message); await load() }
 }
 
 // ─── 比例保存 ───
 
-function onBarChange(nodes) {
+function onBarChange(nodes: Array<{ id: number; basisPoints: number }>) {
   dirtyNodes.value = nodes
 }
 
@@ -374,18 +398,18 @@ async function savePayment() {
   saving.value = true
   try {
     const res = await api.value.save(dirtyNodes.value)
-    stages.value = res.stages || res
+    stages.value = (res as { stages?: EditorStage[] }).stages || (res as unknown as EditorStage[])
     dirtyNodes.value = []
     ElMessage.success(t('workflow.saved'))
     // 批4 B10（方案 b）：活跃订单存在时后端附 appliesToNewOrdersOnly，提示仅影响新订单
-    if (res.appliesToNewOrdersOnly) ElMessage.info(t('workflow.paymentNewOrdersOnly'))
+    if ((res as { appliesToNewOrdersOnly?: boolean }).appliesToNewOrdersOnly) ElMessage.info(t('workflow.paymentNewOrdersOnly'))
     return true
-  } catch (err) { ElMessage.error(err.message); return false }
+  } catch (err) { ElMessage.error((err as Error).message); return false }
   finally { saving.value = false }
 }
 
 // 离开页面拦截
-function beforeUnload(e) {
+function beforeUnload(e: BeforeUnloadEvent) {
   if (dirtyNodes.value.length > 0) { e.preventDefault(); e.returnValue = '' }
 }
 
@@ -400,10 +424,10 @@ async function onReset() {
   loading.value = true
   try {
     const res = await artistApi.resetWorkflow()
-    stages.value = res.stages || res
+    stages.value = res.stages
     dirtyNodes.value = []
     ElMessage.success(t('workflow.resetDone'))
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { loading.value = false }
 }
 

@@ -1,7 +1,7 @@
 <template>
   <!-- HySkeleton — 订单卡片骨架屏（纯装饰，translateX 微光，GPU 友好） -->
   <div class="hy-skeleton" aria-hidden="true">
-    <div class="hy-skeleton-card" v-for="i in count" :key="i" :style="{ '--i': i - 1 }">
+    <div class="hy-skeleton-card" v-for="i in count" :key="i" :style="{ '--i': Number(i) - 1 }">
       <div class="hy-skeleton-thumb"></div>
       <div class="hy-skeleton-lines">
         <div class="hy-skeleton-line hy-skeleton-line--title"></div>
@@ -12,9 +12,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
 defineProps({
-  count: { type: Number, default: 6 }
+  // 兼容静态属性写法（如 count="6"，Vue 运行时仍按 Number 转型）
+  count: { type: Number as PropType<number | string>, default: 6 }
 })
 </script>
 

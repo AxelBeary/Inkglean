@@ -67,13 +67,28 @@
   </el-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
+import type { PropType } from 'vue'
 import CardHead from '../visual/CardHead.vue'
 import { Plus } from '@element-plus/icons-vue'
 
+/** 参考图行（本卡消费字段） */
+interface GalleryRefItem {
+  id?: number
+  url?: string
+  file_path?: string
+  source?: string | null
+}
+
+/** 本卡消费的订单字段（参考图列表 + 焦点图路径） */
+interface GalleryOrderLite {
+  references?: GalleryRefItem[] | null
+  focus_image_path?: string | null
+}
+
 defineProps({
-  order: { type: Object, required: true },
+  order: { type: Object as PropType<GalleryOrderLite>, required: true },
   galleryUploading: Boolean,
   isGalleryDragOver: Boolean,
   pasteError: { type: String, default: '' }
@@ -83,15 +98,15 @@ const emit = defineEmits([
   'dragenter', 'dragover', 'drop', 'file-select', 'update:isGalleryDragOver'
 ])
 
-const galleryInputEl = ref(null)
+const galleryInputEl = ref<HTMLInputElement | null>(null)
 /** 触发上传：等价于父组件原 triggerGalleryUpload（input 随卡移入本组件） */
 function triggerGalleryUpload() {
   galleryInputEl.value?.click()
 }
 
 /** R4: dragleave 防闪烁——仅当指针真正离开上传区（relatedTarget 不在本容器内）才取消高亮 */
-function handleDragLeave(event) {
-  if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget)) return
+function handleDragLeave(event: DragEvent) {
+  if (event.relatedTarget && (event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) return
   emit('update:isGalleryDragOver', false)
 }
 </script>

@@ -62,7 +62,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -83,7 +83,7 @@ const customW = ref('')
 const customH = ref('')
 const quality = ref(0.85)
 
-const fileInput = ref(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = ref('')
 const sourceDataUrl = ref('')
 const originalBytes = ref(0)
@@ -93,27 +93,28 @@ const resultDataUrl = ref('')
 const resultBytes = ref(0)
 const resultW = ref(0)
 const resultH = ref(0)
-let resultObjectUrl = null
+let resultObjectUrl: string | null = null
 
 const qualityPercent = computed(() => Math.round(quality.value * 100))
 const originalSizeText = computed(() => formatBytes(originalBytes.value))
 
-function qualityTooltip(v) {
+function qualityTooltip(v: number) {
   return `${Math.round(v * 100)}%`
 }
 
-function onFileChange(e) {
-  const file = e.target.files?.[0]
-  e.target.value = '' // 允许重复选择同一文件
+function onFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // 允许重复选择同一文件
   if (file) acceptImageFile(file)
 }
 
-function onDrop(e) {
+function onDrop(e: DragEvent) {
   const file = e.dataTransfer?.files?.[0]
   if (file) acceptImageFile(file)
 }
 
-function acceptImageFile(file) {
+function acceptImageFile(file: File) {
   if (!file.type.startsWith('image/')) {
     ElMessage.warning(t('imageResize.fileTypeError'))
     return
@@ -122,7 +123,7 @@ function acceptImageFile(file) {
   originalBytes.value = file.size
   const reader = new FileReader()
   reader.onload = () => {
-    sourceDataUrl.value = reader.result
+    sourceDataUrl.value = reader.result as string
     // 换图后旧结果失效
     releaseResult()
   }
@@ -158,7 +159,7 @@ async function process() {
     resultDataUrl.value = resultObjectUrl
     resultBytes.value = blob.size
     resultW.value = target.width
-    resultH.value = dstH
+    resultH.value = dstH ?? 0
   } catch {
     ElMessage.error(t('imageResize.processFailed'))
   } finally {

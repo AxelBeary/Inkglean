@@ -249,12 +249,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onUnmounted, h } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
+import type { VisibleArtistProfile, PublicStyleAddon } from '../../api/types.js'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import StepIndicator from './order-form/StepIndicator.vue'
 import StylePickStep from './order-form/StylePickStep.vue'
@@ -264,6 +265,7 @@ import DetailStep from './order-form/DetailStep.vue'
 import ContactStep from './order-form/ContactStep.vue'
 import OrderSummaryCard from './order-form/OrderSummaryCard.vue'
 import { useOrderForm } from '../../composables/useOrderForm.js'
+import type { StyleAddon } from './order-form/types.js'
 import { usePalette } from '../../composables/usePalette.js'
 import { formatYuan, formatYuanValue } from '../../utils/money.js'
 import { trackEvent, flushNow } from '../../utils/track.js'
@@ -271,15 +273,21 @@ import { trackEvent, flushNow } from '../../utils/track.js'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const subdomain = route.params.subdomain
-const formRef = ref(null)
+const subdomain = route.params.subdomain as string
+
+/** el-form ref 最小形状（提交时 validate + 校验失败滚动定位字段） */
+interface FormRefLike {
+  validate: () => Promise<unknown>
+  scrollToField: (field: string) => void
+}
+const formRef = ref<FormRefLike | null>(null)
 
 // R58-1: 表单业务逻辑全部由共享 composable 提供，页面只保留布局与样式
 const {
-  artist, rulesContent, loading, loadError, retryLoad, workflowStages,
+  artist: artistRaw, rulesContent, loading, loadError, retryLoad, workflowStages,
   form, rules,
   submitting, showSuccess, resultNo, trackUrl, submit,
-  refFileList, handleRefUpload, handleRefRemove,
+  refFileList, handleRefUpload: rawHandleRefUpload, handleRefRemove,
   sanitizedRules,
   // 折扣码
   discountEnabled, discountResult, discountError, discountValidating,
@@ -289,24 +297,34 @@ const {
   selectedStyleId, selectedStyle, selectedSizeId, selectedSize,
   availableStyleAddons, regularAddons, usageAddons, rushAddons,
   styleAddonSelections, selectedUsageId, selectedRushId,
-  selectStyle, selectSize, toggleUsage, toggleRush, styleAddonPriceText,
+  selectStyle, selectSize, toggleUsage, toggleRush, styleAddonPriceText: rawStyleAddonPriceText,
   stylePricePreview, styleCalcError, styleDisplayPrice, installmentPreview,
   // v0.34 任务B：URL query 预选命中记录
   queryPreselect,
   // v0.35 F4: 预选摘要横幅文案（入口 A 预选可见，可回上一步改）
   preselectBannerText
-} = useOrderForm(subdomain, formRef, route.query)
+} = useOrderForm(subdomain, formRef as unknown as Parameters<typeof useOrderForm>[1], route.query)
+
+// 模板读取的 artist 字段（revisionNote/notifyEnabled/contactQq/paletteId/inspirationTags）均属完整公开形状；
+// hidden 最小形状（HiddenArtistProfile）不会进入本页渲染链路，此处联合类型收敛为完整形状
+const artist = computed(() => artistRaw.value as VisibleArtistProfile | null)
+
+// AddonStep 的 priceText prop 参数为本地宽松形状 StyleAddon，useOrderForm 实现按 PublicStyleAddon 口径——
+// 运行时是同一批对象（断言成立），包一层适配参数逆变
+const styleAddonPriceText = (addon: StyleAddon) => rawStyleAddonPriceText(addon as PublicStyleAddon)
+// DetailStep 的 uploadRequest prop 参数为 { file: File }，el-upload 实际调用时 file 总带 uid（断言成立）
+const handleRefUpload = (options: { file: File }) => rawHandleRefUpload(options as { file: File & { uid: string | number } })
 
 // M2: 流程页跟随画师 palette 配色（画师数据加载后生效，卸载时自动清理）
 const paletteId = computed(() => artist.value?.paletteId || 'paper')
 usePalette(paletteId)
 
 // ─── 拆分批：普通增项开关/个数变更（子组件 emit 上报，语义与原内联 handler 一致） ───
-function onAddonToggle(id, toggled) {
+function onAddonToggle(id: number, toggled: boolean) {
   if (!styleAddonSelections[id]) styleAddonSelections[id] = { toggled: false, quantity: 0 }
   styleAddonSelections[id].toggled = toggled
 }
-function onAddonQuantity(id, quantity) {
+function onAddonQuantity(id: number, quantity: number) {
   if (!styleAddonSelections[id]) styleAddonSelections[id] = { toggled: false, quantity: 0 }
   styleAddonSelections[id].quantity = quantity
 }
@@ -387,15 +405,15 @@ const contactStep = computed(() => stepDefs.value.findIndex(s => s.key === 'cont
 // ─── 埋点：下单漏斗（REQ-033 §3.5 / 施工图《01-to-02-埋点前端批》§3.2） ───
 // 事件名严格用后端白名单；埋点失败静默，绝不打断用户、不影响业务
 const trackingStartTs = Date.now()
-let trackingLastStep = null
+let trackingLastStep: number | null = null
 
 function trackingPricingModel() {
   return 'style'
 }
-function trackingStepKey(stepNo) {
+function trackingStepKey(stepNo: number): string | null {
   return stepDefs.value[stepNo - 1]?.key || null
 }
-function trackingEmitStep(stepNo, prevStepNo) {
+function trackingEmitStep(stepNo: number, prevStepNo: number | null) {
   const pricing_model = trackingPricingModel()
   const total_steps = stepDefs.value.length
   const stepKey = trackingStepKey(stepNo)
@@ -421,7 +439,7 @@ const stepFadeClass = ref('')
 watch(step, (v, old) => {
   stepFadeClass.value = ''
   requestAnimationFrame(() => { stepFadeClass.value = 'step-fade-run' })
-  if (trackingLastStep == null) trackingLastStep = old
+  if (trackingLastStep == null) trackingLastStep = old ?? null
   if (v === trackingLastStep) return
   trackingEmitStep(v, trackingLastStep)
 })
@@ -483,7 +501,7 @@ const inspireTags = computed(() => artist.value?.inspirationTags || [])
 async function openReceipt() {
   trackEvent('order_form_submit_attempt', { pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
   try {
-    await formRef.value.validate()
+    await formRef.value!.validate()
   } catch (invalidFields) {
     if (invalidFields && typeof invalidFields === 'object') {
       const items = Object.values(invalidFields)
@@ -500,7 +518,7 @@ async function openReceipt() {
       }
       // 弹窗关闭后滚动到第一个未通过字段
       const firstField = Object.keys(invalidFields)[0]
-      if (firstField) formRef.value.scrollToField(firstField)
+      if (firstField) formRef.value!.scrollToField(firstField)
     }
     trackEvent('order_form_submit_fail', { reason: 'validation', pricing_model: trackingPricingModel(), total_steps: stepDefs.value.length })
     return
@@ -538,14 +556,14 @@ async function copyOrderSummary() {
 }
 
 // ─── R58-6: QQ 跳转 + 复制（提交成功后联系画师） ───
-function jumpToQq(qq) {
+function jumpToQq(qq: string | null) {
   // a2 猎杀修复：协议唤起改新窗口——无 QQ 客户端/协议处理器时原页保留不被劫持（此前 _self 会把当前页带走成死页），复制按钮兜底
-  window.open(`tencent://message/?uin=${encodeURIComponent(qq)}`, '_blank', 'noopener')
+  window.open(`tencent://message/?uin=${encodeURIComponent(String(qq))}`, '_blank', 'noopener')
   ElMessage.info(t('orderForm.qqJumpHint'))
 }
-async function copyQq(qq) {
+async function copyQq(qq: string | null) {
   try {
-    await navigator.clipboard.writeText(qq)
+    await navigator.clipboard.writeText(String(qq))
     ElMessage.success(t('orderForm.qqCopied'))
   } catch {
     ElMessage.warning(t('common.copyFailed')) // 波 M：统一 i18n 文案

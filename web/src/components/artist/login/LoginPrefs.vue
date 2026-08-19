@@ -14,7 +14,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useThemeStore } from '../../../stores/theme.js'
 
@@ -24,7 +24,7 @@ const emit = defineEmits(['switch-lang'])
 
 /** 主题切换：直写 themeStore.artistTheme（持久化 + DOM 属性由 store watch 应用），
  *  550ms 统一 token 缓动见 artist-tokens.css「纸艺基线」节 */
-function setTheme(name) {
+function setTheme(name: string) {
   themeStore.artistTheme = name
 }
 </script>

@@ -53,7 +53,7 @@
               id="dp-status" type="checkbox" class="dp-switch"
               :checked="form.status === 'received'"
               :aria-label="$t('deposit.statusReceived')"
-              @change="form.status = $event.target.checked ? 'received' : 'pending'"
+              @change="form.status = ($event.target as HTMLInputElement).checked ? 'received' : 'pending'"
             />
             <label for="dp-status" class="dp-switch-label">
               {{ form.status === 'received' ? $t('deposit.statusReceived') : $t('deposit.statusPending') }}
@@ -104,7 +104,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -116,14 +116,28 @@ const { t } = useI18n()
 
 const STORAGE_KEY = 'huiyue_deposit_ledger'
 
-const form = reactive({
+/** 台账条目（localStorage 持久化；金额以整数分计） */
+interface DepositItem {
+  id: string
+  name: string
+  amountCents: number
+  status: 'pending' | 'received'
+  date: string
+}
+
+const form = reactive<{
+  name: string
+  amountYuan: number | '' | null
+  status: 'pending' | 'received'
+  date: string
+}>({
   name: '',
   amountYuan: null,
   status: 'pending',
   date: todayStr()
 })
 
-const items = ref([])
+const items = ref<DepositItem[]>([])
 // 围剿 a1-17: 记账提交在途守卫——双击/连点不得重复插入（对齐 StandaloneIncome saving）
 const submitting = ref(false)
 
@@ -144,7 +158,7 @@ function loadItems() {
     if (Array.isArray(parsed)) {
       items.value = parsed
         .filter((item) => item && typeof item.name === 'string')
-        .map((item) => ({
+        .map((item): DepositItem => ({
           id: typeof item.id === 'string' ? item.id : 'deposit-' + Date.now(),
           name: item.name.slice(0, 50),
           amountCents: Number.isInteger(item.amountCents) ? item.amountCents : Math.round(Number(item.amountCents) || 0),
@@ -206,12 +220,12 @@ function submit() {
   }
 }
 
-function toggleStatus(item, e) {
-  item.status = e.target.checked ? 'received' : 'pending'
+function toggleStatus(item: DepositItem, e: Event) {
+  item.status = (e.target as HTMLInputElement).checked ? 'received' : 'pending'
   saveItems()
 }
 
-async function remove(item) {
+async function remove(item: DepositItem) {
   try {
     await ElMessageBox.confirm(t('deposit.deleteConfirm'), t('common.confirmDeleteTitle'), {
       type: 'warning',

@@ -108,7 +108,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -123,9 +123,9 @@ const setupStore = useSetupStore()
 const artistStore = useArtistStore()
 const themeStore = useThemeStore()
 
-const containerRef = ref(null)
+const containerRef = ref<HTMLElement | null>(null)
 const { switchLang } = useLocaleSwitch(() => containerRef.value)
-const onSwitchLang = (next) => switchLang(next, locale.value)
+const onSwitchLang = (next: string) => switchLang(next, locale.value)
 
 const steps = [
   { labelKey: 'setup.step1Title' },
@@ -191,7 +191,7 @@ async function submitAdmin() {
 
   submitting.value = true
   try {
-    const params = {
+    const params: Record<string, unknown> = {
       token: setupStore.setupToken || undefined,
       qqNumber: adminQq.value.trim(),
       name: adminName.value.trim()
@@ -206,13 +206,13 @@ async function submitAdmin() {
     qrDataUrl.value = await generateQrCode(result.otpauthUri)
     currentStep.value = 3
   } catch (err) {
-    submitError.value = err.message || t('setup.error')
+    submitError.value = (err as Error).message || t('setup.error')
   } finally {
     submitting.value = false
   }
 }
 
-async function generateQrCode(otpauthUri) {
+async function generateQrCode(otpauthUri: string) {
   try {
     const QRCode = await import('qrcode')
     return await QRCode.default.toDataURL(otpauthUri, { width: 220, margin: 1 })
@@ -250,13 +250,13 @@ async function confirmTotp() {
     artistStore.applySession(null, true)
     currentStep.value = 4
   } catch (err) {
-    totpError.value = err.message || t('setup.step3CodeError')
+    totpError.value = (err as Error).message || t('setup.step3CodeError')
   } finally {
     totpSubmitting.value = false
   }
 }
 
-function goStep(step) {
+function goStep(step: number) {
   if (step <= currentStep.value) {
     currentStep.value = step
   }

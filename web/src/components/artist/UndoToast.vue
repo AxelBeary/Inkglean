@@ -9,7 +9,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 // v0.36 波1: 破坏性操作软撤销提示（时间条拖拽改期后弹出，5 秒自动消失）
 // ElMessage 不支持 action 按钮，故自写 fixed 小组件；深色背景白字，视觉重量参考 ElMessage
 import { ref, watch, onBeforeUnmount } from 'vue'
@@ -25,7 +25,7 @@ const props = defineProps({
 const emit = defineEmits(['undo', 'timeout'])
 
 const undoing = ref(false)
-let timer = null
+let timer: ReturnType<typeof setTimeout> | null = null
 
 function clearTimer() {
   if (timer) { clearTimeout(timer); timer = null }

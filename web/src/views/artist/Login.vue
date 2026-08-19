@@ -174,9 +174,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, nextTick, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
 import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
@@ -200,7 +201,7 @@ const router = useRouter()
 const store = useArtistStore()
 
 /** 登录成功跳转：消费守卫带来的 ?redirect=（限站内路径，防开放跳转），兜底统一落地画师面板；停留 500ms 让用户看见成功反馈 */
-function goAfterLogin(route) {
+function goAfterLogin(route: RouteLocationNormalizedLoaded) {
   const redirect = route.query.redirect
   // 812-B6: 管理员与普通画师默认落地一致为画师面板；手动访问 /admin 由 requiresAdmin 守卫放行
   const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
@@ -227,9 +228,16 @@ const helpOpen = ref(false)
 const errQq = ref(false)
 const errCode = ref(false)
 const noticeError = ref('')
-const paperCardRef = ref(null)
-const inviteEntryRef = ref(null)
-const inviteOverlayRef = ref(null)
+const paperCardRef = ref<InstanceType<typeof PaperCard> | null>(null)
+const inviteEntryRef = ref<HTMLButtonElement | null>(null)
+const inviteOverlayRef = ref<HTMLDivElement | null>(null)
+
+/** 后端 API 错误形状（code/detail 附在抛出的错误对象上）：仅用于 catch 内分支读取 */
+interface ApiErrShape {
+  code?: string
+  message: string
+  detail?: { stale?: boolean; remainingAttempts?: number; remainingLockMs?: number }
+}
 
 // ─── REQ-039: 邀请码入驻叠加层 ───
 const inviteEnabled = ref(false)
@@ -252,7 +260,7 @@ const inviteConfirming = ref(false)
 const inviteTotpOk = ref(false)
 
 const { switchLang } = useLocaleSwitch(() => paperCardRef.value?.getCardEl())
-const onSwitchLang = (next) => switchLang(next, locale.value)
+const onSwitchLang = (next: string) => switchLang(next, locale.value)
 
 onMounted(async () => {
   // REQ-039: 入驻模式判定（manual 时登录页不显示入口）
@@ -268,8 +276,8 @@ function openInvite() {
   resetInviteErrors()
   // 初始聚焦：进入叠加层后聚焦第一个可输入控件
   nextTick(() => {
-    const codeInput = inviteOverlayRef.value?.querySelector('#invite-code')
-    ;(codeInput || inviteOverlayRef.value?.querySelector('input, button'))?.focus()
+    const codeInput = inviteOverlayRef.value?.querySelector('#invite-code') as HTMLElement | null
+    ;(codeInput || inviteOverlayRef.value?.querySelector('input, button') as HTMLElement | null)?.focus()
   })
 }
 
@@ -299,13 +307,13 @@ function resetInviteErrors() {
 }
 
 /** 焦点圈闭：Tab 不离开叠加层（首尾循环） */
-function onInviteKeydown(e) {
+function onInviteKeydown(e: KeyboardEvent) {
   if (e.key !== 'Tab') return
   const overlay = inviteOverlayRef.value
   if (!overlay) return
-  const focusables = [...overlay.querySelectorAll(
+  const focusables = ([...overlay.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  )].filter(el => !el.disabled && el.offsetParent !== null)
+  )] as Array<HTMLElement & { disabled?: boolean }>).filter(el => !el.disabled && el.offsetParent !== null)
   if (!focusables.length) return
   const first = focusables[0]
   const last = focusables[focusables.length - 1]
@@ -323,11 +331,11 @@ watch(inviteStep, (step) => {
   if (!inviteView.value) return
   nextTick(() => {
     const sel = step === 1 ? '#invite-code' : '#invite-totp'
-    inviteOverlayRef.value?.querySelector(sel)?.focus()
+    ;(inviteOverlayRef.value?.querySelector(sel) as HTMLElement | null)?.focus()
   })
 })
 
-async function generateInviteQr(otpauthUri) {
+async function generateInviteQr(otpauthUri: string) {
   try {
     const QRCode = await import('qrcode')
     return await QRCode.default.toDataURL(otpauthUri, { width: 220, margin: 1 })
@@ -384,7 +392,7 @@ async function submitInvite() {
     inviteQr.value = await generateInviteQr(res.otpauthUri)
     inviteStep.value = 2
   } catch (err) {
-    inviteError.value = err.message || t('invite.totpError')
+    inviteError.value = (err as ApiErrShape).message || t('invite.totpError')
   } finally {
     inviteSubmitting.value = false
   }
@@ -422,17 +430,18 @@ async function confirmInviteTotp() {
 
 /** v126②③：首绑确认失败文案分流（detail 由后端 invite/totp-confirm 提供，与登录锁定提示同口径）：
  *  码刚轮换 → 等它转完再试；码输错 → 带剩余次数；锁定 → 带剩余分钟数（均只写可验证事实） */
-function mapInviteTotpErr(err) {
-  if (err?.code === 'TOTP_BIND_INVALID' && err.detail && typeof err.detail === 'object') {
-    if (err.detail.stale) return t('invite.totpStale')
-    if (typeof err.detail.remainingAttempts === 'number') {
-      return t('invite.totpWrong', { n: err.detail.remainingAttempts })
+function mapInviteTotpErr(err: unknown) {
+  const e = err as ApiErrShape
+  if (e?.code === 'TOTP_BIND_INVALID' && e.detail && typeof e.detail === 'object') {
+    if (e.detail.stale) return t('invite.totpStale')
+    if (typeof e.detail.remainingAttempts === 'number') {
+      return t('invite.totpWrong', { n: e.detail.remainingAttempts })
     }
   }
-  if (err?.code === 'TOTP_LOCKED' && err.detail?.remainingLockMs) {
-    return t('invite.totpLockedMin', { minutes: Math.ceil(err.detail.remainingLockMs / 60000) })
+  if (e?.code === 'TOTP_LOCKED' && e.detail?.remainingLockMs) {
+    return t('invite.totpLockedMin', { minutes: Math.ceil(e.detail.remainingLockMs / 60000) })
   }
-  return err.message || t('invite.totpError')
+  return e.message || t('invite.totpError')
 }
 
 async function passkeyLogin() {
@@ -457,7 +466,7 @@ async function passkeyLogin() {
     const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
     if (!credential) throw new Error('cancelled')
     // 812-B5: 上传侧统一转 base64url JSON（与后端 verifyLogin 的 Base64URL 解码口径一致）
-    const result = await webauthnApi.loginVerify(publicKeyCredentialToJSON(credential))
+    const result = await webauthnApi.loginVerify(publicKeyCredentialToJSON(credential as PublicKeyCredential))
     // REQ-043 I6-e: Passkey 登录同样走 store 会话落地（原实现漏同步 store，跳转会被守卫拦截）
     store.applySession(result.artist, result.isAdmin)
     loginOk.value = true
@@ -513,12 +522,13 @@ async function login() {
   } catch (err) {
     // 错误关联到具体字段；锁定类错误用后端 remainingLockMs 告知剩余时长
     // G-6（衔接批 F-9）: 旧登录码三码已退役，错误码按 REQ-027 TOTP 现状处理
-    if (err.code === 'QQ_NOT_REGISTERED') errQq.value = true
-    else if (err.code === 'TOTP_INVALID' || err.code === 'TOTP_NOT_BOUND') errCode.value = true
-    const isLockError = err.code === 'TOTP_LOCKED'
-    noticeError.value = isLockError && err.detail?.remainingLockMs
-      ? t('login.locked', { minutes: Math.ceil(err.detail.remainingLockMs / 60000) })
-      : err.message
+    const e = err as ApiErrShape
+    if (e.code === 'QQ_NOT_REGISTERED') errQq.value = true
+    else if (e.code === 'TOTP_INVALID' || e.code === 'TOTP_NOT_BOUND') errCode.value = true
+    const isLockError = e.code === 'TOTP_LOCKED'
+    noticeError.value = isLockError && e.detail?.remainingLockMs
+      ? t('login.locked', { minutes: Math.ceil(e.detail.remainingLockMs / 60000) })
+      : e.message
   } finally {
     logging.value = false
   }

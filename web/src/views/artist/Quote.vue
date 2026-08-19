@@ -64,7 +64,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -76,11 +76,21 @@ import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
 const { t } = useI18n()
 
+/** 报价条目草稿（金额输入态为文本；内部整数分另计） */
+interface QuoteDraftItem {
+  id: number
+  name: string
+  amountText: string
+  cents: number
+}
+/** utils/quote.js 纯函数接受的条目形状（金额为分） */
+type QuoteItemShape = { name: string; cents: number }
+
 const clientName = ref('')
 const note = ref('')
-const items = ref([newItem()])
+const items = ref<QuoteDraftItem[]>([newItem()])
 
-function newItem() {
+function newItem(): QuoteDraftItem {
   return { id: Date.now() + Math.random(), name: '', amountText: '', cents: 0 }
 }
 
@@ -88,12 +98,12 @@ function addItem() {
   items.value.push(newItem())
 }
 
-function removeItem(idx) {
+function removeItem(idx: number) {
   items.value.splice(idx, 1)
 }
 
 /** 金额输入 → 内部整数分（非法返回 null） */
-function centsOf(text) {
+function centsOf(text: string): number | null {
   const v = Number(String(text ?? '').trim())
   if (!Number.isFinite(v) || v <= 0) return null
   return yuanToCents(v)
@@ -108,7 +118,7 @@ const hasValidItems = computed(() =>
   validItems.value.length > 0 && validItems.value.every((it) => it.name.trim() && it.cents && it.cents > 0)
 )
 
-const totalCents = computed(() => quoteTotalCents(validItems.value))
+const totalCents = computed(() => quoteTotalCents(validItems.value as QuoteItemShape[]))
 const totalText = computed(() => formatYuan(totalCents.value))
 
 function canvasLabels() {
@@ -140,7 +150,7 @@ function exportPng() {
     renderQuoteCanvas(canvas, {
       ...canvasLabels(),
       clientName: clientName.value,
-      items: validItems.value,
+      items: validItems.value as QuoteItemShape[],
       note: note.value
     })
     const a = document.createElement('a')
@@ -160,7 +170,7 @@ async function copyText() {
   if (!hasValidItems.value) return
   const text = buildQuoteText({
     clientName: clientName.value,
-    items: validItems.value,
+    items: validItems.value as QuoteItemShape[],
     note: note.value,
     labels: textLabels()
   })

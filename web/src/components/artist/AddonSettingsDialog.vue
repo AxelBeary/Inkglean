@@ -8,7 +8,7 @@
     :title="$t('styleManage.addonDialogTitle', { name: sa?.template_name || '' })"
     width="640px"
     destroy-on-close
-    @update:model-value="(v) => emit('update:modelValue', v)"
+    @update:model-value="(v: boolean) => emit('update:modelValue', v)"
     @open="initForm"
   >
     <div v-if="sa" v-loading="saving" class="addon-settings">
@@ -41,7 +41,7 @@
         <el-switch
           :model-value="form.styleEnabled"
           :active-text="$t('styleManage.addonStyleEnable')"
-          @change="(v) => (form.styleEnabled = !!v)"
+          @change="(v: boolean | string | number) => (form.styleEnabled = !!v)"
         />
         <p class="hint">{{ stylePriceInfo }}</p>
       </div>
@@ -102,20 +102,37 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, computed, ref } from 'vue'
+import type { PropType } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX } from '../../constants/addon.js'
 import { artistApi } from '../../api/index.js'
-import { addonCategory, categoryLabel, addonPriceText } from './addon-utils.js'
+import { addonCategory, categoryLabel, addonPriceText, type StyleAddonRow } from './addon-utils.js'
+
+/** 胶囊行（style_addons 行 + addon_template_id） */
+interface SettingsSa extends StyleAddonRow { addon_template_id: number }
+
+/** 尺寸（本弹窗消费字段；_overrides 为父级附加） */
+interface SettingsSizeRow {
+  id: number
+  name: string
+  _overrides?: Record<number, { is_hidden?: number | boolean | null; price_override?: number | null }> | null
+}
+
+/** 画风（本弹窗消费字段） */
+interface SettingsStyleLite { id: number; sizes?: SettingsSizeRow[]; addons?: SettingsSa[] }
+
+/** 尺寸级表单行 */
+interface SizeRow { sizeId: number; sizeName: string; enabled: boolean; diffPrice: number | null }
 
 const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  style: { type: Object, required: true },
-  sa: { type: Object, default: null }
+  style: { type: Object as PropType<SettingsStyleLite | null>, default: null },
+  sa: { type: Object as PropType<SettingsSa | null>, default: null }
 })
 
 const emit = defineEmits(['update:modelValue', 'saved'])
@@ -125,14 +142,14 @@ const form = reactive({
   basePrice: 0,
   scope: 'style',
   styleEnabled: true,
-  sizeRows: []
+  sizeRows: [] as SizeRow[]
 })
 
 /** 是否百分比计价（模板级 price_mode，真实后端字段） */
 const isPercent = computed(() => props.sa?.template_price_mode === 'percent')
 
 /** 类别徽标（真实 template_category，非名称约定） */
-const categoryTagType = computed(() => ({ usage: 'warning', rush: 'danger', add: 'info' }[addonCategory(props.sa || {})] || 'info'))
+const categoryTagType = computed(() => (({ usage: 'warning', rush: 'danger', add: 'info' } as Record<string, 'warning' | 'danger' | 'info'>)[addonCategory(props.sa || {})] || 'info'))
 const categoryTagText = computed(() => categoryLabel(t, addonCategory(props.sa || {})))
 
 /** 画风级当前生效价文案（i18n；本尺寸 > 画风价 > 本身价 的中间层） */
@@ -146,7 +163,7 @@ const stylePriceInfo = computed(() => {
 })
 
 /** 尺寸差异价为空时的 placeholder：沿用上层生效价（画风价 ?? 本身价） */
-function diffPlaceholder(row) {
+function diffPlaceholder(row: SizeRow) {
   const sa = props.sa
   if (!sa) return ''
   return addonPriceText(sa, row.diffPrice ?? null, t)
@@ -156,10 +173,10 @@ function diffPlaceholder(row) {
 function initForm() {
   const sa = props.sa
   if (!sa) return
-  form.basePrice = sa.price_override ?? sa.template_default_price
+  form.basePrice = sa.price_override ?? sa.template_default_price ?? 0
   form.scope = 'style'
   form.styleEnabled = !!sa.is_enabled
-  form.sizeRows = (props.style.sizes || []).map(size => {
+  form.sizeRows = (props.style!.sizes || []).map(size => {
     const ov = size._overrides?.[sa.id]
     return {
       sizeId: size.id,
@@ -174,7 +191,7 @@ function toggleScope() {
   form.scope = form.scope === 'style' ? 'all' : 'style'
 }
 
-function batchSet(on) {
+function batchSet(on: boolean) {
   form.sizeRows.forEach(r => { r.enabled = on })
 }
 
@@ -191,12 +208,12 @@ async function onRemove() {
   } catch { return }
   saving.value = true
   try {
-    await artistApi.removeStyleAddon(props.style.id, sa.id)
+    await artistApi.removeStyleAddon(props.style!.id, sa.id)
     ElMessage.success(t('styleManage.addonRemoved'))
     emit('update:modelValue', false)
     emit('saved')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     saving.value = false
   }
@@ -218,38 +235,38 @@ async function save() {
       }
       // 应用到所有画风 → 本画风跟随模板价（清画风价覆盖）
       if (sa.price_override != null) {
-        await artistApi.setStyleAddons(props.style.id, [{ addon_template_id: sa.addon_template_id, price_override: null }])
+        await artistApi.setStyleAddons(props.style!.id, [{ addon_template_id: sa.addon_template_id, price_override: null }])
       }
     } else {
       // 仅当前画风：改本身价输入 = 写画风价覆盖（与模板价一致时 = 沿用模板，置 null）
       const target = form.basePrice
       const newOverride = target === sa.template_default_price ? null : target
       if ((sa.price_override ?? null) !== newOverride) {
-        await artistApi.setStyleAddons(props.style.id, [{ addon_template_id: sa.addon_template_id, price_override: newOverride }])
+        await artistApi.setStyleAddons(props.style!.id, [{ addon_template_id: sa.addon_template_id, price_override: newOverride }])
       }
     }
 
     // ── 画风级：激活开关 ──
     if (!!sa.is_enabled !== form.styleEnabled) {
       // 单选约束：打开用途/加急的画风级激活 → 同画风其他同类停用（顾客每单各选一个，后端兜底互斥）
-      let styleItems = [{ addon_template_id: sa.addon_template_id, is_enabled: form.styleEnabled }]
+      const styleItems: Array<{ addon_template_id: number; is_enabled: boolean }> = [{ addon_template_id: sa.addon_template_id, is_enabled: form.styleEnabled }]
       if (form.styleEnabled) {
         const cat = addonCategory(sa)
         if (cat !== 'add') {
-          for (const other of (props.style.addons || [])) {
+          for (const other of (props.style!.addons || [])) {
             if (other.id !== sa.id && addonCategory(other) === cat && !!other.is_enabled) {
               styleItems.push({ addon_template_id: other.addon_template_id, is_enabled: false })
             }
           }
         }
       }
-      await artistApi.setStyleAddons(props.style.id, styleItems)
+      await artistApi.setStyleAddons(props.style!.id, styleItems)
     }
 
     // ── 尺寸级：启用开关（is_hidden 反义）+ 差异价 ──
-    const sizeChanges = []
+    const sizeChanges: Array<{ sizeId: number; price_override: number | null; is_hidden: boolean }> = []
     for (const row of form.sizeRows) {
-      const ov = props.style.sizes.find(s => s.id === row.sizeId)?._overrides?.[sa.id]
+      const ov = props.style!.sizes!.find(s => s.id === row.sizeId)?._overrides?.[sa.id]
       const cur = { enabled: ov ? !ov.is_hidden : true, diffPrice: ov?.price_override ?? null }
       if (cur.enabled !== row.enabled || (cur.diffPrice ?? null) !== (row.diffPrice ?? null)) {
         sizeChanges.push({
@@ -260,7 +277,7 @@ async function save() {
       }
     }
     for (const ch of sizeChanges) {
-      await artistApi.setSizeOverrides(props.style.id, ch.sizeId, [{
+      await artistApi.setSizeOverrides(props.style!.id, ch.sizeId, [{
         style_addon_id: sa.id,
         price_override: ch.price_override,
         is_hidden: ch.is_hidden
@@ -271,7 +288,7 @@ async function save() {
     emit('update:modelValue', false)
     emit('saved')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     saving.value = false
   }

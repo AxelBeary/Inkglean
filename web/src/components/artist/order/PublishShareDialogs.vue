@@ -88,19 +88,30 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive } from 'vue'
+import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { artistApi, artistPublicApi } from '../../../api/index.js'
+import type { ArtistProfileResult, CustomLink } from '../../../api/types.js'
 // REQ-031 B1: F2 外链校验复用（域名防投毒，前端=后端子集的弱化版）
 import { validateLink, matchDomain } from '../../../utils/linkValidation.js'
 // P3-10: 分享模板读写走安全封装（隐私模式/存储禁用时静默降级，不打断发布流程）
 import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
 
+/** 交付物（本弹窗消费字段） */
+interface PublishDeliverable { id: number; original_name?: string | null; file_path?: string | null }
+
+/** 订单（本弹窗消费字段） */
+interface PublishOrderLite { deliverables?: PublishDeliverable[] | null; order_no?: string }
+
+/** 分享平台（本弹窗消费字段；hostname 由运行时响应携带） */
+interface SharePlatform { id: number; name: string; hostname?: string | null }
+
 const props = defineProps({
-  order: { type: Object, required: true },
+  order: { type: Object as PropType<PublishOrderLite>, required: true },
   routeId: { type: [String, Number], required: true }
 })
 
@@ -110,12 +121,12 @@ const router = useRouter()
 // ─── REQ-022 F1: 发布为作品（delivered 门槛，一图一作品，发布不锁订单可重复） ───
 const publishDialogVisible = ref(false)
 const publishing = ref(false)
-const publishForm = reactive({ deliverableIds: [], title: '', description: '' })
+const publishForm = reactive({ deliverableIds: [] as number[], title: '', description: '' })
 
 /** 可发布的图片扩展名（对齐后端 PUBLISH_ALLOWED_EXTS；zip/psd 等不可发布） */
 const PUBLISH_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
 
-function isPublishableImage(d) {
+function isPublishableImage(d: PublishDeliverable) {
   const name = d?.original_name || d?.file_path || ''
   const dot = name.lastIndexOf('.')
   if (dot < 0) return false
@@ -124,7 +135,7 @@ function isPublishableImage(d) {
 
 function openPublishDialog() {
   // 默认全选图片交付物（非图片置灰不可勾）
-  publishForm.deliverableIds = (props.order?.deliverables || []).filter(isPublishableImage).map(d => d.id)
+  publishForm.deliverableIds = (props.order?.deliverables || []).filter(isPublishableImage).map((d: PublishDeliverable) => d.id)
   publishForm.title = ''
   publishForm.description = ''
   publishDialogVisible.value = true
@@ -134,7 +145,7 @@ async function submitPublish() {
   if (!publishForm.deliverableIds.length || !publishForm.title.trim()) return
   publishing.value = true
   try {
-    const res = await artistApi.publishArtwork(props.routeId, {
+    const res = await artistApi.publishArtwork(props.routeId as number, {
       deliverableIds: publishForm.deliverableIds,
       title: publishForm.title.trim(),
       description: publishForm.description.trim() || null
@@ -155,7 +166,7 @@ async function submitPublish() {
       router.push('/artworks')
     } catch { /* 用户取消跳转，留在本页 */ }
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     publishing.value = false
   }
@@ -167,18 +178,18 @@ const shareLoading = ref(false)
 /** 分享平台列表加载失败（独立错误态 + 重试；弹窗仍可关闭兜底） */
 const shareLoadFailed = ref(false)
 const shareOpening = ref(false)
-const sharePlatforms = ref([])
-const sharePlatformId = ref(null)
+const sharePlatforms = ref<SharePlatform[]>([])
+const sharePlatformId = ref<number | null>(null)
 const shareText = ref('')
 const shareNoHomepage = ref(false)
-const shareProfile = ref(null)
+const shareProfile = ref<(ArtistProfileResult & { customLinks?: CustomLink[] | null }) | null>(null)
 const SHARE_TEMPLATE_KEY = 'huiyue_share_template'
 
 // 平台发布 intent URL（支持文案预填；B 站等无公开预填发布 URL → 复制文案方案）
 const SHARE_INTENT_URLS = [
   { domain: 'weibo.com', intent: 'https://weibo.com/intent/post' }
 ]
-function shareIntentUrl(platform) {
+function shareIntentUrl(platform: SharePlatform | null) {
   const hit = SHARE_INTENT_URLS.find(s => matchDomain(platform?.hostname || '', [s.domain]))
   return hit ? hit.intent : null
 }
@@ -197,8 +208,8 @@ async function openShareDialog() {
       artistPublicApi.getPlatforms(),
       artistApi.getProfile()
     ])
-    sharePlatforms.value = Array.isArray(plats) ? plats : []
-    shareProfile.value = profile || null
+    sharePlatforms.value = Array.isArray(plats) ? (plats as SharePlatform[]) : []
+    shareProfile.value = (profile || null) as (ArtistProfileResult & { customLinks?: CustomLink[] | null }) | null
     shareText.value = safeGetItem(SHARE_TEMPLATE_KEY) || defaultShareText()
     sharePlatformId.value = sharePlatforms.value[0]?.id ?? null
   } catch {

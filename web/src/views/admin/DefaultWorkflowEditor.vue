@@ -27,15 +27,20 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { adminApi } from '../../api/index.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 
+/** WorkflowPaymentEditor 暴露方法宽松形状（本页仅调用 load 重载） */
+interface EditorRefLike {
+  load: () => Promise<unknown> | void
+}
+
 const { t } = useI18n()
-const editorRef = ref(null)
+const editorRef = ref<EditorRefLike | null>(null)
 const resetting = ref(false)
 
 async function resetTemplate() {
@@ -46,7 +51,7 @@ async function resetTemplate() {
     ElMessage.success(t('admin.resetDone'))
     editorRef.value?.load()
   } catch (err) {
-    if (err !== 'cancel') ElMessage.error(err.message)
+    if (err !== 'cancel') ElMessage.error((err as Error).message)
   } finally { resetting.value = false }
 }
 </script>

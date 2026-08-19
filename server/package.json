@@ -12,7 +12,7 @@
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "lint": "eslint . && oxlint src tests",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.scripts.json --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.scripts.json --noEmit && tsc -p tsconfig.tests.json --noEmit",
     "test:watch": "vitest",
     "db:init": "tsx src/db/init.ts",
     "db:seed": "tsx src/db/seed.ts",

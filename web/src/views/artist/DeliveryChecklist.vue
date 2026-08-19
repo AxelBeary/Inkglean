@@ -56,7 +56,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { safeGetItem, safeSetItem } from '../../utils/storage.js'
@@ -66,16 +66,38 @@ const { t } = useI18n()
 const STORAGE_KEY = 'huiyue_delivery_checklist'
 const DEFAULT_KEYS = ['finishWatermark', 'sourceExport', 'signatureConfirmed', 'finalPayment', 'deliveryScript']
 
+/** 默认自查项（kind=default，文案走 i18n） */
+interface DefaultItem {
+  id: string
+  kind: 'default'
+  key: string
+  done: boolean
+}
+/** 自定义项（可增删） */
+interface CustomItem {
+  id: string
+  kind: 'custom'
+  text: string
+  done: boolean
+}
+type ChecklistItem = DefaultItem | CustomItem
+/** localStorage 反序列化的自定义项原始形状（字段可能缺失） */
+interface StoredCustom {
+  id?: string
+  text?: string
+  done?: boolean
+}
+
 // 默认自查项固定（kind=default，文案走 i18n），自定义项可增删（kind=custom）
-const defaults = reactive({})
+const defaults = reactive<Record<string, boolean>>({})
 DEFAULT_KEYS.forEach((key) => {
   defaults[key] = false
 })
-const customs = ref([])
+const customs = ref<CustomItem[]>([])
 const newText = ref('')
 
-const items = computed(() => [
-  ...DEFAULT_KEYS.map((key) => ({ id: 'default-' + key, kind: 'default', key, done: !!defaults[key] })),
+const items = computed<ChecklistItem[]>(() => [
+  ...DEFAULT_KEYS.map((key) => ({ id: 'default-' + key, kind: 'default' as const, key, done: !!defaults[key] })),
   ...customs.value
 ])
 
@@ -84,12 +106,12 @@ const doneCount = computed(() => items.value.filter((item) => item.done).length)
 const percent = computed(() => (totalCount.value === 0 ? 0 : Math.round((doneCount.value / totalCount.value) * 100)))
 const allDone = computed(() => totalCount.value > 0 && doneCount.value === totalCount.value)
 
-function itemText(item) {
+function itemText(item: ChecklistItem) {
   return item.kind === 'default' ? t('deliveryChecklist.defaults.' + item.key) : item.text
 }
 
-function toggle(item, e) {
-  const done = e.target.checked
+function toggle(item: ChecklistItem, e: Event) {
+  const done = (e.target as HTMLInputElement).checked
   if (item.kind === 'default') {
     defaults[item.key] = done
   } else {
@@ -111,11 +133,11 @@ function loadState() {
         })
       }
       if (Array.isArray(parsed.customs)) {
-        customs.value = parsed.customs
-          .filter((c) => c && typeof c.text === 'string')
+        customs.value = (parsed.customs as Array<StoredCustom | null | undefined>)
+          .filter((c): c is StoredCustom & { text: string } => Boolean(c && typeof c.text === 'string'))
           .map((c) => ({
             id: typeof c.id === 'string' ? c.id : 'custom-' + Date.now(),
-            kind: 'custom',
+            kind: 'custom' as const,
             text: c.text.slice(0, 80),
             done: !!c.done
           }))
@@ -148,7 +170,7 @@ function addItem() {
   newText.value = ''
 }
 
-function removeItem(id) {
+function removeItem(id: string) {
   customs.value = customs.value.filter((c) => c.id !== id)
 }
 

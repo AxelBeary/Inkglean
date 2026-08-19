@@ -60,7 +60,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -68,14 +68,22 @@ import { safeGetItem, safeSetItem } from '../../utils/storage.js'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
 import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
+/** 便签条目（localStorage 持久化） */
+interface NoteItem {
+  id: number
+  title: string
+  content: string
+  time: string
+}
+
 const { t } = useI18n()
 const STORAGE_KEY = 'huiyue_quick_notes'
-const notes = ref([])
+const notes = ref<NoteItem[]>([])
 const newTitle = ref('')
 const newContent = ref('')
 
 /** localStorage 读取（G-5: safeGetItem 静默降级；损坏 JSON 丢弃） */
-function loadNotes() {
+function loadNotes(): NoteItem[] {
   const raw = safeGetItem(STORAGE_KEY)
   if (!raw) return []
   try {
@@ -92,9 +100,9 @@ function saveNotes() {
 }
 
 /** 当前时间短格式（MM-DD HH:mm） */
-function nowTime() {
+function nowTime(): string {
   const d = new Date()
-  const pad = (n) => String(n).padStart(2, '0')
+  const pad = (n: number) => String(n).padStart(2, '0')
   return d.getMonth() + 1 + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes())
 }
 
@@ -112,13 +120,13 @@ function addNote() {
   saveNotes()
 }
 
-function removeNote(id) {
+function removeNote(id: number) {
   notes.value = notes.value.filter(n => n.id !== id)
   saveNotes()
 }
 
 /** 复制条目内容（公共 clipboard.copyText；成功提示 / 失败提示） */
-async function copyNote(n) {
+async function copyNote(n: NoteItem) {
   if (await copyToClipboard(n.content)) {
     ElMessage.success(t('note.copied'))
   } else {

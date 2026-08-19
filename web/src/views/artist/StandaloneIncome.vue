@@ -115,22 +115,24 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuan, yuanToCents } from '../../utils/money.js'
 import { todayStr } from '../../utils/datetime.js'
 import { artistApi } from '../../api/index.js'
+import type { StandaloneIncome } from '../../api/types.js'
 
 const { t } = useI18n()
 
-const formRef = ref(null)
-const form = reactive({ amount: null, clientName: '', note: '', incomeDate: todayStr() })
+const formRef = ref<FormInstance | null>(null)
+const form = reactive<{ amount: number | null; clientName: string; note: string; incomeDate: string }>({ amount: null, clientName: '', note: '', incomeDate: todayStr() })
 const saving = ref(false)
 
 /** 前端校验 = 后端子集：amountCents>0 / incomeDate YYYY-MM-DD（组件限定格式）/ 长度上限 */
-const rules = {
+const rules: FormRules = {
   amount: [{
     validator: (_rule, value, callback) => {
       if (value == null || value === '' || !Number.isFinite(value)) {
@@ -150,8 +152,10 @@ const rules = {
 
 async function submit() {
   if (saving.value) return
+  const formEl = formRef.value
+  if (!formEl) return
   try {
-    await formRef.value.validate()
+    await formEl.validate()
   } catch {
     return // el-form 已展示校验错误
   }
@@ -172,17 +176,17 @@ async function submit() {
     form.clientName = ''
     form.note = ''
     form.incomeDate = todayStr()
-    formRef.value.clearValidate()
+    formEl.clearValidate()
     await loadItems()
   } catch (err) {
-    ElMessage.error(err.message || t('standaloneIncome.addFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('standaloneIncome.addFailed'))
   } finally {
     saving.value = false
   }
 }
 
 // ─── 列表：GET（后端已按 income_date 倒序） + 删除（仅本人，越权 404） ───
-const items = ref([])
+const items = ref<StandaloneIncome[]>([])
 const loading = ref(false)
 
 async function loadItems() {
@@ -192,13 +196,13 @@ async function loadItems() {
     const data = await artistApi.getStandaloneIncomes()
     items.value = data?.items || []
   } catch (err) {
-    ElMessage.error(err.message || t('standaloneIncome.loadFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('standaloneIncome.loadFailed'))
   } finally {
     loading.value = false
   }
 }
 
-async function remove(item) {
+async function remove(item: StandaloneIncome) {
   try {
     await ElMessageBox.confirm(t('standaloneIncome.deleteConfirm'), t('common.confirmDeleteTitle'), {
       type: 'warning',
@@ -215,12 +219,12 @@ async function remove(item) {
     await loadItems()
   } catch (err) {
     // 越权/已删：后端统一 404，提示并刷新列表
-    if (err?.status === 404) {
+    if ((err as { status?: number })?.status === 404) {
       ElMessage.warning(t('standaloneIncome.notFound'))
       await loadItems()
       return
     }
-    ElMessage.error(err.message || t('standaloneIncome.deleteFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('standaloneIncome.deleteFailed'))
   }
 }
 

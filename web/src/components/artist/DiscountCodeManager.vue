@@ -107,9 +107,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
+import type { DiscountCode } from '../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatYuanValue } from '../../utils/money.js'
@@ -121,17 +122,17 @@ const { t } = useI18n()
 const enabled = ref(false)
 const toggling = ref(false)
 const loading = ref(true)
-const codes = ref([])
+const codes = ref<DiscountCode[]>([])
 /** G-2: 行级启停在途集合（按钮 disabled + loading） */
-const codeTogglingIds = ref(new Set())
+const codeTogglingIds = ref(new Set<number>())
 
 const dialogVisible = ref(false)
 const submitting = ref(false)
-const editingId = ref(null)
-const form = ref({ code: '', discountType: 'percent', discountValue: 10, maxUses: null, expiresAt: null })
+const editingId = ref<number | null>(null)
+const form = ref({ code: '', discountType: 'percent', discountValue: 10, maxUses: null as number | null, expiresAt: null as string | null })
 
 // 05D-T2: 复制折扣码（公共 clipboard.copyText；成功提示 / 失败提示）
-async function copyCode(code) {
+async function copyCode(code: string) {
   if (await copyToClipboard(code)) {
     ElMessage.success(t('discount.copied'))
   } else {
@@ -146,7 +147,7 @@ async function loadData() {
     enabled.value = res.enabled
     codes.value = res.codes || []
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     loading.value = false
   }
@@ -155,23 +156,23 @@ async function loadData() {
 // G-2（R-22）: 启停连点乱序 PUT 守卫——请求序号取号，响应晚于最新请求即丢弃；
 // 末态以最后一次点击为准（前序请求即使先返回也不覆盖）；开关在途 disabled 拦截重复发送。
 let toggleSeq = 0
-async function toggleDiscount(val) {
+async function toggleDiscount(val: string | number | boolean) {
   const mySeq = ++toggleSeq
   toggling.value = true
   try {
-    await artistApi.toggleDiscount(val)
+    await artistApi.toggleDiscount(val as boolean)
     if (mySeq !== toggleSeq) return
     ElMessage.success(val ? t('discount.enabledMsg') : t('discount.disabledMsg'))
   } catch (err) {
     if (mySeq !== toggleSeq) return
     enabled.value = !val
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     if (mySeq === toggleSeq) toggling.value = false
   }
 }
 
-function openDialog(row) {
+function openDialog(row?: DiscountCode) {
   if (row) {
     editingId.value = row.id
     form.value = {
@@ -202,7 +203,7 @@ async function submitCode() {
     } else {
       await artistApi.createDiscountCode({
         code: form.value.code.trim().toUpperCase(),
-        discountType: form.value.discountType,
+        discountType: form.value.discountType as 'percent' | 'fixed',
         ...payload
       })
       ElMessage.success(t('discount.createdMsg'))
@@ -210,7 +211,7 @@ async function submitCode() {
     dialogVisible.value = false
     await loadData()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     submitting.value = false
   }
@@ -218,14 +219,14 @@ async function submitCode() {
 
 // G-2: 行级启停同款守卫（按行禁用，防不同行并发乱序覆盖 loadData）
 let codeToggleSeq = 0
-async function toggleCode(row) {
+async function toggleCode(row: DiscountCode) {
   const mySeq = ++codeToggleSeq
   codeTogglingIds.value = new Set(codeTogglingIds.value).add(row.id)
   try {
     await artistApi.updateDiscountCode(row.id, { enabled: !row.enabled })
     if (mySeq === codeToggleSeq) await loadData()
   } catch (err) {
-    if (mySeq === codeToggleSeq) ElMessage.error(err.message)
+    if (mySeq === codeToggleSeq) ElMessage.error((err as Error).message)
   } finally {
     const next = new Set(codeTogglingIds.value)
     next.delete(row.id)
@@ -233,13 +234,13 @@ async function toggleCode(row) {
   }
 }
 
-async function removeCode(row) {
+async function removeCode(row: DiscountCode) {
   try {
     await artistApi.deleteDiscountCode(row.id)
     ElMessage.success(t('discount.deletedMsg'))
     await loadData()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 

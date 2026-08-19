@@ -174,7 +174,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -229,7 +229,7 @@ watch(reduceMotion, (on) => {
   writeReduceMotion(on)
 })
 
-function formatSpeed(v) {
+function formatSpeed(v: number) {
   return `${v}×`
 }
 
@@ -273,7 +273,7 @@ async function save() {
       dashboardModules: { ...form.dashModules }
     })
     ElMessage.success(t('settings.saved'))
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err instanceof Error ? err.message : '') || String(err)) }
   finally { saving.value = false }
 }
 
@@ -285,9 +285,11 @@ async function loadPreferences() {
     form.notifyEnabled = !!profile.notify_enabled
     form.dashboardDefaultPanel = profile.dashboard_default_panel || 'queue'
     // 视觉批 P2：看板模块开关回读（JSON 串，null/坏值=全部显示）
-    let mods = null
-    if (profile.dashboard_modules) {
-      try { mods = JSON.parse(profile.dashboard_modules) } catch { mods = null }
+    interface DashModulesShape { schedule?: boolean; guestbook?: boolean; activity?: boolean; onboarding?: boolean }
+    let mods: DashModulesShape | null = null
+    const dashboardModulesRaw = (profile as { dashboard_modules?: string | null }).dashboard_modules
+    if (dashboardModulesRaw) {
+      try { mods = JSON.parse(dashboardModulesRaw) as DashModulesShape } catch { mods = null }
     }
     form.dashModules.schedule = mods?.schedule ?? true
     form.dashModules.guestbook = mods?.guestbook ?? true

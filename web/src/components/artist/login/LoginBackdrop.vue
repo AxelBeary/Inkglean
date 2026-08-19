@@ -44,7 +44,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useSeasonalBackdrop } from '../../../composables/useSeasonalBackdrop.js'
 
 /** 季节/自定义背景预留接口：数据源接通前恒 null，无行为差异 */

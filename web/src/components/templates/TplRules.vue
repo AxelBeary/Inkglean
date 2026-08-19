@@ -5,7 +5,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import SanitizedRichText from '../shared/SanitizedRichText.vue'
 
 defineProps({

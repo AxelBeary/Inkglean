@@ -706,13 +706,13 @@ export const adminApi = {
   // 问候语 — 通用库
   getGreetings: (slot?: string): Promise<GreetingTemplate[]> => getJson('/admin/greetings', { params: { slot } }),
   createGreeting: (data: GreetingInput): Promise<GreetingTemplate> => postJson('/admin/greetings', data),
-  updateGreeting: (id: number, data: Partial<GreetingInput>): Promise<GreetingTemplate> => putJson(`/admin/greetings/${id}`, data),
+  updateGreeting: (id: number, data: Partial<GreetingInput> & { isEnabled?: boolean }): Promise<GreetingTemplate> => putJson(`/admin/greetings/${id}`, data),
   deleteGreeting: (id: number): Promise<SimpleSuccessResult> => deleteJson(`/admin/greetings/${id}`),
   // 问候语 — 画师专属库
   getArtistGreetings: (artistId: number): Promise<GreetingTemplate[]> => getJson(`/admin/artists/${artistId}/greetings`),
   createArtistGreeting: (artistId: number, data: GreetingInput): Promise<GreetingTemplate> =>
     postJson(`/admin/artists/${artistId}/greetings`, data),
-  updateArtistGreeting: (artistId: number, gid: number, data: Partial<GreetingInput>): Promise<GreetingTemplate> =>
+  updateArtistGreeting: (artistId: number, gid: number, data: Partial<GreetingInput> & { isEnabled?: boolean }): Promise<GreetingTemplate> =>
     putJson(`/admin/artists/${artistId}/greetings/${gid}`, data),
   deleteArtistGreeting: (artistId: number, gid: number): Promise<SimpleSuccessResult> =>
     deleteJson(`/admin/artists/${artistId}/greetings/${gid}`),

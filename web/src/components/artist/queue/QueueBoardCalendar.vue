@@ -277,12 +277,14 @@
   />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
+import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../../api/index.js'
+import type { ApiError } from '../../../api/index.js'
 import UndoToast from '../UndoToast.vue'
 // v0.38: 统一墨线空状态（REQ-026 §二）
 import InkEmpty from '../visual/InkEmpty.vue'
@@ -293,13 +295,61 @@ const { t } = useI18n()
 const router = useRouter()
 
 const props = defineProps({
-  queue: { type: Array, required: true },
-  bufferQueue: { type: Array, default: () => [] },
+  queue: { type: Array as PropType<CalOrder[]>, required: true },
+  bufferQueue: { type: Array as PropType<CalOrder[]>, default: () => [] },
   loading: { type: Boolean, default: false },
   bufferLoading: { type: Boolean, default: false },
   viewMode: { type: String, required: true }
 })
 const emit = defineEmits(['refresh-all'])
+
+// ─── 本地类型（月历行：本组件消费字段的形状声明；兼容队列端点行与时间条轻量行） ───
+interface CalOrder {
+  id: number
+  status: string
+  order_no: string
+  deadline: string | null
+  startDate?: string | null
+  created_at?: string | null
+  confirmed_at?: string | null
+  version?: number
+  client_name?: string | null
+  client_qq?: string
+  tier_name?: string | null
+  _zone: string
+}
+
+/** 带/时间条函数消费的订单最小形状（结构兼容 CalOrder 与 useQueueTimeline 行内 order） */
+interface BoardOrderLite {
+  id: number
+  status: string
+  deadline?: string | null
+  startDate?: string | null
+  created_at?: string | null
+  confirmed_at?: string | null
+  version?: number | null
+  order_no?: string | number
+  client_name?: string | null
+  client_qq?: string | null
+  tier_name?: string | null
+  _zone?: string
+}
+
+/** 月订单带（订单 + 起止区间） */
+interface CalBand {
+  order: CalOrder
+  range: { start: Date; end: Date; noDeadline: boolean }
+}
+
+/** 月历格子（42 格 = 6 行） */
+interface CalCell {
+  day: number
+  inMonth: boolean
+  isToday: boolean
+  weekend: boolean
+  bands: CalBand[]
+  free: boolean
+}
 
 // ─── SPEC-005: 月历视图 ───
 const WEEKDAY_KEYS = ['queue.calMon', 'queue.calTue', 'queue.calWed', 'queue.calThu', 'queue.calFri', 'queue.calSat', 'queue.calSun']
@@ -307,7 +357,7 @@ const WEEKDAY_KEYS = ['queue.calMon', 'queue.calTue', 'queue.calWed', 'queue.cal
 /** 当前可见月份（Date 对象，指向当月 1 日） */
 const calCursor = ref(startOfMonth(new Date()))
 
-function startOfMonth(d) {
+function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1)
 }
 const calYear = computed(() => calCursor.value.getFullYear())
@@ -316,7 +366,7 @@ const isCurrentMonth = computed(() => {
   const now = new Date()
   return calYear.value === now.getFullYear() && calMonth.value === now.getMonth()
 })
-function changeMonth(delta) {
+function changeMonth(delta: number) {
   calCursor.value = new Date(calYear.value, calMonth.value + delta, 1)
 }
 function goToday() {
@@ -325,8 +375,8 @@ function goToday() {
 
 // ─── 批G(2026-08-08): 日视图展开 + 月份选择器 ───
 const dayDialogVisible = ref(false)
-const dayDialogOrders = ref([])
-const dayDialogDate = ref(null)
+const dayDialogOrders = ref<CalOrder[]>([])
+const dayDialogDate = ref<Date | null>(null)
 const dayDialogTitle = computed(() => {
   if (!dayDialogDate.value) return ''
   const d = dayDialogDate.value
@@ -336,35 +386,35 @@ const dayDialogTitle = computed(() => {
   })
 })
 /** 点击日期格 / "+N" → 打开当天完整订单列表（非当月格或空格不响应） */
-function openDayView(cell) {
+function openDayView(cell: CalCell) {
   if (!cell || !cell.inMonth || cell.bands.length === 0) return
   dayDialogOrders.value = cell.bands.map(b => b.order)
   dayDialogDate.value = new Date(calYear.value, calMonth.value, cell.day)
   dayDialogVisible.value = true
 }
-function goDayOrder(order) {
+function goDayOrder(order: BoardOrderLite) {
   dayDialogVisible.value = false
   router.push(`/orders/${order.id}?from=queue`)
 }
 
 // ─── 时间条改期对话框（键盘等价：替代拖拽 handle；与 onTlHandleUp 同 API/乐观锁） ───
 const dateEditVisible = ref(false)
-const dateEditOrder = ref(null)
+const dateEditOrder = ref<BoardOrderLite | null>(null)
 const dateEditStart = ref('')
 const dateEditDeadline = ref('')
 const dateEditSaving = ref(false)
 
-function openDateEdit(order) {
+function openDateEdit(order: BoardOrderLite) {
   dateEditOrder.value = order
   dateEditStart.value = order.startDate || ''
   dateEditDeadline.value = order.deadline || ''
   dateEditVisible.value = true
 }
-function dateEditStartDisabled(d) {
+function dateEditStartDisabled(d: Date) {
   if (dateEditDeadline.value) return d > new Date(dateEditDeadline.value + 'T00:00:00')
   return false
 }
-function dateEditDeadlineDisabled(d) {
+function dateEditDeadlineDisabled(d: Date) {
   if (dateEditStart.value) return d < new Date(dateEditStart.value + 'T00:00:00')
   return false
 }
@@ -408,8 +458,8 @@ async function saveDateEdit() {
     ElMessage.success(t('queue.tlDateSaved'))
     emit('refresh-all')
   } catch (err) {
-    if (err?.code === 'ORDER_CONFLICT') ElMessage.warning(t('queue.tlOrderConflict'))
-    else ElMessage.error(err.message)
+    if ((err as ApiError)?.code === 'ORDER_CONFLICT') ElMessage.warning(t('queue.tlOrderConflict'))
+    else ElMessage.error((err as Error).message)
     emit('refresh-all')
   } finally {
     dateEditSaving.value = false
@@ -421,43 +471,43 @@ const calMonthPicker = ref(`${calYear.value}-${String(calMonth.value + 1).padSta
 watch(calCursor, (c) => {
   calMonthPicker.value = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}`
 })
-function onCalMonthPick(val) {
+function onCalMonthPick(val: string) {
   if (!val) return
   calCursor.value = new Date(Number(val.slice(0, 4)), Number(val.slice(5, 7)) - 1, 1)
 }
 
 // ─── v0.25 E: 移动端翻月手势（水平滑动 > 50px 触发，参考 TplTierGrid 实现） ───
 let calTouchStartX = 0
-function onCalTouchStart(e) {
+function onCalTouchStart(e: TouchEvent) {
   calTouchStartX = e.touches[0].clientX
 }
-function onCalTouchEnd(e) {
+function onCalTouchEnd(e: TouchEvent) {
   const deltaX = e.changedTouches[0].clientX - calTouchStartX
   if (Math.abs(deltaX) < 50) return
   changeMonth(deltaX < 0 ? 1 : -1)
 }
 
 /** 日期 → 'YYYY-MM-DD' 键（本地时区） */
-function dateKey(d) {
+function dateKey(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${d.getFullYear()}-${m}-${day}`
 }
 /** 解析后端日期字符串为本地 Date（兼容 'YYYY-MM-DD' 与 ISO） */
-function parseDate(str) {
+function parseDate(str: string | null | undefined): Date | null {
   if (!str) return null
   const d = new Date(str)
   return isNaN(d.getTime()) ? null : d
 }
 
 /** 全部日历订单（正式 + 缓冲合并，带 zone 标记） */
-const calOrders = computed(() => [
-  ...props.queue.map(o => ({ ...o, _zone: 'formal' })),
-  ...props.bufferQueue.map(o => ({ ...o, _zone: 'buffer' }))
+const calOrders = computed<CalOrder[]>(() => [
+  ...props.queue.map((o): CalOrder => ({ ...o, _zone: 'formal' })),
+  ...props.bufferQueue.map((o): CalOrder => ({ ...o, _zone: 'buffer' }))
 ])
 
 /** 订单带区间：开工日(start_date)→确认日(created_at) → 截稿日(deadline)；未设截稿 → 画满到可见月末 */
-function bandRange(order) {
+function bandRange(order: BoardOrderLite) {
   const start = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
   if (!start) return null
   let end = parseDate(order.deadline)
@@ -491,9 +541,9 @@ const calCells = computed(() => {
       if (range.end < first || range.start > monthEnd) return null
       return { order, range }
     })
-    .filter(Boolean)
+    .filter((b): b is CalBand => b != null)
 
-  const cells = []
+  const cells: CalCell[] = []
   for (let i = 0; i < 42; i++) {
     const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
     const key = dateKey(d)
@@ -519,7 +569,7 @@ const calCells = computed(() => {
 })
 
 /** 带内文字：昵称-类型（超长 CSS 截断）；未设截稿日 → 前置 ⚠️（REQ §二 色带标准） */
-function bandLabel(order) {
+function bandLabel(order: BoardOrderLite) {
   const name = order.client_name || order.client_qq || ''
   const tier = order.tier_name || t('common.custom')
   const base = name ? `${name}-${tier}` : tier
@@ -530,7 +580,7 @@ function bandLabel(order) {
 /** 带视觉样式（正式实心 / 缓冲半透明虚线 / 未设截稿斜纹 / 逾期朱砂 / 完成石绿）。
  * v0.38: 同时输出 band-doing/band-over/band-done 全局别名——
  * artist-tokens.css 的墨黑主题覆写挂在这组类上（实心带提亮，语义不变）。 */
-function bandClass(order) {
+function bandClass(order: BoardOrderLite) {
   if (!order.deadline && !['delivered', 'done'].includes(order.status)) {
     return ['cal-band--nodeadline', 'band-nd']
   }
@@ -548,7 +598,7 @@ function bandClass(order) {
 }
 
 /** hover tooltip：订单号 + 截稿日 + 状态 */
-function bandTooltip(order) {
+function bandTooltip(order: BoardOrderLite) {
   const deadline = order.deadline
     ? String(order.deadline).slice(0, 10)
     : t('queue.calNoDeadline')
@@ -556,8 +606,8 @@ function bandTooltip(order) {
 }
 
 let tlDragHappened = false // 拖拽刚结束，抑制 click 跳转
-let tlDragResetTimer = null
-function goOrder(order) {
+let tlDragResetTimer: number | null = null
+function goOrder(order: BoardOrderLite) {
   if (tlDragHappened) return // 拖拽松手不跳转
   router.push(`/orders/${order.id}?from=queue`)
 }
@@ -566,9 +616,9 @@ onUnmounted(() => { if (tlDragResetTimer) clearTimeout(tlDragResetTimer) }) // a
 
 // ─── v0.25 D: 时间条视图状态机装配（2026-08-10 拆分：useQueueTimeline，纯搬移零行为变化） ───
 const {
-  tlZoom, changeTlZoom, tlDayWidth,
-  tlScrollEl, onTlScroll, tlCanvasWidth, tlTicks,
-  tlTodayX, tlIsTodayVisible, tlGoToday, tlRows,
+  tlZoom, changeTlZoom: setTlZoom, tlDayWidth,
+  tlScrollEl: tlScrollRef, onTlScroll, tlCanvasWidth, tlTicks,
+  tlTodayX, tlIsTodayVisible, tlGoToday, tlRows: rawTlRows,
   tlAxisPanning, onTlCanvasWheel, onTlCanvasDown, onTlCanvasMove, onTlCanvasUp, onTlCanvasCancel,
   tlDrag, tlDragLabelText, tlBarStyle,
   tlCanDragStart, tlCanDragEnd, tlCanDragMove,
@@ -586,6 +636,26 @@ const {
     tlDragResetTimer = setTimeout(() => { tlDragHappened = false }, 50)
   }
 })
+
+// 模板 ref 别名：tl-scroll 容器（composable 持 ref，同名别名供模板绑定，零运行时差异）
+const tlScrollEl = tlScrollRef
+void tlScrollEl // 模板侧消费（ref 绑定），此处保 setup 作用域引用计数
+
+/** composable 行的 order 为轻量形状（无 order_no）：读取时补单号（运行时补出 undefined 与原状一致，仅类型补齐） */
+const tlRows = computed(() => rawTlRows.value.map(row => ({
+  ...row,
+  order: {
+    ...row.order,
+    order_no: (props.queue.find(o => o.id === row.order.id) || props.bufferQueue.find(o => o.id === row.order.id))?.order_no
+  }
+})))
+
+// el-radio-group 的 update:model-value emit 为宽类型；缩放键仅四档字面量
+//（composable 内部 TL_ZOOMS 守卫兜底，断言安全）
+type TlZoomKeyLite = '2w' | '1m' | '3m' | '6m'
+function changeTlZoom(val: string | number | boolean | undefined) {
+  setTlZoom(val as TlZoomKeyLite)
+}
 </script>
 
 <style scoped>

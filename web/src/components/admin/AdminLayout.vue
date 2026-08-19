@@ -113,7 +113,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -123,7 +123,7 @@ import { useThemeStore } from '../../stores/theme.js'
 import { useSessionGuard } from '../../composables/useSessionGuard'
 // REQ-041: 管理后台二次验证对话框（入口级守卫）
 import StepUpDialog from './StepUpDialog.vue'
-import { stepUpApi } from '../../api/index.js'
+import { stepUpApi, type ApiError } from '../../api/index.js'
 import { Management, User, ChatLineSquare, SetUp, Share, Files, Monitor, TrendCharts, Operation, Back, Warning, Bell } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -189,8 +189,8 @@ const drawerVisible = ref(false)
 
 const mqNarrow = window.matchMedia('(max-width: 900px)')
 const mqMobile = window.matchMedia('(max-width: 600px)')
-function onNarrowChange(e) { isNarrow.value = e.matches }
-function onMobileChange(e) { isMobile.value = e.matches }
+function onNarrowChange(e: MediaQueryListEvent) { isNarrow.value = e.matches }
+function onMobileChange(e: MediaQueryListEvent) { isMobile.value = e.matches }
 
 onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
@@ -210,10 +210,10 @@ const collapsed = computed(() => isNarrow.value)
 // 813-fq-tail-shared 战役 S：侧栏宽度走 CSS 变量单源（--sb-w-collapsed/--sb-w），数值见下方 scoped 样式
 const asideWidth = computed(() => collapsed.value ? 'var(--sb-w-collapsed)' : 'var(--sb-w)')
 
-function go(path) {
+function go(path: string) {
   if (route.path !== path) router.push(path)
 }
-function goDrawer(path) {
+function goDrawer(path: string) {
   drawerVisible.value = false
   go(path)
 }
@@ -235,7 +235,8 @@ async function checkStepUp() {
     await stepUpApi.status()
   } catch (err) {
     // 只响应后端 401 码；其余（网络/权限等）交由 useSessionGuard 兜底，不阻塞骨架
-    if (err.status === 401 && err.code === 'STEP_UP_REQUIRED') {
+    const e = err as ApiError
+    if (e.status === 401 && e.code === 'STEP_UP_REQUIRED') {
       stepUpVisible.value = true
     }
   } finally {

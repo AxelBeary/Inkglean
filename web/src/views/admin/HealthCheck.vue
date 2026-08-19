@@ -116,9 +116,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, markRaw, computed, onMounted } from 'vue'
+import type { Component } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { HealthCheckItem, SystemVersionResult } from '../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
@@ -130,14 +132,14 @@ import { CircleCheck, Warning, CircleClose, QuestionFilled, ArrowDown } from '@e
 
 const store = useArtistStore()
 const { t } = useI18n()
-const checks = ref([])
+const checks = ref<HealthCheckItem[]>([])
 const checking = ref(false)
 const downloading = ref(false)
-const expanded = ref([])
+const expanded = ref<string[]>([])
 
 // ─── 0818 方案 A：系统更新检查（进页自动拉一次；重新检查走 force 绕缓存） ───
 const UPDATE_CMD = 'git pull && docker compose up -d --build'
-const versionInfo = ref(null)
+const versionInfo = ref<SystemVersionResult | null>(null)
 const updateLoading = ref(false)
 const updateFailed = ref(false)
 
@@ -154,7 +156,7 @@ const latestText = computed(() => {
   if (updateFailed.value || !versionInfo.value) return '—'
   const { latest } = versionInfo.value
   if (!latest.ok) return t('admin.update.statusFetchFailed')
-  return latest.date ? `${latest.sha.slice(0, 7)} · ${formatDateTime(latest.date)}` : latest.sha.slice(0, 7)
+  return latest.date ? `${latest.sha!.slice(0, 7)} · ${formatDateTime(latest.date)}` : latest.sha!.slice(0, 7)
 })
 const statusText = computed(() => {
   if (updateFailed.value) return t('admin.update.loadFailed')
@@ -195,11 +197,11 @@ async function copyUpdateCmd() {
 // 进页自动拉一次版本信息（失败静默降级为错误态文案，不打断自检页主体）
 onMounted(() => loadVersion())
 
-const STATUS_ICON = { ok: markRaw(CircleCheck), warn: markRaw(Warning), fail: markRaw(CircleClose) }
-function statusIcon(status) { return STATUS_ICON[status] || QuestionFilled }
+const STATUS_ICON: Record<string, Component> = { ok: markRaw(CircleCheck), warn: markRaw(Warning), fail: markRaw(CircleClose) }
+function statusIcon(status: string) { return STATUS_ICON[status] || QuestionFilled }
 
-function isExpanded(id) { return expanded.value.includes(id) }
-function toggleExpand(id) {
+function isExpanded(id: string) { return expanded.value.includes(id) }
+function toggleExpand(id: string) {
   expanded.value = expanded.value.includes(id)
     ? expanded.value.filter(x => x !== id)
     : [...expanded.value, id]
@@ -212,7 +214,7 @@ async function runChecks() {
     const res = await adminApi.getHealth()
     checks.value = res.checks || []
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     checks.value = []
   } finally {
     checking.value = false
@@ -220,7 +222,7 @@ async function runChecks() {
 }
 
 /** 从 Content-Disposition 解析下载文件名（后端返回 health-report-YYYY-MM-DD.json） */
-function filenameFromDisposition(header, fallback) {
+function filenameFromDisposition(header: string | null, fallback: string) {
   const m = /filename="?([^";]+)"?/.exec(header || '')
   return m ? m[1] : fallback
 }
@@ -260,11 +262,11 @@ async function downloadReport() {
     URL.revokeObjectURL(url)
     ElMessage.success(t('admin.health.downloaded'))
   } catch (err) {
-    if (err?.name === 'AbortError') {
+    if ((err as Error)?.name === 'AbortError') {
       ElMessage.error(t('admin.health.downloadTimeout'))
       return
     }
-    ElMessage.error(err.message || t('admin.health.downloadFailed'))
+    ElMessage.error((err as Error).message || t('admin.health.downloadFailed'))
   } finally {
     clearTimeout(timer)
     downloading.value = false

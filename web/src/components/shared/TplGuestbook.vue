@@ -63,9 +63,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { artistPublicApi } from '../../api/index.js'
+import type { PublicGuestbookMessage } from '../../api/types.js'
 import { formatDateTime } from '../../utils/datetime.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -82,14 +83,14 @@ const themeClass = computed(() => (props.theme ? `tpl-guestbook--${props.theme}`
 
 const { t } = useI18n()
 
-const messages = ref([])
+const messages = ref<PublicGuestbookMessage[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(true)
 const loadingMore = ref(false)
 const submitting = ref(false)
 const justSubmitted = ref(false)
-let pendingHintTimer = null
+let pendingHintTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 复位「已提交待审核」提示：输入新内容立即清除；5s 无人操作兜底清除（b3 猎杀） */
 function clearPendingHint() {
@@ -107,7 +108,7 @@ watch(content, (v) => {
 const PAGE_SIZE = 20
 const hasMore = computed(() => messages.value.length < total.value)
 
-async function fetchPage(p) {
+async function fetchPage(p: number) {
   const res = await artistPublicApi.getMessages(props.subdomain, p, PAGE_SIZE)
   return res
 }
@@ -150,10 +151,11 @@ async function submit() {
     pendingHintTimer = setTimeout(() => { justSubmitted.value = false; pendingHintTimer = null }, 5000)
   } catch (err) {
     // 429 限流：后端返回 code=RATE_LIMITED
-    if (err.response?.status === 429) {
+    const e = err as { response?: { status?: number }; message: string }
+    if (e.response?.status === 429) {
       ElMessage.warning(t('guestbook.rateLimited'))
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error(e.message)
     }
   } finally {
     submitting.value = false

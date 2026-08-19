@@ -51,7 +51,7 @@
           <el-switch
             v-model="row.is_enabled" :active-value="1" :inactive-value="0" size="small"
             :loading="togglingId === row.id" :disabled="togglingId === row.id || removingId != null"
-            @change="(val) => toggleEnabled(row, val)"
+            @change="(val: number) => toggleEnabled(row, val)"
           />
         </span>
         <span class="g-col g-col--actions">
@@ -69,9 +69,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { GreetingTemplate, GreetingInput } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 
@@ -83,17 +84,17 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const greetings = ref([])
+const greetings = ref<GreetingTemplate[]>([])
 const loading = ref(false)
 const saving = ref(false)
 // b3 清扫：行级操作挂起 id（删除/启停期间禁用该行控件，防连续触发）
-const removingId = ref(null)
-const togglingId = ref(null)
+const removingId = ref<number | null>(null)
+const togglingId = ref<number | null>(null)
 const newText = ref('')
 const newSlot = ref('any')
 
 // 817 问候重构：7 档时段（清晨/上午/午后/下午/夜晚/深夜/全天）
-const SLOT_TAG = { early: 'success', morning: 'success', noon: 'warning', afternoon: 'warning', evening: '', midnight: 'danger', any: 'info' }
+const SLOT_TAG: Record<string, '' | 'success' | 'warning' | 'info' | 'danger'> = { early: 'success', morning: 'success', noon: 'warning', afternoon: 'warning', evening: '', midnight: 'danger', any: 'info' }
 
 const slots = computed(() => [
   { value: 'any', label: t('admin.slotAny') },
@@ -105,30 +106,30 @@ const slots = computed(() => [
   { value: 'midnight', label: t('admin.slotMidnight') },
 ])
 
-const slotLabel = (s) => slots.value.find(o => o.value === s)?.label || s
+const slotLabel = (s: string) => slots.value.find(o => o.value === s)?.label || s
 
 const previewText = computed(() => newText.value.replace(/\{name\}/g, props.previewName))
 
 // API 分发：通用库 vs 专属库
 const api = computed(() => props.artistId
   ? {
-      list: () => adminApi.getArtistGreetings(props.artistId),
-      create: (d) => adminApi.createArtistGreeting(props.artistId, d),
-      update: (id, d) => adminApi.updateArtistGreeting(props.artistId, id, d),
-      remove: (id) => adminApi.deleteArtistGreeting(props.artistId, id)
+      list: () => adminApi.getArtistGreetings(props.artistId as number),
+      create: (d: GreetingInput) => adminApi.createArtistGreeting(props.artistId as number, d),
+      update: (id: number, d: Partial<GreetingInput> & { isEnabled?: boolean }) => adminApi.updateArtistGreeting(props.artistId as number, id, d),
+      remove: (id: number) => adminApi.deleteArtistGreeting(props.artistId as number, id)
     }
   : {
       list: () => adminApi.getGreetings(),
-      create: (d) => adminApi.createGreeting(d),
-      update: (id, d) => adminApi.updateGreeting(id, d),
-      remove: (id) => adminApi.deleteGreeting(id)
+      create: (d: GreetingInput) => adminApi.createGreeting(d),
+      update: (id: number, d: Partial<GreetingInput> & { isEnabled?: boolean }) => adminApi.updateGreeting(id, d),
+      remove: (id: number) => adminApi.deleteGreeting(id)
     }
 )
 
 async function load() {
   loading.value = true
   try { greetings.value = await api.value.list() }
-  catch (err) { ElMessage.error(err.message) }
+  catch (err) { ElMessage.error((err as Error).message) }
   finally { loading.value = false }
 }
 
@@ -136,26 +137,26 @@ async function addGreeting() {
   if (!newText.value.trim()) return
   saving.value = true
   try {
-    await api.value.create({ text: newText.value.trim(), timeSlot: newSlot.value })
+    await api.value.create({ text: newText.value.trim(), timeSlot: newSlot.value as NonNullable<GreetingInput['timeSlot']> })
     newText.value = ''
     await load()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { saving.value = false }
 }
 
-async function toggleEnabled(row, val) {
+async function toggleEnabled(row: GreetingTemplate, val: unknown) {
   if (togglingId.value === row.id) return
   togglingId.value = row.id
   try { await api.value.update(row.id, { isEnabled: !!val }) }
   catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     await load()
   } finally {
     togglingId.value = null
   }
 }
 
-async function remove(row) {
+async function remove(row: GreetingTemplate) {
   // b3 清扫：删除加确认（防误删）+ 行级 loading
   try {
     await ElMessageBox.confirm(
@@ -167,7 +168,7 @@ async function remove(row) {
   if (removingId.value === row.id) return
   removingId.value = row.id
   try { await api.value.remove(row.id); await load() }
-  catch (err) { ElMessage.error(err.message) }
+  catch (err) { ElMessage.error((err as Error).message) }
   finally { removingId.value = null }
 }
 

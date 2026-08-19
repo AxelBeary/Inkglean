@@ -1,0 +1,379 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { db, cleanDb, seedArtist } from './setup.js'
+import { buildApp } from '../src/app.js'
+import * as styleService from '../src/features/pricing/style.service.js'
+import * as stylePricingService from '../src/features/pricing/style-pricing.service.js'
+import * as orderService from '../src/features/order/order.service.js'
+
+// ============================================
+// REQ-036 批B 后端核心测试（SPEC-PRICE-2 v50 对齐）
+// 删除策略 C' / 尺寸三态 / category 维度（用途/加急）/ 内置模板种子 / locked 字段
+// ============================================
+
+// 价格明细行局部类型
+interface BreakdownRow { item_name: string; item_type: string; multiplier: number | null; amount_cents: number }
+
+function seedWorkflowStages(artistId: number): void {
+  const ins = db.prepare(
+    'INSERT INTO artist_workflow_stages (artist_id, name, sort_order, takes_payment, basis_points) VALUES (?, ?, ?, 1, ?)'
+  )
+  ins.run(artistId, '定金', 1, 3000)
+  ins.run(artistId, '尾款', 2, 7000)
+}
+
+/** 搭建标准场景：画师 + 画风 + 2尺寸 + 模板（含乘法项） */
+function setupScene() {
+  const artist = seedArtist({ qq_number: '99001', subdomain: 'req036' })
+  seedWorkflowStages(artist.id)
+
+  const tplSwitch = styleService.createAddonTemplate(artist.id, {
+    name: '加背景', control_type: 'switch', price_mode: 'fixed', default_price: 150
+  })
+  const tplQty = styleService.createAddonTemplate(artist.id, {
+    name: '加人', control_type: 'quantity', price_mode: 'fixed', default_price: 100, unit_label: '人', max_quantity: 5
+  })
+  const tplMult = styleService.createAddonTemplate(artist.id, {
+    name: '商用', control_type: 'switch', price_mode: 'percent', default_price: 50, category: 'usage'
+  })
+  const tplRush = styleService.createAddonTemplate(artist.id, {
+    name: '加急单', control_type: 'switch', price_mode: 'percent', default_price: 100, category: 'rush'
+  })
+
+  const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: true })
+  const sizeHead = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
+  const sizeShowcase = styleService.createStyleSize(artist.id, style.id, { name: '展示中', base_price: 300, display_status: 'showcase' })
+  const sizeClosed = styleService.createStyleSize(artist.id, style.id, { name: '关闭中', base_price: 400, display_status: 'closed' })
+
+  styleService.setStyleAddons(artist.id, style.id, [
+    { addon_template_id: tplSwitch.id },
+    { addon_template_id: tplQty.id },
+    { addon_template_id: tplMult.id },
+    { addon_template_id: tplRush.id }
+  ])
+  const styleAddons = styleService.getStyleAddons(style.id)
+  const saSwitch = styleAddons.find(a => a.addon_template_id === tplSwitch.id)!
+  const saQty = styleAddons.find(a => a.addon_template_id === tplQty.id)!
+  const saMult = styleAddons.find(a => a.addon_template_id === tplMult.id)!
+  const saRush = styleAddons.find(a => a.addon_template_id === tplRush.id)!
+
+  return { artist, style, sizeHead, sizeShowcase, sizeClosed, tplSwitch, tplQty, tplMult, tplRush, saSwitch, saQty, saMult, saRush }
+}
+
+// ─── 任务 1：删除策略 C'（保留独立增项 + 解除引用） ───
+
+describe("REQ-036 C' 删除策略", () => {
+  beforeEach(() => { cleanDb() })
+
+  it('TC-R36-01: 删除被引用模板 → 返回 referenced N，画风内增项保留为独立增项', () => {
+    const { artist, style, tplSwitch, saSwitch } = setupScene()
+    const result = styleService.deleteAddonTemplate(artist.id, tplSwitch.id)
+    expect(result.deleted).toBe(true)
+    expect(result.referenced).toBe(1)
+
+    const addons = styleService.getStyleAddons(style.id)
+    const kept = addons.find(a => a.id === saSwitch.id)!
+    expect(kept).toBeTruthy()
+    expect(kept.detached).toBeTruthy()
+    expect(kept.addon_template_id).toBeNull()
+    // 快照保留展示数据
+    expect(kept.template_name).toBe('加背景')
+    expect(kept.template_default_price).toBe(150)
+    // 模板已删
+    expect(() => styleService.getAddonTemplate(artist.id, tplSwitch.id)).toThrow('ADDON_TEMPLATE_NOT_FOUND')
+  })
+
+  it('TC-R36-02: 删除未引用模板 → referenced 0，直接删除', () => {
+    const { artist } = setupScene()
+    const tpl = styleService.createAddonTemplate(artist.id, { name: '孤儿' })
+    const result = styleService.deleteAddonTemplate(artist.id, tpl.id)
+    expect(result.referenced).toBe(0)
+    expect(() => styleService.getAddonTemplate(artist.id, tpl.id)).toThrow('ADDON_TEMPLATE_NOT_FOUND')
+  })
+
+  it('TC-R36-03: 系统预置模板画师不可删/改（404）', () => {
+    const { artist } = setupScene()
+    const sys = styleService.getAddonTemplates(artist.id).find(t => t.artist_id === null)!
+    expect(sys).toBeTruthy()
+    expect(() => styleService.deleteAddonTemplate(artist.id, sys.id)).toThrow('ADDON_TEMPLATE_NOT_FOUND')
+    expect(() => styleService.updateAddonTemplate(artist.id, sys.id, { name: '篡改' })).toThrow('ADDON_TEMPLATE_NOT_FOUND')
+  })
+
+  it('TC-R36-04: 解绑后独立增项仍可计价（快照兜底）', () => {
+    const { artist, sizeHead, tplSwitch, saSwitch } = setupScene()
+    styleService.deleteAddonTemplate(artist.id, tplSwitch.id)
+    const result = stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId: sizeHead.id,
+      addons: [{ styleAddonId: saSwitch.id }]
+    })
+    expect(result.fixedAddonItems).toHaveLength(1)
+    expect(result.fixedAddonItems[0].name).toBe('加背景')
+    expect(result.fixedAddonItems[0].amountCents).toBe(15000)
+  })
+})
+
+// ─── 任务 2：尺寸三态后端校验 ───
+
+describe('REQ-036 尺寸三态', () => {
+  beforeEach(() => { cleanDb() })
+
+  it('TC-R36-10: showcase 尺寸算价 → 400', () => {
+    const { artist, sizeShowcase } = setupScene()
+    expect(() => {
+      stylePricingService.calculateStylePrice(artist.id, { styleSizeId: sizeShowcase.id })
+    }).toThrow('STYLE_SIZE_NOT_AVAILABLE')
+  })
+
+  it('TC-R36-11: closed 尺寸算价 → 400', () => {
+    const { artist, sizeClosed } = setupScene()
+    expect(() => {
+      stylePricingService.calculateStylePrice(artist.id, { styleSizeId: sizeClosed.id })
+    }).toThrow('STYLE_SIZE_NOT_AVAILABLE')
+  })
+
+  it('TC-R36-12: available 尺寸算价正常', () => {
+    const { artist, sizeHead } = setupScene()
+    const result = stylePricingService.calculateStylePrice(artist.id, { styleSizeId: sizeHead.id })
+    expect(result.totalCents).toBe(20000)
+  })
+
+  it('TC-R36-13: showcase 尺寸下单 → 400（路由层）', async () => {
+    const { sizeShowcase } = setupScene()
+    const app = await buildApp({ logger: false })
+    await app.ready()
+    try {
+      const res = await app.inject({
+        method: 'POST', url: '/api/orders',
+        payload: { subdomain: 'req036', clientQq: '99101', agreeRules: true, styleSizeId: sizeShowcase.id }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('STYLE_SIZE_NOT_AVAILABLE')
+    } finally { await app.close() }
+  })
+
+  it('TC-R36-14: closed 尺寸下单 → 400', async () => {
+    const { sizeClosed } = setupScene()
+    const app = await buildApp({ logger: false })
+    await app.ready()
+    try {
+      const res = await app.inject({
+        method: 'POST', url: '/api/orders',
+        payload: { subdomain: 'req036', clientQq: '99102', agreeRules: true, styleSizeId: sizeClosed.id }
+      })
+      expect(res.statusCode).toBe(400)
+    } finally { await app.close() }
+  })
+
+  it('TC-R36-15: 公开样式接口隐藏 closed 尺寸、透出 display_status', async () => {
+    const { artist } = setupScene()
+    const styles = styleService.getPublicStyles(artist.id)
+    const sizeNames = styles[0].sizes.map(s => s.name)
+    expect(sizeNames).toContain('头像')
+    expect(sizeNames).toContain('展示中')
+    expect(sizeNames).not.toContain('关闭中')
+    const showcase = styles[0].sizes.find(s => s.name === '展示中')!
+    expect(showcase.display_status).toBe('showcase')
+    const head = styles[0].sizes.find(s => s.name === '头像')!
+    expect(head.display_status).toBe('available')
+  })
+})
+
+// ─── 任务 3：category 维度（用途/加急 = SPEC-PRICE-2 公式中的乘法位） ───
+
+describe('SPEC-PRICE-2 用途/加急增项', () => {
+  beforeEach(() => { cleanDb() })
+
+  it('TC-R36-20: 用途增项 +50% → 小计 × 150/100', () => {
+    const { artist, sizeHead, saMult } = setupScene()
+    const result = stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId: sizeHead.id,
+      addons: [{ styleAddonId: saMult.id }]
+    })
+    expect(result.usage).toMatchObject({ percent: 50, incrementCents: 10000 })
+    // 200 小计 × 1.5 = 300（用途不进加法小计）
+    expect(result.subtotalCents).toBe(20000)
+    expect(result.afterMultipliersCents).toBe(30000)
+    expect(result.totalCents).toBe(30000)
+  })
+
+  it('TC-R36-21: 固定增项 + 用途组合 =（基础+固定）× 用途因子', () => {
+    const { artist, sizeHead, saSwitch, saMult } = setupScene()
+    const result = stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId: sizeHead.id,
+      addons: [{ styleAddonId: saSwitch.id }, { styleAddonId: saMult.id }]
+    })
+    // (200 + 150) × 1.5 = 525
+    expect(result.subtotalCents).toBe(35000)
+    expect(result.afterMultipliersCents).toBe(52500)
+    expect(result.totalCents).toBe(52500)
+  })
+
+  it('TC-R36-22: 用途 × 加急链式（先用途后加急）', () => {
+    const { artist, sizeHead, saMult, saRush } = setupScene()
+    const result = stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId: sizeHead.id,
+      addons: [{ styleAddonId: saMult.id }, { styleAddonId: saRush.id }]
+    })
+    // 200 × 1.5 × 2.0 = 600
+    expect(result.afterMultipliersCents).toBe(60000)
+    expect(result.rush!.incrementCents).toBe(30000)
+  })
+
+  it('TC-R36-23: 用途增项下单 → quote_snapshot 含百分比 + breakdown 写增量', () => {
+    const { artist, sizeHead, saMult } = setupScene()
+    const order = orderService.createOrder({
+      artistId: artist.id,
+      styleSizeId: sizeHead.id,
+      styleAddons: [{ styleAddonId: saMult.id }],
+      clientQq: '99103'
+    })
+    expect(order.total_price_cents).toBe(30000)
+    expect(order.quote_snapshot).toContain('商用+50%')
+    const bd = db.prepare('SELECT * FROM order_price_breakdown WHERE order_id = ? ORDER BY sort_order ASC').all(order.id) as BreakdownRow[]
+    const multRow = bd.find(r => r.item_name.includes('商用'))!
+    expect(multRow).toBeTruthy()
+    expect(multRow.item_type).toBe('usage')
+    expect(multRow.multiplier).toBe(1.5)
+    expect(multRow.amount_cents).toBe(10000) // 200 × 0.5
+  })
+})
+
+// ─── 任务 4：内置模板种子 + max_quantity ───
+
+describe('REQ-036 内置模板种子', () => {
+  beforeEach(() => { cleanDb() })
+
+  it('TC-R36-30: 迁移后系统预置 4 个基础增项（812-B B7），全画师可见', () => {
+    const artist = seedArtist({ qq_number: '99002', subdomain: 'seed1' })
+    const sys = styleService.getAddonTemplates(artist.id).filter(t => t.artist_id === null)
+    expect(sys).toHaveLength(4)
+    const names = sys.map(t => t.name)
+    expect(names).toContain('个人用途')
+    expect(names).toContain('商业用途')
+    expect(names).toContain('标准')
+    expect(names).toContain('加急')
+    // 用途/加急语义（SPEC-PRICE-2，812-B 保守值）：个人 ×1.0 / 商业 ×1.5 / 标准 ×1.0 / 加急 ×1.3
+    const personal = sys.find(t => t.name === '个人用途')!
+    expect(personal.category).toBe('usage')
+    expect(personal.price_mode).toBe('percent')
+    expect(personal.default_price).toBe(0)
+    const comm = sys.find(t => t.name === '商业用途')!
+    expect(comm.category).toBe('usage')
+    expect(comm.price_mode).toBe('percent')
+    expect(comm.default_price).toBe(50)
+    const std = sys.find(t => t.name === '标准')!
+    expect(std.category).toBe('rush')
+    expect(std.price_mode).toBe('percent')
+    expect(std.default_price).toBe(0)
+    const rush = sys.find(t => t.name === '加急')!
+    expect(rush.category).toBe('rush')
+    expect(rush.price_mode).toBe('percent')
+    expect(rush.default_price).toBe(30)
+  })
+
+  it('TC-R36-31: 数量型模板 max_quantity 生效（超出上限拒绝）', () => {
+    const { artist, sizeHead, saQty } = setupScene()
+    // saQty max_quantity=5
+    expect(() => {
+      stylePricingService.calculateStylePrice(artist.id, {
+        styleSizeId: sizeHead.id,
+        addons: [{ styleAddonId: saQty.id, quantity: 6 }]
+      })
+    }).toThrow('VALIDATION')
+    const ok = stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId: sizeHead.id,
+      addons: [{ styleAddonId: saQty.id, quantity: 5 }]
+    })
+    expect(ok.fixedAddonItems[0].quantity).toBe(5)
+  })
+
+  it('TC-R36-32: 系统模板可被画师导入画风（setStyleAddons 允许）', () => {
+    const { artist, style } = setupScene()
+    const sys = styleService.getAddonTemplates(artist.id).find(t => t.name === '商业用途')!
+    const result = styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: sys.id }])
+    const added = result.find(a => a.addon_template_id === sys.id)!
+    expect(added.template_name).toBe('商业用途')
+  })
+})
+
+// ─── 任务 5：locked 字段 ───
+
+describe('REQ-036 locked 字段（02F 遗留）', () => {
+  beforeEach(() => { cleanDb() })
+
+  it('TC-R36-40: getOrderInstallments 返回 locked/lockedReason', () => {
+    const { artist, sizeHead } = setupScene()
+    const order = orderService.createOrder({
+      artistId: artist.id, styleSizeId: sizeHead.id, clientQq: '99104'
+    })
+    const insts = orderService.getOrderInstallments(order.id)
+    expect(insts.length).toBeGreaterThan(0)
+    for (const inst of insts) {
+      expect(typeof inst.locked).toBe('boolean')
+      expect('lockedReason' in inst).toBe(true)
+    }
+  })
+
+  it('TC-R36-41: 已锁定节点透出 locked=true + reason', () => {
+    const { artist, sizeHead } = setupScene()
+    const order = orderService.createOrder({
+      artistId: artist.id, styleSizeId: sizeHead.id, clientQq: '99105'
+    })
+    db.prepare("UPDATE order_payment_installments SET locked = 1, locked_reason = 'completed' WHERE order_id = ? LIMIT 1").run(order.id)
+    const insts = orderService.getOrderInstallments(order.id)
+    const lockedOne = insts.find(i => i.locked)!
+    expect(lockedOne).toBeTruthy()
+    expect(lockedOne.lockedReason).toBe('completed')
+  })
+})
+
+// ─── v51 补丁：用途/加急强制开关控件 + 绑定行快照语义（模板为唯一权威） ───
+describe('SPEC-PRICE-2 v51：控件约束与快照语义', () => {
+  beforeEach(() => cleanDb())
+
+  it('TC-V51-01: 用途/加急禁止个数控件（创建拦截）', () => {
+    const artist = seedArtist({ qq_number: '99010', subdomain: 'v51a' })
+    expect(() => styleService.createAddonTemplate(artist.id, {
+      name: '商用', control_type: 'quantity', price_mode: 'percent', default_price: 50, category: 'usage'
+    })).toThrow('VALIDATION')
+  })
+
+  it('TC-V51-02: 用途/加急改个数控件（更新拦截）', () => {
+    const artist = seedArtist({ qq_number: '99011', subdomain: 'v51b' })
+    const tpl = styleService.createAddonTemplate(artist.id, {
+      name: '加急', control_type: 'switch', price_mode: 'percent', default_price: 100, category: 'rush'
+    })
+    expect(() => styleService.updateAddonTemplate(artist.id, tpl.id, { control_type: 'quantity' })).toThrow('VALIDATION')
+  })
+
+  it('TC-V51-03: 绑定行脏快照不遮蔽模板真实值（v50 污染修复回归）', () => {
+    const artist = seedArtist({ qq_number: '99012', subdomain: 'v51c' })
+    seedWorkflowStages(artist.id)
+    // 系统种子「加急」= rush/percent/30（812-B B7：×1.3 保守值）
+    const rushTpl = styleService.getAddonTemplates(artist.id).find(t => t.name === '加急')!
+    expect(rushTpl).toBeTruthy()
+    expect(rushTpl.default_price).toBe(30)
+    const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: false })
+    const size = styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200 })
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: rushTpl.id }])
+
+    // 人为写入脏快照（模拟 v50 迁移污染）：把绑定行快照写成 fixed/add
+    db.prepare(`
+      UPDATE style_addons SET tpl_price_mode = 'fixed', tpl_category = 'add', tpl_default_price = 100
+      WHERE addon_template_id = ?
+    `).run(rushTpl.id)
+
+    // 读取：模板仍为唯一权威（快照仅解绑行生效）
+    const addons = styleService.getStyleAddons(style.id)
+    const rushSa = addons.find(a => a.addon_template_id === rushTpl.id)!
+    expect(rushSa.template_category).toBe('rush')
+    expect(rushSa.template_price_mode).toBe('percent')
+
+    // 算价：仍按加急倍率而非普通加法项（200 × 1.3 = 260）
+    const result = stylePricingService.calculateStylePrice(artist.id, {
+      styleSizeId: size.id,
+      addons: [{ styleAddonId: rushSa.id }]
+    })
+    expect(result.rush!.percent).toBe(30)
+    expect(result.totalCents).toBe(26000)
+  })
+})

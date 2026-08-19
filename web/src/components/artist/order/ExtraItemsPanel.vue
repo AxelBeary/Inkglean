@@ -30,7 +30,7 @@
     </div>
     <InkEmpty v-else :title="$t('orderDetail.extraEmpty')" />
     <div class="extra-footer">
-      <el-button v-if="!isTerminal" size="small" @click="openExtraDialog" :disabled="order.extraItems?.length >= 20">
+      <el-button v-if="!isTerminal" size="small" @click="openExtraDialog" :disabled="(order.extraItems?.length ?? 0) >= 20">
         + {{ $t('orderDetail.extraAdd') }}
       </el-button>
       <span v-if="order.final_price_cents != null" class="extra-total">
@@ -85,17 +85,36 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
+import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CardHead from '../visual/CardHead.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
 import { artistApi } from '../../../api/index.js'
+import type { ApiError } from '../../../api/index.js'
 import { formatCents } from '../../../utils/money.js'
 
+/** 附加项行（本卡消费字段） */
+interface ExtraItemRow {
+  id: number
+  name: string
+  description?: string | null
+  price_cents: number
+}
+
+/** 本卡消费的订单字段（附加项 + 金额/状态/乐观锁） */
+interface ExtraOrderLite {
+  extraItems?: ExtraItemRow[] | null
+  final_price_cents?: number | null
+  total_price_cents?: number | null
+  status?: string
+  version?: number | null
+}
+
 const props = defineProps({
-  order: { type: Object, required: true },
+  order: { type: Object as PropType<ExtraOrderLite>, required: true },
   isTerminal: { type: Boolean, default: false },
   routeId: { type: [String, Number], required: true }
 })
@@ -122,17 +141,17 @@ async function submitExtraItem() {
       description: extraForm.value.description.trim() || null,
       priceCents: Math.round((extraForm.value.priceYuan || 0) * 100)
     }
-    emit('order-updated', await artistApi.addExtraItem(props.routeId, payload))
+    emit('order-updated', await artistApi.addExtraItem(props.routeId as number, payload))
     extraDialogVisible.value = false
     ElMessage.success(t('orderDetail.extraAdded'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     extraSubmitting.value = false
   }
 }
 
-async function deleteExtraItem(item) {
+async function deleteExtraItem(item: ExtraItemRow) {
   try {
     await ElMessageBox.confirm(
       t('orderDetail.extraDeleteConfirm', { name: item.name }),
@@ -141,17 +160,17 @@ async function deleteExtraItem(item) {
     )
   } catch { return }
   try {
-    emit('order-updated', await artistApi.deleteExtraItem(props.routeId, item.id))
+    emit('order-updated', await artistApi.deleteExtraItem(props.routeId as number, item.id))
     ElMessage.success(t('orderDetail.extraDeleted'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
 // ─── v0.31 五号方案A：改价（接通已有 PUT /price API） ───
 const priceDialogVisible = ref(false)
 const priceSubmitting = ref(false)
-const priceForm = ref({ priceYuan: null, note: '' })
+const priceForm = ref<{ priceYuan: number | null; note: string }>({ priceYuan: null, note: '' })
 
 function openPriceDialog() {
   const currentCents = props.order?.final_price_cents ?? props.order?.total_price_cents ?? 0
@@ -166,7 +185,7 @@ async function submitPriceChange() {
   try {
     // 815 审计 P1-3：乐观锁接线——改价携带当前 version，双开旧快照写入会被 409 拦下
     const versionOpt = props.order?.version != null ? { version: props.order.version } : {}
-    emit('order-updated', await artistApi.updatePrice(props.routeId, {
+    emit('order-updated', await artistApi.updatePrice(props.routeId as number, {
       finalPriceCents: cents,
       quoteSnapshot: priceForm.value.note.trim() || null,
       ...versionOpt
@@ -175,11 +194,11 @@ async function submitPriceChange() {
     ElMessage.success(t('orderDetail.priceUpdated'))
   } catch (err) {
     // 815 审计 P1-3：冲突不关弹窗，通知父组件重拉订单后用户可重试
-    if (err?.code === 'ORDER_CONFLICT') {
+    if ((err as ApiError)?.code === 'ORDER_CONFLICT') {
       ElMessage.warning(t('common.orderConflict'))
       emit('conflict')
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   } finally {
     priceSubmitting.value = false

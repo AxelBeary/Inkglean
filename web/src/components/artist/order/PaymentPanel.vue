@@ -82,22 +82,41 @@
   </el-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
 import CardHead from '../visual/CardHead.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
 import { formatDateTime } from '../../../utils/datetime.js'
 import { formatCents } from '../../../utils/money.js'
 
+/** 收款流水行（本卡消费字段） */
+interface PaymentRow {
+  id: number
+  created_at: string
+  amount_cents: number
+  note?: string | null
+}
+
+/** 节点收款参照行（本卡消费字段） */
+interface InstallmentRefRow {
+  id: number
+  name: string
+  status: string
+  paidCents: number
+  amountCents?: number | null
+  remainingCents: number
+}
+
 defineProps({
-  payments: { type: Array, default: () => [] },
+  payments: { type: Array as PropType<PaymentRow[]>, default: () => [] },
   paymentsLoading: Boolean,
   paymentsError: Boolean,
-  poolPaidCents: Number,
-  poolFinalCents: Number,
-  poolRemainingCents: Number,
-  poolOverpaidCents: Number,
-  poolPercent: Number,
-  installmentRefs: { type: Array, default: () => [] },
+  poolPaidCents: { type: Number, default: 0 },
+  poolFinalCents: { type: Number, default: 0 },
+  poolRemainingCents: { type: Number, default: 0 },
+  poolOverpaidCents: { type: Number, default: 0 },
+  poolPercent: { type: Number, default: 0 },
+  installmentRefs: { type: Array as PropType<InstallmentRefRow[]>, default: () => [] },
   isTerminal: Boolean,
   // R-4: 撤销请求在途时禁用全部撤销按钮（防连击直接伤钱；父级传 paymentSubmitting）
   revokeSubmitting: Boolean
@@ -105,7 +124,7 @@ defineProps({
 const emit = defineEmits(['open-pay', 'revoke', 'collect', 'retry-payments'])
 
 /** 日期格式化（b1: 注释原误写为 formatCents 同款，实为 formatDateTime 包装） */
-function formatDate(str) {
+function formatDate(str: string) {
   return formatDateTime(str)
 }
 </script>

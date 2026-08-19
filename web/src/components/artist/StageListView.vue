@@ -71,7 +71,7 @@
               <el-switch
                 v-model="s.takesPayment" size="small"
                 :disabled="s.isFinal || readonly"
-                @change="(val) => onTogglePay(s, val)"
+                @change="(val: boolean | string | number) => onTogglePay(s, val)"
               />
             </div>
 
@@ -108,7 +108,7 @@
               <el-input
                 v-model="s.speechTemplate" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }"
                 :placeholder="$t('workflow.speechPlaceholder')" maxlength="500" show-word-limit
-                :ref="(el) => setSpeechRef(s.id, el)"
+                :ref="(el: unknown) => setSpeechRef(s.id, el)"
                 @input="speechDirtyId = s.id"
                 @focus="focusedSpeechId = s.id"
               />
@@ -149,14 +149,28 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import type { PropType } from 'vue'
 import draggable from 'vuedraggable'
 
-const props = defineProps({ stages: { type: Array, default: () => [] }, readonly: { type: Boolean, default: false } })
+/** 流程节点行（父级 stages 消费子集） */
+interface StageRow {
+  id: number
+  name: string
+  description?: string | null
+  sortOrder?: number
+  takesPayment: boolean
+  basisPoints: number | null
+  isFinal?: boolean
+  speechTemplate: string | null
+  randomTemplate?: boolean
+}
+
+const props = defineProps({ stages: { type: Array as PropType<StageRow[]>, default: () => [] }, readonly: { type: Boolean, default: false } })
 const emit = defineEmits(['reorder', 'add', 'rename', 'updateDesc', 'togglePay', 'delete', 'updateSpeech'])
 
-const localStages = ref([...props.stages])
+const localStages = ref<StageRow[]>([...props.stages])
 watch(() => props.stages, (v) => { localStages.value = [...v] }, { deep: true })
 
 // ─── plan-node-speech：话术编辑 ───
@@ -172,25 +186,27 @@ const SPEECH_VARS = [
   { token: '{已付}', labelKey: 'workflow.speechVar.paid' },
   { token: '{待付}', labelKey: 'workflow.speechVar.unpaid' }
 ]
-const speechDirtyId = ref(null)
-const speechRefs = new Map()
+const speechDirtyId = ref<number | null>(null)
+/** 话术编辑框引用（el-input 实例或含 textarea 的挂载对象） */
+interface SpeechInputRef { textarea?: HTMLTextAreaElement | null; $el?: HTMLElement | null }
+const speechRefs = new Map<number, SpeechInputRef>()
 
 // ─── #8: 折叠 + 焦点跟踪 ───
 /** 当前聚焦的话术编辑框所属节点 ID（变量公共区插入目标） */
-const focusedSpeechId = ref(null)
+const focusedSpeechId = ref<number | null>(null)
 /** 用户手动展开的节点 ID 集合（节点≥3 时默认折叠，展开后记住） */
-const expandedIds = ref(new Set())
+const expandedIds = ref(new Set<number>())
 
 /** 节点≥3 时话术区默认折叠（REQ-013 #8 验收 2） */
 const speechDefaultCollapsed = computed(() => localStages.value.length >= 3)
 
-function isSpeechCollapsed(s) {
+function isSpeechCollapsed(s: StageRow) {
   if (!speechDefaultCollapsed.value) return false
   if (expandedIds.value.has(s.id)) return false
   if (speechDirtyId.value === s.id) return false // 编辑中不折叠
   return true
 }
-function toggleSpeech(id) {
+function toggleSpeech(id: number) {
   const next = new Set(expandedIds.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
@@ -198,25 +214,25 @@ function toggleSpeech(id) {
 }
 
 /** 折叠态预览：前 20 字（REQ-013 #8 验收 2） */
-function speechPreview(text) {
+function speechPreview(text: string | null) {
   const t = (text || '').trim()
   return t.length > 20 ? t.slice(0, 20) + '…' : t
 }
 
-function setSpeechRef(id, el) {
-  if (el) speechRefs.set(id, el)
+function setSpeechRef(id: number, el: unknown) {
+  if (el) speechRefs.set(id, el as SpeechInputRef)
   else speechRefs.delete(id)
 }
 
 /** #8: 顶部公共区点击变量 → 插入当前聚焦的编辑框（无焦点时提示，不盲插） */
-function insertSpeechVarToFocused(varText) {
+function insertSpeechVarToFocused(varText: string) {
   if (!focusedSpeechId.value) return
   const s = localStages.value.find(st => st.id === focusedSpeechId.value)
   if (s) insertSpeechVar(s, varText)
 }
 
 /** 点击变量标签 → 插入光标位置（无焦点则追加到末尾） */
-function insertSpeechVar(s, varText) {
+function insertSpeechVar(s: StageRow, varText: string) {
   const el = speechRefs.get(s.id)
   const textarea = el?.textarea ?? el?.$el?.querySelector('textarea')
   if (textarea) {
@@ -236,12 +252,12 @@ function insertSpeechVar(s, varText) {
 }
 
 /** 话术是否含多条（换行分隔 ≥2 条非空行）——随机开关仅在多条时有意义 */
-function hasMultiSpeech(s) {
+function hasMultiSpeech(s: StageRow) {
   return (s.speechTemplate || '').split('\n').filter(l => l.trim()).length >= 2
 }
 
 /** 保存话术（仅 dirty 时触发；附带随机开关状态，v0.27） */
-function commitSpeech(s) {
+function commitSpeech(s: StageRow) {
   emit('updateSpeech', s.id, {
     speechTemplate: (s.speechTemplate || '').trim(),
     randomTemplate: !!s.randomTemplate
@@ -250,19 +266,19 @@ function commitSpeech(s) {
 }
 
 const newName = ref('')
-const editingId = ref(null)
+const editingId = ref<number | null>(null)
 const editName = ref('')
-const editInput = ref(null)
-const descEditId = ref(null)
+const editInput = ref<Array<{ focus?: () => void }> | null>(null)
+const descEditId = ref<number | null>(null)
 const descEditVal = ref('')
-const descInput = ref(null)
+const descInput = ref<Array<{ focus?: () => void }> | null>(null)
 
 function onDragEnd() {
   emit('reorder', localStages.value.map(s => s.id))
 }
 
 /** 键盘上移/下移（拖拽排序的键盘等价；完成后走同一条 reorder 持久化） */
-function moveStage(s, direction) {
+function moveStage(s: StageRow, direction: number) {
   const idx = localStages.value.findIndex(st => st.id === s.id)
   const target = idx + direction
   if (idx < 0 || target < 0 || target >= localStages.value.length) return
@@ -278,26 +294,26 @@ function addStage() {
   newName.value = ''
 }
 
-function startEdit(s) {
+function startEdit(s: StageRow) {
   editingId.value = s.id
   editName.value = s.name
   nextTick(() => editInput.value?.[0]?.focus?.())
 }
 
-function commitEdit(s) {
+function commitEdit(s: StageRow) {
   if (editName.value.trim() && editName.value.trim() !== s.name) {
     emit('rename', s.id, editName.value.trim())
   }
   editingId.value = null
 }
 
-function startDescEdit(s) {
+function startDescEdit(s: StageRow) {
   descEditId.value = s.id
   descEditVal.value = s.description || ''
   nextTick(() => descInput.value?.[0]?.focus?.())
 }
 
-function commitDescEdit(s) {
+function commitDescEdit(s: StageRow) {
   const val = descEditVal.value.trim()
   if (val !== (s.description || '')) {
     emit('updateDesc', s.id, val)
@@ -305,7 +321,7 @@ function commitDescEdit(s) {
   descEditId.value = null
 }
 
-function onTogglePay(s, val) {
+function onTogglePay(s: StageRow, val: boolean | string | number) {
   emit('togglePay', s.id, val)
 }
 </script>

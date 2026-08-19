@@ -36,7 +36,7 @@
             <el-switch
               :model-value="!!row.enabled"
               :disabled="togglingId === row.id"
-              @change="(val) => toggleEnabled(row, val)"
+              @change="(val: boolean | string | number) => toggleEnabled(row, val)"
             />
           </template>
         </el-table-column>
@@ -121,9 +121,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { PlatformDTO } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import TplPlatformIcon from '../../components/shared/TplPlatformIcon.vue'
@@ -134,19 +135,19 @@ const { t } = useI18n()
 // 图标白名单下拉（simple-icons slug → 中文名）
 const ICON_OPTIONS = PLATFORM_ICON_NAMES
 
-const platforms = ref([])
+const platforms = ref<PlatformDTO[]>([])
 const loading = ref(false)
 const saving = ref(false)
 // b3 清扫：启用开关切换期间禁用，防连续触发
-const togglingId = ref(null)
+const togglingId = ref<number | null>(null)
 /** 删除请求在途锁（确认后行级 loading，防重复触发） */
-const deletingId = ref(null)
+const deletingId = ref<number | null>(null)
 const dialogVisible = ref(false)
 const editing = ref(false)
-const editId = ref(null)
+const editId = ref<number | null>(null)
 
 const form = reactive({
-  name: '', iconKey: null, fallbackChar: '', sortOrder: 0, enabled: true
+  name: '', iconKey: null as string | null, fallbackChar: '', sortOrder: 0, enabled: true
 })
 const domainsText = ref('')
 
@@ -155,13 +156,13 @@ async function load() {
   try {
     platforms.value = await adminApi.getPlatforms()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     loading.value = false
   }
 }
 
-function openDialog(row) {
+function openDialog(row?: PlatformDTO | null) {
   editing.value = !!row
   editId.value = row?.id ?? null
   form.name = row?.name || ''
@@ -173,7 +174,7 @@ function openDialog(row) {
   dialogVisible.value = true
 }
 
-async function toggleEnabled(row, val) {
+async function toggleEnabled(row: PlatformDTO, val: boolean | string | number) {
   if (togglingId.value === row.id) return
   togglingId.value = row.id
   try {
@@ -181,7 +182,7 @@ async function toggleEnabled(row, val) {
     row.enabled = !!val
     ElMessage.success(t('admin.platform.saved'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     row.enabled = !val
   } finally {
     togglingId.value = null
@@ -213,7 +214,7 @@ async function submit() {
       enabled: !!form.enabled
     }
     if (editing.value) {
-      await adminApi.updatePlatform(editId.value, payload)
+      await adminApi.updatePlatform(editId.value!, payload)
     } else {
       await adminApi.createPlatform(payload)
     }
@@ -221,13 +222,13 @@ async function submit() {
     ElMessage.success(t('admin.platform.saved'))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     saving.value = false
   }
 }
 
-async function remove(row) {
+async function remove(row: PlatformDTO) {
   try {
     await ElMessageBox.confirm(
       t('admin.platform.deleteConfirm', { name: row.name }),
@@ -242,7 +243,7 @@ async function remove(row) {
     ElMessage.success(t('admin.platform.deleted', { n: res?.reattributed ?? 0 }))
     await load()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     deletingId.value = null
   }

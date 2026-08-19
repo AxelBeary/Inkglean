@@ -51,31 +51,42 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
+
+/** 交稿日推算结果 */
+interface DeadlineResult {
+  today: string
+  date: string
+  week: string
+  workDays: number
+  queueCount: number
+  queueDays: number
+  totalDays: number
+}
 
 // 简单 MVP：建议日期 = 今天 + 工期天数 + 队列缓冲（正式队列每单 + 1 天）
 const BUFFER_DAYS_PER_ORDER = 1
 const workDays = ref(3)
 const includeQueue = ref(true)
 const queueCount = ref(0)
-const result = ref(null)
+const result = ref<DeadlineResult | null>(null)
 
 /** 周几文案（走 i18n，weekdays.0=周日 … 6=周六） */
 const WEEK_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
 const { t } = useI18n()
 
-function addDays(date, days) {
+function addDays(date: Date, days: number): Date {
   const d = new Date(date)
   d.setDate(d.getDate() + days)
   return d
 }
 
-function formatDate(d) {
-  const pad = (n) => String(n).padStart(2, '0')
+function formatDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
 }
 

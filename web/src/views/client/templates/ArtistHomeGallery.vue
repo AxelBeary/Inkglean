@@ -83,8 +83,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, inject, watch, computed } from 'vue'
+import type { Ref, PropType } from 'vue'
+import type { PlatformDTO } from '../../../api/types.js'
+import type { HeroArtworkLike, PricingStyleLike, PricingTierLike, WorkflowStageLike } from './types.js'
 import { useArtistData } from '../../../composables/useArtistData.js'
 import { useScrollReveal } from '../../../composables/useScrollReveal.js'
 import { useStickyCta } from '../../../composables/useStickyCta.js'
@@ -101,19 +104,21 @@ import ComplianceFooterLinks from '../../../components/client/ComplianceFooterLi
 
 const props = defineProps({
   artist: { type: Object, default: null },
-  tiers: { type: Array, default: () => [] },
-  styles: { type: Array, default: () => [] },
-  artworks: { type: Array, default: () => [] },
+  tiers: { type: Array as PropType<PricingTierLike[]>, default: () => [] },
+  styles: { type: Array as PropType<PricingStyleLike[]>, default: () => [] },
+  artworks: { type: Array as PropType<HeroArtworkLike[]>, default: () => [] },
   rules: { type: String, default: '' },
-  workflowStages: { type: Array, default: () => [] },
+  workflowStages: { type: Array as PropType<WorkflowStageLike[]>, default: () => [] },
   subdomain: { type: String, default: '' },
   sanitizedRules: { type: String, default: '' },
   gallery: { type: Object, default: null }, // v0.35 联调：画廊端点数据（size_tags/filterSizes）
-  platforms: { type: Array, default: () => [] }, // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
+  platforms: { type: Array as PropType<PlatformDTO[]>, default: () => [] }, // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染）
   galleryLoading: { type: Boolean, default: false } // 波 M：画廊端点加载中（首载骨架）
 })
 
-const { footerLinks, galleryArtworks } = useArtistData(props)
+const { footerLinks: rawFooterLinks, galleryArtworks } = useArtistData(props as unknown as Parameters<typeof useArtistData>[0])
+// TplPlatformIcon 的 iconKey prop 推导为 string | undefined，此处 null → undefined（prop default null 兜底，行为不变）
+const footerLinks = computed(() => rawFooterLinks.value.map((link) => ({ ...link, iconKey: link.iconKey ?? undefined })))
 
 /**
  * 波 M：画廊数据源收敛——F6 端点已含全量 artworks + size_tags（服务端 getPublicGallery
@@ -125,15 +130,15 @@ const galleryForTpl = computed(() => {
   return list?.length ? list : galleryArtworks.value
 })
 
-const rootEl = ref(null)
-const heroRef = ref(null)
+const rootEl = ref<HTMLElement | null>(null)
+const heroRef = ref<unknown>(null)
 useScrollReveal(rootEl)
 
 // 吸底 CTA：监听 Hero 哨兵元素（直接传 heroRef，异步组件挂载后 ref 更新会触发 watch）
 const { visible: ctaVisible } = useStickyCta(heroRef)
 
 // #55/61: 同步 CTA 避让状态给父级浮窗
-const ctaRaised = inject('ctaRaised')
+const ctaRaised = inject<Ref<boolean>>('ctaRaised')!
 watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 </script>
 

@@ -122,9 +122,11 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
+import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadFile, UploadRequestOptions } from 'element-plus'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../../composables/usePasteUpload.js'
@@ -135,14 +137,29 @@ import { statusType } from '../../../constants/order.js'
 import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../../../utils/anonUpload.js'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload.js'
 
+/** QQ 历史订单行（本面板消费字段） */
+interface QqHistoryRow { id: number; order_no: string; tier_name?: string | null; status: string; created_at: string }
+
+/** REQ-035 批A: 客户标记（父组件加载；无标记时 null） */
+interface ClientProfileLite { tags?: string[] | null; note?: string | null }
+
+/** REQ-035 批A: 客户汇总（父组件加载；无汇总时 null） */
+interface ClientSummaryLite { totalOrders: number; totalPaidCents: number; lastOrderAt: string; lastOrderStatus: string }
+
+/** 参考图展示项（el-upload file-list 消费字段） */
+interface RefFileItem { uid: string | number; name: string; url?: string; status?: string }
+
+/** 再来一单预填源参考图（源订单 references 消费字段） */
+interface ReorderSourceRef { file_path?: string | null; original_name?: string | null; url?: string | null }
+
 defineProps({
   qqValid: Boolean,
-  qqHistory: { type: Array, default: () => [] },
+  qqHistory: { type: Array as PropType<QqHistoryRow[]>, default: () => [] },
   qqHistoryLoading: Boolean,
   qqHistoryLoaded: Boolean,
   // REQ-035 批A: 客户标记/汇总（父组件并行加载；无标记时 null 不渲染卡片）
-  clientProfile: { type: Object, default: null },
-  clientSummary: { type: Object, default: null }
+  clientProfile: { type: Object as PropType<ClientProfileLite | null>, default: null },
+  clientSummary: { type: Object as PropType<ClientSummaryLite | null>, default: null }
 })
 const emit = defineEmits(['update:uploadedRefs'])
 
@@ -159,29 +176,29 @@ const clientNotify = defineModel('clientNotify', { type: Boolean, default: false
 const { t } = useI18n()
 
 // ─── 参考图上传状态（随卡移入本组件；提交用的路径数组经 emit 同步给父） ───
-const refFileList = ref([])
-const uploadedRefs = ref([])
-const refUidMap = ref(new Map())
+const refFileList = ref<RefFileItem[]>([])
+const uploadedRefs = ref<string[]>([])
+const refUidMap = ref(new Map<string, string>())
 watch(uploadedRefs, (list) => emit('update:uploadedRefs', list.slice()), { deep: true })
 
 // ─── 日期选择约束（B1/B2 同 ManualOrder 原实现；today0 在 setup 期构造一次） ───
 const today0 = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })()
-function disableDeadlineDate(d) {
+function disableDeadlineDate(d: Date) {
   if (d < today0) return true
   if (startDate.value) return d < new Date(startDate.value + 'T00:00:00')
   return false
 }
-function disableStartDateDate(d) {
+function disableStartDateDate(d: Date) {
   if (d < today0) return true
   if (deadline.value) return d > new Date(deadline.value + 'T00:00:00')
   return false
 }
 
 // ─── 辅助函数（QQ 历史面板展示） ───
-const formatDate = (str) => formatDateTimeShort(str)
+const formatDate = (str: string) => formatDateTimeShort(str)
 
 // ─── 参考图上传（随卡移入） ───
-async function handleRefUpload({ file }) {
+async function handleRefUpload({ file }: UploadRequestOptions) {
   if (file.size > MAX_IMAGE_BYTES) {
     const sizeMB = (file.size / 1024 / 1024).toFixed(1)
     ElMessage.warning(t('manualOrder.fileTooBig', { name: file.name, size: sizeMB }))
@@ -193,23 +210,23 @@ async function handleRefUpload({ file }) {
     // anonUpload 内部换新重试一次（与客户端下单链路同口径）
     const { uploaded } = await uploadReferenceWithAnonToken(file)
     uploadedRefs.value.push(uploaded.filePath)
-    refUidMap.value.set(file.uid, uploaded.filePath)
+    refUidMap.value.set(String(file.uid), uploaded.filePath)
   } catch (err) {
     if (err instanceof AnonTokenUnavailableError) {
       ElMessage.error(t('manualOrder.anonTokenRequired'))
       throw new Error(t('manualOrder.anonTokenRequired'), { cause: err })
     }
-    ElMessage.error(err.message || t('common.uploadFailed'))
+    ElMessage.error((err as Error).message || t('common.uploadFailed'))
     throw err
   }
 }
 
-function handleRefRemove(file) {
-  const filePath = refUidMap.value.get(file.uid)
+function handleRefRemove(file: UploadFile) {
+  const filePath = refUidMap.value.get(String(file.uid))
   if (filePath) {
     const idx = uploadedRefs.value.indexOf(filePath)
     if (idx > -1) uploadedRefs.value.splice(idx, 1)
-    refUidMap.value.delete(file.uid)
+    refUidMap.value.delete(String(file.uid))
   }
 }
 
@@ -224,7 +241,7 @@ watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 // G1: 页内拖拽守卫（捕获阶段挂在 el-upload 上，抢在 EP dragger 之前拦截）
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
-async function handlePasteRefFiles(files) {
+async function handlePasteRefFiles(files: File[]) {
   for (const file of files) {
     if (refFileList.value.length >= MAX_IMAGE_COUNT) {
       ElMessage.warning(t('manualOrder.refExceed'))
@@ -241,7 +258,7 @@ async function handlePasteRefFiles(files) {
       if (err instanceof AnonTokenUnavailableError) {
         ElMessage.error(t('manualOrder.anonTokenRequired'))
       } else {
-        ElMessage.error(err.message || t('common.uploadFailed'))
+        ElMessage.error((err as Error).message || t('common.uploadFailed'))
       }
     }
   }
@@ -257,7 +274,7 @@ function reset() {
 // ─── 819-J 二期：再来一单预填参考图（路径引用复用，不重新上传） ───
 // 入参来自源订单详情 references（含签名 url 与 original_name），数量已由父组件
 // 按 MAX_IMAGE_COUNT 截断；这里再防御性截断一次，并与新上传共用同一展示/删除/提交链路。
-function setReorderRefs(sourceRefs) {
+function setReorderRefs(sourceRefs: ReorderSourceRef[] | null | undefined) {
   const refs = Array.isArray(sourceRefs) ? sourceRefs.slice(0, MAX_IMAGE_COUNT) : []
   refFileList.value = refs.map((r, idx) => {
     const filePath = String(r.file_path || '').trim()

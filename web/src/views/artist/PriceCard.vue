@@ -122,7 +122,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -138,7 +138,15 @@ const STORAGE_KEY = 'huiyue_price_card_draft'
 const MIN_TIERS = 3
 const MAX_TIERS = 6
 
-function emptyTier() {
+/** 档位草稿行（priceYuan 单位元，可为空） */
+interface TierDraft {
+  id: string
+  name: string
+  priceYuan: number | null
+  note: string
+}
+
+function emptyTier(): TierDraft {
   return { id: 'tier-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8), name: '', priceYuan: null, note: '' }
 }
 
@@ -148,9 +156,9 @@ const form = reactive({
   tiers: [emptyTier(), emptyTier(), emptyTier()]
 })
 const exampleThumb = ref('')
-const exampleImage = ref(null)
+const exampleImage = ref<HTMLImageElement | null>(null)
 const exporting = ref(false)
-const previewCanvas = ref(null)
+const previewCanvas = ref<HTMLCanvasElement | null>(null)
 
 // ─── 草稿持久化（localStorage，安全封装静默降级） ───
 function loadDraft() {
@@ -162,7 +170,7 @@ function loadDraft() {
       if (typeof d.title === 'string') form.title = d.title.slice(0, 40)
       if (typeof d.contact === 'string') form.contact = d.contact.slice(0, 60)
       if (Array.isArray(d.tiers)) {
-        form.tiers = d.tiers.slice(0, MAX_TIERS).map((t) => ({
+        form.tiers = (d.tiers as Array<Partial<TierDraft>>).slice(0, MAX_TIERS).map((t): TierDraft => ({
           id: t.id || emptyTier().id,
           name: typeof t.name === 'string' ? t.name.slice(0, 24) : '',
           priceYuan: typeof t.priceYuan === 'number' && Number.isFinite(t.priceYuan) ? t.priceYuan : null,
@@ -189,7 +197,7 @@ function saveDraft() {
 }
 
 // ─── 例图：本地选图 → canvas 缩略 → dataURL ───
-function loadExampleImage(dataUrl) {
+function loadExampleImage(dataUrl: string) {
   const img = new Image()
   img.onload = () => {
     // 缩略宽度上限 480，等比缩放；JPEG 压缩后入 localStorage
@@ -209,8 +217,9 @@ function loadExampleImage(dataUrl) {
   img.src = dataUrl
 }
 
-function onPickExample(e) {
-  const file = e.target.files && e.target.files[0]
+function onPickExample(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files && input.files[0]
   if (!file) return
   if (!file.type.startsWith('image/')) {
     ElMessage.warning(t('priceCard.fileTypeError'))
@@ -219,7 +228,7 @@ function onPickExample(e) {
   const reader = new FileReader()
   reader.onload = () => loadExampleImage(String(reader.result))
   reader.readAsDataURL(file)
-  e.target.value = ''
+  input.value = ''
 }
 
 function removeExample() {
@@ -233,7 +242,7 @@ function addTier() {
   form.tiers.push(emptyTier())
 }
 
-function removeTier(i) {
+function removeTier(i: number) {
   if (form.tiers.length <= MIN_TIERS) return
   form.tiers.splice(i, 1)
 }
@@ -281,7 +290,7 @@ const { paper: PAPER, ink: INK, ink2: INK2, ink3: INK3, line: LINE, line2: LINE2
 const FONT_DISPLAY = '"LXGW WenKai","Kaiti SC","STKaiti",serif'
 const FONT_BODY = '"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif'
 
-function fitFont(ctx, text, maxWidth, maxFont, family, weight = '') {
+function fitFont(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxFont: number, family: string, weight = '') {
   let font = maxFont
   ctx.font = `${weight ? weight + ' ' : ''}${font}px ${family}`
   while (font > 14 && ctx.measureText(text).width > maxWidth) {
@@ -291,19 +300,19 @@ function fitFont(ctx, text, maxWidth, maxFont, family, weight = '') {
   return font
 }
 
-function ellipsis(ctx, text, maxWidth, font, family) {
+function ellipsis(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, font: number, family: string) {
   ctx.font = `${font}px ${family}`
   let out = text
   while (out.length > 1 && ctx.measureText(out + '…').width > maxWidth) out = out.slice(0, -1)
   return out.length < text.length ? out + '…' : out
 }
 
-function layoutHeight(exampleH) {
+function layoutHeight(exampleH: number) {
   const tierCount = filledTiers().length
   return 80 + 72 + (exampleH ? exampleH + 64 : 0) + tierCount * 92 + 64 + 88
 }
 
-function drawCard(ctx, canvas, img) {
+function drawCard(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, img: HTMLImageElement | null) {
   const tierCount = filledTiers().length
   const exampleH = img ? Math.round((560 * img.naturalHeight) / Math.max(1, img.naturalWidth)) : 0
   const canvasH = layoutHeight(exampleH)
@@ -424,7 +433,7 @@ async function doExport() {
   try {
     const canvas = buildCard()
     if (!canvas) throw new Error('no canvas')
-    const blob = await new Promise((resolve, reject) => {
+    const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/png')
     })
     const url = URL.createObjectURL(blob)
@@ -441,7 +450,7 @@ async function doExport() {
 }
 
 // ─── 预览（150ms 防抖，卸载清理） ───
-let previewTimer = null
+let previewTimer: ReturnType<typeof setTimeout> | null = null
 
 function renderPreview() {
   const canvas = previewCanvas.value

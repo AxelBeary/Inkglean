@@ -55,10 +55,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
+import type { DayCount, NameCount } from '../../api/types.js'
 
 const store = useArtistStore()
 const loading = ref(true)
@@ -66,18 +67,18 @@ const loading = ref(true)
 const featureDisabled = ref(false)
 /** 统计加载失败（独立错误态，不再静默降级成 mode=hidden） */
 const loadFailed = ref(false)
-const statsOverview = ref(null)
+const statsOverview = ref<{ total: number } | null>(null)
 const mode = ref('')
-const byDay = ref([])
-const byName = ref([])
+const byDay = ref<DayCount[]>([])
+const byName = ref<NameCount[]>([])
 
 const MAX_BAR = 80
 
-function barHeight(count) {
+function barHeight(count: number) {
   const max = Math.max(...byDay.value.map(d => d.count), 1)
   return Math.max(4, Math.round((count / max) * MAX_BAR)) + 'px'
 }
-function shortDay(day) {
+function shortDay(day: string) {
   return String(day).slice(5) // 'YYYY-MM-DD' → 'MM-DD'
 }
 
@@ -103,12 +104,12 @@ async function loadStats() {
 
 onMounted(async () => {
   // 直接访问 /stats（刷新后 profile 可能未加载）：先补拉 profile 再判定开关
-  if (store.profile?.statsEnabled === undefined) {
+  if ((store.profile as { statsEnabled?: boolean } | null)?.statsEnabled === undefined) {
     try {
       await store.fetchProfile()
     } catch { /* profile 拉取失败按默认口径处理（后端 statsEnabled 默认 false=关闭） */ }
   }
-  featureDisabled.value = store.profile?.statsEnabled === false
+  featureDisabled.value = (store.profile as { statsEnabled?: boolean } | null)?.statsEnabled === false
   // 关闭态不再拉统计：先结束 loading，避免遮罩盖住空态文案
   if (featureDisabled.value) {
     loading.value = false

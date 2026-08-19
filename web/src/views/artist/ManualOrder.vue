@@ -41,7 +41,7 @@
           :qq-history-loading="qqHistoryLoading"
           :qq-history-loaded="qqHistoryLoaded"
           :client-profile="clientProfile"
-          :client-summary="clientSummary"
+          :client-summary="(clientSummary as unknown as { totalOrders: number; totalPaidCents: number; lastOrderAt: string; lastOrderStatus: string } | null)"
           @update:uploaded-refs="uploadedRefs = $event"
           ref="leftRef"
         />
@@ -56,7 +56,7 @@
           v-model:startDate="form.startDate"
           v-model:clientNotify="form.clientNotify"
           :styles="styles"
-          :pricing-data="pricingData"
+          :pricing-data="(pricingData as unknown as Record<string, unknown> | undefined)"
           :subdomain="subdomain"
           :workflow-stages="workflowStages"
           :uploaded-refs="uploadedRefs"
@@ -119,11 +119,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistApi, artistPublicApi } from '../../api/index.js'
+import type { ArtistOrderItem, PublicArtStyle, PublicPricingResult, WorkflowStageDTO, ClientProfile, ClientSummary } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 import { FETCH_ALL_PAGE_SIZE } from '../../constants/pagination.js'
 import { useI18n } from 'vue-i18n'
 import { trackEvent } from '../../utils/track.js'
@@ -137,21 +139,21 @@ import { ChatDotRound } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 const route = useRoute()
-const formRef = ref(null)
+const formRef = ref<FormInstance | null>(null)
 // REQ-035 §五 MVP-1: 粘贴消息解析（弹窗状态）
 const parseDialogVisible = ref(false)
 const parseInput = ref('')
-const parseResult = ref(null)
-const leftRef = ref(null)
-const rightRef = ref(null)
+const parseResult = ref<ReturnType<typeof parseMessage> | null>(null)
+const leftRef = ref<InstanceType<typeof ManualOrderLeft> | null>(null)
+const rightRef = ref<InstanceType<typeof ManualOrderRight> | null>(null)
 const showResult = ref(false)
 const resultNo = ref('')
 /** 参考图路径数组（左栏上传后同步；提交时由右栏使用） */
-const uploadedRefs = ref([])
+const uploadedRefs = ref<string[]>([])
 const subdomain = ref('')
-const pricingData = ref(null)
-const styles = ref([])
-const workflowStages = ref([])
+const pricingData = ref<PublicPricingResult | null>(null)
+const styles = ref<PublicArtStyle[]>([])
+const workflowStages = ref<WorkflowStageDTO[]>([])
 /** 录单初始化（getProfile/getPricing/getPublicStyles/getWorkflow）失败明示 + 重试 */
 const initLoading = ref(false)
 const initFailed = ref(false)
@@ -166,8 +168,8 @@ const form = reactive({
   // 818-D: 备注（源单备注回填；提交后经既有 addNote 接口写入新单）
   note: '',
   priority: 'medium',
-  deadline: null,
-  startDate: null,
+  deadline: null as string | null,
+  startDate: null as string | null,
   clientNotify: false
 })
 
@@ -193,7 +195,8 @@ function applyParseResult() {
 }
 
 /** 提交校验（右栏经 prop 调用；函数形式保证取到挂载后的 el-form 实例） */
-const validateForm = () => formRef.value?.validate()
+// 右栏（JS 组件）prop 声明为 () => Promise<boolean>；实际消费的是 el-form validate 结果，经 unknown 中转断言对齐声明，运行时不变
+const validateForm = (() => formRef.value?.validate()) as unknown as () => Promise<boolean>
 
 const rules = {
   clientQq: [{ required: true, message: () => t('manualOrder.fillClientQq'), trigger: 'blur' }]
@@ -205,7 +208,9 @@ const isMultiStyle = computed(() => styles.value.length > 1)
 // ─── REQ-037 E1: QQ 历史会话内缓存 ───
 // QQ 每次有效都拉全量订单（200 条）客户端过滤；会话内短时缓存避免连续录入重复重请求；
 // 提交成功后手动失效（新订单应立即进入该 QQ 的历史）
-let qqOrdersCache = null // { items, at }
+/** QQ 历史订单会话内缓存形状 */
+interface QqOrdersCacheShape { items: ArtistOrderItem[]; at: number }
+let qqOrdersCache: QqOrdersCacheShape | null = null // { items, at }
 const QQ_ORDERS_CACHE_TTL = 60_000
 function invalidateQqOrdersCache() { qqOrdersCache = null }
 async function getQqOrdersSource() {
@@ -218,13 +223,13 @@ async function getQqOrdersSource() {
 
 // ─── QQ 历史订单（防抖 500ms，客户端过滤——API 零改动） ───
 const qqValid = computed(() => /^\d{5,15}$/.test(form.clientQq.trim()))
-const qqHistory = ref([])
+const qqHistory = ref<ArtistOrderItem[]>([])
 const qqHistoryLoading = ref(false)
 const qqHistoryLoaded = ref(false)
 // REQ-035 批A: 客户标记/汇总（与历史订单并行加载；404/失败置 null 不阻塞历史）
-const clientProfile = ref(null)
-const clientSummary = ref(null)
-let qqTimer = null
+const clientProfile = ref<ClientProfile | null>(null)
+const clientSummary = ref<ClientSummary | null>(null)
+let qqTimer: ReturnType<typeof setTimeout> | null = null
 // 竞态保护：请求序号（慢请求不得覆盖快请求；输入变无效/重置也递增使旧请求失效）
 let qqSeq = 0
 watch(() => form.clientQq, (qq) => {
@@ -253,7 +258,7 @@ watch(() => form.clientQq, (qq) => {
       qqHistory.value = items.filter(o => o.client_qq === trimmed).slice(0, 5)
       const cp = clientRes ? clientRes.profile || null : null
       clientProfile.value = cp
-      clientSummary.value = cp ? clientRes.summary || null : null
+      clientSummary.value = cp ? clientRes!.summary || null : null
     } catch {
       if (mySeq !== qqSeq) return
       qqHistory.value = []
@@ -269,7 +274,7 @@ watch(() => form.clientQq, (qq) => {
 })
 
 // ─── 提交成功（右栏完成 API 写入后回调；副作用集中：结果弹窗/埋点/清草稿） ───
-function onSubmitSuccess({ order, postCreateFailed }) {
+function onSubmitSuccess({ order, postCreateFailed }: { order: { order_no: string }; postCreateFailed?: string | null }) {
   resultNo.value = order.order_no
   showResult.value = true
   // 埋点（REQ-033 §4.2）：手动录单提交成功
@@ -314,9 +319,21 @@ function resetForm() {
 const DRAFT_KEY_PREFIX = 'huiyue_manual_order_draft'
 const draftKey = () => (subdomain.value ? `${DRAFT_KEY_PREFIX}_${subdomain.value}` : null)
 
+/** 右栏草稿状态形状（ManualOrderRight 为 JS 组件，getDraftState 返回未声明，局部补齐消费字段） */
+interface RightDraftState {
+  styleId?: number | null
+  sizeId?: number | null
+  addonSelections?: Record<string, { toggled?: boolean; quantity: number } | null>
+  usageId?: number | null
+  rushId?: number | null
+  customAddons?: unknown[]
+  finalPriceYuan?: number | null
+  priceTouched?: boolean
+}
+
 /** 表单是否有内容（任一字段非空）——有内容才落盘，避免空表单刷新生造草稿键 */
 function hasDraftContent() {
-  const r = rightRef.value?.getDraftState() || {}
+  const r = (rightRef.value?.getDraftState() || {}) as RightDraftState
   return (isMultiStyle.value && r.styleId != null)
     || r.sizeId != null
     || !!form.description.trim()
@@ -341,7 +358,7 @@ function saveDraft() {
     safeRemoveItem(key)
     return
   }
-  const r = rightRef.value?.getDraftState() || {}
+  const r = (rightRef.value?.getDraftState() || {}) as RightDraftState
   // G-5: 裸读写换 safe 封装（写入失败静默降级）
   safeSetItem(key, JSON.stringify({
     form: {
@@ -364,7 +381,7 @@ function saveDraft() {
   }))
 }
 
-let draftTimer = null
+let draftTimer: ReturnType<typeof setTimeout> | null = null
 // ─── G-4（R-17）: 多标签草稿互害修复 ───
 // userModified = 本标签页是否被用户修改过（storage 事件判断 last-edit-wins 的依据）；
 // applyingRemoteSeq 用于远端回填后清掉由 watcher 连锁产生的脏标记（见 markRemoteApply）。
@@ -395,8 +412,32 @@ function markRemoteApply() {
   })
 }
 
+/** 草稿落盘形状（localStorage 序列化；旧草稿多余字段静默忽略） */
+interface ManualDraftShape {
+  form?: {
+    clientQq?: string
+    clientName?: string
+    description?: string
+    note?: string
+    priority?: string
+    deadline?: string | null
+    startDate?: string | null
+    clientNotify?: boolean
+  }
+  styleState?: {
+    styleId?: number | null
+    sizeId?: number | null
+    addonSelections?: Record<string, { toggled?: boolean; quantity?: number }> | null
+    usageId?: number | null
+    rushId?: number | null
+  }
+  customAddons?: Array<Record<string, unknown>>
+  finalPriceYuan?: number | null
+  priceTouched?: boolean
+}
+
 /** 把草稿回填到表单（画风/尺寸/增项若已被画师删除则逐项丢弃——右栏 setDraftState 内部校验） */
-function applyDraft(draft) {
+function applyDraft(draft: ManualDraftShape) {
   const f = draft.form || {}
   form.clientQq = f.clientQq || ''
   form.clientName = f.clientName || ''
@@ -429,23 +470,25 @@ function applyDraft(draft) {
 async function applyReorderPrefill() {
   const fromId = Number(route.query.from)
   if (!Number.isInteger(fromId) || fromId <= 0) return
-  const fillSet = parseReorderFill(route.query.fill)
+  const fillSet = parseReorderFill(route.query.fill as string | undefined)
   let source
   try {
     source = await artistApi.getOrder(fromId)
   } catch (err) {
-    ElMessage.error(t('manualOrder.reorderSourceFailed', { message: err.message }))
+    ElMessage.error(t('manualOrder.reorderSourceFailed', { message: err instanceof Error ? err.message : String(err) }))
     return
   }
   if (!source) return
-  const text = buildReorderTextPrefill(source, fillSet)
+  // 源单运行时形状与 ReorderSourceOrder（未导出）字段重合度不足，经 unknown 中转断言，运行时引用不变
+  const reorderSource = source as unknown as Parameters<typeof buildReorderTextPrefill>[0]
+  const text = buildReorderTextPrefill(reorderSource, fillSet)
   form.clientQq = text.clientQq
   form.clientName = text.clientName
   form.description = text.description
   form.note = text.note
   // 款式尺寸：源单尺寸仍存在于当前画风列表才回填（增项选择接口无结构化数据，留给画师重选）
   if (fillSet.has('style')) {
-    const target = findReorderStyleTarget(source, styles.value)
+    const target = findReorderStyleTarget(reorderSource, styles.value)
     if (target) {
       rightRef.value?.setDraftState({
         styleId: target.styleId,
@@ -462,7 +505,7 @@ async function applyReorderPrefill() {
   // 819-J 二期：参考图——源单参考图路径引用灌入左栏（与新上传同一提交链路）；
   // 超上限截断轻提示；源单无参考图提示降级，其余预填不受影响
   if (fillSet.has('refs')) {
-    const { refs, truncated } = buildReorderRefs(source)
+    const { refs, truncated } = buildReorderRefs(reorderSource)
     if (truncated) {
       ElMessage.warning(t('manualOrder.reorderRefsTruncated', { count: MAX_IMAGE_COUNT }))
     }
@@ -509,7 +552,7 @@ async function restoreDraft() {
  * ③ 清除信号（newValue=null，本页提交/重置产生）：本页重置本地草稿状态
  *    （防 Tab A 提交后 Tab B 仍持已加载草稿重复提交）
  */
-function onDraftStorage(e) {
+function onDraftStorage(e: StorageEvent) {
   const key = draftKey()
   if (!key || e.key !== key) return
   if (e.newValue == null) {

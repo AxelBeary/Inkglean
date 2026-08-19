@@ -116,11 +116,11 @@ export interface RefFileItem {
   status?: string | null
 }
 
-/** 流程节点（WorkflowOverviewStrip stages 口径） */
+/** 流程节点（WorkflowOverviewStrip stages 口径；运行时数据即 WorkflowStageDTO，id 恒为 number） */
 export interface WorkflowStageItem {
-  id: number | string
+  id: number
   name: string
   basisPoints?: number | null
   takesPayment?: boolean | null
-  isFinal?: boolean | null
+  isFinal?: boolean
 }

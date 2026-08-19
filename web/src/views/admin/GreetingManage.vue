@@ -19,7 +19,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import GreetingTable from '../../components/admin/GreetingTable.vue'
 import SpecialDayManage from '../../components/admin/SpecialDayManage.vue'
 </script>

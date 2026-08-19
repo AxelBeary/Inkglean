@@ -88,8 +88,9 @@
   />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
+import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
@@ -98,40 +99,55 @@ import InkEmpty from '../visual/InkEmpty.vue'
 import { artistApi, uploadApi } from '../../../api/index.js'
 import { formatDateTime } from '../../../utils/datetime.js'
 
+/** 备注行（本卡消费字段） */
+interface NoteRow {
+  id?: number
+  created_by?: string
+  created_at?: string
+  content?: string
+  image_path?: string | null
+  imageUrl?: string
+}
+
+/** 本卡消费的订单字段（备注列表） */
+interface NotesOrderLite {
+  notes?: NoteRow[] | null
+}
+
 const props = defineProps({
-  order: { type: Object, required: true },
+  order: { type: Object as PropType<NotesOrderLite>, required: true },
   routeId: { type: [String, Number], required: true },
   /* 图库 composable 的守卫/校验（拖拽防页内图 + 图片类型校验），由父级传入保持单一来源 */
-  guardDrop: { type: Function, required: true },
-  guardDragEnter: { type: Function, required: true },
-  guardDragOver: { type: Function, required: true },
-  validateImageFile: { type: Function, required: true }
+  guardDrop: { type: Function as PropType<(event: DragEvent) => boolean>, required: true },
+  guardDragEnter: { type: Function as PropType<(event: DragEvent) => boolean>, required: true },
+  guardDragOver: { type: Function as PropType<(event: DragEvent) => boolean>, required: true },
+  validateImageFile: { type: Function as PropType<(file: File) => boolean>, required: true }
 })
 const emit = defineEmits(['order-updated', 'refresh'])
 
 const { t } = useI18n()
 
-function formatDate(str) {
-  return formatDateTime(str)
+function formatDate(str: string | undefined) {
+  return formatDateTime(str || '')
 }
 
 const newNote = ref('')
-const noteImageInputEl = ref(null)
-const pendingNoteImage = ref(null) // { filePath, url }
+const noteImageInputEl = ref<HTMLInputElement | null>(null)
+const pendingNoteImage = ref<{ filePath: string; url: string } | null>(null) // { filePath, url }
 const noteSubmitting = ref(false)
-const noteImageViewerUrl = ref(null)
+const noteImageViewerUrl = ref<string | null>(null)
 
 // ─── R41/C55: 备注附图拖拽上传（粘贴由父级 usePasteUpload 焦点路由调 expose 的 uploadNoteImage） ───
 const isNoteDragOver = ref(false)
 /** 防 dragleave 闪烁：子元素间移动时 relatedTarget 仍在容器内，忽略 */
-function onNoteDragLeave(e) {
-  if (e.currentTarget.contains(e.relatedTarget)) return
+function onNoteDragLeave(e: DragEvent) {
+  if ((e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) return
   isNoteDragOver.value = false
 }
-async function handleNoteDrop(event) {
+async function handleNoteDrop(event: DragEvent) {
   isNoteDragOver.value = false
   if (!props.guardDrop(event)) return // G1: 页内图拖入 → 拒绝 + 警告（dragover 已拦，此处兜底）
-  const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
+  const file = [...event.dataTransfer!.files].find(f => f.type.startsWith('image/'))
   if (file) await uploadNoteImage(file) // 单张，与粘贴行为一致
 }
 
@@ -139,20 +155,21 @@ function triggerNoteImageUpload() {
   noteImageInputEl.value?.click()
 }
 
-async function handleNoteImageSelect(event) {
-  const file = event.target.files?.[0]
-  event.target.value = ''
+async function handleNoteImageSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
   if (!file) return
   await uploadNoteImage(file)
 }
 
-async function uploadNoteImage(file) {
+async function uploadNoteImage(file: File) {
   if (!props.validateImageFile(file)) return
   try {
     const uploaded = await uploadApi.noteImage(file)
     pendingNoteImage.value = { filePath: uploaded.filePath, url: uploaded.url }
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
@@ -163,7 +180,7 @@ async function addNote() {
   noteSubmitting.value = true
   try {
     // R19: 带可选附图（imagePath 走 notes/{artistId}/ 目录，后端签名返回 imageUrl）
-    emit('order-updated', await artistApi.addNote(props.routeId, {
+    emit('order-updated', await artistApi.addNote(props.routeId as number, {
       content: newNote.value.trim(),
       imagePath: pendingNoteImage.value?.filePath || null
     }))
@@ -171,18 +188,18 @@ async function addNote() {
     pendingNoteImage.value = null
     ElMessage.success(t('orderDetail.noteAdded'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     noteSubmitting.value = false
   }
 }
 
-function openNoteImage(url) {
+function openNoteImage(url: string) {
   noteImageViewerUrl.value = url
 }
 
 // R46: 删除备注（C59 方案C：单条用 ElMessageBox.confirm；系统备注后端 403 拒绝，前端不显示按钮）
-async function deleteNote(note) {
+async function deleteNote(note: NoteRow) {
   try {
     await ElMessageBox.confirm(
       t('orderDetail.deleteNoteConfirm'),
@@ -192,10 +209,10 @@ async function deleteNote(note) {
   } catch { return }
   try {
     // 后端返回删除后的完整订单（含新签名 URL），直接替换保证状态一致
-    emit('order-updated', await artistApi.deleteNote(props.routeId, note.id))
+    emit('order-updated', await artistApi.deleteNote(props.routeId as number, note.id as number))
     ElMessage.success(t('orderDetail.deleteNoteSuccess'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 

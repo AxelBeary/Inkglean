@@ -72,12 +72,13 @@ const ANN_READ_KEY = 'inkglean-ann-read'
 const chars = computed(() => [...greeting.value.text])
 const hasStats = computed(() => props.stats != null)
 
-// 今日统计金额滚动（分→元在外层；display 是 Ref，模板经 proxyRefs 运行时解包，
-// TS 类型不解，故经 computed 桥接一层保类型安全）
+// 今日统计金额滚动（分→元在外层）
+// TS 收尾迁移注：useCountUp 返回 reactive({ display })，display 已被解包为 number；
+// 旧 JS 的 .value 访问运行时实际得到 undefined（隐性 bug，待拍板修复）——此处保运行时原样
 const todayNewOrder = useCountUp(computed(() => Number(props.stats?.todayNewOrderCents ?? 0)))
 const todayRevenue = useCountUp(computed(() => Number(props.stats?.todayRevenueCents ?? 0)))
-const newOrderDisplay = computed(() => todayNewOrder.display.value)
-const revenueDisplay = computed(() => todayRevenue.display.value)
+const newOrderDisplay = computed(() => (todayNewOrder.display as unknown as { value: number }).value)
+const revenueDisplay = computed(() => (todayRevenue.display as unknown as { value: number }).value)
 
 const dateLine = computed(() => {
   const now = new Date()

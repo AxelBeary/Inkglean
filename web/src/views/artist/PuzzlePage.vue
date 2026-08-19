@@ -104,8 +104,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import type { ArtistOrderItem, EnrichedOrderDetail } from '../../api/types.js'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../api/index.js'
@@ -114,12 +115,12 @@ import { INK_PALETTE } from '../../utils/ink-palette.js'
 const { t } = useI18n()
 
 // ─── 订单下拉 ───
-const orders = ref([])
+const orders = ref<ArtistOrderItem[]>([])
 const ordersLoading = ref(false)
-const selectedOrderId = ref(null)
-const order = ref(null)
+const selectedOrderId = ref<number | null>(null)
+const order = ref<EnrichedOrderDetail | null>(null)
 
-function orderLabel(o) {
+function orderLabel(o: ArtistOrderItem) {
   const tier = o.tier_name || t('common.custom')
   const client = o.client_name || o.client_qq || '-'
   return '#' + o.order_no + ' · ' + tier + ' · ' + client
@@ -131,7 +132,7 @@ async function loadOrders() {
     // 05D-P1: 拉全量（原来 100 条上限 → 订单多时选不到早期订单）
     orders.value = await artistApi.getAllOrders()
   } catch (err) {
-    ElMessage.error(err.message || t('puzzle.loadOrdersFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('puzzle.loadOrdersFailed'))
   } finally {
     ordersLoading.value = false
   }
@@ -139,7 +140,7 @@ async function loadOrders() {
 
 // 围剿 a1-15: 订单切换请求序号——慢的旧订单响应不得覆盖新选中订单
 let orderSeq = 0
-async function onOrderChange(id) {
+async function onOrderChange(id: number | null) {
   const mySeq = ++orderSeq
   order.value = null
   picked.value = []
@@ -150,16 +151,27 @@ async function onOrderChange(id) {
     order.value = data
   } catch (err) {
     if (mySeq !== orderSeq) return
-    ElMessage.error(err.message || t('puzzle.loadOrderFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('puzzle.loadOrderFailed'))
   }
 }
 
 // ─── 图片集合（完稿图 + 参考图统一成可选卡片） ───
-const availableImages = computed(() => {
+/** 可选图片卡片（完稿/参考统一结构；url 运行时附带） */
+interface PickImage {
+  key: string
+  kind: 'deliverable' | 'reference'
+  name: string
+  url: string
+}
+
+/** 详情行运行时附带 url（类型库未声明），局部收窄断言 */
+type DetailImageRow = { id?: number; url?: string; original_name?: string | null; file_path?: string }
+
+const availableImages = computed((): PickImage[] => {
   if (!order.value) return []
-  const list = []
-  const d = order.value.deliverables || []
-  const r = order.value.references || []
+  const list: PickImage[] = []
+  const d = (order.value.deliverables || []) as DetailImageRow[]
+  const r = (order.value.references || []) as DetailImageRow[]
   for (const it of d) {
     if (it && it.url) list.push({ key: 'd-' + it.id, kind: 'deliverable', name: it.original_name || it.file_path || '', url: it.url })
   }
@@ -169,14 +181,14 @@ const availableImages = computed(() => {
   return list
 })
 
-const picked = ref([])
+const picked = ref<PickImage[]>([])
 const MAX_PICK = 6
 
-function pickedIndex(img) {
+function pickedIndex(img: PickImage) {
   return picked.value.findIndex((p) => p.key === img.key)
 }
 
-function togglePick(img) {
+function togglePick(img: PickImage) {
   const idx = pickedIndex(img)
   if (idx >= 0) {
     picked.value.splice(idx, 1)
@@ -185,7 +197,7 @@ function togglePick(img) {
   }
 }
 
-function move(idx, delta) {
+function move(idx: number, delta: number) {
   const target = idx + delta
   if (target < 0 || target >= picked.value.length) return
   const arr = picked.value.slice()
@@ -196,7 +208,7 @@ function move(idx, delta) {
 }
 
 // ─── canvas 拼图 ───
-const previewCanvas = ref(null)
+const previewCanvas = ref<HTMLCanvasElement | null>(null)
 const previewReady = ref(false)
 const previewBusy = ref(false)
 const exporting = ref(false)
@@ -206,8 +218,8 @@ const TARGET_H = 400
 const GAP = 8
 const MAX_ROW_WIDTH = 1500
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
     const im = new Image()
     im.crossOrigin = 'anonymous'
     im.onload = () => resolve(im)
@@ -216,8 +228,14 @@ function loadImage(src) {
   })
 }
 
-async function buildCanvas(imgs) {
-  const loaded = []
+/** canvas 拼接加载行 */
+interface LoadedSlice {
+  el: HTMLImageElement
+  w: number
+}
+
+async function buildCanvas(imgs: PickImage[]) {
+  const loaded: LoadedSlice[] = []
   for (const img of imgs) {
     try {
       const el = await loadImage(img.url)
@@ -228,8 +246,8 @@ async function buildCanvas(imgs) {
   if (!loaded.length) return null
 
   // 横向拼接，超宽换行成网格
-  const rows = []
-  let cur = []
+  const rows: LoadedSlice[][] = []
+  let cur: LoadedSlice[] = []
   let curW = 0
   for (const item of loaded) {
     const w = item.w
@@ -251,7 +269,7 @@ async function buildCanvas(imgs) {
   if (!canvas) return null
   canvas.width = canvasW
   canvas.height = canvasH
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d')!
   ctx.fillStyle = INK_PALETTE.white
   ctx.fillRect(0, 0, canvasW, canvasH)
   rows.forEach((row, ri) => {
@@ -287,7 +305,7 @@ watch(picked, () => {
   renderPreview()
 }, { deep: true })
 
-function downloadCanvas(canvas, filename) {
+function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
   const url = canvas.toDataURL('image/png')
   const a = document.createElement('a')
   a.href = url

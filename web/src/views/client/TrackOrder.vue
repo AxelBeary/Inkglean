@@ -211,10 +211,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { orderApi } from '../../api/index.js'
+import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types.js'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -228,24 +229,43 @@ import { usePalette } from '../../composables/usePalette.js'
 
 const { t } = useI18n()
 const route = useRoute()
-const subdomain = route.params.subdomain
+const subdomain = route.params.subdomain as string
 
 // M2: 流程页跟随画师 palette 配色（轻量拉画师信息；加载失败回落 paper，不影响查单主流程）
-const artist = ref(null)
-const paletteId = computed(() => artist.value?.paletteId || 'paper')
+const artist = ref<ArtistPublicProfile | null>(null)
+const paletteId = computed(() => (artist.value as VisibleArtistProfile | null)?.paletteId || 'paper')
 usePalette(paletteId)
+
+/** 参考图：类型口径为对象行，模板 `r.url || r` 另容忍旧版字符串行——
+ * 交叉类型同时满足对象字段访问与 :src 的 string 赋值 */
+type TrackReference = { url: string; originalName?: string | null } & string
+
+/** 查单数据：OrderTrackResult + 模板额外读取的排队字段（后端随响应返回，类型定义未收录）；
+ * currentStageId 规范化为 undefined（OrderTimeline prop 不收 null，各处均为 == null 宽松比较，行为不变） */
+type TrackOrderData = Omit<OrderTrackResult, 'currentStageId' | 'references'> & {
+  currentStageId?: number | undefined
+  references?: TrackReference[]
+  queueStatus?: string | null
+  queuePosition?: number | null
+}
 
 const orderNo = ref('')
 const token = ref('')
 const linkInput = ref('')
-const order = ref(null)
+const order = ref<TrackOrderData | null>(null)
 const searching = ref(false)
 // 波 M：查询失败页内错误态（区别于 toast，提供重试入口）
 const searchError = ref(false)
 
 // F1 围剿：已保存的追踪链接清单（localStorage 多单可存多条，上限 20 条自动去重）
 const SAVED_LINKS_KEY = 'huiyue_track_links'
-const savedLinks = ref([])
+interface SavedLink {
+  orderNo: string
+  token: string
+  savedAt: number
+  invalid: boolean
+}
+const savedLinks = ref<SavedLink[]>([])
 
 // REQ-031 A2: 收据弹窗开关（delivered 只读凭证）
 const showReceipt = ref(false)
@@ -253,7 +273,7 @@ const showReceipt = ref(false)
 // REQ-031 C4: 客户端时区（Intl 天然处理夏令时）
 const localTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || ''
 /** 北京时间格式化（后端存 UTC，需显式指定 timeZone=Asia/Shanghai） */
-function formatBeijing(str) {
+function formatBeijing(str: string) {
   if (!str) return ''
   const normalized = str.includes('T') ? str : str.replace(' ', 'T') + 'Z'
   const date = new Date(normalized)
@@ -265,11 +285,11 @@ function formatBeijing(str) {
   })
 }
 
-const statusType = (s) => ORDER_STATUS_TYPE[s] || 'info'
+const statusType = (s: string) => ORDER_STATUS_TYPE[s] || 'info'
 
 const stepActive = computed(() => {
-  const map = { pending: 0, confirmed: 1, wip: 2, revision: 2, done: 3, delivered: 4, cancelled: -1 }
-  return map[order.value?.status] ?? 0
+  const map: Record<string, number> = { pending: 0, confirmed: 1, wip: 2, revision: 2, done: 3, delivered: 4, cancelled: -1 }
+  return map[order.value?.status ?? ''] ?? 0
 })
 
 // S2: 流程进度（前端由 workflowStages + currentStageId 计算，不依赖后端新增字段）
@@ -320,9 +340,9 @@ const trackNextDueCents = computed(() => {
   return 0 // 全部覆盖
 })
 
-async function downloadFile(url, fileName) {
+async function downloadFile(url: string, fileName: string | null | undefined) {
   try {
-    await downloadAsset(url, fileName)
+    await downloadAsset(url, fileName ?? undefined)
   } catch {
     ElMessage.error(t('delivery.downloadFailed'))
   }
@@ -331,7 +351,7 @@ async function downloadFile(url, fileName) {
 // ─── F1 围剿：令牌链接解析 / 查询 / 本地清单 ───
 
 /** 从粘贴文本解析出 { orderNo, token }（支持完整链接或纯 URL 片段） */
-function parseLink(text) {
+function parseLink(text: string) {
   const raw = (text || '').trim()
   if (!raw) return null
   let url
@@ -367,7 +387,7 @@ function persistSavedLinks() {
   }
 }
 
-function saveLink(orderNoToSave, tokenToSave) {
+function saveLink(orderNoToSave: string, tokenToSave: string) {
   savedLinks.value = savedLinks.value.filter((i) => i.orderNo !== orderNoToSave)
   savedLinks.value.unshift({ orderNo: orderNoToSave, token: tokenToSave, savedAt: Date.now(), invalid: false })
   persistSavedLinks()
@@ -387,14 +407,18 @@ async function search(no = orderNo.value, tok = token.value) {
   try {
     const data = await orderApi.track(no.trim(), tok.trim())
     if (mySeq !== searchSeq) return null // 晚到旧响应：丢弃，不覆盖新查询结果
-    order.value = data
+    order.value = {
+      ...data,
+      currentStageId: data.currentStageId ?? undefined,
+      references: data.references as TrackReference[]
+    }
     orderNo.value = no.trim()
     token.value = tok.trim()
     saveLink(no.trim(), tok.trim())
     return true
   } catch (err) {
     if (mySeq !== searchSeq) return null
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     searchError.value = true
     return false
   } finally {
@@ -412,7 +436,7 @@ function searchFromInput() {
 }
 
 /** 已保存清单行：一键查询；令牌失效（404）时明示「链接已失效，请联系画师补发」 */
-async function querySaved(item) {
+async function querySaved(item: SavedLink) {
   const ok = await search(item.orderNo, item.token)
   // null = 已被更新的查询取代（竞态晚到），不据此标记失效
   if (typeof ok === 'boolean') item.invalid = !ok

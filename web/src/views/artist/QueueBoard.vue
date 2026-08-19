@@ -32,8 +32,8 @@
          月历与时间条各挂一个固定 viewMode 的实例：各自实例独立保活，月份/缩放/滚动状态互不丢失 -->
     <el-tab-pane :label="$t('queue.viewCalendar')" name="calendar">
       <QueueBoardCalendar
-        :queue="queue"
-        :buffer-queue="bufferQueue"
+        :queue="(queue as never[])"
+        :buffer-queue="(bufferQueue as never[])"
         :loading="loading"
         :buffer-loading="bufferLoading"
         :view-mode="'calendar'"
@@ -43,8 +43,8 @@
 
     <el-tab-pane :label="$t('queue.viewTimeline')" name="timeline">
       <QueueBoardCalendar
-        :queue="queue"
-        :buffer-queue="bufferQueue"
+        :queue="(queue as never[])"
+        :buffer-queue="(bufferQueue as never[])"
         :loading="loading"
         :buffer-loading="bufferLoading"
         :view-mode="'timeline'"
@@ -70,7 +70,7 @@
   />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
@@ -83,14 +83,15 @@ import QueueBoardList from '../../components/artist/queue/QueueBoardList.vue'
 import QueueBoardCalendar from '../../components/artist/queue/QueueBoardCalendar.vue'
 // v0.38: 统一墨线空状态（REQ-026 §二）
 import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
+import type { QueueOrderItem } from '../../api/types.js'
 
-const queue = ref([])
+const queue = ref<QueueOrderItem[]>([])
 const loading = ref(true)
 
 // 方案 B: 看板交付弹窗（直接弹，不跳详情页）
 const deliverDialogVisible = ref(false)
-const deliverOrderId = ref(null)
-function openDeliverFor(order) {
+const deliverOrderId = ref<number | null>(null)
+function openDeliverFor(order: QueueOrderItem) {
   deliverOrderId.value = order.id
   deliverDialogVisible.value = true
 }
@@ -110,11 +111,11 @@ const focusDisplay = ref(
   safeGetItem(FOCUS_DISPLAY_KEY) === 'small' ? 'large'
     : (safeGetItem(FOCUS_DISPLAY_KEY) || 'large')
 )
-function saveFocusDisplay(val) {
+function saveFocusDisplay(val: string) {
   safeSetItem(FOCUS_DISPLAY_KEY, val)
 }
 /** 子组件 v-model 上抛 → 更新 ref + 持久化（原 el-radio-group v-model + @change 合并） */
-function onFocusDisplayChange(val) {
+function onFocusDisplayChange(val: string) {
   focusDisplay.value = val
   saveFocusDisplay(val)
 }
@@ -124,10 +125,10 @@ function onFocusDisplayChange(val) {
 const VIEW_MODE_KEY = 'queue_view_mode'
 const VALID_VIEW_MODES = ['board', 'calendar', 'timeline']
 const viewMode = ref(
-  VALID_VIEW_MODES.includes(safeGetItem(VIEW_MODE_KEY)) ? safeGetItem(VIEW_MODE_KEY) : 'board'
+  VALID_VIEW_MODES.includes(safeGetItem(VIEW_MODE_KEY) ?? '') ? (safeGetItem(VIEW_MODE_KEY) ?? 'board') : 'board'
 )
-function saveViewMode(val) {
-  safeSetItem(VIEW_MODE_KEY, val)
+function saveViewMode(val: string | number) {
+  safeSetItem(VIEW_MODE_KEY, String(val))
 }
 
 async function loadQueue() {
@@ -137,7 +138,7 @@ async function loadQueue() {
     lastServerOrder.value = queue.value.map(o => o.id) // REQ-037 C1
     reorderToastVisible.value = false
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     loading.value = false
   }
@@ -145,8 +146,8 @@ async function loadQueue() {
 
 // ─── REQ-037 C1: 拖拽排序成功提示 + 软撤销（UndoToast 与时间条拖拽改期同款交互） ───
 const reorderToastVisible = ref(false)
-const lastServerOrder = ref([])   // 最近一次服务端确认的正式区顺序（ids）
-let reorderUndoTarget = []        // 本次拖拽前的顺序（撤销目标）
+const lastServerOrder = ref<number[]>([])   // 最近一次服务端确认的正式区顺序（ids）
+let reorderUndoTarget: number[] = []        // 本次拖拽前的顺序（撤销目标）
 
 /** 撤销：把服务端顺序还原为拖拽前（失败则重拉兜底） */
 async function undoReorder() {
@@ -155,7 +156,7 @@ async function undoReorder() {
     queue.value = restored
     lastServerOrder.value = restored.map(o => o.id)
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
     await loadQueue()
   } finally {
     reorderToastVisible.value = false
@@ -168,7 +169,7 @@ async function undoReorder() {
  */
 // 围剿 a1-5: 拖拽排序请求序号——两次快速拖拽时仅最新序号写 queue/lastServerOrder，防旧响应乱序覆盖
 let reorderSeq = 0
-async function onDragEnd(evt) {
+async function onDragEnd(evt: { oldIndex?: number; newIndex?: number }) {
   const { oldIndex, newIndex } = evt
   if (oldIndex === newIndex) return
 
@@ -183,7 +184,7 @@ async function onDragEnd(evt) {
     reorderToastVisible.value = true
   } catch (err) {
     if (mySeq !== reorderSeq) return
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
     // 回滚：重新加载
     await loadQueue()
   }
@@ -194,7 +195,7 @@ async function loadBufferQueue() {
   try {
     bufferQueue.value = await artistApi.getQueue('buffer')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     bufferLoading.value = false
   }
@@ -206,7 +207,7 @@ async function loadCompletedQueue() {
   try {
     completedQueue.value = await artistApi.getQueue('completed')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     completedLoading.value = false
   }
@@ -218,24 +219,25 @@ async function refreshAll() {
 }
 
 // ─── SPEC-004: 缓冲区（候补订单列表 + 手动递补） ───
-const bufferQueue = ref([])
+const bufferQueue = ref<QueueOrderItem[]>([])
 const bufferLoading = ref(false)
 
 // ─── REQ-013 #7: 完成区（最近 7 天已交付订单，沉底灰色展示） ───
-const completedQueue = ref([])
+const completedQueue = ref<QueueOrderItem[]>([])
 const completedLoading = ref(false)
 
 // ─── R33: 签名 URL 定时刷新（焦点图 15min 过期防 403；正式区+缓冲区+完成区统一收集） ───
 const { refreshNow } = useSignatureRefresh({
-  collect: () => [...queue.value, ...bufferQueue.value, ...completedQueue.value].filter(o => o.focus_image_path).map(o => o.focus_image_path),
+  collect: () => [...queue.value, ...bufferQueue.value, ...completedQueue.value].filter(o => o.focus_image_path).map(o => o.focus_image_path as string),
   apply: (urlMap) => {
     for (const o of [...queue.value, ...bufferQueue.value, ...completedQueue.value]) {
-      if (o.focus_image_path && urlMap[o.focus_image_path]) o.focusImageUrl = urlMap[o.focus_image_path]
+      const path = o.focus_image_path
+      if (path && urlMap[path]) o.focusImageUrl = urlMap[path]
     }
   }
 })
 
-let unsubscribeReconnect = null
+let unsubscribeReconnect: (() => void) | null = null
 onMounted(() => {
   loadQueue()
   loadBufferQueue()

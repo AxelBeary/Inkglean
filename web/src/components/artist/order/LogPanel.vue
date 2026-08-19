@@ -47,7 +47,7 @@
   </el-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CardHead from '../visual/CardHead.vue'
@@ -55,6 +55,7 @@ import InkEmpty from '../visual/InkEmpty.vue'
 import { useActivityLog } from '../../../composables/useActivityLog.js'
 import { formatDateTime } from '../../../utils/datetime.js'
 import { formatCents } from '../../../utils/money.js'
+import type { ActivityLogItem } from '../../../api/types.js'
 
 const props = defineProps({
   routeId: { type: [String, Number], required: true }
@@ -62,7 +63,7 @@ const props = defineProps({
 
 const { t } = useI18n()
 
-function formatDate(str) {
+function formatDate(str: string) {
   return formatDateTime(str)
 }
 
@@ -70,10 +71,10 @@ const {
   logs, total: logTotal, page: logPage, pageSize: logPageSize,
   typeFilter: logTypeFilter, loading: logLoading, error: logError,
   loadLogs, onPageChange: onLogPageChange, onTypeChange: onLogTypeChange
-} = useActivityLog(props.routeId)
+} = useActivityLog(props.routeId as number)
 
 /** 操作类型 → el-tag / el-timeline-item type 映射 */
-const LOG_TAG_TYPE = {
+const LOG_TAG_TYPE: Record<string, 'primary' | 'warning' | 'info' | 'success'> = {
   status_change: 'primary',
   price_change: 'warning',
   extra_item: 'info',
@@ -81,7 +82,7 @@ const LOG_TAG_TYPE = {
   stage_advance: 'primary',
   note_update: 'info'
 }
-function logTagType(actionType) {
+function logTagType(actionType: string) {
   return LOG_TAG_TYPE[actionType] || 'info'
 }
 
@@ -92,7 +93,7 @@ const logTypeOptions = computed(() =>
 )
 
 /** 操作人展示名 */
-function logActorName(actor) {
+function logActorName(actor: string) {
   if (actor === 'system') return t('orderDetail.logActorSystem')
   if (actor === 'artist') return t('orderDetail.logActorArtist')
   if (actor === 'client') return t('orderDetail.logActorClient')
@@ -100,7 +101,7 @@ function logActorName(actor) {
 }
 
 /** detail 摘要（按 action_type 格式化，缺字段时安全回退） */
-function formatLogDetail(log) {
+function formatLogDetail(log: ActivityLogItem) {
   const d = log.detail || {}
   switch (log.action_type) {
     case 'status_change':
@@ -109,17 +110,17 @@ function formatLogDetail(log) {
         : ''
     case 'price_change':
       return d.oldCents != null && d.newCents != null
-        ? t('orderDetail.logDetail.priceChange', { from: formatCents(d.oldCents), to: formatCents(d.newCents) }) + (d.reason ? ` · ${d.reason}` : '')
+        ? t('orderDetail.logDetail.priceChange', { from: formatCents(d.oldCents as number), to: formatCents(d.newCents as number) }) + (d.reason ? ` · ${d.reason}` : '')
         : ''
     case 'extra_item':
-      if (d.action === 'add') return t('orderDetail.logDetail.extraAdd', { name: d.name || '' }) + (d.priceCents ? ` ¥${formatCents(d.priceCents)}` : '')
+      if (d.action === 'add') return t('orderDetail.logDetail.extraAdd', { name: d.name || '' }) + (d.priceCents ? ` ¥${formatCents(d.priceCents as number)}` : '')
       if (d.action === 'delete') return t('orderDetail.logDetail.extraDelete', { name: d.name || '' })
       return ''
     case 'payment':
       return d.amountCents != null
-        ? (d.amountCents < 0
-          ? t('orderDetail.logDetail.paymentRevoke', { amount: formatCents(Math.abs(d.amountCents)) })
-          : t('orderDetail.logDetail.paymentAdd', { amount: formatCents(d.amountCents) })) + (d.note ? ` · ${d.note}` : '')
+        ? ((d.amountCents as number) < 0
+          ? t('orderDetail.logDetail.paymentRevoke', { amount: formatCents(Math.abs(d.amountCents as number)) })
+          : t('orderDetail.logDetail.paymentAdd', { amount: formatCents(d.amountCents as number) })) + (d.note ? ` · ${d.note}` : '')
         : ''
     case 'stage_advance':
       if (d.action === 'advance') return t('orderDetail.logDetail.stageAdvance', { name: d.stageName || '' })

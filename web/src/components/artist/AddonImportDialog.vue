@@ -24,20 +24,28 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
+import type { AddonTemplate } from '../../api/types.js'
 import { formatAddonPrice } from '../../utils/money.js'
 import { categoryLabel, controlLabel as controlLabelText, controlTagType } from './addon-utils.js'
+
+/** 目标画风（本弹窗消费字段：已导入增项列表） */
+interface ImportStyleLite {
+  id: number
+  addons: Array<{ addon_template_id: number | null; is_enabled: number | boolean | null; price_override?: number | null }>
+}
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   /** 目标画风（未导入项按它计算） */
-  style: { type: Object, default: null },
+  style: { type: Object as PropType<ImportStyleLite | null>, default: null },
   /** 增项库全量模板 */
-  templates: { type: Array, default: () => [] }
+  templates: { type: Array as PropType<AddonTemplate[]>, default: () => [] }
 })
 const emit = defineEmits(['update:modelValue', 'imported'])
 const { t } = useI18n()
@@ -47,15 +55,15 @@ const visible = computed({
   set: (v) => emit('update:modelValue', v)
 })
 
-const importSelection = ref([])
+const importSelection = ref<number[]>([])
 const importSaving = ref(false)
 
-function controlLabel(type) {
+function controlLabel(type: string) {
   return controlLabelText(t, type)
 }
 
 /** 该画风尚未导入的增项库模板 */
-function unimportedTemplates(style) {
+function unimportedTemplates(style: ImportStyleLite) {
   const imported = new Set(style.addons.map(sa => sa.addon_template_id))
   return props.templates.filter(tpl => !imported.has(tpl.id))
 }
@@ -78,7 +86,7 @@ async function confirmImportAddons() {
   try {
     const items = [
       ...style.addons.map(sa => ({
-        addon_template_id: sa.addon_template_id,
+        addon_template_id: sa.addon_template_id as number,
         is_enabled: !!sa.is_enabled,
         price_override: sa.price_override ?? null
       })),
@@ -89,15 +97,16 @@ async function confirmImportAddons() {
     visible.value = false
     emit('imported')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     importSaving.value = false
   }
 }
 
 /** 类别标签 el-tag type（导入弹窗用） */
-function tplCategoryTagType(cat) {
-  return { usage: 'warning', rush: 'danger', add: 'info' }[cat] || 'info'
+function tplCategoryTagType(cat: string): 'warning' | 'danger' | 'info' {
+  const map: Record<string, 'warning' | 'danger' | 'info'> = { usage: 'warning', rush: 'danger', add: 'info' }
+  return map[cat] || 'info'
 }
 </script>
 

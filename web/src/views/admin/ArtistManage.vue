@@ -67,7 +67,7 @@
             <el-select
               v-model="row.status" size="small" style="width: 100px"
               :disabled="statusUpdatingId === row.id"
-              @change="(val) => changeStatus(row, val)"
+              @change="(val: string | number | boolean) => changeStatus(row, val)"
             >
               <el-option value="open" :label="$t('common.statusShort.open')" />
               <el-option value="full" :label="$t('common.statusShort.full')" />
@@ -441,9 +441,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { adminApi, complianceApi } from '../../api/index.js'
+import { adminApi, complianceApi, type ApiError } from '../../api/index.js'
+import type { AdminArtistItem, AdminInviteCode, AdminOrderItem, RecycleBinItem, DeletedArtistItem, ArtistStatus } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { View, Tickets, Key, Delete, Unlock, Lock } from '@element-plus/icons-vue'
@@ -457,7 +458,7 @@ import StepUpDialog from '../../components/admin/StepUpDialog.vue'
 import CardHead from '../../components/artist/visual/CardHead.vue'
 
 const { t } = useI18n()
-const artists = ref([])
+const artists = ref<AdminArtistItem[]>([])
 const loading = ref(true)
 
 // ─── E14（2026-08-14）: 画师搜索 + 状态筛选 ───
@@ -477,14 +478,14 @@ const filteredArtists = computed(() => {
 const dialogVisible = ref(false)
 const saving = ref(false)
 // b3 清扫：行内状态切换期间禁用下拉，防连续触发
-const statusUpdatingId = ref(null)
+const statusUpdatingId = ref<number | null>(null)
 // 815-b3-ban：封禁/解封行级操作挂起 id（prompt/请求期间按钮 loading，防重复提交）
-const banUpdatingId = ref(null)
+const banUpdatingId = ref<number | null>(null)
 
 // 813-fq-tail-shared 战役 S：≤760px 行操作按钮收成图标（防窄屏 360px 固定列挤压）
 const compactActions = ref(window.matchMedia('(max-width: 760px)').matches)
 const mqCompactActions = window.matchMedia('(max-width: 760px)')
-function onCompactActionsChange(e) { compactActions.value = e.matches }
+function onCompactActionsChange(e: MediaQueryListEvent) { compactActions.value = e.matches }
 onMounted(() => mqCompactActions.addEventListener('change', onCompactActionsChange))
 onUnmounted(() => mqCompactActions.removeEventListener('change', onCompactActionsChange))
 
@@ -492,14 +493,14 @@ const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCo
 
 // ─── REQ-039: 邀请码管理 ───
 const inviteVisible = ref(false)
-const inviteCodes = ref([])
+const inviteCodes = ref<AdminInviteCode[]>([])
 const inviteLoading = ref(false)
 const inviteGenerating = ref(false)
 const inviteCount = ref(5)
 const inviteValidDays = ref(3)
 
-function inviteStatusType(status) {
-  return { unused: 'success', used: 'info', revoked: 'danger' }[status] || 'info'
+function inviteStatusType(status: string) {
+  return ({ unused: 'success', used: 'info', revoked: 'danger' } as Record<string, string>)[status] || 'info'
 }
 
 async function openInviteCodes() {
@@ -513,7 +514,7 @@ async function loadInviteCodes() {
     const res = await adminApi.getInviteCodes()
     inviteCodes.value = res.codes || []
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     inviteLoading.value = false
   }
@@ -535,20 +536,20 @@ async function generateInviteCodes() {
     ElMessage.success(t('invite.generated', { count: res.codes.length }))
     await loadInviteCodes()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     inviteGenerating.value = false
   }
 }
 
-async function copyInviteCode(code) {
+async function copyInviteCode(code: string) {
   try {
     await navigator.clipboard.writeText(code)
     ElMessage.success(t('invite.copied'))
   } catch { /* 剪贴板受限时静默（非关键路径） */ }
 }
 
-async function revokeInviteCode(row) {
+async function revokeInviteCode(row: AdminInviteCode) {
   try {
     await ElMessageBox.confirm(
       t('invite.revokeConfirm', { code: row.code }),
@@ -561,25 +562,25 @@ async function revokeInviteCode(row) {
     ElMessage.success(t('invite.revoked'))
     await loadInviteCodes()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
 // 画师详情抽屉
 const detailVisible = ref(false)
-const detailArtist = ref(null)
-function openDetail(row) {
+const detailArtist = ref<AdminArtistItem | null>(null)
+function openDetail(row: AdminArtistItem) {
   detailArtist.value = row
   detailVisible.value = true
 }
 
-const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
+const statusType = (s: string) => ARTIST_STATUS_TYPE[s] || 'info'
 
 // 订单弹窗
 const ordersVisible = ref(false)
 const ordersLoading = ref(false)
-const ordersArtist = ref(null)
-const orders = ref([])
+const ordersArtist = ref<AdminArtistItem | null>(null)
+const orders = ref<AdminOrderItem[]>([])
 const ordersFailed = ref(false)
 const ordersPage = ref(1)
 /** b3 清扫：订单弹窗客户端分页（全量已拉取，仅限制 DOM 渲染量） */
@@ -606,7 +607,7 @@ async function loadArtists() {
     const admin = artists.value.find(a => a.isAdmin)
     if (admin) currentAdminQq.value = admin.qq_number
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     loading.value = false
   }
@@ -630,13 +631,13 @@ async function addArtist() {
     Object.assign(form, { qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
     await loadArtists()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     saving.value = false
   }
 }
 
-async function remove(row) {
+async function remove(row: AdminArtistItem) {
   try {
     await ElMessageBox.confirm(
       t('admin.confirmRemove', { name: row.name }),
@@ -651,25 +652,25 @@ async function remove(row) {
     ElMessage.success(t('common.removed'))
     await loadArtists()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   }
 }
 
-async function changeStatus(row, status) {
+async function changeStatus(row: AdminArtistItem, status: string | number | boolean) {
   if (statusUpdatingId.value === row.id) return
   statusUpdatingId.value = row.id
   try {
-    await adminApi.updateArtistStatus(row.id, status)
+    await adminApi.updateArtistStatus(row.id, status as ArtistStatus)
     ElMessage.success(t('admin.statusUpdated'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     await loadArtists()
   } finally {
     statusUpdatingId.value = null
   }
 }
 
-function viewOrders(row) {
+function viewOrders(row: AdminArtistItem) {
   ordersArtist.value = row
   orders.value = []
   ordersPage.value = 1
@@ -678,18 +679,18 @@ function viewOrders(row) {
   loadOrders(row.id)
 }
 
-async function loadOrders(artistId) {
+async function loadOrders(artistId: number) {
   ordersLoading.value = true
   const seq = ++ordersReqSeq.value
   try {
     const res = await adminApi.getArtistOrders(artistId)
     if (seq !== ordersReqSeq.value) return // 过期响应丢弃
-    orders.value = res.items ?? res
+    orders.value = (res.items ?? res) as AdminOrderItem[]
     if (ordersPage.value > 1 && pagedOrders.value.length === 0) ordersPage.value = 1
   } catch (err) {
     if (seq !== ordersReqSeq.value) return
     ordersFailed.value = true
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     if (seq === ordersReqSeq.value) ordersLoading.value = false
   }
@@ -705,7 +706,7 @@ function retryOrders() {
 
 // ─── 回收站（从主页迁入：孤儿文件可恢复；REQ-022 F4 分页） ───
 const recycleVisible = ref(false)
-const recycleItems = ref([])
+const recycleItems = ref<RecycleBinItem[]>([])
 const recycleLoading = ref(false)
 const emptying = ref(false)
 const recyclePage = ref(1)
@@ -725,13 +726,13 @@ async function loadRecycleBin() {
     recycleItems.value = res.items || []
     recycleTotal.value = res.total || 0
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     recycleLoading.value = false
   }
 }
 
-function formatSize(bytes) {
+function formatSize(bytes: number | null | undefined) {
   // A7: 后端可能不返回体积（undefined/null）——占位短横线，避免 NaN MB
   if (bytes === undefined || bytes === null || !Number.isFinite(Number(bytes))) return '—'
   if (bytes < 1024) return `${bytes} B`
@@ -755,7 +756,7 @@ async function handleEmptyRecycleBin() {
     recyclePage.value = 1
     await loadRecycleBin()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     emptying.value = false
   }
@@ -763,10 +764,10 @@ async function handleEmptyRecycleBin() {
 
 // ─── 0817：已移除画师（软删兜底：清单可见+可恢复） ───
 const deletedVisible = ref(false)
-const deletedItems = ref([])
+const deletedItems = ref<DeletedArtistItem[]>([])
 const deletedLoading = ref(false)
 /** 恢复在途锁（单飞：一次只恢复一个，防并发双击） */
-const restoringId = ref(null)
+const restoringId = ref<number | null>(null)
 
 async function openDeletedArtists() {
   deletedVisible.value = true
@@ -778,13 +779,13 @@ async function loadDeletedArtists() {
   try {
     deletedItems.value = await adminApi.getDeletedArtists()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     deletedLoading.value = false
   }
 }
 
-async function restoreDeletedArtist(row) {
+async function restoreDeletedArtist(row: DeletedArtistItem) {
   try {
     await ElMessageBox.confirm(
       t('admin.deletedArtists.restoreConfirm', { name: row.name }),
@@ -799,7 +800,7 @@ async function restoreDeletedArtist(row) {
     await loadDeletedArtists()
     await loadArtists() // 回到在册 → 主列表同步刷新
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     restoringId.value = null
   }
@@ -815,7 +816,7 @@ function openTransfer() {
 // REQ-041 集成接线：动作级再验对话框状态（仅更换管理员提交链路使用，与 AdminLayout 入口级守卫互不干扰）
 const actionStepUpVisible = ref(false)
 // 815-b3-ban：被 STEP_UP_REQUIRED 拦下的动作重试队列（更换管理员走 confirmTransfer 自身重试，此处仅封禁/解封使用）
-let pendingStepUpAction = null
+let pendingStepUpAction: (() => void) | null = null
 
 async function confirmTransfer() {
   transferring.value = true
@@ -830,11 +831,11 @@ async function confirmTransfer() {
     await loadArtists()
   } catch (err) {
     // 动作级再验：刚验证过（≤60s）才放行；否则弹 StepUpDialog，验证通过后自动重提交
-    if (err && err.code === 'STEP_UP_REQUIRED') {
+    if ((err as ApiError)?.code === 'STEP_UP_REQUIRED') {
       actionStepUpVisible.value = true
       return
     }
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     transferring.value = false
   }
@@ -857,7 +858,7 @@ function onActionStepUpCancel() {
 }
 
 /** 可选原因输入（与举报管理页同款 prompt；取消=中止，空值=不带原因直接操作） */
-async function askReason(title, message) {
+async function askReason(title: string, message: string) {
   try {
     const { value } = await ElMessageBox.prompt(message, title, {
       inputPlaceholder: t('compliance.admin.reasonPlaceholder'),
@@ -873,7 +874,7 @@ async function askReason(title, message) {
 }
 
 /** 封禁画师（与解封对称的两步确认：填原因 → 必要时 StepUpDialog 升级 → 调接口；禁止单步直接封禁） */
-async function banArtist(row) {
+async function banArtist(row: AdminArtistItem) {
   if (banUpdatingId.value != null) return
   banUpdatingId.value = row.id
   const { cancelled, reason } = await askReason(
@@ -888,25 +889,25 @@ async function banArtist(row) {
 }
 
 /** 封禁提交（遇 STEP_UP_REQUIRED → 弹 StepUpDialog，验证通过后由 pendingStepUpAction 自动重提交） */
-async function submitBan(artistId, reason) {
+async function submitBan(artistId: number, reason: string | null) {
   try {
     await complianceApi.banArtist(artistId, reason)
     ElMessage.success(t('compliance.admin.bannedToast'))
     await loadArtists()
     banUpdatingId.value = null
   } catch (err) {
-    if (err && err.code === 'STEP_UP_REQUIRED') {
+    if ((err as ApiError)?.code === 'STEP_UP_REQUIRED') {
       pendingStepUpAction = () => submitBan(artistId, reason)
       actionStepUpVisible.value = true
       return // 保持行级 loading，验证通过后自动重提交
     }
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     banUpdatingId.value = null
   }
 }
 
 /** 解封画师（与封禁对称的两步确认：填原因 → 必要时 StepUpDialog 升级 → 调接口） */
-async function unbanArtist(row) {
+async function unbanArtist(row: AdminArtistItem) {
   if (banUpdatingId.value != null) return
   banUpdatingId.value = row.id
   const { cancelled, reason } = await askReason(
@@ -921,31 +922,31 @@ async function unbanArtist(row) {
 }
 
 /** 解封提交（遇 STEP_UP_REQUIRED → 弹 StepUpDialog，验证通过后由 pendingStepUpAction 自动重提交） */
-async function submitUnban(artistId, reason) {
+async function submitUnban(artistId: number, reason: string | null) {
   try {
     await complianceApi.unbanArtist(artistId, reason)
     ElMessage.success(t('compliance.admin.unbannedToast'))
     await loadArtists()
     banUpdatingId.value = null
   } catch (err) {
-    if (err && err.code === 'STEP_UP_REQUIRED') {
+    if ((err as ApiError)?.code === 'STEP_UP_REQUIRED') {
       pendingStepUpAction = () => submitUnban(artistId, reason)
       actionStepUpVisible.value = true
       return // 保持行级 loading，验证通过后自动重提交
     }
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     banUpdatingId.value = null
   }
 }
 
 // ─── TOTP 绑定/重置（REQ-027 R2/R5） ───
 const totpVisible = ref(false)
-const totpArtist = ref(null)
+const totpArtist = ref<AdminArtistItem | null>(null)
 const totpQr = ref('')
 const totpCode = ref('')
 const totpLoading = ref(false)
 
-async function openTotpBind(row) {
+async function openTotpBind(row: AdminArtistItem) {
   totpArtist.value = row
   totpCode.value = ''
   totpQr.value = ''
@@ -961,7 +962,7 @@ async function genTotpQr() {
     const res = await adminApi.totpBindInit(totpArtist.value.id)
     totpQr.value = res.qrDataUrl
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     totpLoading.value = false
   }
@@ -972,12 +973,12 @@ async function confirmTotpBind() {
   if (!totpCode.value.trim()) return
   totpLoading.value = true
   try {
-    await adminApi.totpBindConfirm(totpArtist.value.id, totpCode.value.trim())
+    await adminApi.totpBindConfirm(totpArtist.value!.id, totpCode.value.trim())
     ElMessage.success(t('admin.totpBindSuccess'))
     totpVisible.value = false
     await loadArtists()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     totpLoading.value = false
   }
@@ -999,7 +1000,7 @@ async function resetTotpBind() {
     totpVisible.value = false
     await loadArtists()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     totpLoading.value = false
   }

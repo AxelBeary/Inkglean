@@ -1,15 +1,41 @@
-<script>
+<script lang="ts">
 // #3: 快捷按钮候选池常量（命名导出，供 Preferences.vue 配置区共用）
 // v0.34 任务3：emoji 图标位改用 @element-plus/icons-vue SVG（用户拍板删 emoji，SVG 无所谓）
 import { markRaw } from 'vue'
+import type { Component } from 'vue'
 import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled, Wallet, Document, ChatLineRound, Notebook, Brush, PriceTag } from '@element-plus/icons-vue'
 import { safeGetItem } from '../../../utils/storage.js'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
 export const QUICK_ACTIONS_KEY = 'huiyue_quick_actions'
 
+/** 候选池条目（type 判别联合：route 必带 route / link、action 不带） */
+interface QuickActionRoute {
+  key: string
+  type: 'route'
+  icon: Component
+  labelKey: string
+  route: string
+}
+interface QuickActionLink {
+  key: string
+  type: 'link'
+  icon: Component
+  labelKey: string
+  route: null
+}
+interface QuickActionAction {
+  key: string
+  type: 'action'
+  icon: Component
+  labelKey: string
+  route: null
+  action: string
+}
+export type QuickActionDef = QuickActionRoute | QuickActionLink | QuickActionAction
+
 /** 候选池：type=route 跳转 / action 执行动作 / link 新窗口；命名与侧边栏 menu.* 对齐 */
-export const QUICK_ACTION_POOL = [
+export const QUICK_ACTION_POOL: QuickActionDef[] = [
   { key: 'queue', type: 'route', icon: markRaw(Tickets), labelKey: 'menu.queue', route: '/queue' },
   { key: 'manual', type: 'route', icon: markRaw(EditPen), labelKey: 'menu.manualOrder', route: '/orders?action=manual' },
   { key: 'orders', type: 'route', icon: markRaw(Box), labelKey: 'menu.orders', route: '/orders' },
@@ -38,9 +64,9 @@ export const QUICK_ACTIONS_DEFAULT = ['manual', 'preview', 'rules', 'share', 'qu
 
 /** 解析 quickActions 值（DB 返回 JSON 字符串或数组，统一为合法 key 数组；
     819-G: 空数组 [] 是合法配置=全部隐藏，返回 [] 而非 null） */
-export function parseQuickActions(raw) {
+export function parseQuickActions(raw: unknown): string[] | null {
   try {
-    const keys = typeof raw === 'string' ? JSON.parse(raw) : raw
+    const keys: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw
     if (!Array.isArray(keys)) return null
     if (keys.length === 0) return []
     const valid = QUICK_ACTION_POOL.filter(a => keys.includes(a.key)).map(a => a.key)
@@ -97,20 +123,26 @@ export function readQuickActionsConfig() {
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../../stores/artist.js'
 import { artistApi, uploadApi } from '../../../api/index.js'
+import type { ArtistStatus } from '../../../api/types.js'
 import { usePasteUpload } from '../../../composables/usePasteUpload.js'
 import { trackEvent } from '../../../utils/track.js'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload.js'
 import SliderSwitch from '../SliderSwitch.vue'
 
 const router = useRouter()
-const store = useArtistStore()
+// profile 为「登录画像|完整资料」联合，status/quick_actions 读取以轻量接口桥接（同 PlaqueStatus 手法，不引入 any）
+interface ArtistProfileLite {
+  status?: string
+  quick_actions?: unknown
+}
+const store = useArtistStore() as Omit<ReturnType<typeof useArtistStore>, 'profile'> & { profile: ArtistProfileLite | null }
 const { t } = useI18n()
 
 // v0.25: DB 优先（profile.quick_actions），localStorage 回退，最终兜底默认值
@@ -120,7 +152,7 @@ const activeActions = computed(() => {
   return keys
     .map(k => QUICK_ACTION_POOL.find(a => a.key === k))
     // 817 拍板：删除「状态切换」——已保存的旧值渲染时一并过滤，不再出现状态卡
-    .filter(a => a && a.key !== 'status')
+    .filter((a): a is QuickActionDef => a != null && a.key !== 'status')
     .filter(Boolean)
 })
 
@@ -131,7 +163,7 @@ const statusOptions = [
   { value: 'full', label: t('dashboard.statusFull') },
   { value: 'break', label: t('dashboard.statusBreak') }
 ]
-async function onStatusChange(next) {
+async function onStatusChange(next: ArtistStatus) {
   if (statusBusy.value || next === (store.profile?.status || 'open')) return
   statusBusy.value = true
   try {
@@ -139,7 +171,7 @@ async function onStatusChange(next) {
     store.profile = { ...store.profile, status: next }
     ElMessage.success(t('dashboard.statusUpdated'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     statusBusy.value = false
   }
@@ -172,22 +204,22 @@ const { pasteError } = usePasteUpload({
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
-function onCardDragEnter(action) {
+function onCardDragEnter(action: QuickActionDef) {
   if (action.key !== 'publish') return
   publishActive.value = true
 }
-function onCardDragLeave(action) {
+function onCardDragLeave(action: QuickActionDef) {
   if (action.key !== 'publish') return
   publishActive.value = false
 }
-async function onCardDrop(action, e) {
+async function onCardDrop(action: QuickActionDef, e: DragEvent) {
   if (action.key !== 'publish') return
   const files = Array.from(e.dataTransfer?.files || [])
     .filter(f => f.type.startsWith('image/') && f.size <= MAX_IMAGE_BYTES) // a1: 拖拽路径补大小校验（对齐粘贴路径）
   if (!files.length) { ElMessage.warning(t('quickAction.notImage')); return }
   await doPublish(files)
 }
-async function doPublish(files) {
+async function doPublish(files: File[]) {
   if (publishUploading.value) return // a1: busy 入口守卫——粘贴与拖拽并发时忽略后续批次
   publishUploading.value = true
   try {
@@ -199,7 +231,7 @@ async function doPublish(files) {
     // 保持 profile 最新（quick_actions 等可能变化），失败静默
     store.fetchProfile().catch(() => {})
   } catch (err) {
-    ElMessage.error(err.message || t('quickAction.publishFailed'))
+    ElMessage.error((err as Error).message || t('quickAction.publishFailed'))
   } finally {
     publishUploading.value = false
     publishActive.value = false
@@ -207,7 +239,7 @@ async function doPublish(files) {
 }
 
 // ─── go() 分发：route/action/link 三型 ───
-function go(action) {
+function go(action: QuickActionDef) {
   trackEvent('dashboard_quick_click', { action: action.key })
   if (action.type === 'link') {
     // 主页预览：动态拼接 subdomain（新窗口，与 Settings 预览行为一致）

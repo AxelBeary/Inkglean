@@ -37,7 +37,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -45,14 +45,21 @@ import { REPLY_CATEGORIES, REPLY_TEMPLATES } from '../../utils/reply-templates.j
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
 import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 
+/** 话术条目（textEn 可能缺失，缺英文时回退中文） */
+interface ReplyTemplate {
+  name: string
+  text: string
+  textEn?: string
+}
+
 const { t, locale } = useI18n()
 const currentCat = ref(REPLY_CATEGORIES[0])
-const templates = computed(() => REPLY_TEMPLATES[currentCat.value] || [])
+const templates = computed<ReplyTemplate[]>(() => REPLY_TEMPLATES[currentCat.value as keyof typeof REPLY_TEMPLATES] || [])
 /** b5: 分类 tab roving tabindex + 方向键（ARIA APG Tabs） */
-const replyTabEls = {}
-function onReplyTabKeydown(e) {
+const replyTabEls: Record<string, unknown> = {}
+function onReplyTabKeydown(e: KeyboardEvent) {
   const idx = REPLY_CATEGORIES.indexOf(currentCat.value)
-  let next = null
+  let next: string | null = null
   if (e.key === 'ArrowRight') next = REPLY_CATEGORIES[(idx + 1) % REPLY_CATEGORIES.length]
   else if (e.key === 'ArrowLeft') next = REPLY_CATEGORIES[(idx - 1 + REPLY_CATEGORIES.length) % REPLY_CATEGORIES.length]
   else if (e.key === 'Home') next = REPLY_CATEGORIES[0]
@@ -60,24 +67,24 @@ function onReplyTabKeydown(e) {
   if (next == null) return
   e.preventDefault()
   selectCategory(next)
-  replyTabEls[next]?.focus()
+  ;(replyTabEls[next] as HTMLElement | undefined)?.focus()
 }
 /** b4-5: 按 locale 取话术（中文走 text，英文走 textEn，缺英文时回退中文） */
-function displayText(item) {
+function displayText(item: ReplyTemplate) {
   return locale.value === 'en' ? (item.textEn || item.text) : item.text
 }
 
-function selectCategory(cat) {
+function selectCategory(cat: string) {
   currentCat.value = cat
 }
 
 /** v-for key：分类内同名话术少见，但用索引兜底保证唯一 */
-function catKey(item, i) {
+function catKey(item: ReplyTemplate, i: number) {
   return currentCat.value + '_' + item.name + '_' + i
 }
 
 /** 复制到剪贴板（公共 clipboard.copyText；成功提示 / 失败提示） */
-async function copyText(item) {
+async function copyText(item: ReplyTemplate) {
   if (await copyToClipboard(displayText(item))) {
     ElMessage.success(t('reply.copied'))
   } else {

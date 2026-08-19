@@ -38,10 +38,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, provide, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
+import type { Component } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
+import type { ArtistPublicProfile, VisibleArtistProfile, Artwork, PlatformDTO, PublicArtStyle, PublicGalleryResult, WorkflowStageDTO } from '../../api/types.js'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -51,21 +53,21 @@ import ClientFloatingActions from '../../components/client/ClientFloatingActions
 
 const { t } = useI18n()
 const route = useRoute()
-const subdomain = route.params.subdomain
+const subdomain = route.params.subdomain as string
 
-const artist = ref(null)
-const tiers = ref([])
-const styles = ref([]) // v0.32 REQ-023 Phase3: 画风列表（GET /public/styles/:subdomain）
-const artworks = ref([])
+const artist = ref<ArtistPublicProfile | null>(null)
+const tiers = ref<unknown[]>([])
+const styles = ref<PublicArtStyle[]>([]) // v0.32 REQ-023 Phase3: 画风列表（GET /public/styles/:subdomain）
+const artworks = ref<Artwork[]>([])
 const rules = ref('')
-const workflowStages = ref([])
+const workflowStages = ref<WorkflowStageDTO[]>([])
 // v0.35 联调：画廊数据走独立端点 GET /public/gallery/:subdomain
 // （artworks 带 size_tags/description + filterSizes 筛选档位；F6 真实数据源）
-const galleryData = ref({ artworks: [], filterSizes: [] })
+const galleryData = ref<PublicGalleryResult>({ artworks: [], filterSizes: [] })
 // 波 M：画廊端点请求中标记（Gallery 模板首载骨架占位用；失败/成功均复位）
 const galleryLoading = ref(true)
 // REQ-022 F2: 社交平台列表（页脚链接平台名/图标渲染用；静默失败走「其他」兜底）
-const platforms = ref([])
+const platforms = ref<PlatformDTO[]>([])
 const loading = ref(true)
 
 const sanitizedRules = computed(() => sanitizeHtml(rules.value))
@@ -77,7 +79,7 @@ const hasSectionErrors = computed(() => Object.values(sectionErrors).some(Boolea
 // #54: effectiveStatus 适配——额度耗尽时后端返回 effectiveStatus='full'，前端覆盖 status
 // 向后兼容：字段缺失时 fallback 原始 status，4 模板零改动
 const displayArtist = computed(() => {
-  const a = artist.value
+  const a = artist.value as VisibleArtistProfile | null
   if (!a) return a
   if (a.effectiveStatus && a.effectiveStatus !== a.status) {
     return { ...a, status: a.effectiveStatus }
@@ -91,7 +93,7 @@ const previewPal = computed(() => route.query._pal || null)
 const previewAccent = computed(() => route.query._accent || null)
 const isPreview = computed(() => !!(previewTpl.value || previewPal.value || previewAccent.value))
 
-const paletteId = computed(() => previewPal.value || artist.value?.paletteId || 'paper')
+const paletteId = computed(() => (previewPal.value as string | null) || (artist.value as VisibleArtistProfile | null)?.paletteId || 'paper')
 
 // 配色系统：根据画师 paletteId 设置 html[data-palette]，卸载时清理
 usePalette(paletteId)
@@ -110,10 +112,10 @@ const ACCENT_INDEX = Object.freeze(Object.fromEntries(
   ])
 ))
 const accentOverride = computed(() => {
-  const raw = previewAccent.value || artist.value?.accentColor
+  const raw = previewAccent.value || (artist.value as VisibleArtistProfile | null)?.accentColor
   return raw ? (ACCENT_INDEX[String(raw).toLowerCase()] || null) : null
 })
-let savedAccent = null
+let savedAccent: string | null = null
 let accentApplied = false
 watch(accentOverride, (idx) => {
   if (idx) {
@@ -134,20 +136,20 @@ onUnmounted(() => {
 
 // ─── 模板注册表（defineAsyncComponent 自动处理懒加载）───
 // 布局 ID：classic / gallery / folio；旧值 default / dark-gallery / single-page 做映射兼容
-const TEMPLATES = {
+const TEMPLATES: Record<string, Component> = {
   'classic': defineAsyncComponent(() => import('./templates/ArtistHomeClassic.vue')),
   'gallery': defineAsyncComponent(() => import('./templates/ArtistHomeGallery.vue')),
   'folio':   defineAsyncComponent(() => import('./templates/ArtistHomeFolio.vue')),
   'atelier': defineAsyncComponent(() => import('./templates/ArtistHomeAtelier.vue'))
 }
-const LEGACY_TEMPLATE_MAP = {
+const LEGACY_TEMPLATE_MAP: Record<string, string> = {
   'default': 'classic',
   'dark-gallery': 'gallery',
   'single-page': 'folio'
 }
 
 const templateComponent = computed(() => {
-  const raw = previewTpl.value || artist.value?.templateId || 'classic'
+  const raw = (previewTpl.value || (artist.value as VisibleArtistProfile | null)?.templateId || 'classic') as string
   const id = LEGACY_TEMPLATE_MAP[raw] || raw
   return TEMPLATES[id] || TEMPLATES.classic
 })
@@ -156,23 +158,26 @@ onMounted(async () => {
   try {
     const data = await fetchArtistPublicProfile(subdomain)
     artist.value = data
-    tiers.value = data.tiers || []
-    artworks.value = data.artworks || []
-    rules.value = data.rules || ''
+    const profile = data as VisibleArtistProfile
+    tiers.value = profile.tiers || []
+    artworks.value = profile.artworks || []
+    rules.value = profile.rules || ''
     // 波 M：5 个分块接口并行加载，各自失败标记 + 统一占位（不整页破）
     loadSection('workflow')
     loadSection('styles')
     loadSection('gallery')
     loadSection('platforms')
   } catch (err) {
-    ElMessage.error(err.message || t('artistHome.loadFailed'))
+    ElMessage.error(err instanceof Error && err.message ? err.message : t('artistHome.loadFailed'))
   } finally {
     loading.value = false
   }
 })
 
+type SectionKey = 'workflow' | 'styles' | 'gallery' | 'platforms'
+
 /** 波 M：单个分块接口加载（成功清失败标记；失败仅标记，由占位条提供重试） */
-async function loadSection(key) {
+async function loadSection(key: SectionKey) {
   sectionErrors[key] = false
   try {
     if (key === 'workflow') {
@@ -200,7 +205,7 @@ async function loadSection(key) {
 
 /** 波 M：重试所有失败的分块接口（并行） */
 function retryFailedSections() {
-  Object.keys(sectionErrors).filter(k => sectionErrors[k]).forEach(loadSection)
+  (Object.keys(sectionErrors) as SectionKey[]).filter(k => sectionErrors[k]).forEach(loadSection)
 }
 </script>
 

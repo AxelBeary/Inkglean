@@ -2,7 +2,14 @@
 
 > 📚 **2026-08-14 拆分说明**：本文件只保留 v95 起的近期状态（接手所需全部信息在内）；v94 及更早历史整体搬至 `docs/comms/STATUS-archive-20260814.md`（原文一字未动）。再往后体积膨胀时按同法滚动归档。
 
-> ✅ **最后更新：2026-08-19 v131：操作优化批三条全落地——①留言批量批准/婉拒 ②订单搜索文案补 QQ 号 ③订单列表点列头排序（提交标注 v130①②③，落账为 v131），终态门禁 server 1589 / web 651 / E2E 13 全绿并进生产**
+> ✅ **最后更新：2026-08-19 v132：TypeScript 一次性收尾迁移全量完工——推翻原「谁触碰谁迁移」增量策略（用户拍板），全仓 JS 清零（保留安装/运维入口脚本），测试与脚本全量纳入 strict 类型门禁，终态门禁 server 1589 / web 651 / E2E 13 全绿，行为零变更**
+> 🔧 **迁移范围（约 470 个单元）**：①server tests 134 个 .test.js→.test.ts（新增 tsconfig.tests.json strict 检查接入 npm run typecheck）+ 运维脚本 3 个（check-db/gc-uploads/backfill，entrypoint.sh 改 npx tsx 直跑，OPS.md 同步）；②web/src 153 个 .js→.ts + 136 个 .vue 的 script 块加 lang="ts"（App.vue 含内）+ allowJs 关闭；③web 配置与脚本：vite/vitest/eslint 配置转 .ts（eslint.config.ts 需 jiti，已入 devDeps），check-i18n/compress-paper-tex 转 .ts 走 tsx（新增 tsconfig.scripts.json）；④e2e 16 个 .js→.ts + playwright.config.ts（新增 e2e/tsconfig.json、npm run typecheck:e2e）。
+> 🛡️ **纪律执行**：断言/测试名/用例数/注释/路由表/SQL/部署流程零变更；全仓 grep 零 any、零 @ts-ignore/@ts-expect-error（类型缺口一律局部 interface + as 断言，沿用 src 既有模式）；测试数逐一与基线对账吻合。
+> ⚠️ **遗留风险（待用户拍板）**：①GreetingNote.vue「今日统计」滚动数字旧 JS 的 .value 访问运行时实为 undefined（reactive 解包后 display 已是 number）——隐性 bug，迁移中保运行时原样未修，去掉 .value 即修复；②web eslint 180 条警告为迁移前基线原样未动。
+> ✅ **终态门禁**：server typecheck（src+scripts+tests 三配置）/lint 零错/**1589/1589** · web lint（typecheck 含 scripts）零错（180 基线警告）/**651/651**/check-i18n/build 全过 · E2E **13/13** · typecheck:e2e/check:e2e 绿 · 保留未迁：install.mjs、根 scripts/*.mjs/*.ps1/*.sh（裸 node/系统脚本直跑入口，不依赖构建工具）。
+> 🔑 **新会话接手指南**：无在途施工。开放项：GreetingNote 滚动数字隐性 bug 拍板修不修；用户复验 v131 三项；首页原型挂起；公网同步待用户跑 update.sh；B测继续；桌面端HOLD。worktree 无。
+
+> ✅ **历史：2026-08-19 v131：操作优化批三条全落地——①留言批量批准/婉拒 ②订单搜索文案补 QQ 号 ③订单列表点列头排序（提交标注 v130①②③，落账为 v131），终态门禁 server 1589 / web 651 / E2E 13 全绿并进生产**
 > 📬 **①留言批量审核（用户拍板全都要）**：留言管理页每条加勾选框，勾任意条后浮出批量条（全选当前筛选集/已选 N 条/批量批准/批量婉拒两步确认）；后端新增 POST /api/artist/messages/bulk（action+ids，归属条件内置单次 UPDATE 原子执行，跨画师 id 自然不命中，返回实报数），单次上限 500；回复仍逐条（走心事不批量）；切筛选自动清选择。回归 TC-GB-08（跨画师隔离/实报数/空数组）。
 > 🔍 **②搜索文案如实补齐（零风险小修）**：后端订单搜索早已支持 QQ 号（client_qq LIKE）但前端文案未提——说明与占位提示改「昵称 / QQ号 / 订单号 / 档位名」（zh/en 成对）。
 > ↕️ **③订单列表排序（后端白名单非前端假排）**：时间列与优先级列可点列头排序（sortable=custom → sort-change → 后端 sort 参数：time_asc 时间正序 / priority 优先级高→低同级时间倒序；非法值回落默认时间倒序，无注入面）；服务端分页下排序跨页生效，复合筛选全量缓存键含排序口径不串序。回归 TC-SORT-01〜03。

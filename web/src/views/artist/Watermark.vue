@@ -187,8 +187,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import type { ArtworkWithTags, ArtistOrderItem } from '../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
@@ -202,19 +203,25 @@ const store = useArtistStore()
 // ─── 图片来源 ───
 const sourceType = ref('new') // new | artwork | deliverable
 const src = ref('')
-const artworks = ref([])
+const artworks = ref<ArtworkWithTags[]>([])
 const artworksLoading = ref(false)
 /** 作品列表加载失败（独立错误态 + 重试，不再静默） */
 const artworksError = ref(false)
-const orders = ref([])
+const orders = ref<ArtistOrderItem[]>([])
 const ordersLoading = ref(false)
 /** 订单列表加载失败（独立错误态 + 重试，不再静默） */
 const ordersError = ref(false)
-const deliverables = ref([])
+/** 完稿图行（运行时附带 url，类型库未声明，局部收窄） */
+interface DeliverableRow {
+  id: number
+  url: string
+  original_name?: string | null
+}
+const deliverables = ref<DeliverableRow[]>([])
 const deliverablesLoading = ref(false)
 /** 完稿图加载失败（独立错误态 + 重试，不再静默） */
 const deliverablesError = ref(false)
-const selectedOrderId = ref(null)
+const selectedOrderId = ref<number | null>(null)
 
 // ─── 水印素材 ───
 const wmType = ref('text') // text | logo
@@ -232,8 +239,8 @@ const spacing = ref(160)
 
 const previewDataUrl = ref('')
 const exporting = ref(false)
-const fileInput = ref(null)
-const logoInput = ref(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+const logoInput = ref<HTMLInputElement | null>(null)
 // 围剿 a1-8/9: 完稿图切换与预览合成共用的请求/合成序号（卸载递增使在途响应作废）
 let deliverablesSeq = 0
 let previewSeq = 0
@@ -249,8 +256,8 @@ const POSITION_KEYS = {
   'bottom-right': 'watermark.posBottomRight',
   center: 'watermark.posCenter'
 }
-function positionLabel(p) {
-  return t(POSITION_KEYS[p] || p)
+function positionLabel(p: string) {
+  return t(POSITION_KEYS[p as keyof typeof POSITION_KEYS] || p)
 }
 
 // ─── 初始化 ───
@@ -289,25 +296,26 @@ function loadLogo() {
 }
 
 // ─── 新传图（FileReader 本地读图，不发服务器） ───
-function onFileChange(e) {
-  const file = e.target.files?.[0]
-  e.target.value = '' // 允许重复选择同一文件
+function onFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // 允许重复选择同一文件
   if (file) acceptImageFile(file)
 }
 
-function onDrop(e) {
+function onDrop(e: DragEvent) {
   const file = e.dataTransfer?.files?.[0]
   if (file) acceptImageFile(file)
 }
 
-function acceptImageFile(file) {
+function acceptImageFile(file: File) {
   if (!file.type.startsWith('image/')) {
     ElMessage.warning(t('watermark.fileTypeError'))
     return
   }
   const reader = new FileReader()
   reader.onload = () => {
-    src.value = reader.result
+    src.value = reader.result as string
   }
   reader.readAsDataURL(file)
 }
@@ -318,7 +326,7 @@ async function loadArtworks() {
   artworksError.value = false
   try {
     const res = await artistApi.getArtworks()
-    artworks.value = Array.isArray(res) ? res : (res?.items || [])
+    artworks.value = Array.isArray(res) ? res : ((res as unknown as { items?: ArtworkWithTags[] })?.items || [])
   } catch {
     artworksError.value = true
     artworks.value = []
@@ -327,11 +335,11 @@ async function loadArtworks() {
   }
 }
 
-function artworkSrc(art) {
+function artworkSrc(art: ArtworkWithTags) {
   return `/uploads/${art.image_path}`
 }
 
-function pickArtwork(art) {
+function pickArtwork(art: ArtworkWithTags) {
   src.value = artworkSrc(art)
 }
 
@@ -351,12 +359,12 @@ async function loadOrders() {
   }
 }
 
-function orderLabel(o) {
+function orderLabel(o: ArtistOrderItem) {
   const client = o.client_name || o.client_qq || ''
   return `${o.order_no}${client ? ` · ${client}` : ''}`
 }
 
-async function onOrderChange(orderId) {
+async function onOrderChange(orderId: number | null) {
   // 围剿 a1-8: 订单下拉切换取号——慢响应不得覆盖新选中的订单完稿图
   const mySeq = ++deliverablesSeq
   if (!orderId) {
@@ -371,7 +379,7 @@ async function onOrderChange(orderId) {
   try {
     const detail = await artistApi.getOrder(orderId)
     if (mySeq !== deliverablesSeq) return
-    deliverables.value = detail?.deliverables || []
+    deliverables.value = (detail?.deliverables || []) as unknown as DeliverableRow[]
   } catch {
     if (mySeq !== deliverablesSeq) return
     deliverablesError.value = true
@@ -386,14 +394,15 @@ function retryDeliverables() {
   if (selectedOrderId.value) onOrderChange(selectedOrderId.value)
 }
 
-function pickDeliverable(d) {
+function pickDeliverable(d: DeliverableRow) {
   src.value = d.url
 }
 
 // ─── LOGO 上传与持久化 ───
-function onLogoChange(e) {
-  const file = e.target.files?.[0]
-  e.target.value = ''
+function onLogoChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
   if (!file) return
   // 派工单：透明底 PNG；做类型白名单校验（拒绝 GIF 等动画格式）
   if (file.type !== 'image/png') {
@@ -402,23 +411,23 @@ function onLogoChange(e) {
   }
   const reader = new FileReader()
   reader.onload = () => {
-    logoDataUrl.value = reader.result
-    saveLogo(reader.result)
+    logoDataUrl.value = reader.result as string
+    saveLogo(reader.result as string)
     ElMessage.success(t('watermark.logoSaved'))
   }
   reader.readAsDataURL(file)
 }
 
-function saveLogo(dataUrl) {
+function saveLogo(dataUrl: string) {
   const key = logoKey.value
   if (!key) return
   safeSetItem(key, dataUrl)
 }
 
 // ─── 合成参数 → 实时预览（防抖 300ms） ───
-function currentOptions(logo) {
+function currentOptions(logo: HTMLImageElement | null) {
   return {
-    mode: mode.value,
+    mode: mode.value as 'corner' | 'stretch' | 'tile',
     position: position.value,
     opacity: opacity.value,
     fontSize: fontSize.value,
@@ -459,17 +468,17 @@ async function renderPreview() {
   }
 }
 
-let previewTimer = null
+let previewTimer: ReturnType<typeof setTimeout> | null = null
 watch(
   [src, wmType, wmText, fontSize, logoScale, opacity, mode, position, margin, spacing, logoDataUrl],
   () => {
-    clearTimeout(previewTimer)
+    clearTimeout(previewTimer ?? undefined)
     previewTimer = setTimeout(renderPreview, 300)
   }
 )
 
 onUnmounted(() => {
-  clearTimeout(previewTimer)
+  clearTimeout(previewTimer ?? undefined)
   deliverablesSeq++
   previewSeq++
 })

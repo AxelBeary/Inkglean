@@ -32,16 +32,27 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi, uploadApi } from '../../api/index.js'
+import type { ArtStyleInput } from '../../api/types.js'
+
+/** 编辑中的画风行（父级列表行结构的最小子集） */
+interface EditStyleLite {
+  id: number
+  name: string
+  description?: string | null
+  cover_image?: string | null
+}
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   /** 编辑对象；null = 新建 */
-  style: { type: Object, default: null }
+  style: { type: Object as PropType<EditStyleLite | null>, default: null }
 })
 const emit = defineEmits(['update:modelValue', 'saved'])
 const { t } = useI18n()
@@ -73,7 +84,7 @@ watch(() => props.modelValue, (open) => {
  *   PUT 失败时回滚表单预览，避免"预览显示已保存、实际未保存"的不一致
  * 新建画风：无 id 可保存，只写表单 + 醒目提示「确定后生效」
  */
-async function uploadCover({ file }) {
+async function uploadCover({ file }: UploadRequestOptions) {
   coverUploading.value = true
   const prevCover = styleForm.cover_image
   try {
@@ -85,13 +96,13 @@ async function uploadCover({ file }) {
         ElMessage.success(t('common.saved'))
       } catch (putErr) {
         styleForm.cover_image = prevCover // 回滚：预览与实际存储保持一致
-        ElMessage.error(putErr.message)
+        ElMessage.error((putErr as Error).message)
       }
     } else {
       ElMessage({ type: 'warning', message: t('styleManage.sizeImageUploadHint'), duration: 5000 })
     }
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     coverUploading.value = false
   }
@@ -115,7 +126,7 @@ async function removeCover() {
     ElMessage.success(t('common.saved'))
   } catch (err) {
     styleForm.cover_image = prevCover // 回滚：预览与实际存储保持一致
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     coverUploading.value = false
   }
@@ -140,13 +151,13 @@ async function saveStyle() {
         description: styleForm.description.trim() || null,
         cover_image: styleForm.cover_image || null,
         importAddons: styleForm.importAddons
-      })
+      } as ArtStyleInput & { importAddons: boolean })
     }
     ElMessage.success(t('styleManage.styleSaved'))
     visible.value = false
     emit('saved')
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     styleSaving.value = false
   }

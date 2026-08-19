@@ -11,7 +11,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   /** 标题文字（也可用默认插槽覆盖） */
   title: { type: String, default: '' }

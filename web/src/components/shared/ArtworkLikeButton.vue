@@ -25,7 +25,7 @@
   </button>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistPublicApi } from '../../api/index.js'
@@ -52,13 +52,13 @@ const storageKey = computed(() => `huiyue_liked_${props.subdomain}`)
 watch(() => props.liked, (v) => { if (!busy.value) isLiked.value = v })
 watch(() => props.initialCount, (v) => { if (!busy.value) count.value = v })
 
-function readIds() {
+function readIds(): number[] {
   // G-5: 裸读写换 safe 封装（存储禁用/损坏 JSON 均按未点赞降级）
   const raw = safeGetItem(storageKey.value)
   if (!raw) return []
   try {
-    const ids = JSON.parse(raw)
-    return Array.isArray(ids) ? ids : []
+    const ids: unknown = JSON.parse(raw)
+    return Array.isArray(ids) ? (ids as number[]) : []
   } catch { return [] }
 }
 

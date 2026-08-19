@@ -97,17 +97,18 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { TrackingSummary, StatsMode } from '../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
 const loading = ref(true)
-const summary = ref(null)
-const statsMode = ref('hidden')
+const summary = ref<TrackingSummary | null>(null)
+const statsMode = ref<StatsMode>('hidden')
 const savingVisible = ref(false)
 /** 820-L：统计功能总开关（默认关闭） */
 const statsEnabled = ref(false)
@@ -119,27 +120,27 @@ const funnel = computed(() => summary.value?.funnel || [])
 const byName = computed(() => summary.value?.byName || [])
 const byDay = computed(() => summary.value?.byDay || [])
 
-function ratio(count) {
+function ratio(count: number) {
   const total = summary.value?.total
   if (!total) return '0%'
   return `${((count / total) * 100).toFixed(1)}%`
 }
 
-function dayRatio(count) {
+function dayRatio(count: number) {
   const total = summary.value?.total
   if (!total) return 0
   return Math.round((count / total) * 100)
 }
 
-async function onModeChange(v) {
+async function onModeChange(v: string | number | boolean) {
   const prev = statsMode.value
   savingVisible.value = true
   try {
-    const res = await adminApi.setTrackingConfig(v)
+    const res = await adminApi.setTrackingConfig(v as StatsMode)
     statsMode.value = res.statsMode
     ElMessage.success(t('tracking.saved'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     // 失败回滚（后端为准，不本地存）
     statsMode.value = prev
   } finally {
@@ -148,7 +149,7 @@ async function onModeChange(v) {
 }
 
 /** 820-L：总开关切换（失败回滚，与三态开关同口径） */
-async function onEnabledChange(v) {
+async function onEnabledChange(v: string | number | boolean) {
   const prev = statsEnabled.value
   savingEnabled.value = true
   try {
@@ -156,7 +157,7 @@ async function onEnabledChange(v) {
     statsEnabled.value = res.statsEnabled
     ElMessage.success(t('tracking.saved'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     statsEnabled.value = prev
   } finally {
     savingEnabled.value = false
@@ -174,7 +175,7 @@ async function loadSummary() {
     summary.value = res
   } catch (err) {
     if (mySeq !== summarySeq) return
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     if (mySeq === summarySeq) loading.value = false
   }
@@ -194,7 +195,7 @@ onMounted(async () => {
     statsEnabled.value = !!cfg.statsEnabled
   } catch (err) {
     if (mySeq !== summarySeq) return
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
   } finally {
     if (mySeq === summarySeq) loading.value = false
   }

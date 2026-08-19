@@ -7,9 +7,16 @@
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
-    "check:e2e": "node e2e/scripts/check-locators.js"
+    "check:e2e": "tsx e2e/scripts/check-locators.ts",
+    "typecheck:e2e": "tsc -p e2e/tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.0"
+    "@playwright/test": "^1.54.0",
+    "@types/node": "^22",
+    "tsx": "^4.23.1",
+    "typescript": "~5.9.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }

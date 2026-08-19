@@ -48,20 +48,21 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index.js'
 import { formatDateTimeShort } from '../../utils/datetime.js'
 import { formatCents } from '../../utils/money.js'
+import type { ReturningClient } from '../../api/types.js'
 
 const { t } = useI18n()
 const days = ref(30)
-const items = ref([])
+const items = ref<ReturningClient[]>([])
 const loading = ref(false)
 
-const formatDate = (str) => formatDateTimeShort(str)
+const formatDate = (str: string | null) => formatDateTimeShort(str || '')
 
 // 天数快切竞态守卫：仅最新一次请求可写 items/loading（对齐项目 seq 模式）
 let clientsSeq = 0
@@ -75,14 +76,14 @@ async function loadClients() {
   } catch (err) {
     if (mySeq !== clientsSeq) return
     items.value = []
-    ElMessage.error(err.message || t('returning.loadFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('returning.loadFailed'))
   } finally {
     if (mySeq === clientsSeq) loading.value = false
   }
 }
 
 /** 复制召回话术（含 QQ 与未下单天数） */
-async function copyScript(row) {
+async function copyScript(row: ReturningClient) {
   const text = t('returning.script', { days: row.daysSinceLastOrder, qq: row.clientQq })
   try {
     await navigator.clipboard.writeText(text)

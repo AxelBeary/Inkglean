@@ -25,10 +25,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 
-const cardRef = ref(null)
+const cardRef = ref<HTMLElement | null>(null)
 
 /* 语言切换动效需要锁卡片高度（useLocaleSwitch），以函数暴露避免 ref 解包歧义 */
 defineExpose({ getCardEl: () => cardRef.value })

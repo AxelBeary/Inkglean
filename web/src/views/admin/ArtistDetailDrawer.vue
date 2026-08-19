@@ -134,9 +134,11 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import type { PropType } from 'vue'
 import { adminApi } from '../../api/index.js'
+import type { AdminArtistItem, Artwork, ArtistPricingOverviewItem } from '../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
@@ -145,22 +147,31 @@ import { formatYuanValue } from '../../utils/money.js'
 
 const { t } = useI18n()
 const visible = defineModel({ type: Boolean, default: false })
-const props = defineProps({ artist: { type: Object, default: null } })
+const props = defineProps({ artist: { type: Object as PropType<AdminArtistItem | null>, default: null } })
 
 const tab = ref('profile')
 const saving = ref(false)
 
+/** 资料表单状态（抽屉编辑字段；初始空对象与原实现一致，断言仅为补形状） */
+interface ProfileForm {
+  name: string
+  bio: string
+  status: string
+  artist_code: string
+  contact_qq: string
+}
+
 // 资料
 const profileLoading = ref(false)
 const profileLoadFailed = ref(false)
-const profile = ref({})
-const originalProfile = ref({}) // M-2: 记录初始值，只发送有变化的字段
+const profile = ref<ProfileForm>({} as ProfileForm)
+const originalProfile = ref<ProfileForm>({} as ProfileForm) // M-2: 记录初始值，只发送有变化的字段
 // 价格概览（SPEC-PRICE-2：画风/尺寸只读）
 const pricingLoading = ref(false)
-const stylesOverview = ref([])
+const stylesOverview = ref<ArtistPricingOverviewItem[]>([])
 // 作品
 const artworksLoading = ref(false)
-const artworks = ref([])
+const artworks = ref<Artwork[]>([])
 const artworkUrls = computed(() => artworks.value.map(a => `/uploads/${a.image_path}`))
 // 须知
 const rulesLoading = ref(false)
@@ -168,7 +179,7 @@ const rulesLoadFailed = ref(false)
 const rulesContent = ref('')
 const savingRules = ref(false)
 // P1-B：删除作品行级 loading/禁用（防连点）
-const removingArtworkId = ref(null)
+const removingArtworkId = ref<number | null>(null)
 
 watch(() => props.artist, async (a) => {
   if (!a) return
@@ -204,25 +215,25 @@ async function loadPricing() {
   if (!props.artist) return
   pricingLoading.value = true
   try { stylesOverview.value = await adminApi.getArtistPricingOverview(props.artist.id) }
-  catch (err) { ElMessage.error(err.message) }
+  catch (err) { ElMessage.error((err as Error).message) }
   finally { pricingLoading.value = false }
 }
 
 /** 尺寸三态展示（与后端 display_status 枚举对齐） */
-function sizeStatusLabel(status) {
+function sizeStatusLabel(status: string) {
   if (status === 'showcase') return t('styleManage.sizeStatusShow')
   if (status === 'closed') return t('styleManage.sizeStatusClose')
   return t('styleManage.sizeStatusOpen')
 }
-function sizeStatusType(status) {
-  return { available: 'success', showcase: 'warning', closed: 'danger' }[status] || 'info'
+function sizeStatusType(status: string) {
+  return ({ available: 'success', showcase: 'warning', closed: 'danger' } as Record<string, string>)[status] || 'info'
 }
 
 async function loadArtworks() {
   if (!props.artist) return
   artworksLoading.value = true
   try { artworks.value = await adminApi.getArtistArtworks(props.artist.id) }
-  catch (err) { ElMessage.error(err.message) }
+  catch (err) { ElMessage.error((err as Error).message) }
   finally { artworksLoading.value = false }
 }
 
@@ -248,24 +259,24 @@ async function saveProfile() {
   saving.value = true
   try {
     // M-2 修复：只发送有变化的字段，避免未修改的 bio 被空字符串覆盖
-    const changed = {}
+    const changed: Record<string, unknown> = {}
     for (const key of Object.keys(profile.value)) {
-      if (profile.value[key] !== originalProfile.value[key]) {
-        changed[key] = profile.value[key]
+      if ((profile.value as Record<string, unknown>)[key] !== (originalProfile.value as Record<string, unknown>)[key]) {
+        changed[key] = (profile.value as Record<string, unknown>)[key]
       }
     }
     if (Object.keys(changed).length === 0) {
       ElMessage.info(t('settings.noChanges') || '没有修改')
       return
     }
-    await adminApi.updateArtistProfile(props.artist.id, changed)
+    await adminApi.updateArtistProfile(props.artist!.id, changed)
     originalProfile.value = { ...profile.value } // 保存成功后更新快照
     ElMessage.success(t('settings.saved'))
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { saving.value = false }
 }
 
-async function removeArtwork(a) {
+async function removeArtwork(a: Artwork) {
   const name = a.title?.trim() || a.description?.trim() || t('admin.artworkUntitled')
   try {
     await ElMessageBox.confirm(
@@ -277,10 +288,10 @@ async function removeArtwork(a) {
   if (removingArtworkId.value === a.id) return
   removingArtworkId.value = a.id
   try {
-    await adminApi.deleteArtistArtwork(props.artist.id, a.id)
+    await adminApi.deleteArtistArtwork(props.artist!.id, a.id)
     ElMessage.success(t('common.deleted'))
     await loadArtworks()
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { removingArtworkId.value = null }
 }
 
@@ -292,9 +303,9 @@ async function saveRules() {
   }
   savingRules.value = true
   try {
-    await adminApi.updateArtistRules(props.artist.id, rulesContent.value)
+    await adminApi.updateArtistRules(props.artist!.id, rulesContent.value)
     ElMessage.success(t('settings.saved'))
-  } catch (err) { ElMessage.error(err.message) }
+  } catch (err) { ElMessage.error((err as Error).message) }
   finally { savingRules.value = false }
 }
 </script>

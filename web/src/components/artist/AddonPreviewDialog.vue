@@ -6,13 +6,13 @@
     :title="$t('styleManage.previewTitle')"
     width="560px"
     destroy-on-close
-    @update:model-value="(v) => emit('update:modelValue', v)"
+    @update:model-value="(v: boolean) => emit('update:modelValue', v)"
   >
     <div v-if="size" class="pv">
       <div class="pv-head">
         <div class="pv-thumb">{{ size.name }}</div>
         <div class="pv-head-main">
-          <div class="pv-title">{{ style.name }} · {{ size.name }}</div>
+          <div class="pv-title">{{ style?.name }} · {{ size.name }}</div>
           <div class="pv-sub">{{ $t('styleManage.previewReadonly') }}</div>
           <span class="pv-size-tag" :class="`st-${status}`">{{ statusLabel }}</span>
         </div>
@@ -69,18 +69,31 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
+import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatYuanTrimmed } from '../../utils/money.js'
-import { computeSizePreview } from './addon-utils.js'
+import { computeSizePreview, type StyleAddonRow } from './addon-utils.js'
+
+/** 尺寸（本弹窗消费字段 + computeSizePreview 入参形状；_overrides 为父级附加） */
+interface PreviewSizeRow {
+  id: number
+  name: string
+  base_price?: number | null
+  display_status?: string | null
+  _overrides?: Record<number, { is_hidden?: number | boolean | null; price_override?: number | null }> | null
+}
+
+/** 画风（本弹窗消费字段） */
+interface PreviewStyleLite { name: string; addons?: StyleAddonRow[] }
 
 const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  style: { type: Object, required: true },
-  size: { type: Object, default: null }
+  style: { type: Object as PropType<PreviewStyleLite | null>, default: null },
+  size: { type: Object as PropType<PreviewSizeRow | null>, default: null }
 })
 
 const emit = defineEmits(['update:modelValue'])

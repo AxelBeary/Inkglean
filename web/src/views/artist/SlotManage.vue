@@ -149,11 +149,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { artistApi } from '../../api/index.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import type { ArtistProfileResult, ArtistStatus } from '../../api/types.js'
 
 const { t } = useI18n()
 const loading = ref(true)
@@ -162,26 +163,27 @@ const saving = ref(false)
 const activeTab = ref('status')
 /** 开稿配置加载失败（未加载成功不显示默认值，对齐 Settings profileLoadFailed） */
 const loadFailed = ref(false)
-const profile = ref(null)
+const profile = ref<ArtistProfileResult | null>(null)
 // REQ-016 B: 接稿状态即时切换（与开稿管理内联逻辑一致）
-const currentStatus = ref('open')
-const lastKnownStatus = ref('open')
+const currentStatus = ref<ArtistStatus>('open')
+const lastKnownStatus = ref<ArtistStatus>('open')
 /** 状态切换请求在途锁（受控绑定 + 禁用，防快速切换时旧请求覆盖/回滚基准错乱） */
 const statusUpdating = ref(false)
 
-async function updateStatus(val) {
+async function updateStatus(val: string | number | boolean) {
   if (statusUpdating.value) return
+  const status = val as ArtistStatus
   // 受控绑定：请求发出前 currentStatus 仍是旧值，prev 即回滚基准（对齐 PlatformManage 正确模式）
   const prev = currentStatus.value
   statusUpdating.value = true
   try {
-    await artistApi.updateProfile({ status: val })
-    lastKnownStatus.value = val
-    currentStatus.value = val
+    await artistApi.updateProfile({ status })
+    lastKnownStatus.value = status
+    currentStatus.value = status
     ElMessage.success(t('dashboard.statusUpdated'))
   } catch (err) {
     currentStatus.value = prev
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     statusUpdating.value = false
   }
@@ -226,7 +228,7 @@ async function save() {
     })
     ElMessage.success(t('settings.saved'))
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     saving.value = false
   }

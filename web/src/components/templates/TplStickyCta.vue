@@ -15,7 +15,7 @@
   </transition>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   visible: { type: Boolean, default: false },
   artist: { type: Object, default: () => ({}) },

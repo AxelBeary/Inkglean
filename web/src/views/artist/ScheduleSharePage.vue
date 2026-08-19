@@ -57,8 +57,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import type { ArtistProfileResult, QueueOrderItem, DeadlineRow } from '../../api/types.js'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistApi } from '../../api/index.js'
@@ -73,10 +74,10 @@ const { t } = useI18n()
 const loading = ref(true)
 /** 排期数据加载失败（独立错误态，不再渲染空数据卡片） */
 const loadFailed = ref(false)
-const profile = ref(null)
-const formalQueue = ref([])
-const bufferQueue = ref([])
-const deadlines = ref([])
+const profile = ref<ArtistProfileResult | null>(null)
+const formalQueue = ref<QueueOrderItem[]>([])
+const bufferQueue = ref<QueueOrderItem[]>([])
+const deadlines = ref<DeadlineRow[]>([])
 
 async function loadAll() {
   loading.value = true
@@ -114,18 +115,18 @@ const statusKey = computed(() => {
 })
 const statusText = computed(() => t('schedule.status' + capitalize(statusKey.value)))
 
-function capitalize(s) {
+function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-function fmtDate(v) {
+function fmtDate(v: unknown) {
   const s = String(v || '')
   return s.slice(0, 10)
 }
 
 // ─── 排期文本（复制用） ───
 const previewText = computed(() => {
-  const lines = []
+  const lines: string[] = []
   lines.push(t('schedule.textHeader', { artist: artistName.value }))
   lines.push(t('schedule.statusLabel') + statusText.value)
   lines.push(t('schedule.queueFormal', { n: formalCount.value }))
@@ -163,7 +164,7 @@ const STATUS_COLORS = {
   free: { bg: INK_PALETTE.slT, fg: INK_PALETTE.sl }
 }
 
-function roundRectPath(ctx, x, y, w, h, r) {
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
   ctx.arcTo(x + w, y, x + w, y + h, r)
@@ -176,8 +177,8 @@ function roundRectPath(ctx, x, y, w, h, r) {
 async function drawCard() {
   if (!previewText.value) return ''
   const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
-  const font = (weight, size) => weight + ' ' + size + 'px "Microsoft YaHei", "PingFang SC", sans-serif'
+  const ctx = canvas.getContext('2d')!
+  const font = (weight: string, size: number) => weight + ' ' + size + 'px "Microsoft YaHei", "PingFang SC", sans-serif'
 
   // 先按预估高度绘制第一遍测量，再定稿（两遍绘制保证高度精确）
   const W = CARD_W
@@ -288,7 +289,7 @@ async function drawCard() {
   return canvas.toDataURL('image/png')
 }
 
-function downloadDataUrl(dataUrl, filename) {
+function downloadDataUrl(dataUrl: string, filename: string) {
   const a = document.createElement('a')
   a.href = dataUrl
   a.download = filename

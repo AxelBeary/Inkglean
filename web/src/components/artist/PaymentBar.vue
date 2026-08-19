@@ -38,29 +38,33 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import type { PropType, ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { MIN_BP, TOTAL_BP, SNAP } from '../../constants/workflow.js'
 
+/** 工作流节点（本条消费字段） */
+interface BarStage { id: number; name: string; takesPayment?: boolean | null; basisPoints: number | null; isFinal?: boolean | null }
+
 const { t } = useI18n()
-const props = defineProps({ stages: { type: Array, default: () => [] } })
+const props = defineProps({ stages: { type: Array as PropType<BarStage[]>, default: () => [] } })
 const emit = defineEmits(['change', 'detach'])
 
 const ELASTIC_THRESHOLD = 150
 
-const trackRef = ref(null)
-const elasticId = ref(null)
-const detachId = ref(null)
-const inputId = ref(null)
+const trackRef = ref<HTMLElement | null>(null)
+const elasticId = ref<number | null>(null)
+const detachId = ref<number | null>(null)
+const inputId = ref<number | null>(null)
 const inputVal = ref(0)
-const inputRef = ref(null)
+const inputRef = ref<ComponentPublicInstance | null>(null)
 
-const localBp = ref({})
+const localBp = ref<Record<number, number>>({})
 watch(() => props.stages, (stages) => {
-  const map = {}
-  for (const s of stages) { if (s.takesPayment) map[s.id] = s.basisPoints }
+  const map: Record<number, number> = {}
+  for (const s of stages) { if (s.takesPayment) map[s.id] = s.basisPoints as number }
   localBp.value = map
 }, { immediate: true, deep: true })
 
@@ -68,7 +72,7 @@ const payStages = computed(() => props.stages.filter(s => s.takesPayment))
 
 const segments = computed(() => {
   return payStages.value.map((s, i) => {
-    const bp = localBp.value[s.id] ?? s.basisPoints
+    const bp = (localBp.value[s.id] ?? s.basisPoints) as number
     return {
       id: s.id, name: s.name, isFinal: s.isFinal,
       bp, pct: (bp / 100).toFixed(1).replace(/\.0$/, ''),
@@ -81,7 +85,7 @@ const segments = computed(() => {
 // ─── 拖拽 ───
 let dragIdx = -1, startX = 0, startLeftBp = 0, startRightBp = 0, trackW = 1
 
-function onPointerDown(e, idx) {
+function onPointerDown(e: PointerEvent, idx: number) {
   e.preventDefault()
   dragIdx = idx
   startX = e.clientX
@@ -89,15 +93,16 @@ function onPointerDown(e, idx) {
   startLeftBp = segs[idx].bp
   startRightBp = segs[idx + 1].bp
   trackW = trackRef.value?.offsetWidth || 600
-  e.target.setPointerCapture(e.pointerId)
-  e.target.addEventListener('pointermove', onPointerMove)
-  e.target.addEventListener('pointerup', onPointerUp, { once: true })
+  const target = e.target as HTMLElement
+  target.setPointerCapture(e.pointerId)
+  target.addEventListener('pointermove', onPointerMove)
+  target.addEventListener('pointerup', onPointerUp, { once: true })
   // G-2（R-22）: 系统取消拖拽（触摸打断/捕获丢失）时同样解绑监听并复位状态，
   // 对齐 pointerup 的清理；与 pointerup 的差异：取消不提交变更（丢弃本次拖拽）
-  e.target.addEventListener('pointercancel', onPointerCancel, { once: true })
+  target.addEventListener('pointercancel', onPointerCancel, { once: true })
 }
 
-function onPointerMove(e) {
+function onPointerMove(e: PointerEvent) {
   if (dragIdx < 0) return
   const dx = e.clientX - startX
   const deltaBp = Math.round((dx / trackW) * TOTAL_BP / SNAP) * SNAP
@@ -115,7 +120,7 @@ function onPointerMove(e) {
   if (final && final.id !== leftId && final.id !== rightId) {
     const otherSum = payStages.value
       .filter(s => !s.isFinal && s.id !== leftId && s.id !== rightId)
-      .reduce((sum, s) => sum + (localBp.value[s.id] ?? s.basisPoints), 0)
+      .reduce((sum, s) => sum + (localBp.value[s.id] ?? s.basisPoints as number), 0)
     const maxPair = TOTAL_BP - otherSum - MIN_BP
     if (newLeft + newRight > maxPair) {
       if (deltaBp > 0) newLeft = maxPair - newRight
@@ -154,9 +159,9 @@ function onPointerMove(e) {
   localBp.value[rightId] = newRight
 }
 
-function onPointerUp(e) {
+function onPointerUp(e: PointerEvent) {
   if (dragIdx < 0) return // 防御：无活动拖拽的 stray pointerup（cancel 已复位后不应再提交）
-  e.target.removeEventListener('pointermove', onPointerMove)
+  e.target!.removeEventListener('pointermove', onPointerMove as EventListener)
 
   if (detachId.value) {
     // 脱离 / 吞并：关闭该节点收款
@@ -181,9 +186,9 @@ function onPointerUp(e) {
   dragIdx = -1
 }
 
-function onPointerCancel(e) {
-  e.target.removeEventListener('pointermove', onPointerMove)
-  e.target.removeEventListener('pointerup', onPointerUp)
+function onPointerCancel(e: PointerEvent) {
+  e.target!.removeEventListener('pointermove', onPointerMove as EventListener)
+  e.target!.removeEventListener('pointerup', onPointerUp as EventListener)
   elasticId.value = null
   detachId.value = null
   dragIdx = -1
@@ -192,12 +197,12 @@ function onPointerCancel(e) {
 function emitChange() {
   const nodes = payStages.value
     .filter(s => !s.isFinal)
-    .map(s => ({ id: s.id, basisPoints: localBp.value[s.id] ?? s.basisPoints }))
+    .map(s => ({ id: s.id, basisPoints: (localBp.value[s.id] ?? s.basisPoints) as number }))
   emit('change', nodes)
 }
 
 // ─── 键盘 ───
-function onKeydown(e, idx) {
+function onKeydown(e: KeyboardEvent, idx: number) {
   const step = e.shiftKey ? 500 : 100
   const segs = segments.value
   const leftId = segs[idx].id
@@ -220,7 +225,7 @@ function onKeydown(e, idx) {
 }
 
 // ─── 手动输入 ───
-function startInput(seg) {
+function startInput(seg: { id: number; bp: number }) {
   inputId.value = seg.id
   inputVal.value = seg.bp / 100
   nextTick(() => {
@@ -230,7 +235,7 @@ function startInput(seg) {
   })
 }
 
-function commitInput(seg) {
+function commitInput(seg: { id: number; bp: number }) {
   if (inputId.value !== seg.id) return
   const newBp = Math.round(inputVal.value * 100)
   if (newBp < MIN_BP) {
@@ -241,14 +246,14 @@ function commitInput(seg) {
   const final = payStages.value.find(s => s.isFinal)
   const oldBp = localBp.value[seg.id] || seg.bp
   const diff = newBp - oldBp
-  const finalBp = (localBp.value[final.id] || final.basisPoints) - diff
+  const finalBp = (localBp.value[final!.id] || (final!.basisPoints as number)) - diff
   if (finalBp < MIN_BP) {
     ElMessage.warning(t('workflow.finalTooLow'))
     inputId.value = null
     return
   }
   localBp.value[seg.id] = newBp
-  localBp.value[final.id] = finalBp
+  localBp.value[final!.id] = finalBp
   emitChange()
   inputId.value = null
 }

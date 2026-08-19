@@ -82,25 +82,37 @@
   </header>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
+import type { PropType } from 'vue'
 import { useArtistData } from '../../composables/useArtistData.js'
 import TplStatusBadge from './TplStatusBadge.vue'
+import type { PlatformDTO } from '../../api/types.js'
+
+/** 代表作/作品行的宽松形状（与 useArtistData 的 ArtistArtworkLike 结构兼容） */
+interface HeroArtwork {
+  id: number
+  title?: string | null
+  image_path?: string | null
+  is_cover?: number | null
+  cover_order?: number | null
+  size_tags?: Array<{ style_size_id?: number | null }> | null
+}
 
 const props = defineProps({
   artist: { type: Object, default: () => ({}) },
-  artworks: { type: Array, default: () => [] },
+  artworks: { type: Array as PropType<HeroArtwork[]>, default: () => [] },
   subdomain: { type: String, default: '' },
   /** banner: 横幅 | fullscreen: 全屏展签 | split: 分屏 */
   variant: { type: String, default: 'banner' },
   // REQ-022 F2: 社交平台列表（hero 链接平台名渲染）
-  platforms: { type: Array, default: () => [] }
+  platforms: { type: Array as PropType<PlatformDTO[]>, default: () => [] }
 })
 
 const { imgUrl, heroArtwork, footerLinks } = useArtistData(props)
 
 // 暴露哨兵元素，供 useStickyCta 监听
-const sentinelEl = ref(null)
+const sentinelEl = ref<HTMLElement | null>(null)
 defineExpose({ sentinelEl })
 </script>
 

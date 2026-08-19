@@ -268,29 +268,53 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { useArtistData, buildGalleryFilters, filterArtworksBySize } from '../../composables/useArtistData.js'
 import ArtworkLikeButton from '../shared/ArtworkLikeButton.vue'
 import { safeGetItem } from '../../utils/storage.js'
+import type { PublicGallerySize } from '../../api/types.js'
+
+/** 画廊作品行宽松形状（gallery 端点与 artworks prop 两种口径共用） */
+interface GalleryArtwork {
+  id: number
+  title?: string | null
+  image_path?: string | null
+  is_cover?: number | null
+  like_count?: number | null
+  description?: string | null
+  width?: number | null
+  height?: number | null
+  size_tags?: Array<{ style_size_id?: number | null }> | null
+}
+
+/** gallery 专用端点数据形状（GET /public/gallery/:subdomain） */
+interface GalleryData {
+  artworks?: GalleryArtwork[] | null
+  filterSizes?: PublicGallerySize[] | null
+}
+
+/** 筛选标签条目（buildGalleryFilters 返回值元素） */
+type GalleryFilter = ReturnType<typeof buildGalleryFilters>[number]
 
 const props = defineProps({
   /** 兜底数据源（gallery 端点不可用时回退，无筛选行） */
-  artworks: { type: Array, default: () => [] },
+  artworks: { type: Array as PropType<GalleryArtwork[]>, default: () => [] },
   /**
    * v0.35 联调：画廊专用端点数据 GET /public/gallery/:subdomain
    * { artworks: [{..., size_tags: [{style_size_id, size_name, style_id, style_name}], description }],
    *   filterSizes: [{ id, name, style_id, style_name, sort_order }] }
    * 端点失败/为空时回退 artworks prop（行为与旧版一致，筛选行隐藏）
    */
-  gallery: { type: Object, default: null },
+  gallery: { type: Object as PropType<GalleryData | null>, default: null },
   /**
    * v0.36 修正: 画廊布局模式——album 画册翻页 / masonry 瀑布流。
    * 默认 masonry（稳定不闪的 v0.35 行为）；Gallery/Atelier 模板显式传 album。
    * （P2-B 清扫：grid 变体无任何调用方，已删除）
    */
-  layout: { type: String, default: 'masonry', validator: v => ['album', 'masonry'].includes(v) },
+  layout: { type: String, default: 'masonry', validator: (v: string) => ['album', 'masonry'].includes(v) },
   /**
    * v0.36: 侧露页开关——相邻页缩小露出在当前页两侧（Gallery 模板启用的大小交错节奏）。
    * 其他模板不传，保持单张大图居中翻页。
@@ -312,8 +336,8 @@ const displayArtworks = computed(() => {
 
 // ─── v0.35 F6: 档位筛选（filterSizes 由后端门控好多画风开关/启用状态） ───
 const filters = computed(() => buildGalleryFilters(props.gallery?.filterSizes))
-const activeSizeId = ref(null)
-function setFilter(sizeId) {
+const activeSizeId = ref<number | null>(null)
+function setFilter(sizeId: number | null) {
   activeSizeId.value = sizeId
 }
 /** 当前显示的作品：默认全部混编；选中档位 → 只显示标注该档位的作品 */
@@ -341,10 +365,10 @@ watch(() => filteredArtworks.value.length, (len) => {
 })
 
 // 键盘 ←/→ 翻页（仅画册模式；灯箱打开时让位给灯箱；输入框聚焦时不抢按键）
-function onKeydown(e) {
+function onKeydown(e: KeyboardEvent) {
   if (!isAlbum.value) return
   if (lightboxVisible.value) return
-  const el = document.activeElement
+  const el = document.activeElement as HTMLElement | null
   if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
   if (e.key === 'ArrowLeft') goPrev()
   else if (e.key === 'ArrowRight') goNext()
@@ -353,12 +377,12 @@ onMounted(() => window.addEventListener('keydown', onKeydown))
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 // 触摸/鼠标滑动翻页（pointer events）：横向位移超阈值且以横向为主 → 翻页
-let swipeStart = null
+let swipeStart: { x: number; y: number } | null = null
 const justSwiped = ref(false)
-function onSwipeStart(e) {
+function onSwipeStart(e: PointerEvent) {
   swipeStart = { x: e.clientX, y: e.clientY }
 }
-function onSwipeEnd(e) {
+function onSwipeEnd(e: PointerEvent) {
   if (!isAlbum.value || !swipeStart) return
   const dx = e.clientX - swipeStart.x
   const dy = e.clientY - swipeStart.y
@@ -377,9 +401,9 @@ function onSwipeCancel() { swipeStart = null }
  * 档位被画师删除后后端 CASCADE 清理，且 tags 里的 id 在 filters 中查不到 → 自动失效不残留（REQ-024 F6 验收 8）。
  */
 const tagIndex = computed(() => new Map(filters.value.map(f => [f.sizeId, f])))
-function tagsOf(art) {
+function tagsOf(art: GalleryArtwork): GalleryFilter[] {
   if (!Array.isArray(art.size_tags)) return []
-  return art.size_tags.map(t => tagIndex.value.get(t.style_size_id)).filter(Boolean)
+  return art.size_tags.map(t => tagIndex.value.get(t.style_size_id as number)).filter(Boolean) as GalleryFilter[]
 }
 
 // ─── v0.35 F6: 大图 lightbox ───
@@ -387,7 +411,7 @@ const lightboxVisible = ref(false)
 const lightboxIndex = ref(0)
 const lightboxArt = computed(() => filteredArtworks.value[lightboxIndex.value] || null)
 const lightboxTags = computed(() => (lightboxArt.value ? tagsOf(lightboxArt.value) : []))
-function openLightbox(index) {
+function openLightbox(index: number) {
   // 刚滑动翻页过 → 本次 click 属于滑动收尾，不开灯箱
   if (justSwiped.value) return
   lightboxIndex.value = index
@@ -395,7 +419,7 @@ function openLightbox(index) {
 }
 
 /** v0.35 F6: 点档位标签 → 下单页预选「画风+尺寸」（复用 F4 入口 A 逻辑，齐选直跳第三步） */
-function orderByTag(tag) {
+function orderByTag(tag: GalleryFilter) {
   lightboxVisible.value = false
   router.push({
     path: `/artist/${props.subdomain}/order`,
@@ -404,25 +428,25 @@ function orderByTag(tag) {
 }
 
 // F1: 初始已赞集合（localStorage，按画师隔离）
-function readLikedIds() {
+function readLikedIds(): Set<number> {
   // G-5: 裸读换 safeGetItem（存储禁用/损坏 JSON 均按未点赞降级）
   const raw = safeGetItem(`huiyue_liked_${props.subdomain}`)
   if (!raw) return new Set()
   try {
-    const ids = JSON.parse(raw)
-    return Array.isArray(ids) ? new Set(ids) : new Set()
+    const ids: unknown = JSON.parse(raw)
+    return Array.isArray(ids) ? new Set(ids as number[]) : new Set()
   } catch { return new Set() }
 }
 const likedIds = readLikedIds()
-function isLiked(id) { return likedIds.has(id) }
+function isLiked(id: number) { return likedIds.has(id) }
 
 // ─── 瀑布流布局辅助（v0.36 恢复 v0.35 行为） ───
 /** hover 浮层只在有档位标签或描述时渲染（无元数据的卡片保持干净） */
-function hasGalleryMeta(art) {
+function hasGalleryMeta(art: GalleryArtwork) {
   return tagsOf(art).length > 0 || !!art.description
 }
 // #15: 后端返回 width/height 时生成 aspect-ratio 样式，精确预留高度防 reflow；缺失时返回空对象，骨架兜底
-function ratioStyle(art) {
+function ratioStyle(art: GalleryArtwork): Record<string, string> {
   return art.width && art.height ? { aspectRatio: `${art.width} / ${art.height}` } : {}
 }
 </script>

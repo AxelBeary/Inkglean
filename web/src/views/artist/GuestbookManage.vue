@@ -58,7 +58,7 @@
           <el-button size="small" type="danger" :disabled="bulkBusy">{{ $t('guestbookManage.bulkReject') }}</el-button>
         </template>
       </el-popconfirm>
-      <el-button size="small" text :disabled="bulkBusy" @click="selectedIds = new Set()">{{ $t('common.cancel') }}</el-button>
+      <el-button size="small" text :disabled="bulkBusy" @click="selectedIds = new Set<number>()">{{ $t('common.cancel') }}</el-button>
     </div>
 
     <!-- 留言列表 -->
@@ -140,8 +140,9 @@
   </template>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import type { GuestbookMessage } from '../../api/types.js'
 import { artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
 import { ElMessage } from 'element-plus'
@@ -153,7 +154,7 @@ import { UI_PAGE_SIZE, GUESTBOOK_FETCH_ALL_PAGE_SIZE } from '../../constants/pag
 const { t } = useI18n()
 const store = useArtistStore()
 
-const messages = ref([])
+const messages = ref<GuestbookMessage[]>([])
 const loading = ref(true)
 /** 820-L：留言功能关闭标记（profile 未加载时先取，取不到按开启处理，由后端守卫兜底） */
 const featureDisabled = ref(false)
@@ -163,18 +164,18 @@ const page = ref(1)
 const pageSize = UI_PAGE_SIZE
 
 // 回复状态
-const replyingId = ref(null)
+const replyingId = ref<number | null>(null)
 const replyText = ref('')
 const replySaving = ref(false)
 // A3: 审核动作行级 pending 锁（approve/reject 请求期间仅锁定当前行，防连点不阻塞其他行）
-const actionBusyId = ref(null)
+const actionBusyId = ref<number | null>(null)
 
 // ─── v130: 批量审核（批准/婉拒；选择范围=当前筛选集，跨页可全选） ───
-const selectedIds = ref(new Set())
+const selectedIds = ref<Set<number>>(new Set<number>())
 const bulkBusy = ref(false)
 
-function toggleSelect(id) {
-  const next = new Set(selectedIds.value)
+function toggleSelect(id: number) {
+  const next = new Set<number>(selectedIds.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
   selectedIds.value = next
@@ -183,8 +184,8 @@ function toggleSelect(id) {
 const isAllFilteredSelected = computed(() =>
   filteredMessages.value.length > 0 && filteredMessages.value.every(m => selectedIds.value.has(m.id))
 )
-function toggleSelectAll(checked) {
-  const next = new Set(selectedIds.value)
+function toggleSelectAll(checked: boolean | string | number) {
+  const next = new Set<number>(selectedIds.value)
   for (const m of filteredMessages.value) {
     if (checked) next.add(m.id)
     else next.delete(m.id)
@@ -192,7 +193,7 @@ function toggleSelectAll(checked) {
   selectedIds.value = next
 }
 
-async function bulkDo(action) {
+async function bulkDo(action: 'approve' | 'reject') {
   const ids = [...selectedIds.value]
   if (!ids.length || bulkBusy.value) return
   bulkBusy.value = true
@@ -200,12 +201,12 @@ async function bulkDo(action) {
     const res = await artistApi.bulkMessages(action, ids)
     const st = action === 'approve' ? 'approved' : 'rejected'
     for (const m of messages.value) {
-      if (selectedIds.value.has(m.id)) m.status = st
+      if (selectedIds.value.has(m.id)) m.status = st as GuestbookMessage['status']
     }
     ElMessage.success(t('guestbookManage.bulkDone', { n: res.updated ?? ids.length }))
-    selectedIds.value = new Set()
+    selectedIds.value = new Set<number>()
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     bulkBusy.value = false
   }
@@ -220,13 +221,13 @@ const LANGUAGE_LABELS = {
   'ja': '日本語'
 }
 
-function languageLabel(lang) {
-  return LANGUAGE_LABELS[lang] || lang
+function languageLabel(lang: string) {
+  return LANGUAGE_LABELS[lang as keyof typeof LANGUAGE_LABELS] || lang
 }
 
 /** 动态语言选项（REQ-021 F8：根据实际数据生成，按数量降序） */
 const languageOptions = computed(() => {
-  const counts = {}
+  const counts: Record<string, number> = {}
   for (const m of messages.value) {
     if (m.language) counts[m.language] = (counts[m.language] || 0) + 1
   }
@@ -249,7 +250,7 @@ const pagedMessages = computed(() =>
 )
 const pendingCount = computed(() => messages.value.filter(m => m.status === 'pending').length)
 
-function onFilterChange() { page.value = 1; selectedIds.value = new Set() }
+function onFilterChange() { page.value = 1; selectedIds.value = new Set<number>() }
 
 /** 数据刷新后当前语言筛选值已不存在时自动重置（如该语言留言全部删除） */
 watch(languageOptions, (opts) => {
@@ -264,10 +265,11 @@ watch(() => filteredMessages.value.length, (len) => {
   if (page.value > maxPage) page.value = maxPage
 })
 
-const STATUS_TYPE = { pending: 'warning', approved: 'success', rejected: 'info' }
-const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }
-const statusType = (s) => STATUS_TYPE[s] || 'info'
-const statusLabel = (s) => STATUS_LABEL[s] || 'Pending'
+type MsgStatus = GuestbookMessage['status']
+const STATUS_TYPE: Record<MsgStatus, 'warning' | 'success' | 'info'> = { pending: 'warning', approved: 'success', rejected: 'info' }
+const STATUS_LABEL: Record<MsgStatus, string> = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }
+const statusType = (s: MsgStatus) => STATUS_TYPE[s] || 'info'
+const statusLabel = (s: MsgStatus) => STATUS_LABEL[s] || 'Pending'
 
 async function load() {
   if (featureDisabled.value) return
@@ -276,7 +278,7 @@ async function load() {
     const PAGE_SIZE = GUESTBOOK_FETCH_ALL_PAGE_SIZE // 后端单页上限（F-2 clamp 1-100）
     const first = await artistApi.getMessages({ page: 1, pageSize: PAGE_SIZE })
     const total = first.total ?? (first.items || []).length
-    let all = [...(first.items || [])]
+    let all: GuestbookMessage[] = [...(first.items || [])]
     const pages = Math.ceil(total / PAGE_SIZE)
     for (let p = 2; p <= pages; p++) {
       const res = await artistApi.getMessages({ page: p, pageSize: PAGE_SIZE })
@@ -284,13 +286,13 @@ async function load() {
     }
     messages.value = all
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     loading.value = false
   }
 }
 
-async function approve(msg) {
+async function approve(msg: GuestbookMessage) {
   if (actionBusyId.value === msg.id) return
   actionBusyId.value = msg.id
   try {
@@ -298,13 +300,13 @@ async function approve(msg) {
     ElMessage.success(t('dashboard.guestbookApprovedMsg'))
     msg.status = 'approved'
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     actionBusyId.value = null
   }
 }
 
-async function reject(msg) {
+async function reject(msg: GuestbookMessage) {
   if (actionBusyId.value === msg.id) return
   actionBusyId.value = msg.id
   try {
@@ -312,18 +314,18 @@ async function reject(msg) {
     ElMessage.success(t('dashboard.guestbookRejectedMsg'))
     msg.status = 'rejected'
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     actionBusyId.value = null
   }
 }
 
-function openReply(msg) {
+function openReply(msg: GuestbookMessage) {
   replyingId.value = msg.id
   replyText.value = msg.artist_reply || ''
 }
 
-async function submitReply(msg) {
+async function submitReply(msg: GuestbookMessage) {
   replySaving.value = true
   try {
     await artistApi.replyMessage(msg.id, replyText.value.trim())
@@ -332,7 +334,7 @@ async function submitReply(msg) {
     msg.artist_reply = replyText.value.trim()
     replyingId.value = null
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     replySaving.value = false
   }
@@ -340,12 +342,12 @@ async function submitReply(msg) {
 
 onMounted(async () => {
   // 直接访问 /guestbook（刷新后 profile 可能未加载）：先补拉 profile 再判定开关
-  if (store.profile?.guestbook_enabled === undefined) {
+  if ((store.profile as { guestbook_enabled?: number } | null)?.guestbook_enabled === undefined) {
     try {
       await store.fetchProfile()
     } catch { /* profile 拉取失败不阻塞页面，按开启处理（后端仍会正常返回数据） */ }
   }
-  featureDisabled.value = store.profile?.guestbook_enabled === 0
+  featureDisabled.value = (store.profile as { guestbook_enabled?: number } | null)?.guestbook_enabled === 0
   if (featureDisabled.value) {
     loading.value = false
     return

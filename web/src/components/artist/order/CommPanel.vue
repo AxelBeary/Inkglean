@@ -24,15 +24,23 @@
   </el-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
+import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import CardHead from '../visual/CardHead.vue'
 import { formatCents } from '../../../utils/money.js'
 
+/** 本卡消费的订单字段（话术 / QQ / 当前节点） */
+interface CommOrderLite {
+  client_qq?: string | null
+  speechText?: string | null
+  currentStageId?: number | null
+}
+
 const props = defineProps({
-  order: { type: Object, required: true },
+  order: { type: Object as PropType<CommOrderLite>, required: true },
   poolFinalCents: { type: Number, default: 0 },
   poolPaidCents: { type: Number, default: 0 },
   poolRemainingCents: { type: Number, default: 0 }
@@ -42,7 +50,7 @@ const { t } = useI18n()
 
 const commCopying = ref(false)
 // R-19: QQ 唤起定时器句柄（1 秒内路由离开时须清理，否则新页面被 tencent:// 跳转拽走）
-let qqOpenTimer = null
+let qqOpenTimer: number | null = null
 
 /** 话术预览（后端已替换变量；无当前节点话术时提示） */
 const commSpeechText = computed(() => {
@@ -59,14 +67,14 @@ async function copySpeechAndOpenQq() {
   if (!o?.client_qq || !o?.speechText) return
   commCopying.value = true
   try {
-    await navigator.clipboard.writeText(o.speechText)
+    await navigator.clipboard.writeText(o.speechText as string)
     ElMessage.success(t('orderDetail.commCopied'))
     qqOpenTimer = setTimeout(() => {
-      window.open(`tencent://message/?uin=${encodeURIComponent(o.client_qq)}`, '_self')
+      window.open(`tencent://message/?uin=${encodeURIComponent(o.client_qq as string)}`, '_self')
     }, 1000)
   } catch {
     // 剪贴板不可用时降级：展示话术文本供手动复制
-    ElMessage.warning(o.speechText)
+    ElMessage.warning(o.speechText as string)
   } finally {
     commCopying.value = false
   }

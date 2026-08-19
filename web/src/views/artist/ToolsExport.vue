@@ -82,7 +82,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -90,25 +90,26 @@ import { formatYuan } from '../../utils/money.js'
 import { todayStr } from '../../utils/datetime.js'
 import { artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
+import type { IncomeSummaryResult } from '../../api/types.js'
 
 const { t } = useI18n()
 const store = useArtistStore()
 
 // 默认区间：本月 1 号 → 今天（导出最常见诉求是当月/上月对账）
-function defaultRange() {
+function defaultRange(): [string, string] {
   const now = new Date()
   const first = new Date(now.getFullYear(), now.getMonth(), 1)
-  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   return [fmt(first), todayStr()]
 }
 
-const range = ref(defaultRange())
+const range = ref<[string, string] | null>(defaultRange())
 const exporting = ref(false)
 const emptyHint = ref(false)
 
 // t1 围剿修复：收入概览改消费 /api/artist/tools/income-summary（订单收款+散单，与导出 CSV 同源同口径）；
 // 此前只统散单而 CSV 合并两源，对账时概览数字与 CSV 明显不一致
-const overview = ref(null)
+const overview = ref<IncomeSummaryResult | null>(null)
 const overviewLoading = ref(false)
 /** a1: 请求序号——快速切换日期范围时旧响应不得覆盖新概览 */
 let overviewSeq = 0
@@ -126,7 +127,7 @@ async function loadOverview() {
   } catch (err) {
     if (mySeq !== overviewSeq) return
     overview.value = null
-    ElMessage.error(err.message || t('toolsExport.incomeLoadFailed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('toolsExport.incomeLoadFailed'))
   } finally {
     if (mySeq === overviewSeq) overviewLoading.value = false
   }
@@ -140,7 +141,7 @@ watch(range, () => {
 onUnmounted(() => { overviewSeq++ }) // a1: 卸载后在途概览响应作废
 
 /** 从 Content-Disposition 解析下载文件名（后端返回 income-YYYYMMDD-YYYYMMDD.csv） */
-function filenameFromDisposition(header, fallback) {
+function filenameFromDisposition(header: string | null, fallback: string): string {
   const m = /filename="?([^";]+)"?/.exec(header || '')
   return m ? m[1] : fallback
 }
@@ -187,11 +188,11 @@ async function doExport() {
     ElMessage.success(t('toolsExport.downloaded'))
   } catch (err) {
     // 05D-E1: AbortController 超时 → 专用提示
-    if (err?.name === 'AbortError') {
+    if ((err as { name?: string })?.name === 'AbortError') {
       ElMessage.error(t('toolsExport.timeout'))
       return
     }
-    ElMessage.error(err.message || t('toolsExport.failed'))
+    ElMessage.error((err instanceof Error ? err.message : '') || t('toolsExport.failed'))
   } finally {
     clearTimeout(timer)
     exporting.value = false

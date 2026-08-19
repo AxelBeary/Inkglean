@@ -260,8 +260,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../stores/artist.js'
@@ -282,13 +283,18 @@ import ThemeToggle from './ThemeToggle.vue'
 import TourOverlay from './artist/tour/TourOverlay.vue'
 // 工具箱四分类注册表（纸墨提案 §5.5；单一事实源，ArtistLayout/ToolsHome 共用）
 import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../constants/toolbox.js'
+import type { ToolMenuItem } from '../constants/toolbox.js'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
 import SealStamp from './artist/visual/SealStamp.vue'
+import type { PlatformAnnouncement, ArtistProfileResult } from '../api/types.js'
 
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
-const store = useArtistStore()
+const store = useArtistStore() as ReturnType<typeof useArtistStore> & {
+  /** 模板/脚本统一按完整资料的可选字段读（登录最小画像无这些字段，读取处均有兜底） */
+  profile: Partial<ArtistProfileResult> | null
+}
 const themeStore = useThemeStore()
 
 // ─── v0.38: 后台主题作用域 ───
@@ -308,7 +314,7 @@ const activeMenu = computed(() => {
 // ─── 埋点：后台页面浏览（REQ-033 §4 / 施工图《01-to-02-埋点前端批》§3.3） ───
 // 事件名严格用后端白名单；/slots、/admin 无白名单事件名（后端 400），不埋
 // 画师已登录（后台登录守卫）→ 后端自动记 artist_id，前端只需发事件
-const PAGE_VIEW_EVENT_MAP = {
+const PAGE_VIEW_EVENT_MAP: Record<string, string> = {
   '/dashboard': 'dashboard_view',
   '/queue': 'queue_view',
   '/orders': 'orders_view',
@@ -319,7 +325,7 @@ const PAGE_VIEW_EVENT_MAP = {
   '/settings': 'settings_view',
   '/preferences': 'preferences_view'
 }
-function trackPageView(path) {
+function trackPageView(path: string) {
   const eventName = PAGE_VIEW_EVENT_MAP[path]
   if (eventName) trackEvent(eventName, { page: path })
 }
@@ -331,8 +337,18 @@ watch(() => route.path, () => {
 })
 
 // ─── R21: 菜单项注册表（侧边栏与抽屉共用） ───
+/** 后台菜单项形状（BASE_MENU_ITEMS 与 TOOL_BOX_CATEGORIES 拼接 pageTitle 时 group 可缺省） */
+interface ArtistMenuItem {
+  index: string
+  icon: Component
+  labelKey: string
+  group?: string
+  hasBadge?: boolean
+  hasOrderBadge?: boolean
+  badge?: number
+}
 // REQ-016 C: 手动录单移出菜单（订单管理页已有按钮），菜单分三组：工作/经营/门面
-const BASE_MENU_ITEMS = [
+const BASE_MENU_ITEMS: ArtistMenuItem[] = [
   { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard', group: 'work' },
   { index: '/queue', icon: List, labelKey: 'menu.queue', group: 'work' },
   // I0（REQ-039 拍板）: 订单管理待确认角标（pending 数，5 分钟轮询）
@@ -358,7 +374,7 @@ const BASE_MENU_ITEMS = [
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
 // REQ-043 I4: 平台公告（零主动打扰：不弹窗不 banner，仅入口小圆点提示）
-const announcement = ref(null)
+const announcement = ref<PlatformAnnouncement | null>(null)
 const announcementOpen = ref(false)
 const ANNOUNCEMENT_READ_KEY = 'inkglean_announcement_read_at'
 const announcementUnread = computed(() => {
@@ -424,7 +440,7 @@ const drawerMenuGroups = computed(() => {
   const catGroups = TOOL_BOX_CATEGORIES.map(cat => ({
     key: `tools-${cat.key}`,
     labelKey: cat.labelKey,
-    items: TOOLS_MENU_ITEMS.filter(item => item.cat === cat.key)
+    items: TOOLS_MENU_ITEMS.filter(item => item.cat === cat.key) as Array<ToolMenuItem & { badge?: number }>
   }))
   const frontIdx = base.findIndex(g => g.key === 'front')
   const head = frontIdx === -1 ? base : base.slice(0, frontIdx)
@@ -438,7 +454,7 @@ const drawerMenuGroups = computed(() => {
 /** 顶栏页面标题：当前路由对应菜单项的 labelKey（详情类页面归属父级；工具子页查 TOOLS_MENU_ITEMS） */
 const pageTitle = computed(() => {
   const all = BASE_MENU_ITEMS.concat(TOOLS_MENU_ITEMS).concat(
-    store.isAdmin ? [{ index: '/admin', labelKey: 'menu.admin' }] : []
+    (store.isAdmin ? [{ index: '/admin', labelKey: 'menu.admin' }] : []) as ArtistMenuItem[]
   )
   const hit = all.find(item => item.index === activeMenu.value)
   // 巡检修复批 C12: /admin* 子路径（如 /admin/artists）无对应菜单项时回退管理后台标题
@@ -459,8 +475,8 @@ const drawerVisible = ref(false)
 
 const mqNarrow = window.matchMedia('(max-width: 900px)')
 const mqMobile = window.matchMedia('(max-width: 600px)')
-function onNarrowChange(e) { isNarrow.value = e.matches }
-function onMobileChange(e) { isMobile.value = e.matches }
+function onNarrowChange(e: MediaQueryListEvent) { isNarrow.value = e.matches }
+function onMobileChange(e: MediaQueryListEvent) { isMobile.value = e.matches }
 
 onMounted(() => {
   mqNarrow.addEventListener('change', onNarrowChange)
@@ -488,7 +504,7 @@ onUnmounted(() => {
 // 数据源选择：artistApi.getStats().pendingCount —— 单请求最轻（orders 列表带 status=pending&pageSize=1
 // 也能取 total，但返回整行数据体量更大）；5 分钟一次低频，失败静默（角标非关键路径）
 const PENDING_ORDER_POLL_MS = 5 * 60 * 1000
-let pendingOrderTimer = null
+let pendingOrderTimer: ReturnType<typeof setInterval> | null = null
 
 async function refreshPendingOrderCount() {
   if (!store.loggedIn) return
@@ -581,7 +597,7 @@ function applyReduceMotionFromStorage() {
 const statusClass = computed(() => {
   const s = store.profile?.status || 'open'
   // A6: hidden（已隐藏）≈ 离线，用灰点，不再误显示绿灯
-  return { open: 'dot-success', full: 'dot-warning', break: 'dot-danger', hidden: 'dot-hidden' }[s] || 'dot-success'
+  return ({ open: 'dot-success', full: 'dot-warning', break: 'dot-danger', hidden: 'dot-hidden' } as Record<string, string>)[s] || 'dot-success'
 })
 
 function logout() {

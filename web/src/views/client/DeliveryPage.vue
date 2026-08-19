@@ -48,10 +48,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { orderApi } from '../../api/index.js'
+import { orderApi, type ApiError } from '../../api/index.js'
+import type { ArtistPublicProfile, VisibleArtistProfile, OrderDeliveryResult } from '../../api/types.js'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -61,12 +62,12 @@ import { downloadAsset } from '../../utils/download.js'
 
 const { t } = useI18n()
 const route = useRoute()
-const subdomain = route.params.subdomain
-const orderNo = route.params.orderNo
+const subdomain = route.params.subdomain as string
+const orderNo = route.params.orderNo as string
 
 // M2: 流程页跟随画师 palette 配色（轻量拉画师信息；加载失败回落 paper，不影响交付主流程）
-const artist = ref(null)
-const paletteId = computed(() => artist.value?.paletteId || 'paper')
+const artist = ref<ArtistPublicProfile | null>(null)
+const paletteId = computed(() => (artist.value as VisibleArtistProfile | null)?.paletteId || 'paper')
 usePalette(paletteId)
 
 const linkInput = ref('')
@@ -74,23 +75,23 @@ const token = ref('')
 const verified = ref(false)
 const verifying = ref(false)
 const loading = ref(false)
-const delivery = ref(null)
+const delivery = ref<OrderDeliveryResult | null>(null)
 // 波 M：验证失败页内错误态
 const verifyError = ref(false)
 // 815 拍板 #4：一次性下载进行中文件 id（防连点）
-const downloadingId = ref(null)
+const downloadingId = ref<number | null>(null)
 
-async function downloadFile(d) {
+async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
   if (downloadingId.value !== null) return
   downloadingId.value = d.id
   try {
     // 一次性下载链路：start 签发 → fetch 全量接收 → confirm 锁定（IP/时间留痕）
-    const { url } = await orderApi.deliveryDownloadStart(delivery.value.orderNo, d.id, token.value)
-    await downloadAsset(url, d.fileName)
-    await orderApi.deliveryDownloadConfirm(delivery.value.orderNo, d.id, token.value)
+    const { url } = await orderApi.deliveryDownloadStart(delivery.value!.orderNo, d.id, token.value)
+    await downloadAsset(url, d.fileName ?? undefined)
+    await orderApi.deliveryDownloadConfirm(delivery.value!.orderNo, d.id, token.value)
     d.downloadLocked = true
   } catch (err) {
-    if (err?.code === 'DOWNLOAD_LOCKED') {
+    if ((err as ApiError)?.code === 'DOWNLOAD_LOCKED') {
       d.downloadLocked = true
       ElMessage.warning(t('delivery.downloadLockedMsg'))
     } else {
@@ -106,7 +107,7 @@ async function verify() {
   let no = orderNo
   let tok = token.value
   if (route.query.token) {
-    tok = route.query.token
+    tok = route.query.token as string
   } else if (linkInput.value.trim()) {
     let url
     try {
@@ -126,7 +127,7 @@ async function verify() {
     delivery.value = await orderApi.delivery(no, tok)
     verified.value = true
   } catch (err) {
-    ElMessage.error(err.message)
+    ElMessage.error((err as Error).message)
     verifyError.value = true
   } finally {
     verifying.value = false

@@ -1,8 +1,8 @@
 {
-  // TS 增量迁移纪律（2026-08-11 立）：
-  // - 新增源码文件一律 .ts / <script setup lang="ts">，受 strict 全量约束
-  // - 存量 .js/.vue 保持 allowJs 引入、checkJs 关闭，谁触碰谁迁移，禁止为过编译写 any/@ts-ignore
-  // - vue-tsc --noEmit 已接入 npm run typecheck（CI 前本地必跑）
+  // TS 收尾迁移完成（2026-08-19 拍板：一次性收尾，替代原「谁触碰谁迁移」增量策略）：
+  // - src 全量 .ts / <script setup lang="ts">，受 strict 全量约束；allowJs 已关闭
+  // - 新增/修改代码禁止为过编译写 any/@ts-ignore；类型缺口用局部 interface/断言补齐
+  // - vue-tsc --noEmit 已接入 npm run typecheck（CI 前本地必跑）；scripts/ 另走 tsconfig.scripts.json
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -16,8 +16,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "allowJs": true,
-    "checkJs": false,
+    "allowJs": false,
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -27,6 +26,6 @@
     "verbatimModuleSyntax": true,
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.js", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
   "exclude": ["node_modules", "dist"]
 }

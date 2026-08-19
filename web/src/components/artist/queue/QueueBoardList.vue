@@ -35,7 +35,7 @@
           item-key="id"
           handle=".drag-handle"
           ghost-class="ghost"
-          @end="(evt) => emit('drag-end', evt)"
+          @end="(evt: unknown) => emit('drag-end', evt)"
           class="queue-list"
         >
           <template #item="{ element, index }">
@@ -163,7 +163,7 @@
                   {{ $t(nextAction(element.status).labelKey) }}
                 </el-button>
                 <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
-                <el-dropdown trigger="click" @command="(cmd) => quickAction(cmd, element)">
+                <el-dropdown trigger="click" @command="(cmd: string | number | object) => quickAction(cmd, element)">
                   <el-button size="small">{{ $t('common.actions') }}</el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
@@ -317,11 +317,14 @@
   />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { artistApi } from '../../../api/index.js'
+import type { ApiError } from '../../../api/index.js'
+import type { WorkflowStageDTO } from '../../../api/types.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -339,29 +342,48 @@ const { t } = useI18n()
 const router = useRouter()
 
 const props = defineProps({
-  queue: { type: Array, required: true },
+  queue: { type: Array as PropType<QueueRow[]>, required: true },
   focusDisplay: { type: String, default: 'large' },
   activeTab: { type: String, default: 'formal' },
   loading: { type: Boolean, default: false },
-  bufferQueue: { type: Array, default: () => [] },
+  bufferQueue: { type: Array as PropType<QueueRow[]>, default: () => [] },
   bufferLoading: { type: Boolean, default: false },
-  completedQueue: { type: Array, default: () => [] },
+  completedQueue: { type: Array as PropType<QueueRow[]>, default: () => [] },
   completedLoading: { type: Boolean, default: false },
-  refreshNow: { type: Function, required: true }
+  refreshNow: { type: Function as PropType<(path?: string | null) => void>, required: true }
 })
 const emit = defineEmits([
   'update:queue', 'update:focus-display', 'update:active-tab',
   'drag-end', 'open-deliver', 'refresh-queue', 'refresh-all'
 ])
 
+// ─── 本地类型（队列行：本组件消费字段的形状声明；兼容队列端点行；节点名/单号 camelCase 为端点附带字段） ───
+interface QueueRow {
+  id: number
+  status: string
+  priority: string
+  order_no: string
+  client_name?: string | null
+  client_qq?: string
+  tier_name?: string | null
+  description?: string | null
+  deadline?: string | null
+  version?: number
+  currentStageId?: number | null
+  currentStageName?: string | null
+  orderNo?: string | null
+  focus_image_path?: string | null
+  focusImageUrl?: string
+}
+
 // ─── 双向 props 代理（v-model 语义，与 PaymentPanel 同款数据流纪律） ───
-const queueModel = computed({
+const queueModel = computed<QueueRow[]>({
   get: () => props.queue,
   set: (val) => emit('update:queue', val)
 })
 
 /** 键盘等价：上移/下移队列顺序（vuedraggable 拖拽结束同款持久化路径） */
-function moveQueueItem(order, direction) {
+function moveQueueItem(order: QueueRow, direction: number) {
   const idx = props.queue.findIndex(o => o.id === order.id)
   const target = idx + direction
   if (idx < 0 || target < 0 || target >= props.queue.length) return
@@ -371,7 +393,7 @@ function moveQueueItem(order, direction) {
   emit('drag-end', { oldIndex: idx, newIndex: target })
 }
 /** 0817：焦点图显示改开关——开=大图（large），关=隐藏（off）；持久化链路不变（父级写 localStorage） */
-function onFocusDisplayToggle(val) {
+function onFocusDisplayToggle(val: boolean | string | number) {
   emit('update:focus-display', val ? 'large' : 'off')
 }
 const activeTabModel = computed({
@@ -380,19 +402,25 @@ const activeTabModel = computed({
 })
 
 // ─── R30b: 下一步主操作映射（外露按钮用） ───
-const NEXT_ACTION = {
+interface NextAction {
+  command: string
+  labelKey: string
+  type: 'primary' | 'warning' | 'success'
+}
+const NEXT_ACTION: Record<string, NextAction> = {
   pending: { command: 'confirmed', labelKey: 'queue.confirm', type: 'primary' },
   confirmed: { command: 'wip', labelKey: 'queue.startWip', type: 'warning' },
   wip: { command: 'done', labelKey: 'queue.done', type: 'success' },
   revision: { command: 'done', labelKey: 'queue.done', type: 'success' },
   done: { command: 'delivered', labelKey: 'queue.deliver', type: 'success' }
 }
-const nextAction = (status) => NEXT_ACTION[status] || null
+// 模板内无收窄机会：未命中时原逻辑 || null 为假值不渲染，断言仅保属性访问类型安全
+const nextAction = (status: string) => (NEXT_ACTION[status] || null) as NextAction
 
 // ─── R30d: 流程状态机（看板推进） ───
-const workflowStages = ref([])
+const workflowStages = ref<WorkflowStageDTO[]>([])
 /** a1: 逐订单在途集合——连点/下拉与主按钮并发时不再重复发状态请求 */
-const busyOrderIds = ref(new Set())
+const busyOrderIds = ref(new Set<number>())
 /** 工作流节点加载失败（失败时隐藏推进按钮，给出错误提示 + 重试入口） */
 const workflowLoadFailed = ref(false)
 async function loadWorkflowStages() {
@@ -404,13 +432,13 @@ async function loadWorkflowStages() {
     workflowLoadFailed.value = true
   }
 }
-function canAdvance(order) {
+function canAdvance(order: QueueRow) {
   if (order.currentStageId == null) return false
   if (['delivered', 'cancelled'].includes(order.status)) return false
   const idx = workflowStages.value.findIndex(s => s.id === order.currentStageId)
   return idx !== -1 && idx < workflowStages.value.length - 1
 }
-async function advanceOrderStage(order) {
+async function advanceOrderStage(order: QueueRow) {
   if (busyOrderIds.value.has(order.id)) return
   const idx = workflowStages.value.findIndex(s => s.id === order.currentStageId)
   const next = workflowStages.value[idx + 1]
@@ -422,18 +450,18 @@ async function advanceOrderStage(order) {
     ElMessage.success(t('queue.stageAdvanced'))
     emit('refresh-queue')
   } catch (err) {
-    if (err?.code === 'ORDER_CONFLICT') {
+    if ((err as ApiError)?.code === 'ORDER_CONFLICT') {
       ElMessage.warning(t('common.orderConflict'))
       emit('refresh-queue')
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   } finally {
     busyOrderIds.value.delete(order.id)
   }
 }
 
-async function quickAction(command, order) {
+async function quickAction(command: string | number | object, order: QueueRow) {
   // R30e: 取消不走弹窗，打开滑块确认
   if (command === 'cancelled') { openSlideCancel(order); return }
   // H1: 交付统一走交付弹窗（防手滑一步点成已交付）
@@ -442,15 +470,15 @@ async function quickAction(command, order) {
   busyOrderIds.value.add(order.id)
   try {
     // 815 审计 P1-3：乐观锁接线——携带当前 version，冲突时提示并重拉队列
-    await artistApi.updateStatus(order.id, command, order.version != null ? { version: order.version } : {})
+    await artistApi.updateStatus(order.id, command as string, order.version != null ? { version: order.version } : {})
     ElMessage.success(t('queue.statusUpdated'))
     emit('refresh-queue')
   } catch (err) {
-    if (err?.code === 'ORDER_CONFLICT') {
+    if ((err as ApiError)?.code === 'ORDER_CONFLICT') {
       ElMessage.warning(t('common.orderConflict'))
       emit('refresh-queue')
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   } finally {
     busyOrderIds.value.delete(order.id)
@@ -461,39 +489,41 @@ async function quickAction(command, order) {
 // 本页不开粘贴上传：多个上传目标，全局粘贴无法路由（用户明确指示）
 // G1: 页内拖拽守卫——捕获阶段拦 dragenter/dragover（模板已挂），drop 兜底判断在 handler 开头
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
-const focusInputEl = ref(null)
-const focusDragId = ref(null) // 正在拖拽进入的订单 ID（高亮用）
-let focusUploadTarget = null  // 当前点击上传的订单
+const focusInputEl = ref<HTMLInputElement | null>(null)
+const focusDragId = ref<number | null>(null) // 正在拖拽进入的订单 ID（高亮用）
+let focusUploadTarget: QueueRow | null = null  // 当前点击上传的订单
 
-function triggerFocusUpload(order) {
+function triggerFocusUpload(order: QueueRow) {
   focusUploadTarget = order
   focusInputEl.value?.click()
 }
-async function handleFocusFileSelect(event) {
-  const file = event.target.files?.[0]
-  event.target.value = ''
+async function handleFocusFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
   if (!file || !focusUploadTarget) return
   await uploadAndSetFocus(file, focusUploadTarget)
   focusUploadTarget = null
 }
 /** 防 dragleave 闪烁：子元素间移动时 relatedTarget 仍在占位区内，忽略 */
-function onFocusDragLeave(e, order) {
-  if (e.currentTarget.contains(e.relatedTarget)) return
+function onFocusDragLeave(e: DragEvent, order: QueueRow) {
+  if ((e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) return
   if (focusDragId.value === order.id) focusDragId.value = null
 }
-async function handleFocusDrop(event, order) {
+async function handleFocusDrop(event: DragEvent, order: QueueRow) {
   focusDragId.value = null
   if (!guardDrop(event)) return // G1: 页内图拖入 → 拒绝 + 警告（dragover 已拦，此处兜底）
-  const file = [...event.dataTransfer.files].find(f => f.type.startsWith('image/'))
+  const dtFiles = event.dataTransfer!.files
+  const file = [...dtFiles].find(f => f.type.startsWith('image/'))
   if (file) {
     await uploadAndSetFocus(file, order)
-  } else if (event.dataTransfer.files.length > 0) {
+  } else if (dtFiles.length > 0) {
     // BUG-2 补充：拖入非图片时提示，不再静默丢弃
     ElMessage.error(t('orderDetail.galleryNotImage'))
   }
 }
 /** 上传图片 → 设为该订单焦点图（复用 reference 上传 + setFocusImage 接口） */
-async function uploadAndSetFocus(file, order) {
+async function uploadAndSetFocus(file: File, order: QueueRow) {
   if (!file.type.startsWith('image/')) { ElMessage.error(t('orderDetail.galleryNotImage')); return }
   if (file.size > MAX_IMAGE_BYTES) { ElMessage.error(t('orderDetail.galleryTooBig')); return }
   try {
@@ -506,17 +536,17 @@ async function uploadAndSetFocus(file, order) {
     ElMessage.success(t('orderDetail.focusUpdated'))
     emit('refresh-queue')
   } catch (err) {
-    ElMessage.error(err instanceof AnonTokenUnavailableError ? t('orderDetail.anonTokenRequired') : err.message)
+    ElMessage.error(err instanceof AnonTokenUnavailableError ? t('orderDetail.anonTokenRequired') : (err as Error).message)
   }
 }
 
 // ─── R30e: 滑块确认取消（拖到底触发，防误触） ───
-const cancellingId = ref(null)
+const cancellingId = ref<number | null>(null)
 /** 取消请求在途锁（防滑块/按钮重复触发；409 二次确认期间同样上锁） */
-const cancellingBusyId = ref(null)
+const cancellingBusyId = ref<number | null>(null)
 const slideProgress = ref(0)
-let slideRect = null
-function openSlideCancel(order) {
+let slideRect: DOMRect | null = null
+function openSlideCancel(order: QueueRow) {
   if (cancellingBusyId.value !== null) return
   cancellingId.value = order.id
   slideProgress.value = 0
@@ -525,19 +555,20 @@ function closeSlideCancel() {
   cancellingId.value = null
   slideProgress.value = 0
 }
-function onSlideStart(e) {
+function onSlideStart(e: PointerEvent) {
   if (cancellingBusyId.value !== null) return
-  const track = e.currentTarget.closest('.slide-cancel')
+  const thumb = e.currentTarget as HTMLElement
+  const track = thumb.closest('.slide-cancel') as HTMLElement
   slideRect = track.getBoundingClientRect()
-  e.currentTarget.setPointerCapture(e.pointerId)
+  thumb.setPointerCapture(e.pointerId)
 }
-function onSlideMove(e) {
+function onSlideMove(e: PointerEvent) {
   if (cancellingBusyId.value !== null) return
   if (!slideRect) return
   const x = e.clientX - slideRect.left - 20
   slideProgress.value = Math.max(0, Math.min(1, x / (slideRect.width - 40)))
 }
-async function onSlideEnd(e, order) {
+async function onSlideEnd(_e: PointerEvent, order: QueueRow) {
   if (cancellingBusyId.value !== null) return
   if (!slideRect) return
   slideRect = null
@@ -550,15 +581,21 @@ async function onSlideEnd(e, order) {
 }
 
 /** 键盘等价：滑块取消的替代按钮路径（与滑到底行为一致） */
-async function confirmSlideCancel(order) {
+async function confirmSlideCancel(order: QueueRow) {
   closeSlideCancel()
   await doCancelWithUndo(order)
 }
 
 // 815 拍板 #1：取消走带 5 秒撤销窗口的新端点（队列重排延迟结算）
-const cancelUndo = ref({ visible: false, orderId: null, label: '', windowMs: 5000 })
+interface CancelUndoState {
+  visible: boolean
+  orderId: number | null
+  label: string
+  windowMs: number
+}
+const cancelUndo = ref<CancelUndoState>({ visible: false, orderId: null, label: '', windowMs: 5000 })
 
-async function doCancelWithUndo(order) {
+async function doCancelWithUndo(order: QueueRow) {
   if (cancellingBusyId.value === order.id) return
   cancellingBusyId.value = order.id
   try {
@@ -573,10 +610,11 @@ async function doCancelWithUndo(order) {
     emit('refresh-queue')
   } catch (err) {
     // 已收款取消：后端 409 CANCEL_WITH_PAYMENT + detail.paidCents → 二次确认后带 confirmPaidCancel 重发
-    if (err.code === 'CANCEL_WITH_PAYMENT' && err.detail?.paidCents != null) {
+    const apiErr = err as ApiError
+    if (apiErr.code === 'CANCEL_WITH_PAYMENT' && apiErr.detail?.paidCents != null) {
       try {
         await ElMessageBox.confirm(
-          t('orderDetail.cancelPaidConfirm', { amount: formatCents(err.detail.paidCents) }),
+          t('orderDetail.cancelPaidConfirm', { amount: formatCents(apiErr.detail.paidCents as number) }),
           t('orderDetail.confirmTitle'),
           { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
         )
@@ -594,10 +632,10 @@ async function doCancelWithUndo(order) {
         ElMessage.success(t('queue.statusUpdated'))
         emit('refresh-queue')
       } catch (err) {
-        ElMessage.error(err.message)
+        ElMessage.error((err as Error).message)
       }
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   } finally {
     cancellingBusyId.value = null
@@ -612,19 +650,19 @@ async function onUndoCancel() {
     await artistApi.undoCancelOrder(id)
     ElMessage.success(t('orderDetail.cancelUndone'))
   } catch (err) {
-    ElMessage.error(err.code === 'CANCEL_UNDO_EXPIRED' ? t('orderDetail.cancelUndoExpired') : err.message)
+    ElMessage.error((err as ApiError).code === 'CANCEL_UNDO_EXPIRED' ? t('orderDetail.cancelUndoExpired') : (err as Error).message)
   }
   emit('refresh-queue')
 }
 
 // ─── R30c: 手机端左滑进详情（触屏专属，C43 桌面不做等效） ───
-let swipeStart = null
-function onCardPointerDown(e) {
+let swipeStart: { x: number; y: number } | null = null
+function onCardPointerDown(e: PointerEvent) {
   if (e.pointerType !== 'touch') return
-  if (e.target.closest('button, .drag-handle, .slide-cancel, .el-dropdown, .el-image, .focus-empty, .focus-img-wrap')) return
+  if ((e.target as Element).closest('button, .drag-handle, .slide-cancel, .el-dropdown, .el-image, .focus-empty, .focus-img-wrap')) return
   swipeStart = { x: e.clientX, y: e.clientY }
 }
-function onCardPointerUp(e, order) {
+function onCardPointerUp(e: PointerEvent, order: QueueRow) {
   if (!swipeStart) return
   const dx = e.clientX - swipeStart.x
   const dy = e.clientY - swipeStart.y
@@ -636,8 +674,8 @@ function onCardPointerUp(e, order) {
 }
 
 // ─── SPEC-004: 缓冲区（候补订单列表 + 手动递补） ───
-const promotingId = ref(null)
-async function promoteOrder(order) {
+const promotingId = ref<number | null>(null)
+async function promoteOrder(order: QueueRow) {
   promotingId.value = order.id
   try {
     // 815 审计 P1-3：乐观锁接线——递补同为订单写路径，携带 version，冲突重拉
@@ -645,11 +683,11 @@ async function promoteOrder(order) {
     ElMessage.success(t('queue.promoted'))
     emit('refresh-all')
   } catch (err) {
-    if (err?.code === 'ORDER_CONFLICT') {
+    if ((err as ApiError)?.code === 'ORDER_CONFLICT') {
       ElMessage.warning(t('common.orderConflict'))
       emit('refresh-all')
     } else {
-      ElMessage.error(err.message)
+      ElMessage.error((err as Error).message)
     }
   } finally {
     promotingId.value = null

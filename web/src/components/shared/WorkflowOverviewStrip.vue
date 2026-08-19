@@ -23,14 +23,25 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
+
+/** 流程全览阶段节点 */
+interface OverviewStage {
+  id: number
+  name: string
+  takesPayment?: boolean | number | null
+  basisPoints?: number | null
+  isFinal?: boolean
+}
+
 defineProps({
-  stages: { type: Array, default: () => [] },
+  stages: { type: Array as PropType<OverviewStage[]>, default: () => [] },
   vertical: { type: Boolean, default: false }
 })
 
 /** 收款比例标签（basisPoints → 百分比，去掉无意义的 .0） */
-function bpLabel(s) {
+function bpLabel(s: OverviewStage) {
   // b3 猎杀修复：takesPayment=true 但无比例时不渲染 NaN%（OrderTimeline 同场景有守卫）
   if (!s.basisPoints) return '—'
   return `${(s.basisPoints / 100).toFixed(1).replace(/\.0$/, '')}%`

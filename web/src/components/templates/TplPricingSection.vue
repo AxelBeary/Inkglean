@@ -45,19 +45,61 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
 import TplShowcase from './TplShowcase.vue'
 import WorkflowOverviewStrip from '../shared/WorkflowOverviewStrip.vue'
 
+/** 画风尺寸宽松形状（与 TplShowcase 子组件结构兼容） */
+interface PricingSizeLike {
+  id: number
+  name: string
+  base_price: number
+  description?: string | null
+  work_days?: number | null
+  display_status?: string | null
+  artwork_image_path?: string | null
+  image?: string | null
+}
+
+/** 画风宽松形状 */
+interface PricingStyleLike {
+  id: number
+  name: string
+  description?: string | null
+  cover_image?: string | null
+  sizes?: PricingSizeLike[] | null
+}
+
+/** 档位宽松形状 */
+interface PricingTierLike {
+  id: number
+  name: string
+  price: number
+  description?: string | null
+  work_days?: number | null
+  example_image?: string | null
+  visibility?: string | null
+}
+
+/** 流程阶段宽松形状（与 WorkflowOverviewStrip 子组件结构兼容） */
+interface WorkflowStageLike {
+  id: number
+  name: string
+  takesPayment?: boolean | number | null
+  basisPoints?: number | null
+  isFinal?: boolean
+}
+
 defineProps({
-  styles: { type: Array, default: () => [] },
-  tiers: { type: Array, default: () => [] },
-  workflowStages: { type: Array, default: () => [] },
+  styles: { type: Array as PropType<PricingStyleLike[]>, default: () => [] },
+  tiers: { type: Array as PropType<PricingTierLike[]>, default: () => [] },
+  workflowStages: { type: Array as PropType<WorkflowStageLike[]>, default: () => [] },
   revisionNote: { type: String, default: '' },
   /** 画师子域名（跳转下单用） */
   subdomain: { type: String, default: '' },
   /** 画师信息（status 决定约稿按钮是否禁用） */
-  artist: { type: Object, default: null },
+  artist: { type: Object as PropType<{ status?: string | null } | null>, default: null },
   /** 锚点 id（Folio 用 id="pricing"） */
   sectionId: { type: String, default: '' },
   /** 内层包裹类（gallery-inner / folio-inner / atelier-inner；Classic 不传） */

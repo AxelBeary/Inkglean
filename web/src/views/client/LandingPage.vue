@@ -56,10 +56,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { artistPublicApi } from '../../api/index.js'
+import type { ArtistListItem } from '../../api/types.js'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
@@ -69,13 +70,13 @@ import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
 
 const { t } = useI18n()
 const router = useRouter()
-const artists = ref([])
+const artists = ref<ArtistListItem[]>([])
 const loading = ref(true)
 
 
-const statusType = (s) => ARTIST_STATUS_TYPE[s] || 'info'
+const statusType = (s: string) => ARTIST_STATUS_TYPE[s] || 'info'
 
-function enterArtist(artist) {
+function enterArtist(artist: ArtistListItem) {
   // a2 猎杀修复：数据异常时拒绝拼 /artist/undefined 死链（与后端创建口径一致）
   const sub = artist?.subdomain
   if (typeof sub !== 'string' || !/^[a-z0-9-]{2,20}$/i.test(sub)) return
@@ -86,7 +87,7 @@ onMounted(async () => {
   try {
     artists.value = await artistPublicApi.getAll()
   } catch (err) {
-    ElMessage.error(err.message || t('landing.loadFailed'))
+    ElMessage.error(err instanceof Error && err.message ? err.message : t('landing.loadFailed'))
   } finally {
     loading.value = false
   }

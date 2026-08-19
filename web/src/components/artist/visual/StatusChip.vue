@@ -7,7 +7,7 @@
   </span>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   /** 语义类型：doing | over | done | pend | buf | pri | cancel */
   type: { type: String, default: 'doing' },
