@@ -366,3 +366,63 @@ export function getIncomeSummary(artistId: number, from: string, to: string): In
   const standaloneIncomeCents = standaloneRow.s
   return { orderIncomeCents, standaloneIncomeCents, totalCents: orderIncomeCents + standaloneIncomeCents, from, to }
 }
+
+// ─── oimimo 吸纳批四：月度收入趋势（收入图表化数据源） ───
+
+export interface IncomeMonthRow {
+  /** 月份键（YYYY-MM，本地时区） */
+  month: string
+  /** 订单收款（order_payments 按到账日归属本地月，含退款负数） */
+  orderCents: number
+  /** 散单记账（standalone_incomes 按 income_date） */
+  standaloneCents: number
+  /** 合计 */
+  totalCents: number
+}
+
+/**
+ * 近 N 个月收入趋势（含当月，升序连续补 0）。
+ * 与 getIncomeSummary 同源同口径（订单收款流水 + 散单记账），
+ * 仅把区间 SUM 换成按本地月归属：
+ * - 订单收款 created_at 存 UTC → 应用层本地换算（P2-1 同口径），按到账日归属月份（对标 oimimo 现金口径）
+ * - 散单 income_date 本身即本地日期
+ */
+export function getIncomeMonthly(artistId: number, months: number): IncomeMonthRow[] {
+  const now = new Date()
+  // 近 N 个月键（含当月，升序）
+  const keys: string[] = []
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  const map = new Map<string, IncomeMonthRow>(
+    keys.map(k => [k, { month: k, orderCents: 0, standaloneCents: 0, totalCents: 0 }])
+  )
+
+  // 订单收款流水：起点 = 最早月份 1 号的本地零点（UTC），终点不设（超出窗口的行自然落不进 map）
+  const { startUtc } = localDateRangeToUtc(`${keys[0]}-01`, toLocalDateString(now))
+  const paymentRows = db.prepare(`
+    SELECT p.created_at, p.amount_cents
+    FROM order_payments p
+    JOIN orders o ON p.order_id = o.id
+    WHERE o.artist_id = ? AND p.created_at >= ?
+  `).all(artistId, startUtc) as Array<{ created_at: string; amount_cents: number }>
+  for (const r of paymentRows) {
+    const row = map.get(toLocalDateString(parseSqliteUtcDate(r.created_at)).slice(0, 7))
+    if (row) row.orderCents += r.amount_cents
+  }
+
+  // 散单记账：income_date 本地日期直接切月
+  const standaloneRows = db.prepare(`
+    SELECT income_date, amount_cents
+    FROM standalone_incomes
+    WHERE artist_id = ? AND income_date >= ?
+  `).all(artistId, `${keys[0]}-01`) as Array<{ income_date: string; amount_cents: number }>
+  for (const r of standaloneRows) {
+    const row = map.get(r.income_date.slice(0, 7))
+    if (row) row.standaloneCents += r.amount_cents
+  }
+
+  for (const row of map.values()) row.totalCents = row.orderCents + row.standaloneCents
+  return keys.map(k => map.get(k)!)
+}

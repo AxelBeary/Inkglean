@@ -7,6 +7,16 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
 }))
 
+// oimimo 吸纳批三：组件新增 store/api 依赖，挂载测试补 mock（行为断言不变）
+vi.mock('../../../stores/artist.js', () => ({
+  useArtistStore: () => ({ subdomain: 'alice' })
+}))
+
+vi.mock('../../../api/index.js', () => ({
+  artistApi: { getArtworks: () => Promise.resolve([]) },
+  artistPublicApi: { getPricing: () => Promise.resolve({ styles: [] }) }
+}))
+
 // happy-dom 无 canvas 2d 实现：统一 stub，避免预览/导出路径抛错
 function canvasContextStub() {
   return new Proxy({}, {
@@ -54,17 +64,17 @@ describe('PriceCard 价目分享卡', () => {
     expect(wrapper.findAll('.pc-tier')).toHaveLength(3)
   })
 
-  it('档位行可加至 6 行、至少保留 3 行', async () => {
+  it('档位行可加至 12 行、至少保留 3 行（oimimo 吸纳批三：上限 6→12，导入真实档位常超 6）', async () => {
     const { wrapper } = mountPriceCard()
     const addBtn = wrapper.find('.pc-btn--ghost')
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 9; i++) {
       await addBtn.trigger('click')
     }
-    expect(wrapper.findAll('.pc-tier')).toHaveLength(6)
+    expect(wrapper.findAll('.pc-tier')).toHaveLength(12)
     expect(addBtn.attributes('disabled')).toBeDefined()
 
     await wrapper.findAll('.pc-mini-btn')[0].trigger('click')
-    expect(wrapper.findAll('.pc-tier')).toHaveLength(5)
+    expect(wrapper.findAll('.pc-tier')).toHaveLength(11)
   })
 
   it('从 localStorage 恢复草稿标题', async () => {

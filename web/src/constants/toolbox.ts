@@ -1,7 +1,7 @@
 // ─── 工具箱四分类注册表（纸墨提案 §5.5：导航一个把手 + 四个分类格子） ───
 // 单一事实源：ArtistLayout（侧栏把手/抽屉分类组）与 ToolsHome（工具箱首页）共用。
 // 路由与 i18n 键保持现状不变，本文件只定义导航归组。
-import { Wallet, Download, PriceTag, Document, Stamp, Grid, Calendar, ScaleToOriginal, User, Connection, ChatLineRound, ForkSpoon, Notebook, AlarmClock, Box, Postcard, Finished, Coin } from '@element-plus/icons-vue'
+import { Wallet, Download, PriceTag, Document, Stamp, Grid, Calendar, ScaleToOriginal, User, Connection, ChatLineRound, ForkSpoon, Notebook, AlarmClock, Box, Postcard, Finished, Coin, Tickets } from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 
 /** 工具箱菜单项（index=路由；labelKey=i18n 键；cat=TOOL_BOX_CATEGORIES.key） */
@@ -19,7 +19,7 @@ export interface ToolBoxCategory {
   icon: Component
 }
 
-/** 18 个小工具按用途归入四类（cat 对应 TOOL_BOX_CATEGORIES.key；v128 下架改稿计数） */
+/** 19 个小工具按用途归入四类（cat 对应 TOOL_BOX_CATEGORIES.key；v128 下架改稿计数；oimimo 吸纳批五新增小票打印机） */
 export const TOOLS_MENU_ITEMS: ToolMenuItem[] = [
   // 钱袋子：记账/导出/算价/报价单/价目卡/定金台账
   { index: '/tools/income', icon: Wallet, labelKey: 'menu.standaloneIncome', cat: 'money' },
@@ -28,13 +28,15 @@ export const TOOLS_MENU_ITEMS: ToolMenuItem[] = [
   { index: '/tools/quote', icon: Document, labelKey: 'menu.quote', cat: 'money' },
   { index: '/tools/price-card', icon: Postcard, labelKey: 'menu.priceCard', cat: 'money' },
   { index: '/tools/deposit', icon: Coin, labelKey: 'menu.deposit', cat: 'money' },
-  // 交付：水印/拼图/排期公示/压图改尺寸/交付清单
+  // 交付：水印/拼图/排期公示/压图改尺寸/交付清单/小票打印
   { index: '/tools/watermark', icon: Stamp, labelKey: 'menu.watermark', cat: 'delivery' },
   { index: '/tools/puzzle', icon: Grid, labelKey: 'menu.puzzle', cat: 'delivery' },
   { index: '/tools/schedule', icon: Calendar, labelKey: 'menu.scheduleShare', cat: 'delivery' },
   // 改稿计数器已随 v128 下架（订单详情改用真实修改记录）
   { index: '/tools/image-resize', icon: ScaleToOriginal, labelKey: 'menu.imageResize', cat: 'delivery' },
   { index: '/tools/delivery-checklist', icon: Finished, labelKey: 'menu.deliveryChecklist', cat: 'delivery' },
+  // oimimo 吸纳批五：小票打印机（晒单小票导 PNG）
+  { index: '/tools/receipt', icon: Tickets, labelKey: 'menu.receiptPrinter', cat: 'delivery' },
   // 客户：标记/召回/回复
   { index: '/tools/clients', icon: User, labelKey: 'menu.clientTags', cat: 'clients' },
   { index: '/tools/returning', icon: Connection, labelKey: 'menu.returningClients', cat: 'clients' },

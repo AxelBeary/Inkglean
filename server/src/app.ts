@@ -410,6 +410,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(import('./features/invite/invite.routes.js'))  // REQ-039: 邀请码注册
   await app.register(import('./features/auth/auth.routes.js'))
   await app.register(import('./features/artist/artist.routes.js'))
+  await app.register(import('./features/artist/calendar-feed.routes.js'))  // oimimo 吸纳批一：日历订阅（ICS）
   await app.register(import('./features/order/order.routes.js'))
   await app.register(import('./features/upload/upload.routes.js'), { uploadDir: UPLOAD_DIR })
   await app.register(import('./features/admin/admin.routes.js'))

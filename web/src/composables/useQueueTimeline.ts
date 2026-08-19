@@ -18,7 +18,7 @@ import { safeGetItem, safeSetItem } from '../utils/storage.js'
 import type { VersionedOptions } from '../api/types.js'
 
 /** 缩放档位键 */
-type TlZoomKey = '2w' | '1m' | '3m' | '6m'
+type TlZoomKey = '2w' | '1m' | '3m' | '6m' | '1y'
 
 /** 时间条订单行形状（calOrders 共享数据源，与月历视图同源） */
 interface TlCalOrder {
@@ -94,23 +94,46 @@ const TL_ZOOM_KEY = 'queue_tl_zoom'
 // v0.36 波1: 四档缩放。批F(2026-08-08): 档位只定义 dayWidth——画布恒覆盖订单日期范围，
 // 视野宽度由容器决定（不再由 days 裁剪），days 字段删除
 // 档位 = 视野宽度（视口内显示的天数），dayWidth 由视口宽÷视野天数自适应（Google Calendar 式）
+// oimimo 吸纳批二（2026-08-20）：补「年」全景档（对标其甘特图 year 视图，看全年排期大势）
 const TL_ZOOMS: Record<TlZoomKey, { viewDays: number }> = {
   '2w': { viewDays: 14 },
   '1m': { viewDays: 30 },
   '3m': { viewDays: 90 },
-  '6m': { viewDays: 180 }
+  '6m': { viewDays: 180 },
+  '1y': { viewDays: 365 }
 }
+/** 窄屏降级表：视口 <768px 时这些粗档体验过挤（天宽钳到 4px），初始化落 1m */
+const TL_NARROW_COARSE: TlZoomKey[] = ['3m', '6m', '1y']
 // localStorage 兼容：老版本存的 '2m' 档已删除，落到 '3m'
 // G-5: 裸读写换 safe 封装（存储禁用时按默认档降级，不抛错）
 const storedTlZoom = safeGetItem(TL_ZOOM_KEY)
-const tlZoom = ref<TlZoomKey>(
+let initialTlZoom: TlZoomKey =
   storedTlZoom && TL_ZOOMS[storedTlZoom as TlZoomKey]
     ? storedTlZoom as TlZoomKey
     : (storedTlZoom === '2m' ? '3m' : '2w')
-)
+// oimimo 吸纳批二：窄屏默认档降级——手机上看全年/半年档等于看蚂蚁，落 1m；
+// 仅当次生效不回写 localStorage（宽屏偏好不丢，对标 oimimo 按窗宽选默认视图的做法）
+if (typeof window !== 'undefined' && window.innerWidth < 768 && TL_NARROW_COARSE.includes(initialTlZoom)) {
+  initialTlZoom = '1m'
+}
+const tlZoom = ref<TlZoomKey>(initialTlZoom)
 function saveTlZoom(val: TlZoomKey) { safeSetItem(TL_ZOOM_KEY, val) }
 
 function startOfDay(d: Date) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()) }
+
+// ─── oimimo 吸纳批二：「仅进行中/全部」过滤（默认仅进行中）───
+// 对标其甘特图 filterActive：已完成/已交付/已取消的老横条会把可视区挤空，
+// 默认只看在做的单，一键切全部。终态口径与拖拽守卫 TL_TERMINAL_STATUSES 同源
+const TL_TERMINAL_STATUSES = ['done', 'delivered', 'cancelled']
+const tlFilterActive = ref(true)
+/** el-radio-group emit 为宽类型，只认严格 true（与宿主页 changeTlZoom 包装同口径） */
+function setTlFilter(active: string | number | boolean | undefined) { tlFilterActive.value = active === true }
+/** 过滤后的数据源：画布范围与横条行都消费它（切「全部」画布自然扩回老单范围） */
+const tlFilteredOrders = computed(() =>
+  tlFilterActive.value
+    ? calOrders.value.filter(o => !TL_TERMINAL_STATUSES.includes(o.status))
+    : calOrders.value
+)
 
 // 视口宽度（.tl-scroll clientWidth），ResizeObserver 跟踪；档位=视野天数 → dayWidth=视口宽/视野天数
 const tlViewportW = ref(0)
@@ -141,10 +164,10 @@ const tlDayWidth = computed(() => {
 /** 画布余量（天）与宽度上限（防极端数据：超上限部分截断属预期保护） */
 const TL_CANVAS_PAD_DAYS = 7
 const TL_CANVAS_MAX_PX = 120000
-/** 订单实际日期范围（所有订单最早/最晚的开工日/截稿日，startOfDay 归一） */
+/** 订单实际日期范围（过滤后订单最早/最晚的开工日/截稿日，startOfDay 归一） */
 const tlOrderRange = computed(() => {
   let min: Date | null = null, max: Date | null = null
-  for (const order of calOrders.value) {
+  for (const order of tlFilteredOrders.value) {
     const rawStart = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
     if (rawStart) {
       const d = startOfDay(rawStart)
@@ -254,7 +277,7 @@ function tlGoToday() {
 const tlRows = computed(() => {
   const winStart = tlCanvasStart.value
   const winEnd = tlCanvasEnd.value
-  return calOrders.value
+  return tlFilteredOrders.value
     .map((order): TlRow | null => {
       const rawStart = parseDate(order.startDate) || parseDate(order.created_at) || parseDate(order.confirmed_at)
       if (!rawStart) return null
@@ -302,8 +325,8 @@ watch(() => getViewMode(), (mode) => {
 // 事件绑定在整个 .tl-canvas（刻度区 + 横条区 + 空白区）：
 // - 空白/刻度区拖拽 = 平移（地图式），滚轮 = 缩放，双指 = pinch 缩放
 // - 横条/手柄自身 pointerdown 会 stopPropagation，只走改期拖拽，不触发画布平移
-/** 缩放档位顺序（放大方向） */
-const TL_ZOOM_ORDER: TlZoomKey[] = ['2w', '1m', '3m', '6m']
+/** 缩放档位顺序（放大方向）；oimimo 吸纳批二补 1y 全景档 */
+const TL_ZOOM_ORDER: TlZoomKey[] = ['2w', '1m', '3m', '6m', '1y']
 
 /** 切档：更新 tlZoom + 持久化 + 保持视野中心。radio 点击 / 滚轮 / pinch 统一走这里 */
 function changeTlZoom(nextZoom: TlZoomKey) {
@@ -453,7 +476,7 @@ function onTlCanvasCancel(e: PointerEvent) {
 }
 
 // ─── v0.28: 时间条拖拽（原生 Pointer Events：右端改截稿日 / 左端改开工日，吸附到天） ───
-const TL_TERMINAL_STATUSES = ['done', 'delivered', 'cancelled']
+// TL_TERMINAL_STATUSES 已上提至过滤段（仅进行中过滤与拖拽守卫同源）
 
 /**
  * 拖拽状态（null = 未在拖拽）
@@ -710,6 +733,8 @@ function onTlHandleCancel() {
   return {
     // 缩放与视口
     tlZoom, changeTlZoom, tlDayWidth,
+    // 仅进行中/全部过滤（oimimo 吸纳批二）
+    tlFilterActive, setTlFilter,
     // 画布与滚动
     tlScrollEl, tlScrollLeft, onTlScroll, tlCanvasWidth, tlTicks,
     tlTodayX, tlIsTodayVisible, tlGoToday, tlRows,

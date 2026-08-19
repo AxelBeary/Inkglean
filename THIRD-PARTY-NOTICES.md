@@ -53,6 +53,7 @@
 | dompurify | Apache-2.0 / MPL-2.0 双许可 |
 | simple-icons | CC0-1.0 |
 | vuedraggable | MIT |
+| chart.js | MIT |
 | @sentry/vue | MIT |
 | vite / vitest / eslint 等开发依赖 | MIT / Apache-2.0 等 |
 
@@ -78,7 +79,16 @@
 
 ---
 
-## 五、完整依赖许可清单
+## 五、设计参考与致谢
+
+### oimimo-scheduler（画师排单助手）
+- **来源**：https://github.com/mimo9708/oimimo-scheduler
+- **许可**：**MIT**
+- **说明**：2026-08 本项目在功能设计阶段研读并借鉴了该开源项目的若干产品思路（日历订阅、价目表导出、收入图表、小票打印、截稿临期预警等方向），并全部结合本项目架构与纸墨设计语言**重新实现**，未复制其源代码。感谢作者的公开分享。
+
+---
+
+## 六、完整依赖许可清单
 
 完整依赖许可可通过以下命令生成：
 
@@ -91,4 +101,4 @@ cd server && npx license-checker --json > /tmp/server-licenses.json
 
 ---
 
-*最后更新：2026-08-13*
+*最后更新：2026-08-20（新增 chart.js 依赖与 oimimo-scheduler 设计参考致谢）*

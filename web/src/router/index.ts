@@ -79,6 +79,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'tools/note', name: 'ArtistQuickNote', component: () => import('../views/artist/QuickNote.vue'), meta: { titleKey: 'menu.quickNote', requiresAuth: true } },
       // 812 工具波 B: ④价目分享卡 / ⑤交付检查清单 / ⑥定金台账（纯前端本地工具，只追加）
       { path: 'tools/price-card', name: 'ArtistPriceCard', component: () => import('../views/artist/PriceCard.vue'), meta: { titleKey: 'menu.priceCard', requiresAuth: true } },
+      // oimimo 吸纳批五：小票打印机（纯前端本地工具，只追加）
+      { path: 'tools/receipt', name: 'ArtistReceiptPrinter', component: () => import('../views/artist/ReceiptPrinter.vue'), meta: { titleKey: 'menu.receiptPrinter', requiresAuth: true } },
       { path: 'tools/delivery-checklist', name: 'ArtistDeliveryChecklist', component: () => import('../views/artist/DeliveryChecklist.vue'), meta: { titleKey: 'menu.deliveryChecklist', requiresAuth: true } },
       { path: 'tools/deposit', name: 'ArtistDepositLedger', component: () => import('../views/artist/DepositLedger.vue'), meta: { titleKey: 'menu.deposit', requiresAuth: true } },
       // REQ-035 工具集后置: 截稿日建议（工具页）

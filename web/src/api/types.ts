@@ -1508,6 +1508,30 @@ export interface WebAuthnCredentialsResult {
   credentials: WebAuthnCredential[]
 }
 
+/** oimimo 吸纳批一：日历订阅（ICS）状态（GET/PUT /api/artist/calendar-feed） */
+export interface CalendarFeedResult {
+  enabled: boolean
+  /** 含令牌的订阅路径（前端拼 origin 得完整链接）；未启用为 null */
+  url: string | null
+}
+
+/** oimimo 吸纳批四：月度收入行（GET /api/artist/tools/income-monthly，与 income-summary 同源同口径） */
+export interface IncomeMonthRow {
+  /** 月份键 YYYY-MM（本地时区） */
+  month: string
+  /** 订单收款（分，按到账日归属本地月，含退款负数） */
+  orderCents: number
+  /** 散单记账（分） */
+  standaloneCents: number
+  /** 合计（分） */
+  totalCents: number
+}
+
+/** GET /api/artist/tools/income-monthly 响应 */
+export interface IncomeMonthlyResult {
+  months: IncomeMonthRow[]
+}
+
 /** PATCH /api/auth/webauthn/credentials/:id 响应 */
 export interface WebAuthnUpdateCredentialResult {
   credential: WebAuthnCredential

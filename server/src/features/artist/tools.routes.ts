@@ -294,4 +294,25 @@ export default async function toolsRoutes(fastify: FastifyInstance) {
     const q = request.query as { from: string; to: string }
     return toolsService.getIncomeSummary(request.artist.id, q.from, q.to)
   })
+
+  /**
+   * GET /api/artist/tools/income-monthly?months=12
+   * oimimo 吸纳批四：月度收入趋势（收入图表化）——与 income-summary 同源同口径，
+   * 近 N 个月连续输出（补 0）；月份归属按本地时区到账日（现金口径）
+   */
+  fastify.get('/api/artist/tools/income-monthly', {
+    preHandler: requireAuth,
+    schema: {
+      querystring: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          months: { type: 'integer', minimum: 3, maximum: 24, default: 12 }
+        }
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const months = (request.query as { months?: number }).months ?? 12
+    return { months: toolsService.getIncomeMonthly(request.artist.id, months) }
+  })
 }

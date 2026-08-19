@@ -145,6 +145,37 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <!-- ═══ 日历订阅（ICS）——oimimo 吸纳批一：手机日历同步排期与截稿日 ═══ -->
+    <div class="group">
+      <div class="group-head">
+        <span>{{ t('account.feedSection') }}</span>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ t('account.feedTitle') }}</div>
+          <div class="desc">{{ t('account.feedDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <el-switch v-model="feedEnabled" :loading="feedSaving" @change="onFeedToggle" />
+        </div>
+      </div>
+      <div v-if="feedEnabled && feedFullUrl" class="row feed-url-row">
+        <div class="field-text">
+          <div class="lab">{{ t('account.feedUrlLabel') }}</div>
+          <div class="desc">{{ t('account.feedUrlDesc') }}</div>
+        </div>
+        <div class="ctrl feed-url-ctrl">
+          <el-input :model-value="feedFullUrl" readonly size="small" class="feed-url-input" />
+          <el-button size="small" @click="copyFeedUrl">{{ t('account.feedCopy') }}</el-button>
+          <el-popconfirm :title="t('account.feedRotateConfirm')" @confirm="rotateFeed">
+            <template #reference>
+              <el-button size="small" :loading="feedRotating">{{ t('account.feedRotate') }}</el-button>
+            </template>
+          </el-popconfirm>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -152,9 +183,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist.js'
-import { webauthnApi, totpRebindApi } from '../../api/index.js'
+import { webauthnApi, totpRebindApi, calendarFeedApi } from '../../api/index.js'
 import { WarningFilled, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { copyText as copyToClipboard } from '../../utils/clipboard.js'
 import {
   toCredentialCreationOptions,
   toCredentialRequestOptions,
@@ -351,6 +383,62 @@ async function confirmRebind() {
   }
 }
 
+// ─── 日历订阅（ICS，oimimo 吸纳批一）───
+const feedEnabled = ref(false)
+const feedUrlPath = ref<string | null>(null)
+const feedSaving = ref(false)
+const feedRotating = ref(false)
+// 后端只回路径（含令牌），前端拼当前站点 origin 得完整链接（本机/公网自动适配）
+const feedFullUrl = computed(() => (feedUrlPath.value ? window.location.origin + feedUrlPath.value : ''))
+
+async function loadFeed() {
+  try {
+    const res = await calendarFeedApi.get()
+    feedEnabled.value = res.enabled
+    feedUrlPath.value = res.url
+  } catch {
+    ElMessage.error(t('account.feedLoadFailed'))
+  }
+}
+
+async function onFeedToggle(value: boolean | string | number) {
+  const next = value === true
+  if (feedSaving.value) return
+  feedSaving.value = true
+  try {
+    const res = await calendarFeedApi.setEnabled(next)
+    feedEnabled.value = res.enabled
+    feedUrlPath.value = res.url
+  } catch {
+    feedEnabled.value = !next // 失败回滚开关态
+    ElMessage.error(t('account.feedToggleFailed'))
+  } finally {
+    feedSaving.value = false
+  }
+}
+
+async function copyFeedUrl() {
+  if (!feedFullUrl.value) return
+  if (await copyToClipboard(feedFullUrl.value)) {
+    ElMessage.success(t('account.feedCopied'))
+  }
+}
+
+async function rotateFeed() {
+  if (feedRotating.value) return
+  feedRotating.value = true
+  try {
+    const res = await calendarFeedApi.rotate()
+    feedEnabled.value = res.enabled
+    feedUrlPath.value = res.url
+    ElMessage.success(t('account.feedRotated'))
+  } catch {
+    ElMessage.error(t('account.feedToggleFailed'))
+  } finally {
+    feedRotating.value = false
+  }
+}
+
 // ─── 工具函数 ───
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
@@ -367,6 +455,7 @@ onMounted(() => {
   if (passkeySupported.value) {
     loadCredentials()
   }
+  loadFeed()
 })
 </script>
 
@@ -506,7 +595,20 @@ onMounted(() => {
   max-width: 160px;
 }
 
+/* 日历订阅（ICS）：链接行控件竖排（输入框+两按钮），窄屏随 row 单列降级 */
+.feed-url-ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 280px;
+}
+.feed-url-input :deep(.el-input__inner) {
+  font-size: calc(var(--font-scale, 1) * 12px);
+}
+
 @media (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
+  .feed-url-ctrl { min-width: 0; }
 }
 </style>

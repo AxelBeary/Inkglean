@@ -105,6 +105,7 @@
       <div class="cal-legend">
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--formal"></i>{{ $t('queue.calLegendFormal') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--buffer"></i>{{ $t('queue.calLegendBuffer') }}</span>
+        <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--soon"></i>{{ $t('queue.calLegendSoon') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--nodeadline"></i>{{ $t('queue.calLegendNoDeadline') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--overdue"></i>{{ $t('queue.calLegendOverdue') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--done"></i>{{ $t('queue.calLegendDone') }}</span>
@@ -126,8 +127,22 @@
             <el-radio-button value="1m">{{ $t('queue.tlZoom1m') }}</el-radio-button>
             <el-radio-button value="3m">{{ $t('queue.tlZoom3m') }}</el-radio-button>
             <el-radio-button value="6m">{{ $t('queue.tlZoom6m') }}</el-radio-button>
+            <el-radio-button value="1y">{{ $t('queue.tlZoom1y') }}</el-radio-button>
           </el-radio-group>
           <el-button v-if="!tlIsTodayVisible" text size="small" @click="tlGoToday">{{ $t('queue.calToday') }}</el-button>
+        </div>
+      </div>
+      <!-- oimimo 吸纳批二：显示范围过滤（默认仅进行中，防已完成老横条挤空可视区） -->
+      <div class="tl-toolbar">
+        <div class="field-text">
+          <div class="lab">{{ $t('queue.tlFilterLabel') }}</div>
+          <div class="desc">{{ $t('queue.tlFilterDesc') }}</div>
+        </div>
+        <div class="ctrl">
+          <el-radio-group :model-value="tlFilterActive" size="small" @update:model-value="setTlFilter">
+            <el-radio-button :value="true">{{ $t('queue.tlFilterActiveOnly') }}</el-radio-button>
+            <el-radio-button :value="false">{{ $t('queue.tlFilterAll') }}</el-radio-button>
+          </el-radio-group>
         </div>
       </div>
 
@@ -221,6 +236,7 @@
       <div class="cal-legend">
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--formal"></i>{{ $t('queue.calLegendFormal') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--buffer"></i>{{ $t('queue.calLegendBuffer') }}</span>
+        <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--soon"></i>{{ $t('queue.calLegendSoon') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--nodeadline"></i>{{ $t('queue.calLegendNoDeadline') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--overdue"></i>{{ $t('queue.calLegendOverdue') }}</span>
         <span class="cal-legend-item"><i class="cal-legend-swatch cal-band--done"></i>{{ $t('queue.calLegendDone') }}</span>
@@ -586,12 +602,20 @@ function bandClass(order: BoardOrderLite) {
   }
   if (['delivered', 'done'].includes(order.status)) return ['cal-band--done', 'band-done']
   const deadline = parseDate(order.deadline)
-  // 围剿 a1-7: 逾期判定按本地日归零比较（parseDate('YYYY-MM-DD') 是 UTC 零点，UTC+8 下今天截稿当天不应显逾期；
+  // 围狫 a1-7: 逾期判定按本地日归零比较（parseDate('YYYY-MM-DD') 是 UTC 零点，UTC+8 下今天截稿当天不应显逾期；
   // 同 OrderDetail daysLeft 写法）
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
   if (deadline && deadline < todayStart && !['delivered', 'done'].includes(order.status)) {
     return ['cal-band--overdue', 'band-over']
+  }
+  // oimimo 吸纳批六：临期预警——今天截稿或剩余 ≤3 天 → 藤黄（对标其 DDL 三色阈值的橙档，
+  // 拾绘取更保守的 ≤3 天避免满屏预警色；>3 天保持常规花青/缓冲色）
+  if (deadline) {
+    const daysLeft = Math.round((deadline.getTime() - todayStart.getTime()) / 86_400_000)
+    if (daysLeft <= 3) {
+      return ['cal-band--soon', 'band-soon']
+    }
   }
   const base = order._zone === 'buffer' ? 'cal-band--buffer' : 'cal-band--formal'
   return [base, 'band-doing']
@@ -617,6 +641,7 @@ onUnmounted(() => { if (tlDragResetTimer) clearTimeout(tlDragResetTimer) }) // a
 // ─── v0.25 D: 时间条视图状态机装配（2026-08-10 拆分：useQueueTimeline，纯搬移零行为变化） ───
 const {
   tlZoom, changeTlZoom: setTlZoom, tlDayWidth,
+  tlFilterActive, setTlFilter,
   tlScrollEl: tlScrollRef, onTlScroll, tlCanvasWidth, tlTicks,
   tlTodayX, tlIsTodayVisible, tlGoToday, tlRows: rawTlRows,
   tlAxisPanning, onTlCanvasWheel, onTlCanvasDown, onTlCanvasMove, onTlCanvasUp, onTlCanvasCancel,
@@ -650,9 +675,9 @@ const tlRows = computed(() => rawTlRows.value.map(row => ({
   }
 })))
 
-// el-radio-group 的 update:model-value emit 为宽类型；缩放键仅四档字面量
+// el-radio-group 的 update:model-value emit 为宽类型；缩放键五档字面量（oimimo 吸纳批二补 1y）
 //（composable 内部 TL_ZOOMS 守卫兜底，断言安全）
-type TlZoomKeyLite = '2w' | '1m' | '3m' | '6m'
+type TlZoomKeyLite = '2w' | '1m' | '3m' | '6m' | '1y'
 function changeTlZoom(val: string | number | boolean | undefined) {
   setTlZoom(val as TlZoomKeyLite)
 }
@@ -805,6 +830,11 @@ function changeTlZoom(val: string | number | boolean | undefined) {
 /* 逾期=朱砂（出现即重要，验收 3） */
 .cal-band--overdue {
   background: var(--zs);
+  color: #fff;
+}
+/* 临期=藤黄预警（oimimo 吸纳批六：今天截稿或剩余 ≤3 天；语义在逾期与常规之间） */
+.cal-band--soon {
+  background: var(--th);
   color: #fff;
 }
 /* 已完成=石绿 */

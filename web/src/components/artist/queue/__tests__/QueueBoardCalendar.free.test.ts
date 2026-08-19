@@ -131,4 +131,19 @@ describe('QueueBoardCalendar 可接单/逾期判定（a1-6/a1-7）', () => {
     expect((wrapper.vm as unknown as CalVm).bandClass(todayOrder)).not.toContain('cal-band--overdue')
     expect((wrapper.vm as unknown as CalVm).bandClass(yesterdayOrder)).toContain('cal-band--overdue')
   })
+
+  // oimimo 吸纳批六：临期预警（今天截稿或剩余 ≤3 天 → 藤黄；>3 天常规；逾期/终态优先）
+  it('临期：剩余 0〜3 天标 soon，4 天起回常规，逾期不受影响', () => {
+    const wrapper = mountCal()
+    const mk = (id: number, deadline: string, status = 'wip', zone = 'formal') =>
+      ({ id, status, deadline, order_no: `N${id}`, client_name: 'x', tier_name: 't', _zone: zone })
+    const bandClass = (wrapper.vm as unknown as CalVm).bandClass
+
+    expect(bandClass(mk(1, '2026-08-15'))).toContain('cal-band--soon') // 今天截稿
+    expect(bandClass(mk(2, '2026-08-18'))).toContain('cal-band--soon') // 剩 3 天
+    expect(bandClass(mk(3, '2026-08-19'))).not.toContain('cal-band--soon') // 剩 4 天回常规
+    expect(bandClass(mk(4, '2026-08-19'))).toContain('cal-band--formal')
+    expect(bandClass(mk(5, '2026-08-14'))).toContain('cal-band--overdue') // 逾期优先于临期
+    expect(bandClass(mk(6, '2026-08-15', 'done'))).toContain('cal-band--done') // 终态优先
+  })
 })

@@ -332,6 +332,16 @@ export const totpRebindApi = {
     postJson('/auth/totp/rebind-confirm', data)
 }
 
+// ─── oimimo 吸纳批一：日历订阅（ICS）——手机日历同步排期与截稿日 ───
+export const calendarFeedApi = {
+  get: (): Promise<import('./types.js').CalendarFeedResult> =>
+    getJson('/artist/calendar-feed'),
+  setEnabled: (enabled: boolean): Promise<import('./types.js').CalendarFeedResult> =>
+    putJson('/artist/calendar-feed', { enabled }),
+  rotate: (): Promise<import('./types.js').CalendarFeedResult> =>
+    postJson('/artist/calendar-feed/rotate')
+}
+
 // ─── REQ-041: 管理后台二次验证（会话升级） ───
 export const stepUpApi = {
   /** 入口级探测：200=已升级且在 30 分钟窗口内；401 STEP_UP_REQUIRED=需弹验证对话框 */
@@ -444,6 +454,9 @@ export const artistApi = {
   // t1 围剿：收入汇总（订单收款+散单，口径与导出 CSV 一致）
   getIncomeSummary: (params: { from: string; to: string }): Promise<IncomeSummaryResult> =>
     getJson('/artist/tools/income-summary', { params }),
+  // oimimo 吸纳批四：月度收入趋势（与 income-summary 同源同口径，近 N 月连续补 0）
+  getIncomeMonthly: (params: { months?: number } = {}): Promise<import('./types.js').IncomeMonthlyResult> =>
+    getJson('/artist/tools/income-monthly', { params }),
   // 订单
   getOrders: (status: string | undefined, { page, pageSize, q, sort }: { page?: number; pageSize?: number; q?: string; sort?: string } = {}): Promise<ArtistOrdersResult> =>
     getJson('/artist/orders', { params: { status, page, pageSize, q, sort } }),

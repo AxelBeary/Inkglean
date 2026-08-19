@@ -71,6 +71,7 @@ import { migration as v65 } from './v65-cancel-undo-windows.js'
 import { migration as v66 } from './v66-deliverables-one-time-download.js'
 import { migration as v67 } from './v67-greeting-slot-rework.js'
 import { migration as v68 } from './v68-artists-guestbook-enabled.js'
+import { migration as v69 } from './v69-artists-calendar-feed.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -92,6 +93,7 @@ export const MIGRATIONS: Migration[] = [
   v66,
   v67,
   v68,
+  v69,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错

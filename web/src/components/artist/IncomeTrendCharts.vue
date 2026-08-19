@@ -1,0 +1,188 @@
+<template>
+  <div class="itc">
+    <div v-if="loading" class="itc-loading">{{ $t('toolsExport.incomeLoading') }}</div>
+    <template v-else-if="loadFailed">
+      <p class="itc-empty">{{ $t('toolsExport.incomeTrendFailed') }}</p>
+    </template>
+    <template v-else>
+      <p v-if="empty" class="itc-empty">{{ $t('toolsExport.incomeTrendEmpty') }}</p>
+      <div v-show="!empty" class="itc-grid">
+        <div class="itc-cell">
+          <h4 class="itc-cell-title">{{ $t('toolsExport.incomeMonthlyTitle') }}</h4>
+          <div class="itc-canvas-wrap"><canvas ref="barCanvas"></canvas></div>
+        </div>
+        <div class="itc-cell">
+          <h4 class="itc-cell-title">{{ $t('toolsExport.incomeCumulativeTitle') }}</h4>
+          <div class="itc-canvas-wrap"><canvas ref="lineCanvas"></canvas></div>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+// oimimo 吸纳批四：收入趋势图（月度堆叠柱 + 累计折线）
+// 数据源与页面收入概览/导出 CSV 同源同口径（订单收款流水 + 散单记账，按到账日归属本地月）；
+// Chart.js 动态加载（独立 chunk，不用图表的页面不承担体积）
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
+import type { ChartConfiguration } from 'chart.js'
+import { artistApi } from '../../api/index.js'
+import { formatYuan } from '../../utils/money.js'
+import { INK_PALETTE } from '../../utils/ink-palette.js'
+import { buildCumulative, isIncomeEmpty, monthLabels } from '../../utils/income-chart.js'
+import type { IncomeMonthLike } from '../../utils/income-chart.js'
+
+/** 图表实例最小形状（不导出 Chart 类型依赖到组件签名） */
+interface ChartLike { destroy: () => void }
+
+const { t, locale } = useI18n()
+
+const rows = ref<IncomeMonthLike[]>([])
+const loading = ref(false)
+const loadFailed = ref(false)
+const empty = computed(() => isIncomeEmpty(rows.value))
+
+const barCanvas = ref<HTMLCanvasElement | null>(null)
+const lineCanvas = ref<HTMLCanvasElement | null>(null)
+let barChart: ChartLike | null = null
+let lineChart: ChartLike | null = null
+
+function destroyCharts() {
+  barChart?.destroy()
+  lineChart?.destroy()
+  barChart = null
+  lineChart = null
+}
+
+async function renderCharts() {
+  if (empty.value || !barCanvas.value || !lineCanvas.value) return
+  const { default: Chart } = await import('chart.js/auto')
+  destroyCharts()
+
+  const labels = monthLabels(rows.value, locale.value)
+  const axisColor = INK_PALETTE.ink3
+  const gridColor = INK_PALETTE.line
+
+  // 月度收入：订单收款 + 散单堆叠（宣纸色谱：花青/松绿）
+  const barConfig: ChartConfiguration<'bar'> = {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: t('toolsExport.incomeOrder'),
+          data: rows.value.map(r => r.orderCents / 100),
+          backgroundColor: INK_PALETTE.hq,
+          stack: 'income'
+        },
+        {
+          label: t('toolsExport.incomeStandalone'),
+          data: rows.value.map(r => r.standaloneCents / 100),
+          backgroundColor: INK_PALETTE.sl,
+          stack: 'income'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: INK_PALETTE.ink2 } } },
+      scales: {
+        x: { stacked: true, ticks: { color: axisColor }, grid: { display: false } },
+        y: {
+          stacked: true,
+          ticks: { color: axisColor, callback: (value) => formatYuan(Number(value) * 100) },
+          grid: { color: gridColor }
+        }
+      }
+    }
+  }
+
+  // 累计：滚动 12 月窗口逐月累加（朱砂单线）
+  const lineConfig: ChartConfiguration<'line'> = {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: t('toolsExport.incomeCumulativeTitle'),
+        data: buildCumulative(rows.value).map(c => c / 100),
+        borderColor: INK_PALETTE.zs,
+        backgroundColor: INK_PALETTE.zsT,
+        pointBackgroundColor: INK_PALETTE.zs,
+        fill: true,
+        tension: 0.25
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: axisColor }, grid: { display: false } },
+        y: {
+          ticks: { color: axisColor, callback: (value) => formatYuan(Number(value) * 100) },
+          grid: { color: gridColor }
+        }
+      }
+    }
+  }
+
+  barChart = new Chart(barCanvas.value, barConfig) as unknown as ChartLike
+  lineChart = new Chart(lineCanvas.value, lineConfig) as unknown as ChartLike
+}
+
+async function load() {
+  loading.value = true
+  loadFailed.value = false
+  let fetched: IncomeMonthLike[] = []
+  try {
+    const res = await artistApi.getIncomeMonthly({ months: 12 })
+    fetched = res.months
+  } catch {
+    loadFailed.value = true
+  } finally {
+    loading.value = false
+  }
+  if (loadFailed.value) return
+  // 时序关键：先落 loading=false 让画布进 DOM，再等一拍渲染图表（首版在 loading 态画布缺席导致画不出，测试抓出）
+  rows.value = fetched
+  await nextTick()
+  await renderCharts()
+}
+
+onMounted(() => { void load() })
+onBeforeUnmount(destroyCharts)
+</script>
+
+<style scoped>
+/* 纸墨 token 体系，亮暗双主题自动适配 */
+.itc-loading,
+.itc-empty {
+  padding: 16px 0;
+  color: var(--ink3);
+  font-size: calc(var(--font-scale, 1) * 13px);
+}
+.itc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+@media (max-width: 960px) {
+  .itc-grid { grid-template-columns: 1fr; }
+}
+.itc-cell { min-width: 0; }
+.itc-cell-title {
+  margin: 0 0 8px;
+  font-size: calc(var(--font-scale, 1) * 14px);
+  font-weight: 600;
+  color: var(--ink);
+}
+.itc-canvas-wrap {
+  height: 240px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--paper2);
+}
+</style>

@@ -79,6 +79,18 @@
 
       <p class="tools-export-note">{{ $t('toolsExport.note') }}</p>
     </div>
+
+    <!-- oimimo 吸纳批四：收入趋势图（与上方收入概览/导出 CSV 同源同口径） -->
+    <div class="page-card export-panel">
+      <div class="group-head">{{ $t('toolsExport.incomeTrend') }}</div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ $t('toolsExport.incomeTrendLabel') }}</div>
+          <div class="desc">{{ $t('toolsExport.incomeTrendDesc') }}</div>
+        </div>
+      </div>
+      <IncomeTrendCharts />
+    </div>
   </div>
 </template>
 
@@ -90,6 +102,7 @@ import { formatYuan } from '../../utils/money.js'
 import { todayStr } from '../../utils/datetime.js'
 import { artistApi } from '../../api/index.js'
 import { useArtistStore } from '../../stores/artist.js'
+import IncomeTrendCharts from '../../components/artist/IncomeTrendCharts.vue'
 import type { IncomeSummaryResult } from '../../api/types.js'
 
 const { t } = useI18n()
