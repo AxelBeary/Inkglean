@@ -40,7 +40,8 @@ const ALLOWLIST = {
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
   'web/src/components/templates/TplGallery.vue': 896,
   'web/src/components/artist/queue/QueueBoardList.vue': 872,
-  'web/src/views/artist/ArtworkManage.vue': 867
+  // v146 追认：ArtworkManage +1 = 页宽容器查询收尾批注释行（@media→@container 改造标记，出处在案）
+  'web/src/views/artist/ArtworkManage.vue': 868
 }
 
 const SCOPES = ['server/src', 'web/src']
