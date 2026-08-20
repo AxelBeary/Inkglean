@@ -24,12 +24,15 @@ const ALLOWLIST = {
   'server/src/features/admin/admin.routes.ts': 1059,
   'server/src/features/pricing/style.service.ts': 1041,
   // 下两项为纯类型/接口契约聚集仓（深度分析报告「可接受暂缓」裁决），
-  // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）
-  'web/src/api/types.ts': 1782,
-  'web/src/api/index.ts': 829,
+  // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）；
+  // v144 自定义首页批一再追认：DashboardPrefs 契约类型 +21 / 读写两方法 +4（骨架批必需契约，出处在案）
+  'web/src/api/types.ts': 1803,
+  'web/src/api/index.ts': 833,
   'web/src/views/admin/ArtistManage.vue': 1109,
-  'web/src/components/ArtistLayout.vue': 950,
-  'web/src/views/artist/PriceCard.vue': 1008,
+  // v144 追认：ArtistLayout +43 = 页宽三档生效机制（prefs 拉取/pageWidthStyle/container-type 注释）；
+  // PriceCard +1 = 页宽归一批注释行。另：计数口径修正（CRLF 归一）后冻结值统一按总行口径重钉
+  'web/src/components/ArtistLayout.vue': 993,
+  'web/src/views/artist/PriceCard.vue': 1009,
   'web/src/views/artist/Login.vue': 977,
   'web/src/components/artist/ArtStyleManager.vue': 941,
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
@@ -62,7 +65,7 @@ const files = SCOPES.flatMap(s => walk(join(ROOT, s))).filter(f => !EXCLUDE.test
 
 for (const f of files) {
   const rel = norm(f).replace(norm(ROOT) + '/', '')
-  const lines = readFileSync(f, 'utf8').split(/\r?\n/).filter((l, i, a) => !(i === a.length - 1 && l === '')).length
+  const lines = readFileSync(f, 'utf8').replaceAll('\r', '').split('\n').filter((l, i, a) => !(i === a.length - 1 && l === '')).length
   const frozen = ALLOWLIST[rel]
   if (frozen !== undefined) {
     if (lines > frozen) violations.push(`${rel}: ${lines} 行 > 冻结值 ${frozen}（豁免文件只许拆小不许再长）`)
