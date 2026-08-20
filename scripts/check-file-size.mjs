@@ -17,12 +17,16 @@ import { join } from 'path'
 const ROOT = process.argv[2] || '.'
 const LIMIT = 800
 
-// 历史巨型文件豁免名单（登记日 2026-08-20，冻结值=master HEAD 实测行数，只许拆小不许再长）
+// 历史巨型文件豁免名单（登记日 2026-08-20，冻结值=实测总行数，只许拆小不许再长；
+// 调高冻结值须一号裁决并在此注明出处）
 // 格式：相对仓库根的 POSIX 路径 → 冻结行数
 const ALLOWLIST = {
   'server/src/features/admin/admin.routes.ts': 1059,
   'server/src/features/pricing/style.service.ts': 1041,
-  'web/src/api/types.ts': 1756,
+  // 下两项为纯类型/接口契约聚集仓（深度分析报告「可接受暂缓」裁决），
+  // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）
+  'web/src/api/types.ts': 1782,
+  'web/src/api/index.ts': 829,
   'web/src/views/admin/ArtistManage.vue': 1109,
   'web/src/components/ArtistLayout.vue': 950,
   'web/src/views/artist/PriceCard.vue': 1008,
@@ -31,8 +35,7 @@ const ALLOWLIST = {
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
   'web/src/components/templates/TplGallery.vue': 896,
   'web/src/components/artist/queue/QueueBoardList.vue': 872,
-  'web/src/views/artist/ArtworkManage.vue': 867,
-  'web/src/api/index.ts': 824
+  'web/src/views/artist/ArtworkManage.vue': 867
 }
 
 const SCOPES = ['server/src', 'web/src']
