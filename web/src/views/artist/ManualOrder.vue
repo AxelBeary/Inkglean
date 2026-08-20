@@ -68,20 +68,41 @@
       </div>
     </el-form>
 
-    <!-- REQ-035 §五 MVP-1: 粘贴消息解析弹窗（解析→确认→回填，不自动提交） -->
+    <!-- REQ-035 §五 MVP-1: 粘贴消息解析弹窗（解析→确认→回填，不自动提交）；820 第二批：叠加本地图片识别 -->
     <el-dialog v-model="parseDialogVisible" :title="$t('manualOrder.parseDialogTitle')" width="480px">
-      <el-input
-        v-model="parseInput"
-        type="textarea"
-        :rows="6"
-        :placeholder="$t('manualOrder.parsePlaceholder')"
-        resize="vertical"
-      />
+      <!-- 820: paste 事件在容器层拦截图片粘贴（文字粘贴不拦截，照旧进文本框） -->
+      <div @paste="onParsePaste">
+        <el-input
+          v-model="parseInput"
+          type="textarea"
+          :rows="6"
+          :placeholder="$t('manualOrder.parsePlaceholder')"
+          resize="vertical"
+        />
+        <div class="parse-ocr-row">
+          <el-button size="small" :icon="Picture" :loading="ocrBusy" @click="ocrFileInput?.click()">
+            {{ $t('manualOrder.parseImageBtn') }}
+          </el-button>
+          <span class="parse-tip">{{ ocrBusy ? $t('manualOrder.parseImageBusy') : $t('manualOrder.parseImageTip') }}</span>
+          <input
+            ref="ocrFileInput"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/bmp,image/gif"
+            style="display:none"
+            @change="onOcrPick"
+          >
+        </div>
+      </div>
       <div class="parse-result" v-if="parseResult">
         <div class="parse-row">
           <span class="parse-key">{{ $t('manualOrder.parseQqLabel') }}</span>
           <el-tag v-if="parseResult.clientQq" type="success">{{ parseResult.clientQq }}</el-tag>
           <span v-else class="parse-empty">{{ $t('manualOrder.parseQqEmpty') }}</span>
+        </div>
+        <div class="parse-row">
+          <span class="parse-key">{{ $t('manualOrder.parseNameLabel') }}</span>
+          <el-tag v-if="parseResult.clientName" type="success">{{ parseResult.clientName }}</el-tag>
+          <span v-else class="parse-empty">{{ $t('manualOrder.parseNone') }}</span>
         </div>
         <div class="parse-row">
           <span class="parse-key">{{ $t('manualOrder.parseAmountLabel') }}</span>
@@ -122,20 +143,21 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { artistApi, artistPublicApi } from '../../api/index.js'
-import type { ArtistOrderItem, PublicArtStyle, PublicPricingResult, WorkflowStageDTO, ClientProfile, ClientSummary } from '../../api/types.js'
+import { artistApi, artistPublicApi } from '../../api/index'
+import type { ArtistOrderItem, PublicArtStyle, PublicPricingResult, WorkflowStageDTO, ClientProfile, ClientSummary } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { FETCH_ALL_PAGE_SIZE } from '../../constants/pagination.js'
+import { FETCH_ALL_PAGE_SIZE } from '../../constants/pagination'
 import { useI18n } from 'vue-i18n'
-import { trackEvent } from '../../utils/track.js'
-import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage.js'
+import { trackEvent } from '../../utils/track'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage'
 import ManualOrderLeft from '../../components/artist/order/ManualOrderLeft.vue'
 import ManualOrderRight from '../../components/artist/order/ManualOrderRight.vue'
-import { parseMessage } from '../../utils/message-parser.js'
-import { parseReorderFill, buildReorderTextPrefill, buildReorderRefs, findReorderStyleTarget } from '../../utils/reorderFill.js'
-import { MAX_IMAGE_COUNT } from '../../constants/upload.js'
-import { ChatDotRound } from '@element-plus/icons-vue'
+import { parseMessage } from '../../utils/message-parser'
+import { recognizeImageText, OcrError, OCR_MAX_SIZE_MB } from '../../utils/ocr'
+import { parseReorderFill, buildReorderTextPrefill, buildReorderRefs, findReorderStyleTarget } from '../../utils/reorderFill'
+import { MAX_IMAGE_COUNT } from '../../constants/upload'
+import { ChatDotRound, Picture } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -184,11 +206,55 @@ function doParseMessage() {
   parseResult.value = parseMessage(parseInput.value)
 }
 
-/** 预填后人工确认：只回填识别到的 clientQq/description，金额/日期仅提示不自动填 */
+// ─── 820 第二批：本地图片识别（截图→文字→走上方解析管线；懒加载，首次使用才下载识别库）───
+const ocrBusy = ref(false)
+const ocrFileInput = ref<HTMLInputElement | null>(null)
+
+async function runOcr(file: File | undefined | null) {
+  if (!file || ocrBusy.value) return
+  ocrBusy.value = true
+  try {
+    const text = await recognizeImageText(file)
+    if (!text) {
+      ElMessage.warning(t('manualOrder.parseImageEmpty'))
+      return
+    }
+    // 识别文本回填文本框并自动解析，由用户在确认页核对（与文字粘贴同口径，不自动提交）
+    parseInput.value = text
+    doParseMessage()
+    ElMessage.success(t('manualOrder.parseImageDone'))
+  } catch (e) {
+    const kind = e instanceof OcrError ? e.kind : 'recognize-failed'
+    if (kind === 'not-image') ElMessage.warning(t('manualOrder.parseImageNotImage'))
+    else if (kind === 'too-big') ElMessage.error(t('manualOrder.parseImageTooBig', { max: OCR_MAX_SIZE_MB }))
+    else ElMessage.error(t('manualOrder.parseImageFailed'))
+  } finally {
+    ocrBusy.value = false
+    if (ocrFileInput.value) ocrFileInput.value.value = ''
+  }
+}
+
+function onOcrPick(e: Event) {
+  const input = e.target as HTMLInputElement
+  runOcr(input.files?.[0])
+}
+
+/** 粘贴拦截：剪贴板带图片 → 走识别；纯文字粘贴不拦截，照旧进文本框 */
+function onParsePaste(e: ClipboardEvent) {
+  const files = e.clipboardData?.files
+  if (!files || files.length === 0) return
+  const image = Array.from(files).find(f => f.type.startsWith('image/'))
+  if (!image) return
+  e.preventDefault()
+  runOcr(image)
+}
+
+/** 预填后人工确认：只回填识别到的 clientQq/clientName/description，金额/日期仅提示不自动填 */
 function applyParseResult() {
   const r = parseResult.value
   if (!r) return
   if (r.clientQq) form.clientQq = r.clientQq
+  if (r.clientName) form.clientName = r.clientName
   if (r.description) form.description = r.description
   parseDialogVisible.value = false
   ElMessage.success(t('manualOrder.parseApplied'))
@@ -672,6 +738,11 @@ onUnmounted(() => {
 .parse-key { color: var(--ink2); width: 76px; flex: none; }
 .parse-empty { color: var(--ink3); }
 .parse-tip { margin: 2px 0 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+/* 820 第二批：图片识别行（按钮 + 提示，与解析结果同纸面底色） */
+.parse-ocr-row {
+  margin-top: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
 
 /* ─── 响应式：手机（<600px）底部钉住价格条（价格条本体在 ManualOrderRight） ─── */
 @media (max-width: 599px) {

@@ -1443,6 +1443,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     parseBtn: 'Parse',
     parseQqLabel: 'Client QQ',
     parseQqEmpty: 'Not detected (leave blank and fill in manually)',
+    parseNameLabel: 'Client name',
     parseAmountLabel: 'Amount hint',
     parseAmountValue: '{amount} CNY',
     parseDeadlineLabel: 'Deadline hint',
@@ -1450,6 +1451,15 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     parseConfirmTip: 'Amount and deadline are hints only — never auto-filled. Please review before filling in.',
     parseApply: 'Fill into form',
     parseApplied: 'Filled into the form — please review before submitting',
+    // 820 batch 2: local image OCR (lazy-loaded from public CDN; first use downloads OCR data)
+    parseImageBtn: 'Read image',
+    parseImageBusy: 'Recognizing… first use downloads a few MB of OCR data, please wait',
+    parseImageTip: 'Paste a chat screenshot with Ctrl+V — text is read and parsed automatically',
+    parseImageEmpty: 'No text found in the image — try a clearer screenshot',
+    parseImageDone: 'Text extracted — review the text and parsed results above',
+    parseImageNotImage: 'Please provide an image file (PNG/JPG/WebP/BMP/GIF)',
+    parseImageTooBig: 'Image exceeds {max}MB — please compress and retry',
+    parseImageFailed: 'Recognition failed: first use needs to download OCR data — check your network and retry',
     // Wave 3-2: init failure error state (pricing unavailable when subdomain is missing)
     initLoadFailed: 'Failed to load order-entry data. Pricing and style features may be unavailable. Please retry.'
   },
@@ -2556,6 +2566,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   // b4-10: message parsing hint display (locale-specific date formats)
   messageParser: {
     deadlineDay: 'before {day}',
-    deadlineDate: '{month}/{day}'
+    deadlineDate: '{month}/{day}',
+    deadlineDateBefore: 'before {month}/{day}',
+    deadlineFullDate: '{year}-{month}-{day}'
   }
 }

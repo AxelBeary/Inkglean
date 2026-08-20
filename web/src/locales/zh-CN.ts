@@ -1442,6 +1442,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     parseBtn: '解析',
     parseQqLabel: '客户QQ',
     parseQqEmpty: '未识别（留空，请手动填写）',
+    parseNameLabel: '客户昵称',
     parseAmountLabel: '金额线索',
     parseAmountValue: '{amount} 元',
     parseDeadlineLabel: '日期线索',
@@ -1449,6 +1450,15 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     parseConfirmTip: '金额与日期仅作线索提示，不会自动填入，请人工核对后填写。',
     parseApply: '填入表单',
     parseApplied: '已填入表单，请核对后提交',
+    // 820 第二批：本地图片识别（懒加载走公共 CDN，首次使用下载识别库）
+    parseImageBtn: '识别图片',
+    parseImageBusy: '正在识别…首次使用需下载几 MB 识别库，请稍候',
+    parseImageTip: '可直接 Ctrl+V 粘贴聊天截图，识别成文字后自动走解析',
+    parseImageEmpty: '图片里没认出文字，请换更清晰的截图',
+    parseImageDone: '识别完成，请核对上方文字与解析结果',
+    parseImageNotImage: '请提供图片文件（PNG/JPG/WebP/BMP/GIF）',
+    parseImageTooBig: '图片超过 {max}MB，请压缩后重试',
+    parseImageFailed: '识别失败：首次使用需联网下载识别库，请检查网络后重试',
     // 波3-2: 初始化失败错误态（subdomain/报价元数据失败时报价功能不可用要有感知）
     initLoadFailed: '录单数据加载失败，报价与画风功能可能不可用，请重试'
   },
@@ -2548,9 +2558,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     amountPositive: '定金金额须大于 0',
     dateRequired: '请选择日期'
   },
-  // b4-10: 消息解析线索显示（zh/en 各自日期格式）
+  // b4-10: 消息解析线索显示（zh/en 各自日期格式）；820 补全：月日前/完整年月日
   messageParser: {
     deadlineDay: '{day}号前',
-    deadlineDate: '{month}月{day}日'
+    deadlineDate: '{month}月{day}日',
+    deadlineDateBefore: '{month}月{day}日前',
+    deadlineFullDate: '{year}年{month}月{day}日'
   }
 }

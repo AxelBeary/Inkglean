@@ -54,8 +54,11 @@
 | simple-icons | CC0-1.0 |
 | vuedraggable | MIT |
 | chart.js | MIT |
+| tesseract.js | Apache-2.0 |
 | @sentry/vue | MIT |
 | vite / vitest / eslint 等开发依赖 | MIT / Apache-2.0 等 |
+
+> **tesseract.js 运行时说明（本地图片识别，手动录单「识别图片」功能）**：识别本身在用户浏览器本地完成，图片不上传任何服务器；但首次使用时会从公共 CDN 懒加载识别引擎与中文/英文语言数据（约几 MB，浏览器缓存后不再重复下载）。语言数据基于 Google 主导的 Tesseract OCR 项目（Apache-2.0）。如需离线/自托管，可将引擎与语言文件改为随部署包分发（web/src/utils/ocr.ts 头部注释有切换指引）。
 
 ### 后端（server/package.json）
 | 依赖 | 许可 |
@@ -101,4 +104,4 @@ cd server && npx license-checker --json > /tmp/server-licenses.json
 
 ---
 
-*最后更新：2026-08-20（新增 chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
+*最后更新：2026-08-20（新增 tesseract.js 依赖与运行时 CDN 说明；此前：新增 chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
