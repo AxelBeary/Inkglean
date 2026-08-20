@@ -134,6 +134,7 @@ import type {
   SubmitReportResult,
   TodoResult,
   ScheduleResult,
+  DashboardPrefs,
   ToggleDiscountResult,
   ToolsClientResult,
   ToolsClientsResult,
@@ -573,6 +574,9 @@ export const artistApi = {
   getDashboardActivity: (): Promise<ActivityResult> => getJson('/artist/dashboard/activity'),
   /** 近 7 日排期条（视觉批：排期卷轴数据源） */
   getDashboardSchedule: (): Promise<ScheduleResult> => getJson('/artist/dashboard/schedule'),
+  /** 自定义首页批一（v70）：仪表盘布局偏好读写（服务端归一化，坏数据落默认永不报错） */
+  getDashboardPrefs: (): Promise<DashboardPrefs> => getJson('/artist/dashboard/prefs'),
+  putDashboardPrefs: (prefs: Partial<DashboardPrefs>): Promise<DashboardPrefs> => putJson('/artist/dashboard/prefs', prefs),
   // REQ-043 I2: 开张任务卡（后端标记，前端不靠 localStorage）
   getOnboarding: (): Promise<OnboardingState> => getJson('/artist/onboarding'),
   dismissOnboarding: (): Promise<{ dismissed: true }> => postJson('/artist/onboarding/dismiss', {}),

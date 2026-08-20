@@ -174,7 +174,9 @@
         <el-main class="main-content">
           <!-- 02C: 内容区过渡（导航稳定；keyed div 触发 fade-slide——后台路由切换只动这里） -->
           <transition name="fade-slide" mode="out-in">
-            <div :key="$route.path" class="main-content-inner">
+            <!-- 页宽归一批：内容容器 = 页宽唯一生效点（三档对齐 + --page-max-w 由 pageWidthStyle 内联下发，
+                 各页页级容器不再各自限宽）；container-type: inline-size 同时是页内容器查询上下文 -->
+            <div :key="$route.path" class="main-content-inner" :style="pageWidthStyle">
               <slot />
             </div>
           </transition>
@@ -484,6 +486,7 @@ onMounted(() => {
   applyFontSizeFromStorage()
   applyAnimSpeedFromStorage()
   applyReduceMotionFromStorage()
+  loadPagePrefs() // 页宽归一批：页宽偏好拉取（失败静默落默认）
   validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
   // 0817 报障配套：刷新/直达时 store 尚无 profile，导航开关（统计/留言）判定依赖它——
   // 预拉一次让「未知」窗口期尽量短（失败静默，fetchProfile 内部已有 401 登出守卫）
@@ -559,6 +562,9 @@ function onVisibilityChange() {
 // 窗口变宽时自动关闭抽屉
 watch(isMobile, (mobile) => { if (!mobile) drawerVisible.value = false })
 
+// 页宽归一批：布局全会话单挂载，路由变化时重拉页宽偏好（Preferences 保存后回首页自然生效，无跨页广播）
+watch(() => route.path, () => { loadPagePrefs() })
+
 /** 实际折叠状态：窄屏强制折叠，否则尊重用户偏好 */
 const collapsed = computed(() => isNarrow.value || userCollapsed.value)
 const asideWidth = computed(() => collapsed.value ? '64px' : '230px')
@@ -593,6 +599,34 @@ function applyAnimSpeedFromStorage() {
 function applyReduceMotionFromStorage() {
   applyReduceMotion(readReduceMotion())
 }
+
+// ─── 自定义首页施工批一（骨架批 D）：页面宽度三档全局生效 ───
+// 挂载时拉一次 getDashboardPrefs（失败静默落默认 center + 1200px）；布局为全会话
+// 单挂载（ArtistLayoutRoute 嵌套路由），故另 watch 路由变化重拉——Preferences 页保存后
+// 用户回首页自然重拉生效，无需跨页广播事件。
+const pageAlign = ref<'left' | 'center' | 'full'>('center')
+const pageMax = ref(1200)
+
+async function loadPagePrefs() {
+  try {
+    const prefs = await artistApi.getDashboardPrefs()
+    pageAlign.value = prefs.pageAlign
+    pageMax.value = prefs.pageMax
+  } catch { /* 非关键路径：失败静默落默认 center + 1200px */ }
+}
+
+/** 内容容器内联样式：center=限宽居中 / left=限宽靠左 / full=不限宽；
+ *  同时下发 --page-max-w 供页级容器消费（max-width 天然不超视口，窄屏免兜底） */
+const pageWidthStyle = computed(() => {
+  const style: Record<string, string> = { '--page-max-w': `${pageMax.value}px` }
+  if (pageAlign.value !== 'full') {
+    style.maxWidth = `${pageMax.value}px`
+    style.marginLeft = pageAlign.value === 'left' ? '0' : 'auto'
+    style.marginRight = 'auto'
+  }
+  return style
+})
+
 
 const statusClass = computed(() => {
   const s = store.profile?.status || 'open'
@@ -900,6 +934,15 @@ const { validateSession } = useSessionGuard()
   background: var(--paper);
   padding: 24px 28px;
   /* K1（波2，灰沼教训）：主内容区底色随主题即时切换，不插值 */
+}
+/* ─── 页宽归一批：内容容器页宽口径 + 容器查询上下文 ───
+   max-width/margin 由 pageWidthStyle 内联下发（三档对齐）；
+   container-type: inline-size 使页内多列断点（如 OrderDetail 双列）改认容器宽，
+   防「窗口宽而页窄时双列发挤」。项目目标浏览器（现代 Chromium/Safari/Firefox）
+   均支持 container queries，无需 fallback；≤960px 既有响应式断点保持不动。
+   注：不设 width:100%——宽度 auto 时内联 margin auto 才能在限宽档居中/靠左生效。 */
+.main-content-inner {
+  container-type: inline-size;
 }
 @media (max-width: 600px) {
   .main-content { padding: 16px 14px; }

@@ -461,8 +461,9 @@ onMounted(() => {
 
 <style scoped>
 /* v127④：去居中窄列（原 640px + margin auto），改与主页设置同口径的左对齐 860px 内容带 */
+/* 页宽归一批：移除页级限宽 860px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
 .account-security {
-  max-width: 860px;
+  max-width: none;
 }
 .page-title {
   font-size: calc(var(--font-scale, 1) * 28px);

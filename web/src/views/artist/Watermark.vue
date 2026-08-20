@@ -511,7 +511,8 @@ async function exportImage() {
 
 <style scoped>
 /* 纸墨 token（--card/--line/--ink/--hq），双主题亮暗自适应 */
-.watermark-page { padding: 24px; max-width: 1100px; }
+/* 页宽归一批：移除页级限宽 1100px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
+.watermark-page { padding: 24px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; margin-bottom: 4px; }
 
 .wm-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; margin-top: 20px; align-items: start; }

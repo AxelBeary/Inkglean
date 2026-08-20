@@ -175,7 +175,8 @@ onMounted(loadClients)
 
 <style scoped>
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
-.clients-page { padding: 24px; max-width: 960px; }
+/* 页宽归一批：移除页级限宽 960px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
+.clients-page { padding: 24px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .clients-toolbar { margin-top: 20px; display: flex; align-items: center; }
 .clients-search { width: 260px; }

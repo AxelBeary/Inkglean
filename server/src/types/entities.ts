@@ -53,8 +53,10 @@ export interface Artist {
   announcement_expires_at: string | null
   monthly_quota: number | null
   multi_style_enabled: number
-  // 视觉批 P2（v61）：看板模块开关 JSON（null=全部显示；键 schedule/guestbook/activity/onboarding）
+  // 视觉批 P2（v61）：看板模块开关 JSON（null=全部显示；键 schedule/guestbook/activity/onboarding）——已被 dashboard_prefs 吞并，冻结只读
   dashboard_modules: string | null
+  // 自定义首页批一（v70）：仪表盘布局偏好 JSON（schema v1；null=默认布局）
+  dashboard_prefs: string | null
   // REQ-043（v60）: 开张任务卡后端标记（自然达成 / 主动「不再提示」）
   onboarded_at: string | null
   onboarding_dismissed_at: string | null

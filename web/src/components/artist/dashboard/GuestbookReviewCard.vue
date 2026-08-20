@@ -15,10 +15,10 @@
   <!-- 空状态 -->
   <InkEmpty v-else-if="!guestbookMessages.length" :title="$t('dashboard.guestbookEmpty')" />
 
-  <!-- 留言列表 -->
+  <!-- 留言列表（自定义首页批一：maxRows 组件内截断，拉取逻辑不变；pendingCount 仍统计全量） -->
   <div v-else class="gb-mod-list">
     <div
-      v-for="m in guestbookMessages" :key="m.id"
+      v-for="m in visibleMessages" :key="m.id"
       class="gb-mod-item" :class="{ 'gb-mod-item--pending': m.status === 'pending' }"
     >
       <div class="gb-mod-head">
@@ -51,6 +51,7 @@
         </el-button>
       </div>
     </div>
+    <p v-if="hiddenCount > 0" class="row-more">{{ t('dashboard.listMore', { n: hiddenCount }) }}</p>
   </div>
 </template>
 
@@ -67,9 +68,20 @@ import InkEmpty from '../visual/InkEmpty.vue'
 
 const { t } = useI18n()
 
+// 自定义首页批一：显示行数上限（0=全部；父层消费 prefs.density.guestbook），只截显示不改拉取
+const props = withDefaults(defineProps<{
+  maxRows?: number
+}>(), {
+  maxRows: 0
+})
+
 const state = ref<'loading' | 'ok' | 'error'>('loading')
 const guestbookMessages = ref<GuestbookMessage[]>([])
 const replyDrafts = reactive<Record<string, string>>({})
+
+/** 密度截断：maxRows>0 时只显示前 N 条 */
+const visibleMessages = computed(() => props.maxRows > 0 ? guestbookMessages.value.slice(0, props.maxRows) : guestbookMessages.value)
+const hiddenCount = computed(() => props.maxRows > 0 ? Math.max(0, guestbookMessages.value.length - props.maxRows) : 0)
 
 const pendingCount = computed(() => guestbookMessages.value.filter((m: GuestbookMessage) => m.status === 'pending').length)
 
@@ -135,6 +147,8 @@ defineExpose({ load, pendingCount })
   transition: background var(--dur-fast) var(--ease-out);
 }
 .gb-mod-item:last-child { border-bottom: none; }
+/* 密度截断提示（自定义首页批一） */
+.row-more { margin: 8px 4px 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink4); }
 .gb-mod-item:hover { background: var(--paper2); }
 /* 待审 = 账本里的藤黄墨线（同 LedgerTodo 逾期行的左线标记） */
 .gb-mod-item--pending { border-left: 3px solid var(--th); }

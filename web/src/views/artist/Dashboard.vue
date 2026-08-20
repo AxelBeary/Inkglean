@@ -1,53 +1,46 @@
 <template>
-  <!-- Dashboard 纸墨重排（视觉批 P1，原型 v0.9 落地）：
-       顶排 = 问候贴纸+统计三卡（左）｜挂牌+名额（右）；卷轴全宽；
-       主栅格 = 账本待办/留言审核/订单动态（左）｜开张任务/快捷（右）。
-       收入走势移出本页（提案 §6.1：钱不进日报，月度小结一行在账本底）。 -->
+  <!-- Dashboard prefs 驱动重构（自定义首页批一·骨架批）：
+       10 个板块（greet/plaque/stats/schedule/todo/guestbook/activity/announcement/onboarding/quick）
+       按 prefs.order 顺序渲染，prefs.hidden 中的不渲染；width=full 横跨整行（grid-column: 1/-1），
+       half 按顺序自动流进两列（保留 3fr/2fr 比例）；≤960px 单列堆叠。
+       density（0/3/5）经 maxRows 作用于 todo/guestbook/activity 三个列表板块（组件内部截断）。
+       批二内容本批不做：prefs.scheduleStyle/greetStyle/pageAlign/pageMax 与可选收入板块一律忽略。
+       系统控制优先（拍板纪律）：820-L 留言总闸、announcement 无数据不渲染——用户自定义压不过。 -->
   <div class="dashboard">
-    <div class="top-grid">
-      <div class="top-left enter-stagger" :style="{ '--stagger': 0 }">
-        <GreetingNote :stats="stats" />
-        <StatCards :stats="stats ?? undefined" />
-      </div>
-      <div class="top-right enter-stagger" :style="{ '--stagger': 1 }">
-        <PlaqueStatus />
-      </div>
-    </div>
-
-    <div class="enter-stagger" :style="{ '--stagger': 2 }" v-if="dashModules.schedule">
-      <ScheduleScroll />
-    </div>
-
     <div class="dash-grid">
-      <div class="area-left">
-        <div class="area enter-stagger" :style="{ '--stagger': 3 }">
-          <LedgerTodo :month-cents="stats?.monthRevenueCents ?? null" />
-        </div>
-        <div class="area enter-stagger" :style="{ '--stagger': 4 }" v-if="dashModules.guestbook">
-          <el-card>
-            <template #header>
-              <CardHead :title="t('dashboard.guestbookTitle')">
-                <template #extra>
-                  <StatusChip v-if="guestbookCardRef?.pendingCount && guestbookCardRef.pendingCount > 0" type="pend">{{ guestbookCardRef.pendingCount }}</StatusChip>
-                </template>
-              </CardHead>
-            </template>
-            <GuestbookReviewCard ref="guestbookCardRef" />
-          </el-card>
-        </div>
-        <div class="area enter-stagger" :style="{ '--stagger': 5 }" v-if="dashModules.activity">
-          <ActivityFeed />
-        </div>
-      </div>
-
-      <div class="area-right">
-        <!-- REQ-043 I2: 开张任务卡（后端标记隐藏）+ 视觉批 P2 模块开关 -->
-        <div class="area enter-stagger" :style="{ '--stagger': 6 }" v-if="dashModules.onboarding">
-          <OnboardingCard />
-        </div>
-        <div class="area enter-stagger" :style="{ '--stagger': 7 }">
-          <QuickActions />
-        </div>
+      <div
+        v-for="(panel, i) in layout"
+        :key="panel.id"
+        v-show="panel.id !== 'announcement' || annHasContent"
+        class="panel enter-stagger"
+        :class="{ 'panel--full': panel.width === 'full' }"
+        :style="{ '--stagger': i }"
+      >
+        <GreetingNote v-if="panel.id === 'greet'" :stats="stats" />
+        <PlaqueStatus v-else-if="panel.id === 'plaque'" />
+        <StatCards v-else-if="panel.id === 'stats'" :stats="stats ?? undefined" />
+        <ScheduleScroll v-else-if="panel.id === 'schedule'" />
+        <LedgerTodo
+          v-else-if="panel.id === 'todo'"
+          :month-cents="stats?.monthRevenueCents ?? null"
+          :max-rows="panel.maxRows"
+        />
+        <el-card v-else-if="panel.id === 'guestbook'">
+          <template #header>
+            <CardHead :title="t('dashboard.guestbookTitle')">
+              <template #extra>
+                <StatusChip v-if="guestbookCardRef?.pendingCount && guestbookCardRef.pendingCount > 0" type="pend">{{ guestbookCardRef.pendingCount }}</StatusChip>
+              </template>
+            </CardHead>
+          </template>
+          <GuestbookReviewCard ref="guestbookCardRef" :max-rows="panel.maxRows" />
+        </el-card>
+        <ActivityFeed v-else-if="panel.id === 'activity'" :max-rows="panel.maxRows" />
+        <!-- 无公告数据时整块不渲染（v-show 按卡内 hasContent，不管用户怎么排） -->
+        <DashboardAnnouncementCard v-else-if="panel.id === 'announcement'" ref="annCardRef" />
+        <!-- 开张任务系统显隐逻辑在 OnboardingCard 内部（完成/dismiss 后消失），优先于用户自定义 -->
+        <OnboardingCard v-else-if="panel.id === 'onboarding'" />
+        <QuickActions v-else />
       </div>
     </div>
   </div>
@@ -59,51 +52,55 @@ import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist'
 import { artistApi } from '../../api/index'
 import { subscribeReconnect } from '../../utils/reconnect'
-import type { ArtistStats } from '../../api/types'
+import { resolveDashboardLayout } from '../../utils/dashboard-layout'
+import type { ArtistStats, DashboardPrefs } from '../../api/types'
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'
-// 视觉批新组件（问候贴纸/挂牌+名额/排期卷轴/账本待办）
+// 视觉批组件（问候贴纸/状态挂牌/排期卷轴/账本待办）
 import GreetingNote from '../../components/artist/dashboard/GreetingNote.vue'
 import PlaqueStatus from '../../components/artist/dashboard/PlaqueStatus.vue'
 import ScheduleScroll from '../../components/artist/dashboard/ScheduleScroll.vue'
 import LedgerTodo from '../../components/artist/dashboard/LedgerTodo.vue'
-// 既有模块保留（P2 纸墨化）
+// 既有模块（P2 纸墨化）
 import StatCards from '../../components/artist/dashboard/StatCards.vue'
 import QuickActions from '../../components/artist/dashboard/QuickActions.vue'
 import ActivityFeed from '../../components/artist/dashboard/ActivityFeed.vue'
 import GuestbookReviewCard from '../../components/artist/dashboard/GuestbookReviewCard.vue'
 // REQ-043 I2: 开张任务卡
 import OnboardingCard from '../../components/artist/dashboard/OnboardingCard.vue'
+// 自定义首页批一：公告独立板块（自 GreetingNote 公告行拆出）
+import DashboardAnnouncementCard from '../../components/artist/dashboard/DashboardAnnouncementCard.vue'
 
 const { t } = useI18n()
 const store = useArtistStore()
 // getStats 返回 ArtistStats（含 monthRevenueCents 等）
 const stats = ref<ArtistStats | null>(null)
 
-// F4: 留言审核
-const guestbookCardRef = ref<{ pendingCount?: number; load: () => void } | null>(null)
-
-// 视觉批 P2：看板模块开关（profile.dashboard_modules JSON 串；null/坏值=全部显示）
-const dashModules = computed(() => {
-  const defaults = { schedule: true, guestbook: true, activity: true, onboarding: true }
-  // 820-L：留言功能整体关闭时，仪表盘留言模块强制隐藏（个人模块开关之外的总闸）
-  if ((store.profile as { guestbook_enabled?: number } | null)?.guestbook_enabled === 0) {
-    return { ...defaults, guestbook: false }
-  }
-  const raw = (store.profile as { dashboard_modules?: string | null } | null)?.dashboard_modules
-  if (!raw) return defaults
+// ─── 自定义首页批一：布局偏好（失败静默回落默认布局，不破坏页面） ───
+const prefs = ref<DashboardPrefs | null>(null)
+async function loadPrefs(): Promise<void> {
   try {
-    const m = JSON.parse(raw) as Partial<typeof defaults>
-    return {
-      schedule: m.schedule ?? true,
-      guestbook: m.guestbook ?? true,
-      activity: m.activity ?? true,
-      onboarding: m.onboarding ?? true
-    }
+    prefs.value = await artistApi.getDashboardPrefs()
   } catch {
-    return defaults
+    prefs.value = null // 回落默认布局（resolveDashboardLayout(null) = 默认 9 块）
   }
-})
+}
+
+// 820-L 留言总闸：profile guestbookEnabled 关闭时强制隐藏留言板块——用户自定义显示也压不过总闸
+const guestbookGated = computed(() =>
+  (store.profile as { guestbook_enabled?: number } | null)?.guestbook_enabled === 0
+)
+
+/** 最终渲染序列：prefs 解析 → 系统控制优先过滤（旧 dashModules 开关已被 prefs 吞并，不再消费） */
+const layout = computed(() =>
+  resolveDashboardLayout(prefs.value).filter(p => !(p.id === 'guestbook' && guestbookGated.value))
+)
+
+// F4: 留言审核（pendingCount 徽标 + 重连重拉）
+const guestbookCardRef = ref<{ pendingCount?: number; load: () => void } | null>(null)
+// 公告板块：无公告数据时整个板块不渲染（系统控制优先于用户排序/显隐）
+const annCardRef = ref<InstanceType<typeof DashboardAnnouncementCard> | null>(null)
+const annHasContent = computed(() => annCardRef.value?.hasContent ?? false)
 
 /** 仪表盘关键数据重拉 */
 async function refreshAll() {
@@ -114,6 +111,8 @@ async function refreshAll() {
     console.warn('[Dashboard] fetchProfile failed:', err)
   }
   try { stats.value = await artistApi.getStats() } catch { /* 各模块自带错误态，此处静默 */ }
+  // 批一：偏好重拉（失败静默回落，与首载同口径）
+  await loadPrefs()
   // F4: 留言审核（独立失败，不阻塞其他模块）
   guestbookCardRef.value?.load()
 }
@@ -129,55 +128,24 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ─── 顶排：问候+统计（左）｜挂牌（右） ─── */
-.top-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  align-items: start;
-  margin-bottom: 16px;
-}
-.top-left { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-
-/* ─── 主栅格（沿用既有断点体系） ─── */
+/* ─── prefs 驱动主栅格：两列 3fr/2fr（保留既有比例）；full 板块横跨整行 ─── */
 .dash-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 16px;
+}
+.panel { min-width: 0; }
+/* >960px 两列；≤960px 单列堆叠（窄屏既有断点纪律） */
+@media (min-width: 961px) {
+  .dash-grid {
+    grid-template-columns: 3fr 2fr;
+    align-items: start;
+  }
+  .panel--full { grid-column: 1 / -1; }
 }
 /* 812 追修（用户二次报障"全部挤在一起"）：竖屏模块间节奏加大，给呼吸感 */
 @media (max-width: 600px) {
   .dash-grid { gap: 20px; }
-}
-
-@media (min-width: 769px) {
-  .dash-grid {
-    display: grid;
-    grid-template-columns: 3fr 2fr;
-    column-gap: 16px;
-    row-gap: 16px;
-    align-items: start;
-  }
-  .area-left {
-    grid-column: 1;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .area-right {
-    grid-column: 2;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-}
-
-/* ≤960：顶排收单列，挂牌居中收窄（响应式规则：问候→挂牌→统计→卷轴→账本） */
-@media (max-width: 960px) {
-  .top-grid { grid-template-columns: 1fr; }
-  .top-left .stat-cards-wrap { order: 2; }
 }
 
 @keyframes dash-enter {

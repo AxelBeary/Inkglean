@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS artists (
   last_login_at TEXT,
   last_greeting_shown_at TEXT,
   dashboard_modules TEXT DEFAULT NULL,
+  -- 自定义首页批一（v70）: 仪表盘布局偏好 JSON（schema v1；NULL=默认布局；吞并 dashboard_modules）
+  dashboard_prefs TEXT DEFAULT NULL,
   -- oimimo 吸纳批一（v69）: 日历订阅（ICS）开关与私密令牌——令牌即凭证，可旋转
   calendar_feed_enabled INTEGER NOT NULL DEFAULT 0,
   calendar_feed_token TEXT DEFAULT NULL,

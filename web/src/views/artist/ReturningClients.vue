@@ -98,7 +98,8 @@ onMounted(loadClients)
 
 <style scoped>
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
-.returning-page { padding: 24px; max-width: 960px; }
+/* 页宽归一批：移除页级限宽 960px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
+.returning-page { padding: 24px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 /* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
 .group {

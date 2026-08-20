@@ -1007,6 +1007,27 @@ export interface ScheduleResult {
   bars: ScheduleBar[]
 }
 
+/** 自定义首页批一（v70）：仪表盘布局偏好（服务端归一化 schema v1，GET 永远返回完整合法值） */
+export interface DashboardPrefs {
+  v: number
+  /** 板块顺序（基础 9 块的排列） */
+  order: string[]
+  /** 隐藏的板块 id */
+  hidden: string[]
+  /** 宽度档位 half/full */
+  width: Record<string, 'half' | 'full'>
+  /** 列表卡显示行数 0/3/5（0=全部） */
+  density: Record<string, number>
+  /** 排期块款式 */
+  scheduleStyle: 'bars' | 'ledger' | 'ptags' | 'waybill'
+  /** 问候卡款式 */
+  greetStyle: 'plain' | 'seal' | 'ribbon' | 'rule'
+  /** 页面位置三档 */
+  pageAlign: 'left' | 'center' | 'full'
+  /** 页面最大宽度（仅 left/center 档生效，1000〜1680） */
+  pageMax: number
+}
+
 /** GET /artist/dashboard/activity 活动项 */
 export interface ActivityItem {
   id: number

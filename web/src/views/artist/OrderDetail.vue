@@ -628,12 +628,16 @@ onUnmounted(() => {
 
 <style scoped>
 /* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；旧变量不残留——派工 §二.3） ═══ */
-/* v129: 页面结构重做——宽屏（≥1280px）双列：主列（进度/图库/备注/增项/交付）+ 侧列（修改记录/收款/沟通/日志），
+/* v129: 页面结构重做——宽屏双列：主列（进度/图库/备注/增项/交付）+ 侧列（修改记录/收款/沟通/日志），
    头部基本信息与日期分居两列顶端；窄屏回落单列（主列在前）。卡片间距 14px（REQ §1.4） */
 .order-detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
 .od-main, .od-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; min-width: 0; }
-@media (min-width: 1280px) {
-  .order-detail { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); max-width: 1680px; }
+/* 容器查询批：双列断点由视口宽改认容器宽（ArtistLayout 内容容器已加 container-type: inline-size），
+   防「窗口宽而页窄（--page-max-w 小档）时双列发挤」。项目目标浏览器（现代 Chromium/Safari/Firefox）
+   均支持 container queries，无需 fallback。原 @media (min-width: 1280px) 同语义平移。 */
+@container (min-width: 1280px) {
+  /* 页宽归一批：整页限宽 1680px 旧写法移除，交给布局层 --page-max-w 全局口径 */
+  .order-detail { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); }
   .od-head-info, .od-main { grid-column: 1; }
   .od-head-date, .od-side { grid-column: 2; }
 }

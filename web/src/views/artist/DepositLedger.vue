@@ -245,7 +245,8 @@ onMounted(loadItems)
 
 <style scoped>
 /* 纸墨 token 体系（--paper/--ink/--hq/--sl/--card/--line），亮暗双主题自动适配 */
-.deposit-page { padding: 24px; max-width: 960px; }
+/* 页宽归一批：移除页级限宽 960px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
+.deposit-page { padding: 24px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .page-sub { margin-top: 8px; }
 

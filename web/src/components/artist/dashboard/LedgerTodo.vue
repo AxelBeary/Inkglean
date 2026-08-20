@@ -31,10 +31,10 @@
       <!-- 空态 -->
       <p v-if="!items.length && !sunkRows.length" class="ledger-empty">{{ t('dashboard.ledgerEmpty') }}</p>
 
-      <!-- 在办行 -->
+      <!-- 在办行（自定义首页批一：maxRows 组件内截断，数据获取逻辑不变） -->
       <div class="ledger-rows">
         <div
-          v-for="item in items"
+          v-for="item in visibleItems"
           :key="item.id"
           class="row"
           :class="{ 'row--overdue': item.tag === 'overdue' || item.tag === 'dueToday' }"
@@ -61,6 +61,7 @@
             <span v-if="cooldowns[item.id] > 0" class="inkline" aria-hidden="true"></span>
           </button>
         </div>
+        <p v-if="hiddenCount > 0" class="row-more">{{ t('dashboard.listMore', { n: hiddenCount }) }}</p>
       </div>
 
       <!-- 沉底区（完成行变淡归档） -->
@@ -87,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -97,11 +98,16 @@ import { formatDateTime } from '../../../utils/datetime'
 import { tagKey } from '../../../utils/dashboard-normalize'
 import type { TodoItem } from '../../../api/types'
 
-// monthCents 经 defineProps 直接在模板使用（不做 const 绑定，避免 TS 未用警告）
-defineProps<{
+// monthCents 与 maxRows 经 props 消费：模板直接用 monthCents，maxRows 参与截断 computed
+const props = withDefaults(defineProps<{
   /** getStats 的 monthRevenueCents，可空则不显月度小结 */
   monthCents?: number | null
-}>()
+  /** 自定义首页批一：显示行数上限（0=全部；父层消费 prefs.density.todo），只截显示不改拉取 */
+  maxRows?: number
+}>(), {
+  monthCents: null,
+  maxRows: 0
+})
 
 const { t } = useI18n()
 const router = useRouter()
@@ -114,6 +120,10 @@ const tearing = ref(false)
 const settledNote = ref(false)
 const cooldowns = reactive<Record<number, number>>({})
 const timers: ReturnType<typeof setInterval>[] = []
+
+/** 密度截断：maxRows>0 时只显示前 N 条在办行（沉底归档区不受密度影响） */
+const visibleItems = computed(() => props.maxRows > 0 ? items.value.slice(0, props.maxRows) : items.value)
+const hiddenCount = computed(() => props.maxRows > 0 ? Math.max(0, items.value.length - props.maxRows) : 0)
 
 /** 一行一个动词：status → 下一步动词（文案走 i18n，动作走现有 updateStatus） */
 const VERBS = {
@@ -282,6 +292,8 @@ onUnmounted(() => {
   flex-wrap: wrap; cursor: pointer; border-radius: 4px; transition: background var(--dur-fast) var(--ease-out); position: relative;
 }
 .ledger-rows .row:last-child { border-bottom: none; }
+/* 密度截断提示（自定义首页批一） */
+.row-more { margin: 8px 4px 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink4); }
 .row:hover { background: var(--paper2); }
 .row--overdue { border-left: 3px solid var(--zs); }
 .dot { width: 9px; height: 9px; border-radius: 50% 46% 52% 48%; flex: none; }

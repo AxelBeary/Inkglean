@@ -1,4 +1,5 @@
 import * as dashboardService from './dashboard.service.js'
+import * as dashboardPrefsService from './dashboard-prefs.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
@@ -83,5 +84,48 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ code: 'VALIDATION', error: '请求参数格式不正确（body）' })
     }
     return dashboardService.dismissOnboarding(request.artist.id)
+  })
+
+  /**
+   * GET /api/artist/dashboard/prefs
+   * 自定义首页批一（v70）：读仪表盘布局偏好（归一化后返回；坏数据落默认永不报错；
+   * 无 prefs 时读路径吞并旧 dashboard_modules：false→hidden）
+   */
+  fastify.get('/api/artist/dashboard/prefs', {
+    preHandler: requireAuth
+  }, async (request: FastifyRequest) => {
+    return dashboardPrefsService.getDashboardPrefs(request.artist.id)
+  })
+
+  /**
+   * PUT /api/artist/dashboard/prefs
+   * 自定义首页批一（v70）：保存布局偏好——归一化入库（非法字段逐字段落默认），
+   * 保存成功即完成对旧 dashboard_modules 的吞并（旧列置 NULL，单一事实源）；
+   * 多设备冲突口径：后写覆盖先写
+   */
+  fastify.put('/api/artist/dashboard/prefs', {
+    preHandler: requireAuth,
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          order: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 40 },
+          hidden: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 40 },
+          width: { type: 'object' },
+          density: { type: 'object' },
+          scheduleStyle: { type: 'string', maxLength: 20 },
+          greetStyle: { type: 'string', maxLength: 20 },
+          pageAlign: { type: 'string', maxLength: 20 },
+          pageMax: { type: 'number' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return reply.code(400).send({ code: 'VALIDATION', error: '请求参数格式不正确（body）' })
+    }
+    return dashboardPrefsService.saveDashboardPrefs(request.artist.id, body)
   })
 }

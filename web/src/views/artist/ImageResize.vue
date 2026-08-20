@@ -182,7 +182,8 @@ onUnmounted(releaseResult)
 
 <style scoped>
 /* 纸墨 token（--card/--line/--ink/--hq），亮暗双主题自动适配 */
-.ir-page { padding: 24px; max-width: 1000px; }
+/* 页宽归一批：移除页级限宽 1000px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
+.ir-page { padding: 24px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .page-sub { margin-top: 8px; color: var(--ink3); font-size: 13px; }
 

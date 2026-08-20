@@ -118,7 +118,8 @@ onMounted(async () => {
 
 <style scoped>
 /* 纸墨 token 体系（--ink/--paper/--hq/--card/--line），亮暗双主题自动适配 */
-.deadline-page { padding: 24px; max-width: 860px; }
+/* 页宽归一批：移除页级限宽 860px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
+.deadline-page { padding: 24px; }
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .page-sub { margin-top: 6px; color: var(--ink3); font-size: 13px; }
 

@@ -701,7 +701,7 @@ onUnmounted(() => {
 <style scoped>
 /* ═══ v0.38: 全页换肤到纸墨 token（REQ-026 §二；模板与类名不动——测试断言依赖） ═══ */
 /* ─── 页面容器（子组件内部样式各自 scoped 搬入） ─── */
-.manual-order-page { max-width: 1200px; margin: 0 auto; }
+/* 页宽归一批：移除页级限宽 1200px + margin auto，交给 ArtistLayout 内容容器统一管（--page-max-w） */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .manual-order-page h2 {
   font-family: var(--f-d);
@@ -719,8 +719,10 @@ onUnmounted(() => {
   align-items: start;
 }
 
-/* ─── 响应式：平板（600–1024px）单栏 ─── */
-@media (max-width: 1023px) {
+/* ─── 响应式：平板（600–1024px）单栏 ───
+   容器查询批：视口断点改认容器宽（布局容器已加 container-type: inline-size），
+   防窗口宽而页窄（--page-max-w 小档）时双栏发挤；目标浏览器均支持 container queries，无需 fallback */
+@container (max-width: 1023px) {
   .mo-grid { grid-template-columns: 1fr; }
 }
 

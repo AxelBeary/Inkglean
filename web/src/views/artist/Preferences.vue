@@ -50,16 +50,15 @@
               </el-select>
             </div>
           </div>
+          <!-- 自定义首页批一（v70）：吞并旧「看板显示的模块」开关集群——
+               板块顺序/显隐/宽度/行数统一收进「自定义我的首页」抽屉（说明在左、控件在右既有排版） -->
           <div class="pref-row">
             <div class="pref-row-text">
-              <div class="pref-row-label">{{ $t('preferences.dashModulesLabel') }}</div>
-              <div class="pref-row-desc">{{ $t('settings.dashModulesHint') }}</div>
+              <div class="pref-row-label">{{ $t('dashboardPrefs.entryLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('dashboardPrefs.entryDesc') }}</div>
             </div>
-            <div class="pref-row-control pref-switch-cluster">
-              <el-switch v-model="form.dashModules.schedule" :active-text="$t('settings.dashModuleSchedule')" />
-              <el-switch v-model="form.dashModules.guestbook" :active-text="$t('settings.dashModuleGuestbook')" />
-              <el-switch v-model="form.dashModules.activity" :active-text="$t('settings.dashModuleActivity')" />
-              <el-switch v-model="form.dashModules.onboarding" :active-text="$t('settings.dashModuleOnboarding')" />
+            <div class="pref-row-control">
+              <el-button @click="drawerOpen = true">{{ $t('dashboardPrefs.entryBtn') }}</el-button>
             </div>
           </div>
         </div>
@@ -70,7 +69,7 @@
         </div>
       </el-tab-pane>
 
-      <!-- ── Tab 显示与字号：字号（818-A 保留不动）/ 暗色模式 / 动画速度 + 减少动效 ── -->
+      <!-- ── Tab 显示与字号：字号（818-A 保留不动）/ 页面宽度（v70）/ 暗色模式 / 动画速度 + 减少动效 ── -->
       <el-tab-pane :label="$t('preferences.tabDisplay')" name="display">
         <div class="pref-group">
           <div class="pref-group-head">{{ $t('preferences.groupFont') }}</div>
@@ -87,6 +86,48 @@
                 :aria-label="$t('preferences.fontSize')"
               />
               <span class="font-size-value">{{ fontSize }}px</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自定义首页批一（v70）：页面宽度控件（与字号滑块同页并排）。
+             与抽屉共用同一份 prefs 控制器；滑杆松手（change）才提交 PUT，
+             input 只更新旁边数字显示（防闪拍板）。 -->
+        <div class="pref-group">
+          <div class="pref-group-head">{{ $t('dashboardPrefs.pageWidthTitle') }}</div>
+
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('dashboardPrefs.pageAlignLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('dashboardPrefs.pageAlignDesc') }}</div>
+            </div>
+            <div class="pref-row-control">
+              <el-radio-group :model-value="pageAlign" :disabled="!prefs" @change="onPageAlignChange">
+                <el-radio-button value="left">{{ $t('dashboardPrefs.pageAlignLeft') }}</el-radio-button>
+                <el-radio-button value="center">{{ $t('dashboardPrefs.pageAlignCenter') }}</el-radio-button>
+                <el-radio-button value="full">{{ $t('dashboardPrefs.pageAlignFull') }}</el-radio-button>
+              </el-radio-group>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('dashboardPrefs.pageMaxLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('dashboardPrefs.pageMaxDesc') }}</div>
+            </div>
+            <div class="pref-row-control page-max-row">
+              <el-slider
+                :model-value="pageMaxDraft"
+                :min="PAGE_MAX_MIN"
+                :max="PAGE_MAX_MAX"
+                :step="PAGE_MAX_STEP"
+                :disabled="!prefs || pageAlign === 'full'"
+                class="page-max-slider"
+                :aria-label="$t('dashboardPrefs.pageMaxLabel')"
+                @input="onPageMaxInput"
+                @change="onPageMaxChange"
+              />
+              <span class="page-max-value">{{ pageMaxDraft }}px</span>
             </div>
           </div>
         </div>
@@ -171,11 +212,14 @@
         </div>
       </el-tab-pane>
     </el-tabs>
+
+    <!-- 自定义首页批一（v70）：「自定义我的首页」抽屉（与本页面宽度控件共用 prefs 控制器） -->
+    <DashboardPrefsDrawer v-model="drawerOpen" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, provide } from 'vue'
 import { artistApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -187,6 +231,9 @@ import { safeSetItem } from '../../utils/storage'
 import { FONT_SIZE_MIN, FONT_SIZE_MAX, readFontSize, applyFontSize, writeFontSize } from '../../utils/fontSize'
 // 819-G: 动画速度 + 减少动效共享 util（Preferences 与 ArtistLayout 同一映射/应用口径）
 import { ANIM_SPEED_MIN, ANIM_SPEED_MAX, ANIM_SPEED_STEP, readAnimSpeed, applyAnimSpeed, writeAnimSpeed, readReduceMotion, applyReduceMotion, writeReduceMotion } from '../../utils/animSpeed'
+// 自定义首页批一（v70）：抽屉入口 + 页面宽度控件（与抽屉共用同一份 prefs 控制器）
+import DashboardPrefsDrawer from '../../components/artist/dashboard/DashboardPrefsDrawer.vue'
+import { DASHBOARD_PREFS_KEY, useDashboardPrefs, PAGE_MAX_MIN, PAGE_MAX_MAX, PAGE_MAX_STEP, PAGE_MAX_DEFAULT, clampPageMax } from '../../utils/dashboard-prefs'
 
 const { t } = useI18n()
 const themeStore = useThemeStore()
@@ -202,10 +249,35 @@ const animDemoOn = ref(false)
 
 const form = reactive({
   notifyEnabled: true,
-  dashboardDefaultPanel: 'queue',
-  // 视觉批 P2：看板模块开关（全 true=全部显示）
-  dashModules: { schedule: true, guestbook: true, activity: true, onboarding: true }
+  dashboardDefaultPanel: 'queue'
 })
+
+// ─── 自定义首页批一（v70）：prefs 共享控制器（抽屉 provide/inject 同一实例） ───
+const prefsCtrl = useDashboardPrefs()
+provide(DASHBOARD_PREFS_KEY, prefsCtrl)
+const { prefs } = prefsCtrl
+/** 「自定义我的首页」抽屉开关 */
+const drawerOpen = ref(false)
+/** 页面位置三档（读自 prefs；未加载时按服务端默认 center 展示，控件禁用） */
+const pageAlign = computed(() => prefs.value?.pageAlign ?? 'center')
+/** 最大宽度滑杆草稿：input 只更新此值（旁边数字同步），松手 change 才提交 */
+const pageMaxDraft = ref(PAGE_MAX_DEFAULT)
+watch(() => prefs.value?.pageMax, (v) => {
+  if (typeof v === 'number') pageMaxDraft.value = v
+}, { immediate: true })
+
+function onPageAlignChange(value: string | number | boolean) {
+  if (value !== 'left' && value !== 'center' && value !== 'full') return
+  void prefsCtrl.mutate(d => { d.pageAlign = value })
+}
+function onPageMaxInput(value: number) {
+  pageMaxDraft.value = value
+}
+function onPageMaxChange(value: number) {
+  const next = clampPageMax(value)
+  pageMaxDraft.value = next
+  void prefsCtrl.mutate(d => { d.pageMax = next })
+}
 
 // ─── 818-A: 后台字号滑块（localStorage 持久化，watch 即时生效，默认 15px） ───
 // 旧值（large/xlarge/normal/非法/无值）由共享 util 归一化到 14~20 数字档
@@ -269,8 +341,7 @@ async function save() {
   try {
     await artistApi.updateProfile({
       notifyEnabled: form.notifyEnabled,
-      dashboardDefaultPanel: form.dashboardDefaultPanel,
-      dashboardModules: { ...form.dashModules }
+      dashboardDefaultPanel: form.dashboardDefaultPanel
     })
     ElMessage.success(t('settings.saved'))
   } catch (err) { ElMessage.error((err instanceof Error ? err.message : '') || String(err)) }
@@ -284,17 +355,6 @@ async function loadPreferences() {
     const profile = await artistApi.getProfile()
     form.notifyEnabled = !!profile.notify_enabled
     form.dashboardDefaultPanel = profile.dashboard_default_panel || 'queue'
-    // 视觉批 P2：看板模块开关回读（JSON 串，null/坏值=全部显示）
-    interface DashModulesShape { schedule?: boolean; guestbook?: boolean; activity?: boolean; onboarding?: boolean }
-    let mods: DashModulesShape | null = null
-    const dashboardModulesRaw = (profile as { dashboard_modules?: string | null }).dashboard_modules
-    if (dashboardModulesRaw) {
-      try { mods = JSON.parse(dashboardModulesRaw) as DashModulesShape } catch { mods = null }
-    }
-    form.dashModules.schedule = mods?.schedule ?? true
-    form.dashModules.guestbook = mods?.guestbook ?? true
-    form.dashModules.activity = mods?.activity ?? true
-    form.dashModules.onboarding = mods?.onboarding ?? true
 
     // v0.25: 快捷按钮从 DB 初始化（DB 有值→用 DB；DB 无值但 localStorage 有→一次性迁移到 DB）
     const dbQuick = parseQuickActions(profile.quick_actions)
@@ -316,7 +376,11 @@ async function loadPreferences() {
   finally { loading.value = false }
 }
 
-onMounted(loadPreferences)
+onMounted(() => {
+  loadPreferences()
+  // 自定义首页批一（v70）：页面宽度控件需要 prefs；抽屉打开时还会再拉一次新鲜态
+  void prefsCtrl.load()
+})
 </script>
 
 <style scoped>
@@ -345,7 +409,15 @@ onMounted(loadPreferences)
 .pref-row-label { font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink); }
 .pref-row-desc { margin-top: 2px; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink3); max-width: 520px; }
 .pref-row-control { display: flex; align-items: center; }
-.pref-switch-cluster { flex-wrap: wrap; gap: 12px 16px; justify-content: flex-end; }
+
+/* 自定义首页批一（v70）：页面最大宽度滑杆（左滑杆 + 右当前值，与字号滑块同构） */
+.page-max-row { gap: 16px; }
+.page-max-slider { width: 260px; }
+.page-max-value {
+  flex: none; min-width: 56px; text-align: right;
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
 
 .form-hint { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); margin-top: 4px; }
 .pref-save-bar { margin-top: 20px; display: flex; gap: 12px; align-items: center; }

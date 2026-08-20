@@ -18,10 +18,10 @@
     <!-- 空状态 -->
     <p v-else-if="!items.length" class="activity-empty">{{ $t('dashboard.activityEmpty') }}</p>
 
-    <!-- 活动流（最多 10 条，C54；不自动刷新，C55） -->
+    <!-- 活动流（最多 10 条，C54；不自动刷新，C55；批一 maxRows 组件内再截断） -->
     <div v-else class="activity-list">
       <button
-        v-for="item in items" :key="item.id"
+        v-for="item in visibleItems" :key="item.id"
         type="button"
         class="activity-item"
         @click="$router.push(`/orders/${item.orderId}`)"
@@ -35,12 +35,13 @@
           </span>
         </div>
       </button>
+      <p v-if="hiddenCount > 0" class="row-more">{{ t('dashboard.listMore', { n: hiddenCount }) }}</p>
     </div>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../../api/index'
 // v0.38 第二批: 统一卡片头部（REQ-026 §二）
@@ -53,6 +54,17 @@ type FeedItem = ReturnType<typeof normalizeActivity>[number]
 const { t, locale } = useI18n()
 const state = ref('loading') // loading | ok | error
 const items = ref<FeedItem[]>([])
+
+// 自定义首页批一：显示行数上限（0=全部；父层消费 prefs.density.activity），只截显示不改拉取
+const props = withDefaults(defineProps<{
+  maxRows?: number
+}>(), {
+  maxRows: 0
+})
+
+/** 密度截断：maxRows>0 时只显示前 N 条 */
+const visibleItems = computed(() => props.maxRows > 0 ? items.value.slice(0, props.maxRows) : items.value)
+const hiddenCount = computed(() => props.maxRows > 0 ? Math.max(0, items.value.length - props.maxRows) : 0)
 
 /** 相对时间包装（传入 i18n 上下文） */
 function fmtRelativeTime(isoStr: string | null) {
@@ -94,6 +106,8 @@ onMounted(() => load())
   transition: background var(--dur-fast) var(--ease-out);
 }
 .activity-item:last-child { border-bottom: none; }
+/* 密度截断提示（自定义首页批一） */
+.row-more { margin: 8px 4px 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink4); }
 .activity-item:hover { background: var(--paper2); }
 .activity-dot {
   width: 8px; height: 8px; border-radius: 50%;

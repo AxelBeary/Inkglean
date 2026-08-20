@@ -28,16 +28,7 @@
       </div>
     </div>
     <div class="g-sign f-kai" :class="{ on: metaOn }">{{ t('dashboard.greetSign') }}</div>
-
-    <!-- P2 公告行（REQ-043 I4 入口）：问候便签下一行淡墨，点开看全文，看过即消（零打扰） -->
-    <div v-if="annVisible" class="g-ann">
-      <button class="g-ann-line" type="button" :aria-expanded="annExpanded" @click="toggleAnn">
-        <span class="g-ann-prefix">{{ t('dashboard.annPrefix') }}</span>
-        <span class="g-ann-title">{{ announcement?.title }}</span>
-        <span class="g-ann-caret" aria-hidden="true">{{ annExpanded ? '▾' : '▸' }}</span>
-      </button>
-      <p v-if="annExpanded" class="g-ann-content">{{ announcement?.content }}</p>
-    </div>
+    <!-- P2 公告行已拆为独立板块（自定义首页批一，用户拍板）：见 DashboardAnnouncementCard.vue -->
   </div>
 </template>
 
@@ -48,7 +39,7 @@ import { artistApi } from '../../../api/index'
 import { formatCents } from '../../../utils/money'
 import { useCountUp } from '../../../utils/useCountUp'
 import { safeGetItem, safeSetItem } from '../../../utils/storage'
-import type { ArtistStats, PlatformAnnouncement } from '../../../api/types'
+import type { ArtistStats } from '../../../api/types'
 
 const props = defineProps<{
   /** getStats 返回（含 todayNewOrderCents / todayRevenueCents），可空 */
@@ -68,7 +59,6 @@ let swapping = false               // R7 防连击
 let timers: ReturnType<typeof setTimeout>[] = []
 
 const PLAYED_KEY = 'inkglean-greet-played'
-const ANN_READ_KEY = 'inkglean-ann-read'
 const chars = computed(() => [...greeting.value.text])
 const hasStats = computed(() => props.stats != null)
 
@@ -147,31 +137,9 @@ async function swapGreeting() {
   }
 }
 
-// ─── P2 公告行：看过即消（按 updatedAt 记已读） ───
-const announcement = ref<PlatformAnnouncement | null>(null)
-const annExpanded = ref(false)
-const annVisible = computed(() =>
-  announcement.value != null
-  && !!announcement.value.title
-  && safeGetItem(ANN_READ_KEY) !== announcement.value.updatedAt
-)
-
-async function loadAnnouncement(): Promise<void> {
-  try {
-    announcement.value = await artistApi.getAnnouncement()
-  } catch { /* 公告非关键路径，静默降级 */ }
-}
-
-function toggleAnn() {
-  annExpanded.value = !annExpanded.value
-  // 点开即视为看过；合上后该行消失（零打扰）
-  if (annExpanded.value && announcement.value) {
-    safeSetItem(ANN_READ_KEY, announcement.value.updatedAt ?? '')
-  }
-}
+// ─── 公告已拆独立板块（自定义首页批一）：逻辑迁至 DashboardAnnouncementCard.vue ───
 
 onMounted(async () => {
-  loadAnnouncement()
   await fetchGreeting()
   if (!greeting.value.text) return
   const today = new Date().toDateString()
@@ -254,25 +222,6 @@ onUnmounted(() => clearTimers())
   opacity: 0; transition: opacity .8s ease;
 }
 .g-sign.on { opacity: 1; }
-/* P2 公告行：底部淡墨一行，避落款位；展开内容向上生长 */
-.g-ann {
-  position: absolute; left: calc(var(--font-scale, 1) * 34px); right: calc(var(--font-scale, 1) * 120px);
-  bottom: calc(var(--font-scale, 1) * 12px);
-}
-.g-ann-line {
-  font: inherit; display: flex; align-items: center; gap: 8px; width: 100%;
-  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3);
-  background: none; border: none; padding: 2px 0; cursor: pointer; text-align: left;
-}
-.g-ann-line:hover { color: var(--ink2); }
-.g-ann-prefix { flex: none; color: var(--ink4); letter-spacing: .1em; }
-.g-ann-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.g-ann-caret { flex: none; color: var(--ink4); }
-.g-ann-content {
-  margin: 4px 0 0; padding: 6px 8px; max-height: 58px; overflow: auto;
-  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); line-height: 1.7;
-  background: color-mix(in srgb, var(--paper2) 70%, transparent); border-radius: 4px;
-}
 /* 窄屏：高度自适应一档，其余保持 */
 @media (max-width: 600px) {
   .greeting-note { height: auto; min-height: calc(var(--font-scale, 1) * 190px); transform: rotate(0); }

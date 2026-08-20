@@ -268,7 +268,8 @@ onMounted(loadProfile)
 /* ═══ v0.38 第二批: 纸墨 token 换肤（REQ-026） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .slot-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.slot-manage { max-width: 760px; margin-top: 16px; display: flex; flex-direction: column; gap: 16px; }
+/* 页宽归一批：移除页级限宽 760px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
+.slot-manage { margin-top: 16px; display: flex; flex-direction: column; gap: 16px; }
 
 /* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
 .group {
