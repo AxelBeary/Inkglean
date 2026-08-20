@@ -2,11 +2,11 @@ import { ref } from 'vue'
 import type { Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi, type ApiError } from '../api/index.js'
-import { useDropGuard } from './useDropGuard.js'
-import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload.js'
-import { MAX_IMAGE_BYTES } from '../constants/upload.js'
-import type { EnrichedOrderDetail } from '../api/types.js'
+import { artistApi, type ApiError } from '../api/index'
+import { useDropGuard } from './useDropGuard'
+import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
+import { MAX_IMAGE_BYTES } from '../constants/upload'
+import type { EnrichedOrderDetail } from '../api/types'
 
 /**
  * 订单图库（从 OrderDetail.vue 拆分，纯搬移零行为变化）

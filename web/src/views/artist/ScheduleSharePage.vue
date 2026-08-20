@@ -59,14 +59,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import type { ArtistProfileResult, QueueOrderItem, DeadlineRow } from '../../api/types.js'
+import type { ArtistProfileResult, QueueOrderItem, DeadlineRow } from '../../api/types'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { artistApi } from '../../api/index.js'
-import { todayStr } from '../../utils/datetime.js'
-import { INK_PALETTE } from '../../utils/ink-palette.js'
+import { artistApi } from '../../api/index'
+import { todayStr } from '../../utils/datetime'
+import { INK_PALETTE } from '../../utils/ink-palette'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
 
 const { t } = useI18n()
 

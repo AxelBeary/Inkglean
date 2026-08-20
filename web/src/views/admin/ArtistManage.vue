@@ -443,14 +443,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { adminApi, complianceApi, type ApiError } from '../../api/index.js'
-import type { AdminArtistItem, AdminInviteCode, AdminOrderItem, RecycleBinItem, DeletedArtistItem, ArtistStatus } from '../../api/types.js'
+import { adminApi, complianceApi, type ApiError } from '../../api/index'
+import type { AdminArtistItem, AdminInviteCode, AdminOrderItem, RecycleBinItem, DeletedArtistItem, ArtistStatus } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { View, Tickets, Key, Delete, Unlock, Lock } from '@element-plus/icons-vue'
-import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
-import { formatDateTime } from '../../utils/datetime.js'
-import { formatCents } from '../../utils/money.js'
+import { ARTIST_STATUS_TYPE } from '../../constants/order'
+import { formatDateTime } from '../../utils/datetime'
+import { formatCents } from '../../utils/money'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
 // REQ-041 集成接线：更换管理员动作级再验对话框（后端 requireAdminReauth 已就位）
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'

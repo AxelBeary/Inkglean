@@ -43,7 +43,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import type { PropType, ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { MIN_BP, TOTAL_BP, SNAP } from '../../constants/workflow.js'
+import { MIN_BP, TOTAL_BP, SNAP } from '../../constants/workflow'
 
 /** 工作流节点（本条消费字段） */
 interface BarStage { id: number; name: string; takesPayment?: boolean | null; basisPoints: number | null; isFinal?: boolean | null }

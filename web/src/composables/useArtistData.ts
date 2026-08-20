@@ -7,8 +7,8 @@
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ARTIST_STATUS_TYPE } from '../constants/order.js'
-import type { CustomLink, PlatformDTO, PublicGallerySize } from '../api/types.js'
+import { ARTIST_STATUS_TYPE } from '../constants/order'
+import type { CustomLink, PlatformDTO, PublicGallerySize } from '../api/types'
 
 /**
  * ─── v0.35 F3/F6 纯函数（对接三号波 1 真实 API 契约） ───

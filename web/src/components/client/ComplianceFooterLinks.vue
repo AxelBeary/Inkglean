@@ -65,8 +65,8 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormItemRule } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { complianceApi } from '../../api/index.js'
-import type { ReportTargetType } from '../../api/types.js'
+import { complianceApi } from '../../api/index'
+import type { ReportTargetType } from '../../api/types'
 
 const { t } = useI18n()
 

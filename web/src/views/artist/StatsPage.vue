@@ -57,9 +57,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { artistApi } from '../../api/index.js'
-import { useArtistStore } from '../../stores/artist.js'
-import type { DayCount, NameCount } from '../../api/types.js'
+import { artistApi } from '../../api/index'
+import { useArtistStore } from '../../stores/artist'
+import type { DayCount, NameCount } from '../../api/types'
 
 const store = useArtistStore()
 const loading = ref(true)

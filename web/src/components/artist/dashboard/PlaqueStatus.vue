@@ -55,8 +55,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { useArtistStore } from '../../../stores/artist.js'
-import { artistApi } from '../../../api/index.js'
+import { useArtistStore } from '../../../stores/artist'
+import { artistApi } from '../../../api/index'
 
 const { t } = useI18n()
 const router = useRouter()

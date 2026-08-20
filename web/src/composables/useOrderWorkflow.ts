@@ -2,10 +2,10 @@ import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi } from '../api/index.js'
-import type { ApiError } from '../api/index.js'
-import { trackEvent } from '../utils/track.js'
-import type { EnrichedOrderDetail, WorkflowStageDTO, VersionedOptions } from '../api/types.js'
+import { artistApi } from '../api/index'
+import type { ApiError } from '../api/index'
+import { trackEvent } from '../utils/track'
+import type { EnrichedOrderDetail, WorkflowStageDTO, VersionedOptions } from '../api/types'
 
 /**
  * 订单工作流状态机（从 OrderDetail.vue 拆分，纯搬移零行为变化）

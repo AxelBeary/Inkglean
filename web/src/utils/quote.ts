@@ -1,7 +1,7 @@
 // 报价单生成工具（812-tools-a：①报价单生成，REQ-014 F4 Web 先行简版）
 // 设计：单模板填空——纯函数负责「文字版」与「画布绘制」，视图只做输入收集与导出。
 // 金额一律以内部整数分参与计算，展示走 money.js formatYuan 单一事实源。
-import { formatYuan } from './money.js'
+import { formatYuan } from './money'
 
 /** 报价条目（金额为分） */
 interface QuoteItem {

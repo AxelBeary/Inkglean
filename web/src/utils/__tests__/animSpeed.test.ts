@@ -18,7 +18,7 @@ import {
   writeReduceMotion,
   applyReduceMotion,
   clearReduceMotion
-} from '../animSpeed.js'
+} from '../animSpeed'
 
 beforeEach(() => {
   localStorage.clear()

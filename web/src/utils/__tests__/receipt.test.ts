@@ -1,7 +1,7 @@
 // 小票计算口径纯函数测试（oimimo 吸纳批五）
 import { describe, it, expect } from 'vitest'
-import { computeReceiptTotals, discountLabel, validItems } from '../receipt.js'
-import type { ReceiptItemLike } from '../receipt.js'
+import { computeReceiptTotals, discountLabel, validItems } from '../receipt'
+import type { ReceiptItemLike } from '../receipt'
 
 function item(name: string, qty: number, priceYuan: number | null, gift = false): ReceiptItemLike {
   return { name, qty, priceYuan, gift }

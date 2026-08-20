@@ -109,13 +109,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { artistApi } from '../../api/index.js'
-import type { DiscountCode } from '../../api/types.js'
+import { artistApi } from '../../api/index'
+import type { DiscountCode } from '../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatYuanValue } from '../../utils/money.js'
+import { formatYuanValue } from '../../utils/money'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
 
 const { t } = useI18n()
 

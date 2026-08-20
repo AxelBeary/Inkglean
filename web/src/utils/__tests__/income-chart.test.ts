@@ -1,7 +1,7 @@
 // 收入图表数据加工纯函数测试（oimimo 吸纳批四）
 import { describe, it, expect } from 'vitest'
-import { buildCumulative, isIncomeEmpty, monthLabels } from '../income-chart.js'
-import type { IncomeMonthLike } from '../income-chart.js'
+import { buildCumulative, isIncomeEmpty, monthLabels } from '../income-chart'
+import type { IncomeMonthLike } from '../income-chart'
 
 function row(month: string, order = 0, standalone = 0): IncomeMonthLike {
   return { month, orderCents: order, standaloneCents: standalone, totalCents: order + standalone }

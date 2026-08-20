@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { PropType } from 'vue'
-import { getIconPath } from '../../utils/simpleIcons.js'
+import { getIconPath } from '../../utils/simpleIcons'
 
 const props = defineProps({
   /** 平台 iconKey（social_platforms.icon_key），null/未知 → 单字兜底 */

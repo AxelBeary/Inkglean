@@ -15,6 +15,15 @@ export default {
     TOTP_INVALID: 'Incorrect QQ number or one-time password',
     TOTP_LOCKED: 'Too many attempts. Your account is temporarily locked. Please try again later.',
     TOTP_BIND_INVALID: 'Incorrect one-time password. Ask the artist to check the 6-digit code on their authenticator',
+    // REQ-040: WebAuthn Passkey (v143: completed per backend-code ↔ frontend-key audit)
+    WEBAUTHN_CHALLENGE_INVALID: 'Verification timed out or the challenge is invalid. Please try again',
+    WEBAUTHN_REGISTRATION_FAILED: 'Passkey registration failed. Please try again',
+    WEBAUTHN_AUTHENTICATION_FAILED: 'Verification failed. Please try again',
+    WEBAUTHN_CREDENTIAL_EXISTS: 'This device is already registered',
+    WEBAUTHN_CREDENTIAL_NOT_FOUND: 'Passkey credential not found',
+    // REQ-040: TOTP self-service rebinding
+    REBIND_COOLDOWN: 'Rebinding too frequent. Please try again in 24 hours',
+    REBIND_NO_CREDENTIAL: 'No verification method available. Please contact the admin to rebind',
     // REQ-039: Invite registration
     INVITE_INVALID: 'Invite code is invalid, already used, or expired',
     INVITE_CANNOT_REVOKE: 'Only unused invite codes can be revoked',
@@ -61,7 +70,17 @@ export default {
     ORDER_CONFLICT: 'The order was updated by another action. Please refresh and retry',
     // R-2: cancelling a paid order needs explicit confirmation (Batch A contract 409 CANCEL_WITH_PAYMENT)
     CANCEL_WITH_PAYMENT: 'This order has received payment. Please refund offline before cancelling',
+    MY_ORDERS_RETIRED: '"My orders" lookup has been retired. Please use the tracking link saved when ordering, or ask the artist to resend one',
+    LOOKUP_RETIRED: '"Order lookup" has been retired. Please use the tracking link saved when ordering, or ask the artist to resend one',
+    PAYMENT_STATUS_BLOCKED: 'The current order status does not allow this payment action',
+    // Decision 815 #1: 5-second undo window after cancellation
+    CANCEL_UNDO_EXPIRED: 'The undo window has expired (you can undo within 5 seconds of cancelling)',
     DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
+    // Decision 815 #4: one-time deliverable downloads
+    DOWNLOAD_LOCKED: 'This deliverable has already been downloaded and locked. The artist must re-permit before it can be downloaded again',
+    DOWNLOAD_COOLDOWN: 'Download attempts too frequent. Please try again later',
+    // ICS subscription event guard (per-event serialization cap)
+    INVALID_EVENT_PAYLOAD: 'Event payload too large (each event must serialize to ≤2KB)',
     TIER_NOT_FOUND: 'Price tier not found or does not belong to this artist',
     ILLEGAL_PATH: 'Invalid file path',
     MISSING_FILE: 'Missing file path',

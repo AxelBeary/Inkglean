@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { useThemeStore } from '../stores/theme.js'
+import { useThemeStore } from '../stores/theme'
 
 const { t } = useI18n()
 const themeStore = useThemeStore()

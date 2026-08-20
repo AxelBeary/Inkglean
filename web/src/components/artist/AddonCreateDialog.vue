@@ -80,8 +80,8 @@ import { reactive, ref, computed, watch } from 'vue'
 import type { PropType } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon.js'
-import type { AddonTemplate } from '../../api/types.js'
+import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon'
+import type { AddonTemplate } from '../../api/types'
 
 const { t } = useI18n()
 

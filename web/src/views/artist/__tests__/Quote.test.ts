@@ -7,7 +7,7 @@ import { mount } from '@vue/test-utils'
 const { ElMessage } = vi.hoisted(() => ({ ElMessage: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }))
 
 // 真实 locale 解析：文字版/PNG 文案断言需要译后文本，mock 按 zh-CN 键值+参数插值（键不存在时退化为原键）
-import zh from '../../../locales/zh-CN.js'
+import zh from '../../../locales/zh-CN'
 function resolveKey(key: string, params?: Record<string, unknown>) {
   let v: unknown = zh
   for (const p of key.split('.')) { v = (v as Record<string, unknown> | null | undefined)?.[p] }
@@ -24,7 +24,7 @@ vi.mock('element-plus', () => ({ ElMessage }))
 
 import Quote from '../Quote.vue'
 // a1-11: today() 已收编入 utils/datetime.todayStr（b1-P1#11 单源化），断言对象同步迁移
-import { todayStr } from '../../../utils/datetime.js'
+import { todayStr } from '../../../utils/datetime'
 
 const ElInputStub = {
   props: ['modelValue', 'placeholder', 'type', 'maxlength', 'clearable'],

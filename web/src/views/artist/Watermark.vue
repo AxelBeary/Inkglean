@@ -189,13 +189,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import type { ArtworkWithTags, ArtistOrderItem } from '../../api/types.js'
+import type { ArtworkWithTags, ArtistOrderItem } from '../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { useArtistStore } from '../../stores/artist.js'
-import { artistApi } from '../../api/index.js'
-import { WM_POSITIONS, WM_POSITION_CORNERS, loadImage, composeWatermarked } from '../../utils/watermark.js'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { useArtistStore } from '../../stores/artist'
+import { artistApi } from '../../api/index'
+import { WM_POSITIONS, WM_POSITION_CORNERS, loadImage, composeWatermarked } from '../../utils/watermark'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
 
 const { t } = useI18n()
 const store = useArtistStore()

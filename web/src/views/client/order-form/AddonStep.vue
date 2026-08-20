@@ -145,7 +145,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { formatYuan, formatYuanValue } from '../../../utils/money.js'
+import { formatYuan, formatYuanValue } from '../../../utils/money'
 import type { AddonSelection, DiscountResult, InstallmentItem, StyleAddon, StylePricePreview } from './types'
 
 defineProps<{

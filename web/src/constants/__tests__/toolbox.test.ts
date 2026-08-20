@@ -1,8 +1,8 @@
 // 工具箱注册表测试（812-tools-a：注册表单一事实源 + 中英词条齐备）
 import { describe, it, expect } from 'vitest'
-import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../toolbox.js'
-import zh from '../../locales/zh-CN.js'
-import en from '../../locales/en.js'
+import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../toolbox'
+import zh from '../../locales/zh-CN'
+import en from '../../locales/en'
 
 function resolveKey(obj: unknown, key: string): unknown {
   return key.split('.').reduce<unknown>((acc, part) => (acc ? (acc as Record<string, unknown>)[part] : undefined), obj)

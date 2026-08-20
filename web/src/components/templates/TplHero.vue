@@ -85,9 +85,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { PropType } from 'vue'
-import { useArtistData } from '../../composables/useArtistData.js'
+import { useArtistData } from '../../composables/useArtistData'
 import TplStatusBadge from './TplStatusBadge.vue'
-import type { PlatformDTO } from '../../api/types.js'
+import type { PlatformDTO } from '../../api/types'
 
 /** 代表作/作品行的宽松形状（与 useArtistData 的 ArtistArtworkLike 结构兼容） */
 interface HeroArtwork {

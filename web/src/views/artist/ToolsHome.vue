@@ -2,7 +2,7 @@
 // 工具箱首页（纸墨提案 §5.5：一格一类、各归其位；路由 /tools）
 // 数据源 = constants/toolbox.js 单一事实源（与 ArtistLayout 抽屉分类组共用）
 import { useI18n } from 'vue-i18n'
-import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../../constants/toolbox.js'
+import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../../constants/toolbox'
 
 const { t } = useI18n()
 function toolsOf(catKey: string) {

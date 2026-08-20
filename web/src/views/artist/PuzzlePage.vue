@@ -106,11 +106,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import type { ArtistOrderItem, EnrichedOrderDetail } from '../../api/types.js'
+import type { ArtistOrderItem, EnrichedOrderDetail } from '../../api/types'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { artistApi } from '../../api/index.js'
-import { INK_PALETTE } from '../../utils/ink-palette.js'
+import { artistApi } from '../../api/index'
+import { INK_PALETTE } from '../../utils/ink-palette'
 
 const { t } = useI18n()
 

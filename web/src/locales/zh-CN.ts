@@ -15,6 +15,15 @@ export default {
     TOTP_INVALID: 'QQ号或动态口令错误',
     TOTP_LOCKED: '尝试次数过多，账号已临时锁定，请稍后再试',
     TOTP_BIND_INVALID: '动态口令错误，请让画师确认验证器上当前显示的 6 位码',
+    // REQ-040: WebAuthn Passkey（v143 补齐：后端错误码↔前端键三轴审计收尾）
+    WEBAUTHN_CHALLENGE_INVALID: '验证超时或 Challenge 无效，请重试',
+    WEBAUTHN_REGISTRATION_FAILED: 'Passkey 注册失败，请重试',
+    WEBAUTHN_AUTHENTICATION_FAILED: '身份验证失败，请重试',
+    WEBAUTHN_CREDENTIAL_EXISTS: '该设备已注册',
+    WEBAUTHN_CREDENTIAL_NOT_FOUND: 'Passkey 凭据不存在',
+    // REQ-040: TOTP 自助重绑
+    REBIND_COOLDOWN: '重绑操作过于频繁，请在 24 小时后再试',
+    REBIND_NO_CREDENTIAL: '没有可用的验证方式，请联系管理员重绑',
     // REQ-039: 邀请码注册
     INVITE_INVALID: '邀请码无效、已使用或已过期',
     INVITE_CANNOT_REVOKE: '仅未使用的邀请码可吊销',
@@ -61,7 +70,17 @@ export default {
     ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
     // R-2: 已收款订单取消需二次确认（Batch A 契约 409 CANCEL_WITH_PAYMENT）
     CANCEL_WITH_PAYMENT: '该订单已收款，请先线下退还后再取消',
+    MY_ORDERS_RETIRED: '「我的订单」查询已下线，请使用下单时保存的追踪链接，或联系画师补发',
+    LOOKUP_RETIRED: '「订单查询」已下线，请使用下单时保存的追踪链接，或联系画师补发',
+    PAYMENT_STATUS_BLOCKED: '当前订单状态不允许该收款操作',
+    // 815 拍板 #1：取消后 5 秒撤销窗口
+    CANCEL_UNDO_EXPIRED: '撤销窗口已过（取消后 5 秒内可撤销）',
     DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
+    // 815 拍板 #4：交付文件一次性下载
+    DOWNLOAD_LOCKED: '该交付文件已下载过并被锁定，需画师再许可后才能再次下载',
+    DOWNLOAD_COOLDOWN: '下载尝试过于频繁，请稍后重试',
+    // ICS 订阅事件防护（单事件序列化上限）
+    INVALID_EVENT_PAYLOAD: '事件扩展数据过大（单事件序列化 ≤2KB）',
     TIER_NOT_FOUND: '价格档位不存在或不属于该画师',
     ILLEGAL_PATH: '文件路径无效，请重新选择',
     MISSING_FILE: '缺少文件路径',

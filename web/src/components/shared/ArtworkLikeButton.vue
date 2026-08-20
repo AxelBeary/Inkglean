@@ -28,8 +28,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { artistPublicApi } from '../../api/index.js'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { artistPublicApi } from '../../api/index'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
 
 const { t } = useI18n()
 

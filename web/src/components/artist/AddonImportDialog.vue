@@ -29,10 +29,10 @@ import { ref, computed, watch } from 'vue'
 import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi } from '../../api/index.js'
-import type { AddonTemplate } from '../../api/types.js'
-import { formatAddonPrice } from '../../utils/money.js'
-import { categoryLabel, controlLabel as controlLabelText, controlTagType } from './addon-utils.js'
+import { artistApi } from '../../api/index'
+import type { AddonTemplate } from '../../api/types'
+import { formatAddonPrice } from '../../utils/money'
+import { categoryLabel, controlLabel as controlLabelText, controlTagType } from './addon-utils'
 
 /** 目标画风（本弹窗消费字段：已导入增项列表） */
 interface ImportStyleLite {

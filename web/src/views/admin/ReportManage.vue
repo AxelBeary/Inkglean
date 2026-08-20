@@ -140,8 +140,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck, Delete, ChatDotRound, Warning, Unlock } from '@element-plus/icons-vue'
-import { complianceApi, adminApi } from '../../api/index.js'
-import type { AdminArtistItem, ReportItem, ReportTargetType } from '../../api/types.js'
+import { complianceApi, adminApi } from '../../api/index'
+import type { AdminArtistItem, ReportItem, ReportTargetType } from '../../api/types'
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'
 
 const { t } = useI18n()

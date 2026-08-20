@@ -107,9 +107,9 @@ import { reactive, computed, ref } from 'vue'
 import type { PropType } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX } from '../../constants/addon.js'
-import { artistApi } from '../../api/index.js'
-import { addonCategory, categoryLabel, addonPriceText, type StyleAddonRow } from './addon-utils.js'
+import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX } from '../../constants/addon'
+import { artistApi } from '../../api/index'
+import { addonCategory, categoryLabel, addonPriceText, type StyleAddonRow } from './addon-utils'
 
 /** 胶囊行（style_addons 行 + addon_template_id） */
 interface SettingsSa extends StyleAddonRow { addon_template_id: number }

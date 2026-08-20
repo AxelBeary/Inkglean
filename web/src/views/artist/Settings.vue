@@ -90,19 +90,19 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch, markRaw } from 'vue'
-import type { ArtistStatus, ArtworkWithTags, PlatformDTO, PublicArtistDTO, SensitiveWarning } from '../../api/types.js'
+import type { ArtistStatus, ArtworkWithTags, PlatformDTO, PublicArtistDTO, SensitiveWarning } from '../../api/types'
 import { useRoute } from 'vue-router'
-import { artistApi, artistPublicApi, uploadApi } from '../../api/index.js'
+import { artistApi, artistPublicApi, uploadApi } from '../../api/index'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { sanitizeHtml } from '../../utils/sanitize.js'
-import { validateLink, MAX_LINK_COUNT as MAX_LINKS } from '../../utils/linkValidation.js'
-import { trackEvent } from '../../utils/track.js'
+import { sanitizeHtml } from '../../utils/sanitize'
+import { validateLink, MAX_LINK_COUNT as MAX_LINKS } from '../../utils/linkValidation'
+import { trackEvent } from '../../utils/track'
 import { Notebook, Brush, Picture, Sunny, Collection, Moon, Document, MagicStick } from '@element-plus/icons-vue'
 import SettingsProfileTab from '../../components/artist/settings/SettingsProfileTab.vue'
 import SettingsShowcaseTab from '../../components/artist/settings/SettingsShowcaseTab.vue'
 import SettingsTemplateTab from '../../components/artist/settings/SettingsTemplateTab.vue'
-import { MAX_IMAGE_BYTES } from '../../constants/upload.js'
+import { MAX_IMAGE_BYTES } from '../../constants/upload'
 
 const { t } = useI18n()
 const route = useRoute()

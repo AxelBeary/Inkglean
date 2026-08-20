@@ -356,16 +356,16 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import type { PropType } from 'vue'
-import { artistApi } from '../../../api/index.js'
-import type { PublicArtStyle, OrderPriority } from '../../../api/types.js'
+import { artistApi } from '../../../api/index'
+import type { PublicArtStyle, OrderPriority } from '../../../api/types'
 import { ElMessage } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import { useStageStatus, type StageLike } from '../../../composables/useStageStatus.js'
+import { useStageStatus, type StageLike } from '../../../composables/useStageStatus'
 // 2026-08-10 拆分批：价格状态机抽 composable（纯搬移零行为变化）
-import { useManualOrderPricing } from '../../../composables/useManualOrderPricing.js'
-import { formatCents, formatYuan, formatYuanValue, yuanToCents } from '../../../utils/money.js'
-import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
+import { useManualOrderPricing } from '../../../composables/useManualOrderPricing'
+import { formatCents, formatYuan, formatYuanValue, yuanToCents } from '../../../utils/money'
+import { safeGetItem, safeSetItem } from '../../../utils/storage'
 
 /** 草稿快照（F6 草稿回填消费的右栏状态） */
 interface DraftAddonSelLite { toggled?: boolean | null; quantity?: number | null }

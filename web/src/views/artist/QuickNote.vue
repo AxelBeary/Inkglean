@@ -64,9 +64,9 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
 
 /** 便签条目（localStorage 持久化） */
 interface NoteItem {

@@ -75,9 +75,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatYuan, formatYuanValue } from '../../../utils/money.js'
+import { formatYuan, formatYuanValue } from '../../../utils/money'
 // E13: 尺寸图路径解析复用客户端先例（artwork_image_path > image，见 useArtistData 三号契约）
-import { resolveSizeImagePath } from '../../../composables/useArtistData.js'
+import { resolveSizeImagePath } from '../../../composables/useArtistData'
 import type { ArtistStyle, InstallmentItem, StylePricePreview, StyleSize } from './types'
 
 const props = defineProps<{

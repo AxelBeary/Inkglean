@@ -118,12 +118,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import type { PublicArtStyle, PublicPricingResult, PublicStyleAddon, StyleAddonSelection } from '../../api/types.js'
+import type { PublicArtStyle, PublicPricingResult, PublicStyleAddon, StyleAddonSelection } from '../../api/types'
 import { useI18n } from 'vue-i18n'
-import { artistPublicApi, artistApi } from '../../api/index.js'
-import { useArtistStore } from '../../stores/artist.js'
+import { artistPublicApi, artistApi } from '../../api/index'
+import { useArtistStore } from '../../stores/artist'
 import { ElMessage } from 'element-plus'
-import { formatYuanValue } from '../../utils/money.js'
+import { formatYuanValue } from '../../utils/money'
 
 // 数据：画风（含尺寸+增项）+ 倍率
 const store = useArtistStore()

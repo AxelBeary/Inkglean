@@ -12,7 +12,7 @@
  * 只复用客户参考图（source !== 'artist'）：画师加图属内部图库，客户追踪页不展示，
  * 若当作新单参考图提交会变成 source='client' 泄漏给客户。
  */
-import { MAX_IMAGE_COUNT } from '../constants/upload.js'
+import { MAX_IMAGE_COUNT } from '../constants/upload'
 
 /** 可回填字段白名单（819-J 二期：+refs 参考图） */
 export const REORDER_FILL_KEYS = ['desc', 'style', 'note', 'refs']

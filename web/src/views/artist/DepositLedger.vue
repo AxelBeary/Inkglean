@@ -108,9 +108,9 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatYuan, yuanToCents } from '../../utils/money.js'
-import { todayStr } from '../../utils/datetime.js'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { formatYuan, yuanToCents } from '../../utils/money'
+import { todayStr } from '../../utils/datetime'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
 
 const { t } = useI18n()
 

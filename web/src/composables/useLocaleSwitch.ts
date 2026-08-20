@@ -3,7 +3,7 @@
 // busy 锁拦截连点；reduced-motion 直切。
 //
 // getContainerEl：返回需要淡变/锁高度的容器元素（函数形式，规避 ref 解包歧义）。
-import { setLocale } from '../i18n/index.js'
+import { setLocale } from '../i18n/index'
 
 // T 波：WAAPI 无法直接读 CSS token，抽为命名常量 + 注释对齐 artist-tokens.css。
 // 380ms 落在 --dur-mid(.25s) 与 --dur-slow(.35s) 之间，属容器级交叉淡化节奏，保持原值等值；

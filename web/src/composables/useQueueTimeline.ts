@@ -10,12 +10,12 @@
  */
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import type { Ref } from 'vue'
-import { artistApi } from '../api/index.js'
-import type { ApiError } from '../api/index.js'
+import { artistApi } from '../api/index'
+import type { ApiError } from '../api/index'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { safeGetItem, safeSetItem } from '../utils/storage.js'
-import type { VersionedOptions } from '../api/types.js'
+import { safeGetItem, safeSetItem } from '../utils/storage'
+import type { VersionedOptions } from '../api/types'
 
 /** 缩放档位键 */
 type TlZoomKey = '2w' | '1m' | '3m' | '6m' | '1y'

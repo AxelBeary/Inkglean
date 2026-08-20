@@ -66,8 +66,8 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import WorkflowOverviewStrip from '../../../components/shared/WorkflowOverviewStrip.vue'
-import { useDropGuard } from '../../../composables/useDropGuard.js'
-import { MAX_IMAGE_COUNT } from '../../../constants/upload.js'
+import { useDropGuard } from '../../../composables/useDropGuard'
+import { MAX_IMAGE_COUNT } from '../../../constants/upload'
 import type { RefFileItem, WorkflowStageItem } from './types'
 
 defineProps<{

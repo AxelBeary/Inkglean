@@ -29,22 +29,22 @@
  */
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
-import { artistPublicApi, orderApi } from '../api/index.js'
-import type { ApiError } from '../api/index.js'
-import { fetchArtistPublicProfile } from './useArtistPublicProfile.js'
+import { artistPublicApi, orderApi } from '../api/index'
+import type { ApiError } from '../api/index'
+import { fetchArtistPublicProfile } from './useArtistPublicProfile'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { sanitizeHtml } from '../utils/sanitize.js'
-import { usePasteUpload } from './usePasteUpload.js'
-import { formatAddonPrice, yuanToCents } from '../utils/money.js'
-import { getAnonToken } from '../utils/track.js'
-import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload.js'
-import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload.js'
+import { sanitizeHtml } from '../utils/sanitize'
+import { usePasteUpload } from './usePasteUpload'
+import { formatAddonPrice, yuanToCents } from '../utils/money'
+import { getAnonToken } from '../utils/track'
+import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload'
 import type {
   ArtistPublicProfile, PublicArtStyle, PublicStyleAddon, PublicPricingResult,
   StylePriceResult, StyleAddonSelection, WorkflowStageDTO
-} from '../api/types.js'
-import type { DiscountResult, RefFileItem, InstallmentItem } from '../views/client/order-form/types.js'
+} from '../api/types'
+import type { DiscountResult, RefFileItem, InstallmentItem } from '../views/client/order-form/types'
 
 /** 普通增项选择状态记录（{ [styleAddonId]: { toggled, quantity } }） */
 interface AddonSelRecord {

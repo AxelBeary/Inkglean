@@ -91,6 +91,9 @@ $tamperArgs = @('scripts/check-test-tamper.mjs', '--base', 'master')
 if ($TestTamperAck) { $tamperArgs += @('--ack-reason', $TestTamperAck) }
 $gates += @{ id = 'test-tamper'; label = '测试同改标红（check-test-tamper）'; dir = ''; npmArgs = @('exec', '--no', '--', 'node') + $tamperArgs }
 
+# 巨型文件防阀（T-08，2026-08-20 深度分析报告拍板）：800 行上限 + 历史巨型冻结名单
+$gates += @{ id = 'file-size'; label = '巨型文件防阀（check-file-size）'; dir = ''; npmArgs = @('exec', '--no', '--', 'node', 'scripts/check-file-size.mjs', '.') }
+
 # ---------- 基线（用例数只增不减；增长后同步更新本文件） ----------
 $baselinePath = Join-Path $repo 'scripts/accept-baseline.json'
 $baseline = if (Test-Path $baselinePath) { Get-Content $baselinePath -Raw | ConvertFrom-Json } else { $null }

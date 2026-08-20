@@ -182,20 +182,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useArtistStore } from '../../stores/artist.js'
-import { webauthnApi, totpRebindApi, calendarFeedApi } from '../../api/index.js'
+import { useArtistStore } from '../../stores/artist'
+import { webauthnApi, totpRebindApi, calendarFeedApi } from '../../api/index'
 import { WarningFilled, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
 import {
   toCredentialCreationOptions,
   toCredentialRequestOptions,
   publicKeyCredentialToJSON,
   isBackendError
-} from '../../utils/webauthn.js'
-import { usePasskeyCreate, PASSKEY_FLOW_HANDLED } from '../../composables/usePasskeyCreate.js'
-import { REBIND_COOLDOWN_DEFAULT_MS } from '../../constants/account.js'
-import type { WebAuthnCredential, PublicArtistDTO } from '../../api/types.js'
+} from '../../utils/webauthn'
+import { usePasskeyCreate, PASSKEY_FLOW_HANDLED } from '../../composables/usePasskeyCreate'
+import { REBIND_COOLDOWN_DEFAULT_MS } from '../../constants/account'
+import type { WebAuthnCredential, PublicArtistDTO } from '../../api/types'
 
 const { t } = useI18n()
 const { passkeyCreateFlow } = usePasskeyCreate()

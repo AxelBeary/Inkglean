@@ -107,9 +107,9 @@
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { artistApi } from '../../../api/index.js'
-import { formatDateTime } from '../../../utils/datetime.js'
-import type { ScheduleBar } from '../../../api/types.js'
+import { artistApi } from '../../../api/index'
+import { formatDateTime } from '../../../utils/datetime'
+import type { ScheduleBar } from '../../../api/types'
 
 const { t, locale } = useI18n()
 const router = useRouter()

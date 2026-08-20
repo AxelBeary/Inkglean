@@ -158,12 +158,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { adminApi } from '../../api/index.js'
-import type { GlobalStats, AdminArtistItem, AdminGuestbookMessage, AdminMessageFilters } from '../../api/types.js'
+import { adminApi } from '../../api/index'
+import type { GlobalStats, AdminArtistItem, AdminGuestbookMessage, AdminMessageFilters } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatDateTime } from '../../utils/datetime.js'
-import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+import { formatDateTime } from '../../utils/datetime'
+import { ARTIST_STATUS_TYPE } from '../../constants/order'
 
 const { t } = useI18n()
 const stats = ref<GlobalStats | null>(null)

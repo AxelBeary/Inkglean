@@ -10,7 +10,7 @@ import {
   isValidCustomDims,
   resizeImageToBlob,
   IMAGE_RESIZE_ERROR
-} from '../image-resize.js'
+} from '../image-resize'
 
 describe('targetSize 预设与自定义解析', () => {
   it('预设返回固定宽高（微博高为 null=等比）', () => {

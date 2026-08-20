@@ -24,7 +24,7 @@ vi.mock('../../api/index.js', () => ({
   uploadApi: { reference: h.reference }
 }))
 
-import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../anonUpload.js'
+import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../anonUpload'
 
 const FILE = { size: 1024, name: 'ref.png', uid: 'u1' } as unknown as Blob
 const UPLOADED: UploadedRef = { filePath: 'references/r.png', url: '/uploads/references/r.png' }

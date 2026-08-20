@@ -13,7 +13,7 @@ vi.mock('element-plus', () => ({
 }))
 
 import { ElMessage } from 'element-plus'
-import { isSystemFileDrag, useDropGuard } from '../useDropGuard.js'
+import { isSystemFileDrag, useDropGuard } from '../useDropGuard'
 
 interface DataTransferLike {
   types: string[]

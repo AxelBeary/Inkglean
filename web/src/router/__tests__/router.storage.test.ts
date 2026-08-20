@@ -20,7 +20,7 @@ vi.mock('../../i18n/index.js', () => ({
   default: { global: { t: (key: string) => key } }
 }))
 
-import router from '../index.js'
+import router from '../index'
 
 describe('router guard 存储禁用降级（P3-10）', () => {
   // vitest 4 的 restoreAllMocks 对 happy-dom Storage.prototype spy 不生效，须显式 mockRestore

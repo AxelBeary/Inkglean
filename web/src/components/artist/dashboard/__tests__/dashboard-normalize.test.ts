@@ -5,7 +5,7 @@ import {
   normalizeRevenue, prevPeriodLabel,
   normalizeTodo, tagKey, guessTag,
   normalizeActivity, relativeTime
-} from '../../../../utils/dashboard-normalize.js'
+} from '../../../../utils/dashboard-normalize'
 
 afterEach(() => { vi.useRealTimers() })
 

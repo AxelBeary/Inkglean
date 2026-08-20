@@ -73,8 +73,8 @@
 import { computed } from 'vue'
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatYuanTrimmed } from '../../utils/money.js'
-import { computeSizePreview, type StyleAddonRow } from './addon-utils.js'
+import { formatYuanTrimmed } from '../../utils/money'
+import { computeSizePreview, type StyleAddonRow } from './addon-utils'
 
 /** 尺寸（本弹窗消费字段 + computeSizePreview 入参形状；_overrides 为父级附加） */
 interface PreviewSizeRow {

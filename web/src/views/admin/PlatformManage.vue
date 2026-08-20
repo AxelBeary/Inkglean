@@ -123,12 +123,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { adminApi } from '../../api/index.js'
-import type { PlatformDTO } from '../../api/types.js'
+import { adminApi } from '../../api/index'
+import type { PlatformDTO } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import TplPlatformIcon from '../../components/shared/TplPlatformIcon.vue'
-import { PLATFORM_ICON_NAMES } from '../../utils/simpleIcons.js'
+import { PLATFORM_ICON_NAMES } from '../../utils/simpleIcons'
 
 const { t } = useI18n()
 

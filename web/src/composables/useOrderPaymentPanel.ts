@@ -2,10 +2,10 @@ import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { useOrderPayments } from './useOrderPayments.js'
-import { formatCents } from '../utils/money.js'
-import type { ApiError } from '../api/index.js'
-import type { EnrichedOrderDetail, OrderInstallment, PaymentRow } from '../api/types.js'
+import { useOrderPayments } from './useOrderPayments'
+import { formatCents } from '../utils/money'
+import type { ApiError } from '../api/index'
+import type { EnrichedOrderDetail, OrderInstallment, PaymentRow } from '../api/types'
 
 /** 订单 ref 宽松形状（finalPriceCents 为防御性读取字段，运行时不一定存在） */
 type PaymentPanelOrder = EnrichedOrderDetail & { finalPriceCents?: number | null }

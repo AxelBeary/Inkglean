@@ -119,14 +119,14 @@
 <script setup lang="ts">
 import { ref, markRaw, computed, onMounted } from 'vue'
 import type { Component } from 'vue'
-import { adminApi } from '../../api/index.js'
-import type { HealthCheckItem, SystemVersionResult } from '../../api/types.js'
+import { adminApi } from '../../api/index'
+import type { HealthCheckItem, SystemVersionResult } from '../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { useArtistStore } from '../../stores/artist.js'
+import { useArtistStore } from '../../stores/artist'
 // 0818 方案 A：更新命令复制走公共剪贴板封装（同 ScheduleSharePage 口径）
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
-import { formatDateTime } from '../../utils/datetime.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
+import { formatDateTime } from '../../utils/datetime'
 // v0.34 任务3：状态 emoji 改 SVG（保留状态语义色）
 import { CircleCheck, Warning, CircleClose, QuestionFilled, ArrowDown } from '@element-plus/icons-vue'
 

@@ -48,8 +48,8 @@ vi.mock('../../utils/track.js', () => ({
   getFreshAnonToken: () => Promise.resolve('anon-token-fresh-test')
 }))
 
-import { useOrderForm } from '../useOrderForm.js'
-import { artistPublicApi, orderApi, uploadApi } from '../../api/index.js'
+import { useOrderForm } from '../useOrderForm'
+import { artistPublicApi, orderApi, uploadApi } from '../../api/index'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 // ─── 被 vi.mock 替换的 API 方法（断言为 Mock 以便读取调用记录） ───

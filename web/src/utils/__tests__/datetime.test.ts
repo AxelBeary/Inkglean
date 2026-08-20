@@ -2,7 +2,7 @@
 // 确定性策略：期望值用与实现相同的 Date + toLocaleString 计算，
 // 不依赖运行环境的具体时区/locale，任何机器上都成立。
 import { describe, it, expect } from 'vitest'
-import { formatDateTime, formatDateTimeShort } from '../datetime.js'
+import { formatDateTime, formatDateTimeShort } from '../datetime'
 
 const FULL_OPTS: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }
 

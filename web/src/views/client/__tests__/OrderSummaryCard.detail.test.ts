@@ -2,7 +2,7 @@
 // 覆盖：有描述+工期 / 有示意图（含字段优先级）/ 全空三渲染分支
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import type { StyleSize } from '../order-form/types.js'
+import type { StyleSize } from '../order-form/types'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({

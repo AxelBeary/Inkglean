@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref, type Ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
-import type { PublicArtStyle } from '../../api/types.js'
+import type { PublicArtStyle } from '../../api/types'
 
 const h = vi.hoisted(() => ({
   calculateStylePrice: vi.fn()
@@ -20,7 +20,7 @@ vi.mock('../../api/index.js', () => ({
   artistPublicApi: { calculateStylePrice: (...args: unknown[]) => h.calculateStylePrice(...args) }
 }))
 
-import { useManualOrderPricing } from '../useManualOrderPricing.js'
+import { useManualOrderPricing } from '../useManualOrderPricing'
 
 const MOCK_STYLE = {
   id: 11,

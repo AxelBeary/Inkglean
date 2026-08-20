@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { useThemeStore } from '../../../stores/theme.js'
+import { useThemeStore } from '../../../stores/theme'
 
 const { t, locale } = useI18n()
 const themeStore = useThemeStore()

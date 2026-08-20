@@ -27,7 +27,7 @@
  * - onUnmounted 自动清理定时器和防抖计时器
  */
 import { onUnmounted } from 'vue'
-import { artistApi } from '../api/index.js'
+import { artistApi } from '../api/index'
 
 const DEFAULT_INTERVAL_MS = 10 * 60 * 1000 // 10 分钟（签名 TTL 15 分钟，留 5 分钟余量）
 const MAX_ERROR_RETRIES = 2 // @error 触发刷新的每图最大重试次数

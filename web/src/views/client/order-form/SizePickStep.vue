@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { formatYuanValue } from '../../../utils/money.js'
+import { formatYuanValue } from '../../../utils/money'
 import type { StyleSize } from './types'
 
 defineProps<{

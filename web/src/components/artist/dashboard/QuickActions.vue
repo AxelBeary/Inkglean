@@ -4,7 +4,7 @@
 import { markRaw } from 'vue'
 import type { Component } from 'vue'
 import { Tickets, EditPen, Box, ChatDotRound, Money, Picture, Setting, View, Share, UploadFilled, Wallet, Document, ChatLineRound, Notebook, Brush, PriceTag } from '@element-plus/icons-vue'
-import { safeGetItem } from '../../../utils/storage.js'
+import { safeGetItem } from '../../../utils/storage'
 
 /** localStorage 键（v0.25 起 DB 优先，localStorage 作为回退缓存） */
 export const QUICK_ACTIONS_KEY = 'huiyue_quick_actions'
@@ -128,12 +128,12 @@ import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { useArtistStore } from '../../../stores/artist.js'
-import { artistApi, uploadApi } from '../../../api/index.js'
-import type { ArtistStatus } from '../../../api/types.js'
-import { usePasteUpload } from '../../../composables/usePasteUpload.js'
-import { trackEvent } from '../../../utils/track.js'
-import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload.js'
+import { useArtistStore } from '../../../stores/artist'
+import { artistApi, uploadApi } from '../../../api/index'
+import type { ArtistStatus } from '../../../api/types'
+import { usePasteUpload } from '../../../composables/usePasteUpload'
+import { trackEvent } from '../../../utils/track'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload'
 import SliderSwitch from '../SliderSwitch.vue'
 
 const router = useRouter()

@@ -56,8 +56,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi, adminApi } from '../../api/index.js'
-import type { PlatformAnnouncement } from '../../api/types.js'
+import { artistApi, adminApi } from '../../api/index'
+import type { PlatformAnnouncement } from '../../api/types'
 
 const { t } = useI18n()
 const form = reactive<{ title: string; content: string }>({ title: '', content: '' })

@@ -4,8 +4,8 @@
 // 成功 → isAdmin 以服务端为准修正 store（localStorage 只由 store action 写，此处不再镜像）；
 // 401/403 → 复用既有登出逻辑清标记跳登录。
 import { useRouter } from 'vue-router'
-import { useArtistStore } from '../stores/artist.js'
-import { artistApi } from '../api/index.js'
+import { useArtistStore } from '../stores/artist'
+import { artistApi } from '../api/index'
 
 export function useSessionGuard() {
   const store = useArtistStore()

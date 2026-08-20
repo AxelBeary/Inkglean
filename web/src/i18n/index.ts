@@ -1,6 +1,6 @@
 import { createI18n } from 'vue-i18n'
-import zhCN from '../locales/zh-CN.js'   // 默认 locale 同步（保首屏翻译）；en 懒加载
-import { safeGetItem, safeSetItem } from '../utils/storage.js'
+import zhCN from '../locales/zh-CN'   // 默认 locale 同步（保首屏翻译）；en 懒加载
+import { safeGetItem, safeSetItem } from '../utils/storage'
 
 const STORAGE_KEY = 'huiyue-locale'
 
@@ -27,7 +27,7 @@ export const i18n = createI18n({
 let enPromise: Promise<LocaleMessage | null> | null = null
 function ensureEn(): Promise<LocaleMessage | null> {
   if (!enPromise) {
-    enPromise = import('../locales/en.js')
+    enPromise = import('../locales/en')
       .then(m => {
         i18n.global.setLocaleMessage('en', m.default)
         return m.default

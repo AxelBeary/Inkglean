@@ -59,14 +59,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { artistPublicApi } from '../../api/index.js'
-import type { ArtistListItem } from '../../api/types.js'
+import { artistPublicApi } from '../../api/index'
+import type { ArtistListItem } from '../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ThemePicker from '../../components/ThemePicker.vue'
 import Disclaimer from '../../components/Disclaimer.vue'
 import ComplianceFooterLinks from '../../components/client/ComplianceFooterLinks.vue'
-import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+import { ARTIST_STATUS_TYPE } from '../../constants/order'
 
 const { t } = useI18n()
 const router = useRouter()

@@ -137,13 +137,13 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { PropType } from 'vue'
-import { adminApi } from '../../api/index.js'
-import type { AdminArtistItem, Artwork, ArtistPricingOverviewItem } from '../../api/types.js'
+import { adminApi } from '../../api/index'
+import type { AdminArtistItem, Artwork, ArtistPricingOverviewItem } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import GreetingTable from '../../components/admin/GreetingTable.vue'
-import { formatYuanValue } from '../../utils/money.js'
+import { formatYuanValue } from '../../utils/money'
 
 const { t } = useI18n()
 const visible = defineModel({ type: Boolean, default: false })

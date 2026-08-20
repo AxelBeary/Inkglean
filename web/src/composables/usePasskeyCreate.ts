@@ -15,7 +15,7 @@
  */
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { isWebAuthnCancellation, isWebAuthnUnsupported } from '../utils/webauthn.js'
+import { isWebAuthnCancellation, isWebAuthnUnsupported } from '../utils/webauthn'
 
 /** 仪式内已自行处理（含特定提示），flow 不再追加默认提示 */
 export const PASSKEY_FLOW_HANDLED = Symbol('passkey-flow-handled')

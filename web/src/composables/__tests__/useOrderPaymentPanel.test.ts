@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import { ref } from 'vue'
-import type { OrderInstallment } from '../../api/types.js'
+import type { OrderInstallment } from '../../api/types'
 
 // ─── Spies（vi.mock 自动提升，经 vi.hoisted 暴露） ───
 const h = vi.hoisted(() => ({
@@ -34,7 +34,7 @@ vi.mock('../useOrderPayments.js', () => ({
   })
 }))
 
-import { useOrderPaymentPanel } from '../useOrderPaymentPanel.js'
+import { useOrderPaymentPanel } from '../useOrderPaymentPanel'
 
 function setup(overrides: Record<string, unknown> = {}) {
   const order = ref({

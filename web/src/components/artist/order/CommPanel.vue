@@ -30,7 +30,7 @@ import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import CardHead from '../visual/CardHead.vue'
-import { formatCents } from '../../../utils/money.js'
+import { formatCents } from '../../../utils/money'
 
 /** 本卡消费的订单字段（话术 / QQ / 当前节点） */
 interface CommOrderLite {

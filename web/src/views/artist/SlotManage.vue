@@ -151,10 +151,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { artistApi } from '../../api/index.js'
+import { artistApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import type { ArtistProfileResult, ArtistStatus } from '../../api/types.js'
+import type { ArtistProfileResult, ArtistStatus } from '../../api/types'
 
 const { t } = useI18n()
 const loading = ref(true)

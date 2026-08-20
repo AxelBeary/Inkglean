@@ -11,9 +11,9 @@ import { ref, reactive, computed, watch } from 'vue'
 import type { Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistPublicApi } from '../api/index.js'
-import { formatAddonPrice, formatYuan } from '../utils/money.js'
-import type { PublicArtStyle, PublicStyleAddon, PublicStyleSize, StyleAddonSelection, StylePriceResult } from '../api/types.js'
+import { artistPublicApi } from '../api/index'
+import { formatAddonPrice, formatYuan } from '../utils/money'
+import type { PublicArtStyle, PublicStyleAddon, PublicStyleSize, StyleAddonSelection, StylePriceResult } from '../api/types'
 
 /** 普通增项勾选状态（switch → toggled；quantity → quantity>0） */
 interface AddonSelState {

@@ -10,8 +10,8 @@
  *   onMounted(() => loadLogs())
  */
 import { ref } from 'vue'
-import { artistApi } from '../api/index.js'
-import type { ActivityLogItem } from '../api/types.js'
+import { artistApi } from '../api/index'
+import type { ActivityLogItem } from '../api/types'
 
 export function useActivityLog(orderId: number) {
   const logs = ref<ActivityLogItem[]>([])

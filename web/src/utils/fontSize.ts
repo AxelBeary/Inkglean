@@ -9,7 +9,7 @@
  * normal/无值/非法→15（新默认）。默认 15 也显式设 dataset.fontSize='15'
  * （15≠14 基线，不设会回退到旧默认）。
  */
-import { safeGetItem, safeSetItem, safeRemoveItem } from './storage.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from './storage'
 
 export const FONT_SIZE_KEY = 'huiyue_admin_font_size'
 export const FONT_SIZE_MIN = 14

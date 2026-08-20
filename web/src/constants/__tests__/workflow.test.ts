@@ -1,10 +1,10 @@
 // 收款比例/分页魔数单源测试（P1 汇总波 C15/C17）
 // 断言：抽出的常量与各组件原硬编码值完全一致（防重构漂移）
 import { describe, it, expect } from 'vitest'
-import { MIN_BP, TOTAL_BP, SNAP, MAX_INSTALLMENTS, NEW_BP } from '../workflow.js'
-import { UI_PAGE_SIZE, FETCH_ALL_PAGE_SIZE, GUESTBOOK_FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../pagination.js'
-import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../addon.js'
-import { REBIND_COOLDOWN_DEFAULT_MS } from '../account.js'
+import { MIN_BP, TOTAL_BP, SNAP, MAX_INSTALLMENTS, NEW_BP } from '../workflow'
+import { UI_PAGE_SIZE, FETCH_ALL_PAGE_SIZE, GUESTBOOK_FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../pagination'
+import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../addon'
+import { REBIND_COOLDOWN_DEFAULT_MS } from '../account'
 
 describe('收款比例常量（C15）', () => {
   it('与 PaymentBar/WorkflowPaymentEditor 原硬编码值一致', () => {

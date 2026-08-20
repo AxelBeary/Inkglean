@@ -11,7 +11,7 @@ import {
   MAX_URL_LEN,
   LINK_INVALID,
   LINK_TOO_LONG
-} from '../linkValidation.js'
+} from '../linkValidation'
 
 /** 联合返回值的宽口径断言视图（{ok:true,...} | {ok:false,...} 的统一访问） */
 type LinkCheckResult = { ok: boolean; url?: string; reason?: string; platformId?: number | null }

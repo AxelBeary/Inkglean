@@ -51,8 +51,8 @@ vi.mock('../../utils/sanitize.js', () => ({
   sanitizeHtml: (html: string) => html || ''
 }))
 
-import { useOrderForm } from '../useOrderForm.js'
-import { orderApi, uploadApi } from '../../api/index.js'
+import { useOrderForm } from '../useOrderForm'
+import { orderApi, uploadApi } from '../../api/index'
 
 const createMock = orderApi.create as unknown as Mock
 

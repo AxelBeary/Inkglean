@@ -65,9 +65,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { artistPublicApi } from '../../api/index.js'
-import type { PublicGuestbookMessage } from '../../api/types.js'
-import { formatDateTime } from '../../utils/datetime.js'
+import { artistPublicApi } from '../../api/index'
+import type { PublicGuestbookMessage } from '../../api/types'
+import { formatDateTime } from '../../utils/datetime'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 

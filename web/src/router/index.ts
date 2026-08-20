@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import i18n from '../i18n/index.js'
-import { useArtistStore } from '../stores/artist.js'
-import { useThemeStore } from '../stores/theme.js'
-import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
+import i18n from '../i18n/index'
+import { useArtistStore } from '../stores/artist'
+import { useThemeStore } from '../stores/theme'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage'
 
 // ============================================
 // 路由配置

@@ -23,9 +23,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { Guide } from '@element-plus/icons-vue'
 import CardHead from '../visual/CardHead.vue'
-import { artistApi } from '../../../api/index.js'
-import type { OnboardingState } from '../../../api/types.js'
-import { trackEvent } from '../../../utils/track.js'
+import { artistApi } from '../../../api/index'
+import type { OnboardingState } from '../../../api/types'
+import { trackEvent } from '../../../utils/track'
 import { useTour } from '../../../composables/useTour'
 
 const tour = useTour()

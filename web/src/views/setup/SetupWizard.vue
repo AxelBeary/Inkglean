@@ -112,10 +112,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useSetupStore } from '../../stores/setup.js'
-import { useArtistStore } from '../../stores/artist.js'
-import { useThemeStore } from '../../stores/theme.js'
-import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
+import { useSetupStore } from '../../stores/setup'
+import { useArtistStore } from '../../stores/artist'
+import { useThemeStore } from '../../stores/theme'
+import { useLocaleSwitch } from '../../composables/useLocaleSwitch'
 
 const { t, locale } = useI18n()
 const route = useRoute()

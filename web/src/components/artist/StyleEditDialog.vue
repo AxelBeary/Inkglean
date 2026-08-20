@@ -38,8 +38,8 @@ import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi, uploadApi } from '../../api/index.js'
-import type { ArtStyleInput } from '../../api/types.js'
+import { artistApi, uploadApi } from '../../api/index'
+import type { ArtStyleInput } from '../../api/types'
 
 /** 编辑中的画风行（父级列表行结构的最小子集） */
 interface EditStyleLite {

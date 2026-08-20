@@ -22,7 +22,7 @@ interface BeaconBody {
 const fetchMock = vi.fn((_input: string, _init: { body: string }): Promise<Response> => new Promise<Response>(() => {}))
 globalThis.fetch = fetchMock as unknown as typeof fetch
 
-import { trackEvent, buildBeaconBodies } from '../track.js'
+import { trackEvent, buildBeaconBodies } from '../track'
 
 describe('track pagehide 分片（817-D 10-4）', () => {
   beforeEach(() => {

@@ -142,14 +142,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import type { GuestbookMessage } from '../../api/types.js'
-import { artistApi } from '../../api/index.js'
-import { useArtistStore } from '../../stores/artist.js'
+import type { GuestbookMessage } from '../../api/types'
+import { artistApi } from '../../api/index'
+import { useArtistStore } from '../../stores/artist'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatDateTime } from '../../utils/datetime.js'
-import { trackEvent } from '../../utils/track.js'
-import { UI_PAGE_SIZE, GUESTBOOK_FETCH_ALL_PAGE_SIZE } from '../../constants/pagination.js'
+import { formatDateTime } from '../../utils/datetime'
+import { trackEvent } from '../../utils/track'
+import { UI_PAGE_SIZE, GUESTBOOK_FETCH_ALL_PAGE_SIZE } from '../../constants/pagination'
 
 const { t } = useI18n()
 const store = useArtistStore()

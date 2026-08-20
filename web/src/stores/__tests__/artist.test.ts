@@ -9,7 +9,7 @@ vi.mock('../../api/index.js', () => ({
   artistApi: { getProfile: vi.fn(), getStats: vi.fn() }
 }))
 
-import { useArtistStore } from '../artist.js'
+import { useArtistStore } from '../artist'
 
 describe('artist store 存储禁用降级（P3-10）', () => {
   // vitest 4 的 restoreAllMocks 对 happy-dom Storage.prototype spy 不生效，须显式 mockRestore

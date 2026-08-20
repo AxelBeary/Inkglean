@@ -225,8 +225,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import draggable from 'vuedraggable'
-import { artistApi } from '../../api/index.js'
-import type { AddonTemplate } from '../../api/types.js'
+import { artistApi } from '../../api/index'
+import type { AddonTemplate } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 // REQ-036 批A: 增项直觉化子组件（新建/预览/三层设置）+ SPEC-PRICE-2 共享纯函数
@@ -237,8 +237,8 @@ import AddonSettingsDialog from './AddonSettingsDialog.vue'
 import StyleEditDialog from './StyleEditDialog.vue'
 import SizeEditDialog from './SizeEditDialog.vue'
 import AddonImportDialog from './AddonImportDialog.vue'
-import { formatYuanValue } from '../../utils/money.js'
-import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText } from './addon-utils.js'
+import { formatYuanValue } from '../../utils/money'
+import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText } from './addon-utils'
 
 const { t } = useI18n()
 

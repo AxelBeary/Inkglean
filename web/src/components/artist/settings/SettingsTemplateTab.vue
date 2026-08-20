@@ -120,7 +120,7 @@
 
 <script setup lang="ts">
 import type { Component } from 'vue'
-import type { Artwork } from '../../../api/types.js'
+import type { Artwork } from '../../../api/types'
 
 /** 模板与风格表单（对齐 Settings.vue form 的 template 域） */
 interface TemplateForm {

@@ -176,17 +176,17 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue'
-import { artistApi } from '../../api/index.js'
+import { artistApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { useThemeStore } from '../../stores/theme.js'
+import { useThemeStore } from '../../stores/theme'
 // 819-G: 快捷按钮候选池（与 Dashboard QuickActions 共用）
 import { QUICK_ACTION_POOL, QUICK_ACTIONS_DEFAULT, QUICK_ACTIONS_KEY, readQuickActionsConfig, parseQuickActions } from '../../components/artist/dashboard/QuickActions.vue'
-import { safeSetItem } from '../../utils/storage.js'
+import { safeSetItem } from '../../utils/storage'
 // 818-A: 字号滑块共享 util（Preferences 与 ArtistLayout 同一映射/读写口径）
-import { FONT_SIZE_MIN, FONT_SIZE_MAX, readFontSize, applyFontSize, writeFontSize } from '../../utils/fontSize.js'
+import { FONT_SIZE_MIN, FONT_SIZE_MAX, readFontSize, applyFontSize, writeFontSize } from '../../utils/fontSize'
 // 819-G: 动画速度 + 减少动效共享 util（Preferences 与 ArtistLayout 同一映射/应用口径）
-import { ANIM_SPEED_MIN, ANIM_SPEED_MAX, ANIM_SPEED_STEP, readAnimSpeed, applyAnimSpeed, writeAnimSpeed, readReduceMotion, applyReduceMotion, writeReduceMotion } from '../../utils/animSpeed.js'
+import { ANIM_SPEED_MIN, ANIM_SPEED_MAX, ANIM_SPEED_STEP, readAnimSpeed, applyAnimSpeed, writeAnimSpeed, readReduceMotion, applyReduceMotion, writeReduceMotion } from '../../utils/animSpeed'
 
 const { t } = useI18n()
 const themeStore = useThemeStore()

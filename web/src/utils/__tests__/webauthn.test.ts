@@ -6,7 +6,7 @@ import {
   arrayBufferToBase64Url,
   toCredentialRequestOptions,
   toCredentialCreationOptions
-} from '../webauthn.js'
+} from '../webauthn'
 
 function bytesToArrayBuffer(bytes: number[]): ArrayBuffer {
   return new Uint8Array(bytes).buffer

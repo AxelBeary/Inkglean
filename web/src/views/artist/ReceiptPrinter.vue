@@ -121,12 +121,12 @@
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { formatYuan, yuanToCents } from '../../utils/money.js'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
-import { INK_PALETTE } from '../../utils/ink-palette.js'
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
-import { computeReceiptTotals, discountLabel, validItems } from '../../utils/receipt.js'
-import type { ReceiptDiscountType, ReceiptItemLike } from '../../utils/receipt.js'
+import { formatYuan, yuanToCents } from '../../utils/money'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
+import { INK_PALETTE } from '../../utils/ink-palette'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
+import { computeReceiptTotals, discountLabel, validItems } from '../../utils/receipt'
+import type { ReceiptDiscountType, ReceiptItemLike } from '../../utils/receipt'
 
 const { t, locale } = useI18n()
 

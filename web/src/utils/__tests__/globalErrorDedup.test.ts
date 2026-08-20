@@ -1,7 +1,7 @@
 // 全局错误提示去重测试（P3-9）
 // 覆盖：同一消息 5 秒窗口内只放行一次、不同消息互不影响、窗口过后重新放行
 import { describe, it, expect } from 'vitest'
-import { createGlobalErrorDedup } from '../globalErrorDedup.js'
+import { createGlobalErrorDedup } from '../globalErrorDedup'
 
 describe('createGlobalErrorDedup（P3-9）', () => {
   let t = 0

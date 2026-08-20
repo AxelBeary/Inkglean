@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
-import { i18n } from '../i18n/index.js'
-import { artistApi } from '../api/index.js'
-import type { AddPaymentResult, PaymentRow } from '../api/types.js'
+import { i18n } from '../i18n/index'
+import { artistApi } from '../api/index'
+import type { AddPaymentResult, PaymentRow } from '../api/types'
 
 /**
  * B7 额度池：订单收款记录 composable

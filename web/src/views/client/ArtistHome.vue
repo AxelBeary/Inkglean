@@ -42,13 +42,13 @@
 import { ref, reactive, computed, provide, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import type { Component } from 'vue'
 import { useRoute } from 'vue-router'
-import { artistPublicApi } from '../../api/index.js'
-import type { ArtistPublicProfile, VisibleArtistProfile, Artwork, PlatformDTO, PublicArtStyle, PublicGalleryResult, WorkflowStageDTO } from '../../api/types.js'
-import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
+import { artistPublicApi } from '../../api/index'
+import type { ArtistPublicProfile, VisibleArtistProfile, Artwork, PlatformDTO, PublicArtStyle, PublicGalleryResult, WorkflowStageDTO } from '../../api/types'
+import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { sanitizeHtml } from '../../utils/sanitize.js'
-import { usePalette } from '../../composables/usePalette.js'
+import { sanitizeHtml } from '../../utils/sanitize'
+import { usePalette } from '../../composables/usePalette'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 
 const { t } = useI18n()

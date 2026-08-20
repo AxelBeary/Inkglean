@@ -11,7 +11,7 @@ import {
   writeFontSize,
   applyFontSize,
   clearFontSize
-} from '../fontSize.js'
+} from '../fontSize'
 
 beforeEach(() => {
   localStorage.clear()

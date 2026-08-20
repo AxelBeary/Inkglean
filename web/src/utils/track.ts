@@ -10,7 +10,7 @@
  *  - G-7（P2-13 前端侧）: 匿名凭证同时供参考图上传/下单归属校验使用
  *    （getAnonToken 取缓存/签发；getFreshAnonToken 强制换新，供上传遇 INVALID 时重试）
  */
-import { safeGetItem, safeSetItem, safeRemoveItem } from './storage.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from './storage'
 
 /** 埋点事件（name/ts/version 为固定骨架，payload 任意附加字段） */
 interface TrackEventRecord {

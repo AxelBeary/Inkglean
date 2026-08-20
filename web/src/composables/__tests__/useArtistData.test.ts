@@ -13,8 +13,8 @@ import {
   buildGalleryFilters,
   filterArtworksBySize,
   useArtistData
-} from '../useArtistData.js'
-import type { PlatformDTO, PublicGallerySize } from '../../api/types.js'
+} from '../useArtistData'
+import type { PlatformDTO, PublicGallerySize } from '../../api/types'
 
 // ─── F3: 尺寸图路径解析（三号契约：后端已解析好 artwork_image_path，互斥语义） ───
 

@@ -101,13 +101,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { artistApi } from '../../api/index.js'
-import type { AddonTemplate } from '../../api/types.js'
+import { artistApi } from '../../api/index'
+import type { AddonTemplate } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon.js'
-import { formatAddonPrice } from '../../utils/money.js'
-import { controlLabel, controlTagType, categoryLabel } from './addon-utils.js'
+import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX, ADDON_DEFAULT_PRICE } from '../../constants/addon'
+import { formatAddonPrice } from '../../utils/money'
+import { controlLabel, controlTagType, categoryLabel } from './addon-utils'
 
 const { t } = useI18n()
 

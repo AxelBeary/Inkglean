@@ -6,7 +6,7 @@
  * BufferSource（ArrayBuffer / TypedArray）。本模块是两端口径的唯一转换点。
  */
 
-import type { WebAuthnLoginOptions, WebAuthnRegisterOptions } from '../api/types.js'
+import type { WebAuthnLoginOptions, WebAuthnRegisterOptions } from '../api/types'
 
 /** Base64URL 字符串 → ArrayBuffer（浏览器 WebAuthn 要求的 BufferSource） */
 export function base64UrlToBuffer(value: string): ArrayBuffer {

@@ -179,12 +179,12 @@ import { ref, nextTick, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useArtistStore } from '../../stores/artist.js'
-import { useLocaleSwitch } from '../../composables/useLocaleSwitch.js'
+import { useArtistStore } from '../../stores/artist'
+import { useLocaleSwitch } from '../../composables/useLocaleSwitch'
 import LoginBackdrop from '../../components/artist/login/LoginBackdrop.vue'
 import PaperCard from '../../components/artist/login/PaperCard.vue'
 import LoginPrefs from '../../components/artist/login/LoginPrefs.vue'
-import { inviteApi } from '../../api/index.js'
+import { inviteApi } from '../../api/index'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
 import { Lock } from '@element-plus/icons-vue'
@@ -193,7 +193,7 @@ import {
   publicKeyCredentialToJSON,
   isWebAuthnCancellation,
   isWebAuthnUnsupported
-} from '../../utils/webauthn.js'
+} from '../../utils/webauthn'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -460,7 +460,7 @@ async function passkeyLogin() {
 
   passkeyLogging.value = true
   try {
-    const { webauthnApi } = await import('../../api/index.js')
+    const { webauthnApi } = await import('../../api/index')
     const options = await webauthnApi.loginOptions(qq)
     // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/allowCredentials[].id）
     const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })

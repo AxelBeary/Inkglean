@@ -96,8 +96,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import CardHead from '../visual/CardHead.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
-import { artistApi, uploadApi } from '../../../api/index.js'
-import { formatDateTime } from '../../../utils/datetime.js'
+import { artistApi, uploadApi } from '../../../api/index'
+import { formatDateTime } from '../../../utils/datetime'
 
 /** 备注行（本卡消费字段） */
 interface NoteRow {

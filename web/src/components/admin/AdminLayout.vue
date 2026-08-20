@@ -117,13 +117,13 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useThemeStore } from '../../stores/theme.js'
+import { useThemeStore } from '../../stores/theme'
 // REQ-037 批2 A4: 会话强校验 composable（与 ArtistLayout 共用单一实现；
 // 原内联版依赖的 useArtistStore/safeSetItem/artistApi 随之收敛进 composable）
 import { useSessionGuard } from '../../composables/useSessionGuard'
 // REQ-041: 管理后台二次验证对话框（入口级守卫）
 import StepUpDialog from './StepUpDialog.vue'
-import { stepUpApi, type ApiError } from '../../api/index.js'
+import { stepUpApi, type ApiError } from '../../api/index'
 import { Management, User, ChatLineSquare, SetUp, Share, Files, Monitor, TrendCharts, Operation, Back, Warning, Bell } from '@element-plus/icons-vue'
 
 const route = useRoute()

@@ -5,7 +5,7 @@ import type { MockInstance } from 'vitest'
 import { nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 
-import { useThemeStore } from '../theme.js'
+import { useThemeStore } from '../theme'
 
 const originalMatchMedia = window.matchMedia
 // vitest 4 的 restoreAllMocks 对 happy-dom Storage.prototype spy 不生效，须显式 mockRestore

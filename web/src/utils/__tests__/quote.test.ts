@@ -1,7 +1,7 @@
 // 报价单工具纯函数测试（812-tools-a：①报价单生成）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { MockInstance } from 'vitest'
-import { quoteTotalCents, buildQuoteText, quoteCanvasHeight, renderQuoteCanvas, QUOTE_CANVAS_W } from '../quote.js'
+import { quoteTotalCents, buildQuoteText, quoteCanvasHeight, renderQuoteCanvas, QUOTE_CANVAS_W } from '../quote'
 
 describe('quoteTotalCents 条目合计（分）', () => {
   it('累加合法条目', () => {

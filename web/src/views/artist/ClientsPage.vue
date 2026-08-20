@@ -68,8 +68,8 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi } from '../../api/index.js'
-import type { ClientProfile } from '../../api/types.js'
+import { artistApi } from '../../api/index'
+import type { ClientProfile } from '../../api/types'
 
 const { t } = useI18n()
 const items = ref<ClientProfile[]>([])

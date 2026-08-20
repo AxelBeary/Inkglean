@@ -3,7 +3,7 @@
 // 合计行必须排在折扣行之后，避免「先合计后减折扣」的假折前行序。
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import type { StyleAddon, StylePricePreview } from '../order-form/types.js'
+import type { StyleAddon, StylePricePreview } from '../order-form/types'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })

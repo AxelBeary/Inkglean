@@ -214,18 +214,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { orderApi } from '../../api/index.js'
-import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types.js'
-import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile.js'
+import { orderApi } from '../../api/index'
+import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types'
+import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatDateTime } from '../../utils/datetime.js'
-import { formatCents } from '../../utils/money.js'
-import { ORDER_STATUS_TYPE } from '../../constants/order.js'
-import { downloadAsset } from '../../utils/download.js'
+import { formatDateTime } from '../../utils/datetime'
+import { formatCents } from '../../utils/money'
+import { ORDER_STATUS_TYPE } from '../../constants/order'
+import { downloadAsset } from '../../utils/download'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
-import { usePalette } from '../../composables/usePalette.js'
+import { usePalette } from '../../composables/usePalette'
 
 const { t } = useI18n()
 const route = useRoute()

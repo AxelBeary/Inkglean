@@ -50,13 +50,13 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Lock } from '@element-plus/icons-vue'
-import { stepUpApi, webauthnApi, authApi } from '../../api/index.js'
+import { stepUpApi, webauthnApi, authApi } from '../../api/index'
 import {
   toCredentialRequestOptions,
   arrayBufferToBase64Url,
   isWebAuthnCancellation,
   isWebAuthnUnsupported
-} from '../../utils/webauthn.js'
+} from '../../utils/webauthn'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{

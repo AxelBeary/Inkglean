@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import { ref, nextTick } from 'vue'
 
-import { mapStageToStatus, findStageForStatus, useStageStatus } from '../useStageStatus.js'
+import { mapStageToStatus, findStageForStatus, useStageStatus } from '../useStageStatus'
 
 // ─── 工具：构造工作流节点 ───
 

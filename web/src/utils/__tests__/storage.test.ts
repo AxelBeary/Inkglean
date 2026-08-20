@@ -2,7 +2,7 @@
 // 覆盖：get/set/remove 在 localStorage 抛错时静默降级（返回 null / 不抛错），正常路径照常
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import type { MockInstance } from 'vitest'
-import { safeGetItem, safeSetItem, safeRemoveItem } from '../storage.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../storage'
 
 // vitest 4 的 restoreAllMocks 对 happy-dom Storage.prototype spy 不生效，须显式 mockRestore
 let storageSpy:

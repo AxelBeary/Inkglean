@@ -272,10 +272,10 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
-import { useArtistData, buildGalleryFilters, filterArtworksBySize } from '../../composables/useArtistData.js'
+import { useArtistData, buildGalleryFilters, filterArtworksBySize } from '../../composables/useArtistData'
 import ArtworkLikeButton from '../shared/ArtworkLikeButton.vue'
-import { safeGetItem } from '../../utils/storage.js'
-import type { PublicGallerySize } from '../../api/types.js'
+import { safeGetItem } from '../../utils/storage'
+import type { PublicGallerySize } from '../../api/types'
 
 /** 画廊作品行宽松形状（gallery 端点与 artworks prop 两种口径共用） */
 interface GalleryArtwork {

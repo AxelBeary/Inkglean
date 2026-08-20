@@ -27,11 +27,11 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ChartConfiguration } from 'chart.js'
-import { artistApi } from '../../api/index.js'
-import { formatYuan } from '../../utils/money.js'
-import { INK_PALETTE } from '../../utils/ink-palette.js'
-import { buildCumulative, isIncomeEmpty, monthLabels } from '../../utils/income-chart.js'
-import type { IncomeMonthLike } from '../../utils/income-chart.js'
+import { artistApi } from '../../api/index'
+import { formatYuan } from '../../utils/money'
+import { INK_PALETTE } from '../../utils/ink-palette'
+import { buildCumulative, isIncomeEmpty, monthLabels } from '../../utils/income-chart'
+import type { IncomeMonthLike } from '../../utils/income-chart'
 
 /** 图表实例最小形状（不导出 Chart 类型依赖到组件签名） */
 interface ChartLike { destroy: () => void }

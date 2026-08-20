@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FOOD_MENU, FOOD_CATEGORIES } from '../../utils/food-menu.js'
+import { FOOD_MENU, FOOD_CATEGORIES } from '../../utils/food-menu'
 
 /** 菜谱条目（类型由单一事实源推导） */
 type FoodDish = (typeof FOOD_MENU)[number]

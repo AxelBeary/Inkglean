@@ -4,7 +4,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 // 813-fq-tail-shared 战役 S：错误兜底文案走 i18n（setup 命名空间），随当前 locale 即时翻译
-import { i18n } from '../i18n/index.js'
+import { i18n } from '../i18n/index'
 
 /** 设置接口错误体（Error 扩展 code/status，语义与原 JS 动态属性一致） */
 interface SetupApiError extends Error {

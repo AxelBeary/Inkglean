@@ -94,12 +94,12 @@ import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { artistApi, artistPublicApi } from '../../../api/index.js'
-import type { ArtistProfileResult, CustomLink } from '../../../api/types.js'
+import { artistApi, artistPublicApi } from '../../../api/index'
+import type { ArtistProfileResult, CustomLink } from '../../../api/types'
 // REQ-031 B1: F2 外链校验复用（域名防投毒，前端=后端子集的弱化版）
-import { validateLink, matchDomain } from '../../../utils/linkValidation.js'
+import { validateLink, matchDomain } from '../../../utils/linkValidation'
 // P3-10: 分享模板读写走安全封装（隐私模式/存储禁用时静默降级，不打断发布流程）
-import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
+import { safeGetItem, safeSetItem } from '../../../utils/storage'
 
 /** 交付物（本弹窗消费字段） */
 interface PublishDeliverable { id: number; original_name?: string | null; file_path?: string | null }

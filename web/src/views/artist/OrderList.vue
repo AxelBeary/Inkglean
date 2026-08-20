@@ -160,16 +160,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { artistApi } from '../../api/index.js'
-import type { ArtistOrderItem } from '../../api/types.js'
+import { artistApi } from '../../api/index'
+import type { ArtistOrderItem } from '../../api/types'
 import { ElMessage } from 'element-plus'
-import { FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../../constants/pagination.js'
+import { FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../../constants/pagination'
 // v0.38 第二批: 统一墨线空态（REQ-026 §二）
 import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
 import HySkeleton from '../../components/shared/HySkeleton.vue'
-import { formatDateTimeShort } from '../../utils/datetime.js'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { formatDateTimeShort } from '../../utils/datetime'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
 
 const route = useRoute()
 const router = useRouter()
@@ -232,7 +232,7 @@ const page = ref(1)
 const pageSize = ref(ORDER_LIST_UI_PAGE_SIZE)
 const total = ref(0)
 
-import { statusType, priorityType } from '../../constants/order.js'
+import { statusType, priorityType } from '../../constants/order'
 
 function formatDate(str: string) {
   return formatDateTimeShort(str)

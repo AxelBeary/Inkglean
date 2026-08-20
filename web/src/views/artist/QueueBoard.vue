@@ -72,18 +72,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { artistApi } from '../../api/index.js'
+import { artistApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
-import { subscribeReconnect } from '../../utils/reconnect.js'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
+import { subscribeReconnect } from '../../utils/reconnect'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import UndoToast from '../../components/artist/UndoToast.vue'
 // v0.41 瘦身批：列表视图 → QueueBoardList，月历/时间条 → QueueBoardCalendar（零行为变化）
 import QueueBoardList from '../../components/artist/queue/QueueBoardList.vue'
 import QueueBoardCalendar from '../../components/artist/queue/QueueBoardCalendar.vue'
 // v0.38: 统一墨线空状态（REQ-026 §二）
-import { useSignatureRefresh } from '../../composables/useSignatureRefresh.js'
-import type { QueueOrderItem } from '../../api/types.js'
+import { useSignatureRefresh } from '../../composables/useSignatureRefresh'
+import type { QueueOrderItem } from '../../api/types'
 
 const queue = ref<QueueOrderItem[]>([])
 const loading = ref(true)

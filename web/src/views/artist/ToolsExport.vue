@@ -98,12 +98,12 @@
 import { ref, watch, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatYuan } from '../../utils/money.js'
-import { todayStr } from '../../utils/datetime.js'
-import { artistApi } from '../../api/index.js'
-import { useArtistStore } from '../../stores/artist.js'
+import { formatYuan } from '../../utils/money'
+import { todayStr } from '../../utils/datetime'
+import { artistApi } from '../../api/index'
+import { useArtistStore } from '../../stores/artist'
 import IncomeTrendCharts from '../../components/artist/IncomeTrendCharts.vue'
-import type { IncomeSummaryResult } from '../../api/types.js'
+import type { IncomeSummaryResult } from '../../api/types'
 
 const { t } = useI18n()
 const store = useArtistStore()

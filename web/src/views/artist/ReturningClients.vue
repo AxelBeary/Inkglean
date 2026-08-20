@@ -52,10 +52,10 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi } from '../../api/index.js'
-import { formatDateTimeShort } from '../../utils/datetime.js'
-import { formatCents } from '../../utils/money.js'
-import type { ReturningClient } from '../../api/types.js'
+import { artistApi } from '../../api/index'
+import { formatDateTimeShort } from '../../utils/datetime'
+import { formatCents } from '../../utils/money'
+import type { ReturningClient } from '../../api/types'
 
 const { t } = useI18n()
 const days = ref(30)

@@ -44,11 +44,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { artistApi } from '../../../api/index.js'
-import { formatCents } from '../../../utils/money.js'
-import { useCountUp } from '../../../utils/useCountUp.js'
-import { safeGetItem, safeSetItem } from '../../../utils/storage.js'
-import type { ArtistStats, PlatformAnnouncement } from '../../../api/types.js'
+import { artistApi } from '../../../api/index'
+import { formatCents } from '../../../utils/money'
+import { useCountUp } from '../../../utils/useCountUp'
+import { safeGetItem, safeSetItem } from '../../../utils/storage'
+import type { ArtistStats, PlatformAnnouncement } from '../../../api/types'
 
 const props = defineProps<{
   /** getStats 返回（含 todayNewOrderCents / todayRevenueCents），可空 */

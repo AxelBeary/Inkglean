@@ -13,7 +13,7 @@ vi.mock('../../i18n/index.js', () => ({
   default: { global: { t: (key: string) => key } }
 }))
 
-import router from '../index.js'
+import router from '../index'
 
 // REQ-038: setup 状态接口 mock（测试密封——不依赖恰好在跑的 dev server）
 const setupStatusMock = (): Promise<{ ok: boolean; json: () => Promise<{ initialized: boolean; tokenRequired: boolean }> }> => Promise.resolve({

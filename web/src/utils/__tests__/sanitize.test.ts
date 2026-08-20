@@ -35,7 +35,7 @@ vi.mock('dompurify', () => ({
   }
 }))
 
-import { sanitizeHtml } from '../sanitize.js'
+import { sanitizeHtml } from '../sanitize'
 
 // hook 在 sanitize.js 模块加载时注册，在 clearAllMocks 之前捕获
 const linkHookCall = mockAddHook.mock.calls.find(([name]) => name === 'afterSanitizeAttributes')

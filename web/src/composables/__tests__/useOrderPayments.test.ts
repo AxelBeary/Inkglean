@@ -2,7 +2,7 @@
 // 覆盖：收款/撤销请求在途时 submitting=true、try/finally 结束后恢复 false（含失败路径）；
 //       每次提交意图带 idempotency-key header，同一次提交重试复用同 key，成功后换新 key
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { PaymentRow } from '../../api/types.js'
+import type { PaymentRow } from '../../api/types'
 
 const h = vi.hoisted(() => ({
   addPayment: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('../../api/index.js', () => ({
   }
 }))
 
-import { useOrderPayments } from '../useOrderPayments.js'
+import { useOrderPayments } from '../useOrderPayments'
 
 interface Deferred<T> {
   promise: Promise<T>

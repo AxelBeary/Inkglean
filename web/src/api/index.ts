@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type { AxiosError, AxiosRequestConfig } from 'axios'
-import { safeRemoveItem } from '../utils/storage.js'
+import { safeRemoveItem } from '../utils/storage'
 import type {
   ActivityResult,
   AddNoteRequest,
@@ -153,7 +153,7 @@ import type {
   VersionedOptions,
   WorkflowResult,
   WorkflowStageDTO
-} from './types.js'
+} from './types'
 
 // ============================================
 // API 请求封装
@@ -198,7 +198,7 @@ api.interceptors.response.use(
       safeRemoveItem('setup_initialized')
       try {
         // 动态导入避免循环依赖（router 链依赖本模块）
-        const routerMod = await import('../router/index.js')
+        const routerMod = await import('../router/index')
         // 815 拍板 #6：向导路由可能已被物理销毁（已初始化后启动移除），逃逸口重新注册回来
         if (!routerMod.default.hasRoute('SetupWizard')) {
           routerMod.default.addRoute(routerMod.SETUP_ROUTE)
@@ -212,7 +212,7 @@ api.interceptors.response.use(
     // 尝试用 i18n 翻译错误码
     if (code) {
       try {
-        const { i18n } = await import('../i18n/index.js')
+        const { i18n } = await import('../i18n/index')
         const t = i18n.global.t
         const key = `errors.${code}`
         // detail 作为 i18n 命名插值参数（如 STAGES_RESET_BLOCKED 的 {count}）
@@ -236,7 +236,7 @@ api.interceptors.response.use(
     // D3: 无错误码/无 error 字段（网络错误等）时，兜底文案走 i18n 键
     if (!msg) {
       try {
-        const { i18n } = await import('../i18n/index.js')
+        const { i18n } = await import('../i18n/index')
         msg = i18n.global.t('common.networkError')
       } catch {
         // i18n 加载失败（极端兜底）：退回简单英文文案，避免空白提示
@@ -258,8 +258,8 @@ api.interceptors.response.use(
       safeRemoveItem('artist_is_admin')
       // 动态导入以避免循环依赖（store/router 依赖本模块）
       try {
-        const { useArtistStore } = await import('../stores/artist.js')
-        const { default: router } = await import('../router/index.js')
+        const { useArtistStore } = await import('../stores/artist')
+        const { default: router } = await import('../router/index')
         const store = useArtistStore()
         store.$reset()
         if (router.currentRoute.value.name !== 'ArtistLogin') {
@@ -306,17 +306,17 @@ export default api
 
 // ─── REQ-040: WebAuthn Passkey + TOTP 重绑 ───
 export const webauthnApi = {
-  registerOptions: (): Promise<import('./types.js').WebAuthnRegisterOptions> =>
+  registerOptions: (): Promise<import('./types').WebAuthnRegisterOptions> =>
     postJson('/auth/webauthn/register-options'),
-  registerVerify: (credential: unknown): Promise<import('./types.js').WebAuthnRegisterVerifyResult> =>
+  registerVerify: (credential: unknown): Promise<import('./types').WebAuthnRegisterVerifyResult> =>
     postJson('/auth/webauthn/register-verify', credential),
-  loginOptions: (qqNumber: string): Promise<import('./types.js').WebAuthnLoginOptions> =>
+  loginOptions: (qqNumber: string): Promise<import('./types').WebAuthnLoginOptions> =>
     postJson('/auth/webauthn/login-options', { qqNumber }),
-  loginVerify: (credential: unknown): Promise<import('./types.js').WebAuthnLoginVerifyResult> =>
+  loginVerify: (credential: unknown): Promise<import('./types').WebAuthnLoginVerifyResult> =>
     postJson('/auth/webauthn/login-verify', credential),
-  getCredentials: (): Promise<import('./types.js').WebAuthnCredentialsResult> =>
+  getCredentials: (): Promise<import('./types').WebAuthnCredentialsResult> =>
     getJson('/auth/webauthn/credentials'),
-  updateCredential: (id: number, deviceName: string): Promise<import('./types.js').WebAuthnUpdateCredentialResult> =>
+  updateCredential: (id: number, deviceName: string): Promise<import('./types').WebAuthnUpdateCredentialResult> =>
     patchJson(`/auth/webauthn/credentials/${id}`, { deviceName }),
   deleteCredential: (id: number): Promise<{ success: boolean }> =>
     deleteJson(`/auth/webauthn/credentials/${id}`)
@@ -326,28 +326,28 @@ export const totpRebindApi = {
   /** 战役审计修复：Step1 验证当前码（轻量校验，不发放凭据） */
   verifyCurrent: (code: string): Promise<{ ok: boolean }> =>
     postJson('/auth/totp/verify-current', { code }),
-  rebindInit: (): Promise<import('./types.js').RebindInitResult> =>
+  rebindInit: (): Promise<import('./types').RebindInitResult> =>
     postJson('/auth/totp/rebind-init'),
-  rebindConfirm: (data: Record<string, unknown>): Promise<import('./types.js').RebindConfirmResult> =>
+  rebindConfirm: (data: Record<string, unknown>): Promise<import('./types').RebindConfirmResult> =>
     postJson('/auth/totp/rebind-confirm', data)
 }
 
 // ─── oimimo 吸纳批一：日历订阅（ICS）——手机日历同步排期与截稿日 ───
 export const calendarFeedApi = {
-  get: (): Promise<import('./types.js').CalendarFeedResult> =>
+  get: (): Promise<import('./types').CalendarFeedResult> =>
     getJson('/artist/calendar-feed'),
-  setEnabled: (enabled: boolean): Promise<import('./types.js').CalendarFeedResult> =>
+  setEnabled: (enabled: boolean): Promise<import('./types').CalendarFeedResult> =>
     putJson('/artist/calendar-feed', { enabled }),
-  rotate: (): Promise<import('./types.js').CalendarFeedResult> =>
+  rotate: (): Promise<import('./types').CalendarFeedResult> =>
     postJson('/artist/calendar-feed/rotate')
 }
 
 // ─── REQ-041: 管理后台二次验证（会话升级） ───
 export const stepUpApi = {
   /** 入口级探测：200=已升级且在 30 分钟窗口内；401 STEP_UP_REQUIRED=需弹验证对话框 */
-  status: (): Promise<import('./types.js').StepUpStatusResult> => getJson('/admin/stepup-status'),
+  status: (): Promise<import('./types').StepUpStatusResult> => getJson('/admin/stepup-status'),
   /** 验证并升级会话（TOTP 或 Passkey 二选一），成功重签 token 覆盖 cookie */
-  verify: (data: import('./types.js').StepUpRequest): Promise<import('./types.js').StepUpResult> =>
+  verify: (data: import('./types').StepUpRequest): Promise<import('./types').StepUpResult> =>
     postJson('/auth/step-up', data)
 }
 
@@ -380,7 +380,7 @@ export const artistPublicApi = {
     postJson('/public/validate-discount', data),
   // v0.32 REQ-023 Phase2: 多画风公开配置 + 价格计算
   getPublicStyles: (subdomain: string): Promise<PublicArtStyle[]> => getJson(`/public/styles/${subdomain}`),
-  calculateStylePrice: (data: import('./types.js').CalculateStylePriceRequest): Promise<StylePriceResult> =>
+  calculateStylePrice: (data: import('./types').CalculateStylePriceRequest): Promise<StylePriceResult> =>
     postJson('/public/calculate-style-price', data),
   // v0.35 F6: 画廊专用端点（作品 size_tags/描述 + filterSizes 筛选档位）
   getPublicGallery: (subdomain: string): Promise<PublicGalleryResult> => getJson(`/public/gallery/${subdomain}`),
@@ -455,7 +455,7 @@ export const artistApi = {
   getIncomeSummary: (params: { from: string; to: string }): Promise<IncomeSummaryResult> =>
     getJson('/artist/tools/income-summary', { params }),
   // oimimo 吸纳批四：月度收入趋势（与 income-summary 同源同口径，近 N 月连续补 0）
-  getIncomeMonthly: (params: { months?: number } = {}): Promise<import('./types.js').IncomeMonthlyResult> =>
+  getIncomeMonthly: (params: { months?: number } = {}): Promise<import('./types').IncomeMonthlyResult> =>
     getJson('/artist/tools/income-monthly', { params }),
   // 订单
   getOrders: (status: string | undefined, { page, pageSize, q, sort }: { page?: number; pageSize?: number; q?: string; sort?: string } = {}): Promise<ArtistOrdersResult> =>
@@ -574,7 +574,7 @@ export const artistApi = {
   // REQ-043 I4: 平台公告（零主动打扰，登录态可读）
   getAnnouncement: (): Promise<PlatformAnnouncement | null> => getJson('/artist/announcement'),
   // R51: 截稿日
-  getUpcomingDeadlines: (): Promise<import('./types.js').DeadlineRow[]> => getJson('/artist/orders/upcoming-deadlines'),
+  getUpcomingDeadlines: (): Promise<import('./types').DeadlineRow[]> => getJson('/artist/orders/upcoming-deadlines'),
   // D-1（R-5）: options.version 可选——时间条拖拽两步 PUT 用响应 version 接力
   updateDeadline: (id: number, deadline: string | null, options: VersionedOptions = {}): Promise<EnrichedOrderDetail> =>
     putJson(`/artist/orders/${id}/deadline`, { deadline, ...options }),

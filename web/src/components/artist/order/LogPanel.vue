@@ -52,10 +52,10 @@ import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CardHead from '../visual/CardHead.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
-import { useActivityLog } from '../../../composables/useActivityLog.js'
-import { formatDateTime } from '../../../utils/datetime.js'
-import { formatCents } from '../../../utils/money.js'
-import type { ActivityLogItem } from '../../../api/types.js'
+import { useActivityLog } from '../../../composables/useActivityLog'
+import { formatDateTime } from '../../../utils/datetime'
+import { formatCents } from '../../../utils/money'
+import type { ActivityLogItem } from '../../../api/types'
 
 const props = defineProps({
   routeId: { type: [String, Number], required: true }

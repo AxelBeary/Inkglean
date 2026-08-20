@@ -21,7 +21,7 @@ vi.mock('../../api/index.js', () => ({
   }
 }))
 
-import { useQueueTimeline } from '../useQueueTimeline.js'
+import { useQueueTimeline } from '../useQueueTimeline'
 
 afterEach(() => {
   Object.defineProperty(window, 'localStorage', originalStorageDescriptor!)

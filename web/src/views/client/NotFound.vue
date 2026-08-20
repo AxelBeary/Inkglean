@@ -39,9 +39,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { artistPublicApi } from '../../api/index.js'
-import type { ArtistListItem } from '../../api/types.js'
-import { ARTIST_STATUS_TYPE } from '../../constants/order.js'
+import { artistPublicApi } from '../../api/index'
+import type { ArtistListItem } from '../../api/types'
+import { ARTIST_STATUS_TYPE } from '../../constants/order'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 
 const router = useRouter()

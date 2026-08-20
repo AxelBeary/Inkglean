@@ -6,7 +6,7 @@
 // style_addons 返回 template_* 快照字段（template_price_mode / template_category / ...）
 // 铁律：分类只读后端真实字段，禁止任何名称约定推导。
 // 仅放纯函数；组件状态留在各组件内。
-import { formatAddonPrice, yuanToCents } from '../../utils/money.js'
+import { formatAddonPrice, yuanToCents } from '../../utils/money'
 
 /** i18n 翻译函数最小签名 */
 type TFunc = (key: string) => string

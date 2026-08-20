@@ -120,10 +120,10 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatYuan, yuanToCents } from '../../utils/money.js'
-import { todayStr } from '../../utils/datetime.js'
-import { artistApi } from '../../api/index.js'
-import type { StandaloneIncome } from '../../api/types.js'
+import { formatYuan, yuanToCents } from '../../utils/money'
+import { todayStr } from '../../utils/datetime'
+import { artistApi } from '../../api/index'
+import type { StandaloneIncome } from '../../api/types'
 
 const { t } = useI18n()
 

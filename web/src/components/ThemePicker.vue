@@ -51,9 +51,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useThemeStore } from '../stores/theme.js'
-import { setLocale } from '../i18n/index.js'
-import { trackEvent } from '../utils/track.js'
+import { useThemeStore } from '../stores/theme'
+import { setLocale } from '../i18n/index'
+import { trackEvent } from '../utils/track'
 
 const { t, locale } = useI18n()
 const themeStore = useThemeStore()

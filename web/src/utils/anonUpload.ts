@@ -11,9 +11,9 @@
  * 2. 服务端判 INVALID_ANON_TOKEN 时清缓存换新凭证并重试一次；
  * 3. 返回实际成功的 token（下单提交必须使用同一 token 才能通过归属校验）。
  */
-import { getAnonToken, getFreshAnonToken } from './track.js'
-import { uploadApi } from '../api/index.js'
-import type { UploadImageResult } from '../api/types.js'
+import { getAnonToken, getFreshAnonToken } from './track'
+import { uploadApi } from '../api/index'
+import type { UploadImageResult } from '../api/types'
 
 /** 凭证不可用（获取失败/签发被拒）时的业务错误：调用方按既有 i18n 提示展示 */
 export class AnonTokenUnavailableError extends Error {
@@ -28,7 +28,7 @@ export class AnonTokenUnavailableError extends Error {
 /**
  * 携带有效匿名凭证上传参考图。
  * @param {Blob} file 上传文件
- * @returns {Promise<{ token: string, uploaded: import('../api/index.js').UploadImageResult }>}
+ * @returns {Promise<{ token: string, uploaded: import('../api/index').UploadImageResult }>}
  *   成功时返回 { token, uploaded }；token 为本次上传实际使用的凭证（下单归属校验同源）。
  * @throws {AnonTokenUnavailableError} 凭证获取失败（不发上传请求）
  * @throws {Error} 上传失败（INVALID_ANON_TOKEN 换新重试一次后仍失败则抛原始错误）

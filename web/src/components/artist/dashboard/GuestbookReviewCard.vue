@@ -56,12 +56,12 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
-import { artistApi } from '../../../api/index.js'
-import type { GuestbookMessage } from '../../../api/types.js'
+import { artistApi } from '../../../api/index'
+import type { GuestbookMessage } from '../../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { UI_PAGE_SIZE } from '../../../constants/pagination.js'
-import { formatDateTime } from '../../../utils/datetime.js'
+import { UI_PAGE_SIZE } from '../../../constants/pagination'
+import { formatDateTime } from '../../../utils/datetime'
 import StatusChip from '../visual/StatusChip.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
 

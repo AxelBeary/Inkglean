@@ -1,8 +1,9 @@
 // audit-i18n-keydiff.mjs — 对照后端 errors.ts 全部错误码 vs 前端 locales errors.* 键（i18n 缺键审计）
 // 用法：node audit-i18n-keydiff.mjs <项目根路径>
 // 输出：后端有/前端缺的键（zh、en 分别列）+ 中英不对称键 + 含 {占位符} 的键
+// 注：v132 全仓 TS 化后 locales 已是 .ts，node 无法直接 import——
+//     改文本解析 errors 段（大括号配对截取 + 单引号键值正则），2026-08-20 修复。
 import { readFileSync } from 'fs'
-import { pathToFileURL } from 'url'
 
 const ROOT = process.argv[2] || '.'
 const src = readFileSync(`${ROOT}/server/src/shared/errors.ts`, 'utf8')
@@ -10,8 +11,28 @@ const src = readFileSync(`${ROOT}/server/src/shared/errors.ts`, 'utf8')
 const codes = [...src.matchAll(/^\s{2,4}([A-Z][A-Z0-9_]+):\s*'\1',?$/gm)].map(m => m[1])
 const codeSet = new Set(codes)
 
-const zh = (await import(pathToFileURL(`${ROOT}/web/src/locales/zh-CN.js`))).default
-const en = (await import(pathToFileURL(`${ROOT}/web/src/locales/en.js`))).default
+// 文本解析 locale 文件的 errors 段（errors 对象内均为扁平单引号字符串值）
+function parseLocaleErrors(file) {
+  const text = readFileSync(file, 'utf8')
+  const start = text.indexOf('errors: {')
+  if (start < 0) throw new Error(`未找到 errors 段：${file}`)
+  let depth = 0
+  let end = -1
+  for (let i = text.indexOf('{', start); i < text.length; i++) {
+    if (text[i] === '{') depth++
+    else if (text[i] === '}') { depth--; if (depth === 0) { end = i; break } }
+  }
+  if (end < 0) throw new Error(`errors 段大括号不配对：${file}`)
+  const block = text.slice(start, end + 1)
+  const errors = {}
+  for (const m of block.matchAll(/^\s+([A-Z][A-Z0-9_]+):\s*'((?:[^'\\]|\\.)*)',?$/gm)) {
+    errors[m[1]] = m[2].replace(/\\'/g, "'")
+  }
+  return errors
+}
+
+const zh = { errors: parseLocaleErrors(`${ROOT}/web/src/locales/zh-CN.ts`) }
+const en = { errors: parseLocaleErrors(`${ROOT}/web/src/locales/en.ts`) }
 const zhKeys = new Set(Object.keys(zh.errors || {}))
 const enKeys = new Set(Object.keys(en.errors || {}))
 

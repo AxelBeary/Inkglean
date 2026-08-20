@@ -8,8 +8,8 @@ import {
   buildReorderTextPrefill,
   buildReorderRefs,
   findReorderStyleTarget
-} from '../reorderFill.js'
-import { MAX_IMAGE_COUNT } from '../../constants/upload.js'
+} from '../reorderFill'
+import { MAX_IMAGE_COUNT } from '../../constants/upload'
 
 /** buildReorderRefs 返回的参考图条目（源码 JSDoc 标为 object，按实际字段窄化供断言使用） */
 interface ReorderRef {

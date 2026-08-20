@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
-import { authApi, artistApi } from '../api/index.js'
-import { i18n } from '../i18n/index.js'
-import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
-import type { AuthVerifyResult, ArtistProfileResult, ArtistStats } from '../api/types.js'
+import { authApi, artistApi } from '../api/index'
+import { i18n } from '../i18n/index'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage'
+import type { AuthVerifyResult, ArtistProfileResult, ArtistStats } from '../api/types'
 
 // ============================================
 // 画师状态管理

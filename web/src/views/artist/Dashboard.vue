@@ -56,10 +56,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useArtistStore } from '../../stores/artist.js'
-import { artistApi } from '../../api/index.js'
-import { subscribeReconnect } from '../../utils/reconnect.js'
-import type { ArtistStats } from '../../api/types.js'
+import { useArtistStore } from '../../stores/artist'
+import { artistApi } from '../../api/index'
+import { subscribeReconnect } from '../../utils/reconnect'
+import type { ArtistStats } from '../../api/types'
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'
 // 视觉批新组件（问候贴纸/挂牌+名额/排期卷轴/账本待办）

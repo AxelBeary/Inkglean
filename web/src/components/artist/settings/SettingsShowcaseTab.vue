@@ -151,7 +151,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import ShopVisibilitySwitch from './ShopVisibilitySwitch.vue'
-import type { ArtistStatus, PlatformDTO } from '../../../api/types.js'
+import type { ArtistStatus, PlatformDTO } from '../../../api/types'
 
 /** 主页展示表单（对齐 Settings.vue form 形状；__k 为父级本地行标识） */
 interface ShowcaseLink {

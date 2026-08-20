@@ -167,9 +167,9 @@ import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 // v0.35 联调：resolveSizeImagePath 尺寸图解析纯函数（artwork_image_path > image > 封面兜底由 displayImageUrl 处理）
-import { useArtistData, resolveSizeImagePath } from '../../composables/useArtistData.js'
-import { useTouchSwipe } from '../../composables/useTouchSwipe.js'
-import { formatYuanValue } from '../../utils/money.js'
+import { useArtistData, resolveSizeImagePath } from '../../composables/useArtistData'
+import { useTouchSwipe } from '../../composables/useTouchSwipe'
+import { formatYuanValue } from '../../utils/money'
 
 /** 档位（旧模型）宽松形状 */
 interface TierLike {

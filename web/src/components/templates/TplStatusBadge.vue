@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import { useArtistData } from '../../composables/useArtistData.js'
+import { useArtistData } from '../../composables/useArtistData'
 
 defineProps({
   status: { type: String, default: 'open' },

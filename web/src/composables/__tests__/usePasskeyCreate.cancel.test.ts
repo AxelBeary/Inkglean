@@ -1,7 +1,7 @@
 // 817 修复回归：Passkey 取消不得损坏既有 profile（AccountSecurity 取消分支契约）
 // 取消 = 浏览器 NotAllowedError/AbortError → 人话提示 + 返回 null，流程不得回写任何外部状态。
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { usePasskeyCreate } from '../usePasskeyCreate.js'
+import { usePasskeyCreate } from '../usePasskeyCreate'
 
 const h = vi.hoisted(() => ({
   msgInfo: vi.fn()

@@ -86,8 +86,8 @@
 import type { PropType } from 'vue'
 import CardHead from '../visual/CardHead.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
-import { formatDateTime } from '../../../utils/datetime.js'
-import { formatCents } from '../../../utils/money.js'
+import { formatDateTime } from '../../../utils/datetime'
+import { formatCents } from '../../../utils/money'
 
 /** 收款流水行（本卡消费字段） */
 interface PaymentRow {

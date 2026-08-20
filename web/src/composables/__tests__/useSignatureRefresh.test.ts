@@ -11,7 +11,7 @@ vi.mock('../../api/index.js', () => ({
   artistApi: { refreshSignatures: (...args: unknown[]) => h.refreshSignatures(...args) }
 }))
 
-import { useSignatureRefresh } from '../useSignatureRefresh.js'
+import { useSignatureRefresh } from '../useSignatureRefresh'
 
 function mountHost(overrides: Record<string, unknown> = {}) {
   let ctx!: ReturnType<typeof useSignatureRefresh>

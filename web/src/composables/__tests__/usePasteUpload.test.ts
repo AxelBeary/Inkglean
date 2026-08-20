@@ -10,7 +10,7 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
 }))
 
-import { usePasteUpload } from '../usePasteUpload.js'
+import { usePasteUpload } from '../usePasteUpload'
 
 // ─── 工具函数 ───
 

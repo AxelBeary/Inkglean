@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   formatCents, formatYuan, formatYuanValue, formatAddonPrice, formatYuanTrimmed, yuanToCents
-} from '../money.js'
+} from '../money'
 
 describe('money.js 科学计数法消毒（817）', () => {
   it('TC-MONEY-01: formatYuanValue 极大值不走科学计数法', () => {

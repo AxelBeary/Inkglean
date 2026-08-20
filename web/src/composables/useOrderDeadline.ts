@@ -2,8 +2,8 @@ import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi, type ApiError } from '../api/index.js'
-import type { EnrichedOrderDetail } from '../api/types.js'
+import { artistApi, type ApiError } from '../api/index'
+import type { EnrichedOrderDetail } from '../api/types'
 
 /**
  * 截稿日/开工日（从 OrderDetail.vue 拆分，纯搬移零行为变化）

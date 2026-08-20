@@ -42,10 +42,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { artistApi } from '../../../api/index.js'
+import { artistApi } from '../../../api/index'
 // v0.38 第二批: 统一卡片头部（REQ-026 §二）
 import CardHead from '../visual/CardHead.vue'
-import { normalizeActivity, relativeTime } from '../../../utils/dashboard-normalize.js'
+import { normalizeActivity, relativeTime } from '../../../utils/dashboard-normalize'
 
 /** normalizeActivity 返回条目类型（随工具函数推断，不重复手写） */
 type FeedItem = ReturnType<typeof normalizeActivity>[number]

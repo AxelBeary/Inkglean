@@ -13,9 +13,9 @@ import './assets/fonts/noto/font.css'
 import './styles/palettes.css'
 import './styles/templates.css'
 import App from './App.vue'
-import router from './router/index.js'
-import i18n from './i18n/index.js'
-import { createGlobalErrorDedup } from './utils/globalErrorDedup.js'
+import router from './router/index'
+import i18n from './i18n/index'
+import { createGlobalErrorDedup } from './utils/globalErrorDedup'
 
 const app = createApp(App)
 

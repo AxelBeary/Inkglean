@@ -2,7 +2,7 @@
 // 提供：ResizeObserver polyfill + 画风 fixture + useOrderForm 可控 mock 构造器
 import { ref, reactive, computed } from 'vue'
 import { vi } from 'vitest'
-import type { AddonSelection, DiscountResult, InstallmentItem, StyleAddon, StylePricePreview, WorkflowStageItem } from '../../order-form/types.js'
+import type { AddonSelection, DiscountResult, InstallmentItem, StyleAddon, StylePricePreview, WorkflowStageItem } from '../../order-form/types'
 
 /** happy-dom 无 ResizeObserver，Element Plus 内部可能用到，补齐 */
 export function polyfillResizeObserver() {

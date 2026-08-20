@@ -265,16 +265,16 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useArtistStore } from '../stores/artist.js'
-import { useThemeStore } from '../stores/theme.js'
-import { setLocale } from '../i18n/index.js'
-import { trackEvent } from '../utils/track.js'
-import { safeGetItem, safeSetItem } from '../utils/storage.js'
+import { useArtistStore } from '../stores/artist'
+import { useThemeStore } from '../stores/theme'
+import { setLocale } from '../i18n/index'
+import { trackEvent } from '../utils/track'
+import { safeGetItem, safeSetItem } from '../utils/storage'
 // 818-A: 字号滑块共享 util（与 Preferences 同一映射/应用口径）
-import { applyFontSize, readFontSize } from '../utils/fontSize.js'
+import { applyFontSize, readFontSize } from '../utils/fontSize'
 // 819-G: 动画速度 + 减少动效共享 util（与 Preferences 同一映射/应用口径）
-import { applyAnimSpeed, readAnimSpeed, applyReduceMotion, readReduceMotion } from '../utils/animSpeed.js'
-import { artistApi } from '../api/index.js'
+import { applyAnimSpeed, readAnimSpeed, applyReduceMotion, readReduceMotion } from '../utils/animSpeed'
+import { artistApi } from '../api/index'
 // REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
 import { useSessionGuard } from '../composables/useSessionGuard'
 import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools, UserFilled, Bell } from '@element-plus/icons-vue'
@@ -282,11 +282,11 @@ import ThemeToggle from './ThemeToggle.vue'
 // 818-E: 新手导览浮层（Teleport 到 body，挂单根内仅为避免 fragment）
 import TourOverlay from './artist/tour/TourOverlay.vue'
 // 工具箱四分类注册表（纸墨提案 §5.5；单一事实源，ArtistLayout/ToolsHome 共用）
-import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../constants/toolbox.js'
-import type { ToolMenuItem } from '../constants/toolbox.js'
+import { TOOLS_MENU_ITEMS, TOOL_BOX_CATEGORIES } from '../constants/toolbox'
+import type { ToolMenuItem } from '../constants/toolbox'
 // F5a 批4: 未传头像画师的头像兜底 = 品牌印章（朱砂「绘」，复用已完成态印章组件）
 import SealStamp from './artist/visual/SealStamp.vue'
-import type { PlatformAnnouncement, ArtistProfileResult } from '../api/types.js'
+import type { PlatformAnnouncement, ArtistProfileResult } from '../api/types'
 
 const route = useRoute()
 const router = useRouter()

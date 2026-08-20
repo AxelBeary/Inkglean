@@ -68,11 +68,11 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { formatYuan, yuanToCents } from '../../utils/money.js'
-import { todayStr } from '../../utils/datetime.js'
-import { quoteTotalCents, buildQuoteText, renderQuoteCanvas } from '../../utils/quote.js'
+import { formatYuan, yuanToCents } from '../../utils/money'
+import { todayStr } from '../../utils/datetime'
+import { quoteTotalCents, buildQuoteText, renderQuoteCanvas } from '../../utils/quote'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
 
 const { t } = useI18n()
 

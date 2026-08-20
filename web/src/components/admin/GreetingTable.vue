@@ -71,8 +71,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { adminApi } from '../../api/index.js'
-import type { GreetingTemplate, GreetingInput } from '../../api/types.js'
+import { adminApi } from '../../api/index'
+import type { GreetingTemplate, GreetingInput } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 

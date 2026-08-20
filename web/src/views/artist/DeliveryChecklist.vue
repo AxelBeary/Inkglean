@@ -59,7 +59,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
 
 const { t } = useI18n()
 

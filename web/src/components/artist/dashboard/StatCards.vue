@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useCountUp } from '../../../utils/useCountUp.js'
+import { useCountUp } from '../../../utils/useCountUp'
 
 const props = defineProps({
   /** getStats 返回（含 pendingCount / activeCount / totalCompleted） */

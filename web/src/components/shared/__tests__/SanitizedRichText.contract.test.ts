@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SanitizedRichText from '../SanitizedRichText.vue'
-import { sanitizeHtml } from '../../../utils/sanitize.js'
+import { sanitizeHtml } from '../../../utils/sanitize'
 
 describe('SanitizedRichText 渲染契约', () => {
   it('渲染已消毒富文本（调用方 sanitizeHtml 后传入）', () => {

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch, computed, onScopeDispose } from 'vue'
-import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage'
 
 const BASE_KEY = 'huiyue-theme-base'
 const ACCENT_KEY = 'huiyue-theme-accent'

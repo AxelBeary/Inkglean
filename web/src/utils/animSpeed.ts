@@ -13,7 +13,7 @@
  *   - CSS 选择器锁 html[data-artist-theme]：客户端路由与登录页零影响。
  *     问候逐字洇墨走 JS 逐字时序、登录 240s 天光漂移走硬编码时长，均不依赖 --dur-*。
  */
-import { safeGetItem, safeSetItem, safeRemoveItem } from './storage.js'
+import { safeGetItem, safeSetItem, safeRemoveItem } from './storage'
 
 export const ANIM_SPEED_KEY = 'huiyue_admin_anim_speed'
 export const ANIM_SPEED_MIN = 0.5

@@ -172,15 +172,15 @@
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { formatYuan, yuanToCents } from '../../utils/money.js'
-import { safeGetItem, safeSetItem } from '../../utils/storage.js'
-import { INK_PALETTE } from '../../utils/ink-palette.js'
+import { formatYuan, yuanToCents } from '../../utils/money'
+import { safeGetItem, safeSetItem } from '../../utils/storage'
+import { INK_PALETTE } from '../../utils/ink-palette'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
 // oimimo 吸纳批三：导入真实档位（公开价格接口）+ 作品库例图（画师端作品列表）
-import { artistApi, artistPublicApi } from '../../api/index.js'
-import { useArtistStore } from '../../stores/artist.js'
-import type { ArtworkWithTags } from '../../api/types.js'
+import { artistApi, artistPublicApi } from '../../api/index'
+import { useArtistStore } from '../../stores/artist'
+import type { ArtworkWithTags } from '../../api/types'
 
 const { t } = useI18n()
 const store = useArtistStore()

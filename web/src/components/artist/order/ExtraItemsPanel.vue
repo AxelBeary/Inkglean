@@ -92,9 +92,9 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CardHead from '../visual/CardHead.vue'
 import InkEmpty from '../visual/InkEmpty.vue'
-import { artistApi } from '../../../api/index.js'
-import type { ApiError } from '../../../api/index.js'
-import { formatCents } from '../../../utils/money.js'
+import { artistApi } from '../../../api/index'
+import type { ApiError } from '../../../api/index'
+import { formatCents } from '../../../utils/money'
 
 /** 附加项行（本卡消费字段） */
 interface ExtraItemRow {

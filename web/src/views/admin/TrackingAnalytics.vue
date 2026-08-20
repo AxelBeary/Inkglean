@@ -99,8 +99,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { adminApi } from '../../api/index.js'
-import type { TrackingSummary, StatsMode } from '../../api/types.js'
+import { adminApi } from '../../api/index'
+import type { TrackingSummary, StatsMode } from '../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 

@@ -18,7 +18,7 @@ vi.mock('../../api/index.js', () => ({
   }
 }))
 
-import { useQueueTimeline } from '../useQueueTimeline.js'
+import { useQueueTimeline } from '../useQueueTimeline'
 
 const ZOOM_KEY = 'queue_tl_zoom'
 

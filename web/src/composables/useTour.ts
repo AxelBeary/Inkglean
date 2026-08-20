@@ -10,8 +10,8 @@
  *   start() 不做 seen 检查——OnboardingCard 主按钮即「重置/再看一遍」入口。
  */
 import { computed, reactive } from 'vue'
-import router from '../router/index.js'
-import { safeGetItem, safeSetItem } from '../utils/storage.js'
+import router from '../router/index'
+import { safeGetItem, safeSetItem } from '../utils/storage'
 
 export const TOUR_SEEN_KEY = 'inkglean_tour_seen_v1'
 

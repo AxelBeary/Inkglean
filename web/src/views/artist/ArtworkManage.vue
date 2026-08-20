@@ -252,18 +252,18 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { artistApi, uploadApi } from '../../api/index.js'
-import type { ArtworkWithTags, ArtStyleWithDetails } from '../../api/types.js'
+import { artistApi, uploadApi } from '../../api/index'
+import type { ArtworkWithTags, ArtStyleWithDetails } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
 import { Picture, Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import { usePasteUpload } from '../../composables/usePasteUpload.js'
-import { useSlideConfirm } from '../../composables/useSlideConfirm.js'
-import { useDropGuard } from '../../composables/useDropGuard.js'
-import { trackEvent } from '../../utils/track.js'
-import { UI_PAGE_SIZE } from '../../constants/pagination.js'
-import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../constants/upload.js'
+import { usePasteUpload } from '../../composables/usePasteUpload'
+import { useSlideConfirm } from '../../composables/useSlideConfirm'
+import { useDropGuard } from '../../composables/useDropGuard'
+import { trackEvent } from '../../utils/track'
+import { UI_PAGE_SIZE } from '../../constants/pagination'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../constants/upload'
 
 const { t } = useI18n()
 

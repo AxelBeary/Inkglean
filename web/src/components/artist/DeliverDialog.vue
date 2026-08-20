@@ -70,11 +70,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadUserFile } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import { artistApi, uploadApi } from '../../api/index.js'
-import type { ApiError } from '../../api/index.js'
-import type { DeliverResult } from '../../api/types.js'
-import { useDropGuard } from '../../composables/useDropGuard.js'
-import { DELIVER_MAX_BYTES as DELIVER_MAX_SIZE } from '../../constants/upload.js' // b1: 50MB 上限单源
+import { artistApi, uploadApi } from '../../api/index'
+import type { ApiError } from '../../api/index'
+import type { DeliverResult } from '../../api/types'
+import { useDropGuard } from '../../composables/useDropGuard'
+import { DELIVER_MAX_BYTES as DELIVER_MAX_SIZE } from '../../constants/upload' // b1: 50MB 上限单源
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

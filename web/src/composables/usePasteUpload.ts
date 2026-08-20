@@ -25,7 +25,7 @@
 import { ref, onMounted, onUnmounted, unref } from 'vue'
 import type { Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload.js'
+import { MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload'
 
 export function usePasteUpload({ onFiles, maxCount = MAX_IMAGE_COUNT, maxSizeMB = MAX_IMAGE_MB, enabled = true }: {
   onFiles: (files: File[]) => void | Promise<void>

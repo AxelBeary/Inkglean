@@ -41,9 +41,9 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { REPLY_CATEGORIES, REPLY_TEMPLATES } from '../../utils/reply-templates.js'
+import { REPLY_CATEGORIES, REPLY_TEMPLATES } from '../../utils/reply-templates'
 // 波3-2: 剪贴板抽公共（clipboard 优先 + execCommand 回退，失败返回 false 不抛）
-import { copyText as copyToClipboard } from '../../utils/clipboard.js'
+import { copyText as copyToClipboard } from '../../utils/clipboard'
 
 /** 话术条目（textEn 可能缺失，缺英文时回退中文） */
 interface ReplyTemplate {

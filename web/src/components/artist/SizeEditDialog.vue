@@ -58,7 +58,7 @@ import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi, uploadApi } from '../../api/index.js'
+import { artistApi, uploadApi } from '../../api/index'
 
 /** 编辑中的尺寸行（父级列表行结构的最小子集） */
 interface SizeEditTarget {

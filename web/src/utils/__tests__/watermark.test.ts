@@ -2,7 +2,7 @@
 // 策略：只测不依赖 canvas 的纯数学布局（wmAnchor/wmCorners/wmTileGrid），
 //       绘制与合成依赖真实 canvas，由浏览器截图验证（交付报告视觉门禁）。
 import { describe, it, expect } from 'vitest'
-import { wmAnchor, wmCorners, wmTileGrid } from '../watermark.js'
+import { wmAnchor, wmCorners, wmTileGrid } from '../watermark'
 
 describe('wmAnchor 单枚位置（四角 + 中央）', () => {
   const W = 1000

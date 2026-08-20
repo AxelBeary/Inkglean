@@ -91,11 +91,11 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { artistApi } from '../../../api/index.js'
-import { formatCents } from '../../../utils/money.js'
-import { formatDateTime } from '../../../utils/datetime.js'
-import { tagKey } from '../../../utils/dashboard-normalize.js'
-import type { TodoItem } from '../../../api/types.js'
+import { artistApi } from '../../../api/index'
+import { formatCents } from '../../../utils/money'
+import { formatDateTime } from '../../../utils/datetime'
+import { tagKey } from '../../../utils/dashboard-normalize'
+import type { TodoItem } from '../../../api/types'
 
 // monthCents 经 defineProps 直接在模板使用（不做 const 绑定，避免 TS 未用警告）
 defineProps<{
