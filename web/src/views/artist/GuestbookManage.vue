@@ -467,7 +467,8 @@ onMounted(async () => {
   50% { transform: translateY(-4px); }
 }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：行堆叠断点改认容器宽（ArtistLayout 已设 container-type） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
 }
 </style>

@@ -488,8 +488,8 @@ onMounted(() => {
 .quick-config-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 0 0 12px; }
 .quick-config-footer .form-hint { margin-top: 0; }
 
-/* 窄屏：快捷网格两列，行结构上下堆叠（控件回左） */
-@media (max-width: 600px) {
+/* 窄屏：快捷网格两列，行结构上下堆叠（控件回左）；页宽容器查询收尾批：改认容器宽 */
+@container (max-width: 600px) {
   .quick-config { grid-template-columns: repeat(2, 1fr); }
   .pref-row { grid-template-columns: 1fr; }
   .pref-row-control { justify-content: flex-start; }

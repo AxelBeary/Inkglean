@@ -394,7 +394,8 @@ onMounted(() => {
 .ol-search { width: 100%; max-width: 320px; }
 .filter-bar { overflow-x: auto; }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：行堆叠断点改认容器宽（ArtistLayout 已设 container-type） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
 }
 
@@ -427,7 +428,8 @@ onMounted(() => {
 
 /* ─── P0-3: 移动端卡片视图（≤768px；token 用后台纸墨变量） ─── */
 .order-cards { display: none; }
-@media (max-width: 768px) {
+/* 页宽容器查询收尾批：卡片视图断点改认容器宽 */
+@container (max-width: 768px) {
   .order-table-wrap { display: none; }
   .order-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
   .order-card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; cursor: pointer; text-decoration: none; color: inherit; }
@@ -440,7 +442,8 @@ onMounted(() => {
   .order-card-time { font-size: 12.5px; color: var(--ink3); }
 }
 .no-thumb { color: var(--ink4); }
-@media (max-width: 600px) {
+/* 页宽容器查询收尾批：缩略图降尺寸断点改认容器宽 */
+@container (max-width: 600px) {
   .order-thumb { width: 32px; height: 32px; }
 }
 
@@ -469,8 +472,8 @@ onMounted(() => {
   50% { transform: translateY(-4px); }
 }
 
-/* ═══ REQ-037 批3 D3: ≤600px 筛选换行胶囊（桌面端 0 变化） ═══ */
-@media (max-width: 600px) {
+/* ═══ REQ-037 批3 D3: ≤600px 筛选换行胶囊（桌面端 0 变化）；页宽容器查询收尾批：改认容器宽 ═══ */
+@container (max-width: 600px) {
   .filter-bar { overflow-x: visible; }
   .filter-bar :deep(.el-radio-group) { display: flex; flex-wrap: wrap; gap: 8px; }
   .filter-bar :deep(.el-radio-button__inner) {

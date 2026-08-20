@@ -608,7 +608,8 @@ onMounted(() => {
   font-size: calc(var(--font-scale, 1) * 12px);
 }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：行堆叠断点改认容器宽（ArtistLayout 已设 container-type） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
   .feed-url-ctrl { min-width: 0; }
 }
