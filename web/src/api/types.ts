@@ -1532,6 +1532,32 @@ export interface IncomeMonthlyResult {
   months: IncomeMonthRow[]
 }
 
+/** oimimo 吸纳补遗：画风收入分布行（GET /api/artist/tools/income-by-style） */
+export interface IncomeByStyleRow {
+  /** 画风名；空串 = 无画风关联（手动录单等），前端落「未分类」桶 */
+  styleName: string
+  cents: number
+}
+
+/** GET /api/artist/tools/income-by-style 响应 */
+export interface IncomeByStyleResult {
+  styles: IncomeByStyleRow[]
+}
+
+/** oimimo 吸纳补遗：客户消费排名行（GET /api/artist/tools/top-clients） */
+export interface TopClientRow {
+  clientQq: string
+  /** 可能为 null（未填昵称），前端回落 QQ */
+  clientName: string | null
+  totalCents: number
+  orderCount: number
+}
+
+/** GET /api/artist/tools/top-clients 响应 */
+export interface TopClientsResult {
+  clients: TopClientRow[]
+}
+
 /** PATCH /api/auth/webauthn/credentials/:id 响应 */
 export interface WebAuthnUpdateCredentialResult {
   credential: WebAuthnCredential

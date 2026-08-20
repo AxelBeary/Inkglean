@@ -426,3 +426,70 @@ export function getIncomeMonthly(artistId: number, months: number): IncomeMonthR
   for (const row of map.values()) row.totalCents = row.orderCents + row.standaloneCents
   return keys.map(k => map.get(k)!)
 }
+
+// ─── oimimo 吸纳补遗（820 worktree 批）：收入分布两聚合（与 income-monthly 同窗口同口径） ───
+
+/** 近 N 个月窗口起点（本地月初零点 → UTC），与 getIncomeMonthly 同源 */
+function incomeWindowStartUtc(months: number): string {
+  const now = new Date()
+  const first = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1)
+  const key = `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, '0')}-01`
+  return localDateRangeToUtc(key, toLocalDateString(now)).startUtc
+}
+
+export interface IncomeByStyleRow {
+  /** 画风名；无画风关联的订单（手动录单等）为空串，前端渲染时落「未分类」桶 */
+  styleName: string
+  cents: number
+}
+
+/**
+ * 近 N 个月订单收款按画风聚合（对标 oimimo 品类分布环图的拾绘化：画风即类别）。
+ * 口径与 income-monthly 同源：order_payments 按到账日窗口；退款负数自然冲减。
+ */
+export function getIncomeByStyle(artistId: number, months: number): IncomeByStyleRow[] {
+  const startUtc = incomeWindowStartUtc(months)
+  const rows = db.prepare(`
+    SELECT COALESCE(a.name, '') AS style_name, SUM(p.amount_cents) AS cents
+    FROM order_payments p
+    JOIN orders o ON p.order_id = o.id
+    LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
+    LEFT JOIN art_styles a ON ss.art_style_id = a.id AND a.artist_id = o.artist_id
+    WHERE o.artist_id = ? AND p.created_at >= ?
+    GROUP BY a.id
+  `).all(artistId, startUtc) as Array<{ style_name: string; cents: number }>
+  return rows
+    .map(r => ({ styleName: r.style_name, cents: r.cents }))
+    .sort((x, y) => y.cents - x.cents)
+}
+
+export interface TopClientRow {
+  clientQq: string
+  /** 可能为空（手动录单未填昵称），前端回落 QQ */
+  clientName: string | null
+  totalCents: number
+  orderCount: number
+}
+
+/** 近 N 个月客户消费排名（对标 oimimo 客户排名 Top 8；按 client_qq 聚合，同一客户多单合并） */
+export function getTopClients(artistId: number, months: number, limit: number): TopClientRow[] {
+  const startUtc = incomeWindowStartUtc(months)
+  const rows = db.prepare(`
+    SELECT o.client_qq,
+           MAX(CASE WHEN o.client_name IS NOT NULL AND o.client_name != '' THEN o.client_name ELSE NULL END) AS client_name,
+           SUM(p.amount_cents) AS cents,
+           COUNT(DISTINCT o.id) AS order_count
+    FROM order_payments p
+    JOIN orders o ON p.order_id = o.id
+    WHERE o.artist_id = ? AND p.created_at >= ?
+    GROUP BY o.client_qq
+    ORDER BY cents DESC
+    LIMIT ?
+  `).all(artistId, startUtc, limit) as Array<{ client_qq: string; client_name: string | null; cents: number; order_count: number }>
+  return rows.map(r => ({
+    clientQq: r.client_qq,
+    clientName: r.client_name,
+    totalCents: r.cents,
+    orderCount: r.order_count
+  }))
+}

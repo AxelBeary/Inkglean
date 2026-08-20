@@ -457,6 +457,11 @@ export const artistApi = {
   // oimimo 吸纳批四：月度收入趋势（与 income-summary 同源同口径，近 N 月连续补 0）
   getIncomeMonthly: (params: { months?: number } = {}): Promise<import('./types').IncomeMonthlyResult> =>
     getJson('/artist/tools/income-monthly', { params }),
+  // oimimo 吸纳补遗：画风收入分布 + 客户消费排名（与 income-monthly 同窗口同口径）
+  getIncomeByStyle: (params: { months?: number } = {}): Promise<import('./types').IncomeByStyleResult> =>
+    getJson('/artist/tools/income-by-style', { params }),
+  getTopClients: (params: { months?: number; limit?: number } = {}): Promise<import('./types').TopClientsResult> =>
+    getJson('/artist/tools/top-clients', { params }),
   // 订单
   getOrders: (status: string | undefined, { page, pageSize, q, sort }: { page?: number; pageSize?: number; q?: string; sort?: string } = {}): Promise<ArtistOrdersResult> =>
     getJson('/artist/orders', { params: { status, page, pageSize, q, sort } }),

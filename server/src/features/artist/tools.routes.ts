@@ -315,4 +315,45 @@ export default async function toolsRoutes(fastify: FastifyInstance) {
     const months = (request.query as { months?: number }).months ?? 12
     return { months: toolsService.getIncomeMonthly(request.artist.id, months) }
   })
+
+  /**
+   * GET /api/artist/tools/income-by-style?months=12
+   * oimimo 吸纳补遗：订单收款按画风聚合（环图数据源），与 income-monthly 同窗口同口径
+   */
+  fastify.get('/api/artist/tools/income-by-style', {
+    preHandler: requireAuth,
+    schema: {
+      querystring: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          months: { type: 'integer', minimum: 3, maximum: 24, default: 12 }
+        }
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const months = (request.query as { months?: number }).months ?? 12
+    return { styles: toolsService.getIncomeByStyle(request.artist.id, months) }
+  })
+
+  /**
+   * GET /api/artist/tools/top-clients?months=12&limit=8
+   * oimimo 吸纳补遗：客户消费排名（同窗口同口径；limit 3〜20 钉死防滥用）
+   */
+  fastify.get('/api/artist/tools/top-clients', {
+    preHandler: requireAuth,
+    schema: {
+      querystring: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          months: { type: 'integer', minimum: 3, maximum: 24, default: 12 },
+          limit: { type: 'integer', minimum: 3, maximum: 20, default: 8 }
+        }
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const q = request.query as { months?: number; limit?: number }
+    return { clients: toolsService.getTopClients(request.artist.id, q.months ?? 12, q.limit ?? 8) }
+  })
 }

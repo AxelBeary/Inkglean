@@ -532,6 +532,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     incomeTrendFailed: 'Failed to load income trend. Please refresh and retry.',
     incomeMonthlyTitle: 'Monthly received (orders + standalone)',
     incomeCumulativeTitle: 'Cumulative',
+    // oimimo absorption extra: style distribution + top clients (same window/source as above)
+    incomeStyleTitle: 'Income by Style',
+    incomeClientsTitle: 'Top Clients',
+    incomeDistEmpty: 'No order payments received in the last 12 months',
+    incomeUncategorized: 'Uncategorized',
+    incomeClientOrders: '{n} orders',
     downloaded: 'Download started',
     failed: 'Export failed, please try again later',
     // 05D-E1: CSV export timeout
