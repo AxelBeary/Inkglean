@@ -27,6 +27,20 @@ export function isIncomeEmpty(rows: IncomeMonthLike[]): boolean {
 }
 
 /**
+ * 首页收入趋势 mini 柱状图柱高（百分比 0~100，相对窗口最大正值）：
+ * 负数（退款）与非有限值落 0；窗口无正值时全 0（是否空态由调用方用 isIncomeEmpty 判）
+ */
+export function buildMiniBarHeights(totalCentsList: readonly number[]): number[] {
+  const vals = totalCentsList.map(c => (Number.isFinite(c) && c > 0 ? c : 0))
+  let max = 0
+  for (const v of vals) {
+    if (v > max) max = v
+  }
+  if (max === 0) return vals.map(() => 0)
+  return vals.map(v => Math.round((v / max) * 100))
+}
+
+/**
  * 月份显示标签：'2026-08' → 中文 '8月' / 英文 'Aug'；
  * 序列首月与每年 1 月带年份（跨年窗口不歧义）
  */

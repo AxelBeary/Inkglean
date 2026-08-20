@@ -331,7 +331,8 @@ onMounted(loadItems)
 .dp-mini-btn:hover { border-color: var(--zs); color: var(--zs); }
 .dp-mini-btn:active { transform: scale(0.98); }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（.row/.dp-summary 为页内多列布局，非视口语义） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
   .dp-summary { grid-template-columns: 1fr; }
   .dp-row { grid-template-columns: minmax(0, 1fr) auto auto; }

@@ -14,17 +14,21 @@
 
 import type { DashboardPrefs } from '../api/types'
 
-/** 批一基础板块 10 块（镜像服务端 CORE_MODULES；types.ts 只钉类型无常量，前端自钉一份） */
+/** 批一+批二全部板块 13 块（镜像服务端 CORE_MODULES+OPTIONAL_MODULES；types.ts 只钉类型无常量，前端自钉一份） */
 export const DASHBOARD_PANEL_IDS = [
-  'greet', 'plaque', 'stats', 'schedule', 'todo', 'guestbook', 'activity', 'announcement', 'onboarding', 'quick'
+  'greet', 'plaque', 'stats', 'schedule', 'todo', 'guestbook', 'activity', 'announcement', 'onboarding', 'quick',
+  'incomeChart', 'incomeMonth', 'ddlSoon'
 ] as const
 export type DashboardPanelId = (typeof DASHBOARD_PANEL_IDS)[number]
 
-/** 默认横跨整行的板块（其余默认半行；对齐服务端 DEFAULT_FULL） */
-export const DEFAULT_FULL_PANELS: readonly DashboardPanelId[] = ['greet', 'stats', 'schedule']
+/** 基础板块 10 块（默认在首页；可选板块不自动补——未添加即不在首页） */
+export const CORE_PANEL_IDS: readonly DashboardPanelId[] = DASHBOARD_PANEL_IDS.slice(0, 10)
 
-/** 支持「显示行数」density 的列表板块（对齐服务端 DENSITY_MODULES） */
-export const DENSITY_PANELS: readonly DashboardPanelId[] = ['todo', 'guestbook', 'activity']
+/** 默认横跨整行的板块（其余默认半行；对齐服务端 DEFAULT_FULL，收入趋势图同属长卡） */
+export const DEFAULT_FULL_PANELS: readonly DashboardPanelId[] = ['greet', 'stats', 'schedule', 'incomeChart']
+
+/** 支持「显示行数」density 的列表板块（对齐服务端 DENSITY_MODULES，ddlSoon 属批二） */
+export const DENSITY_PANELS: readonly DashboardPanelId[] = ['todo', 'guestbook', 'activity', 'ddlSoon']
 
 /** density 合法档位（0 = 全部） */
 const DENSITY_STEPS: readonly number[] = [0, 3, 5]
@@ -38,7 +42,7 @@ export interface ResolvedPanel {
   maxRows: number
 }
 
-/** id 是否属于批一 10 块（未知 id 一律丢弃，防 prefs 夹带未来/脏 id） */
+/** id 是否属于全部 13 块（未知 id 一律丢弃，防 prefs 夹带未来/脏 id） */
 export function isDashboardPanelId(id: unknown): id is DashboardPanelId {
   return typeof id === 'string' && (DASHBOARD_PANEL_IDS as readonly string[]).includes(id)
 }
@@ -83,7 +87,8 @@ export function resolveDashboardLayout(prefs: DashboardPrefs | null | undefined)
     }
   }
   for (const id of DASHBOARD_PANEL_IDS) {
-    if (!seen.has(id) && !hidden.has(id)) {
+    // 缺失补齐仅限基础板块：可选板块未添加即不在首页（与服务端归一化同口径）
+    if (!seen.has(id) && !hidden.has(id) && (CORE_PANEL_IDS as readonly DashboardPanelId[]).includes(id)) {
       seen.add(id)
       ids.push(id)
     }

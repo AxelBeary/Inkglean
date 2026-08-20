@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify'
 import { cleanDb, seedArtist, db, type ArtistRow } from './setup.js'
 import { buildApp } from '../src/app.js'
 import { createSession } from '../src/features/auth/auth.service.js'
-import { CORE_MODULES, PREFS_SCHEMA_VERSION } from '../src/features/artist/dashboard-prefs.service.js'
+import { CORE_MODULES, OPTIONAL_MODULES, PREFS_SCHEMA_VERSION } from '../src/features/artist/dashboard-prefs.service.js'
 
 describe('仪表盘布局偏好 dashboard prefs（自定义首页批一 v70）', () => {
   let app: FastifyInstance
@@ -22,18 +22,18 @@ describe('仪表盘布局偏好 dashboard prefs（自定义首页批一 v70）',
     return { artist, headers: { authorization: 'Bearer ' + token } }
   }
 
-  it('TC-DP-01 未设置时 GET 返回完整默认值', async () => {
+  it('TC-DP-01 未设置时 GET 返回完整默认值（可选板块默认藏起在库）', async () => {
     const { headers } = authed()
     const res = await app.inject({ method: 'GET', url: '/api/artist/dashboard/prefs', headers })
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.v).toBe(PREFS_SCHEMA_VERSION)
     expect(body.order).toEqual([...CORE_MODULES])
-    expect(body.hidden).toEqual([])
+    expect(body.hidden).toEqual([...OPTIONAL_MODULES])
     expect(body.width.greet).toBe('full')
     expect(body.width.schedule).toBe('full')
     expect(body.width.todo).toBe('half')
-    expect(body.density).toEqual({ todo: 0, guestbook: 0, activity: 0 })
+    expect(body.density).toEqual({ todo: 0, guestbook: 0, activity: 0, ddlSoon: 0 })
     expect(body.scheduleStyle).toBe('bars')
     expect(body.greetStyle).toBe('plain')
     expect(body.pageAlign).toBe('center')
@@ -146,5 +146,33 @@ describe('仪表盘布局偏好 dashboard prefs（自定义首页批一 v70）',
     expect(low.json().pageMax).toBe(1000)
     const frac = await app.inject({ method: 'PUT', url: '/api/artist/dashboard/prefs', headers, payload: { pageMax: 1234.6 } })
     expect(frac.json().pageMax).toBe(1235)
+  })
+
+  it('TC-DP-09 可选板块（板块库）：order 中保留不自动补，缺失不自动上首页', async () => {
+    const { headers } = authed()
+    // 添加 incomeMonth 上首页（从库里拿出）：order 含它 + hidden 去掉它
+    const add = await app.inject({
+      method: 'PUT', url: '/api/artist/dashboard/prefs', headers,
+      payload: { order: [...CORE_MODULES, 'incomeMonth'], hidden: ['incomeChart', 'ddlSoon'] }
+    })
+    expect(add.statusCode).toBe(200)
+    expect(add.json().order).toEqual([...CORE_MODULES, 'incomeMonth'])
+    expect(add.json().hidden).toEqual(['incomeChart', 'ddlSoon'])
+
+    // 只传基础 order：可选板块不自动补进 order（未添加即不在首页）；hidden 缺省落默认（可选板块回库）
+    const bare = await app.inject({
+      method: 'PUT', url: '/api/artist/dashboard/prefs', headers,
+      payload: { order: [...CORE_MODULES] }
+    })
+    expect(bare.json().order).toEqual([...CORE_MODULES])
+    expect(bare.json().hidden).toEqual([...OPTIONAL_MODULES])
+
+    // 未知可选 id 剔除
+    const junk = await app.inject({
+      method: 'PUT', url: '/api/artist/dashboard/prefs', headers,
+      payload: { order: [...CORE_MODULES, 'moonBase'], hidden: ['moonBase', 'incomeChart'] }
+    })
+    expect(junk.json().order).toEqual([...CORE_MODULES])
+    expect(junk.json().hidden).toEqual(['incomeChart'])
   })
 })

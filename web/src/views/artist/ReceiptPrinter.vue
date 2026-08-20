@@ -465,7 +465,8 @@ onBeforeUnmount(() => {
 .page-sub { margin-top: 8px; }
 
 .rc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 20px; }
-@media (max-width: 960px) { .rc-grid { grid-template-columns: 1fr; } }
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（ArtistLayout 内容容器已设 container-type: inline-size），防窗口宽而页宽框窄时双列发挤 */
+@container (max-width: 960px) { .rc-grid { grid-template-columns: 1fr; } }
 .rc-panel { padding: 4px 24px 16px; }
 
 .group-head {
@@ -531,7 +532,8 @@ onBeforeUnmount(() => {
 .rc-preview-panel { align-self: start; }
 .rc-canvas { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper2); }
 
-@media (max-width: 960px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（同 .rc-grid 口径） */
+@container (max-width: 960px) {
   .row { grid-template-columns: 1fr; }
   .rc-item { grid-template-columns: minmax(0, 1fr) 56px 88px; }
   .rc-item .rc-gift { grid-column: 1; }

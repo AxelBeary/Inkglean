@@ -232,7 +232,8 @@ onMounted(() => {
 .note-item-content { margin-top: 8px; font-size: 14px; line-height: 1.7; color: var(--ink2); white-space: pre-wrap; }
 .note-item-time { display: block; margin-top: 8px; font-size: 12px; color: var(--ink3); }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（.row 为页内双列字段行，非视口语义） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
   .note-input, .note-textarea { width: 100%; }
 }

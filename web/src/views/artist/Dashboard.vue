@@ -1,10 +1,10 @@
 <template>
-  <!-- Dashboard prefs 驱动重构（自定义首页批一·骨架批）：
-       10 个板块（greet/plaque/stats/schedule/todo/guestbook/activity/announcement/onboarding/quick）
-       按 prefs.order 顺序渲染，prefs.hidden 中的不渲染；width=full 横跨整行（grid-column: 1/-1），
+  <!-- Dashboard prefs 驱动（自定义首页批一骨架 + 批二血肉）：
+       13 个板块（基础 10 + 可选 incomeChart/incomeMonth/ddlSoon）按 prefs.order 顺序渲染，
+       prefs.hidden 中的不渲染（可选板块默认藏库，自愿添加才上首页）；width=full 横跨整行，
        half 按顺序自动流进两列（保留 3fr/2fr 比例）；≤960px 单列堆叠。
-       density（0/3/5）经 maxRows 作用于 todo/guestbook/activity 三个列表板块（组件内部截断）。
-       批二内容本批不做：prefs.scheduleStyle/greetStyle/pageAlign/pageMax 与可选收入板块一律忽略。
+       density（0/3/5）经 maxRows 作用于 todo/guestbook/activity/ddlSoon 列表板块。
+       批二消费：prefs.scheduleStyle → 排期四款式；prefs.greetStyle → 问候卡四款式。
        系统控制优先（拍板纪律）：820-L 留言总闸、announcement 无数据不渲染——用户自定义压不过。 -->
   <div class="dashboard">
     <div class="dash-grid">
@@ -16,10 +16,10 @@
         :class="{ 'panel--full': panel.width === 'full' }"
         :style="{ '--stagger': i }"
       >
-        <GreetingNote v-if="panel.id === 'greet'" :stats="stats" />
+        <GreetingNote v-if="panel.id === 'greet'" :stats="stats" :greet-style="prefs?.greetStyle ?? 'plain'" />
         <PlaqueStatus v-else-if="panel.id === 'plaque'" />
         <StatCards v-else-if="panel.id === 'stats'" :stats="stats ?? undefined" />
-        <ScheduleScroll v-else-if="panel.id === 'schedule'" />
+        <SchedulePanels v-else-if="panel.id === 'schedule'" :variant="prefs?.scheduleStyle ?? 'bars'" />
         <LedgerTodo
           v-else-if="panel.id === 'todo'"
           :month-cents="stats?.monthRevenueCents ?? null"
@@ -40,6 +40,10 @@
         <DashboardAnnouncementCard v-else-if="panel.id === 'announcement'" ref="annCardRef" />
         <!-- 开张任务系统显隐逻辑在 OnboardingCard 内部（完成/dismiss 后消失），优先于用户自定义 -->
         <OnboardingCard v-else-if="panel.id === 'onboarding'" />
+        <!-- 批二可选板块（板块库：自愿添加才上首页；收入类默认不见钱与「钱不进日报」并存） -->
+        <IncomeTrendMiniCard v-else-if="panel.id === 'incomeChart'" />
+        <IncomeMonthCard v-else-if="panel.id === 'incomeMonth'" />
+        <DdlSoonCard v-else-if="panel.id === 'ddlSoon'" :max-rows="panel.maxRows" />
         <QuickActions v-else />
       </div>
     </div>
@@ -56,11 +60,12 @@ import { resolveDashboardLayout } from '../../utils/dashboard-layout'
 import type { ArtistStats, DashboardPrefs } from '../../api/types'
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'
-// 视觉批组件（问候贴纸/状态挂牌/排期卷轴/账本待办）
+// 视觉批组件（问候贴纸/状态挂牌/账本待办）
 import GreetingNote from '../../components/artist/dashboard/GreetingNote.vue'
 import PlaqueStatus from '../../components/artist/dashboard/PlaqueStatus.vue'
-import ScheduleScroll from '../../components/artist/dashboard/ScheduleScroll.vue'
 import LedgerTodo from '../../components/artist/dashboard/LedgerTodo.vue'
+// 自定义首页批二：排期四款式容器（bars 款内嵌复用 ScheduleScroll）
+import SchedulePanels from '../../components/artist/dashboard/SchedulePanels.vue'
 // 既有模块（P2 纸墨化）
 import StatCards from '../../components/artist/dashboard/StatCards.vue'
 import QuickActions from '../../components/artist/dashboard/QuickActions.vue'
@@ -70,6 +75,10 @@ import GuestbookReviewCard from '../../components/artist/dashboard/GuestbookRevi
 import OnboardingCard from '../../components/artist/dashboard/OnboardingCard.vue'
 // 自定义首页批一：公告独立板块（自 GreetingNote 公告行拆出）
 import DashboardAnnouncementCard from '../../components/artist/dashboard/DashboardAnnouncementCard.vue'
+// 自定义首页批二：可选板块（收入趋势图/本月收入概览/截稿倒计时）
+import IncomeTrendMiniCard from '../../components/artist/dashboard/IncomeTrendMiniCard.vue'
+import IncomeMonthCard from '../../components/artist/dashboard/IncomeMonthCard.vue'
+import DdlSoonCard from '../../components/artist/dashboard/DdlSoonCard.vue'
 
 const { t } = useI18n()
 const store = useArtistStore()
@@ -82,7 +91,7 @@ async function loadPrefs(): Promise<void> {
   try {
     prefs.value = await artistApi.getDashboardPrefs()
   } catch {
-    prefs.value = null // 回落默认布局（resolveDashboardLayout(null) = 默认 9 块）
+    prefs.value = null // 回落默认布局（resolveDashboardLayout(null) = 默认基础 10 块）
   }
 }
 

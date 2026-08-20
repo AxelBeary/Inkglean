@@ -372,7 +372,8 @@ onMounted(loadOrders)
 .puzzle-order-select { width: 100%; }
 .puzzle-actions { margin-top: 16px; }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（.row 为页内双列字段行，非视口语义） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
 }
 .puzzle-count { font-style: normal; font-size: 12px; color: var(--ink3); margin-left: 4px; }

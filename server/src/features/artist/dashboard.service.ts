@@ -1,7 +1,8 @@
 import db from '../../db/connection.js'
 import { PRICE_FALLBACK_SQL } from '../../utils/price.js'
-import { COMPLETED_ORDER_SQL } from '../../utils/order-status.js'
+import { COMPLETED_ORDER_SQL, ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
 import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localDateRangeToUtc, toLocalDateString } from '../../utils/date.js'
+import { getIncomeSummary } from './tools.service.js'
 
 // ============================================
 // 仪表盘服务（v0.18 第二批）
@@ -450,4 +451,85 @@ export function dismissOnboarding(artistId: number): { dismissed: boolean } {
     "UPDATE artists SET onboarding_dismissed_at = COALESCE(onboarding_dismissed_at, datetime('now')) WHERE id = ?"
   ).run(artistId)
   return { dismissed: true }
+}
+
+// ─── 自定义首页批二：可选板块数据源（收入概览 + 截稿倒计时） ───
+
+export interface IncomeOverview {
+  /** 本月到账（订单收款+散单，与导出 CSV 同源同口径） */
+  monthReceivedCents: number
+  /** 今年累计到账（同口径） */
+  yearReceivedCents: number
+  /** 待收尾款：进行中订单未收部分合计（终价优先，无价单不计） */
+  pendingCents: number
+  /** 有待收尾款的订单数 */
+  pendingCount: number
+}
+
+/**
+ * 本月收入概览（可选板块 incomeMonth 数据源）。
+ * 到账口径与 getIncomeSummary（导出 CSV）完全一致；待收尾款=进行中订单
+ * （final_price_cents 回落 total_price_cents）减去已收，无价单不计。
+ */
+export function getIncomeOverview(artistId: number): IncomeOverview {
+  const now = new Date()
+  const today = toLocalDateString(now)
+  const monthStart = toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1))
+  const yearStart = toLocalDateString(new Date(now.getFullYear(), 0, 1))
+  const month = getIncomeSummary(artistId, monthStart, today)
+  const year = getIncomeSummary(artistId, yearStart, today)
+  const pending = db.prepare(`
+    SELECT COUNT(*) AS c,
+           COALESCE(SUM(MAX(0, COALESCE(final_price_cents, total_price_cents, 0) - COALESCE(paid_total_cents, 0))), 0) AS s
+    FROM orders
+    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
+      AND COALESCE(final_price_cents, total_price_cents) IS NOT NULL
+      AND COALESCE(paid_total_cents, 0) < COALESCE(final_price_cents, total_price_cents, 0)
+  `).get(artistId) as { c: number; s: number } | undefined
+  return {
+    monthReceivedCents: month.totalCents,
+    yearReceivedCents: year.totalCents,
+    pendingCents: pending?.s ?? 0,
+    pendingCount: pending?.c ?? 0
+  }
+}
+
+export interface DeadlineSoonRow {
+  id: number
+  orderNo: string
+  clientName: string | null
+  /** 截稿日（UTC 存储串，展示由前端本地化） */
+  deadline: string
+  /** 按本地日界算的剩余天数；负数 = 已逾期 */
+  daysLeft: number
+}
+
+/**
+ * 截稿倒计时（可选板块 ddlSoon 数据源）：
+ * 进行中且截稿日在窗口内（含已逾期——逾期更要盯）的订单，按截稿日升序。
+ * 默认窗口 14 天 / 上限 8 条，可参数化（路由层钳制范围）。
+ */
+export function getDeadlineSoon(artistId: number, days = 14, limit = 8): DeadlineSoonRow[] {
+  const now = new Date()
+  const horizon = toSqliteDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, 23, 59, 59))
+  const rows = db.prepare(`
+    SELECT id, order_no, client_name, deadline
+    FROM orders
+    WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}
+      AND deadline IS NOT NULL AND deadline <= ?
+    ORDER BY deadline ASC
+    LIMIT ?
+  `).all(artistId, horizon, limit) as Array<{ id: number; order_no: string; client_name: string | null; deadline: string }>
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return rows.map(r => {
+    const d = toLocalDate(r.deadline)
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    return {
+      id: r.id,
+      orderNo: r.order_no,
+      clientName: r.client_name,
+      deadline: r.deadline,
+      daysLeft: Math.round((dayStart.getTime() - todayStart.getTime()) / 86_400_000)
+    }
+  })
 }

@@ -277,7 +277,8 @@ async function doExport() {
 .income-standalone { color: var(--hq); }
 .income-overview-note { margin-top: 12px; font-size: 12px; color: var(--ink3); line-height: 1.6; }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（.row 为页内双列字段行，非视口语义） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
 }
 </style>

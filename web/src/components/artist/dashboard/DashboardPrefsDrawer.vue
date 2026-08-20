@@ -74,6 +74,21 @@
         </div>
       </div>
 
+      <!-- 批二（子代理 E）：可添加的板块（板块库）——optional 且当前 hidden 的板块列在此处，
+           点「＋ 加上首页」=从 hidden 移除并 append 到 order 尾部；主列表里关掉开关则自动回库；
+           prefs 未到位（加载/失败）时不露出库区，避免误导空态 -->
+      <div v-if="prefs" class="dp-cat">
+        <div class="dp-cat-title">{{ t('dashboardPrefs.catalogTitle') }}</div>
+        <div v-if="!catalogItems.length" class="dp-cat-empty">{{ t('dashboardPrefs.catalogEmpty') }}</div>
+        <template v-else>
+          <div v-for="meta in catalogItems" :key="meta.id" class="cat-item">
+            <span class="cat-name">{{ t(meta.nameKey) }}</span>
+            <button type="button" class="cat-add" :disabled="saving" @click="addFromCatalog(meta.id)">{{ t('dashboardPrefs.catalogAdd') }}</button>
+          </div>
+        </template>
+        <p class="dp-cat-note">{{ t('dashboardPrefs.catalogNote') }}</p>
+      </div>
+
       <div class="dp-foot">
         <button type="button" class="dp-btn" :disabled="saving" @click="onReset">{{ t('dashboardPrefs.reset') }}</button>
         <button type="button" class="dp-btn dp-btn-primary" @click="close">{{ t('dashboardPrefs.done') }}</button>
@@ -89,10 +104,12 @@ import {
   DASHBOARD_PREFS_KEY,
   useDashboardPrefs,
   getDashboardModuleMeta,
+  DASHBOARD_MODULE_METAS,
   reorderModules,
   toggleModuleHidden,
   normalizeDensity
 } from '../../../utils/dashboard-prefs'
+import type { DashboardModuleMeta } from '../../../utils/dashboard-prefs'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void }>()
@@ -111,8 +128,18 @@ watch(() => props.modelValue, (open) => { if (open) void ctrl.load() }, { immedi
 function close() { emit('update:modelValue', false) }
 function onVisibleChange(v: boolean) { emit('update:modelValue', v) }
 
-/** 服务端前瞻保留的未知 id 跳过渲染（不从 order 丢弃） */
-const visibleOrder = computed(() => (prefs.value?.order ?? []).filter(id => getDashboardModuleMeta(id)))
+/** 主列表：基础板块 + 已添加的可选板块；服务端前瞻保留的未知 id 跳过渲染（不从 order 丢弃）；
+ *  批二：optional 且 hidden 的板块不在主列表，进底部板块库 */
+const visibleOrder = computed(() => (prefs.value?.order ?? []).filter(id => {
+  const meta = getDashboardModuleMeta(id)
+  return !!meta && !(meta.optional && isHidden(id))
+}))
+
+/** 板块库：DASHBOARD_MODULE_METAS 中 optional 且当前 hidden 的板块（库序 = 登记表序） */
+const catalogItems = computed<DashboardModuleMeta[]>(() => {
+  const hidden = prefs.value?.hidden ?? []
+  return DASHBOARD_MODULE_METAS.filter(m => m.optional && hidden.includes(m.id))
+})
 
 function nameKey(id: string): string {
   return getDashboardModuleMeta(id)?.nameKey ?? 'dashboardPrefs.moduleUnknown'
@@ -131,7 +158,15 @@ function hasDensity(id: string): boolean {
 }
 
 function toggleVisible(id: string) {
+  // 可选板块关掉开关 = 回库（toggleModuleHidden 追加回 hidden，主列表自然除名）
   void ctrl.mutate(d => { d.hidden = toggleModuleHidden(d.hidden, id) })
+}
+/** 从库里加上首页：从 hidden 移除并 append 到 order 尾部（order 缺失时补位） */
+function addFromCatalog(id: string) {
+  void ctrl.mutate(d => {
+    d.hidden = d.hidden.filter(x => x !== id)
+    if (!d.order.includes(id)) d.order = [...d.order, id]
+  })
 }
 function setWidth(id: string, w: 'half' | 'full') {
   void ctrl.mutate(d => { d.width = { ...d.width, [id]: w } })
@@ -343,6 +378,53 @@ async function onReset() {
 }
 .ink-switch.on { background: var(--hq-t); border-color: var(--hq); }
 .ink-switch.on::after { transform: translateX(18px); background: var(--hq); }
+
+/* ═══ 批二：可添加的板块（板块库）——原型 820 的 .drawer-cat 段 ═══ */
+.dp-cat {
+  border-top: 1px dashed var(--line2);
+  padding: 12px 16px;
+}
+.dp-cat-title {
+  font-size: calc(var(--font-scale, 1) * 12px);
+  color: var(--ink3);
+  margin-bottom: 8px;
+}
+.dp-cat-empty {
+  padding: 4px 0;
+  font-size: calc(var(--font-scale, 1) * 12px);
+  color: var(--ink4);
+}
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: calc(var(--font-scale, 1) * 13px);
+  color: var(--ink);
+}
+.cat-item + .cat-item { border-top: 1px dashed var(--line); }
+.cat-name { flex: 1; min-width: 0; }
+.cat-add {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--f-b);
+  font-size: calc(var(--font-scale, 1) * 12px);
+  padding: 4px 12px;
+  border: 1px solid var(--hq);
+  color: var(--hq);
+  background: none;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.cat-add:hover:not(:disabled) { background: var(--hq-t); }
+.cat-add:disabled { opacity: 0.5; cursor: not-allowed; }
+.dp-cat-note {
+  margin: 8px 0 0;
+  font-size: calc(var(--font-scale, 1) * 11px);
+  line-height: 1.6;
+  color: var(--ink4);
+}
 
 .dp-foot {
   padding: 12px 16px;

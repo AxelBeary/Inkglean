@@ -307,7 +307,8 @@ onMounted(loadProfile)
 .slot-total { margin-top: 8px; padding: 8px 12px; background: var(--paper2); border-radius: var(--r-m); font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 .slot-actions { display: flex; justify-content: flex-end; }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（.row 为页内双列字段行，非视口语义） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
   .ctrl--switch { width: auto; }
 }

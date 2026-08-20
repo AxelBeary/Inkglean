@@ -1,7 +1,7 @@
 <template>
   <!-- 问候贴纸（视觉批 P1，提案 §3）：固定容器零跳动；每天首次=入场仪式+逐字洇墨，
        当日再现=正常态直出；点文字换一句（R7 防连击）。容器静、文字动。 -->
-  <div class="greeting-note" :class="{ entrance: performing }">
+  <div class="greeting-note" :class="[styleClass, { entrance: performing }]">
     <div
       class="g-text-area"
       role="button"
@@ -20,6 +20,8 @@
           :style="{ animationDelay: `${i * 55}ms` }"
         >{{ ch }}</span>
       </div>
+      <!-- 分隔款（rule）：问候其下一道不规则墨线分隔日期与统计（仅装饰，不参与换句） -->
+      <div v-if="greetStyle === 'rule'" class="g-rule-line" aria-hidden="true"></div>
       <div class="g-date" :class="{ on: metaOn }">{{ dateLine }}</div>
       <div class="g-stats" :class="{ on: metaOn && hasStats }">
         <span>{{ t('dashboard.todayNewOrders') }} <strong>¥{{ formatCents(newOrderDisplay) }}</strong></span>
@@ -27,6 +29,8 @@
         <span>{{ t('dashboard.todayRevenue') }} <strong>¥{{ formatCents(revenueDisplay) }}</strong></span>
       </div>
     </div>
+    <!-- 印框款（seal）：右上大朱印（邮戳感，仅装饰，不参与换句交互） -->
+    <span v-if="greetStyle === 'seal'" class="gs-stamp f-kai" aria-hidden="true">{{ t('dashboard.greetStamp') }}</span>
     <div class="g-sign f-kai" :class="{ on: metaOn }">{{ t('dashboard.greetSign') }}</div>
     <!-- P2 公告行已拆为独立板块（自定义首页批一，用户拍板）：见 DashboardAnnouncementCard.vue -->
   </div>
@@ -41,10 +45,14 @@ import { useCountUp } from '../../../utils/useCountUp'
 import { safeGetItem, safeSetItem } from '../../../utils/storage'
 import type { ArtistStats } from '../../../api/types'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** getStats 返回（含 todayNewOrderCents / todayRevenueCents），可空 */
   stats?: ArtistStats | null
-}>()
+  /** 问候卡款式（自定义首页批二 G，prefs.greetStyle 驱动）：plain 标准（默认=现状）/ seal 印框 / ribbon 书签 / rule 分隔 */
+  greetStyle?: 'plain' | 'seal' | 'ribbon' | 'rule'
+}>(), {
+  greetStyle: 'plain'
+})
 
 const { t, locale } = useI18n()
 
@@ -61,6 +69,8 @@ let timers: ReturnType<typeof setTimeout>[] = []
 const PLAYED_KEY = 'inkglean-greet-played'
 const chars = computed(() => [...greeting.value.text])
 const hasStats = computed(() => props.stats != null)
+// 款式装饰类（plain=标准=现状 → 不加额外框类名；其余按 greetStyle 落 g-* 类，只换框不换内容）
+const styleClass = computed(() => props.greetStyle === 'plain' ? '' : `g-${props.greetStyle}`)
 
 // 今日统计金额滚动（分→元在外层）
 // TS 收尾迁移注：useCountUp 返回 reactive({ display })，display 已被解包为 number；
@@ -222,6 +232,30 @@ onUnmounted(() => clearTimers())
   opacity: 0; transition: opacity .8s ease;
 }
 .g-sign.on { opacity: 1; }
+/* ─── 问候卡四款式（自定义首页批二 G：prefs.greetStyle 驱动；只换装饰框，不换内容不截字） ─── */
+/* plain 标准款 = 现状（无额外类名，默认） */
+/* 印框 seal：卡内双细边 + 右上大朱印（邮戳感） */
+.greeting-note.g-seal { border: 1px solid var(--line2); padding-right: calc(var(--font-scale, 1) * 56px); }
+.greeting-note.g-seal::after {
+  content: ''; position: absolute; inset: 4px;
+  border: 1px solid var(--line); border-radius: var(--r-s); pointer-events: none;
+}
+.gs-stamp {
+  position: absolute; top: 12px; right: 12px; width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: var(--zs); color: #fff; font-size: calc(var(--font-scale, 1) * 13px);
+  line-height: 1.2; border-radius: var(--r-s); transform: rotate(-5deg);
+  opacity: .92; pointer-events: none;
+}
+/* 书签 ribbon：左侧赭石竖条（卷轴轴头感） */
+.greeting-note.g-ribbon { border-left: 4px solid var(--zhe); }
+/* 分隔 rule：问候大字 + 其下一道不规则墨线分隔日期与统计 */
+.greeting-note.g-rule .g-text { font-size: calc(var(--font-scale, 1) * 20px); height: calc(var(--font-scale, 1) * 80px); }
+.g-rule-line {
+  width: 62%; height: 2px; margin-top: 8px;
+  background: var(--ink); opacity: .8;
+  border-radius: 40% 60% 55% 45% / 100% 100% 0 0;
+}
 /* 窄屏：高度自适应一档，其余保持 */
 @media (max-width: 600px) {
   .greeting-note { height: auto; min-height: calc(var(--font-scale, 1) * 190px); transform: rotate(0); }

@@ -188,7 +188,8 @@ onUnmounted(releaseResult)
 .page-sub { margin-top: 8px; color: var(--ink3); font-size: 13px; }
 
 .ir-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; align-items: start; }
-@media (max-width: 900px) { .ir-grid { grid-template-columns: 1fr; } }
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（ArtistLayout 内容容器已设 container-type: inline-size），防窗口宽而页宽框窄时双列发挤 */
+@container (max-width: 900px) { .ir-grid { grid-template-columns: 1fr; } }
 
 .ir-panel {
   background: var(--card);

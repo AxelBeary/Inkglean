@@ -38,7 +38,8 @@ function toolsOf(catKey: string) {
 .tools-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .tools-hint { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); margin: 8px 0 20px; }
 .tools-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-@media (max-width: 768px) { .tools-grid { grid-template-columns: 1fr; } }
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（ArtistLayout 内容容器已设 container-type: inline-size），防窗口宽而页宽框窄时双列发挤 */
+@container (max-width: 768px) { .tools-grid { grid-template-columns: 1fr; } }
 .tool-cat-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-l); padding: 16px; }
 .tool-cat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .tool-cat-icon { font-size: calc(var(--font-scale, 1) * 18px); color: var(--hq); }

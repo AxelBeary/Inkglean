@@ -1028,6 +1028,27 @@ export interface DashboardPrefs {
   pageMax: number
 }
 
+/** 自定义首页批二：收入概览板块数据源（到账与导出 CSV 同源同口径） */
+export interface IncomeOverview {
+  monthReceivedCents: number
+  yearReceivedCents: number
+  pendingCents: number
+  pendingCount: number
+}
+
+/** 自定义首页批二：截稿倒计时条目（daysLeft 负数=已逾期） */
+export interface DeadlineSoonItem {
+  id: number
+  orderNo: string
+  clientName: string | null
+  deadline: string
+  daysLeft: number
+}
+
+export interface DeadlineSoonResult {
+  items: DeadlineSoonItem[]
+}
+
 /** GET /artist/dashboard/activity 活动项 */
 export interface ActivityItem {
   id: number

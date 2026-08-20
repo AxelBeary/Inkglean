@@ -132,7 +132,8 @@ onMounted(loadClients)
 .returning-days { margin: 0; }
 .returning-table { margin-top: 16px; background: var(--card, #fff); border: 1px solid var(--line, #e5e5e5); border-radius: var(--r-m, 8px); }
 
-@media (max-width: 720px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（.row 为页内双列字段行，非视口语义） */
+@container (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
 }
 </style>

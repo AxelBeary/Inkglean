@@ -864,7 +864,8 @@ onBeforeUnmount(() => {
   gap: 16px;
   margin-top: 20px;
 }
-@media (max-width: 960px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（ArtistLayout 内容容器已设 container-type: inline-size），防窗口宽而页宽框窄时双列发挤 */
+@container (max-width: 960px) {
   .pc-grid { grid-template-columns: 1fr; }
 }
 
@@ -1003,7 +1004,8 @@ onBeforeUnmount(() => {
   background: var(--paper2);
 }
 
-@media (max-width: 960px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（同 .pc-grid 口径） */
+@container (max-width: 960px) {
   .row { grid-template-columns: 1fr; }
 }
 </style>

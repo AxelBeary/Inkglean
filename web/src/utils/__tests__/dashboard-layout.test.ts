@@ -3,6 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   DASHBOARD_PANEL_IDS,
+  CORE_PANEL_IDS,
   isDashboardPanelId,
   resolveDashboardLayout,
   resolvePanelWidth,
@@ -27,9 +28,9 @@ function makePrefs(overrides: Partial<DashboardPrefs> = {}): DashboardPrefs {
 }
 
 describe('resolveDashboardLayout（默认/回落）', () => {
-  it('prefs 为 null（拉取失败）→ 默认布局：9 块默认顺序、默认宽度与密度', () => {
+  it('prefs 为 null（拉取失败）→ 默认布局：基础 10 块默认顺序（可选板块不自动上首页），默认宽度与密度', () => {
     const layout = resolveDashboardLayout(null)
-    expect(layout.map(p => p.id)).toEqual([...DASHBOARD_PANEL_IDS])
+    expect(layout.map(p => p.id)).toEqual([...CORE_PANEL_IDS])
     expect(layout.find(p => p.id === 'greet')?.width).toBe('full')
     expect(layout.find(p => p.id === 'stats')?.width).toBe('full')
     expect(layout.find(p => p.id === 'schedule')?.width).toBe('full')
@@ -39,8 +40,22 @@ describe('resolveDashboardLayout（默认/回落）', () => {
   })
 
   it('prefs 为 undefined 与空字段 prefs 同样落默认', () => {
-    expect(resolveDashboardLayout(undefined).map(p => p.id)).toEqual([...DASHBOARD_PANEL_IDS])
-    expect(resolveDashboardLayout(makePrefs({ order: [] })).map(p => p.id)).toEqual([...DASHBOARD_PANEL_IDS])
+    expect(resolveDashboardLayout(undefined).map(p => p.id)).toEqual([...CORE_PANEL_IDS])
+    expect(resolveDashboardLayout(makePrefs({ order: [] })).map(p => p.id)).toEqual([...CORE_PANEL_IDS])
+  })
+
+  it('可选板块（板块库）：order 中有且未 hidden 则渲染；缺失不自动补上首页', () => {
+    const added = makePrefs({
+      order: [...CORE_PANEL_IDS, 'incomeChart'],
+      hidden: ['incomeMonth', 'ddlSoon']
+    })
+    const ids = resolveDashboardLayout(added).map(p => p.id)
+    expect(ids).toContain('incomeChart')
+    expect(ids).not.toContain('incomeMonth')
+    // 仅基础 order：三个可选板块均不自动出现
+    const bare = makePrefs({ order: [...CORE_PANEL_IDS] })
+    const bareIds = resolveDashboardLayout(bare).map(p => p.id)
+    expect(bareIds).toEqual([...CORE_PANEL_IDS])
   })
 })
 
@@ -120,9 +135,11 @@ describe('resolveMaxRows（密度解析）', () => {
 })
 
 describe('isDashboardPanelId', () => {
-  it('9 块内为 true，未知/非字符串为 false', () => {
+  it('13 块内为 true，未知/非字符串为 false', () => {
     expect(isDashboardPanelId('greet')).toBe(true)
     expect(isDashboardPanelId('announcement')).toBe(true)
+    expect(isDashboardPanelId('incomeChart')).toBe(true)
+    expect(isDashboardPanelId('ddlSoon')).toBe(true)
     expect(isDashboardPanelId('income')).toBe(false)
     expect(isDashboardPanelId(42)).toBe(false)
     expect(isDashboardPanelId(null)).toBe(false)

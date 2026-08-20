@@ -294,7 +294,8 @@ onMounted(loadItems)
 .si-row-amount { font-size: 16px; font-weight: 700; color: var(--hq); font-variant-numeric: tabular-nums; text-align: right; }
 .si-row-delete { flex: none; }
 
-@media (max-width: 600px) {
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（.row/.si-row 为页内多列布局，非视口语义） */
+@container (max-width: 600px) {
   .row { grid-template-columns: 1fr; }
   .si-row { grid-template-columns: 1fr auto auto; }
   .si-row-date { grid-column: 1 / -1; }

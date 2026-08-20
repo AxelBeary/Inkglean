@@ -16,16 +16,22 @@ import db from '../../db/connection.js'
 
 export const PREFS_SCHEMA_VERSION = 1
 
-/** 批一基础板块（10 块；可选收入板块属批二，届时追加 id 即可扩展） */
+/** 批一基础板块（10 块） */
 export const CORE_MODULES = [
   'greet', 'plaque', 'stats', 'schedule', 'todo', 'guestbook', 'activity', 'announcement', 'onboarding', 'quick'
 ] as const
 export type CoreModule = typeof CORE_MODULES[number]
 
-/** 默认横跨整行的板块（其余默认半行） */
-const DEFAULT_FULL: readonly string[] = ['greet', 'stats', 'schedule']
-/** 支持「显示行数」的列表板块 */
-const DENSITY_MODULES: readonly string[] = ['todo', 'guestbook', 'activity']
+/** 批二可选板块（板块库：默认不上首页，画师自愿添加；收入类与旧拍板「钱不进日报」并存：默认不见钱） */
+export const OPTIONAL_MODULES = ['incomeChart', 'incomeMonth', 'ddlSoon'] as const
+
+/** 全部已知板块（归一化白名单 = 基础 + 可选） */
+export const ALL_MODULES: readonly string[] = [...CORE_MODULES, ...OPTIONAL_MODULES]
+
+/** 默认横跨整行的板块（其余默认半行；收入趋势图同属长卡） */
+const DEFAULT_FULL: readonly string[] = ['greet', 'stats', 'schedule', 'incomeChart']
+/** 支持「显示行数」的列表板块（截稿倒计时同为列表型） */
+const DENSITY_MODULES: readonly string[] = ['todo', 'guestbook', 'activity', 'ddlSoon']
 const SCHEDULE_STYLES = ['bars', 'ledger', 'ptags', 'waybill'] as const
 const GREET_STYLES = ['plain', 'seal', 'ribbon', 'rule'] as const
 const PAGE_ALIGNS = ['left', 'center', 'full'] as const
@@ -56,13 +62,14 @@ export interface DashboardPrefs {
 
 export function defaultPrefs(): DashboardPrefs {
   const width: Record<string, 'half' | 'full'> = {}
-  for (const m of CORE_MODULES) width[m] = DEFAULT_FULL.includes(m) ? 'full' : 'half'
+  for (const m of ALL_MODULES) width[m] = DEFAULT_FULL.includes(m) ? 'full' : 'half'
   const density: Record<string, number> = {}
   for (const m of DENSITY_MODULES) density[m] = 0
   return {
     v: PREFS_SCHEMA_VERSION,
     order: [...CORE_MODULES],
-    hidden: [],
+    // 可选板块默认藏起（板块库机制：自愿添加才上首页）
+    hidden: [...OPTIONAL_MODULES],
     width,
     density,
     scheduleStyle: 'bars',
@@ -72,7 +79,7 @@ export function defaultPrefs(): DashboardPrefs {
   }
 }
 
-const CORE_SET: ReadonlySet<string> = new Set(CORE_MODULES as readonly string[])
+const ALL_SET: ReadonlySet<string> = new Set(ALL_MODULES)
 
 /**
  * 归一化任意输入为合法 prefs——鲁棒性核心：
@@ -88,11 +95,12 @@ export function normalizePrefs(raw: unknown): DashboardPrefs {
     const seen = new Set<string>()
     const order: string[] = []
     for (const id of obj.order) {
-      if (typeof id === 'string' && CORE_SET.has(id) && !seen.has(id)) {
+      if (typeof id === 'string' && ALL_SET.has(id) && !seen.has(id)) {
         seen.add(id)
         order.push(id)
       }
     }
+    // 缺失的基础板块补尾部（可选板块不自动补——未添加即不在首页）
     for (const m of CORE_MODULES) if (!seen.has(m)) order.push(m)
     d.order = order
   }
@@ -101,7 +109,7 @@ export function normalizePrefs(raw: unknown): DashboardPrefs {
     const seen = new Set<string>()
     const hidden: string[] = []
     for (const id of obj.hidden) {
-      if (typeof id === 'string' && CORE_SET.has(id) && !seen.has(id)) {
+      if (typeof id === 'string' && ALL_SET.has(id) && !seen.has(id)) {
         seen.add(id)
         hidden.push(id)
       }
@@ -111,7 +119,7 @@ export function normalizePrefs(raw: unknown): DashboardPrefs {
 
   if (obj.width && typeof obj.width === 'object' && !Array.isArray(obj.width)) {
     for (const [k, v] of Object.entries(obj.width as Record<string, unknown>)) {
-      if (CORE_SET.has(k) && (v === 'half' || v === 'full')) d.width[k] = v
+      if (ALL_SET.has(k) && (v === 'half' || v === 'full')) d.width[k] = v
     }
   }
 
@@ -147,7 +155,7 @@ function legacyHidden(legacyRaw: string | null): string[] {
     if (!obj || typeof obj !== 'object') return []
     const hidden: string[] = []
     for (const [k, v] of Object.entries(obj)) {
-      if (v === false && CORE_SET.has(k)) hidden.push(k)
+      if (v === false && ALL_SET.has(k)) hidden.push(k)
     }
     return hidden
   } catch {

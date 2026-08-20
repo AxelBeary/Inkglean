@@ -516,7 +516,8 @@ async function exportImage() {
 .od-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; margin-bottom: 4px; }
 
 .wm-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; margin-top: 20px; align-items: start; }
-@media (max-width: 900px) { .wm-grid { grid-template-columns: 1fr; } }
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（ArtistLayout 内容容器已设 container-type: inline-size），防窗口宽而页宽框窄时多列发挤 */
+@container (max-width: 900px) { .wm-grid { grid-template-columns: 1fr; } }
 
 .wm-panel {
   background: var(--card);
@@ -563,7 +564,8 @@ async function exportImage() {
 .wm-file-input { display: none; }
 
 .wm-grid-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
-@media (max-width: 600px) { .wm-grid-list { grid-template-columns: repeat(3, 1fr); } }
+/* 页宽容器查询收尾批：@media 改 @container 认容器宽（同 .wm-grid 口径） */
+@container (max-width: 600px) { .wm-grid-list { grid-template-columns: repeat(3, 1fr); } }
 .wm-thumb {
   padding: 0;
   border: 2px solid transparent;

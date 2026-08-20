@@ -20,32 +20,42 @@ import { useI18n } from 'vue-i18n'
 import { artistApi } from '../api/index'
 import type { DashboardPrefs } from '../api/types'
 
-// ─── 板块登记表（批一 10 基础板块，与服务端 CORE_MODULES 同序同量） ───
+// ─── 板块登记表（批一 10 基础 + 批二 3 可选，与服务端 CORE_MODULES/OPTIONAL_MODULES 同序同量） ───
 
 export const DASHBOARD_MODULE_IDS = [
-  'greet', 'plaque', 'stats', 'schedule', 'todo', 'guestbook', 'activity', 'announcement', 'onboarding', 'quick'
+  'greet', 'plaque', 'stats', 'schedule', 'todo', 'guestbook', 'activity', 'announcement', 'onboarding', 'quick',
+  'incomeChart', 'incomeMonth', 'ddlSoon'
 ] as const
+
+/** 基础板块（默认在首页；可选板块默认在库里，自愿添加） */
+export const CORE_MODULE_IDS: readonly DashboardModuleId[] = DASHBOARD_MODULE_IDS.slice(0, 10)
+/** 可选板块（板块库：收入类与旧拍板「钱不进日报」并存——默认不见钱，自愿添加才上首页） */
+export const OPTIONAL_MODULE_IDS: readonly DashboardModuleId[] = DASHBOARD_MODULE_IDS.slice(10)
 
 export type DashboardModuleId = (typeof DASHBOARD_MODULE_IDS)[number]
 
-/** 板块元信息：名称走 i18n 键；列表型板块支持「显示行数」 */
+/** 板块元信息：名称走 i18n 键；列表型板块支持「显示行数」；optional=板块库成员 */
 export interface DashboardModuleMeta {
   id: DashboardModuleId
   nameKey: string
   hasDensity: boolean
+  optional: boolean
 }
 
 export const DASHBOARD_MODULE_METAS: readonly DashboardModuleMeta[] = [
-  { id: 'greet', nameKey: 'dashboardPrefs.moduleGreet', hasDensity: false },
-  { id: 'plaque', nameKey: 'dashboardPrefs.modulePlaque', hasDensity: false },
-  { id: 'stats', nameKey: 'dashboardPrefs.moduleStats', hasDensity: false },
-  { id: 'schedule', nameKey: 'dashboardPrefs.moduleSchedule', hasDensity: false },
-  { id: 'todo', nameKey: 'dashboardPrefs.moduleTodo', hasDensity: true },
-  { id: 'guestbook', nameKey: 'dashboardPrefs.moduleGuestbook', hasDensity: true },
-  { id: 'activity', nameKey: 'dashboardPrefs.moduleActivity', hasDensity: true },
-  { id: 'announcement', nameKey: 'dashboardPrefs.moduleAnnouncement', hasDensity: false },
-  { id: 'onboarding', nameKey: 'dashboardPrefs.moduleOnboarding', hasDensity: false },
-  { id: 'quick', nameKey: 'dashboardPrefs.moduleQuick', hasDensity: false }
+  { id: 'greet', nameKey: 'dashboardPrefs.moduleGreet', hasDensity: false, optional: false },
+  { id: 'plaque', nameKey: 'dashboardPrefs.modulePlaque', hasDensity: false, optional: false },
+  { id: 'stats', nameKey: 'dashboardPrefs.moduleStats', hasDensity: false, optional: false },
+  { id: 'schedule', nameKey: 'dashboardPrefs.moduleSchedule', hasDensity: false, optional: false },
+  { id: 'todo', nameKey: 'dashboardPrefs.moduleTodo', hasDensity: true, optional: false },
+  { id: 'guestbook', nameKey: 'dashboardPrefs.moduleGuestbook', hasDensity: true, optional: false },
+  { id: 'activity', nameKey: 'dashboardPrefs.moduleActivity', hasDensity: true, optional: false },
+  { id: 'announcement', nameKey: 'dashboardPrefs.moduleAnnouncement', hasDensity: false, optional: false },
+  { id: 'onboarding', nameKey: 'dashboardPrefs.moduleOnboarding', hasDensity: false, optional: false },
+  { id: 'quick', nameKey: 'dashboardPrefs.moduleQuick', hasDensity: false, optional: false },
+  { id: 'incomeChart', nameKey: 'dashboardPrefs.moduleIncomeChart', hasDensity: false, optional: true },
+  { id: 'incomeMonth', nameKey: 'dashboardPrefs.moduleIncomeMonth', hasDensity: false, optional: true },
+  { id: 'ddlSoon', nameKey: 'dashboardPrefs.moduleDdlSoon', hasDensity: true, optional: true }
 ]
 
 const MODULE_META_MAP = new Map<string, DashboardModuleMeta>(
@@ -57,8 +67,8 @@ export function getDashboardModuleMeta(id: string): DashboardModuleMeta | undefi
   return MODULE_META_MAP.get(id)
 }
 
-/** 支持「显示行数」的列表板块（与服务端 DENSITY_MODULES 同口径） */
-export const DENSITY_MODULE_IDS: readonly DashboardModuleId[] = ['todo', 'guestbook', 'activity']
+/** 支持「显示行数」的列表板块（与服务端 DENSITY_MODULES 同口径；ddlSoon 属批二） */
+export const DENSITY_MODULE_IDS: readonly DashboardModuleId[] = ['todo', 'guestbook', 'activity', 'ddlSoon']
 
 // ─── 页面宽度三档常量（与原型 820 / 服务端归一化口径一致） ───
 

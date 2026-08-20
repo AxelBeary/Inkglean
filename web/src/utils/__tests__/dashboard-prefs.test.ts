@@ -21,6 +21,7 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
 import {
   DASHBOARD_MODULE_IDS,
+  OPTIONAL_MODULE_IDS,
   DASHBOARD_MODULE_METAS,
   DENSITY_MODULE_IDS,
   PAGE_MAX_MIN,
@@ -63,14 +64,20 @@ beforeEach(() => {
 })
 
 describe('板块登记表（与服务端 CORE_MODULES 同口径）', () => {
-  it('恰好 10 个基础板块且顺序与服务端一致', () => {
+  it('恰好 13 个板块（10 基础 + 3 可选）且顺序与服务端一致', () => {
     expect([...DASHBOARD_MODULE_IDS]).toEqual([
-      'greet', 'plaque', 'stats', 'schedule', 'todo', 'guestbook', 'activity', 'announcement', 'onboarding', 'quick'
+      'greet', 'plaque', 'stats', 'schedule', 'todo', 'guestbook', 'activity', 'announcement', 'onboarding', 'quick',
+      'incomeChart', 'incomeMonth', 'ddlSoon'
     ])
+    expect([...OPTIONAL_MODULE_IDS]).toEqual(['incomeChart', 'incomeMonth', 'ddlSoon'])
+    // 可选板块在 meta 中标记 optional，基础板块不标
+    for (const meta of DASHBOARD_MODULE_METAS) {
+      expect(meta.optional).toBe((OPTIONAL_MODULE_IDS as readonly string[]).includes(meta.id))
+    }
   })
 
-  it('todo/guestbook/activity 支持显示行数，其余不支持；每项都有 i18n 名称键', () => {
-    expect([...DENSITY_MODULE_IDS]).toEqual(['todo', 'guestbook', 'activity'])
+  it('todo/guestbook/activity/ddlSoon 支持显示行数，其余不支持；每项都有 i18n 名称键', () => {
+    expect([...DENSITY_MODULE_IDS]).toEqual(['todo', 'guestbook', 'activity', 'ddlSoon'])
     for (const meta of DASHBOARD_MODULE_METAS) {
       expect(meta.nameKey).toMatch(/^dashboardPrefs\.module/)
       expect(meta.hasDensity).toBe(DENSITY_MODULE_IDS.includes(meta.id))
@@ -79,7 +86,8 @@ describe('板块登记表（与服务端 CORE_MODULES 同口径）', () => {
 
   it('getDashboardModuleMeta：已知 id 返回元信息，未知 id 返回 undefined', () => {
     expect(getDashboardModuleMeta('greet')?.nameKey).toBe('dashboardPrefs.moduleGreet')
-    expect(getDashboardModuleMeta('incomeChart')).toBeUndefined()
+    expect(getDashboardModuleMeta('incomeChart')?.optional).toBe(true)
+    expect(getDashboardModuleMeta('moonBase')).toBeUndefined()
   })
 })
 
@@ -94,7 +102,7 @@ describe('reorderModules 拖动换位', () => {
   })
 
   it('插到目标之后（拖到最后）', () => {
-    const next = reorderModules(order, 'greet', 'quick', false)
+    const next = reorderModules(order, 'greet', 'ddlSoon', false)
     expect(next[next.length - 1]).toBe('greet')
     expect(new Set(next)).toEqual(new Set(order))
   })

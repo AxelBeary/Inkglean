@@ -61,6 +61,37 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * GET /api/artist/dashboard/income-overview
+   * 自定义首页批二：本月收入概览板块数据源（到账与导出 CSV 同源同口径；待收尾款=进行中订单未收部分）
+   */
+  fastify.get('/api/artist/dashboard/income-overview', {
+    preHandler: requireAuth
+  }, async (request: FastifyRequest) => {
+    return dashboardService.getIncomeOverview(request.artist.id)
+  })
+
+  /**
+   * GET /api/artist/dashboard/deadline-soon?days=&limit=
+   * 自定义首页批二：截稿倒计时板块数据源（含已逾期，按截稿日升序；参数钳制防滥用）
+   */
+  fastify.get('/api/artist/dashboard/deadline-soon', {
+    preHandler: requireAuth,
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          days: { type: 'integer', minimum: 1, maximum: 60, default: 14 },
+          limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const q = request.query as { days?: number; limit?: number }
+    return { items: dashboardService.getDeadlineSoon(request.artist.id, q.days ?? 14, q.limit ?? 8) }
+  })
+
+  /**
    * GET /api/artist/onboarding
    * REQ-043 I2: 开张任务卡状态（dismissed + 三项任务 done）
    */
