@@ -17,7 +17,7 @@
         <div class="schedule-card">
           <div class="schedule-card-head">
             <span class="schedule-card-title">{{ $t('schedule.title') }}</span>
-            <span class="schedule-card-date">{{ todayStr }}</span>
+            <span class="schedule-card-date">{{ todayStr() }}</span>
           </div>
           <div class="schedule-card-artist">{{ artistName }}</div>
           <span class="schedule-card-status" :class="statusKey">{{ statusText }}</span>

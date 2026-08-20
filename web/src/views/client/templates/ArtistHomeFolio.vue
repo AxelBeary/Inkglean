@@ -82,7 +82,6 @@
     <section class="folio-cta">
       <div class="folio-cta-inner">
         <h2 class="folio-cta-title">{{ $t('artistHome.commission') }}</h2>
-        <p class="folio-cta-sub">{{ $t('artistHome.ctaSubtitle') }}</p>
         <button
           class="folio-cta-btn"
           :disabled="artist.status !== 'open'"
@@ -374,11 +373,6 @@ onUnmounted(() => {
   font-weight: 700;
   letter-spacing: -1px;
   color: var(--pal-text);
-  margin: 0 0 12px;
-}
-.folio-cta-sub {
-  color: var(--pal-text-dim);
-  font-size: 16px;
   margin: 0 0 32px;
 }
 .folio-cta-btn {

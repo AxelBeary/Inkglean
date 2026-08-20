@@ -28,8 +28,8 @@ export const OPTIONAL_MODULES = ['incomeChart', 'incomeMonth', 'ddlSoon'] as con
 /** 全部已知板块（归一化白名单 = 基础 + 可选） */
 export const ALL_MODULES: readonly string[] = [...CORE_MODULES, ...OPTIONAL_MODULES]
 
-/** 默认横跨整行的板块（其余默认半行；收入趋势图同属长卡） */
-const DEFAULT_FULL: readonly string[] = ['greet', 'stats', 'schedule', 'incomeChart']
+/** 默认横跨整行的板块（其余默认半行；收入趋势图同属长卡；问候卡默认半行——用户 2026-08-21 拍板） */
+const DEFAULT_FULL: readonly string[] = ['stats', 'schedule', 'incomeChart']
 /** 支持「显示行数」的列表板块（截稿倒计时同为列表型） */
 const DENSITY_MODULES: readonly string[] = ['todo', 'guestbook', 'activity', 'ddlSoon']
 const SCHEDULE_STYLES = ['bars', 'ledger', 'ptags', 'waybill'] as const

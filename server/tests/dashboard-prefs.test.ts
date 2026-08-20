@@ -30,7 +30,7 @@ describe('仪表盘布局偏好 dashboard prefs（自定义首页批一 v70）',
     expect(body.v).toBe(PREFS_SCHEMA_VERSION)
     expect(body.order).toEqual([...CORE_MODULES])
     expect(body.hidden).toEqual([...OPTIONAL_MODULES])
-    expect(body.width.greet).toBe('full')
+    expect(body.width.greet).toBe('half')   // 用户 2026-08-21 拍板：问候卡默认半行
     expect(body.width.schedule).toBe('full')
     expect(body.width.todo).toBe('half')
     expect(body.density).toEqual({ todo: 0, guestbook: 0, activity: 0, ddlSoon: 0 })

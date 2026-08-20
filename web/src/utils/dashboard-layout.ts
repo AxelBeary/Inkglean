@@ -24,8 +24,8 @@ export type DashboardPanelId = (typeof DASHBOARD_PANEL_IDS)[number]
 /** 基础板块 10 块（默认在首页；可选板块不自动补——未添加即不在首页） */
 export const CORE_PANEL_IDS: readonly DashboardPanelId[] = DASHBOARD_PANEL_IDS.slice(0, 10)
 
-/** 默认横跨整行的板块（其余默认半行；对齐服务端 DEFAULT_FULL，收入趋势图同属长卡） */
-export const DEFAULT_FULL_PANELS: readonly DashboardPanelId[] = ['greet', 'stats', 'schedule', 'incomeChart']
+/** 默认横跨整行的板块（其余默认半行；对齐服务端 DEFAULT_FULL；问候卡默认半行——用户 2026-08-21 拍板） */
+export const DEFAULT_FULL_PANELS: readonly DashboardPanelId[] = ['stats', 'schedule', 'incomeChart']
 
 /** 支持「显示行数」density 的列表板块（对齐服务端 DENSITY_MODULES，ddlSoon 属批二） */
 export const DENSITY_PANELS: readonly DashboardPanelId[] = ['todo', 'guestbook', 'activity', 'ddlSoon']

@@ -490,7 +490,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     modeLabel: 'Menu mode',
     modeDesc: 'Choose today\'s dish pool by dietary constraint',
     pickLabel: 'Random pick',
-    pickDesc: 'Pick one dish at random from the current mode',
+    pickDesc: 'Pick one dish at random from the current mode; draw again if you don\'t like it',
     modes: {
       healthy: 'Healthy',
       diabetes: 'Diabetic-friendly',
@@ -510,7 +510,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     subtitle: 'Export payment records (including refunds) by date range for reconciliation and tax filing',
     groupRange: 'Export Settings',
     rangeLabel: 'Date Range',
-    rangeDesc: 'Export payment records within this period',
+    rangeDesc: 'Includes order payments and standalone income',
     exportDesc: 'Generate a CSV file and start the download',
     startPlaceholder: 'Start date',
     endPlaceholder: 'End date',
@@ -705,16 +705,16 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     subtitle: 'Combine multiple images of one order into a comparison sheet to show progress to clients',
     groupSteps: 'Puzzle Settings',
     selectOrder: 'Select order',
-    orderDesc: 'Pick the order to combine',
+    orderDesc: 'Only images from the same order can be combined',
     selectImages: 'Select images (2-6)',
     imagesDesc: 'Pick from deliverables and references, up to 6 images',
     arrange: 'Arrange order',
-    arrangeDesc: 'Sets the left-to-right order in the combined image',
+    arrangeDesc: 'The exported image is laid out left to right in this order',
     up: 'Up',
     down: 'Down',
     export: 'Export',
     preview: 'Preview',
-    previewDesc: 'Review the combined result before exporting',
+    previewDesc: 'Updates here in real time as you adjust selections and order',
     noImages: 'No images in this order',
     needTwo: 'Select at least 2 images',
     kindDeliverable: 'Deliverable',
@@ -793,7 +793,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     copyFailed: 'Copy failed, please copy manually',
     empty: 'No matching clients',
     loadFailed: 'Failed to load, please retry',
-    script: 'Long time no see! It\'s me, your artist — I just opened a new slot. Your last commission was {days} days ago. Care to take a look? (Client QQ: {qq})'
+    script: 'Long time no see! I just opened a new slot. Your last commission was {days} days ago — care to take a look?'
   },
   quickAction: {
     title: 'Settings',
@@ -822,7 +822,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   artistHome: {
     commission: 'Commission me', track: 'Track order',
     menuLabel: 'Menu',
-    noWorks: 'No artworks yet — stay tuned',
+    noWorks: 'No artworks yet',
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load',
     hidden: "This artist's page is currently unavailable. If you're the owner, enable \"Shop visibility\" under Settings → Public Page.",
@@ -830,7 +830,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break', statusHidden: 'Hidden',
     navPricing: 'Pricing', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
     startCommission: 'Start a commission →', trackOrder: 'Track order',
-    ctaSubtitle: 'Looking forward to creating something great with you.',
     // v0.42 Step 6: client gallery "load more"
     loadMore: 'Load more',
     otherLink: 'Link',
@@ -864,7 +863,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     addQqHint: 'Add the artist on QQ to discuss details — just quote your order number', viewProgress: 'Track progress',
     fillQq: 'Please enter your QQ number', selectSizeFirst: 'Please select a style and size first',
     fileTooBig: 'File "{name}" exceeds the 10MB limit ({size}MB). Please compress and re-upload',
-    typeWarning: 'Converting to JPG or WebP is recommended for better previews, but the current format can still be uploaded.',
+    typeWarning: 'JPG or WebP previews better, but the current format can still be uploaded.',
     // G-7 (P2-13): reference upload credential unavailable (anon-token issuance network failure)
     anonTokenRequired: 'Failed to obtain the upload credential. Please check your network and retry.',
     loadFailed: 'Failed to load artist info',
@@ -1401,9 +1400,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     reorderConfirm: 'Create new order'
   },
   manualOrder: {
-    title: 'Manual Entry', hint: 'After the client contacts you on QQ, record the order here manually.',
+    title: 'Manual Entry', hint: 'You can also paste the client\'s QQ message here — the QQ number and amount/date clues are recognized automatically.',
     leftTitle: 'Client info', rightTitle: 'Pricing',
-    clientQq: 'Client QQ', clientQqPlaceholder: "Client's QQ number",
+    clientQq: 'Client QQ', clientQqPlaceholder: '5-15 digits',
     clientName: 'Client nickname (optional)', clientNamePlaceholder: 'What to call the client',
     addons: 'Add-ons',
     usage: 'Usage', rush: 'Rush',
@@ -1552,7 +1551,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     styleNameLabel: 'Style name', styleNamePlaceholder: 'e.g. Anime, Painterly, Pixel art', styleNameRequired: 'Please enter a style name',
     styleDescLabel: 'Description (optional)', styleDescPlaceholder: 'What style or scenarios it suits',
     styleCoverLabel: 'Cover image (optional)', styleCoverUpload: 'Upload cover', styleCoverChange: 'Change cover',
-    styleImportAddons: 'Import all addons from library', styleImportHint: 'When checked, every addon in the library is imported into this style (enabled by default, adjustable per item).',
+    styleImportAddons: 'Import addons from library', styleImportHint: 'When checked, every addon in the library is imported into this style (enabled by default, adjustable per item).',
     styleSaved: 'Style saved', styleDeleted: 'Style deleted', styleDeleteConfirm: 'Delete style "{name}"? All its sizes, addon configs and overrides will be removed too.',
     styleActive: 'Active', styleEmpty: 'No styles yet. Click "New Style" to start configuring.',
     // 812-B B7: empty-state guidance for no styles
@@ -1695,8 +1694,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   // #44: Preferences standalone page (split from Page Settings)
   preferences: {
     title: 'Preferences',
-    // 819-G: top-nav three tabs + grouped card row copy
-    subtitle: 'Font size, notifications, and quick buttons — all in one place.',
+    // 819-G: top-nav three tabs + grouped card row copy (zero-info subtitle removed)
     tabGeneral: 'General',
     tabDisplay: 'Display & Font',
     tabQuick: 'Quick Access',
@@ -1709,7 +1707,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     notifyLabel: 'New message notifications',
     notifyDesc: 'Alerts you about new orders, messages, and stage updates.',
     defaultPanelLabel: 'Open by default',
-    defaultPanelDesc: 'Choose the panel shown by default when you enter the back office.',
+    defaultPanelDesc: 'This page opens first next time you enter the back office.',
     saveHint: 'Changes apply immediately after saving.',
     // 818-A: back-office font size slider (14–20px, 7 stops, default 15px)
     fontSize: 'Back-office font size',
@@ -2144,7 +2142,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       daysLabel: 'Range', funnelTitle: 'Order funnel',
       byNameTitle: 'By event', byDayTitle: 'By day',
       visibleHint: 'When off, artist pages do not show visit stats',
-      daysHint: 'Choose the time range covered by the reports',
+      daysHint: 'Options: last 7 / 14 / 30 / 90 days',
       colName: 'Event', colCount: 'Count', colRatio: 'Ratio', colDay: 'Date',
       days7: 'Last 7 days', days14: 'Last 14 days', days30: 'Last 30 days', days90: 'Last 90 days',
       empty: 'No event data',
@@ -2502,7 +2500,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     titleDesc: 'The headline shown at the top of the card',
     titlePlaceholder: 'e.g. Avatar · Illustration price list',
     tiersLabel: 'Tiers (3-12 rows)',
-    tiersDesc: 'Fill in at least 3 complete tiers (name + price); you can import your real pricing in one click',
+    tiersDesc: 'Fill in at least 3 complete tiers (name + price); you can import your real pricing from Price Settings',
     tierNamePlaceholder: 'Tier name, e.g. Half body',
     tierPricePlaceholder: 'Price (CNY)',
     tierNotePlaceholder: 'One-line note (optional)',

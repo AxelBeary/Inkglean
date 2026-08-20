@@ -3,7 +3,6 @@
        分组卡片 + 统一行结构「说明在左 / 控件在右」，结构与视觉对齐 proto-preferences-818 -->
   <div class="pref-page" v-loading="loading">
     <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
-    <p class="pref-sub">{{ $t('preferences.subtitle') }}</p>
 
     <!-- 加载失败错误态 + 重试（对齐 Settings profileLoadFailed 模式） -->
     <el-alert
@@ -387,7 +386,6 @@ onMounted(() => {
 /* ═══ 819-G: 顶部导航 + 分组卡片 + 统一行结构（4px 栅格，圆角走 token） ═══ */
 /* H1 页面标题：文楷 28/700（REQ §1.3） */
 .pref-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.pref-sub { margin-top: 4px; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
 
 /* 内容区：分组卡片 + 组头朱砂小印点 + 统一行（页签间距由 el-tabs 自带头部留白承担，对齐价格管理） */
 .pref-group {

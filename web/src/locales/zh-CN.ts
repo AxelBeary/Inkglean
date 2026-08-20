@@ -368,7 +368,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   // REQ-035 工具集后置: 社恐轻松回复（工具页文案）
   reply: {
     title: '社恐轻松回复',
-    subtitle: '预设话术一键复制，不好意思开口的场景照抄就行',
+    subtitle: '预设话术直接复制，不好意思开口的场景照抄就行',
     // 818-B 布局打磨：组头 + 描述（同类成组）
     listTitle: '常用话术',
     listDesc: '点击复制，粘贴到聊天窗口直接发给客户',
@@ -490,7 +490,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     modeLabel: '菜单模式',
     modeDesc: '按饮食约束选择今日菜池',
     pickLabel: '随机推荐',
-    pickDesc: '从当前模式中随机抽一条推荐',
+    pickDesc: '从当前模式的菜池里随机抽一条，不满意可再抽',
     modes: {
       healthy: '健康版',
       diabetes: '糖尿病版',
@@ -502,7 +502,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     disclaimer: '本推荐仅供参考，具体饮食请遵医嘱。',
     emptyHint: '点上方「随机推荐」按钮，看看今天吃什么',
     // b4-6 保底方案：英文界面先说明菜名为中文原文（翻译量另行排期）
-    originalNamesNote: '当前为中文菜名，英文菜单制作中，敬请期待'
+    originalNamesNote: '当前为中文菜名，英文菜单还在做'
   },
   // REQ-031 A1: 收入导出 CSV（工具页文案）
   toolsExport: {
@@ -510,7 +510,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     subtitle: '按时间段导出收款流水（含退款负项），用于对账与报税',
     groupRange: '导出设置',
     rangeLabel: '时间段',
-    rangeDesc: '导出该时间段内的收款流水',
+    rangeDesc: '含订单收款与散单收入',
     exportDesc: '生成 CSV 文件并开始下载',
     startPlaceholder: '开始日期',
     endPlaceholder: '结束日期',
@@ -582,7 +582,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   // 812-tools-a: 报价单生成（工具页文案）
   quote: {
     title: '报价单',
-    subtitle: '把条目和金额填进模板，一键生成图片或文字报价，发给客户确认',
+    subtitle: '把条目和金额填进模板，生成图片或文字报价，发给客户确认',
     // 818-B 布局打磨：分组卡片 + 一行一事（说明在左，控件在右）
     groupContent: '报价内容',
     clientDesc: '显示在报价单顶部，方便客户确认',
@@ -704,16 +704,16 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     subtitle: '把同一订单的多张图片拼成一张对比图，方便向客户展示进度',
     groupSteps: '拼图设置',
     selectOrder: '选择订单',
-    orderDesc: '选择要拼接的订单',
+    orderDesc: '同一订单的图片才能拼成一张',
     selectImages: '勾选图片（2~6 张）',
     imagesDesc: '从完稿图与参考图中勾选，最多 6 张',
     arrange: '调整顺序',
-    arrangeDesc: '决定拼图从左到右的展示顺序',
+    arrangeDesc: '导出时按这里的顺序从左到右排',
     up: '上移',
     down: '下移',
     export: '导出拼图',
     preview: '实时预览',
-    previewDesc: '导出前确认拼图效果',
+    previewDesc: '调整选择或顺序后，这里实时更新',
     noImages: '该订单暂无图片',
     needTwo: '至少选择 2 张图片',
     kindDeliverable: '完稿',
@@ -791,7 +791,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     copyFailed: '复制失败，请手动复制',
     empty: '暂无符合条件的客户',
     loadFailed: '加载失败，请稍后重试',
-    script: '好久不见～我是您的画师，最近开了新档期。您上次约稿是 {days} 天前了，有空来看看吗？（客户QQ：{qq}）'
+    script: '好久不见，最近开了新档期。你上次约稿是 {days} 天前了，有空来看看吗？'
   },
   // F3 快捷入口动作（2026-08-07 用户拍板）
   quickAction: {
@@ -821,7 +821,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   artistHome: {
     commission: '我要约稿', track: '查询进度',
     menuLabel: '菜单',
-    noWorks: '暂无作品，敬请期待',
+    noWorks: '暂无作品',
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败',
     hidden: '该画师暂未开放主页。如你是店主，请到「设置 → 主页展示」开启「小店展示」。',
@@ -829,7 +829,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中', statusHidden: '已隐藏',
     navPricing: '价格', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
     startCommission: '开始约稿 →', trackOrder: '查询进度',
-    ctaSubtitle: '期待与你一起创作出好作品。',
     // v0.42 Step 6: 客户端画廊「加载更多」
     loadMore: '加载更多',
     otherLink: '链接',
@@ -863,7 +862,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     addQqHint: '请添加画师QQ沟通细节，报上你的订单号即可', viewProgress: '查看进度',
     fillQq: '请填写QQ号', selectSizeFirst: '请先选择画风和尺寸',
     fileTooBig: '文件「{name}」超过10MB限制（{size}MB），请压缩后重新上传',
-    typeWarning: '建议转换为 JPG 或 WebP 格式以获得更好的预览体验，但当前格式也可以正常上传。',
+    typeWarning: 'JPG 或 WebP 预览效果更好，当前格式也可以正常上传。',
     // G-7（P2-13）: 参考图归属凭证获取失败（匿名凭证签发链路网络异常时提示）
     anonTokenRequired: '参考图凭证获取失败，请检查网络后重试',
     loadFailed: '加载画师信息失败',
@@ -1400,9 +1399,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     reorderConfirm: '去录新单'
   },
   manualOrder: {
-    title: '手动录单', hint: '客户通过QQ联系你后，在这里手动录入订单信息。',
+    title: '手动录单', hint: '也可以直接粘贴客户的QQ消息，自动识别QQ号与金额、日期线索。',
     leftTitle: '客户信息', rightTitle: '价格信息',
-    clientQq: '客户QQ号', clientQqPlaceholder: '客户的QQ号',
+    clientQq: '客户QQ号', clientQqPlaceholder: '5-15 位数字',
     clientName: '客户昵称（可选）', clientNamePlaceholder: '怎么称呼客户',
     addons: '可选增项',
     usage: '用途', rush: '加急',
@@ -1530,7 +1529,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   styleManage: {
     tabTemplates: '增项库', confirmTitle: '确认',
     // 增项库（SPEC-PRICE-2：类别/控件/计价方式/数量上限全维度管理）
-    tplIntro: '增项库是全平台价格资产的唯一管理面：普通增项、用途、加急都在这里维护，再到「画风与价格」页挂到各画风。',
+    tplIntro: '普通增项、用途、加急统一在这里维护，再到「画风与价格」页挂到各画风。',
     tplName: '名称', tplControl: '控件', tplDefaultPrice: '默认价', tplActions: '操作',
     tplCategory: '类别', tplCategoryLabel: '类别', tplMaxQty: '数量上限', tplMaxQtyLabel: '数量上限（个数类防刷）',
     tplEmpty: '还没有增项模板，点击"新建增项"创建', tplAdd: '+ 新建增项',
@@ -1551,7 +1550,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     styleNameLabel: '画风名称', styleNamePlaceholder: '如：日系、厚涂、像素风', styleNameRequired: '请输入画风名称',
     styleDescLabel: '描述（可选）', styleDescPlaceholder: '适合什么风格、什么场景',
     styleCoverLabel: '示例图（可选）', styleCoverUpload: '上传示例图', styleCoverChange: '更换示例图',
-    styleImportAddons: '从增项库一键导入', styleImportHint: '勾选后，增项库中所有增项将自动导入到该画风（默认启用，可逐个调整）',
+    styleImportAddons: '从增项库导入', styleImportHint: '勾选后，增项库中所有增项将自动导入到该画风（默认启用，可逐个调整）',
     styleSaved: '画风已保存', styleDeleted: '画风已删除', styleDeleteConfirm: '确定删除画风「{name}」？其下所有尺寸、增项配置和覆盖将一并删除。',
     styleActive: '启用', styleEmpty: '还没有画风，点击"新建画风"开始配置',
     // 812-B B7: 无画风空态引导
@@ -1694,8 +1693,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   // #44: 偏好设置独立页面（从主页设置拆出）
   preferences: {
     title: '偏好设置',
-    // 819-G: 顶部导航三 tab + 分组卡片行结构文案
-    subtitle: '字号、通知、快捷按钮，都在这里设置。',
+    // 819-G: 顶部导航三 tab + 分组卡片行结构文案（原零信息副标题已删）
     tabGeneral: '通用',
     tabDisplay: '显示与字号',
     tabQuick: '快捷入口',
@@ -1708,7 +1706,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     notifyLabel: '新消息通知',
     notifyDesc: '有新订单、留言或节点推进时提醒你。',
     defaultPanelLabel: '进入后台时先打开',
-    defaultPanelDesc: '选择进入后台时默认打开的面板。',
+    defaultPanelDesc: '下次进入后台时直接打开这一页。',
     saveHint: '改动保存后立即生效。',
     // 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px）
     fontSize: '后台字号',
@@ -2141,7 +2139,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       daysLabel: '统计天数', funnelTitle: '下单漏斗',
       byNameTitle: '事件分布', byDayTitle: '按日趋势',
       visibleHint: '关闭后画师主页不显示访问统计',
-      daysHint: '选择统计报表覆盖的时间范围',
+      daysHint: '可选近 7 / 14 / 30 / 90 天',
       colName: '事件名', colCount: '次数', colRatio: '占比', colDay: '日期',
       days7: '近 7 天', days14: '近 14 天', days30: '近 30 天', days90: '近 90 天',
       empty: '暂无事件数据',
@@ -2491,13 +2489,13 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   // 812 工具波 B: 价目分享卡（REQ-014 F3 约稿条 Web 先行简版：模板填空，不做自由拖拽）
   priceCard: {
     title: '价目分享卡',
-    subtitle: '填好标题、档位与联系方式，一键生成竖版价目图或纯文字版，直接发给客户',
+    subtitle: '填好标题、档位与联系方式，生成竖版价目图或纯文字版，直接发给客户',
     groupEdit: '编辑内容',
     titleLabel: '卡片标题',
     titleDesc: '显示在卡片顶部的大标题',
     titlePlaceholder: '如：头像 · 立绘价目',
     tiersLabel: '档位（3~12 行）',
-    tiersDesc: '至少填 3 行完整档位（名称 + 价格）；可一键导入价格设置里的真实档位',
+    tiersDesc: '至少填 3 行完整档位（名称 + 价格）；可导入价格设置里的真实档位',
     tierNamePlaceholder: '档位名称，如：半身像',
     tierPricePlaceholder: '价格（元）',
     tierNotePlaceholder: '一句话说明（选填）',

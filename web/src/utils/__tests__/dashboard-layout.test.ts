@@ -31,7 +31,7 @@ describe('resolveDashboardLayout（默认/回落）', () => {
   it('prefs 为 null（拉取失败）→ 默认布局：基础 10 块默认顺序（可选板块不自动上首页），默认宽度与密度', () => {
     const layout = resolveDashboardLayout(null)
     expect(layout.map(p => p.id)).toEqual([...CORE_PANEL_IDS])
-    expect(layout.find(p => p.id === 'greet')?.width).toBe('full')
+    expect(layout.find(p => p.id === 'greet')?.width).toBe('half')   // 用户拍板：问候卡默认半行
     expect(layout.find(p => p.id === 'stats')?.width).toBe('full')
     expect(layout.find(p => p.id === 'schedule')?.width).toBe('full')
     expect(layout.find(p => p.id === 'todo')?.width).toBe('half')
@@ -97,11 +97,11 @@ describe('resolvePanelWidth（宽度解析）', () => {
   it('非法宽度值落默认', () => {
     const prefs = makePrefs({ width: { todo: 'wide' as unknown as 'half' } })
     expect(resolvePanelWidth(prefs, 'todo')).toBe('half')
-    expect(resolvePanelWidth(prefs, 'greet')).toBe('full')
+    expect(resolvePanelWidth(prefs, 'stats')).toBe('full')   // 非法值落默认（stats 默认整行）
   })
 
   it('prefs 为 null 时走默认档位', () => {
-    expect(resolvePanelWidth(null, 'greet')).toBe('full')
+    expect(resolvePanelWidth(null, 'greet')).toBe('half')
     expect(resolvePanelWidth(null, 'announcement')).toBe('half')
   })
 })
