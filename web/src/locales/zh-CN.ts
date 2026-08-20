@@ -513,6 +513,12 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     incomeTrendFailed: '收入趋势加载失败，请刷新重试',
     incomeMonthlyTitle: '每月到账（订单收款 + 散单）',
     incomeCumulativeTitle: '逐月累计',
+    // oimimo 吸纳补遗：画风分布 + 客户排名（与上方同窗口同口径）
+    incomeStyleTitle: '画风收入分布',
+    incomeClientsTitle: '客户消费排名',
+    incomeDistEmpty: '近 12 个月还没有订单到账记录',
+    incomeUncategorized: '未分类',
+    incomeClientOrders: '{n} 单',
     downloaded: '已开始下载',
     failed: '导出失败，请稍后重试',
     // 05D-E1: CSV 导出超时
