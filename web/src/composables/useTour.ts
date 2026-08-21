@@ -47,7 +47,7 @@ export const TARGET_MAX_POLLS = Math.ceil(TARGET_WAIT_MS / TARGET_POLL_MS)
 export const DEFAULT_TOUR_STEPS: readonly TourStep[] = [
   { route: '/dashboard', target: '.greeting-note', textKey: 'tour.welcome' },
   { route: '/dashboard', target: '.ledger-card', textKey: 'tour.todo' },
-  { route: '/queue', target: '.view-switch', textKey: 'tour.queue' },
+  { route: '/queue', target: '.queue-view-tabs .el-tabs__nav', textKey: 'tour.queue' },
   { route: '/orders/new', target: '.mo-toolbar', textKey: 'tour.manual' },
   { route: '/orders', target: '.search-bar', textKey: 'tour.orders' },
   { route: '/tiers', target: '.tier-page-title', textKey: 'tour.pricing' },

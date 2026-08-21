@@ -4,8 +4,9 @@
 
   <!-- 820-M: 视图切换改 el-tabs（对齐价格管理 tab-change + EP 自带切换过渡）。
        三页签全部非 lazy 保活：队列数据在父级 ref，月历月份/时间条缩放与滚动/列表滚动各自实例内保存，
-       切视图不丢已加载数据与视图状态 -->
-  <el-tabs v-model="viewMode" style="margin-top: 16px" @tab-change="saveViewMode">
+       切视图不丢已加载数据与视图状态。
+       queue-view-tabs：新手导览第 3 步锚点（原自绘 .view-switch 已随 820-M 改 el-tabs 消失，导览选择器同步改指此锚点内页签栏） -->
+  <el-tabs v-model="viewMode" class="queue-view-tabs" style="margin-top: 16px" @tab-change="saveViewMode">
     <!-- ═══ 列表视图（拆 QueueBoardList，v0.41 瘦身批） ═══ -->
     <el-tab-pane :label="$t('queue.viewBoard')" name="board">
       <QueueBoardList
