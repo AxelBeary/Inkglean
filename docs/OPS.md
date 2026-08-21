@@ -273,8 +273,12 @@ tls /etc/caddy/certs/你的域名.crt /etc/caddy/certs/你的域名.key {
 
 改完 `caddy validate && systemctl reload caddy`。此后非 CF 的直连（无客户端证书）在 TLS 层即被拒，伪造头无从谈起。
 
-> 注意：开启 AOOP 前先确认 Caddy 端配置已生效再开 CF 开关，顺序反了会导致 CF 回源被源站拒绝（站点短暂不可用）。
+> **生效顺序（2026-08-21 实战校正，与早期口径相反）**：先在 CF 控制台打开 AOOP 开关、再在源站 reload client_auth 配置。CF 带证书回源时若 Caddy 尚未要求验证，证书只是被忽略、无害；反过来（Caddy 已硬性要求证书而 CF 开关未开）则 CF 回源被拒、站点不可用。
 > 不想配客户端证书验证的替代：防火墙 80/443 只放行 CF IP 段（前提该端口无其他直连服务）。
+> **实战坑（2026-08-21 cute-goose-1 实测）**：
+> ① 现装 Caddy（2.10.x）上 client_auth 的 CA 写法只有 `trusted_ca_cert_file` 能过验证（带 deprecation WARN 但无害）；`trust_pool` / `ca_pool` 新写法均报解析错误，不要为消警告去试。
+> ② Caddy 铁律：`caddy validate` 通过后只用 `systemctl reload caddy`——reload 失败保留旧配置、网站不掉线；在未验证通过时 `restart` 会令服务直接停摆、该 Caddy 承载的所有站点全 502。
+> ③ 源站证书（Origin CA 的 .crt/.key）在 Strict 模式下是**必需品**不是可选项，误删会致 reload 失败/526；私钥权限 `chmod 640` + caddy 组可读，root 独享 600 会让 Caddy 进程读不到。
 
 ### 12.3 验证方法
 
