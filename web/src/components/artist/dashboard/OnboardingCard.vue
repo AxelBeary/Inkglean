@@ -1,8 +1,8 @@
 <template>
   <!-- 818-E: 开张任务卡改造为导览入口卡
        保留简短欢迎 + 「跟我逛一遍后台」主按钮（随时重启 tour = 重置入口）；
-       原 3 条静态指引（传作品/设档位/分享）已升级为分步高亮导览，不再逐条陈列。
-       隐藏判定仍以后端标记为准（dismissed / 必做两项全完成）。 -->
+       方案 A（2026-08-21）：两项必做条件恢复为实时清单（口径=首页目录开业门槛），
+       让画师明白「补齐后小店自动上首页」；隐藏判定仍以后端标记为准。 -->
   <el-card v-if="visible" class="onboarding-card">
     <template #header>
       <CardHead :title="$t('onboarding.title')">
@@ -12,6 +12,15 @@
       </CardHead>
     </template>
     <p class="ob-subtitle">{{ $t('onboarding.subtitle') }}</p>
+    <ul class="ob-tasks">
+      <li :class="{ done: artworkDone }">
+        <span class="ob-task-mark">{{ artworkDone ? '✓' : '○' }}</span>{{ $t('onboarding.taskArtwork') }}
+      </li>
+      <li :class="{ done: tierDone }">
+        <span class="ob-task-mark">{{ tierDone ? '✓' : '○' }}</span>{{ $t('onboarding.taskTier') }}
+      </li>
+    </ul>
+    <p class="ob-gate-note">{{ $t('onboarding.gateNote') }}</p>
     <button type="button" class="ob-tour-btn" @click="startTour">
       <el-icon class="ob-tour-icon"><Guide /></el-icon>
       <span>{{ $t('onboarding.tourBtn') }}</span>
@@ -36,12 +45,12 @@ const state = ref<OnboardingState | null>(null)
  *  - dismissed（「不再提示」后端标记，换设备也不显示）
  *  - 必做项 artwork + tier 全完成（share 为建议项，不参与完成判定；后端已写 onboarded_at）
  */
+const artworkDone = computed(() => state.value?.tasks.find(task => task.key === 'artwork')?.done ?? false)
+const tierDone = computed(() => state.value?.tasks.find(task => task.key === 'tier')?.done ?? false)
 const visible = computed(() => {
   if (!state.value) return false
   if (state.value.dismissed) return false
-  const artwork = state.value.tasks.find(task => task.key === 'artwork')?.done ?? false
-  const tier = state.value.tasks.find(task => task.key === 'tier')?.done ?? false
-  return !(artwork && tier)
+  return !(artworkDone.value && tierDone.value)
 })
 
 async function load() {
@@ -98,6 +107,30 @@ onMounted(load)
   margin: 0 0 12px;
   font-size: calc(var(--font-scale, 1) * 12px);
   color: var(--ink2);
+  line-height: 1.6;
+}
+/* 方案 A（2026-08-21）：开业两项必做清单（口径=首页目录门槛） */
+.ob-tasks {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ob-tasks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: calc(var(--font-scale, 1) * 12.5px);
+  color: var(--ink2);
+}
+.ob-tasks li.done { color: var(--ink); }
+.ob-tasks li.done .ob-task-mark { color: var(--hq); }
+.ob-gate-note {
+  margin: 0 0 12px;
+  font-size: calc(var(--font-scale, 1) * 11.5px);
+  color: var(--ink3);
   line-height: 1.6;
 }
 .ob-tour-btn {

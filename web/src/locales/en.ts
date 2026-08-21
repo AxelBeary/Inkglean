@@ -1810,6 +1810,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     shopVisibleHint: 'When on, clients can find your shop in the directory and visit your page. When off, your shop is hidden from the public.',
     shopVisibleDesc: 'Controls whether clients can find and visit your page.',
     shopHiddenNotice: 'Your shop is currently hidden — clients cannot find it in the directory or visit your page.',
+    // Plan A (2026-08-21): readiness gate notice (no artworks + prices = not on home directory)
+    notReadyNotice: 'Your shop is not yet eligible for the home page: upload at least 1 artwork and set prices for at least 1 active style. It will be listed automatically once both are done.',
     linksLabel: 'Links (shown on public page)', addLink: 'Add link',
     moveLinkUp: 'Move link up', moveLinkDown: 'Move link down', removeLink: 'Remove link',
     linksHint: 'Up to 8 links. Platforms are auto-detected as you paste. Changes appear on your public page immediately after saving. Empty rows are not saved.',
@@ -2447,7 +2449,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     title: 'Getting Started',
     subtitle: 'Before you open shop, let us walk you around — it will make every day easier',
     tourBtn: 'Show me around the studio',
-    dismiss: 'Dismiss'
+    dismiss: 'Dismiss',
+    // Plan A (2026-08-21): home-directory readiness guidance (matches backend ready check)
+    taskArtwork: 'Upload at least 1 artwork',
+    taskTier: 'Set your prices (at least 1 active style with a size)',
+    gateNote: 'Finish both and your shop will appear on the platform home page automatically'
   },
 
   // ═══ 818-E: Guided studio tour ═══

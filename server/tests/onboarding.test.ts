@@ -13,6 +13,13 @@ import * as dashboard from '../src/features/artist/dashboard.service.js'
 describe('REQ-043 I2 开张任务卡（服务层）', () => {
   beforeEach(() => cleanDb())
 
+  /** 造「启用画风 + 尺寸」（方案 A 后 tier 完成的最小数据） */
+  function seedStyleWithSize(artistId: number, name = '日系') {
+    const r = db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artistId, name)
+    db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price) VALUES (?, ?, ?)')
+      .run(Number(r.lastInsertRowid), '头像', 50)
+  }
+
   it('TC-ONB-01: 新画师——三项任务未完成，share 恒 false（建议项）', () => {
     const artist = seedArtist()
     const state = dashboard.getOnboarding(artist.id)
@@ -33,18 +40,25 @@ describe('REQ-043 I2 开张任务卡（服务层）', () => {
     expect(state.tasks.find(t => t.key === 'tier')?.done).toBe(false)
   })
 
-  it('TC-ONB-03: 设画风 → tier done（有画风即有定价骨架）', () => {
+  it('TC-ONB-03: 启用画风+尺寸 → tier done（方案 A：与首页开业门槛同口径）', () => {
     const artist = seedArtist()
-    db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artist.id, '日系')
+    seedStyleWithSize(artist.id)
     const state = dashboard.getOnboarding(artist.id)
     expect(state.tasks.find(t => t.key === 'tier')?.done).toBe(true)
+  })
+
+  it('TC-ONB-03b: 只建画风无尺寸 → tier 仍未完成（旧口径过松已收紧）', () => {
+    const artist = seedArtist()
+    db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artist.id, '草稿')
+    const state = dashboard.getOnboarding(artist.id)
+    expect(state.tasks.find(t => t.key === 'tier')?.done).toBe(false)
   })
 
   it('TC-ONB-04: 必做项全完成 → 自然达成写 onboarded_at（share 为建议项不阻塞）', () => {
     const artist = seedArtist()
     db.prepare("INSERT INTO artworks (artist_id, image_path, title) VALUES (?, 'images/1/a.webp', '作品')")
       .run(artist.id)
-    db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artist.id, '厚涂')
+    seedStyleWithSize(artist.id, '厚涂')
 
     dashboard.getOnboarding(artist.id)
     const row = db.prepare('SELECT onboarded_at FROM artists WHERE id = ?').get(artist.id) as { onboarded_at: string | null }
@@ -68,7 +82,7 @@ describe('REQ-043 I2 开张任务卡（服务层）', () => {
     dashboard.dismissOnboarding(artist.id)
     db.prepare("INSERT INTO artworks (artist_id, image_path, title) VALUES (?, 'images/1/a.webp', '作品')")
       .run(artist.id)
-    db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artist.id, '像素')
+    seedStyleWithSize(artist.id, '像素')
 
     const state = dashboard.getOnboarding(artist.id)
     expect(state.dismissed).toBe(true)
@@ -138,7 +152,9 @@ describe('REQ-043 I2 开张任务卡（路由层）', () => {
     const artist = seedArtist()
     db.prepare("INSERT INTO artworks (artist_id, image_path, title) VALUES (?, 'images/1/a.webp', '作品')")
       .run(artist.id)
-    db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artist.id, '水彩')
+    const r = db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artist.id, '水彩')
+    db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price) VALUES (?, ?, ?)')
+      .run(Number(r.lastInsertRowid), '头像', 50)
 
     const res = await app.inject({
       method: 'GET',

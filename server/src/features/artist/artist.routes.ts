@@ -34,10 +34,13 @@ export default async function artistRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/artists
    * 获取所有画师公开信息（首页列表；hidden/封禁画师排除）
+   * 方案 A（2026-08-21 用户拍板）：开业就绪门槛——未备好作品与价格的空店不上首页目录，
+   * 直接访问 /artist/:subdomain 不受此门槛影响（readyIds 只管目录展示）
    */
   fastify.get('/api/artists', async () => {
+    const readyIds = artistService.getReadyArtistIds()
     return artistService.getAllArtists()
-      .filter(a => a.status !== 'hidden' && !a.is_banned)
+      .filter(a => a.status !== 'hidden' && !a.is_banned && readyIds.has(a.id))
       .map(a => ({
         id: a.id, name: a.name, subdomain: a.subdomain,
         avatar: a.avatar, bio: a.bio, status: a.status,

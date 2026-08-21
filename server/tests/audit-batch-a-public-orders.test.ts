@@ -68,6 +68,11 @@ describe('audit-a P2-7 公开订单路由可见性', () => {
   it('TC-P27-06: 管理员账号 status=open 时目录/公开主页可见，hidden 时目录排除、主页 UI-8 最小信息', async () => {
     db.prepare("UPDATE platform_config SET value = '77013' WHERE key = 'admin_qq'").run()
     const admin = seedArtist({ qq_number: '77013', subdomain: 'admin-profile', status: 'open' })
+    // 方案 A（2026-08-21）：目录新增开业就绪门槛——补齐作品+启用画风尺寸，
+    // 确保本用例验证的是「管理员账号与普通画师同权可见」而非被就绪门槛误伤
+    db.prepare("INSERT INTO artworks (artist_id, image_path, title) VALUES (?, 'images/adm/a.webp', '作品')").run(admin.id)
+    const styleRow = db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(admin.id, '日系')
+    db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price) VALUES (?, ?, ?)').run(Number(styleRow.lastInsertRowid), '头像', 50)
 
     const dir = await app.inject({ method: 'GET', url: '/api/artists' })
     expect(dir.statusCode).toBe(200)

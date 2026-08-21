@@ -1808,6 +1808,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     shopVisibleHint: '开启后，客户可在目录看到你的小店并访问主页；关闭后小店对外隐藏。',
     shopVisibleDesc: '控制客户能否在目录看到并访问你的主页。',
     shopHiddenNotice: '小店当前处于隐藏状态，客户无法在目录看到或访问主页。',
+    // 方案 A（2026-08-21）：开业就绪门槛提示（未备好作品与价格不上首页目录）
+    notReadyNotice: '小店暂未满足上首页的条件：需上传至少 1 张作品，并设置至少 1 个启用画风的价格。补齐后自动展示。',
     linksLabel: '外链（客户主页展示）', addLink: '添加链接',
     moveLinkUp: '上移外链', moveLinkDown: '下移外链', removeLink: '删除外链',
     linksHint: '最多 8 条，粘贴后自动识别平台，保存后客户主页立即生效。留空的行不会保存。',
@@ -2442,7 +2444,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     title: '开张任务卡',
     subtitle: '开张前先带你逛一遍后台，之后每天用得顺手',
     tourBtn: '跟我逛一遍后台',
-    dismiss: '不再提示'
+    dismiss: '不再提示',
+    // 方案 A（2026-08-21）：首页目录开业门槛引导（口径与后端就绪判定一致）
+    taskArtwork: '上传至少 1 张作品',
+    taskTier: '设置价格（至少 1 个启用画风带尺寸）',
+    gateNote: '两项都完成后，你的小店会自动出现在平台首页'
   },
 
   // ═══ 818-E: 后台分步高亮导览（tour） ═══

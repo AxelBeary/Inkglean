@@ -9,6 +9,8 @@
         <div class="field-text">
           <div class="lab">{{ $t('settings.shopVisibleLabel') }}</div>
           <div class="desc">{{ $t('settings.shopVisibleDesc') }}</div>
+          <!-- 方案 A（2026-08-21）：开业就绪门槛——未备好作品与价格时提示缺什么（与首页目录门槛同口径） -->
+          <p v-if="notReady" class="sc-notready">{{ $t('settings.notReadyNotice') }}</p>
         </div>
         <div class="ctrl ctrl--switch">
           <ShopVisibilitySwitch
@@ -149,9 +151,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import ShopVisibilitySwitch from './ShopVisibilitySwitch.vue'
-import type { ArtistStatus, PlatformDTO } from '../../../api/types'
+import { artistApi } from '../../../api/index'
+import type { ArtistStatus, OnboardingState, PlatformDTO } from '../../../api/types'
 
 /** 主页展示表单（对齐 Settings.vue form 形状；__k 为父级本地行标识） */
 interface ShowcaseLink {
@@ -213,6 +216,23 @@ const disabledDate = (d: Date) => d < new Date(new Date().setHours(0, 0, 0, 0))
 function onShopVisibleChange(value: boolean) {
   emit('update:status', value ? lastVisibleStatus.value : 'hidden')
 }
+
+// 方案 A（2026-08-21）：开业就绪检查——复用开张任务卡同源的 artwork/tier 完成态，
+// 与后端首页目录门槛（GET /api/artists 就绪过滤）同口径，防提示与真实门槛漂移
+const obState = ref<OnboardingState | null>(null)
+onMounted(async () => {
+  try {
+    obState.value = await artistApi.getOnboarding()
+  } catch {
+    /* 失败静默：提示非关键路径，不打断设置页 */
+  }
+})
+const notReady = computed(() => {
+  if (!obState.value) return false
+  const artwork = obState.value.tasks.find(t => t.key === 'artwork')?.done ?? false
+  const tier = obState.value.tasks.find(t => t.key === 'tier')?.done ?? false
+  return !(artwork && tier)
+})
 </script>
 
 <style scoped>
@@ -244,6 +264,14 @@ function onShopVisibleChange(value: boolean) {
 .field-text { min-width: 0; }
 .lab { font-size: 15px; color: var(--ink); }
 .desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
+/* 方案 A（2026-08-21）：开业就绪门槛提示（未达标不上首页目录） */
+.sc-notready {
+  margin: 8px 0 0;
+  max-width: 520px;
+  font-size: calc(var(--font-scale, 1) * 12.5px);
+  line-height: 1.6;
+  color: var(--ink2);
+}
 .ctrl { min-width: 0; }
 .ctrl--switch { width: 300px; }
 .ctrl--textarea, .ctrl--editor, .ctrl--rules { width: 100%; }

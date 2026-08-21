@@ -90,6 +90,42 @@ export function getAllArtists(): Artist[] {
   `).all() as Artist[]
 }
 
+/**
+ * 开业就绪判定（方案 A，2026-08-21 用户拍板）：
+ *  ① 至少 1 张作品（artworks）
+ *  ② 至少 1 个启用画风且其下至少 1 个尺寸（art_styles.is_active=1 + style_sizes）
+ * 未达标 → 小店不上平台首页目录（GET /api/artists）；直接访问 /artist/:subdomain 不受影响。
+ * 目录口径为两条 DISTINCT 聚合取交集，避免逐画师 N+1。
+ */
+export function getReadyArtistIds(): Set<number> {
+  const artworkRows = db.prepare(
+    'SELECT DISTINCT artist_id FROM artworks'
+  ).all() as Array<{ artist_id: number }>
+  const priceRows = db.prepare(`
+    SELECT DISTINCT s.artist_id AS artist_id
+    FROM art_styles s
+    JOIN style_sizes z ON z.art_style_id = s.id
+    WHERE s.is_active = 1
+  `).all() as Array<{ artist_id: number }>
+  const priceSet = new Set(priceRows.map(r => r.artist_id))
+  return new Set(artworkRows.map(r => r.artist_id).filter(id => priceSet.has(id)))
+}
+
+/** 单画师就绪判定（与开张任务卡 tier 口径共用，防两处漂移） */
+export function isArtistReady(artistId: number): boolean {
+  const hasArtwork = db.prepare(
+    'SELECT id FROM artworks WHERE artist_id = ? LIMIT 1'
+  ).get(artistId) !== undefined
+  if (!hasArtwork) return false
+  return db.prepare(`
+    SELECT s.id
+    FROM art_styles s
+    JOIN style_sizes z ON z.art_style_id = s.id
+    WHERE s.artist_id = ? AND s.is_active = 1
+    LIMIT 1
+  `).get(artistId) !== undefined
+}
+
 export async function createArtist({ qqNumber, name, subdomain, bio, artistCode }: {
   qqNumber: string
   name: string
@@ -135,9 +171,11 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
   // d2 P2: createArtist 与 updateArtist 的 bio 写入口消毒口径对齐（纵深防御）
   const safeBio = bio ? sanitizeStoredText(String(bio)) : null
   const createTx = db.transaction((): number => {
+    // 方案 A（2026-08-21 拍板）：管理员建号默认 hidden，与邀请注册/初始化向导同口径——
+    // 画师备好作品与价格后自行在「设置 → 主页展示」开关开业，杜绝空店对外可见
     const result = db.prepare(`
-      INSERT INTO artists (qq_number, name, subdomain, artist_code, bio)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status)
+      VALUES (?, ?, ?, ?, ?, 'hidden')
     `).run(qqNumber, name, subdomain, code, safeBio)
     const artistId = Number(result.lastInsertRowid)
 

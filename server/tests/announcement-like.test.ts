@@ -64,6 +64,8 @@ describe('F3 小公告 + F1 点赞 (v0.19 第 1 波)', () => {
 
   it('TC-LIKE-01: 点赞 +1', async () => {
     const artist = (await artistService.createArtist({ qqNumber: '88006', name: 'F', subdomain: 'like1' }))!
+    // 方案 A 后建号默认 hidden；本用例测点赞语义不测可见性，显式置 open（点赞受可见性守卫）
+    db.prepare("UPDATE artists SET status = 'open' WHERE id = ?").run(artist.id)
     const artwork = (await artistService.createArtwork(artist.id, { imagePath: 'images/1.png', title: '测试' }))!
     expect(artwork.like_count).toBe(0)
 
@@ -73,6 +75,7 @@ describe('F3 小公告 + F1 点赞 (v0.19 第 1 波)', () => {
 
   it('TC-LIKE-02: 取消点赞 -1', async () => {
     const artist = (await artistService.createArtist({ qqNumber: '88007', name: 'G', subdomain: 'like2' }))!
+    db.prepare("UPDATE artists SET status = 'open' WHERE id = ?").run(artist.id)
     const artwork = (await artistService.createArtwork(artist.id, { imagePath: 'images/2.png', title: '测试' }))!
     artistService.likeArtwork(artwork.id)
     artistService.likeArtwork(artwork.id)
@@ -83,6 +86,7 @@ describe('F3 小公告 + F1 点赞 (v0.19 第 1 波)', () => {
 
   it('TC-LIKE-03: 不低于 0', async () => {
     const artist = (await artistService.createArtist({ qqNumber: '88008', name: 'H', subdomain: 'like3' }))!
+    db.prepare("UPDATE artists SET status = 'open' WHERE id = ?").run(artist.id)
     const artwork = (await artistService.createArtwork(artist.id, { imagePath: 'images/3.png', title: '测试' }))!
 
     const result = artistService.unlikeArtwork(artwork.id)
@@ -91,6 +95,7 @@ describe('F3 小公告 + F1 点赞 (v0.19 第 1 波)', () => {
 
   it('TC-LIKE-04: 上限保护 99999', async () => {
     const artist = (await artistService.createArtist({ qqNumber: '88009', name: 'I', subdomain: 'like4' }))!
+    db.prepare("UPDATE artists SET status = 'open' WHERE id = ?").run(artist.id)
     const artwork = (await artistService.createArtwork(artist.id, { imagePath: 'images/4.png', title: '测试' }))!
     // 直接设到上限
     db.prepare('UPDATE artworks SET like_count = 99999 WHERE id = ?').run(artwork.id)

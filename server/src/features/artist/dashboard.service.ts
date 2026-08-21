@@ -408,7 +408,8 @@ export interface OnboardingState {
  * 开张任务卡状态（GET /api/artist/onboarding）
  * 任务口径：
  *  - artwork = 作品数 > 0（传了第一张作品）
- *  - tier    = 已有画风（当前价格模型 = 画风 + 尺寸；有画风即有定价骨架，视为「设了档位」）
+ *  - tier    = 有启用画风且其下至少 1 个尺寸（方案 A 2026-08-21：与首页目录开业门槛同口径；
+ *              旧口径「有画风即完成」过松——无尺寸时客户端价格表仍为空）
  *  - share   = 恒 false：分享主页发生在浏览器本地动作，后端无可判定的数据信号，
  *              定位为「建议项」（前端不要求勾选，不阻塞自然达成）
  * 自然达成：artwork + tier 两项完成即写 onboarded_at（任务全完成 = 必做项全完成，
@@ -423,9 +424,13 @@ export function getOnboarding(artistId: number): OnboardingState {
   const artworkDone = (db.prepare(
     'SELECT COUNT(*) AS c FROM artworks WHERE artist_id = ?'
   ).get(artistId) as { c: number }).c > 0
-  const tierDone = (db.prepare(
-    'SELECT COUNT(*) AS c FROM art_styles WHERE artist_id = ?'
-  ).get(artistId) as { c: number }).c > 0
+  const tierDone = db.prepare(`
+    SELECT s.id
+    FROM art_styles s
+    JOIN style_sizes z ON z.art_style_id = s.id
+    WHERE s.artist_id = ? AND s.is_active = 1
+    LIMIT 1
+  `).get(artistId) !== undefined
 
   // 自然达成：必做项（作品 + 档位）全部完成且未主动关闭时，写 onboarded_at（幂等）
   if (!dismissed && artworkDone && tierDone && !row?.onboarded_at) {

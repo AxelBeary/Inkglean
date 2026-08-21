@@ -600,7 +600,12 @@ describe('路由层测试 (Route Integration)', () => {
     it('TC-RT-16e: hidden 画师不出现在 /api/artists 列表', async () => {
       seedArtist({ qq_number: '77781', subdomain: 'hidden-list' })
       db.prepare("UPDATE artists SET status = 'hidden' WHERE qq_number = '77781'").run()
-      seedArtist({ qq_number: '77782', subdomain: 'visible-list' })
+      const visible = seedArtist({ qq_number: '77782', subdomain: 'visible-list' })
+      // 方案 A（2026-08-21）：目录新增开业就绪门槛——可见画师补齐作品+启用画风尺寸，
+      // 确保本用例验证的是 hidden 排除语义而非被就绪门槛误伤
+      db.prepare("INSERT INTO artworks (artist_id, image_path, title) VALUES (?, 'images/rt/a.webp', '作品')").run(visible.id)
+      const styleRow = db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(visible.id, '日系')
+      db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price) VALUES (?, ?, ?)').run(Number(styleRow.lastInsertRowid), '头像', 50)
 
       const res = await app.inject({ method: 'GET', url: '/api/artists' })
       expect(res.statusCode).toBe(200)

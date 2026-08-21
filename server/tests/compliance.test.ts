@@ -247,6 +247,11 @@ describe('REQ-042 合规与内容安全', () => {
   it('TC-CMP-08: 封禁 → is_banned=1 + 登录拒绝 + token 失效 + 客户端不可见；解封恢复', async () => {
     const admin = setAdmin()
     const artist = seedArtist({ qq_number: '70005', subdomain: 'cmp-ban' })
+    // 方案 A（2026-08-21）：目录新增开业就绪门槛——补齐作品+启用画风尺寸，
+    // 确保封禁前后目录可见性变化验证的是封禁语义而非被就绪门槛误伤
+    db.prepare("INSERT INTO artworks (artist_id, image_path, title) VALUES (?, 'images/cmp/a.webp', '作品')").run(artist.id)
+    const styleRow = db.prepare('INSERT INTO art_styles (artist_id, name) VALUES (?, ?)').run(artist.id, '日系')
+    db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price) VALUES (?, ?, ?)').run(Number(styleRow.lastInsertRowid), '头像', 50)
     const secret = bindArtistTotp(artist)
     const oldToken = createSession(artist.id, artist.token_version)
 
