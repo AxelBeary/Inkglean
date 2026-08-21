@@ -86,14 +86,12 @@ export function readQuickActionsConfig() {
   <div v-if="activeActions.length" class="quick-actions-wrap">
     <!-- 百眼柜 → 命名说人话：分组标题「设置」（提案 §6.3） -->
     <h3 class="quick-title">{{ $t('quickAction.title') }}</h3>
-    <!-- 快捷入口网格（2026-08-07 用户反馈批：常驻虚线块并入「快速发作品」卡片；
-         02B：状态卡内嵌三态滑块，直接点目标态） -->
+    <!-- 快捷入口网格（2026-08-07 用户反馈批：常驻虚线块并入「快速发作品」卡片） -->
     <div class="quick-grid">
       <div
         v-for="action in activeActions" :key="action.key"
         class="quick-card" role="button" tabindex="0"
         :class="{
-          'quick-card--status': action.key === 'status',
           'quick-card--publish-active': action.key === 'publish' && (publishActive || publishUploading)
         }"
         @click="go(action)"
@@ -104,20 +102,8 @@ export function readQuickActionsConfig() {
         @dragleave="onCardDragLeave(action)"
         @drop.prevent="onCardDrop(action, $event)"
       >
-        <template v-if="action.key === 'status'">
-          <SliderSwitch
-            class="quick-status-slider"
-            :model-value="store.profile?.status || 'open'"
-            :options="statusOptions"
-            size="small"
-            @click.stop
-            @change="onStatusChange"
-          />
-        </template>
-        <template v-else>
-          <el-icon class="quick-icon"><component :is="action.icon" /></el-icon>
-          <span class="quick-name">{{ action.key === 'publish' && publishUploading ? $t('quickAction.uploading') : $t(action.labelKey) }}</span>
-        </template>
+        <el-icon class="quick-icon"><component :is="action.icon" /></el-icon>
+        <span class="quick-name">{{ action.key === 'publish' && publishUploading ? $t('quickAction.uploading') : $t(action.labelKey) }}</span>
       </div>
     </div>
   </div>
@@ -130,11 +116,9 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../../stores/artist'
 import { artistApi, uploadApi } from '../../../api/index'
-import type { ArtistStatus } from '../../../api/types'
 import { usePasteUpload } from '../../../composables/usePasteUpload'
 import { trackEvent } from '../../../utils/track'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload'
-import SliderSwitch from '../SliderSwitch.vue'
 
 const router = useRouter()
 // profile 为「登录画像|完整资料」联合，status/quick_actions 读取以轻量接口桥接（同 PlaqueStatus 手法，不引入 any）
@@ -155,27 +139,6 @@ const activeActions = computed(() => {
     .filter((a): a is QuickActionDef => a != null && a.key !== 'status')
     .filter(Boolean)
 })
-
-// ─── 02B: 状态三态滑块（与 05B SliderSwitch 统一；直接点目标态替代循环） ───
-const statusBusy = ref(false)
-const statusOptions = [
-  { value: 'open', label: t('dashboard.statusOpen') },
-  { value: 'full', label: t('dashboard.statusFull') },
-  { value: 'break', label: t('dashboard.statusBreak') }
-]
-async function onStatusChange(next: ArtistStatus) {
-  if (statusBusy.value || next === (store.profile?.status || 'open')) return
-  statusBusy.value = true
-  try {
-    await artistApi.updateProfile({ status: next })
-    store.profile = { ...store.profile, status: next }
-    ElMessage.success(t('dashboard.statusUpdated'))
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    statusBusy.value = false
-  }
-}
 
 // ─── F3 分享接稿页（复制链接） ───
 async function shareLink() {
@@ -248,7 +211,6 @@ function go(action: QuickActionDef) {
     return
   }
   if (action.type === 'action') {
-    // 02B: status 由卡片内 SliderSwitch 直接处理（点卡片空白处无循环）
     if (action.action === 'share') shareLink()
     else if (action.action === 'publish') router.push('/artworks') // 点击跳转发作品页；拖图/粘贴走卡片 drop/paste
     return
@@ -287,15 +249,9 @@ function go(action: QuickActionDef) {
 .quick-card--publish-active .quick-icon { color: var(--hq); }
 .quick-icon { font-size: calc(var(--font-scale, 1) * 22px); color: var(--hq); }
 .quick-name { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 500; color: var(--ink); }
-/* 02B: 状态卡内嵌三态滑块（占满卡片宽度，直接点目标态） */
-.quick-status-slider { width: 100%; }
 /* 812 追修（用户实测反馈：430px 手机屏仍三列硬挤、标签断行）：
    2 列断点由 400px 提到 600px，覆盖主流手机竖屏；删除无效 768px 块（与基础规则重复） */
 @media (max-width: 600px) {
   .quick-grid { grid-template-columns: repeat(2, 1fr); }
-}
-/* 812-C B9: 窄屏状态卡独占整行，滑块不与操作按钮挤压（纵向堆叠；桌面不变） */
-@media (max-width: 600px) {
-  .quick-card--status { grid-column: 1 / -1; }
 }
 </style>

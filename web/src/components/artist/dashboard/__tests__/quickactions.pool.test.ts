@@ -103,8 +103,7 @@ describe('空配置支持（819-G：0 个也允许=隐藏快捷区）', () => {
       global: {
         mocks: { $t: (key: string) => key },
         stubs: {
-          'el-icon': { template: '<i><slot /></i>' },
-          SliderSwitch: { template: '<div class="slider-stub" />' }
+          'el-icon': { template: '<i><slot /></i>' }
         }
       }
     })
@@ -118,8 +117,7 @@ describe('空配置支持（819-G：0 个也允许=隐藏快捷区）', () => {
       global: {
         mocks: { $t: (key: string) => key },
         stubs: {
-          'el-icon': { template: '<i><slot /></i>' },
-          SliderSwitch: { template: '<div class="slider-stub" />' }
+          'el-icon': { template: '<i><slot /></i>' }
         }
       }
     })

@@ -80,8 +80,7 @@ describe('QuickActions 存储降级（G-5）', () => {
       global: {
         mocks: { $t: (key: string) => key },
         stubs: {
-          'el-icon': { template: '<i><slot /></i>' },
-          SliderSwitch: { template: '<div class="slider-stub" />' }
+          'el-icon': { template: '<i><slot /></i>' }
         }
       }
     })
