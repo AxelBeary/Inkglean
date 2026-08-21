@@ -98,7 +98,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
 
     // 子域名保留词黑名单（防止与系统路径冲突；与 setup/invite 共用 validate.ts 常量）
     if (RESERVED_SUBDOMAINS.includes(subdomain)) {
-      return reply.code(400).send({ error: `子域名「${subdomain}」为系统保留词，请换一个` })
+      return reply.code(400).send({ error: `主页标识「${subdomain}」为系统保留词，请换一个` })
     }
 
     try {

@@ -183,7 +183,7 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
 
   // 子域名保留词黑名单（与管理员手动建号同口径；错误码沿用 SUBDOMAIN_FORMAT 语义）
   if (RESERVED_SUBDOMAINS.includes(subdomain)) {
-    throw new AppError(E.SUBDOMAIN_FORMAT, 400, { hint: `子域名「${subdomain}」为系统保留词，请换一个` })
+    throw new AppError(E.SUBDOMAIN_FORMAT, 400, { hint: `主页标识「${subdomain}」为系统保留词，请换一个` })
   }
 
   return db.transaction((): InviteRegisterResult => {

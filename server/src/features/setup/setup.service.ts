@@ -229,7 +229,7 @@ export function createAdminArtist(params: CreateAdminParams): CreateAdminResult 
       }
       // 保留词黑名单
       if (RESERVED_SUBDOMAINS.includes(studioSubdomain)) {
-        throw new AppError(E.SUBDOMAIN_FORMAT, 400, { hint: `子域名「${studioSubdomain}」为系统保留词，请换一个` })
+        throw new AppError(E.SUBDOMAIN_FORMAT, 400, { hint: `主页标识「${studioSubdomain}」为系统保留词，请换一个` })
       }
       // 检查子域名唯一性
       const existingStudioSub = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get(studioSubdomain) as { id: number } | undefined

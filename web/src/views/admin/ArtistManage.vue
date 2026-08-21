@@ -58,7 +58,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="140">
-          <template #default="{ row }"><code class="cell-code">{{ row.subdomain }}{{ $t('admin.domainSuffix') }}</code></template>
+          <template #default="{ row }"><code class="cell-code">{{ $t('admin.domainSuffix') }}{{ row.subdomain }}</code></template>
         </el-table-column>
         <el-table-column prop="qq_number" :label="$t('admin.colQq')" width="120" />
         <el-table-column prop="bio" :label="$t('admin.colBio')" min-width="160" show-overflow-tooltip />
@@ -154,7 +154,7 @@
         </el-form-item>
         <el-form-item :label="$t('admin.subdomainLabel')" required>
           <el-input v-model="form.subdomain" :placeholder="$t('admin.subdomainPlaceholder')">
-            <template #append>{{ $t('admin.domainSuffix') }}</template>
+            <template #prepend>{{ $t('admin.domainSuffix') }}</template>
           </el-input>
         </el-form-item>
         <el-form-item :label="$t('admin.codeLabel')">
@@ -345,7 +345,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="140">
-            <template #default="{ row }"><code class="cell-code">{{ row.subdomain }}{{ $t('admin.domainSuffix') }}</code></template>
+            <template #default="{ row }"><code class="cell-code">{{ $t('admin.domainSuffix') }}{{ row.subdomain }}</code></template>
           </el-table-column>
           <el-table-column prop="qqNumber" :label="$t('admin.colQq')" width="120" />
           <el-table-column :label="$t('admin.deletedArtists.colDeletedAt')" width="170">

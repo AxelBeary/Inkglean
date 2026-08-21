@@ -104,7 +104,7 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
   // d2 P2: 服务层兜底保留词（路由黑名单可能被未来新调用方绕过；与 getAllArtists
   // 的 subdomain != 'system' 隐身排除同语义，防抢注系统保留标识）
   if (RESERVED_SUBDOMAINS.includes(subdomain as (typeof RESERVED_SUBDOMAINS)[number])) {
-    throw new AppError(E.SUBDOMAIN_FORMAT, 400, { hint: `子域名「${subdomain}」为系统保留词，请换一个` })
+    throw new AppError(E.SUBDOMAIN_FORMAT, 400, { hint: `主页标识「${subdomain}」为系统保留词，请换一个` })
   }
 
   // 身份码：默认用子域名大写，可自定义

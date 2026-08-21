@@ -299,10 +299,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   CODE_FORMAT: '身份码格式不正确（仅限字母和数字）',
   CODE_TAKEN: '该身份码已被使用',
   QQ_TAKEN: '该QQ号已被注册',
-  SUBDOMAIN_TAKEN: '该子域名已被使用',
+  SUBDOMAIN_TAKEN: '该主页标识已被使用',
   INVALID_STATUS: '无效的状态值',
   INVALID_URL: '链接格式不正确',
-  SUBDOMAIN_FORMAT: '子域名格式不正确',
+  SUBDOMAIN_FORMAT: '主页标识格式不正确',
 
   // 流程
   STAGE_NOT_FOUND: '流程节点不存在',
