@@ -24,6 +24,8 @@ export interface TourStep {
   targetIndex?: number
   /** 气泡文案 i18n 键（tour.*） */
   textKey: string
+  /** v150：定位后真点一下目标（如价格管理「流程与比例」页签点过去展示内容） */
+  click?: boolean
 }
 
 export interface TourRect {
@@ -40,8 +42,9 @@ export const TARGET_WAIT_MS = 3000
 export const TARGET_MAX_POLLS = Math.ceil(TARGET_WAIT_MS / TARGET_POLL_MS)
 
 /**
- * 默认 12 步：问候/待办（仪表盘）→ 排期看板 → 手动录单 → 订单列表 →
- * 价格管理 → 增项库 → 工具区（入口 + 水印 + 算价器）→ 偏好设置入口 → 设置页。
+ * 默认 12 步（v150 用户逐条定稿）：问候/待办（仪表盘）→ 排期看板 → 手动录单 → 订单列表 →
+ * 价格管理（页题 + 增项库只指不点 + 流程与比例点过去）→ 作品管理 → 工具箱入口 →
+ * 主页设置 → 偏好设置入口（收尾落在「从这里开始设置」）。
  * 文案键成对维护在 locales（tour.*），此处只放结构与选择器。
  */
 export const DEFAULT_TOUR_STEPS: readonly TourStep[] = [
@@ -53,12 +56,12 @@ export const DEFAULT_TOUR_STEPS: readonly TourStep[] = [
   { route: '/tiers', target: '.tier-page-title', textKey: 'tour.pricing' },
   // 增项库是价格管理第 4 个页签（画风与价格/流程与比例/折扣码/增项库），只指不点
   { route: '/tiers', target: '.el-tabs__item', targetIndex: 3, textKey: 'tour.addons' },
+  // v150：流程与比例是第 2 个页签，点过去让用户直接看到内容
+  { route: '/tiers', target: '.el-tabs__item', targetIndex: 1, textKey: 'tour.workflow', click: true },
+  { route: '/artworks', target: '.artwork-page-title', textKey: 'tour.artworks' },
   { route: '/tools', target: 'a.nav-item[href="/tools"]', textKey: 'tour.toolbox' },
-  { route: '/tools/watermark', target: '.wm-grid > .wm-panel:first-child', textKey: 'tour.watermark' },
-  { route: '/tools/price-calc', target: '.price-calc-page .od-page-title', textKey: 'tour.priceCalc' },
-  // 偏好设置入口：指侧边栏导航项（页面本身下批再挂「再看一遍」按钮，本批不碰 Preferences.vue）
-  { route: '/preferences', target: 'a.nav-item[href="/preferences"]', textKey: 'tour.preferences' },
-  { route: '/settings', target: '.main-content-inner > h2', textKey: 'tour.settings' }
+  { route: '/settings', target: '.main-content-inner > h2', textKey: 'tour.settings' },
+  { route: '/preferences', target: 'a.nav-item[href="/preferences"]', textKey: 'tour.preferences' }
 ]
 
 interface TourState {
@@ -206,6 +209,10 @@ async function goTo(index: number): Promise<void> {
   scrollTargetIntoView(el)
   updateRect()
   startTracking()
+  // v150：标记 click 的步骤真点一下目标（如页签点过去展示内容）；点击后高亮仍在目标上，rect 跟踪自适应
+  if (step.click && typeof (el as HTMLElement).click === 'function') {
+    ;(el as HTMLElement).click()
+  }
 }
 
 export function start(steps: TourStep[] = [...DEFAULT_TOUR_STEPS]): void {
