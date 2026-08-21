@@ -24,6 +24,10 @@
   --dur-slow: 0.35s;
   /* --ease-out 提升到 :root：客户端页替换独立 ease 关键字时可用（与主题块取值一致） */
   --ease-out: cubic-bezier(.22, 1, .36, 1);
+  /* 手剪纸不规则圆角提升到 :root（纸签轴批 2026-08-21）：纯形状变量不含任何主题色值，
+     与 --dur-* 同先例；客户端平台公共件（约稿流程/查单页纸签）与后台共用同一手剪角。 */
+  --r-paper: 3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand: 2px 3px 2px 3px / 3px 2px 3px 2px;
 }
 
 /* ═══ 819-G: 后台动画速度（0.5×~2× 七档，step 0.25，默认 1×）+ 减少动效开关 ═══
@@ -424,13 +428,8 @@ html[data-artist-theme][data-font-size] .artist-scope .el-button--small {
 
 /* ═══ 纸艺基线（2026-08-10 登录页重构迁入，兑现 Login.vue v0.46 注释承诺）═══
    原定义在 Login.vue 非 scoped 全局块，会随路由懒加载泄漏到整个后台；
-   迁至 token 层后随 App.vue 全局引入，作用域仍锁 html[data-artist-theme]，客户端零影响。 */
-
-/* 手剪纸不规则圆角（全后台视觉批基线：纸不是机器倒的角） */
-html[data-artist-theme] {
-  --r-paper: 3px 5px 3px 4px / 4px 3px 5px 3px;
-  --r-s-hand: 2px 3px 2px 3px / 3px 2px 3px 2px;
-}
+   迁至 token 层后随 App.vue 全局引入。手剪圆角变量（--r-paper/--r-s-hand）
+   已于纸签轴批（2026-08-21）提升到文件顶部 :root 供双端共用（纯形状零色值）。 */
 
 /* K1（波2，灰沼教训）：换肤即时切换——删除 html[data-artist-theme] 上的 14 条
    @property 颜色变量 0.55s 插值过渡及其 @property 注册；主题色切换不再逐变量
