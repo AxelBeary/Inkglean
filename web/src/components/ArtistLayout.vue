@@ -601,18 +601,18 @@ function applyReduceMotionFromStorage() {
 }
 
 // ─── 自定义首页施工批一（骨架批 D）：页面宽度三档全局生效 ───
-// 挂载时拉一次 getDashboardPrefs（失败静默落默认 center + 1200px）；布局为全会话
+// 挂载时拉一次 getDashboardPrefs（失败静默落默认 center + 1350px）；布局为全会话
 // 单挂载（ArtistLayoutRoute 嵌套路由），故另 watch 路由变化重拉——Preferences 页保存后
 // 用户回首页自然重拉生效，无需跨页广播事件。
 const pageAlign = ref<'left' | 'center' | 'full'>('center')
-const pageMax = ref(1200)
+const pageMax = ref(1350)
 
 async function loadPagePrefs() {
   try {
     const prefs = await artistApi.getDashboardPrefs()
     pageAlign.value = prefs.pageAlign
     pageMax.value = prefs.pageMax
-  } catch { /* 非关键路径：失败静默落默认 center + 1200px */ }
+  } catch { /* 非关键路径：失败静默落默认 center + 1350px */ }
 }
 
 /** 内容容器内联样式：center=限宽居中 / left=限宽靠左 / full=不限宽；

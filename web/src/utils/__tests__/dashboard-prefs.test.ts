@@ -134,11 +134,11 @@ describe('toggleModuleHidden 显隐切换', () => {
 })
 
 describe('clampPageMax 最大宽度钳制 + 吸附', () => {
-  it('范围常量 1000~1680 step 20，默认 1200', () => {
+  it('范围常量 1000~1680 step 20，默认 1350', () => {
     expect(PAGE_MAX_MIN).toBe(1000)
     expect(PAGE_MAX_MAX).toBe(1680)
     expect(PAGE_MAX_STEP).toBe(20)
-    expect(PAGE_MAX_DEFAULT).toBe(1200)
+    expect(PAGE_MAX_DEFAULT).toBe(1350)
   })
 
   it('越界钳到两端', () => {
@@ -154,9 +154,9 @@ describe('clampPageMax 最大宽度钳制 + 吸附', () => {
     expect(clampPageMax(1215)).toBe(1220)
   })
 
-  it('非有限数落默认 1200', () => {
-    expect(clampPageMax(Number.NaN)).toBe(1200)
-    expect(clampPageMax(Number.POSITIVE_INFINITY)).toBe(1200)
+  it('非有限数落默认 1350', () => {
+    expect(clampPageMax(Number.NaN)).toBe(1350)
+    expect(clampPageMax(Number.POSITIVE_INFINITY)).toBe(1350)
   })
 })
 

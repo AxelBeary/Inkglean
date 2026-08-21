@@ -37,7 +37,7 @@ describe('仪表盘布局偏好 dashboard prefs（自定义首页批一 v70）',
     expect(body.scheduleStyle).toBe('bars')
     expect(body.greetStyle).toBe('plain')
     expect(body.pageAlign).toBe('center')
-    expect(body.pageMax).toBe(1200)
+    expect(body.pageMax).toBe(1350)
   })
 
   it('TC-DP-02 旧 dashboard_modules 开关在读路径被吞并（false→hidden）', async () => {
@@ -120,7 +120,7 @@ describe('仪表盘布局偏好 dashboard prefs（自定义首页批一 v70）',
     db.prepare('UPDATE artists SET dashboard_prefs = ? WHERE id = ?').run('"just a string"', artist.id)
     res = await app.inject({ method: 'GET', url: '/api/artist/dashboard/prefs', headers })
     expect(res.statusCode).toBe(200)
-    expect(res.json().pageMax).toBe(1200)
+    expect(res.json().pageMax).toBe(1350)
   })
 
   it('TC-DP-06 PUT 空对象 = 全默认落库；PUT 非对象 body → 400', async () => {

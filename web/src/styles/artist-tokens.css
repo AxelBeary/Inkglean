@@ -546,11 +546,11 @@ html[data-artist-theme] :where(.artist-scope .slide-confirm-thumb:active) {
 }
 
 /* ═══ 自定义首页施工批一（骨架批 D）：页面宽度 token ═══
-   --page-max-w = 画师后台内容容器宽度上限（档位 1000~1680，默认 1200px）。
+   --page-max-w = 画师后台内容容器宽度上限（档位 1000~1680，默认 1350px）。
    ArtistLayout 挂载后拉 artistApi.getDashboardPrefs()（pageAlign/pageMax，
-   失败静默落默认 center + 1200px），以内联样式覆写内容容器上的本变量与
+   失败静默落默认 center + 1350px），以内联样式覆写内容容器上的本变量与
    max-width/margin；各页页级容器不再各自限宽，统一消费/交给该口径。
    选择器锁 html[data-artist-theme]——客户端路由无该属性，零影响。 */
 html[data-artist-theme] {
-  --page-max-w: 1200px;
+  --page-max-w: 1350px;
 }

@@ -38,7 +38,7 @@ const PAGE_ALIGNS = ['left', 'center', 'full'] as const
 const DENSITY_STEPS: readonly number[] = [0, 3, 5] // 0 = 全部
 const PAGE_MAX_MIN = 1000
 const PAGE_MAX_MAX = 1680
-const PAGE_MAX_DEFAULT = 1200
+const PAGE_MAX_DEFAULT = 1350
 
 export interface DashboardPrefs {
   v: number

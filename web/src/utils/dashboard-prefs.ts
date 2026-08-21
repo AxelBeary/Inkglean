@@ -78,7 +78,7 @@ export type PageAlign = (typeof PAGE_ALIGNS)[number]
 export const PAGE_MAX_MIN = 1000
 export const PAGE_MAX_MAX = 1680
 export const PAGE_MAX_STEP = 20
-export const PAGE_MAX_DEFAULT = 1200
+export const PAGE_MAX_DEFAULT = 1350
 
 /** 列表卡显示行数档位（0=全部） */
 export const DENSITY_CHOICES = [3, 5, 0] as const
@@ -111,7 +111,7 @@ export function toggleModuleHidden(hidden: readonly string[], id: string): strin
   return hidden.includes(id) ? hidden.filter(x => x !== id) : [...hidden, id]
 }
 
-/** 最大宽度钳制 + 吸附到 20px 档；非有限数落默认 1200 */
+/** 最大宽度钳制 + 吸附到 20px 档；非有限数落默认 1350 */
 export function clampPageMax(value: number): number {
   if (!Number.isFinite(value)) return PAGE_MAX_DEFAULT
   const snapped = Math.round((value - PAGE_MAX_MIN) / PAGE_MAX_STEP) * PAGE_MAX_STEP + PAGE_MAX_MIN
