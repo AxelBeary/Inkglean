@@ -384,6 +384,10 @@
               <el-input-number v-model="inviteValidDays" :min="1" :max="30" controls-position="right" />
               <span class="invite-form-hint">{{ $t('invite.validDaysHint') }}</span>
             </el-form-item>
+            <el-form-item :label="$t('invite.maxUsesLabel')">
+              <el-input-number v-model="inviteMaxUses" :min="1" :max="100" controls-position="right" />
+              <span class="invite-form-hint">{{ $t('invite.maxUsesHint') }}</span>
+            </el-form-item>
             <el-form-item class="invite-form-action">
               <el-button type="primary" :loading="inviteGenerating" @click="generateInviteCodes">
                 {{ $t('invite.generateBtn') }}
@@ -394,6 +398,24 @@
         </div>
 
         <CardHead :title="$t('invite.colCode')" />
+        <!-- 服务端筛选栏：状态下拉 + 码搜索（任一变更回第 1 页重拉） -->
+        <div class="invite-filter">
+          <el-select v-model="inviteStatusFilter" style="width: 130px" @change="onInviteFilterChange">
+            <el-option value="all" :label="$t('invite.statusAll')" />
+            <el-option value="unused" :label="$t('invite.statusUnused')" />
+            <el-option value="used" :label="$t('invite.statusUsed')" />
+            <el-option value="expired" :label="$t('invite.statusExpired')" />
+            <el-option value="revoked" :label="$t('invite.statusRevoked')" />
+          </el-select>
+          <el-input
+            v-model="inviteQuery"
+            :placeholder="$t('invite.searchPlaceholder')"
+            clearable
+            prefix-icon="Search"
+            class="invite-search-input"
+            @change="onInviteFilterChange"
+          />
+        </div>
         <el-table :data="inviteCodes" v-loading="inviteLoading" stripe max-height="420">
           <el-table-column :label="$t('invite.colCode')" min-width="170">
             <template #default="{ row }">
@@ -408,18 +430,27 @@
           </el-table-column>
           <el-table-column :label="$t('invite.colStatus')" width="110">
             <template #default="{ row }">
-              <el-tag :type="inviteStatusType(row.status)" size="small">
-                {{ $t(`invite.status${row.status[0].toUpperCase()}${row.status.slice(1)}`) }}
+              <el-tag :type="inviteStatusType(row)" size="small">
+                {{ $t(inviteStatusLabelKey(row)) }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column :label="$t('invite.colExpires')" width="180">
             <template #default="{ row }">{{ formatDateTime(row.expiresAt) }}</template>
           </el-table-column>
-          <el-table-column :label="$t('invite.colUsedBy')" min-width="130">
+          <el-table-column :label="$t('invite.colUsage')" min-width="140">
             <template #default="{ row }">
-              <span v-if="row.usedBy">{{ row.usedBy.name || row.usedBy.qqNumber }}</span>
-              <span v-else class="invite-unused">—</span>
+              <!-- 多次码：已用 N/M 可点开使用记录；单次码保持显示使用人 -->
+              <el-button
+                v-if="row.maxUses > 1" size="small" text type="primary"
+                @click="openInviteUses(row)"
+              >
+                {{ $t('invite.usedCount', { used: row.useCount, max: row.maxUses }) }}
+              </el-button>
+              <template v-else>
+                <span v-if="row.usedBy">{{ row.usedBy.name || row.usedBy.qqNumber }}</span>
+                <span v-else class="invite-unused">—</span>
+              </template>
             </template>
           </el-table-column>
           <el-table-column :label="$t('invite.colActions')" width="100" fixed="right">
@@ -434,7 +465,33 @@
           </el-table-column>
         </el-table>
         <el-empty v-if="!inviteLoading && inviteCodes.length === 0" :description="$t('invite.empty')" :image-size="60" />
+        <!-- 服务端分页（默认 20/页） -->
+        <div v-if="inviteTotal > 0" class="pager">
+          <el-pagination
+            v-model:current-page="invitePage"
+            :page-size="invitePageSize"
+            :total="inviteTotal"
+            layout="total, prev, pager, next"
+            @current-change="loadInviteCodes"
+          />
+        </div>
       </div>
+    </el-dialog>
+
+    <!-- 邀请码使用记录子弹窗（多次码；倒序最近在前） -->
+    <el-dialog v-model="inviteUsesVisible" :title="$t('invite.usesTitle')" width="560px" append-to-body>
+      <el-table v-if="inviteUsesLoading || inviteUses.length > 0" :data="inviteUses" v-loading="inviteUsesLoading" stripe max-height="360">
+        <el-table-column :label="$t('invite.usesColName')" min-width="120">
+          <template #default="{ row }">{{ row.name || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="$t('invite.usesColQq')" width="130">
+          <template #default="{ row }">{{ row.qqNumber || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="$t('invite.usesColTime')" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.usedAt) }}</template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-else :description="$t('invite.usesEmpty')" :image-size="60" />
     </el-dialog>
 
     <ArtistDetailDrawer v-model="detailVisible" :artist="detailArtist" />
@@ -444,7 +501,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { adminApi, complianceApi, type ApiError } from '../../api/index'
-import type { AdminArtistItem, AdminInviteCode, AdminOrderItem, RecycleBinItem, DeletedArtistItem, ArtistStatus } from '../../api/types'
+import type { AdminArtistItem, AdminInviteCode, AdminOrderItem, RecycleBinItem, DeletedArtistItem, ArtistStatus, InviteCodeUse } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { View, Tickets, Key, Delete, Unlock, Lock } from '@element-plus/icons-vue'
@@ -491,33 +548,67 @@ onUnmounted(() => mqCompactActions.removeEventListener('change', onCompactAction
 
 const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
 
-// ─── REQ-039: 邀请码管理 ───
+// ─── REQ-039: 邀请码管理（多次使用码 + 服务端分页/筛选） ───
 const inviteVisible = ref(false)
 const inviteCodes = ref<AdminInviteCode[]>([])
 const inviteLoading = ref(false)
 const inviteGenerating = ref(false)
 const inviteCount = ref(5)
 const inviteValidDays = ref(3)
+/** 每码可用次数（1=一次性，1-100） */
+const inviteMaxUses = ref(1)
+// 服务端筛选/分页状态（'all' 哨兵值：el-select 空串值不渲染选项文案会退化成「请选择」占位）
+const inviteStatusFilter = ref<'all' | 'unused' | 'used' | 'expired' | 'revoked'>('all')
+const inviteQuery = ref('')
+const invitePage = ref(1)
+const invitePageSize = 20
+const inviteTotal = ref(0)
+// 使用记录子弹窗（多次码）
+const inviteUsesVisible = ref(false)
+const inviteUsesLoading = ref(false)
+const inviteUses = ref<InviteCodeUse[]>([])
 
-function inviteStatusType(status: string) {
-  return ({ unused: 'success', used: 'info', revoked: 'danger' } as Record<string, string>)[status] || 'info'
+/** status 仍 unused 但已到期 → 展示为 expired（与后端筛选口径一致） */
+function inviteDisplayStatus(row: AdminInviteCode): string {
+  if (row.status === 'unused' && row.expired) return 'expired'
+  return row.status
+}
+function inviteStatusType(row: AdminInviteCode) {
+  return ({ unused: 'success', used: 'info', revoked: 'danger', expired: 'info' } as Record<string, string>)[inviteDisplayStatus(row)] || 'info'
+}
+function inviteStatusLabelKey(row: AdminInviteCode) {
+  const s = inviteDisplayStatus(row)
+  return `invite.status${s[0].toUpperCase()}${s.slice(1)}`
 }
 
 async function openInviteCodes() {
   inviteVisible.value = true
+  invitePage.value = 1
   await loadInviteCodes()
 }
 
 async function loadInviteCodes() {
   inviteLoading.value = true
   try {
-    const res = await adminApi.getInviteCodes()
+    const res = await adminApi.getInviteCodes({
+      status: inviteStatusFilter.value === 'all' ? undefined : inviteStatusFilter.value,
+      q: inviteQuery.value.trim() || undefined,
+      page: invitePage.value,
+      pageSize: invitePageSize
+    })
     inviteCodes.value = res.codes || []
+    inviteTotal.value = res.total || 0
   } catch (err) {
     ElMessage.error((err as Error).message)
   } finally {
     inviteLoading.value = false
   }
+}
+
+/** 筛选（状态/搜索）任一变更：回第 1 页重拉 */
+function onInviteFilterChange() {
+  invitePage.value = 1
+  loadInviteCodes()
 }
 
 async function generateInviteCodes() {
@@ -527,11 +618,15 @@ async function generateInviteCodes() {
   if (!inviteValidDays.value || inviteValidDays.value < 1 || inviteValidDays.value > 30) {
     return ElMessage.warning(t('invite.validDaysHint'))
   }
+  if (!inviteMaxUses.value || inviteMaxUses.value < 1 || inviteMaxUses.value > 100) {
+    return ElMessage.warning(t('invite.maxUsesHint'))
+  }
   inviteGenerating.value = true
   try {
     const res = await adminApi.generateInviteCodes({
       count: inviteCount.value,
-      validDays: inviteValidDays.value
+      validDays: inviteValidDays.value,
+      maxUses: inviteMaxUses.value
     })
     ElMessage.success(t('invite.generated', { count: res.codes.length }))
     await loadInviteCodes()
@@ -539,6 +634,21 @@ async function generateInviteCodes() {
     ElMessage.error((err as Error).message)
   } finally {
     inviteGenerating.value = false
+  }
+}
+
+/** 打开多次码使用记录子弹窗（倒序，最近在前） */
+async function openInviteUses(row: AdminInviteCode) {
+  inviteUses.value = []
+  inviteUsesVisible.value = true
+  inviteUsesLoading.value = true
+  try {
+    const res = await adminApi.getInviteCodeUses(row.id)
+    inviteUses.value = res.uses || []
+  } catch (err) {
+    ElMessage.error((err as Error).message)
+  } finally {
+    inviteUsesLoading.value = false
   }
 }
 
@@ -1081,6 +1191,8 @@ onMounted(loadArtists)
 .invite-form-hint { display: block; font-size: 11px; color: var(--ink3); margin-top: 4px; }
 .invite-form-action { margin-left: auto; }
 .invite-hint { font-size: 12px; color: var(--ink2); margin: 8px 0 0; line-height: 1.6; }
+.invite-filter { display: flex; align-items: center; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+.invite-search-input { width: 220px; flex: none; }
 .invite-code {
   font-family: var(--f-mono, ui-monospace, monospace);
   font-size: 13px;
@@ -1105,5 +1217,6 @@ onMounted(loadArtists)
   .row { grid-template-columns: 1fr; }
   .artist-filter-controls { justify-content: flex-start; }
   .artist-search-input { width: 100%; }
+  .invite-search-input { width: 100%; }
 }
 </style>

@@ -22,6 +22,11 @@ export const INVITE_BATCH_MAX = 50
 export const INVITE_DEFAULT_VALID_DAYS = 3
 /** 有效期范围（1-30 天） */
 export const INVITE_VALID_DAYS_MAX = 30
+/** 每码可用次数上限（用户拍板：封顶 100，不设无限次） */
+export const INVITE_MAX_USES_MAX = 100
+/** 管理端列表分页默认/上限 */
+export const INVITE_PAGE_SIZE_DEFAULT = 20
+export const INVITE_PAGE_SIZE_MAX = 100
 
 /** invite_codes 行（SQLite 实体列） */
 export interface InviteCodeRow {
@@ -33,13 +38,34 @@ export interface InviteCodeRow {
   used_by_artist_id: number | null
   used_at: string | null
   created_at: string
+  max_uses: number
+  use_count: number
 }
 
-/** 管理端列表行（LEFT JOIN 使用人） */
+/** 管理端列表行（LEFT JOIN 最近使用人） */
 export interface InviteCodeListItem extends InviteCodeRow {
   used_by_name: string | null
   used_by_subdomain: string | null
   used_by_qq: string | null
+}
+
+/** 管理端列表筛选口径：expired = status 仍 unused 但已过期（派生态，不入库） */
+export type InviteCodeStatusFilter = 'unused' | 'used' | 'revoked' | 'expired'
+
+export interface InviteCodeListQuery {
+  status?: InviteCodeStatusFilter
+  q?: string
+  page?: number
+  pageSize?: number
+}
+
+/** invite_code_uses 明细行（JOIN 使用人） */
+export interface InviteCodeUseRow {
+  artist_id: number
+  name: string | null
+  qq_number: string | null
+  subdomain: string | null
+  used_at: string
 }
 
 // ─── 入驻模式 ───
@@ -70,14 +96,18 @@ function generateOneCode(): string {
  * 批量生成邀请码（事务内插入，码唯一冲突时重试；UNIQUE 约束为最终兜底）
  * @param count 1-50
  * @param validDays 1-30，默认 3
+ * @param maxUses 每码可用次数 1-100，默认 1（一次性，旧语义不变）
  * @param createdBy 管理员画师 id
  */
-export function generateInviteCodes(count: number, validDays: number = INVITE_DEFAULT_VALID_DAYS, createdBy: number | null = null): InviteCodeRow[] {
+export function generateInviteCodes(count: number, validDays: number = INVITE_DEFAULT_VALID_DAYS, maxUses: number = 1, createdBy: number | null = null): InviteCodeRow[] {
   if (!Number.isInteger(count) || count < 1 || count > INVITE_BATCH_MAX) {
     throw new AppError(E.VALIDATION, 400, { field: 'count', hint: `count 须为 1-${INVITE_BATCH_MAX} 的整数` })
   }
   if (!Number.isInteger(validDays) || validDays < 1 || validDays > INVITE_VALID_DAYS_MAX) {
     throw new AppError(E.VALIDATION, 400, { field: 'validDays', hint: `validDays 须为 1-${INVITE_VALID_DAYS_MAX} 的整数` })
+  }
+  if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > INVITE_MAX_USES_MAX) {
+    throw new AppError(E.VALIDATION, 400, { field: 'maxUses', hint: `maxUses 须为 1-${INVITE_MAX_USES_MAX} 的整数` })
   }
 
   // 过期时间统一 ISO 8601（UTC），service 层用 JS Date 比较
@@ -85,7 +115,7 @@ export function generateInviteCodes(count: number, validDays: number = INVITE_DE
 
   return db.transaction((): InviteCodeRow[] => {
     const insert = db.prepare(
-      'INSERT INTO invite_codes (code, status, expires_at, created_by) VALUES (?, ?, ?, ?)'
+      'INSERT INTO invite_codes (code, status, expires_at, created_by, max_uses) VALUES (?, ?, ?, ?, ?)'
     )
     const rows: InviteCodeRow[] = []
     // 去重集合：一次请求内不允许出现重复码（crypto 冲突概率极低，仍防御）
@@ -98,7 +128,7 @@ export function generateInviteCodes(count: number, validDays: number = INVITE_DE
         if (++guard > 20) throw new AppError('INTERNAL', 500)
       }
       seen.add(code)
-      const result = insert.run(code, 'unused', expiresAt, createdBy)
+      const result = insert.run(code, 'unused', expiresAt, createdBy, maxUses)
       rows.push({
         id: Number(result.lastInsertRowid),
         code,
@@ -107,7 +137,9 @@ export function generateInviteCodes(count: number, validDays: number = INVITE_DE
         created_by: createdBy,
         used_by_artist_id: null,
         used_at: null,
-        created_at: ''
+        created_at: '',
+        max_uses: maxUses,
+        use_count: 0
       })
     }
     return rows
@@ -116,14 +148,69 @@ export function generateInviteCodes(count: number, validDays: number = INVITE_DE
 
 // ─── 列表 / 吊销 ───
 
-/** 管理端列表：码 + 状态 + 过期 + 使用人（LEFT JOIN artists 取昵称/子域名/QQ） */
-export function listInviteCodes(): InviteCodeListItem[] {
-  return db.prepare(`
+/** 状态筛选 → SQL WHERE 片段（expired 为派生态：unused 且已到期） */
+function statusFilterClause(status: InviteCodeStatusFilter | undefined, nowIso: string): { clause: string; params: string[] } {
+  switch (status) {
+    case 'unused':
+      return { clause: "AND c.status = 'unused' AND c.expires_at > ?", params: [nowIso] }
+    case 'expired':
+      return { clause: "AND c.status = 'unused' AND c.expires_at <= ?", params: [nowIso] }
+    case 'used':
+      return { clause: "AND c.status = 'used'", params: [] }
+    case 'revoked':
+      return { clause: "AND c.status = 'revoked'", params: [] }
+    default:
+      return { clause: '', params: [] }
+  }
+}
+
+/**
+ * 管理端列表：码 + 状态 + 过期 + 最近使用人（LEFT JOIN artists）
+ * 支持状态筛选（含派生态 expired）、码模糊搜索、服务端分页；total 同口径计数供前端分页器
+ */
+export function listInviteCodes(query: InviteCodeListQuery = {}): { rows: InviteCodeListItem[]; total: number } {
+  const nowIso = new Date().toISOString()
+  const { clause, params } = statusFilterClause(query.status, nowIso)
+
+  // 码模糊搜索：统一大写匹配（存储恒大写）；转义 LIKE 元字符防注入歧义
+  let qClause = ''
+  const qParams: string[] = []
+  if (query.q && query.q.trim()) {
+    const escaped = query.q.trim().toUpperCase().replace(/[\\%_]/g, m => `\\${m}`)
+    qClause = 'AND c.code LIKE ? ESCAPE \'\\\''
+    qParams.push(`%${escaped}%`)
+  }
+
+  const page = Math.max(1, Math.trunc(query.page ?? 1))
+  const pageSize = Math.min(INVITE_PAGE_SIZE_MAX, Math.max(1, Math.trunc(query.pageSize ?? INVITE_PAGE_SIZE_DEFAULT)))
+
+  const where = `WHERE 1 = 1 ${clause} ${qClause}`
+  const allParams = [...params, ...qParams]
+
+  const total = (db.prepare(`SELECT COUNT(*) AS c FROM invite_codes c ${where}`).get(...allParams) as { c: number }).c
+  const rows = db.prepare(`
     SELECT c.*, a.name AS used_by_name, a.subdomain AS used_by_subdomain, a.qq_number AS used_by_qq
     FROM invite_codes c
     LEFT JOIN artists a ON a.id = c.used_by_artist_id
+    ${where}
     ORDER BY c.created_at DESC, c.id DESC
-  `).all() as InviteCodeListItem[]
+    LIMIT ? OFFSET ?
+  `).all(...allParams, pageSize, (page - 1) * pageSize) as InviteCodeListItem[]
+
+  return { rows, total }
+}
+
+/** 单张码的使用明细（invite_code_uses JOIN 使用人，按使用时间倒序）；码不存在 → NOT_FOUND */
+export function listInviteCodeUses(id: number): InviteCodeUseRow[] {
+  const row = db.prepare('SELECT id FROM invite_codes WHERE id = ?').get(id) as { id: number } | undefined
+  if (!row) throw new AppError(E.NOT_FOUND, 404, { id })
+  return db.prepare(`
+    SELECT u.artist_id, a.name, a.qq_number, a.subdomain, u.used_at
+    FROM invite_code_uses u
+    LEFT JOIN artists a ON a.id = u.artist_id
+    WHERE u.invite_code_id = ?
+    ORDER BY u.used_at DESC, u.id DESC
+  `).all(id) as InviteCodeUseRow[]
 }
 
 /** 吊销：仅 unused 可吊销；不存在/已用/已吊销统一走错误码 */
@@ -229,15 +316,21 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
     const totpSecret = generateSecret()
     bindTotpInit(artistId, totpSecret)
 
-    // 6. 一次性消费码（条件 UPDATE 防并发双花；改动 0 行 → 抛 INVITE_INVALID 回滚建号）
+    // 6. 消费码额度（条件 UPDATE 防并发超卖：额度未满才 +1，用满置 used；改动 0 行 → 抛 INVITE_INVALID 回滚建号）
+    const nowIso = new Date().toISOString()
     const consume = db.prepare(`
       UPDATE invite_codes
-      SET status = 'used', used_by_artist_id = ?, used_at = ?
-      WHERE id = ? AND status = 'unused'
-    `).run(artistId, new Date().toISOString(), codeRow.id)
+      SET use_count = use_count + 1,
+          used_by_artist_id = ?,
+          used_at = ?,
+          status = CASE WHEN use_count + 1 >= max_uses THEN 'used' ELSE status END
+      WHERE id = ? AND status = 'unused' AND use_count < max_uses
+    `).run(artistId, nowIso, codeRow.id)
     if (consume.changes !== 1) {
       throw new AppError(E.INVITE_INVALID, 400)
     }
+    // 明细留痕：谁在何时用了这张码（管理端使用记录名单）
+    db.prepare('INSERT INTO invite_code_uses (invite_code_id, artist_id, used_at) VALUES (?, ?, ?)').run(codeRow.id, artistId, nowIso)
 
     const otpauthUri = buildOtpAuthUri(totpSecret, qqNumber)
     return { otpauthUri, qqNumber }

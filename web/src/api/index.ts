@@ -32,6 +32,7 @@ import type {
   ArtworkWithTags,
   AuthMeResult,
   AuthVerifyResult,
+  AdminInviteCodeQuery,
   AdminInviteCodesResult,
   BanArtistResult,
   CommissionRule,
@@ -76,6 +77,7 @@ import type {
   InviteStatusResult,
   InviteTotpConfirmRequest,
   InviteTotpConfirmResult,
+  InviteCodeUsesResult,
   LikeArtworkResult,
   LogoutResult,
   OkResult,
@@ -802,10 +804,13 @@ export const adminApi = {
   /** 820-L: 统计功能管理员总开关（未开则画师后台隐藏整个统计导航，默认关闭） */
   setStatsEnabled: (statsEnabled: boolean): Promise<TrackingConfig> =>
     putJson('/admin/tracking-config', { statsEnabled }),
-  // REQ-039: 邀请码管理（生成/列表/吊销）
+  // REQ-039: 邀请码管理（生成/列表/吊销）；多次使用码 + 服务端分页/筛选
   generateInviteCodes: (data: GenerateInviteCodesRequest): Promise<GenerateInviteCodesResult> =>
     postJson('/admin/invite-codes', data),
-  getInviteCodes: (): Promise<AdminInviteCodesResult> => getJson('/admin/invite-codes'),
+  getInviteCodes: (query: AdminInviteCodeQuery = {}): Promise<AdminInviteCodesResult> =>
+    getJson('/admin/invite-codes', { params: query }),
+  getInviteCodeUses: (id: number): Promise<InviteCodeUsesResult> =>
+    getJson(`/admin/invite-codes/${id}/uses`),
   revokeInviteCode: (id: number): Promise<RevokeInviteCodeResult> => postJson(`/admin/invite-codes/${id}/revoke`),
   // REQ-043 I4: 平台公告编辑（内容消毒入库，step-up 由后端自动挂载）
   saveAnnouncement: (data: SaveAnnouncementRequest): Promise<PlatformAnnouncement> =>

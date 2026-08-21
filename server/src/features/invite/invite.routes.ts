@@ -6,9 +6,12 @@ import {
   getInviteStatus,
   generateInviteCodes,
   listInviteCodes,
+  listInviteCodeUses,
   revokeInviteCode,
   registerWithInvite,
-  confirmInviteTotp
+  confirmInviteTotp,
+  INVITE_PAGE_SIZE_MAX,
+  type InviteCodeStatusFilter
 } from './invite.service.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
@@ -107,7 +110,7 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/admin/invite-codes
-   * 批量生成（数量 1-50，有效期默认 3 天，1-30 天）
+   * 批量生成（数量 1-50，有效期默认 3 天，1-30 天；每码可用次数 1-100 默认 1）
    */
   fastify.post('/api/admin/invite-codes', {
     preHandler: requireAdmin,
@@ -117,14 +120,15 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
         required: ['count'],
         properties: {
           count: { type: 'integer', minimum: 1, maximum: 50 },
-          validDays: { type: 'integer', minimum: 1, maximum: 30 }
+          validDays: { type: 'integer', minimum: 1, maximum: 30 },
+          maxUses: { type: 'integer', minimum: 1, maximum: 100 }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as { count: number; validDays?: number }
-    const codes = generateInviteCodes(body.count, body.validDays, request.artist.id)
+    const body = request.body as { count: number; validDays?: number; maxUses?: number }
+    const codes = generateInviteCodes(body.count, body.validDays, body.maxUses, request.artist.id)
     return reply.code(201).send({
       codes: codes.map(c => ({ id: c.id, code: c.code, expiresAt: c.expires_at }))
     })
@@ -132,10 +136,28 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/admin/invite-codes
-   * 列表（含状态/使用人/过期时间）
+   * 列表（含状态/最近使用人/过期时间/额度进度），支持状态筛选（unused/used/revoked/expired）、
+   * 码模糊搜索与服务端分页（page/pageSize，默认 20/页）
    */
-  fastify.get('/api/admin/invite-codes', { preHandler: requireAdmin }, async () => {
-    const rows = listInviteCodes()
+  fastify.get('/api/admin/invite-codes', {
+    preHandler: requireAdmin,
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['unused', 'used', 'revoked', 'expired'] },
+          q: { type: 'string', maxLength: 64 },
+          page: { type: 'integer', minimum: 1 },
+          pageSize: { type: 'integer', minimum: 1, maximum: INVITE_PAGE_SIZE_MAX }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const query = request.query as { status?: InviteCodeStatusFilter; q?: string; page?: number; pageSize?: number }
+    const page = Math.max(1, Math.trunc(query.page ?? 1))
+    const { rows, total } = listInviteCodes(query)
+    const now = Date.now()
     return {
       codes: rows.map(r => ({
         id: r.id,
@@ -145,6 +167,10 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
         usedAt: r.used_at,
         createdAt: r.created_at,
         createdBy: r.created_by,
+        maxUses: r.max_uses,
+        useCount: r.use_count,
+        // 派生态：unused 且已到期（前端置灰显「已过期」，与筛选口径一致）
+        expired: r.status === 'unused' && new Date(r.expires_at).getTime() <= now,
         usedBy: r.used_by_artist_id != null
           ? {
               id: r.used_by_artist_id,
@@ -153,6 +179,36 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
               qqNumber: r.used_by_qq
             }
           : null
+      })),
+      total,
+      page,
+      pageSize: Math.min(INVITE_PAGE_SIZE_MAX, Math.max(1, Math.trunc(query.pageSize ?? 20)))
+    }
+  })
+
+  /**
+   * GET /api/admin/invite-codes/:id/uses
+   * 单张码的使用明细（多次码名单：谁在何时用了这张码，倒序）
+   */
+  fastify.get('/api/admin/invite-codes/:id/uses', {
+    preHandler: requireAdmin,
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'integer' } },
+        required: ['id']
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    const { id } = request.params as { id: number }
+    const uses = listInviteCodeUses(Number(id))
+    return {
+      uses: uses.map(u => ({
+        artistId: u.artist_id,
+        name: u.name,
+        qqNumber: u.qq_number,
+        subdomain: u.subdomain,
+        usedAt: u.used_at
       }))
     }
   })

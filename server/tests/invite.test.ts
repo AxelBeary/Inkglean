@@ -23,6 +23,8 @@ interface InviteCodeRowLite {
   expires_at: string | null
   used_by_artist_id: number | null
   used_at: string | null
+  max_uses: number
+  use_count: number
 }
 
 /** 从 otpauth URI 提取 TOTP secret（?secret=XXX&） */
@@ -47,9 +49,8 @@ describe('REQ-039 邀请码注册（invite）', () => {
   let app: FastifyInstance
 
   beforeEach(async () => {
+    // cleanDb 已含 invite_code_uses / invite_codes 清理（v71 起纳入共享清单，先子后父）
     cleanDb()
-    // invite_codes 不在 cleanDb 清单内（测试私有表），本文件自行清理
-    db.prepare('DELETE FROM invite_codes').run()
     initDatabase(db)
     // 默认入驻模式为 invite（migrate.ts 默认值）；个别用例手动切换
     db.prepare("UPDATE platform_config SET value = 'invite' WHERE key = 'onboarding_mode'").run()
@@ -79,12 +80,12 @@ describe('REQ-039 邀请码注册（invite）', () => {
   })
 
   it('TC-INV-02: 批量生成唯一性（50 个全不同）', () => {
-    const rows = generateInviteCodes(50, 1, null)
+    const rows = generateInviteCodes(50, 1, 1, null)
     const codes = rows.map(r => r.code)
     expect(new Set(codes).size).toBe(50)
-    // 落库唯一（UNIQUE 约束兜底）
+    // 落库唯一（UNIQUE 约束兜底；total 不受分页影响）
     const stored = listInviteCodes()
-    expect(new Set(stored.map(r => r.code)).size).toBe(50)
+    expect(stored.total).toBe(50)
   })
 
   it('TC-INV-03: 数量/有效期边界校验（0、51、0 天、31 天拒绝）', () => {
@@ -108,22 +109,22 @@ describe('REQ-039 邀请码注册（invite）', () => {
     fail()
 
     // 已用
-    const [used] = generateInviteCodes(1, 1, null)
+    const [used] = generateInviteCodes(1, 1)
     db.prepare("UPDATE invite_codes SET status = 'used', used_by_artist_id = 1, used_at = datetime('now') WHERE id = ?").run(used.id)
     expect(() => validateInviteCode(used.code)).toThrow('INVITE_INVALID')
 
     // 已吊销
-    const [revoked] = generateInviteCodes(1, 1, null)
+    const [revoked] = generateInviteCodes(1, 1)
     db.prepare("UPDATE invite_codes SET status = 'revoked' WHERE id = ?").run(revoked.id)
     expect(() => validateInviteCode(revoked.code)).toThrow('INVITE_INVALID')
 
     // 已过期（expires_at 回拨 1 小时）
-    const [expired] = generateInviteCodes(1, 1, null)
+    const [expired] = generateInviteCodes(1, 1)
     db.prepare('UPDATE invite_codes SET expires_at = ? WHERE id = ?').run(new Date(Date.now() - 3600_000).toISOString(), expired.id)
     expect(() => validateInviteCode(expired.code)).toThrow('INVITE_INVALID')
 
     // 大小写不敏感
-    const [ok] = generateInviteCodes(1, 1, null)
+    const [ok] = generateInviteCodes(1, 1)
     expect(validateInviteCode(ok.code.toLowerCase()).id).toBe(ok.id)
   })
 
@@ -457,6 +458,126 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(row.status).toBe('unused')
     const artist = db.prepare("SELECT * FROM artists WHERE qq_number = '40002'").get() as ArtistRow | undefined
     expect(artist).toBeUndefined()
+  })
+
+  // ─── 多次使用（v71：每码可用次数 1-100） ───
+
+  it('TC-INV-21: 多次码额度内可多人注册，用满置 used，超额拒绝且逐次留痕', async () => {
+    setAdmin()
+    const [invite] = generateInviteCodes(1, 3, 2) // maxUses=2
+
+    // 第一人：额度未用完，码保持 unused
+    registerWithInvite({ code: invite.code, qqNumber: '50001', name: '多次一', subdomain: 'multi1' })
+    const mid = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite.id) as InviteCodeRowLite
+    expect(mid.status).toBe('unused')
+    expect(mid.use_count).toBe(1)
+
+    // 第二人：额度用满 → used
+    registerWithInvite({ code: invite.code, qqNumber: '50002', name: '多次二', subdomain: 'multi2' })
+    const full = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite.id) as InviteCodeRowLite
+    expect(full.status).toBe('used')
+    expect(full.use_count).toBe(2)
+
+    // 第三人：额度已满 → INVITE_INVALID，且不残留账号
+    expect(() =>
+      registerWithInvite({ code: invite.code, qqNumber: '50003', name: '超额', subdomain: 'multi3' })
+    ).toThrow('INVITE_INVALID')
+    const extra = db.prepare("SELECT COUNT(*) AS c FROM artists WHERE qq_number = '50003'").get() as { c: number }
+    expect(extra.c).toBe(0)
+
+    // 使用明细：两行，逐次留痕
+    const uses = db.prepare('SELECT * FROM invite_code_uses WHERE invite_code_id = ? ORDER BY id').all(invite.id) as Array<{ artist_id: number; used_at: string }>
+    expect(uses).toHaveLength(2)
+    for (const u of uses) {
+      expect(u.artist_id).toBeTruthy()
+      expect(u.used_at).toBeTruthy()
+    }
+  })
+
+  it('TC-INV-22: maxUses 边界校验（0/101 拒绝，service 层 + HTTP schema 双闸）', async () => {
+    expect(() => generateInviteCodes(1, 3, 0)).toThrow('VALIDATION')
+    expect(() => generateInviteCodes(1, 3, 101)).toThrow('VALIDATION')
+
+    const admin = setAdmin()
+    const headers = { Authorization: `Bearer ${adminToken(admin)}` }
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/invite-codes',
+      headers,
+      payload: { count: 1, maxUses: 101 }
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('TC-INV-23: 列表状态筛选（含派生态 expired）+ 码搜索 + 服务端分页', async () => {
+    const admin = setAdmin()
+    const headers = { Authorization: `Bearer ${adminToken(admin)}` }
+
+    const [u1, u2] = generateInviteCodes(2, 5, 1, admin.id) // unused 有效
+    const [used] = generateInviteCodes(1, 5, 1, admin.id)
+    db.prepare("UPDATE invite_codes SET status = 'used', used_by_artist_id = ?, used_at = datetime('now') WHERE id = ?").run(admin.id, used.id)
+    const [revoked] = generateInviteCodes(1, 5, 1, admin.id)
+    db.prepare("UPDATE invite_codes SET status = 'revoked' WHERE id = ?").run(revoked.id)
+    const [expired] = generateInviteCodes(1, 5, 1, admin.id)
+    db.prepare('UPDATE invite_codes SET expires_at = ? WHERE id = ?').run(new Date(Date.now() - 3600_000).toISOString(), expired.id)
+
+    // 全量：5 张 + total 同口径
+    const all = await app.inject({ method: 'GET', url: '/api/admin/invite-codes', headers })
+    expect(all.statusCode).toBe(200)
+    expect(all.json().codes).toHaveLength(5)
+    expect(all.json().total).toBe(5)
+
+    // unused 筛掉已过期；expired 只命中过期未用
+    const unused = await app.inject({ method: 'GET', url: '/api/admin/invite-codes?status=unused', headers })
+    expect(unused.json().codes).toHaveLength(2)
+    const expiredRes = await app.inject({ method: 'GET', url: '/api/admin/invite-codes?status=expired', headers })
+    expect(expiredRes.json().codes).toHaveLength(1)
+    expect(expiredRes.json().codes[0].id).toBe(expired.id)
+    expect(expiredRes.json().codes[0].expired).toBe(true)
+
+    // used / revoked 各 1
+    const usedRes = await app.inject({ method: 'GET', url: '/api/admin/invite-codes?status=used', headers })
+    expect(usedRes.json().codes).toHaveLength(1)
+    const revokedRes = await app.inject({ method: 'GET', url: '/api/admin/invite-codes?status=revoked', headers })
+    expect(revokedRes.json().codes).toHaveLength(1)
+
+    // 码模糊搜索（取 u1 中间 4 位，大小写不敏感）
+    const q = u1.code.slice(2, 6).toLowerCase()
+    const search = await app.inject({ method: 'GET', url: `/api/admin/invite-codes?q=${q}`, headers })
+    expect(search.json().codes.map((c: { id: number }) => c.id)).toContain(u1.id)
+
+    // 分页：pageSize=2 → 首页 2 条 total=5；第三页 1 条
+    const p1 = await app.inject({ method: 'GET', url: '/api/admin/invite-codes?pageSize=2&page=1', headers })
+    expect(p1.json().codes).toHaveLength(2)
+    expect(p1.json().total).toBe(5)
+    expect(p1.json().pageSize).toBe(2)
+    const p3 = await app.inject({ method: 'GET', url: '/api/admin/invite-codes?pageSize=2&page=3', headers })
+    expect(p3.json().codes).toHaveLength(1)
+
+    // 额度字段下发（u2 未消费：0/1）
+    const u2Row = all.json().codes.find((c: { id: number }) => c.id === u2.id)
+    expect(u2Row.maxUses).toBe(1)
+    expect(u2Row.useCount).toBe(0)
+  })
+
+  it('TC-INV-24: 使用明细端点——多次码名单倒序下发；不存在 id → NOT_FOUND', async () => {
+    const admin = setAdmin()
+    const headers = { Authorization: `Bearer ${adminToken(admin)}` }
+    const [invite] = generateInviteCodes(1, 3, 2)
+    registerWithInvite({ code: invite.code, qqNumber: '50011', name: '明细一', subdomain: 'usesone' })
+    registerWithInvite({ code: invite.code, qqNumber: '50012', name: '明细二', subdomain: 'usestwo' })
+
+    const res = await app.inject({ method: 'GET', url: `/api/admin/invite-codes/${invite.id}/uses`, headers })
+    expect(res.statusCode).toBe(200)
+    const uses = res.json().uses
+    expect(uses).toHaveLength(2)
+    // 倒序：最近使用者（50012）在前
+    expect(uses[0].qqNumber).toBe('50012')
+    expect(uses[0].name).toBe('明细二')
+    expect(uses[0].usedAt).toBeTruthy()
+
+    const missing = await app.inject({ method: 'GET', url: '/api/admin/invite-codes/99999/uses', headers })
+    expect(missing.statusCode).toBe(404)
   })
 
   // ─── 限流（放在最后：rate-limit 桶为模块级全局，前面的注册用例已累计计数） ───
