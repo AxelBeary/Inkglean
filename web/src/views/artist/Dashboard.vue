@@ -25,7 +25,8 @@
           :month-cents="stats?.monthRevenueCents ?? null"
           :max-rows="panel.maxRows"
         />
-        <el-card v-else-if="panel.id === 'guestbook'">
+        <!-- 822 批：留言卡外壳对齐首页统一手剪角纸卡口径（原 el-card 默认机造圆角漏网，用户报障定位） -->
+        <el-card v-else-if="panel.id === 'guestbook'" class="guestbook-card">
           <template #header>
             <CardHead :title="t('dashboard.guestbookTitle')">
               <template #extra>
@@ -161,6 +162,19 @@ onUnmounted(() => {
   gap: 16px;
 }
 .panel { min-width: 0; }
+/* 822 批：留言审核卡 = 首页唯一带 header 的 el-card，外壳对齐统一手剪角纸卡口径：
+   同值圆角 + 纸底 + 无描边 + sh-2；header 分隔线改极淡墨线，body padding 对齐账本卡 */
+.guestbook-card {
+  background: var(--card);
+  border: none;
+  border-radius: 6px 14px 7px 15px / 13px 7px 15px 6px;
+  box-shadow: var(--sh-2);
+}
+.guestbook-card :deep(.el-card__header) {
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.guestbook-card :deep(.el-card__body) { padding: 8px 20px 16px; }
 /* >960px 两列；≤960px 单列堆叠（窄屏既有断点纪律） */
 @media (min-width: 961px) {
   .dash-grid {
