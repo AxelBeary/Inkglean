@@ -147,6 +147,7 @@ tar -tzf ./data/backups/uploads-*.tar.gz | head -20
 ## 7. 手工部署 / 重建清单（备份 → 构建 → 启动 → 验证）
 
 > 日常版本更新请用 §0 的 `bash scripts/update.sh`（自动完成下述全部步骤）；本节为不用脚本时的手工底线方案与故障排查参考。
+> ⚠️ **外部反代机器（宿主机已有 Caddy 看 80/443，如 cute-goose-1）例外**：本节是「容器 Caddy 全家桶」口径，直接照跑会让容器 Caddy 抢 80/443 报 `address already in use`，且 web 无 3000 宿主映射致系统 Caddy 反代落空全站 502。这类机器必须先写 `docker-compose.override.yml`（§13），下文命令照用即可，caddy 相关行为（如 restart caddy 无效）属正常。
 
 版本更新或容器重建前，先备份（见 §1），再按序执行：
 
@@ -284,3 +285,36 @@ tls /etc/caddy/certs/你的域名.crt /etc/caddy/certs/你的域名.key {
 
 - 部署后从外网访问任一限流接口（如反复刷新公开主页），观察是否按真实 IP 计数：不同设备/网络交替访问不应互相挤占配额；同一设备狂刷应在阈值处收到 429。
 - 后端日志里的请求 IP 应为真实公网 IP（而非 172.68.x.x/162.158.x.x 等 CF 边缘段）。
+
+---
+
+## 13. 外部反代机器防复发配置与 502 事故复盘（2026-08-23）
+
+> 背景：cute-goose-1 公网机 8-23 全站 502。根因是 8-22 git 历史清洗后按接手指南执行 `git reset --hard origin/master`，把服务器上**手工改过的 docker-compose.yml**（外部反代定制版：删容器 Caddy 段 + web 绑 127.0.0.1:3000 回环）覆盖回仓库原版。原版自带容器版 Caddy（绑 80:80/443:443），重建时与系统 Caddy 撞车报 `address already in use`；web 按原版重建后无 3000 宿主映射，系统 Caddy 反向代理 127.0.0.1:3000 落空 → 全站 502。教训：外部反代机器上「改 tracked 文件做本地定制」的做法，下次 reset/克隆必然复发。
+
+### 13.1 防复发配置（外部反代机器的唯一正确姿势）
+
+部署定制一律放 **untracked 的 `docker-compose.override.yml`**（git 不跟踪，`git pull` / `reset --hard` / 换机克隆都不受影响；`docker compose` 自动合并）：
+
+```yaml
+# /opt/inkglean/docker-compose.override.yml
+services:
+  web:
+    ports:
+      - "127.0.0.1:3000:3000"   # 只绑回环，仅供宿主机 Caddy 反向代理
+  caddy:
+    profiles:
+      - "disabled"              # 永不起用容器版 Caddy
+```
+
+配套动作：若容器版 Caddy 已被误起，`docker rm -f commission-caddy` 清掉僵尸（profile 禁用后 up 不会再创建它）；宿主机 Caddy 侧保持 §12 全部配置（真实 IP 透传 + Origin CA 证书 + AOP）不动。此后 update.sh / 手工重建都与容器 Caddy 无关，不可能再抢端口。
+
+### 13.2 断诊记录（同型问题的判别顺序）
+
+- **全站 502 + 重建报 `address already in use`（0.0.0.0:80）**：容器 Caddy 与系统 Caddy 撞车；`docker ps -a` 会冒出 `commission-caddy`。
+- **全站 502 + 无重建报错**：看 `docker ps` 的 web 条目 PORTS——只有裸 `3000/tcp`（无 `127.0.0.1:3000->3000`）即 3000 回环映射丢失，系统 Caddy 敲空门。
+
+自检口径（AOP 开启的机器）：
+- 本机 `curl https://127.0.0.1` 返回 **000 是正常**——AOP client_auth 在 TLS 层拒掉一切无 Cloudflare 客户端证书的直连，本机裸敲必被拒，**不能据此判故障**；
+- 服务器内正确自检：`ss -ltn | grep :3000` 应见 127.0.0.1:3000 LISTEN；`curl -s http://127.0.0.1:3000/api/health` 应返回 `{"status":"ok",...}`；
+- 全链路验收走浏览器（经 Cloudflare），不要用服务器本机 curl 443 替代。
