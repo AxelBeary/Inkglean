@@ -26,15 +26,22 @@ const ALLOWLIST = {
   // 下两项为纯类型/接口契约聚集仓（深度分析报告「可接受暂缓」裁决），
   // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）；
   // v144 自定义首页批一再追认：DashboardPrefs 契约类型 +21 / 读写两方法 +4（骨架批必需契约，出处在案）；
-  // v145 批二再追认：IncomeOverview/DeadlineSoon 契约类型 +21 / 数据源两方法 +4（血肉批必需契约，出处在案）
-  'web/src/api/types.ts': 1824,
-  'web/src/api/index.ts': 837,
-  'web/src/views/admin/ArtistManage.vue': 1109,
+  // v145 批二再追认：IncomeOverview/DeadlineSoon 契约类型 +21 / 数据源两方法 +4（血肉批必需契约，出处在案）；
+  // v152 追认：types.ts 1824→1859（邀请码批类型 +35）/ index.ts 837→842（邀请码批端点 +5），出处在案
+  'web/src/api/types.ts': 1859,
+  'web/src/api/index.ts': 842,
   // v144 追认：ArtistLayout +43 = 页宽三档生效机制（prefs 拉取/pageWidthStyle/container-type 注释）；
   // PriceCard +1 = 页宽归一批注释行。另：计数口径修正（CRLF 归一）后冻结值统一按总行口径重钉；
   // v145 批二再追认：PriceCard +2 = 容器查询收尾批注释行（@media→@container 改造标记，出处在案）
   'web/src/components/ArtistLayout.vue': 993,
   'web/src/views/artist/PriceCard.vue': 1011,
+  // v152 追认四处（均为并行批已合入的正当增量，出处在案）：
+  // artist.service.ts 800→802 = 开业门槛批就绪判定两函数（超限 2 行，拆分不经济，冻结只许拆小）；
+  // api/types.ts 1824→1859 = 邀请码多次使用批类型 +35；
+  // api/index.ts 837→842 = 邀请码批新端点方法 +5；
+  // ArtistManage.vue 1109→1222 = 邀请码管理端筛选/分页/使用记录弹窗 +113（后续可拆弹窗组件瘦身）
+  'server/src/features/artist/artist.service.ts': 802,
+  'web/src/views/admin/ArtistManage.vue': 1222,
   'web/src/views/artist/Login.vue': 977,
   'web/src/components/artist/ArtStyleManager.vue': 941,
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
