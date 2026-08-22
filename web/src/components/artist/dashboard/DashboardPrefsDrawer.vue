@@ -549,4 +549,8 @@ function locateItem(id: string) {
 @media (max-width: 600px) {
   .prefs-drawer :deep(.el-drawer) { width: calc(100% - 24px) !important; }
 }
+/* 822 批：宽屏加宽（380→460），布局预览与列表更宽裕；遮罩层覆盖不影响主内容 */
+@media (min-width: 1440px) {
+  .prefs-drawer :deep(.el-drawer) { width: 460px !important; }
+}
 </style>
