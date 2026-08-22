@@ -198,6 +198,8 @@ onMounted(() => {
   text-align: center; position: relative;
   border-radius: 6px 14px 7px 15px / 13px 7px 15px 6px;
   box-shadow: var(--sh-2);
+  /* 822 批：配合 Dashboard panel--stretch 与问候卡同行等高——填满面板，整套挂牌垂直居中 */
+  height: 100%; display: flex; flex-direction: column; justify-content: center;
 }
 .plaque-nail {
   width: 12px; height: 12px; margin: 0 auto; border-radius: 50%; position: relative; z-index: 4;

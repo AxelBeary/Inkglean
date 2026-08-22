@@ -13,7 +13,7 @@
         :key="panel.id"
         v-show="panel.id !== 'announcement' || annHasContent"
         class="panel enter-stagger"
-        :class="{ 'panel--full': panel.width === 'full' }"
+        :class="{ 'panel--full': panel.width === 'full', 'panel--stretch': panel.id === 'greet' || panel.id === 'plaque' }"
         :style="{ '--stagger': i }"
       >
         <GreetingNote v-if="panel.id === 'greet'" :stats="stats" :greet-style="prefs?.greetStyle ?? 'plain'" />
@@ -162,6 +162,10 @@ onUnmounted(() => {
   gap: 16px;
 }
 .panel { min-width: 0; }
+/* 822 批：问候卡与挂牌卡同行等高（用户报障两卡高度不齐）：对齐方式由顶对齐改拉伸，
+   矮卡由各自组件 height:100% 填满（内容垂直居中）；只作用于这对卡片，其余行保持 start。
+   用户拖拽换位后仍与同排邻居等高，行为一致。 */
+.panel--stretch { align-self: stretch; }
 /* 822 批：留言审核卡 = 首页唯一带 header 的 el-card，外壳对齐统一手剪角纸卡口径：
    同值圆角 + 纸底 + 无描边 + sh-2；header 分隔线改极淡墨线，body padding 对齐账本卡 */
 .guestbook-card {

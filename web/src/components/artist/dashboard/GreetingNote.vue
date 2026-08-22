@@ -164,7 +164,9 @@ onUnmounted(() => clearTimers())
 <style scoped>
 /* ─── 问候贴纸：固定容器，入场仪式，逐字洇墨（原型 v0.9 移植） ─── */
 .greeting-note {
-  width: 100%; height: calc(var(--font-scale, 1) * 214px); position: relative;
+  /* 822 批：height 改 min-height + 100% 填满，配合 Dashboard panel--stretch 与挂牌卡同行等高 */
+  width: 100%; height: 100%; min-height: calc(var(--font-scale, 1) * 214px); position: relative;
+  display: flex; flex-direction: column; justify-content: center;
   padding: calc(var(--font-scale, 1) * 26px) calc(var(--font-scale, 1) * 34px) calc(var(--font-scale, 1) * 16px);
   background: var(--paper2);
   border-radius: 3px 10px 4px 12px / 10px 4px 12px 3px;   /* 手剪不规则角 */
