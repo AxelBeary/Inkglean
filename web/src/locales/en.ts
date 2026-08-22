@@ -714,7 +714,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     down: 'Down',
     export: 'Export',
     preview: 'Preview',
-    previewDesc: 'Updates here in real time as you adjust selections and order',
     noImages: 'No images in this order',
     needTwo: 'Select at least 2 images',
     kindDeliverable: 'Deliverable',
@@ -1708,21 +1707,17 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     notifyDesc: 'Alerts you about new orders, messages, and stage updates.',
     defaultPanelLabel: 'Open by default',
     defaultPanelDesc: 'This page opens first next time you enter the back office.',
-    saveHint: 'Changes apply immediately after saving.',
-    // 818-A: back-office font size slider (14–20px, 7 stops, default 15px)
+    // 818-A: back-office font size slider (14–20px, 7 stops, default 15px); 822: nagging how-to hints removed by user decision
     fontSize: 'Back-office font size',
-    fontSizeHint: 'Drag to adjust — applies immediately and saves automatically. Range 14–20px, default 15px',
     // 819-G: dark mode / animation speed / reduce motion
     darkModeLabel: 'Dark mode',
     darkModeDesc: 'Switches the back office between paper and ink themes.',
     animSpeedLabel: 'Animation speed',
-    animSpeedDesc: 'Adjusts how fast interface transitions play; applies immediately.',
+    animSpeedDesc: 'Adjusts how fast interface transitions play.',
     reduceMotionLabel: 'Reduce motion',
     reduceMotionDesc: 'Shortens interface transitions to almost zero.',
     animPreviewLabel: 'Speed preview',
-    animPreviewDesc: 'Click the button to watch a single transition.',
-    animPreviewBtn: 'Click to preview',
-    displayHint: 'Font size, animation speed, and reduce motion apply immediately — no save needed.'
+    animPreviewBtn: 'Click to preview'
   },
   // Customize-homepage batch 1 (v70): dashboard layout prefs drawer + page width controls
   dashboardPrefs: {
@@ -1791,7 +1786,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     pageAlignCenter: 'Centered',
     pageAlignFull: 'Full',
     pageMaxLabel: 'Max width',
-    pageMaxDesc: 'Applies to left/centered modes only; drag the slider, it applies on release. Range 1000~1680px.'
+    pageMaxDesc: 'Applies to left/centered modes only.'
   },
   settings: {
     title: 'Page Settings', tabProfile: 'Profile', tabShowcase: 'Public Page', tabTemplate: 'Template & Style',
@@ -1824,7 +1819,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     notReadyNotice: 'Your shop is not yet eligible for the home page: upload at least 1 artwork and set prices for at least 1 active style. It will be listed automatically once both are done.',
     linksLabel: 'Links (shown on public page)', addLink: 'Add link',
     moveLinkUp: 'Move link up', moveLinkDown: 'Move link down', removeLink: 'Remove link',
-    linksHint: 'Up to 8 links. Platforms are auto-detected as you paste. Changes appear on your public page immediately after saving. Empty rows are not saved.',
+    linksHint: 'Up to 8 links. Platforms are auto-detected as you paste. Empty rows are not saved.',
     linksEmpty: 'No links added yet', linkOther: 'Other', linkUrlPlaceholder: 'https://',
     linkInvalid: 'Invalid link format (http/https only, or paste a bare URL)', linkTooLong: 'Link is too long (domain ≤253 / path ≤1500 / total ≤1800)',
     inspireLabel: 'Inspiration tags (shown on order page)', inspireInputPlaceholder: 'Type a tag and press Enter',
@@ -1875,7 +1870,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   slots: {
     title: 'Slot Settings',
     statusSection: 'Commission Status',
-    statusSectionDesc: 'Applies immediately; your public schedule card updates too',
+    statusSectionDesc: 'Your public schedule card updates too',
     slotSection: 'Slot Limits',
     quotaSection: 'Monthly Quota',
     queueSection: 'Queue Behavior',

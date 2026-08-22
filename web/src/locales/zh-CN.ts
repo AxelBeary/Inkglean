@@ -713,7 +713,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     down: '下移',
     export: '导出拼图',
     preview: '实时预览',
-    previewDesc: '调整选择或顺序后，这里实时更新',
     noImages: '该订单暂无图片',
     needTwo: '至少选择 2 张图片',
     kindDeliverable: '完稿',
@@ -1707,21 +1706,17 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     notifyDesc: '有新订单、留言或节点推进时提醒你。',
     defaultPanelLabel: '进入后台时先打开',
     defaultPanelDesc: '下次进入后台时直接打开这一页。',
-    saveHint: '改动保存后立即生效。',
-    // 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px）
+    // 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px）；822 用户拍板：去掉唠叨的操作说明文案（“拖拽调节/即时生效”类）
     fontSize: '后台字号',
-    fontSizeHint: '拖拽调节，即时生效并自动保存。范围 14~20px，默认 15px',
     // 819-G: 暗色模式 / 动画速度 / 减少动效
     darkModeLabel: '暗色模式',
     darkModeDesc: '后台配色在宣纸与墨黑之间切换。',
     animSpeedLabel: '动画速度',
-    animSpeedDesc: '调整界面过渡动画的快慢，拖动即时生效。',
+    animSpeedDesc: '调整界面过渡动画的快慢。',
     reduceMotionLabel: '减少动效',
     reduceMotionDesc: '将界面过渡动画压到最短。',
     animPreviewLabel: '速度预览',
-    animPreviewDesc: '点击按钮观察一次过渡的时长。',
-    animPreviewBtn: '点我看速度',
-    displayHint: '字号、动画速度与减少动效即时生效，无需保存。'
+    animPreviewBtn: '点我看速度'
   },
   // 自定义首页批一（v70）：仪表盘布局偏好抽屉 + 页面宽度控件
   dashboardPrefs: {
@@ -1790,7 +1785,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     pageAlignCenter: '居中',
     pageAlignFull: '撑满',
     pageMaxLabel: '最大宽度',
-    pageMaxDesc: '仅左置/居中档生效；拖动滑杆，松手后应用。范围 1000~1680px。'
+    pageMaxDesc: '仅左置/居中档生效。'
   },
   settings: {
     title: '主页设置', tabProfile: '基本资料', tabShowcase: '主页展示', tabTemplate: '模板与风格',
@@ -1822,7 +1817,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     notReadyNotice: '小店暂未满足上首页的条件：需上传至少 1 张作品，并设置至少 1 个启用画风的价格。补齐后自动展示。',
     linksLabel: '外链（客户主页展示）', addLink: '添加链接',
     moveLinkUp: '上移外链', moveLinkDown: '下移外链', removeLink: '删除外链',
-    linksHint: '最多 8 条，粘贴后自动识别平台，保存后客户主页立即生效。留空的行不会保存。',
+    linksHint: '最多 8 条，粘贴后自动识别平台。留空的行不会保存。',
     linksEmpty: '还没有添加链接', linkOther: '其他', linkUrlPlaceholder: 'https://',
     linkInvalid: '链接格式不正确（仅支持 http/https，或直接粘贴网址）', linkTooLong: '链接过长（域名≤253 / 路径≤1500 / 总长≤1800）',
     inspireLabel: '灵感标签（客户下单页展示）', inspireInputPlaceholder: '输入标签后回车添加',
@@ -1873,7 +1868,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   slots: {
     title: '开稿管理',
     statusSection: '接稿状态',
-    statusSectionDesc: '切换后立即生效，主页档期卡同步更新',
+    statusSectionDesc: '切换后主页档期卡同步更新',
     slotSection: '名额设置',
     quotaSection: '月度额度',
     queueSection: '队列行为',

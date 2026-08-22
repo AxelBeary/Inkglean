@@ -64,7 +64,6 @@
 
         <div class="pref-save-bar">
           <el-button type="primary" @click="save" :loading="saving" :disabled="loadFailed">{{ $t('settings.save') }}</el-button>
-          <span class="form-hint">{{ $t('preferences.saveHint') }}</span>
         </div>
       </el-tab-pane>
 
@@ -75,7 +74,6 @@
           <div class="pref-row">
             <div class="pref-row-text">
               <div class="pref-row-label">{{ $t('preferences.fontSize') }}</div>
-              <div class="pref-row-desc">{{ $t('preferences.fontSizeHint') }}</div>
             </div>
             <div class="pref-row-control font-size-row">
               <el-slider
@@ -174,17 +172,12 @@
           <div class="pref-row">
             <div class="pref-row-text">
               <div class="pref-row-label">{{ $t('preferences.animPreviewLabel') }}</div>
-              <div class="pref-row-desc">{{ $t('preferences.animPreviewDesc') }}</div>
             </div>
             <div class="pref-row-control anim-preview-control">
               <button type="button" class="anim-demo-btn" @click="runAnimDemo">{{ $t('preferences.animPreviewBtn') }}</button>
               <span class="anim-demo-track" aria-hidden="true"><span class="anim-demo-bar" :class="{ on: animDemoOn }"></span></span>
             </div>
           </div>
-        </div>
-
-        <div class="pref-save-bar">
-          <span class="form-hint">{{ $t('preferences.displayHint') }}</span>
         </div>
       </el-tab-pane>
 

@@ -79,7 +79,6 @@
         <div class="row">
           <div class="field-text">
             <div class="lab">{{ $t('puzzle.preview') }}</div>
-            <div class="desc">{{ $t('puzzle.previewDesc') }}</div>
           </div>
           <div class="ctrl">
             <div v-if="picked.length < 2" class="puzzle-preview-hint">{{ $t('puzzle.needTwo') }}</div>
