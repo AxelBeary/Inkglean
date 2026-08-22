@@ -262,7 +262,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   },
   disclaimer: {
     title: 'Platform notice',
-    text: 'This platform only verifies identities and connects both parties. All subsequent communication, payment and delivery happen externally. The platform provides no escrow or arbitration — please assume your own risk.'
+    text: 'Inkglean is a commission tool: it only helps verify the identities of both parties and connect them. Communication and payment happen outside the platform, which holds no funds. Deliverable files are transferred once through the platform delivery channel, without the platform intervening in the delivery outcome; the platform offers no arbitration — please assume your own risk when transacting.'
   },
   // Plan B: deliver dialog modes (upload file / no-file delivery)
   deliverMode: {
