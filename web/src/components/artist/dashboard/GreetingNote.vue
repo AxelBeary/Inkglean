@@ -11,7 +11,9 @@
       @keydown.enter="swapGreeting"
       @keydown.space.prevent="swapGreeting"
     >
-      <div :key="greetKey" class="g-text f-kai" :class="{ settled, 'swap-in': greetKey > 0 && settled }">
+      <!-- 822 修复：逐字洇墨从未生效的真凶——CSS 选择器是 .g-text.playing .ch.on，
+           但 playing 类此前只挂在 .ch 上、漏挂外层 .g-text，动画永远匹配不上；补回 -->
+      <div :key="greetKey" class="g-text f-kai" :class="{ settled, playing, 'swap-in': greetKey > 0 && settled }">
         <span
           v-for="(ch, i) in chars"
           :key="i"

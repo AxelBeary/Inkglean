@@ -22,7 +22,8 @@ vi.mock('../../../../api/index.js', () => ({
   artistApi: { getGreeting: h.getGreeting }
 }))
 
-// 返回当日 → 走 settleNow 直出（内容可见），不依赖真实演绎定时器
+// 返回当日 → 走 settleNow 直出（内容可见），不依赖真实演绎定时器；
+// 洇墨回归用例内用 vi.mocked 改返回 null 走演绎态
 vi.mock('../../../../utils/storage.js', () => ({
   safeGetItem: vi.fn(() => new Date().toDateString()),
   safeSetItem: vi.fn()
@@ -34,6 +35,7 @@ vi.mock('../../../../utils/useCountUp.js', () => ({
 }))
 
 import GreetingNote from '../GreetingNote.vue'
+import { safeGetItem } from '../../../../utils/storage.js'
 
 type GreetStyle = 'plain' | 'seal' | 'ribbon' | 'rule'
 
@@ -100,6 +102,36 @@ describe('GreetingNote 默认款不带额外框类名', () => {
     expect(root.classes()).not.toContain('g-rule')
     expect(wrapper.find('.gs-stamp').exists()).toBe(false)
     expect(wrapper.find('.g-rule-line').exists()).toBe(false)
+  })
+})
+
+describe('GreetingNote 逐字洇墨入场（822 回归：.g-text 必须挂 playing 类）', () => {
+  // 历史 bug：CSS 选择器 .g-text.playing .ch.on，但 playing 只挂在 .ch 上、
+  // 漏挂外层 .g-text，逐字动画从未生效；本用例钉死选择器可匹配。
+  it('当日未演 → 演绎态：950ms 后 .g-text 带 playing 且每个 .ch 带 on；总时长后落 settled', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(safeGetItem).mockReturnValue(null)
+      const wrapper = mountNote()
+      await flushPromises()
+      // 入场：950ms 后 playing=true
+      vi.advanceTimersByTime(950)
+      await wrapper.vm.$nextTick()
+      const gText = wrapper.find('.g-text')
+      expect(gText.classes()).toContain('playing')
+      const chs = wrapper.findAll('.ch')
+      expect(chs.length).toBeGreaterThan(0)
+      for (const ch of chs) expect(ch.classes()).toContain('on')
+      // 演绎总时长（字数×55+750）后落定：settled 上、playing 退
+      vi.advanceTimersByTime(chs.length * 55 + 750)
+      await wrapper.vm.$nextTick()
+      const settledText = wrapper.find('.g-text')
+      expect(settledText.classes()).toContain('settled')
+      expect(settledText.classes()).not.toContain('playing')
+    } finally {
+      vi.useRealTimers()
+      vi.mocked(safeGetItem).mockReturnValue(new Date().toDateString())
+    }
   })
 })
 
