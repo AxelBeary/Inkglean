@@ -2217,7 +2217,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     },
     privacy: {
       pageTitle: 'Privacy Policy',
-      updated: '2026-08-15',
+      updated: '2026-08-23',
       note: 'This policy is a standard template (human-reviewed), not legal advice. The platform will update it when business changes materially.',
       sections: [
         {
@@ -2230,7 +2230,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
             'Artwork images and final deliverables (artist showcase and delivery)',
             'Browsing behavior (tracking, can be disabled in preferences; logs retained for 180 days)',
             'Passkey public key (for passwordless login; only the public credential is stored)',
-            'Deliverable download records (IP and timestamp at download, for dispute evidence of one-time downloads)'
+            'Deliverable download records (IP and timestamp at download, for dispute evidence of one-time downloads)',
+            'Fault and error reports (automatically sent to the third-party service Sentry for troubleshooting when errors occur)'
           ]
         },
         {
@@ -2259,6 +2260,13 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
         {
           title: '6. Legal Basis',
           paragraphs: ['This policy references China’s Personal Information Protection Law (PIPL), Cybersecurity Law, and Data Security Law.']
+        },
+        {
+          title: '7. Third-Party Services',
+          paragraphs: [
+            'Error monitoring: when the website or admin console encounters errors, error reports (including IP address, browser information, and the failing page) are automatically sent to the third-party service Sentry, solely for troubleshooting. This data is stored by Sentry and may be located outside China mainland.',
+            'Image recognition: the "Recognize image" feature runs locally in your browser — images are never uploaded to any server. On first use, your browser downloads the recognition engine and language data (a few megabytes, cached afterwards) from a public content delivery network (CDN).'
+          ]
         }
       ]
     },
