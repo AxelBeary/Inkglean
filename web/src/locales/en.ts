@@ -2272,12 +2272,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     },
     terms: {
       pageTitle: 'Terms of Service & Artist Agreement',
-      updated: '2026-08-11',
+      updated: '2026-08-23',
       note: 'These terms are a standard template (human-reviewed), not legal advice. Transactions are negotiated between artists and clients; the platform does not intervene.',
       sections: [
         {
           title: '1. Platform Role',
-          paragraphs: ['Inkglean (拾绘) is a tool platform where artists showcase works and receive commissions. The platform does not participate in negotiation, payment, delivery, or dispute resolution between artists and clients.']
+          paragraphs: ['Inkglean (拾绘) is a tool platform where artists showcase works and receive commissions. The platform does not participate in transaction negotiation or payment between artists and clients. Deliverable files are transferred through the platform as a delivery channel, but the platform does not intervene in the act or outcome of delivery, nor does it mediate in transaction disputes.']
         },
         {
           title: '2. Content Red Lines',
@@ -2311,7 +2311,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
         },
         {
           title: '7. Disclaimer',
-          paragraphs: ['The platform is a tool. Transactions are negotiated between artists and clients; the platform does not guarantee delivery quality, does not mediate disputes, and is not liable for losses arising from transactions.']
+          paragraphs: ['The platform is a tool only. Transactions are negotiated between artists and clients; the platform merely provides the delivery channel for deliverable files, does not guarantee delivery quality, does not mediate disputes, and is not liable for losses arising from transactions.']
         }
       ]
     },
