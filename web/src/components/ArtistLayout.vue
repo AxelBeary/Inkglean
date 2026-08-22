@@ -490,7 +490,9 @@ onMounted(() => {
   validateSession() // G-1: 服务端会话强校验（成败均静默处理，不阻塞骨架渲染）
   // 0817 报障配套：刷新/直达时 store 尚无 profile，导航开关（统计/留言）判定依赖它——
   // 预拉一次让「未知」窗口期尽量短（失败静默，fetchProfile 内部已有 401 登出守卫）
-  if (store.loggedIn && !store.profile) store.fetchProfile().catch(() => {})
+  if (store.loggedIn && !store.profile) store.fetchProfile().catch(err => {
+    console.warn('[ArtistLayout] 骨架预拉 profile 失败', err) // eslint-disable-line no-console -- 审计 F-7：失败留痕，回落逻辑不变
+  })
   loadAnnouncement() // REQ-043 I4: 公告入口数据（登录态接口，失败静默）
   // I0: 待确认订单角标轮询（5 分钟；页面隐藏暂停，可见立即刷新——visibilitychange）
   startPendingOrderPolling()

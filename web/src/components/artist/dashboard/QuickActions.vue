@@ -192,7 +192,9 @@ async function doPublish(files: File[]) {
     }
     ElMessage.success(t('quickAction.published'))
     // 保持 profile 最新（quick_actions 等可能变化），失败静默
-    store.fetchProfile().catch(() => {})
+    store.fetchProfile().catch(err => {
+      console.warn('[QuickActions] 发布后补拉 profile 失败', err) // eslint-disable-line no-console -- 审计 F-1：失败留痕，回落逻辑不变
+    })
   } catch (err) {
     ElMessage.error((err as Error).message || t('quickAction.publishFailed'))
   } finally {

@@ -459,7 +459,9 @@ onMounted(() => {
     search(no, routeToken)
   }
   // M2: 轻量拉画师信息取 paletteId（失败静默回落 paper）；战役留账：in-flight 去重共享请求
-  fetchArtistPublicProfile(subdomain).then((a) => { artist.value = a }).catch(() => {})
+  fetchArtistPublicProfile(subdomain).then((a) => { artist.value = a }).catch(err => {
+    console.warn('[TrackOrder] getArtistPublicProfile 失败，配色回落默认', err) // eslint-disable-line no-console -- 审计 F-2：失败留痕，回落逻辑不变
+  })
 })
 </script>
 

@@ -676,11 +676,15 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       // 加载流程（静默失败不阻塞下单）
       artistPublicApi.getWorkflow(subdomain)
         .then(res => { workflowStages.value = res.stages || [] })
-        .catch(() => {})
+        .catch(err => {
+          console.warn('[useOrderForm] getWorkflow 失败，流程步骤回落默认', err) // eslint-disable-line no-console -- 审计 F-4：失败留痕，回落逻辑不变
+        })
       // 加载报价元数据（分期比例 + 折扣开关）
       artistPublicApi.getPricing(subdomain)
         .then(res => { pricingData.value = res })
-        .catch(() => {})
+        .catch(err => {
+          console.warn('[useOrderForm] getPricing 失败，分期/折扣交互回落默认', err) // eslint-disable-line no-console -- 审计 F-5：失败留痕，回落逻辑不变
+        })
 
       // 加载画风列表（await 保证步骤列表渲染前稳定）
       try {
@@ -690,7 +694,10 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
         if (styles.value.length === 1) {
           selectedStyleId.value = styles.value[0].id
         }
-      } catch { /* 静默失败：页面显示无 pricing 空态 */ }
+      } catch (err) {
+        /* 静默失败：页面显示无 pricing 空态（审计 F-6：补失败留痕，回落逻辑不变） */
+        console.warn('[useOrderForm] getPublicStyles 失败，画风列表显示空态', err) // eslint-disable-line no-console
+      }
 
       // v0.34 任务B：URL query 预选（优先于草稿恢复，restoreDraft 里不覆盖已预选的项）
       applyQueryPreselect()

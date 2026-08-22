@@ -34,8 +34,9 @@ const ALLOWLIST = {
   // PriceCard +1 = 页宽归一批注释行。另：计数口径修正（CRLF 归一）后冻结值统一按总行口径重钉；
   // v145 批二再追认：PriceCard +2 = 容器查询收尾批注释行（@media→@container 改造标记，出处在案）；
   // 822 布局重做批追认：ArtistLayout 993→995（container-name: page +2 注释）/
-  // PriceCard 1011→1022（行栅格/容器命名/纸签化重做注释 +11，功能行均为等长替换，出处在案）
-  'web/src/components/ArtistLayout.vue': 995,
+  // PriceCard 1011→1022（行栅格/容器命名/纸签化重做注释 +11，功能行均为等长替换，出处在案）；
+  // 823 深度 Bug 挖掘 F-7 追认：ArtistLayout 995→997（骨架预拉 profile 失败留痕 +2，出处在案）
+  'web/src/components/ArtistLayout.vue': 997,
   'web/src/views/artist/PriceCard.vue': 1022,
   // v152 追认四处（均为并行批已合入的正当增量，出处在案）：
   // artist.service.ts 800→802 = 开业门槛批就绪判定两函数（超限 2 行，拆分不经济，冻结只许拆小）；
