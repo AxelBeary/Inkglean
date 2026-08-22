@@ -32,9 +32,11 @@ const ALLOWLIST = {
   'web/src/api/index.ts': 842,
   // v144 追认：ArtistLayout +43 = 页宽三档生效机制（prefs 拉取/pageWidthStyle/container-type 注释）；
   // PriceCard +1 = 页宽归一批注释行。另：计数口径修正（CRLF 归一）后冻结值统一按总行口径重钉；
-  // v145 批二再追认：PriceCard +2 = 容器查询收尾批注释行（@media→@container 改造标记，出处在案）
-  'web/src/components/ArtistLayout.vue': 993,
-  'web/src/views/artist/PriceCard.vue': 1011,
+  // v145 批二再追认：PriceCard +2 = 容器查询收尾批注释行（@media→@container 改造标记，出处在案）；
+  // 822 布局重做批追认：ArtistLayout 993→995（container-name: page +2 注释）/
+  // PriceCard 1011→1022（行栅格/容器命名/纸签化重做注释 +11，功能行均为等长替换，出处在案）
+  'web/src/components/ArtistLayout.vue': 995,
+  'web/src/views/artist/PriceCard.vue': 1022,
   // v152 追认四处（均为并行批已合入的正当增量，出处在案）：
   // artist.service.ts 800→802 = 开业门槛批就绪判定两函数（超限 2 行，拆分不经济，冻结只许拆小）；
   // api/types.ts 1824→1859 = 邀请码多次使用批类型 +35；
