@@ -1,6 +1,8 @@
 <template>
   <!-- 819-G: 偏好设置重构——顶部导航三 tab（通用 / 显示与字号 / 快捷入口），
        分组卡片 + 统一行结构「说明在左 / 控件在右」，结构与视觉对齐 proto-preferences-818 -->
+  <!-- 822 批：快捷入口页签并入「通用」仪表盘组（同属首页相关设置）；保存合并为一个；
+       「进入后台时先打开」补仪表盘档并真正接通（Dashboard 消费跳转） -->
   <div class="pref-page" v-loading="loading">
     <h2 class="font-display pref-title">{{ $t('preferences.title') }}</h2>
 
@@ -42,6 +44,7 @@
             </div>
             <div class="pref-row-control">
               <el-select v-model="form.dashboardDefaultPanel" style="width: 200px">
+                <el-option value="dashboard" :label="$t('dashboard.panelDashboard')" />
                 <el-option value="queue" :label="$t('dashboard.panelQueue')" />
                 <el-option value="orders" :label="$t('dashboard.panelOrders')" />
                 <el-option value="manual" :label="$t('dashboard.panelManual')" />
@@ -58,6 +61,39 @@
             </div>
             <div class="pref-row-control">
               <el-button @click="drawerOpen = true">{{ $t('dashboardPrefs.entryBtn') }}</el-button>
+            </div>
+          </div>
+
+          <!-- 822 批：快捷按钮从「快捷入口」页签并入（同属首页相关设置）：
+               微缩预览 = 首页快捷区 1:1 同款（点卡片可移除），下方勾选格负责添加 -->
+          <div class="pref-row pref-row--stack">
+            <div class="pref-row-text">
+              <div class="pref-row-label">{{ $t('preferences.quickInlineLabel') }}</div>
+              <div class="pref-row-desc">{{ $t('preferences.quickInlineDesc') }}</div>
+            </div>
+            <div class="pqv">
+              <div class="pqv-hint">{{ $t('preferences.quickPreviewHint') }}</div>
+              <div v-if="quickSelectedOptions.length" class="pqv-grid">
+                <button
+                  v-for="opt in quickSelectedOptions" :key="opt.key" type="button"
+                  class="pqv-card" :title="$t('preferences.quickPreviewRemove')"
+                  @click="unselectQuick(opt.key)"
+                >
+                  <el-icon class="pqv-icon"><component :is="opt.icon" /></el-icon>
+                  <span class="pqv-name">{{ $t(opt.labelKey) }}</span>
+                </button>
+              </div>
+              <div v-else class="pqv-empty">{{ $t('preferences.quickPreviewEmpty') }}</div>
+              <el-checkbox-group v-model="quickSelected" class="quick-config">
+                <el-checkbox
+                  v-for="opt in quickPoolOptions" :key="opt.key" :value="opt.key"
+                  class="quick-config-item"
+                >
+                  <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
+                  <span class="quick-config-name">{{ $t(opt.labelKey) }}</span>
+                  <template v-if="opt.type === 'action'"><span class="quick-action-badge">{{ $t('settings.quickActionBadge') }}</span></template>
+                </el-checkbox>
+              </el-checkbox-group>
             </div>
           </div>
         </div>
@@ -180,29 +216,6 @@
           </div>
         </div>
       </el-tab-pane>
-
-      <!-- ── Tab 快捷入口：数量不限，0 个=隐藏仪表盘快捷区 ── -->
-      <el-tab-pane :label="$t('preferences.tabQuick')" name="quick">
-        <div class="pref-group">
-          <div class="pref-group-head">{{ $t('preferences.groupQuick') }}</div>
-          <el-checkbox-group v-model="quickSelected" class="quick-config">
-            <el-checkbox
-              v-for="opt in quickPoolOptions" :key="opt.key" :value="opt.key"
-              class="quick-config-item"
-            >
-              <el-icon class="quick-config-icon"><component :is="opt.icon" /></el-icon>
-              <span class="quick-config-name">{{ $t(opt.labelKey) }}</span>
-              <template v-if="opt.type === 'action'"><span class="quick-action-badge">{{ $t('settings.quickActionBadge') }}</span></template>
-            </el-checkbox>
-          </el-checkbox-group>
-          <div class="quick-config-footer">
-            <div class="form-hint">{{ $t('settings.quickHint') }}</div>
-            <el-button size="small" type="primary" @click="saveQuickActions" :loading="quickSaving" :disabled="loadFailed">
-              {{ $t('settings.quickSave') }}
-            </el-button>
-          </div>
-        </div>
-      </el-tab-pane>
     </el-tabs>
 
     <!-- 自定义首页批一（v70）：「自定义我的首页」抽屉（与本页面宽度控件共用 prefs 控制器） -->
@@ -231,7 +244,6 @@ const { t } = useI18n()
 const themeStore = useThemeStore()
 const loading = ref(true)
 const saving = ref(false)
-const quickSaving = ref(false)
 /** 偏好加载失败（防止默认值覆盖真实设置，对齐 Settings profileLoadFailed） */
 const loadFailed = ref(false)
 /** 顶部导航当前 tab（el-tabs 非 lazy：面板保持挂载，表单状态不丢） */
@@ -241,7 +253,7 @@ const animDemoOn = ref(false)
 
 const form = reactive({
   notifyEnabled: true,
-  dashboardDefaultPanel: 'queue'
+  dashboardDefaultPanel: 'dashboard'
 })
 
 // ─── 自定义首页批一（v70）：prefs 共享控制器（抽屉 provide/inject 同一实例） ───
@@ -307,37 +319,39 @@ function runAnimDemo() {
   animDemoOn.value = !animDemoOn.value
 }
 
-// ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存） ───
+// ─── #3: 快捷按钮配置（v0.25: DB 持久化，localStorage 作回退缓存；822 并入通用页签，保存合并） ───
 // #45: 过滤掉 dashboard（在仪表盘上加去仪表盘的按钮无意义）
 const quickPoolOptions = QUICK_ACTION_POOL.filter(a => a.key !== 'dashboard')
 const quickSelected = ref(readQuickActionsConfig())
 
-async function saveQuickActions() {
-  quickSaving.value = true
-  try {
-    await artistApi.updateProfile({ quickActions: quickSelected.value })
-    // DB 写入成功，同步 localStorage 缓存（离线/降级时回退用）
-    safeSetItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
-    ElMessage.success(t('settings.quickSaved'))
-  } catch {
-    // DB 写入失败（后端可能尚未支持该字段）：回退 localStorage，用户配置不丢
-    safeSetItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
-    ElMessage.warning(t('settings.quickLocalFallback'))
-  } finally {
-    quickSaving.value = false
-  }
+/** 微缩预览源：已选 key → 候选池定义（池序），与首页快捷区渲染同序 */
+const quickSelectedOptions = computed(() =>
+  quickPoolOptions.filter(a => quickSelected.value.includes(a.key))
+)
+
+/** 微缩预览卡片点一下 = 取消勾选（添加在下方勾选格做，移除在预览上做） */
+function unselectQuick(key: string) {
+  quickSelected.value = quickSelected.value.filter(k => k !== key)
 }
 
 async function save() {
   saving.value = true
   try {
+    // 822 批：通知/默认面板/快捷按钮三字段同一接口一次提交（原两个保存按钮合一）
     await artistApi.updateProfile({
       notifyEnabled: form.notifyEnabled,
-      dashboardDefaultPanel: form.dashboardDefaultPanel
+      dashboardDefaultPanel: form.dashboardDefaultPanel,
+      quickActions: quickSelected.value
     })
+    safeSetItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
     ElMessage.success(t('settings.saved'))
-  } catch (err) { ElMessage.error((err instanceof Error ? err.message : '') || String(err)) }
-  finally { saving.value = false }
+  } catch (err) {
+    // DB 写入失败：快捷按钮先落本地不丢（下次打开自动迁移），其余字段未保存如实提示
+    safeSetItem(QUICK_ACTIONS_KEY, JSON.stringify(quickSelected.value))
+    ElMessage.warning(t('settings.quickLocalFallback'))
+    // eslint-disable-next-line no-console -- 保留原始错误供排查
+    console.warn('[Preferences] save failed:', err)
+  } finally { saving.value = false }
 }
 
 async function loadPreferences() {
@@ -346,7 +360,8 @@ async function loadPreferences() {
   try {
     const profile = await artistApi.getProfile()
     form.notifyEnabled = !!profile.notify_enabled
-    form.dashboardDefaultPanel = profile.dashboard_default_panel || 'queue'
+    // 822 批：null/空 = 仪表盘（默认行为），不再回退 queue（旧口径下 queue 实为死值）
+    form.dashboardDefaultPanel = profile.dashboard_default_panel || 'dashboard'
 
     // v0.25: 快捷按钮从 DB 初始化（DB 有值→用 DB；DB 无值但 localStorage 有→一次性迁移到 DB）
     const dbQuick = parseQuickActions(profile.quick_actions)
@@ -400,6 +415,26 @@ onMounted(() => {
 .pref-row-label { font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink); }
 .pref-row-desc { margin-top: 2px; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink3); max-width: 520px; }
 .pref-row-control { display: flex; align-items: center; }
+/* 822 批：上下堆叠行（快捷按钮：说明在上，预览+勾选格在下吃满宽） */
+.pref-row--stack { grid-template-columns: 1fr; align-items: start; }
+
+/* 822 批：快捷按钮微缩预览（首页快捷区 1:1 同款：三列网格 + 手剪不规则角 + 图标在上；
+   点卡片 = 取消勾选，添加在下方勾选格做） */
+.pqv { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.pqv-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+.pqv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 420px; }
+.pqv-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 8px; border: none;
+  border-radius: 3px 8px 4px 9px / 8px 4px 9px 3px; /* 手剪不规则角（与首页快捷卡同款） */
+  background: var(--paper2); cursor: pointer; user-select: none;
+  box-shadow: var(--sh-1);
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
+}
+.pqv-card:hover { background: var(--card); box-shadow: var(--sh-2); }
+.pqv-icon { font-size: calc(var(--font-scale, 1) * 20px); color: var(--hq); }
+.pqv-name { font-size: calc(var(--font-scale, 1) * 12px); font-weight: 500; color: var(--ink); }
+.pqv-empty { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink3); }
 
 /* 自定义首页批一（v70）：页面最大宽度滑杆（左滑杆 + 右当前值，与字号滑块同构） */
 .page-max-row { gap: 16px; }

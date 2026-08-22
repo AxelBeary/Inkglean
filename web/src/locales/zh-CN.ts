@@ -1127,7 +1127,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 自定义首页批一：列表板块行数上限截断提示（todo/guestbook/activity 共用）
     listMore: '还有 {n} 条…',
     slotEarly: '清晨', slotMorning: '上午', slotNoon: '午后', slotAfternoon: '下午', slotEvening: '夜晚', slotMidnight: '深夜',
-    panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理',
+    panelQueue: '排期看板', panelOrders: '订单列表', panelManual: '手动录单', panelTiers: '价格管理', panelDashboard: '仪表盘',
     // F4: 留言审核
     guestbookTitle: '留言审核', guestbookEmpty: '暂无留言',
     guestbookPending: '待审核', guestbookApproved: '已通过', guestbookRejected: '已拒绝',
@@ -1692,16 +1692,20 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   // #44: 偏好设置独立页面（从主页设置拆出）
   preferences: {
     title: '偏好设置',
-    // 819-G: 顶部导航三 tab + 分组卡片行结构文案（原零信息副标题已删）
+    // 819-G: 顶部导航三 tab + 分组卡片行结构文案（原零信息副标题已删）；822 批：快捷入口页签并入通用，tabQuick/groupQuick 随删
     tabGeneral: '通用',
     tabDisplay: '显示与字号',
-    tabQuick: '快捷入口',
     groupNotify: '通知',
     groupDashboard: '仪表盘',
     groupFont: '字号',
     groupAppearance: '外观',
     groupAnimation: '动画',
-    groupQuick: '仪表盘快捷按钮',
+    // 822 批：快捷按钮并入通用页签（微缩预览 + 勾选格）
+    quickInlineLabel: '快捷按钮',
+    quickInlineDesc: '勾哪些，首页快捷区就放哪些。',
+    quickPreviewHint: '首页快捷区长这样（点卡片可移除）',
+    quickPreviewRemove: '点一下取消勾选',
+    quickPreviewEmpty: '一个都没勾——首页不显示快捷区',
     notifyLabel: '新消息通知',
     notifyDesc: '有新订单、留言或节点推进时提醒你。',
     defaultPanelLabel: '进入后台时先打开',
@@ -1768,6 +1772,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     entryLabel: '自定义我的首页',
     entryDesc: '首页板块的顺序、显隐、宽度与显示行数。',
     entryBtn: '去自定义',
+    // 822 批：抽屉布局微缩预览（顺序/宽度实时跟随，点方块定位条目）
+    previewTitle: '首页布局预览',
     incomeChartEmpty: '还没有到账记录',
     incomeMonthReceived: '本月到账',
     incomeYearCumulative: '今年累计',
@@ -1795,10 +1801,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     loadFailedHint: '设置尚未加载成功，无法保存，请先重试',
     rulesLoadFailed: '须知内容加载失败，保存已禁用以防止覆盖现有须知', retry: '重试加载',
     quickTitle: '快捷按钮', quickLabel: '仪表盘快捷按钮',
-    quickHint: '勾选后点保存生效；数量不限，可全部取消（全部取消后仪表盘快捷区隐藏）。',
-    quickSave: '保存快捷按钮', quickSaved: '快捷按钮已保存',
     quickActionBadge: '⚡动作',
-    quickLocalFallback: '已保存到本地（服务端暂不可用，下次打开自动同步）',
+    quickLocalFallback: '保存失败：快捷按钮已暂存本机，其余设置未保存',
     nameLabel: '画师昵称', bioLabel: '个人简介', bioPlaceholder: '介绍一下自己',
     profileNameDesc: '客户主页与订单列表展示的昵称',
     profileBioDesc: '客户了解你的第一段话',

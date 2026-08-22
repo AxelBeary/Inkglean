@@ -1128,7 +1128,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // 自定义首页批一：列表板块行数上限截断提示（todo/guestbook/activity 共用）
     listMore: '{n} more…',
     slotEarly: 'Early morning', slotMorning: 'Morning', slotNoon: 'Midday', slotAfternoon: 'Afternoon', slotEvening: 'Evening', slotMidnight: 'Late night',
-    panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing',
+    panelQueue: 'Queue Board', panelOrders: 'Order List', panelManual: 'Manual Entry', panelTiers: 'Pricing', panelDashboard: 'Dashboard',
     // F4: guestbook moderation
     guestbookTitle: 'Guestbook moderation', guestbookEmpty: 'No messages',
     guestbookPending: 'Pending', guestbookApproved: 'Approved', guestbookRejected: 'Rejected',
@@ -1696,13 +1696,17 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // 819-G: top-nav three tabs + grouped card row copy (zero-info subtitle removed)
     tabGeneral: 'General',
     tabDisplay: 'Display & Font',
-    tabQuick: 'Quick Access',
     groupNotify: 'Notifications',
     groupDashboard: 'Dashboard',
     groupFont: 'Font size',
     groupAppearance: 'Appearance',
     groupAnimation: 'Motion',
-    groupQuick: 'Dashboard quick buttons',
+    // 822: quick buttons merged into the General tab (mini preview + checklist)
+    quickInlineLabel: 'Quick buttons',
+    quickInlineDesc: 'Whatever you check shows up in the dashboard quick area.',
+    quickPreviewHint: 'Your dashboard quick area will look like this (click a card to remove)',
+    quickPreviewRemove: 'Click to uncheck',
+    quickPreviewEmpty: 'Nothing checked — the quick area is hidden on your dashboard',
     notifyLabel: 'New message notifications',
     notifyDesc: 'Alerts you about new orders, messages, and stage updates.',
     defaultPanelLabel: 'Open by default',
@@ -1769,6 +1773,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     entryLabel: 'Customize my dashboard',
     entryDesc: 'Order, visibility, width and row count of dashboard sections.',
     entryBtn: 'Customize',
+    // 822: drawer layout mini preview (follows order/width live; click a block to locate)
+    previewTitle: 'Dashboard layout preview',
     incomeChartEmpty: 'No income recorded yet',
     incomeMonthReceived: 'Received this month',
     incomeYearCumulative: 'Year to date',
@@ -1797,10 +1803,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     rulesLoadFailed: 'Failed to load rules. Saving is disabled to avoid overwriting existing rules.', retry: 'Retry',
     // #3: quick actions config
     quickTitle: 'Quick Actions', quickLabel: 'Dashboard quick buttons',
-    quickHint: 'Check the buttons you want, then save. No limit — clear all to hide the quick area on the dashboard.',
-    quickSave: 'Save quick actions', quickSaved: 'Quick actions saved',
     quickActionBadge: '⚡Action',
-    quickLocalFallback: 'Saved locally (server unavailable, will sync on next visit)',
+    quickLocalFallback: 'Save failed: quick buttons kept locally; other changes were not saved',
     nameLabel: 'Artist name', bioLabel: 'Bio', bioPlaceholder: 'Introduce yourself',
     profileNameDesc: 'Shown on your public page and in order lists',
     profileBioDesc: 'The first thing clients read about you',

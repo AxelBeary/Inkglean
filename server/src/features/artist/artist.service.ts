@@ -21,8 +21,8 @@ import { resolve, join } from 'path'
 const CLIENT_TEMPLATE_IDS = ['atelier', 'classic', 'gallery', 'folio']
 
 // F-4（P3-17）: Dashboard 默认面板枚举——来源 web/src/views/artist/Preferences.vue
-// el-option 列表（queue/orders/manual/tiers），null=未设置（前端回退 queue）
-const DASHBOARD_DEFAULT_PANELS = ['queue', 'orders', 'manual', 'tiers']
+// el-option 列表（822 批补 dashboard：停留仪表盘本身，即默认行为）；null=未设置（同 dashboard）
+const DASHBOARD_DEFAULT_PANELS = ['dashboard', 'queue', 'orders', 'manual', 'tiers']
 
 /** 作品（entities.ts 未定义，内联） */
 interface Artwork {

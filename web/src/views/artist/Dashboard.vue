@@ -51,12 +51,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useArtistStore } from '../../stores/artist'
 import { artistApi } from '../../api/index'
 import { subscribeReconnect } from '../../utils/reconnect'
 import { resolveDashboardLayout } from '../../utils/dashboard-layout'
+// 822 批：「进入后台时先打开」落地（原只存不消费属死功能，本批接通）
+import { resolveDefaultPanelRoute } from '../../utils/defaultPanel'
 import type { ArtistStats, DashboardPrefs } from '../../api/types'
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'
@@ -82,6 +85,20 @@ import DdlSoonCard from '../../components/artist/dashboard/DdlSoonCard.vue'
 
 const { t } = useI18n()
 const store = useArtistStore()
+const router = useRouter()
+
+// ─── 822 批：进入后台时先打开——进仪表盘页且 profile 就绪后，按设置一次性 replace 到目标页；
+//     dashboard/未设置 = 停留仪表盘；redirected 旗标防重连刷新重复跳 ───
+const panelRedirected = ref(false)
+watch(() => store.profile, (p) => {
+  if (panelRedirected.value) return
+  const panel = (p as { dashboard_default_panel?: string | null } | null)?.dashboard_default_panel
+  const route = resolveDefaultPanelRoute(panel)
+  if (route) {
+    panelRedirected.value = true
+    void router.replace(route)
+  }
+}, { immediate: true })
 // getStats 返回 ArtistStats（含 monthRevenueCents 等）
 const stats = ref<ArtistStats | null>(null)
 

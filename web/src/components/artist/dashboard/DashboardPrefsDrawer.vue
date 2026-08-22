@@ -20,6 +20,21 @@
 
       <p class="dp-tip">{{ t('dashboardPrefs.tip') }}</p>
 
+      <!-- 822 批：首页布局微缩预览——顺序/半行整行实时跟随列表操作；点方块定位到对应条目 -->
+      <div v-if="prefs && visibleOrder.length" class="dp-preview" :aria-label="t('dashboardPrefs.previewTitle')">
+        <div class="dp-preview-head">{{ t('dashboardPrefs.previewTitle') }}</div>
+        <div class="dp-preview-grid">
+          <button
+            v-for="id in visibleOrder" :key="id" type="button"
+            class="dpv-block" :class="{ full: widthOf(id) === 'full', hl: highlightId === id }"
+            :title="t(nameKey(id))"
+            @click="locateItem(id)"
+          >
+            {{ t(nameKey(id)) }}
+          </button>
+        </div>
+      </div>
+
       <div v-if="loadFailed" class="dp-loadfail">
         <span>{{ t('dashboardPrefs.loadFailed') }}</span>
         <el-button size="small" @click="load">{{ t('dashboardPrefs.retry') }}</el-button>
@@ -30,6 +45,7 @@
           v-for="id in visibleOrder"
           :key="id"
           class="d-item"
+          :data-ditem="id"
           :class="{ off: isHidden(id), dragging: dragId === id, 'drop-before': isDropTarget(id, true), 'drop-after': isDropTarget(id, false) }"
           draggable="true"
           @dragstart="onDragStart($event, id)"
@@ -249,6 +265,17 @@ function clearDrag() {
 async function onReset() {
   await ctrl.resetDefaults()
 }
+
+// ─── 822 批：布局预览点方块定位条目（滚到可见 + 高亮一闪） ───
+const highlightId = ref<string | null>(null)
+let hlTimer: ReturnType<typeof setTimeout> | null = null
+function locateItem(id: string) {
+  const el = document.querySelector(`[data-ditem="${id}"]`)
+  if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  highlightId.value = id
+  if (hlTimer) clearTimeout(hlTimer)
+  hlTimer = setTimeout(() => { highlightId.value = null }, 1200)
+}
 </script>
 
 <style scoped>
@@ -304,6 +331,42 @@ async function onReset() {
   line-height: 1.6;
   padding: 8px 16px 0;
 }
+
+/* 822 批：首页布局微缩预览（两列模拟首页栅格，整行跨两列；点方块定位条目） */
+.dp-preview { padding: 12px 16px 4px; }
+.dp-preview-head {
+  font-size: calc(var(--font-scale, 1) * 12px);
+  color: var(--ink3);
+  margin-bottom: 8px;
+}
+.dp-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 8px;
+  background: var(--paper);
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-m);
+  max-height: 148px;
+  overflow-y: auto;
+}
+.dpv-block {
+  font-family: var(--f-b);
+  font-size: calc(var(--font-scale, 1) * 11px);
+  padding: 8px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  background: var(--card);
+  color: var(--ink2);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.dpv-block:hover { border-color: var(--hq); color: var(--hq); }
+.dpv-block.full { grid-column: 1 / -1; }
+.dpv-block.hl { border-color: var(--hq); color: var(--hq); box-shadow: var(--sh-1); }
 
 .dp-loadfail {
   display: flex;

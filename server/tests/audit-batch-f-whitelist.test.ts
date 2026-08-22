@@ -31,8 +31,8 @@ describe('审计批 F-4 模板/面板白名单', () => {
     }
   })
 
-  it('TC-F4-03: 合法 dashboard_default_panel 通过（含 null 清除）', () => {
-    for (const panel of ['queue', 'orders', 'manual', 'tiers']) {
+  it('TC-F4-03: 合法 dashboard_default_panel 通过（含 null 清除；822 批补 dashboard 档）', () => {
+    for (const panel of ['dashboard', 'queue', 'orders', 'manual', 'tiers']) {
       const updated = artistService.updateArtist(artist.id, { dashboard_default_panel: panel }) as Artist
       expect(updated.dashboard_default_panel).toBe(panel)
     }
