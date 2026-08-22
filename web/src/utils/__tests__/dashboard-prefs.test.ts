@@ -24,6 +24,9 @@ import {
   OPTIONAL_MODULE_IDS,
   DASHBOARD_MODULE_METAS,
   DENSITY_MODULE_IDS,
+  MODULE_STYLE_PICKS,
+  SCHEDULE_STYLE_OPTIONS,
+  GREET_STYLE_OPTIONS,
   PAGE_MAX_MIN,
   PAGE_MAX_MAX,
   PAGE_MAX_STEP,
@@ -88,6 +91,19 @@ describe('板块登记表（与服务端 CORE_MODULES 同口径）', () => {
     expect(getDashboardModuleMeta('greet')?.nameKey).toBe('dashboardPrefs.moduleGreet')
     expect(getDashboardModuleMeta('incomeChart')?.optional).toBe(true)
     expect(getDashboardModuleMeta('moonBase')).toBeUndefined()
+  })
+
+  it('款式选择器：仅排期块与问候卡登记，取值与组件同口径（v152 补回防回归）', () => {
+    expect(Object.keys(MODULE_STYLE_PICKS).sort()).toEqual(['greet', 'schedule'])
+    expect(MODULE_STYLE_PICKS.schedule?.field).toBe('scheduleStyle')
+    expect(MODULE_STYLE_PICKS.greet?.field).toBe('greetStyle')
+    expect(SCHEDULE_STYLE_OPTIONS.map(o => o.value)).toEqual(['bars', 'ledger', 'ptags', 'waybill'])
+    expect(GREET_STYLE_OPTIONS.map(o => o.value)).toEqual(['plain', 'seal', 'ribbon', 'rule'])
+    // 每个选项都有 i18n 名称键；未登记模块（如待办）无款式行
+    for (const opt of [...SCHEDULE_STYLE_OPTIONS, ...GREET_STYLE_OPTIONS]) {
+      expect(opt.nameKey).toMatch(/^dashboardPrefs\.style/)
+    }
+    expect(MODULE_STYLE_PICKS.todo).toBeUndefined()
   })
 })
 

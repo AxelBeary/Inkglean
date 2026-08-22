@@ -70,6 +70,36 @@ export function getDashboardModuleMeta(id: string): DashboardModuleMeta | undefi
 /** 支持「显示行数」的列表板块（与服务端 DENSITY_MODULES 同口径；ddlSoon 属批二） */
 export const DENSITY_MODULE_IDS: readonly DashboardModuleId[] = ['todo', 'guestbook', 'activity', 'ddlSoon']
 
+// ─── 板块款式选择器（批二定稿：仅排期块与问候卡有款式；v152 补回抽屉款式行） ───
+
+export interface StyleOption {
+  /** prefs.scheduleStyle / greetStyle 的合法取值 */
+  value: string
+  nameKey: string
+}
+
+/** 排期块四款（时间条/台账/纸签/运单，与 SchedulePanels variant 同口径） */
+export const SCHEDULE_STYLE_OPTIONS: readonly StyleOption[] = [
+  { value: 'bars', nameKey: 'dashboardPrefs.styleScheduleBars' },
+  { value: 'ledger', nameKey: 'dashboardPrefs.styleScheduleLedger' },
+  { value: 'ptags', nameKey: 'dashboardPrefs.styleSchedulePtags' },
+  { value: 'waybill', nameKey: 'dashboardPrefs.styleScheduleWaybill' }
+]
+
+/** 问候卡四款（标准/印框/书签/分隔，与 GreetingNote greetStyle 同口径） */
+export const GREET_STYLE_OPTIONS: readonly StyleOption[] = [
+  { value: 'plain', nameKey: 'dashboardPrefs.styleGreetPlain' },
+  { value: 'seal', nameKey: 'dashboardPrefs.styleGreetSeal' },
+  { value: 'ribbon', nameKey: 'dashboardPrefs.styleGreetRibbon' },
+  { value: 'rule', nameKey: 'dashboardPrefs.styleGreetRule' }
+]
+
+/** 模块 id → 款式选择器；未登记的模块抽屉不显款式行 */
+export const MODULE_STYLE_PICKS: Readonly<Partial<Record<DashboardModuleId, { field: 'scheduleStyle' | 'greetStyle'; options: readonly StyleOption[] }>>> = {
+  schedule: { field: 'scheduleStyle', options: SCHEDULE_STYLE_OPTIONS },
+  greet: { field: 'greetStyle', options: GREET_STYLE_OPTIONS }
+}
+
 // ─── 页面宽度三档常量（与原型 820 / 服务端归一化口径一致） ───
 
 export const PAGE_ALIGNS = ['left', 'center', 'full'] as const

@@ -69,6 +69,20 @@
             </template>
           </div>
 
+          <!-- v152 补回：款式行（批二定稿仅排期块与问候卡有款式；改动即 PUT） -->
+          <div v-if="stylePick(id)" class="d-row2">
+            <span class="d-sub">{{ t('dashboardPrefs.styleLabel') }}</span>
+            <span class="seg">
+              <button
+                v-for="opt in stylePick(id)!.options"
+                :key="opt.value"
+                type="button"
+                :class="{ on: styleOf(id) === opt.value }"
+                @click="setStyle(id, opt.value)"
+              >{{ t(opt.nameKey) }}</button>
+            </span>
+          </div>
+
           <!-- 开张任务：系统控制优先于自定义——完成后自动消失 -->
           <div v-if="id === 'onboarding'" class="d-note">{{ t('dashboardPrefs.onboardingNote') }}</div>
         </div>
@@ -105,11 +119,12 @@ import {
   useDashboardPrefs,
   getDashboardModuleMeta,
   DASHBOARD_MODULE_METAS,
+  MODULE_STYLE_PICKS,
   reorderModules,
   toggleModuleHidden,
   normalizeDensity
 } from '../../../utils/dashboard-prefs'
-import type { DashboardModuleMeta } from '../../../utils/dashboard-prefs'
+import type { DashboardModuleMeta, DashboardModuleId } from '../../../utils/dashboard-prefs'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void }>()
@@ -173,6 +188,24 @@ function setWidth(id: string, w: 'half' | 'full') {
 }
 function setDensity(id: string, n: number) {
   void ctrl.mutate(d => { d.density = { ...d.density, [id]: n } })
+}
+
+/** 款式选择器（仅登记过的模块：排期块/问候卡）；未登记返回 undefined 不显款式行 */
+function stylePick(id: string) {
+  return MODULE_STYLE_PICKS[id as DashboardModuleId]
+}
+function styleOf(id: string): string {
+  const pick = stylePick(id)
+  if (!pick || !prefs.value) return ''
+  return prefs.value[pick.field]
+}
+function setStyle(id: string, value: string) {
+  const pick = stylePick(id)
+  if (!pick) return
+  void ctrl.mutate(d => {
+    if (pick.field === 'scheduleStyle') d.scheduleStyle = value as typeof d.scheduleStyle
+    else d.greetStyle = value as typeof d.greetStyle
+  })
 }
 
 // ─── 抽屉内拖拽换位（HTML5 drag；纵列按上下半判定插入前/后） ───
