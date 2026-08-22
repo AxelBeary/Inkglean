@@ -78,8 +78,11 @@ export async function refreshArtistTokenCache(baseURL: string, qqNumber: string 
       } catch (err) {
         lastError = err
         const e = err as ApiLoginError | null | undefined
-        // 只有“该动态口令已使用”才换下一个候选；其余错误（网络/锁定/校验失败）直接抛
-        if (!(e?.status === 401 && /已使用/.test(e?.detail || ''))) throw err
+        // 可换下一候选的两类 401：「已使用」（重放防护）与「动态口令错误」（边界竞态：
+        // 候选码恰在 30s 换码边界算出，服务端校验时已翻过时间步，最早候选跌出 ±1 窗口，
+        // CI 实测 #32438159703）。锁定/网络等其余错误直接抛，不空耗防爆破计数。
+        const retriable = e?.status === 401 && /已使用|动态口令错误/.test(e?.detail || '')
+        if (!retriable) throw err
       }
     }
     const waitMs = 30_000 - (Date.now() % 30_000) + 100
