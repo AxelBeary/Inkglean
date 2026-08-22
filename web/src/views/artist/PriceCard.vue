@@ -864,14 +864,18 @@ onBeforeUnmount(() => {
   gap: 16px;
   margin-top: 20px;
 }
-/* 页宽容器查询收尾批：@media 改 @container 认容器宽（ArtistLayout 内容容器已设 container-type: inline-size），防窗口宽而页宽框窄时双列发挤 */
-@container (max-width: 960px) {
+/* 822 重做：双列断点 960→1200——≥1200 时「编辑+预览」并排且每侧都宽裕；
+   其下塌单列预览下移，彻底避开「双列已开但半幅面板装不下左右两列」的挤爆区间；
+   指名 page 查询容器 = ArtistLayout 内容容器，不被面板级容器截胡 */
+@container page (max-width: 1199px) {
   .pc-grid { grid-template-columns: 1fr; }
 }
 
 .pc-panel {
   padding: 4px 24px 16px;
 }
+/* 822 重做：编辑面板自身成为命名容器查询上下文（panel）——行断点认面板实宽，不猜外层页宽 */
+.pc-panel { container-name: panel; container-type: inline-size; }
 
 /* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
 .group-head {
@@ -885,9 +889,11 @@ onBeforeUnmount(() => {
 }
 
 /* 818-H 三原则：一行一事，说明在左控件在右，栅格对齐 */
+/* 822 重做：控件列废除 minmax(360px,…) 硬下限——硬下限会把弹性说明列挤成逐字竖排；
+   说明列保底 140px 不断字，控件列吃剩余宽度、控件自身 max-width 收口 */
 .row {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 560px); gap: 16px; align-items: start;
-  padding: 12px 0; border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 24px; align-items: start;
+  padding: 16px 0; border-top: 1px solid var(--line);
 }
 .field-text { min-width: 0; }
 .lab { font-size: 15px; color: var(--ink); }
@@ -899,13 +905,16 @@ onBeforeUnmount(() => {
 .pc-count { margin-left: 4px; font-style: normal; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 .pc-hint { margin: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 
-.pc-tiers { display: flex; flex-direction: column; gap: 8px; }
+/* 822 重做：一档 = 一枚纸签（宣纸底 + 淡墨细线 + 手剪圆角），签间留隙不贴死（竹简纪律） */
+.pc-tiers { display: flex; flex-direction: column; gap: 12px; }
 .pc-tier {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--line2);
+  padding: 12px 16px;
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-paper);
 }
 .pc-tier-main { display: grid; grid-template-columns: minmax(0, 1fr) 116px auto; gap: 8px; }
 .pc-price { font-variant-numeric: tabular-nums; }
@@ -1004,8 +1013,10 @@ onBeforeUnmount(() => {
   background: var(--paper2);
 }
 
-/* 页宽容器查询收尾批：@media 改 @container 认容器宽（同 .pc-grid 口径） */
-@container (max-width: 960px) {
+/* 822 重做：行断点认编辑面板自身宽度（指名 panel 容器）；
+   面板装不下两列即上下堆叠，输入框放开限宽吃满 */
+@container panel (max-width: 540px) {
   .row { grid-template-columns: 1fr; }
+  .ctrl > .pc-input { max-width: none; }
 }
 </style>

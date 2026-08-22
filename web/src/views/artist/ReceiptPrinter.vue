@@ -27,15 +27,18 @@
           </div>
           <div class="ctrl ctrl--items">
             <div class="rc-items">
+              <!-- 822 重做：一行制品 = 一枚纸签，名称独占一行，数量/单价/赠/删除收进次行，窄宽自动换行不挤压 -->
               <div v-for="(item, i) in form.items" :key="item.id" class="rc-item" :class="{ 'rc-item--gift': item.gift }">
                 <input v-model="item.name" type="text" class="field rc-input rc-item-name" :placeholder="$t('receipt.itemNamePlaceholder')" maxlength="20" />
-                <input v-model.number="item.qty" type="number" min="1" step="1" class="field rc-input rc-item-qty" :aria-label="$t('receipt.qtyLabel')" />
-                <input v-model.number="item.priceYuan" type="number" min="0" step="0.01" class="field rc-input rc-item-price" :placeholder="$t('receipt.pricePlaceholder')" :disabled="item.gift" />
-                <label class="rc-gift">
-                  <input v-model="item.gift" type="checkbox" />
-                  <span>{{ $t('receipt.giftLabel') }}</span>
-                </label>
-                <button type="button" class="rc-mini-btn" :disabled="form.items.length <= 1" :aria-label="$t('receipt.removeItem')" @click="removeItem(i)">{{ $t('receipt.removeItem') }}</button>
+                <div class="rc-item-sub">
+                  <input v-model.number="item.qty" type="number" min="1" step="1" class="field rc-input rc-item-qty" :aria-label="$t('receipt.qtyLabel')" />
+                  <input v-model.number="item.priceYuan" type="number" min="0" step="0.01" class="field rc-input rc-item-price" :placeholder="$t('receipt.pricePlaceholder')" :disabled="item.gift" />
+                  <label class="rc-gift">
+                    <input v-model="item.gift" type="checkbox" />
+                    <span>{{ $t('receipt.giftLabel') }}</span>
+                  </label>
+                  <button type="button" class="rc-mini-btn" :disabled="form.items.length <= 1" :aria-label="$t('receipt.removeItem')" @click="removeItem(i)">{{ $t('receipt.removeItem') }}</button>
+                </div>
               </div>
               <button type="button" class="rc-btn rc-btn--ghost" :disabled="form.items.length >= 10" @click="addItem">{{ $t('receipt.addItem') }}</button>
             </div>
@@ -465,9 +468,12 @@ onBeforeUnmount(() => {
 .page-sub { margin-top: 8px; }
 
 .rc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 20px; }
-/* 页宽容器查询收尾批：@media 改 @container 认容器宽（ArtistLayout 内容容器已设 container-type: inline-size），防窗口宽而页宽框窄时双列发挤 */
-@container (max-width: 960px) { .rc-grid { grid-template-columns: 1fr; } }
+/* 822 重做：双列断点 960→1200（同价目卡口径）——避开「双列已开但半幅面板装不下左右两列」的挤爆区间；
+   指名 page 查询容器 = ArtistLayout 内容容器，不被面板级容器截胡 */
+@container page (max-width: 1199px) { .rc-grid { grid-template-columns: 1fr; } }
 .rc-panel { padding: 4px 24px 16px; }
+/* 822 重做：编辑面板自身成为命名容器查询上下文（panel）——行断点认面板实宽，不猜外层页宽 */
+.rc-panel { container-name: panel; container-type: inline-size; }
 
 .group-head {
   display: flex; align-items: center; gap: 8px;
@@ -476,9 +482,11 @@ onBeforeUnmount(() => {
 }
 .group-head::before { content: ""; width: 8px; height: 8px; flex: none; background: var(--zs); border-radius: var(--r-paper); }
 
+/* 822 重做：控件列废除 minmax(360px,…) 硬下限——硬下限会把弹性说明列挤成逐字竖排；
+   说明列保底 140px 不断字，控件列吃剩余宽度、控件自身 max-width 收口 */
 .row {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 560px); gap: 16px; align-items: start;
-  padding: 12px 0; border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 24px; align-items: start;
+  padding: 16px 0; border-top: 1px solid var(--line);
 }
 .field-text { min-width: 0; }
 .lab { font-size: 15px; color: var(--ink); }
@@ -489,14 +497,22 @@ onBeforeUnmount(() => {
 .form-actions { display: flex; justify-content: flex-end; padding: 12px 0 0; }
 .rc-count { margin-left: 4px; font-style: normal; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 
-.rc-items { display: flex; flex-direction: column; gap: 8px; }
+/* 822 重做：一行制品 = 一枚纸签（宣纸底 + 淡墨细线 + 手剪圆角），签间留隙不贴死（竹简纪律）；
+   名称独占一行，次行 flex-wrap 窄宽自动换行，不再用五列硬栅格 */
+.rc-items { display: flex; flex-direction: column; gap: 12px; }
 .rc-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px 96px auto auto;
-  gap: 8px; align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--line2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-paper);
 }
+.rc-item-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rc-item-sub .rc-mini-btn { margin-left: auto; }
+.rc-item-qty { width: 64px; }
+.rc-item-price { flex: 1; min-width: 90px; max-width: 160px; }
 .rc-item--gift .rc-item-price { opacity: 0.5; }
 .rc-gift { display: flex; align-items: center; gap: 4px; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); white-space: nowrap; }
 .rc-money-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -532,11 +548,10 @@ onBeforeUnmount(() => {
 .rc-preview-panel { align-self: start; }
 .rc-canvas { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper2); }
 
-/* 页宽容器查询收尾批：@media 改 @container 认容器宽（同 .rc-grid 口径） */
-@container (max-width: 960px) {
+/* 822 重做：行断点认编辑面板自身宽度（指名 panel 容器）；
+   面板装不下两列即上下堆叠，输入框放开限宽吃满（制品纸签内部靠 flex-wrap 自降级） */
+@container panel (max-width: 540px) {
   .row { grid-template-columns: 1fr; }
-  .rc-item { grid-template-columns: minmax(0, 1fr) 56px 88px; }
-  .rc-item .rc-gift { grid-column: 1; }
-  .rc-item .rc-mini-btn { grid-column: 2 / 4; justify-self: end; }
+  .ctrl > .rc-input { max-width: none; }
 }
 </style>

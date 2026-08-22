@@ -942,6 +942,8 @@ const { validateSession } = useSessionGuard()
    均支持 container queries，无需 fallback；≤960px 既有响应式断点保持不动。
    注：不设 width:100%——宽度 auto 时内联 margin auto 才能在限宽档居中/靠左生效。 */
 .main-content-inner {
+  /* 822 布局重做：命名 page，供页级断点指名查询（无名 @container 匹配不受影响，既有页面零变动） */
+  container-name: page;
   container-type: inline-size;
 }
 @media (max-width: 600px) {
