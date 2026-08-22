@@ -59,38 +59,40 @@ html.dark[data-palette='ink'] {
   --pal-border: #2c2c2c;
 }
 
-/* ===== dusk（暮）：蓝灰暮色，冷静 ===== */
+/* ===== dusk（暮）：蓝灰暮色，冷静 =====
+   2026-08-22 拍板：亮暗两档同步拉开蓝调（旧值近白/近黑，与纸墨难以肉眼区分） */
 html[data-palette='dusk'] {
-  --pal-bg: #eef1f6;
-  --pal-bg-alt: #e4e9f1;
+  --pal-bg: #e7edf8;
+  --pal-bg-alt: #dbe3f2;
   --pal-surface: #ffffff;
-  --pal-text: #232b3a;
-  --pal-text-dim: #7d8798;
-  --pal-border: #d5dce8;
+  --pal-text: #202b40;
+  --pal-text-dim: #75819c;
+  --pal-border: #c9d4e8;
 }
 html.dark[data-palette='dusk'] {
-  --pal-bg: #121a26;
-  --pal-bg-alt: #182231;
-  --pal-surface: #1e2a3c;
-  --pal-text: #dfe6f0;
-  --pal-text-dim: #8b96a8;
-  --pal-border: #2c3a50;
+  --pal-bg: #16233c;
+  --pal-bg-alt: #1d2c4a;
+  --pal-surface: #223350;
+  --pal-text: #e2e9f5;
+  --pal-text-dim: #93a0ba;
+  --pal-border: #35486b;
 }
 
-/* ===== moss（苔）：深绿自然，温润 ===== */
+/* ===== moss（苔）：深绿自然，温润 =====
+   2026-08-22 拍板：亮暗两档同步拉开绿调（旧值近白/近黑，与纸墨难以肉眼区分） */
 html[data-palette='moss'] {
-  --pal-bg: #f0f4ee;
-  --pal-bg-alt: #e6ede2;
+  --pal-bg: #e9f1e1;
+  --pal-bg-alt: #ddead2;
   --pal-surface: #ffffff;
-  --pal-text: #24301f;
-  --pal-text-dim: #7e8a74;
-  --pal-border: #d8e2d0;
+  --pal-text: #23341c;
+  --pal-text-dim: #75866a;
+  --pal-border: #c9dcba;
 }
 html.dark[data-palette='moss'] {
-  --pal-bg: #131c13;
-  --pal-bg-alt: #1a251a;
-  --pal-surface: #212e21;
-  --pal-text: #dfe8d8;
-  --pal-text-dim: #8fa084;
-  --pal-border: #2e3d2c;
+  --pal-bg: #1b2c1b;
+  --pal-bg-alt: #223722;
+  --pal-surface: #284028;
+  --pal-text: #e3ecda;
+  --pal-text-dim: #97ac88;
+  --pal-border: #3b563a;
 }

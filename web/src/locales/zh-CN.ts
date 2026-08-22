@@ -798,7 +798,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     title: '设置',
     rules: '约稿须知编辑',
     share: '分享接稿页',
-    quickconfig: '快捷入口设置',
+    quickconfig: '快捷入口',
     publish: '快速发作品',
     uploading: '发布中…',
     published: '作品已发布',
@@ -1877,11 +1877,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     slotSection: '名额设置',
     quotaSection: '月度额度',
     queueSection: '队列行为',
-    totalHint: '正式 {n} + 缓冲 {m} = 合计 {sum} 席',
-    statusOpen: '当前正在接受约稿',
-    statusFull: '已接满，暂停接单',
-    statusBreak: '休息中，暂不接单',
-    statusHidden: '主页已隐藏'
+    totalHint: '正式 {n} + 缓冲 {m} = 合计 {sum} 席'
   },
   templates: {
     hint: '选择客户看到的画师主页样式。布局决定页面结构，配色决定气质底色，所有模板共享同一套作品/价格数据。',

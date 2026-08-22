@@ -33,7 +33,6 @@
                   <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
                   <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
                 </el-radio-group>
-                <span class="status-desc">{{ statusDesc }}</span>
               </div>
             </div>
           </div>
@@ -150,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { artistApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -199,14 +198,6 @@ const form = reactive({
   hideQueuePosition: false,
   hidePromoteNotify: false,
   bufferShortForm: false
-})
-
-const statusDesc = computed(() => {
-  const s = currentStatus.value
-  if (s === 'open') return t('slots.statusOpen')
-  if (s === 'full') return t('slots.statusFull')
-  if (s === 'break') return t('slots.statusBreak')
-  return t('slots.statusHidden')
 })
 
 async function save() {
@@ -300,7 +291,6 @@ onMounted(loadProfile)
 .desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
 .ctrl { min-width: 0; }
 .ctrl--switch { width: 72px; }
-.status-desc { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 14px); }
 .slot-row { display: flex; align-items: center; gap: 12px; }
 .slot-input { width: 120px; }
 .slot-unit { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 14px); }

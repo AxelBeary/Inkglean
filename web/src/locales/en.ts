@@ -799,7 +799,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     title: 'Settings',
     rules: 'Edit Guidelines',
     share: 'Share Page',
-    quickconfig: 'Quick Action Settings',
+    quickconfig: 'Quick Actions',
     publish: 'Quick Publish',
     uploading: 'Uploading…',
     published: 'Artwork published',
@@ -1879,11 +1879,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     slotSection: 'Slot Limits',
     quotaSection: 'Monthly Quota',
     queueSection: 'Queue Behavior',
-    totalHint: 'Formal {n} + Buffer {m} = {sum} total slots',
-    statusOpen: 'Currently accepting commissions',
-    statusFull: 'Full — not accepting new orders',
-    statusBreak: 'On break — not accepting orders',
-    statusHidden: 'Page is hidden'
+    totalHint: 'Formal {n} + Buffer {m} = {sum} total slots'
   },
   templates: {
     hint: 'Choose how your public page looks. Layout sets the structure, palette sets the mood — all share the same artwork and pricing data.',

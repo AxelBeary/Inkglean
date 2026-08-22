@@ -418,7 +418,8 @@ onMounted(() => {
 }
 
 .form-hint { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); margin-top: 4px; }
-.pref-save-bar { margin-top: 20px; display: flex; gap: 12px; align-items: center; }
+/* 保存条靠右对齐：与全站其他页面 form-actions（justify-content: flex-end）统一口径 */
+.pref-save-bar { margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px; align-items: center; }
 .pref-save-bar .form-hint { margin-top: 0; }
 
 /* 818-A: 字号滑块（左侧滑杆 + 右侧当前值，保留不动） */
