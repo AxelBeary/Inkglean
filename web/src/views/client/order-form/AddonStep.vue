@@ -148,7 +148,7 @@ import { useI18n } from 'vue-i18n'
 import { formatYuan, formatYuanValue } from '../../../utils/money'
 import type { AddonSelection, DiscountResult, InstallmentItem, StyleAddon, StylePricePreview } from './types'
 
-defineProps<{
+withDefaults(defineProps<{
   regularAddons: StyleAddon[]
   usageAddons: StyleAddon[]
   rushAddons: StyleAddon[]
@@ -163,13 +163,16 @@ defineProps<{
   /** 画风价格预览（calculate-style-price 响应；未计价为 null） */
   preview: StylePricePreview | null
   /** 计价失败错误文案（空串 = 无错误；K1-3 禁止失败静默） */
-  styleCalcError: string
+  styleCalcError?: string
   installments: InstallmentItem[]
   discountEnabled: boolean
   discountValidating: boolean
   discountResult: DiscountResult | null
   discountError: string
-}>()
+}>(), {
+  // 2026-08-22：补默认空串（语义本就是「空串=无错误」），消掉测试直挂时的 Invalid prop 警告
+  styleCalcError: ''
+})
 
 /** 折扣码输入（v-model 上报父层 form.discountCode） */
 const discountCode = defineModel<string>('discountCode', { default: '' })

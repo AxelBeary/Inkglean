@@ -1,7 +1,7 @@
 <template>
   <!-- HySkeleton — 订单卡片骨架屏（纯装饰，translateX 微光，GPU 友好） -->
   <div class="hy-skeleton" aria-hidden="true">
-    <div class="hy-skeleton-card" v-for="i in count" :key="i" :style="{ '--i': Number(i) - 1 }">
+    <div class="hy-skeleton-card" v-for="i in cards" :key="i" :style="{ '--i': i - 1 }">
       <div class="hy-skeleton-thumb"></div>
       <div class="hy-skeleton-lines">
         <div class="hy-skeleton-line hy-skeleton-line--title"></div>
@@ -13,10 +13,18 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from 'vue'
-defineProps({
-  // 兼容静态属性写法（如 count="6"，Vue 运行时仍按 Number 转型）
-  count: { type: Number as PropType<number | string>, default: 6 }
+import { computed } from 'vue'
+
+const props = defineProps({
+  // 兼容静态属性写法（如 count="6"，模板属性恒为字符串），组件内自行归一不依赖运行时转型
+  count: { type: [Number, String], default: 6 }
+})
+
+/** 归一卡片数：2026-08-22 实测静态属性写法下字符串不会自动转数字（v-for 遍历字符串
+ *  会按字符逐项=只出 1 张卡），统一在此归一，同步消除 Invalid prop 警告 */
+const cards = computed(() => {
+  const n = Number(props.count)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 6
 })
 </script>
 

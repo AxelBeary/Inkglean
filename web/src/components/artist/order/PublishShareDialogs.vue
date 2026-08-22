@@ -7,7 +7,7 @@
       <div class="publish-hint">{{ $t('orderDetail.publishHint') }}</div>
       <el-checkbox-group v-model="publishForm.deliverableIds" class="publish-list">
         <div
-          v-for="d in order.deliverables"
+          v-for="d in (order?.deliverables ?? [])"
           :key="d.id"
           class="publish-item"
           :class="{ 'publish-item--disabled': !isPublishableImage(d) }"
@@ -111,7 +111,8 @@ interface PublishOrderLite { deliverables?: PublishDeliverable[] | null; order_n
 interface SharePlatform { id: number; name: string; hostname?: string | null }
 
 const props = defineProps({
-  order: { type: Object as PropType<PublishOrderLite>, required: true },
+  // 2026-08-22：弹窗常驻挂载，订单未加载时父层传 null（组件内两处消费均已 ?. 容忍），如实声明可空消除 Invalid prop 警告
+  order: { type: Object as PropType<PublishOrderLite | null>, default: null },
   routeId: { type: [String, Number], required: true }
 })
 
