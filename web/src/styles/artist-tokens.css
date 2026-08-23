@@ -159,6 +159,33 @@ html[data-artist-theme="paper"] {
   --el-color-warning: var(--th);
   --el-color-danger: var(--zs);
   --el-color-info: var(--ink3);
+  /* 823 报障批：语义色派生档补齐——artist-tokens 此前只映主色，EP 组件（el-tag/el-alert/
+     复选框勾选态等）吃的 -light-3~9/-dark-2 派生档全落 EP 出厂蓝绿，与纸墨颜料盘割裂；
+     混纸公式与上方 primary 档同口径。 */
+  --el-color-success-light-3: color-mix(in srgb, var(--sl) 70%, var(--paper));
+  --el-color-success-light-5: color-mix(in srgb, var(--sl) 50%, var(--paper));
+  --el-color-success-light-7: color-mix(in srgb, var(--sl) 30%, var(--paper));
+  --el-color-success-light-8: color-mix(in srgb, var(--sl) 20%, var(--paper));
+  --el-color-success-light-9: color-mix(in srgb, var(--sl) 10%, var(--paper));
+  --el-color-success-dark-2: color-mix(in srgb, var(--sl) 82%, var(--ink));
+  --el-color-warning-light-3: color-mix(in srgb, var(--th) 70%, var(--paper));
+  --el-color-warning-light-5: color-mix(in srgb, var(--th) 50%, var(--paper));
+  --el-color-warning-light-7: color-mix(in srgb, var(--th) 30%, var(--paper));
+  --el-color-warning-light-8: color-mix(in srgb, var(--th) 20%, var(--paper));
+  --el-color-warning-light-9: color-mix(in srgb, var(--th) 10%, var(--paper));
+  --el-color-warning-dark-2: color-mix(in srgb, var(--th) 82%, var(--ink));
+  --el-color-danger-light-3: color-mix(in srgb, var(--zs) 70%, var(--paper));
+  --el-color-danger-light-5: color-mix(in srgb, var(--zs) 50%, var(--paper));
+  --el-color-danger-light-7: color-mix(in srgb, var(--zs) 30%, var(--paper));
+  --el-color-danger-light-8: color-mix(in srgb, var(--zs) 20%, var(--paper));
+  --el-color-danger-light-9: color-mix(in srgb, var(--zs) 10%, var(--paper));
+  --el-color-danger-dark-2: var(--zs-d);
+  --el-color-info-light-3: color-mix(in srgb, var(--ink3) 70%, var(--paper));
+  --el-color-info-light-5: color-mix(in srgb, var(--ink3) 50%, var(--paper));
+  --el-color-info-light-7: color-mix(in srgb, var(--ink3) 30%, var(--paper));
+  --el-color-info-light-8: color-mix(in srgb, var(--ink3) 20%, var(--paper));
+  --el-color-info-light-9: color-mix(in srgb, var(--ink3) 10%, var(--paper));
+  --el-color-info-dark-2: var(--ink2);
   --el-bg-color: var(--card);
   --el-bg-color-overlay: var(--card);
   --el-bg-color-page: var(--paper);
@@ -178,6 +205,21 @@ html[data-artist-theme="paper"] {
   --el-box-shadow: var(--sh-3);
   --el-box-shadow-light: var(--sh-2);
   --el-mask-color: rgba(240, 230, 207, 0.82);
+  /* 823 报障批：el-empty 空态插画色板纸墨化——EP 出厂为白底浅冷灰十档（只适配亮底），
+     且 main.ts 全局引入的 EP dark/css-vars.css 会在 html.dark 下把色板换成近黑十档；
+     画师后台主题（data-artist-theme）与 html.dark 各走各的偏好键，「宣纸主题+系统暗色」
+     组合下插画变黑盒。挂属性选择器（0,1,1）压过 EP :root（0,1,0），双主题即时生效。
+     映射口径 = AdminLayout 清扫批#5 既有覆写（此处为全站级事实源，AdminLayout 那份同值保留）。 */
+  --el-empty-fill-color-0: var(--paper2);
+  --el-empty-fill-color-1: var(--line);
+  --el-empty-fill-color-2: var(--line2);
+  --el-empty-fill-color-3: var(--ink4);
+  --el-empty-fill-color-4: var(--ink3);
+  --el-empty-fill-color-5: var(--ink3);
+  --el-empty-fill-color-6: var(--ink2);
+  --el-empty-fill-color-7: var(--ink3);
+  --el-empty-fill-color-8: var(--line);
+  --el-empty-fill-color-9: var(--line2);
 }
 
 /* ═══ 818 W5 米色宣纸：大面积背景铺极淡纸纹（只铺布局底，卡片内不铺）═══
@@ -278,6 +320,31 @@ html[data-artist-theme="ink"] {
   --el-color-warning: var(--th);
   --el-color-danger: var(--zs);
   --el-color-info: var(--ink3);
+  /* 823 报障批：语义色派生档补齐（同宣纸块口径，混墨底） */
+  --el-color-success-light-3: color-mix(in srgb, var(--sl) 70%, var(--paper));
+  --el-color-success-light-5: color-mix(in srgb, var(--sl) 50%, var(--paper));
+  --el-color-success-light-7: color-mix(in srgb, var(--sl) 30%, var(--paper));
+  --el-color-success-light-8: color-mix(in srgb, var(--sl) 20%, var(--paper));
+  --el-color-success-light-9: color-mix(in srgb, var(--sl) 10%, var(--paper));
+  --el-color-success-dark-2: color-mix(in srgb, var(--sl) 82%, var(--ink));
+  --el-color-warning-light-3: color-mix(in srgb, var(--th) 70%, var(--paper));
+  --el-color-warning-light-5: color-mix(in srgb, var(--th) 50%, var(--paper));
+  --el-color-warning-light-7: color-mix(in srgb, var(--th) 30%, var(--paper));
+  --el-color-warning-light-8: color-mix(in srgb, var(--th) 20%, var(--paper));
+  --el-color-warning-light-9: color-mix(in srgb, var(--th) 10%, var(--paper));
+  --el-color-warning-dark-2: color-mix(in srgb, var(--th) 82%, var(--ink));
+  --el-color-danger-light-3: color-mix(in srgb, var(--zs) 70%, var(--paper));
+  --el-color-danger-light-5: color-mix(in srgb, var(--zs) 50%, var(--paper));
+  --el-color-danger-light-7: color-mix(in srgb, var(--zs) 30%, var(--paper));
+  --el-color-danger-light-8: color-mix(in srgb, var(--zs) 20%, var(--paper));
+  --el-color-danger-light-9: color-mix(in srgb, var(--zs) 10%, var(--paper));
+  --el-color-danger-dark-2: var(--zs-d);
+  --el-color-info-light-3: color-mix(in srgb, var(--ink3) 70%, var(--paper));
+  --el-color-info-light-5: color-mix(in srgb, var(--ink3) 50%, var(--paper));
+  --el-color-info-light-7: color-mix(in srgb, var(--ink3) 30%, var(--paper));
+  --el-color-info-light-8: color-mix(in srgb, var(--ink3) 20%, var(--paper));
+  --el-color-info-light-9: color-mix(in srgb, var(--ink3) 10%, var(--paper));
+  --el-color-info-dark-2: var(--ink2);
   --el-bg-color: var(--card);
   --el-bg-color-overlay: var(--card);
   --el-bg-color-page: var(--paper);
