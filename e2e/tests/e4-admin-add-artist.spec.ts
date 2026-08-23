@@ -14,7 +14,7 @@ test('E4 管理员添加画师', async ({ adminPage: page }) => {
   const ts = Date.now().toString().slice(-6)
   await page.getByPlaceholder('画师的QQ号（用于登录）').fill(`2${ts}`)
   await page.getByPlaceholder('展示给客户的名字').fill(`E2E画师${ts}`)
-  await page.getByPlaceholder('如 alice（小写字母/数字/连字符）').fill(`e2e${ts}`)
+  await page.getByPlaceholder('如 alice（小写字母/数字）').fill(`e2e${ts}`)
 
   // 提交并等待 API 响应（诊断：确认请求是否发出 + 状态码）
   const [response] = await Promise.all([
