@@ -21,7 +21,7 @@ const LIMIT = 800
 // 调高冻结值须一号裁决并在此注明出处）
 // 格式：相对仓库根的 POSIX 路径 → 冻结行数
 const ALLOWLIST = {
-  'server/src/features/admin/admin.routes.ts': 1059,
+  'server/src/features/admin/admin.routes.ts': 1067,
   'server/src/features/pricing/style.service.ts': 1041,
   // 下两项为纯类型/接口契约聚集仓（深度分析报告「可接受暂缓」裁决），
   // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）；
@@ -43,9 +43,14 @@ const ALLOWLIST = {
   // api/types.ts 1824→1859 = 邀请码多次使用批类型 +35；
   // api/index.ts 837→842 = 邀请码批新端点方法 +5；
   // ArtistManage.vue 1109→1222 = 邀请码管理端筛选/分页/使用记录弹窗 +113（后续可拆弹窗组件瘦身）
-  // Login.vue 977→1011 = 823 验证器 App 安装引导批 +34（入驻前置提醒 + 扫码页折叠引导模板/状态/样式，后续可抽引导组件瘦身）
-  'server/src/features/artist/artist.service.ts': 802,
-  'web/src/views/admin/ArtistManage.vue': 1222,
+  // Login.vue 977→1011 = 823 验证器 App 安装引导批 +34（入驻前置提醒 + 扫码页折叠引导模板/状态/样式，后续可抽引导组件瘦身）；
+  // 823 登录留痕批追认四处（本批必需增量，拆分不经济，出处在案）：
+  // admin.routes.ts 1059→1067 = 管理端列表/档案接口重新附带 last_login_at/last_login_ip +8；
+  // artist.service.ts 802→812 = recordLastLogin 函数与注释 + getAllArtists 显式列补两列 +10；
+  // api/types.ts 1859→1864 = AdminArtistItem 登录留痕字段扩展 +5；
+  // ArtistManage.vue 1222→1249 = 上次登录列模板 +6 与相对时间/悬浮展示函数 +21（后续可随邀请码弹窗一并拆组件瘦身）
+  'server/src/features/artist/artist.service.ts': 812,
+  'web/src/views/admin/ArtistManage.vue': 1249,
   'web/src/views/artist/Login.vue': 1011,
   'web/src/components/artist/ArtStyleManager.vue': 941,
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
