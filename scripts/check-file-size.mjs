@@ -21,7 +21,8 @@ const LIMIT = 800
 // 调高冻结值须一号裁决并在此注明出处）
 // 格式：相对仓库根的 POSIX 路径 → 冻结行数
 const ALLOWLIST = {
-  'server/src/features/admin/admin.routes.ts': 1067,
+  // 823 规则对齐批追认：1067→1068 = artistCode 上限 10→20 的出处注释 +1（等长替换外加一行注释，出处在案）
+  'server/src/features/admin/admin.routes.ts': 1068,
   'server/src/features/pricing/style.service.ts': 1041,
   // 下两项为纯类型/接口契约聚集仓（深度分析报告「可接受暂缓」裁决），
   // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）；
