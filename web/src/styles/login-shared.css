@@ -1,0 +1,210 @@
+/* ═══ login-shared.css — 登录页与入驻叠加层共享的表单/按钮/帮助折叠样式 ═══
+   824 合入批抽取：此前这些样式在 Login.vue 与 InviteOverlay.vue 各存一份同款副本
+   （叠加层抽组件后登录页 scoped 样式不跨组件生效），抽为共享文件消除漂移。
+   全部选择器以 .login-page 为前缀锁定作用域——登录页根与入驻叠加层均在其内，
+   其他页面不受影响。视觉口径与原登录页逐字一致，勿单独改动。 */
+
+/* ── 表单：墨线输入（只画横线不画框；全项目 EP 惯例的有意例外——宪法「输入框只画横线」） ── */
+.login-page .field { margin-bottom: 24px; }
+
+.login-page .field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: calc(var(--font-scale, 1) * 12px);
+  letter-spacing: 1px;
+  color: var(--ink3);
+  transition: color var(--dur-mid) var(--ease-out);
+}
+
+.login-page .field:focus-within .field-label { color: var(--hq); }
+
+/* 墨线描入：聚焦时一笔花青从左侧描入（触发式、不循环） */
+.login-page .field-input {
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line2);
+  border-radius: 0;
+  background-color: transparent;
+  background-image: linear-gradient(var(--hq), var(--hq));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 0% 1px;
+  font-family: inherit;
+  font-size: calc(var(--font-scale, 1) * 16px);
+  color: var(--ink);
+  caret-color: var(--hq);
+  transition: background-size var(--dur-slow) var(--ease-out);
+}
+
+.login-page .field-input::placeholder { color: var(--ink3); }
+
+.login-page .field-input:focus {
+  outline: none;
+  background-size: 100% 1px;
+}
+
+/* 键盘焦点可见性：花青焦点环（仅 :focus-visible，鼠标用户不见） */
+.login-page .field-input:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: 3px;
+}
+
+.login-page .field-input:disabled { opacity: 0.6; }
+
+/* 错误态：朱砂一笔 */
+.login-page .field-error .field-input {
+  border-bottom-color: var(--zs);
+  background-image: linear-gradient(var(--zs), var(--zs));
+  background-size: 100% 1px;
+}
+
+.login-page .field-error .field-label { color: var(--zs); }
+
+/* ── 主按钮：一锭墨（手剪圆角 + 深浅不均 + 底缘厚墨） ── */
+.login-page .login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  border-radius: var(--r-paper);
+  background-color: var(--hq);
+  background-image: linear-gradient(175deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.1));
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.16);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: calc(var(--font-scale, 1) * 15px);
+  letter-spacing: 4px;
+  text-indent: 4px;
+  cursor: pointer;
+  transition: background-color var(--dur-mid) var(--ease-out);
+}
+
+html[data-artist-theme='ink'] .login-page .login-btn { color: #171611; }
+
+.login-page .login-btn:hover:not(:disabled) { background-color: var(--hq-d); }
+
+.login-page .login-btn:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: 3px;
+}
+
+.login-page .login-btn:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+/* 成功态：一汪石绿（500ms 后跳转） */
+.login-page .login-btn.is-ok {
+  background-color: var(--sl);
+  opacity: 1;
+}
+
+/* 加载态：转环（功能性状态指示，非装饰循环） */
+.login-page .btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+html[data-artist-theme='ink'] .login-page .btn-spinner { border-color: rgba(23, 22, 17, 0.3); border-top-color: currentColor; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 错误/状态行：一行小字，淡入不弹跳（note-in 同时供叠加层入场动画用） ── */
+@keyframes note-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.login-page .notice {
+  margin: 16px 0 0;
+  font-size: calc(var(--font-scale, 1) * 13px);
+  line-height: 1.6;
+  animation: note-in var(--dur-slow) var(--ease-out);
+}
+
+.login-page .notice-error { color: var(--zs); }
+
+/* 成功提示：石绿一行（与 notice-error 同族；824 首绑找回用） */
+.login-page .notice-ok { color: var(--sl); }
+
+/* ── 帮助：验证器推荐（button + grid-rows 0fr→1fr 展开动画） ── */
+.login-page .help {
+  margin-top: 24px;
+  border-top: 1px dashed var(--line);
+  padding-top: 16px;
+}
+
+.login-page .help-toggle {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: calc(var(--font-scale, 1) * 12px);
+  color: var(--ink2);
+  cursor: pointer;
+  text-align: center;
+  transition: color var(--dur-mid) var(--ease-out);
+}
+
+.login-page .help-toggle:hover { color: var(--ink); }
+
+.login-page .help-toggle:focus-visible {
+  outline: 2px solid var(--hq);
+  outline-offset: 2px;
+}
+
+.login-page .help-toggle::after {
+  content: '＋';
+  margin-left: 8px;
+  color: var(--ink4);
+}
+
+.login-page .help-toggle[aria-expanded='true']::after { content: '－'; }
+
+.login-page .help-body-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s var(--ease-out);
+}
+
+.login-page .help-body-wrap.open { grid-template-rows: 1fr; }
+
+.login-page .help-body {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.28s var(--ease-out);
+  font-size: calc(var(--font-scale, 1) * 12px);
+  color: var(--ink2);
+  line-height: 1.8;
+}
+
+.login-page .help-body-wrap.open .help-body {
+  opacity: 1;
+  padding-top: 12px;
+}
+
+.login-page .help-body p { margin: 0 0 8px; }
+.login-page .help-body ul { margin: 0 0 8px 16px; padding: 0; }
+.login-page .help-note { color: var(--ink3); }
+
+/* ═══ 768 竖屏 ═══ */
+@media (max-width: 768px) {
+  /* 移动端点按热区：墨线输入纵向加厚 */
+  .login-page .field-input { padding: 12px 0; }
+}
+
+/* ═══ 无障碍：尊重系统减少动态效果 ═══ */
+@media (prefers-reduced-motion: reduce) {
+  .login-page .notice { animation: none; }
+  .login-page .btn-spinner { animation: none; }
+  .login-page .field-input, .login-page .help-body-wrap, .login-page .help-body, .login-page .login-btn, .login-page .field-label, .login-page .help-toggle {
+    transition-duration: 0.01ms;
+  }
+}

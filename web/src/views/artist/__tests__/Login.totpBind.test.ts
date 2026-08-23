@@ -18,7 +18,8 @@ const h = vi.hoisted(() => ({
 }))
 
 vi.mock('vue-i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key, locale: { value: 'zh-CN' } })
+  // tm: 824 四步批 InviteOverlay 用它渲染文书章节（测试不验正文，给空数组即可）
+  useI18n: () => ({ t: (key: string) => key, tm: () => [], locale: { value: 'zh-CN' } })
 }))
 
 vi.mock('vue-router', () => ({
@@ -94,12 +95,20 @@ describe('Login 绑定失效提示旗标（824）', () => {
 })
 
 describe('Login 首绑防刷新（824）', () => {
-  it('建号成功 → 写进行中状态并进入第 2 步', async () => {
+  it('建号成功 → 写进行中状态并进入扫码步（四步流程第 4 步）', async () => {
     h.register.mockResolvedValue({ otpauthUri: 'otpauth://totp/x?secret=AAA', qqNumber: '12345678' })
     const wrapper = mountLogin()
     await flushPromises()
 
     await wrapper.find('.invite-entry').trigger('click')
+    await flushPromises()
+    // 824 四步流程：文书窗（滑底解锁）→ 勾选 → 下一步 → 验证器预告 → 下一步 → 信息表单（jsdom 滚动量为 0，scroll 事件即判到底）
+    await wrapper.find('.invite-docs').trigger('scroll')
+    await wrapper.find('.invite-agree input').setValue(true)
+    await wrapper.findAll('button').find(b => b.text().includes('invite.docsNext'))!.trigger('click')
+    await wrapper.findAll('button').find(b => b.text().includes('invite.prepNext'))!.trigger('click')
+    await flushPromises()
+
     await wrapper.find('#invite-code').setValue('ABCD1234')
     await wrapper.find('#invite-qq').setValue('12345678')
     await wrapper.find('#invite-name').setValue('画师甲')
@@ -113,12 +122,12 @@ describe('Login 首绑防刷新（824）', () => {
     expect(sessionStorage.getItem(INVITE_TOTP_PROGRESS_KEY)).toBe(
       JSON.stringify({ qqNumber: '12345678', otpauthUri: 'otpauth://totp/x?secret=AAA' })
     )
-    // 已进入第 2 步：6 位码输入框 + 防刷新提示在场
+    // 已进入扫码步（四步流程第 4 步）：6 位码输入框 + 防刷新提示在场
     expect(wrapper.find('#invite-totp').exists()).toBe(true)
     expect(wrapper.find('.invite-warn').text()).toContain('invite.noRefreshNotice')
   })
 
-  it('刷新后加载：有进行中状态则直接恢复第 2 步并预填找回 QQ', async () => {
+  it('刷新后加载：有进行中状态则直接恢复扫码步并预填找回 QQ', async () => {
     sessionStorage.setItem(
       INVITE_TOTP_PROGRESS_KEY,
       JSON.stringify({ qqNumber: '12345678', otpauthUri: 'otpauth://totp/x?secret=AAA' })
