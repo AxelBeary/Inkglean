@@ -428,10 +428,14 @@ function onStepUpCancel() {
 .mobile-menu-btn:hover { box-shadow: var(--sh-1); }
 .mobile-menu-btn:active { transform: scale(0.98); }
 
-/* ─── 主内容区（1280 居中，派工 A） ─── */
+/* ─── 主内容区（1280 居中，派工 A）─── */
 .main-content {
   background: var(--paper);
   padding: 24px 28px;
+  /* 824 响应式巡逻：对齐 ArtistLayout 口径——管理后台也挂命名容器，
+     页内网格/表格断点改认容器宽（防「窗口宽而页窄」挤爆） */
+  container-name: admin;
+  container-type: inline-size;
   /* K1（波2，灰沼教训）：主内容区底色随主题即时切换，不插值 */
 }
 /* 内容容器：max-width 1280 居中（页面组件内部只写 .admin-page 语义类） */

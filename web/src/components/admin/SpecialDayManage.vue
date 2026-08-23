@@ -412,8 +412,9 @@ onMounted(() => {
 .sd-greeting-row:last-child { border-bottom: none; }
 .sd-greeting-text { min-width: 0; word-break: break-word; }
 
-/* ≤600px 单列布局（对齐 GreetingTable P1-B 模式） */
-@media (max-width: 600px) {
+/* ≤720px 容器宽单列布局（对齐 GreetingTable P1-B 模式；824 响应式巡逻：
+   @media 改 @container——768 窗口下容器已不足 720，窗口断点不触发致操作列溢出 18px） */
+@container (max-width: 720px) {
   .sd-table-head { display: none; }
   .sd-row {
     grid-template-columns: 1fr auto auto;

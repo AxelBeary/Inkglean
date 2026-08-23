@@ -54,7 +54,8 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column :label="$t('common.actions')" width="110" align="right">
+            <!-- 824 响应式巡逻：操作列右固定，防窄屏藏进表内横滚 -->
+            <el-table-column :label="$t('common.actions')" width="110" align="right" fixed="right">
               <template #default>
                 <el-button size="small" type="primary" plain @click="$router.push('/admin/artists')">{{ $t('admin.manage') }}</el-button>
               </template>

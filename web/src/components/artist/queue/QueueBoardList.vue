@@ -806,6 +806,14 @@ onMounted(() => {
 .focus-empty-text { font-size: calc(var(--font-scale, 1) * 12px); }
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
 
+/* 824 响应式巡逻：窄容器卡片竖排——信息独占整行，
+   防「左图不缩 + 右文 min-width:0」把文字列挤成细竖条（390 实测逐字换行）；
+   断点 720 对齐全站 .row 堆叠口径（768 窗口容器≈684 也命中） */
+@container (max-width: 720px) {
+  .item-body { flex-basis: 100%; order: 3; }
+  .item-actions { margin-left: 0; order: 4; }
+}
+
 /* R30e: 滑块确认（整行，拖到底触发取消） */
 .slide-cancel-row {
   width: 100%;

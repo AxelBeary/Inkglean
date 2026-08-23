@@ -803,8 +803,10 @@ defineExpose({ reload: load })
 .style-empty-guide-text { margin: 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); line-height: 1.5; }
 .style-empty-cta { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; }
 
-/* 分栏阈值 680px：宽屏才分两列，避免单块过窄 */
-.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(680px, 1fr)); gap: 20px; align-items: start; }
+/* 分栏阈值 680px：宽屏才分两列，避免单块过窄；
+   824 响应式巡逻：minmax 下限取 min(680px,100%)——容器不足 680 时列宽跟容器缩，
+   防卡片硬撑 680 溢出裁切（768 实测删除钮被切） */
+.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(680px, 100%), 1fr)); gap: 20px; align-items: start; }
 @media (max-width: 760px) { .style-grid { grid-template-columns: 1fr; } }
 /* A3: 拖拽幽灵 */
 .ghost { opacity: 0.4; }

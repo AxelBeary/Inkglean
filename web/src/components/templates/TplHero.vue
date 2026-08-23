@@ -1,6 +1,6 @@
 <template>
   <!-- banner：代表作横幅，名字叠在画上（classic） -->
-  <header v-if="variant === 'banner'" class="tpl-hero tpl-hero--banner" ref="sentinelEl">
+  <header v-if="variant === 'banner'" class="tpl-hero tpl-hero--banner" :class="{ 'tpl-hero--no-art': !heroArtwork }" ref="sentinelEl">
     <div class="tpl-hero-bg">
       <img v-if="heroArtwork" :src="imgUrl(heroArtwork.image_path)" alt="" class="tpl-hero-bg-img" />
       <div class="tpl-hero-shade"></div>
@@ -202,6 +202,12 @@ defineExpose({ sentinelEl })
 }
 .tpl-hero--banner .tpl-hero-bio {
   color: var(--pal-text-dim);
+}
+/* 824 响应式巡逻：无代表作时横幅收为内容高——
+   不留 62vh 空白带（空态三档视口实测顶部大块空白） */
+.tpl-hero--no-art {
+  min-height: 0;
+  padding-top: 56px;
 }
 
 /* ===== fullscreen（gallery）===== */
