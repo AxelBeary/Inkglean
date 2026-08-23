@@ -62,7 +62,8 @@
         <el-table-column :label="$t('admin.tracking.colCount')" width="120" align="right">
           <template #default="{ row }">{{ row.count }}</template>
         </el-table-column>
-        <el-table-column :label="$t('admin.tracking.colRatio')" width="160" align="right">
+        <!-- 824 响应式巡逻：占比列右固定，防窄屏藏进表内横滚 -->
+        <el-table-column :label="$t('admin.tracking.colRatio')" width="160" align="right" fixed="right">
           <template #default="{ row }">{{ ratio(row.count) }}</template>
         </el-table-column>
       </el-table>

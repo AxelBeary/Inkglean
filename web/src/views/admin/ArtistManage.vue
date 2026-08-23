@@ -357,7 +357,8 @@
           <el-table-column :label="$t('admin.deletedArtists.colDeletedAt')" width="170">
             <template #default="{ row }">{{ formatDateTime(row.deletedAt) }}</template>
           </el-table-column>
-          <el-table-column :label="$t('common.actions')" width="110" align="right">
+          <!-- 824 响应式巡逻：操作列右固定，防窄屏藏进表内横滚 -->
+          <el-table-column :label="$t('common.actions')" width="110" align="right" fixed="right">
             <template #default="{ row }">
               <el-button
                 size="small" type="primary" plain
@@ -1169,6 +1170,10 @@ onMounted(loadArtists)
   background: var(--zs); border-radius: var(--r-paper);
 }
 .action-buttons { display: flex; justify-content: flex-end; gap: var(--sp-2, 8px); flex-wrap: wrap; }
+/* 824 响应式巡逻：窄屏按钮行改左对齐，避免右对齐下参差换行显散 */
+@container admin (max-width: 600px) {
+  .action-buttons { justify-content: flex-start; }
+}
 
 .row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;

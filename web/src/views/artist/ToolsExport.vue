@@ -245,7 +245,9 @@ async function doExport() {
 .lab { font-size: 15px; color: var(--ink); }
 .desc { font-size: 13px; color: var(--ink3); margin-top: 4px; max-width: 520px; line-height: 1.5; }
 .ctrl { min-width: 0; }
-.te-range { width: 100%; max-width: 420px; }
+/* 824 响应式巡逻：:deep() 让 scope 挂 .row 侧——EP 日期控件根元素不接父级 scope 属性，
+   普通加权选择器打不中；窄容器下吃满 .ctrl 不溢出卡片（390 实测溢出 23px） */
+.row :deep(.te-range) { width: 100%; max-width: 420px; }
 .export-empty-hint { margin-top: 16px; }
 .tools-export-note { margin-top: 16px; font-size: 12px; color: var(--ink3); line-height: 1.6; }
 /* 收入概览：纸墨 token 卡片（--card/--ink/--hq），亮暗双主题自动适配 */
