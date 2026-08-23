@@ -42,6 +42,8 @@
         <div v-if="currentStep === 2" class="step-panel">
           <h1 class="panel-title">{{ $t('setup.step2Title') }}</h1>
           <p class="panel-desc">{{ $t('setup.step2Desc') }}</p>
+          <!-- 823：前置提醒——下一步扫码绑动态码，先装好验证器 App（画师反馈：没提前让下载 2FA 软件） -->
+          <p class="prep-notice">{{ $t('setup.step2Prep') }}</p>
           <div class="field-group">
             <label class="field-label">{{ $t('setup.step2QqLabel') }} <span class="required">*</span></label>
             <input v-model="adminQq" type="text" inputmode="numeric" class="field-input" :placeholder="$t('setup.step2QqPlaceholder')" />
@@ -82,6 +84,17 @@
             <div class="qr-wrap">
               <img v-if="qrDataUrl" :src="qrDataUrl" :alt="$t('setup.step3QrAlt')" class="qr-image" />
               <button v-else type="button" class="qr-placeholder" @click="regenerateQr">{{ $t('setup.step3QrRegenerate') }}</button>
+            </div>
+          </div>
+          <!-- 823：验证器安装引导（与登录页/邀请入驻同源 authApp 口径） -->
+          <div class="app-help">
+            <button class="app-help-toggle" type="button" :aria-expanded="appHelpOpen" @click="appHelpOpen = !appHelpOpen">{{ $t('setup.appHelpToggle') }}</button>
+            <div class="app-help-body-wrap" :class="{ open: appHelpOpen }">
+              <div class="app-help-body">
+                <p>{{ $t('authApp.desc') }}</p>
+                <p>{{ $t('authApp.alts') }}</p>
+                <p class="app-help-note">{{ $t('authApp.miniProgram') }}</p>
+              </div>
             </div>
           </div>
           <div class="field-group">
@@ -152,6 +165,8 @@ const totpCode = ref('')
 const errCode = ref('')
 const totpError = ref('')
 const totpSubmitting = ref(false)
+// 823：扫码页「还没装验证器 App？」折叠开关（默认收起，不干扰扫码主路径）
+const appHelpOpen = ref(false)
 
 function startSetup() {
   if (setupStore.tokenRequired && !setupStore.setupToken) {
@@ -355,4 +370,47 @@ onMounted(() => {
 .done-actions { margin-top: 28px; }
 .done-actions .btn-primary { display: block; text-align: center; }
 .studio-fields { padding: 16px; background: rgba(0,0,0,0.02); border-radius: 8px; margin-bottom: 8px; }
+/* 823：前置提醒（虚线纸签，与向导卡内柔和底色同手法） */
+.prep-notice {
+  margin: -16px 0 24px;
+  padding: 12px 14px;
+  border: 1px dashed var(--setup-line);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--setup-ink2);
+}
+/* 823：验证器安装引导折叠（与登录页 .help 同款交互，默认收起） */
+.app-help { margin: 0 0 20px; }
+.app-help-toggle {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--setup-ink2);
+  cursor: pointer;
+  text-align: center;
+  transition: color var(--dur-mid) var(--ease-out);
+}
+.app-help-toggle:hover { color: var(--setup-ink); }
+.app-help-toggle:focus-visible { outline: 2px solid var(--setup-hq); outline-offset: 2px; }
+.app-help-toggle::after { content: '＋'; margin-left: 8px; opacity: 0.6; }
+.app-help-toggle[aria-expanded='true']::after { content: '－'; }
+.app-help-body-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.32s var(--ease-out); }
+.app-help-body-wrap.open { grid-template-rows: 1fr; }
+.app-help-body {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.28s var(--ease-out);
+  font-size: 12px;
+  color: var(--setup-ink2);
+  line-height: 1.8;
+  text-align: left;
+}
+.app-help-body-wrap.open .app-help-body { opacity: 1; padding-top: 8px; }
+.app-help-body p { margin: 0 0 8px; }
+.app-help-note { opacity: 0.8; }
 </style>

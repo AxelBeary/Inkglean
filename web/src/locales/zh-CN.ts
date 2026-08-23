@@ -1051,7 +1051,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 帮助：真实 TOTP 验证器推荐（2026-08-10 用户拍板重写：
     // 旧 helpTencent/helpAegis/helpNotGoogle 内容属臆测，已删；TOTP 是 RFC 6238 标准，任何标准验证器都能用）
     helpTitle: '需要验证器 App？点此查看推荐',
-    helpDesc: '动态口令由验证器 App 生成，任何支持标准动态口令（TOTP）的都可以用：',
+    helpDesc: '动态口令需要验证器 App 来生成，推荐口径如下：',
     helpNote: '绑定后每 30 秒刷新一次，登录时输入当前显示的 6 位数字。'
   },
   // P0-9: 倍率管理（MultiplierManager）i18n
@@ -1979,7 +1979,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // REQ-027: TOTP 绑定/重置
     totpBind: '绑定', totpRebind: '重绑',
     totpBindTitle: '绑定动态口令 - {name}',
-    totpStep1: '① 让画师用手机验证器App扫描下方二维码（腾讯身份验证器小程序 / Aegis / 2FAS / Microsoft Authenticator（微软验证器））',
+    totpStep1: '① 让画师用手机上的验证器 App 扫描下方二维码（首选 Microsoft Authenticator；任何支持标准动态口令的 App 都行。微信小程序里也有同类工具，但不保证安全）',
     totpStep2: '② 画师把App上当前显示的6位码告诉你，输入下方并确认',
     totpCodeLabel: '6位动态码', totpCodePlaceholder: '输入验证器上显示的6位动态码',
     totpBindConfirm: '确认绑定', totpBindSuccess: '已绑定动态口令',
@@ -2166,6 +2166,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step1Start: '开始设置',
     step2Title: '创建管理员账号',
     step2Desc: '设置管理员信息，管理员拥有平台最高权限。',
+    // 823: 前置提醒——下一步要扫码绑动态码，先装好验证器 App（画师反馈「没提前让下载 2FA 软件」）
+    step2Prep: '提示：下一步要扫二维码设置动态口令，请先在手机上装好验证器 App（推荐 Microsoft Authenticator）。',
+    appHelpToggle: '还没装验证器 App？看推荐',
     step2QqLabel: '管理员QQ号',
     step2QqPlaceholder: '输入你的QQ号',
     step2NameLabel: '显示名称',
@@ -2182,7 +2185,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step2SubdomainRequired: '请填写工作室主页标识',
     step2SubdomainFormat: '主页标识只能包含小写字母、数字和连字符，2-20个字符',
     step3Title: '绑定动态口令',
-    step3Desc: '请使用验证器 App 扫描下方二维码，然后输入 6 位动态码完成验证。',
+    step3Desc: '请使用验证器 App 扫描下方二维码，然后输入 6 位动态码完成验证。还没装 App？点下方「还没装验证器 App？」。',
     step3QrAlt: 'TOTP 二维码',
     step3QrRegenerate: '重新生成',
     step3CodeLabel: '6 位动态码',
@@ -2386,6 +2389,13 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     error: '验证失败，请重试'
   },
 
+  // 823 用户拍板：验证器 App 推荐口径统一事实源（登录页帮助框 / 邀请入驻 / 安装向导三处同源复用，只写可验证事实）
+  authApp: {
+    desc: '首选 Microsoft Authenticator（微软验证器，手机应用商店可下载）；也可在应用商店搜索「验证器」，任何支持标准动态口令（TOTP）的 App 都能用。',
+    alts: '备选：2FAS / Google Authenticator / Aegis。',
+    miniProgram: '实在不想装 App，也可以在微信小程序里搜索同类动态口令工具，但我们无法保证其安全性，建议还是安装 App。'
+  },
+
   // REQ-039: 邀请码注册（登录页入驻 + 管理端邀请码管理）
   invite: {
     entry: '没有账号？用邀请码入驻',
@@ -2403,8 +2413,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     subdomainHint: '小写字母/数字/连字符，2-20 个字符',
     submit: '开始入驻',
     submitting: '正在入驻…',
+    // 823: 入驻第一步前置提醒 + 扫码页安装引导（画师反馈「没提前让下载 2FA 软件」）
+    prepNotice: '开始入驻前先准备一件事：下一步要设置「动态口令」，请先在手机上装好验证器 App（推荐 Microsoft Authenticator）。',
     step2Title: '绑定动态口令',
-    step2Desc: '用验证器 App 扫描下方二维码，然后输入 6 位动态码完成绑定。',
+    step2Desc: '用验证器 App 扫描下方二维码，然后输入 6 位动态码完成绑定。还没装 App？点下方「还没装验证器 App？」。',
+    appHelpToggle: '还没装验证器 App？看推荐',
     qrAlt: 'TOTP 二维码',
     totpCodeLabel: '6 位动态码',
     totpCodePlaceholder: '输入验证器上显示的 6 位数字',
