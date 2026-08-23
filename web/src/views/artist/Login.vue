@@ -87,113 +87,16 @@
           {{ t('invite.entry') }}
         </button>
 
-        <!-- REQ-039: 入驻叠加层（两步：信息表单 → TOTP 首绑；覆盖卡片，v0.49 冻结页最小增量） -->
-        <div
-          v-if="inviteView" ref="inviteOverlayRef"
-          class="invite-overlay" role="dialog" aria-modal="true" :aria-label="t('invite.title')"
-          @keydown.tab="onInviteKeydown"
-        >
-          <div class="invite-overlay-inner">
-            <button class="invite-back" type="button" @click="closeInvite">← {{ t('invite.back') }}</button>
-            <h2 class="invite-title">{{ t('invite.title') }}</h2>
-            <p class="invite-sub">{{ t('invite.subtitle') }}</p>
-
-            <!-- 步骤 1：入驻信息 -->
-            <form v-if="inviteStep === 1" novalidate @submit.prevent="submitInvite">
-              <!-- 823：前置提醒——提前说清要装验证器 App（画师反馈：注册时没提前让下载 2FA 软件） -->
-              <p class="invite-prep">{{ t('invite.prepNotice') }}</p>
-              <div class="field" :class="{ 'field-error': inviteErrCode }">
-                <label class="field-label" for="invite-code">{{ t('invite.codeLabel') }}</label>
-                <input
-                  id="invite-code" v-model="invCode" class="field-input" type="text"
-                  maxlength="8" autocomplete="off" :placeholder="t('invite.codePlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrCode = false"
-                >
-              </div>
-              <div class="field" :class="{ 'field-error': inviteErrQq }">
-                <label class="field-label" for="invite-qq">{{ t('invite.qqLabel') }}</label>
-                <input
-                  id="invite-qq" v-model="invQq" class="field-input" type="text" inputmode="numeric"
-                  autocomplete="username" :placeholder="t('invite.qqPlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrQq = false"
-                >
-              </div>
-              <div class="field" :class="{ 'field-error': inviteErrName }">
-                <label class="field-label" for="invite-name">{{ t('invite.nameLabel') }}</label>
-                <input
-                  id="invite-name" v-model="invName" class="field-input" type="text"
-                  autocomplete="nickname" :placeholder="t('invite.namePlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrName = false"
-                >
-              </div>
-              <div class="field" :class="{ 'field-error': inviteErrSub }">
-                <label class="field-label" for="invite-subdomain">{{ t('invite.subdomainLabel') }}</label>
-                <input
-                  id="invite-subdomain" v-model="invSubdomain" class="field-input" type="text"
-                  autocomplete="off" :placeholder="t('invite.subdomainPlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrSub = false"
-                >
-                <p class="field-hint">{{ t('invite.subdomainHint') }}</p>
-              </div>
-              <button class="login-btn" type="submit" :disabled="inviteSubmitting">
-                <span v-if="inviteSubmitting" class="btn-spinner" aria-hidden="true"></span>
-                {{ inviteSubmitting ? t('invite.submitting') : t('invite.submit') }}
-              </button>
-              <p v-if="inviteError" class="notice notice-error" role="alert">{{ inviteError }}</p>
-            </form>
-
-            <!-- 步骤 2：TOTP 首绑（复用 SetupWizard 同款二维码生成） -->
-            <div v-else>
-              <p class="invite-step-title">{{ t('invite.step2Title') }}</p>
-              <p class="invite-step-desc">{{ t('invite.step2Desc') }}</p>
-              <div class="invite-qr-wrap">
-                <img v-if="inviteQr" :src="inviteQr" :alt="t('invite.qrAlt')" class="invite-qr" />
-              </div>
-              <!-- 823：验证器安装引导（复用登录页帮助折叠同款交互，口径同源 authApp） -->
-              <div class="help app-help">
-                <button
-                  class="help-toggle" type="button"
-                  :aria-expanded="inviteAppHelpOpen"
-                  @click="inviteAppHelpOpen = !inviteAppHelpOpen"
-                >
-                  {{ t('invite.appHelpToggle') }}
-                </button>
-                <div class="help-body-wrap" :class="{ open: inviteAppHelpOpen }">
-                  <div class="help-body">
-                    <p>{{ t('authApp.desc') }}</p>
-                    <p>{{ t('authApp.alts') }}</p>
-                    <p class="help-note">{{ t('authApp.miniProgram') }}</p>
-                  </div>
-                </div>
-              </div>
-              <div class="field" :class="{ 'field-error': !!inviteError && inviteErrTotp }">
-                <label class="field-label" for="invite-totp">{{ t('invite.totpCodeLabel') }}</label>
-                <input
-                  id="invite-totp" v-model="inviteTotpCode" class="field-input" type="text" inputmode="numeric"
-                  maxlength="6" autocomplete="one-time-code" :placeholder="t('invite.totpCodePlaceholder')"
-                  :disabled="inviteConfirming || inviteTotpOk" @input="inviteErrTotp = false"
-                >
-                <!-- v126①：新手引导——码 30 秒轮换机制人话说明，降低「超时」错觉 -->
-                <p class="invite-totp-guide">{{ t('invite.totpGuide') }}</p>
-              </div>
-              <button
-                class="login-btn" :class="{ 'is-ok': inviteTotpOk }" type="button"
-                :disabled="inviteConfirming || inviteTotpOk" @click="confirmInviteTotp"
-              >
-                <span v-if="inviteConfirming" class="btn-spinner" aria-hidden="true"></span>
-                {{ inviteTotpOk ? t('invite.success') : inviteConfirming ? t('invite.confirming') : t('invite.totpConfirm') }}
-              </button>
-              <p v-if="inviteError" class="notice notice-error" role="alert">{{ inviteError }}</p>
-            </div>
-          </div>
-        </div>
+        <!-- REQ-039 + 824: 入驻叠加层（四步：文书必读 → 验证器预告 → 信息表单 → TOTP 首绑）；
+             流程本体抽为 InviteOverlay 组件（巨型文件防阀瘦身），本页只留入口与显隐 -->
+        <InviteOverlay v-if="inviteView" @close="closeInvite" />
       </PaperCard>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -202,6 +105,7 @@ import { useLocaleSwitch } from '../../composables/useLocaleSwitch'
 import LoginBackdrop from '../../components/artist/login/LoginBackdrop.vue'
 import PaperCard from '../../components/artist/login/PaperCard.vue'
 import LoginPrefs from '../../components/artist/login/LoginPrefs.vue'
+import InviteOverlay from '../../components/artist/login/InviteOverlay.vue'
 import { inviteApi } from '../../api/index'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
@@ -243,14 +147,11 @@ const code = ref('')
 const logging = ref(false)
 const loginOk = ref(false)
 const helpOpen = ref(false)
-// 823：入驻扫码页「还没装验证器 App？」折叠开关（与登录页 helpOpen 同款交互，状态独立）
-const inviteAppHelpOpen = ref(false)
 const errQq = ref(false)
 const errCode = ref(false)
 const noticeError = ref('')
 const paperCardRef = ref<InstanceType<typeof PaperCard> | null>(null)
 const inviteEntryRef = ref<HTMLButtonElement | null>(null)
-const inviteOverlayRef = ref<HTMLDivElement | null>(null)
 
 /** 后端 API 错误形状（code/detail 附在抛出的错误对象上）：仅用于 catch 内分支读取 */
 interface ApiErrShape {
@@ -259,25 +160,9 @@ interface ApiErrShape {
   detail?: { stale?: boolean; remainingAttempts?: number; remainingLockMs?: number }
 }
 
-// ─── REQ-039: 邀请码入驻叠加层 ───
+// ─── REQ-039 + 824: 邀请码入驻（入口与显隐在本页；四步流程本体在 InviteOverlay 组件内） ───
 const inviteEnabled = ref(false)
 const inviteView = ref(false)
-const inviteStep = ref(1)
-const invCode = ref('')
-const invQq = ref('')
-const invName = ref('')
-const invSubdomain = ref('')
-const inviteSubmitting = ref(false)
-const inviteError = ref('')
-const inviteErrCode = ref(false)
-const inviteErrQq = ref(false)
-const inviteErrName = ref(false)
-const inviteErrSub = ref(false)
-const inviteQr = ref('')
-const inviteTotpCode = ref('')
-const inviteErrTotp = ref(false)
-const inviteConfirming = ref(false)
-const inviteTotpOk = ref(false)
 
 const { switchLang } = useLocaleSwitch(() => paperCardRef.value?.getCardEl())
 const onSwitchLang = (next: string) => switchLang(next, locale.value)
@@ -292,176 +177,12 @@ onMounted(async () => {
 
 function openInvite() {
   inviteView.value = true
-  inviteStep.value = 1
-  resetInviteErrors()
-  // 初始聚焦：进入叠加层后聚焦第一个可输入控件
-  nextTick(() => {
-    const codeInput = inviteOverlayRef.value?.querySelector('#invite-code') as HTMLElement | null
-    ;(codeInput || inviteOverlayRef.value?.querySelector('input, button') as HTMLElement | null)?.focus()
-  })
 }
 
 function closeInvite() {
   inviteView.value = false
-  invCode.value = ''
-  invQq.value = ''
-  invName.value = ''
-  invSubdomain.value = ''
-  inviteQr.value = ''
-  inviteTotpCode.value = ''
-  inviteStep.value = 1
-  resetInviteErrors()
-  inviteTotpOk.value = false
   // 回焦：关闭叠加层后焦点还给「邀请码入驻」入口按钮
   inviteEntryRef.value?.focus()
-}
-
-/** b1: 邀请流程错误状态清零（openInvite/closeInvite/两步提交共用） */
-function resetInviteErrors() {
-  inviteError.value = ''
-  inviteErrCode.value = false
-  inviteErrQq.value = false
-  inviteErrName.value = false
-  inviteErrSub.value = false
-  inviteErrTotp.value = false
-}
-
-/** 焦点圈闭：Tab 不离开叠加层（首尾循环） */
-function onInviteKeydown(e: KeyboardEvent) {
-  if (e.key !== 'Tab') return
-  const overlay = inviteOverlayRef.value
-  if (!overlay) return
-  const focusables = ([...overlay.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  )] as Array<HTMLElement & { disabled?: boolean }>).filter(el => !el.disabled && el.offsetParent !== null)
-  if (!focusables.length) return
-  const first = focusables[0]
-  const last = focusables[focusables.length - 1]
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault()
-    last.focus()
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault()
-    first.focus()
-  }
-}
-
-/** 两步表单切换后聚焦对应输入框 */
-watch(inviteStep, (step) => {
-  if (!inviteView.value) return
-  nextTick(() => {
-    const sel = step === 1 ? '#invite-code' : '#invite-totp'
-    ;(inviteOverlayRef.value?.querySelector(sel) as HTMLElement | null)?.focus()
-  })
-})
-
-async function generateInviteQr(otpauthUri: string) {
-  try {
-    const QRCode = await import('qrcode')
-    return await QRCode.default.toDataURL(otpauthUri, { width: 220, margin: 1 })
-  } catch { return '' }
-}
-
-async function submitInvite() {
-  resetInviteErrors()
-
-  const code = invCode.value.trim()
-  const qq = invQq.value.trim()
-  const name = invName.value.trim()
-  const subdomain = invSubdomain.value.trim().toLowerCase()
-
-  if (!code) {
-    inviteErrCode.value = true
-    inviteError.value = t('invite.codeRequired')
-    return
-  }
-  if (!/^[A-Za-z0-9]{8}$/.test(code)) {
-    inviteErrCode.value = true
-    inviteError.value = t('invite.codeFormat')
-    return
-  }
-  if (!qq) {
-    inviteErrQq.value = true
-    inviteError.value = t('invite.qqRequired')
-    return
-  }
-  if (!/^\d+$/.test(qq)) {
-    inviteErrQq.value = true
-    inviteError.value = t('invite.qqInvalid')
-    return
-  }
-  if (!name) {
-    inviteErrName.value = true
-    inviteError.value = t('invite.nameRequired')
-    return
-  }
-  if (!subdomain) {
-    inviteErrSub.value = true
-    inviteError.value = t('invite.subdomainRequired')
-    return
-  }
-  if (!/^[a-z0-9]{2,20}$/.test(subdomain)) {
-    inviteErrSub.value = true
-    inviteError.value = t('invite.subdomainFormat')
-    return
-  }
-
-  inviteSubmitting.value = true
-  try {
-    const res = await inviteApi.register({ code, qqNumber: qq, name, subdomain })
-    inviteQr.value = await generateInviteQr(res.otpauthUri)
-    inviteStep.value = 2
-  } catch (err) {
-    inviteError.value = (err as ApiErrShape).message || t('invite.totpError')
-  } finally {
-    inviteSubmitting.value = false
-  }
-}
-
-async function confirmInviteTotp() {
-  resetInviteErrors()
-
-  const code = inviteTotpCode.value.trim()
-  if (!code) {
-    inviteErrTotp.value = true
-    inviteError.value = t('invite.totpRequired')
-    return
-  }
-  if (!/^\d{6}$/.test(code)) {
-    inviteErrTotp.value = true
-    inviteError.value = t('invite.totpFormat')
-    return
-  }
-
-  inviteConfirming.value = true
-  try {
-    const res = await inviteApi.totpConfirm({ qqNumber: invQq.value.trim(), code })
-    // 会话 cookie 已由后端签发；REQ-043 I6-e: 状态与标记统一走 store.applySession
-    store.applySession(res.artist, false)
-    inviteTotpOk.value = true
-    setTimeout(() => router.push('/dashboard'), 500)
-  } catch (err) {
-    inviteErrTotp.value = true
-    inviteError.value = mapInviteTotpErr(err)
-  } finally {
-    inviteConfirming.value = false
-  }
-}
-
-/** v126②③：首绑确认失败文案分流（detail 由后端 invite/totp-confirm 提供，与登录锁定提示同口径）：
- *  码刚轮换 → 等它转完再试；码输错 → 带剩余次数；锁定 → 带剩余分钟数（均只写可验证事实） */
-function mapInviteTotpErr(err: unknown) {
-  const e = err as ApiErrShape
-  if (e?.code === 'TOTP_BIND_INVALID' && e.detail && typeof e.detail === 'object') {
-    if (e.detail.stale) return t('invite.totpStale')
-    if (typeof e.detail.remainingAttempts === 'number') {
-      return t('invite.totpWrong', { n: e.detail.remainingAttempts })
-    }
-  }
-  if (e?.code === 'TOTP_LOCKED' && e.detail?.remainingLockMs) {
-    return t('invite.totpLockedMin', { minutes: Math.ceil(e.detail.remainingLockMs / 60000) })
-  }
-  return e.message || t('invite.totpError')
 }
 
 async function passkeyLogin() {
@@ -896,21 +617,7 @@ async function login() {
 .help-body ul { margin: 0 0 8px 16px; padding: 0; }
 .help-note { color: var(--ink3); }
 
-/* 823：入驻第一步前置提醒（虚线纸签，与入驻入口虚线框同手法） */
-.invite-prep {
-  margin: 0 0 20px;
-  padding: 12px 14px;
-  border: 1px dashed var(--line2);
-  border-radius: var(--r-paper);
-  font-size: calc(var(--font-scale, 1) * 12px);
-  line-height: 1.7;
-  color: var(--ink2);
-}
-
-/* 823：扫码页安装引导折叠（复用 .help 同款，去掉顶部虚线分隔） */
-.app-help { margin-top: 0; margin-bottom: 16px; border-top: 0; padding-top: 0; }
-
-/* ─── REQ-039: 邀请码入驻（入口 + 叠加层，纸墨 token 复用登录表单样式） ─── */
+/* ─── REQ-039: 邀请码入驻入口（叠加层本体已抽至 InviteOverlay 组件，样式随迁） ─── */
 .invite-entry {
   display: block;
   width: 100%;
@@ -932,63 +639,6 @@ async function login() {
 .invite-entry:focus-visible {
   outline: 2px solid var(--hq);
   outline-offset: 3px;
-}
-
-/* 叠加层：覆盖主卡（主卡 position: relative），纸面同色 + 可滚动 */
-.invite-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  background: var(--card);
-  border-radius: var(--r-paper);
-  overflow-y: auto;
-  animation: note-in var(--dur-slow) var(--ease-out);
-}
-.invite-overlay-inner { padding: 34px 44px 40px; }
-.invite-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 0;
-  border: 0;
-  background: transparent;
-  font-family: inherit;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  color: var(--ink2);
-  cursor: pointer;
-  transition: color var(--dur-fast);
-}
-.invite-back:hover { color: var(--ink); }
-.invite-title {
-  margin: 12px 0 4px;
-  font-family: var(--f-d);
-  font-size: calc(var(--font-scale, 1) * 22px);
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  color: var(--ink);
-}
-.invite-sub {
-  margin: 0 0 24px;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  color: var(--ink2);
-  line-height: 1.7;
-}
-.field-hint { margin: 6px 0 0; font-size: 11px; color: var(--ink3); }
-/* v126①：首绑动态码轮换机制引导（与 step-desc 同色调，只写功能性陈述） */
-.invite-totp-guide { margin: 6px 0 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); line-height: 1.6; }
-.invite-step-title { margin: 20px 0 6px; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
-.invite-step-desc { margin: 0 0 14px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.7; }
-.invite-qr-wrap { display: flex; justify-content: center; margin: 4px 0 18px; }
-.invite-qr {
-  width: 200px;
-  height: 200px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  background: #fff;
-}
-
-@media (max-width: 768px) {
-  .invite-overlay-inner { padding: 24px 24px 28px; }
 }
 
 /* ═══ 768 竖屏 ═══ */
