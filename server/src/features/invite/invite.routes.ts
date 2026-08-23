@@ -54,7 +54,7 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
           code: { type: 'string', minLength: 8, maxLength: 8, pattern: '^[A-Za-z0-9]{8}$' },
           qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
           name: { type: 'string', minLength: 1, maxLength: 50 },
-          subdomain: { type: 'string', minLength: 2, maxLength: 20, pattern: '^[a-z0-9-]+$' }
+          subdomain: { type: 'string', minLength: 2, maxLength: 20, pattern: '^[a-z0-9]+$' }
         },
         additionalProperties: false
       }

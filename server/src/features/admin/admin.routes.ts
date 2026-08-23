@@ -89,9 +89,10 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         properties: {
           qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
           name: { type: 'string', minLength: 1, maxLength: 50 },
-          subdomain: { type: 'string', minLength: 2, maxLength: 20, pattern: '^[a-z0-9-]+$' },
+          subdomain: { type: 'string', minLength: 2, maxLength: 20, pattern: '^[a-z0-9]+$' },
           bio: { type: ['string', 'null'], maxLength: 500 },
-          artistCode: { type: ['string', 'null'], maxLength: 10 }
+          // 823 规则对齐批：上限 10→20（与主页标识同长，身份码由标识大写派生）
+          artistCode: { type: ['string', 'null'], maxLength: 20 }
         },
         additionalProperties: false
       }
@@ -889,7 +890,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
           name: { type: 'string', minLength: 1, maxLength: 50 },
           bio: { type: 'string', maxLength: 500 },
           status: { type: 'string', enum: ['open', 'full', 'break', 'hidden'] },
-          artist_code: { type: 'string', maxLength: 10 },
+          artist_code: { type: 'string', maxLength: 20 },
           contact_qq: { type: 'string', maxLength: 15 },
           weibo_url: { type: 'string', maxLength: 300 },
           bilibili_url: { type: 'string', maxLength: 300 },

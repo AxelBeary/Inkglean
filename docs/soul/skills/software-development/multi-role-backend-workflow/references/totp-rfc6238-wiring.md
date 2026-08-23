@@ -53,7 +53,7 @@
 ## 4. 测试隔离坑
 
 - **限流桶跨测试累积**：rate-limit 桶在 app 实例内存中，同一测试文件里多个用例共享。transfer 有目标级限流（`transfer:{qq}` 3次/15分钟），前几个用例消耗后，后续用例同 QQ 直接 429 而非预期 401。解决：**每个用例用独立 QQ**（20002 → 20003）。
-- **subdomain 连字符 → artist_code 校验拒绝**：createArtist 默认 artist_code = subdomain 大写，`isValidArtistCode` 只允许字母数字。测试建号用 `e2e-artist` 会 400 CODE_FORMAT，改用无连字符 `e2eartist`。
+- **subdomain 连字符 → artist_code 校验拒绝**：createArtist 默认 artist_code = subdomain 大写，`isValidArtistCode` 只允许字母数字。测试建号用 `e2e-artist` 会 400 CODE_FORMAT，改用无连字符 `e2eartist`。（823 规则对齐批后：主页标识字母表已全面去连字符，此类 400 在入口层即被拦截，死角根除）
 - **vitest 断言失败时 console.log 不执行**：调试 400 响应时，log 放 `expect` 之前才能看到响应体（或先断言再 log 会跳过）。
 
 ## 5. 二维码库选型（唯一依赖例外）

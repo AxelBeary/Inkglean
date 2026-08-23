@@ -48,7 +48,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
             type: 'object',
             properties: {
               name: { type: 'string', maxLength: 50 },
-              subdomain: { type: 'string', minLength: 2, maxLength: 20, pattern: '^[a-z0-9-]+$' }
+              subdomain: { type: 'string', minLength: 2, maxLength: 20, pattern: '^[a-z0-9]+$' }
             },
             additionalProperties: false
           }

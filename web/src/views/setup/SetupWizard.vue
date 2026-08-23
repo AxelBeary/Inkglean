@@ -199,7 +199,7 @@ async function submitAdmin() {
     errSubdomain.value = 'setup.step2SubdomainRequired'
     return
   }
-  if (setupStore.createStudio && !/^[a-z0-9-]{2,20}$/.test(setupStore.studioSubdomain.trim())) {
+  if (setupStore.createStudio && !/^[a-z0-9]{2,20}$/.test(setupStore.studioSubdomain.trim())) {
     errSubdomain.value = 'setup.step2SubdomainFormat'
     return
   }

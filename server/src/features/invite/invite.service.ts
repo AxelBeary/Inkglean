@@ -277,8 +277,8 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
     // 1. 校验邀请码（失败与码不存在同响应 INVITE_INVALID，防枚举）
     const codeRow = validateInviteCode(code)
 
-    // 2. 子域名格式 + 身份码（= 子域名大写，与 artistService.createArtist 同口径）
-    if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
+    // 2. 子域名格式 + 身份码（= 子域名大写，与 artistService.createArtist 同口径；823 规则对齐批：去连字符）
+    if (!/^[a-z0-9]{2,20}$/.test(subdomain)) {
       throw new AppError(E.SUBDOMAIN_FORMAT)
     }
     const artistCode = subdomain.toUpperCase()

@@ -50,9 +50,11 @@ export function isValidQq(qq: unknown): boolean {
 }
 
 /**
- * 校验画师身份码格式（2-10位大写字母/数字）
+ * 校验画师身份码格式（2-20位大写字母/数字）
  * 用于订单号前缀，如 ALICE、QY、ART01
+ * 823 标识/身份码规则对齐批：上限 10→20（与主页标识同长）——身份码由标识大写派生，
+ * 订单号取最后一个短横拆流水号（generateOrderNo lastIndexOf），对码长零依赖
  */
 export function isValidArtistCode(code: unknown): boolean {
-  return /^[A-Z0-9]{2,10}$/.test(String(code || ''))
+  return /^[A-Z0-9]{2,20}$/.test(String(code || ''))
 }

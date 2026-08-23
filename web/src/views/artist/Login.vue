@@ -400,7 +400,7 @@ async function submitInvite() {
     inviteError.value = t('invite.subdomainRequired')
     return
   }
-  if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
+  if (!/^[a-z0-9]{2,20}$/.test(subdomain)) {
     inviteErrSub.value = true
     inviteError.value = t('invite.subdomainFormat')
     return
