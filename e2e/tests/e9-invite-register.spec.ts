@@ -8,7 +8,7 @@ import { currentTotp } from '../totp-util.js'
 test('E9 邀请码注册链路', async ({ page, adminPage }) => {
   const base = E2E_BASE_URL
   const qqNumber = '10099'
-  // 子域名用纯字母数字：身份码 = 子域名大写，仅允许 [A-Z0-9]{2,10}（含连字符会碰 CODE_FORMAT）
+  // 子域名用纯字母数字：身份码 = 子域名大写（823 规则对齐批后标识字母表已去连字符，上限 2-20 位）
   const subdomain = 'e9invitee'
 
   // ── 0. 邀请模式开启（onboarding_mode=invite）──
