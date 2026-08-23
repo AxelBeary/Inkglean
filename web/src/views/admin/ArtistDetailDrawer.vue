@@ -29,7 +29,7 @@
               <div class="lab">{{ $t('settings.codeLabel') }}</div>
               <div class="desc">{{ $t('settings.codeHint') }}</div>
             </div>
-            <el-input v-model="profile.artist_code" maxlength="10" class="field-input" />
+            <el-input v-model="profile.artist_code" maxlength="20" class="field-input" />
           </div>
           <div class="row">
             <div class="field-text">

@@ -34,6 +34,7 @@ describe('输入校验 (Validate)', () => {
     expect(isValidArtistCode('QY')).toBe(true)
     expect(isValidArtistCode('ART01')).toBe(true)
     expect(isValidArtistCode('A1B2C3D4E5')).toBe(true) // 10位
+    expect(isValidArtistCode('A'.repeat(20))).toBe(true) // 20位（823 规则对齐批上限）
   })
 
   // TC-V-06: isValidArtistCode 非法
@@ -41,7 +42,7 @@ describe('输入校验 (Validate)', () => {
     expect(isValidArtistCode('a')).toBe(false)       // 太短
     expect(isValidArtistCode('alice')).toBe(false)   // 小写
     expect(isValidArtistCode('AL ICE')).toBe(false)  // 含空格
-    expect(isValidArtistCode('A'.repeat(11))).toBe(false) // 太长
+    expect(isValidArtistCode('A'.repeat(21))).toBe(false) // 太长（823 规则对齐批后上限 20）
     expect(isValidArtistCode('')).toBe(false)
     expect(isValidArtistCode(null)).toBe(false)
   })

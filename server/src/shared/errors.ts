@@ -296,7 +296,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 画师
   ARTIST_NOT_FOUND: '画师不存在',
   NAME_EMPTY: '名称不能为空',
-  CODE_FORMAT: '身份码格式不正确（仅限字母和数字）',
+  CODE_FORMAT: '身份码格式不正确（仅限大写字母和数字，2-20 位）',
   CODE_TAKEN: '该身份码已被使用',
   QQ_TAKEN: '该QQ号已被注册',
   SUBDOMAIN_TAKEN: '该主页标识已被使用',

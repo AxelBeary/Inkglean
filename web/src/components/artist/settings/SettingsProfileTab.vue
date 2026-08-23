@@ -44,7 +44,7 @@
         <el-input
           :model-value="artistCode"
           @update:model-value="$emit('update:artistCode', $event)"
-          :placeholder="$t('settings.codePlaceholder')" maxlength="10"
+          :placeholder="$t('settings.codePlaceholder')" maxlength="20"
         />
       </div>
     </div>

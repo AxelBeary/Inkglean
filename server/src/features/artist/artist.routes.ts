@@ -167,7 +167,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
           },
           notifyEnabled: { type: 'boolean' },
           guestbookEnabled: { type: 'boolean' },
-          artistCode: { type: 'string', maxLength: 10 },
+          artistCode: { type: 'string', maxLength: 20 },
           contactQq: { type: ['string', 'null'], maxLength: 15 },
           templateId: { type: 'string', maxLength: 50 },
           paletteId: { type: 'string', enum: ['paper', 'ink', 'dusk', 'moss'] },

@@ -51,7 +51,7 @@ describe('C-2 catch-all 统一 AppError 分流（审计 🔴-2）', () => {
       method: 'POST',
       url: '/api/admin/artists',
       headers: { Authorization: `Bearer ${adminToken(admin)}` },
-      payload: createArtistPayload('boom', 'boom-artist')
+      payload: createArtistPayload('boom', 'boomartist')
     })
     expect(res.statusCode).toBe(500)
     const body = res.json()
@@ -67,7 +67,7 @@ describe('C-2 catch-all 统一 AppError 分流（审计 🔴-2）', () => {
       method: 'POST',
       url: '/api/admin/artists',
       headers: { Authorization: `Bearer ${adminToken(admin)}` },
-      payload: createArtistPayload('正常画师', 'normal-artist')
+      payload: createArtistPayload('正常画师', 'normalartist')
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('QQ_TAKEN')

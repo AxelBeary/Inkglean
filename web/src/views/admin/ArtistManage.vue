@@ -164,7 +164,7 @@
           </el-input>
         </el-form-item>
         <el-form-item :label="$t('admin.codeLabel')">
-          <el-input v-model="form.artistCode" :placeholder="$t('admin.codePlaceholder')" maxlength="10" />
+          <el-input v-model="form.artistCode" :placeholder="$t('admin.codePlaceholder')" maxlength="20" />
         </el-form-item>
         <el-form-item :label="$t('admin.bioLabel')">
           <el-input v-model="form.bio" type="textarea" :rows="2" />

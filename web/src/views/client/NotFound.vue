@@ -51,7 +51,7 @@ const statusType = (s: string) => ARTIST_STATUS_TYPE[s] || 'info'
 /** a2 猎杀修复：与 LandingPage 同口径，subdomain 非法时不生成 /artist/undefined 死链 */
 function enterArtist(artist: ArtistListItem) {
   const sub = artist?.subdomain
-  if (typeof sub !== 'string' || !/^[a-z0-9-]{2,20}$/i.test(sub)) return
+  if (typeof sub !== 'string' || !/^[a-z0-9]{2,20}$/i.test(sub)) return
   router.push(`/artist/${sub}`)
 }
 

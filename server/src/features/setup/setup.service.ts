@@ -223,8 +223,8 @@ export function createAdminArtist(params: CreateAdminParams): CreateAdminResult 
       const studioName = studio.name || `${name}的工作室`
       let studioSubdomain = studio.subdomain || 'admin'
 
-      // 校验子域名格式
-      if (!/^[a-z0-9-]{2,20}$/.test(studioSubdomain)) {
+      // 校验子域名格式（823 规则对齐批：去连字符，与建号/邀请同口径）
+      if (!/^[a-z0-9]{2,20}$/.test(studioSubdomain)) {
         throw new AppError(E.SUBDOMAIN_FORMAT, 400)
       }
       // 保留词黑名单

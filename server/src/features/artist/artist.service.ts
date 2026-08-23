@@ -143,8 +143,8 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
   bio?: string | null
   artistCode?: string | null
 }): Promise<Artist | undefined> {
-  // 校验子域名格式
-  if (!/^[a-z0-9-]{2,20}$/.test(subdomain)) {
+  // 校验子域名格式（823 规则对齐批：去连字符——身份码由标识大写派生只认字母数字，两规则同形才能根除派生死角）
+  if (!/^[a-z0-9]{2,20}$/.test(subdomain)) {
     throw new AppError(E.SUBDOMAIN_FORMAT)
   }
   // d2 P2: 服务层兜底保留词（路由黑名单可能被未来新调用方绕过；与 getAllArtists
