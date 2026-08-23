@@ -235,7 +235,8 @@ describe('v0.25 路由层集成测试', () => {
     })
 
     it('TC-ROUTE-14: 已注册但未绑定 TOTP → 与码错误同码同文案（audit-a P3-11 防枚举）', async () => {
-      const artist = seedArtist({ qq_number: '88001', subdomain: 'bind-hint' })
+      // 会话门禁批：显式造未绑定态（seedArtist 默认已绑定）
+      const artist = seedArtist({ qq_number: '88001', subdomain: 'bind-hint', totp_secret: null, totp_verified: 0 })
       expect(artist.id).toBeTruthy()
       const res = await app.inject({
         method: 'POST',

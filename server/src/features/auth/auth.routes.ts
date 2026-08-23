@@ -1,7 +1,7 @@
 import { verifyTotpLogin, createSession } from './auth.service.js'
 import type { CreateSessionOptions } from './auth.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
-import { bumpTokenVersion, recordLastLogin } from '../artist/artist.service.js'
+import { bumpTokenVersion, recordLastLogin, getArtistById } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
@@ -476,9 +476,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/auth/totp/rebind-confirm
    * TOTP 自助重绑确认
-   * 验证凭据 + 新码 → 生效 + bumpTokenVersion + 写冷却期
+   * 验证凭据 + 新码 → 生效 + bumpTokenVersion（踢其他设备）+ 重签本人会话 + 写冷却期
    */
-  fastify.post('/api/auth/totp/rebind-confirm', { preHandler: requireAuth }, async (request) => {
+  fastify.post('/api/auth/totp/rebind-confirm', { preHandler: requireAuth }, async (request, reply) => {
     // P2-F6: 补限流（同 step-up 同款：10 次/5 分钟）
     guardRateLimit(`totp-rebind-confirm:${request.ip}`, 10, 5 * 60_000)
 
@@ -568,8 +568,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
       WHERE id = ?
     `).run(newSecret, artist.id)
 
-    // 全局踢下线（bumpTokenVersion）
+    // 踢其他设备下线（bumpTokenVersion）；注意紧接下面重签本人会话——
+    // 自助重绑保护：bump 只作废其他设备持有的旧 token，绝不能把发起重绑的画师自己踢下线。
     bumpTokenVersion(artist.id)
+
+    // 自助重绑保护（会话门禁批）：新门禁下未绑定/被 bump 的会话会被 requireAuth 拒掉，
+    // 故用新 token_version 重签会话并下发新 cookie（同登录路径 signSession 用法），
+    // 保证重绑完成后画师当前会话无缝续接（新密钥已生效，totp_verified=1）。
+    const freshArtist = getArtistById(artist.id)
+    if (freshArtist) signSession(freshArtist, reply)
 
     // 审计日志（走 Fastify logger，结构化最小实现）
     request.log.info({ artistId: artist.id, qq: artist.qq_number, ip: request.ip }, 'AUDIT TOTP rebind')

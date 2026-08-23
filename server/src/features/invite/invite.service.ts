@@ -285,32 +285,49 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
     if (!isValidArtistCode(artistCode)) {
       throw new AppError(E.CODE_FORMAT)
     }
-    const existingCode = db.prepare('SELECT id FROM artists WHERE artist_code = ?').get(artistCode) as { id: number } | undefined
-    if (existingCode) {
-      throw new AppError(E.CODE_TAKEN, 400, { code: artistCode })
-    }
 
-    // 3. QQ / 子域名唯一性预检（与 artistService.createArtist 同口径，避免 UNIQUE 约束 500）
-    const existingQq = db.prepare('SELECT id FROM artists WHERE qq_number = ?').get(qqNumber) as { id: number } | undefined
-    if (existingQq) {
+    // 3. QQ 唯一性 + 空壳账号判定：该 QQ 名下若为「从未完成 TOTP 绑定」的空壳账号
+    //    （totp_verified=0 且未删除未封禁），允许用新邀请码推倒重来（就地更新既有行）；
+    //    其余情况（已验证/已删除/已封禁）维持 QQ_TAKEN。
+    const existingQq = db.prepare('SELECT * FROM artists WHERE qq_number = ?').get(qqNumber) as Artist | undefined
+    const shell = existingQq && !existingQq.totp_verified && !existingQq.deleted_at && !existingQq.is_banned
+      ? existingQq
+      : undefined
+    if (existingQq && !shell) {
       throw new AppError(E.QQ_TAKEN, 400, { qqNumber })
     }
+
+    // 身份码/子域名碰撞：与空壳自身相同合法（覆盖复用），与其他账号冲突照旧报错（避免 UNIQUE 约束 500）
+    const existingCode = db.prepare('SELECT id FROM artists WHERE artist_code = ?').get(artistCode) as { id: number } | undefined
+    if (existingCode && existingCode.id !== shell?.id) {
+      throw new AppError(E.CODE_TAKEN, 400, { code: artistCode })
+    }
     const existingSub = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get(subdomain) as { id: number } | undefined
-    if (existingSub) {
+    if (existingSub && existingSub.id !== shell?.id) {
       throw new AppError(E.SUBDOMAIN_TAKEN, 400, { subdomain })
     }
 
-    // 4. 建号（status='hidden'：CHECK 约束无 'closed' 值，与 REQ-038 管理员建号同口径，
+    // 4. 建号 / 覆盖空壳（status='hidden'：CHECK 约束无 'closed' 值，与 REQ-038 管理员建号同口径，
     //    hidden = 不上客户端目录；画师登录后自己开启）
-    const result = db.prepare(`
-      INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status)
-      VALUES (?, ?, ?, ?, ?, 'hidden')
-    `).run(qqNumber, name, subdomain, artistCode, null)
-    const artistId = Number(result.lastInsertRowid)
+    let artistId: number
+    if (shell) {
+      // 空壳覆盖：不删行重建（保留 id），bio 置空、状态回 hidden；
+      // commission_rules/默认工作流在空壳建号时已写入，不重复初始化。
+      db.prepare(`
+        UPDATE artists SET name = ?, subdomain = ?, artist_code = ?, bio = NULL, status = 'hidden' WHERE id = ?
+      `).run(name, subdomain, artistCode, shell.id)
+      artistId = shell.id
+    } else {
+      const result = db.prepare(`
+        INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status)
+        VALUES (?, ?, ?, ?, ?, 'hidden')
+      `).run(qqNumber, name, subdomain, artistCode, null)
+      artistId = Number(result.lastInsertRowid)
 
-    // 初始化空的约稿须知 + 默认工作流（与 artistService.createArtist 三步写入对齐）
-    db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)').run(artistId, '')
-    seedArtistStages(artistId)
+      // 初始化空的约稿须知 + 默认工作流（与 artistService.createArtist 三步写入对齐）
+      db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)').run(artistId, '')
+      seedArtistStages(artistId)
+    }
 
     // 5. 生成 TOTP 密钥并写入（未验证；totp-confirm 后置 verified=1 并签发会话）
     const totpSecret = generateSecret()

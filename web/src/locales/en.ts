@@ -15,6 +15,8 @@ export default {
     TOTP_INVALID: 'Incorrect QQ number or one-time password',
     TOTP_LOCKED: 'Too many attempts. Your account is temporarily locked. Please try again later.',
     TOTP_BIND_INVALID: 'Incorrect one-time password. Ask the artist to check the 6-digit code on their authenticator',
+    // 824: TOTP binding invalid / never completed (authed-endpoint gate + Passkey login entry; triggers logout and is shown on the login page)
+    TOTP_BIND_REQUIRED: 'Your authenticator binding is no longer valid (it may have just been reset or was never completed). Please complete the binding process again, or contact the admin.',
     // REQ-040: WebAuthn Passkey (v143: completed per backend-code ↔ frontend-key audit)
     WEBAUTHN_CHALLENGE_INVALID: 'Verification timed out or the challenge is invalid. Please try again',
     WEBAUTHN_REGISTRATION_FAILED: 'Passkey registration failed. Please try again',
@@ -440,6 +442,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
     // 818-H: security rows (description left, action right)
     totpRowDesc: 'Login requires a 6-digit code from your authenticator once bound; bound devices can be re-bound anytime.',
+    // 824: extra hint for the unbound state (guidance after a reset/re-bind; neutral wording)
+    totpResetHint: 'If an admin has just reset or re-bound your authenticator, log in again and follow the guide to complete the binding. Artists with a Passkey also cannot sign in until the binding is complete.',
     passkeyRowDesc: 'Registered devices can sign in without a code; rename or remove them here.',
     // Wave 3-2: credential/rebind failure feedback (was silent)
     passkeyLoadFailed: 'Failed to load passkey credentials. Please retry.',
@@ -2451,6 +2455,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpStale: 'That code may have just refreshed — wait for the new code and enter the latest one.',
     totpWrong: 'That code does not match — check the 6 digits currently shown. {n} attempts left.',
     totpLockedMin: 'Too many attempts — locked for about {minutes} min. Your registration is saved; come back and enter a fresh code later.',
+    // 824: refresh protection + recovery for the first binding (refreshing the QR step no longer locks you out)
+    noRefreshNotice: 'Please do not refresh the page before the binding is complete. If you refreshed by accident, use the recovery option below to continue.',
+    recoverToggle: 'Scanned the code but the page got refreshed? Continue here',
+    recoverDesc: 'Enter the QQ number you used for onboarding and the latest 6-digit code from your authenticator to finish the binding directly.',
+    recoverSubmit: 'Verify & Finish Binding',
     // Admin
     manageTitle: 'Invite Codes',
     manageHint: 'Invite codes are valid for 3 days by default (1-30 days configurable). Each code defaults to 1 use (1-100 configurable). Share them with artists to onboard.',

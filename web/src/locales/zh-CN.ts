@@ -15,6 +15,8 @@ export default {
     TOTP_INVALID: 'QQ号或动态口令错误',
     TOTP_LOCKED: '尝试次数过多，账号已临时锁定，请稍后再试',
     TOTP_BIND_INVALID: '动态口令错误，请让画师确认验证器上当前显示的 6 位码',
+    // 824: TOTP 绑定失效/未完成（需登录接口门禁 + Passkey 登录入口；触发登出并由登录页展示）
+    TOTP_BIND_REQUIRED: '你的动态口令绑定已失效（可能刚被重置或绑定未完成），请重新完成绑定流程，或联系管理员处理',
     // REQ-040: WebAuthn Passkey（v143 补齐：后端错误码↔前端键三轴审计收尾）
     WEBAUTHN_CHALLENGE_INVALID: '验证超时或 Challenge 无效，请重试',
     WEBAUTHN_REGISTRATION_FAILED: 'Passkey 注册失败，请重试',
@@ -440,6 +442,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
     // 818-H：安全项行结构（说明在左、操作在右）
     totpRowDesc: '绑定后登录需输入验证器上的 6 位动态口令；已绑定可随时自助重绑。',
+    // 824: 未绑定状态辅助说明（重置/重绑后的后续指引，措辞中性不吓人）
+    totpResetHint: '如果你刚被管理员重置或重绑了动态口令，请重新登录后按指引完成绑定；持有 Passkey 的画师在绑定完成前同样无法登录。',
     passkeyRowDesc: '已注册设备可免输口令登录；可在此重命名或删除。',
     // 波3-2: 凭据/重绑失败反馈（原静默失败补 ElMessage）
     passkeyLoadFailed: 'Passkey 凭据加载失败，请重试',
@@ -2446,6 +2450,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpStale: '这组码可能刚刚刷新了——等验证器转出新码，报最新那组再试。',
     totpWrong: '码对不上——请核对验证器上当前显示的 6 位数字。还可以试 {n} 次。',
     totpLockedMin: '试错次数用完，先锁定约 {minutes} 分钟——入驻信息已保存，稍后回来输新码即可，不用重新注册。',
+    // 824: 首绑防刷新 + 找回入口（二维码页刷新不再卡死）
+    noRefreshNotice: '绑定完成前请勿刷新页面；若不慎刷新，可用下方找回入口继续。',
+    recoverToggle: '已扫码但页面被刷新了？从这里继续',
+    recoverDesc: '输入入驻时填写的 QQ 号和验证器上最新的 6 位动态码，直接完成绑定。',
+    recoverSubmit: '验证并完成绑定',
     // 管理端
     manageTitle: '邀请码管理',
     manageHint: '邀请码默认 3 天有效（可调 1-30 天）；每码默认用 1 次，可调 1-100 次。把码发给画师即可入驻。',

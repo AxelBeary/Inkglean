@@ -3,6 +3,8 @@
 // 测试注册、认证、counter 递增、删除、challenge 过期、防枚举
 // ============================================
 import { describe, it, expect, beforeEach } from 'vitest'
+import { createHash, generateKeyPairSync } from 'crypto'
+import type { FastifyInstance } from 'fastify'
 import { db, cleanDb, seedArtist, type ArtistRow } from './setup.js'
 import {
   generateRegisterOptions,
@@ -16,7 +18,9 @@ import {
   getExistingCredentialIds,
   isCounterRegression
 } from '../src/features/auth/webauthn.js'
-import { AppError, E } from '../src/shared/errors.js'
+import { AppError, E, ERROR_MESSAGES } from '../src/shared/errors.js'
+import { buildApp } from '../src/app.js'
+import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 
 describe('WebAuthn Passkey (REQ-040)', () => {
   let artist: ArtistRow
@@ -247,5 +251,118 @@ describe('WebAuthn 数据库操作', () => {
     // artist2 尝试更新 artist 的凭据
     expect(() => updateCredentialName(pkId, artist2.id, '新名称')).toThrow(AppError)
     expect(() => deleteCredential(pkId, artist2.id)).toThrow(AppError)
+  })
+})
+
+// 会话门禁批：动态口令未绑定（totp_verified=0）的画师禁止 Passkey 登录
+describe('会话门禁批：Passkey 登录入口未绑定拦截', () => {
+  /** 构造伪造凭据（签名必败，但未绑定门禁应先于签名校验生效） */
+  function fakeCredential(credId: string, challenge: string) {
+    return {
+      id: credId,
+      // 验证库要求 rawId===id 且 type='public-key'（否则报 not base64url-encoded）
+      rawId: credId,
+      type: 'public-key',
+      response: {
+        clientDataJSON: Buffer.from(JSON.stringify({ challenge, origin: 'http://localhost', type: 'webauthn.get' })).toString('base64url'),
+        authenticatorData: Buffer.from('fake').toString('base64url'),
+        signature: Buffer.from('fake').toString('base64url'),
+        userHandle: ''
+      }
+    }
+  }
+
+  beforeEach(() => {
+    cleanDb()
+  })
+
+  it('服务层：未绑定画师的凭据被拒——抛 TOTP_BIND_REQUIRED（401），而非 WEBAUTHN_*', async () => {
+    const unbound = seedArtist({ qq_number: '30001', subdomain: 'pk-unbound', totp_secret: null, totp_verified: 0 })
+    db.prepare(`
+      INSERT INTO webauthn_credentials (artist_id, credential_id, public_key, counter, device_name)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(unbound.id, 'gate-cred-1', 'test-public-key', 0, '门禁测试设备')
+    const options = await generateLoginOptions()
+
+    await expect(verifyLogin(fakeCredential('gate-cred-1', options.challenge)))
+      .rejects.toMatchObject({ code: E.TOTP_BIND_REQUIRED, statusCode: 401 })
+  })
+
+  it('服务层对照：已绑定画师伪造签名仍按既有口径抛 WEBAUTHN_AUTHENTICATION_FAILED', async () => {
+    const bound = seedArtist({ qq_number: '30002', subdomain: 'pk-bound' })
+    // 伪造签名要走真实验签路径（库返回 verified=false 才抛 AppError），
+    // 需结构合法：rawId===id、authenticatorData 含正确 rpIdHash、COSE 公钥为真实曲线点、signature 为合法 DER。
+    // 结构不合法时库会抛裸 Error（非本批语义，不在本用例验证范围）。
+    const credId = Buffer.from('gate-cred-2').toString('base64url')
+    const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+    const spki = publicKey.export({ type: 'spki', format: 'der' })
+    const rawPoint = spki.subarray(spki.length - 65) // 0x04 || x(32) || y(32)
+    const coseKey = Buffer.concat([
+      Buffer.from([0xa5, 0x01, 0x02, 0x03, 0x26, 0x20, 0x01, 0x21, 0x58, 0x20]),
+      rawPoint.subarray(1, 33),
+      Buffer.from([0x22, 0x58, 0x20]),
+      rawPoint.subarray(33, 65)
+    ])
+    db.prepare(`
+      INSERT INTO webauthn_credentials (artist_id, credential_id, public_key, counter, device_name)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(bound.id, credId, coseKey.toString('base64url'), 0, '对照设备')
+    const options = await generateLoginOptions()
+
+    // authenticatorData：32B rpIdHash（默认 rpId='localhost'）+ flags(UP|UV) + signCount
+    const authData = Buffer.concat([
+      createHash('sha256').update('localhost').digest(),
+      Buffer.from([0x05]),
+      Buffer.from([0, 0, 0, 0])
+    ])
+    // 合法 DER 结构但内容错误的签名 → 验签失败（而非解析报错）
+    const badDerSignature = Buffer.concat([
+      Buffer.from([0x30, 0x44, 0x02, 0x20]),
+      Buffer.concat([Buffer.from([0x01]), Buffer.alloc(31, 0x02)]),
+      Buffer.from([0x02, 0x20]),
+      Buffer.concat([Buffer.from([0x03]), Buffer.alloc(31, 0x04)])
+    ])
+    const forgedCredential = {
+      id: credId,
+      rawId: credId,
+      type: 'public-key',
+      response: {
+        clientDataJSON: Buffer.from(JSON.stringify({ challenge: options.challenge, origin: 'http://localhost', type: 'webauthn.get' })).toString('base64url'),
+        authenticatorData: authData.toString('base64url'),
+        signature: badDerSignature.toString('base64url'),
+        userHandle: ''
+      }
+    }
+
+    await expect(verifyLogin(forgedCredential))
+      .rejects.toMatchObject({ code: E.WEBAUTHN_AUTHENTICATION_FAILED, statusCode: 401 })
+  })
+
+  it('路由层：login-verify 不吞新码，原样透传 401 + TOTP_BIND_REQUIRED + 契约文案', async () => {
+    const app: FastifyInstance = await buildApp({ logger: false })
+    await app.ready()
+    resetRateLimitBuckets()
+    try {
+      const unbound = seedArtist({ qq_number: '30003', subdomain: 'pk-route', totp_secret: null, totp_verified: 0 })
+      db.prepare(`
+        INSERT INTO webauthn_credentials (artist_id, credential_id, public_key, counter, device_name)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(unbound.id, 'gate-cred-3', 'test-public-key', 0, '路由透传设备')
+      // 经路由下发 challenge（与 verify 同 host 口径）
+      const optRes = await app.inject({ method: 'POST', url: '/api/auth/webauthn/login-options', payload: { qqNumber: '30003' } })
+      expect(optRes.statusCode).toBe(200)
+      const challenge = optRes.json().challenge as string
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/webauthn/login-verify',
+        payload: fakeCredential('gate-cred-3', challenge)
+      })
+      expect(res.statusCode).toBe(401)
+      expect(res.json().code).toBe('TOTP_BIND_REQUIRED')
+      expect(res.json().error).toBe(ERROR_MESSAGES[E.TOTP_BIND_REQUIRED])
+    } finally {
+      await app.close()
+    }
   })
 })

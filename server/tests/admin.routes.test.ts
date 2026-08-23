@@ -394,7 +394,8 @@ describe('管理员路由 (Admin Routes)', () => {
 
   it('TC-AR-20: bind-confirm 未先生成密钥返回 400', async () => {
     const admin = setAdmin('10001')
-    const artist = seedArtist({ qq_number: '77004', subdomain: 'totp-artist4' })
+    // 会话门禁批：显式造未生成密钥态（seedArtist 默认已带占位密钥）
+    const artist = seedArtist({ qq_number: '77004', subdomain: 'totp-artist4', totp_secret: null, totp_verified: 0 })
 
     const res = await app.inject({
       method: 'POST',

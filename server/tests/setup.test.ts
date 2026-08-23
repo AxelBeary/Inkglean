@@ -45,7 +45,8 @@ describe('REQ-038 开箱设置 (Setup)', () => {
 
   it('TC-SETUP-03: 有 admin_qq 且管理员存在但未绑 TOTP 返回 false（向导中途保护）', () => {
     db.prepare("UPDATE platform_config SET value = '10001' WHERE key = 'admin_qq'").run()
-    seedArtist({ qq_number: '10001', subdomain: 'admin' })
+    // 会话门禁批：显式造未绑定态（seedArtist 默认已绑定）
+    seedArtist({ qq_number: '10001', subdomain: 'admin', totp_secret: null, totp_verified: 0 })
     expect(isSetupCompleted()).toBe(false)
   })
 

@@ -178,7 +178,8 @@ describe('audit-a P3-11 TOTP 登录枚举 oracle', () => {
   beforeEach(() => cleanDb())
 
   it('TC-P311-01: 不存在 QQ 与未绑定 QQ 返回同码同文案', () => {
-    seedArtist({ qq_number: '77041', subdomain: 'unbound' })
+    // 会话门禁批：显式造未绑定态（seedArtist 默认已绑定）
+    seedArtist({ qq_number: '77041', subdomain: 'unbound', totp_secret: null, totp_verified: 0 })
 
     const missing = verifyTotpLogin('999999999', '123456')
     const unbound = verifyTotpLogin('77041', '123456')

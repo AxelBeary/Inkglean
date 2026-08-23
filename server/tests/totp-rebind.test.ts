@@ -83,6 +83,9 @@ describe('TOTP 自助重绑 (REQ-040)', () => {
 
   describe('分层验证', () => {
     it('无 Passkey 无 TOTP 时应拒绝自助重绑', () => {
+      // 会话门禁批：seedArtist 默认已绑定，此处显式重置为未绑定态（既无密钥也未验证）
+      db.prepare('UPDATE artists SET totp_secret = NULL, totp_verified = 0 WHERE id = ?').run(artist.id)
+
       // 既没有 Passkey 凭据，也没有 TOTP 绑定
       expect(hasPasskeyCredentials(artist.id)).toBe(false)
 
@@ -183,7 +186,7 @@ describe('verify-current 端点（前端质量战役审计修复：Step1 验证�
     return secret
   }
 
-  it('正确码 200 / 错码 401 / 非六位 400 / 未绑定 400', async () => {
+  it('正确码 200 / 错码 401 / 非六位 400 / 未绑定被门禁 401', async () => {
     const artist = seedArtist({ qq_number: '777', subdomain: 'vc-test' })
     const secret = bindTotp(artist)
     const token = createSession(artist.id, artist.token_version)
@@ -200,10 +203,12 @@ describe('verify-current 端点（前端质量战役审计修复：Step1 验证�
     const malformed = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers: auth, payload: { code: '12ab' } })
     expect(malformed.statusCode).toBe(400)
 
-    const fresh = seedArtist({ qq_number: '778', subdomain: 'vc-nobind' })
+    const fresh = seedArtist({ qq_number: '778', subdomain: 'vc-nobind', totp_secret: null, totp_verified: 0 })
     const token2 = createSession(fresh.id, fresh.token_version)
     const unbound = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers: { authorization: 'Bearer ' + token2 }, payload: { code: right } })
-    expect(unbound.statusCode).toBe(400)
+    // 会话门禁批：未绑定画师在 requireAuth 即被拦截（端点本身不可达），返回新门禁码而非旧 400 TOTP_NOT_BOUND
+    expect(unbound.statusCode).toBe(401)
+    expect(unbound.json().code).toBe('TOTP_BIND_REQUIRED')
   })
 })
 
