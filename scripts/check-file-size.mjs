@@ -52,7 +52,7 @@ const ALLOWLIST = {
   // ArtistManage.vue 1222→1249 = 上次登录列模板 +6 与相对时间/悬浮展示函数 +21（后续可随邀请码弹窗一并拆组件瘦身）
   'server/src/features/artist/artist.service.ts': 812,
   'web/src/views/admin/ArtistManage.vue': 1249,
-  'web/src/views/artist/Login.vue': 1011,
+  // Login.vue 冻结值已移除（824 四步入驻批：叠加层抽为 InviteOverlay 组件，1011→661，回到 800 线内）
   'web/src/components/artist/ArtStyleManager.vue': 941,
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
   'web/src/components/templates/TplGallery.vue': 896,
