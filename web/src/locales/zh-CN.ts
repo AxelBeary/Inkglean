@@ -2411,8 +2411,21 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   invite: {
     entry: '没有账号？用邀请码入驻',
     title: '邀请码入驻',
-    subtitle: '填写管理员发放的邀请码，创建你的画师账号',
+    subtitle: '读文书、备验证器、填信息、绑动态码——四步完成入驻',
     back: '返回登录',
+    // 824: 四步流程纸签标签（叠加层顶部进度条）
+    tagDocs: '隐私政策',
+    tagPrep: '准备验证器',
+    tagInfo: '填写信息',
+    tagBind: '绑定入驻',
+    // 824: 步骤 1——两份文书同窗必读（正文事实源 compliance.privacy/terms，只渲染不复制）
+    docsTitle: '入驻前，请先读完这两份文书',
+    docsDesc: '《隐私政策》与《服务条款》全文都在下方同一个窗口里，滑到底部即可继续。',
+    docDivider: '—— 以下为第二份文书 ——',
+    scrollHint: '↓ 请滑动阅读到底部 ↓',
+    scrollHintDone: '✓ 已读到底部，请勾选同意',
+    agreeLabel: '我已阅读并同意《隐私政策》与《服务条款》',
+    docsNext: '读完了，下一步',
     codeLabel: '邀请码',
     codePlaceholder: '8 位邀请码',
     qqLabel: 'QQ 号',
@@ -2424,8 +2437,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     subdomainHint: '小写字母/数字，2-20 个字符',
     submit: '开始入驻',
     submitting: '正在入驻…',
-    // 823: 入驻第一步前置提醒 + 扫码页安装引导（画师反馈「没提前让下载 2FA 软件」）
-    prepNotice: '开始入驻前先准备一件事：下一步要设置「动态口令」，请先在手机上装好验证器 App（推荐 Microsoft Authenticator）。',
+    // 824: 步骤 2——验证器预告升格为独立步（823 前置提醒原文并入此处；推荐口径同源 authApp）
+    prepTitle: '接下来需要「动态口令」验证器',
+    prepDesc: '填完信息后，你需要用手机验证器 App 扫二维码完成绑定，以后每次登录也要用它出 6 位动态码。建议现在先装好，免得中途离开。',
+    prepNext: '已了解，继续填信息',
+    // 823: 扫码页安装引导（画师反馈「没提前让下载 2FA 软件」，步骤 4 折叠入口保留）
     step2Title: '绑定动态口令',
     step2Desc: '用验证器 App 扫描下方二维码，然后输入 6 位动态码完成绑定。还没装 App？点下方「还没装验证器 App？」。',
     appHelpToggle: '还没装验证器 App？看推荐',

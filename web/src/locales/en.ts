@@ -2416,8 +2416,21 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   invite: {
     entry: 'No account? Onboard with an invite code',
     title: 'Invite Onboarding',
-    subtitle: 'Enter the invite code issued by the admin to create your artist account',
+    subtitle: 'Read the documents, prep your authenticator, fill in your info, bind your code — four steps to join',
     back: 'Back to Login',
+    // 824: step-tag labels for the four-step flow (progress strip at overlay top)
+    tagDocs: 'Privacy & Terms',
+    tagPrep: 'Authenticator',
+    tagInfo: 'Your Info',
+    tagBind: 'Bind & Enter',
+    // 824: step 1 — both documents in one scroll window (body copy sourced from compliance.privacy/terms, rendered not copied)
+    docsTitle: 'Before you join, please read these two documents',
+    docsDesc: 'The full Privacy Policy and Terms of Service are in the same window below — scroll to the bottom to continue.',
+    docDivider: '—— Second document below ——',
+    scrollHint: '↓ Please scroll to the bottom ↓',
+    scrollHintDone: '✓ Read to the bottom — please tick to agree',
+    agreeLabel: 'I have read and agree to the Privacy Policy and the Terms of Service',
+    docsNext: 'Finished reading, next',
     codeLabel: 'Invite Code',
     codePlaceholder: '8-character invite code',
     qqLabel: 'QQ Number',
@@ -2429,8 +2442,11 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     subdomainHint: 'Lowercase letters/digits, 2-20 characters',
     submit: 'Start Onboarding',
     submitting: 'Onboarding…',
-    // 823: pre-notice at step 1 + install guidance at the QR step (artist feedback: no prior download prompt)
-    prepNotice: 'Before you start: onboarding sets up a “dynamic code” — please install an authenticator app on your phone first (Microsoft Authenticator recommended).',
+    // 824: step 2 — authenticator pre-notice promoted to its own step (823 pre-notice copy merged here; app picks sourced from authApp)
+    prepTitle: 'You will need an authenticator app for dynamic codes',
+    prepDesc: 'After filling in your info, you will scan a QR code with your authenticator app to finish binding — and use its 6-digit code at every login. Install it now to avoid leaving mid-flow.',
+    prepNext: 'Understood, continue to my info',
+    // 823: install guidance at the QR step (artist feedback: no prior download prompt; collapsible kept at step 4)
     step2Title: 'Bind Authenticator',
     step2Desc: 'Scan the QR code with your authenticator app, then enter the 6-digit code to verify. No app yet? Open “Need an authenticator app?” below.',
     appHelpToggle: 'Need an authenticator app? See recommendations',

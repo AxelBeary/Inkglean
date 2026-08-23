@@ -21,17 +21,19 @@ const LIMIT = 800
 // 调高冻结值须一号裁决并在此注明出处）
 // 格式：相对仓库根的 POSIX 路径 → 冻结行数
 const ALLOWLIST = {
-  // 823 规则对齐批追认：1067→1068 = artistCode 上限 10→20 的出处注释 +1（等长替换外加一行注释，出处在案）
-  'server/src/features/admin/admin.routes.ts': 1068,
+  // 823 规则对齐批追认：1067→1068 = artistCode 上限 10→20 的出处注释 +1（等长替换外加一行注释，出处在案）；
+  // 824 2FA 绑定完整性加固批追认：1068→1072 = 管理员 bind-init 路由层 token_version+1 与注释 +4（出处在案）
+  'server/src/features/admin/admin.routes.ts': 1072,
   'server/src/features/pricing/style.service.ts': 1041,
   // 下两项为纯类型/接口契约聚集仓（深度分析报告「可接受暂缓」裁决），
   // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）；
   // v144 自定义首页批一再追认：DashboardPrefs 契约类型 +21 / 读写两方法 +4（骨架批必需契约，出处在案）；
   // v145 批二再追认：IncomeOverview/DeadlineSoon 契约类型 +21 / 数据源两方法 +4（血肉批必需契约，出处在案）；
   // v152 追认：types.ts 1824→1859（邀请码批类型 +35）/ index.ts 837→842（邀请码批端点 +5），出处在案；
-  // 823 登录留痕批再追认：types.ts 1859→1864（AdminArtistItem 登录留痕字段 +5，出处在案）
+  // 823 登录留痕批再追认：types.ts 1859→1864（AdminArtistItem 登录留痕字段 +5，出处在案）；
+  // 824 2FA 绑定完整性加固批追认：index.ts 842→849（TOTP_BIND_REQUIRED 401 拦截器带文案登出+旗标分流 +7，出处在案）
   'web/src/api/types.ts': 1864,
-  'web/src/api/index.ts': 842,
+  'web/src/api/index.ts': 849,
   // v144 追认：ArtistLayout +43 = 页宽三档生效机制（prefs 拉取/pageWidthStyle/container-type 注释）；
   // PriceCard +1 = 页宽归一批注释行。另：计数口径修正（CRLF 归一）后冻结值统一按总行口径重钉；
   // v145 批二再追认：PriceCard +2 = 容器查询收尾批注释行（@media→@container 改造标记，出处在案）；
@@ -52,7 +54,7 @@ const ALLOWLIST = {
   // ArtistManage.vue 1222→1249 = 上次登录列模板 +6 与相对时间/悬浮展示函数 +21（后续可随邀请码弹窗一并拆组件瘦身）
   'server/src/features/artist/artist.service.ts': 812,
   'web/src/views/admin/ArtistManage.vue': 1249,
-  'web/src/views/artist/Login.vue': 1011,
+  // Login.vue 冻结值已移除（824 四步入驻批：叠加层抽为 InviteOverlay 组件，1011→661，回到 800 线内）
   'web/src/components/artist/ArtStyleManager.vue': 941,
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
   'web/src/components/templates/TplGallery.vue': 896,

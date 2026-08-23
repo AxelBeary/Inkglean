@@ -90,155 +90,17 @@
           {{ t('invite.entry') }}
         </button>
 
-        <!-- REQ-039: 入驻叠加层（两步：信息表单 → TOTP 首绑；覆盖卡片，v0.49 冻结页最小增量） -->
-        <div
-          v-if="inviteView" ref="inviteOverlayRef"
-          class="invite-overlay" role="dialog" aria-modal="true" :aria-label="t('invite.title')"
-          @keydown.tab="onInviteKeydown"
-        >
-          <div class="invite-overlay-inner">
-            <button class="invite-back" type="button" @click="closeInvite">← {{ t('invite.back') }}</button>
-            <h2 class="invite-title">{{ t('invite.title') }}</h2>
-            <p class="invite-sub">{{ t('invite.subtitle') }}</p>
-
-            <!-- 步骤 1：入驻信息 -->
-            <form v-if="inviteStep === 1" novalidate @submit.prevent="submitInvite">
-              <!-- 823：前置提醒——提前说清要装验证器 App（画师反馈：注册时没提前让下载 2FA 软件） -->
-              <p class="invite-prep">{{ t('invite.prepNotice') }}</p>
-              <div class="field" :class="{ 'field-error': inviteErrCode }">
-                <label class="field-label" for="invite-code">{{ t('invite.codeLabel') }}</label>
-                <input
-                  id="invite-code" v-model="invCode" class="field-input" type="text"
-                  maxlength="8" autocomplete="off" :placeholder="t('invite.codePlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrCode = false"
-                >
-              </div>
-              <div class="field" :class="{ 'field-error': inviteErrQq }">
-                <label class="field-label" for="invite-qq">{{ t('invite.qqLabel') }}</label>
-                <input
-                  id="invite-qq" v-model="invQq" class="field-input" type="text" inputmode="numeric"
-                  autocomplete="username" :placeholder="t('invite.qqPlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrQq = false"
-                >
-              </div>
-              <div class="field" :class="{ 'field-error': inviteErrName }">
-                <label class="field-label" for="invite-name">{{ t('invite.nameLabel') }}</label>
-                <input
-                  id="invite-name" v-model="invName" class="field-input" type="text"
-                  autocomplete="nickname" :placeholder="t('invite.namePlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrName = false"
-                >
-              </div>
-              <div class="field" :class="{ 'field-error': inviteErrSub }">
-                <label class="field-label" for="invite-subdomain">{{ t('invite.subdomainLabel') }}</label>
-                <input
-                  id="invite-subdomain" v-model="invSubdomain" class="field-input" type="text"
-                  autocomplete="off" :placeholder="t('invite.subdomainPlaceholder')"
-                  :disabled="inviteSubmitting" @input="inviteErrSub = false"
-                >
-                <p class="field-hint">{{ t('invite.subdomainHint') }}</p>
-              </div>
-              <button class="login-btn" type="submit" :disabled="inviteSubmitting">
-                <span v-if="inviteSubmitting" class="btn-spinner" aria-hidden="true"></span>
-                {{ inviteSubmitting ? t('invite.submitting') : t('invite.submit') }}
-              </button>
-              <p v-if="inviteError" class="notice notice-error" role="alert">{{ inviteError }}</p>
-            </form>
-
-            <!-- 步骤 2：TOTP 首绑（复用 SetupWizard 同款二维码生成） -->
-            <div v-else>
-              <p class="invite-step-title">{{ t('invite.step2Title') }}</p>
-              <p class="invite-step-desc">{{ t('invite.step2Desc') }}</p>
-              <!-- 824: 防刷新提示（藤黄纸签，醒目但不惊悚） -->
-              <p class="invite-warn">{{ t('invite.noRefreshNotice') }}</p>
-              <div class="invite-qr-wrap">
-                <img v-if="inviteQr" :src="inviteQr" :alt="t('invite.qrAlt')" class="invite-qr" />
-              </div>
-              <!-- 823：验证器安装引导（复用登录页帮助折叠同款交互，口径同源 authApp） -->
-              <div class="help app-help">
-                <button
-                  class="help-toggle" type="button"
-                  :aria-expanded="inviteAppHelpOpen"
-                  @click="inviteAppHelpOpen = !inviteAppHelpOpen"
-                >
-                  {{ t('invite.appHelpToggle') }}
-                </button>
-                <div class="help-body-wrap" :class="{ open: inviteAppHelpOpen }">
-                  <div class="help-body">
-                    <p>{{ t('authApp.desc') }}</p>
-                    <p>{{ t('authApp.alts') }}</p>
-                    <p class="help-note">{{ t('authApp.miniProgram') }}</p>
-                  </div>
-                </div>
-              </div>
-              <div class="field" :class="{ 'field-error': !!inviteError && inviteErrTotp }">
-                <label class="field-label" for="invite-totp">{{ t('invite.totpCodeLabel') }}</label>
-                <input
-                  id="invite-totp" v-model="inviteTotpCode" class="field-input" type="text" inputmode="numeric"
-                  maxlength="6" autocomplete="one-time-code" :placeholder="t('invite.totpCodePlaceholder')"
-                  :disabled="inviteConfirming || inviteTotpOk" @input="inviteErrTotp = false"
-                >
-                <!-- v126①：新手引导——码 30 秒轮换机制人话说明，降低「超时」错觉 -->
-                <p class="invite-totp-guide">{{ t('invite.totpGuide') }}</p>
-              </div>
-              <button
-                class="login-btn" :class="{ 'is-ok': inviteTotpOk }" type="button"
-                :disabled="inviteConfirming || inviteTotpOk" @click="confirmInviteTotp"
-              >
-                <span v-if="inviteConfirming" class="btn-spinner" aria-hidden="true"></span>
-                {{ inviteTotpOk ? t('invite.success') : inviteConfirming ? t('invite.confirming') : t('invite.totpConfirm') }}
-              </button>
-              <p v-if="inviteError" class="notice notice-error" role="alert">{{ inviteError }}</p>
-            </div>
-
-            <!-- 824: 首绑找回入口（刷新丢失状态时的续绑通道；步骤 1/2 均可用，复用帮助折叠同款交互） -->
-            <div class="help invite-recover">
-              <button
-                id="invite-recover-toggle" class="help-toggle" type="button"
-                :aria-expanded="recoverOpen" aria-controls="invite-recover-body"
-                @click="recoverOpen = !recoverOpen"
-              >
-                {{ t('invite.recoverToggle') }}
-              </button>
-              <div id="invite-recover-body" class="help-body-wrap" :class="{ open: recoverOpen }">
-                <div class="help-body">
-                  <p class="invite-recover-desc">{{ t('invite.recoverDesc') }}</p>
-                  <form novalidate @submit.prevent="submitRecover">
-                    <div class="field" :class="{ 'field-error': recoverErrQq }">
-                      <label class="field-label" for="recover-qq">{{ t('invite.qqLabel') }}</label>
-                      <input
-                        id="recover-qq" v-model="recoverQq" class="field-input" type="text" inputmode="numeric"
-                        autocomplete="username" :placeholder="t('invite.qqPlaceholder')"
-                        :disabled="recoverSubmitting" :aria-invalid="recoverErrQq" @input="recoverErrQq = false"
-                      >
-                    </div>
-                    <div class="field" :class="{ 'field-error': recoverErrCode }">
-                      <label class="field-label" for="recover-code">{{ t('invite.totpCodeLabel') }}</label>
-                      <input
-                        id="recover-code" v-model="recoverCode" class="field-input" type="text" inputmode="numeric"
-                        maxlength="6" autocomplete="one-time-code" :placeholder="t('invite.totpCodePlaceholder')"
-                        :disabled="recoverSubmitting" :aria-invalid="recoverErrCode" @input="recoverErrCode = false"
-                      >
-                    </div>
-                    <button class="login-btn" type="submit" :disabled="recoverSubmitting || recoverOk">
-                      <span v-if="recoverSubmitting" class="btn-spinner" aria-hidden="true"></span>
-                      {{ recoverOk ? t('invite.success') : recoverSubmitting ? t('invite.confirming') : t('invite.recoverSubmit') }}
-                    </button>
-                    <p v-if="recoverOk" class="notice notice-ok" role="status">{{ t('invite.success') }}</p>
-                    <p v-else-if="recoverError" class="notice notice-error" role="alert">{{ recoverError }}</p>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- REQ-039 + 824: 入驻叠加层（四步：文书必读 → 验证器预告 → 信息表单 → TOTP 首绑）；
+             流程本体抽为 InviteOverlay 组件（巨型文件防阀瘦身），本页只留入口与显隐；
+             824 防刷新恢复/首绑找回/防刷提示均随组件迁入 -->
+        <InviteOverlay v-if="inviteView" @close="closeInvite" />
       </PaperCard>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -247,9 +109,12 @@ import { useLocaleSwitch } from '../../composables/useLocaleSwitch'
 import LoginBackdrop from '../../components/artist/login/LoginBackdrop.vue'
 import PaperCard from '../../components/artist/login/PaperCard.vue'
 import LoginPrefs from '../../components/artist/login/LoginPrefs.vue'
+import InviteOverlay from '../../components/artist/login/InviteOverlay.vue'
 import { inviteApi } from '../../api/index'
 import paperTexUrl from '../../assets/paper-tex.webp'
 import logoUrl from '../../assets/logo.webp'
+// 824: 表单/按钮/帮助折叠样式与 InviteOverlay 共享（.login-page 前缀锁作用域，防双副本漂移）
+import '../../styles/login-shared.css'
 import { Lock } from '@element-plus/icons-vue'
 import {
   toCredentialRequestOptions,
@@ -259,9 +124,7 @@ import {
   isBackendError
 } from '../../utils/webauthn'
 import {
-  saveInviteTotpProgress,
   loadInviteTotpProgress,
-  clearInviteTotpProgress,
   takeTotpBindRequiredNotice,
   clearTotpBindRequiredNotice
 } from '../../utils/inviteProgress'
@@ -296,14 +159,11 @@ const code = ref('')
 const logging = ref(false)
 const loginOk = ref(false)
 const helpOpen = ref(false)
-// 823：入驻扫码页「还没装验证器 App？」折叠开关（与登录页 helpOpen 同款交互，状态独立）
-const inviteAppHelpOpen = ref(false)
 const errQq = ref(false)
 const errCode = ref(false)
 const noticeError = ref('')
 const paperCardRef = ref<InstanceType<typeof PaperCard> | null>(null)
 const inviteEntryRef = ref<HTMLButtonElement | null>(null)
-const inviteOverlayRef = ref<HTMLDivElement | null>(null)
 
 /** 后端 API 错误形状（code/detail 附在抛出的错误对象上）：仅用于 catch 内分支读取 */
 interface ApiErrShape {
@@ -312,36 +172,11 @@ interface ApiErrShape {
   detail?: { stale?: boolean; remainingAttempts?: number; remainingLockMs?: number }
 }
 
-// ─── REQ-039: 邀请码入驻叠加层 ───
+// ─── REQ-039 + 824: 邀请码入驻（入口与显隐在本页；四步流程本体在 InviteOverlay 组件内） ───
 const inviteEnabled = ref(false)
 const inviteView = ref(false)
-const inviteStep = ref(1)
-const invCode = ref('')
-const invQq = ref('')
-const invName = ref('')
-const invSubdomain = ref('')
-const inviteSubmitting = ref(false)
-const inviteError = ref('')
-const inviteErrCode = ref(false)
-const inviteErrQq = ref(false)
-const inviteErrName = ref(false)
-const inviteErrSub = ref(false)
-const inviteQr = ref('')
-const inviteTotpCode = ref('')
-const inviteErrTotp = ref(false)
-const inviteConfirming = ref(false)
-const inviteTotpOk = ref(false)
-// 824: TOTP 绑定失效提示（401 TOTP_BIND_REQUIRED 跳登录页前写旗标，挂载时消费展示，展示后清除）
+// 824: TOTP 绑定失效提示（401 TOTP_BIND_REQUIRED 跳登录页前写旗标，挂载时消费展示，展示后清除；展示位在本页登录表单上方）
 const bindNotice = ref('')
-// 824: 首绑找回入口（刷新丢状态后的续绑通道：QQ + 6 位码直调 totp-confirm）
-const recoverOpen = ref(false)
-const recoverQq = ref('')
-const recoverCode = ref('')
-const recoverSubmitting = ref(false)
-const recoverErrQq = ref(false)
-const recoverErrCode = ref(false)
-const recoverError = ref('')
-const recoverOk = ref(false)
 
 const { switchLang } = useLocaleSwitch(() => paperCardRef.value?.getCardEl())
 const onSwitchLang = (next: string) => switchLang(next, locale.value)
@@ -351,16 +186,10 @@ onMounted(async () => {
   if (takeTotpBindRequiredNotice()) {
     bindNotice.value = t('errors.TOTP_BIND_REQUIRED')
   }
-  // 824: 防刷新——恢复进行中的首绑第 2 步（建号已成功但绑定未完成）；
-  // 不依赖入驻入口开关：账号既已创建，即使入驻关闭也恢复二维码页续绑
-  const progress = loadInviteTotpProgress()
-  if (progress) {
-    invQq.value = progress.qqNumber
-    // 找回入口预填 QQ，刷新后少填一项
-    recoverQq.value = progress.qqNumber
+  // 824: 防刷新——有进行中的首绑（建号已成功但绑定未完成）就打开叠加层，
+  // 由组件自行恢复二维码页；不依赖入驻入口开关：账号既已创建，即使入驻关闭也恢复续绑
+  if (loadInviteTotpProgress()) {
     inviteView.value = true
-    inviteStep.value = 2
-    inviteQr.value = await generateInviteQr(progress.otpauthUri)
   }
   // REQ-039: 入驻模式判定（manual 时登录页不显示入口）
   try {
@@ -371,237 +200,12 @@ onMounted(async () => {
 
 function openInvite() {
   inviteView.value = true
-  inviteStep.value = 1
-  resetInviteErrors()
-  // 初始聚焦：进入叠加层后聚焦第一个可输入控件
-  nextTick(() => {
-    const codeInput = inviteOverlayRef.value?.querySelector('#invite-code') as HTMLElement | null
-    ;(codeInput || inviteOverlayRef.value?.querySelector('input, button') as HTMLElement | null)?.focus()
-  })
 }
 
 function closeInvite() {
   inviteView.value = false
-  invCode.value = ''
-  invQq.value = ''
-  invName.value = ''
-  invSubdomain.value = ''
-  inviteQr.value = ''
-  inviteTotpCode.value = ''
-  inviteStep.value = 1
-  resetInviteErrors()
-  inviteTotpOk.value = false
-  // 824: 用户主动关闭叠加层 → 清防刷新状态与找回表单状态（拍板口径；找回入口可再次展开重新填写）
-  clearInviteTotpProgress()
-  recoverOpen.value = false
-  recoverQq.value = ''
-  recoverCode.value = ''
-  recoverError.value = ''
-  recoverErrQq.value = false
-  recoverErrCode.value = false
-  recoverOk.value = false
-  // 回焦：关闭叠加层后焦点还给「邀请码入驻」入口按钮
+  // 回焦：关闭叠加层后焦点还给「邀请码入驻」入口按钮（防刷新状态由组件在关闭时自行清理）
   inviteEntryRef.value?.focus()
-}
-
-/** b1: 邀请流程错误状态清零（openInvite/closeInvite/两步提交共用） */
-function resetInviteErrors() {
-  inviteError.value = ''
-  inviteErrCode.value = false
-  inviteErrQq.value = false
-  inviteErrName.value = false
-  inviteErrSub.value = false
-  inviteErrTotp.value = false
-}
-
-/** 焦点圈闭：Tab 不离开叠加层（首尾循环） */
-function onInviteKeydown(e: KeyboardEvent) {
-  if (e.key !== 'Tab') return
-  const overlay = inviteOverlayRef.value
-  if (!overlay) return
-  const focusables = ([...overlay.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  )] as Array<HTMLElement & { disabled?: boolean }>).filter(el => !el.disabled && el.offsetParent !== null)
-  if (!focusables.length) return
-  const first = focusables[0]
-  const last = focusables[focusables.length - 1]
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault()
-    last.focus()
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault()
-    first.focus()
-  }
-}
-
-/** 两步表单切换后聚焦对应输入框 */
-watch(inviteStep, (step) => {
-  if (!inviteView.value) return
-  nextTick(() => {
-    const sel = step === 1 ? '#invite-code' : '#invite-totp'
-    ;(inviteOverlayRef.value?.querySelector(sel) as HTMLElement | null)?.focus()
-  })
-})
-
-async function generateInviteQr(otpauthUri: string) {
-  try {
-    const QRCode = await import('qrcode')
-    return await QRCode.default.toDataURL(otpauthUri, { width: 220, margin: 1 })
-  } catch { return '' }
-}
-
-async function submitInvite() {
-  resetInviteErrors()
-
-  const code = invCode.value.trim()
-  const qq = invQq.value.trim()
-  const name = invName.value.trim()
-  const subdomain = invSubdomain.value.trim().toLowerCase()
-
-  if (!code) {
-    inviteErrCode.value = true
-    inviteError.value = t('invite.codeRequired')
-    return
-  }
-  if (!/^[A-Za-z0-9]{8}$/.test(code)) {
-    inviteErrCode.value = true
-    inviteError.value = t('invite.codeFormat')
-    return
-  }
-  if (!qq) {
-    inviteErrQq.value = true
-    inviteError.value = t('invite.qqRequired')
-    return
-  }
-  if (!/^\d+$/.test(qq)) {
-    inviteErrQq.value = true
-    inviteError.value = t('invite.qqInvalid')
-    return
-  }
-  if (!name) {
-    inviteErrName.value = true
-    inviteError.value = t('invite.nameRequired')
-    return
-  }
-  if (!subdomain) {
-    inviteErrSub.value = true
-    inviteError.value = t('invite.subdomainRequired')
-    return
-  }
-  if (!/^[a-z0-9]{2,20}$/.test(subdomain)) {
-    inviteErrSub.value = true
-    inviteError.value = t('invite.subdomainFormat')
-    return
-  }
-
-  inviteSubmitting.value = true
-  try {
-    const res = await inviteApi.register({ code, qqNumber: qq, name, subdomain })
-    // 824: 防刷新——进行中状态落 sessionStorage（QQ + 二维码源），刷新后直接恢复到本页
-    saveInviteTotpProgress({ qqNumber: qq, otpauthUri: res.otpauthUri })
-    inviteQr.value = await generateInviteQr(res.otpauthUri)
-    inviteStep.value = 2
-  } catch (err) {
-    inviteError.value = (err as ApiErrShape).message || t('invite.totpError')
-  } finally {
-    inviteSubmitting.value = false
-  }
-}
-
-async function confirmInviteTotp() {
-  resetInviteErrors()
-
-  const code = inviteTotpCode.value.trim()
-  if (!code) {
-    inviteErrTotp.value = true
-    inviteError.value = t('invite.totpRequired')
-    return
-  }
-  if (!/^\d{6}$/.test(code)) {
-    inviteErrTotp.value = true
-    inviteError.value = t('invite.totpFormat')
-    return
-  }
-
-  inviteConfirming.value = true
-  try {
-    const res = await inviteApi.totpConfirm({ qqNumber: invQq.value.trim(), code })
-    // 会话 cookie 已由后端签发；REQ-043 I6-e: 状态与标记统一走 store.applySession
-    store.applySession(res.artist, false)
-    // 824: 绑定完成 → 清防刷新状态
-    clearInviteTotpProgress()
-    inviteTotpOk.value = true
-    setTimeout(() => router.push('/dashboard'), 500)
-  } catch (err) {
-    inviteErrTotp.value = true
-    inviteError.value = mapInviteTotpErr(err)
-  } finally {
-    inviteConfirming.value = false
-  }
-}
-
-/** v126②③：首绑确认失败文案分流（detail 由后端 invite/totp-confirm 提供，与登录锁定提示同口径）：
- *  码刚轮换 → 等它转完再试；码输错 → 带剩余次数；锁定 → 带剩余分钟数（均只写可验证事实） */
-function mapInviteTotpErr(err: unknown) {
-  const e = err as ApiErrShape
-  if (e?.code === 'TOTP_BIND_INVALID' && e.detail && typeof e.detail === 'object') {
-    if (e.detail.stale) return t('invite.totpStale')
-    if (typeof e.detail.remainingAttempts === 'number') {
-      return t('invite.totpWrong', { n: e.detail.remainingAttempts })
-    }
-  }
-  if (e?.code === 'TOTP_LOCKED' && e.detail?.remainingLockMs) {
-    return t('invite.totpLockedMin', { minutes: Math.ceil(e.detail.remainingLockMs / 60000) })
-  }
-  return e.message || t('invite.totpError')
-}
-
-/** 824: 找回入口——QQ + 6 位码直调 totp-confirm（该接口只需这两个字段，无需邀请码）；
- *  成功走与正常首绑一致的会话落地与跳转；错误分流复用 mapInviteTotpErr（stale/剩余次数/锁定） */
-async function submitRecover() {
-  recoverError.value = ''
-  recoverErrQq.value = false
-  recoverErrCode.value = false
-  recoverOk.value = false
-
-  const qq = recoverQq.value.trim()
-  const totpCode = recoverCode.value.trim()
-  if (!qq) {
-    recoverErrQq.value = true
-    recoverError.value = t('invite.qqRequired')
-    return
-  }
-  if (!/^\d+$/.test(qq)) {
-    recoverErrQq.value = true
-    recoverError.value = t('invite.qqInvalid')
-    return
-  }
-  if (!totpCode) {
-    recoverErrCode.value = true
-    recoverError.value = t('invite.totpRequired')
-    return
-  }
-  if (!/^\d{6}$/.test(totpCode)) {
-    recoverErrCode.value = true
-    recoverError.value = t('invite.totpFormat')
-    return
-  }
-
-  recoverSubmitting.value = true
-  try {
-    const res = await inviteApi.totpConfirm({ qqNumber: qq, code: totpCode })
-    // 与正常首绑成功同路径：清防刷新状态 + applySession + 停留 500ms 跳转
-    clearInviteTotpProgress()
-    store.applySession(res.artist, false)
-    recoverOk.value = true
-    inviteTotpOk.value = true
-    setTimeout(() => router.push('/dashboard'), 500)
-  } catch (err) {
-    recoverErrCode.value = true
-    recoverError.value = mapInviteTotpErr(err)
-  } finally {
-    recoverSubmitting.value = false
-  }
 }
 
 async function passkeyLogin() {
@@ -799,62 +403,7 @@ async function login() {
   color: var(--ink2);
 }
 
-/* ── 表单：墨线输入（只画横线不画框；全项目 EP 惯例的有意例外——宪法「输入框只画横线」） ── */
-.field { margin-bottom: 24px; }
-
-.field-label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  letter-spacing: 1px;
-  color: var(--ink3);
-  transition: color var(--dur-mid) var(--ease-out);
-}
-
-.field:focus-within .field-label { color: var(--hq); }
-
-/* 墨线描入：聚焦时一笔花青从左侧描入（触发式、不循环） */
-.field-input {
-  width: 100%;
-  padding: 10px 0;
-  border: 0;
-  border-bottom: 1px solid var(--line2);
-  border-radius: 0;
-  background-color: transparent;
-  background-image: linear-gradient(var(--hq), var(--hq));
-  background-repeat: no-repeat;
-  background-position: left bottom;
-  background-size: 0% 1px;
-  font-family: inherit;
-  font-size: calc(var(--font-scale, 1) * 16px);
-  color: var(--ink);
-  caret-color: var(--hq);
-  transition: background-size var(--dur-slow) var(--ease-out);
-}
-
-.field-input::placeholder { color: var(--ink3); }
-
-.field-input:focus {
-  outline: none;
-  background-size: 100% 1px;
-}
-
-/* 键盘焦点可见性：花青焦点环（仅 :focus-visible，鼠标用户不见） */
-.field-input:focus-visible {
-  outline: 2px solid var(--hq);
-  outline-offset: 3px;
-}
-
-.field-input:disabled { opacity: 0.6; }
-
-/* 错误态：朱砂一笔 */
-.field-error .field-input {
-  border-bottom-color: var(--zs);
-  background-image: linear-gradient(var(--zs), var(--zs));
-  background-size: 100% 1px;
-}
-
-.field-error .field-label { color: var(--zs); }
+/* 表单（墨线输入）/主按钮/错误行/帮助折叠样式已迁入 styles/login-shared.css（与 InviteOverlay 共享） */
 
 /* ── REQ-040: Passkey 登录按钮 ── */
 .passkey-section {
@@ -903,74 +452,6 @@ async function login() {
   background: var(--line);
 }
 
-/* ── 登录按钮：一锭墨（手剪圆角 + 深浅不均 + 底缘厚墨） ── */
-.login-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px 0;
-  border: 0;
-  border-radius: var(--r-paper);
-  background-color: var(--hq);
-  background-image: linear-gradient(175deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.1));
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.16);
-  color: #FFFFFF;
-  font-family: inherit;
-  font-size: calc(var(--font-scale, 1) * 15px);
-  letter-spacing: 4px;
-  text-indent: 4px;
-  cursor: pointer;
-  transition: background-color var(--dur-mid) var(--ease-out);
-}
-
-:global(html[data-artist-theme='ink'] .login-btn) { color: #171611; }
-
-.login-btn:hover:not(:disabled) { background-color: var(--hq-d); }
-
-.login-btn:focus-visible {
-  outline: 2px solid var(--hq);
-  outline-offset: 3px;
-}
-
-.login-btn:disabled {
-  cursor: default;
-  opacity: 0.72;
-}
-
-/* 成功态：一汪石绿（500ms 后跳转） */
-.login-btn.is-ok {
-  background-color: var(--sl);
-  opacity: 1;
-}
-
-/* 加载态：转环（功能性状态指示，非装饰循环） */
-.btn-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-:global(html[data-artist-theme='ink'] .btn-spinner) { border-color: rgba(23, 22, 17, 0.3); border-top-color: currentColor; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── 错误行：一行小字，淡入不弹跳 ── */
-@keyframes note-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-.notice {
-  margin: 16px 0 0;
-  font-size: calc(var(--font-scale, 1) * 13px);
-  line-height: 1.6;
-  animation: note-in var(--dur-slow) var(--ease-out);
-}
-
-.notice-error { color: var(--zs); }
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -983,83 +464,7 @@ async function login() {
   border: 0;
 }
 
-/* ── 帮助：验证器推荐（button + grid-rows 0fr→1fr 展开动画） ── */
-.help {
-  margin-top: 24px;
-  border-top: 1px dashed var(--line);
-  padding-top: 16px;
-}
-
-.help-toggle {
-  width: 100%;
-  padding: 8px 0;
-  border: 0;
-  background: transparent;
-  font-family: inherit;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  color: var(--ink2);
-  cursor: pointer;
-  text-align: center;
-  transition: color var(--dur-mid) var(--ease-out);
-}
-
-.help-toggle:hover { color: var(--ink); }
-
-.help-toggle:focus-visible {
-  outline: 2px solid var(--hq);
-  outline-offset: 2px;
-}
-
-.help-toggle::after {
-  content: '＋';
-  margin-left: 8px;
-  color: var(--ink4);
-}
-
-.help-toggle[aria-expanded='true']::after { content: '－'; }
-
-.help-body-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.32s var(--ease-out);
-}
-
-.help-body-wrap.open { grid-template-rows: 1fr; }
-
-.help-body {
-  overflow: hidden;
-  min-height: 0;
-  opacity: 0;
-  transition: opacity 0.28s var(--ease-out);
-  font-size: calc(var(--font-scale, 1) * 12px);
-  color: var(--ink2);
-  line-height: 1.8;
-}
-
-.help-body-wrap.open .help-body {
-  opacity: 1;
-  padding-top: 12px;
-}
-
-.help-body p { margin: 0 0 8px; }
-.help-body ul { margin: 0 0 8px 16px; padding: 0; }
-.help-note { color: var(--ink3); }
-
-/* 823：入驻第一步前置提醒（虚线纸签，与入驻入口虚线框同手法） */
-.invite-prep {
-  margin: 0 0 20px;
-  padding: 12px 14px;
-  border: 1px dashed var(--line2);
-  border-radius: var(--r-paper);
-  font-size: calc(var(--font-scale, 1) * 12px);
-  line-height: 1.7;
-  color: var(--ink2);
-}
-
-/* 823：扫码页安装引导折叠（复用 .help 同款，去掉顶部虚线分隔） */
-.app-help { margin-top: 0; margin-bottom: 16px; border-top: 0; padding-top: 0; }
-
-/* ─── REQ-039: 邀请码入驻（入口 + 叠加层，纸墨 token 复用登录表单样式） ─── */
+/* ─── REQ-039: 邀请码入驻入口（叠加层本体已抽至 InviteOverlay 组件，样式随迁） ─── */
 .invite-entry {
   display: block;
   width: 100%;
@@ -1083,61 +488,8 @@ async function login() {
   outline-offset: 3px;
 }
 
-/* 叠加层：覆盖主卡（主卡 position: relative），纸面同色 + 可滚动 */
-.invite-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  background: var(--card);
-  border-radius: var(--r-paper);
-  overflow-y: auto;
-  animation: note-in var(--dur-slow) var(--ease-out);
-}
-.invite-overlay-inner { padding: 32px 44px 40px; }
-.invite-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 0;
-  border: 0;
-  background: transparent;
-  font-family: inherit;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  color: var(--ink2);
-  cursor: pointer;
-  transition: color var(--dur-fast);
-}
-.invite-back:hover { color: var(--ink); }
-.invite-title {
-  margin: 12px 0 4px;
-  font-family: var(--f-d);
-  font-size: calc(var(--font-scale, 1) * 22px);
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  color: var(--ink);
-}
-.invite-sub {
-  margin: 0 0 24px;
-  font-size: calc(var(--font-scale, 1) * 12px);
-  color: var(--ink2);
-  line-height: 1.7;
-}
-.field-hint { margin: 6px 0 0; font-size: 11px; color: var(--ink3); }
-/* v126①：首绑动态码轮换机制引导（与 step-desc 同色调，只写功能性陈述） */
-.invite-totp-guide { margin: 6px 0 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); line-height: 1.6; }
-.invite-step-title { margin: 20px 0 6px; font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
-.invite-step-desc { margin: 0 0 14px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.7; }
-.invite-qr-wrap { display: flex; justify-content: center; margin: 4px 0 18px; }
-.invite-qr {
-  width: 200px;
-  height: 200px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  background: #fff;
-}
-
-/* ─── 824: TOTP 绑定失效提示 + 防刷新提示 + 找回入口 ─── */
-/* 绑定失效提示（401 跳登录页后展示）：藤黄纸签——醒目但不惊悚，一次性淡入承 .notice */
+/* 824: TOTP 绑定失效提示（401 跳登录页后展示）：藤黄纸签——醒目但不惊悚，一次性淡入承 .notice；
+   叠加层其余样式已随 InviteOverlay 组件迁出 */
 .notice-bind {
   margin: 0 0 20px;
   padding: 12px 16px;
@@ -1146,45 +498,14 @@ async function login() {
   background: var(--th-t);
   color: var(--ink);
 }
-
-/* 首绑第 2 步防刷新提示（藤黄=待确认/缓冲提醒语义色，醒目不吓人） */
-.invite-warn {
-  margin: 0 0 12px;
-  padding: 12px 12px;
-  border: 1px dashed var(--th);
-  border-radius: var(--r-paper);
-  background: var(--th-t);
-  font-size: calc(var(--font-scale, 1) * 12px);
-  line-height: 1.7;
-  color: var(--ink2);
-}
-
-/* 找回入口：复用 .help 折叠 + 墨线输入，克制增量不堆特效 */
-.invite-recover { margin-top: 24px; }
-.invite-recover-desc { margin: 0 0 12px; }
-
-/* 成功提示：石绿一行（与 notice-error 同族） */
-.notice-ok { color: var(--sl); }
-
-@media (max-width: 768px) {
-  .invite-overlay-inner { padding: 24px 24px 28px; }
-}
-
 /* ═══ 768 竖屏 ═══ */
 @media (max-width: 768px) {
   .brand-title { font-size: calc(var(--font-scale, 1) * 24px); }
-
-  /* 移动端点按热区：墨线输入纵向加厚 */
-  .field-input { padding: 12px 0; }
 }
 
-/* ═══ 无障碍：尊重系统减少动态效果 ═══ */
+/* ═══ 无障碍：尊重系统减少动态效果（表单/按钮类规则在 login-shared.css） ═══ */
 @media (prefers-reduced-motion: reduce) {
-  .rise, .notice { animation: none; }
+  .rise { animation: none; }
   .login-page { animation: none !important; } /* 时辰漂移直出 */
-  .btn-spinner { animation: none; }
-  .field-input, .help-body-wrap, .help-body, .login-btn, .field-label, .help-toggle {
-    transition-duration: 0.01ms;
-  }
 }
 </style>
