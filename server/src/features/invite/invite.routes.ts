@@ -1,4 +1,5 @@
 import { requireAdmin } from '../../shared/middleware/auth.js'
+import { recordLastLogin } from '../artist/artist.service.js'
 import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
@@ -88,6 +89,9 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
 
     const body = request.body as { qqNumber: string; code: string }
     const result = confirmInviteTotp(body)
+
+    // 登录留痕批（v72）：首绑确认即首次登录，刷新上次登录时间+来源 IP（仅管理后台可见）
+    recordLastLogin(result.artist.id, request.ip)
 
     // 签发会话 cookie（与 auth.routes.ts signSession / setup.routes.ts 同款参数）
     reply.setCookie('artist_token', result.token, {

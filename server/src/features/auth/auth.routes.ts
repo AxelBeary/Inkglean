@@ -1,7 +1,7 @@
 import { verifyTotpLogin, createSession } from './auth.service.js'
 import type { CreateSessionOptions } from './auth.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
-import { bumpTokenVersion } from '../artist/artist.service.js'
+import { bumpTokenVersion, recordLastLogin } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
@@ -211,6 +211,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ code: 'INTERNAL', error: '登录会话状态异常' })
     }
 
+    // 登录留痕批（v72）：刷新上次登录时间+来源 IP（仅管理后台可见）
+    recordLastLogin(result.artist.id, request.ip)
+
     return signSession(result.artist, reply)
   })
 
@@ -307,6 +310,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     try {
       const { artist } = await verifyLogin(credential, reqHost(request), undefined, reqScheme(request))
+      // 登录留痕批（v72）：刷新上次登录时间+来源 IP（仅管理后台可见）
+      recordLastLogin(artist.id, request.ip)
       return signSession(artist, reply)
     } catch (err) {
       // 防枚举：统一认证失败响应

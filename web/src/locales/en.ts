@@ -1959,6 +1959,13 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     artistCount: 'Artists', totalOrders: 'Total orders', activeOrders: 'Active orders',
     artistList: 'Artist list', manageArtists: 'Manage artists',
     colName: 'Name', colSubdomain: 'Home ID', colQq: 'QQ No.', colStatus: 'Status', colBio: 'Bio',
+    // Login tracking batch (v72): last login time + IP, admin-only (relative in list / full in drawer)
+    colLastLogin: 'Last login',
+    lastLogin: {
+      never: 'Never', justNow: 'Just now',
+      minutesAgo: '{n} min ago', hoursAgo: '{n} h ago', daysAgo: '{n} d ago',
+      detail: 'Last login', detailNone: 'Never logged in', detailIp: 'IP address'
+    },
     artistManage: 'Artist management', addArtist: '+ Add artist',
     addTitle: 'Add artist', qqLabel: 'QQ No.', qqPlaceholder: "Artist's QQ number (used for login)",
     nameLabel: 'Name', namePlaceholder: 'Name shown to clients',

@@ -243,3 +243,23 @@ describe('ArtistDetailDrawer 窄屏抽屉钩子（P1-B）', () => {
     expect(wrapper.find('.drawer-stub.detail-drawer').exists()).toBe(true)
   })
 })
+
+describe('ArtistDetailDrawer 上次登录展示（登录留痕批 v72）', () => {
+  it('有记录 → 资料页显示完整时间 + IP', async () => {
+    const wrapper = mountDrawer({
+      id: 1, name: 'Alice',
+      last_login_at: '2026-08-23T01:00:00.000Z', last_login_ip: '192.0.2.1'
+    } as unknown as DrawerArtist)
+    await flushPromises()
+    const text = wrapper.text()
+    expect(text).toContain('admin.lastLogin.detail')
+    expect(text).toContain('IP 192.0.2.1')
+    expect(text).toMatch(/2026/) // formatDateTime 本地化完整时间（含年份）
+  })
+
+  it('无记录 → 显示「尚未登录」兜底', async () => {
+    const wrapper = mountDrawer()
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.lastLogin.detailNone')
+  })
+})

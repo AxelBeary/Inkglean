@@ -60,6 +60,9 @@ export interface Artist {
   // REQ-043（v60）: 开张任务卡后端标记（自然达成 / 主动「不再提示」）
   onboarded_at: string | null
   onboarding_dismissed_at: string | null
+  // 登录留痕批（v61/v72）: 上次登录时间与来源 IP（仅管理后台展示，publicArtistDTO 剔除）
+  last_login_at: string | null
+  last_login_ip: string | null
   // oimimo 吸纳批一（v69）: 日历订阅（ICS）开关与私密令牌（令牌即凭证，可旋转）
   calendar_feed_enabled: number
   calendar_feed_token: string | null

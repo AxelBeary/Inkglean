@@ -74,6 +74,7 @@ import { migration as v68 } from './v68-artists-guestbook-enabled.js'
 import { migration as v69 } from './v69-artists-calendar-feed.js'
 import { migration as v70 } from './v70-artists-dashboard-prefs.js'
 import { migration as v71 } from './v71-invite-codes-multi-use.js'
+import { migration as v72 } from './v72-artists-last-login-ip.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -98,6 +99,7 @@ export const MIGRATIONS: Migration[] = [
   v69,
   v70,
   v71,
+  v72,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错

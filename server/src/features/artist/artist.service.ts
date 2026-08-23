@@ -85,9 +85,19 @@ export function getAllArtists(): Artist[] {
            order_template_id, inspiration_tags, batch_limit, buffer_limit, auto_promote,
            hide_queue_position, hide_promote_notify, buffer_short_form, announcement,
            announcement_expires_at, monthly_quota, quick_actions, discount_enabled,
-           multi_style_enabled, totp_verified, is_banned
+           multi_style_enabled, totp_verified, is_banned, last_login_at, last_login_ip
     FROM artists WHERE deleted_at IS NULL AND subdomain != 'system' ORDER BY created_at ASC
   `).all() as Artist[]
+}
+
+/**
+ * 登录留痕批（v72）：刷新画师上次登录时间 + 来源 IP（每次登录覆盖旧值）。
+ * 三个登录口成功后调用：TOTP 登录 / Passkey 登录 / 邀请码首绑确认。
+ * 字段仅管理后台展示（publicArtistDTO 默认剔除，不经 /api/auth/me 等口外泄）。
+ */
+export function recordLastLogin(artistId: number, ip: string): void {
+  db.prepare('UPDATE artists SET last_login_at = ?, last_login_ip = ? WHERE id = ?')
+    .run(new Date().toISOString(), ip, artistId)
 }
 
 /**

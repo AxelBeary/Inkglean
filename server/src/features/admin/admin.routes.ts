@@ -66,10 +66,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/api/admin/artists', { preHandler: requireAdmin }, async () => {
     const adminQq = getAdminQq()
-    // 安全加固批 F1: getAllArtists 已显式列（不含密钥），再经 DTO 双重防御
+    // 安全加固批 F1: getAllArtists 已显式列（不含密钥），再经 DTO 双重防御；
+    // 登录留痕批（v72）：last_login_at/last_login_ip 被 DTO 剔除，此处显式重新附带（仅管理端可见）
     return artistService.getAllArtists().map(a => ({
       ...publicArtistDTO(a),
-      isAdmin: a.qq_number === adminQq
+      isAdmin: a.qq_number === adminQq,
+      last_login_at: a.last_login_at,
+      last_login_ip: a.last_login_ip
     }))
   })
 
@@ -866,8 +869,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   fastify.get('/api/admin/artists/:id/profile', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
     const a = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!a) return reply.code(404).send({ error: '画师不存在' })
-    // 安全加固批 F1: 完整行含 totp_secret，走 DTO 剔除敏感列
-    return publicArtistDTO(a)
+    // 安全加固批 F1: 完整行含 totp_secret，走 DTO 剔除敏感列；
+    // 登录留痕批（v72）：last_login_at/last_login_ip 被 DTO 剔除，此处显式重新附带（抽屉展示）
+    return {
+      ...publicArtistDTO(a),
+      last_login_at: a.last_login_at,
+      last_login_ip: a.last_login_ip
+    }
   })
 
   /** PUT /api/admin/artists/:id/profile — 更新画师资料（P1-2: 字段白名单） */
