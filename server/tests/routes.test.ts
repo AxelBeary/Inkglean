@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
+import { Writable } from 'stream'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { seedArtistStages } from '../src/features/artist/workflow.service.js'
@@ -949,5 +950,134 @@ describe('路由层测试 (Route Integration)', () => {
       })
       expect(res.statusCode).toBe(404)
     })
+  })
+})
+
+// ─── WebAuthn Origin 协议信任加固（823 公网事故回归钉死） ───
+// 观察面：伪造协议头若被采纳，期望 origin 会随之改变，验证库的 origin 失配报错信息会暴露期望值。
+
+describe('WebAuthn Origin 协议信任 (823 加固)', () => {
+  const CRED_ID = 'tc-823-forged-proto-cred'
+  let app: FastifyInstance
+  let logLines: string[]
+
+  /** 捕获流 + 从日志行提取未处理错误的 message（500 响应出于安全不透传 message，日志是唯一观察面） */
+  function createLogCapture(): { stream: Writable; lines: string[] } {
+    const lines: string[] = []
+    const stream = new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        lines.push(chunk.toString())
+        cb()
+      }
+    })
+    return { stream, lines }
+  }
+
+  function extractUnhandledErrorMessage(lines: string[]): string {
+    for (const line of lines) {
+      try {
+        const rec = JSON.parse(line) as { msg?: string; err?: { message?: string } }
+        if (rec.msg === '未处理的服务端错误' && rec.err?.message) return rec.err.message
+      } catch { /* 非 JSON 行（子进程噪音等）跳过 */ }
+    }
+    return ''
+  }
+
+  beforeEach(async () => {
+    cleanDb()
+    const capture = createLogCapture()
+    logLines = capture.lines
+    app = await buildApp({ logger: capture.stream })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+  })
+
+  function seedCredentialRow(): void {
+    const artist = seedArtist({ qq_number: '82301', subdomain: 'pk823' })
+    db.prepare(
+      'INSERT INTO webauthn_credentials (artist_id, credential_id, public_key, counter) VALUES (?, ?, ?, 0)'
+    ).run(artist.id, CRED_ID, Buffer.from('fake-key').toString('base64url'))
+  }
+
+  async function fetchChallenge(target: FastifyInstance, remoteAddress: string): Promise<string> {
+    const res = await target.inject({
+      method: 'POST',
+      url: '/api/auth/webauthn/login-options',
+      remoteAddress,
+      // 防枚举设计：qqNumber 不参与校验但 schema 必填
+      payload: { qqNumber: '82301' }
+    })
+    expect(res.statusCode).toBe(200)
+    return res.json().challenge as string
+  }
+
+  function buildVerifyBody(challenge: string) {
+    return {
+      id: CRED_ID,
+      rawId: CRED_ID,
+      type: 'public-key',
+      response: {
+        // 浏览器侧 origin 故意与任何期望值不同：无论服务端算出什么协议都必触发失配，
+        // 报错信息里的 expected 值即为服务端真实推断结果（唯一观察面）
+        clientDataJSON: Buffer.from(JSON.stringify({ challenge, origin: 'https://browser-origin.example', type: 'webauthn.get' })).toString('base64url'),
+        authenticatorData: Buffer.from('fake').toString('base64url'),
+        signature: Buffer.from('fake').toString('base64url')
+      }
+    }
+  }
+
+  it('TC-RT-29: 非信任来源伪造 X-Forwarded-Proto 不被采纳（协议以套接字为准）', async () => {
+    seedCredentialRow()
+    try {
+      // 203.0.113.0/24 不在默认私有网段信任清单内 = 模拟绕反代直连
+      const remoteAddress = '203.0.113.7'
+      const challenge = await fetchChallenge(app, remoteAddress)
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/webauthn/login-verify',
+        remoteAddress,
+        // inject 默认 Host 带 :80，真实浏览器默认端口不带，显式对齐；协议谎报才是本用例变量
+        headers: { 'x-forwarded-proto': 'https', host: 'localhost' },
+        payload: buildVerifyBody(challenge)
+      })
+      // 谎报被忽略 → 期望 origin 仍为套接字实际协议 http（安全错误仅落日志，从日志断言）
+      expect(res.statusCode).toBe(500)
+      expect(res.json().code).toBe('INTERNAL')
+      expect(extractUnhandledErrorMessage(logLines)).toContain('expected "http://localhost"')
+    } finally {
+      db.prepare('DELETE FROM webauthn_credentials WHERE credential_id = ?').run(CRED_ID)
+    }
+  })
+
+  it('TC-RT-30: TRUST_PROXY=true 时可信来源的 X-Forwarded-Proto 被采纳', async () => {
+    seedCredentialRow()
+    process.env.TRUST_PROXY = 'true'
+    let trustedApp: FastifyInstance | undefined
+    const capture = createLogCapture()
+    try {
+      trustedApp = await buildApp({ logger: capture.stream })
+      await trustedApp.ready()
+      const remoteAddress = '203.0.113.8'
+      const challenge = await fetchChallenge(trustedApp, remoteAddress)
+      const res = await trustedApp.inject({
+        method: 'POST',
+        url: '/api/auth/webauthn/login-verify',
+        remoteAddress,
+        // 同 TC-RT-29：显式去掉默认端口，只留协议头一个变量
+        headers: { 'x-forwarded-proto': 'https', host: 'localhost' },
+        payload: buildVerifyBody(challenge)
+      })
+      // 可信来源透传的协议头被采纳 → 期望 origin 为 https（安全错误仅落日志，从日志断言）
+      expect(res.statusCode).toBe(500)
+      expect(res.json().code).toBe('INTERNAL')
+      expect(extractUnhandledErrorMessage(capture.lines)).toContain('expected "https://localhost"')
+    } finally {
+      delete process.env.TRUST_PROXY
+      db.prepare('DELETE FROM webauthn_credentials WHERE credential_id = ?').run(CRED_ID)
+      if (trustedApp) await trustedApp.close()
+    }
   })
 })
