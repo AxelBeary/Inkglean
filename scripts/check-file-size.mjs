@@ -43,9 +43,10 @@ const ALLOWLIST = {
   // api/types.ts 1824→1859 = 邀请码多次使用批类型 +35；
   // api/index.ts 837→842 = 邀请码批新端点方法 +5；
   // ArtistManage.vue 1109→1222 = 邀请码管理端筛选/分页/使用记录弹窗 +113（后续可拆弹窗组件瘦身）
+  // Login.vue 977→1011 = 823 验证器 App 安装引导批 +34（入驻前置提醒 + 扫码页折叠引导模板/状态/样式，后续可抽引导组件瘦身）
   'server/src/features/artist/artist.service.ts': 802,
   'web/src/views/admin/ArtistManage.vue': 1222,
-  'web/src/views/artist/Login.vue': 977,
+  'web/src/views/artist/Login.vue': 1011,
   'web/src/components/artist/ArtStyleManager.vue': 941,
   'web/src/components/artist/order/ManualOrderRight.vue': 924,
   'web/src/components/templates/TplGallery.vue': 896,
