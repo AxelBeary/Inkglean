@@ -1956,6 +1956,13 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     artistCount: '画师数', totalOrders: '总订单', activeOrders: '活跃订单',
     artistList: '画师列表', manageArtists: '管理画师',
     colName: '昵称', colSubdomain: '主页标识', colQq: 'QQ号', colStatus: '状态', colBio: '简介',
+    // 登录留痕批（v72）：上次登录时间+IP，仅管理端展示（列表相对时间 / 抽屉完整信息）
+    colLastLogin: '上次登录',
+    lastLogin: {
+      never: '尚未登录', justNow: '刚刚',
+      minutesAgo: '{n} 分钟前', hoursAgo: '{n} 小时前', daysAgo: '{n} 天前',
+      detail: '上次登录', detailNone: '尚未登录', detailIp: 'IP 地址'
+    },
     artistManage: '画师管理', addArtist: '+ 添加画师',
     addTitle: '添加画师', qqLabel: 'QQ号', qqPlaceholder: '画师的QQ号（用于登录）',
     nameLabel: '昵称', namePlaceholder: '展示给客户的名字',

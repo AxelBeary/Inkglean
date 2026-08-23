@@ -1168,8 +1168,13 @@ export interface IncomeSummaryResult {
 
 // ─── 管理员（admin.routes.ts / admin.service.ts） ───
 
-/** GET /admin/artists 行（publicArtistDTO + isAdmin） */
-export type AdminArtistItem = PublicArtistDTO & { isAdmin: boolean }
+/** GET /admin/artists 行（publicArtistDTO + isAdmin + 登录留痕字段）
+ * last_login_at/last_login_ip 被 DTO 默认剔除，仅管理端接口显式重新附带（登录留痕批 v72） */
+export type AdminArtistItem = PublicArtistDTO & {
+  isAdmin: boolean
+  last_login_at: string | null
+  last_login_ip: string | null
+}
 
 export interface DeleteArtistResult {
   success: boolean

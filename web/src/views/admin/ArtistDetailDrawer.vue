@@ -10,6 +10,13 @@
         </div>
         <!-- 819-I：一行一事——说明在左、控件在右（结构微调，交互与保存逻辑不动） -->
         <div class="group detail-group" v-loading="profileLoading">
+          <!-- 登录留痕批（v72）：上次登录时间+IP（只读；登录成功时记录，仅管理端可见） -->
+          <div class="row">
+            <div class="field-text">
+              <div class="lab">{{ $t('admin.lastLogin.detail') }}</div>
+              <div class="desc">{{ lastLoginText }}</div>
+            </div>
+          </div>
           <div class="row">
             <div class="field-text">
               <div class="lab">{{ $t('settings.nameLabel') }}</div>
@@ -144,6 +151,7 @@ import { useI18n } from 'vue-i18n'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import GreetingTable from '../../components/admin/GreetingTable.vue'
 import { formatYuanValue } from '../../utils/money'
+import { formatDateTime } from '../../utils/datetime'
 
 const { t } = useI18n()
 const visible = defineModel({ type: Boolean, default: false })
@@ -151,6 +159,15 @@ const props = defineProps({ artist: { type: Object as PropType<AdminArtistItem |
 
 const tab = ref('profile')
 const saving = ref(false)
+
+// ─── 登录留痕批（v72）：上次登录时间+IP（数据源为列表行，管理端接口专属字段） ───
+const lastLoginText = computed(() => {
+  const a = props.artist
+  if (!a?.last_login_at) return t('admin.lastLogin.detailNone')
+  const parts = [formatDateTime(a.last_login_at)]
+  if (a.last_login_ip) parts.push(`IP ${a.last_login_ip}`)
+  return parts.join(' · ')
+})
 
 /** 资料表单状态（抽屉编辑字段；初始空对象与原实现一致，断言仅为补形状） */
 interface ProfileForm {

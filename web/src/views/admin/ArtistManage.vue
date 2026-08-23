@@ -62,6 +62,12 @@
         </el-table-column>
         <el-table-column prop="qq_number" :label="$t('admin.colQq')" width="120" />
         <el-table-column prop="bio" :label="$t('admin.colBio')" min-width="160" show-overflow-tooltip />
+        <!-- 登录留痕批（v72）：列表相对时间，悬浮看完整时间+IP，详情在抽屉 -->
+        <el-table-column :label="$t('admin.colLastLogin')" width="120">
+          <template #default="{ row }">
+            <span :title="lastLoginTooltip(row)">{{ relativeLastLogin(row) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('admin.colStatus')" width="130">
           <template #default="{ row }">
             <el-select
@@ -674,6 +680,27 @@ async function revokeInviteCode(row: AdminInviteCode) {
   } catch (err) {
     ElMessage.error((err as Error).message)
   }
+}
+
+// ─── 登录留痕批（v72）：列表相对时间展示（完整时间+IP 在详情抽屉） ───
+function relativeLastLogin(row: AdminArtistItem): string {
+  if (!row.last_login_at) return t('admin.lastLogin.never')
+  const diff = Date.now() - new Date(row.last_login_at).getTime()
+  if (Number.isNaN(diff) || diff < 0) return t('admin.lastLogin.never')
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 1) return t('admin.lastLogin.justNow')
+  if (minutes < 60) return t('admin.lastLogin.minutesAgo', { n: minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return t('admin.lastLogin.hoursAgo', { n: hours })
+  return t('admin.lastLogin.daysAgo', { n: Math.floor(hours / 24) })
+}
+
+/** 悬浮提示：完整本地时间 + IP（与抽屉同口径） */
+function lastLoginTooltip(row: AdminArtistItem): string {
+  if (!row.last_login_at) return ''
+  const parts = [formatDateTime(row.last_login_at)]
+  if (row.last_login_ip) parts.push(`IP ${row.last_login_ip}`)
+  return parts.join(' · ')
 }
 
 // 画师详情抽屉

@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS artists (
   onboarding_dismissed_at TEXT NULL,
   -- 视觉批备料（v61）: 登录时间/问候展示时间/仪表盘模块显隐（NULL=全部模块显示）
   last_login_at TEXT,
+  -- 登录留痕批（v72）: 上次登录来源 IP（仅管理后台可见，DTO 默认剔除）
+  last_login_ip TEXT,
   last_greeting_shown_at TEXT,
   dashboard_modules TEXT DEFAULT NULL,
   -- 自定义首页批一（v70）: 仪表盘布局偏好 JSON（schema v1；NULL=默认布局；吞并 dashboard_modules）
