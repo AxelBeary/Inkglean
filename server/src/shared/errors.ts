@@ -36,6 +36,8 @@ export const E = {
   TOTP_INVALID: 'TOTP_INVALID',
   TOTP_LOCKED: 'TOTP_LOCKED',
   TOTP_BIND_INVALID: 'TOTP_BIND_INVALID',
+  // 会话门禁批：动态口令未绑定（被重置/未完成绑定）的画师不允许持有任何有效会话（登录态门禁 + Passkey 登录入口共用）
+  TOTP_BIND_REQUIRED: 'TOTP_BIND_REQUIRED',
   // REQ-040: WebAuthn Passkey
   WEBAUTHN_CHALLENGE_INVALID: 'WEBAUTHN_CHALLENGE_INVALID',
   WEBAUTHN_REGISTRATION_FAILED: 'WEBAUTHN_REGISTRATION_FAILED',
@@ -279,6 +281,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   TOTP_INVALID: 'QQ号或动态口令错误',
   TOTP_LOCKED: '尝试次数过多，账号已临时锁定，请稍后再试',
   TOTP_BIND_INVALID: '动态口令错误，请让画师确认验证器上当前显示的 6 位码',
+  TOTP_BIND_REQUIRED: '你的动态口令绑定已失效（可能刚被重置或绑定未完成），请重新完成绑定流程，或联系管理员处理',
   // REQ-040: WebAuthn Passkey
   WEBAUTHN_CHALLENGE_INVALID: '验证超时或 Challenge 无效，请重试',
   WEBAUTHN_REGISTRATION_FAILED: 'Passkey 注册失败，请重试',

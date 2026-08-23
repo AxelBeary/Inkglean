@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { AxiosError, AxiosRequestConfig } from 'axios'
-import { safeRemoveItem } from '../utils/storage'
+import { safeRemoveItem, safeSessionSetItem } from '../utils/storage'
+import { TOTP_BIND_REQUIRED_NOTICE_KEY } from '../constants/auth'
 import type {
   ActivityResult,
   AddNoteRequest,
@@ -259,6 +260,10 @@ api.interceptors.response.use(
       // P3-10: 存储禁用时 401 清标记也不得抛错（否则登出软跳转被吞）
       safeRemoveItem('artist_logged_in')
       safeRemoveItem('artist_is_admin')
+      // 824: TOTP_BIND_REQUIRED（绑定失效/未完成）必须触发登出，但提示文案要带到登录页——
+      // 跳登录页前写非敏感会话旗标，Login.vue 挂载时消费并以醒目样式展示后清除；
+      // 已在登录页（如 Passkey 入口）时不写旗标，由调用方就地展示同一文案，避免重复噪音。
+      const bindRequired = code === 'TOTP_BIND_REQUIRED'
       // 动态导入以避免循环依赖（store/router 依赖本模块）
       try {
         const { useArtistStore } = await import('../stores/artist')
@@ -266,10 +271,12 @@ api.interceptors.response.use(
         const store = useArtistStore()
         store.$reset()
         if (router.currentRoute.value.name !== 'ArtistLogin') {
+          if (bindRequired) safeSessionSetItem(TOTP_BIND_REQUIRED_NOTICE_KEY, '1')
           router.push({ name: 'ArtistLogin' })
         }
       } catch (err) {
         // L1: 兜底硬跳转（保留原行为，补 console.warn 避免静默吞错）
+        if (bindRequired) safeSessionSetItem(TOTP_BIND_REQUIRED_NOTICE_KEY, '1')
         // eslint-disable-next-line no-console -- 错误处理兜底日志：避免 401 软跳转失败静默吞错
         console.warn('[api] 401 soft-redirect failed, falling back to hard redirect', err)
         window.location.href = '/login'

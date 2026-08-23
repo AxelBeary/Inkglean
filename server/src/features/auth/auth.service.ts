@@ -103,8 +103,11 @@ export function confirmTotpBind(artistId: number, code: string): void {
 
 /** 重置绑定（管理员后台 / CLI 兜底）：旧密钥立即失效，画师须重新绑定 */
 export function resetTotp(artistId: number): void {
+  // 会话门禁批：重置 = 未绑定态，未绑定画师不允许持有任何有效会话——
+  // 清密钥的同时 token_version +1（同 bumpTokenVersion 口径），瞬间踢掉该画师全部既有会话。
+  // 不拆到调用方：所有重置入口（管理员路由/CLI）都必须带踢人，避免遗漏。
   db.prepare(
-    'UPDATE artists SET totp_secret = NULL, totp_verified = 0, totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?'
+    'UPDATE artists SET totp_secret = NULL, totp_verified = 0, totp_failed_attempts = 0, totp_locked_until = NULL, token_version = COALESCE(token_version, 1) + 1 WHERE id = ?'
   ).run(artistId)
 }
 

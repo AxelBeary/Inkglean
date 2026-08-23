@@ -42,7 +42,11 @@
               {{ t('account.totpRebindCooldown', { hours: Math.ceil(rebindCooldownMs / 3600000) }) }}
             </p>
           </template>
-          <p v-else class="hint-text">{{ t('errors.TOTP_NOT_BOUND') }}</p>
+          <div v-else class="unbound-hints">
+            <p class="hint-text">{{ t('errors.TOTP_NOT_BOUND') }}</p>
+            <!-- 824: 未绑定状态辅助说明（重置/重绑后的后续指引，措辞中性） -->
+            <p class="hint-text hint-sub">{{ t('account.totpResetHint') }}</p>
+          </div>
         </div>
       </div>
 
@@ -525,6 +529,12 @@ onMounted(() => {
   margin: 0;
   font-size: calc(var(--font-scale, 1) * 13px);
   color: var(--ink3);
+}
+/* 824: 未绑定辅助说明（次一级字号，不抢主提示） */
+.hint-sub {
+  margin-top: 8px;
+  font-size: calc(var(--font-scale, 1) * 12px);
+  line-height: 1.6;
 }
 .cooldown-hint {
   margin: 8px 0 0;

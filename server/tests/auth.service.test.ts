@@ -24,7 +24,8 @@ describe('认证服务 (Auth Service) — REQ-027 TOTP', () => {
 
   beforeEach(() => {
     cleanDb()
-    artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+    // 会话门禁批：本组用例验证绑定/登录全流程，需从「未绑定」初态起步，显式覆盖 seedArtist 的已绑定默认值
+    artist = seedArtist({ qq_number: '12345', subdomain: 'alice', totp_secret: null, totp_verified: 0 })
   })
 
   // ─── 绑定流程 ───

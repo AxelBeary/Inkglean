@@ -1,6 +1,7 @@
 import { verifySession } from '../../features/auth/auth.service.js'
 import { getArtistById } from '../../features/artist/artist.service.js'
 import db from '../../db/connection.js'
+import { E, ERROR_MESSAGES } from '../errors.js'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
@@ -57,6 +58,13 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
     return reply.code(401).send({ code: 'ARTIST_BANNED', error: '账号已被封禁，如有疑问请联系管理员' })
   }
 
+  // 会话门禁批：动态口令未绑定（被重置/未完成绑定）的画师不允许持有任何有效会话。
+  // 置于 token_version 检查之前：管理员重置/重绑会同时 bump token_version，
+  // 前端需要拿到 TOTP_BIND_REQUIRED（而非 TOKEN_REVOKED）才能引导重新绑定。
+  if (!artist.totp_verified) {
+    return reply.code(401).send({ code: E.TOTP_BIND_REQUIRED, error: ERROR_MESSAGES[E.TOTP_BIND_REQUIRED] })
+  }
+
   if (artist.token_version && session.v !== artist.token_version) {
     return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
   }
@@ -90,6 +98,12 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   // REQ-042: 防御性兜底（管理端封禁接口已禁止封管理员；此处双保险）
   if (artist.is_banned) {
     return reply.code(401).send({ code: 'ARTIST_BANNED', error: '账号已被封禁，如有疑问请联系管理员' })
+  }
+
+  // 会话门禁批：同 requireAuth——未绑定动态口令（被重置/未完成绑定）一律拦截，
+  // 管理员账号同样适用（开箱设置已保证管理员必经绑定）
+  if (!artist.totp_verified) {
+    return reply.code(401).send({ code: E.TOTP_BIND_REQUIRED, error: ERROR_MESSAGES[E.TOTP_BIND_REQUIRED] })
   }
 
   if (artist.token_version && session.v !== artist.token_version) {

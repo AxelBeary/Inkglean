@@ -17,6 +17,9 @@
           <p class="brand-sub">{{ t('login.subtitle') }}</p>
         </div>
 
+        <!-- 824: TOTP 绑定失效提示（401 TOTP_BIND_REQUIRED 跳登录页前写旗标，挂载消费展示后清除；藤黄纸签：醒目不惊悚） -->
+        <p v-if="bindNotice" class="notice notice-bind" role="alert">{{ bindNotice }}</p>
+
         <!-- REQ-027: QQ 号 + TOTP 动态口令（机制不变，错误内联朱砂一行，不弹 toast） -->
         <form class="rise rise-3" novalidate @submit.prevent="login">
           <div class="field" :class="{ 'field-error': errQq }">
@@ -146,6 +149,8 @@
             <div v-else>
               <p class="invite-step-title">{{ t('invite.step2Title') }}</p>
               <p class="invite-step-desc">{{ t('invite.step2Desc') }}</p>
+              <!-- 824: 防刷新提示（藤黄纸签，醒目但不惊悚） -->
+              <p class="invite-warn">{{ t('invite.noRefreshNotice') }}</p>
               <div class="invite-qr-wrap">
                 <img v-if="inviteQr" :src="inviteQr" :alt="t('invite.qrAlt')" class="invite-qr" />
               </div>
@@ -185,6 +190,46 @@
               </button>
               <p v-if="inviteError" class="notice notice-error" role="alert">{{ inviteError }}</p>
             </div>
+
+            <!-- 824: 首绑找回入口（刷新丢失状态时的续绑通道；步骤 1/2 均可用，复用帮助折叠同款交互） -->
+            <div class="help invite-recover">
+              <button
+                id="invite-recover-toggle" class="help-toggle" type="button"
+                :aria-expanded="recoverOpen" aria-controls="invite-recover-body"
+                @click="recoverOpen = !recoverOpen"
+              >
+                {{ t('invite.recoverToggle') }}
+              </button>
+              <div id="invite-recover-body" class="help-body-wrap" :class="{ open: recoverOpen }">
+                <div class="help-body">
+                  <p class="invite-recover-desc">{{ t('invite.recoverDesc') }}</p>
+                  <form novalidate @submit.prevent="submitRecover">
+                    <div class="field" :class="{ 'field-error': recoverErrQq }">
+                      <label class="field-label" for="recover-qq">{{ t('invite.qqLabel') }}</label>
+                      <input
+                        id="recover-qq" v-model="recoverQq" class="field-input" type="text" inputmode="numeric"
+                        autocomplete="username" :placeholder="t('invite.qqPlaceholder')"
+                        :disabled="recoverSubmitting" :aria-invalid="recoverErrQq" @input="recoverErrQq = false"
+                      >
+                    </div>
+                    <div class="field" :class="{ 'field-error': recoverErrCode }">
+                      <label class="field-label" for="recover-code">{{ t('invite.totpCodeLabel') }}</label>
+                      <input
+                        id="recover-code" v-model="recoverCode" class="field-input" type="text" inputmode="numeric"
+                        maxlength="6" autocomplete="one-time-code" :placeholder="t('invite.totpCodePlaceholder')"
+                        :disabled="recoverSubmitting" :aria-invalid="recoverErrCode" @input="recoverErrCode = false"
+                      >
+                    </div>
+                    <button class="login-btn" type="submit" :disabled="recoverSubmitting || recoverOk">
+                      <span v-if="recoverSubmitting" class="btn-spinner" aria-hidden="true"></span>
+                      {{ recoverOk ? t('invite.success') : recoverSubmitting ? t('invite.confirming') : t('invite.recoverSubmit') }}
+                    </button>
+                    <p v-if="recoverOk" class="notice notice-ok" role="status">{{ t('invite.success') }}</p>
+                    <p v-else-if="recoverError" class="notice notice-error" role="alert">{{ recoverError }}</p>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </PaperCard>
@@ -210,8 +255,16 @@ import {
   toCredentialRequestOptions,
   publicKeyCredentialToJSON,
   isWebAuthnCancellation,
-  isWebAuthnUnsupported
+  isWebAuthnUnsupported,
+  isBackendError
 } from '../../utils/webauthn'
+import {
+  saveInviteTotpProgress,
+  loadInviteTotpProgress,
+  clearInviteTotpProgress,
+  takeTotpBindRequiredNotice,
+  clearTotpBindRequiredNotice
+} from '../../utils/inviteProgress'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -278,11 +331,37 @@ const inviteTotpCode = ref('')
 const inviteErrTotp = ref(false)
 const inviteConfirming = ref(false)
 const inviteTotpOk = ref(false)
+// 824: TOTP 绑定失效提示（401 TOTP_BIND_REQUIRED 跳登录页前写旗标，挂载时消费展示，展示后清除）
+const bindNotice = ref('')
+// 824: 首绑找回入口（刷新丢状态后的续绑通道：QQ + 6 位码直调 totp-confirm）
+const recoverOpen = ref(false)
+const recoverQq = ref('')
+const recoverCode = ref('')
+const recoverSubmitting = ref(false)
+const recoverErrQq = ref(false)
+const recoverErrCode = ref(false)
+const recoverError = ref('')
+const recoverOk = ref(false)
 
 const { switchLang } = useLocaleSwitch(() => paperCardRef.value?.getCardEl())
 const onSwitchLang = (next: string) => switchLang(next, locale.value)
 
 onMounted(async () => {
+  // 824: 消费绑定失效旗标（401 TOTP_BIND_REQUIRED 跳转前写入；展示后清除，只展示一次）
+  if (takeTotpBindRequiredNotice()) {
+    bindNotice.value = t('errors.TOTP_BIND_REQUIRED')
+  }
+  // 824: 防刷新——恢复进行中的首绑第 2 步（建号已成功但绑定未完成）；
+  // 不依赖入驻入口开关：账号既已创建，即使入驻关闭也恢复二维码页续绑
+  const progress = loadInviteTotpProgress()
+  if (progress) {
+    invQq.value = progress.qqNumber
+    // 找回入口预填 QQ，刷新后少填一项
+    recoverQq.value = progress.qqNumber
+    inviteView.value = true
+    inviteStep.value = 2
+    inviteQr.value = await generateInviteQr(progress.otpauthUri)
+  }
   // REQ-039: 入驻模式判定（manual 时登录页不显示入口）
   try {
     const res = await inviteApi.status()
@@ -312,6 +391,15 @@ function closeInvite() {
   inviteStep.value = 1
   resetInviteErrors()
   inviteTotpOk.value = false
+  // 824: 用户主动关闭叠加层 → 清防刷新状态与找回表单状态（拍板口径；找回入口可再次展开重新填写）
+  clearInviteTotpProgress()
+  recoverOpen.value = false
+  recoverQq.value = ''
+  recoverCode.value = ''
+  recoverError.value = ''
+  recoverErrQq.value = false
+  recoverErrCode.value = false
+  recoverOk.value = false
   // 回焦：关闭叠加层后焦点还给「邀请码入驻」入口按钮
   inviteEntryRef.value?.focus()
 }
@@ -409,6 +497,8 @@ async function submitInvite() {
   inviteSubmitting.value = true
   try {
     const res = await inviteApi.register({ code, qqNumber: qq, name, subdomain })
+    // 824: 防刷新——进行中状态落 sessionStorage（QQ + 二维码源），刷新后直接恢复到本页
+    saveInviteTotpProgress({ qqNumber: qq, otpauthUri: res.otpauthUri })
     inviteQr.value = await generateInviteQr(res.otpauthUri)
     inviteStep.value = 2
   } catch (err) {
@@ -438,6 +528,8 @@ async function confirmInviteTotp() {
     const res = await inviteApi.totpConfirm({ qqNumber: invQq.value.trim(), code })
     // 会话 cookie 已由后端签发；REQ-043 I6-e: 状态与标记统一走 store.applySession
     store.applySession(res.artist, false)
+    // 824: 绑定完成 → 清防刷新状态
+    clearInviteTotpProgress()
     inviteTotpOk.value = true
     setTimeout(() => router.push('/dashboard'), 500)
   } catch (err) {
@@ -462,6 +554,54 @@ function mapInviteTotpErr(err: unknown) {
     return t('invite.totpLockedMin', { minutes: Math.ceil(e.detail.remainingLockMs / 60000) })
   }
   return e.message || t('invite.totpError')
+}
+
+/** 824: 找回入口——QQ + 6 位码直调 totp-confirm（该接口只需这两个字段，无需邀请码）；
+ *  成功走与正常首绑一致的会话落地与跳转；错误分流复用 mapInviteTotpErr（stale/剩余次数/锁定） */
+async function submitRecover() {
+  recoverError.value = ''
+  recoverErrQq.value = false
+  recoverErrCode.value = false
+  recoverOk.value = false
+
+  const qq = recoverQq.value.trim()
+  const totpCode = recoverCode.value.trim()
+  if (!qq) {
+    recoverErrQq.value = true
+    recoverError.value = t('invite.qqRequired')
+    return
+  }
+  if (!/^\d+$/.test(qq)) {
+    recoverErrQq.value = true
+    recoverError.value = t('invite.qqInvalid')
+    return
+  }
+  if (!totpCode) {
+    recoverErrCode.value = true
+    recoverError.value = t('invite.totpRequired')
+    return
+  }
+  if (!/^\d{6}$/.test(totpCode)) {
+    recoverErrCode.value = true
+    recoverError.value = t('invite.totpFormat')
+    return
+  }
+
+  recoverSubmitting.value = true
+  try {
+    const res = await inviteApi.totpConfirm({ qqNumber: qq, code: totpCode })
+    // 与正常首绑成功同路径：清防刷新状态 + applySession + 停留 500ms 跳转
+    clearInviteTotpProgress()
+    store.applySession(res.artist, false)
+    recoverOk.value = true
+    inviteTotpOk.value = true
+    setTimeout(() => router.push('/dashboard'), 500)
+  } catch (err) {
+    recoverErrCode.value = true
+    recoverError.value = mapInviteTotpErr(err)
+  } finally {
+    recoverSubmitting.value = false
+  }
 }
 
 async function passkeyLogin() {
@@ -499,6 +639,13 @@ async function passkeyLogin() {
     }
     if (isWebAuthnUnsupported(err)) {
       noticeError.value = t('common.passkeyNotSupported')
+      return
+    }
+    // 824: Passkey 入口返回 TOTP_BIND_REQUIRED（绑定失效/未完成）——就地展示同一文案；
+    // 此时用户本就未登录，不触发额外登出/报错噪音；清残留旗标防下次挂载重复展示
+    if (isBackendError(err) && err.code === 'TOTP_BIND_REQUIRED') {
+      clearTotpBindRequiredNotice()
+      noticeError.value = t('errors.TOTP_BIND_REQUIRED')
       return
     }
     noticeError.value = t('common.passkeyFailed')
@@ -543,6 +690,8 @@ async function login() {
     // 错误关联到具体字段；锁定类错误用后端 remainingLockMs 告知剩余时长
     // G-6（衔接批 F-9）: 旧登录码三码已退役，错误码按 REQ-027 TOTP 现状处理
     const e = err as ApiErrShape
+    // 824: 绑定失效码若落到 TOTP 登录入口，清残留旗标（message 已经拦截器翻译，直接展示）
+    if (e.code === 'TOTP_BIND_REQUIRED') clearTotpBindRequiredNotice()
     if (e.code === 'QQ_NOT_REGISTERED') errQq.value = true
     else if (e.code === 'TOTP_INVALID' || e.code === 'TOTP_NOT_BOUND') errCode.value = true
     const isLockError = e.code === 'TOTP_LOCKED'
@@ -944,7 +1093,7 @@ async function login() {
   overflow-y: auto;
   animation: note-in var(--dur-slow) var(--ease-out);
 }
-.invite-overlay-inner { padding: 34px 44px 40px; }
+.invite-overlay-inner { padding: 32px 44px 40px; }
 .invite-back {
   display: inline-flex;
   align-items: center;
@@ -986,6 +1135,36 @@ async function login() {
   border-radius: var(--r-m);
   background: #fff;
 }
+
+/* ─── 824: TOTP 绑定失效提示 + 防刷新提示 + 找回入口 ─── */
+/* 绑定失效提示（401 跳登录页后展示）：藤黄纸签——醒目但不惊悚，一次性淡入承 .notice */
+.notice-bind {
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  border: 1px dashed var(--th);
+  border-radius: var(--r-paper);
+  background: var(--th-t);
+  color: var(--ink);
+}
+
+/* 首绑第 2 步防刷新提示（藤黄=待确认/缓冲提醒语义色，醒目不吓人） */
+.invite-warn {
+  margin: 0 0 12px;
+  padding: 12px 12px;
+  border: 1px dashed var(--th);
+  border-radius: var(--r-paper);
+  background: var(--th-t);
+  font-size: calc(var(--font-scale, 1) * 12px);
+  line-height: 1.7;
+  color: var(--ink2);
+}
+
+/* 找回入口：复用 .help 折叠 + 墨线输入，克制增量不堆特效 */
+.invite-recover { margin-top: 24px; }
+.invite-recover-desc { margin: 0 0 12px; }
+
+/* 成功提示：石绿一行（与 notice-error 同族） */
+.notice-ok { color: var(--sl); }
 
 @media (max-width: 768px) {
   .invite-overlay-inner { padding: 24px 24px 28px; }

@@ -82,7 +82,13 @@ const ARTIST_DEFAULTS = {
   qq_number: '12345',
   name: '测试画师',
   subdomain: 'alice',
-  status: 'open'
+  status: 'open',
+  // 会话门禁批：种子画师默认「已绑定动态口令」（测试惯用占位密钥，
+  // security-dto/last-login 等已有先例），避免 requireAuth/requireAdmin 的
+  // TOTP_BIND_REQUIRED 新门禁误伤无关用例；需要未绑定态的用例显式传
+  // totp_verified: 0（可配 totp_secret: null）覆盖。
+  totp_secret: 'JBSWY3DPEHPK3PXP',
+  totp_verified: 1
 } as const
 
 /**
@@ -94,9 +100,12 @@ export function seedArtist(overrides: Record<string, unknown> = {}): ArtistRow {
   const artistCode = (data.artist_code as string | undefined) || (data.subdomain as string).toUpperCase()
 
   const result = db.prepare(`
-    INSERT INTO artists (qq_number, name, subdomain, artist_code, status)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(data.qq_number as string, data.name as string, data.subdomain as string, artistCode, data.status as string)
+    INSERT INTO artists (qq_number, name, subdomain, artist_code, status, totp_secret, totp_verified)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.qq_number as string, data.name as string, data.subdomain as string, artistCode, data.status as string,
+    (data.totp_secret as string | null) ?? null, (data.totp_verified as number) ?? 0
+  )
 
   // 初始化须知
   db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)')

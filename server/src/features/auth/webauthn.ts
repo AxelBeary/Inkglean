@@ -326,6 +326,12 @@ export async function verifyLogin(
   if (artist.is_banned) {
     throw new AppError(E.ARTIST_BANNED, 403)
   }
+  // 会话门禁批：动态口令未绑定（被重置/未完成绑定）的画师禁止 Passkey 登录——
+  // 与 requireAuth/requireAdmin 门禁同语义：未绑定不允许持有/获得任何有效会话。
+  // 抛 TOTP_BIND_REQUIRED 而非 WEBAUTHN_*：login-verify 路由只吞 WEBAUTHN_* 两码，本码原样透传给前端。
+  if (!artist.totp_verified) {
+    throw new AppError(E.TOTP_BIND_REQUIRED, 401)
+  }
 
   // 验证认证响应
   const verificationOpts: VerifyAuthenticationResponseOpts = {

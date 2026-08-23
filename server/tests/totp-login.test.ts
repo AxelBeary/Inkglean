@@ -151,14 +151,16 @@ describe('TOTP 登录端到端 (REQ-027)', () => {
   })
 
   it('TC-TLOG-04: 登录返回 isAdmin 标记（管理员走同一 TOTP 登录）', async () => {
-    const { admin, token } = setupAdmin()
-    const secret = await bindInit(token, admin.id)
-    await bindConfirm(token, admin.id, computeTotp(secret, Date.now()))
+    // 会话门禁批：不再用「管理员对自己 bind-init/confirm」的方式造绑定态——
+    // bind-init 会把管理员置为未绑定态并踢掉其全部会话，而 bind-confirm 挂在 requireAdmin 后，
+    // 未绑定门禁会拦截，形成死锁（此为门禁批预期语义：管理员给自己下发重绑后需 CLI 兜底）。
+    // 改用 seedArtist 默认已绑定态（占位密钥）直接验证管理员登录路径。
+    setupAdmin()
 
     const loginRes = await app.inject({
       method: 'POST',
       url: '/api/auth/verify',
-      payload: { qqNumber: '10001', code: computeTotp(secret, Date.now()) }
+      payload: { qqNumber: '10001', code: computeTotp('JBSWY3DPEHPK3PXP', Date.now()) }
     })
     expect(loginRes.statusCode).toBe(200)
     expect(loginRes.json().isAdmin).toBe(true)

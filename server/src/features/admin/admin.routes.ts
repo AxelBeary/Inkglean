@@ -246,6 +246,10 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     const qrDataUrl = await QRCode.toDataURL(otpauthUri, { width: 220, margin: 1 })
 
     bindTotpInit(artist.id, secret)
+    // 会话门禁批：重绑下发后画师即刻进入未绑定态（verified=0），未绑定画师不允许持有任何有效会话——
+    // 对该画师 token_version +1 瞬间踢掉其全部既有会话。bump 故意放在路由层而非 bindTotpInit 函数内：
+    // bindTotpInit 还被邀请注册/开箱设置/自助重绑复用，那些路径要么无会话、要么绝不能踢画师自己。
+    artistService.bumpTokenVersion(artist.id)
 
     return {
       qrDataUrl,
