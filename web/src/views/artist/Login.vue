@@ -68,12 +68,11 @@
           </button>
           <div id="login-help-body" class="help-body-wrap" :class="{ open: helpOpen }">
             <div class="help-body">
+              <!-- 823：推荐口径统一走 authApp 单一事实源（主推/商店搜索/备选/小程序免责） -->
               <p>{{ t('login.helpDesc') }}</p>
-              <ul>
-                <li>Google Authenticator</li>
-                <li>Microsoft Authenticator</li>
-                <li>2FAS</li>
-              </ul>
+              <p>{{ t('authApp.desc') }}</p>
+              <p>{{ t('authApp.alts') }}</p>
+              <p class="help-note">{{ t('authApp.miniProgram') }}</p>
               <p class="help-note">{{ t('login.helpNote') }}</p>
             </div>
           </div>
@@ -101,6 +100,8 @@
 
             <!-- 步骤 1：入驻信息 -->
             <form v-if="inviteStep === 1" novalidate @submit.prevent="submitInvite">
+              <!-- 823：前置提醒——提前说清要装验证器 App（画师反馈：注册时没提前让下载 2FA 软件） -->
+              <p class="invite-prep">{{ t('invite.prepNotice') }}</p>
               <div class="field" :class="{ 'field-error': inviteErrCode }">
                 <label class="field-label" for="invite-code">{{ t('invite.codeLabel') }}</label>
                 <input
@@ -147,6 +148,23 @@
               <p class="invite-step-desc">{{ t('invite.step2Desc') }}</p>
               <div class="invite-qr-wrap">
                 <img v-if="inviteQr" :src="inviteQr" :alt="t('invite.qrAlt')" class="invite-qr" />
+              </div>
+              <!-- 823：验证器安装引导（复用登录页帮助折叠同款交互，口径同源 authApp） -->
+              <div class="help app-help">
+                <button
+                  class="help-toggle" type="button"
+                  :aria-expanded="inviteAppHelpOpen"
+                  @click="inviteAppHelpOpen = !inviteAppHelpOpen"
+                >
+                  {{ t('invite.appHelpToggle') }}
+                </button>
+                <div class="help-body-wrap" :class="{ open: inviteAppHelpOpen }">
+                  <div class="help-body">
+                    <p>{{ t('authApp.desc') }}</p>
+                    <p>{{ t('authApp.alts') }}</p>
+                    <p class="help-note">{{ t('authApp.miniProgram') }}</p>
+                  </div>
+                </div>
               </div>
               <div class="field" :class="{ 'field-error': !!inviteError && inviteErrTotp }">
                 <label class="field-label" for="invite-totp">{{ t('invite.totpCodeLabel') }}</label>
@@ -225,6 +243,8 @@ const code = ref('')
 const logging = ref(false)
 const loginOk = ref(false)
 const helpOpen = ref(false)
+// 823：入驻扫码页「还没装验证器 App？」折叠开关（与登录页 helpOpen 同款交互，状态独立）
+const inviteAppHelpOpen = ref(false)
 const errQq = ref(false)
 const errCode = ref(false)
 const noticeError = ref('')
@@ -875,6 +895,20 @@ async function login() {
 .help-body p { margin: 0 0 8px; }
 .help-body ul { margin: 0 0 8px 16px; padding: 0; }
 .help-note { color: var(--ink3); }
+
+/* 823：入驻第一步前置提醒（虚线纸签，与入驻入口虚线框同手法） */
+.invite-prep {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-paper);
+  font-size: calc(var(--font-scale, 1) * 12px);
+  line-height: 1.7;
+  color: var(--ink2);
+}
+
+/* 823：扫码页安装引导折叠（复用 .help 同款，去掉顶部虚线分隔） */
+.app-help { margin-top: 0; margin-bottom: 16px; border-top: 0; padding-top: 0; }
 
 /* ─── REQ-039: 邀请码入驻（入口 + 叠加层，纸墨 token 复用登录表单样式） ─── */
 .invite-entry {
