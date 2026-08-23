@@ -1,5 +1,7 @@
 import Fastify from 'fastify'
 import type { FastifyInstance, FastifyError, FastifyRequest } from 'fastify'
+import type { LoggerOptions } from 'pino'
+import type { Writable } from 'stream'
 import Ajv from 'ajv'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
@@ -22,7 +24,8 @@ import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  //
 // 应用工厂 - 构建 Fastify 实例
 // ============================================
 
-export async function buildApp(opts: { logger?: boolean } = {}): Promise<FastifyInstance> {
+/** logger 入参：省略/布尔 = 默认控制台；stream = 写入指定流（测试捕获用）；对象 = pino 选项透传 */
+export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptions } = {}): Promise<FastifyInstance> {
   // trustProxy：Docker 部署时 Caddy 和 web 在不同容器，需信任 Docker 网段
   // 安全：默认只信任私有网段，防止攻击者伪造 X-Forwarded-For 绕过限流
   // 生产环境 Caddy 为唯一入口时可设 TRUST_PROXY=true
@@ -52,8 +55,13 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     }
   })
 
+  // logger：测试可传 Writable 捕获日志（如 origin 推断类只落日志的安全错误）
+  const loggerOpt = typeof opts.logger === 'object' && opts.logger !== null && 'write' in opts.logger
+    ? { level: 'info', stream: opts.logger }
+    : (opts.logger ?? true)
+
   const app = Fastify({
-    logger: opts.logger ?? true,
+    logger: loggerOpt,
     trustProxy
   })
   // 自定义校验编译器：用带 moneyPrecision 关键字的独立 ajv 实例（配置与 fastify 默认同款；

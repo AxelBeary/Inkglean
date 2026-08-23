@@ -13,10 +13,11 @@ import type { Artist } from '../../types/entities.js'
 // + 管理后台二次验证（REQ-041）
 // ============================================
 
-/** 812 OOBE 修复：请求实际协议（反代下优先 X-Forwarded-Proto）——WebAuthn origin 校验用 */
+/** 823 公网事故加固：协议一律以 request.protocol 为准。
+ *  fastify 仅在直连来源落入 trustProxy 白名单（app.ts 统一配置）时才解析 X-Forwarded-Proto，
+ *  堵掉 812 旧实现「无条件信任转发头」的窟窿——公网事故实测非回源链路的请求可用该头谎报协议。
+ *  生产反代经内网段（可信）透传不受影响；生产另有 WEBAUTHN_ORIGIN 环境变量钉死双保险 */
 function reqScheme(request: FastifyRequest): string {
-  const fwd = request.headers['x-forwarded-proto']
-  if (typeof fwd === 'string' && fwd.length > 0) return fwd.split(',')[0].trim()
   return request.protocol
 }
 
