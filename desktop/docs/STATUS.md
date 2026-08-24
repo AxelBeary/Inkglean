@@ -5,7 +5,9 @@
 > - 桌面端（`desktop/` 目录）开工进度/专属拍板/验收清单 → 本文件
 > 需求决策总书 = `docs/requirements/REQ-014-桌面端伴侣应用.md`（父级文档，所有拍板的唯一事实源；本文件不复制细节，只做索引与运营状态）。
 
-> 🔑 **最新：2026-08-24 desktop-bridge 首层落地 + 门禁体系建齐（双侧全绿）**——开工清单第三步首层完成：**前端** `desktop/src/bridge/`（env 环境探测 / errors 逃生门错误类型 / index 统一收口），首批能力：ping 健康检查、openWithSystem 调起系统程序、pickDirectory 目录选择；逃生门纪律=纯浏览器环境抛 BridgeUnavailableError，模板 greet 演示页已换成桥接自检页（App.vue）。**Rust 侧** 自定义命令收口于 `src-tauri/src/bridge/mod.rs`（首个命令 bridge_ping 返回版本号；F8 窗口枚举/输入空闲后续仅此处允许）；接入 tauri-plugin-dialog（capabilities 同步放行）。**门禁体系建齐（口径登记）**：`cd desktop` 后 `npm run lint`（eslint，口径对齐 web）/ `npm run test`（vitest+happy-dom，首基线 6/6）/ `npm run build`（vue-tsc+vite）；Rust 侧 `cargo check`；本批四项全绿（lint 0 错 0 警）。工具链新增：eslint10+typescript-eslint+eslint-plugin-vue / vitest4+happy-dom / jiti / @tauri-apps/plugin-dialog。**小坑实录**：①npm install 被沙箱超时截断留残骸致二次安装 ENOTEMPTY，清残后恢复；②eslint TS 配置文件需 jiti 显式安装。**开放项**：SignPath 申请（用户拍板晚点再交，表已备好）；`npm run tauri dev` 桌面壳内首启冒烟（待用户验收）。上一批脚手架条照旧保留。
+> 🔑 **最新：2026-08-24 共享组件方案定契（用户拍板方案 A：根目录公共仓 + 分两步；零搬家）**——仓库根新建 `shared/` 公共仓（包名 `@inkglean/shared`，契约书 `shared/README.md`）：web/desktop 以 `file:../shared` 链接直接导入源码、无构建产物；哑组件纪律（不发请求/不读存储，数据进 props 事件出 emit）；依赖最小（vue 走 peer）；视觉 token 由宿主注入不写死。**接线实证**：两端各加共享包接线冒烟测试（接线断先红的保险丝）。**零搬家纪律**：F3/F4 仍在 web 原地，迁入走单独搬家批（带 web 全量门禁回归），不与功能开发混批。**门禁**：shared 自身 lint/test/typecheck 全绿（首基线 1）；desktop 7/7；web 全量门禁见当次输出。**开放项**：F3/F4 搬家批时机（等用户下令）。
+
+> ✅ 2026-08-24 desktop-bridge 首层落地 + 门禁体系建齐（双侧全绿）——开工清单第三步首层完成：**前端** `desktop/src/bridge/`（env 环境探测 / errors 逃生门错误类型 / index 统一收口），首批能力：ping 健康检查、openWithSystem 调起系统程序、pickDirectory 目录选择；逃生门纪律=纯浏览器环境抛 BridgeUnavailableError，模板 greet 演示页已换成桥接自检页（App.vue）。**Rust 侧** 自定义命令收口于 `src-tauri/src/bridge/mod.rs`（首个命令 bridge_ping 返回版本号；F8 窗口枚举/输入空闲后续仅此处允许）；接入 tauri-plugin-dialog（capabilities 同步放行）。**门禁体系建齐（口径登记）**：`cd desktop` 后 `npm run lint`（eslint，口径对齐 web）/ `npm run test`（vitest+happy-dom，首基线 6/6）/ `npm run build`（vue-tsc+vite）；Rust 侧 `cargo check`；本批四项全绿（lint 0 错 0 警）。工具链新增：eslint10+typescript-eslint+eslint-plugin-vue / vitest4+happy-dom / jiti / @tauri-apps/plugin-dialog。**小坑实录**：①npm install 被沙箱超时截断留残骸致二次安装 ENOTEMPTY，清残后恢复；②eslint TS 配置文件需 jiti 显式安装。**开放项**：SignPath 申请（用户拍板晚点再交，表已备好）；`npm run tauri dev` 桌面壳内首启冒烟（待用户验收）。上一批脚手架条照旧保留。
 
 > ✅ 2026-08-24 Tauri 2 脚手架落地——开工清单第二步完成：官方 create-tauri-app 生成 desktop/ 脚手架（Vue 3 + TS + Vite 6，与 web 同栈），含 tauri-plugin-opener。项目化调整：productName=拾绘桌面版、窗口标题=拾绘、identifier=com.shihui.desktop、包名 artist-commission-desktop、AGPL-3.0 标注；esbuild 安装脚本登记 allowScripts（对齐根目录/web 惯例）；THIRD-PARTY-NOTICES 补「桌面端」登记段。**环境配套（本机首次）**：winget 装 rustup + Rust stable 1.98.0（minimal→默认 profile）；VS Build Tools 2022 已有。**门禁现口径**：`cd desktop && npm run build`（vue-tsc + vite build）全绿；Rust 侧 `cargo check` 全绿（tauri 2.11.5）；eslint/vitest 未引入，功能施工时补齐并更新本条。**事故实录**：脚手架 `--force` 曾吞掉已建成的 desktop/docs/（本文件与 CONTEXT），经 git restore 完整恢复——教训：非空目录跑 create-tauri-app 前先确认 git 干净备份。**开放项**：SignPath 申请（等用户下令）；`npm run tauri dev` 首启窗口冒烟（未跑，属 GUI 交互验证）。
 
@@ -36,7 +38,7 @@
 - [ ] SignPath 开源签名申请（条件已核实满足；失败自动回退「不签名+下载页指引」，无需重拍）
 - [x] Tauri 2 脚手架（Vue 3 + TS + 官方插件），`desktop/` 目录结构落地（824，见顶部最新条）
 - [x] desktop-bridge 适配层首层（824：前端收口+逃生门+Rust 命令模块；F8 原生命令接入时扩充）
-- [ ] 共享组件抽取方案（F3 约稿条 / F4 小票 / F12 完稿引导双端共享路径与构建接线定契约）
+- [x] 共享组件方案定契（824 拍板方案 A：根目录 shared/ 公共仓 + file: 接线，零搬家；F3/F4 迁入另开搬家批）
 - [ ] 后端增量：桌面 token 类型 + 设备表（记账式会话）；登录留痕复用
 - [ ] CF 规则调整：登录类接口免验证放行；身份标签仅分流
 - [ ] 更新通道：Caddy 静态托管（只读）+ CI 签名流水线 + 旧版保留
