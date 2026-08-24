@@ -1,0 +1,63 @@
+/* 纸墨 token 注入层（825 波0 地基批，发布前待办清单 11 号兑现）
+   值移植自 web/src/styles/artist-tokens.css 画师后台亮色作用域（html[data-artist-theme="paper"]），
+   与 web 保持同一套语义；本文件为桌面宿主注入层——shared 哑组件只消费变量、不写死色值。
+   暗色主题二期补（web 暗色块同口径移植）。单一事实源收敛（与 web 共用一份）留后续批评估。 */
+:root {
+  color-scheme: light;
+
+  /* 底色与墨色阶 */
+  --paper: #F0E6CF;
+  --paper2: #F5EFDF;
+  --card: #FFFDF7;
+  --ink: #262520;
+  --ink2: #5A564B;
+  --ink3: #6A6455;
+  --ink4: #77705E;
+  --line: #DCD0B4;
+  --line2: #CFC1A0;
+  --white: #FFFFFF;
+
+  /* 国画颜料盘（语义一对一：花青=品牌·进行中·主操作 / 朱砂=逾期·警示·印章 /
+     石绿=完成·交付·成功 / 藤黄=待确认·缓冲 / 赭石=暖中性·客户·优先级） */
+  --hq: #33526E;
+  --hq-d: #28425B;
+  --hq-t: #E9EFF4;
+  --hq-t2: #D6E2EC;
+  --zs: #BC3A2B;
+  --zs-d: #9E2F22;
+  --zs-t: #F8EAE6;
+  --sl: #2F7D54;
+  --sl-t: #E5F1E9;
+  --th: #966C0A;
+  --th-t: #F7EFDA;
+  --zhe: #8A5A33;
+  --zhe-t: #F1E8DC;
+  --buf: #7A7668;
+
+  /* 圆角族：手剪纸质不规则角（形状变量，与主题色无关） */
+  --r-s: 4px;
+  --r-m: 7px;
+  --r-l: 11px;
+  --r-pill: 999px;
+  --r-paper: 3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand: 2px 3px 2px 3px / 3px 2px 3px 2px;
+
+  /* 微交互时长三档 + 缓动 */
+  --dur-fast: 0.15s;
+  --dur-mid: 0.25s;
+  --dur-slow: 0.35s;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+
+  /* 字体栈：文楷标题 + 思源正文 */
+  --f-d: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', serif;
+  --f-b: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* 字号缩放（桌面端偏好后续接，先给恒等值） */
+  --font-scale: 1;
+
+  /* 背景语义映射（与 web 后台作用域同名同值） */
+  --bg-page: var(--paper);
+  --bg-card: var(--card);
+  --bg-elevated: var(--card);
+  --bg-inset: var(--paper2);
+}

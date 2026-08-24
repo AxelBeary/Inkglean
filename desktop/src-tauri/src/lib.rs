@@ -7,7 +7,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![bridge::bridge_ping])
+        .invoke_handler(tauri::generate_handler![
+            bridge::bridge_ping,
+            bridge::secure_store::secure_save,
+            bridge::secure_store::secure_load,
+            bridge::secure_store::secure_delete
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
