@@ -1,7 +1,10 @@
 // 小票打印机挂载测试（oimimo 吸纳批五）
+// shared-824 路 B 适配：表单/合计内部已迁入 @inkglean/shared 哑组件，
+// 内部状态断言改经 wrapper.findComponent(ReceiptPrinterCore).vm 取子组件 vm（断言语义不变）
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ReceiptPrinter from '../ReceiptPrinter.vue'
+import { ReceiptPrinter as ReceiptPrinterCore } from '@inkglean/shared'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key, locale: { value: 'zh-CN' } })
@@ -26,7 +29,7 @@ function canvasContextStub() {
 }
 
 interface ReceiptItemVM { name: string; qty: number; priceYuan: number | null; gift: boolean }
-interface ReceiptPrinterVM {
+interface ReceiptCoreVM {
   form: {
     title: string
     items: ReceiptItemVM[]
@@ -44,7 +47,9 @@ function mountReceipt() {
   const wrapper = mount(ReceiptPrinter, {
     global: { mocks: { $t: (key: string) => key, $tm: () => [] } }
   })
-  return { wrapper, vm: wrapper.vm as unknown as ReceiptPrinterVM }
+  // 内部状态住在共享子组件：VTU vm 代理透出 script-setup setupState
+  const vm = wrapper.findComponent(ReceiptPrinterCore).vm as unknown as ReceiptCoreVM
+  return { wrapper, vm }
 }
 
 beforeEach(() => {
@@ -89,6 +94,7 @@ describe('ReceiptPrinter 小票打印机', () => {
     expect(vm.totals.balanceCents).toBe(6000)
   })
 
+  // 宿主接线断言：表单变更 → 共享组件 draft-change → 宿主写 localStorage；重挂回读恢复
   it('草稿持久化：修改落 localStorage，重挂恢复', async () => {
     const { vm, wrapper } = mountReceipt()
     vm.form.title = '星野的小铺'

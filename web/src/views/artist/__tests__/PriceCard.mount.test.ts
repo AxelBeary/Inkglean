@@ -1,7 +1,10 @@
 // 价目分享卡挂载测试（812 工具波 B ④）
+// shared-824 路 B 适配：表单/复制内部已迁入 @inkglean/shared 哑组件，
+// 内部状态断言改经 wrapper.findComponent(PriceCardCore).vm 取子组件 vm（断言语义不变）
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PriceCard from '../PriceCard.vue'
+import { PriceCard as PriceCardCore } from '@inkglean/shared'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
@@ -36,13 +39,16 @@ beforeEach(() => {
   localStorage.clear()
 })
 
-// 被测组件仍为 JS script-setup：vm 暴露面以局部 interface 描述（最小必要断言）
-interface PriceCardVM {
+/** 微任务/宏任务冲刷：宿主事件处理器（剪贴板/取数）为异步，等链路落定再断言 */
+const flushAsync = () => new Promise(r => setTimeout(r, 0))
+
+// 共享哑组件内部面（经 VTU vm 代理透出 script-setup setupState）
+interface PriceCardCoreVM {
   form: {
     title: string
     tiers: { name: string; priceYuan: number }[]
   }
-  copyText: () => Promise<void>
+  copyText: () => void
 }
 
 function mountPriceCard() {
@@ -54,7 +60,9 @@ function mountPriceCard() {
       }
     }
   })
-  return { wrapper, vm: wrapper.vm as unknown as PriceCardVM }
+  // 内部状态住在共享子组件：经 findComponent 取子组件 vm
+  const vm = wrapper.findComponent(PriceCardCore).vm as unknown as PriceCardCoreVM
+  return { wrapper, vm }
 }
 
 describe('PriceCard 价目分享卡', () => {
@@ -108,11 +116,23 @@ describe('PriceCard 价目分享卡', () => {
     vm.form.tiers[2].name = '全身'
     vm.form.tiers[2].priceYuan = 350
     await vm.copyText()
+    await flushAsync() // 宿主侧剪贴板写入为异步，等链路落定
 
     expect(writeText).toHaveBeenCalledTimes(1)
     const text = writeText.mock.calls[0][0]
     expect(text).toContain('头像价目')
     expect(text).toContain('¥120.00')
     expect(text).toContain('¥350.00')
+  })
+
+  // 宿主接线断言：表单变更 → 共享组件 draft-change → 宿主写 localStorage（STORAGE_KEY 不变）
+  it('draft-change 经宿主写回 localStorage（接线）', async () => {
+    const { vm, wrapper } = mountPriceCard()
+    vm.form.title = '宿主接线测试'
+    await wrapper.vm.$nextTick()
+    const saved = JSON.parse(localStorage.getItem('huiyue_price_card_draft')!) as { title: string; layout: string; tiers: unknown[] }
+    expect(saved.title).toBe('宿主接线测试')
+    expect(saved.layout).toBe('A')
+    expect(saved.tiers).toHaveLength(3)
   })
 })

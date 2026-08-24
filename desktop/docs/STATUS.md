@@ -1,5 +1,7 @@
 # 桌面端（拾绘桌面版）子项目状态
 
+> 🔑 **最新：2026-08-24 F3/F4 共享组件搬家批（用户拍板整件搬家方案 B，三路并行派工，门禁全绿）**——定契批后第二步兑现：F3 约稿条 / F4 小票**整件**迁入 `@inkglean/shared`（去 element-plus 化：单选组→自绘分段控件、el-dialog→自绘遮罩纸卡；哑组件接口定稿：t 注入 / initialDraft+draft-change / notify / copy-text / export-png / request-*+props 回灌，全落 `shared/README.md` 契约章）。web 两页面原地改薄宿主壳（PriceCard 1023→153 行 / ReceiptPrinter 558→76 行），utils 三件（money/ink-palette/receipt）改 re-export shim 保旧导入路径；老草稿 STORAGE_KEY 不变兼容。**桌面端侧**：接线保险丝升级为真组件导入+挂载级（ReceiptPrinter 挂载断言 .rc-item 结构；未加 @vue/test-utils 依赖，用 vue 原生 createApp 挂载兜底，注释留痕）。**门禁全绿**：shared lint 0 / **23/23**（基线 1+22）/ typecheck；web lint 0 错 / **832/832**（基线 831+1 宿主接线）/ check:i18n 无新增 / build；desktop lint 0 / **9/9**（基线 7+2）/ build / cargo check。**布局审计**：measure 阻塞=false（圆角族 1、无野生、离栅 6/14px 已修 8/16px）；VL 评审 C1-C4 全过，S1 疑点人工复验 4.73:1 达标（既有 ink3 说明色口径）；验证页截图 `workspace/temp/shared-move-824/shot-round1.png`。**开放项**：①desktop 侧 token 注入层（组件消费纸墨 CSS 变量，桌面宿主尚无，待桌面端施工批建立）；②check-file-size 防阀报 QueueBoardList 880>872 / ArtistManage 1254>1249 两处为 HEAD 既有超限（非本批引入，git status 已证），交后续清扫批。
+
 > 本文件为桌面端子项目专有事实源，与主项目 `docs/comms/STATUS.md` 分工：
 > - 平台整体状态/发版/门禁基线 → 主 STATUS
 > - 桌面端（`desktop/` 目录）开工进度/专属拍板/验收清单 → 本文件
