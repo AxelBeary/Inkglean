@@ -67,6 +67,8 @@ export function cleanDb(): void {
     -- v49 (REQ-036): 保留系统预置模板（artist_id NULL，initDatabase 自动种子），只清画师私有模板
     DELETE FROM addon_templates WHERE artist_id IS NOT NULL;
     DELETE FROM totp_used_codes;
+    -- v73: 桌面设备账本引用 artists，须先于 artists 清理
+    DELETE FROM desktop_devices;
     -- v71: 邀请码使用明细引用 artists，须先于 artists 清理（父表 invite_codes 随后）
     DELETE FROM invite_code_uses;
     DELETE FROM invite_codes;

@@ -7,6 +7,7 @@ import * as adminService from './admin.service.js'
 import * as adminAddonTemplatesService from './admin-addon-templates.service.js'
 import * as orderService from '../order/order.service.js'
 import { bindTotpInit, confirmTotpBind, resetTotp, verifyTotpLogin, isDevAuth } from '../auth/auth.service.js'
+import { listDesktopDevices, revokeDesktopDevice } from '../auth/devices.service.js'
 import { generateSecret, buildOtpAuthUri } from '../auth/totp.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import QRCode from 'qrcode'
@@ -306,6 +307,36 @@ export default async function adminRoutes(fastify: FastifyInstance) {
 
     resetTotp(artist.id)
     return { success: true, message: `已重置画师「${artist.name}」的动态口令绑定，画师需重新绑定才能登录` }
+  })
+
+  // ─── 桌面端设备管理（REQ-014 登录方案：后台可见已绑定设备清单，支持单台踢出） ───
+  // 记账式会话（安全口径一/方案 A，v73）：清单=读账，踢人=撕账；
+  // step-up 守卫由 registerAdminStepUpHooks 自动追加在 requireAdmin 之后（与全部 /api/admin 路由同口径）。
+  const intIdDid = { params: { type: 'object', properties: { id: { type: 'integer' }, deviceId: { type: 'integer' } }, required: ['id', 'deviceId'] } }
+
+  /**
+   * GET /api/admin/artists/:id/devices
+   * 桌面设备账本清单（按最近活跃倒序）；含来源 IP（同登录留痕口径，仅管理端可见）
+   */
+  fastify.get('/api/admin/artists/:id/devices', { preHandler: requireAdmin, schema: intId }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artist = artistService.getArtistById(Number((request.params as { id: string }).id))
+    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+    return listDesktopDevices(artist.id)
+  })
+
+  /**
+   * DELETE /api/admin/artists/:id/devices/:deviceId
+   * 单台踢出（换机/被盗场景）= 撕账：桌面 token 下次请求即被门禁拒绝（DEVICE_REVOKED）。
+   * 不动 token_version——网页会话与其余桌面设备不受影响（全端踢人另有 resetTotp/bumpTokenVersion 口径）。
+   */
+  fastify.delete('/api/admin/artists/:id/devices/:deviceId', { preHandler: requireAdmin, schema: intIdDid }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string; deviceId: string }
+    const artist = artistService.getArtistById(Number(params.id))
+    if (!artist) return reply.code(404).send({ error: '画师不存在' })
+    if (!revokeDesktopDevice(artist.id, Number(params.deviceId))) {
+      return reply.code(404).send({ error: '设备不存在或已被移除' })
+    }
+    return { success: true }
   })
 
   /**

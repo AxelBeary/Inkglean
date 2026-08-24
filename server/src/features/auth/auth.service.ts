@@ -227,6 +227,14 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
  */
 export type AuthLevel = 'basic' | 'admin_verified'
 
+/**
+ * 会话客户端类型（REQ-014 安全口径一，v73）
+ * - web（缺省/旧 token 兼容）：7 天 t 基 TTL，无状态
+ * - desktop：记账式会话——过期由设备账本（desktop_devices）权威管理，
+ *   token 自身不做 t 基 TTL（t 仅作记账时刻），签名只防伪造；踢人=撕账、过期=停止顺延（见 devices.service）
+ */
+export type SessionClient = 'web' | 'desktop'
+
 /** 会话 payload */
 export interface SessionPayload {
   id: number
@@ -236,26 +244,41 @@ export interface SessionPayload {
   auth_level?: AuthLevel
   /** REQ-041：管理员二次验证通过时刻（ISO 时间戳，可空；与 auth_level 配套） */
   admin_verified_at?: string | null
+  /** 桌面端会话标记（缺省 = web）；账本行不存在/被踢/过期即拒（见 requireAuth） */
+  client?: SessionClient
+  /** desktop_devices 账本行 id（仅 client='desktop' 时有值） */
+  device_id?: number
 }
 
 /** 创建升级会话的附加参数（REQ-041；缺省 = basic 会话，既有调用语义不变） */
 export interface CreateSessionOptions {
   authLevel?: AuthLevel
   adminVerifiedAt?: string | null
+  /** REQ-014：桌面端记账式会话标记（须与 deviceId 成对出现） */
+  client?: SessionClient
+  /** desktop_devices 账本行 id（client='desktop' 时必填） */
+  deviceId?: number
 }
 
 /**
  * 创建会话 Token（HMAC签名，无状态）
  * payload 中包含 token_version，用于服务端主动使旧 token 失效
  * REQ-041：验证通过后由 step-up 接口用 authLevel='admin_verified' + adminVerifiedAt 重签覆盖 cookie
+ * REQ-014：桌面端会话带 client='desktop' + device_id，过期权威在设备账本（非 t）
  */
 export function createSession(artistId: number, tokenVersion: number, options: CreateSessionOptions = {}): string {
+  const isDesktop = options.client === 'desktop'
+  if (isDesktop && (options.deviceId == null || !Number.isInteger(options.deviceId))) {
+    // 契约护栏：桌面会话必须持有账本行 id，否则签出的 token 永远被门禁拒绝——属调用方编程错误，直接抛
+    throw new Error('createSession：client=desktop 必须提供整数 deviceId（desktop_devices 账本行 id）')
+  }
   const payload: SessionPayload = {
     id: artistId,
     t: Date.now(),
     v: tokenVersion || 1,
     ...(options.authLevel ? { auth_level: options.authLevel } : {}),
-    ...(options.adminVerifiedAt != null ? { admin_verified_at: options.adminVerifiedAt } : {})
+    ...(options.adminVerifiedAt != null ? { admin_verified_at: options.adminVerifiedAt } : {}),
+    ...(isDesktop ? { client: 'desktop' as const, device_id: options.deviceId } : {})
   }
   const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64url')
   const sig = crypto.createHmac('sha256', SECRET).update(payloadBase64).digest('base64url')
@@ -279,6 +302,10 @@ export function verifySession(token: string): SessionPayload | null {
 
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString()) as SessionPayload
+    // 桌面端（记账式会话）：不做 t 基 TTL——过期权威在设备账本（踢人=撕账/过期=停止顺延），
+    // 否则活跃顺延后旧 t 到期会误杀活跃设备（网页会话写死 7 天过期的病灶不复制到桌面端）。
+    // 账本不存在/过期/被踢的拒绝在 requireAuth 门禁侧完成。
+    if (data.client === 'desktop') return data
     if (Date.now() - data.t > SESSION_TTL_MS) return null
     return data
   } catch (err) {

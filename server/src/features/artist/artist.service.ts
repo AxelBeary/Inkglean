@@ -5,6 +5,7 @@ import { normalizeLinkUrl, assertLinkLengthLimits, MAX_LINK_COUNT } from '../../
 import { rederivePlatformId } from '../platform/platform.service.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
 import { sanitizeStoredText, sanitizeStoredHtml } from '../../shared/sanitize.js'
+import { revokeAllDesktopDevices } from '../auth/devices.service.js'
 import type { Artist } from '../../types/entities.js'
 import sharp from 'sharp'
 import { resolve, join } from 'path'
@@ -431,12 +432,15 @@ export function restoreArtist(id: number): Artist | undefined {
 
 /**
  * 递增 token_version，使该画师所有已签发的 token 失效
- * 用于：登出、权限变更、管理员强制下线
+ * 用于：登出、权限变更、管理员强制下线、TOTP 重绑/重置（重置即未绑定态，会话全部作废）
+ * REQ-014 桌面记账式会话（v73）：全端踢人=撕光桌面设备账本，不得留活账；
+ * 单台踢出走 revokeDesktopDevice（见 devices.service），不经此处。
  */
 export function bumpTokenVersion(artistId: number): void {
   db.prepare(
     'UPDATE artists SET token_version = COALESCE(token_version, 1) + 1 WHERE id = ?'
   ).run(artistId)
+  revokeAllDesktopDevices(artistId)
 }
 
 // ============================================
