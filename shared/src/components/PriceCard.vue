@@ -995,7 +995,21 @@ defineExpose({
 }
 .pc-seg-btn + .pc-seg-btn { border-left: 1px solid var(--line2); }
 .pc-seg-btn:hover:not(.pc-seg-btn--on) { color: var(--hq); }
-.pc-seg-btn--on { background: var(--hq); color: var(--paper2); }
+/* 824 anti-slop 复检拍板：纸签脉选中态（纸底 + 花青状态边 + 朱砂点印，同排期卷轴纸签口径； inset 实现零位移状态边，非装饰阴影） */
+.pc-seg-btn--on {
+  background: var(--paper2);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--hq);
+  position: relative;
+}
+.pc-seg-btn--on::after {
+  content: "";
+  position: absolute; top: 4px; right: 4px;
+  width: 6px; height: 6px;
+  background: var(--zs);
+  border-radius: var(--r-paper);
+}
 .pc-seg-btn:focus-visible { outline: 2px solid var(--zs); outline-offset: -2px; }
 
 /* shared-824：自绘遮罩弹窗（替代原对话框）——固定定位遮罩 + 纸卡本体，色值全走宿主注入 token */

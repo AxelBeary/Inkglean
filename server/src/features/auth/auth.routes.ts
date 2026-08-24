@@ -1,5 +1,6 @@
 import { verifyTotpLogin, createSession } from './auth.service.js'
 import type { CreateSessionOptions } from './auth.service.js'
+import { registerDesktopDevice } from './devices.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
 import { bumpTokenVersion, recordLastLogin, getArtistById } from '../artist/artist.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -215,6 +216,69 @@ export default async function authRoutes(fastify: FastifyInstance) {
     recordLastLogin(result.artist.id, request.ip)
 
     return signSession(result.artist, reply)
+  })
+
+  /**
+   * POST /api/auth/desktop/login
+   * REQ-014 桌面端登录（首发仅 TOTP，与网页同款）+ 记账式会话（安全口径一/方案 A，v73）：
+   * - 复用 verifyTotpLogin（重放防护/防爆破/锁定/封禁拒绝全套语义与网页登录一致）
+   * - 登录成功=记账：首次插新账 / 同设备（deviceUuid）重登改账，过期时间刷新至 90 天
+   * - 下发 Bearer token（client='desktop' + device_id），不下发 cookie；
+   *   客户端按拍板强制存 Windows 系统保险箱（凭据保管柜），不存明文文件（客户端职责，见 desktop/）
+   * - 登录留痕复用：桌面登录同样刷新 last_login_at/last_login_ip
+   * deviceUuid：客户端首次启动生成的稳定设备标识（存系统保险箱），账本键，防重复记账；
+   * 伪造它最多让他人重登时改到自己的账上，不构成越权（登录本身靠 TOTP）。
+   */
+  fastify.post('/api/auth/desktop/login', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['qqNumber', 'code', 'deviceUuid'],
+        properties: {
+          qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' },
+          code: { type: 'string', minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' },
+          deviceUuid: { type: 'string', minLength: 8, maxLength: 64, pattern: '^[0-9a-fA-F-]+$' },
+          deviceName: { type: 'string', minLength: 1, maxLength: 100 }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request, reply) => {
+    guardRateLimit(`desktop-login:${request.ip}`, 10, 5 * 60_000)
+
+    const { qqNumber, code, deviceUuid, deviceName } = request.body as {
+      qqNumber: string; code: string; deviceUuid: string; deviceName?: string
+    }
+
+    const result = verifyTotpLogin(qqNumber, code)
+    if (!result.valid) {
+      return reply.code(401).send({
+        code: result.code,
+        error: result.error,
+        ...(result.remainingLockMs != null ? { detail: { remainingLockMs: result.remainingLockMs } } : {})
+      })
+    }
+
+    if (!result.artist) {
+      return reply.code(500).send({ code: 'INTERNAL', error: '登录会话状态异常' })
+    }
+
+    // 记账（登录=记账）：同设备重登走改账不重复记账；随后再验账本行存在性无需重复（register 返回即权威）
+    const device = registerDesktopDevice(result.artist.id, deviceUuid, deviceName?.trim() || null, request.ip)
+    // 登录留痕批（v72）复用：桌面登录同样刷新上次登录时间+来源 IP（仅管理后台可见）
+    recordLastLogin(result.artist.id, request.ip)
+
+    const token = createSession(result.artist.id, result.artist.token_version, { client: 'desktop', deviceId: device.id })
+    return {
+      token,
+      expiresAt: device.expires_at,
+      artist: {
+        id: result.artist.id,
+        name: result.artist.name,
+        subdomain: result.artist.subdomain,
+        qqNumber: result.artist.qq_number
+      }
+    }
   })
 
   /**

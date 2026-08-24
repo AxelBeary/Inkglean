@@ -1,4 +1,5 @@
 import { verifySession } from '../../features/auth/auth.service.js'
+import { getDesktopDevice, touchDesktopDevice } from '../../features/auth/devices.service.js'
 import { getArtistById } from '../../features/artist/artist.service.js'
 import db from '../../db/connection.js'
 import { E, ERROR_MESSAGES } from '../errors.js'
@@ -67,6 +68,25 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
 
   if (artist.token_version && session.v !== artist.token_version) {
     return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
+  }
+
+  // 桌面端记账式会话（REQ-014 安全口径一/方案 A，v73）：账本是存活权威——
+  // 撕账（管理员踢出/全端踢人）或账目过期（停止活跃超 90 天）都在这一步拒绝；
+  // 活账放行后记活跃并按周自动顺延（登录一次管三个月，网页 7 天病灶不复制）。
+  // 过期时间解析失败（账目脏数据）也拒——安全方向一律从严。
+  if (session.client === 'desktop') {
+    if (session.device_id == null) {
+      return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
+    }
+    const device = getDesktopDevice(session.id, session.device_id)
+    if (!device) {
+      return reply.code(401).send({ code: E.DEVICE_REVOKED, error: ERROR_MESSAGES[E.DEVICE_REVOKED] })
+    }
+    const expiresMs = new Date(device.expires_at).getTime()
+    if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) {
+      return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
+    }
+    touchDesktopDevice(session.id, session.device_id)
   }
 
   request.artist = artist

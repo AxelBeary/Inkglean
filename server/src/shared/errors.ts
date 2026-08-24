@@ -27,6 +27,8 @@ export const E = {
   // REQ-042: 画师封禁独立态（登录拒绝）
   ARTIST_BANNED: 'ARTIST_BANNED',
   TOKEN_REVOKED: 'TOKEN_REVOKED',
+  // 桌面端记账式会话（REQ-014 安全口径一，v73）：设备账本被撕（管理员踢出/全端踢人），客户端应引导重新登录。
+  DEVICE_REVOKED: 'DEVICE_REVOKED',
   ADMIN_REQUIRED: 'ADMIN_REQUIRED',
   // F-9（审计批F）: 旧登录码时代错误码 CODE_INVALID / CODE_EXPIRED / CODE_TOO_MANY_ATTEMPTS
   // 已退役删除（REQ-027 TOTP 上线后后端不再产生；前端 LOGIN_CODES 白名单由批 G 同步清理）
@@ -273,6 +275,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   ACCOUNT_DISABLED: '账号已被禁用',
   ARTIST_BANNED: '账号已被封禁，如有疑问请联系管理员',
   TOKEN_REVOKED: '登录已失效，请重新登录',
+  // 桌面端记账式会话（v73）：设备被踢出信任清单（换机/被盗场景管理员操作）
+  DEVICE_REVOKED: '该设备已被移出信任清单，请重新登录',
   ADMIN_REQUIRED: '需要管理员权限',
   // F-9（审计批F）: 旧登录码时代错误码已退役删除（见 E 枚举同注释）
   QQ_NOT_REGISTERED: '该QQ号尚未注册',

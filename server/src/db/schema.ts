@@ -75,6 +75,21 @@ CREATE TABLE IF NOT EXISTS totp_used_codes (
   UNIQUE (artist_id, code_hash)
 );
 
+-- 桌面端设备账本表（v73，REQ-014 安全口径一 方案 A 记账式会话）
+-- 一张账本记全部：登录=记账 / 踢人=撕账 / 顺延=改账 / 设备清单=同账。
+-- expires_at 为过期权威（90 天，活跃自动顺延）；桌面 token 自身不做 t 基 TTL
+CREATE TABLE IF NOT EXISTS desktop_devices (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+  device_uuid TEXT NOT NULL,
+  device_name TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
+  last_active_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_login_ip TEXT,
+  UNIQUE(artist_id, device_uuid)
+);
+
 -- 价格档位表
 -- 档位表（历史遗留：迁移 v1-v37 依赖此表存在；v50（SPEC-PRICE-2 价格模型统一）DROP 移除，
 -- 此处保留仅维持迁移链完整——新库建了也会被 v50 删掉）

@@ -579,7 +579,21 @@ defineExpose({
 }
 .rc-seg-btn + .rc-seg-btn { border-left: 1px solid var(--line2); }
 .rc-seg-btn:hover:not(.rc-seg-btn--on) { color: var(--hq); }
-.rc-seg-btn--on { background: var(--hq); color: var(--paper2); }
+/* 824 anti-slop 复检拍板：纸签脉选中态（纸底 + 花青状态边 + 朱砂点印，同排期卷轴纸签口径； inset 实现零位移状态边，非装饰阴影） */
+.rc-seg-btn--on {
+  background: var(--paper2);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--hq);
+  position: relative;
+}
+.rc-seg-btn--on::after {
+  content: "";
+  position: absolute; top: 4px; right: 4px;
+  width: 6px; height: 6px;
+  background: var(--zs);
+  border-radius: var(--r-paper);
+}
 .rc-seg-btn:focus-visible { outline: 2px solid var(--zs); outline-offset: -2px; }
 
 .rc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
