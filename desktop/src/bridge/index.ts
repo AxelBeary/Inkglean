@@ -8,6 +8,7 @@ import { BridgeUnavailableError } from './errors'
 export { isDesktop } from './env'
 export { BridgeUnavailableError } from './errors'
 export { checkAndDownloadUpdate, installPendingUpdate } from './updater'
+export { saveSecret, loadSecret, deleteSecret } from './secureStore'
 
 function requireDesktop(capability: string): void {
   if (!isDesktop()) throw new BridgeUnavailableError(capability)
