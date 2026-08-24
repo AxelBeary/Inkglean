@@ -72,6 +72,16 @@
 | dotenv | BSD-2-Clause |
 | tsx / typescript | MIT / Apache-2.0 |
 
+### 桌面端（desktop/package.json + desktop/src-tauri/Cargo.toml）
+| 依赖 | 许可 |
+|------|------|
+| tauri / tauri-build / @tauri-apps/cli / @tauri-apps/api | Apache-2.0 OR MIT 双许可 |
+| tauri-plugin-opener | Apache-2.0 OR MIT 双许可 |
+| vue / vite / typescript / vue-tsc | MIT（与网页端同栈） |
+| Windows WebView2 运行时 | Microsoft 专有（系统组件，随 Windows 分发，非本项目依赖包） |
+
+> **桌面端运行时说明**：桌面端渲染依赖系统已安装的 Microsoft Edge WebView2 运行时（Windows 10/11 默认自带）。后续引入 tauri-plugin-sql（本地 SQLite）等插件时按本登记纪律逐条补登。
+
 ---
 
 ## 四、其他
