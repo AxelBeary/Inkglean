@@ -30,12 +30,24 @@ jobs:
       - name: 安装前端依赖
         run: npm ci
 
-      # DESKTOP_UPDATE_ENDPOINT 构建期注入 tauri.conf.json 的 updater endpoints（真实公网域名在仓库变量配置）
+      # 更新端点注入（825 修复）：tauri.conf.json 的 {{ }} 模板只在部分 CLI 路径生效，dev 运行时直接解析会 panic；
+      # 改为仓库存 *.invalid 占位，打包前用真实公网地址替换（仓库变量 DESKTOP_UPDATE_BASE）
+      - name: 注入更新端点
+        shell: pwsh
+        env:
+          DESKTOP_UPDATE_ENDPOINT: ${{ vars.DESKTOP_UPDATE_BASE }}/latest.json
+        run: |
+          $conf = 'src-tauri/tauri.conf.json'
+          $text = Get-Content $conf -Raw
+          if (-not $env:DESKTOP_UPDATE_ENDPOINT) { throw '仓库变量 DESKTOP_UPDATE_BASE 未配置（见《更新通道执行手册》第 3 步）' }
+          $text = $text.Replace('https://updates.invalid/desktop/latest.json', $env:DESKTOP_UPDATE_ENDPOINT)
+          Set-Content -Path $conf -Value $text -Encoding utf8
+          Write-Host "updater endpoint -> $($env:DESKTOP_UPDATE_ENDPOINT)"
+
       - name: 构建 + 签名（NSIS + updater 包）
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          DESKTOP_UPDATE_ENDPOINT: ${{ vars.DESKTOP_UPDATE_BASE }}/latest.json
         run: npx tauri build --bundles nsis
 
       # latest.json：客户端启动检查的版本清单；signature 取自构建产物 .sig，url 指向自托管目录
