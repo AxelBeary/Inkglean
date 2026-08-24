@@ -1,0 +1,73 @@
+# 桌面端发布流水线（825 更新通道施工批）
+# 触发：推送 desktop-v* tag 或手动 dispatch
+# 链路：Windows 构建 NSIS → tauri 内置 Ed25519 签名（私钥仅存 CI secrets，永不进服务器）
+#       → 生成 latest.json（url 指向自托管目录）→ GitHub Release 产物发布
+# 防投毒口径①（REQ-014 安全口径三）：签名只发生在流水线内，服务器只托管签名成品；
+# 发布后由用户按《更新通道执行手册》把产物投递到服务器只读静态目录（保留前 3 版，坏版可回滚）。
+name: desktop-release
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装 Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      # DESKTOP_UPDATE_ENDPOINT 构建期注入 tauri.conf.json 的 updater endpoints（真实公网域名在仓库变量配置）
+      - name: 构建 + 签名（NSIS + updater 包）
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          DESKTOP_UPDATE_ENDPOINT: ${{ vars.DESKTOP_UPDATE_BASE }}/latest.json
+        run: npx tauri build --bundles nsis
+
+      # latest.json：客户端启动检查的版本清单；signature 取自构建产物 .sig，url 指向自托管目录
+      - name: 生成 latest.json
+        shell: pwsh
+        env:
+          DESKTOP_UPDATE_BASE: ${{ vars.DESKTOP_UPDATE_BASE }}
+        run: |
+          $bundle = "src-tauri/target/release/bundle/nsis"
+          $zip = Get-ChildItem $bundle -Filter *.nsis.zip | Select-Object -First 1
+          if (-not $zip) { throw "未找到 .nsis.zip（签名私钥缺失或构建失败）" }
+          $sig = (Get-Content "$($zip.FullName).sig" -Raw).Trim()
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $manifest = @{
+            version  = $conf.version
+            notes    = "拾绘桌面版 $($conf.version)"
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $sig
+                url       = "$env:DESKTOP_UPDATE_BASE/$($zip.Name)"
+              }
+            }
+          } | ConvertTo-Json -Depth 6
+          Set-Content -Path "$bundle/latest.json" -Value $manifest -Encoding utf8
+          Write-Host $manifest
+
+      - name: 发布 Release 产物（安装包 + 更新包 + 签名 + 清单）
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            desktop/src-tauri/target/release/bundle/nsis/*.exe
+            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip
+            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+            desktop/src-tauri/target/release/bundle/nsis/latest.json

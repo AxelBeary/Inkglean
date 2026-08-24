@@ -21,4 +21,13 @@
 	reverse_proxy web:3000 {
 		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
 	}
+
+	# 桌面端更新通道（825 施工批）：只读静态托管，只放流水线签名后经《更新通道执行手册》投递的成品；
+	# latest.json 禁缓存保证客户端每次拿到最新清单，更新包本身可缓存；目录由 compose 只读挂载。
+	handle_path /desktop/* {
+		root * /srv/desktop-updates
+		@manifest path /latest.json
+		header @manifest Cache-Control "no-cache"
+		file_server
+	}
 }

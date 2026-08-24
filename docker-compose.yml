@@ -66,6 +66,7 @@ services:
       - "443:443/udp"   # HTTP/3
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./desktop-updates:/srv/desktop-updates:ro   # 桌面端更新通道（825）：只读托管签名成品，投递规程见执行手册
       - caddy_data:/data
       - caddy_config:/config
     env_file:
