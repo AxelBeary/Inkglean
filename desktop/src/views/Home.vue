@@ -3,9 +3,11 @@
 // 波0 交付布局机制本体（拖排/显隐/本地持久化），板块数据内容归后续波次（波1/波2）接入。
 // 布局偏好拍板口径：登录态复用 dashboard_prefs 云端同步（后续波接），本波先本地存本机。
 import { computed, onMounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { checkAndDownloadUpdate, installPendingUpdate } from "../bridge";
 
+const router = useRouter();
 const auth = useAuthStore();
 
 // ─── 7 板块定义（顺序为默认排布）───
@@ -57,7 +59,12 @@ const visiblePanels = computed(() =>
 // ─── 拖排（原生 HTML5，不引第三方拖拽库）───
 const dragKey = ref<string | null>(null);
 
-function onDragStart(key: string) { dragKey.value = key; }
+function onDragStart(key: string, e: DragEvent) {
+  dragKey.value = key;
+  // Chromium 系不强制要求，但部分内核无 setData 不起拖；顺带标定移动语义（825 实测批修）
+  e.dataTransfer?.setData("text/plain", key);
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+}
 function onDrop(targetKey: string) {
   const from = dragKey.value;
   dragKey.value = null;
@@ -93,6 +100,8 @@ onMounted(async () => {
 
 async function logout() {
   await auth.logout();
+  // 登出后留在原地页面会停留在已失效会话上（825 用户实测报障）：主动回登录页
+  await router.push({ name: "login" });
 }
 </script>
 
@@ -130,7 +139,7 @@ async function logout() {
         class="panel"
         draggable="true"
         :class="{ 'panel--dragging': dragKey === p.key }"
-        @dragstart="onDragStart(p.key)"
+        @dragstart="onDragStart(p.key, $event)"
         @dragover.prevent
         @drop="onDrop(p.key)"
       >
