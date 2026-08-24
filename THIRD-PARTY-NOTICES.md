@@ -77,6 +77,8 @@
 |------|------|
 | tauri / tauri-build / @tauri-apps/cli / @tauri-apps/api | Apache-2.0 OR MIT 双许可 |
 | tauri-plugin-opener | Apache-2.0 OR MIT 双许可 |
+| tauri-plugin-dialog / tauri-plugin-updater | Apache-2.0 OR MIT 双许可 |
+| @tauri-apps/plugin-dialog / @tauri-apps/plugin-updater | Apache-2.0 OR MIT 双许可 |
 | vue / vite / typescript / vue-tsc | MIT（与网页端同栈） |
 | Windows WebView2 运行时 | Microsoft 专有（系统组件，随 Windows 分发，非本项目依赖包） |
 

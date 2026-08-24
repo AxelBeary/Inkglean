@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 // 业务代码只认 desktop-bridge，不直接 import Tauri API（逃生门纪律）
-import { isDesktop, ping, pickDirectory, BridgeUnavailableError } from "./bridge";
+import { isDesktop, ping, pickDirectory, BridgeUnavailableError, checkAndDownloadUpdate, installPendingUpdate } from "./bridge";
 
 const desktop = isDesktop();
 const pingResult = ref("");
@@ -13,6 +13,18 @@ onMounted(async () => {
     pingResult.value = await ping();
   } catch {
     pingResult.value = "失败";
+  }
+  // 更新通道（825）：启动静默检查+下载（验签失败拒装），失败全静默不打扰；
+  // 下载完成后择机提示重启生效（静默语义拍板口径）
+  try {
+    const result = await checkAndDownloadUpdate();
+    if (result === "downloaded") {
+      if (window.confirm("新版本已下载，现在重启完成更新？")) {
+        await installPendingUpdate();
+      }
+    }
+  } catch {
+    // 端点未配置/无网络/验签拒装：静默降级，不影响主流程
   }
 });
 

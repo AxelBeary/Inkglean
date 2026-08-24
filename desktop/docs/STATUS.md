@@ -1,5 +1,7 @@
 # 桌面端（拾绘桌面版）子项目状态
 
+> 🔑 **最新：2026-08-25 更新通道施工批（仓库侧全部就绪，服务器侧待用户执行）**——清单下一项兑现（仓库能做的全做完）：①**客户端接线**：tauri-plugin-updater Rust+JS 双侧（JS 侧走 desktop-bridge 逃生门新增 `updater.ts`：checkAndDownloadUpdate/installPendingUpdate）；启动静默检查→后台下载（含验签，验签失败拒装＝防投毒口径②）→询问重启；失败全静默。②**CI 签名流水线** `.github/workflows/desktop-release.yml`：`desktop-v*` tag 触发，windows-latest 构 NSIS → tauri 内置 Ed25519 签名（私钥仅存 CI secrets，永不进服务器＝口径①）→ 生成 latest.json（url 指向自托管）→ Release 产物。③**托管配置**：Caddyfile `/desktop/*` 只读静态块（latest.json 禁缓存）+ compose 只读挂载 `./desktop-updates`；NSIS installMode=currentUser（免管理员）。④**旧版保留**：目录留前 3 版，回滚＝旧 latest.json 覆盖（口径③）。**执行手册**：`docs/comms/更新通道执行手册-20260825-待后台执行.md`（五步：正式密钥对生成/公钥换配置/仓库 secrets+vars/服务器目录/首发投递 + 回滚与验收清单）。**诚实备注**：tauri.conf.json 现 pubkey 为一次性占位密钥对公钥（私钥生成后当场销毁，仅供配置/构建过关），首发前必须按手册换正式密钥对；第三方依赖登记已补（updater + dialog 双件）。门禁：见提交前实跑（desktop lint/test/build + cargo check）。
+
 > ✅ **最新：2026-08-24 anti-AI-flavor 复检批（用户拍板候选 C，零功能改动）**——对照 vibe-hub.org/anti-ai-flavor 标准逐项复检搬家批：纸墨语言本身即 anti-slop 极端风格谱系（文楷/宣纸/手剪纸角/零渐变零玻璃），无硬命中；唯一味点＝分段控件选中态原是组件库默认填色思路，用户拍板改**纸签脉选中态**（纸底 + 花青状态边 + 朱砂点印，同排期卷轴纸签口径，inset 实现零位移状态边）。VL 二轮诚实备注：朱砂点小且形似通知 badge（S2），主辨识靠粗边，点改印章 ✓ 与否待用户裁决（纪律禁三轮）；S3 为验证页既有说明色（人工复验 4.73:1 达标）。measure 绿 / shared 23/23。验证页与截图：`workspace/temp/shared-move-824/`（verify-seg-modal.html / shot-round2.png）。
 
 > 本文件为桌面端子项目专有事实源，与主项目 `docs/comms/STATUS.md` 分工：
@@ -51,7 +53,7 @@
 - [x] 共享组件方案定契（824 拍板方案 A：根目录 shared/ 公共仓 + file: 接线，零搬家；F3/F4 迁入另开搬家批）
 - [x] 后端增量：桌面 token 类型 + 设备表（记账式会话）；登录留痕复用（824，迁移 v73，见顶部最新条）
 - [ ] CF 规则调整：登录类接口免验证放行；身份标签仅分流（824 手册就绪：`docs/comms/CF-免验证通道执行手册-20260824-待后台执行.md`；卡在用户 CF 后台执行，无凭证不代操）
-- [ ] 更新通道：Caddy 静态托管（只读）+ CI 签名流水线 + 旧版保留
+- [~] 更新通道：Caddy 静态托管（只读）+ CI 签名流水线 + 旧版保留（825 仓库侧全部就绪；服务器侧待用户按《更新通道执行手册》执行：正式密钥/仓库配置/目录/首发投递）
 - [x] 桌面端门禁体系（824 建齐）：`npm run lint` / `npm run test`（基线 6）/ `npm run build` / `cargo check`
 - [ ] 双端回流三项（F9 快查卡 / F11 容量标识 / F12 完稿引导）与桌面端施工同批落地
 - [~] 第三方软件接入研判（824 研判建议清单已产出待拍板 → `docs/comms/桌面端第三方接入研判清单-20260824-待拍板.md`；原排期钉在：更新通道收尾后、桌面端功能施工批启动前——研判结论影响 F10 录单导入/素材集成等施工决策；输入=待研判项索引里的五路调研报告）
