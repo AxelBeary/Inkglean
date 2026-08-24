@@ -5,9 +5,13 @@
 # ─── Stage 1: 构建前端 ───
 FROM node:22-slim AS frontend-build
 WORKDIR /app/web
+# 825 修复：web 依赖 @inkglean/shared 走 file:../shared 直导源码——
+# npm ci 需 shared/package.json 可读才能解 file: 依赖；构建前再把全量源码补齐（哑组件无构建产物，宿主直接吃 TS 源码）
 COPY web/package.json web/package-lock.json* ./
+COPY shared/package.json ../shared/
 RUN npm ci
 COPY web/ ./
+COPY shared/ ../shared/
 # v0.21: 前端 Sentry DSN（构建时注入，留空=禁用）
 ARG VITE_SENTRY_DSN=
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
