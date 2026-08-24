@@ -69,3 +69,6 @@ server/data/d3-verify.tmp.db
 
 # 本机配置备份（含密钥，严禁入库）
 .env.bak*
+
+# 本机 docker 覆盖配置（825：桌面端本地冒烟临时映射 3000 端口，仅本机生效，严禁入库）
+docker-compose.override.yml
