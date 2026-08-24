@@ -1,40 +1,36 @@
 {
-  "name": "artist-commission-desktop",
-  "private": true,
+  "name": "@inkglean/shared",
   "version": "0.1.0",
-  "description": "拾绘桌面版 - 画师约稿管理桌面端",
+  "private": true,
+  "description": "拾绘双端共享组件包（web + desktop）——F3 约稿条 / F4 小票 / F12 完稿引导等两端同一套的事实源",
   "license": "AGPL-3.0",
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
-    "tauri": "tauri"
+    "typecheck": "vue-tsc --noEmit"
   },
-  "dependencies": {
-    "@inkglean/shared": "file:../shared",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-opener": "^2",
-    "vue": "^3.5.13"
+  "peerDependencies": {
+    "vue": "^3.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@tauri-apps/cli": "^2",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "@typescript-eslint/parser": "^8.67.0",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.11",
     "eslint": "^10.8.0",
     "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.8.0",
     "happy-dom": "^20.11.1",
     "jiti": "^2.7.0",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.3",
+    "typescript": "~5.9.0",
     "vitest": "^4.1.10",
-    "vue-tsc": "^2.1.10"
+    "vue": "^3.5.13",
+    "vue-tsc": "^3.3.9"
   },
   "allowScripts": {
     "esbuild@0.25.12": true
