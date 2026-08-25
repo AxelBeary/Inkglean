@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<!--
+  方向C「纸窗一格」· 拾绘桌面版首页原型
+  THESIS: 首页是一面糊着宣纸的窗——一格一事，结构即装饰；拒绝为质感而贴的材质装饰，把奢华藏进纸纹与光向。
+  OWN-WORLD: 宣纸三阶 + 墨色四阶 + 颜料盘七色；单一窗框结构 + 留白即棂条，面板内零边框、纯字阶分层、透光渐变。
+  STORY: 画师像望向一扇亮着的纸窗：左格今日要办，右上经营、右下留言、下格订单，光从纸里透出来，一眼读完。
+  FIRST VIEWPORT: 窗楣（拾绘/日期 → 概览 → 显隐/挂牌）→ 大格 今日要办 / 右双格 经营+留言 → 底格 订单速览。
+  FORM: 纸窗格阵，brief 种子 C。FINISH: 经 detector 与双视口核查后交付用户拍板。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>拾绘 · 今日 · 纸窗一格</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F0E6CF; --paper2:#F5EFDF; --card:#FFFDF7;
+  --ink:#262520; --ink2:#5A564B; --ink3:#6A6455; --ink4:#77705E;
+  --line:#DCD0B4; --line2:#CFC1A0;
+  --hq:#33526E; --hq-d:#28425B; --hq-t:#E9EFF4; --hq-t2:#D6E2EC;
+  --zs:#BC3A2B; --zs-d:#9E2F22; --zs-t:#F8EAE6;
+  --sl:#2F7D54; --sl-t:#E5F1E9;
+  --th:#966C0A; --th-t:#F7EFDA;
+  --zhe:#8A5A33; --zhe-t:#F1E8DC;
+  --buf:#7A7668;
+  --r-paper:3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand:2px 3px 2px 3px / 3px 2px 3px 2px;
+  --r-s:4px; --r-m:7px; --r-l:11px; --r-pill:999px;
+  --dur-fast:.15s; --dur-mid:.25s; --dur-slow:.35s;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --f-d:'LXGW WenKai','Kaiti SC','STKaiti','KaiTi',serif;
+  --f-b:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+  --gap:14px; --row:56px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{height:100%;overflow-x:clip}
+h1,h2{line-height:1.25}
+body{
+  min-height:100%;font-family:var(--f-b);color:var(--ink);font-size:14px;line-height:1.5;
+  background-color:var(--paper);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  padding:14px;
+}
+::selection{background:var(--hq-t2);color:var(--ink)}
+:focus-visible{outline:2px solid var(--hq);outline-offset:2px;border-radius:var(--r-s)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:var(--r-pill);border:2px solid var(--paper)}
+button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.num{font-family:var(--f-d);font-variant-numeric:tabular-nums;line-height:1.25}
+
+/* ===== 窗：一个框、几道棂（棂=面板间留白），格内纸面透光 ===== */
+.window{
+  min-height:calc(100vh - 28px);
+  border:1px solid var(--line2);border-radius:var(--r-paper);
+  background:var(--paper2);
+  box-shadow:0 0 0 4px rgba(38,37,32,.03),0 20px 44px -30px rgba(38,37,32,.5);
+  padding:var(--gap);
+  display:grid;grid-template-rows:auto 1fr auto;gap:var(--gap);
+}
+.pane{
+  background:linear-gradient(176deg,var(--card) 0%,#FFFDF7 46%,var(--paper2) 100%);
+  border-radius:var(--r-s-hand);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.65),inset 0 0 0 1px rgba(38,37,32,.05);
+  padding:14px 18px;display:flex;flex-direction:column;min-width:0;min-height:0;
+}
+
+/* ===== 窗楣 ===== */
+.masthead{display:flex;align-items:center;gap:var(--gap);flex-wrap:wrap;padding:10px 18px}
+.title-block{display:flex;align-items:baseline;gap:12px}
+.title-block h1{font-family:var(--f-d);font-size:25px;font-weight:700;letter-spacing:.08em}
+.title-block .sub{font-size:13px;color:var(--ink3)}
+.glance{flex:1;min-width:170px;font-size:13.5px;color:var(--ink2)}
+.glance b{color:var(--zs-d)}
+.mast-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.toggles{display:flex;align-items:center;gap:6px}
+.toggles .lbl{font-size:12px;color:var(--ink4)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;
+  border-radius:var(--r-s-hand);font-size:12px;color:var(--ink2);
+  background:rgba(38,37,32,.05);
+  transition:color var(--dur-fast) var(--ease-out),background var(--dur-fast);
+}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--hq)}
+.chip[aria-pressed="false"]{color:var(--ink4);background:transparent;box-shadow:inset 0 0 0 1px var(--line2)}
+.chip[aria-pressed="false"]::before{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink4)}
+.chip:hover{color:var(--ink)}
+
+/* 挂牌：窗楣上一枚小木牌，唯一仪式感 */
+.sign{perspective:600px;display:inline-block}
+.sign-inner{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  min-width:86px;height:40px;padding:0 14px;
+  background:var(--ink);color:var(--card);border-radius:var(--r-s-hand);
+  transform-style:preserve-3d;transition:transform var(--dur-slow) var(--ease-out);
+}
+.sign .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:7px;font-family:var(--f-d);font-size:15px;font-weight:600;letter-spacing:.14em;backface-visibility:hidden}
+.sign .face .pt{width:7px;height:7px;border-radius:50%}
+.sign .front .pt{background:var(--hq-t2)}
+.sign .back{transform:rotateY(180deg);color:var(--line)}
+.sign .back .pt{background:var(--buf)}
+.sign[aria-pressed="true"] .sign-inner{transform:rotateY(180deg)}
+.sign:hover .sign-inner{background:var(--ink2)}
+
+/* ===== 格阵 ===== */
+.lattice{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);grid-template-rows:1fr 1fr;gap:var(--gap);min-width:0;min-height:0}
+.flow{grid-row:1 / span 2}
+.sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.sec-head h2{font-family:var(--f-d);font-size:16.5px;font-weight:700;letter-spacing:.08em}
+.sec-head .meta{font-size:12px;color:var(--ink4)}
+
+.flow ul{list-style:none}
+.task{
+  display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;column-gap:12px;
+  height:var(--row);padding:0 10px;border-radius:var(--r-s-hand);
+  border-bottom:1px solid rgba(38,37,32,.08);
+  transition:background var(--dur-fast) var(--ease-out);
+}
+.flow li:last-child .task{border-bottom:none}
+.task:hover{background:rgba(38,37,32,.045)}
+.task:hover .what{color:var(--ink)}
+.dot{position:relative;width:9px;height:9px;border-radius:50%;justify-self:center}
+.dot.zs{background:var(--zs)}
+.dot.zs::after{content:"";position:absolute;inset:-7px;border-radius:50%;background:radial-gradient(circle,rgba(188,58,43,.16) 0,rgba(188,58,43,0) 70%)}
+.dot.hq{background:var(--hq)} .dot.th{background:var(--th)} .dot.sl{background:var(--sl)}
+.task .what{min-width:0;font-size:14px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color var(--dur-fast)}
+.task .what strong{font-weight:600}
+.task .what .prog{font-size:12px;color:var(--ink4);margin-left:6px}
+.task .amt{font-size:15px;color:var(--ink2)}
+.task .due{font-size:12.5px;font-weight:600;margin-left:10px}
+.task .due.zs{color:var(--zs-d)} .task .due.hq{color:var(--hq-d)}
+.task .due.th{color:var(--th)} .task .due.sl{color:var(--sl)}
+.task.done{opacity:.55}
+.task .tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:var(--r-s-hand);background:var(--hq-t);color:var(--hq-d);font-size:11.5px}
+.flow .foot{margin-top:auto;padding-top:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--ink4)}
+
+/* 经营格 */
+.ops .income{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ops .income .k{font-size:13px;color:var(--ink3)}
+.ops .income .v{font-size:23px;font-weight:700}
+.ops .income .tail{font-size:12px;color:var(--ink4)}
+.ops .time{margin-top:8px}
+.ops .time .line1{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ops .time .v{font-family:var(--f-d);font-size:18px;font-weight:700}
+.ops .time .k{font-size:12.5px;color:var(--ink3)}
+.ops .time .week{font-size:12px;color:var(--ink4)}
+.bar{display:flex;height:6px;border-radius:var(--r-pill);overflow:hidden;margin:7px 0 5px;background:rgba(38,37,32,.07)}
+.bar i{display:block;height:100%}
+.bar .b1{background:var(--hq)} .bar .b2{background:var(--buf)} .bar .b3{background:var(--ink4)}
+.legend{display:flex;gap:12px;font-size:11.5px;color:var(--ink4)}
+.legend i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px}
+.ops .live{margin-top:auto;padding-top:8px;font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.ops .live i{width:6px;height:6px;border-radius:50%;background:var(--hq)}
+
+/* 留言格：简形行，行间空隙不贴死 */
+.msgs .slips{display:flex;flex-direction:column;gap:8px;margin-top:6px;flex:1}
+.slip{
+  display:flex;align-items:center;gap:10px;min-height:40px;padding:5px 12px;
+  background:rgba(38,37,32,.04);border-radius:5px 7px 6px 8px;cursor:pointer;min-width:0;
+  transition:background var(--dur-fast) var(--ease-out);
+}
+.slip:hover{background:rgba(38,37,32,.09)}
+.slip:hover .who{color:var(--ink)}
+.slip .who{font-size:13px;font-weight:600;color:var(--ink2);flex:none;transition:color var(--dur-fast)}
+.slip .txt{font-size:13px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.slip .when{font-size:11.5px;color:var(--ink4);flex:none;margin-left:auto}
+.msgs .go{padding-top:8px}
+.msgs .go button{font-size:12.5px;color:var(--hq-d);font-weight:500}
+.msgs .go button:hover{color:var(--hq)}
+
+/* ===== 底格：订单速览 ===== */
+.foot-pane{flex-direction:row;align-items:center;gap:var(--gap);padding:10px 18px;flex-wrap:wrap}
+.foot-pane .lbl{font-size:12px;color:var(--ink4);letter-spacing:.1em;flex:none}
+.ord-list{display:flex;gap:var(--gap);flex:1;min-width:0;flex-wrap:wrap}
+.ord{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);padding:5px 10px;border-radius:var(--r-s-hand);transition:background var(--dur-fast);cursor:pointer;min-width:0}
+.ord:hover{background:rgba(38,37,32,.06);color:var(--ink)}
+.ord i{width:7px;height:7px;border-radius:50%;flex:none}
+.ord .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ord .st{font-size:12px;color:var(--ink4);flex:none}
+.ord.hq i{background:var(--hq)} .ord.th i{background:var(--th)} .ord.sl i{background:var(--sl)}
+.foot-pane .right{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.promise{font-size:11.5px;color:var(--ink4);display:flex;align-items:center;gap:6px}
+.promise::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sl)}
+.all{font-size:12.5px;color:var(--hq-d)}
+.all:hover{color:var(--hq)}
+
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+body.no-ops .ops{display:none}
+body.no-msgs .msgs{display:none}
+body.no-ops.no-msgs .lattice{grid-template-columns:1fr;grid-template-rows:1fr}
+body.no-orders .ord-list,body.no-orders .lbl,body.no-orders .all{display:none}
+
+@media (max-width:1020px){
+  .lattice{grid-template-columns:1fr;grid-template-rows:auto auto auto}
+  .flow{grid-row:auto}
+}
+@media (max-height:680px){
+  :root{--gap:10px;--row:48px}
+  body{padding:10px}
+  .window{min-height:calc(100vh - 20px)}
+  .title-block h1{font-size:22px}
+  .pane{padding:10px 14px}
+  .ops .income .v{font-size:20px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<div class="window">
+  <!-- 窗楣 -->
+  <header class="masthead pane">
+    <div class="title-block">
+      <h1>拾绘</h1>
+      <span class="sub num">8月25日 周二 · qwqwqq</span>
+    </div>
+    <p class="glance">今日 <b>1 笔逾期</b> · 5 件事在案 · 阿江明天截稿 · 2 条留言待审</p>
+    <div class="mast-tools">
+      <div class="toggles" role="group" aria-label="板块显隐">
+        <span class="lbl">显隐</span>
+        <button class="chip" data-hides="ops" aria-pressed="true">经营</button>
+        <button class="chip" data-hides="msgs" aria-pressed="true">留言</button>
+        <button class="chip" data-hides="orders" aria-pressed="true">订单</button>
+      </div>
+      <button class="sign" aria-pressed="false" aria-label="状态挂牌：当前开稿中，点击翻牌切换">
+        <span class="sign-inner">
+          <span class="face front"><i class="pt" aria-hidden="true"></i>开稿中</span>
+          <span class="face back"><i class="pt" aria-hidden="true"></i>休息中</span>
+        </span>
+      </button>
+      <span class="vh" id="sign-live" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <!-- 格阵 -->
+  <main class="lattice">
+    <section class="pane flow" aria-label="今日要办">
+      <div class="sec-head">
+        <h2>今日要办</h2>
+        <span class="meta">逾期置顶 · 按截稿先后</span>
+      </div>
+      <ul>
+        <li>
+          <div class="task">
+            <span class="dot zs" aria-hidden="true"></span>
+            <span class="what"><strong>尾款 · 小满《Q 版头像 ×3》</strong><span class="prog">已交付待收</span></span>
+            <span><span class="amt num">¥380</span><span class="due zs">逾期 2 天</span></span>
+          </div>
+        </li>
+        <li>
+          <div class="task">
+            <span class="dot zs" aria-hidden="true"></span>
+            <span class="what"><strong>阿江 · 双人互动插图</strong><span class="prog">上色收尾 · 85%</span></span>
+            <span><span class="due zs">明天截稿</span></span>
+          </div>
+        </li>
+        <li>
+          <div class="task">
+            <span class="dot hq" aria-hidden="true"></span>
+            <span class="what"><strong>今日待办</strong> · 给阿江发最终稿水印版</span>
+            <span><span class="tag">配合阿江截稿</span></span>
+          </div>
+        </li>
+        <li>
+          <div class="task">
+            <span class="dot hq" aria-hidden="true"></span>
+            <span class="what"><strong>桃桃 · 原创 OC 全身立绘</strong><span class="prog">细化中 · 60%</span></span>
+            <span><span class="due hq">剩 3 天</span></span>
+          </div>
+        </li>
+        <li>
+          <div class="task">
+            <span class="dot th" aria-hidden="true"></span>
+            <span class="what"><strong>定金 · 老白《兽设细化》</strong><span class="prog">开工前确认</span></span>
+            <span><span class="amt num">¥150</span><span class="due th">待确认到账</span></span>
+          </div>
+        </li>
+        <li>
+          <div class="task done">
+            <span class="dot sl" aria-hidden="true"></span>
+            <span class="what"><strong>小满 · Q 版头像 ×3</strong><span class="prog">已交付</span></span>
+            <span><span class="due sl">已了</span></span>
+          </div>
+        </li>
+      </ul>
+      <div class="foot">
+        <span>共 6 笔 · 1 笔逾期 · 待收合计 ¥530</span>
+        <span>花青＝在办 · 朱砂＝逾期 · 藤黄＝待确认 · 石绿＝已了</span>
+      </div>
+    </section>
+
+    <section class="pane ops" aria-label="经营与时间">
+      <div class="sec-head"><h2>经营</h2><span class="meta">本月</span></div>
+      <div class="income">
+        <span class="k">本月已收</span>
+        <span class="v num">¥2,480</span>
+        <span class="tail">已完稿 5 单 · 应收尾款 ¥380</span>
+      </div>
+      <div class="time">
+        <div class="line1">
+          <span class="k">今日在画</span>
+          <span class="v num">3 小时 42 分</span>
+          <span class="week">本周 21 小时</span>
+        </div>
+        <div class="bar" role="img" aria-label="今日时间占比：在画 82%，离开 12%，摸鱼 6%">
+          <i class="b1" style="width:82%"></i><i class="b2" style="width:12%"></i><i class="b3" style="width:6%"></i>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--hq)"></i>在画 82%</span>
+          <span><i style="background:var(--buf)"></i>离开 12%</span>
+          <span><i style="background:var(--ink4)"></i>摸鱼 6%</span>
+        </div>
+      </div>
+      <div class="live"><i aria-hidden="true"></i>正在识别 · CSP《阿江 · 双人图》</div>
+    </section>
+
+    <section class="pane msgs" aria-label="留言">
+      <div class="sec-head"><h2>留言</h2><span class="meta">2 条待审 · 最早 3 小时前</span></div>
+      <div class="slips">
+        <div class="slip" tabindex="0" role="button" aria-label="审核桃桃的留言">
+          <span class="who">桃桃</span>
+          <span class="txt">老师，立绘的披风能再加一点层次吗？</span>
+          <span class="when">3 小时前</span>
+        </div>
+        <div class="slip" tabindex="0" role="button" aria-label="审核阿江的留言">
+          <span class="who">阿江</span>
+          <span class="txt">水印版麻烦发我邮箱，辛苦啦！</span>
+          <span class="when">1 小时前</span>
+        </div>
+      </div>
+      <div class="go"><button type="button">去审核 →</button></div>
+    </section>
+  </main>
+
+  <!-- 底格 -->
+  <footer class="pane foot-pane">
+    <span class="lbl">订单速览</span>
+    <div class="ord-list">
+      <span class="ord hq"><i aria-hidden="true"></i><span class="nm">桃桃 · 原创 OC 立绘</span><span class="st">进行中</span></span>
+      <span class="ord th"><i aria-hidden="true"></i><span class="nm">阿江 · 双人插图</span><span class="st">待交付</span></span>
+      <span class="ord sl"><i aria-hidden="true"></i><span class="nm">小满 · Q 版头像</span><span class="st">已完稿</span></span>
+    </div>
+    <div class="right">
+      <span class="promise">时间数据仅存本机 · 永不上传</span>
+      <button class="all" type="button">全部订单 →</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var sign=document.querySelector('.sign');
+  var live=document.getElementById('sign-live');
+  sign.addEventListener('click',function(){
+    var rest=sign.getAttribute('aria-pressed')==='true';
+    sign.setAttribute('aria-pressed',String(!rest));
+    sign.setAttribute('aria-label',rest?'状态挂牌：当前开稿中，点击翻牌切换':'状态挂牌：当前休息中，点击翻牌切换');
+    live.textContent=rest?'已切换为开稿中':'已切换为休息中';
+  });
+  document.querySelectorAll('.chip[data-hides]').forEach(function(chip){
+    chip.addEventListener('click',function(){
+      var on=chip.getAttribute('aria-pressed')==='true';
+      chip.setAttribute('aria-pressed',String(!on));
+      document.body.classList.toggle('no-'+chip.dataset.hides,on);
+    });
+  });
+})();
+</script>
+</body>
+</html>
