@@ -78,6 +78,8 @@
 | tauri / tauri-build / @tauri-apps/cli / @tauri-apps/api | Apache-2.0 OR MIT 双许可 |
 | tauri-plugin-opener | Apache-2.0 OR MIT 双许可 |
 | tauri-plugin-dialog / tauri-plugin-updater | Apache-2.0 OR MIT 双许可 |
+| tauri-plugin-window-state | Apache-2.0 OR MIT 双许可（窗口几何记忆：主窗口尺寸/位置重启还原） |
+| tauri-plugin-autostart | Apache-2.0 OR MIT 双许可（开机自启：Windows 走注册表，macOS 走 LaunchAgent） |
 | @tauri-apps/plugin-dialog / @tauri-apps/plugin-updater | Apache-2.0 OR MIT 双许可 |
 | vue / vite / typescript / vue-tsc | MIT（与网页端同栈） |
 | pinia / vue-router | MIT（桌面端路由与状态，与网页端同款） |
@@ -118,4 +120,4 @@ cd server && npx license-checker --json > /tmp/server-licenses.json
 
 ---
 
-*最后更新：2026-08-20（新增 tesseract.js 依赖与运行时 CDN 说明；此前：新增 chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
+*最后更新：2026-08-26（桌面端新增 tauri-plugin-window-state 与 tauri-plugin-autostart 登记；此前：2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明；新增 chart.js 依赖与 oimimo-scheduler 设计参考致谢）*

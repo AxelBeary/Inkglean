@@ -15,6 +15,17 @@ export const useAuthStore = defineStore('auth', () => {
   const artist = ref<DesktopArtist | null>(null)
   const loggedIn = computed(() => !!token.value)
 
+  // 双模式（§4.3 审计整包）：loggedIn 即 cloud；未登录时由登录页「暂不登录」进入 local。
+  // localMode 仅会话内有效（重开应用回登录页重新选择），登录成功/登出后复位。
+  const localMode = ref(false)
+  /** 运行模式：云端（已登录）/ 本地（未登录脱网） */
+  const mode = computed<'cloud' | 'local'>(() => loggedIn.value ? 'cloud' : 'local')
+
+  /** 登录页「暂不登录 · 本地模式」入口：放行路由守卫进首页 */
+  function enterLocalMode() {
+    localMode.value = true
+  }
+
   /** 设备标识：首次启动生成后入保险箱，账本键（同设备重登改账不重复记账） */
   async function ensureDeviceUuid(): Promise<string> {
     let uuid = await loadSecret(KEY_DEVICE)
@@ -46,6 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
     const result = await desktopLogin({ qqNumber, code, deviceUuid })
     token.value = result.token
     artist.value = result.artist
+    localMode.value = false // 登录成功即切云端，本地模式会话语义终止
     await saveSecret(KEY_TOKEN, result.token)
     await saveSecret(KEY_ARTIST, JSON.stringify(result.artist))
   }
@@ -54,6 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout(): Promise<void> {
     token.value = null
     artist.value = null
+    localMode.value = false
     try {
       await deleteSecret(KEY_TOKEN)
       await deleteSecret(KEY_ARTIST)
@@ -62,5 +75,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, artist, loggedIn, restore, login, logout }
+  return { token, artist, loggedIn, localMode, mode, enterLocalMode, restore, login, logout }
 })

@@ -5,7 +5,7 @@
   "identifier": "com.shihui.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:14200",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -13,8 +13,11 @@
     "windows": [
       {
         "title": "拾绘",
-        "width": 800,
+        "width": 1200,
         "height": 600,
+        "minWidth": 1200,
+        "minHeight": 600,
+        "decorations": false,
         "dragDropEnabled": false
       }
     ],
