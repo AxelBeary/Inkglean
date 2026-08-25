@@ -13,15 +13,17 @@ export default defineConfig(async () => ({
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
+  // 端口避开 14xx：Windows + Docker/Hyper-V 会动态保留 100 端口一段的排除区（如 1405-1504），
+  // 撞上后 node listen 报 EACCES（826 实测：1420 被排除区吞掉）；14200 远离常见保留段。
   server: {
-    port: 1420,
+    port: 14200,
     strictPort: true,
     host: host || false,
     hmr: host
       ? {
           protocol: "ws",
           host,
-          port: 1421,
+          port: 14201,
         }
       : undefined,
     watch: {

@@ -11,3 +11,10 @@ export function requireApiBase(): string {
   if (!API_BASE) throw new Error('API_BASE 未配置：发布构建须注入 VITE_API_BASE')
   return API_BASE
 }
+
+// 网页版入口（方向 A 落码批追加）：墨笔菜单「网页版完整设置」用系统浏览器打开。
+// 发布注入真实域名留待后续（与 API_BASE 同口径）；空串时菜单项不渲染（不留死按钮）。
+export const WEB_BASE: string =
+  (import.meta.env.VITE_WEB_BASE as string | undefined)
+  ?? (import.meta.env.DEV ? 'http://localhost:5173' : '')
+
