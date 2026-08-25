@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>拾绘 · 方向 B「一席 · 俯案」</title>
+<!--
+  方向 B「一席 · 俯案」设计说明（约 290 字）
+  世界观：画师低头看自己的书案——卷轴、账本、挂牌、竹简各居其位，光是左上方来的，影子落在案上。
+  信息层级：F 形左上是一轴横展的手卷（排期，三单一眼扫完）；其下摊开线装账本（钱与待办，逾期置顶）；
+  右列自上而下是挂牌与今日概览、经营纸卡、留言竹简；案沿压一张订单纸条。四行固定行高，物件各自撑满所属案位，无一处参差。
+  器物用法：全案四件器物，一件一个结构——卷轴只留两端轴头、账本只留左侧装订线、挂牌只留挂绳与翻牌、竹简只留一道编绳；
+  器物之外全是素纸，经营卡自觉领不到器物，老老实实做纸面。
+  治病：v3 的死因是小心思各自为政，本向把"戏"收进四件器物且互不串门，其余全部安静；
+  v2 的死因是无材质，纸叠厚度、装订线、轴头木纹、案面光影全部做足。金不出现（日常态）。
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F0E6CF; --paper2:#F5EFDF; --card:#FFFDF7;
+  --ink:#262520; --ink2:#5A564B; --ink3:#6A6455; --ink4:#77705E;
+  --line:#DCD0B4; --line2:#CFC1A0;
+  --hq:#33526E; --hq-d:#28425B; --hq-t:#E9EFF4; --hq-t2:#D6E2EC;
+  --zs:#BC3A2B; --zs-d:#9E2F22; --zs-t:#F8EAE6;
+  --sl:#2F7D54; --sl-t:#E5F1E9;
+  --th:#966C0A; --th-t:#F7EFDA;
+  --zhe:#8A5A33; --zhe-t:#F1E8DC;
+  --buf:#7A7668;
+  --r-paper:3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand:2px 3px 2px 3px / 3px 2px 3px 2px;
+  --dur-fast:.15s; --dur-mid:.25s; --dur-slow:.35s;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --f-d:'LXGW WenKai','Kaiti SC','STKaiti','KaiTi',serif;
+  --f-b:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--f-b); color:var(--ink); font-size:14px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  /* 案面：比纸卡深半阶，左上来光，四角微微压暗 */
+  background:
+    radial-gradient(130% 100% at 18% 0%, rgba(255,253,247,.5), transparent 55%),
+    radial-gradient(150% 130% at 50% 130%, rgba(38,37,32,.14), transparent 60%),
+    var(--paper);
+}
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:80;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.30 0 0 0 0 0.27 0 0 0 0 0.20 0 0 0 0.055 0'/></filter><rect width='260' height='260' filter='url(%23n)'/></svg>");
+}
+
+.desk{max-width:1180px; margin:0 auto; padding:26px 26px 30px}
+.board{
+  display:grid; gap:20px;
+  grid-template-columns:minmax(0,1fr) 348px;
+  grid-template-rows:212px 386px 64px;
+}
+
+/* 案上通用纸器：一叠纸的厚度 + 俯视投影（投向右下） */
+.obj{
+  position:relative; background:var(--card); border-radius:var(--r-paper);
+  box-shadow:
+    1px 1px 0 #EDE2C8,
+    2px 2px 0 #E4D7B8,
+    3px 3px 0 #EDE2C8,
+    10px 16px 28px -14px rgba(38,37,32,.4),
+    3px 5px 10px -4px rgba(38,37,32,.14);
+}
+.obj .cap{
+  font-family:var(--f-d); font-size:15px; letter-spacing:4px; color:var(--ink2);
+  display:flex; align-items:baseline; justify-content:space-between;
+}
+.obj .cap .hint{font-family:var(--f-b); font-size:11px; color:var(--ink4); letter-spacing:1px}
+
+/* ===== 卷轴 · 排期（横展手卷，轴头是唯一结构件） ===== */
+.scroll-x{grid-column:1; grid-row:1; padding:18px 30px 16px; display:flex; flex-direction:column}
+.scroll-x::before,.scroll-x::after{
+  content:""; position:absolute; top:-7px; bottom:-7px; width:15px; border-radius:8px;
+  background:linear-gradient(90deg,#9C7745 0%, var(--zhe) 45%, #6E4523 100%);
+  box-shadow:2px 3px 6px -2px rgba(38,37,32,.5), inset -2px 0 3px rgba(0,0,0,.18);
+}
+.scroll-x::before{left:-6px}
+.scroll-x::after{right:-6px}
+.handscroll{flex:1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin-top:10px}
+.hs-item{padding:6px 22px 4px; display:flex; flex-direction:column; cursor:pointer; border-radius:var(--r-s-hand); transition:background-color var(--dur-fast)}
+.hs-item:hover{background:rgba(38,37,32,.04)}
+.hs-item + .hs-item{border-left:1px solid rgba(207,193,160,.4)}
+.hs-item .l1{display:flex; align-items:center; gap:8px}
+.hs-item .who{font-weight:600; font-size:15px}
+.hs-item .due{margin-left:auto; font-family:var(--f-d); font-size:13px; letter-spacing:1px; white-space:nowrap}
+.due.zs{color:var(--zs)} .due.hq{color:var(--hq)} .due.sl{color:var(--sl)}
+.hs-item .what{font-size:12.5px; color:var(--ink2); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.hs-item .stage{font-size:11.5px; color:var(--ink3); margin-top:auto; padding-top:8px}
+.inkbar{position:relative; height:2px; background:rgba(38,37,32,.12); border-radius:1px; margin-top:5px}
+.inkbar>i{position:absolute; left:0; top:0; bottom:0; border-radius:1px; background:var(--hq)}
+.inkbar>i.zs{background:var(--zs)} .inkbar>i.sl{background:var(--sl)}
+
+/* ===== 挂牌 + 今日概览 ===== */
+.desk-head{grid-column:2; grid-row:1; padding:18px 22px; display:flex; gap:18px; align-items:flex-start}
+.head-info{flex:1; min-width:0}
+.head-info .date{font-family:var(--f-d); font-size:17px; letter-spacing:2px; color:var(--ink)}
+.head-info .who{font-size:11.5px; color:var(--ink4); letter-spacing:1px; margin-top:2px}
+.today-glance{margin-top:14px; display:flex; flex-direction:column; gap:7px; font-size:12.5px; color:var(--ink2)}
+.today-glance .g{display:flex; align-items:center; gap:8px}
+.today-glance .g i{width:7px; height:7px; border-radius:50%; flex:none}
+.today-glance .g b{font-family:var(--f-d); font-size:14px; color:var(--ink); font-weight:400}
+
+/* 挂牌 */
+.sign{position:relative; width:96px; flex:none; cursor:pointer; outline:none; perspective:600px; user-select:none; margin-top:-30px}
+.sign .nail{width:6px; height:6px; margin:0 auto; border-radius:50%; background:radial-gradient(circle at 35% 30%, #A87F4C, #6E4523 75%)}
+.sign .string{width:1px; height:26px; margin:0 auto; background:var(--zhe); opacity:.65}
+.sign .flip{position:relative; height:88px; transform-style:preserve-3d; transition:transform var(--dur-slow) var(--ease-out)}
+.sign.flipped .flip{transform:rotateY(180deg)}
+.sign .face{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--f-d); font-size:18px; letter-spacing:5px; text-indent:5px;
+  border-radius:var(--r-s-hand); backface-visibility:hidden;
+  box-shadow:4px 6px 14px -5px rgba(38,37,32,.45), inset 0 0 0 1px rgba(138,90,51,.35);
+}
+.sign .front{background:linear-gradient(160deg,#F3E9D6,var(--zhe-t)); color:var(--sl)}
+.sign .front::before{content:""; position:absolute; inset:4px; border:1px solid rgba(47,125,84,.35); border-radius:var(--r-s-hand)}
+.sign .back{background:linear-gradient(160deg,#EFE6D3,#E7DCC4); color:var(--ink3); transform:rotateY(180deg)}
+.sign .back::before{content:""; position:absolute; inset:4px; border:1px solid rgba(106,100,85,.3); border-radius:var(--r-s-hand)}
+
+/* ===== 账本 · 待办（线装，装订线是唯一结构件） ===== */
+.ledger{grid-column:1; grid-row:2; padding:18px 26px 12px 44px; display:flex; flex-direction:column}
+.ledger::before{ /* 装订绳 */
+  content:""; position:absolute; left:20px; top:14px; bottom:14px; width:1px;
+  background:var(--zhe); opacity:.55;
+}
+.ledger::after{ /* 四个线眼 */
+  content:""; position:absolute; left:16.5px; top:22px; bottom:22px; width:8px;
+  background-image:radial-gradient(circle at 4px 4px, var(--zhe) 1.7px, transparent 2px);
+  background-size:8px 30px; background-repeat:repeat-y; opacity:.6;
+}
+.rows{list-style:none; margin-top:8px; flex:1; display:flex; flex-direction:column}
+.row{
+  position:relative; flex:1; display:grid; grid-template-columns:14px minmax(0,1fr) auto; gap:4px 12px;
+  align-items:center; padding:0 8px 0 2px; cursor:pointer;
+  border-bottom:1px solid rgba(207,193,160,.42);
+  transition:background-color var(--dur-fast);
+}
+.row:last-child{border-bottom:none}
+.row:hover{background:rgba(38,37,32,.035)}
+.dot{width:8px; height:8px; border-radius:50%; justify-self:center}
+.dot.zs{background:var(--zs); box-shadow:0 0 7px 2px rgba(188,58,43,.22)}
+.dot.th{background:var(--th)} .dot.hq{background:var(--hq)} .dot.sl{background:var(--sl)}
+.row .l1{display:flex; align-items:baseline; gap:9px; min-width:0}
+.row .who{font-weight:600; font-size:14px; white-space:nowrap}
+.row .what{color:var(--ink2); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.row .sub{font-size:11.5px; color:var(--ink3); margin-top:1px}
+.row .amt{font-family:var(--f-d); font-size:15px; color:var(--ink2); text-align:right; white-space:nowrap}
+.row .due{font-family:var(--f-d); font-size:13px; text-align:right; white-space:nowrap; letter-spacing:1px}
+.row.overdue{background:linear-gradient(90deg, rgba(188,58,43,.05), transparent 55%)}
+.row.overdue:hover{background:linear-gradient(90deg, rgba(188,58,43,.085), rgba(38,37,32,.02) 60%)}
+.tag{font-size:10.5px; letter-spacing:1.5px; padding:1px 7px; border-radius:var(--r-s-hand); white-space:nowrap}
+.tag.zs{background:var(--zs-t); color:var(--zs-d)} .tag.th{background:var(--th-t); color:var(--th)}
+.row.done{opacity:.52}
+.seal{ /* 完稿盖章：账本上唯一一枚小印 */
+  display:inline-flex; align-items:center; justify-content:center;
+  width:17px; height:17px; margin-left:6px; border:1.2px solid var(--zs); border-radius:2.5px;
+  color:var(--zs); font-family:var(--f-d); font-size:10.5px; line-height:1; opacity:.75; transform:translateY(-1px);
+}
+
+/* ===== 右列下：经营纸卡 + 留言竹简 ===== */
+.side-stack{grid-column:2; grid-row:2; display:grid; grid-template-rows:minmax(0,1.12fr) minmax(0,.88fr); gap:20px; min-height:0}
+.biz{padding:15px 20px 12px; display:flex; flex-direction:column; overflow:hidden}
+.biz .income{font-family:var(--f-d); font-size:25px; color:var(--ink); line-height:1.2}
+.biz .income small{font-size:12px; color:var(--ink3); font-family:var(--f-b); letter-spacing:1px}
+.biz .sub{font-size:11.5px; color:var(--ink3)}
+.biz .sub b{color:var(--zs); font-weight:600}
+.biz .time{margin-top:auto; padding-top:8px}
+.biz .time .t1{font-size:12.5px; color:var(--ink2)}
+.biz .time .t1 b{font-family:var(--f-d); font-size:16px; color:var(--ink); font-weight:400}
+.daybar{display:flex; height:5px; border-radius:3px; overflow:hidden; margin:6px 0 4px; background:rgba(38,37,32,.08)}
+.daybar i{display:block; height:100%}
+.daybar .work{background:var(--hq)} .daybar .away{background:var(--buf); opacity:.55} .daybar .play{background:var(--line2)}
+.legend{display:flex; gap:12px; font-size:10.5px; color:var(--ink4)}
+.legend span::before{content:""; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px; vertical-align:1px}
+.legend .l-work::before{background:var(--hq)} .legend .l-away::before{background:var(--buf)} .legend .l-play::before{background:var(--line2)}
+.recog{margin-top:5px; font-size:11px; color:var(--ink3)}
+.recog .app-tag{color:var(--hq); font-weight:600}
+.local-note{font-size:10px; color:var(--ink4); letter-spacing:.5px; margin-top:3px}
+
+.slips-box{padding:14px 20px 12px; display:flex; flex-direction:column; overflow:hidden}
+.slips{position:relative; flex:1; padding-left:15px; display:flex; flex-direction:column; gap:8px; margin-top:8px; min-height:0}
+.slips::before{content:""; position:absolute; left:4px; top:5px; bottom:5px; width:1px; background:var(--zhe); opacity:.55}
+.slip{
+  flex:1; display:flex; flex-direction:column; justify-content:center;
+  background:linear-gradient(180deg,#F3ECDB,#ECE2C9);
+  border-radius:6px 8px 7px 6px / 8px 7px 8px 6px; padding:4px 12px; cursor:pointer;
+  box-shadow:1px 1px 0 rgba(207,193,160,.8), 3px 4px 8px -4px rgba(38,37,32,.3);
+  transition:filter var(--dur-fast);
+}
+.slip:hover{filter:brightness(.975)}
+.slip .who{font-size:12px; font-weight:600; color:var(--zhe)}
+.slip .who .when{float:right; font-weight:400; font-size:10px; color:var(--ink4)}
+.slip .txt{font-size:12px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+/* ===== 案沿 · 订单纸条 ===== */
+.order-slip{
+  grid-column:1 / -1; grid-row:3;
+  display:flex; align-items:center; gap:30px; padding:0 28px;
+  background:var(--card); border-radius:var(--r-paper);
+  box-shadow:1px 1px 0 #EDE2C8, 2px 2px 0 #E4D7B8, 8px 12px 22px -12px rgba(38,37,32,.35);
+}
+.order-slip .cap{font-family:var(--f-d); font-size:14px; letter-spacing:4px; color:var(--ink3)}
+.ord{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink2); cursor:pointer; transition:color var(--dur-fast)}
+.ord:hover{color:var(--ink)}
+.ord i{width:7px; height:7px; border-radius:50%}
+.ord .st{color:var(--ink4); font-size:11px}
+.order-slip .all{margin-left:auto; font-size:11.5px; color:var(--ink3); letter-spacing:1px; cursor:pointer; transition:color var(--dur-fast)}
+.order-slip .all:hover{color:var(--ink)}
+
+/* 版面开关（案角） */
+.layout{position:fixed; right:18px; bottom:16px; z-index:90}
+.layout>button{
+  font-size:11.5px; letter-spacing:2px; color:var(--ink3); background:var(--card);
+  border:1px solid var(--line2); border-radius:var(--r-s-hand); padding:5px 12px; cursor:pointer;
+  box-shadow:1px 1px 0 #EDE2C8, 2px 3px 8px -3px rgba(38,37,32,.3);
+  transition:color var(--dur-fast), background-color var(--dur-fast);
+}
+.layout>button:hover{color:var(--ink); background:var(--paper2)}
+.layout .menu{
+  position:absolute; right:0; bottom:calc(100% + 8px); min-width:150px; display:none;
+  background:var(--card); border-radius:var(--r-paper); padding:8px 6px;
+  box-shadow:1px 1px 0 #EDE2C8, 2px 2px 0 #E4D7B8, 0 14px 30px -14px rgba(38,37,32,.4);
+}
+.layout.open .menu{display:block}
+.layout .menu label{display:flex; align-items:center; gap:8px; padding:5px 12px; font-size:12px; color:var(--ink2); cursor:pointer; border-radius:var(--r-s-hand); transition:background-color var(--dur-fast), color var(--dur-fast)}
+.layout .menu label:hover{background:rgba(38,37,32,.045); color:var(--ink)}
+.layout .menu input{accent-color:var(--hq)}
+
+.off{display:none !important}
+
+@media (max-width: 920px){
+  .board{grid-template-columns:minmax(0,1fr); grid-template-rows:auto}
+  .scroll-x,.desk-head,.ledger,.side-stack,.order-slip{grid-column:1; grid-row:auto}
+  .handscroll{grid-template-columns:minmax(0,1fr)}
+  .hs-item + .hs-item{border-left:none; border-top:1px solid rgba(207,193,160,.4)}
+  .side-stack{grid-template-rows:auto}
+  .order-slip{flex-wrap:wrap; gap:14px; padding:14px 22px}
+  .ledger{min-height:300px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important; animation:none !important}
+}
+</style>
+</head>
+<body>
+
+<div class="desk">
+  <div class="board">
+
+    <!-- 卷轴 · 排期 -->
+    <section class="obj scroll-x" data-sec="schedule">
+      <div class="cap">排 期 <span class="hint">三单在册 · 按截稿先后</span></div>
+      <div class="handscroll">
+        <div class="hs-item">
+          <div class="l1"><span class="who">阿江</span><span class="due zs">明天截稿</span></div>
+          <div class="what">双人互动插图 · 上色收尾</div>
+          <div class="stage">85% · 收尾阶段</div>
+          <div class="inkbar"><i class="zs" style="width:85%"></i></div>
+        </div>
+        <div class="hs-item">
+          <div class="l1"><span class="who">桃桃</span><span class="due hq">剩 3 天</span></div>
+          <div class="what">原创 OC 全身立绘 · 细化中</div>
+          <div class="stage">60% · 细化阶段</div>
+          <div class="inkbar"><i style="width:60%"></i></div>
+        </div>
+        <div class="hs-item">
+          <div class="l1"><span class="who">小满</span><span class="due sl">已交付</span></div>
+          <div class="what">Q 版头像 ×3 · 客户已收图</div>
+          <div class="stage">100% · 已完稿</div>
+          <div class="inkbar"><i class="sl" style="width:100%"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 挂牌 + 今日概览 -->
+    <section class="obj desk-head" data-sec="glance">
+      <div class="head-info">
+        <div class="date">八月廿五 · 周二</div>
+        <div class="who">qwqwqq 的画案 · 2026</div>
+        <div class="today-glance">
+          <div class="g"><i style="background:var(--zs)"></i>明天截稿 <b>1</b> 件 · 阿江双人图</div>
+          <div class="g"><i style="background:var(--zs); box-shadow:0 0 6px 2px rgba(188,58,43,.22)"></i>逾期未收 <b>¥380</b> · 小满尾款</div>
+          <div class="g"><i style="background:var(--th)"></i>待确认到账 <b>¥150</b> · 老白定金</div>
+          <div class="g"><i style="background:var(--hq)"></i>今日在画 <b>3:42</b> · 状态正好</div>
+        </div>
+      </div>
+      <div class="sign" id="sign" role="switch" aria-checked="true" tabindex="0" title="点击翻牌">
+        <div class="nail"></div>
+        <div class="string"></div>
+        <div class="flip">
+          <div class="face front">开稿中</div>
+          <div class="face back">今休息</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 账本 · 待办 -->
+    <section class="obj ledger" data-sec="todo">
+      <div class="cap">待 办 <span class="hint">钱与事同账 · 逾期置顶</span></div>
+      <ul class="rows">
+        <li class="row overdue">
+          <span class="dot zs"></span>
+          <div>
+            <div class="l1"><span class="who">尾款</span><span class="what">小满《Q 版头像 ×3》</span><span class="tag zs">逾期 2 天</span></div>
+            <div class="sub">已交付 · 该催了 · 上次提醒在周一</div>
+          </div>
+          <span class="amt">¥380</span>
+        </li>
+        <li class="row">
+          <span class="dot th"></span>
+          <div>
+            <div class="l1"><span class="who">定金</span><span class="what">老白《兽设细化》</span><span class="tag th">待确认到账</span></div>
+            <div class="sub">客户昨夜已转 · 待银行确认</div>
+          </div>
+          <span class="amt">¥150</span>
+        </li>
+        <li class="row">
+          <span class="dot hq"></span>
+          <div>
+            <div class="l1"><span class="who">今日待办</span><span class="what">给阿江发最终稿水印版</span></div>
+            <div class="sub">明天截稿 · 发出前记得叠水印</div>
+          </div>
+          <span class="due hq">今日</span>
+        </li>
+        <li class="row done">
+          <span class="dot sl"></span>
+          <div>
+            <div class="l1"><span class="who">小满</span><span class="what">Q 版头像 ×3 · 已交付</span><span class="seal">讫</span></div>
+            <div class="sub">稿已了 · 账未了</div>
+          </div>
+          <span class="due sl">已了</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 经营纸卡 + 留言竹简 -->
+    <div class="side-stack">
+      <section class="obj biz" data-sec="biz">
+        <div class="cap">经 营</div>
+        <div class="income" style="margin-top:8px">¥2,480 <small>本月已收</small></div>
+        <div class="sub">已完稿 5 单 · 应收尾款 <b>¥380</b></div>
+        <div class="time">
+          <div class="t1">今日在画 <b>3:42</b> · 本周 21 小时</div>
+          <div class="daybar"><i class="work" style="width:82%"></i><i class="away" style="width:12%"></i><i class="play" style="width:6%"></i></div>
+          <div class="legend"><span class="l-work">在画 82%</span><span class="l-away">离开 12%</span><span class="l-play">摸鱼 6%</span></div>
+          <div class="recog">正在识别：<span class="app-tag">CSP</span>《阿江 · 双人图》</div>
+          <div class="local-note">数据只存本地，永不上传</div>
+        </div>
+      </section>
+
+      <section class="obj slips-box" data-sec="msgs">
+        <div class="cap">留 言 <span class="hint">2 条待审 · 最早 3 小时前</span></div>
+        <div class="slips">
+          <div class="slip">
+            <div class="who">阿江 <span class="when">3 小时前</span></div>
+            <div class="txt">背景色调能不能再暖一点点？</div>
+          </div>
+          <div class="slip">
+            <div class="who">桃桃 <span class="when">昨天</span></div>
+            <div class="txt">发型参考发你啦，看第三张～</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 案沿 · 订单纸条 -->
+    <footer class="order-slip" data-sec="orders">
+      <span class="cap">订 单</span>
+      <span class="ord"><i style="background:var(--hq)"></i>桃桃 · OC 立绘<span class="st">进行中</span></span>
+      <span class="ord"><i style="background:var(--th)"></i>阿江 · 双人图<span class="st">待交付</span></span>
+      <span class="ord"><i style="background:var(--sl)"></i>小满 · Q 头 ×3<span class="st">已完稿</span></span>
+      <span class="all">全部订单 →</span>
+    </footer>
+
+  </div>
+</div>
+
+<div class="layout" id="layout">
+  <button id="layoutBtn" aria-haspopup="true">版 面</button>
+  <div class="menu" role="menu">
+    <label><input type="checkbox" checked data-sec="schedule"> 排期</label>
+    <label><input type="checkbox" checked data-sec="glance"> 今日概览</label>
+    <label><input type="checkbox" checked data-sec="todo"> 待办</label>
+    <label><input type="checkbox" checked data-sec="biz"> 经营</label>
+    <label><input type="checkbox" checked data-sec="msgs"> 留言</label>
+    <label><input type="checkbox" checked data-sec="orders"> 订单速览</label>
+  </div>
+</div>
+
+<script>
+(function(){
+  var sign = document.getElementById('sign');
+  function flip(){
+    sign.classList.toggle('flipped');
+    sign.setAttribute('aria-checked', String(!sign.classList.contains('flipped')));
+  }
+  sign.addEventListener('click', flip);
+  sign.addEventListener('keydown', function(e){
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); flip(); }
+  });
+
+  var layout = document.getElementById('layout');
+  document.getElementById('layoutBtn').addEventListener('click', function(e){
+    e.stopPropagation(); layout.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if(!layout.contains(e.target)) layout.classList.remove('open');
+  });
+  layout.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      document.querySelectorAll('[data-sec="'+cb.dataset.sec+'"]')
+        .forEach(function(el){ el.classList.toggle('off', !cb.checked); });
+    });
+  });
+})();
+</script>
+</body>
+</html>

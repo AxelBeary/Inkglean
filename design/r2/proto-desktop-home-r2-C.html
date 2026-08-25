@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>拾绘 · 方向 C「一格 · 纸窗」</title>
+<!--
+  方向 C「一格 · 纸窗」设计说明（约 270 字）
+  世界观：一扇纸窗——现代严格网格做骨，宣纸与墨色做肉。窗格与窗格之间是"空"，不是线。
+  信息层级：顶栏即今日焦点（全页唯一一点藤黄，按"金只点睛"的纪律只在此出现），三秒可读：
+  明天截稿什么、谁欠多少钱。主行三格等高，左格"今日要办"占半宽是主角；中格经营（收入一行+时间）、
+  右格留言安静候场；底行订单速览窄条压脚。
+  器物用法：全站只有挂牌一件器物，其余模块自觉做纸面——分区靠宣纸三阶底色与墨字浓淡，
+  全页无一处边框，无一枚浮卡投影，纸的厚度只留在窗格下沿的两层纸边。
+  治病：v1 死于参差——本向网格定死行高，内容只许 line-clamp 不许撑高；v2 死于毛坯——纸纹、
+  手剪圆角、墨线进度、笔点全部保留，只是收进了最克制的骨架里。效率优先到极致。
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F0E6CF; --paper2:#F5EFDF; --card:#FFFDF7;
+  --ink:#262520; --ink2:#5A564B; --ink3:#6A6455; --ink4:#77705E;
+  --line:#DCD0B4; --line2:#CFC1A0;
+  --hq:#33526E; --hq-d:#28425B; --hq-t:#E9EFF4; --hq-t2:#D6E2EC;
+  --zs:#BC3A2B; --zs-d:#9E2F22; --zs-t:#F8EAE6;
+  --sl:#2F7D54; --sl-t:#E5F1E9;
+  --th:#966C0A; --th-t:#F7EFDA;
+  --zhe:#8A5A33; --zhe-t:#F1E8DC;
+  --buf:#7A7668;
+  --r-paper:3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand:2px 3px 2px 3px / 3px 2px 3px 2px;
+  --dur-fast:.15s; --dur-mid:.25s; --dur-slow:.35s;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --f-d:'LXGW WenKai','Kaiti SC','STKaiti','KaiTi',serif;
+  --f-b:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--f-b); color:var(--ink); background:var(--paper);
+  font-size:14px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:80;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.30 0 0 0 0 0.27 0 0 0 0 0.20 0 0 0 0.05 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+}
+
+/* 全页唯一 gap 值 16px，分组靠留白不靠线 */
+.win{
+  max-width:1180px; margin:0 auto; padding:20px;
+  display:grid; gap:16px; min-height:100vh;
+  grid-template-rows:88px minmax(0,1fr) 56px;
+}
+.main-row{display:grid; gap:16px; grid-template-columns:1.55fr 1fr 1fr; min-height:0}
+
+/* 窗格：flush 纸面，无浮卡投影，厚度只留在下沿纸边 */
+.pane{
+  background:var(--card); border-radius:var(--r-paper);
+  box-shadow:1px 1px 0 #EDE2C8, 2px 2px 0 #E4D7B8;
+  display:flex; flex-direction:column; min-height:0; overflow:hidden;
+}
+.pane-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding:16px 20px 10px;
+}
+.pane-head .t{font-family:var(--f-d); font-size:15px; letter-spacing:4px; color:var(--ink)}
+.pane-head .act{font-size:11px; color:var(--ink4); letter-spacing:1px; cursor:pointer; transition:color var(--dur-fast)}
+.pane-head .act:hover{color:var(--ink)}
+
+/* ===== 顶栏：今日焦点（全页唯一一点"金"） ===== */
+.focus-band{flex-direction:row; align-items:center; gap:16px; padding:0 20px}
+.gold-mark{
+  flex:none; width:34px; height:34px; border-radius:var(--r-s-hand);
+  background:var(--th); color:var(--card);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--f-d); font-size:17px; letter-spacing:0;
+  box-shadow:1px 1px 0 rgba(150,108,10,.35);
+}
+.focus-txt{min-width:0}
+.focus-txt .f1{font-family:var(--f-d); font-size:16.5px; color:var(--ink); letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.focus-txt .f1 b{color:var(--zs); font-weight:400}
+.focus-txt .f2{font-size:11.5px; color:var(--ink4); margin-top:1px}
+.band-right{margin-left:auto; display:flex; align-items:center; gap:16px; flex:none}
+.band-date{font-size:12px; color:var(--ink3); letter-spacing:1px; text-align:right; line-height:1.45}
+.band-date .d1{font-family:var(--f-d); font-size:13px; color:var(--ink)}
+
+/* 挂牌：全站唯一器物，小而端正 */
+.sign{position:relative; width:84px; cursor:pointer; outline:none; perspective:600px; user-select:none}
+.sign .string{width:1px; height:8px; margin:0 auto; background:var(--zhe); opacity:.65}
+.sign .flip{position:relative; height:38px; transform-style:preserve-3d; transition:transform var(--dur-slow) var(--ease-out)}
+.sign.flipped .flip{transform:rotateY(180deg)}
+.sign .face{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--f-d); font-size:14px; letter-spacing:3px; border-radius:var(--r-s-hand);
+  backface-visibility:hidden; box-shadow:0 2px 6px -2px rgba(38,37,32,.3), inset 0 0 0 1px rgba(138,90,51,.3);
+}
+.sign .front{background:linear-gradient(160deg,#F3E9D6,var(--zhe-t)); color:var(--sl)}
+.sign .back{background:linear-gradient(160deg,#EFE6D3,#E7DCC4); color:var(--ink3); transform:rotateY(180deg)}
+
+/* 版面开关 */
+.layout{position:relative}
+.layout>button{
+  font-size:11px; letter-spacing:2px; color:var(--ink3); background:transparent;
+  border:1px solid var(--line2); border-radius:var(--r-s-hand); padding:4px 10px; cursor:pointer;
+  transition:color var(--dur-fast), background-color var(--dur-fast);
+}
+.layout>button:hover{color:var(--ink); background:rgba(38,37,32,.04)}
+.layout .menu{
+  position:absolute; right:0; top:calc(100% + 8px); z-index:40; min-width:140px; display:none;
+  background:var(--card); border-radius:var(--r-paper); padding:8px 6px;
+  box-shadow:1px 1px 0 #EDE2C8, 2px 2px 0 #E4D7B8, 0 14px 30px -14px rgba(38,37,32,.4);
+}
+.layout.open .menu{display:block}
+.layout .menu label{display:flex; align-items:center; gap:8px; padding:5px 10px; font-size:12px; color:var(--ink2); cursor:pointer; border-radius:var(--r-s-hand); transition:background-color var(--dur-fast), color var(--dur-fast)}
+.layout .menu label:hover{background:rgba(38,37,32,.045); color:var(--ink)}
+.layout .menu input{accent-color:var(--hq)}
+
+/* ===== 今日要办（主角格） ===== */
+.rows{list-style:none; flex:1; display:flex; flex-direction:column; padding:0 8px 6px}
+.row{
+  flex:1; display:grid; grid-template-columns:14px minmax(0,1fr) auto; gap:2px 12px; align-items:center;
+  padding:0 12px 0 6px; cursor:pointer; border-radius:var(--r-s-hand);
+  transition:background-color var(--dur-fast);
+}
+.row:hover{background:rgba(38,37,32,.04)}
+.row + .row{border-top:1px solid rgba(207,193,160,.35)}
+.dot{width:8px; height:8px; border-radius:50%; justify-self:center}
+.dot.zs{background:var(--zs); box-shadow:0 0 7px 2px rgba(188,58,43,.22)}
+.dot.hq{background:var(--hq)} .dot.th{background:var(--th)} .dot.sl{background:var(--sl)}
+.row .l1{display:flex; align-items:baseline; gap:9px; min-width:0}
+.row .who{font-weight:600; font-size:14px; white-space:nowrap}
+.row .what{color:var(--ink2); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.row .l2{display:flex; align-items:center; gap:10px; margin-top:3px}
+.row .stage{font-size:11.5px; color:var(--ink3)}
+.inkbar{position:relative; flex:1; max-width:200px; height:2px; background:rgba(38,37,32,.12); border-radius:1px}
+.inkbar>i{position:absolute; left:0; top:0; bottom:0; border-radius:1px; background:var(--hq)}
+.inkbar>i.zs{background:var(--zs)}
+.row .due{font-family:var(--f-d); font-size:13.5px; letter-spacing:1px; white-space:nowrap; text-align:right}
+.due.zs{color:var(--zs)} .due.hq{color:var(--hq)} .due.sl{color:var(--sl)} .due.th{color:var(--th)}
+.row .amt{font-family:var(--f-d); font-size:14.5px; color:var(--ink2); white-space:nowrap; text-align:right}
+.row.overdue{background:linear-gradient(90deg, rgba(188,58,43,.05), transparent 55%)}
+.row.overdue:hover{background:linear-gradient(90deg, rgba(188,58,43,.09), rgba(38,37,32,.02) 60%)}
+.row.done{opacity:.5}
+.tag{font-size:10px; letter-spacing:1.5px; padding:1px 6px; border-radius:var(--r-s-hand); white-space:nowrap}
+.tag.zs{background:var(--zs-t); color:var(--zs-d)} .tag.th{background:var(--th-t); color:var(--th)}
+
+/* ===== 经营格 ===== */
+.biz-body{flex:1; display:flex; flex-direction:column; padding:2px 20px 14px; min-height:0}
+.income{font-family:var(--f-d); font-size:32px; color:var(--ink); line-height:1.15}
+.income small{font-family:var(--f-b); font-size:11px; color:var(--ink3); letter-spacing:1px}
+.income-sub{font-size:11.5px; color:var(--ink3); margin-top:4px}
+.income-sub b{color:var(--zs); font-weight:600}
+.time-block{margin-top:auto; padding-top:12px}
+.time-num{font-family:var(--f-d); font-size:23px; color:var(--ink)}
+.time-num small{font-family:var(--f-b); font-size:11px; color:var(--ink3)}
+.time-sub{font-size:11px; color:var(--ink4); margin-top:1px}
+.daybar{display:flex; height:5px; border-radius:3px; overflow:hidden; margin:10px 0 6px; background:rgba(38,37,32,.08)}
+.daybar i{display:block; height:100%}
+.daybar .work{background:var(--hq)} .daybar .away{background:var(--buf); opacity:.55} .daybar .play{background:var(--line2)}
+.legend{display:flex; gap:11px; font-size:10.5px; color:var(--ink4)}
+.legend span::before{content:""; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px; vertical-align:1px}
+.legend .l-work::before{background:var(--hq)} .legend .l-away::before{background:var(--buf)} .legend .l-play::before{background:var(--line2)}
+.recog{margin-top:9px; font-size:11px; color:var(--ink3)}
+.recog .app-tag{color:var(--hq); font-weight:600}
+.local-note{font-size:10px; color:var(--ink4); letter-spacing:.5px; margin-top:3px}
+
+/* ===== 留言格 ===== */
+.msg-body{flex:1; display:flex; flex-direction:column; padding:0 8px 6px; min-height:0}
+.msg{
+  display:flex; flex-direction:column; justify-content:center;
+  padding:12px; cursor:pointer; border-radius:var(--r-s-hand);
+  transition:background-color var(--dur-fast);
+}
+.msg:hover{background:rgba(38,37,32,.04)}
+.msg + .msg{border-top:1px solid rgba(207,193,160,.35)}
+.msg .m1{display:flex; align-items:baseline; gap:8px}
+.msg .who{font-size:13px; font-weight:600; color:var(--zhe)}
+.msg .when{margin-left:auto; font-size:10.5px; color:var(--ink4)}
+.msg .txt{font-size:12.5px; color:var(--ink2); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.msg .st{font-size:10px; color:var(--th); letter-spacing:1px; margin-top:3px}
+.msg-empty-note{margin-top:auto; padding:6px 20px 12px; font-size:10.5px; color:var(--ink4); letter-spacing:.5px}
+
+/* ===== 订单窄条 ===== */
+.order-strip{flex-direction:row; align-items:center; gap:26px; padding:0 20px}
+.order-strip .cap{font-family:var(--f-d); font-size:13px; letter-spacing:4px; color:var(--ink3)}
+.ord{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink2); cursor:pointer; transition:color var(--dur-fast)}
+.ord:hover{color:var(--ink)}
+.ord i{width:7px; height:7px; border-radius:50%}
+.ord .st{color:var(--ink4); font-size:10.5px}
+.order-strip .all{margin-left:auto; font-size:11px; color:var(--ink3); letter-spacing:1px; cursor:pointer; transition:color var(--dur-fast)}
+.order-strip .all:hover{color:var(--ink)}
+
+.off{display:none !important}
+
+@media (max-width: 920px){
+  .win{grid-template-rows:auto; height:auto}
+  .main-row{grid-template-columns:minmax(0,1fr)}
+  .focus-band{flex-wrap:wrap; padding:14px 20px}
+  .pane{min-height:0}
+  .rows .row{padding-top:10px; padding-bottom:10px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important; animation:none !important}
+}
+</style>
+</head>
+<body>
+
+<div class="win">
+
+  <!-- 顶栏：今日焦点 -->
+  <header class="pane focus-band">
+    <span class="gold-mark">今</span>
+    <div class="focus-txt">
+      <div class="f1">阿江《双人互动插图》<b>明天截稿</b> · 小满尾款 ¥380 <b>已逾期 2 天</b></div>
+      <div class="f2">先把水印版发出去，再顺手催一下小满</div>
+    </div>
+    <div class="band-right">
+      <div class="band-date"><span class="d1">八月廿五 · 周二</span><br>qwqwqq · 2026</div>
+      <div class="layout" id="layout">
+        <button id="layoutBtn" aria-haspopup="true">版 面</button>
+        <div class="menu" role="menu">
+          <label><input type="checkbox" checked data-sec="today"> 今日要办</label>
+          <label><input type="checkbox" checked data-sec="biz"> 经营</label>
+          <label><input type="checkbox" checked data-sec="msgs"> 留言</label>
+          <label><input type="checkbox" checked data-sec="orders"> 订单速览</label>
+        </div>
+      </div>
+      <div class="sign" id="sign" role="switch" aria-checked="true" tabindex="0" title="点击翻牌">
+        <div class="string"></div>
+        <div class="flip">
+          <div class="face front">开稿中</div>
+          <div class="face back">今休息</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主行三格 -->
+  <div class="main-row">
+
+    <section class="pane" data-sec="today">
+      <div class="pane-head"><span class="t">今日要办</span><span class="act">按缓急 · 全部 →</span></div>
+      <ul class="rows">
+        <li class="row overdue">
+          <span class="dot zs"></span>
+          <div>
+            <div class="l1"><span class="who">尾款</span><span class="what">小满《Q 版头像 ×3》</span><span class="tag zs">逾期 2 天</span></div>
+            <div class="l2"><span class="stage">已交付 · 待收尾款 · 该催了</span></div>
+          </div>
+          <span class="amt">¥380</span>
+        </li>
+        <li class="row">
+          <span class="dot zs"></span>
+          <div>
+            <div class="l1"><span class="who">阿江</span><span class="what">双人互动插图</span><span class="tag zs">明天截稿</span></div>
+            <div class="l2"><span class="stage">上色收尾 · 85%</span><span class="inkbar"><i class="zs" style="width:85%"></i></span></div>
+          </div>
+          <span class="due zs">明天截稿</span>
+        </li>
+        <li class="row">
+          <span class="dot hq"></span>
+          <div>
+            <div class="l1"><span class="who">待办</span><span class="what">给阿江发最终稿水印版</span></div>
+            <div class="l2"><span class="stage">截稿前发出 · 记得带水印</span></div>
+          </div>
+          <span class="due hq">今日</span>
+        </li>
+        <li class="row">
+          <span class="dot hq"></span>
+          <div>
+            <div class="l1"><span class="who">桃桃</span><span class="what">原创 OC 全身立绘</span></div>
+            <div class="l2"><span class="stage">细化中 · 60%</span><span class="inkbar"><i style="width:60%"></i></span></div>
+          </div>
+          <span class="due hq">剩 3 天</span>
+        </li>
+        <li class="row">
+          <span class="dot th"></span>
+          <div>
+            <div class="l1"><span class="who">定金</span><span class="what">老白《兽设细化》</span><span class="tag th">待确认到账</span></div>
+            <div class="l2"><span class="stage">客户已转 · 待银行确认</span></div>
+          </div>
+          <span class="amt">¥150</span>
+        </li>
+        <li class="row done">
+          <span class="dot sl"></span>
+          <div>
+            <div class="l1"><span class="who">小满</span><span class="what">Q 版头像 ×3 · 已交付</span></div>
+            <div class="l2"><span class="stage">客户已收图 · 稿已了</span></div>
+          </div>
+          <span class="due sl">已了</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="pane" data-sec="biz">
+      <div class="pane-head"><span class="t">经 营</span><span class="act">账目 →</span></div>
+      <div class="biz-body">
+        <div class="income">¥2,480 <small>本月已收</small></div>
+        <div class="income-sub">已完稿 5 单 · 应收尾款 <b>¥380</b></div>
+        <div class="time-block">
+          <div class="time-num">3:42 <small>今日在画 · 本周 21 小时</small></div>
+          <div class="daybar"><i class="work" style="width:82%"></i><i class="away" style="width:12%"></i><i class="play" style="width:6%"></i></div>
+          <div class="legend"><span class="l-work">在画 82%</span><span class="l-away">离开 12%</span><span class="l-play">摸鱼 6%</span></div>
+          <div class="recog">正在识别：<span class="app-tag">CSP</span>《阿江 · 双人图》</div>
+          <div class="local-note">数据只存本地，永不上传</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" data-sec="msgs">
+      <div class="pane-head"><span class="t">留 言</span><span class="act">2 条待审 · 全部 →</span></div>
+      <div class="msg-body">
+        <div class="msg">
+          <div class="m1"><span class="who">阿江</span><span class="when">3 小时前</span></div>
+          <div class="txt">背景色调能不能再暖一点点？</div>
+          <div class="st">待审</div>
+        </div>
+        <div class="msg">
+          <div class="m1"><span class="who">桃桃</span><span class="when">昨天</span></div>
+          <div class="txt">发型参考发你啦，看第三张～</div>
+          <div class="st">待审</div>
+        </div>
+      </div>
+      <div class="msg-empty-note">审过后这里就安静了</div>
+    </section>
+
+  </div>
+
+  <!-- 订单窄条 -->
+  <footer class="pane order-strip" data-sec="orders">
+    <span class="cap">订 单</span>
+    <span class="ord"><i style="background:var(--hq)"></i>桃桃 · OC 立绘<span class="st">进行中</span></span>
+    <span class="ord"><i style="background:var(--th)"></i>阿江 · 双人图<span class="st">待交付</span></span>
+    <span class="ord"><i style="background:var(--sl)"></i>小满 · Q 头 ×3<span class="st">已完稿</span></span>
+    <span class="all">全部订单 →</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var sign = document.getElementById('sign');
+  function flip(){
+    sign.classList.toggle('flipped');
+    sign.setAttribute('aria-checked', String(!sign.classList.contains('flipped')));
+  }
+  sign.addEventListener('click', flip);
+  sign.addEventListener('keydown', function(e){
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); flip(); }
+  });
+
+  var layout = document.getElementById('layout');
+  document.getElementById('layoutBtn').addEventListener('click', function(e){
+    e.stopPropagation(); layout.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if(!layout.contains(e.target)) layout.classList.remove('open');
+  });
+  layout.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      document.querySelectorAll('[data-sec="'+cb.dataset.sec+'"]')
+        .forEach(function(el){ el.classList.toggle('off', !cb.checked); });
+    });
+  });
+})();
+</script>
+</body>
+</html>

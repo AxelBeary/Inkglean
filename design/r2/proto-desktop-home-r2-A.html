@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>拾绘 · 方向 A「一轴 · 案头长卷」</title>
+<!--
+  方向 A「一轴 · 案头长卷」设计说明（约 280 字）
+  世界观：整个首页不是一堆卡片，而是一纸裱好的长卷——卷首题名，正文顺流而下，卷边题跋，卷尾拖尾。
+  信息层级：F 形视线落在卷首之后的第一行——逾期尾款（朱砂洇点置顶），随后按截稿先后单列流下；
+  收入、时间、留言全部退到右侧 300px 的"题跋"窄栏，分组只靠留白，无一格卡片，从根上消灭"长长短短"。
+  器物用法：全页核心意象就是"卷"本身——天地杆是唯一结构件；账本笔点（花青/朱砂/石绿/藤黄）落在行首；
+  留言保留竹简形态但收敛为两枚横简；挂牌居卷首，是全页唯一仪式动作。
+  治病：v1 的参差死于多卡，本向只有一张纸，无卡可参差；v2 的敷衍死于无材质，
+  纸纹、裱边、纸叠厚度、卷尾淡墨山水全部落在"一张纸"上，材质爆炸而色彩克制；v3 的抢戏死于元素各自为政，
+  本向万物服从"卷"一个意象。金不出现（日常态）。
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F0E6CF; --paper2:#F5EFDF; --card:#FFFDF7;
+  --ink:#262520; --ink2:#5A564B; --ink3:#6A6455; --ink4:#77705E;
+  --line:#DCD0B4; --line2:#CFC1A0;
+  --hq:#33526E; --hq-d:#28425B; --hq-t:#E9EFF4; --hq-t2:#D6E2EC;
+  --zs:#BC3A2B; --zs-d:#9E2F22; --zs-t:#F8EAE6;
+  --sl:#2F7D54; --sl-t:#E5F1E9;
+  --th:#966C0A; --th-t:#F7EFDA;
+  --zhe:#8A5A33; --zhe-t:#F1E8DC;
+  --buf:#7A7668;
+  --r-paper:3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand:2px 3px 2px 3px / 3px 2px 3px 2px;
+  --dur-fast:.15s; --dur-mid:.25s; --dur-slow:.35s;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --f-d:'LXGW WenKai','Kaiti SC','STKaiti','KaiTi',serif;
+  --f-b:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--f-b); color:var(--ink); background:var(--paper);
+  font-size:14px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(255,253,247,.35), transparent 60%),
+    radial-gradient(140% 110% at 50% 115%, rgba(38,37,32,.10), transparent 55%);
+}
+/* 纸纹颗粒（全页） */
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:80;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.30 0 0 0 0 0.27 0 0 0 0 0.20 0 0 0 0.05 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+}
+
+/* ===== 长卷 ===== */
+.scroll{
+  position:relative; max-width:1020px; margin:20px auto 30px;
+  background:var(--card); border-radius:var(--r-paper);
+  /* 一叠纸的厚度：向右下错开的两层纸边 + 克制的真实投影 */
+  box-shadow:
+    1px 1px 0 #EDE2C8,
+    2px 2px 0 #E4D7B8,
+    3px 3px 0 #EDE2C8,
+    0 18px 40px -18px rgba(38,37,32,.38),
+    0 4px 10px -4px rgba(38,37,32,.12);
+}
+/* 裱绫边：两侧略深的纸带，是"裱褙"不是边框 */
+.scroll::before,.scroll::after{
+  content:""; position:absolute; top:0; bottom:0; width:14px;
+  background:linear-gradient(90deg, var(--paper2), #EDE3CB);
+}
+.scroll::before{left:0; border-radius:4px 0 0 3px; border-right:1px solid rgba(207,193,160,.5)}
+.scroll::after{right:0; border-radius:0 3px 4px 0; border-left:1px solid rgba(207,193,160,.5)}
+/* 天地杆：唯一结构件 */
+.rod{position:absolute; left:26px; right:26px; height:7px; border-radius:4px;
+  background:linear-gradient(180deg,#96703F 0%, var(--zhe) 45%, #6E4523 100%);
+  box-shadow:0 1px 2px rgba(38,37,32,.3);
+}
+.rod.top{top:-4px}
+.rod.bottom{bottom:-4px}
+.rod::before,.rod::after{
+  content:""; position:absolute; top:-2px; width:11px; height:11px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #A87F4C, #6E4523 70%);
+}
+.rod::before{left:-14px}
+.rod::after{right:-14px}
+
+.scroll-inner{position:relative; padding:26px 64px 16px; z-index:1}
+
+/* ===== 卷首 ===== */
+.shou{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding-bottom:14px}
+.title-block .app{font-family:var(--f-d); font-size:34px; letter-spacing:10px; color:var(--ink)}
+.title-block .date{margin-top:4px; font-size:12.5px; color:var(--ink3); letter-spacing:2px}
+.shou-right{display:flex; align-items:center; gap:18px}
+
+/* 挂牌（全页唯一仪式动作） */
+.sign{position:relative; width:104px; cursor:pointer; outline:none; perspective:600px; user-select:none}
+.sign .string{width:1px; height:14px; margin:0 auto; background:var(--zhe); opacity:.65}
+.sign .nail{width:5px; height:5px; margin:-2px auto 0; border-radius:50%; background:var(--zhe)}
+.sign .flip{position:relative; height:46px; transform-style:preserve-3d; transition:transform var(--dur-slow) var(--ease-out)}
+.sign.flipped .flip{transform:rotateY(180deg)}
+.sign .face{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--f-d); font-size:16px; letter-spacing:4px; border-radius:var(--r-s-hand);
+  backface-visibility:hidden; box-shadow:0 3px 8px -3px rgba(38,37,32,.35), inset 0 0 0 1px rgba(138,90,51,.35);
+}
+.sign .front{background:linear-gradient(160deg,#F3E9D6,var(--zhe-t)); color:var(--sl); }
+.sign .front::before{content:""; position:absolute; inset:3px; border:1px solid rgba(47,125,84,.35); border-radius:var(--r-s-hand)}
+.sign .back{background:linear-gradient(160deg,#EFE6D3,#E7DCC4); color:var(--ink3); transform:rotateY(180deg)}
+.sign .back::before{content:""; position:absolute; inset:3px; border:1px solid rgba(106,100,85,.3); border-radius:var(--r-s-hand)}
+
+/* 版面开关 */
+.layout{position:relative}
+.layout>button{
+  font-family:var(--f-b); font-size:12px; letter-spacing:2px; color:var(--ink3);
+  background:transparent; border:1px solid var(--line2); border-radius:var(--r-s-hand);
+  padding:5px 12px; cursor:pointer; transition:color var(--dur-fast), background-color var(--dur-fast);
+}
+.layout>button:hover{color:var(--ink); background:rgba(38,37,32,.04)}
+.layout .menu{
+  position:absolute; right:0; top:calc(100% + 8px); z-index:40; min-width:148px;
+  background:var(--card); border-radius:var(--r-paper); padding:10px 6px;
+  box-shadow:1px 1px 0 #EDE2C8, 2px 2px 0 #E4D7B8, 0 14px 30px -14px rgba(38,37,32,.4);
+  display:none;
+}
+.layout.open .menu{display:block}
+.layout .menu label{
+  display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:12.5px; color:var(--ink2);
+  cursor:pointer; border-radius:var(--r-s-hand); transition:background-color var(--dur-fast), color var(--dur-fast);
+}
+.layout .menu label:hover{background:rgba(38,37,32,.045); color:var(--ink)}
+.layout .menu input{accent-color:var(--hq)}
+
+/* ===== 卷体 ===== */
+.juan{display:grid; grid-template-columns:minmax(0,1fr) 296px; column-gap:64px; margin-top:4px}
+.sec-title{
+  font-family:var(--f-d); font-size:19px; color:var(--ink); letter-spacing:4px;
+  display:flex; align-items:baseline; gap:12px; margin-bottom:6px;
+}
+.sec-title .hint{font-family:var(--f-b); font-size:11.5px; color:var(--ink4); letter-spacing:1px; font-weight:400}
+
+/* 今日之流：单列表，行间极淡墨线只横不竖 */
+.rows{list-style:none}
+.row{
+  position:relative; display:grid; grid-template-columns:16px minmax(0,1fr) auto; gap:6px 12px;
+  align-items:center; padding:9px 10px 8px 4px; cursor:pointer;
+  border-bottom:1px solid rgba(207,193,160,.42);
+  transition:background-color var(--dur-fast) var(--ease-out);
+}
+.row:last-child{border-bottom:none}
+.row:hover{background:rgba(38,37,32,.035)} /* hover 不位移，只洇深一档 */
+.row .dot{
+  width:8px; height:8px; border-radius:50%; justify-self:center;
+}
+.dot.hq{background:var(--hq)}
+.dot.zs{background:var(--zs); box-shadow:0 0 7px 2px rgba(188,58,43,.22)} /* 极淡洇开 */
+.dot.sl{background:var(--sl)}
+.dot.th{background:var(--th)}
+.row .main{min-width:0}
+.row .l1{display:flex; align-items:baseline; gap:9px; min-width:0}
+.row .who{font-weight:600; font-size:14.5px; color:var(--ink); white-space:nowrap}
+.row .what{color:var(--ink2); font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.row .l2{display:flex; align-items:center; gap:10px; margin-top:5px}
+.row .stage{font-size:12px; color:var(--ink3); letter-spacing:.5px}
+/* 墨线进度：一条 2px 淡墨，走过的部分是浓墨 */
+.inkbar{position:relative; flex:1; max-width:220px; height:2px; background:rgba(38,37,32,.12); border-radius:1px}
+.inkbar>i{position:absolute; left:0; top:0; bottom:0; border-radius:1px; background:var(--hq)}
+.inkbar>i.zs{background:var(--zs)}
+.row .due{font-family:var(--f-d); font-size:14px; letter-spacing:1px; white-space:nowrap; text-align:right}
+.due.zs{color:var(--zs)}
+.due.hq{color:var(--hq)}
+.due.sl{color:var(--sl)}
+.due.th{color:var(--th)}
+.due.dim{color:var(--ink4)}
+.row .amt{font-family:var(--f-d); font-size:15px; color:var(--ink2); white-space:nowrap; text-align:right}
+/* 账目行：金额右对齐淡墨 */
+.row.acct .l1 .what{color:var(--ink3)}
+/* 完成行：变淡沉底 */
+.row.done{opacity:.52}
+.row.done .stage{text-decoration:none}
+.row.overdue{background:linear-gradient(90deg, rgba(188,58,43,.05), transparent 55%)}
+.row.overdue:hover{background:linear-gradient(90deg, rgba(188,58,43,.085), rgba(38,37,32,.02) 60%)}
+.tag{
+  font-size:10.5px; letter-spacing:1.5px; padding:1px 7px; border-radius:var(--r-s-hand); white-space:nowrap;
+}
+.tag.zs{background:var(--zs-t); color:var(--zs-d)}
+.tag.th{background:var(--th-t); color:var(--th)}
+.tag.hq{background:var(--hq-t); color:var(--hq-d)}
+
+/* ===== 卷边题跋 ===== */
+.tiba{border-left:none; padding-left:0; display:flex; flex-direction:column; gap:22px; padding-top:2px}
+.tiba .blk .t{
+  font-family:var(--f-d); font-size:14px; letter-spacing:3px; color:var(--ink3); margin-bottom:10px;
+  display:flex; align-items:baseline; justify-content:space-between;
+}
+.tiba .blk .t .more{font-family:var(--f-b); font-size:11px; color:var(--ink4); letter-spacing:1px; cursor:pointer; transition:color var(--dur-fast)}
+.tiba .blk .t .more:hover{color:var(--ink)}
+.income-num{font-family:var(--f-d); font-size:34px; color:var(--ink); letter-spacing:1px; line-height:1.15}
+.income-sub{margin-top:6px; font-size:12px; color:var(--ink3); letter-spacing:.5px}
+.income-sub b{color:var(--zs); font-weight:600}
+.time-num{font-family:var(--f-d); font-size:26px; color:var(--ink)}
+.time-sub{font-size:12px; color:var(--ink3); margin-top:2px}
+/* 三色时间条：在画/离开/摸鱼，一段墨色三段浓淡 */
+.daybar{display:flex; height:6px; border-radius:3px; overflow:hidden; margin:12px 0 7px; background:rgba(38,37,32,.08)}
+.daybar i{display:block; height:100%}
+.daybar .work{background:var(--hq)}
+.daybar .away{background:var(--buf); opacity:.55}
+.daybar .play{background:var(--line2)}
+.legend{display:flex; gap:14px; font-size:11px; color:var(--ink4); letter-spacing:.5px}
+.legend span::before{content:""; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:1px}
+.legend .l-work::before{background:var(--hq)}
+.legend .l-away::before{background:var(--buf)}
+.legend .l-play::before{background:var(--line2)}
+.recognizing{margin-top:12px; font-size:12px; color:var(--ink3)}
+.recognizing .app-tag{color:var(--hq); font-weight:600}
+.local-note{margin-top:10px; font-size:10.5px; color:var(--ink4); letter-spacing:1px; display:flex; align-items:center; gap:6px}
+.local-note::before{content:""; width:10px; height:10px; border:1px solid var(--ink4); border-radius:2px;
+  background:linear-gradient(135deg, transparent 46%, var(--ink4) 46%, var(--ink4) 54%, transparent 54%); opacity:.6}
+
+/* 竹简：两枚横简，左绳贯穿 */
+.slips{position:relative; padding-left:16px; display:flex; flex-direction:column; gap:10px}
+.slips::before{content:""; position:absolute; left:5px; top:6px; bottom:6px; width:1px; background:var(--zhe); opacity:.55}
+.slip{
+  position:relative; background:linear-gradient(180deg,#F3ECDB,#ECE2C9);
+  border-radius:6px 8px 7px 6px / 8px 7px 8px 6px;
+  padding:9px 14px; cursor:pointer;
+  box-shadow:1px 1px 0 rgba(207,193,160,.8), 0 4px 8px -4px rgba(38,37,32,.25);
+  transition:background-color var(--dur-fast), filter var(--dur-fast);
+}
+.slip:hover{filter:brightness(.975)}
+.slip .who{font-size:12.5px; font-weight:600; color:var(--zhe)}
+.slip .txt{font-size:12.5px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px}
+.slip .when{font-size:10.5px; color:var(--ink4); margin-top:2px; letter-spacing:.5px}
+.slips-count{font-size:11.5px; color:var(--ink3); letter-spacing:1px; margin-bottom:2px}
+.slips-count b{color:var(--zs); font-family:var(--f-d); font-size:13px}
+
+/* ===== 卷尾 ===== */
+.wei{
+  margin-top:16px; padding:12px 4px 2px; border-top:1px solid rgba(207,193,160,.42);
+  display:flex; align-items:center; gap:26px; flex-wrap:wrap;
+}
+.wei .cap{font-family:var(--f-d); font-size:13px; letter-spacing:3px; color:var(--ink4)}
+.wei .ord{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink2); cursor:pointer; transition:color var(--dur-fast)}
+.wei .ord:hover{color:var(--ink)}
+.wei .ord i{width:7px; height:7px; border-radius:50%}
+.wei .ord .st{color:var(--ink4); font-size:11.5px}
+.wei .all{margin-left:auto; font-size:11.5px; color:var(--ink3); letter-spacing:1px; cursor:pointer; transition:color var(--dur-fast)}
+.wei .all:hover{color:var(--ink)}
+
+/* 卷尾淡墨山水：唯一一处"山水"，淡到几乎不在 */
+.mountains{
+  position:absolute; left:0; right:0; bottom:0; height:120px; pointer-events:none; z-index:0;
+  opacity:.5; border-radius:0 0 4px 3px; overflow:hidden;
+}
+.mountains svg{width:100%; height:100%; display:block}
+
+.off{display:none !important}
+
+/* ===== 响应：800×600 塌单列不破版 ===== */
+@media (max-width: 920px){
+  .scroll{margin:18px 14px 30px}
+  .scroll-inner{padding:28px 34px 22px}
+  .juan{grid-template-columns:minmax(0,1fr); row-gap:36px}
+  .shou{flex-wrap:wrap}
+  .title-block .app{font-size:27px; letter-spacing:7px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important; animation:none !important}
+}
+</style>
+</head>
+<body>
+
+<div class="scroll">
+  <div class="rod top"></div>
+  <div class="rod bottom"></div>
+
+  <div class="mountains" aria-hidden="true">
+    <svg viewBox="0 0 1020 150" preserveAspectRatio="none">
+      <defs>
+        <filter id="wash"><feGaussianBlur stdDeviation="3"/></filter>
+      </defs>
+      <path d="M0,150 L0,118 Q90,96 170,112 Q250,128 330,100 Q410,74 500,104 Q580,128 660,110 Q760,86 850,108 Q940,126 1020,104 L1020,150 Z"
+        fill="#262520" opacity="0.045" filter="url(#wash)"/>
+      <path d="M0,150 L0,132 Q120,118 230,130 Q360,144 480,126 Q600,110 720,130 Q860,148 1020,128 L1020,150 Z"
+        fill="#262520" opacity="0.06" filter="url(#wash)"/>
+    </svg>
+  </div>
+
+  <div class="scroll-inner">
+
+    <!-- 卷首 -->
+    <header class="shou">
+      <div class="title-block">
+        <div class="app">拾　绘</div>
+        <div class="date">二〇二六年八月廿五日 · 周二 · qwqwqq 的画案</div>
+      </div>
+      <div class="shou-right">
+        <div class="layout" id="layout">
+          <button id="layoutBtn" aria-haspopup="true">版 面</button>
+          <div class="menu" role="menu">
+            <label><input type="checkbox" checked data-sec="today"> 今日要办</label>
+            <label><input type="checkbox" checked data-sec="income"> 收入</label>
+            <label><input type="checkbox" checked data-sec="time"> 时间</label>
+            <label><input type="checkbox" checked data-sec="msgs"> 留言</label>
+            <label><input type="checkbox" checked data-sec="orders"> 订单速览</label>
+          </div>
+        </div>
+        <div class="sign" id="sign" role="switch" aria-checked="true" tabindex="0" title="点击翻牌">
+          <div class="nail"></div>
+          <div class="string"></div>
+          <div class="flip">
+            <div class="face front">开稿中</div>
+            <div class="face back">今休息</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 卷体 -->
+    <div class="juan">
+      <main data-sec="today">
+        <h1 class="sec-title">今日要办 <span class="hint">按缓急 · 钱与稿同列</span></h1>
+        <ul class="rows">
+          <li class="row acct overdue">
+            <span class="dot zs"></span>
+            <div class="main">
+              <div class="l1"><span class="who">尾款</span><span class="what">小满《Q 版头像 ×3》</span><span class="tag zs">逾期 2 天</span></div>
+              <div class="l2"><span class="stage">已交付 · 待收尾款 · 该催了</span></div>
+            </div>
+            <span class="amt">¥380</span>
+          </li>
+          <li class="row">
+            <span class="dot zs"></span>
+            <div class="main">
+              <div class="l1"><span class="who">阿江</span><span class="what">双人互动插图</span><span class="tag zs">明天截稿</span></div>
+              <div class="l2"><span class="stage">上色收尾 · 85%</span><span class="inkbar"><i class="zs" style="width:85%"></i></span></div>
+            </div>
+            <span class="due zs">明天截稿</span>
+          </li>
+          <li class="row">
+            <span class="dot hq"></span>
+            <div class="main">
+              <div class="l1"><span class="who">待办</span><span class="what">给阿江发最终稿水印版</span></div>
+              <div class="l2"><span class="stage">截稿前发出 · 记得带水印</span></div>
+            </div>
+            <span class="due hq">今日</span>
+          </li>
+          <li class="row">
+            <span class="dot hq"></span>
+            <div class="main">
+              <div class="l1"><span class="who">桃桃</span><span class="what">原创 OC 全身立绘</span></div>
+              <div class="l2"><span class="stage">细化中 · 60%</span><span class="inkbar"><i style="width:60%"></i></span></div>
+            </div>
+            <span class="due hq">剩 3 天</span>
+          </li>
+          <li class="row acct">
+            <span class="dot th"></span>
+            <div class="main">
+              <div class="l1"><span class="who">定金</span><span class="what">老白《兽设细化》</span><span class="tag th">待确认到账</span></div>
+              <div class="l2"><span class="stage">客户已转 · 待银行确认</span></div>
+            </div>
+            <span class="amt">¥150</span>
+          </li>
+          <li class="row done">
+            <span class="dot sl"></span>
+            <div class="main">
+              <div class="l1"><span class="who">小满</span><span class="what">Q 版头像 ×3</span></div>
+              <div class="l2"><span class="stage">已交付 · 客户已收图</span></div>
+            </div>
+            <span class="due sl">已了</span>
+          </li>
+        </ul>
+      </main>
+
+      <!-- 卷边题跋 -->
+      <aside class="tiba">
+        <section class="blk" data-sec="income">
+          <div class="t">本 月 <span class="more">账目 →</span></div>
+          <div class="income-num">¥2,480</div>
+          <div class="income-sub">已完稿 5 单 · 应收尾款 <b>¥380</b></div>
+        </section>
+
+        <section class="blk" data-sec="time">
+          <div class="t">今 日 在 画</div>
+          <div class="time-num">3<span style="font-size:15px;color:var(--ink3)"> 小时 </span>42<span style="font-size:15px;color:var(--ink3)"> 分</span></div>
+          <div class="time-sub">本周累计 21 小时</div>
+          <div class="daybar"><i class="work" style="width:82%"></i><i class="away" style="width:12%"></i><i class="play" style="width:6%"></i></div>
+          <div class="legend"><span class="l-work">在画 82%</span><span class="l-away">离开 12%</span><span class="l-play">摸鱼 6%</span></div>
+          <div class="recognizing">正在识别：<span class="app-tag">CSP</span>《阿江 · 双人图》</div>
+          <div class="local-note">数据只存这台电脑，永不上传</div>
+        </section>
+
+        <section class="blk" data-sec="msgs">
+          <div class="t">留 言 <span class="more">全部 →</span></div>
+          <div class="slips-count"><b>2</b> 条待审 · 最早 3 小时前</div>
+          <div class="slips">
+            <div class="slip">
+              <div class="who">阿江</div>
+              <div class="txt">背景色调能不能再暖一点点？</div>
+              <div class="when">3 小时前 · 待审</div>
+            </div>
+            <div class="slip">
+              <div class="who">桃桃</div>
+              <div class="txt">发型参考发你啦，看第三张～</div>
+              <div class="when">昨天 · 待审</div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- 卷尾 -->
+    <footer class="wei" data-sec="orders">
+      <span class="cap">订 单</span>
+      <span class="ord"><i style="background:var(--hq)"></i>桃桃 · OC 立绘<span class="st">进行中</span></span>
+      <span class="ord"><i style="background:var(--th)"></i>阿江 · 双人图<span class="st">待交付</span></span>
+      <span class="ord"><i style="background:var(--sl)"></i>小满 · Q 头 ×3<span class="st">已完稿</span></span>
+      <span class="all">全部订单 →</span>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  /* 挂牌翻转 */
+  var sign = document.getElementById('sign');
+  function flip(){
+    sign.classList.toggle('flipped');
+    sign.setAttribute('aria-checked', String(!sign.classList.contains('flipped')));
+  }
+  sign.addEventListener('click', flip);
+  sign.addEventListener('keydown', function(e){
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); flip(); }
+  });
+
+  /* 版面显隐 */
+  var layout = document.getElementById('layout');
+  document.getElementById('layoutBtn').addEventListener('click', function(e){
+    e.stopPropagation(); layout.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if(!layout.contains(e.target)) layout.classList.remove('open');
+  });
+  layout.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      document.querySelectorAll('[data-sec="'+cb.dataset.sec+'"]')
+        .forEach(function(el){ el.classList.toggle('off', !cb.checked); });
+    });
+  });
+})();
+</script>
+</body>
+</html>
