@@ -9,6 +9,15 @@ export { isDesktop } from './env'
 export { BridgeUnavailableError } from './errors'
 export { checkAndDownloadUpdate, installPendingUpdate } from './updater'
 export { saveSecret, loadSecret, deleteSecret } from './secureStore'
+export {
+  minimizeWindow,
+  toggleMaximizeWindow,
+  closeWindow,
+  openFloatingWindow,
+  closeFloatingWindow,
+  setAutostart,
+  getAutostart
+} from './window'
 
 function requireDesktop(capability: string): void {
   if (!isDesktop()) throw new BridgeUnavailableError(capability)
