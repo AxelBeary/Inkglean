@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "floating",
+  "description": "撕悬浮三件（计时器/今日待办/截稿倒计时）独立窗口投影的最小权限面：core 基础 + 拖动（题跋条 data-tauri-drag-region 需要）；关闭走自定义命令 desktop_floating_close，不开其余窗口管理/插件权限，亦不参与 window-state 持久化",
+  "windows": ["floating-timer", "floating-today-todo", "floating-deadline"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging"
+  ]
+}

@@ -6,6 +6,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { isDesktop, BridgeUnavailableError } from "../bridge";
+import TitleBar from "../components/shell/TitleBar.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -46,9 +47,16 @@ async function submit() {
     loading.value = false;
   }
 }
+
+// 双模式入口（方向 A）：「暂不登录 · 本地模式」——不调任何云端接口，数据仅存本机
+async function goLocal() {
+  auth.enterLocalMode();
+  await router.push({ name: "home" });
+}
 </script>
 
 <template>
+  <TitleBar />
   <main class="login-page">
     <div class="login-card">
       <div class="brand">
@@ -79,6 +87,8 @@ async function submit() {
       <button type="button" class="btn-primary" :disabled="loading || !desktopShell" @click="submit">
         {{ loading ? "登录中…" : "登录" }}
       </button>
+      <button type="button" class="btn-local" @click="goLocal">暂不登录 · 本地模式</button>
+      <p class="local-hint">本地模式：数据仅存本机，不联网同步</p>
     </div>
   </main>
 </template>
@@ -137,4 +147,18 @@ async function submit() {
 }
 .btn-primary:hover:not(:disabled) { background: var(--hq-d); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-local {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-m);
+  background: none;
+  color: var(--ink2);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.btn-local:hover { color: var(--ink); border-color: var(--ink4); }
+.local-hint { margin: 10px 0 0; font-size: 12px; color: var(--ink4); text-align: center; }
 </style>
