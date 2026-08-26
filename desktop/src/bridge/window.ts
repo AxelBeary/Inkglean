@@ -52,3 +52,34 @@ export async function getAutostart(): Promise<boolean> {
   requireDesktop('getAutostart')
   return await invoke<boolean>('desktop_autostart_get')
 }
+
+// ─── 关闭行为偏好（壳层商业化批：托盘常驻后「最小化到托盘」激活） ───
+// 偏好存 localStorage（布局偏好只存本地同款口径）；壳层拦截在 Rust 侧做，
+// 前端负责启动同步与菜单变更后同步（App.vue / InkPenMenu 两处共用）。
+
+export const CLOSE_PREF_KEY = 'shihui-desktop-close-behavior-v1'
+export type CloseBehavior = 'quit' | 'tray'
+
+/** 读关闭行为偏好；坏值/读失败归一为 quit（退出为安全默认） */
+export function readCloseBehaviorPref(): CloseBehavior {
+  try {
+    return localStorage.getItem(CLOSE_PREF_KEY) === 'tray' ? 'tray' : 'quit'
+  } catch {
+    return 'quit'
+  }
+}
+
+/** 落盘关闭行为偏好（菜单点选时调） */
+export function writeCloseBehaviorPref(behavior: CloseBehavior): void {
+  try {
+    localStorage.setItem(CLOSE_PREF_KEY, behavior)
+  } catch {
+    /* 偏好非关键路径 */
+  }
+}
+
+/** 同步关闭行为偏好到壳层（Rust 侧 on_window_event 拦截 Alt+F4 等全部关窗路径） */
+export async function setCloseBehavior(behavior: CloseBehavior): Promise<void> {
+  requireDesktop('setCloseBehavior')
+  await invoke('desktop_close_behavior_set', { behavior })
+}
