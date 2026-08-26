@@ -2,10 +2,12 @@
 // orders 板块「订单速览」（方向 A 长卷·卷尾 tail 区）：订单状态 chips + 截稿倒计时。
 // 数据由 Home 统一取（fetchOrders / fetchDeadlineSoon）、失败静默降级为一行提示。
 // 等高纪律（fixed-rows）：chips 定行截断，不撑高卷尾；截稿倒计时可撕悬浮（deadline）。
-// 本地模式：整行只留「登录同步后显示」，不调云端（双模式纪律 §4.3）。
+// 本地模式（波6）：读本地记账——状态分布 chips + 最急截稿倒计时，不调云端（双模式纪律 §4.3）。
 import { computed } from 'vue'
 import type { ArtistOrderItem, DeadlineSoonItem, OrderStatus } from '../api/types'
+import type { LocalOrder } from '../stores/localLedger'
 import { deadlineLevel } from '../components/home/deadline'
+import { localDaysLeft } from '../components/home/localGlance'
 import TornPlaceholder from '../components/home/TornPlaceholder.vue'
 
 const props = defineProps<{
@@ -16,6 +18,8 @@ const props = defineProps<{
   failed: boolean
   /** 截稿倒计时已撕成悬浮小窗 */
   tornDeadline: boolean
+  /** 本地模式：本地记账全量（波6，云端模式不传） */
+  localOrders?: LocalOrder[] | null
 }>()
 
 /** 速览行：状态→点色/措辞映射（与网页端订单状态口径同源） */
@@ -51,13 +55,58 @@ function ordTitle(o: ArtistOrderItem): string {
 
 /** 截稿倒计时最多 3 枚（按截稿日升序由数据源保证） */
 const deadlineChips = computed(() => (props.deadlines ?? []).slice(0, 3))
+
+// ─── 本地模式（波6）：本地记账状态分布 + 最急截稿 ───
+const LOCAL_STATUS: { key: LocalOrder['status']; label: string; dot: 'hq' | 'th' | 'sl' }[] = [
+  { key: 'in_progress', label: '进行中', dot: 'hq' },
+  { key: 'draft', label: '草稿', dot: 'th' },
+  { key: 'delivered', label: '已交付', dot: 'th' },
+  { key: 'paid', label: '已收款', dot: 'sl' }
+]
+
+const localChips = computed(() => {
+  const list = props.localOrders ?? []
+  return LOCAL_STATUS
+    .map(s => ({ ...s, n: list.filter(o => o.status === s.key).length }))
+    .filter(s => s.n > 0)
+})
+
+const localDeads = computed(() =>
+  (props.localOrders ?? [])
+    .filter(o => o.status === 'draft' || o.status === 'in_progress')
+    .map(o => ({ o, dl: localDaysLeft(o.deadline) }))
+    .filter((x): x is { o: LocalOrder; dl: number } => x.dl !== null)
+    .sort((a, b) => a.dl - b.dl)
+    .slice(0, 3)
+)
 </script>
 
 <template>
   <span class="lbl">订单速览</span>
 
   <template v-if="mode === 'local'">
-    <span class="tail-empty">登录同步后显示订单速览</span>
+    <!-- 本地记账状态分布（波6） -->
+    <div v-if="localChips.length > 0" class="orders">
+      <span
+        v-for="c in localChips"
+        :key="c.key"
+        class="ord"
+        :class="c.dot"
+        :title="`本地记账 · ${c.label} ${c.n} 笔`"
+      >
+        <i aria-hidden="true"></i>{{ c.label }}<span class="st">{{ c.n }}</span>
+      </span>
+    </div>
+    <span v-else class="tail-empty">本地还没记账——首页卷心记一笔</span>
+    <div v-if="localDeads.length > 0" class="deads">
+      <span
+        v-for="d in localDeads"
+        :key="d.o.id"
+        class="dead"
+        :class="deadlineLevel(d.dl).cls"
+        :title="`${d.o.client_name} · 截稿 ${d.o.deadline}`"
+      >{{ d.o.client_name }} {{ deadlineLevel(d.dl).text }}</span>
+    </div>
   </template>
   <template v-else-if="failed">
     <span class="tail-empty">暂时取不到订单</span>

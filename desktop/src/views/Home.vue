@@ -32,6 +32,8 @@ import {
 } from '../api/artist'
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop, notify } from '../bridge'
 import { openFloatingWindow } from '../bridge/window'
+import { useLocalLedgerStore } from '../stores/localLedger'
+import { buildLocalGlance } from '../components/home/localGlance'
 import TodayPanel from '../panels/TodayPanel.vue'
 import LedgerPanel from '../panels/LedgerPanel.vue'
 import OpsPanel from '../panels/OpsPanel.vue'
@@ -45,6 +47,7 @@ import TitleBar from '../components/shell/TitleBar.vue'
 
 const auth = useAuthStore()
 const prefs = usePrefsStore()
+const ledger = useLocalLedgerStore()
 
 // ─── 运行模式与在线状态 ───
 const mode = computed<'cloud' | 'local'>(() => auth.mode)
@@ -124,10 +127,10 @@ async function loadAll() {
   if (anyOk) lastRefresh.value = new Date()
 }
 
-/** 概览句段落（od=逾期加重 / ok=在案加深；本地模式退为一句本地口径） */
+/** 概览句段落（od=逾期加重 / ok=在案加深；本地模式读本地记账，波6） */
 interface GlancePart { text: string; tone: 'od' | 'ok' | '' }
 const glanceParts = computed<GlancePart[]>(() => {
-  if (!cloud.value) return [{ text: '本地模式 · 数据仅存本机', tone: '' }]
+  if (!cloud.value) return buildLocalGlance(ledger.orders, ledger.paidThisMonth)
   const parts: GlancePart[] = []
   const overdue = (todos.value ?? []).filter(t => {
     if (t.status === 'done' || t.status === 'delivered' || !t.deadline) return false
@@ -201,8 +204,13 @@ onMounted(() => {
   window.addEventListener('online', onOnline)
   window.addEventListener('offline', onOffline)
   restoreTorn()
-  void loadAll()
-  void silentUpdateCheck()
+  if (cloud.value) {
+    void loadAll()
+    void silentUpdateCheck()
+  } else {
+    // 本地模式：读本地记账（概览句/今日要办/订单速览本地变体的数据源，波6）
+    if (!ledger.loaded) void ledger.loadAll()
+  }
 })
 onUnmounted(() => {
   window.removeEventListener('online', onOnline)
@@ -267,6 +275,7 @@ onErrorCaptured((err, _instance, info) => {
             :todos="todos"
             :failed="todayFailed"
             :torn="prefs.isTorn('today-todo')"
+            :local-orders="ledger.orders"
           />
         </section>
         <section v-else class="flow" aria-label="本地记账">
@@ -298,6 +307,7 @@ onErrorCaptured((err, _instance, info) => {
           :deadlines="deadlines"
           :failed="ordersFailed"
           :torn-deadline="prefs.isTorn('deadline')"
+          :local-orders="ledger.orders"
         />
         <TailStatusBar :mode="mode" :last-refresh="lastRefresh" @open-about="openAbout" />
       </footer>
