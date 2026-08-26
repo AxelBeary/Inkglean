@@ -87,6 +87,7 @@
 | @tauri-apps/plugin-dialog / @tauri-apps/plugin-updater | Apache-2.0 OR MIT 双许可 |
 | vue / vite / typescript / vue-tsc | MIT（与网页端同栈） |
 | pinia / vue-router | MIT（桌面端路由与状态，与网页端同款） |
+| jszip（桌面端） | MIT 或 GPLv3 双许可（本地数据导出打包：数据包 zip 生成） |
 | windows（Rust crate，仅 Windows） | Apache-2.0 OR MIT 双许可（DPAPI 凭证保险箱用） |
 | base64（Rust crate） | Apache-2.0 OR MIT 双许可（工具箱导出落盘：PNG base64 解码） |
 | Windows WebView2 运行时 | Microsoft 专有（系统组件，随 Windows 分发，非本项目依赖包） |

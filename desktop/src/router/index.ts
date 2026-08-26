@@ -20,6 +20,7 @@ const router = createRouter({
     { path: '/tools/receipt', name: 'tool-receipt', component: () => import('../views/tools/ReceiptTool.vue'), meta: { requiresAuth: true } },
     { path: '/tools/profile', name: 'tool-profile', component: () => import('../views/tools/ProfileTool.vue'), meta: { requiresAuth: true } },
     { path: '/tools/templates', name: 'tool-templates', component: () => import('../views/tools/TemplatesTool.vue'), meta: { requiresAuth: true } },
+    { path: '/tools/export', name: 'tool-export', component: () => import('../views/tools/ExportTool.vue'), meta: { requiresAuth: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })

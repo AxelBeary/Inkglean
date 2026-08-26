@@ -65,6 +65,12 @@ const SCHEMA_STATEMENTS = [
 
 let dbPromise: Promise<LocalDatabase> | null = null
 
+/** 本地数据库绝对路径（波9 导出用；与 openLocalDb 内部同源命令） */
+export async function localDbPath(): Promise<string> {
+  if (!isDesktop()) throw new BridgeUnavailableError('localDbPath')
+  return await invoke<string>('desktop_local_db_path')
+}
+
 /** 打开（单例）本地 SQLite；首启自动建表。失败即重置单例，下次调用重试 */
 export function openLocalDb(): Promise<LocalDatabase> {
   if (!isDesktop()) return Promise.reject(new BridgeUnavailableError('openLocalDb'))

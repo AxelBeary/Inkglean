@@ -28,6 +28,15 @@ pub fn desktop_check_files(paths: Vec<String>) -> Vec<bool> {
     paths.iter().map(|p| Path::new(p).exists()).collect()
 }
 
+/// 批量读文件字节大小（导出 manifest 用）：不存在/读失败返 0，入参顺序一致。
+#[tauri::command]
+pub fn desktop_file_sizes(paths: Vec<String>) -> Vec<u64> {
+    paths
+        .iter()
+        .map(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+        .collect()
+}
+
 /// 读文件转 base64（F6 头像自含存储）：限 5MB，超限拒绝（防大文件炸内存）。
 const READ_LIMIT: u64 = 5 * 1024 * 1024;
 
