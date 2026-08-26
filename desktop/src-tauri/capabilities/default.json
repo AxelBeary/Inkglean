@@ -14,6 +14,7 @@
     "core:window:allow-unmaximize",
     "core:window:allow-close",
     "window-state:default",
-    "autostart:default"
+    "autostart:default",
+    "notification:default"
   ]
 }

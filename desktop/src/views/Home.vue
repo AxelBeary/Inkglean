@@ -30,7 +30,7 @@ import {
   fetchSchedule,
   fetchTodos
 } from '../api/artist'
-import { checkAndDownloadUpdate, installPendingUpdate, isDesktop } from '../bridge'
+import { checkAndDownloadUpdate, installPendingUpdate, isDesktop, notify } from '../bridge'
 import { openFloatingWindow } from '../bridge/window'
 import TodayPanel from '../panels/TodayPanel.vue'
 import OpsPanel from '../panels/OpsPanel.vue'
@@ -77,6 +77,9 @@ const opsFailed = ref(false)
 const msgsFailed = ref(false)
 const ordersFailed = ref(false)
 const lastRefresh = ref<Date | null>(null)
+// 留言待审计数基线（壳层商业化批）：首次取数只记基线不通知（防开机打扰），
+// 其后任何一次取数（重载/断网恢复）待审变多即发系统通知。
+const prevPending = ref<number | null>(null)
 
 function isArtistStatus(v: string | undefined | null): v is ArtistStatus {
   return v === 'open' || v === 'full' || v === 'break' || v === 'hidden'
@@ -101,7 +104,14 @@ async function loadAll() {
   if (inc.status === 'fulfilled') income.value = inc.value
   if (rev.status === 'fulfilled') revenue.value = rev.value
   msgsFailed.value = msg.status === 'rejected'
-  if (msg.status === 'fulfilled') messages.value = msg.value.items
+  if (msg.status === 'fulfilled') {
+    messages.value = msg.value.items
+    const pending = msg.value.items.filter(m => m.status === 'pending').length
+    if (prevPending.value !== null && pending > prevPending.value && pending > 0) {
+      void notify('拾绘', `${pending} 条留言待审`)
+    }
+    prevPending.value = pending
+  }
   ordersFailed.value = ord.status === 'rejected' || dl.status === 'rejected'
   if (ord.status === 'fulfilled') orders.value = ord.value.items
   if (dl.status === 'fulfilled') deadlines.value = dl.value.items
