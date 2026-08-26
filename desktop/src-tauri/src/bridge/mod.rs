@@ -2,6 +2,7 @@
 // 前端一律经 src/bridge/index.ts 调用，禁止散落各处。
 // 后续增量：F8 窗口枚举 + 输入空闲检测（自定义 Rust，仅此处允许）。
 pub mod autostart;
+pub mod db;
 pub mod secure_store;
 pub mod window;
 

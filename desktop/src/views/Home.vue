@@ -33,6 +33,7 @@ import {
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop, notify } from '../bridge'
 import { openFloatingWindow } from '../bridge/window'
 import TodayPanel from '../panels/TodayPanel.vue'
+import LedgerPanel from '../panels/LedgerPanel.vue'
 import OpsPanel from '../panels/OpsPanel.vue'
 import MsgsPanel from '../panels/MsgsPanel.vue'
 import OrdersPanel from '../panels/OrdersPanel.vue'
@@ -257,9 +258,9 @@ onErrorCaptured((err, _instance, info) => {
         <span class="vh" aria-live="polite"></span>
       </header>
 
-      <!-- 卷心 -->
+      <!-- 卷心：云端＝今日要办；本地＝本地记账（本地核心环波1，F2） -->
       <main class="body" :class="{ 'body--solo': !showAside }">
-        <section class="flow" aria-label="今日要办">
+        <section v-if="cloud" class="flow" aria-label="今日要办">
           <TodayPanel
             :mode="mode"
             :schedule="schedule"
@@ -267,6 +268,9 @@ onErrorCaptured((err, _instance, info) => {
             :failed="todayFailed"
             :torn="prefs.isTorn('today-todo')"
           />
+        </section>
+        <section v-else class="flow" aria-label="本地记账">
+          <LedgerPanel />
         </section>
 
         <aside v-if="showAside" class="aside">
