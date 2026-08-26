@@ -9,6 +9,7 @@ import { useTimerStore, formatSeconds } from '../stores/timer'
 import { useAutoTimeStore } from '../stores/autoTime'
 import EnsoRing from '../components/home/EnsoRing.vue'
 import TornPlaceholder from '../components/home/TornPlaceholder.vue'
+import WeekBars from '../components/home/WeekBars.vue'
 
 const props = defineProps<{
   mode: 'cloud' | 'local'
@@ -33,6 +34,9 @@ const tailText = computed(() => {
   if (props.income && props.income.pendingCents > 0) parts.push(`应收尾款 ${fmtYuan(props.income.pendingCents)}`)
   return parts.join(' · ')
 })
+
+/** 近 7 日周条（波14）：有时长数据才渲染 */
+const hasWeek = computed(() => autoTime.week.some(d => d.paint + d.other + d.idle > 0))
 </script>
 
 <template>
@@ -78,6 +82,12 @@ const tailText = computed(() => {
     <i :class="{ on: timer.running }" aria-hidden="true"></i>
     <span>{{ timer.running ? '正在计时 · 数据仅存本机' : '计时未开始' }}</span>
   </div>
+
+  <!-- 近 7 日周条（波14 · F8 摸鱼可视化输出件）：在画/其他/离开三色堆叠，悬停看时长 -->
+  <div v-if="hasWeek" class="week-sec">
+    <span class="week-k">近 7 日 · 在画与摸鱼</span>
+    <WeekBars :week="autoTime.week" />
+  </div>
 </template>
 
 <style scoped>
@@ -109,6 +119,9 @@ const tailText = computed(() => {
 .live { margin-top: auto; padding-top: 10px; font-size: 12px; color: var(--ink3); display: flex; align-items: center; gap: 6px; }
 .live i { width: 6px; height: 6px; border-radius: 50%; background: var(--buf); }
 .live i.on { background: var(--hq); animation: pulse 2.2s ease-in-out infinite; }
+/* 近 7 日周条（波14）：定高不撑面板 */
+.week-sec { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(var(--ink-rgb), .08); }
+.week-k { font-size: 11px; letter-spacing: .1em; color: var(--ink4); display: block; margin-bottom: 6px; }
 @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .live i.on { animation: none; }

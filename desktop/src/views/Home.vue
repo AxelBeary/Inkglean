@@ -34,7 +34,11 @@ import { checkAndDownloadUpdate, installPendingUpdate, isDesktop, notify } from 
 import { openFloatingWindow } from '../bridge/window'
 import { useLocalLedgerStore } from '../stores/localLedger'
 import { useAutoTimeStore } from '../stores/autoTime'
-import { buildLocalGlance } from '../components/home/localGlance'
+import { buildLocalGlance, localDaysLeft } from '../components/home/localGlance'
+import {
+  buildDeadlineAlerts, loadAlertedIds, saveAlertedIds
+} from '../tools/deadlineAlert'
+import type { DeadlineAlertItem } from '../tools/deadlineAlert'
 import TodayPanel from '../panels/TodayPanel.vue'
 import LedgerPanel from '../panels/LedgerPanel.vue'
 import OpsPanel from '../panels/OpsPanel.vue'
@@ -127,6 +131,24 @@ async function loadAll() {
   }
   const anyOk = [sch, td, inc, rev, msg, ord, dl, pf].some(r => r.status === 'fulfilled')
   if (anyOk) lastRefresh.value = new Date()
+  // 截稿提醒（波14）：云端截稿倒计时里挑逾期/今天/明天，每日去重一条通知（不打扰纪律）
+  if (dl.status === 'fulfilled') {
+    void checkDeadlineAlerts(dl.value.items.map(d => ({
+      id: `cloud-${d.id}`,
+      who: d.clientName ?? d.orderNo,
+      daysLeft: d.daysLeft
+    })))
+  }
+}
+
+/** 截稿提醒链（波14，云端/本地共用）：组句→去重→通知→落标记；失败静默不阻塞首页 */
+async function checkDeadlineAlerts(items: DeadlineAlertItem[]): Promise<void> {
+  if (!isDesktop() || items.length === 0) return
+  const alerted = loadAlertedIds()
+  const alert = buildDeadlineAlerts(items, alerted)
+  if (!alert) return
+  await notify('拾绘', alert.text)
+  saveAlertedIds([...alerted, ...alert.newIds])
 }
 
 /** 概览句段落（od=逾期加重 / ok=在案加深；本地模式读本地记账，波6） */
@@ -202,7 +224,7 @@ function onRefresh(): void {
   void loadAll()
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('online', onOnline)
   window.addEventListener('offline', onOffline)
   restoreTorn()
@@ -213,7 +235,17 @@ onMounted(() => {
     void silentUpdateCheck()
   } else {
     // 本地模式：读本地记账（概览句/今日要办/订单速览本地变体的数据源，波6）
-    if (!ledger.loaded) void ledger.loadAll()
+    if (!ledger.loaded) await ledger.loadAll()
+    // 截稿提醒（波14）：本地记账未完成单里的逾期/今天/明天，同云端一条链（每日去重）
+    void checkDeadlineAlerts(
+      ledger.orders
+        .filter(o => (o.status === 'draft' || o.status === 'in_progress') && o.deadline)
+        .map(o => {
+          const dl = localDaysLeft(o.deadline)
+          return { id: `local-${o.id}`, who: o.client_name || '有一单', daysLeft: dl ?? 99 }
+        })
+        .filter(i => i.daysLeft <= 1)
+    )
   }
 })
 onUnmounted(() => {
