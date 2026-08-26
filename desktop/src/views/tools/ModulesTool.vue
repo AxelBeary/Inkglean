@@ -10,6 +10,7 @@ import { useModulesStore } from '../../modules/store'
 import type { ModuleEntry } from '../../modules/registry'
 import type { ModuleState } from '../../modules/types'
 import { useToolToast } from '../../tools/host'
+import { installSampleModule } from '../../bridge/modules'
 
 const router = useRouter()
 const toast = useToolToast()
@@ -27,6 +28,22 @@ function goHome() { void router.push({ name: 'home' }) }
 async function rescan() {
   await store.scan()
   toast.show('已重新扫描模块目录（文件变更下次启动才生效，扫描只认当前文件）')
+}
+
+// ─── 一键安装示例模块（波17 五件）：稿情气象台随壳内嵌，装了即是活样板 ───
+const installing = ref(false)
+async function installSample() {
+  if (installing.value) return
+  installing.value = true
+  try {
+    await installSampleModule()
+    await store.scan()
+    toast.show('示例模块「稿情气象台」已安装，回首页可见')
+  } catch (e) {
+    toast.show(e instanceof Error ? e.message : '安装失败', 'err')
+  } finally {
+    installing.value = false
+  }
 }
 
 const countText = computed(() => {
@@ -91,6 +108,7 @@ function capsOf(e: ModuleEntry): string[] {
       <button type="button" class="back" @click="goHome">← 回首页</button>
       <span class="badge">工具箱</span>
       <span v-if="countText" class="count">{{ countText }}</span>
+      <button type="button" class="rescan" :disabled="installing" @click="installSample">装示例模块</button>
       <button type="button" class="rescan" @click="rescan">重新扫描</button>
     </header>
 
@@ -103,7 +121,8 @@ function capsOf(e: ModuleEntry): string[] {
 
       <p v-if="store.unavailable" class="mod-empty">模块机制仅在桌面壳内可用</p>
       <p v-else-if="store.entries.length === 0" class="mod-empty">
-        还没有模块——在「我的文档\拾绘\modules」建一个模块文件夹试试（AI 可以直接照规范写）
+        还没有模块——点上方「装示例模块」装个稿情气象台看看，
+        或到「我的文档\拾绘\modules」建自己的模块文件夹（AI 可照规范直写）
       </p>
 
       <div v-else class="mods">

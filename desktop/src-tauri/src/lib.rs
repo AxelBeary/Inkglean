@@ -109,6 +109,7 @@ pub fn run() {
             bridge::modules::desktop_read_module_manifest,
             bridge::modules::desktop_read_module_entry,
             bridge::modules::desktop_module_storage_path,
+            bridge::modules::desktop_install_sample_module,
             crate::tray::desktop_tray_set_tooltip
         ])
         .run(tauri::generate_context!())

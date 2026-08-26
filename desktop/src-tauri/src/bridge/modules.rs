@@ -90,3 +90,22 @@ pub fn desktop_module_storage_path(app: AppHandle, dir_name: String) -> Result<S
     // 只给路径不建文件；写由前端经桥申请并核配额（拍板二 5MB/模块）
     Ok(dir.join("storage.json").to_string_lossy().to_string())
 }
+
+// ─── 示例模块「稿情气象台」（波17 五件）：随壳内嵌，一键装进 modules 目录 ───
+// 模块即本机透明文件（AI 可照样板直写）；示例随包内嵌免分发，装了即是活样板。
+const SAMPLE_MODULE_ID: &str = "mood-weather";
+const SAMPLE_MANIFEST: &str = include_str!("../../sample-module/mood-weather/manifest.json");
+const SAMPLE_ENTRY: &str = include_str!("../../sample-module/mood-weather/panel.js");
+
+/// 一键安装示例模块：写入 modules/mood-weather/；已存在不覆盖（防覆盖画师改过的版本）
+#[tauri::command]
+pub fn desktop_install_sample_module(app: AppHandle) -> Result<(), String> {
+    let dir = modules_dir(&app)?.join(SAMPLE_MODULE_ID);
+    if dir.exists() {
+        return Err("示例模块已存在（不覆盖；重装请先删文件夹）".to_string());
+    }
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    fs::write(dir.join("manifest.json"), SAMPLE_MANIFEST).map_err(|e| e.to_string())?;
+    fs::write(dir.join("panel.js"), SAMPLE_ENTRY).map_err(|e| e.to_string())?;
+    Ok(())
+}

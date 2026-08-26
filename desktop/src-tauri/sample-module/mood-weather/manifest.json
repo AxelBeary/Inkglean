@@ -1,0 +1,32 @@
+{
+  "spec": "1.0",
+  "api": "panel@1",
+  "minHost": "0.1.0",
+  "id": "mood-weather",
+  "name": "稿情气象台",
+  "description": "把今日稿情画成一句天气：逾期雷雨、临期转雨、在案晴、无事晴空",
+  "version": "0.1.0",
+  "author": "拾绘官方示例",
+  "entry": "panel.js",
+  "ui": {
+    "zone": "aside",
+    "heightRule": "fixed-rows",
+    "hideable": true,
+    "tearable": false,
+    "focusPolicy": "fold",
+    "styles": []
+  },
+  "data": {
+    "views": ["ledger", "time"],
+    "write": { "own": false, "shared": "none", "reason": "" }
+  },
+  "settings": [],
+  "network": { "scope": "none", "hosts": [], "reason": "" },
+  "linkage": { "subscribes": [], "emits": [] },
+  "runtime": {
+    "lifecycle": "on-view",
+    "wakeInterval": null,
+    "idlePolicy": "afk-aware"
+  },
+  "diagnostics": false
+}
