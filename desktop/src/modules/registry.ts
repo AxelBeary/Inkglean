@@ -2,7 +2,7 @@
 // 规范依据：v0.3 §四加载行（校验与去重）+ §二审计 M2（目录名必须与 id 一致、同 id 后到者拒载）。
 // 违规记账（拍板二）：10 次/24 小时滚动窗口达阈单独停用；手动启用清零（防死状态）。
 import { parseManifest } from './manifest'
-import { VIOLATION_LIMIT, VIOLATION_WINDOW_MS } from './manifest'
+import { VIOLATION_LIMIT, VIOLATION_WINDOW_MS, KNOWN_VIEWS } from './manifest'
 import type { ModuleManifest, ModuleState } from './types'
 
 /** 扫描输入：目录名 + manifest 原文（读失败时 manifestText 为 null + 原因） */
@@ -118,4 +118,12 @@ export function violationCount(
   if (!rec) return 0
   if (now - rec.firstAt >= VIOLATION_WINDOW_MS) return 0
   return rec.count
+}
+
+/** 可渲染判定（审计 H5）：订了云端专属视图的模块，本地模式壳层不渲染（810 隐藏纪律） */
+export function moduleRenderable(entry: ModuleEntry, mode: 'cloud' | 'local'): boolean {
+  if (entry.state !== 'ok') return false
+  const views = entry.manifest?.data.views ?? []
+  if (mode === 'local' && views.some(v => KNOWN_VIEWS[v] === 'cloud')) return false
+  return true
 }
