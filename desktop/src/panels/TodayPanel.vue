@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // today 板块「今日要办」（方向 A 长卷·卷心 core 区）：排期条（fetchSchedule）+ 合并待办（fetchTodos）融合。
 // 逾期置顶由数据源排序保证（后端 6 级排序）；等高纪律：内容只许截断（长卷区内部可滚）。
-// 本地模式：不调云端接口，走空态「今日无事，不如去画画」；数据由 Home 统一取、失败静默降级。
+// 本地模式（波6）：读本地记账未完成单（逾期置顶），数据由 Home 统一下发；无未了单才走空态。
 import { computed } from 'vue'
 import type { ScheduleBar, TodoItem } from '../api/types'
+import type { LocalOrder } from '../stores/localLedger'
 import { deadlineLevel } from '../components/home/deadline'
 import TornPlaceholder from '../components/home/TornPlaceholder.vue'
 
@@ -16,6 +17,8 @@ const props = defineProps<{
   failed: boolean
   /** 待办行已撕成悬浮小窗 */
   torn: boolean
+  /** 本地模式：本地记账全量（波6，云端模式不传） */
+  localOrders?: LocalOrder[] | null
 }>()
 
 /** 截稿日与今天零点差几天（负数=已逾期）；无效日期返回 null */
@@ -64,9 +67,42 @@ const rows = computed<TodoRow[]>(() => {
 
 const overdueCount = computed(() => rows.value.filter(r => r.dueCls === 'zs-d' || (r.dot === 'zs' && !r.done && (daysLeft(r.t.deadline) ?? 0) < 0)).length)
 
+// ─── 本地模式行（波6）：本地记账未完成单，逾期置顶、无截稿沉底 ───
+interface LocalRow {
+  id: number
+  who: string
+  what: string
+  dot: 'zs' | 'hq' | 'th'
+  dueText: string
+  dueCls: string
+  dl: number | null
+}
+
+const localRows = computed<LocalRow[]>(() => {
+  if (props.mode !== 'local') return []
+  const out: LocalRow[] = []
+  for (const o of props.localOrders ?? []) {
+    if (o.status !== 'draft' && o.status !== 'in_progress') continue
+    const dl = daysLeft(o.deadline)
+    let dot: LocalRow['dot'] = 'th'
+    let dueText = '未定截稿'
+    let dueCls = 'buf'
+    if (dl !== null) {
+      const lv = deadlineLevel(dl)
+      dueText = lv.text
+      dueCls = lv.cls
+      dot = dl < 0 || dl <= 1 ? 'zs' : dl <= 3 ? 'hq' : 'th'
+    }
+    out.push({ id: o.id, who: o.client_name, what: o.title || '约稿', dot, dueText, dueCls, dl })
+  }
+  // 逾期置顶：按剩余天数升序，无截稿沉底（与云端逾期置顶同口径）
+  out.sort((a, b) => (a.dl ?? Number.MAX_SAFE_INTEGER) - (b.dl ?? Number.MAX_SAFE_INTEGER))
+  return out.slice(0, 8)
+})
+
 const isEmpty = computed(() =>
   props.mode === 'local'
-    ? true
+    ? localRows.value.length === 0
     : (props.todos?.length ?? 0) === 0 && (props.schedule?.length ?? 0) === 0 && !props.failed
 )
 </script>
@@ -93,6 +129,14 @@ const isEmpty = computed(() =>
   <TornPlaceholder v-if="torn" kind="today-todo" label="今日待办" />
   <p v-else-if="failed" class="flow-empty">暂时取不到今日要办</p>
   <p v-else-if="isEmpty" class="flow-empty">今日无事，不如去画画</p>
+  <!-- 本地模式：本地记账未完成单（波6） -->
+  <ul v-else-if="mode === 'local'" class="todo-list">
+    <li v-for="r in localRows" :key="r.id" class="task">
+      <span class="dot" :class="r.dot" aria-hidden="true"></span>
+      <span class="what"><strong>{{ r.who }} · {{ r.what }}</strong></span>
+      <span class="due" :class="r.dueCls">{{ r.dueText }}</span>
+    </li>
+  </ul>
   <ul v-else class="todo-list">
     <li
       v-for="r in rows"
