@@ -175,7 +175,7 @@ function openAbout() {
 }
 
 // ─── 工具箱（波2）：价目分享卡（F3）/ 小票打印机（F4），纯离线工具双模式均可用 ───
-function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'tool-templates' | 'tool-export') {
+function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'tool-templates' | 'tool-export' | 'tool-modules') {
   setOpen(false)
   void router.push({ name })
 }
@@ -330,6 +330,11 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
       <button type="button" class="pm-item" @click="goTool('tool-export')">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10v2.5h11V10" /><path d="M8 2.5V9" /><path d="M5.5 6.5 8 9l2.5-2.5" /></svg>
         <span class="mid">数据导出</span>
+        <span class="hint tag">打开 ↗</span>
+      </button>
+      <button type="button" class="pm-item" @click="goTool('tool-modules')">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><path d="M11.25 9v4.5M9 11.25h4.5" /></svg>
+        <span class="mid">模块管理</span>
         <span class="hint tag">打开 ↗</span>
       </button>
       <div class="pm-div"></div>
