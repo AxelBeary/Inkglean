@@ -4,7 +4,7 @@
 // → 卷尾（订单速览 + 状态带）；天地杆为唯一结构件。
 // 框架纪律（§4.3）统一在此施加：双模式过滤 / 显隐 / 专注收合 / 装裱 / 撕悬浮启动恢复；板块自己一概不管。
 // 数据编排：云端数据由本页统一取数下发板块，失败按节静默降级为一行提示；本地模式不调任何云端接口。
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { onErrorCaptured } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { usePrefsStore } from '../stores/prefs'
@@ -39,6 +39,8 @@ import {
   buildDeadlineAlerts, loadAlertedIds, saveAlertedIds
 } from '../tools/deadlineAlert'
 import type { DeadlineAlertItem } from '../tools/deadlineAlert'
+import { setTrayTooltip } from '../bridge/tray'
+import { buildTraySnapshot } from '../tools/traySnapshot'
 import TodayPanel from '../panels/TodayPanel.vue'
 import LedgerPanel from '../panels/LedgerPanel.vue'
 import OpsPanel from '../panels/OpsPanel.vue'
@@ -150,6 +152,36 @@ async function checkDeadlineAlerts(items: DeadlineAlertItem[]): Promise<void> {
   await notify('拾绘', alert.text)
   saveAlertedIds([...alerted, ...alert.newIds])
 }
+
+// ─── 托盘快照（波15，首发拍板件补齐）：今日状态概要随数据响应式刷新到托盘 tooltip ───
+watchEffect(() => {
+  let overdue = 0
+  let dueToday = 0
+  let openCount: number
+  if (cloud.value) {
+    openCount = orders.value?.length ?? 0
+    for (const d of deadlines.value ?? []) {
+      if (d.daysLeft < 0) overdue++
+      else if (d.daysLeft === 0) dueToday++
+    }
+  } else {
+    openCount = ledger.orders.length
+    for (const o of ledger.orders) {
+      if (o.status !== 'draft' && o.status !== 'in_progress') continue
+      const dl = localDaysLeft(o.deadline)
+      if (dl === null) continue
+      if (dl < 0) overdue++
+      else if (dl === 0) dueToday++
+    }
+  }
+  void setTrayTooltip(buildTraySnapshot({
+    modeLabel: cloud.value ? (auth.artist?.name ?? '画师') : '本地',
+    openCount,
+    overdue,
+    dueToday,
+    paintedSecs: autoTime.today.paint
+  }))
+})
 
 /** 概览句段落（od=逾期加重 / ok=在案加深；本地模式读本地记账，波6） */
 interface GlancePart { text: string; tone: 'od' | 'ok' | '' }

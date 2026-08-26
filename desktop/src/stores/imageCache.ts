@@ -6,8 +6,11 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { openLocalDb } from '../bridge/db'
-import { cacheDir, saveFile } from '../bridge/files'
+import { cacheDir, deleteCacheFile, saveFile } from '../bridge/files'
 import { isDesktop } from '../bridge'
+
+/** 缓存条目上限（波15 淘汰口径）：超出按最旧淘汰，防缓存无限膨胀 */
+export const MAX_CACHE_ENTRIES = 200
 
 /** url → 缓存文件名哈希（djb2，非加密用途，仅防重名） */
 export function hashUrl(url: string): string {
@@ -37,11 +40,21 @@ export const useImageCacheStore = defineStore('desktop-image-cache', () => {
     if (!isDesktop() || loaded.value) return
     try {
       const db = await openLocalDb()
-      const rows = await db.select<{ url: string; file_path: string }[]>(
-        'SELECT url, file_path FROM local_img_cache'
+      // 按 fetched_at 升序（旧在前）：既供建镜像，又供超限淘汰从最旧下手（波15）
+      const rows = await db.select<{ url: string; file_path: string; fetched_at: string }[]>(
+        'SELECT url, file_path, fetched_at FROM local_img_cache ORDER BY fetched_at ASC'
       )
+      // 超限淘汰：只删最旧的超额部分（文件+登记），失败静默不阻塞读入
+      const overflow = rows.length - MAX_CACHE_ENTRIES
+      const doomed = overflow > 0 ? rows.slice(0, overflow) : []
+      const doomedUrls = new Set(doomed.map(r => r.url))
+      for (const r of doomed) {
+        try { await deleteCacheFile(r.file_path) } catch { /* 文件早不在：幂等跳过 */ }
+        try { await db.execute('DELETE FROM local_img_cache WHERE url = $1', [r.url]) } catch { /* 登记删除失败：下次再试 */ }
+      }
       const map: Record<string, string> = {}
       for (const r of rows) {
+        if (doomedUrls.has(r.url)) continue
         if (typeof r.url === 'string' && typeof r.file_path === 'string') map[r.url] = r.file_path
       }
       registry.value = map

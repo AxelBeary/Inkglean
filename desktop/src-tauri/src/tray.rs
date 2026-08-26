@@ -12,6 +12,9 @@ use tauri::{
 /// 主窗口 label（与 bridge/window.rs 同口径；tauri.conf.json app.windows 首项）
 const MAIN_WINDOW: &str = "main";
 
+/// 托盘 id（波15 快照命令按此找回托盘句柄）
+pub const TRAY_ID: &str = "shihui-tray";
+
 /// 显示并聚焦主窗口（托盘菜单/左键唤起/全局快捷键/单实例二次拉起共用收口）
 pub fn show_main_window(app: &AppHandle) {
     if let Some(win) = app.get_webview_window(MAIN_WINDOW) {
@@ -42,7 +45,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "显示拾绘", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出拾绘", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
-    let mut builder = TrayIconBuilder::with_id("shihui-tray")
+    let mut builder = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip("拾绘桌面版")
         .menu(&menu)
         // Windows 主流托盘交互：左键＝唤隐切换、右键＝菜单（左键不弹菜单）
@@ -67,5 +70,17 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         builder = builder.icon(icon.clone());
     }
     builder.build(app)?;
+    Ok(())
+}
+
+/// 托盘快照（波15，首发拍板件补齐）：动态更新 tooltip（今日状态概要）。
+/// 找不到托盘/设置失败静默（快照非关键路径，不影响托盘本体）。
+#[tauri::command]
+pub fn desktop_tray_set_tooltip(app: AppHandle, text: String) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        // Windows tooltip 有长度上限，超长截断防截断乱码
+        let t: String = text.chars().take(120).collect();
+        tray.set_tooltip(Some(t)).map_err(|e| e.to_string())?;
+    }
     Ok(())
 }

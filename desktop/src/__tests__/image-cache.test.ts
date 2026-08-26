@@ -1,8 +1,8 @@
 // 本地核心环波7 测试：F5 图缓存纯函数与逃生门（缓存层口径哨兵）。
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { hashUrl, extOfUrl, useImageCacheStore } from '../stores/imageCache'
-import { cacheDir } from '../bridge/files'
+import { hashUrl, extOfUrl, useImageCacheStore, MAX_CACHE_ENTRIES } from '../stores/imageCache'
+import { cacheDir, deleteCacheFile } from '../bridge/files'
 import { BridgeUnavailableError } from '../bridge'
 
 const win = window as unknown as Record<string, unknown>
@@ -42,5 +42,13 @@ describe('图缓存 store（纯浏览器环境降级）', () => {
 
   it('cacheDir 在浏览器环境抛 BridgeUnavailableError', async () => {
     await expect(cacheDir()).rejects.toThrow(BridgeUnavailableError)
+  })
+
+  it('deleteCacheFile 在浏览器环境抛 BridgeUnavailableError（波15 淘汰桥）', async () => {
+    await expect(deleteCacheFile('x')).rejects.toThrow(BridgeUnavailableError)
+  })
+
+  it('缓存上限常量口径哨兵（改动需同步评估磁盘占用）', () => {
+    expect(MAX_CACHE_ENTRIES).toBeGreaterThan(0)
   })
 })
