@@ -99,7 +99,9 @@ pub fn run() {
             bridge::files::desktop_read_file_b64,
             bridge::files::desktop_shihui_home,
             bridge::files::desktop_cache_dir,
-            bridge::files::desktop_copy_file
+            bridge::files::desktop_copy_file,
+            bridge::monitor::desktop_foreground_title,
+            bridge::monitor::desktop_input_idle_secs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
