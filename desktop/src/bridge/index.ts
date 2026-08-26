@@ -12,6 +12,7 @@ export { saveSecret, loadSecret, deleteSecret } from './secureStore'
 export { notify } from './notification'
 export { openLocalDb } from './db'
 export { saveFile, checkFiles, readFileB64, shihuiHome, cacheDir, copyFile } from './files'
+export { foregroundTitle, inputIdleSecs } from './monitor'
 export {
   minimizeWindow,
   toggleMaximizeWindow,

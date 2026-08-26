@@ -33,6 +33,7 @@ import {
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop, notify } from '../bridge'
 import { openFloatingWindow } from '../bridge/window'
 import { useLocalLedgerStore } from '../stores/localLedger'
+import { useAutoTimeStore } from '../stores/autoTime'
 import { buildLocalGlance } from '../components/home/localGlance'
 import TodayPanel from '../panels/TodayPanel.vue'
 import LedgerPanel from '../panels/LedgerPanel.vue'
@@ -48,6 +49,7 @@ import TitleBar from '../components/shell/TitleBar.vue'
 const auth = useAuthStore()
 const prefs = usePrefsStore()
 const ledger = useLocalLedgerStore()
+const autoTime = useAutoTimeStore()
 
 // ─── 运行模式与在线状态 ───
 const mode = computed<'cloud' | 'local'>(() => auth.mode)
@@ -204,6 +206,8 @@ onMounted(() => {
   window.addEventListener('online', onOnline)
   window.addEventListener('offline', onOffline)
   restoreTorn()
+  // F8 二期自动识别：双模式均启（纯本地采样，不联网，合双模式纪律）
+  autoTime.start()
   if (cloud.value) {
     void loadAll()
     void silentUpdateCheck()
@@ -215,6 +219,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('online', onOnline)
   window.removeEventListener('offline', onOffline)
+  autoTime.stop()
 })
 
 // ─── 渲染兜底：单个板块数据形状异常导致渲染炸时，错误止于该子树，首页整体与状态带照常更新；

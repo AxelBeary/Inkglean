@@ -40,6 +40,13 @@ serde_json = "1"
 base64 = "0.22"
 
 # 凭证保险箱走 Windows DPAPI（仅 Windows 首发；macOS 二期时改 target 条件分支）
+# F8 二期（波8）：前台窗口标题（WindowsAndMessaging）+ 输入空闲（KeyboardAndMouse + SystemInformation 取时基）
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.58", features = ["Win32_Security_Cryptography", "Win32_Foundation"] }
+windows = { version = "0.58", features = [
+    "Win32_Security_Cryptography",
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_SystemInformation"
+] }
 
