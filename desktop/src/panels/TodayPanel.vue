@@ -182,11 +182,11 @@ const isEmpty = computed(() =>
 .task {
   display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; column-gap: 12px;
   height: var(--row, 56px); padding: 0 10px; border-radius: var(--r-s-hand);
-  border-bottom: 1px solid rgba(38, 37, 32, .08);
+  border-bottom: 1px solid rgba(var(--ink-rgb), .08);
   transition: background var(--dur-fast) var(--ease-out);
 }
 .task:last-child { border-bottom: none; }
-.task:hover { background: rgba(38, 37, 32, .045); }
+.task:hover { background: rgba(var(--ink-rgb), .045); }
 .dot { position: relative; width: 9px; height: 9px; border-radius: 50%; justify-self: center; }
 .dot.zs { background: var(--zs); }
 .dot.zs::after {

@@ -132,6 +132,13 @@ function chooseClose(behavior: CloseBehavior) {
 function fontDec() { prefs.setFontSize(prefs.prefs.fontSize - 1) }
 function fontInc() { prefs.setFontSize(prefs.prefs.fontSize + 1) }
 
+// ─── 外观主题（波13）：跟随系统→亮→暗 三档循环，墨签即时换色 ───
+const THEME_LABEL: Record<string, string> = { auto: '跟随系统', light: '亮', dark: '暗' }
+function cycleTheme() {
+  const next = prefs.prefs.theme === 'auto' ? 'light' : prefs.prefs.theme === 'light' ? 'dark' : 'auto'
+  prefs.setTheme(next)
+}
+
 // ─── 检查更新（仅云端且在线渲染）───
 async function checkUpdate() {
   if (updateBusy.value) return
@@ -271,6 +278,11 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
           <button type="button" class="step" aria-label="字号调大" :disabled="prefs.prefs.fontSize >= 20" @click="fontInc">＋</button>
         </span>
       </div>
+      <button type="button" class="pm-item" @click="cycleTheme" :title="`当前：${THEME_LABEL[prefs.prefs.theme]}；点按循环切换`">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c-.3 3 1.5 5.5 5.5 5.5Z" /></svg>
+        <span class="mid">外观主题</span>
+        <span class="hint tag">{{ THEME_LABEL[prefs.prefs.theme] }}</span>
+      </button>
       <div class="pm-div"></div>
 
       <!-- 装裱 · 纸式（全局单选防混搭） -->
@@ -286,7 +298,7 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
         >
           <svg viewBox="0 0 24 20" width="26" height="22" aria-hidden="true">
             <rect x="1.25" y="1.25" width="21.5" height="17.5" rx="2" :fill="m.v === 'indigo' ? 'color-mix(in srgb, var(--card) 94%, var(--hq))' : 'var(--card)'" stroke="var(--line2)" stroke-width="1.5" />
-            <path v-if="m.v === 'grid'" d="M8.7 2.5v15M15.3 2.5v15M2.5 7h19M2.5 13h19" stroke="rgba(38,37,32,.28)" stroke-width="1" />
+            <path v-if="m.v === 'grid'" d="M8.7 2.5v15M15.3 2.5v15M2.5 7h19M2.5 13h19" stroke-width="1" style="stroke: rgba(var(--ink-rgb), .28)" />
           </svg>
           <span>{{ m.label }}</span>
         </button>
@@ -351,12 +363,12 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
   border-radius: var(--r-s-hand); color: var(--ink3);
   transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.pen:hover { color: var(--ink); background: rgba(38, 37, 32, .05); }
-.pen[aria-expanded="true"] { color: var(--ink); background: rgba(38, 37, 32, .07); }
+.pen:hover { color: var(--ink); background: rgba(var(--ink-rgb), .05); }
+.pen[aria-expanded="true"] { color: var(--ink); background: rgba(var(--ink-rgb), .07); }
 .paper-menu {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: 256px;
   background: var(--card); border-radius: var(--r-paper);
-  box-shadow: 0 0 0 1px rgba(38, 37, 32, .06), 0 2px 4px rgba(38, 37, 32, .08), 0 18px 36px -18px rgba(38, 37, 32, .5);
+  box-shadow: 0 0 0 1px rgba(var(--ink-rgb), .06), 0 2px 4px rgba(var(--ink-rgb), .08), 0 18px 36px -18px rgba(var(--ink-rgb), .5);
   padding: 12px 12px 8px;
   opacity: 0; transform: translateY(-4px); pointer-events: none;
   transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out);
@@ -369,7 +381,7 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
   padding: 7px 8px; border-radius: var(--r-s-hand); font-size: 13px; color: var(--ink2);
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast);
 }
-.pm-item:hover { background: rgba(38, 37, 32, .05); color: var(--ink); }
+.pm-item:hover { background: rgba(var(--ink-rgb), .05); color: var(--ink); }
 .pm-item svg { flex: none; color: var(--ink3); transition: color var(--dur-fast); }
 .pm-item:hover svg { color: var(--ink2); }
 .pm-item .mid { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -386,7 +398,7 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
   border-radius: var(--r-s-hand);
   transition: color var(--dur-fast), background var(--dur-fast);
 }
-.step:hover:not(:disabled) { color: var(--ink); background: rgba(38, 37, 32, .06); }
+.step:hover:not(:disabled) { color: var(--ink); background: rgba(var(--ink-rgb), .06); }
 .step:disabled { opacity: .35; cursor: not-allowed; }
 .step-val { min-width: 38px; text-align: center; font-size: 11.5px; color: var(--ink3); }
 /* 纸签态值：把「直接退出/打开↗/已是最新」之类裸文字值收进小纸签，去毛坯感（826 终验整改） */
@@ -394,7 +406,7 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
   font-size: 11px; color: var(--ink3); padding: 2px 8px;
   background: var(--paper2); border: 1px solid var(--line); border-radius: var(--r-s-hand);
 }
-.pm-div { height: 1px; background: rgba(38, 37, 32, .08); margin: 7px 4px; }
+.pm-div { height: 1px; background: rgba(var(--ink-rgb), .08); margin: 7px 4px; }
 /* 账号行 */
 .pm-acct { display: flex; align-items: center; gap: 10px; padding: 4px 8px 6px; }
 .pm-acct .avatar {
@@ -419,7 +431,7 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
 }
 .inksw::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
-  background: var(--card); box-shadow: 0 1px 2px rgba(38, 37, 32, .35);
+  background: var(--card); box-shadow: 0 1px 2px rgba(var(--ink-rgb), .35);
   transition: left var(--dur-mid) var(--ease-out);
 }
 .pm-item[aria-pressed="true"] .inksw { background: var(--hq); }
@@ -447,7 +459,7 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
   transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
 }
 .mount span { font-family: var(--f-d); }
-.mount:hover { color: var(--ink2); background: rgba(38, 37, 32, .04); }
+.mount:hover { color: var(--ink2); background: rgba(var(--ink-rgb), .04); }
 .mount[aria-pressed="true"] { border-color: var(--hq); color: var(--hq-d); background: var(--hq-t); }
 /* 板块显隐小圆点 */
 .mini-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--hq); }

@@ -116,7 +116,7 @@ async function goWeb() {
 }
 .slip {
   position: relative; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px;
-  background: var(--card); border: 1px solid rgba(38, 37, 32, .06); border-radius: 5px 7px 6px 8px;
+  background: var(--card); border: 1px solid rgba(var(--ink-rgb), .06); border-radius: 5px 7px 6px 8px;
   transition: background var(--dur-fast) var(--ease-out); min-width: 0; flex: none;
 }
 .slip::before {

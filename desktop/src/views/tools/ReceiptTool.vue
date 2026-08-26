@@ -78,7 +78,7 @@ async function onExportPng({ blob, filename }: { blob: Blob; filename: string })
   position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 60;
   font-size: 12.5px; color: var(--ink2); padding: 8px 18px; white-space: nowrap;
   background: var(--card); border: 1px solid var(--line2); border-radius: var(--r-s-hand);
-  box-shadow: 0 2px 4px rgba(38, 37, 32, .08), 0 14px 28px -18px rgba(38, 37, 32, .5);
+  box-shadow: 0 2px 4px rgba(var(--ink-rgb), .08), 0 14px 28px -18px rgba(var(--ink-rgb), .5);
 }
 .toast--err { color: var(--zs-d); border-color: var(--zs-t); }
 .toast-enter-active, .toast-leave-active { transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out); }

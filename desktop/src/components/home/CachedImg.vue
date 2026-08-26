@@ -34,6 +34,6 @@ watch(
 <style scoped>
 .cached-img {
   width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none;
-  border: 1px solid rgba(38, 37, 32, .1);
+  border: 1px solid rgba(var(--ink-rgb), .1);
 }
 </style>

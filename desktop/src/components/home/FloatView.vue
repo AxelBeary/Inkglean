@@ -57,7 +57,7 @@ async function pasteBack() {
 .mini-tail {
   display: flex; align-items: center; justify-content: space-between;
   height: 34px; padding: 0 2px;
-  border-bottom: 1px solid rgba(38, 37, 32, .10);
+  border-bottom: 1px solid rgba(var(--ink-rgb), .10);
 }
 .mt-title {
   font-family: var(--f-d); font-size: 13px; letter-spacing: .08em; color: var(--ink3);
