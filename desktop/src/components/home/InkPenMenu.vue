@@ -166,6 +166,12 @@ function openAbout() {
   setOpen(false)
   emit('open-about')
 }
+
+// ─── 工具箱（波2）：价目分享卡（F3）/ 小票打印机（F4），纯离线工具双模式均可用 ───
+function goTool(name: 'tool-price-card' | 'tool-receipt') {
+  setOpen(false)
+  void router.push({ name })
+}
 </script>
 
 <template>
@@ -285,6 +291,20 @@ function openAbout() {
           <span>{{ m.label }}</span>
         </button>
       </div>
+      <div class="pm-div"></div>
+
+      <!-- 工具箱（波2）：shared 哑组件的桌面宿主壳，纯离线双模式均可用 -->
+      <p class="pm-sec">工具箱</p>
+      <button type="button" class="pm-item" @click="goTool('tool-price-card')">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="1" /><path d="M2.5 6.5h11M5 9.5h3" /></svg>
+        <span class="mid">价目分享卡</span>
+        <span class="hint tag">打开 ↗</span>
+      </button>
+      <button type="button" class="pm-item" @click="goTool('tool-receipt')">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 2.5h9v11l-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1Z" /><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" /></svg>
+        <span class="mid">小票打印机</span>
+        <span class="hint tag">打开 ↗</span>
+      </button>
       <div class="pm-div"></div>
 
       <!-- 其他（检查更新/网页设置：仅云端且在线渲染——§4.3 死按钮红线） -->

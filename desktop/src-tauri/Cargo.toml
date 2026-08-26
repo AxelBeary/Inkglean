@@ -36,6 +36,8 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# 工具箱导出落盘（波2）：PNG base64 解码写文件，避绕 URL 下载链在 WebView2 的不确定性
+base64 = "0.22"
 
 # 凭证保险箱走 Windows DPAPI（仅 Windows 首发；macOS 二期时改 target 条件分支）
 [target.'cfg(windows)'.dependencies]

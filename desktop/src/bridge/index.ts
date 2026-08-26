@@ -11,6 +11,7 @@ export { checkAndDownloadUpdate, installPendingUpdate } from './updater'
 export { saveSecret, loadSecret, deleteSecret } from './secureStore'
 export { notify } from './notification'
 export { openLocalDb } from './db'
+export { saveFile } from './files'
 export {
   minimizeWindow,
   toggleMaximizeWindow,
