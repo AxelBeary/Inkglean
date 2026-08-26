@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 墨笔菜单（方向 A 落码批）：题签右上唯一系统入口，唤出一册纸签——视觉照原型逐段移植。
 // §4.3 脱机审计整包：检查更新/网页版完整设置仅「云端模式且在线」渲染（死按钮红线）；
-// 开机自启纯浏览器环境降级为隐藏该条；关闭行为本批只渲染「直接退出」单选项并记住偏好（托盘未建）。
+// 开机自启纯浏览器环境降级为隐藏该条；关闭行为双选项（826 壳层商业化批托盘常驻后「最小化到托盘」激活）。
 // F8 承诺：关于区明示「画画时间数据永不上传」。
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -13,15 +13,18 @@ import {
   closeFloatingWindow,
   getAutostart,
   openFloatingWindow,
-  setAutostart
+  readCloseBehaviorPref,
+  setAutostart,
+  setCloseBehavior,
+  writeCloseBehaviorPref
 } from '../../bridge/window'
+import type { CloseBehavior } from '../../bridge/window'
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop } from '../../bridge'
 import { WEB_BASE } from '../../config'
 
 const emit = defineEmits<{ (_e: 'open-about'): void }>()
 
 const VERSION = '0.1.0'
-const CLOSE_PREF_KEY = 'shihui-desktop-close-behavior-v1'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -114,14 +117,15 @@ async function toggleAutostart() {
     autostart.value = target
   } catch { /* 设置失败：回显不变，不打扰 */ }
 }
-function readClosePref(): string {
-  try { return localStorage.getItem(CLOSE_PREF_KEY) ?? 'quit' } catch { return 'quit' }
+function readClosePref(): CloseBehavior {
+  return readCloseBehaviorPref()
 }
-const closeBehavior = ref(readClosePref())
-function chooseQuit() {
-  // 本批单选项：托盘未建，「最小化到托盘」不渲染；点按即记住偏好（幂等）
-  closeBehavior.value = 'quit'
-  try { localStorage.setItem(CLOSE_PREF_KEY, 'quit') } catch { /* 偏好非关键路径 */ }
+const closeBehavior = ref<CloseBehavior>(readClosePref())
+function chooseClose(behavior: CloseBehavior) {
+  // 落盘 + 同步壳层（Rust 侧拦截全部关窗路径）；同步失败纯浏览器环境静默，落盘已生效不致危险态
+  closeBehavior.value = behavior
+  writeCloseBehaviorPref(behavior)
+  if (isDesktop()) setCloseBehavior(behavior).catch(() => { /* 同步失败静默 */ })
 }
 
 // ─── 字号（14~20 步进，同网页端滑块口径；全局经 zoom 施加） ───
@@ -242,10 +246,15 @@ function openAbout() {
         <span class="mid">开机自动启动</span>
         <span class="inksw" aria-hidden="true"></span>
       </button>
-      <button type="button" class="pm-item" :aria-pressed="closeBehavior === 'quit'" @click="chooseQuit">
+      <button type="button" class="pm-item" :aria-pressed="closeBehavior === 'quit'" @click="chooseClose('quit')">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10v2.5h11V10" /><path d="M2.5 10h3.2l1 1.6h2.6l1-1.6h3.2" /><path d="M8 2.5V7" /><path d="M5.8 5 8 7.2 10.2 5" /></svg>
-        <span class="mid">关闭时</span>
-        <span class="hint tag">直接退出</span>
+        <span class="mid">关闭时直接退出</span>
+        <span v-if="closeBehavior === 'quit'" class="hint tag">当前</span>
+      </button>
+      <button type="button" class="pm-item" :aria-pressed="closeBehavior === 'tray'" @click="chooseClose('tray')">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9.5v3h11v-3" /><path d="M2.5 9.5 4 3.5h8l1.5 6" /><path d="M2.5 9.5h3.2l.9 1.4h2.8l.9-1.4h3.2" /></svg>
+        <span class="mid">关闭时最小化到托盘</span>
+        <span v-if="closeBehavior === 'tray'" class="hint tag">当前</span>
       </button>
       <div class="pm-item pm-item--static">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12.5 8 3.5l4.5 9" /><path d="M5.3 9.5h5.4" /></svg>
