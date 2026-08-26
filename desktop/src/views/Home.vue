@@ -41,6 +41,10 @@ import {
 import type { DeadlineAlertItem } from '../tools/deadlineAlert'
 import { setTrayTooltip } from '../bridge/tray'
 import { buildTraySnapshot } from '../tools/traySnapshot'
+import { useModulesStore } from '../modules/store'
+import { moduleRenderable } from '../modules/registry'
+import type { ModuleEntry } from '../modules/registry'
+import ModuleFrame from '../components/home/ModuleFrame.vue'
 import TodayPanel from '../panels/TodayPanel.vue'
 import LedgerPanel from '../panels/LedgerPanel.vue'
 import OpsPanel from '../panels/OpsPanel.vue'
@@ -56,6 +60,19 @@ const auth = useAuthStore()
 const prefs = usePrefsStore()
 const ledger = useLocalLedgerStore()
 const autoTime = useAutoTimeStore()
+const modulesStore = useModulesStore()
+
+// ─── 模块渲染（档②波17 四件）：ok 态 + 可渲染（H5 模式过滤）+ 有入口代码；
+// core 区位进卷心，aside/tail 进题跋（tail 区位首发降入题跋，等高纪律不破卷尾） ───
+const renderableModules = computed<ModuleEntry[]>(() =>
+  modulesStore.entries.filter(e =>
+    modulesStore.stateOf(e) === 'ok' &&
+    modulesStore.entryCodes[e.dirName] !== undefined &&
+    moduleRenderable(e, mode.value)
+  )
+)
+const coreZoneModules = computed(() => renderableModules.value.filter(m => m.manifest?.ui.zone === 'core'))
+const asideZoneModules = computed(() => renderableModules.value.filter(m => m.manifest?.ui.zone !== 'core'))
 
 // ─── 运行模式与在线状态 ───
 const mode = computed<'cloud' | 'local'>(() => auth.mode)
@@ -262,6 +279,8 @@ onMounted(async () => {
   restoreTorn()
   // F8 二期自动识别：双模式均启（纯本地采样，不联网，合双模式纪律）
   autoTime.start()
+  // 模块扫描（档②波17 四件）：不热更口径，启动扫一次；管理页可手动重扫（§3.7）
+  void modulesStore.scan()
   if (cloud.value) {
     void loadAll()
     void silentUpdateCheck()
@@ -351,6 +370,16 @@ onErrorCaptured((err, _instance, info) => {
           <LedgerPanel />
         </section>
 
+        <!-- 模块（档②波17 四件）：core 区位模块进卷心，沙箱帧渲染 -->
+        <section
+          v-for="m in coreZoneModules"
+          :key="'mz-' + m.dirName"
+          class="flow flow--module"
+          :aria-label="m.manifest?.name ?? m.dirName"
+        >
+          <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
+        </section>
+
         <aside v-if="showAside" class="aside">
           <section v-if="showOps" class="card ops" aria-label="经营与时间">
             <OpsPanel
@@ -363,6 +392,26 @@ onErrorCaptured((err, _instance, info) => {
           </section>
           <section v-if="showMsgs" class="card msgs" aria-label="留言">
             <MsgsPanel :messages="messages" :failed="msgsFailed" />
+          </section>
+          <!-- 模块（档②波17 四件）：aside/tail 区位模块进题跋（tail 首发降入题跋不破卷尾等高） -->
+          <section
+            v-for="m in asideZoneModules"
+            :key="'mz-' + m.dirName"
+            class="card module-card"
+            :aria-label="m.manifest?.name ?? m.dirName"
+          >
+            <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
+          </section>
+        </aside>
+        <!-- 题跋板块全隐但仍有模块时：单独撑出题跋区（模块不被板块显隐连坐） -->
+        <aside v-else-if="asideZoneModules.length > 0" class="aside">
+          <section
+            v-for="m in asideZoneModules"
+            :key="'mz2-' + m.dirName"
+            class="card module-card"
+            :aria-label="m.manifest?.name ?? m.dirName"
+          >
+            <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
           </section>
         </aside>
       </main>
@@ -493,6 +542,10 @@ onErrorCaptured((err, _instance, info) => {
 }
 .body--solo { grid-template-columns: 1fr; }
 .flow { min-width: 0; display: flex; flex-direction: column; }
+/* 模块位（档②波17 四件）：沙箱帧定高不撑卷（等高纪律），框内样式由模块自带 */
+.flow--module { padding: 10px 12px; background: var(--card); border-radius: var(--r-paper);
+  box-shadow: 0 0 0 1px rgba(var(--ink-rgb), .05), 0 1px 2px rgba(var(--ink-rgb), .06), 0 12px 26px -18px rgba(var(--ink-rgb), .4); }
+.module-card { padding: 10px 12px; }
 
 /* 题跋 aside：侧景（经营 + 留言）；旧山+亭装饰已退役，远山沉入页底幕布（见 .backdrop） */
 .aside { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }

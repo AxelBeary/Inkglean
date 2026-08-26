@@ -3,7 +3,7 @@
 // 偏好与违规账存 localStorage（前缀键 shihui- 随导出包迁移口径）；扫描数据不落盘（每次启动重扫，§3.7 不热更）。
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
-import { listModuleDirs, readModuleManifest } from '../bridge/modules'
+import { listModuleDirs, readModuleManifest, readModuleEntry } from '../bridge/modules'
 import { isDesktop } from '../bridge'
 import { buildRegistry, recordViolation, clearViolations, violationCount } from './registry'
 import type { ModuleEntry, ViolationRec } from './registry'
@@ -65,6 +65,8 @@ export function composeState(
 
 export const useModulesStore = defineStore('desktop-modules', () => {
   const entries = ref<ModuleEntry[]>([])
+  /** 模块入口代码（moduleId/dirName → panel.js 原文）；读不到的不渲染 */
+  const entryCodes = ref<Record<string, string>>({})
   const scanned = ref(false)
   const unavailable = ref(false)
   const prefs = reactive<ModulePrefs>(loadPrefs())
@@ -73,7 +75,8 @@ export const useModulesStore = defineStore('desktop-modules', () => {
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* 偏好非关键路径 */ }
   }
 
-  /** 扫描：列目录 → 逐个读 manifest → buildRegistry（§3.7：不热更，启动/手动重扫触发） */
+  /** 扫描：列目录 → 逐个读 manifest → buildRegistry（§3.7：不热更，启动/手动重扫触发）；
+   *  ok 条目再读 panel.js 入口代码（读不到归因拒载） */
   async function scan(): Promise<void> {
     if (!isDesktop()) { unavailable.value = true; scanned.value = true; return }
     try {
@@ -88,7 +91,20 @@ export const useModulesStore = defineStore('desktop-modules', () => {
           }
         })
       )
-      entries.value = buildRegistry(scannedMods)
+      const built = buildRegistry(scannedMods)
+      // ok 条目读入口代码；读不到归因拒载（规范：缺 panel.js = 非法）
+      const codes: Record<string, string> = {}
+      for (const e of built) {
+        if (e.state !== 'ok') continue
+        try {
+          codes[e.dirName] = await readModuleEntry(e.dirName)
+        } catch (err) {
+          e.state = 'invalid'
+          e.reasons = [...e.reasons, err instanceof Error ? err.message : String(err)]
+        }
+      }
+      entries.value = built
+      entryCodes.value = codes
     } catch {
       unavailable.value = true
     } finally {
@@ -137,7 +153,7 @@ export const useModulesStore = defineStore('desktop-modules', () => {
   }
 
   return {
-    entries, scanned, unavailable, prefs,
+    entries, entryCodes, scanned, unavailable, prefs,
     scan, stateOf, setEnabled, reportViolation, setSetting, getSetting, openModulesDirHint
   }
 })
