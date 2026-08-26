@@ -17,7 +17,8 @@ async function loadDatabase(path: string) {
  *  / local_profile ＝ F6 画师本地档案（单行，id 恒 1）
  *  / local_templates ＝ F1a 工程文件模板绑定（title='' 为全局默认）
  *  / local_img_cache ＝ F5 图缓存登记（url → 本地文件，首拉后免流量）
- *  / local_time_log ＝ F8 自动识别按日累计（在画/离开/其他，仅存本机永不上传） */
+ *  / local_time_log ＝ F8 自动识别按日累计（在画/离开/其他，仅存本机永不上传）
+ *  / local_order_time ＝ F8 归属匹配（波11）：窗口标题↔委托，工时归单累计 */
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS local_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,6 +60,11 @@ const SCHEMA_STATEMENTS = [
     paint_secs INTEGER NOT NULL DEFAULT 0,
     idle_secs INTEGER NOT NULL DEFAULT 0,
     other_secs INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT ''
+  );`,
+  `CREATE TABLE IF NOT EXISTS local_order_time (
+    order_id INTEGER PRIMARY KEY,
+    total_secs INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT ''
   );`
 ]

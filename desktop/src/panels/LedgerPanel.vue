@@ -10,16 +10,20 @@ import type { LocalOrder } from '../stores/localLedger'
 import { useLocalFilesStore } from '../stores/localFiles'
 import type { LocalFile } from '../stores/localFiles'
 import { useLocalTemplatesStore } from '../stores/localTemplates'
+import { useAutoTimeStore } from '../stores/autoTime'
+import { formatSeconds } from '../stores/timer'
 import { openWithSystem, isDesktop } from '../bridge'
 
 const ledger = useLocalLedgerStore()
 const filesStore = useLocalFilesStore()
 const templates = useLocalTemplatesStore()
+const autoTime = useAutoTimeStore()
 
 onMounted(() => {
   if (!ledger.loaded) void ledger.loadAll()
   if (!filesStore.loaded) void filesStore.loadAll()
   if (!templates.loaded) void templates.loadAll()
+  void autoTime.loadOrderTimes() // 归单工时（波11：「这张单我到底画了多久」）
 })
 
 // ─── 概览 ───
@@ -163,6 +167,7 @@ function unhook(f: LocalFile) {
         <div class="row" :class="{ done: o.status === 'paid' }">
           <span class="who" :title="o.client_name">{{ o.client_name }}</span>
           <span class="ttl" :title="o.title">{{ o.title || '约稿' }}</span>
+          <span v-if="autoTime.orderSeconds[o.id]" class="painted" :title="`自动识别在画累计（数据仅存本机）`">已画 {{ formatSeconds(autoTime.orderSeconds[o.id]) }}</span>
           <span class="dl" :class="deadlineText(o).cls" v-if="deadlineText(o).text">{{ deadlineText(o).text }}</span>
           <span class="price num">{{ fmtPrice(o.price) }}</span>
           <span class="st" :class="`st--${o.status}`">{{ STATUS_LABEL[o.status] }}</span>
@@ -231,6 +236,11 @@ function unhook(f: LocalFile) {
   display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px;
   background: var(--card); border: 1px solid rgba(38, 37, 32, .06); border-radius: 5px 7px 6px 8px;
   transition: background var(--dur-fast) var(--ease-out); min-width: 0;
+}
+/* 归单工时小字（波11）：单行铁律同款，窄列下 nowrap 不竖叠 */
+.painted {
+  font-size: 11.5px; color: var(--hq-d); flex: none; white-space: nowrap;
+  padding: 1px 7px; background: var(--hq-t); border-radius: var(--r-s-hand);
 }
 .row:hover { background: var(--paper2); }
 .row.done { opacity: .62; }
