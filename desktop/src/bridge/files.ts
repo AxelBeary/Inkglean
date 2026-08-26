@@ -27,6 +27,13 @@ export async function checkFiles(paths: string[]): Promise<boolean[]> {
   return await invoke<boolean[]>('desktop_check_files', { paths })
 }
 
+/** 批量读文件字节大小（导出 manifest 用）；不存在返 0；空入参不走桥 */
+export async function fileSizes(paths: string[]): Promise<number[]> {
+  if (paths.length === 0) return []
+  if (!isDesktop()) throw new BridgeUnavailableError('fileSizes')
+  return await invoke<number[]>('desktop_file_sizes', { paths })
+}
+
 /** 读文件转 base64（F6 头像自含存储，Rust 侧限 5MB） */
 export async function readFileB64(path: string): Promise<string> {
   if (!isDesktop()) throw new BridgeUnavailableError('readFileB64')

@@ -10,8 +10,8 @@ export { BridgeUnavailableError } from './errors'
 export { checkAndDownloadUpdate, installPendingUpdate } from './updater'
 export { saveSecret, loadSecret, deleteSecret } from './secureStore'
 export { notify } from './notification'
-export { openLocalDb } from './db'
-export { saveFile, checkFiles, readFileB64, shihuiHome, cacheDir, copyFile } from './files'
+export { openLocalDb, localDbPath } from './db'
+export { saveFile, checkFiles, fileSizes, readFileB64, shihuiHome, cacheDir, copyFile } from './files'
 export { foregroundTitle, inputIdleSecs } from './monitor'
 export {
   minimizeWindow,
