@@ -9,14 +9,17 @@ import { useLocalLedgerStore, STATUS_LABEL, nextStatus } from '../stores/localLe
 import type { LocalOrder } from '../stores/localLedger'
 import { useLocalFilesStore } from '../stores/localFiles'
 import type { LocalFile } from '../stores/localFiles'
+import { useLocalTemplatesStore } from '../stores/localTemplates'
 import { openWithSystem, isDesktop } from '../bridge'
 
 const ledger = useLocalLedgerStore()
 const filesStore = useLocalFilesStore()
+const templates = useLocalTemplatesStore()
 
 onMounted(() => {
   if (!ledger.loaded) void ledger.loadAll()
   if (!filesStore.loaded) void filesStore.loadAll()
+  if (!templates.loaded) void templates.loadAll()
 })
 
 // ─── 概览 ───
@@ -79,6 +82,10 @@ async function submit() {
     form.price = ''
     form.deadline = ''
     formOpen.value = false
+    // F1a：有模板绑定即自动建副本并挂到本单文件区（失败静默不阻塞建单；
+    // 只创建不自动打开，§F1a 拍板口径）
+    const made = await templates.createOrderFiles(row)
+    if (made) await filesStore.addFiles(row.id, [made])
   }
 }
 

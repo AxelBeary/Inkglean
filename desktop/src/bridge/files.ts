@@ -32,3 +32,15 @@ export async function readFileB64(path: string): Promise<string> {
   if (!isDesktop()) throw new BridgeUnavailableError('readFileB64')
   return await invoke<string>('desktop_read_file_b64', { path })
 }
+
+/** 拾绘数据根目录（我的文档\拾绘，顺带建目录）：F1a 模板母版与委托文件夹根 */
+export async function shihuiHome(): Promise<string> {
+  if (!isDesktop()) throw new BridgeUnavailableError('shihuiHome')
+  return await invoke<string>('desktop_shihui_home')
+}
+
+/** 复制文件（F1a 母版→复印件）：只复制不搬迁，源文件永不被改动 */
+export async function copyFile(src: string, dst: string): Promise<void> {
+  if (!isDesktop()) throw new BridgeUnavailableError('copyFile')
+  await invoke('desktop_copy_file', { src, dst })
+}

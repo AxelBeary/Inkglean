@@ -11,7 +11,7 @@ export { checkAndDownloadUpdate, installPendingUpdate } from './updater'
 export { saveSecret, loadSecret, deleteSecret } from './secureStore'
 export { notify } from './notification'
 export { openLocalDb } from './db'
-export { saveFile, checkFiles, readFileB64 } from './files'
+export { saveFile, checkFiles, readFileB64, shihuiHome, copyFile } from './files'
 export {
   minimizeWindow,
   toggleMaximizeWindow,

@@ -3,8 +3,9 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextStatus, STATUS_LABEL, useLocalLedgerStore } from '../stores/localLedger'
 import { extractFileName, useLocalFilesStore } from '../stores/localFiles'
+import { pickTemplate, sanitizeName, extractExt, GLOBAL_KEY, useLocalTemplatesStore } from '../stores/localTemplates'
 import { openLocalDb } from '../bridge/db'
-import { checkFiles } from '../bridge/files'
+import { checkFiles, copyFile, shihuiHome } from '../bridge/files'
 import { BridgeUnavailableError } from '../bridge'
 
 const win = window as unknown as Record<string, unknown>
@@ -91,5 +92,44 @@ describe('F1 文件关联（波3）', () => {
     expect(files.loaded).toBe(true)
     expect(files.countFor(1)).toBe(0)
     expect(await files.addFiles(1, ['x.png'])).toBe(0)
+  })
+})
+
+describe('F1a 工程文件模板（波5）', () => {
+  it('pickTemplate 档位优先、回退全局、皆无返 null', () => {
+    const b = { [GLOBAL_KEY]: 'D:\\m\\默认.csp', '头像': 'D:\\m\\头像.csp' }
+    expect(pickTemplate(b, '头像')).toBe('D:\\m\\头像.csp')
+    expect(pickTemplate(b, '全身')).toBe('D:\\m\\默认.csp')
+    expect(pickTemplate(b, '')).toBe('D:\\m\\默认.csp')
+    expect(pickTemplate({}, '头像')).toBeNull()
+  })
+
+  it('sanitizeName 清 Windows 非法字符与首尾点空格', () => {
+    expect(sanitizeName('张三<测试>?')).toBe('张三测试')
+    expect(sanitizeName('  头像. ')).toBe('头像')
+    expect(sanitizeName('a/b\\c:d')).toBe('abcd')
+  })
+
+  it('extractExt 取小写扩展名，无扩展名返空', () => {
+    expect(extractExt('D:\\模\\画.csp')).toBe('.csp')
+    expect(extractExt('D:/a/b.Y')).toBe('.y')
+    expect(extractExt('无扩展名')).toBe('')
+  })
+
+  it('copyFile/shihuiHome 在浏览器环境抛 BridgeUnavailableError', async () => {
+    await expect(copyFile('a', 'b')).rejects.toThrow(BridgeUnavailableError)
+    await expect(shihuiHome()).rejects.toThrow(BridgeUnavailableError)
+  })
+
+  it('模板 store 在浏览器环境静默降级（建单引擎返 null）', async () => {
+    setActivePinia(createPinia())
+    const tpl = useLocalTemplatesStore()
+    await tpl.loadAll()
+    expect(tpl.unavailable).toBe(true)
+    expect(await tpl.bind('头像', 'x.csp')).toBe(false)
+    expect(await tpl.createOrderFiles({
+      id: 1, client_name: '张三', title: '头像', price: 0,
+      deadline: null, status: 'draft', created_at: '', updated_at: ''
+    })).toBeNull()
   })
 })
