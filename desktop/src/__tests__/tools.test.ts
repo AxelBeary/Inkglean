@@ -1,7 +1,9 @@
-// 工具箱波2 测试：zh 词典 t 函数（插值/缺词回退）+ 文件保存桥逃生门。
+// 工具箱波2 测试：zh 词典 t 函数（插值/缺词回退/覆盖）+ 文件桥逃生门 + F6 档案归一化。
 import { describe, it, expect, afterEach } from 'vitest'
-import { zhT, ZH_DICT_KEYS } from '../tools/i18n-zh'
-import { saveFile, BridgeUnavailableError } from '../bridge'
+import { createPinia, setActivePinia } from 'pinia'
+import { zhT, makeT, ZH_DICT_KEYS } from '../tools/i18n-zh'
+import { saveFile, readFileB64, BridgeUnavailableError } from '../bridge'
+import { normalizeProfile, splitTags, useLocalProfileStore } from '../stores/localProfile'
 
 const win = window as unknown as Record<string, unknown>
 
@@ -38,8 +40,40 @@ describe('桌面工具箱 t（shared 哑组件注入口径）', () => {
   })
 })
 
-describe('文件保存桥逃生门', () => {
+describe('文件桥逃生门', () => {
   it('saveFile 在浏览器环境抛 BridgeUnavailableError', async () => {
     await expect(saveFile('C:\\x.png', new Uint8Array([1]))).rejects.toThrow(BridgeUnavailableError)
+  })
+
+  it('readFileB64 在浏览器环境抛 BridgeUnavailableError', async () => {
+    await expect(readFileB64('C:\\a.jpg')).rejects.toThrow(BridgeUnavailableError)
+  })
+})
+
+describe('F6 本地档案（波4）', () => {
+  it('makeT 覆盖优先于词典（署名复用口径）', () => {
+    const t = makeT({ 'priceCard.signText': '星野' })
+    expect(t('priceCard.signText')).toBe('星野')
+    expect(t('priceCard.title')).toBe('价目分享卡') // 未覆盖键照旧走词典
+  })
+
+  it('normalizeProfile 坏形状落空档案', () => {
+    expect(normalizeProfile(null).nickname).toBe('')
+    expect(normalizeProfile({ nickname: 42, intro: '画头像的' }).intro).toBe('画头像的')
+    expect(normalizeProfile({ nickname: 42 }).nickname).toBe('')
+  })
+
+  it('splitTags 多分隔符去空去重', () => {
+    expect(splitTags('日系，厚涂、 Q版,,日系')).toEqual(['日系', '厚涂', 'Q版'])
+    expect(splitTags('  ')).toEqual([])
+  })
+
+  it('档案 store 在浏览器环境静默降级', async () => {
+    setActivePinia(createPinia())
+    const store = useLocalProfileStore()
+    await store.load()
+    expect(store.unavailable).toBe(true)
+    expect(store.loaded).toBe(true)
+    expect(await store.save({ nickname: 'x', avatar_b64: '', intro: '', tags: '' })).toBe(false)
   })
 })

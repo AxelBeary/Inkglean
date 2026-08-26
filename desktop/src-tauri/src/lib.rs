@@ -95,7 +95,8 @@ pub fn run() {
             bridge::autostart::desktop_autostart_get,
             bridge::db::desktop_local_db_path,
             bridge::files::desktop_save_file,
-            bridge::files::desktop_check_files
+            bridge::files::desktop_check_files,
+            bridge::files::desktop_read_file_b64
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

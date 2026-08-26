@@ -26,3 +26,17 @@ pub fn desktop_save_file(path: String, data_b64: String) -> Result<(), String> {
 pub fn desktop_check_files(paths: Vec<String>) -> Vec<bool> {
     paths.iter().map(|p| Path::new(p).exists()).collect()
 }
+
+/// 读文件转 base64（F6 头像自含存储）：限 5MB，超限拒绝（防大文件炸内存）。
+const READ_LIMIT: u64 = 5 * 1024 * 1024;
+
+#[tauri::command]
+pub fn desktop_read_file_b64(path: String) -> Result<String, String> {
+    let p = Path::new(&path);
+    let meta = fs::metadata(p).map_err(|e| e.to_string())?;
+    if meta.len() > READ_LIMIT {
+        return Err("文件超过 5MB 上限".to_string());
+    }
+    let bytes = fs::read(p).map_err(|e| e.to_string())?;
+    Ok(STANDARD.encode(bytes))
+}

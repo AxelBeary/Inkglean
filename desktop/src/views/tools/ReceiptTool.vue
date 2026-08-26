@@ -6,10 +6,11 @@ import { useRouter } from 'vue-router'
 import { ReceiptPrinter as ReceiptPrinterCore } from '@inkglean/shared'
 import type { ReceiptDraft } from '@inkglean/shared'
 import { zhT } from '../../tools/i18n-zh'
-import { copyText, savePng, readDraft, writeDraft, useToolToast } from '../../tools/host'
+import { copyText, savePng, readDraft, writeDraft, useToolToast, useToolT } from '../../tools/host'
 
 const router = useRouter()
 const toast = useToolToast()
+const toolT = useToolT()
 
 const STORAGE_KEY = 'huiyue_receipt_draft'
 const initialDraft = readDraft<ReceiptDraft>(STORAGE_KEY)
@@ -43,7 +44,7 @@ async function onExportPng({ blob, filename }: { blob: Blob; filename: string })
       <span class="badge">工具箱</span>
     </header>
     <ReceiptPrinterCore
-      :t="zhT"
+      :t="toolT"
       locale="zh-CN"
       :initial-draft="initialDraft"
       @draft-change="onDraftChange"

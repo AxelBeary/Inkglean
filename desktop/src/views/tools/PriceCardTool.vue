@@ -9,11 +9,12 @@ import { useRouter } from 'vue-router'
 import { PriceCard as PriceCardCore } from '@inkglean/shared'
 import type { PriceCardDraft, ImportedTier } from '@inkglean/shared'
 import { zhT } from '../../tools/i18n-zh'
-import { copyText, savePng, readDraft, writeDraft, useToolToast } from '../../tools/host'
+import { copyText, savePng, readDraft, writeDraft, useToolToast, useToolT } from '../../tools/host'
 import { useLocalLedgerStore } from '../../stores/localLedger'
 
 const router = useRouter()
 const toast = useToolToast()
+const toolT = useToolT()
 const ledger = useLocalLedgerStore()
 
 const STORAGE_KEY = 'huiyue_price_card_draft'
@@ -90,7 +91,7 @@ async function onRequestImport({ hasContent }: { hasContent: boolean }) {
     </header>
     <PriceCardCore
       ref="coreRef"
-      :t="zhT"
+      :t="toolT"
       locale="zh-CN"
       :initial-draft="initialDraft"
       :picker-enabled="false"

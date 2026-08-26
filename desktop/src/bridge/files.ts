@@ -26,3 +26,9 @@ export async function checkFiles(paths: string[]): Promise<boolean[]> {
   if (!isDesktop()) throw new BridgeUnavailableError('checkFiles')
   return await invoke<boolean[]>('desktop_check_files', { paths })
 }
+
+/** 读文件转 base64（F6 头像自含存储，Rust 侧限 5MB） */
+export async function readFileB64(path: string): Promise<string> {
+  if (!isDesktop()) throw new BridgeUnavailableError('readFileB64')
+  return await invoke<string>('desktop_read_file_b64', { path })
+}
