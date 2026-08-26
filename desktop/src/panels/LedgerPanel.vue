@@ -1,16 +1,22 @@
 <script setup lang="ts">
-// ledger 板块「本地记账」（本地核心环波1 · F2）：本地模式卷心主角，替掉今日要办的空态。
+// ledger 板块「本地记账」（本地核心环波1 · F2 + 波3 · F1）：本地模式卷心主角，替掉今日要办的空态。
 // REQ-014 §F2：客户名/委托内容/价格/截稿日/状态，纯本地不联网；状态单向手动推进。
-// 数据走 stores/localLedger（SQLite）；本组件只管呈现，不碰持久化细节。
-// 单行铁律（826 终验教训）：客户/内容/截稿一律 nowrap 截断，防窄列 CJK 竖叠。
+// REQ-014 §F1：每笔可挂工程文件（只记路径不搬迁），行内展开文件区：调起/丢失重指/解除。
+// 数据走 stores/localLedger + stores/localFiles（SQLite）；本组件只管呈现，不碰持久化细节。
+// 单行铁律（826 终验教训）：客户/内容/截稿/文件名一律 nowrap 截断，防窄列 CJK 竖叠。
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useLocalLedgerStore, STATUS_LABEL, nextStatus } from '../stores/localLedger'
 import type { LocalOrder } from '../stores/localLedger'
+import { useLocalFilesStore } from '../stores/localFiles'
+import type { LocalFile } from '../stores/localFiles'
+import { openWithSystem, isDesktop } from '../bridge'
 
 const ledger = useLocalLedgerStore()
+const filesStore = useLocalFilesStore()
 
 onMounted(() => {
   if (!ledger.loaded) void ledger.loadAll()
+  if (!filesStore.loaded) void filesStore.loadAll()
 })
 
 // ─── 概览 ───
@@ -81,6 +87,53 @@ function advanceLabel(o: LocalOrder): string {
   if (!next) return STATUS_LABEL[o.status]
   return `推进 · ${STATUS_LABEL[next]}`
 }
+
+// ─── 文件区（F1）：行内展开，只记路径不搬迁 ───
+const expandedId = ref<number | null>(null)
+
+function toggleFiles(o: LocalOrder) {
+  expandedId.value = expandedId.value === o.id ? null : o.id
+}
+
+/** 挂文件：系统多选对话框，路径交 store 落库 */
+async function pickFiles(o: LocalOrder) {
+  if (!isDesktop()) return
+  try {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const picked = await open({ multiple: true, title: '选择要挂到这笔委托的文件' })
+    const paths = Array.isArray(picked) ? picked.filter((p): p is string => typeof p === 'string') : []
+    if (paths.length) await filesStore.addFiles(o.id, paths)
+  } catch {
+    // 取消/失败静默，界面态不变
+  }
+}
+
+/** 调起系统关联程序打开工程文件（丢失的不调，诚实提示） */
+async function openFile(f: LocalFile): Promise<void> {
+  if (filesStore.missing.has(f.id)) return
+  try {
+    await openWithSystem(f.file_path)
+  } catch {
+    // 调起失败静默：下次面板重开存在性校验会自愉
+  }
+}
+
+/** 丢失补救：重新指路（单选对话框） */
+async function repoint(f: LocalFile) {
+  if (!isDesktop()) return
+  try {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const picked = await open({ multiple: false, title: `重新指路：${f.file_name}` })
+    if (typeof picked === 'string' && picked) await filesStore.repointFile(f.id, picked)
+  } catch {
+    // 取消/失败静默
+  }
+}
+
+/** 解除关联：只删记录，磁盘文件保持原样（F1 铁律） */
+function unhook(f: LocalFile) {
+  void filesStore.removeFile(f.id)
+}
 </script>
 
 <template>
@@ -97,24 +150,50 @@ function advanceLabel(o: LocalOrder): string {
       还没有账目——点下方「记一笔」，把接到的委托记下来
     </p>
 
-    <!-- 账目行：一单一行纸签 -->
+    <!-- 账目行：一单一行纸签；展开后跟一块文件区（F1） -->
     <div v-else class="rows">
-      <div v-for="o in ledger.orders" :key="o.id" class="row" :class="{ done: o.status === 'paid' }">
-        <span class="who" :title="o.client_name">{{ o.client_name }}</span>
-        <span class="ttl" :title="o.title">{{ o.title || '约稿' }}</span>
-        <span class="dl" :class="deadlineText(o).cls" v-if="deadlineText(o).text">{{ deadlineText(o).text }}</span>
-        <span class="price num">{{ fmtPrice(o.price) }}</span>
-        <span class="st" :class="`st--${o.status}`">{{ STATUS_LABEL[o.status] }}</span>
-        <button
-          v-if="nextStatus(o.status)"
-          type="button"
-          class="adv"
-          :title="`标记为${STATUS_LABEL[nextStatus(o.status) ?? o.status]}`"
-          @click="ledger.advanceStatus(o.id)"
-        >
-          {{ advanceLabel(o) }}
-        </button>
-      </div>
+      <template v-for="o in ledger.orders" :key="o.id">
+        <div class="row" :class="{ done: o.status === 'paid' }">
+          <span class="who" :title="o.client_name">{{ o.client_name }}</span>
+          <span class="ttl" :title="o.title">{{ o.title || '约稿' }}</span>
+          <span class="dl" :class="deadlineText(o).cls" v-if="deadlineText(o).text">{{ deadlineText(o).text }}</span>
+          <span class="price num">{{ fmtPrice(o.price) }}</span>
+          <span class="st" :class="`st--${o.status}`">{{ STATUS_LABEL[o.status] }}</span>
+          <button
+            type="button"
+            class="files-tag"
+            :class="{ 'files-tag--on': expandedId === o.id, 'files-tag--lost': (filesStore.files[o.id] ?? []).some(f => filesStore.missing.has(f.id)) }"
+            :title="filesStore.countFor(o.id) > 0 ? '展开/收起文件' : '挂工程文件'"
+            @click="toggleFiles(o)"
+          >
+            {{ filesStore.countFor(o.id) > 0 ? `文件 ${filesStore.countFor(o.id)}` : '挂文件' }}
+          </button>
+          <button
+            v-if="nextStatus(o.status)"
+            type="button"
+            class="adv"
+            :title="`标记为${STATUS_LABEL[nextStatus(o.status) ?? o.status]}`"
+            @click="ledger.advanceStatus(o.id)"
+          >
+            {{ advanceLabel(o) }}
+          </button>
+        </div>
+
+        <!-- 文件区：只记路径不搬迁；丢失标深朱可重指路 -->
+        <div v-if="expandedId === o.id" class="files-box">
+          <p v-if="(filesStore.files[o.id] ?? []).length === 0" class="files-empty">
+            还没挂文件——选工程文件（CSP/PSD/PNG 等），拾绘只记位置，不动文件本体
+          </p>
+          <div v-for="f in filesStore.files[o.id] ?? []" :key="f.id" class="frow" :class="{ lost: filesStore.missing.has(f.id) }">
+            <span class="fname" :title="f.file_path">{{ f.file_name }}</span>
+            <span v-if="filesStore.missing.has(f.id)" class="flost">找不到了</span>
+            <button v-if="!filesStore.missing.has(f.id)" type="button" class="fact" @click="openFile(f)">打开</button>
+            <button v-else type="button" class="fact" @click="repoint(f)">重新指路</button>
+            <button type="button" class="fact fact--dim" title="仅解除关联，不删文件" @click="unhook(f)">解除</button>
+          </div>
+          <button type="button" class="fadd" @click="pickFiles(o)">＋ 挂文件</button>
+        </div>
+      </template>
     </div>
 
     <!-- 记一笔：内联纸签表单 -->
@@ -207,4 +286,43 @@ function advanceLabel(o: LocalOrder): string {
 }
 .add:hover { color: var(--hq); background: var(--hq-t2); border-color: var(--hq); }
 .hint { font-size: 11px; color: var(--ink4); }
+
+/* 文件区（F1）：账目行下的展开块，纸签行列文件 */
+.files-tag {
+  font-size: 11px; flex: none; padding: 2px 8px; white-space: nowrap;
+  border: 1px dashed var(--line2); border-radius: var(--r-s-hand); color: var(--ink4);
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.files-tag:hover { color: var(--hq-d); border-color: var(--hq); }
+.files-tag--on { border-style: solid; color: var(--hq-d); border-color: var(--hq); background: var(--hq-t); }
+.files-tag--lost { color: var(--zs-d); border-color: var(--zs-t); }
+.files-box {
+  margin: -2px 0 6px; padding: 8px 12px 10px;
+  background: var(--paper2); border: 1px solid rgba(38, 37, 32, .06); border-radius: 4px 6px 5px 7px;
+}
+.files-empty { font-size: 12px; color: var(--ink4); font-family: var(--f-d); margin: 2px 0 6px; }
+.frow {
+  display: flex; align-items: center; gap: 10px; height: 32px; min-width: 0;
+}
+.frow + .frow { border-top: 1px solid rgba(38, 37, 32, .06); }
+.fname {
+  font-size: 12.5px; color: var(--ink2); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.frow.lost .fname { color: var(--ink4); text-decoration: line-through; }
+.flost { font-size: 11px; color: var(--zs-d); flex: none; white-space: nowrap; }
+.fact {
+  font-size: 11.5px; color: var(--ink3); padding: 2px 10px; flex: none; white-space: nowrap;
+  border: 1px solid var(--line2); border-radius: var(--r-s-hand);
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.fact:hover { color: var(--hq-d); border-color: var(--hq); background: var(--hq-t); }
+.fact--dim { color: var(--ink4); }
+.fact--dim:hover { color: var(--zs-d); border-color: var(--zs-t); background: var(--zs-t); }
+.fadd {
+  margin-top: 6px; font-size: 11.5px; color: var(--ink3); padding: 3px 10px;
+  border: 1px dashed var(--line2); border-radius: var(--r-s-hand);
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.fadd:hover { color: var(--ink); border-color: var(--ink4); }
 </style>
