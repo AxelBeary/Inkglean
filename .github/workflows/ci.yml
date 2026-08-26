@@ -45,7 +45,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: |
+            web/package-lock.json
+            shared/package-lock.json
+      # 824 shared 组件搬家：web typecheck/build 直导 ../shared 源码，file: 链接只带源码不带依赖，
+      # shared 自身依赖（vue 类型声明等）须先装，否则 vue-tsc 在 shared 文件上报 TS2307/TS7006
+      - name: Install shared dependencies
+        working-directory: shared
+        run: npm ci
       - run: npm ci
       - run: npx eslint .
       # TS 收尾迁移（2026-08-19）：vue-tsc strict 全量 + scripts 独立 tsconfig 把关
