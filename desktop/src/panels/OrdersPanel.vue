@@ -3,12 +3,15 @@
 // 数据由 Home 统一取（fetchOrders / fetchDeadlineSoon）、失败静默降级为一行提示。
 // 等高纪律（fixed-rows）：chips 定行截断，不撑高卷尾；截稿倒计时可撕悬浮（deadline）。
 // 本地模式（波6）：读本地记账——状态分布 chips + 最急截稿倒计时，不调云端（双模式纪律 §4.3）。
+// 焦点图缩略（波7 · F5）：云端 chips 带缓存缩略图，首拉存本地，之后免流量。
 import { computed } from 'vue'
 import type { ArtistOrderItem, DeadlineSoonItem, OrderStatus } from '../api/types'
 import type { LocalOrder } from '../stores/localLedger'
 import { deadlineLevel } from '../components/home/deadline'
 import { localDaysLeft } from '../components/home/localGlance'
 import TornPlaceholder from '../components/home/TornPlaceholder.vue'
+import CachedImg from '../components/home/CachedImg.vue'
+import { API_BASE } from '../config'
 
 const props = defineProps<{
   mode: 'cloud' | 'local'
@@ -51,6 +54,12 @@ function ordTitle(o: ArtistOrderItem): string {
   const name = o.client_name ?? o.order_no
   const style = o.tier_name ? ` · ${o.tier_name}` : ''
   return `${name}${style} · ${STATUS_TEXT[o.status] ?? o.status}`
+}
+
+/** 焦点图完整 URL（波7）：API_BASE 未配置时返空串，缩略图不渲染（不留死图） */
+function focusUrl(o: ArtistOrderItem): string {
+  if (!API_BASE || !o.focus_image_path) return ''
+  return `${API_BASE}/uploads/${o.focus_image_path}`
 }
 
 /** 截稿倒计时最多 3 枚（按截稿日升序由数据源保证） */
@@ -120,7 +129,8 @@ const localDeads = computed(() =>
         :class="STATUS_DOT[o.status] ?? 'th'"
         :title="ordTitle(o)"
       >
-        <i aria-hidden="true"></i>{{ o.client_name ?? o.order_no }}
+        <CachedImg v-if="focusUrl(o)" :url="focusUrl(o)" :alt="o.client_name ?? o.order_no" />
+        <i v-else aria-hidden="true"></i>{{ o.client_name ?? o.order_no }}
         <span class="st">{{ STATUS_TEXT[o.status] ?? o.status }}</span>
       </span>
       <span v-if="moreCount > 0" class="ord ord--more" title="其余订单">+{{ moreCount }}</span>
@@ -150,7 +160,7 @@ const localDeads = computed(() =>
 .ord {
   display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2);
   padding: 4px 8px; border-radius: var(--r-s-hand); transition: background var(--dur-fast);
-  max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 200px; height: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ord:hover { background: rgba(38, 37, 32, .05); color: var(--ink); }
 .ord i { width: 7px; height: 7px; border-radius: 50%; flex: none; }

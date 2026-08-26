@@ -52,6 +52,18 @@ pub fn desktop_shihui_home(app: AppHandle) -> Result<String, String> {
     Ok(home.to_string_lossy().to_string())
 }
 
+/// 图缓存目录（app_data_dir/img-cache，F5）：与本地库同层，不侵入用户文档；顺带建目录。
+#[tauri::command]
+pub fn desktop_cache_dir(app: AppHandle) -> Result<String, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("img-cache");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.to_string_lossy().to_string())
+}
+
 /// 复制文件（F1a 母版→复印件）：只复制不搬迁，源文件（母版）永不被改动；
 /// 目标存在则覆盖（模板更换口径：已建订单不受影响，因为各自持有自己的副本）。
 #[tauri::command]
