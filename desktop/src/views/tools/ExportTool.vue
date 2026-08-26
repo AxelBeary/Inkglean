@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// 数据导出·桌面宿主壳（本地核心环波9 + 波10）：REQ-014「数据迁移与备份」——
+// 数据导出·桌面宿主壳（本地核心环波9 + 波10 + 波16）：REQ-014「数据迁移与备份」——
 // 导出纯手动一键（数据包＝库+设置+文件清单）；导入＝替换策略（不合并），
-// 有本地数据时先自动备份再替换（冲突强提醒口径），工程文件关联复用 F1 重新指路。
+// 有本地数据时先自动备份再替换（冲突强提醒口径），工程文件关联复用 F1 重新指路；
+// 波16 补工时明细 CSV（F8 输出件「导出含工时列」）。
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLocalLedgerStore } from '../../stores/localLedger'
@@ -10,8 +11,11 @@ import { useLocalProfileStore } from '../../stores/localProfile'
 import { useLocalTemplatesStore } from '../../stores/localTemplates'
 import { runExport } from '../../tools/exportData'
 import { parseBackup, pickBackupFile, readBackup, runImport } from '../../tools/importData'
+import { buildWorklogCsv } from '../../tools/worklogCsv'
+import type { WorklogDayRow, WorklogOrderRow } from '../../tools/worklogCsv'
 import { useToolToast } from '../../tools/host'
-import { isDesktop } from '../../bridge'
+import { isDesktop, saveFile } from '../../bridge'
+import { openLocalDb } from '../../bridge/db'
 
 const router = useRouter()
 const toast = useToolToast()
@@ -40,6 +44,47 @@ async function doExport() {
     if (r.ok) toast.show(`已导出（${r.counts.orders} 笔账 · ${r.counts.files} 个文件关联）`)
     else if (r.path === 'cancelled') { /* 用户收手，不提示 */ }
     else toast.show('导出失败，请重试', 'err')
+  } catch {
+    toast.show('导出失败，请重试', 'err')
+  } finally {
+    busy.value = false
+  }
+}
+
+// ─── 工时明细 CSV（波16 · F8「导出含工时列」）：按日+按单两段，UTF-8 BOM 供 Excel 直开 ───
+async function doExportCsv() {
+  if (busy.value || !isDesktop()) return
+  busy.value = true
+  try {
+    const db = await openLocalDb()
+    const days = await db.select<WorklogDayRow[]>(
+      'SELECT date, paint_secs, idle_secs, other_secs FROM local_time_log ORDER BY date ASC'
+    )
+    const rows = await db.select<{ client: string | null; title: string | null; total_secs: number }[]>(
+      `SELECT o.client_name AS client, o.title AS title, ot.total_secs AS total_secs
+       FROM local_order_time ot JOIN local_orders o ON o.id = ot.order_id
+       ORDER BY ot.total_secs DESC`
+    )
+    if (days.length === 0 && rows.length === 0) {
+      toast.show('还没有工时数据，画画后再来', 'err')
+      return
+    }
+    const orders: WorklogOrderRow[] = rows.map(o => ({
+      client: o.client ?? '',
+      title: o.title ?? '',
+      total_secs: typeof o.total_secs === 'number' ? o.total_secs : 0
+    }))
+    const csv = buildWorklogCsv(days, orders)
+    const { save } = await import('@tauri-apps/plugin-dialog')
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+    const picked = await save({
+      defaultPath: `拾绘工时-${stamp}.csv`,
+      filters: [{ name: 'CSV 表格', extensions: ['csv'] }]
+    })
+    if (!picked) return // 用户取消，不提示
+    await saveFile(picked, new TextEncoder().encode(csv))
+    toast.show('工时明细已导出')
   } catch {
     toast.show('导出失败，请重试', 'err')
   } finally {
@@ -123,6 +168,9 @@ async function doImport() {
 
         <button type="button" class="ok" :disabled="busy" @click="doExport">
           {{ busy ? '打包中…' : '选择位置并导出' }}
+        </button>
+        <button type="button" class="ok ok--ghost" :disabled="busy" title="按日/按单两段，Excel 可直接打开" @click="doExportCsv">
+          导出工时明细（CSV）
         </button>
         <p class="exp-hint">💡 将导出位置选到坚果云 / OneDrive 同步文件夹，可实现自动云备份</p>
 

@@ -37,6 +37,19 @@ const tailText = computed(() => {
 
 /** 近 7 日周条（波14）：有时长数据才渲染 */
 const hasWeek = computed(() => autoTime.week.some(d => d.paint + d.other + d.idle > 0))
+
+/** 月对比（波16 · F8「日/月对比图」之月）：近两月有在画数据才渲染 */
+const hasMonths = computed(() => autoTime.months.length === 2 && autoTime.months.some(m => m.paint > 0))
+const monthText = computed(() => {
+  if (!hasMonths.value) return ''
+  const [prev, cur] = autoTime.months
+  const parts = [`本月在画 ${formatSeconds(cur.paint)}`]
+  if (prev.paint > 0) {
+    const arrow = cur.paint >= prev.paint ? '↑' : '↓'
+    parts.push(`上月 ${formatSeconds(prev.paint)} ${arrow}`)
+  }
+  return parts.join(' · ')
+})
 </script>
 
 <template>
@@ -87,6 +100,8 @@ const hasWeek = computed(() => autoTime.week.some(d => d.paint + d.other + d.idl
   <div v-if="hasWeek" class="week-sec">
     <span class="week-k">近 7 日 · 在画与摸鱼</span>
     <WeekBars :week="autoTime.week" />
+    <!-- 月对比（波16）：本月/上月在画，↑↓ 随行 -->
+    <span v-if="hasMonths" class="month-line">{{ monthText }}</span>
   </div>
 </template>
 
@@ -122,6 +137,8 @@ const hasWeek = computed(() => autoTime.week.some(d => d.paint + d.other + d.idl
 /* 近 7 日周条（波14）：定高不撑面板 */
 .week-sec { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(var(--ink-rgb), .08); }
 .week-k { font-size: 11px; letter-spacing: .1em; color: var(--ink4); display: block; margin-bottom: 6px; }
+/* 月对比（波16）：周条下一行小字，随行不撑面板 */
+.month-line { display: block; margin-top: 6px; font-size: 11.5px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .live i.on { animation: none; }
