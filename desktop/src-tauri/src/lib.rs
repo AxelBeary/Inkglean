@@ -24,6 +24,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         // 系统通知（REQ-014 首发）：留言待审等场景，前端经 bridge/notification.ts 逃生门调用
         .plugin(tauri_plugin_notification::init())
+        // 本地数据层（本地核心环波1）：SQLite，建表/查询由前端经 @tauri-apps/plugin-sql 执行
+        .plugin(tauri_plugin_sql::Builder::default().build())
         // 全局快捷键：注册在 Rust 侧，不经 IPC，无需 capabilities 放行
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -90,7 +92,8 @@ pub fn run() {
             bridge::window::desktop_floating_open,
             bridge::window::desktop_floating_close,
             bridge::autostart::desktop_autostart_set,
-            bridge::autostart::desktop_autostart_get
+            bridge::autostart::desktop_autostart_get,
+            bridge::db::desktop_local_db_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

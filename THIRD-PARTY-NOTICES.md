@@ -83,6 +83,7 @@
 | tauri-plugin-notification / @tauri-apps/plugin-notification | Apache-2.0 OR MIT 双许可（系统通知：留言待审提醒等） |
 | tauri-plugin-global-shortcut | Apache-2.0 OR MIT 双许可（全局快捷键：Ctrl+Alt+S 唤隐主窗口） |
 | tauri-plugin-single-instance | Apache-2.0 OR MIT 双许可（单实例常驻：二次拉起唤起既有窗口） |
+| tauri-plugin-sql / @tauri-apps/plugin-sql | Apache-2.0 OR MIT 双许可（本地数据层：SQLite，内置 rusqlite/sqlite；存本地记账等仅存本机数据） |
 | @tauri-apps/plugin-dialog / @tauri-apps/plugin-updater | Apache-2.0 OR MIT 双许可 |
 | vue / vite / typescript / vue-tsc | MIT（与网页端同栈） |
 | pinia / vue-router | MIT（桌面端路由与状态，与网页端同款） |
@@ -123,4 +124,4 @@ cd server && npx license-checker --json > /tmp/server-licenses.json
 
 ---
 
-*最后更新：2026-08-26（桌面端壳层商业化批新增 tauri-plugin-notification / tauri-plugin-global-shortcut / tauri-plugin-single-instance 登记；此前：2026-08-26 新增 tauri-plugin-window-state 与 tauri-plugin-autostart；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
+*最后更新：2026-08-26（桌面端本地核心环波1 新增 tauri-plugin-sql 登记；此前：2026-08-26 壳层商业化批新增 notification / global-shortcut / single-instance；同日正式图标批；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
