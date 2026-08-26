@@ -105,6 +105,10 @@ pub fn run() {
             bridge::files::desktop_copy_file,
             bridge::monitor::desktop_foreground_title,
             bridge::monitor::desktop_input_idle_secs,
+            bridge::modules::desktop_list_module_dirs,
+            bridge::modules::desktop_read_module_manifest,
+            bridge::modules::desktop_read_module_entry,
+            bridge::modules::desktop_module_storage_path,
             crate::tray::desktop_tray_set_tooltip
         ])
         .run(tauri::generate_context!())

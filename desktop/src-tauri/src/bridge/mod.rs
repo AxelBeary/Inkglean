@@ -4,6 +4,7 @@
 pub mod autostart;
 pub mod db;
 pub mod files;
+pub mod modules;
 pub mod monitor;
 pub mod secure_store;
 pub mod window;

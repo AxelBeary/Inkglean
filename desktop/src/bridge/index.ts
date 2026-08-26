@@ -13,6 +13,7 @@ export { notify } from './notification'
 export { openLocalDb, closeLocalDb, localDbPath } from './db'
 export { saveFile, checkFiles, fileSizes, readFileB64, readBackupB64, shihuiHome, cacheDir, copyFile } from './files'
 export { foregroundTitle, inputIdleSecs } from './monitor'
+export { listModuleDirs, readModuleManifest, readModuleEntry, moduleStoragePath } from './modules'
 export {
   minimizeWindow,
   toggleMaximizeWindow,
