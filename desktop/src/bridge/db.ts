@@ -71,6 +71,21 @@ export async function localDbPath(): Promise<string> {
   return await invoke<string>('desktop_local_db_path')
 }
 
+/** 关闭本地库连接并重置单例（波10 导入替换前必调：防开着旧连接覆写文件）。
+ *  纯浏览器/未打开过：静默无事。 */
+export async function closeLocalDb(): Promise<void> {
+  if (!isDesktop()) return
+  const pending = dbPromise
+  dbPromise = null
+  if (!pending) return
+  try {
+    const db = await pending
+    await db.close()
+  } catch {
+    // 关闭失败不阻塞导入（下次 open 重建连接）
+  }
+}
+
 /** 打开（单例）本地 SQLite；首启自动建表。失败即重置单例，下次调用重试 */
 export function openLocalDb(): Promise<LocalDatabase> {
   if (!isDesktop()) return Promise.reject(new BridgeUnavailableError('openLocalDb'))

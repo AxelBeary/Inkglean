@@ -98,6 +98,7 @@ pub fn run() {
             bridge::files::desktop_check_files,
             bridge::files::desktop_file_sizes,
             bridge::files::desktop_read_file_b64,
+            bridge::files::desktop_read_backup_b64,
             bridge::files::desktop_shihui_home,
             bridge::files::desktop_cache_dir,
             bridge::files::desktop_copy_file,

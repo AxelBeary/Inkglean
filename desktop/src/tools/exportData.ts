@@ -55,36 +55,43 @@ export interface ExportResult {
   counts: { orders: number; files: number }
 }
 
-/** 执行导出：打包 zip → 系统保存对话框 → 落盘。失败口径：抛由页面接住落 toast */
-export async function runExport(files: LocalFile[], orders: LocalOrder[]): Promise<ExportResult> {
-  if (!isDesktop()) return { ok: false, path: '', counts: { orders: 0, files: 0 } }
-
-  // 1. 读库与文件大小
+/** 打数据包（波10 抽出）：返回 zip Blob，供导出（对话框）与导入前自动备份（静默）共用 */
+export async function buildBackupBlob(files: LocalFile[], orders: LocalOrder[]): Promise<Blob> {
   const dbPath = await localDbPath()
   const dbB64 = await readFileB64(dbPath)
   const sizes = await fileSizes(files.map(f => f.file_path))
   const manifest = buildManifest(files, orders, sizes)
 
-  // 2. 打包：local.db + manifest.json + prefs.json + export-info.json
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
   zip.file('local.db', dbB64, { base64: true })
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
   zip.file('prefs.json', JSON.stringify(dumpLocalPrefs(localStorage), null, 2))
-  const now = new Date()
   zip.file('export-info.json', JSON.stringify({
     exporter: '拾绘桌面版',
     version: APP_VERSION,
-    exportedAt: now.toISOString(),
+    exportedAt: new Date().toISOString(),
     note: '数据包含本地数据库/设置/文件清单；工程文件本体不在包内（清单内是路径）；平台缓存图片不含（登录重新拉）'
   }, null, 2))
-  const blob = await zip.generateAsync({ type: 'blob' })
+  return await zip.generateAsync({ type: 'blob' })
+}
 
-  // 3. 保存：系统对话框（默认文件名带日期）
-  const { save } = await import('@tauri-apps/plugin-dialog')
+/** 备份包文件名：拾绘备份-YYYYMMDD.zip（导出与导入前自动备份同口径） */
+export function backupFileName(now = new Date()): string {
   const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+  return `拾绘备份-${stamp}.zip`
+}
+
+/** 执行导出：打包 zip → 系统保存对话框 → 落盘。失败口径：抛由页面接住落 toast */
+export async function runExport(files: LocalFile[], orders: LocalOrder[]): Promise<ExportResult> {
+  if (!isDesktop()) return { ok: false, path: '', counts: { orders: 0, files: 0 } }
+
+  const blob = await buildBackupBlob(files, orders)
+
+  // 保存：系统对话框（默认文件名带日期）
+  const { save } = await import('@tauri-apps/plugin-dialog')
   const picked = await save({
-    defaultPath: `拾绘备份-${stamp}.zip`,
+    defaultPath: backupFileName(),
     filters: [{ name: '拾绘备份包', extensions: ['zip'] }]
   })
   if (!picked) return { ok: false, path: 'cancelled', counts: { orders: orders.length, files: files.length } }
