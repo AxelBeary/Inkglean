@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# tauri icon 生成的移动端图标目录（824 拍板：多端不做，Windows 首发）
+src-tauri/icons/android/
+src-tauri/icons/ios/

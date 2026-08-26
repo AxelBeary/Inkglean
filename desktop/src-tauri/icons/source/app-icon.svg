@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <!-- 拾绘桌面版正式图标源（826 图标批）：朱砂印章「拾」字印·变体 A。
+       色值=纸墨设计语言 token（--zs #BC3A2B）；扁平无渐变（anti-slop）。
+       重新生成全尺寸：node gen-icon.mjs 后 npx tauri icon app-icon-A-1024.png（在 desktop/ 目录执行）。
+       字体依赖系统楷体（KaiTi, simkai.ttf）。 -->
+  <rect width="1024" height="1024" rx="224" fill="#BC3A2B"/>
+  <text x="512" y="728" text-anchor="middle"
+    font-family="KaiTi, KaiTi_GB2312, STKaiti, serif" font-weight="700"
+    font-size="600" fill="#FBF7EC">拾</text>
+</svg>
