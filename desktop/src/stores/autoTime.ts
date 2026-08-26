@@ -82,10 +82,20 @@ export interface DayTime {
   other: number
 }
 
+/** 近 7 日某天的时长行（波14 周条图数据源） */
+export interface DayTimeRow {
+  date: string
+  paint: number
+  idle: number
+  other: number
+}
+
 export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   const today = ref<DayTime>({ paint: 0, idle: 0, other: 0 })
   /** 归单工时（波11）：order_id → 累计秒 */
   const orderSeconds = ref<Record<number, number>>({})
+  /** 近 7 日时长行（波14 周条图；缺日补 0，升序时间序） */
+  const week = ref<DayTimeRow[]>([])
   const loaded = ref(false)
   const unavailable = ref(false)
   let timer: ReturnType<typeof setInterval> | null = null
@@ -129,6 +139,34 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
       orderSeconds.value = map
     } catch {
       // 读失败：已画展示为空，不影响主计时
+    }
+  }
+
+  /** 读近 7 日时长（波14；缺日补 0，升序时间序；读失败周条留空不影响主计时） */
+  async function loadWeek(): Promise<void> {
+    if (!isDesktop()) return
+    try {
+      const db = await openLocalDb()
+      const rows = await db.select<{ date: string; paint_secs: number; idle_secs: number; other_secs: number }[]>(
+        'SELECT date, paint_secs, idle_secs, other_secs FROM local_time_log ORDER BY date DESC LIMIT 7'
+      )
+      const byDate = new Map(rows.map(r => [r.date, r]))
+      const days: DayTimeRow[] = []
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        const key = todayKey(d)
+        const r = byDate.get(key)
+        days.push({
+          date: key,
+          paint: typeof r?.paint_secs === 'number' ? r.paint_secs : 0,
+          idle: typeof r?.idle_secs === 'number' ? r.idle_secs : 0,
+          other: typeof r?.other_secs === 'number' ? r.other_secs : 0
+        })
+      }
+      week.value = days
+    } catch {
+      // 读失败：周条留空，不影响主计时
     }
   }
 
@@ -184,6 +222,7 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
     if (!isDesktop() || timer) return
     void loadToday()
     void loadOrderTimes()
+    void loadWeek()
     void tick() // 首票即采，不等第一个周期
     timer = setInterval(() => { void tick() }, POLL_SECS * 1000)
   }
@@ -196,5 +235,5 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
     }
   }
 
-  return { today, orderSeconds, loaded, unavailable, hasData, loadToday, loadOrderTimes, start, stop }
+  return { today, orderSeconds, week, loaded, unavailable, hasData, loadToday, loadOrderTimes, loadWeek, start, stop }
 })
