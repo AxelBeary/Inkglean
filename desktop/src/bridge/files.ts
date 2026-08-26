@@ -40,6 +40,12 @@ export async function readFileB64(path: string): Promise<string> {
   return await invoke<string>('desktop_read_file_b64', { path })
 }
 
+/** 读备份包转 base64（波10 导入用，Rust 侧限 100MB） */
+export async function readBackupB64(path: string): Promise<string> {
+  if (!isDesktop()) throw new BridgeUnavailableError('readBackupB64')
+  return await invoke<string>('desktop_read_backup_b64', { path })
+}
+
 /** 拾绘数据根目录（我的文档\拾绘，顺带建目录）：F1a 模板母版与委托文件夹根 */
 export async function shihuiHome(): Promise<string> {
   if (!isDesktop()) throw new BridgeUnavailableError('shihuiHome')

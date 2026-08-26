@@ -51,6 +51,20 @@ pub fn desktop_read_file_b64(path: String) -> Result<String, String> {
     Ok(STANDARD.encode(bytes))
 }
 
+/// 读备份包转 base64（波10 导入用）：数据包口径几 MB，放宽到 100MB 仍防失控。
+const BACKUP_READ_LIMIT: u64 = 100 * 1024 * 1024;
+
+#[tauri::command]
+pub fn desktop_read_backup_b64(path: String) -> Result<String, String> {
+    let p = Path::new(&path);
+    let meta = fs::metadata(p).map_err(|e| e.to_string())?;
+    if meta.len() > BACKUP_READ_LIMIT {
+        return Err("备份包超过 100MB 上限".to_string());
+    }
+    let bytes = fs::read(p).map_err(|e| e.to_string())?;
+    Ok(STANDARD.encode(bytes))
+}
+
 /// 拾绘数据根目录（我的文档\拾绘）：F1a 模板母版存 templates/，委托文件夹根 orders/。
 /// 顺带建目录（首启可能不存在）。
 #[tauri::command]
