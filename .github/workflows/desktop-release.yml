@@ -14,6 +14,10 @@ on:
 jobs:
   release-windows:
     runs-on: windows-latest
+    # CodeQL #25 整改（826）：显式声明最小权限——仅发布 Release 产物需要写 contents，其余一概不给；
+    # secrets/vars 读取不受 permissions 块影响，签名私钥链路不变（防投毒口径①）
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: desktop
