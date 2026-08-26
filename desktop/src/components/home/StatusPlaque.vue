@@ -115,7 +115,7 @@ onUnmounted(() => window.removeEventListener('online', onOnline))
   position: relative; display: flex; align-items: center; justify-content: center;
   min-width: 88px; height: 42px; padding: 0 14px;
   background: var(--card); border: 1px solid var(--line2); border-radius: var(--r-s-hand);
-  box-shadow: 0 2px 5px -2px rgba(38, 37, 32, .35);
+  box-shadow: 0 2px 5px -2px rgba(var(--ink-rgb), .35);
   transform-style: preserve-3d; transition: transform var(--dur-slow) var(--ease-out);
 }
 .sign--noanim .sign-inner { transition: none; }

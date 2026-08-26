@@ -36,11 +36,11 @@ async function pasteBack() {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 44px; padding: 10px 14px;
   border: 1px dashed var(--line2); border-radius: var(--r-s-hand);
-  background: rgba(38, 37, 32, 0.025);
+  background: rgba(var(--ink-rgb), 0.025);
   color: var(--ink4); font-size: 12.5px;
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.torn-slot:hover { color: var(--ink2); border-color: var(--ink4); background: rgba(38, 37, 32, 0.045); }
+.torn-slot:hover { color: var(--ink2); border-color: var(--ink4); background: rgba(var(--ink-rgb), 0.045); }
 .torn-mark { font-size: 11px; opacity: 0.7; }
 </style>

@@ -1,9 +1,13 @@
 /* 纸墨 token 注入层（825 波0 地基批，发布前待办清单 11 号兑现）
    值移植自 web/src/styles/artist-tokens.css 画师后台亮色作用域（html[data-artist-theme="paper"]），
    与 web 保持同一套语义；本文件为桌面宿主注入层——shared 哑组件只消费变量、不写死色值。
-   暗色主题二期补（web 暗色块同口径移植）。单一事实源收敛（与 web 共用一份）留后续批评估。 */
+   暗色作用域（波13）：同文件下方 html[data-desktop-theme="dark"]，值照 web 墨黑块同口径移植。 */
 :root {
   color-scheme: light;
+
+  /* 墨色透明值基底（波13）：组件里所有墨色透明（线/悬浮/分隔/格纹）走
+     rgba(var(--ink-rgb), X)——暗色下自动翻为浅色透明，硬编码色值清零 */
+  --ink-rgb: 38, 37, 32;
 
   /* 底色与墨色阶 */
   --paper: #F0E6CF;
@@ -56,6 +60,48 @@
   --font-scale: 1;
 
   /* 背景语义映射（与 web 后台作用域同名同值） */
+  --bg-page: var(--paper);
+  --bg-card: var(--card);
+  --bg-elevated: var(--card);
+  --bg-inset: var(--paper2);
+}
+
+/* ===== 墨黑主题（波13：值照 web artist-tokens.css html[data-artist-theme="ink"] 同口径移植；
+   颜料统一提亮、语义映射不变；圆角/动效/字体为形状与行为变量，无需重定义） ===== */
+html[data-desktop-theme="dark"] {
+  color-scheme: dark;
+
+  --ink-rgb: 236, 232, 220;
+
+  --paper: #171611;
+  --paper2: #1D1C15;
+  --card: #22201A;
+  --ink: #ECE8DC;
+  --ink2: #B8B3A4;
+  /* web 同口径：暗色 ink3/ink4 调浅（深底浅字方向提亮，对比度达标） */
+  --ink3: #8F8977;
+  --ink4: #726D5D;
+  --line: #2F2D24;
+  --line2: #3D3A2E;
+  --white: #ECE8DC;
+
+  /* 颜料统一提亮，语义映射完全不变 */
+  --hq: #8FB2D1;
+  --hq-d: #ABC8E2;
+  --hq-t: rgba(143, 178, 209, .13);
+  --hq-t2: rgba(143, 178, 209, .28);
+  --zs: #E07B6B;
+  --zs-d: #EB9A8C;
+  --zs-t: rgba(224, 123, 107, .14);
+  --sl: #6FBF93;
+  --sl-t: rgba(111, 191, 147, .13);
+  --th: #D9B36A;
+  --th-t: rgba(217, 179, 106, .13);
+  --zhe: #C89B72;
+  --zhe-t: rgba(200, 155, 114, .14);
+  --buf: #928D7C;
+
+  /* 背景语义映射（同名随作用域自动换值） */
   --bg-page: var(--paper);
   --bg-card: var(--card);
   --bg-elevated: var(--card);

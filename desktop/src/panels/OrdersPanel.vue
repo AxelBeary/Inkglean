@@ -162,7 +162,7 @@ const localDeads = computed(() =>
   padding: 4px 8px; border-radius: var(--r-s-hand); transition: background var(--dur-fast);
   max-width: 200px; height: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ord:hover { background: rgba(38, 37, 32, .05); color: var(--ink); }
+.ord:hover { background: rgba(var(--ink-rgb), .05); color: var(--ink); }
 .ord i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .ord .st { font-size: 12px; color: var(--ink4); flex: none; }
 .ord.hq i { background: var(--hq); }

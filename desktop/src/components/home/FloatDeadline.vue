@@ -44,7 +44,7 @@ onMounted(async () => {
 .fdl-row {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   height: 34px; padding: 0 4px;
-  border-bottom: 1px solid rgba(38, 37, 32, .08);
+  border-bottom: 1px solid rgba(var(--ink-rgb), .08);
   min-width: 0;
 }
 .fdl-row:last-child { border-bottom: none; }

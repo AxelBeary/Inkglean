@@ -143,8 +143,8 @@ function onClose(): void {
   padding-left: 12px;
   background-color: var(--paper);
   background-image:
-    linear-gradient(180deg, rgba(38, 37, 32, 0.028) 0, rgba(38, 37, 32, 0) 16px),
-    linear-gradient(0deg, rgba(38, 37, 32, 0.02) 0, rgba(38, 37, 32, 0) 10px);
+    linear-gradient(180deg, rgba(var(--ink-rgb), 0.028) 0, rgba(var(--ink-rgb), 0) 16px),
+    linear-gradient(0deg, rgba(var(--ink-rgb), 0.02) 0, rgba(var(--ink-rgb), 0) 10px);
   color: var(--ink);
   font-family: var(--f-b);
   user-select: none;
@@ -161,7 +161,7 @@ function onClose(): void {
   height: 5px;
   background: linear-gradient(180deg, var(--ink2) 0%, var(--ink) 62%, #151410 100%);
   border-radius: 0 0 3px 3px;
-  box-shadow: 0 1px 2px rgba(38, 37, 32, 0.28);
+  box-shadow: 0 1px 2px rgba(var(--ink-rgb), 0.28);
 }
 /* 杆下两道绫边：花青 + 朱砂细线（裱绢包边口径，色彩克制） */
 .title-bar::after {

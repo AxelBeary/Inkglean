@@ -234,7 +234,7 @@ function unhook(f: LocalFile) {
 .rows { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .row {
   display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px;
-  background: var(--card); border: 1px solid rgba(38, 37, 32, .06); border-radius: 5px 7px 6px 8px;
+  background: var(--card); border: 1px solid rgba(var(--ink-rgb), .06); border-radius: 5px 7px 6px 8px;
   transition: background var(--dur-fast) var(--ease-out); min-width: 0;
 }
 /* 归单工时小字（波11）：单行铁律同款，窄列下 nowrap 不竖叠 */
@@ -293,7 +293,7 @@ function unhook(f: LocalFile) {
   font-size: 12px; color: var(--ink4); padding: 6px 10px; flex: none; border-radius: var(--r-s-hand);
   transition: color var(--dur-fast), background var(--dur-fast);
 }
-.no:hover { color: var(--ink2); background: rgba(38, 37, 32, .05); }
+.no:hover { color: var(--ink2); background: rgba(var(--ink-rgb), .05); }
 
 .foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 10px; }
 .add {
@@ -315,13 +315,13 @@ function unhook(f: LocalFile) {
 .files-tag--lost { color: var(--zs-d); border-color: var(--zs-t); }
 .files-box {
   margin: -2px 0 6px; padding: 8px 12px 10px;
-  background: var(--paper2); border: 1px solid rgba(38, 37, 32, .06); border-radius: 4px 6px 5px 7px;
+  background: var(--paper2); border: 1px solid rgba(var(--ink-rgb), .06); border-radius: 4px 6px 5px 7px;
 }
 .files-empty { font-size: 12px; color: var(--ink4); font-family: var(--f-d); margin: 2px 0 6px; }
 .frow {
   display: flex; align-items: center; gap: 10px; height: 32px; min-width: 0;
 }
-.frow + .frow { border-top: 1px solid rgba(38, 37, 32, .06); }
+.frow + .frow { border-top: 1px solid rgba(var(--ink-rgb), .06); }
 .fname {
   font-size: 12.5px; color: var(--ink2); flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

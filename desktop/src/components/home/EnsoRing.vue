@@ -35,10 +35,10 @@ const rough2Id = computed(() => `rough2-${uid}`)
         </filter>
       </defs>
       <g :filter="`url(#${rough2Id})`" opacity=".14">
-        <circle class="echo" cx="100" cy="100" r="78" fill="none" stroke="rgba(38,37,32,.6)" stroke-width="6" stroke-linecap="round" stroke-dasharray="428 62" transform="rotate(-50 100 100)" />
+        <circle class="echo" cx="100" cy="100" r="78" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="428 62" transform="rotate(-50 100 100)" style="stroke: rgba(var(--ink-rgb), .6)" />
       </g>
       <g :filter="`url(#${roughId})`">
-        <circle class="main" cx="100" cy="100" r="78" fill="none" stroke="rgba(38,37,32,.5)" stroke-width="12" stroke-linecap="round" stroke-dasharray="441 49" transform="rotate(-52 100 100)" />
+        <circle class="main" cx="100" cy="100" r="78" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="441 49" transform="rotate(-52 100 100)" style="stroke: rgba(var(--ink-rgb), .5)" />
       </g>
     </svg>
     <div class="enso-text">

@@ -10,6 +10,9 @@ import { PANEL_REGISTRY } from '../panels/contract'
 const STORAGE_KEY = 'shihui-desktop-prefs-v1'
 const MOUNTS: MountStyle[] = ['plain', 'grid', 'indigo']
 const TEARABLES: TearableId[] = ['timer', 'today-todo', 'deadline']
+/** 主题偏好（波13）：auto=跟随系统 */
+export type ThemePref = 'auto' | 'light' | 'dark'
+const THEMES: ThemePref[] = ['auto', 'light', 'dark']
 
 export interface DesktopPrefs {
   /** 隐藏的板块（today 不可隐，归一化时强制剔除） */
@@ -22,6 +25,8 @@ export interface DesktopPrefs {
   focus: boolean
   /** 字号（14~20 整数，默认 16；同网页端滑块口径，经 zoom 施加于全局） */
   fontSize: number
+  /** 外观主题（auto/light/dark，默认 auto 跟随系统） */
+  theme: ThemePref
 }
 
 const FONT_MIN = 14
@@ -29,7 +34,7 @@ const FONT_MAX = 20
 const FONT_DEFAULT = 16
 
 function defaultPrefs(): DesktopPrefs {
-  return { hidden: [], mount: 'plain', torn: [], focus: false, fontSize: FONT_DEFAULT }
+  return { hidden: [], mount: 'plain', torn: [], focus: false, fontSize: FONT_DEFAULT, theme: 'auto' }
 }
 
 function normalize(raw: unknown): DesktopPrefs {
@@ -44,6 +49,7 @@ function normalize(raw: unknown): DesktopPrefs {
   if (typeof o.fontSize === 'number' && Number.isFinite(o.fontSize)) {
     d.fontSize = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(o.fontSize)))
   }
+  if (THEMES.includes(o.theme as ThemePref)) d.theme = o.theme as ThemePref
   return d
 }
 
@@ -74,6 +80,9 @@ export const usePrefsStore = defineStore('desktop-prefs', () => {
   function setMount(m: MountStyle) { prefs.mount = m }
   function setFocus(f: boolean) { prefs.focus = f }
 
+  /** 主题（波13）：非法值落 auto 由 normalize 保证，此处直写 */
+  function setTheme(t: ThemePref) { prefs.theme = t }
+
   /** 字号：钳在 14~20（同网页端），越界调用自动吸到边界 */
   function setFontSize(n: number) {
     prefs.fontSize = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(n)))
@@ -88,5 +97,5 @@ export const usePrefsStore = defineStore('desktop-prefs', () => {
 
   function isTorn(id: TearableId): boolean { return prefs.torn.includes(id) }
 
-  return { prefs, toggleHidden, setMount, setFocus, setTorn, isTorn, setFontSize }
+  return { prefs, toggleHidden, setMount, setFocus, setTorn, isTorn, setFontSize, setTheme }
 })

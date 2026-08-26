@@ -365,8 +365,8 @@ onErrorCaptured((err, _instance, info) => {
 
 /* 装裱纸式三选（根节点 class 施加；原型 body.mount-* 的桌面化口径） */
 .mount-grid .card {
-  background-image: linear-gradient(rgba(38, 37, 32, .033) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(38, 37, 32, .033) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(var(--ink-rgb), .033) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--ink-rgb), .033) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .mount-indigo .card { background-color: color-mix(in srgb, var(--card) 94%, var(--hq)); }
@@ -390,10 +390,10 @@ onErrorCaptured((err, _instance, info) => {
 .scroll::-webkit-scrollbar { width: 8px; }
 .scroll::-webkit-scrollbar-track { background: transparent; }
 .scroll::-webkit-scrollbar-thumb {
-  background: rgba(38, 37, 32, .22); border-radius: 4px;
+  background: rgba(var(--ink-rgb), .22); border-radius: 4px;
   transition: background var(--dur-fast);
 }
-.scroll::-webkit-scrollbar-thumb:hover { background: rgba(38, 37, 32, .4); }
+.scroll::-webkit-scrollbar-thumb:hover { background: rgba(var(--ink-rgb), .4); }
 
 /* ===== 题签（顶带） ===== */
 .masthead { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; min-width: 0; }
@@ -434,18 +434,18 @@ onErrorCaptured((err, _instance, info) => {
 .aside { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
 .card {
   background: var(--card); border-radius: var(--r-paper);
-  box-shadow: 0 0 0 1px rgba(38, 37, 32, .05), 0 1px 2px rgba(38, 37, 32, .06), 0 12px 26px -18px rgba(38, 37, 32, .4);
+  box-shadow: 0 0 0 1px rgba(var(--ink-rgb), .05), 0 1px 2px rgba(var(--ink-rgb), .06), 0 12px 26px -18px rgba(var(--ink-rgb), .4);
   padding: 14px 16px; position: relative; z-index: 1;
   display: flex; flex-direction: column; min-width: 0;
   transition: box-shadow var(--dur-fast) var(--ease-out);
 }
-.card:hover { box-shadow: 0 0 0 1px rgba(38, 37, 32, .10), 0 1px 2px rgba(38, 37, 32, .08), 0 12px 26px -18px rgba(38, 37, 32, .45); }
+.card:hover { box-shadow: 0 0 0 1px rgba(var(--ink-rgb), .10), 0 1px 2px rgba(var(--ink-rgb), .08), 0 12px 26px -18px rgba(var(--ink-rgb), .45); }
 .msgs { flex: 1; }
 
 /* ===== 卷尾 ===== */
 .tail-bar {
   display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; min-width: 0;
-  padding-top: 12px; border-top: 1px solid rgba(38, 37, 32, .10);
+  padding-top: 12px; border-top: 1px solid rgba(var(--ink-rgb), .10);
 }
 
 /* ===== 远山为幕（移植自网页登录页 LoginBackdrop）：低饱和远山天际线 + 水面倒影 ===== */

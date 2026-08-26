@@ -139,7 +139,7 @@ async function doUnbind(key: string) {
 }
 
 .tpl-card {
-  max-width: 640px; background: var(--card); border: 1px solid rgba(38, 37, 32, .06);
+  max-width: 640px; background: var(--card); border: 1px solid rgba(var(--ink-rgb), .06);
   border-radius: var(--r-paper); padding: 20px 24px 22px;
 }
 .tpl-title { font-family: var(--f-d); font-size: 19px; font-weight: 700; letter-spacing: .06em; color: var(--ink); }
@@ -150,7 +150,7 @@ async function doUnbind(key: string) {
 .tpl-row {
   display: flex; align-items: center; gap: 10px; padding: 8px 0; min-width: 0;
 }
-.tpl-row + .tpl-row { border-top: 1px solid rgba(38, 37, 32, .06); }
+.tpl-row + .tpl-row { border-top: 1px solid rgba(var(--ink-rgb), .06); }
 .tpl-row--global { background: var(--paper2); border-radius: var(--r-s-hand); padding: 10px 12px; }
 .tpl-key { display: flex; flex-direction: column; gap: 2px; flex: none; width: 168px; }
 .tpl-key .k { font-size: 13px; font-weight: 600; color: var(--ink2); }
@@ -179,7 +179,7 @@ async function doUnbind(key: string) {
   position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 60;
   font-size: 12.5px; color: var(--ink2); padding: 8px 18px; white-space: nowrap;
   background: var(--card); border: 1px solid var(--line2); border-radius: var(--r-s-hand);
-  box-shadow: 0 2px 4px rgba(38, 37, 32, .08), 0 14px 28px -18px rgba(38, 37, 32, .5);
+  box-shadow: 0 2px 4px rgba(var(--ink-rgb), .08), 0 14px 28px -18px rgba(var(--ink-rgb), .5);
 }
 .toast--err { color: var(--zs-d); border-color: var(--zs-t); }
 .toast-enter-active, .toast-leave-active { transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out); }

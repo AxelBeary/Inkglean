@@ -99,7 +99,7 @@ const tailText = computed(() => {
 /* F8 二期占比条：三色分段（在画花青/离开灰/其他藤），flex 比例渲染 */
 .auto-bar {
   display: flex; height: 6px; border-radius: 3px; overflow: hidden;
-  background: rgba(38, 37, 32, .08);
+  background: rgba(var(--ink-rgb), .08);
 }
 .auto-bar .seg { display: block; height: 100%; }
 .auto-bar .seg--paint { background: var(--hq); }

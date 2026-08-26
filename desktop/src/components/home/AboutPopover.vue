@@ -44,7 +44,7 @@ onUnmounted(() => {
   position: fixed; right: 34px; bottom: 18px; z-index: 40; width: 240px;
   padding: 14px 16px;
   background: var(--card); border-radius: var(--r-paper);
-  box-shadow: 0 0 0 1px rgba(38, 37, 32, .06), 0 2px 4px rgba(38, 37, 32, .08), 0 18px 36px -18px rgba(38, 37, 32, .5);
+  box-shadow: 0 0 0 1px rgba(var(--ink-rgb), .06), 0 2px 4px rgba(var(--ink-rgb), .08), 0 18px 36px -18px rgba(var(--ink-rgb), .5);
 }
 .ap-head { display: flex; align-items: center; gap: 10px; }
 .ap-seal {

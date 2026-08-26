@@ -152,7 +152,7 @@ function skip() {
 }
 .ob-card {
   position: relative; width: min(560px, 100%);
-  background: var(--card); border: 1px solid rgba(38, 37, 32, .08); border-radius: var(--r-paper);
+  background: var(--card); border: 1px solid rgba(var(--ink-rgb), .08); border-radius: var(--r-paper);
   padding: 34px 38px 46px;
 }
 .ob-skip {
@@ -160,7 +160,7 @@ function skip() {
   font-size: 12px; color: var(--ink4); padding: 4px 8px; border-radius: var(--r-s-hand);
   transition: color var(--dur-fast), background var(--dur-fast);
 }
-.ob-skip:hover { color: var(--ink2); background: rgba(38, 37, 32, .05); }
+.ob-skip:hover { color: var(--ink2); background: rgba(var(--ink-rgb), .05); }
 
 .ob-title { font-family: var(--f-d); font-size: 34px; font-weight: 700; letter-spacing: .18em; color: var(--ink); text-align: center; }
 .ob-title2 { font-family: var(--f-d); font-size: 22px; font-weight: 700; letter-spacing: .1em; color: var(--ink); text-align: center; }
@@ -221,7 +221,7 @@ function skip() {
   font-size: 12.5px; color: var(--ink4); padding: 6px 12px; border-radius: var(--r-s-hand);
   transition: color var(--dur-fast), background var(--dur-fast);
 }
-.ob-back:hover { color: var(--ink2); background: rgba(38, 37, 32, .05); }
+.ob-back:hover { color: var(--ink2); background: rgba(var(--ink-rgb), .05); }
 .ob-next {
   font-size: 13.5px; font-weight: 500; color: var(--hq-d); padding: 8px 24px;
   background: var(--hq-t); border: 1px solid var(--hq-t2); border-radius: var(--r-s-hand);
