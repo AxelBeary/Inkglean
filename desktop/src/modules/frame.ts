@@ -33,21 +33,24 @@ export function newToken(): string {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
 }
 
-/** 帧内握手脚本：收壳的握手拿 token，向 panel.js 暴露最小 API（window.shihui） */
+/** 帧内握手脚本：收壳的握手拿 token，向 panel.js 暴露最小 API（window.shihui）。
+ *  竞态自卫：模块内联脚本先于壳握手执行，握手前的 send 进队列，握手后补发（防丢消息）。 */
 function handshakeScript(): string {
   return [
     '(function(){',
-    'var TOKEN=null;var listeners=[];',
+    'var TOKEN=null;var listeners=[];var pend=[];',
+    'function flush(){pend.forEach(function(m){m.token=TOKEN;parent.postMessage(m,"*")});pend=[]}',
     'window.addEventListener("message",function(e){',
     'var d=e.data;if(!d||typeof d!=="object")return;',
-    'if(d.type==="shihui/handshake"&&d.payload&&typeof d.payload.token==="string"){TOKEN=d.payload.token;',
+    'if(d.type==="shihui/handshake"&&d.payload&&typeof d.payload.token==="string"){TOKEN=d.payload.token;flush();',
     'listeners.forEach(function(l){try{l({type:"shihui/ready-shell"})}catch(_){}});return}',
     'if(d.token!==TOKEN)return;',
     'listeners.forEach(function(l){try{l(d)}catch(_){}})',
     '});',
     'var seq=0;',
     'window.shihui={',
-    'send:function(type,payload){if(!TOKEN)return null;var id="m"+(++seq);parent.postMessage({id:id,type:type,payload:payload==null?null:payload,token:TOKEN},"*");return id},',
+    'send:function(type,payload){var id="m"+(++seq);var m={id:id,type:type,payload:payload==null?null:payload,token:TOKEN};',
+    'if(TOKEN===null){pend.push(m)}else{parent.postMessage(m,"*")}return id},',
     'ready:function(){this.send("shihui/ready")},',
     'heartbeat:function(){this.send("shihui/heartbeat")},',
     'on:function(type,cb){listeners.push(function(d){if(d.type===type)cb(d.payload,d)})},',

@@ -67,6 +67,13 @@ describe('buildModuleHtml / buildFrameSrc（沙箱帧形态）', () => {
   it('帧 src 为 data URL（opaque origin）', () => {
     expect(buildFrameSrc('x').startsWith('data:text/html;charset=utf-8,')).toBe(true)
   })
+
+  it('握手前 send 进队列、握手后补发（竞态自卫：模块脚本先于壳握手执行）', () => {
+    const html = buildModuleHtml('x')
+    expect(html).toContain('pend') // 待握手队列
+    expect(html).toContain('flush') // 握手后补发（补发时补 token）
+    expect(html).toContain('m.token=TOKEN')
+  })
 })
 
 describe('buildViewData（拍板一视图白名单）', () => {

@@ -27,3 +27,9 @@ export async function moduleStoragePath(dirName: string): Promise<string> {
   if (!isDesktop()) throw new BridgeUnavailableError('moduleStoragePath')
   return await invoke<string>('desktop_module_storage_path', { dirName })
 }
+
+/** 一键安装示例模块「稿情气象台」（随壳内嵌；已存在报错不覆盖） */
+export async function installSampleModule(): Promise<void> {
+  if (!isDesktop()) throw new BridgeUnavailableError('installSampleModule')
+  await invoke('desktop_install_sample_module')
+}
