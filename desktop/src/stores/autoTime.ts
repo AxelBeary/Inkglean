@@ -90,12 +90,21 @@ export interface DayTimeRow {
   other: number
 }
 
+/** 月度时长行（波16 月对比图数据源：YYYY-MM → 当月累计在画/其他） */
+export interface MonthTimeRow {
+  month: string
+  paint: number
+  other: number
+}
+
 export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   const today = ref<DayTime>({ paint: 0, idle: 0, other: 0 })
   /** 归单工时（波11）：order_id → 累计秒 */
   const orderSeconds = ref<Record<number, number>>({})
   /** 近 7 日时长行（波14 周条图；缺日补 0，升序时间序） */
   const week = ref<DayTimeRow[]>([])
+  /** 近 2 个月时长行（波16 月对比图；升序，旧在前） */
+  const months = ref<MonthTimeRow[]>([])
   const loaded = ref(false)
   const unavailable = ref(false)
   let timer: ReturnType<typeof setInterval> | null = null
@@ -170,6 +179,34 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
     }
   }
 
+  /** 读近 2 个月累计（波16；缺月补 0，升序旧在前；读失败留空不影响主计时） */
+  async function loadMonths(): Promise<void> {
+    if (!isDesktop()) return
+    try {
+      const db = await openLocalDb()
+      const rows = await db.select<{ m: string; paint: number; other: number }[]>(
+        `SELECT substr(date, 1, 7) AS m, SUM(paint_secs) AS paint, SUM(other_secs) AS other
+         FROM local_time_log GROUP BY substr(date, 1, 7) ORDER BY m DESC LIMIT 2`
+      )
+      // 补全近两月键（缺月补 0），升序旧在前；当月键由本地时区算（与 date 口径一致）
+      const now = new Date()
+      const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const prev = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, '0')}`
+      const byMonth = new Map(rows.map(r => [r.m, r]))
+      months.value = [prev, cur].map(key => {
+        const r = byMonth.get(key)
+        return {
+          month: key,
+          paint: typeof r?.paint === 'number' ? r.paint : 0,
+          other: typeof r?.other === 'number' ? r.other : 0
+        }
+      })
+    } catch {
+      // 读失败：月对比留空，不影响主计时
+    }
+  }
+
   /** 采样一票：读前台+空闲 → 归属 → 内存与库同步累加；在画票再归单（失败静默，下一票自愈） */
   async function tick(): Promise<void> {
     if (unavailable.value) return
@@ -223,6 +260,7 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
     void loadToday()
     void loadOrderTimes()
     void loadWeek()
+    void loadMonths()
     void tick() // 首票即采，不等第一个周期
     timer = setInterval(() => { void tick() }, POLL_SECS * 1000)
   }
@@ -235,5 +273,5 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
     }
   }
 
-  return { today, orderSeconds, week, loaded, unavailable, hasData, loadToday, loadOrderTimes, loadWeek, start, stop }
+  return { today, orderSeconds, week, months, loaded, unavailable, hasData, loadToday, loadOrderTimes, loadWeek, loadMonths, start, stop }
 })
