@@ -3,10 +3,42 @@
 // 前端契约 = src/bridge/window.ts（方向 A 落码批冻结件），invoke 名与参数一一对应。
 // 纪律：找不到窗口等场景返回 Result 静默语义，绝不 panic 拖垮壳；不碰保险箱/凭据。
 use serde::Deserialize;
+use std::sync::Mutex;
 use tauri::{AppHandle, LogicalPosition, Manager, WebviewUrl, WebviewWindowBuilder};
 
 /// 主窗口 label（tauri.conf.json app.windows 首项，capabilities 按此匹配）
 const MAIN_WINDOW: &str = "main";
+
+// ─── 关闭行为偏好（壳层商业化批） ───
+// 前端菜单选「直接退出 / 最小化到托盘」后同步到本状态；
+// 真正拦截在 lib.rs on_window_event（CloseRequested）里做——这样 Alt+F4 等
+// 不经过自绘关闭按钮的关窗路径也一律命中，不留死角。
+
+/// 关闭行为：退出 / 收进托盘（隐藏窗口，应用驻留）
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CloseAction {
+    Quit,
+    ToTray,
+}
+
+/// Managed state（lib.rs .manage() 注册）；锁失败一律当 Quit 处理，绝不 panic。
+pub struct CloseBehaviorState(pub Mutex<CloseAction>);
+
+/// 前端同步关闭行为偏好（'quit' | 'tray'）；非法值归一为 quit。
+#[tauri::command]
+pub fn desktop_close_behavior_set(app: AppHandle, behavior: String) -> Result<(), String> {
+    let action = if behavior == "tray" {
+        CloseAction::ToTray
+    } else {
+        CloseAction::Quit
+    };
+    let state = app.state::<CloseBehaviorState>();
+    // 中毒锁（理论不会发生）也静默降级，关窗偏好非关键路径
+    if let Ok(mut guard) = state.0.lock() {
+        *guard = action;
+    }
+    Ok(())
+}
 
 /// 撕悬浮三件白名单：非法 kind 反序列化即失败（防前端拼出未登记 label）
 #[derive(Deserialize)]

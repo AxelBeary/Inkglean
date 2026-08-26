@@ -3,13 +3,19 @@
 // 原脚手架桥接自检页随路由化退役（桥接能力由 bridge 单测与登录链实测覆盖）。
 // 826：字号偏好全局施加——组件尺寸皆为定值，经 zoom 整体缩放（登录/首页/悬浮窗全覆盖；
 // 每窗独立 JS 上下文读同一 localStorage，多窗一致）。
-import { watchEffect } from 'vue'
+// 826 壳层商业化批：启动即把关闭行为偏好同步到壳层（不依赖菜单渲染，保证 Alt+F4 等路径也能命中）。
+import { onMounted, watchEffect } from 'vue'
 import { usePrefsStore } from './stores/prefs'
+import { isDesktop, readCloseBehaviorPref, setCloseBehavior } from './bridge'
 
 const prefs = usePrefsStore()
 watchEffect(() => {
   // zoom 为 Chromium（WebView2）支持的缩放属性；基准 16px，14~20 对应 0.875~1.25
   document.documentElement.style.setProperty('zoom', String(prefs.prefs.fontSize / 16))
+})
+onMounted(() => {
+  // 纯浏览器/同步失败都静默（偏好默认即退出，同步不上不造成危险态）
+  if (isDesktop()) setCloseBehavior(readCloseBehaviorPref()).catch(() => {})
 })
 </script>
 
