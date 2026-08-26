@@ -2,7 +2,9 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextStatus, STATUS_LABEL, useLocalLedgerStore } from '../stores/localLedger'
+import { extractFileName, useLocalFilesStore } from '../stores/localFiles'
 import { openLocalDb } from '../bridge/db'
+import { checkFiles } from '../bridge/files'
 import { BridgeUnavailableError } from '../bridge'
 
 const win = window as unknown as Record<string, unknown>
@@ -63,5 +65,31 @@ describe('记账 store（纯浏览器环境降级）', () => {
     setActivePinia(createPinia())
     const ledger = useLocalLedgerStore()
     expect(ledger.paidThisMonth).toBe(0)
+  })
+})
+
+describe('F1 文件关联（波3）', () => {
+  it('extractFileName 兼容两种斜杠（纯函数）', () => {
+    expect(extractFileName('D:\\画稿\\张三-头像.csp')).toBe('张三-头像.csp')
+    expect(extractFileName('/home/art/wip.psd')).toBe('wip.psd')
+    expect(extractFileName('裸文件名.png')).toBe('裸文件名.png')
+  })
+
+  it('checkFiles 在浏览器环境抛 BridgeUnavailableError', async () => {
+    await expect(checkFiles(['a.png'])).rejects.toThrow(BridgeUnavailableError)
+  })
+
+  it('checkFiles 空入参直接返空数组（不走桥）', async () => {
+    await expect(checkFiles([])).resolves.toEqual([])
+  })
+
+  it('文件 store 在浏览器环境静默降级', async () => {
+    setActivePinia(createPinia())
+    const files = useLocalFilesStore()
+    await files.loadAll()
+    expect(files.unavailable).toBe(true)
+    expect(files.loaded).toBe(true)
+    expect(files.countFor(1)).toBe(0)
+    expect(await files.addFiles(1, ['x.png'])).toBe(0)
   })
 })

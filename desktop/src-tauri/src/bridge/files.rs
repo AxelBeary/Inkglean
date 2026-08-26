@@ -19,3 +19,10 @@ pub fn desktop_save_file(path: String, data_b64: String) -> Result<(), String> {
     let bytes = STANDARD.decode(data_b64.as_bytes()).map_err(|e| e.to_string())?;
     fs::write(p, bytes).map_err(|e| e.to_string())
 }
+
+/// 批量校验文件是否存在（F1 丢失提醒）：入参顺序与返回一致；
+/// 只读存在性检查，不碰文件本体（「文件保持原样在磁盘」口径）。
+#[tauri::command]
+pub fn desktop_check_files(paths: Vec<String>) -> Vec<bool> {
+    paths.iter().map(|p| Path::new(p).exists()).collect()
+}

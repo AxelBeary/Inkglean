@@ -19,3 +19,10 @@ export async function saveFile(path: string, data: Uint8Array): Promise<void> {
   if (!isDesktop()) throw new BridgeUnavailableError('saveFile')
   await invoke('desktop_save_file', { path, dataB64: uint8ToBase64(data) })
 }
+
+/** 批量校验文件是否存在（F1 丢失提醒）；入参顺序与返回一致；空入参不走桥 */
+export async function checkFiles(paths: string[]): Promise<boolean[]> {
+  if (paths.length === 0) return []
+  if (!isDesktop()) throw new BridgeUnavailableError('checkFiles')
+  return await invoke<boolean[]>('desktop_check_files', { paths })
+}
