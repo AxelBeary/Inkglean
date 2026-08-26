@@ -46,6 +46,12 @@ export async function readBackupB64(path: string): Promise<string> {
   return await invoke<string>('desktop_read_backup_b64', { path })
 }
 
+/** 删除缓存文件（波15 图缓存淘汰；Rust 侧自卫：只许 img-cache 目录，幂等） */
+export async function deleteCacheFile(path: string): Promise<void> {
+  if (!isDesktop()) throw new BridgeUnavailableError('deleteCacheFile')
+  await invoke('desktop_delete_cache_file', { path })
+}
+
 /** 拾绘数据根目录（我的文档\拾绘，顺带建目录）：F1a 模板母版与委托文件夹根 */
 export async function shihuiHome(): Promise<string> {
   if (!isDesktop()) throw new BridgeUnavailableError('shihuiHome')

@@ -65,6 +65,26 @@ pub fn desktop_read_backup_b64(path: String) -> Result<String, String> {
     Ok(STANDARD.encode(bytes))
 }
 
+/// 删除缓存文件（波15 图缓存淘汰）：自卫口径＝只许 img-cache 目录内的文件，
+/// 组件级前缀比较防路径穿越；文件不在视为成功（幂等）。
+#[tauri::command]
+pub fn desktop_delete_cache_file(app: AppHandle, path: String) -> Result<(), String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("img-cache");
+    let p = Path::new(&path);
+    if !p.starts_with(&dir) {
+        return Err("只允许删除 img-cache 缓存文件".to_string());
+    }
+    match fs::remove_file(p) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 /// 拾绘数据根目录（我的文档\拾绘）：F1a 模板母版存 templates/，委托文件夹根 orders/。
 /// 顺带建目录（首启可能不存在）。
 #[tauri::command]
