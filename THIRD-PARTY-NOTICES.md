@@ -88,9 +88,10 @@
 | vue / vite / typescript / vue-tsc | MIT（与网页端同栈） |
 | pinia / vue-router | MIT（桌面端路由与状态，与网页端同款） |
 | windows（Rust crate，仅 Windows） | Apache-2.0 OR MIT 双许可（DPAPI 凭证保险箱用） |
+| base64（Rust crate） | Apache-2.0 OR MIT 双许可（工具箱导出落盘：PNG base64 解码） |
 | Windows WebView2 运行时 | Microsoft 专有（系统组件，随 Windows 分发，非本项目依赖包） |
 
-> **桌面端运行时说明**：桌面端渲染依赖系统已安装的 Microsoft Edge WebView2 运行时（Windows 10/11 默认自带）。后续引入 tauri-plugin-sql（本地 SQLite）等插件时按本登记纪律逐条补登。
+> **桌面端运行时说明**：桌面端渲染依赖系统已安装的 Microsoft Edge WebView2 运行时（Windows 10/11 默认自带）。tauri-plugin-sql（本地 SQLite）已随本地核心环波1 引入并登记；后续新增插件按本登记纪律逐条补登。
 
 ---
 
