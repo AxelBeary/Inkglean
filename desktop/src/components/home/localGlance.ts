@@ -44,3 +44,37 @@ export function buildLocalGlance(orders: LocalOrder[], paidThisMonth: number): L
   }
   return parts
 }
+
+// ─── 本地悬浮截稿行（本地模式体验巡检收尾波）：悬浮截稿窗的本地数据源，口径同首页倒计时条 ───
+
+export interface LocalDeadlineRow {
+  id: number
+  /** 展示名：客户名优先，落内容次之 */
+  clientName: string
+  orderNo: string
+  daysLeft: number
+}
+
+/** 从本地记账组悬浮截稿行（纯函数可测）：未完成 + 有截稿 + 窗口内（≤horizonDays），
+ *  daysLeft 升序（逾期最前），超 limit 截断——与云端 fetchDeadlineSoon(14, 6) 同款口径 */
+export function buildLocalDeadlineRows(
+  orders: LocalOrder[],
+  horizonDays: number,
+  limit: number
+): LocalDeadlineRow[] {
+  const rows: LocalDeadlineRow[] = []
+  for (const o of orders) {
+    if (o.status !== 'draft' && o.status !== 'in_progress') continue
+    if (!o.deadline) continue
+    const dl = localDaysLeft(o.deadline)
+    if (dl === null || dl > horizonDays) continue
+    rows.push({
+      id: o.id,
+      clientName: o.client_name || o.title || '未名单',
+      orderNo: o.title || o.client_name || `单 ${o.id}`,
+      daysLeft: dl
+    })
+  }
+  rows.sort((a, b) => a.daysLeft - b.daysLeft)
+  return rows.slice(0, limit)
+}

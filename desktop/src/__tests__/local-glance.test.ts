@@ -1,6 +1,6 @@
 // 本地核心环波6 测试：本地概览句组装与日差纯函数（首页本地变体的口径哨兵）。
 import { describe, it, expect } from 'vitest'
-import { buildLocalGlance, localDaysLeft } from '../components/home/localGlance'
+import { buildLocalGlance, buildLocalDeadlineRows, localDaysLeft } from '../components/home/localGlance'
 import type { LocalOrder } from '../stores/localLedger'
 
 function order(p: Partial<LocalOrder>): LocalOrder {
@@ -76,5 +76,35 @@ describe('buildLocalGlance（本地概览句口径）', () => {
       0
     )
     expect(parts.some(p => p.tone === 'od')).toBe(false)
+  })
+})
+
+describe('buildLocalDeadlineRows（悬浮截稿窗本地数据源，巡检收尾波）', () => {
+  it('未完成+有截稿+窗口内；逾期最前；超 limit 截断', () => {
+    const rows = buildLocalDeadlineRows(
+      [
+        order({ id: 1, deadline: isoDaysFromNow(5) }),
+        order({ id: 2, client_name: '急单', deadline: isoDaysFromNow(-2) }),
+        order({ id: 3, deadline: null }),
+        order({ id: 4, deadline: isoDaysFromNow(30) }),
+        order({ id: 5, deadline: isoDaysFromNow(0), status: 'paid' }),
+        order({ id: 6, deadline: isoDaysFromNow(1) }),
+        order({ id: 7, deadline: isoDaysFromNow(2) })
+      ],
+      14, 3
+    )
+    // id5 已收款被滤；剩 -2/1/2/5，取前 3 且逾期最前
+    expect(rows.map(r => r.daysLeft)).toEqual([-2, 1, 2])
+    expect(rows[0].clientName).toBe('急单')
+  })
+
+  it('无截稿单返空（悬浮窗走诚实空态）', () => {
+    expect(buildLocalDeadlineRows([order({ deadline: null }), order({ deadline: isoDaysFromNow(60) })], 14, 6)).toEqual([])
+  })
+
+  it('客户名缺失落内容', () => {
+    const rows = buildLocalDeadlineRows([order({ client_name: '', deadline: isoDaysFromNow(1) })], 14, 6)
+    expect(rows[0].clientName).toBe('头像') // 落 title
+    expect(rows[0].orderNo).toBe('头像')
   })
 })
