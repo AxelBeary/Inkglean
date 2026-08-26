@@ -15,7 +15,8 @@ async function loadDatabase(path: string) {
 
 /** 建表（幂等）：local_orders ＝ F2 本地委托记账 / local_files ＝ F1 文件关联（只记路径不搬迁）
  *  / local_profile ＝ F6 画师本地档案（单行，id 恒 1）
- *  / local_templates ＝ F1a 工程文件模板绑定（title='' 为全局默认） */
+ *  / local_templates ＝ F1a 工程文件模板绑定（title='' 为全局默认）
+ *  / local_img_cache ＝ F5 图缓存登记（url → 本地文件，首拉后免流量） */
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS local_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,6 +47,11 @@ const SCHEMA_STATEMENTS = [
     title TEXT PRIMARY KEY,
     template_path TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS local_img_cache (
+    url TEXT PRIMARY KEY,
+    file_path TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
   );`
 ]
 

@@ -39,6 +39,12 @@ export async function shihuiHome(): Promise<string> {
   return await invoke<string>('desktop_shihui_home')
 }
 
+/** 图缓存目录（app_data_dir/img-cache，F5，顺带建目录） */
+export async function cacheDir(): Promise<string> {
+  if (!isDesktop()) throw new BridgeUnavailableError('cacheDir')
+  return await invoke<string>('desktop_cache_dir')
+}
+
 /** 复制文件（F1a 母版→复印件）：只复制不搬迁，源文件永不被改动 */
 export async function copyFile(src: string, dst: string): Promise<void> {
   if (!isDesktop()) throw new BridgeUnavailableError('copyFile')
