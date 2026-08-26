@@ -18,6 +18,7 @@ const router = createRouter({
     // 工具箱（波2）：价目分享卡（F3）/ 小票打印机（F4）——shared 哑组件的桌面宿主壳，双模式均可用（纯离线工具）
     { path: '/tools/price-card', name: 'tool-price-card', component: () => import('../views/tools/PriceCardTool.vue'), meta: { requiresAuth: true } },
     { path: '/tools/receipt', name: 'tool-receipt', component: () => import('../views/tools/ReceiptTool.vue'), meta: { requiresAuth: true } },
+    { path: '/tools/profile', name: 'tool-profile', component: () => import('../views/tools/ProfileTool.vue'), meta: { requiresAuth: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })

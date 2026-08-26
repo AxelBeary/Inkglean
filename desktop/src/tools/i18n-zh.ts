@@ -111,14 +111,20 @@ const DICT: Record<string, string> = {
   'common.cancel': '取消'
 }
 
-/** 桌面端 t：词典查词 + {param} 插值；缺词回退键名本身（排查可见，不装死） */
-export function zhT(key: string, params?: Record<string, unknown>): string {
-  const raw = DICT[key] ?? key
-  if (!params) return raw
-  return raw.replace(/\{(\w+)\}/g, (_, name: string) =>
-    params[name] !== undefined ? String(params[name]) : `{${name}}`
-  )
+/** 桌面端 t：词典查词 + {param} 插值；缺词回退键名本身（排查可见，不装死）。
+ *  overrides 供宿主覆盖个别键（F6 复用：本地档案昵称覆盖署名/印章）。 */
+export function makeT(overrides: Record<string, string> = {}): TFn {
+  return (key, params) => {
+    const raw = overrides[key] ?? DICT[key] ?? key
+    if (!params) return raw
+    return raw.replace(/\{(\w+)\}/g, (_, name: string) =>
+      params[name] !== undefined ? String(params[name]) : `{${name}}`
+    )
+  }
 }
+
+/** 默认 t（无覆盖） */
+export const zhT: TFn = makeT()
 
 /** 词典键集合（测试用：对照 shared 组件实际用词防漂移） */
 export const ZH_DICT_KEYS: readonly string[] = Object.keys(DICT)

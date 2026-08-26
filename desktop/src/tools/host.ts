@@ -2,8 +2,27 @@
 // 剪贴板 / 导出落盘（系统保存对话框）/ 草稿读写 / 内联轻提示。
 // 纪律：哑组件不碰这些能力，全部经本层；纯浏览器环境一律留降级出口不留死按钮。
 import { ref } from 'vue'
+import { computed } from 'vue'
 import { saveFile } from '../bridge/files'
 import { isDesktop } from '../bridge'
+import { makeT } from './i18n-zh'
+import type { TFn } from './i18n-zh'
+import { useLocalProfileStore } from '../stores/localProfile'
+
+// ─── 工具 t（F6 复用）：本地档案有昵称时覆盖价目卡/小票署名与印章 ───
+export function useToolT() {
+  const profileStore = useLocalProfileStore()
+  return computed<TFn>(() => {
+    const nick = profileStore.profile.nickname.trim()
+    if (!nick) return makeT()
+    // 印章为圆形小印，限两字防溢出；署名不限
+    return makeT({
+      'priceCard.signText': nick,
+      'priceCard.sealText': nick.slice(0, 2),
+      'receipt.sealText': nick.slice(0, 2)
+    })
+  })
+}
 
 // ─── 剪贴板 ───
 export async function copyText(text: string): Promise<boolean> {

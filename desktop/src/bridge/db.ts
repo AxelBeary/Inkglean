@@ -13,7 +13,8 @@ async function loadDatabase(path: string) {
   return Database.load(`sqlite:${path}`)
 }
 
-/** 建表（幂等）：local_orders ＝ F2 本地委托记账 / local_files ＝ F1 文件关联（只记路径不搬迁） */
+/** 建表（幂等）：local_orders ＝ F2 本地委托记账 / local_files ＝ F1 文件关联（只记路径不搬迁）
+ *  / local_profile ＝ F6 画师本地档案（单行，id 恒 1） */
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS local_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,6 +32,14 @@ const SCHEMA_STATEMENTS = [
     file_name TEXT NOT NULL,
     file_path TEXT NOT NULL,
     added_at TEXT NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS local_profile (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    nickname TEXT NOT NULL DEFAULT '',
+    avatar_b64 TEXT NOT NULL DEFAULT '',
+    intro TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
   );`
 ]
 

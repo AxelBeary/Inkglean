@@ -168,7 +168,7 @@ function openAbout() {
 }
 
 // ─── 工具箱（波2）：价目分享卡（F3）/ 小票打印机（F4），纯离线工具双模式均可用 ───
-function goTool(name: 'tool-price-card' | 'tool-receipt') {
+function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile') {
   setOpen(false)
   void router.push({ name })
 }
@@ -303,6 +303,11 @@ function goTool(name: 'tool-price-card' | 'tool-receipt') {
       <button type="button" class="pm-item" @click="goTool('tool-receipt')">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 2.5h9v11l-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1Z" /><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" /></svg>
         <span class="mid">小票打印机</span>
+        <span class="hint tag">打开 ↗</span>
+      </button>
+      <button type="button" class="pm-item" @click="goTool('tool-profile')">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5" /><path d="M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4" /></svg>
+        <span class="mid">我的档案</span>
         <span class="hint tag">打开 ↗</span>
       </button>
       <div class="pm-div"></div>
