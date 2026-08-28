@@ -47,9 +47,9 @@ async function pasteBack() {
 </template>
 
 <style scoped>
-/* 悬浮小窗独立成页：纸底铺满，卡片居中贴顶 */
+/* 悬浮小窗独立成页：纸底铺满，卡片居中贴顶（827：窗高吃 --app-h 不写 100vh，字号 zoom 下 100vh 超窗） */
 .float-card {
-  min-height: 100vh; box-sizing: border-box;
+  min-height: var(--app-h); box-sizing: border-box;
   padding: 0 12px 12px;
   background-color: var(--paper);
   font-family: var(--f-b); color: var(--ink); font-size: 14px;

@@ -9,7 +9,7 @@ import { onErrorCaptured } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { usePrefsStore } from '../stores/prefs'
 import { PANEL_REGISTRY } from '../panels/contract'
-import type { PanelId } from '../panels/contract'
+import type { PanelId, TearableId } from '../panels/contract'
 import type {
   ArtistOrderItem,
   ArtistStatus,
@@ -32,6 +32,7 @@ import {
 } from '../api/artist'
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop, notify } from '../bridge'
 import { openFloatingWindow } from '../bridge/window'
+import { listen } from '@tauri-apps/api/event'
 import { useLocalLedgerStore } from '../stores/localLedger'
 import { useAutoTimeStore } from '../stores/autoTime'
 import { buildLocalGlance, localDaysLeft } from '../components/home/localGlance'
@@ -236,7 +237,8 @@ function panelShown(id: PanelId): boolean {
   if (id === 'msgs' && (!cloud.value || !online.value)) return false // 留言：本地/断网整块隐藏
   return true
 }
-const hideablePanels = computed(() => PANEL_REGISTRY.filter(p => p.hideable))
+// 827 用户终验整改：本地/断网下留言整块不渲染（§4.3，口径与 panelShown 完全对齐），快捷开关里它的纸签也随之不显示（防死开关）
+const hideablePanels = computed(() => PANEL_REGISTRY.filter(p => p.hideable && (p.id !== 'msgs' || (cloud.value && online.value))))
 const showOps = computed(() => panelShown('ops'))
 const showMsgs = computed(() => panelShown('msgs'))
 const showOrders = computed(() => panelShown('orders'))
@@ -249,6 +251,16 @@ function restoreTorn() {
   for (const kind of [...prefs.prefs.torn]) {
     openFloatingWindow(kind).catch(() => { prefs.setTorn(kind, false) })
   }
+}
+
+// ─── 827 用户终验整改：悬浮窗被 ×/Alt+F4 直关时壳层发事件，主窗同步清同件撕出态（防占位骗人） ───
+let unlistenFloatClosed: (() => void) | undefined
+function listenFloatClosed() {
+  if (!isDesktop()) return
+  listen<string>('desktop-float-closed', (e) => {
+    const kind = e.payload as TearableId
+    if (prefs.isTorn(kind)) prefs.setTorn(kind, false)
+  }).then(fn => { unlistenFloatClosed = fn }).catch(() => { /* 监听失败静默：最多退回「点我贴回」手动路径 */ })
 }
 
 // ─── 启动静默检查更新（保留既有口径：云端登录态，失败全静默） ───
@@ -277,6 +289,7 @@ onMounted(async () => {
   window.addEventListener('online', onOnline)
   window.addEventListener('offline', onOffline)
   restoreTorn()
+  listenFloatClosed()
   // F8 二期自动识别：双模式均启（纯本地采样，不联网，合双模式纪律）
   autoTime.start()
   // 模块扫描（档②波17 四件）：不热更口径，启动扫一次；管理页可手动重扫（§3.7）
@@ -302,6 +315,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('online', onOnline)
   window.removeEventListener('offline', onOffline)
+  unlistenFloatClosed?.()
   autoTime.stop()
 })
 
@@ -315,160 +329,162 @@ onErrorCaptured((err, _instance, info) => {
 </script>
 
 <template>
-  <TitleBar @refresh="onRefresh" />
-  <div class="stage" :class="`mount-${prefs.prefs.mount}`">
-    <div class="scroll">
-      <!-- 题签（顶带） -->
-      <header class="masthead">
-        <div class="title-block">
-          <h1>拾绘</h1>
-          <span class="sep" aria-hidden="true"></span>
-          <span class="date num">{{ dateText }}</span>
-          <span v-if="cloud" class="sep" aria-hidden="true"></span>
-          <span v-if="cloud" class="artist">{{ auth.artist?.name ?? '画师' }}</span>
-        </div>
-        <p class="glance">
-          <template v-for="(part, i) in glanceParts" :key="i">
-            <b v-if="part.tone === 'od'">{{ part.text }}</b>
-            <span v-else-if="part.tone === 'ok'" class="ok">{{ part.text }}</span>
-            <template v-else>{{ part.text }}</template>
-            <template v-if="i < glanceParts.length - 1"> · </template>
-          </template>
-        </p>
-        <InkPenMenu @open-about="openAbout" />
-        <div class="toggles" role="group" aria-label="板块显隐（快捷）">
-          <span class="lbl">显隐</span>
-          <button
-            v-for="p in hideablePanels"
-            :key="p.id"
-            type="button"
-            class="chip"
-            :aria-pressed="!prefs.prefs.hidden.includes(p.id)"
-            @click="prefs.toggleHidden(p.id)"
-          >
-            {{ p.label === '订单速览' ? '订单' : p.label }}
-          </button>
-        </div>
-        <!-- 状态挂牌：壳控件，仅云端模式渲染（§4.2 拍板） -->
-        <StatusPlaque v-if="cloud" :initial-status="plaqueStatus" :slot-display="slotDisplay" />
-        <span class="vh" aria-live="polite"></span>
-      </header>
+  <div class="app-frame">
+    <TitleBar @refresh="onRefresh" />
+    <div class="stage" :class="`mount-${prefs.prefs.mount}`">
+      <div class="scroll">
+        <!-- 题签（顶带） -->
+        <header class="masthead">
+          <div class="title-block">
+            <h1>拾绘</h1>
+            <span class="sep" aria-hidden="true"></span>
+            <span class="date num">{{ dateText }}</span>
+            <span v-if="cloud" class="sep" aria-hidden="true"></span>
+            <span v-if="cloud" class="artist">{{ auth.artist?.name ?? '画师' }}</span>
+          </div>
+          <p class="glance">
+            <template v-for="(part, i) in glanceParts" :key="i">
+              <b v-if="part.tone === 'od'">{{ part.text }}</b>
+              <span v-else-if="part.tone === 'ok'" class="ok">{{ part.text }}</span>
+              <template v-else>{{ part.text }}</template>
+              <template v-if="i < glanceParts.length - 1"> · </template>
+            </template>
+          </p>
+          <InkPenMenu @open-about="openAbout" />
+          <div class="toggles" role="group" aria-label="板块显隐（快捷）">
+            <span class="lbl">显隐</span>
+            <button
+              v-for="p in hideablePanels"
+              :key="p.id"
+              type="button"
+              class="chip"
+              :aria-pressed="!prefs.prefs.hidden.includes(p.id)"
+              @click="prefs.toggleHidden(p.id)"
+            >
+              {{ p.label === '订单速览' ? '订单' : p.label }}
+            </button>
+          </div>
+          <!-- 状态挂牌：壳控件，仅云端模式渲染（§4.2 拍板） -->
+          <StatusPlaque v-if="cloud" :initial-status="plaqueStatus" :slot-display="slotDisplay" />
+          <span class="vh" aria-live="polite"></span>
+        </header>
 
-      <!-- 卷心：云端＝今日要办；本地＝本地记账（本地核心环波1，F2） -->
-      <main class="body" :class="{ 'body--solo': !showAside }">
-        <section v-if="cloud" class="flow" aria-label="今日要办">
-          <TodayPanel
-            :mode="mode"
-            :schedule="schedule"
-            :todos="todos"
-            :failed="todayFailed"
-            :torn="prefs.isTorn('today-todo')"
-            :local-orders="ledger.orders"
-          />
-        </section>
-        <section v-else class="flow" aria-label="本地记账">
-          <LedgerPanel />
-        </section>
-
-        <!-- 模块（档②波17 四件）：core 区位模块进卷心，沙箱帧渲染 -->
-        <section
-          v-for="m in coreZoneModules"
-          :key="'mz-' + m.dirName"
-          class="flow flow--module"
-          :aria-label="m.manifest?.name ?? m.dirName"
-        >
-          <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
-        </section>
-
-        <aside v-if="showAside" class="aside">
-          <section v-if="showOps" class="card ops" aria-label="经营与时间">
-            <OpsPanel
+        <!-- 卷心：云端＝今日要办；本地＝本地记账（本地核心环波1，F2） -->
+        <main class="body" :class="{ 'body--solo': !showAside }">
+          <section v-if="cloud" class="flow" aria-label="今日要办">
+            <TodayPanel
               :mode="mode"
-              :income="income"
-              :revenue="revenue"
-              :failed="opsFailed"
-              :torn="prefs.isTorn('timer')"
+              :schedule="schedule"
+              :todos="todos"
+              :failed="todayFailed"
+              :torn="prefs.isTorn('today-todo')"
+              :local-orders="ledger.orders"
             />
           </section>
-          <section v-if="showMsgs" class="card msgs" aria-label="留言">
-            <MsgsPanel :messages="messages" :failed="msgsFailed" />
+          <section v-else class="flow" aria-label="本地记账">
+            <LedgerPanel />
           </section>
-          <!-- 模块（档②波17 四件）：aside/tail 区位模块进题跋（tail 首发降入题跋不破卷尾等高） -->
+
+          <!-- 模块（档②波17 四件）：core 区位模块进卷心，沙箱帧渲染 -->
           <section
-            v-for="m in asideZoneModules"
+            v-for="m in coreZoneModules"
             :key="'mz-' + m.dirName"
-            class="card module-card"
+            class="flow flow--module"
             :aria-label="m.manifest?.name ?? m.dirName"
           >
             <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
           </section>
-        </aside>
-        <!-- 题跋板块全隐但仍有模块时：单独撑出题跋区（模块不被板块显隐连坐） -->
-        <aside v-else-if="asideZoneModules.length > 0" class="aside">
-          <section
-            v-for="m in asideZoneModules"
-            :key="'mz2-' + m.dirName"
-            class="card module-card"
-            :aria-label="m.manifest?.name ?? m.dirName"
-          >
-            <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
-          </section>
-        </aside>
-      </main>
 
-      <!-- 卷尾 -->
-      <footer class="tail-bar">
-        <OrdersPanel
-          v-if="showOrders"
-          :mode="mode"
-          :orders="orders"
-          :deadlines="deadlines"
-          :failed="ordersFailed"
-          :torn-deadline="prefs.isTorn('deadline')"
-          :local-orders="ledger.orders"
-        />
-        <TailStatusBar :mode="mode" :last-refresh="lastRefresh" @open-about="openAbout" />
-      </footer>
-    </div>
+          <aside v-if="showAside" class="aside">
+            <section v-if="showOps" class="card ops" aria-label="经营与时间">
+              <OpsPanel
+                :mode="mode"
+                :income="income"
+                :revenue="revenue"
+                :failed="opsFailed"
+                :torn="prefs.isTorn('timer')"
+              />
+            </section>
+            <section v-if="showMsgs" class="card msgs" aria-label="留言">
+              <MsgsPanel :messages="messages" :failed="msgsFailed" />
+            </section>
+            <!-- 模块（档②波17 四件）：aside/tail 区位模块进题跋（tail 首发降入题跋不破卷尾等高） -->
+            <section
+              v-for="m in asideZoneModules"
+              :key="'mz-' + m.dirName"
+              class="card module-card"
+              :aria-label="m.manifest?.name ?? m.dirName"
+            >
+              <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
+            </section>
+          </aside>
+          <!-- 题跋板块全隐但仍有模块时：单独撑出题跋区（模块不被板块显隐连坐） -->
+          <aside v-else-if="asideZoneModules.length > 0" class="aside">
+            <section
+              v-for="m in asideZoneModules"
+              :key="'mz2-' + m.dirName"
+              class="card module-card"
+              :aria-label="m.manifest?.name ?? m.dirName"
+            >
+              <ModuleFrame :entry="m" :code="modulesStore.entryCodes[m.dirName]" />
+            </section>
+          </aside>
+        </main>
 
-    <!-- 远山为幕（移植自网页登录页 LoginBackdrop，826 终验整改：替换旧山+亭装饰）：
+        <!-- 卷尾 -->
+        <footer class="tail-bar">
+          <OrdersPanel
+            v-if="showOrders"
+            :mode="mode"
+            :orders="orders"
+            :deadlines="deadlines"
+            :failed="ordersFailed"
+            :torn-deadline="prefs.isTorn('deadline')"
+            :local-orders="ledger.orders"
+          />
+          <TailStatusBar :mode="mode" :last-refresh="lastRefresh" @open-about="openAbout" />
+        </footer>
+      </div>
+
+      <!-- 远山为幕（移植自网页登录页 LoginBackdrop，826 终验整改：替换旧山+亭装饰）：
          低饱和远山天际线 + 水面倒影，山巅渐隐融入纸色，铺页面底部不抓戏 -->
-    <div class="backdrop" aria-hidden="true">
-      <div class="bk-mountains">
-        <div class="bk-up">
-          <svg class="bk-range" viewBox="0 0 1440 240" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="lgBkFar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-opacity="0.35" />
-                <stop offset="1" stop-opacity="1" />
-              </linearGradient>
-              <linearGradient id="lgBkMid" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-opacity="0.5" />
-                <stop offset="1" stop-opacity="1" />
-              </linearGradient>
-              <linearGradient id="lgBkNear" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-opacity="0.62" />
-                <stop offset="1" stop-opacity="1" />
-              </linearGradient>
-            </defs>
-            <!-- 三层山脊：峰距/峰高不等距，C 曲线左右不对称（照登录页原件） -->
-            <path class="bk-layer bk-far" fill="url(#lgBkFar)" d="M0,148 C70,134 130,142 200,120 C268,99 310,128 380,114 C446,101 484,64 556,74 C622,83 660,118 736,108 C812,98 842,56 918,64 C992,72 1030,106 1102,96 C1166,88 1224,118 1296,104 C1348,94 1398,110 1440,100 L1440,240 L0,240 Z" />
-            <path class="bk-layer bk-mid" fill="url(#lgBkMid)" d="M0,188 C64,172 104,180 166,154 C228,128 272,160 342,146 C412,132 452,96 522,106 C592,116 630,152 708,140 C786,128 828,94 898,102 C968,110 1008,148 1086,136 C1156,126 1198,146 1268,136 C1326,128 1384,146 1440,138 L1440,240 L0,240 Z" />
-            <path class="bk-layer bk-near" fill="url(#lgBkNear)" d="M0,212 C86,198 148,206 228,188 C308,170 366,196 454,184 C542,172 596,148 686,158 C776,168 830,194 926,182 C1022,170 1076,150 1168,162 C1260,174 1330,190 1440,178 L1440,240 L0,240 Z" />
-          </svg>
-        </div>
-        <!-- 水面倒影：同一份山的镜像渐隐，「水」由倒影成立，零新增元素 -->
-        <div class="bk-refl">
-          <svg class="bk-range" viewBox="0 0 1440 240" preserveAspectRatio="none">
-            <path class="bk-layer bk-refl-fill bk-far" fill="url(#lgBkFar)" d="M0,148 C70,134 130,142 200,120 C268,99 310,128 380,114 C446,101 484,64 556,74 C622,83 660,118 736,108 C812,98 842,56 918,64 C992,72 1030,106 1102,96 C1166,88 1224,118 1296,104 C1348,94 1398,110 1440,100 L1440,240 L0,240 Z" />
-            <path class="bk-layer bk-refl-fill bk-mid" fill="url(#lgBkMid)" d="M0,188 C64,172 104,180 166,154 C228,128 272,160 342,146 C412,132 452,96 522,106 C592,116 630,152 708,140 C786,128 828,94 898,102 C968,110 1008,148 1086,136 C1156,126 1198,146 1268,136 C1326,128 1384,146 1440,138 L1440,240 L0,240 Z" />
-            <path class="bk-layer bk-refl-fill bk-near" fill="url(#lgBkNear)" d="M0,212 C86,198 148,206 228,188 C308,170 366,196 454,184 C542,172 596,148 686,158 C776,168 830,194 926,182 C1022,170 1076,150 1168,162 C1260,174 1330,190 1440,178 L1440,240 L0,240 Z" />
-          </svg>
+      <div class="backdrop" aria-hidden="true">
+        <div class="bk-mountains">
+          <div class="bk-up">
+            <svg class="bk-range" viewBox="0 0 1440 240" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="lgBkFar" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-opacity="0.35" />
+                  <stop offset="1" stop-opacity="1" />
+                </linearGradient>
+                <linearGradient id="lgBkMid" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-opacity="0.5" />
+                  <stop offset="1" stop-opacity="1" />
+                </linearGradient>
+                <linearGradient id="lgBkNear" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-opacity="0.62" />
+                  <stop offset="1" stop-opacity="1" />
+                </linearGradient>
+              </defs>
+              <!-- 三层山脊：峰距/峰高不等距，C 曲线左右不对称（照登录页原件） -->
+              <path class="bk-layer bk-far" fill="url(#lgBkFar)" d="M0,148 C70,134 130,142 200,120 C268,99 310,128 380,114 C446,101 484,64 556,74 C622,83 660,118 736,108 C812,98 842,56 918,64 C992,72 1030,106 1102,96 C1166,88 1224,118 1296,104 C1348,94 1398,110 1440,100 L1440,240 L0,240 Z" />
+              <path class="bk-layer bk-mid" fill="url(#lgBkMid)" d="M0,188 C64,172 104,180 166,154 C228,128 272,160 342,146 C412,132 452,96 522,106 C592,116 630,152 708,140 C786,128 828,94 898,102 C968,110 1008,148 1086,136 C1156,126 1198,146 1268,136 C1326,128 1384,146 1440,138 L1440,240 L0,240 Z" />
+              <path class="bk-layer bk-near" fill="url(#lgBkNear)" d="M0,212 C86,198 148,206 228,188 C308,170 366,196 454,184 C542,172 596,148 686,158 C776,168 830,194 926,182 C1022,170 1076,150 1168,162 C1260,174 1330,190 1440,178 L1440,240 L0,240 Z" />
+            </svg>
+          </div>
+          <!-- 水面倒影：同一份山的镜像渐隐，「水」由倒影成立，零新增元素 -->
+          <div class="bk-refl">
+            <svg class="bk-range" viewBox="0 0 1440 240" preserveAspectRatio="none">
+              <path class="bk-layer bk-refl-fill bk-far" fill="url(#lgBkFar)" d="M0,148 C70,134 130,142 200,120 C268,99 310,128 380,114 C446,101 484,64 556,74 C622,83 660,118 736,108 C812,98 842,56 918,64 C992,72 1030,106 1102,96 C1166,88 1224,118 1296,104 C1348,94 1398,110 1440,100 L1440,240 L0,240 Z" />
+              <path class="bk-layer bk-refl-fill bk-mid" fill="url(#lgBkMid)" d="M0,188 C64,172 104,180 166,154 C228,128 272,160 342,146 C412,132 452,96 522,106 C592,116 630,152 708,140 C786,128 828,94 898,102 C968,110 1008,148 1086,136 C1156,126 1198,146 1268,136 C1326,128 1384,146 1440,138 L1440,240 L0,240 Z" />
+              <path class="bk-layer bk-refl-fill bk-near" fill="url(#lgBkNear)" d="M0,212 C86,198 148,206 228,188 C308,170 366,196 454,184 C542,172 596,148 686,158 C776,168 830,194 926,182 C1022,170 1076,150 1168,162 C1260,174 1330,190 1440,178 L1440,240 L0,240 Z" />
+            </svg>
+          </div>
         </div>
       </div>
-    </div>
 
-    <AboutPopover :open="aboutOpen" @close="aboutOpen = false" />
+      <AboutPopover :open="aboutOpen" @close="aboutOpen = false" />
+    </div>
   </div>
 </template>
 
@@ -487,10 +503,16 @@ onErrorCaptured((err, _instance, info) => {
 
 <style scoped>
 /* ===== 卷面骨架：826 终验整改——天地杆退役（用户：深色长条与左上角割裂太厉害），页面一张纸到底 ===== */
+/* 827 用户终验整改：顶条+卷面装进一个窗高框里，卷面吃剩余高（原 100vh 写满致总高超窗 42px，外层多出第二条滚动条；
+   窗高吃 --app-h 不写 100vh——字号 zoom 下 100vh 按倍放大超窗，实证见 App.vue 注释） */
+.app-frame {
+  display: flex; flex-direction: column;
+  height: var(--app-h); overflow: hidden;
+}
 .stage {
   position: relative;
   display: grid; grid-template-columns: minmax(0, 1fr);
-  height: 100vh; overflow: hidden; min-width: 0;
+  flex: 1; min-height: 0; overflow: hidden;
 }
 
 .scroll {

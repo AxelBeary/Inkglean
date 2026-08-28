@@ -21,6 +21,7 @@ import {
 import type { CloseBehavior } from '../../bridge/window'
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop } from '../../bridge'
 import { WEB_BASE } from '../../config'
+import { useTimerStore } from '../../stores/timer'
 
 const emit = defineEmits<{ (_e: 'open-about'): void }>()
 
@@ -29,6 +30,7 @@ const VERSION = '0.1.0'
 const router = useRouter()
 const auth = useAuthStore()
 const prefs = usePrefsStore()
+const timer = useTimerStore()
 
 const open = ref(false)
 const wrapRef = ref<HTMLElement | null>(null)
@@ -39,7 +41,8 @@ const updateHint = ref('已是最新')
 const updateBusy = ref(false)
 
 const cloud = computed(() => auth.loggedIn)
-const hideablePanels = computed(() => PANEL_REGISTRY.filter(p => p.hideable))
+// 827 用户终验整改：本地/断网下留言整块不渲染（§4.3，口径与首页 panelShown 完全对齐），菜单显隐列表里它的条目也随之不显示（防死开关）
+const hideablePanels = computed(() => PANEL_REGISTRY.filter(p => p.hideable && (p.id !== 'msgs' || (cloud.value && online.value))))
 
 const TEARS: Array<{ kind: TearableId; tt: string }> = [
   { kind: 'timer', tt: '计时器' },
@@ -86,10 +89,12 @@ onUnmounted(() => {
 })
 
 // ─── 账号行 ───
+// 827 用户终验整改：切出＝回本地模式首页（不再绕登录页）；在跑计时先落账停掉（防计时态跨模式带过去）
 async function logout() {
   setOpen(false)
+  timer.pause() // 在跑段落账并停（画过的时间不丢，计时态不带过模式）
   await auth.logout()
-  await router.push({ name: 'login' })
+  await router.push({ name: 'home' })
 }
 async function goLogin() {
   setOpen(false)
@@ -372,12 +377,19 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
 .pen[aria-expanded="true"] { color: var(--ink); background: rgba(var(--ink-rgb), .07); }
 .paper-menu {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: 256px;
+  /* 827 用户终验整改：菜单行多时超出窗高被外层滚动容器裁切——限高+内滚，纸墨滚动条同页内口径；
+     窗高吃 --app-h 不写 100vh（字号 zoom 下 100vh 超窗） */
+  max-height: calc(var(--app-h) - 120px); overflow-y: auto; overflow-x: hidden;
   background: var(--card); border-radius: var(--r-paper);
   box-shadow: 0 0 0 1px rgba(var(--ink-rgb), .06), 0 2px 4px rgba(var(--ink-rgb), .08), 0 18px 36px -18px rgba(var(--ink-rgb), .5);
   padding: 12px 12px 8px;
   opacity: 0; transform: translateY(-4px); pointer-events: none;
   transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out);
 }
+.paper-menu::-webkit-scrollbar { width: 8px; }
+.paper-menu::-webkit-scrollbar-track { background: transparent; }
+.paper-menu::-webkit-scrollbar-thumb { background: rgba(var(--ink-rgb), .22); border-radius: 4px; }
+.paper-menu::-webkit-scrollbar-thumb:hover { background: rgba(var(--ink-rgb), .4); }
 .pen-wrap.open .paper-menu { opacity: 1; transform: none; pointer-events: auto; }
 .pm-sec { font-size: 11px; letter-spacing: .12em; color: var(--ink4); margin: 9px 4px 3px; }
 .pm-sec:first-child { margin-top: 0; }
@@ -469,6 +481,6 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
 /* 板块显隐小圆点 */
 .mini-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--hq); }
 @media (max-width: 1020px) {
-  .paper-menu { position: fixed; left: 12px; right: 12px; top: 64px; width: auto; }
+  .paper-menu { position: fixed; left: 12px; right: 12px; top: 64px; width: auto; max-height: calc(var(--app-h) - 76px); }
 }
 </style>
