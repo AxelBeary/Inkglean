@@ -56,47 +56,55 @@ async function goLocal() {
 </script>
 
 <template>
-  <TitleBar />
-  <main class="login-page">
-    <div class="login-card">
-      <div class="brand">
-        <span class="seal">拾</span>
-        <h1>拾绘桌面版</h1>
-      </div>
-      <p class="sub">用验证器登录，90 天内免重复（每周活跃自动顺延）</p>
+  <div class="login-frame">
+    <TitleBar />
+    <main class="login-page">
+      <div class="login-card">
+        <div class="brand">
+          <span class="seal">拾</span>
+          <h1>拾绘桌面版</h1>
+        </div>
+        <p class="sub">用验证器登录，90 天内免重复（每周活跃自动顺延）</p>
 
-      <div class="field">
-        <label for="qq">QQ 号</label>
-        <input
-          id="qq" v-model="qq" type="text" inputmode="numeric" autocomplete="username"
-          placeholder="入驻时的 QQ 号" maxlength="15"
-        />
-      </div>
-      <div class="field">
-        <label for="code">6 位验证码</label>
-        <input
-          id="code" v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code"
-          placeholder="验证器当前显示的 6 位数字" maxlength="6"
-          @keyup.enter="submit"
-        />
-      </div>
+        <div class="field">
+          <label for="qq">QQ 号</label>
+          <input
+            id="qq" v-model="qq" type="text" inputmode="numeric" autocomplete="username"
+            placeholder="入驻时的 QQ 号" maxlength="15"
+          />
+        </div>
+        <div class="field">
+          <label for="code">6 位验证码</label>
+          <input
+            id="code" v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+            placeholder="验证器当前显示的 6 位数字" maxlength="6"
+            @keyup.enter="submit"
+          />
+        </div>
 
-      <p v-if="errorText" class="error">{{ errorText }}</p>
-      <p v-if="!desktopShell" class="error">当前为纯浏览器环境，登录需桌面壳（npm run tauri dev）</p>
+        <p v-if="errorText" class="error">{{ errorText }}</p>
+        <p v-if="!desktopShell" class="error">当前为纯浏览器环境，登录需桌面壳（npm run tauri dev）</p>
 
-      <button type="button" class="btn-primary" :disabled="loading || !desktopShell" @click="submit">
-        {{ loading ? "登录中…" : "登录" }}
-      </button>
-      <button type="button" class="btn-local" @click="goLocal">暂不登录 · 本地模式</button>
-      <p class="local-hint">本地模式：数据仅存本机，不联网同步</p>
-    </div>
-  </main>
+        <button type="button" class="btn-primary" :disabled="loading || !desktopShell" @click="submit">
+          {{ loading ? "登录中…" : "登录" }}
+        </button>
+        <button type="button" class="btn-local" @click="goLocal">暂不登录 · 本地模式</button>
+        <p class="local-hint">本地模式：数据仅存本机，不联网同步</p>
+      </div>
+    </main>
+  </div>
 </template>
 
 <style scoped>
 /* 纸墨风登录：纸卡居中 + 朱砂小印，与网页登录页同语言 */
+/* 827 用户终验整改：顶条+登录区装进窗高框，登录区吃剩余高（原 min-height:100vh 致总高超窗 42px，外层多出一条滚动条；
+   窗高吃 --app-h 不写 100vh——字号 zoom 下 100vh 按倍放大超窗） */
+.login-frame {
+  display: flex; flex-direction: column;
+  height: var(--app-h); overflow: hidden;
+}
 .login-page {
-  min-height: 100vh;
+  flex: 1; min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;

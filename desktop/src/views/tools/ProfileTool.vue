@@ -139,7 +139,7 @@ async function save() {
 </template>
 
 <style scoped>
-.tool-page { min-height: 100vh; background: var(--paper); padding: 18px clamp(16px, 6vw, 72px) 48px; }
+.tool-page { min-height: var(--app-h); background: var(--paper); padding: 18px clamp(16px, 6vw, 72px) 48px; } /* 827：--app-h 不写 100vh（字号 zoom 超窗） */
 .tool-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .back {
   font-size: 12.5px; color: var(--ink3); padding: 5px 12px;

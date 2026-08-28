@@ -147,7 +147,7 @@ function skip() {
 
 <style scoped>
 .ob-page {
-  min-height: 100vh; background: var(--paper);
+  min-height: var(--app-h); background: var(--paper); /* 827：--app-h 不写 100vh（字号 zoom 超窗） */
   display: flex; align-items: center; justify-content: center; padding: 32px;
 }
 .ob-card {

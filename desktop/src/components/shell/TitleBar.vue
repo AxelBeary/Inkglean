@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 自绘标题栏（长卷「天杆」）：系统标题栏退役（decorations:false）后，窗口所有权归壳层。
+// 自绘标题栏（827 起与卷面一张纸融合，无独立杆形装饰）：系统标题栏退役（decorations:false）后，窗口所有权归壳层。
 // 左 = 朱砂小印「拾」+ 产品名；右 = 最小化 / 最大化切换 / 关闭。
 // 全部动作经冻结契约件 ../../bridge/window.ts，不直接 invoke；props 零依赖，由 Home.vue 槽位挂载。
 // 纸墨气质：纸底、墨字、克制，不要系统标题栏味（样式只消费 paper-ink.css token）。
@@ -132,8 +132,7 @@ function onClose(): void {
 </template>
 
 <style scoped>
-/* 长卷天杆（826 终验整改：用户要好看的天杆，不是光板）：
-   顶部一根细墨杆（横杆两端收圆）+ 绫边题头纸带，整条可拖窗 */
+/* 长卷天杆（827 用户终验整改：去掉墨杆与绫边线，整条与卷面一张纸融在一起，只留功能） */
 .title-bar {
   position: relative;
   display: flex;
@@ -142,38 +141,10 @@ function onClose(): void {
   height: 42px;
   padding-left: 12px;
   background-color: var(--paper);
-  background-image:
-    linear-gradient(180deg, rgba(var(--ink-rgb), 0.028) 0, rgba(var(--ink-rgb), 0) 16px),
-    linear-gradient(0deg, rgba(var(--ink-rgb), 0.02) 0, rgba(var(--ink-rgb), 0) 10px);
   color: var(--ink);
   font-family: var(--f-b);
   user-select: none;
   cursor: default;
-}
-
-/* 天杆本体：细墨色横杆，两端收圆，微微透光 */
-.title-bar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 10px;
-  right: 10px;
-  height: 5px;
-  background: linear-gradient(180deg, var(--ink2) 0%, var(--ink) 62%, #151410 100%);
-  border-radius: 0 0 3px 3px;
-  box-shadow: 0 1px 2px rgba(var(--ink-rgb), 0.28);
-}
-/* 杆下两道绫边：花青 + 朱砂细线（裱绢包边口径，色彩克制） */
-.title-bar::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--hq) 26%, transparent) 0 1px, transparent 1px),
-    linear-gradient(180deg, transparent 0 1px, color-mix(in srgb, var(--zs) 22%, transparent) 1px 2px, transparent 2px);
 }
 
 .title-bar__brand {

@@ -12,9 +12,22 @@ import { resolveTheme, applyThemeToDom } from './tools/theme'
 
 const prefs = usePrefsStore()
 watchEffect(() => {
-  // zoom 为 Chromium（WebView2）支持的缩放属性；基准 16px，14~20 对应 0.875~1.25
-  document.documentElement.style.setProperty('zoom', String(prefs.prefs.fontSize / 16))
+  // zoom 为 Chromium（WebView2）支持的缩放属性；基准 16px，14~20 对应 0.875~1.25。
+  // 827 用户终验实证（zoom-vh-probe.mjs）：zoom 施加后 100vh 按 zoom 倍放大但 innerHeight 不打折，
+  // 页面骨架写 100vh 必超窗溢出外层滚动条——同步下发 --app-h＝真实窗高（已÷zoom）供骨架吃，页面内 vh 仅短元素使用不致溢出。
+  const zoom = prefs.prefs.fontSize / 16
+  document.documentElement.style.setProperty('zoom', String(zoom))
+  applyAppHeight(zoom)
 })
+
+function applyAppHeight(zoom: number): void {
+  // 向下取整：宁差一像素不满（同色纸底看不出），绝不多算一像素——round 一半概率多算亚像素，
+  // zoom 放大后成永久小溢出，滚动条永不消失（827 用户终验报障）
+  document.documentElement.style.setProperty('--app-h', `${Math.floor(window.innerHeight / zoom)}px`)
+}
+function onResize(): void {
+  applyAppHeight(prefs.prefs.fontSize / 16)
+}
 
 // ─── 主题（波13）：偏好变化/系统深浅色变化都即时施加 ───
 const darkMq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null
@@ -30,11 +43,13 @@ function onSystemThemeChange() { applyTheme() }
 
 onMounted(() => {
   darkMq?.addEventListener('change', onSystemThemeChange)
+  window.addEventListener('resize', onResize)
   // 纯浏览器/同步失败都静默（偏好默认即退出，同步不上不造成危险态）
   if (isDesktop()) setCloseBehavior(readCloseBehaviorPref()).catch(() => {})
 })
 onUnmounted(() => {
   darkMq?.removeEventListener('change', onSystemThemeChange)
+  window.removeEventListener('resize', onResize)
 })
 </script>
 
@@ -53,6 +68,8 @@ onUnmounted(() => {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  /* 827 用户终验整改：真实窗高（已÷字号 zoom），JS 下发+resize 跟随；页面骨架一律吃它不写 100vh（zoom 下 100vh 超窗溢出） */
+  --app-h: 100vh;
 }
 body { margin: 0; }
 /* 按钮底子：去浏览器默认样式（裸边框毛坯的源头），外观一律由各件纸墨样式接管（826 终验整改） */

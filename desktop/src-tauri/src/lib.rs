@@ -4,7 +4,7 @@ mod bridge;
 mod tray;
 
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 
 use bridge::window::{CloseAction, CloseBehaviorState};
@@ -76,6 +76,14 @@ pub fn run() {
                             api.prevent_close();
                             let _ = window.hide();
                         }
+                    }
+                } else if window.label().starts_with("floating-") {
+                    // 827 用户终验整改：悬浮窗被 ×/Alt+F4 直关时通知主窗清同件撕出态（防占位骗人）；
+                    // 贴回路径自身已先清态，重复事件幂等无害。发事件失败静默。
+                    let app = window.app_handle();
+                    if let Some(main) = app.get_webview_window("main") {
+                        let kind = window.label().trim_start_matches("floating-");
+                        let _ = main.emit("desktop-float-closed", kind);
                     }
                 }
             }
