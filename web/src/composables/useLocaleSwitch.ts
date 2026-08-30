@@ -3,6 +3,7 @@
 // busy 锁拦截连点；reduced-motion 直切。
 //
 // getContainerEl：返回需要淡变/锁高度的容器元素（函数形式，规避 ref 解包歧义）。
+import { onUnmounted } from 'vue'
 import { setLocale } from '../i18n/index'
 
 // T 波：WAAPI 无法直接读 CSS token，抽为命名常量 + 注释对齐 artist-tokens.css。
@@ -14,6 +15,8 @@ const LANG_SWAP_MIDPOINT_MS = 160
 
 export function useLocaleSwitch(getContainerEl: () => HTMLElement | null | undefined) {
   let busy = false
+  // L-5: 中点换 locale 的定时器句柄——随调用方组件卸载清理，防组件销毁后仍改全局 locale
+  let langTimer: number | null = null
 
   function switchLang(next: string, current: string) {
     if (next === current || busy) return
@@ -30,7 +33,8 @@ export function useLocaleSwitch(getContainerEl: () => HTMLElement | null | undef
       [{ opacity: 1 }, { opacity: 0.35, offset: 0.42 }, { opacity: 1 }],
       { duration: LANG_SWAP_DURATION_MS, easing: LANG_SWAP_EASING }
     )
-    setTimeout(() => setLocale(next), LANG_SWAP_MIDPOINT_MS)
+    if (langTimer) clearTimeout(langTimer)
+    langTimer = setTimeout(() => setLocale(next), LANG_SWAP_MIDPOINT_MS)
     const release = () => {
       el.style.height = ''
       el.style.overflow = ''
@@ -40,6 +44,9 @@ export function useLocaleSwitch(getContainerEl: () => HTMLElement | null | undef
     anim.onfinish = release
     anim.oncancel = release
   }
+
+  // L-5: composable 随调用方生命周期收口——卸载时清理中点定时器（不改动既有调用方）
+  onUnmounted(() => { if (langTimer) clearTimeout(langTimer) })
 
   return { switchLang }
 }

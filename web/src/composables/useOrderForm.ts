@@ -610,10 +610,16 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
 
   // ─── 提交 ───
   async function submit() {
-    const valid = await formRef.value!.validate().catch(() => false)
-    if (!valid) return
-
+    // L-9: 上锁提前到校验之前——原「先 validate 后才上锁」留双击并发窗口（两次提交同时进入，
+    // 幂等键虽兜住重复下单，仍会重复报错）。入口即锁 + 在途直接返回；各失败路径分别复位。
+    if (submitting.value) return
     submitting.value = true
+    const valid = await formRef.value!.validate().catch(() => false)
+    if (!valid) {
+      submitting.value = false
+      return
+    }
+
     if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
     // G-7: 有参考图时必须携带与上传同源的 x-anon-token（无参考图下单不带 token 照常）
     let anonToken: string | null = null

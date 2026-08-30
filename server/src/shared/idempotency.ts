@@ -44,8 +44,13 @@ export function withIdempotency(
 ): IdempotencyExecResult {
   if (!key) return exec()
 
+  // 260830 审计 M-1：查询补时效条件，与清理周期（24h）同口径——双保险：
+  // 即便 GC 清理暂未跑（首轮启动/定时器未到期），超过 24h 的旧缓存也不再命中，
+  // 语义上与「缓存只为防短时窗重复提交」一致。
+  // created_at 为 TEXT 'YYYY-MM-DD HH:MM:SS'（UTC，DEFAULT CURRENT_TIMESTAMP，v54 迁移），
+  // 与 datetime('now', ...) 表达式同格式同口径，可直接字符串比较。
   const cached = db.prepare(
-    'SELECT status_code, response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
+    "SELECT status_code, response_json FROM idempotency_keys WHERE scope = ? AND key = ? AND created_at > datetime('now', '-24 hours')"
   ).get(scope, key) as { status_code: number; response_json: string } | undefined
   if (cached) {
     // d3 P2: 缓存行损坏/被手工篡改 → 删掉坏行按未命中重执行，避免同 key 永久 500
@@ -65,7 +70,8 @@ export function withIdempotency(
 
 /**
  * 清理超期幂等行（默认保留 24h）
- * 已由 app.ts 的 GC 定时器接线（审计批 D-2 验收时接入，与 R-20 埋点 TTL 同批执行）。
+ * 已由 app.ts 的 GC 定时器接线（审计批 D-2 验收时接入，与 R-20 埋点 TTL 同批执行；
+ * 260830 审计 M-1 起改由独立的 gcDatabaseTtl 调用，不再受文件类早退连坐）。
  */
 export function pruneIdempotencyKeys(keepHours = 24): number {
   const r = db.prepare(

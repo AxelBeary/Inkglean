@@ -47,3 +47,16 @@ export function desktopLogin(params: {
 }): Promise<DesktopLoginResult> {
   return postJson<DesktopLoginResult>('/api/auth/desktop/login', params)
 }
+
+/**
+ * 桌面登出（260830 审计 H-2）：服务端 bumpTokenVersion → 撕光桌面设备账本，
+ * 旧 token 下次请求即被门禁拒绝。不在此做本地清理（归 auth store 收尾），
+ * 网络失败由调用方降级为纯本地清理。
+ */
+export async function desktopLogout(tokenValue: string): Promise<void> {
+  const res = await fetch(requireApiBase() + '/api/auth/logout', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenValue}` }
+  })
+  if (!res.ok) throw new Error(`登出请求失败（${res.status}）`)
+}

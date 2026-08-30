@@ -14,7 +14,25 @@ pub fn run() {
     // 全局快捷键（REQ-014 首发）：Ctrl+Alt+S 唤隐主窗口（拾绘＝S；口径登记于 STATUS，可改）
     let toggle_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyS);
 
-    tauri::Builder::default()
+    // 260830 审计 M-7：快捷键登记在部分环境会失败（热键被占用/无权限）——属可恢复失败，
+    // 降级为「快捷键不可用」继续启动，不升级为 panic 终止整个应用（旧 expect 让用户启动即闪退且无任何提示）。
+    let shortcut_plugin = match tauri_plugin_global_shortcut::Builder::new().with_shortcuts([toggle_shortcut]) {
+        Ok(shortcut_builder) => Some(
+            shortcut_builder
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        tray::toggle_main_window(app);
+                    }
+                })
+                .build(),
+        ),
+        Err(err) => {
+            eprintln!("全局快捷键登记失败，降级为快捷键不可用（不影响主功能）：{err}");
+            None
+        }
+    };
+
+    let mut builder = tauri::Builder::default()
         // 单实例常驻：二次拉起不开新窗，只唤起既有主窗口（商业化桌面应用标配）
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             tray::show_main_window(app);
@@ -25,19 +43,13 @@ pub fn run() {
         // 系统通知（REQ-014 首发）：留言待审等场景，前端经 bridge/notification.ts 逃生门调用
         .plugin(tauri_plugin_notification::init())
         // 本地数据层（本地核心环波1）：SQLite，建表/查询由前端经 @tauri-apps/plugin-sql 执行
-        .plugin(tauri_plugin_sql::Builder::default().build())
-        // 全局快捷键：注册在 Rust 侧，不经 IPC，无需 capabilities 放行
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts([toggle_shortcut])
-                .expect("全局快捷键登记失败")
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        tray::toggle_main_window(app);
-                    }
-                })
-                .build(),
-        )
+        .plugin(tauri_plugin_sql::Builder::default().build());
+    // 全局快捷键：注册在 Rust 侧，不经 IPC，无需 capabilities 放行；登记失败则不挂载该插件（M-7 降级）
+    if let Some(plugin) = shortcut_plugin {
+        builder = builder.plugin(plugin);
+    }
+
+    builder
         // 窗口几何记忆：只记主窗口，撕悬浮三件进 deny list（壳层不替悬浮窗记几何）
         .plugin(
             tauri_plugin_window_state::Builder::new()

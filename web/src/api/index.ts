@@ -415,6 +415,9 @@ export const artistApi = {
   getMe: (): Promise<AuthMeResult> => getJson('/auth/me'),
   getProfile: (): Promise<ArtistProfileResult> => getJson('/artist/profile'),
   updateProfile: (data: Record<string, unknown>): Promise<PublicArtistDTO> => putJson('/artist/profile', data),
+  // H-3: 桌面端登录设备账本（本人视角清单 + 撕账移除；404 = 设备不存在或已被移除）
+  getMyDevices: (): Promise<import('./types').DesktopDevicesResult> => getJson('/artist/devices'),
+  revokeMyDevice: (deviceId: number): Promise<{ success: boolean }> => deleteJson(`/artist/devices/${deviceId}`),
   // REQ-022 F1: 发布交付物为作品（delivered 门槛，一图一作品）
   publishArtwork: (orderId: number, data: PublishArtworkRequest): Promise<PublishArtworkResult> =>
     postJson(`/artist/orders/${orderId}/publish-artwork`, data),

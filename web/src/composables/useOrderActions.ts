@@ -28,13 +28,16 @@ export interface ApiErrShape { code?: string; message: string; detail?: { paidCe
  * 订单详情页操作集（从 OrderDetail.vue 二轮拆分抽出，纯搬移零行为变化）：
  * 再来一单 / QQ 跳转复制 / 追踪链接补发 / 优先级 / 状态变更 / 取消滑块流 / 交付再许可 / 删参考图。
  * loadOrder 与 statusAction 仍由宿主持有并经参数注入（workflow composable 与 changeStatus 共享 statusAction）。
+ * applyOrder（M-9 审计 260830）：统一写入口，响应 version 单调不回退——本集内所有整体替换 order 的
+ * 写回都经它，防与 loadOrder 并发时晚到旧快照覆盖新状态（诱发 409 误报）。
  */
-export function useOrderActions({ order, routeId, statusAction, prevPriority, loadOrder }: {
+export function useOrderActions({ order, routeId, statusAction, prevPriority, loadOrder, applyOrder }: {
   order: Ref<OrderDetailState | null>
   routeId: number
   statusAction: Ref<string>
   prevPriority: Ref<OrderPriority | null>
   loadOrder: () => Promise<void>
+  applyOrder: (next: OrderDetailState | null) => void
 }) {
   const { t } = useI18n()
   const router = useRouter()
@@ -135,7 +138,8 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
     try {
       // 815 审计 P1-3：乐观锁接线——携带当前 version，双开标签页旧快照写入会被后端 409 拦下
       const opts = order.value?.version != null ? { version: order.value.version } : {}
-      order.value = await artistApi.updateStatus(routeId, status, opts)
+      // M-9: 写回经统一入口（旧快照拒收）——互斥锁只防按钮连点，管不住与 loadOrder 的跨路并发
+      applyOrder(await artistApi.updateStatus(routeId, status, opts))
       ElMessage.success(t('orderDetail.statusUpdated'))
       trackEvent('artist_action', { action: 'order_status_change', status })
     } catch (err) {
@@ -172,7 +176,7 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
     cancelUndo.value.visible = false
     if (id == null) return
     try {
-      order.value = await artistApi.undoCancelOrder(Number(id))
+      applyOrder(await artistApi.undoCancelOrder(Number(id))) // M-9: 统一写入口（旧快照拒收）
       ElMessage.success(t('orderDetail.cancelUndone'))
     } catch (err) {
       const e = err as ApiErrShape
@@ -189,7 +193,7 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
     cancelSubmitting.value = true
     try {
       const res = await artistApi.cancelOrder(Number(routeId))
-      order.value = res
+      applyOrder(res) // M-9: 统一写入口（旧快照拒收）
       showCancelUndo(res, res.undoWindowMs)
       ElMessage.success(t('orderDetail.statusUpdated'))
     } catch (err) {
@@ -208,7 +212,7 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
         }
         try {
           const res = await artistApi.cancelOrder(Number(routeId), { confirmPaidCancel: true })
-          order.value = res
+          applyOrder(res) // M-9: 统一写入口（旧快照拒收）
           showCancelUndo(res, res.undoWindowMs)
           ElMessage.success(t('orderDetail.statusUpdated'))
         } catch (err) {
@@ -257,7 +261,7 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
     if (repermittingId.value !== null) return
     repermittingId.value = d.id
     try {
-      order.value = await artistApi.repermitDeliverable(Number(routeId), d.id)
+      applyOrder(await artistApi.repermitDeliverable(Number(routeId), d.id)) // M-9: 统一写入口（旧快照拒收）
       ElMessage.success(t('orderDetail.deliverableRepermitted'))
     } catch (err) {
       ElMessage.error((err as ApiErrShape).message)

@@ -473,6 +473,8 @@ const coverReordering = ref(false)
 async function moveCover(art: ArtworkRow, direction: number) {
   const coverList = covers.value
   const idx = coverList.findIndex(a => a.id === art.id)
+  // L-11: 未命中（并发刷新下该作品可能已不在封面列表）直接返回，避免 -1 参与下标交换
+  if (idx < 0) return
   const swapIdx = idx + direction
   if (swapIdx < 0 || swapIdx >= coverList.length) return
 

@@ -166,6 +166,31 @@ describe('认证服务 (Auth Service) — REQ-027 TOTP', () => {
     expect(result.valid).toBe(true)
   })
 
+  it('TC-A-13b: totp_locked_until 落成 ISO 字符串时仍正确判锁（260830 审计 M-6 口径统一）', () => {
+    const secret = generateSecret()
+    authService.bindTotpInit(artist.id, secret)
+    authService.confirmTotpBind(artist.id, computeTotp(secret, Date.now()))
+    // 字符串口径：模拟历史/异构写入把锁定时刻落成 ISO 文本——
+    // 修复前 verifyTotpLogin 裸 `>` 比较会退化为字符串比较得出错误结论
+    db.prepare('UPDATE artists SET totp_locked_until = ? WHERE id = ?')
+      .run(new Date(Date.now() + 15 * 60_000).toISOString(), artist.id)
+
+    const result = authService.verifyTotpLogin('12345', computeTotp(secret, Date.now())) as TotpDenyResult
+    expect(result.valid).toBe(false)
+    expect(result.code).toBe('TOTP_LOCKED')
+
+    // checkTotpLocked（绑定/确认路径共用）与登录路径同口径
+    const row = db.prepare('SELECT totp_locked_until FROM artists WHERE id = ?').get(artist.id) as { totp_locked_until: string }
+    expect(() => authService.checkTotpLocked(row)).toThrowError(/TOTP_LOCKED/)
+
+    // parseLockedUntilMs 单一解析函数自身口径锁定
+    expect(authService.parseLockedUntilMs(123)).toBe(123)
+    expect(authService.parseLockedUntilMs(Number.NaN)).toBe(0)
+    expect(authService.parseLockedUntilMs('not-a-date')).toBe(0)
+    expect(authService.parseLockedUntilMs(null)).toBe(0)
+    expect(authService.parseLockedUntilMs(undefined)).toBe(0)
+  })
+
   it('TC-A-14: 登录成功清零失败计数', () => {
     const secret = generateSecret()
     authService.bindTotpInit(artist.id, secret)

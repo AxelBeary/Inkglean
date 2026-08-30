@@ -17,9 +17,9 @@
 | `sumEntryDeltas(entries)` | Σ 条目 delta = 总价 | R1 |
 | `allocateInitial(installments, totalCents)` | 初始分配：round + 末节点吸尾差，ratioTotal = Σbp/10000（与 recalcInstallmentAmounts 同语义） | R3 |
 | `computeLockedState(installments, paidTotalCents, completedStageIndex, prevLockedFlags?)` | 完成 OR 付清先到先锁；prevLockedFlags 支持回退不解锁；返回顺序填充 paidCents | R4 |
-| `allocateDelta(installments, lockedFlags, deltaCents)` | 未锁节点按原始 bp 归一化，floor + 尾差归最后未锁；全锁进额外应收/应退；负 delta 非尾款封顶 0 超出压尾款 | R5/R6/R8/R10 |
+| `allocateDelta(installments, lockedFlags, deltaCents)` | 未锁节点按原始 bp 归一化，floor + 尾差归最后未锁；全锁进额外应收/应退；负 delta 非尾款（绝对位置 i<n-1）封顶 0，尾款节点在参与者中超额压尾款、不在则转额外应退（260830 审计 H-1 修正：旧口径按「最后参与者」豁免致中间节点静默写负） | R5/R6/R8/R10 |
 | `deriveInstallmentProgress(installments, paidTotalCents)` | 顺序填充 + 超付抵扣；非尾款待收≥0，尾款可负 | R7/R8 |
-| `applyRefund(installments, lockedFlags, refundCents)` | 冲未锁节点「待收」（镜像方向尾→头），冲到底尾款变负；全锁进额外应退 | R9/R10 |
+| `applyRefund`（已删除） | 260830 审计批删除：与 allocateDelta 同构的休眠负金额路径（尾款判定错误），从未接服务层；退款减价单轨走 allocateDelta | — |
 | `assertConservation(input)` | A1/A2/A3 守恒断言，失败抛 AppError(PRICING_CONSERVATION, 500) | R11 |
 
 所有金额整数「分」；入参乱序安全（内部按 sortOrder 配对排序，lockedFlags 永不错位）。

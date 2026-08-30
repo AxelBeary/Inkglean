@@ -194,6 +194,12 @@ function adjustFinalPrice(orderId: number, deltaCents: number): number {
   const order = db.prepare('SELECT final_price_cents, total_price_cents, price_snapshot FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null; price_snapshot: number | null } | undefined
   const currentFinal = order ? (resolvePriceCents(order) ?? 0) : 0
   const newFinal = currentFinal + deltaCents
+  // H-5（审计批 260830）：调整后总价落库前兜底断言——上游单项 ± 上限校验防不住
+  // 「删减价项冲正 / 多项累加」等组合路径把总价推出 [0, MAX] 区间，超限即抛错回滚。
+  // addExtraItem 正向分支另有前置累加校验给用户清晰提示，本断言是写路径最后防线。
+  if (!Number.isInteger(newFinal) || newFinal < 0 || newFinal > MAX_MONEY_CENTS) {
+    throw new AppError(E.INVALID_PRICE, 400, { value: newFinal, message: '调整后总价超出允许范围（0 ~ 100 万元）' })
+  }
   // F5: 金额加减写路径递增 version（对齐 addPayment 相对增量写法，行为其余不变）
   db.prepare('UPDATE orders SET final_price_cents = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(newFinal, orderId)
@@ -273,19 +279,36 @@ function readInstallmentState(orderId: number): { insts: EngineInstallment[]; lo
 /**
  * 推导已完成的最后收款节点下标（computeLockedState 的 completedStageIndex 入参）。
  * done/delivered → 全部阶段完成；否则 = 当前阶段之前的收款节点数 − 1。
+ *
+ * M-10（审计批 260830，已拍板最小修口径）：返回值用该订单 installments 节点数收口——
+ * index = Math.min(index, installmentsCount - 1)，installmentsCount=0 时返回 -1。
+ * 原因：artist_workflow_stages 是活表，模板**后加**收款阶段会追溯抬高本下标，
+ * 把下单快照里不存在的节点追溯锁定（installments 是下单快照，不随模板增长）；
+ * 收口后「后加阶段不得追溯锁定存量订单」。「阶段被删」一侧无需处理——
+ * 既有锁定粘滞保留（回退不解锁同语义）。
  */
-function getCompletedPaymentStageIndex(order: { artist_id: number; current_stage_id: number | null; status: string }): number {
+function getCompletedPaymentStageIndex(order: { id: number; artist_id: number; current_stage_id: number | null; status: string }): number {
+  // M-10：installments 是下单快照，其节点数是锁定推导的天花板（模板后加阶段不追溯）
+  const installmentsCount = (db.prepare('SELECT COUNT(*) AS c FROM order_payment_installments WHERE order_id = ?').get(order.id) as { c: number }).c
+  if (installmentsCount === 0) return -1
+
   const stages = db.prepare(
     'SELECT id, sort_order, takes_payment FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
   ).all(order.artist_id) as Array<{ id: number; sort_order: number; takes_payment: number }>
   const paymentStages = stages.filter(s => s.takes_payment === 1)
   if (paymentStages.length === 0) return -1
-  if (['done', 'delivered'].includes(order.status)) return paymentStages.length - 1
-  if (order.current_stage_id == null) return -1
-  const currentStage = stages.find(s => s.id === order.current_stage_id)
-  if (!currentStage) return -1
-  const completedCount = paymentStages.filter(ps => ps.sort_order < currentStage.sort_order).length
-  return completedCount - 1
+
+  let index: number
+  if (['done', 'delivered'].includes(order.status)) {
+    index = paymentStages.length - 1
+  } else {
+    if (order.current_stage_id == null) return -1
+    const currentStage = stages.find(s => s.id === order.current_stage_id)
+    if (!currentStage) return -1
+    const completedCount = paymentStages.filter(ps => ps.sort_order < currentStage.sort_order).length
+    index = completedCount - 1
+  }
+  return Math.min(index, installmentsCount - 1)
 }
 
 /**
@@ -306,7 +329,7 @@ function getCompletedPaymentStageIndex(order: { artist_id: number; current_stage
 function applyDeltaToInstallments(orderId: number, deltaCents: number, entryType: PriceEntry['type'], entryName: string): void {
   if (deltaCents === 0) return
   const { insts, lockedFlags: prevLocked } = readInstallmentState(orderId)
-  const order = db.prepare('SELECT paid_total_cents, current_stage_id, status, artist_id FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null; current_stage_id: number | null; status: string; artist_id: number } | undefined
+  const order = db.prepare('SELECT id, paid_total_cents, current_stage_id, status, artist_id FROM orders WHERE id = ?').get(orderId) as { id: number; paid_total_cents: number | null; current_stage_id: number | null; status: string; artist_id: number } | undefined
   if (!order) return
 
   // 无节点订单：delta 只改总价，落原因条目即可（无分摊对象）
@@ -343,7 +366,7 @@ function applyDeltaToInstallments(orderId: number, deltaCents: number, entryType
 export function refreshInstallmentLocks(orderId: number): void {
   const { insts, lockedFlags: prevLocked } = readInstallmentState(orderId)
   if (insts.length === 0) return
-  const order = db.prepare('SELECT paid_total_cents, current_stage_id, status, artist_id FROM orders WHERE id = ?').get(orderId) as { paid_total_cents: number | null; current_stage_id: number | null; status: string; artist_id: number } | undefined
+  const order = db.prepare('SELECT id, paid_total_cents, current_stage_id, status, artist_id FROM orders WHERE id = ?').get(orderId) as { id: number; paid_total_cents: number | null; current_stage_id: number | null; status: string; artist_id: number } | undefined
   if (!order) return
   const state = computeLockedState(insts, order.paid_total_cents ?? 0, getCompletedPaymentStageIndex(order), prevLocked)
   const update = db.prepare('UPDATE order_payment_installments SET locked = ?, locked_reason = ? WHERE id = ?')
@@ -359,6 +382,10 @@ export function refreshInstallmentLocks(orderId: number): void {
  *    已收超出 Σ 节点价的部分（纯超付）全额压到尾款待收变负，与额外应收不做冲抵——
  *    数学上 A1/A2 同解（Σ待收 ≡ Σ节点价 − 已收），两断言同时成立。
  * A3 追溯链需要额外持久化字段（不在本阶段 schema 范围），服务层不校验；条目只追加本身保证可追溯。
+ * R8 非尾款节点（绝对位置 i < n-1）金额不得为负（审计批 260830 H-1：负 delta 旧路径
+ *    可把中间节点扣成负的静默损坏，Σ 级守恒拦不住——在此 fail-fast）。尾款节点
+ *    允许负金额（超付应退的合法形态，案例 8）。断言置于早退分支之前，
+ *    确保 Σbp≠10000 的非常规订单同样兜得住。
  *
  * 适用范围：仅 Σ basis_points = 10000（比例和 100%）的订单——此时 A1 方程才有解
  * （R3：比例之和应为 100%，正式工作流由 validateInstallments I2 SUM_NOT_100 强制）。
@@ -368,6 +395,17 @@ export function refreshInstallmentLocks(orderId: number): void {
 export function checkOrderConservation(orderId: number): void {
   const { insts } = readInstallmentState(orderId)
   if (insts.length === 0) return
+  // R8 断言（审计批 260830 H-1）：非尾款节点金额不得为负。必须放在 Σbp≠10000
+  // 早退之前独立执行——非常规比例订单的负金额同样是资金损坏，不得因早退逃过
+  for (let i = 0; i < insts.length - 1; i++) {
+    if (insts[i].amountCents < 0) {
+      throw new AppError(E.PRICING_CONSERVATION, 500, {
+        assertion: 'R8',
+        index: i,
+        amountCents: insts[i].amountCents
+      })
+    }
+  }
   const bpSum = insts.reduce((s, i) => s + i.basisPoints, 0)
   if (bpSum !== 10000) return
   const order = db.prepare('SELECT final_price_cents, total_price_cents, price_snapshot, paid_total_cents FROM orders WHERE id = ?').get(orderId) as { final_price_cents: number | null; total_price_cents: number | null; price_snapshot: number | null; paid_total_cents: number | null } | undefined
@@ -418,7 +456,7 @@ interface ExtraItemParams {
 
 /**
  * 添加附加工作项
- * 校验：终态拒绝 + 数量上限 20
+ * 校验：终态拒绝 + 数量上限 20 + 金额区间守卫（负项减后不为负 / 正项累加不超上限）
  * 事务：插入 → 重算 final_price → 系统备注
  * B7: 额度池模型不关心"计入哪个节点"（adjustInstallments 已退役删除）
  */
@@ -432,13 +470,18 @@ export function addExtraItem(orderId: number, { name, description, priceCents }:
   }
 
   const cents = priceCents ?? 0
+  const currentFinal = resolvePriceCents(order) ?? 0
 
   // R13: 负增项（减价路径）守卫——减后总价不得为负
-  if (cents < 0) {
-    const currentFinal = resolvePriceCents(order) ?? 0
-    if (currentFinal + cents < 0) {
-      throw new AppError(E.INVALID_PRICE, 400, { value: cents, message: '减价金额不得超过当前总价' })
-    }
+  if (cents < 0 && currentFinal + cents < 0) {
+    throw new AppError(E.INVALID_PRICE, 400, { value: cents, message: '减价金额不得超过当前总价' })
+  }
+
+  // H-5（审计批 260830）：正向累加守卫——路由 schema 只卡单项 ± 上限，最多 20 项
+  // 叠加可把总价推过上限（旧缺口可达 20 倍），前置校验给出清晰业务错误；
+  // adjustFinalPrice 内部另有同口径兜底断言（双保险）
+  if (cents > 0 && currentFinal + cents > MAX_MONEY_CENTS) {
+    throw new AppError(E.INVALID_PRICE, 400, { value: currentFinal + cents, message: '附加项累计后总价不得超过金额上限（100 万元）' })
   }
 
   // 数量上限

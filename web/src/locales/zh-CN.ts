@@ -463,6 +463,17 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     feedRotated: '链接已更换，请重新复制到手机',
     feedLoadFailed: '订阅状态加载失败，请重试',
     feedToggleFailed: '订阅开关操作失败，请重试',
+    // H-3: 桌面端登录设备账本（登录=记账 / 移除=撕账；本人可移除自己的桌面登录）
+    devicesSection: '桌面端登录设备',
+    devicesRowDesc: '此处列出以桌面端登录过本账号的设备；移除后该设备需重新登录。',
+    devicesEmpty: '暂无桌面设备登录',
+    devicesName: '设备名',
+    devicesLastActive: '最近活跃',
+    devicesExpires: '到期时间',
+    devicesIp: '登录 IP',
+    devicesRemoveConfirm: '移除该设备的登录状态？移除后该设备需重新登录。',
+    devicesLoadFailed: '设备清单加载失败',
+    devicesRemoveFailed: '移除设备失败，请重试',
   },
   // REQ-035 工具集后置: 截稿日建议（工具页文案）
   deadlineAdvice: {
@@ -1280,6 +1291,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     stageBackConfirm: '确定打回到「{name}」？订单状态将标记为修改中。',
     stageOffConfirm: '关闭后此订单不再跟随工作流程，回到固定状态流转。确定关闭？',
     stageOffDone: '已关闭流程跟踪',
+    // M-11（审计 260830）: 工作流节点加载失败（错误条 + 重试，对齐 QueueBoardList workflowLoadFailed 模式）
+    workflowLoadFailed: '工作流节点加载失败，推进/打回暂不可用',
+    workflowLoadFailedRetry: '重试',
     gallery: '订单图库', galleryUpload: '上传图片', galleryUploadSuccess: '图片已添加',
     setFocus: '设为焦点图',
     openViewer: '查看参考图 {n}',

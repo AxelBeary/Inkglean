@@ -233,8 +233,8 @@ interface UndoWindowRow {
 
 /**
  * 带撤销窗口的取消（画师端取消入口）：
- * ① 队列重排/递补延迟执行（窗口过后由 settleExpiredUndoWindows 结算）——避免撤销前后反复动其他单位置；
- * ② 新取消作废该画师旧窗口（只撤最近一次）；
+ * ① 本次取消自己的队列重排/递补延迟执行（窗口过后由 settleExpiredUndoWindows 结算）——避免撤销前后反复动其他单位置；
+ * ② 新取消作废该画师旧窗口（只撤最近一次），被作废窗口立即补结队列（L-10，见下）；
  * ③ 窗口与状态变更同事务，留痕 status_change + undoWindow 标记。
  */
 export function cancelOrderWithUndo(orderId: number, confirmPaidCancel: boolean = false, expectedVersion?: number): OrderDetail {
@@ -247,7 +247,13 @@ export function cancelOrderWithUndo(orderId: number, confirmPaidCancel: boolean 
   assertStatusTransition(order.status, 'cancelled')
 
   return db.transaction(() => {
-    // 只撤最近一次：作废该画师全部未消费旧窗口（consumed=2 过期结算语义，队列本就没动无需补结算）
+    // 只撤最近一次：作废该画师全部未消费旧窗口（consumed=2 过期结算语义）。
+    // L-10（审计批 260830）：作废旧窗口必须补结队列——settleExpiredUndoWindows
+    // 只扫 consumed=0，被作废窗口不会再被结算，其订单名额不补就会滞留到下次队列
+    // 写操作。先记下受影响画家，作废后统一补 compactQueue + tryAutoPromote。
+    const superseded = db.prepare(
+      'SELECT DISTINCT artist_id FROM cancel_undo_windows WHERE artist_id = ? AND consumed = 0'
+    ).all(order.artist_id) as Array<{ artist_id: number }>
     db.prepare('UPDATE cancel_undo_windows SET consumed = 2 WHERE artist_id = ? AND consumed = 0').run(order.artist_id)
 
     updateOrderChecked(orderId, expectedVersion, 'status = ?', 'cancelled')
@@ -256,14 +262,24 @@ export function cancelOrderWithUndo(orderId: number, confirmPaidCancel: boolean 
     db.prepare('INSERT INTO cancel_undo_windows (order_id, artist_id, prev_status, expires_at) VALUES (?, ?, ?, ?)')
       .run(orderId, order.artist_id, order.status, Date.now() + CANCEL_UNDO_WINDOW_MS)
 
-    // 有意不执行 compactQueue/tryAutoPromote：窗口过期后结算（见 settleExpiredUndoWindows）
+    // L-10（审计批 260830）：被作废旧窗口涉及的画家立即补一次重排 + 递补——
+    // 同画家维度即覆盖其全部被作废窗口订单（与 M-2 修法同口径）。
+    // 注意：本次取消自己的窗口仍延迟结算（撤销期内不动自己那份队列，原设计不变）
+    for (const row of superseded) {
+      compactQueue(row.artist_id)
+      // SPEC-004: 名额释放后的自动递补一并补上
+      tryAutoPromote(row.artist_id)
+    }
+
     return getOrder(orderId)!
   })()
 }
 
 /**
- * 撤销取消：窗口未过期且未消费 → 恢复原状态（队列本就没动，无需重排）；
- * 留痕 cancel_undo；窗口过期/不存在 → 410。
+ * 撤销取消：窗口未过期且未消费 → 恢复原状态；留痕 cancel_undo；窗口过期/不存在 → 410。
+ * 注意（M-2，审计批 260830）：「队列本就没动」的旧前提不成立——取消窗口期内其他订单的
+ * 交付/取消会经 updateOrderStatus 触发 compactQueue + tryAutoPromote 全局重排，
+ * 复活订单带的旧位次号可能与现存订单撞号，恢复状态后必须补一次重排 + 递补。
  */
 export function undoCancelOrder(orderId: number, artistId: number): OrderDetail {
   return db.transaction(() => {
@@ -285,6 +301,12 @@ export function undoCancelOrder(orderId: number, artistId: number): OrderDetail 
     db.prepare('UPDATE cancel_undo_windows SET consumed = 1 WHERE id = ?').run(win.id)
     // 留痕：action_type 白名单无 cancel_undo，复用 status_change + undo 标记（避免 CHECK 重建表）
     logActivity(orderId, 'status_change', 'artist', { from: 'cancelled', to: win.prev_status, undo: true })
+
+    // M-2（审计批 260830）：复活订单补一次队列重排 + 递补——窗口期内其他订单可能已
+    // 触发全局重排（updateOrderStatus 交付/取消路径），复活的旧位次会与现存订单撞号；
+    // 口径与 updateOrderStatus 的队列写路径一致。
+    compactQueue(order.artist_id)
+    tryAutoPromote(order.artist_id)
 
     return getOrder(orderId)!
   })()

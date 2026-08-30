@@ -1562,6 +1562,22 @@ export interface CalendarFeedResult {
   url: string | null
 }
 
+// ─── H-3: 桌面端登录设备账本（GET/DELETE /api/artist/devices） ───
+/** GET /api/artist/devices 单行（后端已剔除 artist_id/device_uuid 等敏感列） */
+export interface DesktopDevice {
+  id: number
+  device_name: string | null
+  last_active_at: string
+  expires_at: string
+  created_at: string
+  /** 最近登录 IP（后端 last_login_ip 映射；无记录为 null） */
+  login_ip: string | null
+}
+/** GET /api/artist/devices 响应（最近活跃倒序） */
+export interface DesktopDevicesResult {
+  devices: DesktopDevice[]
+}
+
 /** oimimo 吸纳批四：月度收入行（GET /api/artist/tools/income-monthly，与 income-summary 同源同口径） */
 export interface IncomeMonthRow {
   /** 月份键 YYYY-MM（本地时区） */

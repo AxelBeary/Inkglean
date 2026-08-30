@@ -2,7 +2,7 @@
 // 桌面端不自己算过期）；登录成功把 token/画师信息/设备标识全存 DPAPI 保险箱，禁止明文存储。
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { desktopLogin, type DesktopArtist } from '../api/desktop'
+import { desktopLogin, desktopLogout, type DesktopArtist } from '../api/desktop'
 import { saveSecret, loadSecret, deleteSecret } from '../bridge/secureStore'
 import { isDesktop } from '../bridge/env'
 
@@ -82,8 +82,18 @@ export const useAuthStore = defineStore('auth', () => {
     await saveSecret(KEY_ARTIST, JSON.stringify(result.artist))
   }
 
-  /** 登出（切出）：清内存态 + 撕保险箱里的会话；827 用户终验口径：切出默认回本地模式（用户报障：切出能回本地但需重新选） */
+  /** 登出（切出）：先撕服务端账本再清本地；827 用户终验口径：切出默认回本地模式（用户报障：切出能回本地但需重新选） */
   async function logout(): Promise<void> {
+    // 260830 审计 H-2：切出必须先注销服务端会话（bumpTokenVersion → 撕光桌面设备账本），
+    // 否则旧 token 在 90 天账本有效期内仍可通过门禁。口径同网页登出＝全端踢人；
+    // 网络失败降级为纯本地清理（本地凭证已删，服务端会话由设备账本过期兑底）。
+    if (token.value) {
+      try {
+        await desktopLogout(token.value)
+      } catch {
+        /* 离线/断网：继续本地清理 */
+      }
+    }
     token.value = null
     artist.value = null
     localMode.value = true

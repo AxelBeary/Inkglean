@@ -150,6 +150,57 @@
       </el-table>
     </div>
 
+    <!-- ═══ 桌面端登录设备（H-3：设备账本，本人可撕账移除自己的桌面登录） ═══ -->
+    <div class="group">
+      <div class="group-head">
+        <span>{{ t('account.devicesSection') }}</span>
+      </div>
+      <div class="row">
+        <div class="field-text">
+          <div class="lab">{{ t('account.devicesSection') }}</div>
+          <div class="desc">{{ t('account.devicesRowDesc') }}</div>
+        </div>
+      </div>
+
+      <div v-if="devicesLoading" class="loading-hint">
+        <el-icon class="loading-icon"><Loading /></el-icon>
+      </div>
+      <div v-else-if="devicesError" class="devices-error">
+        <p class="hint-text">{{ devicesError }}</p>
+        <el-button size="small" @click="loadDevices">{{ t('common.loadRetry') }}</el-button>
+      </div>
+      <template v-else>
+        <div v-if="devices.length === 0" class="empty-hint">
+          {{ t('account.devicesEmpty') }}
+        </div>
+        <el-table v-else :data="devices" class="cred-table" size="small">
+          <el-table-column :label="t('account.devicesName')" min-width="140">
+            <template #default="{ row }">
+              <span>{{ row.device_name || '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('account.devicesLastActive')" width="150">
+            <template #default="{ row }">{{ formatDate(row.last_active_at) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('account.devicesExpires')" width="150">
+            <template #default="{ row }">{{ formatDate(row.expires_at) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('account.devicesIp')" width="130">
+            <template #default="{ row }">{{ row.login_ip || '-' }}</template>
+          </el-table-column>
+          <el-table-column :label="t('common.actions')" width="110">
+            <template #default="{ row }">
+              <el-popconfirm :title="t('account.devicesRemoveConfirm')" @confirm="removeDevice(row.id)">
+                <template #reference>
+                  <el-button text size="small" type="danger" :loading="removingDeviceId === row.id" :disabled="removingDeviceId != null">{{ t('common.remove') }}</el-button>
+                </template>
+              </el-popconfirm>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+    </div>
+
     <!-- ═══ 日历订阅（ICS）——oimimo 吸纳批一：手机日历同步排期与截稿日 ═══ -->
     <div class="group">
       <div class="group-head">
@@ -187,7 +238,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist'
-import { webauthnApi, totpRebindApi, calendarFeedApi } from '../../api/index'
+import { webauthnApi, totpRebindApi, calendarFeedApi, artistApi } from '../../api/index'
 import { WarningFilled, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { copyText as copyToClipboard } from '../../utils/clipboard'
@@ -199,7 +250,7 @@ import {
 } from '../../utils/webauthn'
 import { usePasskeyCreate, PASSKEY_FLOW_HANDLED } from '../../composables/usePasskeyCreate'
 import { REBIND_COOLDOWN_DEFAULT_MS } from '../../constants/account'
-import type { WebAuthnCredential, PublicArtistDTO } from '../../api/types'
+import type { WebAuthnCredential, PublicArtistDTO, DesktopDevice } from '../../api/types'
 
 const { t } = useI18n()
 const { passkeyCreateFlow } = usePasskeyCreate()
@@ -277,6 +328,39 @@ async function deleteCredential(id: number) {
     ElMessage.error(t('account.passkeyDeleteFailed'))
   } finally {
     deletingId.value = null
+  }
+}
+
+// ─── 桌面端登录设备（H-3：设备账本，本人可撕账移除自己的桌面登录） ───
+const devices = ref<DesktopDevice[]>([])
+const devicesLoading = ref(false)
+const devicesError = ref('')
+/** a1 同款在途锁：移除按钮防双击重复请求 */
+const removingDeviceId = ref<number | null>(null)
+
+async function loadDevices() {
+  devicesLoading.value = true
+  devicesError.value = ''
+  try {
+    const res = await artistApi.getMyDevices()
+    devices.value = res.devices
+  } catch {
+    devicesError.value = t('account.devicesLoadFailed')
+  } finally {
+    devicesLoading.value = false
+  }
+}
+
+async function removeDevice(id: number) {
+  if (removingDeviceId.value != null) return
+  removingDeviceId.value = id
+  try {
+    await artistApi.revokeMyDevice(id)
+    await loadDevices()
+  } catch {
+    ElMessage.error(t('account.devicesRemoveFailed'))
+  } finally {
+    removingDeviceId.value = null
   }
 }
 
@@ -460,6 +544,7 @@ onMounted(() => {
     loadCredentials()
   }
   loadFeed()
+  loadDevices()
 })
 </script>
 
@@ -586,6 +671,14 @@ onMounted(() => {
   margin-top: 12px;
   font-size: calc(var(--font-scale, 1) * 13px);
   color: var(--ink3);
+}
+/* 桌面设备清单加载失败态：错误文案 + 重试按钮纵向排布 */
+.devices-error {
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 .loading-hint {
   padding: 20px 0;

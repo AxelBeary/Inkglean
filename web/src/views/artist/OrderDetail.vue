@@ -107,6 +107,12 @@
 
         <!-- 有工作流：工作流进度条为唯一状态展示（C52：固定状态条隐藏） -->
         <template v-else-if="hasWorkflow">
+          <!-- M-11（审计 260830）: 工作流节点加载失败——明示错误条 + 重试，替代原先静默吞掉后按钮无声消失
+               （对齐 QueueBoardList workflowLoadFailed 模式）；进度显示不受影响（后端 stageProgress 兜底） -->
+          <div v-if="workflowLoadFailed" class="workflow-load-failed">
+            <span class="workflow-load-failed-text">{{ $t('orderDetail.workflowLoadFailed') }}</span>
+            <el-button size="small" type="warning" plain @click="loadWorkflowStages">{{ $t('orderDetail.workflowLoadFailedRetry') }}</el-button>
+          </div>
           <!-- E10: 节点推进时间线纸墨化——竖向淡墨线 + 墨点（vertical），数据/交互不变 -->
           <OrderTimeline vertical :stages="workflowStages" :current-stage-id="order.currentStageId" />
           <p class="stage-progress-text">
@@ -499,9 +505,21 @@ function formatDate(str: string | null | undefined) {
   return formatDateTime(str || '')
 }
 
+// ─── M-9（审计 260830）: 订单统一写入口——响应 version 单调不回退，旧快照拒收 ───
+// 工作流推进/打回/状态变更/日期/取消/再许可等写入点的写回原为直接 order.value = await ...，
+// 与 loadOrder 并发时晚到的旧快照会覆盖已确认的新状态、version 回退 → 诱发 409 ORDER_CONFLICT 误报
+// （statusAction 互斥锁只防按钮连点，管不住跨路并发）；所有整体替换 order 的写入收敛到这里：
+// 响应 version >= 当前才赋值（首载无基准直接赋）；返回值表示是否真正写入，调用方据此同步基线
+function applyOrder(next: OrderDetailState | null): boolean {
+  if (next && order.value && next.version < order.value.version) return false
+  order.value = next
+  return true
+}
+
 // ─── R-14: loadOrder 竞态守卫 ───
 // 收款/图库/改价等十余处并发触发刷新，晚到的旧快照会让已收金额/状态显示倒退；
 // 请求发出取号，响应晚于最新序号即丢弃（同款 seq 模式，对齐 useOrderForm.doStyleCalc）
+// M-9: 写回亦经 applyOrder 双保险——序号守卫防同路晚到旧快照，version 单调守卫防跨路旧快照
 let loadOrderSeq = 0
 async function loadOrder() {
   const mySeq = ++loadOrderSeq
@@ -509,8 +527,8 @@ async function loadOrder() {
     loadError.value = false
     const data = await artistApi.getOrder(routeId)
     if (mySeq !== loadOrderSeq) return
-    order.value = data
-    prevPriority.value = data?.priority || 'medium'
+    // 真正写入才同步优先级回滚基线（旧快照被拒收时不得拖着 prevPriority 一起倒退）
+    if (applyOrder(data)) prevPriority.value = data?.priority || 'medium'
   } catch (err) {
     if (mySeq !== loadOrderSeq) return
     if (order.value) {
@@ -525,15 +543,15 @@ async function loadOrder() {
 const statusAction = ref('')  // 自原大文件提前，workflow/changeStatus 共享
 const { hasWorkflow, isTerminal, workflowStages, stageProgress, nextStageName,
   canAdvanceStage, canBackStage, advanceStage, backStage, turnOffStageTracking,
-  trackOnLoading, enableTracking, loadWorkflowStages } =
-  useOrderWorkflow({ order, routeId, statusAction, onConflict: loadOrder })
+  trackOnLoading, enableTracking, loadWorkflowStages, workflowLoadFailed } =
+  useOrderWorkflow({ order, routeId, statusAction, onConflict: loadOrder, applyOrder })
 const {
   galleryUploading, isGalleryDragOver, galleryViewerVisible, galleryViewerIndex,
   openGalleryViewer, handleGalleryFileSelect, handleGalleryDrop,
   guardDragEnter, guardDragOver, guardDrop, selectFocusImage, uploadGalleryFiles, validateImageFile
-} = useOrderGallery({ order, routeId, onRefresh: loadOrder })
+} = useOrderGallery({ order, routeId, onRefresh: loadOrder, applyOrder })
 const { deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
-  useOrderDeadline({ order, routeId })
+  useOrderDeadline({ order, routeId, applyOrder })
 const {
   payments, paymentsLoading, paymentsError, paymentSubmitting, loadPayments,
   payDialogVisible, payForm, submitPayment, nodePayDialogVisible, nodePayTarget, nodePayForm,
@@ -567,7 +585,7 @@ const {
   slideCancelActive, slideCancelProgress, openSlideCancel, closeSlideCancel,
   handleSlideStart, handleSlideMove, handleSlideEnd,
   repermittingId, repermitDeliverable, deleteReference, openFile
-} = useOrderActions({ order, routeId, statusAction, prevPriority, loadOrder })
+} = useOrderActions({ order, routeId, statusAction, prevPriority, loadOrder, applyOrder })
 
 // ─── R19: 备注附图/时间线逻辑已随 NotesPanel 拆出（2026-08-10）；粘贴经 expose 调用 ───
 
@@ -582,8 +600,9 @@ function openDeliverDialog() {
 
 // 交付成功回调（DeliverDialog emit delivered，回传最新订单）；
 // 面板类组件统一走 order-updated 事件同款写回（拆分后与原 order.value= 赋值行为一致）
+// M-9: 同为整体写订单的写入点，收敛进统一写入口（旧快照拒收）
 function onOrderUpdated(updated: EnrichedOrderDetail) {
-  order.value = updated
+  applyOrder(updated)
 }
 
 // ─── REQ-022 F1 发布为作品 + REQ-031 B1 完稿分享已随 PublishShareDialogs 拆出（2026-08-10） ───
@@ -701,6 +720,13 @@ onUnmounted(() => {
 /* ─── R30d: 流程进度 ─── */
 .stage-progress-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin: 12px 0 0; }
 .stage-revision-mark { color: var(--th); font-weight: 600; margin-left: 8px; }
+/* M-11（审计 260830）: 工作流节点加载失败错误条（藤黄软底警示，同 next-due-banner 语言；对齐 QueueBoardList 模式） */
+.workflow-load-failed {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: var(--r-m);
+  background: var(--th-t); border: 1px solid color-mix(in srgb, var(--th) 45%, transparent);
+}
+.workflow-load-failed-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 
 /* ─── v128: 修改记录（一行一次：类型标记 + 打回节点 + 时间） ─── */
 .revision-list { list-style: none; margin: 0; padding: 0; }

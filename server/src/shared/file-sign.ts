@@ -6,7 +6,10 @@ import crypto from 'crypto'
 // 签名密钥策略与会话密钥对齐（P3-23，审计批E）：生产无密钥 fail-fast；开发随机化
 // ============================================
 
-const FILE_TTL_MS = 15 * 60 * 1000 // 签名有效期 15 分钟
+// 260830 审计 H-4：15 分钟缩至 5 分钟——交付文件下载为即时行为（点「开始下载」即整取），
+// 缩短签名窗口压缩 URL 被转发/盗链的利用面；慢网下载失败的兜底是「再点一次开始」
+//（重新签发新链接），不靠长窗口苟活。参考图/备注附图等其余签名路径同步受益。
+const FILE_TTL_MS = 5 * 60 * 1000 // 签名有效期 5 分钟
 
 // P3-23（审计批E）：开发密钥策略对齐 auth.service 会话密钥（P1-3 同款）——
 // 固定串 'dev-secret-change-in-production' 可被离线爆破伪造签名 URL；
@@ -35,21 +38,52 @@ function getSecret(): string {
 const SECRET = getSecret()
 
 /**
+ * 260830 审计 H-4：交付文件「一次性下载」结构化载荷。
+ * 编入 token 载荷、HMAC 全覆盖——篡改任一字段即验签失败；
+ * /uploads 钩子凭它与 deliverables 账本（download_nonce/download_locked）对账，
+ * 令签名 URL 从「15 分钟内可无限转发」收紧为「只对本次签发有效」。
+ */
+export interface FileTokenClaims {
+  /** deliverables 表行 id（访问层据此查账本） */
+  deliverableId: number
+  /**
+   * 本次签发随机数。两种模式（260830 审计 H-4 收口）：
+   * - 携带 nonce = 下载模式：每次 download-start 换新，钩子对账锁定与 nonce；
+   * - 省略/空 = 预览模式：画师端预览自己的交付物（拼图选图/水印/详情页），
+   *   钩子只查行存在，不查锁定（锁定只约束客户下载，画师始终可看自己的完稿）。
+   */
+  nonce?: string
+}
+
+/**
  * 为文件路径生成带时效的签名 token
  * 格式: base64url(payload).base64url(hmac)
+ * claims 可选：不携带载荷的旧式调用（参考图/备注附图等）行为完全不变
  */
-export function signFilePath(filePath: string): string {
+export function signFilePath(filePath: string, claims?: FileTokenClaims): string {
   const expires = Date.now() + FILE_TTL_MS
-  const payload = Buffer.from(JSON.stringify({ p: filePath, e: expires })).toString('base64url')
+  const body = claims
+    ? { p: filePath, e: expires, d: claims.deliverableId, ...(claims.nonce ? { n: claims.nonce } : {}) }
+    : { p: filePath, e: expires }
+  const payload = Buffer.from(JSON.stringify(body)).toString('base64url')
   const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
   return `${payload}.${sig}`
 }
 
+/** 验签结果（含结构化载荷；载荷缺失/畸形时 claims 为 null = 旧式链接） */
+export interface VerifiedFileToken {
+  path: string
+  claims: FileTokenClaims | null
+}
+
 /**
- * 验证签名 token，返回文件路径或 null
- * 使用 timing-safe 比较防止时序攻击
+ * 验证签名 token，返回文件路径 + 结构化载荷（或 null）
+ * 使用 timing-safe 比较防止时序攻击。
+ * 载荷校验从严：deliverableId 须正整数；nonce 非空字符串时为下载模式载荷，
+ * 缺失/空时为预览模式载荷（仅 deliverableId）；其余畸形按「无载荷旧式链接」处理
+ *（交付目录语义下即被钩子拒绝）。
  */
-export function verifyFileToken(token: string | null | undefined): string | null {
+export function verifyFileTokenDetailed(token: string | null | undefined): VerifiedFileToken | null {
   if (!token) return null
   const dotIdx = token.lastIndexOf('.')
   if (dotIdx === -1) return null
@@ -65,8 +99,15 @@ export function verifyFileToken(token: string | null | undefined): string | null
 
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
-    if (Date.now() > data.e) return null
-    return data.p as string
+    if (typeof data.e !== 'number' || Date.now() > data.e) return null
+    if (typeof data.p !== 'string') return null
+    let claims: FileTokenClaims | null = null
+    if (Number.isInteger(data.d) && data.d > 0) {
+      claims = (typeof data.n === 'string' && data.n.length > 0)
+        ? { deliverableId: data.d, nonce: data.n }
+        : { deliverableId: data.d }
+    }
+    return { path: data.p, claims }
   } catch (err) {
     console.warn('文件签名 token 解析失败（拒绝访问）', err)
     return null
@@ -74,10 +115,18 @@ export function verifyFileToken(token: string | null | undefined): string | null
 }
 
 /**
- * 生成带签名的完整 URL（用于 API 响应）
+ * 验证签名 token，返回文件路径或 null（向后兼容：不关心载荷的调用方行为不变）
  */
-export function signedUrl(filePath: string): string {
-  return `/uploads/${filePath}?sig=${signFilePath(filePath)}`
+export function verifyFileToken(token: string | null | undefined): string | null {
+  return verifyFileTokenDetailed(token)?.path ?? null
+}
+
+/**
+ * 生成带签名的完整 URL（用于 API 响应）
+ * claims 可选：交付文件一次性下载链接携带载荷，其余路径旧式签名不变
+ */
+export function signedUrl(filePath: string, claims?: FileTokenClaims): string {
+  return `/uploads/${filePath}?sig=${signFilePath(filePath, claims)}`
 }
 
 /**

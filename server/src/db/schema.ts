@@ -215,7 +215,9 @@ CREATE TABLE IF NOT EXISTS order_notes (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
--- 交付文件表
+-- 交付文件表（一次性下载账本列由 v66 无守卫迁移在链上补齐，此处不重复声明——
+-- 与 price_tiers/login_codes 同轨；download_nonce 为 260830 审计 H-4（v74）新增，
+-- v74 迁移自带 PRAGMA 守卫，新库重复执行自动跳过，两处事实源收敛）
 CREATE TABLE IF NOT EXISTS deliverables (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
@@ -223,6 +225,9 @@ CREATE TABLE IF NOT EXISTS deliverables (
   original_name TEXT,
   file_size INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  -- 260830 审计 H-4（v74）: 一次性下载签名 nonce——每次 download-start 签发换新、
+  -- 画师再许可时清空；/uploads 钩子凭签名载荷与本列对账，令旧链接彻底失效
+  download_nonce TEXT,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 

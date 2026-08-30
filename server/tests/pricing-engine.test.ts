@@ -5,6 +5,9 @@
  * 边界案例 1~8 逐案例对应 REQ-025 第三节（数值一律用文档纠正值）；
  * 案例 9/10 + 守恒断言三条破坏用例为一号派工补充项。
  *
+ * 审计批 260830（L-8）：applyRefund 死代码已整体删除（单轨保留 allocateDelta），
+ * 仅针对它的用例（TC-PE-C5-02 / TC-PE-REF-01~03）同步删除，其余保留。
+ *
  * 金额单位全部为「分」。
  */
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -16,7 +19,6 @@ import {
   computeLockedState,
   allocateDelta,
   deriveInstallmentProgress,
-  applyRefund,
   assertConservation,
   type EngineInstallment,
   type ConservationInput,
@@ -264,12 +266,7 @@ describe('案例 5：全部锁定收齐后 −50 → 额外应退，节点不动
     expect(res.extraChargeCents).toBe(0)
   })
 
-  it('TC-PE-C5-02: applyRefund 全锁 → 额外应退，节点价不变（R9/R10）', () => {
-    const nodes = fourNodes(closedAmounts, closedPaid)
-    const res = applyRefund(nodes, allLocked, 5000)
-    expect(res.amountsCents).toEqual(closedAmounts)
-    expect(res.extraRefundCents).toBe(5000)
-  })
+  // 审计批 260830（L-8）：TC-PE-C5-02（applyRefund 全锁）随函数删除同步移除
 
   it('TC-PE-C5-03: 关单退款后守恒（条目 −5000，总价 45000）', () => {
     const total = sumEntryDeltas([
@@ -520,42 +517,9 @@ describe('deriveInstallmentProgress 顺序填充 + 超付抵扣（R7/R8）', () 
   })
 })
 
-// ============================================
-// 退款镜像填充（R9，未关单场景）
-// ============================================
-
-describe('applyRefund 镜像填充（R9，订单未关闭）', () => {
-  it('TC-PE-REF-01: 退款从尾往头冲未锁节点待收，已锁节点不动', () => {
-    // 定金/线稿已锁，细化待收 6000，完稿待收 6000；退 4000 → 只冲完稿
-    const nodes = fourNodes([3000, 12000, 9000, 6000], [3000, 12000, 3000, 0])
-    const res = applyRefund(nodes, [true, true, false, false], 4000)
-    expect(res.amountsCents).toEqual([3000, 12000, 9000, 2000])
-    expect(res.extraRefundCents).toBe(0)
-  })
-
-  it('TC-PE-REF-02: 冲到底后尾款待收变负（应退）', () => {
-    const nodes = fourNodes([3000, 12000, 9000, 6000], [3000, 12000, 3000, 0])
-    // 未锁待收共 12000，退 15000 → 细化 6000 + 完稿 6000 冲光后余 3000 把完稿打成负
-    const res = applyRefund(nodes, [true, true, false, false], 15000)
-    expect(res.amountsCents).toEqual([3000, 12000, 3000, -3000])
-    const progress = deriveInstallmentProgress(fourNodes(res.amountsCents), 18000)
-    expect(progress[2].remainingCents).toBe(0)
-    expect(progress[3].remainingCents).toBe(-3000)
-    // 守恒：总价 30000−15000=15000；15000−18000 = −3000 = Σ待收
-    expect(() => assertConservation(conservationInput({
-      total: 15000,
-      paidTotal: 18000,
-      amounts: res.amountsCents,
-      remaining: progress.map(p => p.remainingCents)
-    }))).not.toThrow()
-  })
-
-  it('TC-PE-REF-03: 退款为 0/负数时原样返回', () => {
-    const nodes = fourNodes([3000, 12000, 9000, 6000])
-    expect(applyRefund(nodes, [false, false, false, false], 0).amountsCents).toEqual([3000, 12000, 9000, 6000])
-    expect(applyRefund(nodes, [false, false, false, false], -100).extraRefundCents).toBe(0)
-  })
-})
+// 审计批 260830（L-8）：applyRefund 镜像填充（R9，订单未关闭）用例组
+// （TC-PE-REF-01~03）随函数删除同步移除；负向路径语义由
+// allocateDelta 负 delta（案例 8 / A3 系列 / pricing-r8-audit.test.ts）承载。
 
 // ============================================
 // allocateDelta 其它行为

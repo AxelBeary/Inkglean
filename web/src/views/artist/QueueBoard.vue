@@ -132,16 +132,35 @@ function saveViewMode(val: string | number) {
   safeSetItem(VIEW_MODE_KEY, String(val))
 }
 
+// ─── M-8（审计 260830）: 加载统一序号守卫 ───
+// 围剿 a1-5 序号模式延伸到加载路径：「推进/交付/重连」触发的 loadQueue 与拖拽重排请求并发在途时，
+// 晚到的旧响应会用旧快照整体覆盖已确认数据。三区各持一个序号（refreshAll/onMounted 并发起跑，
+// 缓冲区/完成区的号不能作废正式区，反之亦然）。
+let loadSeq = 0
+let bufferLoadSeq = 0
+let completedLoadSeq = 0
+// 围剿 a1-5: 拖拽排序请求序号——两次快速拖拽时仅最新序号写 queue/lastServerOrder，防旧响应乱序覆盖；
+// M-8: loadQueue 每次发起也递增此号——加载先回时作废在途重排响应（原缺口：loadQueue 从不递增，守卫恒通过）
+let reorderSeq = 0
+
 async function loadQueue() {
+  const mySeq = ++loadSeq
+  reorderSeq++ // M-8: 作废在途拖拽重排响应（其写回归律认此序号）
   loading.value = true
   try {
-    queue.value = await artistApi.getQueue()
+    const data = await artistApi.getQueue()
+    if (mySeq !== loadSeq) return // 晚到即旧快照，整体丢弃
+    queue.value = data
     lastServerOrder.value = queue.value.map(o => o.id) // REQ-037 C1
+    // M-8: 撤销基准同步到最新服务端确认顺序——撤销写错库的真实通道是 reorderUndoTarget（拖拽开始时的旧快照），
+    // 加载改写顺序后它不得滞留旧快照（toast 亦随加载隐藏，此处兜住一切读取路径）
+    reorderUndoTarget = lastServerOrder.value
     reorderToastVisible.value = false
   } catch (err) {
+    if (mySeq !== loadSeq) return
     ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
-    loading.value = false
+    if (mySeq === loadSeq) loading.value = false // 过期响应不得提前熄灭新请求的 loading
   }
 }
 
@@ -168,8 +187,6 @@ async function undoReorder() {
  * P1-2: 拖拽结束 — 发送完整排序后的 ID 数组
  * vuedraggable 已就地移动数组，直接把新顺序的 ID 列表发给后端
  */
-// 围剿 a1-5: 拖拽排序请求序号——两次快速拖拽时仅最新序号写 queue/lastServerOrder，防旧响应乱序覆盖
-let reorderSeq = 0
 async function onDragEnd(evt: { oldIndex?: number; newIndex?: number }) {
   const { oldIndex, newIndex } = evt
   if (oldIndex === newIndex) return
@@ -184,6 +201,7 @@ async function onDragEnd(evt: { oldIndex?: number; newIndex?: number }) {
     lastServerOrder.value = newQueue.map(o => o.id)
     reorderToastVisible.value = true
   } catch (err) {
+    // 守卫内（mySeq 已核对）：回滚重拉走 loadQueue 自己的 loadSeq 守卫
     if (mySeq !== reorderSeq) return
     ElMessage.error((err instanceof Error ? err.message : '') || String(err))
     // 回滚：重新加载
@@ -192,25 +210,33 @@ async function onDragEnd(evt: { oldIndex?: number; newIndex?: number }) {
 }
 
 async function loadBufferQueue() {
+  const mySeq = ++bufferLoadSeq
   bufferLoading.value = true
   try {
-    bufferQueue.value = await artistApi.getQueue('buffer')
+    const data = await artistApi.getQueue('buffer')
+    if (mySeq !== bufferLoadSeq) return
+    bufferQueue.value = data
   } catch (err) {
+    if (mySeq !== bufferLoadSeq) return
     ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
-    bufferLoading.value = false
+    if (mySeq === bufferLoadSeq) bufferLoading.value = false
   }
 }
 
 /** REQ-013 #7: 加载完成区（最近 7 天已交付订单） */
 async function loadCompletedQueue() {
+  const mySeq = ++completedLoadSeq
   completedLoading.value = true
   try {
-    completedQueue.value = await artistApi.getQueue('completed')
+    const data = await artistApi.getQueue('completed')
+    if (mySeq !== completedLoadSeq) return
+    completedQueue.value = data
   } catch (err) {
+    if (mySeq !== completedLoadSeq) return
     ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
-    completedLoading.value = false
+    if (mySeq === completedLoadSeq) completedLoading.value = false
   }
 }
 

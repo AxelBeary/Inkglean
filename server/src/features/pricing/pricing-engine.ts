@@ -124,7 +124,7 @@ function forwardFill(amountsCents: number[], paidTotalCents: number): number[] {
       paid[i] = take > 0 ? take : 0
       remaining -= paid[i]
     } else {
-      // 尾款节点吸收全部剩余（可为负场景由 applyRefund/负 delta 处理）
+      // 尾款节点吸收全部剩余（负待收场景由 allocateDelta 的负 delta 路径处理）
       paid[i] = remaining
       remaining = 0
     }
@@ -219,8 +219,12 @@ export function computeLockedState(
  *     从尾往头冲抵欠款，冲抵完仍有剩余 → 额外应退（R13「已付全 → 额外应退」推广）。
  *
  * - 比例分摊逐节点向下取整，尾差归最后一个参与节点，保证 Σ 分摊 + 额外 ≡ delta（R6）。
- * - 非全锁路径的负 delta 额外受 R8 下限约束：非尾款未锁节点待收最低 0，
- *   超出部分压到尾款节点使其待收变负（案例 8）。
+ * - 非全锁路径的负 delta 额外受 R8 下限约束（按**绝对位置**：i < n-1 即非尾款，
+ *   与 deriveInstallmentProgress 同口径）：非尾款节点待收不得 < 0，封顶到 0 后记录超额；
+ *   · 真正尾款节点（n-1）在参与者中 → 超额压到尾款节点使其待收变负（案例 8）；
+ *   · 真正尾款节点已锁定不在参与者中 → 无节点可吸收负待收，超额转入额外应退
+ *     （审计批 260830 H-1：旧实现把超额压给「最后一个参与节点」——尾款已锁定时
+ *     它是中间节点，会被扣成负金额造成资金静默损坏，且 Σ 级守恒拦不住）。
  *
  * @param installments 节点列表（需含 basisPoints / amountCents / paidCents）
  * @param lockedFlags  与 installments 顺序一致的锁定标记
@@ -297,21 +301,32 @@ export function allocateDelta(
       }
     }
 
-    // 负 delta 的 R8 下限（非全锁路径）：非尾款未锁节点待收不得 < 0，超出部分压到尾款节点
+    // 负 delta 的 R8 下限（非全锁路径）：非尾款节点待收不得 < 0。
+    // 豁免对象按**绝对位置**判定（真正尾款节点 = n-1，与 deriveInstallmentProgress 同口径），
+    // 而非「最后一个参与节点」：当真正尾款节点已锁定不在参与者中时，最后参与者是
+    // 中间节点，把超额压给它会打出负金额——资金静默损坏且 Σ 级守恒拦不住（审计批 260830 H-1）。
     if (deltaCents < 0) {
-      const lastParticipant = participantIdx[participantIdx.length - 1]
+      const finalNodeIdx = n - 1
+      const finalNodeParticipates = participantIdx.includes(finalNodeIdx)
       let excess = 0
       for (const i of participantIdx) {
-        if (i === lastParticipant) continue // 尾款节点可吸收（待收可为负）
+        if (i === finalNodeIdx) continue // 尾款节点可吸收（待收可为负，R8）
         const newRemaining = remaining[i] + alloc[i]
         if (newRemaining < 0) {
           // 该节点最多只能减掉自己的待收（把待收打到 0）
-          const capped = -remaining[i]
+          const capped = -remaining[i] + 0 // +0 归一：待收恰为 0 时 -0 不得进入整数分域
           excess += alloc[i] - capped // alloc[i] 更负，excess 为负
           alloc[i] = capped
         }
       }
-      alloc[lastParticipant] += excess
+      if (finalNodeParticipates) {
+        // 尾款节点在参与者中：超额压到尾款使其待收变负（案例 8，原行为保留）
+        alloc[finalNodeIdx] += excess
+      } else {
+        // 尾款节点已锁定不在参与者中：无任何节点可吸收负待收，
+        // 超额转入额外应退——宁可显式应退也不得把中间节点扣成负数（审计批 260830 H-1）
+        extraRefund += -excess
+      }
     }
   }
 
@@ -340,74 +355,6 @@ export function deriveInstallmentProgress(
     rows.push({ paidCents: paid[i], remainingCents: remaining })
   }
   return rows
-}
-
-// ─── 退款 ───
-
-/** applyRefund 的结果 */
-export interface RefundResult {
-  /** 退款后的每节点新价（锁定节点不变；尾款可能低于已收 → 待收为负） */
-  amountsCents: number[]
-  /** 全部节点锁定时退款无法进节点 → 额外应退（R10） */
-  extraRefundCents: number
-}
-
-/**
- * 退款镜像填充（R9）：退款只冲未锁节点，从尾往头冲（R7 顺序填充的镜像）。
- *
- * - 冲的是未锁节点的「待收」（等价于降价，客户少付），不回溯已锁节点。
- * - 冲到底（未锁节点待收全部为 0）后仍有剩余 → 尾款节点待收变负（应退给客户）。
- * - 全部节点锁定（订单关闭）→ 退款进额外应退（R10），节点不动。
- *   （A3 注：本函数为独立退款助手、未接服务层；生产链路的正/负 delta 一律走
- *   allocateDelta——「关闭 = 全节点锁定 且 Σ待收=0」双条件与 done 未付全冲抵
- *   由 allocateDelta 承载，勿在本函数上扩展。）
- *
- * @param installments 节点列表（含当前价 amountCents 与已分配 paidCents）
- * @param lockedFlags  与 installments 顺序一致的锁定标记
- * @param refundCents  退款金额（正数）
- */
-export function applyRefund(
-  installments: EngineInstallment[],
-  lockedFlags: boolean[],
-  refundCents: number
-): RefundResult {
-  // 配对后按 sortOrder 排序，保证 lockedFlags 始终与其节点对齐
-  const pairs = installments
-    .map((inst, idx) => ({ inst, locked: lockedFlags[idx] === true }))
-    .sort((a, b) => a.inst.sortOrder - b.inst.sortOrder)
-  const sorted = pairs.map(p => p.inst)
-  const n = sorted.length
-  const amounts = sorted.map(i => i.amountCents)
-  if (refundCents <= 0 || n === 0) {
-    return { amountsCents: amounts, extraRefundCents: 0 }
-  }
-
-  const unlockedIdx: number[] = []
-  for (let i = 0; i < n; i++) {
-    if (!pairs[i].locked) unlockedIdx.push(i)
-  }
-  // 全锁 → 额外应退（R10）
-  if (unlockedIdx.length === 0) {
-    return { amountsCents: amounts, extraRefundCents: refundCents }
-  }
-
-  let remainingRefund = refundCents
-  // 从尾往头冲未锁节点待收（R9 镜像方向）
-  for (let k = unlockedIdx.length - 1; k >= 0; k--) {
-    if (remainingRefund <= 0) break
-    const i = unlockedIdx[k]
-    const paidCents = sorted[i].paidCents ?? 0
-    const remaining = amounts[i] - paidCents // 待收（未锁节点应 ≥ 0）
-    const take = Math.min(remainingRefund, Math.max(remaining, 0))
-    amounts[i] -= take
-    remainingRefund -= take
-  }
-  // 冲到底：剩余把尾款节点待收打成负（应退）——尾款即最后一个未锁节点
-  if (remainingRefund > 0) {
-    const lastUnlocked = unlockedIdx[unlockedIdx.length - 1]
-    amounts[lastUnlocked] -= remainingRefund
-  }
-  return { amountsCents: amounts, extraRefundCents: 0 }
 }
 
 // ─── 守恒断言 ───
