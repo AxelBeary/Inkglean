@@ -12,7 +12,7 @@ import { resolve, join, relative, sep } from 'path'
 import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync, rmSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
-import { verifyFileToken, isPublicUploadPath } from './shared/file-sign.js'
+import { verifyFileTokenDetailed, isPublicUploadPath } from './shared/file-sign.js'
 import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
@@ -71,9 +71,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // ─── 数据库初始化 ───
   initDatabase(db)
 
-  // ─── 孤儿文件回收（内联执行 + 启动时立即跑一次）───
-  // 事故修复：删除→移入回收站（.recycle-bin/YYYY-MM-DD/），画师表空时跳过
-  const RECYCLE_BIN = '.recycle-bin'
+  // ─── 数据库 TTL 清理（260830 审计 M-1：从 gcUploads 拆出，职责分离）───
   // R-20（审计批E）：埋点表 TTL——events/anon_tokens 只进不出，生产代码零清理，慢性膨胀。
   // events 保留 180 天：管理端统计窗口最宽 90 天（tracking.routes 钳制），留一倍余量；
   // anon_tokens 保留 30 天：与凭证 TTL 对齐（tracking.service ANON_TOKEN_TTL_DAYS=30，到期即失效）。
@@ -81,6 +79,37 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // 为业务与审计数据，永久保留（v35 操作日志注释明确「永久保留，不清理」）。
   const EVENTS_TTL_DAYS = 180
   const ANON_TOKENS_TTL_DAYS = 30
+  // M-1 拆分动机：这三张表的清理不依赖文件系统，此前挂在 gcUploads 内、排在两处文件类
+  // 早退（!existsSync(UPLOAD_ROOT) / 画师表为空）之后——首轮启动时甚至早于上传目录创建，
+  // 导致开箱前永不清理。拆为独立函数后不受文件早退连坐，各表 try/catch 互不连坐。
+  const gcDatabaseTtl = () => {
+    try {
+      // created_at 与 tracking.service 写入/续期口径一致（SQLite datetime('now') 文本，UTC），
+      // 用 datetime('now', ?) 同款表达式比较，避免 JS ISO 字符串与库内格式混比。
+      const eventsDeleted = db.prepare("DELETE FROM events WHERE created_at < datetime('now', ?)").run(`-${EVENTS_TTL_DAYS} days`).changes
+      const anonDeleted = db.prepare("DELETE FROM anon_tokens WHERE created_at < datetime('now', ?)").run(`-${ANON_TOKENS_TTL_DAYS} days`).changes
+      if (eventsDeleted > 0 || anonDeleted > 0) {
+        app.log.info(`埋点 TTL 清理: events 删除 ${eventsDeleted} 条, anon_tokens 删除 ${anonDeleted} 条`)
+      }
+    } catch (err) {
+      app.log.warn(`埋点 TTL 清理失败: ${(err as Error).message}`)
+    }
+    try {
+      // 幂等键 TTL（审计批 D-2 接线）：幂等缓存只为防短时窗重复提交，24h 足够；超期行累积无意义。
+      const idemDeleted = pruneIdempotencyKeys(24)
+      if (idemDeleted > 0) {
+        app.log.info(`幂等键 TTL 清理: 删除 ${idemDeleted} 条`)
+      }
+    } catch (err) {
+      app.log.warn(`幂等键 TTL 清理失败: ${(err as Error).message}`)
+    }
+  }
+
+  // ─── 孤儿文件回收（内联执行 + 启动时立即跑一次）───
+  // 事故修复：删除→移入回收站（.recycle-bin/YYYY-MM-DD/），画师表空时跳过
+  // 260830 审计 M-1：本函数只保留文件孤儿回收职责；埋点表/幂等键 TTL 清理已拆至
+  // gcDatabaseTtl（与文件类早退解耦，见上方注释）
+  const RECYCLE_BIN = '.recycle-bin'
   const gcUploads = () => {
     try {
       const UPLOAD_ROOT = resolve(process.env.UPLOAD_DIR || './uploads')
@@ -170,22 +199,6 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
         }
       }
 
-      // ── 埋点表 TTL（R-20）──
-      // created_at 与 tracking.service 写入/续期口径一致（SQLite datetime('now') 文本，UTC），
-      // 用 datetime('now', ?) 同款表达式比较，避免 JS ISO 字符串与库内格式混比。
-      const eventsDeleted = db.prepare("DELETE FROM events WHERE created_at < datetime('now', ?)").run(`-${EVENTS_TTL_DAYS} days`).changes
-      const anonDeleted = db.prepare("DELETE FROM anon_tokens WHERE created_at < datetime('now', ?)").run(`-${ANON_TOKENS_TTL_DAYS} days`).changes
-      if (eventsDeleted > 0 || anonDeleted > 0) {
-        app.log.info(`埋点 TTL 清理: events 删除 ${eventsDeleted} 条, anon_tokens 删除 ${anonDeleted} 条`)
-      }
-
-      // ── 幂等键 TTL（审计批 D-2 接线）──
-      // 幂等缓存只为防短时窗重复提交，24h 足够；超期行累积无意义。
-      const idemDeleted = pruneIdempotencyKeys(24)
-      if (idemDeleted > 0) {
-        app.log.info(`幂等键 TTL 清理: 删除 ${idemDeleted} 条`)
-      }
-
       let skippedFiles = 0
       for (const absPath of walk(UPLOAD_ROOT)) {
         const rel = relative(UPLOAD_ROOT, absPath).replace(/\\/g, '/')
@@ -225,8 +238,9 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       app.log.warn(`孤儿文件回收失败: ${(err as Error).message}`)
     }
   }
+  gcDatabaseTtl() // 启动时立即执行一次（不依赖上传目录存在，先于文件回收跑）
   gcUploads() // 启动时立即执行一次
-  const _gcTimer = setInterval(gcUploads, 24 * 60 * 60 * 1000)
+  const _gcTimer = setInterval(() => { gcDatabaseTtl(); gcUploads() }, 24 * 60 * 60 * 1000)
   _gcTimer.unref()
 
   // 815 拍板 #1⑥：启动时扫描已过期的取消撤销窗口并补执行队列重排/递补
@@ -332,9 +346,32 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
     if (filePath.startsWith('deliverables/') && request.headers.range) {
       return reply.code(416).send({ error: '交付文件不支持分段下载' })
     }
-    const verified = verifyFileToken(sig)
-    if (verified !== filePath) {
+    const verified = verifyFileTokenDetailed(sig)
+    if (!verified || verified.path !== filePath) {
       return reply.code(403).send({ error: '文件链接无效或已过期' })
+    }
+    // 260830 审计 H-4：交付文件「一次性下载」访问层对账——验签通过只是拿到门票，
+    // 还要凭载荷与 deliverables 账本对账，分两种模式：
+    // - 下载模式（载荷带 nonce，download-start 签发）：行不存在 / 已锁定 / nonce 不符 → 403，
+    //   每次 download-start 换新 nonce，旧链接即失效，「一次性」在访问层真正成立；
+    // - 预览模式（仅 deliverableId，画师端预览自己完稿）：只查行存在，不查锁定——
+    //   锁定只约束客户下载，画师始终可预览自己的交付物；
+    // - 载荷缺失的旧式交付文件 URL（升级前签发、尚未过期）同样拒绝：
+    //   一次性语义下旧链接不再放行，重新点「开始下载」即可取得新链接。
+    // 非交付目录（参考图/备注附图等）不查账，签名行为完全不变。
+    if (filePath.startsWith('deliverables/')) {
+      if (!verified.claims) {
+        return reply.code(403).send({ error: '文件链接无效或已过期' })
+      }
+      const row = db.prepare(
+        'SELECT download_locked, download_nonce FROM deliverables WHERE id = ?'
+      ).get(verified.claims.deliverableId) as { download_locked: number; download_nonce: string | null } | undefined
+      if (!row) {
+        return reply.code(403).send({ error: '文件链接无效或已过期' })
+      }
+      if (verified.claims.nonce && (row.download_locked === 1 || row.download_nonce !== verified.claims.nonce)) {
+        return reply.code(403).send({ error: '文件链接无效或已过期' })
+      }
     }
   })
 

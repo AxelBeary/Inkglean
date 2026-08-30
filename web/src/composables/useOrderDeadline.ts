@@ -10,10 +10,13 @@ import type { EnrichedOrderDetail } from '../api/types'
  * @param ctx
  * @param ctx.order - 订单 ref
  * @param ctx.routeId - 订单 id（route.params.id）
+ * @param ctx.applyOrder - M-9（审计 260830）：统一写入口——响应 version 单调不回退，
+ *        防本处写回与 loadOrder 并发时晚到旧快照覆盖新状态（诱发 409 误报）
  */
-export function useOrderDeadline({ order, routeId }: {
+export function useOrderDeadline({ order, routeId, applyOrder }: {
   order: Ref<EnrichedOrderDetail | null>
   routeId: number
+  applyOrder: (next: EnrichedOrderDetail | null) => void
 }) {
   const { t } = useI18n()
 
@@ -62,7 +65,7 @@ export function useOrderDeadline({ order, routeId }: {
 
   async function changeDeadline(val: string | null) {
     try {
-      order.value = await artistApi.updateDeadline(routeId, val || null)
+      applyOrder(await artistApi.updateDeadline(routeId, val || null)) // M-9: 统一写入口（旧快照拒收）
       ElMessage.success(t('orderDetail.deadlineSavedSync'))
     } catch (err) {
       // T1: 保存失败时回弹 picker 显示值为 order 原值（watcher 同款截取逻辑，避免界面与数据不一致）
@@ -81,7 +84,7 @@ export function useOrderDeadline({ order, routeId }: {
   async function changeStartDate(val: string | null) {
     try {
       const updated = await artistApi.updateStartDate(routeId, val || null)
-      order.value = updated
+      applyOrder(updated) // M-9: 统一写入口（旧快照拒收）
       ElMessage.success(t('orderDetail.startDateSavedSync'))
       // 自动填截稿日：截稿日为空 + 有开工日 + 档位有工期
       if (val && !updated.deadline && updated.tier_work_days) {
@@ -92,7 +95,7 @@ export function useOrderDeadline({ order, routeId }: {
         const m = String(start.getMonth() + 1).padStart(2, '0')
         const d = String(start.getDate()).padStart(2, '0')
         const autoDeadline = `${y}-${m}-${d}`
-        order.value = await artistApi.updateDeadline(routeId, autoDeadline)
+        applyOrder(await artistApi.updateDeadline(routeId, autoDeadline)) // M-9: 统一写入口（旧快照拒收）
         ElMessage.success(t('orderDetail.deadlineAutoSet'))
       }
     } catch (err) {

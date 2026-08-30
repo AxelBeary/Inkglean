@@ -14,12 +14,15 @@ import type { EnrichedOrderDetail, WorkflowStageDTO, VersionedOptions } from '..
  * @param ctx.routeId - 订单 id（route.params.id）
  * @param ctx.statusAction - 防连点锁 ref（父组件持有）
  * @param ctx.onConflict - 815 审计 P1-3：乐观锁冲突（409）后的重拉回调（可选）
+ * @param ctx.applyOrder - M-9（审计 260830）：统一写入口——响应 version 单调不回退，
+ *        防本处写回与 loadOrder 并发时晚到旧快照覆盖新状态（互斥锁管不住跨路并发）
  */
-export function useOrderWorkflow({ order, routeId, statusAction, onConflict }: {
+export function useOrderWorkflow({ order, routeId, statusAction, onConflict, applyOrder }: {
   order: Ref<EnrichedOrderDetail | null>
   routeId: number
   statusAction: Ref<string>
   onConflict?: () => Promise<void> | void
+  applyOrder: (next: EnrichedOrderDetail | null) => void
 }) {
   const { t } = useI18n()
 
@@ -78,7 +81,8 @@ export function useOrderWorkflow({ order, routeId, statusAction, onConflict }: {
     if (!nextStage.value || statusAction.value) return
     statusAction.value = 'advance'
     try {
-      order.value = await artistApi.advanceStage(routeId, nextStage.value.id, versionOpt())
+      // M-9: 写回经统一入口（旧快照拒收，防与 loadOrder 并发互相覆盖）
+      applyOrder(await artistApi.advanceStage(routeId, nextStage.value.id, versionOpt()))
       ElMessage.success(t('orderDetail.stageUpdated'))
       trackEvent('artist_action', { action: 'order_status_change', stage: 'advance' })
     } catch (err) {
@@ -102,7 +106,7 @@ export function useOrderWorkflow({ order, routeId, statusAction, onConflict }: {
     if (statusAction.value) return
     statusAction.value = 'back'
     try {
-      order.value = await artistApi.stageBack(routeId, prev.id, versionOpt())
+      applyOrder(await artistApi.stageBack(routeId, prev.id, versionOpt())) // M-9 同 advanceStage
       ElMessage.success(t('orderDetail.stageUpdated'))
       trackEvent('artist_action', { action: 'order_status_change', stage: 'back' })
     } catch (err) {
@@ -124,7 +128,7 @@ export function useOrderWorkflow({ order, routeId, statusAction, onConflict }: {
     if (statusAction.value) return
     statusAction.value = 'off'
     try {
-      order.value = await artistApi.stageOff(routeId, versionOpt())
+      applyOrder(await artistApi.stageOff(routeId, versionOpt())) // M-9 同 advanceStage
       ElMessage.success(t('orderDetail.stageOffDone'))
     } catch (err) {
       if (!(await handleConflict(err))) ElMessage.error((err as ApiError).message)
@@ -138,7 +142,7 @@ export function useOrderWorkflow({ order, routeId, statusAction, onConflict }: {
   async function enableTracking() {
     trackOnLoading.value = true
     try {
-      order.value = await artistApi.trackOn(routeId, versionOpt())
+      applyOrder(await artistApi.trackOn(routeId, versionOpt())) // M-9 同 advanceStage
       ElMessage.success(t('orderDetail.trackingEnabled'))
     } catch (err) {
       if (!(await handleConflict(err))) ElMessage.error((err as ApiError).message)
@@ -147,12 +151,16 @@ export function useOrderWorkflow({ order, routeId, statusAction, onConflict }: {
     }
   }
 
+  // ─── M-11（审计 260830）: 工作流加载失败不再静默——置标志供页面出错误条 + 重试
+  //     （对齐 QueueBoardList workflowLoadFailed 模式）；进度显示不受影响（后端 stageProgress 兜底） ───
+  const workflowLoadFailed = ref(false)
   async function loadWorkflowStages() {
     try {
       const res = await artistApi.getWorkflow()
       workflowStages.value = res.stages || []
+      workflowLoadFailed.value = false
     } catch {
-      // 静默失败：无工作流时流程卡片不显示（currentStageId 为 null）
+      workflowLoadFailed.value = true
     }
   }
 
@@ -161,6 +169,6 @@ export function useOrderWorkflow({ order, routeId, statusAction, onConflict }: {
     workflowStages, currentStageIdx, stageProgress, nextStage, nextStageName,
     canAdvanceStage, canBackStage,
     advanceStage, backStage, turnOffStageTracking,
-    trackOnLoading, enableTracking, loadWorkflowStages
+    trackOnLoading, enableTracking, loadWorkflowStages, workflowLoadFailed
   }
 }

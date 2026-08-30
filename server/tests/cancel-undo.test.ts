@@ -2,6 +2,7 @@
 // 815 拍板 #1：取消 5 秒撤销（窗口存 DB）回归
 // ①取消带窗口 ②窗口内撤销恢复原状 ③过期 410 ④只撤最近一次（新取消作废旧窗口）
 // ⑤窗口期内队列不动、结算后重排 ⑥路由层 cancel/cancel-undo 契约
+// ⑦撤销复活后补队列重排防撞号（M-2）⑧作废旧窗口立即补结队列（L-10）——审计批 260830
 // ============================================
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
@@ -20,6 +21,10 @@ interface UndoWindowRow {
 interface LogRow {
   detail_json: string | null
 }
+
+/** 读取订单当前队列位次 */
+const pos = (orderId: number): number =>
+  (db.prepare('SELECT queue_position FROM orders WHERE id = ?').get(orderId) as { queue_position: number }).queue_position
 
 describe('取消 5 秒撤销（815 拍板 #1）', () => {
   let artist: ArtistRow
@@ -83,12 +88,12 @@ describe('取消 5 秒撤销（815 拍板 #1）', () => {
 
     orderService.cancelOrderWithUndo(o1.id)
     // 撤销期内：o2 位置保持原样（队列未重排）
-    expect((db.prepare('SELECT queue_position FROM orders WHERE id = ?').get(o2.id) as { queue_position: number }).queue_position).toBe(2)
+    expect(pos(o2.id)).toBe(2)
 
     // 窗口拨到过去后结算
     db.prepare('UPDATE cancel_undo_windows SET expires_at = ? WHERE order_id = ?').run(Date.now() - 1000, o1.id)
     orderService.settleExpiredUndoWindows(artist.id)
-    expect((db.prepare('SELECT queue_position FROM orders WHERE id = ?').get(o2.id) as { queue_position: number }).queue_position).toBe(1)
+    expect(pos(o2.id)).toBe(1)
     expect(windowRows(o1.id)[0].consumed).toBe(2)
   })
 
@@ -98,6 +103,43 @@ describe('取消 5 秒撤销（815 拍板 #1）', () => {
 
     expect(() => orderService.cancelOrderWithUndo(order.id)).toThrow('CANCEL_WITH_PAYMENT')
     expect(orderService.cancelOrderWithUndo(order.id, true).status).toBe('cancelled')
+  })
+
+  // ─── 审计批 260830：M-2 / L-10 队列补结回归 ───
+
+  it('TC-CU-07: M-2——窗口期内其他单已重排，撤销复活后补重排不撞号', () => {
+    const o1 = seedOrder(artist.id, { order_no: 'CU-011', status: 'wip', queue_position: 1 })
+    const o2 = seedOrder(artist.id, { order_no: 'CU-012', status: 'wip', queue_position: 2 })
+    const o3 = seedOrder(artist.id, { order_no: 'CU-013', status: 'wip', queue_position: 3 })
+
+    orderService.cancelOrderWithUndo(o1.id)
+    // 窗口期内另一单交付 → updateOrderStatus 触发全局重排：o3 顶到 1
+    orderService.updateOrderStatus(o2.id, 'delivered')
+    expect(pos(o3.id)).toBe(1)
+
+    // 撤销复活 o1——旧位次 1 与 o3 撞号；修复后撤销时补一次重排
+    const restored = orderService.undoCancelOrder(o1.id, artist.id)
+    expect(restored.status).toBe('wip')
+    // 活跃单（o1、o3）位次必须是 1..2 的排列——无重复、无空洞
+    const positions = [pos(o1.id), pos(o3.id)].sort((a, b) => a - b)
+    expect(positions).toEqual([1, 2])
+  })
+
+  it('TC-CU-08: L-10——新取消作废旧窗口时立即补结队列（不等结算扫描）', () => {
+    const o1 = seedOrder(artist.id, { order_no: 'CU-014', status: 'wip', queue_position: 1 })
+    const o2 = seedOrder(artist.id, { order_no: 'CU-015', status: 'wip', queue_position: 2 })
+    const o3 = seedOrder(artist.id, { order_no: 'CU-016', status: 'wip', queue_position: 3 })
+
+    orderService.cancelOrderWithUndo(o1.id)
+    // 首次取消无旧窗口可作废 → 队列延迟结算语义不变：o3 保持 3（同 TC-CU-04）
+    expect(pos(o3.id)).toBe(3)
+
+    // 第二次取消作废 o1 的窗口 → 被作废窗口立即补结：o3 顶到 1
+    orderService.cancelOrderWithUndo(o2.id)
+    expect(windowRows(o1.id)[0].consumed).toBe(2) // o1 窗口已作废（不再被结算扫描重复处理）
+    expect(pos(o3.id)).toBe(1) // 旧缺口：此处会滞留为 3 直到下次队列写操作
+    // o2 的新窗口有效，仍可撤销
+    expect(orderService.undoCancelOrder(o2.id, artist.id).status).toBe('wip')
   })
 })
 

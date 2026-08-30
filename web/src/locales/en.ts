@@ -463,6 +463,17 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     feedRotated: 'Link replaced. Please copy it to your phone again.',
     feedLoadFailed: 'Failed to load subscription status. Please retry.',
     feedToggleFailed: 'Failed to toggle subscription. Please retry.',
+    // H-3: desktop login device ledger (login = record / remove = revoke)
+    devicesSection: 'Desktop Login Devices',
+    devicesRowDesc: 'Devices that have signed in on desktop. Removing one forces it to sign in again.',
+    devicesEmpty: 'No desktop devices signed in',
+    devicesName: 'Device Name',
+    devicesLastActive: 'Last Active',
+    devicesExpires: 'Expires',
+    devicesIp: 'Login IP',
+    devicesRemoveConfirm: 'Remove this device? It will need to sign in again.',
+    devicesLoadFailed: 'Failed to load the device list.',
+    devicesRemoveFailed: 'Failed to remove the device. Please retry.',
   },
   // REQ-035 postponed tools: Deadline advice (tools page copy)
   deadlineAdvice: {
@@ -1281,6 +1292,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     stageBackConfirm: 'Send back to "{name}"? The order will be marked as in revision.',
     stageOffConfirm: 'This order will stop following your workflow and fall back to fixed statuses. Continue?',
     stageOffDone: 'Stage tracking turned off',
+    // M-11 (audit 260830): workflow stages load failure (error bar + retry, mirrors QueueBoardList workflowLoadFailed pattern)
+    workflowLoadFailed: 'Failed to load workflow stages. Advance/send-back is temporarily unavailable.',
+    workflowLoadFailedRetry: 'Retry',
     gallery: 'Order gallery', galleryUpload: 'Upload', galleryUploadSuccess: 'Image added',
     setFocus: 'Set as focus image',
     openViewer: 'View reference image {n}',

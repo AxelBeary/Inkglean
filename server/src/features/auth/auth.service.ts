@@ -116,15 +116,29 @@ export function resetTotp(artistId: number): void {
 // ============================================
 
 /**
+ * 260830 审计 M-6：totp_locked_until 单一解析口径。
+ * 此前 checkTotpLocked 做 string|number 双路兼容、verifyTotpLogin 却是裸比较（> / 减法）——
+ * 列若落成字符串（历史数据/异构写入），裸比较会退化为字符串比较得出错误结论。
+ * 统一走本函数：number 原样（NaN/Infinity 视为 0）、string 走 Date 解析（失败视为 0）、其余 0。
+ * 返回 unix 毫秒；0 = 无有效锁定。
+ */
+export function parseLockedUntilMs(v: unknown): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0
+  if (typeof v === 'string') {
+    const ms = new Date(v).getTime()
+    return Number.isFinite(ms) ? ms : 0
+  }
+  return 0
+}
+
+/**
  * 815 审计 P1-5：绑定/确认类 TOTP 路径共用防爆破（对齐登录路径口径）。
  * 验证前检查锁定期：锁定期内任何尝试（含正确码）都拒绝。
  */
 export function checkTotpLocked(artist: { totp_locked_until: string | number | null }): void {
   if (artist.totp_locked_until == null) return
-  const until = typeof artist.totp_locked_until === 'number'
-    ? artist.totp_locked_until
-    : new Date(artist.totp_locked_until).getTime()
-  if (Number.isFinite(until) && until > Date.now()) {
+  const until = parseLockedUntilMs(artist.totp_locked_until)
+  if (until > Date.now()) {
     throw new AppError(E.TOTP_LOCKED, 429, { remainingLockMs: until - Date.now() })
   }
 }
@@ -161,13 +175,16 @@ export function verifyTotpLogin(qqNumber: string, code: string) {
   }
 
   // 锁定检查：锁定期间一律拒绝（正确码也不行）
-  if (artist.totp_locked_until && artist.totp_locked_until > Date.now()) {
-    const remainingMin = Math.ceil((artist.totp_locked_until - Date.now()) / 60000)
+  // M-6：统一走 parseLockedUntilMs（此前裸 > / 减法对字符串口径会错判）
+  const lockedUntil = parseLockedUntilMs(artist.totp_locked_until)
+  if (lockedUntil > Date.now()) {
+    const remainingMs = lockedUntil - Date.now()
+    const remainingMin = Math.ceil(remainingMs / 60000)
     return {
       valid: false,
       code: E.TOTP_LOCKED,
       error: `尝试次数过多，账号已临时锁定，请约 ${remainingMin} 分钟后再试`,
-      remainingLockMs: artist.totp_locked_until - Date.now()
+      remainingLockMs: remainingMs
     }
   }
 

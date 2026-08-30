@@ -306,9 +306,12 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
       const result = await saveDeliverable(data, join('deliverables', String(request.artist.id)), UPLOAD_DIR)
       if (!result) return reply.code(400).send({ error: '文件大小超过限制' })
 
+      // 260830 审计 H-4：上传时 deliverables 账本行尚未创建（交付时才建），无法带载荷签发；
+      // 交付目录裸签名在访问层会被 403，故不再下发误导性直链（前端消费的是 filePath，
+      // 交付后预览/下载分别走预览载荷与 download-start 链路）。字段保留空串兼容响应形状。
       return {
         filePath: result.filePath,
-        url: signedUrl(result.filePath),
+        url: '',
         originalName: data.filename,
         mimeType: data.mimetype,
         size: result.size

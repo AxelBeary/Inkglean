@@ -167,7 +167,8 @@
           <h4>{{ $t('track.deliverables') }}</h4>
           <div v-for="d in order.deliverables" :key="d.id" class="file-item">
             <span>{{ d.fileName }}</span>
-            <el-button size="small" type="primary" @click="downloadFile(d.url, d.fileName)">{{ $t('common.download') }}</el-button>
+            <!-- 260830 审计 H-4：下载统一走一次性下载链路（服务端不再下发列表直链） -->
+            <el-button size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d.id, d.fileName)">{{ $t('common.download') }}</el-button>
           </div>
         </div>
 
@@ -340,11 +341,25 @@ const trackNextDueCents = computed(() => {
   return 0 // 全部覆盖
 })
 
-async function downloadFile(url: string, fileName: string | null | undefined) {
+// 260830 审计 H-4：追踪页下载收敛到一次性下载链路——start 签发 → fetch 全量接收 → confirm 锁定，
+// 与交付页（DeliveryPage）同口径；旧式「列表直链直接下载」已下架（可转发，架空一次性语义）。
+const downloadingId = ref<number | null>(null)
+
+async function downloadDeliverable(id: number, fileName: string | null | undefined) {
+  if (downloadingId.value !== null || !order.value) return
+  downloadingId.value = id
   try {
+    const { url } = await orderApi.deliveryDownloadStart(order.value.orderNo, id, token.value)
     await downloadAsset(url, fileName ?? undefined)
-  } catch {
-    ElMessage.error(t('delivery.downloadFailed'))
+    await orderApi.deliveryDownloadConfirm(order.value.orderNo, id, token.value)
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'DOWNLOAD_LOCKED') {
+      ElMessage.warning(t('delivery.downloadLockedMsg'))
+    } else {
+      ElMessage.error(t('delivery.downloadFailed'))
+    }
+  } finally {
+    downloadingId.value = null
   }
 }
 

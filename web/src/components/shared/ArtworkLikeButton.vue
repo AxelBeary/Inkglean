@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { artistPublicApi } from '../../api/index'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
@@ -46,6 +46,8 @@ const isLiked = ref(props.liked)
 const count = ref(props.initialCount)
 const busy = ref(false)
 const popping = ref(false)
+// L-5: 弹跳复位定时器句柄——卸载时清理，防组件销毁后仍回写已卸载组件状态
+let popTimer: number | null = null
 
 /** b3 猎杀：props 变化（父级切换作品/数据刷新）时同步本地状态，storage key 随 subdomain 响应式 */
 const storageKey = computed(() => `huiyue_liked_${props.subdomain}`)
@@ -82,10 +84,14 @@ async function toggle() {
     persist()
     // 弹跳微动画：加 class 触发 CSS animation，结束后移除
     popping.value = true
-    setTimeout(() => { popping.value = false }, 350)
+    if (popTimer) clearTimeout(popTimer)
+    popTimer = setTimeout(() => { popping.value = false }, 350)
   } catch { /* 网络失败静默，不打断浏览 */ }
   finally { busy.value = false }
 }
+
+// L-5: 卸载清理弹跳复位定时器（对齐生命周期钩子收口）
+onUnmounted(() => { if (popTimer) clearTimeout(popTimer) })
 </script>
 
 <style scoped>

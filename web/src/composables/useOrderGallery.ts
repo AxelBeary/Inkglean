@@ -21,11 +21,14 @@ import type { EnrichedOrderDetail } from '../api/types'
  * @param ctx.order - 订单 ref
  * @param ctx.routeId
  * @param ctx.onRefresh - 刷新回调（loadOrder；gallery 部分失败时用）
+ * @param ctx.applyOrder - M-9 补漏（审计 260830 收口）：统一写入口——响应 version 单调不回退，
+ *        防本处写回与 loadOrder 并发时晚到旧快照覆盖新状态（同其余 composable 口径）
  */
-export function useOrderGallery({ order, routeId, onRefresh }: {
+export function useOrderGallery({ order, routeId, onRefresh, applyOrder }: {
   order: Ref<EnrichedOrderDetail | null>
   routeId: number
   onRefresh: () => Promise<void> | void
+  applyOrder: (next: EnrichedOrderDetail | null) => void
 }) {
   const { t } = useI18n()
 
@@ -60,11 +63,11 @@ export function useOrderGallery({ order, routeId, onRefresh }: {
     // G-7（P2-13 前端侧）: 与下单/手动录单同口径——上传前 await 凭证，
     // 失效凭证由 anonUpload 换新重试一次（815 起参考图接口强制要求 x-anon-token）
     const { uploaded } = await uploadReferenceWithAnonToken(file)
-    order.value = await artistApi.addReference(routeId, {
+    applyOrder(await artistApi.addReference(routeId, {
       filePath: uploaded.filePath,
       fileName: uploaded.originalName,
       fileSize: uploaded.size
-    })
+    }))
   }
 
   /** 批量上传（拖拽/多选/粘贴共用） */
@@ -109,7 +112,7 @@ export function useOrderGallery({ order, routeId, onRefresh }: {
   async function selectFocusImage(reference: { file_path: string }) {
     try {
       // mode 仅为满足后端 schema；实际显示尺寸由看板 queue_focus_display 决定
-      order.value = await artistApi.setFocusImage(routeId, { imagePath: reference.file_path, mode: 'small' })
+      applyOrder(await artistApi.setFocusImage(routeId, { imagePath: reference.file_path, mode: 'small' }))
       ElMessage.success(t('orderDetail.focusUpdated'))
     } catch (err) {
       ElMessage.error((err as ApiError).message)

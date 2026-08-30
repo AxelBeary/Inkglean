@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="style-manager" v-loading="loading">
     <!-- 顶部工具栏：标题 + 开关 + 状态徽章 ｜ 新建画风主入口 -->
     <div class="style-toolbar">
@@ -366,36 +366,48 @@ async function setAsDefault(style: ManagerStyleRow) {
 }
 
 // ─── v0.35 补漏 A3: 拖拽排序（画风卡片 + 尺寸行双层） ───
+// 260830 审计 L-13：排序在途锁——逐条 PUT 期间二次拖拽会就地改写数组，
+// 循环按新下标继续写、两条请求互相抹平，服务端停在中间态且两边都不报错。
+// 口径：在途时拒绝二次拖拽并重拉权威顺序；循环前快照 id 序列，不读实时数组。
+const reordering = ref(false)
 
 /** 画风卡片拖拽结束 — 逐条 PUT sort_order（后端无批量 reorder 端点） */
 async function onStyleDragEnd() {
+  if (reordering.value) { await load(); return }
+  reordering.value = true
+  const snapshot = styles.value.map(s => ({ id: s.id }))
   try {
-    for (let i = 0; i < styles.value.length; i++) {
-      if (styles.value[i].sort_order !== i) {
-        await artistApi.updateArtStyle(styles.value[i].id, { sort_order: i })
-        styles.value[i].sort_order = i
-      }
+    for (let i = 0; i < snapshot.length; i++) {
+      await artistApi.updateArtStyle(snapshot[i].id, { sort_order: i })
+      const cur = styles.value.find(s => s.id === snapshot[i].id)
+      if (cur) cur.sort_order = i
     }
     ElMessage.success(t('tiers.reorderSaved'))
   } catch (err) {
     ElMessage.error((err as Error).message)
     await load() // 回滚前端顺序
+  } finally {
+    reordering.value = false
   }
 }
 
 /** 尺寸行拖拽结束 — 逐条 PUT sort_order */
 async function onSizeDragEnd(style: ManagerStyleRow) {
+  if (reordering.value) { await load(); return }
+  reordering.value = true
+  const snapshot = style.sizes.map(s => ({ id: s.id }))
   try {
-    for (let i = 0; i < style.sizes.length; i++) {
-      if (style.sizes[i].sort_order !== i) {
-        await artistApi.updateStyleSize(style.id, style.sizes[i].id, { sort_order: i })
-        style.sizes[i].sort_order = i
-      }
+    for (let i = 0; i < snapshot.length; i++) {
+      await artistApi.updateStyleSize(style.id, snapshot[i].id, { sort_order: i })
+      const cur = style.sizes.find(s => s.id === snapshot[i].id)
+      if (cur) cur.sort_order = i
     }
     ElMessage.success(t('tiers.reorderSaved'))
   } catch (err) {
     ElMessage.error((err as Error).message)
     await load()
+  } finally {
+    reordering.value = false
   }
 }
 
@@ -733,17 +745,23 @@ async function onDropToPool(style: ManagerStyleRow, _e: DragEvent) {
   }
 }
 
-/** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } }（GET 只读端点） */
-async function preloadOverrides(styleList: ManagerStyleRow[]) {
+/** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } }（GET 只读端点）
+ *  M-12（审计 260830）：写回绑定发起它的那次加载序号——晚到的预载不得写进已被新加载替换的孤儿对象
+ *  （报告点名的 _overrides 残缺根因）。
+ *  TODO(audit-260830): N×M 覆盖请求待后端批量接口（现逐 画风×尺寸 一个 GET；后端无一次性全量端点——
+ *  getArtStyles 不含覆盖，getPublicStyles 为顾客算价端点，不暴露原始覆盖记录，故本批不切换） */
+async function preloadOverrides(styleList: ManagerStyleRow[], seq: number) {
   await Promise.all(styleList.map(async style => {
     await Promise.all((style.sizes || []).map(async size => {
       try {
         const overrides = await artistApi.getSizeOverrides(style.id, size.id)
+        if (seq !== loadSeq) return // 晚到即丢弃：不写孤儿对象（M-12）
         size._overrides = {}
         for (const o of overrides) {
           size._overrides[o.style_addon_id] = { price_override: o.price_override, is_hidden: !!o.is_hidden }
         }
       } catch {
+        if (seq !== loadSeq) return
         size._overrides = {}
       }
     }))
@@ -751,7 +769,11 @@ async function preloadOverrides(styleList: ManagerStyleRow[]) {
 }
 
 // ─── 初始化 ───
+// M-12（审计 260830）: load 序号守卫——8 处变更路径 + 弹窗 @saved + reload 并发触发 load() 时，
+// 晚到的旧响应不得整体覆盖新数据；预载随同一序号绑定，防写回孤儿对象
+let loadSeq = 0
 async function load() {
+  const mySeq = ++loadSeq
   loading.value = true
   try {
     const [styleList, profile, artworkList, templates] = await Promise.all([
@@ -760,15 +782,17 @@ async function load() {
       artistApi.getArtworks(),
       artistApi.getAddonTemplates()
     ])
+    if (mySeq !== loadSeq) return // 晚到即旧快照，整体丢弃
     styles.value = styleList as unknown as ManagerStyleRow[]
     multiStyleEnabled.value = !!profile.multi_style_enabled
     artworks.value = artworkList
     addonTemplates.value = templates
-    await preloadOverrides(styles.value) // REQ-036: 预载覆盖（池/摘要/弹窗依赖 size._overrides）
+    await preloadOverrides(styles.value, mySeq) // REQ-036: 预载覆盖（池/摘要/弹窗依赖 size._overrides）
   } catch (err) {
+    if (mySeq !== loadSeq) return
     ElMessage.error((err as Error).message)
   } finally {
-    loading.value = false
+    if (mySeq === loadSeq) loading.value = false // 过期响应不得提前熄灭新请求的 loading
   }
 }
 

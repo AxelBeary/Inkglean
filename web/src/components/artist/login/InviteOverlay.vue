@@ -203,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted } from 'vue'
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../../stores/artist'
@@ -258,6 +258,8 @@ const recoverErrQq = ref(false)
 const recoverErrCode = ref(false)
 const recoverError = ref('')
 const recoverOk = ref(false)
+// L-5: 首绑/找回成功后的 500ms 延迟跳转句柄（两处共用）——卸载时清理，防销毁后仍触发导航
+let inviteNavTimer: number | null = null
 
 // ─── 824: 步骤 1 文书必读（滑底/勾选；纸签与文书章节事实源 compliance，只渲染不复制） ───
 const policyReached = ref(false)
@@ -289,6 +291,9 @@ onMounted(async () => {
   // 初始聚焦：文书窗（tabindex=-1 可聚焦，读屏从正文起）
   ;(overlayRef.value?.querySelector('.invite-docs') as HTMLElement | null)?.focus()
 })
+
+// L-5: 卸载清理延迟跳转定时器（防叠加层关闭/组件销毁后仍触发路由跳转）
+onUnmounted(() => { if (inviteNavTimer) clearTimeout(inviteNavTimer) })
 
 /** 824: 用户主动关闭 → 清防刷新状态（拍板口径；找回入口可再次进入重新填写），再通知父级 */
 function onClose() {
@@ -422,7 +427,8 @@ async function confirmInviteTotp() {
     // 824: 绑定完成 → 清防刷新状态
     clearInviteTotpProgress()
     inviteTotpOk.value = true
-    setTimeout(() => router.push('/dashboard'), 500)
+    if (inviteNavTimer) clearTimeout(inviteNavTimer)
+    inviteNavTimer = setTimeout(() => router.push('/dashboard'), 500)
   } catch (err) {
     inviteErrTotp.value = true
     inviteError.value = mapInviteTotpErr(err)
@@ -486,7 +492,8 @@ async function submitRecover() {
     store.applySession(res.artist, false)
     recoverOk.value = true
     inviteTotpOk.value = true
-    setTimeout(() => router.push('/dashboard'), 500)
+    if (inviteNavTimer) clearTimeout(inviteNavTimer)
+    inviteNavTimer = setTimeout(() => router.push('/dashboard'), 500)
   } catch (err) {
     recoverErrCode.value = true
     recoverError.value = mapInviteTotpErr(err)

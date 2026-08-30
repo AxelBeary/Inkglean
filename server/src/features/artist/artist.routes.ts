@@ -1,6 +1,7 @@
 import * as artistService from './artist.service.js'
 import * as platformService from '../platform/platform.service.js'
 import * as trackingService from '../tracking/tracking.service.js'
+import * as devicesService from '../auth/devices.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { clamp } from '../../shared/validate.js'
 import { AppError, E } from '../../shared/errors.js'
@@ -134,6 +135,51 @@ export default async function artistRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/api/artist/announcement', { preHandler: requireAuth }, async () => {
     return getPlatformAnnouncement()
+  })
+
+  // ─── 桌面设备自治管理（260830 审计 H-3）───
+  // 背景：桌面端记账式会话（v73）的设备账本此前只有管理员可读/可撕（admin.routes
+  // 的 list/revoke 端点），画师本人无任何入口——换机/设备被盗时只能联系管理员踢人。
+  // 本组端点让画师查看并踢出自己的桌面设备（自治踢设备），与管理员版同口径：
+  // - artistId 一律取 request.artist.id——清单/踢出都只作用于本人账目，绝无跨画师可见性
+  // - 响应剔除敏感列（artist_id 冗余、device_uuid 属设备指纹不下发），保留排查所需字段
+
+  /**
+   * GET /api/artist/devices
+   * 本画师桌面设备清单（按最近活跃倒序，复用管理员同款账本查询）
+   */
+  fastify.get('/api/artist/devices', { preHandler: requireAuth }, async (request: FastifyRequest) => {
+    const devices = devicesService.listDesktopDevices(request.artist.id).map(d => ({
+      id: d.id,
+      device_name: d.device_name,
+      last_active_at: d.last_active_at,
+      expires_at: d.expires_at,
+      created_at: d.created_at,
+      login_ip: d.last_login_ip
+    }))
+    return { devices }
+  })
+
+  /**
+   * DELETE /api/artist/devices/:deviceId
+   * 踢出本人某台桌面设备（撕账）——未命中（不存在/非本人/已被移除）返回 404，
+   * 与管理员版撕账同口径；命中返回 { success: true }
+   */
+  fastify.delete('/api/artist/devices/:deviceId', {
+    preHandler: requireAuth,
+    schema: {
+      params: {
+        type: 'object',
+        required: ['deviceId'],
+        properties: { deviceId: { type: 'integer' } },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { deviceId } = request.params as { deviceId: number }
+    const revoked = devicesService.revokeDesktopDevice(request.artist.id, deviceId)
+    if (!revoked) return reply.code(404).send({ error: '设备不存在或已被移除' })
+    return { success: true }
   })
 
   /**

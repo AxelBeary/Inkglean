@@ -197,7 +197,38 @@ function collect(): Violation[] {
   return violations
 }
 
-function main(): void {
+/** 递归扁平化 locale 消息对象为点路径键集合（{ a: { b: 'x' } } → 'a.b'） */
+function flattenLocaleKeys(value: unknown, prefix = ''): Set<string> {
+  const keys = new Set<string>()
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return keys
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    const path = prefix ? `${prefix}.${k}` : k
+    if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+      for (const sub of flattenLocaleKeys(v, path)) keys.add(sub)
+    } else {
+      keys.add(path)
+    }
+  }
+  return keys
+}
+
+/**
+ * L-14: 中英词条键集对齐检查（独立于硬编码扫描）。
+ * locales/ 为 TS export default 对象，走动态 import 直取真实结构（零新依赖、免正则误判嵌套键）。
+ * 返回缺失清单（空 = 对齐）：任一语言缺键即需拦截。
+ */
+async function checkLocaleKeyDiff(): Promise<string[]> {
+  const zhMod = await import('../src/locales/zh-CN')
+  const enMod = await import('../src/locales/en')
+  const zhKeys = flattenLocaleKeys(zhMod.default)
+  const enKeys = flattenLocaleKeys(enMod.default)
+  const problems: string[] = []
+  for (const k of zhKeys) if (!enKeys.has(k)) problems.push(`en 缺失 ${k}`)
+  for (const k of enKeys) if (!zhKeys.has(k)) problems.push(`zh-CN 缺失 ${k}`)
+  return problems.sort()
+}
+
+async function main(): Promise<void> {
   const initMode = process.argv.includes('--init')
   const pruneMode = process.argv.includes('--prune')
   const violations = collect()
@@ -231,13 +262,22 @@ function main(): void {
   }
   const baseline = new Set((JSON.parse(readFileSync(BASELINE_FILE, 'utf8')) as BaselineFile).entries)
   const fresh = violations.filter(v => !baseline.has(`${v.file}\u0000${v.text}`))
-  if (fresh.length === 0) {
-    console.log(`[check-i18n] OK — 存量违规 ${baseline.size} 条豁免，无新增硬编码中文`)
+  // L-14: 中英词条键集对齐检查（独立于硬编码扫描；与存量/新增违规一并收口，任一缺失即拦截）
+  const keyDiff = await checkLocaleKeyDiff()
+
+  if (fresh.length === 0 && keyDiff.length === 0) {
+    console.log(`[check-i18n] OK — 存量违规 ${baseline.size} 条豁免，无新增硬编码中文，中英词条键集一致`)
     return
   }
-  console.error(`[check-i18n] 拦截 ${fresh.length} 处新增硬编码中文（存量已进 baseline，新增必须走 $t 或白名单）:`)
-  for (const v of fresh) console.error(`  ${v.file}:${v.line} [${v.rule}] ${v.text}`)
+  if (fresh.length > 0) {
+    console.error(`[check-i18n] 拦截 ${fresh.length} 处新增硬编码中文（存量已进 baseline，新增必须走 $t 或白名单）:`)
+    for (const v of fresh) console.error(`  ${v.file}:${v.line} [${v.rule}] ${v.text}`)
+  }
+  if (keyDiff.length > 0) {
+    console.error(`[check-i18n] 拦截 ${keyDiff.length} 处中英词条键缺失（zh-CN 与 en 必须一一对应）:`)
+    for (const p of keyDiff) console.error(`  ${p}`)
+  }
   process.exit(1)
 }
 
-main()
+void main()

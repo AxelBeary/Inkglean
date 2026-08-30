@@ -37,7 +37,9 @@ function signOrderUrls(order: OrderDetail): OrderDetail {
     order.references = order.references.map((r) => ({ ...r, url: signedUrl(r.file_path) }))
   }
   if (order.deliverables) {
-    order.deliverables = order.deliverables.map((d) => ({ ...d, url: signedUrl(d.file_path) }))
+    // 260830 审计 H-4：交付文件一律带载荷签名——画师端预览走预览载荷（仅 deliverableId），
+    // 客户下载走 download-start 的 nonce 载荷；裸签名在访问层会被 403。
+    order.deliverables = order.deliverables.map((d) => ({ ...d, url: signedUrl(d.file_path, { deliverableId: d.id }) }))
   }
   // R19: 备注附图签名 — 漏做 = 前端拿裸路径 → 403（焦点图 Bug 翻版）
   if (order.notes) {

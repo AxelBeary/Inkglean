@@ -272,6 +272,16 @@ export async function orderListRoutes(fastify: FastifyInstance) {
             ).get(p, request.artist.id)
             if (!owned) throw new AppError(E.ILLEGAL_PATH)
           }
+          // 260830 审计 H-4：deliverables/ 路径带预览载荷签发（仅 deliverableId，访问层查账本行存在即放行）；
+          // 裸签名在交付目录会被钩子 403。归属校验同 references 口径（目录前缀已含画家 id，JOIN 双保险）。
+          if (p.startsWith('deliverables/')) {
+            const owned = db.prepare(
+              'SELECT d.id FROM deliverables d JOIN orders o ON d.order_id = o.id WHERE d.file_path = ? AND o.artist_id = ? LIMIT 1'
+            ).get(p, request.artist.id) as { id: number } | undefined
+            if (!owned) throw new AppError(E.ILLEGAL_PATH)
+            urls[p] = signedUrl(p, { deliverableId: owned.id })
+            continue
+          }
           urls[p] = signedUrl(p)
         }
 

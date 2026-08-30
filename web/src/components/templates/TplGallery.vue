@@ -379,6 +379,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 // 触摸/鼠标滑动翻页（pointer events）：横向位移超阈值且以横向为主 → 翻页
 let swipeStart: { x: number; y: number } | null = null
 const justSwiped = ref(false)
+// L-5: justSwiped 复位定时器句柄——卸载时清理，防组件销毁后仍回写已卸载状态
+let swipeResetTimer: number | null = null
 function onSwipeStart(e: PointerEvent) {
   swipeStart = { x: e.clientX, y: e.clientY }
 }
@@ -392,9 +394,13 @@ function onSwipeEnd(e: PointerEvent) {
   if (dx < 0) goNext()
   else goPrev()
   // click 在 pointerup 之后同步派发，微任务里复位即可吞掉本次点击
-  setTimeout(() => { justSwiped.value = false }, 0)
+  if (swipeResetTimer) clearTimeout(swipeResetTimer)
+  swipeResetTimer = setTimeout(() => { justSwiped.value = false }, 0)
 }
 function onSwipeCancel() { swipeStart = null }
+
+// L-5: 卸载清理滑动复位定时器（与上方 keydown 监听各自收口，互不干扰）
+onUnmounted(() => { if (swipeResetTimer) clearTimeout(swipeResetTimer) })
 
 /**
  * 作品的档位标签：art.size_tags（对象数组）→ 按 style_size_id 映射到筛选条目（含 styleId/label）。

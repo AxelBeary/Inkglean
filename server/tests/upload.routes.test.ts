@@ -226,7 +226,8 @@ describe('上传路由 (Upload Routes)', () => {
       const json = res.json()
       expect(json.filePath).toContain('deliverables/' + artist.id + '/')
       expect(json.filePath).toMatch(/\.psd$/)
-      expect(json.url).toContain('?sig=')
+      // 260830 审计 H-4：上传时账本行未建，交付目录不再下发可用直链（见 TC-ENV-03 同口径）
+      expect(json.url).toBe('')
     })
 
     it('TC-U-16: 上传 ZIP 交付文件成功', async () => {
@@ -416,17 +417,15 @@ describe('上传路由 (Upload Routes)', () => {
       expect(res.headers['cache-control']).toBe('no-store')
     })
 
-    it('TC-ENV-03: 交付文件（deliverables/）→ attachment + no-store', async () => {
+    it('TC-ENV-03: 交付文件（deliverables/）上传后不再下发可用直链（260830 审计 H-4）', async () => {
       const artist = seedArtist({ qq_number: '111', subdomain: 'alice' })
       const token = createSession(artist.id, artist.token_version)
       const up = await uploadFile(app, '/api/upload/deliverable', 'art.psd', 'image/vnd.adobe.photoshop', 'psd-data', token)
       expect(up.statusCode).toBe(200)
-      const url = up.json().url
-
-      const res = await app.inject({ method: 'GET', url })
-      expect(res.statusCode).toBe(200)
-      expect(res.headers['content-disposition']).toBe('attachment')
-      expect(res.headers['cache-control']).toBe('no-store')
+      // 上传时账本行未建、无法带载荷签发；交付目录裸签名会被钩子 403，故 url 为空串（前端消费 filePath）。
+      // 交付后的下载/预览响应头语义由 one-time-download-access.test.ts（TC-DLA-01）覆盖。
+      expect(up.json().url).toBe('')
+      expect(up.json().filePath).toMatch(/^deliverables\//)
     })
 
     it('TC-ENV-03b: 参考图签名 URL 拒绝无签名访问（F-10 归属登记后行为不变）', async () => {

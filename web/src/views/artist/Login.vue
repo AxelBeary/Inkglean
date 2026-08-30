@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -134,6 +134,9 @@ const route = useRoute()
 const router = useRouter()
 const store = useArtistStore()
 
+// L-5: 登录成功延迟跳转句柄——卸载时清理，防离开登录页后定时器仍触发导航
+let loginNavTimer: number | null = null
+
 /** 登录成功跳转：消费守卫带来的 ?redirect=（限站内路径，防开放跳转），兜底统一落地画师面板；停留 500ms 让用户看见成功反馈 */
 function goAfterLogin(route: RouteLocationNormalizedLoaded) {
   const redirect = route.query.redirect
@@ -141,8 +144,12 @@ function goAfterLogin(route: RouteLocationNormalizedLoaded) {
   const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
     ? redirect
     : '/dashboard'
-  setTimeout(() => router.push(target), 500)
+  if (loginNavTimer) clearTimeout(loginNavTimer)
+  loginNavTimer = setTimeout(() => router.push(target), 500)
 }
+
+// L-5: 卸载清理延迟跳转定时器（对齐生命周期钩子收口）
+onUnmounted(() => { if (loginNavTimer) clearTimeout(loginNavTimer) })
 
 // 纸墨 token 作用域由路由守卫统一接管（login/dashboard 同属后台作用域，
 // 过渡全程 attr 不摘——组件内 onUnmounted 摘除会与守卫竞态，造成墨黑登录闪白，已移除）

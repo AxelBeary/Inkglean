@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition, updateOrderChecked } from './order.service.js'
@@ -385,7 +386,7 @@ function getDeliverableDownloadRow(orderId: number, fileId: number): Deliverable
 }
 
 type DownloadStartOutcome =
-  | { outcome: 'ok'; filePath: string }
+  | { outcome: 'ok'; filePath: string; deliverableId: number; nonce: string }
   | { outcome: 'locked' }
   | { outcome: 'grace-locked' }
   | { outcome: 'attempts-locked' }
@@ -397,8 +398,11 @@ type DownloadStartOutcome =
  * ③ 上次开始超过 60 秒未确认 → 下载器场景视为已完成 → 锁定；
  * ④ 上次开始未超兜底且未确认 → 半途尝试 +1，达 3 次 → 防护锁定 + 5 分钟冷却。
  * 注：锁定状态在事务内提交后才抛错（事务内抛错会回滚锁定写入）。
+ *
+ * 260830 审计 H-4：每次签发同时生成随机 nonce 写入 download_nonce 列并随返回值
+ * 交给路由层编入签名载荷——访问层凭载荷与本列对账，令签名 URL 只对本次签发有效。
  */
-export function startDeliverableDownload(orderId: number, fileId: number): { filePath: string } {
+export function startDeliverableDownload(orderId: number, fileId: number): { filePath: string; deliverableId: number; nonce: string } {
   const result = db.transaction((): DownloadStartOutcome => {
     const d = getDeliverableDownloadRow(orderId, fileId)
     const now = Date.now()
@@ -431,8 +435,11 @@ export function startDeliverableDownload(orderId: number, fileId: number): { fil
       db.prepare('UPDATE deliverables SET download_attempts = ? WHERE id = ?').run(attempts, d.id)
     }
 
-    db.prepare('UPDATE deliverables SET last_started_at = ? WHERE id = ?').run(now, d.id)
-    return { outcome: 'ok', filePath: d.file_path }
+    // H-4：本次签发专属 nonce——写入账本列，路由层将其编入签名载荷；
+    // 旧链接携带的旧 nonce 与本列不符，访问层对账即 403（每次「开始」都是新链接）
+    const nonce = crypto.randomBytes(16).toString('hex')
+    db.prepare('UPDATE deliverables SET last_started_at = ?, download_nonce = ? WHERE id = ?').run(now, nonce, d.id)
+    return { outcome: 'ok', filePath: d.file_path, deliverableId: d.id, nonce }
   })()
 
   // 事务已提交，锁定/留痕已落库，此处抛错不影响状态
@@ -444,7 +451,7 @@ export function startDeliverableDownload(orderId: number, fileId: number): { fil
     case 'cooldown':
       throw new AppError(E.DOWNLOAD_COOLDOWN, 423, { retryAfterMs: result.retryAfterMs })
     case 'ok':
-      return { filePath: result.filePath }
+      return { filePath: result.filePath, deliverableId: result.deliverableId, nonce: result.nonce }
   }
 }
 
@@ -467,12 +474,14 @@ export function confirmDeliverableDownload(orderId: number, fileId: number, ip: 
 /**
  * 画师再许可（拍板③）：清零锁定与防护计数，留痕系统备注；
  * 历史 downloaded_at/download_ip 保留（取证链不断）。
+ * 260830 审计 H-4：同时清空 download_nonce——再许可前的旧签名链接
+ * 因载荷 nonce 与库中（空）不符而彻底失效，新链接须重新 download-start 签发。
  */
 export function repermitDeliverable(orderId: number, fileId: number): void {
   db.transaction(() => {
     const d = getDeliverableDownloadRow(orderId, fileId)
     db.prepare(
-      'UPDATE deliverables SET download_locked = 0, download_attempts = 0, cooldown_until = NULL, last_started_at = NULL WHERE id = ?'
+      'UPDATE deliverables SET download_locked = 0, download_attempts = 0, cooldown_until = NULL, last_started_at = NULL, download_nonce = NULL WHERE id = ?'
     ).run(d.id)
     db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
       .run(orderId, `🔓 画师已再许可交付文件「${d.original_name}」的下载`)

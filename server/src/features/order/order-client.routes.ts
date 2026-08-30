@@ -165,10 +165,13 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
       workflowStages,
       currentStageId: order.current_stage_id ?? null,
       currentStageName: stageInfo?.currentStageName ?? null,
+      // 260830 审计 H-4：追踪页不再下发可用的交付文件直链（旧式裸签名可转发，架空一次性下载）；
+      // 下载一律走下方 download-start 链路（每次签发新链接、锁定后失效）。
+      // url 字段保留空串仅为前端类型兼容。
       deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_path: string }) => ({
         id: d.id,
         fileName: d.original_name,
-        url: signedUrl(d.file_path)
+        url: ''
       })),
       // SPEC-003 §5.5: 客户可见附加项（仅 name + priceCents）+ 最终价格 + 付款节点
       extraItems: (order.extraItems || []).map((item: { name: string; price_cents: number }) => ({
@@ -250,7 +253,8 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
         id: d.id,
         fileName: d.original_name,
         fileSize: d.file_size,
-        url: signedUrl(d.file_path),
+        // 260830 审计 H-4：交付页下载走 download-start 链路，列表不再下发可用直链（同追踪页口径）
+        url: '',
         // 815 拍板 #4：一次性下载状态（前端据此禁用下载按钮并提示联系画师再许可）
         downloadLocked: d.download_locked === 1
       }))
@@ -276,8 +280,10 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
     if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
 
-    const { filePath } = orderGalleryService.startDeliverableDownload(order.id, fileId)
-    return { url: signedUrl(filePath) }
+    const { filePath, deliverableId, nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
+    // 260830 审计 H-4：一次性下载链接携带载荷（deliverableId+本次 nonce），
+    // 访问层凭它对账：锁定/再许可/再次 start 后旧链接即 403。
+    return { url: signedUrl(filePath, { deliverableId, nonce }) }
   })
 
   /**
