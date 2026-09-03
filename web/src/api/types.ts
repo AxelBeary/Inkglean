@@ -1578,6 +1578,19 @@ export interface DesktopDevicesResult {
   devices: DesktopDevice[]
 }
 
+// ─── 桌面设备账本（管理端视角，GET/DELETE /api/admin/artists/:id/devices）───
+/** 管理端设备行（全列，含 artist_id/device_uuid/last_login_ip；与画师端 DesktopDevice 剔除敏感列不同）；GET 返回裸数组，按最近活跃倒序 */
+export interface AdminDesktopDevice {
+  id: number
+  artist_id: number
+  device_uuid: string
+  device_name: string | null
+  created_at: string
+  expires_at: string
+  last_active_at: string
+  last_login_ip: string | null
+}
+
 /** oimimo 吸纳批四：月度收入行（GET /api/artist/tools/income-monthly，与 income-summary 同源同口径） */
 export interface IncomeMonthRow {
   /** 月份键 YYYY-MM（本地时区） */

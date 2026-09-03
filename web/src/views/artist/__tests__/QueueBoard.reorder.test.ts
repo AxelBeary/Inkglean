@@ -33,6 +33,11 @@ vi.mock('../../../utils/reconnect.js', () => ({
 vi.mock('../../../composables/useSignatureRefresh.js', () => ({
   useSignatureRefresh: () => ({ refreshNow: () => {} })
 }))
+// F11（9/3 批）：QueueBoard 新增 useArtistStore 依赖（顶部总量状态牌 + 月历 canAccept 约束）——
+// mock 掉 store 避免加载真实 i18n 实例（createI18n）与 Pinia；profile=null 时 canAccept 恒 true、状态牌不渲染，不影响拖拽守卫断言
+vi.mock('../../../stores/artist.js', () => ({
+  useArtistStore: () => ({ profile: null, fetchProfile: () => Promise.resolve() })
+}))
 
 import QueueBoard from '../QueueBoard.vue'
 

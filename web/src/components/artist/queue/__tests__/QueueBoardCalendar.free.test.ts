@@ -81,14 +81,15 @@ vi.mock('../../../composables/useQueueTimeline.js', () => ({
 
 import QueueBoardCalendar from '../QueueBoardCalendar.vue'
 
-function mountCal(queue: QueueOrder[] = [], bufferQueue: QueueOrder[] = []) {
+function mountCal(queue: QueueOrder[] = [], bufferQueue: QueueOrder[] = [], canAccept = true) {
   return shallowMount(QueueBoardCalendar, {
     props: {
       queue,
       bufferQueue,
       loading: false,
       bufferLoading: false,
-      viewMode: 'calendar'
+      viewMode: 'calendar',
+      canAccept
     },
     global: {
       mocks: { $t: (key: string) => key },
@@ -121,6 +122,16 @@ describe('QueueBoardCalendar 可接单/逾期判定（a1-6/a1-7）', () => {
     expect(past!.free).toBe(false)
     expect(today!.free).toBe(true)
     expect(future!.free).toBe(true)
+  })
+
+  // F11 拍板 C：总量名额约束——名额已满（canAccept=false）时，空日子不再标可接单（按天 ≠ 能接单）
+  it('F11-C: canAccept=false 时今天与未来无单日期均不标 free', () => {
+    const wrapper = mountCal([], [], false)
+    const cells = (wrapper.vm as unknown as CalVm).calCells
+    const today = cells.find(c => c.inMonth && c.day === 15)
+    const future = cells.find(c => c.inMonth && c.day === 20)
+    expect(today!.free).toBe(false)
+    expect(future!.free).toBe(false)
   })
 
   it('a1-7: 今天截稿不标逾期，昨天截稿标逾期', () => {

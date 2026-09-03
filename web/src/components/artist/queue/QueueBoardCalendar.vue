@@ -142,7 +142,9 @@ const props = defineProps({
   bufferQueue: { type: Array as PropType<CalOrder[]>, default: () => [] },
   loading: { type: Boolean, default: false },
   bufferLoading: { type: Boolean, default: false },
-  viewMode: { type: String, required: true }
+  viewMode: { type: String, required: true },
+  // F11 拍板 C：总量名额约束——名额/额度满、休息、暂停时父级传 false，月历空格不再标「可接单」（防「按天空闲」误导为「能接单」）
+  canAccept: { type: Boolean, default: true }
 })
 defineEmits(['refresh-all'])
 
@@ -295,7 +297,8 @@ const calCells = computed(() => {
       weekend: d.getDay() === 0 || d.getDay() === 6,
       bands,
       // 批G: 可接单 = 当月无任何订单覆盖（formal + buffer 均算）
-      free: d.getMonth() === first.getMonth() && d >= todayStart && bands.length === 0
+      // F11 拍板 C: 叠加总量名额约束——画师名额/额度已满（canAccept=false）时空日子不再标可接单（按天空闲 ≠ 能接单）
+      free: props.canAccept && d.getMonth() === first.getMonth() && d >= todayStart && bands.length === 0
     })
   }
   return cells
