@@ -28,9 +28,9 @@ jobs:
         with:
           node-version: 22
 
-      - name: 安装 Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
+      # windows-latest runner 预装 Rust stable + MSVC，tauri build 直接可用——移除 dtolnay/rust-toolchain：
+      # 该 action ref 令 ci.yml workflow 连挂三次 startup failure（#1298/#1299/#1300，9/3 批排除法坐实真凶），
+      # ci.yml desktop job 改用 runner 预装 Rust 后 cargo check 成功（#1301 全绿），发布流水线同口径防患于未然
       - name: 安装前端依赖
         run: npm ci
 
