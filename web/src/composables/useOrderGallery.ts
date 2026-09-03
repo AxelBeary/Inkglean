@@ -1,5 +1,4 @@
 import { ref } from 'vue'
-import type { Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistApi, type ApiError } from '../api/index'
@@ -18,14 +17,12 @@ import type { EnrichedOrderDetail } from '../api/types'
  *   本 composable 不挂载 usePasteUpload、不返回 pasteError。
  *
  * @param ctx
- * @param ctx.order - 订单 ref
  * @param ctx.routeId
  * @param ctx.onRefresh - 刷新回调（loadOrder；gallery 部分失败时用）
  * @param ctx.applyOrder - M-9 补漏（审计 260830 收口）：统一写入口——响应 version 单调不回退，
  *        防本处写回与 loadOrder 并发时晚到旧快照覆盖新状态（同其余 composable 口径）
  */
-export function useOrderGallery({ order, routeId, onRefresh, applyOrder }: {
-  order: Ref<EnrichedOrderDetail | null>
+export function useOrderGallery({ routeId, onRefresh, applyOrder }: {
   routeId: number
   onRefresh: () => Promise<void> | void
   applyOrder: (next: EnrichedOrderDetail | null) => void
