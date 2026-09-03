@@ -75,6 +75,8 @@ jobs:
   # 桌面端门禁进 CI（9/3 批，发布前待办清单第 9 项）：windows runner 覆盖 Windows 专属代码
   # （DPAPI 保险箱 / 窗口枚举等 cfg(windows) 块，ubuntu 上会被跳过留盲区）+ 与 desktop-release.yml 环境一致，
   # 防「CI 绿但真机构建红」。四道门禁照 824 建齐口径：lint / test(185) / build / cargo check。
+  # 注：Swatinem/rust-cache 首次引入即令整个 workflow startup failure（#1298/#1299 连挂，YAML 合法但 Actions 解析层拒绝），
+  # 已移除；cargo check 无缓存全量编译（windows runner，timeout 20min 足够）。缓存优化待真凶定位后另议。
   desktop:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -90,13 +92,7 @@ jobs:
           cache-dependency-path: |
             desktop/package-lock.json
             shared/package-lock.json
-      - name: 安装 Rust stable
-        uses: dtolnay/rust-toolchain@stable
-      # cargo check 首次无缓存约 5-8min，rust-cache 命中后降到 1-2min（缓存 ~/.cargo + target/）
-      - name: Rust 依赖缓存
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: './desktop/src-tauri -> target'
+      - uses: dtolnay/rust-toolchain@stable
       # 同 web job：desktop 经 file:../shared 直导 shared 源码，file: 链接只带源码不带依赖，
       # shared 自身依赖（vue 类型声明等）须先装，否则 vue-tsc/vitest 在 shared 文件上报错（826 CI 坑教训）
       - name: Install shared dependencies
