@@ -14,6 +14,9 @@ const router = createRouter({
     { path: '/onboarding', name: 'onboarding', component: () => import('../views/OnboardingView.vue') },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/', name: 'home', component: HomeView, meta: { requiresAuth: true } },
+    // 独立排期页（9/4 主页重设计拍板：大件分流——长卷只摆近 7 天摘要签与卷心月历，
+    // 三视图全景（列表/月历/时间条）走本页；波1 只读，拖拽改期属波2）
+    { path: '/schedule', name: 'schedule', component: () => import('../views/ScheduleView.vue'), meta: { requiresAuth: true } },
     // 撕悬浮三件：壳层按 prefs.torn 拉起独立小窗指向这些路由（纸墨小卡，各自取数）
     { path: '/float/timer', name: 'float-timer', component: FloatView, props: { kind: 'timer' }, meta: { requiresAuth: true } },
     { path: '/float/today-todo', name: 'float-today-todo', component: FloatView, props: { kind: 'today-todo' }, meta: { requiresAuth: true } },

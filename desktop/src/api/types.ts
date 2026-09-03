@@ -175,3 +175,40 @@ export interface DeadlineSoonItem {
 export interface DeadlineSoonResult {
   items: DeadlineSoonItem[]
 }
+
+// ─── schedule 排期（9/4 主页重设计落码波1：三视图只读数据源）───
+
+/** 队列行（GET /api/artist/queue，**返回裸数组**非分页对象）。
+ *  字段照 server `order-queue.service.getArtistQueue` 显式列清单 + `order-list.routes` 的
+ *  startDate/currentStageId 驼峰映射抄入；只声明桌面端消费的列（端点其余列存在但本端不消费）。 */
+export interface QueueRow {
+  id: number
+  order_no: string
+  client_name: string | null
+  client_qq: string
+  status: OrderStatus
+  queue_zone: 'formal' | 'buffer'
+  queue_position: number | null
+  deadline: string | null
+  start_date: string | null
+  /** 路由层驼峰副本（= start_date），前端消费它不消费 snake_case */
+  startDate: string | null
+  created_at: string
+  tier_name: string | null
+  /** 波1 只读不消费；波2 拖排改期的乐观锁起步值 */
+  version: number
+}
+
+/** 画师本人资料（GET /api/artist/profile）。名额结构化字段供「能否接单」复刻——
+ *  9/3 回流批网页端 F11 同源口径：用结构化字段算，**不匹配后端中文文案**（防后端改词即崩）。 */
+export interface ArtistProfile {
+  status: string
+  name: string
+  subdomain: string | null
+  slotDisplay?: string | null
+  messagesEnabled?: boolean
+  batch_limit?: number | null
+  buffer_limit?: number | null
+  monthly_quota?: number | null
+  quotaInfo?: { used: number; quota: number | null; remaining: number | null } | null
+}

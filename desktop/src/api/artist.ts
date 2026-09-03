@@ -6,10 +6,12 @@ import { requireApiBase } from '../config'
 import { useAuthStore } from '../stores/auth'
 import type {
   ArtistOrderItem,
+  ArtistProfile,
   ArtistStats,
   DeadlineSoonResult,
   GuestbookMessage,
   IncomeOverview,
+  QueueRow,
   RevenueResult,
   ScheduleBar,
   SimpleSuccessResult,
@@ -102,10 +104,22 @@ export function fetchDeadlineSoon(days = 14, limit = 8): Promise<DeadlineSoonRes
   return getJson(`/api/artist/dashboard/deadline-soon?days=${days}&limit=${limit}`)
 }
 
+// ─── schedule 排期（9/4 主页重设计波1：三视图只读数据源）───
+
+/** 正式区队列（裸数组，同网页端 getQueue 同源同形状；含 queue_position 顺序） */
+export function fetchQueue(): Promise<QueueRow[]> {
+  return getJson('/api/artist/queue')
+}
+
+/** 缓冲区（候补）队列；月历带与列表分区都要它（六态里的缓冲态靠 zone 区分） */
+export function fetchBufferQueue(): Promise<QueueRow[]> {
+  return getJson('/api/artist/queue?zone=buffer')
+}
+
 // ─── plaque 状态挂牌（题签壳控件）───
 
-/** 读本人公开资料（含 status / slotDisplay，挂牌翻牌依据） */
-export function fetchProfile(): Promise<{ status: string; name: string; subdomain: string | null; slotDisplay?: string | null; messagesEnabled?: boolean }> {
+/** 读本人公开资料（含 status / slotDisplay / 名额结构化字段：挂牌翻牌 + 排期「能否接单」依据） */
+export function fetchProfile(): Promise<ArtistProfile> {
   return getJson('/api/artist/profile')
 }
 

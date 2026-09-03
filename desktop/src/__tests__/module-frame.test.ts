@@ -1,5 +1,6 @@
 // 档②波17 四件测试：沙箱帧与桥协议纯函数（信封校验/帧 HTML/视图供给口径哨兵）。
 import { describe, it, expect } from 'vitest'
+import { reactive } from 'vue'
 import {
   verifyEnvelope, buildModuleHtml, buildFrameSrc, MODULE_CSP,
   isBridgeType, newToken
@@ -96,6 +97,34 @@ describe('buildViewData（拍板一视图白名单）', () => {
   it('time 视图给今日+周数据', () => {
     const data = buildViewData('time', sources) as { today: { paint: number } }
     expect(data.today.paint).toBe(10)
+  })
+
+  // 9/4 波1 冒烟实测抓到的波17 遗留缺陷：壳侧直接把 store 的响应式代理交给 postMessage，
+  // 结构化克隆拒收 Proxy → DataCloneError → 模块永远等不到 time 数据 → 5 秒后灰牌。
+  // 官方示例模块「稿情气象台」正好要 time 视图，所以它一直踩这个坑。
+  it('回归：视图数据必须是素对象（响应式源也能过结构化克隆，否则模块灰牌）', () => {
+    const reactiveSources = reactive({
+      ledger: [ledgerRow],
+      time: {
+        today: { paint: 10, idle: 5, other: 3 },
+        week: [{ date: '2026-09-01', paint: 60, idle: 12, other: 8 }]
+      },
+      mode: 'local'
+    }) as unknown as ViewSources
+    // 先证源确实是代理（否则本例无意义）
+    expect(() => structuredClone(reactiveSources.time)).toThrow()
+    const time = buildViewData('time', reactiveSources)
+    expect(() => structuredClone(time)).not.toThrow()
+    expect(time).toEqual({
+      today: { paint: 10, idle: 5, other: 3 },
+      week: [{ date: '2026-09-01', paint: 60, idle: 12, other: 8 }]
+    })
+    expect(() => structuredClone(buildViewData('ledger', reactiveSources))).not.toThrow()
+  })
+
+  it('纠形：ledger 源不是数组时返空数组不抛错', () => {
+    const bad = { ...sources, ledger: { items: [] } as unknown as LocalOrder[] }
+    expect(buildViewData('ledger', bad)).toEqual([])
   })
 
   it('云端视图本地模式返 null（H5 纪律）', () => {
