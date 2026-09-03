@@ -2051,6 +2051,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     artworkDeleteConfirm: '确定删除作品「{name}」？删除后不可恢复。',
     artworkUntitled: '未命名作品',
     greetingTab: '问候语',
+    devicesTab: '设备',
+    devicesHint: '此处列出该画师以桌面端登录过的设备；移除后该设备需重新登录（不影响其网页登录）。',
     greetingGlobalHint: '通用库条目对所有画师生效，与画师专属库混合抽取。',
     greetingArtistHint: '专属库条目仅对该画师生效，与通用库混合抽取。',
     detailNameHint: '管理端展示的画师昵称',

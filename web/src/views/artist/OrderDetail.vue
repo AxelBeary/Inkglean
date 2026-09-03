@@ -45,6 +45,20 @@
         <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
         <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
       </el-descriptions>
+      <!-- F9 客户快查卡（发布前待办清单第 6 项·网页端回流）：复用录单页 mo-client-card 同款视觉，
+           有标记/汇总才显示；数据随 order.client_qq 变化查 getToolsClient，失败静默不吵 -->
+      <div v-if="clientProfile || clientSummary" class="od-client-card">
+        <div v-if="clientProfile?.tags?.length" class="od-client-tags">
+          <el-tag v-for="tag in clientProfile.tags" :key="tag" size="small" class="od-client-tag">{{ tag }}</el-tag>
+        </div>
+        <p v-if="clientProfile?.note" class="od-client-note">{{ clientProfile.note }}</p>
+        <div v-if="clientSummary" class="od-client-summary">
+          <span>{{ $t('manualOrder.clientSummaryOrders', { n: clientSummary.totalOrders }) }}</span>
+          <span>{{ $t('manualOrder.clientSummaryPaid', { amount: formatCents(clientSummary.totalPaidCents) }) }}</span>
+          <span v-if="clientSummary.lastOrderAt">{{ $t('manualOrder.clientSummaryLast', { date: formatDate(clientSummary.lastOrderAt) }) }}</span>
+          <el-tag v-if="clientSummary.lastOrderStatus" :type="statusType(clientSummary.lastOrderStatus)" size="small">{{ $t(`common.orderStatus.${clientSummary.lastOrderStatus}`) }}</el-tag>
+        </div>
+      </div>
     </el-card>
 
     <!-- v0.38: 日期卡二合一（REQ-026 §四）——开工日/截稿日两字段一卡，即时保存逻辑不变（changeStartDate/changeDeadline），
@@ -429,10 +443,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { artistApi } from '../../api/index'
-import type { EnrichedOrderDetail, OrderPriority } from '../../api/types'
+import type { EnrichedOrderDetail, OrderPriority, ClientProfile, ClientSummary } from '../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
@@ -629,6 +643,25 @@ const { refreshNow } = useSignatureRefresh({
 
 // ─── v0.31 REQ-021 F1: 操作记录已随 LogPanel 拆出（含 useActivityLog 装配，2026-08-10） ───
 
+// ─── F9 客户快查卡（发布前待办清单第 6 项·网页端回流）：order.client_qq 变化即查客户标记 + 消费汇总 ───
+const clientProfile = ref<ClientProfile | null>(null)
+const clientSummary = ref<ClientSummary | null>(null)
+async function loadClientCard(qq: string) {
+  try {
+    const res = await artistApi.getToolsClient(qq)
+    clientProfile.value = res.profile
+    clientSummary.value = res.summary
+  } catch {
+    // 客户无标记无汇总 / 查询失败：卡片整块不渲染，静默不吵（同录单页口径）
+    clientProfile.value = null
+    clientSummary.value = null
+  }
+}
+watch(() => order.value?.client_qq, (qq) => {
+  if (qq) loadClientCard(qq)
+  else { clientProfile.value = null; clientSummary.value = null }
+}, { immediate: true })
+
 let unsubscribeReconnect: (() => void) | null = null
 onMounted(() => {
   loadOrder()
@@ -663,6 +696,22 @@ onUnmounted(() => {
 
 /* 订单号文楷——落款感（REQ §1.3：数字/单号用文楷） */
 .od-order-no { font-family: var(--f-d); font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600; letter-spacing: .02em; }
+
+/* ─── F9 客户快查卡（复用录单页 mo-client-card 同款视觉，纸墨 token） ─── */
+.od-client-card {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.od-client-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.od-client-tag { font-family: var(--f-d); }
+.od-client-note { margin: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.5; }
+.od-client-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink); }
 
 /* ─── v0.38: 日期卡二合一（REQ-026 §四：两字段一卡，交互逻辑不变） ─── */
 .date-card-body { display: flex; gap: 28px; flex-wrap: wrap; }

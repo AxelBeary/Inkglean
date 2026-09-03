@@ -782,6 +782,10 @@ export const adminApi = {
   getArtistProfile: (id: number): Promise<PublicArtistDTO> => getJson(`/admin/artists/${id}/profile`),
   updateArtistProfile: (id: number, data: Record<string, unknown>): Promise<PublicArtistDTO> =>
     putJson(`/admin/artists/${id}/profile`, data),
+  // 桌面设备账本（管理端全列，含 device_uuid/last_login_ip；GET 裸数组按最近活跃倒序；单台踢出=撕账，不动网页会话）
+  getArtistDevices: (id: number): Promise<import('./types').AdminDesktopDevice[]> => getJson(`/admin/artists/${id}/devices`),
+  revokeArtistDevice: (id: number, deviceId: number): Promise<{ success: boolean }> =>
+    deleteJson(`/admin/artists/${id}/devices/${deviceId}`),
   // SPEC-PRICE-2 (v50): 旧档位 CRUD 已退役；管理员价格概览（画风/尺寸只读）
   getArtistPricingOverview: (id: number): Promise<ArtistPricingOverviewItem[]> => getJson(`/admin/artists/${id}/pricing-overview`),
   getArtistArtworks: (id: number): Promise<Artwork[]> => getJson(`/admin/artists/${id}/artworks`),

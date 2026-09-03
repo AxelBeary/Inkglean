@@ -2,6 +2,14 @@
   <h2 class="font-display queue-page-title">{{ $t('queue.title') }}</h2>
   <p class="hint">{{ $t('queue.hint') }}</p>
 
+  <!-- F11 拍板 B（发布前待办清单第 6 项·网页端回流）：总量口径状态牌——「到底还能不能接单」一目了然。
+       slotDisplay 为后端名额文案（开放中·剩N席/已接满/本月已约满/休息中…），色彩随 canAccept（可接单石绿 / 已满藤黄）；
+       未启用名额制时回落 status 文案。这是「按总量」的权威口径，月历按天绿点已受 canAccept 约束 -->
+  <div v-if="statusPlaqueText" class="queue-slot-plaque" :class="canAccept ? 'is-open' : 'is-full'" role="status">
+    <span class="queue-slot-dot" aria-hidden="true"></span>
+    {{ statusPlaqueText }}
+  </div>
+
   <!-- 820-M: 视图切换改 el-tabs（对齐价格管理 tab-change + EP 自带切换过渡）。
        三页签全部非 lazy 保活：队列数据在父级 ref，月历月份/时间条缩放与滚动/列表滚动各自实例内保存，
        切视图不丢已加载数据与视图状态。
@@ -38,6 +46,7 @@
         :loading="loading"
         :buffer-loading="bufferLoading"
         :view-mode="'calendar'"
+        :can-accept="canAccept"
         @refresh-all="refreshAll"
       />
     </el-tab-pane>
@@ -49,6 +58,7 @@
         :loading="loading"
         :buffer-loading="bufferLoading"
         :view-mode="'timeline'"
+        :can-accept="canAccept"
         @refresh-all="refreshAll"
       />
     </el-tab-pane>
@@ -72,9 +82,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { artistApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import { useArtistStore } from '../../stores/artist'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
 import { subscribeReconnect } from '../../utils/reconnect'
 import DeliverDialog from '../../components/artist/DeliverDialog.vue'
@@ -253,6 +265,47 @@ const bufferLoading = ref(false)
 const completedQueue = ref<QueueOrderItem[]>([])
 const completedLoading = ref(false)
 
+// ─── F11（发布前待办清单第 6 项·网页端回流）：总量口径「能否接单」状态牌 + 月历约束 ───
+// 数据源同 dashboard PlaqueStatus（useArtistStore().profile）；artist store 尚为 JS，轻量接口桥接不引入 any
+const { t } = useI18n()
+interface QueueProfileLite {
+  status?: string
+  batch_limit?: number | null
+  buffer_limit?: number | null
+  monthly_quota?: number | null
+  slotDisplay?: string | null
+  quotaInfo?: { used: number; quota: number | null; remaining: number | null } | null
+}
+const store = useArtistStore() as { profile: QueueProfileLite | null; fetchProfile: () => Promise<void> }
+
+// 拍板 B：顶部状态牌文案——优先后端名额文案 slotDisplay，未启用名额制（null）时回落 status 文案
+const statusPlaqueText = computed(() => {
+  const s = store.profile?.slotDisplay
+  if (s) return s
+  const st = store.profile?.status
+  if (st === 'break') return t('dashboard.statusBreak')
+  if (st === 'full') return t('dashboard.statusFull')
+  if (st === 'open') return t('dashboard.statusOpen')
+  return ''
+})
+
+// 拍板 C：canAccept——用结构化字段复刻后端 computeSlotDisplay 的「能否接单」（不匹配中文文案，防后端改词即崩）
+const canAccept = computed(() => {
+  const p = store.profile
+  if (!p) return true // profile 未加载：不约束（保守维持原按天 free 行为，不误伤）
+  const st = p.status
+  if (st === 'break' || st === 'hidden' || st === 'full') return false
+  const q = p.quotaInfo
+  if (q && q.remaining != null && q.remaining <= 0) return false // 额度耗尽（本月已约满）
+  const batchLimit = p.batch_limit
+  if (batchLimit != null) {
+    const bufferLimit = p.buffer_limit ?? 0
+    // 席位 + 候补均满才算真满（可候补时 buffer<bufferLimit 仍能接）；队列计数即当前在途 formal/buffer
+    if (queue.value.length >= batchLimit && bufferQueue.value.length >= bufferLimit) return false
+  }
+  return true
+})
+
 // ─── R33: 签名 URL 定时刷新（焦点图 15min 过期防 403；正式区+缓冲区+完成区统一收集） ───
 const { refreshNow } = useSignatureRefresh({
   collect: () => [...queue.value, ...bufferQueue.value, ...completedQueue.value].filter(o => o.focus_image_path).map(o => o.focus_image_path as string),
@@ -269,6 +322,8 @@ onMounted(() => {
   loadQueue()
   loadBufferQueue()
   loadCompletedQueue()
+  // F11: 拉完整 profile（含名额 slotDisplay/quotaInfo）供顶部状态牌 + 月历约束；失败静默降级（状态牌不显、月历不约束）
+  store.fetchProfile().catch(() => {})
   // G-3（R-16）: 断网重连后复用 refreshAll 重拉（online / 回前台）
   unsubscribeReconnect = subscribeReconnect(refreshAll)
 })
@@ -282,4 +337,15 @@ onUnmounted(() => {
 /* H1 页面标题：文楷 28/700（REQ §1.3，对齐价格管理页标题语言） */
 .queue-page-title { font-size: calc(var(--font-scale, 1) * 28px); font-weight: 700; color: var(--ink); letter-spacing: .02em; }
 .hint { color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); margin: 8px 0 0; }
+
+/* ─── F11 拍板 B：总量口径状态牌（纸墨 token，色彩随能否接单：可接单石绿 / 已满·休息藤黄） ─── */
+.queue-slot-plaque {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 12px; padding: 6px 14px;
+  border-radius: var(--r-m); border: 1px solid var(--line);
+  font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600;
+}
+.queue-slot-plaque.is-open { color: var(--sl); background: var(--sl-t); border-color: color-mix(in srgb, var(--sl) 35%, transparent); }
+.queue-slot-plaque.is-full { color: var(--th); background: var(--th-t); border-color: color-mix(in srgb, var(--th) 35%, transparent); }
+.queue-slot-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
 </style>

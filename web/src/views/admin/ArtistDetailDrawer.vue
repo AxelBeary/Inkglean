@@ -137,6 +137,41 @@
           </div>
         </div>
       </el-tab-pane>
+
+      <!-- 桌面端登录设备（管理端：查看该画师桌面设备 + 单台踢出；发布前待办清单第 8 项） -->
+      <el-tab-pane :label="$t('admin.devicesTab')" name="devices" lazy>
+        <div v-if="devicesError" class="load-error-banner" role="alert">
+          <span>{{ devicesError }}</span>
+          <el-button size="small" @click="loadDevices">{{ t('common.loadRetry') }}</el-button>
+        </div>
+        <div v-else v-loading="devicesLoading">
+          <el-table v-if="devices.length > 0" :data="devices" size="small">
+            <el-table-column :label="t('account.devicesName')" min-width="100">
+              <template #default="{ row }">{{ row.device_name || '-' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('account.devicesLastActive')" width="130">
+              <template #default="{ row }">{{ formatDateTime(row.last_active_at) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('account.devicesExpires')" width="130">
+              <template #default="{ row }">{{ formatDateTime(row.expires_at) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('account.devicesIp')" width="110">
+              <template #default="{ row }">{{ row.last_login_ip || '-' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('common.actions')" width="80">
+              <template #default="{ row }">
+                <el-popconfirm :title="t('account.devicesRemoveConfirm')" @confirm="removeDevice(row.id)">
+                  <template #reference>
+                    <el-button text size="small" type="danger" :loading="removingDeviceId === row.id" :disabled="removingDeviceId != null">{{ t('common.remove') }}</el-button>
+                  </template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else-if="!devicesLoading" :image-size="40" :description="t('account.devicesEmpty')" />
+          <p class="hint">{{ t('admin.devicesHint') }}</p>
+        </div>
+      </el-tab-pane>
     </el-tabs>
   </el-drawer>
 </template>
@@ -145,7 +180,7 @@
 import { ref, watch, computed } from 'vue'
 import type { PropType } from 'vue'
 import { adminApi } from '../../api/index'
-import type { AdminArtistItem, Artwork, ArtistPricingOverviewItem } from '../../api/types'
+import type { AdminArtistItem, Artwork, ArtistPricingOverviewItem, AdminDesktopDevice } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
@@ -198,6 +233,41 @@ const savingRules = ref(false)
 // P1-B：删除作品行级 loading/禁用（防连点）
 const removingArtworkId = ref<number | null>(null)
 
+// ─── 桌面端登录设备（管理端：查看 + 单台踢出；发布前待办清单第 8 项） ───
+const devices = ref<AdminDesktopDevice[]>([])
+const devicesLoading = ref(false)
+const devicesError = ref('')
+/** 在途锁：踢出按钮防双击重复请求（同账号安全页口径） */
+const removingDeviceId = ref<number | null>(null)
+
+async function loadDevices() {
+  if (!props.artist) return
+  devicesLoading.value = true
+  devicesError.value = ''
+  try {
+    // 管理端 GET 返回裸数组（全列，按最近活跃倒序），非画师端的 {devices} 包裹
+    devices.value = await adminApi.getArtistDevices(props.artist.id)
+  } catch {
+    devicesError.value = t('account.devicesLoadFailed')
+  } finally {
+    devicesLoading.value = false
+  }
+}
+
+async function removeDevice(deviceId: number) {
+  if (!props.artist || removingDeviceId.value != null) return
+  removingDeviceId.value = deviceId
+  try {
+    await adminApi.revokeArtistDevice(props.artist.id, deviceId)
+    ElMessage.success(t('common.deleted'))
+    await loadDevices()
+  } catch {
+    ElMessage.error(t('account.devicesRemoveFailed'))
+  } finally {
+    removingDeviceId.value = null
+  }
+}
+
 watch(() => props.artist, async (a) => {
   if (!a) return
   tab.value = 'profile'
@@ -226,6 +296,7 @@ watch(tab, (tabName) => {
   if (tabName === 'pricing') loadPricing()
   if (tabName === 'artworks') loadArtworks()
   if (tabName === 'rules') loadRules()
+  if (tabName === 'devices') loadDevices()
 })
 
 async function loadPricing() {

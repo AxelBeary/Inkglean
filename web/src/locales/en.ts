@@ -2054,6 +2054,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     artworkDeleteConfirm: 'Delete artwork "{name}"? This cannot be undone.',
     artworkUntitled: 'Untitled artwork',
     greetingTab: 'Greetings',
+    devicesTab: 'Devices',
+    devicesHint: 'Desktop devices this artist has signed in from. Removing one forces it to sign in again (web sessions unaffected).',
     greetingGlobalHint: 'Global entries apply to all artists, mixed with per-artist entries when drawing.',
     greetingArtistHint: 'Artist-specific entries only apply to this artist, mixed with global entries when drawing.',
     detailNameHint: 'Artist name shown in the admin panel',
