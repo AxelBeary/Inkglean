@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<!--
+  拾绘桌面版 · 主页逻辑重设计原型（2026-09-04）
+  THESIS：长卷 = 「一眼扫的摘要台面」，不是储物间。大件/多的东西「空间够就就地展开、不够才点开分流」。
+  四条认可的原则：① 台面摘要化 ② 点开分流到独立页/抽屉 ③ 收纳（显隐/折叠/撕出/更多抽屉）④ 空间驱动自适应（渐进增强，不做两套）
+  基于方向A母本 proto-desktop-home-r2-A.html 的视觉手法；剔除已被用户打回的天地杆，改 827/828「顶条一张纸」。
+  演示：默认窗(1200×600)=摘要台面+排期签点开独立页；拉大窗(≥780高)=月历就地展开+多列。点「更多」看抽屉收纳。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>拾绘 · 主页逻辑重设计原型</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F0E6CF; --paper2:#F5EFDF; --card:#FFFDF7;
+  --ink:#262520; --ink2:#5A564B; --ink3:#6A6455; --ink4:#77705E;
+  --line:#DCD0B4; --line2:#CFC1A0;
+  --hq:#33526E; --hq-d:#28425B; --hq-t:#E9EFF4; --hq-t2:#D6E2EC;
+  --zs:#BC3A2B; --zs-d:#9E2F22; --zs-t:#F8EAE6;
+  --sl:#2F7D54; --sl-t:#E5F1E9;
+  --th:#966C0A; --th-t:#F7EFDA;
+  --zhe:#8A5A33; --zhe-t:#F1E8DC;
+  --buf:#7A7668;
+  --ink-rgb:38,37,32;
+  --r-paper:3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand:2px 3px 2px 3px / 3px 2px 3px 2px;
+  --r-s:4px; --r-m:7px; --r-l:11px; --r-pill:999px;
+  --dur-fast:.15s; --dur-mid:.25s; --dur-slow:.35s;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --f-d:'LXGW WenKai','Kaiti SC','STKaiti','KaiTi',serif;
+  --f-b:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+  --gap:16px; --row:52px; --app-h:100vh;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{height:100%;overflow:hidden}
+h1,h2,h3{line-height:1.25}
+body{
+  height:100%;font-family:var(--f-b);color:var(--ink);font-size:14px;line-height:1.5;
+  background-color:var(--paper);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+::selection{background:var(--hq-t2);color:var(--ink)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:var(--r-pill);border:2px solid var(--paper)}
+button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.num{font-family:var(--f-d);font-variant-numeric:tabular-nums;line-height:1.25}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ===== 顶条一张纸（827/828：与卷面同纸色，无杆形装饰，只留功能件）===== */
+.appbar{
+  height:42px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;
+  -webkit-app-region:drag;app-region:drag;
+}
+.appbar .seal{
+  width:22px;height:22px;flex:none;border-radius:var(--r-paper);background:var(--zs);color:#F0E6CF;
+  font-family:var(--f-d);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+.appbar .pname{font-family:var(--f-d);font-size:14px;font-weight:600;letter-spacing:.08em;color:var(--ink2)}
+.appbar .winctl{margin-left:auto;display:flex;gap:2px;-webkit-app-region:no-drag;app-region:no-drag}
+.appbar .wb{width:34px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--ink3);border-radius:var(--r-s-hand);transition:background var(--dur-fast),color var(--dur-fast)}
+.appbar .wb:hover{background:rgba(var(--ink-rgb),.06);color:var(--ink)}
+.appbar .wb.close:hover{background:var(--zs);color:#F0E6CF}
+
+/* ===== 视图切换容器（长卷首页 / 独立排期页）===== */
+.view{display:none;height:var(--app-h);flex-direction:column;overflow:hidden}
+.view.active{display:flex}
+
+/* ===== 卷轴骨架（剔除天地杆，全窗一张纸）===== */
+.stage{flex:1;min-height:0;display:flex;justify-content:center;overflow:hidden}
+.scroll{
+  width:100%;max-width:1180px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:var(--gap);
+  padding:8px 40px 14px;min-width:0;overflow-y:auto;
+  background:
+    linear-gradient(90deg, rgba(var(--ink-rgb),.10) 0, rgba(var(--ink-rgb),0) 26px),
+    linear-gradient(270deg, rgba(var(--ink-rgb),.10) 0, rgba(var(--ink-rgb),0) 26px);
+}
+
+/* ===== 题签 ===== */
+.masthead{display:flex;align-items:center;gap:var(--gap);flex-wrap:wrap;min-width:0}
+.title-block{display:flex;align-items:baseline;gap:12px;min-width:0}
+.title-block h1{font-family:var(--f-d);font-size:26px;font-weight:700;letter-spacing:.06em}
+.title-block .date{font-size:13px;color:var(--ink3)}
+.title-block .artist{font-size:13px;color:var(--ink2);font-weight:500}
+.title-block .sep{width:1px;height:14px;background:var(--line2);align-self:center}
+.glance{flex:1;min-width:180px;font-size:13.5px;color:var(--ink2)}
+.glance b{color:var(--zs-d);font-weight:600}
+.toggles{display:flex;align-items:center;gap:6px}
+.toggles .lbl{font-size:12px;color:var(--ink4)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:var(--r-s-hand);font-size:12px;color:var(--ink2);background:var(--card);transition:color var(--dur-fast),border-color var(--dur-fast)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--hq)}
+.chip[aria-pressed="false"]{color:var(--ink4);border-style:dashed;background:transparent}
+.chip[aria-pressed="false"]::before{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink4)}
+.chip:hover{color:var(--ink)}
+
+/* 状态挂牌 */
+.sign{perspective:600px;display:inline-block}
+.sign-inner{position:relative;display:flex;align-items:center;justify-content:center;min-width:88px;height:42px;padding:0 14px;background:var(--card);border:1px solid var(--line2);border-radius:var(--r-s-hand);box-shadow:0 2px 5px -2px rgba(var(--ink-rgb),.35);transform-style:preserve-3d;transition:transform var(--dur-slow) var(--ease-out)}
+.sign-inner::before{content:"";position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:var(--line2);box-shadow:0 0 0 2px var(--paper)}
+.sign .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:7px;font-family:var(--f-d);font-size:15px;font-weight:600;letter-spacing:.14em;backface-visibility:hidden}
+.sign .face .pt{width:7px;height:7px;border-radius:50%}
+.sign .front{color:var(--ink)}.sign .front .pt{background:var(--hq)}
+.sign .back{color:var(--ink2);transform:rotateY(180deg)}.sign .back .pt{background:var(--buf)}
+.sign[aria-pressed="true"] .sign-inner{transform:rotateY(180deg)}
+
+/* 墨笔菜单 */
+.pen-wrap{position:relative;display:inline-block}
+.pen{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:var(--r-s-hand);color:var(--ink3);transition:color var(--dur-fast),background var(--dur-fast)}
+.pen:hover{color:var(--ink);background:rgba(var(--ink-rgb),.05)}
+.pen[aria-expanded="true"]{color:var(--ink);background:rgba(var(--ink-rgb),.07)}
+.paper-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:40;width:256px;background:var(--card);border-radius:var(--r-paper);box-shadow:0 0 0 1px rgba(var(--ink-rgb),.06),0 2px 4px rgba(var(--ink-rgb),.08),0 18px 36px -18px rgba(var(--ink-rgb),.5);padding:12px 12px 8px;opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity var(--dur-mid) var(--ease-out),transform var(--dur-mid) var(--ease-out)}
+.pen-wrap.open .paper-menu{opacity:1;transform:none;pointer-events:auto}
+.pm-sec{font-size:11px;letter-spacing:.12em;color:var(--ink4);margin:9px 4px 3px}
+.pm-sec:first-child{margin-top:0}
+.pm-item{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:7px 8px;border-radius:var(--r-s-hand);font-size:13px;color:var(--ink2);transition:background var(--dur-fast),color var(--dur-fast)}
+.pm-item:hover{background:rgba(var(--ink-rgb),.05);color:var(--ink)}
+.pm-item .mid{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-item .hint{flex:none;font-size:11.5px;color:var(--ink4)}
+.pm-div{height:1px;background:rgba(var(--ink-rgb),.08);margin:7px 4px}
+.pm-acct{display:flex;align-items:center;gap:10px;padding:4px 8px 6px}
+.pm-acct .avatar{flex:none;width:30px;height:30px;border-radius:50%;background:var(--hq-t);color:var(--hq-d);font-family:var(--f-d);font-size:15px;display:flex;align-items:center;justify-content:center}
+.pm-acct .nm{font-size:13.5px;font-weight:600}
+.pm-acct .st{font-size:11.5px;color:var(--ink4);display:flex;align-items:center;gap:5px}
+.pm-acct .st i{width:6px;height:6px;border-radius:50%;background:var(--sl)}
+.mounts{display:flex;gap:8px;padding:2px 8px 4px}
+.mount{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px 6px;border:1px solid transparent;border-radius:var(--r-s-hand);font-size:12px;color:var(--ink3);transition:border-color var(--dur-fast),color var(--dur-fast),background var(--dur-fast)}
+.mount span{font-family:var(--f-d)}
+.mount:hover{color:var(--ink2);background:rgba(var(--ink-rgb),.04)}
+.mount[aria-pressed="true"]{border-color:var(--hq);color:var(--hq-d);background:var(--hq-t)}
+body.mount-grid .card{background-image:linear-gradient(rgba(var(--ink-rgb),.033) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--ink-rgb),.033) 1px,transparent 1px);background-size:22px 22px}
+body.mount-hq .card{background-color:color-mix(in srgb, var(--card) 94%, var(--hq))}
+
+/* ===== 卷心 ===== */
+.body{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);gap:calc(var(--gap) * 1.5);min-width:0;align-items:stretch;min-height:0}
+.sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.sec-head h2{font-family:var(--f-d);font-size:17px;font-weight:700;letter-spacing:.08em}
+.sec-head .meta{font-size:12px;color:var(--ink4)}
+.sec-head .more-link{margin-left:auto;font-size:12px;color:var(--hq-d);white-space:nowrap}
+.sec-head .more-link:hover{color:var(--hq)}
+
+/* 今日要办账本流 */
+.flow{min-width:0;min-height:0;display:flex;flex-direction:column}
+.flow ul{list-style:none}
+.task{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;column-gap:12px;height:var(--row);padding:0 10px;border-radius:var(--r-s-hand);border-bottom:1px solid rgba(var(--ink-rgb),.08);transition:background var(--dur-fast)}
+.task:last-child{border-bottom:none}
+.task:hover{background:rgba(var(--ink-rgb),.045)}
+.dot{position:relative;width:9px;height:9px;border-radius:50%;justify-self:center}
+.dot.zs{background:var(--zs)}
+.dot.zs::after{content:"";position:absolute;inset:-7px;border-radius:50%;background:radial-gradient(circle,rgba(188,58,43,.16) 0,rgba(188,58,43,0) 70%)}
+.dot.hq{background:var(--hq)}.dot.th{background:var(--th)}.dot.sl{background:var(--sl)}
+.task .what{min-width:0;font-size:14px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task .what strong{font-weight:600;color:inherit}
+.task .what .prog{font-size:12px;color:var(--ink4);margin-left:6px}
+.task .amt{font-size:15px;color:var(--ink2)}
+.task .due{font-size:12.5px;font-weight:600;margin-left:10px}
+.task .due.zs{color:var(--zs-d)}.task .due.hq{color:var(--hq-d)}.task .due.th{color:var(--th)}.task .due.sl{color:var(--sl)}
+.task.done{opacity:.55}
+
+/* 侧景卡 */
+.aside{position:relative;display:flex;flex-direction:column;gap:var(--gap);min-width:0;min-height:0}
+.card{background:var(--card);border-radius:var(--r-paper);box-shadow:0 0 0 1px rgba(var(--ink-rgb),.05),0 1px 2px rgba(var(--ink-rgb),.06),0 12px 26px -18px rgba(var(--ink-rgb),.4);padding:14px 16px;position:relative;display:flex;flex-direction:column;min-width:0;transition:box-shadow var(--dur-fast)}
+.card:hover{box-shadow:0 0 0 1px rgba(var(--ink-rgb),.10),0 1px 2px rgba(var(--ink-rgb),.08),0 12px 26px -18px rgba(var(--ink-rgb),.45)}
+.ops .income{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ops .income .v{font-size:23px;font-weight:700}
+.ops .income .k{font-size:13px;color:var(--ink3)}
+.ops .income .tail{font-size:12px;color:var(--ink4)}
+.ring-row{display:flex;align-items:center;gap:14px;margin-top:10px}
+.enso-wrap{position:relative;width:96px;height:96px;flex:none}
+.enso{width:100%;height:100%;display:block}
+.enso .main{animation:ensoDraw 1.3s var(--ease-out) .15s both}
+.enso .echo{animation:ensoDraw2 1.3s var(--ease-out) .22s both}
+@keyframes ensoDraw{from{stroke-dasharray:0 490}to{stroke-dasharray:441 49}}
+@keyframes ensoDraw2{from{stroke-dasharray:0 490}to{stroke-dasharray:428 62}}
+.enso-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.enso-text .v{font-family:var(--f-d);font-size:15px;font-weight:700;line-height:1.2}
+.enso-text .k{font-size:10px;color:var(--ink3)}
+.ring-side{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.ring-side .k2{font-size:12px;color:var(--ink4)}
+.bar{display:flex;height:6px;border-radius:var(--r-pill);overflow:hidden;margin:6px 0;background:var(--paper2)}
+.bar i{display:block;height:100%}
+.bar .b1{background:var(--hq)}.bar .b2{background:var(--buf)}.bar .b3{background:var(--ink4)}
+.legend{display:flex;gap:10px;font-size:11px;color:var(--ink4);flex-wrap:wrap}
+.legend i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px}
+
+/* 留言竹简 */
+.slips{position:relative;display:flex;flex-direction:column;gap:9px;padding:2px 0 2px 14px;margin-top:8px}
+.slips::before{content:"";position:absolute;left:5px;top:-4px;bottom:-4px;width:1.5px;background:rgba(90,86,75,.35);border-radius:1px}
+.slip{position:relative;display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;background:var(--card);border:1px solid rgba(var(--ink-rgb),.06);border-radius:5px 7px 6px 8px;transition:background var(--dur-fast);cursor:pointer;min-width:0}
+.slip::before{content:"";position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:5px;height:1.5px;background:rgba(90,86,75,.35)}
+.slip:hover{background:var(--paper2)}
+.slip .who{font-size:13px;font-weight:600;color:var(--ink2);flex:none}
+.slip .txt{font-size:13px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.slip .when{font-size:11.5px;color:var(--ink4);flex:none;margin-left:auto}
+
+/* 【新】插件摘要卡（长卷上只占一卡，点开详情走抽屉） */
+.plugin-card{cursor:pointer}
+.plugin-card .pc-top{display:flex;align-items:center;gap:8px}
+.plugin-card .pc-ico{width:24px;height:24px;flex:none;border-radius:var(--r-s-hand);background:var(--hq-t);color:var(--hq-d);display:flex;align-items:center;justify-content:center;font-family:var(--f-d);font-size:13px}
+.plugin-card .pc-name{font-family:var(--f-d);font-size:14px;font-weight:600}
+.plugin-card .pc-badge{margin-left:auto;font-size:10.5px;color:var(--ink4);border:1px solid var(--line);border-radius:var(--r-pill);padding:0 7px}
+.plugin-card .pc-body{margin-top:8px;font-size:13px;color:var(--ink2);line-height:1.6}
+.plugin-card .pc-body .wx{font-family:var(--f-d);font-size:16px;color:var(--hq-d)}
+.plugin-card .pc-foot{margin-top:8px;font-size:11.5px;color:var(--ink4);display:flex;align-items:center;gap:6px}
+
+/* ===== 卷尾 ===== */
+.tail-bar{display:flex;align-items:stretch;gap:var(--gap);flex-wrap:wrap;min-width:0;padding-top:12px;border-top:1px solid rgba(var(--ink-rgb),.10)}
+.tail-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tail-col .lbl{font-size:11.5px;color:var(--ink4);letter-spacing:.1em}
+.orders{display:flex;gap:10px;flex-wrap:wrap}
+.ord{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);padding:4px 8px;border-radius:var(--r-s-hand);transition:background var(--dur-fast)}
+.ord:hover{background:rgba(var(--ink-rgb),.05);color:var(--ink)}
+.ord i{width:7px;height:7px;border-radius:50%;flex:none}
+.ord .st{font-size:12px;color:var(--ink4)}
+.ord.hq i{background:var(--hq)}.ord.th i{background:var(--th)}.ord.sl i{background:var(--sl)}
+
+/* 【新】排期摘要签（台面：近7天一眼扫；点开→独立排期页） */
+.sched-strip{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 10px;border-radius:var(--r-s-hand);transition:background var(--dur-fast)}
+.sched-strip:hover{background:rgba(var(--ink-rgb),.05)}
+.sched-strip .sd{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;width:30px}
+.sched-strip .sd .dw{font-size:10px;color:var(--ink4)}
+.sched-strip .sd .bar{width:6px;height:20px;margin:0;border-radius:2px;background:var(--line2)}
+.sched-strip .sd.busy .bar{background:var(--hq)}
+.sched-strip .sd.full .bar{background:var(--th)}
+.sched-strip .sd.over .bar{background:var(--zs)}
+.sched-strip .open-hint{margin-left:4px;font-size:12px;color:var(--hq-d);white-space:nowrap}
+.tail-right{margin-left:auto;display:flex;align-items:center;gap:var(--gap);flex-wrap:wrap}
+.fact{font-size:11.5px;color:var(--ink4);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.fact .mode-dot{width:6px;height:6px;border-radius:50%;background:var(--hq)}
+.promise{font-size:11.5px;color:var(--ink4);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.promise::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sl)}
+.more-btn{font-size:12px;color:var(--ink2);padding:4px 10px;border:1px solid var(--line2);border-radius:var(--r-s-hand);background:var(--card);display:inline-flex;align-items:center;gap:6px;transition:color var(--dur-fast),border-color var(--dur-fast)}
+.more-btn:hover{color:var(--ink);border-color:var(--ink4)}
+
+/* 【改】卷心主视图切换：今日要办 ⇄ 排期月历 同占主位（纸签脉页签，用户自定义选显示哪个） */
+/* 选中态：花青字 + 纸底 + 花青内描边已足够辨识；不加朱砂点印（用户反馈：右上角红点像未读通知，会误导画师） */
+.mv-tabs{display:flex;align-items:center;gap:2px;margin-bottom:8px}
+.mv-tab{position:relative;padding:5px 16px;font-family:var(--f-d);font-size:15px;color:var(--ink3);border-radius:var(--r-s-hand);transition:color var(--dur-fast),background var(--dur-fast)}
+.mv-tab:hover{color:var(--ink)}
+.mv-tab[aria-selected="true"]{color:var(--hq-d);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--hq)}
+.mv-full{margin-left:auto;font-size:12px;color:var(--hq-d);white-space:nowrap;padding:4px 8px;border-radius:var(--r-s-hand)}
+.mv-full:hover{background:rgba(var(--ink-rgb),.05)}
+.mv-pane[hidden]{display:none}
+/* 卷心月历随可用高度自适应（6 行平分、填满不溢出）——修「高度没算好出滚动条」：格子不再固定 74px */
+.mv-pane[data-mv="cal"]:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column}
+.mv-pane[data-mv="cal"] .cal-grid{flex:1;grid-template-rows:repeat(6,minmax(0,1fr))}
+.mv-pane[data-mv="cal"] .cal-cell{min-height:0;overflow:hidden}
+.mv-pane[data-mv="cal"] .cal-bands .band{font-size:10.5px;padding:1px 5px}
+
+/* ===== 独立排期页（分流目标：三视图）===== */
+.sched-head{display:flex;align-items:center;gap:12px;padding:4px 0 10px}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);padding:5px 10px;border-radius:var(--r-s-hand);transition:background var(--dur-fast)}
+.back-btn:hover{background:rgba(var(--ink-rgb),.05);color:var(--ink)}
+.sched-head h2{font-family:var(--f-d);font-size:20px;font-weight:700;letter-spacing:.06em}
+/* 纸签脉页签（824 拍板候选C：纸底+花青状态边 inset 零位移+朱砂点印） */
+.seg-tabs{display:inline-flex;gap:2px;padding:3px;background:var(--paper2);border-radius:var(--r-s-hand);margin-left:auto}
+.seg-tab{position:relative;padding:6px 16px;font-family:var(--f-d);font-size:14px;color:var(--ink3);border-radius:var(--r-s);transition:color var(--dur-fast),background var(--dur-fast)}
+.seg-tab:hover{color:var(--ink)}
+.seg-tab[aria-selected="true"]{color:var(--hq-d);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--hq)}
+.sched-pane{display:none;min-height:0}
+.sched-pane.active{display:block}
+
+/* 三视图·月历（界格纸 + 六态band纸签 + 今天朱砂印 + free绿点） */
+.cal-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.cal-head .ct{font-family:var(--f-d);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.cal-nav{width:28px;height:28px;border-radius:var(--r-s-hand);color:var(--ink3);display:flex;align-items:center;justify-content:center}
+.cal-nav:hover{background:rgba(var(--ink-rgb),.05);color:var(--ink)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.cal-weekdays span{text-align:center;font-size:11.5px;color:var(--ink4)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-cell{position:relative;min-height:74px;padding:5px 6px;border-radius:var(--r-s-hand);background:rgba(var(--ink-rgb),.018);border:1px solid rgba(var(--ink-rgb),.05)}
+.cal-cell.other{opacity:.35}
+.cal-cell.today{box-shadow:inset 0 0 0 1.5px var(--hq)}
+.cal-cell.free .cal-day::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--sl);margin-left:5px;vertical-align:middle}
+.cal-day{font-family:var(--f-d);font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.cal-cell.today .cal-day{color:var(--hq-d);font-weight:700}
+.cal-bands{display:flex;flex-direction:column;gap:3px;margin-top:4px}
+.band{font-size:11px;padding:2px 6px;border-radius:var(--r-s-hand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;background:var(--hq)}
+.band.buffer{background:color-mix(in srgb,var(--buf) 26%,transparent);border:1px dashed var(--buf);color:var(--ink2)}
+.band.soon{background:var(--th)}
+.band.over{background:var(--zs)}
+.band.done{background:var(--sl)}
+.band.nodeadline{background:repeating-linear-gradient(45deg,rgba(var(--ink-rgb),.10) 0 4px,transparent 4px 8px);color:var(--ink3)}
+.cal-more{font-size:10.5px;color:var(--ink4);margin-top:2px}
+.cal-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--ink4)}
+.cal-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+/* 三视图·列表（账本行 + 拖柄 + 状态签） */
+.list-zone{margin-bottom:14px}
+.list-zone .zh{font-family:var(--f-d);font-size:14px;color:var(--ink2);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.list-zone .zh .cnt{font-size:11.5px;color:var(--ink4);font-family:var(--f-b)}
+.q-item{display:grid;grid-template-columns:14px 18px minmax(0,1fr) auto auto;align-items:center;gap:10px;height:var(--row);padding:0 10px;border-radius:var(--r-s-hand);border-bottom:1px solid rgba(var(--ink-rgb),.08);transition:background var(--dur-fast)}
+.q-item:hover{background:rgba(var(--ink-rgb),.045)}
+.q-item .grip{color:var(--line2);cursor:grab;font-size:14px}
+.q-item .q-who{min-width:0;font-size:14px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-item .q-who strong{color:var(--ink);font-weight:600}
+.q-item .q-tier{font-size:12px;color:var(--ink4)}
+.q-st{font-size:11.5px;padding:1px 8px;border-radius:var(--r-s-hand);white-space:nowrap}
+.q-st.hq{background:var(--hq-t);color:var(--hq-d)}
+.q-st.th{background:var(--th-t);color:var(--th)}
+.q-st.sl{background:var(--sl-t);color:var(--sl)}
+.q-due{font-size:12.5px;font-weight:600;white-space:nowrap}
+.q-due.zs{color:var(--zs-d)}.q-due.hq{color:var(--hq-d)}.q-due.th{color:var(--th)}.q-due.buf{color:var(--ink4);font-weight:500}
+
+/* 三视图·时间条（卷轴隐喻：两端卷曲阴影 + 今天朱砂线） */
+.tl-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.tl-toolbar .tl-lbl{font-size:12px;color:var(--ink4)}
+.tl-canvas{position:relative;border-radius:var(--r-s-hand);background:rgba(var(--ink-rgb),.018);padding:10px 0;overflow:hidden;
+  background-image:linear-gradient(90deg, rgba(var(--ink-rgb),.08) 0, transparent 22px),linear-gradient(270deg, rgba(var(--ink-rgb),.08) 0, transparent 22px)}
+.tl-axis{display:flex;justify-content:space-between;padding:0 12px 8px;font-size:10.5px;color:var(--ink4)}
+.tl-row{display:grid;grid-template-columns:130px minmax(0,1fr);align-items:center;gap:10px;height:38px;padding:0 12px}
+.tl-row .tl-name{font-size:12.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-track{position:relative;height:16px}
+.tl-bar{position:absolute;top:0;height:16px;border-radius:var(--r-s-hand);background:var(--hq);display:flex;align-items:center;padding:0 6px;font-size:10.5px;color:#fff;white-space:nowrap;overflow:hidden}
+.tl-bar.soon{background:var(--th)}.tl-bar.over{background:var(--zs)}.tl-bar.done{background:var(--sl)}
+.tl-today{position:absolute;top:0;bottom:0;width:1.5px;background:var(--zs);z-index:2}
+
+/* ===== 更多抽屉（收纳：全部板块 + 插件）===== */
+.drawer-mask{position:fixed;inset:0;background:rgba(var(--ink-rgb),.28);opacity:0;pointer-events:none;transition:opacity var(--dur-mid);z-index:50}
+.drawer-mask.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(400px,88vw);background:var(--paper);box-shadow:-12px 0 40px -18px rgba(var(--ink-rgb),.5);transform:translateX(100%);transition:transform var(--dur-mid) var(--ease-out);z-index:51;display:flex;flex-direction:column;padding:16px 18px;overflow-y:auto}
+.drawer.open{transform:none}
+.drawer h3{font-family:var(--f-d);font-size:17px;font-weight:700;margin-bottom:4px}
+.drawer .dsub{font-size:12px;color:var(--ink4);margin-bottom:14px}
+.drawer .dsec{font-size:11px;letter-spacing:.12em;color:var(--ink4);margin:14px 0 6px}
+.d-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:var(--r-s-hand);margin-bottom:8px;box-shadow:0 0 0 1px rgba(var(--ink-rgb),.05);cursor:pointer;transition:background var(--dur-fast)}
+.d-item:hover{background:var(--paper2)}
+.d-item .di-ico{width:26px;height:26px;flex:none;border-radius:var(--r-s-hand);background:var(--hq-t);color:var(--hq-d);display:flex;align-items:center;justify-content:center;font-family:var(--f-d);font-size:14px}
+.d-item .di-txt{flex:1;min-width:0}
+.d-item .di-name{font-size:13.5px;font-weight:600;color:var(--ink)}
+.d-item .di-desc{font-size:11.5px;color:var(--ink4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d-item .di-go{font-size:12px;color:var(--hq-d);flex:none}
+
+/* ===== 空间驱动自适应（渐进增强）===== */
+/* 矮窗（默认 600 高）：紧凑 */
+@media (max-height:700px){
+  :root{--gap:12px;--row:46px}
+  .scroll{padding:6px 30px 10px}
+  .title-block h1{font-size:23px}
+  .enso-wrap{width:78px;height:78px}
+  /* 矮窗侧栏压缩：确保今日要办态一屏放下、不出滚动条 */
+  .card{padding:10px 13px}
+  .slip{height:38px}
+  .slips{gap:7px;margin-top:6px}
+  .ops .income .v{font-size:20px}
+  .plugin-card .pc-body{margin-top:6px;font-size:12.5px;line-height:1.5}
+  .plugin-card .pc-foot{margin-top:6px}
+}
+/* 高窗（≥800 高）：卷心主位就地更舒展——账本行加高、独立页月历格子加高；卷心月历靠 flex 自适应自然变大，绝不往卷尾堆 */
+@media (min-height:800px){
+  .task{height:58px}
+  .sched-pane .cal-cell{min-height:96px}
+  .body{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+}
+/* 宽窗（≥1400 宽）：卷心三列，插件卡进第三列 */
+@media (min-width:1400px){
+  .scroll{max-width:1500px}
+  .body{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr)}
+}
+@media (max-width:1020px){
+  .body{grid-template-columns:1fr}
+  .scroll{padding:8px 22px 12px}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none !important;animation:none !important}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ 视图一：长卷摘要台面（首页） ══════════ -->
+<div class="view active" id="view-home">
+  <div class="appbar">
+    <span class="seal">拾</span><span class="pname">拾绘</span>
+    <span class="winctl">
+      <button class="wb" title="重载" aria-label="重载"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M13 8a5 5 0 1 1-1.5-3.5"/><path d="M13 2.5V5h-2.5"/></svg></button>
+      <button class="wb" title="最小化" aria-label="最小化"><svg viewBox="0 0 16 16" width="15" height="15" stroke="currentColor" stroke-width="1.4"><path d="M3 8h10"/></svg></button>
+      <button class="wb" title="最大化" aria-label="最大化"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></svg></button>
+      <button class="wb close" title="关闭" aria-label="关闭"><svg viewBox="0 0 16 16" width="15" height="15" stroke="currentColor" stroke-width="1.4"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    </span>
+  </div>
+
+  <div class="stage"><div class="scroll">
+    <!-- 题签 -->
+    <header class="masthead">
+      <div class="title-block">
+        <h1>拾绘</h1><span class="sep"></span>
+        <span class="date num">9月4日 · 周五</span><span class="sep"></span>
+        <span class="artist">qwqwqq</span>
+      </div>
+      <p class="glance">今日 <b>1 笔逾期</b> · 5 件事在案 · 阿江明天截稿 · 2 条留言待审</p>
+      <div class="pen-wrap" id="pen-wrap">
+        <button class="pen" id="pen-btn" type="button" aria-expanded="false" aria-label="菜单与设置">
+          <svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 3.6 16.4 6.8 7.4 15.8 3.4 16.6 4.2 12.6Z"/><path d="M11.8 5 15 8.2"/></svg>
+        </button>
+        <div class="paper-menu" id="paper-menu" role="menu">
+          <div class="pm-acct">
+            <span class="avatar">祁</span>
+            <span style="flex:1;min-width:0"><span class="nm">qwqwqq</span><span class="st"><i></i>云端模式 · 已同步</span></span>
+            <button class="pm-item" style="width:auto;padding:4px 8px;color:var(--ink3)" type="button">切出</button>
+          </div>
+          <div class="pm-div"></div>
+          <p class="pm-sec">板块显隐</p>
+          <button class="pm-item" type="button" data-hides="ops" aria-pressed="true"><span class="mid">经营板块</span><span class="hint">显示中</span></button>
+          <button class="pm-item" type="button" data-hides="msgs" aria-pressed="true"><span class="mid">留言板块</span><span class="hint">显示中</span></button>
+          <button class="pm-item" type="button" data-hides="plugin" aria-pressed="true"><span class="mid">插件·稿情气象台</span><span class="hint">显示中</span></button>
+          <div class="pm-div"></div>
+          <p class="pm-sec">装裱 · 纸式</p>
+          <div class="mounts">
+            <button class="mount" type="button" data-mount="" aria-pressed="true"><span>素纸</span></button>
+            <button class="mount" type="button" data-mount="grid" aria-pressed="false"><span>界格</span></button>
+            <button class="mount" type="button" data-mount="hq" aria-pressed="false"><span>花青笺</span></button>
+          </div>
+          <div class="pm-div"></div>
+          <p class="pm-sec">其他</p>
+          <button class="pm-item" type="button" id="more-from-menu"><span class="mid">全部板块与插件</span><span class="hint">更多 ›</span></button>
+          <button class="pm-item" type="button"><span class="mid">网页版完整设置</span><span class="hint">打开 ↗</span></button>
+        </div>
+      </div>
+      <div class="toggles" role="group" aria-label="板块显隐">
+        <span class="lbl">显隐</span>
+        <button class="chip" data-hides="ops" aria-pressed="true">经营</button>
+        <button class="chip" data-hides="msgs" aria-pressed="true">留言</button>
+      </div>
+      <button class="sign" aria-pressed="false" aria-label="状态挂牌：开稿中，点击翻牌">
+        <span class="sign-inner"><span class="face front"><i class="pt"></i>开稿中</span><span class="face back"><i class="pt"></i>休息中</span></span>
+      </button>
+    </header>
+
+    <!-- 卷心 -->
+    <main class="body">
+      <section class="flow" aria-label="主视图">
+        <!-- 主视图切换：今日要办 / 排期月历 同占卷心主位，用户自定义选显示哪个（记住选择） -->
+        <div class="mv-tabs">
+          <button class="mv-tab" data-mv="todo" aria-selected="true" type="button">今日要办</button>
+          <button class="mv-tab" data-mv="cal" aria-selected="false" type="button">排期月历</button>
+          <button class="mv-full" id="mv-to-schedule" type="button">看全景三视图 ›</button>
+        </div>
+        <!-- 今日要办 pane -->
+        <div class="mv-pane" data-mv="todo">
+          <div class="sec-head"><span class="meta">逾期置顶 · 按截稿先后</span></div>
+          <ul>
+            <li class="task"><span class="dot zs"></span><span class="what"><strong>尾款 · 小满《Q版头像×3》</strong><span class="prog">已交付待收</span></span><span><span class="amt num">¥380</span><span class="due zs">逾期2天</span></span></li>
+            <li class="task"><span class="dot zs"></span><span class="what"><strong>阿江 · 双人互动插图</strong><span class="prog">上色收尾·85%</span></span><span><span class="due zs">明天截稿</span></span></li>
+            <li class="task"><span class="dot hq"></span><span class="what"><strong>桃桃 · 原创OC全身立绘</strong><span class="prog">细化中·60%</span></span><span><span class="due hq">剩3天</span></span></li>
+            <li class="task"><span class="dot th"></span><span class="what"><strong>定金 · 老白《兽设细化》</strong><span class="prog">开工前确认</span></span><span><span class="amt num">¥150</span><span class="due th">待确认</span></span></li>
+            <li class="task done"><span class="dot sl"></span><span class="what"><strong>小满 · Q版头像×3</strong><span class="prog">已交付</span></span><span><span class="due sl">已了</span></span></li>
+          </ul>
+        </div>
+        <!-- 排期月历 pane（同占卷心主位；列表/时间条全景走独立页） -->
+        <div class="mv-pane" data-mv="cal" hidden>
+          <div class="cal-head">
+            <button class="cal-nav" aria-label="上月">←</button>
+            <span class="ct num">2026年9月</span>
+            <button class="cal-nav" aria-label="下月">→</button>
+            <span class="cal-legend" style="margin:0 0 0 auto"><span><i style="background:var(--hq)"></i>在画</span><span><i style="background:var(--zs)"></i>逾期</span><span><i style="background:var(--sl);border-radius:50%"></i>可接单</span></span>
+          </div>
+          <div class="cal-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+          <div class="cal-grid" id="home-cal-grid"></div>
+        </div>
+      </section>
+
+      <aside class="aside">
+        <section class="card ops" id="ops-card" aria-label="经营">
+          <div class="sec-head"><h2>经营</h2><span class="meta">本月</span></div>
+          <div class="income"><span class="k">本月已收</span><span class="v num">¥2,480</span><span class="tail">已完稿5单</span></div>
+          <div class="ring-row">
+            <div class="enso-wrap">
+              <svg class="enso" viewBox="0 0 200 200" aria-hidden="true">
+                <defs>
+                  <filter id="rough" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7"/></filter>
+                  <filter id="rough2" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="12"/></filter>
+                </defs>
+                <g filter="url(#rough2)" opacity=".14"><circle class="echo" cx="100" cy="100" r="78" fill="none" stroke="rgba(38,37,32,.6)" stroke-width="6" stroke-linecap="round" stroke-dasharray="428 62" transform="rotate(-50 100 100)"/></g>
+                <g filter="url(#rough)"><circle class="main" cx="100" cy="100" r="78" fill="none" stroke="rgba(38,37,32,.5)" stroke-width="12" stroke-linecap="round" stroke-dasharray="441 49" transform="rotate(-52 100 100)"/></g>
+              </svg>
+              <div class="enso-text"><b class="v num">3h42m</b><span class="k">今日在画</span></div>
+            </div>
+            <div class="ring-side">
+              <span class="k2">本周 21 小时</span>
+              <div class="bar"><i class="b1" style="width:82%"></i><i class="b2" style="width:12%"></i><i class="b3" style="width:6%"></i></div>
+              <div class="legend"><span><i style="background:var(--hq)"></i>在画82%</span><span><i style="background:var(--buf)"></i>离开12%</span><span><i style="background:var(--ink4)"></i>摸鱼6%</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card msgs" id="msgs-card" aria-label="留言">
+          <div class="sec-head"><h2>留言</h2><span class="meta">2条待审</span></div>
+          <div class="slips">
+            <div class="slip" tabindex="0" role="button"><span class="who">桃桃</span><span class="txt">立绘披风能再加层次吗？</span><span class="when">3小时前</span></div>
+            <div class="slip" tabindex="0" role="button"><span class="who">阿江</span><span class="txt">水印版麻烦发我邮箱～</span><span class="when">1小时前</span></div>
+          </div>
+        </section>
+
+        <!-- 【新】插件摘要卡：长卷上只占一卡，点开→抽屉看详情 -->
+        <section class="card plugin-card" id="plugin-card" data-open-more="plugin" aria-label="插件 稿情气象台">
+          <div class="pc-top"><span class="pc-ico">气</span><span class="pc-name">稿情气象台</span><span class="pc-badge">插件</span></div>
+          <div class="pc-body">今日 <span class="wx">雷雨</span> · 1 笔逾期、阿江明天截稿，宜先清尾款</div>
+          <div class="pc-foot">在画 3h42m · 点开看详情 ›</div>
+        </section>
+      </aside>
+    </main>
+
+    <!-- 卷尾 -->
+    <footer class="tail-bar">
+      <div class="tail-col">
+        <span class="lbl">订单速览</span>
+        <div class="orders">
+          <span class="ord hq"><i></i>桃桃·OC立绘 <span class="st">进行中</span></span>
+          <span class="ord th"><i></i>阿江·双人插图 <span class="st">待交付</span></span>
+          <span class="ord sl"><i></i>小满·Q版头像 <span class="st">已完稿</span></span>
+        </div>
+      </div>
+      <div class="tail-col">
+        <span class="lbl">排期 · 近7天</span>
+        <!-- 排期摘要签：台面一眼扫；点开 → 独立排期页 -->
+        <div class="sched-strip" id="sched-strip" role="button" tabindex="0" aria-label="打开排期三视图">
+          <span class="sd over"><span class="dw">四</span><span class="bar"></span></span>
+          <span class="sd busy"><span class="dw">五</span><span class="bar"></span></span>
+          <span class="sd busy"><span class="dw">六</span><span class="bar"></span></span>
+          <span class="sd"><span class="dw">日</span><span class="bar"></span></span>
+          <span class="sd busy"><span class="dw">一</span><span class="bar"></span></span>
+          <span class="sd full"><span class="dw">二</span><span class="bar"></span></span>
+          <span class="sd"><span class="dw">三</span><span class="bar"></span></span>
+          <span class="open-hint">看三视图 ›</span>
+        </div>
+      </div>
+      <!-- 排期月历已上移卷心主位（与今日要办可切换），卷尾不再堆内嵌月历（用户反馈：底部堆不好看） -->
+      <div class="tail-right">
+        <span class="fact"><i class="mode-dot"></i>云端·已同步</span>
+        <span class="promise">时间数据仅存本机</span>
+        <button class="more-btn" id="more-btn" type="button">更多板块与插件 <span aria-hidden="true">›</span></button>
+      </div>
+    </footer>
+  </div></div>
+</div>
+
+<!-- ══════════ 视图二：独立排期页（分流目标·三视图） ══════════ -->
+<div class="view" id="view-schedule">
+  <div class="appbar">
+    <span class="seal">拾</span><span class="pname">拾绘</span>
+    <span class="winctl">
+      <button class="wb" title="最小化"><svg viewBox="0 0 16 16" width="15" height="15" stroke="currentColor" stroke-width="1.4"><path d="M3 8h10"/></svg></button>
+      <button class="wb" title="最大化"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></svg></button>
+      <button class="wb close" title="关闭"><svg viewBox="0 0 16 16" width="15" height="15" stroke="currentColor" stroke-width="1.4"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    </span>
+  </div>
+  <div class="stage"><div class="scroll" style="grid-template-rows:auto 1fr">
+    <div class="sched-head">
+      <button class="back-btn" id="sched-back" type="button">← 回长卷</button>
+      <h2>排期</h2>
+      <div class="seg-tabs" role="tablist" aria-label="排期视图">
+        <button class="seg-tab" role="tab" data-pane="list" aria-selected="false">列表</button>
+        <button class="seg-tab" role="tab" data-pane="cal" aria-selected="true">月历</button>
+        <button class="seg-tab" role="tab" data-pane="tl" aria-selected="false">时间条</button>
+      </div>
+    </div>
+    <div style="min-height:0;overflow-y:auto">
+      <!-- 列表 -->
+      <div class="sched-pane" data-pane="list">
+        <div class="list-zone">
+          <div class="zh">正式区 <span class="cnt">3 笔在途 · 名额 3/5 · 剩 2 席</span></div>
+          <div class="q-item"><span class="grip">⠿</span><span class="dot zs"></span><span class="q-who"><strong>小满</strong> · Q版头像×3</span><span class="q-st th">待收尾款</span><span class="q-due zs">逾期2天</span></div>
+          <div class="q-item"><span class="grip">⠿</span><span class="dot zs"></span><span class="q-who"><strong>阿江</strong> · 双人互动插图</span><span class="q-st hq">进行中</span><span class="q-due zs">明天截稿</span></div>
+          <div class="q-item"><span class="grip">⠿</span><span class="dot hq"></span><span class="q-who"><strong>桃桃</strong> · 原创OC全身立绘</span><span class="q-st hq">进行中</span><span class="q-due hq">剩3天</span></div>
+        </div>
+        <div class="list-zone">
+          <div class="zh">缓冲区 <span class="cnt">1 笔候补</span></div>
+          <div class="q-item"><span class="grip">⠿</span><span class="dot th"></span><span class="q-who"><strong>老白</strong> · 兽设细化</span><span class="q-st th">待确认</span><span class="q-due buf">未排期</span></div>
+        </div>
+      </div>
+      <!-- 月历 -->
+      <div class="sched-pane active" data-pane="cal">
+        <div class="cal-head">
+          <button class="cal-nav" aria-label="上月">←</button>
+          <span class="ct num">2026年9月</span>
+          <button class="cal-nav" aria-label="下月">→</button>
+        </div>
+        <div class="cal-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-legend">
+          <span><i style="background:var(--hq)"></i>正式在画</span>
+          <span><i style="background:var(--buf)"></i>缓冲区</span>
+          <span><i style="background:var(--th)"></i>临期≤3天</span>
+          <span><i style="background:var(--zs)"></i>逾期</span>
+          <span><i style="background:var(--sl)"></i>已完成</span>
+          <span><i style="background:var(--sl);border-radius:50%"></i>可接单</span>
+        </div>
+      </div>
+      <!-- 时间条 -->
+      <div class="sched-pane" data-pane="tl">
+        <div class="tl-toolbar">
+          <span class="tl-lbl">缩放</span>
+          <div class="seg-tabs" style="margin-left:0">
+            <button class="seg-tab" aria-selected="false" style="padding:4px 12px;font-size:13px">2周</button>
+            <button class="seg-tab" aria-selected="true" style="padding:4px 12px;font-size:13px">1月</button>
+            <button class="seg-tab" aria-selected="false" style="padding:4px 12px;font-size:13px">3月</button>
+          </div>
+          <span class="tl-lbl" style="margin-left:auto">仅进行中</span>
+        </div>
+        <div class="tl-canvas">
+          <div class="tl-axis"><span>9/1</span><span>9/8</span><span>9/15</span><span>9/22</span><span>9/30</span></div>
+          <div class="tl-today" style="left:calc(12px + 12%)"></div>
+          <div class="tl-row"><span class="tl-name">小满·Q版头像</span><span class="tl-track"><span class="tl-bar over" style="left:2%;width:30%">逾期</span></span></div>
+          <div class="tl-row"><span class="tl-name">阿江·双人插图</span><span class="tl-track"><span class="tl-bar soon" style="left:8%;width:20%">明天截稿</span></span></div>
+          <div class="tl-row"><span class="tl-name">桃桃·OC立绘</span><span class="tl-track"><span class="tl-bar" style="left:12%;width:34%">剩3天</span></span></div>
+          <div class="tl-row"><span class="tl-name">老白·兽设细化</span><span class="tl-track"><span class="tl-bar done" style="left:40%;width:26%">候补</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ══════════ 更多抽屉（收纳：全部板块 + 插件） ══════════ -->
+<div class="drawer-mask" id="drawer-mask"></div>
+<div class="drawer" id="drawer" role="dialog" aria-label="更多板块与插件">
+  <h3>更多</h3>
+  <p class="dsub">长卷只摆常用的；这些都收在这里，用时点开。</p>
+  <p class="dsec">板块</p>
+  <div class="d-item" data-goto="schedule"><span class="di-ico">排</span><span class="di-txt"><span class="di-name">排期三视图</span><span class="di-desc">列表 / 月历 / 时间条全景</span></span><span class="di-go">›</span></div>
+  <div class="d-item"><span class="di-ico">统</span><span class="di-txt"><span class="di-name">统计</span><span class="di-desc">收入趋势 · 接单分析</span></span><span class="di-go">›</span></div>
+  <div class="d-item"><span class="di-ico">客</span><span class="di-txt"><span class="di-name">客户快查</span><span class="di-desc">老客召回 · 客户标记</span></span><span class="di-go">›</span></div>
+  <p class="dsec">插件（模块）</p>
+  <div class="d-item"><span class="di-ico">气</span><span class="di-txt"><span class="di-name">稿情气象台</span><span class="di-desc">把今日稿情画成一句天气</span></span><span class="di-go">›</span></div>
+  <div class="d-item"><span class="di-ico">+</span><span class="di-txt"><span class="di-name">装新插件</span><span class="di-desc">从「我的文档\拾绘\modules」扫描</span></span><span class="di-go">›</span></div>
+  <p class="dsec">工具箱</p>
+  <div class="d-item"><span class="di-ico">票</span><span class="di-txt"><span class="di-name">小票打印机</span><span class="di-desc">F4 · 接单小票</span></span><span class="di-go">›</span></div>
+  <div class="d-item"><span class="di-ico">价</span><span class="di-txt"><span class="di-name">价目分享卡</span><span class="di-desc">F3 · 档位价目卡</span></span><span class="di-go">›</span></div>
+</div>
+
+<script>
+(function(){
+  function showView(id){document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active',v.id===id)})}
+  var mask=document.getElementById('drawer-mask'),drawer=document.getElementById('drawer');
+  function openDrawer(){mask.classList.add('open');drawer.classList.add('open')}
+  function closeDrawer(){mask.classList.remove('open');drawer.classList.remove('open')}
+  function openSchedule(){closeDrawer();showView('view-schedule')}
+  function setMenu(open){var w=document.getElementById('pen-wrap'),p=document.getElementById('pen-btn');w.classList.toggle('open',open);p.setAttribute('aria-expanded',String(open))}
+
+  // 分流：排期摘要签 → 独立排期页；返回 → 回长卷
+  var strip=document.getElementById('sched-strip');
+  strip.addEventListener('click',openSchedule);
+  strip.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();openSchedule()}});
+  document.getElementById('sched-back').addEventListener('click',function(){showView('view-home')});
+
+  // 纸签脉页签（三视图切换 + 时间条缩放，同组内单选；有 data-pane 的额外切面板）
+  document.querySelectorAll('.seg-tabs').forEach(function(group){
+    group.querySelectorAll('.seg-tab').forEach(function(tab){
+      tab.addEventListener('click',function(){
+        group.querySelectorAll('.seg-tab').forEach(function(t){t.setAttribute('aria-selected',String(t===tab))});
+        if(tab.dataset.pane){document.querySelectorAll('.sched-pane').forEach(function(p){p.classList.toggle('active',p.dataset.pane===tab.dataset.pane)})}
+      });
+    });
+  });
+
+  // 收纳：更多抽屉（更多按钮 / 菜单入口 / 插件卡 均可唤起）
+  document.getElementById('more-btn').addEventListener('click',openDrawer);
+  document.getElementById('more-from-menu').addEventListener('click',function(){setMenu(false);openDrawer()});
+  document.querySelectorAll('[data-open-more]').forEach(function(el){el.addEventListener('click',openDrawer)});
+  mask.addEventListener('click',closeDrawer);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeDrawer();setMenu(false)}});
+  drawer.querySelectorAll('[data-goto]').forEach(function(it){it.addEventListener('click',function(){if(it.dataset.goto==='schedule')openSchedule();else closeDrawer()})});
+
+  // 挂牌翻面（全页唯一仪式感）
+  var sign=document.querySelector('.sign');
+  sign.addEventListener('click',function(){sign.setAttribute('aria-pressed',String(sign.getAttribute('aria-pressed')!=='true'))});
+
+  // 墨笔菜单开合
+  var wrap=document.getElementById('pen-wrap'),pen=document.getElementById('pen-btn');
+  pen.addEventListener('click',function(e){e.stopPropagation();setMenu(!wrap.classList.contains('open'))});
+  document.addEventListener('click',function(e){if(wrap.classList.contains('open')&&!wrap.contains(e.target))setMenu(false)});
+
+  // 板块显隐（题签快捷 + 菜单内 双处同步）
+  document.querySelectorAll('[data-hides]').forEach(function(el){
+    el.addEventListener('click',function(){
+      var key=el.dataset.hides,on=el.getAttribute('aria-pressed')==='true';
+      document.body.classList.toggle('no-'+key,on);
+      document.querySelectorAll('[data-hides="'+key+'"]').forEach(function(x){
+        x.setAttribute('aria-pressed',String(!on));
+        var h=x.querySelector('.hint');if(h)h.textContent=on?'已隐藏':'显示中';
+      });
+    });
+  });
+
+  // 装裱换纸（全局单选）
+  var mounts=document.querySelectorAll('.mount');
+  mounts.forEach(function(m){m.addEventListener('click',function(){
+    var v=m.dataset.mount;
+    document.body.classList.toggle('mount-grid',v==='grid');
+    document.body.classList.toggle('mount-hq',v==='hq');
+    mounts.forEach(function(x){x.setAttribute('aria-pressed',String(x===m))});
+  })});
+
+  // 月历生成（2026年9月·周一开头·42格·六态band示意·free绿点=可接单）
+  var BANDS={3:[['小满·Q版','over']],4:[['阿江·双人','soon']],5:[['阿江·双人','soon']],7:[['桃桃·OC','formal']],8:[['桃桃·OC','formal']],11:[['老白·兽设','buffer']],14:[['新单·未排','nodeadline']],20:[['小林·交付','done']]};
+  function calCells(canAccept){
+    var lead=(new Date(2026,8,1).getDay()+6)%7,gs=new Date(2026,8,1-lead),today=new Date(2026,8,4),h='';
+    for(var i=0;i<42;i++){
+      var d=new Date(gs.getFullYear(),gs.getMonth(),gs.getDate()+i),inM=d.getMonth()===8,day=d.getDate();
+      var bs=(inM&&BANDS[day])?BANDS[day]:[];
+      var free=canAccept&&inM&&d>=today&&bs.length===0;
+      var cls='cal-cell'+(inM?'':' other')+(d.getTime()===today.getTime()?' today':'')+(free?' free':'');
+      var bh=bs.slice(0,2).map(function(b){return '<span class="band '+b[1]+'">'+b[0]+'</span>'}).join('')+(bs.length>2?'<span class="cal-more">+'+(bs.length-2)+'</span>':'');
+      h+='<div class="'+cls+'"><span class="cal-day num">'+day+'</span><div class="cal-bands">'+bh+'</div></div>';
+    }
+    return h;
+  }
+  // canAccept=true 演示「可接单」绿点（名额未满态，与列表「剩2席」自洽）
+  document.getElementById('cal-grid').innerHTML=calCells(true);       // 独立排期页月历
+  document.getElementById('home-cal-grid').innerHTML=calCells(true);  // 卷心主位·排期月历 pane
+  // 卷心主视图切换：今日要办 ⇄ 排期月历（记住上次选择＝用户自定义默认显示哪个）
+  var MV_KEY='shihui-home-mainview';
+  var mvTabs=document.querySelectorAll('.mv-tab');
+  function setMainView(v){
+    mvTabs.forEach(function(t){t.setAttribute('aria-selected',String(t.dataset.mv===v))});
+    document.querySelectorAll('.mv-pane').forEach(function(p){p.hidden=(p.dataset.mv!==v)});
+    try{localStorage.setItem(MV_KEY,v)}catch(e){}
+  }
+  mvTabs.forEach(function(t){t.addEventListener('click',function(){setMainView(t.dataset.mv)})});
+  var savedMv=null;try{savedMv=localStorage.getItem(MV_KEY)}catch(e){}
+  setMainView(savedMv==='cal'?'cal':'todo');
+  document.getElementById('mv-to-schedule').addEventListener('click',openSchedule);
+})();
+</script>
+</body>
+</html>
