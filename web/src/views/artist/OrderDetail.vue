@@ -549,7 +549,7 @@ const {
   galleryUploading, isGalleryDragOver, galleryViewerVisible, galleryViewerIndex,
   openGalleryViewer, handleGalleryFileSelect, handleGalleryDrop,
   guardDragEnter, guardDragOver, guardDrop, selectFocusImage, uploadGalleryFiles, validateImageFile
-} = useOrderGallery({ order, routeId, onRefresh: loadOrder, applyOrder })
+} = useOrderGallery({ routeId, onRefresh: loadOrder, applyOrder })
 const { deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
   useOrderDeadline({ order, routeId, applyOrder })
 const {
