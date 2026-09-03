@@ -70,8 +70,18 @@ onUnmounted(() => {
   -webkit-font-smoothing: antialiased;
   /* 827 用户终验整改：真实窗高（已÷字号 zoom），JS 下发+resize 跟随；页面骨架一律吃它不写 100vh（zoom 下 100vh 超窗溢出） */
   --app-h: 100vh;
+  /* 卷面间距基准值（定稿原型 :root 同值）。9/4 波1 收口实测根治：
+     此前 --gap 只在各页矮窗媒体查询里定义（.stage{--gap:12px}），窗高 >700px 时 var(--gap) 无值
+     → gap 塌成 0：题签/卷心/卷尾三段紧贴、订单速览 chips 也贴死（既有缺陷，本批新页同样吃它）。
+     矮窗的 .stage{--gap:12px} 仍按媒体查询覆盖本值，默认窗 1200×600 视觉零变化。
+     --row 刻意不在此定义：TodayPanel 自带 56px 兜底且已随 826/827 终验定型，动它会改已验收的账本行高。 */
+  --gap: 16px;
 }
 body { margin: 0; }
+/* 全局工具类：数字走文楷 + 等宽数字位（原型 .num）。
+   9/4 主页重设计波1 从 Home.vue 上移到此处——排期页等懒加载页单独打开时 Home 未必已挂载，
+   样式会缺（scoped 之外的全局类必须由常驻壳提供）。 */
+.num { font-family: var(--f-d); font-variant-numeric: tabular-nums; line-height: 1.25; }
 /* 按钮底子：去浏览器默认样式（裸边框毛坯的源头），外观一律由各件纸墨样式接管（826 终验整改） */
 button {
   font: inherit; color: inherit; background: none; border: none; padding: 0;

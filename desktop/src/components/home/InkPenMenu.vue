@@ -23,7 +23,7 @@ import { checkAndDownloadUpdate, installPendingUpdate, isDesktop } from '../../b
 import { WEB_BASE } from '../../config'
 import { useTimerStore } from '../../stores/timer'
 
-const emit = defineEmits<{ (_e: 'open-about'): void }>()
+const emit = defineEmits<{ (_e: 'open-about'): void; (_e: 'open-more'): void }>()
 
 const VERSION = '0.1.0'
 
@@ -179,6 +179,16 @@ function openAbout() {
   emit('open-about')
 }
 
+// ─── 9/4 波1：排期三视图（独立页）/ 全部板块与插件（更多抽屉，由 Home 接住开） ───
+function goSchedule() {
+  setOpen(false)
+  void router.push({ name: 'schedule' })
+}
+function openMoreDrawer() {
+  setOpen(false) // 先关菜单再开抽屉（施工图 §五-6：点了要先关菜单再开抽屉）
+  emit('open-more')
+}
+
 // ─── 工具箱（波2）：价目分享卡（F3）/ 小票打印机（F4），纯离线工具双模式均可用 ───
 function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'tool-templates' | 'tool-export' | 'tool-modules') {
   setOpen(false)
@@ -265,12 +275,12 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
         <span class="inksw" aria-hidden="true"></span>
       </button>
       <button type="button" class="pm-item" :aria-pressed="closeBehavior === 'quit'" @click="chooseClose('quit')">
-        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10v2.5h11V10" /><path d="M2.5 10h3.2l1 1.6h2.6l1-1.6h3.2" /><path d="M8 2.5V7" /><path d="M5.8 5 8 7.2 10.2 5" /></svg>
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10v2.5h11V10" /><path d="M2.5 10h3.2l1 1.6h2.6l1-1.6h3.2" /><path d="M8 2.5V7" /><path d="M5.8 5 8 7.2 10.2 5" /></svg>
         <span class="mid">关闭时直接退出</span>
         <span v-if="closeBehavior === 'quit'" class="hint tag">当前</span>
       </button>
       <button type="button" class="pm-item" :aria-pressed="closeBehavior === 'tray'" @click="chooseClose('tray')">
-        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9.5v3h11v-3" /><path d="M2.5 9.5 4 3.5h8l1.5 6" /><path d="M2.5 9.5h3.2l.9 1.4h2.8l.9-1.4h3.2" /></svg>
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9.5v3h11v-3" /><path d="M2.5 9.5 4 3.5h8l1.5 6" /><path d="M2.5 9.5h3.2l.9 1.4h2.8l.9-1.4h3.2" /></svg>
         <span class="mid">关闭时最小化到托盘</span>
         <span v-if="closeBehavior === 'tray'" class="hint tag">当前</span>
       </button>
@@ -346,6 +356,18 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
 
       <!-- 其他（检查更新/网页设置：仅云端且在线渲染——§4.3 死按钮红线） -->
       <p class="pm-sec">其他</p>
+      <!-- 9/4 波1 新增两条：排期三视图（独立页）/ 全部板块与插件（更多抽屉，Home 接住开）；
+           本地模式也显（本地有列表+月历；抽屉条目本地差异由 moreDrawer.ts 组装） -->
+      <button type="button" class="pm-item" @click="goSchedule">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1" /><path d="M2.5 6.5h11M5.5 2.5v2M10.5 2.5v2" /></svg>
+        <span class="mid">排期三视图</span>
+        <span class="hint tag">打开 ›</span>
+      </button>
+      <button type="button" class="pm-item" @click="openMoreDrawer">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><path d="M11.25 9v4.5M9 11.25h4.5" /></svg>
+        <span class="mid">全部板块与插件</span>
+        <span class="hint tag">更多 ›</span>
+      </button>
       <button v-if="cloud && online" type="button" class="pm-item" :disabled="updateBusy" @click="checkUpdate">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5" /><path d="M13 2.5V5h-2.5" /></svg>
         <span class="mid">检查更新</span>
@@ -388,7 +410,7 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
 }
 .paper-menu::-webkit-scrollbar { width: 8px; }
 .paper-menu::-webkit-scrollbar-track { background: transparent; }
-.paper-menu::-webkit-scrollbar-thumb { background: rgba(var(--ink-rgb), .22); border-radius: 4px; }
+.paper-menu::-webkit-scrollbar-thumb { background: rgba(var(--ink-rgb), .22); border-radius: var(--r-s); }
 .paper-menu::-webkit-scrollbar-thumb:hover { background: rgba(var(--ink-rgb), .4); }
 .pen-wrap.open .paper-menu { opacity: 1; transform: none; pointer-events: auto; }
 .pm-sec { font-size: 11px; letter-spacing: .12em; color: var(--ink4); margin: 9px 4px 3px; }

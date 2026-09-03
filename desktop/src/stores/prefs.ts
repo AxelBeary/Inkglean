@@ -14,6 +14,10 @@ const TEARABLES: TearableId[] = ['timer', 'today-todo', 'deadline']
 export type ThemePref = 'auto' | 'light' | 'dark'
 const THEMES: ThemePref[] = ['auto', 'light', 'dark']
 
+/** 首页卷心主位显示哪个（9/4 主页重设计拍板：今日要办 ⇄ 排期月历 共享卷心主位，记住上次选择＝画师自定义默认） */
+export type HomeMainView = 'todo' | 'cal'
+const MAIN_VIEWS: HomeMainView[] = ['todo', 'cal']
+
 export interface DesktopPrefs {
   /** 隐藏的板块（today 不可隐，归一化时强制剔除） */
   hidden: PanelId[]
@@ -27,6 +31,8 @@ export interface DesktopPrefs {
   fontSize: number
   /** 外观主题（auto/light/dark，默认 auto 跟随系统） */
   theme: ThemePref
+  /** 卷心主位（todo=今日要办 / cal=排期月历，默认 todo） */
+  mainView: HomeMainView
 }
 
 const FONT_MIN = 14
@@ -34,7 +40,7 @@ const FONT_MAX = 20
 const FONT_DEFAULT = 16
 
 function defaultPrefs(): DesktopPrefs {
-  return { hidden: [], mount: 'plain', torn: [], focus: false, fontSize: FONT_DEFAULT, theme: 'auto' }
+  return { hidden: [], mount: 'plain', torn: [], focus: false, fontSize: FONT_DEFAULT, theme: 'auto', mainView: 'todo' }
 }
 
 function normalize(raw: unknown): DesktopPrefs {
@@ -50,6 +56,7 @@ function normalize(raw: unknown): DesktopPrefs {
     d.fontSize = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(o.fontSize)))
   }
   if (THEMES.includes(o.theme as ThemePref)) d.theme = o.theme as ThemePref
+  if (MAIN_VIEWS.includes(o.mainView as HomeMainView)) d.mainView = o.mainView as HomeMainView
   return d
 }
 
@@ -83,6 +90,9 @@ export const usePrefsStore = defineStore('desktop-prefs', () => {
   /** 主题（波13）：非法值落 auto 由 normalize 保证，此处直写 */
   function setTheme(t: ThemePref) { prefs.theme = t }
 
+  /** 卷心主位（9/4）：切页签即落偏好，下次开应用仍是这一面（画师自定义默认显示哪个） */
+  function setMainView(v: HomeMainView) { prefs.mainView = v }
+
   /** 字号：钳在 14~20（同网页端），越界调用自动吸到边界 */
   function setFontSize(n: number) {
     prefs.fontSize = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(n)))
@@ -97,5 +107,5 @@ export const usePrefsStore = defineStore('desktop-prefs', () => {
 
   function isTorn(id: TearableId): boolean { return prefs.torn.includes(id) }
 
-  return { prefs, toggleHidden, setMount, setFocus, setTorn, isTorn, setFontSize, setTheme }
+  return { prefs, toggleHidden, setMount, setFocus, setTorn, isTorn, setFontSize, setTheme, setMainView }
 })
