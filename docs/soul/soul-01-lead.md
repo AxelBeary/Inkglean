@@ -28,7 +28,7 @@
 - 追加派工条目后必须提醒角色「先 git merge master 再读派工文件」。
 - 派工/交付文件合入即删，comms 只留 STATUS + 有效参考。
 - 各角色必须独立 worktree；主 worktree 永远停 master。
-- **批量并行派工 → profile 后台会话**（大活丢 `hermes.cmd -p <角色> chat -q`，指令自包含：角色名+worktree 绝对路径+分支+派工文件+交付报告全写死；先冒烟测试通道 → 开工 30-60s 验证日志 API call 递增；新 worktree 依赖用 `scripts/new-worktree.ps1` 按 `.worktreeinclude` 自动复制（见 `git-worktree-dependency-strategy` reference，勿手动 robocopy）；姿势坑见 `cli-session-visible-agent` + `parallel-profile-dispatch` reference）。
+- **批量并行派工 → 常驻子代理**（2026-08-28 拍板升级，详见 `docs/soul/AGENTS-v2.md`）：侦察 `huiyue-scout`、前端 `huiyue-frontend`、后端 `huiyue-backend`、合并后只读审 `huiyue-bughunter`；指令自包含：施工图+领地清单+禁区清单+事实源路径全写死；小活不派工，中大活才开团；啄虫员只在大改/大批/动 B 类时上场。旧 hermes profile 通道保留备用，默认不走。
 
 ## 协作
 
