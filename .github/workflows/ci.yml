@@ -92,7 +92,9 @@ jobs:
           cache-dependency-path: |
             desktop/package-lock.json
             shared/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
+      # windows-latest runner 预装 Rust stable + MSVC 构建工具，cargo check 直接可用——
+      # 移除 dtolnay/rust-toolchain：该 action 引用疑似触发 workflow startup failure（#1298/#1299/#1300 连挂，
+      # 移除 Swatinem/rust-cache 后仍挂，dtolnay 为剩余最大嫌疑；desktop-release.yml 虽写了它但 tag 触发从未实际运行过），runner 预装 Rust 已足够
       # 同 web job：desktop 经 file:../shared 直导 shared 源码，file: 链接只带源码不带依赖，
       # shared 自身依赖（vue 类型声明等）须先装，否则 vue-tsc/vitest 在 shared 文件上报错（826 CI 坑教训）
       - name: Install shared dependencies
