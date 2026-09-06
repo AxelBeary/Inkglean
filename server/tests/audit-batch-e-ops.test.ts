@@ -38,35 +38,103 @@ function listTarEntries(gzBuf: Buffer): TarEntry[] {
   return entries
 }
 
+// ---- tar 头合规断言（9/5 文档系统交叉审计 F-01）----
+// 上面的 listTarEntries 是作者自写的宽容解析器：它从不校验 checksum，所以归档头校验和写错时
+// 它照样能读出条目（缺陷正是这样逃逸的）。以下辅助按 POSIX/ustar 口径直接校验真实字节。
+
+/** 缺陷顺序下「求和时还没落位」的四个字段区间：typeflag / magic+version / prefix */
+const LATE_WRITTEN_FIELDS: ReadonlyArray<readonly [number, number]> = [[156, 157], [257, 265], [345, 500]]
+
+/** 头块字节和：checksum 字段（148–155）按规范要求以 8 个空格计入 */
+function sumTarHeader(header: Buffer): number {
+  let sum = 0
+  for (let i = 0; i < 512; i++) sum += i >= 148 && i < 156 ? 0x20 : header[i]
+  return sum
+}
+
+/** 归档头里实际存着的 checksum（148–153 为六位八进制） */
+function storedTarChecksum(header: Buffer): number {
+  return parseInt(header.subarray(148, 154).toString('utf8'), 8)
+}
+
+/**
+ * 复现「先算和、后写字段」的错误顺序：把指定区间退回 Buffer.alloc 时未写入的 0 再求和，
+ * 等价于求和发生在这些字段落位之前（2026-09-05 修复前的 tarHeader 行为）
+ */
+function sumAsIfWrittenAfterSum(header: Buffer, ranges: ReadonlyArray<readonly [number, number]>): number {
+  const stale = Buffer.from(header)
+  for (const [from, to] of ranges) stale.fill(0, from, to)
+  return sumTarHeader(stale)
+}
+
+/** 断言单个 512 头块合规：checksum 覆盖全头、typeflag/magic/version 落位，且非缺陷顺序产物 */
+function expectPosixTarHeader(header: Buffer, label: string): void {
+  expect(header.length, `${label}: 头块长度`).toBe(512)
+  expect(header.subarray(148, 154).toString('utf8'), `${label}: checksum 字段应为 6 位八进制`).toMatch(/^[0-7]{6}$/)
+  expect(header[154], `${label}: checksum 第 7 字节应为 NUL`).toBe(0)
+  expect(header[155], `${label}: checksum 第 8 字节应为空格`).toBe(0x20)
+  const stored = storedTarChecksum(header)
+  expect(stored, `${label}: checksum 须等于全头重算值（F-01 回归）`).toBe(sumTarHeader(header))
+  expect(
+    stored,
+    `${label}: checksum 不得漏算 typeflag/magic/version/prefix（若顺序被改回，此断言必红）`
+  ).not.toBe(sumAsIfWrittenAfterSum(header, LATE_WRITTEN_FIELDS))
+  expect(header.subarray(156, 157).toString('utf8'), `${label}: typeflag 应为 '0'（普通文件）`).toBe('0')
+  expect(header.subarray(257, 263).toString('utf8'), `${label}: magic 应为 ustar\\0`).toBe('ustar\0')
+  expect(header.subarray(263, 265).toString('utf8'), `${label}: version`).toBe('00')
+}
+
 function tempDir(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix))
 }
 
 describe('审计批E 运维脚本 (R-6)', () => {
-  it('TC-OPS-01: backup-uploads 产出 tar.gz，包含全部文件（含回收站）且内容可读回', async () => {
+  it('TC-OPS-01: backup-uploads 产出 tar.gz，包含全部文件（含回收站、长路径）且头校验和符合 POSIX', async () => {
     const uploadDir = tempDir('bkupload-')
     const backupDir = tempDir('bkbackup-')
+    // 单段 99 字节（≤100 可入 name），全路径 126 字节（>100 必触发 ustar prefix 拆分）
+    const longBase = `${'l'.repeat(95)}.png`
+    const longRel = `notes/2026-08-01/portfolio/${longBase}`
     try {
       mkdirSync(join(uploadDir, 'images', '1'), { recursive: true })
       mkdirSync(join(uploadDir, 'deliverables', '2'), { recursive: true })
       mkdirSync(join(uploadDir, '.recycle-bin', '2026-08-01'), { recursive: true })
+      mkdirSync(join(uploadDir, 'notes', '2026-08-01', 'portfolio'), { recursive: true })
       writeFileSync(join(uploadDir, 'images', '1', 'a.png'), 'img-a')
       writeFileSync(join(uploadDir, 'deliverables', '2', 'b.psd'), 'deliv-b')
       writeFileSync(join(uploadDir, '.recycle-bin', '2026-08-01', 'old.png'), 'old')
+      writeFileSync(join(uploadDir, 'notes', '2026-08-01', 'portfolio', longBase), 'long-path')
 
       const result = await backupUploads({ uploadDir, backupDir })
 
       expect(result.path).toMatch(/uploads-\d{4}-.*\.tar\.gz$/)
       expect(existsSync(result.path)).toBe(true)
       expect(result.size).toBeGreaterThan(0)
-      expect(result.files).toBe(3)
+      expect(result.files).toBe(4)
 
       const entries = listTarEntries(readFileSync(result.path))
       const names = entries.map(e => e.name).sort()
-      expect(names).toEqual(['.recycle-bin/2026-08-01/old.png', 'deliverables/2/b.psd', 'images/1/a.png'].sort())
+      expect(names).toEqual(
+        ['.recycle-bin/2026-08-01/old.png', 'deliverables/2/b.psd', 'images/1/a.png', longRel].sort()
+      )
       const png = entries.find(e => e.name === 'images/1/a.png') as TarEntry
       const buf = gunzipSync(readFileSync(result.path))
       expect(buf.subarray(png.offset, png.offset + png.size).toString('utf8')).toBe('img-a')
+
+      // 逐个真实头块按 POSIX 口径硬校验（宽容解析器读得动 ≠ 标准 tar 读得动）
+      for (const e of entries) {
+        expectPosixTarHeader(buf.subarray(e.offset - 512, e.offset), e.name)
+      }
+
+      // 长路径条目：prefix 拆分正确 + 数据读得回 + prefix 字节确实进了求和
+      const longEntry = entries.find(e => e.name === longRel) as TarEntry
+      const longHeader = buf.subarray(longEntry.offset - 512, longEntry.offset)
+      expect(longHeader.subarray(0, 100).toString('utf8').replace(/\0.*$/, '')).toBe(longBase)
+      expect(longHeader.subarray(345, 500).toString('utf8').replace(/\0.*$/, '')).toBe(
+        'notes/2026-08-01/portfolio'
+      )
+      expect(buf.subarray(longEntry.offset, longEntry.offset + longEntry.size).toString('utf8')).toBe('long-path')
+      expect(storedTarChecksum(longHeader)).not.toBe(sumAsIfWrittenAfterSum(longHeader, [[345, 500]]))
     } finally {
       rmSync(uploadDir, { recursive: true, force: true })
       rmSync(backupDir, { recursive: true, force: true })

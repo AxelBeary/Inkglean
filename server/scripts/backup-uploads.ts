@@ -63,7 +63,13 @@ function tarNameFields(relPath: string): { name: string; prefix: string } {
   throw new Error(`文件相对路径无法按 ustar 分段: ${relPath}`)
 }
 
-/** 512 字节 ustar 文件头（mode/uid/gid 固定、mtime 取源文件；checksum 为字节和八进制） */
+/**
+ * 512 字节 ustar 文件头（mode/uid/gid 固定、mtime 取源文件）。
+ * checksum 是「整个 512 字节头」的字节和（八进制），其中 checksum 字段自身按 8 个空格计入，
+ * 因此求和必须等 typeflag(156)/magic(257)/version(263)/prefix(345) 全部落位后再算。
+ * 2026-09-05 修复（9/5 文档系统交叉审计 F-01）：原先先算和再写这四个字段，
+ * 导致每个头校验和都漏算它们的字节，Windows 自带 tar 报 Unrecognized archive format 而日志仍记 BACKUP_OK。
+ */
 function tarHeader(name: string, prefix: string, size: number, mtimeSec: number): Buffer {
   const buf = Buffer.alloc(512)
   buf.write(name, 0, 100, 'utf8')
@@ -73,13 +79,13 @@ function tarHeader(name: string, prefix: string, size: number, mtimeSec: number)
   buf.write(size.toString(8).padStart(11, '0'), 124, 12, 'utf8')
   buf.write(mtimeSec.toString(8).padStart(11, '0'), 136, 12, 'utf8')
   buf.write('        ', 148, 8, 'utf8') // 先留空再算 checksum（规范要求字段内全空格）
-  let sum = 0
-  for (let i = 0; i < 512; i++) sum += buf[i]
-  buf.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148, 8, 'utf8')
   buf.write('0', 156, 1, 'utf8') // typeflag: '0' = 普通文件
   buf.write('ustar\0', 257, 6, 'utf8')
   buf.write('00', 263, 2, 'utf8')
   buf.write(prefix, 345, 155, 'utf8')
+  let sum = 0
+  for (let i = 0; i < 512; i++) sum += buf[i]
+  buf.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148, 8, 'utf8')
   return buf
 }
 

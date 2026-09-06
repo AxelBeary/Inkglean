@@ -70,6 +70,61 @@ Windows 宿主的每日备份由计划任务 `CommissionDailyBackup` 在 03:30 �
 - **日志**：`data/backups/daily-backup.log`，超过 5MB 由 `rotate-log.ps1` 轮转为 `.1`/`.2`/`.3`（最多 3 份，best-effort）。
 - **换机重建**：新机满足上述依赖后，把 Windows 计划任务指向新仓库根 `daily-backup.bat`，沿用任务名 `CommissionDailyBackup` 与 03:30 时间，手工触发一次并核对 `daily-backup.log` 出现 `BACKUP_OK` 与 `VERIFY_OK` 后再放行。仓库内没有创建/迁移计划任务的脚本，任务本身需在 Windows 计划任务中配置。
 
+### 2.1 备份链巡检（每日必查：备份「根本没跑」比「跑失败」更难发现）
+
+> 建立：2026-09-05（9/5 文档系统交叉审计工单 F-04）。
+> **仓库里早就有现成巡检脚本 `server/scripts/patrol.sh`，本节只负责把它挂上、并给出本机自查方法与判读纪律——不要再另写一套巡检口径。**
+
+#### A. Linux 服务器：挂 cron 跑 `server/scripts/patrol.sh`
+
+脚本是 **POSIX sh**（`#!/bin/sh`，只用 `ls/date/df/find/docker compose`，零 npm 依赖），做**六项**检查：
+①容器健康 ②备份新鲜度 ③磁盘余量 ④登录页可达（容器内 node fetch，不用 curl）⑤uploads 目录存在性 ⑥迁移自动备份计数。
+异常打印一行 `PATROL_ALERT <项>: <细节>`，六项全过打印 `PATROL_ALL_OK`，退出码 0/1。**它自己不写任何文件、只往 stdout 打印**，所以日志落盘全靠 cron 那行重定向（见下）。将来接通知渠道，`grep PATROL_ALERT` 即可。
+
+其中**第 2 项（备份新鲜度）与恢复端同源**：只认每日档正式命名
+`commission.db.bak-<YYYY-MM-DDTHH-MM-SS-mmmZ>`（脚本内 glob `commission.db.bak-????-??-??T??-??-??-???Z`，
+与 `server/scripts/restore-db.ts:30` 的 `OFFICIAL_BACKUP_RE` 字面等价），**最新一份超过 36 小时即告警**；
+`bak-deploy-*` / `bak-weekly-*` / `bak.vN` 等异名档不算「每日档」。
+（细微差别备查：patrol.sh 用 `ls -t` 按 mtime 取最新，restore 端按文件名字典序取最新——对 ISO 命名两者一致。）
+
+挂法（`crontab -e` 加一行，**04:30 排在 §2 那条 03:30 备份之后一小时**，避免与备份抢跑）：
+
+```cron
+30 4 * * * cd /opt/inkglean && sh server/scripts/patrol.sh >> data/backups/patrol.log 2>&1
+```
+
+- 脚本第 9 行有 `cd "$(dirname "$0")/../.."`，会自己定位仓库根，所以 `cd` 段可省；保留只是让日志路径更直观。
+- 脚本头部注释里写的是 `30 3`（与每日备份同刻，存在竞态），**请照本节 `30 4` 挂**。
+- 首次挂上后先手工跑一次看输出：`sh /opt/inkglean/server/scripts/patrol.sh`。cron 用户若无 docker 权限，第 ①④ 项会假红（把该用户加进 `docker` 组即可）。
+
+#### B. Windows 本机（开发机，patrol.sh 跑不了）：两条只读自查
+
+`patrol.sh` 依赖 `sh` + `date -r` + `df` + `docker inspect`，**Windows 本机不能直接执行**。日常在仓库根用下面两条**只读**命令（PowerShell，不落盘、不改任何文件）：
+
+```powershell
+# ① 最新每日档年龄（等价 patrol.sh 第 2 项；age > 36h 即断链）
+$bak = Get-ChildItem .\data\backups -File | Where-Object { $_.Name -match '^commission\.db\.bak-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($bak) { '{0}  age={1}h  (written {2:yyyy-MM-dd HH:mm:ss})' -f $bak.Name, [math]::Round(((Get-Date) - $bak.LastWriteTime).TotalHours), $bak.LastWriteTime } else { 'PATROL_ALERT backup: 没有任何每日档 DB 备份' }
+
+# ② 备份日志标记（看有没有成功标记，以及日期是否连续）
+Select-String -Path .\data\backups\daily-backup.log -Pattern 'daily-backup start|VERIFY_OK_RECORDED|DB_BACKUP_FAILED|BACKUP_ARTIFACT_NOT_FOUND|VERIFY_FAILED|UPLOADS_BACKUP_FAILED' | Select-Object -Last 12 | ForEach-Object { $_.Line }
+```
+
+判读：命令 ① 的 `age > 36` → 断链；命令 ② 里**相邻两天的日期跳号**（例：`2026-08-27` 直接接 `2026-09-02`）＝中间那几天计划任务根本没跑（见下面纪律 ①）。
+
+#### C. 三条判读纪律（9/5 二审实测换来，别改口径）
+
+1. **某几天连 `=== daily-backup start ===` 启动标记都没有 ＝ 计划任务根本没跑**，这比失败标记更隐蔽：日志里既没有成功也没有失败，是一片空白，**只 grep 失败标记会完全漏掉**（本次 8/28~9/1 就是这样断了 5 天）。因此**必须按文件年龄兜底判**（命令 ① / patrol.sh 第 2 项），不能只靠扫日志关键字。
+2. **`DB_BACKUP_FAILED` 配 `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine ... The system cannot find the file specified.`** ＝ Docker Desktop 没在跑（备份链第一步就是 `docker compose exec`）。处置：**先把 Docker Desktop 起来**，再手工跑一次 `.\daily-backup.bat`，并确认日志里出现 `VERIFY_OK_RECORDED`（不是只看 `BACKUP_OK`，也不是只看脚本退出码）。
+3. **`scripts/verify-backup.mjs` 只验「已有备份」的完整性，既不验新鲜度、也完全不碰 uploads 归档**——它对选中的 DB 档跑 `integrity_check` + `foreign_key_check`，通过就打 `VERIFY_OK`。所以**它 `VERIFY_OK` 不代表备份链活着**：一份 9 天前的旧档照样绿。`--latest` 按文件名挑最新的每日档正式备份，若目录里只剩陈旧好档，它会报绿并把人误导成「有最新备份」，实际回滚点停在旧日期。判「链是否活着」只能靠 A/B 两项检查，别拿 `VERIFY_OK` 当心跳。
+
+#### D. 本机实况留档（2026-09-05 记）
+
+本机（Windows 开发机）备份链**最后一次成功是 2026-08-27 03:30:04**（`VERIFY_OK_RECORDED`，产物 `commission.db.bak-2026-08-26T19-30-03-974Z` + `uploads-2026-08-26T19-30-05-033Z.tar.gz`）；
+**8/28~9/1 共 5 天日志里连启动标记都没有**（纪律 ① 那种「根本没跑」）；
+**9/2~9/4 每天 `DB_BACKUP_FAILED`**，原因即纪律 ②（Docker Desktop 未运行）。
+9/5 实测最新每日档年龄 225h（远超 36h 阈值）。**这属运维实况、不是文档缺陷**；处置方法与自查口径见本节 A/B/C。
+
 ## 3. 恢复方式（备份文件 → 回滚）
 
 ### 3.1 DB 恢复（restore-db.ts，审计批E）
