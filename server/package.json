@@ -35,7 +35,7 @@
     "isomorphic-dompurify": "^3.22.0",
     "nanoid": "^5.0.0",
     "qrcode": "^1.5.4",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "tsx": "^4.23.1"
   },
   "devDependencies": {
