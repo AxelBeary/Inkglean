@@ -127,6 +127,33 @@ export function validateSetupToken(token: string | undefined): boolean {
   }
 }
 
+// ─── 入驻模式写入（P1 余批：onboarding_mode 有读无写 → 补部署期写入通道） ───
+
+/** 合法的入驻模式白名单（与 migrate 预置默认值、invite.service 读路径口径一致） */
+const ONBOARDING_MODES = ['invite', 'manual'] as const
+export type OnboardingMode = (typeof ONBOARDING_MODES)[number]
+
+function isOnboardingMode(value: string): value is OnboardingMode {
+  return (ONBOARDING_MODES as readonly string[]).includes(value)
+}
+
+/**
+ * 写入 platform_config.onboarding_mode。
+ * 生命周期门禁（仅 setup 阶段可调）在路由层用 guardSetupGone 复用既有实现，此处只管值校验与落库。
+ *
+ * 为什么用 UPDATE 而非 INSERT：migrate.ts 以 `INSERT OR IGNORE INTO platform_config ... VALUES ('onboarding_mode', 'invite')`
+ * 预置该行——INSERT OR IGNORE 语义下该行必然已存在（无论新建库还是存量库），因此 UPDATE 是唯一能覆盖既有行的正确写法。
+ * 不用 INSERT OR REPLACE：platform_config 为 (key TEXT PRIMARY KEY, value TEXT NOT NULL)，REPLACE 会先删后插、
+ * 改变隐式 rowid；此处目标行恒在，REPLACE 相比 UPDATE 无任何收益，反而扩大风险面（触发器/未来外键差异），故弃用。
+ */
+export function setOnboardingMode(mode: string): OnboardingMode {
+  if (!isOnboardingMode(mode)) {
+    throw new AppError('SETUP_ONBOARDING_MODE_INVALID', 400, { mode, allowed: [...ONBOARDING_MODES] })
+  }
+  db.prepare("UPDATE platform_config SET value = ? WHERE key = 'onboarding_mode'").run(mode)
+  return mode
+}
+
 // ─── 管理员创建 ───
 
 export interface CreateAdminParams {

@@ -1,7 +1,7 @@
 // ============================================
 // 开箱设置路由（REQ-038）
 // ============================================
-import { getSetupStatus, createAdminArtist, confirmTotpAndComplete, isSetupCompleted } from './setup.service.js'
+import { getSetupStatus, createAdminArtist, confirmTotpAndComplete, isSetupCompleted, setOnboardingMode } from './setup.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -131,6 +131,41 @@ export default async function setupRoutes(fastify: FastifyInstance) {
         isAdmin: result.isAdmin,
         artist: result.artist
       })
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.code(err.statusCode).send({ code: err.code, error: err.message, detail: err.detail || undefined })
+      }
+      throw err
+    }
+  })
+
+  /**
+   * POST /api/setup/onboarding-mode
+   * P1 余批：为 onboarding_mode 补部署期写入通道（此前有读无写 → 邀请制开关功能不可达）。
+   * 生命周期：仅 setup 阶段可用——复用 guardSetupGone，初始化完成后永久 410（防把部署期口子变成常态后台口子）。
+   * 白名单：mode ∈ {invite, manual}，非法值由服务层抛 SETUP_ONBOARDING_MODE_INVALID → 400，且不落库。
+   * 限流：同 IP 20 次/5 分钟（对齐同文件其它写端点口径）。
+   */
+  fastify.post('/api/setup/onboarding-mode', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['mode'],
+        properties: {
+          mode: { type: 'string' }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    guardSetupGone()
+    guardRateLimit(`setup-onboarding-mode:${request.ip}`, 20, 5 * 60_000)
+
+    const { mode } = request.body as { mode: string }
+
+    try {
+      const saved = setOnboardingMode(mode)
+      return reply.code(200).send({ ok: true, mode: saved })
     } catch (err) {
       if (err instanceof AppError) {
         return reply.code(err.statusCode).send({ code: err.code, error: err.message, detail: err.detail || undefined })

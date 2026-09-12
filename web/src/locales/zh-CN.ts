@@ -1728,7 +1728,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     quickPreviewRemove: '点一下取消勾选',
     quickPreviewEmpty: '一个都没勾——首页不显示快捷区',
     notifyLabel: '新消息通知',
-    notifyDesc: '有新订单、留言或节点推进时提醒你。',
+    // 9/12 用户拍板（对外文书诚实度收尾）：QQ 通知通道未接通，不再承诺「提醒你」，改成写清本开关实际控制什么（口径同 common.notifyDevHint，措辞按本页语气精简）
+    notifyDesc: '这一项决定客户下单页是否出现「QQ 通知」勾选项。平台的 QQ 通知通道还在开发中，打开也不会真的发出任何提醒。',
     defaultPanelLabel: '进入后台时先打开',
     defaultPanelDesc: '下次进入后台时直接打开这一页。',
     // 818-A: 后台字号滑块（14~20px 七档整数吸附，默认 15px）；822 用户拍板：去掉唠叨的操作说明文案（“拖拽调节/即时生效”类）
@@ -1863,8 +1864,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     bufferSwitchHint: '以上开关仅在有缓冲名额时生效。',
     contactQqLabel: '联系QQ（客户可见）', contactQqPlaceholder: '留空则不展示联系QQ',
     contactQqHint: '客户不记得订单号时会看到此QQ，用于联系你找回订单；留空则不展示',
-    notifyLabel: '客户QQ通知', notifyText: '允许客户接收排队/完成通知',
-    notifyPanelTitle: '通知与面板',
+    // 2026-09-12 死键清理：原 settings.notifyLabel / notifyText / notifyPanelTitle 三键全仓零渲染
+    //（画师侧通知开关实际用的是 preferences.notifyLabel/notifyDesc，客户下单页用的是 orderForm.notifyLabel），
+    // desktop/server/e2e 全域亦无引用；留着会反复骗到「按文案找功能」的人（本日台账对账即据此把死键当活文案派了工），故删。
     defaultPanelLabel: '仪表盘默认面板', defaultPanelHint: '进入仪表盘时显示的快捷入口',
     announcementLabel: '主页公告', announcementPlaceholder: '如：本周休息，下周一恢复接单',
     announcementHint: '显示在客户主页首屏，最多 500 字。留空则不显示。',
@@ -2196,8 +2198,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step1Start: '开始设置',
     step2Title: '创建管理员账号',
     step2Desc: '设置管理员信息，管理员拥有平台最高权限。',
-    // 823: 前置提醒——下一步要扫码绑动态码，先装好验证器 App（画师反馈「没提前让下载 2FA 软件」）
-    step2Prep: '提示：下一步要扫二维码设置动态口令，请先在手机上装好验证器 App（推荐 Microsoft Authenticator）。',
+    // 823: 前置提醒——扫码绑动态码前先装好验证器 App（画师反馈「没提前让下载 2FA 软件」）；9/12 余批在中间插入「画师入驻方式」一步后，扫码不再是紧邻的下一步，措辞去「下一步」
+    step2Prep: '提示：再往后一步要扫二维码设置动态口令，请先在手机上装好验证器 App（推荐 Microsoft Authenticator）。',
     appHelpToggle: '还没装验证器 App？看推荐',
     step2QqLabel: '管理员QQ号',
     step2QqPlaceholder: '输入你的QQ号',
@@ -2214,6 +2216,16 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step2NameRequired: '请填写显示名称',
     step2SubdomainRequired: '请填写工作室主页标识',
     step2SubdomainFormat: '主页标识只能包含小写字母和数字，2-20个字符',
+    // 9/12 余批（任务2）：REQ-039 原意的「入驻模式」一步，插在创建管理员之后、绑定动态口令之前（写 platform_config.onboarding_mode，POST /api/setup/onboarding-mode）
+    stepModeTitle: '画师入驻方式',
+    stepModeDesc: '选一种新画师的加入方式；下一步再绑定你的动态口令。',
+    stepModeInviteLabel: '邀请码入驻',
+    stepModeInviteDesc: '你在后台生成邀请码发给画师，画师自己在登录页填信息入驻，不用你代填。',
+    stepModeManualLabel: '只由后台建号',
+    stepModeManualDesc: '登录页不显示入驻入口，新画师只能由你在管理后台一个个添加。',
+    stepModeNote: '说明：这一步只设置平台开关，不动刚建好的管理员账号；向导结束后界面上没有再改的地方，需要改时得在服务器上调整。',
+    stepModeSubmit: '保存入驻方式',
+    stepModeFailed: '保存入驻方式失败',
     step3Title: '绑定动态口令',
     step3Desc: '请使用验证器 App 扫描下方二维码，然后输入 6 位动态码完成验证。还没装 App？点下方「还没装验证器 App？」。',
     step3QrAlt: 'TOTP 二维码',
@@ -2246,7 +2258,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     },
     privacy: {
       pageTitle: '隐私政策',
-      updated: '2026-08-23',
+      // 9/12 用户拍板：更新日期跟随正文实改（上一批把「埋点可在偏好中关闭」改成管理员全站开关的实话）；本批未动服务条款正文，故 terms.updated 不跟着改
+      updated: '2026-09-12',
       note: '本政策为平台标准版模板文案（人工审校），非法律意见；业务重大变化时平台将更新条款。',
       sections: [
         {

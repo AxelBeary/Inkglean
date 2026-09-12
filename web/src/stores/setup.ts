@@ -45,7 +45,9 @@ export const useSetupStore = defineStore('setup', () => {
   const studioSubdomain = ref('')
   const createStudio = ref(true)
 
-  // 当前步骤（1-4）
+  // 当前步骤（1-5：欢迎 / 管理员 / 画师入驻方式 / 验证器扫码 / 完成）
+  // 步号含义的唯一事实源是 SetupWizard.vue 里的 STEP 常量表（9/12 插「入驻方式」步后由 4 步变 5 步）；
+  // 本 store 只持有数值、不校验上限，改步数时两处同改。
   const currentStep = ref(1)
 
   /**

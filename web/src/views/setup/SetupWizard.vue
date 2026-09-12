@@ -22,7 +22,7 @@
         </button>
       </div>
       <div class="setup-card">
-        <div v-if="currentStep === 1" class="step-panel">
+        <div v-if="currentStep === STEP.welcome" class="step-panel">
           <h1 class="panel-title">{{ $t('setup.step1Title') }}</h1>
           <p class="panel-desc">{{ $t('setup.step1Desc') }}</p>
           <div class="field-group">
@@ -39,10 +39,11 @@
           </div>
           <button class="btn-primary" @click="startSetup">{{ $t('setup.step1Start') }}</button>
         </div>
-        <div v-if="currentStep === 2" class="step-panel">
+        <div v-if="currentStep === STEP.admin" class="step-panel">
           <h1 class="panel-title">{{ $t('setup.step2Title') }}</h1>
           <p class="panel-desc">{{ $t('setup.step2Desc') }}</p>
-          <!-- 823：前置提醒——下一步扫码绑动态码，先装好验证器 App（画师反馈：没提前让下载 2FA 软件） -->
+          <!-- 823：前置提醒——后面扫码绑动态码，先装好验证器 App（画师反馈：没提前让下载 2FA 软件）；
+               9/12 余批：中间又插了「画师入驻方式」一步，故措辞已改为「再往后一步」 -->
           <p class="prep-notice">{{ $t('setup.step2Prep') }}</p>
           <div class="field-group">
             <label class="field-label">{{ $t('setup.step2QqLabel') }} <span class="required">*</span></label>
@@ -73,11 +74,39 @@
           </div>
           <p v-if="submitError" class="error-banner">{{ submitError }}</p>
           <div class="btn-row">
-            <button class="btn-secondary" @click="currentStep = 1">{{ $t('setup.prevStep') }}</button>
+            <button class="btn-secondary" @click="currentStep = STEP.welcome">{{ $t('setup.prevStep') }}</button>
             <button class="btn-primary" :disabled="submitting" @click="submitAdmin">{{ submitting ? '...' : $t('setup.step2Submit') }}</button>
           </div>
         </div>
-        <div v-if="currentStep === 3" class="step-panel">
+        <!-- 9/12 余批（任务2）：REQ-039 原意的「入驻方式」一步——platform_config.onboarding_mode 此前有读无写。
+             失败不前进（M-11 口径）：POST 成功才进扫码步，失败就地显错并可原样重试 -->
+        <div v-if="currentStep === STEP.mode" class="step-panel">
+          <h1 class="panel-title">{{ $t('setup.stepModeTitle') }}</h1>
+          <p class="panel-desc">{{ $t('setup.stepModeDesc') }}</p>
+          <p class="prep-notice">{{ $t('setup.stepModeNote') }}</p>
+          <div class="mode-options" role="radiogroup" :aria-label="$t('setup.stepModeTitle')">
+            <label class="mode-option" :class="{ active: onboardingMode === 'invite' }">
+              <input v-model="onboardingMode" type="radio" name="setup-onboarding-mode" value="invite" data-mode="invite" />
+              <span class="mode-option-text">
+                <span class="mode-option-label">{{ $t('setup.stepModeInviteLabel') }}</span>
+                <span class="mode-option-desc">{{ $t('setup.stepModeInviteDesc') }}</span>
+              </span>
+            </label>
+            <label class="mode-option" :class="{ active: onboardingMode === 'manual' }">
+              <input v-model="onboardingMode" type="radio" name="setup-onboarding-mode" value="manual" data-mode="manual" />
+              <span class="mode-option-text">
+                <span class="mode-option-label">{{ $t('setup.stepModeManualLabel') }}</span>
+                <span class="mode-option-desc">{{ $t('setup.stepModeManualDesc') }}</span>
+              </span>
+            </label>
+          </div>
+          <p v-if="modeError" class="error-banner">{{ modeError }}</p>
+          <div class="btn-row">
+            <button class="btn-secondary" @click="currentStep = STEP.admin">{{ $t('setup.prevStep') }}</button>
+            <button class="btn-primary" :disabled="modeSubmitting" @click="submitMode">{{ modeSubmitting ? '...' : $t('setup.stepModeSubmit') }}</button>
+          </div>
+        </div>
+        <div v-if="currentStep === STEP.totp" class="step-panel">
           <h1 class="panel-title">{{ $t('setup.step3Title') }}</h1>
           <p class="panel-desc">{{ $t('setup.step3Desc') }}</p>
           <div class="qr-section">
@@ -104,11 +133,11 @@
           </div>
           <p v-if="totpError" class="error-banner">{{ totpError }}</p>
           <div class="btn-row">
-            <button class="btn-secondary" @click="currentStep = 2">{{ $t('setup.prevStep') }}</button>
+            <button class="btn-secondary" @click="currentStep = STEP.mode">{{ $t('setup.prevStep') }}</button>
             <button class="btn-primary" :disabled="!totpCode || totpSubmitting" @click="confirmTotp">{{ totpSubmitting ? '...' : $t('setup.step3Confirm') }}</button>
           </div>
         </div>
-        <div v-if="currentStep === 4" class="step-panel">
+        <div v-if="currentStep === STEP.done" class="step-panel">
           <div class="done-icon">✔</div>
           <h1 class="panel-title">{{ $t('setup.step4Title') }}</h1>
           <p class="panel-desc">{{ $t('setup.step4Desc') }}</p>
@@ -129,6 +158,8 @@ import { useSetupStore } from '../../stores/setup'
 import { useArtistStore } from '../../stores/artist'
 import { useThemeStore } from '../../stores/theme'
 import { useLocaleSwitch } from '../../composables/useLocaleSwitch'
+import { setupApi } from '../../api/index'
+import type { OnboardingMode } from '../../api/types'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -140,9 +171,14 @@ const containerRef = ref<HTMLElement | null>(null)
 const { switchLang } = useLocaleSwitch(() => containerRef.value)
 const onSwitchLang = (next: string) => switchLang(next, locale.value)
 
+// 9/12 余批（任务2）：向导共 5 步。步号统一走本常量表，模板与跳转都引用它，避免"进度指示 5 格、代码里还写 4"的错位
+const STEP = { welcome: 1, admin: 2, mode: 3, totp: 4, done: 5 } as const
+
+// 显示顺序以本数组为准；i18n 键名里的 stepN 是 824 之前的历史编号（新增步用 stepMode* 命名，避免整批键重编带来无谓 diff）
 const steps = [
   { labelKey: 'setup.step1Title' },
   { labelKey: 'setup.step2Title' },
+  { labelKey: 'setup.stepModeTitle' },
   { labelKey: 'setup.step3Title' },
   { labelKey: 'setup.step4Title' }
 ]
@@ -160,6 +196,10 @@ const errName = ref('')
 const errSubdomain = ref('')
 const submitting = ref(false)
 const submitError = ref('')
+// 9/12 余批（任务2）：入驻方式——默认 invite（与 migrate 预置默认值、REQ-039「默认邀请制」一致）
+const onboardingMode = ref<OnboardingMode>('invite')
+const modeSubmitting = ref(false)
+const modeError = ref('')
 const qrDataUrl = ref('')
 const totpCode = ref('')
 const errCode = ref('')
@@ -174,7 +214,7 @@ function startSetup() {
     return
   }
   tokenError.value = false
-  currentStep.value = 2
+  currentStep.value = STEP.admin
 }
 
 async function submitAdmin() {
@@ -219,11 +259,29 @@ async function submitAdmin() {
     }
     const result = await setupStore.submitAdmin(params)
     qrDataUrl.value = await generateQrCode(result.otpauthUri)
-    currentStep.value = 3
+    // 9/12 余批：管理员建好后先进「入驻方式」，再进扫码步（原先直落扫码）
+    currentStep.value = STEP.mode
   } catch (err) {
     submitError.value = (err as Error).message || t('setup.error')
   } finally {
     submitting.value = false
+  }
+}
+
+/**
+ * 9/12 余批（任务2）：写入 platform_config.onboarding_mode（POST /api/setup/onboarding-mode）。
+ * 失败绝不静默前进（M-11 口径）：错误就地展示，用户可原样重试；只有服务端确认成功才进扫码步。
+ */
+async function submitMode() {
+  modeError.value = ''
+  modeSubmitting.value = true
+  try {
+    await setupApi.setOnboardingMode(onboardingMode.value)
+    currentStep.value = STEP.totp
+  } catch (err) {
+    modeError.value = (err as Error).message || t('setup.stepModeFailed')
+  } finally {
+    modeSubmitting.value = false
   }
 }
 
@@ -263,7 +321,7 @@ async function confirmTotp() {
     await setupStore.confirmTotp(code)
     // REQ-043 I6-e: 会话标记统一走 store action（单一数据源；profile 由后续登录补齐）
     artistStore.applySession(null, true)
-    currentStep.value = 4
+    currentStep.value = STEP.done
   } catch (err) {
     totpError.value = (err as Error).message || t('setup.step3CodeError')
   } finally {
@@ -280,12 +338,12 @@ function goStep(step: number) {
 onMounted(() => {
   themeStore.enterArtistScope()
   // 815 拍板 #3（方案 C）：直达链接 /setup?token=xxx——自动填充安装口令免手输；
-  // 口令已在第一步则直接进步骤（真实校验仍在第二步后端，错口令会被拒）
+  // 口令已在第一步则直接进步骤（真实校验仍在创建管理员一步由后端做，错口令会被拒）
   const qToken = route.query.token
   if (typeof qToken === 'string' && qToken.length > 0) {
     setupStore.setupToken = qToken
-    if (setupStore.tokenRequired && setupStore.currentStep === 1) {
-      setupStore.currentStep = 2
+    if (setupStore.tokenRequired && setupStore.currentStep === STEP.welcome) {
+      setupStore.currentStep = STEP.admin
     }
   }
 })
@@ -326,14 +384,16 @@ onMounted(() => {
 .setup-lang button:focus-visible { outline: 2px solid var(--setup-hq); outline-offset: 2px; }
 .setup-lang button[aria-pressed='true'] { color: var(--setup-hq); font-weight: 600; }
 .setup-steps { display: flex; justify-content: space-between; margin-bottom: 32px; position: relative; }
-.setup-steps::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 2px; background: var(--setup-line); z-index: 0; }
-.step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; position: relative; z-index: 1; border: 0; background: none; padding: 0; font: inherit; color: inherit; }
+/* 9/12 余批：连接线横跨首尾圆心——5 等分列后首列圆心＝容器宽的 1/10，用比例写死避免像素魔法值随视口错位 */
+.setup-steps::before { content: ''; position: absolute; top: 14px; left: calc(100% / 10); right: calc(100% / 10); height: 2px; background: var(--setup-line); z-index: 0; }
+/* 9/12 余批：5 步并列后标签不再允许 nowrap（英文标题会撑破 520px 栅格），改等分列 + 允许折行 */
+.step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; position: relative; z-index: 1; border: 0; background: none; padding: 0; font: inherit; color: inherit; flex: 1; min-width: 0; }
 .step-item:disabled { cursor: default; }
 .step-item:focus-visible { outline: 2px solid var(--setup-hq); outline-offset: 2px; }
 .step-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--setup-line); color: var(--setup-ink2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; transition: all var(--dur-slow) var(--ease-out); }
 .step-item.active .step-circle { background: var(--setup-hq); color: #fff; }
 .step-item.done .step-circle { background: var(--setup-sl); color: #fff; }
-.step-label { font-size: 12px; color: var(--setup-ink); text-align: center; white-space: nowrap; }
+.step-label { font-size: 12px; color: var(--setup-ink); text-align: center; white-space: normal; line-height: 1.4; }
 .step-item.active .step-label { color: var(--setup-hq); font-weight: 600; }
 .setup-card { background: var(--setup-card); border: 1px solid var(--setup-line); border-radius: var(--setup-r-paper); padding: 36px 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .step-panel { animation: fadeIn var(--dur-slow) var(--ease-out); }
@@ -380,6 +440,17 @@ onMounted(() => {
   line-height: 1.7;
   color: var(--setup-ink2);
 }
+/* 9/12 余批：入驻方式二选一（取值全部复用本文件既有值：1px 细边 + 8px 内嵌圆角 + 12px/14px 内边距，
+   与 .prep-notice、.studio-fields 同族，不新增野生圆角与离栅间距） */
+.mode-options { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.mode-option { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--setup-line); border-radius: 8px; cursor: pointer; transition: border-color var(--dur-mid); }
+.mode-option:hover { border-color: var(--setup-hq); }
+.mode-option.active { border-color: var(--setup-hq); background: rgba(0,0,0,0.02); }
+.mode-option input[type="radio"] { width: 16px; height: 16px; margin: 4px 0 0; flex: none; accent-color: var(--setup-hq); }
+.mode-option:focus-within { outline: 2px solid var(--setup-hq); outline-offset: 2px; }
+.mode-option-text { display: flex; flex-direction: column; gap: 4px; }
+.mode-option-label { font-size: 14px; font-weight: 600; color: var(--setup-ink); }
+.mode-option-desc { font-size: 13px; line-height: 1.7; color: var(--setup-ink2); }
 /* 823：验证器安装引导折叠（与登录页 .help 同款交互，默认收起） */
 .app-help { margin: 0 0 20px; }
 .app-help-toggle {
