@@ -17,51 +17,33 @@ import { join } from 'path'
 const ROOT = process.argv[2] || '.'
 const LIMIT = 800
 
-// 历史巨型文件豁免名单（登记日 2026-08-20，冻结值=实测总行数，只许拆小不许再长；
+// 历史巨型文件豁免名单（登记日 2026-08-20，冻结值＝实测总行数，只许拆小不许再长；
 // 调高冻结值须一号裁决并在此注明出处）
 // 格式：相对仓库根的 POSIX 路径 → 冻结行数
-const ALLOWLIST = {
-  // 823 规则对齐批追认：1067→1068 = artistCode 上限 10→20 的出处注释 +1（等长替换外加一行注释，出处在案）；
-  // 824 2FA 绑定完整性加固批追认：1068→1072 = 管理员 bind-init 路由层 token_version+1 与注释 +4（出处在案）
-  'server/src/features/admin/admin.routes.ts': 1072,
-  'server/src/features/pricing/style.service.ts': 1041,
-  // 下两项为纯类型/接口契约聚集仓（深度分析报告「可接受暂缓」裁决），
-  // 冻结值随 820 批两聚合接口追认调高（merge 76707e86 后实测，用户拍板合入）；
-  // v144 自定义首页批一再追认：DashboardPrefs 契约类型 +21 / 读写两方法 +4（骨架批必需契约，出处在案）；
-  // v145 批二再追认：IncomeOverview/DeadlineSoon 契约类型 +21 / 数据源两方法 +4（血肉批必需契约，出处在案）；
-  // v152 追认：types.ts 1824→1859（邀请码批类型 +35）/ index.ts 837→842（邀请码批端点 +5），出处在案；
-  // 823 登录留痕批再追认：types.ts 1859→1864（AdminArtistItem 登录留痕字段 +5，出处在案）；
-  // 824 2FA 绑定完整性加固批追认：index.ts 842→849（TOTP_BIND_REQUIRED 401 拦截器带文案登出+旗标分流 +7，出处在案）
-  'web/src/api/types.ts': 1864,
-  'web/src/api/index.ts': 849,
-  // v144 追认：ArtistLayout +43 = 页宽三档生效机制（prefs 拉取/pageWidthStyle/container-type 注释）；
-  // PriceCard +1 = 页宽归一批注释行。另：计数口径修正（CRLF 归一）后冻结值统一按总行口径重钉；
-  // v145 批二再追认：PriceCard +2 = 容器查询收尾批注释行（@media→@container 改造标记，出处在案）；
-  // 822 布局重做批追认：ArtistLayout 993→995（container-name: page +2 注释）/
-  // PriceCard 1011→1022（行栅格/容器命名/纸签化重做注释 +11，功能行均为等长替换，出处在案）；
-  // 823 深度 Bug 挖掘 F-7 追认：ArtistLayout 995→997（骨架预拉 profile 失败留痕 +2，出处在案）
-  'web/src/components/ArtistLayout.vue': 997,
-  'web/src/views/artist/PriceCard.vue': 1022,
-  // v152 追认四处（均为并行批已合入的正当增量，出处在案）：
-  // artist.service.ts 800→802 = 开业门槛批就绪判定两函数（超限 2 行，拆分不经济，冻结只许拆小）；
-  // api/types.ts 1824→1859 = 邀请码多次使用批类型 +35；
-  // api/index.ts 837→842 = 邀请码批新端点方法 +5；
-  // ArtistManage.vue 1109→1222 = 邀请码管理端筛选/分页/使用记录弹窗 +113（后续可拆弹窗组件瘦身）
-  // Login.vue 977→1011 = 823 验证器 App 安装引导批 +34（入驻前置提醒 + 扫码页折叠引导模板/状态/样式，后续可抽引导组件瘦身）；
-  // 823 登录留痕批追认四处（本批必需增量，拆分不经济，出处在案；api/types.ts 追认见上方条目注释）：
-  // admin.routes.ts 1059→1067 = 管理端列表/档案接口重新附带 last_login_at/last_login_ip +8；
-  // artist.service.ts 802→812 = recordLastLogin 函数与注释 + getAllArtists 显式列补两列 +10；
-  // ArtistManage.vue 1222→1249 = 上次登录列模板 +6 与相对时间/悬浮展示函数 +21（后续可随邀请码弹窗一并拆组件瘦身）
-  'server/src/features/artist/artist.service.ts': 812,
-  'web/src/views/admin/ArtistManage.vue': 1249,
-  // Login.vue 冻结值已移除（824 四步入驻批：叠加层抽为 InviteOverlay 组件，1011→661，回到 800 线内）
-  'web/src/components/artist/ArtStyleManager.vue': 941,
-  'web/src/components/artist/order/ManualOrderRight.vue': 924,
-  'web/src/components/templates/TplGallery.vue': 896,
-  'web/src/components/artist/queue/QueueBoardList.vue': 872,
-  // v146 追认：ArtworkManage +1 = 页宽容器查询收尾批注释行（@media→@container 改造标记，出处在案）
-  'web/src/views/artist/ArtworkManage.vue': 868
-}
+//
+// ✅ 2026-09-12 **全部清偿归零**（用户拍板口径：「大文件只要长胖了就拆掉。拆了就移除豁免，
+//    老的幽灵豁免也必须清理好」）。原 13 项已全部拆至 800 行以下并逐条从本表删除：
+//      server/src/features/admin/admin.routes.ts      1103 → 44   （拆为 8 个子路由模块 + 组合入口）
+//      server/src/features/artist/artist.service.ts    816 → 18   （拆为 5 个职责子模块 + barrel）
+//      server/src/features/pricing/style.service.ts   1041 → 479  （拆出增项库/公开读模型/共用类型三块）
+//      web/src/api/types.ts                           1904 → 37   （拆为 27 个域文件 + barrel，下游 import 零改动）
+//      web/src/api/index.ts                            865 → 17   （拆为 9 个模块 + barrel，227 个端点方法）
+//      web/src/views/admin/ArtistManage.vue           1254 → 748  （拆出邀请码/回收站/已移除/TOTP 四弹窗）
+//      web/src/components/artist/ArtStyleManager.vue   967 → 629  （拆出 StyleCard + 共用类型）
+//      web/src/components/ArtistLayout.vue             997 → 767  （拆出 LayoutTools/MobileTopbar/公告弹窗/菜单注册表）
+//      web/src/components/templates/TplGallery.vue     902 → 758  （拆出 TplLightbox）
+//      web/src/components/artist/order/ManualOrderRight.vue 924 → 705（拆出价格预览/增项/移动底栏三件）
+//      web/src/components/artist/queue/QueueBoardList.vue    880 → 775（拆出拖把手/操作区/左滑取消三件）
+//      web/src/views/artist/ArtworkManage.vue          870 → 750  （拆出批量删除/编辑两弹窗）
+//      web/src/views/artist/OrderDetail.vue            837 → 747  （拆出基本信息卡/修改记录卡）
+//    另：幽灵豁免 `web/src/views/artist/PriceCard.vue`（冻结值 1022，实仅 156 行）——文件早已拆小
+//    而豁免忘撤，本批随之清除；`server/src/features/artist/artist.service.ts` 等原表里的追认出处
+//    注释（v144/v145/v152/822/823/824 各批调高记录）随条目一并移除，历史链见本文件 git blame。
+//
+// ⚠ 今后本表再新增条目的规则（自 2026-09-12 起收紧）：
+//    1）只允许登记「暂时确实拆不动」的正当豁免，须一号裁决并在条目上注明出处；
+//    2）**禁止用“调高冻结值”给长胖的文件续命**——胖了就拆，拆完必须回到本表删条目（规则 3 会报「可移除」提醒）。
+const ALLOWLIST = {}
 
 const SCOPES = ['server/src', 'web/src']
 const EXCLUDE = /(__tests__|[\\/]tests?[\\/]|\.test\.|\.spec\.|[\\/]locales[\\/])/

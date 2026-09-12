@@ -3,9 +3,11 @@
 // 覆盖：默认拉第 1 页（pageSize=20）；状态筛选/搜索任一变更回第 1 页重拉；
 //       expired 展示态（status=unused 且 expired=true → 已过期）；多次码打开使用记录；生成携带 maxUses。
 // mock 基建对齐 ArtistManage.filter.test.ts。
+// F-09 巨型文件拆分：邀请码弹窗已搬至 components/admin/artist-manage/InviteCodesDialog.vue，
+// 本用例挂载目标随之改为该子组件（断言集合一字未动）。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import ArtistManage from '../ArtistManage.vue'
+import InviteCodesDialog from '../../../components/admin/artist-manage/InviteCodesDialog.vue'
 
 const h = vi.hoisted(() => ({
   getArtists: vi.fn(),
@@ -127,7 +129,7 @@ function code(over: Record<string, unknown> = {}): Record<string, unknown> {
 }
 
 async function mountPage() {
-  const wrapper = mount(ArtistManage, {
+  const wrapper = mount(InviteCodesDialog, {
     global: {
       mocks: { $t: (key: string) => key },
       stubs: EP_STUBS,

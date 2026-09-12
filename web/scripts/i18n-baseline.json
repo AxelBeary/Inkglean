@@ -11,7 +11,7 @@
     "src/components/artist/WorkflowPaymentEditor.vue\u0000模板不支持添加",
     "src/components/artist/WorkflowPaymentEditor.vue\u0000模板不支持编辑",
     "src/components/artist/WorkflowPaymentEditor.vue\u0000管理员默认模板走本地编辑",
-    "src/views/admin/ArtistManage.vue\u0000TOTP QR",
+    "src/components/admin/artist-manage/TotpBindDialog.vue\u0000TOTP QR",
     "src/views/artist/AccountSecurity.vue\u0000TOTP QR",
     "src/views/artist/Watermark.vue\u0000watermarked preview"
   ]

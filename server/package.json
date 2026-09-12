@@ -2,7 +2,8 @@
   "name": "artist-commission-server",
   "version": "1.0.1",
   "description": "画师约稿管理平台 - 后端服务",
-  "license": "AGPL-3.0",
+  "author": "AxelBeary",
+  "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=22 <=26"
   },

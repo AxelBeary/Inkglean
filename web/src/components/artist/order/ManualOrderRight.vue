@@ -144,50 +144,14 @@
 
     <!-- 价格面板 sticky（≥600px 可见，<600px 由底部价格条替代） -->
     <div class="mo-price-sticky">
-      <!-- SPEC-PRICE-2 实时价格明细（小计×用途×加急 + R5 自定义增项并列） -->
-      <div v-if="stylePricePreview" class="price-preview">
-        <div class="price-line">
-          <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
-          <span class="price-amount">{{ formatYuan(stylePricePreview.baseCents ?? 0) }}</span>
-        </div>
-        <div v-for="(item, idx) in (stylePricePreview.fixedAddonItems || [])" :key="'f' + idx" class="price-line">
-          <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-          <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
-        </div>
-        <div v-for="(item, idx) in (stylePricePreview.percentAddonItems || [])" :key="'p' + idx" class="price-line">
-          <span>{{ item.name }} +{{ item.percent }}%</span>
-          <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
-        </div>
-        <div v-if="stylePricePreview.usage" class="price-line">
-          <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-          <span class="price-amount">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
-        </div>
-        <div v-if="stylePricePreview.rush" class="price-line">
-          <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-          <span class="price-amount">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
-        </div>
-        <div v-for="item in customAddons" :key="item.uid" class="price-line">
-          <span>{{ item.name }}</span>
-          <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
-        </div>
-        <div class="price-divider"></div>
-        <div class="price-line total">
-          <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + yuanToCents(customAddonsTotal)) }}</span>
-        </div>
-      </div>
-      <!-- R5: 自定义单（什么都不选）时无计算明细，自定义增项独立成块 -->
-      <div v-else-if="customAddons.length > 0" class="price-preview">
-        <div v-for="item in customAddons" :key="item.uid" class="price-line">
-          <span>{{ item.name }}</span>
-          <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
-        </div>
-        <div class="price-divider"></div>
-        <div class="price-line total">
-          <span>{{ $t('manualOrder.totalPrice') }}</span>
-          <span class="price-amount">{{ formatYuan(yuanToCents(customAddonsTotal)) }}</span>
-        </div>
-      </div>
+      <!-- SPEC-PRICE-2 实时价格明细（小计×用途×加急 + R5 自定义增项并列）
+           （卡体已拆至 detail/MoPricePreview.vue：桌面与移动端共用同一块，逻辑仍在宿主 useManualOrderPricing） -->
+      <MoPricePreview
+        :style-price-preview="stylePricePreview"
+        :custom-addons="customAddons"
+        :custom-addons-total="customAddonsTotal"
+        :format-custom-addon-price="formatCustomAddonPrice"
+      />
 
       <!-- R5 (REQ-029): 自定义增项录入（两条路径通用：选了画风可录，自定义单也可录） -->
       <div class="mo-field">
@@ -197,28 +161,17 @@
             ＋ {{ $t('manualOrder.addCustomAddon') }}
           </el-button>
         </div>
-        <div v-if="customAddonOpen" class="custom-addon-editor">
-          <el-input
-            v-model="customAddonName" maxlength="50" size="small"
-            :placeholder="$t('manualOrder.customAddonNamePlaceholder')"
-          />
-          <el-input-number
-            v-model="customAddonPrice" :precision="2" :step="10" :controls="false"
-            size="small" style="width: 130px"
-            :placeholder="$t('manualOrder.customAddonPricePlaceholder')"
-          />
-          <el-button type="primary" size="small" @click="addCustomAddon">✓</el-button>
-          <el-button size="small" :aria-label="$t('common.cancel')" @click="customAddonOpen = false">✕</el-button>
-        </div>
-        <div v-if="customAddons.length > 0" class="custom-addon-list">
-          <div v-for="(item, idx) in customAddons" :key="item.uid" class="custom-addon-item">
-            <span class="custom-addon-name">{{ item.name }}</span>
-            <span class="custom-addon-price" :class="{ 'custom-addon-price--neg': item.priceYuan < 0 }">
-              {{ formatCustomAddonPrice(item) }}
-            </span>
-            <el-button size="small" text type="danger" :aria-label="$t('manualOrder.removeCustomAddon')" @click="removeCustomAddon(idx)">✕</el-button>
-          </div>
-        </div>
+        <!-- 录入区与已录列表（卡体已拆至 detail/MoCustomAddonFields.vue；增项状态机与校验仍在宿主） -->
+        <MoCustomAddonFields
+          v-model:name="customAddonName"
+          v-model:price="customAddonPrice"
+          :open="customAddonOpen"
+          :custom-addons="customAddons"
+          :format-custom-addon-price="formatCustomAddonPrice"
+          @add="addCustomAddon"
+          @remove="removeCustomAddon"
+          @close="customAddonOpen = false"
+        />
       </div>
 
       <!-- 最终价格（可手动覆盖） -->
@@ -242,115 +195,25 @@
     </div>
   </section>
 
-  <!-- ═══ 移动端底部钉住价格条（<600px，淘宝结算页模式） ═══ -->
-  <div class="mo-mobile-bar">
-    <!-- 展开明细（点价格区域切换） -->
-    <transition name="mo-slide">
-      <div v-show="mobileDetailOpen" class="mo-mobile-details">
-        <div v-if="stylePricePreview" class="price-preview">
-          <div class="price-line">
-            <span>{{ stylePricePreview.styleName }} · {{ stylePricePreview.sizeName }}</span>
-            <span class="price-amount">{{ formatYuan(stylePricePreview.baseCents ?? 0) }}</span>
-          </div>
-          <div v-for="(item, idx) in (stylePricePreview.fixedAddonItems || [])" :key="'f' + idx" class="price-line">
-            <span>{{ item.name }}{{ item.quantity > 1 ? ` ×${item.quantity}` : '' }}</span>
-            <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
-          </div>
-          <div v-for="(item, idx) in (stylePricePreview.percentAddonItems || [])" :key="'p' + idx" class="price-line">
-            <span>{{ item.name }} +{{ item.percent }}%</span>
-            <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
-          </div>
-          <div v-if="stylePricePreview.usage" class="price-line">
-            <span>{{ stylePricePreview.usage.name }} +{{ stylePricePreview.usage.percent }}%</span>
-            <span class="price-amount">+{{ formatYuan(stylePricePreview.usage.incrementCents) }}</span>
-          </div>
-          <div v-if="stylePricePreview.rush" class="price-line">
-            <span>{{ stylePricePreview.rush.name }} +{{ stylePricePreview.rush.percent }}%</span>
-            <span class="price-amount">+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
-          </div>
-          <div v-for="item in customAddons" :key="item.uid" class="price-line">
-            <span>{{ item.name }}</span>
-            <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
-          </div>
-          <div class="price-divider"></div>
-          <div class="price-line total">
-            <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">{{ formatYuan((stylePricePreview.totalCents ?? 0) + yuanToCents(customAddonsTotal)) }}</span>
-          </div>
-        </div>
-        <div v-else-if="customAddons.length > 0" class="price-preview">
-          <div v-for="item in customAddons" :key="item.uid" class="price-line">
-            <span>{{ item.name }}</span>
-            <span class="price-amount">{{ formatCustomAddonPrice(item) }}</span>
-          </div>
-          <div class="price-divider"></div>
-          <div class="price-line total">
-            <span>{{ $t('manualOrder.totalPrice') }}</span>
-            <span class="price-amount">{{ formatYuan(yuanToCents(customAddonsTotal)) }}</span>
-          </div>
-        </div>
-
-        <!-- R5: 移动端自定义增项（录入 + 列表，与桌面一致） -->
-        <div class="mo-mobile-custom">
-          <div class="mo-mobile-custom-label">
-            <span>{{ $t('manualOrder.customAddons') }}</span>
-            <el-button size="small" text type="primary" @click="customAddonOpen = !customAddonOpen">
-              ＋ {{ $t('manualOrder.addCustomAddon') }}
-            </el-button>
-          </div>
-          <div v-if="customAddonOpen" class="custom-addon-editor">
-            <el-input
-              v-model="customAddonName" maxlength="50" size="small"
-              :placeholder="$t('manualOrder.customAddonNamePlaceholder')"
-            />
-            <el-input-number
-              v-model="customAddonPrice" :precision="2" :step="10" :controls="false"
-              size="small" style="width: 130px"
-              :placeholder="$t('manualOrder.customAddonPricePlaceholder')"
-            />
-            <el-button type="primary" size="small" @click="addCustomAddon">✓</el-button>
-            <el-button size="small" :aria-label="$t('common.cancel')" @click="customAddonOpen = false">✕</el-button>
-          </div>
-          <div v-if="customAddons.length > 0" class="custom-addon-list">
-            <div v-for="(item, idx) in customAddons" :key="item.uid" class="custom-addon-item">
-              <span class="custom-addon-name">{{ item.name }}</span>
-              <span class="custom-addon-price" :class="{ 'custom-addon-price--neg': item.priceYuan < 0 }">
-                {{ formatCustomAddonPrice(item) }}
-              </span>
-              <el-button size="small" text type="danger" :aria-label="$t('manualOrder.removeCustomAddon')" @click="removeCustomAddon(idx)">✕</el-button>
-            </div>
-          </div>
-        </div>
-
-        <div class="mo-mobile-final">
-          <span>{{ $t('manualOrder.finalPrice') }}</span>
-          <el-input-number
-            v-model="priceInput"
-            :min="0" :max="999999.99" :precision="2" :step="10"
-            size="small" style="width: 150px"
-          />
-        </div>
-      </div>
-    </transition>
-    <!-- 底栏：价格 + 提交 -->
-    <div class="mo-mobile-actions">
-      <button
-        type="button"
-        class="mo-mobile-price"
-        :aria-expanded="mobileDetailOpen"
-        @click="mobileDetailOpen = !mobileDetailOpen"
-      >
-        <span class="mo-mobile-total">{{ displayPrice ? formatYuanValue(displayPrice) : '—' }}</span>
-        <span class="mo-mobile-detail-link">
-          {{ $t('manualOrder.priceDetail') }}
-          <el-icon :size="12"><ArrowUp v-if="mobileDetailOpen" /><ArrowDown v-else /></el-icon>
-        </span>
-      </button>
-      <el-button type="primary" @click="submit" :loading="submitting" class="mo-mobile-submit">
-        {{ $t('manualOrder.submit') }}
-      </el-button>
-    </div>
-  </div>
+  <!-- ═══ 移动端底部钉住价格条（<600px，淘宝结算页模式）（卡体已拆至 detail/MoMobileBar.vue；
+       展开态/录入草稿/提交动作仍归本组件，经 v-model 与 emit 透传，DOM 与行为零变化） ═══ -->
+  <MoMobileBar
+    v-model:mobile-detail-open="mobileDetailOpen"
+    v-model:custom-addon-open="customAddonOpen"
+    v-model:custom-addon-name="customAddonName"
+    v-model:custom-addon-price="customAddonPrice"
+    v-model:price-input="priceInput"
+    :display-price="displayPrice"
+    :submitting="submitting"
+    :format-yuan-value="formatYuanValue"
+    :style-price-preview="stylePricePreview"
+    :custom-addons="customAddons"
+    :custom-addons-total="customAddonsTotal"
+    :format-custom-addon-price="formatCustomAddonPrice"
+    @submit="submit"
+    @add-addon="addCustomAddon"
+    @remove-addon="removeCustomAddon"
+  />
 </template>
 
 <script setup lang="ts">
@@ -359,13 +222,16 @@ import type { PropType } from 'vue'
 import { artistApi } from '../../../api/index'
 import type { PublicArtStyle, OrderPriority } from '../../../api/types'
 import { ElMessage } from 'element-plus'
-import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useStageStatus, type StageLike } from '../../../composables/useStageStatus'
 // 2026-08-10 拆分批：价格状态机抽 composable（纯搬移零行为变化）
 import { useManualOrderPricing } from '../../../composables/useManualOrderPricing'
-import { formatCents, formatYuan, formatYuanValue, yuanToCents } from '../../../utils/money'
+import { formatCents, formatYuanValue, yuanToCents } from '../../../utils/money'
 import { safeGetItem, safeSetItem } from '../../../utils/storage'
+// F-09 巨型文件拆分批·丁：价格明细 / 自定义增项 / 移动端价格条三块哑子组件（纯搬移零行为变化）
+import MoPricePreview from './detail/MoPricePreview.vue'
+import MoCustomAddonFields from './detail/MoCustomAddonFields.vue'
+import MoMobileBar from './detail/MoMobileBar.vue'
 
 /** 草稿快照（F6 草稿回填消费的右栏状态） */
 interface DraftAddonSelLite { toggled?: boolean | null; quantity?: number | null }
@@ -715,39 +581,9 @@ onUnmounted(() => {
 }
 
 /* ─── R5 (REQ-029): 自定义增项 ─── */
+/* 录入区与已录列表样式已随 detail/MoCustomAddonFields.vue 拆出，此处仅留标签行 */
 .custom-addon-label {
   display: flex; align-items: center; justify-content: space-between;
-}
-.custom-addon-editor {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 10px; flex-wrap: wrap;
-}
-.custom-addon-list {
-  display: flex; flex-direction: column; gap: 4px;
-  margin-top: 4px;
-}
-.custom-addon-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 0;
-  font-size: calc(var(--font-scale, 1) * 13px);
-}
-.custom-addon-name {
-  flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--ink);
-}
-.custom-addon-price {
-  font-weight: 600; color: var(--hq);
-  font-variant-numeric: tabular-nums;
-}
-.custom-addon-price--neg { color: var(--zs); }
-.mo-mobile-custom {
-  margin-top: 10px; padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-.mo-mobile-custom-label {
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600; color: var(--ink);
 }
 
 /* ─── 档位卡片 ─── */
@@ -848,6 +684,7 @@ onUnmounted(() => {
 .mult-chip--rush.mult-chip--on { border-color: var(--zs); color: var(--zs); background: var(--zs-t); }
 
 /* ─── 价格面板 sticky ─── */
+/* 价格明细样式已随 detail/MoPricePreview.vue 拆出 */
 .mo-price-sticky {
   position: sticky; top: 24px;
   background: var(--card);
@@ -857,68 +694,12 @@ onUnmounted(() => {
   box-shadow: var(--sh-1);
   z-index: 10;
 }
-.price-preview {
-  background: var(--paper2); border: 1px solid var(--line);
-  border-radius: var(--r-m); padding: 14px 16px; margin-bottom: 16px;
-}
-.price-line { display: flex; justify-content: space-between; padding: 3px 0; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
-/* 总价：文楷落款数字（REQ §1.3），墨色不上色 */
-.price-line.total { font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700; color: var(--ink); padding-top: 8px; }
-.price-line.total .price-amount { font-family: var(--f-d); }
-.price-amount { font-variant-numeric: tabular-nums; }
-.price-divider { border-top: 1px dashed var(--line2); margin: 6px 0; }
 .mo-final-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .final-price-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 .mo-submit-btn { width: 100%; margin-top: 4px; }
 
-/* ─── 移动端底部价格条（默认隐藏，<600px 显示） ─── */
-.mo-mobile-bar { display: none; }
-
-/* ─── 响应式：手机（<600px）底部钉住价格条 ─── */
+/* ─── 响应式：手机（<600px）底部钉住价格条（价格条本体与样式已随 detail/MoMobileBar.vue 拆出） ─── */
 @media (max-width: 599px) {
   .mo-price-sticky { display: none; }
-  .mo-mobile-bar {
-    display: block;
-    position: fixed; bottom: 0; left: 0; right: 0;
-    z-index: 200;
-    background: var(--card);
-    border-top: 1px solid var(--line);
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
-  }
-  .mo-mobile-details {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--line);
-    max-height: 40vh; overflow-y: auto;
-  }
-  .mo-mobile-final {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 8px; margin-top: 10px; font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink);
-  }
-  .mo-mobile-actions {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 16px;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
-  }
-  .mo-mobile-price {
-    flex: 1; cursor: pointer;
-    display: flex; flex-direction: column; gap: 2px;
-    font: inherit;
-    color: inherit;
-    text-align: inherit;
-    background: none;
-    border: none;
-    padding: 0;
-  }
-  /* 总价文楷（REQ §1.3 数字用文楷），墨色不上色 */
-  .mo-mobile-total { font-size: calc(var(--font-scale, 1) * 20px); font-weight: 700; color: var(--ink); font-family: var(--f-d); font-variant-numeric: tabular-nums; }
-  .mo-mobile-detail-link {
-    font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3);
-    display: flex; align-items: center; gap: 2px;
-  }
-  .mo-mobile-submit { min-width: 120px; }
 }
-
-/* ─── 明细展开动画 ─── */
-.mo-slide-enter-active, .mo-slide-leave-active { transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out); }
-.mo-slide-enter-from, .mo-slide-leave-to { opacity: 0; transform: translateY(8px); }
 </style>

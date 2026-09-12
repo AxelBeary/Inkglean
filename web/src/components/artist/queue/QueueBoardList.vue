@@ -45,24 +45,11 @@
               @pointerdown="onCardPointerDown"
               @pointerup="(e) => onCardPointerUp(e, element)"
             >
-              <div class="drag-handle" :title="$t('queue.dragHint')" aria-hidden="true">⠿</div>
-              <!-- 键盘等价：上移/下移（拖拽排序的可达替代，走同一条 drag-end 持久化） -->
-              <div class="queue-move" role="group" :aria-label="$t('queue.reorderLabel')">
-                <button
-                  type="button" class="queue-move-btn" :disabled="index === 0"
-                  :aria-label="$t('queue.moveUp')" :title="$t('queue.moveUp')"
-                  @click.stop="moveQueueItem(element, -1)"
-                >
-                  ↑
-                </button>
-                <button
-                  type="button" class="queue-move-btn" :disabled="index === queue.length - 1"
-                  :aria-label="$t('queue.moveDown')" :title="$t('queue.moveDown')"
-                  @click.stop="moveQueueItem(element, 1)"
-                >
-                  ↓
-                </button>
-              </div>
+              <!-- 拖拽把手 + 键盘等价上移/下移（卡体已拆至 list/QueueCardSortHandles.vue；顺序写回仍走 moveQueueItem） -->
+              <QueueCardSortHandles
+                :index="index" :is-last="index === queue.length - 1"
+                @move="moveQueueItem(element, $event)"
+              />
               <!-- 焦点图区域：大图模式显示焦点图，无焦点图时显示空态上传入口 -->
               <div v-if="focusDisplay === 'large'" class="focus-area">
                 <!-- R53: 已有焦点图 — 点击选文件 / 拖拽图片替换（复用 uploadAndSetFocus；
@@ -136,71 +123,27 @@
                   {{ element.description.slice(0, 60) }}{{ element.description.length > 60 ? '...' : '' }}
                 </div>
               </div>
-              <div class="item-actions">
-                <!-- R30d: 接入流程的订单 → "推进到下一节点"（替代固定状态按钮） -->
-                <el-button
-                  v-if="!workflowLoadFailed && element.currentStageId != null && canAdvance(element)"
-                  size="small" type="primary" :loading="busyOrderIds.has(element.id)"
-                  @click="advanceOrderStage(element)"
-                >
-                  {{ $t('queue.advanceStage') }}
-                </el-button>
-                <!-- REQ-013 #7: 工作流订单到达最后节点(done) → "去交付"跳转详情页（交付需上传文件） -->
-                <el-button
-                  v-else-if="element.currentStageId != null && element.status === 'done'"
-                  size="small" type="success"
-                  @click="emit('open-deliver', element)"
-                >
-                  {{ $t('queue.goDeliver') }}
-                </el-button>
-                <!-- R30b: 未接入流程的订单 → 固定状态主操作外露（Bug 4: 工作流订单不穿透到此按钮） -->
-                <el-button
-                  v-else-if="element.currentStageId == null && nextAction(element.status)"
-                  size="small" :loading="busyOrderIds.has(element.id)"
-                  :type="nextAction(element.status).type"
-                  @click="quickAction(nextAction(element.status).command, element)"
-                >
-                  {{ $t(nextAction(element.status).labelKey) }}
-                </el-button>
-                <el-button size="small" @click="$router.push(`/orders/${element.id}?from=queue`)">{{ $t('common.detail') }}</el-button>
-                <el-dropdown trigger="click" @command="(cmd: string | number | object) => quickAction(cmd, element)">
-                  <el-button size="small">{{ $t('common.actions') }}</el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="confirmed" v-if="element.status === 'pending' && element.currentStageId == null">{{ $t('queue.confirm') }}</el-dropdown-item>
-                      <el-dropdown-item command="wip" v-if="element.status === 'confirmed' && element.currentStageId == null">{{ $t('queue.startWip') }}</el-dropdown-item>
-                      <el-dropdown-item command="done" v-if="['wip','revision'].includes(element.status) && element.currentStageId == null">{{ $t('queue.done') }}</el-dropdown-item>
-                      <el-dropdown-item command="delivered" v-if="element.status === 'done' && element.currentStageId == null">{{ $t('queue.deliver') }}</el-dropdown-item>
-                      <el-dropdown-item command="cancelled" divided>{{ $t('queue.cancel') }}</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
+              <!-- 卡片操作区（卡体已拆至 list/QueueCardActions.vue；工作流状态机、在途锁与 API 调用留在本组件） -->
+              <QueueCardActions
+                :element="element"
+                :workflow-load-failed="workflowLoadFailed"
+                :busy="busyOrderIds.has(element.id)"
+                :can-advance="canAdvance(element)"
+                :next-action="nextAction(element.status)"
+                @advance="advanceOrderStage(element)"
+                @action="quickAction($event, element)"
+                @open-deliver="emit('open-deliver', element)"
+              />
 
-              <!-- R30e: 取消订单滑块确认（替代普通弹窗，防误触） -->
-              <div v-if="cancellingId === element.id" class="slide-cancel-row">
-                <div class="slide-cancel">
-                  <div class="slide-cancel-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
-                  <span class="slide-cancel-label">{{ $t('queue.slideToCancel') }}</span>
-                  <div
-                    class="slide-cancel-thumb"
-                    :style="{ left: `calc(2px + ${slideProgress} * (100% - 40px))` }"
-                    @pointerdown="onSlideStart"
-                    @pointermove="onSlideMove"
-                    @pointerup="(e) => onSlideEnd(e, element)"
-                  >
-                    →
-                  </div>
-                </div>
-                <el-button
-                  text size="small" type="danger"
-                  :disabled="cancellingBusyId === element.id"
-                  @click="confirmSlideCancel(element)"
-                >
-                  {{ $t('queue.slideCancelConfirm') }}
-                </el-button>
-                <el-button text size="small" :aria-label="$t('common.close')" @click="closeSlideCancel">✕</el-button>
-              </div>
+              <!-- R30e: 取消订单滑块确认（卡体已拆至 list/QueueCardSlideCancel.vue；进度、在途锁与取消请求留在本组件） -->
+              <QueueCardSlideCancel
+                v-if="cancellingId === element.id"
+                :progress="slideProgress" :busy="cancellingBusyId === element.id"
+                :slide-start="onSlideStart" :slide-move="onSlideMove"
+                :slide-end="(e: PointerEvent) => onSlideEnd(e, element)"
+                @confirm="confirmSlideCancel(element)"
+                @close="closeSlideCancel"
+              />
             </div>
           </template>
         </draggable>
@@ -332,6 +275,10 @@ import InkEmpty from '../visual/InkEmpty.vue'
 import CancelUndoToast from '../CancelUndoToast.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
 import HySkeleton from '../../shared/HySkeleton.vue'
+// F-09 巨型文件拆分批·丁：卡内三块哑子组件（纯搬移零行为变化；状态与请求一律留在本组件）
+import QueueCardSortHandles from './list/QueueCardSortHandles.vue'
+import QueueCardActions from './list/QueueCardActions.vue'
+import QueueCardSlideCancel from './list/QueueCardSlideCancel.vue'
 import { useDropGuard } from '../../../composables/useDropGuard'
 import { statusType, priorityType } from '../../../constants/order'
 import { MAX_IMAGE_BYTES } from '../../../constants/upload'
@@ -740,19 +687,7 @@ onMounted(() => {
 .priority-medium { border-left-color: var(--th); }
 .priority-low { border-left-color: var(--ink4); }
 
-.drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 20px); color: var(--ink3); user-select: none; }
-.drag-handle:active { cursor: grabbing; }
-.queue-move { display: inline-flex; gap: 1px; flex-shrink: 0; }
-.queue-move-btn {
-  width: 24px; height: 24px; padding: 0;
-  border: none; border-radius: var(--r-s);
-  background: none; color: var(--ink3);
-  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 700; line-height: 1;
-  cursor: pointer;
-  transition: color var(--dur-fast), background var(--dur-fast);
-}
-.queue-move-btn:hover:not(:disabled) { color: var(--hq); background: var(--hq-t); }
-.queue-move-btn:disabled { opacity: 0.35; cursor: default; }
+/* 拖拽把手与上移/下移按钮样式已随 list/QueueCardSortHandles.vue 拆出（.ghost 作用在卡根，留在本文件） */
 .ghost { opacity: 0.4; }
 
 .item-body { flex: 1; min-width: 0; }
@@ -804,6 +739,8 @@ onMounted(() => {
   color: var(--hq);
 }
 .focus-empty-text { font-size: calc(var(--font-scale, 1) * 12px); }
+/* 卡片操作区：.item-actions 规则留在本文件——拆出的 list/QueueCardActions.vue 是单根组件，
+   根元素同样带本页 scopeId，作用域样式照常命中（含下方 @container / @media 覆盖） */
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
 
 /* 824 响应式巡逻：窄容器卡片竖排——信息独占整行，
@@ -814,49 +751,7 @@ onMounted(() => {
   .item-actions { margin-left: 0; order: 4; }
 }
 
-/* R30e: 滑块确认（整行，拖到底触发取消） */
-.slide-cancel-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-.slide-cancel {
-  position: relative;
-  flex: 1;
-  height: 40px;
-  border-radius: 999px;
-  background: var(--zs-t);
-  border: 1px solid color-mix(in srgb, var(--zs) 45%, transparent);
-  overflow: hidden;
-  user-select: none;
-}
-.slide-cancel-fill {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  background: color-mix(in srgb, var(--zs) 28%, transparent);
-  transition: width 0.05s linear;
-}
-.slide-cancel-label {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: calc(var(--font-scale, 1) * 13px); font-weight: 600;
-  color: var(--zs);
-  pointer-events: none;
-}
-.slide-cancel-thumb {
-  position: absolute; top: 2px; left: 2px;
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  background: var(--zs);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700;
-  cursor: grab;
-  touch-action: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-.slide-cancel-thumb:active { cursor: grabbing; }
+/* R30e: 滑块确认行样式已随 list/QueueCardSlideCancel.vue 拆出 */
 
 @media (max-width: 600px) {
   .item-actions { width: 100%; justify-content: flex-end; margin-left: 0; }

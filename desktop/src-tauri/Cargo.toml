@@ -2,8 +2,8 @@
 name = "desktop"
 version = "0.1.0"
 description = "拾绘桌面版 - 画师约稿管理桌面端"
-authors = ["拾绘"]
-license = "AGPL-3.0"
+authors = ["AxelBeary"]
+license = "AGPL-3.0-only"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

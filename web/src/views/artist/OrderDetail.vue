@@ -2,64 +2,20 @@
   <el-page-header @back="goBack" :title="backTitle" :content="order ? `${$t('orderDetail.orderNo')}${order.order_no}` : ''" />
 
   <div v-if="order" class="order-detail">
-    <!-- 基本信息（v0.38: CardHead 朱砂 mark 卡头） -->
-    <el-card class="od-card od-head-info">
-      <template #header>
-        <CardHead :title="$t('orderDetail.orderInfo')">
-          <template #extra>
-            <!-- 818-D: 再来一单（终态/非终态订单均可用，回填选项弹窗） -->
-            <el-button size="small" type="primary" plain @click="openReorderDialog">
-              {{ $t('orderDetail.reorderBtn') }}
-            </el-button>
-            <el-tag :type="statusType(order.status)">{{ $t(`common.orderStatus.${order.status}`) }}</el-tag>
-          </template>
-        </CardHead>
-      </template>
-      <el-descriptions :column="2" border>
-        <el-descriptions-item :label="$t('orderDetail.colOrderNo')">
-          <span class="od-order-no">{{ order.order_no }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('orderDetail.colType')">{{ order.tier_name || $t('common.custom') }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('orderDetail.colQq')">
-          <span class="client-qq-row">
-            <span>{{ order.client_qq }}</span>
-            <!-- R58-6: 客户 QQ 跳转 + 复制 -->
-            <el-button size="small" text type="primary" @click="jumpToQq(order.client_qq)">{{ $t('orderDetail.jumpQq') }}</el-button>
-            <el-button size="small" text @click="copyQq(order.client_qq)">{{ $t('orderDetail.copyQq') }}</el-button>
-            <!-- F1 围剿：补发客户追踪链接（重新生成令牌，旧链接立即失效） -->
-            <el-button size="small" text type="primary" :loading="regeneratingToken" @click="regenerateAndCopyLink">
-              {{ $t('orderDetail.copyTrackLink') }}
-            </el-button>
-          </span>
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('orderDetail.colName')">{{ order.client_name || '-' }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('orderDetail.colPriority')">
-          <!-- R17: 优先级分段按钮（红/黄/绿，点击即保存） -->
-          <el-radio-group v-model="order.priority" size="small" class="priority-group" @change="changePriority">
-            <el-radio-button value="high" class="prio-high">{{ $t('common.priority.high') }}</el-radio-button>
-            <el-radio-button value="medium" class="prio-medium">{{ $t('common.priority.medium') }}</el-radio-button>
-            <el-radio-button value="low" class="prio-low">{{ $t('common.priority.low') }}</el-radio-button>
-          </el-radio-group>
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('orderDetail.colSource')">{{ order.source === 'self' ? $t('common.source.clientSelf') : $t('common.source.manualEntry') }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
-      </el-descriptions>
-      <!-- F9 客户快查卡（发布前待办清单第 6 项·网页端回流）：复用录单页 mo-client-card 同款视觉，
-           有标记/汇总才显示；数据随 order.client_qq 变化查 getToolsClient，失败静默不吵 -->
-      <div v-if="clientProfile || clientSummary" class="od-client-card">
-        <div v-if="clientProfile?.tags?.length" class="od-client-tags">
-          <el-tag v-for="tag in clientProfile.tags" :key="tag" size="small" class="od-client-tag">{{ tag }}</el-tag>
-        </div>
-        <p v-if="clientProfile?.note" class="od-client-note">{{ clientProfile.note }}</p>
-        <div v-if="clientSummary" class="od-client-summary">
-          <span>{{ $t('manualOrder.clientSummaryOrders', { n: clientSummary.totalOrders }) }}</span>
-          <span>{{ $t('manualOrder.clientSummaryPaid', { amount: formatCents(clientSummary.totalPaidCents) }) }}</span>
-          <span v-if="clientSummary.lastOrderAt">{{ $t('manualOrder.clientSummaryLast', { date: formatDate(clientSummary.lastOrderAt) }) }}</span>
-          <el-tag v-if="clientSummary.lastOrderStatus" :type="statusType(clientSummary.lastOrderStatus)" size="small">{{ $t(`common.orderStatus.${clientSummary.lastOrderStatus}`) }}</el-tag>
-        </div>
-      </div>
-    </el-card>
+    <!-- 基本信息（含 F9 客户快查卡，卡内容已拆 OrderInfoCard，F-09 拆分批·丁；
+         快查卡查数与优先级保存两步写回仍留在本页，子组件只 props 进 / emit 出） -->
+    <OrderInfoCard
+      :order="order"
+      :client-profile="clientProfile"
+      :client-summary="clientSummary"
+      :regenerating-token="regeneratingToken"
+      :format-date="formatDate"
+      @reorder="openReorderDialog"
+      @jump-qq="jumpToQq"
+      @copy-qq="copyQq"
+      @regenerate-link="regenerateAndCopyLink"
+      @change-priority="onPriorityChange"
+    />
 
     <!-- v0.38: 日期卡二合一（REQ-026 §四）——开工日/截稿日两字段一卡，即时保存逻辑不变（changeStartDate/changeDeadline），
            卡头右侧剩余天数 chip：剩 N 天(花青) / 今天截稿(藤黄) / 逾期 N 天(朱砂) -->
@@ -296,24 +252,8 @@
     </div><!-- /.od-main -->
 
     <div class="od-side">
-      <!-- v128: 修改记录（手动修改+打回均计一次，口径用户拍板；从操作流水推导，无记录不显卡） -->
-      <el-card v-if="revisionRecords.length > 0" class="od-card">
-        <template #header>
-          <CardHead :title="$t('orderDetail.revisionTitle')">
-            <template #extra>
-              <StatusChip type="pend">{{ $t('orderDetail.revisionTotal', { n: revisionRecords.length }) }}</StatusChip>
-            </template>
-          </CardHead>
-        </template>
-        <ul class="revision-list">
-          <li v-for="(r, i) in revisionRecords" :key="i" class="revision-row">
-            <span class="revision-icon" :class="`revision-icon--${r.type}`" aria-hidden="true">{{ r.type === 'rollback' ? '↩' : '✎' }}</span>
-            <span class="revision-type">{{ r.type === 'rollback' ? $t('orderDetail.revisionRollback') : $t('orderDetail.revisionManual') }}</span>
-            <span v-if="r.type === 'rollback' && r.fromStage" class="revision-stages">「{{ r.fromStage }}」→「{{ r.toStage }}」</span>
-            <span class="revision-time">{{ formatDate(r.at) }}</span>
-          </li>
-        </ul>
-      </el-card>
+      <!-- v128: 修改记录（卡内容已拆 OrderRevisionCard，F-09 拆分批·丁；记录推导仍随 order.value 下发，本页零改动） -->
+      <OrderRevisionCard :revision-records="revisionRecords" :format-date="formatDate" />
 
       <!-- B7: 额度池收款记录（卡内容已拆 PaymentPanel，v0.40 拆分；v129 移入侧列） -->
       <PaymentPanel
@@ -461,6 +401,9 @@ import CommPanel from '../../components/artist/order/CommPanel.vue'
 import ExtraItemsPanel from '../../components/artist/order/ExtraItemsPanel.vue'
 import NotesPanel from '../../components/artist/order/NotesPanel.vue'
 import PublishShareDialogs from '../../components/artist/order/PublishShareDialogs.vue'
+// F-09 巨型文件拆分批·丁：两张哑卡抽出（基本信息卡含 F9 快查卡 / 修改记录卡，零行为变化）
+import OrderInfoCard from '../../components/artist/order/detail/OrderInfoCard.vue'
+import OrderRevisionCard from '../../components/artist/order/detail/OrderRevisionCard.vue'
 // v0.38: 统一视觉组件（REQ-026 §二）
 import CardHead from '../../components/artist/visual/CardHead.vue'
 import StatusChip from '../../components/artist/visual/StatusChip.vue'
@@ -601,6 +544,14 @@ const {
   repermittingId, repermitDeliverable, deleteReference, openFile
 } = useOrderActions({ order, routeId, statusAction, prevPriority, loadOrder, applyOrder })
 
+// R17: 优先级分段按钮「点击即保存」——基本信息卡拆出后，原 v-model="order.priority" 的两步写
+// 留在本页（先乐观写入订单对象、再调 changePriority；失败回滚由 changePriority 内 prevPriority 兜底）
+// 注：这是订单内字段级乐观写，不是整体替换 order，不经 applyOrder（与拆分前完全一致）
+function onPriorityChange(priority: string | number | boolean | undefined) {
+  if (order.value) order.value.priority = priority as OrderPriority
+  changePriority(priority)
+}
+
 // ─── R19: 备注附图/时间线逻辑已随 NotesPanel 拆出（2026-08-10）；粘贴经 expose 调用 ───
 
 // ─── SPEC-003 附加工作项 + 改价已随 ExtraItemsPanel 拆出（2026-08-10） ───
@@ -644,6 +595,7 @@ const { refreshNow } = useSignatureRefresh({
 // ─── v0.31 REQ-021 F1: 操作记录已随 LogPanel 拆出（含 useActivityLog 装配，2026-08-10） ───
 
 // ─── F9 客户快查卡（发布前待办清单第 6 项·网页端回流）：order.client_qq 变化即查客户标记 + 消费汇总 ───
+// （卡渲染已随 OrderInfoCard 拆出，F-09 拆分批·丁；查数与静默降级口径不变，结果经 props 下发）
 const clientProfile = ref<ClientProfile | null>(null)
 const clientSummary = ref<ClientSummary | null>(null)
 async function loadClientCard(qq: string) {
@@ -694,24 +646,8 @@ onUnmounted(() => {
   .od-head-date, .od-side { grid-column: 2; }
 }
 
-/* 订单号文楷——落款感（REQ §1.3：数字/单号用文楷） */
-.od-order-no { font-family: var(--f-d); font-size: calc(var(--font-scale, 1) * 15px); font-weight: 600; letter-spacing: .02em; }
-
-/* ─── F9 客户快查卡（复用录单页 mo-client-card 同款视觉，纸墨 token） ─── */
-.od-client-card {
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  background: var(--paper2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-s);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.od-client-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.od-client-tag { font-family: var(--f-d); }
-.od-client-note { margin: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); line-height: 1.5; }
-.od-client-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink); }
+/* 基本信息卡（含 F9 客户快查卡）与其配套样式已随 OrderInfoCard 拆出（F-09 拆分批·丁）；
+   .od-head-info 的 grid-column 仍在本页（子组件根元素继承本页 scope，命中不变） */
 
 /* ─── v0.38: 日期卡二合一（REQ-026 §四：两字段一卡，交互逻辑不变） ─── */
 .date-card-body { display: flex; gap: 28px; flex-wrap: wrap; }
@@ -777,43 +713,17 @@ onUnmounted(() => {
 }
 .workflow-load-failed-text { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
 
-/* ─── v128: 修改记录（一行一次：类型标记 + 打回节点 + 时间） ─── */
-.revision-list { list-style: none; margin: 0; padding: 0; }
-.revision-row {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 8px 0; border-top: 1px solid var(--line);
-}
-.revision-row:first-child { border-top: none; }
-.revision-icon {
-  width: 24px; height: 24px; flex: none;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: var(--r-s);
-  font-size: calc(var(--font-scale, 1) * 13px);
-}
-/* 手动修改 = 花青（进行中语义）；打回 = 藤黄（待确认语义） */
-.revision-icon--manual { background: var(--hq-t); color: var(--hq-d); }
-.revision-icon--rollback { background: var(--th-t); color: var(--th); }
-.revision-type { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink); font-weight: 600; }
-.revision-stages { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
-.revision-time { margin-left: auto; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+/* v128: 修改记录卡样式已随 OrderRevisionCard 拆出（F-09 拆分批·丁） */
 
+/* R58-6: 客户 QQ 跳转 + 复制样式已随 OrderInfoCard 拆出（F-09 拆分批·丁） */
 
-/* R17: 优先级分段按钮配色（选中态由 Element Plus 内部 is-checked 控制） */
-.priority-group :deep(.prio-high.is-checked .el-radio-button__inner) { background: var(--zs); border-color: var(--zs); box-shadow: -1px 0 0 0 var(--zs); }
-.priority-group :deep(.prio-medium.is-checked .el-radio-button__inner) { background: var(--th); border-color: var(--th); box-shadow: -1px 0 0 0 var(--th); }
-.priority-group :deep(.prio-low.is-checked .el-radio-button__inner) { background: var(--sl); border-color: var(--sl); box-shadow: -1px 0 0 0 var(--sl); }
+/* SPEC-003 附加工作项/改价/客户沟通样式已随 ExtraItemsPanel/CommPanel 拆出（2026-08-10） */
 
 /* R40 备注时间线/操作记录/备注输入样式已随 NotesPanel/LogPanel 拆出（2026-08-10） */
 
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
 
 /* REQ-022 F1/REQ-031 B1 发布/分享弹窗样式已随 PublishShareDialogs 拆出（2026-08-10） */
-
-/* R58-6: 客户 QQ 跳转 + 复制 */
-.client-qq-row { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.client-qq-row .el-button { padding: 2px 6px; height: auto; }
-
-/* SPEC-003 附加工作项/改价/客户沟通样式已随 ExtraItemsPanel/CommPanel 拆出（2026-08-10） */
 
 /* REQ-037 F1: 首载失败错误态 */
 .od-load-failed {

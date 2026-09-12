@@ -2,7 +2,8 @@
   "name": "artist-commission-web",
   "version": "1.0.1",
   "description": "画师约稿管理平台 - 前端",
-  "license": "AGPL-3.0",
+  "author": "AxelBeary",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "overrides": {
     "nanoid": "3.3.18"
