@@ -280,226 +280,17 @@
     <!-- REQ-041 集成接线：更换管理员动作级再验（提交遇 STEP_UP_REQUIRED 弹窗，验证通过自动重提交） -->
     <StepUpDialog v-model="actionStepUpVisible" @verified="onActionStepUpVerified" @cancel="onActionStepUpCancel" />
 
-    <!-- TOTP 绑定弹窗（REQ-027 R2：管理员协助画师扫码绑定） -->
-    <el-dialog v-model="totpVisible" :title="$t('admin.totpBindTitle', { name: totpArtist?.name || '' })" width="420px" :close-on-click-modal="false">
-      <div v-loading="totpLoading">
-        <p class="totp-step">{{ $t('admin.totpStep1') }}</p>
-        <div class="totp-qr-wrap">
-          <img v-if="totpQr" :src="totpQr" alt="TOTP QR" class="totp-qr" />
-          <el-button v-else text type="primary" @click="genTotpQr">{{ $t('admin.totpRegenerate') }}</el-button>
-        </div>
-        <p class="totp-step">{{ $t('admin.totpStep2') }}</p>
-        <el-input
-          v-model="totpCode" maxlength="6" size="large"
-          :placeholder="$t('admin.totpCodePlaceholder')" @keyup.enter="confirmTotpBind"
-        />
-        <p class="totp-hint">{{ $t('admin.totpRegenerateHint') }}</p>
-      </div>
-      <template #footer>
-        <el-button @click="totpVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="danger" plain :loading="totpLoading" @click="resetTotpBind">
-          {{ $t('admin.totpReset') }}
-        </el-button>
-        <el-button @click="genTotpQr" :loading="totpLoading">{{ $t('admin.totpRegenerate') }}</el-button>
-        <el-button type="primary" :disabled="!totpCode" @click="confirmTotpBind" :loading="totpLoading">
-          {{ $t('admin.totpBindConfirm') }}
-        </el-button>
-      </template>
-    </el-dialog>
+    <!-- TOTP 绑定弹窗（F-09 拆分至 TotpBindDialog.vue） -->
+    <TotpBindDialog v-model="totpVisible" :artist="totpArtist" @refresh="loadArtists" />
     <!-- 画师详情抽屉 -->
-    <!-- 回收站（从主页迁入：孤儿文件可恢复；REQ-022 F4 分页） -->
-    <el-dialog v-model="recycleVisible" :title="$t('admin.recycleBin.title')" width="720px" :close-on-click-modal="false">
-      <div class="recycle-body">
-        <el-table v-if="recycleLoading || recycleItems.length > 0" :data="recycleItems" v-loading="recycleLoading" stripe max-height="420">
-          <el-table-column prop="fileName" :label="$t('admin.recycleBin.colFile')" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="originalPath" :label="$t('admin.recycleBin.colPath')" min-width="180" show-overflow-tooltip />
-          <el-table-column :label="$t('admin.recycleBin.colSize')" width="90">
-            <template #default="{ row }">{{ formatSize(row.size) }}</template>
-          </el-table-column>
-          <el-table-column :label="$t('admin.recycleBin.colMovedAt')" width="160">
-            <template #default="{ row }">{{ formatDateTime(row.movedAt) }}</template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else :description="$t('admin.recycleBin.emptyHint')" />
-        <!-- REQ-022 F4: 分页（每页 20 条） -->
-        <div v-if="recycleTotal > 0" class="pager">
-          <el-pagination
-            v-model:current-page="recyclePage"
-            :page-size="recyclePageSize"
-            :total="recycleTotal"
-            layout="total, prev, pager, next"
-            @current-change="loadRecycleBin"
-          />
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="recycleVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button v-if="recycleTotal > 0" type="danger" plain :loading="emptying" @click="handleEmptyRecycleBin">
-          {{ $t('admin.recycleBin.empty') }}
-        </el-button>
-      </template>
-    </el-dialog>
+    <!-- 回收站（F-09 拆分至 RecycleBinDialog.vue） -->
+    <RecycleBinDialog v-model="recycleVisible" />
 
-    <!-- 0817：已移除画师（软删兜底：清单可见+可恢复；恢复后需重新登录） -->
-    <el-dialog v-model="deletedVisible" :title="$t('admin.deletedArtists.title')" width="720px" :close-on-click-modal="false">
-      <div class="recycle-body">
-        <el-table v-if="deletedLoading || deletedItems.length > 0" :data="deletedItems" v-loading="deletedLoading" stripe max-height="420">
-          <el-table-column prop="name" :label="$t('admin.colName')" min-width="120">
-            <template #default="{ row }">
-              <span>{{ row.name }}</span>
-              <el-tag v-if="row.isBanned" type="warning" size="small" class="cell-tag">{{ $t('compliance.admin.bannedTag') }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="140">
-            <template #default="{ row }"><code class="cell-code">{{ $t('admin.domainSuffix') }}{{ row.subdomain }}</code></template>
-          </el-table-column>
-          <el-table-column prop="qqNumber" :label="$t('admin.colQq')" width="120" />
-          <el-table-column :label="$t('admin.deletedArtists.colDeletedAt')" width="170">
-            <template #default="{ row }">{{ formatDateTime(row.deletedAt) }}</template>
-          </el-table-column>
-          <!-- 824 响应式巡逻：操作列右固定，防窄屏藏进表内横滚 -->
-          <el-table-column :label="$t('common.actions')" width="110" align="right" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                size="small" type="primary" plain
-                :loading="restoringId === row.id" :disabled="restoringId != null"
-                @click="restoreDeletedArtist(row)"
-              >
-                {{ $t('admin.deletedArtists.restore') }}
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else :description="$t('admin.deletedArtists.empty')" />
-      </div>
-      <template #footer>
-        <el-button @click="deletedVisible = false">{{ $t('common.cancel') }}</el-button>
-      </template>
-    </el-dialog>
+    <!-- 0817：已移除画师（F-09 拆分至 DeletedArtistsDialog.vue；恢复成功回到在册 → 刷新主列表） -->
+    <DeletedArtistsDialog v-model="deletedVisible" @restored="loadArtists" />
 
-    <!-- REQ-039: 邀请码管理弹窗（生成/列表/复制/吊销；纸墨 token + CardHead） -->
-    <el-dialog v-model="inviteVisible" :title="$t('invite.manageTitle')" width="760px" :close-on-click-modal="false">
-      <div class="invite-body">
-        <CardHead :title="$t('invite.generateTitle')" />
-        <div class="invite-gen">
-          <el-form inline label-position="top" class="invite-form">
-            <el-form-item :label="$t('invite.countLabel')">
-              <el-input-number v-model="inviteCount" :min="1" :max="50" controls-position="right" />
-              <span class="invite-form-hint">{{ $t('invite.countHint') }}</span>
-            </el-form-item>
-            <el-form-item :label="$t('invite.validDaysLabel')">
-              <el-input-number v-model="inviteValidDays" :min="1" :max="30" controls-position="right" />
-              <span class="invite-form-hint">{{ $t('invite.validDaysHint') }}</span>
-            </el-form-item>
-            <el-form-item :label="$t('invite.maxUsesLabel')">
-              <el-input-number v-model="inviteMaxUses" :min="1" :max="100" controls-position="right" />
-              <span class="invite-form-hint">{{ $t('invite.maxUsesHint') }}</span>
-            </el-form-item>
-            <el-form-item class="invite-form-action">
-              <el-button type="primary" :loading="inviteGenerating" @click="generateInviteCodes">
-                {{ $t('invite.generateBtn') }}
-              </el-button>
-            </el-form-item>
-          </el-form>
-          <p class="invite-hint">{{ $t('invite.manageHint') }}</p>
-        </div>
-
-        <CardHead :title="$t('invite.colCode')" />
-        <!-- 服务端筛选栏：状态下拉 + 码搜索（任一变更回第 1 页重拉） -->
-        <div class="invite-filter">
-          <el-select v-model="inviteStatusFilter" style="width: 130px" @change="onInviteFilterChange">
-            <el-option value="all" :label="$t('invite.statusAll')" />
-            <el-option value="unused" :label="$t('invite.statusUnused')" />
-            <el-option value="used" :label="$t('invite.statusUsed')" />
-            <el-option value="expired" :label="$t('invite.statusExpired')" />
-            <el-option value="revoked" :label="$t('invite.statusRevoked')" />
-          </el-select>
-          <el-input
-            v-model="inviteQuery"
-            :placeholder="$t('invite.searchPlaceholder')"
-            clearable
-            prefix-icon="Search"
-            class="invite-search-input"
-            @change="onInviteFilterChange"
-          />
-        </div>
-        <el-table :data="inviteCodes" v-loading="inviteLoading" stripe max-height="420">
-          <el-table-column :label="$t('invite.colCode')" min-width="170">
-            <template #default="{ row }">
-              <code class="invite-code">{{ row.code }}</code>
-              <el-button
-                v-if="row.status === 'unused'" size="small" text type="primary"
-                class="invite-copy" @click="copyInviteCode(row.code)"
-              >
-                {{ $t('invite.copy') }}
-              </el-button>
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('invite.colStatus')" width="110">
-            <template #default="{ row }">
-              <el-tag :type="inviteStatusType(row)" size="small">
-                {{ $t(inviteStatusLabelKey(row)) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('invite.colExpires')" width="180">
-            <template #default="{ row }">{{ formatDateTime(row.expiresAt) }}</template>
-          </el-table-column>
-          <el-table-column :label="$t('invite.colUsage')" min-width="140">
-            <template #default="{ row }">
-              <!-- 多次码：已用 N/M 可点开使用记录；单次码保持显示使用人 -->
-              <el-button
-                v-if="row.maxUses > 1" size="small" text type="primary"
-                @click="openInviteUses(row)"
-              >
-                {{ $t('invite.usedCount', { used: row.useCount, max: row.maxUses }) }}
-              </el-button>
-              <template v-else>
-                <span v-if="row.usedBy">{{ row.usedBy.name || row.usedBy.qqNumber }}</span>
-                <span v-else class="invite-unused">—</span>
-              </template>
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('invite.colActions')" width="100" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                v-if="row.status === 'unused'" size="small" type="danger" plain
-                @click="revokeInviteCode(row)"
-              >
-                {{ $t('invite.revoke') }}
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!inviteLoading && inviteCodes.length === 0" :description="$t('invite.empty')" :image-size="60" />
-        <!-- 服务端分页（默认 20/页） -->
-        <div v-if="inviteTotal > 0" class="pager">
-          <el-pagination
-            v-model:current-page="invitePage"
-            :page-size="invitePageSize"
-            :total="inviteTotal"
-            layout="total, prev, pager, next"
-            @current-change="loadInviteCodes"
-          />
-        </div>
-      </div>
-    </el-dialog>
-
-    <!-- 邀请码使用记录子弹窗（多次码；倒序最近在前） -->
-    <el-dialog v-model="inviteUsesVisible" :title="$t('invite.usesTitle')" width="560px" append-to-body>
-      <el-table v-if="inviteUsesLoading || inviteUses.length > 0" :data="inviteUses" v-loading="inviteUsesLoading" stripe max-height="360">
-        <el-table-column :label="$t('invite.usesColName')" min-width="120">
-          <template #default="{ row }">{{ row.name || '—' }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('invite.usesColQq')" width="130">
-          <template #default="{ row }">{{ row.qqNumber || '—' }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('invite.usesColTime')" width="180">
-          <template #default="{ row }">{{ formatDateTime(row.usedAt) }}</template>
-        </el-table-column>
-      </el-table>
-      <el-empty v-else :description="$t('invite.usesEmpty')" :image-size="60" />
-    </el-dialog>
+    <!-- REQ-039: 邀请码管理弹窗（F-09 拆分至 components/admin/artist-manage/InviteCodesDialog.vue） -->
+    <InviteCodesDialog ref="inviteDialogRef" v-model="inviteVisible" />
 
     <ArtistDetailDrawer v-model="detailVisible" :artist="detailArtist" />
   </div>
@@ -508,7 +299,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { adminApi, complianceApi, type ApiError } from '../../api/index'
-import type { AdminArtistItem, AdminInviteCode, AdminOrderItem, RecycleBinItem, DeletedArtistItem, ArtistStatus, InviteCodeUse } from '../../api/types'
+import type { AdminArtistItem, AdminOrderItem, ArtistStatus } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { View, Tickets, Key, Delete, Unlock, Lock } from '@element-plus/icons-vue'
@@ -518,8 +309,11 @@ import { formatCents } from '../../utils/money'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
 // REQ-041 集成接线：更换管理员动作级再验对话框（后端 requireAdminReauth 已就位）
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'
-// REQ-039: 纸墨卡片头（管理弹窗内分组标题）
-import CardHead from '../../components/artist/visual/CardHead.vue'
+// F-09 巨型文件拆分：四个弹窗（邀请码/回收站/已移除画师/TOTP 绑定）拆至 components/admin/artist-manage/
+import InviteCodesDialog from '../../components/admin/artist-manage/InviteCodesDialog.vue'
+import RecycleBinDialog from '../../components/admin/artist-manage/RecycleBinDialog.vue'
+import DeletedArtistsDialog from '../../components/admin/artist-manage/DeletedArtistsDialog.vue'
+import TotpBindDialog from '../../components/admin/artist-manage/TotpBindDialog.vue'
 
 const { t } = useI18n()
 const artists = ref<AdminArtistItem[]>([])
@@ -555,132 +349,12 @@ onUnmounted(() => mqCompactActions.removeEventListener('change', onCompactAction
 
 const form = reactive({ qqNumber: '', name: '', subdomain: '', bio: '', artistCode: '' })
 
-// ─── REQ-039: 邀请码管理（多次使用码 + 服务端分页/筛选） ───
+// ─── REQ-039: 邀请码管理：F-09 拆分至 InviteCodesDialog.vue（ALLOWLIST 注释点名的「后续可拆弹窗组件瘦身」），父页只留入口 ───
 const inviteVisible = ref(false)
-const inviteCodes = ref<AdminInviteCode[]>([])
-const inviteLoading = ref(false)
-const inviteGenerating = ref(false)
-const inviteCount = ref(5)
-const inviteValidDays = ref(3)
-/** 每码可用次数（1=一次性，1-100） */
-const inviteMaxUses = ref(1)
-// 服务端筛选/分页状态（'all' 哨兵值：el-select 空串值不渲染选项文案会退化成「请选择」占位）
-const inviteStatusFilter = ref<'all' | 'unused' | 'used' | 'expired' | 'revoked'>('all')
-const inviteQuery = ref('')
-const invitePage = ref(1)
-const invitePageSize = 20
-const inviteTotal = ref(0)
-// 使用记录子弹窗（多次码）
-const inviteUsesVisible = ref(false)
-const inviteUsesLoading = ref(false)
-const inviteUses = ref<InviteCodeUse[]>([])
-
-/** status 仍 unused 但已到期 → 展示为 expired（与后端筛选口径一致） */
-function inviteDisplayStatus(row: AdminInviteCode): string {
-  if (row.status === 'unused' && row.expired) return 'expired'
-  return row.status
-}
-function inviteStatusType(row: AdminInviteCode) {
-  return ({ unused: 'success', used: 'info', revoked: 'danger', expired: 'info' } as Record<string, string>)[inviteDisplayStatus(row)] || 'info'
-}
-function inviteStatusLabelKey(row: AdminInviteCode) {
-  const s = inviteDisplayStatus(row)
-  return `invite.status${s[0].toUpperCase()}${s.slice(1)}`
-}
-
-async function openInviteCodes() {
-  inviteVisible.value = true
-  invitePage.value = 1
-  await loadInviteCodes()
-}
-
-async function loadInviteCodes() {
-  inviteLoading.value = true
-  try {
-    const res = await adminApi.getInviteCodes({
-      status: inviteStatusFilter.value === 'all' ? undefined : inviteStatusFilter.value,
-      q: inviteQuery.value.trim() || undefined,
-      page: invitePage.value,
-      pageSize: invitePageSize
-    })
-    inviteCodes.value = res.codes || []
-    inviteTotal.value = res.total || 0
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    inviteLoading.value = false
-  }
-}
-
-/** 筛选（状态/搜索）任一变更：回第 1 页重拉 */
-function onInviteFilterChange() {
-  invitePage.value = 1
-  loadInviteCodes()
-}
-
-async function generateInviteCodes() {
-  if (!inviteCount.value || inviteCount.value < 1 || inviteCount.value > 50) {
-    return ElMessage.warning(t('invite.countHint'))
-  }
-  if (!inviteValidDays.value || inviteValidDays.value < 1 || inviteValidDays.value > 30) {
-    return ElMessage.warning(t('invite.validDaysHint'))
-  }
-  if (!inviteMaxUses.value || inviteMaxUses.value < 1 || inviteMaxUses.value > 100) {
-    return ElMessage.warning(t('invite.maxUsesHint'))
-  }
-  inviteGenerating.value = true
-  try {
-    const res = await adminApi.generateInviteCodes({
-      count: inviteCount.value,
-      validDays: inviteValidDays.value,
-      maxUses: inviteMaxUses.value
-    })
-    ElMessage.success(t('invite.generated', { count: res.codes.length }))
-    await loadInviteCodes()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    inviteGenerating.value = false
-  }
-}
-
-/** 打开多次码使用记录子弹窗（倒序，最近在前） */
-async function openInviteUses(row: AdminInviteCode) {
-  inviteUses.value = []
-  inviteUsesVisible.value = true
-  inviteUsesLoading.value = true
-  try {
-    const res = await adminApi.getInviteCodeUses(row.id)
-    inviteUses.value = res.uses || []
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    inviteUsesLoading.value = false
-  }
-}
-
-async function copyInviteCode(code: string) {
-  try {
-    await navigator.clipboard.writeText(code)
-    ElMessage.success(t('invite.copied'))
-  } catch { /* 剪贴板受限时静默（非关键路径） */ }
-}
-
-async function revokeInviteCode(row: AdminInviteCode) {
-  try {
-    await ElMessageBox.confirm(
-      t('invite.revokeConfirm', { code: row.code }),
-      t('invite.revoke'),
-      { type: 'warning', confirmButtonText: t('invite.revoke'), cancelButtonText: t('common.cancel') }
-    )
-  } catch { /* 取消 */ return }
-  try {
-    await adminApi.revokeInviteCode(row.id)
-    ElMessage.success(t('invite.revoked'))
-    await loadInviteCodes()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  }
+/** 子件实例：打开动作整体在子件里（原函数体逐字搬入），父页入口只委派 */
+const inviteDialogRef = ref<InstanceType<typeof InviteCodesDialog> | null>(null)
+function openInviteCodes() {
+  void inviteDialogRef.value?.openInviteCodes()
 }
 
 // ─── 登录留痕批（v72）：列表相对时间展示（完整时间+IP 在详情抽屉） ───
@@ -842,106 +516,16 @@ function retryOrders() {
 
 // ─── 更换管理员（REQ-027: 双 TOTP 动态码验证） ───
 
-// ─── 回收站（从主页迁入：孤儿文件可恢复；REQ-022 F4 分页） ───
+// ─── 回收站：F-09 拆分至 RecycleBinDialog.vue，父页只留入口 ───
 const recycleVisible = ref(false)
-const recycleItems = ref<RecycleBinItem[]>([])
-const recycleLoading = ref(false)
-const emptying = ref(false)
-const recyclePage = ref(1)
-const recyclePageSize = 20
-const recycleTotal = ref(0)
-
-async function openRecycleBin() {
-  recyclePage.value = 1
+function openRecycleBin() {
   recycleVisible.value = true
-  await loadRecycleBin()
 }
 
-async function loadRecycleBin() {
-  recycleLoading.value = true
-  try {
-    const res = await adminApi.getRecycleBin({ page: recyclePage.value, pageSize: recyclePageSize })
-    recycleItems.value = res.items || []
-    recycleTotal.value = res.total || 0
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    recycleLoading.value = false
-  }
-}
-
-function formatSize(bytes: number | null | undefined) {
-  // A7: 后端可能不返回体积（undefined/null）——占位短横线，避免 NaN MB
-  if (bytes === undefined || bytes === null || !Number.isFinite(Number(bytes))) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
-async function handleEmptyRecycleBin() {
-  try {
-    await ElMessageBox.confirm(
-      t('admin.recycleBin.emptyConfirm'),
-      t('admin.recycleBin.emptyTitle'),
-      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
-    )
-  } catch { return }
-  emptying.value = true
-  try {
-    const res = await adminApi.emptyRecycleBin()
-    ElMessage.success(t('admin.recycleBin.emptied', { n: res.deleted }))
-    // REQ-022 F4: 清空后回到第 1 页并刷新
-    recyclePage.value = 1
-    await loadRecycleBin()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    emptying.value = false
-  }
-}
-
-// ─── 0817：已移除画师（软删兜底：清单可见+可恢复） ───
+// ─── 0817：已移除画师：F-09 拆分至 DeletedArtistsDialog.vue，父页只留入口（恢复成功后由 @restored 刷新在册列表） ───
 const deletedVisible = ref(false)
-const deletedItems = ref<DeletedArtistItem[]>([])
-const deletedLoading = ref(false)
-/** 恢复在途锁（单飞：一次只恢复一个，防并发双击） */
-const restoringId = ref<number | null>(null)
-
-async function openDeletedArtists() {
+function openDeletedArtists() {
   deletedVisible.value = true
-  await loadDeletedArtists()
-}
-
-async function loadDeletedArtists() {
-  deletedLoading.value = true
-  try {
-    deletedItems.value = await adminApi.getDeletedArtists()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    deletedLoading.value = false
-  }
-}
-
-async function restoreDeletedArtist(row: DeletedArtistItem) {
-  try {
-    await ElMessageBox.confirm(
-      t('admin.deletedArtists.restoreConfirm', { name: row.name }),
-      t('admin.deletedArtists.title'),
-      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
-    )
-  } catch { return }
-  restoringId.value = row.id
-  try {
-    await adminApi.restoreArtist(row.id)
-    ElMessage.success(t('admin.deletedArtists.restored'))
-    await loadDeletedArtists()
-    await loadArtists() // 回到在册 → 主列表同步刷新
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    restoringId.value = null
-  }
 }
 function openTransfer() {
   transferStep.value = 1
@@ -1077,71 +661,12 @@ async function submitUnban(artistId: number, reason: string | null) {
   }
 }
 
-// ─── TOTP 绑定/重置（REQ-027 R2/R5） ───
+// ─── TOTP 绑定/重置（REQ-027 R2/R5）：F-09 拆分至 TotpBindDialog.vue，父页只留入口与目标画师 ───
 const totpVisible = ref(false)
 const totpArtist = ref<AdminArtistItem | null>(null)
-const totpQr = ref('')
-const totpCode = ref('')
-const totpLoading = ref(false)
-
-async function openTotpBind(row: AdminArtistItem) {
+function openTotpBind(row: AdminArtistItem) {
   totpArtist.value = row
-  totpCode.value = ''
-  totpQr.value = ''
   totpVisible.value = true
-  await genTotpQr()
-}
-
-/** 生成/重新生成绑定二维码（覆盖旧密钥，旧 App 绑定立即失效） */
-async function genTotpQr() {
-  if (!totpArtist.value) return
-  totpLoading.value = true
-  try {
-    const res = await adminApi.totpBindInit(totpArtist.value.id)
-    totpQr.value = res.qrDataUrl
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    totpLoading.value = false
-  }
-}
-
-/** 输入画师报的 6 位码，完成绑定 */
-async function confirmTotpBind() {
-  if (!totpCode.value.trim()) return
-  totpLoading.value = true
-  try {
-    await adminApi.totpBindConfirm(totpArtist.value!.id, totpCode.value.trim())
-    ElMessage.success(t('admin.totpBindSuccess'))
-    totpVisible.value = false
-    await loadArtists()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    totpLoading.value = false
-  }
-}
-
-/** R5 恢复方案：重置绑定，旧密钥立即失效，画师须重新绑定才能登录 */
-async function resetTotpBind() {
-  if (!totpArtist.value) return
-  try {
-    await ElMessageBox.confirm(
-      t('admin.totpResetConfirm', { name: totpArtist.value.name }),
-      t('admin.confirmRemoveTitle'), { type: 'warning', confirmButtonText: t('admin.totpReset') }
-    )
-  } catch { return }
-  totpLoading.value = true
-  try {
-    await adminApi.totpReset(totpArtist.value.id)
-    ElMessage.success(t('admin.totpResetSuccess'))
-    totpVisible.value = false
-    await loadArtists()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  } finally {
-    totpLoading.value = false
-  }
 }
 
 onMounted(loadArtists)
@@ -1205,37 +730,7 @@ onMounted(loadArtists)
 .expand-no-data { font-size: 12px; color: var(--ink3); margin: 4px 0; }
 /* REQ-027: TOTP 绑定弹窗 + transfer 提示 */
 .dialog-h4 { margin: 0 0 var(--sp-3, 12px); font-size: var(--fs-body, 14px); color: var(--ink); }
-.totp-qr-wrap { display: flex; justify-content: center; margin: 12px 0 4px; }
-.totp-qr { width: 200px; height: 200px; border: 1px solid var(--line); border-radius: var(--r-m); }
-.totp-step { font-size: 13px; color: var(--ink); margin: 8px 0; }
-.totp-hint { font-size: 12px; color: var(--ink2); margin-top: 8px; }
 .transfer-hint { font-size: 12px; color: var(--ink2); margin: 0; }
-/* ─── REQ-039: 邀请码弹窗（纸墨 token） ─── */
-.invite-body { display: flex; flex-direction: column; gap: 12px; }
-.invite-gen {
-  padding: 12px 16px;
-  background: var(--paper2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-}
-.invite-form { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
-.invite-form :deep(.el-form-item) { margin-bottom: 0; }
-.invite-form-hint { display: block; font-size: 11px; color: var(--ink3); margin-top: 4px; }
-.invite-form-action { margin-left: auto; }
-.invite-hint { font-size: 12px; color: var(--ink2); margin: 8px 0 0; line-height: 1.6; }
-.invite-filter { display: flex; align-items: center; gap: var(--sp-2, 8px); flex-wrap: wrap; }
-.invite-search-input { width: 220px; flex: none; }
-.invite-code {
-  font-family: var(--f-mono, ui-monospace, monospace);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: var(--ink);
-  background: var(--paper2);
-  padding: 4px 8px;
-  border-radius: var(--r-s);
-}
-.invite-copy { margin-left: 8px; }
-.invite-unused { color: var(--ink3); }
 
 /* P1-B：订单弹窗加载失败横幅（复用公告页 P0 同款模式） */
 .orders-error { margin-bottom: var(--sp-3, 12px); }
@@ -1249,6 +744,5 @@ onMounted(loadArtists)
   .row { grid-template-columns: 1fr; }
   .artist-filter-controls { justify-content: flex-start; }
   .artist-search-input { width: 100%; }
-  .invite-search-input { width: 100%; }
 }
 </style>

@@ -2,7 +2,7 @@
 
 画师约稿管理平台。画师用它在网上开一家自己的"约稿小店"：客户看到主页、选档位下单、画师接单排期、完成后交付文件、收钱记账，都在一个后台里完成。
 
-作者：[AxelBeary（奚怡熊）](https://github.com/AxelBeary)。协议：AGPL-3.0（见 [LICENSE](LICENSE)，第三方资产见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)）。
+作者：[AxelBeary（奚怡熊）](https://github.com/AxelBeary)。协议：AGPL-3.0-only（见 [LICENSE](LICENSE)，第三方资产见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)）。
 
 > 本项目由 AI 辅助生成，使用前请自行检查代码，不建议直接用于生产环境。
 
@@ -136,4 +136,4 @@ docs/                   # 文档（含 soul 角色定义）
 
 ## 许可
 
-[AGPL-3.0](LICENSE) · 第三方资产声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
+[AGPL-3.0-only](LICENSE) · 第三方资产声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)

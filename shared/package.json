@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "拾绘双端共享组件包（web + desktop）——F3 约稿条 / F4 小票 / F12 完稿引导等两端同一套的事实源",
-  "license": "AGPL-3.0",
+  "author": "AxelBeary",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

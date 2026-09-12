@@ -73,23 +73,7 @@
             </div>
             <div class="footer-actions">
               <div class="footer-tools">
-                <ThemeToggle />
-                <!-- REQ-043 I4: 平台公告入口（零主动打扰；有未读才显示圆点） -->
-                <button
-                  v-if="announcement"
-                  class="announce-btn" :class="{ 'announce-btn--unread': announcementUnread }"
-                  :title="$t('announcement.entry')" :aria-label="$t('announcement.entry')"
-                  @click="openAnnouncement"
-                >
-                  <el-icon><Bell /></el-icon>
-                </button>
-                <button
-                  class="lang-btn" @click="toggleLang"
-                  :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
-                  :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
-                >
-                  {{ locale === 'zh-CN' ? 'EN' : '中' }}
-                </button>
+                <LayoutTools :announcement="announcement" :announcement-unread="announcementUnread" :open-announcement="openAnnouncement" />
               </div>
               <el-button text size="small" class="logout-btn" @click="logout">
                 {{ $t('menu.logout') }}
@@ -115,22 +99,7 @@
               <div v-else class="avatar avatar--mini avatar--seal"><SealStamp text="绘" :animate="false" /></div>
             </el-tooltip>
             <div class="collapsed-tools">
-              <ThemeToggle />
-              <button
-                v-if="announcement"
-                class="announce-btn" :class="{ 'announce-btn--unread': announcementUnread }"
-                :title="$t('announcement.entry')" :aria-label="$t('announcement.entry')"
-                @click="openAnnouncement"
-              >
-                <el-icon><Bell /></el-icon>
-              </button>
-              <button
-                class="lang-btn" @click="toggleLang"
-                :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
-                :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
-              >
-                {{ locale === 'zh-CN' ? 'EN' : '中' }}
-              </button>
+              <LayoutTools :announcement="announcement" :announcement-unread="announcementUnread" :open-announcement="openAnnouncement" />
             </div>
           </template>
         </div>
@@ -140,37 +109,11 @@
       <!-- v0.40 修复：内层 el-container 必须纵向——原生 <header class="topbar"> 不被 EP 识别为 el-header，
           默认 row 方向会导致移动端 topbar 与 main 横排并排（窄窗口布局损坏，2026-08-07 用户截图实锤） -->
       <el-container direction="vertical">
-        <!-- 顶栏：仅移动端显示（页面标题 + 主题切换 + 语言 + 汉堡按钮）；桌面端已回侧边栏底部 -->
-        <header class="topbar" v-if="isMobile">
-          <button
-            v-if="isMobile"
-            class="mobile-menu-btn"
-            :aria-label="$t('menu.openMenu')"
-            @click="drawerVisible = true"
-          >
-            <el-icon :size="20"><Operation /></el-icon>
-          </button>
-          <span class="topbar-title font-display">{{ pageTitle }}</span>
-          <div class="topbar-actions">
-            <ThemeToggle />
-            <!-- REQ-043 I4: 移动端公告入口 -->
-            <button
-              v-if="announcement"
-              class="announce-btn" :class="{ 'announce-btn--unread': announcementUnread }"
-              :title="$t('announcement.entry')" :aria-label="$t('announcement.entry')"
-              @click="openAnnouncement"
-            >
-              <el-icon><Bell /></el-icon>
-            </button>
-            <button
-              class="lang-btn" @click="toggleLang"
-              :title="locale === 'zh-CN' ? $t('menu.langToEn') : $t('menu.langToZh')"
-              :aria-label="locale === 'zh-CN' ? $t('menu.langAriaToEn') : $t('menu.langAriaToZh')"
-            >
-              {{ locale === 'zh-CN' ? 'EN' : '中' }}
-            </button>
-          </div>
-        </header>
+        <!-- 顶栏（仅移动端：标题 + 主题/公告/语言 + 汉堡）：F-09 拆分至 layout/MobileTopbar.vue，
+             标记与样式随元素搬入子件，工具 trio 经默认槽注入；isMobile/pageTitle/抽屉显隐仍在本页 -->
+        <MobileTopbar v-model="drawerVisible" :is-mobile="isMobile" :page-title="pageTitle">
+          <LayoutTools :announcement="announcement" :announcement-unread="announcementUnread" :open-announcement="openAnnouncement" />
+        </MobileTopbar>
         <el-main class="main-content">
           <!-- 02C: 内容区过渡（导航稳定；keyed div 触发 fade-slide——后台路由切换只动这里） -->
           <transition name="fade-slide" mode="out-in">
@@ -246,15 +189,8 @@
       </div>
     </el-drawer>
 
-    <!-- REQ-043 I4: 平台公告弹窗（点开即已读；本地记录已读时间戳，新公告重新标点） -->
-    <el-dialog v-model="announcementOpen" :title="$t('announcement.dialogTitle')" width="min(560px, calc(100vw - 32px))" class="announcement-dialog">
-      <template v-if="announcement">
-        <h3 class="announcement-title">{{ announcement.title }}</h3>
-        <p v-if="announcement.updatedAt" class="announcement-time">{{ $t('announcement.updatedAt', { time: announcement.updatedAt }) }}</p>
-        <div class="announcement-content">{{ announcement.content }}</div>
-      </template>
-      <p v-else class="announcement-empty">{{ $t('announcement.empty') }}</p>
-    </el-dialog>
+    <!-- REQ-043 I4: 平台公告弹窗（F-09 拆分至 layout/AnnouncementDialog.vue；显隐与已读写入仍在本页） -->
+    <AnnouncementDialog v-model="announcementOpen" :announcement="announcement" />
 
     <!-- 818-E: 分步高亮导览浮层——挂在 ArtistLayout 单根内（全会话单挂载即常驻）；
          不能挂 ArtistLayoutRoute 并列根：fragment 会破坏 App.vue 顶层 Transition 致白屏（e8 教训） -->
@@ -264,13 +200,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../stores/artist'
 import { useThemeStore } from '../stores/theme'
-import { setLocale } from '../i18n/index'
-import { trackEvent } from '../utils/track'
 import { safeGetItem, safeSetItem } from '../utils/storage'
 // 818-A: 字号滑块共享 util（与 Preferences 同一映射/应用口径）
 import { applyFontSize, readFontSize } from '../utils/fontSize'
@@ -279,8 +212,13 @@ import { applyAnimSpeed, readAnimSpeed, applyReduceMotion, readReduceMotion } fr
 import { artistApi } from '../api/index'
 // REQ-037 批2 A4: 会话强校验 composable（与 AdminLayout 共用单一实现）
 import { useSessionGuard } from '../composables/useSessionGuard'
-import { Odometer, List, Box, Money, Picture, Setting, Expand, Fold, Operation, Management, ChatLineSquare, Tickets, Document, EditPen, TrendCharts, Tools, UserFilled, Bell } from '@element-plus/icons-vue'
-import ThemeToggle from './ThemeToggle.vue'
+import { Expand, Fold, Management } from '@element-plus/icons-vue'
+// F-09 巨型文件拆分：三处工具 trio / 移动端顶栏 / 公告弹窗拆为纯展示子件（目录 ./layout/）；
+// 公告加载与已读写入、语言切换动作、菜单派生 computed、轮询与生命周期全部仍留在本页。
+import LayoutTools from './layout/LayoutTools.vue'
+import MobileTopbar from './layout/MobileTopbar.vue'
+import AnnouncementDialog from './layout/AnnouncementDialog.vue'
+import { trackPageView, BASE_MENU_ITEMS, MENU_GROUPS, type ArtistMenuItem } from './layout/artistMenu'
 // 818-E: 新手导览浮层（Teleport 到 body，挂单根内仅为避免 fragment）
 import TourOverlay from './artist/tour/TourOverlay.vue'
 // 工具箱四分类注册表（纸墨提案 §5.5；单一事实源，ArtistLayout/ToolsHome 共用）
@@ -292,7 +230,7 @@ import type { PlatformAnnouncement, ArtistProfileResult } from '../api/types'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const store = useArtistStore() as ReturnType<typeof useArtistStore> & {
   /** 模板/脚本统一按完整资料的可选字段读（登录最小画像无这些字段，读取处均有兜底） */
   profile: Partial<ArtistProfileResult> | null
@@ -313,24 +251,7 @@ const activeMenu = computed(() => {
   if (p.startsWith('/tools/')) return '/tools'
   return p
 })
-// ─── 埋点：后台页面浏览（REQ-033 §4 / 施工图《01-to-02-埋点前端批》§3.3） ───
-// 事件名严格用后端白名单；/slots、/admin 无白名单事件名（后端 400），不埋
-// 画师已登录（后台登录守卫）→ 后端自动记 artist_id，前端只需发事件
-const PAGE_VIEW_EVENT_MAP: Record<string, string> = {
-  '/dashboard': 'dashboard_view',
-  '/queue': 'queue_view',
-  '/orders': 'orders_view',
-  '/orders/new': 'manual_view',
-  '/tiers': 'tiers_view',
-  '/artworks': 'artworks_view',
-  '/guestbook': 'guestbook_view',
-  '/settings': 'settings_view',
-  '/preferences': 'preferences_view'
-}
-function trackPageView(path: string) {
-  const eventName = PAGE_VIEW_EVENT_MAP[path]
-  if (eventName) trackEvent(eventName, { page: path })
-}
+// 埋点事件名表 + trackPageView：纯数据注册表，F-09 拆至 components/layout/artistMenu.ts
 // 首次进入后台即发当前页（ArtistLayout 挂载一次，不随子路由重复挂载）
 trackPageView(activeMenu.value)
 // 路由变化统一收口：/orders/:id 详情进入也按次累计（REQ-033 §4.5 验收 5）
@@ -338,41 +259,6 @@ watch(() => route.path, () => {
   trackPageView(activeMenu.value)
 })
 
-// ─── R21: 菜单项注册表（侧边栏与抽屉共用） ───
-/** 后台菜单项形状（BASE_MENU_ITEMS 与 TOOL_BOX_CATEGORIES 拼接 pageTitle 时 group 可缺省） */
-interface ArtistMenuItem {
-  index: string
-  icon: Component
-  labelKey: string
-  group?: string
-  hasBadge?: boolean
-  hasOrderBadge?: boolean
-  badge?: number
-}
-// REQ-016 C: 手动录单移出菜单（订单管理页已有按钮），菜单分三组：工作/经营/门面
-const BASE_MENU_ITEMS: ArtistMenuItem[] = [
-  { index: '/dashboard', icon: Odometer, labelKey: 'menu.dashboard', group: 'work' },
-  { index: '/queue', icon: List, labelKey: 'menu.queue', group: 'work' },
-  // I0（REQ-039 拍板）: 订单管理待确认角标（pending 数，5 分钟轮询）
-  { index: '/orders', icon: Box, labelKey: 'menu.orders', group: 'work', hasOrderBadge: true },
-  // #8: 录单入口归位（从订单管理页移回侧边栏「工作」分组）
-  { index: '/orders/new', icon: EditPen, labelKey: 'menu.manualOrder', group: 'work' },
-  // v0.26 C: 开稿管理（排期看板后面）
-  { index: '/slots', icon: Tickets, labelKey: 'menu.slots', group: 'biz' },
-  { index: '/tiers', icon: Money, labelKey: 'menu.tiers', group: 'biz' },
-  { index: '/artworks', icon: Picture, labelKey: 'menu.artworks', group: 'biz' },
-  // #1: 留言管理（作品管理下方，待审核角标）
-  { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true, group: 'biz' },
-  // 工具箱收纳（纸墨提案 §5.5）：侧栏只留一个把手，13 个工具收进四分类抽屉（见 TOOL_BOX_CATEGORIES）
-  { index: '/tools', icon: Tools, labelKey: 'menu.toolbox', group: 'tools' },
-  // R42b: 须知编辑合并进设置页，菜单项移除
-  { index: '/stats', icon: TrendCharts, labelKey: 'menu.stats', group: 'front' },
-  { index: '/settings', icon: Setting, labelKey: 'menu.settings', group: 'front' },
-  // #44: 偏好独立导航（主页对外/偏好对内）
-  { index: '/preferences', icon: Document, labelKey: 'menu.preferences', group: 'front' },
-  // REQ-040: 账号与安全
-  { index: '/account', icon: UserFilled, labelKey: 'menu.account', group: 'front' }
-]
 // #1: 待审核留言数（onMounted 调一次 messages 取 pending 计数）
 const pendingMsgCount = ref(0)
 // REQ-043 I4: 平台公告（零主动打扰：不弹窗不 banner，仅入口小圆点提示）
@@ -405,13 +291,6 @@ function openAnnouncement() {
 const pendingOrderCount = ref(0)
 // UI-7: 管理员追加"管理后台"入口
 // REQ-016 C: 菜单分组渲染（工作/经营/门面）；工具组收窄为单个工具箱把手（纸墨提案 §5.5）
-const MENU_GROUPS = [
-  { key: 'work', labelKey: 'menu.groupWork' },
-  { key: 'biz', labelKey: 'menu.groupBiz' },
-  // 工具箱把手（组标题保持「工具」，组内单项 = 工具箱入口）
-  { key: 'tools', labelKey: 'menu.groupTools' },
-  { key: 'front', labelKey: 'menu.groupFront' }
-]
 const menuGroups = computed(() => {
   // 820-L：留言关闭 → 隐藏「留言审核」导航与角标；统计未开（管理员默认关闭）→ 隐藏整个 /stats 导航
   const guestbookOff = store.profile?.guestbook_enabled === 0
@@ -574,12 +453,6 @@ const asideWidth = computed(() => collapsed.value ? '64px' : '230px')
 function toggleCollapse() {
   userCollapsed.value = !userCollapsed.value
   safeSetItem(SIDEBAR_KEY, userCollapsed.value ? '1' : '0')
-}
-
-// ─── 导航与操作 ───
-
-function toggleLang() {
-  setLocale(locale.value === 'zh-CN' ? 'en' : 'zh-CN')
 }
 
 // ─── 身份区 ───
@@ -833,104 +706,6 @@ const { validateSession } = useSessionGuard()
 .logout-btn { color: var(--sb-text-dim); font-size: calc(var(--font-scale, 1) * 12px); transition: color var(--dur-fast), background-color var(--dur-fast); }
 .logout-btn:hover { color: var(--sb-text-on); }
 
-/* ─── 顶栏（含主题切换按钮，REQ §三.1） ─── */
-.topbar {
-  position: sticky; top: 0; z-index: 50;
-  height: 54px;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px;
-  padding: 0 26px;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--line);
-}
-.topbar-title {
-  font-size: calc(var(--font-scale, 1) * 17px); font-weight: 700;
-  color: var(--ink);
-  letter-spacing: .02em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.topbar-actions { display: flex; align-items: center; gap: 10px; }
-.lang-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px;
-  border: 1px solid var(--line2);
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--ink2);
-  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600;
-  cursor: pointer;
-  /* K1（波2，灰沼教训）：背景/边框随主题即时切换，不插值；仅 hover/按压微交互保留 */
-  transition: color var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
-}
-.lang-btn:hover { color: var(--ink); box-shadow: var(--sh-1); }
-
-/* ─── REQ-043 I4: 公告入口（小铃铛；未读时右上角朱砂圆点） ─── */
-.announce-btn {
-  position: relative;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px;
-  border: 1px solid var(--line2);
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--ink2);
-  cursor: pointer;
-  flex: none;
-  /* K1（波2，灰沼教训）：背景/边框随主题即时切换，不插值；仅 hover/按压微交互保留 */
-  transition: color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast) ease-out;
-}
-.announce-btn:hover { color: var(--ink); box-shadow: var(--sh-1); }
-.announce-btn:active { transform: scale(0.98); }
-.announce-btn--unread::after {
-  content: '';
-  position: absolute;
-  top: 6px; right: 6px;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--zs);
-  border: 1px solid var(--card);
-}
-.announcement-dialog :deep(.el-dialog__body) { padding-top: 8px; }
-.announcement-title {
-  margin: 0 0 6px;
-  font-size: calc(var(--font-scale, 1) * 16px);
-  font-weight: 700;
-  color: var(--ink);
-  font-family: var(--f-d);
-}
-.announcement-time {
-  margin: 0 0 10px;
-  font-size: calc(var(--font-scale, 1) * 11px);
-  color: var(--ink3);
-}
-.announcement-content {
-  font-size: calc(var(--font-scale, 1) * 13.5px);
-  color: var(--ink2);
-  line-height: 1.8;
-  white-space: pre-wrap;
-  word-break: break-word;
-  /* 0817 报障：长公告撑爆弹窗挤作一团——内容区限高内滚，弹窗本身不超屏 */
-  max-height: min(52vh, 460px);
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.announcement-empty { margin: 0; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 13px); }
-
-/* R21: 移动端汉堡按钮（顶栏内左侧） */
-.mobile-menu-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
-  border: 1px solid var(--line2);
-  border-radius: 9px;
-  background: var(--card);
-  color: var(--ink);
-  cursor: pointer;
-  flex: none;
-  /* K1（波2，灰沼教训）：背景随主题即时切换，不插值 */
-  transition: box-shadow var(--dur-fast);
-}
-.mobile-menu-btn:hover { box-shadow: var(--sh-1); }
-
 /* ─── 主内容区 ─── */
 .main-content {
   background: var(--paper);
@@ -950,7 +725,6 @@ const { validateSession } = useSessionGuard()
 }
 @media (max-width: 600px) {
   .main-content { padding: 16px 14px; }
-  .topbar { padding: 0 14px; }
 }
 
 /* ─── R21: 移动端抽屉 ─── */
@@ -975,10 +749,6 @@ const { validateSession } = useSessionGuard()
      （0.35s 颜色插值，灰沼教训），此处 .artist-scope 前缀保留仅作 scoped 覆盖约定） ─── */
 .artist-scope .collapse-btn { transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) ease-out; }
 .artist-scope .collapse-btn:active { transform: scale(0.98); }
-.artist-scope .lang-btn { transition: color var(--dur-fast), transform var(--dur-fast) ease-out, box-shadow var(--dur-fast); }
-.artist-scope .lang-btn:active { transform: scale(0.98); }
-.artist-scope .mobile-menu-btn { transition: box-shadow var(--dur-fast), transform var(--dur-fast) ease-out; }
-.artist-scope .mobile-menu-btn:active { transform: scale(0.98); }
 .artist-scope .nav-item { transition: color var(--dur-fast), background-color var(--dur-mid) ease-out, transform var(--dur-fast) ease-out; }
 .artist-scope .nav-item:active { transform: scale(0.98); }
 .artist-scope .logout-btn { transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) ease-out; }

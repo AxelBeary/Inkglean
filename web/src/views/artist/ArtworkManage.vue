@@ -197,61 +197,14 @@
     </el-button>
   </div>
 
-  <!-- R45/C59: 批量删除 ≥3 条用滑块确认 -->
-  <el-dialog v-model="slideDialogVisible" :title="$t('artworks.batchDeleteTitle')" width="400px" class="artwork-dialog" @closed="slideProgress = 0">
-    <p class="batch-slide-hint">{{ $t('artworks.batchDeleteConfirm', { n: selectedIds.size }) }}</p>
-    <div class="slide-confirm">
-      <div class="slide-confirm-fill" :style="{ width: `calc(${slideProgress} * 100%)` }"></div>
-      <span class="slide-confirm-label">{{ $t('artworks.slideToDelete') }}</span>
-      <div
-        class="slide-confirm-thumb"
-        :style="{ left: `calc(2px + ${slideProgress} * (100% - 40px))` }"
-        @pointerdown="onSlideStart"
-        @pointermove="onSlideMove"
-        @pointerup="onSlideEnd"
-      >
-        →
-      </div>
-    </div>
-    <!-- 键盘等价：滑块确认的替代按钮路径（滑块保持可用） -->
-    <div class="batch-slide-alt">
-      <el-button type="danger" size="small" @click="confirmBatchDelete">
-        {{ $t('artworks.batchDeleteBtn') }}
-      </el-button>
-    </div>
-  </el-dialog>
-
-  <!-- v0.35 波3 (REQ-024 F6): 作品编辑弹窗 — 标题/自由描述/档位标注多选，保存即时 PUT -->
-  <el-dialog v-model="editDialogVisible" :title="$t('artworks.editTitle')" width="520px" class="artwork-dialog" destroy-on-close>
-    <el-form :model="editForm" label-position="left" label-width="96px">
-      <el-form-item :label="$t('artworks.editTitleLabel')">
-        <el-input v-model="editForm.title" maxlength="100" show-word-limit />
-      </el-form-item>
-      <el-form-item :label="$t('artworks.editDescLabel')">
-        <el-input
-          v-model="editForm.description" type="textarea" :rows="4"
-          :placeholder="$t('artworks.editDescPlaceholder')" maxlength="2000" show-word-limit
-        />
-      </el-form-item>
-      <el-form-item :label="$t('artworks.editTagsLabel')">
-        <el-select
-          v-model="editForm.sizeIds" multiple clearable
-          :placeholder="$t('artworks.editTagsEmptyHint')" style="width: 100%"
-        >
-          <el-option v-for="opt in sizeOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-        </el-select>
-        <p class="edit-hint">{{ $t('artworks.editTagsHint') }}</p>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="editDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-      <el-button type="primary" :loading="editSaving" @click="saveArtworkEdit">{{ $t('common.save') }}</el-button>
-    </template>
-  </el-dialog>
+  <!-- F-09 拆分（施工员戊）: R45/C59 滑块确认弹窗、REQ-024 F6 作品编辑弹窗原样搬入子组件；
+       删除写路径（doBatchDelete）、刷新（loadArtworks）与档位选项来源（artStyles）仍归本组件持有 -->
+  <BatchDeleteDialog v-model="slideDialogVisible" :count="selectedIds.size" @confirmed="doBatchDelete" />
+  <ArtworkEditDialog v-model="editDialogVisible" :artwork="editingArtwork" :styles="artStyles" @saved="loadArtworks" />
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { artistApi, uploadApi } from '../../api/index'
 import type { ArtworkWithTags, ArtStyleWithDetails } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -259,11 +212,13 @@ import type { UploadRequestOptions } from 'element-plus'
 import { Picture, Upload } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { usePasteUpload } from '../../composables/usePasteUpload'
-import { useSlideConfirm } from '../../composables/useSlideConfirm'
 import { useDropGuard } from '../../composables/useDropGuard'
 import { trackEvent } from '../../utils/track'
 import { UI_PAGE_SIZE } from '../../constants/pagination'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../constants/upload'
+// F-09 拆分（施工员戊）: 批量删除滑块确认弹窗 + 作品编辑弹窗
+import BatchDeleteDialog from '../../components/artist/artwork-manage/BatchDeleteDialog.vue'
+import ArtworkEditDialog from '../../components/artist/artwork-manage/ArtworkEditDialog.vue'
 
 const { t } = useI18n()
 
@@ -334,23 +289,6 @@ async function startBatchDelete() {
 
 const slideDialogVisible = ref(false)
 const batchDeleting = ref(false)
-const {
-  progress: slideProgress,
-  onStart: onSlideStart,
-  onMove: onSlideMove,
-  onEnd: onSlideEnd
-} = useSlideConfirm({
-  onConfirm: async () => {
-    slideDialogVisible.value = false
-    await doBatchDelete()
-  }
-})
-
-/** 键盘替代路径：直接确认批量删除（与滑块滑到底行为一致） */
-async function confirmBatchDelete() {
-  slideDialogVisible.value = false
-  await doBatchDelete()
-}
 
 /** 逐条删除（无批量接口），完成后退出多选模式并刷新 */
 async function doBatchDelete() {
@@ -526,63 +464,14 @@ function onPageChange(p: number) {
   loadArtworks()
 }
 
-// ─── v0.35 波3 (REQ-024 F6): 作品编辑 — 档位标注多选 + 自由描述 ───
+// ─── v0.35 波3 (REQ-024 F6): 作品编辑 — 表单与两个 PUT 已拆入 ArtworkEditDialog，此处只保留弹窗开关与选项来源 ───
 const artStyles = ref<ArtStyleWithDetails[]>([]) // 档位标注选项来源（仅取启用画风，排序沿用后端返回序）
 const editDialogVisible = ref(false)
-const editSaving = ref(false)
-const editingArtworkId = ref<number | null>(null)
-const editForm = reactive({ title: '', description: '', sizeIds: [] as number[] })
+const editingArtwork = ref<ArtworkRow | null>(null) // 编辑对象（原 editingArtworkId，改传整行给弹窗初始化表单）
 
-/** 档位选项：启用画风×尺寸展平；多画风时「画风 · 尺寸」防歧义（派工要求） */
-const sizeOptions = computed(() => {
-  const multi = artStyles.value.length > 1
-  return artStyles.value.flatMap(style =>
-    (style.sizes || []).map(size => ({
-      value: size.id,
-      label: multi ? `${style.name} · ${size.name}` : size.name
-    }))
-  )
-})
-
-async function openEditDialog(art: ArtworkRow) {
-  editingArtworkId.value = art.id
-  Object.assign(editForm, {
-    title: art.title || '',
-    description: art.description || '',
-    sizeIds: [...(art.size_tag_ids || [])]
-  })
+function openEditDialog(art: ArtworkRow) {
+  editingArtwork.value = art
   editDialogVisible.value = true
-}
-
-/** 保存：两个 PUT 串行（后端无合并端点）；两请求均成功才算成功。
- *  第一步（标题/描述）失败 → 明确提示信息保存失败；
- *  第一步成功但第二步（档位标注）失败 → 明确提示标注保存失败，并刷新回显已保存的信息（弹窗保持打开便于重试）。 */
-async function saveArtworkEdit() {
-  editSaving.value = true
-  try {
-    const res = await artistApi.updateArtwork(editingArtworkId.value!, {
-      title: editForm.title.trim() || null,
-      description: editForm.description.trim() || null
-    })
-    // REQ-042: 命中敏感词 → 提示（不硬拦，先发后审）
-    if (res?.warning?.sensitiveWords?.length) {
-      ElMessage.warning(t('compliance.warning.hit', { words: res.warning.sensitiveWords.join('、') }))
-    }
-    try {
-      await artistApi.setArtworkTags(editingArtworkId.value!, editForm.sizeIds)
-    } catch (err) {
-      ElMessage.error(t('artworks.editTagsSaveFailed', { reason: err instanceof Error ? err.message : String(err) }))
-      await loadArtworks() // 半成功不回显：信息已保存，刷新后如实回显
-      return
-    }
-    ElMessage.success(t('artworks.editSaved'))
-    editDialogVisible.value = false
-    await loadArtworks()
-  } catch (err) {
-    ElMessage.error(t('artworks.editInfoSaveFailed', { reason: err instanceof Error ? err.message : String(err) }))
-  } finally {
-    editSaving.value = false
-  }
 }
 
 async function handlePasteArtworkFiles(files: File[]) {
@@ -799,11 +688,6 @@ onMounted(async () => {
   .main-artwork-card { width: 100%; }
 }
 
-/* v0.35 波3: 作品编辑弹窗提示 */
-.edit-hint { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); margin: 4px 0 0; line-height: 1.5; }
-.artwork-dialog :deep(.el-dialog) { border-radius: var(--r-l); }
-.artwork-dialog :deep(.el-dialog__title) { font-weight: 700; color: var(--ink); }
-
 /* ─── REQ-017: 封面星标 + 标签 ─── */
 .artwork-cover-star {
   position: absolute; top: 8px; right: 8px; z-index: 2;
@@ -863,8 +747,4 @@ onMounted(async () => {
   background: var(--hq-t); color: var(--hq);
   font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; white-space: nowrap;
 }
-
-/* 滑块确认（与 OrderDetail/QueueBoard 视觉一致，朱砂=危险操作） */
-.batch-slide-hint { font-size: calc(var(--font-scale, 1) * 14px); color: var(--ink); margin-bottom: 16px; }
-.batch-slide-alt { margin-top: 12px; display: flex; justify-content: center; }
 </style>

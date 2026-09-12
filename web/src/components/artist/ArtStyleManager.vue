@@ -16,6 +16,8 @@
     <p class="toolbar-hint">{{ multiStyleEnabled ? $t('styleManage.multiStyleHintOn') : $t('styleManage.multiStyleHintOff') }}</p>
 
     <!-- v0.35 补漏 A3: 画风卡片拖拽排序（flex class 放 draggable 自身——v0.26 教训） -->
+    <!-- F-09 拆分（施工员戊）：卡片内部（卡头/尺寸区/加购项池）原样搬入 StyleCard，
+         本组件仍是唯一状态与写路径持有者（load/M-12 序号守卫、L-13 排序在途锁、dragPayload、CRUD 全在父级） -->
     <draggable
       v-if="styles.length"
       v-model="styles"
@@ -26,161 +28,38 @@
       @end="onStyleDragEnd"
     >
       <template #item="{ element: style }">
-        <el-card class="style-card" :class="{ 'style-card--locked': isLocked(style) }" shadow="hover">
-          <!-- 卡头：拖拽柄 + 名称 + 默认徽标（仅多画风关闭时显示）+ 启用开关 + 操作 -->
-          <template #header>
-            <div class="style-card-header">
-              <span class="style-card-name">
-                <span class="style-drag-handle" :title="$t('tiers.dragHint')">⠿</span>
-                {{ style.name }}
-                <!-- 默认徽标只在多画风关闭时显示（多画风开启时无默认概念；拖拽即可调序） -->
-                <el-tag v-if="!multiStyleEnabled && styles.length > 1 && style.id === defaultStyleId" size="small" type="warning" effect="plain">{{ $t('styleManage.styleDefaultTag') }}</el-tag>
-              </span>
-              <div class="style-card-actions">
-                <!-- 多画风关闭时：非默认画风可设为默认 -->
-                <el-button
-                  v-if="!multiStyleEnabled && styles.length > 1 && style.id !== defaultStyleId"
-                  text size="small" type="warning"
-                  @click="setAsDefault(style)"
-                >
-                  {{ $t('styleManage.setAsDefault') }}
-                </el-button>
-                <el-switch
-                  :model-value="!!style.is_active" size="small"
-                  :disabled="isLocked(style)"
-                  :active-text="$t('styleManage.styleActive')"
-                  @change="(val: boolean | string | number) => toggleActive(style, val)"
-                />
-                <el-button text size="small" :disabled="isLocked(style)" @click="openEditStyle(style)">{{ $t('common.edit') }}</el-button>
-                <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteStyle(style)">{{ $t('common.delete') }}</el-button>
-              </div>
-            </div>
-          </template>
-
-          <!-- 锁定提示（F2: 开关关闭时非默认画风灰色不可编辑） -->
-          <div class="style-card-body" :class="{ 'style-card-body--locked': isLocked(style) }">
-            <p v-if="isLocked(style)" class="style-locked-hint">{{ $t('styleManage.styleLocked') }}</p>
-
-            <!-- 描述 + 示例图 -->
-            <p v-if="style.description" class="style-desc">{{ style.description }}</p>
-            <div v-if="style.cover_image" class="style-cover">
-              <el-image :src="`/uploads/${style.cover_image}`" fit="cover" class="style-cover-img" :alt="style.name" />
-            </div>
-
-            <!-- ── 尺寸区（v0.35 补漏 A3: 行列表 + 拖拽排序） ── -->
-            <div class="style-section">
-              <div class="section-head">
-                <h4 class="section-title">{{ $t('styleManage.sizeTitle') }}</h4>
-                <el-button size="small" :disabled="isLocked(style)" @click="openSizeDialog(style)">{{ $t('styleManage.sizeAddBtn') }}</el-button>
-              </div>
-              <draggable
-                v-model="style.sizes"
-                item-key="id"
-                handle=".size-drag-handle"
-                ghost-class="ghost"
-                class="size-row-list"
-                @end="onSizeDragEnd(style)"
-              >
-                <template #item="{ element: size }">
-                  <div
-                    class="size-row"
-                    :class="{ 'size-row--dim': size.display_status === 'closed' }"
-                    @dragover.prevent="onSizeDragOver"
-                    @drop.prevent="onDropToSize(style, size, $event)"
-                  >
-                    <!-- 第一行：拖拽柄 + 缩略图 + 名称/价/工期 + 三态 + 操作 -->
-                    <div class="size-row-top">
-                      <span class="size-drag-handle" :title="$t('tiers.dragHint')">⠿</span>
-                      <el-image v-if="sizeThumb(size)" :src="`/uploads/${sizeThumb(size)}`" fit="cover" class="size-thumb" />
-                      <span class="size-row-name">{{ size.name }}</span>
-                      <el-tag v-if="size.image_artwork_id" size="small" effect="plain" class="size-thumb-tag">{{ $t('styleManage.sizeFromArtworkTag') }}</el-tag>
-                      <span class="size-price">{{ formatYuanValue(size.base_price) }}</span>
-                      <span v-if="size.work_days" class="size-days">{{ $t('tiers.daysUnit', { n: size.work_days }) }}</span>
-                      <!-- 右组：三态 + 操作成组右对齐，换行时整体靠右不错位 -->
-                      <div class="size-row-end">
-                        <!-- SPEC-PRICE-2: 尺寸三态（后端 display_status 落库，算价/下单同步拒单） -->
-                        <div class="size-status-seg">
-                          <button
-                            v-for="st in statusOptions" :key="st.value"
-                            class="seg-btn" :class="[`seg-${st.value}`, { on: (size.display_status || 'available') === st.value }]"
-                            :disabled="isLocked(style)"
-                            @click="setSizeStatus(style, size, st.value)"
-                          >
-                            <i></i>{{ st.label }}
-                          </button>
-                        </div>
-                        <div class="size-row-actions">
-                          <el-button text size="small" :disabled="isLocked(style)" @click="openPreview(style, size)">{{ $t('styleManage.previewBtn') }}</el-button>
-                          <el-button text size="small" :disabled="isLocked(style)" @click="openSizeDialog(style, size)">{{ $t('common.edit') }}</el-button>
-                          <el-button text size="small" type="danger" :disabled="isLocked(style)" @click="confirmDeleteSize(style, size)">{{ $t('common.delete') }}</el-button>
-                        </div>
-                      </div>
-                    </div>
-                    <!-- 第二行：描述（有才显示） -->
-                    <p v-if="size.description" class="size-row-desc">{{ size.description }}</p>
-                    <!-- 第三行：已配增项摘要（REQ-036 任务5，实时更新） -->
-                    <div class="size-summary">
-                      <span class="sum-label">{{ $t('styleManage.sizeSummaryLabel') }}</span>
-                      <span
-                        v-for="chip in sizeSummary(style, size)" :key="chip.id"
-                        class="sum-chip" :class="chip.kind"
-                        draggable="true" :title="$t('styleManage.addonDragBackHint')"
-                        @dragstart="onChipDragStart(style, size, chip, $event)"
-                      >{{ chip.name }} {{ chip.priceText }}</span>
-                      <span v-if="!sizeSummary(style, size).length" class="sum-empty">{{ $t('styleManage.sizeSummaryEmpty') }}</span>
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-              <el-empty v-if="!style.sizes.length" :description="$t('styleManage.sizeEmpty')" :image-size="40" />
-            </div>
-
-            <!-- ── 加购项池（REQ-036 批A: 双入口 + 池子胶囊 + 拖拽启用/停用） ── -->
-            <div class="style-section">
-              <div class="section-head">
-                <h4 class="section-title">{{ $t('styleManage.addonTitle') }}</h4>
-              </div>
-              <!-- §2.1 双入口：新建（自动挂本画风+沉淀库） / 从已有挑选（原导入，已用项过滤） -->
-              <div class="addon-pool-head">
-                <el-button size="small" type="primary" plain :disabled="isLocked(style)" @click="openCreateAddon(style)">
-                  {{ $t('styleManage.addonCreateBtn') }}
-                </el-button>
-                <el-button size="small" :disabled="isLocked(style)" @click="openImportDialog(style)">
-                  {{ $t('styleManage.addonPickBtn') }}
-                </el-button>
-              </div>
-              <!-- §2.2 池子（单块三行：普通增项/用途/加急；拖到尺寸行=启用，点击胶囊=设置） -->
-              <div
-                class="addon-pool"
-                :class="{ 'pool--drag-over': poolDragOver }"
-                @dragover.prevent="onPoolDragOver"
-                @dragleave="onPoolDragLeave"
-                @drop.prevent="onDropToPool(style, $event)"
-              >
-                <div v-for="grp in poolGroups(style)" :key="grp.cat" class="pool-row">
-                  <span class="pool-row-label" :class="`pool-label-${grp.cat}`">{{ categoryLabel($t, grp.cat) }}</span>
-                  <div class="pool-row-chips">
-                    <button
-                      v-for="sa in grp.items" :key="sa.id"
-                      class="addon-cap" :class="`cap-cat-${addonCategory(sa)}`"
-                      type="button"
-                      draggable="true"
-                      :title="$t('styleManage.addonCapHint')"
-                      @dragstart="onCapDragStart(style, sa, $event)"
-                      @dragend="onCapDragEnd"
-                      @click="openAddonSettings(style, sa)"
-                    >
-                      <span class="cap-name">{{ sa.template_name }}</span>
-                      <span class="cap-price">{{ capPriceText(sa) }}</span>
-                      <span v-if="sa.template_control_type === 'quantity'" class="cap-tag cap-tag-quantity">{{ controlLabel(sa.template_control_type) }}</span>
-                    </button>
-                    <span v-if="!grp.items.length" class="pool-row-empty">{{ $t('styleManage.poolRowEmpty') }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </el-card>
+        <StyleCard
+          :style="style"
+          :locked="isLocked(style)"
+          :multi-style-enabled="multiStyleEnabled"
+          :default-style-id="defaultStyleId"
+          :style-count="styles.length"
+          :status-options="statusOptions"
+          :artworks="artworks"
+          :pool-drag-over="poolDragOver"
+          @set-default="setAsDefault(style)"
+          @toggle-active="(val: boolean | string | number) => toggleActive(style, val)"
+          @edit="openEditStyle(style)"
+          @remove="confirmDeleteStyle(style)"
+          @add-size="openSizeDialog(style)"
+          @sizes-reorder="(sizes: ManagerSizeRow[]) => (style.sizes = sizes)"
+          @size-drag-end="onSizeDragEnd(style)"
+          @size-drag-over="onSizeDragOver"
+          @size-drop="(size: ManagerSizeRow, ev: DragEvent) => onDropToSize(style, size, ev)"
+          @set-size-status="(size: ManagerSizeRow, value: 'available' | 'showcase' | 'closed') => setSizeStatus(style, size, value)"
+          @preview="(size: ManagerSizeRow) => openPreview(style, size)"
+          @edit-size="(size?: ManagerSizeRow) => openSizeDialog(style, size)"
+          @remove-size="(size: ManagerSizeRow) => confirmDeleteSize(style, size)"
+          @chip-drag-start="(size: ManagerSizeRow, chip: { id: number }, ev: DragEvent) => onChipDragStart(style, size, chip, ev)"
+          @addon-create="openCreateAddon(style)"
+          @addon-import="openImportDialog(style)"
+          @cap-drag-start="(sa: ManagerSa, ev: DragEvent) => onCapDragStart(style, sa, ev)"
+          @cap-drag-end="onCapDragEnd"
+          @cap-settings="(sa: ManagerSa) => openAddonSettings(style, sa)"
+          @pool-drag-over="onPoolDragOver"
+          @pool-drag-leave="onPoolDragLeave"
+          @pool-drop="(ev: DragEvent) => onDropToPool(style, ev)"
+        />
       </template>
     </draggable>
     <!-- 812-B B7: 无画风空态引导 + 直达既有创建入口 -->
@@ -237,62 +116,12 @@ import AddonSettingsDialog from './AddonSettingsDialog.vue'
 import StyleEditDialog from './StyleEditDialog.vue'
 import SizeEditDialog from './SizeEditDialog.vue'
 import AddonImportDialog from './AddonImportDialog.vue'
-import { formatYuanValue } from '../../utils/money'
-import { addonCategory, addonChipKind, addonPriceText, categoryLabel, controlLabel as controlLabelText } from './addon-utils'
+// F-09 拆分（施工员戊）: 画风卡片子组件 + 行结构类型单一来源
+import StyleCard from './style-manage/StyleCard.vue'
+import type { AddonCreatedPayload, ManagerArtwork, ManagerSa, ManagerSizeRow, ManagerStyleRow } from './style-manage/types'
+import { addonCategory } from './addon-utils'
 
 const { t } = useI18n()
-
-/** 增项胶囊行（StyleAddonWithTemplate 消费子集） */
-interface ManagerSa {
-  id: number
-  addon_template_id: number
-  is_enabled: number | boolean
-  template_name: string
-  template_control_type: string
-  template_price_mode: string
-  template_default_price: number
-  template_category: string
-  price_override?: number | null
-}
-/** 尺寸行（StyleSize 消费子集 + 前端挂载的 _overrides 缓存） */
-interface ManagerSizeRow {
-  id: number
-  name: string
-  base_price: number
-  sort_order: number
-  image?: string | null
-  image_artwork_id?: number | null
-  description?: string | null
-  work_days?: number | null
-  display_status?: string | null
-  _overrides?: Record<number, { price_override: number | null; is_hidden: boolean }>
-}
-/** 画风卡片行（ArtStyleWithDetails 消费子集） */
-interface ManagerStyleRow {
-  id: number
-  name: string
-  description?: string | null
-  cover_image?: string | null
-  sort_order: number
-  is_active: number
-  sizes: ManagerSizeRow[]
-  addons: ManagerSa[]
-}
-/** 作品集条目（缩略图解析用） */
-interface ManagerArtwork {
-  id: number
-  image_path: string
-}
-/** AddonCreateDialog created 事件载荷 */
-interface AddonCreatedPayload {
-  name: string
-  control_type: 'switch' | 'quantity'
-  price_mode: 'fixed' | 'percent'
-  default_price: number
-  category: 'add' | 'usage' | 'rush'
-  unit_label?: string | null
-  max_quantity?: number | null
-}
 
 const styles = ref<ManagerStyleRow[]>([])
 const artworks = ref<ManagerArtwork[]>([]) // 作品集（尺寸图"从作品集挑" + 缩略图解析）
@@ -411,11 +240,6 @@ async function onSizeDragEnd(style: ManagerStyleRow) {
   }
 }
 
-// ─── 控件类型标签（addon-utils 单一来源，不再本地重复定义） ───
-function controlLabel(type: string) {
-  return controlLabelText(t, type)
-}
-
 // ─── 画风 CRUD（表单/封面上传/保存已拆入 StyleEditDialog，此处只保留弹窗开关） ───
 const styleDialogVisible = ref(false)
 const editingStyle = ref<ManagerStyleRow | null>(null) // 编辑对象；null = 新建
@@ -460,15 +284,6 @@ async function confirmDeleteStyle(style: ManagerStyleRow) {
 const sizeDialogVisible = ref(false)
 const editingSizeStyleId = ref<number | undefined>(undefined) // 尺寸弹窗所属画风（与画风弹窗的 editingStyle 区分）
 const editingSize = ref<ManagerSizeRow | null>(null) // 编辑对象；null = 新建
-
-/** 尺寸缩略图：image_artwork_id 有值 → 作品集实图；否则独立上传图（渲染优先级与客户端一致） */
-function sizeThumb(size: ManagerSizeRow) {
-  if (size.image_artwork_id) {
-    const art = artworks.value.find(a => a.id === size.image_artwork_id)
-    if (art) return art.image_path
-  }
-  return size.image || null
-}
 
 function openSizeDialog(style: ManagerStyleRow, size?: ManagerSizeRow) {
   editingSizeStyleId.value = style.id
@@ -537,11 +352,6 @@ async function setSizeStatus(style: ManagerStyleRow, size: ManagerSizeRow, value
   }
 }
 
-/** 池子三类分组（增项/用途/加急，顺序固定）——读后端真实 category 字段 */
-function poolGroups(style: ManagerStyleRow) {
-  return ['add', 'usage', 'rush'].map(cat => ({ cat, items: style.addons.filter(sa => addonCategory(sa) === cat) }))
-}
-
 /** 02H 单选约束（用户原话「用途、加急分别只能选一个」）：启用目标 usage/rush 时，同画风其他同类项 is_enabled=false
  * 返回 setStyleAddons items（含目标项 is_enabled=true + 其他同类 false）；增项类(add)不互斥 */
 function mutexAddonItems(style: ManagerStyleRow, targetSa: { id: number; addon_template_id: number; template_category?: string | null; is_enabled?: number | boolean }) {
@@ -551,27 +361,6 @@ function mutexAddonItems(style: ManagerStyleRow, targetSa: { id: number; addon_t
     .map(sa => ({ addon_template_id: sa.addon_template_id, is_enabled: false }))
   if (!items.length) return null
   return [{ addon_template_id: targetSa.addon_template_id, is_enabled: true }, ...items]
-}
-
-/** 画风级生效价文本（池子胶囊 / 摘要 chip）：本身价 or 画风覆盖价 */
-function capPriceText(sa: ManagerSa) {
-  return addonPriceText(sa, null, t)
-}
-
-/**
- * 某尺寸已启用增项摘要（实时更新）：画风级启用 && 尺寸级未隐藏
- * 返回 [{ id, name, kind, priceText }] — kind: add/qty/pct（三种计价形态视觉区分）
- */
-function sizeSummary(style: ManagerStyleRow, size: ManagerSizeRow) {
-  const ov = size._overrides || {}
-  return style.addons
-    .filter(sa => !!sa.is_enabled && !(ov[sa.id]?.is_hidden))
-    .map(sa => ({
-      id: sa.id,
-      name: sa.template_name,
-      kind: addonChipKind(sa),
-      priceText: addonPriceText(sa, ov[sa.id]?.price_override ?? null, t)
-    }))
 }
 
 // ─── 新建增项（任务2）：表单 created → 建模板 + 挂本画风；attached → 直接挂载同名库模板 ───
@@ -641,6 +430,7 @@ function onSettingsSaved() {
 }
 
 // ─── 拖拽（任务3，原生 HTML5 drag）：池 → 尺寸行 = 启用；摘要 chip → 池 = 停用 ───
+// （拖拽载荷与放置结果都在父级：StyleCard 只把原生事件原样上报，DRAG_MIME 判定单源）
 const dragPayload = ref<{ styleId: number; saId: number; fromSizeId: number | null } | null>(null) // { styleId, saId, fromSizeId|null }
 const poolDragOver = ref(false)
 const DRAG_MIME = 'text/x-addon-sa'
@@ -832,136 +622,8 @@ defineExpose({ reload: load })
    防卡片硬撑 680 溢出裁切（768 实测删除钮被切） */
 .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(680px, 100%), 1fr)); gap: 20px; align-items: start; }
 @media (max-width: 760px) { .style-grid { grid-template-columns: 1fr; } }
-/* A3: 拖拽幽灵 */
+/* A3: 拖拽幽灵（画风栅格一层；尺寸行一层随 StyleCard 各自持有） */
 .ghost { opacity: 0.4; }
-.style-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.style-card-name { font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700; font-family: var(--f-d); color: var(--ink); display: flex; align-items: center; gap: 8px; }
-.style-card-actions { display: flex; align-items: center; gap: 4px; }
-/* A3: 画风卡片拖拽柄 */
-.style-drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 16px); color: var(--ink3); padding: 0 2px; }
-.style-drag-handle:hover { color: var(--hq); }
-.style-drag-handle:active { cursor: grabbing; }
-/* F2: 开关关闭时非默认画风灰色 */
-.style-card--locked { opacity: 0.65; }
-.style-card-body--locked { pointer-events: none; }
-.style-locked-hint {
-  font-size: calc(var(--font-scale, 1) * 12px); color: var(--th);
-  background: var(--th-t);
-  padding: 6px 10px; border-radius: var(--r-s); margin: 0 0 10px;
-}
-.style-desc { font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); margin: 0 0 12px; line-height: 1.6; }
-.style-cover { margin-bottom: 12px; }
-.style-cover-img { width: 120px; height: 80px; border-radius: var(--r-m); border: 1px solid var(--line); }
-
-.style-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--line); }
-.section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.section-head .section-title { margin: 0; }
-.section-title { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); margin: 0 0 10px; }
-/* 价格数字墨色不上色铁律（REQ §1.1），文楷落款感 */
-.size-price { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-family: var(--f-d); }
-
-/* A3: 尺寸行列表（替代原 el-table，支持拖拽） */
-.size-row-list { display: flex; flex-direction: column; gap: 8px; }
-.size-row {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 12px; border-radius: var(--r-m);
-  background: var(--paper2); border: 1px solid var(--line);
-}
-/* 第一行：拖拽柄+缩略图+名称/价/工期 ｜ 右组（三态+操作） */
-.size-row-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-/* 右组：三态+操作成组，始终右对齐；换行时整组靠右不错位 */
-.size-row-end { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.size-drag-handle { cursor: grab; font-size: calc(var(--font-scale, 1) * 15px); color: var(--ink3); flex-shrink: 0; }
-.size-drag-handle:hover { color: var(--hq); }
-.size-drag-handle:active { cursor: grabbing; }
-.size-row-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 600; color: var(--ink); }
-.size-days { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
-.size-row-actions { display: flex; gap: 4px; flex-shrink: 0; }
-/* 尺寸缩略图（仅有图时渲染，不再放丑占位块） */
-.size-thumb { width: 44px; height: 34px; border-radius: var(--r-s); border: 1px solid var(--line); flex-shrink: 0; }
-.size-thumb-tag { transform: scale(0.9); }
-.size-row-desc {
-  font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); margin: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 
 .addon-tpl-name { font-size: calc(var(--font-scale, 1) * 14px); font-weight: 500; color: var(--ink); }
-
-/* ═══ 加购项池（单块三行：普通增项/用途/加急） ═══ */
-.addon-pool-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.addon-pool {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 12px;
-  background: var(--paper2); border: 1px dashed var(--line2); border-radius: var(--r-m);
-  transition: border-color 0.18s, background 0.18s;
-}
-.addon-pool.pool--drag-over { border-color: var(--hq); border-style: solid; background: var(--hq-t); }
-/* 行：左侧固定宽类别标 + 右侧胶囊流 */
-.pool-row { display: flex; align-items: flex-start; gap: 12px; }
-.pool-row-label {
-  flex: none; width: 64px; padding-top: 4px;
-  font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600; color: var(--ink2);
-}
-.pool-label-usage { color: var(--zhe); }
-.pool-label-rush { color: var(--zs); }
-.pool-row-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-height: 28px; }
-.pool-row-empty { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); padding-top: 4px; }
-.addon-cap {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 4px 12px; border-radius: var(--r-pill);
-  background: var(--card); border: 1px solid var(--line); box-shadow: var(--sh-1);
-  cursor: pointer; user-select: none; transition: border-color var(--dur-fast), transform var(--dur-fast);
-  font: inherit; color: inherit; text-align: inherit;
-}
-.addon-cap:hover { border-color: var(--hq); }
-.addon-cap:active { transform: scale(0.97); }
-.addon-cap .cap-name { font-size: calc(var(--font-scale, 1) * 12.5px); font-weight: 600; color: var(--ink); }
-.addon-cap .cap-price { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); font-variant-numeric: tabular-nums; }
-.addon-cap .cap-tag {
-  font-size: calc(var(--font-scale, 1) * 10.5px); padding: 2px 8px; border-radius: var(--r-s);
-  background: var(--line); color: var(--ink3); flex: none;
-}
-.addon-cap .cap-tag.cap-tag-quantity { background: var(--sl-t); color: var(--sl); }
-/* 类别色（SPEC-PRICE-2）：普通=中性 / 用途=赭石 / 加急=朱砂 */
-.addon-cap.cap-cat-usage { border-color: color-mix(in srgb, var(--zhe) 45%, transparent); }
-.addon-cap.cap-cat-usage .cap-price { color: var(--zhe); }
-.addon-cap.cap-cat-rush { border-color: color-mix(in srgb, var(--zs) 45%, transparent); }
-.addon-cap.cap-cat-rush .cap-price { color: var(--zs); }
-
-/* ═══ 尺寸三态（石绿/藤黄/朱砂；选中态色块填充提可见度） ═══ */
-.size-status-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--line2); border-radius: var(--r-m); padding: 4px; gap: 4px; background: var(--paper2); }
-.seg-btn {
-  border: none; background: transparent; padding: 4px 12px; font-size: calc(var(--font-scale, 1) * 11.5px);
-  border-radius: var(--r-s); color: var(--ink2); cursor: pointer; font-family: var(--f-b);
-  display: inline-flex; align-items: center; gap: 4px; transition: var(--dur-fast);
-}
-.seg-btn i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; background: var(--ink4); }
-.seg-btn:disabled { cursor: not-allowed; opacity: 0.5; }
-.seg-available i { background: var(--sl); }
-.seg-showcase i { background: var(--th); }
-.seg-closed i { background: var(--zs); }
-.seg-btn.on { font-weight: 600; }
-.seg-btn.seg-available.on { background: var(--sl-t); color: var(--sl); }
-.seg-btn.seg-showcase.on { background: var(--th-t); color: var(--th); }
-.seg-btn.seg-closed.on { background: var(--zs-t); color: var(--zs); }
-/* 关闭态整行弱化 */
-.size-row--dim { opacity: 0.55; }
-
-/* ═══ REQ-036 批A: 尺寸摘要行（§2.7 实时更新，三种计价形态视觉区分） ═══ */
-.size-summary {
-  margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line2);
-  display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;
-}
-.sum-label { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); padding-top: 4px; flex: none; }
-.sum-chip {
-  font-size: calc(var(--font-scale, 1) * 11px); padding: 2px 8px; border-radius: var(--r-pill);
-  background: var(--hq-t); color: var(--hq); border: 1px solid transparent; cursor: grab;
-  animation: chipIn var(--dur-mid) var(--ease-out) backwards;
-}
-.sum-chip.add { background: var(--paper2); color: var(--ink2); border: 1px solid var(--line); }
-.sum-chip.qty { background: var(--sl-t); color: var(--sl); }
-.sum-chip.pct { background: var(--zhe-t); color: var(--zhe); }
-.sum-empty { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink4); }
-@keyframes chipIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
-
 </style>
