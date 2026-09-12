@@ -15,10 +15,14 @@ const ANON_TOKEN_TTL_DAYS = 30
 const MAX_EVENT_PAYLOAD_BYTES = 2048
 
 /**
- * 事件白名单（只收白名单事件，其余 400——防乱写/刷垃圾事件）
+ * 事件白名单（只收白名单事件，名单外的事件名逐条剔除、不落库——防乱写/刷垃圾事件；
+ * 剔除语义见 tracking.routes.ts POST /api/events 注释）
  * 主体为施工图《01-to-03-后端收尾批》§2.2 拍板清单（18 项）；
  * 补充 REQ-033 §3.2（漏斗命名拍板 A：沿用第三方原名）与 §4.2（后台使用率）中
- * 未含在施工图清单内的事件名（5 项），避免前端按 REQ-033 实现时被 400 误拒。
+ * 未含在施工图清单内的事件名（5 项），避免前端按 REQ-033 实现时被误拒。
+ * 2026-09-12（P1 修复批）：补入新手引导任务卡实发的 3 个事件名（发点见
+ * web/src/components/artist/dashboard/OnboardingCard.vue），事件名以前端实际发点为准、
+ * 不新造名字。现共 26 项。
  */
 export const EVENT_WHITELIST = [
   // 换色率（REQ-033 §2.1）
@@ -46,7 +50,13 @@ export const EVENT_WHITELIST = [
   'preferences_view',
   'dashboard_quick_click',
   'artist_page_enter',
-  'artist_action'
+  'artist_action',
+  // 新手引导任务卡 / 导览（OnboardingCard.vue 实发点，2026-09-12 补录）
+  // onboarding_view：任务卡展示（带 page）；tour_start：手动重看导览；
+  // onboarding_dismiss：「不再提示」关闭
+  'onboarding_view',
+  'tour_start',
+  'onboarding_dismiss'
 ] as const
 
 export type TrackedEventName = (typeof EVENT_WHITELIST)[number]

@@ -260,6 +260,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
     passkeyCancelled: 'Passkey verification cancelled.',
     passkeyFailed: 'Passkey verification failed. Please try again or use another method.',
+    // REQ-028 interim: the QQ queue-reminder channel is not wired up yet; one shared copy for both order pages
+    notifyDevTag: 'In development',
+    notifyDevHint: "This option isn't usable yet: the platform's QQ notification channel is still in development, so nothing would be sent even if it were checked — it is greyed out and unchecked by default. Your queue position and order progress are always visible on the site, so your commission is unaffected.",
     footer: 'Inkglean · Artist Commission Platform'
   },
   disclaimer: {
@@ -2258,7 +2261,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
             'Contact information (contact_qq, the artist’s public contact channel)',
             'Order requirements, notes and reference images (required to complete commissions)',
             'Artwork images and final deliverables (artist showcase and delivery)',
-            'Browsing behavior (tracking, can be disabled in preferences; logs retained for 180 days)',
+            'Browsing behavior (tracking: records which pages were visited and which features were used — not chat or message content and not files; switched on or off site-wide by the platform administrator, there is no per-user opt-out; logs retained for 180 days)',
             'Passkey public key (for passwordless login; only the public credential is stored)',
             'Deliverable download records (IP and timestamp at download, for dispute evidence of one-time downloads)',
             'Fault and error reports (automatically sent to the third-party service Sentry for troubleshooting when errors occur)'

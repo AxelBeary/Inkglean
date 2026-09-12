@@ -86,9 +86,15 @@
       />
     </el-form-item>
 
-    <!-- QQ通知开关 -->
+    <!-- QQ通知开关（REQ-028 过渡期：灰置 + 明示「开发中」，说明文案与客户下单页共用 common.notifyDevHint 同键） -->
     <el-form-item>
-      <el-checkbox v-model="clientNotify">{{ $t('manualOrder.clientNotify') }}</el-checkbox>
+      <div class="mo-notify">
+        <div class="mo-notify-row">
+          <el-checkbox v-model="clientNotify" disabled>{{ $t('manualOrder.clientNotify') }}</el-checkbox>
+          <el-tag type="info" size="small">{{ $t('common.notifyDevTag') }}</el-tag>
+        </div>
+        <p class="mo-notify-hint">{{ $t('common.notifyDevHint') }}</p>
+      </div>
     </el-form-item>
 
     <!-- 该QQ历史订单面板（输入QQ后防抖500ms自动查询，查询逻辑在父组件） -->
@@ -374,6 +380,11 @@ defineExpose({ reset, setReorderRefs })
 /* F2: 拖拽提示 */
 .drag-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
 .paste-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-top: 6px; }
+
+/* ─── REQ-028 过渡期: QQ 通知灰置块（灰标 + 人话说明，色值走纸墨 token） ─── */
+.mo-notify { display: flex; flex-direction: column; gap: 4px; }
+.mo-notify-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mo-notify-hint { margin: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); line-height: 1.6; }
 
 /* 键盘可达：el-upload dragger 内包真实按钮（点击冒泡到 EP 触发文件选择） */
 .upload-trigger-btn {

@@ -64,6 +64,10 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
    * POST /api/events — 批量上报埋点事件
    * 鉴权（REQ-033 §2.2 拍板 B）：画师已登录 → 记 artist_id（匿名凭证不强制）；
    * 未登录 → 必须携带有效匿名凭证（anon token），否则 400 INVALID_ANON_TOKEN（前端静默重取）
+   * 响应契约（2026-09-12 修订）：200 { ok: true, received, rejected }
+   * —— received = 实际入库条数；rejected = 本批被白名单剔除的条数（字段恒在，无剔除时为 0）。
+   * 正常批 received + rejected === 提交条数；仅两处例外：stats_mode=off 短路（received/rejected
+   * 均 0，整批由模式静默丢弃）与 payload 超限（整请求 400，不落库）。
    */
   fastify.post('/api/events', {
     schema: {
@@ -96,8 +100,9 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
     const body = request.body as { token?: string; events: Array<Record<string, unknown>> }
 
     // stats_mode='off'：管理员关闭埋点 → 事件静默丢弃（返回 ok 不落库，对前端无感知）
+    // 短路发生在白名单裁决之前，rejected 恒为 0：整批是被模式丢弃，不是被规则剔除
     if (trackingService.getStatsMode() === 'off') {
-      return { ok: true, received: 0 }
+      return { ok: true, received: 0, rejected: 0 }
     }
 
     // 限流：同凭证 + 同 IP 双因子每分钟 100 条，防刷库（REQ-033 §2.2 + 巡检 R1 修复）
@@ -111,12 +116,23 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
 
-    // 白名单校验：只收白名单事件，其余 400（REQ-033 §2.2）
+    // 白名单裁决：2026-09-12 起由「任一名不合规 → 整批 400 拒绝」改为「逐条剔除 + 计数」
+    // （修订已归档的 REQ-033 批量接口语义，原契约＝整批拒绝；主代理 2026-09-12 裁决）
+    // 原因＝防一个非法事件名连坐丢弃同批合法数据：引导卡三条埋点未入白名单时，
+    // 与页面浏览事件混批后整批被 400，而前端 web/src/utils/track.ts 对 4xx 的处理是
+    // 丢弃该批 → 一次混批最多连带丢 50 条本来合法的埋点，数据静默丢失且不可补采。
+    // 现口径：合规条目照常入库，不合规条目剔除并计入响应字段 rejected（命名全场景一致）。
+    // d2 P2 口径保留：不回显用户输入（name 可含换行/控制字符，防污染响应体与日志）。
+    // 裁决先于鉴权：与原实现顺序一致——全批非法且缺有效凭证仍走 400 INVALID_ANON_TOKEN，
+    // 不给无凭证请求开出「200 但不落库」的旁路。
+    const acceptedEvents: Array<Record<string, unknown>> = []
+    let rejected = 0
     for (const ev of body.events) {
-      if (!WHITELIST_SET.has(String(ev.name))) {
-        // d2 P2: 不回显用户输入（name 可含换行/控制字符，防污染响应体与日志）
-        return reply.code(400).send({ code: 'INVALID_EVENT_NAME', error: '事件名不在白名单，请检查后重试' })
-      }
+      if (WHITELIST_SET.has(String(ev.name))) acceptedEvents.push(ev)
+      else rejected++
+    }
+    if (rejected > 0) {
+      request.log.warn({ rejected, submitted: body.events.length }, '埋点上报含白名单外事件名，已逐条剔除')
     }
 
     // 凭证/登录态鉴权
@@ -135,13 +151,13 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // 落库
+    // 落库（只落裁决通过的条目；全批非法时 acceptedEvents 为空数组，received 为 0）
     const received = trackingService.insertEvents(
-      body.events as trackingService.TrackedEvent[],
+      acceptedEvents as trackingService.TrackedEvent[],
       artist ? artist.id : null,
       anonId
     )
-    return { ok: true, received }
+    return { ok: true, received, rejected }
   })
 
   // ============================================

@@ -143,7 +143,8 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     description: '',
     clientQq: '',
     clientName: '',
-    notifyEnabled: true,
+    // REQ-028 过渡期：QQ 通知通道未接通，下单页该勾选项已灰置，默认不勾（避免提交发不出来的提醒承诺）
+    notifyEnabled: false,
     agreed: false,
     // REQ-042: 首单须勾选「已阅读服务条款/隐私政策」（前端门禁，未勾不可提交）
     termsAgreed: false,
@@ -526,7 +527,8 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     form.description = typeof f.description === 'string' ? f.description : ''
     form.clientQq = typeof f.clientQq === 'string' ? f.clientQq : ''
     form.clientName = typeof f.clientName === 'string' ? f.clientName : ''
-    form.notifyEnabled = f.notifyEnabled !== false
+    // REQ-028 过渡期：本项灰置不可勾，旧草稿里存的 true 一律不再回填（原写法会把缺省当勾选）
+    form.notifyEnabled = false
   }
 
   /** beforeunload：表单有内容时拦截（浏览器原生确认弹窗） */

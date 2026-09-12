@@ -31,9 +31,12 @@ STATUS 是每次开工的固定阅读成本（曾实测：单行最长 3900 字�
 | 后端改动 | `cd server && npm run typecheck && npm run lint && npm test` |
 | 前端改动 | `cd web && npm run lint && npm run test:web && npm run check:i18n && npm run build` |
 | 涉及端到端流程 | 仓库根目录 `npm run test:e2e` |
-| 桌面端改动 | 脚手架未落地，暂无门禁；落地后登记至 `desktop/docs/STATUS.md`（此前 `desktop/` 仅限文档改动） |
+| 桌面端改动 | `cd desktop && npm run lint && npm run test && npm run build` + `cd desktop/src-tauri && cargo check`（已进 CI `desktop` job） |
+| 共享层改动（`shared/`） | `cd shared && npm run lint && npm run test && npm run typecheck`，并回 `web`、`desktop` 各跑一次 build |
 
 门禁输出必须完整贴出（测试数、lint 零错误）；门禁输出不完整 = 交付作废。
+
+「门禁全绿」专指 `pwsh scripts/accept.ps1` 十七道全过（server 3 + web 4 + desktop 3 + shared 3 + E2E 2 + 测试同改标红 1 + 巨型文件防阀 1；带 `-SkipE2E` 时为十五道）；仅跑 CI 四 job 时须写「CI 四 job 全绿」，**不得简称「门禁全绿」**。
 
 ## 注意事项
 

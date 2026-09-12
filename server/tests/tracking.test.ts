@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import { db, cleanDb, seedArtist, type ArtistRow } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
-import { setStatsMode } from '../src/features/tracking/tracking.service.js'
+import { setStatsMode, EVENT_WHITELIST } from '../src/features/tracking/tracking.service.js'
 
 // ============================================
 // REQ-033 业务埋点后端测试（Tracking）
@@ -55,7 +55,7 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
       }
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, received: 2 })
+    expect(res.json()).toEqual({ ok: true, received: 2, rejected: 0 })
 
     const rows = db.prepare('SELECT * FROM events ORDER BY id').all() as Array<{ name: string; payload_json: string; anon_id: string | null; artist_id: number | null }>
     expect(rows).toHaveLength(2)
@@ -65,17 +65,87 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     expect(rows[0].artist_id).toBeNull()
   })
 
-  it('TC-TR-03: 白名单外事件名返回 400 且不落库', async () => {
+  // ─── 白名单逐条裁决（2026-09-12 修订：整批 400 → 逐条剔除 + rejected 计数）───
+  // 三态断言：① 全合法 → 全入库（TC-TR-02/03c）② 混批 → 合法部分入库且 rejected 计数正确
+  // ③ 全非法 → rejected = 批大小且零入库。契约见 tracking.routes.ts POST /api/events 注释。
+
+  it('TC-TR-03: 全非法批 → 200 + rejected=批大小 + 零入库（不再整批 400）', async () => {
     const token = await fetchToken()
     const res = await app.inject({
       method: 'POST',
       url: '/api/events',
-      payload: { token, events: [{ name: 'hacker_event', ts: Date.now() }] }
+      payload: {
+        token,
+        events: [
+          { name: 'hacker_event', ts: Date.now() },
+          { name: 'hacker_event_2', ts: Date.now() }
+        ]
+      }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ ok: true, received: 0, rejected: 2 })
+    // d2 P2 口径保留：不回显用户输入（name 可含换行/控制字符，防污染响应体与日志）
+    expect(res.body).not.toContain('hacker_event')
+    expect(res.body).not.toContain('hacker_event_2')
+    expect((db.prepare('SELECT COUNT(*) AS c FROM events').get() as { c: number }).c).toBe(0)
+  })
+
+  it('TC-TR-03b: 混批 → 合法条目照常入库，非法条目剔除并计数（不连坐丢批）', async () => {
+    const token = await fetchToken()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: {
+        token,
+        events: [
+          { name: 'dashboard_view', ts: Date.now(), page: '/dashboard' },
+          { name: 'not_in_whitelist', ts: Date.now() },
+          { name: 'theme_accent_change', ts: Date.now(), accent: '3' }
+        ]
+      }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ ok: true, received: 2, rejected: 1 })
+    const names = (db.prepare('SELECT name FROM events ORDER BY id').all() as Array<{ name: string }>).map(r => r.name)
+    expect(names).toEqual(['dashboard_view', 'theme_accent_change'])
+    // 非法条目确实没进库
+    expect(names).not.toContain('not_in_whitelist')
+  })
+
+  it('TC-TR-03c: 引导卡三个事件名已入白名单，与页面浏览事件混批也不再丢数据', async () => {
+    // 事件名取自 web/src/components/artist/dashboard/OnboardingCard.vue 的实际发点
+    const whitelist: string[] = [...EVENT_WHITELIST]
+    for (const name of ['onboarding_view', 'tour_start', 'onboarding_dismiss']) {
+      expect(whitelist).toContain(name)
+    }
+    const token = await fetchToken()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: {
+        token,
+        events: [
+          { name: 'onboarding_view', ts: Date.now(), page: '/dashboard' },
+          { name: 'dashboard_view', ts: Date.now(), page: '/orders' },
+          { name: 'tour_start', ts: Date.now() },
+          { name: 'onboarding_dismiss', ts: Date.now() }
+        ]
+      }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ ok: true, received: 4, rejected: 0 })
+    const names = (db.prepare('SELECT name FROM events ORDER BY id').all() as Array<{ name: string }>).map(r => r.name)
+    expect(names).toEqual(['onboarding_view', 'dashboard_view', 'tour_start', 'onboarding_dismiss'])
+  })
+
+  it('TC-TR-03d: 全非法且无有效凭证 → 仍 400 INVALID_ANON_TOKEN（不开 200 旁路）', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: { events: [{ name: 'hacker_event', ts: Date.now() }] }
     })
     expect(res.statusCode).toBe(400)
-    expect(res.json().code).toBe('INVALID_EVENT_NAME')
-    // d2 P2: 错误响应不回显用户输入（防换行/控制字符污染响应与日志）
-    expect(res.json().error).not.toContain('hacker_event')
+    expect(res.json().code).toBe('INVALID_ANON_TOKEN')
     expect((db.prepare('SELECT COUNT(*) AS c FROM events').get() as { c: number }).c).toBe(0)
   })
 
@@ -219,7 +289,7 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
       payload: { token, events: [{ name: 'theme_accent_change', ts: Date.now(), accent: '3', page: '/p/alice' }] }
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, received: 1 })
+    expect(res.json()).toEqual({ ok: true, received: 1, rejected: 0 })
     expect((db.prepare('SELECT COUNT(*) AS c FROM events').get() as { c: number }).c).toBe(1)
   })
 

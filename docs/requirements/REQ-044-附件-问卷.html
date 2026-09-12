@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 锁浅色：手机 QQ 内嵌浏览器常强制暗色反色，纸墨底色被反色会糊成一团，故显式声明 light -->
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<title>想问你一个问题：接稿工具第一眼想看到什么？</title>
+<!--
+  REQ-044 · D 项：核心功能问卷（10 选 2 强迫选择）对外发放单页
+  ────────────────────────────────────────────────────────────
+  定位：这是一张"能发群里、能贴主页"的问卷纸，不是产品页面。
+  机制：全页只有一个动作——从 10 件东西里挑 2 件。除此没有任何输入负担。
+  约束（REQ-044 §六）：不做后端、不做埋点、不引第三方统计/CDN/字体外链。
+        本文件可离线打开，所有样式与脚本内联，回收方式＝用户自己复制文本贴回来。
+  视觉：纸墨语言（docs/纸墨设计语言提案-v1.md）。色值/圆角/投影/字体族/动效时长
+        全部取自 web/src/styles/artist-tokens.css 宣纸档，逐一内联，无任何新增色值。
+        材质做在"一张纸"上：纸纹颗粒、一叠纸的厚度、手剪不规则圆角；
+        色彩克制：花青=已选中（主操作），石绿=已经选满，朱砂=提醒，其余交给墨色四阶。
+  受众：不懂电脑的画师。零术语、零 git/部署/接口字样；文案一律称"你"。
+  场景：手机为主（375px 起），QQ 内嵌浏览器打开；触屏点选，不依赖任何 hover 才有的反馈。
+-->
+<style>
+:root{
+  color-scheme: light;
+  /* —— 以下变量逐条取自 artist-tokens.css 宣纸主题，未增删色值 —— */
+  --paper:#F0E6CF; --paper2:#F5EFDF; --card:#FFFDF7;
+  --ink:#262520; --ink2:#5A564B; --ink3:#6A6455; --ink4:#77705E;
+  --line:#DCD0B4; --line2:#CFC1A0;
+  --hq:#33526E; --hq-d:#28425B; --hq-t:#E9EFF4; --hq-t2:#D6E2EC;
+  --zs:#BC3A2B; --zs-d:#9E2F22; --zs-t:#F8EAE6;
+  --sl:#2F7D54; --sl-t:#E5F1E9;
+  --th:#966C0A; --th-t:#F7EFDA;
+  --zhe:#8A5A33; --zhe-t:#F1E8DC;
+  --buf:#7A7668;
+  --r-s:4px; --r-m:7px; --r-l:11px; --r-pill:999px;
+  --r-paper:3px 5px 3px 4px / 4px 3px 5px 3px;
+  --r-s-hand:2px 3px 2px 3px / 3px 2px 3px 2px;
+  --sh-1:0 1px 2px rgba(38, 37, 30, .05);
+  --sh-2:0 4px 14px rgba(38, 37, 30, .09);
+  --sh-3:0 12px 34px rgba(38, 37, 30, .16);
+  --dur-fast:.15s; --dur-mid:.25s; --dur-slow:.35s;
+  --ease-out:cubic-bezier(.22, 1, .36, 1);
+  /* 无字体外链：文楷取本机已有，取不到自然回落到楷体/系统字，离线也不塌版 */
+  --f-d:'LXGW WenKai', 'Kaiti SC', 'STKaiti', 'KaiTi', serif;
+  --f-b:'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  /* 字号：受众要"字大"，基准比 web 端正文大一档 */
+  --fs-body:17px;
+  --fs-opt:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%; text-size-adjust:100%}
+body{
+  font-family:var(--f-b); font-size:var(--fs-body); line-height:1.65;
+  color:var(--ink); background:var(--paper);
+  /* 上天下地的柔光：让纸有个方向感，不是一片平的 */
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, rgba(255,253,247,.45), transparent 62%),
+    radial-gradient(140% 110% at 50% 118%, rgba(38,37,30,.10), transparent 55%);
+  background-attachment:fixed;
+  min-height:100%;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  padding:0 0 calc(28px + env(safe-area-inset-bottom));
+}
+/* 纸纹颗粒：全页唯一"材质爆炸"的地方，指针不吃事件 */
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:60; opacity:.9;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.30 0 0 0 0 0.27 0 0 0 0 0.20 0 0 0 0.05 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+}
+.page{width:100%; max-width:640px; margin:0 auto; padding:0 16px}
+
+/* ══════════ 一张纸：整页只有一叠纸，不做卡片堆叠 ══════════ */
+.sheet{
+  position:relative; margin-top:20px;
+  background:var(--card);
+  border-radius:var(--r-paper);
+  /* 一叠纸的厚度：纸边逐层错位（用 --line/--paper2 派生，不新造色）+ 真实投影 */
+  box-shadow:
+    1px 1px 0 var(--paper2),
+    2px 2px 0 var(--line),
+    3px 3px 0 var(--paper2),
+    var(--sh-2),
+    var(--sh-3);
+  padding:22px 18px 24px;
+}
+@media (min-width:520px){ .sheet{padding:28px 30px 30px} }
+
+/* ══════════ 页眉说明：这段在问什么 ══════════ */
+.lede{padding-bottom:18px; border-bottom:1px solid var(--line)}
+.lede .kicker{
+  display:inline-block; font-family:var(--f-d); font-size:15px; letter-spacing:2px;
+  color:var(--zhe); background:var(--zhe-t); border-radius:var(--r-s-hand);
+  padding:2px 10px; margin-bottom:10px;
+}
+.lede h1{
+  font-family:var(--f-d); font-weight:400; font-size:26px; line-height:1.4;
+  letter-spacing:1px; color:var(--ink);
+}
+.lede .ask{margin-top:12px; color:var(--ink2); font-size:var(--fs-body)}
+.lede .meta{
+  margin-top:12px; display:flex; flex-wrap:wrap; gap:6px 14px;
+  font-size:15px; color:var(--ink3);
+}
+.lede .meta span{display:inline-flex; align-items:center; gap:6px; min-width:0}
+/* 一枚笔点做小标题符（账本笔点语言），不是图标 */
+.lede .meta i{width:6px; height:6px; border-radius:50%; background:var(--buf); flex:none}
+
+/* ══════════ 题目 ══════════ */
+.q{margin-top:20px}
+.q-title{
+  font-family:var(--f-d); font-weight:400; font-size:22px; line-height:1.55;
+  color:var(--ink); letter-spacing:.5px;
+}
+.q-title em{font-style:normal; color:var(--hq); font-weight:600}
+
+/* ══════════ 已选进度：两枚笔点 + 一句话 ══════════ */
+.counter{
+  display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+  margin-top:16px; padding:10px 12px;
+  background:var(--paper2); border-radius:var(--r-s-hand);
+  font-size:16px; color:var(--ink2);
+}
+.counter .pips{display:inline-flex; gap:5px; flex:none}
+.counter .pips b{
+  width:11px; height:11px; border-radius:50%; background:transparent;
+  box-shadow:inset 0 0 0 1.5px var(--line2);
+  transition:background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.counter .pips b.on{background:var(--hq); box-shadow:inset 0 0 0 1.5px var(--hq)}
+.counter.full .pips b.on{background:var(--sl); box-shadow:inset 0 0 0 1.5px var(--sl)}
+.counter strong{font-weight:600; color:var(--ink)}
+
+/* 提醒条：唯一会临时出现/消失的一行字，只演一次不循环 */
+.notice{
+  margin-top:12px; padding:11px 13px; font-size:16px; line-height:1.6;
+  border-radius:var(--r-paper); display:none;
+  background:var(--zs-t); color:var(--zs-d);
+  /* 描边 = 朱砂 --zs(#BC3A2B) 28% 淡入：手机 QQ 内嵌浏览器不认 color-mix，故展开写 rgba */
+  box-shadow:inset 0 0 0 1px rgba(188,58,43,.28);
+}
+.notice.show{display:block}
+/* 同口径：藤黄 --th(#966C0A) 26% / 石绿 --sl(#2F7D54) 26% 的淡描边，均为既有颜料色展开写，无新增色值 */
+.notice.calm{background:var(--th-t); color:var(--th); box-shadow:inset 0 0 0 1px rgba(150,108,10,.26)}
+.notice.good{background:var(--sl-t); color:var(--sl); box-shadow:inset 0 0 0 1px rgba(47,125,84,.26)}
+
+/* ══════════ 选项：10 行，点一下就选中 ══════════ */
+.opts{list-style:none; margin-top:18px; display:flex; flex-direction:column; gap:10px}
+.opt{
+  width:100%; display:flex; align-items:center; gap:12px;
+  min-height:60px; padding:12px 14px;
+  font-family:var(--f-b); font-size:var(--fs-opt); line-height:1.45;
+  text-align:left; color:var(--ink); cursor:pointer;
+  background:var(--paper2);
+  border:1px solid var(--line); border-radius:var(--r-paper);
+  box-shadow:var(--sh-1);
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  transition:background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+             box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+/* hover 不位移，只墨色加深一档（纸墨动效章） */
+.opt:hover{background:var(--paper); border-color:var(--line2)}
+.opt:active{transform:scale(.99)}
+.opt:focus-visible{outline:2px solid var(--hq); outline-offset:2px}
+/* 左侧编号圆牌 */
+.opt .no{
+  flex:none; width:32px; height:32px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px; color:var(--ink2); background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line2);
+  transition:background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+             box-shadow var(--dur-fast) var(--ease-out);
+}
+.opt .label{flex:1 1 auto; min-width:0; word-break:break-word}
+/* 右侧勾：空圈 → 圈内石绿勾。选中态一眼可辨，不靠颜色 alone 也靠勾的形状 */
+.opt .tick{
+  flex:none; width:26px; height:26px; border-radius:50%;
+  box-shadow:inset 0 0 0 1.5px var(--line2); position:relative;
+  transition:background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.opt .tick::after{
+  content:""; position:absolute; left:8px; top:4px; width:6px; height:11px;
+  border:2px solid #fff; border-top:none; border-left:none;
+  transform:rotate(40deg) scale(0); opacity:0;
+  transition:transform var(--dur-mid) var(--ease-out), opacity var(--dur-mid) var(--ease-out);
+}
+.opt[aria-pressed="true"]{
+  background:var(--hq-t); border-color:var(--hq);
+  box-shadow:var(--sh-1), inset 0 0 0 1px var(--hq);
+}
+.opt[aria-pressed="true"] .no{background:var(--hq); color:#fff; box-shadow:inset 0 0 0 1px var(--hq)}
+.opt[aria-pressed="true"] .tick{background:var(--sl); box-shadow:inset 0 0 0 1px var(--sl)}
+.opt[aria-pressed="true"] .tick::after{transform:rotate(40deg) scale(1); opacity:1}
+/* 选满了再点别处：把已选的两行"点一下名"——一次性提亮，不加戏、不位移 */
+.opts.limit-hit .opt[aria-pressed="true"]{
+  background:var(--hq-t2); border-color:var(--hq-d);
+  box-shadow:var(--sh-2), inset 0 0 0 1.5px var(--hq-d);
+}
+
+/* ══════════ 称呼（可填可不填） ══════════ */
+.optional{margin-top:22px; padding-top:18px; border-top:1px solid var(--line)}
+.optional label{display:block; font-size:16px; color:var(--ink2)}
+.optional .hint{display:block; margin-top:2px; font-size:15px; color:var(--ink4)}
+.optional input{
+  width:100%; margin-top:10px; padding:14px;
+  font-family:var(--f-b); font-size:var(--fs-body); color:var(--ink);
+  background:var(--paper2); border:1px solid var(--line2); border-radius:var(--r-m);
+  -webkit-appearance:none; appearance:none;
+  transition:border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.optional input::placeholder{color:var(--ink4)}
+.optional input:focus{outline:none; border-color:var(--hq); background:var(--card)}
+.optional input:focus-visible{outline:2px solid var(--hq); outline-offset:2px}
+
+/* ══════════ 主按钮 ══════════ */
+.actions{margin-top:22px}
+.btn-main{
+  width:100%; min-height:60px; padding:15px 18px;
+  font-family:var(--f-b); font-size:19px; font-weight:600; letter-spacing:1px;
+  color:#fff; background:var(--hq); border:1px solid var(--hq); border-radius:var(--r-m);
+  cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  box-shadow:var(--sh-2);
+  transition:background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+             transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.btn-main:hover:not(:disabled){background:var(--hq-d); border-color:var(--hq-d)}
+.btn-main:active:not(:disabled){transform:scale(.99)}
+.btn-main:focus-visible{outline:2px solid var(--hq); outline-offset:3px}
+.btn-main:disabled{
+  color:var(--ink3); background:var(--paper2); border-color:var(--line);
+  box-shadow:var(--sh-1); cursor:not-allowed;
+}
+/* 按钮下那行"为什么还不能点"——永远说明原因，不让人猜 */
+.why{margin-top:10px; font-size:15.5px; color:var(--ink3); text-align:center}
+.why b{color:var(--th); font-weight:600}
+
+/* ══════════ 答案回执（提交后才现身） ══════════ */
+.receipt{
+  display:none; margin-top:22px; padding:18px 16px;
+  background:var(--paper2); border:1px dashed var(--line2); border-radius:var(--r-paper);
+}
+.receipt.show{display:block}
+.receipt h2{
+  font-family:var(--f-d); font-weight:400; font-size:20px; color:var(--ink); letter-spacing:1px;
+}
+.receipt .sub{margin-top:6px; font-size:15.5px; color:var(--ink2)}
+/* 回执正文：可选中、可长按复制，绝不渲染成 HTML（纯文本） */
+.receipt pre{
+  margin-top:12px; padding:14px; width:100%; overflow-x:auto;
+  font-family:var(--f-b); font-size:16.5px; line-height:1.7; white-space:pre-wrap;
+  word-break:break-word; color:var(--ink);
+  background:var(--card); border:1px solid var(--line); border-radius:var(--r-s);
+  user-select:text; -webkit-user-select:text;
+}
+.receipt-row{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+@media (min-width:400px){ .receipt-row{flex-direction:row; align-items:stretch} }
+.btn-copy{
+  flex:1 1 auto; min-height:54px; padding:13px 16px;
+  font-family:var(--f-b); font-size:17px; font-weight:600;
+  color:var(--hq); background:var(--card); border:1px solid var(--hq);
+  border-radius:var(--r-m); cursor:pointer;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  transition:background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+             transform var(--dur-fast) var(--ease-out);
+}
+.btn-copy:hover{background:var(--hq-t)}
+.btn-copy:active{transform:scale(.99)}
+.btn-copy:focus-visible{outline:2px solid var(--hq); outline-offset:2px}
+.btn-copy.done{color:#fff; background:var(--sl); border-color:var(--sl)}
+.btn-again{
+  flex:none; align-self:center; padding:12px 14px; font-size:15.5px; color:var(--ink3);
+  background:transparent; border:none; border-bottom:1px solid var(--line2);
+  border-radius:0; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.btn-again:hover{color:var(--ink2)}
+/* 复制失败的兜底指引：手机 QQ 里最靠得住的是长按选中 */
+.manual{
+  display:none; margin-top:12px; padding:11px 13px; font-size:15.5px; line-height:1.6;
+  color:var(--th); background:var(--th-t); border-radius:var(--r-paper);
+}
+.manual.show{display:block}
+.receipt .send{margin-top:12px; font-size:15.5px; color:var(--ink2)}
+
+/* ══════════ 页脚说明 ══════════ */
+.foot{
+  margin:20px auto 0; max-width:640px; padding:0 18px 4px;
+  font-size:15px; line-height:1.75; color:var(--ink3);
+}
+.foot p+p{margin-top:6px}
+.foot b{color:var(--ink2); font-weight:600}
+
+/* 减少动效：全部过渡直接到底 */
+@media (prefers-reduced-motion:reduce){
+  *, *::before, *::after{
+    transition-duration:.01ms !important; animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+  }
+  .opt:active, .btn-main:active:not(:disabled), .btn-copy:active{transform:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<main class="sheet">
+
+  <!-- 顶部说明栏：这是什么、多久、干什么用 -->
+  <header class="lede">
+    <span class="kicker">想请你帮个忙</span>
+    <h1>一个问题，<br>30 秒就好</h1>
+    <p class="ask">下面 10 件东西，<strong>只能挑 2 件，不能多也不能少</strong>——非要你排序，才看得出哪个更重要。</p>
+    <p class="meta">
+      <span><i></i>大概 30 秒填完</span>
+      <span><i></i>不用注册、不用登录</span>
+      <span><i></i>选完复制一段话发回来就行</span>
+    </p>
+  </header>
+
+  <!-- 题目 -->
+  <section class="q">
+    <h2 class="q-title">如果你需要一个接稿管理工具，<em>你最想第一眼看到的是哪 2 个？</em></h2>
+
+    <div class="counter" id="counter" aria-live="polite">
+      <span class="pips" aria-hidden="true"><b id="pip0"></b><b id="pip1"></b></span>
+      <span id="ctext">已经选了 <strong id="cnt">0</strong> 个，请选 <strong id="need">2</strong> 个</span>
+    </div>
+
+    <p class="notice" id="notice" role="status" aria-live="polite"></p>
+
+    <!-- 10 个选项：文案逐字照抄 REQ-044 §二D 定稿，不增删改 -->
+    <ul class="opts" id="opts">
+      <li><button type="button" class="opt" data-i="0" aria-pressed="false"><span class="no">①</span><span class="label">谁欠我钱/本月收入</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="1" aria-pressed="false"><span class="no">②</span><span class="label">今天画哪张/快截稿的是哪张</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="2" aria-pressed="false"><span class="no">③</span><span class="label">作品展示主页</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="3" aria-pressed="false"><span class="no">④</span><span class="label">客户自助下单</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="4" aria-pressed="false"><span class="no">⑤</span><span class="label">交付文件防盗</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="5" aria-pressed="false"><span class="no">⑥</span><span class="label">作画时间统计</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="6" aria-pressed="false"><span class="no">⑦</span><span class="label">客户自助查进度</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="7" aria-pressed="false"><span class="no">⑧</span><span class="label">接稿状态挂牌</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="8" aria-pressed="false"><span class="no">⑨</span><span class="label">数据都在自己电脑上</span><span class="tick" aria-hidden="true"></span></button></li>
+      <li><button type="button" class="opt" data-i="9" aria-pressed="false"><span class="no">⑩</span><span class="label">价格自动算</span><span class="tick" aria-hidden="true"></span></button></li>
+    </ul>
+  </section>
+
+  <!-- 可选称呼 -->
+  <section class="optional">
+    <label for="who">你的称呼 / 联系方式<span class="hint">（不填也行，匿名一样算）</span></label>
+    <input id="who" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="比如：小王 / QQ 号（可留空）">
+  </section>
+
+  <!-- 主按钮：没选满 2 个就不给按，并说明原因 -->
+  <section class="actions">
+    <button type="button" class="btn-main" id="go" disabled>选好 2 个，生成我的答案</button>
+    <p class="why" id="why">先点上面 2 个。<b>只能选 2 个</b>，选满就能生成。</p>
+  </section>
+
+  <!-- 产出区：可复制的纯文本回执 -->
+  <section class="receipt" id="receipt" aria-live="polite">
+    <h2>你的答案好了</h2>
+    <p class="sub">下面这段话整个复制走，发回给我就行。</p>
+    <pre id="rcp" aria-label="可复制的答案文本"></pre>
+    <div class="receipt-row">
+      <button type="button" class="btn-copy" id="copy">一键复制这段话</button>
+      <button type="button" class="btn-again" id="again">改主意，重新选</button>
+    </div>
+    <p class="manual" id="manual">这个浏览器不让我替你复制。请<strong>长按上面那段字 → 全选 → 复制</strong>，一样的。</p>
+    <p class="send">发回方式：贴到聊天群里、或者私信发给我，都行。</p>
+  </section>
+</main>
+
+<!-- 底部说明栏：把"为什么问你"和"数据去哪了"讲明白 -->
+<footer class="foot">
+  <p><b>这个问卷在问什么：</b>我们准备做一个画师接稿用的管理工具，但工具打开后第一屏能放的东西有限。想知道对画师来说，哪 2 件最该第一眼就看到。</p>
+  <p><b>你的回答会怎么用：</b>直接决定界面第一眼给你看什么、以及先做哪一块。票数最高的两项会写在项目文档里作为排序依据。</p>
+  <p><b>关于你的信息：</b>这个页面不联网、不注册、不存你填的任何东西；称呼那栏也可以空着。你填的内容只在你按「复制」之后，才由你自己的手机发出去。</p>
+</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ══════════ 数据：编号与文案逐字取自 REQ-044 §二D 定稿选项 ══════════ */
+  var NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  var LABELS = [
+    '谁欠我钱/本月收入',
+    '今天画哪张/快截稿的是哪张',
+    '作品展示主页',
+    '客户自助下单',
+    '交付文件防盗',
+    '作画时间统计',
+    '客户自助查进度',
+    '接稿状态挂牌',
+    '数据都在自己电脑上',
+    '价格自动算'
+  ];
+  var LIMIT = 2;
+
+  /* ══════════ 状态 ══════════ */
+  /** @type {number[]} 已选下标，按选项编号升序（保证同组合产出同一串，方便人工汇总） */
+  var picked = [];
+  var lastFocusOpt = -1;
+
+  /* ══════════ 取元素 ══════════ */
+  var $ = function (id) { return document.getElementById(id); };
+  var optBtns = Array.prototype.slice.call(document.querySelectorAll('.opt'));
+  var elOpts = $('opts');
+  var elPip = [$('pip0'), $('pip1')];
+  var elCounter = $('counter');
+  var elNotice = $('notice');
+  var elGo = $('go');
+  var elWhy = $('why');
+  var elWho = $('who');
+  var elReceipt = $('receipt');
+  var elRcp = $('rcp');
+  var elCopy = $('copy');
+  var elAgain = $('again');
+  var elManual = $('manual');
+
+  /* 提醒条：只有一条，文案随场景换；kind 控颜色（警示/中性提示/已成） */
+  var noticeTimer = 0;
+  function say(text, kind, sticky) {
+    elNotice.textContent = text;
+    elNotice.className = 'notice show' + (kind ? ' ' + kind : '');
+    if (noticeTimer) { window.clearTimeout(noticeTimer); noticeTimer = 0; }
+    if (!sticky) {
+      noticeTimer = window.setTimeout(function () {
+        elNotice.className = 'notice';
+        elNotice.textContent = '';
+      }, 6000);
+    }
+  }
+  function hush() {
+    if (noticeTimer) { window.clearTimeout(noticeTimer); noticeTimer = 0; }
+    elNotice.className = 'notice';
+    elNotice.textContent = '';
+  }
+
+  /* ══════════ 渲染（唯一渲染口，纯 textContent，绝不写 HTML） ══════════ */
+  function render() {
+    var n = picked.length;
+    optBtns.forEach(function (btn, i) {
+      var on = picked.indexOf(i) >= 0;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    renderCount(n);
+    elPip.forEach(function (p, i) {
+      if (i < n) { p.className = 'on'; } else { p.className = ''; }
+    });
+    if (n >= LIMIT) { elCounter.className = 'counter full'; } else { elCounter.className = 'counter'; }
+
+    if (n >= LIMIT) {
+      elGo.disabled = false;
+      elWhy.textContent = '选好了，点下面的按钮拿你的答案。';
+    } else {
+      elGo.disabled = true;
+      while (elWhy.firstChild) { elWhy.removeChild(elWhy.firstChild); }
+      elWhy.appendChild(document.createTextNode('还差 '));
+      var b = document.createElement('b');
+      b.textContent = (LIMIT - n) + ' 个';
+      elWhy.appendChild(b);
+      elWhy.appendChild(document.createTextNode('。必须正好选 2 个——选少了看不出轻重，选多了等于没排序。'));
+    }
+  }
+
+  /* 计数条三态：永远说人话，绝不出现"还要选 0 个"这种话。
+     约定：第一个 strong（#cnt）恒为"已选个数"，第二个（#need）为差额，选满则不出。 */
+  var elCtext = $('ctext');
+  function mk(tag, txt, id) {
+    var e = document.createElement(tag);
+    e.textContent = txt;
+    if (id) { e.id = id; }
+    return e;
+  }
+  function renderCount(n) {
+    while (elCtext.firstChild) { elCtext.removeChild(elCtext.firstChild); }
+    if (n >= LIMIT) {
+      elCtext.appendChild(document.createTextNode('已经选满 '));
+      elCtext.appendChild(mk('strong', String(n), 'cnt'));
+      elCtext.appendChild(document.createTextNode(' 个，够了 ✓'));
+    } else if (n === 0) {
+      elCtext.appendChild(document.createTextNode('已经选了 '));
+      elCtext.appendChild(mk('strong', '0', 'cnt'));
+      elCtext.appendChild(document.createTextNode(' 个，请选 '));
+      elCtext.appendChild(mk('strong', String(LIMIT), 'need'));
+      elCtext.appendChild(document.createTextNode(' 个'));
+    } else {
+      elCtext.appendChild(document.createTextNode('已经选了 '));
+      elCtext.appendChild(mk('strong', String(n), 'cnt'));
+      elCtext.appendChild(document.createTextNode(' 个，再选 '));
+      elCtext.appendChild(mk('strong', String(LIMIT - n), 'need'));
+      elCtext.appendChild(document.createTextNode(' 个就好'));
+    }
+  }
+
+  /* 已选项目的可读名，用于把话说清楚："你已经选了 ⑥… 和 ②…" */
+  function nameOf(i) { return NUMS[i] + LABELS[i]; }
+  function pickedNames() { return picked.map(nameOf).join(' 和 '); }
+
+  /* ══════════ 点选：强迫选择的防误操作（提示式，不偷改已有选择） ══════════ */
+  function toggle(i) {
+    var at = picked.indexOf(i);
+    if (at >= 0) {                       // 再点已选 = 取消这个
+      picked.splice(at, 1);
+      unflash();
+      hush();
+      render();
+      return;
+    }
+    if (picked.length < LIMIT) {         // 还没满 → 入选，按编号升序插进去
+      picked.push(i);
+      picked.sort(function (a, b) { return a - b; });
+      unflash();
+      if (picked.length === LIMIT) {
+        say('正好 2 个：' + pickedNames() + '。想换的话，点掉其中一个再选别的。', 'good', false);
+      } else {
+        hush();
+      }
+      render();
+      return;
+    }
+    /* 已满 2 个还想点第三个 → 一个都不动，只把规则说清楚，
+       并顺手把"已选的是哪两个"念出来，省得用户回头找 */
+    flashPicked();
+    say('只能选 2 个。你已经选了 ' + pickedNames() + '——想换成这个，就先点掉其中一个。', '', true);
+  }
+
+  /* 把已选的两行一次性提亮（不循环、不到位移），2 秒后收回 */
+  var flashTimer = 0;
+  function flashPicked() {
+    elOpts.classList.add('limit-hit');
+    if (flashTimer) { window.clearTimeout(flashTimer); }
+    flashTimer = window.setTimeout(unflash, 1600);
+  }
+  function unflash() {
+    if (flashTimer) { window.clearTimeout(flashTimer); flashTimer = 0; }
+    elOpts.classList.remove('limit-hit');
+  }
+
+  optBtns.forEach(function (btn) {
+    var i = Number(btn.getAttribute('data-i'));
+    btn.addEventListener('click', function () { toggle(i); });
+  });
+
+  /* 键盘：方向键在选项间走，方便用外接键盘的人 */
+  elOpts.addEventListener('keydown', function (e) {
+    var step = 0;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { step = 1; }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { step = -1; }
+    else { return; }
+    e.preventDefault();
+    var cur = lastFocusOpt < 0 ? 0 : (lastFocusOpt + step + optBtns.length) % optBtns.length;
+    optBtns[cur].focus();
+  });
+  optBtns.forEach(function (btn, idx) {
+    btn.addEventListener('focus', function () { lastFocusOpt = idx; });
+  });
+
+  /* ══════════ 回执文本 ══════════
+     格式：一行主答案（编号+文字），一行称呼，行数恒定方便一条条粘进表格。
+     主答案恒按编号升序，所以"②+⑥"和"⑥+②"产出同一串，统计不会分裂。 */
+  function buildText() {
+    var who = elWho.value.trim();
+    var line = 'Q1: ' + picked.map(nameOf).join(' + ');
+    return line + '\n称呼: ' + (who !== '' ? who : '（未填）');
+  }
+
+  var currentText = '';
+
+  function showReceipt() {
+    currentText = buildText();
+    elRcp.textContent = currentText;          /* textContent 赋值 → 无 HTML 注入面 */
+    elReceipt.className = 'receipt show';
+    elManual.className = 'manual';
+    resetCopyBtn();
+    copyNow(true);
+    var top = elReceipt.getBoundingClientRect().top + window.pageYOffset - 16;
+    try { window.scrollTo({ top: top, behavior: 'smooth' }); } catch (err) { /* 老浏览器直接不动 */ }
+  }
+
+  elGo.addEventListener('click', function () {
+    if (picked.length !== LIMIT) { return; }   /* 双保险：按钮已 disabled，逻辑再挡一次 */
+    showReceipt();
+  });
+
+  elAgain.addEventListener('click', function () {
+    elReceipt.className = 'receipt';
+    elRcp.textContent = '';
+    currentText = '';
+    elManual.className = 'manual';
+    hush();
+    optBtns.forEach(function (b) { b.focus({ preventScroll: true }); });
+    unflash();
+  });
+
+  /* ══════════ 复制：三段兜底 ══════════
+     手机 QQ 内嵌浏览器 / file:// 打开常常拿不到剪贴板权限（非安全上下文），
+     所以：① 现代剪贴板 API → ② 旧 execCommand 兜底 → ③ 明示长按手动复制。
+     三条路都走同一份文本，绝不因为复制失败就丢掉用户的答案。 */
+  function copyNow(fromSubmit) {
+    var text = currentText;
+    if (!text) { return; }
+    if (navigator.clipboard && window.isSecureContext && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        okCopied();
+      })['catch'](function () { legacyCopy(text); });
+    } else {
+      legacyCopy(text, fromSubmit);
+    }
+  }
+
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', 'readonly');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.left = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    var copied = false;
+    try {
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      copied = document.execCommand('copy');
+    } catch (err) {
+      copied = false;
+    }
+    if (ta.parentNode) { ta.parentNode.removeChild(ta); }
+    if (copied) { okCopied(); } else { needManual(); }
+  }
+
+  function resetCopyBtn() {
+    elCopy.className = 'btn-copy';
+    elCopy.textContent = '一键复制这段话';
+  }
+  function okCopied() {
+    elCopy.className = 'btn-copy done';
+    elCopy.textContent = '已经复制好了 ✓';
+    elManual.className = 'manual';
+    say('复制成功。贴到群里或私信发给我就行。', 'good', false);
+  }
+  function needManual() {
+    resetCopyBtn();
+    elManual.className = 'manual show';
+    say('这个浏览器不让我替你复制，用下面教你的办法长按复制。', 'calm', true);
+    /* 手动兜底时把文本选中，长按即可复制 */
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(elRcp);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (err) { /* 选不上也不影响，页面上字还在 */ }
+  }
+
+  elCopy.addEventListener('click', function () { copyNow(false); });
+
+  /* 称呼改了就把已生成的回执同步刷新（用户不必重新点一次生成） */
+  elWho.addEventListener('input', function () {
+    if (picked.length === LIMIT && elReceipt.className.indexOf('show') >= 0) {
+      currentText = buildText();
+      elRcp.textContent = currentText;
+      resetCopyBtn();
+      elManual.className = 'manual';
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
