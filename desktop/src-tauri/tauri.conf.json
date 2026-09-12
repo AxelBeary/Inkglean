@@ -31,6 +31,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    // 著作权署名主体＝用户 2026-09-12 拍板的 GitHub 个人身份（与 Cargo.toml authors /
+    // package.json author / README 同一口径；产品名「拾绘」不是署名主体）。
+    // 许可为 AGPL-3.0-only（见 LICENSE）；本串会注入 NSIS/MSI 安装包属性。
+    "copyright": "© 2026 AxelBeary。保留所有权利",
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
