@@ -1,10 +1,10 @@
 {
-  "server": 1702,
-  "web": 833,
+  "server": 1715,
+  "web": 861,
   "e2e": 13,
   "desktop": 281,
   "shared": 23,
   "updatedAt": "2026-09-12",
-  "note": "9/12 审计第 2 批（F-10）刷新：accept.ps1 新增 desktop-lint/desktop-test/desktop-build/shared-lint/shared-test/shared-typecheck 六道（此前 11 道里 desktop/shared 零覆盖，光在本文件加空键是等价 gate 假绿，故先加 gate 再配键）。数字全部本机实跑取得：server vitest 1702 passed（148 files）、web vitest 833 passed（118 files）、desktop vitest 281 passed（24 files）、shared vitest 23 passed（4 files）；e2e 13 沿旧值未复跑（本批无 E2E 改动，跑 E2E 需起服务，归一号收口）。前置基线 1666/830/13（824 登记，已滞后——9/5 交叉审计发现）。",
-  "history": "9/12 F-10：补 desktop 281 / shared 23 两道 countKey 基线，server 1666→1702、web 830→833 按实测补齐。824 双批收口登记：2FA 绑定完整性加固批（server 1655→1666，+11：TC-BG 系列 + webauthn 1 + TC-INV-07b〜e 4）+ 四步入驻流程批合入（测试数不变）；web 804→830（+26：进度存取 11 + 401 分流 4 + 登录页 11），合入后复跑全绿。823 规则对齐批：1649→1655 / 804 不变；823 登录留痕批：1641→1649 / 798→804；823 问候卡洇墨：web 797→798；822 偏好页合并批：web 794→797；再前：v152 终态 1641/794/13。"
+  "note": "9/12 P1 余批收口刷新（主代理亲跑）：server vitest **1715 passed（150 files）**、web vitest **861 passed（123 files）**、desktop 281（24 files）、shared 23（4 files）均未变；e2e 13 沿旧值未复跑（本批未动路由与交付链路，跑 E2E 需起服务，归一号收口）。⚠ 口径纪律：本文件的数字只对带 countKey 的门禁生效，改测试数必须同步本文件，否则 accept.ps1 会假红。",
+  "history": "9/12 P1 两批：server 1702→1710（+8：TC-TR-03 改写 + 03b/03c/03d 混批逐条剔除三例 + TC-AQS-01〜05 管理员库值单一真值五例）→ 1715（+5：setup-onboarding-mode 端点五例，含「已初始化态被拒 410」）；web 833→841（+8：REQ-028 灰置/默认不勾/同键/隐私文案回归）→ 861（+20：开箱向导入驻方式步 12 例 + 文书诚实度 8 例）。诚实备注：上一笔提交 `a7d933e9` 时本文件漏同步（当时实跑已 1710/841，文件仍写 1702/833），属主代理收口遗漏，本笔补齐。9/12 F-10：补 desktop 281 / shared 23 两道 countKey 基线，server 1666→1702、web 830→833 按实测补齐。824 双批收口登记：2FA 绑定完整性加固批（server 1655→1666，+11）+ 四步入驻流程批合入；web 804→830（+26）。823 规则对齐批：1649→1655 / 804 不变；823 登录留痕批：1641→1649 / 798→804；823 问候卡洇墨：web 797→798；822 偏好页合并批：web 794→797；再前：v152 终态 1641/794/13。"
 }

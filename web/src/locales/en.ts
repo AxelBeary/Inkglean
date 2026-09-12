@@ -1729,7 +1729,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     quickPreviewRemove: 'Click to uncheck',
     quickPreviewEmpty: 'Nothing checked — the quick area is hidden on your dashboard',
     notifyLabel: 'New message notifications',
-    notifyDesc: 'Alerts you about new orders, messages, and stage updates.',
+    // 2026-09-12 user decision (outward-copy honesty): the QQ notification channel is not wired up, so no more "alerts you" promise — the copy states what this switch actually controls (same substance as common.notifyDevHint, shortened to this page's voice)
+    notifyDesc: 'This controls whether the “QQ notification” checkbox appears on your clients’ order form. The platform’s QQ notification channel is still in development, so turning it on sends no reminders.',
     defaultPanelLabel: 'Open by default',
     defaultPanelDesc: 'This page opens first next time you enter the back office.',
     // 818-A: back-office font size slider (14–20px, 7 stops, default 15px); 822: nagging how-to hints removed by user decision
@@ -1865,8 +1866,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     bufferSwitchHint: 'These switches only take effect when buffer slots exist.',
     contactQqLabel: 'Contact QQ (visible to clients)', contactQqPlaceholder: 'Leave blank to hide contact QQ',
     contactQqHint: 'Clients who forgot their order number will see this QQ to contact you; leave blank to hide it',
-    notifyLabel: 'Client QQ notifications', notifyText: 'Allow clients to receive queue/completion notifications',
-    notifyPanelTitle: 'Notifications & Panel',
+    // 2026-09-12 dead-key cleanup: the former settings.notifyLabel / notifyText / notifyPanelTitle had zero renderers repo-wide
+    // (the artist-side notification switch actually uses preferences.notifyLabel/notifyDesc; the client order form uses orderForm.notifyLabel),
+    // and nothing in desktop/server/e2e references them either. Keeping them kept misleading people who search by copy —
+    // today's ledger audit dispatched work against these dead keys — so they are removed. English mirror of the zh comment above.
     defaultPanelLabel: 'Dashboard default panel', defaultPanelHint: 'Shortcut shown when entering the dashboard',
     announcementLabel: 'Homepage announcement', announcementPlaceholder: 'e.g.: On break this week, back on Monday',
     announcementHint: 'Shown above the fold on your public page (max 500 chars). Leave empty to hide.',
@@ -2199,8 +2202,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     step1Start: 'Get Started',
     step2Title: 'Create Admin Account',
     step2Desc: 'Set up your admin account. The admin has full platform access.',
-    // 823: heads-up — the next step binds a dynamic code via QR scan, install an authenticator app first (artist feedback: no prior download prompt)
-    step2Prep: 'Heads-up: the next step binds a dynamic code by scanning a QR code — please install an authenticator app on your phone first (Microsoft Authenticator recommended).',
+    // 823: heads-up — install an authenticator app before the QR-scan step (artist feedback: no prior download prompt); 9/12 remainder inserted the "Artist Onboarding" step in between, so the scan is no longer the immediate next step
+    step2Prep: 'Heads-up: a later step binds a dynamic code by scanning a QR code — please install an authenticator app on your phone first (Microsoft Authenticator recommended).',
     appHelpToggle: 'Need an authenticator app? See recommendations',
     step2QqLabel: 'Admin QQ Number',
     step2QqPlaceholder: 'Enter your QQ number',
@@ -2217,6 +2220,16 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     step2NameRequired: 'Please enter your display name',
     step2SubdomainRequired: 'Please enter a studio home ID',
     step2SubdomainFormat: 'Home ID must be 2-20 lowercase letters/digits',
+    // 9/12 remainder (task 2): the onboarding-mode step from REQ-039, placed after the admin step and before authenticator binding (writes platform_config.onboarding_mode via POST /api/setup/onboarding-mode)
+    stepModeTitle: 'Artist Onboarding',
+    stepModeDesc: 'Pick how new artists join the platform; the next step binds your authenticator code.',
+    stepModeInviteLabel: 'Invite codes',
+    stepModeInviteDesc: 'You generate invite codes in the admin panel and hand them out — artists fill in their own details on the login page to join.',
+    stepModeManualLabel: 'Admin-created accounts only',
+    stepModeManualDesc: 'The login page shows no onboarding entry; you add each artist one by one in the admin panel.',
+    stepModeNote: 'Note: this only sets a platform switch and does not touch the admin account you just created. Once the wizard finishes there is no in-app place to change it back — it has to be adjusted on the server.',
+    stepModeSubmit: 'Save onboarding mode',
+    stepModeFailed: 'Failed to save the onboarding mode',
     step3Title: 'Bind Authenticator',
     step3Desc: 'Scan the QR code with your authenticator app, then enter the 6-digit code to verify. No app yet? Open “Need an authenticator app?” below.',
     step3QrAlt: 'TOTP QR Code',
@@ -2250,7 +2263,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     },
     privacy: {
       pageTitle: 'Privacy Policy',
-      updated: '2026-08-23',
+      // 2026-09-12 user decision: the date now follows the actual body edit (previous batch replaced the "you can disable tracking in preferences" promise with the admin site-wide switch truth); terms body untouched this batch, so terms.updated stays
+      updated: '2026-09-12',
       note: 'This policy is a standard template (human-reviewed), not legal advice. The platform will update it when business changes materially.',
       sections: [
         {

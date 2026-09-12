@@ -361,6 +361,7 @@ describe('REQ-039 邀请码注册（invite）', () => {
 
   // ─── 入驻模式开关 ───
 
+  // 写入通道另有其人：见 POST /api/setup/onboarding-mode 与其测试（setup-onboarding-mode.test.ts）；本用例直改库只为测 manual 生效后的行为
   it('TC-INV-12: status 反映 onboarding_mode；manual 时 register 拒绝 ONBOARDING_DISABLED', async () => {
     setAdmin()
     const [invite] = generateInviteCodes(1, 3, 1)

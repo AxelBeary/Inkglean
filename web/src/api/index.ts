@@ -82,6 +82,7 @@ import type {
   LikeArtworkResult,
   LogoutResult,
   OkResult,
+  OnboardingMode,
   OnboardingState,
   PlatformAnnouncement,
   OrderCreateResult,
@@ -121,6 +122,7 @@ import type {
   SaveToolsClientResult,
   SetArtworkTagsResult,
   SetFocusImageRequest,
+  SetOnboardingModeResult,
   SimpleSuccessResult,
   SystemVersionResult,
   SizeAddonOverride,
@@ -359,6 +361,13 @@ export const stepUpApi = {
   /** 验证并升级会话（TOTP 或 Passkey 二选一），成功重签 token 覆盖 cookie */
   verify: (data: import('./types').StepUpRequest): Promise<import('./types').StepUpResult> =>
     postJson('/auth/step-up', data)
+}
+
+// ─── REQ-038/039: 开箱向导（仅未初始化阶段可用） ───
+export const setupApi = {
+  /** 写入画师入驻方式（9/12 余批补的部署期写入通道；初始化完成后服务端永久 410，届时本向导路由也已销毁） */
+  setOnboardingMode: (mode: OnboardingMode): Promise<SetOnboardingModeResult> =>
+    postJson('/setup/onboarding-mode', { mode })
 }
 
 // ─── REQ-039: 邀请码注册（公开） ───
