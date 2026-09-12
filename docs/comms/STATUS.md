@@ -21,7 +21,7 @@
 7. **审计第 3/4 批待拍** — 画师说明书 16 条、运维手册若干、REQ-014 定位、开发自参考处置、soul 双轨收口、许可标识与著作权主体等
 8. **REQ-044 B/C 已解锁** — 两条法律拍板已完成（AGPL-3.0-only + 著作权署名 AxelBeary），README 首屏与详情页文案可开工；仅剩 B 的桌面端截图依赖 `design/r2/` 三版原型选定
 
-**起手必读**：`AGENTS.md`（含新增的「STATUS 体例与归档纪律」）→ 本看板 → 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+**起手必读**：**⚑ 2026-09-12 会话收口交接档（新会话接活先读它）** `docs/comms/交接-20260912-会话收口与待拍清单.md`（含未拍板 9 项禁止照抄施工、已拍板待做清单、环境坑与遗留 worktree）。→ 再看本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
 
 
 > 📌 **2026-09-12 同日第三批：F-09 巨型文件拆分战役 + 两条法律拍板落地（同批 7 路并行）**
