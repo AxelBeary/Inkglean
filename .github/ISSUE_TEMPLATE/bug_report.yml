@@ -31,13 +31,38 @@ body:
     id: version
     attributes:
       label: 你用的是哪个版本？
-      description: 不确定就选「不确定」，别猜。
+      description: 网页端/自建后端的发布版本号；不确定就选「不确定」，别猜。
       options:
+        - v1.0.1
+        - v1.0.0
+        - v1.0.0-beta.4
+        - v1.0.0-beta.3
+        - v1.0.0-beta.2
         - v1.0.0-beta.1
+        - v0.6.1
         - 最新 master（自己部署的）
         - 不确定
     validations:
       required: true
+  - type: input
+    id: desktop-version
+    attributes:
+      label: 桌面端版本（可选）
+      description: 装的是桌面版安装包才填。抄安装包文件名里的版本号即可；没用过桌面版就留空。
+      placeholder: 例如 1.0.1
+    validations:
+      required: false
+  - type: dropdown
+    id: webview2
+    attributes:
+      label: WebView2 运行时（可选）
+      description: 桌面版依赖它渲染。Windows 10/11 通常自带，可在「设置 → 应用 → 已安装的应用」里搜 Microsoft Edge WebView2 Runtime 确认；没用过桌面版就选不确定。
+      options:
+        - 已安装
+        - 未安装
+        - 不确定 / 没装桌面版
+    validations:
+      required: false
   - type: textarea
     id: logs
     attributes:
@@ -50,6 +75,7 @@ body:
     attributes:
       label: 安装方式
       options:
+        - 桌面端安装包（Windows .exe / NSIS）
         - Windows 双击 install.bat
         - node install.mjs（原生）
         - node install.mjs（Docker 模式）

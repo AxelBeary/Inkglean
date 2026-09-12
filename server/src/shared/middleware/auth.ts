@@ -10,11 +10,18 @@ import type { Artist } from '../../types/entities.js'
 // 认证中间件
 // ============================================
 
-const ADMIN_QQ = process.env.ADMIN_QQ || ''
-
+/**
+ * 管理员唯一真值 = platform_config.admin_qq（由开箱向导 REQ-038 / 后台「更换管理员」写入）。
+ * P1 修复批（2026-09-12）：删除原「库值为空时静默回退 process.env.ADMIN_QQ」的兜底——
+ * 双真值会让 .env 里那个 QQ 对应的画师在库值缺失时成为事实上的管理员（权限边界漂移），
+ * 且回退路径不可观测。现库值为空一律返回空串：无人是管理员，requireAdmin 走 403 ADMIN_REQUIRED，
+ * 登录 cookie 的 isAdmin、/api/auth/me、step-up、重绑冷却豁免等 9 处调用点同口径收敛。
+ * 防锁死：库值为空但 env 仍配了 ADMIN_QQ 的实例，由 app.ts 启动自检 log.warn 引导落库
+ * （只告警，不写库、不参与判定）。dev-only 种子仍可读 env：见 db/seed.ts（有 assertSeedAllowed 门禁）。
+ */
 export function getAdminQq(): string {
-  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
-  return row?.value || ADMIN_QQ
+  const row = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string | null } | undefined
+  return row?.value || ''
 }
 
 /**

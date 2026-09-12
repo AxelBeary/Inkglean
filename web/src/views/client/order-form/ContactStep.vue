@@ -13,9 +13,15 @@
       <el-input v-model="clientName" :placeholder="t('orderForm.namePlaceholder')" />
     </el-form-item>
 
-    <!-- QQ通知 -->
+    <!-- QQ通知（REQ-028 过渡期：通知通道未接通 → 灰置 + 默认不勾 + 明示「开发中」，说明文案与画师录单页同键） -->
     <el-form-item v-if="notifyVisible">
-      <el-checkbox v-model="notifyEnabled">{{ t('orderForm.notifyLabel') }}</el-checkbox>
+      <div class="notify-block">
+        <div class="notify-row">
+          <el-checkbox v-model="notifyEnabled" disabled>{{ t('orderForm.notifyLabel') }}</el-checkbox>
+          <el-tag type="info" size="small">{{ t('common.notifyDevTag') }}</el-tag>
+        </div>
+        <p class="notify-hint">{{ t('common.notifyDevHint') }}</p>
+      </div>
     </el-form-item>
 
     <!-- 须知确认（消毒后渲染） -->
@@ -79,7 +85,8 @@ const emit = defineEmits<{
 
 const clientQq = defineModel<string>('clientQq', { default: '' })
 const clientName = defineModel<string>('clientName', { default: '' })
-const notifyEnabled = defineModel<boolean>('notifyEnabled', { default: true })
+/** REQ-028 过渡期：QQ 通知未接通，本项灰置不可勾，默认不勾（通道上线后再放回用户可选） */
+const notifyEnabled = defineModel<boolean>('notifyEnabled', { default: false })
 const agreed = defineModel<boolean>('agreed', { default: false })
 /** REQ-042: 首单同意条款（服务条款/隐私政策） */
 const termsAgreed = defineModel<boolean>('termsAgreed', { default: false })
@@ -98,6 +105,11 @@ const { t } = useI18n()
 @media (max-width: 860px) {
   .step-nav { padding-bottom: 64px; }
 }
+
+/* REQ-028 过渡期：灰置通知块（徽标 + 说明行；色值取 token，间距落 4px 栅格） */
+.notify-block { display: flex; flex-direction: column; gap: 4px; }
+.notify-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.notify-hint { margin: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
 
 .rules-preview { max-height: 200px; overflow-y: auto; }
 .rules-html { line-height: 1.8; color: var(--text-primary); }

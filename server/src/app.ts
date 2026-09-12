@@ -18,6 +18,7 @@ import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
 import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
+import { getAdminQq } from './shared/middleware/auth.js'  // P1 修复批：启动自检——管理员判定真值告警
 import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  // REQ-043 I1: OG 分享卡片
 
 // ============================================
@@ -70,6 +71,19 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
 
   // ─── 数据库初始化 ───
   initDatabase(db)
+
+  // ─── 启动自检：管理员判定真值（P1 修复批 2026-09-12）───
+  // 管理员判定已收敛为唯一真值 platform_config.admin_qq，环境变量 ADMIN_QQ 不再参与判定
+  //（见 shared/middleware/auth.ts getAdminQq：原「库值为空 → 回退 env」已删除）。
+  // 公网生产实例可能正靠 env 提供管理员号 → 库值为空而 env 有值时明确告警引导落库，
+  // 否则升级后「无人是管理员」是静默的（requireAdmin 全量 403），故这条告警为强制交付物。
+  // 只告警：不写库、不回填、不改变判定结果。
+  if (!getAdminQq() && process.env.ADMIN_QQ) {
+    app.log.warn(
+      '管理员判定以 platform_config.admin_qq 为唯一真值，环境变量 ADMIN_QQ 已不再参与判定，' +
+      '请在开箱向导/后台「更换管理员」里把管理员 QQ 落库（当前库值为空，无人具备管理员权限）'
+    )
+  }
 
   // ─── 数据库 TTL 清理（260830 审计 M-1：从 gcUploads 拆出，职责分离）───
   // R-20（审计批E）：埋点表 TTL——events/anon_tokens 只进不出，生产代码零清理，慢性膨胀。

@@ -101,7 +101,7 @@ describe('埋点三态后端 (Tracking Stats Mode)', () => {
     await putMode('off')
     const res = await postEvent()
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, received: 0 })
+    expect(res.json()).toEqual({ ok: true, received: 0, rejected: 0 })
     expect((db.prepare('SELECT COUNT(*) AS c FROM events').get() as { c: number }).c).toBe(0)
   })
 

@@ -81,7 +81,18 @@ $gates = @(
   @{ id = 'web-lint';         label = 'web lint（vue-tsc+eslint）';     dir = 'web';    npmArgs = @('run', 'lint') },
   @{ id = 'web-test';         label = 'web vitest';                     dir = 'web';    npmArgs = @('run', 'test:web'); countKey = 'web' },
   @{ id = 'web-i18n';         label = 'web check-i18n';                 dir = 'web';    npmArgs = @('run', 'check:i18n') },
-  @{ id = 'web-build';        label = 'web build';                      dir = 'web';    npmArgs = @('run', 'build') }
+  @{ id = 'web-build';        label = 'web build';                      dir = 'web';    npmArgs = @('run', 'build') },
+  # F-10（2026-09-05 文档系统交叉审计批，9/12 第 2 批施工）补桌面端与共享包六道门禁。
+  # 此前 11 道里 desktop/shared 一道都没有——两端只在 CI 的 desktop job 里被覆盖，
+  # 本地收口全绿 ≠ 桌面/共享层没坏（本次是补门禁，不是补数字：光往 accept-baseline.json
+  # 塞 desktop/shared 空键是等价 gate 假绿，基线只对带 countKey 的门禁生效）。
+  # 前置：desktop 经 file:../shared 直导源码，须先有 shared/node_modules（npm ci 或 npm install）。
+  @{ id = 'desktop-lint';     label = 'desktop lint';                   dir = 'desktop'; npmArgs = @('run', 'lint') },
+  @{ id = 'desktop-test';     label = 'desktop vitest';                 dir = 'desktop'; npmArgs = @('run', 'test'); countKey = 'desktop' },
+  @{ id = 'desktop-build';    label = 'desktop build（vue-tsc+vite）';  dir = 'desktop'; npmArgs = @('run', 'build') },
+  @{ id = 'shared-lint';      label = 'shared lint';                    dir = 'shared';  npmArgs = @('run', 'lint') },
+  @{ id = 'shared-test';      label = 'shared vitest';                  dir = 'shared';  npmArgs = @('run', 'test'); countKey = 'shared' },
+  @{ id = 'shared-typecheck'; label = 'shared typecheck';               dir = 'shared';  npmArgs = @('run', 'typecheck') }
 )
 if (-not $SkipE2E) {
   $gates += @{ id = 'e2e'; label = 'Playwright E2E'; dir = ''; npmArgs = @('run', 'test:e2e'); countKey = 'e2e' }
