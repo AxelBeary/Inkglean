@@ -282,7 +282,8 @@ R4 收口：STATUS 看板第六次刷新 + 第二轮收口条；accept-baseline.
 ### 10.3 推送与云端后果
 
 - `git push origin master` → `d4984edf..797eae10`，**一次推上三笔**（上一轮 `096c0b77`+`de923472` + 本轮）；本地 `origin/master` == HEAD，ahead 0。
-- 已触发：`CI` run **34773915228**、`E2E` run **34773915162**、`Push on master` 34773914975（推送时仍在 queued/in_progress，**下轮开工先回看是否绿**）。
+- 已触发并**已回看全绿**：`CI` run **34773915228**、`E2E` run **34773915162**、`Push on master` 34773914975 均 `completed/success`（对 `797eae10`）；随后的文档笔 `e37e4ad8` 三条流水线同样全部 `completed/success`。
+- ⚠ dependabot 自行为 web 半区跑了两个安全更新工作流（`npm_and_yarn in /web for vitest` / `for @vitest/mocker`）**均 completed/failure** —— 即它自己没能把这 2 条升上去，更坐实 U20 得人工处理。
 - 🔴 **R5 的「push 后 6 条警报自动清零」预期被实测推翻**：dependabot 重扫后 open **6 → 3**，已清的是 server 半区（#24 sharp、#22 vitest、#19 mocker）；**仍 open 3 条全在 R5 未升级的半区**：
   - #23 `vitest` 与 #20 `@vitest/mocker` → `web/package-lock.json`（现 4.1.10，补丁版 4.1.11，升一级即可消）
   - #25 `sharp` → **根 `package-lock.json` 的孤立条目**（node_modules/sharp@0.35.3，而根 package.json 并无此直依赖）——不是简单位移，需单独一批查依赖来源再清
