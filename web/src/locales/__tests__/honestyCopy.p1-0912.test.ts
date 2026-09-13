@@ -9,9 +9,9 @@ import en from '../en'
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 describe('隐私政策更新日期与正文实改对齐', () => {
-  it('zh-CN / en 的 compliance.privacy.updated 均为 2026-09-12 且格式合法', () => {
-    expect(zhCN.compliance.privacy.updated).toBe('2026-09-12')
-    expect(en.compliance.privacy.updated).toBe('2026-09-12')
+  it('zh-CN / en 的 compliance.privacy.updated 均为 2026-09-13 且格式合法', () => {
+    expect(zhCN.compliance.privacy.updated).toBe('2026-09-13')
+    expect(en.compliance.privacy.updated).toBe('2026-09-13')
     expect(zhCN.compliance.privacy.updated).toMatch(DATE_RE)
     expect(en.compliance.privacy.updated).toMatch(DATE_RE)
   })

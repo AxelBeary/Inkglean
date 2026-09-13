@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   updateArtistRules: vi.fn(),
   getArtistDevices: vi.fn(),
   revokeArtistDevice: vi.fn(),
+  restoreArtwork: vi.fn(),
   msgSuccess: vi.fn(),
   msgError: vi.fn(),
   confirm: vi.fn()
@@ -38,6 +39,10 @@ vi.mock('../../../api/index.js', () => ({
     // 设备 tab（管理端全列 GET 裸数组 + 单台踢出）
     getArtistDevices: h.getArtistDevices,
     revokeArtistDevice: h.revokeArtistDevice
+  },
+  // v76 W5：已下架作品恢复（管理员专属端点）
+  complianceApi: {
+    restoreArtwork: h.restoreArtwork
   }
 }))
 
@@ -183,6 +188,7 @@ beforeEach(() => {
   h.updateArtistRules.mockReset().mockResolvedValue({})
   h.getArtistDevices.mockReset().mockResolvedValue([])
   h.revokeArtistDevice.mockReset().mockResolvedValue({ success: true })
+  h.restoreArtwork.mockReset().mockResolvedValue({ success: true })
   h.msgSuccess.mockReset()
   h.msgError.mockReset()
   h.confirm.mockReset().mockResolvedValue('confirm')
@@ -289,6 +295,45 @@ describe('ArtistDetailDrawer 删除作品防护（P1-B）', () => {
     await wrapper.find('.artwork-item button').trigger('click')
     await flushPromises()
     expect(h.confirm).toHaveBeenCalledWith('admin.artworkDeleteConfirm:admin.artworkUntitled', 'common.confirmDeleteTitle', expect.any(Object))
+  })
+})
+
+describe('ArtistDetailDrawer 作品恢复（v76 W5）', () => {
+  it('已下架作品显徒标与恢复键；确认后调 complianceApi.restoreArtwork(artworkId)', async () => {
+    h.getArtistArtworks.mockResolvedValueOnce([
+      { id: 21, title: '旧作', image_path: '21.png', takedown_at: '2026-09-13T00:00:00.000Z', takedown_reason: '违规内容' }
+    ])
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await switchTab(wrapper, 'artworks')
+
+    // 徒标文案与恢复按钮均存在（非删除按钮）
+    expect(wrapper.find('.artwork-takedown-badge').exists()).toBe(true)
+    await wrapper.find('.artwork-item button').trigger('click')
+    await flushPromises()
+
+    expect(h.confirm).toHaveBeenCalledWith(
+      'compliance.admin.restoreArtworkConfirm:旧作', 'compliance.admin.restoreArtwork', expect.any(Object)
+    )
+    expect(h.restoreArtwork).toHaveBeenCalledWith(21)
+    expect(h.deleteArtistArtwork).not.toHaveBeenCalled()
+    expect(h.msgSuccess).toHaveBeenCalledWith('compliance.admin.restoredToast')
+  })
+
+  it('未下架作品仍显示删除（下架）键，不走恢复链路', async () => {
+    h.getArtistArtworks.mockResolvedValueOnce([
+      { id: 22, title: '新作', image_path: '22.png' }
+    ])
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await switchTab(wrapper, 'artworks')
+
+    expect(wrapper.find('.artwork-takedown-badge').exists()).toBe(false)
+    await wrapper.find('.artwork-item button').trigger('click')
+    await flushPromises()
+
+    expect(h.deleteArtistArtwork).toHaveBeenCalledWith(1, 22)
+    expect(h.restoreArtwork).not.toHaveBeenCalled()
   })
 })
 

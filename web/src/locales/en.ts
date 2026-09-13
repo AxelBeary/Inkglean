@@ -842,7 +842,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     noWorks: 'No artworks yet',
     priceList: 'Price list', artworks: 'Portfolio', rules: 'Commission guidelines', workflow: 'Workflow & Payment',
     aboutDays: '~{n} days', loadFailed: 'Artist not found or failed to load',
-    hidden: "This artist's page is currently unavailable. If you're the owner, enable \"Shop visibility\" under Settings → Public Page.",
+    hidden: "This page is currently unavailable. If you're the owner and have turned off your showcase, you can re-enable it under Settings → Public Page. If your homepage was taken down by the platform, check your dashboard for the reason and next steps.",
     // Status text (dynamic keys from useArtistData.statusText; templates must not hardcode)
     statusOpen: 'Open', statusFull: 'Full', statusBreak: 'On break', statusHidden: 'Hidden',
     navPricing: 'Pricing', navWork: 'Work', navRules: 'How to order', navGuestbook: 'Guestbook',
@@ -1687,6 +1687,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     coverSet: 'Set as cover', coverUnset: 'Remove cover',
     coverSetSuccess: 'Set as cover', coverUnsetSuccess: 'Cover removed',
     coverTag: 'Cover',
+    // v76 W5: platform-taken-down read-only state (artist side display only; restore is admin action)
+    takenDown: 'Taken down',
     // F7: 主图去重
     mainImages: 'Main images', mainTag: 'Main', galleryTitle: 'Artworks',
     // v0.31: multi-cover reorder
@@ -2263,8 +2265,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     },
     privacy: {
       pageTitle: 'Privacy Policy',
-      // 2026-09-12 user decision: the date now follows the actual body edit (previous batch replaced the "you can disable tracking in preferences" promise with the admin site-wide switch truth); terms body untouched this batch, so terms.updated stays
-      updated: '2026-09-12',
+      // 2026-09-12 user decision: the date now follows the actual body edit; 2026-09-13 R1 W6: added three IP-collection disclosures (login/report/guestbook), date synced to the actual edit
+      updated: '2026-09-13',
       note: 'This policy is a standard template (human-reviewed), not legal advice. The platform will update it when business changes materially.',
       sections: [
         {
@@ -2278,6 +2280,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
             'Browsing behavior (tracking: records which pages were visited and which features were used — not chat or message content and not files; switched on or off site-wide by the platform administrator, there is no per-user opt-out; logs retained for 180 days)',
             'Passkey public key (for passwordless login; only the public credential is stored)',
             'Deliverable download records (IP and timestamp at download, for dispute evidence of one-time downloads)',
+            'Artist login IP (recorded on successful login, for account security and dispute evidence; visible only to admins)',
+            'Report submission IP (for dispute evidence and abuse prevention; visible only to admins)',
+            'Guestbook message submission IP (for dispute evidence and abuse prevention; visible only to admins)',
             'Fault and error reports (automatically sent to the third-party service Sentry for troubleshooting when errors occur)'
           ]
         },
@@ -2421,8 +2426,64 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       bannedTag: 'Banned',
       reasonPlaceholder: 'Reason (optional)',
       empty: 'No reports',
-      loadFailed: 'Failed to load reports'
+      loadFailed: 'Failed to load reports',
+      // W2 report source IP column (v75 forensic)
+      colReportIp: 'Source IP',
+      // W3 home-level takedown/restore (v76 mid-ladder)
+      homeTakedown: 'Take home down',
+      homeRestore: 'Restore home',
+      homeTakedownConfirm: 'Add a takedown reason (optional)',
+      homeRestoreConfirm: 'Add a restore reason (optional)',
+      homeTakedownToast: 'Artist home taken down',
+      homeRestoreToast: 'Artist home restored',
+      homeTakenDownTag: 'Home taken down',
+      // W5 admin artwork restore
+      restoreArtwork: 'Restore artwork',
+      restoreArtworkConfirm: 'Restore artwork "{name}"? It will become visible to clients again',
+      restoredToast: 'Artwork restored',
+      // W1 admin action audit trail page (v75 added source IP)
+      adminActions: 'Action Audit Trail',
+      adminActionsSubtitle: 'Full trail of admin actions (time / source IP / action / target / reason)',
+      adminActionsFilterLabel: 'Filter',
+      adminActionsFilterDesc: 'Filter trail records by action and target type',
+      filterActionAll: 'All actions',
+      filterTargetTypeAll: 'All target types',
+      limitN: 'Latest {n}',
+      colTime: 'Time',
+      colAdminIp: 'Admin IP',
+      colAction: 'Action',
+      colTarget: 'Target',
+      colReason: 'Reason',
+      totalCount: '{n} trail records in total',
+      adminActionsEmpty: 'No action trail records',
+      adminActionsLoadFailed: 'Failed to load action trail',
+      action: {
+        report_resolve: 'Resolve report',
+        content_remove: 'Remove content',
+        content_restore: 'Restore content',
+        artist_ban: 'Ban artist',
+        artist_unban: 'Unban artist',
+        home_takedown: 'Take home down',
+        home_restore: 'Restore home',
+        artist_status_set: 'Set artist status',
+        artist_remove: 'Remove artist'
+      },
+      targetType: {
+        report: 'Report',
+        artwork: 'Artwork',
+        message: 'Message',
+        artist: 'Artist'
+      }
     }
+  },
+
+  // v76 W4: artist backend home-takedown banner (no dedicated appeal channel, neutral wording)
+  homeTakedown: {
+    title: 'Your home page has been temporarily taken down by the platform',
+    takenDownAt: 'Taken down at: {time}',
+    reasonLabel: 'Takedown reason: {reason}',
+    reasonNone: '(no specific reason provided)',
+    guidance: 'You can still sign in to fix the relevant content; once addressed, contact the platform admin to request restoration if you have questions.'
   },
 
   // REQ-041: Admin step-up verification (session upgrade)

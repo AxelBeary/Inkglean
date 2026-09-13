@@ -2,7 +2,7 @@
 // 由 api/index.ts（barrel）再导出，调用方 import 路径不变
 
 import { getJson, postJson } from './http'
-import type { SubmitReportRequest, SubmitReportResult, ReportItem, ResolveReportResult, RemoveContentResult, BanArtistResult } from '../types'
+import type { SubmitReportRequest, SubmitReportResult, ReportItem, ResolveReportResult, RemoveContentResult, BanArtistResult, HomeTakedownResult, HomeRestoreResult, AdminActionsResult } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
 // ─── REQ-042 合规与内容安全 ───
@@ -24,5 +24,17 @@ export const complianceApi = {
     postJson(`/admin/artists/${id}/ban`, { reason: reason ?? null }),
   /** 解封画师（is_banned=0 + 留痕） */
   unbanArtist: (id: number, reason?: string | null): Promise<BanArtistResult> =>
-    postJson(`/admin/artists/${id}/unban`, { reason: reason ?? null })
+    postJson(`/admin/artists/${id}/unban`, { reason: reason ?? null }),
+  /** v76 主页内容级下架（不 bump token_version、不拒登录；幂等回 already） */
+  homeTakedown: (id: number, reason?: string | null): Promise<HomeTakedownResult> =>
+    postJson(`/admin/artists/${id}/home-takedown`, { reason: reason ?? null }),
+  /** v76 主页恢复（清空 home_takedown_at/_reason） */
+  homeRestore: (id: number, reason?: string | null): Promise<HomeRestoreResult> =>
+    postJson(`/admin/artists/${id}/home-restore`, { reason: reason ?? null }),
+  /** v76 作品恢复（与 removeContent 成对；下架不物理删，可一键恢复） */
+  restoreArtwork: (id: number, reason?: string | null): Promise<HomeRestoreResult> =>
+    postJson(`/admin/content/artwork/${id}/restore`, { reason: reason ?? null }),
+  /** v75 管理动作留痕查看（?limit&action&targetType&targetId；行内含 admin_ip） */
+  getAdminActions: (params?: { limit?: number; action?: string; targetType?: string; targetId?: number }): Promise<AdminActionsResult> =>
+    getJson('/admin/admin-actions', { params: params ?? {} })
 }

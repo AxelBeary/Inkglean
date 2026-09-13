@@ -35,10 +35,14 @@
       <el-table-column prop="contact" :label="$t('compliance.admin.colContact')" width="120">
         <template #default="{ row }">{{ row.contact || '—' }}</template>
       </el-table-column>
+      <!-- v75 取证：举报来源 IP（老数据可能为空，容空显示「—」） -->
+      <el-table-column prop="report_ip" :label="$t('compliance.admin.colReportIp')" width="140">
+        <template #default="{ row }">{{ row.report_ip || '—' }}</template>
+      </el-table-column>
       <el-table-column prop="created_at" :label="$t('compliance.admin.colCreatedAt')" width="168" />
       <!-- 813-fq-tail-shared 战役 S：≤760px 操作列收成图标按钮（aria-label/title 保留文案），
            防止 240px 固定列在窄屏挤压、横向溢出 -->
-      <el-table-column :label="$t('compliance.admin.colActions')" :width="compactActions ? 128 : 240" fixed="right">
+      <el-table-column :label="$t('compliance.admin.colActions')" :width="compactActions ? 156 : 300" fixed="right">
         <template #default="{ row }">
           <template v-if="row.status === 'pending'">
             <template v-if="compactActions">
@@ -75,6 +79,21 @@
                 :title="$t('compliance.admin.unban')" :aria-label="$t('compliance.admin.unban')"
                 :loading="pendingId === row.id" :disabled="pendingId != null"
                 @click="unbanArtist(row)"
+              />
+              <!-- v76：主页内容级下架/恢复（REQ-042 §三 B 阶梯「警告→内容下架→封禁」中间格，与封禁并列） -->
+              <el-button
+                v-if="row.target_type === 'artist_home' && row.target_id && !takenDownArtistIds.has(Number(row.target_id))"
+                size="small" circle type="warning" plain :icon="House"
+                :title="$t('compliance.admin.homeTakedown')" :aria-label="$t('compliance.admin.homeTakedown')"
+                :loading="pendingId === row.id" :disabled="pendingId != null"
+                @click="homeTakedown(row)"
+              />
+              <el-button
+                v-else-if="row.target_type === 'artist_home' && row.target_id && takenDownArtistIds.has(Number(row.target_id))"
+                size="small" circle type="success" plain :icon="House"
+                :title="$t('compliance.admin.homeRestore')" :aria-label="$t('compliance.admin.homeRestore')"
+                :loading="pendingId === row.id" :disabled="pendingId != null"
+                @click="homeRestore(row)"
               />
             </template>
             <template v-else>
@@ -117,6 +136,23 @@
               >
                 {{ $t('compliance.admin.unban') }}
               </el-button>
+              <!-- v76：主页内容级下架/恢复（与封禁并列的阶梯中间格） -->
+              <el-button
+                v-if="row.target_type === 'artist_home' && row.target_id && !takenDownArtistIds.has(Number(row.target_id))"
+                size="small" type="warning" plain
+                :loading="pendingId === row.id" :disabled="pendingId != null"
+                @click="homeTakedown(row)"
+              >
+                {{ $t('compliance.admin.homeTakedown') }}
+              </el-button>
+              <el-button
+                v-else-if="row.target_type === 'artist_home' && row.target_id && takenDownArtistIds.has(Number(row.target_id))"
+                size="small" type="success" plain
+                :loading="pendingId === row.id" :disabled="pendingId != null"
+                @click="homeRestore(row)"
+              >
+                {{ $t('compliance.admin.homeRestore') }}
+              </el-button>
             </template>
           </template>
           <span v-else class="report-resolved-text">{{ $t('compliance.admin.resolved') }}</span>
@@ -139,7 +175,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { CircleCheck, Delete, ChatDotRound, Warning, Unlock } from '@element-plus/icons-vue'
+import { CircleCheck, Delete, ChatDotRound, Warning, Unlock, House } from '@element-plus/icons-vue'
 import { complianceApi, adminApi } from '../../api/index'
 import type { AdminArtistItem, ReportItem, ReportTargetType } from '../../api/types'
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'
@@ -153,6 +189,8 @@ const statusTab = ref<'pending' | 'resolved'>('pending')
 const reports = ref<ReportItem[]>([])
 // 815-b3-ban：被封禁画师 id 集合（复用 /admin/artists 的 is_banned；举报行据此切换封禁/解封入口）
 const bannedArtistIds = ref(new Set<number>())
+// v76：主页已下架画师 id 集合（复用 /admin/artists 的 home_takedown_at；据此切换下架/恢复入口）
+const takenDownArtistIds = ref(new Set<number>())
 const loading = ref(false)
 // b3 清扫：行级操作挂起 id（prompt/请求期间按钮 loading，防重复提交）
 const pendingId = ref<number | null>(null)
@@ -181,10 +219,12 @@ async function load() {
     ])
     reports.value = reportRows
     bannedArtistIds.value = new Set(artistRows.filter(a => a.is_banned).map(a => a.id))
+    takenDownArtistIds.value = new Set(artistRows.filter(a => a.home_takedown_at).map(a => a.id))
   } catch (err) {
     // b3 清扫：tab 切换加载失败清空旧 tab 数据，避免残留上一 tab 的举报行
     reports.value = []
     bannedArtistIds.value = new Set()
+    takenDownArtistIds.value = new Set()
     ElMessage.error((err as { message?: string }).message || t('compliance.admin.loadFailed'))
   } finally {
     loading.value = false
@@ -304,7 +344,67 @@ async function submitUnban(artistId: number, reason: string | null) {
   }
 }
 
-/** 动作级验证通过：自动重提交被 step-up 拦下的封禁/解封请求 */
+/** 主页下架（v76 阶梯中间格：第一步填原因，第二步必要时 StepUpDialog 升级确认） */
+async function homeTakedown(row: ReportItem) {
+  if (pendingId.value != null) return
+  pendingId.value = row.id
+  const { cancelled, reason } = await askReason(t('compliance.admin.homeTakedown'), t('compliance.admin.homeTakedownConfirm'))
+  if (!cancelled) {
+    await submitHomeTakedown(Number(row.target_id), reason)
+    return
+  }
+  pendingId.value = null
+}
+
+/** 主页下架提交（遇 STEP_UP_REQUIRED → 弹 StepUpDialog，验证通过后自动重提交） */
+async function submitHomeTakedown(artistId: number, reason: string | null) {
+  try {
+    await complianceApi.homeTakedown(artistId, reason)
+    ElMessage.success(t('compliance.admin.homeTakedownToast'))
+    await load()
+    pendingId.value = null
+  } catch (err) {
+    if ((err as { code?: string }).code === 'STEP_UP_REQUIRED') {
+      pendingStepUpAction = () => submitHomeTakedown(artistId, reason)
+      actionStepUpVisible.value = true
+      return
+    }
+    ElMessage.error((err as { message?: string }).message)
+    pendingId.value = null
+  }
+}
+
+/** 主页恢复（与下架对称的两步确认） */
+async function homeRestore(row: ReportItem) {
+  if (pendingId.value != null) return
+  pendingId.value = row.id
+  const { cancelled, reason } = await askReason(t('compliance.admin.homeRestore'), t('compliance.admin.homeRestoreConfirm'))
+  if (!cancelled) {
+    await submitHomeRestore(Number(row.target_id), reason)
+    return
+  }
+  pendingId.value = null
+}
+
+/** 主页恢复提交（与 submitHomeTakedown 同款 step-up 接线） */
+async function submitHomeRestore(artistId: number, reason: string | null) {
+  try {
+    await complianceApi.homeRestore(artistId, reason)
+    ElMessage.success(t('compliance.admin.homeRestoreToast'))
+    await load()
+    pendingId.value = null
+  } catch (err) {
+    if ((err as { code?: string }).code === 'STEP_UP_REQUIRED') {
+      pendingStepUpAction = () => submitHomeRestore(artistId, reason)
+      actionStepUpVisible.value = true
+      return
+    }
+    ElMessage.error((err as { message?: string }).message)
+    pendingId.value = null
+  }
+}
+
+/** 动作级验证通过：自动重提交被 step-up 拦下的封禁/解封/下架/恢复请求 */
 function onActionStepUpVerified() {
   actionStepUpVisible.value = false
   const retry = pendingStepUpAction

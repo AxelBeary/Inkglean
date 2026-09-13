@@ -160,13 +160,14 @@ describe('发布为作品 (REQ-022 F1)', () => {
     expect((db.prepare('SELECT COUNT(*) c FROM artworks').get() as { c: number }).c).toBe(0)
   })
 
-  it('TC-PA-07: service 层二次防御 — 直接调用返回 ORDER_NOT_OWNED 403', () => {
+  it('TC-PA-07: service 层二次防御 — 直接调用返回 ORDER_NOT_OWNED 403', async () => {
     const owner = makeArtist('66008')
     const other = makeArtist('66009')
     const order = seedOrder(owner.id, { status: 'delivered' })
     const d1 = seedDeliverable(order.id, owner.id)
 
-    expect(() => orderGalleryService.publishArtwork(order.id, other.id, [d1.id], '偷'))
+    // R5 假绿修复：原断言漏 await（vitest 4 只警告、5 直接 fail），补上后才真正验证二次防御
+    await expect(() => orderGalleryService.publishArtwork(order.id, other.id, [d1.id], '偷'))
       .rejects.toMatchObject({ code: 'ORDER_NOT_OWNED', statusCode: 403 })
   })
 

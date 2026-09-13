@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   getArtists: vi.fn(),
   banArtist: vi.fn(),
   unbanArtist: vi.fn(),
+  homeTakedown: vi.fn(),
   msgSuccess: vi.fn(),
   msgError: vi.fn(),
   prompt: vi.fn()
@@ -19,7 +20,8 @@ vi.mock('../../../api/index.js', () => ({
   complianceApi: {
     getReports: h.getReports,
     banArtist: h.banArtist,
-    unbanArtist: h.unbanArtist
+    unbanArtist: h.unbanArtist,
+    homeTakedown: h.homeTakedown
   },
   adminApi: {
     getArtists: h.getArtists
@@ -62,7 +64,7 @@ const EP_STUBS = {
   'el-tab-pane': { template: '<div><slot /></div>' },
   'el-table': { template: '<div class="table-stub"><slot /></div>' },
   'el-table-column': {
-    template: '<div class="col-stub"><slot :row="{ id: 1, target_type: \'artist_home\', target_id: 10, description: \'d\', contact: null, status: \'pending\', created_at: \'2026-08-15\' }" /></div>'
+    template: '<div class="col-stub"><slot :row="{ id: 1, target_type: \'artist_home\', target_id: 10, description: \'d\', contact: null, report_ip: \'203.0.113.9\', status: \'pending\', created_at: \'2026-08-15\' }" /></div>'
   },
   'el-empty': { template: '<div />' },
   'el-icon': { template: '<i><slot /></i>' }
@@ -113,6 +115,7 @@ beforeEach(() => {
   h.getArtists.mockReset().mockResolvedValue([{ id: 10, is_banned: 1 }])
   h.banArtist.mockReset().mockResolvedValue({ success: true, isBanned: 1 })
   h.unbanArtist.mockReset().mockResolvedValue({ success: true, isBanned: 0 })
+  h.homeTakedown.mockReset().mockResolvedValue({ success: true })
   h.msgSuccess.mockReset()
   h.msgError.mockReset()
   h.prompt.mockReset().mockResolvedValue({ value: '原因' })
@@ -195,5 +198,23 @@ describe('ReportManage 封禁/解封两步确认（815-b3-ban）', () => {
     expect(h.unbanArtist).toHaveBeenCalledTimes(2)
     expect(h.msgSuccess).toHaveBeenCalledWith('compliance.admin.unbannedToast')
     expect(wrapper.find('.stepup-stub').exists()).toBe(false)
+  })
+
+  it('v75 W2：举报来源 IP 列渲染行内 report_ip', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('203.0.113.9')
+  })
+
+  it('v76 W3：artist_home 举报行并列提供「下架主页」键，两步确认调接口', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await clickButtonByText(wrapper, 'compliance.admin.homeTakedown')
+    await flushPromises()
+
+    expect(h.prompt).toHaveBeenCalledWith('compliance.admin.homeTakedownConfirm', 'compliance.admin.homeTakedown', expect.anything())
+    expect(h.homeTakedown).toHaveBeenCalledWith(10, '原因')
+    expect(h.msgSuccess).toHaveBeenCalledWith('compliance.admin.homeTakedownToast')
   })
 })

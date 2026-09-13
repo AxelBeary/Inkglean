@@ -89,7 +89,20 @@
               :preview-src-list="artworkUrls" :initial-index="artworks.indexOf(a)"
               preview-teleported
             />
+            <!-- v76：已下架作品显徽标（悬浮看原因），给恢复键（下架不物理删，可一键恢复） -->
+            <span v-if="a.takedown_at" class="artwork-takedown-badge" :title="a.takedown_reason || ''">{{ $t('artworks.takenDown') }}</span>
             <el-button
+              v-if="a.takedown_at"
+              text size="small" type="success"
+              :aria-label="$t('compliance.admin.restoreArtwork')"
+              :loading="removingArtworkId === a.id"
+              :disabled="removingArtworkId !== null"
+              @click="restoreArtwork(a)"
+            >
+              ↺
+            </el-button>
+            <el-button
+              v-else
               text size="small" type="danger"
               :aria-label="$t('common.delete')"
               :loading="removingArtworkId === a.id"
@@ -179,7 +192,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { PropType } from 'vue'
-import { adminApi } from '../../api/index'
+import { adminApi, complianceApi } from '../../api/index'
 import type { AdminArtistItem, Artwork, ArtistPricingOverviewItem, AdminDesktopDevice } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -383,6 +396,26 @@ async function removeArtwork(a: Artwork) {
   finally { removingArtworkId.value = null }
 }
 
+/** v76：恢复已下架作品（管理员专属端点；与 removeArtwork 的下架语义成对） */
+async function restoreArtwork(a: Artwork) {
+  const name = a.title?.trim() || a.description?.trim() || t('admin.artworkUntitled')
+  try {
+    await ElMessageBox.confirm(
+      t('compliance.admin.restoreArtworkConfirm', { name }),
+      t('compliance.admin.restoreArtwork'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch { return } // 用户取消，非错误
+  if (removingArtworkId.value === a.id) return
+  removingArtworkId.value = a.id
+  try {
+    await complianceApi.restoreArtwork(a.id)
+    ElMessage.success(t('compliance.admin.restoredToast'))
+    await loadArtworks()
+  } catch (err) { ElMessage.error((err as Error).message) }
+  finally { removingArtworkId.value = null }
+}
+
 async function saveRules() {
   // P1-B：未加载成功禁止保存（防止覆盖现有须知）
   if (rulesLoadFailed.value) {
@@ -442,6 +475,12 @@ async function saveRules() {
 .artwork-item { position: relative; }
 .artwork-img { width: 100%; height: 120px; border-radius: var(--r-m); }
 .artwork-item .el-button { position: absolute; top: 4px; right: 4px; }
+/* v76：已下架徽标（左上角，朱砂底提示不可对客户展示） */
+.artwork-takedown-badge {
+  position: absolute; top: 4px; left: 4px; z-index: 1;
+  padding: 2px 6px; font-size: 12px; line-height: 1.4; color: var(--zs);
+  background: var(--zs-t); border-radius: var(--r-s);
+}
 .hint { font-size: 12px; color: var(--ink2); margin-top: 8px; }
 
 /* P1-B：加载失败横幅（复用公告页 P0 同款模式） */
