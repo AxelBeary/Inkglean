@@ -115,6 +115,12 @@
           <LayoutTools :announcement="announcement" :announcement-unread="announcementUnread" :open-announcement="openAnnouncement" />
         </MobileTopbar>
         <el-main class="main-content">
+          <!-- v76 W4：主页被平台下架横幅（v-if 判定与页宽下发留本页，标记与样式见 layout/HomeTakedownBanner.vue） -->
+          <HomeTakedownBanner
+            v-if="store.profile?.home_takedown"
+            :takedown="store.profile.home_takedown"
+            :page-width-style="pageWidthStyle"
+          />
           <!-- 02C: 内容区过渡（导航稳定；keyed div 触发 fade-slide——后台路由切换只动这里） -->
           <transition name="fade-slide" mode="out-in">
             <!-- 页宽归一批：内容容器 = 页宽唯一生效点（三档对齐 + --page-max-w 由 pageWidthStyle 内联下发，
@@ -218,6 +224,8 @@ import { Expand, Fold, Management } from '@element-plus/icons-vue'
 import LayoutTools from './layout/LayoutTools.vue'
 import MobileTopbar from './layout/MobileTopbar.vue'
 import AnnouncementDialog from './layout/AnnouncementDialog.vue'
+// v76 W4 主页下架横幅（T-08 体量防线：标记与样式随元素搬入，v-if 与页宽下发仍在本页）
+import HomeTakedownBanner from './layout/HomeTakedownBanner.vue'
 import { trackPageView, BASE_MENU_ITEMS, MENU_GROUPS, type ArtistMenuItem } from './layout/artistMenu'
 // 818-E: 新手导览浮层（Teleport 到 body，挂单根内仅为避免 fragment）
 import TourOverlay from './artist/tour/TourOverlay.vue'

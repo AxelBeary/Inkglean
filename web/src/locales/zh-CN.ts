@@ -841,7 +841,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     noWorks: '暂无作品',
     priceList: '价格表', artworks: '作品展示', rules: '约稿须知', workflow: '约稿流程与收款',
     aboutDays: '约 {n} 天', loadFailed: '画师不存在或加载失败',
-    hidden: '该画师暂未开放主页。如你是店主，请到「设置 → 主页展示」开启「小店展示」。',
+    hidden: '该主页当前不可访问。若你是店主且主动关闭了展示，可到「设置 → 主页展示」重新开启；若主页是被平台下架，请在你的后台查看原因与指引。',
     // 状态文字（useArtistData.statusText 动态键，模板不直写）
     statusOpen: '可约稿', statusFull: '已排满', statusBreak: '休息中', statusHidden: '已隐藏',
     navPricing: '价格', navWork: '作品', navRules: '约稿须知', navGuestbook: '留言板',
@@ -1686,6 +1686,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     coverSet: '设为封面', coverUnset: '取消封面',
     coverSetSuccess: '已设为封面', coverUnsetSuccess: '已取消封面',
     coverTag: '封面',
+    // v76 W5：平台已下架只读态（画师端仅展示，恢复由管理员操作）
+    takenDown: '已下架',
     // F7: 主图去重
     mainImages: '主图', mainTag: '主图', galleryTitle: '作品列表',
     // v0.31: 多封面排序
@@ -2258,8 +2260,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     },
     privacy: {
       pageTitle: '隐私政策',
-      // 9/12 用户拍板：更新日期跟随正文实改（上一批把「埋点可在偏好中关闭」改成管理员全站开关的实话）；本批未动服务条款正文，故 terms.updated 不跟着改
-      updated: '2026-09-12',
+      // 9/12 用户拍板：更新日期跟随正文实改； 9/13 R1 W6：补三条 IP 收集披露（登录/举报/留言），日期随之同步到正文实改日
+      updated: '2026-09-13',
       note: '本政策为平台标准版模板文案（人工审校），非法律意见；业务重大变化时平台将更新条款。',
       sections: [
         {
@@ -2273,6 +2275,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
             '浏览行为（埋点：只记录访问了哪些页面、点了哪个功能，不含聊天与留言内容和文件；由平台管理员统一开关，个人端暂不提供关闭入口；日志保留 180 天）',
             'Passkey 公钥（用于免密登录，仅存公钥凭证）',
             '交付文件下载记录（下载时的 IP 与时间，用于一次性下载的纠纷取证）',
+            '画师登录 IP（登录成功时记录，用于账号安全与纠纷取证，仅管理端可见）',
+            '举报提交 IP（用于纠纷取证与防滥用，仅管理端可见）',
+            '留言提交 IP（用于纠纷取证与防滥用，仅管理端可见）',
             '故障与错误报告（网站出错时自动上报至第三方服务商 Sentry，仅用于排查故障）'
           ]
         },
@@ -2416,8 +2421,64 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       bannedTag: '已封禁',
       reasonPlaceholder: '原因（可留空）',
       empty: '暂无举报',
-      loadFailed: '举报列表加载失败'
+      loadFailed: '举报列表加载失败',
+      // W2 举报来源 IP 列（v75 取证）
+      colReportIp: '来源 IP',
+      // W3 主页内容级下架/恢复（v76 阶梯中间格）
+      homeTakedown: '下架主页',
+      homeRestore: '恢复主页',
+      homeTakedownConfirm: '填写下架原因（可选）',
+      homeRestoreConfirm: '填写恢复原因（可选）',
+      homeTakedownToast: '主页已下架',
+      homeRestoreToast: '主页已恢复',
+      homeTakenDownTag: '主页已下架',
+      // W5 管理端作品恢复
+      restoreArtwork: '恢复作品',
+      restoreArtworkConfirm: '确认恢复作品「{name}」？恢复后将重新对客户可见',
+      restoredToast: '作品已恢复',
+      // W1 处置留痕页（v75 补 IP 后账本可查来源）
+      adminActions: '处置留痕',
+      adminActionsSubtitle: '查看管理员处置动作的完整留痕（时间 / 来源 IP / 动作 / 对象 / 原因）',
+      adminActionsFilterLabel: '筛选',
+      adminActionsFilterDesc: '按动作与对象类型筛选留痕记录',
+      filterActionAll: '全部动作',
+      filterTargetTypeAll: '全部对象类型',
+      limitN: '最近 {n} 条',
+      colTime: '时间',
+      colAdminIp: '管理员 IP',
+      colAction: '动作',
+      colTarget: '对象',
+      colReason: '原因',
+      totalCount: '共 {n} 条留痕',
+      adminActionsEmpty: '暂无处置留痕记录',
+      adminActionsLoadFailed: '处置留痕加载失败',
+      action: {
+        report_resolve: '处理举报',
+        content_remove: '下架内容',
+        content_restore: '恢复内容',
+        artist_ban: '封禁画师',
+        artist_unban: '解封画师',
+        home_takedown: '下架主页',
+        home_restore: '恢复主页',
+        artist_status_set: '设置画师状态',
+        artist_remove: '移除画师'
+      },
+      targetType: {
+        report: '举报',
+        artwork: '作品',
+        message: '留言',
+        artist: '画师'
+      }
     }  },
+
+  // v76 W4：画师后台主页被平台下架横幅（申诉渠道无专门公示入口，措辞中性不虚构）
+  homeTakedown: {
+    title: '您的主页已被平台暂时下架',
+    takenDownAt: '下架时间：{time}',
+    reasonLabel: '下架原因：{reason}',
+    reasonNone: '（未填写具体原因）',
+    guidance: '您仍可登录后台整改相关内容；整改完成后如有疑问，请联系平台管理员申请恢复。'
+  },
 
   // REQ-041: 管理后台二次验证（会话升级）
   stepup: {

@@ -105,4 +105,6 @@ export type ArtistProfileResult = PublicArtistDTO & {
   guestbookEnabled: boolean
   /** 820-L: 统计功能管理员开关（默认 false=关闭，画师后台隐藏整个统计导航） */
   statsEnabled: boolean
+  /** v76：画师是权利人，后台可见自己主页是否被平台下架及原因（供后台横幅）；公开主页不回传 */
+  home_takedown: { at: string; reason: string | null } | null
 }

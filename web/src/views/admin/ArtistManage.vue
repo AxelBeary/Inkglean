@@ -55,6 +55,8 @@
             <el-tag v-if="row.isAdmin" type="danger" size="small" class="cell-tag">{{ $t('admin.adminTag') }}</el-tag>
             <!-- 815-b3-ban：被封禁画师行显式标识（解封入口可定位） -->
             <el-tag v-if="row.is_banned" type="warning" size="small" class="cell-tag">{{ $t('compliance.admin.bannedTag') }}</el-tag>
+            <!-- v76：主页被平台下架画师行显式标识（恢复入口可定位） -->
+            <el-tag v-if="row.home_takedown_at" type="info" size="small" class="cell-tag">{{ $t('compliance.admin.homeTakenDownTag') }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="subdomain" :label="$t('admin.colSubdomain')" min-width="140">
@@ -85,7 +87,7 @@
         <!-- 813-fq-tail-shared 战役 S：≤760px 操作列收成图标按钮（aria-label/title 保留文案），
              防止 360px 固定列在窄屏挤压、横向溢出；817-B2：封禁/解封/移除集中同一操作区（分隔片 4px），
              窄屏宽度 176→180、宽屏 360→364（均 4px 倍数） -->
-        <el-table-column :label="$t('common.actions')" :width="compactActions ? 180 : 364" fixed="right">
+        <el-table-column :label="$t('common.actions')" :width="compactActions ? 208 : 428" fixed="right">
           <template #default="{ row }">
             <div class="row-actions">
               <template v-if="compactActions">
@@ -114,6 +116,21 @@
                   :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
                   @click="unbanArtist(row)"
                 />
+                <!-- v76：主页内容级下架/恢复（与封禁并列的阶梯中间格，两步确认） -->
+                <el-button
+                  v-if="!row.home_takedown_at && !row.isAdmin"
+                  size="small" circle type="warning" plain :icon="House"
+                  :title="$t('compliance.admin.homeTakedown')" :aria-label="$t('compliance.admin.homeTakedown')"
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="homeTakedown(row)"
+                />
+                <el-button
+                  v-else-if="row.home_takedown_at && !row.isAdmin"
+                  size="small" circle type="success" plain :icon="House"
+                  :title="$t('compliance.admin.homeRestore')" :aria-label="$t('compliance.admin.homeRestore')"
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="homeRestore(row)"
+                />
                 <el-button size="small" circle type="danger" plain :icon="Delete" :title="$t('common.remove')" :aria-label="$t('common.remove')" @click="remove(row)" :disabled="row.isAdmin" />
               </template>
               <template v-else>
@@ -140,6 +157,23 @@
                   @click="unbanArtist(row)"
                 >
                   {{ $t('compliance.admin.unban') }}
+                </el-button>
+                <!-- v76：主页内容级下架/恢复（与封禁并列的阶梯中间格，两步确认） -->
+                <el-button
+                  v-if="!row.home_takedown_at && !row.isAdmin"
+                  size="small" type="warning" plain
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="homeTakedown(row)"
+                >
+                  {{ $t('compliance.admin.homeTakedown') }}
+                </el-button>
+                <el-button
+                  v-else-if="row.home_takedown_at && !row.isAdmin"
+                  size="small" type="success" plain
+                  :loading="banUpdatingId === row.id" :disabled="banUpdatingId != null"
+                  @click="homeRestore(row)"
+                >
+                  {{ $t('compliance.admin.homeRestore') }}
                 </el-button>
                 <el-button size="small" type="danger" plain @click="remove(row)" :disabled="row.isAdmin">{{ $t('common.remove') }}</el-button>
               </template>
@@ -302,8 +336,10 @@ import { adminApi, complianceApi, type ApiError } from '../../api/index'
 import type { AdminArtistItem, AdminOrderItem, ArtistStatus } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { View, Tickets, Key, Delete, Unlock, Lock } from '@element-plus/icons-vue'
+import { View, Tickets, Key, Delete, Unlock, Lock, House } from '@element-plus/icons-vue'
 import { ARTIST_STATUS_TYPE } from '../../constants/order'
+// v76 W3：主页下架/恢复两步确认链（T-08 体量防线拆出）
+import { askOptionalReason, useHomeTakedown } from '../../composables/useHomeTakedown'
 import { formatDateTime } from '../../utils/datetime'
 import { formatCents } from '../../utils/money'
 import ArtistDetailDrawer from './ArtistDetailDrawer.vue'
@@ -579,20 +615,9 @@ function onActionStepUpCancel() {
   if (banUpdatingId.value != null) banUpdatingId.value = null
 }
 
-/** 可选原因输入（与举报管理页同款 prompt；取消=中止，空值=不带原因直接操作） */
-async function askReason(title: string, message: string) {
-  try {
-    const { value } = await ElMessageBox.prompt(message, title, {
-      inputPlaceholder: t('compliance.admin.reasonPlaceholder'),
-      inputValidator: () => true,
-      confirmButtonText: t('common.confirm'),
-      cancelButtonText: t('common.cancel'),
-      inputValue: ''
-    })
-    return { cancelled: false, reason: (value || '').trim() || null }
-  } catch {
-    return { cancelled: true, reason: null }
-  }
+/** 可选原因输入（T-08 拆分：实现收至 composables/useHomeTakedown，封禁/解封与主页下架共用同一口径） */
+function askReason(title: string, message: string) {
+  return askOptionalReason(title, message)
 }
 
 /** 封禁画师（与解封对称的两步确认：填原因 → 必要时 StepUpDialog 升级 → 调接口；禁止单步直接封禁） */
@@ -660,6 +685,14 @@ async function submitUnban(artistId: number, reason: string | null) {
     banUpdatingId.value = null
   }
 }
+
+// v76 W3：主页内容级下架/恢复（与封禁并列的阶梯中间格）——T-08 拆分：两步确认与 step-up 链在
+// composables/useHomeTakedown.ts，本行只接行级 loading、列表刷新与被拦动作的排队口。
+const { homeTakedown, homeRestore } = useHomeTakedown({
+  updatingId: banUpdatingId,
+  reload: loadArtists,
+  requestStepUp: (retry) => { pendingStepUpAction = retry; actionStepUpVisible.value = true }
+})
 
 // ─── TOTP 绑定/重置（REQ-027 R2/R5）：F-09 拆分至 TotpBindDialog.vue，父页只留入口与目标画师 ───
 const totpVisible = ref(false)

@@ -35,6 +35,8 @@ export interface ReportItem {
   resolved_by: number | null
   resolved_at: string | null
   created_at: string
+  /** v75 取证 IP：举报来源，仅管理端接口带出；老数据可能为空 */
+  report_ip?: string | null
 }
 
 /** POST /api/admin/reports/:id/resolve 响应 */
@@ -52,3 +54,32 @@ export interface RemoveContentResult {
 export interface BanArtistResult {
   success: boolean
   isBanned: 0 | 1}
+
+/** POST /api/admin/artists/:id/home-takedown 响应（幂等：已是下架态回 already） */
+export interface HomeTakedownResult {
+  success: boolean
+  already?: boolean
+}
+
+/** POST /api/admin/artists/:id/home-restore | /admin/content/artwork/:id/restore 响应 */
+export interface HomeRestoreResult {
+  success: boolean
+}
+
+/** 管理动作留痕行（GET /api/admin/admin-actions；v75 补 admin_ip 后账本可查来源） */
+export interface AdminActionItem {
+  id: number
+  admin_id: number
+  action: string
+  target_type: string | null
+  target_id: number | null
+  reason: string | null
+  admin_ip: string | null
+  created_at: string
+}
+
+/** GET /api/admin/admin-actions 响应 */
+export interface AdminActionsResult {
+  rows: AdminActionItem[]
+  total: number
+}

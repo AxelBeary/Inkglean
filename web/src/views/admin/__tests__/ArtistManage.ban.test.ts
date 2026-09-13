@@ -13,6 +13,8 @@ const hoisted = vi.hoisted(() => ({
   getArtists: vi.fn(),
   banArtist: vi.fn(),
   unbanArtist: vi.fn(),
+  homeTakedown: vi.fn(),
+  homeRestore: vi.fn(),
   msgSuccess: vi.fn(),
   msgError: vi.fn(),
   msgWarning: vi.fn(),
@@ -26,7 +28,9 @@ vi.mock('../../../api/index.js', () => ({
   },
   complianceApi: {
     banArtist: hoisted.banArtist,
-    unbanArtist: hoisted.unbanArtist
+    unbanArtist: hoisted.unbanArtist,
+    homeTakedown: hoisted.homeTakedown,
+    homeRestore: hoisted.homeRestore
   }
 }))
 
@@ -76,9 +80,10 @@ interface ArtistRow {
   is_banned: number
   status: string
   totp_verified: boolean
+  home_takedown_at: string | null
 }
 
-let currentRow: ArtistRow = { id: 0, name: '', subdomain: '', qq_number: '', bio: null, isAdmin: false, is_banned: 0, status: '', totp_verified: false }
+let currentRow: ArtistRow = { id: 0, name: '', subdomain: '', qq_number: '', bio: null, isAdmin: false, is_banned: 0, status: '', totp_verified: false, home_takedown_at: null }
 const RowColStub = {
   name: 'RowColStub',
   setup(_props: Record<string, unknown>, { slots }: SetupContext) {
@@ -145,10 +150,12 @@ function stepUpRequiredError() {
 }
 
 beforeEach(() => {
-  currentRow = { id: 7, name: 'Diana', subdomain: 'diana', qq_number: '10007', bio: null, isAdmin: false, is_banned: 0, status: 'open', totp_verified: false }
+  currentRow = { id: 7, name: 'Diana', subdomain: 'diana', qq_number: '10007', bio: null, isAdmin: false, is_banned: 0, status: 'open', totp_verified: false, home_takedown_at: null }
   hoisted.getArtists.mockReset().mockResolvedValue([currentRow])
   hoisted.banArtist.mockReset().mockResolvedValue({ success: true, isBanned: 1 })
   hoisted.unbanArtist.mockReset().mockResolvedValue({ success: true, isBanned: 0 })
+  hoisted.homeTakedown.mockReset().mockResolvedValue({ success: true })
+  hoisted.homeRestore.mockReset().mockResolvedValue({ success: true })
   hoisted.msgSuccess.mockReset()
   hoisted.msgError.mockReset()
   hoisted.msgWarning.mockReset()
@@ -230,5 +237,51 @@ describe('ArtistManage 封禁统一入口（817-B2 REQ-新-01）', () => {
     expect(hoisted.banArtist).toHaveBeenLastCalledWith(7, '恶意引流')
     expect(hoisted.msgSuccess).toHaveBeenCalledWith('compliance.admin.bannedToast')
     expect(wrapper.find('.stepup-stub').exists()).toBe(false)
+  })
+
+  it('v76 非下架行显示「下架主页」、不显示「恢复主页」；两步确认调接口并刷新', async () => {
+    const wrapper = await mountPage()
+    const texts = buttonTexts(wrapper)
+    expect(texts).toContain('compliance.admin.homeTakedown')
+    expect(texts).not.toContain('compliance.admin.homeRestore')
+
+    await clickButtonByText(wrapper, 'compliance.admin.homeTakedown')
+    await flushPromises()
+
+    expect(hoisted.prompt).toHaveBeenCalledWith('compliance.admin.homeTakedownConfirm', 'compliance.admin.homeTakedown', expect.anything())
+    expect(hoisted.homeTakedown).toHaveBeenCalledTimes(1)
+    expect(hoisted.homeTakedown).toHaveBeenCalledWith(7, '恶意引流')
+    expect(hoisted.msgSuccess).toHaveBeenCalledWith('compliance.admin.homeTakedownToast')
+    expect(hoisted.getArtists).toHaveBeenCalledTimes(2) // 初始加载 + 下架后刷新
+  })
+
+  it('v76 已下架行显示「恢复主页」、不显示「下架主页」', async () => {
+    currentRow = { ...currentRow, home_takedown_at: '2026-09-13T00:00:00.000Z' }
+    hoisted.getArtists.mockResolvedValue([currentRow])
+    const wrapper = await mountPage()
+    const texts = buttonTexts(wrapper)
+    expect(texts).toContain('compliance.admin.homeRestore')
+    expect(texts).not.toContain('compliance.admin.homeTakedown')
+
+    await clickButtonByText(wrapper, 'compliance.admin.homeRestore')
+    await flushPromises()
+    expect(hoisted.homeRestore).toHaveBeenCalledWith(7, '恶意引流')
+    expect(hoisted.msgSuccess).toHaveBeenCalledWith('compliance.admin.homeRestoreToast')
+  })
+
+  it('v76 主页下架遇 STEP_UP_REQUIRED：弹 StepUpDialog，验证通过自动重提交', async () => {
+    hoisted.homeTakedown.mockRejectedValueOnce(stepUpRequiredError())
+    const wrapper = await mountPage()
+    await clickButtonByText(wrapper, 'compliance.admin.homeTakedown')
+    await flushPromises()
+
+    expect(hoisted.homeTakedown).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.stepup-stub').exists()).toBe(true)
+
+    wrapper.getComponent({ name: 'StepUpDialog' }).vm.$emit('verified')
+    await flushPromises()
+
+    expect(hoisted.homeTakedown).toHaveBeenCalledTimes(2)
+    expect(hoisted.msgSuccess).toHaveBeenCalledWith('compliance.admin.homeTakedownToast')
   })
 })

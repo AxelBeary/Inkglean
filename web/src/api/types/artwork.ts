@@ -16,6 +16,9 @@ export interface Artwork {
   description: string | null
   width: number | null
   height: number | null
+  /** v76 内容级下架：非空 = 该作品被平台下架（行保留，可恢复）；公开端已滤，画师/管理端透出供打标 */
+  takedown_at?: string | null
+  takedown_reason?: string | null
 }
 
 /** 画师端作品行（附带档位标注 ID） */

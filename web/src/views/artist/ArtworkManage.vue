@@ -55,6 +55,8 @@
         <span class="main-artwork-tag">
           {{ $t('artworks.mainTag') }}<template v-if="coverCount > 1"> {{ coverOrderOf(art) }}</template>
         </span>
+        <!-- v76：平台已下架只读徽标（悬浮看原因；恢复由管理员操作，画师端不可自恢复） -->
+        <span v-if="art.takedown_at" class="artwork-takedown-badge" :title="art.takedown_reason || ''">{{ $t('artworks.takenDown') }}</span>
         <!-- v0.31: 多封面排序按钮（≥2 张主图时显示，调整轮播顺序）——F7 去重后主图不进网格，排序入口必须在主图区 -->
         <div v-if="coverCount > 1" class="artwork-cover-reorder">
           <button
@@ -122,6 +124,8 @@
             :initial-index="artworks.indexOf(art)"
             preview-teleported
           />
+          <!-- v76：平台已下架只读徽标（悬浮看原因；恢复由管理员操作） -->
+          <span v-if="art.takedown_at" class="artwork-takedown-badge" :title="art.takedown_reason || ''">{{ $t('artworks.takenDown') }}</span>
           <!-- R45: 多选模式——选择层（覆盖图片，点击切换选中，阻断预览） -->
           <button
             v-if="manageMode" type="button" class="artwork-select-layer"
@@ -628,6 +632,14 @@ onMounted(async () => {
 }
 .main-artwork-card:hover .artwork-actions,
 .main-artwork-card:focus-within .artwork-actions { opacity: 1; }
+/* v76：平台已下架只读徽标（图底部左侧，避开封面标/星标；朱砂底提示不可对客户展示） */
+.artwork-takedown-badge {
+  position: absolute; bottom: 8px; left: 8px; z-index: 3;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  background: var(--zs); color: #fff;
+  font-size: calc(var(--font-scale, 1) * 11px); font-weight: 600;
+  cursor: help;
+}
 
 /* ─── 作品网格：卡片视觉（圆角/阴影/间距；hover 只动边框颜色） ─── */
 .artwork-gallery { margin-top: 16px; }

@@ -12,6 +12,9 @@ export type AdminArtistItem = PublicArtistDTO & {
   isAdmin: boolean
   last_login_at: string | null
   last_login_ip: string | null
+  /** v76 内容级下架：非空 = 主页被平台下架；reason 仅管理端接口显式重附 */
+  home_takedown_at: string | null
+  home_takedown_reason: string | null
 }
 
 export interface DeleteArtistResult {
